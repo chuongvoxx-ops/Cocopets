@@ -231,6 +231,8 @@ sheetWrap.addEventListener('click', e => {
     else if (k === 'feed') { if (feedPet(st, go.dataset.k)) renderCard(); }
     else if (k.startsWith('dev-')) devAction(k.slice(4), go);
     else if (k === 'reset') resetTap();
+    else if (k === 'login') openLogin();
+    else if (k === 'login-claim') claimLogin();
     else if (k === 'save-out') saveOut();
     else if (k === 'save-in') { $('#saveBox').hidden = false; $('#saveLoadBtn').hidden = false; const ta = $('#saveCode'); ta.value = ''; ta.placeholder = 'Paste a save code here'; $('#saveMsg').textContent = ''; ta.focus(); }
     else if (k === 'save-load') saveIn($('#saveCode').value);
@@ -405,6 +407,7 @@ function renderCard() {
     <div class="setting"><div><span>Widgets</span><p class="note">How the pet stays on your home and lock screen.</p></div><button class="btn" type="button" data-go="widgets">${ICON.widget}Preview</button></div>
     <div class="setting"><div><span>Design lab</span><p class="note">Random pets and full evolution lines, to see the variety.</p></div><button class="btn" type="button" data-go="lab">${ICON.dice}Open</button></div>
     <div class="setting"><div><span>Developer tools</span><p class="note">Preview and unlock every evolution, unlock stages and floors, free gift boxes, ripen crops, hatch free eggs, add coins and gems. For testing only.</p></div><button class="btn" type="button" data-go="dev">${ICON.wrench}Open</button></div>
+    <div class="setting"><div><span>Daily rewards</span><p class="note">This month's calendar: ${LOGIN_CRYSTALS} crystals every third day, goodies between, ${fmtNum(LOGIN_FINAL)} crystals at the month's end.</p></div><button class="btn" type="button" data-go="login">Open</button></div>
     <div class="setting"><div><span>Move your save</span><p class="note">Copy a save code here, then paste it into the game on another device or website to carry your pets, house and progress across.</p></div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn" type="button" data-go="save-out">Copy code</button><button class="btn" type="button" data-go="save-in">Paste code</button></div></div>
     <div id="saveBox" hidden style="margin:4px 0 12px"><textarea id="saveCode" rows="4" spellcheck="false" style="width:100%;box-sizing:border-box;font:11px ui-monospace,monospace;border-radius:10px;padding:8px;word-break:break-all"></textarea><div style="display:flex;gap:6px;margin-top:6px"><button class="btn primary" type="button" data-go="save-load" id="saveLoadBtn" hidden>Load this save</button><span class="note" id="saveMsg"></span></div></div>
     <div class="setting"><div><span>Start over</span><p class="note">Say goodbye to every pet and the house, and hatch a new mystery egg.</p></div><button class="btn" type="button" data-go="reset" id="resetBtn">Start over</button></div>

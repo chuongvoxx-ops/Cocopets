@@ -54,6 +54,7 @@ function newState(name, genome) {
     map: { stars: {}, best: {}, plays: 0, milestones: {} },
     cards: {}, accs: [], dun: { best: 0, runs: 0, kills: 0, boxes: 0, pity: 0, god: false, tab: 'world', seen: {}, grades: {} }, rift: { seals: {}, prog: {}, gates: {}, rlyeh: 0 },
     sound: true, retro: true, fast: false, tips: {}, dev: false, unlockAll: false,
+    welcome: 0, login: { m: '', n: 0, last: '', seen: '' },
   });
   linkRoom(s);
   return s;
@@ -157,7 +158,10 @@ function sanitize(o) {
     s.map.plays = Math.floor(num(o.map.plays, 0, 0, 1e7));
   }
   s.coins = Math.floor(num(o.coins, 0, 0, 1e9)); s.pearls = Math.floor(num(o.pearls, 0, 0, 1e7));
-  s.crystals = Math.floor(num(o.crystals, 0, 0, 1e9)); s.fusionStones = Math.floor(num(o.fusionStones, 0, 0, 999)); s.fuseRolls = Math.floor(num(o.fuseRolls, 0, 0, 1e6)); s.summons = Math.floor(num(o.summons, 0, 0, 1e9)); s.lv10Eggs = o.lv10Eggs ? 1 : 0; s.lv10Owed = Math.floor(num(o.lv10Owed, 0, 0, 9)); s.pity10 = Math.floor(num(o.pity10, 0, 0, PITY_N));
+  s.crystals = Math.floor(num(o.crystals, 0, 0, 1e9)); s.fusionStones = Math.floor(num(o.fusionStones, 0, 0, 999)); s.fuseRolls = Math.floor(num(o.fuseRolls, 0, 0, 1e6)); s.summons = Math.floor(num(o.summons, 0, 0, 1e9)); s.lv10Eggs = o.lv10Eggs ? 1 : 0; s.lv10Owed = Math.floor(num(o.lv10Owed, 0, 0, 9));
+  // (the welcome gift waits only on a save made with it waiting: older saves had their start long ago)
+  s.welcome = o.welcome === 0 ? 0 : 1;
+  { const L = o.login && typeof o.login === 'object' ? o.login : {}, str = (v, re) => typeof v === 'string' && re.test(v) ? v : ''; s.login = { m: str(L.m, /^\d{4}-\d{2}$/), n: Math.floor(num(L.n, 0, 0, 31)), last: str(L.last, /^\d{4}-\d{2}-\d{2}$/), seen: str(L.seen, /^\d{4}-\d{2}-\d{2}$/) }; } s.pity10 = Math.floor(num(o.pity10, 0, 0, PITY_N));
   s.lastGiftDay = typeof o.lastGiftDay === 'string' ? o.lastGiftDay : null;
   if (o.animas && typeof o.animas === 'object') {
     const A = o.animas, h = A.have && typeof A.have === 'object' ? A.have : {};
@@ -403,11 +407,8 @@ function dailyGift() {
   const first = !st.lastGiftDay;
   st.lastGiftDay = today;
   if (first) return;
-  let msg = 'Daily gift: +50 coins';
-  st.coins += 50;
-  if (st.stage >= 7) { st.pearls += 1; msg += ' and a pearl'; }
+  // (the day's reward is the daily rewards calendar's now, 22b; a visit still brings a little experience)
   addXP(25);
-  setTimeout(() => { if (running) toast(msg); }, 1800);
 }
 function weightG() {
   const base = [0, 90, 160, 260, 380, 520, 680, 860][st.stage];

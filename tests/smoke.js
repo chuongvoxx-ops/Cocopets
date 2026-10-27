@@ -41,6 +41,8 @@ const fs = require('fs'), path = require('path');
       const s = JSON.parse(JSON.stringify(Object.assign({}, st, { room: undefined })));
       delete s.crystals; delete s.fusionStones; delete s.fuseRolls; delete s.fusedFrom; delete s.gen; delete s.house.paint; delete s.house.roof; delete s.house.name; s.others.forEach(p => { delete p.fusedFrom; delete p.gen; });
       s.forms.forEach(f => { f.grow = 1.3; });   // the old, too-big late stages
+      // (the level-10 gift and today's rewards calendar marked as seen: this test is about the migration, not about them)
+      s.lv10Eggs = 1; const dk = new Date(); const day = dk.getFullYear() + '-' + String(dk.getMonth() + 1).padStart(2, '0') + '-' + String(dk.getDate()).padStart(2, '0'); s.login = { m: day.slice(0, 7), n: 0, last: day, seen: day };
       return JSON.stringify(s);
     });
     await first.ctx.close();

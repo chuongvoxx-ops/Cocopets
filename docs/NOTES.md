@@ -838,3 +838,8 @@ Every new boss painter (rift fiends, Tower bosses, minis that get their own art)
 ## The level-10 gift (user, 27 Oct)
 - 22-gift lv10Check (every 1.5 s, at home only: no arcade, sheet, gift, map or intro open): the first time st.dlv >= 10, st.lv10Eggs = 1 and st.lv10Owed = 3; it hatches min(owed, room) eggs through the summon ceremony, stars from LV10_RATES (3★ 50%, 4★ 35%, 5★ 15%, never 6★); the rest stay owed until there is room. Saved (04-state sanitize). Existing saves at level 10+ get it once on their next visit home. tests/lv10-eggs.js.
 - Eggs otherwise: the starting egg; crystal summons (10 for 1000, 1 for 120; 84/10/5/1%, six-star pity after 10 ten-pulls); the shop (300 pearls or the $4 test purchase).
+
+## Welcome gift and daily rewards (user, 27 Oct) — src/js/22b-rewards.js
+- Welcome (st.welcome 0 on newState; older saves are treated as given): 1000 crystals + a treasure box (applyGiftBox: its own 1000 crystals, cards, 3 gems, bundle, drink, foods) + 3 gemstones (the next evolution gem among them). Shown at home once.
+- Daily rewards: st.login { m, n, last, seen }. One claim a day (local day), the n-th claim of the month gets loginPlan(n): 100 crystals when n % 3 == 0, LOGIN_GOODS between (coins, gems, honeycomb/ambrosia/feast, drinks, pearls, heart tart/sundae, a Fusion Stone on 13, treasure boxes on 14 and 28); the month's last calendar day always gives 1000 crystals. New month: n resets. The calendar opens by itself once a day at home (seen) and from Settings → Daily rewards. The old 50-coin daily toast is gone (dailyGift keeps the visit's XP).
+- Gift screen: new 'stones' tile. Test hook quickStart marks welcome given and today seen. tests/rewards.js; smoke's old save marks lv10 gift and calendar seen.

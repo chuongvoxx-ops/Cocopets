@@ -1912,3 +1912,12 @@ body.run-team .evo-wrap{z-index:70}
 #riftInner > *{min-width:0}
 .rf-card{color:#2B2433}.rf-card small{color:#6B6470}
 .rf-card b{overflow-wrap:anywhere}
+/* the daily rewards calendar */
+.lg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:6px;margin:8px 0 12px}
+.lg-day{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 2px 7px;border-radius:12px;background:#FFFDF8;border:2px solid rgba(0,0,0,.1);color:#2B2433}
+.lg-day small{font-size:9.5px;color:#6B6470;font-weight:700}.lg-day b{font-size:11px}
+.lg-ico{display:grid;place-items:center;width:30px;height:30px}.lg-ico svg{width:28px;height:28px}
+.lg-day.cr{background:#EEF6FF;border-color:#9DC8F0}
+.lg-day.fin{background:linear-gradient(160deg,#FFF3C4,#FFD978);border-color:#E0A82E;grid-column:span 2}
+.lg-day.now{border-color:#FF6B5B;box-shadow:0 0 0 3px rgba(255,107,91,.28)}
+.lg-day.done{opacity:.5}.lg-tick{position:absolute;top:2px;right:6px;font-style:normal;font-weight:900;color:#2E9B5B}

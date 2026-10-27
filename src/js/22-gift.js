@@ -117,6 +117,7 @@ function giftTile(it) {
   if (it.kind === 'crystals') return { r: 'crystals', html: `<span class="gw-item gw-crystals">${ICON.crystal}<b>+${fmtNum(it.n)}</b></span>`, sub: 'Crystals' };
   if (it.kind === 'pet') return { r: PET_STAR_R[it.stars], html: `<span class="gw-item gw-pet s${it.stars}">${petSVG(it.form, { frame: 'fit', eyes: 'happy', mouth: 'smile' })}${starsHTML(it.stars)}</span>`, sub: it.name };
   if (it.kind === 'gem') return { r: 'gem', html: `<span class="gw-item" style="--gcol:${GEMS[it.gem].color}">${gemSVG(it.gem)}<b>${GEMS[it.gem].name}</b></span>`, sub: 'Gemstone' };
+  if (it.kind === 'stones') return { r: 'item', html: `<span class="gw-item">${ICON.fusion}<b>×${it.n}</b></span>`, sub: it.n > 1 ? 'Fusion Stones' : 'Fusion Stone' };
   if (it.kind === 'coins') return { r: 'item', html: `<span class="gw-item">${ICON.coin}<b>+${fmtNum(it.n)}</b></span>`, sub: 'Coins' };
   if (it.kind === 'pearls') return { r: 'item', html: `<span class="gw-item">${ICON.pearl}<b>+${it.n}</b></span>`, sub: 'Pearls' };
   if (it.kind === 'food') return { r: 'item', html: `<span class="gw-item">${SNACK_SVG[it.crop]}<b>×${it.n}</b></span>`, sub: SNACKS[it.crop].name };
