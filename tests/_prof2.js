@@ -1,0 +1,35 @@
+const { chromium } = require('/opt/npm-tools/node_modules/playwright');
+const path = require('path');
+(async () => {
+  const floor = +(process.argv[2] || 110);
+  const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true });
+  await page.goto('file://' + path.resolve(__dirname, '../test.html'));
+  await page.waitForFunction(() => window.__pp, null, { timeout: 15000 }); await page.waitForTimeout(300);
+  await page.evaluate(() => { const P = window.__pp; P.quickStart('Bot'); P.st.unlockAll = true; P.st.dun.god = true; P.st.energy = 100; P.st.dun.best = 199; P.openMap(); P.dun.setMapTab('dungeon', true); });
+  await page.evaluate(n => window.__pp.dun.startDungeon(n, 7), floor);
+  await page.waitForFunction(() => window.__pp.arc.state === 'ready', null, { timeout: 15000 });
+  await page.evaluate(() => window.__pp.beginPlay()); await page.waitForTimeout(6000);
+  const r = await page.evaluate(() => {
+    const P = window.__pp, A = P.arc, D = A.game._dbg, FD = D.FD, c = document.querySelector('canvas').getContext('2d'), K = P.DunFiend.KIT, FB = P.FiendBeast;
+    const time = (f, n) => { f(); const t0 = performance.now(); for (let i = 0; i < n; i++) f(); return +((performance.now() - t0) / n).toFixed(2); };
+    const m = D.g.boss; P.DunFiend.KIT.Q.pin = 0;
+    const out = { boss: time(() => FD.drawBoss(c, m, 200, 400), 6) };
+    const s = 50;
+    out.canine = time(() => { c.save(); c.translate(200, 400); FB.heads.canine(c, K, s, { col: '#2A1418', hi: '#6A3A40', tex: 'fur', jaw: 0.5, eye: '#FFB347', breath: '#FF6A2E', farEar: true }); c.restore(); }, 6);
+    out.canineNoTex = time(() => { c.save(); c.translate(200, 400); FB.heads.canine(c, K, s, { col: '#2A1418', hi: '#6A3A40', jaw: 0.5, eye: '#FFB347', farEar: true }); c.restore(); }, 6);
+    out.bodyPelt = time(() => { K.body(c, () => { c.beginPath(); c.arc(200, 400, 80, 0, 6.28); }, 200, 400, 80, { col: '#2A1418', tex: 'pelt', texA: 0.9, texS: 0.34 }); }, 6);
+    out.bodyFur = time(() => { K.body(c, () => { c.beginPath(); c.arc(200, 400, 80, 0, 6.28); }, 200, 400, 80, { col: '#2A1418', tex: 'fur', texA: 0.9, texS: 0.34 }); }, 6);
+    out.bodyCrystal = time(() => { K.body(c, () => { c.beginPath(); c.arc(200, 400, 40, 0, 6.28); }, 200, 400, 40, { col: '#CFEFFF', tex: 'crystal', texA: 0.6, texS: 0.2 }); }, 6);
+    out.bodyPlates = time(() => { K.body(c, () => { c.beginPath(); c.arc(200, 400, 80, 0, 6.28); }, 200, 400, 80, { col: '#2A1418', tex: 'plates', texA: 0.9, texS: 0.26 }); }, 6);
+    out.bodyNone = time(() => { K.body(c, () => { c.beginPath(); c.arc(200, 400, 80, 0, 6.28); }, 200, 400, 80, { col: '#2A1418' }); }, 6);
+    out.tufts = time(() => K.tufts(c, s, [[100, 400], [200, 380], [300, 400]], 0.5, 0.6, 30, 71, {}), 6);
+    out.aura = time(() => { FB.aura(c, K, 200, 400, s, { col: '#FF6A2E', t: 1, k: 1 }, false); FB.aura(c, K, 200, 400, s, { col: '#FF6A2E', t: 1, k: 1, motes: 20 }, true); }, 6);
+    out.volumes = time(() => FB.volumes(c, K, (x, y) => [200 + x * s, 400 + y * s], s, [[-1, -1, 1, 0.8, 0.2], [0, -1, 1, 0.6, 0], [1, -1, 1, 0.8, 0.2]], {}), 6);
+    out.veins = time(() => FB.veins(c, (x, y) => [200 + x * s, 400 + y * s], s, { col: '#FF6A2E', x0: 0, y0: -1, w: 2, h: 1, n: 5, seed: 4, k: 1 }, 1), 6);
+    out.glow = time(() => K.glow(c, 200, 400, 60, '#FF6A2E', 0.6), 20);
+    return out;
+  });
+  console.log(JSON.stringify(r));
+  await browser.close();
+})();

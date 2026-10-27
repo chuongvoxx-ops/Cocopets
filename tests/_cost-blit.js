@@ -1,0 +1,33 @@
+const { chromium } = require('/opt/npm-tools/node_modules/playwright');
+const path = require('path');
+(async () => {
+  const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true });
+  await page.goto('file://' + path.resolve(__dirname, '..', 'test.html'));
+  await page.waitForFunction(() => window.__pp, null, { timeout: 15000 });
+  const r = await page.evaluate(() => {
+    const cv = document.createElement('canvas'); cv.width = 780; cv.height = 1688; document.body.appendChild(cv); cv.style.cssText = 'position:fixed;left:0;top:0;width:390px;height:844px;z-index:99';
+    const c = cv.getContext('2d'); const fl = () => c.getImageData(0, 0, 1, 1);
+    const mk = (w, h) => { const b = document.createElement('canvas'); b.width = w; b.height = h; const g = b.getContext('2d'); for (let i = 0; i < 300; i++) { g.fillStyle = `hsla(${i * 7},60%,50%,.8)`; g.beginPath(); g.arc(Math.random() * w, Math.random() * h, 30, 0, 7); g.fill(); } return b; };
+    const scr = mk(780, 1688), half = mk(800, 800), small = mk(156, 315), big = mk(1782, 1782);
+    const N = 40, out = {};
+    const time = (name, f) => { f(0); fl(); const t0 = performance.now(); for (let i = 0; i < N; i++) f(i); fl(); out[name] = +((performance.now() - t0) / N * 1000).toFixed(0); };
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    time('scr_int', () => c.drawImage(scr, 0, 0));
+    time('scr_frac', () => c.drawImage(scr, 0.37, 0.61));
+    time('scr_scaled_up_from_small', () => c.drawImage(small, 0, 0, 780, 1688));
+    time('big_sub_int', () => c.drawImage(big, 500, 40, 780, 1688, 0, 0, 780, 1688));
+    time('big_whole_int', () => c.drawImage(big, -500, -40));
+    time('big_scaled', () => c.drawImage(big, -500, -40, 1700, 1700));
+    time('half_int', () => c.drawImage(half, 0, 400));
+    time('half_frac', () => c.drawImage(half, 0.3, 400.6));
+    time('half_lighter', () => { c.globalCompositeOperation = 'lighter'; c.drawImage(half, 0, 400); c.globalCompositeOperation = 'source-over'; });
+    time('half_scaled2x', () => c.drawImage(half, 0, 0, 400, 400, 0, 400, 800, 800));
+    time('half_alpha', () => { c.globalAlpha = 0.5; c.drawImage(half, 0, 400); c.globalAlpha = 1; });
+    time('clear_scr', () => { const g = scr.getContext('2d'); g.clearRect(0, 0, 780, 1688); });
+    time('fill_scr', () => { c.fillStyle = '#123'; c.fillRect(0, 0, 780, 1688); });
+    cv.remove(); return out;
+  });
+  console.log(JSON.stringify(r));
+  await browser.close();
+})().catch(e => { console.error(e); process.exit(2); });

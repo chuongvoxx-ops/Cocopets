@@ -1,0 +1,511 @@
+/* ---------- Rift 2: The Garden of Unborn Stars (level 20, Earth and Dark, the Bloom Sigil) ----------
+   A botanical garden replaced by a forest that grows eggs instead of fruit. Six stages: the Light Orchard (route a
+   seed-lamp's beam through prism flowers to grow a root bridge), Oruun the Cradle Tick, the Grafting Beds (match living
+   seeds to their beds), Velis the Glasswing, the Seedling Pilgrimage (escort a seedling from patch to patch), Vhorru the
+   Root of a Thousand Young (shelter in the one open blossom), then the sealing. Original creatures: the Black Goat's
+   alien fertility, as a garden. */
+(() => {
+  const TAU = Math.PI * 2;
+  /* ---- the land: near-black plum floors, dusty rose, muted jade, warm cream ---- */
+  BIOMES.garden = { name: 'The Garden of Unborn Stars', rift: true, tile: 'forest', out: true, dark: 0.18, bg: '#B9A6D8', gap: 'pit', mud: ['#3A2047', '#452A54'], mudSpot: 'rgba(242,216,161,.18)', ambient: 'motes', accent: '#A85E87', light: '#F2D8A1',
+    floor: ['#3A2449', '#402A50', '#352042'], grout: '#2A1634', hi: '#5A3F6B', top: '#4A8D7B', face: '#2F183A', faceD: '#1E0F26', cliff: '#2F183A', deco: '#F2D8A1',
+    props: ['oak', 'fern', 'stump'], hazard: 'thorns', grade: 'rgba(168,94,135,.08)', fog: '#1E0F26', darkRGB: '30,15,38' };
+  BIOME_ORDER.push('garden');
+  const PLUM = '#2F183A', ROSE = '#A85E87', JADE = '#4A8D7B', CREAM = '#F2D8A1', GOLD = '#FFD36B', INK = '#2B2433';
+  /* ---- the roster ---- */
+  Object.assign(MON, {
+    thornling: { name: 'Thornling', from: 999, hp: 120, spd: 1.3, r: 0.36, dmg: 11, xp: 9, coin: 0.5, color: '#7A4C9E', bio: ['garden'], tip: 'Hunches, then fires one thorn straight ahead. Step aside as it hunches.', kit: [] },
+    milkcap: { name: 'Milkcap grazer', from: 999, hp: 320, spd: 1.1, r: 0.55, dmg: 13, xp: 14, coin: 0.8, color: JADE, bio: ['garden'], tip: 'Soaks damage from the front while others hide behind it. After a failed charge its underside is exposed.', kit: [] },
+    pollenmoth: { name: 'Star pollen moth', from: 999, hp: 70, spd: 1.5, r: 0.32, dmg: 6, xp: 8, coin: 0.5, color: '#2B2433', bio: ['garden'], fly: true, tip: 'Draws a golden line to a lamp, then drains it. Kill it before the lamp goes dark.', kit: [] },
+    egg: { name: 'Unborn egg', from: 999, hp: 90, spd: 0, r: 0.4, dmg: 0, xp: 3, coin: 0, color: CREAM, bio: ['garden'], still: true, tip: 'Hatches a thornling unless broken first.', kit: [] },
+  });
+  const { LN, lwOf, shade, stroke, spec, MP, NF, EXT } = DunArt;
+  const glowAt = (c, x, y, r, col, a) => { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = a; blitSized(c, glowSprite(col), x - r, y - r, r * 2, r * 2); c.restore(); };
+  const limb = (c, x0, y0, x1, y1, w, col) => { c.lineCap = 'round'; c.strokeStyle = LN; c.lineWidth = w + 2.2; c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke(); c.strokeStyle = col; c.lineWidth = w; c.stroke(); };
+  const tri = (c, x, y, r, a) => { c.beginPath(); for (let i = 0; i < 3; i++) { const q = a + i * TAU / 3; i ? c.lineTo(x + Math.cos(q) * r, y + Math.sin(q) * r) : c.moveTo(x + Math.cos(q) * r, y + Math.sin(q) * r); } c.closePath(); };
+  Object.assign(MP, {
+    /* a knee-high purple seed pod on three triangular feet, one thorn pointing forward; it hunches before firing */
+    thornling(c, r, ph, o) {
+      const lw = lwOf(r), col = o.color, hunch = o.mode === 'block' ? 1 : 0, sq = 1 - hunch * 0.2, dir = 1;
+      [[-0.6, 0.7], [0.1, 0.85], [0.7, 0.65]].forEach(([x, y]) => { c.fillStyle = shadeC(col, -0.25); tri(c, x * r, y * r, r * 0.3, -Math.PI / 2); c.fill(); stroke(c, lw * 0.8); });
+      c.beginPath(); c.ellipse(0, r * 0.1 * (1 + hunch), r * 0.8, r * 0.9 * sq, 0, 0, TAU); c.fillStyle = shade(c, col, r, 0, -r * 0.2, 0.45); c.fill(); stroke(c, lw);
+      c.strokeStyle = shadeC(col, -0.3); c.lineWidth = lw * 0.8; for (let i = -1; i <= 1; i++) { c.beginPath(); c.moveTo(i * r * 0.35, -r * 0.7); c.quadraticCurveTo(i * r * 0.45, 0, i * r * 0.3, r * 0.8); c.stroke(); }
+      // the thorn: longer as it hunches
+      const tl = r * (0.9 + hunch * 0.5); c.fillStyle = CREAM; c.beginPath(); c.moveTo(r * 0.6, -r * 0.05); c.lineTo(r * 0.6 + tl, 0); c.lineTo(r * 0.6, r * 0.15); c.closePath(); c.fill(); stroke(c, lw * 0.8);
+      c.fillStyle = GOLD; c.beginPath(); c.arc(r * 0.25, -r * 0.2, r * 0.13, 0, TAU); c.fill(); c.fillStyle = INK; c.beginPath(); c.arc(r * 0.29, -r * 0.2, r * 0.06, 0, TAU); c.fill();
+      spec(c, -r * 0.3, -r * 0.5, r * 0.25, r * 0.15, 0.4);
+    },
+    /* a broad jade mushroom body on four stubby legs under a cream dome cap; the cap tips forward to block */
+    milkcap(c, r, ph, o) {
+      const lw = lwOf(r), col = o.color, st2 = Math.sin(ph * TAU), tip = o.mode === 'block' ? 0.25 : 0, flipped = o.mode === 'flip';
+      [[-0.7, 0.75], [-0.25, 0.85], [0.25, 0.85], [0.7, 0.75]].forEach(([x, y], i) => limb(c, x * r * 0.7, r * 0.3, x * r + (i % 2 ? st2 : -st2) * r * 0.08, y * r, lw * 1.6, shadeC(col, -0.2)));
+      c.beginPath(); c.ellipse(0, r * 0.25, r * 0.75, r * 0.5, 0, 0, TAU); c.fillStyle = shade(c, col, r, 0, 0, 0.4); c.fill(); stroke(c, lw);
+      if (flipped) { c.fillStyle = '#F7E9C8'; c.beginPath(); c.ellipse(0, r * 0.2, r * 0.55, r * 0.32, 0, 0, TAU); c.fill(); stroke(c, lw * 0.8); c.strokeStyle = ROSE; c.lineWidth = lw * 0.7; for (let i = -2; i <= 2; i++) { c.beginPath(); c.moveTo(i * r * 0.2, -r * 0.05); c.lineTo(i * r * 0.22, r * 0.45); c.stroke(); } }
+      c.save(); c.translate(0, -r * 0.35 + tip * r); c.rotate(tip * 0.9);
+      c.beginPath(); c.moveTo(-r * 1.1, 0); c.quadraticCurveTo(-r * 1.0, -r * 1.0, 0, -r * 1.05); c.quadraticCurveTo(r * 1.0, -r * 1.0, r * 1.1, 0); c.closePath(); c.fillStyle = shade(c, '#F2E4C4', r, -r * 0.3, -r * 0.6, 0.4); c.fill(); stroke(c, lw);
+      c.fillStyle = 'rgba(168,94,135,.35)'; [[-0.5, -0.5, 0.18], [0.2, -0.7, 0.14], [0.6, -0.35, 0.12]].forEach(([x, y, k]) => { c.beginPath(); c.arc(x * r, y * r, r * k, 0, TAU); c.fill(); });
+      c.restore();
+      [[-0.3, 0.05], [0.3, 0.05]].forEach(([x, y]) => { c.fillStyle = INK; c.beginPath(); c.arc(x * r, y * r, r * 0.08, 0, TAU); c.fill(); });
+    },
+    /* a small dark diamond with two oversized pale triangular wings and a luminous abdomen */
+    pollenmoth(c, r, ph, o) {
+      const lw = lwOf(r), fl = Math.sin(ph * TAU * 2) * 0.35, bob = Math.sin(ph * TAU) * r * 0.08;
+      glowAt(c, 0, r * 0.5 + bob, r * 0.9, GOLD, 0.5);
+      [-1, 1].forEach(sd => { c.save(); c.translate(0, bob); c.scale(sd, 1); c.fillStyle = shade(c, '#F3E7D3', r * 1.6, r * 0.6, -r * 0.3, 0.3); c.beginPath(); c.moveTo(r * 0.1, 0); c.lineTo(r * 1.7, -r * (1.2 - fl)); c.lineTo(r * 1.4, r * 0.6); c.closePath(); c.fill(); stroke(c, lw * 0.9); c.fillStyle = 'rgba(168,94,135,.35)'; c.beginPath(); c.arc(r * 1.05, -r * 0.2, r * 0.2, 0, TAU); c.fill(); c.restore(); });
+      c.fillStyle = o.color; c.beginPath(); c.moveTo(0, -r * 0.8 + bob); c.lineTo(r * 0.3, bob); c.lineTo(0, r * 0.5 + bob); c.lineTo(-r * 0.3, bob); c.closePath(); c.fill(); stroke(c, lw);
+      c.fillStyle = GOLD; c.beginPath(); c.ellipse(0, r * 0.55 + bob, r * 0.22, r * 0.3, 0, 0, TAU); c.fill(); stroke(c, lw * 0.7);
+      c.strokeStyle = INK; c.lineWidth = lw * 0.6; [-1, 1].forEach(sd => { c.beginPath(); c.moveTo(0, -r * 0.7 + bob); c.quadraticCurveTo(sd * r * 0.4, -r * 1.2 + bob, sd * r * 0.55, -r * 1.3 + bob); c.stroke(); });
+    },
+    /* a cream egg in four plum plates; the eye kind carries a closed eye */
+    egg(c, r, ph, o) {
+      const lw = lwOf(r), wob = o.mode === 'block' ? Math.sin(ph * TAU * 6) * 0.12 : 0;
+      c.save(); c.rotate(wob); c.beginPath(); c.ellipse(0, 0, r * 0.75, r * 0.95, 0, 0, TAU); c.fillStyle = shade(c, CREAM, r, -r * 0.2, -r * 0.4, 0.4); c.fill(); stroke(c, lw);
+      c.strokeStyle = PLUM; c.lineWidth = lw * 1.2; for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2 + 0.4; c.beginPath(); c.moveTo(0, 0); c.quadraticCurveTo(Math.cos(a) * r * 0.5, Math.sin(a) * r * 0.6, Math.cos(a) * r * 0.75, Math.sin(a) * r * 0.9); c.stroke(); }
+      if (o.eye) { c.strokeStyle = INK; c.lineWidth = lw * 1.3; c.beginPath(); c.arc(0, -r * 0.1, r * 0.3, 0.2, Math.PI - 0.2); c.stroke(); c.fillStyle = GOLD; c.beginPath(); c.arc(0, -r * 0.1, r * 0.08, 0, TAU); c.fill(); }
+      c.restore(); spec(c, -r * 0.3, -r * 0.55, r * 0.22, r * 0.14, 0.45);
+    },
+  });
+  Object.assign(EXT, { thornling: 2.0, milkcap: 2.0, pollenmoth: 2.2, egg: 1.6 });
+  Object.assign(NF, { thornling: 4, milkcap: 6, pollenmoth: 6, egg: 4 });
+  const { mon, keepRange } = DunAI;
+  const lampsOf = X => (X.rift && X.rift.self.mod.lamps) || [];
+  Object.assign(mon, {
+    thornling(m, A, X) {
+      // keeps a little way off, hunches (its thorn lengthens), then one straight thorn
+      if (m.hunch > 0) { m.hunch -= A.dt; m.mode = 'block'; m.face = A.dx >= 0 ? 1 : -1; if (m.hunch <= 0) { const a = Math.atan2(X.me.y - m.y, X.me.x - m.x); X.eshot(m.x, m.y, a, 7, { r: 0.2, dmg: m.dmg, color: '#B98BE0', core: CREAM, style: 'orb', src: m }); m.cd = 2.4 + Math.random(); m.mode = null; } return; }
+      if (A.d > 4.5) { X.moveEnt(m, A.ux * A.sp * A.dt, A.uy * A.sp * A.dt); m.face = A.dx >= 0 ? 1 : -1; }
+      else if (A.d < 2) { X.moveEnt(m, -A.ux * A.sp * 0.6 * A.dt, -A.uy * A.sp * 0.6 * A.dt); }
+      if (m.cd <= 0 && A.d < 7 && A.los()) { m.hunch = 0.7; X.warn({ shape: 'line', x: m.x, y: m.y, a: Math.atan2(X.me.y - m.y, X.me.x - m.x), len: 7, w: 0.5, life: 0.7, max: 0.7, src: m, color: '#B98BE0' }); }
+    },
+    milkcap(m, A, X) {
+      // walks at you with its cap tipped forward (a third of the damage from the front); every so often a charge, and
+      // if the charge misses it tumbles and lies cap-down for a moment, its underside open
+      if (m.flipT > 0) { m.flipT -= A.dt; m.mode = 'flip'; if (m.flipT <= 0) { m.mode = null; m.cd = 2; } return; }
+      if (m.charge) { m.charge.t += A.dt; m.mode = 'block'; const ch = m.charge; X.moveEnt(m, Math.cos(ch.a) * 6 * A.dt, Math.sin(ch.a) * 6 * A.dt); m.face = Math.cos(ch.a) >= 0 ? 1 : -1;
+        if (A.d < m.r + X.me.r + 0.2 && !ch.hit) { ch.hit = true; X.hurtPet(m.dmg * 1.5, m); X.push(ch.a, 1.5); }
+        if (ch.t > 0.75) { m.charge = null; if (!ch.hit) { m.flipT = 2.4; X.text(m.x, m.y - m.r - 0.5, 'Tumbled!', '#FFFFFF', 12); } else m.cd = 2.5; } return; }
+      m.mode = A.d < 5 ? 'block' : null; m.guardFn = m.guardFn || ((q, o) => (q.mode === 'block' && Math.abs(DunAI.angTo(q.face >= 0 ? 0 : Math.PI, Math.atan2(X.me.y - q.y, X.me.x - q.x))) < 1.3 ? 0.33 : q.mode === 'flip' ? 2 : 1));
+      if (A.d > 1.4) { X.moveEnt(m, A.ux * A.sp * 0.8 * A.dt, A.uy * A.sp * 0.8 * A.dt); m.face = A.dx >= 0 ? 1 : -1; }
+      else if (m.atkCd <= 0) { X.hurtPet(m.dmg, m); m.atkCd = 1.4; X.slash(m.x + A.ux * 0.6, m.y + A.uy * 0.6, Math.atan2(A.uy, A.ux), 0.8, CREAM); }
+      if (m.cd <= 0 && A.d > 2.5 && A.d < 7 && A.los()) { m.cd = 5; const a = Math.atan2(X.me.y - m.y, X.me.x - m.x); X.warn({ shape: 'line', x: m.x, y: m.y, a, len: 5, w: 1.2, life: 0.6, max: 0.6, src: m, color: CREAM }); X.after(0.6, () => { if (!m.dead) m.charge = { a, t: 0, hit: false }; }); }
+    },
+    pollenmoth(m, A, X) {
+      // tethers to the nearest lit lamp and drains it; with no lamp to drain, it hangs near you and sips your MP
+      const lamps = lampsOf(X).filter(l => l.charge > 0 && !l.broken), L = lamps.length ? lamps.reduce((b, l) => (Math.hypot(l.x - m.x, l.y - m.y) < Math.hypot(b.x - m.x, b.y - m.y) ? l : b)) : null;
+      m.tether = null;
+      if (L) { const d = Math.hypot(L.x - m.x, L.y - m.y); if (d > 2.2) { X.moveEnt(m, (L.x - m.x) / d * A.sp * A.dt, (L.y - m.y) / d * A.sp * A.dt, 1); m.face = L.x >= m.x ? 1 : -1; }
+        else { m.tether = L; L.charge = Math.max(0, L.charge - 0.14 * A.dt); L.drainT = 0.3; if (L.charge <= 0 && !L.dark) { L.dark = true; X.text(L.x, L.y - 1.2, 'The lamp goes dark', '#B98BE0', 12); } } return; }
+      keepRange(m, A, X, 2.5, 4.5);
+      if (A.d < 4.5 && A.los()) { m.tether = X.me; X.me.mp = Math.max(0, X.me.mp - 2.5 * A.dt); }
+    },
+    egg(m, A, X) { m.life = (m.life == null ? 6.5 : m.life) - A.dt; m.mode = m.life < 1.5 ? 'block' : null; },
+  });
+
+  /* ---- the bosses ---- */
+  BOSSES.push(
+    { id: 'oruun', rift: true, name: 'Oruun the Cradle Tick', title: 'Boss of the seed nursery', hp: 19000, dmg: 19, r: 1.4, spd: 1.5, color: '#8A4A74', glow: GOLD, biome: 'garden', el: 'leaf' },
+    { id: 'velis', rift: true, name: 'Velis the Glasswing', title: 'Boss of the glassless conservatory', hp: 23000, dmg: 18, r: 1.35, spd: 2.0, color: '#1E1824', glow: ROSE, biome: 'garden', el: 'light', fly: true },
+    { id: 'vhorru', rift: true, name: 'Vhorru the Root of a Thousand Young', title: 'The root of a thousand young', hp: 46000, dmg: 22, r: 1.9, spd: 0.9, color: '#1C1020', glow: '#E04FA3', biome: 'garden', el: 'dark' });
+  const PT = DunBoss.parts;
+  Object.assign(DunBoss.P, {
+    /* a swollen oval tick on six thin angular ivory legs: the abdomen a closed flower bud of four plum plates round a
+       cream seam, a tiny smooth head with two hooked mouthparts; gold dust escapes when it inhales */
+    oruun(c, m, r, t, me, lw) {
+      const col = m.bk.color, breath = 1 + 0.05 * Math.sin(t * 1.6), open = m.act === 'burst' ? 0.25 : 0.04 + 0.03 * Math.sin(t * 1.6), dir = m.face || 1;
+      for (let i = 0; i < 3; i++) [-1, 1].forEach(sd => { const bx = sd * r * 0.5, by = r * 0.3, kx = sd * r * (1.1 + i * 0.25), ky = -r * 0.1 + i * r * 0.25, ex = sd * r * (1.25 + i * 0.3), ey = r * 0.95; PT.limb(c, bx, by, kx, ky, r * 0.1, r * 0.08, '#EDE4CF', { lw }); PT.limb(c, kx, ky, ex, ey, r * 0.08, r * 0.06, '#EDE4CF', { lw }); });
+      // the bud: four plates round the seam
+      c.save(); c.translate(-dir * r * 0.15, 0);
+      for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2 + Math.PI / 4; c.save(); c.rotate(a); c.translate(open * r * 0.3, 0); c.beginPath(); c.moveTo(0, 0); c.quadraticCurveTo(r * 0.9 * breath, -r * 0.75 * breath, r * 1.15 * breath, 0); c.quadraticCurveTo(r * 0.9 * breath, r * 0.75 * breath, 0, 0); c.closePath(); c.fillStyle = shade(c, col, r, r * 0.4, -r * 0.2, 0.4); c.fill(); c.strokeStyle = LN; c.lineWidth = lw; c.stroke(); c.restore(); }
+      c.strokeStyle = CREAM; c.lineWidth = lw * 1.2; c.beginPath(); c.moveTo(-r * 0.9, 0); c.lineTo(r * 0.9, 0); c.moveTo(0, -r * 0.9); c.lineTo(0, r * 0.9); c.stroke();
+      if (open > 0.1) { PT.glow(c, 0, 0, r * 0.8, GOLD, 0.6); for (let i = 0; i < 5; i++) { const a = t * 2 + i * 1.3; c.fillStyle = GOLD; c.beginPath(); c.arc(Math.cos(a) * r * 0.5, Math.sin(a) * r * 0.4 - (t * 1.5 % 1) * r * 0.5, r * 0.05, 0, TAU); c.fill(); } }
+      c.restore();
+      // the small head: smooth, featureless, two hooked mouthparts
+      const hx = dir * r * 1.05; PT.orb(c, hx, r * 0.05, r * 0.28, r * 0.22, shadeC(col, -0.2), { lw });
+      [-1, 1].forEach(sd => { c.strokeStyle = LN; c.lineWidth = lw * 1.4; c.beginPath(); c.moveTo(hx + dir * r * 0.15, r * 0.15 + sd * r * 0.06); c.quadraticCurveTo(hx + dir * r * 0.5, r * 0.3 + sd * r * 0.1, hx + dir * r * 0.4, r * 0.5); c.stroke(); c.strokeStyle = '#EDE4CF'; c.lineWidth = lw * 0.7; c.stroke(); });
+    },
+    /* a six-metre moth: a narrow black body, two long jade antennae, four rigid diamond wings of rose edged in cream,
+       one eye marking each; the shielded pair folds across the body */
+    velis(c, m, r, t, me, lw) {
+      const flap = Math.sin(t * 7) * 0.12, fold = m.guardA != null ? 1 : 0, gside = m.guardA != null ? (Math.cos(m.guardA) >= 0 ? 1 : -1) : 0, lit = m.shieldOpen > 0;
+      [-1, 1].forEach(sd => [[1.9, -1.0, 1.0], [1.6, 0.8, 0.8]].forEach(([wx, wy, k], j) => {
+        const folded = fold && sd === gside, ang = folded ? sd * 0.9 : flap * sd; c.save(); c.rotate(ang); if (folded) c.translate(-sd * r * 0.5, 0);
+        c.beginPath(); c.moveTo(sd * r * 0.2, -r * 0.1 * k); c.lineTo(sd * r * wx, r * wy); c.lineTo(sd * r * (wx + 0.4), r * (wy + 0.9 * k)); c.lineTo(sd * r * 0.6, r * (wy + 1.2 * k)); c.closePath();
+        c.fillStyle = shade(c, folded ? shadeC(ROSE, -0.15) : ROSE, r * 1.6, sd * r * 0.9, r * wy, 0.3); c.fill(); c.strokeStyle = CREAM; c.lineWidth = lw * 1.6; c.stroke(); c.strokeStyle = LN; c.lineWidth = lw * 0.7; c.stroke();
+        c.fillStyle = 'rgba(255,255,255,.25)'; c.beginPath(); c.moveTo(sd * r * 0.4, -r * 0.05 * k); c.lineTo(sd * r * (wx - 0.3), r * (wy + 0.2)); c.lineTo(sd * r * 0.5, r * (wy + 0.5 * k)); c.closePath(); c.fill();
+        const ex = sd * r * (wx * 0.6), ey = r * (wy + 0.5 * k); if (folded && lit) PT.glow(c, ex, ey, r * 0.5, GOLD, 0.9); PT.eye(c, ex, ey, r * 0.17, { sclera: folded && lit ? GOLD : CREAM, iris: folded ? '#1E1824' : ROSE, glow: folded && lit ? GOLD : null }); c.restore(); }));
+      PT.orb(c, 0, r * 0.2, r * 0.22, r * 1.05, m.bk.color, { lw }); for (let i = 0; i < 4; i++) { c.strokeStyle = '#3A3042'; c.lineWidth = lw; c.beginPath(); c.moveTo(-r * 0.18, r * (0.2 + i * 0.25)); c.lineTo(r * 0.18, r * (0.2 + i * 0.25)); c.stroke(); }
+      PT.glow(c, 0, r * 1.1, r * 0.4, GOLD, 0.6); c.fillStyle = GOLD; c.beginPath(); c.ellipse(0, r * 1.1, r * 0.16, r * 0.22, 0, 0, TAU); c.fill(); c.strokeStyle = LN; c.lineWidth = lw * 0.7; c.stroke();
+      [-1, 1].forEach(sd => { c.strokeStyle = LN; c.lineWidth = lw * 1.4; c.beginPath(); c.moveTo(0, -r * 0.8); c.quadraticCurveTo(sd * r * 0.6, -r * 1.6, sd * r * 1.3, -r * 1.7 + Math.sin(t * 3 + sd) * r * 0.1); c.stroke(); c.strokeStyle = JADE; c.lineWidth = lw * 0.7; c.stroke(); });
+      PT.eye(c, -r * 0.08, -r * 0.6, r * 0.09, { sclera: CREAM, iris: INK }); PT.eye(c, r * 0.08, -r * 0.6, r * 0.09, { sclera: CREAM, iris: INK });
+    },
+    /* a towering root beast: a thick trunk split into three legs, two blunt backward horns round a hollow mouth, three
+       cream eye buds up the trunk, near-black bark with magenta fissures, five seed sacs glowing in turn */
+    vhorru(c, m, r, t, me, lw) {
+      const col = m.bk.color, lean = 0.12 + 0.03 * Math.sin(t * 1.2), dir = me.x > m.x ? 1 : -1, sacLit = Math.floor((t * 0.8) % 5);
+      [[-0.9, 1.0], [0.1, 1.15], [0.95, 0.95]].forEach(([x, y]) => { PT.limb(c, x * r * 0.35, r * 0.2, x * r, y * r, r * 0.34, r * 0.22, col, { lw }); c.fillStyle = '#E04FA3'; c.globalAlpha = 0.5; c.beginPath(); c.moveTo(x * r * 0.5, r * 0.4); c.lineTo(x * r * 0.8, y * r * 0.8); c.lineTo(x * r * 0.7, y * r * 0.82); c.closePath(); c.fill(); c.globalAlpha = 1; });
+      c.save(); c.translate(dir * lean * r, 0); c.rotate(dir * lean);
+      c.beginPath(); c.moveTo(-r * 0.75, r * 0.4); c.quadraticCurveTo(-r * 0.9, -r * 1.2, -r * 0.5, -r * 2.2); c.lineTo(r * 0.5, -r * 2.2); c.quadraticCurveTo(r * 0.9, -r * 1.2, r * 0.75, r * 0.4); c.closePath(); c.fillStyle = shade(c, col, r * 1.6, -r * 0.3, -r * 1.0, 0.35); c.fill(); c.strokeStyle = LN; c.lineWidth = lw * 1.2; c.stroke();
+      c.strokeStyle = '#E04FA3'; c.lineWidth = lw * 1.1; [[-0.5, -1.8, -0.3, -0.6], [0.4, -1.6, 0.55, -0.3], [-0.1, -0.9, 0.1, 0.2]].forEach(([x0, y0, x1, y1]) => { c.beginPath(); c.moveTo(x0 * r, y0 * r); c.quadraticCurveTo((x0 + x1) * r * 0.5 + r * 0.15, (y0 + y1) * r * 0.5, x1 * r, y1 * r); c.stroke(); });
+      // the hollow mouth between the two horns
+      c.fillStyle = '#0D0710'; c.beginPath(); c.ellipse(0, -r * 2.05, r * 0.3, r * 0.45, 0, 0, TAU); c.fill(); c.strokeStyle = LN; c.lineWidth = lw; c.stroke();
+      [-1, 1].forEach(sd => { c.beginPath(); c.moveTo(sd * r * 0.35, -r * 2.1); c.quadraticCurveTo(sd * r * 1.0, -r * 2.5, sd * r * 1.05, -r * 3.2); c.quadraticCurveTo(sd * r * 0.75, -r * 2.6, sd * r * 0.5, -r * 2.2); c.closePath(); c.fillStyle = shadeC(col, 0.15); c.fill(); c.strokeStyle = LN; c.lineWidth = lw; c.stroke(); });
+      // three eye buds at different heights
+      [[-0.45, -1.6], [0.5, -1.2], [-0.2, -0.5]].forEach(([x, y], i) => { PT.glow(c, x * r, y * r, r * 0.3, CREAM, 0.4); PT.eye(c, x * r, y * r, r * 0.16, { sclera: CREAM, iris: '#E04FA3', lookX: dir, lookY: 0.3, glow: i === 1 ? '#E04FA3' : null }); });
+      // the seed sacs hanging from the lower branches
+      for (let i = 0; i < 5; i++) { const a = -0.3 + i * 0.4 - 0.8, bx = Math.sin(a) * r * 1.3, by = -r * 1.1 + Math.abs(Math.sin(a)) * r * 0.3, sy = by + r * 0.75 + Math.sin(t * 2 + i) * r * 0.05, on = i === sacLit; c.strokeStyle = LN; c.lineWidth = lw; c.beginPath(); c.moveTo(bx * 0.5, by - r * 0.3); c.lineTo(bx, sy - r * 0.25); c.stroke(); if (on) PT.glow(c, bx, sy, r * 0.45, '#E04FA3', 0.8); PT.orb(c, bx, sy, r * 0.2, r * 0.26, on ? '#F08AC8' : '#6A3A5C', { lw }); }
+      c.restore();
+    },
+  });
+  Object.assign(DunBoss.REACH, { oruun: 3.4, velis: 4.0, vhorru: 4.6 });
+
+  /* ---- how they fight (X.rift.self.mod holds the arena's eggs, prisms, blossoms) ---- */
+  const pick = (m, X, list) => { if (m.cd > 0) return; m.act = list[Math.floor(Math.random() * list.length)]; m.actT = 0; m.step = 0; };
+  const done = (m, cd) => { m.act = 'move'; m.cd = cd * (m.phase === 3 ? 0.7 : 1); m.actT = 0; m.step = 0; };
+  Object.assign(DunAI.boss, {
+    oruun(m, A, X, B) {
+      const RT = X.rift && X.rift.self.mod;
+      if (m.act === 'move') { A.walk(B.spd * (A.d > 2.8 ? 1 : 0.3)); m.face = A.dx >= 0 ? 1 : -1; return pick(m, X, m.phase >= 2 ? ['burstflop', 'flop', 'burst'] : ['burst', 'flop', 'flop']); }
+      const T = m.actT;
+      switch (m.act) {
+        case 'burst': {   // Nursery Burst: three eggs at the floor markers; the one with the closed eye makes a safe patch when broken
+          if (m.step === 0) { m.step = 1; X.say(m, 'Hhhff.'); if (RT && RT.layEggs) RT.layEggs(m); }
+          if (T > 1.6) done(m, 1.8); break; }
+        case 'flop': {   // Belly Flop: marks where you are, stops tracking, lands there and leaves a pollen pool
+          if (m.step === 0) { m.step = 1; m.fx = X.me.x; m.fy = X.me.y; X.warn({ x: m.fx, y: m.fy, r: 2.3, life: 1.5, max: 1.5, src: m, color: GOLD }); X.say(m, 'Hup.'); }
+          if (T > 1.5 && m.step === 1) { m.step = 2; m.x = m.fx; m.y = m.fy; X.unstick && X.unstick(m); X.slam(m.fx, m.fy, 2.3, m.dmg * 1.7, GOLD, m); X.zone({ kind: 'poison', x: m.fx, y: m.fy, r: 2.0, life: 6, max: 6, dps: m.dmg * 0.5, tick: 0.2, own: 'enemy', color: '#E6C86A' }); X.shake(12, 0.4); }
+          if (T > 2.3) done(m, 1.6); break; }
+        case 'burstflop': {   // under half: eggs first, then the flop: bait it away from the patch the eye egg will make
+          if (m.step === 0) { m.step = 1; if (RT && RT.layEggs) RT.layEggs(m); X.say(m, 'Hhhff... hup.'); }
+          if (T > 1.4 && m.step === 1) { m.step = 2; m.fx = X.me.x; m.fy = X.me.y; X.warn({ x: m.fx, y: m.fy, r: 2.3, life: 1.5, max: 1.5, src: m, color: GOLD }); }
+          if (T > 2.9 && m.step === 2) { m.step = 3; m.x = m.fx; m.y = m.fy; X.slam(m.fx, m.fy, 2.3, m.dmg * 1.7, GOLD, m); X.zone({ kind: 'poison', x: m.fx, y: m.fy, r: 2.0, life: 6, max: 6, dps: m.dmg * 0.5, tick: 0.2, own: 'enemy', color: '#E6C86A' }); X.shake(12, 0.4); }
+          if (T > 3.7) done(m, 1.8); break; }
+        default: done(m, 1);
+      }
+    },
+    velis(m, A, X, B) {
+      const RT = X.rift && X.rift.self.mod;
+      if (m.shieldOpen > 0) { m.shieldOpen -= A.dt; if (m.shieldOpen <= 0) { m.shieldOpen = 0; X.text(m.x, m.y - m.r - 1, 'The wings close', ROSE, 12); } }
+      // the shield: a third of the arena, the side its folded wings face; nothing gets through from there while they are shut
+      m.guardFn = m.guardFn || ((q, o) => (q.guardA == null || q.shieldOpen > 0 ? 1 : Math.abs(DunAI.angTo(q.guardA, Math.atan2(X.me.y - q.y, X.me.x - q.x))) < 1.25 ? 0.08 : 1));
+      if (m.act === 'move') { A.walk(B.spd * (A.d > 3.2 ? 1 : 0.2)); m.face = A.dx >= 0 ? 1 : -1; if (m.guardA != null && m.shieldOpen <= 0) m.guardA = Math.atan2(X.me.y - m.y, X.me.x - m.x) * 0.1 + m.guardA * 0.9;
+        if (m.phase >= 2 && !m.summoned && m.cd <= 0) { m.summoned = true; m.act = 'drainer'; m.actT = 0; m.step = 0; return; }
+        return pick(m, X, m.guardA == null ? ['fold'] : m.phase >= 2 ? ['scythe', 'swap', 'scythe', 'dust'] : ['scythe', 'dust', 'scythe']); }
+      const T = m.actT;
+      switch (m.act) {
+        case 'fold': {   // two wings fold across the body toward you: that side is shielded until a prism lights the eye
+          if (m.step === 0) { m.step = 1; m.guardA = Math.atan2(X.me.y - m.y, X.me.x - m.x); m.shieldOpen = 0; X.say(m, 'Shutters.'); if (RT && RT.onFold) RT.onFold(m); }
+          if (T > 0.8) done(m, 1.2); break; }
+        case 'swap': { if (m.step === 0) { m.step = 1; m.guardA = m.guardA + Math.PI; m.shieldOpen = 0; X.say(m, 'The other side.'); if (RT && RT.onFold) RT.onFold(m); } if (T > 0.6) done(m, 1.2); break; }
+        case 'scythe': {   // Prism Scythe: a diagonal across the floor through it, then a sweeping beam
+          if (m.step === 0) { m.step = 1; m.sa = (Math.random() < 0.5 ? 1 : -1) * Math.PI / 4 + (Math.random() < 0.5 ? 0 : Math.PI); const len = 14; X.warn({ shape: 'line', x: m.x - Math.cos(m.sa) * len, y: m.y - Math.sin(m.sa) * len, a: m.sa, len: len * 2, w: 1.3, life: 1.6, max: 1.6, src: m, color: ROSE, fn: () => { if (X.inLine(m.x - Math.cos(m.sa) * len, m.y - Math.sin(m.sa) * len, m.sa, len * 2, 1.3)) X.hurtPet(m.dmg * 1.8, m); X.beamFx(m.x - Math.cos(m.sa) * len, m.y - Math.sin(m.sa) * len, m.sa, len * 2, '#FFB7D9'); X.shake(9, 0.3); } }); X.say(m, 'Scythe.'); }
+          if (T > 2) done(m, 1.5); break; }
+        case 'dust': {   // a ring of pollen bolts
+          if (m.step === 0) { m.step = 1; for (let i = 0; i < 10; i++) X.eshot(m.x, m.y, i / 10 * TAU + T, 4.5, { r: 0.2, dmg: m.dmg * 0.7, color: GOLD, core: '#FFFFFF', style: 'orb', src: m }); X.say(m, 'Dust.'); }
+          if (T > 0.6) done(m, 1.4); break; }
+        case 'drainer': { if (m.step === 0) { m.step = 1; X.say(m, 'Drink the lamp.'); if (RT && RT.summonDrainer) RT.summonDrainer(m); } if (T > 0.8) done(m, 1.2); break; }
+        default: done(m, 1);
+      }
+    },
+    vhorru(m, A, X, B) {
+      const RT = X.rift && X.rift.self.mod, f = m.hp / m.maxhp;
+      if (RT && RT.bossTick) RT.bossTick(m, A.dt);
+      if (m.act === 'move') { A.walk(B.spd * (A.d > 4 ? 1 : 0)); m.face = A.dx >= 0 ? 1 : -1;
+        if (f > 0.7) return pick(m, X, ['rake', 'young', 'rake']);
+        if (RT && RT.bloomBusy && RT.bloomBusy()) return pick(m, X, ['rake', 'young']);
+        return pick(m, X, f > 0.35 ? ['bloom', 'rake', 'young', 'bloom'] : ['bloom', 'rake', 'bloom', 'young']); }
+      const T = m.actT;
+      switch (m.act) {
+        case 'rake': {   // Root Rake: three diverging lanes from its feet; stand in the spaces between
+          if (m.step === 0) { m.step = 1; const a = Math.atan2(X.me.y - m.y, X.me.x - m.x); m.face = Math.cos(a) >= 0 ? 1 : -1; [-0.55, 0, 0.55].forEach(off => { const q = a + off; X.warn({ shape: 'line', x: m.x, y: m.y, a: q, len: 11, w: 1.1, life: 1.8, max: 1.8, src: m, color: '#E04FA3', fn: () => { if (X.inLine(m.x, m.y, q, 11, 1.1)) X.hurtPet(m.dmg * 1.6, m); X.beamFx(m.x, m.y, q, 11, '#8A3A6A'); X.shake(8, 0.3); } }); }); X.say(m, 'Rrrrk.'); }
+          if (T > 2.2) done(m, 1.6); break; }
+        case 'young': {   // Falling Young: two eggs; break them before they hatch
+          if (m.step === 0) { m.step = 1; if (RT && RT.fallingYoung) RT.fallingYoung(m); X.say(m, 'Grow.'); }
+          if (T > 1.2) done(m, 1.8); break; }
+        case 'bloom': {   // Starless Bloom: the blossoms close, one is marked; open it with a prism and gather inside before the pulse
+          if (m.step === 0) { m.step = 1; if (RT && RT.starlessBloom) RT.starlessBloom(m, f < 0.35); X.say(m, 'Starless.'); }
+          if (T > 1) done(m, 8.5); break; }
+        default: done(m, 1);
+      }
+    },
+  });
+
+  /* ---- the garden's objects: seed-lamps, prism flowers, leaf shutters, receiver buds; the beams between them ---- */
+  const DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];
+  const lampDraw = (c, Xs, Ys, T, o) => { const k = o.charge, r = T * 0.3; c.save(); c.translate(Xs, Ys - T * 0.1);
+    c.strokeStyle = LN; c.lineWidth = 4; c.beginPath(); c.moveTo(0, T * 0.1); c.lineTo(0, -T * 0.9); c.stroke(); c.strokeStyle = JADE; c.lineWidth = 2.2; c.stroke();
+    [-1, 1].forEach(sd => { c.fillStyle = JADE; c.beginPath(); c.moveTo(0, -T * 0.4); c.quadraticCurveTo(sd * T * 0.35, -T * 0.55, sd * T * 0.45, -T * 0.25); c.quadraticCurveTo(sd * T * 0.2, -T * 0.3, 0, -T * 0.4); c.fill(); c.strokeStyle = LN; c.lineWidth = 1.2; c.stroke(); });
+    if (k > 0) glowAt(c, 0, -T * 0.95, r * (2 + k), GOLD, 0.35 + 0.5 * k);
+    c.fillStyle = o.broken ? '#6A5A48' : k > 0 ? GOLD : '#8A7A5A'; c.beginPath(); c.arc(0, -T * 0.95, r, 0, TAU); c.fill(); c.strokeStyle = LN; c.lineWidth = 1.6; c.stroke();
+    c.fillStyle = 'rgba(0,0,0,.45)'; GFX.rr(c, -T * 0.4, -T * 1.45, T * 0.8, T * 0.14, 3); c.fill(); c.fillStyle = k > 0.3 ? GOLD : '#E04FA3'; GFX.rr(c, -T * 0.4, -T * 1.45, T * 0.8 * k, T * 0.14, 3); c.fill(); c.restore(); };
+  const prismDraw = (c, Xs, Ys, T, o) => { const r = T * 0.36; c.save(); c.translate(Xs, Ys - T * 0.1);
+    c.fillStyle = CREAM; c.strokeStyle = LN; c.lineWidth = 1.6; c.beginPath(); c.ellipse(0, T * 0.1, r * 1.3, r * 0.5, 0, 0, TAU); c.fill(); c.stroke();
+    for (let i = 0; i < 4; i++) { const on = i === o.dir, a = i * Math.PI / 2; c.save(); c.rotate(a); c.fillStyle = on ? GOLD : '#C9B48A'; c.beginPath(); c.moveTo(r * 1.1, -r * 0.14); c.lineTo(r * 1.45, 0); c.lineTo(r * 1.1, r * 0.14); c.closePath(); c.fill(); c.strokeStyle = LN; c.lineWidth = 1.2; c.stroke(); c.restore(); }
+    c.save(); c.rotate(o.dir * Math.PI / 2 + Math.PI / 4); for (let i = 0; i < 4; i++) { c.rotate(Math.PI / 2); c.fillStyle = shade(c, ROSE, r, 0, -r * 0.3, 0.4); c.beginPath(); c.moveTo(0, 0); c.quadraticCurveTo(r * 0.6, -r * 0.7, r * 0.95, 0); c.quadraticCurveTo(r * 0.6, r * 0.2, 0, 0); c.fill(); c.strokeStyle = LN; c.lineWidth = 1.3; c.stroke(); } c.restore();
+    c.fillStyle = o.lit ? '#FFFFFF' : '#E8D8F2'; c.beginPath(); c.moveTo(0, -r * 0.45); c.lineTo(r * 0.4, 0); c.lineTo(0, r * 0.45); c.lineTo(-r * 0.4, 0); c.closePath(); c.fill(); c.strokeStyle = LN; c.lineWidth = 1.4; c.stroke(); if (o.lit) glowAt(c, 0, 0, r * 1.4, GOLD, 0.6);
+    c.restore(); };
+  const shutterDraw = (c, Xs, Ys, T, o) => { c.save(); c.translate(Xs, Ys); c.strokeStyle = LN; c.lineWidth = 4; c.beginPath(); c.moveTo(0, T * 0.1); c.lineTo(0, -T * 1.1); c.stroke(); c.strokeStyle = '#6A4A2A'; c.lineWidth = 2; c.stroke();
+    c.save(); c.translate(0, -T * 0.6); c.rotate(o.open ? -1.3 : 0); c.fillStyle = shade(c, JADE, T * 0.5, 0, 0, 0.35); c.beginPath(); c.moveTo(0, -T * 0.55); c.lineTo(T * 0.55, 0); c.lineTo(0, T * 0.55); c.lineTo(-T * 0.55, 0); c.closePath(); c.fill(); c.strokeStyle = LN; c.lineWidth = 1.6; c.stroke(); c.strokeStyle = '#2F5A4A'; c.lineWidth = 1.2; c.beginPath(); c.moveTo(0, -T * 0.5); c.lineTo(0, T * 0.5); c.stroke(); c.restore(); c.restore(); };
+  const budDraw = (c, Xs, Ys, T, o) => { const k = o.lit ? 1 : 0, r = T * 0.36; c.save(); c.translate(Xs, Ys - T * 0.1); c.strokeStyle = LN; c.lineWidth = 4; c.beginPath(); c.moveTo(0, T * 0.1); c.lineTo(0, -T * 0.6); c.stroke(); c.strokeStyle = JADE; c.lineWidth = 2; c.stroke();
+    if (k) glowAt(c, 0, -T * 0.75, r * 2.2, GOLD, 0.55);
+    for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + (i - 2) * (0.35 + 0.35 * k); c.fillStyle = shade(c, k ? CREAM : ROSE, r, 0, -r, 0.4); c.beginPath(); c.moveTo(0, -T * 0.5); c.quadraticCurveTo(Math.cos(a - 0.3) * r * 1.2, -T * 0.5 + Math.sin(a - 0.3) * r * 1.2, Math.cos(a) * r * 1.5, -T * 0.5 + Math.sin(a) * r * 1.5); c.quadraticCurveTo(Math.cos(a + 0.3) * r * 1.2, -T * 0.5 + Math.sin(a + 0.3) * r * 1.2, 0, -T * 0.5); c.fill(); c.strokeStyle = LN; c.lineWidth = 1.3; c.stroke(); }
+    c.fillStyle = k ? GOLD : '#6A3A5C'; c.beginPath(); c.arc(0, -T * 0.55, r * 0.35, 0, TAU); c.fill(); c.strokeStyle = LN; c.lineWidth = 1.2; c.stroke(); c.restore(); };
+  /* the beams: from each lit lamp along its direction until a wall; a prism turns the beam to its own direction; a
+     closed shutter stops it; a receiver bud (or a blossom, or the boss) is lit when the beam reaches it */
+  function beamNet(X, S) {
+    S.segs = []; for (const r of S.receivers || []) r.lit = false; for (const p of S.prisms) p.lit = false; S.bossHit = false;
+    const M = X.M, walk = (x, y) => M.G[y * M.MW + x] !== T_SOLID;
+    for (const L of S.lamps) { if (L.charge <= 0 || L.broken) continue;
+      let tx = Math.floor(L.x), ty = Math.floor(L.y), d = L.dir, x0 = L.x, y0 = L.y, seen = new Set(), guard = 0;
+      while (guard++ < 90) { tx += DIRS[d][0]; ty += DIRS[d][1]; if (!walk(tx, ty)) { S.segs.push([x0, y0, tx + 0.5 - DIRS[d][0] * 0.5, ty + 0.5 - DIRS[d][1] * 0.5]); break; }
+        const cx = tx + 0.5, cy = ty + 0.5, p = S.prisms.find(p => p.tx === tx && p.ty === ty), sh = (S.shutters || []).find(s => s.tx === tx && s.ty === ty), rc = (S.receivers || []).find(r => r.tx === tx && r.ty === ty);
+        if (sh && !sh.open) { S.segs.push([x0, y0, cx, cy]); break; }
+        if (rc) { S.segs.push([x0, y0, cx, cy]); rc.lit = true; break; }
+        if (S.boss && !S.boss.dead && Math.hypot(S.boss.x - cx, S.boss.y - cy) < S.boss.r + 0.6) { S.segs.push([x0, y0, cx, cy]); S.bossHit = true; S.bossHitFrom = d; break; }
+        if (p) { if (seen.has(p)) break; seen.add(p); p.lit = true; S.segs.push([x0, y0, cx, cy]); x0 = cx; y0 = cy; d = p.dir; }
+      }
+    }
+  }
+  function drawBeams(c, X, S) { const T = X.Tz(); c.save(); c.globalCompositeOperation = 'lighter'; for (const [x0, y0, x1, y1] of S.segs) softRay(c, X.sx(x0), X.sy(y0) - T * 0.4, X.sx(x1), X.sy(y1) - T * 0.4, T * 0.28, GOLD, 0.85, 0.5); c.restore(); }
+  const mkLamp = (H, p, dir, o) => H.obj(Object.assign({ x: p.x, y: p.y, tx: p.tx, ty: p.ty, kind: 'lamp', dir, charge: 1, drainT: 0, dark: false, broken: false, h: 1.75, label: o => (o.broken ? 'Seed-lamp: repair it' : o.charge <= 0 ? 'Drained' : ''), draw: lampDraw }, o || {}));
+  const mkPrism = (H, X, p, dir, label) => H.obj({ x: p.x, y: p.y, tx: p.tx, ty: p.ty, kind: 'prism', dir, lit: false, r: 1.0, h: 1.2, label: label || 'Prism flower: turn', draw: prismDraw, use(o) { o.dir = (o.dir + 1) % 4; X.sfx.chirp(); X.sparks(o.x, o.y - 0.4, GOLD, 8, 4); } });
+  const lampTick = (lamps, dt) => { for (const L of lamps) { if (L.drainT > 0) L.drainT -= dt; else if (!L.broken && L.charge < 1) { L.charge = Math.min(1, L.charge + 0.2 * dt); if (L.charge > 0.3) L.dark = false; } } };
+  const PACK = { t: { mons: ['thornling'] }, u: { mons: ['thornling', 'thornling'] }, g: { mons: ['milkcap', 'pollenmoth', 'pollenmoth'] }, w: { mons: ['pollenmoth', 'pollenmoth'] }, k: { mons: ['thornling', 'thornling', 'thornling'] } };
+  const EGG_HATCH = (X, m) => { const q = X.freeSpot(m.x, m.y, 0.35) || m; m.hatched = true; X.killMon(m); const t = X.spawnMon('thornling', q.x, q.y, { aggro: true, pack: 520 }); t.hp = t.maxhp = t.maxhp * 0.5; X.g.total++; X.sparks(q.x, q.y, '#B98BE0', 12, 5); X.text(q.x, q.y - 1, 'Hatched!', '#B98BE0', 12); };
+
+  defRift({
+    id: 'garden', n: 2, name: 'The Garden of Unborn Stars', lvl: 20, sigil: 'Bloom', biome: 'garden', aff: ['earth', 'dark'], region: 'the forest',
+    blurb: 'A forest that grows eggs instead of fruit under three unmoving moons. Route the seed-lamps\' light.', gate: { anima: 'taurus', name: 'The Comet Meadow' },
+    stages: [
+      /* 1. the Light Orchard: a seed-lamp, two prism flowers, a leaf shutter, a receiver bud across the ravine */
+      { kind: 'section', name: 'The Light Orchard', goal: 'Turn the prism flowers to light the bud across the ravine',
+        layout: [
+          '########################################',
+          '#S..t..........................#.......#',
+          '#......t.......................#.......#',
+          '#..L....P........t.....~~~.....#.......#',
+          '#..............................#...E...#',
+          '#.......h...........~~~~~~~~~~~#.......#',
+          '#...................~~~~~~~~~~~#.......#',
+          '#...................bbbbbbbbbbb........#',
+          '#.......Q....g.....m~~~~~~~~~~~R.......#',
+          '#......t...........~~~~~~~~~~~~........#',
+          '########################################'],
+        legend: Object.assign({ L: {}, P: {}, Q: {}, h: {}, R: {}, b: { tile: T_GAP }, E: {} }, PACK),
+        make(X, self, H) {
+          const marks = X.M.marks, S = { lamps: [mkLamp(H, marks.L[0], 0)], prisms: [mkPrism(H, X, marks.P[0], 3), mkPrism(H, X, marks.Q[0], 2)], shutters: [], receivers: [{ x: marks.R[0].x, y: marks.R[0].y, tx: marks.R[0].tx, ty: marks.R[0].ty, lit: false }], segs: [] };
+          S.shutters.push(H.obj({ x: marks.h[0].x, y: marks.h[0].y, tx: marks.h[0].tx, ty: marks.h[0].ty, kind: 'shutter', open: false, h: 1.5, label: o => (o.open ? '' : 'Leaf shutter: open it'), draw: shutterDraw, use(o) { o.open = true; o.use = null; X.text(o.x, o.y - 1.5, 'The leaf swings aside', '#8FE0A6', 12); X.sfx.chirp(); } }));
+          H.obj({ x: marks.R[0].x, y: marks.R[0].y, kind: 'bud', h: 1.6, label: o => (S.receivers[0].lit ? `Lit · ${Math.ceil(Math.max(0, 3 - held))}s` : 'The receiver bud'), draw: (c, Xs, Ys, T, o) => budDraw(c, Xs, Ys, T, S.receivers[0]) });
+          H.spawnPacks(); H.setExit(marks.E[0].x, marks.E[0].y, "Oruun's nursery");
+          let held = 0, grown = false; const bridge = marks.b || [];
+          X.after(2.4, () => X.banner('THE LIGHT ORCHARD', 'Stand at a prism flower to turn it a quarter', GOLD, 2.6, true, true));
+          return { lamps: S.lamps,
+            update(dt) { lampTick(S.lamps, dt); beamNet(X, S);
+              if (S.receivers[0].lit) { held += dt; if (held >= 3 && !grown) { grown = true; bridge.forEach(p => X.setTile(p.tx, p.ty, T_BRIDGE)); X.retile(); X.banner('THE ROOTS GROW', 'Three broad segments bridge the ravine', '#8FE0A6', 2.4, true); X.flash(0.3, GOLD); X.sfx.fanfare(); } } else if (!grown) held = 0;
+              if (grown && H.monstersLeft() === 0 && !self.done) { self.done = true; X.banner('THE ORCHARD IS QUIET', 'Cross to the nursery', GOLD, 2, true); } },
+            goal() { const left = H.monstersLeft(); return grown ? (left ? `${left} monsters left` : 'Cross the root bridge') : S.receivers[0].lit ? `The bud is lit · hold ${Math.ceil(Math.max(0, 3 - held))}s` : S.lamps[0].charge <= 0 ? 'The lamp is drained: kill the moths' : 'Route the light to the bud'; },
+            drawGround(c) { drawBeams(c, X, S); },
+          };
+        } },
+      /* 2. Oruun: the seed nursery, four pebble beds as quadrants, three egg markers */
+      { kind: 'boss', name: 'The Seed Nursery', boss: 'oruun', goal: 'Oruun the Cradle Tick',
+        layout: [
+          '############################',
+          '#######~~~~~~~~~~~~~~#######',
+          '####~~~..............~~~####',
+          '###~.....e..........e..~####',
+          '##~.....................~###',
+          '##~.........B...........~###',
+          '#~.......................~##',
+          '#~.......................~##',
+          '##~.........e...........~###',
+          '##~.....................~###',
+          '###~...................~####',
+          '####~~~......S......~~~#####',
+          '#######~~~~~~~~~~~~~~#######',
+          '############################'],
+        legend: { B: {}, e: {} },
+        make(X, self, H) {
+          const marks = X.M.marks, me = X.me, mod = { safe: null };
+          mod.layEggs = m => { const eye = Math.floor(Math.random() * marks.e.length); marks.e.forEach((p, i) => { const q = X.freeSpot(p.x, p.y, 0.4) || p; const e = X.spawnMon('egg', q.x, q.y, { pack: 521, eye: i === eye }); e.life = 7; X.g.total++; X.sparks(q.x, q.y, GOLD, 10, 4); }); X.text(m.x, m.y - m.r - 1.2, 'Three eggs fall', GOLD, 13); };
+          mod.goal = () => mod.safe ? `A safe patch · ${Math.ceil(mod.safe.t)}s` : 'Oruun the Cradle Tick · break the eye egg for a safe patch';
+          mod.update = dt => { for (const m of X.mons) { if (m.type !== 'egg') continue; if (m.dead) { if (!m.hatched && !m.seen) { m.seen = true; mod.onEggDeath(m); } continue; } if (m.life <= 0) EGG_HATCH(X, m); }
+            if (mod.safe) { mod.safe.t -= dt; if (mod.safe.t <= 0) mod.safe = null; else if (Math.hypot(me.x - mod.safe.x, me.y - mod.safe.y) < 1.5) { me.inv = Math.max(me.inv, 0.15); } } };
+          mod.onEggDeath = m => { if (m.eye) { mod.safe = { x: m.x, y: m.y, t: 12 }; X.banner('A SAFE PATCH', 'Nothing of Oruun\'s reaches you there', '#8FE0A6', 2, true); X.ring(m.x, m.y, 0.3, 1.5, 0.5, '#8FE0A6', 0.4); } };
+          mod.drawGround = c => { const T = X.Tz(); // the pebble beds: four low quadrants
+            [[7, 4], [20, 4], [7, 9], [20, 9]].forEach(([x, y]) => { const Xs = X.sx(x), Ys = X.sy(y); c.save(); c.globalAlpha = 0.35; c.fillStyle = CREAM; c.beginPath(); c.ellipse(Xs, Ys, T * 2.4, T * 1.3, 0, 0, TAU); c.fill(); c.restore(); });
+            if (mod.safe) { const Xs = X.sx(mod.safe.x), Ys = X.sy(mod.safe.y); c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.45 + 0.2 * Math.sin(X.g.t * 4); blitSized(c, glowSprite('#8FE0A6'), Xs - T * 1.8, Ys - T * 1.2, T * 3.6, T * 2.4); c.restore(); }
+            marks.e.forEach(p => { const Xs = X.sx(p.x), Ys = X.sy(p.y); c.save(); c.strokeStyle = 'rgba(255,211,107,.5)'; c.lineWidth = 2; c.setLineDash([5, 5]); c.beginPath(); c.ellipse(Xs, Ys, T * 0.5, T * 0.3, 0, 0, TAU); c.stroke(); c.restore(); }); };
+          return mod;
+        } },
+      /* 3. the Grafting Beds: three beds with stone reliefs, three living seeds; match them; the root barrier parts a
+         third at a time */
+      { kind: 'section', name: 'The Grafting Beds', goal: 'Plant each living seed in the bed with its mark',
+        layout: [
+          '######################################',
+          '#S..............t...........xx.......#',
+          '#...A......B......C.........xx.......#',
+          '#...........................xx.......#',
+          '#..t...........g............xx...E...#',
+          '#...........................xx.......#',
+          '#....1........2........3....xx.......#',
+          '#........t..................xx.......#',
+          '######################################'],
+        legend: Object.assign({ A: {}, B: {}, C: {}, 1: {}, 2: {}, 3: {}, x: { tile: T_SOLID }, E: {} }, PACK),
+        make(X, self, H) {
+          const marks = X.M.marks, me = X.me, SHAPES = ['serrated', 'rounded', 'split'], R = X.R;
+          const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+          const bedShapes = shuffle(SHAPES.slice()), seedShapes = shuffle(SHAPES.slice()), barrier = (marks.x || []).slice().sort((a, b) => a.ty - b.ty);
+          let carrying = null, grafts = 0, extra = false, opened = 0;
+          const leaf = (c, x, y, r, shape, col) => { c.save(); c.translate(x, y); c.fillStyle = col; c.strokeStyle = LN; c.lineWidth = 1.4;
+            if (shape === 'serrated') { c.beginPath(); c.moveTo(0, -r); for (let i = 0; i < 6; i++) { const u = i / 5; c.lineTo(r * 0.6 * Math.sin(u * Math.PI) + r * 0.15, -r + u * 2 * r); c.lineTo(r * 0.45 * Math.sin((u + 0.08) * Math.PI), -r + (u + 0.08) * 2 * r); } c.lineTo(0, r); for (let i = 5; i >= 0; i--) { const u = i / 5; c.lineTo(-r * 0.45 * Math.sin((u + 0.08) * Math.PI), -r + (u + 0.08) * 2 * r); c.lineTo(-r * 0.6 * Math.sin(u * Math.PI) - r * 0.15, -r + u * 2 * r); } c.closePath(); }
+            else if (shape === 'rounded') { c.beginPath(); c.ellipse(0, 0, r * 0.7, r, 0, 0, TAU); }
+            else { c.beginPath(); c.moveTo(0, r); c.quadraticCurveTo(-r * 0.9, 0, -r * 0.5, -r); c.lineTo(0, -r * 0.2); c.lineTo(r * 0.5, -r); c.quadraticCurveTo(r * 0.9, 0, 0, r); c.closePath(); }
+            c.fill(); c.stroke(); c.beginPath(); c.moveTo(0, r * 0.9); c.lineTo(0, -r * 0.5); c.stroke(); c.restore(); };
+          const seedDraw = (c, Xs, Ys, T, o) => { if (o.taken) return; const r = T * 0.26; c.save(); c.translate(Xs, Ys - T * 0.15); c.fillStyle = 'rgba(0,0,0,.3)'; c.beginPath(); c.ellipse(0, T * 0.3, r * 1.6, r * 0.5, 0, 0, TAU); c.fill(); c.fillStyle = '#8A7A5A'; c.strokeStyle = LN; c.lineWidth = 1.5; c.beginPath(); c.ellipse(0, T * 0.15, r * 1.5, r * 0.55, 0, 0, TAU); c.fill(); c.stroke();
+            c.beginPath(); c.ellipse(0, 0, r * 0.8, r, 0, 0, TAU); c.fillStyle = shade(c, CREAM, r, -r * 0.2, -r * 0.4, 0.4); c.fill(); c.stroke(); leaf(c, 0, 0, r * 0.55, o.shape, JADE); c.restore(); };
+          const seeds = [1, 2, 3].map((n, i) => H.obj({ x: marks[String(n)][0].x, y: marks[String(n)][0].y, kind: 'seed', n, shape: seedShapes[i], taken: false, home: { x: marks[String(n)][0].x, y: marks[String(n)][0].y }, h: 1.1, label: o => (o.taken ? '' : `Living seed · ${o.shape} mark`), draw: seedDraw,
+            use(o) { if (carrying) { X.text(me.x, me.y - 1.1, 'Hands full', '#FFFFFF', 12); return; } o.taken = true; carrying = o; o.use = null; X.text(me.x, me.y - 1.1, `Took the ${o.shape}-marked seed`, CREAM, 12); X.sfx.chirp(); } }));
+          seeds.forEach(s => { s.use0 = s.use; });
+          const bedDraw = (c, Xs, Ys, T, o) => { c.save(); c.translate(Xs, Ys); c.fillStyle = 'rgba(0,0,0,.25)'; c.beginPath(); c.ellipse(0, T * 0.2, T * 1.1, T * 0.45, 0, 0, TAU); c.fill(); c.fillStyle = shade(c, '#5A3A2A', T, 0, 0, 0.3); c.strokeStyle = LN; c.lineWidth = 1.6; c.beginPath(); c.ellipse(0, 0, T * 1.0, T * 0.42, 0, 0, TAU); c.fill(); c.stroke();
+            // the stone relief behind the bed
+            c.fillStyle = '#8E8A80'; GFX.rr(c, -T * 0.5, -T * 1.6, T * 1.0, T * 1.1, 6); c.fill(); c.stroke(); leaf(c, 0, -T * 1.05, T * 0.38, o.shape, '#C9C4B4');
+            if (o.open) { glowAt(c, 0, -T * 0.3, T * 1.2, CREAM, 0.5); for (let i = 0; i < 6; i++) { const a = i / 6 * TAU + X.g.t * 0.3; c.fillStyle = CREAM; c.beginPath(); c.ellipse(Math.cos(a) * T * 0.45, -T * 0.3 + Math.sin(a) * T * 0.3, T * 0.3, T * 0.16, a, 0, TAU); c.fill(); c.strokeStyle = LN; c.lineWidth = 1.2; c.stroke(); } c.fillStyle = GOLD; c.beginPath(); c.arc(0, -T * 0.3, T * 0.18, 0, TAU); c.fill(); }
+            if (o.sprout) { c.strokeStyle = LN; c.lineWidth = 5; c.beginPath(); c.moveTo(0, 0); c.quadraticCurveTo(T * 0.3, -T * 0.6, T * 0.1, -T * 1.0); c.stroke(); c.strokeStyle = '#7A4C9E'; c.lineWidth = 3; c.stroke(); for (let i = 0; i < 4; i++) { c.fillStyle = '#B98BE0'; tri(c, T * (0.1 + (i % 2 ? 0.25 : -0.2)), -T * (0.3 + i * 0.2), T * 0.1, i % 2 ? 0 : Math.PI); c.fill(); } }
+            c.restore(); };
+          const beds = ['A', 'B', 'C'].map((ch, i) => H.obj({ x: marks[ch][0].x, y: marks[ch][0].y, kind: 'bed', shape: bedShapes[i], open: false, sprout: null, r: 1.2, h: 2.0, label: o => (o.open ? 'A blossom opened' : o.sprout ? 'Thorn sprout: uproot it' : `Bed · ${o.shape} relief`), draw: bedDraw,
+            use(o) {
+              if (o.open) return;
+              if (o.sprout) { const s = o.sprout; o.sprout = null; if (carrying) { s.taken = false; s.x = me.x; s.y = me.y + 0.6; s.use = s.use0; X.text(o.x, o.y - 1.2, 'Uprooted: the seed lies here', '#FFFFFF', 12); } else { carrying = s; X.text(o.x, o.y - 1.2, 'Uprooted: took the seed back', CREAM, 12); } X.sfx.chirp(); return; }
+              if (!carrying) return;
+              const s = carrying; carrying = null;
+              if (s.shape === o.shape) { o.open = true; grafts++; X.banner('A BLOSSOM OPENS', `Its roots pull the barrier apart (${grafts}/3)`, CREAM, 2.2, true); X.sfx.fanfare(); X.sparks(o.x, o.y - 0.5, GOLD, 16, 6);
+                const third = Math.ceil(barrier.length / 3); barrier.slice(opened, opened + third).forEach(p => X.setTile(p.tx, p.ty, T_FLOOR)); opened += third; X.retile();
+                if (grafts === 2 && !extra) { extra = true; X.after(0.8, () => { const p0 = barrier[Math.min(barrier.length - 1, opened)]; for (let i = 0; i < 2; i++) { const q = X.freeSpot(p0.x - 1.5, p0.y + i * 1.2 - 0.6, 0.35) || p0; X.spawnMon('thornling', q.x, q.y, { aggro: true, pack: 522 }); X.g.total++; X.sparks(q.x, q.y, '#B98BE0', 10, 4); } X.text(p0.x - 1.5, p0.y - 1, 'Thornlings tear out of the barrier', '#B98BE0', 12); }); } }
+              else { o.sprout = s; X.text(o.x, o.y - 1.4, 'Wrong bed: a thorn sprout grows', '#B98BE0', 12); X.sfx.wrong(); X.sparks(o.x, o.y - 0.5, '#7A4C9E', 10, 4); }
+            } }));
+          H.spawnPacks(); H.setExit(marks.E[0].x, marks.E[0].y, 'The conservatory');
+          return {
+            update(dt) { if (!self.done && grafts === 3 && extra && H.monstersLeft() === 0) { self.done = true; barrier.slice(opened).forEach(p => X.setTile(p.tx, p.ty, T_FLOOR)); X.retile(); X.banner('THE ROOTS PART', 'Walk through to the conservatory', '#8FE0A6', 2.4, true); X.flash(0.3, CREAM); X.sfx.fanfare(); } },
+            goal() { return carrying ? `Carrying the ${carrying.shape} seed · find its bed (${grafts}/3)` : self.done ? 'Walk through the parted roots' : `Blossoms ${grafts}/3${extra && H.monstersLeft() ? ` · ${H.monstersLeft()} thornlings` : ''}`; },
+            drawOver(c) { if (!carrying) return; const T = X.Tz(); seedDraw(c, X.sx(me.x), X.sy(me.y) - T * 1.2 - Math.sin(X.g.t * 3) * T * 0.05, T, { shape: carrying.shape }); },
+          };
+        } },
+      /* 4. Velis: the conservatory, three prism flowers on its edges and a single central seed-lamp */
+      { kind: 'boss', name: 'The Glassless Conservatory', boss: 'velis', goal: 'Velis the Glasswing',
+        layout: [
+          '################################',
+          '#..............P...............#',
+          '#..............................#',
+          '#..............................#',
+          '#..............................#',
+          '#..............B...............#',
+          '#..............................#',
+          '#..............................#',
+          '#P.............L..............P#',
+          '#..............................#',
+          '#..............................#',
+          '#..............................#',
+          '#..............................#',
+          '#..............S...............#',
+          '################################'],
+        legend: { B: {}, P: {}, L: {} },
+        make(X, self, H) {
+          const marks = X.M.marks, S = { lamps: [], prisms: [], receivers: [], segs: [], boss: null }, mod = { lamps: S.lamps };
+          // the lamp lights all four ways; each prism sends its light on in the direction it faces
+          [0, 1, 2, 3].forEach(d => S.lamps.push(mkLamp(H, marks.L[0], d, d ? { draw: null, label: '', r: 0 } : {})));
+          marks.P.forEach(p => S.prisms.push(mkPrism(H, X, p, p.ty < 3 ? 1 : p.tx < 5 ? 0 : 2)));
+          mod.onFold = m => { X.banner('WING SHUTTERS', 'Turn a prism so its light reaches the shielded side', ROSE, 2.2, true); };
+          mod.summonDrainer = m => { const q = X.freeSpot(marks.L[0].x + 2, marks.L[0].y - 1, 0.35) || marks.L[0]; X.spawnMon('pollenmoth', q.x, q.y, { aggro: true, pack: 523 }); X.g.total++; X.banner('A MOTH DRAINS THE LAMP', 'Kill it first, then turn a prism', GOLD, 2.2, true); };
+          mod.goal = () => { const b = X.boss; return b && b.guardA != null ? (b.shieldOpen > 0 ? `Shield open · ${Math.ceil(b.shieldOpen)}s: strike!` : 'Velis is shielded: light the folded wings') : 'Velis the Glasswing'; };
+          mod.update = dt => { lampTick(S.lamps, dt); S.boss = X.boss; beamNet(X, S); const b = X.boss; if (!b || b.dead) return;
+            if (S.bossHit && b.guardA != null && b.shieldOpen <= 0) { const from = Math.atan2(DIRS[S.bossHitFrom][1], DIRS[S.bossHitFrom][0]) + Math.PI; if (Math.abs(DunAI.angTo(b.guardA, from)) < 1.3) { b.shieldOpen = 10; X.banner('THE EYE LIGHTS', 'The wings open for ten seconds', GOLD, 2, true); X.flash(0.3, GOLD); X.sfx.fanfare(); X.ring(b.x, b.y, 0.3, 3, 0.6, GOLD, 0.4); } } };
+          mod.drawGround = c => { drawBeams(c, X, S); const b = X.boss; if (b && !b.dead && b.guardA != null && b.shieldOpen <= 0) { const T = X.Tz(), Xs = X.sx(b.x), Ys = X.sy(b.y); c.save(); c.globalAlpha = 0.35; c.strokeStyle = ROSE; c.lineWidth = 5; c.beginPath(); c.ellipse(Xs, Ys, T * 2.4, T * 1.4, 0, b.guardA - 1.25, b.guardA + 1.25); c.stroke(); c.restore(); } };
+          return mod;
+        } },
+      /* 5. the Seedling Pilgrimage: a root path round the stump; three lit patches; a seedling that walks lamp to lamp */
+      { kind: 'section', name: 'The Seedling Pilgrimage', goal: 'Light the next patch and bring the seedling to it',
+        layout: [
+          '############################################################',
+          '#S..........................................~~~~~..........#',
+          '#.....1.........k...........2.........g..........3.....E...#',
+          '#.....a.....................a....................a.........#',
+          '#.........~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~..........#',
+          '############################################################'],
+        legend: Object.assign({ 1: {}, 2: {}, 3: {}, a: {}, E: {} }, PACK),
+        make(X, self, H) {
+          const marks = X.M.marks, me = X.me, patches = [1, 2, 3].map(n => ({ x: marks[String(n)][0].x, y: marks[String(n)][0].y, lit: n === 1 })), lamps = marks.a.map((p, i) => mkLamp(H, p, 0, { on: false, r: 1.0, label: o => (o.broken ? 'Repair the lamp' : o.on ? '' : 'Seed-lamp: light the next patch'), use(o) { if (o.broken) { o.broken = false; o.charge = 0.6; X.text(o.x, o.y - 1.5, 'Repaired', '#8FE0A6', 12); X.sfx.chirp(); return; } if (o.on) return; o.on = true; X.text(o.x, o.y - 1.5, 'The next patch lights', GOLD, 12); X.sfx.chirp(); } }));
+          const seed = { x: patches[0].x, y: patches[0].y, leg: 0, walking: false, ph: 0 };
+          let finale = false, finaleSpawned = false;
+          H.spawnPacks(); H.setExit(marks.E[0].x, marks.E[0].y, "Vhorru's clearing");
+          X.after(2.4, () => X.banner('THE SEEDLING PILGRIMAGE', 'Light the lamp by each patch; the seedling walks to the next', GOLD, 2.8, true, true));
+          const lampOf = i => lamps[i];
+          return { lamps,
+            update(dt) { lampTick(lamps, dt); seed.ph += dt * 5;
+              for (const L of lamps) if (L.charge <= 0 && !L.broken) { L.broken = true; L.on = false; L.use = L.use0 || L.use; X.text(L.x, L.y - 1.5, 'The lamp is disabled', '#B98BE0', 12); }
+              lamps.forEach(L => { if (!L.use0) L.use0 = L.use; });
+              if (seed.leg < 2) { const L = lampOf(seed.leg), next = patches[seed.leg + 1]; next.lit = L.on && !L.broken && L.charge > 0;
+                if (next.lit) { const dx = next.x - seed.x, dy = next.y - seed.y, d = Math.hypot(dx, dy); if (d > 0.2) { seed.walking = true; seed.x += dx / d * 1.6 * dt; seed.y += dy / d * 1.6 * dt; } else { seed.walking = false; seed.leg++; X.banner(`PATCH ${seed.leg + 1} REACHED`, seed.leg < 2 ? 'Light the next lamp' : 'Two moths come from both sides', GOLD, 2, true); X.sfx.fanfare(); if (seed.leg === 2) { finale = true; } } } else seed.walking = false; }
+              if (finale && !finaleSpawned) { finaleSpawned = true; [[-4, 0], [4, 0]].forEach(([dx, dy]) => { const q = X.freeSpot(patches[2].x + dx, patches[2].y + dy, 0.35) || patches[2]; X.spawnMon('pollenmoth', q.x, q.y, { aggro: true, pack: 524 }); X.g.total++; }); }
+              if (finale && !self.done && H.monstersLeft() === 0) { self.done = true; X.banner('THE BARK OPENS', 'The seedling opens the doorway into the stump', '#8FE0A6', 2.4, true); X.flash(0.3, CREAM); X.sfx.fanfare(); } },
+            goal() { if (self.done) return 'Enter the stump'; if (finale) return `Defend the seedling · ${H.monstersLeft()} moths`; const L = lampOf(seed.leg); return L.broken ? `Lamp ${seed.leg + 1} is disabled: repair it` : L.on ? (seed.walking ? 'The seedling walks' : 'Clear the way') : `Light lamp ${seed.leg + 1} to lead the seedling on`; },
+            drawGround(c) { const T = X.Tz();
+              patches.forEach((p, i) => { const Xs = X.sx(p.x), Ys = X.sy(p.y); c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = p.lit ? 0.5 + 0.2 * Math.sin(X.g.t * 3) : 0.12; blitSized(c, glowSprite(GOLD), Xs - T * 1.6, Ys - T * 1.1, T * 3.2, T * 2.2); c.restore(); });
+              if (seed.leg < 2 && patches[seed.leg + 1].lit) { c.save(); c.globalAlpha = 0.6; c.strokeStyle = GOLD; c.lineWidth = 2; c.setLineDash([6, 6]); c.beginPath(); c.moveTo(X.sx(seed.x), X.sy(seed.y)); c.lineTo(X.sx(patches[seed.leg + 1].x), X.sy(patches[seed.leg + 1].y)); c.stroke(); c.restore(); }
+              // the seedling: a round cream body, two stubby root feet, one jade leaf
+              const Xs = X.sx(seed.x), Ys = X.sy(seed.y), r = T * 0.26, st2 = seed.walking ? Math.sin(seed.ph) : 0; c.save(); c.translate(Xs, Ys - Math.abs(st2) * r * 0.2); c.fillStyle = 'rgba(0,0,0,.25)'; c.beginPath(); c.ellipse(0, r * 0.6, r * 1.1, r * 0.4, 0, 0, TAU); c.fill();
+              [-1, 1].forEach(sd => { c.strokeStyle = LN; c.lineWidth = r * 0.35; c.lineCap = 'round'; c.beginPath(); c.moveTo(sd * r * 0.35, r * 0.3); c.lineTo(sd * r * 0.5 + sd * st2 * r * 0.2, r * 0.75); c.stroke(); c.strokeStyle = '#B8A070'; c.lineWidth = r * 0.18; c.stroke(); });
+              c.beginPath(); c.arc(0, -r * 0.1, r, 0, TAU); c.fillStyle = shade(c, CREAM, r, -r * 0.3, -r * 0.4, 0.4); c.fill(); c.strokeStyle = LN; c.lineWidth = 2; c.stroke();
+              leafShape(c, r * 0.1, -r * 1.1, r * 0.55, X.g.t); [[-0.3, -0.2], [0.3, -0.2]].forEach(([x, y]) => { c.fillStyle = INK; c.beginPath(); c.arc(x * r, y * r, r * 0.11, 0, TAU); c.fill(); }); c.fillStyle = ROSE; c.beginPath(); c.arc(0, r * 0.15, r * 0.12, 0, TAU); c.fill(); c.restore(); },
+          };
+          function leafShape(c, x, y, r, t) { c.save(); c.translate(x, y); c.rotate(-0.5 + Math.sin(t * 2) * 0.1); c.fillStyle = JADE; c.strokeStyle = LN; c.lineWidth = 1.4; c.beginPath(); c.moveTo(0, 0); c.quadraticCurveTo(r * 0.9, -r * 0.9, r * 1.6, -r * 0.2); c.quadraticCurveTo(r * 0.8, r * 0.3, 0, 0); c.fill(); c.stroke(); c.restore(); }
+        } },
+      /* 6. Vhorru: the hollow stump's clearing, five blossoms in alcoves round the rim, three prism flowers */
+      { kind: 'boss', name: 'The Hollow Stump', boss: 'vhorru', goal: 'Vhorru the Root of a Thousand Young',
+        layout: [
+          '####################################',
+          '##############....f....#############',
+          '##########..................########',
+          '########......................######',
+          '######..........................####',
+          '#####............................###',
+          '####..............................##',
+          '####..............P...............##',
+          '###f..............................f#',
+          '###..............B.................#',
+          '###................................#',
+          '####..P......................P....##',
+          '####..............................##',
+          '#####............................###',
+          '######f......................f..####',
+          '########...............S......######',
+          '##########..................########',
+          '####################################'],
+        legend: { B: {}, f: {}, P: {} },
+        make(X, self, H) {
+          const marks = X.M.marks, me = X.me, S = { lamps: [], prisms: [], receivers: [], segs: [] }, mod = { lamps: S.lamps, marked: -1, pulse: 0, closed: false };
+          // each prism flower is its own light here: the lamp of the clearing is the sky
+          marks.P.forEach((p, i) => { const pr = mkPrism(H, X, p, i); S.prisms.push(pr); S.lamps.push({ x: p.x, y: p.y, tx: p.tx, ty: p.ty, get dir() { return pr.dir; }, charge: 1, drainT: 0 }); });
+          const blossoms = marks.f.map((p, i) => ({ x: p.x, y: p.y, tx: p.tx, ty: p.ty, i, lit: false, open: true }));
+          S.receivers = blossoms; const prismSeg = (seg, b) => { const [x0, y0, x1, y1] = seg; const L = Math.hypot(x1 - x0, y1 - y0) || 1, t = Math.max(0, Math.min(1, ((b.x - x0) * (x1 - x0) + (b.y - y0) * (y1 - y0)) / (L * L))); return Math.hypot(b.x - (x0 + (x1 - x0) * t), b.y - (y0 + (y1 - y0) * t)) < 1.2; };
+          mod.bloomBusy = () => mod.pulse > 0;
+          mod.fallingYoung = m => { for (let i = 0; i < 2; i++) { const a = Math.random() * TAU, q = X.freeSpot(me.x + Math.cos(a) * 3, me.y + Math.sin(a) * 3, 0.4) || me; const e = X.spawnMon('egg', q.x, q.y, { pack: 525 }); e.life = 7; X.g.total++; X.sparks(q.x, q.y, '#E04FA3', 10, 4); } X.text(me.x, me.y - 1.6, 'Two eggs fall: break them', '#E04FA3', 13); };
+          mod.starlessBloom = (m, late) => { mod.closed = true; mod.marked = Math.floor(Math.random() * blossoms.length); mod.pulse = 8; mod.late = late; mod.swapped = false; blossoms.forEach(b => { b.open = false; }); X.banner('STARLESS BLOOM', `Open blossom ${mod.marked + 1} with a prism and gather inside`, '#E04FA3', 2.6, true); X.sfx.hum();
+            if (late) { const bl = blossoms[mod.marked], a = Math.atan2(bl.y - m.y, bl.x - m.x), len = Math.hypot(bl.x - m.x, bl.y - m.y); X.zone({ kind: 'warn', shape: 'line', own: 'enemy', x: m.x, y: m.y, a, len: len * 0.8, w: 1.2, life: 7.5, max: 7.5, color: '#E04FA3', src: m }); mod.rootLane = { x: m.x, y: m.y, a, len: len * 0.8 }; } };
+          mod.bossTick = (m, dt) => { if (mod.pulse <= 0) return; mod.pulse -= dt;
+            if (mod.late && !mod.swapped && mod.pulse < 4) { mod.swapped = true; mod.marked = (mod.marked + 1 + Math.floor(Math.random() * (blossoms.length - 1))) % blossoms.length; X.banner('THE SAFE BLOSSOM CHANGES', `Blossom ${mod.marked + 1} now`, GOLD, 2, true); X.sfx.wrong(); }
+            if (mod.rootLane && X.inLine(mod.rootLane.x, mod.rootLane.y, mod.rootLane.a, mod.rootLane.len, 1.2) && me.inv <= 0) { X.hurtPet(m.dmg * 0.4, m); me.inv = 0.5; }
+            if (mod.pulse <= 0) { mod.pulse = 0; const b = blossoms[mod.marked], inside = b.open && Math.hypot(me.x - b.x, me.y - b.y) < 1.7; X.flash(0.6, '#E04FA3'); X.shake(16, 0.6); X.boom(m.x, m.y, 4, '#E04FA3', '#FFFFFF', { n: 40, shake: 14 }); X.ring(m.x, m.y, 0.5, 14, 1.2, '#E04FA3', 0.5); if (!inside) X.hurtPet(m.dmg * 3, m); else X.text(me.x, me.y - 1.4, 'Sheltered!', '#8FE0A6', 14); X.sfx.crash(); mod.closed = false; mod.marked = -1; mod.rootLane = null; blossoms.forEach(q => { q.open = true; }); X.banner(inside ? 'THE PULSE PASSES' : 'THE PULSE', inside ? 'The blossoms open again' : 'Caught outside the cup', inside ? '#8FE0A6' : '#E04FA3', 2, true); } };
+          mod.goal = () => mod.pulse > 0 ? `Blossom ${mod.marked + 1}: ${blossoms[mod.marked].open ? 'open — get inside' : 'turn a prism to it'} · ${Math.ceil(mod.pulse)}s` : 'Vhorru · break the eggs, stand between the root lanes';
+          mod.update = dt => { for (const m of X.mons) { if (m.type !== 'egg' || m.dead) continue; if (m.life <= 0) EGG_HATCH(X, m); }
+            beamNet(X, S); if (mod.closed) blossoms.forEach(b => { b.open = b.lit || S.segs.some(seg => prismSeg(seg, b)); }); };
+          mod.drawGround = c => { drawBeams(c, X, S); const T = X.Tz();
+            blossoms.forEach(b => { const Xs = X.sx(b.x), Ys = X.sy(b.y), mk = mod.marked === b.i; c.save(); if (mk) { c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.5 + 0.3 * Math.sin(X.g.t * 6); blitSized(c, glowSprite(GOLD), Xs - T * 2.2, Ys - T * 1.6, T * 4.4, T * 3.2); c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1; }
+              for (let i = 0; i < 6; i++) { const a = i / 6 * TAU + X.g.t * 0.2, sp = b.open ? 1.6 : 0.6; c.fillStyle = shade(c, b.open ? CREAM : '#6A3A5C', T, 0, 0, 0.35); c.beginPath(); c.ellipse(Xs + Math.cos(a) * T * sp * 0.55, Ys + Math.sin(a) * T * sp * 0.35, T * 0.7 * (b.open ? 1 : 0.7), T * 0.3, a, 0, TAU); c.fill(); c.strokeStyle = LN; c.lineWidth = 1.4; c.stroke(); }
+              c.fillStyle = b.open ? GOLD : '#2F183A'; c.beginPath(); c.ellipse(Xs, Ys, T * 0.5, T * 0.3, 0, 0, TAU); c.fill(); c.strokeStyle = LN; c.stroke();
+              c.font = `800 ${Math.round(T * 0.3)}px ${arcFont}`; c.textAlign = 'center'; c.fillStyle = '#FFFFFF'; c.strokeStyle = 'rgba(0,0,0,.6)'; c.lineWidth = 3; c.strokeText(String(b.i + 1), Xs, Ys - T * 0.5); c.fillText(String(b.i + 1), Xs, Ys - T * 0.5); c.restore(); }); };
+          riftSealing(X, self, mod, { fall: 'THE ROOT FALLS', sub: 'The sacs dissolve into harmless gold seeds', sigil: 'THE BLOOM SIGIL', name: 'The Garden of Unborn Stars', color: ROSE, wound: { x: X.M.MW / 2, y: 3 } });
+          return mod;
+        } },
+    ],
+  });
+})();

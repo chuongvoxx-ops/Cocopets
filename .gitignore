@@ -1,0 +1,12 @@
+# build outputs (made by src/build.py)
+pocket-pet.html
+test.html
+test-v*.html
+dist/
+# test and scratch output
+shots/
+bat/
+_chk.js
+_o*.txt
+node_modules/
+.DS_Store

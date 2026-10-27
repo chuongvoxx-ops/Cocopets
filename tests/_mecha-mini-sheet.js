@@ -1,0 +1,7 @@
+const { chromium } = require('/opt/npm-tools/node_modules/playwright'); const path = require('path');
+(async () => { const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' }); const p = await b.newPage({ viewport: { width: 1200, height: 520 }, deviceScaleFactor: 1 });
+  await p.goto('file://' + path.resolve(__dirname, '../test.html')); await p.waitForFunction(() => window.__pp); await p.waitForTimeout(500);
+  const r = await p.evaluate(async () => { const RE = window.__pp.RiftEvil; if (!RE) return 'no RiftEvil'; const Es = [11, 23, 37, 51].map(s => RE.make(s * 7919, { mecha: true })); const t0 = performance.now(); while (performance.now() - t0 < 8000 && !Es.every(e => e.ready)) await new Promise(r => setTimeout(r, 100));
+    const cv = document.createElement('canvas'); cv.width = 1200; cv.height = 520; Object.assign(cv.style, { position: 'fixed', left: 0, top: 0, zIndex: 99999 }); document.body.appendChild(cv); const c = cv.getContext('2d'); c.fillStyle = '#2A3A48'; c.fillRect(0, 0, 1200, 520);
+    Es.forEach((E, i) => { const m = { evil: E, act: i === 3 ? 'blast' : 'move', x: 0, y: 0, eface: 1, ecast: i === 3 ? 1 : 0 }; RE.draw(c, m, 150 + i * 300, 330, 100, 1.3 + i, null); }); return Es.map(e => e.name).join(' | '); });
+  console.log(r); await p.screenshot({ path: path.resolve(__dirname, '../shots/mecha-minis.png') }); await b.close(); })();

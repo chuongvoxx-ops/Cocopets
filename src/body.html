@@ -1,0 +1,188 @@
+<div id="app">
+  <div id="stage" aria-label="Your pet's room. Tap the floor to call your pet.">
+    <div class="room" id="room" data-theme="meadow">
+      <div class="wall" id="wall"></div>
+      <div class="floor" id="floor"></div>
+      <div class="baseboard"></div>
+      <div class="yard" aria-hidden="true"><div class="yd-sun"></div><div class="yd-cloud c1"></div><div class="yd-cloud c2"></div><div class="yd-hills"></div><div class="yd-fence"></div></div>
+      <div class="window" id="window" data-sky="day" aria-hidden="true">
+        <div class="sky"><div class="stars"></div><div class="sunball" id="sunball"></div><div class="moonball" id="moonball" hidden></div><div class="cloud c1"></div><div class="cloud c2"></div></div>
+        <div class="mul-v"></div><div class="mul-h"></div><div class="frame"></div><div class="sill"></div>
+        <div class="rod"></div><div class="curt l"></div><div class="curt r"></div>
+      </div>
+      <div id="wallItems" aria-hidden="true"></div>
+      <div class="sunbeam" id="sun" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+      <div id="world" aria-hidden="true">
+        <div class="pet" id="pet"></div>
+        <div id="fx"></div>
+      </div>
+      <div class="room-dim"></div>
+    </div>
+  </div>
+
+  <div class="night" id="night" aria-hidden="true"></div>
+
+  <section class="home" id="home" hidden aria-label="Android live wallpaper preview">
+    <div class="home-top" id="homeTop">
+      <div class="home-clock" id="homeClock">9:41</div>
+      <div class="home-date" id="homeDate"></div>
+      <div class="home-note"><span>Android live wallpaper preview: the room is your wallpaper, behind your apps. Tap empty space and your pet walks over.</span><button class="btn small" id="homeExit" type="button">Done</button></div>
+    </div>
+    <div class="home-grid" id="homeGrid"></div>
+    <div class="home-dock" id="homeDock"></div>
+  </section>
+
+  <header class="hud" id="hud">
+    <div class="hud-inner">
+      <div class="hud-row">
+        <button class="tag" id="tagBtn" type="button" aria-label="Open pet card">
+          <span class="tag-ring" aria-hidden="true"></span>
+          <span class="tag-plate"><span class="tag-gem" id="tagStage" aria-hidden="true">1</span><span class="tag-name" id="petName">Pet</span></span>
+          <span class="tag-pets" id="tagPets" hidden></span>
+        </button>
+        <button class="pill first" id="coinPill" type="button" aria-label="Coins. Open the decor shop"><span id="coinIcon"></span><span id="coinNum">0</span></button>
+        <button class="pill" id="pearlPill" type="button" aria-label="Pearls. Get more pearls"><span id="pearlIcon"></span><span id="pearlNum">0</span></button>
+        <button class="pill crystal" id="crystalPill" type="button" aria-label="Crystals. Open the crystal shop and fusion"><span id="crystalIcon"></span><span id="crystalNum">0</span></button>
+        <button class="pill streak" id="streakPill" type="button" aria-label="Days fed in a row"><span id="streakIcon"></span><span id="streakNum">0</span></button>
+      </div>
+      <div class="meters" role="group" aria-label="Needs">
+        <div class="meter" data-k="food" role="meter" aria-label="Food" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50"><span class="mi"></span><span class="bar"><i></i></span></div>
+        <div class="meter" data-k="joy" role="meter" aria-label="Happiness" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50"><span class="mi"></span><span class="bar"><i></i></span></div>
+        <div class="meter" data-k="energy" role="meter" aria-label="Energy" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50"><span class="mi"></span><span class="bar"><i></i></span></div>
+        <div class="meter" data-k="clean" role="meter" aria-label="Cleanliness" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50"><span class="mi"></span><span class="bar"><i></i></span></div>
+      </div>
+    </div>
+  </header>
+
+  <div class="roombar" id="roomBar"><button class="rb-arrow" id="roomPrev" type="button" aria-label="Previous room"></button><button class="rb-name" id="roomName" type="button"><span class="rb-ic"></span><b>Living room</b></button><button class="rb-arrow" id="roomNext" type="button" aria-label="Next room"></button><button class="rb-arrow rb-deco" id="roomDeco" type="button" aria-label="Decorate this room"></button></div>
+  <button class="anima-btn" id="animaBtn" type="button" hidden aria-label="Animas"></button>
+  <button class="lab-btn" id="labBtn" type="button" hidden><span id="labBtnIc"></span>Open the Laboratory</button>
+  <button class="lab-btn shop-btn" id="shopBtn" type="button" hidden><span id="shopBtnIc"></span>Open the Shop</button>
+  <div class="banner" id="banner" hidden><b id="bannerTitle"></b><span class="stat" id="bannerStat"></span><button class="btn small" id="bannerBtn" type="button">End</button></div>
+  <div class="trick-card" id="trickCard" hidden><div class="inner" id="trickList"></div></div>
+  <p class="toast" id="toast" role="status" aria-live="polite" hidden></p>
+  <p class="hint" id="hint" aria-live="polite" hidden></p>
+
+  <div class="tray" id="tray" hidden><div class="tray-inner" id="trayInner"></div></div>
+
+  <nav class="dock" id="dock" aria-label="Care">
+    <div class="dock-inner">
+      <button class="toy" id="btnFeed" type="button" aria-expanded="false" aria-controls="tray"><span class="ti"></span><span>Feed</span></button>
+      <button class="toy" id="btnPlay" type="button" aria-expanded="false" aria-controls="tray"><span class="ti"></span><span>Play</span></button>
+      <button class="toy toy-map" id="btnMap" type="button"><span class="ti"></span><span>Adventure</span></button>
+      <button class="toy" id="btnHouse" type="button" aria-haspopup="dialog"><span class="ti"></span><span>House</span></button>
+      <button class="toy" id="btnTeam" type="button" aria-haspopup="dialog"><span class="ti"></span><span>Team</span></button>
+      <button class="toy" id="btnCard" type="button" aria-haspopup="dialog"><span class="ti"></span><span>Card</span><span class="badge" id="evoBadge" hidden></span></button>
+    </div>
+  </nav>
+
+  <div class="deco-bar" id="decoBar">
+    <div class="deco-bar-inner">
+      <h2>Decorate</h2>
+      <p class="cozy" id="cozyText"></p>
+      <button class="btn small primary" id="decoDone" type="button">Done</button>
+    </div>
+  </div>
+  <div class="drawer" id="drawer">
+    <div class="drawer-inner">
+      <div class="drawer-top">
+        <div class="tabs" role="tablist" aria-label="Decor">
+          <button class="tab" role="tab" type="button" data-tab="shop" aria-selected="true">Shop</button>
+          <button class="tab" role="tab" type="button" data-tab="mine" aria-selected="false">My items</button>
+          <button class="tab" role="tab" type="button" data-tab="rooms" aria-selected="false">Walls &amp; floors</button>
+        </div>
+        <button class="icon-btn" id="drawerToggle" type="button" aria-label="Hide the shop"></button>
+      </div>
+      <div class="drawer-body">
+        <div class="chips" id="catChips"></div>
+        <div class="grid" id="drawerGrid"></div>
+      </div>
+    </div>
+  </div>
+  <div class="sel-tools" id="selTools" hidden>
+    <button class="btn small" id="selFlip" type="button">Flip</button>
+    <button class="btn small" id="selStore" type="button">Put away</button>
+  </div>
+
+  <div class="sheet-wrap" id="sheetWrap" hidden><section class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle"></section></div>
+  <div class="result-wrap" id="resultWrap" hidden><div class="result" id="result" role="dialog" aria-modal="true" aria-labelledby="resultTitle"></div></div>
+  <div class="seek-cover" id="seekCover" hidden></div>
+
+  <div class="evo-wrap" id="evoWrap" hidden>
+    <p class="eyebrow" style="color:#D8D2F2" id="evoEyebrow">Evolution</p>
+    <h2 id="evoTitle">Something is happening…</h2>
+    <div class="evo-stage"><div class="rays"></div><div class="evo-pet" id="evoPet"></div><div class="evo-gem" id="evoGem" hidden></div></div>
+    <p id="evoText"></p>
+    <div class="perk" id="evoPerk" hidden></div>
+    <button class="btn primary" id="evoDone" type="button" hidden>Wonderful!</button>
+    <div class="evo-flash" id="evoFlash"></div>
+  </div>
+
+  <section class="map-view" id="mapView" hidden aria-label="Adventure" data-tab="world">
+    <div class="map-top">
+      <div class="map-row">
+        <button class="btn small" type="button" id="mapBack"><span class="bi"></span>Home</button>
+        <div class="map-sub"><button class="btn small" type="button" id="mapToWorld" hidden>World map</button><b class="map-place" id="mapPlace"></b></div>
+        <div class="map-pills"><span class="mpill mp-stars"><span class="mstar"></span><b id="mapStars">0</b><small>/72</small></span><span class="mpill" id="mapEnergy"><span class="mbolt"></span><b>100%</b></span></div>
+      </div>
+    </div>
+    <div class="map-scroll" id="mapScroll"><div class="map-inner" id="mapInner"></div></div>
+    <div class="dun-scroll" id="dunScroll"><div class="dun-inner" id="dunInner"></div></div>
+    <div class="dun-scroll rift-scroll" id="riftScroll"><div class="dun-inner" id="riftInner"></div></div>
+    <div class="town-wrap" id="townWrap"><canvas id="townCv" aria-label="Pocket Town"></canvas><div class="town-ui" id="townUi"></div></div>
+    <div class="map-card" id="mapCard" hidden></div>
+  </section>
+
+  <section class="arcade" id="arcade" hidden aria-label="Mini-game">
+    <div class="arc-hud" id="arcHud">
+      <button class="arc-pause" id="arcPauseBtn" type="button" aria-label="Pause"></button>
+      <div class="arc-title"><b id="arcName"></b><span id="arcGoal"></span></div>
+      <div class="arc-stats"><span class="arc-hearts" id="arcHearts"></span><span class="arc-score" id="arcScore">0</span><span class="arc-best" id="arcBest" hidden></span></div>
+      <div class="arc-prog" hidden><i id="arcProg"></i></div>
+    </div>
+    <canvas id="arcCanvas"></canvas>
+    <div class="arc-controls" id="arcControls" hidden></div>
+    <div class="arc-overlay" id="arcReady" hidden></div>
+    <div class="arc-overlay" id="arcPanel" hidden></div>
+  </section>
+
+  <div class="gift-wrap" id="giftWrap" hidden role="dialog" aria-modal="true" aria-labelledby="gwTitle">
+    <div class="gw-rays" aria-hidden="true"></div>
+    <div class="gw-head"><p class="eyebrow">Rewards</p><h2 id="gwTitle">Tap the box!</h2><p id="gwSub"></p></div>
+    <button class="gw-box idle" id="gwBox" type="button" aria-label="Open it"></button>
+    <div class="gw-items" id="gwItems" hidden></div>
+    <div class="gw-actions" id="gwActions" hidden><button class="btn" type="button" data-gw="cards">Equip cards</button><button class="btn primary" type="button" data-gw="done">Collect</button></div>
+    <div class="gw-confetti" id="gwConfetti" aria-hidden="true"></div>
+    <div class="gw-flash" id="gwFlash" aria-hidden="true"></div>
+  </div>
+
+  <section class="mansion" id="mansion" hidden aria-label="Your mansion"></section>
+  <div class="ovl" id="widgetOvl" hidden></div>
+  <div class="ovl" id="labOvl" hidden></div>
+
+  <div class="intro" id="intro" hidden>
+    <div class="intro-copy">
+      <p class="eyebrow" id="introEyebrow">Cocopets · Series 1</p>
+      <h1 id="introTitle">A mystery egg!</h1>
+      <p id="introSub">Every egg hatches a different pet. Tap it to crack it open.</p>
+    </div>
+    <div class="nest" id="nest">
+      <div class="rays" id="hatchRays" hidden></div>
+      <svg class="nest-part" viewBox="0 0 240 110" aria-hidden="true"><ellipse cx="120" cy="64" rx="104" ry="34" fill="#B7834E" stroke="var(--pet-line)" stroke-width="3"/><ellipse cx="120" cy="58" rx="82" ry="21" fill="#7E5430"/></svg>
+      <button class="egg idle" id="egg" type="button" aria-label="Tap the egg"></button>
+      <div class="baby" id="baby" hidden></div>
+      <svg class="nest-part" viewBox="0 0 240 110" aria-hidden="true"><path d="M16 64A104 34 0 0 0 224 64L201 60A82 19 0 0 1 39 60Z" fill="#B7834E" stroke="var(--pet-line)" stroke-width="3" stroke-linejoin="round"/><g fill="none" stroke="#E2B47C" stroke-width="3" stroke-linecap="round"><path d="M34 76q32 14 64 6"/><path d="M146 84q32 0 60-14"/><path d="M76 94q40 6 86-2"/></g></svg>
+    </div>
+    <div class="dots" id="eggDots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="reveal" id="reveal" hidden></div>
+    <form class="name-card" id="nameForm" hidden autocomplete="off">
+      <label class="nc-label" for="nameInput">Name your pet</label>
+      <input id="nameInput" type="text" maxlength="14" enterkeyhint="done" spellcheck="false">
+      <button class="btn primary" type="submit">Bring it home</button>
+    </form>
+  </div>
+
+  <div class="splash" id="splash" hidden><div class="paws" role="status" aria-label="Loading your Cocopet"><span></span><span></span><span></span></div></div>
+  <div class="inset-probe" id="insetProbe" aria-hidden="true"></div>
+</div>
+

@@ -1,0 +1,5 @@
+const { open } = require('./_rift-lib');
+(async () => { const T = await open({ lvl: 62, seals: ['belfry', 'garden', 'dunes', 'sepulchre', 'aurora'] }); const { page, errors, shot, start, run } = T;
+  for (const st of [3]) { await start('yuggoth', st); await page.evaluate(async () => { const D = window.__pp.arc.game._dbg, b = D.mons.find(m => m.boss); const t0 = performance.now(); while (performance.now() - t0 < 6000 && !(b.evil && b.evil.ready)) await new Promise(r => requestAnimationFrame(r)); for (const m of D.mons) if (!m.boss && !m.dead && Math.hypot(m.x - b.x, m.y - b.y) < 12) { m.x += 30; } });
+    await page.evaluate(async () => { const D = window.__pp.arc.game._dbg, b = D.mons.find(m => m.boss); const t0 = performance.now(); const sx = D.M.start.x, sy = D.M.start.y; while (performance.now() - t0 < 6500) { b.x = sx; b.y = sy + 1; b.act = 'move'; b.cd = 9; D.me.x = sx + 2.8; D.me.y = sy + 2; D.me.hp = D.ST.hp; await new Promise(r => requestAnimationFrame(r)); } }); await shot('yug-mini-' + st); }
+  console.log('errors', errors.length); process.exit(0); })();

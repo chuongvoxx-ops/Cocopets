@@ -1,0 +1,13 @@
+const { open } = require('./_rift-lib');
+(async () => { const T = await open({ lvl: 72, seals: ['belfry', 'garden', 'dunes', 'sepulchre', 'aurora', 'yuggoth'] }); const { page, shot, start, run } = T;
+  await start('library', 0); await run(2);
+  await page.evaluate(async () => { const D = window.__pp.arc.game._dbg, S = D.RIFT.self.mod.S; S.mob.strongAt = 3; const t0 = performance.now(); let shot = false; while (performance.now() - t0 < 60000 && S.phase === 'mob') { await new Promise(r => requestAnimationFrame(r)); if (S.mob.strong && !shot) { shot = true; window.__wardenSeen = true; break; } } });
+  await run(1.2); await shot('cat-mob');
+  await page.evaluate(async () => { const D = window.__pp.arc.game._dbg, S = D.RIFT.self.mod.S; while (S.phase === 'mob') { await new Promise(r => requestAnimationFrame(r)); for (const m of S.mob.alive) if (!m.dead) D.hitMon(m, 1e9, { flat: true }); } });
+  await run(2.5); await shot('cat-ready');
+  await page.evaluate(async () => { const D = window.__pp.arc.game._dbg, K = D.M.marks.K[0]; for (let i = 0; i < 70; i++) { D.me.x = K.x; D.me.y = K.y; await new Promise(r => requestAnimationFrame(r)); } });
+  await run(0.6); await shot('cat-show'); await run(2.0); await shot('cat-back');
+  await page.evaluate(async () => { const S = window.__pp.arc.game._dbg.RIFT.self.mod.S; while (!(S.cur && S.cur.t > S.cur.dur * 0.45)) await new Promise(r => requestAnimationFrame(r)); });
+  await shot('cat-swap');
+  await page.evaluate(async () => { const S = window.__pp.arc.game._dbg.RIFT.self.mod.S; while (S.phase !== 'pick') await new Promise(r => requestAnimationFrame(r)); });
+  await run(0.5); await shot('cat-pick'); process.exit(0); })();

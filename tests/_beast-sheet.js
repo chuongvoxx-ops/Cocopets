@@ -1,0 +1,7 @@
+const { chromium } = require('/opt/npm-tools/node_modules/playwright'); const path = require('path');
+(async () => { const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' }); const p = await b.newPage({ viewport: { width: 900, height: 420 } });
+  await p.goto('file://' + path.resolve(__dirname, '../test.html')); await p.waitForFunction(() => window.__pp); await p.waitForTimeout(500);
+  await p.evaluate(() => { const cv = document.createElement('canvas'); cv.width = 900; cv.height = 420; cv.id = 'zsheet'; Object.assign(cv.style, { position: 'fixed', left: 0, top: 0, zIndex: 99999, background: '#DDE8EE' }); document.body.appendChild(cv); const c = cv.getContext('2d'); c.fillStyle = '#DDE8EE'; c.fillRect(0, 0, 900, 420);
+    const MP = window.__pp.DunArt ? window.__pp.DunArt.MP : null; return !!MP; });
+  const ok = await p.evaluate(() => { const A = window.__pp.DunArt; if (!A) return 'no DunArt'; const c = document.getElementById('zsheet').getContext('2d'); let x = 90; for (const [t, mode] of [['yeti', ''], ['yeti', 'air'], ['yeti', 'throw'], ['icegolem', ''], ['icegolem', 'block'], ['icegolem', 'cracked']]) { const r = t === 'yeti' ? 52 : 58; c.save(); c.translate(x, 230); A.MP[t](c, r, 0.2, { color: t === 'yeti' ? '#F4F8FA' : '#B4DAEB', mode }); c.restore(); x += 145; } return 'ok'; });
+  console.log(ok); await p.screenshot({ path: path.resolve(__dirname, '../shots/beast-sheet.png') }); await b.close(); })();

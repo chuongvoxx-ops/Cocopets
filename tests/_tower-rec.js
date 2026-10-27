@@ -1,0 +1,22 @@
+const { chromium } = require('/opt/npm-tools/node_modules/playwright');
+const path = require('path');
+(async () => {
+  const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true });
+  const errors = []; page.on('pageerror', e => errors.push(e.message));
+  await page.goto('file://' + path.resolve(__dirname, '../test.html'));
+  await page.waitForFunction(() => window.__pp, null, { timeout: 15000 }); await page.waitForTimeout(300);
+  await page.evaluate(() => { const P = window.__pp; P.quickStart('Rec'); P.st.unlockAll = true; P.st.dun.best = 119; P.st.dlv = 95; P.openMap(); P.dun.setMapTab('dungeon', true); });
+  await page.waitForTimeout(600);
+  await page.evaluate(() => { document.querySelector('.fiend-list li[data-n="120"]').click(); });
+  await page.waitForTimeout(500);
+  const txt = await page.evaluate(() => ({ rec: document.querySelector('.dun-rec') && document.querySelector('.dun-rec').textContent, list: [...document.querySelectorAll('.fiend-list li')].slice(9, 13).map(l => l.textContent.replace(/\s+/g, ' ')), bands: [...document.querySelectorAll('.tw-fl.fiend text')].filter(t => /RECOMMENDED/.test(t.textContent)).length }));
+  console.log(JSON.stringify(txt, null, 1));
+  await page.screenshot({ path: path.resolve(__dirname, '../shots/tower-rec-hero.png') });
+  await page.evaluate(() => { document.querySelector('.fiend-list').scrollIntoView(); });
+  await page.waitForTimeout(300); await page.screenshot({ path: path.resolve(__dirname, '../shots/tower-rec-list.png') });
+  await page.evaluate(() => { const tw = document.querySelector('#towerWrap'); tw.scrollIntoView(); });
+  await page.waitForTimeout(300); await page.screenshot({ path: path.resolve(__dirname, '../shots/tower-rec-bands.png') });
+  console.log('errors', errors);
+  await browser.close();
+})();
