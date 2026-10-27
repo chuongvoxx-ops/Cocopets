@@ -823,3 +823,9 @@ Every new boss painter (rift fiends, Tower bosses, minis that get their own art)
 
 ## Desktop keys in the Tower and rifts (user, 27 Oct)
 - 12-arcade: DUN_KEYMAP used when arc.mode === 'dungeon' (letters lower-cased): D ab1 (Strong), S ab3 (Strong 2), A ab2 (Ult), F tap (normal attack, hold), W swap, E ab5 (anima summon), Shift dodge, Space tap (and starts the floor), arrows move, Tab swap, Enter start. Other arcade games keep KEYMAP (WASD moves). tests/dun-keys.js.
+
+## The path through the game (user, 27 Oct) + world-map mouse fix
+- 21b: towerCap() = 10 + 10 per rift in order that is sealed or not built (stops at the first built, unsealed one). riftOpen(r) = sealed || has a checkpoint || st.dun.best >= 10*r.n (R'lyeh: 12 seals). dunFloorOpen(n) = n <= best+1 && (n <= towerCap() || n <= best). riftLockText / floorLockText give the reasons; the floor-win lines say when a rift opens or a seal is needed.
+- Rifts tab ("List" on the world map): Tower blocks of ten floors interleaved before each rift (data-rift="tower" data-n=b opens the Tower tab at the right floor). CSS: #riftInner minmax(0,1fr) (it overflowed a phone), .rf-card dark text (names were invisible in dark mode).
+- 23-town worldPanInit: setPointerCapture only once a drag passes 8 px (capturing on pointerdown sent desktop clicks to the chart, so no place could be clicked).
+- tests: path-order.js, map-mouse.js (mouse click, drag, phone tap); _rift-lib sets dun.best (120 when seals given, else 10) so rift tests open their rifts; run-team sets best 10.

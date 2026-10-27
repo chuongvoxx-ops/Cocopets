@@ -3,7 +3,8 @@ let mapTab = 'world', dunSel = 0;
 const dunScroll = $('#dunScroll'), dunInner = $('#dunInner');
 const DUN_W = { key: 'dungeon', name: 'Tower of Oblivion', game: 'Tower', how: 'Drag anywhere to move. Tap a monster (or anywhere) to attack it. Hits earn MP: spend it on Strong and Ult. Tap Dodge to roll through attacks. Beat every monster and the floor\'s boss shows up.' };
 const TOWER_TOP = 120;
-const dunFloorOpen = n => !!st && n >= 1 && n <= TOWER_TOP && (st.unlockAll || n <= (st.dun.best || 0) + 1);
+// (a floor is open once the one below it is cleared, and when the rifts allow it: towerCap, 21b; never shut again once reached)
+const dunFloorOpen = n => !!st && n >= 1 && n <= TOWER_TOP && (st.unlockAll || (n <= (st.dun.best || 0) + 1 && (n <= towerCap() || n <= (st.dun.best || 0))));
 const GRADE_IDX = { S: 4, A: 3, B: 2, C: 1 };
 const gradeName = i => ['', 'C', 'B', 'A', 'S'][i] || '';
 function setMapTab(t, quiet) {
@@ -239,7 +240,7 @@ dunInner.addEventListener('click', e => {
   sfx.unlock();
   const k = b.dataset.dun;
   if (k === 'enter') startDungeon(dunSel);
-  else if (k === 'floor') { const n = +b.dataset.n; if (!dunFloorOpen(n)) { toast(`Clear floor ${n - 1} first.`); sfx.wrong(); return; } dunSel = n; renderDungeon(); sfx.boop(); }
+  else if (k === 'floor') { const n = +b.dataset.n; if (!dunFloorOpen(n)) { toast(floorLockText(n)); sfx.wrong(); return; } dunSel = n; renderDungeon(); sfx.boop(); }
   else if (k === 'slot') openCards(b.dataset.slot);
   else if (k === 'animas') openAnimas();
   else if (k === 'acc') openAccs(b.dataset.t);
@@ -255,7 +256,7 @@ dunInner.addEventListener('click', e => {
   else if (k === 'book') { bookOpen = !bookOpen; renderDungeon(); sfx.boop(); }
   else if (k === 'rxbook') { rxOpen = !rxOpen; renderDungeon(); sfx.boop(); }
   else if (k === 'party') { const uid = b.dataset.uid; if (uid === st.uid) { toast('The pet you play is always in the party.'); return; } if (togglePartyPet(uid)) { renderDungeon(); sfx.boop(); } else { toast(`The party is full (${PARTY_MAX}). Take someone out first.`); sfx.wrong(); } }
-  else if (k === 'tfloor') { const n = +b.dataset.n; if (!dunFloorOpen(n)) { toast(n > TOWER_TOP ? `The Tower ends at floor ${TOWER_TOP}.` : `Clear floor ${n - 1} first.`); sfx.wrong(); return; } dunSel = n; renderDungeon(); sfx.boop(); }
+  else if (k === 'tfloor') { const n = +b.dataset.n; if (!dunFloorOpen(n)) { toast(floorLockText(n)); sfx.wrong(); return; } dunSel = n; renderDungeon(); sfx.boop(); }
 });
 function drinkNow(k) {
   if (!(st.pantry[k] > 0)) return;
@@ -363,7 +364,7 @@ function dunFinish(win, msg, data) {
     /* boss crystals are a first-win prize: a boss beaten again pays out food, coins and cards instead */
     const bossFl = F.boss || F.fiend;
     if (!bossFl || first) { st.crystals = (st.crystals || 0) + CRYSTALS_PER_FLOOR; lines.push([ICON.crystal, `+${CRYSTALS_PER_FLOOR} crystals`]); }
-    if (first) { st.dun.best = n; if (n < TOWER_TOP) lines.push([ICON.door, `Floor ${n + 1} is open${fiendFor(n + 1) ? ': a Super Fiend waits!' : (n + 1) % ACT_LEN === 0 ? ': the act finale!' : ''}`]); else lines.push([ICON.trophy, 'The top of the Tower of Oblivion!']); animaRecognise().forEach(a => lines.push([AnimaArt.sigilSVG(a, ANIMAS[a].color), ANIMAS[a].secret ? `${ANIMAS[a].name}, ${ANIMAS[a].title}, is at peace and answers your call: ${ANIMAS[a].sign}, the thirteenth Anima!` : `${ANIMAS[a].name} ${ANIMAS[a].title} recognises you! A new Anima answers your call.`])); }
+    if (first) { st.dun.best = n; const R10 = n % 10 === 0 ? RIFT_PLAN.find(q => q.n === n / 10 && !q.final) : null; if (R10 && riftBuilt(R10.id) && !riftSealed(R10.id)) lines.push([ICON.star, `Rift ${R10.n} is open: ${R10.name}`]); if (n < TOWER_TOP && !dunFloorOpen(n + 1)) lines.push([ICON.door, floorLockText(n + 1)]); else if (n < TOWER_TOP) lines.push([ICON.door, `Floor ${n + 1} is open${fiendFor(n + 1) ? ': a Super Fiend waits!' : (n + 1) % ACT_LEN === 0 ? ': the act finale!' : ''}`]); else lines.push([ICON.trophy, 'The top of the Tower of Oblivion!']); animaRecognise().forEach(a => lines.push([AnimaArt.sigilSVG(a, ANIMAS[a].color), ANIMAS[a].secret ? `${ANIMAS[a].name}, ${ANIMAS[a].title}, is at peace and answers your call: ${ANIMAS[a].sign}, the thirteenth Anima!` : `${ANIMAS[a].name} ${ANIMAS[a].title} recognises you! A new Anima answers your call.`])); }
     if (GR) { const gi = GRADE_IDX[GR.g]; if (gi > (st.dun.grades[n] || 0)) { if (st.dun.grades[n]) lines.push([ICON.trophy, `New best grade on floor ${n}: ${GR.g}`]); st.dun.grades[n] = gi; } }
     if (F.boss) {
       if (first) { st.pearls += 20; lines.push([ICON.pearl, '+20 pearls for your first win']); }

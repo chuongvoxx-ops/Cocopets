@@ -1906,3 +1906,9 @@ body.run-team .evo-wrap{z-index:70}
 .room{--rz:1.5}
 .room .wall{right:auto;width:calc(100% * var(--rz));height:calc(var(--wall-h) * var(--rz));transform:scale(calc(1 / var(--rz)));transform-origin:0 0}
 .room .floor{right:auto;bottom:auto;width:calc(100% * var(--rz));height:calc((100% - var(--wall-h)) * var(--rz));transform:scale(calc(1 / var(--rz)));transform-origin:0 0}
+/* the Rifts list: the column never grows past the screen (its widest line of text used to push it out), and the cards
+   keep dark text on their cream faces in dark mode too */
+#riftInner{grid-template-columns:minmax(0,1fr)}
+#riftInner > *{min-width:0}
+.rf-card{color:#2B2433}.rf-card small{color:#6B6470}
+.rf-card b{overflow-wrap:anywhere}

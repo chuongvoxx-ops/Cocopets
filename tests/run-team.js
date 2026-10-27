@@ -37,7 +37,7 @@ const path = require('path');
   r = await page.evaluate(async uid => { const D = window.__pp.arc.game._dbg; await new Promise(r => setTimeout(r, 1500)); const i = D.party.findIndex(m => m.p.uid === uid); const okSw = D.helpers && D.helpers.switchTo ? D.helpers.switchTo(i) : null; return { i, okSw, sprites: !!D.party[i].sprites }; }, r.names.find(u => !S.party.includes(u)) || r.names[1]);
   ok(r.i >= 0 && r.sprites, 'the newcomer is in the party strip with its pictures');
   // and in a rift too: the button is there and works
-  await page.evaluate(() => { const P = window.__pp; P.closeArcade(true); P.st.energy = 100; P.openMap(); P.dun.setMapTab('rift', true); P.startRift('belfry', 0); });
+  await page.evaluate(() => { const P = window.__pp; P.closeArcade(true); P.st.energy = 100; P.st.dun.best = Math.max(P.st.dun.best || 0, 10); P.openMap(); P.dun.setMapTab('rift', true); P.startRift('belfry', 0); });
   await page.waitForFunction(() => window.__pp.arc.state === 'play' || window.__pp.arc.state === 'ready', null, { timeout: 30000 }); await page.evaluate(() => { if (window.__pp.arc.state === 'ready') window.__pp.beginPlay(); });
   await page.waitForFunction(() => window.__pp.arc.game && window.__pp.arc.game._dbg && window.__pp.arc.game._dbg.g.intro <= 0, null, { timeout: 30000 });
   r = await page.evaluate(async () => { window.__pp.openRunTeam(); const a = { open: !document.getElementById('sheetWrap').hidden, paused: window.__pp.arc.paused }; document.querySelector('[data-sheet-close]').click(); await new Promise(r => setTimeout(r, 300)); a.after = window.__pp.arc.paused; return a; });
