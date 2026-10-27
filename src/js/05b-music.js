@@ -1,6 +1,6 @@
 /* ---------- music: the player's own songs, built into the game (MUSIC_DATA) and played through Web Audio ----------
    Carta Misteriosa plays over the world map on the Adventure screen, in rift puzzles and in the zodiac gates;
-   Exploratory World plays in the house, with the pets; Champions Charge in the Tower's floors and the rifts' dungeons;
+   Exploratory World plays in the house, with the pets; each rift's own song in its dungeons, and a random one of those on each Tower floor;
    Triumph of the Hero for every boss, the rifts' three and the Tower's. Each loops while the player stays, fades out on
    leaving, and crossfades into the next.
    Nothing is fetched: each song is decoded from the page itself when it is wanted (only the one playing is kept
@@ -32,6 +32,9 @@ const music = (() => {
   const pick = k => !k || has(k) ? k : FALL[k] && has(FALL[k]) ? FALL[k] : null;
   // each rift's own song for its dungeons and trials
   const RIFT_SONG = { belfry: 'belfort', garden: 'rift2', dunes: 'desert', sepulchre: 'hours', library: 'library', moon: 'waltz' };
+  // the Tower's floors: one of the rifts' dungeon songs, picked at random as each floor starts (kept for that floor)
+  const TOWER_SONGS = ['charge', 'belfort', 'rift2', 'desert', 'hours', 'library', 'waltz'], towerSong = new WeakMap();
+  function floorSong(game) { let k = towerSong.get(game); if (!k) { const ok = TOWER_SONGS.filter(has); k = ok[Math.floor(Math.random() * ok.length)] || 'charge'; towerSong.set(game, k); } return k; }
   let held = null;   /* a song held over the stage's own while something lasts: an anima's summoning */
   function bytes(k) { if (!EMBED) return fetch(FILES[k]).then(r => { if (!r.ok) throw new Error('song ' + r.status); return r.arrayBuffer(); });
     const s = atob(MUSIC_DATA[k]), a = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) a[i] = s.charCodeAt(i); return Promise.resolve(a.buffer); }
@@ -56,7 +59,7 @@ const music = (() => {
       if (R) { if (R.kind === 'boss') return 'triumph'; if (R.gate || R.kind === 'gate') return 'gates';
         let S = null; try { S = RIFT_BY_ID[R.id].stages[R.stage]; } catch (e) {}
         return R.kind === 'fight' || (S && S.trial) ? RIFT_SONG[R.id] || 'charge' : 'crown'; }
-      return held && arc.state === 'play' && has(held) ? held : F.fiend || (D.g && D.g.boss && !D.g.won) ? 'triumph' : 'charge';
+      return held && arc.state === 'play' && has(held) ? held : F.fiend || (D.g && D.g.boss && !D.g.won) ? 'triumph' : floorSong(arc.game);
     }
     if (!introEl.hidden || !splashEl.hidden) return null;
     if (mapOpen) return mapTab === 'world' ? 'carta' : null;

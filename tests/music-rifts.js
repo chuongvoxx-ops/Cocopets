@@ -12,12 +12,21 @@ const { open } = require('./_rift-lib');
   const cases = [['belfry', 0, 'belfort'], ['garden', 0, 'rift2'], ['dunes', 0, 'desert'], ['sepulchre', 0, 'hours'], ['library', 1, 'library'], ['moon', 0, 'waltz'], ['aurora', 0, 'charge'], ['belfry', 1, 'crown'], ['colours', 'gate', 'gates']];
   const FALL = { belfort: 'charge', rift2: 'charge', desert: 'charge', hours: 'charge', library: 'charge', waltz: 'charge', crown: 'carta', gates: 'carta' };
   for (const [id, st, song] of cases) { const want = web ? song : FALL[song] || song; await start(id, st); await run(web ? 4 : 2.5);
+    if (web) await page.waitForFunction(w => window.__pp.music.playing && window.__pp.music.track === w, want, { timeout: 15000 }).catch(() => {});
     const m = await page.evaluate(() => { const m = window.__pp.music; return { track: m.track, playing: m.playing, err: m.err }; }); ok(m.track === want && m.playing, `${id} ${st}: ${want}`, m); }
   // an anima's summoning holds its song over the stage's, then lets it go
   await start('dunes', 0); await run(1); await page.evaluate(() => window.__pp.music.hold('summon')); await run(web ? 4 : 2); if (web) await page.waitForFunction(() => window.__pp.music.playing && window.__pp.music.track === 'summon', null, { timeout: 15000 }).catch(() => {});
   let m = await page.evaluate(() => { const m = window.__pp.music; return { track: m.track, playing: m.playing, has: m.has('summon') }; });
   ok(web ? m.track === 'summon' && m.playing : !m.has, web ? 'a summoning: The Summoning plays' : 'the Claude build has no Summoning song (the old tune plays instead)', m);
   await page.evaluate(() => window.__pp.music.release('summon')); await run(web ? 4 : 2); m = await page.evaluate(() => ({ track: window.__pp.music.track })); ok(m.track === (web ? 'desert' : 'charge'), 'the summoning over: back to the stage song', m);
+  // the Tower: each floor a random one of the rifts' dungeon songs, the same for the whole floor
+  const TS = ['charge', 'belfort', 'rift2', 'desert', 'hours', 'library', 'waltz'], seen = new Set();
+  for (let i = 0; i < 6; i++) {
+    await page.evaluate(() => { const P = window.__pp; P.closeArcade(true); P.st.energy = 100; P.st.dun.best = 10; P.openMap(); P.dun.setMapTab('dungeon', true); });
+    await page.evaluate(() => window.__pp.dun.startDungeon(2, 77)); await page.waitForFunction(() => window.__pp.arc.state === 'ready', null, { timeout: 30000 }); await page.evaluate(() => window.__pp.beginPlay());
+    const a = await page.evaluate(() => window.__pp.music.want()); await run(web ? 3 : 1.5); const b = await page.evaluate(() => { const m = window.__pp.music; return { want: m.want(), track: m.track }; });
+    ok((web ? TS.includes(a) : a === 'charge') && a === b.want, `Tower floor ${i + 1}: ${a}, kept for the floor`, b); seen.add(a); }
+  if (web) ok(seen.size > 1, 'the Tower floors vary their songs', [...seen]);
   if (web) ok(['drowned-belfort.mp3', 'rift-2.mp3', 'desert-rose.mp3', 'time-after-time.mp3', 'the-library.mp3', 'waltz-for-the-moon.mp3', 'quest-for-the-crown.mp3', 'anima-gates.mp3', 'the-summoning.mp3'].every(f => loaded.has(f)), 'every new song file loaded', [...loaded]);
   ok(!errors.length, 'no page errors', errors.slice(0, 3)); console.log(bad ? 'FAILED ' + bad : 'all passed'); process.exit(bad ? 1 : 0);
 })();

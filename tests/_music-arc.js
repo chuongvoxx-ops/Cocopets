@@ -9,7 +9,7 @@ const { open } = require('./_rift-lib');
     await start(id, st); await run(2.5); const m = await M(); ok(m.track === want && m.playing, `${id} ${st}: ${want}`, m); }
   await page.evaluate(() => { const P = window.__pp; P.closeArcade(true); P.st.energy = 100; P.st.dun.best = 10; P.openMap(); P.dun.setMapTab('dungeon', true); }); await page.evaluate(() => window.__pp.dun.startDungeon(2, 77));
   await page.waitForFunction(() => window.__pp.arc.state === 'ready', null, { timeout: 30000 }); await page.evaluate(() => window.__pp.beginPlay()); await run(2.5);
-  let m = await M(); ok(m.track === 'charge' && m.playing, 'a Tower floor: Champions Charge', m);
+  let m = await M(); ok(m.track === 'charge' && m.playing, 'a Tower floor (Claude build): Champions Charge', m);
   await page.evaluate(() => window.__pp.arc.game._dbg.wakeBoss()); await run(2.5); m = await M(); ok(m.track === 'triumph' && m.playing, 'the Tower guardian wakes: Triumph of the Hero', m);
   await page.evaluate(() => window.__pp.closeArcade(true)); await page.waitForTimeout(2500); m = await M(); ok(m.want !== 'triumph' && m.want !== 'charge', 'out of the Tower: back to the map tabs', m);
   ok(!errors.length, 'no page errors', errors.slice(0, 3)); console.log(bad ? 'FAILED ' + bad : 'all passed'); process.exit(bad ? 1 : 0);
