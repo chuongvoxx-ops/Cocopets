@@ -834,3 +834,7 @@ Every new boss painter (rift fiends, Tower bosses, minis that get their own art)
 - The Claude viewer wraps the page in doctype + <meta viewport> + a small reset; the web build had none, so phones laid it out at ~980 px and shrank it (and the page ran in quirks mode). build_web now writes the same shell: doctype, viewport (width=device-width, initial-scale=1, viewport-fit=cover), the reset ([hidden] !important, body margin 0, safe-area padding).
 
 ## Floors 1-9 eased (user): floorDef monHp and monDmg x0.7 for n <= 9 (monsters, brutes, floor bosses, mini bosses alike; hazards and floor 10 Super Fiend unchanged; rifts use n >= 10).
+
+## The level-10 gift (user, 27 Oct)
+- 22-gift lv10Check (every 1.5 s, at home only: no arcade, sheet, gift, map or intro open): the first time st.dlv >= 10, st.lv10Eggs = 1 and st.lv10Owed = 3; it hatches min(owed, room) eggs through the summon ceremony, stars from LV10_RATES (3★ 50%, 4★ 35%, 5★ 15%, never 6★); the rest stay owed until there is room. Saved (04-state sanitize). Existing saves at level 10+ get it once on their next visit home. tests/lv10-eggs.js.
+- Eggs otherwise: the starting egg; crystal summons (10 for 1000, 1 for 120; 84/10/5/1%, six-star pity after 10 ten-pulls); the shop (300 pearls or the $4 test purchase).

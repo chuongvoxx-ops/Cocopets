@@ -217,3 +217,22 @@ function doSummon(n) {
   saveLocalNow(); updateHud();
   playGiftCeremony(items, { mode: 'summon', title: count > 1 ? 'Tap the eggs!' : 'Tap the egg!', sub: st.dev6 ? `${count} egg${count > 1 ? 's' : ''} · developer test: every egg a ★6` : sure ? `${count} eggs · a ★6 Legendary is guaranteed!` : `${count} egg${count > 1 ? 's' : ''} · 84% ★3 · 10% ★4 · 5% ★5 · 1% ★6`, box: eggsSVG() });
 }
+
+/* ---------- the level-10 gift: three eggs, each a three- to five-star pet (never a six-star), the first time the pet you
+   play reaches level 10. Shown at home once nothing else is open; eggs the house has no room for wait (st.lv10Owed)
+   and hatch as soon as a place frees up ---------- */
+const LV10_EGGS = 3, LV10_RATES = [[3, 50], [4, 35], [5, 15]];
+function lv10Stars() { let r = Math.random() * 100; for (const [s, w] of LV10_RATES) { r -= w; if (r < 0) return s; } return 3; }
+function lv10Check() {
+  if (!st || !running || adopting || (typeof arc !== 'undefined' && arc.open) || sheetKind || !giftWrap.hidden || mapOpen || !introEl.hidden) return;
+  if (!st.lv10Eggs && (st.dlv || 1) >= 10) { st.lv10Eggs = 1; st.lv10Owed = LV10_EGGS; saveSoon(); }
+  const owed = st.lv10Owed || 0, room = MAX_PETS - petCount(); if (!owed || room < 1) return;
+  const count = Math.min(owed, room), items = [];
+  for (let i = 0; i < count; i++) {
+    const stars = lv10Stars(), g = summonGenome(stars), name = speciesName(g.form).split(' ').pop(), f = newPetFields(name, g);
+    st.others.push(f); items.push({ kind: 'pet', stars, form: g.form, name, uid: f.uid });
+  }
+  st.lv10Owed = owed - count; buildCompanions(); saveLocalNow(); updateHud();
+  playGiftCeremony(items, { mode: 'summon', title: 'Level 10! Tap the eggs!', sub: `A gift for reaching level 10: ${count} egg${count > 1 ? 's' : ''}, each a ★3 to ★5 pet${st.lv10Owed ? ` · ${st.lv10Owed} more when your house has room` : ''}`, box: eggsSVG() });
+}
+setInterval(lv10Check, 1500);

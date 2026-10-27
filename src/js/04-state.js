@@ -157,7 +157,7 @@ function sanitize(o) {
     s.map.plays = Math.floor(num(o.map.plays, 0, 0, 1e7));
   }
   s.coins = Math.floor(num(o.coins, 0, 0, 1e9)); s.pearls = Math.floor(num(o.pearls, 0, 0, 1e7));
-  s.crystals = Math.floor(num(o.crystals, 0, 0, 1e9)); s.fusionStones = Math.floor(num(o.fusionStones, 0, 0, 999)); s.fuseRolls = Math.floor(num(o.fuseRolls, 0, 0, 1e6)); s.summons = Math.floor(num(o.summons, 0, 0, 1e9)); s.pity10 = Math.floor(num(o.pity10, 0, 0, PITY_N));
+  s.crystals = Math.floor(num(o.crystals, 0, 0, 1e9)); s.fusionStones = Math.floor(num(o.fusionStones, 0, 0, 999)); s.fuseRolls = Math.floor(num(o.fuseRolls, 0, 0, 1e6)); s.summons = Math.floor(num(o.summons, 0, 0, 1e9)); s.lv10Eggs = o.lv10Eggs ? 1 : 0; s.lv10Owed = Math.floor(num(o.lv10Owed, 0, 0, 9)); s.pity10 = Math.floor(num(o.pity10, 0, 0, PITY_N));
   s.lastGiftDay = typeof o.lastGiftDay === 'string' ? o.lastGiftDay : null;
   if (o.animas && typeof o.animas === 'object') {
     const A = o.animas, h = A.have && typeof A.have === 'object' ? A.have : {};
