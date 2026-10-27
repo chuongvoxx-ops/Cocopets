@@ -813,3 +813,10 @@ Every new boss painter (rift fiends, Tower bosses, minis that get their own art)
 
 ## v163 — film look back on desktop, without chromatic aberration (user: the iMac lag went with the filters off)
 - 05c: DESKTOP (hover+fine pointer, no touch) skips only retro.post (CA). Layers as before (BIG screens still skip blur, saturation, screen). Canvas budget back to 4.2M px with the film on. Phones keep CA 0.10.
+
+## v164 — moved to GitHub: chuongvoxx-ops/cocopets (public), cloned at /home/claude/cocopets (main)
+- From now on the repo is the source of truth: edit /home/claude/cocopets/src, build there, commit with the attribution lines, push to main. The scratchpad copy is the old workspace.
+- src/build.py --web -> dist/index.html (05a-music-data.js left out) + dist/music/ from assets/music/ (full-quality originals, tags stripped) + .nojekyll. 05b-music: EMBED = typeof MUSIC_DATA !== 'undefined'; else fetch FILES[k] (music/*.mp3), AudioContext at native rate.
+- .github/workflows/pages.yml builds --web and deploys to Pages on push to main. First run failed at configure-pages: Pages must be enabled (Settings → Pages → Source: GitHub Actions) by the user.
+- Settings → "Move your save": Copy code (COCOPETS1: + base64 JSON of serialize()) / Paste code (sanitize, adoptState, save local + account). tests/save-move.js.
+- Off Claude, saves are per-browser (localStorage); Store.connect() returns null without window.claude.
