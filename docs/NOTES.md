@@ -829,3 +829,6 @@ Every new boss painter (rift fiends, Tower bosses, minis that get their own art)
 - Rifts tab ("List" on the world map): Tower blocks of ten floors interleaved before each rift (data-rift="tower" data-n=b opens the Tower tab at the right floor). CSS: #riftInner minmax(0,1fr) (it overflowed a phone), .rf-card dark text (names were invisible in dark mode).
 - 23-town worldPanInit: setPointerCapture only once a drag passes 8 px (capturing on pointerdown sent desktop clicks to the chart, so no place could be clicked).
 - tests: path-order.js, map-mouse.js (mouse click, drag, phone tap); _rift-lib sets dun.best (120 when seals given, else 10) so rift tests open their rifts; run-team sets best 10.
+
+## Website build: page shell (user: everything tiny on the phone at github.io)
+- The Claude viewer wraps the page in doctype + <meta viewport> + a small reset; the web build had none, so phones laid it out at ~980 px and shrank it (and the page ran in quirks mode). build_web now writes the same shell: doctype, viewport (width=device-width, initial-scale=1, viewport-fit=cover), the reset ([hidden] !important, body margin 0, safe-area padding).

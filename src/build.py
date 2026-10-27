@@ -43,8 +43,15 @@ def build_web(dist):
     """The website build (GitHub Pages): no built-in songs; the full-quality songs are copied beside the page."""
     import shutil
     os.makedirs(os.path.join(dist, 'music'), exist_ok=True)
+    # (the page's opening: in Claude, the artifact viewer wraps the page in this itself; on the web the page must bring it:
+    # standards mode, the phone's width as the page's width, and the same small reset)
+    shell = ('<!doctype html><html lang="en"><head><meta charset="utf-8">'
+             '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
+             '<style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}'
+             'html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}'
+             'img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>\n')
     with open(os.path.join(dist, 'index.html'), 'w', encoding='utf-8') as f:
-        f.write(build(False, web=True))
+        f.write(shell + build(False, web=True) + '\n</body></html>\n')
     src = os.path.join(os.path.dirname(HERE), 'assets', 'music')
     if os.path.isdir(src):
         for n in os.listdir(src):
