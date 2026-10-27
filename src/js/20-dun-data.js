@@ -276,7 +276,8 @@ function floorDef(n) {
     bossKind: B,
     hpMul: (1 + 0.26 * k + 0.012 * k * k) * 0.9,
     dmgMul: (1 + 0.13 * k) * 1.1,
-    monHp: (4 + 6 * gh) * secHp, monDmg: (1.35 + 0.65 * gh) * secDmg,
+    // (floors 1 to 9, the first steps: monsters and bosses at 70% of their health and blows)
+    monHp: (4 + 6 * gh) * secHp * (n <= 9 ? 0.7 : 1), monDmg: (1.35 + 0.65 * gh) * secDmg * (n <= 9 ? 0.7 : 1),
     rooms: Math.min(9, 4 + Math.floor(n / 3)),
     pack: Math.min(12, 6 + Math.floor(n / 3)) * twice,
     packsPer: n >= 6 ? 3 : 2,

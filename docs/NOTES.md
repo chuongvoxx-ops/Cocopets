@@ -832,3 +832,5 @@ Every new boss painter (rift fiends, Tower bosses, minis that get their own art)
 
 ## Website build: page shell (user: everything tiny on the phone at github.io)
 - The Claude viewer wraps the page in doctype + <meta viewport> + a small reset; the web build had none, so phones laid it out at ~980 px and shrank it (and the page ran in quirks mode). build_web now writes the same shell: doctype, viewport (width=device-width, initial-scale=1, viewport-fit=cover), the reset ([hidden] !important, body margin 0, safe-area padding).
+
+## Floors 1-9 eased (user): floorDef monHp and monDmg x0.7 for n <= 9 (monsters, brutes, floor bosses, mini bosses alike; hazards and floor 10 Super Fiend unchanged; rifts use n >= 10).
