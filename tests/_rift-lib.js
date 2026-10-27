@@ -5,7 +5,7 @@ async function open(opts) {
   const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: process.env.SHOTS ? 2 : 1, hasTouch: true });
   const errors = []; page.on('pageerror', e => errors.push(e.message + ' @ ' + (e.stack || '').split('\n').slice(1, 3).join(' ')));
-  await page.goto('file://' + path.resolve(__dirname, '..', process.env.HTML || 'test.html'));
+  await page.goto(process.env.URL || 'file://' + path.resolve(__dirname, '..', process.env.HTML || 'test.html'));
   await page.waitForFunction(() => window.__pp, null, { timeout: 15000 }); await page.waitForTimeout(300);
   await page.evaluate(o => { const P = window.__pp; P.quickStart('Bot'); P.st.dun.god = true; P.st.energy = 100; P.st.dlv = o.lvl || 12; if (o.unlockAll) P.st.unlockAll = true; if (o.seals) for (const id of o.seals) P.riftState().seals[id] = 1; P.st.dun.best = Math.max(P.st.dun.best || 0, o.best != null ? o.best : o.seals ? 120 : 10); P.openMap(); P.dun.setMapTab('rift', true); }, opts || {});
   const shot = async name => { if (process.env.SHOTS) await page.screenshot({ path: path.resolve(__dirname, `../shots/rift-${name}.png`) }); };

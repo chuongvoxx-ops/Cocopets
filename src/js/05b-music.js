@@ -23,29 +23,40 @@ const music = (() => {
   ['pointerup', 'touchend', 'click', 'keydown'].forEach(ev => window.addEventListener(ev, tap, { capture: true, passive: true }));
   // (the songs come either built into the page, compressed, for the Claude build, or as full-quality files beside the
   // page, for the website build, which leaves MUSIC_DATA out)
-  const FILES = { carta: 'music/carta-misteriosa.mp3', explore: 'music/exploratory-world.mp3', triumph: 'music/triumph-of-the-hero.mp3', charge: 'music/champions-charge.mp3' };
+  const FILES = { carta: 'music/carta-misteriosa.mp3', explore: 'music/exploratory-world.mp3', triumph: 'music/triumph-of-the-hero.mp3', charge: 'music/champions-charge.mp3',
+    belfort: 'music/drowned-belfort.mp3', rift2: 'music/rift-2.mp3', desert: 'music/desert-rose.mp3', hours: 'music/time-after-time.mp3', library: 'music/the-library.mp3', waltz: 'music/waltz-for-the-moon.mp3',
+    crown: 'music/quest-for-the-crown.mp3', gates: 'music/anima-gates.mp3', summon: 'music/the-summoning.mp3' };
   const EMBED = typeof MUSIC_DATA !== 'undefined';
+  // (the Claude build carries only four songs built in: a song it lacks gives way to the nearest it has)
+  const has = k => EMBED ? !!MUSIC_DATA[k] : !!FILES[k], FALL = { belfort: 'charge', rift2: 'charge', desert: 'charge', hours: 'charge', library: 'charge', waltz: 'charge', crown: 'carta', gates: 'carta' };
+  const pick = k => !k || has(k) ? k : FALL[k] && has(FALL[k]) ? FALL[k] : null;
+  // each rift's own song for its dungeons and trials
+  const RIFT_SONG = { belfry: 'belfort', garden: 'rift2', dunes: 'desert', sepulchre: 'hours', library: 'library', moon: 'waltz' };
+  let held = null;   /* a song held over the stage's own while something lasts: an anima's summoning */
   function bytes(k) { if (!EMBED) return fetch(FILES[k]).then(r => { if (!r.ok) throw new Error('song ' + r.status); return r.arrayBuffer(); });
     const s = atob(MUSIC_DATA[k]), a = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) a[i] = s.charCodeAt(i); return Promise.resolve(a.buffer); }
   function decode(k) {
     if (buf[k]) return Promise.resolve(buf[k]);
     return bytes(k).then(ab => new Promise((res, rej) => { try { const p = ctx.decodeAudioData(ab, res, rej); if (p && p.then) p.then(res, rej); } catch (e) { rej(e); } }))
-      .then(b => { buf = { [k]: b }; return b; });   /* keep only this one */
+      .then(b => { buf[k] = b; const ks = Object.keys(buf); if (ks.length > 2) delete buf[ks.find(x => x !== k)]; return b; });   /* keep this one and the one before it (a summoning's song, then straight back to the stage's) */
   }
   /* which song this moment wants. Outside the games: the world map's, the house's, or none (the other map tabs).
      In the Tower and the rifts: a boss's song while a boss is fought (a rift's boss stage, a Tower guardian once woken, a
      Super Fiend floor), the dungeons' song on fighting floors and rift dungeons and trials, and the map's song in rift
      puzzles and the zodiac gates. The other arcade games keep their own sounds */
-  function want() {
+  function want() { return pick(want0()); }
+  function want0() {
     if (forced !== undefined) return forced;
     if (typeof st === 'undefined' || !st || st.sound === false || document.hidden) return null;
+    if (typeof arc !== 'undefined' && !arc.open) held = null;   /* (a summoning never outlasts its game) */
     if (typeof arc !== 'undefined' && arc.open) {
       const D = arc.game && arc.game._dbg, F = D && D.F; if (!F || (arc.state !== 'play' && arc.state !== 'loading' && arc.state !== 'ready')) return null;
       const R = F.rift;
-      if (R) { if (R.kind === 'boss') return 'triumph'; if (R.gate || R.kind === 'gate') return 'carta';
+      if (held && arc.state === 'play' && has(held)) return held;
+      if (R) { if (R.kind === 'boss') return 'triumph'; if (R.gate || R.kind === 'gate') return 'gates';
         let S = null; try { S = RIFT_BY_ID[R.id].stages[R.stage]; } catch (e) {}
-        return R.kind === 'fight' || (S && S.trial) ? 'charge' : 'carta'; }
-      return F.fiend || (D.g && D.g.boss && !D.g.won) ? 'triumph' : 'charge';
+        return R.kind === 'fight' || (S && S.trial) ? RIFT_SONG[R.id] || 'charge' : 'crown'; }
+      return held && arc.state === 'play' && has(held) ? held : F.fiend || (D.g && D.g.boss && !D.g.won) ? 'triumph' : 'charge';
     }
     if (!introEl.hidden || !splashEl.hidden) return null;
     if (mapOpen) return mapTab === 'world' ? 'carta' : null;
@@ -71,5 +82,5 @@ const music = (() => {
     const show = waitN >= 4;
     if (show && !chip) { chip = document.createElement('div'); chip.style.cssText = 'position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 64px);transform:translateX(-50%);z-index:9999;background:rgba(20,18,30,.82);color:#fff;font:600 13px system-ui,sans-serif;padding:6px 12px;border-radius:14px;pointer-events:none;text-align:center'; document.body.appendChild(chip); }
     if (chip) { if (!show) { chip.remove(); chip = null; } else chip.textContent = '♪ Tap for music' + (err ? '  ·  ' + err : ctx ? '  ·  ' + ctx.state : ''); } }, 500);
-  return { get track() { return cur; }, get level() { return src ? level : 0; }, get playing() { return !!(src && ctx && ctx.state === 'running'); }, get err() { return err; }, get state() { return ctx ? ctx.state : 'none'; }, want, force(k) { forced = k; } };
+  return { get track() { return cur; }, get level() { return src ? level : 0; }, get playing() { return !!(src && ctx && ctx.state === 'running'); }, get err() { return err; }, get state() { return ctx ? ctx.state : 'none'; }, want, force(k) { forced = k; }, has, hold(k) { held = k; }, release(k) { if (!k || held === k) held = null; }, get held() { return held; } };
 })();

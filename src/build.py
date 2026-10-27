@@ -52,6 +52,9 @@ def build_web(dist):
              'img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>\n')
     with open(os.path.join(dist, 'index.html'), 'w', encoding='utf-8') as f:
         f.write(shell + build(False, web=True) + '\n</body></html>\n')
+    if '--test' in sys.argv:   # (a copy with the test hooks, for checking the website build in a browser)
+        with open(os.path.join(dist, 'test.html'), 'w', encoding='utf-8') as f:
+            f.write(shell + build(True, web=True) + '\n</body></html>\n')
     src = os.path.join(os.path.dirname(HERE), 'assets', 'music')
     if os.path.isdir(src):
         for n in os.listdir(src):

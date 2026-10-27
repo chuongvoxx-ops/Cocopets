@@ -485,7 +485,7 @@ const DunAnima = (() => {
       a.dropZ = 5 * (1 - e); a.alpha = Math.min(1, u * 1.7); a.scale = 0.55 + 0.45 * e;
       if (u >= 1 && !a.landed) {
         a.landed = true; a.dropZ = 0; a.sq = 1; entrance(a);
-        if (S.cine && S.cine.a === a) { X.banner(a.A.name.toUpperCase(), `${a.A.title} · ${a.A.sign}`, a.A.color, ASTRAL_T, true, true); S.theme = X.sfx.theme(ANIMA_THEME[a.id], ANIMA_DUR[a.k] + 6); }
+        if (S.cine && S.cine.a === a) { X.banner(a.A.name.toUpperCase(), `${a.A.title} · ${a.A.sign}`, a.A.color, ASTRAL_T, true, true); S.theme = typeof music !== 'undefined' && music.has('summon') ? (music.hold('summon'), { stop() { music.release('summon'); }, beat() {} }) : X.sfx.theme(ANIMA_THEME[a.id], ANIMA_DUR[a.k] + 6); }   /* the summoning's own song when the game has it, else the old tune */
       }
       if (a.landed && !S.cine && a.en >= 1.1) { a.st = 'fight'; arrive(a); }
     }
