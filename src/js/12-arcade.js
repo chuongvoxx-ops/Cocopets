@@ -230,13 +230,18 @@ arcCtrl.addEventListener('pointerdown', e => {
 }));
 arcCtrl.addEventListener('contextmenu', e => e.preventDefault());
 const KEYMAP = { Tab: 'swap', r: 'swap', ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down', a: 'left', d: 'right', w: 'up', s: 'down', ' ': 'space', z: 'rotate', x: 'rotate', Enter: 'space', 1: 'ab1', q: 'ab1', j: 'ab1', 2: 'ab2', e: 'ab2', k: 'ab2', Shift: 'dodge', l: 'dodge', c: 'dodge', 3: 'dodge', 4: 'ab3', r: 'ab3', 5: 'ab4', t: 'ab4', 6: 'ab5', f: 'ab5' };
+/* the Tower and the rifts on a keyboard: the arrows move, and the letters under the left hand fire: D strong, S the
+   second strong, A ult, F normal attack (hold to keep attacking), W switch pet, E summon the anima; Shift dodges,
+   Space attacks too */
+const DUN_KEYMAP = { d: 'ab1', s: 'ab3', a: 'ab2', f: 'tap', w: 'swap', e: 'ab5', ' ': 'tap', Shift: 'dodge', ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down', Tab: 'swap', Enter: 'space' };
+const arcKey = e => { if (arc.mode === 'dungeon') { const ch = e.key.length === 1 ? e.key.toLowerCase() : e.key; return DUN_KEYMAP[ch]; } return KEYMAP[e.key]; };
 document.addEventListener('keydown', e => {
   if (!arc.open) return;
   if (e.key === 'Escape') { if (arc.state === 'play') togglePause(); else closeArcade(); e.stopImmediatePropagation(); return; }
-  const k = KEYMAP[e.key];
+  const k = arcKey(e);
   if (!k) return;
   e.preventDefault();
-  if (arc.state === 'ready' && (k === 'space' || k === 'up')) { beginPlay(); return; }
+  if (arc.state === 'ready' && (k === 'space' || k === 'up' || k === 'tap')) { beginPlay(); return; }
   if (arc.mode === 'dungeon') { keyDown(k === 'space' ? 'tap' : k); return; }
   if (k === 'space') { keyDown('jump'); keyDown('drop'); keyDown('tap'); }
   else if (k === 'up') { keyDown('up'); keyDown('rotate'); keyDown('jump'); keyDown('tap'); }
@@ -245,7 +250,7 @@ document.addEventListener('keydown', e => {
 }, true);
 document.addEventListener('keyup', e => {
   if (!arc.open) return;
-  const k = KEYMAP[e.key];
+  const k = arcKey(e);
   if (!k) return;
   if (arc.mode === 'dungeon') { keyUp(k === 'space' ? 'tap' : k); return; }
   if (k === 'space') { keyUp('jump'); keyUp('drop'); keyUp('tap'); }

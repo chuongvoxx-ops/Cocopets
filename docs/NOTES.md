@@ -820,3 +820,6 @@ Every new boss painter (rift fiends, Tower bosses, minis that get their own art)
 - .github/workflows/pages.yml builds --web and deploys to Pages on push to main. First run failed at configure-pages: Pages must be enabled (Settings → Pages → Source: GitHub Actions) by the user.
 - Settings → "Move your save": Copy code (COCOPETS1: + base64 JSON of serialize()) / Paste code (sanitize, adoptState, save local + account). tests/save-move.js.
 - Off Claude, saves are per-browser (localStorage); Store.connect() returns null without window.claude.
+
+## Desktop keys in the Tower and rifts (user, 27 Oct)
+- 12-arcade: DUN_KEYMAP used when arc.mode === 'dungeon' (letters lower-cased): D ab1 (Strong), S ab3 (Strong 2), A ab2 (Ult), F tap (normal attack, hold), W swap, E ab5 (anima summon), Shift dodge, Space tap (and starts the floor), arrows move, Tab swap, Enter start. Other arcade games keep KEYMAP (WASD moves). tests/dun-keys.js.
