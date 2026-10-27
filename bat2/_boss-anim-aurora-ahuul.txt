@@ -1,5 +1,0 @@
-ok   ahuul: stage 8
-  fiend {"fd":true,"name":"Ahuul","bars":45,"phases":3,"def":true,"seal":true}
-ok   ahuul: a Super Fiend-class fight, the rift's last (Ahuul, 45 bars, 3 phases)
-  arena {"east":1,"outE":0,"south":1,"outN":0,"floor":1,"nooks":[1,1,1],"walls":[0,0,0],"me":[0.5,5.200000000000003]}
-ok   ahuul: the 36 m oval with three walled shelters

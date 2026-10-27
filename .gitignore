@@ -10,3 +10,4 @@ _chk.js
 _o*.txt
 node_modules/
 .DS_Store
+bat2/

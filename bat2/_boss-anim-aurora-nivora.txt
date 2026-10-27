@@ -1,3 +1,0 @@
-ok   nivora: stage 5
-  fiend {"fd":true,"name":"Nivora","bars":44,"phases":2,"def":true,"seal":false}
-ok   nivora: a Super Fiend-class fight (Nivora, 44 bars, 2 phases)
