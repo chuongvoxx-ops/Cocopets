@@ -6,7 +6,7 @@ dungeons and bosses, and collect animas, accessories and decor.
 ## Play
 
 The website version is published by GitHub Pages from the `main` branch:
-**https://chuongvoxx-ops.github.io/cocopets/**
+**https://chuongvoxx-ops.github.io/Cocopets/**
 
 ## How the project is laid out
 
