@@ -746,19 +746,20 @@ GAMES.dungeon = {
         case 'thorns': for (let i = 1; i <= 7; i++) after(i * 0.05, () => { const x = me.x + Math.cos(a) * i * 0.9, y = me.y + Math.sin(a) * i * 0.9; if (solidAt(Math.floor(x), Math.floor(y))) return; part({ kind: 'spike', x, y, vx: 0, vy: 0, life: 0.6, max: 0.6, size: 1, color: '#6CC15A' }); hitArea(x, y, 0.85, base * 1.5, { el: 'leaf', venom: 2, src: 'strong' }); sparks(x, y, '#B6F09C', 4, 4); shake(1.5, 0.06); }); break;
         case 'meteor': zones.push({ kind: 'warn', x: tx, y: ty, r: 2.4, life: 0.45, max: 0.45, own: 'pet', color: '#FF9F43', fn: () => { hitArea(tx, ty, 2.4, base * 5, { el: 'fire', src: 'strong', kb: 3 }); boom(tx, ty, 2.4, '#FF9F43', '#FFE37A', { n: 30, shake: 10, smoke: 8 }); flash(0.25, '#FFB066'); hitstop(0.05); zones.push({ kind: 'fire', x: tx, y: ty, r: 1.6, life: 3, max: 3, dps: ST.atk * 0.5, tick: 0, own: 'pet', el: 'fire' }); } }); part({ kind: 'meteorfall', x: tx, y: ty, vx: 0, vy: 0, life: 0.45, max: 0.45, size: 1.1, color: '#FF9F43' }); break;
         case 'blackhole': zones.push({ kind: 'vortex', x: tx, y: ty, r: 3.5, life: 2.2, max: 2.2, dps: base * 1.6, tick: 0, own: 'pet', el: 'cosmic', end: base * 2.5 }); flash(0.15, '#B07CF0'); break;
-        default: if (STAR && ab.key.slice(0, 2) === 'x_') STAR.strong(ab.key.slice(2), { a, base, E, el, tx, ty, A, up: false }); break;
+        default: if (STAR && ab.key.slice(0, 2) === 'x_') STAR.strong(ab.key.slice(2), { a, base, E, el, tx, ty, A, up: false }); else if (ELEM && ab.key.slice(0, 3) === 'ex_') ELEM.strong(ab.key.slice(3), { a, base, E, el, e8: ab.e8, tx, ty, A, up: (ab.tier || 1) >= 2 }); break;
         case 'thunder': { hitArea(me.x, me.y, 2.5, base * 2.2, { el: 'spark', stun: 1, src: 'strong', kb: 2 }); boom(me.x, me.y, 2.5, '#FFE37A', '#FFFFFF', { n: 20, shake: 9 }); const tg = living().filter(m => hyp(m.x - me.x, m.y - me.y) < 7).slice(0, 8); tg.forEach((m, j) => after(0.08 + j * 0.07, () => { if (m.dead) return; bolts.push({ pts: skyBolt(m.x, m.y), life: 0.3, max: 0.3, color: '#FFE37A', w: 5 }); hitMon(m, base * 1.8, { el: 'spark', stun: 0.8, src: 'strong' }); boom(m.x, m.y, 0.9, '#FFE37A', '#FFFFFF', { n: 8, smoke: 1, shake: 3 }); })); flash(0.35, '#FFF7C2'); api.sfx.crash(); break; }
       }
     }
 
     /* ---------- ultimates ---------- */
-    let beamUlt = null, petalT = 0, blizT = 0, supernova = 0, swarmQ = 0, novaR = 11, STAR = null, RES = null;
+    let beamUlt = null, petalT = 0, blizT = 0, supernova = 0, swarmQ = 0, novaR = 11, STAR = null, ELEM = null, RES = null;
     const dragons = [];
     function useUlt() {
       const ab = KIT.ult;
       if (me.dead || g.won || g.intro > 1.9 || g.bossIntro > 0.6) return;
       if (RULES && RULES.blocks('noult')) { text(me.x, me.y - 1.1, 'Cursed: no Ultimates', '#E07BF0', 13); api.sfx.wrong(); return; }
       if (g.cdU > 0) return;
+      if (ab.elem && (ab.star || 0) < ELEM_ULT_STARS) { text(me.x, me.y - 1.1, 'Only a five-star pet can cast this', '#CFE2FF', 13); api.sfx.wrong(); return; }
       if (me.mp < ab.cost) { text(me.x, me.y - 1.1, `Ult needs ${ab.cost} MP`, '#7FB6FF', 13); api.sfx.wrong(); return; }
       me.mp -= ab.cost; g.cdU = ab.cd; me.castT = me.castM = 1.0; me.castUlt = true;   // (its arms go up high)
       const E = EL(ab.el), base = ST.atk * ab.mult, A = aim(), up = ab.tier >= 2;
@@ -789,7 +790,7 @@ GAMES.dungeon = {
         case 'dragon': dragons.push({ t: 0, passes: 0, max: up ? 4 : 3, x: me.x - 9, y: me.y, oy: 0, ph: 0, dir: 1, dmg: base * 2.2, trail: [], col: '#FF9F43', hot: '#FFE37A' }); if (up) dragons.push({ t: 0, passes: 0, max: 4, x: me.x + 9, y: me.y, oy: 1.2, ph: 1.6, dir: -1, dmg: base * 2.2, trail: [], col: '#7FD3F2', hot: '#E8FAFF' }); break;
         case 'supernova': supernova = 1; me.inv = 2; novaR = up ? 14 : 11; break;
         case 'phoenix': g.phoenixT = up ? 12 : 8; break;
-        default: if (STAR && ab.key.slice(0, 2) === 'y_') STAR.ult(ab.key.slice(2), { a: A.a, base, E, el: ab.el, A, up }); break;
+        default: if (STAR && ab.key.slice(0, 2) === 'y_') STAR.ult(ab.key.slice(2), { a: A.a, base, E, el: ab.el, A, up }); else if (ELEM && ab.key.slice(0, 3) === 'ey_') ELEM.ult(ab.key.slice(3), { a: A.a, base, E, el: ab.el, e8: ab.e8, tx: A.t ? A.t.x : me.x + Math.cos(A.a) * 4, ty: A.t ? A.t.y : me.y + Math.sin(A.a) * 4, A, up }); break;
       }
     }
     function meteorAt(dmg, range, r) {
@@ -875,6 +876,7 @@ GAMES.dungeon = {
       bossBars: () => (FD && FD.S ? { n: FD.S.bars, hp: FD.barHP } : null),
     }));
     STAR = DunStar.create({ me, g, mons, eshots, zones, ST: () => ST, shot, hitMon, hitArea, part, ring, boom, zap, bolt: (x, y, color) => bolts.push({ pts: skyBolt(x, y), life: 0.3, max: 0.3, color, w: 5 }), sparks, after, nearestMon, text, banner, flash, shake, hitstop, heal, light, moveEnt, walkPoint, blocked, meteorAt, sfx: api.sfx, sx, sy, Tz: () => Tz(), warn: (x, y, r, life, col, fn) => zones.push({ kind: 'warn', x, y, r, life, max: life, own: 'pet', color: col, fn }), blizzard: t => { blizT = Math.max(blizT, t); }, supernova: r => { supernova = 1; me.inv = 2; novaR = r; }, dragon: d => dragons.push(d) });
+    ELEM = DunElem.create({ me, g, mons, eshots, zones, ST: () => ST, shot, hitMon, hitArea, part, ring, boom, zap, bolt: (x, y, color) => bolts.push({ pts: skyBolt(x, y), life: 0.3, max: 0.3, color, w: 5 }), sparks, after, nearestMon, text, banner, flash, shake, hitstop, heal, light, moveEnt, walkPoint, blocked, sfx: api.sfx, sx, sy, Tz: () => Tz() });
     RES = DunResidue.create({ me, g, mons, props: propList, M, T_FLOOR, EL, e8Of, REACT_NAME: (a, b) => (REACTIONS[pairKey(a, b)] || {}).name, ST: () => ST, hitMon, part, boom, ring, sparks, text, light, drop, sfx: api.sfx, sx, sy, Tz: () => Tz() });
     RX = DunReact.create({ me, g, mons, eshots, ST: () => ST, AB: () => AB, hitMon, text, part, boom, zap, bolt: (x, y, color) => bolts.push({ pts: skyBolt(x, y), life: 0.3, max: 0.3, color, w: 5 }), sparks, ring, light, drop, heal, banner, sfx: api.sfx, sx, sy, Tz: () => Tz() });
     RULES = F.band ? DunRules.create({ F, M, me, g, mons, R, spawnMon, lesserBoss, walkPoint, freeSpot, after, banner, flash, text, ring, part, sparks, boom, shake, drop, heal, gainMP, ST: () => ST, sfx: api.sfx, sx, sy, Tz: () => Tz() }) : null;
@@ -1251,7 +1253,7 @@ GAMES.dungeon = {
         g.stormK = (g.stormK || 0) + ((on ? 1 : 0) - (g.stormK || 0)) * Math.min(1, dt * 0.8);
         if (g.stormK > 0.5 && !me.dead && !g.won) { g.stormHurtT = (g.stormHurtT || 0) - dt; if (g.stormHurtT <= 0) { g.stormHurtT = 1; const d = Math.min(me.hp - 1, Math.max(1, Math.round(ST.hp * 0.006))); if (d > 0) { me.hp -= d; text(me.x + (Math.random() - 0.5) * 0.6, me.y - 1.1, `-${d}`, '#E8B36A', 10); } } } }
       if (FD) FD.update(dt);
-      if (RX) RX.update(dt); if (STAR) STAR.update(dt); if (RES) RES.update(dt); if (g.eclipseT > 0) g.eclipseT -= dt;
+      if (RX) RX.update(dt); if (STAR) STAR.update(dt); if (ELEM) ELEM.update(dt); if (RES) RES.update(dt); if (g.eclipseT > 0) g.eclipseT -= dt;
       const cdK = (g.buff.arcane > 0 ? 1.6 : 1) * (RULES ? RULES.cdK() : 1) / (1 - Math.min(0.5, accK('cdr')));
       g.cdS = Math.max(0, g.cdS - dt * cdK); g.cdS2 = Math.max(0, g.cdS2 - dt * cdK); g.cdS3 = Math.max(0, g.cdS3 - dt * cdK); g.cdU = Math.max(0, g.cdU - dt * cdK);
       ['warpT', 'stopT', 'shieldT', 'phoenixT', 'dodgeCd', 'counterT', 'frostbite'].forEach(kk => { g[kk] = Math.max(0, g[kk] - dt); });
@@ -2400,6 +2402,7 @@ GAMES.dungeon = {
       if (AN) AN.drawGround(c);
       if (RULES) RULES.drawGround(c);
       if (RIFT) RIFT.drawGround(c);
+      if (ELEM) ELEM.draw(c, true);
       for (const [, kind, e] of ents) {
         if (kind === 1) drawProp(c, e);
         else if (kind === 2) drawPot(c, e);
@@ -2417,7 +2420,7 @@ GAMES.dungeon = {
       if (PF) PF('ents');
       drawPowers(c);
       if (FD) FD.drawFx(c);
-      if (RX) RX.drawFx(c); if (STAR) STAR.draw(c);
+      if (RX) RX.drawFx(c); if (STAR) STAR.draw(c); if (ELEM) ELEM.draw(c);
       // wall torches and candle flames
       for (const t of M.lights) { if (Math.abs(t.x - cam.x) > 14 || Math.abs(t.y - cam.y) > 18 || !isExp(t.x, t.y + 1)) continue; const X = sx(t.x), Y = sy(t.y - (t.kind === 'torch' ? 0.1 : 0)), T = Tz(), f = Math.sin(g.t * 9 + t.ph) * 0.15; if (t.kind === 'torch') { c.fillStyle = '#5A4632'; c.fillRect(X - T * 0.05, Y, T * 0.1, T * 0.28); c.fillStyle = '#FF9F43'; c.beginPath(); c.ellipse(X, Y - T * 0.06, T * 0.1, T * (0.17 + f * 0.1), 0, 0, 6.283); c.fill(); c.fillStyle = '#FFE37A'; c.beginPath(); c.ellipse(X, Y - T * 0.02, T * 0.05, T * 0.09, 0, 0, 6.283); c.fill(); } else if (t.kind === 'neon') { c.fillStyle = '#1C2438'; c.fillRect(X - T * 0.3, Y - T * 0.02, T * 0.6, T * 0.12); c.fillStyle = `rgba(77,240,255,${0.75 + 0.25 * Math.sin(g.t * 6 + t.ph)})`; c.fillRect(X - T * 0.25, Y + T * 0.01, T * 0.5, T * 0.06); } else if (t.kind === 'brazier' || t.kind === 'candles') { const fy = Y - T * (t.kind === 'brazier' ? 0.62 : 0.98); [-1, 0, 1].forEach(i => { if (t.kind === 'brazier' && i) return; const fx = X + i * T * 0.3; c.fillStyle = '#FF9F43'; c.beginPath(); c.ellipse(fx, fy - T * 0.12, T * (t.kind === 'brazier' ? 0.22 : 0.06), T * ((t.kind === 'brazier' ? 0.3 : 0.1) + f * 0.08), 0, 0, 6.283); c.fill(); c.fillStyle = '#FFE37A'; c.beginPath(); c.ellipse(fx, fy - T * 0.06, T * (t.kind === 'brazier' ? 0.1 : 0.03), T * (t.kind === 'brazier' ? 0.15 : 0.05), 0, 0, 6.283); c.fill(); }); } }
       if (PF) PF('powers');
@@ -2501,7 +2504,7 @@ GAMES.dungeon = {
       if (tryFire(g.tapAim)) { g.tapBuf = 0; g.tapAim = null; }
     }
     return {
-      _dbg: { get cam() { return cam; }, get RULES() { return RULES; }, get RIFT() { return RIFT; }, RU, lesserBoss, makeBoss, SKIP, stick, steerTo: (x, y) => { goTo(null, x, y); const d = navDir(1 / 60); nav.goal = null; return d; }, g, me, mons, M, get ST() { return ST; }, KIT, AB, useStrong, useUlt, dodge, hitMon, shots, eshots, zones, parts, helpers, F, pots, picks, shrines, hazards, traps, stones, SIZE, chunks, walkAt, blocked, X, wakeBoss, takeStone, fireEvent, tapAt, toWorld, nav, holds, goTo, banners, get AN() { return AN; }, get FD() { return FD; }, get RX() { return RX; }, get STAR() { return STAR; }, get RES() { return RES; }, propList, get KITR() { return KIT; }, setKit: (slot, a) => { KIT[slot] = a; }, party, cur: () => cur, switchTo, hurtPet, btnSw, setBoss: id => { if (BOSS_BY_ID[id]) { BOSS_KIND = BOSS_BY_ID[id]; F.bossName = BOSS_KIND.name; } } },
+      _dbg: { get cam() { return cam; }, get RULES() { return RULES; }, get RIFT() { return RIFT; }, RU, lesserBoss, makeBoss, SKIP, stick, steerTo: (x, y) => { goTo(null, x, y); const d = navDir(1 / 60); nav.goal = null; return d; }, g, me, mons, M, get ST() { return ST; }, KIT, AB, useStrong, useUlt, dodge, hitMon, shots, eshots, zones, parts, helpers, F, pots, picks, shrines, hazards, traps, stones, SIZE, chunks, walkAt, blocked, X, wakeBoss, takeStone, fireEvent, tapAt, toWorld, nav, holds, goTo, banners, get AN() { return AN; }, get FD() { return FD; }, get RX() { return RX; }, get STAR() { return STAR; }, get ELEM() { return ELEM; }, get RES() { return RES; }, propList, get KITR() { return KIT; }, setKit: (slot, a) => { KIT[slot] = a; }, party, cur: () => cur, switchTo, hurtPet, btnSw, setBoss: id => { if (BOSS_BY_ID[id]) { BOSS_KIND = BOSS_BY_ID[id]; F.bossName = BOSS_KIND.name; } } },
       resize() { layout(); stick.id = null; },
       /* a meal from the pantry while paused: heals the played pet and feeds it Tower experience */
       feed(k) {

@@ -111,10 +111,16 @@ function cardAbility(id, lv) {
   lv = clamp(lv || 1, 1, CARD_MAX_LV);
   return { slot: C.slot, own: false, card: id, lv, r: C.r, key: id, name: C.name, glyph: C.glyph, el: C.el, mult: R.mult * (1 + 0.15 * (lv - 1)), cost: C.cost || 0, cd: (C.cd || 0) * (1 - 0.05 * (lv - 1)), desc: C.desc };
 }
-function cleanDeck(d) {
+/* does this deck entry fit this slot: a card of the slot's kind, or an elemental move of it (one the pet may use, when the pet is given) */
+function deckFits(id, s, p) {
+  if (typeof id !== 'string') return false;
+  if (CARDS[id]) return CARDS[id].slot === slotType(s);
+  const mv = elemParse(id); return !!mv && mv.slot === slotType(s) && (!p || !elemLock(mv, p));
+}
+function cleanDeck(d, p) {
   const out = {}, used = new Set();
   SLOTS.forEach(s => { out[s] = null; });
-  if (d && typeof d === 'object') SLOTS.forEach(s => { const id = d[s]; if (typeof id === 'string' && CARDS[id] && CARDS[id].slot === slotType(s) && !used.has(id)) { out[s] = id; used.add(id); } });
+  if (d && typeof d === 'object') SLOTS.forEach(s => { const id = d[s]; if (deckFits(id, s, p) && !used.has(id)) { out[s] = id; used.add(id); } });
   return out;
 }
 /* the Celestial upgrade: same Ult, a new name, more power and a bigger show */
@@ -125,10 +131,10 @@ function tierUlt(a) {
 /* the Guardian upgrade: the same Strong attack, a new name and far more power */
 function tierStrong(a) { return Object.assign({}, a, { tier: 2, name: a.name + ' +', baseName: a.name, mult: a.mult * 1.6, cd: a.cd * 0.85, desc: a.desc + ' Guardian form: much stronger, and quicker to come back.' }); }
 function petKit(p) {
-  const AB = applyAbOv(petAbility(formOf(p), p.dna.seed), p), deck = cleanDeck(p.deck), kit = {};
+  const AB = applyAbOv(petAbility(formOf(p), p.dna.seed), p), deck = cleanDeck(p.deck, p), kit = {};
   kitSlots(p).forEach(s => {
-    const id = deck[s];
-    let a = id && st && st.cards && st.cards[id] ? cardAbility(id, st.cards[id]) : innateAbility(s, AB, p);
+    const id = deck[s], mv = elemParse(id);
+    let a = mv ? elemAbility(mv, s, p) : id && st && st.cards && st.cards[id] ? cardAbility(id, st.cards[id]) : innateAbility(s, AB, p);
     if (id && a.slot !== s) a = Object.assign({}, a, { slot: s });
     // two Strong slots never hold the same attack
     if (s !== 'strong' && slotType(s) === 'strong' && kitSlots(p).some(o => o !== s && slotType(o) === 'strong' && kit[o] && kit[o].key === a.key)) a = innateAbility(s, AB, p);

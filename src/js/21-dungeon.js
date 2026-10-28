@@ -403,17 +403,24 @@ function renderCards() {
   if (sheetKind !== 'cards' || !st) return;
   const P = cardsPet();
   if (!slotOpen(cardsSlot, P.stage)) cardsSlot = 'normal';
-  const K = petKit(P), deck = cleanDeck(P.deck), cur = deck[cardsSlot] && st.cards[deck[cardsSlot]] ? deck[cardsSlot] : null;
+  const K = petKit(P), deck = cleanDeck(P.deck, P), curId = deck[cardsSlot], curMv = elemParse(curId), cur = curMv ? curId : curId && st.cards[curId] ? curId : null;
   const own = innateAbility(cardsSlot, K.AB, P), elsewhere = id => SLOTS.find(s => s !== cardsSlot && deck[s] === id);
   const ids = CARD_IDS.filter(id => CARDS[id].slot === slotType(cardsSlot)).sort((a, b) => R_ORDER.indexOf(CARDS[a].r) - R_ORDER.indexOf(CARDS[b].r));
-  const sel = cardsSel === 'own' ? own : cardsSel ? (st.cards[cardsSel] ? cardAbility(cardsSel, st.cards[cardsSel]) : Object.assign(cardAbility(cardsSel, 1), { locked: true })) : (cur ? cardAbility(cur, st.cards[cur]) : own);
-  const selId = sel.own ? 'own' : sel.card, equipped = sel.own ? !cur : cur === sel.card;
+  // the pet's elemental moves for this slot (every pet may learn its element's Strongs; only five- and six-stars its Ultimates)
+  const e8 = petElement(P), moves = elemMovesFor(P, slotType(cardsSlot)), moveAb = mv => { const lock = elemLock(mv, P); return Object.assign(elemAbility(mv, cardsSlot, P), lock ? { locked: true, lock } : {}); };
+  const abOf = id => id === 'own' ? own : elemParse(id) ? moveAb(elemParse(id)) : st.cards[id] ? cardAbility(id, st.cards[id]) : Object.assign(cardAbility(id, 1), { locked: true });
+  const sel = abOf(cardsSel || cur || 'own');
+  const selId = sel.elem ? sel.id : sel.own ? 'own' : sel.card, equipped = selId === 'own' ? !cur : cur === selId;
   const pw = Math.round(sel.mult * 100);
-  const detail = `<div class="cd-detail">${abilityCardHTML(sel, { big: true, locked: sel.locked })}<div class="cd-copy"><p class="eyebrow">${SLOT_INFO[cardsSlot].name}</p><h3>${sel.locked ? 'Not found yet' : esc(sel.name)}</h3><p>${esc(sel.locked ? `A ${CARD_R[sel.r].name.toLowerCase()} card. Find it in gift boxes or boss chests.` : sel.desc)}</p>
-    ${sel.locked ? '' : `<p class="cd-nums mono">${sel.cost ? `${sel.cost} MP · ${sel.cd.toFixed(1)}s cooldown · ` : 'Tap to fire · free · '}power ${pw}%${sel.own ? '' : ` · Lv ${sel.lv}/${CARD_MAX_LV}`}</p>`}
-    ${sel.locked ? '' : equipped ? `<span class="cd-eq">${ICON.star}Equipped</span>` : `<button class="btn primary" type="button" data-go="card-eq" data-id="${selId}">Equip${selId !== 'own' && elsewhere(selId) ? ` (moves from ${SLOT_INFO[elsewhere(selId)].short})` : ''}</button>`}</div></div>`;
+  const lockText = sel.lock === 'stars' ? `An elemental Ultimate: only five- and six-star pets can learn one.` : sel.lock === 'level' ? `${esc(P.name)} learns it at Dungeon level ${sel.lv} (now ${P.dlv || 1}).` : sel.locked ? `A ${CARD_R[sel.r].name.toLowerCase()} card. Find it in gift boxes or boss chests.` : '';
+  const detail = `<div class="cd-detail">${abilityCardHTML(sel, { big: true, locked: sel.locked && !sel.elem })}<div class="cd-copy"><p class="eyebrow">${sel.elem ? `${E8[e8].name} move${sel.slot === 'ult' || slotType(sel.slot) === 'ult' ? ' · Ultimate' : ''}` : SLOT_INFO[cardsSlot].name}</p><h3>${sel.locked && !sel.elem ? 'Not found yet' : esc(sel.name)}</h3><p>${sel.locked && !sel.elem ? esc(lockText) : esc(sel.desc)}</p>
+    ${sel.locked && !sel.elem ? '' : `<p class="cd-nums mono">${sel.cost ? `${sel.cost} MP · ${sel.cd.toFixed(1)}s cooldown · ` : 'Tap to fire · free · '}power ${pw}%${sel.own ? '' : ` · Lv ${sel.lv}/${CARD_MAX_LV}`}</p>`}
+    ${sel.elem && sel.locked ? `<p class="note">${ICON.lock || '🔒'} ${esc(lockText)}</p>` : sel.locked ? '' : equipped ? `<span class="cd-eq">${ICON.star}Equipped</span>` : `<button class="btn primary" type="button" data-go="card-eq" data-id="${selId}">Equip${selId !== 'own' && elsewhere(selId) ? ` (moves from ${SLOT_INFO[elsewhere(selId)].short})` : ''}</button>`}</div></div>`;
   const grid = [`<button class="cbtn" type="button" data-go="card-pick" data-id="own"${selId === 'own' ? ' aria-current="true"' : ''}>${abilityCardHTML(own, { equipped: !cur })}</button>`]
     .concat(ids.map(id => { const has = st.cards[id], a = has ? cardAbility(id, has) : cardAbility(id, 1); return `<button class="cbtn" type="button" data-go="card-pick" data-id="${id}"${selId === id ? ' aria-current="true"' : ''}>${abilityCardHTML(a, { locked: !has, equipped: cur === id })}</button>`; })).join('');
+  const known = moves.filter(mv => !elemLock(mv, P)).length;
+  const egrid = moves.map(mv => { const a = moveAb(mv); return `<button class="cbtn${a.locked ? ' elocked' : ''}" type="button" data-go="card-pick" data-id="${a.id}"${selId === a.id ? ' aria-current="true"' : ''}>${abilityCardHTML(a, { equipped: cur === a.id })}${a.locked ? `<span class="elock">${a.lock === 'stars' ? '★5' : `Lv ${mv.lv}`}</span>` : ''}</button>`; }).join('');
+  const emoves = `<p class="eyebrow cd-sub">${E8[e8].name} moves · ${known}/${moves.length} learned</p><p class="note">${slotType(cardsSlot) === 'ult' ? `${E8[e8].name} Ultimates. Only five- and six-star pets learn them; each unlocks at a Dungeon level.` : `${E8[e8].name} Strong attacks. Every ${E8[e8].name} pet learns them, one by one, as its Dungeon level rises.`}</p><div class="cgrid">${egrid}</div>`;
   const owned = Object.keys(st.cards).length;
   sheetEl.innerHTML = `<div class="sheet-grab" aria-hidden="true"></div><button class="icon-btn sheet-close" type="button" data-sheet-close aria-label="Close">${ICON.close}</button>
     ${cardsFrom === 'team' ? `<button class="btn small team-back" type="button" data-go="team">${ICON.back || ''}Team</button>` : ''}
@@ -421,6 +428,8 @@ function renderCards() {
     <div class="ctabs" role="tablist">${SLOTS.map(s => { const a = K.kit[s]; return a ? `<button class="ctab" role="tab" type="button" data-go="cards-tab" data-slot="${s}" aria-selected="${s === cardsSlot}"><small>${SLOT_INFO[s].short}</small><b>${esc(a.name)}</b></button>` : `<button class="ctab locked" role="tab" type="button" aria-disabled="true" title="Unlocks at ${SLOT_INFO[s].unlock}"><small>${SLOT_INFO[s].short}</small><b>${ICON.lock || ''}${SLOT_INFO[s].unlock}</b></button>`; }).join('')}</div>
     <p class="note">${SLOT_INFO[cardsSlot].note}${cardsSlot === 'ult' && K.kit.ult.tier ? ` <b>${esc(K.kit.ult.name)}</b> is the Celestial form of ${esc(K.kit.ult.baseName)}.` : cardsSlot === 'ult' ? ' Reach Celestial (stage 7) to upgrade it.' : ''}${slotType(cardsSlot) === 'strong' && strongSlots(P.stage) < 3 ? ` More Strong slots open at ${strongSlots(P.stage) < 2 ? 'Adept and Guardian' : 'Guardian'}.` : ''}</p>
     ${detail}
+    ${slotType(cardsSlot) !== 'normal' ? emoves : ''}
+    <p class="eyebrow cd-sub">Ability cards</p>
     <div class="cgrid">${grid}</div>
     <p class="note">Ability cards come from gift boxes and boss chests. Every pet in your house can use them. Getting a card again levels it up, to Lv ${CARD_MAX_LV}.</p>
     <button class="btn" type="button" data-go="gift">${ICON.gift}Gift box shop</button>`;
@@ -428,9 +437,10 @@ function renderCards() {
 function equipCard(id) {
   if (!st) return;
   const P = cardsPet();
-  P.deck = cleanDeck(P.deck);
+  P.deck = cleanDeck(P.deck, P);
+  const mv = elemParse(id);
   if (id === 'own') P.deck[cardsSlot] = null;
-  else if (st.cards[id] && CARDS[id].slot === slotType(cardsSlot) && slotOpen(cardsSlot, P.stage)) { const prev = P.deck[cardsSlot]; SLOTS.forEach(s => { if (s !== cardsSlot && P.deck[s] === id) P.deck[s] = prev && CARDS[prev] && CARDS[prev].slot === slotType(s) ? prev : null; }); P.deck[cardsSlot] = id; }
+  else if ((mv ? !elemLock(mv, P) : !!st.cards[id]) && deckFits(id, cardsSlot, P) && slotOpen(cardsSlot, P.stage)) { const prev = P.deck[cardsSlot]; SLOTS.forEach(s => { if (s !== cardsSlot && P.deck[s] === id) P.deck[s] = prev && deckFits(prev, s, P) ? prev : null; }); P.deck[cardsSlot] = id; }
   else return;
   cardsSel = id;
   sfx.sparkle(); saveSoon();

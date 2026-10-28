@@ -78,7 +78,7 @@ function migrateV1(o) {
   s.hatchedAt = o.hatchedAt; s.savedAt = o.savedAt || Date.now(); s.hid = 'h' + Math.floor(o.hatchedAt);
   ['food', 'joy', 'energy', 'ageH', 'streak', 'bestStreak', 'meals', 'pats', 'kicks'].forEach(k => { if (typeof o[k] === 'number') s[k] = clamp(o[k], 0, k === 'ageH' || k.endsWith('s') || k.includes('treak') ? 1e7 : 100); });
   s.lastFedDay = typeof o.lastFedDay === 'string' ? o.lastFedDay : null;
-  s.asleep = !!o.asleep; s.lightsOff = !!o.lightsOff; s.sound = o.sound !== false; s.retro = o.retro !== false; s.fast = !!o.fast;
+  s.asleep = !!o.asleep; s.lightsOff = !!o.lightsOff; s.sound = o.sound !== false; s.retro = o.retro !== false; s.fast = !!o.fast; s.lowFx = !!o.lowFx; s.devMoves = !!o.devMoves;
   const g = +o.growth || 0;
   s.stage = g >= 96 ? 3 : g >= 24 ? 2 : 1;
   growForms(s, R);
@@ -205,7 +205,7 @@ function sanitize(o) {
   s.accs = cleanAccs(o.accs); linkAccs(s);   // the accessory bag, and only pieces from it worn, each by one pet
   // the party: up to three pets beside the one you play, each one you still have, none twice
   if (Array.isArray(o.party)) { const ok = new Set(s.others.map(p => p.uid)), seen2 = new Set(); s.party = o.party.filter(u => typeof u === 'string' && ok.has(u) && u !== s.uid && !seen2.has(u) && seen2.add(u)).slice(0, 3); }
-  s.sound = o.sound !== false; s.retro = o.retro !== false; s.fast = !!o.fast;
+  s.sound = o.sound !== false; s.retro = o.retro !== false; s.fast = !!o.fast; s.lowFx = !!o.lowFx; s.devMoves = !!o.devMoves;
   if (o.tips && typeof o.tips === 'object') for (const k in o.tips) if (o.tips[k] === true && k.length < 20) s.tips[k] = true;
   linkRoom(s);
   return s;

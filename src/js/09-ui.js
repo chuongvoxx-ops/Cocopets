@@ -237,6 +237,7 @@ sheetWrap.addEventListener('click', e => {
     else if (k === 'save-in') { $('#saveBox').hidden = false; $('#saveLoadBtn').hidden = false; const ta = $('#saveCode'); ta.value = ''; ta.placeholder = 'Paste a save code here'; $('#saveMsg').textContent = ''; ta.focus(); }
     else if (k === 'save-load') saveIn($('#saveCode').value);
     else if (k === 'sound') { st.sound = !st.sound; go.setAttribute('aria-checked', String(st.sound)); sfx.unlock(); if (st.sound) sfx.chirp(); saveSoon(); }
+    else if (k === 'lowfx') { st.lowFx = !st.lowFx; go.setAttribute('aria-checked', String(st.lowFx)); saveSoon(); }
     else if (k === 'retro') { st.retro = st.retro === false; go.setAttribute('aria-checked', String(st.retro)); retro.frame(); saveSoon(); }
     else if (k === 'fast') { st.fast = !st.fast; go.setAttribute('aria-checked', String(st.fast)); toast(st.fast ? 'Fast-forward on: 1 minute = 4 pet hours' : 'Back to real time'); saveSoon(); }
     else if (k.startsWith('pack')) buyPearls(+go.dataset.n);
@@ -267,7 +268,7 @@ sheetWrap.addEventListener('click', e => {
     else if (k === 'acc-scrap') accScrap(go.dataset.u);
     else if (k === 'acc-scrap-low') accScrapLow();
     else if (k === 'cards-tab') { cardsSlot = go.dataset.slot; cardsSel = null; renderCards(); }
-    else if (k === 'card-pick') { const id = go.dataset.id; if (id === 'own' || st.cards[id]) equipCard(id); else { cardsSel = id; renderCards(); sfx.boop(); } }
+    else if (k === 'card-pick') { const id = go.dataset.id, mv = elemParse(id); if (id === 'own' || (mv ? !elemLock(mv, cardsPet()) : st.cards[id])) equipCard(id); else { cardsSel = id; renderCards(); sfx.boop(); } }
     else if (k === 'card-eq') equipCard(go.dataset.id);
     else if (k === 'gift') openGiftShop();
     else if (k === 'gift-buy') confirmGiftBuy();
@@ -403,6 +404,7 @@ function renderCard() {
     <form class="setting rename" id="renameForm"><label for="renameInput">Name</label><div class="row"><input id="renameInput" type="text" maxlength="14" autocomplete="off" spellcheck="false" value="${esc(st.name)}"><button class="btn" type="submit">Save</button></div></form>
     <div class="setting"><div><span id="soundLbl">Sound</span></div><button class="switch" type="button" role="switch" data-go="sound" aria-checked="${st.sound}" aria-labelledby="soundLbl"></button></div>
     <div class="setting"><div><span id="retroLbl">Old film look</span><p class="note">A warm, grainy, flickering picture, like an old cartoon.</p></div><button class="switch" type="button" role="switch" data-go="retro" aria-checked="${st.retro !== false}" aria-labelledby="retroLbl"></button></div>
+    <div class="setting"><div><span id="lowFxLbl">Fewer effects</span><p class="note">Thinner particles in the Tower and rifts, for an older phone. Attack shapes and warnings stay.</p></div><button class="switch" type="button" role="switch" data-go="lowfx" aria-checked="${!!st.lowFx}" aria-labelledby="lowFxLbl"></button></div>
     <div class="setting"><div><span id="fastLbl">Fast-forward time</span><p class="note">1 minute becomes 4 pet hours, to test hunger, bond and growth quickly.</p></div><button class="switch" type="button" role="switch" data-go="fast" aria-checked="${st.fast}" aria-labelledby="fastLbl"></button></div>
     <div class="setting"><div><span>Widgets</span><p class="note">How the pet stays on your home and lock screen.</p></div><button class="btn" type="button" data-go="widgets">${ICON.widget}Preview</button></div>
     <div class="setting"><div><span>Design lab</span><p class="note">Random pets and full evolution lines, to see the variety.</p></div><button class="btn" type="button" data-go="lab">${ICON.dice}Open</button></div>

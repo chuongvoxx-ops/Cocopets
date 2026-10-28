@@ -1,6 +1,7 @@
 # build outputs (made by src/build.py)
 pocket-pet.html
 test.html
+test-*.html
 test-v*.html
 dist/
 # test and scratch output
