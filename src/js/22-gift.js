@@ -181,26 +181,27 @@ function summonOddsHTML() {
     <p>Every egg is rolled on its own. After ${PITY_N} 10-egg summons in a row with no six-star, the next 10-egg summon always holds one; single eggs don't count toward it. Four- and five-star pets carry their own signature Strong attack and Ultimate. Six-star Legendaries hatch with small angel or dragon wings that grow as they evolve, a radiant aura and golden signature moves stronger than any other. Fusing can also raise a pet's star rank (see the fusion screen). Your house holds up to ${MAX_PETS} pets.</p></details>`;
 }
 function openSummon() {
-  const room = MAX_PETS - petCount(), cr = st.crystals || 0;
+  const room = MAX_PETS - petCount(), cr = st.crystals || 0, free = (st.freeTen || 0) > 0;
   openSheet('summon', `
     <p class="eyebrow">Summon</p><h2 class="title" id="sheetTitle">Egg summon</h2>
     <div class="gift-hero">${eggsSVG()}</div>
     <p class="note">Spend crystals on mystery eggs. Each hatches a one-of-a-kind pet with its own star rank, element and abilities. You have <b>${fmtNum(cr)}</b> crystals and room for <b>${room}</b> more pet${room === 1 ? '' : 's'}.</p>
     <div class="packs egg-buy">
-      <button class="pack" type="button" data-go="summon-10"${cr < SUMMON_COST || room < 1 ? ' aria-disabled="true"' : ''}>${ICON.egg}<b>${SUMMON_N} eggs</b><span class="mono">${fmtNum(SUMMON_COST)} crystals</span></button>
+      <button class="pack${free ? ' free' : ''}" type="button" data-go="summon-10"${free ? (room < SUMMON_N ? ' aria-disabled="true"' : '') : cr < SUMMON_COST || room < 1 ? ' aria-disabled="true"' : ''}>${ICON.egg}<b>${SUMMON_N} eggs</b><span class="mono">${free ? `Free${st.freeTen > 1 ? ` ×${st.freeTen}` : ''}` : `${fmtNum(SUMMON_COST)} crystals`}</span></button>
       <button class="pack" type="button" data-go="summon-1"${cr < SUMMON_ONE || room < 1 ? ' aria-disabled="true"' : ''}>${ICON.egg}<b>1 egg</b><span class="mono">${SUMMON_ONE} crystals</span></button>
     </div>
     ${st.dev6 ? `<p class="note gold-note"><b>Developer test:</b> every egg hatches a six-star Legendary. Turn it off in the developer tools.</p>` : ''}${pityHTML()}
+    ${free ? `<p class="note gold-note"><b>A free 10-egg summon is yours!</b> ${room < SUMMON_N ? `Make room for ${SUMMON_N} pets to use it.` : 'Tap 10 eggs to hatch them.'}</p>` : ''}
     ${room < 1 ? `<p class="note"><b>Your house is full.</b> Fuse two pets to make room.</p>` : ''}
     <div class="evo-actions"><button class="btn" type="button" data-go="crystals">${ICON.crystal}Get crystals</button><button class="btn" type="button" data-go="gift">${ICON.gift}Treasure box</button></div>
     ${summonOddsHTML()}`);
 }
 function doSummon(n) {
   if (!st) return;
-  const cost = n >= SUMMON_N ? SUMMON_COST : SUMMON_ONE, room = MAX_PETS - petCount();
-  if (room < 1) { openSummon(); return; }
+  const free = n >= SUMMON_N && (st.freeTen || 0) > 0, cost = free ? 0 : n >= SUMMON_N ? SUMMON_COST : SUMMON_ONE, room = MAX_PETS - petCount();
+  if (room < (free ? SUMMON_N : 1)) { openSummon(); return; }
   if ((st.crystals || 0) < cost) { openCrystalShop(cost - (st.crystals || 0)); return; }
-  st.crystals -= cost;
+  st.crystals -= cost; if (free) st.freeTen--;
   const count = Math.min(n, room), items = [], ten = n >= SUMMON_N, sure = ten && pityLeft() === 0;
   // (developer tools can make every egg a six-star, to try them out)
   const rolls = []; for (let i = 0; i < count; i++) rolls.push(st.dev6 ? 6 : rollStars());
@@ -216,7 +217,7 @@ function doSummon(n) {
   if (count < n) st.crystals += Math.round(cost * (n - count) / n);
   closeSheet(); buildCompanions();
   saveLocalNow(); updateHud();
-  playGiftCeremony(items, { mode: 'summon', title: count > 1 ? 'Tap the eggs!' : 'Tap the egg!', sub: st.dev6 ? `${count} egg${count > 1 ? 's' : ''} · developer test: every egg a ★6` : sure ? `${count} eggs · a ★6 Legendary is guaranteed!` : `${count} egg${count > 1 ? 's' : ''} · 84% ★3 · 10% ★4 · 5% ★5 · 1% ★6`, box: eggsSVG() });
+  playGiftCeremony(items, { mode: 'summon', title: count > 1 ? 'Tap the eggs!' : 'Tap the egg!', sub: st.dev6 ? `${count} egg${count > 1 ? 's' : ''} · developer test: every egg a ★6` : free ? `${count} free eggs: the welcome gift · 84% ★3 · 10% ★4 · 5% ★5 · 1% ★6` : sure ? `${count} eggs · a ★6 Legendary is guaranteed!` : `${count} egg${count > 1 ? 's' : ''} · 84% ★3 · 10% ★4 · 5% ★5 · 1% ★6`, box: eggsSVG() });
 }
 
 /* ---------- the level-10 gift: three eggs, each a three- to five-star pet (never a six-star), the first time the pet you

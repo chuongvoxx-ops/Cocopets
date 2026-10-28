@@ -1,11 +1,11 @@
 /* ---------- the welcome gift and the daily rewards ----------
-   Welcome (a new player, once): 1000 crystals, a treasure box, and three gemstones for evolving (the one the pet needs
-   next among them). Daily rewards: a calendar for each month; each day the player comes home they claim the next day on
+   Welcome (a new player, once): 5000 crystals, a treasure box, three gemstones for evolving (the one the pet needs
+   next among them) and a free 10-egg summon (st.freeTen), which the summon screen then offers. Daily rewards: a calendar for each month; each day the player comes home they claim the next day on
    it: 100 crystals every third day, goodies between (gemstones, the foods that level pets, coins, pearls, drinks, bond
    treats, a Fusion Stone, treasure boxes), and on the month's last day 1000 crystals. A new month starts over.
    st.welcome: 0 waiting, 1 given. st.login: { m: 'YYYY-MM', n: days claimed this month, last: day of the last claim,
    seen: day the calendar last opened by itself } */
-const LOGIN_FINAL = 1000, LOGIN_CRYSTALS = 100;
+const WELCOME_CRYSTALS = 5000, LOGIN_FINAL = 1000, LOGIN_CRYSTALS = 100;
 // the goodies between the crystal days, by day of the claim (a crystal day every third)
 const LOGIN_GOODS = {
   1: [{ kind: 'coins', n: 200 }], 2: [{ kind: 'gem' }], 4: [{ kind: 'food', crop: 'honeycomb', n: 1 }], 5: [{ kind: 'drink', id: 'soda' }, { kind: 'drink', id: 'tea' }],
@@ -76,16 +76,20 @@ function claimLogin() {
 /* the welcome gift */
 function giveWelcome() {
   st.welcome = 1; const items = [];
-  [{ kind: 'crystals', n: 1000 }, { kind: 'gem' }, { kind: 'gem' }, { kind: 'gem' }].forEach(r => grantReward(r).forEach(x => items.push(x)));
+  [{ kind: 'crystals', n: WELCOME_CRYSTALS }, { kind: 'gem' }, { kind: 'gem' }, { kind: 'gem' }].forEach(r => grantReward(r).forEach(x => items.push(x)));
   const e = evoStatus(); if (e && !items.some(x => x.kind === 'gem' && x.gem === e.nx.gem)) { const g = items.find(x => x.kind === 'gem'); st.gems[g.gem]--; g.gem = e.nx.gem; st.gems[g.gem] = Math.min(99, (st.gems[g.gem] || 0) + 1); }
   grantReward({ kind: 'box' }).forEach(x => items.push(x));
+  st.freeTen = (st.freeTen || 0) + 1;
   saveLocalNow(); updateHud();
-  playGiftCeremony(items, { title: 'Welcome to Cocopets!', sub: '1000 crystals, a treasure box and gemstones for evolving: a gift to start you off' });
+  playGiftCeremony(items, { title: 'Welcome to Cocopets!', sub: `${fmtNum(WELCOME_CRYSTALS)} crystals, a treasure box, gemstones for evolving and a free 10-egg summon: a gift to start you off` });
 }
+let freeOffered = false;
 /* at home with nothing else open: the welcome gift first; then, once a day, the calendar */
 function rewardsCheck() {
   if (!st || !running || adopting || (typeof arc !== 'undefined' && arc.open) || sheetKind || !giftWrap.hidden || mapOpen || !introEl.hidden) return;
   if (st.welcome === 0) { giveWelcome(); return; }
+  // (a free 10-egg summon waiting: the summon screen opens to offer it, once a visit)
+  if (st.freeTen > 0 && !freeOffered && MAX_PETS - petCount() >= SUMMON_N) { freeOffered = true; openSummon(); return; }
   const T = loginToday(); if (T.can && T.L.seen !== T.today) { T.L.seen = T.today; saveSoon(); openLogin(); }
 }
 setInterval(rewardsCheck, 1500);

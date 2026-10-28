@@ -849,3 +849,8 @@ Every new boss painter (rift fiends, Tower bosses, minis that get their own art)
 - Anima summons: music.hold('summon') plays The Summoning while the summon lasts, then music.release('summon'); without the song (Claude build) the old synth theme plays.
 - The Claude build embeds only the 4 core songs; pick() falls back (rift songs → charge, crown/gates → carta). Two decoded buffers kept at a time.
 - tests/music-rifts.js: run with URL=http://localhost:8768/test.html after `build.py --web --test` to check the web build; without URL it checks the Claude build's fallbacks.
+
+## Welcome gift raised; Belfry halved (user, 28 Oct)
+- Welcome: 5000 crystals (WELCOME_CRYSTALS), the treasure box, 3 gems, and a free 10-egg summon: st.freeTen (sanitized 0..9). The summon screen opens by itself once a visit while one waits and the house has room for 10; the 10-egg button reads "Free", doSummon spends freeTen instead of crystals (needs room for all 10). .pack.free style.
+- Rift ease kinds in riftDef: Rf.ease scales hpMul/dmgMul AND monHp/monDmg (so ordinary monsters get it twice: 0.6 → 0.36); Rf.monEase monsters only; new Rf.scale scales hpMul/dmgMul once, so monsters, minis and fiends all get exactly that share. Belfry: scale 0.5 (was unscaled). Checked: crawler 7605→3803 hp, mini 81k→41k, Thalassor 353k→177k.
+- tests/rift-belfry "it sweeps, tolls and scuttles" is random (toll is a 25% pick per cycle in 40 s) and "the gallery" flakes under load; both pre-existing.

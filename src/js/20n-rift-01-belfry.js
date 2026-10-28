@@ -470,6 +470,7 @@
     id: 'belfry', n: 1, name: 'The Drowned Belfry', lvl: 10, sigil: 'Tide', biome: 'belfry', aff: ['water', 'dark'], region: 'the coast',
     blurb: 'A coastal bell tower sunk halfway into an alien sea. Flood and drain its chambers.', gate: { anima: 'cancer', name: 'The Oracle Shell' },
     mons: ['crawler', 'leech', 'reeflantern'], sealing: SEALING,
+    scale: 0.5,   // (half the health and blows it was first built with: its monsters, mini bosses and bosses alike)
     stages: riftSections([
       { fights: ['The Flooded Narthex', 'The Choir Stalls'], minis: ['kharrox'], puzzles: [CLAPPERS, TIDE], boss: 'thalassor', bossName: 'Thalassor the Bell-Carrier', bossRoom: 'The Baptism Font' },
       { fights: ['The Drowned Cloister', 'The Organ Loft'], minis: ['nhalu'], puzzles: [WARDS, RUSH], boss: 'veilwrack', bossName: 'Veilwrack the Lantern Eel', bossRoom: 'The Submerged Nave' },

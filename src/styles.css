@@ -488,6 +488,7 @@ input[type="text"]{flex:1;min-width:0;height:44px;padding:0 12px;border:2.5px so
 .pack{display:flex;align-items:center;gap:12px;padding:10px 12px;border:2px solid var(--line);border-radius:16px;background:var(--track);cursor:pointer;text-align:left}
 .pack b{font-family:var(--f-display);font-weight:400;font-size:15px;flex:1}
 .pack svg{width:34px;height:34px}
+.pack.free{border-color:#F2C14E;background:linear-gradient(170deg,#FFF9E6,#FFEFC2)}.pack.free .mono{color:#8A5A00;font-weight:800}
 .demo-note{margin-top:12px;padding:10px 12px;border-radius:14px;background:var(--coral-soft);font-size:12.5px;line-height:1.4}
 
 .result-wrap{position:fixed;inset:0;z-index:22;display:grid;place-items:center;padding:20px;background:var(--scrim);animation:fade .2s ease both}

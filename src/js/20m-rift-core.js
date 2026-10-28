@@ -53,6 +53,9 @@ function riftDef(id, stage) {
     rift: { id, stage, kind: S.kind, name: S.name, total: Rf.stages.length, seal: !!S.seal, mini: S.mini || null, miniHp: S.hpK || 2 } });
   // (a rift may be eased: its monsters', mini bosses' and fiends' health and blows scaled by Rf.ease)
   if (Rf.ease) { F.hpMul *= Rf.ease; F.dmgMul *= Rf.ease; F.monHp *= Rf.ease; F.monDmg *= Rf.ease; }
+  // (Rf.scale: everything here, monsters, mini bosses and bosses, at that share of its health and blows, exactly once:
+  // hpMul and dmgMul feed all of them, the monsters' monHp and monDmg on top of them, so those are left be)
+  if (Rf.scale) { F.hpMul *= Rf.scale; F.dmgMul *= Rf.scale; }
   // (and its ordinary monsters alone may be eased further: Rf.monEase scales their health and blows, not the bosses')
   if (Rf.monEase) { F.monHp *= Rf.monEase; F.monDmg *= Rf.monEase; }
   if (S.kind === 'fight') { const mobs = S.mobs || Rf.mons || []; Object.assign(F, { types: mobs.concat(mobs, F.types.filter(t => !mobs.includes(t) && !MON[t].still).slice(-3)), rooms: 7, pack: Math.max(F.pack, 10), packsPer: 3, maxMons: Math.max(F.maxMons, 90), elite: Rf.ease ? Math.min(F.elite, 0.3) : Math.max(F.elite, 0.45), nests: 0, gremlin: 0.3, shrines: 1, events: true }); if (S.mod === 'boon') F.band = 'rboon'; else if (S.mod === 'curse') F.band = 'rcurse'; else if (S.mod === 'random') F.band = 'rrand'; }
