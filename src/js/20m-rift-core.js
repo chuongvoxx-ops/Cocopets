@@ -265,7 +265,7 @@ function riftFight(X, self, H) {
   // the farthest room from the start holds the mini boss and the way on
   let far = M.bossAt || M.start, best = -1; for (const r of M.rooms) { const cx = r.x + r.w / 2, cy = r.y + r.h / 2, d = Math.hypot(cx - M.start.x, cy - M.start.y); if (d > best) { best = d; far = X.freeSpot(cx, cy, 0.8) || { x: cx, y: cy }; } }
   let mini = null;
-  if (miniId && BOSS_BY_ID[miniId] || BOSSES.find(b => b.id === miniId)) { const B2 = BOSS_BY_ID[miniId] || BOSSES.find(b => b.id === miniId); mini = X.lesserBoss ? X.lesserBoss(far.x, far.y, F.rift.miniHp, '', B2) : null; if (mini) { const E = RiftEvil.make(((F.seed || 1) * 7919 + F.rift.stage * 104729) >>> 0, Rf.mechaMinis ? { mecha: true } : null); mini.evil = E; mini.bname = E.name; mini.glow = E.acc; mini.aggro = false; } }
+  if (miniId && BOSS_BY_ID[miniId] || BOSSES.find(b => b.id === miniId)) { const B2 = BOSS_BY_ID[miniId] || BOSSES.find(b => b.id === miniId); mini = X.lesserBoss ? X.lesserBoss(far.x, far.y, F.rift.miniHp, '', B2) : null; if (mini) { if (Rf.miniDmg) mini.dmg *= Rf.miniDmg; const E = RiftEvil.make(((F.seed || 1) * 7919 + F.rift.stage * 104729) >>> 0, Rf.mechaMinis ? { mecha: true } : null); mini.evil = E; mini.bname = E.name; mini.glow = E.acc; mini.aggro = false; } }
   H.setExit(far.x, far.y, 'The way on');
   // (a dungeon may have something of its own in it: Rf.stages[i].extra(X, self, H) -> { update, drawGround, drawOver })
   const SX = Rf.stages[F.rift.stage], xm = SX && SX.extra ? SX.extra(X, self, H) || {} : {};
