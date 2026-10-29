@@ -347,8 +347,8 @@ const BAS = { BLACK: '#242428', BLACK_HI: '#3A3A42', BLACK_D: '#141416', OCHRE: 
     else if (kind === 3) { /* a slab split in two */ c.strokeStyle = 'rgba(110,96,70,.6)'; c.lineWidth = Math.max(1, T * 0.03); c.beginPath(); c.moveTo(X + T * (0.2 + R() * 0.3), Y); c.lineTo(X + T * (0.4 + R() * 0.3), Y + T * 0.5); c.lineTo(X + T * (0.3 + R() * 0.4), Y + T); c.stroke(); c.strokeStyle = 'rgba(255,255,255,.3)'; c.lineWidth = 1; c.stroke(); }
     slab(c, X, Y, T, R, 0.3, 'rgba(110,96,70,.55)', lw); c.restore(); }
   function courtFloor(c, X, Y, T, h, h2, x, y, lw) { const R = rnd(x * 6151 + y * 92821 + 13), kind = Math.floor(hh(x, y, 67) * 12); c.save(); c.beginPath(); c.rect(X, Y, T, T); c.clip();
-    for (let i = 0; i < 7; i++) { c.fillStyle = i % 2 ? 'rgba(161,142,101,.22)' : 'rgba(255,255,255,.4)'; const s = Math.max(1, T * (0.015 + R() * 0.02)); c.fillRect(X + R() * T, Y + R() * T, s, s); }
-    if (kind === 0) { c.fillStyle = 'rgba(255,255,255,.35)'; c.beginPath(); const cx = X + T * (0.3 + R() * 0.4), cy = Y + T * (0.3 + R() * 0.4); for (let i = 0; i < 10; i++) { const a = i / 10 * TAU, r = T * (0.22 + R() * 0.2); c.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r * 0.75); } c.closePath(); c.fill(); }
+    for (let i = 0; i < 7; i++) { c.fillStyle = i % 2 ? 'rgba(161,142,101,.22)' : 'rgba(190,186,230,.2)'; const s = Math.max(1, T * (0.015 + R() * 0.02)); c.fillRect(X + R() * T, Y + R() * T, s, s); }
+    if (kind === 0) { c.fillStyle = 'rgba(150,146,200,.14)'; c.beginPath(); const cx = X + T * (0.3 + R() * 0.4), cy = Y + T * (0.3 + R() * 0.4); for (let i = 0; i < 10; i++) { const a = i / 10 * TAU, r = T * (0.22 + R() * 0.2); c.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r * 0.75); } c.closePath(); c.fill(); }
     else if (kind === 1) { c.strokeStyle = 'rgba(161,142,101,.6)'; c.lineWidth = Math.max(1, T * 0.04); c.beginPath(); c.moveTo(X + T * 0.15, Y + T * 0.5); c.lineTo(X + T * 0.85, Y + T * 0.5); c.moveTo(X + T * 0.5, Y + T * 0.15); c.lineTo(X + T * 0.5, Y + T * 0.85); c.stroke(); }
     else if (kind === 2) { const g = c.createRadialGradient(X + T * 0.5, Y + T * 0.5, 0, X + T * 0.5, Y + T * 0.5, T * 0.6); g.addColorStop(0, 'rgba(161,142,101,.3)'); g.addColorStop(1, 'rgba(161,142,101,0)'); c.fillStyle = g; c.fillRect(X, Y, T, T); }
     else if (kind === 3) { c.save(); c.translate(X + T / 2, Y + T * 0.45); c.scale(1, 0.6); c.strokeStyle = 'rgba(161,142,101,.7)'; c.lineWidth = Math.max(1, lw * 0.6); c.beginPath(); c.arc(0, 0, T * 0.32, 0, TAU); c.stroke(); c.restore(); }
@@ -435,23 +435,86 @@ const BAS = { BLACK: '#242428', BLACK_HI: '#3A3A42', BLACK_D: '#141416', OCHRE: 
       c.strokeStyle = rgba(RED, 0.7); c.lineWidth = Math.max(1.2, lw * 0.7); c.beginPath(); c.moveTo(-T * 0.3, -T * 0.1); c.lineTo(-T * 0.05, -T * 0.5); c.lineTo(T * 0.15, -T * 0.4); c.lineTo(T * 0.3, -T * 0.9); c.stroke(); glowIn(c, 0, -T * 0.5, T * 0.6, RED_D, 0.15); },
   });
 
+  /* ---- the courtyard's growths: great sharp abstract statues heaved up out of the floor, the stone organism pushing
+     through the monastery (as the Engine Heart's spires do in Rift 6). Faceted: each face takes the light by its angle,
+     lit faces calcite-pale, shadowed ones navy, an ochre or red seam, an eye somewhere in the stone ---- */
+  const NAVY = '#3A3C58', NAVY_HI = '#7E80A8', NAVY_D = '#16172A';
+  const poly = (c, pts) => { c.beginPath(); pts.forEach((p, i) => (i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]))); c.closePath(); };
+  /* a faceted shard: a list of [x, y] points round a sharp spine; faces between the spine and each edge point shaded by facing */
+  function shard(c, base, tip, w, lean, lw, cols) { const [hi, mid, lo] = cols || [CALCITE_HI, '#9C99BE', NAVY_D];
+    const bx = base[0], by = base[1], tx = tip[0] + lean, ty = tip[1], mx = (bx + tx) / 2, my = (by + ty) / 2;
+    const L = [bx - w, by], Rr = [bx + w, by], ML = [mx - w * 0.55, my + (ty - by) * 0.08], MR = [mx + w * 0.62, my - (ty - by) * 0.04], sp = [mx + w * 0.05, my];
+    const face = (pts, col) => { poly(c, pts); c.fillStyle = col; c.fill(); };
+    face([L, ML, sp, [bx, by]], mid); face([ML, [tx, ty], sp], hi); face([[bx, by], sp, MR, Rr], lo); face([sp, [tx, ty], MR], shadeC(lo, 0.25));
+    c.strokeStyle = 'rgba(255,255,255,.35)'; c.lineWidth = Math.max(1, lw * 0.6); c.beginPath(); c.moveTo(ML[0], ML[1]); c.lineTo(tx, ty); c.stroke();
+    poly(c, [L, ML, [tx, ty], MR, Rr]); ink(c, lw); c.beginPath(); c.moveTo(bx, by); c.lineTo(sp[0], sp[1]); c.lineTo(tx, ty); ink(c, lw * 0.6); }
+  Object.assign(PROPS, {
+    /* a cluster of great calcite-and-navy shards bursting from a cracked mound, the tallest leaning, an eye sealed in its foot */
+    veilshard(c, T, v) { const lw = lw0(T), R = rnd(71 + v * 13), H = T * (4.4 + (v % 3) * 0.5), sd = v % 2 ? 1 : -1;
+      c.fillStyle = 'rgba(0,0,0,.4)'; ell(c, 0, T * 0.06, T * 1.7, T * 0.5); c.fill();
+      // the heaved floor: broken flagstones tilted up round the foot
+      for (let i = 0; i < 6; i++) { const a = Math.PI + i / 5 * Math.PI, x = Math.cos(a) * T * 1.25, y = Math.sin(a) * T * 0.35 + T * 0.15; c.save(); c.translate(x, y); c.rotate(Math.cos(a) * 0.35); block(c, 0, 0, T * 0.6, T * 0.18 + R() * T * 0.1, T * 0.12, NAVY, lw * 0.8, { joints: 0 }); c.restore(); }
+      shard(c, [-T * 0.75 * sd, 0], [-T * 1.2 * sd, -H * 0.55], T * 0.38, 0, lw);
+      shard(c, [T * 0.7 * sd, 0], [T * 1.35 * sd, -H * 0.62], T * 0.42, 0, lw);
+      shard(c, [0, T * 0.05], [T * 0.2 * sd, -H], T * 0.62, T * 0.35 * sd, lw);
+      shard(c, [-T * 0.25 * sd, T * 0.1], [-T * 0.45 * sd, -H * 0.38], T * 0.3, 0, lw, ['#B9B6D8', '#6E6C92', NAVY_D]);
+      eyeStone(c, T * 0.05 * sd, -T * 0.55, T * 0.55, 0, lw * 0.8, { col: CALCITE_D }); glowIn(c, 0, -H * 0.5, T * 1.4, '#8C84D8', 0.18);
+      c.strokeStyle = rgba(OCHRE, 0.85); c.lineWidth = Math.max(1.2, lw * 0.8); c.beginPath(); c.moveTo(T * 0.05 * sd, -H * 0.25); c.lineTo(T * 0.15 * sd, -H * 0.45); c.lineTo(T * 0.08 * sd, -H * 0.62); c.stroke(); },
+    /* a tall twisting obelisk of stacked sharp wedges, each turned a little from the one below, fins out like a spine */
+    eyespire(c, T, v) { const lw = lw0(T), H = T * (4.8 + (v % 3) * 0.4), N = 9, tw = v % 2 ? 1 : -1;
+      c.fillStyle = 'rgba(0,0,0,.4)'; ell(c, 0, T * 0.06, T * 1.2, T * 0.38); c.fill();
+      block(c, 0, 0, T * 1.4, T * 0.35, T * 0.16, NAVY, lw); block(c, 0, -T * 0.35, T * 1.05, T * 0.25, T * 0.12, shadeC(OCHRE, -0.25), lw);
+      let topY = 0, topX = 0; for (let i = 0; i < N; i++) { const u = i / N, y0 = -T * 0.6 - u * (H - T * 1.2), y1 = y0 - (H - T * 1.2) / N * 1.15, w = T * (0.62 - u * 0.4), x = Math.sin(u * 4 + v) * T * 0.22 * tw, turn = Math.sin(i * 1.3 + v) * 0.5;
+        const L = [x - w, y0], Rr = [x + w, y0], top = [x + turn * w * 0.6, y1], mid = [x + turn * w * 0.4, (y0 + y1) / 2]; topY = y1; topX = top[0];
+        poly(c, [L, top, mid]); c.fillStyle = turn > 0 ? CALCITE_HI : '#9C99BE'; c.fill(); poly(c, [mid, top, Rr]); c.fillStyle = turn > 0 ? NAVY : NAVY_D; c.fill(); poly(c, [L, mid, Rr]); c.fillStyle = shadeC(NAVY, 0.15); c.fill(); poly(c, [L, top, Rr]); ink(c, lw * 0.85);
+        if (i % 2 === 0 && u < 0.8) for (const s2 of [-1, 1]) { c.beginPath(); c.moveTo(x + s2 * w * 0.9, y0 - T * 0.05); c.lineTo(x + s2 * (w + T * 0.7), y0 - T * 0.5); c.lineTo(x + s2 * w * 0.5, y0 - T * 0.25); c.closePath(); c.fillStyle = s2 < 0 ? '#9C99BE' : NAVY_D; c.fill(); ink(c, lw * 0.7); } }
+      eyeStone(c, Math.sin(4 * 0.45 + v) * T * 0.22 * tw, -H * 0.5, T * 0.5, 0, lw * 0.8, { glow: true, col: CALCITE });
+      c.beginPath(); c.moveTo(topX - T * 0.1, topY + T * 0.25); c.lineTo(topX + T * 0.05 * tw, topY - T * 0.9); c.lineTo(topX + T * 0.12, topY + T * 0.25); c.closePath(); c.fillStyle = CALCITE_HI; c.fill(); ink(c, lw * 0.8); /* (the needle tip crowning the top wedge) */ glowIn(c, 0, -H * 0.55, T * 1.3, '#8C84D8', 0.16); },
+    /* a great split monolith: two sharp slabs leaning apart out of the floor, a red seam of the eye's light between them */
+    splitmonolith(c, T, v) { const lw = lw0(T), H = T * (4.0 + (v % 3) * 0.5), sd = v % 2 ? 1 : -1;
+      c.fillStyle = 'rgba(0,0,0,.4)'; ell(c, 0, T * 0.06, T * 1.6, T * 0.45); c.fill();
+      glowIn(c, 0, -H * 0.45, T * 1.6, RED, 0.22); c.fillStyle = rgba(RED, 0.75); poly(c, [[-T * 0.08, 0], [T * 0.05 * sd, -H * 0.85], [T * 0.12, 0]]); c.fill();
+      for (const s2 of [-1, 1]) { const lean = s2 * T * 0.6, bx = s2 * T * 0.65, top = [bx + lean - s2 * T * 0.1, -H * (s2 === sd ? 1 : 0.86)];
+        const fl = [bx - T * 0.55, 0], fr = [bx + T * 0.55, 0], tl = [top[0] - T * 0.25, top[1] + T * 0.35], dep = [s2 * T * 0.3, -T * 0.2];
+        poly(c, [fl, tl, top, fr]); c.fillStyle = s2 < 0 ? '#A7A4C8' : NAVY; c.fill(); ink(c, lw);
+        poly(c, [fr, top, [top[0] + dep[0], top[1] + dep[1]], [fr[0] + dep[0], fr[1] + dep[1]]]); c.fillStyle = s2 < 0 ? NAVY : NAVY_D; c.fill(); ink(c, lw * 0.8);
+        c.strokeStyle = 'rgba(255,255,255,.3)'; c.lineWidth = Math.max(1, lw * 0.6); c.beginPath(); c.moveTo(fl[0] + T * 0.08, -T * 0.1); c.lineTo(tl[0] + T * 0.08, tl[1] + T * 0.1); c.stroke();
+        c.save(); poly(c, [fl, tl, top, fr]); c.clip(); c.fillStyle = rgba(OCHRE, 0.8); c.fillRect(fl[0] - T, -H * 0.3, T * 3, Math.max(1.5, T * 0.07)); c.restore(); }   // (an ochre band across each slab's face)
+      eyeStone(c, -sd * T * 0.65, -H * 0.55, T * 0.5, 0, lw * 0.8, { col: CALCITE_D }); },
+  });
+  window.PROP_EXT = window.PROP_EXT || {}; Object.assign(PROP_EXT, { veilshard: [4.4, 6.4], eyespire: [3.2, 6.6], splitmonolith: [4.0, 5.8] });
   /* ---- the lands themselves ---- */
   const land = o => Object.assign({ rift: true, tile: 'keep', out: true, ambient: 'motes', hazard: 'laser', gap: 'veilchasm', bridgeFn: slabBridge, bridgeEdge: slabEdge, wallFn: leanWall, propN: [6, 4], fog: '#101014', darkRGB: '14,12,16' }, o);
   BIOMES.cloister = land({ name: 'The Outer Cloister', out: false, dark: 0.16, bg: '#101014', accent: CALCITE_HI, light: CALCITE_HI, bridgeCol: CALCITE, deco: OCHRE,
     floor: ['#CFC8B3', '#C8C1AC', '#D6CFBA'], grout: '#8E7F60', hi: '#F0EBDB', top: '#44444C', face: '#2E2E34', faceD: '#1A1A1E', cliff: '#1E1E22', grade: 'rgba(191,103,93,.045)', wallBand: CALCITE_D,
     props: ['narrowpillar', 'stonebanner', 'beaststatue', 'narrowpillar', 'calcitecairn', 'eyepylon', 'eyelidmonolith', 'stonebanner', 'narrowpillar'], floorFn: cloisterFloor });
-  BIOMES.courtyard = land({ name: 'The Calcite Courtyard', dark: 0.08, bg: '#101014', accent: OCHRE_HI, light: '#FFFFFF', bridgeCol: CALCITE_HI, deco: OCHRE,
-    floor: ['#E2DCC8', '#DAD3BE', '#E8E2CF'], grout: '#A18E65', hi: '#FFFFFF', top: '#5A5244', face: '#3E3830', faceD: '#26221C', cliff: '#2A2620', grade: 'rgba(161,142,101,.05)', wallBand: OCHRE, wallGlyph: OCHRE_HI,
-    props: ['narrowpillar', 'purifybasin', 'veilarch', 'beaststatue', 'stonebanner', 'narrowpillar', 'calcitecairn', 'veilarch'], floorFn: courtFloor });
+  // (the courtyard in a darker navy purple-grey stone, so the second land reads apart from the pale cloister)
+  BIOMES.courtyard = land({ name: 'The Calcite Courtyard', dark: 0.18, bg: '#0B0B16', accent: OCHRE_HI, light: '#C9C5EC', bridgeCol: '#6E6F92', deco: OCHRE,
+    floor: ['#3F4159', '#3A3C53', '#44475F'], grout: '#20213A', hi: '#5F6283', top: '#2C2D44', face: '#202138', faceD: '#121326', cliff: '#16172A', grade: 'rgba(120,110,190,.06)', wallBand: '#5A5B7E', wallGlyph: OCHRE_HI,
+    props: ['narrowpillar', 'purifybasin', 'veilarch', 'beaststatue', 'stonebanner', 'narrowpillar', 'calcitecairn', 'veilarch'], floorFn: courtFloor, fog: '#0B0B16', darkRGB: '11,11,22' });
   BIOMES.sanctuary = land({ name: 'The Petrified Sanctuary', out: false, dark: 0.26, bg: '#0A0A0E', accent: RED_HI, light: RED_HI, bridgeCol: CALCITE_D, deco: RED,
     floor: ['#37373E', '#33333A', '#3C3C44'], grout: '#0E0E10', hi: '#52525A', top: '#303036', face: '#222226', faceD: '#121214', cliff: '#141416', grade: 'rgba(191,103,93,.07)', wallBand: OCHRE_D, wallGlyph: CALCITE_D,
     props: ['hornpillar', 'petrifiedplant', 'eyeshrine', 'beaststatue', 'stonebanner', 'hornpillar', 'basaltblock', 'petrifiedplant', 'narrowpillar'], floorFn: sanctFloor, fog: '#0A0A0E', darkRGB: '10,10,14' });
   BIOME_ORDER.push('cloister', 'courtyard', 'sanctuary');
-  DARK_COL.cloister = '14,12,16'; DARK_COL.courtyard = '16,14,12'; DARK_COL.sanctuary = '10,10,14';
+  DARK_COL.cloister = '14,12,16'; DARK_COL.courtyard = '11,11,22'; DARK_COL.sanctuary = '10,10,14';
   if (typeof DECALS !== 'undefined') { DECALS.cloister = [['eyeglyph', 0.03], ['calcitecrust', 0.06], ['ochredust', 0.05], ['stonechip', 0.04]]; DECALS.courtyard = [['calcitecrust', 0.07], ['ochredust', 0.07], ['eyeglyph', 0.02]]; DECALS.sanctuary = [['redseam', 0.06], ['stonechip', 0.05], ['eyeglyph', 0.03], ['calcitecrust', 0.03]]; }
   /* the rooms' rims: pillars at intervals round the walkways (a colonnade), banners and beasts between them */
   const RIMS = { cloister: ['narrowpillar', 'narrowpillar', 'stonebanner', 'beaststatue', 'narrowpillar', 'calcitecairn'], courtyard: ['narrowpillar', 'narrowpillar', 'veilarch', 'beaststatue', 'stonebanner', 'purifybasin'], sanctuary: ['hornpillar', 'narrowpillar', 'stonebanner', 'beaststatue', 'eyeshrine', 'petrifiedplant'] };
-  function dressRim({ rm, i, G, RM, props, R, MW, walk, okFeature, first, id }) {
+  const GROWTHS = ['veilshard', 'eyespire', 'splitmonolith', 'eyespire', 'veilshard'];
+  function dressRim(A) { dressRim0(A); if (A.rm.biome === 'courtyard') dressGrowths(A); }
+  function dressGrowths({ rm, i, G, RM, props, R, MW, walk, okFeature, first, id }) {
+    const cells = []; for (let y = rm.y + 2; y < rm.y + rm.h - 2; y++) for (let x = rm.x + 2; x < rm.x + rm.w - 2; x++) { const k = id(x, y); if (RM[k] === i && walk(k)) cells.push(k); }
+    if (cells.length < 30) return;
+    const all = []; for (let y = rm.y; y < rm.y + rm.h; y++) for (let x = rm.x; x < rm.x + rm.w; x++) { const k = id(x, y); if (RM[k] === i) all.push(k); }
+    const connected = () => { const open = all.filter(k => walk(k)); if (!open.length) return true; const seen = new Set([open[0]]), q = [open[0]]; for (let h = 0; h < q.length; h++) for (const d of [1, -1, MW, -MW]) { const kk = q[h] + d; if (!seen.has(kk) && RM[kk] === i && walk(kk)) { seen.add(kk); q.push(kk); } } return seen.size >= open.length; };
+    let want = Math.min(first ? 2 : 6, Math.round(cells.length / 28)), tries = 0; const placed = [];
+    while (want > 0 && tries++ < 80) { const k = cells[Math.floor(R() * cells.length)], x = k % MW, y = (k / MW) | 0;
+      if (!okFeature(x, y, i) || placed.some(([px, py]) => Math.abs(px - x) + Math.abs(py - y) < 6)) continue;
+      if ([1, -1, MW, -MW, MW + 1, MW - 1, -MW + 1, -MW - 1].some(d => props.has(k + d) || !walk(k + d))) continue;
+      const was = G[k]; G[k] = T_SOLID; if (!connected()) { G[k] = was; continue; }
+      props.set(k, GROWTHS[Math.floor(R() * GROWTHS.length)]); placed.push([x, y]); want--; }
+  }
+  function dressRim0({ rm, i, G, RM, props, R, MW, walk, okFeature, first, id }) {
     const L = RIMS[rm.biome]; if (!L) return; const cells = []; for (let y = rm.y; y < rm.y + rm.h; y++) for (let x = rm.x; x < rm.x + rm.w; x++) { const k = id(x, y); if (RM[k] === i && walk(k)) cells.push(k); }
     if (cells.length < 20) return; const rim = cells.filter(k => { const x = k % MW, y = (k / MW) | 0; return okFeature(x, y, i) && [1, -1, MW, -MW].some(d => !walk(k + d) && !props.has(k + d)); });
     const connected = () => { const open = cells.filter(k => walk(k)); if (!open.length) return true; const seen = new Set([open[0]]), q = [open[0]]; for (let h = 0; h < q.length; h++) for (const d of [1, -1, MW, -MW]) { const kk = q[h] + d; if (!seen.has(kk) && RM[kk] === i && walk(kk)) { seen.add(kk); q.push(kk); } } return seen.size >= open.length; };
@@ -616,29 +679,29 @@ const BAS = { BLACK: '#242428', BLACK_HI: '#3A3A42', BLACK_D: '#141416', OCHRE: 
   const ST = (typeof BAS_STAGES !== 'undefined' && BAS_STAGES) || {};
   const placeholder = (name, goal) => ({ name, goal, how: goal, layout: ['##########', '#........#', '#...E....#', '#........#', '#...S....#', '##########'], legend: { E: {} }, make(X, self, H) { const e = X.M.marks.E[0]; self.done = true; H.setExit(e.x, e.y, 'The way on'); return {}; } });
   const Rf = defRift({
-    ease: 0.55, monEase: 0.5,
+    ease: 0.55, monEase: 0.35, miniDmg: 0.7,   // (monsters and mini bosses 30% lighter again than first built: monEase 0.5 → 0.35, miniHp 0.6 → 0.42, the minis' blows × 0.7; bosses as they were)
     liveCap: 60,
     typeShare: { witnessscarab: 0.11 },   // (the gaze scarabs: half the share they had, about 23%, and never more than three to a pack)   // (at most sixty monsters on the field at once, for phones; the rest wait unseen and walk in as the field thins)
     id: 'basilica', n: 9, name: 'The Basilica of the Veiled Eye', lvl: 85, sigil: 'Veil', biome: 'cloister', aff: ['earth', 'dark'], region: 'the petrified sanctuary',
     blurb: 'A mountain monastery fused with a sightless stone organism. Its red eyes turn you to calcite where they look; cross in the shadows of the stone screens, contain the witnesses, and bury the eye in the wall.', gate: { anima: 'libra', name: 'The Suspended Garden' },
     mons: ['calciteleech', 'witnessscarab', 'brokensentinel'], sealing: SEALING,
     stages: riftSections([
-      { biome: 'cloister', pattern: ['fight', 'trial', 'boss'], mods: ['random'], fights: ['The Outer Cloister'], minis: ['veilpet'], miniHp: 0.6, mobs: ['calciteleech', 'brokensentinel', 'witnessscarab', 'calciteleech', 'calciteleech', 'brokensentinel', 'calciteleech', 'brokensentinel', 'calciteleech', 'brokensentinel'], trials: [ST.PILGRIMAGE || placeholder('The Blind Pilgrimage', 'Cross the watched ground in the screens\' shadows')], boss: 'eshra', bossName: 'Eshra the Many-Lidded', bossRoom: 'The Ossuary' },
-      { biome: 'courtyard', pattern: ['trial', 'fight', 'boss'], mods: ['random'], fights: ['The Calcite Courtyard'], minis: ['witnesspet'], miniHp: 0.6, mobs: ['witnessscarab', 'calciteleech', 'brokensentinel', 'calciteleech', 'calciteleech', 'brokensentinel', 'calciteleech', 'brokensentinel', 'calciteleech', 'brokensentinel'], trials: [ST.CONTAINMENT || placeholder('The Witness Containment', 'Defeat a witness in each basin')], boss: 'thessarym', bossName: 'Thessarym the Veil Serpent', bossRoom: 'The Reliquary' },
-      { biome: 'sanctuary', pattern: ['fight', 'trial', 'boss'], mods: ['curse'], fights: ['The Ritual Avenue'], minis: ['basaltpet'], miniHp: 0.6, mobs: ['brokensentinel', 'witnessscarab', 'calciteleech', 'brokensentinel', 'calciteleech', 'brokensentinel', 'calciteleech', 'brokensentinel', 'calciteleech', 'brokensentinel', 'calciteleech'], trials: [ST.PROCESSION || placeholder('The Procession of Stone', 'Follow the moving screen to the sanctuary')], boss: 'gharaal', bossName: 'Gharaal the Buried Witness', bossRoom: 'The Sanctuary of the Veiled Eye' },
+      { biome: 'cloister', pattern: ['fight', 'trial', 'boss'], mods: ['random'], fights: ['The Outer Cloister'], minis: ['veilpet'], miniHp: 0.42, mobs: ['calciteleech', 'brokensentinel', 'witnessscarab', 'calciteleech', 'calciteleech', 'brokensentinel', 'calciteleech', 'brokensentinel', 'calciteleech', 'brokensentinel'], trials: [ST.PILGRIMAGE || placeholder('The Blind Pilgrimage', 'Cross the watched ground in the screens\' shadows')], boss: 'eshra', bossName: 'Eshra the Many-Lidded', bossRoom: 'The Ossuary' },
+      { biome: 'courtyard', pattern: ['trial', 'fight', 'boss'], mods: ['random'], fights: ['The Calcite Courtyard'], minis: ['witnesspet'], miniHp: 0.42, mobs: ['witnessscarab', 'calciteleech', 'brokensentinel', 'calciteleech', 'calciteleech', 'brokensentinel', 'calciteleech', 'brokensentinel', 'calciteleech', 'brokensentinel'], trials: [ST.CONTAINMENT || placeholder('The Witness Containment', 'Defeat a witness in each basin')], boss: 'thessarym', bossName: 'Thessarym the Veil Serpent', bossRoom: 'The Reliquary' },
+      { biome: 'sanctuary', pattern: ['fight', 'trial', 'boss'], mods: ['curse'], fights: ['The Ritual Avenue'], minis: ['basaltpet'], miniHp: 0.42, mobs: ['brokensentinel', 'witnessscarab', 'calciteleech', 'brokensentinel', 'calciteleech', 'brokensentinel', 'calciteleech', 'brokensentinel', 'calciteleech', 'brokensentinel', 'calciteleech'], trials: [ST.PROCESSION || placeholder('The Procession of Stone', 'Follow the moving screen to the sanctuary')], boss: 'gharaal', bossName: 'Gharaal the Buried Witness', bossRoom: 'The Sanctuary of the Veiled Eye' },
     ]),
   });
   for (const S of Rf.stages) if (S.kind === 'boss' && bossMake[S.boss]) S.make = bossMake[S.boss];
   /* every stage: the context's screens, pylons, sources and droplets run and draw here; the Calcification meter; the
      red light of the ceiling slits in stripes across the floor */
-  Rf.everyStage = (X, self, H) => { const C = ctx(X); CUR = C; const motes = []; const scarabs = () => X.mons.filter(m => m.type === 'witnessscarab' && !m.dead);
+  Rf.everyStage = (X, self, H) => { const C = ctx(X); CUR = C; const motes = []; const scarabs = () => X.mons.filter(m => m.type === 'witnessscarab' && !m.dead && !m.falling && m.hp > 0);
     return { BAS, C, H,
       update(dt) { CUR = C; C.t += dt; const me = X.me;
         for (const s of C.screens) s.tick(dt); for (const p of C.pylons) p.tick(dt);
         // the scarabs' gazes: each carries a source that turns slowly (idle: round and round; roused: toward you)
         for (const m of scarabs()) { if (!m.gaze) { m.gaze = source(X, { x: m.x, y: m.y, a: Math.random() * TAU, len: 6.5, spread: 0.22, open: true, mon: m }); } const g = m.gaze; g.x = m.x; g.y = m.y; g.open = !(m.stun > 0 || m.freeze > 0);
           if (m.aggro) { const want = Math.atan2(me.y - m.y, me.x - m.x); g.a += clamp(angTo(g.a, want), -0.45 * dt, 0.45 * dt); } else g.a += 0.35 * dt; m.mode = 'g' + (((Math.round(g.a / TAU * 8) % 8) + 8) % 8); }
-        for (let i = C.sources.length - 1; i >= 0; i--) { const s = C.sources[i]; if (s.mon && s.mon.dead) { C.sources.splice(i, 1); continue; } if (s.mini && (s.mini.dead || s.mini.act === 'move')) { C.sources.splice(i, 1); continue; } }
+        for (let i = C.sources.length - 1; i >= 0; i--) { const s = C.sources[i]; if (s.mon && (s.mon.dead || s.mon.falling || s.mon.hp <= 0 || !X.mons.includes(s.mon))) { C.sources.splice(i, 1); if (s.mon.gaze === s) s.mon.gaze = null; continue; } /* (a scarab that died, fell, or stepped off the field (the monster cap) takes its gaze with it) */ if (s.mini && (s.mini.dead || s.mini.act === 'move')) { C.sources.splice(i, 1); continue; } }
         if (!me.dead) for (const s of C.sources) if (s.open && gazeSeen(me.x, me.y, s)) { calcify.see(); break; }
         calcify.tick(dt, X); dropsTick(C, dt);
         if (motes.length < 10 && Math.random() < 0.2) motes.push({ x: Math.random(), y: 1.05, v: 0.015 + Math.random() * 0.025, s: 1 + Math.random() * 1.3, ph: Math.random() * 6 }); for (const q of motes) q.y -= q.v * dt; for (let i = motes.length - 1; i >= 0; i--) if (motes[i].y < -0.05) motes.splice(i, 1); },

@@ -24,6 +24,21 @@ const { open } = require('./_rift-lib');
     ok(!early, `stage ${st}: never clear while monsters still wait`);
     r = await S(); ok(r.live === 0 && r.reserve === 0, `stage ${st}: every monster eventually came and fell`, r);
   }
+  // a scarab's gaze leaves the field with it: killed, or stepped off the field by the cap
+  await start('basilica', 6); await run(2);
+  const gz = await page.evaluate(async () => { const D = window.__pp.arc.game._dbg, BAS = D.RIFT.self.amb.BAS, srcs = () => BAS.sources({ g: D.g }).filter(s => s.mon); const tick = () => new Promise(r => { const t0 = D.g.t; const f = () => D.g.t - t0 > 0.6 ? r() : requestAnimationFrame(f); f(); });
+    const sc = D.mons.filter(m => m.type === 'witnessscarab' && !m.dead); if (sc.length < 2) return { n: sc.length };
+    await tick(); const a = sc[0], b = sc[1], n0 = srcs().length, hadA = srcs().some(s => s.mon === a);
+    D.hitMon(a, 1e9, { flat: true }); await tick(); const goneA = !srcs().some(s => s.mon === a);
+    const i = D.mons.indexOf(b); D.mons.splice(i, 1); D.g.reserve.push(b); await tick(); const goneB = !srcs().some(s => s.mon === b);
+    return { n: sc.length, n0, hadA, goneA, goneB, after: srcs().length }; });
+  ok(gz.n < 2 || (gz.hadA && gz.goneA && gz.goneB), 'a scarab\'s gaze cone goes when it dies, and when it steps off the field', gz);
+  // monsters and minis 30% lighter: monEase 0.35, miniHp 0.42, the minis' blows x0.7
+  const rf = await page.evaluate(() => { const R = window.__pp.RIFT_BY_ID.basilica; return { monEase: R.monEase, miniDmg: R.miniDmg, miniHp: R.stages.filter(s => s.mini).map(s => s.hpK) }; });
+  ok(rf.monEase === 0.35 && rf.miniDmg === 0.7 && rf.miniHp.every(v => v === 0.42), 'monsters and mini bosses 30% lighter in health and blows', rf);
+  await start('basilica', 4); await run(2);
+  const mini = await page.evaluate(() => { const D = window.__pp.arc.game._dbg, m = D.mons.find(m => m.boss && m.mini); return m ? { hp: Math.round(m.maxhp), dmg: Math.round(m.dmg * 10) / 10 } : null; });
+  console.log('  mini', JSON.stringify(mini));
   console.log('scarab share', (tot.s / tot.n * 100).toFixed(1) + '%', JSON.stringify(tot));
   ok(tot.s / tot.n <= 0.12 && tot.s / tot.n >= 0.04, 'gaze scarabs are about half the share they were (about 23% before)');
   ok(!errors.length, 'no page errors', errors.slice(0, 3)); console.log(bad ? 'FAILED ' + bad : 'all passed'); await T.browser.close(); process.exit(bad ? 1 : 0);
