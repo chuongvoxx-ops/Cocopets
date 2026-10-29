@@ -228,14 +228,22 @@ GAMES.dungeon = {
     }
     /* packs swarm together: each member takes a slot around the pet so they surround instead of queueing */
     let brutes = 0; const bruteQ = [];
+    // (F.typeShare: a type held to a share of the rolled monsters and at most three to a pack, so a floor never
+    // turns up a crowd of them; a rift's typeShare, e.g. Rift 9's gaze scarabs)
+    const tShare = F.typeShare || null, tCount = {}; let tAll = 0;
+    const shareOk = (t, inPack) => !tShare || tShare[t] == null || ((tCount[t] || 0) < tShare[t] * (tAll + 1) && (inPack[t] || 0) < 3);
+    const otherType = (avoid, inPack) => { const pool = F.types.filter(q => q !== 'nest' && q !== 'totem' && shareOk(q, inPack) && !(MON[q] && MON[q].still)); return pool.length ? pool[Math.floor(R() * pool.length)] : avoid; };
     M.packs.forEach((p, i) => {
       const n = F.pack + (R() < 0.5 ? 1 : 0), mainT = packType(p.biome, 'totem'), altT = packType(p.biome);
       const eliteHere = R() < F.elite;
-      let totems = 0;
+      let totems = 0; const inPack = {};
       for (let j = 0; j < n; j++) {
         let t = j % 3 === 2 ? altT : mainT;
         const still = MON[t] && MON[t].still;
         if (still && totems++) t = mainT;
+        if (!shareOk(t, inPack)) t = otherType(t, inPack);
+        else if (tShare && !still) for (const k in tShare) if (k !== t && F.types.includes(k) && (tCount[k] || 0) + 1 <= tShare[k] * (tAll + 1) && (inPack[k] || 0) < 3 && (j % 4 === 1)) { t = k; break; }   // (and spread evenly: a few in each pack, not a crowd in one)
+        tCount[t] = (tCount[t] || 0) + 1; inPack[t] = (inPack[t] || 0) + 1; tAll++;
         let x = p.x + (R() - 0.5) * 3.6, y = p.y + (R() - 0.5) * 3.6;
         if (!walkAt(Math.floor(x), Math.floor(y))) { x = p.x; y = p.y; }
         spawnMon(t, x, y, { elite: eliteHere && j === 0 && !still, pack: i, room: p.room, flank: j / n * 6.283 });
@@ -1127,6 +1135,24 @@ GAMES.dungeon = {
       if (P.firetrail && (me.vx || me.vy)) m2tick('ptrail', 0.22, () => zones.push({ kind: 'fire', x: me.x, y: me.y + 0.1, r: 0.7, life: 1.8, max: 1.8, dps: ST.atk * 0.6 * P.firetrail, tick: 0, own: 'pet', el: 'fire' }));
       if (P.shieldorbs) { const n = 2 + P.shieldorbs, rr = 1.1; for (let i = 0; i < n; i++) { const aa = g.swordA * 0.7 + i * 6.283 / n, ox = me.x + Math.cos(aa) * rr, oy = me.y - OY + Math.sin(aa) * rr; for (const b of eshots) if (!b.lob && !b.mine && b.dmg > 0 && hyp(b.x - ox, b.y - oy) < 0.45 + b.r) { b.life = 0; sparks(ox, oy, '#8FE3F0', 5, 4); ring(ox, oy, 0.1, 0.6, 0.2, '#8FE3F0', 0.1); } } }
     }
+    /* ---------- a cap on the monsters alive at once (F.liveCap, a rift's liveCap): the rest of a floor's rolled packs wait
+       off the field, neither drawn nor thought about, and walk back in, out of sight of the pet, as the field thins. Only
+       rolled pack monsters wait (a stage's own placed monsters, bosses, minis and objects never do); a stage counts them
+       as still to beat (g.reserve) ---------- */
+    g.reserve = [];
+    let capT = 0, capWait = 0;
+    const capable = m => !m.dead && !m.boss && !m.fobj && !m.optional && !m.aggro && m.type !== 'nest' && m.type !== 'gremlin' && (m.pack == null || (m.pack >= 0 && m.pack < 300));
+    function liveCapTick(dt) {
+      capT -= dt; if (capT > 0) return; capT = 0.5;
+      const cap = F.liveCap, live = mons.filter(m => !m.dead && !m.fobj && !m.boss);
+      if (live.length > cap) {   // (the furthest unroused ones step off)
+        const far = live.filter(capable).filter(m => hyp(m.x - me.x, m.y - me.y) > 9).sort((p, q) => hyp(q.x - me.x, q.y - me.y) - hyp(p.x - me.x, p.y - me.y));
+        for (const m of far.slice(0, live.length - cap)) { const i = mons.indexOf(m); if (i >= 0) { mons.splice(i, 1); g.reserve.push(m); } }
+      } else if (live.length < cap && g.reserve.length) {   // (and come back where they were, while the pet is not looking)
+        capWait += 0.5; let room = cap - live.length;
+        for (let i = 0; i < g.reserve.length && room > 0; i++) { const m = g.reserve[i]; if (hyp(m.x - me.x, m.y - me.y) > 9 || capWait > 4) { g.reserve.splice(i--, 1); m.aggro = false; mons.push(m); room--; capWait = 0; } }
+      }
+    }
     /* ---------- the floor's monsters are down: the boss wakes ---------- */
     function floorClearCheck() {
       if (FD || RIFT) return;   // the arena has only the fiend; a rift stage decides its own way on
@@ -1253,6 +1279,7 @@ GAMES.dungeon = {
         g.stormK = (g.stormK || 0) + ((on ? 1 : 0) - (g.stormK || 0)) * Math.min(1, dt * 0.8);
         if (g.stormK > 0.5 && !me.dead && !g.won) { g.stormHurtT = (g.stormHurtT || 0) - dt; if (g.stormHurtT <= 0) { g.stormHurtT = 1; const d = Math.min(me.hp - 1, Math.max(1, Math.round(ST.hp * 0.006))); if (d > 0) { me.hp -= d; text(me.x + (Math.random() - 0.5) * 0.6, me.y - 1.1, `-${d}`, '#E8B36A', 10); } } } }
       if (FD) FD.update(dt);
+      if (F.liveCap) liveCapTick(dt);
       if (RX) RX.update(dt); if (STAR) STAR.update(dt); if (ELEM) ELEM.update(dt); if (RES) RES.update(dt); if (g.eclipseT > 0) g.eclipseT -= dt;
       const cdK = (g.buff.arcane > 0 ? 1.6 : 1) * (RULES ? RULES.cdK() : 1) / (1 - Math.min(0.5, accK('cdr')));
       g.cdS = Math.max(0, g.cdS - dt * cdK); g.cdS2 = Math.max(0, g.cdS2 - dt * cdK); g.cdS3 = Math.max(0, g.cdS3 - dt * cdK); g.cdU = Math.max(0, g.cdU - dt * cdK);

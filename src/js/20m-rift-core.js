@@ -56,6 +56,8 @@ function riftDef(id, stage) {
   // (Rf.scale: everything here, monsters, mini bosses and bosses, at that share of its health and blows, exactly once:
   // hpMul and dmgMul feed all of them, the monsters' monHp and monDmg on top of them, so those are left be)
   if (Rf.scale) { F.hpMul *= Rf.scale; F.dmgMul *= Rf.scale; }
+  if (Rf.liveCap) F.liveCap = Rf.liveCap;
+  if (Rf.typeShare) F.typeShare = Rf.typeShare;   // (types held to a share of the rolled monsters, at most three to a pack)   // (at most this many monsters on the field at once: the rest wait, unseen)
   // (and its ordinary monsters alone may be eased further: Rf.monEase scales their health and blows, not the bosses')
   if (Rf.monEase) { F.monHp *= Rf.monEase; F.monDmg *= Rf.monEase; }
   if (S.kind === 'fight') { const mobs = S.mobs || Rf.mons || []; Object.assign(F, { types: mobs.concat(mobs, F.types.filter(t => !mobs.includes(t) && !MON[t].still).slice(-3)), rooms: 7, pack: Math.max(F.pack, 10), packsPer: 3, maxMons: Math.max(F.maxMons, 90), elite: Rf.ease ? Math.min(F.elite, 0.3) : Math.max(F.elite, 0.45), nests: 0, gremlin: 0.3, shrines: 1, events: true }); if (S.mod === 'boon') F.band = 'rboon'; else if (S.mod === 'curse') F.band = 'rcurse'; else if (S.mod === 'random') F.band = 'rrand'; }
@@ -109,7 +111,7 @@ const DunRift = (() => {
     /* the exit: a doorway the pet walks into once the stage is done */
     let exit = null;
     function setExit(x, y, label) { exit = { x, y, r: 1.1, label: label || 'Onward' }; }
-    function monstersLeft() { return mons.filter(m => !m.dead && !m.boss && !m.optional).length; }
+    function monstersLeft() { return mons.filter(m => !m.dead && !m.boss && !m.optional).length + ((g.reserve && g.reserve.length) || 0); }
     const mod = S.kind === 'fight' ? riftFight(X, self, { obj, setExit, spawnPacks, channelTick, monstersLeft }) : S.make ? S.make(X, self, { obj, setExit, spawnPacks, channelTick, monstersLeft }) : {};
     self.mod = mod;
     // (a rift may lay something over every one of its stages: Rf.everyStage(X, self, H) -> { update, drawGround, drawOver })
