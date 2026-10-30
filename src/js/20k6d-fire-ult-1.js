@@ -1,8 +1,8 @@
-/* ---------- Fire, reworked: Ultimates F-U01..F-U05 (turningsky, embers, crucible, dragonkiln, crimsonlotus) ----------
+/* ---------- Fire, reworked: Ultimates F-U01..F-U05 (armageddon, embers, crucible, dragonkiln, crimsonlotus) ----------
    The showpieces. Every flame is FK's shaded volume; every molten or solid thing (a bowl plate, a kiln brick, a lotus
    petal, a lantern cap) has a four-tone ramp, a dark crust, glowing seams, a rim of firelight and an outline; every
    burning thing lights the floor and sheds embers; every hit scorches the ground. Things over the aim fade where they
-   would pass in front of the pet (petGuard), and the phoenix forms and circles above and behind the pet, never on it. */
+   would pass in front of the pet (petGuard), and the fire tornadoes steer clear of the pet. */
 (() => {
   const S = ELEM_IMPL.fire.strong, U = ELEM_IMPL.fire.ult;   // (S unused here: Strongs are other workers')
   const TAU = Math.PI * 2, P = FK.P, HOT = '#CFEFFF';
@@ -53,151 +53,97 @@
       c.strokeStyle = H.rgba(i % 3 ? P.org : P.gold, 0.7 * k); c.lineWidth = 2.5; c.beginPath(); c.moveTo(tx, ty); c.quadraticCurveTo((tx + hx) / 2, (ty + hy) / 2 - r * 0.05, hx, hy); c.stroke(); c.fillStyle = H.rgba(i % 2 ? P.wht : P.yel, k); c.beginPath(); c.arc(hx, hy, 2.2 + 1.5 * (1 - u), 0, TAU); c.fill(); }
     c.restore(); K.glow(c, X, Y, r * (0.6 + e * 0.6), P.org, 0.6 * k); K.glow(c, X, Y, r * 0.4, P.yel, 0.7 * k * (1 - u)); }
 
-  /* ================= F-U01 Phoenix of the Turning Sky: a bird of fire-crystal ================= */
-  /* The bird is a small 3D model: sharp bipyramid and pyramid shards (x forward, y right, z up) turned by its yaw, pitch
-     and bank, projected by the game's oblique camera (a world unit across, 0.55 down per unit toward us, 0.85 up per unit
-     of height), each visible face shaded by its normal against a light from the upper left: a ramp from deep red through
-     amber to white-hot, a bright ridge, a dark outline, a specular glint where the face catches the light. The wings are
-     crystal spars with fire streaming back off them; a molten core glows through the facets. */
-  const v3sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], v3add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]], v3mul = (a, k) => [a[0] * k, a[1] * k, a[2] * k];
-  const v3dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2], v3x = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]], v3n = a => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
-  const LV = v3n([-0.55, 0.4, 0.75]), CV = v3n([0, 0.85, 0.55]), HV = v3n(v3add(LV, CV));
-  const RAMP = ['#2A0806', '#561006', '#7A1E0E', '#B8300F', '#E2541A', '#FF7A2E', '#FFA640', '#FFD866', '#FFF0B8', '#FFFFFF'];
-  /* a bipyramid shard from tip A to tip B, its waist (n-sided, radius w) at fraction m */
-  function bipyr(A, B, w, m, n) { const ax = v3sub(B, A), d = v3n(ax), up = Math.abs(d[2]) > 0.9 ? [0, 1, 0] : [0, 0, 1], e1 = v3n(v3x(d, up)), e2 = v3x(e1, d), W = v3add(A, v3mul(ax, m)), v = [A, B], f = [];
-    for (let i = 0; i < n; i++) { const b = i / n * TAU; v.push(v3add(W, v3add(v3mul(e1, Math.cos(b) * w), v3mul(e2, Math.sin(b) * w)))); }
-    for (let i = 0; i < n; i++) { const p = 2 + i, q = 2 + (i + 1) % n; f.push([0, p, q], [1, q, p]); } return { v, f, c: W }; }
-  /* a pyramid spike from its base centre to its tip */
-  function pyr(Bc, Tp, w, n) { const ax = v3sub(Tp, Bc), d = v3n(ax), up = Math.abs(d[2]) > 0.9 ? [0, 1, 0] : [0, 0, 1], e1 = v3n(v3x(d, up)), e2 = v3x(e1, d), v = [Tp], f = [];
-    for (let i = 0; i < n; i++) { const b = i / n * TAU + Math.PI / 2; v.push(v3add(Bc, v3add(v3mul(e1, Math.cos(b) * w), v3mul(e2, Math.sin(b) * w)))); }
-    for (let i = 0; i < n; i++) f.push([0, 1 + i, 1 + (i + 1) % n]); return { v, f, c: v3add(Bc, v3mul(ax, 0.3)) }; }
-  /* the model at a wingbeat: flap 0..1 (down..up), span 0..1 (tucked..spread) */
-  function birdModel(flap, span, lite) { const S = [];
-    S.push(bipyr([1.1, 0, 0.12], [-1.0, 0, 0], 0.55, 0.4, 4));                      // the body, a ridged diamond
-    S.push(bipyr([1.95, 0, 0.55], [0.6, 0, 0.14], 0.3, 0.5, 4));                   // neck and head
-    S.push(pyr([1.85, 0, 0.5], [2.6, 0, 0.32], 0.13, 3));                            // the beak
-    if (!lite) for (let i = -1; i <= 1; i++) S.push(pyr([1.5, i * 0.08, 0.6], [0.95 - Math.abs(i) * 0.15, i * 0.32, 1.2 - Math.abs(i) * 0.2], 0.065, 3));   // the crest
-    const NT = lite ? 3 : 5; for (let i = 0; i < NT; i++) { const g = (i / (NT - 1) - 0.5) * 1.0, Lt = 1.9 - Math.abs(g) * 0.5; const sh = pyr([-0.8, g * 0.2, 0.04], [-0.8 - Lt * Math.cos(g), Lt * Math.sin(g) * 1.3, 0.12 + Math.abs(g) * 0.2], 0.13, 3); sh.tail = true; S.push(sh); }
-    const NSp = lite ? 3 : 4, beta = (flap - 0.4) * 1.3, tuck = 1 - span;
-    for (const sd of [-1, 1]) for (let i = 0; i < NSp; i++) { const sw = 0.1 + i * (lite ? 0.48 : 0.36) + tuck * 1.0, len = (2.6 - i * 0.34) * (0.55 + 0.45 * span), bb = beta - i * 0.12, sh0 = [0.38 - i * 0.14, sd * 0.26, 0.2], d = [-Math.sin(sw), sd * Math.cos(sw) * Math.cos(bb), Math.cos(sw) * Math.sin(bb)];
-      const sh = pyr(sh0, v3add(sh0, v3mul(d, len)), 0.21 - i * 0.025, 3); sh.spar = { sd, i, sh0 }; S.push(sh); }
-    return S; }
-  /* local -> world: bank (about x), pitch (nose up, about y), yaw (about z) */
-  function rotM(psi, th, bank) { const cp = Math.cos(psi), sp = Math.sin(psi), ct = Math.cos(th), st = Math.sin(th), cb = Math.cos(bank), sb = Math.sin(bank);
-    return v => { const y1 = v[1] * cb - v[2] * sb, z1 = v[1] * sb + v[2] * cb, x2 = v[0] * ct - z1 * st, z2 = v[0] * st + z1 * ct; return [x2 * cp - y1 * sp, x2 * sp + y1 * cp, z2]; }; }
-  /* gather the visible faces of shards (world verts wv round world centre wc) projected at (X, Y), s px a unit */
-  function shardFaces(out, wv, fs, wc, X, Y, s, al) { for (const f of fs) { const p0 = wv[f[0]], p1 = wv[f[1]], p2 = wv[f[2]]; let n = v3n(v3x(v3sub(p1, p0), v3sub(p2, p0))); const fc = v3mul(v3add(v3add(p0, p1), p2), 1 / 3); if (v3dot(n, v3sub(fc, wc)) < 0) n = v3mul(n, -1); if (v3dot(n, CV) < -0.03) continue;
-      const pr = p => [X + p[0] * s, Y + (p[1] * 0.55 - p[2] * 0.85) * s]; out.push({ p: [pr(p0), pr(p1), pr(p2)], d: v3dot(fc, CV), n, al }); } }
-  /* draw collected faces back to front: the shaded ramp, the dark outline, the bright ridge, the glint */
-  function drawFaces(c, faces, s) { faces.sort((a, b) => a.d - b.d); c.save(); c.lineJoin = 'round';
-    for (const F_ of faces) { if (!(F_.al > 0.01)) continue; const lam = Math.max(0, v3dot(F_.n, LV)), sp = v3dot(F_.n, HV), ix = Math.max(1, Math.min(9, Math.round(2.2 + lam * 7.2))), [a, b, d] = F_.p, mx = (b[0] + d[0]) / 2, my = (b[1] + d[1]) / 2;
-      const g = c.createLinearGradient(a[0], a[1], mx, my); g.addColorStop(0, RAMP[Math.min(9, ix + 1)]); g.addColorStop(1, RAMP[Math.max(0, ix - 2)]);
-      c.globalAlpha = F_.al * 0.94; c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.lineTo(d[0], d[1]); c.closePath(); c.fillStyle = g; c.fill(); c.strokeStyle = 'rgba(36,12,8,0.6)'; c.lineWidth = 1; c.stroke();
-      c.strokeStyle = `rgba(255,246,216,${(0.18 + 0.75 * lam).toFixed(2)})`; c.lineWidth = 1.2; c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke();
-      if (sp > 0.9) { const k = (sp - 0.9) / 0.1, gx = (a[0] + mx * 2) / 3, gy = (a[1] + my * 2) / 3, r = s * 0.16 * k + 1; c.globalCompositeOperation = 'lighter'; c.globalAlpha = F_.al * k; c.strokeStyle = '#FFFFFF'; c.lineWidth = 1.4; c.beginPath(); c.moveTo(gx - r, gy); c.lineTo(gx + r, gy); c.moveTo(gx, gy - r); c.lineTo(gx, gy + r); c.stroke(); c.globalCompositeOperation = 'source-over'; } }
-    c.restore(); }
-  /* the whole bird at screen (X, Y): ori {psi, th, bank}; asm(k, n) -> {p 0..1, off world units} assembles it shard by shard */
-  function crystalBird(c, X, Y, s, ori, flap, span, t, a, lite, asm, guard) {
-    if (!(a > 0.01) || s < 2) return null; const M = rotM(ori.psi, ori.th, ori.bank), S = birdModel(flap, span, lite), pr = p => [X + p[0] * s, Y + (p[1] * 0.55 - p[2] * 0.85) * s];
-    const faces = [], wings = [[], []], locks = []; let wingA = 1;
-    S.forEach((sh, k) => { const A = asm ? asm(k, S.length) : null, pk = A ? A.p : 1; if (pk <= 0) return; let wv = sh.v.map(M), wc = M(sh.c);
-      if (pk < 1) { const e = 1 - H.ease.io(pk), sc_ = 0.35 + 0.65 * pk, sp = e * (4 + k), cs = Math.cos(sp), sn = Math.sin(sp), o = v3mul(A.off, e); wv = wv.map(v => { const dx = v[0] - wc[0], dy = v[1] - wc[1]; return [wc[0] + (dx * cs - dy * sn) * sc_ + o[0], wc[1] + (dx * sn + dy * cs) * sc_ + o[1], wc[2] + (v[2] - wc[2]) * sc_ + o[2]]; }); wc = v3add(wc, o); if (pk > 0.72) locks.push([pr(wc), Math.sin((pk - 0.72) / 0.28 * Math.PI)]); }
-      const P0 = pr(wc), al = a * (guard ? guard(P0[0], P0[1]) : 1) * Math.min(1, pk * 2);
-      shardFaces(faces, wv, sh.f, wc, X, Y, s, al);
-      if (sh.spar) { wings[sh.spar.sd > 0 ? 1 : 0].push({ sh: pr(wv[1].map((v, j) => (wv[1][j] + wv[2][j] + wv[3][j]) / 3)), tip: pr(wv[0]), i: sh.spar.i, al }); wingA = Math.min(wingA, pk); }
-      if (sh.tail && pk >= 1) wings.tail = (wings.tail || []).concat([{ tip: pr(wv[0]), al }]); });
-    // the fire wings: a sheet of flame streaming back off the spars, tongues of fire licking off each, the far wing first
-    const bk = pr(M([-1, 0, 0])), bang = Math.atan2(bk[1] - Y, bk[0] - X), fang = Math.atan2(Math.sin(bang) * 0.55 - 0.85, Math.cos(bang) * 0.55), nearR = v3dot(M([0, 1, 0]), CV) > 0, order = nearR ? [0, 1] : [1, 0];
-    K.glow(c, X, Y, s * 4.2, P.org, 0.5 * a); 
-    for (const wi of order) { const W = wings[wi]; if (!W.length) continue; const wa = Math.min(...W.map(w => w.al)) * wingA, back = [Math.cos(bang), Math.sin(bang)], poly = [W[0].sh]; W.forEach(w => { const l = s * (0.5 + w.i * 0.18); poly.push(w.tip, [w.tip[0] + back[0] * l, w.tip[1] + back[1] * l]); }); poly.push([X + back[0] * s * 0.6, Y + back[1] * s * 0.6]);
-      c.save(); c.globalAlpha = 0.8 * wa; const g = c.createRadialGradient(W[0].sh[0], W[0].sh[1], s * 0.1, W[0].sh[0], W[0].sh[1], s * 2.9); g.addColorStop(0, P.wht); g.addColorStop(0.25, P.yel); g.addColorStop(0.55, P.org); g.addColorStop(0.85, P.red); g.addColorStop(1, H.rgba(P.dred, 0)); H.poly(c, poly); c.fillStyle = g; c.fill(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.35 * wa; c.fill(); c.restore();
-      const mid = W[Math.floor(W.length / 2)].tip; K.glow(c, (mid[0] + X) / 2, (mid[1] + Y) / 2, s * 1.8, P.org, 0.45 * wa);
-      for (const w of W) for (const u of (lite ? [1] : [0.55, 1])) { const px_ = lerp(w.sh[0], w.tip[0], u), py_ = lerp(w.sh[1], w.tip[1], u); sflame(c, px_, py_, fang + Math.sin(t * 8 - w.i * 0.6 - 0.8) * 0.3, s * 0.5 * (lite ? 0.85 : 1), s * (1.0 + 0.6 * u) * (0.85 + 0.15 * Math.sin(t * 11 + w.i * 2 + u * 3)), t, w.i * 2.3 + wi * 7 + u, 0.95 * wa); } }
-    if (wings.tail) for (const tl of wings.tail) sflame(c, tl.tip[0], tl.tip[1], fang + Math.sin(t * 6 + tl.tip[0]) * 0.25, s * 0.22, s * 0.7, t, tl.tip[0] * 0.1, 0.85 * tl.al);
-    drawFaces(c, faces, s);
-    // the molten heart glowing through the facets, a burning eye
-    const hc = pr(M([0.15, 0, 0.08])), hd = pr(M([1.55, nearR ? 0.16 : -0.16, 0.55])); K.glow(c, hc[0], hc[1], s * 1.1, P.yel, 0.45 * a); K.glow(c, hc[0], hc[1], s * 0.45, P.wht, 0.5 * a);
-    c.save(); c.globalAlpha = a; c.fillStyle = HOT; c.beginPath(); c.arc(hd[0], hd[1], Math.max(1.5, s * 0.07), 0, TAU); c.fill(); c.restore(); K.glow(c, hd[0], hd[1], s * 0.3, HOT, 0.6 * a);
-    for (const [p, k] of locks) { K.glow(c, p[0], p[1], s * 0.9, P.wht, 0.8 * k * a); K.glow(c, p[0], p[1], s * 1.6, P.yel, 0.4 * k * a); }
-    return { M, S }; }
-  /* the shards of a broken bird, tumbling: each keeps its world-space shape (round its centre) and spins on its own axis */
-  function shatter(list, M, S, bx, by, gy, z, us, scat) { for (const sh of S) { if (sh.spar && sh.spar.i > 1) continue; const wv = sh.v.map(M), wc = M(sh.c), rel = wv.map(v => v3sub(v, wc)), ax = v3n([Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5]), dx = wc[0] * us, dz = wc[2] * us;
-      list.push({ rel, f: sh.f, ax, w: 5 + Math.random() * 8, x: bx + dx, gy: gy + wc[1] * us * 0.6, z: z + dz + wc[1] * us * 0.4 * 0, vx: wc[0] * 2.2 + (Math.random() - 0.5) * scat, vy: (Math.random() - 0.5) * scat * 0.6, vz: 2 + Math.random() * 3.5, t: 0, life: 1.1 + Math.random() * 0.5, us }); } }
-  function rodr(v, k, a) { const c = Math.cos(a), s = Math.sin(a), d = v3dot(k, v), x = v3x(k, v); return [v[0] * c + x[0] * s + k[0] * d * (1 - c), v[1] * c + x[1] * s + k[1] * d * (1 - c), v[2] * c + x[2] * s + k[2] * d * (1 - c)]; }
-  /* the spiral the bird breaks into: small two-faced crystal slivers (a lit face, a shaded face, a white ridge) */
-  function sliver(c, X, Y, l, rot, a) { if (!(a > 0.01)) return; c.save(); c.translate(X, Y); c.rotate(rot); c.globalAlpha = a; c.beginPath(); c.moveTo(l, 0); c.lineTo(0, -l * 0.32); c.lineTo(-l, 0); c.closePath(); c.fillStyle = P.yel; c.fill(); c.beginPath(); c.moveTo(l, 0); c.lineTo(0, l * 0.32); c.lineTo(-l, 0); c.closePath(); c.fillStyle = P.red; c.fill(); c.strokeStyle = 'rgba(36,12,8,0.6)'; c.lineWidth = 1; c.beginPath(); c.moveTo(l, 0); c.lineTo(0, -l * 0.32); c.lineTo(-l, 0); c.lineTo(0, l * 0.32); c.closePath(); c.stroke(); c.strokeStyle = P.wht; c.beginPath(); c.moveTo(l, 0); c.lineTo(-l, 0); c.stroke(); c.restore(); K.glow(c, X, Y, l * 1.8, P.gold, 0.45 * a); }
+  /* ================= F-U01 Armageddon (Super Armageddon at Celestial) ================= */
+  // (Phoenix of the Turning Sky was retired: the old file still registers it, so drop it here)
+  delete ELEM_IMPL.fire.ult.turningsky;
+  const SMOKE_D = 'rgba(44,28,24,';
+  /* a fire tornado standing at screen (X, Y): Ht px tall, rb its radius at the ground, rt at the top, spin its turn, sway
+     its lean (px at the top), a its alpha, lite a cheaper build. Drawn as a volume, back to front: the far halves of its
+     stacked flame bands (dark, behind), the far spiral streaks and orbiting debris, the white-hot core column, then the
+     near halves (bright, lit on the left, shaded on the right), the near streaks and debris, flames licking off its flanks
+     and crown, smoke boiling off the top. */
+  function tornado(c, X, Y, T, Ht, rb, rt, spin, sway, t, a, lite, seed) {
+    if (!(a > 0.01) || Ht < 4) return; const NB = lite ? 9 : 13, RY = 0.34, s0 = seed || 0;
+    const ax = u => X + sway * u * u + Math.sin(t * 2.3 + u * 4 + s0) * rb * 0.35 * u, ay = u => Y - Ht * u, rr = u => rb + (rt - rb) * Math.pow(u, 1.35);
+    const bandW = Ht / NB * 1.5;
+    K.glow(c, ax(0.5), ay(0.5), Math.max(rt * 1.6, Ht * 0.6), P.org, (lite ? 0.28 : 0.55) * a); K.glow(c, ax(0.15), ay(0.15), rb * 3, P.yel, 0.4 * a);
+    c.save(); c.globalAlpha = a; c.lineCap = 'butt';
+    const band = (j, front) => { const u = (j + 0.5) / NB, cx = ax(u), cy = ay(u), r = rr(u), w = bandW * (0.75 + 0.35 * u), g = c.createLinearGradient(cx - r, 0, cx + r, 0);
+      if (front) { g.addColorStop(0, P.yel); g.addColorStop(0.22, P.amb); g.addColorStop(0.52, P.org); g.addColorStop(0.8, P.red); g.addColorStop(1, '#4A0E06'); }
+      else { g.addColorStop(0, P.amb); g.addColorStop(0.4, P.red); g.addColorStop(1, '#3A0C06'); }
+      c.save(); c.translate(cx, cy); c.scale(1, RY); c.strokeStyle = g; c.lineWidth = w / RY * 0.62; c.globalAlpha = a * (front ? 0.8 : 0.85); c.beginPath(); if (front) c.arc(0, 0, r, 0.02, Math.PI - 0.02); else c.arc(0, 0, r, Math.PI, TAU); c.stroke();
+      // the streaks of flame racing round it: dashes riding the band, brighter in front
+      c.globalCompositeOperation = 'lighter'; c.setLineDash([r * 0.5, r * 0.35]); c.lineDashOffset = -(spin * (1.6 - u * 0.6) * r) % (r * 0.85); c.strokeStyle = H.rgba(front ? P.yel : P.org, (front ? 0.55 : 0.25) * (lite ? 0.6 : 1)); c.lineWidth = w / RY * 0.22; c.beginPath(); if (front) c.arc(0, 0, r * 1.02, 0.1, Math.PI - 0.1); else c.arc(0, 0, r * 0.98, Math.PI + 0.1, TAU - 0.1); c.stroke(); c.setLineDash([]); c.restore(); };
+    /* the spiral flame streaks wrapping it with perspective: split by which side of the funnel they are on */
+    const spiral = front => { c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; for (let k = 0; k < (lite ? 2 : 3); k++) { let open = false; c.strokeStyle = H.rgba(front ? P.yel : P.red, front ? 0.75 : 0.4); c.lineWidth = Math.max(1.5, rt * 0.09); c.beginPath();
+        for (let q = 0; q <= 26; q++) { const u = q / 26, th = spin * 1.3 + u * TAU * 1.6 + k * TAU / 3, sn = Math.sin(th), on = front ? sn > 0 : sn <= 0, px = ax(u) + Math.cos(th) * rr(u) * 1.04, py = ay(u) + sn * rr(u) * RY * 1.04; if (on) { open ? c.lineTo(px, py) : c.moveTo(px, py); open = true; } else open = false; } c.stroke(); } c.restore(); };
+    /* debris and embers orbiting it, climbing and flung out near the top */
+    const debris = front => { for (let i = 0; i < (lite ? 6 : 12); i++) { const u = ((i * 0.37 + t * 0.35 + s0 * 0.1) % 1), th = spin * 1.8 + i * 2.4, sn = Math.sin(th); if ((sn > 0) !== front) continue; const r = rr(u) * (1.12 + 0.3 * u * u), px = ax(u) + Math.cos(th) * r, py = ay(u) + sn * r * RY, sz = T * (0.07 + 0.05 * ((i * 7) % 3));
+        c.save(); c.globalAlpha = a * (1 - u * 0.4); c.translate(px, py); c.rotate(th * 2); if (i % 3 === 0) { c.fillStyle = P.char; c.strokeStyle = H.rgba(P.org, 0.8); c.lineWidth = 1; H.poly(c, [[-sz, -sz * 0.6], [sz, -sz * 0.3], [sz * 0.5, sz * 0.7], [-sz * 0.8, sz * 0.4]]); c.fill(); c.stroke(); } else { c.fillStyle = i % 2 ? P.yel : P.org; c.beginPath(); c.arc(0, 0, sz * 0.6, 0, TAU); c.fill(); } c.restore(); } };
+    for (let j = NB - 1; j >= 0; j--) band(j, false); spiral(false); debris(false);
+    // the funnel's body: a continuous volume of fire, lit on the left, deep red on its shaded right flank
+    { const L_ = [], R_ = []; for (let q = 0; q <= 12; q++) { const u = q / 12, cx = ax(u), cy = ay(u), r = rr(u) * 0.96; L_.push([cx - r, cy]); R_.unshift([cx + r, cy]); } const top = ay(1), g = c.createLinearGradient(ax(0.5) - rt, 0, ax(0.5) + rt, 0); g.addColorStop(0, H.rgba(P.amb, 0.88)); g.addColorStop(0.3, H.rgba(P.org, 0.8)); g.addColorStop(0.65, H.rgba(P.red, 0.8)); g.addColorStop(1, H.rgba('#2E0904', 0.88));
+      H.poly(c, L_.concat([[ax(1) + rt * 0.0, top - rt * RY * 0.3]], R_)); c.fillStyle = g; c.fill(); const gv = c.createLinearGradient(0, Y, 0, top); gv.addColorStop(0, H.rgba(P.wht, 0.55)); gv.addColorStop(0.35, H.rgba(P.yel, 0.2)); gv.addColorStop(1, H.rgba(P.dred, 0.25)); if (!lite) { c.globalCompositeOperation = 'lighter'; c.fillStyle = gv; c.fill(); c.globalCompositeOperation = 'source-over'; }
+      c.strokeStyle = H.rgba(P.dred, 0.55); c.lineWidth = 1.5; H.poly(c, R_, false); c.stroke(); c.strokeStyle = H.rgba(P.wht, 0.45); H.poly(c, L_, false); c.stroke(); }
+    // the white-hot core column, swaying with the funnel
+    { const pts = []; for (let q = 0; q <= 8; q++) { const u = q / 8 * 0.92; pts.push([ax(u), ay(u)]); } c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.lineJoin = 'round'; H.ribbon(c, pts, rb * 1.1, H.rgba(P.org, 0.45), null, u => 0.6 + 0.8 * u); H.ribbon(c, pts, rb * 0.6, H.rgba(P.yel, 0.7), null, u => 0.7 + 0.6 * u); H.ribbon(c, pts, rb * 0.25, H.rgba(P.wht, 0.9), null, u => 0.8 + 0.5 * u); c.restore(); }
+    for (let j = 0; j < NB; j++) band(j, true); spiral(true); debris(true);
+    c.restore();
+    // flames licking off both flanks (leaning outward) and a crown of flame round the rim
+    const step = lite ? 2 : 1; for (let j = 1; j < NB; j += step + (lite ? 0 : (j > NB * 0.6 ? 0 : 1))) { const u = (j + 0.5) / NB, cx = ax(u), cy = ay(u), r = rr(u); for (const sd of [-1, 1]) { if (lite && (j % 4 === 1) === (sd > 0)) continue; K.flame(c, cx + sd * r * 0.97, cy + bandW * 0.3, r * 0.42 + T * 0.12, (r * 0.7 + T * 0.35) * (0.8 + 0.2 * Math.sin(t * 9 + j * 1.7 + sd)), t, j * 2.1 + sd + s0, sd * r * 0.5, a * 0.95, true); } }
+    const NC = lite ? 3 : 6; for (let i = 0; i < NC; i++) { const th = spin * 1.1 + i / NC * TAU, sn = Math.sin(th), cx = ax(1), cy = ay(1), r = rr(1); K.flame(c, cx + Math.cos(th) * r * 0.85, cy + sn * r * RY, rt * 0.4, rt * (0.8 + 0.3 * Math.sin(t * 7 + i)), t, i * 3 + s0, Math.cos(th) * rt * 0.4, a * (sn > 0 ? 0.95 : 0.6), true); }
+    // smoke boiling off the top
+    c.save(); for (let i = 0; i < (lite ? 3 : 5); i++) { const u = ((t * 0.4 + i / 5 + s0 * 0.07) % 1), px = ax(1) + Math.sin(i * 2.1 + t) * rt * (0.4 + u), py = ay(1) - u * Ht * 0.35, r = rt * (0.35 + u * 0.6); c.globalAlpha = a * 0.2 * Math.sin(u * Math.PI); c.fillStyle = SMOKE_D + '1)'; c.beginPath(); c.arc(px, py, r, 0, TAU); c.fill(); } c.restore();
+    shimmer(c, ax(1), ay(1) - T * 0.2, rt * 1.2, T * 1.6, t, a);
+  }
+  /* where it touches down: a swirling ring of fire and embers on the floor */
+  function touchdown(c, X, Y, T, rb, spin, t, a, lite) { K.floorLight(c, X, Y, rb * 4.5, 0.75 * a); c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round';
+    for (let k = 0; k < 3; k++) { const r = rb * (1.4 + k * 0.7); c.strokeStyle = H.rgba(k ? P.org : P.yel, (0.65 - k * 0.15) * a); c.lineWidth = Math.max(1.5, T * (0.09 - k * 0.02)); for (let i = 0; i < 3; i++) { const b = spin * (1.6 - k * 0.3) + i * TAU / 3 + k; c.beginPath(); c.ellipse(X, Y, r, r * H.GY, 0, b, b + 1.3); c.stroke(); } } c.restore();
+    if (!lite) for (let i = 0; i < 6; i++) { const b = spin * 1.2 + i / 6 * TAU, sn = Math.sin(b); if (sn < 0) K.flame(c, X + Math.cos(b) * rb * 2, Y + sn * rb * 2 * H.GY, T * 0.25, T * 0.5 * (0.8 + 0.2 * Math.sin(t * 9 + i)), t, i * 1.7, -Math.sin(b) * T * 0.2, a * 0.85, true); } }
 
-  // F-U01 Phoenix of the Turning Sky: shards of fire-crystal rise from embers round your feet (behind you) and snap together high above you into a faceted bird with wings of flame streaming off crystal spars; it circles the sky, swoops round you and dives onto the aim, where the crystal shatters into tumbling shards, its fire wings sweep out as two fire fronts, and slivers spiral up in the afterglow
-  // Evolution: the bird grows (to ~1.4x) and its fronts spread wider; from stage 3 one, from stage 6 two smaller crystal birds fly escort and dive onto the ends of the fronts; at Celestial the bird reassembles from its shards over the impact in a pillar of fire and bursts outward.
-  U.turningsky = (C, h) => { H = h; K = FK.bind(H); const me = H.me, a = C.a, ev = K.evo(C), sc = 1 + 0.065 * (ev - 1), nE = K.evoN(C, 0, 2), fin = ev >= 7, DIVE = 2.3, HIT = 2.95, L = 5.5 * C.K, ca = Math.cos(a), sa = Math.sin(a);
-    const ix = me.x + ca * L * 0.75, iy = me.y + sa * L * 0.75, px = -sa, py = ca, side = ca >= 0 ? 1 : -1, FW = 3.4 * (1 + 0.04 * (ev - 1)), D = C.base * C.K * K.evoK(C), norm = 11.2 / (11.2 + nE * 1.4 + (fin ? 2.4 : 0));
-    H.X.banner('PHOENIX OF THE TURNING SKY', '', C.col, 1.4); H.X.sfx.hum(); me.sq = 0.7;
-    const birds = [{ s: 0.95 * sc, lag: 0, tx: ix, ty: iy, main: true }]; for (let k = 0; k < nE; k++) birds.push({ s: 0.55 * sc, lag: 0.6 + k * 0.5, main: false, k });
-    for (const b of birds) Object.assign(b, { x: me.x, y: me.y - 4, gy: me.y - 1, z: 3, psi: -Math.PI / 2, th: 0.8, bank: 0, flap: 0.5, span: 1, al: 0, gone: false, path: null, hitT: 0, last: null });
-    const bez = (p, u) => { const v = 1 - u; return [v * v * p[0][0] + 2 * v * u * p[1][0] + u * u * p[2][0], v * v * p[0][1] + 2 * v * u * p[1][1] + u * u * p[2][1]]; };
-    const lane = [], debris = []; let laneA = 0;
-    /* shard k of n flies in from the embers round your feet (to either side of you) and locks in: its start offset in world units of the bird */
-    const asmOff = (k, b) => [((k % 2) ? 1 : -1) * (1.6 + rnd(k * 3.1 + b.lag) * 1.3) / b.s * 0.9, (rnd(k + 7.7) - 0.5) * 1.2, -(3.4 + rnd(k * 1.9) * 1.0) / b.s * 0.9];
-    H.X.after(DIVE - 0.35, () => H.warnLine(me.x + ca * 1.4, me.y + sa * 1.4, a, L * 0.75 + 1.0 - 1.4, 2.4, HIT - DIVE + 0.35, C.col));
-    const F = H.add({ life: fin ? 5.9 : 4.9, x: me.x, y: me.y,
-      update(dt, f) { const t = f.t, mx = me.x, my = me.y;
-        if (t >= DIVE && !birds[0].path) { // the dives: escorts take the front ends nearest them
-          const ends = [[ix + px * FW, iy + py * FW], [ix - px * FW, iy - py * FW]]; let used = -1;
-          for (const b of birds) { const G0 = [b.x, b.gy], G2 = b.main ? [ix, iy] : (() => { let best = 0, bd = 1e9; ends.forEach((e, j) => { if (j === used) return; const d = Math.hypot(e[0] - G0[0], e[1] - G0[1]); if (d < bd) { bd = d; best = j; } }); used = best; return ends[best]; })();
-            const mid = [(G0[0] + G2[0]) / 2, (G0[1] + G2[1]) / 2], dx = mid[0] - mx, dy = mid[1] - my, dd = Math.hypot(dx, dy) || 1, push = b.main ? 1.6 : 2.0; b.path = [G0, [mid[0] + dx / dd * push, mid[1] + dy / dd * push], G2]; b.z0 = b.z; b.dur = HIT - DIVE + (b.main ? 0 : 0.1 + b.k * 0.1); b.tx = G2[0]; b.ty = G2[1]; }
-          const p = birds[0].path; laneA = Math.atan2(iy - bez(p, 0.62)[1], ix - bez(p, 0.62)[0]); for (let j = 0; j <= 10; j++) lane.push(bez(p, 0.55 + 0.45 * j / 10)); }
-        for (const b of birds) { if (b.gone) continue; const lag = b.lag * 0.12;
-          if (t < 0.9) { const ox = b.main ? 0 : (b.k ? -1 : 1) * 1.9 * side; b.x = mx + ox; b.y = my - (b.main ? 4.1 : 3.5); b.gy = my - 0.9; b.z = b.gy - b.y; b.psi = -Math.PI / 2; b.th = 0.75; b.bank = Math.sin(t * 2) * 0.1; b.flap = 0.5 + 0.5 * Math.sin(t * 6 + b.lag); b.span = 1; b.al = 1; }
-          else if (t < DIVE) { const u = cl((t - 0.9 - lag) / (DIVE - 0.9 - lag)), th = -Math.PI / 2 + side * (u * 2.5 * Math.PI - b.lag), R = 3.05 * (b.main ? 1 : 0.92), ex = mx + Math.cos(th) * R, ey = my - 3.5 + Math.sin(th) * 0.9, k = cl((t - 0.9) / 0.4);
-            b.x = lerp(b.x, ex, Math.min(1, dt * 12)); b.y = lerp(b.y, ey, Math.min(1, dt * 12)); b.gy = my - 0.6 + Math.sin(th) * 0.9; b.z = b.gy - b.y; const ps = Math.atan2(side * Math.cos(th) * 0.9, -side * Math.sin(th) * R); b.psi = -Math.PI / 2 + H.wrap(ps + Math.PI / 2) * k; b.th = lerp(0.75, 0.08, k); b.bank = -side * 0.55 * k; b.flap = 0.5 + 0.5 * Math.sin(t * 7 + b.lag); b.span = 1; b.al = 1;
-            if (Math.random() < (b.main ? 1.4 : 0.5) * H.Q()) H.P({ kind: 'shard', x: b.x, y: b.y, vx: (Math.random() - 0.5) * 1.5, vy: 0.8, g: 2, life: 0.9, max: 0.9, size: b.main ? 3.5 : 2.5, rot: Math.random() * 6, vr: 6, color: Math.random() < 0.5 ? P.org : P.gold }); }
-          else { const u = cl((t - DIVE) / b.dur), e = H.ease.in(u), G = bez(b.path, e), z = b.z0 * Math.pow(1 - e, 1.6) + 0.35, G2 = bez(b.path, Math.min(1, e + 0.03)), dzz = -1.6 * b.z0 * Math.pow(Math.max(0.001, 1 - e), 0.6) * 0.03;
-            const gdx = G2[0] - G[0], gdy = G2[1] - G[1], gl = Math.hypot(gdx, gdy); if (gl > 1e-5) b.psi = Math.atan2(gdy, gdx); b.th = Math.max(-1.0, Math.atan2(dzz, gl || 0.001)); b.bank = 0; b.x = G[0]; b.y = G[1] - z; b.gy = G[1]; b.z = z; b.flap = 0.55; b.span = 0.25 + 0.15 * (1 - u);
-            if (u >= 1) { b.gone = true; if (b.last) shatter(debris, b.last.M, b.last.S, b.x, b.y, b.gy, b.z, b.s, b.main ? 7 : 4); } }
-          K.aura(b.x, b.y, 0.7 * b.s, dt, b.main ? 16 : 6, 0); if (b.main && b.al > 0) lit(f, 'b', b.x, b.y + 0.5, 3.2, dt); }
-        for (let i = debris.length - 1; i >= 0; i--) { const d = debris[i]; d.t += dt; d.x += d.vx * dt; d.gy += d.vy * dt; d.vz -= 9 * dt; d.z += d.vz * dt; if (d.z < 0) { d.z = 0; d.vz *= -0.3; d.vx *= 0.5; d.vy *= 0.5; d.w *= 0.6; } d.ang = (d.ang || 0) + d.w * dt; if (d.t > d.life) debris.splice(i, 1); }
-        if (t < 1.1) lit(f, 'r', mx, my, 2.4, dt);
-        if (t > HIT && t < HIT + 1.6) { K.aura(ix, iy, 2.0, dt, 18, 0.2); lit(f, 'i', ix, iy, 4.2, dt); }
-      },
-      drawUnder(c, f, X, Y, T) { const t = f.t, k = Math.min(1, f.life / 0.8), mX = H.sx(me.x), mY = H.sy(me.y);
-        // the gathering: a low ring of flame round your feet, embers rising off it behind you
-        if (t < 1.3) { const u = cl(t / 0.35) * cl((1.3 - t) / 0.4); K.floorLight(c, mX, mY, T * 1.8, 0.5 * u); fring(c, mX, mY, T * 1.05, 9, T * 0.55 * u, t, u, t * 1.4); K.shockRing(c, mX, mY, T * 1.05, 0.5 * u); }
-        // the bird's shadow and its light on the floor, by its height
-        for (const b of birds) if (!b.gone && b.al > 0) { const GX = H.sx(b.x), GY_ = H.sy(b.gy), hk = Math.max(0.25, 1 - b.z * 0.15); H.softShadow(c, GX, GY_, T * 1.1 * b.s, 0.22 * hk); K.floorLight(c, GX, GY_, T * 1.6 * b.s, 0.45 * hk); }
-        for (const d of debris) if (d.z < 0.3) H.softShadow(c, H.sx(d.x), H.sy(d.gy), T * 0.18, 0.2);
-        if (t > HIT - 0.2) { const u = cl((t - HIT) / 0.4), heat = Math.max(0.1, 1 - (t - HIT) / 1.6), IX = H.sx(ix), IY = H.sy(iy);
-          if (lane.length) { for (let j = 0; j < lane.length; j += 2) K.scorch(c, H.sx(lane[j][0]), H.sy(lane[j][1]), T * (0.7 + 0.3 * j / 10), 0.75 * k, heat * cl((t - HIT + 0.2) / 0.2), j); }
-          K.scorch(c, IX, IY, T * 2.5 * H.ease.out(u), 0.85 * k, heat, 3); K.floorLight(c, IX, IY, T * 3.2, 0.6 * heat * k);
-          const sw = cl((t - HIT - 0.15) / 0.55); if (sw > 0) for (const s of [-1, 1]) K.scorch(c, H.sx(ix + px * s * FW * 0.55 * sw), H.sy(iy + py * s * FW * 0.55 * sw), T * 1.6 * sw, 0.6 * k, heat * 0.8, s + 5);
-          for (const b of birds) if (!b.main && b.path && t > b.hitT && b.hitT > 0) K.scorch(c, H.sx(b.tx), H.sy(b.ty), T * 1.5, 0.7 * k, Math.max(0.1, 1 - (t - b.hitT) / 1.2), b.k + 9); }
-        if (fin && t > HIT + 1.1) { const u = cl((t - HIT - 1.1) / 0.5); K.scorch(c, H.sx(ix), H.sy(iy), T * 3.4 * H.ease.out(u), 0.6 * k, Math.max(0.1, 1 - (t - HIT - 1.1) / 1.2), 7); }
-      },
-      draw(c, f, X, Y, T) { const t = f.t, k = Math.min(1, f.life / 0.6), guard = (gx, gy) => petGuard(gx, gy, T, T * 0.2);
-        for (let i = birds.length - 1; i >= 0; i--) { const b = birds[i]; if (b.gone || b.al <= 0) continue; const BX = H.sx(b.x), BY = H.sy(b.y), s = T * b.s;
-          if (t > DIVE && b.path) { const pts = []; for (let j = 0; j <= 6; j++) { const e = H.ease.in(cl((t - DIVE) / b.dur - j * 0.07)), G = bez(b.path, e), z = b.z0 * Math.pow(1 - e, 1.6) + 0.35; pts.unshift([H.sx(G[0]), H.sy(G[1] - z)]); } stream(c, pts, s * 0.5, 0.7, u => 0.15 + 0.85 * u); }
-          const t0 = b.main ? 0.08 : 0.25, asm = t < 1.0 ? (kk, n) => ({ p: cl(((t - t0) / 0.78 - kk / n * 0.6) / 0.4), off: asmOff(kk, b) }) : null;
-          b.last = crystalBird(c, BX, BY, s, b, b.flap, b.span, t, b.al * k, !b.main, asm, guard) || b.last; }
-        // the shattered crystal tumbling out, catching the light
-        if (debris.length) { const faces = []; for (const d of debris) { const us = T * d.us * (1 - 0.35 * d.t / d.life), al = k * cl((d.life - d.t) / 0.4), wv = d.rel.map(v => rodr(v, d.ax, d.ang || 0)); shardFaces(faces, wv, d.f, [0, 0, 0], H.sx(d.x), H.sy(d.gy) - d.z * T, us, al); } drawFaces(c, faces, T); }
-        if (t > HIT) { const IX = H.sx(ix), IY = H.sy(iy), u = cl((t - HIT) / 0.45);
-          if (u < 1) { fring(c, IX, IY, T * (0.5 + 2.2 * H.ease.out(u)), 12, T * 1.5 * (1 - u * 0.6), t, (1 - u * 0.6) * k, t * 0.4, 0.3); K.shockRing(c, IX, IY, T * (0.6 + 3.2 * H.ease.out(u)), 1 - u); if (u < 0.4) K.glow(c, IX, IY - T * 0.6, T * 2.4, P.wht, 0.7 * (1 - u / 0.4)); }
-          // the two fire fronts: the fire wings sweeping out across the aim
-          const sw = cl((t - HIT - 0.15) / 0.6); if (sw > 0 && sw < 1) for (const s of [-1, 1]) { const pts = [], base = []; for (let i = 0; i <= 8; i++) { const d = i / 8, wx = ix + px * s * FW * sw * (0.35 + 0.65 * Math.sin(d * Math.PI * 0.5 + 0.6)) + ca * (d - 0.5) * 2.6 * (1 - sw * 0.3), wy = iy + py * s * FW * sw * (0.35 + 0.65 * Math.sin(d * Math.PI * 0.5 + 0.6)) + sa * (d - 0.5) * 2.6 * (1 - sw * 0.3); base.push([H.sx(wx), H.sy(wy)]); pts.push([H.sx(wx), H.sy(wy) - T * 0.3]); }
-            const al = (1 - sw * 0.7) * k; K.floorLight(c, base[4][0], base[4][1], T * 2.0, 0.5 * al); stream(c, pts, T * 0.75 * (1 - sw * 0.4), al, d => 0.4 + 0.6 * Math.sin(d * Math.PI)); shimmer(c, base[4][0], base[4][1] - T, T * 1.2, T * 1.6, t, al);
-            for (let i = 1; i < 8; i += 1) { const p = base[i]; K.flame(c, p[0], p[1] - T * 0.1, T * 0.55 * (1 - sw * 0.3), T * (1.8 - sw * 0.8) * (0.75 + 0.25 * Math.sin(i * 1.3 + t * 9)) * Math.sin(i / 8 * Math.PI), t, i * 1.9 + s, (px * s) * T * 0.35, al, true); } }
-          // the afterglow: crystal slivers spiralling up out of the impact
-          const sp = cl((t - HIT - 0.45) / 1.4); if (sp > 0 && sp < 1) { for (let i = 0; i < 18; i++) { const u2 = (i / 18 + sp * 1.4) % 1, b = u2 * TAU * 2.5 + t * 2, r = T * (1.7 - u2 * 1.2), gx = IX + Math.cos(b) * r, gy = IY - T * 0.3 - u2 * T * 4.6 + Math.sin(b) * r * 0.4; sliver(c, gx, gy, T * 0.26 * (1 - u2 * 0.4), b + Math.PI / 2 + t * 3, (1 - sp) * (1 - u2 * 0.5) * k); } K.glow(c, IX, IY - T * 1.6 - sp * T * 2, T * 2.0 * (1 - sp), P.gold, 0.5 * (1 - sp)); shimmer(c, IX, IY - T * 0.5, T * 1.6, T * 2.4, t, 1 - sp); }
-          // Celestial: the shards fly back together over the impact in a pillar of fire, and the bird bursts outward
-          if (fin) { const rb = cl((t - HIT - 0.6) / 1.6); if (rb > 0 && rb < 1) { const pa = Math.sin(rb * Math.PI), z = T * (0.8 + 2.0 * H.ease.out(rb)), RX = IX, RY = IY - z, s = T * 1.1 * sc; K.floorLight(c, IX, IY, T * 3, 0.7 * pa); for (let i = 0; i < 3; i++) K.flame(c, IX + (i - 1) * T * 0.5, IY, T * (0.9 - Math.abs(i - 1) * 0.25), T * (3.4 - Math.abs(i - 1)) * pa, t, i * 3.3, 0, 0.95 * pa * k);
-              crystalBird(c, RX, RY, s, { psi: -Math.PI / 2, th: 0.85, bank: Math.sin(t * 2) * 0.12 }, 0.5 + 0.5 * Math.sin(t * 6), 0.4 + 0.6 * H.ease.out(rb), t, Math.min(1, pa * 1.6) * k, false, (kk, n) => ({ p: cl((rb * 2.2 - kk / n * 0.6) / 0.6), off: [((kk % 2) ? 1 : -1) * (1 + rnd(kk) * 2), (rnd(kk + 3) - 0.5) * 2, -2.4 - rnd(kk + 5)] }), guard);
-              const bu = cl((t - HIT - 1.1) / 0.6); if (bu > 0 && bu < 1) { fring(c, IX, IY, T * (1.2 + 2.6 * H.ease.out(bu)), 10, T * 1.3 * (1 - bu), t, (1 - bu) * k, 0.3, 0.35); K.shockRing(c, IX, IY, T * (1 + 3.2 * bu), 1 - bu); } } } }
-      } });
-    H.X.after(HIT, () => { const g0 = lane[0] || [me.x + ca * 1.5, me.y + sa * 1.5]; H.hitLine(g0[0], g0[1], laneA || a, Math.hypot(ix - g0[0], iy - g0[1]) + 0.6, 2.0, 1.6 * D * norm, C.dmgO({ kb: 3, burn: 1 })); H.hitArea(ix, iy, 2.4, 2.6 * D * norm, C.dmgO({ kb: 4, burn: 1 }));
-      K.blast(ix, iy, 2.4, 2); H.X.ring(ix, iy, 0.3, 2.6, 0.45, P.org, 0.5); for (let i = 0; i < 3; i++) H.fire(ix + ca * (i - 1) * 1.1, iy + sa * (i - 1) * 1.1, 1.0, 2.2, C.base * 0.5, 'fire'); K.embers(ix, iy, 14, { v: 4 }); K.sparks(ix, iy, 14, 7); H.X.sfx.crash(); H.X.hitstop(0.06); });
-    birds.forEach(b => { if (b.main) return; const tt = HIT + 0.1 + b.k * 0.1; b.hitT = tt; H.X.after(tt, () => { H.hitArea(b.tx, b.ty, 1.6, 1.4 * D * norm, C.dmgO({ kb: 3, burn: 1 })); K.blast(b.tx, b.ty, 1.4, 1); K.sparks(b.tx, b.ty, 10); H.fire(b.tx, b.ty, 0.9, 1.8, C.base * 0.4, 'fire'); H.X.sfx.thud(); }); });
-    [0.3, 0.55].forEach((d, i) => H.X.after(HIT + d, () => { for (const s of [-1, 1]) { const r0 = i ? FW * 0.5 : 0.3, r1 = i ? FW + 0.2 : FW * 0.55, cx = ix + px * s * (r0 + r1) / 2, cy = iy + py * s * (r0 + r1) / 2; H.hitLine(ix + px * s * r0 - ca * 1.3, iy + py * s * r0 - sa * 1.3, Math.atan2(py * s, px * s), r1 - r0, 2.6, 2.0 * D * norm, C.dmgO({ kb: 4, burn: 1 })); K.embers(cx, cy, 10, { v: 3 }); K.sparks(cx, cy, 6); H.X.light(cx, cy, 2.4, 0.25); if (i) H.fire(cx, cy, 1.1, 2.0, C.base * 0.5, 'fire'); } H.X.shake(8, 0.15); H.X.sfx.whoosh(); }));
-    H.X.after(HIT + 0.8, () => { H.hitArea(ix, iy, 2.6, 3.0 * D * norm, C.dmgO({ kb: 3, burn: 1 })); H.X.flash(0.18, '#FFD9A0'); H.X.ring(ix, iy, 0.2, 2.6, 0.4, P.gold, 0.5); for (let i = 0; i < H.n(24); i++) H.P({ kind: 'star', x: ix + (Math.random() - 0.5) * 2, y: iy - Math.random() * 2, vx: (Math.random() - 0.5) * 2, vy: -2 - Math.random() * 3, life: 1.3, max: 1.3, size: 3 + Math.random() * 3, color: i % 2 ? P.gold : P.wht }); H.X.sfx.sparkle && H.X.sfx.sparkle(); });
-    if (fin) H.X.after(HIT + 1.1, () => { H.hitArea(ix, iy, 3.4, 2.4 * D * norm, C.dmgO({ kb: 5, burn: 1, stun: 0.4 })); K.blast(ix, iy, 3.0, 2.2); H.X.ring(ix, iy, 0.3, 3.4, 0.5, P.yel, 0.5); H.X.flash(0.25, '#FFE0B0'); H.P({ kind: 'pillar', x: ix, y: iy, vx: 0, vy: 0, life: 0.6, max: 0.6, size: 1.6, color: P.org }); H.X.sfx.crash(); H.X.hitstop(0.06); });
+  // F-U01 Armageddon: a spinning ember ring flares at the aim and a towering tornado of fire rises out of it: stacked bands of flame turning round a white-hot core, spiral streaks, orbiting debris and embers, flames licking off its flanks, smoke boiling off the top; it roams toward the nearest monsters, dragging them into its burning spiral, scorching and setting alight the ground it crosses, then lifts away into embers and smoke in a last flare
+  // Evolution: one tornado through stages 1-6, its damage growing each stage (evoK) and a touch taller and wider; at Celestial it becomes Super Armageddon: four great tornadoes wander the battlefield on their own paths, the damage split between them, leaving scorched, cracked and glowing earth, smoke columns and debris.
+  U.armageddon = (C, h) => { H = h; K = FK.bind(H); const me = H.me, ev = K.evo(C), sup = ev >= 7, N = sup ? 4 : 1, gs = 1 + 0.035 * (ev - 1), D = C.base * C.K * K.evoK(C), FORM = 0.8, LIFE = 5.6, END = LIFE - 1.0, TICK = 0.3, NT = Math.round((END - FORM) / TICK);
+    const tickD = 9.5 / NT * D / N, flareD = 1.5 * D / N, a0 = C.a;
+    H.X.banner(sup ? 'SUPER ARMAGEDDON' : 'ARMAGEDDON', '', C.col, 1.4); H.X.sfx.hum();
+    // where they rise: one at the aim (kept clear of you); four spread round it at Celestial
+    const tws = []; for (let i = 0; i < N; i++) { let x = C.tx, y = C.ty; if (sup) { const b = a0 + Math.PI / 4 + i * Math.PI / 2; x += Math.cos(b) * 2.6; y += Math.sin(b) * 2.6; }
+      const dx = x - me.x, dy = y - me.y, d = Math.hypot(dx, dy); if (d < 2.6) { const b = d > 0.1 ? Math.atan2(dy, dx) : a0; x = me.x + Math.cos(b) * 2.6; y = me.y + Math.sin(b) * 2.6; } const w = H.walk(x, y);
+      tws.push({ x: w.x, y: w.y, hd: Math.atan2(w.y - me.y, w.x - me.x) + (i % 2 ? 0.6 : -0.6), spin: i * 1.7, tick: FORM + i * 0.07, trailT: 0, fireT: 0.3, trail: [], seed: i * 3.7, al: 1 }); }
+    for (const tw of tws) H.warn(tw.x, tw.y, sup ? 1.6 : 2.0, FORM, C.col);
+    const HT = (sup ? 4.2 : 4.6) * gs, RB = (sup ? 0.32 : 0.38) * gs, RT = (sup ? 1.35 : 1.6) * gs, RHIT = (sup ? 1.6 : 1.9) * gs, RPULL = 3.2 * gs, SPD = sup ? 1.5 : 1.15;
+    const F = H.add({ life: LIFE + 0.6, x: C.tx, y: C.ty,
+      update(dt, f) { const t = f.t, live = H.living();
+        for (const tw of tws) { tw.spin += dt * (6 + 3 * cl(t / FORM)); if (t > LIFE) continue;
+          if (t > FORM && t < END) { // roam: toward the nearest monster, away from you and from walls, wandering at Celestial
+            let tx = 0, ty = 0, best = null, bd = 7; for (const m of live) { const d = Math.hypot(m.x - tw.x, m.y - tw.y); if (d < bd) { bd = d; best = m; } }
+            if (best && bd > 0.6) { tx += (best.x - tw.x) / bd; ty += (best.y - tw.y) / bd; }
+            if (sup || !best) { tw.hd += (Math.sin(t * 1.3 + tw.seed) * 1.6) * dt; tx += Math.cos(tw.hd) * (sup ? 1.0 : 0.6); ty += Math.sin(tw.hd) * (sup ? 1.0 : 0.6); }
+            for (const o of tws) if (o !== tw) { const d = Math.hypot(tw.x - o.x, tw.y - o.y); if (d < 2.4 && d > 0.01) { tx += (tw.x - o.x) / d * 0.8; ty += (tw.y - o.y) / d * 0.8; } }
+            if (tw.y > me.y - 0.5 && tw.y < me.y + HT + 0.5 && Math.abs(tw.x - me.x) < RT + 1.4) tx += (tw.x >= me.x ? 1 : -1) * 4;   /* (never stand in front of you: its tall funnel would hide you) */
+            const pd = Math.hypot(tw.x - me.x, tw.y - me.y); if (pd < 3.5) { const k = (3.5 - pd) / 3.5 * 6; tx += (tw.x - me.x) / (pd || 1) * k; ty += (tw.y - me.y) / (pd || 1) * k; }
+            const tl = Math.hypot(tx, ty) || 1, nx = tw.x + tx / tl * SPD * dt, ny = tw.y + ty / tl * SPD * dt, w = H.walk(nx, ny); if (Math.hypot(w.x - nx, w.y - ny) < 0.01) { tw.x = nx; tw.y = ny; } else tw.hd += Math.PI * 0.6;
+            for (const m of live) { const d = Math.hypot(m.x - tw.x, m.y - tw.y); if (d < RPULL && d > 0.35) H.pull(m, tw.x, tw.y, (1.6 - d / RPULL) * dt * 1.2); }
+            if (t >= tw.tick) { tw.tick += TICK; H.hitArea(tw.x, tw.y, RHIT, tickD, C.dmgO({ kb: 0, burn: 1 })); K.sparks(tw.x, tw.y - 0.5, 3, 5); }
+            tw.trailT -= dt; if (tw.trailT <= 0) { tw.trailT = 0.22; tw.trail.push({ x: tw.x, y: tw.y, t, s: Math.random() * 9 }); if (sup && Math.random() < 0.5) K.smoke(tw.x, tw.y, 2, 0.6); if (sup && Math.random() < 0.4) K.flakes(tw.x, tw.y, 2); }
+            tw.fireT -= dt; if (tw.fireT <= 0) { tw.fireT = sup ? 0.75 : 0.6; H.fire(tw.x, tw.y, sup ? 0.9 : 1.0, 2.0, C.base * 0.3, 'fire'); } }
+          const up = cl((t - END) / (LIFE - END)), al = t < FORM ? cl(t / FORM) : 1 - up; K.aura(tw.x, tw.y, RB * 2.5, dt, sup ? 10 : 22, 0.2); if (al > 0.2) K.aura(tw.x, tw.y - HT * 0.5, RT * 0.8, dt, sup ? 5 : 10, 0); lit(f, 'w' + tw.seed, tw.x, tw.y - 1, (sup ? 3.6 : 4.5) * Math.max(0.3, al), dt);
+          if (up > 0 && Math.random() < 10 * dt * H.Q()) K.smoke(tw.x, tw.y - HT * (0.5 + up), 1, RT * 0.6); } },
+      drawUnder(c, f, X, Y, T) { const t = f.t, k = Math.min(1, f.life / 0.8);
+        for (const tw of tws) { // scorched earth along the trail: charred, still glowing, cracked at Celestial
+          for (const p of tw.trail) { const heat = Math.max(0.08, 1 - (t - p.t) / 2.2), PX = H.sx(p.x), PY = H.sy(p.y); K.scorch(c, PX, PY, T * (sup ? 1.0 : 1.15), 0.8 * k, heat, p.s);
+            if (sup) { c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = H.rgba(P.org, 0.6 * heat * k); c.lineWidth = 1.6; c.beginPath(); for (let i = 0; i < 3; i++) { const b = p.s + i * 2.1; c.moveTo(PX, PY); c.lineTo(PX + Math.cos(b) * T * 0.5, PY + Math.sin(b) * T * 0.28); c.lineTo(PX + Math.cos(b + 0.4) * T * 0.9, PY + Math.sin(b + 0.4) * T * 0.5); } c.stroke(); c.restore(); } }
+          const TX = H.sx(tw.x), TY = H.sy(tw.y), form = cl(t / FORM), up = cl((t - END) / (LIFE - END)), al = (1 - up) * k;
+          if (t < FORM + 0.2) { const u = cl(t / FORM); K.shockRing(c, TX, TY, T * (0.6 + 1.6 * u), 0.8 * (1 - u * 0.5)); fring(c, TX, TY, T * (1.6 - u * 0.8), 8, T * 0.6 * Math.sin(u * Math.PI), t, 0.9, tw.spin * 0.3, 0.3); }
+          if (form > 0) { H.softShadow(c, TX, TY, T * RT * 1.2, 0.3 * al); touchdown(c, TX, TY, T, T * RB * (0.6 + 0.4 * form) * (1 + up), tw.spin, t, al * form, sup); } } },
+      draw(c, f, X, Y, T, gt) { const t = f.t, k = Math.min(1, f.life / 0.6);
+        const order = tws.slice().sort((p, q) => p.y - q.y);
+        for (const tw of order) { const TX = H.sx(tw.x), TY = H.sy(tw.y), form = H.ease.out(cl((t - 0.15) / (FORM + 0.2))), up = cl((t - END) / (LIFE - END)), ht = T * HT * form * (1 + up * 0.5), al = k * (1 - up) * Math.min(1, form * 1.5);
+          const PXs = H.sx(me.x), PYs = H.sy(me.y) - T * 0.45, pu = (TY - PYs) / Math.max(1, ht), cov = pu > -0.05 && pu < 1.05 ? cl((Math.abs(PXs - TX) - T * (RB + (RT - RB) * Math.pow(cl(pu), 1.35)) - T * 0.2) / (T * 0.8)) : 1, gd = Math.max(0.22, Math.min(cov, petGuard(TX, TY - T * 0.8, T, T * RB * 1.5)));
+          tornado(c, TX, TY - up * T * 1.5, T, ht, T * RB * (1 + up), T * RT * (0.5 + 0.5 * form) * (1 + up * 0.6), tw.spin, Math.sin(t * 0.9 + tw.seed) * T * 0.8, gt, al * gd, sup, tw.seed);
+          if (up > 0 && up < 0.6) { const v = up / 0.6; K.glow(c, TX, TY - ht * 0.6, T * RT * 2.5, P.yel, 0.6 * (1 - v)); K.shockRing(c, TX, TY, T * (1 + 2.5 * v), 1 - v); } } } });
+    for (const tw of tws) H.X.after(FORM, () => { K.blast(tw.x, tw.y, 1.6, 1.2); H.X.ring(tw.x, tw.y, 0.3, 2.2, 0.4, P.org, 0.5); H.X.sfx.whoosh(); });
+    H.X.after(END, () => { for (const tw of tws) { H.hitArea(tw.x, tw.y, RHIT + 0.8, flareD, C.dmgO({ kb: 4, burn: 1 })); K.blast(tw.x, tw.y, 2.0, sup ? 1.2 : 1.8); K.embers(tw.x, tw.y - 2, 16, { v: 4, up: 4 }); K.smoke(tw.x, tw.y - 2, 6, 1); } H.X.flash(0.18, '#FFD9A0'); H.X.sfx.crash(); H.X.shake(sup ? 12 : 8, 0.3); });
     return F; };
 
   /* ================= F-U02 Festival of a Thousand Embers ================= */

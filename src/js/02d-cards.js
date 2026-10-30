@@ -129,7 +129,7 @@ function cleanDeck(d, p) {
 /* the Celestial upgrade: same Ult, a new name, more power and a bigger show */
 function tierUlt(a) {
   const nm = ULT_PLUS[a.key];
-  return Object.assign({}, a, { tier: 2, name: nm ? (a.own ? `${ELEMENTS[a.el].name} ${nm}` : nm) : a.elem ? a.name : a.name + ' Ω', baseName: a.name, mult: a.mult * 1.6, desc: a.desc + ' Celestial form: bigger, longer and much stronger.' });
+  return Object.assign({}, a, { tier: 2, name: nm ? (a.own ? `${ELEMENTS[a.el].name} ${nm}` : nm) : a.elem ? (ELEM_ULT_PLUS[a.key.slice(3)] || a.name) : a.name + ' Ω', baseName: a.name, mult: a.mult * 1.6, desc: a.desc + ' Celestial form: bigger, longer and much stronger.' });
 }
 /* the Guardian upgrade: the same Strong attack, a new name and far more power */
 function tierStrong(a) { return Object.assign({}, a, { tier: 2, name: a.name + ' +', baseName: a.name, mult: a.mult * 1.6, cd: a.cd * 0.85, desc: a.desc + ' Guardian form: much stronger, and quicker to come back.' }); }

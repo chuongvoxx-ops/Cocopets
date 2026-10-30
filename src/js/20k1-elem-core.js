@@ -9,6 +9,8 @@
    bosses, pet-side warnings and drawing helpers). Everything a move leaves behind lives in its fx list, cleaned up with
    the game. st.lowFx ("Fewer effects" in Settings) thins the decorative particles; shapes, warnings and hits stay. */
 const ELEM_STRONG_LV = [1, 1, 3, 6, 10, 15, 20, 30, 40, 50], ELEM_ULT_LV = [1, 5, 10, 15, 20, 30, 40, 50, 60, 75];
+/* an elemental Ultimate's new name at Celestial (stage 7), where it has one */
+const ELEM_ULT_PLUS = { armageddon: 'Super Armageddon' };
 const ELEM_ULT_STARS = 5;
 /* an element's name as the ELEMENTS (ability) key its hits carry, so the reactions read them as that element */
 const ELEM_AB = { wind: 'wind', fire: 'fire', ice: 'ice', water: 'water', thunder: 'thunder', earth: 'earth', dark: 'dark', light: 'light' };
@@ -120,7 +122,7 @@ const ELEM_MOVES = {
     ['hearthburst', 'Hearthburst', 'nova', 26, 2.8, 'Flames gather at your feet and roll outward as a low circular wave.'],
     ['matchstars', 'Falling Matchstars', 'stars', 26, 3, 'Sparks fan upward and fall on three marked spots as tiny comets.'] ],
   ult: [
-    ['turningsky', 'Phoenix of the Turning Sky', 'feather', 90, 18, 'Flame ribbons weave a phoenix behind you; it circles once and dives along the aim, wings sweeping out as two fire fronts.'],
+    ['armageddon', 'Armageddon', 'flame', 90, 18, 'A towering tornado of fire roars across the battlefield, dragging monsters into its burning spiral and leaving scorched earth behind. At Celestial it becomes Super Armageddon: four great fire tornadoes.'],
     ['embers', 'Festival of a Thousand Embers', 'stars', 90, 18, 'Fire lanterns rise in tiers over the aim and open in turn, raining grouped sparks on marked spots, then burst together.'],
     ['crucible', 'Solar Crucible', 'burst', 95, 20, 'A bowl of molten plates forms over the aim holding a fire core; flames pour through, then the plates open and drop it.'],
     ['dragonkiln', 'Dragonkiln Procession', 'dragon', 100, 22, 'Furnace rings appear along the aim; a flame dragon threads them, growing at each, and coils round the last to detonate.'],
