@@ -906,3 +906,4 @@ Every new boss painter (rift fiends, Tower bosses, minis that get their own art)
   Damage total = base × factor × C.K × FK.evoK(C) split over the pieces. Brief: docs/FIRE-REWORK-BRIEF.md.
 - Tests: elem-signature.js; elem-moves.js takes EVO=N and waits 9 game seconds at the end.
 - v182: F-U01 is now Armageddon (one fire tornado; at Celestial 'Super Armageddon', four; ELEM_ULT_PLUS renames it) — the phoenix was removed at the user's request (deck ids e:fire:turningsky drop out through cleanDeck).
+- v183: Rift 11 monsters and mini bosses halved (monEase 0.175, miniDmg 0.35, miniHp 0.147); bosses unchanged.
