@@ -50,7 +50,7 @@ const path = require('path');
       if (slot === 'ult') D.useUlt(); else D.useStrong('strong');
       return { live, hp0, cast: me.mp !== mp0 || me.castT > 0 };
     }, [el, slot, key, star]);
-    await page.waitForTimeout(+(process.env.SHOT_MS || 700));
+    await page.waitForTimeout(slot === 'ult' && process.env.SHOT_MS_ULT ? +process.env.SHOT_MS_ULT : +(process.env.SHOT_MS || 700));
     if (process.env.SHOTS) await page.screenshot({ path: path.resolve(__dirname, `../shots/elem-${el}-${slot}-${key}.png`) });
     await page.evaluate(async secs => { const D = window.__pp.arc.game._dbg; const t0 = performance.now(); while (performance.now() - t0 < secs * 1000) { await new Promise(r => requestAnimationFrame(r)); if (D && D.me) { D.me.hp = D.ST.hp; D.me.dead = false; D.me.mp = 999; } } }, slot === 'ult' ? 5.2 : 3.2);
     const after = await page.evaluate(() => { const D = window.__pp.arc.game._dbg; return { hp1: D.mons.filter(m => m._tag).reduce((a, m) => a + m.hp, 0), fx: D.ELEM.fx.length, dead: D.mons.filter(m => m.dead).length, bad: D.mons.filter(m => !m.dead && !(m.hp >= 0)).map(m => m.type + ':' + m.hp), z: D.mons.filter(m => !m.dead && m.z).length, texts: D.texts ? D.texts.map(t => t.s).filter(s => /forged/.test(s)) : [] }; });
