@@ -667,7 +667,7 @@ GAMES.dungeon = {
       me.dodge = { t: 0, dur: 0.3, vx: dx / d * 12.5, vy: dy / d * 12.5, perf: false };
       me.inv = Math.max(me.inv, 0.06);
       g.dodgeCd = 0.85 * (g.buff.arcane > 0 ? 0.6 : 1) * (g.dodgeK || 1); g.dodges++; g.movedOnce = true;
-      api.sfx.whoosh();
+      api.sfx.whoosh(); if (typeof accBellChime === 'function') accBellChime();
       for (let i = 0; i < 8; i++) { const a = Math.atan2(-dy, -dx) + (Math.random() - 0.5) * 1.4, v = 2 + Math.random() * 3; part({ kind: 'smoke', x: me.x, y: me.y + 0.15, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0.45, max: 0.45, size: 0.18 + Math.random() * 0.12, color: 'rgba(230,230,255,' }); }
     }
 

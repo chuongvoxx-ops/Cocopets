@@ -3,9 +3,9 @@
 const { chromium } = require('/opt/npm-tools/node_modules/playwright'); const path = require('path');
 let bad = 0; const ok = (c, m, x) => { console.log((c ? 'ok   ' : 'FAIL ') + m, x === undefined ? '' : JSON.stringify(x)); if (!c) bad++; };
 (async () => { const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' }); const p = await b.newPage({ viewport: { width: 393, height: 852 } }); const errs = []; p.on('pageerror', e => errs.push(e.message));
-  await p.goto('file://' + path.resolve(__dirname, '..', 'test.html')); await p.waitForFunction(() => window.__pp); await p.evaluate(() => window.__pp.quickStart('Bot'));
+  await p.goto('file://' + path.resolve(__dirname, '..', process.env.HTML || 'test.html')); await p.waitForFunction(() => window.__pp); await p.evaluate(() => window.__pp.quickStart('Bot'));
   const S = (best, seals, prog) => p.evaluate(([best, seals, prog]) => { const P = window.__pp; P.st.dun.best = best; const RS = P.riftState(); RS.seals = {}; RS.prog = prog || {}; for (const id of seals) RS.seals[id] = 1;
-    return { open: Object.fromEntries(['belfry', 'garden', 'basilica', 'colours'].map(id => [id, P.riftOpen(id)])) }; }, [best, seals, prog]);
+    return { open: Object.fromEntries(['belfry', 'garden', 'basilica', 'colours', 'choir'].map(id => [id, P.riftOpen(id)])) }; }, [best, seals, prog]);
   // (floor openness, through the Tower tab's own rule)
   const open = n => p.evaluate(n => window.__pp.dunFloorOpen(n), n);
   let r = await S(0, []); ok(await open(1) && !(await open(2)) && !r.open.belfry, 'a new player: floor 1 open, floor 2 not yet, Rift 1 shut', r.open);
@@ -15,6 +15,11 @@ let bad = 0; const ok = (c, m, x) => { console.log((c ? 'ok   ' : 'FAIL ') + m, 
   r = await S(20, ['belfry']); ok(r.open.garden && !(await open(21)), 'floor 20 beaten: Rift 2 opens; floor 21 waits for its seal', r.open);
   r = await S(90, ['belfry', 'garden', 'dunes', 'sepulchre', 'aurora', 'yuggoth', 'library', 'moon']); ok(r.open.basilica && !(await open(91)) && !r.open.colours, 'floor 90 beaten: Rift 9 (the Basilica) opens; floors 91-100 and Rift 10 wait for its seal', { f91: await open(91), basilica: r.open.basilica, colours: r.open.colours });
   r = await S(100, ['belfry', 'garden', 'dunes', 'sepulchre', 'aurora', 'yuggoth', 'library', 'moon', 'basilica']); ok(r.open.colours && !(await open(101)), 'Rift 9 sealed and floor 100 beaten: Rift 10 opens; floor 101 waits for its seal', r.open);
+  // Rift 11 (the Choir) is built: Rift 10's seal opens floors 101-110; floor 110 beaten opens the Choir; its seal opens 111-120
+  const TEN = ['belfry', 'garden', 'dunes', 'sepulchre', 'aurora', 'yuggoth', 'library', 'moon', 'basilica', 'colours'];
+  r = await S(100, TEN); ok(await open(101) && !r.open.choir, 'Rift 10 sealed: floors 101-110 open; Rift 11 (the Choir) shut till floor 110', { f101: await open(101), choir: r.open.choir });
+  r = await S(110, TEN); ok(r.open.choir && !(await open(111)), 'floor 110 beaten: Rift 11, the Choir Before Creation, opens; floor 111 waits for its seal', { choir: r.open.choir, f111: await open(111) });
+  r = await S(110, TEN.concat('choir')); ok(await open(111), 'the Choir sealed: floors 111-120 open (Rift 12 not built yet: stepped over)', { f111: await open(111) });
   r = await S(3, ['belfry', 'garden'], { dunes: 2 }); const d = await p.evaluate(() => window.__pp.riftOpen('dunes')); ok(r.open.belfry && r.open.garden && d, 'an old save keeps what it reached: sealed rifts and a rift with a checkpoint stay open', { ...r.open, dunes: d });
   r = await S(45, []); ok(await open(45) && await open(46) === false && await open(30), 'an old save past the new limits keeps its floors up to its best', { f30: await open(30), f45: await open(45), f46: await open(46) });
   // the Rifts list: Tower blocks between the rifts, in order
