@@ -13,6 +13,8 @@ const { open } = require('./_rift-lib');
     await start('basilica', st); await run(2.5);
     let r = await S(); tot.s += r.scarab; tot.n += r.all;
     ok(r.cap === 60 && r.live <= 60, `stage ${st}: at most sixty on the field (${r.live} out, ${r.reserve} waiting)`, r);
+    ok(r.all <= 165, `stage ${st}: 35% fewer monsters than the ~222 a floor rolled (${r.all})`);
+    const gl = await page.evaluate(() => document.getElementById('arcGoal').textContent); ok(new RegExp(`${r.all + 1} of ${r.all + 1} left`).test(gl), `stage ${st}: the counter counts every monster, waiting ones too ("${gl}")`);
     ok(r.scarab / r.all <= 0.12 && r.scarab / r.all >= 0.04, `stage ${st}: gaze scarabs held to about 11%, spread out (${r.scarab} of ${r.all})`);
     // clear the field in waves: the waiting ones come back, and the floor is not clear while any wait
     let sawBack = false, early = false;
@@ -35,7 +37,7 @@ const { open } = require('./_rift-lib');
   ok(gz.n < 2 || (gz.hadA && gz.goneA && gz.goneB), 'a scarab\'s gaze cone goes when it dies, and when it steps off the field', gz);
   // monsters and minis 30% lighter: monEase 0.35, miniHp 0.42, the minis' blows x0.7
   const rf = await page.evaluate(() => { const R = window.__pp.RIFT_BY_ID.basilica; return { monEase: R.monEase, miniDmg: R.miniDmg, miniHp: R.stages.filter(s => s.mini).map(s => s.hpK) }; });
-  ok(rf.monEase === 0.35 && rf.miniDmg === 0.7 && rf.miniHp.every(v => v === 0.42), 'monsters and mini bosses 30% lighter in health and blows', rf);
+  ok(rf.monEase === 0.35 && rf.miniDmg === 0.7 && rf.miniHp.every(v => v === 0.294), 'monsters and mini bosses 30% lighter in health and blows', rf);
   await start('basilica', 4); await run(2);
   const mini = await page.evaluate(() => { const D = window.__pp.arc.game._dbg, m = D.mons.find(m => m.boss && m.mini); return m ? { hp: Math.round(m.maxhp), dmg: Math.round(m.dmg * 10) / 10 } : null; });
   console.log('  mini', JSON.stringify(mini));

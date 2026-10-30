@@ -61,6 +61,7 @@ function riftDef(id, stage) {
   // (and its ordinary monsters alone may be eased further: Rf.monEase scales their health and blows, not the bosses')
   if (Rf.monEase) { F.monHp *= Rf.monEase; F.monDmg *= Rf.monEase; }
   if (S.kind === 'fight') { const mobs = S.mobs || Rf.mons || []; Object.assign(F, { types: mobs.concat(mobs, F.types.filter(t => !mobs.includes(t) && !MON[t].still).slice(-3)), rooms: 7, pack: Math.max(F.pack, 10), packsPer: 3, maxMons: Math.max(F.maxMons, 90), elite: Rf.ease ? Math.min(F.elite, 0.3) : Math.max(F.elite, 0.45), nests: 0, gremlin: 0.3, shrines: 1, events: true }); if (S.mod === 'boon') F.band = 'rboon'; else if (S.mod === 'curse') F.band = 'rcurse'; else if (S.mod === 'random') F.band = 'rrand'; }
+  if (S.kind === 'fight' && Rf.monCount) { F.pack = Math.max(4, Math.round(F.pack * Rf.monCount)); F.maxMons = Math.round(F.maxMons * Rf.monCount); }   // (a rift's fight floors thinned: fewer to a pack, fewer in all)
   else if (S.kind === 'boss') { const fd = riftFiend(S.boss, n); F.fiend = fd; F.boss = false; F.bossName = fd ? fd.name : S.goal; F.name = fd ? fd.name : Rf.name; F.events = false; F.dark = 0; }
   else { Object.assign(F, { rooms: 1, pack: 0, packsPer: 0, maxMons: 60, types: [], nests: 0, elite: 0, gremlin: 0, shrines: 0, hazards: false, traps: 0, stones: 0 }); }
   return F;
@@ -273,6 +274,6 @@ function riftFight(X, self, H) {
   return {
     drawGround: c => { if (xm.drawGround) xm.drawGround(c); }, drawOver: c => { if (xm.drawOver) xm.drawOver(c); }, xm,
     update(dt) { if (xm.update) xm.update(dt); if (!self.done && H.monstersLeft() === 0 && (!mini || mini.dead)) { self.done = true; X.banner('THE FLOOR IS CLEAR', 'The door opens: follow the green arrow', '#8FE0A6', 2.4, true); X.flash(0.3, '#FFFFFF'); X.sfx.fanfare(); } },
-    goal() { const left = mons.filter(m => !m.dead && !m.boss && !m.optional).length + (mini && !mini.dead ? 1 : 0); return self.done ? 'The far door is open' : `${left} left${mini && !mini.dead ? ` · ${mini.bname} ${Math.max(0, Math.ceil(mini.hp / mini.maxhp * 100))}%` : ''}`; },
+    goal() { const left = H.monstersLeft() + (mini && !mini.dead ? 1 : 0); if (self.monTotal == null || left > self.monTotal) self.monTotal = left; return self.done ? 'The far door is open' : `${left} of ${self.monTotal} left${mini && !mini.dead ? ` · ${mini.bname} ${Math.max(0, Math.ceil(mini.hp / mini.maxhp * 100))}%` : ''}`; },
   };
 }
