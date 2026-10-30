@@ -61,9 +61,9 @@ function riftDef(id, stage) {
   // (and its ordinary monsters alone may be eased further: Rf.monEase scales their health and blows, not the bosses')
   if (Rf.monEase) { F.monHp *= Rf.monEase; F.monDmg *= Rf.monEase; }
   if (S.kind === 'fight') { const mobs = S.mobs || Rf.mons || []; Object.assign(F, { types: mobs.concat(mobs, F.types.filter(t => !mobs.includes(t) && !MON[t].still).slice(-3)), rooms: 7, pack: Math.max(F.pack, 10), packsPer: 3, maxMons: Math.max(F.maxMons, 90), elite: Rf.ease ? Math.min(F.elite, 0.3) : Math.max(F.elite, 0.45), nests: 0, gremlin: 0.3, shrines: 1, events: true }); if (S.mod === 'boon') F.band = 'rboon'; else if (S.mod === 'curse') F.band = 'rcurse'; else if (S.mod === 'random') F.band = 'rrand'; }
-  if (S.kind === 'fight' && Rf.monCount) { F.pack = Math.max(4, Math.round(F.pack * Rf.monCount)); F.maxMons = Math.round(F.maxMons * Rf.monCount); }   // (a rift's fight floors thinned: fewer to a pack, fewer in all)
   else if (S.kind === 'boss') { const fd = riftFiend(S.boss, n); F.fiend = fd; F.boss = false; F.bossName = fd ? fd.name : S.goal; F.name = fd ? fd.name : Rf.name; F.events = false; F.dark = 0; }
   else { Object.assign(F, { rooms: 1, pack: 0, packsPer: 0, maxMons: 60, types: [], nests: 0, elite: 0, gremlin: 0, shrines: 0, hazards: false, traps: 0, stones: 0 }); }
+  if (S.kind === 'fight' && Rf.monCount) { F.pack = Math.max(4, Math.round(F.pack * Rf.monCount)); F.maxMons = Math.round(F.maxMons * Rf.monCount); }   // (a rift's fight floors thinned: fewer to a pack, fewer in all)   // (kept OUT of the if/else chain above: inside it, every rift without monCount fell to the empty-floor branch)
   return F;
 }
 /* the map from a stage's drawn layout */
