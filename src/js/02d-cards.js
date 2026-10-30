@@ -98,7 +98,7 @@ function extraStrongs(AB, p) {
 }
 function innateAbility(slot, AB, p) {
   const E = ELEMENTS[AB.el], grow = 1 + 0.05 * ((p.stage || 1) - 1);
-  if (slot === 'strong2' || slot === 'strong3') { const k = extraStrongs(AB, p)[slot === 'strong2' ? 0 : 1], S = INNATE_STRONG[k]; return { slot, own: true, key: 's_' + k, name: `${E.name} ${STRONGS[k].name}`, glyph: S.glyph, el: AB.el, mult: grow, cost: S.cost, cd: S.cd, desc: STRONGS[k].desc }; }
+  if (slot === 'strong2' || slot === 'strong3') { const k = extraStrongs(AB, p)[slot === 'strong2' ? 0 : 1], S = INNATE_STRONG[k]; return { slot, own: true, key: 's_' + k, name: k === 'spikes' ? espikeName(AB.el) : `${E.name} ${STRONGS[k].name}`, glyph: S.glyph, el: AB.el, mult: grow, cost: S.cost, cd: S.cd, desc: k === 'spikes' ? espikeDesc(AB.el) : STRONGS[k].desc }; }
   if (slot === 'normal') return { slot, own: true, key: 'n_' + AB.shot, name: AB.name, glyph: NORMAL_GLYPH[AB.shot] || 'orb', el: AB.el, mult: grow, cost: 0, cd: 0, desc: AB.shotDesc.replace('the sky', 'the room').replace('the edges', 'the walls').replace('the ship', 'you') };
   if (slot === 'strong' && AB.starStrong) { const T = AB.starStrong, S = STAR_POOLS[T.tier].strong[T.key]; return { slot, own: true, star: T.tier, key: 'x_' + T.key, name: S.name, glyph: S.glyph, el: AB.el, mult: grow * (T.tier >= 6 ? 1.5 : T.tier >= 5 ? 1.25 : 1.1), cost: S.cost, cd: S.cd, desc: S.desc }; }
   if (slot === 'ult' && AB.starUlt) { const T = AB.starUlt, U = STAR_POOLS[T.tier].ult[T.key]; return { slot, own: true, star: T.tier, key: 'y_' + T.key, name: U.name, glyph: U.glyph, el: AB.el, mult: grow * (T.tier >= 6 ? 1.5 : T.tier >= 5 ? 1.25 : 1.1), cost: U.cost, cd: U.cd, desc: U.desc }; }

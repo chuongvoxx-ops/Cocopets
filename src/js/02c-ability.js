@@ -123,7 +123,7 @@ function petAbility(f, seed) {
   const E = ELEMENTS[el], S = SHOTS[shot], P = SPECIALS[special];
   const stars = starsOf(rarityOf(f)), star = starKit(stars, seed || f.seed || 1);
   return { el, shot, special, stars, star, starStrong: star ? { key: star.strong, tier: stars } : null, starUlt: star ? { key: star.ult, tier: stars } : null, power, rate, speed, size, count, name: `${E.name} ${S.name}`, color: E.color, core: E.core, dark: E.dark, rainbow: !!E.rainbow, shotDesc: S.desc, specialName: P.name, specialDesc: P.desc,
-    twist, twistName: TWISTS[twist].name, twistDesc: TWISTS[twist].desc, strong, strongName: `${E.name} ${STRONGS[strong].name}`, strongDesc: STRONGS[strong].desc };
+    twist, twistName: TWISTS[twist].name, twistDesc: TWISTS[twist].desc, strong, strongName: strong === 'spikes' ? espikeName(el) : `${E.name} ${STRONGS[strong].name}`, strongDesc: strong === 'spikes' ? espikeDesc(el) : STRONGS[strong].desc };
 }
 /* every pet's signature effect: it rides on all of its hits in the Dungeon, whichever cards it uses */
 const TWISTS = {
@@ -163,7 +163,7 @@ function applyAbOv(AB, p) {
   const E = ELEMENTS[AB.el], stage = (p.stage || 1);
   AB = Object.assign({}, AB);
   if (ov.normal && SHOTS[ov.normal.shot]) { const sh = ov.normal.shot; AB.shot = sh; AB.name = `${E.name} ${SHOTS[sh].name}`; AB.shotDesc = SHOTS[sh].desc; AB.count = shotCount(sh, stage); }
-  if (ov.strong && ov.strong.key) { const k = ov.strong.key; if (k.slice(0, 2) === 'x_' && STAR_POOLS[ov.strong.tier] && STAR_POOLS[ov.strong.tier].strong[k.slice(2)]) AB.starStrong = { key: k.slice(2), tier: ov.strong.tier }; else if (k.slice(0, 2) === 's_' && STRONGS[k.slice(2)]) { AB.starStrong = null; AB.strong = k.slice(2); AB.strongName = `${E.name} ${STRONGS[AB.strong].name}`; AB.strongDesc = STRONGS[AB.strong].desc; } }
+  if (ov.strong && ov.strong.key) { const k = ov.strong.key; if (k.slice(0, 2) === 'x_' && STAR_POOLS[ov.strong.tier] && STAR_POOLS[ov.strong.tier].strong[k.slice(2)]) AB.starStrong = { key: k.slice(2), tier: ov.strong.tier }; else if (k.slice(0, 2) === 's_' && STRONGS[k.slice(2)]) { AB.starStrong = null; AB.strong = k.slice(2); AB.strongName = AB.strong === 'spikes' ? espikeName(AB.el) : `${E.name} ${STRONGS[AB.strong].name}`; AB.strongDesc = AB.strong === 'spikes' ? espikeDesc(AB.el) : STRONGS[AB.strong].desc; } }
   if (ov.ult && ov.ult.key) { const k = ov.ult.key; if (k.slice(0, 2) === 'y_' && STAR_POOLS[ov.ult.tier] && STAR_POOLS[ov.ult.tier].ult[k.slice(2)]) AB.starUlt = { key: k.slice(2), tier: ov.ult.tier }; else if (k.slice(0, 2) === 'u_' && SPECIALS[k.slice(2)]) { AB.starUlt = null; AB.special = k.slice(2); AB.specialName = SPECIALS[AB.special].name; AB.specialDesc = SPECIALS[AB.special].desc; } }
   return AB;
 }
