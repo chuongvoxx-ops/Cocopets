@@ -163,7 +163,7 @@
      Thorn hedges and rolling moss boulders thin the army. Two bloom posts are checkpoints. At the end, the Milkcap
      Colossus: a big number to shoot down and then hack at, while roots burst and spores fall in rose rings. Lose every
      seedling and the pet marches alone on three hearts; out of hearts, the march begins again at the last bloom post */
-  const ML = 200, LX0 = 4, LX1 = 12, LXM = 8, M_SPD = 3.6, M_TREAD = 2.4, M_CAP = 90, M_SP = 0.25, GA = Math.PI * (3 - Math.sqrt(5)), BOSS_HP = 1000, B_CONTACT = 2.9, TOUGH = 3;
+  const ML = 200, LX0 = 4, LX1 = 12, LXM = 8, M_SPD = 3.6, M_TREAD = 2.4, M_CAP = 90, M_SP = 0.25, GA = Math.PI * (3 - Math.sqrt(5)), BOSS_HP = 12000, B_CONTACT = 2.9, TOUGH = 3;
   const MINT = '#6FE3B4', BAD = '#FF6A8E', MOSS = '#3F7B61';
   const marchLayout = (() => { const rows = []; for (let y = 0; y < ML; y++) { let r = ''; for (let x = 0; x < 14; x++) r += x < 3 || x > 10 ? '~' : y === ML - 4 && x === 7 ? 'S' : '.'; rows.push(r); } return rows; })();
   // the course, by distance up the lane from the start (L and R: the left and right gate of a pair, [op, n])
