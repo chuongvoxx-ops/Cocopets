@@ -45,45 +45,86 @@
       c.strokeStyle = H.rgba(P.yel, 0.6 * heat); for (let i = 0; i < 8; i++) { const b = i / 8 * TAU + seed; c.beginPath(); c.moveTo(X + Math.cos(b) * r * 0.78, Y + Math.sin(b) * r * 0.78 * H.GY); c.lineTo(X + Math.cos(b) * r * 0.96, Y + Math.sin(b) * r * 0.96 * H.GY); c.stroke(); } }
     c.restore();
   }
-  /* a salamander of living fire along a screen spine (tail .. head): legs, a shaded hide with a crusted, seamed back, a crest of flame, a head with white-hot eyes */
+  /* a salamander of faceted molten crystal along a screen spine (tail .. head). Real 3D: every spine point carries a
+     six-sided cross-section (ridge, two crust plates, two flanks, a belly) in a frame oriented along the spine and banked
+     by the weave; the rings are joined into faces, culled, sorted back to front and shaded by their normal against a
+     light from the upper left. Screen x/y are the floor plane, z is up (drawn as y - z): the viewer sits toward +y, +z.
+     Obsidian plates with ember rims on top, molten flanks, a white-hot belly, glowing seams between segments, a hot
+     ridge with sliding glints; a wedge head with slit eyes and a jaw line; crystal dorsal spikes trailing flame; four
+     jointed crystal legs with claw shards; a blade tail trailing a flame ribbon. */
+  const SL = (() => { const l = Math.hypot(-0.5, -0.55, 0.67); return [-0.5 / l, -0.55 / l, 0.67 / l]; })(), SV = [0, Math.SQRT1_2, Math.SQRT1_2];
+  const RING = [[0, 1], [0.8, 0.42], [0.62, -0.48], [0, -0.78], [-0.62, -0.48], [-0.8, 0.42]];   // (side, up) of the cross-section; faces k..k+1: 0,5 plates, 1,4 flanks, 2,3 belly
+  const KIND = ['plate', 'flank', 'belly', 'belly', 'flank', 'plate'];
+  const v3 = { sub: (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], cross: (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]], dot: (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2], norm: a => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; } };
   function salamander(c, H, K, pts, sc, t, step, a, seed) {
     const P = K.P, n = pts.length; if (n < 3 || a <= 0.01) return; c.save(); c.globalAlpha = a; c.lineJoin = 'round'; c.lineCap = 'round';
-    const nrm = [], rad = [];
-    for (let i = 0; i < n; i++) { const p0 = pts[Math.max(0, i - 1)], p1 = pts[Math.min(n - 1, i + 1)], dx = p1[0] - p0[0], dy = p1[1] - p0[1], d = Math.hypot(dx, dy) || 1; nrm.push([-dy / d, dx / d]); const u = i / (n - 1); rad.push(sc * (0.08 + 0.42 * Math.sin(Math.min(1, u * 1.25) * Math.PI * 0.5) - 0.1 * Math.max(0, u - 0.82) / 0.18)); }
-    for (let i = 0; i < n; i += 2) K.glow(c, pts[i][0], pts[i][1], sc * 1.1, P.org, 0.3);
-    // tail flame streaming back
-    const tl = pts[0], tdir = Math.atan2(pts[0][1] - pts[1][1], pts[0][0] - pts[1][0]); K.flameAt(c, tl[0], tl[1], tdir, sc * 0.42, sc * (1.1 + 0.25 * Math.sin(t * 13 + seed)), t, seed + 9, 0.9);
-    // four legs, stepping: thigh and shin, a clawed foot that scatters sparks
-    for (const li of [Math.round((n - 1) * 0.42), Math.round((n - 1) * 0.76)]) for (const sd of [-1, 1]) {
-      const p = pts[li], nm = nrm[li], ph = step + (li > n / 2 ? 0 : Math.PI) + (sd > 0 ? Math.PI : 0), sw = Math.sin(ph), lift = Math.max(0, Math.cos(ph)), dx = pts[Math.min(n - 1, li + 1)][0] - pts[li - 1][0], dy = pts[Math.min(n - 1, li + 1)][1] - pts[li - 1][1], dl = Math.hypot(dx, dy) || 1, fx = dx / dl, fy = dy / dl;
-      const kx = p[0] + nm[0] * sd * sc * 0.6 + fx * sw * sc * 0.16, ky = p[1] + nm[1] * sd * sc * 0.6 + fy * sw * sc * 0.16 - sc * 0.12, ftx = p[0] + nm[0] * sd * sc * 0.74 + fx * sw * sc * 0.36, fty = p[1] + nm[1] * sd * sc * 0.74 + fy * sw * sc * 0.36 + sc * 0.26 - lift * sc * 0.16;
-      c.strokeStyle = P.char; c.lineWidth = sc * 0.19 + 2.5; c.beginPath(); c.moveTo(p[0], p[1]); c.lineTo(kx, ky); c.lineTo(ftx, fty); c.stroke(); c.strokeStyle = sd > 0 ? P.red : P.org; c.lineWidth = sc * 0.19; c.stroke();
-      c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = H.rgba(P.yel, 0.7); c.lineWidth = Math.max(1, sc * 0.04); c.stroke(); c.restore();
-      c.fillStyle = P.gold; for (let k = -1; k <= 1; k++) { c.beginPath(); c.arc(ftx + fx * sc * 0.1 + nm[0] * k * sc * 0.08, fty + fy * sc * 0.1 + nm[1] * k * sc * 0.08, Math.max(1.3, sc * 0.05), 0, TAU); c.fill(); }
-    }
-    // the hide: an outlined silhouette, lit along its upper side, a dark crusted back with glowing seams
-    const L = [], R = []; for (let i = 0; i < n; i++) { L.push([pts[i][0] + nrm[i][0] * rad[i], pts[i][1] + nrm[i][1] * rad[i]]); R.push([pts[i][0] - nrm[i][0] * rad[i], pts[i][1] - nrm[i][1] * rad[i]]); }
-    const body = () => { c.beginPath(); c.moveTo(L[0][0], L[0][1]); for (let i = 1; i < n; i++) c.lineTo(L[i][0], L[i][1]); for (let i = n - 1; i >= 0; i--) c.lineTo(R[i][0], R[i][1]); c.closePath(); };
-    let y0 = 1e9, y1 = -1e9; for (const p of L.concat(R)) { y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); }
-    body(); c.strokeStyle = P.char; c.lineWidth = 3; c.stroke();
-    const gb = c.createLinearGradient(0, y0 - 2, 0, y1 + 2); gb.addColorStop(0, P.yel); gb.addColorStop(0.3, P.amb); gb.addColorStop(0.62, P.org); gb.addColorStop(1, P.dred); c.fillStyle = gb; c.fill();
-    c.save(); body(); c.clip();
-    c.strokeStyle = P.crust; c.lineWidth = sc * 0.26; c.beginPath(); for (let i = 1; i < n; i++) { const p = pts[i]; i === 1 ? c.moveTo(p[0], p[1] - sc * 0.03) : c.lineTo(p[0], p[1] - sc * 0.03); } c.stroke();
-    c.strokeStyle = H.rgba(P.char, 0.7); c.lineWidth = sc * 0.12; c.stroke();
-    c.globalCompositeOperation = 'lighter'; for (let i = 2; i < n - 1; i++) { const p = pts[i], nm = nrm[i], k = 0.55 + 0.45 * Math.sin(t * 12 + i * 1.9 + seed); c.strokeStyle = H.rgba(i % 2 ? P.yel : P.amb, 0.9 * k); c.lineWidth = Math.max(1, sc * 0.05); c.beginPath(); c.moveTo(p[0] + nm[0] * sc * 0.15, p[1] + nm[1] * sc * 0.15); c.lineTo(p[0] - nm[0] * sc * 0.15, p[1] - nm[1] * sc * 0.15); c.stroke(); }
-    c.restore();
-    const up = L[(n / 2) | 0][1] < R[(n / 2) | 0][1] ? L : R; c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = H.rgba(P.wht, 0.55); c.lineWidth = 1.5; c.beginPath(); for (let i = 1; i < n - 1; i++) i === 1 ? c.moveTo(up[i][0], up[i][1] + 1) : c.lineTo(up[i][0], up[i][1] + 1); c.stroke(); c.restore();
-    // a crest of flames along the back
-    for (const u of [0.3, 0.5, 0.68]) { const i = Math.round((n - 1) * u), p = pts[i], dx = pts[n - 1][0] - pts[0][0]; K.flame(c, p[0], p[1] - sc * 0.08, sc * 0.42, sc * (0.8 + 0.35 * u) * (0.9 + 0.1 * Math.sin(t * 9 + i)), t, i * 2.1 + seed, -Math.sign(dx || 1) * sc * 0.35, 0.95); }
-    // the head: a shaded wedge, crusted crown, white-hot eyes, a glowing mouth
-    const hd = pts[n - 1], hp = pts[n - 2], hdx = hd[0] - hp[0], hdy = hd[1] - hp[1], hl = Math.hypot(hdx, hdy) || 1, fx = hdx / hl, fy = hdy / hl, nx = -fy, ny = fx, Q = (u, v) => [hd[0] + fx * u * sc + nx * v * sc, hd[1] + fy * u * sc + ny * v * sc];
-    const head = [Q(-0.2, -0.36), Q(0.12, -0.4), Q(0.36, -0.3), Q(0.52, -0.12), Q(0.56, 0), Q(0.52, 0.12), Q(0.36, 0.3), Q(0.12, 0.4), Q(-0.2, 0.36)];
-    let hy0 = 1e9, hy1 = -1e9; for (const p of head) { hy0 = Math.min(hy0, p[1]); hy1 = Math.max(hy1, p[1]); }
-    H.poly(c, head); c.strokeStyle = P.char; c.lineWidth = 3; c.stroke(); const gh = c.createLinearGradient(0, hy0 - 2, 0, hy1 + 2); gh.addColorStop(0, P.yel); gh.addColorStop(0.35, P.amb); gh.addColorStop(0.7, P.org); gh.addColorStop(1, P.red); c.fillStyle = gh; c.fill();
-    H.poly(c, [Q(-0.12, -0.17), Q(0.2, -0.13), Q(0.32, 0), Q(0.2, 0.13), Q(-0.12, 0.17)]); c.fillStyle = P.crust; c.fill(); c.strokeStyle = H.rgba(P.char, 0.8); c.lineWidth = 1; c.stroke();
-    c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = H.rgba(P.amb, 0.9); c.lineWidth = Math.max(1, sc * 0.04); const s1 = Q(-0.08, 0), s2 = Q(0.24, 0); c.beginPath(); c.moveTo(s1[0], s1[1]); c.lineTo(s2[0], s2[1]); c.stroke();
-    for (const sd of [-1, 1]) { const e = Q(0.2, sd * 0.24); c.fillStyle = P.wht; c.beginPath(); c.arc(e[0], e[1], Math.max(1.5, sc * 0.06), 0, TAU); c.fill(); K.glow(c, e[0], e[1], sc * 0.18, P.yel, 0.7); }
-    const m = Q(0.54, 0); H.core(c, m[0], m[1], sc * 0.14, P.yel, P.wht, 0.85); c.restore();
+    const pr = p => [p[0], p[1] - p[2]], GZ = -sc * 0.42;   // the floor sits this far below the spine
+    // the frame at every spine point: forward along the spine, side banked by the turn, up
+    const F = [], Sd = [], Up = [], W = [], Hh = [];
+    for (let i = 0; i < n; i++) { const p0 = pts[Math.max(0, i - 1)], p1 = pts[Math.min(n - 1, i + 1)], dx = p1[0] - p0[0], dy = p1[1] - p0[1], d = Math.hypot(dx, dy) || 1, fx = dx / d, fy = dy / d;
+      let turn = 0; if (i > 0 && i < n - 1) { const ax = pts[i][0] - pts[i - 1][0], ay = pts[i][1] - pts[i - 1][1], bx = pts[i + 1][0] - pts[i][0], by = pts[i + 1][1] - pts[i][1]; turn = Math.atan2(ax * by - ay * bx, ax * bx + ay * by); }
+      const bk = cl(turn * 1.4, -0.45, 0.45) + Math.sin(step * 0.5 + i * 0.4) * 0.08, cb = Math.cos(bk), sb = Math.sin(bk), s0 = [-fy, fx, 0];
+      F.push([fx, fy, 0]); Sd.push([s0[0] * cb, s0[1] * cb, sb]); Up.push([-s0[0] * sb, -s0[1] * sb, cb]);
+      const u = i / (n - 1), w = sc * (0.07 + 0.42 * Math.sin(Math.min(1, u * 1.35) * Math.PI / 2)) * (u > 0.78 ? 1 - 0.28 * Math.sin((u - 0.78) / 0.22 * Math.PI) : 1); W.push(w); Hh.push(w * 0.85); }
+    const at = (i, s, u, f) => { const p = pts[i]; f = f || 0; return [p[0] + Sd[i][0] * s + Up[i][0] * u + F[i][0] * f, p[1] + Sd[i][1] * s + Up[i][1] * u + F[i][1] * f, Sd[i][2] * s + Up[i][2] * u]; };
+    const rings = []; for (let i = 0; i < n; i++) rings.push(RING.map(([s, u]) => at(i, s * W[i], u * Hh[i])));
+    const faces = [], face = (q, kind, i, extra, ref) => { let nn = v3.norm(v3.cross(v3.sub(q[1], q[0]), v3.sub(q[q.length - 1], q[0]))); const ce = q.reduce((s, p) => [s[0] + p[0] / q.length, s[1] + p[1] / q.length, s[2] + p[2] / q.length], [0, 0, 0]), rp = ref || [pts[Math.max(0, i)][0], pts[Math.max(0, i)][1], 0]; if (v3.dot(nn, v3.sub(ce, rp)) < 0) nn = [-nn[0], -nn[1], -nn[2]]; if (v3.dot(nn, SV) <= 0.02) return; let dp = 0; for (const p of q) dp += p[1] + p[2]; faces.push(Object.assign({ q, kind, i, nn, dp: dp / q.length, lit: Math.max(0, v3.dot(nn, SL)) }, extra || {})); };
+    // the body bands (outward normals: ring order runs clockwise seen from the tail, so (next ring - this) x (next vertex - this))
+    for (let i = 0; i < n - 1; i++) for (let k = 0; k < 6; k++) { const k2 = (k + 1) % 6, A = rings[i][k], B = rings[i][k2], C2 = rings[i + 1][k2], D = rings[i + 1][k]; face([A, D, C2, B], KIND[k], i, { seam: [A, B], ridge: k === 0 ? [A, D] : null, lon: k === 0 ? [B, C2] : k === 5 ? [A, D] : null }); }
+    // the blade tail: the first ring closes on a point trailing back
+    const tp = at(0, 0, Hh[0] * 0.2, -sc * 0.45), tc = at(0, 0, 0, -sc * 0.1); for (let k = 0; k < 6; k++) { const k2 = (k + 1) % 6; face([tp, rings[0][k], rings[0][k2]], KIND[k], -1, null, tc); }
+    // the wedge head: the last ring runs into a snout, the brow raised
+    const hi = n - 1, tip = at(hi, 0, Hh[hi] * 0.05, sc * 0.62), brow = at(hi, 0, Hh[hi] * 1.15, sc * 0.18), hc = at(hi, 0, 0, sc * 0.2);
+    for (let k = 0; k < 6; k++) { const k2 = (k + 1) % 6, A = rings[hi][k], B = rings[hi][k2]; if (k === 0) { face([A, brow, tip], 'plate', hi, { head: 1 }, hc); } else if (k === 5) { face([brow, B, tip], 'plate', hi, { head: 1 }, hc); } else face([B, A, tip], KIND[k], hi, { head: 1 }, hc); }
+    // crystal spikes along the back: two faces each, lit and shaded, meeting on a bright edge
+    const spikes = []; for (const u of [0.32, 0.5, 0.66]) { const i = Math.round((n - 1) * u), h = sc * (0.24 + 0.12 * u), base = at(i, 0, Hh[i] * 0.95), apex = at(i, 0, Hh[i] * 0.95 + h, -h * 0.55), bl = at(i, -W[i] * 0.42, Hh[i] * 0.65, -sc * 0.08), br = at(i, W[i] * 0.42, Hh[i] * 0.65, -sc * 0.08), bf = at(i, 0, Hh[i] * 0.85, sc * 0.16);
+      const sr = [(bl[0] + br[0] + bf[0]) / 3, (bl[1] + br[1] + bf[1]) / 3, (bl[2] + br[2] + bf[2]) / 3]; face([bl, apex, bf], 'spike', i, { edge: [apex, bf] }, sr); face([bf, apex, br], 'spike', i, { edge: [apex, bf] }, sr); face([br, apex, bl], 'spike', i, { edge: [apex, bl] }, sr); spikes.push({ apex, i, h }); }
+    // legs: hip at the flank, knee raised and out, foot on the floor, stepping with the gait
+    const legs = []; for (const li of [Math.round((n - 1) * 0.4), Math.round((n - 1) * 0.74)]) for (const sd of [-1, 1]) { const ph = step + (li > n / 2 ? 0 : Math.PI) + (sd > 0 ? Math.PI : 0), sw = Math.sin(ph), lift = Math.max(0, Math.cos(ph));
+      const hip = at(li, sd * W[li] * 0.75, -Hh[li] * 0.1), knee = at(li, sd * (W[li] + sc * 0.26), -sc * 0.02 + lift * sc * 0.1, sw * sc * 0.12 + sc * 0.06), foot = at(li, sd * (W[li] + sc * 0.3), 0, sw * sc * 0.28 - sc * 0.04); foot[2] = GZ + lift * sc * 0.18;
+      legs.push({ hip, knee, foot, sd, li, far: (Sd[li][1] + Sd[li][2]) * sd < 0, lift }); }
+    const P2 = p => pr(p), poly = q => { c.beginPath(); q.forEach((p, j) => { const s = P2(p); j ? c.lineTo(s[0], s[1]) : c.moveTo(s[0], s[1]); }); c.closePath(); };
+    // a jointed crystal limb: two faceted bars (lit and shaded halves), a molten knee, claw shards
+    const leg = L => { const seg = (A, B, w) => { const a2 = P2(A), b2 = P2(B), dx = b2[0] - a2[0], dy = b2[1] - a2[1], d = Math.hypot(dx, dy) || 1, nx = -dy / d * w, ny = dx / d * w, lt = nx * SL[0] + ny * SL[1] < 0;
+        c.beginPath(); c.moveTo(a2[0] + nx, a2[1] + ny); c.lineTo(b2[0] + nx * 0.6, b2[1] + ny * 0.6); c.lineTo(b2[0], b2[1]); c.lineTo(a2[0], a2[1]); c.closePath(); c.fillStyle = lt ? '#D0602E' : '#4A1408'; c.fill();
+        c.beginPath(); c.moveTo(a2[0] - nx, a2[1] - ny); c.lineTo(b2[0] - nx * 0.6, b2[1] - ny * 0.6); c.lineTo(b2[0], b2[1]); c.lineTo(a2[0], a2[1]); c.closePath(); c.fillStyle = lt ? '#4A1408' : '#D0602E'; c.fill();
+        c.beginPath(); c.moveTo(a2[0] + nx, a2[1] + ny); c.lineTo(b2[0] + nx * 0.6, b2[1] + ny * 0.6); c.lineTo(b2[0] - nx * 0.6, b2[1] - ny * 0.6); c.lineTo(a2[0] - nx, a2[1] - ny); c.closePath(); c.strokeStyle = P.char; c.lineWidth = 1.2; c.stroke();
+        c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = H.rgba(P.amb, 0.85); c.lineWidth = Math.max(1, w * 0.35); c.beginPath(); c.moveTo(a2[0], a2[1]); c.lineTo(b2[0], b2[1]); c.stroke(); c.restore(); };
+      seg(L.hip, L.knee, sc * 0.13); seg(L.knee, L.foot, sc * 0.1); const k2 = P2(L.knee), f2 = P2(L.foot); H.core(c, k2[0], k2[1], sc * 0.07, P.org, P.yel, 0.9);
+      const fd = F[L.li], s2 = Sd[L.li]; for (let j = -1; j <= 1; j++) { const cx = L.foot[0] + fd[0] * sc * 0.16 + s2[0] * j * sc * 0.09, cy = L.foot[1] + fd[1] * sc * 0.16 + s2[1] * j * sc * 0.09, tip2 = [cx, cy - L.foot[2]], bx = f2[0] + s2[0] * j * sc * 0.04, by = f2[1] + s2[1] * j * sc * 0.04, px = -fd[1] * sc * 0.025, py = fd[0] * sc * 0.025;
+        c.beginPath(); c.moveTo(bx + px, by + py); c.lineTo(tip2[0], tip2[1]); c.lineTo(bx - px, by - py); c.closePath(); c.fillStyle = P.gold; c.fill(); c.strokeStyle = P.char; c.lineWidth = 0.8; c.stroke(); } };
+    // light round the body and the trailing flame ribbon off the tail blade
+    for (let i = 1; i < n; i += 3) { K.glow(c, pts[i][0], pts[i][1] - Hh[i] * 0.2, sc * 1.0, P.org, 0.35); K.glow(c, pts[i][0], pts[i][1], sc * 0.45, P.yel, 0.25); }
+    const t2 = pr(tp), rib = [t2]; for (let j = 1; j <= 4; j++) rib.unshift([t2[0] - F[0][0] * sc * 0.28 * j + Sd[0][0] * Math.sin(t * 14 + j + seed) * sc * 0.08 * j, t2[1] - F[0][1] * sc * 0.28 * j + Sd[0][1] * Math.sin(t * 14 + j + seed) * sc * 0.08 * j - j * sc * 0.04]);
+    c.save(); c.globalCompositeOperation = 'lighter'; const tw = q => 0.15 + 0.85 * q; H.ribbon(c, rib, sc * 0.3, H.rgba(P.red, 0.6), null, tw); H.ribbon(c, rib, sc * 0.2, H.rgba(P.org, 0.8), null, tw); H.ribbon(c, rib, sc * 0.08, H.rgba(P.yel, 0.9), null, tw); c.restore();
+    K.flameAt(c, t2[0], t2[1], Math.atan2(-F[0][1], -F[0][0]) - 0.25, sc * 0.3, sc * (0.75 + 0.2 * Math.sin(t * 13 + seed)), t, seed + 9, 0.9);
+    for (const L of legs) if (L.far) leg(L);
+    // the faces, back to front
+    faces.sort((p, q) => p.dp - q.dp);
+    for (const f of faces) { const d = f.lit, band = f.i >= 0 && f.i % 2 ? 0.88 : 1; let fill;
+      if (f.kind === 'plate') fill = H.mix('#2E0A06', '#D0603A', Math.min(1, 0.1 + d * 1.1) * band);
+      else if (f.kind === 'flank') fill = H.mix(P.red, P.yel, 0.1 + 0.9 * d);
+      else if (f.kind === 'belly') fill = H.mix(P.org, P.wht, 0.35 + 0.65 * d);
+      else fill = H.mix('#8A2A14', '#FFD08A', 0.25 + 0.75 * d);
+      poly(f.q); c.fillStyle = fill; c.fill(); c.strokeStyle = H.rgba(P.char, 0.9); c.lineWidth = 1; c.stroke();
+      c.save(); c.globalCompositeOperation = 'lighter';
+      if (f.kind === 'plate') { c.strokeStyle = H.rgba(P.amb, 0.12 + 0.35 * d); c.lineWidth = 1; poly(f.q); c.stroke(); }
+      if (f.kind === 'plate' && d > 0.55 && f.q.length === 4) { const q = f.q.map(P2), cx = (q[0][0] + q[1][0] + q[2][0] + q[3][0]) / 4, cy = (q[0][1] + q[1][1] + q[2][1] + q[3][1]) / 4; c.strokeStyle = H.rgba(P.wht, (d - 0.55) * 1.4); c.lineWidth = 1.2; c.beginPath(); c.moveTo(cx + (q[0][0] - q[1][0]) * 0.3, cy + (q[0][1] - q[1][1]) * 0.3); c.lineTo(cx - (q[0][0] - q[1][0]) * 0.3, cy - (q[0][1] - q[1][1]) * 0.3); c.stroke(); }
+      if (f.lon) { const a2 = P2(f.lon[0]), b2 = P2(f.lon[1]); c.strokeStyle = H.rgba(P.org, 0.9); c.lineWidth = Math.max(1.5, sc * 0.06); c.beginPath(); c.moveTo(a2[0], a2[1]); c.lineTo(b2[0], b2[1]); c.stroke(); }
+      if (f.seam && f.kind !== 'belly' && f.i % 2 === 0) { const a2 = P2(f.seam[0]), b2 = P2(f.seam[1]), k = 0.6 + 0.4 * Math.sin(t * 11 + f.i * 1.7 + seed); c.strokeStyle = H.rgba(f.kind === 'plate' ? P.org : P.yel, 0.95 * k); c.lineWidth = Math.max(1.5, sc * 0.07); c.beginPath(); c.moveTo(a2[0], a2[1]); c.lineTo(b2[0], b2[1]); c.stroke(); }
+      if (f.ridge) { const a2 = P2(f.ridge[0]), b2 = P2(f.ridge[1]), gl = Math.max(0, Math.cos(f.i * 0.8 - t * 9 + seed)); c.strokeStyle = H.rgba(gl > 0.85 ? P.wht : P.yel, 0.45 + 0.5 * gl); c.lineWidth = 1.2 + gl; c.beginPath(); c.moveTo(a2[0], a2[1]); c.lineTo(b2[0], b2[1]); c.stroke(); }
+      if (f.edge) { const a2 = P2(f.edge[0]), b2 = P2(f.edge[1]); c.strokeStyle = H.rgba(P.wht, 0.8); c.lineWidth = 1.2; c.beginPath(); c.moveTo(a2[0], a2[1]); c.lineTo(b2[0], b2[1]); c.stroke(); }
+      if (f.kind === 'belly') { const m = f.q.reduce((s, p) => [s[0] + p[0] / f.q.length, s[1] + p[1] / f.q.length, s[2] + p[2] / f.q.length], [0, 0, 0]), m2 = P2(m); K.glow(c, m2[0], m2[1], sc * 0.25, P.yel, 0.35); }
+      c.restore(); }
+    // the head's details: white-hot slit eyes on the visible side(s), a glowing jaw line, a hot mouth
+    c.save(); c.globalCompositeOperation = 'lighter';
+    for (const sd of [-1, 1]) { const vis = (Sd[hi][1] + Sd[hi][2]) * sd; if (vis < -0.25) continue; const e1 = P2(at(hi, sd * W[hi] * 0.52, Hh[hi] * 0.48, sc * 0.08)), e2 = P2(at(hi, sd * W[hi] * 0.36, Hh[hi] * 0.42, sc * 0.3)), j1 = P2(at(hi, sd * W[hi] * 0.78, -Hh[hi] * 0.15, -sc * 0.02)), j2 = P2(at(hi, sd * W[hi] * 0.12, -Hh[hi] * 0.05, sc * 0.56));
+      K.glow(c, (e1[0] + e2[0]) / 2, (e1[1] + e2[1]) / 2, sc * 0.22, P.yel, 0.7); c.strokeStyle = P.wht; c.lineWidth = Math.max(1.5, sc * 0.06); c.beginPath(); c.moveTo(e1[0], e1[1]); c.lineTo(e2[0], e2[1]); c.stroke();
+      c.strokeStyle = H.rgba(P.amb, 0.9); c.lineWidth = Math.max(1, sc * 0.035); c.beginPath(); c.moveTo(j1[0], j1[1]); c.lineTo(j2[0], j2[1]); c.stroke(); }
+    const m2 = pr(tip); H.core(c, m2[0], m2[1], sc * 0.1, P.yel, P.wht, 0.8); c.restore();
+    for (const L of legs) if (!L.far) leg(L);
+    // short flames streaming back off the spike tips
+    for (const s of spikes) { const a2 = pr(s.apex), back = Math.atan2(-F[s.i][1], -F[s.i][0]); K.flameAt(c, a2[0], a2[1] + s.h * 0.15, back * 0.35 - Math.PI / 2 * 0.65, sc * 0.22, sc * (0.5 + 0.15 * Math.sin(t * 12 + s.i)), t, s.i * 2.1 + seed, 0.9); }
     c.restore();
   }
   /* a five-pointed glint (the "star" of a matchstar) */
@@ -184,7 +225,7 @@
         // the scorched track each salamander has run
         for (let i = 0; i < NS; i++) { const dh = cl((tt - i * 0.12) / DUR, 0, 1) * Lm; if (dh <= 0.1) continue; const pts = []; for (let s = 0; s <= 14; s++) { const [x, y] = at(dh * s / 14, i); pts.push([H.sx(x), H.sy(y)]); }
           c.save(); c.globalAlpha = 0.55 * k; H.ribbon(c, pts, T * 0.32, H.rgba(P.char, 0.6), null, u => 0.4 + 0.6 * u); c.globalCompositeOperation = 'lighter'; H.ribbon(c, pts, T * 0.12, H.rgba(P.org, 0.7), null, u => u * u); c.restore();
-          if (dh < Lm) { const [hx, hy] = at(dh, i); K.floorLight(c, H.sx(hx), H.sy(hy), T * 1.3, 0.55); H.softShadow(c, H.sx(hx), H.sy(hy), T * 0.5, 0.25); } }
+          if (dh < Lm) { const [hx, hy] = at(dh, i), [mx, my] = at(Math.max(0, dh - 0.55), i), [qx, qy] = at(Math.max(0, dh - 1.0), i); K.floorLight(c, H.sx(hx), H.sy(hy), T * 1.3, 0.55); H.softShadow(c, H.sx(hx), H.sy(hy), T * 0.45, 0.25); H.softShadow(c, H.sx(mx), H.sy(my), T * 0.42, 0.22); H.softShadow(c, H.sx(qx), H.sy(qy), T * 0.3, 0.16); } }
         if (st.boom) { const age = f.t - st.bt, bx = H.sx(ex), by = H.sy(ey); K.scorch(c, bx, by, T * BR * 0.85, k, Math.max(0, 1 - age / 1.0), 3); if (age < 0.35) K.shockRing(c, bx, by, T * BR * (0.3 + 0.9 * H.ease.out(age / 0.35)), 1 - age / 0.35); }
         else if (tt > DUR) K.floorLight(c, H.sx(ex), H.sy(ey), T * BR, 0.4 + 0.4 * cl((tt - DUR) / COIL, 0, 1)); },
       draw(c, f, X, Y, T, t) { const tt = f.t - WIND, sc = T * (0.6 + 0.015 * ev);
