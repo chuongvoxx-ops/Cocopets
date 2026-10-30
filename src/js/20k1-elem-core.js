@@ -11,6 +11,8 @@
 const ELEM_STRONG_LV = [1, 1, 3, 6, 10, 15, 20, 30, 40, 50], ELEM_ULT_LV = [1, 5, 10, 15, 20, 30, 40, 50, 60, 75];
 /* an elemental Ultimate's new name at Celestial (stage 7), where it has one */
 const ELEM_ULT_PLUS = { armageddon: 'Super Armageddon' };
+/* elemental Strong attacks hit three times as hard as first built (the user found them weak) */
+const ELEM_STRONG_MULT = 3;
 const ELEM_ULT_STARS = 5;
 /* an element's name as the ELEMENTS (ability) key its hits carry, so the reactions read them as that element */
 const ELEM_AB = { wind: 'wind', fire: 'fire', ice: 'ice', water: 'water', thunder: 'thunder', earth: 'earth', dark: 'dark', light: 'light' };
@@ -214,7 +216,7 @@ function elemLock(mv, p) {
 /* the ability an elemental move is in a pet's kit (like innateAbility / cardAbility) */
 function elemAbility(mv, slot, p) {
   const grow = 1 + 0.05 * (((p && p.stage) || 1) - 1), stars = p ? petStars(p) : 3, sm = mv.slot === 'ult' ? (stars >= 6 ? 1.5 : 1.25) : (stars >= 6 ? 1.5 : stars >= 5 ? 1.25 : stars >= 4 ? 1.1 : 1);
-  return { slot: slot || mv.slot, own: true, elem: true, id: elemId(mv.el, mv.key), key: (mv.slot === 'ult' ? 'ey_' : 'ex_') + mv.key, name: mv.name, glyph: mv.glyph, el: ELEM_AB[mv.el], e8: mv.el, mult: grow * sm, cost: mv.cost, cd: mv.cd, desc: mv.desc, lv: mv.lv, star: stars, evo: (p && p.stage) || 1 };
+  return { slot: slot || mv.slot, own: true, elem: true, id: elemId(mv.el, mv.key), key: (mv.slot === 'ult' ? 'ey_' : 'ex_') + mv.key, name: mv.name, glyph: mv.glyph, el: ELEM_AB[mv.el], e8: mv.el, mult: grow * sm * (mv.slot === 'strong' ? ELEM_STRONG_MULT : 1), cost: mv.cost, cd: mv.cd, desc: mv.desc, lv: mv.lv, star: stars, evo: (p && p.stage) || 1 };
 }
 const elemMovesFor = (p, slot) => Object.values(ELEM_LIST[petElement(p)] || {}).filter(m => m.slot === slot);
 
