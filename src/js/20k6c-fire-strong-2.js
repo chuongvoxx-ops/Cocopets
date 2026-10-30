@@ -1,6 +1,6 @@
-/* ---------- Fire, reworked: Firewheel Skip, Candlewick Chain, Salamander Rush, Hearthburst, Falling Matchstars ----------
+/* ---------- Fire, reworked: Firewheel Skip, Burning Mandala, Salamander Rush, Hearthburst, Falling Matchstars ----------
    Spike Bloom standard (see 20k6a-fire-kit.js): flames are FK volumes; solid fire (the wheel rim, the salamander's hide,
-   the hearth stones, the match heads) is shaded in tone ramps with a dark crust, glowing seams, a rim light and an
+   the match heads) is shaded in tone ramps with a dark crust, glowing seams, a rim light and an
    outline; every burning thing lights the floor and sheds embers; every contact leaves a scorch. Loads after
    20k6-elem-fire.js and replaces these five Strong attacks. */
 (() => {
@@ -102,7 +102,7 @@
     // the faces, back to front
     faces.sort((p, q) => p.dp - q.dp);
     for (const f of faces) { const d = f.lit, band = f.i >= 0 && f.i % 2 ? 0.88 : 1; let fill;
-      if (f.kind === 'plate') fill = H.mix('#2E0A06', '#D0603A', Math.min(1, 0.1 + d * 1.1) * band);
+      if (f.kind === 'plate') fill = H.mix('#4A140C', '#E8784A', Math.min(1, 0.15 + d * 1.1) * band);
       else if (f.kind === 'flank') fill = H.mix(P.red, P.yel, 0.1 + 0.9 * d);
       else if (f.kind === 'belly') fill = H.mix(P.org, P.wht, 0.35 + 0.65 * d);
       else fill = H.mix('#8A2A14', '#FFD08A', 0.25 + 0.75 * d);
@@ -129,12 +129,6 @@
   }
   /* a five-pointed glint (the "star" of a matchstar) */
   function glint(c, H, x, y, r, rot, col, a) { if (r < 1 || a <= 0.01) return; c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = a; c.fillStyle = col; c.beginPath(); for (let i = 0; i < 10; i++) { const b = rot + i / 10 * TAU - Math.PI / 2, rr = i % 2 ? r * 0.28 : r; i ? c.lineTo(x + Math.cos(b) * rr, y + Math.sin(b) * rr) : c.moveTo(x + Math.cos(b) * rr, y + Math.sin(b) * rr); } c.closePath(); c.fill(); c.strokeStyle = 'rgba(255,255,255,.9)'; c.lineWidth = 1; c.beginPath(); c.moveTo(x - r * 1.6, y); c.lineTo(x + r * 1.6, y); c.moveTo(x, y - r * 1.6); c.lineTo(x, y + r * 1.6); c.stroke(); c.restore(); }
-  /* one hearth stone on the floor at (x, y): a lit top face, a shaded front, a glowing seam at its foot */
-  function stone(c, H, K, x, y, w, h, heat, a) { if (h < 0.5 || a <= 0.01) return; const P = K.P; c.save(); c.globalAlpha = a; const top = [[x - w / 2, y - h], [x - w * 0.36, y - h - w * 0.22], [x + w * 0.4, y - h - w * 0.22], [x + w / 2, y - h]];
-    const gf = c.createLinearGradient(x - w / 2, 0, x + w / 2, 0); gf.addColorStop(0, P.crustL); gf.addColorStop(0.5, P.crust); gf.addColorStop(1, P.char); c.fillStyle = gf; c.fillRect(x - w / 2, y - h, w, h);
-    H.poly(c, top); c.fillStyle = H.mix(P.crustL, '#FFB070', 0.25 + 0.4 * heat); c.fill();
-    c.strokeStyle = P.char; c.lineWidth = 1.2; c.strokeRect(x - w / 2, y - h, w, h); H.poly(c, top); c.stroke();
-    c.globalCompositeOperation = 'lighter'; c.strokeStyle = H.rgba(P.org, 0.85 * heat); c.lineWidth = 1.5; c.beginPath(); c.moveTo(x - w * 0.3, y - h * 0.15); c.lineTo(x - w * 0.05, y - h * 0.55); c.lineTo(x + w * 0.2, y - h * 0.3); c.stroke(); c.strokeStyle = H.rgba(P.yel, 0.8 * heat); c.beginPath(); c.moveTo(x - w / 2, y); c.lineTo(x + w / 2, y); c.stroke(); c.restore(); }
 
   /* F-S06 Firewheel Skip: wheels of fire spin up beside you and skip along the aim in a fan, each contact printing a burnt
      ring; the last bounce breaks each wheel into rolling coals that cool.
@@ -166,120 +160,154 @@
           if (tt > 0 && f.hist.length > 2) H.trail(c, f.hist.map(p => [H.sx(p[0]), H.sy(p[1]) - T * (rk + p[2])]), r * 1.1, P.org, P.yel);
           wheel(c, H, K, X, cy, r * gs, f.rot, t, f.seed, nb, Math.min(1, gs + 0.2), dir); } }); } };
 
-  /* F-S07 Candlewick Chain: a match flares above you, then a burning wick races from monster to monster; the flame runs
-     along a sagging cord that chars and crumbles behind it, and every monster it reaches is crowned by a candle-flare.
-     Evolution: 5 links at Hatchling to 8 at Celestial with a longer reach (damage per link normalised so the total grows by
-     FK.evoK); at Celestial the whole chain re-lights at once for a final flare. */
-  S.candlewick = (C, H) => { const K = FK.bind(H), P = K.P, me = H.me, ev = K.evo(C), NL = K.evoN(C, 5, 8), REACH = 4 + (ev - 1) / 6, fin = ev >= 7, LEAD = 0.16, GAP = 0.16, RUN = 0.14, BURN = 0.35, links = [];
-    let from = { x: me.x, y: me.y, m: null, src: true }, cur = H.X.nearestMon(C.tx, C.ty, 3.5) || H.X.nearestMon(me.x, me.y, 8, null, true); const done = new Set();
-    for (let j = 0; j < NL; j++) { const to = cur ? { x: cur.x, y: cur.y, m: cur } : (j === 0 ? { x: C.tx, y: C.ty, m: null } : null); if (!to) break; links.push({ from, to, t0: LEAD + j * GAP }); if (cur) done.add(cur); from = to; cur = cur ? H.X.nearestMon(cur.x, cur.y, REACH, done) : null; }
-    const wts = links.map((l, j) => Math.pow(0.92, j) * (fin ? 1.3 : 1)), old = [0, 1, 2, 3, 4].reduce((s, j) => s + Math.pow(0.92, j), 0), per = C.base * C.K * old * K.evoK(C) / Math.max(old, wts.reduce((s, w) => s + w, 0));
-    const pos = e => (e.m && !e.m.dead ? [e.m.x, e.m.y] : [e.x, e.y]), FIN = LEAD + links.length * GAP + 0.3;
-    const scr = (e, T) => { const [x, y] = pos(e); return e.src ? [H.sx(x), H.sy(y) - T * 1.3] : [H.sx(x), H.sy(y) - T * 0.8]; };
+  /* F-S07 Burning Mandala: a blazing mandala unfolds upright behind you (rings of sigil segments, petals of flame and a
+     star of glowing lines, each turning at its own speed, embers drifting off), and you fire small glowing hoops of fire
+     from round it in quick succession; they home gently onto the nearest monsters and burst in a ring flare.
+     Evolution: 8 hoops at stages 1-3, 12 from Adept (stage 4), 18 at Celestial, the damage split between them; the
+     mandala grows, gains a second ring of sigils from Adept and a third ring of flame petals and a crown at Celestial. */
+  delete S.candlewick;
+  function hoop(c, H, K, x, y, r, ang, spin, t, a) { const P = K.P; if (a <= 0.01) return; K.glow(c, x, y, r * 3, P.org, 0.55 * a); c.save(); c.globalAlpha = a; c.translate(x, y); c.rotate(ang);
+    c.lineCap = 'round'; c.strokeStyle = H.rgba(P.red, 0.75); c.lineWidth = Math.max(2, r * 0.55); c.beginPath(); c.ellipse(0, 0, r * 0.55, r, 0, 0, TAU); c.stroke();
+    c.globalCompositeOperation = 'lighter'; c.strokeStyle = H.rgba(P.org, 0.95); c.lineWidth = Math.max(1.5, r * 0.32); c.stroke(); c.strokeStyle = H.rgba(P.yel, 0.95); c.lineWidth = Math.max(1, r * 0.16); c.stroke(); c.strokeStyle = P.wht; c.lineWidth = 1; c.stroke();
+    // tufts of flame licking back off the rim
+    for (let i = 0; i < 5; i++) { const b = spin + i / 5 * TAU, ex = Math.cos(b) * r * 0.55, ey = Math.sin(b) * r, l = r * (0.55 + 0.25 * Math.sin(t * 17 + i * 2.3)); c.strokeStyle = H.rgba(i % 2 ? P.amb : P.org, 0.85); c.lineWidth = Math.max(1.5, r * 0.22); c.beginPath(); c.moveTo(ex, ey); c.quadraticCurveTo(ex - l * 0.6, ey + Math.sin(b) * l * 0.3, ex - l, ey + Math.sin(b + t * 9) * l * 0.25); c.stroke(); }
+    c.restore(); }
+  /* the mandala, upright, centred at (x, y), radius R px, opened by u (0..1), alpha a, tier 1..3 */
+  function mandala(c, H, K, x, y, R, u, a, t, tier, pulse) { const P = K.P; if (a <= 0.01 || R < 2) return; const e = H.ease.out(u);
+    K.glow(c, x, y, R * 2.1, P.org, 0.45 * a); K.glow(c, x, y, R * 0.8, P.yel, (0.15 + 0.25 * pulse) * a);
+    c.save(); c.translate(x, y); c.scale(1, 0.92); c.globalAlpha = a; c.globalCompositeOperation = 'lighter'; c.lineCap = 'round';
+    // petals of flame round the middle (soft teardrops, a red edge and a yellow heart), turning one way
+    const np = tier >= 3 ? 16 : 12, rot1 = t * 0.5;
+    for (let i = 0; i < np; i++) { const b = rot1 + i / np * TAU, r0 = R * 0.42 * e, r1 = R * (0.86 + 0.06 * Math.sin(t * 6 + i)) * e, w = R * 0.13 * e; c.save(); c.rotate(b); const g = c.createLinearGradient(r0, 0, r1, 0); g.addColorStop(0, H.rgba(P.yel, 0.65)); g.addColorStop(0.6, H.rgba(P.org, 0.5)); g.addColorStop(1, H.rgba(P.red, 0)); c.fillStyle = g; c.beginPath(); c.moveTo(r0, 0); c.quadraticCurveTo((r0 + r1) / 2, -w, r1, 0); c.quadraticCurveTo((r0 + r1) / 2, w, r0, 0); c.fill(); c.restore(); }
+    // the outer ring: a double circle of sigil segments with diamond runes in the gaps, turning the other way
+    const ring = (rr, n, sp, lw, col) => { c.strokeStyle = H.rgba(col, 0.9); c.lineWidth = lw; for (let i = 0; i < n; i++) { const b = sp + i / n * TAU, span = TAU / n * 0.72 * Math.min(1, u * 1.6); c.beginPath(); c.arc(0, 0, rr, b, b + span); c.stroke(); const d = b + TAU / n * 0.86, dx = Math.cos(d) * rr, dy = Math.sin(d) * rr, s = lw * 1.6; c.fillStyle = H.rgba(P.wht, 0.9 * e); c.beginPath(); c.moveTo(dx + Math.cos(d) * s, dy + Math.sin(d) * s); c.lineTo(dx - Math.sin(d) * s * 0.6, dy + Math.cos(d) * s * 0.6); c.lineTo(dx - Math.cos(d) * s, dy - Math.sin(d) * s); c.lineTo(dx + Math.sin(d) * s * 0.6, dy - Math.cos(d) * s * 0.6); c.closePath(); c.fill(); } };
+    c.strokeStyle = H.rgba(P.red, 0.5); c.lineWidth = R * 0.1; c.beginPath(); c.arc(0, 0, R * 0.98 * e, 0, TAU); c.stroke();
+    ring(R * 0.98 * e, 12, -t * 0.35, Math.max(1.5, R * 0.035), P.yel); c.strokeStyle = H.rgba(P.amb, 0.6); c.lineWidth = 1; c.beginPath(); c.arc(0, 0, R * 1.06 * e, 0, TAU); c.stroke();
+    if (tier >= 2) ring(R * 0.66 * e, 8, t * 0.7, Math.max(1.2, R * 0.028), P.amb);
+    if (tier >= 3) { c.strokeStyle = H.rgba(P.org, 0.45); c.lineWidth = R * 0.06; c.beginPath(); c.arc(0, 0, R * 1.22 * e, 0, TAU); c.stroke(); ring(R * 1.22 * e, 18, t * 0.22, Math.max(1.2, R * 0.025), P.gold); }
+    // the star of glowing lines in the middle, two triangles counter-turning, spokes out to the ring
+    for (const [sp, col] of [[t * 0.9, P.yel], [-t * 0.6 + Math.PI / 3, P.org]]) { c.strokeStyle = H.rgba(col, 0.85); c.lineWidth = Math.max(1.2, R * 0.025); c.beginPath(); for (let i = 0; i <= 3; i++) { const b = sp + i / 3 * TAU, rr = R * 0.5 * e; i ? c.lineTo(Math.cos(b) * rr, Math.sin(b) * rr) : c.moveTo(Math.cos(b) * rr, Math.sin(b) * rr); } c.stroke(); }
+    c.strokeStyle = H.rgba(P.amb, 0.45); c.lineWidth = 1; for (let i = 0; i < 6; i++) { const b = -t * 0.35 + i / 6 * TAU; c.beginPath(); c.moveTo(Math.cos(b) * R * 0.5 * e, Math.sin(b) * R * 0.5 * e); c.lineTo(Math.cos(b) * R * 0.98 * e, Math.sin(b) * R * 0.98 * e); c.stroke(); }
+    c.strokeStyle = H.rgba(P.wht, 0.7); c.lineWidth = 1.2; c.beginPath(); c.arc(0, 0, R * 0.22 * e, 0, TAU); c.stroke();
+    c.restore();
+    // tongues of real flame standing on the rim (the Celestial crown has more)
+    const nf = tier >= 3 ? 10 : 6; for (let i = 0; i < nf; i++) { const b = -t * 0.35 + i / nf * TAU, fx = x + Math.cos(b) * R * 0.98 * e, fy = y + Math.sin(b) * R * 0.98 * e * 0.92; K.flameAt(c, fx, fy, b, R * 0.13, R * (0.26 + 0.08 * Math.sin(t * 9 + i)) * e, t, i * 1.9, 0.9 * a); }
+    H.core(c, x, y, R * 0.1 * e, P.yel, P.wht, (0.35 + 0.4 * pulse) * a); }
+  S.mandala = (C, H) => { const K = FK.bind(H), P = K.P, me = H.me, ev = K.evo(C), NR = ev >= 7 ? 18 : ev >= 4 ? 12 : 8, tier = ev >= 7 ? 3 : ev >= 4 ? 2 : 1, OPEN = 0.28, FIRE = 0.6, gap = FIRE / NR, RM = 1.1 + 0.08 * (ev - 1), per = C.base * 4.0 * C.K * K.evoK(C) * (ev >= 7 ? 1.08 : 1) / NR;
+    const mx0 = me.x, my0 = me.y, cand = H.sortNear(me.x, me.y).filter(m => Math.hypot(m.x - me.x, m.y - me.y) < 8).slice(0, Math.min(6, NR)), rings = [], flares = [];
     H.X.sfx.hum(); me.sq = 0.7;
-    H.add({ life: FIN + (fin ? 0.9 : 0.7),
-      update(dt, f) { links.forEach(l => { const w = f.t - l.t0 - RUN; if (w > 0 && w < 0.6) { const [x, y] = pos(l.to); K.aura(x, y, 0.3, dt, 9, 0.9); } }); if (f.t < LEAD + 0.1) K.aura(me.x, me.y, 0.15, dt, 10, 1.3); },
-      drawUnder(c, f, X, Y, T, t) { links.forEach(l => { const w = f.t - l.t0 - RUN; if (w <= 0) return; const [x, y] = pos(l.to), k = Math.max(0, 1 - w / 0.9); K.floorLight(c, H.sx(x), H.sy(y), T * 0.9, 0.5 * k); }); if (f.t < LEAD + 0.25) K.floorLight(c, H.sx(me.x), H.sy(me.y), T * 0.8, 0.3); },
+    const F = H.add({ life: 4, pulse: 0, fired: 0,
+      update(dt, f) { f.pulse = Math.max(0, f.pulse - dt * 5); const u = cl(f.t / OPEN, 0, 1);
+        if (!f.endT) { const R = RM * u; for (let k = 0; k < (H.Q() > 0.5 ? 2 : 1); k++) if (Math.random() < dt * 14) { const b = Math.random() * TAU; H.P({ kind: 'ember', x: me.x + Math.cos(b) * R, y: me.y - 0.95 + Math.sin(b) * R * 0.92, vx: Math.cos(b) * 0.8, vy: -1 - Math.random(), g: -0.6, life: 0.7, max: 0.7, size: 2.5 + Math.random() * 1.5, color: Math.random() < 0.5 ? P.yel : P.org }); } }
+        // fire the hoops in quick succession from round the mandala
+        while (f.fired < NR && f.t >= OPEN + f.fired * gap) { const j = f.fired++, b = -Math.PI / 2 + j * 2.39996, m = cand.length ? cand[j % cand.length] : null, sx = me.x + Math.cos(b) * RM * 0.95, z = Math.max(0.25, 0.95 - Math.sin(b) * RM * 0.92), tx = m ? m.x : C.tx + Math.cos(b) * 0.8, ty = m ? m.y : C.ty + Math.sin(b) * 0.8;
+          rings.push({ x: sx, y: me.y + 0.02, z, vx: Math.cos(b) * 5, vy: Math.sin(b) * 2, vz: -Math.sin(b) * 2, m, tx, ty, t: 0, hist: [], spin: j, done: false }); f.pulse = 1; if (j % 2 === 0) H.X.sfx.sparkle && H.X.sfx.sparkle(); }
+        for (const r of rings) { if (r.done) continue; r.t += dt; if (r.m && r.m.dead) { const nm = H.X.nearestMon(r.x, r.y, 5); r.m = nm || null; if (!nm) { r.tx = r.x + r.vx * 0.2; r.ty = r.y + r.vy * 0.2; } }
+          const tx = r.m ? r.m.x : r.tx, ty = r.m ? r.m.y : r.ty, dx = tx - r.x, dy = ty - r.y, d = Math.hypot(dx, dy) || 1, spd = 8.5 + r.t * 6, k = Math.min(1, dt * (3 + r.t * 10));
+          r.vx += (dx / d * spd - r.vx) * k; r.vy += (dy / d * spd - r.vy) * k; r.vz += ((0.5 - r.z) * 6 - r.vz) * k; r.x += r.vx * dt; r.y += r.vy * dt; r.z += r.vz * dt; r.hist.push([r.x, r.y, r.z]); if (r.hist.length > 6) r.hist.shift();
+          if (Math.random() < 0.6 * H.Q()) H.P({ kind: 'spark', x: r.x, y: r.y - r.z, vx: -r.vx * 0.2 + (Math.random() - 0.5) * 2, vy: -r.vy * 0.2 - Math.random() * 2, g: 6, life: 0.3, max: 0.3, size: 1.8, color: Math.random() < 0.5 ? P.yel : P.wht });
+          if (d < 0.45 || r.t > 1.4) { r.done = true; if (r.m && !r.m.dead && d < 0.8) H.X.hitMon(r.m, per, C.dmgO({ burn: 1, kb: 0.6 })); else H.hitArea(r.x, r.y, 0.6, per, C.dmgO({ burn: 1, kb: 0.6 })); flares.push({ x: r.x, y: r.y, t: 0 }); K.sparks(r.x, r.y - 0.5, 5, 5); K.embers(r.x, r.y - 0.5, 3); H.X.light(r.x, r.y, 1.2, 0.15); } }
+        for (const fl of flares) fl.t += dt;
+        if (!f.endT && f.fired >= NR && rings.every(r => r.done)) { f.endT = f.t; f.life = 0.55; } },
+      drawUnder(c, f, X, Y, T, t) { const u = cl(f.t / OPEN, 0, 1), a = f.endT ? Math.max(0, f.life / 0.55) : 1, px = H.sx(me.x), py = H.sy(me.y);
+        K.floorLight(c, px, py, T * RM * 1.6, 0.5 * a * u);
+        mandala(c, H, K, px, py - T * 0.95, T * RM, u, a, t, tier, f.pulse);
+        for (const fl of flares) { if (fl.t > 0.35) continue; const k = 1 - fl.t / 0.35; K.shockRing(c, H.sx(fl.x), H.sy(fl.y), T * (0.2 + 0.6 * H.ease.out(fl.t / 0.35)), k); } },
       draw(c, f, X, Y, T, t) {
-        // the match: a flare above your head, gathering then sending the flame off
-        if (f.t < LEAD + 0.3) { const [sx, sy] = scr({ x: me.x, y: me.y, src: true }, T), u = Math.min(1, f.t / LEAD), k = f.t < LEAD ? 1 : 1 - (f.t - LEAD) / 0.3; K.flame(c, sx, sy + T * 0.12, T * 0.18 * u, T * 0.5 * u * k + 1, t, 4.2, 0, k); H.core(c, sx, sy, T * 0.12 * u, P.yel, P.wht, 0.9 * k); glint(c, H, sx, sy, T * 0.2 * u * k, t * 2, P.yel, 0.7 * k); }
-        links.forEach((l, j) => { const u = cl((f.t - l.t0) / RUN, 0, 1); if (u <= 0) return; const burn = cl((f.t - l.t0 - RUN) / BURN, 0, 1), ka = 1 - cl((f.t - l.t0 - RUN - BURN) / 0.45, 0, 1), [x0, y0] = scr(l.from, T), [x1, y1] = scr(l.to, T), sag = Math.min(T * 0.6, Math.hypot(x1 - x0, y1 - y0) * 0.12);
-          const at = s => [x0 + (x1 - x0) * s + Math.sin(s * 13 + j) * T * 0.03, y0 + (y1 - y0) * s + Math.sin(s * Math.PI) * sag];
-          // the charred cord left behind the flame, glowing then crumbling
-          if (burn > 0 && ka > 0) { c.save(); c.globalAlpha = ka; c.lineCap = 'round'; const cp = []; for (let i = 0; i <= 10; i++) cp.push(at(burn * i / 10)); H.ribbon(c, cp, T * 0.07, P.char); c.globalCompositeOperation = 'lighter'; for (let i = 1; i < cp.length; i += 2) { const fl = 0.5 + 0.5 * Math.sin(t * 17 + i * 2.7 + j); c.fillStyle = H.rgba(i % 4 === 1 ? P.org : P.amb, 0.8 * fl * ka); c.beginPath(); c.arc(cp[i][0], cp[i][1], Math.max(1, T * 0.03), 0, TAU); c.fill(); } c.restore();
-            if (ka < 1 && Math.random() < 0.3 * H.Q()) { const s = Math.random() * burn, [fx, fy] = pos(l.from), [ex, ey] = pos(l.to); H.P({ kind: 'shard', x: fx + (ex - fx) * s, y: fy + (ey - fy) * s - 0.8, vx: (Math.random() - 0.5), vy: 0, g: 6, life: 0.4, max: 0.4, size: 2, color: P.char }); } }
-          // the burning stretch between the burn front and the racing head
-          if (u > burn + 0.02) { const pts = []; for (let i = 0; i <= 6; i++) pts.push(at(burn + (u - burn) * i / 6)); K.ribbon(c, pts, T * 0.17, t, 1, s => 0.45 + 0.55 * s, j * 3); const tail = pts[0]; if (burn > 0) { K.glow(c, tail[0], tail[1], T * 0.35, P.yel, 0.6); if (Math.random() < 0.4 * H.Q()) { const [fx, fy] = pos(l.from), [ex, ey] = pos(l.to); K.smoke(fx + (ex - fx) * burn, fy + (ey - fy) * burn - 0.8, 1, 0.1); } } }
-          if (u < 1) { const [hx, hy] = at(u); K.fireball(c, hx, hy, T * 0.13, t, j * 2, 1, Math.atan2(y0 - y1, x0 - x1)); glint(c, H, hx, hy, T * 0.16, t * 4 + j, P.yel, 0.8); }
-          // the candle-flare at the contact: a black wick curl crowned with a tall flame; it flares on contact and again in the Celestial finale
-          const w = f.t - l.t0 - RUN; if (w > 0) { const wl = 0.7, rel = fin ? f.t - FIN : -1, k = rel > 0 ? Math.max(0, 1 - rel / 0.6) : Math.max(0, 1 - w / wl), fl = rel > 0 ? 1.6 * Math.min(1, rel / 0.06) : 1 + 0.6 * Math.max(0, 1 - w / 0.1); if (k > 0) { const bx = x1, by = y1 - T * 0.05;
-            c.save(); c.strokeStyle = P.char; c.lineWidth = Math.max(1.5, T * 0.04); c.lineCap = 'round'; c.beginPath(); c.moveTo(bx, by + T * 0.1); c.quadraticCurveTo(bx + T * 0.06, by, bx + T * 0.02, by - T * 0.08); c.stroke(); c.restore();
-            K.flame(c, bx + T * 0.02, by - T * 0.04, T * 0.3 * (0.7 + 0.3 * k), T * (0.95 * fl) * (0.6 + 0.4 * k) * Math.min(1, w / 0.05), t, j * 3.3, Math.sin(t * 7 + j) * T * 0.06, Math.min(1, k * 1.5)); H.core(c, bx + T * 0.02, by - T * 0.12, T * 0.09 * k, P.yel, P.wht, 0.8 * k); } } }); } });
-    links.forEach((l, j) => H.X.after(l.t0 + RUN, () => { const [ex, ey] = pos(l.to), dmg = per * Math.pow(0.92, j); if (l.to.m && !l.to.m.dead) H.X.hitMon(l.to.m, dmg, C.dmgO({ burn: 1, kb: 1 })); else H.hitArea(ex, ey, 1.0, dmg, C.dmgO({ burn: 1, kb: 1 })); H.flareAt(ex, ey - 0.8, 0.8, 0.2, P.yel); K.sparks(ex, ey - 0.6, 7, 4); K.embers(ex, ey - 0.5, 5); H.X.light(ex, ey, 1.6, 0.2); H.X.sfx.sparkle && H.X.sfx.sparkle(); }));
-    if (fin) H.X.after(FIN, () => { links.forEach((l, j) => { const [ex, ey] = pos(l.to), dmg = per * Math.pow(0.92, j) * 0.3; if (l.to.m && !l.to.m.dead) H.X.hitMon(l.to.m, dmg, C.dmgO({ burn: 1 })); else H.hitArea(ex, ey, 1.0, dmg, C.dmgO({ burn: 1 })); K.sparks(ex, ey - 0.8, 5, 5); K.embers(ex, ey - 0.8, 4); }); H.X.flash(0.05, '#FFB066'); H.X.sfx.whoosh(); }); };
+        for (const r of rings) { if (r.done) continue; const sx = H.sx(r.x), sy = H.sy(r.y) - r.z * T, ang = Math.atan2(r.vy - r.vz, r.vx), pts = r.hist.map(p => [H.sx(p[0]), H.sy(p[1]) - p[2] * T]); if (pts.length > 2) H.trail(c, pts, T * 0.14, P.org, P.yel); hoop(c, H, K, sx, sy, T * 0.22, ang, t * 8 + r.spin, t, Math.min(1, r.t / 0.06)); }
+        for (const fl of flares) { if (fl.t > 0.3) continue; const k = 1 - fl.t / 0.3, sx = H.sx(fl.x), sy = H.sy(fl.y) - T * 0.5, rr = T * (0.2 + 0.5 * H.ease.out(fl.t / 0.3)); c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = H.rgba(P.yel, 0.9 * k); c.lineWidth = 3 * k + 1; c.beginPath(); c.ellipse(sx, sy, rr, rr * 0.6, 0, 0, TAU); c.stroke(); c.strokeStyle = H.rgba(P.wht, k); c.lineWidth = 1; c.stroke(); c.restore(); K.glow(c, sx, sy, rr * 1.4, P.org, 0.6 * k); } } });
+    return F; };
 
-  /* F-S08 Salamander Rush: a puff of flame in front of you births a salamander of living fire that darts and weaves along the
-     aim, legs stepping and scattering sparks, scorching a track; at the end it coils into a knot and bursts, leaving a
-     curling tail of smoke.
-     Evolution: 1 salamander at Hatchling, 2 from stage 3, 3 from stage 6 (braided, the damage split), a longer run and a
-     wider burst; at Celestial the burst throws up a ring of flame pillars. */
-  S.salamander = (C, H) => { const K = FK.bind(H), P = K.P, me = H.me, a = C.a, ev = K.evo(C), NS = K.evoN(C, 1, 3), fin = ev >= 7, L = 6 + (ev - 1) / 3, ca = Math.cos(a), sa = Math.sin(a), px = -sa, py = ca, x0 = me.x + ca * 0.7, y0 = me.y + sa * 0.7, WIND = 0.14, BR = 1.7 + 0.1 * (ev - 1), share = C.K * K.evoK(C);
-    let Lm = 0; while (Lm < L && !H.X.blocked(x0 + ca * (Lm + 0.15), y0 + sa * (Lm + 0.15), 0.3, 0)) Lm += 0.15; Lm = Math.max(0.9, Lm);
-    const DUR = 0.85 * Lm / 6, SEG = 0.115, NP = 11, COIL = 0.24, ex = x0 + ca * Lm, ey = y0 + sa * Lm;
-    const AMP = [0.3, 0.8, 0.8], PH = [0, 2.1, 4.2], env = d => cl(Math.min(d / 0.45, (Lm - d) / 0.7), 0, 1);
-    const BASE = [0, 0.5, -0.5], at = (d, i) => { const o = BASE[i] * (1 - d / Lm) + AMP[i] * Math.sin(d * 1.85 + PH[i]) * env(d); return [x0 + ca * d + px * o, y0 + sa * d + py * o]; };
-    H.warnLine(x0, y0, a, Lm + 0.5, NS > 1 ? 2.2 : 1.8, 0.3, C.col); H.X.sfx.whoosh(); me.sq = 0.6;
-    const st = { boom: false, head: 0 }, hits = [new Set(), new Set(), new Set()];
-    H.add({ life: WIND + DUR + 0.12 * (NS - 1) + COIL + 0.85, x: x0, y: y0,
-      update(dt, f) { const tt = f.t - WIND; st.head = tt;
-        if (tt < 0) { K.aura(x0, y0, 0.3, dt, 16, 0.3); return; }
-        for (let i = 0; i < NS; i++) { const d = cl((tt - i * 0.12) / DUR, 0, 1) * Lm; if (d <= 0 || d >= Lm) continue; const [hx, hy] = at(d, i);
-          for (const m of H.near(hx, hy, 0.85)) { if (hits[i].has(m)) continue; hits[i].add(m); H.X.hitMon(m, C.base * 1.1 * share / NS, C.dmgO({ kb: 1, burn: 1 })); K.ignite(m.x, m.y, 0.5); }
-          if (Math.random() < 0.9 * H.Q()) for (const s of [-1, 1]) H.P({ kind: 'spark', x: hx + px * s * 0.3, y: hy + py * s * 0.3, vx: px * s * 3 - ca * 2, vy: py * s * 2 - sa * 1.5 - 1.5, g: 9, life: 0.35, max: 0.35, size: 2, color: s > 0 ? P.yel : P.wht });
-          K.aura(hx, hy, 0.35, dt, 10, 0.3); }
-        const tc = tt - DUR - 0.12 * (NS - 1); if (!st.boom && tc >= COIL) { st.boom = true; st.bt = f.t; H.hitArea(ex, ey, BR, C.base * 1.6 * share, C.dmgO({ kb: 4, burn: 1 })); K.blast(ex, ey, BR, 1.2 + 0.08 * ev); H.X.sfx.crash();
-          for (let i = 0; i < H.n(12); i++) { const b = i / 12 * TAU * 1.3; H.P({ kind: 'smoke', x: ex + Math.cos(b) * 0.3 * (i / 12), y: ey + Math.sin(b) * 0.2 - 0.3 - i * 0.12, vx: Math.cos(b) * 0.7, vy: -1.5 - i * 0.15, life: 1.2, max: 1.2, size: 0.35 + i * 0.03, color: 'rgba(58,38,34,' }); }
-          if (fin) { K.sparks(ex, ey, 14, 9); K.embers(ex, ey, 12, { v: 5 }); H.X.shake(6, 0.2); } }
-        if (st.boom && f.t - st.bt < 0.6) K.aura(ex, ey, BR * 0.6, dt, 20, 0); },
-      drawUnder(c, f, X, Y, T, t) { const tt = f.t - WIND, k = Math.min(1, f.life / 0.6);
-        // the scorched track each salamander has run
-        for (let i = 0; i < NS; i++) { const dh = cl((tt - i * 0.12) / DUR, 0, 1) * Lm; if (dh <= 0.1) continue; const pts = []; for (let s = 0; s <= 14; s++) { const [x, y] = at(dh * s / 14, i); pts.push([H.sx(x), H.sy(y)]); }
-          c.save(); c.globalAlpha = 0.55 * k; H.ribbon(c, pts, T * 0.32, H.rgba(P.char, 0.6), null, u => 0.4 + 0.6 * u); c.globalCompositeOperation = 'lighter'; H.ribbon(c, pts, T * 0.12, H.rgba(P.org, 0.7), null, u => u * u); c.restore();
-          if (dh < Lm) { const [hx, hy] = at(dh, i), [mx, my] = at(Math.max(0, dh - 0.55), i), [qx, qy] = at(Math.max(0, dh - 1.0), i); K.floorLight(c, H.sx(hx), H.sy(hy), T * 1.3, 0.55); H.softShadow(c, H.sx(hx), H.sy(hy), T * 0.45, 0.25); H.softShadow(c, H.sx(mx), H.sy(my), T * 0.42, 0.22); H.softShadow(c, H.sx(qx), H.sy(qy), T * 0.3, 0.16); } }
-        if (st.boom) { const age = f.t - st.bt, bx = H.sx(ex), by = H.sy(ey); K.scorch(c, bx, by, T * BR * 0.85, k, Math.max(0, 1 - age / 1.0), 3); if (age < 0.35) K.shockRing(c, bx, by, T * BR * (0.3 + 0.9 * H.ease.out(age / 0.35)), 1 - age / 0.35); }
-        else if (tt > DUR) K.floorLight(c, H.sx(ex), H.sy(ey), T * BR, 0.4 + 0.4 * cl((tt - DUR) / COIL, 0, 1)); },
-      draw(c, f, X, Y, T, t) { const tt = f.t - WIND, sc = T * (0.6 + 0.015 * ev);
-        if (tt < 0.15) { const u = cl(f.t / WIND, 0, 1), k = tt < 0 ? 1 : 1 - tt / 0.15; K.fireball(c, X, Y - T * 0.25, T * 0.22 * H.ease.back(u), t, 1, k, -Math.PI / 2); }
-        if (tt < 0) return;
-        if (st.boom) { const age = f.t - st.bt; if (fin && age < 0.6) { const u = age / 0.6; K.flameRing(c, H.sx(ex), H.sy(ey), T * BR * (0.7 + 0.2 * u), 10, T * 1.6 * Math.sin(Math.min(1, u * 1.6) * Math.PI * 0.62) * (1 - u * 0.4), t, 1 - u * u, t * 0.4); } if (age < 0.25) K.fireball(c, H.sx(ex), H.sy(ey) - T * 0.4, T * (0.5 + 0.7 * age / 0.25), t, 7, 1 - age / 0.25, -Math.PI / 2); return; }
-        const cx = H.sx(ex), cy = H.sy(ey) - T * 0.25;
-        for (let i = NS - 1; i >= 0; i--) { const ti = tt - i * 0.12; if (ti <= 0) continue; const dh = cl(ti / DUR, 0, 1) * Lm, coil = H.ease.io(cl((ti - DUR) / COIL, 0, 1)), grow = cl(ti / 0.1, 0.25, 1), pts = [];
-          for (let k = NP - 1; k >= 0; k--) { const dd = dh - k * SEG * grow; const [wx, wy] = at(Math.max(0, dd), i), sx = H.sx(wx), sy = H.sy(wy) - T * 0.28; if (coil > 0) { const th = a + Math.PI + k * 0.62 + i * TAU / NS + coil * 2, rr = T * (0.12 + 0.07 * k) * (1 - coil * 0.35); pts.push([sx + (cx + Math.cos(th) * rr - sx) * coil, sy + (cy + Math.sin(th) * rr * 0.7 - k * T * 0.04 * coil - sy) * coil]); } else pts.push([sx, sy]); }
-          salamander(c, H, K, pts, sc * (i ? 0.78 : 1), t, t * 22 + i, 1, i * 5); if (coil > 0) K.glow(c, cx, cy, T * (0.4 + coil), P.yel, 0.5 * coil); } } }); };
+  /* F-S08 Salamander Rush: a puff of flame births salamanders of faceted molten crystal that sprout from round you and
+     dart outward along fanned paths, weaving, legs stepping and scattering sparks, scorching a track; at the end of its
+     run each coils into a knot and bursts, leaving a curling tail of smoke.
+     Evolution: FK.evoN(C, 1, 7) salamanders (one at Hatchling, seven at Celestial, fanning out from round you on separate
+     paths, the damage split between them), a longer run; at Celestial every burst throws up a ring of flame. */
+  S.salamander = (C, H) => { const K = FK.bind(H), P = K.P, me = H.me, a0 = C.a, ev = K.evo(C), N = K.evoN(C, 1, 7), fin = ev >= 7, L = 6 + (ev - 1) / 3, WIND = 0.14, BR = (N > 1 ? 1.35 : 1.7) + 0.05 * (ev - 1), share = C.K * K.evoK(C) / N, spread = N > 1 ? Math.min(0.5, 3.0 / (N - 1)) : 0, NP = N > 3 ? 8 : 11, SEG = 0.115 * 10 / (NP - 1), COIL = 0.24;
+    H.X.sfx.whoosh(); me.sq = 0.6;
+    for (let i = 0; i < N; i++) { const off = i - (N - 1) / 2, a = a0 + off * spread, ca = Math.cos(a), sa = Math.sin(a), px = -sa, py = ca, sb = a, x0 = me.x + Math.cos(sb) * (N > 1 ? 1.1 : 0.75), y0 = me.y + Math.sin(sb) * (N > 1 ? 1.1 : 0.75), dl = Math.abs(off) * 0.05, ph = i * 1.7;
+      let Lm = 0; const Li = L - Math.abs(off) * 0.25; while (Lm < Li && !H.X.blocked(x0 + ca * (Lm + 0.15), y0 + sa * (Lm + 0.15), 0.3, 0)) Lm += 0.15; Lm = Math.max(0.9, Lm);
+      const DUR = 0.85 * Lm / 6, ex = x0 + ca * Lm, ey = y0 + sa * Lm, AMP = N > 1 ? 0.22 : 0.3, env = d => cl(Math.min(d / 0.45, (Lm - d) / 0.7), 0, 1), at = d => { const o = AMP * Math.sin(d * 1.85 + ph) * env(d); return [x0 + ca * d + px * o, y0 + sa * d + py * o]; };
+      H.warnLine(x0, y0, a, Lm + 0.4, N > 1 ? 1.2 : 1.8, 0.3, C.col);
+      const st = { boom: false }, hits = new Set();
+      H.add({ life: WIND + dl + DUR + COIL + 0.85, x: x0, y: y0,
+        update(dt, f) { const tt = f.t - WIND - dl;
+          if (tt < 0) { if (i === 0 || N < 4) K.aura(x0, y0, 0.3, dt, 16 / N + 4, 0.3); return; }
+          const d = cl(tt / DUR, 0, 1) * Lm; if (d > 0 && d < Lm) { const [hx, hy] = at(d);
+            for (const m of H.near(hx, hy, 0.8)) { if (hits.has(m)) continue; hits.add(m); H.X.hitMon(m, C.base * 1.1 * share, C.dmgO({ kb: 1, burn: 1 })); K.ignite(m.x, m.y, 0.5); }
+            if (Math.random() < (N > 3 ? 0.45 : 0.9) * H.Q()) for (const s of [-1, 1]) H.P({ kind: 'spark', x: hx + px * s * 0.3, y: hy + py * s * 0.3, vx: px * s * 3 - ca * 2, vy: py * s * 2 - sa * 1.5 - 1.5, g: 9, life: 0.35, max: 0.35, size: 2, color: s > 0 ? P.yel : P.wht });
+            K.aura(hx, hy, 0.35, dt, N > 3 ? 5 : 10, 0.3); }
+          if (!st.boom && tt - DUR >= COIL) { st.boom = true; st.bt = f.t; H.hitArea(ex, ey, BR, C.base * 1.6 * share, C.dmgO({ kb: 4, burn: 1 })); K.blast(ex, ey, BR, N > 3 ? 0.55 : 1.2 + 0.08 * ev); if (i === Math.floor(N / 2)) H.X.sfx.crash();
+            for (let j = 0; j < H.n(N > 3 ? 5 : 12); j++) { const b = j / 12 * TAU * 1.3; H.P({ kind: 'smoke', x: ex + Math.cos(b) * 0.3 * (j / 12), y: ey + Math.sin(b) * 0.2 - 0.3 - j * 0.12, vx: Math.cos(b) * 0.7, vy: -1.5 - j * 0.15, life: 1.2, max: 1.2, size: 0.35 + j * 0.03, color: 'rgba(58,38,34,' }); }
+            if (fin) { K.sparks(ex, ey, 6, 8); K.embers(ex, ey, 5, { v: 5 }); if (i === 0) H.X.shake(7, 0.25); } }
+          if (st.boom && f.t - st.bt < 0.5) K.aura(ex, ey, BR * 0.5, dt, N > 3 ? 8 : 20, 0); },
+        drawUnder(c, f, X, Y, T, t) { const tt = f.t - WIND - dl, k = Math.min(1, f.life / 0.6), dh = cl(tt / DUR, 0, 1) * Lm;
+          if (dh > 0.1) { const pts = []; for (let s = 0; s <= 12; s++) { const [x, y] = at(dh * s / 12); pts.push([H.sx(x), H.sy(y)]); }
+            c.save(); c.globalAlpha = 0.55 * k; H.ribbon(c, pts, T * 0.3, H.rgba(P.char, 0.6), null, u => 0.4 + 0.6 * u); c.globalCompositeOperation = 'lighter'; H.ribbon(c, pts, T * 0.11, H.rgba(P.org, 0.7), null, u => u * u); c.restore();
+            if (dh < Lm) { const [hx, hy] = at(dh), [mx, my] = at(Math.max(0, dh - 0.55)), [qx, qy] = at(Math.max(0, dh - 1.0)); K.floorLight(c, H.sx(hx), H.sy(hy), T * 1.2, 0.5); H.softShadow(c, H.sx(hx), H.sy(hy), T * 0.42, 0.25); H.softShadow(c, H.sx(mx), H.sy(my), T * 0.4, 0.22); H.softShadow(c, H.sx(qx), H.sy(qy), T * 0.28, 0.16); } }
+          if (st.boom) { const age = f.t - st.bt, bx = H.sx(ex), by = H.sy(ey); K.scorch(c, bx, by, T * BR * 0.85, k, Math.max(0, 1 - age / 1.0), 3 + i); if (age < 0.35) K.shockRing(c, bx, by, T * BR * (0.3 + 0.9 * H.ease.out(age / 0.35)), 1 - age / 0.35); }
+          else if (tt > DUR) K.floorLight(c, H.sx(ex), H.sy(ey), T * BR, 0.4 + 0.4 * cl((tt - DUR) / COIL, 0, 1)); },
+        draw(c, f, X, Y, T, t) { const tt = f.t - WIND - dl, sc = T * (0.6 + 0.015 * ev) * (N > 3 ? 0.74 : 1);
+          if (tt < 0.15) { const u = cl((f.t - dl) / WIND, 0, 1), k = tt < 0 ? 1 : 1 - tt / 0.15; if (u > 0) K.fireball(c, X, Y - T * 0.25, T * (N > 3 ? 0.15 : 0.22) * H.ease.back(u), t, 1 + i, k, -Math.PI / 2); }
+          if (tt < 0) return;
+          if (st.boom) { const age = f.t - st.bt; if (fin && age < 0.55) { const u = age / 0.55; K.flameRing(c, H.sx(ex), H.sy(ey), T * BR * (0.6 + 0.25 * u), 4, T * 1.3 * Math.sin(Math.min(1, u * 1.6) * Math.PI * 0.62) * (1 - u * 0.4), t, 1 - u * u, t * 0.4 + i); } if (age < 0.25) K.fireball(c, H.sx(ex), H.sy(ey) - T * 0.4, T * (0.4 + 0.6 * age / 0.25) * (N > 3 ? 0.75 : 1), t, 7 + i, 1 - age / 0.25, -Math.PI / 2); return; }
+          const cx = H.sx(ex), cy = H.sy(ey) - T * 0.25, dh = cl(tt / DUR, 0, 1) * Lm, coil = H.ease.io(cl((tt - DUR) / COIL, 0, 1)), grow = cl(tt / 0.1, 0.25, 1), pts = [];
+          for (let k = NP - 1; k >= 0; k--) { const dd = dh - k * SEG * grow; const [wx, wy] = at(Math.max(0, dd)), sx = H.sx(wx), sy = H.sy(wy) - T * 0.28; if (coil > 0) { const th = a + Math.PI + k * 0.62 * 10 / (NP - 1) + coil * 2, rr = T * (0.12 + 0.07 * k * 10 / (NP - 1)) * (1 - coil * 0.35); pts.push([sx + (cx + Math.cos(th) * rr - sx) * coil, sy + (cy + Math.sin(th) * rr * 0.7 - k * T * 0.04 * coil - sy) * coil]); } else pts.push([sx, sy]); }
+          salamander(c, H, K, pts, sc, t, t * 22 + i, 1, i * 5); if (coil > 0) K.glow(c, cx, cy, T * (0.4 + coil), P.yel, 0.5 * coil); } }); } };
 
-  /* F-S09 Hearthburst: a ring of hearth stones rises round your feet and catches, flames gathering on it, then the fire
-     rolls outward as a low wave with a white-hot leading edge, its inside dimming at once. Everything stays round the pet:
-     what lies behind it is drawn under it, what lies in front is kept low near it.
+  /* F-S09 Hearthburst: soft fire gathers in a ring round your feet, glowing up from the floor, then rolls outward as a
+     low wave of real flame: a feathered band of light with a hot (never hard) leading edge, its inside dimming at once,
+     smoke wisps curling off it. Everything stays round the pet: what lies behind it is drawn under it, what lies in front
+     is kept low near it.
      Evolution: radius 3.0 at Hatchling to 4.5 at Celestial (times C.K), FK.evoN(C, 1, 3) waves sharing the damage; at
      Celestial the last wave throws up a crown of flame pillars at its rim. */
-  S.hearthburst = (C, H) => { const K = FK.bind(H), P = K.P, me = H.me, ev = K.evo(C), cx = me.x, cy = me.y, R = (3.0 + 0.25 * (ev - 1)) * C.K, NW = K.evoN(C, 1, 3), fin = ev >= 7, GATHER = 0.38, ROLL = 0.5, WGAP = 0.2, R0 = 0.95, NSTONE = 10;
-    const WT = [[1], [0.62, 0.38], [0.5, 0.3, 0.2]][NW - 1], hits = WT.map(() => new Set()), nf = Math.max(8, Math.round([22, 16, 12][NW - 1] * H.Q())), END = GATHER + (NW - 1) * WGAP + ROLL;
+  /* a feathered band of light on the floor ellipse: layered soft strokes, wide and faint outside, narrow and hot inside */
+  function softBand(c, H, K, x, y, r, w, k) { if (k <= 0.01 || r < 1) return; const P = K.P; c.save(); c.globalCompositeOperation = 'lighter'; const L = [[1, P.red, 0.07], [0.72, P.red, 0.1], [0.5, P.org, 0.14], [0.32, P.amb, 0.2], [0.18, P.yel, 0.26], [0.08, P.wht, 0.3]];
+    for (const [lw, col, al] of L) { c.strokeStyle = H.rgba(col, al * k); c.lineWidth = Math.max(1, w * lw); H.floorEllipse(c, x, y, r); c.stroke(); } c.restore(); }
+  /* soft char on the floor: a feathered dark pool, no cracks */
+  function softChar(c, H, x, y, r, a) { if (r < 1 || a <= 0.01) return; c.save(); c.translate(x, y); c.scale(1, H.GY); const g = c.createRadialGradient(0, 0, 0, 0, 0, r); g.addColorStop(0, 'rgba(36,16,10,' + 0.45 * a + ')'); g.addColorStop(0.6, 'rgba(36,16,10,' + 0.25 * a + ')'); g.addColorStop(1, 'rgba(36,16,10,0)'); c.fillStyle = g; c.beginPath(); c.arc(0, 0, r, 0, TAU); c.fill(); c.restore(); }
+  S.hearthburst = (C, H) => { const K = FK.bind(H), P = K.P, me = H.me, ev = K.evo(C), cx = me.x, cy = me.y, R = (3.0 + 0.25 * (ev - 1)) * C.K, NW = K.evoN(C, 1, 3), fin = ev >= 7, GATHER = 0.38, ROLL = 0.5, WGAP = 0.2, R0 = 0.95, NG = 10;
+    const WT = [[1], [0.62, 0.38], [0.5, 0.3, 0.2]][NW - 1], hits = WT.map(() => new Set()), nf = Math.max(8, Math.round([20, 15, 11][NW - 1] * H.Q())), END = GATHER + (NW - 1) * WGAP + ROLL;
     H.X.sfx.hum(); me.sq = 0.6;
     const flames = (c, f, T, t, back) => { const mx = H.sx(cx), my = H.sy(cy);
-      // gathering: flames catch on the hearth ring
-      if (f.t < GATHER + 0.25) { const u = cl(f.t / GATHER, 0, 1), k = f.t < GATHER ? 1 : 1 - (f.t - GATHER) / 0.25; for (let i = 0; i < NSTONE; i++) { const b = i / NSTONE * TAU + 0.3, sb = Math.sin(b); if ((sb < 0) !== back) continue; const x = mx + Math.cos(b) * R0 * T, y = my + sb * R0 * T * H.GY - T * 0.18, hmax = back ? T * 0.9 : T * 0.42; K.flame(c, x, y, T * 0.24 * (0.5 + 0.5 * u), Math.min(hmax, T * (0.25 + 0.7 * u)) * k * cl(u * 3 - i * 0.12, 0, 1), t, i * 1.7, -Math.cos(b) * T * 0.12, 0.95 * k); } }
-      // the waves rolling out
-      for (let w = 0; w < NW; w++) { const tw = f.t - GATHER - w * WGAP; if (tw < 0) continue; const u = cl(tw / ROLL, 0, 1), k = 1 - cl((tw - ROLL) / 0.35, 0, 1); if (k <= 0) continue; const r = (R0 + (R - R0) * H.ease.out(u)) * T, h = T * (1.35 - 0.6 * u) * (1 - w * 0.12);
-        for (let i = 0; i < nf; i++) { const b = i / nf * TAU + w * 0.4 + t * 0.25, sb = Math.sin(b); if ((sb < 0) !== back) continue; const x = mx + Math.cos(b) * r, y = my + sb * r * H.GY, near = Math.abs(Math.cos(b) * r) < T * 0.75, hh = !back && near ? Math.min(h, Math.max(T * 0.2, sb * r * H.GY + T * 0.05)) : h; K.flame(c, x, y, T * 0.46 * (1 - 0.25 * u), hh * (0.8 + 0.2 * Math.sin(t * 7 + i * 1.9)) * k, t, i * 1.3 + w, Math.cos(b) * T * 0.25, k * (1 - 0.25 * u)); } }
+      // gathering: soft flames rise in a ring round your feet
+      if (f.t < GATHER + 0.3) { const u = cl(f.t / GATHER, 0, 1), k = f.t < GATHER ? 1 : 1 - (f.t - GATHER) / 0.3; for (let i = 0; i < NG; i++) { const b = i / NG * TAU + 0.3 + t * 0.8, sb = Math.sin(b); if ((sb < 0) !== back) continue; const x = mx + Math.cos(b) * R0 * T, y = my + sb * R0 * T * H.GY, hmax = back ? T * 0.9 : T * 0.4, kk = k * cl(u * 3 - i * 0.12, 0, 1); K.glow(c, x, y - T * 0.15, T * 0.45, P.org, 0.35 * kk); K.flame(c, x, y, T * 0.26 * (0.5 + 0.5 * u), Math.min(hmax, T * (0.25 + 0.7 * u)) * kk, t, i * 1.7, -Math.cos(b) * T * 0.12, 0.85 * kk); } }
+      // the waves rolling out: soft glows under a row of flames
+      for (let w = 0; w < NW; w++) { const tw = f.t - GATHER - w * WGAP; if (tw < 0) continue; const u = cl(tw / ROLL, 0, 1), k = 1 - cl((tw - ROLL) / 0.4, 0, 1); if (k <= 0) continue; const r = (R0 + (R - R0) * H.ease.out(u)) * T, h = T * (1.3 - 0.6 * u) * (1 - w * 0.12);
+        for (let i = 0; i < nf; i++) { const b = i / nf * TAU + w * 0.4 + t * 0.25, sb = Math.sin(b); if ((sb < 0) !== back) continue; const x = mx + Math.cos(b) * r, y = my + sb * r * H.GY, near = Math.abs(Math.cos(b) * r) < T * 0.75, hh = (!back && near ? Math.min(h, Math.max(T * 0.2, sb * r * H.GY + T * 0.05)) : h) * (0.75 + 0.25 * Math.sin(t * 7 + i * 1.9)) * k;
+          K.glow(c, x, y - hh * 0.3, hh * 0.75, P.org, 0.3 * k); K.flame(c, x, y, T * 0.46 * (1 - 0.25 * u), hh, t, i * 1.3 + w, Math.cos(b) * T * 0.25, 0.8 * k * (1 - 0.25 * u)); } }
       // the Celestial crown: pillars of flame at the rim
-      if (fin) { const tf = f.t - END; if (tf > -0.05 && tf < 0.6) { const u = cl(tf / 0.6, 0, 1); for (let i = 0; i < 8; i++) { const b = i / 8 * TAU + 0.2, sb = Math.sin(b); if ((sb < 0) !== back) continue; K.flame(c, mx + Math.cos(b) * R * T, my + sb * R * T * H.GY, T * 0.5, T * 2.2 * Math.sin(Math.min(1, u * 1.8) * Math.PI * 0.55) * (1 - u * 0.5) + 1, t, i * 2.9, 0, 1 - u * u); } } } };
-    H.add({ life: END + (fin ? 0.75 : 0.55),
+      if (fin) { const tf = f.t - END; if (tf > -0.05 && tf < 0.65) { const u = cl(tf / 0.65, 0, 1); for (let i = 0; i < 8; i++) { const b = i / 8 * TAU + 0.2, sb = Math.sin(b); if ((sb < 0) !== back) continue; const x = mx + Math.cos(b) * R * T, y = my + sb * R * T * H.GY, hh = T * 2.2 * Math.sin(Math.min(1, u * 1.8) * Math.PI * 0.55) * (1 - u * 0.5) + 1; K.glow(c, x, y - hh * 0.35, hh * 0.7, P.org, 0.4 * (1 - u)); K.flame(c, x, y, T * 0.5, hh, t, i * 2.9, 0, 0.9 * (1 - u * u)); } } } };
+    H.add({ life: END + (fin ? 0.8 : 0.6),
       update(dt, f) {
         if (f.t < GATHER) { if (Math.random() < 1.4 * H.Q()) { const b = Math.random() * TAU; H.P({ kind: 'ember', x: cx + Math.cos(b) * 2.4, y: cy + Math.sin(b) * 2.4 * H.GY, vx: -Math.cos(b) * 3.8, vy: -Math.sin(b) * 3.8 * H.GY - 0.4, drag: 1.5, life: 0.35, max: 0.35, size: 3, color: Math.random() < 0.5 ? P.yel : P.org }); } K.aura(cx, cy, R0, dt, 14, 0); return; }
-        for (let w = 0; w < NW; w++) { const tw = f.t - GATHER - w * WGAP; if (tw < 0 || tw > ROLL) continue; const r = R0 + (R - R0) * H.ease.out(tw / ROLL);
-          for (const m of H.living()) { if (hits[w].has(m)) continue; if (Math.hypot(m.x - cx, m.y - cy) < r + m.r) { hits[w].add(m); H.X.hitMon(m, C.base * 2.3 * C.K * K.evoK(C) * WT[w], C.dmgO({ kb: w ? 2 : 5, burn: 1 })); K.ignite(m.x, m.y, 0.6); } }
-          for (let i = 0; i < H.n(3); i++) { const b = Math.random() * TAU; H.P({ kind: 'ember', x: cx + Math.cos(b) * r, y: cy + Math.sin(b) * r * H.GY, vx: Math.cos(b) * 2, vy: -2 - Math.random() * 2, g: -1, life: 0.5, max: 0.5, size: 3.5, color: Math.random() < 0.5 ? P.org : P.yel }); } } },
-      drawUnder(c, f, X, Y, T, t) { const mx = H.sx(cx), my = H.sy(cy), kAll = Math.min(1, f.life / 0.45), u0 = cl(f.t / GATHER, 0, 1);
-        // the hearth: a glow under you, a scorch, a ring of stones with glowing seams
-        K.floorLight(c, mx, my, T * (1.2 + 0.6 * u0), (0.35 + 0.35 * u0) * kAll); if (f.t > GATHER) K.scorch(c, mx, my, T * Math.min(R * 0.9, 1.4 + (f.t - GATHER) * 6), 0.65 * kAll, Math.max(0.1, 1 - (f.t - GATHER) / 0.8), 1);
-        const sk = f.t < END ? 1 : Math.max(0, 1 - (f.t - END) / 0.4); for (let i = 0; i < NSTONE; i++) { const b = i / NSTONE * TAU + 0.3; stone(c, H, K, mx + Math.cos(b) * R0 * T, my + Math.sin(b) * R0 * T * H.GY, T * 0.4, T * 0.2 * H.ease.back(cl(u0 * 2.2 - i * 0.08, 0, 1)), 0.4 + 0.6 * u0, sk * kAll); }
-        // each wave: a bright band and white-hot edge, the inside dimming behind it
-        for (let w = 0; w < NW; w++) { const tw = f.t - GATHER - w * WGAP; if (tw < 0) continue; const u = cl(tw / ROLL, 0, 1), k = 1 - cl((tw - ROLL) / 0.35, 0, 1); if (k <= 0) continue; const r = (R0 + (R - R0) * H.ease.out(u)) * T;
-          c.save(); c.translate(mx, my); c.scale(1, H.GY); const g = c.createRadialGradient(0, 0, r * 0.55, 0, 0, r); g.addColorStop(0, H.rgba(P.org, 0)); g.addColorStop(0.7, H.rgba(P.red, 0.18 * k)); g.addColorStop(0.92, H.rgba(P.org, 0.45 * k)); g.addColorStop(1, H.rgba(P.yel, 0.6 * k)); c.fillStyle = g; c.globalCompositeOperation = 'lighter'; c.beginPath(); c.arc(0, 0, r, 0, TAU); c.fill(); c.restore();
-          c.save(); c.strokeStyle = H.rgba(P.red, 0.55 * k); c.lineWidth = T * 0.24 * (1 - 0.5 * u); H.floorEllipse(c, mx, my, r * 0.97); c.stroke(); c.restore(); K.shockRing(c, mx, my, r * 1.03, k * (1 - w * 0.2)); }
-        if (fin && f.t > END - 0.05) { const u = cl((f.t - END) / 0.6, 0, 1); K.shockRing(c, mx, my, T * R * (1 + 0.25 * u), 1 - u); }
+        for (let w = 0; w < NW; w++) { const tw = f.t - GATHER - w * WGAP; if (tw < 0 || tw > ROLL + 0.2) continue; const r = R0 + (R - R0) * H.ease.out(Math.min(1, tw / ROLL));
+          if (tw <= ROLL) for (const m of H.living()) { if (hits[w].has(m)) continue; if (Math.hypot(m.x - cx, m.y - cy) < r + m.r) { hits[w].add(m); H.X.hitMon(m, C.base * 2.3 * C.K * K.evoK(C) * WT[w], C.dmgO({ kb: w ? 2 : 5, burn: 1 })); K.ignite(m.x, m.y, 0.6); } }
+          for (let i = 0; i < H.n(3); i++) { const b = Math.random() * TAU; H.P({ kind: 'ember', x: cx + Math.cos(b) * r, y: cy + Math.sin(b) * r * H.GY, vx: Math.cos(b) * 2, vy: -2 - Math.random() * 2, g: -1, life: 0.5, max: 0.5, size: 3.5, color: Math.random() < 0.5 ? P.org : P.yel }); }
+          // smoke wisps curling up off the wave
+          if (Math.random() < dt * 10 * H.Q()) { const b = Math.random() * TAU; H.P({ kind: 'smoke', x: cx + Math.cos(b) * r * 0.92, y: cy + Math.sin(b) * r * 0.92 * H.GY - 0.3, vx: Math.cos(b) * 0.5, vy: -1 - Math.random() * 0.6, life: 1.0, max: 1.0, size: 0.45, color: 'rgba(58,38,34,' }); } } },
+      drawUnder(c, f, X, Y, T, t) { const mx = H.sx(cx), my = H.sy(cy), kAll = Math.min(1, f.life / 0.5), u0 = cl(f.t / GATHER, 0, 1);
+        // the hearth: a soft glow under and round you, a feathered ring of light where the fire gathers, a soft char
+        K.floorLight(c, mx, my, T * (1.3 + 0.7 * u0), (0.35 + 0.35 * u0) * kAll); softBand(c, H, K, mx, my, R0 * T, T * 0.9, u0 * (f.t < GATHER ? 1 : Math.max(0, 1 - (f.t - GATHER) / 0.4)));
+        if (f.t > GATHER) softChar(c, H, mx, my, T * Math.min(R * 0.95, 1.4 + (f.t - GATHER) * 6), 0.8 * kAll);
+        // each wave: a feathered band, the inside dimming behind it
+        for (let w = 0; w < NW; w++) { const tw = f.t - GATHER - w * WGAP; if (tw < 0) continue; const u = cl(tw / ROLL, 0, 1), k = 1 - cl((tw - ROLL) / 0.4, 0, 1); if (k <= 0) continue; const r = (R0 + (R - R0) * H.ease.out(u)) * T;
+          c.save(); c.translate(mx, my); c.scale(1, H.GY); const g = c.createRadialGradient(0, 0, r * 0.4, 0, 0, r * 1.12); g.addColorStop(0, H.rgba(P.red, 0)); g.addColorStop(0.55, H.rgba(P.red, 0.12 * k)); g.addColorStop(0.82, H.rgba(P.org, 0.3 * k)); g.addColorStop(0.9, H.rgba(P.amb, 0.32 * k)); g.addColorStop(1, H.rgba(P.org, 0)); c.fillStyle = g; c.globalCompositeOperation = 'lighter'; c.beginPath(); c.arc(0, 0, r * 1.12, 0, TAU); c.fill(); c.restore();
+          softBand(c, H, K, mx, my, r, T * (1.1 - 0.4 * u), k * (1 - w * 0.2)); }
+        if (fin && f.t > END - 0.05) { const u = cl((f.t - END) / 0.65, 0, 1); softBand(c, H, K, mx, my, T * R * (1 + 0.2 * u), T * 1.2, 1 - u); }
         flames(c, f, T, t, true); },
       draw(c, f, X, Y, T, t) { flames(c, f, T, t, false); } });
-    H.X.after(GATHER, () => { H.X.flash(0.08, '#FFB066'); H.X.shake(5, 0.15); H.X.light(cx, cy, R * 1.3, 0.35); H.X.sfx.whoosh(); H.X.sfx.thud(); K.sparks(cx, cy, 12, 7); });
-    if (fin) H.X.after(END, () => { H.X.shake(5, 0.15); H.X.sfx.whoosh(); for (let i = 0; i < 8; i++) { const b = i / 8 * TAU + 0.2; K.embers(cx + Math.cos(b) * R, cy + Math.sin(b) * R * H.GY, 3, { v: 3 }); } }); };
+    H.X.after(GATHER, () => { H.X.flash(0.07, '#FFB066'); H.X.shake(5, 0.15); H.X.light(cx, cy, R * 1.3, 0.35); H.X.sfx.whoosh(); H.X.sfx.thud(); K.embers(cx, cy, 12, { v: 4 }); K.smoke(cx, cy, 4, 0.8); });
+    if (fin) H.X.after(END, () => { H.X.shake(5, 0.15); H.X.sfx.whoosh(); for (let i = 0; i < 8; i++) { const b = i / 8 * TAU + 0.2; K.embers(cx + Math.cos(b) * R, cy + Math.sin(b) * R * H.GY, 3, { v: 3 }); K.smoke(cx + Math.cos(b) * R, cy + Math.sin(b) * R * H.GY, 1, 0.3); } }); };
 
   /* F-S10 Falling Matchstars: a fan of sparks and match-head stars fountains up from above your head; each falls onto a
      marked spot as a small comet (a burning head, a five-point glint, a stretched tail) and bursts in a crown of flame.
-     Evolution: FK.evoN(C, 3, 7) stars (the damage split between them, the impacts closer together); at Celestial a last,
+     Evolution: FK.evoN(C, 3, 12) stars (four times as many at Celestial; the damage split between them, the impacts
+     closer together and spread over two rings, each star drawn more cheaply when there are many); at Celestial a last,
      larger star falls on the centre. */
-  S.matchstars = (C, H) => { const K = FK.bind(H), P = K.P, me = H.me, a = C.a, ev = K.evo(C), NS = K.evoN(C, 3, 7), fin = ev >= 7, GAP = 0.2 - (NS - 3) * 0.02, FALL = 0.35;
-    const spots = []; for (let i = 0; i < NS; i++) { if (NS === 3) { const b = a + (i - 1) * 1.1, r = i === 1 ? 0 : 1.1; spots.push({ x: C.tx + Math.cos(b) * r, y: C.ty + Math.sin(b) * r }); } else if (i === 0) spots.push({ x: C.tx, y: C.ty }); else { const b = a + (i - 1) / (NS - 1) * TAU + 0.4, r = 1.45; spots.push({ x: C.tx + Math.cos(b) * r, y: C.ty + Math.sin(b) * r }); } }
-    const order = NS === 3 ? [0, 1, 2] : spots.map((s, i) => i); spots.forEach((s, i) => { s.t0 = 0.55 + order[i] * GAP; s.big = false; s.r = 1.15; s.k = 1; s.side = (i % 2 ? 1 : -1) * (0.4 + (i % 3) * 0.25); });
+  S.matchstars = (C, H) => { const K = FK.bind(H), P = K.P, me = H.me, a = C.a, ev = K.evo(C), NS = K.evoN(C, 3, 12), fin = ev >= 7, GAP = Math.max(0.065, 0.6 / NS), FALL = 0.35, lite = NS > 5;
+    const spots = []; for (let i = 0; i < NS; i++) { if (NS === 3) { const b = a + (i - 1) * 1.1, r = i === 1 ? 0 : 1.1; spots.push({ x: C.tx + Math.cos(b) * r, y: C.ty + Math.sin(b) * r }); } else if (i === 0) spots.push({ x: C.tx, y: C.ty }); else { const n1 = Math.min(6, NS - 1), inner = i <= n1, b = inner ? a + (i - 1) / n1 * TAU + 0.4 : a + (i - 1 - n1) / (NS - 1 - n1) * TAU + 0.4 + Math.PI / n1, r = inner ? (NS > 7 ? 1.3 : 1.45) : 2.5; spots.push({ x: C.tx + Math.cos(b) * r, y: C.ty + Math.sin(b) * r }); } }
+    const order = NS === 3 ? [0, 1, 2] : spots.map((s, i) => i); spots.forEach((s, i) => { s.t0 = 0.55 + order[i] * GAP; s.big = false; s.r = NS > 7 ? 1.0 : 1.15; s.k = 1; s.side = (i % 2 ? 1 : -1) * (0.4 + (i % 3) * 0.25); });
     if (fin) spots.push({ x: C.tx, y: C.ty, t0: 0.55 + NS * GAP + 0.3, big: true, r: 1.8, k: 1.5, side: 0 });
     const per = C.base * 0.9 * 3 * C.K * K.evoK(C) / spots.reduce((s, p) => s + p.k, 0);
     H.X.sfx.whoosh(); me.sq = 0.7;
@@ -288,7 +316,7 @@
     H.add({ life: 0.6,
       update(dt, f) { if (f.t < 0.3) K.aura(me.x, me.y, 0.2, dt, 12, 1.1); },
       draw(c, f, X, Y, T, t) { const sx = X, sy = Y - T * 1.15, k0 = Math.min(1, f.t / 0.08); if (f.t < 0.15) { glint(c, H, sx, sy, T * 0.35 * k0, t * 3, P.yel, 1 - f.t / 0.15); K.glow(c, sx, sy, T * 0.8, P.org, 0.6 * (1 - f.t / 0.15)); }
-        spots.forEach((s, i) => { if (s.big) return; const u = cl(f.t / 0.45, 0, 1); if (u >= 1) return; const e = H.ease.out(u), hx = sx + (s.side * 1.6 + Math.cos(a) * 0.8) * T * e, hy = sy - T * 5.5 * e - Math.sin(u * Math.PI) * T * 0.3, k = 1 - u * u; K.fireball(c, hx, hy, T * 0.07 * (1 - u * 0.4), t, i, k, Math.PI / 2); glint(c, H, hx, hy, T * 0.12, t * 4 + i, P.yel, k); }); } });
+        spots.forEach((s, i) => { if (s.big) return; const u = cl(f.t / 0.45, 0, 1); if (u >= 1) return; const e = H.ease.out(u), hx = sx + (s.side * 1.6 + Math.cos(a) * 0.8) * T * e, hy = sy - T * 5.5 * e - Math.sin(u * Math.PI) * T * 0.3, k = 1 - u * u; if (lite) H.core(c, hx, hy, T * 0.07, P.org, P.wht, k); else K.fireball(c, hx, hy, T * 0.07 * (1 - u * 0.4), t, i, k, Math.PI / 2); glint(c, H, hx, hy, T * 0.12, t * 4 + i, P.yel, k); }); } });
     spots.forEach((s, i) => { H.warn(s.x, s.y, s.r * 0.95, s.t0, C.col); const sz = s.big ? 0.26 : 0.17;
       H.add({ life: s.t0 + 1.0, x: s.x, y: s.y, done: false,
         update(dt, f) { const fl = (f.t - (s.t0 - FALL)) / FALL; if (fl > 0 && fl < 1) K.aura(s.x, s.y, 0.2, dt, s.big ? 14 : 6, (1 - H.ease.in(fl)) * 5.2); if (f.t > s.t0 && f.t < s.t0 + 0.5) K.aura(s.x, s.y, s.r * 0.5, dt, s.big ? 18 : 8, 0); },
@@ -299,9 +327,9 @@
           if (age < 0.3) K.shockRing(c, X, Y, T * s.r * (0.3 + 0.9 * H.ease.out(age / 0.3)), 1 - age / 0.3); },
         draw(c, f, X, Y, T, t) { const fl = (f.t - (s.t0 - FALL)) / FALL, age = f.t - s.t0;
           if (fl > 0 && fl < 1) { const pos = q => { const e = H.ease.in(cl(q, 0, 1)); return [X + (1 - e) * T * (s.side * 1.4 - Math.cos(a) * 1.0), Y - (1 - e) * 5.2 * T]; }; const [hx, hy] = pos(fl), pts = [];
-            for (let j = 6; j >= 0; j--) pts.push(pos(fl - j * 0.05)); c.save(); c.globalCompositeOperation = 'lighter'; const tp = q => 0.15 + 0.85 * q * q; for (let j = 1; j < pts.length; j += 2) K.glow(c, pts[j][0], pts[j][1], T * sz * (1 + 2 * j / pts.length), P.org, 0.35); H.ribbon(c, pts, T * sz * 2.1, H.rgba(P.red, 0.55), null, tp); H.ribbon(c, pts, T * sz * 1.5, H.rgba(P.org, 0.8), null, tp); H.ribbon(c, pts, T * sz * 0.8, H.rgba(P.yel, 0.9), null, tp); H.ribbon(c, pts, T * sz * 0.3, P.wht, null, tp); c.restore();
-            const ta = Math.atan2(pts[0][1] - hy, pts[0][0] - hx); K.fireball(c, hx, hy, T * sz * 1.15, t, i * 1.3, 1, ta); H.sphere(c, hx, hy, T * sz * 0.45, P.red, P.yel, P.char, { lw: 1, spec: false }); glint(c, H, hx, hy, T * sz * 1.4, t * 5 + i, P.yel, 0.85); }
+            for (let j = 6; j >= 0; j--) pts.push(pos(fl - j * 0.05)); c.save(); c.globalCompositeOperation = 'lighter'; const tp = q => 0.15 + 0.85 * q * q; for (let j = 1; j < pts.length; j += lite ? 3 : 2) K.glow(c, pts[j][0], pts[j][1], T * sz * (1 + 2 * j / pts.length), P.org, 0.35); if (!lite) H.ribbon(c, pts, T * sz * 2.1, H.rgba(P.red, 0.55), null, tp); H.ribbon(c, pts, T * sz * 1.5, H.rgba(P.org, 0.8), null, tp); H.ribbon(c, pts, T * sz * 0.8, H.rgba(P.yel, 0.9), null, tp); H.ribbon(c, pts, T * sz * 0.3, P.wht, null, tp); c.restore();
+            const ta = Math.atan2(pts[0][1] - hy, pts[0][0] - hx); if (lite && !s.big) { K.glow(c, hx, hy, T * sz * 3, P.org, 0.6); H.core(c, hx, hy, T * sz * 0.9, P.amb, P.wht, 1); } else K.fireball(c, hx, hy, T * sz * 1.15, t, i * 1.3, 1, ta); H.sphere(c, hx, hy, T * sz * 0.45, P.red, P.yel, P.char, { lw: 1, spec: false }); glint(c, H, hx, hy, T * sz * 1.4, t * 5 + i, P.yel, 0.85); }
           // the burst: a crown of flame standing on the spot, sinking as it cools
           if (age > 0 && age < 0.45) { const u = age / 0.45; K.flame(c, X, Y + T * 0.05, T * (s.big ? 0.8 : 0.5), T * (s.big ? 1.9 : 1.2) * Math.sin(Math.min(1, u * 3) * Math.PI * 0.5) * (1 - u) + 1, t, i * 2.2, 0, 1 - u * u); } } });
-      H.X.after(s.t0, () => { H.hitArea(s.x, s.y, s.r, per * s.k, C.dmgO({ kb: s.big ? 4 : 2, burn: 1 })); K.blast(s.x, s.y, s.r, s.big ? 1.5 : 0.75); for (let j = 0; j < H.n(s.big ? 10 : 6); j++) { const b = j / 6 * TAU; H.P({ kind: 'star', x: s.x + Math.cos(b) * 0.2, y: s.y - 0.3 + Math.sin(b) * 0.15, vx: Math.cos(b) * 3, vy: Math.sin(b) * 2 - 2, g: 6, life: 0.45, max: 0.45, size: 4, color: j % 2 ? P.yel : P.wht }); } H.X.sfx.crash(); }); }); };
+      H.X.after(s.t0, () => { H.hitArea(s.x, s.y, s.r, per * s.k, C.dmgO({ kb: s.big ? 4 : 2, burn: 1 })); K.blast(s.x, s.y, s.r, s.big ? 1.5 : lite ? 0.45 : 0.75); for (let j = 0; j < H.n(s.big ? 10 : lite ? 3 : 6); j++) { const b = j / 6 * TAU; H.P({ kind: 'star', x: s.x + Math.cos(b) * 0.2, y: s.y - 0.3 + Math.sin(b) * 0.15, vx: Math.cos(b) * 3, vy: Math.sin(b) * 2 - 2, g: 6, life: 0.45, max: 0.45, size: 4, color: j % 2 ? P.yel : P.wht }); } if (!lite || i % 3 === 0 || s.big) H.X.sfx.crash(); }); }); };
 })();

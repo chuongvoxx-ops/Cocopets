@@ -112,12 +112,12 @@ const ELEM_MOVES = {
     ['eventide', 'Eventide Spiral', 'vortex', 100, 22, 'A towering corkscrew of darkness forms at the aim; it unwinds from the top, each coil an expanding wave.'] ] },
   fire: { strong: [
     ['emberkoi', 'Ember Koi', 'twin', 24, 2.4, 'Two fish of flame circle you, then swim through the air to the target and cross in a spiral burst.'],
-    ['cinderfan', 'Cinder Fan', 'fan', 24, 2.4, 'A broad fan of flame sweeps ahead, its tongues shedding sparks, leaving a half-ring of embers.'],
+    ['cinderfan', 'Cinder Wave', 'wave', 24, 2.4, 'A ring of fire rolls out all around you in a burning wave, scattering embers and sparks; it grows into more waves as your pet evolves.'],
     ['furnaceseed', 'Furnace Seed', 'burst', 26, 3, 'A glowing coal lands at the aim, cracks as heat builds, and erupts; the ground burns a while.'],
     ['moltenlash', 'Molten Lash', 'crescent', 24, 2.6, 'A ribbon of molten fire whips across the aimed arc and snaps at its tip.'],
     ['phoenixtalon', 'Phoenix Talon', 'claw', 26, 2.8, 'Three flaming claw marks fall across the aim and flare where they cross.'],
     ['firewheel', 'Firewheel Skip', 'boom', 24, 2.6, 'A spinning wheel of flame bounces along the ground, scorching at each contact.'],
-    ['candlewick', 'Candlewick Chain', 'bolt', 26, 2.8, 'A thread of flame races from monster to monster, flaring at each.'],
+    ['mandala', 'Burning Mandala', 'flower', 26, 2.8, 'A blazing mandala opens behind you and you fire glowing rings of fire at the monsters: 8 rings, 12 from Adept, 18 at Celestial.'],
     ['salamander', 'Salamander Rush', 'dash', 24, 2.6, 'A salamander of flame darts along your aim, weaving, and coils into an explosion at the end.'],
     ['hearthburst', 'Hearthburst', 'nova', 26, 2.8, 'Flames gather at your feet and roll outward as a low circular wave.'],
     ['matchstars', 'Falling Matchstars', 'stars', 26, 3, 'Sparks fan upward and fall on three marked spots as tiny comets.'] ],
@@ -129,7 +129,7 @@ const ELEM_MOVES = {
     ['crimsonlotus', 'Crimson Lotus Forge', 'flower', 95, 20, 'Molten petals rise round the aim and unfold into a fire lotus; its bud erupts last.'],
     ['infernocarousel', 'Inferno Carousel', 'orbit', 95, 20, 'Flame blades orbit a column at several heights; the column compresses and flings them out ring by ring.'],
     ['fallingsuns', 'Crown of Falling Suns', 'meteor', 95, 20, 'Blazing spheres gather into a crown overhead, each falling on a marked spot, then the crown itself descends.'],
-    ['moltenriver', 'River of Molten Stars', 'wave', 95, 20, 'A ribbon of molten light flows along the aim; star-cores erupt within it, and at its end it curls up into a wave.'],
+    ['apocalypse', 'Apocalypse', 'nova', 100, 22, 'A huge red fireball gathers over the aim, then explodes in a magical blast of fire and fireworks: the strongest fire there is.'],
     ['ninetails', 'Nine-Tailed Conflagration', 'claw', 100, 22, 'Nine flame tails unfurl behind you and lash the ground ahead one by one, then braid into one spiral lance.'],
     ['paperflames', 'World of Paper Flames', 'flame', 95, 20, 'Sheets of flame unfold into banners round the aim and sweep the monsters as their edges burn, then fold into one shape and burst.'] ] },
   water: { strong: [
