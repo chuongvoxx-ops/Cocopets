@@ -57,6 +57,8 @@ function abilityElement(pal) {
   let h = pal.h, s = pal.s;
   if (typeof h !== 'number' || typeof s !== 'number') { const q = hex2hsl(pal.base); h = q[0]; s = q[1]; }
   if (s < 22) return 'shadow';
+  // earth: browns and tans (warm, muted) and olive/moss greens; it used to come only from the rare golden coat
+  if ((h >= 18 && h < 70 && s < 48) || (h >= 70 && h < 100)) return 'gold';
   if (h < 45 || h >= 345) return 'fire';
   if (h < 70) return 'spark';
   if (h < 165) return 'leaf';
