@@ -3,12 +3,13 @@
    translucent forms of white-hot plasma in blue-cyan bodies with violet fringes, a glow and particles round every piece,
    light on the floor under it, a gathering, a strike and a fading; strikes leave only violet impressions that fade out.
    Repeated shapes (the fang lances, the beads, the pins) are drawn once into cached sprites and blitted.
-   Evolution (C.evo 1 Hatchling .. 4 Adept .. 7 Celestial) adds pieces and, at Celestial, a golden flourish:
-     Forked Fang      2 / 3 / 4 lances; Celestial: their pinpoints join in a golden crown that bursts
-     Stormbead Chain  4 / 6 / 8 beads;  Celestial: a golden crown-bead strikes every monster the chain reached
-     Volt Scythe      1 / 2 / 3 blades; Celestial: the third is a great gold-edged scythe that bursts in a fan of rays
-     Thunderpin       1 / 3 / 5 pins (two then four satellites); Celestial: a golden sigil joins them, the last pulse gold
-     Railflash        1 / 2 / 3 bolts;  Celestial: golden accelerator rings stand over the rails and the last bolt is gold
+   Evolution (C.evo 1 Hatchling .. 4 Adept .. 7 Celestial; stages 1-3 / 4-6 / 7) adds pieces and, at Celestial, a
+   repeated climax, each repeat bigger than the last (damage at 7 about evoK x 1.15 the Hatchling total):
+     Forked Fang      2 / 4 / 8 lances; Celestial: two volleys, then one great golden lance
+     Stormbead Chain  4 / 6 / 10 beads; Celestial: the chain runs twice (faster, brighter), then a golden crown-bead
+     Volt Scythe      1 / 2 / 4 blades, each larger; Celestial: the fourth a huge gold scythe
+     Thunderpin       1 / 3 / 7 pins; Celestial: pulses cascade outward, then three golden pulses, each wider
+     Railflash        1 / 2 / 5 bolts; Celestial: four golden hoops, the fifth a gold rail-cannon shot
    Anything round the pet goes behind it (drawUnder) when it lies on the far side. */
 (() => {
   const S = ELEM_IMPL.thunder.strong, TAU = Math.PI * 2;
@@ -100,95 +101,105 @@
      Fang lances gather in a fan before you, cross-linked by crackling arcs, then fire together, twisting round one
      shared path in a helix with plasma trails. Just before impact they separate onto nearby monsters (or converge on
      one); thin branching arcs join the impact points and retract into bright pinpoints that fade.
-     2 lances at Hatchling, 3 at Adept, 4 at Celestial, where the pinpoints join in a golden crown that bursts. */
+     2 lances at Hatchling, 4 at Adept, 8 at Celestial in two volleys: the first spreads over the monsters, the second
+     (larger) converges on the nearest one, and its pinpoints gather into one great golden lance that strikes last. */
   S.forkedfang = (C, h) => {
-    bind(h); const me = H.me, a = C.a, E = K.evo(C), CEL = E >= 7, n = E >= 7 ? 4 : E >= 4 ? 3 : 2, dir = [Math.cos(a), Math.sin(a)], per = [-dir[1], dir[0]];
+    bind(h); const me = H.me, a = C.a, E = K.evo(C), CEL = E >= 7, n = E >= 7 ? 8 : E >= 4 ? 4 : 2, NV = CEL ? 2 : 1, nv = n / NV, VG = 0.42, dir = [Math.cos(a), Math.sin(a)], per = [-dir[1], dir[0]];
     const L = Math.min(reach(me.x, me.y, a, 6, 0.25), Math.max(2.4, Math.hypot(C.tx - me.x, C.ty - me.y) + 0.3)), sx0 = me.x + dir[0] * 0.95, sy0 = me.y + dir[1] * 0.95;
     const CH = 0.3, FLY = 0.32, SPL = 0.12, TI = CH + FLY + SPL, Ls = Math.max(1.5, (L - 0.95) * 0.85), Z0 = 0.62;
-    const ex = sx0 + dir[0] * (L - 0.95), ey = sy0 + dir[1] * (L - 0.95), tg = H.sortNear(ex, ey).filter(m => Math.hypot(m.x - ex, m.y - ey) < 2.6).slice(0, n);
-    const tot = C.base * 2.4 * C.K * K.evoK(C), finK = CEL ? 0.18 : 0, per1 = tot * (1 - finK) / n, behind = dir[1] < -0.35;
-    /* each lance's target: its own monster when there are enough, else they converge round one */
-    const lances = []; for (let i = 0; i < n; i++) { const m = tg.length ? tg[i % tg.length] : null, conv = tg.length < n, ob = i / n * TAU + a, oR = conv ? 0.28 : 0; lances.push({ i, m, tx: (m ? m.x : ex) + Math.cos(ob) * oR, ty: (m ? m.y : ey) + Math.sin(ob) * oR * 0.7, hist: [], hit: false, gold: CEL && i === n - 1 }); }
+    const ex = sx0 + dir[0] * (L - 0.95), ey = sy0 + dir[1] * (L - 0.95), tg = H.sortNear(ex, ey).filter(m => Math.hypot(m.x - ex, m.y - ey) < 2.6).slice(0, nv);
+    const tot = C.base * 2.4 * C.K * K.evoK(C) * (CEL ? 1.15 : E >= 4 ? 1.07 : 1), finK = CEL ? 0.3 : 0, wv = [1, 1.3], wsum = CEL ? nv * (wv[0] + wv[1]) : n, behind = dir[1] < -0.35;
+    /* each lance's target: in the first volley its own monster when there are enough (else they converge round one);
+       the second volley all converges on the nearest */
+    const lances = []; for (let i = 0; i < n; i++) { const v = Math.floor(i / nv), k = i % nv, m = tg.length ? (v ? tg[0] : tg[k % tg.length]) : null, conv = v || tg.length < nv, ob = k / nv * TAU + a, oR = conv ? 0.3 : 0;
+      lances.push({ i, v, k, m, t0: v * VG, sc: v ? 1.25 : 1, tx: (m ? m.x : ex) + Math.cos(ob) * oR, ty: (m ? m.y : ey) + Math.sin(ob) * oR * 0.7, hist: [], hit: false, dmg: tot * (1 - finK) * (CEL ? wv[v] : 1) / wsum }); }
     const marks = []; let crown = null;
-    const helix = (ln, u) => { const d = Ls * H.ease.io(u), ph = ln.i / n * TAU + u * TAU * 1.6, rr = 0.42 * Math.min(1, u * 4) * (1 - 0.2 * u); return [sx0 + dir[0] * d + per[0] * Math.cos(ph) * rr, sy0 + dir[1] * d + per[1] * Math.cos(ph) * rr, Z0 + Math.sin(ph) * rr * 0.8]; };
-    const pos = (ln, t) => { if (t < CH) { const u = cl(t / CH), sp = (ln.i - (n - 1) / 2) * 0.32 * H.ease.out(u); return [sx0 - dir[0] * 0.15 + per[0] * sp, sy0 - dir[1] * 0.15 + per[1] * sp, Z0 + 0.12 * Math.sin(u * Math.PI)]; }
+    const helix = (ln, u) => { const d = Ls * H.ease.io(u), ph = ln.k / nv * TAU + u * TAU * 1.6 + ln.v, rr = 0.42 * ln.sc * Math.min(1, u * 4) * (1 - 0.2 * u); return [sx0 + dir[0] * d + per[0] * Math.cos(ph) * rr, sy0 + dir[1] * d + per[1] * Math.cos(ph) * rr, Z0 + Math.sin(ph) * rr * 0.8]; };
+    const pos = (ln, t) => { if (t < CH) { const u = cl(t / CH), sp = (ln.k - (nv - 1) / 2) * 0.3 * H.ease.out(u); return [sx0 - dir[0] * 0.15 + per[0] * sp, sy0 - dir[1] * 0.15 + per[1] * sp, Z0 + 0.12 * Math.sin(u * Math.PI) + ln.v * 0.15]; }
       if (t < CH + FLY) return helix(ln, (t - CH) / FLY); const s = helix(ln, 1), v = H.ease.in(cl((t - CH - FLY) / SPL)); return [s[0] + (ln.tx - s[0]) * v, s[1] + (ln.ty - s[1]) * v, s[2] + (0.4 - s[2]) * v]; };
+    /* the great golden lance of the Celestial finale: from over the gathering point down onto the crown point */
+    const gpos = u => { const e = H.ease.in(u); return [sx0 + (crown.x - sx0) * e, sy0 + (crown.y - sy0) * e, Z0 + 0.9 + (0.45 - Z0 - 0.9) * e + Math.sin(u * Math.PI) * 0.5]; };
     H.X.sfx.hum(); me.sq = 0.75;
-    H.add({ life: TI + (CEL ? 1.25 : 0.95),
+    H.add({ life: TI + VG * (NV - 1) + (CEL ? 1.45 : 0.95),
       update(dt, f) {
-        if (f.t < CH) { const b = Math.random() * TAU, r = 0.9 + Math.random() * 0.5; if (Math.random() < 0.9 * H.Q()) H.P({ kind: 'spark', x: sx0 + Math.cos(b) * r, y: sy0 + Math.sin(b) * r * 0.6 - Z0, vx: -Math.cos(b) * r * 4, vy: -Math.sin(b) * r * 2.4, g: 0, drag: 0, life: 0.22, max: 0.22, size: 1.8, color: Math.random() < 0.5 ? P.white : P.cyan }); }
-        for (const ln of lances) { if (ln.hit) continue; const p = pos(ln, f.t); ln.hist.push(p); if (ln.hist.length > 11) ln.hist.shift(); if (f.t > CH) K.aura(p[0], p[1], 0.18, dt, 18, p[2]);
-          if (f.t >= TI) { ln.hit = true; H.hitArea(ln.tx, ln.ty, 0.8, per1, C.dmgO({ kb: 2, stun: 0.25 })); flare(ln.tx, ln.ty, 0.4, 1, ln.gold); marks.push({ x: ln.tx, y: ln.ty, t: f.t, r: 0.85, gold: ln.gold, pts: forkScar(ln.tx, ln.ty, 0.8, ln.i * 1.7 + a) });
-            if (lances.every(q => q.hit)) { H.X.sfx.crack(); H.X.shake(4, 0.12); H.X.hitstop(0.03); if (CEL) { const cx = lances.reduce((s, q) => s + q.tx, 0) / n, cy = lances.reduce((s, q) => s + q.ty, 0) / n; crown = { x: cx, y: cy, t: f.t + 0.3, hit: false }; } } } }
-        if (crown && !crown.hit && f.t >= crown.t) { crown.hit = true; H.hitArea(crown.x, crown.y, 1.5, tot * finK, C.dmgO({ kb: 3, stun: 0.3 })); flare(crown.x, crown.y, 0.5, 1.5, true); K.goldSparks(crown.x, crown.y - 0.5, 16, 7); marks.push({ x: crown.x, y: crown.y, t: f.t, r: 1.5, gold: true }); H.X.sfx.crack(); H.X.flash(0.05, P.gold); }
+        for (let v = 0; v < NV; v++) { const vt = f.t - v * VG; if (vt >= 0 && vt < CH) { const b = Math.random() * TAU, r = 0.9 + Math.random() * 0.5; if (Math.random() < 0.9 * H.Q()) H.P({ kind: 'spark', x: sx0 + Math.cos(b) * r, y: sy0 + Math.sin(b) * r * 0.6 - Z0, vx: -Math.cos(b) * r * 4, vy: -Math.sin(b) * r * 2.4, g: 0, drag: 0, life: 0.22, max: 0.22, size: 1.8, color: v ? P.gold : Math.random() < 0.5 ? P.white : P.cyan }); } }
+        for (const ln of lances) { const lt = f.t - ln.t0; if (ln.hit || lt < 0) continue; const p = pos(ln, lt); ln.hist.push(p); if (ln.hist.length > 11) ln.hist.shift(); if (lt > CH) K.aura(p[0], p[1], 0.18, dt, ln.v ? 10 : 14, p[2]);
+          if (lt >= TI) { ln.hit = true; H.hitArea(ln.tx, ln.ty, 0.8, ln.dmg, C.dmgO({ kb: 2, stun: 0.25 })); flare(ln.tx, ln.ty, 0.4, ln.sc, false); marks.push({ x: ln.tx, y: ln.ty, t: f.t, r: 0.85 * ln.sc, pts: ln.k < 3 ? forkScar(ln.tx, ln.ty, 0.8, ln.i * 1.7 + a) : null });
+            if (lances.every(q => q.v !== ln.v || q.hit)) { H.X.sfx.crack(); H.X.shake(3 + 2 * ln.v, 0.12); H.X.hitstop(0.03); if (CEL && ln.v === NV - 1) { const vs = lances.filter(q => q.v === ln.v); crown = { x: vs.reduce((s, q) => s + q.tx, 0) / vs.length, y: vs.reduce((s, q) => s + q.ty, 0) / vs.length, t: f.t + 0.45, hit: false }; H.X.sfx.hum(); } } } }
+        if (crown && !crown.hit && f.t > crown.t - 0.3) { const p = gpos(cl((f.t - crown.t + 0.3) / 0.3)); K.aura(p[0], p[1], 0.3, dt, 30, p[2]); }
+        if (crown && !crown.hit && f.t >= crown.t) { crown.hit = true; H.hitArea(crown.x, crown.y, 1.7, tot * finK, C.dmgO({ kb: 3, stun: 0.35 })); flare(crown.x, crown.y, 0.5, 1.8, true); K.goldSparks(crown.x, crown.y - 0.5, 24, 8); marks.push({ x: crown.x, y: crown.y, t: f.t, r: 1.9, gold: true, pts: forkScar(crown.x, crown.y, 1.6, 2) }); H.X.sfx.crash(); H.X.shake(7, 0.18); H.X.hitstop(0.05); H.X.flash(0.07, P.gold); }
       },
       paint(c, f, T, t, under) {
-        const k = cl(f.life / 0.3), scr = p => [H.sx(p[0]), H.sy(p[1]) - p[2] * T], flying = f.t < TI;
-        // the gathering (and the lances while near you) sits behind you when you aim away
-        if (flying && (f.t < CH + 0.08 ? behind === under : !under)) {
-          const heads = [];
-          for (const ln of lances) { if (ln.hit) continue; const hs = ln.hist; if (!hs.length) continue; const pts = hs.map(scr), hd = pts[pts.length - 1], pv = pts.length > 1 ? pts[pts.length - 2] : [hd[0] - dir[0], hd[1] - dir[1]];
-            const ang = f.t < CH ? Math.atan2(H.sy(sy0 + dir[1]) - H.sy(sy0), H.sx(sx0 + dir[0]) - H.sx(sx0)) : Math.atan2(hd[1] - pv[1], hd[0] - pv[0]), g0 = cl(f.t / CH);
-            const gp = hs[hs.length - 1]; K.floorLight(c, H.sx(gp[0]), H.sy(gp[1]), T * 0.7, 0.35 * g0, ln.gold ? P.gold : P.blue);
-            if (f.t > CH && pts.length > 2) K.ribbon(c, pts, T * 0.11, 0.8, ln.gold);
-            const sz = T * (0.75 + 0.35 * cl((f.t - CH) / 0.1)) * (f.t < CH ? H.ease.back(g0) : 1);
-            K.glow(c, hd[0], hd[1], T * 0.7, ln.gold ? P.gold : P.blue, 0.45); blitRot(c, lanceSprite(ln.gold), hd[0], hd[1], ang, sz / 160 * 1.45, 152, 24, 1, true);
+        const scr = p => [H.sx(p[0]), H.sy(p[1]) - p[2] * T];
+        for (let v = 0; v < NV; v++) { const vt = f.t - v * VG; if (vt < 0 || vt >= TI) continue;
+          // the gathering (and the lances while near you) sits behind you when you aim away
+          if (!(vt < CH + 0.08 ? behind === under : !under)) continue;
+          const heads = [], gold = v === 1;
+          for (const ln of lances) { if (ln.v !== v || ln.hit) continue; const hs = ln.hist; if (!hs.length) continue; const pts = hs.map(scr), hd = pts[pts.length - 1], pv = pts.length > 1 ? pts[pts.length - 2] : [hd[0] - dir[0], hd[1] - dir[1]];
+            const ang = vt < CH ? Math.atan2(H.sy(sy0 + dir[1]) - H.sy(sy0), H.sx(sx0 + dir[0]) - H.sx(sx0)) : Math.atan2(hd[1] - pv[1], hd[0] - pv[0]), g0 = cl(vt / CH);
+            const gp = hs[hs.length - 1]; if (ln.k % 2 === 0 || nv <= 2) K.floorLight(c, H.sx(gp[0]), H.sy(gp[1]), T * 0.7 * ln.sc, 0.35 * g0, P.blue);
+            if (vt > CH && pts.length > 2) K.ribbon(c, nv > 2 ? pts.filter((q, j) => j % 2 === 0 || j === pts.length - 1) : pts, T * 0.11 * ln.sc, 0.8, gold && ln.k === 0);
+            const sz = T * ln.sc * (0.75 + 0.35 * cl((vt - CH) / 0.1)) * (vt < CH ? H.ease.back(g0) : 1);
+            K.glow(c, hd[0], hd[1], T * 0.7 * ln.sc, gold ? P.gold : P.blue, 0.4); blitRot(c, lanceSprite(false), hd[0], hd[1], ang, sz / 160 * 1.45, 152, 24, 1, true);
             heads.push(hd); }
           // the arcs that link the lances: flickering in the gathering and the flight, strong as they part
-          const linkA = f.t < CH ? 0.5 * cl(f.t / CH) : f.t < CH + FLY ? 0.35 + 0.4 * ((f.t - CH) / FLY) : 0.9;
-          for (let i = 0; i + 1 < heads.length + (heads.length > 2 ? 1 : 0); i++) { const p = heads[i], q = heads[(i + 1) % heads.length]; if (K.R1(K.seed(t, i, 14)) < 0.45 && f.t < CH + FLY) continue; K.arc(c, p[0], p[1], q[0], q[1], K.seed(t, i + 3, 22), 0.9, linkA * 0.75, { forks: 1, jit: T * 0.14, gold: CEL && i === heads.length - 1 }); }
-          if (f.t < CH) { const X0 = H.sx(sx0), Y0 = H.sy(sy0) - Z0 * T, g0 = cl(f.t / CH); K.glow(c, X0, Y0, T * (0.5 + 0.6 * g0), P.blue, 0.4 * g0); K.glow(c, X0, Y0, T * 0.22 * g0, P.white, 0.5 * g0); }
-        }
+          const linkA = vt < CH ? 0.5 * cl(vt / CH) : vt < CH + FLY ? 0.35 + 0.4 * ((vt - CH) / FLY) : 0.9;
+          for (let i = 0; i + 1 < heads.length + (heads.length > 2 ? 1 : 0); i++) { const p = heads[i], q = heads[(i + 1) % heads.length]; if (K.R1(K.seed(t, i + v * 9, 14)) < 0.45 && vt < CH + FLY) continue; K.arc(c, p[0], p[1], q[0], q[1], K.seed(t, i + 3 + v * 9, 22), 0.9, linkA * 0.75, { forks: nv > 2 ? 0 : 1, jit: T * 0.14, gold: gold && i === 0 }); }
+          if (vt < CH) { const X0 = H.sx(sx0), Y0 = H.sy(sy0) - Z0 * T, g0 = cl(vt / CH); K.glow(c, X0, Y0, T * (0.5 + 0.6 * g0) * (1 + 0.3 * v), gold ? P.gold : P.blue, 0.4 * g0); K.glow(c, X0, Y0, T * 0.22 * g0, P.white, 0.5 * g0); } }
         if (!under) {
-          // after impact: arcs join the struck points and retract into pinpoints
-          const hits = lances.filter(q => q.hit), age = f.t - TI;
-          if (hits.length && age >= 0) {
-            const rt = cl(age / 0.32), pin = cl(1 - (age - 0.2) / 0.55);
+          // after impact: arcs join the struck points and retract into pinpoints (each volley on its own)
+          for (let v = 0; v < NV; v++) { const hits = lances.filter(q => q.v === v && q.hit), age = f.t - TI - v * VG; if (!hits.length || age < 0) continue;
+            const rt = cl(age / 0.32), pin = crown && v === NV - 1 && f.t > crown.t - 0.3 ? 0 : cl(1 - (age - 0.2) / 0.55), gold = v === 1;
             for (let i = 0; i < hits.length; i++) { const p = hits[i], q = hits[(i + 1) % hits.length]; if (hits.length < 2 && i) break; const px = H.sx(p.tx), py = H.sy(p.ty) - 0.4 * T, qx = H.sx(q.tx), qy = H.sy(q.ty) - 0.4 * T;
               if (p === q || Math.hypot(qx - px, qy - py) < 4) { for (let j = 0; j < 3; j++) { const b = j / 3 * TAU + a, l = T * 0.8 * (1 - rt); if (l > 2) K.arc(c, px, py, px + Math.cos(b) * l, py + Math.sin(b) * l * 0.7, K.seed(t, j + 30, 24), 1.2, 0.9 * (1 - rt), { forks: 1 }); } continue; }
-              if (rt < 1) { const mx = (px + qx) / 2, my = (py + qy) / 2; K.arc(c, px, py, px + (mx - px) * (1 - rt), py + (my - py) * (1 - rt), K.seed(t, i + 40, 24), 1, 0.8 - rt * 0.4, { forks: 1, jit: T * 0.18, gold: CEL }); K.arc(c, qx, qy, qx + (mx - qx) * (1 - rt), qy + (my - qy) * (1 - rt), K.seed(t, i + 50, 24), 1, 0.8 - rt * 0.4, { forks: 1, jit: T * 0.18, gold: CEL }); } }
-            for (const p of hits) { const px = H.sx(p.tx), py = H.sy(p.ty) - 0.4 * T, tw = 0.75 + 0.25 * Math.sin(t * 40 + p.i * 2); if (pin > 0) { K.glow(c, px, py, T * (0.2 + 0.3 * pin) * tw, p.gold ? P.gold : P.cyan, 0.7 * pin); K.glow(c, px, py, T * 0.1 * pin, P.white, pin); c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = pin; c.strokeStyle = P.white; c.lineWidth = 1.2; const l = T * 0.32 * pin * tw; c.beginPath(); c.moveTo(px - l, py); c.lineTo(px + l, py); c.moveTo(px, py - l * 0.8); c.lineTo(px, py + l * 0.8); c.stroke(); c.restore(); }
-              if (age < 0.12) K.glow(c, px, py, T * 0.9, P.cyan, 0.45 * (1 - age / 0.12)); }
-          }
-          // the Celestial crown: the pinpoints join in a golden star, rise a little and burst
-          if (CEL && crown) { const u = (f.t - (crown.t - 0.3)) / 0.3, X = H.sx(crown.x), Y = H.sy(crown.y) - T * 0.6;
-            if (u > 0 && u < 1) { const rr = T * 0.9 * (1 - 0.6 * u), pts = hits.map((p, i) => [X + Math.cos(i / hits.length * TAU - Math.PI / 2 + u * 2) * rr, Y - T * 0.3 * u + Math.sin(i / hits.length * TAU - Math.PI / 2 + u * 2) * rr * 0.6]);
-              for (let i = 0; i < pts.length; i++) { const p = pts[i], q = pts[(i + 2) % pts.length]; K.arc(c, p[0], p[1], q[0], q[1], K.seed(t, i + 60, 24), 1, 0.7, { forks: 0, gold: true, jit: T * 0.06 }); K.glow(c, p[0], p[1], T * 0.25, P.gold, 0.6); } K.glow(c, X, Y - T * 0.3 * u, T * (0.4 + 0.4 * u), P.gold, 0.35 * u); }
-            const v = (f.t - crown.t) / 0.5; if (v > 0 && v < 1) { K.glow(c, X, Y - T * 0.3, T * 1.6 * (0.4 + v), P.gold, 0.45 * (1 - v)); c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 1 - v; c.strokeStyle = P.gold; c.lineWidth = 2; for (let i = 0; i < 8; i++) { const b = i / 8 * TAU + 0.2, r0 = T * 0.3, r1 = T * (0.6 + 1.6 * H.ease.out(v)); c.beginPath(); c.moveTo(X + Math.cos(b) * r0, Y - T * 0.3 + Math.sin(b) * r0 * 0.6); c.lineTo(X + Math.cos(b) * r1, Y - T * 0.3 + Math.sin(b) * r1 * 0.6); c.stroke(); } c.restore(); } }
+              if (rt < 1) { const mx = (px + qx) / 2, my = (py + qy) / 2; K.arc(c, px, py, px + (mx - px) * (1 - rt), py + (my - py) * (1 - rt), K.seed(t, i + 40 + v * 9, 24), 1, 0.8 - rt * 0.4, { forks: 1, jit: T * 0.18, gold }); K.arc(c, qx, qy, qx + (mx - qx) * (1 - rt), qy + (my - qy) * (1 - rt), K.seed(t, i + 50 + v * 9, 24), 1, 0.8 - rt * 0.4, { forks: 1, jit: T * 0.18, gold }); } }
+            for (const p of hits) { const px = H.sx(p.tx), py = H.sy(p.ty) - 0.4 * T, tw = 0.75 + 0.25 * Math.sin(t * 40 + p.i * 2); if (pin > 0) { K.glow(c, px, py, T * (0.2 + 0.3 * pin) * tw, gold ? P.gold : P.cyan, 0.7 * pin); K.glow(c, px, py, T * 0.1 * pin, P.white, pin); c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = pin; c.strokeStyle = P.white; c.lineWidth = 1.2; const l = T * 0.32 * pin * tw; c.beginPath(); c.moveTo(px - l, py); c.lineTo(px + l, py); c.moveTo(px, py - l * 0.8); c.lineTo(px, py + l * 0.8); c.stroke(); c.restore(); }
+              if (age < 0.12) K.glow(c, px, py, T * 0.9, P.cyan, 0.45 * (1 - age / 0.12)); } }
+          // the Celestial finale: the second volley's pinpoints draw together into a golden star over the struck
+          // monster, then one great golden lance drops from above the gathering point onto it and bursts
+          if (CEL && crown) { const X = H.sx(crown.x), Y = H.sy(crown.y) - T * 0.6, hits = lances.filter(q => q.v === NV - 1), u0 = (f.t - (crown.t - 0.45)) / 0.3;
+            if (u0 > 0 && u0 < 1.5) { const u = cl(u0), fade = cl((u0 - 1) / 0.5), rr = T * 0.95 * (1 - 0.5 * u), pts = hits.map((p, i) => [X + Math.cos(i / hits.length * TAU - Math.PI / 2 + u * 2) * rr, Y - T * 0.3 * u + Math.sin(i / hits.length * TAU - Math.PI / 2 + u * 2) * rr * 0.6]);
+              for (let i = 0; i < pts.length; i++) { const p = pts[i], q = pts[(i + 1) % pts.length]; K.arc(c, p[0], p[1], q[0], q[1], K.seed(t, i + 60, 24), 1, 0.7 * (1 - fade), { forks: 0, gold: true, jit: T * 0.06 }); K.glow(c, p[0], p[1], T * 0.25, P.gold, 0.6 * (1 - fade)); } K.glow(c, X, Y - T * 0.3 * u, T * (0.4 + 0.5 * u), P.gold, 0.4 * u * (1 - fade)); }
+            const ul = (f.t - (crown.t - 0.3)) / 0.3; if (ul > 0 && ul <= 1) { const hd = scr(gpos(ul)), tr = []; for (let j = 7; j >= 0; j--) tr.push(scr(gpos(Math.max(0, ul - j * 0.05)))); const pv = scr(gpos(Math.max(0, ul - 0.04)));
+              K.ribbon(c, tr, T * 0.32, 1, true); K.glow(c, hd[0], hd[1], T * 1.6, P.gold, 0.55); blitRot(c, lanceSprite(true), hd[0], hd[1], Math.atan2(hd[1] - pv[1], hd[0] - pv[0]), T * 2.4 / 160 * 1.45, 152, 24, 1, true); K.glow(c, hd[0], hd[1], T * 0.35, P.white, 0.8); }
+            const v = (f.t - crown.t) / 0.6; if (v > 0 && v < 1) { K.glow(c, X, Y - T * 0.3, T * 2.2 * (0.4 + v), P.gold, 0.5 * (1 - v)); c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 1 - v; c.strokeStyle = P.gold; c.lineWidth = 2.4; for (let i = 0; i < 12; i++) { const b = i / 12 * TAU + 0.2, r0 = T * 0.35, r1 = T * (0.8 + (i % 2 ? 1.4 : 2.3) * H.ease.out(v)); c.beginPath(); c.moveTo(X + Math.cos(b) * r0, Y - T * 0.3 + Math.sin(b) * r0 * 0.6); c.lineTo(X + Math.cos(b) * r1, Y - T * 0.3 + Math.sin(b) * r1 * 0.6); c.stroke(); } c.restore();
+              for (let j = 0; j < 4; j++) { const b = j / 4 * TAU + 0.7, l = T * 1.6 * (1 - v); if (l > 3) K.arc(c, X, Y + T * 0.6, X + Math.cos(b) * l, Y + T * 0.6 + Math.sin(b) * l * H.GY, K.seed(t, j + 70, 24), 1.4, 1 - v, { forks: 1, gold: true }); } } }
         } else {
           drawMarks(c, marks, f.t, T);
-          if (f.t < TI) K.floorLight(c, H.sx(sx0 + dir[0] * Ls * 0.5), H.sy(sy0 + dir[1] * Ls * 0.5), T * Ls * 0.55, 0.2 * cl((f.t - CH) / 0.1), P.blue);
+          for (let v = 0; v < NV; v++) { const vt = f.t - v * VG; if (vt > CH && vt < TI) K.floorLight(c, H.sx(sx0 + dir[0] * Ls * 0.5), H.sy(sy0 + dir[1] * Ls * 0.5), T * Ls * 0.55, 0.2 * cl((vt - CH) / 0.1), v ? P.gold : P.blue); }
+          if (crown && f.t > crown.t - 0.3 && f.t < crown.t + 0.5) K.floorLight(c, H.sx(crown.x), H.sy(crown.y), T * 2.2, 0.5 * cl((f.t - crown.t + 0.3) / 0.3) * cl(1 - (f.t - crown.t) / 0.5), P.gold);
         }
-        void k;
       },
       drawUnder(c, f, X, Y, T, t) { this.paint(c, f, T, t, true); },
       draw(c, f, X, Y, T, t) { this.paint(c, f, T, t, false); } });
-    H.X.after(CH, () => H.X.sfx.whoosh());
+    for (let v = 0; v < NV; v++) H.X.after(CH + v * VG, () => H.X.sfx.whoosh());
   };
 
   /* ================= LI-S02 Stormbead Chain =================
      Charged beads condense out of motes on a ring round the target, strung together by a faint necklace of arcs over a
      ring of floor light. One after another each bead swells, crackles and discharges a bolt into a monster, the bolt
      jumping on to the next; the last bead breaks into a spray of blue-white sparks.
-     4 beads at Hatchling, 6 at Adept, 8 at Celestial, where a golden crown-bead then strikes every monster reached. */
+     4 beads at Hatchling, 6 at Adept, 10 at Celestial, where the beads re-form and the chain runs a second time, faster
+     and brighter, and then a golden crown-bead strikes every monster reached. */
   S.stormbead = (C, h) => {
-    bind(h); const x = C.tx, y = C.ty, E = K.evo(C), CEL = E >= 7, N = K.evoN(C, 4, 8), T0 = 0.45, GAP = Math.min(0.2, 0.95 / N), SW = 0.14, RX = 1.15, RY = 0.8;
-    const tot = C.base * 3.2 * C.K * K.evoK(C), finK = CEL ? 0.2 : 0, perB = tot * (1 - finK) / N, END = T0 + N * GAP;
-    const beads = []; for (let i = 0; i < N; i++) beads.push({ i, b: i / N * TAU + 0.4, z: 0.95 + 0.18 * (i % 2), fired: -1, tf: T0 + i * GAP, wx: x, wy: y });
-    const bolts = [], marks = [], struck = new Set(); let crown = null;
+    bind(h); const x = C.tx, y = C.ty, E = K.evo(C), CEL = E >= 7, N = E >= 7 ? 10 : E >= 4 ? 6 : 4, NP = CEL ? 2 : 1, T0 = 0.45, GAP = Math.min(0.2, 0.95 / N), SW = 0.14, RX = 1.15 + (E >= 7 ? 0.2 : 0), RY = 0.8 + (E >= 7 ? 0.12 : 0);
+    const tot = C.base * 3.2 * C.K * K.evoK(C) * (CEL ? 1.15 : E >= 4 ? 1.07 : 1), finK = CEL ? 0.2 : 0, END1 = T0 + N * GAP, GAP2 = GAP * 0.6, T2 = END1 + 0.35, END = CEL ? T2 + N * GAP2 : END1, perB = tot * (1 - finK) / (N * (CEL ? 2.3 : 1));
+    /* the beads of each pass (the second pass re-forms them on the same ring and fires faster); `ap` when it appears */
+    const beads = []; for (let ps = 0; ps < NP; ps++) for (let i = 0; i < N; i++) beads.push({ i, ps, k: ps * N + i, b: i / N * TAU + 0.4 + ps * 0.3, z: 0.95 + 0.18 * (i % 2), fired: -1, ap: ps ? END1 + 0.05 + i * 0.02 : i * 0.03, tf: ps ? T2 + i * GAP2 : T0 + i * GAP, dm: perB * (ps ? 1.3 : 1), sz: ps ? 1.2 : 1, wx: x, wy: y });
+    const bolts = [], marks = [], struck = new Set(), struckP = [new Set(), new Set()]; let crown = null;
     const bpos = (b, t) => { const ang = b.b + t * 0.9; return [x + Math.cos(ang) * RX, y + Math.sin(ang) * RY, b.z + 0.08 * Math.sin(t * 5 + b.i)]; };
     H.X.sfx.hum();
     const fireBead = (b, f) => {
-      const p = bpos(b, f.t); b.fired = f.t; b.wx = p[0]; b.wy = p[1]; const list = H.sortNear(p[0], p[1]).filter(m => Math.hypot(m.x - x, m.y - y) < 4.4), m = list.find(q => !struck.has(q)) || list[0], last = b.i === N - 1;
-      if (m) { struck.add(m); bolts.push({ x0: p[0], y0: p[1], z0: p[2], x1: m.x, y1: m.y, z1: 0.4, t: f.t, w: 3.2, gold: false }); H.X.hitMon(m, perB * 0.72, C.dmgO({ stun: 0.18 })); flare(m.x, m.y, 0.4, 0.9); marks.push({ x: m.x, y: m.y, t: f.t, r: 0.7, pts: forkScar(m.x, m.y, 0.6, b.i * 2.3) });
-        const m2 = H.X.nearestMon(m.x, m.y, 3.2, m); if (m2) H.X.after(0.06, () => { if (m2.dead) return; bolts.push({ x0: m.x, y0: m.y, z0: 0.4, x1: m2.x, y1: m2.y, z1: 0.4, t: F.t, w: 2, gold: false }); H.X.hitMon(m2, perB * 0.28, C.dmgO({ stun: 0.1 })); spray(m2.x, m2.y, 0.4, 6, 5); H.X.light(m2.x, m2.y, 1.2, 0.12); struck.add(m2); }); }
-      else { bolts.push({ x0: p[0], y0: p[1], z0: p[2], x1: x, y1: y, z1: 0, t: f.t, w: 3.2 }); H.hitArea(x, y, 1.25, perB, C.dmgO({ stun: 0.15 })); marks.push({ x, y, t: f.t, r: 1.1, pts: forkScar(x, y, 0.9, b.i) }); }
-      spray(p[0], p[1], p[2], last ? 26 : 8, last ? 8 : 5, false, last ? 0.5 : 0.3); H.X.sfx.crack();
-      if (last) { H.X.light(p[0], p[1], 2.4, 0.25); H.X.shake(3, 0.1); K.motes(p[0], p[1] - p[2], 10); if (CEL) crown = { t: f.t + 0.22, hit: false }; }
+      const p = bpos(b, f.t); b.fired = f.t; b.wx = p[0]; b.wy = p[1]; const list = H.sortNear(p[0], p[1]).filter(m => Math.hypot(m.x - x, m.y - y) < 4.4), m = list.find(q => !struckP[b.ps].has(q)) || list[0], last = b.i === N - 1, fin = last && b.ps === NP - 1;
+      if (m) { struck.add(m); struckP[b.ps].add(m); bolts.push({ x0: p[0], y0: p[1], z0: p[2], x1: m.x, y1: m.y, z1: 0.4, t: f.t, w: b.ps ? 4.2 : 3.2, gold: false, hot: b.ps }); H.X.hitMon(m, b.dm * 0.72, C.dmgO({ stun: 0.18 })); flare(m.x, m.y, 0.4, 0.9); marks.push({ x: m.x, y: m.y, t: f.t, r: 0.7, pts: forkScar(m.x, m.y, 0.6, b.i * 2.3) });
+        const m2 = H.X.nearestMon(m.x, m.y, 3.2, m); if (m2) H.X.after(0.06, () => { if (m2.dead) return; bolts.push({ x0: m.x, y0: m.y, z0: 0.4, x1: m2.x, y1: m2.y, z1: 0.4, t: F.t, w: 2, gold: false }); H.X.hitMon(m2, b.dm * 0.28, C.dmgO({ stun: 0.1 })); spray(m2.x, m2.y, 0.4, 6, 5); H.X.light(m2.x, m2.y, 1.2, 0.12); struck.add(m2); }); }
+      else { bolts.push({ x0: p[0], y0: p[1], z0: p[2], x1: x, y1: y, z1: 0, t: f.t, w: 3.2 }); H.hitArea(x, y, 1.25, b.dm, C.dmgO({ stun: 0.15 })); marks.push({ x, y, t: f.t, r: 1.1, pts: forkScar(x, y, 0.9, b.i) }); }
+      spray(p[0], p[1], p[2], last ? 26 + b.ps * 12 : 8, last ? 8 + b.ps * 2 : 5, false, last ? 0.5 : 0.3); H.X.sfx.crack();
+      if (last) { H.X.light(p[0], p[1], 2.4 + b.ps, 0.25); H.X.shake(3 + b.ps * 2, 0.1); K.motes(p[0], p[1] - p[2], 10); if (CEL && fin) crown = { t: f.t + 0.22, hit: false }; }
     };
     const F = H.add({ life: END + (CEL ? 1.25 : 0.9), x, y,
       update(dt, f) {
-        for (const b of beads) { if (b.fired < 0 && f.t >= b.tf) fireBead(b, f); if (b.fired < 0) { const p = bpos(b, f.t); if (f.t < 0.4 && Math.random() < 0.6 * H.Q()) H.P({ kind: 'ember', x: p[0] + (Math.random() - 0.5) * 0.9, y: p[1] - p[2] + (Math.random() - 0.5) * 0.7, vx: 0, vy: 0, g: 0, drag: 2, life: 0.25, max: 0.25, size: 2.4, color: Math.random() < 0.5 ? P.cyan : P.violet }); else K.aura(p[0], p[1], 0.12, dt, 5, p[2]); } }
+        for (const b of beads) { if (b.fired < 0 && f.t >= b.tf) fireBead(b, f); if (b.fired < 0 && f.t >= b.ap) { const p = bpos(b, f.t); if (f.t - b.ap < 0.4 && Math.random() < 0.6 * H.Q()) H.P({ kind: 'ember', x: p[0] + (Math.random() - 0.5) * 0.9, y: p[1] - p[2] + (Math.random() - 0.5) * 0.7, vx: 0, vy: 0, g: 0, drag: 2, life: 0.25, max: 0.25, size: 2.4, color: Math.random() < 0.5 ? P.cyan : P.violet }); else K.aura(p[0], p[1], 0.12, dt, 5, p[2]); } }
         if (crown && !crown.hit && f.t >= crown.t + 0.35) { crown.hit = true; const list = [...struck].filter(m => !m.dead).slice(0, 8); if (!list.length) { H.hitArea(x, y, 1.6, tot * finK, C.dmgO({ stun: 0.3 })); marks.push({ x, y, t: f.t, r: 1.6, gold: true }); }
           for (const m of list) { H.X.hitMon(m, tot * finK / list.length, C.dmgO({ stun: 0.3 })); bolts.push({ x0: x, y0: y, z0: 1.9, x1: m.x, y1: m.y, z1: 0.4, t: f.t, w: 3, gold: true }); K.goldSparks(m.x, m.y - 0.4, 6, 5); marks.push({ x: m.x, y: m.y, t: f.t, r: 0.8, gold: true }); }
           K.goldSparks(x, y - 1.9, 18, 7); H.X.light(x, y, 3, 0.3); H.X.flash(0.05, P.gold); H.X.sfx.crack(); }
@@ -198,22 +209,27 @@
         // the floor ring the beads stand over
         K.floorLight(c, X, Y, T * RX * 1.6, 0.35 * inK * live, P.blue);
         c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.5 * inK * live; c.strokeStyle = H.rgba(P.violet, 0.6); c.lineWidth = 3; H.floorEllipse(c, X, Y, T * RX, T * RY); c.stroke(); c.strokeStyle = H.rgba(P.cyan, 0.7); c.lineWidth = 1; c.setLineDash([T * 0.12, T * 0.18]); c.lineDashOffset = -t * T; H.floorEllipse(c, X, Y, T * RX * 0.86, T * RY * 0.86); c.stroke(); c.setLineDash([]); c.restore();
-        for (const b of beads) { if (b.fired >= 0 && f.t - b.fired > 0.1) continue; const p = bpos(b, f.t); K.floorLight(c, H.sx(p[0]), H.sy(p[1]), T * 0.45, 0.4 * inK, P.cyan); }
-        drawMarks(c, marks, f.t, T); void k;
+        for (const b of beads) { if ((b.fired >= 0 && f.t - b.fired > 0.1) || f.t < b.ap) continue; const p = bpos(b, f.t); K.floorLight(c, H.sx(p[0]), H.sy(p[1]), T * 0.45 * b.sz, 0.4 * inK, b.ps ? P.ice : P.cyan); }
+        drawMarks(c, marks, f.t, T); this.beads(c, f, T, t, true); void k;
       },
       draw(c, f, X, Y, T, t) {
         const inK = H.ease.out(cl(f.t / 0.35)), scr = p => [H.sx(p[0]), H.sy(p[1]) - p[2] * T * inK];
         // the necklace of arcs strung between the live beads
-        const live = beads.filter(b => b.fired < 0);
-        for (let i = 0; i < live.length; i++) { const b = live[i], q = live[(i + 1) % live.length]; if (live.length < 2 || (live.length === 2 && i)) break; if (K.R1(K.seed(t, i, 10)) < 0.3) continue; const p0 = scr(bpos(b, f.t)), p1 = scr(bpos(q, f.t)); K.arc(c, p0[0], p0[1], p1[0], p1[1], K.seed(t, i + b.i * 3, 16), 0.9, 0.45 * inK, { forks: 0, jit: T * 0.12 }); }
-        for (const b of beads) { const p = scr(bpos(b, f.t)), appear = cl((f.t - b.i * 0.03) / 0.3);
-          if (b.fired < 0) { const sw = cl((f.t - (b.tf - SW)) / SW); bead(c, p[0], p[1], T * (0.19 + 0.12 * sw * sw) * H.ease.back(appear), t, b.i, appear, false, sw); }
-          else { const age = f.t - b.fired; if (age < 0.25) { const u = age / 0.25, last = b.i === N - 1; K.glow(c, p[0], p[1], T * (last ? 1.5 : 0.8) * (0.5 + u), P.cyan, 0.7 * (1 - u)); K.glow(c, p[0], p[1], T * 0.3 * (1 - u), P.white, 1 - u); if (last) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.8 * (1 - u); c.strokeStyle = P.ice; c.lineWidth = 1.3; for (let j = 0; j < 10; j++) { const b2 = j / 10 * TAU + 0.3, r0 = T * (0.15 + 0.9 * u), r1 = r0 + T * 0.3 * (1 - u); c.beginPath(); c.moveTo(p[0] + Math.cos(b2) * r0, p[1] + Math.sin(b2) * r0); c.lineTo(p[0] + Math.cos(b2) * r1, p[1] + Math.sin(b2) * r1); c.stroke(); } c.restore(); } } } }
+        const live = beads.filter(b => b.fired < 0 && f.t >= b.ap);
+        for (let i = 0; i < live.length; i++) { const b = live[i], q = live[(i + 1) % live.length]; if (live.length < 2 || (live.length === 2 && i)) break; if (K.R1(K.seed(t, i, 10)) < 0.3) continue; const p0 = scr(bpos(b, f.t)), p1 = scr(bpos(q, f.t)); K.arc(c, p0[0], p0[1], p1[0], p1[1], K.seed(t, i + b.i * 3, 16), 0.9 + 0.3 * b.ps, (0.45 + 0.25 * b.ps) * inK, { forks: 0, jit: T * 0.12 }); }
         // the discharges
-        for (const bo of bolts) { const age = f.t - bo.t; if (age > 0.22) continue; const a2 = 1 - age / 0.22, x0 = H.sx(bo.x0), y0 = H.sy(bo.y0) - bo.z0 * T, x1 = H.sx(bo.x1), y1 = H.sy(bo.y1) - bo.z1 * T; K.arc(c, x0, y0, x1, y1, K.seed(t, bo.x0 * 7 + bo.y1 * 3, 24), bo.w, a2, { forks: 3, gold: bo.gold }); K.glow(c, x1, y1, T * 0.9, bo.gold ? P.gold : P.cyan, 0.7 * a2); }
+        for (const bo of bolts) { const age = f.t - bo.t; if (age > 0.22) continue; const a2 = 1 - age / 0.22, x0 = H.sx(bo.x0), y0 = H.sy(bo.y0) - bo.z0 * T, x1 = H.sx(bo.x1), y1 = H.sy(bo.y1) - bo.z1 * T; K.arc(c, x0, y0, x1, y1, K.seed(t, bo.x0 * 7 + bo.y1 * 3, 24), bo.w, a2, { forks: 3, gold: bo.gold }); K.glow(c, x1, y1, T * (bo.hot ? 1.2 : 0.9), bo.gold ? P.gold : bo.hot ? P.ice : P.cyan, 0.7 * a2); }
         // the Celestial crown-bead: it descends over the ring, swells and strikes every monster the chain reached
         if (crown) { const u = cl((f.t - crown.t) / 0.35), gone = crown.hit ? cl((f.t - crown.t - 0.35) / 0.3) : 0; if (gone < 1) { const cx = X, cy = Y - T * (2.6 - 0.7 * H.ease.out(u)); K.glow(c, cx, cy, T * 2.2, P.gold, 0.35 * u * (1 - gone)); bead(c, cx, cy, T * (0.22 + 0.14 * u) * (1 + gone), t, 9, (1 - gone) * cl(u * 3), true, u);
             c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.8 * u * (1 - gone); c.strokeStyle = P.gold; c.lineWidth = 1.4; for (let i = 0; i < 6; i++) { const b = i / 6 * TAU + t * 1.5; c.beginPath(); c.moveTo(cx + Math.cos(b) * T * 0.45, cy + Math.sin(b) * T * 0.45); c.lineTo(cx + Math.cos(b) * T * 0.75, cy + Math.sin(b) * T * 0.75); c.stroke(); } c.restore(); } }
+        this.beads(c, f, T, t, false);
+      },
+      /* the beads themselves: a bead floating just behind the pet is drawn behind it */
+      beads(c, f, T, t, under) {
+        const inK = H.ease.out(cl(f.t / 0.35)), scr = p => [H.sx(p[0]), H.sy(p[1]) - p[2] * T * inK], me = H.me;
+        for (const b of beads) { if (f.t < b.ap) continue; const wp = bpos(b, f.t), back = wp[1] < me.y && me.y - wp[1] < 1.6 && Math.abs(wp[0] - me.x) < 1; if (back !== under) continue; const p = scr(wp), appear = cl((f.t - b.ap) / (b.ps ? 0.18 : 0.3));
+          if (b.fired < 0) { const sw = cl((f.t - (b.tf - SW * (b.ps ? 0.7 : 1))) / (SW * (b.ps ? 0.7 : 1))); if (b.ps) K.glow(c, p[0], p[1], T * 0.6, P.ice, 0.35 * appear); bead(c, p[0], p[1], T * (0.19 + 0.12 * sw * sw) * b.sz * H.ease.back(appear), t, b.i, appear, false, sw); }
+          else { const age = f.t - b.fired; if (age < 0.25) { const u = age / 0.25, last = b.i === N - 1; K.glow(c, p[0], p[1], T * (last ? 1.5 : 0.8) * (0.5 + u), P.cyan, 0.7 * (1 - u)); K.glow(c, p[0], p[1], T * 0.3 * (1 - u), P.white, 1 - u); if (last) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.8 * (1 - u); c.strokeStyle = P.ice; c.lineWidth = 1.3; for (let j = 0; j < 10; j++) { const b2 = j / 10 * TAU + 0.3, r0 = T * (0.15 + 0.9 * u), r1 = r0 + T * 0.3 * (1 - u); c.beginPath(); c.moveTo(p[0] + Math.cos(b2) * r0, p[1] + Math.sin(b2) * r0); c.lineTo(p[0] + Math.cos(b2) * r1, p[1] + Math.sin(b2) * r1); c.stroke(); } c.restore(); } } } }
       } });
   };
 
@@ -221,14 +237,17 @@
      A curved blade of lightning forms along your sweep: its edge is drawn on the arc as you swing, a stable bright
      outline over a translucent plasma body with small arcs crawling across its face. After the swing it flies a short way
      ahead, widening, as a broad cone strike, then dissolves into motes and leaves a fading violet arc on the floor.
-     1 blade at Hatchling, 2 at Adept (crossing sweeps), 3 at Celestial, the third a great gold-edged scythe. */
+     1 blade at Hatchling, 2 at Adept (crossing sweeps), 4 at Celestial in alternating sweeps, each larger than the last,
+     the fourth a huge gold scythe that flies further and bursts in a fan of golden rays. */
   S.voltscythe = (C, h) => {
-    bind(h); const me = H.me, a = C.a, E = K.evo(C), CEL = E >= 7, NB = E >= 7 ? 3 : E >= 4 ? 2 : 1, dir = [Math.cos(a), Math.sin(a)], ox = me.x, oy = me.y;
-    const tot = C.base * 2.5 * C.K * K.evoK(C), SW = 0.22, FLY = 0.3, GAPB = 0.24, R0 = 1.25, DF = 2.4;
-    const blades = []; for (let j = 0; j < NB; j++) { const big = CEL && j === NB - 1; blades.push({ j, side: j % 2 ? -1 : 1, t0: 0.06 + j * GAPB, big, R: R0 * (big ? 1.18 : 1), half: big ? 1.15 : 0.95, W: big ? 0.5 : 0.4, dmg: tot / NB * (big ? 1.15 : 1) / (1 + (CEL ? 0.15 / NB : 0)), hit1: false, hit2: false }); }
-    const marks = [], END = blades[NB - 1].t0 + SW + FLY;
+    bind(h); const me = H.me, a = C.a, E = K.evo(C), CEL = E >= 7, NB = E >= 7 ? 4 : E >= 4 ? 2 : 1, dir = [Math.cos(a), Math.sin(a)], ox = me.x, oy = me.y;
+    const tot = C.base * 2.5 * C.K * K.evoK(C) * (CEL ? 1.15 : E >= 4 ? 1.07 : 1), SW = 0.22, FLY = 0.3, GAPB = CEL ? 0.22 : 0.24, R0 = 1.25, DF0 = 2.4;
+    /* each blade a little larger than the one before; the Celestial fourth is the great one */
+    const wts = []; for (let j = 0; j < NB; j++) wts.push(CEL && j === NB - 1 ? 1.9 : 1 + 0.15 * j); const wsum = wts.reduce((q, w) => q + w, 0);
+    const blades = []; for (let j = 0; j < NB; j++) { const big = CEL && j === NB - 1, g = big ? 1.5 : 1 + 0.08 * j; blades.push({ j, side: j % 2 ? -1 : 1, t0: 0.06 + j * GAPB + (big ? 0.08 : 0), big, R: R0 * g, half: big ? 1.25 : 0.95 + 0.03 * j, W: big ? 0.7 : 0.4 + 0.03 * j, DF: big ? 3.0 : DF0, dmg: tot * wts[j] / wsum, hit1: false, hit2: false }); }
+    const marks = [], END = blades[NB - 1].t0 + SW + FLY, DF = DF0;
     /* blade j's state at time t: the swept extent, its centre offset along the aim, and its alpha */
-    const state = (b, t) => { const u = t - b.t0; if (u < 0) return null; const sw = cl(u / SW), fl = cl((u - SW) / FLY), fade = cl((u - SW - FLY) / 0.32); if (fade >= 1) return null; return { sw: H.ease.io(sw), fl: H.ease.out(fl), d: DF * H.ease.out(fl), grow: 1 + 0.35 * fl, a: (1 - fade) * cl(u / 0.06), fade, u }; };
+    const state = (b, t) => { const u = t - b.t0; if (u < 0) return null; const sw = cl(u / SW), fl = cl((u - SW) / FLY), fade = cl((u - SW - FLY) / 0.32); if (fade >= 1) return null; return { sw: H.ease.io(sw), fl: H.ease.out(fl), d: b.DF * H.ease.out(fl), grow: 1 + 0.35 * fl, a: (1 - fade) * cl(u / 0.06), fade, u }; };
     /* the blade's outline in screen px: outer edge then inner edge, theta across [lo, hi] */
     const outline = (b, s, T) => { const cx = ox + dir[0] * s.d, cy = oy + dir[1] * s.d, R = b.R * s.grow, half = b.half * s.grow * 0.92, z = 0.45 * T, n = 16;
       const th0 = a - b.side * half, thN = a - b.side * half + b.side * 2 * half * s.sw, outer = [], inner = [];
@@ -239,7 +258,7 @@
     const drawBlade = (c, b, s, T, t) => {
       const o = outline(b, s, T), pts = o.outer.concat(o.inner.slice().reverse()), A = s.a, gold = b.big;
       // ghosts of the blade where it was a moment ago (while it flies)
-      if (s.fl > 0 && s.fl < 1) for (let g = 1; g <= 2; g++) { const sg = Object.assign({}, s, { d: DF * H.ease.out(cl((s.u - SW - FLY * 0.12 * g) / FLY)) }), og = outline(b, sg, T); K.ribbon(c, og.outer, T * 0.07, 0.25 * A / g, gold); }
+      if (s.fl > 0 && s.fl < 1) for (let g = 1; g <= 2; g++) { const sg = Object.assign({}, s, { d: b.DF * H.ease.out(cl((s.u - SW - FLY * 0.12 * g) / FLY)) }), og = outline(b, sg, T); K.ribbon(c, og.outer, T * 0.07, 0.25 * A / g, gold); }
       // the haze along it
       for (let i = 0; i < o.outer.length; i += 3) K.glow(c, o.outer[i][0], o.outer[i][1], T * 0.55 * (b.big ? 1.3 : 1), gold ? P.gold : P.blue, 0.32 * A);
       c.save(); c.globalCompositeOperation = 'lighter'; c.lineJoin = 'round'; c.lineCap = 'round';
@@ -264,10 +283,10 @@
         for (const b of blades) { const s = state(b, f.t); if (!s) continue; const cx = ox + dir[0] * s.d, cy = oy + dir[1] * s.d, R = b.R * s.grow, th = s.sw < 1 ? a - b.side * b.half + b.side * 2 * b.half * s.sw : a + (Math.random() - 0.5) * 2 * b.half;
           if (s.fade < 1 && Math.random() < (s.fade > 0 ? 1.5 : 0.8) * H.Q()) H.P({ kind: s.fade > 0 ? 'ember' : 'spark', x: cx + Math.cos(th) * R, y: cy + Math.sin(th) * R - 0.45, vx: dir[0] * 2 + (Math.random() - 0.5) * 2, vy: dir[1] * 2 - 0.8 - Math.random(), g: s.fade > 0 ? -0.5 : 3, drag: 1, life: 0.35, max: 0.35, size: 2, color: b.big && Math.random() < 0.5 ? P.gold : Math.random() < 0.4 ? P.white : P.cyan });
           if (!b.hit1 && s.u >= SW * 0.85) { b.hit1 = true; H.hitCone(ox, oy, a, b.R + 0.7, b.half + 0.15, b.dmg * 0.4, C.dmgO({ kb: 1.5 })); H.X.sfx.crack(); H.X.shake(2, 0.06); }
-          if (!b.hit2 && s.u >= SW + FLY * 0.75) { b.hit2 = true; const n2 = H.hitCone(ox, oy, a, b.R * 1.3 + DF + 0.5, Math.min(1.0, b.half * 0.85), b.dmg * 0.6, C.dmgO({ kb: 2.5, stun: 0.22 })); const ex = ox + dir[0] * (b.R + DF), ey = oy + dir[1] * (b.R + DF);
-            const arcPts = []; for (let i = 0; i <= 10; i++) { const th2 = a - b.half * 1.1 + 2.2 * b.half * i / 10; arcPts.push([ox + dir[0] * DF + Math.cos(th2) * b.R * 1.3, oy + dir[1] * DF + Math.sin(th2) * b.R * 1.3]); }
-            marks.push({ x: ex, y: ey, t: f.t, r: 1.2, gold: b.big, pts: arcPts }); flare(ex, ey, 0.45, 1.2, b.big); H.X.sfx.crack(); if (n2) H.X.hitstop(0.02);
-            if (b.big) { for (let i = 0; i < 9; i++) { const th2 = a - 1.1 + 2.2 * i / 8; H.P({ kind: 'spark', x: ex, y: ey - 0.45, vx: Math.cos(th2) * 9, vy: Math.sin(th2) * 9 * 0.7, g: 0, drag: 2.5, life: 0.4, max: 0.4, size: 2.6, color: i % 2 ? P.gold : P.white }); } K.goldSparks(ex, ey - 0.45, 14, 7); H.X.flash(0.05, P.gold); } } }
+          if (!b.hit2 && s.u >= SW + FLY * 0.75) { b.hit2 = true; const n2 = H.hitCone(ox, oy, a, b.R * 1.3 + b.DF + 0.5, Math.min(1.1, b.half * 0.85), b.dmg * 0.6, C.dmgO({ kb: b.big ? 4 : 2.5, stun: 0.22 })); const ex = ox + dir[0] * (b.R + b.DF), ey = oy + dir[1] * (b.R + b.DF);
+            const arcPts = []; for (let i = 0; i <= 10; i++) { const th2 = a - b.half * 1.1 + 2.2 * b.half * i / 10; arcPts.push([ox + dir[0] * b.DF + Math.cos(th2) * b.R * 1.3, oy + dir[1] * b.DF + Math.sin(th2) * b.R * 1.3]); }
+            marks.push({ x: ex, y: ey, t: f.t, r: b.big ? 2 : 1.2, gold: b.big, pts: arcPts }); flare(ex, ey, 0.45, b.big ? 1.8 : 1.2, b.big); H.X.sfx.crack(); if (n2) H.X.hitstop(0.02);
+            if (b.big) { H.X.shake(7, 0.18); H.X.sfx.crash(); for (let i = 0; i < 13; i++) { const th2 = a - 1.3 + 2.6 * i / 12; H.P({ kind: 'spark', x: ex, y: ey - 0.45, vx: Math.cos(th2) * 9, vy: Math.sin(th2) * 9 * 0.7, g: 0, drag: 2.5, life: 0.4, max: 0.4, size: 2.6, color: i % 2 ? P.gold : P.white }); } K.goldSparks(ex, ey - 0.45, 14, 7); H.X.flash(0.05, P.gold); } } }
       },
       paint(c, f, T, t, under) {
         // a blade near you on your far side is drawn behind you; once it flies it is in front
@@ -287,26 +306,30 @@
      A slim faceted needle of lightning with a charged bead for a head falls on the aim in a streak and stands in the
      floor. Branching arcs crawl down its length, then it sends three short pulses rippling into the ground around it;
      at last it splits into vertical slivers of light that rise apart and vanish, leaving a violet impression.
-     1 pin at Hatchling, 3 at Adept (two satellite pins), 5 at Celestial (four), joined there by a golden sigil, the last
-     pulse golden. */
+     1 pin at Hatchling, 3 at Adept (two satellite pins), 7 at Celestial (a ring of six joined by a golden sigil), whose
+     pulses cascade outward from the centre; then the central pin sends three great golden pulses, each wider than the last. */
   S.thunderpin = (C, h) => {
-    bind(h); const x = C.tx, y = C.ty, E = K.evo(C), CEL = E >= 7, NS = E >= 7 ? 4 : E >= 4 ? 2 : 0, FALL = 0.24, PUL = [0.58, 0.8, 1.02], SPLIT = 1.2, R = 1.9, RS = 1.0, me = H.me;
-    const tot = C.base * 2.6 * C.K * K.evoK(C), mainK = NS ? 0.72 : 1, satK = NS ? (1 - mainK) / NS : 0;
-    const pins = [{ x, y, s: 1, d: 0, main: true }]; const a0 = Math.atan2(y - me.y, x - me.x);
-    for (let i = 0; i < NS; i++) { const b = a0 + Math.PI / 2 + i / NS * TAU + (NS === 2 ? 0 : Math.PI / 4); let px = x + Math.cos(b) * 1.45, py = y + Math.sin(b) * 1.0; if (H.X.blocked(px, py, 0.25, 0)) { px = x + Math.cos(b) * 0.8; py = y + Math.sin(b) * 0.6; } pins.push({ x: px, y: py, s: 0.7, d: 0.07 + i * 0.05, main: false }); }
+    bind(h); const x = C.tx, y = C.ty, E = K.evo(C), CEL = E >= 7, NS = E >= 7 ? 6 : E >= 4 ? 2 : 0, FALL = 0.24, PUL = [0.58, 0.8, 1.02], GP = CEL ? [1.32, 1.6, 1.92] : [], GR = [2.2, 2.8, 3.5], GK = [0.27, 0.33, 0.4], SPLIT = CEL ? 2.2 : 1.2, R = 1.9, RS = 1.0, me = H.me;
+    const tot = C.base * 2.6 * C.K * K.evoK(C) * (CEL ? 1.15 : E >= 4 ? 1.07 : 1), goldK = CEL ? 0.4 : 0, mainK = CEL ? 0.35 : NS ? 0.72 : 1, satK = NS ? (1 - mainK - goldK) / NS : 0;
+    const pins = [{ x, y, s: CEL ? 1.15 : 1, d: 0, pd: 0, main: true }]; const a0 = Math.atan2(y - me.y, x - me.x);
+    for (let i = 0; i < NS; i++) { const b = a0 + Math.PI / 2 + i / NS * TAU + (NS === 2 ? 0 : Math.PI / 6); let px = x + Math.cos(b) * (CEL ? 1.6 : 1.45), py = y + Math.sin(b) * (CEL ? 1.1 : 1.0); if (H.X.blocked(px, py, 0.25, 0)) { px = x + Math.cos(b) * 0.8; py = y + Math.sin(b) * 0.6; } pins.push({ x: px, y: py, s: CEL ? 0.62 : 0.7, d: 0.07 + i * (CEL ? 0.035 : 0.05), pd: CEL ? 0.1 : 0, main: false }); }
     const marks = []; H.warn(x, y, R, FALL, C.col); H.X.sfx.hum();
     for (const p of pins) {
       H.X.after(FALL + p.d, () => { const dm = tot * (p.main ? mainK : satK); H.hitArea(p.x, p.y, p.main ? 0.95 : 0.7, dm * 0.25, C.dmgO({ kb: 1, stun: 0.3 })); flare(p.x, p.y, 0.2, p.main ? 1.2 : 0.8, CEL && p.main); marks.push({ x: p.x, y: p.y, t: F.t, r: p.main ? 1.1 : 0.7, pts: forkScar(p.x, p.y, p.main ? 1 : 0.6, p.x * 3) }); if (p.main) { H.X.shake(5, 0.12); H.X.sfx.crack(); H.X.hitstop(0.02); } });
-      PUL.forEach((tp, i) => H.X.after(tp + p.d, () => { const dm = tot * (p.main ? mainK : satK) * 0.25, gold = CEL && i === 2; H.hitArea(p.x, p.y, p.main ? R : RS, dm, C.dmgO({ stun: 0.15 })); spray(p.x, p.y, 0.1, p.main ? 8 : 4, 5, gold); if (gold && p.main) K.goldSparks(p.x, p.y, 16, 7); H.X.light(p.x, p.y, (p.main ? R : RS) * 1.5, 0.15); if (p.main) { H.X.sfx.crack(); H.X.shake(2, 0.06); } }));
+      PUL.forEach((tp, i) => H.X.after(tp + p.d + p.pd, () => { const dm = tot * (p.main ? mainK : satK) * 0.25, gold = false; H.hitArea(p.x, p.y, p.main ? R : RS, dm, C.dmgO({ stun: 0.15 })); spray(p.x, p.y, 0.1, p.main ? 8 : 4, 5, gold); if (gold && p.main) K.goldSparks(p.x, p.y, 16, 7); H.X.light(p.x, p.y, (p.main ? R : RS) * 1.5, 0.15); if (p.main) { H.X.sfx.crack(); H.X.shake(2, 0.06); } }));
     }
+    // the Celestial finale: three great golden pulses from the central pin, each wider and harder than the last
+    GP.forEach((tp, i) => H.X.after(tp, () => { H.hitArea(x, y, GR[i], tot * goldK * GK[i], C.dmgO({ kb: 1 + i, stun: 0.2 + 0.1 * i })); K.goldSparks(x, y - 0.3, 14 + i * 8, 6 + i * 2); spray(x, y, 0.2, 8 + i * 4, 6 + i, true); H.X.light(x, y, GR[i] * 1.6, 0.25); H.X.shake(3 + i * 2, 0.12 + 0.04 * i); H.X.sfx.crack(); if (i === 2) { H.X.sfx.crash(); H.X.flash(0.07, P.gold); H.X.hitstop(0.04); } marks.push({ x, y, t: F.t, r: GR[i] * 0.6, gold: true }); }));
     H.X.after(SPLIT, () => { for (const p of pins) K.motes(p.x, p.y - 1.2 * p.s, p.main ? 10 : 5); H.X.sfx.sparkle(); });
     /* where pin p stands in screen px, and how high its head is */
     const F = H.add({ life: SPLIT + 0.75, x, y,
       update(dt, f) { for (const p of pins) { const u = f.t - p.d; if (u > FALL && u < SPLIT) K.aura(p.x, p.y, 0.25, dt, p.main ? 12 : 6, 2.2 * p.s * Math.random()); } },
       pulseRing(c, p, T, t, gold) { const X = H.sx(p.x), Y = H.sy(p.y), r = (p.main ? R : RS);
-        PUL.forEach((tp, i) => { const u = (F.t - tp - p.d) / 0.34; if (u <= 0 || u >= 1) return; const g = gold && i === 2; K.shockRing(c, X, Y, T * r * H.ease.out(u), (1 - u) * (p.main ? 1 : 0.7), t, p.main ? 3 : 0); if (g) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 1 - u; c.strokeStyle = P.gold; c.lineWidth = 2.5; H.floorEllipse(c, X, Y, T * r * H.ease.out(u)); c.stroke(); c.restore(); }
+        PUL.forEach((tp, i) => { const u = (F.t - tp - p.d - p.pd) / 0.34; if (u <= 0 || u >= 1) return; const g = false; K.shockRing(c, X, Y, T * r * H.ease.out(u), (1 - u) * (p.main ? 1 : 0.7), t, p.main ? 3 : 0); if (g) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 1 - u; c.strokeStyle = P.gold; c.lineWidth = 2.5; H.floorEllipse(c, X, Y, T * r * H.ease.out(u)); c.stroke(); c.restore(); }
           if (u < 0.6 && p.main) K.groundArcs(c, X, Y, T * r * H.ease.out(u) * 1.05, 4 + i, t, (1 - u / 0.6) * 0.8, i * 1.3);
-          K.floorLight(c, X, Y, T * r * 1.3, 0.5 * (1 - u), g ? P.gold : P.blue); }); },
+          K.floorLight(c, X, Y, T * r * 1.3, 0.5 * (1 - u), g ? P.gold : P.blue); });
+        if (p.main) GP.forEach((tp, i) => { const u = (F.t - tp) / (0.42 + 0.06 * i); if (u <= 0 || u >= 1) return; const r2 = T * GR[i] * H.ease.out(u), a2 = 1 - u; K.shockRing(c, X, Y, r2, a2, t, 3 + i); c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = a2; c.strokeStyle = P.gold; c.lineWidth = 2 + i; H.floorEllipse(c, X, Y, r2); c.stroke(); c.strokeStyle = H.rgba(P.amber, 0.6); c.lineWidth = 1; H.floorEllipse(c, X, Y, r2 * 0.82); c.stroke(); c.restore();
+          if (u < 0.6) K.groundArcs(c, X, Y, r2 * 1.02, 5 + i * 2, t, (1 - u / 0.6) * 0.9, i * 0.9); K.floorLight(c, X, Y, T * GR[i] * 1.2, 0.6 * a2, P.gold); }); },
       drawPin(c, p, T, t) {
         const u = F.t - p.d, X = H.sx(p.x), Y = H.sy(p.y), s = p.s, hh = T * 2.3 * s, k = T * s / 72, spr = pinSprite(CEL && p.main), sw = spr.width * k * 1.5, sh = spr.height * k * (2.3 * 72 / 220) * 1.0;
         if (u < 0) return; const fall = cl(u / FALL), drop = (1 - H.ease.in(fall)) * T * 7, split = cl((u - SPLIT) / 0.5), top = Y - hh - drop;
@@ -323,7 +346,8 @@
             if (u - FALL < 0.5) for (let i = 0; i < 3; i++) { const b = i / 3 * TAU + p.x, l = T * 0.8 * s; K.arc(c, X, Y, X + Math.cos(b) * l, Y + Math.sin(b) * l * H.GY, K.seed(t, i + 20, 20), 1, 0.8 * (1 - (u - FALL) / 0.5), { forks: 1 }); } }
           // its head: a charged bead, golden at Celestial
           bead(c, X, top - T * 0.2 * s, T * 0.17 * s * (1 + 0.12 * Math.sin(t * 20)), t, p.x, 1, CEL && p.main, fall >= 1 ? 0.3 : 0);
-          if (CEL && p.main && fall >= 1) { c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = P.gold; c.globalAlpha = 0.8; c.lineWidth = 1.4; const hy = top - T * 0.2; for (let i = 0; i < 4; i++) { const b = i / 4 * TAU + t * 0.8, l = T * (0.45 + 0.1 * Math.sin(t * 9 + i)); c.beginPath(); c.moveTo(X + Math.cos(b) * T * 0.22, hy + Math.sin(b) * T * 0.22); c.lineTo(X + Math.cos(b) * l, hy + Math.sin(b) * l); c.stroke(); } c.restore(); }
+          if (CEL && p.main && fall >= 1) { let surge = 0; GP.forEach((tp, i) => { const v = (F.t - tp + 0.12) / 0.3; if (v > 0 && v < 1) surge = Math.max(surge, Math.sin(v * Math.PI) * (0.6 + 0.2 * i)); }); if (surge > 0) { K.glow(c, X, top - T * 0.2, T * (1 + 1.4 * surge), P.gold, 0.6 * surge); K.arc(c, X, top - T * 0.2, X, Y, K.seed(t, 77, 24), 2 + 2 * surge, surge, { forks: 3, gold: true, jit: T * 0.25 }); }
+            c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = P.gold; c.globalAlpha = 0.8; c.lineWidth = 1.4; const hy = top - T * 0.2; for (let i = 0; i < 4; i++) { const b = i / 4 * TAU + t * 0.8, l = T * (0.45 + 0.1 * Math.sin(t * 9 + i) + 0.4 * surge); c.beginPath(); c.moveTo(X + Math.cos(b) * T * 0.22, hy + Math.sin(b) * T * 0.22); c.lineTo(X + Math.cos(b) * l, hy + Math.sin(b) * l); c.stroke(); } c.restore(); }
           if (u - FALL >= 0 && u - FALL < 0.14) K.glow(c, X, Y - T * 0.5, T * 1.5 * s, P.cyan, 0.45 * (1 - (u - FALL) / 0.14));
         } else {
           // the split: vertical slivers of the needle drift apart and rise, thinning to light
@@ -336,7 +360,7 @@
       drawUnder(c, f, X, Y, T, t) {
         const live = cl(f.t / FALL) * cl(1 - (f.t - SPLIT) / 0.4);
         // the Celestial sigil: a golden ring and lines joining the pins, brightening with each pulse
-        if (CEL) { let b = 0.35; PUL.forEach(tp => { const u = (f.t - tp) / 0.3; if (u > 0 && u < 1) b += 0.6 * (1 - u); }); const al = live * b; if (al > 0.02) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = al; c.strokeStyle = P.gold; c.lineWidth = 1.6; H.floorEllipse(c, X, Y, T * 1.75); c.stroke(); c.strokeStyle = H.rgba(P.amber, 0.7); c.lineWidth = 1; H.floorEllipse(c, X, Y, T * 1.55); c.stroke(); const sat = pins.slice(1); c.beginPath(); for (let i = 0; i < sat.length; i++) { const p = sat[i], q = sat[(i + 2) % sat.length]; c.moveTo(H.sx(p.x), H.sy(p.y)); c.lineTo(H.sx(q.x), H.sy(q.y)); } c.stroke(); c.restore(); } }
+        if (CEL) { let b = 0.35; PUL.concat(GP).forEach(tp => { const u = (f.t - tp) / 0.3; if (u > 0 && u < 1) b += 0.6 * (1 - u); }); const al = live * b; if (al > 0.02) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = al; c.strokeStyle = P.gold; c.lineWidth = 1.6; H.floorEllipse(c, X, Y, T * 1.95); c.stroke(); c.strokeStyle = H.rgba(P.amber, 0.7); c.lineWidth = 1; H.floorEllipse(c, X, Y, T * 1.7); c.stroke(); const sat = pins.slice(1); c.beginPath(); for (let i = 0; i < sat.length; i++) { const p = sat[i], q = sat[(i + 2) % sat.length], m = sat[(i + 1) % sat.length]; c.moveTo(H.sx(p.x), H.sy(p.y)); c.lineTo(H.sx(m.x), H.sy(m.y)); c.moveTo(H.sx(p.x), H.sy(p.y)); c.lineTo(H.sx(q.x), H.sy(q.y)); } c.stroke(); c.restore(); } }
         for (const p of pins) { const u = f.t - p.d; if (u > FALL * 0.5 && u < SPLIT + 0.3) K.floorLight(c, H.sx(p.x), H.sy(p.y), T * (p.main ? 1.3 : 0.8), 0.45 * cl(1 - (u - SPLIT) / 0.3), CEL && p.main ? P.gold : P.blue); this.pulseRing(c, p, T, t, CEL); }
         drawMarks(c, marks, f.t, T);
         // pins standing behind you on the screen are drawn behind you
@@ -350,24 +374,29 @@
      that crackle across to each other. A concentrated bolt races between them, its white-hot head trailing plasma,
      flaring the rails as it passes and piercing each monster with a sharp flash as it reaches it; a moment later sparks
      chase along its route; then the rails break into motes and only a violet line fades on the floor.
-     1 bolt at Hatchling, 2 at Adept, 3 at Celestial, where golden accelerator rings stand over the rails and the last
-     bolt runs gold and bursts at the end. */
+     1 bolt at Hatchling, 2 at Adept, 5 at Celestial, racing through four golden accelerator hoops, each bolt brighter
+     than the last; the fifth is a massive gold rail-cannon shot that charges at your feet, fires a wide beam down the
+     whole corridor and bursts at its end. */
   S.railflash = (C, h) => {
-    bind(h); const me = H.me, a = C.a, E = K.evo(C), CEL = E >= 7, NBo = E >= 7 ? 3 : E >= 4 ? 2 : 1, dir = [Math.cos(a), Math.sin(a)], per = [-dir[1], dir[0]];
-    const x0 = me.x + dir[0] * 0.6, y0 = me.y + dir[1] * 0.6, L = reach(x0, y0, a, 7.5, 0.25), W = 0.55, RAIL = 0.26, RUN = 0.14, GAPB = 0.2, Z = 0.42, behind = dir[1] < -0.35;
-    const tot = C.base * 2.5 * C.K * K.evoK(C), perBolt = tot / NBo, marks = [];
-    const bolts = []; for (let j = 0; j < NBo; j++) bolts.push({ j, t0: RAIL + j * GAPB, gold: CEL && j === NBo - 1, w: 1 + 0.15 * j });
-    const END = bolts[NBo - 1].t0 + RUN, NODES = Math.max(3, Math.round(L / 1.1)), RINGS = CEL ? [0.3, 0.55, 0.8] : [];
+    bind(h); const me = H.me, a = C.a, E = K.evo(C), CEL = E >= 7, NBo = E >= 7 ? 5 : E >= 4 ? 2 : 1, dir = [Math.cos(a), Math.sin(a)], per = [-dir[1], dir[0]];
+    const x0 = me.x + dir[0] * 0.6, y0 = me.y + dir[1] * 0.6, L = reach(x0, y0, a, 7.5, 0.25), W = 0.55, RAIL = 0.26, RUN = 0.14, GAPB = CEL ? 0.17 : 0.2, Z = 0.42, behind = dir[1] < -0.35;
+    const tot = C.base * 2.5 * C.K * K.evoK(C) * (CEL ? 1.15 : E >= 4 ? 1.07 : 1), marks = [];
+    /* each bolt heavier than the one before; the Celestial fifth is the cannon (it waits a beat to charge) */
+    const bolts = []; for (let j = 0; j < NBo; j++) { const can = CEL && j === NBo - 1; bolts.push({ j, t0: RAIL + j * GAPB + (can ? 0.3 : 0), gold: can, can, w: can ? 2.3 : 1 + 0.15 * j, wt: can ? 2.6 : 1 + 0.15 * j }); }
+    const wsum = bolts.reduce((q, b) => q + b.wt, 0); for (const bo of bolts) bo.dmg = tot * bo.wt / wsum;
+    const END = bolts[NBo - 1].t0 + RUN, NODES = Math.max(3, Math.round(L / 1.1)), RINGS = CEL ? [0.2, 0.4, 0.6, 0.8] : [];
     const W2 = (d, s) => [x0 + dir[0] * d + per[0] * s, y0 + dir[1] * d + per[1] * s];
     H.X.sfx.hum(); me.sq = 0.7;
     for (const bo of bolts) H.X.after(bo.t0, () => {
       // every monster in the corridor is struck when the head reaches it
-      for (const m of H.living()) { const rx = m.x - x0, ry = m.y - y0, al = rx * dir[0] + ry * dir[1], of = Math.abs(-rx * dir[1] + ry * dir[0]); if (al > -m.r && al < L + m.r && of < W + 0.2 + m.r) H.X.after(RUN * cl(al / L), () => { if (m.dead) return; H.X.hitMon(m, perBolt, C.dmgO({ kb: bo.j === NBo - 1 ? 3 : 1, stun: 0.25 })); flare(m.x, m.y, Z, 0.9, bo.gold); H.X.hitstop(0.015); }); }
-      H.X.sfx.crack(); H.X.shake(bo.j === NBo - 1 ? 5 : 3, 0.12); H.X.flash(0.05, bo.gold ? P.gold : P.ice);
-      H.X.after(RUN, () => { const e = W2(L, 0); flare(e[0], e[1], Z, 1, bo.gold); if (bo.gold) { K.goldSparks(e[0], e[1] - Z, 20, 8); H.X.flash(0.06, P.gold); } marks.push({ x: e[0], y: e[1], t: F.t, r: bo.gold ? 1.4 : 0.9, gold: bo.gold, pts: [W2(0, 0), W2(L * 0.5, 0.05), W2(L, 0)] }); });
+      for (const m of H.living()) { const rx = m.x - x0, ry = m.y - y0, al = rx * dir[0] + ry * dir[1], of = Math.abs(-rx * dir[1] + ry * dir[0]); if (al > -m.r && al < L + m.r && of < W + (bo.can ? 0.6 : 0.2) + m.r) H.X.after(RUN * cl(al / L), () => { if (m.dead) return; H.X.hitMon(m, bo.dmg, C.dmgO({ kb: bo.can ? 5 : bo.j === NBo - 1 ? 3 : 1, stun: 0.25 })); flare(m.x, m.y, Z, bo.can ? 1.4 : 0.9, bo.gold); H.X.hitstop(bo.can ? 0.04 : 0.015); }); }
+      H.X.sfx.crack(); if (bo.can) H.X.sfx.crash(); H.X.shake(bo.can ? 9 : bo.j === NBo - 1 ? 5 : 3, bo.can ? 0.25 : 0.12); H.X.flash(bo.can ? 0.09 : 0.05, bo.gold ? P.gold : P.ice);
+      H.X.after(RUN, () => { const e = W2(L, 0); flare(e[0], e[1], Z, 1, bo.gold); if (bo.gold) { K.goldSparks(e[0], e[1] - Z, 30, 9); spray(e[0], e[1], Z, 20, 9, true, 0.5); H.X.light(e[0], e[1], 4, 0.35); } marks.push({ x: e[0], y: e[1], t: F.t, r: bo.can ? 2 : 0.9, gold: bo.gold, pts: [W2(0, 0), W2(L * 0.5, 0.05), W2(L, 0)] }); });
     });
+    const CAN = bolts.find(b => b.can);
     const F = H.add({ life: END + 0.95,
       update(dt, f) {
+        if (CAN && f.t > CAN.t0 - 0.3 && f.t < CAN.t0) { const p = W2(0, 0); K.aura(p[0], p[1], 0.5, dt, 40, Z); if (Math.random() < 0.8 * H.Q()) { const b = Math.random() * TAU; H.P({ kind: 'spark', x: p[0] + Math.cos(b) * 1.2, y: p[1] + Math.sin(b) * 0.8 - Z, vx: -Math.cos(b) * 5, vy: -Math.sin(b) * 3.5, g: 0, drag: 0, life: 0.22, max: 0.22, size: 2.2, color: Math.random() < 0.5 ? P.gold : P.white }); } }
         // residual sparks chasing the bolt's route a moment after it
         for (const bo of bolts) { const u = (f.t - bo.t0 - 0.1) / 0.4; if (u > 0 && u < 1) for (let i = 0; i < H.n(3); i++) { const d = L * cl(u * 1.2 - Math.random() * 0.25), p = W2(d, (Math.random() - 0.5) * W * 1.6); H.P({ kind: 'spark', x: p[0], y: p[1] - Z * Math.random(), vx: dir[0] * 7 + (Math.random() - 0.5) * 2, vy: dir[1] * 7 - 0.5 - Math.random(), g: 3, drag: 3, life: 0.3, max: 0.3, size: 1.8, color: bo.gold && i % 2 ? P.gold : i % 2 ? P.ice : P.cyan }); } }
         const fade = (f.t - END) / 0.5; if (fade > 0 && fade < 1) for (let i = 0; i < H.n(2); i++) { const s = Math.random() < 0.5 ? -W : W, p = W2(Math.random() * L, s); H.P({ kind: 'ember', x: p[0], y: p[1] - 0.1, vx: 0, vy: -1, g: -0.5, drag: 1, life: 0.5, max: 0.5, size: 2.2, color: Math.random() < 0.5 ? P.cyan : P.violet }); }
@@ -387,11 +416,14 @@
       },
       boltFx(c, f, T, t) {
         for (const bo of bolts) { const u = (f.t - bo.t0) / RUN; if (u <= 0 || u > 1 + 0.22 / RUN) continue; const d = L * cl(u), a2 = u <= 1 ? 1 : 1 - (u - 1) * RUN / 0.22, s0 = W2(0, 0), hd = W2(d, 0), X0 = H.sx(s0[0]), Y0 = H.sy(s0[1]) - Z * T, Xh = H.sx(hd[0]), Yh = H.sy(hd[1]) - Z * T;
-          K.arc(c, X0, Y0, Xh, Yh, K.seed(t, bo.j + 3, 24), 3 * bo.w, a2 * 0.9, { forks: 4, jit: T * 0.2, gold: bo.gold });
+          if (bo.can) { const bm = [[X0, Y0], [Xh, Yh]]; K.ribbon(c, [[X0, Y0], [(X0 + Xh) / 2, (Y0 + Yh) / 2], [Xh, Yh]], T * 0.75 * a2, 0.7 * a2, true); for (let i = 0; i <= 6; i++) K.glow(c, X0 + (Xh - X0) * i / 6, Y0 + (Yh - Y0) * i / 6, T * 0.9, P.gold, 0.35 * a2); void bm; }
+          K.arc(c, X0, Y0, Xh, Yh, K.seed(t, bo.j + 3, 24), 3 * bo.w, a2 * 0.9, { forks: CEL && !bo.can ? 2 : 4, jit: T * 0.2, gold: bo.gold });
           if (u <= 1) { const tr = []; for (let i = 0; i <= 8; i++) { const p = W2(Math.max(0, d - L * 0.35 * (1 - i / 8)), 0); tr.push([H.sx(p[0]), H.sy(p[1]) - Z * T]); } K.ribbon(c, tr, T * 0.22 * bo.w, 0.9, bo.gold); K.glow(c, Xh, Yh, T * 0.75, bo.gold ? P.gold : P.cyan, 0.6); K.glow(c, Xh, Yh, T * 0.22, P.white, 0.9); }
           else if (u < 1 + 0.12 / RUN) K.glow(c, Xh, Yh, T * 1.1, bo.gold ? P.gold : P.cyan, 0.55 * a2); }
+        // the cannon charging at your feet: a gold sphere gathering, ringed by sparks
+        if (CAN) { const u = (f.t - CAN.t0 + 0.3) / 0.3; if (u > 0 && u < 1.15) { const p = W2(0, 0), X = H.sx(p[0]), Y = H.sy(p[1]) - Z * T, e = cl(u); K.glow(c, X, Y, T * (0.6 + 1.2 * e), P.gold, 0.5 * e * (u > 1 ? 1 - (u - 1) / 0.15 : 1)); bead(c, X, Y, T * 0.3 * e, t, 5, u > 1 ? 1 - (u - 1) / 0.15 : 1, true, e); for (let i = 0; i < 3; i++) { const b = i / 3 * TAU + t * 6, rr = T * (1.2 - 0.8 * e); K.arc(c, X + Math.cos(b) * rr, Y + Math.sin(b) * rr * 0.6, X, Y, K.seed(t, i + 90, 24), 1, 0.7 * e, { forks: 0, gold: true }); } } }
         // the Celestial accelerator rings, standing over the rails, pulsing as each bolt goes through
-        for (const r of RINGS) { const d = L * r, p = W2(d, 0), X = H.sx(p[0]), Y = H.sy(p[1]) - Z * T, app = H.ease.back(cl((f.t - 0.05 - r * 0.2) / 0.25)), k = cl(1 - (f.t - END) / 0.45); if (app <= 0 || k <= 0) continue; let pu = 0; for (const bo of bolts) { const v = (f.t - bo.t0 - RUN * r) / 0.2; if (v > 0 && v < 1) pu = Math.max(pu, 1 - v); }
+        for (const r of RINGS) { const d = L * r, p = W2(d, 0), X = H.sx(p[0]), Y = H.sy(p[1]) - Z * T, app = H.ease.back(cl((f.t - 0.05 - r * 0.2) / 0.25)), k = cl(1 - (f.t - END) / 0.45); if (app <= 0 || k <= 0) continue; let pu = 0; for (const bo of bolts) { const v = (f.t - bo.t0 - RUN * r) / 0.2; if (v > 0 && v < 1) pu = Math.max(pu, (1 - v) * (bo.can ? 1.6 : 0.6 + 0.1 * bo.j)); }
           // a hoop standing across the corridor: in the plane of the floor's sideways direction and of up
           const Rr = (W + 0.25) * T * app, pts = []; for (let i = 0; i <= 24; i++) { const th = i / 24 * TAU; pts.push([X + per[0] * Math.cos(th) * Rr + dir[0] * Math.sin(th) * Rr * 0.38, Y + per[1] * Math.cos(th) * Rr * H.GY - Math.sin(th) * Rr * 0.75]); }
           c.save(); c.globalCompositeOperation = 'lighter'; c.lineJoin = 'round'; c.globalAlpha = (0.5 + 0.5 * pu) * k; c.strokeStyle = P.amber; c.lineWidth = T * 0.055 * (1 + pu); H.poly(c, pts); c.stroke(); c.strokeStyle = P.gold; c.lineWidth = T * 0.025; c.stroke(); c.globalAlpha = k * 0.9; c.strokeStyle = P.white; c.lineWidth = 1; c.stroke(); c.restore();

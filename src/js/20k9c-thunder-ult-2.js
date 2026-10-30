@@ -232,6 +232,9 @@
       L.push({ pts: i, n: [0, 0], face: 1, tag }); L.push({ pts: [o[0], o[1], i[1], i[0]], n: [0, -1], tag }); L.push({ pts: [o[1], o[2], i[2], i[1]], n: [1, 0], tag }); L.push({ pts: [o[2], o[3], i[3], i[2]], n: [0, 1], tag }); L.push({ pts: [o[3], o[0], i[0], i[3]], n: [-1, 0], tag }); };
     slab(-a1, a1, -hb, hb, e, 'body'); slab(a1, hl, -hf, hf, e, 'lead'); slab(-hl, -a1, -hf, hf, e, 'rear');
     if (ev >= 4) { L.push({ pts: [[-a1 * 0.45, -hb - 0.12 * W], [a1 * 0.45, -hb - 0.12 * W], [a1 * 0.3, -hb], [-a1 * 0.3, -hb]], n: [0, -1], tag: 'collar' }); L.push({ pts: [[-a1 * 0.3, hb], [a1 * 0.3, hb], [a1 * 0.45, hb + 0.12 * W], [-a1 * 0.45, hb + 0.12 * W]], n: [0, 1], tag: 'collar' }); }
+    // the plates it gathers between strikes (stages 5+: flanges on the body; Celestial also a crest of spikes on the rear face)
+    if (ev >= 5) { const b0 = hb + 0.14 * W, b1 = hb + 0.36 * W; L.push({ pts: [[-a1 * 0.85, b0], [a1 * 0.85, b0], [a1 * 0.5, b1], [-a1 * 0.5, b1]], n: [0, 1], tag: 'x' }); L.push({ pts: [[-a1 * 0.5, -b1], [a1 * 0.5, -b1], [a1 * 0.85, -b0], [-a1 * 0.85, -b0]], n: [0, -1], tag: 'x' }); }
+    if (ev >= 7) { L.push({ pts: [[-hl, -hf * 0.85], [-hl, -hf * 0.3], [-hl - 0.42 * W, -hf * 0.62]], n: [-1, 0], tag: 'x' }); L.push({ pts: [[-hl, hf * 0.3], [-hl, hf * 0.85], [-hl - 0.42 * W, hf * 0.62]], n: [-1, 0], tag: 'x' }); L.push({ pts: [[-hl, -0.17 * W], [-hl, 0.17 * W], [-hl - 0.6 * W, 0]], n: [-1, 0], tag: 'x' }); }
     for (const p of L) { let x = 0, y = 0; for (const q of p.pts) { x += q[0]; y += q[1]; } p.c = [x / p.pts.length, y / p.pts.length]; }
     const sil = [[-hl, -hf], [-a1, -hf], [-a1, -hb], [a1, -hb], [a1, -hf], [hl, -hf], [hl, hf], [a1, hf], [a1, hb], [-a1, hb], [-a1, hf], [-hl, hf]];
     return { L, sil, hl, hf, hb, a1 };
@@ -241,101 +244,145 @@
 
   U.ragnarok = (C, h) => {
     H = h; K = TK.bind(H); const me = H.me, ev = K.evo(C), R1 = K.R1, x = C.tx, y = C.ty, W = 1 + 0.5 * (ev - 1) / 6, RA = (3.0 + 0.25 * (ev - 1)) * C.K;
-    const DK = C.base * C.K * K.evoK(C) * (1 + 0.1 * (ev >= 4) + 0.1 * (ev >= 7)), MAIN = DK * 14, DIS = DK * 2;
+    const DK = C.base * C.K * K.evoK(C) * (1 + 0.1 * (ev >= 4) + 0.1 * (ev >= 7));
     const s = me.x >= x ? 1 : -1, Lh = 2.5 * W, HP = hammerPlates(W, ev), PL = HP.L, D = 0.95 * W, monu = ev >= 7;
-    const HAN0 = 0.3, HAN1 = 0.95, PL0 = 0.8, PL1 = 1.65, WIND = 2.25, SW0 = 2.5, IMP = 2.84, ERU = 2.94, STAY = monu ? 0.75 : 0.4, DIS0 = ERU + STAY, DIS1 = DIS0 + 0.6, END = 4.75;
-    const gH = -Math.PI / 2 * 0 + Math.PI / 2 - s * 0.44, gI = Math.PI / 2 + s * Math.PI / 2;   // grip->head angle (up positive): held tilted back, then flat at the strike
-    const G0 = [s * 0.9 * W, Math.max(1.3, 2.2 + 0.4 * W - Math.max(0, me.y - y) * 0.6)],   /* (held lower when the target is up the screen, so the head stays in view) */ G1 = [s * Lh, HP.hl * 0];   // grip in the swing plane (horizontal, height), held and at the strike
-    G1[1] = HP.hl + 0.0;   // at the strike the head stands on its leading face: its centre at half the head's length
-    // the order the plates arrive (the body first, then the faces), each from its own fragment rising off the floor
-    PL.forEach((p, k) => { const o = p.tag === 'body' ? 0 : p.tag === 'collar' ? 0.25 : p.tag === 'lead' ? 0.45 : 0.6; p.ta = PL0 + 0.25 + (o + R1(k * 2.3) * 0.35) * (PL1 - PL0 - 0.25) / 0.95; const b = R1(k * 5.1) * TAU, rr = (0.5 + 0.5 * R1(k * 1.7)) * RA * 0.55; p.fx = x + Math.cos(b) * rr; p.fy = y + Math.sin(b) * rr * 0.8; p.fly = [Math.cos(b) * 0.9, 1.0 + R1(k) * 0.6]; p.k = k; p.got = false; });
+    const HAN0 = 0.3, HAN1 = 0.95, PL0 = 0.8, PL1 = 1.65;
+    const gH = Math.PI / 2 - s * 0.44, gI = Math.PI / 2 + s * Math.PI / 2;   // grip->head angle (up positive): held tilted back, then flat at the strike
+    /* the strikes: one (stages 1-4), two (5-6, the second bigger), three at Celestial (25% / 25% / 50% of a total 1.3x the single
+       strike's; the last with the biggest head, the longest wind-up and the great explosion). Between strikes the hammer rises
+       back up along its arc, its plates loosening and re-tightening, and turns on the next monster cluster near the aim */
+    const NS = ev >= 7 ? 3 : ev >= 5 ? 2 : 1, TOT = NS === 3 ? 1.3 : NS === 2 ? 1.15 : 1, SHARE = NS === 3 ? [0.25, 0.25, 0.5] : NS === 2 ? [0.4, 0.6] : [1];
+    const RAk = NS === 3 ? [0.9, 0.95, 1.3] : NS === 2 ? [0.85, 1.15] : [1], HSk = NS === 3 ? [1, 1.1, 1.28] : NS === 2 ? [1, 1.15] : [1], ND = ev >= 7 ? 12 : ev >= 4 ? 9 : 6;
+    const STR = [];
+    for (let k = 0; k < NS; k++) { const S = { k, big: k === NS - 1 && NS > 1, last: k === NS - 1, hs: HSk[k], RA: RA * RAk[k], ox: x, oy: y, dis: [], paths: [] };
+      if (k === 0) { S.R0 = S.R1 = 0; S.WIND = 2.25; S.SW0 = 2.5; S.IMP = 2.84; } else { const Pv = STR[k - 1]; S.R0 = Pv.IMP + 0.1; S.R1 = S.R0 + 0.36; S.WIND = S.R1 + 0.05; S.SW0 = S.WIND + (S.big ? 0.35 : 0.18); S.IMP = S.SW0 + (S.big ? 0.34 : 0.28); }
+      S.ERU = S.IMP + 0.1; S.gH = k ? Math.PI / 2 - s * 0.12 : gH; S.wa = S.big ? 0.34 : 0.2; S.wl = S.big ? 0.45 : 0.25; const nd = Math.round(ND * (S.big ? 1.5 : NS > 1 && !S.last ? 0.75 : 1)); for (let i = 0; i < nd; i++) S.dis.push(i / nd * TAU + R1(i * 3.1 + k) * 0.4); STR.push(S); }
+    const place = S => { S.G0 = [s * (S.k ? 0.6 : 0.9) * W, Math.max(1.2, (S.k ? 1.15 + 0.2 * W : 2.2 + 0.4 * W) - Math.max(0, me.y - S.oy) * 0.6)];   /* (a re-raised hammer hangs lower, so it stays in view) */ S.G1 = [s * Lh, HP.hl * S.hs]; };
+    STR.forEach(place);
+    const LAST = STR[NS - 1], STAY = monu ? 0.6 : 0.4, DIS0 = LAST.ERU + STAY, DIS1 = DIS0 + 0.55, END = Math.max(DIS1 + 0.3, LAST.ERU + 1.6);
+    // the order the plates arrive (the body first, then the faces), each from its own fragment rising off the floor; the plates
+    // gathered between strikes rise from the last crater just before the final strike
+    let xi = 0; PL.forEach((p, k) => { const b = R1(k * 5.1) * TAU, rr = (0.5 + 0.5 * R1(k * 1.7)) * RA * 0.55; p.fx = x + Math.cos(b) * rr; p.fy = y + Math.sin(b) * rr * 0.8; p.fly = [Math.cos(b) * 0.9, 1.0 + R1(k) * 0.6]; p.k = k; p.got = false; p.fd = 1.0;
+      if (p.tag === 'x') { const Sx = NS > 1 ? LAST : STR[0]; p.ta = Sx.R0 + 0.5 + (xi++) * 0.05; p.fd = 0.55; p.b = b; return; }
+      const o = p.tag === 'body' ? 0 : p.tag === 'collar' ? 0.25 : p.tag === 'lead' ? 0.45 : 0.6; p.ta = PL0 + 0.25 + (o + R1(k * 2.3) * 0.35) * (PL1 - PL0 - 0.25) / 0.95; });
+    const BASE = PL.filter(p => p.tag !== 'x');
     H.X.banner('RAGNAROK', '', C.col, 1.6); H.X.sfx.hum(); me.sq = 0.7;
-    H.X.after(1.2, () => H.warn(x, y, RA, IMP - 1.2, C.col));
-    const dis = [], crown = [], paths = [];
-    for (let i = 0; i < (ev >= 7 ? 12 : ev >= 4 ? 9 : 6); i++) dis.push(i / (ev >= 7 ? 12 : ev >= 4 ? 9 : 6) * TAU + R1(i * 3.1) * 0.4);
-    if (monu) for (let i = 0; i < 14; i++) crown.push(i / 14 * TAU + R1(i * 7.7) * 0.2);
-    const Q = [];   // the hammer's pose this frame (swing-plane coordinates)
-    function pose(t) {
-      let g = gH + Math.sin(t * 1.7) * 0.03, G = G0.slice(), ex = monu ? 1 : 0, sink = 0;
-      if (t > WIND && t < SW0) { const u = sm((t - WIND) / (SW0 - WIND)); g = gH + Math.sin(t * 1.7) * 0.03 * (1 - u) - s * 0.2 * u; G = [G0[0] + s * 0.15 * u, G0[1] + 0.25 * u]; }
-      else if (t >= SW0 && t < IMP) { const u = (t - SW0) / (IMP - SW0), e = u * u * u; g = lerp(gH - s * 0.2, gI, e); G = [lerp(G0[0] + s * 0.15, G1[0], e), lerp(G0[1] + 0.25, G1[1], e)]; if (monu) ex = 1 - sm(u / 0.85); }
-      else if (t >= IMP) { g = gI; G = G1.slice(); ex = 0; sink = Math.min(0.08 * W, (t - IMP) * 1.2); }
-      const dg = [Math.cos(g), Math.sin(g)], Hc = [G[0] + dg[0] * Lh, G[1] + dg[1] * Lh - sink], Ld = [Math.cos(g + s * Math.PI / 2), Math.sin(g + s * Math.PI / 2)];
-      return { g, G: [G[0], G[1] - sink], Hc, dg, Ld, ex };
+    H.X.after(1.2, () => H.warn(x, y, STR[0].RA, STR[0].IMP - 1.2, C.col));
+    const crown = []; if (ev >= 5) { const nc = monu ? 18 : 12; for (let i = 0; i < nc; i++) crown.push(i / nc * TAU + R1(i * 7.7) * 0.2); }
+    /* the next strike's mark: the densest cluster of monsters near the aim (for the second, preferably a different one) */
+    function aimNext(S, Pv) {
+      let best = null, bs = -1; const L = H.living().filter(m => Math.hypot(m.x - x, m.y - y) < 4.6);
+      for (const m of L) { const cl2 = L.filter(o => Math.hypot(o.x - m.x, o.y - m.y) < 1.9); let sc = cl2.length * 10 - Math.hypot(m.x - x, m.y - y) * 0.5; if (!S.last && Math.hypot(m.x - Pv.ox, m.y - Pv.oy) < 1.3) sc -= 8; if (sc > bs) { bs = sc; let cx = 0, cy = 0; for (const o of cl2) { cx += o.x; cy += o.y; } best = [cx / cl2.length, cy / cl2.length]; } }
+      if (best) { const w = H.walk(best[0], best[1]); S.ox = w.x; S.oy = w.y; } place(S);
+      for (const p of PL) if (p.tag === 'x') { const rr = 0.4 + 0.6 * R1(p.k * 1.7); p.fx = Pv.ox + Math.cos(p.b) * rr; p.fy = Pv.oy + Math.sin(p.b) * rr * 0.8; }
+      H.warn(S.ox, S.oy, S.RA, Math.max(0.2, S.IMP - S.R0 + 0.1), C.col);
     }
-    let crackT = 0, erupted = false, para = [];
+    /* the pose while it hangs, winds up, swings and lands for strike S */
+    function hold(S, t) {
+      let g = S.gH + Math.sin(t * 1.7) * 0.03, G = S.G0.slice(), ex = monu ? 1 : 0, sink = 0;
+      if (t > S.WIND && t < S.SW0) { const u = sm((t - S.WIND) / (S.SW0 - S.WIND)); g = S.gH + Math.sin(t * 1.7) * 0.03 * (1 - u) - s * S.wa * u; G = [S.G0[0] + s * 0.15 * u, S.G0[1] + S.wl * u]; }
+      else if (t >= S.SW0 && t < S.IMP) { const u = (t - S.SW0) / (S.IMP - S.SW0), e = u * u * u; g = lerp(S.gH - s * S.wa, gI, e); G = [lerp(S.G0[0] + s * 0.15, S.G1[0], e), lerp(S.G0[1] + S.wl, S.G1[1], e)]; ex = monu ? 1 - sm(u / 0.85) : 0; }
+      else if (t >= S.IMP) { g = gI; G = S.G1.slice(); ex = 0; sink = Math.min(0.08 * W, (t - S.IMP) * 1.2); }
+      return { g, G, ex, sink };
+    }
+    function pose(t) {
+      let k = 0; while (k < NS - 1 && t >= STR[k + 1].R0) k++;
+      const S = STR[k]; let g, G, ex, sink = 0, hs = S.hs, ox = S.ox, oy = S.oy;
+      if (k > 0 && t < S.R1) { const Pv = STR[k - 1], u = H.ease.out(cl((t - S.R0) / (S.R1 - S.R0))), h1 = hold(S, S.R1); g = lerp(gI, h1.g, u); G = [lerp(Pv.G1[0], h1.G[0], u), lerp(Pv.G1[1] - 0.08 * W, h1.G[1], u)]; ex = monu ? u : Math.sin(Math.PI * u) * 0.5; hs = lerp(Pv.hs, S.hs, u); ox = lerp(Pv.ox, S.ox, u); oy = lerp(Pv.oy, S.oy, u); }
+      else { const h1 = hold(S, t); g = h1.g; G = h1.G; ex = h1.ex; sink = h1.sink; }
+      const dg = [Math.cos(g), Math.sin(g)], Hc = [G[0] + dg[0] * Lh, G[1] + dg[1] * Lh - sink], Ld = [Math.cos(g + s * Math.PI / 2), Math.sin(g + s * Math.PI / 2)];
+      return { g, G: [G[0], G[1] - sink], Hc, dg, Ld, ex, hs, ox, oy, k };
+    }
+    let crackT = 0, para = [], Q = pose(0);
+    function erupt(S) {
+      const X0 = S.ox, Y0 = S.oy, R = S.RA, k = S.k, big = S.big, main = DK * 16 * TOT * SHARE[k] * 0.875;
+      H.X.flash(big ? 0.5 : NS > 1 ? 0.16 : 0.32, '#E8F6FF'); H.X.shake(big ? 28 : NS > 1 ? 11 : 18, big ? 0.6 : 0.4); H.X.sfx.crash(); H.X.light(X0, Y0, R * 1.6, big ? 1 : 0.7); if (big) { H.X.sfx.crack(); H.X.after(0.12, () => H.X.sfx.crash()); }
+      for (const m of H.living()) { const d = Math.hypot(m.x - X0, m.y - Y0); if (d > R + m.r) continue; H.X.hitMon(m, main * (d < R * 0.5 ? 1 : 0.85), C.dmgO({ kb: big ? 4 : 2.5, stun: S.last ? (m.boss ? 4 : 10) : 0.4 })); if (S.last && !m.boss) para.push(m); K.sparks(m.x, m.y - 0.3, 12, 8); }
+      const kk = big ? 1.8 : NS > 1 ? 0.75 : 1; K.sparks(X0, Y0, 40 * kk, 11 * Math.sqrt(kk), { up: 4 }); K.motes(X0, Y0, 24 * kk, { v: 4 }); K.goldSparks(X0, Y0, 14 * kk, 9); H.glowAt(X0, Y0 - 0.3, R * 0.9, big ? 0.5 : 0.35, P.cyan, 0.8);
+      if (big) { H.X.ring(X0, Y0, 0.3, R * 1.15, 0.55, P.cyan, 0.5); H.X.ring(X0, Y0, 0.2, R * 0.8, 0.45, '#FFFFFF', 0.35); }
+      for (let i = 0; i < S.dis.length; i++) { const b = S.dis[i], L = R * (0.75 + 0.25 * R1(i * 4.2 + k)); S.paths.push(K.path(0, 0, Math.cos(b) * L, Math.sin(b) * L * H.GY, i * 13 + 5 + k * 7, L * 0.12)); }
+      if (S.last && para.length) H.add({ life: 4.5, M: para.slice(),   /* (the crackle of the paralysis; the game marks the rest of its 10 s) */ draw(c, f2, X, Y, T, t2) { c.save(); for (const m of f2.M) { if (m.dead || !(m.stun > 0.05)) continue; const mx = H.sx(m.x), my = H.sy(m.y) - T * (m.r || 0.4) * 1.1, rr = T * (m.r || 0.4) * 1.1, fl = Math.min(1, m.stun / 0.6, f2.life / 0.8); for (let k2 = 0; k2 < 2; k2++) { const s1 = K.seed(t2, k2 + m.x * 7, 10), b0 = R1(s1) * TAU, b1 = b0 + 1 + R1(s1 + 1) * 1.6; K.arc(c, mx + Math.cos(b0) * rr, my + Math.sin(b0) * rr * 0.8, mx + Math.cos(b1) * rr, my + Math.sin(b1) * rr * 0.8, s1, 1.2, 0.75 * fl, { forks: 0, jit: rr * 0.3 }); } K.glow(c, mx, my, rr * 1.4, P.violet, 0.22 * fl); } c.restore(); },
+        update(dt2, f2) { for (const m of f2.M) if (!m.dead && m.stun > 0.05 && Math.random() < 3 * dt2 * H.Q()) K.sparks(m.x, m.y - 0.4, 2, 3); if (f2.M.every(m => m.dead || !(m.stun > 0.05))) f2.life = Math.min(f2.life, 0.05); } });
+    }
     H.add({ life: END, x, y,
       update(dt, f) {
         const t = f.t; crackT -= dt;
-        if (t < SW0) { me.sq = Math.max(me.sq, 0.45); if (t < PL1) K.aura(me.x, me.y, 0.6, dt, 12, 0.3); K.aura(x, y, RA * 0.5, dt, t < PL1 ? 22 : 10, 0); }
-        const q = pose(t); Q[0] = q;
+        if (t < STR[0].SW0) { me.sq = Math.max(me.sq, 0.45); if (t < PL1) K.aura(me.x, me.y, 0.6, dt, 12, 0.3); K.aura(x, y, STR[0].RA * 0.5, dt, t < PL1 ? 22 : 10, 0); }
+        const q = pose(t); Q = q;
+        for (const S of STR) {
+          if (S.k > 0 && t > S.R0 && t < S.SW0) { K.aura(S.ox, S.oy, S.RA * 0.4, dt, S.big ? 24 : 12, 0); const hp2 = plateWorld(q, [0, 0]); K.aura(hp2[0], hp2[1], 0.5 * W * q.hs, dt, 14, 0); if (S.big) me.sq = Math.max(me.sq, 0.4); }
+          if (t >= S.IMP && !S.hitT) { S.hitT = 1; H.X.hitstop(S.big ? 0.14 : 0.07); H.X.shake(S.big ? 14 : 10, 0.15); H.X.sfx.crack(); if (S.k < NS - 1) aimNext(STR[S.k + 1], S); }
+          if (t >= S.ERU && !S.eru) { S.eru = 1; erupt(S); }
+          if (S.eru && !S.disHit && t >= S.ERU + 0.22) { S.disHit = 1; H.hitRing(S.ox, S.oy, S.RA * 0.35, S.RA, DK * 16 * TOT * SHARE[S.k] * 0.125, C.dmgO({ stun: 0.2 })); H.X.sfx.crack(); }
+        }
         // plates snap into place
         for (const p of PL) if (!p.got && t >= p.ta) { p.got = true; const wpt = plateWorld(q, p.c); K.sparks(wpt[0], wpt[1], 3, 3); if (crackT <= 0 && R1(p.k) < 0.4) { H.X.sfx.crack(); crackT = 0.12; } }
-        if (t >= IMP && !f.hitT) { f.hitT = 1; H.X.hitstop(0.07); H.X.shake(10, 0.15); H.X.sfx.crack(); }
-        if (t >= ERU && !erupted) { erupted = true; H.X.flash(0.32, '#E8F6FF'); H.X.shake(18, 0.4); H.X.sfx.crash(); H.X.light(x, y, RA * 1.6, 0.7);
-          for (const m of H.living()) { const d = Math.hypot(m.x - x, m.y - y); if (d > RA + m.r) continue; H.X.hitMon(m, MAIN * (d < RA * 0.5 ? 1 : 0.85), C.dmgO({ kb: 2.5, stun: m.boss ? 4 : 10 })); if (!m.boss) para.push(m); K.sparks(m.x, m.y - 0.3, 12, 8); }
-          K.sparks(x, y, 40, 11, { up: 4 }); K.motes(x, y, 24, { v: 4 }); K.goldSparks(x, y, 14, 9); H.glowAt(x, y - 0.3, RA * 0.9, 0.35, P.cyan, 0.8);
-          for (let i = 0; i < dis.length; i++) { const b = dis[i], L = RA * (0.75 + 0.25 * R1(i * 4.2)); paths.push(K.path(0, 0, Math.cos(b) * L, Math.sin(b) * L * H.GY, i * 13 + 5, L * 0.12)); }
-          if (para.length) H.add({ life: 4.5, M: para.slice(),   /* (the crackle of the paralysis; the game marks the rest of its 10 s) */ draw(c, f2, X, Y, T, t2) { c.save(); for (const m of f2.M) { if (m.dead || !(m.stun > 0.05)) continue; const mx = H.sx(m.x), my = H.sy(m.y) - T * (m.r || 0.4) * 1.1, rr = T * (m.r || 0.4) * 1.1, fl = Math.min(1, m.stun / 0.6, f2.life / 0.8); for (let k = 0; k < 2; k++) { const s1 = K.seed(t2, k + m.x * 7, 10), b0 = R1(s1) * TAU, b1 = b0 + 1 + R1(s1 + 1) * 1.6; K.arc(c, mx + Math.cos(b0) * rr, my + Math.sin(b0) * rr * 0.8, mx + Math.cos(b1) * rr, my + Math.sin(b1) * rr * 0.8, s1, 1.2, 0.75 * fl, { forks: 0, jit: rr * 0.3 }); } K.glow(c, mx, my, rr * 1.4, P.violet, 0.22 * fl); } c.restore(); },
-            update(dt2, f2) { for (const m of f2.M) if (!m.dead && m.stun > 0.05 && Math.random() < 3 * dt2 * H.Q()) K.sparks(m.x, m.y - 0.4, 2, 3); if (f2.M.every(m => m.dead || !(m.stun > 0.05))) f2.life = Math.min(f2.life, 0.05); } });
-        }
-        if (erupted && !f.disHit && t >= ERU + 0.22) { f.disHit = 1; H.hitRing(x, y, RA * 0.35, RA, DIS, C.dmgO({ stun: 0.2 })); H.X.sfx.crack(); }
-        if (monu && !f.domeB && t >= ERU + 0.85) { f.domeB = 1; const rd = RA * 0.8; for (let i = 0; i < H.n(60); i++) { const b = Math.random() * TAU, el = Math.random() * Math.PI / 2, rr = rd * Math.cos(el); H.P({ kind: Math.random() < 0.6 ? 'spark' : 'ember', x: x + Math.cos(b) * rr, y: y + Math.sin(b) * rr * H.GY - rd * Math.sin(el) * 0.95, vx: Math.cos(b) * 0.6, vy: 0.5, g: 5, drag: 0.6, life: 0.7 + Math.random() * 0.5, max: 1.2, size: 2 + Math.random() * 1.6, color: Math.random() < 0.3 ? P.white : Math.random() < 0.5 ? P.cyan : Math.random() < 0.5 ? P.violet : P.gold }); } }
-        if (!f.disB && t >= DIS0) { f.disB = 1; for (const p of PL) { const w = plateWorld(Q[0], p.c); K.sparks(w[0], w[1], 2, 4); } K.motes(x, y - HP.hl, 14, { v: 3 }); }
+        if (monu && !f.domeB && t >= LAST.ERU + 0.85) { f.domeB = 1; const rd = LAST.RA * 0.8; for (let i = 0; i < H.n(90); i++) { const b = Math.random() * TAU, el = Math.random() * Math.PI / 2, rr = rd * Math.cos(el); H.P({ kind: Math.random() < 0.6 ? 'spark' : 'ember', x: LAST.ox + Math.cos(b) * rr, y: LAST.oy + Math.sin(b) * rr * H.GY - rd * Math.sin(el) * 0.95, vx: Math.cos(b) * 0.6, vy: 0.5, g: 5, drag: 0.6, life: 0.7 + Math.random() * 0.5, max: 1.2, size: 2 + Math.random() * 1.6, color: Math.random() < 0.3 ? P.white : Math.random() < 0.5 ? P.cyan : Math.random() < 0.5 ? P.violet : P.gold }); } }
+        if (!f.disB && t >= DIS0) { f.disB = 1; for (const p of PL) { const w = plateWorld(Q, p.c); K.sparks(w[0], w[1], 2, 4); } K.motes(LAST.ox, LAST.oy - HP.hl, 14, { v: 3 }); }
       },
       drawUnder(c, f, X, Y, T) {
         const t = f.t;   /* (the runner passes the game's clock; this move runs on its own) */
         c.save(); c.globalCompositeOperation = 'lighter';
-        // the landing point gathers light, the arcs reach for it
-        if (t < IMP) { const k = sm((t - 1.0) / 1.6); K.floorLight(c, X, Y, RA * T * (0.5 + 0.5 * k), 0.25 * k, P.blue); K.floorLight(c, X, Y, RA * T * 0.25, 0.4 * k, P.cyan); }
-        // compressed light under the striking face, then the eruption
-        if (t >= IMP && t < ERU + 0.05) { const u = (t - IMP) / (ERU - IMP); K.floorLight(c, X, Y, T * HP.hf * 2.2 * (1.3 - 0.6 * u), 0.9, P.white); K.floorLight(c, X, Y, T * HP.hf * 3.5 * (1 - 0.4 * u), 0.6, P.cyan); }
-        if (t >= ERU) {
-          const u = (t - ERU) / 0.6, rr = RA * T * H.ease.out(cl(u)), al = 1 - sm((t - ERU - 0.25) / 0.5);
-          if (al > 0.01) { K.floorLight(c, X, Y, rr * 1.15, 0.5 * al, P.blue); c.globalAlpha = al; for (let k = 0; k < 3; k++) { const r2 = rr * (1 - k * 0.07); c.strokeStyle = k === 0 ? rgba(P.violet, 0.55) : k === 1 ? rgba(P.blue, 0.7) : rgba(P.cyan, 0.9); c.lineWidth = Math.max(2, RA * T * (k === 0 ? 0.2 : k === 1 ? 0.1 : 0.05)); H.floorEllipse(c, X, Y, r2); c.stroke(); } c.strokeStyle = P.white; c.lineWidth = Math.max(1, T * 0.05); H.floorEllipse(c, X, Y, rr); c.stroke(); c.globalAlpha = 1; }
-          // branching ground discharges (re-growing), then their fading violet impressions
-          const ad = 1 - sm((t - ERU - 0.35) / 0.5); paths.forEach((pts, i) => { const reach = cl(u * 1.6); if (ad > 0.02) { const b = dis[i], L = RA * T * (0.75 + 0.25 * R1(i * 4.2)) * reach; K.arc(c, X, Y, X + Math.cos(b) * L, Y + Math.sin(b) * L * H.GY, K.seed(t, i, 14), 2.2, ad, { forks: 3, jit: L * 0.1 }); }
-            const sa = cl(1 - (t - ERU - 0.3) / 1.4); if (sa > 0.02 && u > 0.3) K.scar(c, pts.map(p => [X + p[0] * T, Y + p[1] * T]), sa); });
-          const ga = cl(1 - (t - ERU) / 1.7); K.floorLight(c, X, Y, T * 1.8 * W, 0.55 * ga, P.violet); K.floorLight(c, X, Y, T * 0.9 * W, 0.6 * ga, P.cyan);
+        for (const S of STR) {
+          const SX = H.sx(S.ox), SY = H.sy(S.oy), R = S.RA, bk = S.big ? 1.4 : 1, hf = HP.hf * S.hs;
+          // the landing point gathers light, the arcs reach for it
+          const g0 = S.k ? S.R0 : 1.0; if (t > g0 && t < S.IMP) { const k = sm((t - g0) / (S.k ? 0.5 : 1.6)); K.floorLight(c, SX, SY, R * T * (0.5 + 0.5 * k), 0.25 * k * bk, P.blue); K.floorLight(c, SX, SY, R * T * 0.25, 0.4 * k, P.cyan); }
+          // compressed light under the striking face, then the eruption
+          if (t >= S.IMP && t < S.ERU + 0.05) { const u = (t - S.IMP) / (S.ERU - S.IMP); K.floorLight(c, SX, SY, T * hf * 2.2 * (1.3 - 0.6 * u), 0.9, P.white); K.floorLight(c, SX, SY, T * hf * 3.5 * (1 - 0.4 * u), 0.6, P.cyan); }
+          if (t >= S.ERU && t < S.ERU + 1.8) {
+            const u = (t - S.ERU) / (0.6 * bk), rr = R * T * H.ease.out(cl(u)), al = 1 - sm((t - S.ERU - 0.25 * bk) / (0.5 * bk));
+            if (al > 0.01) { K.floorLight(c, SX, SY, rr * 1.15, 0.5 * al * bk, P.blue); c.globalAlpha = al; const nb = S.big ? 4 : 3; for (let k = 0; k < nb; k++) { const r2 = rr * (1 - k * 0.07); c.strokeStyle = k === 0 ? rgba(P.violet, 0.55) : k === 1 ? rgba(P.blue, 0.7) : k === 2 ? rgba(P.cyan, 0.9) : rgba(P.gold, 0.6); c.lineWidth = Math.max(2, R * T * (k === 0 ? 0.2 : k === 1 ? 0.1 : 0.05) * (S.big ? 1.3 : 1)); H.floorEllipse(c, SX, SY, r2); c.stroke(); } c.strokeStyle = P.white; c.lineWidth = Math.max(1, T * 0.05 * bk); H.floorEllipse(c, SX, SY, rr); c.stroke();
+              if (S.big) { const r3 = rr * 0.62; c.globalAlpha = al * 0.7; c.strokeStyle = rgba(P.ice, 0.8); c.lineWidth = Math.max(1.5, R * T * 0.06); H.floorEllipse(c, SX, SY, r3); c.stroke(); } c.globalAlpha = 1; }
+            // branching ground discharges (re-growing), then their fading violet impressions
+            const ad = 1 - sm((t - S.ERU - 0.35 * bk) / 0.5); S.paths.forEach((pts, i) => { const reach = cl(u * 1.6); if (ad > 0.02) { const b = S.dis[i], L = R * T * (0.75 + 0.25 * R1(i * 4.2 + S.k)) * reach; K.arc(c, SX, SY, SX + Math.cos(b) * L, SY + Math.sin(b) * L * H.GY, K.seed(t, i, 14), S.big ? 2.8 : 2.2, ad, { forks: 3, jit: L * 0.1 }); }
+              const sa = cl(1 - (t - S.ERU - 0.3) / 1.4); if (sa > 0.02 && u > 0.3) K.scar(c, pts.map(p => [SX + p[0] * T, SY + p[1] * T]), sa); });
+            const ga = cl(1 - (t - S.ERU) / 1.7); K.floorLight(c, SX, SY, T * 1.8 * W * S.hs, 0.55 * ga, P.violet); K.floorLight(c, SX, SY, T * 0.9 * W * S.hs, 0.6 * ga, P.cyan);
+          }
         }
         c.restore();
       },
       draw(c, f, X, Y, T) {
         const t = f.t;   /* (the runner passes the game's clock; this move runs on its own) */
-        petHole(c, T); const q = pose(t), O = [X, Y], sp = pt => [O[0] + pt[0] * T, O[1] - pt[1] * T];
+        petHole(c, T); const q = pose(t), sp = pt => spq(q, pt, T), S = STR[q.k];
         // fragments rising off the floor to become the plates
         c.save(); c.globalCompositeOperation = 'lighter';
-        for (const p of PL) { const t0 = p.ta - 1.0, t1 = p.ta - 0.3; if (t < t0 || t > t1) continue; const u = sm((t - t0) / (t1 - t0)), tgt = headPt(q, [p.c[0] + p.fly[0] * W, p.c[1] + p.fly[1] * W]), x0 = H.sx(p.fx), y0 = H.sy(p.fy), tp = sp(tgt), px = lerp(x0, tp[0], u) + Math.sin(u * 5 + p.k) * T * 0.3 * (1 - u), py = lerp(y0, tp[1], u * u * (3 - 2 * u)), r = T * 0.12 * W, rot = t * 6 + p.k;
-          K.glow(c, px, py, r * 3.5, P.cyan, 0.5); c.fillStyle = rgba(P.ice, 0.9); c.beginPath(); for (let k = 0; k < 3; k++) { const b = rot + k * TAU / 3, rk = k ? r : r * 1.7; k ? c.lineTo(px + Math.cos(b) * rk, py + Math.sin(b) * rk) : c.moveTo(px + Math.cos(b) * rk, py + Math.sin(b) * rk); } c.closePath(); c.fill(); K.glow(c, px, py, r, P.white, 0.9); }
+        for (const p of PL) { const t0 = p.ta - p.fd, t1 = p.ta - 0.3; if (t < t0 || t > t1) continue; const u = sm((t - t0) / (t1 - t0)), tgt = headPt(q, [p.c[0] + p.fly[0] * W, p.c[1] + p.fly[1] * W]), x0 = H.sx(p.fx), y0 = H.sy(p.fy), tp = sp(tgt), px = lerp(x0, tp[0], u) + Math.sin(u * 5 + p.k) * T * 0.3 * (1 - u), py = lerp(y0, tp[1], u * u * (3 - 2 * u)), r = T * 0.12 * W, rot = t * 6 + p.k;
+          K.glow(c, px, py, r * 3.5, p.tag === 'x' ? P.gold : P.cyan, 0.5); c.fillStyle = rgba(P.ice, 0.9); c.beginPath(); for (let k = 0; k < 3; k++) { const b = rot + k * TAU / 3, rk = k ? r : r * 1.7; k ? c.lineTo(px + Math.cos(b) * rk, py + Math.sin(b) * rk) : c.moveTo(px + Math.cos(b) * rk, py + Math.sin(b) * rk); } c.closePath(); c.fill(); K.glow(c, px, py, r, P.white, 0.9); }
         c.restore();
         if (t < HAN0 || t > DIS1) return;
-        // ribbons trailing the swing
-        if (t > SW0 && t < IMP + 0.22) { const t0 = Math.max(SW0, t - 0.22), t1 = Math.min(t, IMP); if (t1 - t0 > 0.01) [[HP.hl, -HP.hf], [HP.hl, HP.hf], [-HP.hl, HP.hf]].forEach((cc, i) => { const pts = []; for (let k = 0; k <= 12; k++) pts.push(sp(headPt(pose(t0 + (t1 - t0) * k / 12), cc))); const fa2 = t < IMP ? 1 : 1 - (t - IMP) / 0.22;
-          K.ribbon(c, pts, T * (i === 2 ? 0.1 : 0.16) * W, 0.85 * fa2); if (i < 2) K.bolt(c, K.path(pts[0][0], pts[0][1], pts[12][0], pts[12][1], K.seed(t, i, 16), T * 0.12, 8).map((p, k) => [pts[Math.min(12, Math.round(k * 12 / 8))][0] + (p[0] - lerp(pts[0][0], pts[12][0], k / 8)), pts[Math.min(12, Math.round(k * 12 / 8))][1] + (p[1] - lerp(pts[0][1], pts[12][1], k / 8))]), 1.2, 0.7 * fa2); }); }
+        // ribbons trailing each swing and each rise
+        for (const S2 of STR) { const wins = [[S2.SW0, S2.IMP, 1]]; if (S2.k) wins.push([S2.R0, S2.R1, 0.6]);
+          for (const [w0, w1, wa] of wins) { if (!(t > w0 && t < w1 + 0.22)) continue; const t0 = Math.max(w0, t - 0.22), t1 = Math.min(t, w1); if (t1 - t0 < 0.01) continue; const fa2 = (t < w1 ? 1 : 1 - (t - w1) / 0.22) * wa;
+            [[HP.hl, -HP.hf], [HP.hl, HP.hf], [-HP.hl, HP.hf]].forEach((cc, i) => { const pts = []; for (let k = 0; k <= 12; k++) { const qq = pose(t0 + (t1 - t0) * k / 12); pts.push(spq(qq, headPt(qq, cc), T)); }
+              K.ribbon(c, pts, T * (i === 2 ? 0.1 : 0.16) * W * (S2.big ? 1.25 : 1), 0.85 * fa2); if (i < 2) K.bolt(c, K.path(pts[0][0], pts[0][1], pts[12][0], pts[12][1], K.seed(t, i, 16), T * 0.12, 8).map((p, k) => [pts[Math.min(12, Math.round(k * 12 / 8))][0] + (p[0] - lerp(pts[0][0], pts[12][0], k / 8)), pts[Math.min(12, Math.round(k * 12 / 8))][1] + (p[1] - lerp(pts[0][1], pts[12][1], k / 8))]), 1.2, 0.7 * fa2, S2.big && i === 0); }); } }
         const fa = t < DIS0 ? 1 : 1 - sm((t - DIS0) / (DIS1 - DIS0)), dk = t < DIS0 ? 0 : (t - DIS0) / (DIS1 - DIS0);
         // the handle grows from the grip to the head
-        const hp = sm((t - HAN0) / (HAN1 - HAN0)), Gs = sp(q.G), He = sp([q.G[0] + q.dg[0] * (Lh - HP.hb) * hp, q.G[1] + q.dg[1] * (Lh - HP.hb) * hp]);
+        const hp = sm((t - HAN0) / (HAN1 - HAN0)), Gs = sp(q.G), He = sp([q.G[0] + q.dg[0] * (Lh - HP.hb * q.hs) * hp, q.G[1] + q.dg[1] * (Lh - HP.hb * q.hs) * hp]);
         drawHandle(c, Gs, He, T, W, t, fa * Math.min(1, hp * 3), hp < 1);
         if (t < PL0 - 0.3) return;
+        // rising again: the crater it left still crackles up to the head
+        if (S.k > 0 && t > S.R0 && t < S.R1 + 0.2) { const Pv = STR[S.k - 1], k = 1 - cl((t - S.R0) / (S.R1 + 0.2 - S.R0)), lf = sp(headPt(q, [HP.hl, 0])); c.save(); c.globalCompositeOperation = 'lighter'; for (let i = 0; i < 2; i++) K.arc(c, H.sx(Pv.ox), H.sy(Pv.oy), lf[0], lf[1], K.seed(t, i + 40, 14), 1.6, 0.8 * k, { forks: 2 }); c.restore(); }
         drawHead(c, q, sp, T, t, fa, dk);
         // small arcs reach down toward the landing point while it hangs
-        if (t > 1.5 && t < SW0 + 0.1) { const k = sm((t - 1.5) / 0.6), hb = sp(headPt(q, [0, 0])); c.save(); c.globalCompositeOperation = 'lighter'; for (let i = 0; i < (ev >= 4 ? 3 : 2); i++) { const s1 = K.seed(t, i, 9), ln = 0.35 + 0.35 * R1(s1), tx2 = X + (R1(s1 + 3) - 0.5) * RA * T * 0.6, ty2 = Y; if (R1(s1 + 7) < 0.25) continue; K.arc(c, hb[0] + (R1(s1 + 1) - 0.5) * T * W, hb[1] + T * HP.hf * 0.6, lerp(hb[0], tx2, ln), lerp(hb[1], ty2, ln), s1, 1.4, 0.8 * k, { forks: 2 }); } K.arc(c, X, Y, X + (R1(K.seed(t, 9, 7)) - 0.5) * T, Y - T * 0.8 * k, K.seed(t, 8, 12), 1, 0.7 * k, { forks: 1 }); c.restore(); }
-        // Celestial: the crown of lightning and the dome
-        if (monu && t >= ERU) {
-          c.save(); c.globalCompositeOperation = 'lighter'; const u = (t - ERU) / 0.6, rr = RA * T * H.ease.out(cl(u)) * 0.85, ca = cl((t - ERU - 0.05) / 0.08) * (1 - sm((t - ERU - 0.4) / 0.35));
-          if (ca > 0.02) crown.forEach((b, i) => { const bx = X + Math.cos(b) * rr, by = Y + Math.sin(b) * rr * H.GY, hh = T * (1.1 + 0.8 * R1(i * 2.9)) * W * (0.6 + 0.4 * Math.sin(Math.PI * cl(u))); K.bolt(c, K.path(bx, by, bx + (R1(K.seed(t, i, 12)) - 0.5) * T * 0.3, by - hh, K.seed(t, i, 14), T * 0.15, 5), 1.6, ca, i % 3 === 0); K.glow(c, bx, by - hh, T * 0.3, P.white, 0.7 * ca); });
-          const du = (t - ERU - 0.25) / 0.6, da = cl(du * 4) * (1 - sm((t - ERU - 0.8) / 0.25)); if (da > 0.02) { const rd = RA * T * 0.8 * H.ease.out(cl(du)), cy = Y;
-            c.globalAlpha = da * 0.18; c.fillStyle = P.blue; c.beginPath(); c.ellipse(X, cy, rd, rd * 0.95, 0, Math.PI, TAU); c.ellipse(X, cy, rd, rd * H.GY, 0, 0, Math.PI); c.fill(); c.globalAlpha = da;
-            c.strokeStyle = rgba(P.cyan, 0.8); c.lineWidth = Math.max(1.5, T * 0.06); c.beginPath(); c.ellipse(X, cy, rd, rd * 0.95, 0, Math.PI, TAU); c.stroke(); c.strokeStyle = rgba(P.white, 0.7); c.lineWidth = Math.max(1, T * 0.025); c.stroke();
-            for (let k = 0; k < 4; k++) { const ph = t * 1.4 + k * Math.PI / 4, rx = rd * Math.abs(Math.cos(ph)); c.strokeStyle = rgba(k % 2 ? P.violet : P.ice, 0.55); c.lineWidth = Math.max(1, T * 0.03); c.beginPath(); c.ellipse(X, cy, Math.max(1, rx), rd * 0.95, 0, Math.PI, TAU); c.stroke(); }
-            c.strokeStyle = rgba(P.cyan, 0.5); c.beginPath(); c.ellipse(X, cy - rd * 0.55, rd * 0.83, rd * 0.83 * H.GY, 0, 0, TAU); c.stroke();
-            for (let k = 0; k < 4; k++) { const s1 = K.seed(t, k + 30, 12), b0 = Math.PI + R1(s1) * Math.PI, b1 = b0 + (R1(s1 + 1) - 0.5) * 1.4; K.arc(c, X + Math.cos(b0) * rd, cy + Math.sin(b0) * rd * 0.95, X + Math.cos(b1) * rd * 0.8, cy + Math.sin(b1) * rd * 0.76, s1, 1.2, da * 0.8, { forks: 1 }); } }
+        const h0 = S.k ? S.R1 : 1.5; if (t > h0 && t < S.SW0 + 0.1) { const k = sm((t - h0) / (S.k ? 0.3 : 0.6)), hb = sp(headPt(q, [0, 0])), SX = H.sx(S.ox), SY = H.sy(S.oy); c.save(); c.globalCompositeOperation = 'lighter'; for (let i = 0; i < (ev >= 4 ? 3 : 2) + (S.big ? 2 : 0); i++) { const s1 = K.seed(t, i, 9), ln = 0.35 + 0.35 * R1(s1), tx2 = SX + (R1(s1 + 3) - 0.5) * S.RA * T * 0.6, ty2 = SY; if (R1(s1 + 7) < 0.25) continue; K.arc(c, hb[0] + (R1(s1 + 1) - 0.5) * T * W, hb[1] + T * HP.hf * 0.6, lerp(hb[0], tx2, ln), lerp(hb[1], ty2, ln), s1, 1.4, 0.8 * k, { forks: 2, gold: S.big && i % 2 === 1 }); } K.arc(c, SX, SY, SX + (R1(K.seed(t, 9, 7)) - 0.5) * T, SY - T * 0.8 * k, K.seed(t, 8, 12), 1, 0.7 * k, { forks: 1 }); c.restore(); }
+        // the final strike: the crown of lightning (stage 5 on) and the dome (Celestial)
+        const L = LAST; if (crown.length && t >= L.ERU) {
+          c.save(); c.globalCompositeOperation = 'lighter'; const LX = H.sx(L.ox), LY = H.sy(L.oy), RL = L.RA, u = (t - L.ERU) / 0.6, rr = RL * T * H.ease.out(cl(u)) * 0.85, ca = cl((t - L.ERU - 0.05) / 0.08) * (1 - sm((t - L.ERU - 0.45) / 0.35));
+          if (ca > 0.02) crown.forEach((b, i) => { const bx = LX + Math.cos(b) * rr, by = LY + Math.sin(b) * rr * H.GY, hh = T * (1.1 + 0.8 * R1(i * 2.9)) * W * (monu ? 1.25 : 0.9) * (0.6 + 0.4 * Math.sin(Math.PI * cl(u))); K.bolt(c, K.path(bx, by, bx + (R1(K.seed(t, i, 12)) - 0.5) * T * 0.3, by - hh, K.seed(t, i, 14), T * 0.15, 5), 1.6, ca, i % 3 === 0); K.glow(c, bx, by - hh, T * 0.3, P.white, 0.7 * ca); });
+          const du = (t - L.ERU - 0.25) / 0.6, da = monu ? cl(du * 4) * (1 - sm((t - L.ERU - 0.8) / 0.25)) : 0; if (da > 0.02) { const rd = RL * T * 0.8 * H.ease.out(cl(du)), cy = LY;
+            c.globalAlpha = da * 0.18; c.fillStyle = P.blue; c.beginPath(); c.ellipse(LX, cy, rd, rd * 0.95, 0, Math.PI, TAU); c.ellipse(LX, cy, rd, rd * H.GY, 0, 0, Math.PI); c.fill(); c.globalAlpha = da;
+            c.strokeStyle = rgba(P.cyan, 0.8); c.lineWidth = Math.max(1.5, T * 0.06); c.beginPath(); c.ellipse(LX, cy, rd, rd * 0.95, 0, Math.PI, TAU); c.stroke(); c.strokeStyle = rgba(P.white, 0.7); c.lineWidth = Math.max(1, T * 0.025); c.stroke();
+            for (let k = 0; k < 4; k++) { const ph = t * 1.4 + k * Math.PI / 4, rx = rd * Math.abs(Math.cos(ph)); c.strokeStyle = rgba(k % 2 ? P.violet : P.ice, 0.55); c.lineWidth = Math.max(1, T * 0.03); c.beginPath(); c.ellipse(LX, cy, Math.max(1, rx), rd * 0.95, 0, Math.PI, TAU); c.stroke(); }
+            c.strokeStyle = rgba(P.cyan, 0.5); c.beginPath(); c.ellipse(LX, cy - rd * 0.55, rd * 0.83, rd * 0.83 * H.GY, 0, 0, TAU); c.stroke();
+            for (let k = 0; k < 6; k++) { const s1 = K.seed(t, k + 30, 12), b0 = Math.PI + R1(s1) * Math.PI, b1 = b0 + (R1(s1 + 1) - 0.5) * 1.4; K.arc(c, LX + Math.cos(b0) * rd, cy + Math.sin(b0) * rd * 0.95, LX + Math.cos(b1) * rd * 0.8, cy + Math.sin(b1) * rd * 0.76, s1, 1.2, da * 0.8, { forks: 1 }); } }
           c.restore();
         }
       } });
+    /* swing-plane point (horizontal, height) of the hammer's current mark -> screen */
+    function spq(q, pt, T) { return [H.sx(q.ox) + pt[0] * T, H.sy(q.oy) - pt[1] * T]; }
     /* a head-frame point (a, b) -> swing-plane point; the plane point -> world (for particles) */
-    function headPt(q, ab) { return [q.Hc[0] + q.Ld[0] * ab[0] + q.dg[0] * ab[1], q.Hc[1] + q.Ld[1] * ab[0] + q.dg[1] * ab[1]]; }
-    function plateWorld(q, ab) { const p = headPt(q, ab); return [x + p[0], y - p[1]]; }
+    function headPt(q, ab) { const a = ab[0] * q.hs, b = ab[1] * q.hs; return [q.Hc[0] + q.Ld[0] * a + q.dg[0] * b, q.Hc[1] + q.Ld[1] * a + q.dg[1] * b]; }
+    function plateWorld(q, ab) { const p = headPt(q, ab); return [q.ox + p[0], q.oy - p[1]]; }
     /* the spectral handle: a translucent shaft with a white-hot heart, a lightning spiral wound round it, a pommel */
     function drawHandle(c, A, B, T, W, t, a, growing) {
       if (!(a > 0.01)) return; const w = T * 0.2 * W, dx = B[0] - A[0], dy = B[1] - A[1], L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L;
@@ -354,10 +401,10 @@
     /* the hammerhead: the far face and the visible sides of the prism, the core, the translucent front plates shaded
        by the way they face, electricity writhing inside, bright edges, the white-hot core shining through */
     function drawHead(c, q, sp, T, t, fa, dk) {
-      const hp = [], dzY = D * 0.5 * H.GY * T;   // half the head's depth on screen
+      const dzY = D * 0.5 * H.GY * T * q.hs, S = STR[q.k];   // half the head's depth on screen
       const scr = (ab, dzz) => { const p = sp(headPt(q, ab)); return [p[0], p[1] + dzz]; };
       const LS = [q.Ld[0], -q.Ld[1]], BS = [q.dg[0], -q.dg[1]];   // screen directions of a and b
-      const assembled = PL.reduce((n, p) => n + (t >= p.ta ? 1 : 0), 0) / PL.length, solid = sm((assembled - 0.5) / 0.5) * (1 - q.ex) * fa;
+      const assembled = BASE.reduce((n, p) => n + (t >= p.ta ? 1 : 0), 0) / BASE.length, solid = sm((assembled - 0.5) / 0.5) * (1 - q.ex) * fa;
       c.save(); c.lineJoin = 'round';
       // the prism behind: the far face and the sides that face up (where the camera sees them)
       if (solid > 0.02) {
@@ -369,7 +416,7 @@
           c.globalCompositeOperation = 'lighter'; c.strokeStyle = rgba(P.cyan, 0.7); c.lineWidth = Math.max(1, T * 0.025); c.stroke(); c.globalCompositeOperation = 'source-over'; }
       }
       // the core inside: a white-hot sphere (Adept on: gyroscope rings; Celestial: a large rotating core with three)
-      const hc = scr([0, 0], 0), rc = T * W * (monu ? 0.42 : ev >= 4 ? 0.34 : 0.28) * (0.92 + 0.08 * Math.sin(t * 13)) * Math.min(1, (t - PL0 + 0.3) / 0.5) * (1 - dk * 0.6);
+      const hc = scr([0, 0], 0), rc = T * W * q.hs * (monu ? 0.42 : ev >= 4 ? 0.34 : 0.28) * (0.92 + 0.08 * Math.sin(t * 13)) * Math.min(1, (t - PL0 + 0.3) / 0.5) * (1 - dk * 0.6);
       if (rc > 1) { c.globalCompositeOperation = 'lighter'; K.glow(c, hc[0], hc[1], rc * 4, P.blue, 0.5 * fa); K.glow(c, hc[0], hc[1], rc * 2.2, P.cyan, 0.6 * fa); c.globalCompositeOperation = 'source-over'; c.globalAlpha = fa; blit(c, coreSprite(false), hc[0], hc[1], rc); c.globalCompositeOperation = 'lighter';
         const nr = monu ? 3 : ev >= 4 ? 2 : 1; for (let k = 0; k < nr; k++) { c.save(); c.translate(hc[0], hc[1]); c.rotate(t * (1.4 + k * 0.9) * (k % 2 ? -1 : 1) + k * 1.1); c.strokeStyle = rgba(k === 2 ? P.gold : k ? P.violet : P.ice, 0.85 * fa); c.lineWidth = Math.max(1, rc * 0.09); c.beginPath(); c.ellipse(0, 0, rc * (1.45 + k * 0.28), rc * (0.35 + 0.25 * Math.abs(Math.sin(t * 1.3 + k))), 0, 0, TAU); c.stroke(); c.restore(); }
         K.glow(c, hc[0], hc[1], rc * 1.1, P.white, 0.9 * fa); }
@@ -396,7 +443,7 @@
         K.glow(c, hc[0], hc[1], rc * 1.6, P.white, 0.55 * fa); c.restore();
       }
       // the striking face blazes as it closes / lands
-      if (t > SW0 && t < ERU + 0.3) { const lf = scr([HP.hl, 0], dzY), k = t < IMP ? sm((t - SW0) / (IMP - SW0)) : 1 - (t - IMP) / (ERU + 0.3 - IMP); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 1; K.glow(c, lf[0], lf[1], T * HP.hf * 2.4, P.cyan, 0.6 * k); K.glow(c, lf[0], lf[1], T * HP.hf * 1.1, P.white, 0.8 * k); }
+      if (t > S.SW0 && t < S.ERU + 0.3) { const lf = scr([HP.hl, 0], dzY), k = t < S.IMP ? sm((t - S.SW0) / (S.IMP - S.SW0)) : 1 - (t - S.IMP) / (S.ERU + 0.3 - S.IMP); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 1; K.glow(c, lf[0], lf[1], T * HP.hf * q.hs * 2.4, P.cyan, 0.6 * k); K.glow(c, lf[0], lf[1], T * HP.hf * q.hs * 1.1, P.white, 0.8 * k); }
       c.restore();
     }
   };
