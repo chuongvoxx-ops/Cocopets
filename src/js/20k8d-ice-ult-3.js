@@ -1,5 +1,6 @@
 /* ---------- Ice, reworked: Ultimates 4-5 (absolutezero, glacialonslaught) ----------
-   Absolute Zero: a giant horizontal crystal forms in the air above the pet (never over it), lying along the aim inside
+   Absolute Zero: a giant horizontal crystal forms in the air above where the pet stood (it stays there, the pet may
+   walk away or under it, where it fades to a ghost), lying along the aim inside
    rotating rings of ice; particles stream into its pointed tip as its internal light swells, then it fires a massive
    frost beam down the aim with spiralling ribbons, tumbling shards and freezing mist. Level 1: one crystal and a focused
    beam. Adept: three rings tumble round it, align into a barrel and shape a wider beam with two frost ribbons. Celestial:
@@ -111,7 +112,7 @@
 
   /* ================= 4. Absolute Zero ================= */
   U.absolutezero = (C, h) => { H = h; K = IK.bind(H); P = K.P; init();
-    const me = H.me, ev = K.evo(C), a0 = C.a, ux = Math.cos(a0), uy = Math.sin(a0), qx = -uy, qy = ux;
+    const me = H.me, X0 = me.x, Y0 = me.y, ev = K.evo(C), a0 = C.a, ux = Math.cos(a0), uy = Math.sin(a0), qx = -uy, qy = ux;
     const NR = [0, 0, 1, 3, 3, 4, 5][ev - 1], NB = [0, 0, 1, 2, 2, 2, 3][ev - 1], SEG = ev >= 7 ? 5 : 0;
     const LC = [2.9, 3.0, 3.1, 3.5, 3.6, 3.8, 4.9][ev - 1], WC = LC * 0.15, BW = [0.5, 0.55, 0.62, 0.9, 0.95, 1.05, 1.45][ev - 1];
     const D = C.base * C.K * K.evoK(C), TOT = 14 * D;
@@ -133,7 +134,7 @@
     const sdx0 = A3[0], sdy0 = A3[1] - A3[2], sl = Math.hypot(sdx0, sdy0) || 1, sdx = sdx0 / sl, sdy = sdy0 / sl, FS = Math.max(0.72, Math.min(1.15, sl));
     const rel = (x, y, z, T, PX, PY) => [PX + x * T, PY + (y - z) * T];
     // the beam's path (relative to the pet, world tiles + height): from the tip it curves down onto the aimed lane
-    let R = 9; const reach = () => { let L = 0.6; while (L < 10.5 && !H.X.blocked(me.x + ux * L, me.y + uy * L, 0.1)) L += 0.25; return L; };
+    let R = 9; const reach = () => { let L = 0.6; while (L < 10.5 && !H.X.blocked(X0 + ux * L, Y0 + uy * L, 0.1)) L += 0.25; return L; };
     const tip3 = () => [ox + A3[0] * LC * 0.5, oy + A3[1] * LC * 0.5, Zc + A3[2] * LC * 0.5];
     let BP = null, BLEN = 1;
     const buildBeam = () => { R = Math.max(2.2, reach()); const p0 = tip3(), dM = Math.min(R, dL + 1.3), pl = [ux * dL, uy * dL, 0.55], pm = [ux * dM, uy * dM, 0.55], pts = [];
@@ -142,7 +143,7 @@
       let s = 0; pts[0][3] = 0; for (let k = 1; k < pts.length; k++) { s += Math.hypot(pts[k][0] - pts[k - 1][0], pts[k][1] - pts[k - 1][1], pts[k][2] - pts[k - 1][2]); pts[k][3] = s; } BP = pts; BLEN = s; };
     // a point a length s along the beam (relative 3-D), with its direction
     const beamAt = s => { const n = BP.length; let k = 1; while (k < n - 1 && BP[k][3] < s) k++; const p = BP[k - 1], q = BP[k], u = cl((s - p[3]) / Math.max(1e-4, q[3] - p[3])); return [lerp(p[0], q[0], u), lerp(p[1], q[1], u), lerp(p[2], q[2], u)]; };
-    const hitBeam = (dmg, o, each) => { let n = 0; for (const m of H.living()) { const rx = m.x - me.x, ry = m.y - me.y, al = rx * ux + ry * uy, of = Math.abs(-rx * uy + ry * ux); if (al > 0.15 - m.r && al < R + m.r && of < BW * 0.6 + m.r) { H.X.hitMon(m, dmg, C.dmgO(o)); n++; if (each) each(m); } } return n; };
+    const hitBeam = (dmg, o, each) => { let n = 0; for (const m of H.living()) { const rx = m.x - X0, ry = m.y - Y0, al = rx * ux + ry * uy, of = Math.abs(-rx * uy + ry * ux); if (al > 0.15 - m.r && al < R + m.r && of < BW * 0.6 + m.r) { H.X.hitMon(m, dmg, C.dmgO(o)); n++; if (each) each(m); } } return n; };
     const NT = Math.floor((BEAMD - 0.05) / TICK) + 1, tickD = TOT * 0.82 / NT, lockD = TOT * 0.18;
     const shards = [], seams = [], aligned = new Array(NR).fill(false), segLocked = new Array(SEG).fill(false);
     let fired = false, ticks = 0, nextTick = 0, locked = false, broke = false, shardAcc = 0;
@@ -154,7 +155,7 @@
       return { u: lerp(0.5, ringU(k), al), r: lerp(WC * (2.0 + 0.3 * k), ringR(k), al), N: [N[0] / nl, N[1] / nl, N[2] / nl], th: spinR, al }; };
     const ringA = (k, t) => cl((t - 0.35 - k * 0.09) / 0.3) * (1 - cl((t - OFF - 0.1) / 0.65));
     // the crystal's centre on the screen and its tip
-    const geo = (T, t) => { const PX = H.sx(me.x), PY = H.sy(me.y), bob = Math.sin(t * 2.1) * 0.05, c0 = rel(ox, oy, Zc + bob, T, PX, PY), Ls = LC * T * FS;
+    const geo = (T, t) => { const PX = H.sx(X0), PY = H.sy(Y0), bob = Math.sin(t * 2.1) * 0.05, c0 = rel(ox, oy, Zc + bob, T, PX, PY), Ls = LC * T * FS;
       return { PX, PY, cx: c0[0], cy: c0[1], Ls, ang: Math.atan2(sdy, sdx), tx: c0[0] + sdx * Ls / 2, ty: c0[1] + sdy * Ls / 2, bob }; };
     const along = (G, u) => [G.cx + sdx * G.Ls * (u - 0.5), G.cy + sdy * G.Ls * (u - 0.5)];
     const glowAt = t => (t < CH0 ? 0.3 : t < FIRE ? lerp(0.3, 1, eio((t - CH0) / CHD)) : t < OFF ? 0.85 + 0.15 * Math.sin(t * 30) : 1 - cl((t - OFF) / 0.6) * 0.8);
@@ -162,30 +163,30 @@
       update(dt, f) { const t = f.t, T = H.X.Tz(), G = geo(T, t);
         if (t < OFF + 0.2) { if (Math.abs(ux) > 0.2) me.face = ux > 0 ? 1 : -1; if (t > FIRE && t < OFF) me.sq = Math.max(me.sq || 0, 0.35); }
         // frost rising off the pet into the forming crystal
-        if (t < FORMD) { const w = toW(G.cx, G.cy, T); K.aura(me.x, me.y, 0.55, dt, 18, 0.2); if (Math.random() < dt * 30 * H.Q()) { const b = Math.random() * TAU, rr = (LC * 0.5 + 0.6) * (0.6 + 0.4 * Math.random()), sx0 = Math.cos(b) * rr, sy0 = Math.sin(b) * rr * 0.6; H.P({ kind: Math.random() < 0.5 ? 'spark' : 'ember', x: w[0] + sx0, y: w[1] + sy0, vx: -sx0 * 2.2, vy: -sy0 * 2.2, g: 0, drag: 0.5, life: 0.4, max: 0.4, size: 2, color: Math.random() < 0.5 ? P.white : P.pale }); } }
+        if (t < FORMD) { const w = toW(G.cx, G.cy, T); K.aura(X0, Y0, 0.55, dt, 18, 0.2); if (Math.random() < dt * 30 * H.Q()) { const b = Math.random() * TAU, rr = (LC * 0.5 + 0.6) * (0.6 + 0.4 * Math.random()), sx0 = Math.cos(b) * rr, sy0 = Math.sin(b) * rr * 0.6; H.P({ kind: Math.random() < 0.5 ? 'spark' : 'ember', x: w[0] + sx0, y: w[1] + sy0, vx: -sx0 * 2.2, vy: -sy0 * 2.2, g: 0, drag: 0.5, life: 0.4, max: 0.4, size: 2, color: Math.random() < 0.5 ? P.white : P.pale }); } }
         // L7: each segment locks into the lance with a flash
         for (let j = 0; j < SEG; j++) if (!segLocked[j] && t >= 0.32 + j * 0.13 + 0.5) { segLocked[j] = true; const p = along(G, (j + 1) / SEG), w = toW(p[0], p[1], T); seams.push({ u: (j + 1) / SEG, t }); K.glitter(w[0], w[1], 6, 4); H.X.sfx.sparkle && H.X.sfx.sparkle(); H.X.shake(2, 0.06); }
-        if (SEG && !locked && t >= FORMD - 0.05) { locked = true; const w = toW(G.cx, G.cy, T); K.glitter(w[0], w[1], 14, 6); H.X.light(me.x + ox, me.y + oy, 3, 0.25); H.X.sfx.hum(); }
+        if (SEG && !locked && t >= FORMD - 0.05) { locked = true; const w = toW(G.cx, G.cy, T); K.glitter(w[0], w[1], 14, 6); H.X.light(X0 + ox, Y0 + oy, 3, 0.25); H.X.sfx.hum(); }
         // the rings align one after another, each with a chime
         for (let k = 0; k < NR; k++) if (!aligned[k] && t >= AL0 + k * ALS + 0.3) { aligned[k] = true; const rp = ringPose(k, t), p = along(G, rp.u), w = toW(p[0], p[1], T); K.glitter(w[0], w[1], 8, 4); H.X.sfx.sparkle && H.X.sfx.sparkle(); H.X.shake(1.5, 0.05); }
         // the charge: particles pull into the pointed tip
         if (t > CH0 - 0.2 && t < FIRE) { const w = toW(G.tx, G.ty, T); if (Math.random() < dt * 50 * H.Q()) { const b = Math.random() * TAU, rr = 1.2 + Math.random() * 1.4, sx0 = Math.cos(b) * rr, sy0 = Math.sin(b) * rr * 0.75; H.P({ kind: 'spark', x: w[0] + sx0, y: w[1] + sy0, vx: -sx0 / 0.32, vy: -sy0 / 0.32, g: 0, drag: 0, life: 0.3, max: 0.3, size: 2.2, color: Math.random() < 0.3 ? P.lav : Math.random() < 0.5 ? P.white : P.cyan }); } }
         // the release
-        if (!fired && t >= FIRE) { fired = true; buildBeam(); nextTick = t + 0.04; H.X.flash(0.18, P.pale); H.X.shake(ev >= 7 ? 12 : 8, 0.35); H.X.hitstop(0.05); H.X.sfx.crash(); H.X.light(me.x + ux * 2, me.y + uy * 2, 4 + ev * 0.3, 0.4);
+        if (!fired && t >= FIRE) { fired = true; buildBeam(); nextTick = t + 0.04; H.X.flash(0.18, P.pale); H.X.shake(ev >= 7 ? 12 : 8, 0.35); H.X.hitstop(0.05); H.X.sfx.crash(); H.X.light(X0 + ux * 2, Y0 + uy * 2, 4 + ev * 0.3, 0.4);
           const w = toW(G.tx, G.ty, T); K.glitter(w[0], w[1], 16, 7); K.snow(w[0], w[1], 10); }
         if (fired && t < OFF) {
           if (t >= nextTick && ticks < NT) { ticks++; nextTick += TICK; hitBeam(tickD, { chill: true, kb: 0.6, noText: ticks % 2 === 0 && ticks < NT }); if (ticks % 3 === 1) H.X.sfx.whoosh && H.X.sfx.whoosh(); }
           // tumbling shards down the beam and freezing mist along it
           shardAcc += dt * (14 + 6 * ev) * H.Q(); while (shardAcc >= 1) { shardAcc -= 1; shards.push({ s: 0, off: (Math.random() - 0.5) * 1.3, rot: Math.random() * TAU, vr: (Math.random() - 0.5) * 16, sz: 0.5 + Math.random() * 0.6, v: 11 + Math.random() * 7, seed: Math.random() * 9 | 0 }); }
-          if (Math.random() < dt * 40 * H.Q()) { const s = Math.random() * BLEN, p = beamAt(s), w = [me.x + p[0], me.y + p[1] - p[2]]; H.P({ kind: 'ember', x: w[0] + (Math.random() - 0.5) * BW, y: w[1] + (Math.random() - 0.5) * BW * 0.6, vx: (Math.random() - 0.5) * 1.5 + ux * 1.5, vy: -0.3 - Math.random() * 0.6, g: 0.3, drag: 0.6, life: 0.9, max: 0.9, size: 2 + Math.random() * 2, color: Math.random() < 0.5 ? P.white : P.frost }); }
-          if (Math.random() < dt * 14 * H.Q()) K.glitter(me.x + ux * R, me.y + uy * R - 0.5, 2, 4); }
+          if (Math.random() < dt * 40 * H.Q()) { const s = Math.random() * BLEN, p = beamAt(s), w = [X0 + p[0], Y0 + p[1] - p[2]]; H.P({ kind: 'ember', x: w[0] + (Math.random() - 0.5) * BW, y: w[1] + (Math.random() - 0.5) * BW * 0.6, vx: (Math.random() - 0.5) * 1.5 + ux * 1.5, vy: -0.3 - Math.random() * 0.6, g: 0.3, drag: 0.6, life: 0.9, max: 0.9, size: 2 + Math.random() * 2, color: Math.random() < 0.5 ? P.white : P.frost }); }
+          if (Math.random() < dt * 14 * H.Q()) K.glitter(X0 + ux * R, Y0 + uy * R - 0.5, 2, 4); }
         for (let i = shards.length - 1; i >= 0; i--) { const s = shards[i]; s.s += s.v * dt; s.rot += s.vr * dt; if (s.s > BLEN) shards.splice(i, 1); }
         // the beam ends: the frozen line locks with a last flare, freezing what it held
         if (fired && !f._off && t >= OFF) { f._off = true; hitBeam(lockD, { freeze: ev >= 7 ? 2 : 1.5, kb: 1.5 }, m => { K.shatterAt(m.x, m.y - 0.5, 0.9); });
-          H.X.shake(6, 0.2); H.X.sfx.crash(); K.snow(me.x + ux * R, me.y + uy * R - 0.5, 10); K.fragments(me.x + ux * R, me.y + uy * R - 0.5, 8, 5); }
+          H.X.shake(6, 0.2); H.X.sfx.crash(); K.snow(X0 + ux * R, Y0 + uy * R - 0.5, 10); K.fragments(X0 + ux * R, Y0 + uy * R - 0.5, 8, 5); }
         // the crystal breaks into glitter and snow
         if (!broke && t >= OFF + 0.42) { broke = true; for (let k = 0; k <= 6; k++) { const p = along(G, k / 6), w = toW(p[0], p[1], T); K.glitter(w[0], w[1], 5, 5); K.fragments(w[0], w[1], 3, 4); K.snow(w[0], w[1], 3); } H.X.sfx.crash(); }
-        if (NR && t > OFF + 0.15 && t < OFF + 0.7) for (let k = 0; k < NR; k++) if (Math.random() < dt * 14 * H.Q()) { const rp = ringPose(k, t), p = along(G, rp.u), b = Math.random() * TAU, rr = rp.r * (1 + 0.6 * cl((t - OFF - 0.1) / 0.6)); H.P({ kind: 'spark', x: me.x + (p[0] - G.PX) / T + Math.cos(b) * rr, y: me.y + (p[1] - G.PY) / T + Math.sin(b) * rr * 0.6, vx: Math.cos(b) * 1.5, vy: 0.4, g: 1.2, drag: 1, life: 0.6, max: 0.6, size: 2, color: Math.random() < 0.5 ? P.white : P.pale }); } },
+        if (NR && t > OFF + 0.15 && t < OFF + 0.7) for (let k = 0; k < NR; k++) if (Math.random() < dt * 14 * H.Q()) { const rp = ringPose(k, t), p = along(G, rp.u), b = Math.random() * TAU, rr = rp.r * (1 + 0.6 * cl((t - OFF - 0.1) / 0.6)); H.P({ kind: 'spark', x: X0 + (p[0] - G.PX) / T + Math.cos(b) * rr, y: Y0 + (p[1] - G.PY) / T + Math.sin(b) * rr * 0.6, vx: Math.cos(b) * 1.5, vy: 0.4, g: 1.2, drag: 1, life: 0.6, max: 0.6, size: 2, color: Math.random() < 0.5 ? P.white : P.pale }); } },
       drawUnder(c, f, X, Y, T) { const t = f.t, G = geo(T, t), k0 = Math.min(1, f.life / 0.5);
         // the floor lit beneath the crystal, frost spreading from under the pet as it forms
         const gx = G.PX + ox * T, gy = G.PY + oy * T; K.floorLight(c, gx, gy, T * LC * 0.6, 0.4 * k0 * cl(t / 0.5) * (1 - cl((t - OFF - 0.3) / 0.6)), P.ice);
@@ -197,9 +198,9 @@
         for (let d = 1.4, i = 0; d < R * ext - 0.5; d += 2.1, i++) K.frostVeins(c, G.PX + ux * d * T, G.PY + uy * d * T, T * (0.7 + BW * 0.5), eo(cl((t - FIRE - d * 0.03) / 0.5)), 0.7 * fa, i * 1.7, 5);
         const EX = G.PX + ux * R * T, EY = G.PY + uy * R * T; K.frozenPool(c, EX, EY, T * (0.7 + BW * 0.6), 0.8 * fa, t); K.mist(c, EX, EY, T * (0.8 + BW * 0.6), 0.8 * fa, t); },
       draw(c, f, X, Y, T) { const t = f.t, G = geo(T, t), gl = glowAt(t), k0 = Math.min(1, f.life / 0.35);
-        const fade = 1 - cl((t - OFF - 0.4) / 0.4), crack = cl((t - OFF) / 0.4), ca = k0 * fade, spin = t * 0.9 + (t > FIRE ? (t - FIRE) * 3 : 0);
+        const pg = Math.min(petGuard(G.cx, G.cy, T, WC * T), petGuard(G.tx, G.ty, T, WC * T), petGuard(2 * G.cx - G.tx, 2 * G.cy - G.ty, T, WC * T)), fade = 1 - cl((t - OFF - 0.4) / 0.4), crack = cl((t - OFF) / 0.4), ca = k0 * fade * pg, spin = t * 0.9 + (t > FIRE ? (t - FIRE) * 3 : 0);
         // the back halves of the rings
-        for (let k = 0; k < NR; k++) { const ra = ringA(k, t); if (ra <= 0) continue; const rp = ringPose(k, t), p = along(G, rp.u), ex = 1 + 0.6 * cl((t - OFF - 0.1) / 0.6); iceRing3(c, p[0], p[1], rp.r * T * ex, rp.N, rp.th, ra * k0, false, k * 3); }
+        for (let k = 0; k < NR; k++) { const ra = ringA(k, t); if (ra <= 0) continue; const rp = ringPose(k, t), p = along(G, rp.u), ex = 1 + 0.6 * cl((t - OFF - 0.1) / 0.6); iceRing3(c, p[0], p[1], rp.r * T * ex, rp.N, rp.th, ra * k0 * Math.max(pg, petGuard(p[0], p[1], T, rp.r * T)), false, k * 3); }
         // the crystal: a glowing seed that grows into the lance (L7: segments flying together into it)
         const wa = cl(t / 0.3) * (1 - cl((t - 0.5) / 0.4)); if (wa > 0) K.glow(c, G.cx, G.cy, T * (0.6 + 0.8 * cl(t / 0.5)), P.cyan, 0.7 * wa);
         const W = WC * T, opt = { tf: SEG ? 0.3 : 0.34, tb: SEG ? 0.18 : 0.19, glow: gl, crack, seed: 3, t };
@@ -221,7 +222,7 @@
         // the beam
         if (BP) this._beam(c, G, T, t);
         // the front halves of the rings
-        for (let k = 0; k < NR; k++) { const ra = ringA(k, t); if (ra <= 0) continue; const rp = ringPose(k, t), p = along(G, rp.u), ex = 1 + 0.6 * cl((t - OFF - 0.1) / 0.6); iceRing3(c, p[0], p[1], rp.r * T * ex, rp.N, rp.th, ra * k0, true, k * 3);
+        for (let k = 0; k < NR; k++) { const ra = ringA(k, t); if (ra <= 0) continue; const rp = ringPose(k, t), p = along(G, rp.u), ex = 1 + 0.6 * cl((t - OFF - 0.1) / 0.6); iceRing3(c, p[0], p[1], rp.r * T * ex, rp.N, rp.th, ra * k0 * Math.max(pg, petGuard(p[0], p[1], T, rp.r * T)), true, k * 3);
           if (t > FIRE && t < OFF) K.glow(c, p[0], p[1], rp.r * T * 1.1, P.cyan, 0.18 + 0.1 * Math.sin(t * 20 + k)); }
         // the release: a white burst at the tip
         const ru = (t - FIRE) / 0.4; if (ru > 0 && ru < 1) { K.glow(c, G.tx, G.ty, T * (1 + BW * 2.5) * (0.6 + ru), P.white, 0.9 * (1 - ru)); iceRing3(c, G.tx, G.ty, T * BW * (1 + 2.5 * eo(ru)), [sdx / 1.084, sdy / 1.084, 0.42 / 1.084], t * 4, 0.8 * (1 - ru), true, 7); } },
@@ -232,7 +233,7 @@
         if (pts.length < 2) return; const n = pts.length, wAt = s => Wb * (0.42 + 0.58 * sm(0, 1.3, s)) * (1 - 0.5 * sm(BLEN - 0.6, BLEN, s));
         const NRM = pts.map((p, i) => { const q = pts[Math.min(n - 1, i + 1)], r = pts[Math.max(0, i - 1)], ex = q[0] - r[0], ey = q[1] - r[1], el = Math.hypot(ex, ey) || 1; return [-ey / el, ex / el]; });
         // where it passes over the pet it thins to a ghost, so the pet always shows
-        const PCX = G.PX, PCY = G.PY - T * 0.45, GD = pts.map(p => Math.max(0.22, cl((Math.hypot(p[0] - PCX, (p[1] - PCY) * 1.1) - wAt(p[2]) * 0.5 - T * 0.5) / (T * 0.8))));
+        const PCX = H.sx(me.x), PCY = H.sy(me.y) - T * 0.45, GD = pts.map(p => Math.max(0.22, cl((Math.hypot(p[0] - PCX, (p[1] - PCY) * 1.1) - wAt(p[2]) * 0.5 - T * 0.5) / (T * 0.8))));
         c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.lineJoin = 'round';
         for (let i = 0; i < n; i += 3) K.glow(c, pts[i][0], pts[i][1], wAt(pts[i][2]) * 1.7, P.blue, 0.2 * fa * GD[i]);
         const layer = (col, k, al) => { c.strokeStyle = col; for (let i = 1; i < n; i++) { c.globalAlpha = al * fa * GD[i]; c.lineWidth = Math.max(0.8, wAt(pts[i][2]) * k); c.beginPath(); c.moveTo(pts[i - 1][0], pts[i - 1][1]); c.lineTo(pts[i][0], pts[i][1]); c.stroke(); } };

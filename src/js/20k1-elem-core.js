@@ -178,7 +178,7 @@ const ELEM_MOVES = {
     ['absolutezero', 'Absolute Zero', 'beam', 95, 20, 'A giant crystal forms above you inside turning rings of ice and fires a massive frost beam.'],
     ['glacialonslaught', 'Glacial Onslaught', 'gem', 95, 20, 'Huge spinning ice crystals launch from behind you in waves and burst into fans of shards: 3, 5 at Adept, 9 at Celestial.'],
     ['frozensingularity', 'Frozen Singularity', 'nova', 95, 20, 'Ice rings compress a crystal core until it detonates in a broad wave of ice: 2 rings, 3 at Adept, 5 at Celestial.'],
-    ['snowman', 'Snowman', 'spin', 95, 20, 'A giant glowing ice spirit of a Cocopet rolls round the arena freezing all in its path: 3 rolls, up to 7 rolls and boss-sized at Celestial.'],
+    ['frozenvortex', 'Frozen Vortex', 'vortex', 95, 20, 'A swirling vortex of cold ice blades drives forward, slicing through the monsters: 1 vortex, 4 at Celestial lasting 3 s longer.'],
     ['catastrophe', 'Catastrophe', 'snow', 100, 21, 'Swirling beams of ice light fall from the sky and sweep the battlefield while snow falls: 5 s, 10 beams for 10 s at Celestial.'],
     ['iceage', 'Ice Age', 'meteor', 100, 22, 'A giant crystal falls from the sky and bursts in waves of blue light; crystals sprout from the ground for more damage and freeze for 3 s. The ultimate ice spell.'] ] },
   thunder: { strong: [

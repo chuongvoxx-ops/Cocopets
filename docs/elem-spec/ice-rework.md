@@ -2,7 +2,7 @@
 
 ## Mapping (ELEM_MOVES.ice, already changed in 20k1-elem-core.js)
 - Strong (10): antler, skate, snowbell, frostloom, **snowfall** (Thousand-Wing Snowfall, was an Ultimate), **rimecoil** (kept: the user's favourite), pendulum, dominoes, hoarfrost, **absolutewinter** (Heart of Absolute Winter, was an Ultimate). Winter Moth and Sapphire Hailshot were dropped (Snowfall covers the moths, Glacial Onslaught the crystal projectiles).
-- Ultimate (10): **frozenorrery** (kept: the user's favourite), diamonddust, frozenswords, letitgo, absolutezero, glacialonslaught, frozensingularity, snowman, catastrophe (cd 21), iceage.
+- Ultimate (10): **frozenorrery** (kept: the user's favourite), diamonddust, frozenswords, letitgo, absolutezero, glacialonslaught, frozensingularity, frozenvortex (replaced Snowman at the user's request), catastrophe (cd 21), iceage.
 - "Level 1 / 4 / 7" = the pet's stage C.evo (1 Hatchling, 4 Adept, 7 Celestial).
 
 ## The user's words
@@ -65,3 +65,9 @@ The attacks should be high quality like thunder and fire skills and ults. With a
 Rehaul all the strong skills as well so they're up to standard like fire and thunder. Should be set up and advanced the same way as well with how the pets evolved, skills should get stronger and more elaborate by level 7.
 
 (Earlier, about all elements: "As the pets evolve and level up, the skills should not only get stronger but also look more elaborate" — e.g. more pieces, a repeated climax at Celestial, each repeat bigger than the last.)
+
+## Round 2 (user feedback after the first build)
+- Absolute Zero: "The crystal shouldn't follow you. It should stay in one place and fire the beam in that place."
+- Snowman "looks really bad, you're just compositing the image on it. Change it to Frozen Vortex instead. A swirling vortex of cold ice blades moving forward slicing through enemies; at level one it's just 1 vortex, at level 7 it's 4 vortexes and last 3 seconds longer."
+- Catastrophe "looks amazing but too taxing on the performance, find ways to optimize this without changing the appearance of the attack. Cut it by 3 seconds shorter as well."
+- Ice Age: "the crystals exploding on the ground are supposed to be like spikes; the ones we have now are too fat."

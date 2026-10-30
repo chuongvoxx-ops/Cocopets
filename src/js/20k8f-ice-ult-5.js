@@ -1,16 +1,18 @@
 /* ---------- Ice, reworked: Catastrophe, Ice Age ----------
    Catastrophe: the sky turns cold and a vortex of light opens above the battlefield; swirling beams of ice-blue light
    fall out of it and sweep across the floor, freezing every monster they touch and leaving trails of frost light and
-   little crystals behind them, while snow falls over the whole screen. 3 beams for 5 s at Hatchling, 7 for ~7.5 s at
-   Adept, 10 for 10 s at Celestial (its 21 s cooldown pays for it).
+   little crystals behind them, while snow falls over the whole screen. 3 beams for 4 s at Hatchling, 7 for 5 s at
+   Adept, 10 for 7 s at Celestial (its 21 s cooldown pays for it). Built for the phone: the beam column with its turning
+   ribbons, the floor under each beam, the swirl's turn, the crown of shards and the trail crystals are cached pictures
+   painted a few a tick from the cast; nearly everything is blitted unturned.
    Ice Age: the ultimate ice spell. A giant faceted crystal (a doubly-terminated hexagonal prism rendered in 3D: lit and
    shaded translucent facets, the back facets showing through, a glowing core and internal fractures, a crown of smaller
    crystals round its waist) forms in the sky out of streams of shards, turning, with rings of light round it; it drops
    onto the aim and bursts: a white flash, a pillar and rays of light, the crystal shattering into tumbling shards and
-   waves of blue light rolling across the floor; then crystals sprout from the ground under the monsters in rings, each
-   ring bigger than the last. The burst deals the massive damage and freezes for 3 s (bosses ~1 s); the sprouted crystals
+   waves of blue light rolling across the floor; then clusters of long thin ice spikes erupt from the ground under the
+   monsters in rings, each ring bigger than the last. The burst deals the massive damage and freezes for 3 s (bosses ~1 s); the sprouted crystals
    deal more. Evolution: a bigger crystal, more crown crystals and rings, 2 / 3 / 5 waves and 8 / 14 / 24 crystals in
-   1 / 2 / 3 rings. Everything heavy is a cached sprite: the crystal's 3D frames, the beam column, the swirl, the wave
+   1 / 2 / 3 rings (spike clusters of 2-4). Everything heavy is a cached sprite: the crystal's 3D frames, the beam column, the swirl, the wave
    band, the snowflakes. */
 (() => {
   const U = ELEM_IMPL.ice.ult, TAU = Math.PI * 2;
@@ -109,24 +111,85 @@
   /* a kit shard at a steady size, stretched along its own axis by k (growing or breathing): a size that changes every
      frame would make the kit paint a new sprite every frame */
   function shardK(c, x, y, w, h, ang, sd, a, t, k) { if (!(k > 0.02) || !(a > 0.01)) return; w = Math.round(w); h = Math.round(h); c.save(); c.translate(x, y); c.rotate(ang + Math.PI / 2); c.scale(1, k); K.shard(c, 0, 0, w, h, -Math.PI / 2, sd, a, t); c.restore(); }
+  /* an ice spike: a long thin needle (height ~6.5x its base), a lit face and a shaded face on a bright ridge, a cyan
+     edge, a glowing fracture up its core and a glowing tip; 4 variants, drawn stretched to any size (one blit) */
+  const spikeSpr = v => fxSprite('iu5spike' + v, 40, 200, (g, W, Hh) => {
+    const bw = 26, top = 16, bot = Hh - 3, cx = W / 2, tx = cx + (v - 1.5) * 1.6, fx = cx + 2 + (v % 2), fy = bot + 2;
+    let gr = g.createLinearGradient(cx - bw / 2, 0, fx, 0); gr.addColorStop(0, 'rgba(232,251,255,0.95)'); gr.addColorStop(0.6, 'rgba(160,226,255,0.85)'); gr.addColorStop(1, 'rgba(110,196,245,0.8)');
+    g.beginPath(); g.moveTo(cx - bw / 2, bot); g.lineTo(fx, fy); g.lineTo(tx, top); g.closePath(); g.fillStyle = gr; g.fill();
+    gr = g.createLinearGradient(fx, 0, cx + bw / 2, 0); gr.addColorStop(0, 'rgba(42,126,224,0.85)'); gr.addColorStop(1, 'rgba(18,60,140,0.9)');
+    g.beginPath(); g.moveTo(fx, fy); g.lineTo(cx + bw / 2, bot); g.lineTo(tx, top); g.closePath(); g.fillStyle = gr; g.fill();
+    g.save(); g.globalCompositeOperation = 'lighter'; g.lineCap = 'round';
+    g.strokeStyle = 'rgba(95,232,255,0.6)'; g.lineWidth = 1.6; g.beginPath(); g.moveTo(cx - 2, bot - 8); for (let k = 1; k <= 6; k++) g.lineTo(cx + (k % 2 ? 2.5 : -1.5) + (tx - cx) * k / 6, bot - 8 - (bot - top - 30) * k / 6); g.stroke();
+    const gu = g.createLinearGradient(0, bot, 0, top); gu.addColorStop(0, 'rgba(95,232,255,0.35)'); gu.addColorStop(1, 'rgba(95,232,255,0)'); g.fillStyle = gu; g.beginPath(); g.moveTo(cx - bw / 2, bot); g.lineTo(cx + bw / 2, bot); g.lineTo(tx, top); g.closePath(); g.fill();
+    g.restore();
+    g.lineJoin = 'round'; g.strokeStyle = 'rgba(255,255,255,0.95)'; g.lineWidth = 2; g.beginPath(); g.moveTo(fx, fy); g.lineTo(tx, top); g.stroke();
+    g.strokeStyle = 'rgba(95,232,255,0.95)'; g.lineWidth = 1.3; g.beginPath(); g.moveTo(cx - bw / 2, bot); g.lineTo(tx, top); g.lineTo(cx + bw / 2, bot); g.stroke();
+    g.strokeStyle = 'rgba(18,46,102,0.55)'; g.lineWidth = 1; g.beginPath(); g.moveTo(tx, top); g.lineTo(cx + bw / 2 + 0.8, bot); g.stroke();
+    g.globalCompositeOperation = 'lighter'; const gt = g.createRadialGradient(tx, top + 2, 0, tx, top + 2, 15); gt.addColorStop(0, 'rgba(255,255,255,1)'); gt.addColorStop(0.3, 'rgba(191,239,255,0.6)'); gt.addColorStop(1, 'rgba(95,232,255,0)'); g.fillStyle = gt; g.fillRect(tx - 15, top - 13, 30, 30); });
+  /* a spike standing at (x, y) (its base), h px tall, leaning ang rad from upright, grown by k (0..1+, stretched) */
+  function spike(c, x, y, h, ang, v, a, k) { if (!(k > 0.02) || !(a > 0.01) || h < 3) return; const cv = spikeSpr(v & 3), s = h / 181; c.save(); c.translate(x, y); if (ang) c.rotate(ang); c.scale(s, s * k); c.globalAlpha = Math.min(1, a); c.drawImage(cv, -20, -197); c.restore(); }
   /* the floor snow-light round a point under something bright */
   const lightPool = (c, X, Y, r, a) => { K.floorLight(c, X, Y, r, a, P.ice); K.floorLight(c, X, Y, r * 0.5, a * 0.8, P.frost); };
 
   const tt0 = (o, f) => f.t < o.s || f.t > o.e;
+  /* ---- Catastrophe's cached pieces (the look of the first build, painted once and blitted) ---- */
+  const SPX = 2;   // sprite pixels per screen unit (sharp on a phone's 2-3x screen)
+  /* a beam column at one turn of its ribbons: the blue outer light, the white core, two ribbons wound round it (back halves
+     faint blue, front halves cyan with a white thread). 16 turning frames; drawn stretched to the beam, cross-faded */
+  const NBF = 32;
+  function beamFrame(fi, kq, bq) { return fxSprite('iu5bf|' + fi + '|' + kq + '|' + bq, 72, 384, (g, W, Hh) => {
+    const w = W / 1.1, cx = W / 2, BRb = bq / 100, ph = fi / NBF * TAU; g.globalCompositeOperation = 'lighter';
+    g.globalAlpha = 0.62 * (0.45 + 0.55 * kq / 100); g.drawImage(colBSpr(), 0, 0, W, Hh); g.globalAlpha = 0.75; g.drawImage(colSpr(), cx - w * 0.11, 0, w * 0.22, Hh);
+    g.lineCap = 'round'; const k = w / (1.4 * BRb);   // (screen T in sprite px: the first build's stroke widths were in T)
+    for (let sd = 0; sd < 2; sd++) { const N = 40, back = [], front = []; for (let j = 0; j <= N; j++) { const u = j / N, q = u * 6 + ph + sd * Math.PI; (Math.cos(q) > 0 ? front : back).push([cx + Math.sin(q) * w * 0.5 * (0.6 + 0.4 * u), u * Hh, j]); }
+      const run = (pts, col, lw, al) => { g.globalAlpha = al; g.beginPath(); let last = -9; for (const p of pts) { if (p[2] !== last + 1) g.moveTo(p[0], p[1]); else g.lineTo(p[0], p[1]); last = p[2]; } g.strokeStyle = col; g.lineWidth = lw; g.stroke(); };
+      run(back, rgbaS(P.blue, 0.8), k * 0.07, 0.45); run(front, rgbaS(P.cyan, 0.85), k * 0.1, 0.9); run(front, rgbaS(P.white, 0.95), k * 0.035, 0.9); } }); }
+  /* the floor under a beam, in the floor's own plane (squashed and turned when drawn): the light pool, the swirl, the mist
+     and the ice ring's light (additive), and the ring's glassy band (normal) */
+  /* the swirl turned through its 120-degree repeat in 24 frames: drawn unturned (the cheap path), squashed as wanted */
+  const NSF = 24;
+  function swirlFrame(i) { return fxSprite('iu5sw|' + i, 160, 160, (g, W) => { g.translate(W / 2, W / 2); g.rotate(i / NSF * TAU / 3); g.drawImage(swirlSpr(), -W / 2, -W / 2, W, W); }); }
+  const swirlAt = ang => swirlFrame(((Math.round(ang / (TAU / 3) * NSF) % NSF) + NSF) % NSF);
+  function footAdd(kq, bq) { return fxSprite('iu5fa|' + kq + '|' + bq, 256, 256, (g, W) => {
+    const R0 = W / 2 / 2.1, c0 = W / 2, kN = kq / 100, BRb = bq / 100; g.globalCompositeOperation = 'lighter'; g.translate(c0, c0);
+    const gl = (col, r, a, x, y) => { g.globalAlpha = a; g.drawImage(glowSprite(col), (x || 0) - r, (y || 0) - r, r * 2, r * 2); };
+    gl(P.ice, R0 * 2.5, 0.42 * kN); gl(P.frost, R0 * 1.43, 0.32 * kN);
+    /* the splash of light where the beam meets the floor (was two upright glows) */
+    gl(P.cyan, R0 * 1.5 / Math.sqrt(H.GY), 0.28 * kN, 0, 0); gl(P.white, R0 * 0.6 / Math.sqrt(H.GY), 0.4, 0, 0);
+    for (let i = 0; i < 6; i++) { const b = i / 6 * TAU, r = R0 * 1.3; gl(P.frost, r * 0.6, 0.18 * 0.35 * kN * 1.4, Math.cos(b) * r * 0.8, Math.sin(b) * r * 0.8); }
+    const rw = Math.max(2 / 40, 0.06 / BRb) * R0; g.globalAlpha = 0.7; g.strokeStyle = rgbaS(P.cyan, 0.8); g.lineWidth = Math.max(1, rw * 0.35); g.beginPath(); g.arc(0, 0, R0 * 0.95 - rw * 0.3, 0, TAU); g.stroke();
+    g.globalCompositeOperation = 'source-over'; g.globalAlpha = 0.7; g.strokeStyle = rgbaS(P.deep, 0.3); g.lineWidth = rw * 1.4; g.beginPath(); g.arc(0, 0, R0 * 0.95, 0, TAU); g.stroke(); g.strokeStyle = rgbaS(P.pale, 0.85); g.lineWidth = rw; g.stroke(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = 0.5; g.strokeStyle = rgbaS(P.cyan, 0.8); g.lineWidth = Math.max(1, rw * 0.35); g.beginPath(); g.arc(0, 0, R0 * 0.95 - rw * 0.3, 0, TAU); g.stroke(); }); }
+  /* the crown of five shards turning round a beam's foot (72 degrees repeat: 12 frames), in screen units of T = tq */
+  const NCF = 12;
+  function crownFrame(fi, tq, bq, sd) { return fxSprite('iu5cr|' + fi + '|' + tq + '|' + bq + '|' + sd, Math.ceil(tq * bq / 100 * 2.4 * SPX), Math.ceil(tq * 1.7 * SPX), (g, W, Hh) => {
+    const T = tq * SPX, R0 = T * bq / 100, ox = W / 2, oy = Hh - T * 0.7, items = [];
+    for (let j = 0; j < 5; j++) { const q = j / 5 * TAU + fi / NCF * TAU / 5; items.push({ q, j, s: Math.sin(q) }); } items.sort((a, b) => a.s - b.s);
+    for (const it of items) { const rx = Math.cos(it.q) * R0 * 0.85, ry = Math.sin(it.q) * R0 * 0.85 * H.GY; K.shard(g, ox + rx, oy + ry, Math.round(T * 0.16), Math.round(T * 0.42), -Math.PI / 2 + Math.cos(it.q) * 0.45, sd + it.j, 0.85, null); } }); }
+  /* a pair of little crystals frozen in a beam's trail (4 variants) */
+  function trailPair(v, tq) { return fxSprite('iu5tp|' + v + '|' + tq, Math.ceil(tq * SPX), Math.ceil(tq * 0.9 * SPX), (g, W, Hh) => {
+    const T = tq * SPX, ox = W * 0.42, oy = Hh - T * 0.1; K.shard(g, ox, oy, Math.round(T * 0.2), Math.round(T * 0.5), -Math.PI / 2 - 0.3, v, 0.85, null); K.shard(g, ox + T * 0.14, oy + T * 0.04, Math.round(T * 0.15), Math.round(T * 0.32), -Math.PI / 2 + 0.45, v + 1, 0.8, null); }); }
+  /* the frost veins round the aim, once grown (painted once at their size) */
+  function veinSpr(rq, ev) { return fxSprite('iu5vein|' + rq + '|' + ev, Math.ceil(rq * 2.7 * SPX), Math.ceil(rq * 2.7 * H.GY * SPX), (g, W, Hh) => { g.scale(SPX, SPX); K.frostVeins(g, W / SPX / 2, Hh / SPX / 2, rq, 1, 0.25, 3, 8 + ev); }); }
   /* ================= 8. Catastrophe ================= */
   U.catastrophe = (C, h) => {
     H = h; K = IK.bind(H); P = K.P;
-    const me = H.me, x = C.tx, y = C.ty, ev = K.evo(C), NB = K.evoN(C, 3, 10), D = 5 + 5 * (ev - 1) / 6, RX = (3.6 + 0.3 * (ev - 1)) * C.K, BR = 0.95 + 0.06 * (ev - 1), TICK = 0.4;
-    const NFL = Math.round((80 + 5 * ev) * H.Q());
+    /* 4 s at Hatchling, 5 at Adept, 7 at Celestial (the user asked for it 3 s shorter); 3 / 7 / 10 beams */
+    const me = H.me, x = C.tx, y = C.ty, ev = K.evo(C), NB = K.evoN(C, 3, 10), D = ev <= 4 ? 4 + (ev - 1) / 3 : 5 + (ev - 4) * 2 / 3, D0 = 5 + 5 * (ev - 1) / 6, RX = (3.6 + 0.3 * (ev - 1)) * C.K, BR = 0.95 + 0.06 * (ev - 1), TICK = 0.4;
     H.X.banner('CATASTROPHE', '', C.col, 1.6); H.X.sfx.hum(); H.warn(x, y, RX, 0.9, C.col);
+    const NFL = H.n(80 + 5 * ev), FL = []; for (let i = 0; i < NFL; i++) { const sz = 3.5 + 9 * R1(i * 1.7) * R1(i * 2.9 + 1); FL.push({ sz, sp: 30 + 50 * R1(i * 4.1) + sz * 6, w: 0.6 + R1(i) * 0.6, x: R1(i * 7.3), y: R1(i * 3.1) }); }
     const beams = [];
     for (let i = 0; i < NB; i++) { const s = 0.35 + i * Math.min(0.42, D * 0.3 / NB), e = D - 0.15 - (NB - 1 - i) * Math.min(0.15, 1.2 / NB), b0 = i / NB * TAU + 0.4 + Math.random() * 0.3, r0 = RX * (0.35 + 0.45 * R1(i * 3.7 + 1));
       beams.push({ i, s, e, x: x + Math.cos(b0) * r0, y: y + Math.sin(b0) * r0, vx: 0, vy: 0, tgt: null, re: 0, nt: s + 0.3, tr: [], trT: s, ph: R1(i * 5.1) * TAU, spin: i % 2 ? 1 : -1, sd: i * 13 + 5 }); }
     /* a tick of a beam: a monster swept by beams takes ~11 / 16 / 24 x base over the cast at Hatchling / Adept / Celestial (Ice
-       Age stays above it); kN dims each beam's light as their number grows so ten never wash out into white */
-    const dmgT = C.base * C.K * K.evoK(C) * 0.85 / Math.pow(NB / 3 * D / 5, 0.7), kN = Math.min(1, Math.sqrt(3 / NB) * 1.15);
-    H.add({ life: D + 0.9, x, y,
+       Age stays above it); the shorter cast hits harder per tick (D0 / D) so the total stays. kN dims each beam's light as
+       their number grows so ten never wash out into white */
+    const dmgT = C.base * C.K * K.evoK(C) * 0.85 / Math.pow(NB / 3 * D0 / 5, 0.7) * D0 / D, kN = Math.min(1, Math.sqrt(3 / NB) * 1.15), kq = Math.round(kN * 100), bq = Math.round(BR * 100);
+    /* the cached pictures, painted a few a tick from the cast (before the first beam lands), never all on one frame */
+    const warm = [() => flakeSpr(), () => footAdd(kq, bq)]; for (let i = 0; i < NSF; i++) warm.push(() => swirlFrame(i)); for (let i = 0; i < NBF; i++) warm.push(() => beamFrame(i, kq, bq)); for (let i = 0; i < NCF; i++) warm.push(() => crownFrame(i, 48, bq, 1)); for (let i = 0; i < 4; i++) warm.push(() => trailPair(i, 48));
+    H.add({ life: D + 0.9, x, y, wi: 0,
       update(dt, f) {
+        for (let q = 0; q < 3 && f.wi < warm.length; q++) warm[f.wi++]();
         const live = H.living();
         for (const b of beams) { if (f.t < b.s || f.t > b.e + 0.5) continue; const on = f.t < b.e;
           // steer: toward its own monster (one each when there are enough), sweeping across it; held inside the area, away from the pet
@@ -138,59 +201,66 @@
           const px = b.x - me.x, py = b.y - me.y, dp = Math.hypot(px, py) || 0.01; if (dp < 1.7) { dx += px / dp * (1.7 - dp) * 5; dy += py / dp * (1.7 - dp) * 5; }
           for (const o of beams) { if (o === b || tt0(o, f)) continue; const ex = b.x - o.x, ey = b.y - o.y, d2 = Math.hypot(ex, ey) || 0.01; if (d2 < 2.4) { dx += ex / d2 * (2.4 - d2) * 2.2; dy += ey / d2 * (2.4 - d2) * 2.2; } }
           const kk = Math.min(1, dt * 2.4); b.vx += (dx - b.vx) * kk; b.vy += (dy - b.vy) * kk; b.x += b.vx * dt; b.y += b.vy * dt;
-          if (on && f.t - b.trT > 0.22) { b.trT = f.t; b.tr.push({ x: b.x, y: b.y, t: f.t, c: b.tr.length % 2 === 0, sd: b.sd + b.tr.length }); if (b.tr.length > 14) b.tr.shift(); }
+          if (on && f.t - b.trT > 0.22) { b.trT = f.t; b.n = (b.n || 0) + 1; b.tr.push({ x: b.x, y: b.y, t: f.t, c: b.n % 2 === 0, n: b.n, sd: b.sd + b.n }); if (b.tr.length > 14) b.tr.shift(); }
           if (on && f.t >= b.nt) { b.nt += TICK; const k = H.hitArea(b.x, b.y, BR, dmgT, C.dmgO({ freeze: 1.1, chill: true })); if (k && Math.random() < 0.6 * kN) { K.glitter(b.x, b.y - 0.3, 4, 4); K.fragments(b.x, b.y - 0.2, 2, 3); } }
           if (on && Math.random() < 0.7 * H.Q() * kN) { const q = Math.random() * TAU, rr = BR * (0.4 + Math.random() * 0.6); H.P({ kind: Math.random() < 0.6 ? 'ember' : 'spark', x: b.x + Math.cos(q) * rr, y: b.y + Math.sin(q) * rr * 0.6, vx: -Math.sin(q) * 1.6 * b.spin, vy: -1.2 - Math.random() * 1.5, g: 0.1, drag: 0.6, life: 0.6 + Math.random() * 0.5, max: 1.1, size: 1.8 + Math.random() * 2, color: Math.random() < 0.5 ? P.white : Math.random() < 0.5 ? P.pale : P.cyan }); }
           if (on && Math.random() < 0.25 * H.Q()) K.snow(b.x, b.y - 0.2, 1, { v: 2 }); }
       },
       drawUnder(c, f, X, Y, T, t) {
-        const fa = cl(Math.min(f.t / 0.6, (D + 0.9 - f.t) / 0.9)), S = scr(c), tt = f.t;
+        const fa = cl(Math.min(f.t / 0.6, (D + 0.9 - f.t) / 0.9)), S = scr(c), tt = f.t, m = T * 3;
         // the light leaves the floor: a cold blue dim over the battlefield
         c.save(); c.globalAlpha = 0.3 * fa; c.fillStyle = 'rgb(8,26,64)'; c.fillRect(S.x0, S.y0, S.w, S.h); c.restore();
-        K.frostVeins(c, X, Y, T * RX * 1.05, H.ease.out(cl(tt / 1.2)), 0.25 * fa, 3, 8 + ev);
+        const Rv = T * RX * 1.05, gv = H.ease.out(cl(tt / 1.2)); if (gv < 1) K.frostVeins(c, X, Y, Rv, gv, 0.25 * fa, 3, 8 + ev); else { const rq = Math.round(Rv / 4) * 4, cv = veinSpr(rq, ev), k = Rv / rq; c.save(); c.globalAlpha = fa; c.drawImage(cv, X - cv.width / SPX / 2 * k, Y - cv.height / SPX / 2 * k, cv.width / SPX * k, cv.height / SPX * k); c.restore(); }
+        const FA = footAdd(kq, bq);
         for (const b of beams) { if (tt < b.s) continue; const BX = H.sx(b.x), BY = H.sy(b.y), on = tt < b.e, a = cl((tt - b.s) / 0.35) * (on ? 1 : Math.max(0, 1 - (tt - b.e) / 0.45));
-          // the frost light and little crystals left along its path, fading
-          for (const p of b.tr) { const age = tt - p.t, k = Math.max(0, 1 - age / 1.8); if (k <= 0 || !p.c) continue; K.floorLight(c, H.sx(p.x), H.sy(p.y), T * BR * 1.5 * (0.6 + 0.4 * k), 0.3 * k * kN, P.pale); }
-          if (a <= 0.01) continue; const rr = T * BR * (1.5 + 0.1 * Math.sin(tt * 3 + b.ph));
-          lightPool(c, BX, BY, rr * 1.9, 0.4 * a * kN);
-          c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.65 * a * kN; c.translate(BX, BY); c.scale(1, H.GY); c.rotate(tt * 2.6 * b.spin + b.ph); c.drawImage(swirlSpr(), -rr, -rr, rr * 2, rr * 2); c.restore();
-          K.iceRing(c, BX, BY, T * BR * (0.95 + 0.08 * Math.sin(tt * 5 + b.ph)), 0.7 * a, null, tt * 2 * b.spin, Math.max(2, T * 0.06)); }
+          // the frost light left along its path, fading
+          for (let pi = 0; pi < b.tr.length; pi++) { const p = b.tr[pi], age = tt - p.t, k = Math.max(0, 1 - age / 1.3); if (k <= 0 || (p.n & 3)) continue; const qx = H.sx(p.x), qy = H.sy(p.y); if (qx < S.x0 - m || qx > S.x0 + S.w + m || qy < S.y0 - m || qy > S.y0 + S.h + m) continue; K.floorLight(c, qx, qy, T * BR * 1.9 * (0.6 + 0.4 * k), 0.36 * k * kN, P.pale); }
+          if (a <= 0.01 || BX < S.x0 - m || BX > S.x0 + S.w + m || BY < S.y0 - m || BY > S.y0 + S.h + m) continue;
+          // the floor under it (one cached picture in the floor's plane, turned): light pool, swirl, mist, the ice ring
+          const br = 1 + 0.067 * Math.sin(tt * 3 + b.ph), sc = T * BR * 2.1 * br / 128, rot = tt * 2.6 * b.spin + b.ph, R0 = T * BR * br, rs = R0 * 1.5; c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.65 * kN * a; c.drawImage(swirlAt(rot), BX - rs, BY - rs * H.GY, rs * 2, rs * 2 * H.GY);
+          /* the ice ring's three glints running round it */
+          const gq = Math.max(2, T * 0.06) * 2.5; c.globalAlpha = 0.42 * a; for (let i = 0; i < 3; i++) { const q = tt * 2 * b.spin + i * 2.1; c.drawImage(glowSprite(P.white), BX + Math.cos(q) * R0 * 0.95 - gq, BY + Math.sin(q) * R0 * 0.95 * H.GY - gq, gq * 2, gq * 2); } c.restore();
+          c.save(); c.translate(BX, BY); c.scale(sc, sc * H.GY);
+          c.globalCompositeOperation = 'lighter'; c.globalAlpha = a; c.drawImage(FA, -128, -128); c.restore(); }
       },
       draw(c, f, X, Y, T, t) {
-        const fa = cl(Math.min(f.t / 0.6, (D + 0.9 - f.t) / 0.9)), S = scr(c), tt = f.t, topY = S.y0 - T * 0.5;
+        const fa = cl(Math.min(f.t / 0.6, (D + 0.9 - f.t) / 0.9)), S = scr(c), tt = f.t, topY = S.y0 - T * 0.5, m = T * 3;
         const PX = H.sx(me.x), PY = H.sy(me.y) - T * 0.46;
-        petHole(c, T);
+        // (the pet is cut out only round the beams that come near it: a clip on everything costs every pixel)
         // the vortex in the sky the beams fall from
         const VX = X, VY = S.y0 + T * 0.6;
         K.glow(c, VX, VY, T * 7, P.blue, 0.4 * fa); K.glow(c, VX, VY, T * 3, P.cyan, 0.18 * fa);
-        c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.55 * fa; c.translate(VX, VY); c.scale(1, 0.38); c.rotate(-tt * 0.9); const vr = T * 6.5; c.drawImage(swirlSpr(), -vr, -vr, vr * 2, vr * 2); c.rotate(tt * 1.6); c.globalAlpha = 0.35 * fa; c.drawImage(swirlSpr(), -vr * 0.6, -vr * 0.6, vr * 1.2, vr * 1.2); c.restore();
+        c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.55 * fa; const vr = T * 6.5; c.drawImage(swirlAt(-tt * 0.9), VX - vr, VY - vr * 0.38, vr * 2, vr * 2 * 0.38); c.globalAlpha = 0.35 * fa; c.drawImage(swirlAt(tt * 0.7), VX - vr * 0.6, VY - vr * 0.6 * 0.38, vr * 1.2, vr * 1.2 * 0.38); c.restore();
+        const tq = 48, tk = T / tq, gw = glowSprite(P.white);
         // the beams
         for (const b of beams) { if (tt < b.s) continue; const on = tt < b.e, out = on ? 0 : cl((tt - b.e) / 0.45); if (out >= 1) continue;
           const BX = H.sx(b.x), BY = H.sy(b.y), grow = H.ease.in(cl((tt - b.s) / 0.32)), a = (0.35 + 0.65 * cl((tt - b.s - 0.2) / 0.3)) * (1 - out);
           const qa = b.ph + tt * 0.45 * b.spin, TY = topY; let TX = BX * 0.55 + VX * 0.45 + Math.cos(qa) * T * 1.6;
           /* a beam whose foot is in front of the pet leans aside so its column passes beside the pet, never over it */
-          { const u = (PY - TY) / (BY - TY); if (u > 0 && u < 0.97) { const xu = TX + (BX - TX) * u, d = PX - xu, need = T * BR * 0.75 + T * 0.75; if (Math.abs(d) < need) { const xt = PX - (d >= 0 ? 1 : -1) * need; TX = Math.max(TX - T * 9, Math.min(TX + T * 9, (xt - BX * u) / (1 - u))); } } }
-          const L = Math.hypot(BX - TX, BY - TY), ang = Math.atan2(BY - TY, BX - TX) - Math.PI / 2;
-          const w = T * BR * 1.4 * (on ? 1 : 1 - 0.7 * out) * (0.25 + 0.75 * cl((tt - b.s - 0.15) / 0.3)) * (1 + 0.06 * Math.sin(tt * 9 + b.ph)), Lg = L * grow, top0 = out * L;
-          c.save(); c.translate(TX, TY); c.rotate(ang); c.globalCompositeOperation = 'lighter';
-          c.globalAlpha = 0.62 * a * (0.45 + 0.55 * kN); c.drawImage(colBSpr(), -w * 0.55, top0, w * 1.1, Lg - top0);
-          c.globalAlpha = 0.75 * a; c.drawImage(colSpr(), -w * 0.11, top0, w * 0.22, Lg - top0);
-          // three swirling ribbons wound round the beam: the back halves faint, the front halves bright
-          if (Lg > T) { c.lineCap = 'round'; for (let sd = 0; sd < 2; sd++) { const N = 22, back = [], front = []; for (let j = 0; j <= N; j++) { const u = j / N, yy = top0 + (Lg - top0) * u, q = u * 6 + tt * 7 * b.spin + sd * Math.PI, xx = Math.sin(q) * w * 0.5 * (0.6 + 0.4 * u), fr = Math.cos(q) > 0; (fr ? front : back).push([xx, yy, j]); }
-            const strokeRun = (pts, col, lw2) => { c.beginPath(); let last = -9; for (const p of pts) { if (p[2] !== last + 1) c.moveTo(p[0], p[1]); else c.lineTo(p[0], p[1]); last = p[2]; } c.strokeStyle = col; c.lineWidth = lw2; c.stroke(); };
-            c.globalAlpha = 0.45 * a; strokeRun(back, rgbaS(P.blue, 0.8), Math.max(1.5, T * 0.07)); c.globalAlpha = 0.9 * a; strokeRun(front, rgbaS(P.cyan, 0.85), Math.max(2, T * 0.1)); strokeRun(front, rgbaS(P.white, 0.95), Math.max(1, T * 0.035)); }
-            // ice motes and little shards spiralling down inside it
-            for (let j = 0; j < 6; j++) { const u = (tt * 0.55 + j / 6 + b.i * 0.13) % 1, yy = top0 + (Lg - top0) * u, q = u * 12 + j * 1.3 - tt * 3 * b.spin, xx = Math.sin(q) * w * 0.45; if (yy > Lg) continue; K.glow(c, xx, yy, T * 0.22, P.white, 0.8 * a); }
-          }
-          c.restore();
-          // where it meets the floor: a splash of light, mist, a slowly turning crown of shards
-          if (grow >= 1 && a > 0.05) { K.glow(c, BX, BY - T * 0.2, T * BR * 1.5, P.cyan, 0.28 * a * kN); K.glow(c, BX, BY - T * 0.1, T * BR * 0.6, P.white, 0.4 * a); K.mist(c, BX, BY, T * BR * 1.3, 0.35 * a * kN, tt); 
-            for (let j = 0; j < 5; j++) { const q = j / 5 * TAU + tt * 1.8 * b.spin, rx = Math.cos(q) * T * BR * 0.85, ry = Math.sin(q) * T * BR * 0.85 * H.GY; shardK(c, BX + rx, BY + ry, T * 0.16, T * 0.42, -Math.PI / 2 + Math.cos(q) * 0.45, b.sd + j, 0.85 * a, tt, 0.85 + 0.15 * Math.sin(tt * 4 + j)); } }
-          // little crystals frozen along its trail
-          for (const p of b.tr) { if (!p.c) continue; const age = tt - p.t, k = Math.min(cl(age / 0.18), Math.max(0, 1 - (age - 0.9) / 0.5)); if (k <= 0) continue; const sx2 = H.sx(p.x) + (R1(p.sd) - 0.5) * T * 0.6, sy2 = H.sy(p.y) + (R1(p.sd + 1) - 0.5) * T * 0.3; shardK(c, sx2, sy2, T * 0.2, T * 0.5, -Math.PI / 2 - 0.3, p.sd, 0.85 * k, tt, H.ease.back(cl(age / 0.18))); shardK(c, sx2 + T * 0.14, sy2 + T * 0.04, T * 0.15, T * 0.32, -Math.PI / 2 + 0.45, p.sd + 1, 0.8 * k, tt, H.ease.back(cl(age / 0.2))); }
+          let over = false; { const u = (PY - TY) / (BY - TY); if (u > 0 && u < 1.05) { const need = T * BR * 0.75 + T * 0.75; if (u < 0.97) { const xu = TX + (BX - TX) * u, d = PX - xu; if (Math.abs(d) < need) { const xt = PX - (d >= 0 ? 1 : -1) * need; TX = Math.max(TX - T * 9, Math.min(TX + T * 9, (xt - BX * u) / (1 - u))); } } const u2 = Math.min(1, u); over = Math.abs(PX - (TX + (BX - TX) * u2)) < need; } }
+          const w = T * BR * 1.4 * (on ? 1 : 1 - 0.7 * out) * (0.25 + 0.75 * cl((tt - b.s - 0.15) / 0.3)) * (1 + 0.06 * Math.sin(tt * 9 + b.ph));
+          const offL = Math.max(TX, BX) + w < S.x0, offR = Math.min(TX, BX) - w > S.x0 + S.w;
+          if (!offL && !offR) { const L = Math.hypot(BX - TX, BY - TY), ang = Math.atan2(BY - TY, BX - TX) - Math.PI / 2, Lg = L * grow, top0 = out * L;
+            c.save(); if (over) petHole(c, T); c.translate(TX, TY); c.rotate(ang); c.globalCompositeOperation = 'lighter';
+            // the column with its turning ribbons: one of 32 cached turning frames
+            const ph = (((tt * 7 * b.spin) / TAU) % 1 + 1) % 1 * NBF;
+            if (Lg - top0 > 1) { c.globalAlpha = a; c.drawImage(beamFrame(Math.round(ph) % NBF, kq, bq), -w * 0.55, top0, w * 1.1, Lg - top0); }
+            // ice motes spiralling down inside it
+            c.restore();
+            // ice motes spiralling down inside it (placed along the beam, blitted unturned: the cheap path)
+            if (Lg > T) { const mr = T * 0.22, ca = Math.cos(ang), sa = Math.sin(ang); c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.8 * a; for (let j = 0; j < 6; j++) { const u = (tt * 0.55 + j / 6 + b.i * 0.13) % 1, yy = top0 + (Lg - top0) * u, q = u * 12 + j * 1.3 - tt * 3 * b.spin, xx = Math.sin(q) * w * 0.45; if (yy > Lg) continue; c.drawImage(gw, TX + xx * ca - yy * sa - mr, TY + xx * sa + yy * ca - mr, mr * 2, mr * 2); } c.restore(); } }
+          if (BX < S.x0 - m || BX > S.x0 + S.w + m || BY < S.y0 - m || BY > S.y0 + S.h + m * 2) continue;
+          const nearP = Math.abs(BX - PX) < T * 5 && Math.abs(BY - PY) < T * 4; if (nearP) { c.save(); petHole(c, T); }
+          // where it meets the floor: a splash of light, a slowly turning crown of shards (cached frames)
+          if (grow >= 1 && a > 0.05) {
+            const cp = (((tt * 1.8 * b.spin) / (TAU / 5)) % 1 + 1) % 1, cv = crownFrame(Math.floor(cp * NCF) % NCF, tq, bq, 1), cw = cv.width / SPX * tk, ch = cv.height / SPX * tk; c.save(); c.globalAlpha = a; c.drawImage(cv, BX - cw / 2, BY - ch + T * 0.7, cw, ch); c.restore(); }
+          // little crystals frozen along its trail (one cached pair each, grown by stretching)
+          for (const p of b.tr) { if (!p.c) continue; const age = tt - p.t, k = Math.min(cl(age / 0.18), Math.max(0, 1 - (age - 0.9) / 0.5)); if (k <= 0) continue; const sx2 = H.sx(p.x) + (R1(p.sd) - 0.5) * T * 0.6, sy2 = H.sy(p.y) + (R1(p.sd + 1) - 0.5) * T * 0.3; if (sx2 < S.x0 - m || sx2 > S.x0 + S.w + m || sy2 < S.y0 - m || sy2 > S.y0 + S.h + m) continue;
+            const cv = trailPair(p.sd & 3, tq), cw = cv.width / SPX * tk, ch = cv.height / SPX * tk, gk = H.ease.back(cl(age / 0.18)); c.save(); c.translate(sx2, sy2 + ch * 0.1 / 0.9); c.scale(1, gk); c.globalAlpha = k; c.drawImage(cv, -cw * 0.42, -ch, cw, ch); c.restore(); }
+          if (nearP) c.restore();
         }
-        // snow falling over the whole screen
-        if (fa > 0.01) { const fl = flakeSpr(); c.save(); c.globalAlpha = 0.9 * fa; for (let i = 0; i < NFL; i++) { const sz = 3.5 + 9 * R1(i * 1.7) * R1(i * 2.9 + 1), sp = 30 + 50 * R1(i * 4.1) + sz * 6, drift = 18 * Math.sin(tt * (0.6 + R1(i) * 0.6) + i), fx2 = S.x0 + ((R1(i * 7.3) * S.w + drift + tt * 14) % S.w + S.w) % S.w, fy2 = S.y0 + ((R1(i * 3.1) * S.h + tt * sp) % S.h); c.drawImage(fl, fx2 - sz, fy2 - sz, sz * 2, sz * 2); } c.restore(); }
+        // snow falling over the whole screen: one cached flake, many small blits (two depths: far small and slow, near big and quick)
+        if (fa > 0.01) { const fl = flakeSpr(); c.save(); c.globalAlpha = 0.9 * fa; for (let i = 0; i < NFL; i++) { const F = FL[i], fx2 = S.x0 + ((F.x * S.w + 18 * Math.sin(tt * F.w + i) + tt * 14) % S.w + S.w) % S.w, fy2 = S.y0 + ((F.y * S.h + tt * F.sp) % S.h); c.drawImage(fl, fx2 - F.sz, fy2 - F.sz, F.sz * 2, F.sz * 2); } c.restore(); }
       } });
     H.X.after(0.35, () => H.X.sfx.whoosh());
     for (let i = 0; i < NB; i++) H.X.after(beams[i].s + 0.32, () => { const b = beams[i]; H.X.light(b.x, b.y, 2.4, 0.35); H.X.shake(3, 0.12); H.X.sfx.crash(); K.glitter(b.x, b.y - 0.2, 8, 5); K.snow(b.x, b.y - 0.3, 6, { v: 2.5 }); H.X.ring(b.x, b.y, 0.2, BR * 1.6, 0.4, P.pale, 0.12); });
@@ -213,7 +283,8 @@
           else { const b = i / n * TAU + r * 0.37 + R1(i * 3 + r) * 0.3; px = x + Math.cos(b) * ringR * (0.85 + 0.3 * R1(i + r * 5)); py = y + Math.sin(b) * ringR * (0.85 + 0.3 * R1(i + r * 5)); }
           const dp = Math.hypot(px - me.x, py - me.y); if (dp < 1.6) { const k = 1.6 / Math.max(0.05, dp); px = me.x + (px - me.x) * k; py = me.y + (py - me.y) * k; }
           const out = Math.atan2(py - y, px - x), d = Math.hypot(px - x, py - y);
-          sprouts.push({ r, x: px, y: py, t0: t0 + (d / Math.max(1, RX)) * 0.12 + R1(i * 7 + r) * 0.1, h: hh * (0.85 + 0.3 * R1(i * 5 + r)), lean: Math.cos(out) * (0.18 + 0.2 * R1(i + r)) + (R1(i * 9 + r) - 0.5) * 0.2, spin: R1(i * 4 + r) * TAU, hit: false, sd: i * 7 + r * 31 }); }
+          const nsp = 2 + Math.floor(R1(i * 11 + r * 3) * 3), sp = []; for (let q = 0; q < nsp; q++) sp.push({ o: (q - (nsp - 1) / 2) * (0.32 + 0.12 * R1(q + i)) + (R1(q * 5 + i) - 0.5) * 0.15, k: q === Math.floor(nsp / 2) ? 1 : 0.55 + 0.3 * R1(q * 7 + i + r), dx: (q - (nsp - 1) / 2) * 0.12, v: (i + q) & 3, d: q * 0.035 });
+          sprouts.push({ sp, r, x: px, y: py, t0: t0 + (d / Math.max(1, RX)) * 0.12 + R1(i * 7 + r) * 0.1, h: hh * (0.85 + 0.3 * R1(i * 5 + r)), lean: Math.cos(out) * (0.18 + 0.2 * R1(i + r)) + (R1(i * 9 + r) - 0.5) * 0.2, spin: R1(i * 4 + r) * TAU, hit: false, sd: i * 7 + r * 31 }); }
         const set = new Set(), mine = sprouts.filter(s => s.r === r); for (const s of mine) s.set = set; } };
     const END = SPR0 + (NR - 1) * RGAP + 0.3 + 1.45;
     H.add({ life: END + 0.6, x, y, spin: 0, wi: 0,
@@ -227,7 +298,7 @@
         for (const s of sprouts) { if (s.hit || tt < s.t0 + 0.07) continue; s.hit = true;
           for (const m of H.near(s.x, s.y, 0.55 + s.h * 0.12)) { if (s.set.has(m)) continue; s.set.add(m); H.X.hitMon(m, sprD, C.dmgO({ freeze: 3, kb: 1, chill: true })); }
           K.glitter(s.x, s.y - 0.4, 6, 4); K.snow(s.x, s.y - 0.2, 3, { v: 1.5 }); if (Math.random() < 0.35) H.X.sfx.crack ? H.X.sfx.crack() : 0; }
-        for (const s of sprouts) if (!s.gone && tt > s.t0 + 1.2) { s.gone = true; K.fragments(s.x, s.y - s.h * 0.4, 4, 4); K.glitter(s.x, s.y - s.h * 0.5, 5, 4); }
+        for (const s of sprouts) if (!s.gone && tt > s.t0 + 1.2) { s.gone = true; H.burst(s.x, s.y - s.h * 0.5, 'shard', 7, { v: 5, up: 3.5, g: 11, life: 0.55, size: 2.2, color: [P.white, P.pale, P.cyan, P.ice] }); K.fragments(s.x, s.y - s.h * 0.4, 4, 4); K.glitter(s.x, s.y - s.h * 0.5, 5, 4); }
         if (tt > IMP && tt < END && Math.random() < 1.2 * dt * 10 * H.Q()) { const q = Math.random() * TAU, rr = Math.sqrt(Math.random()) * RX; K.snow(x + Math.cos(q) * rr, y + Math.sin(q) * rr - 1.5, 1, { v: 0.5, up: 0.1, g: 0.5, life: 1.6 }); }
       },
       drawUnder(c, f, X, Y, T, t) {
@@ -286,11 +357,12 @@
         const pil = Math.max(0, 1 - post / 0.6); if (pil > 0) { const S = scr(c), Lp = Y - S.y0 + T, w = T * CH * 0.28 * (0.4 + 0.6 * pil) * (1 + 0.2 * H.ease.out(cl(post / 0.2))); c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = pil * 0.7; c.drawImage(colSpr(), X - w, Y - Lp, w * 2, Lp); c.globalAlpha = pil * 0.9; c.drawImage(colSpr(), X - w * 0.3, Y - Lp, w * 0.6, Lp); c.restore(); }
         const ra = Math.max(0, 1 - post / 1.0); if (ra > 0) { const NRY = 10 + 2 * ev; for (let i = 0; i < NRY; i++) { const b = -Math.PI + (i + 0.5) / NRY * Math.PI + Math.sin(i * 7.3) * 0.08, L = T * RX * (1.0 + 0.5 * R1(i * 3)) * H.ease.out(cl(post / 0.3)); H.ray(c, X, Y - T * 0.4, b, L, T * (0.35 + 0.3 * R1(i)), i % 3 ? P.cyan : P.white, 0.6 * ra); } }
         for (const p of pieces) { if (p.done) continue; const a2 = cl((tt - p.t0) / 0.05); K.shard(c, H.sx(p.x), H.sy(p.y) - p.z * T, T * p.w, T * p.h, p.rot, p.sd, 0.95 * a2, tt); K.glow(c, H.sx(p.x), H.sy(p.y) - p.z * T, T * p.w * 1.5, P.cyan, 0.25 * a2); }
-        // the sprouted crystals: shooting up out of the frozen floor (cut at the floor), a glow, then shattering
-        for (const s of sprouts) { const a2 = tt - s.t0; if (a2 < 0 || a2 > 1.25) continue; const gr = H.ease.back(cl(a2 / 0.16)), k = cl((1.25 - a2) / 0.2), SX = H.sx(s.x), SY = H.sy(s.y), hh = T * s.h;
-          K.glow(c, SX, SY - hh * 0.35, hh * 0.65, P.cyan, 0.4 * k); if (a2 < 0.2) K.glow(c, SX, SY, hh * 0.6, P.white, 0.7 * (1 - a2 / 0.2));
-          c.save(); c.beginPath(); c.rect(SX - hh * 3, SY - hh * 3, hh * 6, hh * 3 + T * 0.08); c.clip(); const base = hh * 0.06; drawCrys(c, SX + Math.sin(s.lean) * hh * 0.18 * gr, SY + base - Math.cos(s.lean) * hh * 0.42 * gr + hh * 0.4 * (1 - gr), hh, s.spin, s.lean, k, false, 0.35); c.restore();
-          if (a2 > 0.16 && a2 < 0.6) { const u = (a2 - 0.16) / 0.44; K.glow(c, SX - hh * 0.05, SY - hh * (0.15 + 0.6 * u), hh * 0.2, P.lav, 0.5 * Math.sin(u * Math.PI)); } }
+        // the sprouted spikes: clusters of long ice needles erupting out of the frozen floor with a quick overshoot, fanning
+        // outward from one base, glowing at the tips, then shattering
+        for (const s of sprouts) { const a2 = tt - s.t0; if (a2 < 0 || a2 > 1.25) continue; const k = cl((1.25 - a2) / 0.2), SX = H.sx(s.x), SY = H.sy(s.y), hh = T * s.h * 1.15;
+          if (SX < -hh * 2 || SY < -hh * 2) continue;
+          K.glow(c, SX, SY - hh * 0.3, hh * 0.55, P.cyan, 0.35 * k); if (a2 < 0.2) K.glow(c, SX, SY, hh * 0.55, P.white, 0.7 * (1 - a2 / 0.2));
+          for (const q of s.sp) { const u = cl((a2 - q.d) / 0.11), gr = u < 1 ? u * 1.18 : 1 + 0.18 * Math.max(0, 1 - (a2 - q.d - 0.11) / 0.12); spike(c, SX + q.dx * hh * 0.18, SY, hh * q.k, s.lean + q.o, q.v, k, gr); } }
       } });
     H.X.after(0.9, () => { H.X.shake(2, 0.5); H.X.sfx.hum(); });
     H.X.after(FORM, () => { H.X.sfx.whoosh(); planSprouts(); });
