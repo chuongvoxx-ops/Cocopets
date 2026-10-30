@@ -64,9 +64,12 @@ const FK = (() => {
   function flameRing(c, X, Y, r, n, h, t, a, spin) { const L = []; for (let i = 0; i < n; i++) { const b = i / n * TAU + (spin == null ? t * 0.6 : spin); L.push([Math.sin(b), b, i]); } L.sort((p, q) => p[0] - q[0]); for (const [, b, i] of L) { const dep = 0.75 + 0.25 * Math.sin(b); flame(c, X + Math.cos(b) * r, Y + Math.sin(b) * r * H.GY, h * 0.5, h * dep * (0.85 + 0.15 * Math.sin(t * 7 + i * 1.9)), t, i * 1.3, Math.cos(b) * h * 0.15, a); } }
   /* a scorched mark: charred centre, a glowing rim of embers fading with heat, light on the floor */
   function scorch(c, X, Y, r, a, heat, seed) {
-    if (r < 1 || !(a > 0.01)) return; const s = seed || 0; c.save(); c.globalAlpha = a; const g = c.createRadialGradient(X, Y, 0, X, Y, r); g.addColorStop(0, rgba(P.char, 0.75)); g.addColorStop(0.7, rgba(P.char, 0.45)); g.addColorStop(1, rgba(P.char, 0)); c.fillStyle = g; c.save(); c.translate(X, Y); c.scale(1, H.GY); c.beginPath(); c.arc(0, 0, r, 0, TAU); c.restore(); c.fill();
-    if (heat > 0.02) { floorLight(c, X, Y, r * 1.3, 0.5 * heat * a); c.globalCompositeOperation = 'lighter'; for (let i = 0; i < 9; i++) { const b = i * 2.39 + s, rr = r * (0.35 + 0.5 * ((i * 0.37 + s * 0.1) % 1)), px = X + Math.cos(b) * rr, py = Y + Math.sin(b) * rr * H.GY; c.fillStyle = rgba(i % 2 ? P.org : P.yel, heat * 0.8); c.beginPath(); c.ellipse(px, py, 2 + heat * 1.5, 1.2 + heat, 0, 0, TAU); c.fill(); }
-      c.strokeStyle = rgba(P.org, 0.55 * heat); c.lineWidth = 1.5; for (let i = 0; i < 5; i++) { const b = i * 1.26 + s; c.beginPath(); c.moveTo(X + Math.cos(b) * r * 0.15, Y + Math.sin(b) * r * 0.15 * H.GY); c.lineTo(X + Math.cos(b + 0.3) * r * 0.55, Y + Math.sin(b + 0.3) * r * 0.55 * H.GY); c.lineTo(X + Math.cos(b + 0.1) * r * 0.85, Y + Math.sin(b + 0.1) * r * 0.85 * H.GY); c.stroke(); } }
+    // (no dark residue: reads on light and dark floors alike) a faint warm additive tint, glowing embers and cracks, all fading with heat
+    if (r < 1 || !(a > 0.01) || !(heat > 0.02)) return; const s = seed || 0, hk = Math.min(1, heat) * a; c.save(); c.globalCompositeOperation = 'lighter';
+    floorLight(c, X, Y, r * 1.2, 0.32 * hk, P.org);
+    c.strokeStyle = rgba(P.org, 0.6 * hk); c.lineWidth = Math.max(1, r * 0.04); c.lineCap = 'round'; c.beginPath(); for (let i = 0; i < 5; i++) { const b = i * 1.26 + s; c.moveTo(X + Math.cos(b) * r * 0.15, Y + Math.sin(b) * r * 0.15 * H.GY); c.lineTo(X + Math.cos(b + 0.3) * r * 0.55, Y + Math.sin(b + 0.3) * r * 0.55 * H.GY); c.lineTo(X + Math.cos(b + 0.1) * r * 0.85, Y + Math.sin(b + 0.1) * r * 0.85 * H.GY); } c.stroke();
+    c.strokeStyle = rgba(P.yel, 0.55 * hk); c.lineWidth = Math.max(0.8, r * 0.015); c.stroke();
+    for (let i = 0; i < 9; i++) { const b = i * 2.39 + s, rr = r * (0.35 + 0.5 * ((i * 0.37 + s * 0.1) % 1)), px = X + Math.cos(b) * rr, py = Y + Math.sin(b) * rr * H.GY; c.fillStyle = rgba(i % 2 ? P.org : P.yel, 0.85 * hk); c.beginPath(); c.ellipse(px, py, 1.5 + heat * 1.5, 1 + heat, 0, 0, TAU); c.fill(); }
     c.restore();
   }
   /* a shock ring on the floor: a wide soft orange band and a thin white-hot leading edge */

@@ -185,7 +185,7 @@
       drawUnder(c, f, X, Y, T) { const t = f.t, k = H.fade(f, 0.5, 0.8);
         for (const l of lans) if (!l.gone) K.floorLight(c, H.sx(l.x), H.sy(l.y), T * (0.7 + l.open * 0.5), (0.22 + 0.3 * l.open) * k * (1 - f.gather));
         for (const s of spots) if (s.hitT && t > s.hitT) K.scorch(c, H.sx(s.x), H.sy(s.y), T * 1.2, 0.8 * k, Math.max(0.08, 1 - (t - s.hitT) / 1.4), s.x * 3);
-        if (t > BURST) { const u = cl((t - BURST) / 0.5); K.scorch(c, X, Y, T * R * 0.75 * H.ease.out(u), 0.75 * k, Math.max(0.1, 1 - (t - BURST) / 1.4), 4); K.floorLight(c, X, Y, T * R, 0.5 * (1 - cl((t - BURST) / 1.2))); }
+        if (t > BURST) { const u = cl((t - BURST) / 0.5); K.scorch(c, X, Y, T * R * 0.75 * H.ease.out(u), 0.75 * k, Math.max(0, 1 - (t - BURST) / 1.4), 4); K.floorLight(c, X, Y, T * R, 0.5 * (1 - cl((t - BURST) / 1.2))); }
         for (const q of finals) if (t > q.t0 + 0.3) K.scorch(c, H.sx(q.x), H.sy(q.y), T * 1.4, 0.7 * k, Math.max(0.1, 1 - (t - q.t0 - 0.3) / 1.0), q.x); },
       draw(c, f, X, Y, T) { const t = f.t, k = Math.min(1, f.life / 0.6), CY = Y - CZ * T;
         // the canopy: garlands of fire strung between the gathering lanterns, a hot knot at its heart
@@ -224,7 +224,7 @@
       drawUnder(c, f, X, Y, T) { const t = f.t, k = Math.min(1, f.life / 0.7), form = H.ease.out(cl(f.t / 0.9));
         if (f.t < HIT) { const nearer = f.t > DROP ? (f.t - DROP) / (HIT - DROP) : 0; K.floorLight(c, X, Y, T * (1.8 + nearer * 1.5) * form, (0.4 + nearer * 0.4) * form); H.softShadow(c, X, Y, T * 1.5 * form, 0.2 * form); }
         for (const s of spots) if (s.hitT && t > s.hitT) K.scorch(c, H.sx(s.x), H.sy(s.y), T * 1.15, 0.8 * k, Math.max(0.1, 1 - (t - s.hitT) / 1.3), s.x);
-        if (t > HIT) { const u = cl((t - HIT) / 0.6); K.scorch(c, X, Y, T * R * H.ease.out(u), 0.85 * k, Math.max(0.1, 1 - (t - HIT) / 1.3), 2); K.floorLight(c, X, Y, T * R * 1.1, 0.6 * (1 - cl((t - HIT) / 1.3))); }
+        if (t > HIT) { const u = cl((t - HIT) / 0.6); K.scorch(c, X, Y, T * R * H.ease.out(u), 0.85 * k, Math.max(0, 1 - (t - HIT) / 1.3), 2); K.floorLight(c, X, Y, T * R * 1.1, 0.6 * (1 - cl((t - HIT) / 1.3))); }
         for (const p of proms) if (t > p.t0 + 0.4) K.scorch(c, H.sx(p.x), H.sy(p.y), T * 1.1, 0.7 * k, Math.max(0.1, 1 - (t - p.t0 - 0.4) / 1.0), p.x); },
       draw(c, f, X, Y, T, t) { const form = H.ease.out(cl(f.t / 0.9)), k = Math.min(1, f.life / 0.6), cy = Y - T * Z, r = T * 1.5 * form, CY = Y - T * f.cz, gd = petGuard(X, cy, T);
         if (f.t < HIT + 0.3) { const fall = cl((f.t - DROP) / 0.6), al = k * gd * (1 - fall);
@@ -341,7 +341,7 @@
           const FX = H.sx(x0), FY = H.sy(y0), fis = cl(tau / 0.3) * cl((START + 0.9 - tau) / 0.5); if (fis > 0) { K.scorch(c, FX, FY, T * 1.0, fis, fis, 1); K.floorLight(c, FX, FY, T * 1.4, 0.7 * fis); c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = H.rgba(P.yel, 0.8 * fis); c.lineWidth = 2.5; c.beginPath(); c.moveTo(FX - px * T * 0.7, FY - py * T * 0.7 * H.GY); c.lineTo(FX + px * T * 0.1 + ca * T * 0.1, FY + py * T * 0.05); c.lineTo(FX + px * T * 0.7, FY + py * T * 0.7 * H.GY); c.stroke(); c.restore(); }
           if (tau > 0) for (let i = 0; i < NR; i++) { const R_ = rings[i], RX = H.sx(R_.x), RY = H.sy(R_.y), on = f.t > R_.t, heat = on ? Math.max(0.5, 1 - (f.t - R_.t) / 2.5) : 0.4 * form; K.floorLight(c, RX, RY, T * (1.8 + R_.r), (0.45 + 0.5 * heat) * k * form); if (on) K.scorch(c, RX, RY, T * (1.3 + i * 0.15), 0.75 * k, heat, i * 2.2); }
           const p = path(Ln, tau); if (p && p[2] > 0) H.softShadow(c, H.sx(p[0]), H.sy(p[1]), T * 0.6, 0.2);
-          if (f.t > Ln.DET) { const u = cl((f.t - Ln.DET) / 0.5); K.scorch(c, H.sx(last.x), H.sy(last.y), T * 3.0 * H.ease.out(u), 0.85 * k, Math.max(0.1, 1 - (f.t - Ln.DET) / 1.3), 6); K.floorLight(c, H.sx(last.x), H.sy(last.y), T * 3.6, 0.6 * (1 - cl((f.t - Ln.DET) / 1.1))); } } },
+          if (f.t > Ln.DET) { const u = cl((f.t - Ln.DET) / 0.5); K.scorch(c, H.sx(last.x), H.sy(last.y), T * 3.0 * H.ease.out(u), 0.85 * k, Math.max(0, 1 - (f.t - Ln.DET) / 1.3), 6); K.floorLight(c, H.sx(last.x), H.sy(last.y), T * 3.6, 0.6 * (1 - cl((f.t - Ln.DET) / 1.1))); } } },
       draw(c, f, X, Y, T, t) { const k = Math.min(1, f.life / 0.6), items = [];
         for (const Ln of lanes) { const tau = f.t - Ln.delay; if (tau < 0) continue; const form = H.ease.out(cl(tau / 0.7)), grow = Ln.grow, sc = sc0 * (1 + grow * 0.1), last = Ln.last;
           Ln.rings.forEach((R_, i) => { const lastGone = i === NR - 1 ? cl((f.t - Ln.DET) / 0.25) : 0; if (lastGone >= 1) return; const heat = f.t > R_.t ? 0.75 + 0.25 * Math.max(0, 1 - (f.t - R_.t) / 0.8) : (0.45 + 0.1 * Math.sin(t * 3 + i)) * form, al = k * (1 - lastGone) * petGuard(H.sx(R_.x), H.sy(R_.y) - R_.r * T, T); items.push({ y: R_.y - 0.001, draw: () => kiln(c, R_, 0, heat, form, t, T, al, Ln) }, { y: R_.y + 0.001, draw: () => kiln(c, R_, 1, heat, form, t, T, al, Ln) }); });

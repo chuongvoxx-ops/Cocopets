@@ -265,7 +265,7 @@
   function softBand(c, H, K, x, y, r, w, k) { if (k <= 0.01 || r < 1) return; const P = K.P; c.save(); c.globalCompositeOperation = 'lighter'; const L = [[1, P.red, 0.07], [0.72, P.red, 0.1], [0.5, P.org, 0.14], [0.32, P.amb, 0.2], [0.18, P.yel, 0.26], [0.08, P.wht, 0.3]];
     for (const [lw, col, al] of L) { c.strokeStyle = H.rgba(col, al * k); c.lineWidth = Math.max(1, w * lw); H.floorEllipse(c, x, y, r); c.stroke(); } c.restore(); }
   /* soft char on the floor: a feathered dark pool, no cracks */
-  function softChar(c, H, x, y, r, a) { if (r < 1 || a <= 0.01) return; c.save(); c.translate(x, y); c.scale(1, H.GY); const g = c.createRadialGradient(0, 0, 0, 0, 0, r); g.addColorStop(0, 'rgba(36,16,10,' + 0.45 * a + ')'); g.addColorStop(0.6, 'rgba(36,16,10,' + 0.25 * a + ')'); g.addColorStop(1, 'rgba(36,16,10,0)'); c.fillStyle = g; c.beginPath(); c.arc(0, 0, r, 0, TAU); c.fill(); c.restore(); }
+  function softChar(c, H, x, y, r, a) { if (r < 1 || a <= 0.01) return; c.save(); c.translate(x, y); c.scale(1, H.GY); c.globalCompositeOperation = 'lighter'; c.globalAlpha = Math.min(1, 0.25 * a); blitSized(c, glowSprite('#FF7A2E'), -r, -r, r * 2, r * 2); c.restore(); }   /* (a warm additive afterglow: no dark residue) */
   S.hearthburst = (C, H) => { const K = FK.bind(H), P = K.P, me = H.me, ev = K.evo(C), cx = me.x, cy = me.y, R = (3.0 + 0.25 * (ev - 1)) * C.K, NW = K.evoN(C, 1, 3), fin = ev >= 7, GATHER = 0.38, ROLL = 0.5, WGAP = 0.2, R0 = 0.95, NG = 10;
     const WT = [[1], [0.62, 0.38], [0.5, 0.3, 0.2]][NW - 1], hits = WT.map(() => new Set()), nf = Math.max(8, Math.round([20, 15, 11][NW - 1] * H.Q())), END = GATHER + (NW - 1) * WGAP + ROLL;
     H.X.sfx.hum(); me.sq = 0.6;
