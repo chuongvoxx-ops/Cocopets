@@ -1,3 +1,6 @@
+/* (a guard: an effect's ring shrinking to nothing could hand ellipse() a tiny negative radius, which throws and drops
+   the frame; clamp the radii instead) */
+if (typeof CanvasRenderingContext2D !== 'undefined' && !CanvasRenderingContext2D.prototype._ellSafe) { const E0 = CanvasRenderingContext2D.prototype.ellipse; CanvasRenderingContext2D.prototype.ellipse = function (x, y, rx, ry, ...rest) { return E0.call(this, x, y, rx > 0 ? rx : 0, ry > 0 ? ry : 0, ...rest); }; CanvasRenderingContext2D.prototype._ellSafe = true; }
 /* ---------- Elemental moves: ten Strong attacks and ten Ultimates for each of the eight elements ----------
    Every pet belongs to one of the eight elements (its coat decides; petElement). It can learn that element's moves:
    the Strongs unlock as its Dungeon level rises (ELEM_STRONG_LV), the Ultimates likewise (ELEM_ULT_LV) but only a
@@ -161,23 +164,23 @@ const ELEM_MOVES = {
     ['skate', 'Glacier Skate', 'crescent', 24, 2.6, 'A smooth blade of ice slides low across the floor, then tilts up and fractures into a fan.'],
     ['snowbell', 'Snowglass Bell', 'burst', 26, 3, 'A thin bell of ice forms over the aim; a frost ring climbs it, and it cracks into curved fragments.'],
     ['frostloom', 'Frostneedle Loom', 'fan', 24, 2.6, 'Two staggered rows of ice needles fire alternately in a woven pattern.'],
-    ['wintermoth', 'Winter Moth', 'feather', 24, 2.6, 'A crystalline moth flutters to the target, then folds into a shard and bursts.'],
-    ['rimecoil', 'Rimecoil', 'vortex', 26, 3, 'A ribbon of frost winds up the target growing crystal plates that slow it, then snap outward.'],
+    ['snowfall', 'Thousand-Wing Snowfall', 'feather', 26, 2.8, 'Crystal moths rise from a column of snow and dive in waves as shards; the rest form two great wings that close and shatter.'],
+    ['rimecoil', 'Rimecoil', 'vortex', 26, 3, 'A ribbon of frost winds up the target growing crystal plates that slow it, then snap outward. At Celestial it is three times the size.'],
     ['pendulum', 'Icicle Pendulum', 'hammer', 26, 2.8, 'A long icicle swings forward through a broad arc and shatters at its lowest point.'],
     ['dominoes', 'Polar Dominoes', 'twin', 26, 2.8, 'A line of ice plates rises toward the aim and topples in a chain of shattering blows.'],
     ['hoarfrost', 'Hoarfrost Halo', 'spin', 26, 2.8, 'A ring of ice blades turns once round you, then expands outward.'],
-    ['hailshot', 'Sapphire Hailshot', 'gem', 24, 2.6, 'A dense blue crystal forms between three chips and fires; its layers peel into shards before the core bursts.'] ],
+    ['absolutewinter', 'Heart of Absolute Winter', 'snow', 28, 3, 'A faceted ice heart beats above the aim, each pulse frosting the ground and raising crystals; it opens on a core that releases the last wave.'] ],
   ult: [
-    ['stillwinter', 'Palace of Still Winter', 'snow', 90, 18, 'Ice walls rise round the aim with spires at their corners firing lances inward; the palace fractures wall by wall to a shard eruption.'],
-    ['aurorastag', 'Aurora Stag Procession', 'thorns', 95, 20, 'A stag of branching ice runs down the aimed corridor, hooves striking frost, antlers sweeping forward at the end.'],
-    ['frozenorrery', 'Frozen Orrery', 'orbit', 95, 20, 'Nested rings of ice turn round a blue core, detach and sweep down; the core splits into icicles that fall in turn.'],
-    ['snowglass', 'Cathedral of Snowglass', 'gem', 95, 20, 'Panels assemble into a vaulted ice structure over the aim; pulses resonate through it, then it breaks in a staged cascade.'],
-    ['whitecomet', 'Crown of the White Comet', 'meteor', 95, 20, 'An ice comet forms above you and dives at the aim; its fins unfold into a crown and shatter.'],
-    ['hourglass', "Winter's Hourglass", 'hourglass', 95, 20, 'An hourglass of snow stands over the aim; crystals stream through its neck as strikes, then it turns and collapses.'],
-    ['sevenfold', 'Sevenfold Glacier', 'wave', 100, 22, 'Seven glacier slabs rise along a wide corridor, each sliding ahead and fracturing into the next; the last folds over as a wave.'],
-    ['mirrorlabyrinth', 'Polar Mirror Labyrinth', 'beam', 95, 20, 'Mirrored prisms of ice stand round the monsters; frost lances ricochet between them, then one converging beam of cold.'],
-    ['snowfall', 'Thousand-Wing Snowfall', 'feather', 95, 20, 'Crystal moths rise from a column of snow and dive in waves as shards; the rest form two great wings that close and shatter.'],
-    ['absolutewinter', 'Heart of Absolute Winter', 'snow', 100, 22, 'A faceted ice heart beats above the aim, each pulse frosting the ground and raising crystals; it opens on a core that releases the last wave.'] ] },
+    ['frozenorrery', 'Frozen Orrery', 'orbit', 95, 20, 'Nested rings of ice turn round a blue core, detach and sweep down; the core splits into icicles that fall in turn. At Celestial: three times bigger, a far wider area, three times the damage.'],
+    ['diamonddust', 'Diamond Dust', 'vortex', 90, 18, 'A frost spiral blooms into a spinning ice flower inside a travelling cyclone of diamonds: 1 vortex, 2 at Adept, 3 enormous ones at Celestial.'],
+    ['frozenswords', 'Frozen Swords', 'lance', 95, 20, 'Colossal swords of ice crystallise overhead and impale the ground, sending waves of ice out: 2 swords, 3 at Adept, 5 at Celestial with a giant last blade.'],
+    ['letitgo', 'Let It Go', 'orb', 95, 20, 'A giant orb of ice hovers over a freezing field and fires icy rays at the monsters: 5 s, 8 s at Adept, 12 s at Celestial.'],
+    ['absolutezero', 'Absolute Zero', 'beam', 95, 20, 'A giant crystal forms above you inside turning rings of ice and fires a massive frost beam.'],
+    ['glacialonslaught', 'Glacial Onslaught', 'gem', 95, 20, 'Huge spinning ice crystals launch from behind you in waves and burst into fans of shards: 3, 5 at Adept, 9 at Celestial.'],
+    ['frozensingularity', 'Frozen Singularity', 'nova', 95, 20, 'Ice rings compress a crystal core until it detonates in a broad wave of ice: 2 rings, 3 at Adept, 5 at Celestial.'],
+    ['snowman', 'Snowman', 'spin', 95, 20, 'A giant glowing ice spirit of a Cocopet rolls round the arena freezing all in its path: 3 rolls, up to 7 rolls and boss-sized at Celestial.'],
+    ['catastrophe', 'Catastrophe', 'snow', 100, 21, 'Swirling beams of ice light fall from the sky and sweep the battlefield while snow falls: 5 s, 10 beams for 10 s at Celestial.'],
+    ['iceage', 'Ice Age', 'meteor', 100, 22, 'A giant crystal falls from the sky and bursts in waves of blue light; crystals sprout from the ground for more damage and freeze for 3 s. The ultimate ice spell.'] ] },
   thunder: { strong: [
     ['forkedfang', 'Forked Fang', 'twin', 24, 2.4, 'Two lances of lightning twist round one path and split before impact, or converge on one monster.'],
     ['stormbead', 'Stormbead Chain', 'bolt', 26, 2.8, 'Charged beads form round the target and discharge from monster to monster.'],
