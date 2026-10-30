@@ -8,10 +8,10 @@
    dust as the sphere bursts and a sweeping double shockwave runs out.
    Frozen Vortex (replaces Snowman, deleted here): a tall funnel of curved, faceted ice blades (cached crescent sprites)
    spiralling up round its axis in 3D, far blades behind and dimmer, frost-wind streaks, snow and glitter wheeling round
-   it, a mist skirt, a frost ring and floor light at its foot. It drifts forward along the aim, turning gently toward
-   monsters, slicing all inside it (ticks, brief freeze; bosses a chill), leaving a glittering frosted track. At the end it
+   it, a mist skirt, a frost ring and floor light at its foot. It forms at the aim and meanders slowly within ~1.2 tiles of
+   where it formed, leaning toward the nearest monster and pulling the monsters in, slicing all inside it (ticks, brief freeze; bosses a chill), leaving a glittering frosted track. At the end it
    spins up, flings its blades outward in a ring and dissolves into snow. Level 1: one vortex, ~4 s. 2 at stage 4, 3 at
-   5-6. Level 7: four, fanned round the aim on their own paths, bigger, more blades, ~7 s, all flinging together. */
+   5-6. Level 7: four, clustered round the aim ~1.5 tiles apart, bigger, more blades, ~7 s, all flinging together. */
 (() => {
   const U = ELEM_IMPL.ice.ult;
   const TAU = Math.PI * 2, P = IK.P;
@@ -190,28 +190,30 @@
   delete U.snowman;
   U.frozenvortex = (C, h) => { H = h; K = IK.bind(H); const me = H.me, ev = K.evo(C), L4 = ev >= 4, L7 = ev >= 7, u7 = (ev - 1) / 6, X = H.X;
     const NV = ev >= 7 ? 4 : ev >= 5 ? 3 : ev >= 4 ? 2 : 1, DUR = lerp(4, 7, u7), HT = lerp(3.0, 3.8, u7), R0 = lerp(0.34, 0.45, u7), R1 = lerp(1.25, 1.6, u7) * Math.min(1.2, C.K),
-      NB = Math.round(lerp(18, 28, u7) * (NV > 2 ? 0.72 : 1)), SPD = lerp(2.0, 1.55, u7), GROW = 0.6, SPIN = DUR - 0.85, FLING = DUR - 0.35,
-      TOT = C.base * 14 * C.K * K.evoK(C) * (L7 ? 1.3 : 1), SH = 1 + (NV - 1) * 0.5, TICK = 0.25, TURN = NV > 1 ? 0.55 : 0.9, PER = TOT * 0.8 / (DUR * 0.6) / SH, FL = TOT * 0.2 / SH;
-    const fan = { 1: [0], 2: [-0.32, 0.32], 3: [-0.55, 0, 0.55], 4: [-0.8, -0.27, 0.27, 0.8] }[NV];
+      NB = Math.round(lerp(18, 28, u7) * (NV > 2 ? 0.72 : 1)), SPD = 1.1, GROW = 0.6, SPIN = DUR - 0.85, FLING = DUR - 0.35,
+      TOT = C.base * 14 * C.K * K.evoK(C) * (L7 ? 1.3 : 1), SH = 1 + (NV - 1) * 0.5, TICK = 0.25, PER = TOT * 0.8 / (DUR * 0.8) / SH, FL = TOT * 0.2 / SH;
+    // they form at the aim (pushed clear of the pet), fanned close round it at higher stages, and stay on a short leash
+    let ax = C.tx, ay = C.ty; { const d = Math.hypot(ax - me.x, ay - me.y), need = R1 + 1.2 + (NV > 1 ? 1 : 0); if (d < need) { const a = d > 0.1 ? Math.atan2(ay - me.y, ax - me.x) : C.a; ax = me.x + Math.cos(a) * need; ay = me.y + Math.sin(a) * need; } }
+    const LEASH = 1.2, ca = C.a, off = { 1: [[0, 0]], 2: [[0, -0.85], [0, 0.85]], 3: [[0.55, 0], [-0.45, -0.85], [-0.45, 0.85]], 4: [[0.85, 0], [0, -0.95], [0, 0.95], [-0.85, 0]] }[NV];
     H.X.banner('FROZEN VORTEX', '', C.col, 1.3); H.X.sfx.whoosh(); me.sq = 0.8;
-    const vs = fan.map((o, i) => { const a = C.a + o; let x = me.x + Math.cos(a) * (R1 + 0.9), y = me.y + Math.sin(a) * (R1 + 0.9); if (X.blocked(x, y, 0.4, 1)) { x = me.x + Math.cos(a) * 0.9; y = me.y + Math.sin(a) * 0.9; if (X.blocked(x, y, 0.4, 1)) { x = me.x; y = me.y; } }
+    const vs = off.map((o, i) => { const a = ca + i * 1.7; let x = ax + Math.cos(ca) * o[0] - Math.sin(ca) * o[1], y = ay + Math.sin(ca) * o[0] + Math.cos(ca) * o[1]; if (X.blocked(x, y, 0.4, 1)) { x = ax; y = ay; if (X.blocked(x, y, 0.4, 1)) { x = me.x + Math.cos(ca) * 0.9; y = me.y + Math.sin(ca) * 0.9; } }
       H.warn(x, y, R0 + 0.7, GROW, C.col);
-      return { i, x, y, a, a0: a, tick: TICK * (i / NV), lx: x, ly: y, track: [], flash: 0, hit: 0, seed: i * 17,
+      return { i, x, y, a, hx: x, hy: y, tick: TICK * (i / NV), lx: x, ly: y, track: [], flash: 0, hit: 0, seed: i * 17,
         bl: Array.from({ length: NB }, (_, j) => ({ h0: (j / NB + rnd(j + i * 31) * 0.08) % 1, th0: rnd(j * 3.7 + i) * TAU, v: j % 3, sz: 0.85 + rnd(j * 5.1 + i) * 0.4 })) }; });
     const f = H.add({ life: DUR + 1.7, ang: 0, x: vs[0].x, y: vs[0].y,
       update(dt, f) { f.x = vs[0].x; f.y = vs[0].y; const t = f.t, spinK = t < SPIN ? 1 : 1 + 2.2 * cl((t - SPIN) / 0.5); f.ang += dt * 5.5 * spinK;
         for (const v of vs) { v.flash = Math.max(0, v.flash - dt * 4);
           if (t < FLING) {
-            if (t > GROW * 0.6) { // drift forward along its own path, turning gently toward a monster ahead of it
-              const L = H.living().filter(m => { const d = Math.hypot(m.x - v.x, m.y - v.y); return d < 5 && Math.abs(H.wrap(H.angTo(v.x, v.y, m.x, m.y) - v.a)) < 0.9 && Math.abs(H.wrap(H.angTo(v.x, v.y, m.x, m.y) - v.a0)) < (NV > 1 ? 0.6 : 1.2); }), tg = L.length ? H.sortNear(v.x, v.y, L)[0] : null;
-              if (tg) { const d = H.wrap(H.angTo(v.x, v.y, tg.x, tg.y) - v.a); v.a += Math.max(-TURN * dt, Math.min(TURN * dt, d)); } else v.a += Math.sin(t * 1.3 + v.i * 2) * 0.25 * dt;
-              for (const w of vs) if (w !== v) { const dx = v.x - w.x, dy = v.y - w.y, d = Math.hypot(dx, dy); if (d < R1 * 2.6 && d > 0.01) { v.x += dx / d * dt * 1.6; v.y += dy / d * dt * 1.6; } }
-              { const dx = v.x - me.x, dy = v.y - me.y, d = Math.hypot(dx, dy); if (d < R1 + 1 && d > 0.01) { v.x += dx / d * dt * 2; v.y += dy / d * dt * 2; } }
-              const sp = SPD * (t < SPIN ? 1 : 0.35), nx = v.x + Math.cos(v.a) * sp * dt, ny = v.y + Math.sin(v.a) * sp * dt;
-              if (X.blocked(nx, ny, 0.4, 1)) { const bx = X.blocked(nx, v.y, 0.4, 1), by = X.blocked(v.x, ny, 0.4, 1); let cx = Math.cos(v.a), cy = Math.sin(v.a); if (bx || !by) cx = -cx; if (by || !bx) cy = -cy; v.a = Math.atan2(cy, cx); } else { v.x = nx; v.y = ny; } }
+            if (t > GROW * 0.6) { // a slow orbiting meander round where it formed, leaning toward the nearest monster within the leash
+              const tg = H.sortNear(v.hx, v.hy, H.near(v.hx, v.hy, LEASH + 1.4))[0], ob = t * 0.8 * (v.i % 2 ? -1 : 1) + v.i * 1.6;
+              let gx = v.hx + Math.cos(ob) * 0.55, gy = v.hy + Math.sin(ob) * 0.45; if (tg) { gx = gx * 0.4 + tg.x * 0.6; gy = gy * 0.4 + tg.y * 0.6; }
+              { const dx = gx - v.hx, dy = gy - v.hy, d = Math.hypot(dx, dy); if (d > LEASH) { gx = v.hx + dx / d * LEASH; gy = v.hy + dy / d * LEASH; } }
+              { const dx = gx - me.x, dy = gy - me.y, d = Math.hypot(dx, dy); if (d < R1 + 1 && d > 0.01) { gx = me.x + dx / d * (R1 + 1); gy = me.y + dy / d * (R1 + 1); } }
+              const dx = gx - v.x, dy = gy - v.y, d = Math.hypot(dx, dy), sp = Math.min(d, SPD * dt * (t < SPIN ? 1 : 0.3));
+              if (d > 0.01) { const nx = v.x + dx / d * sp, ny = v.y + dy / d * sp; v.a = Math.atan2(dy, dx); if (!X.blocked(nx, ny, 0.4, 1)) { v.x = nx; v.y = ny; } } }
             if (Math.hypot(v.x - v.lx, v.y - v.ly) > 0.2) { v.track.push({ x: v.x, y: v.y, t }); v.lx = v.x; v.ly = v.y; }
             // the blades slice everything inside the lower funnel; the cold drags the monsters round into it
-            if (t > GROW) { v.tick -= dt; for (const m of H.near(v.x, v.y, R1 * 0.9)) { H.pull(m, v.x, v.y, dt * 0.9); H.slow(m, 0.5); }
+            if (t > GROW) { v.tick -= dt; for (const m of H.near(v.x, v.y, R1 * 1.9)) { H.pull(m, v.x, v.y, dt * (Math.hypot(m.x - v.x, m.y - v.y) < R1 * 0.6 ? 0.4 : 1.5)); H.slow(m, 0.5); }
               if (v.tick <= 0) { v.tick += TICK; const k = H.hitArea(v.x, v.y, R1 * 0.85, PER * TICK, C.dmgO({ kb: 0.3, freeze: 0.3 })); if (k) { v.flash = 1; v.hit++; for (const m of H.near(v.x, v.y, R1 * 0.85)) K.glitter(m.x, m.y - 0.4, 4, 4); if (v.hit % 3 === 1) H.X.sfx.crack ? H.X.sfx.crack() : H.X.sfx.hum(); } } }
             lit(f, 'v' + v.i, v.x, v.y, R1 * 2.2, dt, 0.26);
             // snow and frost wind swirling round the column
