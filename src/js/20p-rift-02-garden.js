@@ -163,7 +163,7 @@
      Thorn hedges and rolling moss boulders thin the army. Two bloom posts are checkpoints. At the end, the Milkcap
      Colossus: a big number to shoot down and then hack at, while roots burst and spores fall in rose rings. Lose every
      seedling and the pet marches alone on three hearts; out of hearts, the march begins again at the last bloom post */
-  const ML = 200, LX0 = 4, LX1 = 12, LXM = 8, M_SPD = 3.6, M_TREAD = 2.4, M_CAP = 90, M_SP = 0.25, GA = Math.PI * (3 - Math.sqrt(5)), BOSS_HP = 1600, B_CONTACT = 2.9, TOUGH = 3;
+  const ML = 200, LX0 = 4, LX1 = 12, LXM = 8, M_SPD = 3.6, M_TREAD = 2.4, M_CAP = 90, M_SP = 0.25, GA = Math.PI * (3 - Math.sqrt(5)), BOSS_HP = 1000, B_CONTACT = 2.9, TOUGH = 3;
   const MINT = '#6FE3B4', BAD = '#FF6A8E', MOSS = '#3F7B61';
   const marchLayout = (() => { const rows = []; for (let y = 0; y < ML; y++) { let r = ''; for (let x = 0; x < 14; x++) r += x < 3 || x > 10 ? '~' : y === ML - 4 && x === 7 ? 'S' : '.'; rows.push(r); } return rows; })();
   // the course, by distance up the lane from the start (L and R: the left and right gate of a pair, [op, n])
@@ -247,7 +247,7 @@
     function grant(kind) { const G = GIFTS[kind]; S.blocks++; if (kind === 'bow') S.bow = true; else if (kind === 'spread') S.spread = true; else { grow(25, me.x, me.y - 1); X.text(me.x, me.y - 2.2, '+25', MINT, 22); }
       S.tip = null; X.banner(G.name + '!', G.sub, G.col, 1.7, true); X.flash(0.25, G.col); X.ring(me.x, me.y, 0.3, 3, 0.5, G.col, 0.3); X.sfx.fanfare(); }
     function killCrowd(e, how) { X.boom(e.x, e.y, 1.0 + crowdR(e), '#B98BE0', CREAM, { n: 18, shake: 7 }); for (let i = 0; i < 14; i++) { const a = Math.random() * TAU; X.part({ kind: 'confetti', x: e.x, y: e.y, vx: Math.cos(a) * 6, vy: Math.sin(a) * 6 - 2, g: 9, life: 0.8, max: 0.8, size: 4, rot: a, vr: 9, color: Math.random() < 0.5 ? '#7A4C9E' : CREAM }); } X.text(e.x, e.y - 1.4, how, MINT, 18); X.sfx.crash(); S.crowds++; remove(e); }
-    function startBoss() { S.phase = 'boss'; B = spawn({ k: 'boss', x: LXM }, S.y - 15); Object.assign(B, { gap: 15, want: 8, hp: BOSS_HP, hp0: BOSS_HP, atkT: 3.4, act: null, acts: 0, lift: 0, sq: 0, contact: false, hackT: 0, recruitT: 5.5, enter: true });
+    function startBoss() { S.phase = 'boss'; B = spawn({ k: 'boss', x: LXM }, S.y - 15); Object.assign(B, { gap: 13, want: 7, hp: BOSS_HP, hp0: BOSS_HP, atkT: 3.4, act: null, acts: 0, lift: 0, sq: 0, contact: false, hackT: 0, recruitT: 5.5, enter: true });
       X.banner('THE MILKCAP COLOSSUS', 'Shoot its number down · keep out of the rose rings', BAD, 3.2, true, true); X.shake(10, 0.9); X.sfx.hum(); }
     function bossDown() { const e = B; e.dead = true; e.fallT = 0; S.phase = 'exit'; self.done = true; S.exitY = S.y - 7; H.setExit(LXM, S.exitY, 'The Garden\'s heart'); rings.length = 0;
       for (const q of E) if (q.k === 'crowd' && !q.gone) killCrowd(q, ''); X.flash(0.8, '#FFFFFF'); X.sfx.fanfare(); X.banner('THE COLOSSUS FALLS', 'The Garden\'s heart is open · march on', MINT, 3, true, true);
@@ -292,7 +292,7 @@
       cp(e) { if (e.done || S.y > e.y) return; e.done = true; S.cp = { d: e.d, n: Math.max(S.n, 12), bow: S.bow, spread: S.spread }; S.hearts = 3; S.tip = { a: 'BLOOM POST · CHECKPOINT', b: 'If the march falters, it begins again here', col: MINT, t: 0 }; X.sfx.chime(); X.ring(LXM, e.y, 0.3, 4, 0.6, MINT, 0.3); },
       boss(e, dt) { if (e.dead) { e.fallT += dt; return; }
         if (e.enter) { e.gap += (e.want - e.gap) * Math.min(1, dt * 1.2); if (Math.random() < dt * 3) X.shake(4, 0.15); if (e.gap < e.want + 0.4) { e.enter = false; X.sfx.stomp(); X.shake(9, 0.4); } }
-        else { e.want = S.n > 0 ? Math.max(B_CONTACT, e.want - 0.42 * dt) : Math.min(8, e.want + 3 * dt); e.gap += (e.want - e.gap) * Math.min(1, dt * 1.6); }
+        else { e.want = S.n > 0 ? Math.max(B_CONTACT, e.want - 0.42 * dt) : Math.min(7, e.want + 3 * dt); e.gap += (e.want - e.gap) * Math.min(1, dt * 1.6); }
         e.y = S.y - e.gap; e.x += (LXM + Math.sin(e.t * 0.6) * 1.0 - e.x) * Math.min(1, dt * 2); e.lift = Math.max(0, e.lift - dt * 1.1); e.sq = Math.max(0, e.sq - dt * 3);
         e.contact = !e.enter && S.n > 0 && e.gap <= B_CONTACT + 0.2;
         if (e.contact && S.mode === 'run') { e.hackT -= dt; while (e.hackT <= 0 && S.n > 0 && e.hp > 0) { e.hackT += 0.07; const k = Math.max(1, Math.ceil(S.n / 30)); loseFront(k, e.x, e.y - 0.2); e.hp -= k * 12; float('boss', e.x + (Math.random() - 0.5) * 2, e.y - 3.6, -k * 12, GOLD); X.sparks(e.x + (Math.random() - 0.5) * 2.4, e.y - 0.4, CREAM, 4, 4); if (Math.random() < 0.3) X.sfx.pop(); } if (e.hp <= 0) { bossDown(); return; } }
@@ -302,7 +302,7 @@
       // (for the tests: put the army at a distance up the lane, the course behind it cleared)
       warp(d) { clearLane(); place(d); S.phase = 'course'; S.mode = 'run'; S.tread = 0; },
       setN(n) { S.n = n; S.alone = n <= 0; sync(); },
-      cam() { return { x: LXM, y: S.y - (S.phase === 'boss' || S.phase === 'exit' ? 0.1 : 0.06) * X.H() / Math.max(10, X.Tz()), k: 1, zoom: 0.78 }; },
+      cam() { return { x: LXM, y: S.y - (S.phase === 'boss' || S.phase === 'exit' ? 0.24 : 0.15) * X.H() / Math.max(10, X.Tz()), k: 1, zoom: 0.78 }; },   // (the camera looks well ahead: the army sits low, over the empty footer, the lane and the Colossus above)
       hint() { return null; },
       update(dt) { S.t += dt; if (S.inv > 0) S.inv -= dt; if (S.pulse > 0) S.pulse = Math.max(0, S.pulse - dt * 3); S.popT = Math.max(0, S.popT - dt * 60);
         for (const k in floats) { const f = floats[k]; f.t -= dt; if (f.t <= 0) { X.text(f.x, f.y, `${f.v > 0 ? '+' : '−'}${Math.abs(Math.round(f.v))}`, f.col, 18); delete floats[k]; } }
