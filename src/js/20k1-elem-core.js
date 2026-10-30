@@ -190,16 +190,16 @@ const ELEM_MOVES = {
     ['capacitor', 'Capacitor Crush', 'hammer', 26, 3, 'Two charged plates appear either side of the target and close, arcing, then clap together.'],
     ['stormthread', 'Stormthread Volley', 'volley', 24, 2.6, 'Threads tie you to needles hovering ahead; they fire in quick succession, the last a branching star.'] ],
   ult: [
-    ['thunderking', 'Palace of the Thunder King', 'bolt', 90, 18, 'Charged pylons rise round the aim linked by arcs; pulses circulate, jump down, then all discharge into a central column.'],
-    ['ninedragon', 'Nine-Dragon Circuit', 'dragon', 100, 22, 'Nine lightning dragons race along curved paths through the aim leaving conductive trails that connect and discharge in turn.'],
-    ['capacitorsky', 'Celestial Capacitor', 'orbit', 95, 20, 'Two vast rings turn overhead building charge; arcs leap as strikes fall, then they align and discharge downward.'],
-    ['thunderloom', 'Thunderloom', 'thorns', 95, 20, 'Charged nodes weave a lattice of threads over the aim; pulses race the rows, then it contracts into a knot and bursts.'],
-    ['stormbird', 'Stormbird Descent', 'feather', 95, 20, 'A bird of plasma ribbons unfolds above you and dives down the aim, striking beneath its path, then fans its wings in a discharge.'],
-    ['magnetar', 'Crown of the Magnetar', 'nova', 95, 20, 'A brilliant core over the aim ringed by orbiting shards; they fire out in waves, then the bare core pulses.'],
-    ['thousandbells', 'Thousand-Bell Thunder', 'stars', 95, 20, 'Bells of lightning hang over the monsters and toll forked bolts in rhythm; they join into one great bell for the final discharge.'],
-    ['heavenrail', 'Rail of the Heavens', 'beam', 100, 22, 'Accelerator rings assemble along the aim and light in sequence; a plasma lance fires through them with branching discharges behind.'],
-    ['lightningtree', 'Lightning Tree Ascendant', 'flower', 95, 20, 'A trunk of lightning rises at the aim and branches into a tree; bolts fall from its tips, then its roots wave across the ground.'],
-    ['heartbeat', 'Heartbeat of the Storm', 'orbit', 100, 22, 'A charged core follows above you for a while; every beat sends branching strikes at the monsters nearby, and the last beat discharges all round.'] ] },
+    ['flash', 'Lightning Flash', 'dash', 90, 18, 'You crouch, charge and launch through the monsters in lightning dashes, each leaving a plasma ribbon and an afterimage: 4 dashes, 8 at Adept, 16 at Celestial.'],
+    ['thunderstorm', 'Thunderstorm', 'bolt', 95, 20, "A storm canopy gathers over the aim; tendrils rise to meet bolts falling in a building rhythm, then a great finishing strike: 6, 10, 16 at Celestial through the storm's eye."],
+    ['widepressure', 'Sparkling Wide Pressure', 'spin', 90, 18, 'Rolling thunder wheels launch in a staggered fan, weaving through the monsters and spraying sparks: 4 wheels, 10 at Adept, 16 at Celestial.'],
+    ['ragnarok', 'Ragnarok', 'hammer', 100, 22, 'A colossal spirit hammer of lightning assembles over the aim and swings down: one immense electric explosion that paralyses for 10 seconds.'],
+    ['supreme', 'Supreme Thunder', 'orbit', 95, 20, 'Living lightning spheres orbit you for 10 seconds, darting out to zap monsters that come close: 4 spheres, 8 at Adept, 12 at Celestial.'],
+    ['glory', 'Edge of Glory', 'crescent', 95, 20, 'Two immense wings of lightning blades unfold behind you, sweep the monsters and cross into a travelling X-slash: more feathers and sweeps as you evolve.'],
+    ['heavensbow', "Heaven's Bow", 'lance', 95, 20, 'A gigantic bow of lightning forms beside you: a fan of arrows, then one immense piercing arrow: 3 arrows, 5 at Adept, 9 at Celestial.'],
+    ['lotus', 'Thunder Lotus', 'flower', 95, 20, 'A seed of lightning grows into a vast lotus of electricity round the monsters; pulses climb its petals: 6 petals, 2 rings at Adept, 3 at Celestial.'],
+    ['butterfly', 'Butterfly Tempest', 'feather', 95, 20, 'Razor-winged lightning butterflies spiral up and strike, then join into one great butterfly: 6, 12 at Adept, 24 at Celestial.'],
+    ['worldsplitter', 'Worldsplitter', 'beam', 100, 22, 'You strike the ground: a fault runs through the monsters, then erupts outward as a travelling curtain of lightning: more branches as you evolve.'] ] },
 };
 const ELEM_LIST = {}; for (const e in ELEM_MOVES) { ELEM_LIST[e] = {}; for (const s of ['strong', 'ult']) ELEM_MOVES[e][s].forEach((row, i) => { ELEM_LIST[e][(s === 'ult' ? 'ey_' : 'ex_') + row[0]] = { el: e, slot: s, key: row[0], i, name: row[1], glyph: row[2], cost: row[3], cd: row[4], desc: row[5], lv: (s === 'ult' ? ELEM_ULT_LV : ELEM_STRONG_LV)[i] }; }); }
 const elemId = (el, key) => `e:${el}:${key}`;
