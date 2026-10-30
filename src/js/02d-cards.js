@@ -100,8 +100,11 @@ function innateAbility(slot, AB, p) {
   const E = ELEMENTS[AB.el], grow = 1 + 0.05 * ((p.stage || 1) - 1);
   if (slot === 'strong2' || slot === 'strong3') { const k = extraStrongs(AB, p)[slot === 'strong2' ? 0 : 1], S = INNATE_STRONG[k]; return { slot, own: true, key: 's_' + k, name: k === 'spikes' ? espikeName(AB.el) : `${E.name} ${STRONGS[k].name}`, glyph: S.glyph, el: AB.el, mult: grow, cost: S.cost, cd: S.cd, desc: k === 'spikes' ? espikeDesc(AB.el) : STRONGS[k].desc }; }
   if (slot === 'normal') return { slot, own: true, key: 'n_' + AB.shot, name: AB.name, glyph: NORMAL_GLYPH[AB.shot] || 'orb', el: AB.el, mult: grow, cost: 0, cd: 0, desc: AB.shotDesc.replace('the sky', 'the room').replace('the edges', 'the walls').replace('the ship', 'you') };
-  if (slot === 'strong' && AB.starStrong) { const T = AB.starStrong, S = STAR_POOLS[T.tier].strong[T.key]; return { slot, own: true, star: T.tier, key: 'x_' + T.key, name: S.name, glyph: S.glyph, el: AB.el, mult: grow * (T.tier >= 6 ? 1.5 : T.tier >= 5 ? 1.25 : 1.1), cost: S.cost, cd: S.cd, desc: S.desc }; }
-  if (slot === 'ult' && AB.starUlt) { const T = AB.starUlt, U = STAR_POOLS[T.tier].ult[T.key]; return { slot, own: true, star: T.tier, key: 'y_' + T.key, name: U.name, glyph: U.glyph, el: AB.el, mult: grow * (T.tier >= 6 ? 1.5 : T.tier >= 5 ? 1.25 : 1.1), cost: U.cost, cd: U.cd, desc: U.desc }; }
+  const sig = T => { const mv = ELEM_LIST[T.e8] && ELEM_LIST[T.e8][(slot === 'ult' ? 'ey_' : 'ex_') + T.key]; return mv ? Object.assign(elemAbility(mv, slot, p), { sig: true }) : null; };
+  if (slot === 'strong' && AB.starStrong && AB.starStrong.e8) { const a = sig(AB.starStrong); if (a) return a; }
+  if (slot === 'ult' && AB.starUlt && AB.starUlt.e8) { const a = sig(AB.starUlt); if (a) return a; }
+  if (slot === 'strong' && AB.starStrong && STAR_POOLS[AB.starStrong.tier].strong[AB.starStrong.key]) { const T = AB.starStrong, S = STAR_POOLS[T.tier].strong[T.key]; return { slot, own: true, star: T.tier, key: 'x_' + T.key, name: S.name, glyph: S.glyph, el: AB.el, mult: grow * (T.tier >= 6 ? 1.5 : T.tier >= 5 ? 1.25 : 1.1), cost: S.cost, cd: S.cd, desc: S.desc }; }
+  if (slot === 'ult' && AB.starUlt && STAR_POOLS[AB.starUlt.tier].ult[AB.starUlt.key]) { const T = AB.starUlt, U = STAR_POOLS[T.tier].ult[T.key]; return { slot, own: true, star: T.tier, key: 'y_' + T.key, name: U.name, glyph: U.glyph, el: AB.el, mult: grow * (T.tier >= 6 ? 1.5 : T.tier >= 5 ? 1.25 : 1.1), cost: U.cost, cd: U.cd, desc: U.desc }; }
   if (slot === 'strong') { const S = INNATE_STRONG[AB.strong]; return { slot, own: true, key: 's_' + AB.strong, name: AB.strongName, glyph: S.glyph, el: AB.el, mult: grow, cost: S.cost, cd: S.cd, desc: AB.strongDesc }; }
   const U = INNATE_ULT[AB.special];
   return { slot, own: true, key: 'u_' + AB.special, name: `${E.name} ${U.name}`, glyph: U.glyph, el: AB.el, mult: grow, cost: U.cost, cd: U.cd, desc: U.desc };
@@ -126,7 +129,7 @@ function cleanDeck(d, p) {
 /* the Celestial upgrade: same Ult, a new name, more power and a bigger show */
 function tierUlt(a) {
   const nm = ULT_PLUS[a.key];
-  return Object.assign({}, a, { tier: 2, name: nm ? (a.own ? `${ELEMENTS[a.el].name} ${nm}` : nm) : a.name + ' Ω', baseName: a.name, mult: a.mult * 1.6, desc: a.desc + ' Celestial form: bigger, longer and much stronger.' });
+  return Object.assign({}, a, { tier: 2, name: nm ? (a.own ? `${ELEMENTS[a.el].name} ${nm}` : nm) : a.elem ? a.name : a.name + ' Ω', baseName: a.name, mult: a.mult * 1.6, desc: a.desc + ' Celestial form: bigger, longer and much stronger.' });
 }
 /* the Guardian upgrade: the same Strong attack, a new name and far more power */
 function tierStrong(a) { return Object.assign({}, a, { tier: 2, name: a.name + ' +', baseName: a.name, mult: a.mult * 1.6, cd: a.cd * 0.85, desc: a.desc + ' Guardian form: much stronger, and quicker to come back.' }); }

@@ -892,3 +892,16 @@ Every new boss painter (rift fiends, Tower bosses, minis that get their own art)
 - Gate 20zz Leo "The Crown Chase": tag the crown-bearer cub three times (puffs = the window; decoys in round 2, fading + gold dust in round 3); no damage.
 - Bosses (Rift 9 art bar): Tammor 20zz1 (Threefold Beat on numbered rings, adjacent safe ring always; Hold the Silence ×1.75, 5 blows → falter; frontal cone beat from 50%), Veyra 20zz2 (hangs from the arch; Antiphon numbered horn lanes, shelter wedges, last lane safe; Stolen Note moth swaps the third horn ≥4 s ahead; drops sprawled ×1.75; from 50% on the floor with a wing cone; throat ×1.5 while glowing), the Heart 20zz3 (Pulse Measure three numbered quadrants; Dissonance echo outline + moths hushing a horn; The Unfinished Chord: charge the lit pad, shelter dome after step 3, whole-arena pulse, ring opens ×2; victory: silence, a chord, a dark seed with the Rhythm Sigil).
 - Tests: _cho-smoke, _cho-mech, rift-cho-stages, rift-cho-gate, _boss-anim-choir-{tammor,veyra,heart} (slow: 10–20 min each headless).
+
+## v180 — Fire moves reworked, signature moves, evolution
+- Five- and six-star pets start with their own element's signature Strong and Ultimate (`starKit(stars, seed, e8)` in
+  20k-dun-star.js; `AB.starStrong/starUlt.e8`; `innateAbility` returns `elemAbility(...)` with `sig: true`). A six-star
+  has a STAR6_GOLD_CHANCE (8%) per slot of a golden move instead. Fusion carries an `ex_`/`ey_` signature to a child of
+  the same element (`applyAbOv`). Elemental Celestial ults keep their own name (no " Ω").
+- Every elemental cast carries `C.evo` (the pet's stage 1..7; `elemAbility` → `ab.evo` → 20b → `C.evo`).
+- Fire: `20k6a-fire-kit.js` (FK: volumetric flame, fireball, ribbon, flameRing, scorch, shockRing, floorLight, aura,
+  evo helpers). The twenty moves are reimplemented in 20k6b (S01–05), 20k6c (S06–10), 20k6d (U01–05), 20k6e (U06–10),
+  which replace the old bodies in 20k6-elem-fire.js (still there, now dead code apart from its `_draw` hook). Each move's
+  header says what evolution changes (Firewheel: 1 wheel → 7; Nine Tails: 3 → 9 tails in a halo round the pet).
+  Damage total = base × factor × C.K × FK.evoK(C) split over the pieces. Brief: docs/FIRE-REWORK-BRIEF.md.
+- Tests: elem-signature.js; elem-moves.js takes EVO=N.

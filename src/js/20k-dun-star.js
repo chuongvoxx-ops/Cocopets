@@ -65,10 +65,18 @@ const STAR6_ULT = {
 };
 const STAR_POOLS = { 4: { strong: STAR4_STRONG, ult: STAR4_ULT }, 5: { strong: STAR5_STRONG, ult: STAR5_ULT }, 6: { strong: STAR6_STRONG, ult: STAR6_ULT } };
 const GOLD_C = '#FFD447', GOLD_W = '#FFF6C8';
-function starKit(stars, seed) {
+/* a five- or six-star pet's signature moves come from its own element's twenty (each pet its own pair, by its seed),
+   and grow with every evolution. A six-star golden Legendary keeps a rare chance at a golden move instead. */
+const STAR6_GOLD_CHANCE = 0.08;
+function starKit(stars, seed, e8) {
   const P = STAR_POOLS[stars]; if (!P) return null;
   const R = mulberry32(((seed || 1) ^ 0x5A5A57) >>> 0), sk = Object.keys(P.strong), uk = Object.keys(P.ult);
-  return { strong: sk[Math.floor(R() * sk.length)], ult: uk[Math.floor(R() * uk.length)] };
+  const gold = { strong: sk[Math.floor(R() * sk.length)], ult: uk[Math.floor(R() * uk.length)] };
+  if (stars < 5 || !e8 || typeof ELEM_MOVES === 'undefined' || !ELEM_MOVES[e8]) return gold;
+  const R2 = mulberry32(((seed || 1) ^ 0x3E1E57) >>> 0), M = ELEM_MOVES[e8];
+  const s = { key: M.strong[Math.floor(R2() * M.strong.length)][0], e8 }, u = { key: M.ult[Math.floor(R2() * M.ult.length)][0], e8 };
+  const gs = stars >= 6 && R2() < STAR6_GOLD_CHANCE, gu = stars >= 6 && R2() < STAR6_GOLD_CHANCE;
+  return { strong: gs ? gold.strong : s.key, ult: gu ? gold.ult : u.key, sE8: gs ? null : e8, uE8: gu ? null : e8 };
 }
 const DunStar = (() => {
   const TAU = Math.PI * 2;

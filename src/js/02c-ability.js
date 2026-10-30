@@ -121,8 +121,8 @@ function petAbility(f, seed) {
   if (X.armor || X.spikes || f.body.fur === 'spiky' || f.tail.t === 'crystal' || (X.crest && X.crest.t === 'spike')) sb('spikes', 3);
   const strong = pickW(sg);
   const E = ELEMENTS[el], S = SHOTS[shot], P = SPECIALS[special];
-  const stars = starsOf(rarityOf(f)), star = starKit(stars, seed || f.seed || 1);
-  return { el, shot, special, stars, star, starStrong: star ? { key: star.strong, tier: stars } : null, starUlt: star ? { key: star.ult, tier: stars } : null, power, rate, speed, size, count, name: `${E.name} ${S.name}`, color: E.color, core: E.core, dark: E.dark, rainbow: !!E.rainbow, shotDesc: S.desc, specialName: P.name, specialDesc: P.desc,
+  const stars = starsOf(rarityOf(f)), star = starKit(stars, seed || f.seed || 1, e8Of(el));
+  return { el, shot, special, stars, star, starStrong: star ? { key: star.strong, tier: stars, e8: star.sE8 || null } : null, starUlt: star ? { key: star.ult, tier: stars, e8: star.uE8 || null } : null, power, rate, speed, size, count, name: `${E.name} ${S.name}`, color: E.color, core: E.core, dark: E.dark, rainbow: !!E.rainbow, shotDesc: S.desc, specialName: P.name, specialDesc: P.desc,
     twist, twistName: TWISTS[twist].name, twistDesc: TWISTS[twist].desc, strong, strongName: strong === 'spikes' ? espikeName(el) : `${E.name} ${STRONGS[strong].name}`, strongDesc: strong === 'spikes' ? espikeDesc(el) : STRONGS[strong].desc };
 }
 /* every pet's signature effect: it rides on all of its hits in the Dungeon, whichever cards it uses */
@@ -163,7 +163,10 @@ function applyAbOv(AB, p) {
   const E = ELEMENTS[AB.el], stage = (p.stage || 1);
   AB = Object.assign({}, AB);
   if (ov.normal && SHOTS[ov.normal.shot]) { const sh = ov.normal.shot; AB.shot = sh; AB.name = `${E.name} ${SHOTS[sh].name}`; AB.shotDesc = SHOTS[sh].desc; AB.count = shotCount(sh, stage); }
-  if (ov.strong && ov.strong.key) { const k = ov.strong.key; if (k.slice(0, 2) === 'x_' && STAR_POOLS[ov.strong.tier] && STAR_POOLS[ov.strong.tier].strong[k.slice(2)]) AB.starStrong = { key: k.slice(2), tier: ov.strong.tier }; else if (k.slice(0, 2) === 's_' && STRONGS[k.slice(2)]) { AB.starStrong = null; AB.strong = k.slice(2); AB.strongName = AB.strong === 'spikes' ? espikeName(AB.el) : `${E.name} ${STRONGS[AB.strong].name}`; AB.strongDesc = AB.strong === 'spikes' ? espikeDesc(AB.el) : STRONGS[AB.strong].desc; } }
-  if (ov.ult && ov.ult.key) { const k = ov.ult.key; if (k.slice(0, 2) === 'y_' && STAR_POOLS[ov.ult.tier] && STAR_POOLS[ov.ult.tier].ult[k.slice(2)]) AB.starUlt = { key: k.slice(2), tier: ov.ult.tier }; else if (k.slice(0, 2) === 'u_' && SPECIALS[k.slice(2)]) { AB.starUlt = null; AB.special = k.slice(2); AB.specialName = SPECIALS[AB.special].name; AB.specialDesc = SPECIALS[AB.special].desc; } }
+  const e8 = e8Of(AB.el), sigOv = (k, pre, tier) => k.slice(0, 3) === pre && typeof ELEM_LIST !== 'undefined' && ELEM_LIST[e8] && ELEM_LIST[e8][k] ? { key: k.slice(3), tier: Math.max(5, tier || 5), e8 } : null;
+  if (ov.strong && ov.strong.key && sigOv(ov.strong.key, 'ex_', ov.strong.tier)) AB.starStrong = sigOv(ov.strong.key, 'ex_', ov.strong.tier);
+  else if (ov.strong && ov.strong.key) { const k = ov.strong.key; if (k.slice(0, 2) === 'x_' && STAR_POOLS[ov.strong.tier] && STAR_POOLS[ov.strong.tier].strong[k.slice(2)]) AB.starStrong = { key: k.slice(2), tier: ov.strong.tier }; else if (k.slice(0, 2) === 's_' && STRONGS[k.slice(2)]) { AB.starStrong = null; AB.strong = k.slice(2); AB.strongName = AB.strong === 'spikes' ? espikeName(AB.el) : `${E.name} ${STRONGS[AB.strong].name}`; AB.strongDesc = AB.strong === 'spikes' ? espikeDesc(AB.el) : STRONGS[AB.strong].desc; } }
+  if (ov.ult && ov.ult.key && sigOv(ov.ult.key, 'ey_', ov.ult.tier)) AB.starUlt = sigOv(ov.ult.key, 'ey_', ov.ult.tier);
+  else if (ov.ult && ov.ult.key) { const k = ov.ult.key; if (k.slice(0, 2) === 'y_' && STAR_POOLS[ov.ult.tier] && STAR_POOLS[ov.ult.tier].ult[k.slice(2)]) AB.starUlt = { key: k.slice(2), tier: ov.ult.tier }; else if (k.slice(0, 2) === 'u_' && SPECIALS[k.slice(2)]) { AB.starUlt = null; AB.special = k.slice(2); AB.specialName = SPECIALS[AB.special].name; AB.specialDesc = SPECIALS[AB.special].desc; } }
   return AB;
 }

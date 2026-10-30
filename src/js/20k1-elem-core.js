@@ -212,7 +212,7 @@ function elemLock(mv, p) {
 /* the ability an elemental move is in a pet's kit (like innateAbility / cardAbility) */
 function elemAbility(mv, slot, p) {
   const grow = 1 + 0.05 * (((p && p.stage) || 1) - 1), stars = p ? petStars(p) : 3, sm = mv.slot === 'ult' ? (stars >= 6 ? 1.5 : 1.25) : (stars >= 6 ? 1.5 : stars >= 5 ? 1.25 : stars >= 4 ? 1.1 : 1);
-  return { slot: slot || mv.slot, own: true, elem: true, id: elemId(mv.el, mv.key), key: (mv.slot === 'ult' ? 'ey_' : 'ex_') + mv.key, name: mv.name, glyph: mv.glyph, el: ELEM_AB[mv.el], e8: mv.el, mult: grow * sm, cost: mv.cost, cd: mv.cd, desc: mv.desc, lv: mv.lv, star: stars };
+  return { slot: slot || mv.slot, own: true, elem: true, id: elemId(mv.el, mv.key), key: (mv.slot === 'ult' ? 'ey_' : 'ex_') + mv.key, name: mv.name, glyph: mv.glyph, el: ELEM_AB[mv.el], e8: mv.el, mult: grow * sm, cost: mv.cost, cd: mv.cd, desc: mv.desc, lv: mv.lv, star: stars, evo: (p && p.stage) || 1 };
 }
 const elemMovesFor = (p, slot) => Object.values(ELEM_LIST[petElement(p)] || {}).filter(m => m.slot === slot);
 
@@ -301,7 +301,7 @@ const DunElem = (() => {
       const I = ELEM_IMPL[C.e8] && ELEM_IMPL[C.e8][kind] && ELEM_IMPL[C.e8][kind][key];
       if (!I) { X.text(me.x, me.y - 1.2, 'This move is still being forged', '#CFE2FF', 12); return false; }
       const E = ELEMENTS[C.el] || E8[C.e8], col = E.color, core = E.core || '#FFFFFF';
-      I(Object.assign({ col, core, dark: E.dark, K: C.up ? 1.25 : 1, dmgO: extra => Object.assign({ el: C.el, src: kind }, extra || {}) }, C), H);
+      I(Object.assign({ col, core, dark: E.dark, K: C.up ? 1.25 : 1, evo: C.evo || 1, dmgO: extra => Object.assign({ el: C.el, src: kind }, extra || {}) }, C), H);
       return true;
     }
     const strong = (key, C) => run('strong', key, C), ult = (key, C) => run('ult', key, C);

@@ -2,7 +2,7 @@
 // usage: node tests/elem-moves.js            (every element that has an implementation)
 //        HTML=test-wind.html (a build made with: python3 src/build.py --test-only test-wind.html)
 //        ELEM=earth,wind node tests/elem-moves.js      ONLY=faultline,rosary       SHOTS=1 (a screenshot each into shots/)
-//        SHOT_MS=900 (when to take the screenshot after the cast)
+//        SHOT_MS=900 (when to take the screenshot after the cast)   EVO=7 (cast as an evolved pet: 1 Hatchling .. 7 Celestial)
 const { chromium } = require('/opt/npm-tools/node_modules/playwright');
 const path = require('path');
 (async () => {
@@ -39,19 +39,19 @@ const path = require('path');
   const fire = async (el, slot, key, star) => {
     if (ONLY && !ONLY.includes(key)) return;
     const before = errors.length;
-    const r = await page.evaluate(([el, slot, key, star]) => {
+    const r = await page.evaluate(([el, slot, key, star, evo]) => {
       const P = window.__pp, D = P.arc.game._dbg, me = D.me, mv = P.ELEM_LIST[el][(slot === 'ult' ? 'ey_' : 'ex_') + key];
       // a ring of sturdy monsters round the pet, plus one in front
       let i = 0; for (const m of D.mons) { if (m.boss || m.dead) continue; m.hp = 1e7; m.maxhp = 1e7; if (i < 6) { let ok = false; for (let k = 0; k < 24 && !ok; k++) { const aa = i + k * 0.7, rr = 1.6 + (i % 3) * 0.7 + k * 0.1, x = me.x + Math.cos(aa) * rr, y = me.y + Math.sin(aa) * rr; const W = (px, py) => D.walkAt(Math.floor(px), Math.floor(py)); if (W(x, y) && W(x + 0.4, y) && W(x - 0.4, y) && W(x, y + 0.4) && W(x, y - 0.4)) { m.x = x; m.y = y; ok = true; } } if (!ok) { m.x = me.x; m.y = me.y; } } else { m.x = me.x + 60; m.y = me.y; m.dead = true; } m.freeze = 0; m.stun = 0; m.falling = null; m.under = false; m.still = false; m.z = 0; m.lifted = false; m.kbx = m.kby = 0; m._tag = i < 6; i++; }
       me.hp = D.ST.hp; me.mp = 999; D.g.cdS = 0; D.g.cdU = 0; D.g.swapCd = 0; me.dead = false; D.g.intro = 0; D.g.bossIntro = 0; me.leap = null; me.dash = null;
-      const ab = Object.assign(P.elemAbility(mv, slot === 'ult' ? 'ult' : 'strong', P.st), { star, mult: 1.2, cost: 0, cd: 0, tier: 1 });
+      const ab = Object.assign(P.elemAbility(mv, slot === 'ult' ? 'ult' : 'strong', P.st), { star, mult: 1.2, cost: 0, cd: 0, tier: 1, evo });
       D.setKit(slot === 'ult' ? 'ult' : 'strong', ab);
       const live = D.mons.filter(m => !m.dead).length, hp0 = D.mons.filter(m => m._tag).reduce((a, m) => a + m.hp, 0), mp0 = me.mp;
       if (slot === 'ult') D.useUlt(); else D.useStrong('strong');
       return { live, hp0, cast: me.mp !== mp0 || me.castT > 0 };
-    }, [el, slot, key, star]);
+    }, [el, slot, key, star, +(process.env.EVO || 1)]);
     await page.waitForTimeout(slot === 'ult' && process.env.SHOT_MS_ULT ? +process.env.SHOT_MS_ULT : +(process.env.SHOT_MS || 700));
-    if (process.env.SHOTS) await page.screenshot({ path: path.resolve(__dirname, `../shots/elem-${el}-${slot}-${key}.png`) });
+    if (process.env.SHOTS) await page.screenshot({ path: path.resolve(__dirname, `../shots/elem-${el}-${slot}-${key}${process.env.EVO ? '-evo' + process.env.EVO : ''}.png`) });
     await page.evaluate(async secs => { const D = window.__pp.arc.game._dbg; const t0 = performance.now(); while (performance.now() - t0 < secs * 1000) { await new Promise(r => requestAnimationFrame(r)); if (D && D.me) { D.me.hp = D.ST.hp; D.me.dead = false; D.me.mp = 999; } } }, slot === 'ult' ? 5.2 : 3.2);
     const after = await page.evaluate(() => { const D = window.__pp.arc.game._dbg; return { hp1: D.mons.filter(m => m._tag).reduce((a, m) => a + m.hp, 0), fx: D.ELEM.fx.length, dead: D.mons.filter(m => m.dead).length, bad: D.mons.filter(m => !m.dead && !(m.hp >= 0)).map(m => m.type + ':' + m.hp), z: D.mons.filter(m => !m.dead && m.z).length, texts: D.texts ? D.texts.map(t => t.s).filter(s => /forged/.test(s)) : [] }; });
     if (after.bad.length) console.log('bad hp', after.bad);
