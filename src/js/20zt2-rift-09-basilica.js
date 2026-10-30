@@ -383,7 +383,7 @@ const BAS = { BLACK: '#242428', BLACK_HI: '#3A3A42', BLACK_D: '#141416', OCHRE: 
 
   /* ---- props ---- */
   window.PROP_EXT = window.PROP_EXT || {};
-  Object.assign(PROP_EXT, { narrowpillar: [1.6, 4.6], stonebanner: [1.8, 4.2], beaststatue: [2.4, 2.6], eyelidmonolith: [4.2, 4.2], eyepylon: [2.0, 4.8], calcitecairn: [2.0, 2.0], purifybasin: [2.8, 2.0], veilarch: [3.4, 4.0], hornpillar: [2.0, 4.6], petrifiedplant: [2.2, 2.8], eyeshrine: [2.2, 3.2], basaltblock: [2.4, 2.2] });
+  Object.assign(PROP_EXT, { narrowpillar: [1.6, 4.6], stonebanner: [1.8, 4.2], beaststatue: [2.4, 2.6], eyelidmonolith: [4.2, 4.2], eyepylon: [2.0, 4.8], calcitecairn: [2.0, 2.0], purifybasin: [2.8, 2.0], veilarch: [3.4, 4.0], hornpillar: [2.0, 4.6], petrifiedplant: [4.2, 2.8], eyeshrine: [2.2, 3.2], basaltblock: [2.4, 2.2] });
   Object.assign(PROPS, {
     /* a tall narrow square pillar of calcite on a black plinth, an ochre band near the top */
     narrowpillar(c, T, v) { pillarArt(c, 0, 0, T * 0.3, T * 3.8 + (v % 3) * T * 0.2, lw0(T), { band: true, col: v % 4 === 0 ? CALCITE_D : CALCITE }); },

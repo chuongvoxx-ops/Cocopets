@@ -171,7 +171,7 @@ const DunWorld = (() => {
     const key = kind + '|' + T + '|' + k + '|' + (v | 0) + '|' + biome + '|' + (extra || '');
     let s = propCache.get(key);
     if (s) return s;
-    const E = PROP_EXT[kind], P = T * k, w = P * (E ? E[0] : 2.4), h = P * (E ? E[1] : 2.9), cv = mk(w, h), c = cv.getContext('2d');
+    const E = PROP_EXT[kind], P = T * k, w = P * ((E ? E[0] : 2.4) + 1.6), h = P * ((E ? E[1] : 2.9) + 0.6), cv = mk(w, h), c = cv.getContext('2d');
     c.translate(w / 2, h - P * 0.35);
     try { (PROPS[kind] || PROPS.rock)(c, P, v | 0, BIOMES[biome] || BIOMES.halls, extra); } catch (e) { console.error(e); }
     s = { cv, ax: w / 2, ay: h - P * 0.35 };

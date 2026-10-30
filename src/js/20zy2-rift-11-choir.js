@@ -447,7 +447,7 @@ const CHO = { MAROON: '#341C2F', MAROON_HI: '#5C3550', MAROON_D: '#1D0E1A', BONE
     c.strokeStyle = 'rgba(255,240,200,.5)'; c.lineWidth = Math.max(1, lw * 0.6); c.beginPath(); c.moveTo(-T * 0.38, -T * 4.2); c.lineTo(-T * 0.38, -T * 2.1); c.stroke();
     c.strokeStyle = rgba(CORAL_HI, 0.35); c.lineWidth = Math.max(1, lw * 0.6); for (const sd of [-1, 1]) for (let i = 1; i <= 2; i++) { c.beginPath(); c.arc(sd * T * 0.33, -T * 3.6, T * 0.25 * i + T * 0.2, sd > 0 ? -0.6 : Math.PI - 0.6, sd > 0 ? 0.6 : Math.PI + 0.6); c.stroke(); } }
   window.PROP_EXT = window.PROP_EXT || {};
-  Object.assign(PROP_EXT, { pipecolumn: [4.0, 8.8], pipearch: [6.4, 6.2], pipespiral: [5.2, 7.4], bonehorn: [4.6, 4.6], greathorn: [6.6, 6.6], drumstack: [3.2, 3.0], bellows: [4.4, 2.8], gaugepost: [2.4, 3.6], conduit: [3.6, 1.6], bellframe: [3.0, 5.0], tuningfork: [2.2, 5.0] });
+  Object.assign(PROP_EXT, { pipecolumn: [4.0, 8.8], pipearch: [6.4, 6.2], pipespiral: [5.2, 7.4], bonehorn: [7.0, 4.6], greathorn: [10.6, 6.6], drumstack: [3.2, 3.0], bellows: [4.4, 2.8], gaugepost: [2.4, 3.6], conduit: [3.6, 1.6], bellframe: [3.0, 5.0], tuningfork: [2.2, 5.0] });
   Object.assign(PROPS, { pipecolumn, pipearch, pipespiral, bonehorn, greathorn, drumstack, bellows, gaugepost, conduit, bellframe, tuningfork });
 
   /* ---- the lands themselves ---- */
