@@ -260,7 +260,7 @@
       else if (a === 'spores') { for (let i = 0; i < (hard ? 4 : 3); i++) rings.push({ kind: 'spore', x: LX0 + 1 + Math.random() * (LX1 - LX0 - 2), y: ty + (Math.random() - 0.5) * 2, r: 1.05, t: -i * 0.18, warn: 1.3, fx: e.x + (i - 1) * 0.8, fy: e.y - 3.2 }); X.sfx.whoosh(); }
       else { const sq = spawn({ k: 'crowd', x: Math.max(LX0 + 1.5, Math.min(LX1 - 1.5, e.x + (Math.random() - 0.5) * 3)), n: 8 + Math.round((1 - e.hp / e.hp0) * 16) }, e.y + 1.6); sq.squad = true; X.text(sq.x, sq.y - 1.4, 'A thornling squad!', BAD, 14); X.sfx.stomp(); }
       e.atkT = hard ? 2.2 : 2.8; }
-    function fire(x, y, dmg, pet) { const fan = S.spread ? [-0.17, 0, 0.17] : [0]; for (const a of fan) { if (bolts.length > 280) bolts.shift(); bolts.push({ x, y, vx: Math.sin(a) * 16, vy: -Math.cos(a) * 16, dmg, life: 0.6, bow: S.bow, pet }); } }
+    function fire(x, y, dmg, pet, base) { const fan = S.spread ? [-0.17, 0, 0.17] : [0]; for (const a of fan) { if (bolts.length > 280) bolts.shift(); bolts.push({ x, y, vx: Math.sin(a) * 16, vy: -Math.cos(a) * 16, dmg, base: base == null ? dmg : base, life: 0.6, bow: S.bow, pet }); } }
     // what a bolt at (x, y) strikes
     function hitTest(x, y) { for (const e of E) { if (e.gone || e.dead) continue;
         if (e.k === 'block' && Math.abs(x - e.x) < 1.0 && y < e.y + 0.1 && y > e.y - 1.3) return e;
@@ -269,7 +269,7 @@
         if (e.k === 'boss' && !e.enter && Math.abs(x - e.x) < 2.0 && y < e.y + 0.4 && y > e.y - 3) return e; } return null; }
     function damage(e, b) { e.hitT = 0.1;
       if (e.k === 'block') { e.hp -= b.dmg; if (Math.random() < 0.4) X.sparks(b.x, e.y - 0.3, GOLD, 3, 3); if (e.hp <= 0) breakBlock(e, true); }
-      else if (e.k === 'crowd') { e.hp -= b.dmg; e.n = Math.max(0, Math.ceil(e.hp / TOUGH)); X.sparks(b.x, b.y, '#B98BE0', 3, 3); if (S.popT < 14) { S.popT++; X.part({ kind: 'confetti', x: b.x, y: b.y, vx: (Math.random() - 0.5) * 4, vy: -3, g: 9, life: 0.5, max: 0.5, size: 3, rot: 0, vr: 9, color: '#7A4C9E' }); } if (e.n <= 0) killCrowd(e, 'SCATTERED!'); }
+      else if (e.k === 'crowd') { e.hp -= b.base != null ? b.base : b.dmg;   /* (crowds are fought number against number: the army's full volley is for blocks and the Colossus) */ e.n = Math.max(0, Math.ceil(e.hp / TOUGH)); X.sparks(b.x, b.y, '#B98BE0', 3, 3); if (S.popT < 14) { S.popT++; X.part({ kind: 'confetti', x: b.x, y: b.y, vx: (Math.random() - 0.5) * 4, vy: -3, g: 9, life: 0.5, max: 0.5, size: 3, rot: 0, vr: 9, color: '#7A4C9E' }); } if (e.n <= 0) killCrowd(e, 'SCATTERED!'); }
       else if (e.k === 'boulder') { e.hp -= b.dmg; X.sparks(b.x, b.y, '#8FB89A', 3, 3); if (e.hp <= 0) { X.boom(e.x, e.y - 0.4, 1.2, '#8FB89A', '#FFFFFF', { n: 14, shake: 5 }); for (let i = 0; i < 8; i++) { const a = Math.random() * TAU; X.part({ kind: 'confetti', x: e.x, y: e.y - 0.4, vx: Math.cos(a) * 5, vy: Math.sin(a) * 5 - 2, g: 10, life: 0.7, max: 0.7, size: 5, rot: a, vr: 8, color: Math.random() < 0.5 ? JADE : '#2F5F4E' }); } X.text(e.x, e.y - 1.2, 'SMASHED!', CREAM, 15); X.sfx.crack(); remove(e); } }
       else if (e.k === 'boss') { e.hp -= b.dmg; if (Math.random() < 0.25) X.sparks(b.x, b.y, CREAM, 3, 3); if (e.hp <= 0 && !e.dead) bossDown(); } }
     X.after(1.2, () => { X.banner('THE SEEDLING MARCH', 'Steer left and right · green gates grow your army · your seedlings shoot by themselves', MINT, 3.6, true, true); X.sfx.chirp(); S.mode = 'ready'; S.wait = 2.6; });
@@ -298,7 +298,14 @@
         if (e.contact && S.mode === 'run') { e.hackT -= dt; while (e.hackT <= 0 && S.n > 0 && e.hp > 0) { e.hackT += 0.07; const k = Math.max(1, Math.ceil(S.n / 30)); loseFront(k, e.x, e.y - 0.2); e.hp -= k * 12; float('boss', e.x + (Math.random() - 0.5) * 2, e.y - 3.6, -k * 12, GOLD); X.sparks(e.x + (Math.random() - 0.5) * 2.4, e.y - 0.4, CREAM, 4, 4); if (Math.random() < 0.3) X.sfx.pop(); } if (e.hp <= 0) { bossDown(); return; } }
         if (!e.enter && S.mode === 'run') { e.atkT -= dt; if (e.atkT <= 0) bossAct(e); e.recruitT -= dt; if (e.recruitT <= 0 && e.gap > 5.2) { e.recruitT = S.n < 15 ? 3.6 : 6; const gq = spawn({ k: 'gate', L: S.n ? (Math.random() < 0.5 ? ['x', 2] : ['-', 10]) : ['+', 15], R: S.n ? ['+', 12] : ['+', 6] }, e.y + 1.4); if (Math.random() < 0.5) { const t2 = gq.L; gq.L = gq.R; gq.R = t2; } } } },
     };
-    const mod = { S, sol, bolts, rings, get E() { return E; }, get B() { return B; }, course: M_COURSE, Y0, loseHeart, restart, sync,
+    /* the SUPER SHOT: the march's one button. A great glowing seed comet flies up the lane, piercing everything it
+       passes once; its blow grows with the army (60 + 4 a seedling); then an 8 s cooldown */
+    const SUPER_CD = 8, supers = [];
+    function superShot() { if (S.mode !== 'run' || S.phase === 'exit' || (S.superCd || 0) > 0) return false; S.superCd = SUPER_CD;
+      supers.push({ x: me.x, y: me.y - 0.6, t: 0, hit: new Set(), dmg: 60 + 4 * S.n }); X.shake(5, 0.15); X.flash && X.flash(0.08, MINT); X.sfx.whoosh && X.sfx.whoosh(); X.ring(me.x, me.y, 0.3, 1.6, 0.3, MINT, 0.5); return true; }
+    const mod = { S, sol, bolts, rings,
+      hud() { return S.mode === 'run' || S.mode === 'ready' ? { label: 'SUPER SHOT', cd: Math.max(0, S.superCd || 0), max: SUPER_CD, col: MINT } : null; },
+      act: superShot, get E() { return E; }, get B() { return B; }, course: M_COURSE, Y0, loseHeart, restart, sync,
       // (for the tests: put the army at a distance up the lane, the course behind it cleared)
       warp(d) { clearLane(); place(d); S.phase = 'course'; S.mode = 'run'; S.tread = 0; },
       setN(n) { S.n = n; S.alone = n <= 0; sync(); },
@@ -338,10 +345,14 @@
           if (c0.n <= 0) { S.clash = null; killCrowd(c0, 'CRUSHED!'); } else if (S.n <= 0) { S.clash = null; loseHeart('Overrun!'); killCrowd(c0, ''); } }
         // the volleys: more seedlings, more bolts
         if (S.mode === 'run' && S.phase !== 'exit') { const iv = S.bow ? 0.28 : 0.4, dk = S.bow ? 2 : 1, sh = S.n ? Math.min(16, 2 + Math.floor(Math.sqrt(S.n) * 1.1)) : 0;
-          S.fireAcc = (S.fireAcc || 0) + dt * sh / iv; while (S.fireAcc >= 1 && sol.length) { S.fireAcc -= 1; const [x, y] = wpos(sol[Math.floor(Math.random() * sol.length)]); fire(x, y - 0.4, 0.5 * dk); }
+          S.fireAcc = (S.fireAcc || 0) + dt * sh / iv; const per = 0.5 * dk * Math.max(1, S.n / Math.max(1, sh));   /* (the army's whole volley: every seedling's 0.5, the drawn bolts capped and each carrying its share) */ while (S.fireAcc >= 1 && sol.length) { S.fireAcc -= 1; const [x, y] = wpos(sol[Math.floor(Math.random() * sol.length)]); fire(x, y - 0.4, per, false, 0.5 * dk); }
           S.fireT -= dt; if (S.fireT <= 0) { S.fireT = iv; S.vol++; fire(me.x, me.y - 0.8, (S.n ? 1.5 : 5) * dk, true); if (S.vol % 3 === 0) X.sfx.blip && X.sfx.blip(); } }
         for (const b of bolts) { if (b.life <= 0) continue; b.life -= dt; b.x += b.vx * dt; b.y += b.vy * dt; if (b.x < LX0 || b.x > LX1) b.life = 0; if (b.life <= 0) continue; const e = hitTest(b.x, b.y); if (e) { damage(e, b); b.life = 0; } }
         for (let i = bolts.length - 1; i >= 0; i--) if (bolts[i].life <= 0) bolts.splice(i, 1);
+        if (S.superCd > 0) S.superCd = Math.max(0, S.superCd - dt);
+        for (let i = supers.length - 1; i >= 0; i--) { const q = supers[i]; q.t += dt; q.y -= 13 * dt; q.x += (me.x - q.x) * 0; if (Math.random() < 0.9) X.part({ kind: 'ember', x: q.x + (Math.random() - 0.5) * 0.6, y: q.y + 0.3, vx: (Math.random() - 0.5) * 2, vy: 2, g: 0, life: 0.5, max: 0.5, size: 4, color: Math.random() < 0.5 ? MINT : GOLD });
+          for (const e of E) { if (e.gone || e.dead || q.hit.has(e)) continue; const near = e.k === 'boss' ? (!e.enter && Math.abs(q.x - e.x) < 2.2 && q.y < e.y + 0.6 && q.y > e.y - 3) : Math.abs(q.x - e.x) < 1.6 && Math.abs(q.y - e.y) < 1.2; if (near) { q.hit.add(e); damage(e, { x: q.x, y: q.y, dmg: q.dmg, bow: true }); X.ring(q.x, q.y, 0.2, 1.4, 0.3, GOLD, 0.5); X.sparks(q.x, q.y, GOLD, 10, 6); X.shake(4, 0.1); } }
+          if (q.t > 2.2) supers.splice(i, 1); }
         // the pet's own taps and powers strike too
         for (const b of (X.shots || [])) { if (b.life <= 0 || b.own === 'enemy') continue; const e = hitTest(b.x, b.y); if (e) { damage(e, { x: b.x, y: b.y, dmg: 3, bow: false }); b.life = 0; } }
         // the Colossus's rings: a warning, then roots burst or a spore lands
@@ -360,6 +371,7 @@
           else if (r.kind === 'roots') { const k = Math.sin(Math.min(1, (r.t - r.warn) / 0.5) * Math.PI); for (let j = 0; j < 9; j++) { const a = j * 2.4 + r.x, d = R * 0.75 * Math.sqrt((j + 0.5) / 9), px = Xs + Math.cos(a) * d, py = Ys + Math.sin(a) * d * 0.8, hh = T * (0.7 + (j % 3) * 0.25) * k; c.fillStyle = '#5A3570'; c.strokeStyle = INK; c.lineWidth = 1.5; c.beginPath(); c.moveTo(px - T * 0.14, py); c.quadraticCurveTo(px - T * 0.05, py - hh * 0.5, px + T * 0.02, py - hh); c.lineTo(px + T * 0.14, py); c.closePath(); c.fill(); c.stroke(); c.fillStyle = CREAM; c.beginPath(); c.arc(px + T * 0.02, py - hh, T * 0.04, 0, TAU); c.fill(); } } }
         // the bolts
         c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round';
+        for (const q of supers) { const Xs = X.sx(q.x), Ys = X.sy(q.y) - T * 0.4, r = T * 0.55; c.globalAlpha = 1; blitSized(c, glowSprite(MINT), Xs - r * 3, Ys - r * 3, r * 6, r * 6); c.strokeStyle = 'rgba(120,255,200,.55)'; c.lineWidth = r * 1.2; c.beginPath(); c.moveTo(Xs, Ys); c.lineTo(Xs, Ys + T * 2.2); c.stroke(); c.strokeStyle = 'rgba(255,240,170,.8)'; c.lineWidth = r * 0.5; c.stroke(); c.fillStyle = '#FFFBEA'; c.beginPath(); c.arc(Xs, Ys, r * 0.55, 0, 6.283); c.fill(); }
         for (const b of bolts) { const Xs = X.sx(b.x), Ys = X.sy(b.y) - T * 0.35, l = T * (b.pet ? 0.7 : b.bow ? 0.5 : 0.36), w = b.pet ? 1.5 : 1; c.strokeStyle = b.bow ? 'rgba(255,190,70,.6)' : 'rgba(80,235,175,.55)'; c.lineWidth = T * 0.15 * w; c.beginPath(); c.moveTo(Xs, Ys); c.lineTo(Xs - b.vx / 16 * l, Ys - b.vy / 16 * l); c.stroke(); c.strokeStyle = b.bow ? '#FFF1C0' : '#E6FFF4'; c.lineWidth = T * 0.05 * w; c.stroke(); c.fillStyle = b.bow ? GOLD : MINT; c.beginPath(); c.arc(Xs, Ys, T * (b.bow ? 0.1 : 0.08) * w, 0, TAU); c.fill(); }
         c.restore(); },
       drawOver(c) { const T = X.Tz(), Hh = X.H(), W = X.W(), t = S.t;

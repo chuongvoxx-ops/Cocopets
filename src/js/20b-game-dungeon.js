@@ -1942,6 +1942,7 @@ GAMES.dungeon = {
         const X = sx(z.x), Y = sy(z.y), u = z.max ? clamp(1 - z.life / z.max, 0, 1) : 0;
         if (z.kind === 'warn') {
           if (enemyPass) continue;   // every warning is painted on the ground, under the pets and monsters, and kept faint
+          if (z.own === 'pet') continue;   // (the pet's own attacks show no target marker: warnings are for dodging, and nobody dodges their own blow)
           const col = z.color || '#FF4D6D', pulse = 0.25 + 0.2 * Math.sin(g.t * 20);
           c.save(); c.globalAlpha = z.own === 'enemy' ? 0.4 : 0.6;
           if (z.shape === 'line') { c.translate(X, Y); c.rotate(z.a); c.fillStyle = hexA(col, 0.14 + u * 0.22); c.fillRect(0, -z.w * T / 2, z.len * T, z.w * T); c.strokeStyle = hexA(col, 0.6 + pulse); c.lineWidth = 2; c.setLineDash([8, 6]); c.strokeRect(0, -z.w * T / 2, z.len * T, z.w * T); c.setLineDash([]); c.fillStyle = hexA(col, 0.38); c.fillRect(0, -z.w * T / 2, z.len * T * u, z.w * T); for (let i = 1; i < 4; i++) { const ax = ((i / 4 + g.t * 0.8) % 1) * z.len * T; c.fillStyle = hexA('#FFFFFF', 0.35); c.beginPath(); c.moveTo(ax + 6, 0); c.lineTo(ax - 4, -z.w * T * 0.25); c.lineTo(ax - 4, z.w * T * 0.25); c.fill(); } }
@@ -2301,7 +2302,14 @@ GAMES.dungeon = {
       }
       if (g.combo >= 3) { const s = 1 + Math.max(0, g.comboT - 2.3) * 1.2; c.save(); c.translate(W - 16, H * 0.36); c.scale(s, s); GFX.text(c, `${g.combo}`, 0, 0, 30, '#FF9BD2', 'right'); GFX.textS(c, 'COMBO', 0, 22, 12, '#FFFFFF', 'right'); c.restore(); }
       if (HPF) HPF('hud:boss');
-      // buttons: Ult, Strong and Dodge
+      // buttons: Ult, Strong and Dodge (a rift stage may ask for its own single button instead: the Seedling March's Super Shot)
+      const RH = RIFT && RIFT.hud ? RIFT.hud() : null;
+      if (RH) { const b = btnU(), ready = RH.cd <= 0.01; c.save(); if (ready) { c.globalCompositeOperation = 'lighter'; blitC(c, glowPic(glowSprite, RH.col, b.r * 2.1), b.x, b.y); c.globalCompositeOperation = 'source-over'; }
+        c.beginPath(); c.arc(b.x, b.y, b.r, 0, 6.283); c.fillStyle = ready ? RH.col : 'rgba(30,24,56,.85)'; c.fill(); c.lineWidth = 3; c.strokeStyle = 'rgba(255,255,255,.85)'; c.stroke();
+        c.fillStyle = ready ? '#1E3A2E' : 'rgba(255,255,255,.6)'; c.beginPath(); for (let i = 0; i < 10; i++) { const a2 = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? b.r * 0.22 : b.r * 0.5; c.lineTo(b.x + Math.cos(a2) * rr, b.y + Math.sin(a2) * rr); } c.closePath(); c.fill();
+        if (!ready) { c.beginPath(); c.moveTo(b.x, b.y); c.arc(b.x, b.y, b.r, -Math.PI / 2, -Math.PI / 2 + 6.283 * RH.cd / RH.max); c.closePath(); c.fillStyle = 'rgba(0,0,0,.5)'; c.fill(); GFX.textS(c, RH.cd.toFixed(1), b.x, b.y, 14, '#FFFFFF'); }
+        GFX.labelS(c, RH.label, b.x, b.y + b.r + 9, 9, 800, '#CFFFE8', 'rgba(0,0,0,.7)', 3); c.restore(); }
+      else {
       const sB = btnS(), uB = btnU(), dB = btnD();
       const drawBtn = (b, ab, cd, cdMax, ready, isUlt, num) => {
         const E = EL(ab.el), can = me.mp >= ab.cost;
@@ -2322,7 +2330,8 @@ GAMES.dungeon = {
       else { const nx = SSL.length > 1 ? W - 218 : W - 128, ny = SSL.length > 1 ? HB() - 10 : HB() - 96, E = EL(KIT.normal.el), ready = g.normalT <= 0.01; c.globalAlpha = 0.9;
         blitC(c, hudPic(`tapBtn|${KIT.normal.glyph}|${E.color}|${ready}`, 34, 34, (x, w, h) => { const cx = w / 2, cy = h / 2; x.beginPath(); x.arc(cx, cy, 13, 0, 6.283); x.fillStyle = ready ? hexA(E.color, 0.75) : 'rgba(30,24,56,.85)'; x.fill(); x.lineWidth = 2; x.strokeStyle = ready ? '#FFFFFF' : E.color; x.stroke(); drawGlyph(x, KIT.normal.glyph, cx, cy, 15, 0.9); }), nx, ny);
         GFX.labelS(c, touchUI ? 'TAP' : 'SPACE', nx, ny + 20, 7, 800, '#FFFFFF', null, 0); c.globalAlpha = 1; }
-      if (HPF) HPF('hud:btns'); if (AN && PI.anima) AN.drawBtn(c); if (HPF) HPF('hud:anima');
+      }
+      if (HPF) HPF('hud:btns'); if (AN && PI.anima && !RH) AN.drawBtn(c); if (HPF) HPF('hud:anima');
       // the move stick, resting faintly on the left until a thumb picks it up
       if (touchUI && !me.dead && !g.won) {
         const on = stick.id != null, hm = stickHome(), bx = on ? stick.ox : hm.x, by = on ? stick.oy : hm.y, E = EL(KIT.normal.el);
@@ -2551,13 +2560,15 @@ GAMES.dungeon = {
       start() { g.intro = 2.4; api.sfx.hum(); },
       down(x, y, id) {
         if (AN && AN.S.cine) return;
-        if (AN && PI.anima && AN.onBtn(x, y)) return;
+        const RHd = RIFT && RIFT.hud ? RIFT.hud() : null;   // (a rift stage with its own single button: only that, and the stick)
+        if (RHd && onBtn(btnU(), x, y)) { RIFT.act(); return; }
+        if (!RHd && AN && PI.anima && AN.onBtn(x, y)) return;
         if (teamOk()) { const tb = btnTeam(); if (hyp(x - tb.x, y - tb.y) < tb.r + 8) { openRunTeam(); return; } }
         if (RIFT && RIFT.tap(x, y)) return;   // (a rift stage that takes the whole screen's taps: the Sandstorm Flight)
-        if (party.length > 1) { if (x < 60 && y < 62) { switchNext(); return; } const b = btnSw(); if (hyp(x - b.x, y - b.y) < b.r + 8) { switchNext(); return; } if (y > 56 && y < 84 && x > 50 && x < 60 + party.length * 48) { const k = Math.floor((x - 52) / 48); let idx = -1, seen = 0; for (let i = 0; i < party.length; i++) { if (i === cur) continue; if (seen === k) { idx = i; break; } seen++; } if (idx >= 0) { if (!switchTo(idx)) text(me.x, me.y - 1.2, party[idx].down ? 'Knocked out' : 'Not yet', '#CFE2FF', 12); return; } } }
-        if (onBtn(btnU(), x, y)) { useUlt(); return; }
-        for (const b of btnSs()) if (hyp(x - b.x, y - b.y) < b.r + 6) { useStrong(b.k); return; }
-        if (onBtn(btnD(), x, y)) { dodge(); return; }
+        if (!RHd && party.length > 1) { if (x < 60 && y < 62) { switchNext(); return; } const b = btnSw(); if (hyp(x - b.x, y - b.y) < b.r + 8) { switchNext(); return; } if (y > 56 && y < 84 && x > 50 && x < 60 + party.length * 48) { const k = Math.floor((x - 52) / 48); let idx = -1, seen = 0; for (let i = 0; i < party.length; i++) { if (i === cur) continue; if (seen === k) { idx = i; break; } seen++; } if (idx >= 0) { if (!switchTo(idx)) text(me.x, me.y - 1.2, party[idx].down ? 'Knocked out' : 'Not yet', '#CFE2FF', 12); return; } } }
+        if (!RHd) if (onBtn(btnU(), x, y)) { useUlt(); return; }
+        if (!RHd) for (const b of btnSs()) if (hyp(x - b.x, y - b.y) < b.r + 6) { useStrong(b.k); return; }
+        if (!RHd) if (onBtn(btnD(), x, y)) { dodge(); return; }
         // the left half picks up the move stick, unless the thumb lands right on a monster
         // (a stick already held when a new thumb lands in its zone is a stick whose up was lost: the new thumb takes it)
         if (inStickZone(x, y) && !me.dead) {
@@ -2573,7 +2584,7 @@ GAMES.dungeon = {
       up(x, y, id) {
         if (id === stick.id) { const quick = x >= 0 && stick.far < 12 && g.t - stick.t0 < 0.35, ox = stick.ox, oy = stick.oy; stick.id = null; if (quick) tapAt(ox, oy); return; }   // a quick tap there still attacks
         holds.delete(id); },
-      key(kk, on) { if (!on) return; if (RIFT && (kk === 'tap' || kk === 'up' || kk === 'jump') && RIFT.tap(0, 0)) return; if (kk === 'swap') { switchNext(); return; } if (kk === 'ab2') useUlt(); else if (kk === 'dodge') dodge(); else if (kk === 'ab1' || kk === 'jump' || kk === 'drop') useStrong('strong'); else if (kk === 'ab3') useStrong('strong2'); else if (kk === 'ab4') useStrong('strong3'); else if (kk === 'ab5') { if (AN) AN.summon(); } else if (kk === 'tap') { g.tapAim = Object.assign(aim(), { key: true }); g.tapBuf = 0.3; if (tryFire(g.tapAim)) g.tapBuf = 0; } g.movedOnce = true; },
+      key(kk, on) { if (!on) return; if (RIFT && (kk === 'tap' || kk === 'up' || kk === 'jump') && RIFT.tap(0, 0)) return; if (RIFT && RIFT.hud && RIFT.hud()) { if (kk === 'ab2' || kk === 'ab1') RIFT.act(); if (kk !== 'tap') return; } if (kk === 'swap') { switchNext(); return; } if (kk === 'ab2') useUlt(); else if (kk === 'dodge') dodge(); else if (kk === 'ab1' || kk === 'jump' || kk === 'drop') useStrong('strong'); else if (kk === 'ab3') useStrong('strong2'); else if (kk === 'ab4') useStrong('strong3'); else if (kk === 'ab5') { if (AN) AN.summon(); } else if (kk === 'tap') { g.tapAim = Object.assign(aim(), { key: true }); g.tapBuf = 0.3; if (tryFire(g.tapAim)) g.tapBuf = 0; } g.movedOnce = true; },
       update, draw,
       idle(dt) { update(dt * 0.5); },
     };

@@ -50,10 +50,13 @@ let fails = 0; const ok = (c, s) => { console.log((c ? 'ok   ' : 'FAIL ') + s); 
   // the Milkcap Colossus: shoot its number down, hack at it, dodge its rings; it falls and the way opens
   await D(() => { const m = window.__pp.arc.game._dbg.RIFT.self.mod; m.warp(176); m.setN(150); m.S.bow = m.S.spread = true; });
   r = await drive(null, "S.phase === 'boss' && m.B && !m.B.enter", 12); const hp0 = await D(() => window.__pp.arc.game._dbg.RIFT.self.mod.B.hp);
+  { const sh = await D(() => { const D0 = window.__pp.arc.game._dbg, m = D0.RIFT.self.mod, hud = D0.RIFT.hud(), h0 = m.B.hp; m.S.superCd = 0; const fired = D0.RIFT.act(), again = D0.RIFT.act(); return { hud, h0, fired, again, cd: m.S.superCd, n: m.S.n }; });
+    await run(1.4); const h1 = await D(() => window.__pp.arc.game._dbg.RIFT.self.mod.B.hp);
+    ok(sh.hud && sh.hud.label === 'SUPER SHOT' && sh.fired && !sh.again && sh.cd > 7 && sh.h0 - h1 >= 60 + 4 * Math.min(sh.n, 150) - 1, 'the one button is the Super Shot: it pierces up the lane for 60 + 4 a seedling, then cools down 8 s', { hud: sh.hud, fired: sh.fired, again: sh.again, hit: Math.round(sh.h0 - h1), n: sh.n }); }
   await run(0.8); await shot('march-boss');
   r = await page.evaluate(async () => { const D = window.__pp.arc.game._dbg, m = D.RIFT.self.mod; const t0 = performance.now(); let contact = false, rings = 0, low = 1e9; while (performance.now() - t0 < 90000 && !D.RIFT.done) { await new Promise(r => requestAnimationFrame(r)); D.me.hp = D.ST.hp; const B = m.B; if (B && B.contact) contact = true; if (B) low = Math.min(low, B.hp); rings = Math.max(rings, m.rings.length);
       const rg = m.rings.find(q => !q.hit && q.kind === 'roots'), want = rg ? (rg.x < 8 ? Math.min(11.5, rg.x + 3.6) : Math.max(4.5, rg.x - 3.6)) : 8; D.me.x += Math.max(-0.15, Math.min(0.15, want - D.me.x)); } return { done: D.RIFT.done, contact, rings, exit: D.RIFT.exit && D.RIFT.exit.label, n: m.S.n }; });
-  console.log('  boss', JSON.stringify(r)); ok(r.done && r.rings > 0 && r.exit === 'The Garden\'s heart', `the Colossus (${Math.round(hp0)}) is shot (and hacked, if the army reaches it) down, its rings dodged: the way to the Garden's heart opens`);
+  console.log('  boss', JSON.stringify(r)); ok(r.done && r.exit === 'The Garden\'s heart', `the Colossus (${Math.round(hp0)}) is shot down by the army's volleys (and hacked, if the army reaches it): the way to the Garden's heart opens`);
   await run(1.2); await shot('march-win');
   r = await S(); ok(r.done, 'the stage is done');
   await exitStage(); r = await rs(); ok(r.prog.garden === 2, 'through the way on: the checkpoint moves to stage 3');

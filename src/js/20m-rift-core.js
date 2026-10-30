@@ -148,7 +148,7 @@ const DunRift = (() => {
     const goal = () => (mod.goal ? mod.goal() : self.goalText) + (self.done ? ' · go on' : '');
     function onBossDeath(m) { return mod.onBossDeath ? mod.onBossDeath(m) : false; }
     function startCine(kind) { self.cine = { kind, t: 0, step: 0 }; }
-    return { self, objs, update, drawGround, drawObj, drawOver, goal, finish, onBossDeath, startCine, hintObj, tap: (x, y) => !!(mod.tap && mod.tap(x, y)), cam: () => (mod.cam ? mod.cam() : null), ents: () => objs.map(o => [o.y + (o.dy || 0), o]), get exit() { return exit; }, get done() { return self.done; } };
+    return { self, objs, update, drawGround, drawObj, drawOver, goal, finish, onBossDeath, startCine, hintObj, tap: (x, y) => !!(mod.tap && mod.tap(x, y)), cam: () => (mod.cam ? mod.cam() : null), hud: () => (mod.hud ? mod.hud() : null), act: () => !!(mod.act && mod.act()), ents: () => objs.map(o => [o.y + (o.dy || 0), o]), get exit() { return exit; }, get done() { return self.done; } };
   }
   return { create };
 })();
