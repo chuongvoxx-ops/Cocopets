@@ -929,3 +929,4 @@ Every new boss painter (rift fiends, Tower bosses, minis that get their own art)
 - v203: Sunflare anchored at its cast point, spins in 3D, pink pulse waves per tick, no hard-edged shaft foot/cut-out.
 - v204: Holy Judgement 20 / 40 at Adept (two fans) / 80 at Celestial (eight groups of ten); same total damage, shorter trails and sparser dust per light as the count grows.
 - v205: Holy Judgement toned down to 20 / 30 at Adept (two fans) / 40 at Celestial (four groups of ten).
+- v206: Ray of Light (replaces Seraphic Refraction): a vertical pink-white beam glides through the monsters; colossal with layered currents at Celestial.
