@@ -171,12 +171,18 @@
           // the pet's cut-out: how much of a slice at height y to keep for a layer centred on the beam, w wide
           const ov = w => 0.85 * (1 - sstep(0.55, 1, Math.abs(pX - X) / (w / 2 + T * 0.45)));
           const keep = (y, o) => 1 - o * (1 - sstep(T * 0.5, T * 1.15, Math.abs(y - pY)));
-          const col = (img, w, al) => { if (!(al > 0.005) || w < 0.5) return; const o = ov(w), y0 = top, y1 = yb;
-            if (o < 0.01 || pY + T * 1.2 < y0 || pY - T * 1.2 > y1) { c.globalAlpha = Math.min(1, al); c.drawImage(img, X - w / 2, y0, w, y1 - y0); return; }
-            const c0 = Math.max(y0, pY - T * 1.2), c1 = Math.min(y1, pY + T * 1.2);
-            if (c0 > y0) { c.globalAlpha = Math.min(1, al); c.drawImage(img, X - w / 2, y0, w, c0 - y0); }
-            const NS = 14, hh = (c1 - c0) / NS; for (let i = 0; i < NS; i++) { const yy = c0 + i * hh; c.globalAlpha = Math.min(1, al * keep(yy + hh / 2, o)); c.drawImage(img, X - w / 2, yy, w, hh); }
-            if (c1 < y1) { c.globalAlpha = Math.min(1, al); c.drawImage(img, X - w / 2, c1, w, y1 - c1); } };
+          // feathered foot: every layer fades out over the last FB px and reaches a little past the contact point
+          const FB = Math.min(T * 1.6, (yb - top) * 0.3), yE = yb + FB * 0.3, fb = y => 1 - sstep(yb - FB, yE, y);
+          const wt = (y, o) => fb(y) * (o > 0.01 ? keep(y, o) : 1);
+          // draw rows y0..y1 of a layer (source rows sy0..sy1 of img): solid where the weight is 1, thin slices where it ramps
+          const strip = (img, x, w, y0, y1, sy0, sy1, al, o) => { if (y1 <= y0) return; const ih = img.height, sc = (sy1 - sy0) / (y1 - y0);
+            const cuts = [[yb - FB, yE]]; if (o > 0.01) cuts.push([pY - T * 1.2, pY + T * 1.2]); cuts.sort((p, q) => p[0] - q[0]);
+            let y = y0; const solid = (a2, b2) => { if (b2 - a2 < 0.5) return; c.globalAlpha = Math.min(1, al); c.drawImage(img, 0, Math.max(0, sy0 + (a2 - y0) * sc), img.width, Math.min(ih, (b2 - a2) * sc), x, a2, w, b2 - a2); };
+            for (const [ca, cb] of cuts) { const A = Math.max(y, ca), Bc = Math.min(y1, cb); if (Bc <= A) continue; solid(y, A);
+              const NS = Math.max(3, Math.ceil((Bc - A) / 3)), hh = (Bc - A) / NS; for (let i = 0; i < NS; i++) { const yy = A + i * hh, k = wt(yy + hh / 2, o); if (k < 0.01) continue; c.globalAlpha = Math.min(1, al * k); c.drawImage(img, 0, Math.max(0, sy0 + (yy - y0) * sc), img.width, Math.max(0.01, hh * sc), x, yy, w, hh); }
+              y = Math.max(y, Bc); }
+            solid(y, y1); };
+          const col = (img, w, al) => { if (!(al > 0.005) || w < 0.5) return; strip(img, X - w / 2, w, top, yE, 0, img.height, al, ov(w)); };
           const pu = f.pu, wk = bw / full;
           col(colSpr(0), bw * (L === 3 ? 1.9 : 1.75), a * 0.5);
           col(colSpr(1), bw, a * (0.72 + 0.1 * pu));
@@ -184,10 +190,9 @@
           col(colSpr(2), Math.max(bw * (L === 3 ? 0.44 : 0.38), thin * 0.8), a * (0.85 + 0.15 * pu));
           // the inner currents: tiles scrolling down, layered at Adept and Celestial
           if (wk > 0.35) { const ca = a * sstep(0.35, 0.8, wk), lay = [[0, 0.7, 2.6, 0.55]]; if (L >= 2) lay.push([1, 0.46, 3.8, 0.5]); if (L >= 3) lay.push([2, 0.92, 1.8, 0.3]);
-            c.save(); c.beginPath(); c.rect(X - bw, top, bw * 2, yb - top); c.clip();
-            for (const [k, wf, spd, al] of lay) { const w = bw * wf, th = w * 2, off = ((t * spd * T) % th + th) % th, img = curSpr(k), o = ov(w);
-              for (let y = top - th + off; y < yb; y += th) { c.globalAlpha = Math.min(1, ca * al * (o > 0.01 ? keep(y + th / 2, o) : 1)); c.drawImage(img, X - w / 2, y, w, th); } }
-            c.restore(); }
+            for (const [k, wf, spd, al] of lay) { const w = bw * wf, th = w * 2, off = ((t * spd * T) % th + th) % th, img = curSpr(k), o = ov(w), ih = img.height;
+              for (let y = top - th + off; y < yE; y += th) { const y0 = Math.max(y, top), y1 = Math.min(y + th, yE); strip(img, X - w / 2, w, y0, y1, (y0 - y) / th * ih, (y1 - y) / th * ih, ca * al, o); } }
+            }
           // fine strands streaming down through the column
           if (wk > 0.3) { const NS = H.n(NST), span = yb - top; for (let i = 0; i < NS; i++) { const sx = (R1(i * 5.3 + 2) * 2 - 1) * 0.8, sp = (5 + 4 * R1(i * 2.9)) * T, sl = T * (1.4 + 1.4 * R1(i * 8.1)), sw = T * (L === 3 && i % 2 ? 0.1 : 0.16), yy = top + ((R1(i * 1.7) * (span + sl) + t * sp) % (span + sl)) - sl / 2;
               const px = X + sx * bw / 2, al = a * sstep(0.3, 0.7, wk) * 0.6 * (1 - sstep(span - sl, span, yy - top)) * (Math.abs(px - pX) < T * 0.9 ? keep(yy, 0.85) : 1); if (al < 0.02) continue;

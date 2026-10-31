@@ -930,3 +930,4 @@ Every new boss painter (rift fiends, Tower bosses, minis that get their own art)
 - v204: Holy Judgement 20 / 40 at Adept (two fans) / 80 at Celestial (eight groups of ten); same total damage, shorter trails and sparser dust per light as the count grows.
 - v205: Holy Judgement toned down to 20 / 30 at Adept (two fans) / 40 at Celestial (four groups of ten).
 - v206: Ray of Light (replaces Seraphic Refraction): a vertical pink-white beam glides through the monsters; colossal with layered currents at Celestial.
+- v207: Ray of Light: every column layer and the inner currents feather out over the last ~1.6 tiles (no hard bottom edge).
