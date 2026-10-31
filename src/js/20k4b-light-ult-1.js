@@ -9,7 +9,7 @@
    Holy Judgement: a pink heart draws itself on the floor where the pet stands (from its point up both sides to the
    cleft), fills with soft light; pearl-white cores in pointed pink glows gather over the pet, launch upward in a fan
    and home down onto the monsters, each bursting in an upright love heart that expands, brightens at its rim and pops
-   into little hearts, stars and dust over a floor ripple. 20 / 40 / 80 lights (Adept: two fans of twenty; Celestial: eight quick groups of ten).
+   into little hearts, stars and dust over a floor ripple. 20 / 30 / 40 lights (Adept: two fans of fifteen; Celestial: four quick groups of ten).
    The thick heart: one cached face (pearl core, candy body, rose rim, deep shading low right, a lit front highlight),
    one cached side silhouette for the thickness band, eight cached moving sheen frames, outline/fill/small-heart/star
    sprites; a heart turning about its vertical axis is its face squashed by |cos| over a stack of side copies offset
@@ -222,14 +222,14 @@
 
   /* ================= 6. Holy Judgement ================= */
   U.holyjudgement = (C, h) => {
-    H = h; const me = H.me, ev = evoOf(C), N = [20, 24, 30, 40, 50, 64, 80][ev - 1], tier = ev >= 7 ? 3 : ev >= 4 ? 2 : 1;
+    H = h; const me = H.me, ev = evoOf(C), N = [20, 23, 26, 30, 33, 36, 40][ev - 1], tier = ev >= 7 ? 3 : ev >= 4 ? 2 : 1;
     const DK = C.base * C.K * (1 + 0.08 * (ev - 1)), DMG = DK * 15 / N, GR = (1.7 + 0.12 * (ev - 1)) * C.K;   // the ground heart's half-width (tiles)
     const gx = me.x, gy = me.y;   // anchored where the pet stood
     H.X.banner('HOLY JUDGEMENT', '', ROSE, 1.4); H.X.sfx.hum();
     const B = bits(), booms = [], S = [], a0 = C.a;
-    const GROUPS = tier === 3 ? 8 : tier === 2 ? 2 : 1, PER = Math.ceil(N / GROUPS), TL = 1.05, TRN = N > 50 ? 9 : N > 30 ? 12 : 16, DENS = 20 / N;   // shorter trails and sparser dust as the count grows
+    const GROUPS = tier === 3 ? 4 : tier === 2 ? 2 : 1, PER = Math.ceil(N / GROUPS), TL = 1.05, TRN = N > 50 ? 9 : N > 30 ? 12 : 16, DENS = 20 / N;   // shorter trails and sparser dust as the count grows
     for (let i = 0; i < N; i++) { const gI = Math.floor(i / PER), j = i % PER, nG = Math.min(PER, N - gI * PER), u = nG > 1 ? j / (nG - 1) * 2 - 1 : 0;
-      const tLaunch = TL + gI * (tier === 3 ? 0.24 : 0.36) + j * (tier === 3 ? 0.03 : 0.04), hi = tier >= 2 && j % 2 ? 0.72 : 1, dur = 1.15 + 0.12 * R1(i * 3.1) + (tier === 3 ? 0.1 : 0);
+      const tLaunch = TL + gI * (tier === 3 ? 0.3 : 0.36) + j * (tier === 3 ? 0.03 : 0.04), hi = tier >= 2 && j % 2 ? 0.72 : 1, dur = 1.15 + 0.12 * R1(i * 3.1) + (tier === 3 ? 0.1 : 0);
       S.push({ i, gI, j, u, tl: tLaunch, dur, hi, gather: 0.35 + i * 0.6 / N, x: gx, y: gy, z: 2.2, tgt: null, lx: 0, ly: 0, done: false, tr: [], sd: i * 5 + 1, ox: (R1(i * 7.7) - 0.5), oy: (R1(i * 2.3) - 0.5) }); }
     const END = Math.max(...S.map(s => s.tl + s.dur)) + 1.0;
     let rr = 0; // round-robin over the monsters
