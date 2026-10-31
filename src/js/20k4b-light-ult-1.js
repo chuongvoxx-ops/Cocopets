@@ -9,7 +9,7 @@
    Holy Judgement: a pink heart draws itself on the floor where the pet stands (from its point up both sides to the
    cleft), fills with soft light; pearl-white cores in pointed pink glows gather over the pet, launch upward in a fan
    and home down onto the monsters, each bursting in an upright love heart that expands, brightens at its rim and pops
-   into little hearts, stars and dust over a floor ripple. 7 / 10 / 20 lights (Celestial: four quick groups of five).
+   into little hearts, stars and dust over a floor ripple. 20 / 40 / 80 lights (Adept: two fans of twenty; Celestial: eight quick groups of ten).
    The thick heart: one cached face (pearl core, candy body, rose rim, deep shading low right, a lit front highlight),
    one cached side silhouette for the thickness band, eight cached moving sheen frames, outline/fill/small-heart/star
    sprites; a heart turning about its vertical axis is its face squashed by |cos| over a stack of side copies offset
@@ -222,14 +222,14 @@
 
   /* ================= 6. Holy Judgement ================= */
   U.holyjudgement = (C, h) => {
-    H = h; const me = H.me, ev = evoOf(C), N = [7, 8, 9, 10, 13, 16, 20][ev - 1], tier = ev >= 7 ? 3 : ev >= 4 ? 2 : 1;
+    H = h; const me = H.me, ev = evoOf(C), N = [20, 24, 30, 40, 50, 64, 80][ev - 1], tier = ev >= 7 ? 3 : ev >= 4 ? 2 : 1;
     const DK = C.base * C.K * (1 + 0.08 * (ev - 1)), DMG = DK * 15 / N, GR = (1.7 + 0.12 * (ev - 1)) * C.K;   // the ground heart's half-width (tiles)
     const gx = me.x, gy = me.y;   // anchored where the pet stood
     H.X.banner('HOLY JUDGEMENT', '', ROSE, 1.4); H.X.sfx.hum();
     const B = bits(), booms = [], S = [], a0 = C.a;
-    const GROUPS = tier === 3 ? 4 : 1, PER = Math.ceil(N / GROUPS), TL = 1.05;
+    const GROUPS = tier === 3 ? 8 : tier === 2 ? 2 : 1, PER = Math.ceil(N / GROUPS), TL = 1.05, TRN = N > 50 ? 9 : N > 30 ? 12 : 16, DENS = 20 / N;   // shorter trails and sparser dust as the count grows
     for (let i = 0; i < N; i++) { const gI = Math.floor(i / PER), j = i % PER, nG = Math.min(PER, N - gI * PER), u = nG > 1 ? j / (nG - 1) * 2 - 1 : 0;
-      const tLaunch = TL + gI * 0.32 + j * (tier === 3 ? 0.03 : 0.05), hi = tier >= 2 && j % 2 ? 0.72 : 1, dur = 1.15 + 0.12 * R1(i * 3.1) + (tier === 3 ? 0.1 : 0);
+      const tLaunch = TL + gI * (tier === 3 ? 0.24 : 0.36) + j * (tier === 3 ? 0.03 : 0.04), hi = tier >= 2 && j % 2 ? 0.72 : 1, dur = 1.15 + 0.12 * R1(i * 3.1) + (tier === 3 ? 0.1 : 0);
       S.push({ i, gI, j, u, tl: tLaunch, dur, hi, gather: 0.35 + i * 0.6 / N, x: gx, y: gy, z: 2.2, tgt: null, lx: 0, ly: 0, done: false, tr: [], sd: i * 5 + 1, ox: (R1(i * 7.7) - 0.5), oy: (R1(i * 2.3) - 0.5) }); }
     const END = Math.max(...S.map(s => s.tl + s.dur)) + 1.0;
     let rr = 0; // round-robin over the monsters
@@ -251,12 +251,12 @@
           if (t < s.tl) { const [x0, y0, z0] = P0(s); s.x = x0; s.y = y0; s.z = z0; continue; }
           if (!s.tgt || s.tgt.dead) { const was = s.tgt; s.tgt = choose(s); if (!s.tgt && !was) { s.lx = gx + Math.cos(a0 + s.u) * 4; s.ly = gy + Math.sin(a0 + s.u) * 4; } }
           if (s.tgt) { const m = s.tgt, k = m.boss ? 0.55 : 0.3; s.lx = m.x + s.ox * m.r * k * 2; s.ly = m.y + s.oy * m.r * k * 2; }
-          const [x, y, z, v] = at(s, t); s.x = x; s.y = y; s.z = z; s.tr.push([x, y, z]); if (s.tr.length > 16) s.tr.shift();
-          if (Math.random() < 0.5 * H.Q()) H.P({ kind: 'spark', x, y: y - z, vx: (Math.random() - 0.5) * 0.6, vy: 0.3, life: 0.35, max: 0.35, size: 1.6, color: Math.random() < 0.5 ? BLUSH : tier === 3 && Math.random() < 0.4 ? LAV : CANDY });
+          const [x, y, z, v] = at(s, t); s.x = x; s.y = y; s.z = z; s.tr.push([x, y, z]); if (s.tr.length > TRN) s.tr.shift();
+          if (Math.random() < 0.5 * DENS * H.Q()) H.P({ kind: 'spark', x, y: y - z, vx: (Math.random() - 0.5) * 0.6, vy: 0.3, life: 0.35, max: 0.35, size: 1.6, color: Math.random() < 0.5 ? BLUSH : tier === 3 && Math.random() < 0.4 ? LAV : CANDY });
           if (v >= 1) { s.done = true; H.hitArea(s.lx, s.ly, 0.85, DMG, C.dmgO());   // one impact: the heart burst (its monster and any pressed against it)
             booms.push({ x: s.lx, y: s.ly, t: 0, sd: s.i }); H.X.light(s.lx, s.ly, 2, 0.25); if (s.i % 3 === 0) H.X.sfx.sparkle && H.X.sfx.sparkle();
-            const nh = H.n(tier === 1 ? 7 : 10); for (let q = 0; q < nh; q++) { const b = q / nh * TAU + R1(s.i + q), sp = 1.6 + Math.random() * 1.6; B.add(s.lx, s.ly, 0.6, { vx: Math.cos(b) * sp, vy: Math.sin(b) * sp * 0.5, vz: 1.2 + Math.random() * 1.8, g: 2.6, drag: 1.5, life: 0.6 + Math.random() * 0.5, s: 0.09 + Math.random() * 0.06, kind: q % (tier >= 2 ? 2 : 3) ? 'h' : 's', col: [CANDY, ROSE, BLUSH, tier === 3 ? LAV : PEARL][q % 4], rot: 0.5 }); }
-            H.burst(s.lx, s.ly - 0.4, 'spark', 8, { v: 4, up: 1.5, g: 5, life: 0.45, size: 2, color: [PEARL, BLUSH, ROSE] }); if (tier >= 2) H.burst(s.lx, s.ly - 0.5, 'star', 4, { v: 3, up: 2, g: 3, life: 0.6, size: 3, color: [PEARL, BLUSH] }); } }
+            const nh = H.n(Math.max(3, Math.round((tier === 1 ? 7 : 10) * Math.sqrt(DENS)))); for (let q = 0; q < nh; q++) { const b = q / nh * TAU + R1(s.i + q), sp = 1.6 + Math.random() * 1.6; B.add(s.lx, s.ly, 0.6, { vx: Math.cos(b) * sp, vy: Math.sin(b) * sp * 0.5, vz: 1.2 + Math.random() * 1.8, g: 2.6, drag: 1.5, life: 0.6 + Math.random() * 0.5, s: 0.09 + Math.random() * 0.06, kind: q % (tier >= 2 ? 2 : 3) ? 'h' : 's', col: [CANDY, ROSE, BLUSH, tier === 3 ? LAV : PEARL][q % 4], rot: 0.5 }); }
+            H.burst(s.lx, s.ly - 0.4, 'spark', Math.max(3, Math.round(8 * Math.sqrt(DENS))), { v: 4, up: 1.5, g: 5, life: 0.45, size: 2, color: [PEARL, BLUSH, ROSE] }); if (tier >= 2 && s.i % 2 === 0) H.burst(s.lx, s.ly - 0.5, 'star', 3, { v: 3, up: 2, g: 3, life: 0.6, size: 3, color: [PEARL, BLUSH] }); } }
       },
       drawUnder(c, f, X, Y, T, t) {
         t = f.t; const fa = sm(t / 0.25) * (1 - sm((t - END + 0.9) / 0.9)), s = GR * T / 0.94, cy = Y - s * 0.22 * H.GY;

@@ -85,7 +85,7 @@ const ELEM_MOVES = {
   ult: [
     ['rainbowheart', 'Rainbow Heart Attack', 'spin', 95, 20, 'Massive glowing pink hearts spin like tops and glide through the battlefield trailing strings of pastel light: 1 heart, 2 at Adept, 3 at Celestial.'],
     ['sunflare', 'Sunflare', 'nova', 95, 20, 'A massive pink love heart hovers over the battlefield for seven seconds, flooding the monsters below with radiant light while hearts and stars float round its beam.'],
-    ['holyjudgement', 'Holy Judgement', 'stars', 95, 20, 'A fan of pink homing lights launches into the sky and falls on the monsters in bursts of glowing love hearts: 7, 10 at Adept, 20 at Celestial.'],
+    ['holyjudgement', 'Holy Judgement', 'stars', 95, 20, 'A fan of pink homing lights launches into the sky and falls on the monsters in bursts of glowing love hearts: 20, 40 at Adept, 80 at Celestial.'],
     ['seraphic', 'Seraphic Refraction', 'feather', 95, 20, 'A many-winged construct forms behind you; its wings redirect beams onto the aim, then fold forward in a prismatic sweep.'],
     ['guilloche', 'Daybreak Guilloche', 'nova', 95, 20, 'Lines of light draw a looping pattern on the floor; arcs rise from it, pulses run along it, then it lifts and detonates.'],
     ['mirrors', 'Palace of Mirrors', 'gem', 95, 20, 'Tall mirrors circle the aim; a lance ricochets between them crossing the monsters, then all fire together downward.'],

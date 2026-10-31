@@ -927,3 +927,4 @@ Every new boss painter (rift fiends, Tower bosses, minis that get their own art)
 - v201: Deep Blue Sea: one big sphere + 2 / 5 small (levels 4 / 7), ethereal halo + shining core, per-sphere randomised tilt/spin/size/shade/paths.
 - v202: Pink Light ultimates (docs/LIGHT-PINK-BRIEF.md): rainbowheart + holyjudgement (20k4b; shared thick-heart sprites), sunflare (20k4c). Replaced firstdawn, orrery, lanterns. The other seven pink Light designs (Crescent Beam, Meteor Shower, Ray of Light, Salvation, Ribbon Waltz, Wish Upon a Star, Love Sanctuary) are in the user's spec, not built yet.
 - v203: Sunflare anchored at its cast point, spins in 3D, pink pulse waves per tick, no hard-edged shaft foot/cut-out.
+- v204: Holy Judgement 20 / 40 at Adept (two fans) / 80 at Celestial (eight groups of ten); same total damage, shorter trails and sparser dust per light as the count grows.
