@@ -349,6 +349,8 @@ GAMES.dungeon = {
         if (RX) dmg *= RX.inK(m);
         if (m.act === 'dizzy') dmg *= 1.5;
       }
+      // Shiny Aqua Illusion's curse (20k7d): +20% from any source; its own finishing burst is not amplified (nor recorded below)
+      const aqC = m.aquaCurse && !o.aquaBurst && m.aquaCurse.end > g.t ? m.aquaCurse : null; if (aqC) dmg *= 1.2;
       const D = MON[m.type];
       if (D && D.armor && !o.dot) dmg *= 1 - D.armor;
       if (m.guardFn && !o.dot && !o.viaProxy) { const k = m.guardFn(m, o); if (k < 1) { dmg *= k; if (k <= 0.2 && Math.random() < 0.35) text(m.x, m.y - m.r - 0.3, 'Guarded!', '#CFE2FF', 12); } }   // (a rift boss's shield side, a shell, a burrow)
@@ -356,6 +358,7 @@ GAMES.dungeon = {
       if (m.type === 'crab' && !m.block && (m.blockCd || 0) <= 0 && !o.dot && Math.random() < 0.18) { m.block = 1.3; m.blockCd = 4.5; }
       if (m.shield > 0 && !o.dot) { const s = Math.min(m.shield, F.rift ? dmg * 0.6 : dmg); m.shield -= s; dmg -= s; m.shieldT = 4; ring(m.x, m.y, m.r * 1.2, m.r * 1.5, 0.15, '#8FE3F0', 0.08); if (m.shield <= 0) { text(m.x, m.y - m.r - 0.5, 'Shield broken!', '#8FE3F0', 13); sparks(m.x, m.y, '#8FE3F0', 14, 6); } if (dmg <= 0) return 0; }
       m.hp -= dmg; m.flash = 0.09; m.hitSq = 1; g.lastHit = g.t;
+      if (aqC) aqC.rec += dmg;   // the curse records the damage actually taken
       if (FD) { if (m.fiend) FD.onHit(m, dmg); else if (m.fobj) FD.objHit(m, dmg); }
       if (RX && !m.fobj && !flat) { RX.onDirectHit(m, dmg, o); RX.followUps(m, dmg, o); RX.onHit(m, dmg, o); }
       if (!m.aggro && !o.noAggro) aggroPack(m);
