@@ -42,6 +42,11 @@
     for (const [ph, amp, cyc, col] of S) for (const [cc, lw, al] of [[ROSE, k === 2 ? 5 : 8, 0.35], [col, k === 2 ? 2 : 3.2, 0.7], [PEARL, k === 2 ? 0.9 : 1.3, 0.9]]) {
       g.strokeStyle = rgbaS(cc, al); g.lineWidth = lw; g.beginPath();
       for (let j = 0; j <= 48; j++) { const y = j / 48 * Hh, x = W / 2 + Math.sin(j / 48 * TAU * cyc + ph) * W * amp; if (j) g.lineTo(x, y); else g.moveTo(x, y); } g.stroke(); } });
+  /* solid layers (drawn with normal blending): 0 = rose body, 1 = dense pearl core with candy edges */
+  const solidSpr = k => fxSprite('lu3solid' + k, 64, 16, (g, W, Hh) => { const gr = g.createLinearGradient(0, 0, W, 0);
+    const st = k === 0 ? [[0, 'rgba(232,62,172,0)'], [0.18, 'rgba(232,62,172,0.35)'], [0.35, 'rgba(255,92,203,0.75)'], [0.5, 'rgba(255,143,219,0.85)'], [0.65, 'rgba(255,92,203,0.75)'], [0.82, 'rgba(232,62,172,0.35)'], [1, 'rgba(232,62,172,0)']]
+      : [[0, 'rgba(255,143,219,0)'], [0.12, 'rgba(255,143,219,0.8)'], [0.26, 'rgba(255,212,238,1)'], [0.4, 'rgba(255,244,252,1)'], [0.5, 'rgba(255,255,255,1)'], [0.6, 'rgba(255,244,252,1)'], [0.74, 'rgba(255,212,238,1)'], [0.88, 'rgba(255,143,219,0.8)'], [1, 'rgba(255,143,219,0)']];
+    st.forEach(q => gr.addColorStop(q[0], q[1])); g.fillStyle = gr; g.fillRect(0, 0, W, Hh); });
   /* a falling strand (vertical): pearl core, pink edges, faded at both ends */
   const streakSpr = col => fxSprite('lu3streak|' + col, 12, 96, (g, W, Hh) => { const gr = g.createLinearGradient(0, 0, W, 0); gr.addColorStop(0, rgbaS(col, 0)); gr.addColorStop(0.35, rgbaS(col, 0.5)); gr.addColorStop(0.5, 'rgba(255,255,255,0.95)'); gr.addColorStop(0.65, rgbaS(col, 0.5)); gr.addColorStop(1, rgbaS(col, 0)); g.fillStyle = gr; g.fillRect(0, 0, W, Hh); g.globalCompositeOperation = 'destination-in'; const gv = g.createLinearGradient(0, 0, 0, Hh); gv.addColorStop(0, 'rgba(0,0,0,0)'); gv.addColorStop(0.5, 'rgba(0,0,0,1)'); gv.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gv; g.fillRect(0, 0, W, Hh); });
   /* the contact rim (drawn squashed): a rose band with a pearl edge */
@@ -189,9 +194,13 @@
           const fk = Math.floor(t * 14), FL = 0.86 + 0.07 * Math.sin(t * 23) + 0.05 * Math.sin(t * 37 + 1.3) + (R1(fk * 3.7 + 1) > 0.8 ? 0.16 * R1(fk * 1.9) : 0), af = a * FL, bwF = bw * (1 + 0.018 * Math.sin(t * 31));
           col(colSpr(0), bwF * (L === 3 ? 2.6 : 2.4), a * (0.12 + 0.08 * Math.sin(t * 5.5)) * wk);
           col(colSpr(0), bwF * (L === 3 ? 1.9 : 1.75), af * 0.5);
+          // a solid body under the light (normal blending, so it reads as substance, not just glow)
+          c.globalCompositeOperation = 'source-over'; col(solidSpr(0), bwF * 0.9, a * Math.min(1, 0.55 + 0.1 * FL) * sstep(0.2, 0.7, wk)); c.globalCompositeOperation = 'lighter';
           col(colSpr(1), bwF, af * (0.72 + 0.1 * pu));
           if (L === 3) col(colSpr(1), bwF * 0.62, af * 0.35);
-          col(colSpr(2), Math.max(bwF * (L === 3 ? 0.44 : 0.38), thin * 0.8), af * (0.85 + 0.15 * pu));
+          // the dense core: an opaque pearl-white shaft with candy-pink edges, then bloom over it
+          c.globalCompositeOperation = 'source-over'; col(solidSpr(1), Math.max(bwF * (L === 3 ? 0.4 : 0.36), thin), a * Math.min(1, 0.85 + 0.15 * FL) * sstep(0.15, 0.6, wk)); c.globalCompositeOperation = 'lighter';
+          col(colSpr(2), Math.max(bwF * (L === 3 ? 0.5 : 0.44), thin * 0.8), af * (0.85 + 0.15 * pu));
           // the inner currents: tiles scrolling down, layered at Adept and Celestial
           if (wk > 0.35) { const ca = a * sstep(0.35, 0.8, wk), lay = [[0, 0.7, 2.6, 0.55]]; if (L >= 2) lay.push([1, 0.46, 3.8, 0.5]); if (L >= 3) lay.push([2, 0.92, 1.8, 0.3]);
             for (const [k, wf, spd, al] of lay) { const w = bw * wf, th = w * 2, off = ((t * spd * T) % th + th) % th, img = curSpr(k), o = ov(w), ih = img.height;
@@ -201,17 +210,6 @@
           if (wk > 0.3) { const NS = H.n(NST), span = yb - top; for (let i = 0; i < NS; i++) { const sx = (R1(i * 5.3 + 2) * 2 - 1) * 0.8, sp = (5 + 4 * R1(i * 2.9)) * T, sl = T * (1.4 + 1.4 * R1(i * 8.1)), sw = T * (L === 3 && i % 2 ? 0.1 : 0.16), yy = top + ((R1(i * 1.7) * (span + sl) + t * sp) % (span + sl)) - sl / 2;
               const px = X + sx * bw / 2, al = a * sstep(0.3, 0.7, wk) * 0.6 * (1 - sstep(span - sl, span, yy - top)) * DIM; if (al < 0.02) continue;
               c.globalAlpha = al; c.drawImage(streakSpr(i % 3 ? BLUSH : CANDY), px - sw / 2, yy - sl / 2, sw, sl); } }
-          // pink lightning crackling down both edges of the column: jagged bolts re-struck every few frames, with branches
-          if (wk > 0.4) { const NB = L === 3 ? 4 : L === 2 ? 3 : 2, SEG = T * 0.55, ea = a * DIM * sstep(0.4, 0.85, wk), yS = yb - FB * 0.4;
-            for (const sd of [-1, 1]) for (let i = 0; i < NB; i++) { const key = Math.floor(t * 13 + i * 0.37) * 7 + i * 31 + (sd > 0 ? 500 : 0), fl = 0.45 + 0.55 * R1(key * 1.3);
-              const x0 = X + sd * bwF * (0.42 + 0.12 * R1(key + 2)), jit = T * (0.16 + 0.1 * R1(key + 5)), pts = [];
-              for (let y = top, j = 0; y < yS + SEG; y += SEG * (0.7 + 0.6 * R1(key + j * 3.1)), j++) pts.push([x0 + (R1(key + j * 7.7) - 0.5) * 2 * jit + sd * Math.abs(R1(key + j * 2.3) - 0.5) * jit, Math.min(y, yS)]);
-              if (pts.length < 2) continue;
-              for (const [cc, lw, al] of [[ROSE, T * 0.14, 0.28], [CANDY, T * 0.055, 0.75], [PEARL, Math.max(1, T * 0.022), 0.95]]) {
-                c.globalAlpha = Math.min(1, ea * fl * al); c.strokeStyle = cc; c.lineWidth = lw; c.lineJoin = 'miter'; c.beginPath(); pts.forEach((p, q) => q ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.stroke();
-                // branches: short forks reaching outward from a few joints
-                c.lineWidth = lw * 0.6; c.beginPath(); for (let q = 1; q < pts.length - 1; q++) { if (R1(key + q * 5.9) > 0.3) continue; const [bx, by] = pts[q], bl = T * (0.4 + 0.5 * R1(key + q)); c.moveTo(bx, by); c.lineTo(bx + sd * bl * 0.55, by + bl * 0.35); c.lineTo(bx + sd * bl * (0.8 + 0.3 * R1(key + q * 2)), by + bl * 0.9); } c.stroke(); }
-              const tp = pts[pts.length - 1]; gl(c, PEARL, tp[0], tp[1], T * 0.35, 0.4 * ea * fl, 1); } }
           // the brilliant rim at the contact point, with glints running round it; Celestial adds a broad outer ring
           if (yb >= Y - 1) { const r = Math.max(bw * 0.58, thin * 2), k = nearK(X, Y);
             c.save(); c.translate(X, Y); c.scale(1, H.GY); c.globalAlpha = Math.min(1, a * k * (0.9 + 0.1 * f.pu)); c.drawImage(rimSpr(), -r, -r, r * 2, r * 2);
