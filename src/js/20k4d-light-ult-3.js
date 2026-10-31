@@ -71,7 +71,7 @@
     H = h; const me = H.me, ev = Math.max(1, Math.min(7, Math.round(C.evo || 1))), L = ev >= 7 ? 3 : ev >= 4 ? 2 : 1;
     const R = [1.0, 1.08, 1.16, 1.42, 1.52, 1.62, 2.15][ev - 1] * C.K, ROUTE = [7, 7.6, 8.2, 9.2, 9.8, 10.4, 14][ev - 1], NW = [3, 3, 3, 4, 4, 5, 7][ev - 1];
     const M0 = 0.4, L0 = 0.7, W0 = 1.0, GL = L === 3 ? 6.5 : 5, G1 = W0 + GL, FOLD = 0.6, END = G1 + FOLD, TICK = 0.25, NT = Math.round(GL / TICK);
-    const dmg = C.base * 15 * C.K * (1 + 0.08 * (ev - 1)) / NT, TRL = L === 3 ? 0.9 : 0.65;
+    const dmg = C.base * 45 * C.K * (1 + 0.08 * (ev - 1)) / NT, TRL = L === 3 ? 0.9 : 0.65;
     H.X.banner('RAY OF LIGHT', '', ROSE, 1.4); if (H.X.sfx && H.X.sfx.hum) H.X.sfx.hum();
     /* ---- the route ---- */
     const S = H.walk(C.tx, C.ty), pts = [[S.x, S.y]], dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
