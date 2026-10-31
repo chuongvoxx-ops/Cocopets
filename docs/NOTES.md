@@ -926,3 +926,4 @@ Every new boss painter (rift fiends, Tower bosses, minis that get their own art)
 - v200: Water round 4: Tsunami deleted, Deep Blue Sea (ringed water spheres ~2x the pet, 1/3/5, Celestial finale) in 20k7b; Neptune's Trident giant impact = gathering light + flood + explosion (no cracks), small tridents' cracks shortened.
 - v201: Deep Blue Sea: one big sphere + 2 / 5 small (levels 4 / 7), ethereal halo + shining core, per-sphere randomised tilt/spin/size/shade/paths.
 - v202: Pink Light ultimates (docs/LIGHT-PINK-BRIEF.md): rainbowheart + holyjudgement (20k4b; shared thick-heart sprites), sunflare (20k4c). Replaced firstdawn, orrery, lanterns. The other seven pink Light designs (Crescent Beam, Meteor Shower, Ray of Light, Salvation, Ribbon Waltz, Wish Upon a Star, Love Sanctuary) are in the user's spec, not built yet.
+- v203: Sunflare anchored at its cast point, spins in 3D, pink pulse waves per tick, no hard-edged shaft foot/cut-out.

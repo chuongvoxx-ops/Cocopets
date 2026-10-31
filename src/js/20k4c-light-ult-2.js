@@ -21,25 +21,23 @@
   const sstep = (a, b, x) => { const u = cl((x - a) / (b - a)); return u * u * (3 - 2 * u); };
   /* a heart outline: the classic rounded heart, 32 units wide, its lobes' top at y -12, its point at +17 (origin = the dip's x) */
   function heartPath(g, cx, cy, s) { g.beginPath(); for (let i = 0; i <= 72; i++) { const t = i / 72 * TAU, x = 16 * Math.pow(Math.sin(t), 3), y = -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t)); if (i) g.lineTo(cx + x * s, cy + y * s); else g.moveTo(cx + x * s, cy + y * s); } g.closePath(); }
-  /* the pet's body on the screen, cut out of whatever is drawn after it */
-  function petHole(c, T) { const me = H.me, x = H.sx(me.x), y = H.sy(me.y) - T * 0.46; c.beginPath(); c.rect(-1e5, -1e5, 2e5, 2e5); c.ellipse(x, y, T * 0.62, T * 0.74, 0, 0, TAU); c.clip('evenodd'); }
   function scr(c) { const m = c.getTransform(), a = m.a || 1, d = m.d || 1; return { x0: -m.e / a, y0: -m.f / d, w: c.canvas.width / a, h: c.canvas.height / d }; }
 
   /* ---- the heart model: a deep side band (its thickness, seen a little from below), the candy-pink front with a pearly
      blush centre, shading toward the lower right, a bright rose rim, pearl edge accents up the lit side, soft lobe
      highlights and a fine contour. W px wide; ._s the heart's scale, (._cx, ._cy) the heart's bounding-box centre */
-  function paintHeart(g, W, Hc, small) {
-    const s = W * 0.84 / 32, cx = W / 2, oy = Hc / 2 - 2.5 * s - W * 0.012, th = W * 0.04;
+  function paintHeart(g, W, Hc, small, noBand) {
+    const s = W * 0.84 / 32, cx = W / 2, oy = Hc / 2 - 2.5 * s - W * 0.012, th = W * 0.04; let gr;
     // the side band (thickness): the heart pushed down and a touch right, deep rose to magenta, then its lit lip
-    g.save(); g.translate(th * 0.25, th); heartPath(g, cx, oy, s); let gr = g.createLinearGradient(0, oy - 12 * s, 0, oy + 17 * s); gr.addColorStop(0, MAG); gr.addColorStop(0.6, '#B8378F'); gr.addColorStop(1, DEEP); g.fillStyle = gr; g.fill(); g.restore();
-    for (let k = 1; k < 4; k++) { g.save(); g.translate(th * 0.25 * k / 4, th * k / 4); heartPath(g, cx, oy, s); g.fillStyle = rgbaS(k < 3 ? '#C2449C' : MAG, 1); g.fill(); g.restore(); }
+    if (!noBand) { g.save(); g.translate(th * 0.25, th); heartPath(g, cx, oy, s); gr = g.createLinearGradient(0, oy - 12 * s, 0, oy + 17 * s); gr.addColorStop(0, MAG); gr.addColorStop(0.6, '#B8378F'); gr.addColorStop(1, DEEP); g.fillStyle = gr; g.fill(); g.restore();
+    for (let k = 1; k < 4; k++) { g.save(); g.translate(th * 0.25 * k / 4, th * k / 4); heartPath(g, cx, oy, s); g.fillStyle = rgbaS(k < 3 ? '#C2449C' : MAG, 1); g.fill(); g.restore(); } }
     // the front face
     heartPath(g, cx, oy, s); gr = g.createRadialGradient(cx - 3 * s, oy + 0.5 * s, s * 0.5, cx, oy + 2 * s, 19 * s);
-    gr.addColorStop(0, BLUSH); gr.addColorStop(0.18, '#FFB0E6'); gr.addColorStop(0.45, CANDY); gr.addColorStop(0.78, ROSE); gr.addColorStop(1, MAG); g.fillStyle = gr; g.fill();
+    gr.addColorStop(0, BLUSH); gr.addColorStop(0.22, '#FFB8E9'); gr.addColorStop(0.55, CANDY); gr.addColorStop(0.88, ROSE); gr.addColorStop(1, '#F24DBC'); g.fillStyle = gr; g.fill();
     g.save(); heartPath(g, cx, oy, s); g.clip();
     // shade toward the lower right (away from the light), a warm inner glow
-    gr = g.createLinearGradient(cx - 14 * s, oy - 10 * s, cx + 12 * s, oy + 16 * s); gr.addColorStop(0, 'rgba(255,244,252,0.28)'); gr.addColorStop(0.45, 'rgba(255,143,219,0)'); gr.addColorStop(1, 'rgba(143,45,115,0.42)'); g.fillStyle = gr; g.fillRect(0, 0, W, Hc);
-    g.globalCompositeOperation = 'lighter'; gr = g.createRadialGradient(cx - 1 * s, oy + 3 * s, 0, cx - 1 * s, oy + 3 * s, 10 * s); gr.addColorStop(0, 'rgba(255,244,252,0.55)'); gr.addColorStop(0.5, 'rgba(255,212,238,0.2)'); gr.addColorStop(1, 'rgba(255,212,238,0)'); g.fillStyle = gr; g.fillRect(0, 0, W, Hc);
+    gr = g.createLinearGradient(cx - 14 * s, oy - 10 * s, cx + 12 * s, oy + 16 * s); gr.addColorStop(0, 'rgba(255,244,252,0.28)'); gr.addColorStop(0.45, 'rgba(255,143,219,0)'); gr.addColorStop(1, 'rgba(143,45,115,0.3)'); g.fillStyle = gr; g.fillRect(0, 0, W, Hc);
+    g.globalCompositeOperation = 'lighter'; gr = g.createRadialGradient(cx - 1 * s, oy + 3 * s, 0, cx - 1 * s, oy + 3 * s, 10 * s); gr.addColorStop(0, 'rgba(255,170,225,0.5)'); gr.addColorStop(0.5, 'rgba(255,212,238,0.2)'); gr.addColorStop(1, 'rgba(255,212,238,0)'); g.fillStyle = gr; g.fillRect(0, 0, W, Hc);
     // the bevel: a bright rose band inside the edge, pearl along the upper-left lobe
     g.globalCompositeOperation = 'source-over'; heartPath(g, cx, oy, s); g.strokeStyle = rgbaS(ROSE, 0.9); g.lineWidth = s * 2.2; g.stroke(); g.strokeStyle = rgbaS(MAG, 0.55); g.lineWidth = s * 0.9; g.stroke();
     g.globalCompositeOperation = 'lighter'; g.lineCap = 'round'; g.strokeStyle = 'rgba(255,244,252,0.85)'; g.lineWidth = s * 0.75; g.beginPath(); for (let i = 0; i <= 24; i++) { const t = -1.75 - i / 24 * 1.25, x = 16 * Math.pow(Math.sin(t), 3) * 0.9, y = -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t)) * 0.9 + 0.4; if (i) g.lineTo(cx + x * s, oy + y * s); else g.moveTo(cx + x * s, oy + y * s); } g.stroke();
@@ -50,7 +48,9 @@
     // the contour (keeps the silhouette readable at gameplay distance)
     heartPath(g, cx, oy, s); g.strokeStyle = rgbaS(DEEP, small ? 0.75 : 0.6); g.lineWidth = Math.max(1, s * (small ? 0.7 : 0.35)); g.stroke();
     return { s, cx, cy: oy + 2.5 * s }; }
-  const heartSpr = () => fxSprite('lu2heart', 320, 300, (g, W, Hc) => { const m = paintHeart(g, W, Hc, false); g.canvas._m = m; });
+  const heartSpr = () => fxSprite('lu2heartF', 320, 300, (g, W, Hc) => { const m = paintHeart(g, W, Hc, false, true); g.canvas._m = m; });
+  /* the heart's side (its thickness, stacked copies when it turns): deep rose to magenta, a darker contour */
+  const sideSpr = () => fxSprite('lu2side', 320, 300, (g, W, Hc) => { const s = W * 0.84 / 32, cx = W / 2, oy = Hc / 2 - 2.5 * s - W * 0.012; heartPath(g, cx, oy, s); const gr = g.createLinearGradient(cx - 16 * s, 0, cx + 16 * s, 0); gr.addColorStop(0, '#D04AA8'); gr.addColorStop(0.5, MAG); gr.addColorStop(1, DEEP); g.fillStyle = gr; g.fill(); g.strokeStyle = rgbaS(DEEP, 0.7); g.lineWidth = s * 0.4; g.stroke(); });
   const miniHeart = () => fxSprite('lu2mh', 48, 46, (g, W, Hc) => { paintHeart(g, W, Hc, true); });
   /* a little heart's edge (seen side-on as it turns): a rounded rose capsule */
   const miniEdge = () => fxSprite('lu2me', 12, 46, (g, W, Hc) => { const gr = g.createLinearGradient(0, 0, W, 0); gr.addColorStop(0, MAG); gr.addColorStop(0.45, CANDY); gr.addColorStop(1, DEEP); g.fillStyle = gr; g.beginPath(); g.moveTo(W / 2, Hc * 0.95); g.quadraticCurveTo(W, Hc * 0.45, W * 0.8, Hc * 0.12); g.quadraticCurveTo(W / 2, 0, W * 0.2, Hc * 0.12); g.quadraticCurveTo(0, Hc * 0.45, W / 2, Hc * 0.95); g.fill(); g.strokeStyle = rgbaS(DEEP, 0.7); g.lineWidth = 1; g.stroke(); });
@@ -87,7 +87,7 @@
   const TOPK = 0.36;
   const shaftSpr = () => fxSprite('lu2shaft', 128, 256, (g, W, Hh) => {
     const im = g.createImageData(W, Hh), d = im.data, A = hexRGB(BLUSH), B = hexRGB(CANDY), Cc = hexRGB(ROSE);
-    for (let y = 0; y < Hh; y++) { const u = y / (Hh - 1), half = W / 2 * lerp(TOPK, 1, u), vy = (0.25 + 0.75 * sstep(0, 0.3, u)) * (0.9 - 0.15 * sstep(0.7, 1, u));
+    for (let y = 0; y < Hh; y++) { const u = y / (Hh - 1), half = W / 2 * lerp(TOPK, 1, u), vy = (0.25 + 0.75 * sstep(0, 0.3, u)) * (0.9 - 0.9 * sstep(0.72, 1, u));
       for (let x = 0; x < W; x++) { const q = Math.abs(x + 0.5 - W / 2) / half; if (q >= 1) continue; const k = Math.exp(-q * q * 2.4) * (1 - sstep(0.82, 1, q)), e = Math.min(1, q * 1.3), c1 = e < 0.5 ? [lerp(A[0], B[0], e * 2), lerp(A[1], B[1], e * 2), lerp(A[2], B[2], e * 2)] : [lerp(B[0], Cc[0], e * 2 - 1), lerp(B[1], Cc[1], e * 2 - 1), lerp(B[2], Cc[2], e * 2 - 1)], i = (y * W + x) * 4;
         // a brighter rim down each edge reads as the cone's curved side
         const rim = Math.exp(-Math.pow((q - 0.8) / 0.08, 2)) * 0.35; d[i] = c1[0]; d[i + 1] = c1[1]; d[i + 2] = c1[2]; d[i + 3] = Math.round(255 * cl((k * 0.85 + rim) * vy)); } }
@@ -109,21 +109,21 @@
   U.sunflare = (C, h) => {
     H = h;
     const x = C.tx, y = C.ty, ev = Math.max(1, Math.min(7, Math.round(C.evo || 1))), L = ev >= 7 ? 3 : ev >= 4 ? 2 : 1;
-    const R = (3.6 + 0.3 * (ev - 1)) * C.K, HW = 2.5 + 0.12 * (ev - 1), Z = 3.9 + 0.15 * (ev - 1);
-    const A0 = 0.75, ACT = 7, A1 = A0 + ACT, FADE = 1.1, TICK = 0.5, T0 = A0 + 0.25, NT = Math.floor((ACT - 0.25 - 1e-6) / TICK) + 1;
+    const R = (3.6 + 0.3 * (ev - 1)) * C.K, HW = 2.5 + 0.12 * (ev - 1), Z = 3.5 + 0.1 * (ev - 1);
+    const WDN = 0.3, A0 = 0.75, ACT = 7, A1 = A0 + ACT, FADE = 1.1, TICK = 0.5, T0 = A0 + 0.25, NT = Math.floor((ACT - 0.25 - 1e-6) / TICK) + 1;
     const dmg = C.base * 15 * C.K * (1 + 0.08 * (ev - 1)) / NT;
     H.X.banner('SUNFLARE', '', ROSE, 1.6); if (H.X.sfx.hum) H.X.sfx.hum();
     /* the floaters round the shaft: little hearts and stars rising in loose spirals; at Adept and up a wider spread of heights */
     const NFL = ev >= 7 ? 22 : ev >= 4 ? 16 : 11, fl = [];
     for (let i = 0; i < NFL; i++) fl.push({ heart: i % 5 !== 2 && i % 5 !== 4, a: R1(i * 3.1 + 1) * TAU, w: (0.25 + 0.2 * R1(i * 7.7)) * (i % 2 ? 1 : -1), rr: 0.55 + 0.5 * R1(i * 1.9), h0: R1(i * 4.3), vh: 0.09 + 0.06 * R1(i * 2.2), hr: ev >= 4 ? 0.95 : 0.65, sz: 0.2 + 0.14 * R1(i * 9.1), sp: 1.2 + 1.4 * R1(i * 6.6), col: ev >= 7 && i % 7 === 3 ? GOLD : i % 3 === 1 ? BLUSH : CANDY });
-    const NST = ev >= 7 ? 26 : ev >= 4 ? 18 : 12, NARC = ev >= 7 ? 7 : ev >= 4 ? 5 : 3;
-    const warm = [heartSpr, bandSpr, () => coronaSpr(1), shaftSpr, floorSpr, ringSpr, miniHeart, miniEdge, () => starSpr(BLUSH), () => starSpr(CANDY), () => starSpr(GOLD), () => streakSpr(BLUSH), () => streakSpr(GOLD)]; if (L >= 2) warm.push(() => coronaSpr(2)); if (L >= 3) warm.push(() => coronaSpr(3));
-    H.add({ life: A1 + FADE + 0.05, x, y, wi: 0, nt: 0, pulse: 0,
+    const SPIN = 0.85, NST = ev >= 7 ? 26 : ev >= 4 ? 18 : 12, NARC = ev >= 7 ? 7 : ev >= 4 ? 5 : 3;
+    const warm = [heartSpr, sideSpr, bandSpr, () => coronaSpr(1), shaftSpr, floorSpr, ringSpr, miniHeart, miniEdge, () => starSpr(BLUSH), () => starSpr(CANDY), () => starSpr(GOLD), () => streakSpr(BLUSH), () => streakSpr(GOLD)]; if (L >= 2) warm.push(() => coronaSpr(2)); if (L >= 3) warm.push(() => coronaSpr(3));
+    H.add({ life: A1 + FADE + 0.05, x, y, wi: 0, nt: 0, pulse: 0, waves: [],
       update(dt, f) {
         for (let q = 0; q < 3 && f.wi < warm.length; q++) warm[f.wi++]();
-        f.pulse = Math.max(0, f.pulse - dt * 2.6);
+        f.pulse = Math.max(0, f.pulse - dt * 2.6); while (f.waves.length && f.t - f.waves[0] > 1.2) f.waves.shift();
         // the ticks: every monster in the circle; a little light rises from each one hit
-        while (f.nt < NT && f.t >= T0 + f.nt * TICK) { f.nt++; f.pulse = 1; const hit = H.near(x, y, R); H.hitArea(x, y, R, dmg, C.dmgO()); for (const m of hit) { H.P({ kind: 'glow', x: m.x, y: m.y - 0.3, vx: 0, vy: 0, life: 0.35, max: 0.35, size: 0.9 + (m.r || 0.4), color: ROSE, alpha: 0.45 }); for (let k = 0; k < H.n(2); k++) H.P({ kind: 'star', x: m.x + (Math.random() - 0.5) * 0.6, y: m.y - 0.2, vx: (Math.random() - 0.5) * 0.6, vy: -1.2 - Math.random(), life: 0.7, max: 0.7, size: 2.2 + Math.random() * 1.5, color: k % 2 ? BLUSH : ROSE }); } }
+        while (f.nt < NT && f.t >= T0 + f.nt * TICK) { f.nt++; f.pulse = 1; f.waves.push(f.t); const hit = H.near(x, y, R); H.hitArea(x, y, R, dmg, C.dmgO()); for (const m of hit) { H.P({ kind: 'glow', x: m.x, y: m.y - 0.3, vx: 0, vy: 0, life: 0.4, max: 0.4, size: 1.1 + (m.r || 0.4), color: ROSE, alpha: 0.8 }); H.flareAt(m.x, m.y - 0.35, 0.7, 0.18, CANDY); for (let k = 0; k < H.n(2); k++) H.P({ kind: 'star', x: m.x + (Math.random() - 0.5) * 0.6, y: m.y - 0.2, vx: (Math.random() - 0.5) * 0.6, vy: -1.2 - Math.random(), life: 0.7, max: 0.7, size: 2.2 + Math.random() * 1.5, color: k % 2 ? BLUSH : ROSE }); } }
         const hy = y - Z;
         // formation: motes drawn in toward the heart's place
         if (f.t < A0) { for (let k = 0; k < 2; k++) if (Math.random() < 0.9 * H.Q()) { const b = Math.random() * TAU, r = 1.6 + Math.random() * 1.4; H.P({ kind: 'spark', x: x + Math.cos(b) * r, y: hy + Math.sin(b) * r * 0.8, vx: -Math.cos(b) * r * 2.2, vy: -Math.sin(b) * r * 1.8, life: 0.4, max: 0.4, size: 2, color: k ? BLUSH : ROSE, drag: 1 }); } }
@@ -139,13 +139,13 @@
         gl(c, ROSE, X, Y, rp * 1.25, 0.22 * a, H.GY);
         c.translate(X, Y); c.scale(1, H.GY); c.rotate(f.t * 0.12); c.globalAlpha = a * (0.62 + 0.18 * pu); const fs = floorSpr(); c.drawImage(fs, -rp, -rp, rp * 2, rp * 2);
         // the pulse: a ring of light running out from the centre at each tick
-        if (pu > 0.02) { const rr = rp * (0.25 + 0.75 * (1 - pu)); c.globalAlpha = a * pu * 0.5; c.drawImage(ringSpr(), -rr, -rr, rr * 2, rr * 2); }
+        for (const w0 of f.waves) { const u = (f.t - w0 - WDN) / 0.75; if (u < 0 || u > 1) continue; const rr = rp * (0.12 + 0.95 * H.ease.out(u)); c.globalAlpha = a * 0.85 * (1 - u * u); c.drawImage(ringSpr(), -rr, -rr, rr * 2, rr * 2); if (u < 0.5) { c.globalAlpha = a * 0.35 * (1 - u * 2); c.drawImage(glowSprite(CANDY), -rp * 0.35, -rp * 0.35, rp * 0.7, rp * 0.7); } }
         c.restore(); },
       draw(c, f, X, Y, T, t) {
         const ft = f.t, s0 = scr(c), hw = HW * T, form = cl(ft / A0), out = ft > A1 ? cl((ft - A1) / FADE) : 0, pu = f.pulse;
         const hs = heartSpr(), m = hs._m; if (!m) return;
-        // where the heart hangs: Z tiles over the aim, kept on the screen
-        const HX = X, HY = Math.max(Y - Z * T, s0.y0 + s0.h * 0.16 + hw * 0.5);
+        // where the heart hangs: Z tiles over the cast's aim (a fixed spot in the world)
+        const HX = X, HY = Y - Z * T; void s0;
         const grow = form < 1 ? H.ease.back(sstep(0.15, 1, form)) : 1, scale = grow * (1 - 0.18 * H.ease.in(out)), ha = Math.min(1, form * 1.6) * (1 - sstep(0.25, 1, out));
         const bright = sstep(0.75, 1, form) * (1 - out);   // the brightening into the active state
         /* ---- the shaft and what flows in it (cut away round the pet) ---- */
@@ -153,21 +153,27 @@
         const top = HY + hw * 0.1, bot0 = Y + R * T * H.GY * 0.35, bot = lerp(top, bot0, sh);
         const botN = ft > A1 ? lerp(bot, top + (bot0 - top) * 0.15, H.ease.in(sstep(0, 0.8, out))) : bot, len = botN - top, bw = R * T * 2 * 0.98;
         const fls = fl.map(q => { const hh = (q.h0 + ft * q.vh) % 1, ang = q.a + ft * q.w, hgt = (0.25 + hh * (Z - 0.6) * q.hr) * T, u = cl((Y - hgt - top) / Math.max(1, bot0 - top)), half = lerp(TOPK, 1, u) * bw / 2; return { q, hh, ang, px: HX + Math.cos(ang) * half * q.rr, py: Y - hgt + Math.sin(ang) * half * q.rr * H.GY * 0.5, front: Math.sin(ang) > 0 }; });
-        const drawFl = front => { for (const o of fls) { if (o.front !== front) continue; const q = o.q, al = sa * sstep(0, 0.12, o.hh) * (1 - sstep(0.8, 1, o.hh)) * (front ? 1 : 0.6); if (!(al > 0.02)) continue; const sz = q.sz * T * (front ? 1 : 0.85);
+        const drawFl = front => { for (const o of fls) { if (o.front !== front) continue; const q = o.q, al = near(o.px, o.py, T) * sa * sstep(0, 0.12, o.hh) * (1 - sstep(0.8, 1, o.hh)) * (front ? 1 : 0.6); if (!(al > 0.02)) continue; const sz = q.sz * T * (front ? 1 : 0.85);
           c.globalAlpha = al; if (q.heart) { const sp = Math.cos(ft * q.sp + q.a), sx = Math.abs(sp); c.globalCompositeOperation = 'lighter'; gl(c, ROSE, o.px, o.py, sz * 1.5, al * 0.35); c.globalAlpha = al; c.globalCompositeOperation = 'source-over';
             if (sx < 0.35) c.drawImage(miniEdge(), o.px - sz * 0.13, o.py - sz * 0.48, sz * 0.26, sz * 0.96); if (sx > 0.12) c.drawImage(miniHeart(), o.px - sz * 0.52 * sx, o.py - sz * 0.5, sz * 1.04 * sx, sz); }
           else { c.globalCompositeOperation = 'lighter'; const k = sz * 1.3 * (0.85 + 0.15 * Math.sin(ft * 5 + q.a * 3)); c.save(); c.translate(o.px, o.py); c.rotate(ft * 0.8 * (q.w > 0 ? 1 : -1)); c.drawImage(starSpr(q.col === GOLD ? GOLD : q.col), -k / 2, -k / 2, k, k); c.restore(); } } c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1; };
-        c.save(); petHole(c, T);
+        const pX = H.sx(H.me.x), pY = H.sy(H.me.y) - T * 0.46, near = (px, py, r) => 1 - 0.7 * (1 - sstep(r * 0.6, r * 1.4, Math.hypot(px - pX, (py - pY) * 1.2)));
+        const petIn = (pY > top && pY < bot0 + T) ? 1 - sstep(0.5, 1, Math.abs(pX - HX) / (bw * 0.5)) : 0, petK = 1 - 0.35 * petIn;
+        c.save();
         drawFl(false);
         if (len > 2 && sa > 0.01) {
           c.globalCompositeOperation = 'lighter';
-          // the cone (it spans the whole fall from the heart to the floor; while it grows or retracts it is clipped)
-          c.save(); c.beginPath(); c.rect(HX - bw, top - 2, bw * 2, len + 4); c.clip();
-          c.globalAlpha = sa * (0.58 + 0.12 * pu); c.drawImage(shaftSpr(), HX - bw / 2, top, bw, bot0 - top);
-          c.globalAlpha = sa * 0.18; c.drawImage(shaftSpr(), HX - bw * 0.27, top, bw * 0.54, bot0 - top);
+          // the cone, drawn over its current length (it grows down and pulls back up); every edge of it is soft
+          c.save();
+          c.globalAlpha = petK * sa * (0.58 + 0.12 * pu); c.drawImage(shaftSpr(), HX - bw / 2, top, bw, len * (bot0 - top + T * 0.6) / (bot0 - top));
+          c.globalAlpha = petK * sa * 0.18; c.drawImage(shaftSpr(), HX - bw * 0.27, top, bw * 0.54, len);
+          // the tick waves: a bright band of pink light runs down the beam to the floor
+          for (const w0 of f.waves) { const u = (ft - w0) / WDN; if (u < 0 || u > 1.15) continue; const yy = lerp(top, bot0, Math.min(1, u)), half = lerp(TOPK, 1, Math.min(1, u)) * bw / 2, wa = sa * petK * (u > 1 ? 1 - (u - 1) / 0.15 : 1);
+            gl(c, ROSE, HX, yy, half * 1.05, wa * 0.55, 0.3); gl(c, BLUSH, HX, yy, half * 0.7, wa * 0.45, 0.16);
+            c.globalAlpha = wa * 0.8; c.save(); c.translate(HX, yy); c.scale(1, H.GY); const hs2 = half * 0.95 / 16; heartPath(c, 0, -2.5 * hs2, hs2); c.restore(); c.strokeStyle = ROSE; c.lineWidth = Math.max(2, T * 0.12); c.stroke(); c.strokeStyle = PEARL; c.lineWidth = Math.max(1, T * 0.04); c.stroke(); }
           // light flowing down: strands sliding toward the floor faster than the floaters rise; fine strands at Celestial
           const NS = H.n(NST); for (let i = 0; i < NS; i++) { const sx = (R1(i * 5.3 + 2) * 2 - 1) * 0.85, sp = 0.7 + 0.5 * R1(i * 2.9), u = (R1(i * 1.7) + ft * sp * 0.45) % 1, yy = top + u * (bot0 - top); if (yy > botN) continue; const half = lerp(TOPK, 1, u) * bw / 2, gold = ev >= 7 && i % 5 === 2, sl = T * (1.3 + 0.9 * R1(i * 8.1)), sw = T * (ev >= 7 && i % 2 ? 0.1 : 0.18);
-            c.globalAlpha = sa * (gold ? 0.3 : 0.55) * Math.sin(Math.PI * u); c.drawImage(streakSpr(gold ? GOLD : BLUSH), HX + sx * half - sw / 2, yy - sl / 2, sw, sl); }
+            c.globalAlpha = petK * sa * (gold ? 0.3 : 0.55) * Math.sin(Math.PI * u); c.drawImage(streakSpr(gold ? GOLD : BLUSH), HX + sx * half - sw / 2, yy - sl / 2, sw, sl); }
           c.restore();
           // where the beam meets the floor: a soft flat splash
           c.globalAlpha = 1; gl(c, CANDY, HX, botN, bw * 0.4, sa * (0.18 + 0.12 * pu) * sh, H.GY); gl(c, PEARL, HX, botN, bw * 0.12, sa * 0.12 * sh, H.GY);
@@ -178,7 +184,7 @@
         if (ha > 0.01) {
           c.save(); c.globalCompositeOperation = 'lighter';
           // the halo: rose outside, blush within, a breath with the ticks
-          gl(c, ROSE, HX, HY, hw * 1.6 * scale, ha * (0.34 + 0.16 * bright + 0.12 * pu)); gl(c, MAG, HX, HY, hw * 1.05 * scale, ha * 0.22);
+          gl(c, ROSE, HX, HY, hw * 1.6 * scale * (1 + 0.15 * pu), ha * (0.34 + 0.16 * bright + 0.3 * pu)); gl(c, BLUSH, HX, HY, hw * 0.8 * scale, ha * 0.28 * pu); gl(c, MAG, HX, HY, hw * 1.05 * scale, ha * 0.22);
           // the corona: layers turning at different speeds; at the end they fold in toward the heart
           const fold = 1 - 0.75 * H.ease.in(out), cs = scale * fold * (0.55 + 0.45 * H.ease.out(sstep(0.3, 1, form))) * (1 + 0.04 * pu), ca = ha * sstep(0.3, 1, form) * (1 - sstep(0.1, 0.8, out));
           const lay = [[1, 0.25, 0.95, 0.95]]; if (L >= 2) lay.push([2, -0.42, 1.08, 0.6]); if (L >= 3) lay.push([3, 0.12, 1.22, 0.75]);
@@ -191,8 +197,15 @@
           // the heart itself (gently bobbing)
           const k = hw * scale / (32 * m.s), bob = Math.sin(t * 1.6) * T * 0.06, cyS = HY + bob;
           if (k > 0.01) {
-            c.save(); c.globalAlpha = ha; c.drawImage(hs, HX - m.cx * k, cyS - m.cy * k, hs.width * k, hs.height * k);
-            // its own light: the heart again, added over itself (soft internal luminosity; brighter as it goes active and at each tick)
+            // turning slowly about its upright axis: side copies (its thickness) offset by the depth x sin, then the face squashed
+            // by |cos| on the near side; edge-on it is a deep pink band with a blush rim line, never nothing
+            const th = ft * SPIN + 0.5, csn = Math.cos(th), snn = Math.sin(th), ws = Math.max(0.06, Math.abs(csn)), dep = hw * scale * 0.17, nr = (csn >= 0 ? 1 : -1) * dep / 2 * snn, NK = Math.max(3, Math.min(14, Math.round(Math.abs(dep * snn) / 2.2))), sd = sideSpr();
+            c.save(); c.globalAlpha = ha;
+            for (let q = 0; q <= NK; q++) { const ox = lerp(-nr, nr, q / NK); c.drawImage(sd, HX + ox - m.cx * k * ws, cyS - m.cy * k, hs.width * k * ws, hs.height * k); }
+            if (ws < 0.45) { c.globalCompositeOperation = 'lighter'; c.globalAlpha = ha * (0.45 - ws) * 1.8; c.strokeStyle = BLUSH; c.lineWidth = Math.max(1.2, hw * 0.025); c.beginPath(); c.moveTo(HX + nr * 0.3, cyS - hw * 0.3); c.quadraticCurveTo(HX + nr * 0.3 - dep * 0.15, cyS + hw * 0.1, HX + nr * 0.3, cyS + hw * 0.5); c.stroke(); c.globalCompositeOperation = 'source-over'; c.globalAlpha = ha; }
+            if (ws > 0.07) {
+            c.drawImage(hs, HX + nr - m.cx * k * ws, cyS - m.cy * k, hs.width * k * ws, hs.height * k);
+            c.translate(HX + nr, 0); c.scale(ws, 1); c.translate(-HX, 0);
             // its moving surface: bands of radiance turning slowly (a second set turning back at Adept), a glint sweeping across
             const s = m.s * k, oy = cyS - 2.5 * s; c.save(); heartPath(c, HX, oy, s); c.clip(); c.globalCompositeOperation = 'lighter';
             const br = hw * scale * 0.85; gl(c, ROSE, HX - 1 * s, oy + 3 * s, 15 * s, ha * (0.16 + 0.14 * bright + 0.12 * pu)); gl(c, CANDY, HX - 2 * s, oy + 1 * s, 9 * s, ha * 0.22); c.globalAlpha = ha * (0.35 + 0.15 * bright + 0.2 * pu); c.save(); c.translate(HX - 1 * s, oy + 3 * s); c.rotate(ft * 0.35); c.drawImage(bandSpr(), -br, -br, br * 2, br * 2); c.restore();
@@ -201,13 +214,14 @@
             // the pearl centre at Celestial; a brightening as it goes active
             if (L >= 3) { gl(c, BLUSH, HX - 1 * s, oy + 3 * s, 6 * s, ha * (0.45 + 0.15 * Math.sin(t * 3))); gl(c, '#FFFFFF', HX - 1 * s, oy + 3 * s, 2.4 * s, ha * 0.7); }
             gl(c, BLUSH, HX, oy + 2 * s, 14 * s, ha * (0.5 * sstep(0.7, 0.9, form) * (1 - sstep(0.9, 1.2, ft / A0)) + 0.12 * pu));
-            c.restore(); c.restore();
+            c.restore(); }
+            c.restore();
             // the forming heart: a ribbon of rose light traces its outline before it fills
             if (form < 1) { const u = sstep(0, 0.75, form); c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.globalAlpha = 1 - sstep(0.7, 1, form); const sF = m.s * hw / (32 * m.s), oF = HY - 2.5 * sF;
               for (const [col, lw] of [[ROSE, 4], [PEARL, 1.4]]) { c.strokeStyle = col; c.lineWidth = lw; c.beginPath(); const N = Math.max(2, Math.round(72 * u)); for (const sg of [1, -1]) { c.moveTo(HX, oF + 17 * sF); for (let i = 0; i <= N; i++) { const q = Math.PI - sg * (i / 72) * Math.PI, xx = 16 * Math.pow(Math.sin(q), 3), yy = -(13 * Math.cos(q) - 5 * Math.cos(2 * q) - 2 * Math.cos(3 * q) - Math.cos(4 * q)); c.lineTo(HX + xx * sF, oF + yy * sF); } } c.stroke(); } c.restore(); } }
         }
         /* ---- floaters in front of the shaft ---- */
-        c.save(); petHole(c, T); drawFl(true); c.restore();
+        c.save(); drawFl(true); c.restore();
       } });
   };
 })();
