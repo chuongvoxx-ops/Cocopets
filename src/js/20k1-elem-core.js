@@ -152,7 +152,7 @@ const ELEM_MOVES = {
     ['mayhem', 'Mayhem', 'wave', 100, 21, 'Catastrophe in water: sweeping columns of swirling water fall from the sky and rove the battlefield, rings surging and bubbles bursting.'],
     ['lotusbloom', 'Lotus Bloom', 'flower', 95, 20, 'A giant rotating lotus of water blooms and bursts again and again where it was cast: six bursts at Celestial, the last the biggest.'],
     ['aquaillusion', 'Shiny Aqua Illusion', 'stars', 95, 26, 'A starry dark-water field curses every monster on it: held still, taking 20% more damage, then bursting for 20% of what it took. 5 s, 7 s at Adept, 10 s at Celestial.'],
-    ['tsunami', 'Tsunami', 'wave', 100, 22, 'Giant curling waves roll forward and wash through the monsters again and again: six at Celestial.'],
+    ['deepbluesea', 'Deep Blue Sea', 'orbit', 100, 22, 'Ringed spheres of luminous water, like tiny ocean planets, sweep through the arena and devastate the monsters in their path: 1 sphere, 3 at Adept, 5 at Celestial.'],
     ['rhapsody', 'Aqua Rhapsody', 'bubbles', 90, 24, 'Luminous strings, floating notes and water ripples gently heal you over time: 16 s at Celestial.'],
     ['abyssalspiral', 'Abyssal Spiral', 'vortex', 95, 20, 'A deep-blue whirlpool lifts a hollow tower of spiralling water ribbons, drawing monsters in, then collapses inward into a pressure burst: seven ribbons at Celestial.'],
     ['bubblereverie', 'Bubble Reverie', 'bubbles', 90, 18, 'Large pearlescent bubbles gather in floating arcs round you, then launch along curved paths and burst on the monsters: eighteen at Celestial.'],
