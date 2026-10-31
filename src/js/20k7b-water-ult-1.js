@@ -9,14 +9,15 @@
    Hatchling, 7 for 5 s at Adept, 10 for 7 s at Celestial (cooldown 21). Evolution: counter-rotating currents, a second
    trail ribbon, bubbles at different depths; at Celestial three nested current bands round each foot, three helical
    ribbons on each column and successive ripple rings across the ground at the main impact.
-   Deep Blue Sea: ringed spheres of luminous water (~2x the pet, 1 / 3 / 5 at Hatchling / Adept / Celestial) like tiny
-   ocean planets: a sapphire centre under a translucent aqua surface, currents turning inside, bubbles spiralling,
+   Deep Blue Sea: ringed spheres of luminous water like tiny ocean planets: one big one (~2x the pet) at Hatchling, with
+   2 small ones (~1.2x) at Adept and 5 at Celestial, each randomised (size, shade, spins, tilts, paths), each with a soft
+   ethereal halo and a shining core: a sapphire centre under a translucent aqua surface, currents turning inside, bubbles spiralling,
    turquoise highlights gliding over it, a tilted ring of flowing water (cached halves: the far one behind the sphere, the
    near one in front) that banks as it turns. They rise from streams round the pet, wobble, grow their rings, charge,
    launch one after another and sweep through the monsters in banked passes (each monster at most once per pass); on
    contact the front compresses, a ripple runs over it and the ring flares. Adept: droplet rings, weaving paths.
    Celestial: two counter-rotating droplet rings, inner counter-currents, and a finale: a wide arc round the target,
-   rings aligned, centres blazing, five staggered finishing passes each ending in one burst. ~16 x base in total.
+   rings aligned, centres blazing, staggered finishing passes each ending in one burst, the big one last. ~16 x base in total.
    Round 2: Mayhem's columns 25% thinner, feathered at their feet, with more flow streaks and spray.
    Heavenfall: luminous rings of water open overhead (2 / 3 / 5 at Hatchling / Adept / Celestial); a dark opening grows in
    each glowing disc as light runs round its rim, then a thick waterfall (cached flow frames) plunges into a foaming basin
@@ -286,17 +287,27 @@
     g.setLineDash([12, 16]); g.lineDashOffset = -fi * 9; el(102, 2.2, 'rgba(242,251,255,0.8)'); g.setLineDash([]);
     g.globalCompositeOperation = 'source-over';
     for (let i = 0; i < 26; i++) { const b = a0 + R1(i * 3.7 + fi * 11) * Math.PI, rr = 110 + 12 * R1(i * 5.1 + fi); g.fillStyle = i % 3 ? 'rgba(242,251,255,0.8)' : 'rgba(160,248,255,0.8)'; g.beginPath(); g.arc(Math.cos(b) * rr, Math.sin(b) * rr * ar, 1 + 1.6 * R1(i + fi * 3), 0, TAU); g.fill(); } });
+  /* a soft wide halo (bright near the sphere's edge, fading far out) and six fine rays of light for the core */
+  const dbsHalo = () => fxSprite('wu1dbsh', 128, 128, (g, w) => { const c0 = w / 2, gr = g.createRadialGradient(c0, c0, 0, c0, c0, c0); [[0, 'rgba(111,242,255,0.25)'], [0.38, 'rgba(111,242,255,0.38)'], [0.48, 'rgba(160,248,255,0.3)'], [0.7, 'rgba(63,214,224,0.1)'], [1, 'rgba(63,214,224,0)']].forEach(q => gr.addColorStop(q[0], q[1])); g.fillStyle = gr; g.fillRect(0, 0, w, w); });
+  const dbsRays = () => fxSprite('wu1dbsy', 128, 128, (g, w) => { const c0 = w / 2; g.translate(c0, c0); for (let i = 0; i < 6; i++) { g.rotate(TAU / 6); const L = 40 + 18 * (i % 2); g.fillStyle = i % 2 ? 'rgba(160,248,255,0.55)' : 'rgba(255,255,255,0.7)'; g.beginPath(); g.moveTo(-3, 0); g.lineTo(0, -L); g.lineTo(3, 0); g.closePath(); g.fill(); } });
   U.deepbluesea = (C, h) => {
     H = h; K = IK.bind(H);
-    const me = H.me, ev = K.evo(C), lvl = ev >= 7 ? 3 : ev >= 4 ? 2 : 1, N = K.lv(C, [1, 3, 5]), cx0 = C.tx, cy0 = C.ty, RX = (5 + 0.15 * (ev - 1)) * C.K;
-    const RW = 1.0, ZH = 1.45, FORM = 1.0, CHG = 1.5, DF = lvl >= 3 ? 3.0 : 3.6, FEND = CHG + DF + 0.22 * (N - 1), GATH = lvl >= 3 ? 0.65 : 0, FGAP = 0.28, END = FEND + GATH + FGAP * (N - 1) + 0.45 + 1.4;
-    const TOT = C.base * 16 * C.K * K.evoK(C), FIN = lvl >= 3 ? 0.3 : 0.2, HPX = 5, MAXP = 7, dmgP = TOT * (1 - FIN) / (N * HPX), dmgF = TOT * FIN / N, HITI = 0.8;
+    const me = H.me, ev = K.evo(C), lvl = ev >= 7 ? 3 : ev >= 4 ? 2 : 1, N = K.lv(C, [1, 3, 6]), cx0 = C.tx, cy0 = C.ty, RX = (5 + 0.15 * (ev - 1)) * C.K;
+    const RW = 1.0, ZH = 1.45, FORM = 1.0, CHG = 1.5, DF = lvl >= 3 ? 3.0 : 3.6, FEND = CHG + DF + 0.22 * (N - 1), GATH = lvl >= 3 ? 0.65 : 0, FGAP = 0.28, END = FEND + GATH + FGAP * (N - 1) + 0.25 + 0.45 + 1.4;
+    const TOT = C.base * 16 * C.K * K.evoK(C), FIN = lvl >= 3 ? 0.3 : 0.2, HPX = 5, MAXP = 7, HITI = 0.8, SH = ['#1A4FB0', '#2E9BE6', '#3FD6E0', '#2A6FD0', '#5FC8F0', '#2277C8'], HAL = [W.aqua, W.turq, W.pale];
     H.X.banner('DEEP BLUE SEA', '', C.col, 1.6); H.X.sfx.hum();
-    const S = []; for (let i = 0; i < N; i++) { const b = -Math.PI / 2 + (i - (N - 1) / 2) * (N > 1 ? 2.7 / (N - 1) : 0), rr = N > 3 && i % 2 ? 2.9 : 2.2; const hx = me.x + Math.cos(b) * rr * 1.15, hy = me.y + Math.sin(b) * rr * 0.75 - 0.2;
-      S.push({ i, x: hx, y: hy, hx, hy, vx: 0, vy: 0, z: ZH, tgt: null, hitT: new Map(), np: 0, lt: CHG + i * 0.22, tilt: (i - (N - 1) / 2) * 0.25, ar: 0.32, sq: 0, sqT: -9, flT: -9, over: 0, tr: [], trT: 0, ph: R1(i * 3.3) * TAU, curv: i % 2 ? 1 : -1, fin: null, ft: 0, done: false, burstT: -9 }); }
-    const warm = [() => dbsBody(), () => dbsCur(), () => dbsCur2(), () => bubbleSpr(), () => rippleSpr(), () => ringSpr(0), () => ringSpr(1)]; for (let a = 0; a < 4; a++) for (let fi = 0; fi < NRF; fi++) { warm.push(() => ringHalf(0, a, fi)); warm.push(() => ringHalf(1, a, fi)); } for (let i = 0; i < NSF; i++) { warm.push(() => rotF('dc', dbsCur, 3, NSF, i)); if (lvl >= 3) warm.push(() => rotF('dc2', dbsCur2, 2, NSF, i)); }
+    /* one big sphere (index 0; the hardest hitter, its finishing burst last and biggest) and smaller ones round it; every
+       sphere gets its own size jitter, shade, ring tilt and drift, ring and current spins, highlight phase, bubbles, launch
+       jitter, curvature and orbit */
+    const rnd = Math.random, S = []; for (let i = 0; i < N; i++) { const big = i === 0, b = big ? -Math.PI / 2 : -Math.PI / 2 + ((i - 1) - (N - 2) / 2) * (N > 2 ? 3.2 / (N - 2) : 1.6) + (i % 2 ? 0.25 : -0.25) + (rnd() - 0.5) * 0.3, rr = (big ? 2.0 : 2.3 + 0.9 * rnd()); const hx = me.x + Math.cos(b) * rr * 1.15, hy = me.y + Math.sin(b) * rr * 0.75 - (big ? 0.6 : 0.2);
+      const share = N === 1 ? 1 : big ? 0.35 : 0.65 / (N - 1), sd = rnd() * 100;
+      S.push({ i, big, sz: (big ? (lvl >= 3 ? 1.12 : 1) : 0.6) * (0.9 + 0.2 * rnd()), dp: TOT * share * (1 - FIN) / HPX, df: TOT * share * FIN, shade: SH[Math.floor(rnd() * SH.length)], sh2: 0.15 + 0.2 * rnd(), halo: HAL[Math.floor(rnd() * HAL.length)], rsp: (rnd() < 0.5 ? -1 : 1) * (6 + 8 * rnd()), roff: Math.floor(rnd() * 3), cs1: (rnd() < 0.5 ? -1 : 1) * (0.8 + 1.2 * rnd()), cs2: (rnd() < 0.5 ? -1 : 1) * (1.2 + 1.8 * rnd()), drs: (rnd() < 0.5 ? -1 : 1) * (1 + 1.4 * rnd()), td: 0.1 + 0.25 * rnd(), tfq: 0.4 + 0.8 * rnd(), bsd: sd, cw: 0.35 + 0.6 * rnd(),
+        x: hx, y: hy, hx, hy, vx: 0, vy: 0, z: ZH + (big ? 0.25 : (rnd() - 0.5) * 0.4), tgt: null, hitT: new Map(), np: 0, lt: CHG + (big ? 0.15 : i * 0.2 + rnd() * 0.15), tilt: (rnd() - 0.5) * 0.9, ar: 0.32, sq: 0, sqT: -9, flT: -9, over: 0, tr: [], trT: 0, ph: rnd() * TAU, curv: rnd() < 0.5 ? 1 : -1, fin: null, ft: 0, done: false, burstT: -9 }); }
+    /* the finishing order: the small ones first, the big one last */
+    const ford = s => s.big ? N - 1 + (N > 1 ? 0.9 : 0) : s.i - 1;
+    const warm = [() => dbsBody(), () => dbsCur(), () => dbsCur2(), () => bubbleSpr(), () => rippleSpr(), () => ringSpr(0), () => ringSpr(1)]; for (let a = 0; a < 4; a++) for (let fi = 0; fi < NRF; fi++) { warm.push(() => ringHalf(0, a, fi)); warm.push(() => ringHalf(1, a, fi)); } warm.push(() => dbsHalo(), () => dbsRays()); for (let i = 0; i < NSF; i++) warm.push(() => rotF('dr', dbsRays, 6, NSF, i)); for (let i = 0; i < NSF; i++) { warm.push(() => rotF('dc', dbsCur, 3, NSF, i)); if (lvl >= 3) warm.push(() => rotF('dc2', dbsCur2, 2, NSF, i)); }
     const pickT = (s, t, live) => { const cand = live.filter(m => Math.hypot(m.x - cx0, m.y - cy0) < RX * 1.3 + m.r && !(t - (s.hitT.get(m) || -9) < HITI)); const others = new Set(S.filter(q => q !== s && q.tgt).map(q => q.tgt)); const pool = cand.filter(m => !others.has(m)).length ? cand.filter(m => !others.has(m)) : cand; return pool.length ? pool.sort((p, q) => Math.hypot(p.x - s.x, p.y - s.y) - Math.hypot(q.x - s.x, q.y - s.y))[0] : null; };
-    const finish = s => { s.done = true; s.burstT = s.ft; H.hitArea(s.x, s.y, 1.7, dmgF, C.dmgO({ chill: true })); H.X.shake(lvl >= 3 ? 6 : 4, 0.2); H.X.sfx.crash(); H.X.light(s.x, s.y, 2.6, 0.45); H.X.ring(s.x, s.y, 0.3, 2.4, 0.5, W.aqua, 0.25);
+    const finish = s => { s.done = true; s.burstT = s.ft; H.hitArea(s.x, s.y, s.big ? 2.3 : 1.5, s.df, C.dmgO({ chill: true })); H.X.shake(s.big ? 9 : 4, s.big ? 0.35 : 0.2); H.X.sfx.crash(); H.X.light(s.x, s.y, 2.6, 0.45); H.X.ring(s.x, s.y, 0.3, 2.4, 0.5, W.aqua, 0.25);
       H.burst(s.x, s.y - s.z, 'bubble', 18, { v: 6, up: 2, g: 8, life: 0.8, size: 2.4, color: [W.pale, W.aqua, W.white] }); H.burst(s.x, s.y - s.z, 'spark', 40, { v: 8, up: 2, g: 5, life: 0.9, size: 1.8, color: [W.white, W.aqua, W.pale, W.foam] }); H.burst(s.x, s.y - s.z, 'spark', 14, { v: 3, up: 1, g: 0.8, life: 1.4, size: 2.2, color: [W.white, W.aqua] }); };
     H.add({ life: END, x: cx0, y: cy0, wi: 0,
       update(dt, f) {
@@ -311,9 +322,9 @@
             let gx, gy; if (s.tgt) { gx = s.tgt.x; gy = s.tgt.y; } else { gx = cx0 + Math.cos(t * 0.9 + s.i * 2) * RX * 0.6; gy = cy0 + Math.sin(t * 0.9 + s.i * 2) * RX * 0.45; }
             const ex = gx - s.x, ey = gy - s.y, d = Math.hypot(ex, ey) || 1, dash = s.tgt && !s.over && d < 2.6;
             if (s.over) { const sp = Math.hypot(s.vx, s.vy) || 1; dx = s.vx / sp * 6; dy = s.vy / sp * 6; }
-            else { V = dash ? 10 : 4.2 + 0.2 * lvl; const wv = (lvl >= 2 ? 0.75 : 0.5) * s.curv * Math.min(1, d / 3); dx = (ex / d - ey / d * wv) * V; dy = (ey / d + ex / d * wv) * V; } }
+            else { V = dash ? 10 : 4.2 + 0.2 * lvl; const wv = s.cw * (lvl >= 2 ? 1.2 : 1) * s.curv * Math.min(1, d / 3); dx = (ex / d - ey / d * wv) * V; dy = (ey / d + ex / d * wv) * V; } }
           else { // the finale: (Celestial) a wide arc round the target area, rings aligned, then one finishing pass each
-            const k = s.i, a0 = C.a + Math.PI / 2 + (k - (N - 1) / 2) * (N > 1 ? 2.6 / (N - 1) : 0), ax = cx0 + Math.cos(a0) * RX * 0.75, ay = cy0 + Math.sin(a0) * RX * 0.6, tf = FEND + GATH + k * FGAP;
+            const k = ford(s), a0 = C.a + Math.PI / 2 + (s.big ? 0 : ((s.i - 1) - (N - 2) / 2) * (N > 2 ? 2.8 / (N - 2) : 0) + (s.i % 2 ? 0.2 : -0.2)), ar0 = s.big ? 0.35 : 0.75, ax = cx0 + Math.cos(a0) * RX * ar0, ay = cy0 + Math.sin(a0) * RX * ar0 * 0.8, tf = FEND + GATH + k * FGAP;
             if (!s.fin) { const m = live.filter(q => Math.hypot(q.x - cx0, q.y - cy0) < RX * 1.4).sort((p, q) => Math.hypot(p.x - s.x, p.y - s.y) - Math.hypot(q.x - s.x, q.y - s.y))[k % Math.max(1, live.length)] || null; s.fin = m ? [m.x, m.y] : [cx0, cy0]; }
             if (t < tf) { if (GATH) { dx = (ax - s.x) * 5; dy = (ay - s.y) * 5; } else { dx = s.vx * 0.9; dy = s.vy * 0.9; } }
             else { const ex = s.fin[0] - s.x, ey = s.fin[1] - s.y, d = Math.hypot(ex, ey); V = 13; if (d < 0.35 || t > tf + 0.5) { s.ft = t; finish(s); continue; } dx = ex / d * V; dy = ey / d * V; } }
@@ -322,10 +333,10 @@
           if (t >= s.lt) { const px = s.x - me.x, py = (s.y - s.z) - (me.y - 0.5), dp = Math.hypot(px, py) || 0.01; if (dp < 1.8) { dx += px / dp * (1.8 - dp) * 6; dy += py / dp * (1.8 - dp) * 6; } }
           const kk = Math.min(1, dt * (t < s.lt ? 6 : 3.2)), ovx = s.vx, ovy = s.vy; s.vx += (dx - s.vx) * kk; s.vy += (dy - s.vy) * kk; s.x += s.vx * dt; s.y += s.vy * dt;
           // bank: the ring tilts into turns; its opening drifts
-          const turn = (ovx * s.vy - ovy * s.vx) / Math.max(1, Math.hypot(s.vx, s.vy)) / Math.max(dt, 0.001); let wantT = Math.max(-0.7, Math.min(0.7, s.vx * 0.05 + turn * 0.04)); if (t > FEND && GATH && s.fin) wantT = Math.atan2(s.fin[1] - s.y, s.fin[0] - s.x) * 0.25; s.tilt += (wantT - s.tilt) * Math.min(1, dt * 3); s.ar = 0.32 + 0.12 * Math.sin(t * 0.8 + s.ph) + Math.min(0.08, Math.abs(s.vy) * 0.01);
+          const turn = (ovx * s.vy - ovy * s.vx) / Math.max(1, Math.hypot(s.vx, s.vy)) / Math.max(dt, 0.001); let wantT = Math.max(-0.8, Math.min(0.8, s.vx * 0.05 + turn * 0.04 + s.td * Math.sin(t * s.tfq + s.ph))); if (t > FEND && GATH && s.fin) wantT = Math.atan2(s.fin[1] - s.y, s.fin[0] - s.x) * 0.25; s.tilt += (wantT - s.tilt) * Math.min(1, dt * 3); s.ar = 0.32 + 0.12 * Math.sin(t * 0.8 + s.ph) + Math.min(0.08, Math.abs(s.vy) * 0.01);
           if (t - s.trT > 0.04) { s.trT = t; s.tr.push([s.x, s.y]); if (s.tr.length > 18) s.tr.shift(); }
           // contact: each monster once per pass (a per-monster interval), the front compresses, a ripple runs over it, the ring flares
-          if (t >= s.lt && t < FEND) { let hit = 0; for (const m of live) { if (Math.hypot(m.x - s.x, m.y - s.y) > RW + m.r) continue; if (t - (s.hitT.get(m) || -9) < HITI || s.np >= MAXP) continue; s.hitT.set(m, t); H.X.hitMon(m, dmgP, C.dmgO({ chill: true })); H.slow(m, 0.6); hit++; if (Math.random() < H.Q()) { H.burst(m.x, m.y - 0.5, 'spark', 8, { v: 6, up: 2, g: 7, life: 0.5, size: 2, color: [W.white, W.foam, W.aqua] }); H.burst(m.x, m.y - 0.5, 'bubble', 4, { v: 4, up: 2, g: 8, life: 0.6, size: 2, color: [W.pale, W.aqua] }); } }
+          if (t >= s.lt && t < FEND) { let hit = 0; for (const m of live) { if (Math.hypot(m.x - s.x, m.y - s.y) > RW * (0.55 + 0.45 * s.sz / 1.0) + m.r) continue; if (t - (s.hitT.get(m) || -9) < HITI || s.np >= MAXP) continue; s.hitT.set(m, t); H.X.hitMon(m, s.dp, C.dmgO({ chill: true })); H.slow(m, 0.6); hit++; if (Math.random() < H.Q()) { H.burst(m.x, m.y - 0.5, 'spark', 8, { v: 6, up: 2, g: 7, life: 0.5, size: 2, color: [W.white, W.foam, W.aqua] }); H.burst(m.x, m.y - 0.5, 'bubble', 4, { v: 4, up: 2, g: 8, life: 0.6, size: 2, color: [W.pale, W.aqua] }); } }
             if (hit) { s.np++; s.sqT = t; s.flT = t; s.over = t + 0.35; H.X.shake(2, 0.08); if (Math.random() < 0.5) H.X.sfx.crash(); } }
           // the wake: bubbles and droplets
           const sp = Math.hypot(s.vx, s.vy); if (t >= s.lt && Math.random() < Math.min(1, sp * 2.5 * dt) * H.Q() * 2.5) { H.P({ kind: Math.random() < 0.6 ? 'bubble' : 'spark', x: s.x - s.vx * 0.08 + (Math.random() - 0.5) * 0.5, y: s.y - s.z - s.vy * 0.08 + (Math.random() - 0.5) * 0.5, vx: -s.vx * 0.15, vy: -s.vy * 0.15 - 0.4, g: 0.5, drag: 1, life: 0.8, max: 0.8, size: 1.4 + Math.random() * 1.8, color: Math.random() < 0.5 ? W.pale : W.aqua }); } }
@@ -340,8 +351,8 @@
           const bk = (t - s.burstT) / 1.4; if (bk > 0 && bk < 1) { const r = T * (1 + 2.6 * H.ease.out(bk)); c.globalAlpha = 0.8 * (1 - bk); c.drawImage(rp, SX - r, SY - r * GY, r * 2, r * 2 * GY); fl(c, SX, SY, r, 0.4 * (1 - bk), W.aqua); } }
         c.restore(); },
       draw(c, f, X, Y, T) {
-        const t = f.t, PX = H.sx(me.x), PY = H.sy(me.y) - T * 0.46, RS = T * 1.2, body = dbsBody(), bub = bubbleSpr(), fi = Math.floor(t * 10) % NRF, gw = glowSprite(W.white), ga = glowSprite(W.aqua);
-        for (const s of S.slice().sort((p, q) => p.y - q.y)) { const SX = H.sx(s.x), SY0 = H.sy(s.y), SY = SY0 - s.z * T;
+        const t = f.t, PX = H.sx(me.x), PY = H.sy(me.y) - T * 0.46, RS0 = T * 1.2, body = dbsBody(), bub = bubbleSpr(), fi = Math.floor(t * 10) % NRF, gw = glowSprite(W.white), ga = glowSprite(W.aqua);
+        for (const s of S.slice().sort((p, q) => p.y - q.y)) { const RS = RS0 * s.sz, SX = H.sx(s.x), SY0 = H.sy(s.y), SY = SY0 - s.z * T;
           // the finishing burst: a water halo, a curved sheet of spray
           const bu = (t - s.burstT) / 0.6; if (bu > 0 && bu < 1) { const r = RS * (1 + 2.2 * H.ease.out(bu)); c.save(); c.globalAlpha = 0.9 * (1 - bu); c.drawImage(ringSpr(s.i % 3), SX - r, SY - r * 0.55, r * 2, r * 1.1); c.lineCap = 'round'; const sa0 = Math.atan2(s.vy, s.vx); for (let q = -2; q <= 2; q++) { const b = sa0 + q * 0.32, e = r * 1.2; c.strokeStyle = rgbaS(W.turq, 0.45); c.lineWidth = T * 0.22 * (1 - bu); c.beginPath(); c.moveTo(SX, SY); c.quadraticCurveTo(SX + Math.cos(b) * e * 0.6, SY + Math.sin(b) * e * 0.3 - RS * 1.2, SX + Math.cos(b) * e, SY + Math.sin(b) * e * 0.5 - RS * 0.4); c.stroke(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = rgbaS(W.white, 0.8); c.lineWidth = 1.4; c.stroke(); c.globalCompositeOperation = 'source-over'; } c.restore(); }
           if (s.done) continue;
@@ -355,20 +366,24 @@
           if (t > s.lt && s.tr.length > 3) { const pts = []; for (let k = s.tr.length - 1; k >= 0; k--) pts.push([H.sx(s.tr[k][0]), H.sy(s.tr[k][1]) - s.z * T]); wribbon(c, pts, RS * 0.3, 0.5); }
           // the ring: its far half behind the sphere
           const ai = Math.max(0, Math.min(3, Math.round((s.ar * (0.3 + 0.7 * rk) - 0.18) / 0.107))), rsc = RS * 1.75 / 100 * (0.6 + 0.4 * rk) * (1 + 0.35 * fl2) * form, ra = rk * (1 - 0.3 * fl2);
-          const ring = (front) => { if (ra <= 0.01) return; c.save(); c.translate(SX, SY); c.rotate(s.tilt); c.globalAlpha = Math.min(1, ra * (1 + 0.4 * chg)); c.drawImage(ringHalf(front, ai, (fi + s.i) % NRF), -128 * rsc, -80 * rsc, 256 * rsc, 160 * rsc);
+          const ring = (front) => { if (ra <= 0.01) return; c.save(); c.translate(SX, SY); c.rotate(s.tilt); c.globalAlpha = Math.min(1, ra * (1 + 0.4 * chg)); c.drawImage(ringHalf(front, ai, (((Math.floor(t * Math.abs(s.rsp)) * Math.sign(s.rsp) + s.roff) % NRF) + NRF) % NRF), -128 * rsc, -80 * rsc, 256 * rsc, 160 * rsc);
             // the secondary ring of orbiting droplets (Adept; Celestial: two, turning opposite ways)
-            if (lvl >= 2) { c.globalCompositeOperation = 'lighter'; const ar2 = RAB[ai]; for (let rr = 0; rr < (lvl >= 3 ? 2 : 1); rr++) { const R2 = 100 * rsc * (1.28 + 0.14 * rr), d = rr ? -1 : 1; for (let q = 0; q < 12; q++) { const b = q / 12 * TAU + t * 1.6 * d + s.ph, sb = Math.sin(b); if ((sb > 0) !== !!front) continue; const gr = T * 0.09; c.globalAlpha = ra * 0.9; c.drawImage(q % 3 ? gw : ga, Math.cos(b) * R2 - gr, sb * R2 * ar2 - gr, gr * 2, gr * 2); } } }
+            if (lvl >= 2) { c.globalCompositeOperation = 'lighter'; const ar2 = RAB[ai]; for (let rr = 0; rr < (lvl >= 3 ? 2 : 1); rr++) { const R2 = 100 * rsc * (1.28 + 0.14 * rr), d = rr ? -1 : 1; for (let q = 0; q < 12; q++) { const b = q / 12 * TAU + t * s.drs * d + s.ph, sb = Math.sin(b); if ((sb > 0) !== !!front) continue; const gr = T * 0.09; c.globalAlpha = ra * 0.9; c.drawImage(q % 3 ? gw : ga, Math.cos(b) * R2 - gr, sb * R2 * ar2 - gr, gr * 2, gr * 2); } } }
             c.restore(); };
+          // a soft, wide ethereal glow round it, gently breathing
+          { const hr = RS * (2.3 + 0.15 * Math.sin(t * 2.1 + s.ph)) * form; c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = (0.55 + 0.15 * Math.sin(t * 1.7 + s.ph) + 0.25 * Math.max(chg, fin)) * cl(form); c.drawImage(dbsHalo(), SX - hr, SY - hr, hr * 2, hr * 2); c.globalAlpha *= 0.5; c.drawImage(glowSprite(s.halo), SX - hr * 0.8, SY - hr * 0.8, hr * 1.6, hr * 1.6); c.restore(); }
           ring(0);
           // the sphere: body (compressed on contact, wobbling as it forms), turning currents, spiralling bubbles, gliding highlights
           const sx = (1 + wob - 0.18 * sq) * form, sy = (1 - wob + 0.1 * sq) * form, r = RS;
           c.save(); c.translate(SX, SY); c.scale(sx, sy); c.drawImage(body, -r * 1.067, -r * 1.067, r * 2.133, r * 2.133);
-          c.globalCompositeOperation = 'lighter'; const spd = 1.2 + 2.5 * chg + 1.5 * fin; c.globalAlpha = 0.75; c.drawImage(rotAt('dc', dbsCur, 3, t * spd + s.ph), -r * 0.9, -r * 0.9, r * 1.8, r * 1.8);
-          if (lvl >= 3) { c.globalAlpha = 0.7; c.drawImage(rotAt('dc2', dbsCur2, 2, -t * spd * 1.7), -r * 0.55, -r * 0.55, r * 1.1, r * 1.1); }
-          c.globalAlpha = 0.5 + 0.5 * Math.max(chg, fin); c.drawImage(ga, -r * (0.5 + 0.4 * fin), -r * (0.5 + 0.4 * fin), r * (1 + 0.8 * fin), r * (1 + 0.8 * fin));
+          c.globalCompositeOperation = 'lighter'; const spd = 1.2 + 2.5 * chg + 1.5 * fin; c.globalAlpha = 0.75; c.drawImage(rotAt('dc', dbsCur, 3, t * spd * s.cs1 + s.ph), -r * 0.9, -r * 0.9, r * 1.8, r * 1.8);
+          if (lvl >= 3) { c.globalAlpha = 0.7; c.drawImage(rotAt('dc2', dbsCur2, 2, t * spd * s.cs2), -r * 0.55, -r * 0.55, r * 1.1, r * 1.1); }
+          c.globalAlpha = s.sh2; c.drawImage(glowSprite(s.shade), -r, -r, r * 2, r * 2);
+          // the shining core: a white-aqua heart with a pulsing bloom and slowly turning rays, seen through the sapphire
+          { const pu = 0.5 + 0.5 * Math.sin(t * 3.2 + s.ph), cr = r * (0.42 + 0.1 * pu + 0.25 * Math.max(chg, fin)); c.globalAlpha = 0.6 + 0.3 * pu; c.drawImage(ga, -cr * 1.6, -cr * 1.6, cr * 3.2, cr * 3.2); c.globalAlpha = 0.55 + 0.25 * pu; c.drawImage(rotAt('dr', dbsRays, 6, t * 0.5 * s.cs1 + s.ph), -r * 0.95, -r * 0.95, r * 1.9, r * 1.9); c.globalAlpha = 0.85; c.drawImage(gw, -cr * 0.55, -cr * 0.55, cr * 1.1, cr * 1.1); }
           for (let q = 0; q < 2; q++) { const b = t * (0.9 + 0.3 * q) + s.ph + q * 2.5, gx = Math.cos(b) * r * 0.55, gy = Math.sin(b) * r * 0.3 - r * 0.25; c.globalAlpha = 0.55 * (0.5 + 0.5 * Math.sin(b)); c.drawImage(glowSprite(W.turq), gx - r * 0.35, gy - r * 0.18, r * 0.7, r * 0.36); }
           if (sq > 0.01) { const rr = r * (0.3 + 0.75 * (1 - sq)); c.globalAlpha = sq; c.drawImage(rippleSpr(), -rr, -rr, rr * 2, rr * 2); }
-          c.globalCompositeOperation = 'source-over'; for (let q = 0; q < 6; q++) { const u = (t * 0.45 + q / 6) % 1, b = u * 9 + q * 1.1 + s.ph, rr = r * 0.75 * (1 - u), br = r * (0.06 + 0.05 * R1(q)); c.globalAlpha = 0.8 * Math.sin(u * Math.PI); c.drawImage(bub, Math.cos(b) * rr - br, Math.sin(b) * rr * 0.7 - br - u * r * 0.2, br * 2, br * 2); }
+          c.globalCompositeOperation = 'source-over'; for (let q = 0; q < 6; q++) { const u = (t * (0.35 + 0.2 * R1(s.bsd + q)) + R1(s.bsd * 3 + q)) % 1, b = u * (6 + 5 * R1(s.bsd)) * (s.cs1 > 0 ? 1 : -1) + q * 1.1 + s.ph, rr = r * 0.75 * (1 - u), br = r * (0.06 + 0.06 * R1(q + s.bsd)); c.globalAlpha = 0.8 * Math.sin(u * Math.PI); c.drawImage(bub, Math.cos(b) * rr - br, Math.sin(b) * rr * 0.7 - br - u * r * 0.2, br * 2, br * 2); }
           c.restore();
           ring(1);
           c.restore(); }
