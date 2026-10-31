@@ -140,7 +140,7 @@ const ELEM_MOVES = {
   water: { strong: [
     ['ribbonfin', 'Ribbonfin', 'wave', 24, 2.4, 'A water ribbon curls into a fish and darts forward; it wraps the target once and bursts.'],
     ['tideglass', 'Tideglass Orb', 'orb', 24, 2.6, 'A clear sphere of water rolls slowly through the monsters, then stretches up and splashes.'],
-    ['crescentsurf', 'Crescent Surf', 'crescent', 26, 2.8, 'A low crescent wave widens as it travels, foam marking its edge.'],
+    ['crescenttide', 'Crescent Tide', 'crescent', 26, 2.8, 'Crescent water sheets orbit you, then peel away through the monsters: more crescents as you evolve.'],
     ['rainneedle', 'Rainneedle Fan', 'fan', 24, 2.6, 'A sheet of water hangs before you and separates into a fan of piercing needles.'],
     ['whirlpool', 'Whirlpool Step', 'vortex', 26, 3.2, 'A spiral pool turns at the aim, drawing monsters in and scouring them, then a column rises and collapses.'],
     ['bubblesnare', 'Bubble Spray', 'bubbles', 26, 3, 'A great bubble floats to the target and encloses the monsters there, slowing them until it pops.'],
@@ -157,7 +157,7 @@ const ELEM_MOVES = {
     ['abyssalspiral', 'Abyssal Spiral', 'vortex', 95, 20, 'A deep-blue whirlpool lifts a hollow tower of spiralling water ribbons, drawing monsters in, then collapses inward into a pressure burst: seven ribbons at Celestial.'],
     ['bubblereverie', 'Bubble Reverie', 'bubbles', 90, 18, 'Large pearlescent bubbles gather in floating arcs round you, then launch along curved paths and burst on the monsters: eighteen at Celestial.'],
     ['heavenfall', 'Heavenfall', 'beam', 95, 20, 'Huge luminous rings open overhead and pour powerful waterfalls onto the monsters: five in a sweeping cascade at Celestial.'],
-    ['crescenttide', 'Crescent Tide', 'crescent', 95, 20, 'Enormous crescent water sheets orbit you, then peel away as sweeping projectiles: six at Celestial in three pairs.'],
+    ['neptunetrident', "Neptune's Trident", 'lance', 100, 22, 'A giant trident emerges from a rippling sky and plunges into the ground, cracking it open in a vast water explosion; at Celestial ten smaller tridents rain down after it.'],
     ['jellyfish', 'Jellyfish Aurora', 'bubbles', 95, 20, 'Giant jellyfish of water descend over the aim, tendrils sweeping lanes beneath; their bells contract together.'] ] },
   ice: { strong: [
     ['antler', 'Crystal Antler', 'thorns', 24, 2.4, 'Branching ice antlers grow along a short path ahead and shatter outward.'],
