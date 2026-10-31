@@ -169,7 +169,8 @@
         c.save(); c.globalCompositeOperation = 'lighter';
         if (bw > 0 && yb > top + 1 && a > 0.01) {
           // the pet's cut-out: how much of a slice at height y to keep for a layer centred on the beam, w wide
-          const ov = w => 0.85 * (1 - sstep(0.55, 1, Math.abs(pX - X) / (w / 2 + T * 0.45)));
+          // the pet on or behind the beam: no cut-out (it read as a dark box), the whole column just eases down smoothly
+          const ov = w => 0, PD = (1 - sstep(0.45, 1.05, Math.abs(pX - X) / (bw * 0.95 + T * 0.6))) * (pY > top && pY < yb + T * 1.5 ? 1 : 0), DIM = 1 - 0.62 * PD;
           const keep = (y, o) => 1 - o * (1 - sstep(T * 0.5, T * 1.15, Math.abs(y - pY)));
           // feathered foot: every layer fades out over the last FB px and reaches a little past the contact point
           const FB = Math.min(T * 1.6, (yb - top) * 0.3), yE = yb + FB * 0.3, fb = y => 1 - sstep(yb - FB, yE, y);
@@ -182,7 +183,7 @@
               const NS = Math.max(3, Math.ceil((Bc - A) / 3)), hh = (Bc - A) / NS; for (let i = 0; i < NS; i++) { const yy = A + i * hh, k = wt(yy + hh / 2, o); if (k < 0.01) continue; c.globalAlpha = Math.min(1, al * k); c.drawImage(img, 0, Math.max(0, sy0 + (yy - y0) * sc), img.width, Math.max(0.01, hh * sc), x, yy, w, hh); }
               y = Math.max(y, Bc); }
             solid(y, y1); };
-          const col = (img, w, al) => { if (!(al > 0.005) || w < 0.5) return; strip(img, X - w / 2, w, top, yE, 0, img.height, al, ov(w)); };
+          const col = (img, w, al) => { if (!(al > 0.005) || w < 0.5) return; strip(img, X - w / 2, w, top, yE, 0, img.height, al * DIM, 0); };
           const pu = f.pu, wk = bw / full;
           col(colSpr(0), bw * (L === 3 ? 1.9 : 1.75), a * 0.5);
           col(colSpr(1), bw, a * (0.72 + 0.1 * pu));
@@ -191,11 +192,11 @@
           // the inner currents: tiles scrolling down, layered at Adept and Celestial
           if (wk > 0.35) { const ca = a * sstep(0.35, 0.8, wk), lay = [[0, 0.7, 2.6, 0.55]]; if (L >= 2) lay.push([1, 0.46, 3.8, 0.5]); if (L >= 3) lay.push([2, 0.92, 1.8, 0.3]);
             for (const [k, wf, spd, al] of lay) { const w = bw * wf, th = w * 2, off = ((t * spd * T) % th + th) % th, img = curSpr(k), o = ov(w), ih = img.height;
-              for (let y = top - th + off; y < yE; y += th) { const y0 = Math.max(y, top), y1 = Math.min(y + th, yE); strip(img, X - w / 2, w, y0, y1, (y0 - y) / th * ih, (y1 - y) / th * ih, ca * al, o); } }
+              for (let y = top - th + off; y < yE; y += th) { const y0 = Math.max(y, top), y1 = Math.min(y + th, yE); strip(img, X - w / 2, w, y0, y1, (y0 - y) / th * ih, (y1 - y) / th * ih, ca * al * DIM, 0); } }
             }
           // fine strands streaming down through the column
           if (wk > 0.3) { const NS = H.n(NST), span = yb - top; for (let i = 0; i < NS; i++) { const sx = (R1(i * 5.3 + 2) * 2 - 1) * 0.8, sp = (5 + 4 * R1(i * 2.9)) * T, sl = T * (1.4 + 1.4 * R1(i * 8.1)), sw = T * (L === 3 && i % 2 ? 0.1 : 0.16), yy = top + ((R1(i * 1.7) * (span + sl) + t * sp) % (span + sl)) - sl / 2;
-              const px = X + sx * bw / 2, al = a * sstep(0.3, 0.7, wk) * 0.6 * (1 - sstep(span - sl, span, yy - top)) * (Math.abs(px - pX) < T * 0.9 ? keep(yy, 0.85) : 1); if (al < 0.02) continue;
+              const px = X + sx * bw / 2, al = a * sstep(0.3, 0.7, wk) * 0.6 * (1 - sstep(span - sl, span, yy - top)) * DIM; if (al < 0.02) continue;
               c.globalAlpha = al; c.drawImage(streakSpr(i % 3 ? BLUSH : CANDY), px - sw / 2, yy - sl / 2, sw, sl); } }
           // the brilliant rim at the contact point, with glints running round it; Celestial adds a broad outer ring
           if (yb >= Y - 1) { const r = Math.max(bw * 0.58, thin * 2), k = nearK(X, Y);
