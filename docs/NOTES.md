@@ -933,3 +933,4 @@ Every new boss painter (rift fiends, Tower bosses, minis that get their own art)
 - v207: Ray of Light: every column layer and the inner currents feather out over the last ~1.6 tiles (no hard bottom edge).
 - v208: Ray of Light: no pet cut-out band (it showed as a dark box); the whole column eases down smoothly while the pet is on or behind it.
 - v209: Ray of Light damage ×3 (45 × base instead of 15).
+- v210: Ray of Light: pink lightning crackles down both edges (re-struck ~13×/s, with branches; 2/3/4 bolts per side by tier); the column flickers and a wide outer glow breathes.
