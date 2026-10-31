@@ -43,4 +43,38 @@ the water should have deep sapphire interiors, translucent turquoise surfaces, b
     Each healing tick sends a soft ring across the ground toward the pet. Nearby strings brighten, and a few musical notes drift inward and dissolve around its body. The rhythm should feel calm, graceful, and continuous.
     Higher levels add strings at different heights, overlapping ripple patterns, and more elaborate note movement.
     At Celestial, the effect lasts 16 seconds. Multiple luminous strings weave around the pet like a floating musical arrangement. Nested water rings rotate underneath it while bubbles rise through the centre.
-    On the final healing tick, the strings lift into a flowing dome-shaped arrangement, the notes ascend, and the aura fades into droplets and light. Healing remains gradual and applies to the casting pet. The ending animation does not add an unrequested instant heal.
+    On the final healing tick, the strings lift into a flowing dome-shaped arrangement, the notes ascend, and the aura fades into droplets and light. Healing remains gradual and applies to the casting pet. The ending animation does not add an unrequested instant heal.6. Abyssal Spiral — new
+    A deep-blue whirlpool lifts a hollow tower of spiralling water, then collapses inward.
+    A broad circular current appears beneath the enemies. Its centre darkens into the illusion of a deep depression as bubbles and spray begin following inward-curving paths.
+    Large translucent water ribbons rise from the outer current and spiral upward. Their lower sections remain thick and sapphire-blue; their upper edges become thin, turquoise, and luminous. Open gaps between the ribbons allow enemies and particles to remain visible inside the vortex.
+    The ground current accelerates while the upper ribbons shed droplets outward. Enemies susceptible to displacement are gently drawn toward its centre while taking repeated Water damage.
+    At the end, the ribbons lean inward one after another and pour down the central opening. Their collapse produces one concentrated pressure burst, followed by a low spreading ripple.
+    The Celestial version has seven enormous spiral ribbons, interlacing around a dark hollow centre. Their upper tips flare outward during the sustained phase, then fold inward in a cascading sequence before the final compression and burst.
+7. Bubble Reverie — new
+    Large pearlescent bubbles assemble into floating formations, then launch along elegant curved paths and burst against enemies.
+    These bubbles have transparent centres, thin watery shells, and travelling crescent highlights. Inside each is a small glowing aqua droplet surrounded by tiny satellite bubbles.
+    They rise around the pet at staggered heights, forming broad arcs. Their surfaces wobble subtly as they hover. Before release, their inner droplets brighten and the bubbles stretch slightly in their launch direction.
+    Each bubble accelerates along a smooth curve toward its target. On contact, its shell briefly flattens against the impact plane. The surface highlight races toward the rim, and the bubble bursts into a thin circular splash with a brilliant aqua edge.
+    Medium droplets spray outward while the tiny satellite bubbles linger briefly before popping.
+    At Celestial, eighteen attacking bubbles form three rotating arcs of six. A moving highlight travels through each formation as it launches. The bubbles weave through the battlefield along staggered routes. On impact, their shells briefly separate into two curved liquid sheets before breaking into spray.
+    The result should feel buoyant and beautiful during formation, then fast and forceful during release.
+8. Heavenfall — new
+    Huge luminous rings open overhead and pour powerful waterfalls onto enemies.
+    Each source consists of a thick horizontal water ring surrounding a shallow glowing disc. A dark opening develops inside the disc as light circulates around its rim.
+    Small ripples mark the ground beneath it. The opening widens, and a thick column of water plunges downward. Its surface carries long moving highlights, with translucent edges and fragmented spray peeling away from the falling stream.
+    Where it strikes, the water forms a foaming impact basin and expanding ground rings. The upper ring, waterfall, and basin remain visibly connected throughout the animation.
+    As a column ends, its source narrows. The remaining water visibly falls through before the overhead ring dissolves into droplets. Its basin spreads into a shallow glistening puddle and fades.
+    At Celestial, five grand rings form an elevated arc above the target area. They open in sequence, with their waterfalls briefly overlapping to create a sweeping cascade. Their ground basins expand into one beautiful luminous water pattern, while mist drifts between the columns.
+9. Crescent Tide — new
+    Enormous crescent-shaped water sheets orbit the pet, then peel away as sweeping projectiles.
+    Each crescent is a curved strip with a thick rounded leading rim, a thin trailing sheet, and two tapered tips. Its interior is turquoise, its edge glows aquamarine, and broken foam runs along its front.
+    Curved ground ripples rise into these crescents. They circle the pet at staggered heights, banking into their turns. Their trailing sheets flex independently, and droplets fling from their tips during the fastest part of the orbit.
+    On release, the crescents peel away one after another, following shallow curved paths into the enemy formation. Their leading edges pass through targets, throwing narrow sheets of spray sideways.
+    At their range limit, the thick rims stretch into flowing ribbons. The water sheets then unravel into droplets and mist.
+    At Celestial, six immense crescents form a rotating arrangement around the pet, catching pearlescent highlights as they turn. They launch in three staggered pairs, with upper and lower paths approaching the target region from different angles. Their fading wakes leave six long aqua ribbons suspended briefly across the battlefield.
+## Round 2 feedback (user, after the first five shipped)
+- Mayhem: "Feather out the edges at the bottom of the water twister, blend it in better so there are no hard lines that separate the water twisters. I also need the water twister to be 25% thinner, it's too fat at the moment, also give it more flow and particle effects."
+- Lotus Bloom: "should glow more as well, like a magical feel around it to soften up the sharp edges of the flower."
+- Shiny Aqua Illusion: "Feather out the edges, also increase damage output to dealing 20% of all damage dealt during the curse."
+- Tsunami: "causing a massive slowdown in performance, optimize it so it would perform better. Also add in a soft glow to the waves and glittering effects."
+- New Ultimates 6-9 above replace leviathanribbon, returningsea, rainmaker and monsoon (jellyfish kept, to be rebuilt later).
