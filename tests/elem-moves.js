@@ -65,7 +65,8 @@ const path = require('path');
   const tail = await page.evaluate(() => { const D = window.__pp.arc.game._dbg; return { fx: D.ELEM.fx.length, state: window.__pp.arc.state, petHP: Math.round(D.me.hp), zones: D.zones.filter(z => z.own === 'pet').length }; });
   for (const r of results) console.log(`${r.el.padEnd(8)} ${r.slot.padEnd(6)} ${r.key.padEnd(16)} dmg ${String(r.dmg).padStart(7)} live ${r.live} fxLeft ${r.fx} ${r.z ? 'Z ' + r.z : ''}${r.errs ? 'ERRORS ' + r.errs : ''}${r.missing ? ' MISSING' : ''}`);
   console.log('tail', JSON.stringify(tail));
-  const zero = results.filter(r => r.dmg <= 0).map(r => r.key), missing = results.filter(r => r.missing).map(r => r.key);
+  const NODMG = new Set(['salvation']);   // support moves (the party heal/revive) deal no damage; tested by their own behaviour
+  const zero = results.filter(r => r.dmg <= 0 && !NODMG.has(r.key)).map(r => r.key), missing = results.filter(r => r.missing).map(r => r.key);
   ok(!zero.length, 'every move lands damage', zero); ok(!missing.length, 'every move has an implementation', missing);
   ok(tail.fx === 0 && tail.zones === 0, 'every effect and warning is cleaned up afterwards', tail);
   ok(!errors.length, 'no page errors', errors.slice(0, 8)); console.log(bad ? 'FAILED ' + bad : 'all passed'); await browser.close(); process.exit(bad ? 1 : 0);

@@ -569,6 +569,19 @@ GAMES.dungeon = {
       setTimeout(() => api.finish(false, result(false, `${party.map(m => m.p.name).join(', ')} ${party.length > 1 ? 'were' : 'was'} knocked out on floor ${F.n}.`)), 1500);
       return true;
     }
+    /* (hook for Light's Salvation, 20k4f-light-ult-5.js) every pet in the party back to full health and every fallen one
+       standing again at full health (the played pet heals in place); a curse that forbids healing refuses it. Returns,
+       per member, its index, whether it was revived and what it gained, so the move can draw on each */
+    function restoreParty() {
+      if (me.dead || g.over) return [];
+      if (RULES && RULES.blocks('noheal')) { text(me.x, me.y - 0.9 * SIZE - 0.2, 'Cursed', '#E07BF0', 12); return []; }
+      return party.map((m, i) => { const mine = i === cur, was = mine ? me.hp : m.hp, down = !mine && m.down;
+        if (mine) { me.hp = ST.hp; m.hp = ST.hp; g.hpShow = 1; } else { m.down = false; m.hp = m.ST.hp; }
+        return { i, mine, down, gain: Math.max(0, (mine ? ST.hp : m.ST.hp) - was) }; });
+    }
+    /* (hook for Light's Salvation) where party member i sits in the switch strip of drawParty, in screen pixels (null for the
+       played pet, or a party of one): keep in step with drawParty's layout */
+    function partySlot(i) { if (i === cur || party.length < 2 || !party[i]) return null; const k = i < cur ? i : i - 1; return { x: 10 + 42 + k * 48 + 22, y: 10 + 48 + 11 }; }
     /* ---------- switching pets: the new one takes the field where the old one stood ---------- */
     function switchTo(i, forced) {
       if (i === cur && !forced) return false; const m = party[i]; if (!m || m.down || g.over) return false;
@@ -887,7 +900,9 @@ GAMES.dungeon = {
       bossBars: () => (FD && FD.S ? { n: FD.S.bars, hp: FD.barHP } : null),
     }));
     STAR = DunStar.create({ me, g, mons, eshots, zones, ST: () => ST, shot, hitMon, hitArea, part, ring, boom, zap, bolt: (x, y, color) => bolts.push({ pts: skyBolt(x, y), life: 0.3, max: 0.3, color, w: 5 }), sparks, after, nearestMon, text, banner, flash, shake, hitstop, heal, light, moveEnt, walkPoint, blocked, meteorAt, sfx: api.sfx, sx, sy, Tz: () => Tz(), warn: (x, y, r, life, col, fn) => zones.push({ kind: 'warn', x, y, r, life, max: life, own: 'pet', color: col, fn }), blizzard: t => { blizT = Math.max(blizT, t); }, supernova: r => { supernova = 1; me.inv = 2; novaR = r; }, dragon: d => dragons.push(d) });
-    ELEM = DunElem.create({ me, g, mons, eshots, zones, ST: () => ST, shot, hitMon, hitArea, part, ring, boom, zap, bolt: (x, y, color) => bolts.push({ pts: skyBolt(x, y), life: 0.3, max: 0.3, color, w: 5 }), sparks, after, nearestMon, text, banner, flash, shake, hitstop, heal, light, moveEnt, walkPoint, blocked, sfx: api.sfx, sx, sy, Tz: () => Tz() });
+    ELEM = DunElem.create({ me, g, mons, eshots, zones, ST: () => ST, shot, hitMon, hitArea, part, ring, boom, zap, bolt: (x, y, color) => bolts.push({ pts: skyBolt(x, y), life: 0.3, max: 0.3, color, w: 5 }), sparks, after, nearestMon, text, banner, flash, shake, hitstop, heal, light, moveEnt, walkPoint, blocked, sfx: api.sfx, sx, sy, Tz: () => Tz(),
+      /* (hooks for Light's Salvation, 20k4f) the party, its full heal + revive, its strip slots, the summoned Animas */
+      party: () => party, restoreParty, partySlot, animas: () => (AN && AN.S && AN.S.list) || [] });
     RES = DunResidue.create({ me, g, mons, props: propList, M, T_FLOOR, EL, e8Of, REACT_NAME: (a, b) => (REACTIONS[pairKey(a, b)] || {}).name, ST: () => ST, hitMon, part, boom, ring, sparks, text, light, drop, sfx: api.sfx, sx, sy, Tz: () => Tz() });
     RX = DunReact.create({ me, g, mons, eshots, ST: () => ST, AB: () => AB, hitMon, text, part, boom, zap, bolt: (x, y, color) => bolts.push({ pts: skyBolt(x, y), life: 0.3, max: 0.3, color, w: 5 }), sparks, ring, light, drop, heal, banner, sfx: api.sfx, sx, sy, Tz: () => Tz() });
     RULES = F.band ? DunRules.create({ F, M, me, g, mons, R, spawnMon, lesserBoss, walkPoint, freeSpot, after, banner, flash, text, ring, part, sparks, boom, shake, drop, heal, gainMP, ST: () => ST, sfx: api.sfx, sx, sy, Tz: () => Tz() }) : null;
@@ -2236,7 +2251,7 @@ GAMES.dungeon = {
       if (g.guardHP > 0) { c.fillStyle = 'rgba(143,227,240,.85)'; GFX.rr(c, bx, y0 + 1, Math.max(6, bw * clamp(g.guardHP / ST.hp, 0, 1)), 4, 2); c.fill(); }
       bar(y0 + 20, 13, me.mp, ST.mp, '#2F6FE0', '#7FB6FF', `MP ${Math.floor(me.mp)} / ${ST.mp}`);
       bar(y0 + 37, 5, P.dxp || 0, dunXpNeed(P.dlv || 1), '#E8B425', '#FFE37A', '');
-      drawParty(c, x0, y0, bw); if (HPF) HPF('hud:top');
+      drawParty(c, x0, y0, bw); if (ELEM) ELEM.draw(c, 'hud'); /* (an elemental move's marks on the party strip: Light's Salvation) */ if (HPF) HPF('hud:top');
       if (teamOk()) { const tb = btnTeam(); c.save(); c.fillStyle = 'rgba(12,9,26,.72)'; c.beginPath(); c.arc(tb.x, tb.y, tb.r, 0, 6.283); c.fill(); c.strokeStyle = 'rgba(255,255,255,.55)'; c.lineWidth = 2; c.stroke();
         // (two little figures, the party)
         c.fillStyle = '#FFFFFF'; [[-5, 0.85], [5, 1]].forEach(([dx, k]) => { c.globalAlpha = k; c.beginPath(); c.arc(tb.x + dx, tb.y - 4, 3.6, 0, 6.283); c.fill(); c.beginPath(); c.ellipse(tb.x + dx, tb.y + 6, 5.6, 4.2, 0, Math.PI, 0); c.fill(); }); c.globalAlpha = 1;

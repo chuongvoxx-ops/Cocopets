@@ -87,10 +87,10 @@ const ELEM_MOVES = {
     ['sunflare', 'Sunflare', 'nova', 95, 20, 'A massive pink love heart hovers over the battlefield for seven seconds, flooding the monsters below with radiant light while hearts and stars float round its beam.'],
     ['holyjudgement', 'Holy Judgement', 'stars', 95, 20, 'A fan of pink homing lights launches into the sky and falls on the monsters in bursts of glowing love hearts: 20, 30 at Adept, 40 at Celestial.'],
     ['rayoflight', 'Ray of Light', 'beam', 95, 20, 'An enormous pink-white beam of light falls from the sky and glides through the monsters, leaving a trail of rising hearts and stars.'],
-    ['guilloche', 'Daybreak Guilloche', 'nova', 95, 20, 'Lines of light draw a looping pattern on the floor; arcs rise from it, pulses run along it, then it lifts and detonates.'],
-    ['mirrors', 'Palace of Mirrors', 'gem', 95, 20, 'Tall mirrors circle the aim; a lance ricochets between them crossing the monsters, then all fire together downward.'],
-    ['solarengine', 'Solar Bloom Engine', 'burst', 95, 20, 'A mechanical sun of plates forms over you, slides open layer by layer, fires broad rays, then throws its plates as crescents.'],
-    ['verdict', 'Constellation Verdict', 'stars', 100, 22, 'Stars appear over the monsters and connect; each line sends a pulse down, then a greater star drops a pillar.'],
+    ['crescentbeam', 'Crescent Beam', 'beam', 95, 20, 'A pink crescent forms ahead of you and fires a massive straight beam of pink-white light along your aim: 7 s at Celestial.'],
+    ['meteorshower', 'Meteor Shower', 'stars', 95, 20, 'Pink lights gather above the monsters and fall as a glittering rain of meteors, each bursting into stars.'],
+    ['salvation', 'Salvation', 'shield', 95, 20, 'A luminous heart forms beneath you and releases a gentle pink pulse: every teammate is restored to full HP and every fallen teammate is revived at full HP.'],
+    ['ribbonheartache', 'Ribbon Rainbow Heartache', 'wave', 95, 20, 'Enormous ribbons of luminous pink satin sweep through the monsters in a graceful dance: 2, 4 at Adept, 6 at Celestial.'],
     ['heavenriver', 'River of Heaven', 'wave', 95, 20, 'A ribbon of golden light winds along the aim, dipping to strike section by section, then rises as a shimmering curtain.'],
     ['unsettingsun', 'Crown of the Unsetting Sun', 'nova', 100, 22, 'A vast crown turns over the aim casting spokes of light; its segments descend as strikes and the halo expands as a final wave.'] ] },
   dark: { strong: [
@@ -313,7 +313,7 @@ const DunElem = (() => {
     }
     const strong = (key, C) => run('strong', key, C), ult = (key, C) => run('ult', key, C);
     function update(dt) { for (let i = fx.length - 1; i >= 0; i--) { const f = fx[i]; f.t += dt; f.life -= dt; if (f.update) f.update(dt, f); if (f.life <= 0) { if (f.onEnd) f.onEnd(f); fx.splice(i, 1); } } }
-    function draw(c, under) { const T = X.Tz(), t = g.t; for (const f of fx) { const fn = under ? f.drawUnder : f.draw; if (!fn) continue; c.save(); fn.call(f, c, f, f.x != null ? X.sx(f.x) : X.sx(me.x), f.y != null ? X.sy(f.y) : X.sy(me.y), T, t); c.restore(); } }
+    function draw(c, under) { const T = X.Tz(), t = g.t; for (const f of fx) { const fn = under === 'hud' ? f.drawHud : under ? f.drawUnder : f.draw;   /* ('hud': over the HUD's party strip, for Light's Salvation) */ if (!fn) continue; c.save(); fn.call(f, c, f, f.x != null ? X.sx(f.x) : X.sx(me.x), f.y != null ? X.sy(f.y) : X.sy(me.y), T, t); c.restore(); } }
     return { fx, strong, ult, update, draw, H };
   }
   return { create };

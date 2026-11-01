@@ -943,3 +943,4 @@ Every new boss painter (rift fiends, Tower bosses, minis that get their own art)
 - v217: Armageddon flame ribbons feathered further: nine wide low-alpha layers, longer taper where they turn behind the core.
 - v218: Armageddon beam sprite: its spiral strands thin and fade to nothing where they turn behind the core, and the flame curls taper to a hair at the tip with a faint halo (no thick hard-edged strokes).
 - v219: Armageddon beam foot fully feathered (the cached column fades out over its last 20%, drawn a little past the foot).
+- v220: Pink Light round 2 (docs/LIGHT-PINK-BRIEF-2.md): Crescent Beam (20k4e, replaces Daybreak Guilloche), Meteor Shower (20k4e, replaces Palace of Mirrors), Salvation (20k4f, replaces Solar Bloom Engine: full party heal + revive at every level; restoreParty/partySlot hooks in 20b, a "hud" draw layer), Ribbon Rainbow Heartache (20k4g, replaces Constellation Verdict). elem-moves exempts salvation from the damage check.
