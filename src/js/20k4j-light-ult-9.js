@@ -28,7 +28,8 @@
           const tg = H.sortNear(me.x, me.y).filter(m => Math.hypot(m.x - me.x, m.y - me.y) < RANGE + m.r).slice(0, NTG);
           for (const m of tg) { H.X.hitMon(m, DMG, C.dmgO({ kb: 0.5 })); zaps.push({ m, x: m.x, y: m.y, t: 0, sd: f.n * 7 + zaps.length, bend: (R1(f.n * 3.1 + m.x) - 0.5) * 2 });
             // little love hearts sprout where it strikes
-            const nh = H.n(3 + tier); for (let q = 0; q < nh; q++) { const b = Math.random() * TAU, sp = 0.8 + Math.random() * 1.4; B.add(m.x, m.y, 0.5, { vx: Math.cos(b) * sp, vy: Math.sin(b) * sp * 0.5, vz: 1.4 + Math.random() * 1.6, g: 2.4, drag: 1.4, life: 0.6 + Math.random() * 0.5, s: 0.08 + Math.random() * 0.06, kind: q % 3 ? 'h' : 's', col: [CANDY, ROSE, BLUSH, tier === 3 ? LAV : PEARL][q % 4], rot: 0.4 }); } }
+            const nh = H.n(7 + 2 * tier); for (let q = 0; q < nh; q++) { const b = Math.random() * TAU, sp = 2.6 + Math.random() * 3.4; B.add(m.x, m.y, 0.45, { vx: Math.cos(b) * sp, vy: Math.sin(b) * sp * 0.55, vz: 1.6 + Math.random() * 2.6, g: 7, drag: 2.6, life: 0.4 + Math.random() * 0.3, s: 0.13 + Math.random() * 0.08, kind: q % 3 ? 'h' : 's', col: [CANDY, ROSE, BLUSH, tier === 3 ? LAV : PEARL][q % 4], rot: 0.4 }); } }
+          for (const m of tg) H.burst(m.x, m.y - 0.45, 'spark', H.n(4 + tier), { v: 6, up: 2, g: 9, life: 0.28, size: 1.8, color: [PEARL, BLUSH, ROSE] });   // bright sparks with the hearts, like an ignition
           if (tg.length) { H.X.light(me.x, me.y - 2, 4, 0.2); if (f.n % 3 === 0) H.X.sfx.sparkle && H.X.sfx.sparkle(); }
         }
         // a few sparkles shed from the heart as it spins
