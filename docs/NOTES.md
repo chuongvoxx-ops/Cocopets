@@ -936,3 +936,4 @@ Every new boss painter (rift fiends, Tower bosses, minis that get their own art)
 - v210: Ray of Light: pink lightning crackles down both edges (re-struck ~13×/s, with branches; 2/3/4 bolts per side by tier); the column flickers and a wide outer glow breathes.
 - v211: Ray of Light: edge lightning removed; solid (normal-blended) rose body and an opaque pearl-white core with candy edges under the glow, so the column reads as substance.
 - v212: Let It Go stays at its cast point; frozen field, veins and frost pattern fade softly at the rim (no hard ellipse edge).
+- v213: Armageddon rebuilt as a fire Catastrophe: swirling firelight beams from a vortex of fire, flame tongues spiralling round each hot core, embers; 3 / 7 at Adept / 10 for 7 s as Super Armageddon. Same damage total, burn, cooldown.

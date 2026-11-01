@@ -2,7 +2,7 @@
    The showpieces. Every flame is FK's shaded volume; every molten or solid thing (a bowl plate, a kiln brick, a lotus
    petal, a lantern cap) has a four-tone ramp, a dark crust, glowing seams, a rim of firelight and an outline; every
    burning thing lights the floor and sheds embers; every hit scorches the ground. Things over the aim fade where they
-   would pass in front of the pet (petGuard), and the fire tornadoes steer clear of the pet. */
+   would pass in front of the pet (petGuard), and the beams of Armageddon lean aside round the pet. */
 (() => {
   const S = ELEM_IMPL.fire.strong, U = ELEM_IMPL.fire.ult;   // (S unused here: Strongs are other workers')
   const TAU = Math.PI * 2, P = FK.P, HOT = '#CFEFFF';
@@ -56,95 +56,171 @@
   /* ================= F-U01 Armageddon (Super Armageddon at Celestial) ================= */
   // (Phoenix of the Turning Sky was retired: the old file still registers it, so drop it here)
   delete ELEM_IMPL.fire.ult.turningsky;
-  const SMOKE_D = 'rgba(44,28,24,';
-  /* a fire tornado standing at screen (X, Y): Ht px tall, rb its radius at the ground, rt at the top, spin its turn, sway
-     its lean (px at the top), a its alpha, lite a cheaper build. Drawn as a volume, back to front: the far halves of its
-     stacked flame bands (dark, behind), the far spiral streaks and orbiting debris, the white-hot core column, then the
-     near halves (bright, lit on the left, shaded on the right), the near streaks and debris, flames licking off its flanks
-     and crown, smoke boiling off the top. */
-  function tornado(c, X, Y, T, Ht, rb, rt, spin, sway, t, a, lite, seed) {
-    if (!(a > 0.01) || Ht < 4) return; const NB = lite ? 9 : 13, RY = 0.34, s0 = seed || 0;
-    const ax = u => X + sway * u * u + Math.sin(t * 2.3 + u * 4 + s0) * rb * 0.35 * u, ay = u => Y - Ht * u, rr = u => rb + (rt - rb) * Math.pow(u, 1.35);
-    const bandW = Ht / NB * 1.5;
-    K.glow(c, ax(0.5), ay(0.5), Math.max(rt * 1.6, Ht * 0.6), P.org, (lite ? 0.28 : 0.55) * a); K.glow(c, ax(0.15), ay(0.15), rb * 3, P.yel, 0.4 * a);
-    c.save(); c.globalAlpha = a; c.lineCap = 'butt';
-    const band = (j, front) => { const u = (j + 0.5) / NB, cx = ax(u), cy = ay(u), r = rr(u), w = bandW * (0.75 + 0.35 * u), g = c.createLinearGradient(cx - r, 0, cx + r, 0);
-      if (front) { g.addColorStop(0, P.yel); g.addColorStop(0.22, P.amb); g.addColorStop(0.52, P.org); g.addColorStop(0.8, P.red); g.addColorStop(1, '#4A0E06'); }
-      else { g.addColorStop(0, P.amb); g.addColorStop(0.4, P.red); g.addColorStop(1, '#3A0C06'); }
-      c.save(); c.translate(cx, cy); c.scale(1, RY); c.strokeStyle = g; c.lineWidth = w / RY * 0.62; c.globalAlpha = a * (front ? 0.8 : 0.85); c.beginPath(); if (front) c.arc(0, 0, r, 0.02, Math.PI - 0.02); else c.arc(0, 0, r, Math.PI, TAU); c.stroke();
-      // the streaks of flame racing round it: dashes riding the band, brighter in front
-      c.globalCompositeOperation = 'lighter'; c.setLineDash([r * 0.5, r * 0.35]); c.lineDashOffset = -(spin * (1.6 - u * 0.6) * r) % (r * 0.85); c.strokeStyle = H.rgba(front ? P.yel : P.org, (front ? 0.55 : 0.25) * (lite ? 0.6 : 1)); c.lineWidth = w / RY * 0.22; c.beginPath(); if (front) c.arc(0, 0, r * 1.02, 0.1, Math.PI - 0.1); else c.arc(0, 0, r * 0.98, Math.PI + 0.1, TAU - 0.1); c.stroke(); c.setLineDash([]); c.restore(); };
-    /* the spiral flame streaks wrapping it with perspective: split by which side of the funnel they are on */
-    const spiral = front => { c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; for (let k = 0; k < (lite ? 2 : 3); k++) { let open = false; c.strokeStyle = H.rgba(front ? P.yel : P.red, front ? 0.75 : 0.4); c.lineWidth = Math.max(1.5, rt * 0.09); c.beginPath();
-        for (let q = 0; q <= 26; q++) { const u = q / 26, th = spin * 1.3 + u * TAU * 1.6 + k * TAU / 3, sn = Math.sin(th), on = front ? sn > 0 : sn <= 0, px = ax(u) + Math.cos(th) * rr(u) * 1.04, py = ay(u) + sn * rr(u) * RY * 1.04; if (on) { open ? c.lineTo(px, py) : c.moveTo(px, py); open = true; } else open = false; } c.stroke(); } c.restore(); };
-    /* debris and embers orbiting it, climbing and flung out near the top */
-    const debris = front => { for (let i = 0; i < (lite ? 6 : 12); i++) { const u = ((i * 0.37 + t * 0.35 + s0 * 0.1) % 1), th = spin * 1.8 + i * 2.4, sn = Math.sin(th); if ((sn > 0) !== front) continue; const r = rr(u) * (1.12 + 0.3 * u * u), px = ax(u) + Math.cos(th) * r, py = ay(u) + sn * r * RY, sz = T * (0.07 + 0.05 * ((i * 7) % 3));
-        c.save(); c.globalAlpha = a * (1 - u * 0.4); c.translate(px, py); c.rotate(th * 2); if (i % 3 === 0) { c.fillStyle = P.char; c.strokeStyle = H.rgba(P.org, 0.8); c.lineWidth = 1; H.poly(c, [[-sz, -sz * 0.6], [sz, -sz * 0.3], [sz * 0.5, sz * 0.7], [-sz * 0.8, sz * 0.4]]); c.fill(); c.stroke(); } else { c.fillStyle = i % 2 ? P.yel : P.org; c.beginPath(); c.arc(0, 0, sz * 0.6, 0, TAU); c.fill(); } c.restore(); } };
-    for (let j = NB - 1; j >= 0; j--) band(j, false); spiral(false); debris(false);
-    // the funnel's body: a continuous volume of fire, lit on the left, deep red on its shaded right flank
-    { const L_ = [], R_ = []; for (let q = 0; q <= 12; q++) { const u = q / 12, cx = ax(u), cy = ay(u), r = rr(u) * 0.96; L_.push([cx - r, cy]); R_.unshift([cx + r, cy]); } const top = ay(1), g = c.createLinearGradient(ax(0.5) - rt, 0, ax(0.5) + rt, 0); g.addColorStop(0, H.rgba(P.amb, 0.88)); g.addColorStop(0.3, H.rgba(P.org, 0.8)); g.addColorStop(0.65, H.rgba(P.red, 0.8)); g.addColorStop(1, H.rgba('#2E0904', 0.88));
-      H.poly(c, L_.concat([[ax(1) + rt * 0.0, top - rt * RY * 0.3]], R_)); c.fillStyle = g; c.fill(); const gv = c.createLinearGradient(0, Y, 0, top); gv.addColorStop(0, H.rgba(P.wht, 0.55)); gv.addColorStop(0.35, H.rgba(P.yel, 0.2)); gv.addColorStop(1, H.rgba(P.dred, 0.25)); if (!lite) { c.globalCompositeOperation = 'lighter'; c.fillStyle = gv; c.fill(); c.globalCompositeOperation = 'source-over'; }
-      c.strokeStyle = H.rgba(P.dred, 0.55); c.lineWidth = 1.5; H.poly(c, R_, false); c.stroke(); c.strokeStyle = H.rgba(P.wht, 0.45); H.poly(c, L_, false); c.stroke(); }
-    // the white-hot core column, swaying with the funnel
-    { const pts = []; for (let q = 0; q <= 8; q++) { const u = q / 8 * 0.92; pts.push([ax(u), ay(u)]); } c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.lineJoin = 'round'; H.ribbon(c, pts, rb * 1.1, H.rgba(P.org, 0.45), null, u => 0.6 + 0.8 * u); H.ribbon(c, pts, rb * 0.6, H.rgba(P.yel, 0.7), null, u => 0.7 + 0.6 * u); H.ribbon(c, pts, rb * 0.25, H.rgba(P.wht, 0.9), null, u => 0.8 + 0.5 * u); c.restore(); }
-    for (let j = 0; j < NB; j++) band(j, true); spiral(true); debris(true);
-    c.restore();
-    // flames licking off both flanks (leaning outward) and a crown of flame round the rim
-    const step = lite ? 2 : 1; for (let j = 1; j < NB; j += step + (lite ? 0 : (j > NB * 0.6 ? 0 : 1))) { const u = (j + 0.5) / NB, cx = ax(u), cy = ay(u), r = rr(u); for (const sd of [-1, 1]) { if (lite && (j % 4 === 1) === (sd > 0)) continue; K.flame(c, cx + sd * r * 0.97, cy + bandW * 0.3, r * 0.42 + T * 0.12, (r * 0.7 + T * 0.35) * (0.8 + 0.2 * Math.sin(t * 9 + j * 1.7 + sd)), t, j * 2.1 + sd + s0, sd * r * 0.5, a * 0.95, true); } }
-    const NC = lite ? 3 : 6; for (let i = 0; i < NC; i++) { const th = spin * 1.1 + i / NC * TAU, sn = Math.sin(th), cx = ax(1), cy = ay(1), r = rr(1); K.flame(c, cx + Math.cos(th) * r * 0.85, cy + sn * r * RY, rt * 0.4, rt * (0.8 + 0.3 * Math.sin(t * 7 + i)), t, i * 3 + s0, Math.cos(th) * rt * 0.4, a * (sn > 0 ? 0.95 : 0.6), true); }
-    // smoke boiling off the top
-    c.save(); for (let i = 0; i < (lite ? 3 : 5); i++) { const u = ((t * 0.4 + i / 5 + s0 * 0.07) % 1), px = ax(1) + Math.sin(i * 2.1 + t) * rt * (0.4 + u), py = ay(1) - u * Ht * 0.35, r = rt * (0.35 + u * 0.6); c.globalAlpha = a * 0.2 * Math.sin(u * Math.PI); c.fillStyle = SMOKE_D + '1)'; c.beginPath(); c.arc(px, py, r, 0, TAU); c.fill(); } c.restore();
-    shimmer(c, ax(1), ay(1) - T * 0.2, rt * 1.2, T * 1.6, t, a);
-  }
-  /* where it touches down: a swirling ring of fire and embers on the floor */
-  function touchdown(c, X, Y, T, rb, spin, t, a, lite) { K.floorLight(c, X, Y, rb * 4.5, 0.75 * a); c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round';
-    for (let k = 0; k < 3; k++) { const r = rb * (1.4 + k * 0.7); c.strokeStyle = H.rgba(k ? P.org : P.yel, (0.65 - k * 0.15) * a); c.lineWidth = Math.max(1.5, T * (0.09 - k * 0.02)); for (let i = 0; i < 3; i++) { const b = spin * (1.6 - k * 0.3) + i * TAU / 3 + k; c.beginPath(); c.ellipse(X, Y, r, r * H.GY, 0, b, b + 1.3); c.stroke(); } } c.restore();
-    if (!lite) for (let i = 0; i < 6; i++) { const b = spin * 1.2 + i / 6 * TAU, sn = Math.sin(b); if (sn < 0) K.flame(c, X + Math.cos(b) * rb * 2, Y + sn * rb * 2 * H.GY, T * 0.25, T * 0.5 * (0.8 + 0.2 * Math.sin(t * 9 + i)), t, i * 1.7, -Math.sin(b) * T * 0.2, a * 0.85, true); } }
+  /* Built on Catastrophe (ice F-U08): the same beams, steering, timing, layering and phone budget, re-skinned in fire.
+     Everything heavy is a cached picture painted a few a tick from the cast: the beam column with its spiralling flame
+     ribbons (32 turning frames), the swirl (24 frames), the burning ring under each beam, the flame tongues (4 leans x 8
+     flicker frames, played back and forth), the ember dots and the glowing cracks; per frame it is only blits. */
+  const R1 = s => { const v = Math.sin(s * 12.9898 + 78.233) * 43758.5453; return v - Math.floor(v); };
+  /* a clip that keeps everything after it off the pet's body */
+  function petHole(c, T) { const me = H.me, x = H.sx(me.x), y = H.sy(me.y) - T * 0.46; c.beginPath(); c.rect(-1e5, -1e5, 2e5, 2e5); c.ellipse(x, y, T * 0.62, T * 0.74, 0, 0, TAU); c.clip('evenodd'); }
+  /* the visible screen in the current drawing coordinates */
+  function scr(c) { const m = c.getTransform(), a = m.a || 1, d = m.d || 1; return { x0: -m.e / a, y0: -m.f / d, w: c.canvas.width / a, h: c.canvas.height / d }; }
+  const vfade = (g, w, h) => { g.globalCompositeOperation = 'destination-in'; const gv = g.createLinearGradient(0, 0, 0, h); gv.addColorStop(0, 'rgba(0,0,0,0)'); gv.addColorStop(0.15, 'rgba(0,0,0,0.25)'); gv.addColorStop(0.4, 'rgba(0,0,0,1)'); gv.addColorStop(1, 'rgba(0,0,0,1)'); g.fillStyle = gv; g.fillRect(0, 0, w, h); };
+  /* a column of firelight: red edges, orange, amber, a white-yellow core; fading in over its top */
+  const aCol = () => fxSprite('fu1col', 64, 256, (g, w, h) => { const gr = g.createLinearGradient(0, 0, w, 0);
+    [[0, 'rgba(122,30,14,0)'], [0.17, 'rgba(210,64,26,0.26)'], [0.32, 'rgba(255,122,46,0.6)'], [0.4, 'rgba(255,166,64,0.9)'], [0.46, 'rgba(255,216,102,1)'], [0.5, 'rgba(255,250,225,1)'], [0.54, 'rgba(255,216,102,1)'], [0.6, 'rgba(255,166,64,0.9)'], [0.68, 'rgba(255,122,46,0.6)'], [0.83, 'rgba(210,64,26,0.26)'], [1, 'rgba(122,30,14,0)']].forEach(s => gr.addColorStop(s[0], s[1]));
+    g.fillStyle = gr; g.fillRect(0, 0, w, h); vfade(g, w, h); });
+  /* the outer fire of a beam: deep red to orange, no core */
+  const aColB = () => fxSprite('fu1colB', 64, 256, (g, w, h) => { const gr = g.createLinearGradient(0, 0, w, 0);
+    [[0, 'rgba(122,30,14,0)'], [0.2, 'rgba(150,36,16,0.34)'], [0.36, 'rgba(210,64,26,0.62)'], [0.5, 'rgba(255,122,46,0.88)'], [0.64, 'rgba(210,64,26,0.62)'], [0.8, 'rgba(150,36,16,0.34)'], [1, 'rgba(122,30,14,0)']].forEach(s => gr.addColorStop(s[0], s[1]));
+    g.fillStyle = gr; g.fillRect(0, 0, w, h); vfade(g, w, h); });
+  /* a swirl of fire seen from above: three spiral arms, orange with white-hot threads */
+  const aSwirl = () => fxSprite('fu1swirl', 192, 192, (g, w) => { const c0 = w / 2; g.translate(c0, c0); g.lineCap = 'round';
+    for (let arm = 0; arm < 3; arm++) for (const [col, lw] of [['rgba(210,64,26,0.42)', 13], ['rgba(255,140,50,0.66)', 6.5], ['rgba(255,236,170,0.9)', 2.2]]) { g.strokeStyle = col; g.beginPath();
+      for (let i = 0; i <= 40; i++) { const u = i / 40, r = c0 * 0.95 * u, b = arm * TAU / 3 + u * 4.2; g.lineWidth = lw * (0.3 + 0.7 * Math.sin(u * Math.PI)); if (i) g.lineTo(Math.cos(b) * r, Math.sin(b) * r); else g.moveTo(0, 0); } g.stroke(); }
+    const gr = g.createRadialGradient(0, 0, 0, 0, 0, c0); gr.addColorStop(0, 'rgba(255,240,200,0.7)'); gr.addColorStop(0.3, 'rgba(255,122,46,0.26)'); gr.addColorStop(1, 'rgba(255,122,46,0)'); g.fillStyle = gr; g.fillRect(-c0, -c0, w, w); });
+  const NSFa = 24, aSwirlF = i => fxSprite('fu1sw|' + i, 160, 160, (g, W) => { g.translate(W / 2, W / 2); g.rotate(i / NSFa * TAU / 3); g.drawImage(aSwirl(), -W / 2, -W / 2, W, W); });
+  const aSwirlAt = ang => aSwirlF(((Math.round(ang / (TAU / 3) * NSFa) % NSFa) + NSFa) % NSFa);
+  /* an ember: a hot dot with a soft glow (0 white-gold, 1 orange-red) */
+  const aEmber = v => fxSprite('fu1em' + v, 24, 24, (g, w) => { const c0 = w / 2, gr = g.createRadialGradient(c0, c0, 0, c0, c0, c0);
+    if (v) { gr.addColorStop(0, 'rgba(255,220,150,0.95)'); gr.addColorStop(0.3, 'rgba(255,122,46,0.55)'); gr.addColorStop(1, 'rgba(210,64,26,0)'); } else { gr.addColorStop(0, 'rgba(255,252,230,1)'); gr.addColorStop(0.25, 'rgba(255,200,90,0.75)'); gr.addColorStop(1, 'rgba(255,110,40,0)'); } g.fillStyle = gr; g.fillRect(0, 0, w, w); });
+  /* a flame tongue (the kit's shaded flame, painted once): 4 leans x NFRa flicker frames, its base at (48, 88), 72 px tall */
+  const NFRa = 8, aFlame = (v, fr) => fxSprite('fu1fl|' + v + '|' + fr, 96, 128, g => K.flame(g, 48, 88, 34, 72, fr * 0.11 + v * 3.1, v * 2.3 + 1, (v - 1.5) * 6, 1, true));
+  const aFr = (tt, sd) => { const k = ((Math.floor(tt * 16 + sd * 5.3) % (2 * NFRa - 2)) + 2 * NFRa - 2) % (2 * NFRa - 2); return k < NFRa ? k : 2 * NFRa - 2 - k; };
+  function aTongue(c, x, y, h, v, fr, a) { if (!(a > 0.01) || h < 3) return; const cv = aFlame(v & 3, fr), s = h / 72; c.globalAlpha = Math.min(1, a); c.drawImage(cv, x - 48 * s, y - 88 * s, 96 * s, 128 * s); }
+  /* a beam column at one turn of its fire: the outer fire, the white-hot core, two flame ribbons spiralling round it
+     (back halves deep red, front halves orange with a white-yellow thread) and little curls of flame flicking off them */
+  const NBFa = 32;
+  function aBeam(fi, kq, bq) { return fxSprite('fu1bf|' + fi + '|' + kq + '|' + bq, 72, 384, (g, W, Hh) => {
+    const w = W / 1.1, cx = W / 2, BRb = bq / 100, ph = fi / NBFa * TAU; g.globalCompositeOperation = 'lighter';
+    g.globalAlpha = 0.85 * (0.5 + 0.5 * kq / 100); g.drawImage(aColB(), 0, 0, W, Hh); g.globalAlpha = 0.8; g.drawImage(aCol(), cx - w * 0.17, 0, w * 0.34, Hh);
+    g.lineCap = 'round'; const k = w / (1.4 * BRb);
+    for (let sd = 0; sd < 2; sd++) { const N = 40, back = [], front = []; for (let j = 0; j <= N; j++) { const u = j / N, q = u * 6 + ph + sd * Math.PI; (Math.cos(q) > 0 ? front : back).push([cx + Math.sin(q) * w * 0.5 * (0.6 + 0.4 * u), u * Hh, j, q]); }
+      const run = (pts, col, lw, al) => { g.globalAlpha = al; g.beginPath(); let last = -9; for (const p of pts) { if (p[2] !== last + 1) g.moveTo(p[0], p[1]); else g.lineTo(p[0], p[1]); last = p[2]; } g.strokeStyle = col; g.lineWidth = lw; g.stroke(); };
+      run(back, 'rgba(210,64,26,0.85)', k * 0.08, 0.5); run(front, 'rgba(255,100,36,0.9)', k * 0.15, 0.9); run(front, 'rgba(255,190,80,0.95)', k * 0.07, 0.85); run(front, 'rgba(255,250,225,1)', k * 0.022, 0.8);
+      // curls of flame flicking up and out off the front ribbon (pointing skyward: the sprite's top is the sky)
+      g.globalAlpha = 0.75; for (let j = 3; j < front.length; j += 4) { const p = front[j], dir = Math.sin(p[3]) >= 0 ? 1 : -1, L = k * 0.32 * (0.7 + 0.3 * R1(j + sd * 7)), x0 = p[0], y0 = p[1];
+        g.beginPath(); g.moveTo(x0, y0); g.quadraticCurveTo(x0 + dir * L * 0.55, y0 - L * 0.25, x0 + dir * L * 0.35, y0 - L * 0.9); g.strokeStyle = 'rgba(255,140,50,0.8)'; g.lineWidth = k * 0.05; g.stroke(); g.strokeStyle = 'rgba(255,230,150,0.9)'; g.lineWidth = k * 0.02; g.stroke(); } } }); }
+  /* the floor under a beam, in the floor's own plane (squashed when drawn): a pool of firelight, a white-hot splash where
+     the beam meets the floor, hot spots, and a burning ring (all light: no dark mark) */
+  function aFoot(kq, bq) { return fxSprite('fu1fa|' + kq + '|' + bq, 256, 256, (g, W) => {
+    const R0 = W / 2 / 2.1, c0 = W / 2, kN = kq / 100, BRb = bq / 100; g.globalCompositeOperation = 'lighter'; g.translate(c0, c0);
+    const gl = (col, r, a, x, y) => { g.globalAlpha = a; g.drawImage(glowSprite(col), (x || 0) - r, (y || 0) - r, r * 2, r * 2); };
+    gl(P.red, R0 * 2.05, 0.45 * kN); gl(P.org, R0 * 1.43, 0.4 * kN);
+    gl(P.amb, R0 * 1.5 / Math.sqrt(H.GY), 0.3 * kN); gl(P.wht, R0 * 0.6 / Math.sqrt(H.GY), 0.45);
+    for (let i = 0; i < 6; i++) { const b = i / 6 * TAU, r = R0 * 1.3; gl(P.gold, r * 0.55, 0.12 * kN * 1.4, Math.cos(b) * r * 0.8, Math.sin(b) * r * 0.8); }
+    const rw = Math.max(2 / 40, 0.06 / BRb) * R0; g.lineCap = 'round';
+    for (const [col, lw, al] of [['rgba(210,64,26,0.9)', rw * 2.2, 0.35], ['rgba(255,122,46,0.95)', rw * 1.1, 0.6], ['rgba(255,216,102,1)', Math.max(1, rw * 0.45), 0.7], ['rgba(255,250,225,1)', Math.max(1, rw * 0.18), 0.6]]) { g.globalAlpha = al; g.strokeStyle = col; g.lineWidth = lw; g.beginPath(); g.arc(0, 0, R0 * 0.95, 0, TAU); g.stroke(); } }); }
+  /* glowing cracks across the floor round the aim, in the floor's plane: light only (no char) */
+  function aVein(rq, ev) { return fxSprite('fu1vein|' + rq + '|' + ev, Math.ceil(rq * 2.4), Math.ceil(rq * 2.4 * H.GY), (g, W, Hh) => {
+    g.translate(W / 2, Hh / 2); g.scale(1, H.GY); g.globalCompositeOperation = 'lighter'; g.lineCap = 'round'; g.lineJoin = 'round'; const n = 8 + ev, paths = [];
+    for (let i = 0; i < n; i++) { let b = i / n * TAU + R1(i * 3.3) * 0.5, r = rq * 0.18; const p = [[Math.cos(b) * r, Math.sin(b) * r]], R = rq * (0.55 + 0.4 * R1(i * 7.7)); while (r < R) { r += rq * 0.12; b += (R1(i * 11 + r) - 0.5) * 0.9; p.push([Math.cos(b) * r, Math.sin(b) * r]); } paths.push(p);
+      if (R1(i * 5.1) < 0.6) { const q = p[Math.floor(p.length / 2)], fb = b + (R1(i) < 0.5 ? 0.6 : -0.6); paths.push([q, [q[0] + Math.cos(fb) * rq * 0.2, q[1] + Math.sin(fb) * rq * 0.2], [q[0] + Math.cos(fb + 0.2) * rq * 0.36, q[1] + Math.sin(fb + 0.2) * rq * 0.36]]); } }
+    for (const [col, lw] of [['rgba(210,64,26,0.3)', 4], ['rgba(255,122,46,0.45)', 2], ['rgba(255,216,102,0.6)', 0.8]]) { g.strokeStyle = col; g.lineWidth = lw; g.beginPath(); for (const p of paths) p.forEach((q, j) => j ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1])); g.stroke(); } }); }
+  const tt0a = (o, f) => f.t < o.s || f.t > o.e;
 
-  // F-U01 Armageddon: a spinning ember ring flares at the aim and a towering tornado of fire rises out of it: stacked bands of flame turning round a white-hot core, spiral streaks, orbiting debris and embers, flames licking off its flanks, smoke boiling off the top; it roams toward the nearest monsters, dragging them into its burning spiral, scorching and setting alight the ground it crosses, then lifts away into embers and smoke in a last flare
-  // Evolution: one tornado through stages 1-6, its damage growing each stage (evoK) and a touch taller and wider; at Celestial it becomes Super Armageddon: four great tornadoes wander the battlefield on their own paths, the damage split between them, leaving scorched, cracked and glowing earth, smoke columns and debris.
-  U.armageddon = (C, h) => { H = h; K = FK.bind(H); const me = H.me, ev = K.evo(C), sup = ev >= 7, N = sup ? 4 : 1, gs = 1 + 0.035 * (ev - 1), D = C.base * C.K * K.evoK(C), FORM = 0.8, LIFE = 5.6, END = LIFE - 1.0, TICK = 0.3, NT = Math.round((END - FORM) / TICK);
-    const tickD = 9.5 / NT * D / N, flareD = 1.5 * D / N, a0 = C.a;
-    H.X.banner(sup ? 'SUPER ARMAGEDDON' : 'ARMAGEDDON', '', C.col, 1.4); H.X.sfx.hum();
-    // where they rise: one at the aim (kept clear of you); four spread round it at Celestial
-    const tws = []; for (let i = 0; i < N; i++) { let x = C.tx, y = C.ty; if (sup) { const b = a0 + Math.PI / 4 + i * Math.PI / 2; x += Math.cos(b) * 2.6; y += Math.sin(b) * 2.6; }
-      const dx = x - me.x, dy = y - me.y, d = Math.hypot(dx, dy); if (d < 2.6) { const b = d > 0.1 ? Math.atan2(dy, dx) : a0; x = me.x + Math.cos(b) * 2.6; y = me.y + Math.sin(b) * 2.6; } const w = H.walk(x, y);
-      tws.push({ x: w.x, y: w.y, hd: Math.atan2(w.y - me.y, w.x - me.x) + (i % 2 ? 0.6 : -0.6), spin: i * 1.7, tick: FORM + i * 0.07, trailT: 0, fireT: 0.3, trail: [], seed: i * 3.7, al: 1 }); }
-    for (const tw of tws) H.warn(tw.x, tw.y, sup ? 1.6 : 2.0, FORM, C.col);
-    const HT = (sup ? 4.2 : 4.6) * gs, RB = (sup ? 0.32 : 0.38) * gs, RT = (sup ? 1.35 : 1.6) * gs, RHIT = (sup ? 1.6 : 1.9) * gs, RPULL = 3.2 * gs, SPD = sup ? 1.5 : 1.15;
-    const F = H.add({ life: LIFE + 0.6, x: C.tx, y: C.ty,
-      update(dt, f) { const t = f.t, live = H.living();
-        for (const tw of tws) { tw.spin += dt * (6 + 3 * cl(t / FORM)); if (t > LIFE) continue;
-          if (t > FORM && t < END) { // roam: toward the nearest monster, away from you and from walls, wandering at Celestial
-            let tx = 0, ty = 0, best = null, bd = 7; for (const m of live) { const d = Math.hypot(m.x - tw.x, m.y - tw.y); if (d < bd) { bd = d; best = m; } }
-            if (best && bd > 0.6) { tx += (best.x - tw.x) / bd; ty += (best.y - tw.y) / bd; }
-            if (sup || !best) { tw.hd += (Math.sin(t * 1.3 + tw.seed) * 1.6) * dt; tx += Math.cos(tw.hd) * (sup ? 1.0 : 0.6); ty += Math.sin(tw.hd) * (sup ? 1.0 : 0.6); }
-            for (const o of tws) if (o !== tw) { const d = Math.hypot(tw.x - o.x, tw.y - o.y); if (d < 2.4 && d > 0.01) { tx += (tw.x - o.x) / d * 0.8; ty += (tw.y - o.y) / d * 0.8; } }
-            if (tw.y > me.y - 0.5 && tw.y < me.y + HT + 0.5 && Math.abs(tw.x - me.x) < RT + 1.4) tx += (tw.x >= me.x ? 1 : -1) * 4;   /* (never stand in front of you: its tall funnel would hide you) */
-            const pd = Math.hypot(tw.x - me.x, tw.y - me.y); if (pd < 3.5) { const k = (3.5 - pd) / 3.5 * 6; tx += (tw.x - me.x) / (pd || 1) * k; ty += (tw.y - me.y) / (pd || 1) * k; }
-            const tl = Math.hypot(tx, ty) || 1, nx = tw.x + tx / tl * SPD * dt, ny = tw.y + ty / tl * SPD * dt, w = H.walk(nx, ny); if (Math.hypot(w.x - nx, w.y - ny) < 0.01) { tw.x = nx; tw.y = ny; } else tw.hd += Math.PI * 0.6;
-            for (const m of live) { const d = Math.hypot(m.x - tw.x, m.y - tw.y); if (d < RPULL && d > 0.35) H.pull(m, tw.x, tw.y, (1.6 - d / RPULL) * dt * 1.2); }
-            if (t >= tw.tick) { tw.tick += TICK; H.hitArea(tw.x, tw.y, RHIT, tickD, C.dmgO({ kb: 0, burn: 1 })); K.sparks(tw.x, tw.y - 0.5, 3, 5); }
-            tw.trailT -= dt; if (tw.trailT <= 0) { tw.trailT = 0.22; tw.trail.push({ x: tw.x, y: tw.y, t, s: Math.random() * 9 }); if (sup && Math.random() < 0.5) K.smoke(tw.x, tw.y, 2, 0.6); if (sup && Math.random() < 0.4) K.flakes(tw.x, tw.y, 2); }
-            tw.fireT -= dt; if (tw.fireT <= 0) { tw.fireT = sup ? 0.75 : 0.6; H.fire(tw.x, tw.y, sup ? 0.9 : 1.0, 2.0, C.base * 0.3, 'fire'); } }
-          const up = cl((t - END) / (LIFE - END)), al = t < FORM ? cl(t / FORM) : 1 - up; K.aura(tw.x, tw.y, RB * 2.5, dt, sup ? 10 : 22, 0.2); if (al > 0.2) K.aura(tw.x, tw.y - HT * 0.5, RT * 0.8, dt, sup ? 5 : 10, 0); lit(f, 'w' + tw.seed, tw.x, tw.y - 1, (sup ? 3.6 : 4.5) * Math.max(0.3, al), dt);
-          if (up > 0 && Math.random() < 10 * dt * H.Q()) K.smoke(tw.x, tw.y - HT * (0.5 + up), 1, RT * 0.6); } },
-      drawUnder(c, f, X, Y, T) { const t = f.t, k = Math.min(1, f.life / 0.8);
-        for (const tw of tws) { // scorched earth along the trail: charred, still glowing, cracked at Celestial
-          for (const p of tw.trail) { const heat = Math.max(0.08, 1 - (t - p.t) / 2.2), PX = H.sx(p.x), PY = H.sy(p.y); K.scorch(c, PX, PY, T * (sup ? 1.0 : 1.15), 0.8 * k, heat, p.s);
-            if (sup) { c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = H.rgba(P.org, 0.6 * heat * k); c.lineWidth = 1.6; c.beginPath(); for (let i = 0; i < 3; i++) { const b = p.s + i * 2.1; c.moveTo(PX, PY); c.lineTo(PX + Math.cos(b) * T * 0.5, PY + Math.sin(b) * T * 0.28); c.lineTo(PX + Math.cos(b + 0.4) * T * 0.9, PY + Math.sin(b + 0.4) * T * 0.5); } c.stroke(); c.restore(); } }
-          const TX = H.sx(tw.x), TY = H.sy(tw.y), form = cl(t / FORM), up = cl((t - END) / (LIFE - END)), al = (1 - up) * k;
-          if (t < FORM + 0.2) { const u = cl(t / FORM); K.shockRing(c, TX, TY, T * (0.6 + 1.6 * u), 0.8 * (1 - u * 0.5)); fring(c, TX, TY, T * (1.6 - u * 0.8), 8, T * 0.6 * Math.sin(u * Math.PI), t, 0.9, tw.spin * 0.3, 0.3); }
-          if (form > 0) { H.softShadow(c, TX, TY, T * RT * 1.2, 0.3 * al); touchdown(c, TX, TY, T, T * RB * (0.6 + 0.4 * form) * (1 + up), tw.spin, t, al * form, sup); } } },
-      draw(c, f, X, Y, T, gt) { const t = f.t, k = Math.min(1, f.life / 0.6);
-        const order = tws.slice().sort((p, q) => p.y - q.y);
-        for (const tw of order) { const TX = H.sx(tw.x), TY = H.sy(tw.y), form = H.ease.out(cl((t - 0.15) / (FORM + 0.2))), up = cl((t - END) / (LIFE - END)), ht = T * HT * form * (1 + up * 0.5), al = k * (1 - up) * Math.min(1, form * 1.5);
-          const PXs = H.sx(me.x), PYs = H.sy(me.y) - T * 0.45, pu = (TY - PYs) / Math.max(1, ht), cov = pu > -0.05 && pu < 1.05 ? cl((Math.abs(PXs - TX) - T * (RB + (RT - RB) * Math.pow(cl(pu), 1.35)) - T * 0.2) / (T * 0.8)) : 1, gd = Math.max(0.22, Math.min(cov, petGuard(TX, TY - T * 0.8, T, T * RB * 1.5)));
-          tornado(c, TX, TY - up * T * 1.5, T, ht, T * RB * (1 + up), T * RT * (0.5 + 0.5 * form) * (1 + up * 0.6), tw.spin, Math.sin(t * 0.9 + tw.seed) * T * 0.8, gt, al * gd, sup, tw.seed);
-          if (up > 0 && up < 0.6) { const v = up / 0.6; K.glow(c, TX, TY - ht * 0.6, T * RT * 2.5, P.yel, 0.6 * (1 - v)); K.shockRing(c, TX, TY, T * (1 + 2.5 * v), 1 - v); } } } });
-    for (const tw of tws) H.X.after(FORM, () => { K.blast(tw.x, tw.y, 1.6, 1.2); H.X.ring(tw.x, tw.y, 0.3, 2.2, 0.4, P.org, 0.5); H.X.sfx.whoosh(); });
-    H.X.after(END, () => { for (const tw of tws) { H.hitArea(tw.x, tw.y, RHIT + 0.8, flareD, C.dmgO({ kb: 4, burn: 1 })); K.blast(tw.x, tw.y, 2.0, sup ? 1.2 : 1.8); K.embers(tw.x, tw.y - 2, 16, { v: 4, up: 4 }); K.smoke(tw.x, tw.y - 2, 6, 1); } H.X.flash(0.18, '#FFD9A0'); H.X.sfx.crash(); H.X.shake(sup ? 12 : 8, 0.3); });
-    return F; };
+  // F-U01 Armageddon: the sky darkens to embers and a vortex of fire opens above the battlefield; swirling beams of orange firelight with white-hot cores fall out of it and sweep across the floor, flame ribbons and tongues spiralling up round each one, a burning ring and a crown of flame where it touches down, setting alight every monster it touches and leaving a trail of flames and firelight behind, while embers drift up over the whole screen; each beam bursts in a last flare when it lifts
+  // Evolution: 3 beams for 4 s at Hatchling, 7 for 5 s at Adept (the damage growing each stage with evoK and split over the beams); at Celestial it becomes Super Armageddon: 10 wider beams for 7 s under a greater double vortex, ending in a cataclysmic burst over the aim.
+  U.armageddon = (C, h) => { H = h; K = FK.bind(H);
+    const me = H.me, x = C.tx, y = C.ty, ev = K.evo(C), sup = ev >= 7, NB = K.evoN(C, 3, 10), D = ev <= 4 ? 4 + (ev - 1) / 3 : 5 + (ev - 4) * 2 / 3, RX = (3.6 + 0.3 * (ev - 1)) * C.K, BR = (0.95 + 0.06 * (ev - 1)) * (sup ? 1.08 : 1), TICK = 0.4;
+    H.X.banner(sup ? 'SUPER ARMAGEDDON' : 'ARMAGEDDON', '', C.col, 1.6); H.X.sfx.hum(); H.warn(x, y, RX, 0.9, C.col);
+    const NFL = H.n(70 + 5 * ev), FL = []; for (let i = 0; i < NFL; i++) { const sz = 2.5 + 6 * R1(i * 1.7) * R1(i * 2.9 + 1); FL.push({ sz, sp: 22 + 40 * R1(i * 4.1) + sz * 5, w: 0.6 + R1(i) * 0.6, x: R1(i * 7.3), y: R1(i * 3.1), v: R1(i * 9.7) < 0.55 ? 1 : 0 }); }
+    /* balance as the old Armageddon: 9.5 x the move's damage dealt in ticks (burning) and 1.5 x in the last flares, split
+       over the beams; and as many burning patches left on the floor (6, 20 at Celestial) */
+    const Dm = C.base * C.K * K.evoK(C), NPATCH = sup ? 20 : 6, kN = Math.min(1, Math.sqrt(3 / NB) * 1.15), kq = Math.round(kN * 100), bq = Math.round(BR * 100), beams = [];
+    for (let i = 0; i < NB; i++) { const s = 0.35 + i * Math.min(0.42, D * 0.3 / NB), e = D - 0.15 - (NB - 1 - i) * Math.min(0.15, 1.2 / NB), b0 = i / NB * TAU + 0.4 + Math.random() * 0.3, r0 = RX * (0.35 + 0.45 * R1(i * 3.7 + 1)), nT = Math.max(1, Math.ceil((e - s - 0.3) / TICK - 1e-6));
+      beams.push({ i, s, e, x: x + Math.cos(b0) * r0, y: y + Math.sin(b0) * r0, vx: 0, vy: 0, tgt: null, re: 0, nt: s + 0.3, tr: [], trT: s, ph: R1(i * 5.1) * TAU, spin: i % 2 ? 1 : -1, sd: i * 13 + 5, dmg: 9.5 * Dm / NB / nT, land: false, flare: false }); }
+    const W0 = beams[0].s + 0.3, W1 = D - 0.4, endT = Math.max(...beams.map(b => b.e));
+    const warm = [() => aEmber(0), () => aEmber(1), () => aFoot(kq, bq), () => aVein(Math.round(RX * 40 / 4) * 4, ev)]; for (let i = 0; i < NBFa; i++) warm.push(() => aBeam(i, kq, bq)); for (let v = 0; v < 4; v++) for (let i = 0; i < NFRa; i++) warm.push(() => aFlame(v, i)); for (let i = 0; i < NSFa; i++) warm.push(() => aSwirlF(i));
+    return H.add({ life: D + 0.9, x, y, wi: 0, pi: 0, nP: 0, fin: false,
+      update(dt, f) {
+        for (let q = 0; q < 4 && f.wi < warm.length; q++) warm[f.wi++]();
+        const live = H.living(), t = f.t;
+        // the burning patches, one at a time at the beams in turn
+        if (f.nP < NPATCH && t >= W0 + (W1 - W0) * f.nP / NPATCH) { const on = beams.filter(b => t > b.s + 0.3 && t < b.e); if (on.length) { const b = on[f.pi++ % on.length]; H.fire(b.x, b.y, sup ? 0.9 : 1.0, 2.0, C.base * 0.3, 'fire'); } f.nP++; }
+        for (const b of beams) { if (t < b.s || t > b.e + 0.5) continue; const on = t < b.e;
+          if (!b.land && t >= b.s + 0.32) { b.land = true; H.X.light(b.x, b.y, 2.4, 0.35); H.X.shake(3, 0.12); H.X.sfx.crash(); K.sparks(b.x, b.y - 0.2, 6, 5); K.embers(b.x, b.y - 0.3, 8, { v: 3 }); H.X.ring(b.x, b.y, 0.2, BR * 1.6, 0.4, P.org, 0.12); }
+          if (!on && !b.flare) { b.flare = true; H.hitArea(b.x, b.y, BR + 0.8, 1.5 * Dm / NB, C.dmgO({ kb: 4, burn: 1 })); H.X.light(b.x, b.y, 3, 0.3); K.embers(b.x, b.y - 1, 10, { v: 4, up: 4 }); K.sparks(b.x, b.y - 0.4, 6, 6); H.X.ring(b.x, b.y, 0.3, BR + 0.8, 0.35, P.yel, 0.3); H.X.shake(4, 0.12);
+            if (sup && !f.fin && t >= endT) { f.fin = true; K.blast(x, y, RX * 0.55, 1.6); H.X.flash(0.22, '#FFD9A0'); H.X.shake(12, 0.35); H.X.sfx.crash(); } }
+          // steer: toward its own monster (one each when there are enough), sweeping across it; held inside the area, away from the pet
+          if (on && (!b.tgt || b.tgt.dead || t > b.re)) { b.re = t + 1.1 + R1(b.sd + t) * 0.6; const taken = new Set(beams.filter(q => q !== b && q.tgt).map(q => q.tgt)); const cand = live.filter(m => Math.hypot(m.x - x, m.y - y) < RX * 1.25 + m.r); const free = cand.filter(m => !taken.has(m)); const pool = free.length ? free : R1(b.sd + Math.floor(t)) < 0.35 ? cand : []; b.tgt = pool.length ? pool.sort((p, q) => Math.hypot(p.x - b.x, p.y - b.y) - Math.hypot(q.x - b.x, q.y - b.y))[0] : null; }
+          const V = 1.7 + 0.08 * ev; let dx = 0, dy = 0;
+          if (b.tgt && on) { const tx = b.tgt.x - b.x, ty = b.tgt.y - b.y, d = Math.hypot(tx, ty) || 1, k = Math.min(1, d / 1.2); dx = tx / d * V * k - ty / d * V * 0.55 * b.spin; dy = ty / d * V * k + tx / d * V * 0.55 * b.spin; }
+          else { const ox = b.x - x, oy = b.y - y, d = Math.hypot(ox, oy) || 1; dx = -oy / d * V * b.spin + Math.cos(t * 0.9 + b.ph) * V * 0.4; dy = ox / d * V * b.spin + Math.sin(t * 1.1 + b.ph) * V * 0.4; }
+          const cx = b.x - x, cy = b.y - y, dc = Math.hypot(cx, cy); if (dc > RX) { dx -= cx / dc * (dc - RX) * 3; dy -= cy / dc * (dc - RX) * 3; }
+          const px = b.x - me.x, py = b.y - me.y, dp = Math.hypot(px, py) || 0.01; if (dp < 1.7) { dx += px / dp * (1.7 - dp) * 5; dy += py / dp * (1.7 - dp) * 5; }
+          for (const o of beams) { if (o === b || tt0a(o, f)) continue; const ex = b.x - o.x, ey = b.y - o.y, d2 = Math.hypot(ex, ey) || 0.01; if (d2 < 2.4) { dx += ex / d2 * (2.4 - d2) * 2.2; dy += ey / d2 * (2.4 - d2) * 2.2; } }
+          const kk = Math.min(1, dt * 2.4); b.vx += (dx - b.vx) * kk; b.vy += (dy - b.vy) * kk; b.x += b.vx * dt; b.y += b.vy * dt;
+          if (on && t - b.trT > 0.22) { b.trT = t; b.n = (b.n || 0) + 1; b.tr.push({ x: b.x, y: b.y, t, c: b.n % 2 === 0, n: b.n, sd: b.sd + b.n }); if (b.tr.length > 14) b.tr.shift(); }
+          if (on && t > b.s + 0.3) for (const m of live) { const d = Math.hypot(m.x - b.x, m.y - b.y); if (d < BR * 2 && d > 0.3) H.pull(m, b.x, b.y, (1 - d / (BR * 2)) * dt * 1.2); }   /* (it draws them into its burning spiral) */
+          if (on && t >= b.nt) { b.nt += TICK; const k = H.hitArea(b.x, b.y, BR, b.dmg, C.dmgO({ kb: 0, burn: 1 })); if (k && Math.random() < 0.6 * kN) K.sparks(b.x, b.y - 0.3, 3, 4); }
+          if (on && b.land) { if (NB <= 5 || (b.i & 1) === 0) lit(f, 'b' + b.i, b.x, b.y - 0.6, 2.4, dt);
+            if (Math.random() < 0.8 * H.Q() * kN) { const q = Math.random() * TAU, rr = BR * (0.4 + Math.random() * 0.6); H.P({ kind: Math.random() < 0.7 ? 'ember' : 'spark', x: b.x + Math.cos(q) * rr, y: b.y + Math.sin(q) * rr * 0.6, vx: -Math.sin(q) * 1.6 * b.spin, vy: -1.6 - Math.random() * 1.8, g: -0.6, drag: 0.6, life: 0.6 + Math.random() * 0.5, max: 1.1, size: 1.8 + Math.random() * 2, color: Math.random() < 0.4 ? P.yel : Math.random() < 0.5 ? P.org : P.gold }); }
+            if (Math.random() < 0.15 * H.Q()) K.smoke(b.x, b.y - 0.3, 1, 0.5); } }
+      },
+      drawUnder(c, f, X, Y, T) {
+        const fa = cl(Math.min(f.t / 0.6, (D + 0.9 - f.t) / 0.9)), S = scr(c), tt = f.t, m = T * 3;
+        // the light leaves the floor: a smouldering dim over the battlefield (so the firelight carries)
+        c.save(); c.globalAlpha = (sup ? 0.3 : 0.24) * fa; c.fillStyle = 'rgb(44,12,6)'; c.fillRect(S.x0, S.y0, S.w, S.h); c.restore();
+        // glowing cracks spreading across the floor round the aim, breathing
+        { const Rv = T * RX * 1.05, gv = H.ease.out(cl(tt / 1.2)), rq = Math.round(RX * 40 / 4) * 4, cv = aVein(rq, ev), k = Rv / rq * (0.35 + 0.65 * gv); c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = fa * gv * (0.55 + 0.15 * Math.sin(tt * 4)); c.drawImage(cv, X - cv.width / 2 * k, Y - cv.height / 2 * k, cv.width * k, cv.height * k); c.restore(); }
+        const FA = aFoot(kq, bq);
+        for (const b of beams) { if (tt < b.s) continue; const BX = H.sx(b.x), BY = H.sy(b.y), on = tt < b.e, a = cl((tt - b.s) / 0.35) * (on ? 1 : Math.max(0, 1 - (tt - b.e) / 0.45));
+          // the firelight left along its path, fading
+          for (const p of b.tr) { const age = tt - p.t, k = Math.max(0, 1 - age / 1.3); if (k <= 0 || (p.n & 3)) continue; const qx = H.sx(p.x), qy = H.sy(p.y); if (qx < S.x0 - m || qx > S.x0 + S.w + m || qy < S.y0 - m || qy > S.y0 + S.h + m) continue; K.floorLight(c, qx, qy, T * BR * 1.9 * (0.6 + 0.4 * k), 0.4 * k * kN, P.org); }
+          if (a <= 0.01 || BX < S.x0 - m || BX > S.x0 + S.w + m || BY < S.y0 - m || BY > S.y0 + S.h + m) continue;
+          // the floor under it: the turning swirl of fire, the light pool and the burning ring (cached), embers running round the ring
+          const br = 1 + 0.067 * Math.sin(tt * 3 + b.ph), sc = T * BR * 2.1 * br / 128, rot = tt * 2.6 * b.spin + b.ph, R0 = T * BR * br, rs = R0 * 1.5; c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.65 * kN * a; c.drawImage(aSwirlAt(rot), BX - rs, BY - rs * H.GY, rs * 2, rs * 2 * H.GY);
+          const gq = Math.max(2, T * 0.06) * 2.5, ge = aEmber(0); c.globalAlpha = 0.6 * a; for (let i = 0; i < 3; i++) { const q = tt * 2 * b.spin + i * 2.1; c.drawImage(ge, BX + Math.cos(q) * R0 * 0.95 - gq, BY + Math.sin(q) * R0 * 0.95 * H.GY - gq, gq * 2, gq * 2); }
+          c.translate(BX, BY); c.scale(sc, sc * H.GY); c.globalAlpha = a * (0.9 + 0.1 * Math.sin(tt * 19 + b.ph)); c.drawImage(FA, -128, -128); c.restore(); }
+      },
+      draw(c, f, X, Y, T) {
+        const fa = cl(Math.min(f.t / 0.6, (D + 0.9 - f.t) / 0.9)), S = scr(c), tt = f.t, topY = S.y0 - T * 0.5, m = T * 3;
+        const PX = H.sx(me.x), PY = H.sy(me.y) - T * 0.46;
+        // the vortex of fire in the sky the beams fall from (a greater, double one at Celestial)
+        const VX = X, VY = S.y0 + T * 0.6, vs = sup ? 1.3 : 1;
+        K.glow(c, VX, VY, T * 7 * vs, P.red, 0.42 * fa); K.glow(c, VX, VY, T * 3 * vs, P.org, 0.22 * fa); if (sup) K.glow(c, VX, VY, T * 1.6, P.yel, 0.3 * fa);
+        c.save(); c.globalCompositeOperation = 'lighter'; const vr = T * 6.5 * vs; c.globalAlpha = 0.55 * fa; c.drawImage(aSwirlAt(-tt * 0.9), VX - vr, VY - vr * 0.38, vr * 2, vr * 2 * 0.38); c.globalAlpha = 0.38 * fa; c.drawImage(aSwirlAt(tt * 0.7), VX - vr * 0.6, VY - vr * 0.6 * 0.38, vr * 1.2, vr * 1.2 * 0.38);
+        if (sup) { c.globalAlpha = 0.3 * fa; c.drawImage(aSwirlAt(tt * 0.5 + 1), VX - vr * 1.45, VY - vr * 1.45 * 0.38, vr * 2.9, vr * 2.9 * 0.38); } c.restore();
+        const gw = aEmber(0), gr2 = aEmber(1);
+        for (const b of beams) { if (tt < b.s) continue; const on = tt < b.e, out = on ? 0 : cl((tt - b.e) / 0.45); if (out >= 1) continue;
+          const BX = H.sx(b.x), BY = H.sy(b.y), grow = H.ease.in(cl((tt - b.s) / 0.32)), a = (0.35 + 0.65 * cl((tt - b.s - 0.2) / 0.3)) * (1 - out) * (0.92 + 0.08 * Math.sin(tt * 23 + b.ph * 3));
+          const qa = b.ph + tt * 0.45 * b.spin, TY = topY; let TX = BX * 0.55 + VX * 0.45 + Math.cos(qa) * T * 1.6;
+          /* a beam whose foot is in front of the pet leans aside so its column passes beside the pet, never over it */
+          let over = false; { const u = (PY - TY) / (BY - TY); if (u > 0 && u < 1.05) { const need = T * BR * 0.75 + T * 0.75; if (u < 0.97) { const xu = TX + (BX - TX) * u, d = PX - xu; if (Math.abs(d) < need) { const xt = PX - (d >= 0 ? 1 : -1) * need; TX = Math.max(TX - T * 9, Math.min(TX + T * 9, (xt - BX * u) / (1 - u))); } } const u2 = Math.min(1, u); over = Math.abs(PX - (TX + (BX - TX) * u2)) < need; } }
+          const w = T * BR * 1.4 * (on ? 1 : 1 - 0.7 * out) * (0.25 + 0.75 * cl((tt - b.s - 0.15) / 0.3)) * (1 + 0.07 * Math.sin(tt * 9 + b.ph) + 0.03 * Math.sin(tt * 21 + b.i));
+          const offL = Math.max(TX, BX) + w < S.x0, offR = Math.min(TX, BX) - w > S.x0 + S.w;
+          const nearP = Math.abs(BX - PX) < T * 5 && Math.abs(BY - PY) < T * 4, crownOn = grow >= 1 && a > 0.05, cs = tt * 1.8 * b.spin;
+          /* the crown of flame round its foot: the back half first (behind the column) */
+          const crown = back => { if (!crownOn || BY > S.y0 + S.h + m * 2) return; c.save(); if (nearP) petHole(c, T); for (let j = 0; j < 5; j++) { const q = j / 5 * TAU + cs, sn = Math.sin(q); if ((sn > 0) === back) continue; const R0 = T * BR * 0.85, fx = BX + Math.cos(q) * R0, fy = BY + sn * R0 * H.GY, hh = T * (0.75 + 0.15 * Math.sin(tt * 7 + j * 1.9 + b.i)) * (0.82 + 0.18 * sn); aTongue(c, fx, fy, hh, Math.cos(q) > 0 ? 3 : 0, aFr(tt, b.sd + j), a * (back ? 0.75 : 0.95)); } c.restore(); };
+          if (crownOn && BY < S.y0 + S.h + m) K.glow(c, BX, BY - T * 0.9, T * BR * 2.2, P.org, 0.4 * a * kN);
+          crown(true);
+          if (!offL && !offR) { const L = Math.hypot(BX - TX, BY - TY), ang = Math.atan2(BY - TY, BX - TX) - Math.PI / 2, Lg = L * grow, top0 = out * L, ca = Math.cos(ang), sa = Math.sin(ang), NT = 7;
+            /* flame tongues spiralling up round the column, curling outward (behind it, then in front): unturned blits */
+            const tongues = front => { if (Lg < T * 1.5) return; c.save(); if (over) petHole(c, T); if (front) c.globalCompositeOperation = 'lighter'; for (let j = 0; j < NT; j++) { const u = (tt * 0.42 + j / NT + b.i * 0.13) % 1, q = u * 10 + j * 1.3 + tt * 3 * b.spin, cq = Math.cos(q); if ((cq > 0) !== front) continue; const yy = top0 + (Lg - top0) * (1 - u * 0.85), xx = Math.sin(q) * w * 0.48; if (yy < top0) continue; const kk = cl(u * 6) * Math.pow(1 - u, 0.8) * (0.55 + 0.45 * Math.abs(cq));
+                aTongue(c, TX + xx * ca - yy * sa, TY + xx * sa + yy * ca, w * (0.85 - 0.35 * u), xx > 0 ? 3 : 0, aFr(tt, b.sd + j * 2), a * kk * (front ? 0.85 : 0.6)); } c.restore(); };
+            tongues(false);
+            c.save(); if (over) petHole(c, T); c.translate(TX, TY); c.rotate(ang); c.globalCompositeOperation = 'lighter';
+            // the column of firelight with its spiralling flame ribbons: one of 32 cached turning frames
+            const ph = (((tt * 7 * b.spin) / TAU) % 1 + 1) % 1 * NBFa;
+            if (Lg - top0 > 1) { c.globalAlpha = a; c.drawImage(aBeam(Math.round(ph) % NBFa, kq, bq), -w * 0.55, top0, w * 1.1, Lg - top0); }
+            c.restore();
+            tongues(true);
+            // embers whirling up inside it (placed along the beam, blitted unturned)
+            if (Lg > T) { const mr = T * 0.2; c.save(); if (over) petHole(c, T); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.85 * a; for (let j = 0; j < 6; j++) { const u = (tt * 0.6 + j / 6 + b.i * 0.13) % 1, yy = top0 + (Lg - top0) * (1 - u), q = u * 12 + j * 1.3 - tt * 3 * b.spin, xx = Math.sin(q) * w * 0.42; if (yy < top0) continue; c.drawImage(j & 1 ? gr2 : gw, TX + xx * ca - yy * sa - mr, TY + xx * sa + yy * ca - mr, mr * 2, mr * 2); } c.restore(); } }
+          if (BX < S.x0 - m || BX > S.x0 + S.w + m || BY < S.y0 - m || BY > S.y0 + S.h + m * 2) continue;
+          crown(false);
+          if (nearP) { c.save(); petHole(c, T); }
+          // its last flare as it lifts: a burst of light and a ring of fire
+          if (out > 0) { K.glow(c, BX, BY - T * 0.8, T * 2.6 * (1 - out * 0.4), P.yel, 0.7 * (1 - out)); K.shockRing(c, BX, BY, T * (BR + 2 * out), 1 - out); }
+          // little flames left burning along its trail, flaring up and dying (two cached tongues each)
+          for (const p of b.tr) { if (!p.c) continue; const age = tt - p.t, k = Math.min(cl(age / 0.18), Math.max(0, 1 - (age - 0.6) / 0.6)); if (k <= 0) continue; const sx2 = H.sx(p.x) + (R1(p.sd) - 0.5) * T * 0.6, sy2 = H.sy(p.y) + (R1(p.sd + 1) - 0.5) * T * 0.3; if (sx2 < S.x0 - m || sx2 > S.x0 + S.w + m || sy2 < S.y0 - m || sy2 > S.y0 + S.h + m) continue;
+            const hk = T * 0.55 * H.ease.back(cl(age / 0.18)) * (0.6 + 0.4 * k); c.save(); aTongue(c, sx2, sy2, hk, p.sd & 3, aFr(tt, p.sd), k * 0.9); aTongue(c, sx2 + T * 0.16, sy2 + T * 0.04, hk * 0.65, (p.sd + 1) & 3, aFr(tt, p.sd + 3), k * 0.8); c.restore(); }
+          if (nearP) c.restore();
+        }
+        // embers drifting up over the whole screen: two cached dots, many small blits, twinkling
+        if (fa > 0.01) { c.save(); c.globalCompositeOperation = 'lighter'; for (let i = 0; i < NFL; i++) { const F = FL[i], fx2 = S.x0 + ((F.x * S.w + 16 * Math.sin(tt * F.w * 1.7 + i) - tt * 6) % S.w + S.w) % S.w, fy2 = S.y0 + S.h - ((F.y * S.h + tt * F.sp) % S.h); c.globalAlpha = fa * (0.55 + 0.45 * Math.sin(tt * (3 + F.w * 4) + i * 1.3)); c.drawImage(F.v ? gr2 : gw, fx2 - F.sz, fy2 - F.sz, F.sz * 2, F.sz * 2); } c.restore(); }
+      } }); };
 
   /* ================= F-U02 Festival of a Thousand Embers ================= */
   /* a paper fire lantern at screen (X, Y), r its half height: paper lit through by its flame (a hot left, a shaded right),
