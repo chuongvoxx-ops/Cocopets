@@ -196,9 +196,9 @@
               for (let r = 0; r < NR; r++) { const pts = []; const ph = r / NR * TAU + b.ph, sl = (tt * 0.35 * (1 + r * 0.15) + r * 0.31) % 1;
                 for (let j = 0; j <= NS; j++) { const s2 = j / NS, yy = y0 + (y1 - y0) * s2, q = s2 * 9.5 - tt * 4.2 * b.spin + ph, cq = Math.cos(q), rad = w * (0.5 + 0.12 * Math.sin(s2 * 7 + tt * 5 + r)), xx = Math.sin(q) * rad;
                   const env = Math.sin(Math.PI * s2) * (0.6 + 0.4 * Math.sin(s2 * TAU * 2 - sl * TAU * 2)), lick = 1 + 0.35 * Math.sin(s2 * 23 + tt * 17 + r * 2) * Math.sin(tt * 6 + s2 * 5);
-                  pts.push([xx, yy - rad * 0.28 * cq, cq, w * 0.21 * env * lick * (0.75 + 0.25 * Math.abs(cq))]); }
+                  pts.push([xx, yy - rad * 0.28 * cq, cq, w * 0.21 * env * lick * (0.75 + 0.25 * Math.abs(cq)) * ((u2 => u2 * u2 * (3 - 2 * u2))(cl(Math.abs(cq) / 0.45)))]); }   // (tapers to a point where it turns behind the core)
                 // contiguous runs on the wanted side, each filled as a ribbon (offset along the curve's normal)
-                let run = []; const flush = () => { if (run.length > 2) { for (const [col, kw, al] of front ? [[P.red, 1.25, 0.32], [P.org, 0.85, 0.6], [P.yel, 0.42, 0.75], [P.wht, 0.14, 0.7]] : [[P.red, 1.1, 0.3], [P.org, 0.6, 0.35]]) {
+                let run = []; const flush = () => { if (run.length > 2) { for (const [col, kw, al] of front ? [[P.red, 1.9, 0.08], [P.red, 1.45, 0.12], [P.org, 1.05, 0.2], [P.org, 0.72, 0.3], [P.yel, 0.42, 0.4], [P.wht, 0.15, 0.45]] : [[P.red, 1.5, 0.1], [P.org, 0.95, 0.15], [P.org, 0.55, 0.2]]) {
                     c.globalAlpha = al * a; c.fillStyle = col; c.beginPath();
                     for (let k = 0; k < run.length; k++) { const p0 = run[Math.max(0, k - 1)], p1 = run[Math.min(run.length - 1, k + 1)], tx = p1[0] - p0[0], ty = p1[1] - p0[1], tn = Math.hypot(tx, ty) || 1, hw = run[k][3] * kw; const X2 = run[k][0] - ty / tn * hw, Y2 = run[k][1] + tx / tn * hw; k ? c.lineTo(X2, Y2) : c.moveTo(X2, Y2); }
                     for (let k = run.length - 1; k >= 0; k--) { const p0 = run[Math.max(0, k - 1)], p1 = run[Math.min(run.length - 1, k + 1)], tx = p1[0] - p0[0], ty = p1[1] - p0[1], tn = Math.hypot(tx, ty) || 1, hw = run[k][3] * kw; c.lineTo(run[k][0] + ty / tn * hw, run[k][1] - tx / tn * hw); }

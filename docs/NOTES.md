@@ -939,3 +939,4 @@ Every new boss painter (rift fiends, Tower bosses, minis that get their own art)
 - v213: Armageddon rebuilt as a fire Catastrophe: swirling firelight beams from a vortex of fire, flame tongues spiralling round each hot core, embers; 3 / 7 at Adept / 10 for 7 s as Super Armageddon. Same damage total, burn, cooldown.
 - v214: Armageddon: flame-sprite crown at each foot and trail flames removed; twisting flame ribbons (2, 3 at Celestial) spiral and rise round the upper body of each core instead.
 - v215: Armageddon beams cut by 40%: 2 / 4 at Adept / 6 at Celestial (same damage total, split over fewer beams).
+- v216: Armageddon twisting flames: ribbons taper to points where they turn behind the core (no blunt cut ends) and their sides feather through six soft layers.
