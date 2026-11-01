@@ -103,7 +103,7 @@
         c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'butt';
         // the transparent pink disc and the dome's body (under the pet, so they never cover it)
         c.globalAlpha = 0.75 * uF * fa; c.drawImage(discSpr(), X - Rr * 1.04, Y - ry * 1.04, Rr * 2.08, ry * 2.08);
-        const Hd = Rr * COSE, dh = (Hd + ry) / 2; c.globalAlpha = 0.9 * uF * fa * (0.7 + 0.3 * k); c.drawImage(domeSpr(), X - Rr * 1.03, Y - (Hd - ry) / 2 - dh * 1.03, Rr * 2.06, dh * 2.06);
+        // (no dome: the user wanted only the magic circle and its turning bands)
         // the outer edge draws itself round from the front; its glow and thickness show the pool that is left
         const a0 = Math.PI / 2, sweep = TAU * uL;
         for (const [col, lw, al] of [[ROSE, 5 + 9 * k, 0.28], [CANDY, 1.4 + 2.6 * k, 0.85], [PEARL, 0.7 + 0.6 * k, 0.75]]) { c.globalAlpha = al * fa * low * (0.55 + 0.45 * k); c.strokeStyle = col; c.lineWidth = lw; c.beginPath(); c.ellipse(X, Y, Rr, ry, 0, a0, a0 + sweep); c.stroke(); }
@@ -141,13 +141,6 @@
       draw(c, f, X, Y, T, t) {
         t = f.t; const fa = fadeOf(t), Rr = R * T, Hd = Rr * COSE, k = 0.45 + 0.55 * qs, uD = sm((t - 0.5) / 0.6);
         // the dome's edge: a thin translucent arc over the ward, faded where the pet stands so it never covers it
-        if (uD > 0) { const mask = petMask(T), N = 40; c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'butt';
-          let flare = 0, fa2 = 0; for (const hh of hits) { const e = env(t - hh.t); if (e > flare) { flare = e; fa2 = Math.acos(Math.max(-1, Math.min(1, Math.cos(hh.ai)))); } }
-          for (let i = 0; i < N; i++) { const b0 = i / N * Math.PI, b1 = (i + 1) / N * Math.PI, bm = (b0 + b1) / 2, p0 = [X + Math.cos(b0) * Rr, Y - Math.sin(b0) * Hd], p1 = [X + Math.cos(b1) * Rr, Y - Math.sin(b1) * Hd];
-            const m = mask((p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2) * sm(Math.min(bm, Math.PI - bm) / 0.25), fl = flare * Math.max(0, 1 - Math.abs(bm - fa2) / 0.8), sh = Math.max(0, Math.cos(bm * 2 - t * 0.8)) ** 6, a = uD * fa * m;
-            if (a < 0.02) continue;
-            for (const [col, lw, al] of [[ROSE, 6, 0.12 + 0.25 * fl], [CANDY, 1.2 + 0.6 * k + 1.5 * fl, (0.3 + 0.2 * k) + 0.5 * fl], [PEARL, 0.8, 0.25 * sh + 0.6 * fl]]) { c.globalAlpha = Math.min(1, al * a); c.strokeStyle = col; c.lineWidth = lw; c.beginPath(); c.moveTo(p0[0], p0[1]); c.lineTo(p1[0], p1[1]); c.stroke(); } }
-          c.restore(); }
         if (bands.length) drawBands(c, X, Y, T, t, fa, true);
         B.draw(c, T);
       } });

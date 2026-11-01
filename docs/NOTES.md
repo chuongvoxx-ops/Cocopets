@@ -947,3 +947,4 @@ Every new boss painter (rift fiends, Tower bosses, minis that get their own art)
 - v221: Light element UI is light pink (#FFB3E0, dark #C2508F) instead of cream: E8.light and ELEMENTS.light (skill buttons, element icons and rings, cast flashes), the Judgement reaction bolt.
 - v222: Salvation cooldown 300 s (5 min); cooldowns of a minute or more read m:ss on the buttons.
 - v223: Wish Upon a Star (20k4h, replaces River of Heaven) and Love Sanctuary (20k4i, replaces Crown of the Unsetting Sun; cd 60; stationary ward, shared shield pool 1.5× → 4× max HP, 10/15/20 s; petWard hook in hurtPet + setWard in 20b). All ten Light ults are now the pink designs. elem-moves: lovesanctuary exempt from the damage check, longer tail for it.
+- v224: Love Sanctuary: dome removed (body and arc); just the magic circle, heart and the turning bands.
