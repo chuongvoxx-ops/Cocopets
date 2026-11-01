@@ -102,7 +102,9 @@
         // a tapered curl: segments thinning and fading to a hair at the tip, with a faint wide halo
         const cx1 = x0 + dir * L * 0.55, cy1 = y0 - L * 0.25, ex = x0 + dir * L * 0.35, ey = y0 - L * 0.9, NQ = 10; let px = x0, py = y0;
         for (let q2 = 1; q2 <= NQ; q2++) { const u = q2 / NQ, m1 = 1 - u, nx = m1 * m1 * x0 + 2 * m1 * u * cx1 + u * u * ex, ny = m1 * m1 * y0 + 2 * m1 * u * cy1 + u * u * ey, f2 = Math.pow(1 - (u - 0.5 / NQ), 1.4);
-          g.beginPath(); g.moveTo(px, py); g.lineTo(nx, ny); g.globalAlpha = 0.18 * f2; g.strokeStyle = 'rgba(255,120,40,1)'; g.lineWidth = k * 0.09 * f2 + 0.3; g.stroke(); g.globalAlpha = 0.6 * f2; g.strokeStyle = 'rgba(255,200,110,1)'; g.lineWidth = k * 0.025 * f2 + 0.2; g.stroke(); px = nx; py = ny; } } } }); }
+          g.beginPath(); g.moveTo(px, py); g.lineTo(nx, ny); g.globalAlpha = 0.18 * f2; g.strokeStyle = 'rgba(255,120,40,1)'; g.lineWidth = k * 0.09 * f2 + 0.3; g.stroke(); g.globalAlpha = 0.6 * f2; g.strokeStyle = 'rgba(255,200,110,1)'; g.lineWidth = k * 0.025 * f2 + 0.2; g.stroke(); px = nx; py = ny; } } }
+    // feather the foot: everything fades out smoothly over the last stretch, so the beam melts into its floor glow
+    g.globalCompositeOperation = 'destination-in'; g.globalAlpha = 1; const fg = g.createLinearGradient(0, 0, 0, Hh); fg.addColorStop(0, 'rgba(0,0,0,1)'); fg.addColorStop(0.8, 'rgba(0,0,0,1)'); fg.addColorStop(0.88, 'rgba(0,0,0,0.72)'); fg.addColorStop(0.95, 'rgba(0,0,0,0.25)'); fg.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = fg; g.fillRect(0, 0, W, Hh); }); }
   /* the floor under a beam, in the floor's own plane (squashed when drawn): a pool of firelight, a white-hot splash where
      the beam meets the floor, hot spots, and a burning ring (all light: no dark mark) */
   function aFoot(kq, bq) { return fxSprite('fu1fa|' + kq + '|' + bq, 256, 256, (g, W) => {
@@ -216,7 +218,7 @@
             c.save(); if (over) petHole(c, T); c.translate(TX, TY); c.rotate(ang); c.globalCompositeOperation = 'lighter';
             // the column of firelight with its spiralling flame ribbons: one of 32 cached turning frames
             const ph = (((tt * 7 * b.spin) / TAU) % 1 + 1) % 1 * NBFa;
-            if (Lg - top0 > 1) { c.globalAlpha = a; c.drawImage(aBeam(Math.round(ph) % NBFa, kq, bq), -w * 0.55, top0, w * 1.1, Lg - top0); }
+            if (Lg - top0 > 1) { c.globalAlpha = a; c.drawImage(aBeam(Math.round(ph) % NBFa, kq, bq), -w * 0.55, top0, w * 1.1, (Lg - top0) * 1.08); }   // reaches a little past the foot so its feathered end centres on the floor glow
             c.restore();
             tongues(true);
             // embers whirling up inside it (placed along the beam, blitted unturned)
