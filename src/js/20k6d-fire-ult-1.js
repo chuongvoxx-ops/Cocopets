@@ -116,9 +116,9 @@
   const tt0a = (o, f) => f.t < o.s || f.t > o.e;
 
   // F-U01 Armageddon: the sky darkens to embers and a vortex of fire opens above the battlefield; swirling beams of orange firelight with white-hot cores fall out of it and sweep across the floor, flame ribbons and tongues spiralling up round each one, twisting flame ribbons wrapped round the upper body of each core and a burning ring where it touches down, setting alight every monster it touches and leaving a trail of firelight behind, while embers drift up over the whole screen; each beam bursts in a last flare when it lifts
-  // Evolution: 3 beams for 4 s at Hatchling, 7 for 5 s at Adept (the damage growing each stage with evoK and split over the beams); at Celestial it becomes Super Armageddon: 10 wider beams for 7 s under a greater double vortex, ending in a cataclysmic burst over the aim.
+  // Evolution: 2 beams for 4 s at Hatchling, 4 for 5 s at Adept (the damage growing each stage with evoK and split over the beams); at Celestial it becomes Super Armageddon: 6 wider beams for 7 s under a greater double vortex, ending in a cataclysmic burst over the aim.
   U.armageddon = (C, h) => { H = h; K = FK.bind(H);
-    const me = H.me, x = C.tx, y = C.ty, ev = K.evo(C), sup = ev >= 7, NB = K.evoN(C, 3, 10), D = ev <= 4 ? 4 + (ev - 1) / 3 : 5 + (ev - 4) * 2 / 3, RX = (3.6 + 0.3 * (ev - 1)) * C.K, BR = (0.95 + 0.06 * (ev - 1)) * (sup ? 1.08 : 1), TICK = 0.4;
+    const me = H.me, x = C.tx, y = C.ty, ev = K.evo(C), sup = ev >= 7, NB = K.evoN(C, 2, 6), D = ev <= 4 ? 4 + (ev - 1) / 3 : 5 + (ev - 4) * 2 / 3, RX = (3.6 + 0.3 * (ev - 1)) * C.K, BR = (0.95 + 0.06 * (ev - 1)) * (sup ? 1.08 : 1), TICK = 0.4;
     H.X.banner(sup ? 'SUPER ARMAGEDDON' : 'ARMAGEDDON', '', C.col, 1.6); H.X.sfx.hum(); H.warn(x, y, RX, 0.9, C.col);
     const NFL = H.n(70 + 5 * ev), FL = []; for (let i = 0; i < NFL; i++) { const sz = 2.5 + 6 * R1(i * 1.7) * R1(i * 2.9 + 1); FL.push({ sz, sp: 22 + 40 * R1(i * 4.1) + sz * 5, w: 0.6 + R1(i) * 0.6, x: R1(i * 7.3), y: R1(i * 3.1), v: R1(i * 9.7) < 0.55 ? 1 : 0 }); }
     /* balance as the old Armageddon: 9.5 x the move's damage dealt in ticks (burning) and 1.5 x in the last flares, split

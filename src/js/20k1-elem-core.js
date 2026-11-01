@@ -127,7 +127,7 @@ const ELEM_MOVES = {
     ['hearthburst', 'Hearthburst', 'nova', 26, 2.8, 'Flames gather at your feet and roll outward as a low circular wave.'],
     ['matchstars', 'Falling Matchstars', 'stars', 26, 3, 'Sparks fan upward and fall on three marked spots as tiny comets.'] ],
   ult: [
-    ['armageddon', 'Armageddon', 'flame', 90, 18, 'Swirling beams of firelight fall from a vortex of fire and sweep the battlefield, setting monsters alight while embers drift up: 4 s, 7 beams at Adept. At Celestial it becomes Super Armageddon: 10 beams for 7 s.'],
+    ['armageddon', 'Armageddon', 'flame', 90, 18, 'Swirling beams of firelight fall from a vortex of fire and sweep the battlefield, setting monsters alight while embers drift up: 4 s, 4 beams at Adept. At Celestial it becomes Super Armageddon: 6 beams for 7 s.'],
     ['embers', 'Festival of a Thousand Embers', 'stars', 90, 18, 'Fire lanterns rise in tiers over the aim and open in turn, raining grouped sparks on marked spots, then burst together.'],
     ['crucible', 'Solar Crucible', 'burst', 95, 20, 'A bowl of molten plates forms over the aim holding a fire core; flames pour through, then the plates open and drop it.'],
     ['dragonkiln', 'Dragonkiln Procession', 'dragon', 100, 22, 'Furnace rings appear along the aim; a flame dragon threads them, growing at each, and coils round the last to detonate.'],
