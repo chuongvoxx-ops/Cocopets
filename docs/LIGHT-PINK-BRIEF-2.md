@@ -69,3 +69,37 @@ twisting surfaces catch alternating rose and pearl highlights. At the finish, th
 bow-like arrangements, then loosen into floating strings and stars.
 (Notes: counts by level 1..7: 2,2,3,4,4,5,6 or similar; ~5–6 s; ribbons are 3D-ish satin strips (two-tone by which face
 shows: compute the strip's normal/twist and colour top vs underside), feathered tail, per-target hit interval.)
+
+# Round 3 (the last two; rows set: wishuponastar replaced heavenriver, lovesanctuary replaced unsettingsun, cd 60)
+
+## 9. Wish Upon a Star (wishuponastar) — file 20k4h
+A giant pink wishing star forms beneath the enemy group and releases expanding star-shaped shockwaves.
+A five-pointed outline traces itself across the ground, fills with translucent blush light, and rises slightly into a
+shallow, softly rounded star. Its centre glows pearl-white while its points shine saturated pink.
+Tiny stars spiral inward. Each of the five points brightens in sequence as the charge builds, and the main star makes a
+slow partial turn. Its centre contracts briefly, then releases a broad five-pointed wave of light. The wave expands across
+the ground with a brilliant leading edge, a translucent body, and trailing star dust.
+At level 4, two waves release with a small rotation between them, creating an interlacing pattern.
+At Celestial, three nested star outlines turn around the source, aligning just before each of three releases. The final
+shockwave is the widest and strongest, with long pink trails extending from its points. The source then separates into
+smaller stars that rise and fade.
+(Notes: centred on the monster group near the aim; waves 1 / 2 at Adept / 3 at Celestial; each wave hits each monster once
+as its star-shaped front passes (test point-in-star against the expanding front, or radius with the star's angular
+profile); total ≈ house total, last wave strongest. Floor art is light-only and feathered; no hard edges.)
+
+## 10. Love Sanctuary (lovesanctuary) — file 20k4i
+A transparent pink circle with a big love heart drawn under the pet. The ward shelters the party, absorbing damage in
+ripples of hearts and light. A rose circle draws itself under the cast position, forming a glistening magic circle with a
+love heart, a bright pink outer edge and a faint pearly sheen. A small luminous heart pulse and glow. Tiny hearts and stars
+drift around its boundary. When it absorbs an attack, a heart-shaped ripple spreads across. Nearby light bands brighten and
+flow toward the impact before settling back into their orbits.
+The ward protects allied pets inside it using one shared, finite shield pool. Higher levels increase its capacity and
+maximum duration. The ward stays in one place and doesn't move. The player has to stay within the dome for protection.
+Cooldown is 1 minute. Duration is 10 seconds for level 1, 15 seconds for level 4 and 20 seconds for level 7.
+At Celestial, three luminous bands turn around the ward at different angles. Absorbed impacts send delicate waves of hearts
+and star glints across its surface. At normal expiry, the ward dissolves into floating hearts.
+(Notes: find where the pet takes damage in 20b (contact, shots, warn zones, boss hits) and add one minimal, commented hook
+that lets an active ward absorb it while the pet is inside the ward's radius: shield pool e.g. ≈ 1.5 × pet max HP at
+level 1 rising to ≈ 4 × at Celestial (choose, state it); when the pool runs out the ward breaks early (a pop of hearts).
+Show the remaining pool subtly (the ring's brightness/thickness), not a number. Durations by stage interpolate 10→15→20.
+The ward is drawn under the pet (drawUnder) and as a translucent dome edge; never covers the pet. No damage to monsters.)

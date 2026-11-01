@@ -536,6 +536,10 @@ GAMES.dungeon = {
       flash(0.12, '#FFF3B0'); api.sfx.chirp(); buzz(15);
       if (!g.shownTips.perfect) { g.shownTips.perfect = true; banner('Perfect dodge!', 'Your next hits do +60% damage', '#FFE37A', 1.6); }
     }
+    /* (hook for Light's Love Sanctuary, 20k4i) an active ward, set with ELEM's X.setWard(fn) (null clears it): fn(d, src, o)
+       takes the damage after all mitigation, absorbs what its shield pool can while the pet stands inside it, and returns
+       what is left over for the pet (d unchanged when the pet is outside, or the ward is gone) */
+    let petWard = null;
     /* returns true if the hit landed */
     function hurtPet(d, src, o) {
       if (me.dead || g.won) return false;
@@ -546,6 +550,7 @@ GAMES.dungeon = {
       if (RULES) d *= 1 - RULES.defK();
       if (AN) { d *= AN.inK(src); AN.onHurt(d, o && o.dot); }
       if (god) { ring(me.x, me.y, 0.5, 1, 0.15, '#FFE37A', 0.08); return false; }
+      if (petWard) { d = petWard(d, src, o); if (!(d > 0)) { me.inv = 0.3; return false; } }   /* (Love Sanctuary's ward, above) */
       if (g.guardHP > 0) { const s = Math.min(g.guardHP, d); g.guardHP -= s; d -= s; ring(me.x, me.y, 0.7, 1.1, 0.2, '#8FE3F0', 0.12); if (g.guardHP <= 0) { text(me.x, me.y - 1.2, 'Shield gone!', '#8FE3F0', 13); sparks(me.x, me.y, '#8FE3F0', 12, 5); } if (d <= 0) { me.inv = 0.3; return false; } }
       me.hp -= d; me.inv = 0.55; me.hurtT = 0; g.hurtV = 0.55; g.combo = Math.max(0, Math.floor(g.combo * 0.5)); g.dmgTaken += d; me.sq = 1;
       if (src && src.affixes && src.affixes.includes('vampiric') && !src.dead) { const h = d * 2.5; src.hp = Math.min(src.maxhp, src.hp + h); text(src.x, src.y - src.r - 0.3, '+' + Math.round(h), '#FF4D6D', 12); }
@@ -902,7 +907,9 @@ GAMES.dungeon = {
     STAR = DunStar.create({ me, g, mons, eshots, zones, ST: () => ST, shot, hitMon, hitArea, part, ring, boom, zap, bolt: (x, y, color) => bolts.push({ pts: skyBolt(x, y), life: 0.3, max: 0.3, color, w: 5 }), sparks, after, nearestMon, text, banner, flash, shake, hitstop, heal, light, moveEnt, walkPoint, blocked, meteorAt, sfx: api.sfx, sx, sy, Tz: () => Tz(), warn: (x, y, r, life, col, fn) => zones.push({ kind: 'warn', x, y, r, life, max: life, own: 'pet', color: col, fn }), blizzard: t => { blizT = Math.max(blizT, t); }, supernova: r => { supernova = 1; me.inv = 2; novaR = r; }, dragon: d => dragons.push(d) });
     ELEM = DunElem.create({ me, g, mons, eshots, zones, ST: () => ST, shot, hitMon, hitArea, part, ring, boom, zap, bolt: (x, y, color) => bolts.push({ pts: skyBolt(x, y), life: 0.3, max: 0.3, color, w: 5 }), sparks, after, nearestMon, text, banner, flash, shake, hitstop, heal, light, moveEnt, walkPoint, blocked, sfx: api.sfx, sx, sy, Tz: () => Tz(),
       /* (hooks for Light's Salvation, 20k4f) the party, its full heal + revive, its strip slots, the summoned Animas */
-      party: () => party, restoreParty, partySlot, animas: () => (AN && AN.S && AN.S.list) || [] });
+      party: () => party, restoreParty, partySlot, animas: () => (AN && AN.S && AN.S.list) || [],
+      /* (hook for Light's Love Sanctuary, 20k4i) set or clear the ward that absorbs damage in hurtPet */
+      setWard: fn => { petWard = fn || null; } });
     RES = DunResidue.create({ me, g, mons, props: propList, M, T_FLOOR, EL, e8Of, REACT_NAME: (a, b) => (REACTIONS[pairKey(a, b)] || {}).name, ST: () => ST, hitMon, part, boom, ring, sparks, text, light, drop, sfx: api.sfx, sx, sy, Tz: () => Tz() });
     RX = DunReact.create({ me, g, mons, eshots, ST: () => ST, AB: () => AB, hitMon, text, part, boom, zap, bolt: (x, y, color) => bolts.push({ pts: skyBolt(x, y), life: 0.3, max: 0.3, color, w: 5 }), sparks, ring, light, drop, heal, banner, sfx: api.sfx, sx, sy, Tz: () => Tz() });
     RULES = F.band ? DunRules.create({ F, M, me, g, mons, R, spawnMon, lesserBoss, walkPoint, freeSpot, after, banner, flash, text, ring, part, sparks, boom, shake, drop, heal, gainMP, ST: () => ST, sfx: api.sfx, sx, sy, Tz: () => Tz() }) : null;
