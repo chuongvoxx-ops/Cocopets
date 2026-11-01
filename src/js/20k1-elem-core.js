@@ -23,7 +23,7 @@ Object.assign(ELEMENTS, {
   wind: { name: 'Wind', color: '#8FE8C8', core: '#F2FFF9', dark: '#2E8C78' }, ice: { name: 'Ice', color: '#9FE0F8', core: '#FFFFFF', dark: '#2F80B7' },
   water: { name: 'Water', color: '#4FA8F0', core: '#DFF4FF', dark: '#1F5FA8' }, thunder: { name: 'Lightning', color: '#FFD447', core: '#FFFFFF', dark: '#B7860B' },
   earth: { name: 'Earth', color: '#D4A054', core: '#FFE9B8', dark: '#7A5218' }, dark: { name: 'Dark', color: '#9C88D6', core: '#EDE6FF', dark: '#3B2F63' },
-  light: { name: 'Light', color: '#FFF0A0', core: '#FFFFFF', dark: '#B89A30' } });
+  light: { name: 'Light', color: '#FFB3E0', core: '#FFF4FC', dark: '#C2508F' } });
 Object.assign(E8_OF, { wind: 'wind', ice: 'ice', water: 'water', thunder: 'thunder', earth: 'earth', dark: 'dark', light: 'light' });
 /* the moves: [key, name, glyph, cost, cooldown, description], ten Strongs then ten Ults an element, in unlock order */
 const ELEM_MOVES = {

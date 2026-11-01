@@ -107,7 +107,7 @@ const DunReact = (() => {
     function onDirectHit(m, d, o) {
       if (o.react || o.dot) return;
       if (m.prism) { m.prism = 0; near(m.x, m.y, 5, m).slice(0, 4).forEach(q => { X.zap(m.x, m.y - 0.5, q.x, q.y - 0.3, '#FFFFFF', 2); dmg(q, d * 0.4, 'light'); }); X.sparks(m.x, m.y, '#FFFFFF', 10, 6); }
-      if (m.judge > 0) { m.judge--; dmg(m, d * 0.5, 'light'); X.bolt(m.x, m.y, '#FFF0A0'); }
+      if (m.judge > 0) { m.judge--; dmg(m, d * 0.5, 'light'); X.bolt(m.x, m.y, '#FFB3E0'); }
     }
     function petHurtK() { return S.sanct && Math.hypot(me.x - S.sanct.x, me.y - S.sanct.y) < S.sanct.r ? 0.6 : 1; }
     /* ---- ticking ---- */

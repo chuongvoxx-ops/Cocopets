@@ -22,7 +22,7 @@ const E8 = {
   thunder: { name: 'Thunder', color: '#FFD447', dark: '#B7860B', glyph: 'thunder', mark: 'Charged' },
   earth: { name: 'Earth', color: '#D4A054', dark: '#7A5218', glyph: 'earth', mark: 'Crusted' },
   dark: { name: 'Dark', color: '#9C88D6', dark: '#3B2F63', glyph: 'dark', mark: 'Cursed' },
-  light: { name: 'Light', color: '#FFF0A0', dark: '#B89A30', glyph: 'light', mark: 'Blessed' },
+  light: { name: 'Light', color: '#FFB3E0', dark: '#C2508F', glyph: 'light', mark: 'Blessed' },
 };
 const E8_ORDER = ['wind', 'fire', 'ice', 'water', 'thunder', 'earth', 'dark', 'light'];
 const E8_OF = { fire: 'fire', frost: 'ice', leaf: 'wind', spark: 'thunder', cosmic: 'dark', bubble: 'water', candy: 'light', shadow: 'dark', gold: 'earth', prism: 'light' };
