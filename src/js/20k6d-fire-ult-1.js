@@ -84,10 +84,6 @@
   /* an ember: a hot dot with a soft glow (0 white-gold, 1 orange-red) */
   const aEmber = v => fxSprite('fu1em' + v, 24, 24, (g, w) => { const c0 = w / 2, gr = g.createRadialGradient(c0, c0, 0, c0, c0, c0);
     if (v) { gr.addColorStop(0, 'rgba(255,220,150,0.95)'); gr.addColorStop(0.3, 'rgba(255,122,46,0.55)'); gr.addColorStop(1, 'rgba(210,64,26,0)'); } else { gr.addColorStop(0, 'rgba(255,252,230,1)'); gr.addColorStop(0.25, 'rgba(255,200,90,0.75)'); gr.addColorStop(1, 'rgba(255,110,40,0)'); } g.fillStyle = gr; g.fillRect(0, 0, w, w); });
-  /* a flame tongue (the kit's shaded flame, painted once): 4 leans x NFRa flicker frames, its base at (48, 88), 72 px tall */
-  const NFRa = 8, aFlame = (v, fr) => fxSprite('fu1fl|' + v + '|' + fr, 96, 128, g => K.flame(g, 48, 88, 34, 72, fr * 0.11 + v * 3.1, v * 2.3 + 1, (v - 1.5) * 6, 1, true));
-  const aFr = (tt, sd) => { const k = ((Math.floor(tt * 16 + sd * 5.3) % (2 * NFRa - 2)) + 2 * NFRa - 2) % (2 * NFRa - 2); return k < NFRa ? k : 2 * NFRa - 2 - k; };
-  function aTongue(c, x, y, h, v, fr, a) { if (!(a > 0.01) || h < 3) return; const cv = aFlame(v & 3, fr), s = h / 72; c.globalAlpha = Math.min(1, a); c.drawImage(cv, x - 48 * s, y - 88 * s, 96 * s, 128 * s); }
   /* a beam column at one turn of its fire: the outer fire, the white-hot core, two flame ribbons spiralling round it
      (back halves deep red, front halves orange with a white-yellow thread) and little curls of flame flicking off them */
   const NBFa = 32;
@@ -119,7 +115,7 @@
     for (const [col, lw] of [['rgba(210,64,26,0.3)', 4], ['rgba(255,122,46,0.45)', 2], ['rgba(255,216,102,0.6)', 0.8]]) { g.strokeStyle = col; g.lineWidth = lw; g.beginPath(); for (const p of paths) p.forEach((q, j) => j ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1])); g.stroke(); } }); }
   const tt0a = (o, f) => f.t < o.s || f.t > o.e;
 
-  // F-U01 Armageddon: the sky darkens to embers and a vortex of fire opens above the battlefield; swirling beams of orange firelight with white-hot cores fall out of it and sweep across the floor, flame ribbons and tongues spiralling up round each one, a burning ring and a crown of flame where it touches down, setting alight every monster it touches and leaving a trail of flames and firelight behind, while embers drift up over the whole screen; each beam bursts in a last flare when it lifts
+  // F-U01 Armageddon: the sky darkens to embers and a vortex of fire opens above the battlefield; swirling beams of orange firelight with white-hot cores fall out of it and sweep across the floor, flame ribbons and tongues spiralling up round each one, twisting flame ribbons wrapped round the upper body of each core and a burning ring where it touches down, setting alight every monster it touches and leaving a trail of firelight behind, while embers drift up over the whole screen; each beam bursts in a last flare when it lifts
   // Evolution: 3 beams for 4 s at Hatchling, 7 for 5 s at Adept (the damage growing each stage with evoK and split over the beams); at Celestial it becomes Super Armageddon: 10 wider beams for 7 s under a greater double vortex, ending in a cataclysmic burst over the aim.
   U.armageddon = (C, h) => { H = h; K = FK.bind(H);
     const me = H.me, x = C.tx, y = C.ty, ev = K.evo(C), sup = ev >= 7, NB = K.evoN(C, 3, 10), D = ev <= 4 ? 4 + (ev - 1) / 3 : 5 + (ev - 4) * 2 / 3, RX = (3.6 + 0.3 * (ev - 1)) * C.K, BR = (0.95 + 0.06 * (ev - 1)) * (sup ? 1.08 : 1), TICK = 0.4;
@@ -131,7 +127,7 @@
     for (let i = 0; i < NB; i++) { const s = 0.35 + i * Math.min(0.42, D * 0.3 / NB), e = D - 0.15 - (NB - 1 - i) * Math.min(0.15, 1.2 / NB), b0 = i / NB * TAU + 0.4 + Math.random() * 0.3, r0 = RX * (0.35 + 0.45 * R1(i * 3.7 + 1)), nT = Math.max(1, Math.ceil((e - s - 0.3) / TICK - 1e-6));
       beams.push({ i, s, e, x: x + Math.cos(b0) * r0, y: y + Math.sin(b0) * r0, vx: 0, vy: 0, tgt: null, re: 0, nt: s + 0.3, tr: [], trT: s, ph: R1(i * 5.1) * TAU, spin: i % 2 ? 1 : -1, sd: i * 13 + 5, dmg: 9.5 * Dm / NB / nT, land: false, flare: false }); }
     const W0 = beams[0].s + 0.3, W1 = D - 0.4, endT = Math.max(...beams.map(b => b.e));
-    const warm = [() => aEmber(0), () => aEmber(1), () => aFoot(kq, bq), () => aVein(Math.round(RX * 40 / 4) * 4, ev)]; for (let i = 0; i < NBFa; i++) warm.push(() => aBeam(i, kq, bq)); for (let v = 0; v < 4; v++) for (let i = 0; i < NFRa; i++) warm.push(() => aFlame(v, i)); for (let i = 0; i < NSFa; i++) warm.push(() => aSwirlF(i));
+    const warm = [() => aEmber(0), () => aEmber(1), () => aFoot(kq, bq), () => aVein(Math.round(RX * 40 / 4) * 4, ev)]; for (let i = 0; i < NBFa; i++) warm.push(() => aBeam(i, kq, bq)); for (let i = 0; i < NSFa; i++) warm.push(() => aSwirlF(i));
     return H.add({ life: D + 0.9, x, y, wi: 0, pi: 0, nP: 0, fin: false,
       update(dt, f) {
         for (let q = 0; q < 4 && f.wi < warm.length; q++) warm[f.wi++]();
@@ -191,14 +187,25 @@
           const w = T * BR * 1.4 * (on ? 1 : 1 - 0.7 * out) * (0.25 + 0.75 * cl((tt - b.s - 0.15) / 0.3)) * (1 + 0.07 * Math.sin(tt * 9 + b.ph) + 0.03 * Math.sin(tt * 21 + b.i));
           const offL = Math.max(TX, BX) + w < S.x0, offR = Math.min(TX, BX) - w > S.x0 + S.w;
           const nearP = Math.abs(BX - PX) < T * 5 && Math.abs(BY - PY) < T * 4, crownOn = grow >= 1 && a > 0.05, cs = tt * 1.8 * b.spin;
-          /* the crown of flame round its foot: the back half first (behind the column) */
-          const crown = back => { if (!crownOn || BY > S.y0 + S.h + m * 2) return; c.save(); if (nearP) petHole(c, T); for (let j = 0; j < 5; j++) { const q = j / 5 * TAU + cs, sn = Math.sin(q); if ((sn > 0) === back) continue; const R0 = T * BR * 0.85, fx = BX + Math.cos(q) * R0, fy = BY + sn * R0 * H.GY, hh = T * (0.75 + 0.15 * Math.sin(tt * 7 + j * 1.9 + b.i)) * (0.82 + 0.18 * sn); aTongue(c, fx, fy, hh, Math.cos(q) > 0 ? 3 : 0, aFr(tt, b.sd + j), a * (back ? 0.75 : 0.95)); } c.restore(); };
           if (crownOn && BY < S.y0 + S.h + m) K.glow(c, BX, BY - T * 0.9, T * BR * 2.2, P.org, 0.4 * a * kN);
-          crown(true);
           if (!offL && !offR) { const L = Math.hypot(BX - TX, BY - TY), ang = Math.atan2(BY - TY, BX - TX) - Math.PI / 2, Lg = L * grow, top0 = out * L, ca = Math.cos(ang), sa = Math.sin(ang), NT = 7;
-            /* flame tongues spiralling up round the column, curling outward (behind it, then in front): unturned blits */
-            const tongues = front => { if (Lg < T * 1.5) return; c.save(); if (over) petHole(c, T); if (front) c.globalCompositeOperation = 'lighter'; for (let j = 0; j < NT; j++) { const u = (tt * 0.42 + j / NT + b.i * 0.13) % 1, q = u * 10 + j * 1.3 + tt * 3 * b.spin, cq = Math.cos(q); if ((cq > 0) !== front) continue; const yy = top0 + (Lg - top0) * (1 - u * 0.85), xx = Math.sin(q) * w * 0.48; if (yy < top0) continue; const kk = cl(u * 6) * Math.pow(1 - u, 0.8) * (0.55 + 0.45 * Math.abs(cq));
-                aTongue(c, TX + xx * ca - yy * sa, TY + xx * sa + yy * ca, w * (0.85 - 0.35 * u), xx > 0 ? 3 : 0, aFr(tt, b.sd + j * 2), a * kk * (front ? 0.85 : 0.6)); } c.restore(); };
+            /* twisting flames wrapped round the upper body of the core: tapered flame ribbons spiralling round the column and
+               rising, their edges licking (back halves dim behind the column, front halves bright over it); filled polygons, no sprites */
+            const NR = sup ? 3 : 2, tw = (front) => { if (Lg - top0 < T * 2) return; c.save(); if (over) petHole(c, T); c.translate(TX, TY); c.rotate(ang); c.globalCompositeOperation = 'lighter';
+              const y0 = top0 + (Lg - top0) * 0.12, y1 = top0 + (Lg - top0) * 0.72, NS = 28;
+              for (let r = 0; r < NR; r++) { const pts = []; const ph = r / NR * TAU + b.ph, sl = (tt * 0.35 * (1 + r * 0.15) + r * 0.31) % 1;
+                for (let j = 0; j <= NS; j++) { const s2 = j / NS, yy = y0 + (y1 - y0) * s2, q = s2 * 9.5 - tt * 4.2 * b.spin + ph, cq = Math.cos(q), rad = w * (0.5 + 0.12 * Math.sin(s2 * 7 + tt * 5 + r)), xx = Math.sin(q) * rad;
+                  const env = Math.sin(Math.PI * s2) * (0.6 + 0.4 * Math.sin(s2 * TAU * 2 - sl * TAU * 2)), lick = 1 + 0.35 * Math.sin(s2 * 23 + tt * 17 + r * 2) * Math.sin(tt * 6 + s2 * 5);
+                  pts.push([xx, yy - rad * 0.28 * cq, cq, w * 0.21 * env * lick * (0.75 + 0.25 * Math.abs(cq))]); }
+                // contiguous runs on the wanted side, each filled as a ribbon (offset along the curve's normal)
+                let run = []; const flush = () => { if (run.length > 2) { for (const [col, kw, al] of front ? [[P.red, 1.25, 0.32], [P.org, 0.85, 0.6], [P.yel, 0.42, 0.75], [P.wht, 0.14, 0.7]] : [[P.red, 1.1, 0.3], [P.org, 0.6, 0.35]]) {
+                    c.globalAlpha = al * a; c.fillStyle = col; c.beginPath();
+                    for (let k = 0; k < run.length; k++) { const p0 = run[Math.max(0, k - 1)], p1 = run[Math.min(run.length - 1, k + 1)], tx = p1[0] - p0[0], ty = p1[1] - p0[1], tn = Math.hypot(tx, ty) || 1, hw = run[k][3] * kw; const X2 = run[k][0] - ty / tn * hw, Y2 = run[k][1] + tx / tn * hw; k ? c.lineTo(X2, Y2) : c.moveTo(X2, Y2); }
+                    for (let k = run.length - 1; k >= 0; k--) { const p0 = run[Math.max(0, k - 1)], p1 = run[Math.min(run.length - 1, k + 1)], tx = p1[0] - p0[0], ty = p1[1] - p0[1], tn = Math.hypot(tx, ty) || 1, hw = run[k][3] * kw; c.lineTo(run[k][0] + ty / tn * hw, run[k][1] - tx / tn * hw); }
+                    c.closePath(); c.fill(); } } run = []; };
+                for (const p2 of pts) { if ((p2[2] > 0) === front) run.push(p2); else { if (run.length) run.push(p2); flush(); } } flush(); }
+              c.restore(); };
+            const tongues = tw;
             tongues(false);
             c.save(); if (over) petHole(c, T); c.translate(TX, TY); c.rotate(ang); c.globalCompositeOperation = 'lighter';
             // the column of firelight with its spiralling flame ribbons: one of 32 cached turning frames
@@ -209,13 +216,9 @@
             // embers whirling up inside it (placed along the beam, blitted unturned)
             if (Lg > T) { const mr = T * 0.2; c.save(); if (over) petHole(c, T); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.85 * a; for (let j = 0; j < 6; j++) { const u = (tt * 0.6 + j / 6 + b.i * 0.13) % 1, yy = top0 + (Lg - top0) * (1 - u), q = u * 12 + j * 1.3 - tt * 3 * b.spin, xx = Math.sin(q) * w * 0.42; if (yy < top0) continue; c.drawImage(j & 1 ? gr2 : gw, TX + xx * ca - yy * sa - mr, TY + xx * sa + yy * ca - mr, mr * 2, mr * 2); } c.restore(); } }
           if (BX < S.x0 - m || BX > S.x0 + S.w + m || BY < S.y0 - m || BY > S.y0 + S.h + m * 2) continue;
-          crown(false);
           if (nearP) { c.save(); petHole(c, T); }
           // its last flare as it lifts: a burst of light and a ring of fire
           if (out > 0) { K.glow(c, BX, BY - T * 0.8, T * 2.6 * (1 - out * 0.4), P.yel, 0.7 * (1 - out)); K.shockRing(c, BX, BY, T * (BR + 2 * out), 1 - out); }
-          // little flames left burning along its trail, flaring up and dying (two cached tongues each)
-          for (const p of b.tr) { if (!p.c) continue; const age = tt - p.t, k = Math.min(cl(age / 0.18), Math.max(0, 1 - (age - 0.6) / 0.6)); if (k <= 0) continue; const sx2 = H.sx(p.x) + (R1(p.sd) - 0.5) * T * 0.6, sy2 = H.sy(p.y) + (R1(p.sd + 1) - 0.5) * T * 0.3; if (sx2 < S.x0 - m || sx2 > S.x0 + S.w + m || sy2 < S.y0 - m || sy2 > S.y0 + S.h + m) continue;
-            const hk = T * 0.55 * H.ease.back(cl(age / 0.18)) * (0.6 + 0.4 * k); c.save(); aTongue(c, sx2, sy2, hk, p.sd & 3, aFr(tt, p.sd), k * 0.9); aTongue(c, sx2 + T * 0.16, sy2 + T * 0.04, hk * 0.65, (p.sd + 1) & 3, aFr(tt, p.sd + 3), k * 0.8); c.restore(); }
           if (nearP) c.restore();
         }
         // embers drifting up over the whole screen: two cached dots, many small blits, twinkling
