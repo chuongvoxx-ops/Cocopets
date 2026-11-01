@@ -940,3 +940,4 @@ Every new boss painter (rift fiends, Tower bosses, minis that get their own art)
 - v214: Armageddon: flame-sprite crown at each foot and trail flames removed; twisting flame ribbons (2, 3 at Celestial) spiral and rise round the upper body of each core instead.
 - v215: Armageddon beams cut by 40%: 2 / 4 at Adept / 6 at Celestial (same damage total, split over fewer beams).
 - v216: Armageddon twisting flames: ribbons taper to points where they turn behind the core (no blunt cut ends) and their sides feather through six soft layers.
+- v217: Armageddon flame ribbons feathered further: nine wide low-alpha layers, longer taper where they turn behind the core.
