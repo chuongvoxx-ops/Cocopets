@@ -108,6 +108,8 @@
     step(dt) { for (let i = L.length - 1; i >= 0; i--) { const p = L[i]; p.t += dt; if (p.t >= p.life) { L.splice(i, 1); continue; } const k = Math.exp(-p.drag * dt); p.vx *= k; p.vy *= k; p.vz = p.vz * k - p.g * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z = Math.max(0, p.z + p.vz * dt); } },
     draw(c, T, fa) { for (const p of L) { const u = p.t / p.life, a = Math.min(1, u * 6) * (1 - u) * (fa == null ? 1 : fa), r = p.s * T * (p.kind === 'h' ? 1.6 : 1.3) * (1 - 0.3 * u); if (a < 0.02) continue; const X = H.sx(p.x), Y = H.sy(p.y) - p.z * T; c.save(); c.globalAlpha = a; c.globalCompositeOperation = p.kind === 'h' ? 'source-over' : 'lighter'; c.translate(X, Y); if (p.rot) c.rotate(p.rot * Math.sin(p.t * 3)); c.drawImage(p.kind === 'h' ? smallSpr(p.col) : starSpr(p.col), -r, -r, r * 2, r * 2); c.restore(); } } }; }
   const near = (x, y, r) => H.living().filter(m => Math.hypot(m.x - x, m.y - y) < r + m.r);
+  // shared with the other pink ults (Aphrodite's Beam uses the same spinning heart)
+  globalThis.LU1 = { thickHeart, smallSpr, starSpr, lineSpr, glowC, blitC, bits, setH: h => { H = h; } };
 
   /* ================= 1. Rainbow Heart Attack ================= */
   U.rainbowheart = (C, h) => {

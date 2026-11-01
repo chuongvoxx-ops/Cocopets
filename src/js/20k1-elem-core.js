@@ -87,7 +87,7 @@ const ELEM_MOVES = {
     ['sunflare', 'Sunflare', 'nova', 95, 20, 'A massive pink love heart hovers over the battlefield for seven seconds, flooding the monsters below with radiant light while hearts and stars float round its beam.'],
     ['holyjudgement', 'Holy Judgement', 'stars', 95, 20, 'A fan of pink homing lights launches into the sky and falls on the monsters in bursts of glowing love hearts: 20, 30 at Adept, 40 at Celestial.'],
     ['rayoflight', 'Ray of Light', 'beam', 95, 20, 'An enormous pink-white beam of light falls from the sky and glides through the monsters, leaving a trail of rising hearts and stars.'],
-    ['crescentbeam', 'Crescent Beam', 'beam', 95, 20, 'A pink crescent forms ahead of you and fires a massive straight beam of pink-white light along your aim: 7 s at Celestial.'],
+    ['aphroditebeam', "Aphrodite's Beam", 'beam', 95, 20, 'A great pink love heart spins like a top above you and fires pink rays at the monsters nearby, little hearts sprouting where they strike: 7 s, 10 s at Adept, 14 s at Celestial.'],
     ['meteorshower', 'Meteor Shower', 'stars', 95, 20, 'Pink lights gather above the monsters and fall as a glittering rain of meteors, each bursting into stars.'],
     ['salvation', 'Salvation', 'shield', 95, 300, 'A luminous heart forms beneath you and releases a gentle pink pulse: every teammate is restored to full HP and every fallen teammate is revived at full HP.'],
     ['ribbonheartache', 'Ribbon Rainbow Heartache', 'wave', 95, 20, 'Enormous ribbons of luminous pink satin sweep through the monsters in a graceful dance: 2, 4 at Adept, 6 at Celestial.'],
