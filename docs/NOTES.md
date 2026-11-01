@@ -941,3 +941,4 @@ Every new boss painter (rift fiends, Tower bosses, minis that get their own art)
 - v215: Armageddon beams cut by 40%: 2 / 4 at Adept / 6 at Celestial (same damage total, split over fewer beams).
 - v216: Armageddon twisting flames: ribbons taper to points where they turn behind the core (no blunt cut ends) and their sides feather through six soft layers.
 - v217: Armageddon flame ribbons feathered further: nine wide low-alpha layers, longer taper where they turn behind the core.
+- v218: Armageddon beam sprite: its spiral strands thin and fade to nothing where they turn behind the core, and the flame curls taper to a hair at the tip with a faint halo (no thick hard-edged strokes).

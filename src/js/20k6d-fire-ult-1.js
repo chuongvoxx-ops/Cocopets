@@ -92,11 +92,17 @@
     g.globalAlpha = 0.85 * (0.5 + 0.5 * kq / 100); g.drawImage(aColB(), 0, 0, W, Hh); g.globalAlpha = 0.8; g.drawImage(aCol(), cx - w * 0.17, 0, w * 0.34, Hh);
     g.lineCap = 'round'; const k = w / (1.4 * BRb);
     for (let sd = 0; sd < 2; sd++) { const N = 40, back = [], front = []; for (let j = 0; j <= N; j++) { const u = j / N, q = u * 6 + ph + sd * Math.PI; (Math.cos(q) > 0 ? front : back).push([cx + Math.sin(q) * w * 0.5 * (0.6 + 0.4 * u), u * Hh, j, q]); }
-      const run = (pts, col, lw, al) => { g.globalAlpha = al; g.beginPath(); let last = -9; for (const p of pts) { if (p[2] !== last + 1) g.moveTo(p[0], p[1]); else g.lineTo(p[0], p[1]); last = p[2]; } g.strokeStyle = col; g.lineWidth = lw; g.stroke(); };
-      run(back, 'rgba(210,64,26,0.85)', k * 0.08, 0.5); run(front, 'rgba(255,100,36,0.9)', k * 0.15, 0.9); run(front, 'rgba(255,190,80,0.95)', k * 0.07, 0.85); run(front, 'rgba(255,250,225,1)', k * 0.022, 0.8);
+      // each segment's width thins to nothing where the ribbon turns behind the core (no blunt ends); a wide faint pass feathers the sides
+      const tp = q => { const u = Math.min(1, Math.abs(Math.cos(q)) / 0.7); return u * u * (3 - 2 * u); };
+      const run = (pts, col, lw, al) => { g.strokeStyle = col; for (let i = 1; i < pts.length; i++) { const p0 = pts[i - 1], p1 = pts[i]; if (p1[2] !== p0[2] + 1) continue; const k2 = tp((p0[3] + p1[3]) / 2); if (k2 < 0.03) continue; g.globalAlpha = al * k2; g.lineWidth = Math.max(0.3, lw * k2); g.beginPath(); g.moveTo(p0[0], p0[1]); g.lineTo(p1[0], p1[1]); g.stroke(); } };
+      run(back, 'rgba(210,64,26,0.85)', k * 0.12, 0.12); run(back, 'rgba(210,64,26,0.85)', k * 0.05, 0.3);
+      run(front, 'rgba(255,100,36,0.9)', k * 0.26, 0.12); run(front, 'rgba(255,100,36,0.9)', k * 0.14, 0.3); run(front, 'rgba(255,190,80,0.95)', k * 0.06, 0.5); run(front, 'rgba(255,250,225,1)', k * 0.018, 0.55);
       // curls of flame flicking up and out off the front ribbon (pointing skyward: the sprite's top is the sky)
-      g.globalAlpha = 0.75; for (let j = 3; j < front.length; j += 4) { const p = front[j], dir = Math.sin(p[3]) >= 0 ? 1 : -1, L = k * 0.32 * (0.7 + 0.3 * R1(j + sd * 7)), x0 = p[0], y0 = p[1];
-        g.beginPath(); g.moveTo(x0, y0); g.quadraticCurveTo(x0 + dir * L * 0.55, y0 - L * 0.25, x0 + dir * L * 0.35, y0 - L * 0.9); g.strokeStyle = 'rgba(255,140,50,0.8)'; g.lineWidth = k * 0.05; g.stroke(); g.strokeStyle = 'rgba(255,230,150,0.9)'; g.lineWidth = k * 0.02; g.stroke(); } } }); }
+      for (let j = 3; j < front.length; j += 4) { const p = front[j], dir = Math.sin(p[3]) >= 0 ? 1 : -1, L = k * 0.32 * (0.7 + 0.3 * R1(j + sd * 7)), x0 = p[0], y0 = p[1];
+        // a tapered curl: segments thinning and fading to a hair at the tip, with a faint wide halo
+        const cx1 = x0 + dir * L * 0.55, cy1 = y0 - L * 0.25, ex = x0 + dir * L * 0.35, ey = y0 - L * 0.9, NQ = 10; let px = x0, py = y0;
+        for (let q2 = 1; q2 <= NQ; q2++) { const u = q2 / NQ, m1 = 1 - u, nx = m1 * m1 * x0 + 2 * m1 * u * cx1 + u * u * ex, ny = m1 * m1 * y0 + 2 * m1 * u * cy1 + u * u * ey, f2 = Math.pow(1 - (u - 0.5 / NQ), 1.4);
+          g.beginPath(); g.moveTo(px, py); g.lineTo(nx, ny); g.globalAlpha = 0.18 * f2; g.strokeStyle = 'rgba(255,120,40,1)'; g.lineWidth = k * 0.09 * f2 + 0.3; g.stroke(); g.globalAlpha = 0.6 * f2; g.strokeStyle = 'rgba(255,200,110,1)'; g.lineWidth = k * 0.025 * f2 + 0.2; g.stroke(); px = nx; py = ny; } } } }); }
   /* the floor under a beam, in the floor's own plane (squashed when drawn): a pool of firelight, a white-hot splash where
      the beam meets the floor, hot spots, and a burning ring (all light: no dark mark) */
   function aFoot(kq, bq) { return fxSprite('fu1fa|' + kq + '|' + bq, 256, 256, (g, W) => {
