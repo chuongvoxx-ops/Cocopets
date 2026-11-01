@@ -8,11 +8,11 @@
    their fractures join and their waves overlap. Level 7: five: four plunge round the outside, their light flows along the
    floor toward the centre where a far larger fifth hangs; it impales the ground with the widest wave, cracks from tip to
    hilt and collapses into descending shards. One cached sprite per blade style, drawn scaled.
-   Let It Go: a brilliant blue point expands into a hovering orb over the aim (it follows the aim area, never the pet):
+   Let It Go: a brilliant blue point expands into a hovering orb over the aim (it stays where it was cast for its whole life, kept off the pet):
    currents of light circulate inside a translucent sphere round a white-blue core, curved faceted crystal plates on
    rotating shells round it, each facet lit by its own normal (the far plates behind the orb, dim, the near ones in
    front, lavender glints flashing as they turn). The floor freezes beneath: branching frost veins, a glassy surface, a
-   low fringe of mist, a slow chill on everything on it. Rays: a bright point runs across the orb's surface toward a
+   low fringe of mist (all feathered to nothing at the rim, no hard outer edge), a slow chill on everything on it. Rays: a bright point runs across the orb's surface toward a
    monster, gathers, and extends into an icy lance; crystals grow round the monster struck and shatter. Level 1: 5 s, one
    shell, a compact field, single staggered rays. Level 4: 8 s, two shells turning opposite ways, rays in staggered pairs,
    an intricate frost pattern over a wider field. Level 7: 12 s, a monumental orb with three transparent shells over a
@@ -317,7 +317,28 @@
     for (let pass = 0; pass < 2; pass++) { c.strokeStyle = pass ? rgb(P.white, 0.75) : rgb(P.cyan, 0.3); const wk = pass ? 1 : 3.2;
       for (let i = 0; i < 6; i++) arm(o, o, i / 6 * TAU + k * 0.5, R * 0.96, 2.6 * wk, 2);
       for (const rr of [0.34, 0.62, 0.86]) { c.lineWidth = 1.4 * wk; c.beginPath(); for (let i = 0; i <= 6; i++) { const b = i / 6 * TAU + Math.PI / 6 + k * 0.5; i ? c.lineTo(o + Math.cos(b) * R * rr, o + Math.sin(b) * R * rr) : c.moveTo(o + Math.cos(b) * R * rr, o + Math.sin(b) * R * rr); } c.stroke(); } }
+    c.globalCompositeOperation = 'destination-in'; c.drawImage(featherMask(), 0, 0, S, S);   // (fades out toward its rim, no hard edge)
     return (SPR[key] = e);
+  }
+  /* a radial alpha mask: opaque in the middle, easing to nothing over the outer ~30% (for feathering the floor field) */
+  function featherMask() {
+    if (SPR.fmask) return SPR.fmask; const S = 256, e = mk(S, S), c = e.getContext('2d'), o = S / 2, g = c.createRadialGradient(o, o, 0, o, o, o);
+    for (let i = 0; i <= 10; i++) { const u = i / 10, a = u < 0.66 ? 1 : 1 - sm((u - 0.66) / 0.34); g.addColorStop(u, `rgba(255,255,255,${a.toFixed(3)})`); }
+    c.fillStyle = g; c.fillRect(0, 0, S, S); return (SPR.fmask = e);
+  }
+  /* the glassy frozen sheet: an ice-blue disc whose alpha ramps to 0 over its outer ~30% (light only) */
+  function poolSprite() {
+    if (SPR.pool) return SPR.pool; const S = 256, e = mk(S, S), c = e.getContext('2d'), o = S / 2, g = c.createRadialGradient(o, o, 0, o, o, o);
+    for (let i = 0; i <= 12; i++) { const u = i / 12, a = u < 0.7 ? 0.9 + 0.1 * (u / 0.7) : 1 - sm((u - 0.7) / 0.3); g.addColorStop(u, `rgba(127,200,240,${a.toFixed(3)})`); }
+    c.fillStyle = g; c.fillRect(0, 0, S, S); return (SPR.pool = e);
+  }
+  /* one reused scratch canvas for the veins, so they can be feathered at the rim before landing on the floor */
+  let veinCv = null;
+  function softVeins(c, X, Y, rf, fn) {
+    const W = Math.ceil(rf * 2.3), Hh = Math.ceil(rf * 2.3 * H.GY) + 8; if (W < 4) return; if (!veinCv) veinCv = mk(W, Hh); if (veinCv.width < W || veinCv.height < Hh) { veinCv.width = Math.max(W, veinCv.width); veinCv.height = Math.max(Hh, veinCv.height); }
+    const g = veinCv.getContext('2d'), cx = veinCv.width / 2, cy = veinCv.height / 2; g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; g.clearRect(0, 0, veinCv.width, veinCv.height);
+    fn(g, cx, cy); g.globalCompositeOperation = 'destination-in'; g.globalAlpha = 1; g.drawImage(featherMask(), cx - rf * 1.02, cy - rf * 1.02 * H.GY, rf * 2.04, rf * 2.04 * H.GY); g.globalCompositeOperation = 'source-over';
+    c.save(); c.globalCompositeOperation = 'lighter'; c.drawImage(veinCv, X - cx, Y - cy); c.restore();
   }
 
   /* the shells' plates: curved crystal plates on a unit sphere, each a 3x3 grid bulging at its middle (4 flat facets) */
@@ -353,9 +374,8 @@
     const F = H.add({ life: LIFE, x: x0, y: y0, ox: x0, oy: y0, fx0: x0, fy0: y0,
       update(dt, f) {
         const t = f.t; crackT -= dt;
-        // follow the aim area: the monster the pet aims at and those round it
-        if (t < END) { const tg = H.X.nearestMon(me.x, me.y, 9, null, true); if (tg) { let sx = 0, sy = 0, n = 0; for (const m of H.near(tg.x, tg.y, 2.2)) { sx += m.x; sy += m.y; n++; } const [dx, dy] = place(n ? sx / n : tg.x, n ? sy / n : tg.y), d = Math.hypot(dx - f.ox, dy - f.oy), st = Math.min(d, 2.2 * dt); if (d > 0.05) { f.ox += (dx - f.ox) / d * st; f.oy += (dy - f.oy) / d * st; } } }
-        f.x = f.ox; f.y = f.oy; const k = 1 - Math.exp(-dt * 1.5); f.fx0 += (f.ox - f.fx0) * k; f.fy0 += (f.oy - f.fy0) * k;
+        // it stays where it was cast for its whole life (orb, field and all): nothing here moves it
+        f.x = f.ox; f.y = f.oy;
         // the frozen field: everything on it slows
         slowT -= dt; if (t > 0.4 && t < END && slowT <= 0) { slowT = 0.3; for (const m of H.near(f.fx0, f.fy0, RF * 0.95)) H.slow(m, 0.8); }
         if (t < END) K.aura(f.ox, f.oy, R * 1.3, dt, L === 7 ? 26 : 16, Z);
@@ -387,8 +407,10 @@
         // the field freezes outward: veins, then the glassy surface, the frost pattern, a low fringe of mist
         const uv = sm((t - 0.45) / 0.7), up = sm((t - 0.8) / 0.8);
         c.save();
-        if (uv > 0) { K.frostVeins(c, X, Y, rf, uv, fa * 0.7, 1.3, L === 7 ? 14 : L === 4 ? 11 : 8); if (L >= 4) K.frostVeins(c, X, Y, rf * 0.65, uv, fa * 0.45, 4.1, L === 7 ? 10 : 7); }
-        if (up > 0) { K.frozenPool(c, X, Y, rf * up, fa * 0.85, t);
+        if (uv > 0) softVeins(c, X, Y, rf, (g, cx, cy) => { K.frostVeins(g, cx, cy, rf, uv, fa * 0.7, 1.3, L === 7 ? 14 : L === 4 ? 11 : 8); if (L >= 4) K.frostVeins(g, cx, cy, rf * 0.65, uv, fa * 0.45, 4.1, L === 7 ? 10 : 7); });
+        if (up > 0) { const rp = rf * up * 1.08; c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.24 * fa * 0.85; c.drawImage(poolSprite(), X - rp, Y - rp * H.GY, rp * 2, rp * 2 * H.GY); c.restore();
+          K.floorLight(c, X, Y, rf * up * 1.1, 0.35 * fa * 0.85, P.pale);
+          for (let i = 0; i < 4; i++) { const b = i * 1.7 + t * 0.2, rr = rf * up * (0.3 + 0.15 * i); K.glow(c, X + Math.cos(b) * rr, Y + Math.sin(b) * rr * H.GY, 4, P.white, 0.5 * fa * 0.85 * (0.5 + 0.5 * Math.sin(t * 3 + i))); }
           if (L >= 4) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = fa * up * (L === 7 ? 0.32 : 0.3); c.translate(X, Y); c.scale(1, H.GY); c.rotate(t * 0.05); const sp = frostSprite(0), s = rf * 0.98; c.drawImage(sp, -s, -s, s * 2, s * 2);
             if (L === 7) { c.rotate(-t * 0.12 + 0.52); c.globalAlpha = fa * up * 0.25; const s2 = rf * 0.55; c.drawImage(frostSprite(1), -s2, -s2, s2 * 2, s2 * 2); } c.restore(); }
           K.mist(c, X, Y + T * 0.1, rf * 0.85, fa * up * 0.8, t); }
