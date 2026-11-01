@@ -89,7 +89,7 @@ const ELEM_MOVES = {
     ['rayoflight', 'Ray of Light', 'beam', 95, 20, 'An enormous pink-white beam of light falls from the sky and glides through the monsters, leaving a trail of rising hearts and stars.'],
     ['crescentbeam', 'Crescent Beam', 'beam', 95, 20, 'A pink crescent forms ahead of you and fires a massive straight beam of pink-white light along your aim: 7 s at Celestial.'],
     ['meteorshower', 'Meteor Shower', 'stars', 95, 20, 'Pink lights gather above the monsters and fall as a glittering rain of meteors, each bursting into stars.'],
-    ['salvation', 'Salvation', 'shield', 95, 20, 'A luminous heart forms beneath you and releases a gentle pink pulse: every teammate is restored to full HP and every fallen teammate is revived at full HP.'],
+    ['salvation', 'Salvation', 'shield', 95, 300, 'A luminous heart forms beneath you and releases a gentle pink pulse: every teammate is restored to full HP and every fallen teammate is revived at full HP.'],
     ['ribbonheartache', 'Ribbon Rainbow Heartache', 'wave', 95, 20, 'Enormous ribbons of luminous pink satin sweep through the monsters in a graceful dance: 2, 4 at Adept, 6 at Celestial.'],
     ['heavenriver', 'River of Heaven', 'wave', 95, 20, 'A ribbon of golden light winds along the aim, dipping to strike section by section, then rises as a shimmering curtain.'],
     ['unsettingsun', 'Crown of the Unsetting Sun', 'nova', 100, 22, 'A vast crown turns over the aim casting spokes of light; its segments descend as strikes and the halo expands as a final wave.'] ] },

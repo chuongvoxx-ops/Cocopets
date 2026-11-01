@@ -945,3 +945,4 @@ Every new boss painter (rift fiends, Tower bosses, minis that get their own art)
 - v219: Armageddon beam foot fully feathered (the cached column fades out over its last 20%, drawn a little past the foot).
 - v220: Pink Light round 2 (docs/LIGHT-PINK-BRIEF-2.md): Crescent Beam (20k4e, replaces Daybreak Guilloche), Meteor Shower (20k4e, replaces Palace of Mirrors), Salvation (20k4f, replaces Solar Bloom Engine: full party heal + revive at every level; restoreParty/partySlot hooks in 20b, a "hud" draw layer), Ribbon Rainbow Heartache (20k4g, replaces Constellation Verdict). elem-moves exempts salvation from the damage check.
 - v221: Light element UI is light pink (#FFB3E0, dark #C2508F) instead of cream: E8.light and ELEMENTS.light (skill buttons, element icons and rings, cast flashes), the Judgement reaction bolt.
+- v222: Salvation cooldown 300 s (5 min); cooldowns of a minute or more read m:ss on the buttons.
