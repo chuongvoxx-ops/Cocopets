@@ -65,8 +65,8 @@ function switchRoom(i, dir) {
   sfx.pop(); doneTip('rooms'); saveSoon();
   if (mansionOpen) renderMansion();
 }
-$('#roomPrev').addEventListener('click', () => { sfx.unlock(); switchRoom(st.house.cur - 1, -1); });
-$('#roomNext').addEventListener('click', () => { sfx.unlock(); switchRoom(st.house.cur + 1, 1); });
+$('#roomPrev').addEventListener('click', () => { if (!st) return; sfx.unlock(); switchRoom(st.house.cur - 1, -1); });
+$('#roomNext').addEventListener('click', () => { if (!st) return; sfx.unlock(); switchRoom(st.house.cur + 1, 1); });
 roomNameBtn.addEventListener('click', () => { sfx.unlock(); openMansion(); });
 
 /* ---------- the house sheet: go, decorate, build, rename, reorder, remove ---------- */

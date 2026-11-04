@@ -308,20 +308,27 @@ function onRemote(res) {
   if (r.savedAt > loadedSavedAt + 1500) adoptState(r);
   else Store.touch();
 }
+const BOOTLOG = []; const blog = m => { BOOTLOG.push(m); };
 function boot(hot) {
-  Store.init();
+  blog('boot');
+  Store.init(); blog('store ' + Store.mode);
   layout();
-  updateSky();
+  updateSky(); blog('sky');
   const fromHot = hot && hot.pet ? sanitize(hot.pet) : null;
-  const local = sanitize(Store.readLocal());
+  let rawLen = 0; try { rawLen = (localStorage.getItem(LS_KEY) || '').length; } catch (e) { blog('ls-err'); }
+  const rawLocal = Store.readLocal(); blog('save ' + rawLen + 'B ' + (rawLocal ? 'parsed v' + rawLocal.v : 'none'));
+  const local = sanitize(rawLocal); blog(local ? 'sane' : 'rejected');
   let s = fromHot || local;
   if (fromHot && local && local.hatchedAt === fromHot.hatchedAt && local.savedAt > fromHot.savedAt) s = local;
-  if (s) { try { adoptState(s); } catch (e) { if (globalThis.__errbox) __errbox('Loading your save failed: ' + (e && e.message), e && e.stack && String(e.stack).split('\n').slice(0, 4).join(' | ')); throw e; } }
+  if (s) { try { adoptState(s); blog('adopted'); } catch (e) { if (globalThis.__errbox) __errbox('Loading your save failed: ' + (e && e.message), e && e.stack && String(e.stack).split('\n').slice(0, 4).join(' | ')); throw e; } }
   else {
     splashEl.hidden = false;
-    splashTimer = setTimeout(() => { if (!st) { splashEl.hidden = true; showIntro(); } }, 1500);
+    blog('splash'); splashTimer = setTimeout(() => { blog('splash-timer'); if (!st) { splashEl.hidden = true; showIntro(); blog('intro'); } }, 1500);
   }
   Store.connect().then(onRemote);
+  // safety net: if after 5 s nothing has loaded and no egg is showing, say so on screen (with the start-up trace), and
+  // when this browser holds no save at all, show the egg so a new player is never left in an empty room
+  setTimeout(() => { if (st || !introEl.hidden) return; const empty = !rawLen; if (globalThis.__errbox) __errbox('Nothing loaded after 5 s' + (empty ? ' (no save here: showing the egg)' : ''), BOOTLOG.join(' > ') + ' | intro ' + introEl.hidden + ' splash ' + splashEl.hidden); if (empty) { splashEl.hidden = true; showIntro(); } }, 5000);
 }
 function flushAll() { if (st && running) { saveLocalNow(); Store.flush(); } }
 document.addEventListener('visibilitychange', () => {

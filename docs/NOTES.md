@@ -952,3 +952,4 @@ Every new boss painter (rift fiends, Tower bosses, minis that get their own art)
 - v226: Aphrodite's Beam impacts: more, bigger, faster little hearts bursting out like ignition sparks, plus bright pink sparks.
 - v227: 00-errbox.js: any uncaught error (or unhandled rejection) shows its message and location in a tap-to-close box on screen, so phone players can report startup failures.
 - v228: boot reports a failing adoptState (loading the save) and a failing start-up in the error box instead of swallowing it in the hot-hook try/catch; error box strips URLs from stack lines.
+- v229: start-up trace (BOOTLOG) and a 5 s safety net: if nothing loaded and no egg shows, the error box reports the trace, and with no save in this browser the egg is shown; room arrows ignore taps before a pet is loaded.
