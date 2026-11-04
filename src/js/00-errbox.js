@@ -8,7 +8,7 @@
       box.addEventListener('click', () => { box.remove(); box = null; n = 0; });
       (document.body || document.documentElement).appendChild(box);
       box.textContent = 'Something went wrong (tap to close). Please screenshot this:\n'; }
-    box.textContent += '\n• ' + String(msg).slice(0, 300) + (where ? '\n  ' + String(where).slice(0, 300) : '');
+    box.textContent += '\n• ' + String(msg).slice(0, 300) + (where ? '\n  ' + String(where).replace(/(https?|file):\/\/[^\s)]*\//g, '').slice(0, 400) : '');
   }
   const loc = st => { const l = String(st || '').split('\n').find(s => /\d+:\d+/.test(s)); return l ? l.trim().replace(/^at /, '').replace(/https?:\/\/[^ )]*\//, '') : ''; };
   addEventListener('error', e => { if (!e || !e.message) return; show(e.message, (e.error && loc(e.error.stack)) || (e.lineno ? 'line ' + e.lineno + ':' + e.colno : '')); });

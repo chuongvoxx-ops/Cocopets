@@ -316,7 +316,7 @@ function boot(hot) {
   const local = sanitize(Store.readLocal());
   let s = fromHot || local;
   if (fromHot && local && local.hatchedAt === fromHot.hatchedAt && local.savedAt > fromHot.savedAt) s = local;
-  if (s) adoptState(s);
+  if (s) { try { adoptState(s); } catch (e) { if (globalThis.__errbox) __errbox('Loading your save failed: ' + (e && e.message), e && e.stack && String(e.stack).split('\n').slice(0, 4).join(' | ')); throw e; } }
   else {
     splashEl.hidden = false;
     splashTimer = setTimeout(() => { if (!st) { splashEl.hidden = true; showIntro(); } }, 1500);
@@ -340,4 +340,4 @@ try { if (hotHook && typeof hotHook.snapshot === 'function') hotHook.snapshot(()
 try {
   if (hotHook && typeof hotHook.ready === 'function') { hotHook.ready(go); setTimeout(() => go({}), 2000); }
   else go((hotHook && hotHook.data) || {});
-} catch (e) { go({}); }
+} catch (e) { if (globalThis.__errbox) __errbox('Start-up failed: ' + (e && e.message), e && e.stack && String(e.stack).split('\n').slice(0, 4).join(' | ')); go({}); }
