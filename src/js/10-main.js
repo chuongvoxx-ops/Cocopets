@@ -346,5 +346,7 @@ const go = data => { if (booted) return; booted = true; boot(data || {}); };
 try { if (hotHook && typeof hotHook.snapshot === 'function') hotHook.snapshot(() => (st ? { pet: serialize() } : {})); } catch (e) {}
 try {
   if (hotHook && typeof hotHook.ready === 'function') { hotHook.ready(go); setTimeout(() => go({}), 2000); }
-  else go((hotHook && hotHook.data) || {});
+  // (deferred: the whole page's script must finish first, or a save with elemental moves reaches the move tables while
+  //  they are still uninitialised — that broke loading on the website build, which has no hot hook to delay it)
+  else setTimeout(() => go((hotHook && hotHook.data) || {}), 0);
 } catch (e) { if (globalThis.__errbox) __errbox('Start-up failed: ' + (e && e.message), e && e.stack && String(e.stack).split('\n').slice(0, 4).join(' | ')); go({}); }
