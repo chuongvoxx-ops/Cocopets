@@ -940,6 +940,7 @@ GAMES.dungeon = {
       if (m.dead) return;
       if (m.fobj) { if (FD) FD.updObj(m, dt); return; }
       m.chill = Math.max(0, m.chill - dt); m.freeze = Math.max(0, m.freeze - dt); m.stun = Math.max(0, m.stun - dt);
+      if (m.fearT > 0) m.fearT -= dt;   // (fear, set by Dark's Dead Scream, 20k5k: see the hook below)
       if (m.kbx || m.kby) {
         if (m.mv === 2) { m.x += m.kbx * dt; m.y += m.kby * dt; } else moveEnt(m, m.kbx * dt, m.kby * dt, 1);
         m.kbx *= Math.pow(0.02, dt); m.kby *= Math.pow(0.02, dt); if (Math.abs(m.kbx) + Math.abs(m.kby) < 0.05) m.kbx = m.kby = 0;
@@ -963,6 +964,9 @@ GAMES.dungeon = {
         return;
       }
       if (held) return;
+      // fear (Dark's Dead Scream, 20k5k): while m.fearT > 0 the monster flees from the point that frightened it
+      // (m.fearX, m.fearY) and does not attack; the move never sets it on a boss or a fixed monster
+      if (m.fearT > 0 && !m.still) { const fx = m.x - (m.fearX != null ? m.fearX : me.x), fy = m.y - (m.fearY != null ? m.fearY : me.y), fd = hyp(fx, fy) || 1, v = (m.spd || 1) * 0.9 * dt * slow; moveEnt(m, fx / fd * v, fy / fd * v); m.face = fx >= 0 ? 1 : -1; m.moved = true; return; }
       if (m.ultFx > 0) m.ultFx -= dt;
       const frostAura = g.pw.frost && d < 3 + g.pw.frost * 0.5 ? 0.55 : 1;
       m.cd -= dt * slow;

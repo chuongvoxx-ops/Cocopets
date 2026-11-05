@@ -111,7 +111,7 @@ const ELEM_MOVES = {
     ['annihilation', 'Annihilation', 'nova', 100, 50, 'Six ritual circles fire six missiles into one immense overhead light, which strikes down in the strongest explosion of the element.'],
     ['requiem', 'Requiem', 'crescent', 95, 20, 'Enormous gothic scythes emerge from dark portals and reap the battlefield with heavy sweeps, violet shadow trailing their steel: 1, 3 at Adept, 5 at Celestial.'],
     ['doomsday', 'Doomsday', 'meteor', 100, 40, 'One colossal meteor of dark energy plunges from the sky and detonates on the monsters; the world turns negative for an instant at the impact.'],
-    ['leviathan', 'Leviathan Beneath the Floor', 'dragon', 100, 22, 'A serpentine shadow moves under the aim; arches of its body breach the floor as waves, and its head rises and sweeps.'],
+    ['deadscream', 'Dead Scream', 'skull', 100, 43, 'A huge vibrating skull hovers over the pet and screams pulses of dark energy into nearby monsters, fearing and stunning them, then bursts: 7 s, 12 s at Adept, 20 s at Celestial.'],
     ['blackrose', 'Black Rose Compass', 'thorns', 95, 20, 'Four thorn-needles form round the aim and strike inward in pairs; a rose of folded shadow opens for the final burst.'],
     ['finaleclipse', 'Final Eclipse', 'orb', 100, 45, 'A raven-winged demon drops from a black sphere over the monsters, charges it with raised hands and hurls it down in one devastating impact.'],
     ['eventide', 'Eventide Spiral', 'vortex', 100, 22, 'A towering corkscrew of darkness forms at the aim; it unwinds from the top, each coil an expanding wave.'] ] },
