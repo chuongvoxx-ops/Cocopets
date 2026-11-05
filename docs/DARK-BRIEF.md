@@ -158,3 +158,72 @@ just inside the shell. Levels: Adept bigger sphere/area, more feather layers, cl
 follow-through; Celestial the grand silhouette, violet seams, the held pose, the largest impact, an outward ring of dark
 fragments and a slow rain of dissolving feathers. Check the demon alone in your harness first (neutral light, glow off:
 it must read as a winged humanoid with hands from the gameplay camera), then the full cast at levels 1/4/7.
+
+# Round 4 — four workers at once (each its own file; never edit another's)
+Rows set in 20k1: umbraheart replaced inkpalace (cost 95, cd 20), thriller replaced ravenfuneral (100, cd 30),
+annihilation replaced abyssorrery (100, cd 24). The user wants every one of these "as high quality as fire, ice and light":
+true shaded volumes (GeoKit / Anima3D / cached cel-shaded sprites), layered glow, directed particles, feathered edges,
+nothing covering the pet, light-only floor marks that fade.
+
+## H — Eclipse of the Hollow Moon, finale change (`src/js/20k5c-dark-ult-2.js`, the existing file)
+The user: "it should squeeze into a tiny sphere and then expand and explode into negative energy when it bursts."
+Replace the current compression-to-a-disc finale: after the last pulse the sphere SQUEEZES uniformly (all directions,
+eased in, its corona and fractures crushed with it, light leaking from the cracks brightening as it shrinks) down to a
+tiny bright marble (~0.12 of its size) and hangs for a beat (trembling, a high whine), then EXPANDS violently past its
+original size and BURSTS: `H.X.negative(0.5)` at the burst, a sphere of negative energy rushing outward (an expanding
+shell with an inverted look — bright pale core, dark rim — and violet-black shards), the shockwave and the existing hits
+(the 4.6×base ring hit) moved to the burst moment. Keep the four pulses and damage.
+
+## U — Umbra Heart (`src/js/20k5h-dark-ult-7.js`: `U.umbraheart`, `delete U.inkpalace`)
+Follow the spec's Umbra Heart section (in the user's message, copied verbatim into `docs/elem-spec/dark-ults.md` §2)
+exactly: one heart at its cast position; formation from rising shadow streams (excluded from the window); sustained 7 s
+at level 1, 9 at Adept, 12 at Celestial (7, 7.5, 8, 9, 10, 11, 12); periodic damage timed to the visible beats
+(e.g. every 0.7–0.8 s, `hitArea` over the pool), then ONE separately budgeted final burst much stronger than a tick.
+Budget: ticks total ≈ 10 × base × K × evoK over the window (scale ticks so the total grows with the longer window),
+burst ≈ 6 × base × K × evoK. The heart is a thick, rounded heart symbol rendered as a real shaded volume (reuse the
+idea of `globalThis.LU1.thickHeart` from the pink Light ults — a cached shaded face + side band, squashed by |cos| as
+it turns — but re-skinned: glossy near-black surface, dark-plum depth, violet fissures that light on each beat, moving
+highlights), dripping viscous strands (stretching, detaching, varied sizes), ripples merging into a glistening pool
+(light-only rims; the pool itself is a dark translucent surface that fades fully after), mist at the boundary,
+fragments rising to the heart; the final burst as the spec says (contract, burst into curved dark-glass pieces, liquid
+shadow, violet-black shockwave, pool surge, mist).
+
+## A — Annihilation (`src/js/20k5i-dark-ult-8.js`: `U.annihilation`, `delete U.abyssorrery`)
+Follow `docs/elem-spec/dark-annihilation.md` exactly: six circles (one giant + five smaller of different sizes) drawn
+progressively with rotating rings, glyphs and spokes; exactly six missiles (central largest) spiralling to a
+convergence; an immense overhead sphere fed by six arrivals (ripples), held, then the thick downward strike into the
+giant circle; the annihilation blast: concentrated flash, expanding shell, shockwave, a towering column with a
+mushroom crown lit from within, circles fracturing, glyphs lifting, temporary cracks, a long beautiful aftermath.
+`H.X.negative(0.12)` once at the strike's impact. Damage: ONE authoritative final hit (nothing before it, nothing after)
+= 24 × base × K × evoK (the largest single hit and largest burst-ultimate total among the Dark ults: Final Eclipse ≈ 19.6,
+Requiem/Doomsday ≈ 14), radius ≈ 4.4·K at level 1 → 6·K at Celestial. (Thriller's 30-second summon army is a sustained
+effect whose total depends on how much the player attacks; the lead will tell the user how it compares.) Timeline
+≈ 5–6 s plus the aftermath. Celestial: monumental formation, raised rotating rings, six coordinated trails, an immense
+layered core, the largest explosion.
+
+## T — Thriller (`src/js/20k5j-dark-ult-9.js`: `U.thriller`, `delete U.ravenfuneral`; plus a minimal commented hook in
+`src/js/20b-game-dungeon.js`)
+Follow the user's Thriller spec (`docs/elem-spec/dark-ults.md` §5) exactly. Counts by level 3,4,5,6,7,8,10; 30-second
+combat phase after formation; each zombie, on each of the caster pet's normal attacks (one trigger per normal-attack
+action — find where the dungeon fires the pet's normal attack in 20b and add one hook, e.g. `onNormal` listeners the
+elemental core can register on, called once per action with the action's total damage before defences), performs its
+own Dark attack at 100% of that normal attack's damage (through hitMon with el: 'dark', attributed to the pet; never
+re-triggering the hook). Zombies are real actors: their own position, navigation along the floor (use the game's walk
+checks), targeting (nearest valid monster, retarget on death), attack animation, and a modest HP that monsters can
+damage if the game has a convention for summons (look for existing summons/animas/clones in 20b/20g; if none supports
+taking damage, make them untargetable and say so). At 30 s: the rush (cracks brighten, sprint) and each detonates once
+on arrival (substantial AoE ≈ 2 × base × K × evoK each), bounded to 2 s, dissolving harmlessly if no enemy remains.
+The zombie is ONE fixed original undead Cocopet design (compact, hunched, rounded head, ragged ears, short clawed limbs,
+stitched belly, dark grey + bruised purple, cracked, dim violet eyes, a slow purple pulse in its torso, mist at its feet)
+— build it as a cel-shaded rigged figure (Anima3D parts or a cached sprite rig like the pets' `makeRig`) with rise,
+idle, uneven walk, attack, sprint and explode animations, offset timing per individual. Clean up every listener, actor
+and effect at the end, on floor change and on death. Test: write a scratch test (not tests/) proving the counts, the
+30-second phase, that each normal attack produces one zombie attack per zombie at 100%, no recursion, once-only
+explosions, and cleanup.
+
+## All
+`python3 src/build.py --test-only test-<you>.html` (never test.html; never commit/push). elem-moves at EVO 1/4/7
+(`ELEM=dark ONLY=<key>`; Thriller needs a longer tail — if the 30 s phase breaks the test's cleanup check, add `thriller`
+to a TAILW rule like lovesanctuary's in tests/elem-moves.js — only T may edit that test). Screenshots (copy
+`/tmp/claude-0/-home-claude/78d1fddd-217b-590c-9262-fa063f90a263/scratchpad/ray/shot.js`, set 'dark' and your page),
+montage `.../scratchpad/<you>/m.png` (rows L1/L4/L7), look, fix, report briefly with timing at Celestial.

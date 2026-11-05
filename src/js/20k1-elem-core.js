@@ -106,9 +106,9 @@ const ELEM_MOVES = {
     ['double', 'Midnight Double', 'twin', 26, 3, 'A shadow echo copies your pose; you strike forward, and the echo repeats it wider.'] ],
   ult: [
     ['hollowmoon', 'Eclipse of the Hollow Moon', 'nova', 90, 18, 'A great dark sphere forms over the aim ringed by a silver corona; pulses hammer the monsters beneath it, then it detonates and the world turns negative for a heartbeat.'],
-    ['inkpalace', 'Palace of Ink', 'wave', 90, 18, 'Panels of liquid shadow fold into a roofless palace round the aim; tendrils sweep its floor, then it folds in panel by panel to a central splash.'],
-    ['ravenfuneral', 'Thousand-Raven Funeral', 'feather', 95, 20, 'A shadow spreads under the aim and releases flocks of ravens that dive through lanes, then merge into one winged shape.'],
-    ['abyssorrery', 'Abyssal Orrery', 'orbit', 95, 20, 'Black rings orbit an empty centre; void nodes fire converging lances, and the orbits tighten into an implosion.'],
+    ['umbraheart', 'Umbra Heart', 'orb', 95, 20, 'A massive heart of glossy shadow hovers over the aim, dripping liquid darkness into a damaging pool, then ruptures: 7 s, 9 s at Adept, 12 s at Celestial.'],
+    ['thriller', 'Thriller', 'claw', 100, 30, 'Undead Cocopets rise from the ground and echo every normal attack at full strength for 30 s, then rush the monsters and explode: 3, 6 at Adept, 10 at Celestial.'],
+    ['annihilation', 'Annihilation', 'nova', 100, 24, 'Six ritual circles fire six missiles into one immense overhead light, which strikes down in the strongest explosion of the element.'],
     ['requiem', 'Requiem', 'crescent', 95, 20, 'Enormous gothic scythes emerge from dark portals and reap the battlefield with heavy sweeps, violet shadow trailing their steel: 1, 3 at Adept, 5 at Celestial.'],
     ['doomsday', 'Doomsday', 'meteor', 100, 22, 'One colossal meteor of dark energy plunges from the sky and detonates on the monsters; the world turns negative for an instant at the impact.'],
     ['leviathan', 'Leviathan Beneath the Floor', 'dragon', 100, 22, 'A serpentine shadow moves under the aim; arches of its body breach the floor as waves, and its head rises and sweeps.'],

@@ -671,6 +671,7 @@ GAMES.dungeon = {
       return { t: best, x: dx, y: dy, a: Math.atan2(dy, dx), tap: true, px: tx, py: ty };
     }
     const normalRate = () => (NORMAL_IV[KIT.normal.key] || 0.32) * (AB.rate || 1) / ((g.warpT > 0 ? 2 : 1) * (g.phoenixT > 0 ? 1.5 : 1) * (g.buff.haste > 0 ? 1.4 : 1) * (g.pw.quick ? 1 + 0.4 * g.pw.quick : 1) * (AN ? AN.rateK() : 1));
+    const normalHooks = [];   // (listeners on the pet's normal attack: Dark's Thriller, 20k5j; ELEM's onNormal adds one)
     /* one normal attack toward A, if the pet is ready for it */
     function tryFire(A) {
       if (me.dead || g.won || g.intro > 1.9 || g.bossIntro > 0.6 || me.dodge || me.dash || me.leap || g.normalT > 0) return false;
@@ -679,7 +680,9 @@ GAMES.dungeon = {
       else if (melee) moveEnt(me, A.x * 0.25, A.y * 0.25, 0);
       me.face = A.x >= 0 ? 1 : -1;
       g.normalT = normalRate();
-      fireNormal(A);
+      const nDmg = fireNormal(A);
+      /* (hook for Dark's Thriller, 20k5j) once per normal-attack action: its total damage before defences */
+      if (normalHooks.length) for (const fn of normalHooks.slice()) fn({ dmg: nDmg, el: KIT.normal.el, key: KIT.normal.key, A });
       if (g.pw.multiply) after(0.07, () => { if (!me.dead) fireNormal(A); });
       g.taps++; g.lastTapT = g.t;
       return true;
@@ -711,7 +714,7 @@ GAMES.dungeon = {
     function fireNormal(A) {
       const ab = KIT.normal, base = ST.atk * ab.mult, a = A.a, E = EL(ab.el), el = ab.el;
       const perp = a + Math.PI / 2, ox = Math.cos(perp), oy = Math.sin(perp), n = AB.count || 1, sz = AB.size || 1, spd = 11 * (AB.speed || 1);
-      const fx = (dx, dy) => ({ x: me.x + dx, y: me.y - OY + dy });
+      const fx = (dx, dy) => ({ x: me.x + dx, y: me.y - OY + dy }), s0 = shots.length;
       switch (ab.key) {
         case 'n_twin': [-0.17, 0.17].forEach(o => { const [vx, vy] = sp(a, spd); shot(Object.assign(fx(ox * o, oy * o), { vx, vy, dmg: base * 0.5, r: 0.13 * sz, style: 'bolt', el })); }); break;
         case 'n_volley': [-0.13, 0, 0.13].forEach(d => { const [vx, vy] = sp(a + d, spd); shot({ vx, vy, dmg: base * 0.37, r: 0.13 * sz, style: 'orb', el }); }); break;
@@ -737,6 +740,8 @@ GAMES.dungeon = {
       }
       me.sq = Math.max(me.sq, 0.35);
       if (Math.random() < 0.35) api.sfx.blip();
+      // (the action's total: its shots' damage, or a direct strike's on its main target)
+      let tot = ab.key === 'sparkzap' ? base * 0.9 : ab.key === 'shadowclaw' ? base * 1.25 : 0; for (let i = s0; i < shots.length; i++) tot += shots[i].dmg; return tot;
     }
     function splashShot(b, x, y) {
       if (b.aoe) { hitArea(x, y, b.aoe, b.dmg * 0.7, { el: b.el }); boom(x, y, b.aoe, EL(b.el).color, EL(b.el).core, { n: 10, smoke: 2, shake: 2 }); }
@@ -914,7 +919,9 @@ GAMES.dungeon = {
       /* (hooks for Light's Salvation, 20k4f) the party, its full heal + revive, its strip slots, the summoned Animas */
       party: () => party, restoreParty, partySlot, animas: () => (AN && AN.S && AN.S.list) || [],
       /* (hook for Light's Love Sanctuary, 20k4i) set or clear the ward that absorbs damage in hurtPet */
-      setWard: fn => { petWard = fn || null; } });
+      setWard: fn => { petWard = fn || null; },
+      /* (hook for Dark's Thriller, 20k5j) listen to the pet's normal attacks; returns the unsubscribe; onNormalN counts them */
+      onNormal: fn => { normalHooks.push(fn); return () => { const i = normalHooks.indexOf(fn); if (i >= 0) normalHooks.splice(i, 1); }; }, onNormalN: () => normalHooks.length });
     RES = DunResidue.create({ me, g, mons, props: propList, M, T_FLOOR, EL, e8Of, REACT_NAME: (a, b) => (REACTIONS[pairKey(a, b)] || {}).name, ST: () => ST, hitMon, part, boom, ring, sparks, text, light, drop, sfx: api.sfx, sx, sy, Tz: () => Tz() });
     RX = DunReact.create({ me, g, mons, eshots, ST: () => ST, AB: () => AB, hitMon, text, part, boom, zap, bolt: (x, y, color) => bolts.push({ pts: skyBolt(x, y), life: 0.3, max: 0.3, color, w: 5 }), sparks, ring, light, drop, heal, banner, sfx: api.sfx, sx, sy, Tz: () => Tz() });
     RULES = F.band ? DunRules.create({ F, M, me, g, mons, R, spawnMon, lesserBoss, walkPoint, freeSpot, after, banner, flash, text, ring, part, sparks, boom, shake, drop, heal, gainMP, ST: () => ST, sfx: api.sfx, sx, sy, Tz: () => Tz() }) : null;
