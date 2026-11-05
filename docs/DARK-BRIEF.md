@@ -126,3 +126,35 @@ shadow and long dark trails tearing off its rear, purple sparks and dissolving f
 Celestial: colossal, shell pieces visibly shifting round the core with violet currents between them, the widest low
 shockwave, a towering dark eruption and a broad fracture field. Never cover the pet: dim smoothly near it. Timing budget
 ≤ 4 ms typical at Celestial, one heavier impact frame allowed.
+
+# Round 3 — Final Eclipse (one worker)
+File `src/js/20k5g-dark-ult-6.js`: `U.finaleclipse`, `delete U.noreflection` (its row in 20k1 is replaced; cost 100, cd 22;
+budget ≈ the old Night Without Reflection total — read U.noreflection in 20k5 — ≈ 14 × base × K × evoK as ONE sphere
+impact `hitArea`, kb 7, stun 0.5; area ≈ 3.2·K → 4.4·K at Celestial). Follow the spec's Final Eclipse section exactly
+(docs/elem-spec/dark-ults.md). Timeline ~3.5–4 s: sphere forms high over the aim (0–0.6) → its underside tears open and
+the demon drops out, wings folded, then one decisive downbeat stops its fall beneath the sphere, feather fragments drift
+(0.6–1.4) → hovering, it raises both hands; violet streams flow up its arms into the sphere; motes and fragments draw up
+from the ground; the sphere swells and its currents accelerate (1.4–2.6; at Celestial the raised pose holds a beat longer)
+→ shoulders back, wings brace, both arms drive down: the sphere tears free and plunges, stretching slightly, with a smoky
+wake and violet streamers (2.6–3.0) → impact: the sphere compresses to a disc, then a huge low shockwave and a rising
+wall of violet-black energy; the demon's wings fold and it dissolves into black feathers and smoke (3.0–3.9). Normal
+camera, combat never paused, warnings/enemies visible, the pet never covered (dim smoothly near it).
+**The demon is the point: the user wants it "3D like a Super Fiend boss and just as high quality".** Build it as a real
+posed 3D figure: study `src/js/02f2-anima-3d.js` (Anima3D: oriented ellipsoid/capsule parts posed by a rig and projected
+by a small camera, cel-shaded with bands, ink and gloss — the closest thing to a humanoid rig in the codebase: its
+`shared limbs` and its feathered wing at ~line 244), `src/js/20h2-fiend-beasts.js` (`wing(c, K, o)` with kind 'feather':
+primaries/secondaries/coverts — raven wings must be feathered layers with articulated shoulder, mid-wing and tip motion
+and delayed tips, never bat membranes), `20h4-fiend-toon.js` (the toon shader the last fiends use) and a boss that
+composes them (`20i-fiend-06-astaroth.js`, `20i-fiend-12-bahamut.js`). Model: a readable humanoid — head with a
+restrained violet eye accent, neck, a torso with faceted/cloth-like dark surface (#180B2E body, #2B0B45 depth, fine
+#A55CFF seams at Celestial), upper arms, forearms, hands with simple fingers (they must read as hands raised overhead and
+then thrown down), a tattered cloak/robe lower body is fine instead of legs, two long raven wings. Pose keys: fall
+(folded), downbeat (spread + follow-through), hover (slow wing cycle), raise (arms overhead, palms up), brace (shoulders
+back, wings wide), throw (arms driven down, wings snapping forward), dissolve. Build it as parts in 3D posed per
+keyframe with eased blends, depth-sorted, cel-shaded with ink and rim light; cache what is static (feather sprites,
+textures), draw the posed figure live. The sphere: a GeoKit/`H.sphere`-style shaded black globe with slow dark-purple
+bands, a thin #A55CFF limb, inward-curling shadow streams; at Celestial counter-moving currents and fragments orbiting
+just inside the shell. Levels: Adept bigger sphere/area, more feather layers, clearer hand-to-sphere streams, more wing
+follow-through; Celestial the grand silhouette, violet seams, the held pose, the largest impact, an outward ring of dark
+fragments and a slow rain of dissolving feathers. Check the demon alone in your harness first (neutral light, glow off:
+it must read as a winged humanoid with hands from the gameplay camera), then the full cast at levels 1/4/7.

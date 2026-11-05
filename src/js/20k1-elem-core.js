@@ -113,7 +113,7 @@ const ELEM_MOVES = {
     ['doomsday', 'Doomsday', 'meteor', 100, 22, 'One colossal meteor of dark energy plunges from the sky and detonates on the monsters; the world turns negative for an instant at the impact.'],
     ['leviathan', 'Leviathan Beneath the Floor', 'dragon', 100, 22, 'A serpentine shadow moves under the aim; arches of its body breach the floor as waves, and its head rises and sweeps.'],
     ['blackrose', 'Black Rose Compass', 'thorns', 95, 20, 'Four thorn-needles form round the aim and strike inward in pairs; a rose of folded shadow opens for the final burst.'],
-    ['noreflection', 'Night Without Reflection', 'twin', 95, 20, 'Dark mirrors appear round the monsters holding echoes that step out and strike together, then fracture inward.'],
+    ['finaleclipse', 'Final Eclipse', 'orb', 100, 22, 'A raven-winged demon drops from a black sphere over the monsters, charges it with raised hands and hurls it down in one devastating impact.'],
     ['eventide', 'Eventide Spiral', 'vortex', 100, 22, 'A towering corkscrew of darkness forms at the aim; it unwinds from the top, each coil an expanding wave.'] ] },
   fire: { strong: [
     ['emberkoi', 'Ember Koi', 'twin', 24, 2.4, 'Two fish of flame circle you, then swim through the air to the target and cross in a spiral burst.'],
