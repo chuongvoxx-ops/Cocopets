@@ -110,7 +110,7 @@ const ELEM_MOVES = {
     ['ravenfuneral', 'Thousand-Raven Funeral', 'feather', 95, 20, 'A shadow spreads under the aim and releases flocks of ravens that dive through lanes, then merge into one winged shape.'],
     ['abyssorrery', 'Abyssal Orrery', 'orbit', 95, 20, 'Black rings orbit an empty centre; void nodes fire converging lances, and the orbits tighten into an implosion.'],
     ['requiem', 'Requiem', 'crescent', 95, 20, 'Enormous gothic scythes emerge from dark portals and reap the battlefield with heavy sweeps, violet shadow trailing their steel: 1, 3 at Adept, 5 at Celestial.'],
-    ['forgottenkings', 'Crown of Forgotten Kings', 'hammer', 95, 20, 'Broken crown segments orbit a shadow pillar, each casting a cutting shadow across the floor, then assemble and drop.'],
+    ['doomsday', 'Doomsday', 'meteor', 100, 22, 'One colossal meteor of dark energy plunges from the sky and detonates on the monsters; the world turns negative for an instant at the impact.'],
     ['leviathan', 'Leviathan Beneath the Floor', 'dragon', 100, 22, 'A serpentine shadow moves under the aim; arches of its body breach the floor as waves, and its head rises and sweeps.'],
     ['blackrose', 'Black Rose Compass', 'thorns', 95, 20, 'Four thorn-needles form round the aim and strike inward in pairs; a rose of folded shadow opens for the final burst.'],
     ['noreflection', 'Night Without Reflection', 'twin', 95, 20, 'Dark mirrors appear round the monsters holding echoes that step out and strike together, then fracture inward.'],

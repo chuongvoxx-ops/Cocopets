@@ -111,3 +111,18 @@ looks the move up as `ELEM_LIST.light['ey_' + key]` — change 'light' to 'dark'
 behind the effect). Work in `.../scratchpad/<you>/`, montage `<you>/m.png` (rows = levels 1/4/7), look at it, fix hard
 edges / see-through cores / anything covering the pet, re-run the tests. Report in a few lines: what it looks like per
 level, damage per level in the test, timing (ms per frame at the peak, Celestial), montage path, anything you couldn't do.
+
+# Round 2 — Doomsday (one worker)
+File `src/js/20k5f-dark-ult-5.js`: `U.doomsday`, `delete U.forgottenkings` (its row in 20k1 is replaced; cost 100, cd 22).
+Follow the spec's Doomsday section in `docs/elem-spec/dark-ults.md` exactly. Mechanics: a pressure mark/warn on the aim,
+~1.0 s slow descent to establish size then a sharp acceleration (total ~2.2–2.6 s to impact), ONE major Dark AoE hit at
+impact (total ≈ 14 × base × K × evoK — read the old U.forgottenkings budget in 20k5 and match it; kb 7, stun 0.5), area
+R ≈ 3.2·K at level 1 growing to ≈ 4.4·K at Celestial; `H.X.negative(0.08)` exactly at impact (once; the hook falls back
+to a violet flash under Fewer effects); then the shockwave, eruption, mist, temporary glowing fractures (light only,
+fading within ~2 s — no permanent marks, nothing blocks navigation), fragments drifting out. No secondary damage from
+decorative layers. The meteor is a real GeoKit volume: a faceted dark core (a `shard`/`bipyramid`-like irregular mesh)
+with 3–5 uneven shell pieces round it, violet fractures in the seams that brighten as it nears the ground, streaming
+shadow and long dark trails tearing off its rear, purple sparks and dissolving fragments; it tumbles slowly as it falls.
+Celestial: colossal, shell pieces visibly shifting round the core with violet currents between them, the widest low
+shockwave, a towering dark eruption and a broad fracture field. Never cover the pet: dim smoothly near it. Timing budget
+≤ 4 ms typical at Celestial, one heavier impact frame allowed.
