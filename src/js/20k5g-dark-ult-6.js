@@ -133,15 +133,17 @@
   Anima3D.MODELS.fedemon = (k, t, o) => {
     const A = Anima3D.H, R = A.R, u = R.u, P = o.pose, ev = o.ev, CEL = ev >= 7, ADE = ev >= 4, out = o.out, dis = o.dis || 0, seamK = o.seam || 0;
     const GK = o.glowK == null ? 1 : o.glowK, sk = 0.35 + 0.65 * seamK, LOW = typeof st !== 'undefined' && st && st.lowFx;
-    /* materials: crimson muscle (a red rim wash so the red reads as volume), glossy black armour (grey-violet rim, a hard
-       specular), the same black for horns, claws and spikes */
-    const SK = { col: '#8E1420', shade: '#5A0C16', hi: '#C42A2A', line: INK, d2: 0.26, d1: 0.22, shade2: false };
-    const RK = { col: '#0E0A10', shade: '#050306', hi: '#2A2230', line: INK, glowCol: '#5A4A66', glowA: 0.55, d2: 0.26, d1: 0.18, shade2: false, spec: 0.55, specR: 0.11 };
-    const SV = { col: '#0E0A10', shade: '#030204', hi: '#2A2230', line: INK, glowCol: '#5A4A66', glowA: 0.5, d2: 0.32, d1: 0.16, shade2: false };
+    /* materials: the body is obsidian (polished volcanic glass: a purple-tinted mid tone, near-black shadow, a violet lit
+       band, a violet rim on the shadow side and a hard white glint); the armour, horns, claws and spikes a cooler, greyer
+       black with a grey-violet rim, so the plates read over the glass */
+    const SK = { col: '#2A1840', shade: '#0E0A14', hi: '#6D28A8', line: INK, glowCol: '#A55CFF', glowA: 0.32, d2: 0.34, d1: 0.22, shade2: false, spec: 0.7, specR: 0.13 };
+    const SKs = { ...SK, glowCol: null, spec: false };   // (small masses: no rim pass, so the round ones use the cached sprites)
+    const RK = { col: '#14121C', shade: '#07060C', hi: '#3A3648', line: INK, glowCol: '#6A6078', glowA: 0.5, d2: 0.26, d1: 0.18, shade2: false };
+    const SV = { col: '#14121C', shade: '#050408', hi: '#3A3648', line: INK, glowCol: '#6A6078', glowA: 0.45, d2: 0.32, d1: 0.16, shade2: false };
     /* the torso frame: hips at h 30, leaning; small sways in the hover */
     const HIP = [0, 0, 30 + Math.sin(t * 2.6) * 0.4], TF = A.frame(HIP, Math.sin(t * 0.9) * 0.04, -P.lean, Math.sin(t * 1.3) * 0.03), at = TF.at, dir = TF.dir;
-    // a joint: a rounded knot of muscle
-    const joint = (p, r) => A.sphere(p, r * 1.2, { ...SK, glowCol: null, z: -0.2 });
+    // a joint: a rounded knot of glass
+    const joint = (p, r) => A.sphere(p, r * 1.2, { ...SKs, z: -0.2 });
     /* an armour plate: a jagged faceted slab of glossy black (a sharp blob, cel-shaded), creases from its centre to its
        points, violet energy along its first edge (the seam where it meets the next plate; brighter by level) */
     const plate = (pts, o2) => { o2 = o2 || {}; const it = A.blob(pts, { ...RK, sharp: true, z: o2.z || 0, col: o2.col || RK.col, specAt: null, spec: false }); if (LOW) return; const n = o2.seams == null ? 1 : o2.seams;
@@ -156,23 +158,24 @@
       A.decal(v3.mix(b, tip, 0.35), c => { const RR = A.R, tp = A.P(tip), S = ring.map(A.P), fr = [], band = [];
         for (let i = 0; i < N; i++) { const j = (i + 1) % N, mid = v3.mix(ring[i], ring[j], 0.5); let n = v3.norm(v3.cross(v3.sub(ring[j], tip), v3.sub(ring[i], tip))); if (n[0] * (mid[0] - b[0]) + n[1] * (mid[1] - b[1]) + n[2] * (mid[2] - b[2]) < 0) n = v3.mul(n, -1);
           const w = [n[0] * RR.sy + n[1] * RR.cy, -n[0] * RR.cy + n[1] * RR.sy, n[2]]; fr.push(-w[1] * CPa + w[2] * SPa > 0); const l = w[0] * LW[0] + w[1] * LW[1] + w[2] * LW[2]; band.push(l > 0.5 ? 2 : l > 0.05 ? 1 : 0); }
-        const COL = ['#050306', '#0E0A10', '#2E2636'];
+        const COL = ['#050408', '#14121C', '#3E3A4E'];
         for (let bd = 0; bd < 3; bd++) { let any = false; c.beginPath(); for (let i = 0; i < N; i++) { if (!fr[i] || band[i] !== bd) continue; const j = (i + 1) % N; c.moveTo(tp[0], tp[1]); c.lineTo(S[i][0], S[i][1]); c.lineTo(S[j][0], S[j][1]); c.closePath(); any = true; } if (any) { c.fillStyle = COL[bd]; c.fill(); } }
         c.lineCap = 'round'; c.lineJoin = 'round'; c.strokeStyle = INK; c.lineWidth = Math.max(1, u * 0.9); c.beginPath();
         for (let i = 0; i < N; i++) { const h = (i + N - 1) % N; if (fr[i] !== fr[h]) { c.moveTo(tp[0], tp[1]); c.lineTo(S[i][0], S[i][1]); } if (fr[i]) { const j = (i + 1) % N; c.moveTo(S[i][0], S[i][1]); c.lineTo(S[j][0], S[j][1]); } } c.stroke();
         // the glint down the edge between a lit facet and a darker one; the rim on the shaded silhouette
         c.lineWidth = Math.max(0.6, u * 0.35); for (let i = 0; i < N; i++) { const h = (i + N - 1) % N; if (fr[i] && fr[h] && band[i] !== band[h] && Math.max(band[i], band[h]) === 2) { c.strokeStyle = 'rgba(170,160,190,0.4)'; c.beginPath(); c.moveTo(tp[0], tp[1]); c.lineTo(S[i][0], S[i][1]); c.stroke(); } else if (fr[i] !== fr[h] && band[fr[i] ? i : h] === 0) { c.strokeStyle = 'rgba(90,74,102,0.8)'; c.beginPath(); c.moveTo(tp[0], tp[1]); c.lineTo(S[i][0] * 0.85 + tp[0] * 0.15, S[i][1] * 0.85 + tp[1] * 0.15); c.stroke(); } } }, z || 0); };
     if (o.dbgNoBody) { out.head = [0, 0]; } else {
-    /* ---- the body: a tapering waist under a deep ribcage and a broad chest; lats, traps and a plated pelvis ---- */
-    A.ell(at(0, 0, 0.5), [4.8, 6.6, 4.4], { B: TF.B, ...SK });                                    // the pelvis
-    A.ell(at(0.3, 0, 8.5), [4.8, 6.2, 8.0], { B: TF.B, ...SK });                                   // the waist
-    A.ell(at(0.6, 0, 16.5), [6.6, 10.4, 7.6], { B: TF.B, ...SK });                                 // the ribcage
-    A.ell(at(1.2, 0, 21.5), [6.6, 14.0, 5.4], { B: TF.B, ...SK, spec: 0.2, specR: 0.1 });          // the chest
-    for (const q of [-1, 1]) { A.ell(at(-2.4, q * 8.5, 16), [3.6, 4.6, 7.4], { B: TF.B, ...SK, z: 0.3 }); A.ell(at(-1.2, q * 6.8, 26.2), [3.4, 5.4, 2.8], { B: TF.B, ...SK, z: 0.2 }); }   // lats and traps
-    for (const q of [-1, 1]) A.ell(at(4.6, q * 4.8, 21), [2.6, 4.6, 3.4], { B: TF.B, ...SK, z: -0.4 });   // the pectorals
-    for (let i = 0; i < 3; i++) for (const q of [-1, 1]) A.ell(at(4.6 - i * 0.3, q * 1.8, 13 - i * 2.9), [1.2, 2.2, 1.7], { B: TF.B, ...SK, glowCol: null, hi: '#B02428', z: -0.5 });   // the abdominals
-    for (const q of [-1, 1]) plate([at(6.0, q * 1.4, 25), at(4.8, q * 11.5, 24.5), at(5.6, q * 10.0, 18.5), at(6.4, q * 4.6, 17.0), at(6.6, q * 1.2, 19)], { z: -1.0 });   // the breastplates
-    plate([at(6.9, 0, 26.5), at(7.2, 1.8, 21), at(7.3, 0, 15.5), at(7.2, -1.8, 21)], { z: -1.5 });   // the sternum crest
+    /* ---- the body: an obsidian core sheathed in abstract armour: a faceted breastplate of four layered wedges, a
+       segmented carapace down the belly, shards over the flanks, jagged plates over the back between the wings; violet
+       energy in the seams between them, spikes rising from their edges ---- */
+    A.ell(at(0, 0, 0.5), [4.6, 6.4, 4.4], { B: TF.B, ...SK });                                    // the pelvis
+    A.ell(at(0.3, 0, 14), [5.4, 9.0, 13.5], { B: TF.B, ...SK });                                   // the core
+    for (let i = 3; i >= 0; i--) { const h = 26.5 - i * 4.0, w = 12.5 - i * 2.0, x = 6.0 + i * 0.2; plate([at(x - 0.6, -w, h + 1.6), at(x - 0.6, w, h + 1.6), at(x, w * 0.62, h - 3.0), at(x + 0.4, 0, h - 6.4), at(x, -w * 0.62, h - 3.0)], { z: -1.0 - (3 - i) * 0.12 }); }   // the breastplate
+    for (let i = 2; i >= 0; i--) { const h = 9.5 - i * 3.4, w = 6.4 - i * 0.6, x = 5.4 - i * 0.2; plate([at(x - 0.3, -w, h + 1.6), at(x - 0.3, w, h + 1.6), at(x, w * 0.8, h - 1.4), at(x + 0.3, 0, h - 2.2), at(x, -w * 0.8, h - 1.4)], { z: -0.7 - (2 - i) * 0.08 }); }   // the belly carapace
+    for (const q of [-1, 1]) { plate([at(3, q * 9.5, 21), at(-0.5, q * 11, 15), at(0.5, q * 9, 6), at(3.5, q * 7.5, 12)], { z: -0.4 }); plate([at(-1.5, q * 10.5, 22), at(-4.5, q * 9, 17), at(-3.5, q * 7.5, 9), at(-1, q * 9.5, 14)], { z: 0.2, seams: 0 }); }   // the flank shards
+    for (let i = 0; i < 3; i++) { const h = 25 - i * 6, w = 8.5 - i * 1.2; plate([at(-5.6, -w, h + 2.4), at(-5.6, w, h + 2.4), at(-6.4, w * 0.5, h - 2.4), at(-6.9, 0, h - 3.8), at(-6.4, -w * 0.5, h - 2.4)], { z: 0.4 + i * 0.05 }); }   // the back plates
+    // spikes rising from the plate edges: the breastplate's top corners, the carapace's sides
+    for (const q of [-1, 1]) { spike(at(5.0, q * 11.5, 27.5), dir(0.35, q * 0.55, 0.8), 4.4, 0.95, -1.5); spike(at(5.2, q * 6.2, 10.5), dir(0.6, q * 0.75, 0.1), 2.8, 0.7, -1.0); }
     for (const q of [-1, 1]) plate([at(2.5, q * 2.5, 2.5), at(1.0, q * 7.8, 3.0), at(0.0, q * 8.0, -3.5), at(2.0, q * 4.0, -4.5)], { z: -0.6 });   // the hip plates
     for (const q of [-1, 1]) plate([at(4.5, q * 3.0, 27.5), at(2.0, q * 12.5, 27.0), at(3.5, q * 9.0, 24.0), at(5.5, q * 3.5, 24.5)], { z: -0.8 });   // the gorget
     // the pauldrons: a great jagged plate on each shoulder, a second under it, three spikes raking up and out
@@ -184,9 +187,9 @@
     /* ---- the head: a heavy skull, a black brow plate, two long backswept horns, and for a face an empty black hole
        with a violet light deep inside it ---- */
     const HC = at(2.5, 0, 34.5), HF = A.frame(HC, Math.sin(t * 0.7) * 0.06, P.headP - P.lean * 0.6, 0), hat = HF.at;
-    A.tube([at(1.5, 0, 27), at(2.2, 0, 31.5)], v => 3.4 - v * 0.6, { ...SK });
+    A.tube([at(1.5, 0, 27), at(2.2, 0, 31.5)], v => 3.4 - v * 0.6, { ...SKs });
     A.ell(HC, [5.0, 4.6, 5.4], { B: HF.B, ...SK, spec: 0.25, specR: 0.08 });
-    A.ell(hat(2.8, 0, -2.4), [3.2, 3.2, 2.4], { B: HF.B, ...SK, z: -0.3 });                                   // the jaw
+    A.ell(hat(2.8, 0, -2.4), [3.2, 3.2, 2.4], { B: HF.B, ...SKs, z: -0.3 });                                   // the jaw
     plate([hat(4.2, -3.6, 2.4), hat(4.4, 3.6, 2.4), hat(2.0, 4.8, 5.0), hat(-2.5, 0, 6.2), hat(2.0, -4.8, 5.0)], { z: -0.9, seams: 0 });   // the brow and crown plate
     const hk = CEL ? 1.45 : 1; for (const q of [-1, 1]) { const hp = A.bez3(hat(0.5, q * 2.8, 4.0), hat(-3 * hk, q * 5.6 * hk, 8.8 * hk), hat(-9 * hk, q * 6.4 * hk, 10.8 * hk), hat(-15 * hk, q * 4.8 * hk, 13.8 * hk), 7); A.tube(hp, v => (1.5 - v * 1.3) * (CEL ? 1.2 : 1), { ...SV, z: 0.6, spec: 0.5, specAt: A.P(hp[2]) });
       if (CEL) { const h2 = A.bez3(hat(-1.0, q * 3.8, 1.2), hat(-4.5, q * 7.5, 2.8), hat(-9, q * 8.6, 3.4), hat(-12.5, q * 7.6, 6.4), 6); A.tube(h2, v => 1.2 - v * 1.05, { ...SV, z: 0.9 }); } }
@@ -206,13 +209,13 @@
       const sh = at(0, q * 14.5, 25), du = v3.norm(dir(P.armU[0], q * P.armU[1], P.armU[2])), df = v3.norm(dir(P.armF[0], q * P.armF[1], P.armF[2]));
       const el = v3.add(sh, v3.mul(du, LU)), wr = v3.add(el, v3.mul(df, LF)), pn = v3.norm(dir(P.palmN[0], q * P.palmN[1], P.palmN[2])), fd = v3.norm(dir(P.fing[0], q * P.fing[1], P.fing[2]));
       const side = v3.norm(v3.cross(pn, df)), up = v3.norm(v3.cross(du, v3.norm(v3.cross(du, [0, q, 0]))));
-      A.sphere(v3.add(sh, v3.mul(du, 2)), 4.0, { ...SK, glowCol: null, z: -0.3 });                                            // the deltoid
+      A.sphere(v3.add(sh, v3.mul(du, 2)), 4.0, { ...SKs, z: -0.3 });                                            // the deltoid
       A.tube([sh, v3.mix(sh, el, 0.5), el], v => 3.0 - v * 1.0, { ...SK });
-      A.ell(v3.mix(sh, el, 0.45), [2.8, 2.6, 4.2], { B: [up, side, du], ...SK, z: -0.3 });                      // the bicep
+      { const ob = v3.norm(v3.add(v3.mul(side, -q), v3.mul(up, 0.3))), a0 = v3.mix(sh, el, 0.2), a1 = v3.mix(sh, el, 0.8); A.ell(v3.mix(sh, el, 0.45), [2.6, 2.4, 4.0], { B: [up, side, du], ...SKs, z: -0.2 }); plate([v3.add(a0, v3.mul(ob, 2.6)), v3.add(v3.mix(a0, a1, 0.5), v3.add(v3.mul(ob, 3.4), v3.mul(up, 1.4))), v3.add(a1, v3.mul(ob, 2.4)), v3.add(v3.mix(a0, a1, 0.55), v3.add(v3.mul(ob, 1.6), v3.mul(up, -1.8)))], { z: -0.6 }); }   // the upper arm: a mass of glass under a crystal plate
       if (CEL) { for (let k = 0; k < 2; k++) { const ob = v3.mul(side, -q), bp = v3.add(v3.mix(sh, el, 0.35 + k * 0.3), v3.mul(v3.norm(v3.add(ob, v3.mul(up, -0.2))), 2.6)); spike(bp, v3.add(v3.norm(v3.add(ob, v3.mul(up, -0.2))), v3.mul(du, -0.4)), 4.2 - k * 0.6, 0.95, -0.7); } }
       joint(el, 1.6);
       A.tube([el, v3.mix(el, wr, 0.5), wr], v => 2.3 - v * 0.8, { ...SK });
-      A.ell(v3.mix(el, wr, 0.3), [2.3, 2.3, 3.8], { B: [v3.norm(v3.cross(df, side)), side, df], ...SK, z: -0.2 });   // the forearm's mass
+      A.ell(v3.mix(el, wr, 0.3), [2.3, 2.3, 3.8], { B: [v3.norm(v3.cross(df, side)), side, df], ...SKs, z: -0.2 });   // the forearm's mass
       // the bracer: jagged plates along the outside of the forearm, a row of spikes along its ridge
       const fs = v3.norm(v3.cross(df, du[2] > 0.9 ? [1, 0, 0] : [0, 0, 1])), fo = v3.norm(v3.cross(fs, df)), b0 = v3.mix(el, wr, 0.18), b1 = v3.mix(el, wr, 0.62), b2 = v3.mix(el, wr, 0.98);
       plate([v3.add(b0, v3.mul(fo, 2.0)), v3.add(b1, v3.add(v3.mul(fo, 2.8), v3.mul(fs, 1.6))), v3.add(b1, v3.add(v3.mul(fo, 1.2), v3.mul(fs, 2.6))), v3.add(b0, v3.add(v3.mul(fo, 0.6), v3.mul(fs, 2.4)))], { z: -0.6 });
@@ -222,9 +225,9 @@
       spike(v3.add(el, v3.mul(du, 0.5)), v3.add(du, v3.mul(df, -0.8)), 6.5, 1.5, -0.5);                         // the elbow spike
       // the hand: a palm, three long black claws and a thumb, curling toward the palm's normal
       const pc = v3.add(wr, v3.mul(df, LH * 0.5));
-      A.ell(pc, [LH * 0.55, 2.0, 0.9], { B: [df, side, pn], ...SK, z: -0.2 });
+      A.ell(pc, [LH * 0.55, 2.0, 0.9], { B: [df, side, pn], ...SKs, z: -0.2 });
       const pe = v3.add(wr, v3.mul(df, LH));
-      for (let i = 0; i < 3; i++) { const b = v3.add(pe, v3.mul(side, (i - 1) * 1.4)), m = v3.add(b, v3.add(v3.mul(fd, 4.0), v3.mul(side, (i - 1) * 1.4))), tp = v3.add(m, v3.add(v3.mul(fd, 4.2), v3.add(v3.mul(side, (i - 1) * 0.8), v3.mul(pn, -2.6)))); A.tube([b, m], v => 0.85 - v * 0.15, { ...SK, z: -0.4 }); A.tube([m, v3.mix(m, tp, 0.5), tp], v => 0.7 - v * 0.6, { ...SV, z: -0.45 }); }
+      for (let i = 0; i < 3; i++) { const b = v3.add(pe, v3.mul(side, (i - 1) * 1.4)), m = v3.add(b, v3.add(v3.mul(fd, 4.0), v3.mul(side, (i - 1) * 1.4))), tp = v3.add(m, v3.add(v3.mul(fd, 4.2), v3.add(v3.mul(side, (i - 1) * 0.8), v3.mul(pn, -2.6)))); A.tube([b, m], v => 0.85 - v * 0.15, { ...SKs, z: -0.4 }); A.tube([m, v3.mix(m, tp, 0.5), tp], v => 0.7 - v * 0.6, { ...SV, z: -0.45 }); }
       { const b = v3.add(wr, v3.add(v3.mul(df, LH * 0.3), v3.mul(side, -2.0))), tp = v3.add(b, v3.add(v3.mul(side, -2.6), v3.add(v3.mul(fd, 3.8), v3.mul(pn, -1.8)))); A.tube([b, v3.mix(b, tp, 0.5), tp], v => 0.7 - v * 0.5, { ...SV, z: -0.4 }); }
       out[q > 0 ? 'handR' : 'handL'] = A.P(pe);
     }
@@ -240,11 +243,11 @@
       joint(kn, 1.5);
       spike(v3.add(kn, v3.mul(tf, 1.4)), v3.add(tf, v3.mul(du, 0.45)), 6, 1.5, -0.6);                           // the knee spike
       A.tube([kn, v3.mix(kn, an, 0.5), an], v => 2.2 - v * 0.9, { ...SK, z: 0.4 });
-      A.ell(v3.mix(kn, an, 0.32), [2.4, 2.3, 4.0], { B: [v3.mul(tf, -1), v3.norm(v3.cross(dl, tf)), dl], ...SK, z: 0.45 });   // the calf
+      A.ell(v3.mix(kn, an, 0.32), [2.4, 2.3, 4.0], { B: [v3.mul(tf, -1), v3.norm(v3.cross(dl, tf)), dl], ...SKs, z: 0.45 });   // the calf
       { const ss = v3.norm(v3.cross(dl, [0, q, 0])), so = v3.norm(v3.cross(ss, dl)), sf = v3.norm([so[0], so[1], 0]), b0 = v3.mix(kn, an, 0.1), b1 = v3.mix(kn, an, 0.9); plate([v3.add(b0, v3.add(v3.mul(sf, 1.9), v3.mul(ss, -q * 0.8))), v3.add(v3.mix(kn, an, 0.5), v3.add(v3.mul(sf, 2.7), v3.mul(ss, -q * 1.4))), v3.add(b1, v3.add(v3.mul(sf, 1.4), v3.mul(ss, -q * 0.6))), v3.add(b1, v3.add(v3.mul(sf, 1.0), v3.mul(ss, q * 1.4))), v3.add(b0, v3.add(v3.mul(sf, 1.2), v3.mul(ss, q * 1.6)))], { z: -0.3, seams: 2 }); }
       // the foot: a long foot bone forward and down, three black talons
       const ff = v3.norm(v3.add(dir(1, 0, 0), v3.mul(dl, 0.5))), ft = v3.add(an, v3.mul(ff, 4.5));
-      A.tube([an, ft], v => 1.5 - v * 0.3, { ...SK, z: 0.3 });
+      A.tube([an, ft], v => 1.5 - v * 0.3, { ...SKs, z: 0.3 });
       for (let i = 0; i < 3; i++) { const sd = v3.mul(ts, (i - 1) * 1.6), b = v3.add(ft, sd), tp = v3.add(b, v3.add(v3.mul(ff, 3.6), v3.add(v3.mul(sd, 0.4), v3.mul(dl, 1.2)))); A.tube([b, v3.mix(b, tp, 0.5), tp], v => 0.85 - v * 0.7, { ...SV, z: 0.2 }); }
       out[q > 0 ? 'footR' : 'footL'] = A.P(ft);
     }
@@ -262,7 +265,7 @@
      for (let pk = (o.wzs || [o.wz]).length - 1; pk >= 0; pk--) {
       const wsc = [1, 0.8, 0.64][pk], root = at(-6 - pk * 1.8, q * (9.0 - pk * 1.4), 25 - pk * 8), WF = wingFrames(root, q, (o.wzs || [o.wz])[pk], P.wFold, wsc), fan = P.wFan, zp = pk * 0.9;
       plan.forEach((fe, j) => {
-        let [x, y, a, L, w, kind, row] = fe; if ((LOW && row >= 3) || (pk > 0 && row >= 2) || (pk > 1 && row === 1 && j % 2)) return; const i = WF.seg(x);
+        let [x, y, a, L, w, kind, row] = fe; if ((LOW && row >= 3) || (pk > 0 && row >= 2) || (pk > 1 && row <= 1 && j % 2)) return; const i = WF.seg(x);
         // the primaries spread apart as the wing fans; a dissolving feather falls away and fades
         if (row === 0) a += (fe[0] - XW) / (XT - XW) * (0.2 - 0.3 * fan) - 0.1 * (1 - fan);
         let off = null, al = 1; if (dis > 0) { const st = 0.05 + R1(j * 1.7 + (q > 0 ? 0.3 : 0)) * 0.6, s = Math.max(0, (dis - st) / 0.35); if (s > 0) { al = 1 - cl(s); if (al <= 0.02) return; a += s * (j % 2 ? 0.6 : -0.6); off = [-s * 6, q * s * 4, -s * s * 14 - s * 3]; } }
