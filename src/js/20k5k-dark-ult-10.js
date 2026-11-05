@@ -169,12 +169,13 @@
   U.deadscream = (C, h) => {
     H = h; const me = H.me, ev = evoOf(C), ADE = ev >= 4, CEL = ev >= 7, K = C.K, evoK = 1 + 0.08 * (ev - 1), DK = C.base * K * evoK;
     const W = [7, 8.5, 10, 12, 14.5, 17, 20][ev - 1], FORM = 1.1, PER = 0.5, P0 = FORM + 0.3, NP = Math.floor((W - 0.3) / PER) + 1, TE = FORM + W, TB = TE + 0.5, LIFE = TB + 2.0;
-    const R = (3.0 + 0.27 * (ev - 1)) * K, RF = R * 1.15, HS = [2.0, 2.15, 2.3, 2.55, 2.85, 3.2, 3.9][ev - 1], UT = HS / 2.6;   // UT: tiles per skull unit
+    const R = (3.0 + 0.27 * (ev - 1)) * K, RF = R * 1.15, HS = [2.0, 2.15, 2.3, 2.55, 2.85, 3.2, 3.12][ev - 1], UT = HS / 2.6;   // UT: tiles per skull unit
     const TOT = [14, 16.7, 19.3, 22, 25.3, 28.7, 32][ev - 1] * DK, NS = CEL ? 3 : ADE ? 2 : 1, PD = TOT * 0.8 / NP, SPK = TOT * 0.2 / (NP * NS), FIN = 4 * DK, STUN = 0.32, FEAR = 1.0;
     const NFREE = CEL ? 14 : ADE ? 9 : 6, seed = Math.floor(Math.random() * 1000);
     const HAL = CEL ? 6 : 0, HRING = ADE ? (CEL ? 2 : 1) : 0;
     const halo = []; for (let i = 0; i < HAL; i++) halo.push({ a: i / HAL * TAU + R1(seed + i) * 0.4, span: 0.55 + 0.3 * R1(seed + i * 3.1), r: 1.62 + 0.12 * R1(seed + i * 5.3), w: 0.16 + 0.07 * R1(seed + i * 2.3), sp: 0.12 * (i % 2 ? 1 : 0.8) });
     const rings = []; for (let j = 0; j < HRING; j++) { const n = j ? 9 : 7, segs = []; for (let i = 0; i < n; i++) { const a0 = i / n * TAU + R1(seed + j * 40 + i) * 0.25, sp = TAU / n * (0.45 + 0.35 * R1(seed + j * 17 + i)); segs.push([a0, a0 + sp]); } rings.push({ r: j ? 1.98 : 1.45, sp: j ? -0.09 : 0.16, segs, w: j ? 0.04 : 0.06 }); }
+    const BR = rings.length ? rings : [{ r: 1.45, sp: 0.16, w: 0.06, segs: Array.from({ length: 7 }, (_, i) => { const a0 = i / 7 * TAU + R1(seed + 90 + i) * 0.25; return [a0, a0 + TAU / 7 * (0.45 + 0.3 * R1(seed + 70 + i))]; }) }];
     const sparks = [], puffs = [], frags = [], ash = [], knot = [];
     let next = 0, fin = false, TD = TB, died = false, hx = me.x, hy = me.y, S = null, PXk = 0, lastPulse = -1;
     const hitsBy = new Map();   // pulse index -> Map(monster -> spark hits)
@@ -295,10 +296,21 @@
           c.save(); c.globalAlpha = Math.min(1, (0.25 + 0.6 * fill) * alive * hpf); c.drawImage(airSpr(), SX - u * 1.9, SY - u * 1.85, u * 3.8, u * 3.6); c.restore();
           glow(c, SX, SY + u * 0.2, u * (1.6 + 0.3 * gk), ENERGY, (0.08 + 0.18 * gk) * A0);
           // Adept: a fragmented thin halo behind; Celestial: broken obsidian segments turning, two broken rings
-          if (HRING || HAL) { const hcY = SY - u * 0.18, sq = 0.96, ha = A0 * sm((t - 0.75) / 0.6);
-            if (ha > 0.01) { c.save(); c.translate(SX, hcY); c.rotate(tilt * 0.5); c.lineJoin = 'round';
-              for (const rg of rings) { const ro = t * rg.sp; c.globalCompositeOperation = 'lighter'; for (const sg of rg.segs) { crescent(c, 0, 0, rg.r * u, sq, sg[0] + ro, sg[1] + ro, rg.w * u * 3.2, 18); c.globalAlpha = ha * (0.24 + 0.16 * gk); c.fillStyle = ENERGY; c.fill(); crescent(c, 0, 0, rg.r * u, sq, sg[0] + ro, sg[1] + ro, rg.w * u, 18); c.globalAlpha = ha * (0.7 + 0.3 * gk); c.fillStyle = EDGE; c.fill(); crescent(c, 0, 0, rg.r * u, sq, sg[0] + ro + 0.04, sg[1] + ro - 0.04, Math.max(0.8, rg.w * u * 0.3), 14); c.globalAlpha = ha * 0.7 * (0.5 + 0.5 * gk); c.fillStyle = ACC; c.fill(); } }
-              for (const hs of halo) { const a0 = hs.a + t * hs.sp, a1 = a0 + hs.span, rr = hs.r * u, ww = hs.w * u;
+          { const hcY = SY - u * 0.18, sq = 0.96, ha = A0 * sm((t - 0.75) / 0.6);
+            // the lines shiver all the time, harder as it gathers and screams; each scream also throws copies of them outward that fade (the sound leaving)
+            const vib = i => u * (0.014 + 0.05 * jolt + 0.016 * P.pre) * (Math.sin(t * 53 + i * 2.1) + 0.6 * Math.sin(t * 37.3 + i * 4.7)), push = 1 + 0.07 * jolt - 0.03 * P.pre;
+            if (ha > 0.01) { c.save(); c.translate(SX, hcY); c.rotate(tilt * 0.5); c.lineJoin = 'round'; c.globalCompositeOperation = 'lighter';
+              for (let pk = Math.max(0, lastPulse - 1); pk <= lastPulse; pk++) { const d = t - (P0 + pk * PER); if (d < 0 || d > 0.55 || t > TE + 0.1) continue;
+                for (let e = 0; e < (CEL ? 2 : 1); e++) { const q = cl((d - e * 0.09) / 0.46); if (q <= 0 || q >= 1) continue; const es = 1.05 + (CEL ? 1.0 : 0.85) * H.ease.out(q), ea = ha * Math.pow(1 - q, 1.4) * sstep(0, 0.12, q) * (e ? 0.6 : 1);
+                  for (const rg of BR) { const ro = t * rg.sp + (pk % 2 ? 0.2 : -0.2) * q; let i = 0; for (const sg of rg.segs) { i++; const rr = rg.r * u * es + vib(i * 3 + pk), ww = rg.w * u * (1 + 0.8 * q);
+                    crescent(c, 0, 0, rr, sq, sg[0] + ro, sg[1] + ro, ww * 3.4, 18); c.globalAlpha = ea * 0.3; c.fillStyle = ENERGY; c.fill();
+                    crescent(c, 0, 0, rr, sq, sg[0] + ro + 0.03, sg[1] + ro - 0.03, ww, 18); c.globalAlpha = ea * 0.85; c.fillStyle = EDGE; c.fill(); } }
+                  if (HAL) for (const hs of halo) { const a0 = hs.a + t * hs.sp, rr = hs.r * u * (es * 0.92 + 0.08) + vib(hs.a * 9), ww = hs.w * u * 0.45 * (1 + 0.5 * q);
+                    crescent(c, 0, 0, rr, sq, a0 - 0.04, a0 + hs.span + 0.04, ww * 3, 20); c.globalAlpha = ea * 0.28; c.fillStyle = ENERGY; c.fill();
+                    crescent(c, 0, 0, rr + ww * 0.3, sq, a0 + 0.04, a0 + hs.span - 0.04, Math.max(0.8, ww * 0.4), 18); c.globalAlpha = ea * 0.8; c.fillStyle = EDGE; c.fill(); } } }
+              c.globalCompositeOperation = 'source-over';
+              let vi = 0; for (const rg of rings) { const ro = t * rg.sp; c.globalCompositeOperation = 'lighter'; for (const sg of rg.segs) { const rR = rg.r * u * push + vib(vi++); crescent(c, 0, 0, rR, sq, sg[0] + ro, sg[1] + ro, rg.w * u * 3.2, 18); c.globalAlpha = ha * (0.24 + 0.16 * gk); c.fillStyle = ENERGY; c.fill(); crescent(c, 0, 0, rR, sq, sg[0] + ro, sg[1] + ro, rg.w * u, 18); c.globalAlpha = ha * (0.7 + 0.3 * gk); c.fillStyle = EDGE; c.fill(); crescent(c, 0, 0, rR, sq, sg[0] + ro + 0.04, sg[1] + ro - 0.04, Math.max(0.8, rg.w * u * 0.3), 14); c.globalAlpha = ha * 0.7 * (0.5 + 0.5 * gk); c.fillStyle = ACC; c.fill(); } }
+              for (const hs of halo) { const a0 = hs.a + t * hs.sp, a1 = a0 + hs.span, rr = hs.r * u * push + vib(vi++ + 7) * 0.7, ww = hs.w * u;
                 c.globalCompositeOperation = 'lighter'; crescent(c, 0, 0, rr, sq, a0 - 0.06, a1 + 0.06, ww * 2.4, 22); c.globalAlpha = ha * (0.12 + 0.12 * gk); c.fillStyle = ENERGY; c.fill();
                 c.globalCompositeOperation = 'source-over'; crescent(c, 0, 0, rr, sq, a0, a1, ww, 22); c.globalAlpha = ha * 0.95; c.fillStyle = BODY; c.fill();
                 crescent(c, 0, 0, rr - ww * 0.14, sq, a0 + 0.03, a1 - 0.03, ww * 0.5, 18); c.globalAlpha = ha * 0.8; c.fillStyle = PLUM; c.fill();
