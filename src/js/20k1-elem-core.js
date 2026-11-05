@@ -105,11 +105,11 @@ const ELEM_MOVES = {
     ['blackglass', 'Blackglass Fracture', 'gem', 26, 2.8, 'A dark pane appears at the aim, cracks with violet light and snaps into a cone of shards.'],
     ['double', 'Midnight Double', 'twin', 26, 3, 'A shadow echo copies your pose; you strike forward, and the echo repeats it wider.'] ],
   ult: [
-    ['hollowmoon', 'Eclipse of the Hollow Moon', 'nova', 90, 18, 'A great dark sphere forms over the aim ringed by a silver corona; pulses hammer the ground beneath, then it collapses into one expanding ring.'],
+    ['hollowmoon', 'Eclipse of the Hollow Moon', 'nova', 90, 18, 'A great dark sphere forms over the aim ringed by a silver corona; pulses hammer the monsters beneath it, then it detonates and the world turns negative for a heartbeat.'],
     ['inkpalace', 'Palace of Ink', 'wave', 90, 18, 'Panels of liquid shadow fold into a roofless palace round the aim; tendrils sweep its floor, then it folds in panel by panel to a central splash.'],
     ['ravenfuneral', 'Thousand-Raven Funeral', 'feather', 95, 20, 'A shadow spreads under the aim and releases flocks of ravens that dive through lanes, then merge into one winged shape.'],
     ['abyssorrery', 'Abyssal Orrery', 'orbit', 95, 20, 'Black rings orbit an empty centre; void nodes fire converging lances, and the orbits tighten into an implosion.'],
-    ['lastnight', 'Curtain of the Last Night', 'crescent', 95, 20, 'Dark curtains descend round the aim and twist into blades sweeping inward in pairs; the last pair parts on a starless void.'],
+    ['requiem', 'Requiem', 'crescent', 95, 20, 'Enormous gothic scythes emerge from dark portals and reap the battlefield with heavy sweeps, violet shadow trailing their steel: 1, 3 at Adept, 5 at Celestial.'],
     ['forgottenkings', 'Crown of Forgotten Kings', 'hammer', 95, 20, 'Broken crown segments orbit a shadow pillar, each casting a cutting shadow across the floor, then assemble and drop.'],
     ['leviathan', 'Leviathan Beneath the Floor', 'dragon', 100, 22, 'A serpentine shadow moves under the aim; arches of its body breach the floor as waves, and its head rises and sweeps.'],
     ['blackrose', 'Black Rose Compass', 'thorns', 95, 20, 'Four thorn-needles form round the aim and strike inward in pairs; a rose of folded shadow opens for the final burst.'],

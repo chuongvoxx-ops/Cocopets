@@ -160,6 +160,9 @@ GAMES.dungeon = {
     const light = (x, y, r, life) => { if (lights.length > 40) lights.shift(); lights.push({ x, y, r, life, max: life }); };
     const shake = (m, t) => { cam.sm = Math.max(cam.sm, m); cam.st = Math.max(cam.st, t || 0.25); };
     const flash = (a, c) => { g.flash = Math.max(g.flash, a); g.flashC = c || '#FFFFFF'; };
+    // the world turned negative for a moment (Doomsday, the Hollow Moon's detonation): a scene-only post-process drawn after
+    // the fx and before the HUD; under Fewer effects it is a brief violet flash instead, never a strobe
+    const negative = d => { if (st && st.lowFx) { flash(0.5, '#D0AEFF'); return; } g.negT = Math.max(g.negT || 0, d || 0.5); };
     const hitstop = t => { g.hitStop = Math.max(g.hitStop, t); };
     function text(x, y, s, color, size, o) { if (texts.length > 40) texts.shift(); texts.push(Object.assign({ x: x + (Math.random() - 0.5) * 0.3, y, s: String(s), color: color || '#FFFFFF', size: size || 15, life: 0.85, max: 0.85, vy: -1.6 }, o || {})); }
     function dmgText(m, dmg, color, size, crit) {
@@ -905,7 +908,7 @@ GAMES.dungeon = {
       bossBars: () => (FD && FD.S ? { n: FD.S.bars, hp: FD.barHP } : null),
     }));
     STAR = DunStar.create({ me, g, mons, eshots, zones, ST: () => ST, shot, hitMon, hitArea, part, ring, boom, zap, bolt: (x, y, color) => bolts.push({ pts: skyBolt(x, y), life: 0.3, max: 0.3, color, w: 5 }), sparks, after, nearestMon, text, banner, flash, shake, hitstop, heal, light, moveEnt, walkPoint, blocked, meteorAt, sfx: api.sfx, sx, sy, Tz: () => Tz(), warn: (x, y, r, life, col, fn) => zones.push({ kind: 'warn', x, y, r, life, max: life, own: 'pet', color: col, fn }), blizzard: t => { blizT = Math.max(blizT, t); }, supernova: r => { supernova = 1; me.inv = 2; novaR = r; }, dragon: d => dragons.push(d) });
-    ELEM = DunElem.create({ me, g, mons, eshots, zones, ST: () => ST, shot, hitMon, hitArea, part, ring, boom, zap, bolt: (x, y, color) => bolts.push({ pts: skyBolt(x, y), life: 0.3, max: 0.3, color, w: 5 }), sparks, after, nearestMon, text, banner, flash, shake, hitstop, heal, light, moveEnt, walkPoint, blocked, sfx: api.sfx, sx, sy, Tz: () => Tz(),
+    ELEM = DunElem.create({ me, g, mons, eshots, zones, ST: () => ST, shot, hitMon, hitArea, part, ring, boom, zap, bolt: (x, y, color) => bolts.push({ pts: skyBolt(x, y), life: 0.3, max: 0.3, color, w: 5 }), sparks, after, nearestMon, text, banner, flash, negative, shake, hitstop, heal, light, moveEnt, walkPoint, blocked, sfx: api.sfx, sx, sy, Tz: () => Tz(),
       /* (hooks for Light's Salvation, 20k4f) the party, its full heal + revive, its strip slots, the summoned Animas */
       party: () => party, restoreParty, partySlot, animas: () => (AN && AN.S && AN.S.list) || [],
       /* (hook for Light's Love Sanctuary, 20k4i) set or clear the ward that absorbs damage in hurtPet */
@@ -1280,6 +1283,7 @@ GAMES.dungeon = {
       g.t += dtReal;
       for (const b of banners) b.t += dtReal;
       for (let i = banners.length - 1; i >= 0; i--) if (banners[i].t > banners[i].life) banners.splice(i, 1);
+      g.negT = Math.max(0, (g.negT || 0) - dtReal);
       g.flash = Math.max(0, g.flash - dtReal * 2.2); g.hurtV = Math.max(0, g.hurtV - dtReal * 1.4);
       if (g.zoomT > 0) { g.zoomT -= dtReal; if (g.zoomT <= 0) g.zoomP = 1; }
       // the camera pulls back a little while a boss is up
@@ -2529,6 +2533,7 @@ GAMES.dungeon = {
       if (g.stopT > 0 || g.warpT > 0) { const PX = sx(me.x), PY = sy(me.y - 0.3), a2 = g.stopT > 0 ? 0.34 + 0.06 * Math.sin(g.t * 5) : 0.22, gr = c.createRadialGradient(PX, PY, Math.min(W, H) * 0.18, PX, PY, Math.max(W, H) * 0.8); gr.addColorStop(0, 'rgba(110,80,220,0)'); gr.addColorStop(0.55, `rgba(110,80,220,${a2 * 0.45})`); gr.addColorStop(1, `rgba(80,50,190,${a2})`); c.fillStyle = gr; c.fillRect(0, 0, W, H);
         c.save(); c.globalCompositeOperation = 'lighter'; for (let i = 0; i < 2; i++) { const ph = (g.t * 0.5 + i * 0.5) % 1, R3 = TS * (2 + ph * 5) / 0.86; c.globalAlpha = 0.35 * (1 - ph); blitSized(c, shockSprite('#B9A6FF'), PX - R3, PY - R3, R3 * 2, R3 * 2); } c.restore(); }
       if (g.slowT > 0 && g.perfects && me.dodge && me.dodge.perf) { c.fillStyle = 'rgba(255,227,122,.08)'; c.fillRect(0, 0, W, H); }
+      if (g.negT > 0) { c.save(); c.globalCompositeOperation = 'difference'; c.fillStyle = '#FFFFFF'; c.fillRect(0, 0, W, H); c.restore(); }
       if (g.flash > 0) { const PX = sx(me.x), PY = sy(me.y - 0.4), a2 = Math.min(0.85, g.flash), gr = c.createRadialGradient(PX, PY, 0, PX, PY, Math.max(W, H) * 0.85); gr.addColorStop(0, hexA(g.flashC, a2)); gr.addColorStop(0.4, hexA(g.flashC, a2 * 0.6)); gr.addColorStop(1, hexA(g.flashC, a2 * 0.2)); c.fillStyle = gr; c.fillRect(0, 0, W, H); }
       if (AN) AN.drawCine(c, W, H);
       if (PF) PF('fx');
