@@ -162,7 +162,9 @@ GAMES.dungeon = {
     const flash = (a, c) => { g.flash = Math.max(g.flash, a); g.flashC = c || '#FFFFFF'; };
     // the world turned negative for a moment (Doomsday, the Hollow Moon's detonation): a scene-only post-process drawn after
     // the fx and before the HUD; under Fewer effects it is a brief violet flash instead, never a strobe
-    const negative = d => { if (st && st.lowFx) { flash(0.5, '#D0AEFF'); return; } g.negT = Math.max(g.negT || 0, d || 0.5); };
+    // (Fewer effects is a speed setting, so it keeps the negative; only the system's Reduce Motion swaps it for a soft flash.
+    //  It also lasts at least three drawn frames, so a slow impact frame can't swallow it)
+    const negative = d => { if (typeof reduceMotion !== 'undefined' && reduceMotion) { flash(0.35, '#D0AEFF'); return; } g.negT = Math.max(g.negT || 0, d || 0.5); g.negF = Math.max(g.negF || 0, 3); };
     const hitstop = t => { g.hitStop = Math.max(g.hitStop, t); };
     function text(x, y, s, color, size, o) { if (texts.length > 40) texts.shift(); texts.push(Object.assign({ x: x + (Math.random() - 0.5) * 0.3, y, s: String(s), color: color || '#FFFFFF', size: size || 15, life: 0.85, max: 0.85, vy: -1.6 }, o || {})); }
     function dmgText(m, dmg, color, size, crit) {
@@ -2533,7 +2535,7 @@ GAMES.dungeon = {
       if (g.stopT > 0 || g.warpT > 0) { const PX = sx(me.x), PY = sy(me.y - 0.3), a2 = g.stopT > 0 ? 0.34 + 0.06 * Math.sin(g.t * 5) : 0.22, gr = c.createRadialGradient(PX, PY, Math.min(W, H) * 0.18, PX, PY, Math.max(W, H) * 0.8); gr.addColorStop(0, 'rgba(110,80,220,0)'); gr.addColorStop(0.55, `rgba(110,80,220,${a2 * 0.45})`); gr.addColorStop(1, `rgba(80,50,190,${a2})`); c.fillStyle = gr; c.fillRect(0, 0, W, H);
         c.save(); c.globalCompositeOperation = 'lighter'; for (let i = 0; i < 2; i++) { const ph = (g.t * 0.5 + i * 0.5) % 1, R3 = TS * (2 + ph * 5) / 0.86; c.globalAlpha = 0.35 * (1 - ph); blitSized(c, shockSprite('#B9A6FF'), PX - R3, PY - R3, R3 * 2, R3 * 2); } c.restore(); }
       if (g.slowT > 0 && g.perfects && me.dodge && me.dodge.perf) { c.fillStyle = 'rgba(255,227,122,.08)'; c.fillRect(0, 0, W, H); }
-      if (g.negT > 0) { c.save(); c.globalCompositeOperation = 'difference'; c.fillStyle = '#FFFFFF'; c.fillRect(0, 0, W, H); c.restore(); }
+      if (g.negT > 0 || g.negF > 0) { g.negF = Math.max(0, (g.negF || 0) - 1); c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.globalCompositeOperation = 'difference'; c.fillStyle = '#FFFFFF'; c.fillRect(0, 0, c.canvas.width, c.canvas.height); c.restore(); }
       if (g.flash > 0) { const PX = sx(me.x), PY = sy(me.y - 0.4), a2 = Math.min(0.85, g.flash), gr = c.createRadialGradient(PX, PY, 0, PX, PY, Math.max(W, H) * 0.85); gr.addColorStop(0, hexA(g.flashC, a2)); gr.addColorStop(0.4, hexA(g.flashC, a2 * 0.6)); gr.addColorStop(1, hexA(g.flashC, a2 * 0.2)); c.fillStyle = gr; c.fillRect(0, 0, W, H); }
       if (AN) AN.drawCine(c, W, H);
       if (PF) PF('fx');
