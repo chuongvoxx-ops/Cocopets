@@ -1,4 +1,4 @@
-/* ---------- Dark, reworked: Eclipse of the Hollow Moon ----------
+/* ---------- Dark, reworked: Dark Side of the Moon (was Eclipse of the Hollow Moon) ----------
    A great dark sphere forms over the aim ringed by a silver corona; four pulses hammer the monsters beneath it, then it
    squeezes into a tiny bright marble, hangs trembling, expands past its size and bursts into negative energy, and the
    world turns negative for half a second. The pulses and damage are those of the first build (20k5-elem-dark.js: warn
@@ -121,7 +121,7 @@
     const RB = 1.5 + 0.09 * (ev - 1), NC = 4 + ev, NCOR = 14 + 2 * Math.round((ev - 1) * 0.67), NL = 9 + ev, NIN = 12 + 2 * ev, seed = Math.random() * 100;
     const scaleAt = t => t < SQ0 ? 1 : t < SQ1 ? 1 - (1 - MS) * H.ease.in(cl((t - SQ0) / (SQ1 - SQ0))) : t < EX0 ? MS * (1 + 0.06 * Math.sin(t * 53)) : t < FIN ? MS + (BIG - MS) * H.ease.in(cl((t - EX0) / (FIN - EX0))) : BIG;
     const sqAt = t => t < SQ0 ? 0 : cl((t - SQ0) / (SQ1 - SQ0));
-    H.warn(x, y, R, 1.1, C.col); H.X.banner('ECLIPSE OF THE HOLLOW MOON', '', C.col, 1.4); H.X.sfx.hum();
+    H.warn(x, y, R, 1.1, C.col); H.X.banner('DARK SIDE OF THE MOON', '', C.col, 1.4); H.X.sfx.hum();
     const lats = [-0.95, -0.55, -0.2, 0.15, 0.5, 0.85];
     const streams = []; for (let i = 0; i < 6; i++) streams.push({ b: i / 6 * TAU + R1(seed + i) * 0.5, sp: 0.55 + 0.2 * R1(seed + i * 3), ph: R1(seed + i * 7) });
     const segs = CEL ? [0, 1, 2, 3, 4].map(i => ({ a: i / 5 * TAU + R1(seed + i * 2) * 0.4, len: 0.6 + R1(seed + i * 5) * 0.4 })) : [];

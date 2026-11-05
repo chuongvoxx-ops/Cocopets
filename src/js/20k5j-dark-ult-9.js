@@ -41,7 +41,7 @@
     form: 1.25,          // s: the formation (rising) before the group is active
     combat: 30,          // s: the normal combat phase, exactly, at every level
     rushMax: 2,          // s: the bounded final approach after the combat phase
-    echoK: 2,            // each zombie's coefficient on the caster's normal-attack damage (200%: doubled per the user)
+    echoK: 1,            // each zombie's coefficient on the caster's normal-attack damage (100%: halved again from 200% per the user)
     autoT: [0.85, 1.25], // a fighting zombie also claws on its own this often (s) whenever someone is in reach
     autoK: 0.9,          // its own blow before the caster has attacked: autoK x base x K x evoK (then x echoK)
     boomK: 4,            // each explosion: boomK x base x K x evoK (doubled per the user)

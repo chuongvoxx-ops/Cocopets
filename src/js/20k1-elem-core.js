@@ -105,9 +105,9 @@ const ELEM_MOVES = {
     ['blackglass', 'Blackglass Fracture', 'gem', 26, 2.8, 'A dark pane appears at the aim, cracks with violet light and snaps into a cone of shards.'],
     ['double', 'Midnight Double', 'twin', 26, 3, 'A shadow echo copies your pose; you strike forward, and the echo repeats it wider.'] ],
   ult: [
-    ['hollowmoon', 'Eclipse of the Hollow Moon', 'nova', 90, 18, 'A great dark sphere forms over the aim ringed by a silver corona; pulses hammer the monsters beneath it, then it detonates and the world turns negative for a heartbeat.'],
+    ['hollowmoon', 'Dark Side of the Moon', 'nova', 90, 18, 'A great dark sphere forms over the aim ringed by a silver corona; pulses hammer the monsters beneath it, then it detonates and the world turns negative for a heartbeat.'],
     ['umbraheart', 'Umbra Heart', 'orb', 95, 20, 'A massive heart of glossy shadow hovers over the aim, dripping liquid darkness into a damaging pool, then ruptures: 7 s, 9 s at Adept, 12 s at Celestial.'],
-    ['thriller', 'Thriller', 'claw', 100, 30, 'Undead Cocopets rise from the ground and claw on their own and echo every normal attack at double strength for 30 s, then rush the monsters and explode: 3, 6 at Adept, 10 at Celestial.'],
+    ['thriller', 'Thriller', 'claw', 100, 30, 'Undead Cocopets rise from the ground and claw on their own and echo every normal attack at full strength for 30 s, then rush the monsters and explode: 3, 6 at Adept, 10 at Celestial.'],
     ['annihilation', 'Annihilation', 'nova', 100, 50, 'Six ritual circles fire six missiles into one immense overhead light, which strikes down in the strongest explosion of the element.'],
     ['requiem', 'Requiem', 'crescent', 95, 20, 'Enormous gothic scythes emerge from dark portals and reap the battlefield with heavy sweeps, violet shadow trailing their steel: 1, 3 at Adept, 5 at Celestial.'],
     ['doomsday', 'Doomsday', 'meteor', 100, 40, 'One colossal meteor of dark energy plunges from the sky and detonates on the monsters; the world turns negative for an instant at the impact.'],
