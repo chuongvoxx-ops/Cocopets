@@ -41,8 +41,10 @@
     form: 1.25,          // s: the formation (rising) before the group is active
     combat: 30,          // s: the normal combat phase, exactly, at every level
     rushMax: 2,          // s: the bounded final approach after the combat phase
-    echoK: 1,            // each zombie's coefficient on the caster's normal-attack damage (100%, never divided)
-    boomK: 2,            // each explosion: boomK x base x K x evoK
+    echoK: 2,            // each zombie's coefficient on the caster's normal-attack damage (200%: doubled per the user)
+    autoT: [0.85, 1.25], // a fighting zombie also claws on its own this often (s) whenever someone is in reach
+    autoK: 0.9,          // its own blow before the caster has attacked: autoK x base x K x evoK (then x echoK)
+    boomK: 4,            // each explosion: boomK x base x K x evoK (doubled per the user)
     boomR: 1.7,          // explosion radius (x K)
     reach: 0.95,         // how far a claw reaches beyond the target's radius
     walk: 2.5, sprint: 6.8, leash: 8, regroup: 13,   // speeds (tiles/s), the target leash round the pet, the resurfacing distance
@@ -229,12 +231,12 @@
       if (!best) best = H.walk(me.x + (R1(i) - 0.5) * 2, me.y + (R1(i + 9) - 0.5) * 2);
       spots.push(best);
       Z.push({ i, x: best.x, y: best.y, r: 0.2, mv: 0, st: 'wait', u: 0, riseAt: 0.12 + (i / Math.max(1, N - 1)) * 0.22 + R1(i * 5.7) * 0.06, ph: R1(i * 2.2), phSp: 1 / (0.86 + R1(i * 4.4) * 0.22),
-        fk: Math.cos((i / N) * TAU) >= 0 ? 1 : -1, tgt: null, retT: 0, q: [], atk: null, cool: 0, crack: 0, alpha: 1, eyes: 0, boomed: false, slotA: (i / N) * TAU, slotR: 1.5 + (i % 3) * 0.45,
+        fk: Math.cos((i / N) * TAU) >= 0 ? 1 : -1, tgt: null, retT: 0, q: [], atk: null, cool: 0, auto: 0.4 + R1(i * 5.7) * 0.6, crack: 0, alpha: 1, eyes: 0, boomed: false, slotA: (i / N) * TAU, slotR: 1.5 + (i % 3) * 0.45,
         pulse: R1(i * 9.1) * TAU, lastX: best.x, lastY: best.y, prog: 0, progT: 0, detour: 0, lunge: 0, trail: [], brT: 0, idleU: R1(i * 1.3), mist: R1(i * 6.6) * TAU });
     }
     const fxv = [];   // short-lived visuals: holes, slashes, trails, explosion rings
     for (const z of Z) fxv.push({ kind: 'hole', x: z.x, y: z.y, t0: z.riseAt - 0.3, life: 1.9, seed: z.i, cracks: Array.from({ length: 5 + tier * 2 }, (_, j) => ({ a: j / (5 + tier * 2) * TAU + R1(z.i * 3 + j) * 0.6, l: 0.45 + R1(z.i + j * 1.9) * 0.4 + tier * 0.05 })) });
-    let busy = false, unsub = null, ended = false, rushed = false, closed = false;
+    let busy = false, lastN = 0, unsub = null, ended = false, rushed = false, closed = false;
     const F = H.add({ thriller: true, life: RUSHEND + 3, x: me.x, y: me.y, Z, fxv, echoes: 0, swings: 0, hits: 0, booms: 0, N, ACT0, ACT1, RUSHEND, tier, update, draw, drawUnder, onEnd });
     F.unsub = () => { if (unsub) { unsub(); unsub = null; } };
     const valid = m => m && !m.dead && !m.under && !m.falling && !m.fobj && !(m.boss && (m.act === 'enter' || m.act === 'sleep'));
@@ -247,7 +249,7 @@
       try {
         if (casterST && H.X.ST && H.X.ST() !== casterST) return;   // the caster switched out: its army echoes only it
         if (F.t < ACT0 || F.t >= ACT1 || !(evn && evn.dmg > 0)) return;
-        F.echoes++;
+        F.echoes++; lastN = evn.dmg;
         const aimT = evn.A && evn.A.t;
         for (const z of Z) if (z.st === 'fight') { z.q.push({ dmg: evn.dmg * TUNE.echoK, at: F.t + 0.015 * (z.i % 4) + R1(F.echoes * 3.3 + z.i) * 0.07, exp: F.t + TUNE.echoLapse, aim: aimT }); if (z.q.length > 10) z.q.shift(); }
       } finally { busy = false; }
@@ -341,6 +343,13 @@
           separate(z);
           z.ph += dt * z.phSp * (moving ? 1 : 0); z.idleU += dt * 0.6;
           z.anim = moving ? 'walk' : 'idle';
+          // they also attack on their own: every ~1 s a zombie with someone in reach queues a blow of its own
+          z.auto -= dt;
+          if (z.auto <= 0 && ft >= ACT0 && ft < ACT1 && !z.q.length) {
+            const tm0 = valid(m) && Math.hypot(m.x - z.x, m.y - z.y) <= m.r + TUNE.reach + 0.35 ? m : null;
+            if (tm0) { z.q.push({ dmg: (lastN || C.base * K * evoK * TUNE.autoK) * TUNE.echoK, at: ft, exp: ft + 0.8, aim: null }); z.auto = TUNE.autoT[0] + R1(ft * 7.1 + z.i) * (TUNE.autoT[1] - TUNE.autoT[0]); }
+            else z.auto = 0.15;
+          }
           // the attacks: one blow per queued echo, as soon as someone is in reach
           if (z.q.length && z.q[0].at <= ft && z.cool <= 0 && (!z.atk || z.atk.hit)) {
             let tm = valid(m) && Math.hypot(m.x - z.x, m.y - z.y) <= m.r + TUNE.reach ? m : null;

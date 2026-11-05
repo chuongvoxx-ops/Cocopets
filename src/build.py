@@ -26,8 +26,12 @@ HOOK = ("window.__pp = { get st() { return st; }, arc, startStage, beginPlay, cl
 
 def build(test, web=False):
     parts = [rd('head.html'), '<style>\n', rd('styles.css'), '</style>\n\n', rd('body.html'), '<script>\n(() => {\n\'use strict\';\n']
-    js = sorted(f for f in os.listdir(os.path.join(HERE, 'js')) if f.endswith('.js') and not (web and f == '05a-music-data.js'))
+    # (the songs are left out of every build now: the website plays them from files beside the page, and the Claude
+    #  build carries none at all, to stay well under the artifact size limit; an empty MUSIC_DATA keeps the player quiet)
+    js = sorted(f for f in os.listdir(os.path.join(HERE, 'js')) if f.endswith('.js') and f != '05a-music-data.js')
     for f in js:
+        if f == '05b-music.js' and not web:
+            parts.append('/* ===== no songs in this build ===== */\nconst MUSIC_DATA = {};\n')
         parts.append('/* ===== %s ===== */\n' % f)
         parts.append(rd('js/' + f))
         parts.append('\n')

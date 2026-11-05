@@ -360,6 +360,21 @@ function blitSized(c, img, x, y, w, h) {
   c.setTransform(1, 0, 0, 1, 0, 0); c.drawImage(cv, X0, Y0); c.setTransform(m);
 }
 /* a beam strip: gaussian across, fading in at the start and out at the tip. Drawn stretched along the beam */
+/* a beam whose foot melts away over its first third (pillars of light rising from the floor: no hard line where they
+   meet the ground) and whose top fades too */
+function pillarBeamSprite(color) {
+  return fxSprite('pbeam|' + color, 128, 48, (g, w, h) => {
+    const [r, gg, b] = hexRGB(color), im = g.createImageData(w, h), d = im.data, ss = t => t * t * (3 - 2 * t);
+    for (let y = 0; y < h; y++) {
+      const v = (y + 0.5 - h / 2) / (h / 2), across = Math.max(0, (Math.exp(-v * v * 4.2) - Math.exp(-4.2)) / (1 - Math.exp(-4.2)));
+      for (let x = 0; x < w; x++) {
+        const u = (x + 0.5) / w, along = ss(Math.min(1, u / 0.34)) * ss(Math.min(1, (1 - u) / 0.3)), a = across * along;
+        const i = (y * w + x) * 4; d[i] = r; d[i + 1] = gg; d[i + 2] = b; d[i + 3] = Math.round(255 * Math.min(1, a));
+      }
+    }
+    g.putImageData(im, 0, 0);
+  });
+}
 function beamSprite(color) {
   return fxSprite('beam|' + color, 128, 48, (g, w, h) => {
     const [r, gg, b] = hexRGB(color), im = g.createImageData(w, h), d = im.data;

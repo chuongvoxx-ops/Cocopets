@@ -227,3 +227,43 @@ explosions, and cleanup.
 to a TAILW rule like lovesanctuary's in tests/elem-moves.js — only T may edit that test). Screenshots (copy
 `/tmp/claude-0/-home-claude/78d1fddd-217b-590c-9262-fa063f90a263/scratchpad/ray/shot.js`, set 'dark' and your page),
 montage `.../scratchpad/<you>/m.png` (rows L1/L4/L7), look, fix, report briefly with timing at Celestial.
+
+# Round 5 — Dead Scream (one worker)
+
+## D — Dead Scream (`src/js/20k5k-dark-ult-10.js`: `U.deadscream`, `delete U.leviathan`)
+The row is set in 20k1 (key `deadscream`, glyph `'skull'`, cost 100, cd 43). If the ult-button glyph table has no
+`'skull'` glyph, add one (a small rounded skull icon) next to the others, or fall back to an existing dark glyph — check.
+Spec: `docs/elem-spec/dark-ults.md` §1 (Dead Scream), with the user's changes below, which override the spec's notes.
+
+A huge vibrating skull hovers above the pet and releases repeated pulses of dark energy into nearby enemies.
+- Formation: a knot of smoke above the pet; a violet contour sketches the dome, cheekbones, sockets and jaw; the surface
+  fills in dark bone / obsidian with fissures, violet light in the sockets. It follows the pet (smoothly), with small
+  controlled vibrations and a slow tilt. Never cover the pet: it hovers clearly above it.
+- Each pulse: the jaw lowers, light gathers in the sockets and teeth; the skull jolts and releases a broad dark-purple
+  ring (a scream wave expanding over the floor around the pet); jagged sparks scatter from the jaw and cheekbones,
+  shadow particles drift down, a ground ripple expands from under the pet (light-only, feathered floor art). The glow
+  recedes between pulses.
+- Level 1: one large skull, 7 active seconds. Adept (4): larger radius, stronger pulses, branching fissures, a
+  fragmented halo behind the skull, two staggered ground ripples per pulse, 12 s. Celestial (7): a monumental skull,
+  layered socket shadow, light travelling through its cracks, broken halo segments rotating, each scream a thick low
+  dark wave with sparks and ash, 20 s. Interpolate durations by level (7 → 12 → 20).
+- Expiry: the jaw closes, the socket light draws inward, and the skull disintegrates into rising smoke and fragments —
+  plus the user's FINISHING EXPLOSION: a separate final dark burst around the pet dealing its own damage.
+- Mechanics (the user's choices): periodic area damage around the pet (pulse every ~0.5 s; the area follows the pet).
+  Each pulse applies FEAR (monsters flee from the pet briefly) and a short STUN — find the game's existing status
+  conventions in 20b (grep stun / fear / frozen / slow / m.stun / m.fear); reuse them; if fear doesn't exist, add the
+  smallest commented hook in 20b (monster AI moves away from a point while m.fearT > 0) — keep stun short (~0.25–0.4 s
+  per pulse, so monsters are mostly locked while in range; bosses: use the game's boss resistance convention if any).
+  The decorative sparks thrown from the jaw and cheekbones each create their OWN damage event on the monster they hit
+  (small, so totals stay sensible). Totals: aim for a monster in range the whole time ≈ 14× base×K×evoK at level 1,
+  ≈ 22× at Adept, ≈ 32× at Celestial, including sparks, plus the finishing explosion ≈ 4× (state the numbers you chose).
+- House standard: feather every edge (rings, ripples, beams, halo segments — no hard lines anywhere, the user is
+  vigilant about this), light-only floor marks, cached sprites for the skull (render the 3D-ish skull once per level to
+  an offscreen canvas with GeoKit/Anima3D or layered paths; animate jaw as a separate piece), and keep Celestial under
+  ~4 ms/frame on average. Clean up on end, floor change and death.
+
+Check: `python3 src/build.py --test-only test-ds.html`; `ELEM=dark ONLY=deadscream EVO=1/4/7 HTML=test-ds.html node
+tests/elem-moves.js` (add `deadscream ? 24 :` to the TAILW rule if the 20 s run needs it); screenshot montage (copy
+`/tmp/claude-0/-home-claude/78d1fddd-217b-590c-9262-fa063f90a263/scratchpad/ray/shot.js`) at
+`.../scratchpad/ds/m.png` (rows L1/L4/L7: formation, a pulse, mid, the finish), look, fix, and report briefly with
+the damage totals and the Celestial timing. Never commit/push.

@@ -107,13 +107,13 @@ const ELEM_MOVES = {
   ult: [
     ['hollowmoon', 'Eclipse of the Hollow Moon', 'nova', 90, 18, 'A great dark sphere forms over the aim ringed by a silver corona; pulses hammer the monsters beneath it, then it detonates and the world turns negative for a heartbeat.'],
     ['umbraheart', 'Umbra Heart', 'orb', 95, 20, 'A massive heart of glossy shadow hovers over the aim, dripping liquid darkness into a damaging pool, then ruptures: 7 s, 9 s at Adept, 12 s at Celestial.'],
-    ['thriller', 'Thriller', 'claw', 100, 30, 'Undead Cocopets rise from the ground and echo every normal attack at full strength for 30 s, then rush the monsters and explode: 3, 6 at Adept, 10 at Celestial.'],
-    ['annihilation', 'Annihilation', 'nova', 100, 24, 'Six ritual circles fire six missiles into one immense overhead light, which strikes down in the strongest explosion of the element.'],
+    ['thriller', 'Thriller', 'claw', 100, 30, 'Undead Cocopets rise from the ground and claw on their own and echo every normal attack at double strength for 30 s, then rush the monsters and explode: 3, 6 at Adept, 10 at Celestial.'],
+    ['annihilation', 'Annihilation', 'nova', 100, 50, 'Six ritual circles fire six missiles into one immense overhead light, which strikes down in the strongest explosion of the element.'],
     ['requiem', 'Requiem', 'crescent', 95, 20, 'Enormous gothic scythes emerge from dark portals and reap the battlefield with heavy sweeps, violet shadow trailing their steel: 1, 3 at Adept, 5 at Celestial.'],
-    ['doomsday', 'Doomsday', 'meteor', 100, 22, 'One colossal meteor of dark energy plunges from the sky and detonates on the monsters; the world turns negative for an instant at the impact.'],
+    ['doomsday', 'Doomsday', 'meteor', 100, 40, 'One colossal meteor of dark energy plunges from the sky and detonates on the monsters; the world turns negative for an instant at the impact.'],
     ['leviathan', 'Leviathan Beneath the Floor', 'dragon', 100, 22, 'A serpentine shadow moves under the aim; arches of its body breach the floor as waves, and its head rises and sweeps.'],
     ['blackrose', 'Black Rose Compass', 'thorns', 95, 20, 'Four thorn-needles form round the aim and strike inward in pairs; a rose of folded shadow opens for the final burst.'],
-    ['finaleclipse', 'Final Eclipse', 'orb', 100, 22, 'A raven-winged demon drops from a black sphere over the monsters, charges it with raised hands and hurls it down in one devastating impact.'],
+    ['finaleclipse', 'Final Eclipse', 'orb', 100, 45, 'A raven-winged demon drops from a black sphere over the monsters, charges it with raised hands and hurls it down in one devastating impact.'],
     ['eventide', 'Eventide Spiral', 'vortex', 100, 22, 'A towering corkscrew of darkness forms at the aim; it unwinds from the top, each coil an expanding wave.'] ] },
   fire: { strong: [
     ['emberkoi', 'Ember Koi', 'twin', 24, 2.4, 'Two fish of flame circle you, then swim through the air to the target and cross in a spiral burst.'],
