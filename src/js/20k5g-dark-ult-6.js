@@ -92,6 +92,7 @@
     raise: { lean: -0.1, headP: 0.5, armU: [0.12, 0.42, 0.9], armF: [0.05, -0.2, 0.98], palmN: [0, 0, 1], fing: [-0.25, 0.3, 0.92], legU: [0.05, 0.12, -1], legL: [-0.2, 0.05, -0.98], wEl: 0.55, wSw: 0.25, wFold: 0, wFan: 0.8, hov: 0.7 },
     brace: { lean: -0.32, headP: 0.55, armU: [-0.3, 0.48, 0.82], armF: [-0.25, -0.2, 0.95], palmN: [0.25, 0, 1], fing: [-0.35, 0.25, 0.9], legU: [-0.15, 0.12, -0.98], legL: [-0.3, 0.05, -0.95], wEl: 0.9, wSw: -0.1, wFold: 0, wFan: 1, hov: 0 },
     throw: { lean: 0.55, headP: -0.45, armU: [0.62, 0.3, -0.72], armF: [0.75, 0.05, -0.65], palmN: [0.6, 0, -0.8], fing: [0.85, 0.1, -0.55], legU: [-0.45, 0.15, -0.88], legL: [-0.5, 0.05, -0.85], wEl: -0.2, wSw: -0.3, wFold: 0, wFan: 1, hov: 0.3 },
+    gather: { lean: -0.18, headP: 0.6, armU: [0.35, 0.55, -0.55], armF: [0.55, -0.7, 0.35], palmN: [-0.3, -0.8, 0], fing: [0.3, -0.8, 0.4], legU: [0.1, 0.18, -0.98], legL: [-0.15, 0.06, -0.99], wEl: 1.15, wSw: 0.55, wFold: 0.75, wFan: 0.1, hov: 0 },
     dissolve: { lean: 0.2, headP: -0.2, armU: [0.05, 0.3, -0.95], armF: [0.2, 0.1, -0.97], palmN: [0, -1, 0], fing: [0.2, 0, -1], legU: [0, 0.12, -1], legL: [-0.1, 0.03, -1], wEl: 1.0, wSw: 0.45, wFold: 0.35, wFan: 0.2, hov: 0.3 },
   };
   const PKEYS = Object.keys(POSE.fall);
@@ -331,9 +332,12 @@
     H = h; const g = GeoKit, me = H.me, x = C.tx, y = C.ty, ev = evoOf(C), CEL = ev >= 7, ADE = ev >= 4, evoK = 1 + 0.08 * (ev - 1), K = C.K;
     const R = (3.2 + 0.2 * (ev - 1)) * K, DMG = C.base * 14 * K * evoK, seed = Math.floor(Math.random() * 1000);
     // the beats: the sphere forms, the drop and the downbeat, the raise (held a beat longer at Celestial), brace, throw, impact
-    const T_DROP = 0.6, T_BEAT = 1.05, T_RAISE = 1.6, TB = CEL ? 2.85 : 2.6, T_THROW = TB + 0.42, IMP = T_THROW + 0.3, LIFE = IMP + (CEL ? 2.4 : 1.7);
-    const KF = [[T_DROP, 'fall'], [T_BEAT - 0.1, 'fall'], [T_BEAT, 'beat'], [T_BEAT + 0.14, 'beat'], [T_BEAT + 0.42, 'hover'], [T_RAISE, 'hover'], [T_RAISE + 0.5, 'raise'], [TB, 'raise'], [TB + 0.22, 'brace'], [TB + 0.32, 'brace'], [T_THROW, 'throw'], [T_THROW + 0.35, 'throw'], [IMP + 0.12, 'throw'], [IMP + 0.55, 'dissolve']];
-    const RB = (0.95 + 0.08 * (ev - 1)) * Math.sqrt(K), SZ = ev <= 4 ? 1 + 0.5 * (ev - 1) / 3 : 1.5 + (ev - 4) / 3, HBW = 1.9 * SZ;   // the sphere's radius (tiles), the demon's wanted height (hips to crown, tiles)
+    const T_DROP = 0.6, T_BEAT = 1.05, T_RAISE = 1.6, TB = CEL ? 2.85 : 2.6, T_THROW = TB + 0.42, IMP = T_THROW + 0.3, GATH = IMP + 0.45, EXP = IMP + (CEL ? 1.05 : 0.95), LIFE = EXP + (CEL ? 1.9 : 1.5);
+    const KF = [[T_DROP, 'fall'], [T_BEAT - 0.1, 'fall'], [T_BEAT, 'beat'], [T_BEAT + 0.14, 'beat'], [T_BEAT + 0.42, 'hover'], [T_RAISE, 'hover'], [T_RAISE + 0.5, 'raise'], [TB, 'raise'], [TB + 0.22, 'brace'], [TB + 0.32, 'brace'], [T_THROW, 'throw'], [T_THROW + 0.35, 'throw'], [IMP + 0.12, 'throw'], [GATH, 'hover'], [EXP - 0.12, 'gather'], [EXP, 'gather']];
+    const SZ = ev <= 4 ? 1 + 0.5 * (ev - 1) / 3 : 1.5 + (ev - 4) / 3, HB0 = 1.6 * SZ, RB = (ev <= 4 ? 0.95 + 0.45 * (ev - 1) / 3 : 1.4 + (ev - 4) / 3) * Math.sqrt(K);   // the demon's height and the sphere's radius (tiles), fixed per level
+    // fixed heights: the demon hangs a little toward the camera (its feet 0.35 of its height below the aim on screen), the
+    // sphere's centre just above its raised hands, so the hands sink into its underside
+    const ZH0 = -0.35 * HB0 / CE, ZS0 = (ZH0 * CE + 1.55 * HB0 + 0.35 * RB) / CE;
     H.X.banner('FINAL ECLIPSE', '', C.col, 1.5); H.X.sfx.hum(); H.warn(x, y, R, IMP, C.col);
     for (let k = 0; k < 3; k++) for (let tn = 0; tn < 3; tn++) featherSpr(k, tn); bodySpr(); shadeSpr(); haloSpr(); bandSpr(); bandLSpr(); puffSpr(); dpuffSpr(); streakSpr(); wallSpr();
     const lats = [-0.95, -0.55, -0.2, 0.15, 0.5, 0.85], curls = [], orb = [];
@@ -343,18 +347,18 @@
     const SPH = { rot: 0, lats, curls, orb, tear: 0 };
     // the layout (set at the first draw from the room on screen): the sphere's height ZS and the demon's hover height ZH
     // and size HB, so the sphere's top stays under the HUD and the raised hands reach toward its underside
-    const F = H.add({ life: LIFE, x, y, ZS: 0, ZH: 0.55, HB: HBW, RB, swell: 0, fe: feathers, shed: new Set(), lastOut: null,
+    const F = H.add({ life: LIFE, x, y, shards: [], ZS: ZS0, ZH: ZH0, HB: HB0, RB, swell: 0, fe: feathers, shed: new Set(), lastOut: null,
       // the sphere's centre height and radius at time t: it swells through the charge, tears free and plunges at the throw
       sph(t) { const sw = cl((t - T_RAISE - 0.3) / (TB - T_RAISE - 0.3)), swell = H.ease.out(sw) * 0.3, br = cl((t - TB) / 0.3) * 0.06; let z = this.ZS + Math.sin(t * 1.8) * 0.04 - br * 2, rr = this.RB * (1 + swell + br), sx = 1, sy = 1; if (t >= T_THROW) { const u = cl((t - T_THROW) / (IMP - T_THROW)), e = u * u; z = this.ZS * (1 - e) + rr * 0.9 * e; sx = 1 - 0.14 * Math.sin(u * Math.PI); sy = 1 + 0.22 * Math.sin(u * Math.PI); } return { z, r: rr, sx, sy, swell }; },
       // the demon's feet height: dropped out of the sphere, caught by the downbeat, hovering, dipping with the throw, lifting as it dissolves
-      dz(t) { const ZH = this.ZH; if (t < T_BEAT) { const u = cl((t - T_DROP) / (T_BEAT - T_DROP)); return lerp(this.ZS - 0.5, ZH - 0.45, Math.pow(u, 1.6)); } if (t < T_BEAT + 0.4) { const u = cl((t - T_BEAT) / 0.4); return lerp(ZH - 0.45, ZH, H.ease.out(u)) + Math.sin(u * Math.PI) * 0.12; } let z = ZH + Math.sin(t * 3) * 0.05; if (t > T_THROW) z -= Math.sin(cl((t - T_THROW) / 0.5) * Math.PI) * 0.2; if (t > IMP + 0.3) z += (t - IMP - 0.3) * 0.35; return z; },
+      dz(t) { const ZH = this.ZH; if (t < T_BEAT) { const u = cl((t - T_DROP) / (T_BEAT - T_DROP)); return lerp(this.ZS - (this.HB + this.RB * 0.3) / CE, ZH - 0.45, Math.pow(u, 1.6)); } if (t < T_BEAT + 0.4) { const u = cl((t - T_BEAT) / 0.4); return lerp(ZH - 0.45, ZH, H.ease.out(u)) + Math.sin(u * Math.PI) * 0.12; } let z = ZH + Math.sin(t * 3) * 0.05; if (t > T_THROW) z -= Math.sin(cl((t - T_THROW) / 0.5) * Math.PI) * 0.2; if (t > GATH) z += Math.sin(cl((t - GATH) / (EXP - GATH)) * Math.PI * 0.5) * 0.3; return z; },
       update(dt, f) {
         const t = f.t; SPH.rot += dt * (0.14 + 0.5 * cl((t - T_RAISE) / (TB - T_RAISE)) + (t > T_THROW ? 0.8 : 0));
         SPH.tear = t < T_DROP - 0.1 ? 0 : t < T_DROP + 0.1 ? cl((t - T_DROP + 0.1) / 0.2) : t < T_BEAT ? 1 : 1 - cl((t - T_BEAT) / 0.5);
         // the charge: shadow motes and loose fragments drawn up from the ground to the sphere
         if (t > T_RAISE + 0.3 && t < T_THROW) { const S = f.sph(t), k = (6 + 3 * ev) * dt * H.Q() * cl((t - T_RAISE - 0.3) / 0.5); let m = Math.floor(k) + (Math.random() < k % 1 ? 1 : 0); while (m-- > 0) { const b = Math.random() * TAU, d = R * (0.5 + Math.random() * 0.6), sx = x + Math.cos(b) * d, sy = y + Math.sin(b) * d * 0.6, life = 0.6 + Math.random() * 0.4, tx = x - sx + Math.cos(b + 1.3) * 0.5, ty = (y - S.z * CE) - sy; H.P({ kind: Math.random() < 0.55 ? 'spark' : Math.random() < 0.5 ? 'ember' : 'shard', x: sx, y: sy, vx: tx / life, vy: ty / life, g: 0, life, max: life, size: 1.6 + Math.random() * 1.8, rot: Math.random() * TAU, vr: 4, color: Math.random() < 0.45 ? EDGE : Math.random() < 0.5 ? ENERGY : SMOKE }); } }
         // smoke trailing from the legs' points, and from the whole body as it dissolves
-        if (f.lastOut && t > T_BEAT && Math.random() < dt * (t > IMP + 0.3 ? 40 : 6) * H.Q()) { const O = f.lastOut, dis = cl((t - IMP - 0.35) / 0.7), T = H.X.Tz(), pick = dis > 0 ? [O.head, O.handL, O.handR, O.footL, O.footR][Math.floor(Math.random() * 5)] : (Math.random() < 0.5 ? O.footL : O.footR); if (pick) { const wx = x + (pick[0] - H.sx(x)) / T, wy = y + (pick[1] - H.sy(y)) / T; H.P({ kind: 'smoke', x: wx + (Math.random() - 0.5) * 0.2, y: wy, vx: (Math.random() - 0.5) * 0.5, vy: -0.4 - Math.random() * 0.5, life: 0.6 + Math.random() * 0.4, max: 1, size: 0.22 + 0.1 * ev / 7 + dis * 0.25, color: 'rgba(36,20,56,' }); } }
+        if (f.lastOut && t > T_BEAT && t < EXP && Math.random() < dt * 6 * H.Q()) { const O = f.lastOut, dis = 0, T = H.X.Tz(), pick = dis > 0 ? [O.head, O.handL, O.handR, O.footL, O.footR][Math.floor(Math.random() * 5)] : (Math.random() < 0.5 ? O.footL : O.footR); if (pick) { const wx = x + (pick[0] - H.sx(x)) / T, wy = y + (pick[1] - H.sy(y)) / T; H.P({ kind: 'smoke', x: wx + (Math.random() - 0.5) * 0.2, y: wy, vx: (Math.random() - 0.5) * 0.5, vy: -0.4 - Math.random() * 0.5, life: 0.6 + Math.random() * 0.4, max: 1, size: 0.22 + 0.1 * ev / 7 + dis * 0.25, color: 'rgba(36,20,56,' }); } }
         // the feathers in the air: drift, sway, settle
         for (let i = feathers.length - 1; i >= 0; i--) { const p = feathers[i]; p.life -= dt; if (p.life <= 0) { feathers.splice(i, 1); continue; } p.vz -= 2.2 * dt; p.vz *= 1 - 1.6 * dt; p.vx *= 1 - 0.8 * dt; p.vy *= 1 - 0.8 * dt; p.x += (p.vx + Math.sin(t * 3 + p.ph) * 0.5) * dt; p.y += p.vy * dt; p.z += p.vz * dt; p.rot += (p.vr + Math.sin(t * 4 + p.ph) * 1.5) * dt; if (p.z < 0) { p.z = 0; p.vz = 0; p.vr *= 0.5; } }
       },
@@ -380,17 +384,17 @@
         for (const [d, sc, w, L] of CEL ? [[0, 1.0, 1, 0], [0.1, 1.25, 0.7, 1], [0.26, 1.55, 0.5, 1]] : [[0, 1.0, 1, 0], [0.12, 1.3, 0.7, 1]]) { const q = cl((post - d) / 0.75); if (q > 0 && q < 1) { const rr = R * 1.35 * T * sc * H.ease.out(q); c.save(); c.globalAlpha = (1 - q) * w; c.drawImage(L ? bandLSpr() : bandSpr(), X - rr, Y - rr * H.GY, rr * 2, rr * 2 * H.GY); c.restore(); } }
         // low mist rolling out, thinning; Celestial: an outward-moving ring of dark fragments
         const mk = (1 - cl((post - 0.4) / 1.6)) * endK; if (mk > 0.01) { const sp = dpuffSpr(); c.save(); for (const m of mist) { const d = m.r0 + m.v * H.ease.out(cl(post / 1.2)), px = X + Math.cos(m.a) * d * T, py = Y + Math.sin(m.a) * d * T * H.GY - post * T * 0.1, pr = T * m.s * (0.7 + 0.8 * cl(post / 0.8)) * (1 + 0.1 * Math.sin(t * 2 + m.ph)); c.globalAlpha = mk * 0.7 * cl(post / 0.2); c.drawImage(sp, px - pr, py - pr * 0.55, pr * 2, pr * 1.1); } c.restore(); }
-        if (CEL) { const q = cl((post - 0.15) / 1.3); if (q > 0 && q < 1) { const rr = R * T * (0.4 + 1.1 * H.ease.out(q)); c.save(); c.globalAlpha = (1 - q * q) * 0.9; for (let i = 0; i < 16; i++) { const b = i / 16 * TAU + R1(seed + i * 3) * 0.3, s = T * (0.1 + 0.1 * R1(seed + i * 5)), px = X + Math.cos(b) * rr, py = Y + Math.sin(b) * rr * H.GY - Math.sin(q * Math.PI) * T * (0.2 + 0.4 * R1(seed + i)); c.save(); c.translate(px, py); c.rotate(q * 7 + i); c.beginPath(); c.moveTo(s, 0); c.lineTo(-s * 0.6, s * 0.5); c.lineTo(-s * 0.4, -s * 0.45); c.closePath(); c.fillStyle = BODY; c.fill(); c.strokeStyle = rgba(EDGE, 0.7); c.lineWidth = 1; c.stroke(); c.restore(); } c.restore(); } }
+        if (tt > EXP) { const p2 = tt - EXP, R2 = R * 1.2;
+          floorLight(c, X, Y, R2 * T, 0.5 * Math.max(0, 1 - p2 / 0.3), ACC);
+          for (const [d, sc, w, L] of [[0, 1.0, 1, 0], [0.08, 1.15, 0.8, 0], [0.18, 1.35, 0.6, 1]]) { const q = cl((p2 - d) / 0.8); if (q > 0 && q < 1) { const rr = R2 * 1.2 * T * sc * H.ease.out(q); c.save(); c.globalAlpha = (1 - q) * w; c.drawImage(L ? bandLSpr() : bandSpr(), X - rr, Y - rr * H.GY, rr * 2, rr * 2 * H.GY); c.restore(); } }
+          const q = cl(p2 / 1.2); if (q < 1) { const sp = dpuffSpr(), rr = R2 * T * (0.3 + 0.95 * H.ease.out(q)); c.save(); for (let i = 0; i < 14; i++) { const b = i / 14 * TAU + R1(seed + i * 17) * 0.3, pr = T * (0.6 + 0.4 * R1(seed + i * 19)) * (0.6 + 0.8 * q) * Math.sqrt(SZ); c.globalAlpha = (1 - q) * 0.8; c.drawImage(sp, X + Math.cos(b) * rr - pr, Y + Math.sin(b) * rr * H.GY - pr * 0.6 - q * T * 0.3, pr * 2, pr * 1.2); } c.restore(); } }
+        if (tt > EXP) { const q = cl((tt - EXP - 0.05) / 1.1); if (q > 0 && q < 1) { const rr = R * 1.2 * T * (0.3 + 1.1 * H.ease.out(q)); c.save(); c.globalAlpha = (1 - q * q) * 0.9; for (let i = 0; i < (CEL ? 20 : 12); i++) { const b = i / 16 * TAU + R1(seed + i * 3) * 0.3, s = T * (0.1 + 0.1 * R1(seed + i * 5)), px = X + Math.cos(b) * rr, py = Y + Math.sin(b) * rr * H.GY - Math.sin(q * Math.PI) * T * (0.2 + 0.4 * R1(seed + i)); c.save(); c.translate(px, py); c.rotate(q * 7 + i); c.beginPath(); c.moveTo(s, 0); c.lineTo(-s * 0.6, s * 0.5); c.lineTo(-s * 0.4, -s * 0.45); c.closePath(); c.fillStyle = BODY; c.fill(); c.strokeStyle = rgba(EDGE, 0.7); c.lineWidth = 1; c.stroke(); c.restore(); } c.restore(); } }
       },
       draw(c, f, X, Y, T, t) {
         const tt = f.t, SC = scr(c), PX = H.sx(me.x), PY = H.sy(me.y) - T * 0.5;
-        // the layout, once: the sphere's top just under the HUD; the demon sized so its raised hands reach near the underside
-        // (recomputed every frame and eased: the camera follows the pet, so the room above the aim changes during the cast)
-        { const roomT = (Y - (SC.y0 + T * 3.5)) / T, B = Math.max(0.55, Math.min(1.9, (roomT - 1.85 * 0.66) / (1.27 * 2.5))), HBt = B * SZ, ZHt = -0.35 * HBt / CE, RBt = Math.max(0.66, Math.min(RB, (roomT - 1.27 * HBt) / 1.85)), ZSt = (ZHt * CE + 1.62 * HBt + 0.85 * RBt) / CE;
-          const k = !f.ZS ? 1 : 1 - Math.exp(-Math.max(0, tt - (f.lt || 0)) * 5); f.lt = tt; f.HB += (HBt - f.HB) * k; f.ZH += (ZHt - f.ZH) * k; f.RB += (RBt - f.RB) * k; f.ZS = (f.ZS || ZSt) + (ZSt - (f.ZS || ZSt)) * k; }
         const S = f.sph(tt), cy = Y - S.z * CE * T, r = T * S.r, dP = Math.hypot(PX - X, PY - cy);
         // near the pet the whole effect dims smoothly (never a cut-out): by the pet's distance to the sphere and to the demon
-        const dz = f.dz(tt), DY = Y - dz * CE * T, dD = g.segD(PX, PY, X, DY - T * f.HB * 1.1, X, DY + T * 0.2), AL = 0.22 + 0.78 * Math.min(sstep(r * 0.6, r + T * 0.9, dP), sstep(T * 0.5, T * 1.6, dD));
+        const dz = f.dz(tt), DY = Y - dz * CE * T, dD = g.segD(PX, PY, X, DY - T * f.HB * 1.1, X, DY + T * 0.2), AL = 0.3 + 0.7 * Math.min(sstep(r * 0.6, r + T * 0.9, dP), sstep(T * 0.4, T * 1.3, dD));
         const form = H.ease.out(cl(tt / 0.6));
         if (tt < IMP + 0.08) {
           const comp = tt > IMP - 0.06 ? cl((tt - IMP + 0.06) / 0.14) : 0, fall = tt > T_THROW ? cl((tt - T_THROW) / (IMP - T_THROW)) : 0;
@@ -401,17 +405,16 @@
           // the wake of the plunge: a column of shadow and violet streamers torn off above the falling sphere
           if (fall > 0.05 && comp < 1) { const Lb = r * (1.5 + 3 * fall), spr = streakSpr(); c.save(); c.translate(X, cy); c.rotate(-Math.PI / 2); c.globalAlpha = AL * 0.8; c.drawImage(spr, -r * 0.2, -r * 1.0 * S.sx, Lb, r * 2 * S.sx); for (let j = 0; j < 4; j++) { const o = (j - 1.5) * r * 0.45; c.globalAlpha = AL * 0.75; c.drawImage(spr, -r * 0.3, o - r * 0.16, Lb * (0.7 + 0.3 * R1(seed + j)), r * 0.32); } c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.strokeStyle = EDGE; c.lineWidth = Math.max(1, T * 0.04); for (let j = 0; j < 3 + (ADE ? 2 : 0); j++) { const o = Math.sin(j * 2.1 + 0.4) * r * 0.75, L = Lb * (0.6 + 0.5 * R1(seed + j * 7)); c.globalAlpha = AL * (0.35 + 0.4 * fall); c.beginPath(); c.moveTo(-r * 0.2, o); c.quadraticCurveTo(L * 0.5, o + Math.sin(t * 9 + j) * r * 0.15, L, o * 0.6); c.stroke(); } c.restore(); }
           /* ---- the demon, beneath the sphere (drawn before the sphere while it drops out of it, after once it is below) ---- */
-          const demonFirst = dz + f.HB * 1.3 > S.z - S.r * 0.5;
-          const demon = () => { if (tt < T_DROP) return; const post = tt - IMP, dis = post > 0.3 ? cl((post - 0.3) / 0.7) : 0, fa = cl((tt - T_DROP) / 0.15);
-            const out = drawDemon(c, X, DY, T, f.HB, tt, { KF, ev, alpha: AL * fa * (1 - dis), dis, seam: CEL ? 1 : ADE ? 0.4 : 0, charge: ch * (tt < T_THROW ? 1 : 0.3), flare: tt > TB && tt < IMP + 0.3 ? Math.sin(cl((tt - TB) / (IMP + 0.3 - TB)) * Math.PI) : 0, yaw: 0.3, hovK: 1 }); f.lastOut = out;
+          const demonFirst = tt < T_BEAT - 0.05;
+          const demon = () => { if (tt < T_DROP) return; const dis = 0, fa = cl((tt - T_DROP) / 0.15);
+            const out = drawDemon(c, X, DY, T, f.HB, tt, { KF, ev, alpha: AL * fa, dis, seam: CEL ? 1 : ADE ? 0.4 : 0, charge: ch * (tt < T_THROW ? 1 : 0.3), flare: tt > TB && tt < IMP + 0.3 ? Math.sin(cl((tt - TB) / (IMP + 0.3 - TB)) * Math.PI) : 0, yaw: 0.3, hovK: 1 }); f.lastOut = out;
             // the streams: violet light flowing up from the hands into the sphere's underside, beads travelling them
             if (ch > 0 && tt < T_THROW + 0.1 && out.handL && out.handR) { const k = ch * (tt > T_THROW ? 1 - (tt - T_THROW) / 0.1 : 1) * AL; c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; const ends = [out.handL, out.handR], bot = [X, cy + r * 0.85 * S.sy];
               for (let i = 0; i < ends.length; i++) { const hpx = ends[i], n = ADE ? 3 : 2; for (let j = 0; j < n; j++) { const wob = (j - (n - 1) / 2) * T * 0.12, mx = (hpx[0] + bot[0]) / 2 + wob + Math.sin(t * 6 + j * 2 + i) * T * 0.08, my = (hpx[1] + bot[1]) / 2 + Math.cos(t * 5 + j) * T * 0.06; c.globalAlpha = k * 0.35; c.strokeStyle = ENERGY; c.lineWidth = Math.max(2, T * 0.09); c.beginPath(); c.moveTo(hpx[0], hpx[1]); c.quadraticCurveTo(mx, my, bot[0] + wob * 0.5, bot[1]); c.stroke(); c.globalAlpha = k * 0.8; c.strokeStyle = EDGE; c.lineWidth = Math.max(1, T * 0.03); c.stroke();
                   for (let b = 0; b < 3; b++) { const uu = ((t * (1.6 + 0.3 * j) + b / 3 + i * 0.17 + j * 0.3) % 1), q = 1 - uu, bx = q * q * hpx[0] + 2 * q * uu * mx + uu * uu * (bot[0] + wob * 0.5), by = q * q * hpx[1] + 2 * q * uu * my + uu * uu * bot[1], gs = T * 0.12; c.globalAlpha = k * 0.8; blitSized(c, glowSprite(ACC), bx - gs, by - gs, gs * 2, gs * 2); } }
                 glow(c, hpx[0], hpx[1], T * 0.45, EDGE, k * 0.6); }
               c.restore(); }
-            // the feathers shed as it dissolves (from the wing tips and the body) and after the downbeat
-            if (dis > 0 && dis < 0.9 && Math.random() < 0.6 * H.Q()) { const pts = [out.head, out.handL, out.handR, out.footL, out.footR].concat(out.tips || []), p = pts[Math.floor(Math.random() * pts.length)]; if (p) f.fe.push({ x: x + (p[0] - X) / T, y, z: (Y - p[1]) / (CE * T), vx: (Math.random() - 0.5) * 2, vy: (Math.random() - 0.5) * 0.6, vz: 0.5 + Math.random(), rot: Math.random() * TAU, vr: (Math.random() - 0.5) * 6, s: 0.22 + Math.random() * 0.14, life: 1.6 + Math.random() * 0.8, ph: Math.random() * TAU }); } };
+            };
           if (demonFirst) demon();
           /* ---- the sphere (crushed to a disc at the impact) ---- */
           c.save(); if (comp > 0) { c.translate(X, cy + r * 0.5 * comp); c.scale(1 + 0.45 * comp, 1 - 0.55 * comp); c.translate(-X, -cy); }
@@ -433,10 +436,18 @@
             c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = wk * 0.6; c.strokeStyle = EDGE; c.lineWidth = Math.max(1.5, T * 0.05); c.beginPath(); c.ellipse(X, Y, rr, rr * H.GY, 0, 0, TAU); c.stroke(); c.restore(); } }
         // the smoke left hanging over the impact, thinning
         const sm = Math.max(0, 1 - post / 1.5) * ALw; if (sm > 0) { const sp = puffSpr(); c.save(); for (let i = 0; i < 6; i++) { const b = i / 6 * TAU + R1(seed + i * 5) * 0.9, dd = R * T * (0.25 + 0.6 * H.ease.out(cl(post / 0.9))) * (0.7 + 0.5 * R1(seed + i * 2)), pr = R * T * (0.28 + 0.2 * R1(seed + i * 9)) * (0.6 + 0.6 * cl(post / 0.5)); c.globalAlpha = sm * sm * 0.8; c.drawImage(sp, X + Math.cos(b) * dd - pr, Y + Math.sin(b) * dd * 0.5 - pr - post * T * 0.35, pr * 2, pr * 2); } c.restore(); }
-        // the demon dissolving above the aftermath
-        if (tt < IMP + 0.98) { const dis = post > 0.3 ? cl((post - 0.3) / 0.7) : 0, out = drawDemon(c, X, DY, T, f.HB, tt, { KF, ev, alpha: AL * (1 - dis), dis, seam: CEL ? 1 : ADE ? 0.4 : 0, charge: 0.2, flare: post < 0.3 ? 1 - post / 0.3 : 0, yaw: 0.3, hovK: 1 }); f.lastOut = out;
-          if (dis > 0 && dis < 0.95 && Math.random() < 0.7 * H.Q()) { const pts = [out.head, out.handL, out.handR, out.footL, out.footR].concat(out.tips || []), p = pts[Math.floor(Math.random() * pts.length)]; if (p) f.fe.push({ x: x + (p[0] - X) / T, y, z: (Y - p[1]) / (CE * T), vx: (Math.random() - 0.5) * 2.5, vy: (Math.random() - 0.5) * 0.6, vz: 0.3 + Math.random(), rot: Math.random() * TAU, vr: (Math.random() - 0.5) * 6, s: 0.22 + Math.random() * 0.14, life: 1.6 + Math.random() * 0.8, ph: Math.random() * TAU }); }
-          if (dis > 0) { const sp = puffSpr(); c.save(); for (let i = 0; i < 5; i++) { const pr = T * f.HB * (0.25 + 0.2 * R1(seed + i)) * (0.6 + dis), px = X + Math.sin(i * 2.4 + t) * T * f.HB * 0.3, py = DY - T * f.HB * (0.2 + 0.25 * i) - dis * T * 0.5; c.globalAlpha = AL * Math.sin(dis * Math.PI) * 0.7; c.drawImage(sp, px - pr, py - pr, pr * 2, pr * 2); } c.restore(); } }
+        // the demon above the aftermath: it hovers, gathers (its seams and void face flare, the wings snap in, a core of
+        // light swells in its chest, the body trembles) and explodes; then the blast: a core flash, rays, a ring of smoke
+        if (tt < EXP) { const gk = cl((tt - GATH) / (EXP - GATH)), sh = gk * gk * T * 0.06, jx = Math.sin(tt * 63) * sh, jy = Math.cos(tt * 51) * sh;
+          const out = drawDemon(c, X + jx, DY + jy, T, f.HB, tt, { KF, ev, alpha: AL, dis: 0, seam: Math.max(CEL ? 1 : ADE ? 0.4 : 0, gk), charge: 0.2 + 0.8 * gk, flare: Math.max(post < 0.3 ? 1 - post / 0.3 : 0, gk * 1.4), glowK: 1 + gk, yaw: 0.3, hovK: 1 }); f.lastOut = out;
+          if (gk > 0) { const cx = X + jx, cyD = DY - T * f.HB * 0.62 + jy; glow(c, cx, cyD, T * f.HB * (0.3 + 0.8 * gk), ENERGY, AL * gk * 0.6); glow(c, cx, cyD, T * f.HB * 0.35 * gk, ACC, AL * gk * 0.8); }
+        } else { const p2 = tt - EXP, cx = X, cyD = DY - T * f.HB * 0.62, HBp = T * f.HB;
+          const fl2 = Math.max(0, 1 - p2 / 0.35); if (fl2 > 0) { glow(c, cx, cyD, HBp * (1.0 + 1.4 * H.ease.out(cl(p2 / 0.12))), ACC, ALw * fl2 * 0.9); glow(c, cx, cyD, HBp * 0.5, WHITE, ALw * fl2 * 0.8); }
+          const ra2 = Math.max(0, 1 - p2 / 0.6); if (ra2 > 0) for (let i = 0; i < 10; i++) { const b = i / 10 * TAU + 0.2, L = HBp * (1.2 + 0.8 * R1(seed + i * 13)) * H.ease.out(cl(p2 / 0.25)); H.ray(c, cx, cyD, b, L, HBp * 0.18, i % 3 ? EDGE : ACC, 0.5 * ra2 * ALw); }
+          { const q = cl(p2 / 0.6); if (q > 0 && q < 1) { const rr = HBp * (0.4 + 1.6 * H.ease.out(q)); c.save(); c.globalAlpha = (1 - q) * 0.85 * ALw; c.drawImage(bandSpr(), cx - rr, cyD - rr, rr * 2, rr * 2); c.restore(); } }
+          const sm2 = Math.max(0, 1 - p2 / 1.3) * ALw; if (sm2 > 0) { const sp = dpuffSpr(); c.save(); for (let i = 0; i < 9; i++) { const b = i / 9 * TAU + R1(seed + i * 7) * 0.5, dd = HBp * (0.3 + 1.3 * H.ease.out(cl(p2 / 0.8))), pr = HBp * (0.35 + 0.2 * R1(seed + i * 3)) * (0.6 + 0.7 * cl(p2 / 0.5)); c.globalAlpha = sm2 * 0.85; c.drawImage(sp, cx + Math.cos(b) * dd - pr, cyD + Math.sin(b) * dd * 0.8 - pr - p2 * T * 0.3, pr * 2, pr * 2); } c.restore(); }
+          // the armour blasted outward: tumbling obsidian shards with a violet edge, falling
+          for (const s2 of f.shards) { const a = cl(1 - (p2 - 0.7) / 0.6) * ALw; if (a <= 0.01) continue; const px = cx + s2.vx * p2 * T, py = cyD + (s2.vy * p2 + 4 * p2 * p2) * T, sz = T * s2.s; c.save(); c.translate(px, py); c.rotate(s2.r + s2.w * p2); c.globalAlpha = a; c.beginPath(); c.moveTo(sz, 0); c.lineTo(-sz * 0.4, sz * 0.55); c.lineTo(-sz * 0.7, -sz * 0.1); c.lineTo(-sz * 0.2, -sz * 0.5); c.closePath(); c.fillStyle = '#14121C'; c.fill(); c.strokeStyle = INK; c.lineWidth = 1.2; c.stroke(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = rgba(EDGE, 0.8); c.lineWidth = 1; c.beginPath(); c.moveTo(sz, 0); c.lineTo(-sz * 0.2, -sz * 0.5); c.stroke(); c.restore(); } }
       },
     });
     // the feathers: a second, later effect so they draw over the demon and the sphere (and outlive nothing: same life)
@@ -459,8 +470,21 @@
       for (let j = 0; j < H.n(8); j++) { const b = Math.random() * TAU; H.P({ kind: 'smoke', x: x + Math.cos(b) * 0.5, y: y - 0.4 + Math.sin(b) * 0.3, vx: Math.cos(b) * 1.6, vy: Math.sin(b) * 0.9 - 0.7, life: 1.2, max: 1.2, size: 0.6 + 0.4 * Math.random() + 0.05 * ev, color: 'rgba(70,48,82,' }); }
     });
     H.X.after(IMP + 0.12, () => H.X.sfx.thud()); H.X.after(IMP + 0.35, () => { H.X.sfx.hum(); H.X.shake(5, 0.3); });
+    H.X.after(GATH, () => { H.X.sfx.hum(); H.X.shake(2, EXP - GATH); });
+    // the demon explodes: the second burst (40% of the impact, kb 5, 1.2 x its radius), shards and feathers blasted out
+    H.X.after(EXP, () => {
+      H.hitArea(x, y, R * 1.2, DMG * 0.4, C.dmgO({ kb: 5 }));
+      H.X.flash(0.22, EDGE); H.X.hitstop(0.06); H.X.sfx.crash(); H.X.shake(14 + 2 * ev, 0.4); H.X.light(x, y, R * 1.5, 0.35);
+      H.X.ring(x, y, 0.4, R * 1.45, 0.7, EDGE, 0.5); H.X.ring(x, y, 0.3, R * 1.0, 0.5, ACC, 0.3);
+      const T = H.X.Tz(), O = F.lastOut, zc = Math.max(0.5, F.dz(F.t) + F.HB * 0.62 / CE);
+      for (let j = 0; j < 10 + 3 * ev; j++) { const b = j / (10 + 3 * ev) * TAU + Math.random() * 0.4, v = (3 + Math.random() * 4) * Math.sqrt(SZ); F.shards.push({ vx: Math.cos(b) * v, vy: Math.sin(b) * v * 0.8 - 1.5, r: Math.random() * TAU, w: (Math.random() - 0.5) * 14, s: (0.16 + Math.random() * 0.18) * Math.sqrt(SZ) }); }
+      for (let j = 0; j < H.n(16 + 3 * ev); j++) { const b = Math.random() * TAU, v = (2.5 + Math.random() * 3.5) * Math.sqrt(SZ); feathers.push({ x: x + Math.cos(b) * 0.3, y: y + Math.sin(b) * 0.2, z: zc + (Math.random() - 0.5) * F.HB * 0.6, vx: Math.cos(b) * v, vy: Math.sin(b) * v * 0.5, vz: 1 + Math.random() * 2, rot: Math.random() * TAU, vr: (Math.random() - 0.5) * 12, s: (0.2 + Math.random() * 0.14) * Math.sqrt(SZ), life: 1.2 + Math.random() * 0.6, ph: Math.random() * TAU }); }
+      for (let j = 0; j < H.n(20 + 2 * ev); j++) { const b = Math.random() * TAU, v = 4 + Math.random() * 6; H.P({ kind: 'spark', x, y: y - zc * CE, vx: Math.cos(b) * v, vy: Math.sin(b) * v - 1, g: 3, life: 0.4 + Math.random() * 0.3, max: 0.7, size: 2 + Math.random() * 1.5, color: j % 3 ? EDGE : ACC }); }
+      for (let j = 0; j < H.n(10); j++) { const b = Math.random() * TAU; H.P({ kind: 'smoke', x: x + Math.cos(b) * R * 0.6, y: y + Math.sin(b) * R * 0.35, vx: Math.cos(b) * 2.2, vy: Math.sin(b) * 1.2 - 0.4, life: 1.1, max: 1.1, size: 0.7 + 0.5 * Math.random() + 0.06 * ev, color: 'rgba(36,20,56,' }); }
+      void O; void T;
+    });
     // Celestial: a slow rain of dissolving feathers after
-    if (CEL) H.X.after(IMP + 0.5, () => { for (let j = 0; j < H.n(22); j++) feathers.push({ x: x + (Math.random() - 0.5) * R * 1.6, y: y + (Math.random() - 0.5) * R * 0.8, z: F.ZS * 0.5 + Math.random() * F.ZS * 0.7, vx: (Math.random() - 0.5) * 0.6, vy: 0, vz: -0.2 - Math.random() * 0.5, rot: Math.random() * TAU, vr: (Math.random() - 0.5) * 4, s: 0.18 + Math.random() * 0.14, life: 1.4 + Math.random() * 0.8, ph: Math.random() * TAU, k: j % 3 === 0 ? 1 : 0 }); });
+    if (CEL) H.X.after(EXP + 0.3, () => { for (let j = 0; j < H.n(22); j++) feathers.push({ x: x + (Math.random() - 0.5) * R * 1.6, y: y + (Math.random() - 0.5) * R * 0.8, z: F.ZS * 0.5 + Math.random() * F.ZS * 0.7, vx: (Math.random() - 0.5) * 0.6, vy: 0, vz: -0.2 - Math.random() * 0.5, rot: Math.random() * TAU, vr: (Math.random() - 0.5) * 4, s: 0.18 + Math.random() * 0.14, life: 1.4 + Math.random() * 0.8, ph: Math.random() * TAU, k: j % 3 === 0 ? 1 : 0 }); });
   };
   // the debug door for the harness: the demon alone, the sphere alone
   U.finaleclipse.__dbg = { drawDemon, drawSphere, poseAt, POSE, featherSpr, wingPlan };
