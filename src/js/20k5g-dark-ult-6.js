@@ -60,7 +60,7 @@
      narrow, hooked tip), 1 secondary (broad), 2 covert (short, rounded) */
   const FW = 192, FH = 48;
   function featherSpr(kind, tone) { return fxSprite('du6fe' + kind + tone, FW, FH, g => {
-    const col = tone === 1 ? PLUM : tone === 2 ? '#241440' : BODY, sh = tone === 1 ? '#1A0730' : '#0C0618', hi = tone === 1 ? '#56307A' : tone === 2 ? '#56407A' : '#42296A';
+    const col = tone === 1 ? '#151018' : '#0E0A10', sh = '#050306', hi = tone === 1 ? '#3A3042' : '#2A2230';
     const W = FW - 6, cy = FH / 2, w = kind === 2 ? FH * 0.46 : kind === 1 ? FH * 0.42 : FH * 0.34, x0 = 4;
     const path = () => { g.beginPath(); g.moveTo(x0, cy); if (kind === 2) { g.bezierCurveTo(x0 + W * 0.1, cy - w, x0 + W * 0.7, cy - w * 1.05, x0 + W, cy - w * 0.1); g.bezierCurveTo(x0 + W * 0.7, cy + w * 1.05, x0 + W * 0.1, cy + w, x0, cy); }
       else { g.bezierCurveTo(x0 + W * 0.08, cy - w * 0.9, x0 + W * 0.7, cy - w * 1.1, x0 + W, cy - w * (kind ? 0.1 : 0.25)); g.quadraticCurveTo(x0 + W * 0.96, cy + w * 0.3, x0 + W * 0.86, cy + w * (kind ? 0.75 : 0.5)); g.bezierCurveTo(x0 + W * 0.55, cy + w * (kind ? 1.0 : 0.7), x0 + W * 0.1, cy + w * (kind ? 0.9 : 0.8), x0, cy); } g.closePath(); };
@@ -70,13 +70,17 @@
     g.fillStyle = sh; g.fillRect(0, 0, FW, cy - w * 0.3); g.fillStyle = rgba(sh, 0.5); g.fillRect(0, cy + w * 0.55, FW, FH);
     g.fillStyle = hi; g.beginPath(); g.moveTo(x0 + W * 0.05, cy + 1); g.quadraticCurveTo(x0 + W * 0.5, cy + w * 0.55, x0 + W * 0.95, cy + 1); g.quadraticCurveTo(x0 + W * 0.5, cy + w * 0.2, x0 + W * 0.05, cy + 1); g.fill();
     g.strokeStyle = 'rgba(0,0,0,0.22)'; g.lineWidth = 0.8; for (let i = 1; i < 14; i++) { const x = x0 + W * (0.08 + i * 0.065); g.beginPath(); g.moveTo(x, cy); g.lineTo(x + W * 0.1, cy - w * 1.1); g.moveTo(x, cy); g.lineTo(x + W * 0.1, cy + w * 1.1); g.stroke(); }
-    if (tone === 2) { g.globalCompositeOperation = 'lighter'; const gr = g.createLinearGradient(x0 + W * 0.55, 0, x0 + W, 0); gr.addColorStop(0, 'rgba(165,92,255,0)'); gr.addColorStop(1, 'rgba(165,92,255,0.55)'); g.fillStyle = gr; g.fillRect(0, 0, FW, FH); }
+    if (tone === 2) { g.globalCompositeOperation = 'lighter'; const gr = g.createLinearGradient(x0 + W * 0.55, 0, x0 + W, 0); gr.addColorStop(0, 'rgba(90,74,102,0)'); gr.addColorStop(1, 'rgba(90,74,102,0.6)'); g.fillStyle = gr; g.fillRect(0, 0, FW, FH); }
     g.restore();
     // the shaft and the ink outline
     g.strokeStyle = 'rgba(0,0,0,0.55)'; g.lineWidth = 2.2; g.beginPath(); g.moveTo(x0 + 2, cy); g.lineTo(x0 + W * 0.92, cy - (kind ? 0 : w * 0.12)); g.stroke(); g.strokeStyle = rgba(hi, 0.7); g.lineWidth = 0.9; g.beginPath(); g.moveTo(x0 + 2, cy - 0.8); g.lineTo(x0 + W * 0.9, cy - 0.8 - (kind ? 0 : w * 0.12)); g.stroke();
     path(); g.strokeStyle = INK; g.lineWidth = 2.4; g.lineJoin = 'round'; g.stroke();
-    if (tone === 2) { path(); g.strokeStyle = rgba(EDGE, 0.55); g.lineWidth = 1; g.stroke(); } }); }
+    path(); g.strokeStyle = rgba('#5A4A66', tone === 2 ? 0.8 : 0.45); g.lineWidth = 1; g.stroke();
+    // the gloss: a pale streak along the inner vane
+    g.globalCompositeOperation = 'lighter'; g.strokeStyle = 'rgba(150,140,170,0.22)'; g.lineWidth = 1.6; g.beginPath(); g.moveTo(x0 + W * 0.2, cy + w * 0.32); g.quadraticCurveTo(x0 + W * 0.55, cy + w * 0.48, x0 + W * 0.85, cy + w * 0.2); g.stroke(); }); }
 
+  const voidSpr = () => fxSprite('du6void', 64, 64, g => { const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(0,0,0,1)'); gr.addColorStop(0.55, 'rgba(0,0,0,1)'); gr.addColorStop(0.8, 'rgba(10,2,6,0.75)'); gr.addColorStop(1, 'rgba(40,6,12,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); });
+  const CPa = Math.cos(0.38), SPa = Math.sin(0.38), LW = v3.norm([-0.55, -0.35, 0.78]);   // Anima3D's camera pitch; the key light in its world
   /* ================= the demon: an Anima3D model ================= */
   /* the poses: the body's lean (+ forward), the head's nod, the arms (upper and forearm directions in the torso's frame
      for the right arm: f, s, h; the left is mirrored), the palm normal and finger direction, the legs, the wings (elevation,
@@ -115,134 +119,175 @@
   /* a wing's frames: three segments (upper arm, forearm, hand) each with its own elevation and sweep (the mid-wing and tip
      take the pose a little late), folded by a Z (upper arm back, forearm forward, hand back). W(i, x, y) maps a plan
      point through segment i's frame; seg(x) picks the segment a root lies in */
-  function wingFrames(root, side, PZ, fold) {
+  function wingFrames(root, side, PZ, fold, sc) {
+    sc = sc || 1;
     const up0 = v3.norm([0.35, 0, 0.94]), out0 = [0, side, 0];
     const rotF = (v, a) => [v[0], v[1] * Math.cos(a) - v[2] * Math.sin(a), v[1] * Math.sin(a) + v[2] * Math.cos(a)], rotH = (v, b) => [v[0] * Math.cos(b) - v[1] * Math.sin(b), v[0] * Math.sin(b) + v[1] * Math.cos(b), v[2]];
     const segs = [], J = [root], XS = [0, XE, XW, XT];
-    for (let i = 0; i < 3; i++) { const el = PZ[i].el + fold * [0.25, 0.1, -0.3][i], sw = PZ[i].sw + fold * [0.9, -1.0, 1.8][i]; const ex = rotH(rotF(out0, el * side), sw * side), ey = rotH(rotF(up0, el * side), sw * side); segs.push({ ex, ey, J: J[i], x0: XS[i] }); J.push(v3.add(J[i], v3.mul(ex, XS[i + 1] - XS[i]))); }
-    return { J, segs, W: (i, x, y) => { const s = segs[i]; return v3.add(s.J, v3.add(v3.mul(s.ex, x - s.x0), v3.mul(s.ey, y))); }, seg: x => x < XE ? 0 : x < XW ? 1 : 2 };
+    for (let i = 0; i < 3; i++) { const el = PZ[i].el + fold * [0.25, 0.1, -0.3][i], sw = PZ[i].sw + fold * [0.9, -1.0, 1.8][i]; const ex = rotH(rotF(out0, el * side), sw * side), ey = rotH(rotF(up0, el * side), sw * side); segs.push({ ex, ey, J: J[i], x0: XS[i] }); J.push(v3.add(J[i], v3.mul(ex, (XS[i + 1] - XS[i]) * sc))); }
+    return { J, segs, W: (i, x, y) => { const s = segs[i]; return v3.add(s.J, v3.add(v3.mul(s.ex, (x - s.x0) * sc), v3.mul(s.ey, y * sc))); }, seg: x => x < XE ? 0 : x < XW ? 1 : 2 };
   }
   /* the model. o: pose (the blended pose), wz (wing poses per segment, lagged: [{el, sw}, ...]), t, ev, out (filled with
      screen points: hands, head, wing tips), dis (dissolving 0..1), feOff (feather fall-off offsets set as it dissolves),
      seam (violet seams 0..1), glowK (joint light) */
   Anima3D.MODELS.fedemon = (k, t, o) => {
     const A = Anima3D.H, R = A.R, u = R.u, P = o.pose, ev = o.ev, CEL = ev >= 7, ADE = ev >= 4, out = o.out, dis = o.dis || 0, seamK = o.seam || 0;
-    const GK = o.glowK == null ? 1 : o.glowK, sk = 0.35 + 0.65 * seamK;
-    /* materials: muscle (near-black purple with a violet rim wash), obsidian armour (plum-dark, a harder highlight), void (claws, horns) */
-    const SK = { col: BODY, shade: '#0B0516', hi: '#4E3478', line: INK, glowCol: ENERGY, glowA: 0.55, d2: 0.32, d1: 0.2, shade2: false };
-    const RK = { col: '#1F1238', shade: '#0A0516', hi: '#5E4686', line: INK, glowCol: ENERGY, glowA: 0.35, d2: 0.26, d1: 0.16, shade2: false, spec: 0.3, specR: 0.1 };
-    const SV = { col: VOID, shade: '#030108', hi: '#34204E', line: INK, glowCol: ENERGY, glowA: 0.45, d2: 0.34, d1: 0.12, shade2: false };
+    const GK = o.glowK == null ? 1 : o.glowK, sk = 0.35 + 0.65 * seamK, LOW = typeof st !== 'undefined' && st && st.lowFx;
+    /* materials: crimson muscle (a red rim wash so the red reads as volume), glossy black armour (grey-violet rim, a hard
+       specular), the same black for horns, claws and spikes */
+    const SK = { col: '#8E1420', shade: '#5A0C16', hi: '#C42A2A', line: INK, d2: 0.26, d1: 0.22, shade2: false };
+    const RK = { col: '#0E0A10', shade: '#050306', hi: '#2A2230', line: INK, glowCol: '#5A4A66', glowA: 0.55, d2: 0.26, d1: 0.18, shade2: false, spec: 0.55, specR: 0.11 };
+    const SV = { col: '#0E0A10', shade: '#030204', hi: '#2A2230', line: INK, glowCol: '#5A4A66', glowA: 0.5, d2: 0.32, d1: 0.16, shade2: false };
     /* the torso frame: hips at h 30, leaning; small sways in the hover */
     const HIP = [0, 0, 30 + Math.sin(t * 2.6) * 0.4], TF = A.frame(HIP, Math.sin(t * 0.9) * 0.04, -P.lean, Math.sin(t * 1.3) * 0.03), at = TF.at, dir = TF.dir;
-    // a joint lit from within: a violet bead and a soft glow
-    const joint = (p, r, a) => { A.sphere(p, r, { col: ENERGY, shade: '#3E1470', hi: ACC, line: INK, spec: 0.5, z: -0.3 }); A.glowAt(p, r * 3.2, EDGE, (a == null ? 0.3 : a) * GK); };
-    /* an armour plate: a jagged faceted slab of dark stone (a sharp blob, cel-shaded), creases from its centre to its
-       points, and violet energy along its first edge (the seam where it meets the next plate; brighter by level) */
-    const LOW = typeof st !== 'undefined' && st && st.lowFx;
-    const plate = (pts, o2) => { o2 = o2 || {}; if (LOW) return A.blob(pts, { ...RK, sharp: true, z: o2.z || 0, col: o2.col || RK.col }); const sp = pts.map(A.P), cx = sp.reduce((q, p) => q + p[0], 0) / sp.length, cy = sp.reduce((q, p) => q + p[1], 0) / sp.length, n = o2.seams == null ? 1 : o2.seams;
-      A.blob(pts, { ...RK, sharp: true, z: o2.z || 0, col: o2.col || RK.col, inner: c => { c.lineCap = 'round'; c.strokeStyle = 'rgba(0,0,0,0.45)'; c.lineWidth = Math.max(0.6, u * 0.45); c.beginPath(); for (let i = 0; i < sp.length; i += 2) { c.moveTo(cx, cy); c.lineTo(sp[i][0], sp[i][1]); } c.stroke();
-        if (n > 0) { c.globalCompositeOperation = 'lighter'; c.lineWidth = Math.max(1, u * 0.9); c.strokeStyle = rgba(EDGE, 0.55 * sk); c.beginPath(); for (let i = 0; i < n; i++) { c.moveTo(sp[i][0], sp[i][1]); c.lineTo(sp[i + 1][0], sp[i + 1][1]); } c.stroke(); if (seamK > 0.5) { c.lineWidth = Math.max(0.5, u * 0.3); c.strokeStyle = rgba(ACC, 0.5 * seamK); c.stroke(); } } } }); };
+    // a joint: a rounded knot of muscle
+    const joint = (p, r) => A.sphere(p, r * 1.2, { ...SK, glowCol: null, z: -0.2 });
+    /* an armour plate: a jagged faceted slab of glossy black (a sharp blob, cel-shaded), creases from its centre to its
+       points, violet energy along its first edge (the seam where it meets the next plate; brighter by level) */
+    const plate = (pts, o2) => { o2 = o2 || {}; const it = A.blob(pts, { ...RK, sharp: true, z: o2.z || 0, col: o2.col || RK.col, specAt: null, spec: false }); if (LOW) return; const n = o2.seams == null ? 1 : o2.seams;
+      A.decal(pts.reduce((m, p) => v3.add(m, v3.mul(p, 1 / pts.length)), [0, 0, 0]), c => { const sp = it.sp, cx = sp.reduce((q, p) => q + p[0], 0) / sp.length, cy = sp.reduce((q, p) => q + p[1], 0) / sp.length; c.lineCap = 'round'; c.strokeStyle = 'rgba(90,74,102,0.5)'; c.lineWidth = Math.max(0.6, u * 0.4); c.beginPath(); for (let i = 0; i < sp.length; i += 2) { c.moveTo(cx, cy); c.lineTo(sp[i][0] * 0.9 + cx * 0.1, sp[i][1] * 0.9 + cy * 0.1); } c.stroke();
+        c.fillStyle = 'rgba(255,255,255,0.5)'; c.beginPath(); c.ellipse(cx - u * 0.9, cy - u * 0.9, u * 0.8, u * 0.35, -0.7, 0, TAU); c.fill();
+        if (n > 0) { c.globalCompositeOperation = 'lighter'; c.lineWidth = Math.max(0.8, u * 0.6); c.strokeStyle = rgba(EDGE, 0.45 * sk); c.beginPath(); for (let i = 0; i < n; i++) { const p0 = sp[i], p1 = sp[i + 1]; c.moveTo(p0[0] * 0.9 + cx * 0.1, p0[1] * 0.9 + cy * 0.1); c.lineTo(p1[0] * 0.9 + cx * 0.1, p1[1] * 0.9 + cy * 0.1); } c.stroke(); if (seamK > 0.5) { c.lineWidth = Math.max(0.5, u * 0.25); c.strokeStyle = rgba(ACC, 0.35 * seamK); c.stroke(); } } }, (o2.z || 0) - 0.05); };
+    /* a spike: a real 3D cone of glossy black from base b along d, L long, r wide at its foot; six facets, each lit by its
+       true normal (shadow, base, lit bands), the faces turned away culled, an ink silhouette, a grey-violet rim on its
+       shaded edge and a pale glint down its lit one; it turns with the body */
+    let nSp = 0; const spike = (b, d, L, r, z) => { if (LOW && (nSp++ % 2)) return; const dn = v3.norm(d), tip = v3.add(b, v3.mul(dn, L)), e1 = v3.norm(v3.cross(dn, Math.abs(dn[2]) < 0.9 ? [0, 0, 1] : [1, 0, 0])), e2 = v3.cross(dn, e1), N = 6, ring = [];
+      for (let i = 0; i < N; i++) { const a = i / N * TAU; ring.push(v3.add(b, v3.add(v3.mul(e1, Math.cos(a) * r), v3.mul(e2, Math.sin(a) * r)))); }
+      A.decal(v3.mix(b, tip, 0.35), c => { const RR = A.R, tp = A.P(tip), S = ring.map(A.P), fr = [], band = [];
+        for (let i = 0; i < N; i++) { const j = (i + 1) % N, mid = v3.mix(ring[i], ring[j], 0.5); let n = v3.norm(v3.cross(v3.sub(ring[j], tip), v3.sub(ring[i], tip))); if (n[0] * (mid[0] - b[0]) + n[1] * (mid[1] - b[1]) + n[2] * (mid[2] - b[2]) < 0) n = v3.mul(n, -1);
+          const w = [n[0] * RR.sy + n[1] * RR.cy, -n[0] * RR.cy + n[1] * RR.sy, n[2]]; fr.push(-w[1] * CPa + w[2] * SPa > 0); const l = w[0] * LW[0] + w[1] * LW[1] + w[2] * LW[2]; band.push(l > 0.5 ? 2 : l > 0.05 ? 1 : 0); }
+        const COL = ['#050306', '#0E0A10', '#2E2636'];
+        for (let bd = 0; bd < 3; bd++) { let any = false; c.beginPath(); for (let i = 0; i < N; i++) { if (!fr[i] || band[i] !== bd) continue; const j = (i + 1) % N; c.moveTo(tp[0], tp[1]); c.lineTo(S[i][0], S[i][1]); c.lineTo(S[j][0], S[j][1]); c.closePath(); any = true; } if (any) { c.fillStyle = COL[bd]; c.fill(); } }
+        c.lineCap = 'round'; c.lineJoin = 'round'; c.strokeStyle = INK; c.lineWidth = Math.max(1, u * 0.9); c.beginPath();
+        for (let i = 0; i < N; i++) { const h = (i + N - 1) % N; if (fr[i] !== fr[h]) { c.moveTo(tp[0], tp[1]); c.lineTo(S[i][0], S[i][1]); } if (fr[i]) { const j = (i + 1) % N; c.moveTo(S[i][0], S[i][1]); c.lineTo(S[j][0], S[j][1]); } } c.stroke();
+        // the glint down the edge between a lit facet and a darker one; the rim on the shaded silhouette
+        c.lineWidth = Math.max(0.6, u * 0.35); for (let i = 0; i < N; i++) { const h = (i + N - 1) % N; if (fr[i] && fr[h] && band[i] !== band[h] && Math.max(band[i], band[h]) === 2) { c.strokeStyle = 'rgba(170,160,190,0.4)'; c.beginPath(); c.moveTo(tp[0], tp[1]); c.lineTo(S[i][0], S[i][1]); c.stroke(); } else if (fr[i] !== fr[h] && band[fr[i] ? i : h] === 0) { c.strokeStyle = 'rgba(90,74,102,0.8)'; c.beginPath(); c.moveTo(tp[0], tp[1]); c.lineTo(S[i][0] * 0.85 + tp[0] * 0.15, S[i][1] * 0.85 + tp[1] * 0.15); c.stroke(); } } }, z || 0); };
     if (o.dbgNoBody) { out.head = [0, 0]; } else {
-    /* ---- the body: a muscular core, a plated pelvis, pectoral and abdominal plates, a gorget, spiked pauldrons ---- */
-    A.ell(at(0, 0, 0.5), [5.0, 6.4, 4.6], { B: TF.B, ...SK });                                    // the pelvis
-    A.ell(at(0.5, 0, 11.5), [6.4, 8.6, 12.0], { B: TF.B, ...SK });                                 // the core
-    A.ell(at(1.5, 0, 18.5), [6.8, 12.0, 6.4], { B: TF.B, ...SK, spec: 0.2, specR: 0.1 });          // the chest girdle
-    for (let i = 0; i < 3; i++) A.ell(at(5.6 - i * 0.2, 0, 11.5 - i * 3.3), [1.4, 4.0, 1.5], { B: TF.B, ...SK, z: -0.5, inner: c => { const p = A.P(at(5.6 - i * 0.2, 0, 11.5 - i * 3.3)); c.strokeStyle = 'rgba(0,0,0,0.5)'; c.lineWidth = Math.max(0.6, u * 0.5); c.beginPath(); c.moveTo(p[0], p[1] - u * 1.6); c.lineTo(p[0], p[1] + u * 1.6); c.stroke(); } });   // the abdominals
-    for (const q of [-1, 1]) plate([at(5.6, q * 1.6, 21.5), at(4.4, q * 10.5, 20.5), at(5.0, q * 9.5, 15.5), at(6.2, q * 5.0, 13.0), at(6.4, q * 1.4, 14.5)], { z: -1.0 });   // the pectoral plates
-    plate([at(6.6, 0, 23.5), at(6.9, 2.0, 18), at(7.0, 0, 11.5), at(6.9, -2.0, 18)], { z: -1.5, col: '#271742' });   // the sternum crest
-    for (const q of [-1, 1]) { plate([at(2.5, q * 2.5, 2.5), at(1.0, q * 7.8, 3.0), at(0.0, q * 8.0, -3.5), at(2.0, q * 4.0, -4.5)], { z: -0.6 }); }   // the hip plates
-    for (const q of [-1, 1]) plate([at(4.5, q * 3.0, 25.5), at(2.0, q * 12.5, 25.0), at(3.5, q * 9.0, 22.0), at(5.5, q * 3.5, 22.5)], { z: -0.8, col: '#241540' });   // the gorget
-    // the pauldrons: a great jagged plate on each shoulder with two spikes, a second plate under it
-    for (const q of [-1, 1]) { plate([at(2, q * 8.5, 27.5), at(0, q * 13, 32.5), at(-1, q * 17.5, 30.0), at(-3, q * 21.5, 27.0), at(-2.5, q * 20.5, 22.5), at(1.5, q * 12, 22.5)], { z: -1.2 }); plate([at(3.5, q * 11, 23), at(1, q * 20, 24.5), at(0.5, q * 19.5, 19.5), at(3.5, q * 13, 18.5)], { z: -0.7, col: '#1A0E30' }); }
-    /* ---- the head: a narrow jawed skull with a brow plate, two long backswept horns, one violet eye slit ---- */
-    const HC = at(2.5, 0, 32.5), HF = A.frame(HC, Math.sin(t * 0.7) * 0.06, P.headP - P.lean * 0.6, 0), hat = HF.at;
-    A.tube([at(1.5, 0, 25), at(2.2, 0, 29.5)], v => 3.0 - v * 0.6, { ...SK });
-    A.ell(HC, [5.0, 4.4, 5.2], { B: HF.B, ...SK, spec: 0.3, specR: 0.08 });
-    A.ell(hat(3.4, 0, -1.6), [3.4, 2.6, 2.3], { B: HF.B, ...SK, z: -0.4 });                                   // the muzzle and jaw
-    plate([hat(4.6, -3.4, 1.6), hat(4.6, 3.4, 1.6), hat(2.0, 4.6, 4.8), hat(-2.5, 0, 6.0), hat(2.0, -4.6, 4.8)], { z: -0.8, seams: 2 });   // the brow and crown plate
-    for (const q of [-1, 1]) { const hp = A.bez3(hat(0.5, q * 2.6, 3.8), hat(-3, q * 5.2, 8.5), hat(-9, q * 6.0, 10.5), hat(-15, q * 4.5, 13.5), 7); A.tube(hp, v => 1.35 - v * 1.15, { ...SV, z: 0.6 }); }
-    A.mark(hat(4.6, 0, 0.3), HF.B[0], 2.8, (c, r) => { c.globalCompositeOperation = 'lighter'; c.strokeStyle = EDGE; c.lineCap = 'round'; c.lineWidth = Math.max(1.2, r * 0.3); c.beginPath(); c.moveTo(-r, 0.1 * r); c.lineTo(r, 0.1 * r); c.stroke(); c.strokeStyle = ACC; c.lineWidth = Math.max(0.6, r * 0.12); c.beginPath(); c.moveTo(-r * 0.8, 0.1 * r); c.lineTo(r * 0.8, 0.1 * r); c.stroke(); });
-    A.glowAt(hat(3.5, 0, 0.5), 7, EDGE, (0.32 + 0.1 * Math.sin(t * 5)) * GK);
+    /* ---- the body: a tapering waist under a deep ribcage and a broad chest; lats, traps and a plated pelvis ---- */
+    A.ell(at(0, 0, 0.5), [4.8, 6.6, 4.4], { B: TF.B, ...SK });                                    // the pelvis
+    A.ell(at(0.3, 0, 8.5), [4.8, 6.2, 8.0], { B: TF.B, ...SK });                                   // the waist
+    A.ell(at(0.6, 0, 16.5), [6.6, 10.4, 7.6], { B: TF.B, ...SK });                                 // the ribcage
+    A.ell(at(1.2, 0, 21.5), [6.6, 14.0, 5.4], { B: TF.B, ...SK, spec: 0.2, specR: 0.1 });          // the chest
+    for (const q of [-1, 1]) { A.ell(at(-2.4, q * 8.5, 16), [3.6, 4.6, 7.4], { B: TF.B, ...SK, z: 0.3 }); A.ell(at(-1.2, q * 6.8, 26.2), [3.4, 5.4, 2.8], { B: TF.B, ...SK, z: 0.2 }); }   // lats and traps
+    for (const q of [-1, 1]) A.ell(at(4.6, q * 4.8, 21), [2.6, 4.6, 3.4], { B: TF.B, ...SK, z: -0.4 });   // the pectorals
+    for (let i = 0; i < 3; i++) for (const q of [-1, 1]) A.ell(at(4.6 - i * 0.3, q * 1.8, 13 - i * 2.9), [1.2, 2.2, 1.7], { B: TF.B, ...SK, glowCol: null, hi: '#B02428', z: -0.5 });   // the abdominals
+    for (const q of [-1, 1]) plate([at(6.0, q * 1.4, 25), at(4.8, q * 11.5, 24.5), at(5.6, q * 10.0, 18.5), at(6.4, q * 4.6, 17.0), at(6.6, q * 1.2, 19)], { z: -1.0 });   // the breastplates
+    plate([at(6.9, 0, 26.5), at(7.2, 1.8, 21), at(7.3, 0, 15.5), at(7.2, -1.8, 21)], { z: -1.5 });   // the sternum crest
+    for (const q of [-1, 1]) plate([at(2.5, q * 2.5, 2.5), at(1.0, q * 7.8, 3.0), at(0.0, q * 8.0, -3.5), at(2.0, q * 4.0, -4.5)], { z: -0.6 });   // the hip plates
+    for (const q of [-1, 1]) plate([at(4.5, q * 3.0, 27.5), at(2.0, q * 12.5, 27.0), at(3.5, q * 9.0, 24.0), at(5.5, q * 3.5, 24.5)], { z: -0.8 });   // the gorget
+    // the pauldrons: a great jagged plate on each shoulder, a second under it, three spikes raking up and out
+    for (const q of [-1, 1]) { plate([at(2, q * 9, 29), at(0, q * 13.5, 33.5), at(-1, q * 18, 31.5), at(-3, q * 22, 28.0), at(-2.5, q * 21, 23.5), at(1.5, q * 12, 24)], { z: -1.2 }); plate([at(3.5, q * 12, 24.5), at(1, q * 21, 26), at(0.5, q * 20.5, 21), at(3.5, q * 13.5, 20)], { z: -0.7 });
+      for (let k = 0; k < 3; k++) spike(at(-0.5 - k * 0.6, q * (13.5 + k * 3), 31.5 - k * 1.8), dir(-0.3, q * (0.4 + k * 0.2), 0.88 - k * 0.12), 10 - k * 2, 1.9 - k * 0.25, -1.4); }
+    if (CEL) { for (const q of [-1, 1]) { for (let k = 0; k < 3; k++) spike(at(5.9 - k * 0.2, q * (4 + k * 2.6), 23.5 - k * 2.2), dir(0.75, q * 0.6, 0.35), 3.4 - k * 0.5, 0.85, -1.3); for (let k = 0; k < 4; k++) spike(at(-4.6 + k * 0.4, q * 3.6, 24 - k * 5), dir(-0.75, q * 0.45, 0.8), 5.4 - k * 0.8, 1.15 - k * 0.12, 0.25); } }
+    // the spine: a row of spikes down the back, raked back and up
+    for (let k = 0; k < 5; k++) spike(at(-5.6 + k * 0.4, 0, 27 - k * 5), dir(-0.75, 0, 1 - k * 0.12), 8 - k * 1.0, 1.7 - k * 0.18, 0.2);
+    /* ---- the head: a heavy skull, a black brow plate, two long backswept horns, and for a face an empty black hole
+       with a violet light deep inside it ---- */
+    const HC = at(2.5, 0, 34.5), HF = A.frame(HC, Math.sin(t * 0.7) * 0.06, P.headP - P.lean * 0.6, 0), hat = HF.at;
+    A.tube([at(1.5, 0, 27), at(2.2, 0, 31.5)], v => 3.4 - v * 0.6, { ...SK });
+    A.ell(HC, [5.0, 4.6, 5.4], { B: HF.B, ...SK, spec: 0.25, specR: 0.08 });
+    A.ell(hat(2.8, 0, -2.4), [3.2, 3.2, 2.4], { B: HF.B, ...SK, z: -0.3 });                                   // the jaw
+    plate([hat(4.2, -3.6, 2.4), hat(4.4, 3.6, 2.4), hat(2.0, 4.8, 5.0), hat(-2.5, 0, 6.2), hat(2.0, -4.8, 5.0)], { z: -0.9, seams: 0 });   // the brow and crown plate
+    const hk = CEL ? 1.45 : 1; for (const q of [-1, 1]) { const hp = A.bez3(hat(0.5, q * 2.8, 4.0), hat(-3 * hk, q * 5.6 * hk, 8.8 * hk), hat(-9 * hk, q * 6.4 * hk, 10.8 * hk), hat(-15 * hk, q * 4.8 * hk, 13.8 * hk), 7); A.tube(hp, v => (1.5 - v * 1.3) * (CEL ? 1.2 : 1), { ...SV, z: 0.6, spec: 0.5, specAt: A.P(hp[2]) });
+      if (CEL) { const h2 = A.bez3(hat(-1.0, q * 3.8, 1.2), hat(-4.5, q * 7.5, 2.8), hat(-9, q * 8.6, 3.4), hat(-12.5, q * 7.6, 6.4), 6); A.tube(h2, v => 1.2 - v * 1.05, { ...SV, z: 0.9 }); } }
+    { const fK = 0.75 + 0.25 * Math.sin(t * 3.2) + 0.7 * (o.charge || 0) + 0.9 * (o.flare || 0);
+      A.mark(hat(4.95, 0, -0.4), HF.B[0], 3.9, (c, r, face) => {
+        // the hole: where a face should be, a void that falls off softly into black (no lip, no eyes)
+        c.drawImage(voidSpr(), -r * 1.0, -r * 1.25, r * 2.0, r * 2.5); c.drawImage(voidSpr(), -r * 0.7, -r * 0.95, r * 1.4, r * 1.9);
+        // the light deep inside: a soft violet glow, a small pale centre; it breathes, and flares with the charge and the throw
+        c.globalCompositeOperation = 'lighter'; c.globalAlpha *= Math.min(1, 0.4 + 0.6 * face);
+        const gr = r * (0.42 + 0.2 * fK); c.globalAlpha *= 0.85; c.drawImage(glowSprite(EDGE), -gr, -gr * 1.1 + r * 0.1, gr * 2, gr * 2.2);
+        const gc = r * (0.15 + 0.1 * fK); c.drawImage(glowSprite(ACC), -gc, -gc + r * 0.1, gc * 2, gc * 2); }, -0.3);
+      A.glowAt(hat(4.6, 0, -0.2), 4 + 4 * fK, EDGE, (0.18 + 0.25 * fK) * GK); }
     out.head = A.P(HC);
-    /* ---- the arms: thick upper arms, bracers of jagged plates over the forearms, long clawed hands ---- */
+    /* ---- the arms: deltoids, heavy biceps, forearm bracers with spikes, an elbow spike, long black claws ---- */
     const LU = 17, LF = 16, LH = 5.5;
     for (const q of [-1, 1]) {
-      const sh = at(0, q * 13.5, 24.5), du = v3.norm(dir(P.armU[0], q * P.armU[1], P.armU[2])), df = v3.norm(dir(P.armF[0], q * P.armF[1], P.armF[2]));
+      const sh = at(0, q * 14.5, 25), du = v3.norm(dir(P.armU[0], q * P.armU[1], P.armU[2])), df = v3.norm(dir(P.armF[0], q * P.armF[1], P.armF[2]));
       const el = v3.add(sh, v3.mul(du, LU)), wr = v3.add(el, v3.mul(df, LF)), pn = v3.norm(dir(P.palmN[0], q * P.palmN[1], P.palmN[2])), fd = v3.norm(dir(P.fing[0], q * P.fing[1], P.fing[2]));
       const side = v3.norm(v3.cross(pn, df)), up = v3.norm(v3.cross(du, v3.norm(v3.cross(du, [0, q, 0]))));
-      A.tube([sh, v3.mix(sh, el, 0.5), el], v => 2.8 - v * 1.0, { ...SK });
-      A.ell(v3.mix(sh, el, 0.42), [2.4, 2.4, 3.4], { B: [up, side, du], ...SK, z: -0.3 });                      // the bicep
-      joint(el, 0.95, 0.3);
-      A.tube([el, v3.mix(el, wr, 0.5), wr], v => 1.9 - v * 0.6, { ...SK });
-      // the bracer: two jagged plates along the outside of the forearm, the inner one lapping the wrist
+      A.sphere(v3.add(sh, v3.mul(du, 2)), 4.0, { ...SK, glowCol: null, z: -0.3 });                                            // the deltoid
+      A.tube([sh, v3.mix(sh, el, 0.5), el], v => 3.0 - v * 1.0, { ...SK });
+      A.ell(v3.mix(sh, el, 0.45), [2.8, 2.6, 4.2], { B: [up, side, du], ...SK, z: -0.3 });                      // the bicep
+      if (CEL) { for (let k = 0; k < 2; k++) { const ob = v3.mul(side, -q), bp = v3.add(v3.mix(sh, el, 0.35 + k * 0.3), v3.mul(v3.norm(v3.add(ob, v3.mul(up, -0.2))), 2.6)); spike(bp, v3.add(v3.norm(v3.add(ob, v3.mul(up, -0.2))), v3.mul(du, -0.4)), 4.2 - k * 0.6, 0.95, -0.7); } }
+      joint(el, 1.6);
+      A.tube([el, v3.mix(el, wr, 0.5), wr], v => 2.3 - v * 0.8, { ...SK });
+      A.ell(v3.mix(el, wr, 0.3), [2.3, 2.3, 3.8], { B: [v3.norm(v3.cross(df, side)), side, df], ...SK, z: -0.2 });   // the forearm's mass
+      // the bracer: jagged plates along the outside of the forearm, a row of spikes along its ridge
       const fs = v3.norm(v3.cross(df, du[2] > 0.9 ? [1, 0, 0] : [0, 0, 1])), fo = v3.norm(v3.cross(fs, df)), b0 = v3.mix(el, wr, 0.18), b1 = v3.mix(el, wr, 0.62), b2 = v3.mix(el, wr, 0.98);
-      plate([v3.add(b0, v3.mul(fo, 1.8)), v3.add(b1, v3.add(v3.mul(fo, 2.6), v3.mul(fs, 1.6))), v3.add(b1, v3.add(v3.mul(fo, 1.2), v3.mul(fs, 2.4))), v3.add(b0, v3.add(v3.mul(fo, 0.6), v3.mul(fs, 2.2)))], { z: -0.6 });
-      plate([v3.add(b1, v3.mul(fo, 2.4)), v3.add(b2, v3.add(v3.mul(fo, 2.0), v3.mul(fs, 1.4))), v3.add(b2, v3.add(v3.mul(fo, 0.4), v3.mul(fs, 2.0))), v3.add(b1, v3.add(v3.mul(fo, 0.8), v3.mul(fs, 2.4)))], { z: -0.7, col: '#1A0E30' });
-      plate([v3.add(b0, v3.mul(fo, -1.6)), v3.add(b1, v3.add(v3.mul(fo, -2.2), v3.mul(fs, -1.4))), v3.add(b1, v3.add(v3.mul(fo, -0.8), v3.mul(fs, -2.2))), v3.add(b0, v3.add(v3.mul(fo, -0.4), v3.mul(fs, -2.0)))], { z: -0.6, seams: 0 });
-      joint(wr, 0.7, 0.25);
-      // the hand: a palm, three long claws and a thumb, curling toward the palm's normal
+      plate([v3.add(b0, v3.mul(fo, 2.0)), v3.add(b1, v3.add(v3.mul(fo, 2.8), v3.mul(fs, 1.6))), v3.add(b1, v3.add(v3.mul(fo, 1.2), v3.mul(fs, 2.6))), v3.add(b0, v3.add(v3.mul(fo, 0.6), v3.mul(fs, 2.4)))], { z: -0.6 });
+      plate([v3.add(b1, v3.mul(fo, 2.6)), v3.add(b2, v3.add(v3.mul(fo, 2.0), v3.mul(fs, 1.4))), v3.add(b2, v3.add(v3.mul(fo, 0.4), v3.mul(fs, 2.0))), v3.add(b1, v3.add(v3.mul(fo, 0.8), v3.mul(fs, 2.6)))], { z: -0.7 });
+      plate([v3.add(b0, v3.mul(fo, -1.8)), v3.add(b1, v3.add(v3.mul(fo, -2.4), v3.mul(fs, -1.4))), v3.add(b1, v3.add(v3.mul(fo, -0.8), v3.mul(fs, -2.4))), v3.add(b0, v3.add(v3.mul(fo, -0.4), v3.mul(fs, -2.2)))], { z: -0.6, seams: 0 });
+      for (let k = 0; k < 3; k++) spike(v3.add(v3.mix(el, wr, 0.22 + k * 0.26), v3.mul(fo, 2.2)), v3.add(fo, v3.mul(df, -0.6)), 5.5 - k * 0.8, 1.25 - k * 0.1, -0.9);
+      spike(v3.add(el, v3.mul(du, 0.5)), v3.add(du, v3.mul(df, -0.8)), 6.5, 1.5, -0.5);                         // the elbow spike
+      // the hand: a palm, three long black claws and a thumb, curling toward the palm's normal
       const pc = v3.add(wr, v3.mul(df, LH * 0.5));
-      A.ell(pc, [LH * 0.55, 1.9, 0.8], { B: [df, side, pn], ...SK, z: -0.2 });
+      A.ell(pc, [LH * 0.55, 2.0, 0.9], { B: [df, side, pn], ...SK, z: -0.2 });
       const pe = v3.add(wr, v3.mul(df, LH));
-      for (let i = 0; i < 3; i++) { const b = v3.add(pe, v3.mul(side, (i - 1) * 1.4)), m = v3.add(b, v3.add(v3.mul(fd, 4.0), v3.mul(side, (i - 1) * 1.4))), tp = v3.add(m, v3.add(v3.mul(fd, 4.2), v3.add(v3.mul(side, (i - 1) * 0.8), v3.mul(pn, -2.6)))); A.tube([b, m, tp], v => 0.72 - v * 0.55, { ...SV, glowCol: null, z: -0.4 }); }
-      { const b = v3.add(wr, v3.add(v3.mul(df, LH * 0.3), v3.mul(side, -2.0))), tp = v3.add(b, v3.add(v3.mul(side, -2.6), v3.add(v3.mul(fd, 3.8), v3.mul(pn, -1.8)))); A.tube([b, v3.mix(b, tp, 0.5), tp], v => 0.62 - v * 0.42, { ...SV, glowCol: null, z: -0.4 }); }
+      for (let i = 0; i < 3; i++) { const b = v3.add(pe, v3.mul(side, (i - 1) * 1.4)), m = v3.add(b, v3.add(v3.mul(fd, 4.0), v3.mul(side, (i - 1) * 1.4))), tp = v3.add(m, v3.add(v3.mul(fd, 4.2), v3.add(v3.mul(side, (i - 1) * 0.8), v3.mul(pn, -2.6)))); A.tube([b, m], v => 0.85 - v * 0.15, { ...SK, z: -0.4 }); A.tube([m, v3.mix(m, tp, 0.5), tp], v => 0.7 - v * 0.6, { ...SV, z: -0.45 }); }
+      { const b = v3.add(wr, v3.add(v3.mul(df, LH * 0.3), v3.mul(side, -2.0))), tp = v3.add(b, v3.add(v3.mul(side, -2.6), v3.add(v3.mul(fd, 3.8), v3.mul(pn, -1.8)))); A.tube([b, v3.mix(b, tp, 0.5), tp], v => 0.7 - v * 0.5, { ...SV, z: -0.4 }); }
       out[q > 0 ? 'handR' : 'handL'] = A.P(pe);
     }
-    /* ---- the legs: plated thighs, jagged greaves, taloned feet ---- */
+    /* ---- the legs: quads and calves, plated thighs, jagged greaves, a knee spike, black talons ---- */
     for (const q of [-1, 1]) {
-      const hp = at(-0.5, q * 4.0, -1), du = v3.norm(dir(P.legU[0], q * P.legU[1], P.legU[2])), dl = v3.norm(dir(P.legL[0], q * P.legL[1], P.legL[2]));
+      const hp = at(-0.5, q * 4.4, -1), du = v3.norm(dir(P.legU[0], q * P.legU[1], P.legU[2])), dl = v3.norm(dir(P.legL[0], q * P.legL[1], P.legL[2]));
       const kn = v3.add(hp, v3.mul(du, 15)), an = v3.add(kn, v3.mul(dl, 15));
-      A.tube([hp, v3.mix(hp, kn, 0.5), kn], v => 2.7 - v * 0.9, { ...SK, z: 0.4 });
-      const ts = v3.norm(v3.cross(du, [0, q, 0])), to = v3.norm(v3.cross(ts, du)); const tf = v3.norm([to[0], to[1], 0]);
-      { const b0 = v3.mix(hp, kn, 0.15), b1 = v3.mix(hp, kn, 0.75); plate([v3.add(b0, v3.add(v3.mul(tf, 2.4), v3.mul(ts, -q * 0.5))), v3.add(b1, v3.add(v3.mul(tf, 2.2), v3.mul(ts, -q * 1.6))), v3.add(b1, v3.add(v3.mul(tf, 1.2), v3.mul(ts, q * 1.8))), v3.add(b0, v3.add(v3.mul(tf, 1.6), v3.mul(ts, q * 2.2)))], { z: -0.2 }); }
-      joint(kn, 0.9, 0.22);
-      A.tube([kn, v3.mix(kn, an, 0.5), an], v => 1.8 - v * 0.6, { ...SK, z: 0.4 });
-      { const ss = v3.norm(v3.cross(dl, [0, q, 0])), so = v3.norm(v3.cross(ss, dl)), sf = v3.norm([so[0], so[1], 0]), b0 = v3.mix(kn, an, 0.1), b1 = v3.mix(kn, an, 0.9); plate([v3.add(b0, v3.add(v3.mul(sf, 1.8), v3.mul(ss, -q * 0.8))), v3.add(v3.mix(kn, an, 0.5), v3.add(v3.mul(sf, 2.6), v3.mul(ss, -q * 1.4))), v3.add(b1, v3.add(v3.mul(sf, 1.4), v3.mul(ss, -q * 0.6))), v3.add(b1, v3.add(v3.mul(sf, 1.0), v3.mul(ss, q * 1.4))), v3.add(b0, v3.add(v3.mul(sf, 1.2), v3.mul(ss, q * 1.6)))], { z: -0.3, seams: 2 }); }
-      // the foot: an ankle, a long foot bone forward and down, three talons and a dew claw behind
-      const ff = v3.norm(v3.add(v3.mul(dir(1, 0, 0), 1), v3.mul(dl, 0.5))), ft = v3.add(an, v3.mul(ff, 4.5));
-      A.tube([an, ft], v => 1.4 - v * 0.3, { ...SK, z: 0.3 });
-      for (let i = 0; i < 3; i++) { const sd = v3.mul(ts, (i - 1) * 1.6), b = v3.add(ft, sd), tp = v3.add(b, v3.add(v3.mul(ff, 3.6), v3.add(v3.mul(sd, 0.4), v3.mul(dl, 1.2)))); A.tube([b, v3.mix(b, tp, 0.5), tp], v => 0.75 - v * 0.6, { ...SV, glowCol: null, z: 0.2 }); }
+      const ts = v3.norm(v3.cross(du, [0, q, 0])), to = v3.norm(v3.cross(ts, du)), tf = v3.norm([to[0], to[1], 0]);
+      A.tube([hp, v3.mix(hp, kn, 0.5), kn], v => 3.2 - v * 1.2, { ...SK, z: 0.4 });
+      A.ell(v3.mix(hp, kn, 0.4), [3.4, 3.2, 5.6], { B: [tf, v3.norm(v3.cross(du, tf)), du], ...SK, z: 0.3 });   // the quadriceps
+      if (CEL) for (let k = 0; k < 2; k++) { const og = v3.norm(v3.add(v3.mul(ts, q), v3.mul(tf, 0.4))); spike(v3.add(v3.mix(hp, kn, 0.3 + k * 0.32), v3.mul(og, 2.9)), v3.add(og, v3.mul(du, 0.5)), 4.2 - k * 0.5, 0.95, -0.4); }
+      { const b0 = v3.mix(hp, kn, 0.15), b1 = v3.mix(hp, kn, 0.75); plate([v3.add(b0, v3.add(v3.mul(tf, 3.0), v3.mul(ts, -q * 0.5))), v3.add(b1, v3.add(v3.mul(tf, 2.6), v3.mul(ts, -q * 1.6))), v3.add(b1, v3.add(v3.mul(tf, 1.4), v3.mul(ts, q * 1.8))), v3.add(b0, v3.add(v3.mul(tf, 2.0), v3.mul(ts, q * 2.4)))], { z: -0.2 }); }
+      joint(kn, 1.5);
+      spike(v3.add(kn, v3.mul(tf, 1.4)), v3.add(tf, v3.mul(du, 0.45)), 6, 1.5, -0.6);                           // the knee spike
+      A.tube([kn, v3.mix(kn, an, 0.5), an], v => 2.2 - v * 0.9, { ...SK, z: 0.4 });
+      A.ell(v3.mix(kn, an, 0.32), [2.4, 2.3, 4.0], { B: [v3.mul(tf, -1), v3.norm(v3.cross(dl, tf)), dl], ...SK, z: 0.45 });   // the calf
+      { const ss = v3.norm(v3.cross(dl, [0, q, 0])), so = v3.norm(v3.cross(ss, dl)), sf = v3.norm([so[0], so[1], 0]), b0 = v3.mix(kn, an, 0.1), b1 = v3.mix(kn, an, 0.9); plate([v3.add(b0, v3.add(v3.mul(sf, 1.9), v3.mul(ss, -q * 0.8))), v3.add(v3.mix(kn, an, 0.5), v3.add(v3.mul(sf, 2.7), v3.mul(ss, -q * 1.4))), v3.add(b1, v3.add(v3.mul(sf, 1.4), v3.mul(ss, -q * 0.6))), v3.add(b1, v3.add(v3.mul(sf, 1.0), v3.mul(ss, q * 1.4))), v3.add(b0, v3.add(v3.mul(sf, 1.2), v3.mul(ss, q * 1.6)))], { z: -0.3, seams: 2 }); }
+      // the foot: a long foot bone forward and down, three black talons
+      const ff = v3.norm(v3.add(dir(1, 0, 0), v3.mul(dl, 0.5))), ft = v3.add(an, v3.mul(ff, 4.5));
+      A.tube([an, ft], v => 1.5 - v * 0.3, { ...SK, z: 0.3 });
+      for (let i = 0; i < 3; i++) { const sd = v3.mul(ts, (i - 1) * 1.6), b = v3.add(ft, sd), tp = v3.add(b, v3.add(v3.mul(ff, 3.6), v3.add(v3.mul(sd, 0.4), v3.mul(dl, 1.2)))); A.tube([b, v3.mix(b, tp, 0.5), tp], v => 0.85 - v * 0.7, { ...SV, z: 0.2 }); }
       out[q > 0 ? 'footR' : 'footL'] = A.P(ft);
     }
-    /* ---- the tail: a long whip from the pelvis, trailing through the poses, a barbed tip ---- */
+    /* ---- the tail: a long whip from the pelvis, trailing through the poses, black spikes along it, a barbed tip ---- */
     { const lift = 0.3 + P.lean * 0.9 + (P.wFold || 0) * 0.3, sw = 0.6 + Math.sin(t * 1.9) * 0.5, sw2 = 0.8 + Math.sin(t * 1.9 - 1.1) * 0.9;
       const tp = A.bez3(at(-4, 0, -1), at(-12, sw * 7, -7 + lift * 8), at(-18, sw2 * 14, -12 + lift * 22), at(-16 + lift * 6, sw2 * 20, -16 + lift * 36), 10);
-      A.tube(tp, v => 1.8 - v * 1.4, { ...SK, z: 1.0 });
-      for (let i = 3; i < 9; i += 3) joint(tp[i], 0.5, 0.12);
-      const e = tp[10], d = v3.norm(v3.sub(tp[10], tp[9])), sd = v3.norm(v3.cross(d, [0, 0, 1])); plate([v3.add(e, v3.mul(d, 5.5)), v3.add(e, v3.add(v3.mul(sd, 2.2), v3.mul(d, -0.5))), v3.add(e, v3.mul(d, -1.5)), v3.add(e, v3.add(v3.mul(sd, -2.2), v3.mul(d, -0.5)))], { z: 0.9, col: '#120826', seams: 1 }); }
+      A.tube(tp, v => 2.1 - v * 1.6, { ...SK, z: 1.0 });
+      for (let i = 2; i < 10; i += 2) { const d = v3.norm(v3.sub(tp[i + 1], tp[i - 1])), up = v3.norm(v3.sub([0, 0, 1], v3.mul(d, d[2]))); spike(tp[i], v3.add(up, v3.mul(d, -0.5)), 4.6 - i * 0.25, 1.2 - i * 0.07, 0.9); }
+      const e = tp[10], d = v3.norm(v3.sub(tp[10], tp[9])), sd = v3.norm(v3.cross(d, [0, 0, 1])); plate([v3.add(e, v3.mul(d, 5.5)), v3.add(e, v3.add(v3.mul(sd, 2.4), v3.mul(d, -0.8))), v3.add(e, v3.mul(d, -1.5)), v3.add(e, v3.add(v3.mul(sd, -2.4), v3.mul(d, -0.8)))], { z: 0.9, seams: 1 }); }
     }
     /* ---- the wings: feathers as cached sprites laid over their true quads, the arm as tubes, joints lit ---- */
     if (o.dbgNoWings) { out.tips = []; return; }
     const plan = planOf(ev), tipsOut = out.tips = [];
     for (const q of [-1, 1]) {
-      const root = at(-6, q * 9, 24.5), WF = wingFrames(root, q, o.wz, P.wFold), fan = P.wFan;
+     for (let pk = (o.wzs || [o.wz]).length - 1; pk >= 0; pk--) {
+      const wsc = [1, 0.8, 0.64][pk], root = at(-6 - pk * 1.8, q * (9.0 - pk * 1.4), 25 - pk * 8), WF = wingFrames(root, q, (o.wzs || [o.wz])[pk], P.wFold, wsc), fan = P.wFan, zp = pk * 0.9;
       plan.forEach((fe, j) => {
-        let [x, y, a, L, w, kind, row] = fe; if (LOW && row >= 3) return; const i = WF.seg(x);
+        let [x, y, a, L, w, kind, row] = fe; if ((LOW && row >= 3) || (pk > 0 && row >= 2) || (pk > 1 && row === 1 && j % 2)) return; const i = WF.seg(x);
         // the primaries spread apart as the wing fans; a dissolving feather falls away and fades
         if (row === 0) a += (fe[0] - XW) / (XT - XW) * (0.2 - 0.3 * fan) - 0.1 * (1 - fan);
         let off = null, al = 1; if (dis > 0) { const st = 0.05 + R1(j * 1.7 + (q > 0 ? 0.3 : 0)) * 0.6, s = Math.max(0, (dis - st) / 0.35); if (s > 0) { al = 1 - cl(s); if (al <= 0.02) return; a += s * (j % 2 ? 0.6 : -0.6); off = [-s * 6, q * s * 4, -s * s * 14 - s * 3]; } }
         const rt = WF.W(i, x, y), ex = [Math.cos(a), Math.sin(a)], tp = WF.W(i, x + ex[0] * L, y + ex[1] * L), sd = WF.W(i, x - ex[1] * w, y + ex[0] * w);
         const r3 = off ? v3.add(rt, off) : rt, t3 = off ? v3.add(tp, off) : tp, s3 = off ? v3.add(sd, off) : sd, mid = v3.mix(r3, t3, 0.5);
-        if (row === 0 && j < 3) tipsOut.push(A.P(t3));
-        const tone = (CEL && row === 0 && j % 2 === 0) || (seamK > 0 && row === 2 && j % 2) ? 2 : row === 1 ? 1 : 0, spr = featherSpr(kind, tone), zr = [0.6, 0.35, 0.1, -0.1, -0.3][row];
+        if (pk === 0 && row === 0 && j < 3) tipsOut.push(A.P(t3));
+        const tone = (CEL && row === 0 && j % 2 === 0) || (seamK > 0 && row === 2 && j % 2) ? 2 : row === 1 ? 1 : 0, spr = featherSpr(kind, tone), zr = [0.6, 0.35, 0.1, -0.1, -0.3][row] + zp;
         A.decal(mid, (c, p) => { const b = A.P(r3), e = A.P(t3), s = A.P(s3); const ax = (e[0] - b[0]) / FW, ay = (e[1] - b[1]) / FW, bx = (s[0] - b[0]) / (FH / 2), by = (s[1] - b[1]) / (FH / 2); if (Math.abs(ax * by - ay * bx) < 1e-5) return; c.globalAlpha = R.alpha * al; c.transform(ax, ay, bx, by, b[0] - bx * FH / 2, b[1] - by * FH / 2); c.drawImage(spr, 0, 0); }, zr);
       });
       // the arm: shoulder to elbow to wrist to the hand's tip, thinning; lit joints
-      const J = WF.J; A.tube([J[0], v3.mix(J[0], J[1], 0.5), J[1]], v => 2.2 - v * 0.4, { ...SK, z: -0.2 }); A.tube([J[1], v3.mix(J[1], J[2], 0.5), J[2]], v => 1.8 - v * 0.5, { ...SK, z: -0.25 }); A.tube([J[2], v3.mix(J[2], J[3], 0.5), J[3]], v => 1.3 - v * 1.0, { ...SV, z: -0.3 });
-      joint(J[1], 1.1, 0.25); joint(J[2], 0.9, 0.22);
+      const J = WF.J; A.tube([J[0], v3.mix(J[0], J[1], 0.5), J[1]], v => (2.4 - v * 0.5) * wsc, { ...SV, z: -0.2 + zp }); A.tube([J[1], v3.mix(J[1], J[2], 0.5), J[2]], v => (1.9 - v * 0.5) * wsc, { ...SV, z: -0.25 + zp }); A.tube([J[2], v3.mix(J[2], J[3], 0.5), J[3]], v => (1.3 - v * 1.0) * wsc, { ...SV, z: -0.3 + zp });
+     }
     }
-    // a dark aura behind the body (so it reads on a bright floor) and the violet light within the chest
-    A.glowAt(at(0, 0, 14), 30, ENERGY, (0.3 + 0.15 * (o.charge || 0)) * GK, true); A.glowAt(at(0, 0, 16), 14, EDGE, 0.14 * GK, true);
-    A.glowAt(at(5, 0, 17), 5 + 3 * (o.charge || 0), EDGE, (0.25 + 0.4 * (o.charge || 0)) * GK);
+    // a violet aura of energy behind the body (it lifts the dark silhouette off a dark floor)
+    A.glowAt(at(0, 0, 14), 30, ENERGY, (0.22 + 0.15 * (o.charge || 0)) * GK, true);
   };
   Anima3D.MODELS.fedemon.yaw = 0.3;
   /* draw the demon: at screen (X, Y) (its hips' floor point, feet at h 0), hgt tiles tall (its body, hips to crown), at
      game time t; S = { KF (keyframes), ev, alpha, dis, seam, charge, yaw, hovK } */
   function drawDemon(c, X, Y, T, hgt, t, S) {
-    const pose = poseAt(S.KF, t), wz = [];
-    for (let i = 0; i < 3; i++) { const p = poseAt(S.KF, t - 0.055 * i), hv = p.hov * (S.hovK == null ? 1 : S.hovK); wz.push({ el: p.wEl + Math.sin(t * 5.2 - i * 0.7) * 0.2 * hv + Math.sin(t * 2.3) * 0.04 * hv, sw: p.wSw + Math.sin(t * 5.2 - i * 0.7 - 1.2) * 0.06 * hv }); }
+    const pose = poseAt(S.KF, t), ev = S.ev || 1, NP = ev >= 7 ? 3 : ev >= 4 ? 2 : 1, wzs = [];
+    for (let k = 0; k < NP; k++) { const wz = [], tk = t - 0.13 * k; for (let i = 0; i < 3; i++) { const p = poseAt(S.KF, tk - 0.055 * i), hv = p.hov * (S.hovK == null ? 1 : S.hovK); wz.push({ el: p.wEl - 0.55 * k + Math.sin(tk * 5.2 - i * 0.7) * 0.2 * hv + Math.sin(tk * 2.3) * 0.04 * hv, sw: p.wSw + 0.3 * k + Math.sin(tk * 5.2 - i * 0.7 - 1.2) * 0.06 * hv }); } wzs.push(wz); }
+    const wz = wzs[0];
     const out = {}, size = hgt * T * 110 / 62;
-    Anima3D.draw(c, 'fedemon', 1, X, Y, size, t, { yaw: S.yaw == null ? 0.3 : S.yaw, alpha: S.alpha == null ? 1 : S.alpha, pose, wz, ev: S.ev || 1, out, dis: S.dis || 0, seam: S.seam || 0, charge: S.charge || 0, glowK: S.glowK, dbgNoBody: S.dbgNoBody, dbgNoWings: S.dbgNoWings });
+    Anima3D.draw(c, 'fedemon', 1, X, Y, size, t, { yaw: S.yaw == null ? 0.3 : S.yaw, alpha: S.alpha == null ? 1 : S.alpha, pose, wz, wzs, ev, out, dis: S.dis || 0, seam: S.seam || 0, charge: S.charge || 0, flare: S.flare || 0, glowK: S.glowK, dbgNoBody: S.dbgNoBody, dbgNoWings: S.dbgNoWings });
     return out;
   }
 
@@ -285,7 +330,7 @@
     // the beats: the sphere forms, the drop and the downbeat, the raise (held a beat longer at Celestial), brace, throw, impact
     const T_DROP = 0.6, T_BEAT = 1.05, T_RAISE = 1.6, TB = CEL ? 2.85 : 2.6, T_THROW = TB + 0.42, IMP = T_THROW + 0.3, LIFE = IMP + (CEL ? 2.4 : 1.7);
     const KF = [[T_DROP, 'fall'], [T_BEAT - 0.1, 'fall'], [T_BEAT, 'beat'], [T_BEAT + 0.14, 'beat'], [T_BEAT + 0.42, 'hover'], [T_RAISE, 'hover'], [T_RAISE + 0.5, 'raise'], [TB, 'raise'], [TB + 0.22, 'brace'], [TB + 0.32, 'brace'], [T_THROW, 'throw'], [T_THROW + 0.35, 'throw'], [IMP + 0.12, 'throw'], [IMP + 0.55, 'dissolve']];
-    const RB = (0.95 + 0.08 * (ev - 1)) * Math.sqrt(K), HBW = 1.9 + 0.17 * (ev - 1);   // the sphere's radius (tiles), the demon's wanted height (hips to crown, tiles)
+    const RB = (0.95 + 0.08 * (ev - 1)) * Math.sqrt(K), SZ = ev <= 4 ? 1 + 0.5 * (ev - 1) / 3 : 1.5 + (ev - 4) / 3, HBW = 1.9 * SZ;   // the sphere's radius (tiles), the demon's wanted height (hips to crown, tiles)
     H.X.banner('FINAL ECLIPSE', '', C.col, 1.5); H.X.sfx.hum(); H.warn(x, y, R, IMP, C.col);
     for (let k = 0; k < 3; k++) for (let tn = 0; tn < 3; tn++) featherSpr(k, tn); bodySpr(); shadeSpr(); haloSpr(); bandSpr(); bandLSpr(); puffSpr(); dpuffSpr(); streakSpr(); wallSpr();
     const lats = [-0.95, -0.55, -0.2, 0.15, 0.5, 0.85], curls = [], orb = [];
@@ -323,7 +368,7 @@
           c.restore();
           // the sphere's shadow, and the demon's smaller one (denser as the sphere nears the ground)
           const S = f.sph(tt); g.shadow(c, X, Y, T * S.r * 1.1 * S.sx, T * S.r * 1.1 * S.sx * H.GY, S.z * 1.4, 0.18 + 0.4 * (tt > T_THROW ? cl((tt - T_THROW) / (IMP - T_THROW)) : 0));
-          if (tt > T_DROP) g.shadow(c, X, Y + T * 0.1, T * f.HB * 0.5, T * f.HB * 0.5 * H.GY, f.dz(tt) * 1.5, 0.22 * cl((tt - T_DROP) / 0.3));
+          if (tt > T_DROP) g.shadow(c, X, Y + T * 0.1, T * f.HB * 0.5, T * f.HB * 0.5 * H.GY, Math.max(0, f.dz(tt)) * 1.5 + f.HB, 0.22 * cl((tt - T_DROP) / 0.3));
           return;
         }
         const post = tt - IMP, endK = cl((LIFE - tt) / 0.5);
@@ -337,7 +382,9 @@
       draw(c, f, X, Y, T, t) {
         const tt = f.t, SC = scr(c), PX = H.sx(me.x), PY = H.sy(me.y) - T * 0.5;
         // the layout, once: the sphere's top just under the HUD; the demon sized so its raised hands reach near the underside
-        if (!f.ZS) { const roomT = (Y - (SC.y0 + T * 3.0)) / T + 0.4; f.HB = Math.min(HBW, Math.max(1.5, (roomT - 0.45) * 0.4)); f.RB = Math.max(0.6, Math.min(RB, (roomT - 0.45 - 1.15 * f.HB) / 2.6)); f.ZS = (0.45 + 1.15 * f.HB + 1.3 * f.RB) / CE; }
+        // (recomputed every frame and eased: the camera follows the pet, so the room above the aim changes during the cast)
+        { const roomT = (Y - (SC.y0 + T * 3.5)) / T, B = Math.max(0.55, Math.min(1.9, (roomT - 1.85 * 0.66) / (1.27 * 2.5))), HBt = B * SZ, ZHt = -0.35 * HBt / CE, RBt = Math.max(0.66, Math.min(RB, (roomT - 1.27 * HBt) / 1.85)), ZSt = (ZHt * CE + 1.62 * HBt + 0.85 * RBt) / CE;
+          const k = !f.ZS ? 1 : 1 - Math.exp(-Math.max(0, tt - (f.lt || 0)) * 5); f.lt = tt; f.HB += (HBt - f.HB) * k; f.ZH += (ZHt - f.ZH) * k; f.RB += (RBt - f.RB) * k; f.ZS = (f.ZS || ZSt) + (ZSt - (f.ZS || ZSt)) * k; }
         const S = f.sph(tt), cy = Y - S.z * CE * T, r = T * S.r, dP = Math.hypot(PX - X, PY - cy);
         // near the pet the whole effect dims smoothly (never a cut-out): by the pet's distance to the sphere and to the demon
         const dz = f.dz(tt), DY = Y - dz * CE * T, dD = g.segD(PX, PY, X, DY - T * f.HB * 1.1, X, DY + T * 0.2), AL = 0.22 + 0.78 * Math.min(sstep(r * 0.6, r + T * 0.9, dP), sstep(T * 0.5, T * 1.6, dD));
@@ -353,7 +400,7 @@
           /* ---- the demon, beneath the sphere (drawn before the sphere while it drops out of it, after once it is below) ---- */
           const demonFirst = dz + f.HB * 1.3 > S.z - S.r * 0.5;
           const demon = () => { if (tt < T_DROP) return; const post = tt - IMP, dis = post > 0.3 ? cl((post - 0.3) / 0.7) : 0, fa = cl((tt - T_DROP) / 0.15);
-            const out = drawDemon(c, X, DY, T, f.HB, tt, { KF, ev, alpha: AL * fa * (1 - dis), dis, seam: CEL ? 1 : ADE ? 0.4 : 0, charge: ch * (tt < T_THROW ? 1 : 0.3), yaw: 0.3, hovK: 1 }); f.lastOut = out;
+            const out = drawDemon(c, X, DY, T, f.HB, tt, { KF, ev, alpha: AL * fa * (1 - dis), dis, seam: CEL ? 1 : ADE ? 0.4 : 0, charge: ch * (tt < T_THROW ? 1 : 0.3), flare: tt > TB && tt < IMP + 0.3 ? Math.sin(cl((tt - TB) / (IMP + 0.3 - TB)) * Math.PI) : 0, yaw: 0.3, hovK: 1 }); f.lastOut = out;
             // the streams: violet light flowing up from the hands into the sphere's underside, beads travelling them
             if (ch > 0 && tt < T_THROW + 0.1 && out.handL && out.handR) { const k = ch * (tt > T_THROW ? 1 - (tt - T_THROW) / 0.1 : 1) * AL; c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; const ends = [out.handL, out.handR], bot = [X, cy + r * 0.85 * S.sy];
               for (let i = 0; i < ends.length; i++) { const hpx = ends[i], n = ADE ? 3 : 2; for (let j = 0; j < n; j++) { const wob = (j - (n - 1) / 2) * T * 0.12, mx = (hpx[0] + bot[0]) / 2 + wob + Math.sin(t * 6 + j * 2 + i) * T * 0.08, my = (hpx[1] + bot[1]) / 2 + Math.cos(t * 5 + j) * T * 0.06; c.globalAlpha = k * 0.35; c.strokeStyle = ENERGY; c.lineWidth = Math.max(2, T * 0.09); c.beginPath(); c.moveTo(hpx[0], hpx[1]); c.quadraticCurveTo(mx, my, bot[0] + wob * 0.5, bot[1]); c.stroke(); c.globalAlpha = k * 0.8; c.strokeStyle = EDGE; c.lineWidth = Math.max(1, T * 0.03); c.stroke();
@@ -384,7 +431,7 @@
         // the smoke left hanging over the impact, thinning
         const sm = Math.max(0, 1 - post / 1.5) * ALw; if (sm > 0) { const sp = puffSpr(); c.save(); for (let i = 0; i < 6; i++) { const b = i / 6 * TAU + R1(seed + i * 5) * 0.9, dd = R * T * (0.25 + 0.6 * H.ease.out(cl(post / 0.9))) * (0.7 + 0.5 * R1(seed + i * 2)), pr = R * T * (0.28 + 0.2 * R1(seed + i * 9)) * (0.6 + 0.6 * cl(post / 0.5)); c.globalAlpha = sm * sm * 0.8; c.drawImage(sp, X + Math.cos(b) * dd - pr, Y + Math.sin(b) * dd * 0.5 - pr - post * T * 0.35, pr * 2, pr * 2); } c.restore(); }
         // the demon dissolving above the aftermath
-        if (tt < IMP + 0.98) { const dis = post > 0.3 ? cl((post - 0.3) / 0.7) : 0, out = drawDemon(c, X, DY, T, f.HB, tt, { KF, ev, alpha: AL * (1 - dis), dis, seam: CEL ? 1 : ADE ? 0.4 : 0, charge: 0.2, yaw: 0.3, hovK: 1 }); f.lastOut = out;
+        if (tt < IMP + 0.98) { const dis = post > 0.3 ? cl((post - 0.3) / 0.7) : 0, out = drawDemon(c, X, DY, T, f.HB, tt, { KF, ev, alpha: AL * (1 - dis), dis, seam: CEL ? 1 : ADE ? 0.4 : 0, charge: 0.2, flare: post < 0.3 ? 1 - post / 0.3 : 0, yaw: 0.3, hovK: 1 }); f.lastOut = out;
           if (dis > 0 && dis < 0.95 && Math.random() < 0.7 * H.Q()) { const pts = [out.head, out.handL, out.handR, out.footL, out.footR].concat(out.tips || []), p = pts[Math.floor(Math.random() * pts.length)]; if (p) f.fe.push({ x: x + (p[0] - X) / T, y, z: (Y - p[1]) / (CE * T), vx: (Math.random() - 0.5) * 2.5, vy: (Math.random() - 0.5) * 0.6, vz: 0.3 + Math.random(), rot: Math.random() * TAU, vr: (Math.random() - 0.5) * 6, s: 0.22 + Math.random() * 0.14, life: 1.6 + Math.random() * 0.8, ph: Math.random() * TAU }); }
           if (dis > 0) { const sp = puffSpr(); c.save(); for (let i = 0; i < 5; i++) { const pr = T * f.HB * (0.25 + 0.2 * R1(seed + i)) * (0.6 + dis), px = X + Math.sin(i * 2.4 + t) * T * f.HB * 0.3, py = DY - T * f.HB * (0.2 + 0.25 * i) - dis * T * 0.5; c.globalAlpha = AL * Math.sin(dis * Math.PI) * 0.7; c.drawImage(sp, px - pr, py - pr, pr * 2, pr * 2); } c.restore(); } }
       },
@@ -400,6 +447,7 @@
     H.X.after(TB + 0.2, () => H.X.shake(2, 0.2));
     H.X.after(T_THROW, () => { H.X.sfx.whoosh(); H.X.shake(4, 0.3); });
     H.X.after(IMP, () => {
+      if (H.X.negative) H.X.negative(0.08);
       H.hitArea(x, y, R, DMG, C.dmgO({ kb: 7, stun: 0.5 }));
       H.X.flash(0.2, ACC); H.X.hitstop(0.1); H.X.sfx.crash(); H.X.shake(20 + 2 * ev, 0.45); H.X.light(x, y, R * 1.4, 0.4);
       H.X.boom(x, y, R * 0.8, EDGE, ACC, { n: 28 + 2 * ev, shake: 18, smoke: 8 }); H.X.ring(x, y, 0.4, R * 1.35, 0.6, EDGE, 0.5); H.X.ring(x, y, 0.3, R * 0.8, 0.45, ACC, 0.3);
