@@ -162,7 +162,6 @@ function openMap() {
   sfx.chirp();
 }
 function closeMap() {
-  if (mapTab === 'town') closeTown();
   mapOpen = false; mapEl.hidden = true; document.body.classList.remove('in-map'); mapCard.hidden = true;
   lastStatAt = Date.now(); updateHud();
 }
@@ -236,7 +235,7 @@ function giveItem(id) { st.inv[id] = (st.inv[id] || 0) + 1; }
 /* where each evolution gemstone is won: the boss stage of its world */
 function gemWhere(key) { const W = WORLDS.find(x => x.gem === key); return W ? `in ${W.name} (stage ${W.id}-${W.stages.length})` : ''; }
 function gemStageText(key) { const W = WORLDS.find(x => x.gem === key); return W ? `stage ${W.id}-${W.stages.length} in ${W.name}` : 'its adventure stage'; }
-function focusGemStage(key) { const W = WORLDS.find(x => x.gem === key); if (W && mapOpen) { if (mapTab !== 'town') setMapTab('town', true); const b = TOWN_BUILDINGS.find(x => x.w === W.id); if (b && town) { town.pet.x = b.door[0]; town.pet.y = b.door[1] + 14; } selectStage(W.id, W.stages.length); } }
+function focusGemStage(key) { const W = WORLDS.find(x => x.gem === key); if (W && mapOpen) { if (mapTab !== 'world') setMapTab('world', true); selectStage(W.id, W.stages.length); } }
 function exclSource(id) {
   const W = WORLDS.find(x => x.item === id);
   if (W) return `Win it on the Adventure map: clear stage ${W.id}-2 in ${W.name}.`;

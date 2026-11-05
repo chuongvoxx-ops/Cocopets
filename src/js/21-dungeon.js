@@ -8,17 +8,16 @@ const dunFloorOpen = n => !!st && n >= 1 && n <= TOWER_TOP && (st.unlockAll || (
 const GRADE_IDX = { S: 4, A: 3, B: 2, C: 1 };
 const gradeName = i => ['', 'C', 'B', 'A', 'S'][i] || '';
 function setMapTab(t, quiet) {
-  const prev = mapTab;
-  mapTab = t === 'dungeon' ? 'dungeon' : t === 'town' ? 'town' : t === 'rift' ? 'rift' : 'world';
+  // (the town is no longer a tab: it is the game's main screen, under the Adventure overlay)
+  if (t === 'town') { closeMap(); if (typeof enterHub === 'function') enterHub(quiet); return; }
+  mapTab = t === 'dungeon' ? 'dungeon' : t === 'rift' ? 'rift' : 'world';
   if (st) st.dun.tab = mapTab;
   mapEl.dataset.tab = mapTab;
   $('#mapToWorld').hidden = mapTab === 'world';
-  $('#mapPlace').textContent = mapTab === 'dungeon' ? 'Tower of Oblivion' : mapTab === 'town' ? 'Pocket Town' : mapTab === 'rift' ? 'The Great Rift' : '';
-  if (prev === 'town' && mapTab !== 'town') closeTown();
+  $('#mapPlace').textContent = mapTab === 'dungeon' ? 'Tower of Oblivion' : mapTab === 'rift' ? 'The Great Rift' : '';
   mapCard.hidden = true; mapSel = null;
   if (mapTab === 'dungeon') { renderDungeon(); dunScroll.scrollTop = 0; }
   else if (mapTab === 'rift') { renderRift(); riftScroll.scrollTop = 0; }
-  else if (mapTab === 'town') openTown();
   else { renderWorld(); mapScroll.scrollTop = 0; }
   if (!quiet) { sfx.boop(); saveSoon(); }
 }

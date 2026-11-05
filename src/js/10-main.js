@@ -186,6 +186,8 @@ function startGame(fresh) {
     toast(`Say hi to ${st.name}!`);
     saveLocalNow(); Store.touch();
   } else if (awayMs > 3 * 36e5 && !st.asleep) setTimeout(() => { if (running && canCommand()) greet(); }, 500);
+  // the session opens in Cocopets Town (24a), unless the save left the player indoors
+  if (typeof hubBoot === 'function') hubBoot(!!fresh);
 }
 function adoptState(s) {
   loadedSavedAt = s.savedAt;
@@ -244,9 +246,18 @@ function frame(ms) {
   if (dt > 0.05) dt = 0.05;
   if (!running || !st) return;
   tickStats();
-  const off = !!(arc.open || mapOpen || mansionOpen); if (off !== roomOff) { roomOff = off; document.body.classList.toggle('room-off', off); }
+  const inHub = typeof hubActive === 'function' && hubActive();
+  const off = !!(arc.open || mapOpen || mansionOpen || inHub); if (off !== roomOff) { roomOff = off; document.body.classList.toggle('room-off', off); }
   if (!!arc.open !== arcOn) { arcOn = !!arc.open; document.body.classList.toggle('arc-on', arcOn); }
   if (arc.open || mapOpen || mansionOpen) { hudT -= dt; if (hudT <= 0) { hudT = 1; if (mapOpen && !arc.open) $('#mapEnergy b').textContent = Math.round(st.energy) + '%'; } saveT -= dt; if (saveT <= 0) { saveT = 5; saveLocalNow(); } return; }
+  if (inHub) {
+    // the town runs instead of the room; the room's pet waits indoors
+    hubFrame(dt);
+    hudT -= dt; if (hudT <= 0) { hudT = 0.3; updateHud(); }
+    saveT -= dt; if (saveT <= 0) { saveT = 5; saveLocalNow(); }
+    skyT -= dt; if (skyT <= 0) { skyT = 30; updateSky(); updateClocks(); dailyGift(); }
+    return;
+  }
   pet.kickCd = Math.max(0, pet.kickCd - dt);
   pet.idleFor += dt; pet.modeT += dt;
   physics(dt);

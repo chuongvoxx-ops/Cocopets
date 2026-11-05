@@ -1923,3 +1923,22 @@ body.run-team .evo-wrap{z-index:70}
 .lg-day.fin{background:linear-gradient(160deg,#FFF3C4,#FFD978);border-color:#E0A82E;grid-column:span 2}
 .lg-day.now{border-color:#FF6B5B;box-shadow:0 0 0 3px rgba(255,107,91,.28)}
 .lg-day.done{opacity:.5}.lg-tick{position:absolute;top:2px;right:6px;font-style:normal;font-weight:900;color:#2E9B5B}
+
+/* ---- Cocopets Town: the hub (24a) ---- */
+.hub-wrap{position:absolute;inset:0;z-index:5;overflow:hidden;background:#6FB35E;touch-action:none;-webkit-user-select:none;user-select:none}
+.hub-wrap canvas{display:block;position:absolute;inset:0}
+body.in-hub #stage{visibility:hidden}
+body.in-hub .roombar,body.in-hub .hint,body.in-hub .lab-btn,body.in-hub .shop-btn{display:none}
+body.in-hub .night{opacity:0}
+.hub-ui{position:absolute;left:0;right:0;bottom:250px;display:flex;justify-content:center;pointer-events:none;padding:0 14px;z-index:2}
+.hub-prompt{pointer-events:auto;display:inline-flex;align-items:center;gap:8px;max-width:100%;padding:10px 18px;border-radius:999px;border:2.5px solid #2B2433;background:#FFFDF8;color:#2B2433;font-family:var(--f-display);font-size:14px;box-shadow:0 4px 0 #2B2433;cursor:pointer;animation:gw-in .3s cubic-bezier(.3,1.5,.5,1) both;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hub-prompt:active{transform:translateY(3px);box-shadow:0 1px 0 #2B2433}
+.hub-prompt svg{width:18px;height:18px;flex:none}
+.hub-prompt.soft{background:rgba(20,15,51,.72);color:#FFFDF8;border-color:rgba(255,255,255,.25);box-shadow:none;font-family:inherit;font-weight:700;font-size:12px;text-align:center;white-space:normal}
+.hub-map-btn{position:absolute;left:max(12px,env(safe-area-inset-left,0px));top:150px;z-index:3;width:44px;height:44px;padding:0;border-radius:50%;border:2.5px solid #2B2433;background:#FFFDF8;color:#2B2433;box-shadow:0 3px 0 #2B2433;cursor:pointer;display:grid;place-items:center}
+.hub-map-btn svg{width:24px;height:24px}
+.hub-map-btn:active{transform:translateY(2px);box-shadow:0 1px 0 #2B2433}
+.outside-btn{position:absolute;right:max(12px,env(safe-area-inset-right,0px));bottom:calc(100px + env(safe-area-inset-bottom,0px));z-index:11;display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 14px 0 10px;border-radius:99px;border:2.5px solid #2B2433;background:linear-gradient(#FFF6DF,#FFE3A8);color:#2B2433;font:inherit;font-weight:800;font-size:13px;box-shadow:0 3px 0 #2B2433;cursor:pointer;white-space:nowrap}
+.outside-btn svg{width:20px;height:20px}
+.outside-btn:active{transform:translateY(2px);box-shadow:0 1px 0 #2B2433}
+body.in-map .outside-btn,body.in-mansion .outside-btn,body.home-mode .outside-btn,body.in-arcade .outside-btn{display:none}

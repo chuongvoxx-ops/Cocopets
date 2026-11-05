@@ -272,6 +272,18 @@ const CROPS = {
   pumpkin: { name: 'Pumpkin', seed: 90, hours: 6, yield: 2 },
   starfruit: { name: 'Starfruit', seed: 160, hours: 12, yield: 1 },
 };
+/* the town kitchen's recipes (24d-hub-facilities): crops from the pantry go in, a special food already in the game comes
+   out, after real cooking time. Each dish turns cheap harvests into the foods the Shop sells for far more, so the farm
+   loop (seed → plant → water → harvest → cook → feed) pays: `in` { crop: n } is taken from st.pantry, `out` [food, n] is
+   added to it, `secs` is the real time it cooks, `line` says what the dish does (its food's foodEffect text follows) */
+const RECIPES = {
+  jam:   { name: 'Sunberry jam',   in: { sunberry: 3 },             out: ['ambrosia', 1],  secs: 30, line: 'A golden spoonful: a third of a pet level' },
+  stew:  { name: 'Carrot stew',    in: { carrot: 2, sunberry: 1 },  out: ['honeycomb', 1], secs: 45, line: 'Slow and sweet: half a pet level, and a happy pet' },
+  pie:   { name: 'Pumpkin pie',    in: { pumpkin: 1, sunberry: 2 }, out: ['hearttart', 1], secs: 60, line: 'Baked with care: two whole bond levels' },
+  tart:  { name: 'Starfruit tart', in: { starfruit: 1, pumpkin: 1 }, out: ['sundae', 1],   secs: 90, line: 'The kitchen\'s finest: three whole bond levels' },
+  salad: { name: 'Garden salad',   in: { carrot: 2, pumpkin: 1 },   out: ['tea', 2],       secs: 40, line: 'Crisp and bright: two comet teas, +100 energy each' },
+};
+const RECIPE_ORDER = ['jam', 'stew', 'pie', 'tart', 'salad'];
 const SOL = 'stroke="var(--pet-line)" stroke-width="2.2" stroke-linejoin="round"';
 const SNACK_SVG = {
   berries: `<svg viewBox="0 0 40 40" aria-hidden="true"><path d="M19 12C18 7 22 3.5 28 4.5C27 9 24 12 19 12Z" fill="#7CC46E" ${SOL}/><circle cx="14" cy="26" r="7.5" fill="#D9487E" ${SOL}/><circle cx="26" cy="26" r="7.5" fill="#D9487E" ${SOL}/><circle cx="20" cy="17" r="7.5" fill="#E85C8F" ${SOL}/><g fill="#FFFFFF" opacity=".7"><circle cx="11.5" cy="23.5" r="1.8"/><circle cx="23.5" cy="23.5" r="1.8"/><circle cx="17.5" cy="14.5" r="1.8"/></g></svg>`,

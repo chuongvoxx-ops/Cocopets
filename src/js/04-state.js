@@ -42,6 +42,28 @@ function newRoom(type, n) {
   return r;
 }
 const newPlots = () => Array.from({ length: 6 }, () => ({ crop: null, g: 0, water: false }));
+/* ---- Cocopets Town (24-hub-layout, 24a core, 24d facilities): where the player stands in town, the six town plots, the
+   dish cooking at the kitchen, the town upgrades bought, the scenic rewards found, the seeds bought at the shed ---- */
+const HUB_UPS = ['greenhouse', 'dojo', 'shrine', 'porch', 'workshop'];
+const hubSpawn = () => { try { return HUB.spawn; } catch (e) { return { x: 1300, y: 1120 }; } };
+function newHub() { const sp = hubSpawn(); return { x: sp.x, y: sp.y, lv: 0, inside: false, plots: newPlots(), cook: null, up: {}, found: {}, seeds: {}, pearlDay: '' }; }
+/* a saved st.hub, or none (an old save): then the town plots start as a copy of the farm room's crops so nothing is lost */
+function cleanHub(o, rooms) {
+  const h = newHub(), W = 2600, H = 2000;
+  if (!o || typeof o !== 'object') {
+    const farm = (rooms || []).find(r => r.plots && r.plots.some(p => p.crop));
+    if (farm) farm.plots.forEach((q, i) => { if (q.crop && i < 6) h.plots[i] = { crop: q.crop, g: q.g, water: q.water }; });
+    return h;
+  }
+  h.x = numOr(o.x, h.x, 0, W); h.y = numOr(o.y, h.y, 0, H); h.lv = Math.floor(numOr(o.lv, 0, 0, 2)); h.inside = !!o.inside;
+  if (Array.isArray(o.plots)) o.plots.slice(0, 6).forEach((q, i) => { if (q && CROPS[q.crop]) h.plots[i] = { crop: q.crop, g: numOr(q.g, 0, 0, 1e4), water: !!q.water }; });
+  if (o.cook && typeof o.cook === 'object' && typeof RECIPES !== 'undefined' && RECIPES[o.cook.recipe]) h.cook = { recipe: o.cook.recipe, at: Math.floor(numOr(o.cook.at, 0, 0, 1e14)) };
+  if (o.up && typeof o.up === 'object') HUB_UPS.forEach(k => { if (o.up[k]) h.up[k] = 1; });
+  if (o.found && typeof o.found === 'object') Object.keys(o.found).slice(0, 40).forEach(k => { if (/^[a-z0-9_]{1,24}$/.test(k) && o.found[k]) h.found[k] = 1; });
+  if (o.seeds && typeof o.seeds === 'object') Object.keys(CROPS).forEach(k => { const n = Math.floor(numOr(o.seeds[k], 0, 0, 99)); if (n) h.seeds[k] = n; });
+  h.pearlDay = typeof o.pearlDay === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(o.pearlDay) ? o.pearlDay : '';
+  return h;
+}
 function linkRoom(s) {
   s.house.cur = clamp(Math.floor(s.house.cur) || 0, 0, s.house.rooms.length - 1);
   s.room = s.house.rooms[s.house.cur];
@@ -55,6 +77,7 @@ function newState(name, genome) {
     cards: {}, accs: [], dun: { best: 0, runs: 0, kills: 0, boxes: 0, pity: 0, god: false, tab: 'world', seen: {}, grades: {} }, rift: { seals: {}, prog: {}, gates: {}, rlyeh: 0 },
     sound: true, retro: true, fast: false, tips: {}, dev: false, unlockAll: false,
     welcome: 0, freeTen: 0, login: { m: '', n: 0, last: '', seen: '' },
+    hub: newHub(),
   });
   linkRoom(s);
   return s;
@@ -182,6 +205,7 @@ function sanitize(o) {
   if (!rooms.some(r => r.items.some(i => i.id === 'bowl'))) { const home = rooms.find(r => r.type === 'kitchen') || rooms.find(r => !ROOM_TYPES[r.type].outdoor) || rooms[0]; home.items.push({ u: uidGen(), id: 'bowl', fx: 0.92, fy: 0.9, flip: false }); }
   s.house = { rooms, cur: o.house && o.v === 4 ? num(o.house.cur, 0, 0, rooms.length - 1) : 0, n: rooms.length, name: '', paint: 'cream', roof: 'terracotta' };
   s.town = o.town && typeof o.town === 'object' ? { x: num(o.town.x, 0, 0, 2000), y: num(o.town.y, 0, 0, 2000), walked: !!o.town.walked } : null;
+  s.hub = cleanHub(o.hub, rooms);   // Cocopets Town (24d): position, plots, cooking, upgrades, finds
   if (o.house && typeof o.house === 'object') { const h = o.house; if (typeof h.name === 'string') s.house.name = h.name.replace(/[<>]/g, '').trim().slice(0, 18); if (PAINTS.some(p => p.id === h.paint)) s.house.paint = h.paint; if (ROOFS.some(p => p.id === h.roof)) s.house.roof = h.roof; }
   if (o.inv && typeof o.inv === 'object') for (const k in o.inv) if (ITEMS[k] && k !== 'bowl') { const n = Math.floor(num(o.inv[k], 0, 0, 99)); if (n) s.inv[k] = n; }
   if (Array.isArray(o.themes)) s.themes = ['meadow'].concat(o.themes.filter(t => t !== 'meadow' && THEMES.some(x => x.id === t)));
@@ -270,14 +294,17 @@ function simulatePet(p, from, end, house, k) {
 function growFarm(s, h) {
   if (!s || !s.house || !(h > 0)) return false;
   let changed = false;
-  for (const r of s.house.rooms) if (r.plots) for (const p of r.plots) {
-    if (!p.crop) continue;
+  const grow = (p, mul) => {
+    if (!p.crop) return;
     const need = CROPS[p.crop].hours;
-    if (p.g >= need) continue;
+    if (p.g >= need) return;
     const before = p.g;
-    p.g = Math.min(need, p.g + h * (p.water ? 2 : 1));
+    p.g = Math.min(need, p.g + h * (p.water ? 2 : 1) * (mul || 1));
     if (Math.floor(before / need * 4) !== Math.floor(p.g / need * 4)) changed = true;
-  }
+  };
+  for (const r of s.house.rooms) if (r.plots) for (const p of r.plots) grow(p, 1);
+  // the town's plots (24d) grow by the same rule; the greenhouse upgrade makes them half again as fast
+  if (s.hub && Array.isArray(s.hub.plots)) for (const p of s.hub.plots) grow(p, s.hub.up && s.hub.up.greenhouse ? 1.5 : 1);
   return changed;
 }
 // Simulate the time the app was closed: pets sleep at night and nap when worn out.

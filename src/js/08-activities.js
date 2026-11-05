@@ -88,15 +88,22 @@ function nearestFood() {
   for (const f of foods) { const d = hyp(f.x - pet.x, f.y - pet.y); if (d < bd) { bd = d; best = f; } }
   return best;
 }
-function giveSnack(type, at) {
+/* paying for a snack: pantry food is taken from the pantry, priced food costs coins; false (with the reason toasted) when
+   there is none. Shared by the room's bowl (giveSnack) and the town's Feed tray (HubFacilities.onFeed, 24d) */
+function spendSnack(type) {
   const s = SNACKS[type];
-  if (s && (s.farm || s.drink || s.rare)) {
-    if (!(st.pantry[type] > 0)) { toast(s.drink ? `No ${s.name.toLowerCase()} left. Energy drinks come in gift boxes (Adventure, then Tower).` : s.rare ? `No ${s.name.toLowerCase()} left. The Shop sells it, treasure boxes hold it, and Tower monsters sometimes drop it.` : `No ${s.name.toLowerCase()} in the pantry yet. Grow them on a farm (House, then Build).`, 3400); sfx.wrong(); return; }
+  if (!s) return false;
+  if (s.farm || s.drink || s.rare) {
+    if (!(st.pantry[type] > 0)) { toast(s.drink ? `No ${s.name.toLowerCase()} left. Energy drinks come in gift boxes (Adventure, then Tower).` : s.rare ? `No ${s.name.toLowerCase()} left. The Shop sells it, treasure boxes hold it, and Tower monsters sometimes drop it.` : `No ${s.name.toLowerCase()} in the pantry yet. Grow them on the farm.`, 3400); sfx.wrong(); return false; }
     st.pantry[type]--; if (!st.pantry[type]) delete st.pantry[type];
-  } else if (s && s.cost) {
-    if (st.coins < s.cost) { toast(`${s.name} costs ${s.cost} coins. Activities earn coins.`); sfx.wrong(); return; }
+  } else if (s.cost) {
+    if (st.coins < s.cost) { toast(`${s.name} costs ${s.cost} coins. Activities earn coins.`); sfx.wrong(); return false; }
     st.coins -= s.cost; updateHud();
   }
+  return true;
+}
+function giveSnack(type, at) {
+  if (!spendSnack(type)) return;
   let f;
   const bw = bowlDecor();
   if (at || !bw) { const p = clampXY(at ? at.x : pet.x + pet.facing * ps * 0.7, at ? at.y : pet.y + 4); f = makeFood(type, p[0], p[1], false); }
@@ -144,21 +151,32 @@ function updateEat() {
   }
   if (f.bites >= 3 && T - pet.lastBite > 0.35) finishEat(f);
 }
-function finishEat(f) {
-  const info = SNACKS[f.type];
-  removeFood(f); pet.eatFood = null;
-  const foodie = st.dna.personality === 'foodie' ? 1.5 : 1, kitchen = roomType() === 'kitchen';
-  st.food += info.food * (kitchen ? 1.25 : 1); st.joy += info.joy * foodie * (kitchen ? 1.25 : 1);
-  if (info.energy) { st.energy += info.energy; floatText(`+${info.energy} energy`, pet.x, headY() - 26, ICON.bolt); sparkles(8); }
+/* what a meal does to the pet you play: food, joy, energy, the meal count and the daily streak, bond and Tower
+   experience. The stat side of the room's finishEat, shared with the town's Feed tray (HubFacilities.onFeed, 24d);
+   o.kitchen is the kitchen room's bonus. Returns the numbers for the caller's feedback */
+function applyMeal(type, o) {
+  const info = SNACKS[type], foodie = st.dna.personality === 'foodie' ? 1.5 : 1, kitchen = !!(o && o.kitchen);
+  const food = info.food * (kitchen ? 1.25 : 1), joy = info.joy * foodie * (kitchen ? 1.25 : 1);
+  st.food += food; st.joy += joy;
+  if (info.energy) st.energy += info.energy;
   clampStats(st);
   st.meals++;
   const first = registerMeal();
   doneTip('feed');
+  const growth = info.xp ? info.xp + (kitchen ? 4 : 0) : 0;
+  addXP(6 + growth);
+  if (info.bondLv) addXP(bondFoodXP(st, info.bondLv));
+  const fx = foodXP(type), ups = dunAddXP(fx);
+  return { info, food, joy, first, growth, bondLv: info.bondLv || 0, fx, ups };
+}
+function finishEat(f) {
+  removeFood(f); pet.eatFood = null;
+  const m = applyMeal(f.type, { kitchen: roomType() === 'kitchen' }), info = m.info, first = m.first;
+  if (info.energy) { floatText(`+${info.energy} energy`, pet.x, headY() - 26, ICON.bolt); sparkles(8); }
   react('happy', 0.7, { soft: true }); jump(ps * 0.14); hearts(2); sfx.yum();
-  addXP(6 + (info.xp || 0) + (kitchen ? 4 : 0));
-  if (info.xp) { floatText(`+${info.xp + (kitchen ? 4 : 0)} growth`, pet.x, headY() - 10); sparkles(6); }
-  if (info.bondLv) { addXP(bondFoodXP(st, info.bondLv)); floatText(`+${info.bondLv} bond levels`, pet.x, headY() - 10, ICON.heart); hearts(6); sparkles(10); }
-  const fx = foodXP(f.type), ups = dunAddXP(fx); floatText(info.lvAdd ? `+${ups} pet levels` : `+${fx} level XP`, pet.x, headY() - 42, ICON.sparkle); if (ups) { toast(`${st.name} is level ${st.dlv}!`, 2600); sfx.fanfare(); }
+  if (m.growth) { floatText(`+${m.growth} growth`, pet.x, headY() - 10); sparkles(6); }
+  if (info.bondLv) { floatText(`+${info.bondLv} bond levels`, pet.x, headY() - 10, ICON.heart); hearts(6); sparkles(10); }
+  floatText(info.lvAdd ? `+${m.ups} pet levels` : `+${m.fx} level XP`, pet.x, headY() - 42, ICON.sparkle); if (m.ups) { toast(`${st.name} is level ${st.dlv}!`, 2600); sfx.fanfare(); }
   if (first) {
     const extra = streakReward();
     setTimeout(() => {

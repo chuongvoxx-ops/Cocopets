@@ -90,7 +90,7 @@ function syncDock() {
   btnFeed.setAttribute('aria-expanded', String(trayKind === 'feed'));
   btnPlay.setAttribute('aria-expanded', String(trayKind === 'play'));
 }
-function closeTray() { trayEl.hidden = true; trayKind = null; syncDock(); updateHint(); }
+function closeTray() { trayEl.hidden = true; trayKind = null; hubSnackHook = null; syncDock(); updateHint(); }
 function openTray(kind) {
   if (trayKind === kind) { closeTray(); return; }
   trayKind = kind;
@@ -156,6 +156,10 @@ $('#pearlPill').addEventListener('click', () => openPearlShop(0));
 $('#crystalPill').addEventListener('click', () => openCrystalShop(0));
 
 let drag = null;
+/* the town (24d): while the Feed tray is open over the hub, a tapped snack goes to HubFacilities.onFeed instead of the
+   room's bowl (set by HubFacilities.openFeedTray, cleared when the tray closes) */
+let hubSnackHook = null;
+const snackTap = type => { const hook = hubSnackHook; closeTray(); if (hook) hook(type); else giveSnack(type); };
 function bindSnackDrag() {
   $$('.tile.snack', trayInner).forEach(btn => {
     btn.addEventListener('pointerdown', e => {
@@ -178,13 +182,13 @@ function bindSnackDrag() {
       if (!drag || e.pointerId !== drag.id) return;
       const d = drag; drag = null;
       if (d.ghost) d.ghost.remove();
-      if (!d.moving) { closeTray(); giveSnack(d.type); return; }
+      if (!d.moving || hubSnackHook) { snackTap(d.type); return; }
       const tr = trayInner.getBoundingClientRect();
       const over = e.clientX >= tr.left && e.clientX <= tr.right && e.clientY >= tr.top && e.clientY <= tr.bottom;
       if (!over && e.clientY < dockEl.getBoundingClientRect().top - 4) { closeTray(); giveSnack(d.type, { x: e.clientX - stageRect.left, y: e.clientY - stageRect.top - 18 }); }
     });
     btn.addEventListener('pointercancel', e => { if (drag && e.pointerId === drag.id) { if (drag.ghost) drag.ghost.remove(); drag = null; } });
-    btn.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); closeTray(); giveSnack(btn.dataset.snack); } });
+    btn.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); snackTap(btn.dataset.snack); } });
   });
 }
 function setLights(off, grumpy) {

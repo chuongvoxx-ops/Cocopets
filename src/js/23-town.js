@@ -41,7 +41,11 @@ function townSpritesFor(p) {
   loadSprites(formOf(p)).then(S => { if (town) town.sprites.set(key, S); });
   return null;
 }
-function openTown() {
+/* Pocket Town is now Cocopets Town (24-hub-layout, 24a-hub-core): the game's main screen. openTown leaves the Adventure
+   overlay for the town; the old canvas village below stays for what the hub reuses (the stage lists, the NPCs' art and
+   lines, the emotes and controls) and is no longer drawn. */
+function openTown() { closeMap(); if (typeof enterHub === 'function') enterHub(); }
+function openTownLegacy() {
   if (!town) {
     town = { t: 0, last: 0, raf: 0, pet: { x: TOWN_PLAZA.x, y: TOWN_PLAZA.y + 120, vx: 0, vy: 0, face: 1, walk: 0, bob: 0 }, goal: null, pending: null, cam: { x: 0, y: 0 }, sprites: new Map(), keys: {}, near: null, lastNear: null, dust: [], followers: [], blockers: townBlockers(), talkIdx: {}, ground: null, hint: 0 };
     if (st && st.town && st.town.x) { town.pet.x = st.town.x; town.pet.y = st.town.y; }
