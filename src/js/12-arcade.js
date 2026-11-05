@@ -26,7 +26,7 @@ async function loadRig(f) {
 }
 async function makeRig(f, extra) {
   const make = o => { const sv = petSVG(f, Object.assign({ static: true, frame: 'fit', lite: true, rig: true }, o, extra || {})); return petSVG.rig; };
-  const R0 = make({ eyes: 'normal', mouth: 'smile' }), Rh = make({ eyes: 'happy', mouth: 'open' }), Rd = make({ eyes: 'dizzy', mouth: 'o' });
+  const R0 = make({ eyes: 'normal', mouth: 'smile' }), Rh = make({ eyes: 'happy', mouth: 'open' }), Rd = make({ eyes: 'dizzy', mouth: 'o' }), Rb = make({ eyes: 'closed', mouth: 'smile' });   // (Rb: eyes shut, for a blink or a doze in town)
   // each part's box, measured in a hidden copy of the picture
   const box = document.createElement('div'); box.style.cssText = 'position:fixed;left:-4000px;top:0;width:400px;height:400px;visibility:hidden;pointer-events:none';
   document.body.appendChild(box);
@@ -53,9 +53,9 @@ async function makeRig(f, extra) {
   };
   try {
     // (the boxes are measured one after another, in the hidden copy; the pictures are then all made at once)
-    const L = R0.leg ? R0.leg.wings : [], jobs = [[R0.back, R0], [R0.front, R0], [Rh.front, Rh], [Rd.front, Rd], [R0.foot, R0], [R0.arm, R0], [R0.wing, R0]].concat(L.map(w => [w.g, R0])).map(([ct, R]) => ct ? [ct, bboxOf(ct, R.defs), R.defs] : null);
+    const L = R0.leg ? R0.leg.wings : [], jobs = [[R0.back, R0], [R0.front, R0], [Rh.front, Rh], [Rd.front, Rd], [R0.foot, R0], [R0.arm, R0], [R0.wing, R0]].concat(L.map(w => [w.g, R0])).concat([[Rb.front, Rb]]).map(([ct, R]) => ct ? [ct, bboxOf(ct, R.defs), R.defs] : null);
     const got = await Promise.all(jobs.map(j => j && j[1] ? tight(j[0], j[1], j[2]) : null));
-    const out = { back: got[0], front: { normal: got[1], happy: got[2], hurt: got[3] }, foot: got[4], footPv: R0.footPv, arm: got[5], armPv: R0.armPv, wing: got[6], wingPv: R0.wingPv, legW: null, flap: null };
+    const out = { back: got[0], front: { normal: got[1], happy: got[2], hurt: got[3], blink: got[7 + L.length] }, foot: got[4], footPv: R0.footPv, arm: got[5], armPv: R0.armPv, wing: got[6], wingPv: R0.wingPv, legW: null, flap: null };
     if (R0.leg) { out.legW = L.map((w, i) => Object.assign(got[7 + i] || {}, { pv: w.pv, lag: w.lag, k: w.k, th: 180 + w.mid })); out.flap = R0.leg.flap; out.beat = R0.leg.beat || [1, 1, 1]; }
     return out;
   } finally { box.remove(); }
@@ -165,10 +165,10 @@ function petSnap(h, o, ppx) {
   N.dirty = [sx, sy, ex, ey];
   return { cv, sx, sy, sw: ex - sx, sh: ey - sy, x0: x0 + sx / ppx, y0: y0 + sy / ppx, w: (ex - sx) / ppx, h: (ey - sy) / ppx, ph: h };
 }
-/* draw the pet with its feet at (x, y) and its body h pixels tall */
+/* draw the pet with its feet at (x, y) and its body h pixels tall (o.sprites: whose pictures; the arcade's own without) */
 function drawPetSprite(c, x, y, h, o) {
   o = o || {};
-  const S = arc.sprites, s = S && S[o.face || 'normal'];
+  const S = o.sprites || arc.sprites, s = S && (S[o.face || 'normal'] || S.normal);
   c.save();
   c.translate(x, y);
   if (o.rot) { c.translate(0, -h * 0.5); c.rotate(o.rot); c.translate(0, h * 0.5); }
@@ -184,6 +184,52 @@ function drawPetSprite(c, x, y, h, o) {
     c.beginPath(); c.ellipse(0, -h / 2, h * 0.45, h / 2, 0, 0, 7); c.fill(); c.stroke();
   }
   c.restore();
+}
+/* how high a Celestial six-star floats over its magic circle (unit: the ground unit the Tower measures the pet in) */
+const petFloatOf = (f, unit, t) => f && f.x && f.x.gold && f.stage >= 7 && f.x.leg ? unit * (0.24 + 0.035 * Math.sin(t * 1.7)) : 0;
+/* the whole pet as the Tower shows it, on any screen (the Tower's floors, the town): a Celestial six-star's magic circle
+   turning on the ground (its two layers opposite ways) and its float over it, the contact shadow that lifts with a jump
+   and its element glowing faintly on the ground, its lights circling it (the far side behind the body, the near side in
+   front), and the body in parts (feet stepping, arms swinging, wings beating; breathing when still) or whole until its
+   parts are made. X, Ybase: the ground point under its feet; h: its height. o:
+   { sprites (loadSprites' pictures, .rig from loadRig when made), form (default sprites.form), t (seconds), face
+     'normal'|'happy'|'hurt'|'blink', moving, walk (the step's phase), wingPh, wingAmp, flip, z (px up in a jump), sx, sy,
+     rot, el (its element key: the glow's colour; none without), unit (the ground unit the shadow and float are measured
+     in, default h / 1.02), tile (the step bob's unit, default unit), float (default: a Celestial six-star's; false when it
+     lies dead), circle/glow/shadow/lights (default on), rig (default true), snap (petSnap's copy), pose (overrides the
+     one built here), pre(c, lay) (drawn after the ground layer and before the body: lay = { X, Y: the feet in the air,
+     z, fl, bob }), body (false: the ground layer and pre only, a blink frame), breathe (default true), alpha } */
+function drawPetFull(c, X, Ybase, h, o) {
+  o = o || {};
+  const S = o.sprites || arc.sprites, PF = o.form || (S && S.form) || curForm(), t = o.t || 0, unit = o.unit || h / 1.02, T = o.tile || unit;
+  const LGc = PF.x && PF.x.gold && PF.stage >= 7 && PF.x.leg ? PF.x.leg : null, fl = o.float === false ? 0 : petFloatOf(PF, unit, t), z = o.z || 0;
+  if (LGc && o.circle !== false) {
+    // (or its ring: smooth light, spiked metal or its element, turning faster; drawn from pictures made once)
+    const RG2 = legRingOf(LGc, PF), sp2 = ringSpin(RG2.style, RG2.el), R2 = h * 1.25, m0 = c.getTransform(), px = R2 * 2 * Math.hypot(m0.a, m0.b), A = magicCircleCanvas(LGc.c, 'outer', px, RG2.style, RG2.el), B = magicCircleCanvas(LGc.c, 'inner', px, RG2.style, RG2.el);
+    if (A && B) { c.save(); c.translate(X, Ybase); c.scale(1, 0.34); c.globalAlpha = 0.86 + 0.14 * Math.sin(t * 1.96);
+      c.save(); c.rotate(t * 6.283 / 28 * sp2); c.drawImage(A, -R2, -R2, R2 * 2, R2 * 2); c.restore();
+      c.rotate(-t * 6.283 / 16 * sp2); c.drawImage(B, -R2, -R2, R2 * 2, R2 * 2); c.restore(); }
+  }
+  // a soft contact shadow that lifts with jumps, and the pet's element glowing faintly on the ground beneath it
+  if (o.shadow !== false) { const lift = Math.min(1, (z + fl) / (T * 1.2)), sr = unit * 0.34 * (1 - lift * 0.35); const sg = c.createRadialGradient(X, Ybase, 0, X, Ybase, sr * 1.4); sg.addColorStop(0, `rgba(0,0,0,${0.42 - lift * 0.2})`); sg.addColorStop(0.7, `rgba(0,0,0,${0.22 - lift * 0.12})`); sg.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = sg; c.beginPath(); c.ellipse(X, Ybase, sr * 1.4, sr * 0.5, 0, 0, 6.283); c.fill(); }
+  const EC = o.el && typeof E8 !== 'undefined' && E8[o.el] ? E8[o.el].color : null;
+  if (EC && o.glow !== false) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.14 + 0.05 * Math.sin(t * 3); blitSized(c, glowSprite(EC), X - unit * 0.9, Ybase - unit * 0.4, unit * 1.8, unit * 0.8); c.restore(); }
+  const moving = !!o.moving, walk = o.walk || 0, bob = moving ? Math.abs(Math.sin(walk)) * T * 0.06 : 0, Y = Ybase - z - bob - fl;
+  if (o.pre) o.pre(c, { X, Y, z, fl, bob });
+  if (o.body === false) return;
+  let sx = o.sx || 1, sy = o.sy || 1;
+  // stepping squashes it a little with each footfall; standing, it breathes
+  if (o.breathe !== false) { if (moving) { const s2 = Math.sin(walk * 2) * 0.06; sx *= 1 + s2; sy *= 1 - s2; } else { const br = Math.sin(t * 2.4) * 0.025; sx *= 1 + br; sy *= 1 - br; } }
+  // a six-star's lights circle it: drawn behind the pet on the far side of their rings, after it on the near side (one
+  // small picture for each, laid down unturned)
+  const NLt = o.lights !== false && PF.x && PF.x.gold && PF.x.leg && PF.x.lights ? (PF.x.lights >= 4 ? 4 : 2) : 0, LGeo = NLt ? legLightGeo(PF) : null, kU = NLt ? h / ((PF.legs.len || 0) + 9 + PF.body.h) : 0;
+  const lights = fr => { if (!NLt) return; const m1 = c.getTransform(), sc1 = Math.hypot(m1.a, m1.b);
+    for (let i = 0; i < NLt; i++) { const ring = i >= 2 ? 1 : 0, [lx, ly, , front] = legLightAt(legLightPhase(i, t), LGeo.cy, LGeo.Rr, ring); if (front !== fr) continue;
+      const rr = 15 * kU * (ring ? 0.78 : 1), im = legLightCanvas(PF.x.leg.c, rr * 2 * sc1); if (im) c.drawImage(im, X + (o.flip ? -lx : lx) * kU - rr, Y + ly * kU - rr, rr * 2, rr * 2); } };
+  lights(false);
+  const pose = o.pose || { walk, moving, t, cast: o.cast || 0, ult: !!o.ult, wingPh: o.wingPh || 0, wingAmp: o.wingAmp != null ? o.wingAmp : moving ? 14 : fl ? 11 : 8 };
+  drawPetSprite(c, X, Y, h, { sprites: S, flip: !!o.flip, face: o.face || 'normal', sx, sy, rot: o.rot || 0, rig: o.rig !== false, pose, snap: o.snap, alpha: o.alpha });
+  lights(true);
 }
 
 function arcLayout() {

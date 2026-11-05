@@ -1859,49 +1859,28 @@ GAMES.dungeon = {
     let petSnapF = null;   // this frame's picture of the pet, while copies of it are out
     function drawPet(c) {
       const T = Tz(), X = sx(me.x), Y0 = sy(me.y), z = (me.z || 0) * T, h = T * 1.02 * SIZE * (g.pw.giant ? 1.35 : 1) * (g.petK || 1);
-      // a Celestial six-star floats over its magic circle, here as in the room (the circle turning on the floor, its two
-      // layers opposite ways, in the pet's light colour; drawn from pictures made once)
-      const PF = formOf(P), LGc = PF.x && PF.x.gold && PF.stage >= 7 && PF.x.leg ? PF.x.leg : null, fl = LGc && !me.dead ? T * SIZE * (0.24 + 0.035 * Math.sin(g.t * 1.7)) : 0;
-      if (LGc) {
-        // (or its ring: smooth light, spiked metal or its element, turning faster)
-        const RG2 = legRingOf(LGc, PF), sp2 = ringSpin(RG2.style, RG2.el), R2 = h * 1.25, m0 = c.getTransform(), px = R2 * 2 * Math.hypot(m0.a, m0.b), A = magicCircleCanvas(LGc.c, 'outer', px, RG2.style, RG2.el), B = magicCircleCanvas(LGc.c, 'inner', px, RG2.style, RG2.el);
-        if (A && B) { c.save(); c.translate(X, Y0 + T * 0.18); c.scale(1, 0.34); c.globalAlpha = 0.86 + 0.14 * Math.sin(g.t * 1.96);
-          c.save(); c.rotate(g.t * 6.283 / 28 * sp2); c.drawImage(A, -R2, -R2, R2 * 2, R2 * 2); c.restore();
-          c.rotate(-g.t * 6.283 / 16 * sp2); c.drawImage(B, -R2, -R2, R2 * 2, R2 * 2); c.restore(); }
-      }
-      // a soft contact shadow that lifts with jumps, and the pet's element glowing faintly on the ground beneath it
-      { const lift = Math.min(1, (z + fl) / (T * 1.2)), sr = T * 0.34 * SIZE * (1 - lift * 0.35); const sg = c.createRadialGradient(X, Y0 + T * 0.18, 0, X, Y0 + T * 0.18, sr * 1.4); sg.addColorStop(0, `rgba(0,0,0,${0.42 - lift * 0.2})`); sg.addColorStop(0.7, `rgba(0,0,0,${0.22 - lift * 0.12})`); sg.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = sg; c.beginPath(); c.ellipse(X, Y0 + T * 0.18, sr * 1.4, sr * 0.5, 0, 0, 6.283); c.fill();
-        const EC = E8[party[cur].el].color; c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.14 + 0.05 * Math.sin(g.t * 3); blitSized(c, glowSprite(EC), X - T * 0.9 * SIZE, Y0 + T * 0.18 - T * 0.4 * SIZE, T * 1.8 * SIZE, T * 0.8 * SIZE); c.restore(); }
-      if (g.phoenixT > 0) { c.save(); c.globalCompositeOperation = 'lighter'; const wg = Math.sin(g.t * 10) * 0.3, cy = Y0 - T * 0.45 - z, fadeP = Math.min(1, g.phoenixT * 2);
-        const as = T * 1.7; c.globalAlpha = 0.55 * fadeP; blitSized(c, glowSprite('#FF9F43'), X - as, cy - as, as * 2, as * 2);
-        [-1, 1].forEach(s => { for (let f = 0; f < 7; f++) { const u = f / 6, ang = -0.25 - u * 1.25 - wg * 0.35, len = T * (1.0 + 0.9 * Math.sin(0.3 + u * 2.6)), bx = X + s * T * 0.15, ex = bx + s * Math.cos(ang) * len * 1.25, ey = cy + Math.sin(ang) * len, L = hyp(ex - bx, ey - cy);
-          c.save(); c.translate(bx, cy); c.rotate(Math.atan2(ey - cy, ex - bx)); c.globalAlpha = 0.7 * fadeP; blitSized(c, beamSprite(f % 2 ? '#FFB347' : '#FF6A3D'), -T * 0.1, -T * 0.2, L + T * 0.25, T * 0.4); c.globalAlpha = 0.55 * fadeP; blitSized(c, beamSprite('#FFE9A8'), -T * 0.05, -T * 0.06, L * 0.85, T * 0.12); c.restore(); } });
-        c.restore(); }
-      if (supernova > 0) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.8; const s2 = T * (1 + (1 - supernova) * 2); blitSized(c, glowSprite('#FFE37A'), X - s2, Y0 - T * 0.5 - s2, s2 * 2, s2 * 2); c.restore(); }
-      if (g.counterT > 0 || g.buff.fury > 0) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.35 + 0.15 * Math.sin(g.t * 12); const s2 = h * 0.9; blitSized(c, glowSprite(g.counterT > 0 ? '#FFE37A' : '#FF5C5C'), X - s2, Y0 - h * 0.5 - s2, s2 * 2, s2 * 2); c.restore(); }
+      // the pet as drawPetFull shows it everywhere: a Celestial six-star's magic circle and float, the contact shadow and
+      // the element's glow on the ground, its lights circling, the body in parts (feet stepping, arms swinging, lifted for
+      // a skill, the wings beating; when copies of the pet are out, laid down from the one picture drawn for them all this
+      // frame). What the fight adds (the phoenix wings, a supernova, a counter's glow) lies between the ground and the body
+      const PF = formOf(P), fl = me.dead ? 0 : petFloatOf(PF, T * SIZE, g.t);
       const blink = me.inv > 0.08 && !me.dash && !me.dodge && !(g.cineT > 0) && !(AN && AN.S.circle) && Math.floor(g.t * 18) % 2 === 0 && g.shieldT <= 0;
-      if (!blink) {
-        let sxs = 1, sys = 1, rot = me.tilt;
-        if (me.spin) sxs = Math.cos(g.t * 30);
-        const moving = (me.vx || me.vy) && !me.dead, bob = moving ? Math.abs(Math.sin(me.bob)) * T * 0.06 : 0;
-        if (moving) { const st2 = Math.sin(me.bob * 2) * 0.06; sxs *= 1 + st2; sys *= 1 - st2; } else { const br = Math.sin(g.t * 2.4) * 0.025; sxs *= 1 + br; sys *= 1 - br; }
-        sxs *= 1 + me.sq * 0.12; sys *= 1 - me.sq * 0.1;
-        if (me.dodge) rot = me.dodge.t / me.dodge.dur * 6.283 * (me.dodge.vx >= 0 ? 1 : -1);
-        if (me.dead) rot = g.t * 4;
-        // a six-star's lights circle it here too: drawn behind the pet on the far side of their rings, after it on the near
-        // side (one small picture for each, laid down unturned)
-        const NLt = PF.x && PF.x.gold && PF.x.leg && PF.x.lights ? (PF.x.lights >= 4 ? 4 : 2) : 0, LGeo = NLt ? legLightGeo(PF) : null, kU = NLt ? h / ((PF.legs.len || 0) + 9 + PF.body.h) : 0, baseY = Y0 + T * 0.18 - z - bob - fl;
-        const lights = fr => { if (!NLt) return; const m1 = c.getTransform(), sc1 = Math.hypot(m1.a, m1.b);
-          for (let i = 0; i < NLt; i++) { const ring = i >= 2 ? 1 : 0, [lx, ly, , front] = legLightAt(legLightPhase(i, g.t), LGeo.cy, LGeo.Rr, ring); if (front !== fr) continue;
-            const rr = 15 * kU * (ring ? 0.78 : 1), im = legLightCanvas(PF.x.leg.c, rr * 2 * sc1); if (im) c.drawImage(im, X + (me.face < 0 ? -lx : lx) * kU - rr, baseY + ly * kU - rr, rr * 2, rr * 2); } };
-        lights(false);
-        // (in parts: feet stepping, arms swinging, lifted for a skill, the wings beating; when copies of the pet are out,
-        // laid down from the one picture drawn for them all this frame)
-        const L2 = petLook();
-        api.pet(c, X, Y0 + T * 0.18 - z - bob - fl, h, { flip: me.face < 0, face: L2.face, sx: sxs, sy: sys, rot, rig: !me.dead, pose: L2.pose, snap: petSnapF });
-        lights(true);
-        if (me.chill > 0) { c.save(); c.globalAlpha = 0.3; c.fillStyle = '#9FD8F0'; c.beginPath(); c.ellipse(X, Y0 - h * 0.4 - z - fl, h * 0.45, h * 0.55, 0, 0, 6.283); c.fill(); c.restore(); }
-      }
+      let sxs = 1, sys = 1, rot = me.tilt;
+      if (me.spin) sxs = Math.cos(g.t * 30);
+      sxs *= 1 + me.sq * 0.12; sys *= 1 - me.sq * 0.1;
+      if (me.dodge) rot = me.dodge.t / me.dodge.dur * 6.283 * (me.dodge.vx >= 0 ? 1 : -1);
+      if (me.dead) rot = g.t * 4;
+      const moving = (me.vx || me.vy) && !me.dead, L2 = petLook();
+      drawPetFull(c, X, Y0 + T * 0.18, h, { sprites: arc.sprites, form: PF, t: g.t, unit: T * SIZE, tile: T, float: !me.dead, el: party[cur].el, z, moving, walk: me.bob, flip: me.face < 0, face: L2.face, pose: L2.pose, sx: sxs, sy: sys, rot, rig: !me.dead, snap: petSnapF, body: !blink, pre: () => {
+        if (g.phoenixT > 0) { c.save(); c.globalCompositeOperation = 'lighter'; const wg = Math.sin(g.t * 10) * 0.3, cy = Y0 - T * 0.45 - z, fadeP = Math.min(1, g.phoenixT * 2);
+          const as = T * 1.7; c.globalAlpha = 0.55 * fadeP; blitSized(c, glowSprite('#FF9F43'), X - as, cy - as, as * 2, as * 2);
+          [-1, 1].forEach(s => { for (let f = 0; f < 7; f++) { const u = f / 6, ang = -0.25 - u * 1.25 - wg * 0.35, len = T * (1.0 + 0.9 * Math.sin(0.3 + u * 2.6)), bx = X + s * T * 0.15, ex = bx + s * Math.cos(ang) * len * 1.25, ey = cy + Math.sin(ang) * len, L = hyp(ex - bx, ey - cy);
+            c.save(); c.translate(bx, cy); c.rotate(Math.atan2(ey - cy, ex - bx)); c.globalAlpha = 0.7 * fadeP; blitSized(c, beamSprite(f % 2 ? '#FFB347' : '#FF6A3D'), -T * 0.1, -T * 0.2, L + T * 0.25, T * 0.4); c.globalAlpha = 0.55 * fadeP; blitSized(c, beamSprite('#FFE9A8'), -T * 0.05, -T * 0.06, L * 0.85, T * 0.12); c.restore(); } });
+          c.restore(); }
+        if (supernova > 0) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.8; const s2 = T * (1 + (1 - supernova) * 2); blitSized(c, glowSprite('#FFE37A'), X - s2, Y0 - T * 0.5 - s2, s2 * 2, s2 * 2); c.restore(); }
+        if (g.counterT > 0 || g.buff.fury > 0) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.35 + 0.15 * Math.sin(g.t * 12); const s2 = h * 0.9; blitSized(c, glowSprite(g.counterT > 0 ? '#FFE37A' : '#FF5C5C'), X - s2, Y0 - h * 0.5 - s2, s2 * 2, s2 * 2); c.restore(); }
+      } });
+      if (!blink && me.chill > 0) { c.save(); c.globalAlpha = 0.3; c.fillStyle = '#9FD8F0'; c.beginPath(); c.ellipse(X, Y0 - h * 0.4 - z - fl, h * 0.45, h * 0.55, 0, 0, 6.283); c.fill(); c.restore(); }
       if (g.shieldT > 0 || g.guardHP > 0) { const gr = g.shieldT > 0 ? 1 : 0.6, R2 = h * 0.85, bx = X, by = Y0 - h * 0.35, flick = g.shieldT > 0 && g.shieldT < 1.5 && Math.floor(g.t * 10) % 2 ? 0.45 : 1, col = g.shieldT > 0 && KIT.ult.tier ? '#FFE9A8' : '#8FE3F0';
         c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.9 * gr * flick; const s2 = R2 / 0.86 * (1 + 0.03 * Math.sin(g.t * 6)); blitSized(c, shockSprite(col), bx - s2, by - s2, s2 * 2, s2 * 2);
         c.globalAlpha = 0.16 * gr; blitSized(c, glowSprite('#BFF4FF'), bx - R2, by - R2, R2 * 2, R2 * 2);

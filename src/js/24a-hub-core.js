@@ -257,12 +257,22 @@ function hubInit() {
   if (F && typeof F.init === 'function' && !hub.facInit) { hub.facInit = true; try { F.init(hubCore); } catch (e) { if (globalThis.__errbox) __errbox('Town facilities failed to start: ' + (e && e.message)); } }
   return hub;
 }
+/* a pet's pictures: whole first, then its parts (the rig the Tower walks it with, made once per form and kept) */
 function hubSpritesFor(p) {
   const key = (p.uid || 'me') + ':' + (p.stage || 1);
   if (hub.sprites.has(key)) return hub.sprites.get(key);
   hub.sprites.set(key, null);
-  try { loadSprites(formOf(p)).then(S => { if (hub) hub.sprites.set(key, S); }); } catch (e) {}
+  try { loadSprites(formOf(p)).then(S => { if (!hub) return; S.rig = null; hub.sprites.set(key, S); if (typeof loadRig === 'function') loadRig(S.form).then(r => { S.rig = r; }, () => {}); }); } catch (e) {}
   return null;
+}
+/* a walker's body each frame: its wings beat (faster on the move), it blinks now and then, a jump stretches it on the
+   way up and squashes it on landing, a dash leans it into the run */
+function hubAnimWalker(e, dt, moving) {
+  e.mv = moving; e.wph = (e.wph || 0) + dt * (moving ? 9 : 3.4);
+  e.blinkT = (e.blinkT == null ? rand(1.5, 4) : e.blinkT) - dt;   // (the eyes are shut while it is between 0 and -0.13)
+  if (e.blinkT <= -0.13) e.blinkT = rand(2.5, 5.5);
+  e.sq = (e.sq || 0) * Math.max(0, 1 - dt * 9);
+  e.lean = (e.lean || 0) + (((e === hub.pet && hub.dashT > 0) ? -e.face * 0.2 : 0) - (e.lean || 0)) * Math.min(1, dt * 12);
 }
 function hubSyncParty(force) {
   const party = partyPets(), sig = party.map(p => p.uid || 'me').join(',');
@@ -281,6 +291,7 @@ function hubLayout() {
   hub.k = clamp(1 + (hub.W - 390) / 600, 1, 1.3);
   const dr = dockEl.getBoundingClientRect(); hub.bot = dr.height ? Math.round(dr.top - r.top) : hub.H - 80;
   hubUi.style.bottom = (hub.H - hub.bot + 170) + 'px';
+  { const R = hubMiniRect(); document.body.style.setProperty('--hub-mm-bottom', (R.y + R.h) + 'px'); }   // (the anima orb moves below the mini-map while in town)
 }
 /* ---------- screen flow ---------- */
 function enterHub(quiet) {
@@ -392,7 +403,7 @@ function hubUsePlace(pl) {
 
 /* ---------- movement ---------- */
 const hubStickHome = () => ({ x: 76, y: hub.bot - 76 });
-const hubBtns = () => ({ dash: { x: hub.W - 60, y: hub.bot - 54, r: 36, label: 'DASH' }, jump: { x: hub.W - 136, y: hub.bot - 92, r: 28, label: 'JUMP' }, emote: { x: hub.W - 48, y: hub.bot - 146, r: 26, label: 'EMOTE' } });
+const hubBtns = () => ({ jump: { x: hub.W - 60, y: hub.bot - 54, r: 36, label: 'JUMP' }, dash: { x: hub.W - 136, y: hub.bot - 92, r: 28, label: 'DASH' } });   // (jump is the big thumb button in the corner, dash the smaller one above-left of it; emotes are on the keyboard: Q / E)
 function hubDash() { if (hub.dashCd > 0 || hub.dashT > 0) return; hub.dashT = 0.32; hub.dashCd = 0.9; if (sfx.whoosh) sfx.whoosh(); for (let i = 0; i < 6; i++) hub.dust.push({ x: hub.pet.x + rand(-8, 8), y: hub.pet.y + rand(-3, 3), lv: hub.pet.lv, life: 0.5, max: 0.5 }); }
 function hubJump() { if (hub.pet.z > 0) return; hub.pet.zv = 320; sfx.boop(); }
 function hubEmote() { hub.emoteI = (hub.emoteI + 1) % TOWN_EMOTES.length; hub.emote = { kind: TOWN_EMOTES[hub.emoteI], t: 1.6 }; sfx.chirp(); hub.followers.forEach((f, i) => setTimeout(() => { if (hub) f.emote = { kind: TOWN_EMOTES[hub.emoteI], t: 1.4 }; }, 150 + i * 120)); }
@@ -413,7 +424,7 @@ function hubArrive() {
 function hubUpdatePlayer(dt) {
   const P = hub.pet, K = hub.keys, spd = HUB_SPEED * (hub.dashT > 0 ? 2.3 : 1);
   hub.dashT = Math.max(0, hub.dashT - dt); hub.dashCd = Math.max(0, hub.dashCd - dt);
-  if (P.zv || P.z) { P.zv -= 900 * dt; P.z = Math.max(0, P.z + P.zv * dt); if (P.z === 0 && P.zv < 0) { P.zv = 0; hub.dust.push({ x: P.x - 8, y: P.y, lv: P.lv, life: 0.4, max: 0.4 }); hub.dust.push({ x: P.x + 8, y: P.y, lv: P.lv, life: 0.4, max: 0.4 }); } }
+  if (P.zv || P.z) { P.zv -= 900 * dt; P.z = Math.max(0, P.z + P.zv * dt); if (P.z === 0 && P.zv < 0) { P.zv = 0; P.sq = 1; hub.dust.push({ x: P.x - 8, y: P.y, lv: P.lv, life: 0.4, max: 0.4 }); hub.dust.push({ x: P.x + 8, y: P.y, lv: P.lv, life: 0.4, max: 0.4 }); } }
   if (hub.emote) { hub.emote.t -= dt; if (hub.emote.t <= 0) hub.emote = null; }
   let mx = (K.ArrowRight || K.d || K.D ? 1 : 0) - (K.ArrowLeft || K.a || K.A ? 1 : 0), my = (K.ArrowDown || K.s || K.S ? 1 : 0) - (K.ArrowUp || K.w || K.W ? 1 : 0);
   const sv = hubStickVec(); if (sv && (sv[0] || sv[1])) { mx = sv[0]; my = sv[1]; }
@@ -440,6 +451,7 @@ function hubUpdatePlayer(dt) {
     if (P.x !== x0 || P.y !== y0) { st.hub.x = Math.round(P.x); st.hub.y = Math.round(P.y); st.hub.lv = P.lv; }
     hub.stillT = 0;
   } else { P.walk = 0; P.bob *= 0.8; hub.stillT += dt; }
+  hubAnimWalker(P, dt, moving);
   hub.wasMoving = hub.moving; hub.moving = moving;
   if (hub.wasMoving && !moving) saveSoon();
   // the door you walk into (under your own steering, heading at it; a tap-to-go opens its own target on arrival)
@@ -479,7 +491,8 @@ function hubUpdateFollowers(dt) {
   const spd = HUB_SPEED * (hub.dashT > 0 ? 2.3 : 1), P = hub.pet, resting = hub.stillT > 1.5;
   hub.followers.forEach((f, i) => {
     if (f.emote) { f.emote.t -= dt; if (f.emote.t <= 0) f.emote = null; }
-    if (f.z || f.zv) { f.zv = (f.zv || 0) - 900 * dt; f.z = Math.max(0, (f.z || 0) + f.zv * dt); if (f.z === 0) f.zv = 0; }
+    if (f.z || f.zv) { f.zv = (f.zv || 0) - 900 * dt; f.z = Math.max(0, (f.z || 0) + f.zv * dt); if (f.z === 0) { f.zv = 0; f.sq = 1; } }
+    { const mvd = Math.hypot(f.x - (f._px != null ? f._px : f.x), f.y - (f._py != null ? f._py : f.y)) > 0.05; f._px = f.x; f._py = f.y; hubAnimWalker(f, dt, mvd); }   // (how it moved last frame)
     const tgt = hubTrailPoint(HUB_FOLLOW_GAP * (i + 1)) || { x: P.x - 40 * (i + 1) * P.face, y: P.y + 6 * (i + 1), lv: P.lv };
     const dT = Math.hypot(tgt.x - f.x, tgt.y - f.y), dP = Math.hypot(P.x - f.x, P.y - f.y);
     // an idle errand: only while the player rests and the follower is near enough
@@ -529,27 +542,32 @@ function hubUpdate(dt) {
 function hubScreen(x, y, lift) { return [(x - hub.cam.x) * hub.k + hub.W / 2, (y - (lift || 0) - hub.cam.y) * hub.k + hub.H / 2]; }
 function hubPetEntity(p, e, me) {
   const lift = hubLiftAt(e.x, e.y, e.lv);
-  return { x: e.x, y: e.y, w: 30, d: 12, top: HUB_PET_H + 30, lv: e.lv, lift, kind: 'pet', tag: 'pet', pet: p, walker: e, me, draw: (c, X, Y, k, t) => hubDrawPet(c, p, e, me, X, Y, k, t) };
+  return { x: e.x, y: e.y, w: 30, d: 12, top: HUB_PET_H + 50, lv: e.lv, lift, kind: 'pet', tag: 'pet', pet: p, walker: e, me, draw: (c, X, Y, k, t) => hubDrawPet(c, p, e, me, X, Y, k, t) };
 }
+/* a pet in town is drawn as the Tower draws it (drawPetFull): a Celestial six-star over its turning magic circle with
+   its lights circling, the shadow and element glow on the ground, the body in parts stepping, swinging its arms,
+   beating its wings and breathing when still; happy when fed, petted or emoting, eyes shut for a blink or a doze */
 function hubDrawPet(c, p, e, me, X, Y, k, t) {
-  const S = hubSpritesFor(p), h = HUB_PET_H * (me ? 1 : 0.92) * k, I = e.idle && !e.idle.go ? e.idle : null;
-  let sy = 1, sx = 1, tilt = 0;
-  if (I) { if (I.kind === 'sit') sy = 0.86; else if (I.kind === 'curl') { sy = 0.78; sx = 1.08; } else if (I.kind === 'sniff') { tilt = (e.face > 0 ? 1 : -1) * 0.22 + Math.sin(t * 6) * 0.05; } else if (I.kind === 'watch') { tilt = Math.sin(t * 1.2) * 0.04; } }
-  const y = Y - (e.bob || 0) * k - (e.z || 0) * 0.5 * k, z = e.z || 0, sh = 1 - Math.min(0.5, z / 160);
-  const geo = globalThis.HubGeo;
-  if (geo && typeof geo.shadow === 'function') { try { geo.shadow(c, X, Y + 2 * k, 36 * sh, k); } catch (err) { c.fillStyle = `rgba(0,0,0,${0.22 * sh})`; c.beginPath(); c.ellipse(X, Y + 2 * k, 18 * sh * k, 7 * sh * k, 0, 0, 6.283); c.fill(); } }
-  else { c.fillStyle = `rgba(0,0,0,${0.22 * sh})`; c.beginPath(); c.ellipse(X, Y + 2 * k, 18 * sh * k, 7 * sh * k, 0, 0, 6.283); c.fill(); }
-  const blit = (alpha, ox) => {
-    c.save(); c.globalAlpha = alpha; c.translate(X + ox, y); c.rotate(tilt); c.scale((e.face < 0 ? -1 : 1) * sx, sy);
-    if (S && S.normal && S.normal.img) { const s = S.normal, [vx, vy, vw, vh] = s.vb, kk = h / S.bodyTop; c.drawImage(s.img, vx * kk, vy * kk, vw * kk, vh * kk); }
-    else { c.fillStyle = '#FFB0C8'; c.strokeStyle = '#2B2433'; c.lineWidth = 2.5; c.beginPath(); c.ellipse(0, -h / 2, h * 0.4, h / 2, 0, 0, 6.283); c.fill(); c.stroke(); }
-    c.restore();
-  };
-  if (me && hub.dashT > 0) { blit(0.3, -e.face * 14 * k); blit(0.18, -e.face * 28 * k); }
-  blit(1, 0);
-  const em = me ? (hub.emote || e.emote) : e.emote;
-  if (em) { c.save(); c.translate(X, y - h - 20 * k); c.scale(k, k); drawEmote(c, 0, 0, em); c.restore(); }
-  if (me) { c.font = `800 ${Math.round(12 * k)}px system-ui, sans-serif`; c.textAlign = 'center'; c.fillStyle = 'rgba(255,255,255,.9)'; GFX.rr(c, X - 30 * k, y - h - 24 * k, 60 * k, 18 * k, 9 * k); c.fill(); c.fillStyle = '#2B2433'; c.fillText(p.name, X, y - h - 11 * k); }
+  const S = hubSpritesFor(p), h = HUB_PET_H * (me ? 1 : 0.92) * k, I = e.idle && !e.idle.go ? e.idle : null, moving = !!e.mv, z = (e.z || 0) * 0.5 * k;
+  let sy = 1, sx = 1, rot = e.lean || 0;
+  if (I) { if (I.kind === 'sit') sy = 0.86; else if (I.kind === 'curl') { sy = 0.78; sx = 1.08; } else if (I.kind === 'sniff') { rot += (e.face > 0 ? 1 : -1) * 0.22 + Math.sin(t * 6) * 0.05; } else if (I.kind === 'watch') { rot += Math.sin(t * 1.2) * 0.04; } }
+  // a jump: stretched going up, squashed landing
+  if (e.z > 0) { const u = clamp((e.zv || 0) / 320, -1, 1); sy *= 1 + u * 0.1; sx *= 1 - u * 0.07; }
+  const sq = e.sq || 0; sx *= 1 + sq * 0.14; sy *= 1 - sq * 0.12;
+  const em = me ? (hub.emote || e.emote) : e.emote, dozing = I && I.kind === 'curl' || (em && em.kind === 'zzz'), blink = e.blinkT != null && e.blinkT <= 0;
+  const face = em && em.kind !== 'zzz' ? 'happy' : (dozing || blink) && S && S.rig && S.rig.front && S.rig.front.blink ? 'blink' : 'normal';
+  const form = formOf(p), el = petElement(p);
+  if (!S) { hubDrawPetStandIn(c, X, Y, h, e.face, sx, sy); return; }
+  // the dash leaves two fading copies behind (the plain picture: cheap)
+  if (me && hub.dashT > 0) { const fl = petFloatOf(form, h / 1.02, t), yB = Y - z - fl; [[0.3, 14], [0.18, 28]].forEach(([a, ox]) => drawPetSprite(c, X - e.face * ox * k, yB, h, { sprites: S, flip: e.face < 0, face: 'normal', sx, sy, rot, alpha: a })); }
+  drawPetFull(c, X, Y, h, { sprites: S, form, t, face, moving, walk: e.walk || 0, wingPh: e.wph || 0, flip: e.face < 0, z, sx, sy, rot, el, rig: true });
+  const top = Y - z - petFloatOf(form, h / 1.02, t) - h - (S.rig && S.rig.legW && S.rig.legW.length ? 16 * k : 0);   // (a Legendary's wings rise above its head: the label and emote sit over them)
+  if (em) { c.save(); c.translate(X, top - 20 * k); c.scale(k, k); drawEmote(c, 0, 0, em); c.restore(); }
+  if (me) { c.font = `800 ${Math.round(12 * k)}px system-ui, sans-serif`; c.textAlign = 'center'; c.textBaseline = 'alphabetic'; c.fillStyle = 'rgba(255,255,255,.9)'; GFX.rr(c, X - 30 * k, top - 24 * k, 60 * k, 18 * k, 9 * k); c.fill(); c.fillStyle = '#2B2433'; c.fillText(p.name, X, top - 11 * k); }
+}
+function hubDrawPetStandIn(c, X, Y, h, face, sx, sy) {
+  c.fillStyle = 'rgba(0,0,0,.22)'; c.beginPath(); c.ellipse(X, Y + 2, h * 0.33, h * 0.13, 0, 0, 6.283); c.fill();
+  c.save(); c.translate(X, Y); c.scale((face < 0 ? -1 : 1) * sx, sy); c.fillStyle = '#FFB0C8'; c.strokeStyle = '#2B2433'; c.lineWidth = 2.5; c.beginPath(); c.ellipse(0, -h / 2, h * 0.4, h / 2, 0, 0, 6.283); c.fill(); c.stroke(); c.restore();
 }
 function hubGatherEntities() {
   const E = hubStatics().slice();
@@ -598,6 +616,7 @@ function hubDraw(dt) {
   // soft daylight like the old town: a warm key light across the view, cooler toward the far corner
   c.save(); const key = c.createLinearGradient(0, 0, W, H); key.addColorStop(0, 'rgba(255,240,200,.30)'); key.addColorStop(0.55, 'rgba(255,255,255,0)'); key.addColorStop(1, 'rgba(110,140,210,.18)'); c.globalCompositeOperation = 'soft-light'; c.fillStyle = key; c.fillRect(0, 0, W, H); c.restore();
   hubDrawControls(c);
+  hubDrawMini(c);
   if (hub.mapOn) hubDrawMap(c);
 }
 function hubDrawBubble(c, X, Y, bb, k) {
@@ -620,15 +639,84 @@ function hubDrawControls(c) {
   let kx = bx, ky = by; if (S) { const dx = S.x - S.ox, dy = S.y - S.oy, d = Math.hypot(dx, dy), m = Math.min(d, TOWN_STICK_R * 0.7); if (d > 0) { kx = bx + dx / d * m; ky = by + dy / d * m; } }
   const kg = c.createRadialGradient(kx - 6, ky - 6, 2, kx, ky, 24); kg.addColorStop(0, 'rgba(200,190,230,.95)'); kg.addColorStop(1, 'rgba(90,80,130,.95)'); c.fillStyle = kg; c.beginPath(); c.arc(kx, ky, 24, 0, 6.283); c.fill(); c.strokeStyle = 'rgba(255,255,255,.5)'; c.lineWidth = 2; c.stroke();
   c.globalAlpha = 0.9; label(bx, by + TOWN_STICK_R + 14, 'MOVE');
-  const B = hubBtns(), cols = { dash: ['#FF9F43', '#FFE37A'], jump: ['#6CC15A', '#E8FFC2'], emote: ['#FF9BD2', '#FFF0F5'] };
+  const B = hubBtns(), cols = { dash: ['#FF9F43', '#FFE37A'], jump: ['#6CC15A', '#E8FFC2'] };
   for (const k in B) { const b = B[k], fl = hub.btnFlash && hub.btnFlash.k === k ? 1 : 0, cd = k === 'dash' ? hub.dashCd / 0.9 : 0; c.globalAlpha = 0.9; const g = c.createRadialGradient(b.x - b.r * 0.3, b.y - b.r * 0.3, 2, b.x, b.y, b.r); g.addColorStop(0, fl ? '#FFFFFF' : cols[k][1]); g.addColorStop(1, cols[k][0]); c.fillStyle = g; c.beginPath(); c.arc(b.x, b.y, b.r, 0, 6.283); c.fill(); c.strokeStyle = '#2B2433'; c.lineWidth = 3; c.stroke();
     if (cd > 0) { c.fillStyle = 'rgba(20,16,40,.45)'; c.beginPath(); c.moveTo(b.x, b.y); c.arc(b.x, b.y, b.r, -Math.PI / 2, -Math.PI / 2 + cd * 6.283); c.closePath(); c.fill(); }
     c.fillStyle = '#2B2433'; c.strokeStyle = '#2B2433'; c.lineWidth = 3; c.lineCap = 'round';
-    if (k === 'dash') { c.beginPath(); c.moveTo(b.x - 12, b.y); c.lineTo(b.x + 10, b.y); c.moveTo(b.x + 2, b.y - 8); c.lineTo(b.x + 10, b.y); c.lineTo(b.x + 2, b.y + 8); c.moveTo(b.x - 16, b.y - 7); c.lineTo(b.x - 8, b.y - 7); c.moveTo(b.x - 16, b.y + 7); c.lineTo(b.x - 8, b.y + 7); c.stroke(); }
-    else if (k === 'jump') { c.beginPath(); c.moveTo(b.x - 10, b.y + 8); c.quadraticCurveTo(b.x, b.y - 16, b.x + 10, b.y + 8); c.stroke(); c.beginPath(); c.arc(b.x, b.y - 4, 4, 0, 6.283); c.fill(); }
-    else { c.beginPath(); c.moveTo(b.x, b.y + 7); c.bezierCurveTo(b.x - 12, b.y - 3, b.x - 8, b.y - 13, b.x, b.y - 6); c.bezierCurveTo(b.x + 8, b.y - 13, b.x + 12, b.y - 3, b.x, b.y + 7); c.fill(); }
+    const q = b.r / 32;   // (the glyph scales with the button)
+    if (k === 'dash') { c.beginPath(); c.moveTo(b.x - 12 * q, b.y); c.lineTo(b.x + 10 * q, b.y); c.moveTo(b.x + 2 * q, b.y - 8 * q); c.lineTo(b.x + 10 * q, b.y); c.lineTo(b.x + 2 * q, b.y + 8 * q); c.moveTo(b.x - 16 * q, b.y - 7 * q); c.lineTo(b.x - 8 * q, b.y - 7 * q); c.moveTo(b.x - 16 * q, b.y + 7 * q); c.lineTo(b.x - 8 * q, b.y + 7 * q); c.stroke(); }
+    else { c.lineWidth = 3.5; c.beginPath(); c.moveTo(b.x - 12 * q, b.y + 9 * q); c.quadraticCurveTo(b.x, b.y - 18 * q, b.x + 12 * q, b.y + 9 * q); c.stroke(); c.beginPath(); c.arc(b.x, b.y - 4 * q, 4.5 * q, 0, 6.283); c.fill(); }
     label(b.x, b.y + b.r + 12, b.label); }
   if (hub.btnFlash) { hub.btnFlash.t -= 0.016; if (hub.btnFlash.t <= 0) hub.btnFlash = null; }
+  c.restore();
+}
+/* ---------- the mini-map: the whole town in the top-right corner under the HUD, always showing; the shape of the land,
+   a symbol for every facility, the camera's view, the party as dots; a tap opens the signpost map ---------- */
+function hubMiniRect() { const w = Math.round(clamp(hub.W * 0.29, 112, 200)), h = Math.round(w * 86 / 112); return { x: hub.W - 12 - w, y: 100, w, h }; }
+const hubMiniHit = (sx, sy) => { const R = hubMiniRect(); return sx >= R.x - 4 && sx <= R.x + R.w + 4 && sy >= R.y - 4 && sy <= R.y + R.h + 4; };
+/* the map's inner frame: the scale from world px and the origin, worked out once per size */
+function hubMiniGeo(R) { const pad = 5, s = Math.min((R.w - pad * 2) / HUB.W, (R.h - pad * 2) / HUB.H); return { s, ox: R.x + (R.w - HUB.W * s) / 2, oy: R.y + (R.h - HUB.H * s) / 2, pad }; }
+const HUB_MINI_SYM = [   // [symbol, world x, world y]
+  ['house', 720, 520], ['leaf', 470, 1240], ['sword', 2080, 800], ['gem', 1300, 230], ['coin', 1200, 1460], ['pot', 1500, 1400], ['hammer', 1960, 1400], ['flower', 1250, 1830], ['star', 2330, 280], ['gate', 2560, 1000], ['crystal', 2460, 230],
+  ['game', 540, 1560], ['game', 1700, 300], ['game', 860, 300], ['game', 2340, 1420], ['game', 2160, 1880], ['game', 640, 1880] ];
+function hubMiniGlyph(c, kind, x, y, r) {
+  c.save(); c.translate(x, y); c.lineWidth = Math.max(1, r * 0.3); c.strokeStyle = '#2B2433'; c.lineJoin = 'round'; c.lineCap = 'round';
+  const fs = (col, path) => { c.fillStyle = col; c.beginPath(); path(); c.closePath(); c.fill(); c.stroke(); };
+  switch (kind) {
+    case 'house': fs('#FFFDF8', () => { c.rect(-r * 0.75, -r * 0.1, r * 1.5, r * 1.1); }); fs('#FF8E72', () => { c.moveTo(-r, 0); c.lineTo(0, -r * 1.05); c.lineTo(r, 0); }); break;
+    case 'leaf': c.rotate(-0.7); fs('#6CC15A', () => { c.ellipse(0, 0, r * 0.6, r * 1.05, 0, 0, 6.283); }); c.beginPath(); c.moveTo(0, -r * 0.8); c.lineTo(0, r * 0.9); c.stroke(); break;
+    case 'sword': c.rotate(0.785); c.lineWidth = Math.max(1.5, r * 0.5); c.strokeStyle = '#2B2433'; c.beginPath(); c.moveTo(0, -r * 1.1); c.lineTo(0, r * 0.9); c.stroke(); c.strokeStyle = '#D8DEE8'; c.lineWidth = Math.max(1, r * 0.3); c.beginPath(); c.moveTo(0, -r * 1.05); c.lineTo(0, r * 0.35); c.stroke(); c.strokeStyle = '#FFD447'; c.beginPath(); c.moveTo(-r * 0.6, r * 0.35); c.lineTo(r * 0.6, r * 0.35); c.stroke(); break;
+    case 'gem': fs('#B9A3F2', () => { c.moveTo(0, -r * 1.05); c.lineTo(r * 0.9, -r * 0.2); c.lineTo(0, r * 1.05); c.lineTo(-r * 0.9, -r * 0.2); }); c.fillStyle = 'rgba(255,255,255,.7)'; c.beginPath(); c.moveTo(0, -r * 0.8); c.lineTo(r * 0.45, -r * 0.25); c.lineTo(-r * 0.45, -r * 0.25); c.closePath(); c.fill(); break;
+    case 'coin': fs('#FFD447', () => { c.arc(0, 0, r * 0.95, 0, 6.283); }); c.fillStyle = '#B7860B'; c.beginPath(); c.arc(0, 0, r * 0.45, 0, 6.283); c.fill(); break;
+    case 'pot': fs('#F2B13C', () => { c.moveTo(-r * 0.9, -r * 0.45); c.lineTo(r * 0.9, -r * 0.45); c.lineTo(r * 0.7, r * 0.8); c.lineTo(-r * 0.7, r * 0.8); }); c.fillStyle = '#2B2433'; c.fillRect(-r * 1.05, -r * 0.7, r * 2.1, Math.max(1, r * 0.3)); break;
+    case 'hammer': c.lineWidth = Math.max(1.5, r * 0.4); c.beginPath(); c.moveTo(0, -r * 0.3); c.lineTo(0, r * 1.05); c.stroke(); fs('#B7906A', () => { c.rect(-r * 0.95, -r * 1.0, r * 1.9, r * 0.85); }); break;
+    case 'flower': for (let i = 0; i < 5; i++) { const a = i / 5 * 6.283; fs('#FF9BD2', () => { c.arc(Math.cos(a) * r * 0.6, Math.sin(a) * r * 0.6, r * 0.45, 0, 6.283); }); } fs('#FFE37A', () => { c.arc(0, 0, r * 0.4, 0, 6.283); }); break;
+    case 'star': fs('#FFE37A', () => { for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.45 : r * 1.1; c.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); } }); break;
+    case 'gate': fs('#8E8798', () => { c.moveTo(-r * 0.95, r); c.lineTo(-r * 0.95, -r * 0.2); c.arc(0, -r * 0.2, r * 0.95, Math.PI, 0); c.lineTo(r * 0.95, r); c.lineTo(r * 0.45, r); c.lineTo(r * 0.45, -r * 0.1); c.arc(0, -r * 0.1, r * 0.45, 0, Math.PI, true); c.lineTo(-r * 0.45, r); }); break;
+    case 'crystal': fs('#8FE3F0', () => { c.moveTo(0, -r * 1.15); c.lineTo(r * 0.6, -r * 0.3); c.lineTo(r * 0.4, r * 0.95); c.lineTo(-r * 0.4, r * 0.95); c.lineTo(-r * 0.6, -r * 0.3); }); c.fillStyle = 'rgba(255,255,255,.75)'; c.beginPath(); c.moveTo(0, -r * 0.9); c.lineTo(r * 0.3, -r * 0.3); c.lineTo(-r * 0.15, -r * 0.3); c.closePath(); c.fill(); break;
+    default: fs('#FFFDF8', () => { GFX.rr(c, -r * 0.85, -r * 0.85, r * 1.7, r * 1.7, r * 0.4); }); c.fillStyle = '#2B2433'; [[-0.38, -0.38], [0.38, 0.38], [0.38, -0.38], [-0.38, 0.38]].forEach(([a, b]) => { c.beginPath(); c.arc(a * r, b * r, Math.max(0.7, r * 0.2), 0, 6.283); c.fill(); }); break;
+  }
+  c.restore();
+}
+/* the still picture: the panel, the land, the river, the plaza ring and the symbols, made once per size */
+function hubMiniPicture(R) {
+  const dpr = hub.dpr, key = R.w + 'x' + R.h + '@' + dpr;
+  if (hub.miniCv && hub.miniKey === key) return hub.miniCv;
+  const cv = hub.miniCv || document.createElement('canvas'); cv.width = Math.round((R.w + 8) * dpr); cv.height = Math.round((R.h + 8) * dpr);
+  const c = cv.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, R.w + 8, R.h + 8); c.translate(4 - R.x, 4 - R.y);
+  const G = hubMiniGeo(R), s = G.s, ox = G.ox, oy = G.oy, P = (x, y) => [ox + x * s, oy + y * s];
+  c.fillStyle = 'rgba(20,16,40,.58)'; GFX.rr(c, R.x, R.y, R.w, R.h, 12); c.fill();
+  c.save(); GFX.rr(c, R.x + G.pad, R.y + G.pad, R.w - G.pad * 2, R.h - G.pad * 2, 8); c.clip();
+  c.fillStyle = '#5FA653'; c.fillRect(R.x, R.y, R.w, R.h);
+  // the ground inside the world, the terraces a shade lighter the higher they stand
+  c.fillStyle = '#74B962'; c.fillRect(ox, oy, HUB.W * s, HUB.H * s);
+  HUB.terraces.forEach(T => { c.fillStyle = T.lv === 2 ? '#A9DB8E' : '#8FCB78'; c.beginPath(); T.poly.forEach(([x, y], i) => { const [X, Y] = P(x, y); i ? c.lineTo(X, Y) : c.moveTo(X, Y); }); c.closePath(); c.fill(); });
+  // the plaza ring, the paths, the river with its bridges
+  { const [X, Y] = P(1300, 1000); c.fillStyle = '#F0D3CF'; c.beginPath(); c.arc(X, Y, 210 * s, 0, 6.283); c.fill(); c.strokeStyle = '#E39DAA'; c.lineWidth = Math.max(1, 26 * s); c.beginPath(); c.arc(X, Y, 150 * s, 0, 6.283); c.stroke(); }
+  c.strokeStyle = 'rgba(240,226,200,.7)'; c.lineCap = 'round'; c.lineJoin = 'round'; HUB.paths.forEach(Pp => { c.lineWidth = Math.max(1, Pp.w * s * 0.8); c.beginPath(); Pp.pts.forEach(([x, y], i) => { const [X, Y] = P(x, y); i ? c.lineTo(X, Y) : c.moveTo(X, Y); }); c.stroke(); });
+  c.strokeStyle = '#4FA8F0'; c.lineWidth = Math.max(2, HUB.river.w * s); c.beginPath(); HUB.river.pts.forEach(([x, y], i) => { const [X, Y] = P(x, y); i ? c.lineTo(X, Y) : c.moveTo(X, Y); }); c.stroke();
+  c.strokeStyle = 'rgba(255,255,255,.35)'; c.lineWidth = 1; c.stroke();
+  HUB.bridges.forEach(b => { const [X, Y] = P(b.x, b.y); c.fillStyle = '#B98A57'; c.fillRect(X, Y, Math.max(2, b.w * s), Math.max(2, b.h * s)); });
+  // the symbols
+  const r = Math.max(2.6, 3.4 * R.w / 112);
+  HUB_MINI_SYM.forEach(([kind, x, y]) => { const [X, Y] = P(x, y); hubMiniGlyph(c, kind, X, Y, kind === 'game' ? r * 0.8 : r); });
+  c.restore();
+  c.strokeStyle = 'rgba(255,255,255,.4)'; c.lineWidth = 1.5; GFX.rr(c, R.x, R.y, R.w, R.h, 12); c.stroke();
+  hub.miniCv = cv; hub.miniKey = key; hub.miniGeo = G;
+  return cv;
+}
+function hubDrawMini(c) {
+  const R = hubMiniRect(), cv = hubMiniPicture(R), G = hub.miniGeo, s = G.s;
+  c.save(); c.globalAlpha = hub.mapOn ? 0.5 : 0.92;
+  c.drawImage(cv, R.x - 4, R.y - 4, R.w + 8, R.h + 8);
+  // the camera's view, kept inside the frame
+  const x0 = Math.max(R.x + G.pad, G.ox + (hub.cam.x - hub.W / hub.k / 2) * s), x1 = Math.min(R.x + R.w - G.pad, G.ox + (hub.cam.x + hub.W / hub.k / 2) * s), y0 = Math.max(R.y + G.pad, G.oy + (hub.cam.y - hub.bot / hub.k / 2) * s), y1 = Math.min(R.y + R.h - G.pad, G.oy + (hub.cam.y + hub.bot / hub.k / 2) * s);
+  c.strokeStyle = 'rgba(255,255,255,.85)'; c.lineWidth = 1; c.strokeRect(Math.round(x0) + 0.5, Math.round(y0) + 0.5, Math.round(x1 - x0), Math.round(y1 - y0));
+  // the party as tiny dots in their element's colour, the player a white dot with a soft pulse
+  const dot = (x, y, rr, col) => { c.fillStyle = col; c.strokeStyle = '#2B2433'; c.lineWidth = 1; c.beginPath(); c.arc(G.ox + x * s, G.oy + y * s, rr, 0, 6.283); c.fill(); c.stroke(); };
+  hub.followers.forEach(f => { let col = '#FFE37A'; try { col = E8[petElement(f.p)].color; } catch (e) {} dot(f.x, f.y, 2, col); });
+  if (hub.dest) dot(hub.dest.x, hub.dest.y, 2.5, '#FFE37A');
+  { const px = G.ox + hub.pet.x * s, py = G.oy + hub.pet.y * s, pu = 0.5 + 0.5 * Math.sin(hub.t * 4); c.fillStyle = `rgba(255,255,255,${0.25 * pu})`; c.beginPath(); c.arc(px, py, 5 + pu * 3, 0, 6.283); c.fill(); dot(hub.pet.x, hub.pet.y, 3, '#FFFFFF'); }
   c.restore();
 }
 /* the signpost map: the districts, where you are, and a tap sets a destination marker */
@@ -690,7 +778,8 @@ hubCv.addEventListener('pointerdown', ev => {
   sfx.unlock();
   const { sx, sy } = hubWorldAt(ev);
   if (hub.mapOn) { hubMapTap(sx, sy); return; }
-  const B = hubBtns(); for (const k in B) { const b = B[k]; if (Math.hypot(sx - b.x, sy - b.y) < b.r + 8) { if (k === 'dash') hubDash(); else if (k === 'jump') hubJump(); else hubEmote(); hub.btnFlash = { k, t: 0.2 }; return; } }
+  if (hubMiniHit(sx, sy)) { hub.mapOn = true; sfx.boop(); return; }
+  const B = hubBtns(); for (const k in B) { const b = B[k]; if (Math.hypot(sx - b.x, sy - b.y) < b.r + 8) { if (k === 'dash') hubDash(); else hubJump(); hub.btnFlash = { k, t: 0.2 }; return; } }
   const hm = hubStickHome(); if (Math.hypot(sx - hm.x, sy - hm.y) < 120 && (hub.stick == null || hub.stick.id == null)) { hub.stick = { id: ev.pointerId, ox: sx, oy: sy, x: sx, y: sy }; try { hubCv.setPointerCapture(ev.pointerId); } catch (e) {} hub.goal = null; hub.path = null; hub.pending = null; if (st.hub) st.hub.walked = true; return; }
   if (st.hub) st.hub.walked = true;
   const w = hubUnproject(sx, sy), hit = hubHitEntity(sx, sy);
@@ -727,7 +816,7 @@ document.addEventListener('keydown', e => {
 });
 document.addEventListener('keyup', e => { if (hub) { hub.keys[e.key] = false; if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'w', 'a', 's', 'd', 'W', 'A', 'S', 'D'].includes(e.key) && !Object.values(hub.keys).some(Boolean)) saveSoon(); } });
 hubUi.addEventListener('click', e => { const b = e.target.closest('[data-hp]'); if (!b || !hub) return; sfx.unlock(); if (hub.near && hub.near.id === b.dataset.hp) hubUsePlace(hub.near); });
-hubMapBtn.innerHTML = ICON.map;
+hubMapBtn.innerHTML = ICON.map; hubMapBtn.hidden = true;   // (the mini-map in the corner is the map button now; the M key still opens it)
 hubMapBtn.addEventListener('click', () => { if (!hub) return; sfx.unlock(); hub.mapOn = !hub.mapOn; });
 outsideBtn.innerHTML = ICON.door + '<span>Outside</span>';
 outsideBtn.addEventListener('click', () => { sfx.unlock(); enterHub(); });

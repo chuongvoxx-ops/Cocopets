@@ -1928,6 +1928,7 @@ body.run-team .evo-wrap{z-index:70}
 .hub-wrap{position:absolute;inset:0;z-index:5;overflow:hidden;background:#6FB35E;touch-action:none;-webkit-user-select:none;user-select:none}
 .hub-wrap canvas{display:block;position:absolute;inset:0}
 body.in-hub #stage{visibility:hidden}
+body.in-hub .anima-btn{top:calc(var(--hub-mm-bottom,186px) + 10px)}
 body.in-hub .roombar,body.in-hub .hint,body.in-hub .lab-btn,body.in-hub .shop-btn{display:none}
 body.in-hub .night{opacity:0}
 .hub-ui{position:absolute;left:0;right:0;bottom:250px;display:flex;justify-content:center;pointer-events:none;padding:0 14px;z-index:2}

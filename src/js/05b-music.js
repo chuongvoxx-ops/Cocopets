@@ -1,6 +1,6 @@
 /* ---------- music: the player's own songs, built into the game (MUSIC_DATA) and played through Web Audio ----------
    Carta Misteriosa plays over the world map on the Adventure screen, in rift puzzles and in the zodiac gates;
-   Exploratory World plays in the house, with the pets; each rift's own song in its dungeons, and a random one of those on each Tower floor;
+   Welcome to Town plays in Cocopets Town; Exploratory World plays in the house, with the pets; each rift's own song in its dungeons, and a random one of those on each Tower floor;
    Triumph of the Hero for every boss, the rifts' three and the Tower's. Each loops while the player stays, fades out on
    leaving, and crossfades into the next.
    Nothing is fetched: each song is decoded from the page itself when it is wanted (only the one playing is kept
@@ -25,7 +25,7 @@ const music = (() => {
   // page, for the website build, which leaves MUSIC_DATA out)
   const FILES = { carta: 'music/carta-misteriosa.mp3', explore: 'music/exploratory-world.mp3', triumph: 'music/triumph-of-the-hero.mp3', charge: 'music/champions-charge.mp3',
     belfort: 'music/drowned-belfort.mp3', rift2: 'music/rift-2.mp3', desert: 'music/desert-rose.mp3', hours: 'music/time-after-time.mp3', library: 'music/the-library.mp3', waltz: 'music/waltz-for-the-moon.mp3',
-    crown: 'music/quest-for-the-crown.mp3', gates: 'music/anima-gates.mp3', summon: 'music/the-summoning.mp3' };
+    crown: 'music/quest-for-the-crown.mp3', gates: 'music/anima-gates.mp3', summon: 'music/the-summoning.mp3', town: 'music/welcome-to-town.mp3' };
   const EMBED = typeof MUSIC_DATA !== 'undefined';
   // (the Claude build carries only four songs built in: a song it lacks gives way to the nearest it has)
   const has = k => EMBED ? !!MUSIC_DATA[k] : !!FILES[k], FALL = { belfort: 'charge', rift2: 'charge', desert: 'charge', hours: 'charge', library: 'charge', waltz: 'charge', crown: 'carta', gates: 'carta' };
@@ -63,6 +63,8 @@ const music = (() => {
     }
     if (!introEl.hidden || !splashEl.hidden) return null;
     if (mapOpen) return mapTab === 'world' ? 'carta' : null;
+    // Welcome to Town plays while the player walks the town; Exploratory World in the house, with the pets
+    if (typeof hubActive === 'function' && hubActive() && has('town')) return 'town';
     return 'explore';
   }
   function stop(fade) { if (!src) return; const s = src, v = voice, t = ctx.currentTime; try { v.gain.cancelScheduledValues(t); v.gain.setValueAtTime(v.gain.value, t); v.gain.linearRampToValueAtTime(0, t + fade); s.stop(t + fade + 0.05); } catch (e) {} src = voice = null; }
