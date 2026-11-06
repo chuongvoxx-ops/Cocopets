@@ -1053,10 +1053,13 @@ function petSVG(f, o) {
     else { back += `<g class="p-lights p-lights-b" data-orbit="${pt(0, cy)} ${r1(Rr)}">${layer(false)}</g>`; lightsF = `<g class="p-lights p-lights-f">${layer(true)}</g>`; }
     growW(Rr + 16, cy - Rr * 0.5 - 16);
   }
+  let y3t0 = -1, y3t1 = -1;   // (where the tail lies in back, for the rig's turning layers)
   if (f.tail.t !== 'none') {
     const T = f.tail, s = (T.size || 1) * k, shape = tailShape(T.t, s, F, f, crys);
     const angs = T.n === 3 ? [-24, 0, 24] : T.n === 2 ? [-14, 14] : [0];
+    y3t0 = back.length;
     back += `<g class="p-tail" data-pivot="${pt(g.tx, g.ty)}">${angs.map(a => `<g transform="translate(${pt(g.tx, g.ty)}) rotate(${a})">${shape}</g>`).join('')}</g>`;
+    y3t1 = back.length;
     grow(g.tx - 46 * s, g.ty - 54 * s);
   }
   if (X.spikes) {
@@ -1133,28 +1136,34 @@ function petSVG(f, o) {
 
   // body, markings and dirt
   let clip = patternSVG(f.pattern, g, f, R);
+  const y3p = clip.length;
   if (pal.stars) {
     for (let i = 0; i < 14; i++) clip += `<circle cx="${r1((R() * 2 - 1) * g.bw)}" cy="${r1(g.top + R() * (g.yb - g.top))}" r="${r1(0.8 + R() * 1.2)}" fill="#FFFFFF" opacity="${r1(0.6 + R() * 0.4)}"/>`;
     clip += `<ellipse cx="${r1(g.bw * 0.4)}" cy="${r1(g.Y(0.7))}" rx="18" ry="10" fill="${pal.sec}" opacity=".35"/><ellipse cx="${r1(-g.bw * 0.5)}" cy="${r1(g.Y(0.3))}" rx="14" ry="9" fill="#7FD3F2" opacity=".3"/>`;
   }
-  clip += bellySVG(f.body.belly, g, f);
+  // (y3*: where the parts that face front start and end, for the rig's turning layers (o.rig3); the picture is unchanged)
+  const y3a = clip.length; clip += bellySVG(f.body.belly, g, f); const y3b = clip.length;
   if (f.body.fur === 'scaly') clip += scalesSVG(g, f);
-  if (X.marks) clip += marksSVG(X.marks, g, crys);
+  const y3c = clip.length; if (X.marks) clip += marksSVG(X.marks, g, crys); const y3d = clip.length;
+  let y3e = -1, y3f = -1;
   const dirt = clamp(o.dirt || 0, 0, 1);
   if (!o.flat) {
     clip += `<rect x="-160" y="-320" width="320" height="380" fill="url(#${id}sh)"/>`;
-    clip += `<rect x="-160" y="-320" width="320" height="380" fill="${pal.dk}" opacity=".17" mask="url(#${id}k)"/>`;
+    clip += `<rect x="-160" y="-320" width="320" height="380" fill="${pal.dk}" opacity=".17" mask="url(#${id}k)"/>`; y3e = clip.length;
     // the chin and neck sit in the head's shadow
     const ny = g.blob ? g.Y(g.fF - 0.26) : g.Y(g.neckF + 0.04), nw = g.halfW(g.blob ? g.fF - 0.26 : g.neckF + 0.04);
     if (g.blob) clip += `<ellipse cx="0" cy="${r1(ny)}" rx="${r1(nw * 0.78)}" ry="${r1(5 * k)}" fill="${pal.dk}" opacity=".12"/>`;
     else clip += `<ellipse cx="0" cy="${r1(ny)}" rx="${r1(nw * 1.1)}" ry="${r1(6 * k)}" fill="${pal.dk}" opacity=".2"/>`;
+    y3f = clip.length;
   }
   clip += `<g class="p-dirt" opacity="${dirt.toFixed(2)}">${[[-0.45, 0.25, 9, 6], [0.38, 0.75, 7, 5], [0.55, 0.15, 6, 4], [-0.6, 0.55, 4.5, 4.5], [0.1, 0.08, 3.5, 3.5]].map(([a, b2, rx, ry]) => `<ellipse cx="${r1(a * g.bw)}" cy="${r1(g.Y(b2))}" rx="${rx}" ry="${ry}" fill="#7A5A36" opacity=".6"/>`).join('')}</g>`;
   let front = `<path d="${body}" fill="${F}"/><g clip-path="url(#${id}c)">${clip}</g><path d="${body}" fill="none" ${OL}/>`;
+  const y3F0 = front.length;
   const sx = -g.hw * 0.5, sy = g.Y(0.86);
   front += `<ellipse cx="${r1(sx)}" cy="${r1(sy)}" rx="${r1(9 * k)}" ry="${r1(5.5 * k)}" fill="#FFFFFF" opacity="${pal.shine || f.body.fur === 'sleek' || f.body.fur === 'slime' ? 0.8 : 0.5}" transform="rotate(-32 ${r1(sx)} ${r1(sy)})"/><circle cx="${r1(sx + 11 * k)}" cy="${r1(sy + 5 * k)}" r="${r1(2.4 * k)}" fill="#FFFFFF" opacity=".5"/>`;
   if (f.body.fur === 'sleek') front += `<path d="M${pt(-g.hw * 0.72, g.Y(0.62))}Q${pt(-g.hw * 0.8, g.Y(0.4))} ${pt(-g.bw * 0.66, g.Y(0.22))}" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" opacity=".5"/>`;
   if (f.body.fur === 'slime') front += [-0.5, 0.12, 0.58].map(a => { const x = a * g.bw; return `<path d="M${pt(x - 4, g.yb - 2)}Q${pt(x - 4, g.yb + 8)} ${pt(x, g.yb + 9)}Q${pt(x + 4, g.yb + 8)} ${pt(x + 4, g.yb - 2)}Z" fill="${F}" ${OL2}/>`; }).join('');
+  const y3F1 = front.length;
   if (X.mane === 'ruff') front += ruffSVG(g, f);
   if (X.armor) front += armorSVG(g, f, crys, id);
   if (X.pauldrons) front += pauldronSVG(g, crys, id, X.armor ? 1 : 0);
@@ -1172,6 +1181,7 @@ function petSVG(f, o) {
     // (on the chest: low enough to keep clear of the mouth, down on the belly if need be, and never off the body)
     else front += gemMarkSVG(c, 0, Math.min(Math.max(g.bellyY - g.bellyRY * 0.25, g.my + 17 * k), g.yb - 10 * k), k);
   }
+  const y3F3 = front.length;
   if (X.halo) { front += haloSVG(X.halo, g); grow(24, g.top - 36); }
   if (X.orbs && !o.lite) {
     const cy = g.Y(0.5), Rr = Math.max(g.bw, g.h * 0.5) + 9;
@@ -1208,6 +1218,11 @@ function petSVG(f, o) {
     petSVG.rig = { vb: vb.split(' ').map(Number), sc, defs: fix(defs), back: fix(wrapS(back)), front: fix(wrapS(front)), foot: RG.foot && fix(wrapS(RG.foot)), footPv: [-g.lx, -6],
       arm: RG.arm && fix(wrapS(RG.arm)), armPv: RG.armPv && RG.armPv.map(v => v * sc), wing: RG.wing && fix(wrapS(RG.wing)), wingPv: RG.wingPv && RG.wingPv.map(v => v * sc),
       leg: SP && SP.wings.length ? { wings: SP.wings.map(w => Object.assign({}, w, { g: fix(wrapS(`<g transform="translate(${pt(w.x0, w.y0)}) rotate(${w.rot})">${w.g}</g>`)), pv: [w.x0 * sc, w.y0 * sc] })), flap: SP.flap, beat: SP.beat } : null };
+    /* (o.rig3: the body in two more layers for a turn about its upright axis, 12-arcade's drawPetRig yaw: base, the body that
+       stays as it is (its outline, shading, pattern, shine, halo), and feat, what faces front and slides round with the turn
+       (the coat's pattern, belly, marks, the chin's shadow, ruff and armour, the face and its jewels); bw: the body's half width) */
+    if (o.rig3) { const e = y3e < 0 ? y3d : y3e, f2 = y3f < 0 ? e : y3f, cB = clip.slice(y3p, y3a) + clip.slice(y3b, y3c) + clip.slice(y3d, e) + clip.slice(f2), cF = clip.slice(0, y3p) + clip.slice(y3a, y3b) + clip.slice(y3c, y3d) + clip.slice(e, f2);
+      petSVG.rig.y3 = { base: fix(wrapS(`<path d="${body}" fill="${F}"/><g clip-path="url(#${id}c)">${cB}</g><path d="${body}" fill="none" ${OL}/>` + front.slice(y3F0, y3F1) + front.slice(y3F3))), feat: fix(wrapS(`<g clip-path="url(#${id}c)">${cF}</g>` + front.slice(y3F1, y3F3))), back: y3t0 >= 0 ? fix(wrapS(back.slice(0, y3t0) + back.slice(y3t1))) : null, tail: y3t0 >= 0 ? fix(wrapS(back.slice(y3t0, y3t1))) : null, tp: y3t0 >= 0 ? [g.tx * sc, g.ty * sc] : null, yb: g.yb * sc, bw: g.bw * sc, hw: g.hw * sc, ey: g.ey * sc, top: g.top * sc, yb: g.yb * sc }; }
   } else petSVG.rig = null;
   return svg;
 }

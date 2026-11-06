@@ -1876,7 +1876,7 @@ GAMES.dungeon = {
     function petLook() {
       const moving = !!((me.vx || me.vy) && !me.dead), PF = formOf(P), fl = !!(PF.x && PF.x.gold && PF.stage >= 7 && PF.x.leg && !me.dead);
       return { face: me.dead ? 'hurt' : me.hurtT < 0.4 ? 'hurt' : (g.won || me.lvFx > 0 || g.counterT > 0) ? 'happy' : 'normal',
-        pose: { walk: me.bob, moving, t: g.t, cast: me.castT > 0 ? 1 - me.castT / (me.castM || 1) : 0, ult: !!me.castUlt, wingPh: me.wph || 0, wingAmp: moving ? 14 : fl ? 11 : 8, hopArm: me.hopArm || 0, hopFoot: me.hopFoot || 0 } };   /* (hopArm / hopFoot: Earth's Shockwave Trampoline, 20k2b) */
+        pose: { walk: me.bob, moving, t: g.t, cast: me.castT > 0 ? 1 - me.castT / (me.castM || 1) : 0, ult: !!me.castUlt, wingPh: me.wph || 0, wingAmp: moving ? 14 : fl ? 11 : 8, hopArm: me.hopArm || 0, hopFoot: me.hopFoot || 0, yaw: me.yaw || 0 } };   /* (hopArm / hopFoot: Earth's Shockwave Trampoline, 20k2b; yaw: a turn about the pet's upright axis drawn in 3D by drawPetRig, Earth's Geode Arsenal 20k2d) */
     }
     let petSnapF = null;   // this frame's picture of the pet, while copies of it are out
     function drawPet(c) {
@@ -1891,7 +1891,6 @@ GAMES.dungeon = {
       if (me.spin) sxs = Math.cos(g.t * 30);
       sxs *= 1 + me.sq * 0.12; sys *= 1 - me.sq * 0.1;
       if (me.hopSq) { sxs *= 1 + me.hopSq * 0.3; sys *= 1 - me.hopSq * 0.3; }   /* (Earth's Shockwave Trampoline, 20k2b: squash + / stretch -, about the feet; me.z lifts it) */
-      if (me.twirl) { const cw = Math.cos(me.twirl); sxs *= (cw < 0 ? -1 : 1) * Math.max(0.14, Math.abs(cw)); }   /* (Earth's Geode Arsenal, 20k2d: the pet twirls in the air, a turn about its upright axis; me.z lifts it) */
       if (me.dodge) rot = me.dodge.t / me.dodge.dur * 6.283 * (me.dodge.vx >= 0 ? 1 : -1);
       if (me.dead) rot = g.t * 4;
       const moving = (me.vx || me.vy) && !me.dead, L2 = petLook();

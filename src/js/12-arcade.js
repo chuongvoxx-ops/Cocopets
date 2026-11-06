@@ -60,6 +60,23 @@ async function makeRig(f, extra) {
     return out;
   } finally { box.remove(); }
 }
+/* the layers for a turn about the pet's upright axis (drawPetRig's pose.yaw), made only when a pet first turns: the body
+   that stays (outline, shading, pattern, shine), what faces front and slides round (belly, marks, the face, one for each
+   expression), and what lies behind the body cut in a left and a right half (ears, tail, horns, top), all over the
+   picture's whole box so they line up */
+const RIG3 = new WeakMap();
+function makeRig3(f) {
+  const R = {}; for (const [ky, ex] of [['normal', { eyes: 'normal', mouth: 'smile' }], ['happy', { eyes: 'happy', mouth: 'open' }], ['hurt', { eyes: 'dizzy', mouth: 'o' }], ['blink', { eyes: 'closed', mouth: 'smile' }]]) { petSVG(f, Object.assign({ static: true, frame: 'fit', lite: true, rig: true, rig3: true }, ex)); R[ky] = petSVG.rig; }
+  const R0 = R.normal; if (!R0 || !R0.y3) return Promise.resolve(null);
+  const vb = R0.vb, img = (content, defs) => new Promise(res => { const w = Math.max(1, Math.round(vb[2] * 2)), h = Math.max(1, Math.round(vb[3] * 2)); const im = new Image(); im.onload = () => res({ img: im, vb }); im.onerror = () => res(null);
+    im.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb.join(' ')}" width="${w}" height="${h}"><defs>${defs}</defs>${content}</svg>`); });
+  const BK = R0.y3.back != null ? R0.y3.back : R0.back;   // (what lies behind the body, the tail apart: it turns on its own)
+  const half = sd => `<clipPath id="y3h${sd}"><rect x="${sd < 0 ? -999 : 0}" y="-999" width="999" height="1998"/></clipPath>`;
+  return Promise.all([img(R0.y3.base, R0.defs), img(R0.y3.feat, R0.defs), img(R.happy.y3.feat, R.happy.defs), img(R.hurt.y3.feat, R.hurt.defs), img(R.blink.y3.feat, R.blink.defs),
+    BK ? img(`<g clip-path="url(#y3h-1)">${BK}</g>`, R0.defs + half(-1)) : null, BK ? img(`<g clip-path="url(#y3h1)">${BK}</g>`, R0.defs + half(1)) : null, R0.y3.tail ? img(R0.y3.tail, R0.defs) : null])
+    .then(g => g[0] && g[1] ? { base: g[0], feat: { normal: g[1], happy: g[2] || g[1], hurt: g[3] || g[1], blink: g[4] || g[1] }, backL: g[5], backR: g[6], tail: g[7], tp: R0.y3.tp, yb: R0.y3.yb, top: R0.y3.top, bw: R0.y3.bw, ey: R0.y3.ey } : null);
+}
+const Y3TMP = { cv: null };
 /* a pet's picture is an SVG image, and an SVG drawn at a size that changes from frame to frame (the pet breathes and
    squashes as it moves) is painted afresh by the browser every time: in a Tower fight that cost more than the whole of the
    fiend's arena. So it is copied once into a canvas at about the size it is drawn (device pixels per unit of the
@@ -95,7 +112,7 @@ function drawPetRig(c, RG, S, h, o) {
   const D2R = Math.PI / 180, ph = P.walk || 0, mv = P.moving ? 1 : 0, cast = P.cast || 0, castUlt = !!P.ult;
   // wings: a Legendary's pairs beat as they do in the room (rise and close, sweep down and open; each a moment after
   // the main one); an ordinary pet's wings flutter
-  if (RG.legW) {
+  const legWings = () => {
     // (each pair's beat is drawn ahead as 16 still pictures, the turn and the close already in them, so a frame lays down
     // plain copies, the far side's flipped: a turned copy costs a phone's painter several times a plain one)
     const [up, down] = RG.flap || [8, 8], BT = RG.beat || [1, 1, 1], wph = (P.wingPh || 0) * BT[0], NB = 16, TAU = Math.PI * 2;
@@ -114,8 +131,14 @@ function drawPetRig(c, RG, S, h, o) {
       }
       c.drawImage(F2.cv, F2.x0 * k, F2.y0 * k, F2.w * k, F2.h * k);
       c.save(); c.scale(-1, 1); c.drawImage(F2.cv, F2.x0 * k, F2.y0 * k, F2.w * k, F2.h * k); c.restore();
-    });
-  } else if (RG.wing) { const F2 = baked(RG.wing, RG.wingPv, Math.sin(P.wingPh || 0) * (P.wingAmp || 8)); lay(F2, 1); lay(F2, -1); }
+    }); };
+  // (pose.yaw: a turn about the upright axis, in parts placed in depth; the layers are made the first time a pet turns,
+  // and until they are ready it is drawn facing front as before)
+  const yaw = P.yaw && Math.cos(P.yaw) < 0.99999 ? P.yaw : 0;   // (a whole turn is facing front again)
+  if (yaw && S.form) { let Y3 = RIG3.get(RG); if (Y3 === undefined) { RIG3.set(RG, null); makeRig3(S.form).then(r => RIG3.set(RG, r || false)).catch(() => RIG3.set(RG, false)); Y3 = null; }
+    if (Y3) { drawRigYaw(c, RG, Y3, k, ppu, P, o, yaw, { put, lay, baked, D2R, ph, mv, cast, castUlt, legWings }); return; } }
+  if (RG.legW) legWings();
+  else if (RG.wing) { const F2 = baked(RG.wing, RG.wingPv, Math.sin(P.wingPh || 0) * (P.wingAmp || 8)); lay(F2, 1); lay(F2, -1); }
   put(RG.back, 1);
   // feet: stepping, one up as the other comes down, and shuffled a little; still, they rest
   if (RG.foot) [1, -1].forEach(sd => { const q = Math.sin(ph + (sd < 0 ? Math.PI : 0)), lift = mv * Math.max(0, q) * 5.2, sh = mv * Math.cos(ph + (sd < 0 ? Math.PI : 0)) * 1.8;
@@ -127,6 +150,48 @@ function drawPetRig(c, RG, S, h, o) {
     const env = cast > 0 ? Math.max(0, Math.min(1, cast * 5, (1 - cast) * 3)) : 0, lift = env * (castUlt ? 112 : -62);
     lay(baked(RG.arm, RG.armPv, sw * (1 - Math.min(1, Math.abs(lift) / 55)) + lift + (P.hopArm || 0)), sd);   /* (+ hopArm: Earth's Shockwave Trampoline swings them through its jumps, 20k2b) */
   });
+}
+/* the pet turned by yaw about its upright axis: each part placed at its own 3D spot (x' = x cos - z sin, depth =
+   x sin + z cos; z toward the viewer), drawn far to near round the body. The body keeps its outline and its light (a
+   round body under a fixed light looks the same as it turns); what faces front slides round it, narrowing, and fades at
+   the edge, cut to the body's outline; from behind, the back of the head darkens a little and what lay behind the body
+   (ears, tail) comes in front of it, mirrored */
+function drawRigYaw(c, RG, Y3, k, ppu, P, o, yaw, U) {
+  const { put, lay, baked, ph, mv, cast, castUlt } = U, cw = Math.cos(yaw), sw = Math.sin(yaw), bw = Y3.bw || 30, sm = u => { u = Math.max(0, Math.min(1, u)); return u * u * (3 - 2 * u); };
+  const items = [];   // [depth, draw]
+  // behind the body: each half a card at depth zB, turned
+  // (each half moves as a whole to its turned place, narrowing a little toward the side view and mirrored from behind:
+  // flat things squashed to a sliver read as a crack, not as an ear seen edge on)
+  const zB = -0.38 * bw, card = Math.sign(cw || 1) * (0.55 + 0.45 * Math.abs(cw));
+  [[-1, Y3.backL], [1, Y3.backR]].forEach(([sd, pt2]) => { if (!pt2) return; const xc = sd * 0.55 * bw; items.push([xc * sw + zB * cw, () => { c.save(); c.translate((xc * cw - zB * sw) * k, 0); c.scale(card, 1); c.translate(-xc * k, 0); put(pt2, 1); c.restore(); }]); });
+  // the tail: it peeks out at one side facing front; it sits at the back's middle, low, facing away (and sticks out
+  // behind at the side view), mirrored from behind
+  if (Y3.tail && Y3.tp) { const [tx, ty] = Y3.tp, zT = -0.85 * bw, u = (1 - cw) / 2, ax = lerp(tx * cw, 0, u * u) - zT * sw * 0.8, ay = lerp(ty, Y3.yb != null ? Y3.yb - (Y3.yb - ty) * 0.15 - bw * 0.45 : ty, sm(u));
+    items.push([tx * sw * 0.3 + zT * cw, () => { c.save(); c.translate(ax * k, ay * k); c.scale(cw < 0 ? -1 : 1, 1); c.translate(-tx * k, -ty * k); put(Y3.tail, 1); c.restore(); }]); }
+  if (RG.legW || RG.wing) items.push([zB * 1.2 * cw - 0.001, () => { c.save(); c.translate(-zB * 1.2 * sw * k, 0); c.scale(card, 1); if (RG.legW) U.legWings(); else { const F2 = baked(RG.wing, RG.wingPv, Math.sin(P.wingPh || 0) * (P.wingAmp || 8)); lay(F2, 1); lay(F2, -1); } c.restore(); }]);
+  // feet and arms: forward of the middle, on either side
+  if (RG.foot) { const lx = RG.footPv ? -RG.footPv[0] : bw * 0.5, zF = 0.32 * bw; [1, -1].forEach(sd => { const x = -sd * lx, xs = x * cw - zF * sw, q = Math.sin(ph + (sd < 0 ? Math.PI : 0)), lift = mv * Math.max(0, q) * 5.2, sh = mv * Math.cos(ph + (sd < 0 ? Math.PI : 0)) * 1.8;
+    items.push([x * sw + zF * cw, () => { c.save(); c.translate((xs - x) * k, 0); if (sd < 0) c.scale(-1, 1); c.translate(sh * k, (-lift + (P.hopFoot || 0)) * k); put(RG.foot, 1); c.restore(); }]); }); }
+  if (RG.arm) { const ax = RG.armPv ? RG.armPv[0] : bw * 0.8, zA = 0.18 * bw; [1, -1].forEach(sd => { const x = sd * ax, xs = x * cw - zA * sw;
+    const swg = mv ? Math.sin(ph + (sd < 0 ? 0 : Math.PI)) * 26 : Math.sin((P.t || 0) * 2.2) * 3, env = cast > 0 ? Math.max(0, Math.min(1, cast * 5, (1 - cast) * 3)) : 0, lift = env * (castUlt ? 112 : -62);
+    items.push([x * sw + zA * cw, () => { c.save(); c.translate((xs - x) * k, 0); const nw = 0.6 + 0.4 * Math.abs(cw); c.translate(x * k, 0); c.scale(nw, 1); c.translate(-x * k, 0); lay(baked(RG.arm, RG.armPv, swg * (1 - Math.min(1, Math.abs(lift) / 55)) + lift + (P.hopArm || 0)), sd); c.restore(); }]); }); }
+  items.sort((a, b) => a[0] - b[0]);
+  for (const it of items) if (it[0] < 0) it[1]();
+  // the body, then what faces front slid round it and cut to its outline
+  put(Y3.base, 1);
+  const feat = Y3.feat[o.face || 'normal'] || Y3.feat.normal, fa = sm(cw / 0.32), dark = sm(-cw / 0.6);
+  if (fa > 0.01 || dark > 0.01) {
+    const m = c.getTransform(), [vx, vy, vw, vh] = Y3.base.vb, kk = k * Math.max(Math.hypot(m.a, m.b), 0.5), W = Math.ceil(vw * kk), Hh = Math.ceil(vh * kk);
+    let cv = Y3TMP.cv; if (!cv) cv = Y3TMP.cv = document.createElement('canvas'); if (cv.width < W || cv.height < Hh) { cv.width = Math.max(cv.width, W); cv.height = Math.max(cv.height, Hh); }
+    const g = cv.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; g.clearRect(0, 0, W, Hh); g.setTransform(kk, 0, 0, kk, -vx * kk, -vy * kk);
+    const rb = petRaster(Y3.base, ppu, true), rf = petRaster(feat, ppu, true);
+    if (fa > 0.01) { g.save(); g.translate(sw * bw * 0.66, 0); g.scale(Math.max(0.05, cw), 1); g.globalAlpha = fa; g.drawImage(rf ? rf.cv : feat.img, vx, vy, vw, vh); g.restore(); }
+    // from behind: the back of the head in a little shade
+    if (dark > 0.01) { g.globalAlpha = 0.17 * dark; g.fillStyle = '#2B2433'; g.fillRect(vx, vy, vw, vh); g.globalAlpha = 1; }
+    g.globalCompositeOperation = 'destination-in'; g.drawImage(rb ? rb.cv : Y3.base.img, vx, vy, vw, vh); g.globalCompositeOperation = 'source-over';
+    c.drawImage(cv, 0, 0, W, Hh, vx * k, vy * k, vw * k, vh * k);
+  }
+  for (const it of items) if (it[0] >= 0) it[1]();
 }
 /* the pet in parts drawn once into a picture of its own, for a frame where copies of it walk the floor too (Mirror
    Twins, Shadow Army, Mirror Image): the pet and every copy are then laid down from that one picture, so each copy steps,
