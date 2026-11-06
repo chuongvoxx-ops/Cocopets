@@ -97,3 +97,32 @@ the exact region right before editing (the other may have edited nearby) and use
   own), make a montage per move at `.../scratchpad/earth-<you>/<key>.png` (rows L1/L4/L7, columns = the key beats), LOOK
   at it with Read, fix rough edges and weak models, repeat until it's genuinely on par with the fire/ice/dark work.
 - Report briefly: files changed, damage per level, any hooks added, Celestial ms/frame, anything unverified.
+
+# Round 3 — Titan (one worker; the user's spec: `docs/elem-spec/earth-titan.md`, verbatim)
+Row set in 20k1: key `titan` replaces `mountainheart` (cost 100, cd 57, glyph `'fist'` — add a small fist glyph to GLYPHS
+in `src/js/02d-cards.js` if missing). File: `src/js/20k2j-earth-ult-9.js` (`delete U.mountainheart`).
+- One golem, ~3× the pet's height (tune for the phone screen), entrance → 25 s combat (timer starts when active) →
+  Worldbreaker finale (~2.5–3 s) → crumble. Peaceful departure if no monsters remain.
+- A true 3D model: build the golem from GeoKit solids (src/js/20h5-fiend-geo.js; the Final Eclipse demon in 20k5g is the
+  closest precedent: a big articulated 3D creature) — boulders/plates as beveled faceted solids with cel shading, stone
+  texture (pits, scratches, worn light edges), deep dark gaps between plates, moss patches as painted face regions plus a
+  few raised clumps; small white-green eyes deep in sockets. Rig: hips, torso, head, shoulders, upper arms, forearms,
+  hands with segmented fingers + thumb (open / curl / fist), thighs, shins, feet with toes. Rigid plates, joint rotation
+  only (no stretching). Cache what you can (per-part meshes; per-frame only transforms + a sorted draw); budget: Celestial
+  ≲ 4–5 ms/frame; if live GeoKit is too slow, pre-render pose frames (walk cycle, attack keyframes) to cached canvases.
+- Behaviour: it is an ally actor, not damageable unless the game's summon/companion system already supports that (grep
+  20b for companion/summon/ally/anima behaviour and reuse what exists for following and targeting; otherwise a simple
+  ally AI: follow the pet at a short distance, walk to the nearest monster in reach, attack). Walk with weight (dust per
+  footfall). Attacks (Earth, scaled by C.base × K × evoK): heavy punch, sweeping backhand (arc), ground slam (shockwave
+  ring, hit when the front arrives) — damage on the contact frame. Aim ≈ 2.5–3 DK per second of combat at L1 overall.
+- Worldbreaker: gauntlets of rock assemble on the fists, windup overhead, two-fist slam: an initial impact hit near the
+  fists (≈ 6 DK) + a travelling earthquake ring hitting each monster once as the front reaches it (≈ 5 DK), wider and
+  stronger by level; decorative debris never hits. Celestial: towering jagged ridge, energy links to the chest.
+- Levels: L1 / Adept (bigger shoulders/forearms, more glow) / Celestial (layered shoulder stones, engraved markings,
+  golden light in fractures, widest slam). Never cover the pet with the golem: when it stands in front of the pet, dim
+  it smoothly; keep it to the side/behind the pet when idle.
+- House rules as above (feather edges, light-only floor marks, cleanup on end/floor change/death).
+- Check: test page test-t.html, `ELEM=earth ONLY=titan EVO=1|4|7` (add `titan ? 34 :` to TAILW in tests/elem-moves.js),
+  a model turntable montage (front/side/back/three-quarter, fist open/closed) at `.../scratchpad/titan/model.png` and an
+  in-game montage (entrance, walk, punch, backhand, slam, Worldbreaker windup, slam, crumble) at L1/L4/L7 at
+  `.../scratchpad/titan/titan.png`. Compare with the reference image; iterate until it reads as that golem.
