@@ -1,5 +1,6 @@
 /* ---------- Earth, reworked: Titan ----------
-   A colossal stone golem rises from an amber sigil beside the pet and fights with it for 25 s, then ends with
+   A colossal stone golem rises from an amber sigil beside the pet and fights with it for 5 s (8 s at Adept, 12 s at
+   Celestial, evenly between), then ends with
    Worldbreaker. Replaces Heart of the Mountain (row in 20k1: cost 100, cd 57, glyph 'fist').
    The golem is a true 3D model drawn live every frame: ~120 convex rock solids (each the intersection of jittered
    planes: faces, chamfered edges, cut corners and random chips, so every stone has thickness, bevels and broken corners)
@@ -19,22 +20,25 @@
    Behaviour: an ally actor (not damageable: the game has no summon system for this), it follows the pet and keeps to its
    side or behind it, walks to the nearest monster within reach of the party, and attacks: heavy punch (either arm),
    sweeping backhand (an arc in front), ground slam (a shockwave ring that hits each monster once when its front reaches
-   it); damage on the contact frame. Earth damage, DK = base x K x (1 + 0.08 (evo - 1)): punch 4.4 DK (others within
+   it); damage on the contact frame. Earth damage, DK = base x K x (1 + 0.08 (evo - 1)), each blow x DM = 25 / fight
+   length (x5 at L1, x3.13 at L4, x2.08 at L7: the short fight deals what a 25 s one did): punch 4.4 DK (others within
    0.75 of the fist 1.5 DK), backhand 3.8 DK to each in its arc (1.9 tiles, +-75 degrees), slam 5.4 DK in its ring
-   (radius 1.9 / 2.17 / 2.44 x K at L1 / 4 / 7, each monster once when the front reaches it). Measured on one monster
-   beside the pet: ~2.7-2.9 DK a second of combat (crits included). Attacks play ~12% faster at L1, ~27% at L7. The
-   combat timer starts when it has risen (2.6 s).
-   Worldbreaker (when the 25 s run out, ~2.9 s): it turns to the nearest monster, plants its feet wide, golden light runs
+   (radius 1.9 / 2.17 / 2.44 x K at L1 / 4 / 7, each monster once when the front reaches it), all x DM. Measured on one
+   monster beside the pet: ~65-80 DK over the fight at every level (as the 25 s fight's ~2.7 DK/s did). Attacks play
+   ~12% faster at L1, ~27% at L7. The fight's timer starts when it has risen (2.6 s).
+   Worldbreaker (when the fight's time runs out, ~2.9 s; not scaled): it turns to the nearest monster, plants its feet wide, golden light runs
    chest -> shoulders -> forearms -> fists, stones lift and spiral into two gauntlets, a golden fracture spreads; fists
    raised overhead, held; a two-fisted slam: an impact hit round the fists (6 DK, radius 1.9 / 2.1 / 2.3 x K) and a
    travelling earthquake ridge of rock slabs (5 DK, each monster once as the front reaches it, reach 4 / 4.75 / 5.5 x K);
    decorative debris never hits. Then the gauntlets break, the light drains, the eyes dim and it settles into loose stone.
    No monster within 12 tiles: a peaceful departure (it bows its head and settles).
-   Performance: the model is never drawn live in play. Its key poses (idle 2, walk 8, punch 5, backhand 5, slam 5, rise 5,
-   Worldbreaker 6, departure 1) are baked per level tier and facing (8 facings; mirrored where the pose allows) into
-   cached pictures, a slice of ~2.4 ms a frame from the cast on (the warm-up of textures and stone shapes spread the same
-   way), and each frame lays one or two of them down; glows, trails and the crumble's tumbling rocks are sprites on top.
-   Cache kept between casts, capped at 48 MB (a full tier ~36 MB).
+   Performance: the model is never drawn live in play. Its key poses (idle 2, walk 6, punch 4, backhand 4, slam 4, rise 4,
+   Worldbreaker 5, departure 1) are baked per level tier and facing (8 facings; mirrored where the pose allows) at 1.2x
+   the screen size into cached pictures, in slices of ~1.2 ms a frame (a pose's setup a slice of its own; textures and
+   stone shapes warmed the same way), only the facings in use: the cast's facing and its two neighbours up front, others
+   when first seen, the Worldbreaker's 3 s before it. A floor that starts with Titan in a kit prepares in idle time
+   (U.titan.warm, a hook in 20b). Each frame lays one or two pictures down; glows, trails and the crumble's tumbling
+   rocks are sprites on top. Cache kept between casts, capped at 32 MB (a typical cast ~10-16 MB).
    Pet death or floor change: it crumbles / is cleared with the game. */
 (() => {
   const U = ELEM_IMPL.earth.ult; delete U.mountainheart;
@@ -554,7 +558,7 @@
      kept between casts (cleared when the zoom changes a lot) and capped at CAP_MB, least recently used first.
      Memory: a picture is about 190 x 210 px at L1 (1.5x the screen size), ~160 KB; all 213 of a tier ~34 MB, but a
      cast typically bakes 60-120 of them. */
-  const DIRS = 8, DA = TAU / DIRS, CAP_MB = 48, BUDGET = 2.4;
+  const DIRS = 8, DA = TAU / DIRS, CAP_MB = 32, BUDGET = 1.2;
   const rightD = d => Math.cos(d * DA) > -1e-6, mirD = d => ((4 - d) % 8 + 8) % 8;
   function wbState(w, tier) {   // the Worldbreaker's light, gauntlets and eyes at w s
     const drain = 1 - sstep(1.75, 2.35, w), gl = { chest: sstep(0.05, 0.35, w) * drain, sh: sstep(0.2, 0.5, w) * drain, arm: sstep(0.35, 0.65, w) * drain, fist: sstep(0.5, 0.8, w) * drain, leg: 0.5 * sstep(0.1, 0.5, w) * drain, gaunt: sstep(0.55, 1.2, w) * (1 - sstep(1.6, 1.95, w)) };
@@ -563,12 +567,12 @@
   const atkGlow = (u, T, tier) => { const g = (0.25 + 0.35 * (tier - 1) / 2) * Math.sin(cl(u / T) * Math.PI); return { chest: g, sh: g, arm: g * 1.3, fist: g * 1.3, leg: g * 0.5, gaunt: 0 }; };
   const CLIPS = {
     idle: { sym: 1, ts: [0, 1], pose: i => idlePose((i ? 1.5 : 0.5) * Math.PI / 1.3) },
-    walk: { sym: 1, ts: [0, 1, 2, 3, 4, 5, 6, 7], mf: i => (i + 4) % 8, pose: i => walkPose(i / 8, 1) },
-    punch: { sym: 0, canon: 'R', ts: [0.22, 0.38, 0.5, 0.64, 0.86], KF: PUNCH.KF, T: PUNCH.T },
-    back: { sym: 0, canon: 'L', ts: [0.28, 0.42, 0.56, 0.72, 0.95], KF: BACKHAND.KF, T: BACKHAND.T },
-    slam: { sym: 1, ts: [0.3, 0.55, 0.76, 0.86, 1.2], KF: SLAM.KF, T: SLAM.T },
-    rise: { sym: 1, ts: [0.55, 0.95, 1.25, 1.65, 2.0], KF: RISE, eye: [0, 0, 0, 0.15, 0.6] },
-    wb: { sym: 1, ts: [0.35, 0.65, 1.05, 1.3, 1.45, 1.85], KF: WB.KF, wb: 1 },
+    walk: { sym: 1, ts: [0, 1, 2, 3, 4, 5], mf: i => (i + 3) % 6, pose: i => walkPose(i / 6, 1) },
+    punch: { sym: 0, canon: 'R', ts: [0.36, 0.5, 0.66, 0.88], KF: PUNCH.KF, T: PUNCH.T },
+    back: { sym: 0, canon: 'L', ts: [0.4, 0.56, 0.72, 0.98], KF: BACKHAND.KF, T: BACKHAND.T },
+    slam: { sym: 1, ts: [0.52, 0.76, 0.86, 1.2], KF: SLAM.KF, T: SLAM.T },
+    rise: { sym: 1, ts: [0.6, 1.0, 1.6, 2.0], KF: RISE, eye: [0, 0, 0.1, 0.6] },
+    wb: { sym: 1, ts: [0.5, 1.05, 1.3, 1.45, 1.85], KF: WB.KF, wb: 1 },
     peace: { sym: 1, ts: [0.6], KF: PEACE, eye: [0.3] },
   };
   function clipPose(name, i, tier) {
@@ -586,7 +590,7 @@
   }
   function want(key, front) { if (FC.frames.has(key) || (FC.job && FC.job.key === key)) return; if (FC.qset.has(key)) { if (front) { const k = FC.queue.indexOf(key); if (k > 0) { FC.queue.splice(k, 1); FC.queue.unshift(key); } } return; } FC.qset.add(key); if (front) FC.queue.unshift(key); else FC.queue.push(key); }
   function setScale(T, sc, dpr) {
-    const res = Math.min(Math.max(1, dpr || 1), 1.5);
+    const res = Math.min(Math.max(1, dpr || 1), 1.2);
     if (FC.T0 && Math.abs(T * sc / (FC.T0 * FC.sc) - 1) < 0.22 && FC.res === res) return;
     FC.frames.clear(); FC.queue.length = 0; FC.qset.clear(); FC.job = null; FC.bytes = 0; FC.T0 = T; FC.sc = sc; FC.res = res;
   }
@@ -603,6 +607,7 @@
         const cv = mk(w, h), g = cv.getContext('2d');
         FC.job = { key, J, cv, g, res, x0, y0 };
         FC.tp += performance.now() - t0;
+        if (performance.now() > t0 + ms * 0.5) break;   // (a pose's setup is a slice of its own when it ran long)
       }
       const tq0 = performance.now(), jb = FC.job; jb.g.setTransform(jb.res, 0, 0, jb.res, -jb.x0, -jb.y0);
       const dn = paintGolem(jb.g, jb.J, until); FC.tq += performance.now() - tq0; if (!dn) break;
@@ -638,16 +643,15 @@
     return { fistL: P(flip ? o.fistR : o.fistL), fistR: P(flip ? o.fistL : o.fistR), footL: P(o.footL), footR: P(o.footR), chest: P(o.chest), head: P(o.head), eyes: o.eyes.map(e => [X + f * e[0] * s, Y + e[1] * s, e[2]]), bb: flip ? [X - bb[2] * s, Y + bb[1] * s, X - bb[0] * s, Y + bb[3] * s] : [X + bb[0] * s, Y + bb[1] * s, X + bb[2] * s, Y + bb[3] * s] };
   }
   // the bake order laid out at a cast: what the entrance and the first steps need, then the rest
-  function planBakes(tier, yaw) {
-    const d0 = ((Math.round(yaw / DA) % DIRS) + DIRS) % DIRS, ring = [0, 1, -1, 2, -2, 3, -3, 4].map(k => ((d0 + k) % 8 + 8) % 8), Y = d => d * DA;
+  function planBakes(tier, yaw, wb) {
+    const d0 = ((Math.round(yaw / DA) % DIRS) + DIRS) % DIRS, Y = d => d * DA, near = [d0, (d0 + 1) % 8, (d0 + 7) % 8];
     const add = (clip, d, side) => CLIPS[clip].ts.forEach((_, i) => want(locate(tier, clip, i, Y(d), side)[0], false));
+    if (wb) { for (const d of near) add('wb', d); return; }
     add('rise', d0); add('idle', d0); add('walk', d0);
-    for (const d of ring.slice(1, 5)) { add('idle', d); add('walk', d); }
-    for (const d of ring.slice(0, 3)) { add('punch', d, 'R'); add('punch', d, 'L'); add('back', d, 'L'); add('back', d, 'R'); add('slam', d); }
-    for (const d of ring.slice(5)) { add('idle', d); add('walk', d); }
-    for (const d of ring) { add('punch', d, 'R'); add('punch', d, 'L'); add('back', d, 'L'); add('back', d, 'R'); add('slam', d); }
-    for (const d of ring) { add('wb', d); add('peace', d); }
+    add('punch', d0, 'R'); add('punch', d0, 'L'); add('back', d0, 'L'); add('back', d0, 'R'); add('slam', d0);
+    for (const d of near.slice(1)) { add('idle', d); add('walk', d); add('punch', d, 'R'); add('punch', d, 'L'); add('back', d, 'L'); add('back', d, 'R'); add('slam', d); }
   }
+
 
   /* ================= cached sprites for the effects ================= */
   const puffSpr = () => fxSprite('ttnpuff', 64, 64, g => { let gr = g.createRadialGradient(32, 34, 0, 32, 34, 30); gr.addColorStop(0, 'rgba(104,92,78,0.55)'); gr.addColorStop(0.55, 'rgba(104,92,78,0.26)'); gr.addColorStop(1, 'rgba(104,92,78,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
@@ -699,18 +703,37 @@
     return (SLABS[i] = cv);
   }
 
+  const COMBAT_S = [5, 6, 7, 8, 28 / 3, 32 / 3, 12];
+  function warmTasks(tier, seed) {
+    if (FC.warmed && FC.warmed[tier]) return; (FC.warmed = FC.warmed || {})[tier] = 1;
+    const M = model(tier), again = st => { const f = () => { if (!st()) FC.tasks.unshift(f); }; return f; };
+    FC.tasks.push(sigilSpr, () => crackSet((seed + 2) % 5), again(stoneStep), again(mossStep), clumpSpr);
+    for (const p of M.parts) if (p.lazy) FC.tasks.push(() => p.lazy && p.fin());
+    for (let i = 0; i < 8; i++) FC.tasks.push(() => slabSpr(i));
+    for (let k = 0; k < 8; k++) FC.tasks.push(() => crackSet(k));
+  }
+  /* idle-time preparation: called when a floor starts with Titan in a kit; bakes the cast's first pictures in the gaps
+     between frames (requestIdleCallback where there is one, else a 1 ms slice every 40 ms), so a cast bakes little */
+  let IDLE = false;
+  function idleBake() {
+    if (IDLE || !(FC.queue.length || FC.tasks.length || FC.job)) return; IDLE = true;
+    const go = () => { IDLE = false; idleBake(); };
+    if (typeof requestIdleCallback === 'function') requestIdleCallback(dl => { bakeStep(dl.didTimeout ? 1 : Math.max(0.5, Math.min(4, dl.timeRemaining() - 1))); go(); }, { timeout: 120 });
+    else setTimeout(() => { bakeStep(1); go(); }, 40);
+  }
   /* ================= the move ================= */
   U.titan = (C, h) => {
     H = h; const me = H.me, ev = evoOf(C), tier = ev >= 7 ? 3 : ev >= 4 ? 2 : 1, K = C.K || 1, evoK = 1 + 0.08 * (ev - 1), DK = C.base * K * evoK;
     const S = 1 + 0.02 * (ev - 1), SC = 0.103 * S;   // tiles per model unit (about 2.7 tiles tall at L1, 3.0 at L7)
-    const ENTER = 2.6, COMBAT = 25, END0 = ENTER + COMBAT, SPD = 1.12 + 0.025 * (ev - 1);
-    const DMG = { punch: 4.4 * DK, splash: 1.5 * DK, back: 3.8 * DK, slam: 5.4 * DK, wbImp: 6 * DK, wbWave: 5 * DK };
+    // the fight lasts 5 s (L1), 8 s (Adept), 12 s (Celestial), evenly between; its blows are scaled by 25 / that, so a
+    // shorter fight deals what the first 25 s one did (x5, x4.17, x3.57, x3.13, x2.68, x2.34, x2.08); Worldbreaker as it was
+    const COMBAT = COMBAT_S[ev - 1], DM = 25 / COMBAT;
+    const ENTER = 2.6, END0 = ENTER + COMBAT, SPD = 1.12 + 0.025 * (ev - 1);
+    const DMG = { punch: 4.4 * DK * DM, splash: 1.5 * DK * DM, back: 3.8 * DK * DM, slam: 5.4 * DK * DM, wbImp: 6 * DK, wbWave: 5 * DK };
     const R_SLAM = (1.9 + 0.09 * (ev - 1)) * K, R_IMP = (1.9 + 0.067 * (ev - 1)) * K, R_WAVE = (4 + 0.25 * (ev - 1)) * K, LEASH = 6.5, REACH = 1.55 * S;
     const seed = Math.floor(Math.random() * 1000);
-    // the warm-up, spread over the first frames (the first ones of all are only the sigil): textures, then the stones'
-    // shapes a few at a time, then the effects' sprites
-    { const M = model(tier); const again = st => { const f = () => { if (!st()) FC.tasks.unshift(f); }; return f; }; FC.tasks.push(sigilSpr, () => crackSet((seed + 2) % 5), again(stoneStep), again(mossStep), clumpSpr); const lz = M.parts.filter(p => p.lazy); for (const p of lz) FC.tasks.push(() => p.lazy && p.fin());
-      for (let i = 0; i < 8; i++) FC.tasks.push(() => slabSpr(i)); FC.tasks.push(() => crackSet(seed % 5), () => crackSet(5 + seed % 3), () => crackSet((seed + 4) % 5)); }
+    // the warm-up (if the kit's idle-time preparation has not done it): textures, stone shapes, sprites, a piece at a time
+    warmTasks(tier, seed);
     H.X.banner('TITAN', '', C.col, 1.5); H.X.sfx.rumble ? H.X.sfx.rumble() : H.X.sfx.hum(); H.X.shake(3, 0.4);
     // the summon spot: toward the aim and a little aside, on walkable floor, clear of the pet
     const aim = Math.atan2(C.ty - me.y, C.tx - me.x), side = Math.cos(aim) >= 0 ? -1 : 1;
@@ -795,7 +818,8 @@
         if (!G._e4 && t > 2.45) { G._e4 = 1; H.X.sfx.stomp ? H.X.sfx.stomp() : H.X.sfx.thud(); H.X.shake(6, 0.3); vfx.push({ kind: 'ring', x: G.x, y: G.y, R: 1.9 * S, t0: t, life: 0.7 }); dust(G.x, G.y, 10, 2.2, 0.45); }
         if (t >= ENTER) { G.st = 'fight'; }
       } else if (G.st === 'fight') {
-        if (t >= END0) {   // the 25 s are over: Worldbreaker, or the peaceful departure when no monster is left
+        if (!G._wbq && t > END0 - 3) { G._wbq = 1; planBakes(tier, G.face, true); }
+        if (t >= END0) {   // the fight's time is over: Worldbreaker, or the peaceful departure when no monster is left
           G.atk = null; wbT = t; if (living().some(m => Math.hypot(m.x - G.x, m.y - G.y) < 12)) { G.st = 'wb'; H.X.sfx.hum(); } else { G.st = 'peace'; peace = true; }
         } else fight(dt, t);
       }
@@ -896,13 +920,13 @@
     const nearest = (ts, u) => { let b = 0; for (let i = 1; i < ts.length; i++) if (Math.abs(ts[i] - u) < Math.abs(ts[b] - u)) b = i; return b; };
     function pick(t) {
       if (G.st === 'enter') { const kt = t - 0.35; return ['rise', nearest(CLIPS.rise.ts, kt), 'R', kt < 0.55 ? (0.55 - kt) / 0.55 * 16 : 0, 0]; }
-      if (G.st === 'wb') { const w = t - wbT; return ['wb', w > 1.85 ? 5 : nearest(CLIPS.wb.ts, w), 'R', 0, 0]; }
+      if (G.st === 'wb') { const w = t - wbT; return ['wb', w > 1.85 ? 4 : nearest(CLIPS.wb.ts, w), 'R', 0, 0]; }
       if (G.st === 'peace') return t - wbT < 0.3 ? ['idle', 0, 'R', 0, 0] : ['peace', 0, 'R', 0, 0];
       if (G.st === 'crumble') return G.lastPick || ['idle', 0, 'R', 0, 0];
       if (G.atk) { const A = G.atk, u = A.u, cl2 = A.kind === 'punch' ? 'punch' : A.kind === 'back' ? 'back' : 'slam', side = A.kind === 'punch' ? (A.mir ? 'L' : 'R') : A.kind === 'back' ? (A.mir ? 'R' : 'L') : 'R';
         const lunge = A.kind === 'punch' ? 0.24 * S * (sstep(0.36, 0.5, u) - sstep(0.66, 0.95, u)) : A.kind === 'slam' ? 0.12 * S * (sstep(0.7, 0.86, u) - sstep(1.1, 1.5, u)) : 0;
         return [cl2, nearest(CLIPS[cl2].ts, u), side, 0, lunge]; }
-      if (G.moving > 0.5) return ['walk', Math.floor(((G.ph % 1) + 1) % 1 * 8 + 0.5) % 8, 'R', 0, 0];
+      if (G.moving > 0.5) return ['walk', Math.floor(((G.ph % 1) + 1) % 1 * 6 + 0.5) % 6, 'R', 0, 0];
       return ['idle', -1, 'R', 0, 0];
     }
     function drawEnt(c, f) {
@@ -997,6 +1021,10 @@
       if (G.st === 'wb' && G.lastOut) { const w = t - wbT, k = sstep(0.7, 1.0, w) * (1 - sstep(1.35, 1.5, w)); if (k > 0.02) { c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; for (let j = 0; j < 6 + 2 * tier; j++) { const s = j % 2 ? 'L' : 'R', p = G.lastOut['fist' + s]; if (!p) continue; const b = j * 2.4 + seed, bx = H.sx(G.x + Math.cos(b) * 1.8 * S), by = H.sy(G.y + Math.sin(b) * 1.2 * S), uu = (t * 0.9 + j * 0.17) % 1, mx = lerp(bx, p[0], uu), my = lerp(by, p[1], uu); c.globalAlpha = k * 0.5 * Math.sin(uu * Math.PI); c.strokeStyle = HONEY; c.lineWidth = Math.max(1, T * 0.04); c.beginPath(); c.moveTo(lerp(bx, p[0], Math.max(0, uu - 0.25)), lerp(by, p[1], Math.max(0, uu - 0.25))); c.lineTo(mx, my); c.stroke(); } c.restore(); } }
     }
     return F;
+  };
+  U.titan.warm = o => {
+    const ev = Math.max(1, Math.min(7, Math.round(o.evo || 1))), tier = ev >= 7 ? 3 : ev >= 4 ? 2 : 1;
+    setTimeout(() => { const T = typeof o.T === 'function' ? o.T() : o.T; if (!(T > 0)) return; setScale(T, 0.103 * (1 + 0.02 * (ev - 1)), typeof devicePixelRatio === 'number' ? devicePixelRatio : 1); warmTasks(tier, 0); planBakes(tier, Math.PI / 2); idleBake(); }, 300);
   };
   // the debug door for the harness: the model alone, the poses
   U.titan.__dbg = { FC, CLIPS, bakeStep, planBakes, frameFor, blitFrame, setScale, clipPose, drawGolem, prepGolem, paintGolem, model, rig, kfPose, walkPose, idlePose, mirrorP, KP, POSES: { PUNCH, BACKHAND, SLAM, RISE, WB, PEACE }, D0 };

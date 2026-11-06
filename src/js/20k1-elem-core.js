@@ -48,7 +48,7 @@ const ELEM_MOVES = {
     ['quicksand', 'Gilded Quicksand', 'vortex', 95, 20, 'The floor turns to glittering mineral sand that slows and grinds the monsters, then hardens into stone plates and ruptures beneath them.'],
     ['obsidiandrill', 'Obsidian Drill', 'spin', 95, 20, 'Giant drills of black stone and golden crystal burst up under the monsters and grind, then plunge together in one rupture: 1, 3 at Adept, 8 at Celestial.'],
     ['mandala', 'Thousand-Peak Mandala', 'nova', 100, 22, 'Rings of stone spires emerge round the aim, turn, and erupt inward; a central peak rises and shatters outward.'],
-    ['titan', 'Titan', 'fist', 100, 57, 'Summons a colossal moss-grown stone golem that fights beside you for 25 s with punches, backhands and ground slams, then ends with Worldbreaker: a two-fisted slam that sends an earthquake across the floor.'] ] },
+    ['titan', 'Titan', 'fist', 100, 57, 'Summons a colossal moss-grown stone golem that fights beside you with punches, backhands and ground slams (5 s, 8 s at Adept, 12 s at Celestial), then ends with Worldbreaker: a two-fisted slam that sends an earthquake across the floor.'] ] },
   wind: { strong: [
     ['silkstream', 'Silkstream Cutter', 'crescent', 24, 2.4, 'Two ribbons of air braid together and unfurl into a crescent that pierces a line of monsters.'],
     ['courier', 'Spiral Courier', 'wave', 24, 2.6, 'A corkscrew gust curves to the target and delivers several quick hits on arrival.'],
