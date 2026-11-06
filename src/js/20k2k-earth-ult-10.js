@@ -232,7 +232,7 @@
   }
 
   /* ================= the picture cache ================= */
-  const UNIT = 0.7;   // tiles per fist unit (a fist with its cuff is ~2 units long: about the pet's whole body)
+  const UNIT = 0.7, CAP_MB = 32;   // tiles per fist unit (a fist with its cuff is ~2 units long: about the pet's whole body)
   const FC = { frames: new Map(), queue: [], qset: new Set(), job: null, spx: 0, tier: 0, bytes: 0, built: 0, bakeMs: 0, maxSlice: 0, need: 0, miss: 0 };
   const fkey = (tier, kind, k, j) => tier + '|' + kind + '|' + k + '|' + j;
   function want(key, front) { if (FC.frames.has(key) || (FC.job && FC.job.key === key)) return; if (FC.qset.has(key)) { if (front) { const i = FC.queue.indexOf(key); if (i > 0) { FC.queue.splice(i, 1); FC.queue.unshift(key); } } return; } FC.qset.add(key); if (front) FC.queue.unshift(key); else FC.queue.push(key); }
@@ -246,12 +246,14 @@
       if (!FC.job) {
         let key = null; while (FC.queue.length && !key) { const k = FC.queue.shift(); FC.qset.delete(k); if (!FC.frames.has(k)) key = k; } if (!key) break;
         const [tier, kind, k, j] = key.split('|'), res = {}, M = orient(+k * DPSI, +j * DPHI);
-        FC.job = { key, res, it: fistGen(model(+tier, kind), M, FC.spx * (kind === 'big' ? 1.3 : 1), res) };
+        FC.job = { key, res, it: fistGen(model(+tier, kind === 'up' ? 'full' : kind), M, FC.spx * (kind === 'big' ? 1.3 : kind === 'up' ? 1.4 : 1), res) };   // ('up': Celestial's upper pair, baked at its own 1.4x)
         if (performance.now() > t0 + ms * 0.5) break;   // (a new model's stones are a slice of their own)
       }
       const jb = FC.job; let done = false; while (performance.now() < until) { if (jb.it.next().done) { done = true; break; } }
       if (!done) break;
-      FC.frames.set(jb.key, jb.res); FC.bytes += jb.res.W * jb.res.H * 9; FC.built++; FC.job = null;
+      jb.res.used = performance.now(); jb.res.bytes = jb.res.W * jb.res.H * 9; FC.frames.set(jb.key, jb.res); FC.bytes += jb.res.bytes; FC.built++; FC.job = null;
+      // (kept under CAP_MB: the least recently drawn let go first)
+      if (FC.bytes > CAP_MB * 1048576) { const all = [...FC.frames.entries()].sort((a, b) => a[1].used - b[1].used); for (const [k, f] of all) { if (FC.bytes <= CAP_MB * 0.85 * 1048576) break; FC.frames.delete(k); FC.bytes -= f.bytes || 0; } }
     }
     const dt = performance.now() - t0; FC.bakeMs += dt; if (dt > FC.maxSlice) FC.maxSlice = dt;
   }
@@ -272,12 +274,14 @@
     for (const k of [kOf(Math.PI - A), kOf(Math.PI - A) + 1, kOf(Math.PI - A) + NPSI - 1]) for (const j of [0, 1]) want(fkey(tier, 'full', k % NPSI, j), false);
     const all = []; for (let k = 0; k < NPSI; k++) for (let j = 0; j < NPHI; j++) all.push([dk(k) + j * 0.35, k, j]);
     all.sort((a, b) => a[0] - b[0]); for (const [, k, j] of all) want(fkey(tier, 'full', k, j), false);
+    if (tier >= 3) for (const [, k, j] of all) if (dk(k) <= 1) want(fkey(tier, 'up', k, j), false);   // (the upper pair near the aim, after the main pair)
     if (tier >= 3) { const ks = []; for (let k = 0; k < NPSI; k++) ks.push(k); ks.sort((a, b) => dk(a) - dk(b)); for (const k of ks) want(fkey(tier, 'big', k, 2), false); }
     for (let k = 0; k < NPSI; k++) for (const kind of ['s1', 's2', 'full']) want(fkey(tier, kind, k, 1), false);
+    if (tier >= 3) for (const [, k, j] of all) want(fkey(tier, 'up', k, j), false);
   }
   // the picture for (kind, k, j), or the nearest one baked
   function frame(tier, kind, k, j) {
-    const key = fkey(tier, kind, k, j), fr = FC.frames.get(key); if (fr) return fr;
+    const key = fkey(tier, kind, k, j), fr = FC.frames.get(key); if (fr) { fr.used = performance.now(); return fr; }
     want(key, true); FC.miss++;
     for (let r = 1; r <= 8; r++) for (const [dk, dj] of [[r, 0], [-r, 0], [0, r], [0, -r], [r, r], [-r, -r], [r, -r], [-r, r]]) { const j2 = j + dj; if (j2 < 0 || j2 >= NPHI) continue; const f = FC.frames.get(fkey(tier, kind, ((k + dk) % NPSI + NPSI) % NPSI, j2)); if (f) return f; }
     if (kind !== 'full') return frame(tier, 'full', k, j);
@@ -305,7 +309,7 @@
   function glowF(c, X, Y, r, col, a, gy) { if (r < 1 || !(a > 0.004)) return; c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = Math.min(1, a); const ry = r * (gy || 1); c.drawImage(glowSprite(col), X - r, Y - ry, r * 2, ry * 2); c.restore(); }
 
   /* ================= the move ================= */
-  const SPEC = { 2: [['up', -1, 6.5], ['up', 1, 7.5]], 4: [['up', -1, 3.3], ['up', 1, 3.5], ['down', -1, 3.4], ['down', 1, 4.6]], 7: [['up', -1, 2.3], ['up', 1, 2.6], ['hook', -1, 2.3], ['hook', 1, 2.3], ['body', -1, 2.6], ['over', 1, 2.9], ['final', 1, 5.6]] };
+  const SPEC = { 2: [['up', -1, 6.5], ['up', 1, 7.5]], 4: [['up', -1, 3.3], ['up', 1, 3.5], ['down', -1, 3.4], ['down', 1, 4.6]], 7: [['up', -1, 2.3], ['up', 1, 2.6], ['hook', -1, 2.3], ['hook', 1, 2.3], ['body', -1, 2.6], ['over', 1, 2.9], ['final', 1, 6.7]] };
   const DUR = { up: 0.74, down: 0.68, hook: 0.62, body: 0.64, over: 0.76, final: 1.6 };
   const CT = { up: 0.52, down: 0.52, hook: 0.52, body: 0.52, over: 0.58, final: 1.0 / 1.6 };
   const FORM = 1.05, ENDD = 1.3, LEAD = 0.07;
@@ -318,6 +322,10 @@
     plan(tier, A);
     H.X.banner('ROCKY', '', C.col, 1.4); H.X.sfx.rumble ? H.X.sfx.rumble() : H.X.sfx.hum(); H.X.shake(2, 0.3);
     // the schedule
+    // Celestial: a second, upper pair (1.4x, higher, further behind and outside) echoes strikes 1-6 a beat later (each its own
+    // hit, 65% of the strike it follows) and joins the final punch
+    const UPPER = NS === 7, ECHO = 0.15, UK = 1.4, EK = 0.65, echoes = [];
+    const UOFF = s => ({ u: -0.95 * SZ, v: 0.7 * s * SZ, z: 1.45 });
     const strikes = []; { let t = FORM; SPEC[NS].forEach(([type, side, dk], i) => { const d = DUR[type] * (type === 'final' ? 1 : SPD); strikes.push({ i, type, side, dk, s: t, d, ct: CT[type], hit: new Set(), n: 0, on: false, fired: false }); t += d + (NS === 4 && i === 1 ? 0.2 : 0); }); }
     let END0 = strikes[strikes.length - 1].s + strikes[strikes.length - 1].d, endAt = END0;
     const LIFE = END0 + ENDD + 0.9;
@@ -403,6 +411,21 @@
       const S = strikes[curIdx(t)]; if (!S.on) return lastPose[s] || guard(s);
       const u = cl((t - S.s) / S.d); return kfEval(S.side === s ? S.KF : S.KP, u);
     }
+    /* the upper pair: each echoes its own side's main fist a beat later, from its perch above-behind-outside, swooping down
+       to the same contact and back; it converges onto the main right fist as the final punch charges, and merges */
+    const UFS = { '-1': null, '1': null }, lastUp = { '-1': null, '1': null };
+    function upperPose(s, t) {
+      const o = UOFF(s), add = (p, w, z0) => Object.assign({}, p, { u: p.u + o.u * w, v: p.v + o.v * w, z: p.z + o.z * w * (z0 == null ? 1 : z0), sc: UK, rf: 0, a: 1 });
+      if (t < FORM) { const p = add(poseAt(s, Math.max(0, t - 0.1)), 1, sstep(0.1, 0.9, t)); p.form = t - 0.1; return p; }
+      if (t >= endAt) { const b = lastUp[s]; if (!b || b.a <= 0) return null; return Object.assign({}, b, { z: b.z + 0.4 * sstep(0, 0.5, t - endAt), a: b.a * (1 - sstep(0.05, 0.45, t - endAt)) }); }
+      const Sf = strikes[curIdx(t)];
+      if (Sf.type === 'final' && Sf.on) { const u = (t - Sf.s) / Sf.d, b = add(guard(s), 1), tg = FS['1'] || guard(1), m = sstep(0.1, 0.5, u), q = {};
+        for (const k of ['u', 'v', 'z', 'yr', 'ph']) q[k] = lerp(b[k], tg[k] + (k === 'v' ? 0.25 * s : k === 'z' ? 0.15 : 0), m * m * (3 - 2 * m));
+        return Object.assign(q, { sc: lerp(UK, 0.7, m), rf: 0, a: 1 - sstep(0.42, 0.54, u), merge: m }); }
+      const te = t - ECHO, Si = strikes[curIdx(Math.max(0, te))]; let w = 1;
+      if (Si.on && Si.side === s && te >= Si.s) { const u = (te - Si.s) / Si.d; w = 1 - 0.9 * Math.exp(-Math.pow((u - Si.ct) / 0.15, 2)); }
+      return add(poseAt(s, te), w);
+    }
     const curIdx = t => { let i = 0; while (i < strikes.length - 1 && t >= strikes[i + 1].s) i++; return i; };
     const lastPose = { '-1': null, '1': null };
     const world = p => { const f = fwd(), sv = sideV(); return [anc.x + f[0] * p.u + sv[0] * p.v, anc.y + f[1] * p.u + sv[1] * p.v, p.z]; };
@@ -440,10 +463,13 @@
     for (const s of [-1, 1]) { const n = H.n(14 + 3 * tier); for (let j = 0; j < n; j++) { const bigR = j < n * 0.35, a0 = Math.random() * TAU, d0 = 0.5 + Math.random() * 0.9;
       fx.rocks.push({ s, a0, d0, t0: 0.02 + Math.random() * 0.2, t1: bigR ? 0.4 + Math.random() * 0.14 : 0.58 + Math.random() * 0.28, sp: (1.5 + Math.random()) * (Math.random() < 0.5 ? 1 : -1), s0: bigR ? 0.2 + Math.random() * 0.08 : 0.1 + Math.random() * 0.06, k: j % CH.length,
         lp: bigR ? [(Math.random() - 0.3) * 1.0, (Math.random() - 0.5) * 1.0, (Math.random() - 0.2) * 0.8] : [-0.9 + Math.random() * 1.8, (Math.random() - 0.5) * 1.1, (Math.random() - 0.5) * 0.8] }); } }
+    if (UPPER) for (const s of [-1, 1]) { const n = H.n(12); for (let j = 0; j < n; j++) { const bigR = j < n * 0.4; fx.rocks.push({ s, up: 1, a0: Math.random() * TAU, d0: 0.6 + Math.random() * 1.0, t0: 0.1 + Math.random() * 0.2, t1: bigR ? 0.5 + Math.random() * 0.14 : 0.68 + Math.random() * 0.26, sp: (1.5 + Math.random()) * (Math.random() < 0.5 ? 1 : -1), s0: bigR ? 0.26 + Math.random() * 0.1 : 0.14 + Math.random() * 0.08, k: j % CH.length, lp: [-0.9 + Math.random() * 1.8, (Math.random() - 0.5) * 1.1, (Math.random() - 0.5) * 0.8] }); } }
     // the cuff's hovering fragments
     for (const s of [-1, 1]) { const n = 3 + tier; for (let j = 0; j < n; j++) fx.frags[s].push({ a: j / n * TAU + Math.random() * 0.5, sp: 1.4 + Math.random() * 0.9, r: 0.62 + Math.random() * 0.22, ax: -0.95 - Math.random() * 0.25, k: (j + (s > 0 ? 3 : 0)) % CH.length, s: 0.09 + Math.random() * 0.05 + (tier >= 3 ? 0.02 : 0), lag: 7 + Math.random() * 7, p: null }); }
-    const F = H.add({ key: 'rocky', life: LIFE, x: me.x, y: me.y, update, draw, drawUnder, get fxs() { return fx; }, strikes, hits: [], tier, NS, DK, onEnd() { clearPet(); for (const c of kids) c.life = 0; } });
+    const F = H.add({ key: 'rocky', life: LIFE, x: me.x, y: me.y, update, draw, drawUnder, get fxs() { return fx; }, strikes, echoes, hits: [], tier, NS, DK, onEnd() { clearPet(); for (const c of kids) c.life = 0; } });
     const kids = [-1, 1].map(s => H.add({ key: 'rockyFist', life: LIFE, side: s, entY: null, drawEnt: (c, f) => drawEnt(c, f, s) }));
+    const ukids = UPPER ? [-1, 1].map(s => H.add({ key: 'rockyFist', life: LIFE, side: s, up: 1, entY: null, drawEnt: (c, f) => drawUp(c, f, s) })) : [];
+    kids.push(...ukids);
     const lastFr = { '-1': null, '1': null }, pcFr = { '-1': null, '1': null }; let glowK = 0, dimA = { '-1': 1, '1': 1 }, ended = false, shattered = false, lastT = 0, finalCharge = 0;
     const valid = m => m && !m.dead && !m.under && !m.falling && !m.fobj;
     function hit(S, m, extra) {
@@ -463,12 +489,50 @@
     function landAt(S, wp) {
       const R = S.R, cx = anc.x + fwd()[0] * S.D + sideV()[0] * S.at, cy = anc.y + fwd()[1] * S.D + sideV()[1] * S.at; let n = 0;
       for (const m of living()) if (Math.hypot(m.x - cx, m.y - cy) < R + m.r * 0.6) { if (hit(S, m)) n++; }
-      const heavy = S.type !== 'up' || (NS === 7 && S.i === 1);
-      if (S.type === 'up') { flash(wp[0], wp[1], wp[2], 0.75 + 0.1 * tier, 0.28); debris(wp[0], wp[1], Math.max(0.3, wp[2] - 0.2), 7 + 2 * tier, { up: 5, v: 1.6, s: 0.12 }); sparks(wp[0], wp[1] - wp[2], 6); H.X.sfx.thud(); H.X.shake(heavy ? 5 : 3.5, 0.15); }
-      else { const big = (NS === 4 && S.i === 3) || S.type === 'over'; flash(wp[0], wp[1], 0.25, big ? 1.25 : 0.95, 0.32, big); fx.marks.push({ x: cx, y: cy, R: R * (big ? 1.25 : 1.05), t: 0, life: big ? 1.4 : 1.1, seed: S.i * 3 + 1, ring: true, big });
-        debris(wp[0], wp[1], 0.2, (big ? 14 : 9) + 2 * tier, { up: 3.2, v: big ? 3.6 : 2.8, s: big ? 0.17 : 0.14 }); dust(cx, cy, big ? 10 : 6, big ? 2.4 : 1.8, 0.4); sparks(cx, cy - 0.3, big ? 10 : 6, 2.5);
+      const heavy = S.type !== 'up' || (NS === 7 && S.i === 1) || S.echo, EH = S.echo ? 1.35 : 1;
+      if (S.type === 'up') { flash(wp[0], wp[1], wp[2], (0.75 + 0.1 * tier) * EH, 0.28); debris(wp[0], wp[1], Math.max(0.3, wp[2] - 0.2), (7 + 2 * tier) * EH, { up: 5, v: 1.6 * EH, s: 0.12 * EH }); sparks(wp[0], wp[1] - wp[2], 6); H.X.sfx.thud(); H.X.shake(heavy ? 5 : 3.5, 0.15); }
+      else { const big = (NS === 4 && S.i === 3) || S.type === 'over'; flash(wp[0], wp[1], 0.25, (big ? 1.25 : 0.95) * EH, 0.32, big); fx.marks.push({ x: cx, y: cy, R: R * (big ? 1.25 : 1.05), t: 0, life: big ? 1.4 : 1.1, seed: S.i * 3 + 1, ring: true, big });
+        debris(wp[0], wp[1], 0.2, ((big ? 14 : 9) + 2 * tier) * EH, { up: 3.2, v: (big ? 3.6 : 2.8) * EH, s: (big ? 0.17 : 0.14) * EH }); dust(cx, cy, big ? 10 : 6, big ? 2.4 : 1.8, 0.4); sparks(cx, cy - 0.3, big ? 10 : 6, 2.5);
         H.X.sfx.crash(); H.X.shake(big ? 9 : 6, big ? 0.3 : 0.22); H.X.light && H.X.light(cx, cy, R * 1.2, 0.22); }
       if (n && H.X.hitstop) H.X.hitstop(heavy ? 0.05 : 0.035);
+    }
+    /* a strike's hits and its moment of contact (a main strike, or the upper pair's echo of it) */
+    function runStrike(S, t, u) {
+        // the moving hits
+      if (S.type === 'hook' && u >= 0.34 && u <= 0.74) {
+        const p = kfEval(S.KF, u), th = p.th, prev = S.thPrev == null ? S.th0 : S.thPrev; S.thPrev = th;
+        for (const m of living()) { if (S.hit.has(m)) continue; const dx = m.x - anc.x, dy = m.y - anc.y, d = Math.hypot(dx, dy); if (d < 0.3 || d > S.rr + 1.0 * K + m.r) continue; const ang = wrapA(Math.atan2(dy, dx) - A), lo = Math.min(prev, th) - 0.12, hi = Math.max(prev, th) + 0.12;
+          if (ang >= lo && ang <= hi) hit(S, m, mm => { flash(mm.x, mm.y, 0.75, 0.55, 0.22); debris(mm.x, mm.y, 0.6, 4 + tier, { up: 2.5, v: 2.5, dir: A + th - S.side * Math.PI / 2, spread: 1 }); sparks(mm.x, mm.y - 0.6, 5); }); }
+        if (!S.sw && u > 0.5) { S.sw = 1; H.X.shake(4, 0.14); H.X.sfx.thud(); }
+      }
+      if (S.type === 'body' && u >= 0.38 && u <= 0.72) {
+        const p = kfEval(S.KF, u), front = p.u + 0.55 * SZ, f2 = fwd(), sv = sideV();
+        for (const m of living()) { if (S.hit.has(m)) continue; const dx = m.x - anc.x, dy = m.y - anc.y, al = dx * f2[0] + dy * f2[1], of = dx * sv[0] + dy * sv[1]; if (al > 0.1 && al < front + m.r * 0.5 && Math.abs(of - p.v) < S.hw + m.r) hit(S, m, mm => { flash(mm.x, mm.y, 0.45, 0.6, 0.24); debris(mm.x, mm.y, 0.4, 5 + tier, { up: 2.2, v: 3, dir: A, spread: 0.9 }); sparks(mm.x, mm.y - 0.4, 6); }); }
+        if (!S.sw && u > 0.52) { S.sw = 1; H.X.shake(5, 0.16); H.X.sfx.thud(); }
+      }
+      if (S.type === 'final' && u >= S.ct - 0.06) {
+        const p = kfEval(S.KF, Math.min(u, S.ct)), tc = S.s + S.d * S.ct, front = u < S.ct ? p.u + 0.6 * SZ * 1.3 : Math.min(S.RF, (S.D + 1.6) + 11 * (t - tc));
+        for (const m of living()) { if (S.hit.has(m)) continue; const dx = m.x - anc.x, dy = m.y - anc.y, d = Math.hypot(dx, dy), ang = Math.abs(wrapA(Math.atan2(dy, dx) - A)); if (d <= front + m.r * 0.5 && d <= S.RF + m.r && ang < S.spread + Math.asin(Math.min(1, m.r / Math.max(d, m.r))) * 0.7) hit(S, m, mm => { flash(mm.x, mm.y, 0.6, 0.55, 0.22); }); }
+      }
+      // the moment of contact
+      if (!S.fired && u >= S.ct) { S.fired = true; const p = kfEval(S.KF, S.ct), wp = world(p), kn = fistPt(S.side, p, [1.0, 0, 0.05]), kp = [wp[0] + kn[0], wp[1] + kn[1], wp[2] + kn[2]];
+        if (S.type === 'up' || S.type === 'down' || S.type === 'over') landAt(S, kp);
+        if (S.type === 'final') { const f2 = fwd(); flash(kp[0], kp[1], kp[2], 1.9, 0.5, true); fx.marks.push({ x: kp[0] + f2[0] * 0.5, y: kp[1] + f2[1] * 0.5, R: 2.0 * K, t: 0, life: 1.6, seed: 7, ring: true, big: true, fwd: true, a: A });
+          debris(kp[0], kp[1], kp[2], 20, { up: 3.5, v: 5.2, dir: A, spread: 1.4, s: 0.2 }); debris(kp[0], kp[1], kp[2], 8, { up: 4, v: 2.2, s: 0.14 }); dust(kp[0] + f2[0] * 0.8, kp[1] + f2[1] * 0.8, 14, 3, 0.5); sparks(kp[0], kp[1] - kp[2], 16, 3);
+          for (let j = 0; j < H.n(14); j++) fx.streaks.push({ x: kp[0], y: kp[1], z: kp[2] * (0.4 + Math.random() * 0.9), a: A + (Math.random() - 0.5) * 0.9, v: 7 + Math.random() * 6, t: -Math.random() * 0.08, life: 0.32 + Math.random() * 0.2, w: 0.5 + Math.random() * 0.6 });
+          H.X.sfx.crash(); H.X.sfx.thud(); H.X.shake(13, 0.4); H.X.light && H.X.light(kp[0], kp[1], 3, 0.35); H.X.hitstop && H.X.hitstop(0.07); }
+        if (S.type === 'hook' || S.type === 'body') sparks(kp[0], kp[1] - kp[2], 4);
+      }
+    }
+    // the knuckles' wake while a fist moves fast (with chips shed along it)
+    function trailStep(key, s, p, wp, act, kind, dt, t) {
+      const tr = fx.trails[key] || (fx.trails[key] = []), kn = fistPt(s, p, [1.0, 0, 0.05]), kp = [wp[0] + kn[0], wp[1] + kn[1], wp[2] + kn[2]], last = tr[tr.length - 1], big = p.sc > 1.2;
+      const sp = last ? Math.hypot(kp[0] - last.x, kp[1] - last.y, kp[2] - last.z) / Math.max(1e-3, t - last.t) : 0;
+      if (act && sp > 3.2 && t >= FORM) { tr.push({ x: kp[0], y: kp[1], z: kp[2], t, k: kind, big }); if (Math.random() < dt * 40 * H.Q()) H.P({ kind: 'spark', x: kp[0], y: kp[1] - kp[2], vx: (Math.random() - 0.5) * 1.5, vy: -0.6 - Math.random(), g: 3, life: 0.4, max: 0.4, size: 1.6 + Math.random(), color: Math.random() < 0.5 ? GOLD : HONEY });
+        if (Math.random() < dt * 14 * H.Q()) H.P({ kind: 'smoke', x: kp[0], y: kp[1] - kp[2] * 0.9, vx: (Math.random() - 0.5) * 0.4, vy: -0.2, life: 0.55, max: 0.55, size: (0.18 + Math.random() * 0.1) * (big ? 1.4 : 1), color: 'rgba(196,160,98,' });
+        if (t - (fx.chipT[key] || 0) > (big ? 0.035 : 0.045)) { fx.chipT[key] = t; debris(kp[0], kp[1], Math.max(0.1, kp[2] - 0.1), 1, { up: 0.6, v: 0.7, s: big ? 0.1 : 0.075 }); } }
+      else if (!last || t - last.t > 0.02) tr.push({ x: kp[0], y: kp[1], z: kp[2], t, k: 'end', gap: !act || sp <= 3.2 });
+      while (tr.length && (t - tr[0].t > 0.35 || tr.length > 48)) tr.shift();
     }
     /* ---- the update ---- */
     function update(dt, f) {
@@ -476,52 +540,26 @@
       if (me.dead && endAt > t) endAt = t;   // (the pet falls: the fists let go at once)
       anc.x += (me.x - anc.x) * Math.min(1, dt * 14); anc.y += (me.y - anc.y) * Math.min(1, dt * 14); f.x = anc.x; f.y = anc.y;
       // strikes: switch on (aim at the nearest monster), turn toward it in the windup, land
-      for (const S of strikes) { if (t >= S.s && !S.on && S.s < endAt) { S.on = true; aimStrike(S); build(S); prepMarks(S); if (S.type !== 'final') H.X.sfx.whoosh(); else H.X.sfx.hum(); } }
+      for (const S of strikes) { if (t >= S.s && !S.on && S.s < endAt) { S.on = true; aimStrike(S); build(S); prepMarks(S); if (UPPER && S.type !== 'final') prepMarks(echoes[echoes.push(Object.assign({}, S, { i: 7 + S.i, dk: S.dk * EK, s: S.s + ECHO, hit: new Set(), n: 0, fired: false, sw: 0, thPrev: null, echo: true, main: S, R: S.R && S.R * 1.12, hw: S.hw && S.hw * 1.1 })) - 1]); if (S.type !== 'final') H.X.sfx.whoosh(); else H.X.sfx.hum(); } }
       const S = strikes[curIdx(t)];
       if (S.on && t < endAt) {
         const u = (t - S.s) / S.d; if (u < 0.45) { const da = wrapA(S.aimT - A); A += Math.sign(da) * Math.min(Math.abs(da), dt * 7); }
-        if (S.type === 'final' && u > 0.16 && u < S.ct) { finalCharge = sstep(0.16, 0.56, u); if (Math.random() < dt * 30 * H.Q()) { const wp = world(FS['1'] || guard(1)), b = Math.random() * TAU, d = 0.9 + Math.random() * 0.8; fx.rocks.push({ s: 1, a0: b, d0: d, t0: t, t1: t + 0.32 + Math.random() * 0.12, fin: 1, sp: 3 * (Math.random() < 0.5 ? 1 : -1), s0: 0.12 + Math.random() * 0.1, k: Math.floor(Math.random() * CH.length), lp: [0.4 + Math.random() * 0.5, (Math.random() - 0.5) * 0.9, (Math.random() - 0.2) * 0.6], ox: wp[0], oy: wp[1] }); } }
+        if (S.type === 'final' && u > 0.16 && u < S.ct) { finalCharge = sstep(0.16, 0.56, u); if (Math.random() < dt * 30 * H.Q()) { const src = UPPER && Math.random() < 0.6 && UFS[Math.random() < 0.5 ? -1 : 1], wp = world(src || FS['1'] || guard(1)), b = Math.random() * TAU, d = 0.9 + Math.random() * 0.8; fx.rocks.push({ s: 1, a0: b, d0: d, t0: t, t1: t + 0.32 + Math.random() * 0.12, fin: 1, sp: 3 * (Math.random() < 0.5 ? 1 : -1), s0: 0.12 + Math.random() * 0.1, k: Math.floor(Math.random() * CH.length), lp: [0.4 + Math.random() * 0.5, (Math.random() - 0.5) * 0.9, (Math.random() - 0.2) * 0.6], ox: wp[0], oy: wp[1] }); } }
         else if (S.type !== 'final') finalCharge = 0;
-        // the moving hits
-        if (S.type === 'hook' && u >= 0.34 && u <= 0.74) {
-          const p = kfEval(S.KF, u), th = p.th, prev = S.thPrev == null ? S.th0 : S.thPrev; S.thPrev = th;
-          for (const m of living()) { if (S.hit.has(m)) continue; const dx = m.x - anc.x, dy = m.y - anc.y, d = Math.hypot(dx, dy); if (d < 0.3 || d > S.rr + 1.0 * K + m.r) continue; const ang = wrapA(Math.atan2(dy, dx) - A), lo = Math.min(prev, th) - 0.12, hi = Math.max(prev, th) + 0.12;
-            if (ang >= lo && ang <= hi) hit(S, m, mm => { flash(mm.x, mm.y, 0.75, 0.55, 0.22); debris(mm.x, mm.y, 0.6, 4 + tier, { up: 2.5, v: 2.5, dir: A + th - S.side * Math.PI / 2, spread: 1 }); sparks(mm.x, mm.y - 0.6, 5); }); }
-          if (!S.sw && u > 0.5) { S.sw = 1; H.X.shake(4, 0.14); H.X.sfx.thud(); }
-        }
-        if (S.type === 'body' && u >= 0.38 && u <= 0.72) {
-          const p = kfEval(S.KF, u), front = p.u + 0.55 * SZ, f2 = fwd(), sv = sideV();
-          for (const m of living()) { if (S.hit.has(m)) continue; const dx = m.x - anc.x, dy = m.y - anc.y, al = dx * f2[0] + dy * f2[1], of = dx * sv[0] + dy * sv[1]; if (al > 0.1 && al < front + m.r * 0.5 && Math.abs(of - p.v) < S.hw + m.r) hit(S, m, mm => { flash(mm.x, mm.y, 0.45, 0.6, 0.24); debris(mm.x, mm.y, 0.4, 5 + tier, { up: 2.2, v: 3, dir: A, spread: 0.9 }); sparks(mm.x, mm.y - 0.4, 6); }); }
-          if (!S.sw && u > 0.52) { S.sw = 1; H.X.shake(5, 0.16); H.X.sfx.thud(); }
-        }
-        if (S.type === 'final' && u >= S.ct - 0.06) {
-          const p = kfEval(S.KF, Math.min(u, S.ct)), tc = S.s + S.d * S.ct, front = u < S.ct ? p.u + 0.6 * SZ * 1.3 : Math.min(S.RF, (S.D + 1.6) + 11 * (t - tc));
-          for (const m of living()) { if (S.hit.has(m)) continue; const dx = m.x - anc.x, dy = m.y - anc.y, d = Math.hypot(dx, dy), ang = Math.abs(wrapA(Math.atan2(dy, dx) - A)); if (d <= front + m.r * 0.5 && d <= S.RF + m.r && ang < S.spread + Math.asin(Math.min(1, m.r / Math.max(d, m.r))) * 0.7) hit(S, m, mm => { flash(mm.x, mm.y, 0.6, 0.55, 0.22); }); }
-        }
-        // the moment of contact
-        if (!S.fired && u >= S.ct) { S.fired = true; const p = kfEval(S.KF, S.ct), wp = world(p), kn = fistPt(S.side, p, [1.0, 0, 0.05]), kp = [wp[0] + kn[0], wp[1] + kn[1], wp[2] + kn[2]];
-          if (S.type === 'up' || S.type === 'down' || S.type === 'over') landAt(S, kp);
-          if (S.type === 'final') { const f2 = fwd(); flash(kp[0], kp[1], kp[2], 1.9, 0.5, true); fx.marks.push({ x: kp[0] + f2[0] * 0.5, y: kp[1] + f2[1] * 0.5, R: 2.0 * K, t: 0, life: 1.6, seed: 7, ring: true, big: true, fwd: true, a: A });
-            debris(kp[0], kp[1], kp[2], 20, { up: 3.5, v: 5.2, dir: A, spread: 1.4, s: 0.2 }); debris(kp[0], kp[1], kp[2], 8, { up: 4, v: 2.2, s: 0.14 }); dust(kp[0] + f2[0] * 0.8, kp[1] + f2[1] * 0.8, 14, 3, 0.5); sparks(kp[0], kp[1] - kp[2], 16, 3);
-            for (let j = 0; j < H.n(14); j++) fx.streaks.push({ x: kp[0], y: kp[1], z: kp[2] * (0.4 + Math.random() * 0.9), a: A + (Math.random() - 0.5) * 0.9, v: 7 + Math.random() * 6, t: -Math.random() * 0.08, life: 0.32 + Math.random() * 0.2, w: 0.5 + Math.random() * 0.6 });
-            H.X.sfx.crash(); H.X.sfx.thud(); H.X.shake(13, 0.4); H.X.light && H.X.light(kp[0], kp[1], 3, 0.35); H.X.hitstop && H.X.hitstop(0.07); }
-          if (S.type === 'hook' || S.type === 'body') sparks(kp[0], kp[1] - kp[2], 4);
-        }
+        runStrike(S, t, u);
       }
+      for (const Ee of echoes) if (t >= Ee.s && t < Ee.s + Ee.d && t < endAt) runStrike(Ee, t, (t - Ee.s) / Ee.d);
       // the fists this frame
       for (const s of [-1, 1]) { const p = poseAt(s, t); FS[s] = p; if (t < endAt) lastPose[s] = p; const wp = world(p); kids[s < 0 ? 0 : 1].entY = shattered ? null : wp[1] + 0.02; kids[s < 0 ? 0 : 1].x = wp[0]; kids[s < 0 ? 0 : 1].y = wp[1];
-        // the knuckles' trail while it moves fast
-        const kn = fistPt(s, p, [1.0, 0, 0.05]), kp = [wp[0] + kn[0], wp[1] + kn[1], wp[2] + kn[2]], tr = fx.trails[s], last = tr[tr.length - 1];
-        const sp = last ? Math.hypot(kp[0] - last.x, kp[1] - last.y, kp[2] - last.z) / Math.max(1e-3, t - last.t) : 0, St = strikes[curIdx(t)], act = St.on && St.side === s && t < endAt;
-        if (act && sp > 3.2 && t >= FORM) { tr.push({ x: kp[0], y: kp[1], z: kp[2], t, k: St.type }); if (Math.random() < dt * 40 * H.Q()) H.P({ kind: 'spark', x: kp[0], y: kp[1] - kp[2], vx: (Math.random() - 0.5) * 1.5, vy: -0.6 - Math.random(), g: 3, life: 0.4, max: 0.4, size: 1.6 + Math.random(), color: Math.random() < 0.5 ? GOLD : HONEY });
-          if (Math.random() < dt * 14 * H.Q()) H.P({ kind: 'smoke', x: kp[0], y: kp[1] - kp[2] * 0.9, vx: (Math.random() - 0.5) * 0.4, vy: -0.2, life: 0.55, max: 0.55, size: 0.18 + Math.random() * 0.1, color: 'rgba(196,160,98,' }); }
-        else if (!last || t - last.t > 0.02) tr.push({ x: kp[0], y: kp[1], z: kp[2], t, k: 'end', gap: !act || sp <= 3.2 });
-        if (act && sp > 3.2 && t >= FORM && t - (fx.chipT[s] || 0) > 0.045) { fx.chipT[s] = t; debris(kp[0], kp[1], Math.max(0.1, kp[2] - 0.1), 1, { up: 0.6, v: 0.7, s: 0.075 }); }
-        while (tr.length && (t - tr[0].t > 0.35 || tr.length > 48)) tr.shift();
+        const St = strikes[curIdx(t)];
+        trailStep(String(s), s, p, wp, St.on && St.side === s && t < endAt, St.type, dt, t);
         // the cuff's fragments lag behind the wrist
         for (const q of fx.frags[s]) { const an = q.a + t * q.sp, lp = [q.ax, Math.cos(an) * q.r, Math.sin(an) * q.r * 0.9], o = fistPt(s, p, lp), tg = [wp[0] + o[0], wp[1] + o[1], wp[2] + o[2] + 0.04 * Math.sin(t * 3 + q.a)];
           if (!q.p) q.p = tg.slice(); else { const k = Math.min(1, dt * q.lag); q.p[0] += (tg[0] - q.p[0]) * k; q.p[1] += (tg[1] - q.p[1]) * k; q.p[2] += (tg[2] - q.p[2]) * k; }
           q.dep = mvm(orient(s < 0 ? Math.PI - (A + p.yr) : A + p.yr, p.ph), lp); q.front = (s < 0 ? 1 : 1) * (q.dep[1] * 0.84 + q.dep[2] * 0.55) > 0; } }
+      if (UPPER) for (const s of [-1, 1]) { const p = upperPose(s, t), kd = ukids[s < 0 ? 0 : 1]; UFS[s] = p; if (t < endAt && p) lastUp[s] = p; if (!p || p.a <= 0.01) { kd.entY = null; continue; }
+        const wp = world(p); kd.entY = wp[1] - 0.05; const te = t - ECHO, Ee = echoes.find(q => q.side === s && te >= q.main.s && te < q.main.s + q.main.d);
+        trailStep('U' + s, s, p, wp, !!Ee && t < endAt, Ee ? Ee.type : 'end', dt, t); }
       // the veins' light: a breath while it fights, brighter as each blow lands, dimming at the end
       { let g = 0.55 + 0.1 * Math.sin(t * 4) + 0.15 * (tier - 1); const St = strikes[curIdx(t)]; if (St.on && t < endAt) { const u = (t - St.s) / St.d; g += 0.6 * Math.exp(-Math.pow((u - St.ct) / 0.08, 2)) + (St.type === 'final' ? 0.9 * finalCharge : 0); }
         if (t < FORM) g *= sstep(0.4, 0.95, t); if (t >= endAt) g *= 1 - sstep(0.05, 0.4, t - endAt); glowK += (g - glowK) * Math.min(1, dt * 12); }
@@ -576,6 +614,18 @@
       }
       frag(true);
     }
+    const udim = { '-1': 1, '1': 1 };
+    function drawUp(c, f, s) {
+      if (shattered) return; const p = UFS[s]; if (!p || !(p.a > 0.01)) return; const T = H.X.Tz(), t = lastT, wp = world(p), X = H.sx(wp[0]), Y = H.sy(wp[1]) - wp[2] * T, upx = T * UNIT * SZ * p.sc;
+      // (big and high: it dims wherever it would cover the pet, in front or behind)
+      const dtg = 0.35 + 0.65 * sstep(T * 0.35, T * 1.0, Math.hypot(X - petBox(T)[0], Y - petBox(T)[1])); udim[s] += (dtg - udim[s]) * 0.25; const a = udim[s] * p.a;
+      c.save();
+      if (t < FORM) { const tf = t - 0.1, a1 = sstep(0.36, 0.5, tf), a2 = sstep(0.56, 0.7, tf), a3 = sstep(0.76, 0.88, tf);
+        if (a1 > 0.01 && a3 < 0.99) drawFist(c, tier, s, X, Y, A + p.yr, p.ph, upx, a * a1, glowK, 's1', 0); if (a2 > 0.01 && a3 < 0.99) drawFist(c, tier, s, X, Y, A + p.yr, p.ph, upx, a * a2, glowK, 's2', 0); if (a3 > 0.01) drawFist(c, tier, s, X, Y, A + p.yr, p.ph, upx, a * a3, glowK, 'up', 0);
+        for (const [t0, k] of [[0.5, 0.5], [0.7, 0.4], [0.88, 0.45]]) { const w = tf - t0; if (w > -0.05 && w < 0.25) glowF(c, X, Y, upx * 1.4, GOLD, a * k * (1 - Math.abs(w + 0.05) / 0.3)); } }
+      else { drawFist(c, tier, s, X, Y, A + p.yr, p.ph, upx, a, glowK * (p.merge ? 1 + p.merge : 1), 'up', 0); if (p.merge > 0.02) glowF(c, X, Y, upx * (1 + p.merge), GOLD, 0.5 * p.merge * a); }
+      c.restore();
+    }
     function drawUnder(c, f, X0, Y0, T, tg) {
       const t = lastT;
       // the formation's light on the floor where the stones gather
@@ -583,6 +633,8 @@
       // soft shadows under the fists (fainter and smaller the higher they are)
       if (!shattered) for (const s of [-1, 1]) { const p = FS[s]; if (!p) continue; const wp = world(p), k = 1 / (1 + wp[2] * 0.7), a = (t < FORM ? sstep(0.4, 0.9, t) : 1) * dimA[s] * (t >= endAt ? 1 - sstep(0.2, 0.5, t - endAt) : 1), w = T * 0.95 * SZ * p.sc * k;
         c.save(); c.globalAlpha = 0.5 * a * k; c.drawImage(E.shade(), H.sx(wp[0]) - w, H.sy(wp[1]) - w * GY * 0.8, w * 2, w * 2 * GY * 0.8); c.restore(); glowF(c, H.sx(wp[0]), H.sy(wp[1]), w * 0.8, AMBER, 0.12 * glowK * a * k, GY); }
+      if (UPPER && !shattered) for (const s of [-1, 1]) { const p = UFS[s]; if (!p || !(p.a > 0.01)) continue; const wp = world(p), k = 1 / (1 + wp[2] * 0.7), a = (t < FORM ? sstep(0.5, 1.0, t) : 1) * p.a * udim[s], w = T * 0.95 * SZ * p.sc * k;
+        c.save(); c.globalAlpha = 0.4 * a * k; c.drawImage(E.shade(), H.sx(wp[0]) - w, H.sy(wp[1]) - w * GY * 0.8, w * 2, w * 2 * GY * 0.8); c.restore(); }
       // the marks of the blows: light only, fading (cracks, an amber ring and a dust ring; the final one stretched forward)
       for (const q of fx.marks) { const u = q.t / q.life, X = H.sx(q.x), Y = H.sy(q.y), Rp = q.R * T;
         c.save(); c.translate(X, Y); if (q.fwd) { c.scale(1, GY); c.rotate(q.a); c.scale(1.45, 1); c.rotate(-q.a); c.scale(1, 1 / GY); }
@@ -593,7 +645,7 @@
     function draw(c, f, X0, Y0, T, tg) {
       const t = lastT, pb = petBox(T);
       // the formation's pebbles: up from the floor, spiralling into the cluster, onto their place in the stone
-      for (const q of fx.rocks) { const p = FS[q.s]; if (!p) continue; if (!q.fin && t > q.t1 + 0.05) continue; if (t < q.t0) continue;
+      for (const q of fx.rocks) { const p = q.up ? UFS[q.s] : FS[q.s]; if (!p) continue; if (!q.fin && t > q.t1 + 0.05) continue; if (t < q.t0) continue;
         const u = cl((t - q.t0) / (q.t1 - q.t0)), e = sm(u), wp = world(p), lp = fistPt(q.s, p, q.lp), tx = wp[0] + lp[0], ty = wp[1] + lp[1], tz = wp[2] + lp[2];
         const ox = q.fin ? q.ox : world(guard(q.s))[0], oy = q.fin ? q.oy : world(guard(q.s))[1], ang = q.a0 + q.sp * u * TAU * 0.6, rr = q.d0 * (1 - e), x = lerp(ox + Math.cos(q.a0) * q.d0, tx, e) + Math.cos(ang) * rr * 0.6, y = lerp(oy + Math.sin(q.a0) * q.d0 * 0.6, ty, e) + Math.sin(ang) * rr * 0.4, z = lerp(0.02, tz, e) + Math.sin(u * Math.PI) * 0.5;
         const X = H.sx(x), Y = H.sy(y) - z * T, rs = CH[q.k], sz = q.s0 * T * SZ * 1.3 * (q.fin ? 1 : 1 - 0.3 * e), al = Math.min(1, (t - q.t0) / 0.08) * (u >= 1 ? 1 - cl((t - q.t1) / 0.05) : 1) * nearPet(X, Y, T);
@@ -612,14 +664,15 @@
           c.restore(); } }
       // the knuckles' wakes: broad feathered ribbons of dust and gold, widest at the knuckles, tapering behind (rising
       // curves for uppercuts, broad arcs for hooks, long wakes for the straight, the body blow and the downward blows)
-      for (const s of [-1, 1]) { const tr = fx.trails[s]; if (tr.length < 2) continue;
-        const wide = tr.some(q => q.k === 'hook') ? 1.35 : tr.some(q => q.k === 'final') ? 1.6 : 1, W0 = T * 0.62 * SZ * wide, runs = []; let run = [];
-        for (const q of tr) { if (q.gap) { if (run.length > 1) runs.push(run); run = []; continue; } const k = 1 - (t - q.t) / 0.35; if (k <= 0) continue; run.push([H.sx(q.x), H.sy(q.y) - q.z * T, k]); }
+      for (const key in fx.trails) { const tr = fx.trails[key]; if (tr.length < 2) continue;
+        const wide = (tr.some(q => q.k === 'hook') ? 1.35 : tr.some(q => q.k === 'final') ? 1.6 : 1) * (tr.some(q => q.big) ? 1.5 : 1), W0 = T * 0.62 * SZ * wide, runs = []; let run = [];
+        const BG = tr.some(q => q.big), LW = BG ? 0.2 : 0.35, EXP = BG ? 0.8 : 1.3;
+        for (const q of tr) { if (q.gap) { if (run.length > 1) runs.push(run); run = []; continue; } const k = 1 - (t - q.t) / LW; if (k <= 0) continue; run.push([H.sx(q.x), H.sy(q.y) - q.z * T, k]); }
         if (run.length > 1) runs.push(run);
         for (const R of runs) {
           const n = R.length, NX = new Array(n), NY = new Array(n); for (let i = 0; i < n; i++) { const a = R[Math.max(0, i - 1)], b = R[Math.min(n - 1, i + 1)], dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1; NX[i] = -dy / l; NY[i] = dx / l; }
           const head = R[n - 1], dim = nearPet(head[0], head[1], T);
-          const ribbon = wk => { c.beginPath(); for (let i = 0; i < n; i++) { const w = W0 * wk * Math.pow(R[i][2], 1.3) * 0.5; i ? c.lineTo(R[i][0] + NX[i] * w, R[i][1] + NY[i] * w) : c.moveTo(R[i][0] + NX[i] * w, R[i][1] + NY[i] * w); } for (let i = n - 1; i >= 0; i--) { const w = W0 * wk * Math.pow(R[i][2], 1.3) * 0.5; c.lineTo(R[i][0] - NX[i] * w, R[i][1] - NY[i] * w); } c.closePath(); c.fill(); };
+          const ribbon = wk => { c.beginPath(); for (let i = 0; i < n; i++) { const w = W0 * wk * Math.pow(R[i][2], EXP) * 0.5; i ? c.lineTo(R[i][0] + NX[i] * w, R[i][1] + NY[i] * w) : c.moveTo(R[i][0] + NX[i] * w, R[i][1] + NY[i] * w); } for (let i = n - 1; i >= 0; i--) { const w = W0 * wk * Math.pow(R[i][2], EXP) * 0.5; c.lineTo(R[i][0] - NX[i] * w, R[i][1] - NY[i] * w); } c.closePath(); c.fill(); };
           c.save();
           for (const [wk, ak, col, add] of [[1.4, 0.08, 'rgb(132,114,90)', 0], [1.05, 0.1, 'rgb(150,130,100)', 0], [0.75, 0.12, 'rgb(170,148,112)', 0], [1.15, 0.07, AMBER, 1], [0.8, 0.1, AMBER, 1], [0.52, 0.14, GOLD, 1], [0.28, 0.18, HONEY, 1], [0.1, 0.3, PALE, 1]]) {
             c.globalCompositeOperation = add ? 'lighter' : 'source-over'; c.globalAlpha = ak * dim; c.fillStyle = col; ribbon(wk); }

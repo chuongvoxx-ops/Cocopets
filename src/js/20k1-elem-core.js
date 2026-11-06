@@ -47,7 +47,7 @@ const ELEM_MOVES = {
     ['rocksteady', 'Rock Steady', 'shield', 100, 120, 'Heavy rocks orbit you for 15 s (20 Adept, 25 Celestial): every hit you take is cut by 50% (60% Adept, 70% Celestial), and each prevented hit strikes back at 100x (200x, 400x) on every monster nearby.'],
     ['quicksand', 'Gilded Quicksand', 'vortex', 95, 20, 'The floor turns to glittering mineral sand that slows and grinds the monsters, then hardens into stone plates and ruptures beneath them.'],
     ['obsidiandrill', 'Obsidian Drill', 'spin', 95, 20, 'Giant drills of black stone and golden crystal burst up under the monsters and grind, then plunge together in one rupture: 1, 3 at Adept, 8 at Celestial.'],
-    ['rocky', 'Rocky', 'fist', 100, 22, 'Two giant stone fists form beside you and your pet throws a punching combo through them: 2 uppercuts, 4 hits at Adept, a 7-hit combo ending in a colossal straight punch at Celestial.'],
+    ['rocky', 'Rocky', 'fist', 100, 22, 'Giant stone fists form beside you and your pet throws a punching combo through them: 2 uppercuts, 4 hits at Adept; at Celestial 4 fists: a 7-hit combo, each blow echoed by a second, bigger pair, ending in a colossal four-fist straight punch.'],
     ['titan', 'Titan', 'fist', 100, 40, 'Summons a colossal moss-grown stone golem that fights beside you with punches, backhands and ground slams (5 s, 8 s at Adept, 12 s at Celestial), then ends with Worldbreaker: a two-fisted slam that sends an earthquake across the floor.'] ] },
   wind: { strong: [
     ['silkstream', 'Silkstream Cutter', 'crescent', 24, 2.4, 'Two ribbons of air braid together and unfurl into a crescent that pierces a line of monsters.'],
