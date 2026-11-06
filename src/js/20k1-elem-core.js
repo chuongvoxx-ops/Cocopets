@@ -41,12 +41,12 @@ const ELEM_MOVES = {
   ult: [
     ['trampoline', 'Shockwave Trampoline', 'slam', 90, 18, 'Your pet bounces with crushing weight: every landing sends a stone shockwave rolling across the floor. 3 jumps, 5 at Adept, 7 at Celestial, the last one the biggest.'],
     ['worldshaking', 'World Shaking', 'orb', 90, 18, 'A huge golden orb in a tilted stone ring rolls forward, shaking the ground and grinding monsters in its path, trailing dark embers, then bursts.'],
-    ['geodearsenal', 'Geode Arsenal', 'lance', 95, 18, 'Floating geodes crack open round you and fire three volleys of giant crystal spears at the monsters: 3 geodes, 5 at Adept, 7 at Celestial.'],
+    ['geodearsenal', 'Geode Arsenal', 'gem', 95, 18, 'You swirl up into the air and summon ember crystals that circle you, then streak at the monsters one after another as homing missiles: 6 crystals, 10 at Adept, 14 at Celestial (two waves of 7).'],
     ['cataclysm', 'Cataclysm', 'meteor', 95, 18, 'A huge ember-veined boulder falls from the sky and bounces across the monsters (1, 2 at Adept, 3 at Celestial), then shatters into exploding ember crystals.'],
     ['coronation', 'Crystal Coronation', 'gem', 90, 18, 'Crowns of giant golden crystals erupt round the monsters in a widening mineral blossom: 1 crown, 2 at Adept, 3 at Celestial.'],
     ['rocksteady', 'Rock Steady', 'shield', 100, 120, 'Heavy rocks orbit you for 15 s (20 Adept, 25 Celestial): every hit you take is halved, and each prevented hit strikes back at 10x on every monster nearby.'],
     ['quicksand', 'Gilded Quicksand', 'vortex', 95, 20, 'The floor turns to glittering mineral sand that slows and grinds the monsters, then hardens into stone plates and ruptures beneath them.'],
-    ['obsidiandrill', 'Obsidian Drill', 'spin', 95, 20, 'Giant drills of black stone and golden crystal burst up under the monsters and grind, then plunge together in one rupture: 1, 3 at Adept, 5 at Celestial.'],
+    ['obsidiandrill', 'Obsidian Drill', 'spin', 95, 20, 'Giant drills of black stone and golden crystal burst up under the monsters and grind, then plunge together in one rupture: 1, 3 at Adept, 8 at Celestial.'],
     ['mandala', 'Thousand-Peak Mandala', 'nova', 100, 22, 'Rings of stone spires emerge round the aim, turn, and erupt inward; a central peak rises and shatters outward.'],
     ['mountainheart', 'Heart of the Mountain', 'meteor', 100, 22, 'A molten core rises beneath you wrapped in plates of earth that open with every seismic pulse, then crown and slam outward.'] ] },
   wind: { strong: [

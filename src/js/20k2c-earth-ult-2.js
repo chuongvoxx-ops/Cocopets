@@ -205,27 +205,31 @@
   U.worldshaking = (C, h) => {
     H = h; const me = H.me, ev = evoOf(C), ADE = ev >= 4, CEL = ev >= 7, K = C.K, evoK = 1 + 0.08 * (ev - 1), DK = C.base * K * evoK;
     const li = (a, b, c) => ev <= 4 ? lerp(a, b, (ev - 1) / 3) : lerp(b, c, (ev - 4) / 3);
-    const R = li(1.5, 1.8, 2.2) / 2 * K, LF = li(5, 6.5, 8) * K, a = C.a, dx = Math.cos(a), dy = Math.sin(a);
+    const R = li(1.5, 1.8, 2.2) / 2 * K, LF = li(5, 6.5, 8) * K, a = C.a; let hd = a, dx = Math.cos(a), dy = Math.sin(a);
     // the start: in front of the pet (further when aimed toward the camera, so it does not sit over the pet)
     const off = R + 0.45 + 0.85 * Math.max(0, dy); let x0 = me.x + dx * off, y0 = me.y + dy * off;
     for (let k = 0; k < 10 && H.X.blocked(x0, y0, 0.3, 1); k++) { x0 -= dx * off / 10; y0 -= dy * off / 10; }
-    let L = 0; while (L < LF && !H.X.blocked(x0 + dx * (L + 0.1), y0 + dy * (L + 0.1), Math.min(0.45, R * 0.5), 1)) L += 0.1;
-    const TT = (1.7 + 0.12 * (ev - 1)) * Math.max(0.45, Math.sqrt(Math.max(0.05, L) / LF));
-    // the speed profile: a quick start, a cruise, a long slowing into the finale
-    const NPF = 120, PF = new Float32Array(NPF + 1); let acc = 0; for (let i = 1; i <= NPF; i++) { const u = (i - 0.5) / NPF; acc += sstep(0, 0.18, u) * (1 - 0.88 * sstep(0.6, 1, u)) + 0.03; PF[i] = acc; } for (let i = 1; i <= NPF; i++) PF[i] /= acc;
-    const sAt = u => { u = cl(u) * NPF; const i = Math.min(NPF - 1, Math.floor(u)), e = u - i; return lerp(PF[i], PF[i + 1], e); };
-    const vC = Math.max(0.4, L / TT * 1.03 / (acc / NPF));
-    const T_GO = 1.1, T_ARR = T_GO + TT, T_BURST = T_ARR + 0.42, LIFE = T_BURST + 1.8, TICK = 0.25;
-    const CT = li(7.5, 9, 11), FB = li(6, 7, 8) * DK, nExp = Math.max(2, Math.min(6, 2 * (R + 0.35) / vC / TICK)), TK = CT * DK / 2, RBU = R + li(1.6, 2.0, 2.4) * K;
+    // the route is steered: L (5 / 6.5 / 8 H) is the most it travels; it homes on its monster, stops at a wall
+    const L = LF, TT = 1.7 + 0.12 * (ev - 1), vC = LF / (TT * 0.8), TURN = 2.8;
+    const T_GO = 1.1, TICK = 0.25, LIFE0 = T_GO + TT * 2.5 + 3.5;
+    const CT = li(7.5, 9, 11), FB = li(6, 7, 8) * DK, TK = CT * DK / 2, RBU = R + li(1.6, 2.0, 2.4) * K;
     const seed = Math.floor(Math.random() * 1000), oz0 = R + 0.12;
     let ox = x0, oy = y0, os = 0, oz = oz0, spin = 0, ringA = 0, nextTick = T_GO + 0.12, burst = false, died = false, S = null, spawnF = 0, spawnS = 0, spawnH = 0, nextRip = T_GO + 0.2, tickN = 0;
+    let arrT = 1e9, burstT = 1e9, tgt = null, grind = 0, grindK = 0, crackS = 0;
+    const tightAt = t => arrT > 1e8 ? 0 : sstep(arrT, arrT + 0.42, t);
     const got = new Map(), flakes = [], stones = [], sparks = [], puffs = [], haze = [], ripples = [], shards = [], chunks = [], hist = [];
-    const GRID = 0.1, passT = new Float32Array(Math.ceil((L + R + 2) / GRID) + 2).fill(-1);
-    // the fracture strip along the route: a main crack (two at Celestial) with branches; s = where the orb passes
-    const segs = []; const addWalk = (s, lo, b, n, len, w, d0) => { let px = x0 + dx * s - dy * lo, py = y0 + dy * s + dx * lo; for (let k = 0; k < n; k++) { b += (R1(seed + segs.length * 1.3) - 0.5) * 0.9; const l = len * (0.6 + 0.7 * R1(seed + segs.length * 2.1)), nx = px + Math.cos(b) * l, ny = py + Math.sin(b) * l; segs.push({ x0: px, y0: py, x1: nx, y1: ny, s: s + d0 + k * 0.12, w: k >= n - 1 ? 2 : w }); px = nx; py = ny; } };
-    const mains = CEL ? [-0.32, 0.32] : [0];
-    for (const m0 of mains) { let lo = m0 * R; for (let s = 0; s < L + R * 0.4; s += 0.22) { const lo2 = m0 * R + (R1(seed + s * 7.1 + m0) - 0.5) * 0.36 * R + 0.12 * R * Math.sin(s * 1.9 + seed); segs.push({ x0: x0 + dx * s - dy * lo, y0: y0 + dy * s + dx * lo, x1: x0 + dx * (s + 0.22) - dy * lo2, y1: y0 + dy * (s + 0.22) + dx * lo2, s, w: 0 }); lo = lo2; } }
-    for (let s = 0.3; s < L + R * 0.3; s += CEL ? 0.34 : ADE ? 0.45 : 0.55) { const side = R1(seed + s * 3.3) < 0.5 ? -1 : 1, lo = (CEL ? 0.32 * side : 0) * R; addWalk(s, lo, a + side * (Math.PI / 2 - 0.5 + R1(seed + s) * 0.6), CEL ? 5 : 3 + (R1(seed + s * 5) < 0.5 ? 1 : 0), R * (CEL ? 0.3 : 0.24), 1, 0.05); }
+    // the fracture strip, laid behind the orb as it goes (it follows the curving route): main cracks (two lanes at
+    // Celestial) and side branches, each segment lit at its birth time tb and fading
+    const segs = [], lanes = (CEL ? [-0.32, 0.32] : [0]).map(m0 => ({ m0, x: x0 - dy * m0 * R, y: y0 + dx * m0 * R }));
+    function crackStep(t) {
+      for (const ln of lanes) { const lo = ln.m0 * R + (Math.random() - 0.5) * 0.36 * R, nx = ox - dy * lo, ny = oy + dx * lo; segs.push({ x0: ln.x, y0: ln.y, x1: nx, y1: ny, tb: t, w: 0 }); ln.x = nx; ln.y = ny; }
+      if (Math.random() < (CEL ? 0.65 : ADE ? 0.5 : 0.4)) { const side = Math.random() < 0.5 ? -1 : 1, ln = lanes[side > 0 ? lanes.length - 1 : 0]; let px = ln.x, py = ln.y, b = hd + side * (Math.PI / 2 - 0.5 + Math.random() * 0.6); const n = CEL ? 5 : 3 + (Math.random() < 0.5 ? 1 : 0);
+        for (let k = 0; k < n; k++) { b += (Math.random() - 0.5) * 0.9; const l = R * (CEL ? 0.3 : 0.24) * (0.6 + 0.7 * Math.random()), nx = px + Math.cos(b) * l, ny = py + Math.sin(b) * l; segs.push({ x0: px, y0: py, x1: nx, y1: ny, tb: t + 0.05 + k * 0.04, w: k >= n - 1 ? 2 : 1 }); px = nx; py = ny; } }
+      while (segs.length > 400) segs.shift(); }
+    // its monster: in front along the aim first (nearest), else the nearest; again when that one dies
+    function pick(first) { const left = Math.max(0, L - os) + R + 1.2, list = H.near(ox, oy, left); if (!list.length) return null; let best = null, bs = 1e9;
+      for (const m of list) { const ddx = m.x - ox, ddy = m.y - oy, d = Math.hypot(ddx, ddy) || 1, fr = (ddx * dx + ddy * dy) / d, sc = d + (fr > (first ? 0.25 : -0.2) ? 0 : 50); if (sc < bs) { bs = sc; best = m; } } return best; }
+    function arrive(t) { if (arrT > 1e8) arrT = t; }
     // the finale's radial cracks
     const rad = []; for (let i = 0, n = CEL ? 14 : ADE ? 11 : 8; i < n; i++) { const b0 = i / n * TAU + R1(seed + i * 9) * 0.4; let b = b0, px = 0, py = 0, d = R * 0.6; px = Math.cos(b) * d; py = Math.sin(b) * d; for (let k = 0; k < 5; k++) { b = b0 + (R1(seed + i * 13 + k) - 0.5) * 0.7; const l = (RBU - R * 0.6) / 5 * (0.7 + 0.6 * R1(seed + i + k * 3)), nx = px + Math.cos(b) * l, ny = py + Math.sin(b) * l; rad.push({ x0: px, y0: py, x1: nx, y1: ny, k, w: k > 3 ? 2 : k > 1 ? 1 : 0 }); px = nx; py = ny; } }
     // the formation: golden fragments that spiral into the orb
@@ -233,41 +237,51 @@
     // Celestial: the floating mineral segments round the ring
     const segM = CEL ? Array.from({ length: 7 }, (_, i) => ({ M: GeoKit.bipyramid(5, 0.12, 0.2 + 0.06 * R1(seed + i), 0.14, { jit: 0.6, jitR: 0.35, seed: seed + i * 7 }), th: i / 7 * TAU + R1(seed + i * 4) * 0.4, ax: nrm([R1(seed + i) - 0.5, R1(seed + i * 2) - 0.5, R1(seed + i * 3) - 0.5]), ph: R1(seed + i * 5) * TAU, sc: 1.55 + 0.6 * R1(seed + i * 6), rad: 1.78 + 0.14 * R1(seed + i * 8) })) : [];
     H.X.banner('WORLD SHAKING', '', C.col, 1.4); H.X.sfx.hum(); me.sq = 0.6;
-    const tPass = s => { const i = Math.max(0, Math.min(passT.length - 1, Math.floor(s / GRID))); return passT[i]; };
-    const wpt = (s, lo) => [x0 + dx * s - dy * lo, y0 + dy * s + dx * lo];
     function doBurst(f) {
-      burst = true; H.hitArea(ox, oy, RBU, FB, C.dmgO({ kb: 5, stun: 0.45 })); H.X.shake(7, 0.35); H.X.hitstop(0.05); H.X.light(ox, oy, RBU * 1.5, 0.5); H.X.sfx.crash(); H.X.sfx.thud(); H.X.flash(0.18, PALE);
+      burst = true; burstT = f.t; f.TBreal = burstT; f.life = 1.8; H.hitArea(ox, oy, RBU, FB, C.dmgO({ kb: 5, stun: 0.45 })); H.X.shake(7, 0.35); H.X.hitstop(0.05); H.X.light(ox, oy, RBU * 1.5, 0.5); H.X.sfx.crash(); H.X.sfx.thud(); H.X.flash(0.18, PALE);
       for (let i = 0, n = H.n(CEL ? 11 : 8); i < n; i++) { const b = Math.random() * TAU, v = 2.5 + Math.random() * 3.5; stones.push({ x: ox + Math.cos(b) * R * 0.6, y: oy + Math.sin(b) * R * 0.6, z: 0.2 + Math.random() * 0.4, vx: Math.cos(b) * v, vy: Math.sin(b) * v, vz: 3 + Math.random() * 3.5, s: 0.1 + Math.random() * 0.12, v: i % 4, rot: Math.random() * TAU, vr: (Math.random() - 0.5) * 12, b: 0, t: 0 }); }
       for (let i = 0, n = H.n(CEL ? 30 : 22); i < n; i++) { const b = Math.random() * TAU, v = 3 + Math.random() * 5; shards.push({ x: ox, y: oy, z: oz, vx: Math.cos(b) * v, vy: Math.sin(b) * v, vz: 1 + Math.random() * 4, t: 0, life: 0.6 + Math.random() * 0.5, v: i % 3, rot: Math.random() * TAU, vr: (Math.random() - 0.5) * 16 }); }
       for (let i = 0; i < 6; i++) { const th = i / 6 * TAU + ringA, p = ringPt(Math.cos(th) * RM, Math.sin(th) * RM, 0), v = 3.5 + Math.random() * 2.5; chunks.push({ x: ox + p[0] * R, y: oy + p[2] * R * 0.6, z: oz - p[1] * R * 0.8, vx: p[0] * v, vy: p[2] * v * 0.8 + (Math.random() - 0.5), vz: 2 + Math.random() * 3, t: 0, rot: Math.random() * TAU, vr: (Math.random() - 0.5) * 10, s: 0.16 + Math.random() * 0.08, v: i % 4 }); }
       for (let i = 0, n = H.n(18); i < n; i++) { const b = i / 18 * TAU + Math.random() * 0.3, d = RBU * (0.45 + Math.random() * 0.35); puffs.push({ x: ox + Math.cos(b) * d, y: oy + Math.sin(b) * d, z: 0.15, vx: Math.cos(b) * 1.6, vy: Math.sin(b) * 1.6, vz: 0.35, t: 0, life: 1.1 + Math.random() * 0.5, s: 0.5 + Math.random() * 0.4, g: 1.6 }); }
       for (let i = 0, n = H.n(22); i < n; i++) { const b = Math.random() * TAU, v = 2 + Math.random() * 3.5; flakes.push({ x: ox + Math.cos(b) * R * 0.8, y: oy + Math.sin(b) * R * 0.8, z: oz + (Math.random() - 0.5) * R, vx: Math.cos(b) * v, vy: Math.sin(b) * v, vz: 1 + Math.random() * 2, t: 0, life: 1 + Math.random() * 0.7, s: 0.09 + Math.random() * 0.08, ph: Math.random() * TAU, vr: 5 + Math.random() * 8, rot: Math.random() * TAU, v: i % 3 }); }
     }
-    const f = H.add({ life: LIFE, x: x0, y: y0, key: 'worldshaking', TB: T_BURST, TA: T_ARR,
+    const f = H.add({ life: LIFE0, x: x0, y: y0, key: 'worldshaking', TB: T_GO + TT + 0.42,
       update(dt, f) {
         const t = f.t, T0 = texFor(ADE); if (!T0.ready) { const s0 = performance.now(); while (!T0.ready && performance.now() - s0 < 2) T0.it.next(); }
         if (me.dead && !died) { died = true; if (!burst) f.life = Math.min(f.life, 0.5); }
-        // the orb's route
-        if (t >= T_GO && !burst) { const u = (t - T_GO) / TT, s = L * sAt(u); for (let g = Math.floor(os / GRID); g <= Math.floor(s / GRID) && g < passT.length; g++) if (passT[g] < 0) passT[g] = t; os = s; ox = x0 + dx * s; oy = y0 + dy * s; }
+        // the orb's route: it turns smoothly after its monster's current place, eases onto it, grinds it; it arrives
+        // (and the finale begins) at the end of its range, at a wall, or after grinding its monster for 0.55 s
+        if (t >= T_GO && !burst && !died) {
+          if (!tgt || tgt.dead || tgt.under || tgt.falling) tgt = t < T_GO + 0.05 && !tgt ? pick(true) : pick(false);
+          let dT = 9;
+          if (tgt) { dT = Math.hypot(tgt.x - ox, tgt.y - oy); if (dT > 0.05) { const want = Math.atan2(tgt.y - oy, tgt.x - ox), dd = H.wrap(want - hd), mx = TURN * dt * (arrT < 1e8 ? 2 : 1); hd += Math.max(-mx, Math.min(mx, dd)); dx = Math.cos(hd); dy = Math.sin(hd); } }
+          let v = arrT > 1e8 ? vC * (0.15 + 0.85 * sstep(T_GO, T_GO + 0.35, t)) * (0.2 + 0.8 * cl((L - os) / (R + 1.0))) : 1.2 * (1 - tightAt(t) * 0.6);
+          if (tgt) v = Math.min(v, Math.max(0.6, vC * cl((dT - R * 0.15) / (R + 0.9))));
+          if (arrT < 1e8 && !tgt) v = 0;
+          const step = Math.min(v * dt, tgt ? Math.max(0, dT - R * 0.1) : 9), nx = ox + dx * step, ny = oy + dy * step;
+          if (step > 0) { if (H.X.blocked(nx, ny, Math.min(0.45, R * 0.5), 1)) arrive(t); else { ox = nx; oy = ny; os += step; crackS += step; if (crackS >= 0.22) { crackS = 0; crackStep(t); } } }
+          if (arrT > 1e8) { if (os >= L - 0.02) arrive(t); if (tgt && dT < R * 0.6) { grind += dt; if (grind > 0.55) arrive(t); } }
+        }
+        grindK = Math.max(0, grindK - dt * 2.2);
         oz = oz0 + 0.05 * Math.sin(t * 6.5);
-        const tight = sstep(T_ARR, T_BURST, t);
-        spin += dt * (t < T_GO ? 2.4 : 3.6 + 7 * tight); ringA += dt * (0.8 + 2.4 * tight);
+        const tight = tightAt(t);
+        spin += dt * (t < T_GO ? 4 : 9 + 10 * tight + 4 * grindK); ringA += dt * (t < T_GO ? 1.4 : 2.4 + 5 * tight + 1.5 * grindK);
         // contact ticks: every 0.25 s on what the orb overlaps (game time, frame-rate independent)
-        while (!died && !burst && t >= nextTick && nextTick < T_BURST - 0.02) { tickN++;
-          const hit = H.near(ox, oy, R * 0.92).filter(m => (got.get(m) || 0) < CT * DK - 1e-6); if (hit.length) { for (const m of hit) { const d = Math.min(TK, CT * DK - (got.get(m) || 0)); got.set(m, (got.get(m) || 0) + d); H.X.hitMon(m, d, C.dmgO({ kb: 0.6 })); H.slow(m, 0.4); for (let k = 0; k < H.n(3); k++) { const b = Math.random() * TAU; stones.push({ x: m.x, y: m.y, z: 0.3, vx: Math.cos(b) * 2.2, vy: Math.sin(b) * 2.2, vz: 2.5 + Math.random() * 2, s: 0.07 + Math.random() * 0.06, v: k % 4, rot: 0, vr: 9, b: 0, t: 0 }); } } H.X.shake(2.2, 0.09); if (tickN % 2) H.X.sfx.crack(); H.X.light(ox, oy, R * 2, 0.15); }
+        while (!died && !burst && t >= nextTick && t >= T_GO) { tickN++;
+          const hit = H.near(ox, oy, R * 0.92).filter(m => (got.get(m) || 0) < CT * DK - 1e-6); if (hit.length) { for (const m of hit) { const d = Math.min(TK, CT * DK - (got.get(m) || 0)); got.set(m, (got.get(m) || 0) + d); H.X.hitMon(m, d, C.dmgO({ kb: 0.6 })); H.slow(m, 0.4); for (let k = 0; k < H.n(3); k++) { const b = Math.random() * TAU; stones.push({ x: m.x, y: m.y, z: 0.3, vx: Math.cos(b) * 2.2, vy: Math.sin(b) * 2.2, vz: 2.5 + Math.random() * 2, s: 0.07 + Math.random() * 0.06, v: k % 4, rot: 0, vr: 9, b: 0, t: 0 }); } } grindK = 1; H.X.shake(2.6, 0.1); if (tickN % 2) H.X.sfx.crack(); H.X.light(ox, oy, R * 2, 0.15); }
           else H.X.shake(0.7, 0.06);
           nextTick += TICK; }
-        if (!burst && !died && t >= T_BURST) doBurst(f);
+        if (!burst && !died && t >= arrT + 0.42) doBurst(f);
         // spawning while it travels
-        const moving = t >= T_GO && t < T_BURST && !burst && !died;
+        const moving = t >= T_GO && !burst && !died;
         if (moving) {
-          spawnF += dt * (CEL ? 46 : ADE ? 40 : 34) * H.Q(); while (spawnF >= 1) { spawnF--; const lo = (Math.random() - 0.5) * R * 1.1, back = R * (0.5 + Math.random() * 0.5), vb = 0.5 + Math.random() * 1.1;
+          spawnF += dt * (CEL ? 60 : ADE ? 52 : 44) * H.Q(); while (spawnF >= 1) { spawnF--; const lo = (Math.random() - 0.5) * R * 1.1, back = R * (0.5 + Math.random() * 0.5), vb = 0.5 + Math.random() * 1.1;
             flakes.push({ x: ox - dx * back - dy * lo, y: oy - dy * back + dx * lo, z: oz + (Math.random() - 0.5) * R * 0.9, vx: -dx * vb - dy * (Math.random() - 0.5) * 1.1, vy: -dy * vb + dx * (Math.random() - 0.5) * 1.1, vz: 0.3 + Math.random() * 0.8, t: 0, life: 0.9 + Math.random() * 0.8, s: 0.09 + Math.random() * 0.11, ph: Math.random() * TAU, vr: 4 + Math.random() * 7, rot: Math.random() * TAU, v: Math.floor(Math.random() * 3) }); }
-          spawnS += dt * (CEL ? 26 : ADE ? 20 : 15) * H.Q() * (t < T_ARR ? 1 : 0.4); while (spawnS >= 1) { spawnS--; const side = Math.random() < 0.5 ? -1 : 1, lo = side * (R * 0.5 + Math.random() * (R * 0.6 + 0.5)), fw = (Math.random() - 0.3) * R, v = 0.5 + Math.random();
+          spawnS += dt * (CEL ? 36 : ADE ? 28 : 22) * H.Q() * (arrT > 1e8 ? 1 : 0.6) * (1 + grindK); while (spawnS >= 1) { spawnS--; const side = Math.random() < 0.5 ? -1 : 1, lo = side * (R * 0.5 + Math.random() * (R * 0.6 + 0.5)), fw = (Math.random() - 0.3) * R, v = 0.5 + Math.random();
             stones.push({ x: ox + dx * fw - dy * lo, y: oy + dy * fw + dx * lo, z: 0, vx: -dy * side * v + dx * 0.4, vy: dx * side * v + dy * 0.4, vz: 2 + Math.random() * 2, s: 0.06 + Math.random() * 0.08, v: Math.floor(Math.random() * 4), rot: Math.random() * TAU, vr: (Math.random() - 0.5) * 10, b: 0, t: 0 }); }
           spawnH += dt * 16; while (spawnH >= 1) { spawnH--; haze.push({ x: ox - dx * R * 0.6, y: oy - dy * R * 0.6, z: oz + (Math.random() - 0.5) * R * 0.5, t: 0, life: 0.7 + Math.random() * 0.3, s: R * (0.5 + Math.random() * 0.3), vx: -dx * 0.5, vy: -dy * 0.5 }); }
-          if (Math.random() < dt * 22 * H.Q()) { const b = Math.random() * TAU, v = 1.5 + Math.random() * 2.5; sparks.push({ x: ox + Math.cos(b) * R * 0.8, y: oy + Math.sin(b) * R * 0.8, z: oz + (Math.random() - 0.3) * R, vx: Math.cos(b) * v - dx, vy: Math.sin(b) * v - dy, vz: 1 + Math.random() * 2, t: 0, life: 0.3 + Math.random() * 0.35 }); }
-          if (t >= nextRip && t < T_ARR + 0.2) { ripples.push({ x: ox, y: oy, t0: t, k: 1 }); if (ADE) ripples.push({ x: ox, y: oy, t0: t + 0.14, k: 1.35 }); nextRip += 0.3; }
+          for (let q = Math.random() < (dt * 40 * H.Q() * (1 + grindK)) % 1 ? 1 : 0, nq = Math.floor(dt * 40 * H.Q() * (1 + grindK)) + q; nq > 0; nq--) { const b = Math.random() * TAU, v = 1.5 + Math.random() * 2.5; sparks.push({ x: ox + Math.cos(b) * R * 0.8, y: oy + Math.sin(b) * R * 0.8, z: oz + (Math.random() - 0.3) * R, vx: Math.cos(b) * v - dx, vy: Math.sin(b) * v - dy, vz: 1 + Math.random() * 2, t: 0, life: 0.3 + Math.random() * 0.35 }); }
+          if (t >= nextRip && (arrT > 1e8 || t < arrT + 0.2)) { ripples.push({ x: ox, y: oy, t0: t, k: 1 }); if (ADE) ripples.push({ x: ox, y: oy, t0: t + 0.14, k: 1.35 }); nextRip += 0.3; }
           hist.push([ox, oy, oz, t]); }
         f.ox = ox; f.oy = oy; f.oz = oz;
         while (hist.length && hist[0][3] < t - 0.9) hist.shift();
@@ -284,12 +298,12 @@
       drawUnder(c, f, X, Y, T, gt) {
         const t = f.t;
         const fo = died ? cl(f.life / 0.5) : 1; if (fo <= 0) return;
-        const tight = sstep(T_ARR, T_BURST, t), bt = burst ? t - T_BURST : -1, sx = H.sx, sy = H.sy;
+        const tight = tightAt(t), bt = burst ? t - burstT : -1, sx = H.sx, sy = H.sy;
         // the fracture strip: lit as the orb passes, fading behind it (buckets of brightness, three widths, additive)
         c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.lineJoin = 'round';
         const NBk = 5, paths = []; for (let k = 0; k < NBk * 3; k++) paths.push(null);
         const fadeT = CEL ? 1.25 : 0.95, endK = burst ? cl(1 - bt / 1.4) : 1;
-        for (const sg of segs) { const tp = tPass(sg.s); if (tp < 0) continue; const ag = t - tp; let I = ag < 0.1 ? ag / 0.1 : Math.exp(-(ag - 0.1) / fadeT); if (tight > 0 || burst) I = Math.max(I, 0.35 * tight * (1 - sstep(0, 1.4, bt < 0 ? 0 : bt))); I *= endK * fo; if (I < 0.04) continue;
+        for (const sg of segs) { const ag = t - sg.tb; if (ag < 0) continue; let I = ag < 0.1 ? ag / 0.1 : Math.exp(-(ag - 0.1) / fadeT); if (tight > 0 || burst) I = Math.max(I, 0.35 * tight * (1 - sstep(0, 1.4, bt < 0 ? 0 : bt))); I *= endK * fo; if (I < 0.04) continue;
           const k = Math.min(NBk - 1, Math.floor(I * NBk)) * 3 + sg.w; const P = paths[k] || (paths[k] = new Path2D()); P.moveTo(sx(sg.x0), sy(sg.y0)); P.lineTo(sx(sg.x1), sy(sg.y1)); }
         const WD = [[0.2, 0.08, 0.03], [0.13, 0.055, 0.022], [0.08, 0.034, 0.015]];
         for (let k = 0; k < paths.length; k++) { const P = paths[k]; if (!P) continue; const I = (Math.floor(k / 3) + 0.6) / NBk, w = WD[k % 3];
@@ -312,10 +326,10 @@
       draw(c, f, X, Y, T, gt) {
         const t = f.t;
         const fo = died ? cl(f.life / 0.5) : 1; if (fo <= 0) return;
-        const sx = H.sx, sy = H.sy, k = scr(c).k, tight = sstep(T_ARR, T_BURST, t), bt = burst ? t - T_BURST : -1;
+        const sx = H.sx, sy = H.sy, k = scr(c).k, tight = tightAt(t), bt = burst ? t - burstT : -1;
         if (!S) { const D = Math.max(32, Math.min(320, Math.round(R * 2 * T * k / 8) * 8)); S = orbFor(D, ADE); }
         if (!S.done) S.step(t < 0.9 ? 3 : 4);
-        const rpx = R * T, OX = sx(ox) + (tight > 0 && !burst ? (Math.random() - 0.5) * 2 * tight : 0), OY = sy(oy) - oz * CE * T;
+        const rpx = R * T, vib = burst ? 0 : rpx * (0.02 + 0.05 * grindK + 0.04 * tight) * sstep(0.5, 0.9, t), OX = sx(ox) + vib * (Math.sin(t * 57) * 0.7 + Math.sin(t * 89 + 1) * 0.5), OY = sy(oy) - oz * CE * T + vib * (Math.sin(t * 63 + 2) * 0.7 + Math.sin(t * 97) * 0.4);
         const pX = sx(me.x), pY = sy(me.y) - T * 0.45, pd = 0.38 + 0.62 * sstep(0.2 * T, 1.2 * T, Math.hypot(OX - pX, OY - pY) - rpx * 0.55);
         // the dark haze behind the orb (smoky body of the trail)
         for (const p of haze) { const u = p.t / p.life, r = p.s * (0.7 + 0.8 * u) * T; c.globalAlpha = 0.8 * Math.sin(Math.PI * Math.min(1, u * 1.4 + 0.05)) * (1 - u) * fo; c.drawImage(hazeSpr(), sx(p.x) - r, sy(p.y) - p.z * CE * T - r, r * 2, r * 2); }
@@ -341,22 +355,22 @@
           glow(c, x, y, s * 1.6, HONEY, al * 0.4); c.save(); c.translate(x, y); c.rotate(fr.rot + t * 6); c.globalAlpha = al; c.drawImage(shardSpr(fr.v), -s, -s, s * 2, s * 2); c.restore(); }
         // ---- the orb and its ring ----
         const grow = t < 0.3 ? 0 : 0.18 + 0.82 * H.ease.back(cl((t - 0.3) / 0.55)), oA = sstep(0.3, 0.5, t) * (burst ? 1 - sstep(0, 0.22, bt) : 1) * fo * pd, oS = grow * (burst ? 1 + 0.35 * sstep(0, 0.22, bt) : 1);
-        const ringIn = sstep(0.72, 0.95, t), rK = (1.12 - 0.12 * ringIn) * (1 - 0.19 * H.ease.in(tight)) * (burst ? 1 + 0.6 * sstep(0, 0.2, bt) : 1), rA = ringIn * (burst ? 1 - sstep(0, 0.16, bt) : 1) * fo * pd, rw = 0.04 * Math.sin(t * 1.6);
+        const ringIn = sstep(0.72, 0.95, t), rK = (1.12 - 0.12 * ringIn) * (1 - 0.19 * H.ease.in(tight)) * (burst ? 1 + 0.6 * sstep(0, 0.2, bt) : 1), rA = ringIn * (burst ? 1 - sstep(0, 0.16, bt) : 1) * fo * pd, rw = 0.1 * Math.sin(t * 1.9) + 0.03 * Math.sin(t * 7.3) + (burst ? 0 : 0.02 * grindK * Math.sin(t * 71)), ry = 1 + 0.16 * Math.sin(t * 2.6 + 1);
         const RS = S.ring, rr = rpx * rK, cw = Math.cos(rw), sw = Math.sin(rw);
-        const studs = [], NST = 8; for (let i = 0; i < NST; i++) { const th = ringA + i / NST * TAU, p = ringPt(Math.cos(th) * RM, Math.sin(th) * RM, RBh * 1.05); studs.push([OX + (p[0] * cw - p[1] * sw) * rr, OY + (p[0] * sw + p[1] * cw) * rr, p[2], i]); }
-        const segP = segM.map(sg => { const th = sg.th + t * 0.35, p = ringPt(Math.cos(th) * sg.rad, Math.sin(th) * sg.rad, 0.12 * Math.sin(t * 1.3 + sg.ph)); return { sg, x: OX + (p[0] * cw - p[1] * sw) * rpx, y: OY + (p[0] * sw + p[1] * cw) * rpx, z: p[2] }; });
+        const studs = [], NST = 8; for (let i = 0; i < NST; i++) { const th = ringA + i / NST * TAU, p = ringPt(Math.cos(th) * RM, Math.sin(th) * RM, RBh * 1.05); studs.push([OX + (p[0] * cw - p[1] * ry * sw) * rr, OY + (p[0] * sw + p[1] * ry * cw) * rr, p[2], i]); }
+        const segP = segM.map(sg => { const th = sg.th + t * 0.35, p = ringPt(Math.cos(th) * sg.rad, Math.sin(th) * sg.rad, 0.12 * Math.sin(t * 1.3 + sg.ph)); return { sg, x: OX + (p[0] * cw - p[1] * ry * sw) * rpx, y: OY + (p[0] * sw + p[1] * ry * cw) * rpx, z: p[2] }; });
         const drawSegs = front => { if (!CEL) return; const al = ringIn * (burst ? 1 - sstep(0, 0.3, bt) : 1) * fo * pd; if (al < 0.02) return; for (const q of segP) if ((q.z > 0) === front) paintSolid(c, q.sg.M, axisR(q.sg.ax, t * 0.6 + q.sg.ph), q.x, q.y, rpx * q.sg.sc * (burst ? 1 + bt : 1), al); };
         const drawStuds = front => { if (rA < 0.02) return; for (const s of studs) { if ((s[2] > 0) !== front) continue; const sz = rpx * 0.075 * (0.75 + 0.25 * Math.max(0, s[2])); c.globalAlpha = rA; c.fillStyle = '#1E140B'; c.beginPath(); c.ellipse(s[0], s[1], sz, sz * 0.6, rw + ROT, 0, TAU); c.fill(); glow(c, s[0], s[1], sz * 2.4, s[3] % 2 ? HONEY : GOLD, rA * (0.55 + 0.45 * Math.sin(t * 5 + s[3]))); }
           // a glint travelling round the inner edge
-          for (let j = 0; j < 2; j++) { const th = -ringA * 1.7 + j * Math.PI, p = ringPt(Math.cos(th) * (RM - RA), Math.sin(th) * (RM - RA), 0); if ((p[2] > 0) !== front) continue; glow(c, OX + (p[0] * cw - p[1] * sw) * rr, OY + (p[0] * sw + p[1] * cw) * rr, rpx * 0.32, CORE, rA * 0.55); } c.globalAlpha = 1; };
-        const drawRing = img => { if (!RS.ready || rA < 0.02) return; const q = rr / RS.r; c.save(); c.translate(OX, OY); c.rotate(rw); c.globalAlpha = rA; c.drawImage(img, -RS.ox * q, -RS.oy * q, RS.W * q, RS.H * q); c.restore(); };
+          for (let j = 0; j < 2; j++) { const th = -ringA * 1.7 + j * Math.PI, p = ringPt(Math.cos(th) * (RM - RA), Math.sin(th) * (RM - RA), 0); if ((p[2] > 0) !== front) continue; glow(c, OX + (p[0] * cw - p[1] * ry * sw) * rr, OY + (p[0] * sw + p[1] * ry * cw) * rr, rpx * 0.32, CORE, rA * 0.55); } c.globalAlpha = 1; };
+        const drawRing = img => { if (!RS.ready || rA < 0.02) return; const q = rr / RS.r; c.save(); c.translate(OX, OY); c.rotate(rw); c.scale(1, ry); c.globalAlpha = rA; c.drawImage(img, -RS.ox * q, -RS.oy * q, RS.W * q, RS.H * q); c.restore(); };
         // the streak that closes into the ring
-        if (t > 0.45 && t < 1.0) { const sp = TAU * sstep(0.45, 0.85, t), a0 = -1.2, al = (1 - sstep(0.85, 1.0, t)) * fo * pd, pts = []; for (let i = 0; i <= 40; i++) { const th = a0 + sp * i / 40, p = ringPt(Math.cos(th) * RM, Math.sin(th) * RM, 0); pts.push([OX + (p[0] * cw - p[1] * sw) * rr, OY + (p[0] * sw + p[1] * cw) * rr]); }
+        if (t > 0.45 && t < 1.0) { const sp = TAU * sstep(0.45, 0.85, t), a0 = -1.2, al = (1 - sstep(0.85, 1.0, t)) * fo * pd, pts = []; for (let i = 0; i <= 40; i++) { const th = a0 + sp * i / 40, p = ringPt(Math.cos(th) * RM, Math.sin(th) * RM, 0); pts.push([OX + (p[0] * cw - p[1] * ry * sw) * rr, OY + (p[0] * sw + p[1] * ry * cw) * rr]); }
           c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.lineJoin = 'round'; for (const [col, w, aa] of [[AMBER, 0.16, 0.3], [HONEY, 0.07, 0.7], [CORE, 0.025, 0.9]]) { c.strokeStyle = col; c.globalAlpha = al * aa; c.lineWidth = Math.max(1, rpx * w); c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.stroke(); } c.restore(); glow(c, pts[40][0], pts[40][1], rpx * 0.45, CORE, al * 0.8); }
         drawSegs(false); drawRing(RS.back); drawStuds(false);
         if (oA > 0.01 && oS > 0.01) { const sR = rpx * oS; glow(c, OX, OY, sR * 2.4, AMBER, oA * (0.18 + 0.35 * tight)); glow(c, OX, OY, sR * 1.6, GOLD, oA * (0.12 + 0.3 * tight));
           const ph = ((spin / TAU) % 1 + 1) % 1; let img = null; if (S.frames) { const fi = Math.round(ph * NPH) % NPH; img = S.frames[fi]; if (!img) for (let d = 1; d < NPH && !img; d++) img = S.frames[(fi + d) % NPH] || S.frames[(fi - d + NPH) % NPH]; }
-          c.globalAlpha = oA; if (img) { const q = sR / (S.D / 2), w = S.W * q; c.drawImage(img, OX - w / 2, OY - w / 2, w, w); if (tight > 0.01 || burst) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = oA * (0.45 * tight + (burst ? 0.6 : 0)); c.drawImage(img, OX - w / 2, OY - w / 2, w, w); c.restore(); } }
+          c.globalAlpha = oA; if (img) { const q = sR / (S.D / 2), w = S.W * q; c.drawImage(img, OX - w / 2, OY - w / 2, w, w); { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = oA * (0.1 + 0.1 * Math.sin(t * 8) + 0.08 * Math.sin(t * 13.7) + 0.25 * tight + 0.1 * grindK + (burst ? 0.6 : 0)); c.drawImage(img, OX - w / 2, OY - w / 2, w, w); c.restore(); } }
           else c.drawImage(orbFB(), OX - sR, OY - sR, sR * 2, sR * 2);
           c.globalAlpha = 1; glow(c, OX - sR * 0.3, OY - sR * 0.35, sR * 0.5, CORE, oA * 0.1); }
         drawRing(RS.front); drawStuds(true); drawSegs(true);
