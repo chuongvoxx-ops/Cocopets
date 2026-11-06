@@ -12,7 +12,7 @@
    The crystals are real ray-cast 3D (Cataclysm's kit, EARTHC in 20k2e): a doubly-terminated hexagonal amber crystal
    lying along its flight, cel-banded honey facets, inner planes, pale gold edges, a hard specular, ink, and an emissive
    ember core layer; rendered once per size in six roll steps (it spins on its own axis as it flies) and two shapes,
-   cached. The pet's lift and turn go through the hooks me.z (Trampoline's) and me.yaw (a 3D turn of the rig about its
+   cached. The pet's lift goes through me.z (Trampoline's hook); it waves its arms (me.hopArm) and doesn't turn (me.yaw stays 0; the rig's yaw support remains, unused) — was: a 3D turn of the rig about its
    upright axis, drawPetRig in 12-arcade, passed in 20b's pose); all reset
    at the end and on the pet's death; no invulnerability. Floor marks are light only; every edge feathered. */
 (() => {
@@ -95,8 +95,8 @@
           me.z = ZP * up * (1 - down) + 0.07 * Math.sin(t * 3.4) * up * (1 - down);
           const sumK = crys.some(q => q.st === 'orbit' && t - q.born < 0.35) ? 1 : 0;
           spin = lerp(spin, t < DESC ? 5.5 + 2.5 * sumK : 0, Math.min(1, dt * 3));
-          if (t < DESC) me.yaw = (me.yaw || 0) + spin * dt; else { if (twGoal == null) twGoal = Math.ceil(((me.yaw || 0) + 0.5) / TAU) * TAU; me.yaw = lerp(me.yaw || 0, twGoal, Math.min(1, dt * 6)); }
-          me.hopArm = lerp(me.hopArm || 0, t < DESC ? 70 + 25 * sumK : (t < LAND ? 40 : 0), Math.min(1, dt * 8)); me.hopFoot = lerp(me.hopFoot || 0, t < DESC ? -1.5 : 0, Math.min(1, dt * 8));
+          me.yaw = 0;   // no turn (the user: just float up and wave)
+          { const wave = t < DESC ? 62 + 22 * sumK + 30 * Math.sin(t * 8.5) : (t < LAND ? 35 + 12 * Math.sin(t * 8.5) : 0); me.hopArm = lerp(me.hopArm || 0, wave, Math.min(1, dt * 12)); me.hopFoot = lerp(me.hopFoot || 0, t < DESC ? -1.5 + 0.6 * Math.sin(t * 4.2) : 0, Math.min(1, dt * 8)); me.hopSq = t < DESC ? 0.06 * Math.sin(t * 3.4 + 1.2) * up : 0; }   // arms wave, feet dangle, a soft breathing bob
           me.hopSq = t < 0.12 ? 0.4 * sm(t / 0.12) : t < 0.4 ? -0.25 * (1 - sm((t - 0.12) / 0.28)) : t >= LAND ? 0.35 * Math.exp(-(t - LAND) * 9) : 0;
           if (t >= 0.08 && !f.lift) { f.lift = true; rings.push({ x: me.x, y: me.y, t: 0, life: 0.6, r0: 0.3, r1: 1.4, a: 0.5 }); for (let k = 0; k < H.n(8); k++) { const b = k / 8 * TAU; puffs.push({ x: me.x + Math.cos(b) * 0.3, y: me.y + Math.sin(b) * 0.25, z: 0.05, vx: Math.cos(b) * 1.6, vy: Math.sin(b) * 1.3, vz: 0.4, t: 0, life: 0.8, s: 0.32 }); } H.X.sfx.whoosh(); }
           if (t >= LAND && !landed) { landed = true; me.z = 0; rings.push({ x: me.x, y: me.y, t: 0, life: 0.5, r0: 0.2, r1: 1.1, a: 0.45 }); for (let k = 0; k < H.n(6); k++) { const b = k / 6 * TAU; puffs.push({ x: me.x, y: me.y, z: 0.05, vx: Math.cos(b) * 1.2, vy: Math.sin(b) * 1.0, vz: 0.3, t: 0, life: 0.6, s: 0.28 }); } H.X.sfx.thud(); }
