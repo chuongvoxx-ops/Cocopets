@@ -10,10 +10,10 @@
    faces that look up or out, per part, plus a few raised clumps), pale worn edges where a lit facet meets a darker one,
    and an ink silhouette. A charcoal core shows through the deep gaps between plates. Fractures are drawn on the stones
    (dark), and light with golden Earth energy during attacks (region by region: chest, shoulders, forearms, fists); at
-   Celestial the light moves inside them and engraved markings glow faintly. The eyes are small white-green lights deep
-   under a heavy brow. Parts are depth-sorted (painter's, per part); when it must fade (near the pet, crumbling) or rise
-   through the floor it is painted whole into a scratch canvas and laid down once, so the fade never shows its inside. The game sorts it among the monsters and the pet by
-   its feet (a one-line hook in 20b: kind 12, an ELEM effect's drawEnt at entY).
+   Celestial engraved markings glow faintly. The eyes are small white-green lights deep under a heavy brow. Parts are
+   depth-sorted (painter's, per part) and the whole is baked into cached pictures (see Performance), so a fade near the
+   pet never shows its inside; rising, it is clipped at the floor under a band of dust. The game sorts it among the
+   monsters and the pet by its feet (a one-line hook in 20b: kind 12, an ELEM effect's drawEnt at entY).
    Levels: Adept larger shoulders and forearms, more glow; Celestial a monumental guardian (x1.12), layered shoulder
    stones, engraved markings, golden light moving in its fractures, the widest slams and a towering ridge.
    Behaviour: an ally actor (not damageable: the game has no summon system for this), it follows the pet and keeps to its
@@ -30,8 +30,11 @@
    travelling earthquake ridge of rock slabs (5 DK, each monster once as the front reaches it, reach 4 / 4.75 / 5.5 x K);
    decorative debris never hits. Then the gauntlets break, the light drains, the eyes dim and it settles into loose stone.
    No monster within 12 tiles: a peaceful departure (it bows its head and settles).
-   Performance: drawn live (~150 solids); the detail adapts if a paint runs long (texture maps, then moss maps and worn
-   edges are dropped; Fewer effects starts without the texture maps).
+   Performance: the model is never drawn live in play. Its key poses (idle 2, walk 8, punch 5, backhand 5, slam 5, rise 5,
+   Worldbreaker 6, departure 1) are baked per level tier and facing (8 facings; mirrored where the pose allows) into
+   cached pictures, a slice of ~2.4 ms a frame from the cast on (the warm-up of textures and stone shapes spread the same
+   way), and each frame lays one or two of them down; glows, trails and the crumble's tumbling rocks are sprites on top.
+   Cache kept between casts, capped at 48 MB (a full tier ~36 MB).
    Pet death or floor change: it crumbles / is cleared with the game. */
 (() => {
   const U = ELEM_IMPL.earth.ult; delete U.mountainheart;
@@ -99,38 +102,48 @@
   let STONE = null, MOSS = null, CLUMP = null;
   // worn stone, as overlays of light and dark (so one tile serves every tone): mottling with a brown undertone, grit,
   // pits with a lit lip, scratches in two grains, hairline cracks
-  function stoneTile() {
-    if (STONE) return STONE; const S = 256, cv = mk(S, S), g = cv.getContext('2d'), R = rngOf(91);
+  let STG = null, MSG = null;
+  function* stoneGen() {
+    const S = 256, cv = mk(S, S), g = cv.getContext('2d'), R = rngOf(91);
     const wrap = f => { for (const ox of [-S, 0, S]) for (const oy of [-S, 0, S]) { g.save(); g.translate(ox, oy); f(); g.restore(); } };
     const blob = (x, y, r, col) => wrap(() => { const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, col); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2); });
-    for (let i = 0; i < 46; i++) blob(R() * S, R() * S, 14 + R() * 44, R() < 0.45 ? `rgba(255,250,240,${0.05 + R() * 0.07})` : `rgba(0,0,0,${0.07 + R() * 0.11})`);
+    for (let i = 0; i < 46; i++) { if (i % 10 === 9) yield; blob(R() * S, R() * S, 14 + R() * 44, R() < 0.45 ? `rgba(255,250,240,${0.05 + R() * 0.07})` : `rgba(0,0,0,${0.07 + R() * 0.11})`); }
+    yield;
     for (let i = 0; i < 14; i++) blob(R() * S, R() * S, 20 + R() * 50, `rgba(120,78,34,${0.06 + R() * 0.07})`);
-    for (let i = 0; i < 3200; i++) { g.fillStyle = R() < 0.55 ? `rgba(0,0,0,${0.1 + R() * 0.18})` : `rgba(255,248,236,${0.05 + R() * 0.1})`; g.fillRect(R() * S, R() * S, 1 + R() * 1.2, 1 + R() * 1.2); }
+    yield;
+    for (let i = 0; i < 3200; i++) { if (i === 1600) yield; g.fillStyle = R() < 0.55 ? `rgba(0,0,0,${0.1 + R() * 0.18})` : `rgba(255,248,236,${0.05 + R() * 0.1})`; g.fillRect(R() * S, R() * S, 1 + R() * 1.2, 1 + R() * 1.2); }
     for (let i = 0; i < 110; i++) { const x = R() * S, y = R() * S, r = 0.8 + R() * 2.6; wrap(() => { g.fillStyle = 'rgba(0,0,0,.42)'; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill(); g.strokeStyle = 'rgba(255,250,236,.28)'; g.lineWidth = 0.8; g.beginPath(); g.arc(x + 0.4, y + 0.4, r, 0.2, 1.9); g.stroke(); }); }
+    yield;
     g.lineCap = 'round';
     for (let i = 0; i < 46; i++) { const x = R() * S, y = R() * S, an = (R() < 0.6 ? 0.5 : -0.9) + (R() - 0.5) * 0.4, L = 10 + R() * 46, n = R() < 0.35 ? 3 : 1;
       for (let k = 0; k < n; k++) { const ox = -Math.sin(an) * k * 2.2, oy = Math.cos(an) * k * 2.2; wrap(() => { g.strokeStyle = 'rgba(0,0,0,.32)'; g.lineWidth = 1.4; g.beginPath(); g.moveTo(x + ox + 0.7, y + oy + 0.7); g.lineTo(x + ox + Math.cos(an) * L + 0.7, y + oy + Math.sin(an) * L + 0.7); g.stroke(); g.strokeStyle = `rgba(255,250,236,${0.16 + R() * 0.2})`; g.lineWidth = 0.8; g.beginPath(); g.moveTo(x + ox, y + oy); g.lineTo(x + ox + Math.cos(an) * L, y + oy + Math.sin(an) * L); g.stroke(); }); } }
     const crack = (x, y, an, L, w, d) => { const pts = [[x, y]]; let cx = x, cy = y, ca = an; for (let i = 0; i < 6; i++) { ca += (R() - 0.5) * 0.9; const l = L / 6 * (0.6 + R() * 0.8); cx += Math.cos(ca) * l; cy += Math.sin(ca) * l; pts.push([cx, cy]); }
       wrap(() => { g.strokeStyle = 'rgba(0,0,0,.5)'; g.lineWidth = w; g.beginPath(); pts.forEach(([px, py], i) => (i ? g.lineTo(px, py) : g.moveTo(px, py))); g.stroke(); }); if (d > 0) { const p = pts[2 + Math.floor(R() * 3)]; crack(p[0], p[1], ca + (R() - 0.5) * 2, L * 0.5, w * 0.7, d - 1); } };
+    yield;
     for (let i = 0; i < 7; i++) crack(R() * S, R() * S, R() * TAU, 60 + R() * 70, 1 + R() * 0.6, 1);
-    return (STONE = cv);
+    STONE = cv;
   }
+  function stoneTile() { if (!STONE) { STG = STG || stoneGen(); while (!STONE) STG.next(); } return STONE; }
+  const stoneStep = () => { if (STONE) return true; STG = STG || stoneGen(); STG.next(); return !!STONE; };
   // moss: irregular clustered patches (about half the tile bare), shaded in three tones, with dark speckles and pale tufts
-  function mossTiles() {
-    if (MOSS) return MOSS; const S = 256, R = rngOf(57), mask = mk(S, S), g = mask.getContext('2d');
+  function* mossGen() {
+    const S = 256, R = rngOf(57), mask = mk(S, S), g = mask.getContext('2d');
     const wrapc = (x, y, r) => { for (const ox of [-S, 0, S]) for (const oy of [-S, 0, S]) { g.beginPath(); g.arc(x + ox, y + oy, r, 0, TAU); g.fill(); } };
     g.fillStyle = '#000';
     for (let k = 0; k < 7; k++) { const cx = R() * S, cy = R() * S, rr = 26 + R() * 40; for (let i = 0; i < 40; i++) { const an = R() * TAU, d = Math.pow(R(), 0.8) * rr, r = (6 + R() * 10) * (1 - d / rr * 0.6); wrapc(cx + Math.cos(an) * d, cy + Math.sin(an) * d * (0.6 + R() * 0.6), r); } }
     for (let i = 0; i < 14; i++) wrapc(R() * S, R() * S, 2 + R() * 3);
     const tones = [['#284A16', '#3B6620', '#1A3010', '#5F8F2E'], ['#3F7A1E', '#5A9E2A', '#26481A', '#9ACB45'], ['#6AAA2C', '#8DCB3E', '#3F7322', '#C9EA6E']];
-    MOSS = tones.map(([b0, b1, dk, tuft], ti) => { const cv = mk(S, S), q = cv.getContext('2d'), Rr = rngOf(77 + ti);
+    yield; const out = [];
+    for (let ti = 0; ti < 3; ti++) { yield; const [b0, b1, dk, tuft] = tones[ti], cv = mk(S, S), q = cv.getContext('2d'), Rr = rngOf(77 + ti);
       q.drawImage(mask, 0, 0); q.globalCompositeOperation = 'source-in'; q.fillStyle = b0; q.fillRect(0, 0, S, S);
       q.globalCompositeOperation = 'source-atop';
       for (let i = 0; i < 420; i++) { const x = Rr() * S, y = Rr() * S, r = 1.5 + Rr() * 4; q.fillStyle = Rr() < 0.5 ? b1 : dk; q.beginPath(); q.arc(x, y, r, 0, TAU); q.fill(); }
       for (let i = 0; i < 260; i++) { const x = Rr() * S, y = Rr() * S; q.fillStyle = tuft; q.globalAlpha = 0.5 + Rr() * 0.5; q.fillRect(x, y, 1.2, 1.2); }
-      q.globalAlpha = 1; return cv; });
-    return MOSS;
+      q.globalAlpha = 1; out.push(cv); }
+    MOSS = out;
   }
+  function mossTiles() { if (!MOSS) { MSG = MSG || mossGen(); while (!MOSS) MSG.next(); } return MOSS; }
+  const mossStep = () => { if (MOSS) return true; MSG = MSG || mossGen(); MSG.next(); return !!MOSS; };
   // a raised moss clump: a cushion of little domes, lit from the upper left, an ink rim
   function clumpSpr() {
     if (CLUMP) return CLUMP; const W = 48, Hh = 32, cv = mk(W, Hh), g = cv.getContext('2d'), R = rngOf(13), D = [];
@@ -213,9 +226,12 @@
        region; clumps; eyes; dep: a depth nudge */
     const part = (b, o) => {
       if (b === 'head') { const hs = 1.22, S3 = v => v.map(x => x * hs); o = Object.assign({}, o, { e: S3(o.e), t: S3(o.t || [0, 0, 0]) }); if (o.seam) o.seam = o.seam.map(L => L.map(S3)); if (o.eyes) { parts.push({ b, eyesP: o.eyes.map(S3), t: [0, 0, 0], dep: 3.2, ey: true }); delete o.eyes; } }
-      const m = rock({ e: o.e, tx: o.tx, ty: o.ty, bx: o.bx, by: o.by, shx: o.shx, shy: o.shy, bev: o.bev, bevC: o.bevC, chips: o.chips, jit: o.jit, seed: (seed++) * 7.31 + tier * 0.17 + 0.5 });
-      const R = o.r ? eul(o.r[0], o.r[1], o.r[2]) : GK.I3(), Rt = tr(R), t = o.t || [0, 0, 0], rnd = rngOf(seed * 3.7 + 11);
-      const nf = m.f.length, P = { b, m, R, t, mat: o.mat || 'stone', dep: o.dep || 0, gg: o.gg || null, gaunt: o.gaunt || 0, tex: o.tex !== false, texA: o.texA == null ? 0.72 : o.texA, sid: seed };
+      // (the stone itself is cut later, a few at a time, when it is first needed: P.fin)
+      const sd = seed++, R = o.r ? eul(o.r[0], o.r[1], o.r[2]) : GK.I3(), t = o.t || [0, 0, 0];
+      const P = { b, R, t, lazy: true, mat: o.mat || 'stone', dep: o.dep || 0, gg: o.gg || null, gaunt: o.gaunt || 0, tex: o.tex !== false, texA: o.texA == null ? 0.72 : o.texA, sid: sd + 1 };
+      P.fin = () => {
+      const m = P.m = rock({ e: o.e, tx: o.tx, ty: o.ty, bx: o.bx, by: o.by, shx: o.shx, shy: o.shy, bev: o.bev, bevC: o.bevC, chips: o.chips, jit: o.jit, seed: sd * 7.31 + tier * 0.17 + 0.5 });
+      const Rt = tr(R), rnd = rngOf((sd + 1) * 3.7 + 11), nf = m.f.length; P.lazy = false;
       P.grp = new Uint8Array(nf); P.var = new Uint8Array(nf); P.moss = new Uint8Array(nf);
       const fnB = m.fn.map(n => mv(R, n));   // face normals in the bone's frame
       for (let i = 0; i < nf; i++) { const n = m.fn[i], ax = [Math.abs(n[0]), Math.abs(n[1]), Math.abs(n[2])]; P.grp[i] = ax[0] >= ax[1] && ax[0] >= ax[2] ? 0 : ax[1] >= ax[2] ? 1 : 2; P.var[i] = rnd() < 0.5 ? 1 : 0; }
@@ -243,6 +259,7 @@
       // the crumble: a delay, a drift outward, a tumble
       P.cd = rnd() * 0.35; P.cdx = (rnd() - 0.5) * 6; P.cdy = (rnd() - 0.5) * 6; P.cax = norm([rnd() - 0.5, rnd() - 0.5, rnd() - 0.5]); P.cang = (rnd() - 0.5) * 3; P.rest = Math.min(o.e[0], o.e[1], o.e[2]) * 0.9;
       const nv = m.v.length; P.sx = new Float32Array(nv); P.sy = new Float32Array(nv); P.vis = new Uint8Array(nf); P.band = new Uint8Array(nf);
+      };
       parts.push(P); return P;
     };
     const ST = 'stone', DK = 'dark';
@@ -417,17 +434,19 @@
     if (P.cl.length && VW.k > 1.4) for (const q of P.cl) { if (!vis[q.fi]) continue; tp(q.p, tmp); const w = VW.k * 2.1 * q.s, h = w * 0.66; c.drawImage(clumpSpr(), tmp[0] - w / 2, tmp[1] - h * 0.7, w, h); }
   }
 
-  /* draw the golem with its feet at screen (X, Y): T px a tile, sc tiles a unit, yaw its facing on the floor (radians,
-     0 = +x), P the pose; o: tier, glow {chest, sh, arm, fist, leg, gaunt}, eye (0..1), gaunt (assembly 0..1), gbreak
-     (gauntlets breaking 0..), crumble (s since it began), t, alpha, out (filled with screen points) */
-  function drawGolem(c, X, Y, T, sc, yaw, P, o) {
+  /* the golem with its feet at screen (X, Y): T px a tile, sc tiles a unit, yaw its facing on the floor (radians, 0 =
+     +x), P the pose; o: tier, glow {chest, sh, arm, fist, leg, gaunt}, eye (0..1), gaunt (assembly 0..1), gbreak
+     (gauntlets breaking 0..), t, out (filled with screen points). prepGolem poses and sorts the stones; paintGolem paints
+     them in order, as many as a time budget allows (a bake can be spread over several frames) */
+  function prepGolem(X, Y, T, sc, yaw, P, o) {
     o = o || {}; const M = model(o.tier || 1), B = rig(P, M.D), cy = Math.cos(yaw), sy = Math.sin(yaw), k = T * sc;
     const A = [k * cy, -k * sy, 0, k * sy * SE, k * cy * SE, -k * CE];
     const Vm = [sy * CE, cy * CE, SE], Lm = [cy * LDW[0] + sy * LDW[1], -sy * LDW[0] + cy * LDW[1], LDW[2]];
     const out = o.out || {}; out.eyes = []; out.bb = [1e9, 1e9, -1e9, -1e9];
     const VW = { X, Y, A, Vm, Lm, k, glow: o.glow, tier: M.tier, t: o.t || 0, alpha: 1, eye: o.eye, out, texK: 1 / 26, noInk: o.noInk, noMoss: o.noMoss, noWorn: o.noWorn };
-    const list = [], gA = o.gaunt || 0, gB = o.gbreak || 0, cr = o.crumble == null ? -1 : o.crumble;
+    const list = [], gA = o.gaunt || 0, gB = o.gbreak || 0;
     for (const Pt of M.parts) {
+      if (Pt.lazy) Pt.fin();
       let gk = 1;
       if (Pt.gaunt) { if (gA <= 0.001) continue; gk = cl((gA - Pt.gi * 0.45) / 0.55); if (gk <= 0.001 || gB > 1.2) continue; }
       const b = B[Pt.b]; let Rm = Pt.m ? mm(b.R, Pt.R) : b.R, tm = add(b.t, mv(b.R, Pt.t));
@@ -438,14 +457,26 @@
         // breaking: thrown off outward and down, tumbling
         if (gB > 0) { const d = mv(b.R, Pt.gd), u = gB; tm = add(tm, [d[0] * u * 7, d[1] * u * 7, d[2] * u * 4 + u * 5 - u * u * 18]); Rm = mm(Rm, GK.axisR([0.3, 1, 0.5], u * 4)); if (tm[2] < 0.5) tm[2] = 0.5; }
       }
-      if (cr >= 0 && Pt.m) { const u = cl((cr - Pt.cd) / 0.6); if (u > 0) { const e = u * u, z = lerp(tm[2], Pt.rest, e) + Math.sin(cl((u - 0.75) / 0.25) * Math.PI) * 0.6; tm = [tm[0] + Pt.cdx * u, tm[1] + Pt.cdy * u, Math.max(Pt.rest * 0.6, z)]; Rm = mm(GK.axisR(Pt.cax, Pt.cang * u), Rm); } }
       const cen = Pt.m ? add(tm, mv(Rm, Pt.m.cen)) : tm;
       list.push([Vm[0] * cen[0] + Vm[1] * cen[1] + Vm[2] * cen[2] + Pt.dep, Pt, Rm, tm, gk]);
     }
     list.sort((p, q) => p[0] - q[0]);
-    const PT = o.noTex ? null : pats(c);
+    // the screen box of it all (for a bake's canvas): every corner projected
+    const bx = [1e9, 1e9, -1e9, -1e9];
+    for (const [, Pt, Rm, tm] of list) { if (!Pt.m) { const p = [X + A[0] * tm[0] + A[1] * tm[1] + A[2] * tm[2], Y + A[3] * tm[0] + A[4] * tm[1] + A[5] * tm[2]], r = (Pt.rr || 3) * k * 1.6; bx[0] = Math.min(bx[0], p[0] - r); bx[2] = Math.max(bx[2], p[0] + r); bx[1] = Math.min(bx[1], p[1] - r); bx[3] = Math.max(bx[3], p[1] + r); continue; }
+      const Q0 = A[0] * Rm[0] + A[1] * Rm[3] + A[2] * Rm[6], Q1 = A[0] * Rm[1] + A[1] * Rm[4] + A[2] * Rm[7], Q2 = A[0] * Rm[2] + A[1] * Rm[5] + A[2] * Rm[8], Q3 = A[3] * Rm[0] + A[4] * Rm[3] + A[5] * Rm[6], Q4 = A[3] * Rm[1] + A[4] * Rm[4] + A[5] * Rm[7], Q5 = A[3] * Rm[2] + A[4] * Rm[5] + A[5] * Rm[8], qx = X + A[0] * tm[0] + A[1] * tm[1] + A[2] * tm[2], qy = Y + A[3] * tm[0] + A[4] * tm[1] + A[5] * tm[2];
+      for (const v of Pt.m.v) { const x = qx + Q0 * v[0] + Q1 * v[1] + Q2 * v[2], y = qy + Q3 * v[0] + Q4 * v[1] + Q5 * v[2]; if (x < bx[0]) bx[0] = x; if (x > bx[2]) bx[2] = x; if (y < bx[1]) bx[1] = y; if (y > bx[3]) bx[3] = y; } }
+    // the points the effects need: fists, feet, head, chest (on screen and in the model)
+    const sp = p => [X + A[0] * p[0] + A[1] * p[1] + A[2] * p[2], Y + A[3] * p[0] + A[4] * p[1] + A[5] * p[2]];
+    for (const [, s] of SIDES) { const h = B['hand' + s], fp = add(h.t, mv(h.R, [0, 0, -3.8])); out['fist' + s] = sp(fp); out['fist' + s + 'm'] = fp; out['foot' + s] = sp(B['ft' + s].t); out['foot' + s + 'm'] = B['ft' + s].t; }
+    out.head = sp(B.head.t); out.chest = sp(add(B.chest.t, mv(B.chest.R, [3, 0, 6.5]))); out.chestm = add(B.chest.t, mv(B.chest.R, [3, 0, 6.5]));
+    return { list, i: 0, VW, o, X, Y, A, Vm, k, gB, out, bx };
+  }
+  function paintGolem(c, J, until) {
+    const { list, VW, o, X, Y, A, Vm, k, gB, out } = J, PT = o.noTex ? null : pats(c);
     c.save(); c.lineJoin = 'miter'; c.lineCap = 'butt'; c.miterLimit = 2;
-    for (const [, Pt, Rm, tm, gk] of list) {
+    while (J.i < list.length) {
+      const [, Pt, Rm, tm, gk] = list[J.i++];
       if (Pt.ey) {   // the eyes: deep dark sockets under the brow, small white-green lights (recorded for their halo)
         const fw = Rm[0] * Vm[0] + Rm[3] * Vm[1] + Rm[6] * Vm[2]; if (fw < -0.2) continue; const f = cl((fw + 0.2) / 0.45), ek = o.eye == null ? 1 : o.eye, r = k * 0.7;
         for (const e of Pt.eyesP) { const p = add(tm, mv(Rm, e)), ex = X + A[0] * p[0] + A[1] * p[1] + A[2] * p[2], ey = Y + A[3] * p[0] + A[4] * p[1] + A[5] * p[2];
@@ -456,53 +487,18 @@
       }
       if (Pt.core) {   // the gauntlet's core: molten amber light between the plates
         const sx2 = X + A[0] * tm[0] + A[1] * tm[1] + A[2] * tm[2], sy2 = Y + A[3] * tm[0] + A[4] * tm[1] + A[5] * tm[2], r = Pt.rr * k * (0.4 + 0.6 * gk) * (gB > 0 ? Math.max(0, 1 - gB * 1.5) : 1);
-        if (r > 0.5) { const gv = o.glow ? (o.glow.gaunt || 0) : 0; c.globalAlpha = 0.95; c.fillStyle = gv > 0.5 ? HONEY : AMBER; c.beginPath(); c.arc(sx2, sy2, r * 0.82, 0, TAU); c.fill(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.5 + 0.5 * gv; blitSized(c, glowSprite(GOLD), sx2 - r * 1.6, sy2 - r * 1.6, r * 3.2, r * 3.2); c.globalAlpha = gv; blitSized(c, glowSprite(EMBER), sx2 - r * 0.7, sy2 - r * 0.7, r * 1.4, r * 1.4); c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1; }
+        if (r > 0.5) { const gv = o.glow ? (o.glow.gaunt || 0) : 0; c.globalAlpha = 0.95; c.fillStyle = gv > 0.5 ? HONEY : AMBER; c.beginPath(); c.arc(sx2, sy2, r * 0.82, 0, TAU); c.fill(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.5 + 0.5 * gv; blitSized(c, glowSprite(GOLD), sx2 - r * 1.6, sy2 - r * 1.6, r * 3.2, r * 3.2); c.globalAlpha = gv; blitSized(c, glowSprite(EMBER), sx2 - r * 0.7, sy2 - r * 0.7, r * 1.4, r * 1.4); c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1;
+          const bb = out.bb; bb[0] = Math.min(bb[0], sx2 - r * 1.6); bb[2] = Math.max(bb[2], sx2 + r * 1.6); bb[1] = Math.min(bb[1], sy2 - r * 1.6); bb[3] = Math.max(bb[3], sy2 + r * 1.6); }
         continue;
       }
       paintPart(c, Pt, Rm, tm, VW, PT);
       const bb = out.bb, xs = Pt.sx, ys = Pt.sy; for (let i = 0; i < xs.length; i++) { if (xs[i] < bb[0]) bb[0] = xs[i]; if (xs[i] > bb[2]) bb[2] = xs[i]; if (ys[i] < bb[1]) bb[1] = ys[i]; if (ys[i] > bb[3]) bb[3] = ys[i]; }
+      if (until && performance.now() > until) break;
     }
     c.restore();
-    // the points the effects need: fists, feet, head, chest (on screen and in the model)
-    const sp = p => [X + A[0] * p[0] + A[1] * p[1] + A[2] * p[2], Y + A[3] * p[0] + A[4] * p[1] + A[5] * p[2]];
-    for (const [, s] of SIDES) { const h = B['hand' + s], fp = add(h.t, mv(h.R, [0, 0, -3.8])); out['fist' + s] = sp(fp); out['fist' + s + 'm'] = fp; out['foot' + s] = sp(B['ft' + s].t); out['foot' + s + 'm'] = B['ft' + s].t; }
-    out.head = sp(B.head.t); out.chest = sp(add(B.chest.t, mv(B.chest.R, [3, 0, 6.5]))); out.chestm = add(B.chest.t, mv(B.chest.R, [3, 0, 6.5]));
-    return out;
+    return J.i >= list.length;
   }
-  /* the golem through a scratch canvas: painted whole, then laid down once (so a fade or the rise's ground line never
-     shows its inside); cut: erase below that screen y, softly (rising through the floor) */
-  let SCR = null, SCRbb = null; const PERF = { n: 0, ms: 0, ema: 0, q: 0, k: 0 };
-  /* the detail adapts to the device: the time each paint takes is followed, and on a device where it runs long the
-     texture maps go first, then the moss maps and the worn edges (Fewer effects starts without the texture maps) */
-  function perfQ(o) { const q = typeof window !== 'undefined' && window.__ttnFull ? 0 : Math.max(PERF.q, lowFx() ? 1 : 0); if (q >= 1) o.noTex = 1; if (q >= 2) { o.noMoss = 1; o.noWorn = 1; } return o; }
-  function perfNote(ms) { PERF.n++; PERF.ms += ms; PERF.ema = PERF.ema ? PERF.ema * 0.92 + ms * 0.08 : ms; if (++PERF.k >= 30) { PERF.k = 0; if (PERF.ema > 5 && PERF.q < 2) { PERF.q++; PERF.ema = 0; } else if (PERF.ema < 2.2 && PERF.q > 0) { PERF.q--; PERF.ema = 0; } } }
-  const fadeSpr = () => fxSprite('ttnfade', 4, 64, g => { const gr = g.createLinearGradient(0, 0, 0, 64); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,1)'); g.fillStyle = gr; g.fillRect(0, 0, 4, 64); });
-  function drawGolemC(c, X, Y, T, sc, yaw, P, o, alpha, cut, reuse) {
-    // (whole and unclipped it is painted straight onto the screen: the scratch is only for a fade or the ground line)
-    if (alpha >= 0.995 && cut == null && !o.scratch) { perfQ(o); const pt0 = performance.now(), out = drawGolem(c, X, Y, T, sc, yaw, P, o); perfNote(performance.now() - pt0); if (SCR) SCR._last = null; return out; }
-    const m = c.getTransform(), dpr = Math.hypot(m.a, m.b) || 1, Hpx = 27 * sc * T, res = Math.min(dpr, 300 / Math.max(10, Hpx));
-    const W = Math.ceil(Hpx * 4.2 * res), Hh = Math.ceil(Hpx * 2.7 * res), ox = W / 2 / res, oy = Hh * 0.72 / res;
-    let L = SCR && SCR._last;
-    // (painted at most ~30 times a second: between, the last picture is laid down again where the golem now stands)
-    if (!(reuse && L && L.T === T && L.res === res)) {
-      if (!SCR) SCR = mk(8, 8); if (SCR.width < W || SCR.height < Hh) { SCR.width = Math.max(SCR.width, W); SCR.height = Math.max(SCR.height, Hh); SCRbb = null; SCR.getContext('2d')._ttnP = null; }
-      const g = SCR.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
-      if (SCRbb) g.clearRect(SCRbb[0], SCRbb[1], SCRbb[2], SCRbb[3]); else g.clearRect(0, 0, SCR.width, SCR.height);
-      g.setTransform(res, 0, 0, res, 0, 0);
-      perfQ(o); const pt0 = performance.now(), out = drawGolem(g, ox, oy, T, sc, yaw, P, o), bb = out.bb, pad = 6; perfNote(performance.now() - pt0);
-      const x0 = Math.max(0, Math.floor((bb[0] - pad) * res)), y0 = Math.max(0, Math.floor((bb[1] - pad) * res)), x1 = Math.min(SCR.width, Math.ceil((bb[2] + pad) * res)), y1 = Math.min(SCR.height, Math.ceil((bb[3] + pad) * res));
-      if (cut != null) { const cy0 = (cut - Y + oy), band = Hpx * 0.06; g.globalCompositeOperation = 'destination-out'; g.drawImage(fadeSpr(), 0, cy0 - band, W / res, band * 2); g.fillRect(0, cy0 + band - 0.5, W / res, Hh / res); g.globalCompositeOperation = 'source-over'; }
-      SCRbb = [x0, y0, Math.max(1, x1 - x0), Math.max(1, y1 - y0)];
-      L = SCR._last = { T, res, ox, oy, x0, y0, x1, y1, out };
-    }
-    const { x0, y0, x1, y1, out } = L;
-    if (x1 > x0 && y1 > y0 && alpha > 0.01) { c.save(); c.globalAlpha = Math.min(1, alpha); c.drawImage(SCR, x0, y0, x1 - x0, y1 - y0, X - ox + x0 / res, Y - oy + y0 / res, (x1 - x0) / res, (y1 - y0) / res); c.restore(); }
-    // everything recorded in the scratch's space, moved to the screen
-    const dx = X - ox, dy = Y - oy, mvp = p => (p ? [p[0] + dx, p[1] + dy] : p), r = {};
-    for (const kk of ['fistL', 'fistR', 'footL', 'footR', 'head', 'chest']) r[kk] = mvp(out[kk]);
-    r.eyes = out.eyes.map(e => [e[0] + dx, e[1] + dy, e[2]]); r.bb = [out.bb[0] + dx, out.bb[1] + dy, out.bb[2] + dx, out.bb[3] + dy];
-    return r;
-  }
+  function drawGolem(c, X, Y, T, sc, yaw, P, o) { const J = prepGolem(X, Y, T, sc, yaw, P, o); paintGolem(c, J, 0); return J.out; }
 
   /* ================= the poses ================= */
   // walking: the torso shifts over the planted foot before the other leg swings through; arms swing late
@@ -546,6 +542,112 @@
     const kneel = Object.assign({}, down, { rz: -1.7, lean: 0.6, hP: 0.2 });
     return { KF: [[0, KP({})], [0.6, gath], [1.05, up, 'out'], [1.3, hold], [1.45, down, 'in'], [2.0, kneel]], HIT: 1.45 }; })();
   const PEACE = [[0, KP({})], [0.6, KP({ lean: 0.55, hP: 0.25, aLsw: 0.05, aRsw: 0.05, aLcu: 0.3, aRcu: 0.3, rz: -0.6 })]];
+
+  /* ================= the frame cache: the model baked into pictures ================= */
+  /* Each clip is a few key poses; each pose is baked once per level tier and facing (8 facings, 45 degrees apart) into
+     its own tightly cropped canvas (texture, moss, fractures, the clip's golden light and the eyes baked in) and laid
+     down with one drawImage. The symmetric clips are baked only for the five facings with a rightward or straight
+     component and mirrored for the other three (the walk with its phase shifted half a cycle); the one-armed clips
+     (punch: right arm, backhand: left arm) are baked in all eight and mirrored for the other arm. Bakes run in slices
+     of a small time budget each frame (a bake's stones painted in order over several frames if need be), first what is
+     on screen, then a queue laid out at the cast; a missing picture falls back to the nearest one baked. The cache is
+     kept between casts (cleared when the zoom changes a lot) and capped at CAP_MB, least recently used first.
+     Memory: a picture is about 190 x 210 px at L1 (1.5x the screen size), ~160 KB; all 213 of a tier ~34 MB, but a
+     cast typically bakes 60-120 of them. */
+  const DIRS = 8, DA = TAU / DIRS, CAP_MB = 48, BUDGET = 2.4;
+  const rightD = d => Math.cos(d * DA) > -1e-6, mirD = d => ((4 - d) % 8 + 8) % 8;
+  function wbState(w, tier) {   // the Worldbreaker's light, gauntlets and eyes at w s
+    const drain = 1 - sstep(1.75, 2.35, w), gl = { chest: sstep(0.05, 0.35, w) * drain, sh: sstep(0.2, 0.5, w) * drain, arm: sstep(0.35, 0.65, w) * drain, fist: sstep(0.5, 0.8, w) * drain, leg: 0.5 * sstep(0.1, 0.5, w) * drain, gaunt: sstep(0.55, 1.2, w) * (1 - sstep(1.6, 1.95, w)) };
+    return { glow: gl, gaunt: sstep(0.12, 0.95, w), gbreak: w > 1.62 ? (w - 1.62) / 0.45 : 0, eye: 1 - sstep(2.1, 2.4, w) };
+  }
+  const atkGlow = (u, T, tier) => { const g = (0.25 + 0.35 * (tier - 1) / 2) * Math.sin(cl(u / T) * Math.PI); return { chest: g, sh: g, arm: g * 1.3, fist: g * 1.3, leg: g * 0.5, gaunt: 0 }; };
+  const CLIPS = {
+    idle: { sym: 1, ts: [0, 1], pose: i => idlePose((i ? 1.5 : 0.5) * Math.PI / 1.3) },
+    walk: { sym: 1, ts: [0, 1, 2, 3, 4, 5, 6, 7], mf: i => (i + 4) % 8, pose: i => walkPose(i / 8, 1) },
+    punch: { sym: 0, canon: 'R', ts: [0.22, 0.38, 0.5, 0.64, 0.86], KF: PUNCH.KF, T: PUNCH.T },
+    back: { sym: 0, canon: 'L', ts: [0.28, 0.42, 0.56, 0.72, 0.95], KF: BACKHAND.KF, T: BACKHAND.T },
+    slam: { sym: 1, ts: [0.3, 0.55, 0.76, 0.86, 1.2], KF: SLAM.KF, T: SLAM.T },
+    rise: { sym: 1, ts: [0.55, 0.95, 1.25, 1.65, 2.0], KF: RISE, eye: [0, 0, 0, 0.15, 0.6] },
+    wb: { sym: 1, ts: [0.35, 0.65, 1.05, 1.3, 1.45, 1.85], KF: WB.KF, wb: 1 },
+    peace: { sym: 1, ts: [0.6], KF: PEACE, eye: [0.3] },
+  };
+  function clipPose(name, i, tier) {
+    const C = CLIPS[name], t = C.ts[i], P = C.pose ? C.pose(i) : kfPose(C.KF, t), o = { tier, eye: C.eye ? C.eye[i] : 1, t: 1 + i * 0.37 };
+    if (C.wb) Object.assign(o, wbState(t, tier)); else if (C.T) o.glow = atkGlow(t, C.T, tier);
+    return [P, o];
+  }
+  const FC = { tasks: [], tp: 0, tq: 0, tf: 0, T0: 0, res: 1, sc: 0, frames: new Map(), queue: [], qset: new Set(), job: null, bytes: 0, built: 0, bakeMs: 0, maxSlice: 0, JOB: null, jbb: null };
+  const fkey = (tier, clip, i, d) => tier + '|' + clip + '|' + i + '|' + d;
+  // where a request (clip, frame, facing, which arm) is found: the stored key and whether it is mirrored
+  function locate(tier, clip, i, yaw, side) {
+    const C = CLIPS[clip], d = ((Math.round(yaw / DA) % DIRS) + DIRS) % DIRS;
+    if (C.sym) return rightD(d) ? [fkey(tier, clip, i, d), false] : [fkey(tier, clip, C.mf ? C.mf(i) : i, mirD(d)), true];
+    return side === C.canon ? [fkey(tier, clip, i, d), false] : [fkey(tier, clip, i, mirD(d)), true];
+  }
+  function want(key, front) { if (FC.frames.has(key) || (FC.job && FC.job.key === key)) return; if (FC.qset.has(key)) { if (front) { const k = FC.queue.indexOf(key); if (k > 0) { FC.queue.splice(k, 1); FC.queue.unshift(key); } } return; } FC.qset.add(key); if (front) FC.queue.unshift(key); else FC.queue.push(key); }
+  function setScale(T, sc, dpr) {
+    const res = Math.min(Math.max(1, dpr || 1), 1.5);
+    if (FC.T0 && Math.abs(T * sc / (FC.T0 * FC.sc) - 1) < 0.22 && FC.res === res) return;
+    FC.frames.clear(); FC.queue.length = 0; FC.qset.clear(); FC.job = null; FC.bytes = 0; FC.T0 = T; FC.sc = sc; FC.res = res;
+  }
+  // a slice of baking: start or continue the current bake, until the time is up
+  function bakeStep(ms) {
+    const t0 = performance.now(), until = t0 + ms;
+    while (performance.now() < until) {
+      if (FC.tasks.length) { FC.tasks.shift()(); continue; }   // (the warm-up: textures, stones, sprites, one small piece at a time)
+      if (!FC.job) {
+        let key = null; while (FC.queue.length && !key) { const k = FC.queue.shift(); FC.qset.delete(k); if (!FC.frames.has(k)) key = k; } if (!key) break;
+        const [tier, clip, i, d] = key.split('|'), [P, o] = clipPose(clip, +i, +tier), res = FC.res;
+        // posed and sorted at the feet (0, 0); its own canvas sized to its box, painted straight into
+        const J = prepGolem(0, 0, FC.T0, FC.sc, +d * DA, P, o), bx = J.bx, pad = 4, x0 = Math.floor((bx[0] - pad) * res), y0 = Math.floor((bx[1] - pad) * res), w = Math.max(1, Math.ceil((bx[2] + pad) * res) - x0), h = Math.max(1, Math.ceil((bx[3] + pad) * res) - y0);
+        const cv = mk(w, h), g = cv.getContext('2d');
+        FC.job = { key, J, cv, g, res, x0, y0 };
+        FC.tp += performance.now() - t0;
+      }
+      const tq0 = performance.now(), jb = FC.job; jb.g.setTransform(jb.res, 0, 0, jb.res, -jb.x0, -jb.y0);
+      const dn = paintGolem(jb.g, jb.J, until); FC.tq += performance.now() - tq0; if (!dn) break;
+      // done: keep it, with its points relative to the feet
+      const out = jb.J.out, rel = p => [p[0], p[1]];
+      const fr = { cv: jb.cv, ax: -jb.x0, ay: -jb.y0, res: jb.res, k0: FC.T0 * FC.sc, used: performance.now(), bytes: jb.cv.width * jb.cv.height * 4,
+        out: { fistL: rel(out.fistL), fistR: rel(out.fistR), footL: rel(out.footL), footR: rel(out.footR), chest: rel(out.chest), head: rel(out.head), eyes: out.eyes.map(e => [e[0], e[1], e[2]]), bb: out.bb.slice() } };
+      FC.frames.set(jb.key, fr); FC.bytes += fr.bytes; FC.built++;
+      if (FC.bytes > CAP_MB * 1048576) { const all = [...FC.frames.entries()].sort((a, b) => a[1].used - b[1].used); for (const [k, f] of all) { if (FC.bytes <= CAP_MB * 0.8 * 1048576) break; FC.frames.delete(k); FC.bytes -= f.bytes; } }
+      FC.job = null;
+    }
+    const dt = performance.now() - t0; FC.bakeMs += dt; if (dt > FC.maxSlice) FC.maxSlice = dt;
+  }
+  // the picture for a request, or the nearest one baked: [frame, mirrored]
+  function frameFor(tier, clip, i, yaw, side, front) {
+    const [key, flip] = locate(tier, clip, i, yaw, side); let fr = FC.frames.get(key);
+    if (fr) { fr.used = performance.now(); return [fr, flip]; }
+    want(key, front);
+    const n = CLIPS[clip].ts.length; for (let k = 1; k < n; k++) for (const j of [i - k, i + k]) { if (j < 0 || j >= n) continue; const [k2, f2] = locate(tier, clip, j, yaw, side), f = FC.frames.get(k2); if (f) return [f, f2]; }
+    for (const c2 of ['idle', 'walk', 'rise']) { const [k2, f2] = locate(tier, c2, 0, yaw, 'R'), f = FC.frames.get(k2); if (f) return [f, f2]; }
+    for (const [k2, f] of FC.frames) if (k2[0] === String(tier)) return [f, false];
+    return [null, false];
+  }
+  // lay a picture down with its feet at (X, Y) (K1 px a model unit), mirrored or not; clipY: nothing below that screen line
+  function blitFrame(c, fr, X, Y, K1, flip, alpha, clipY, sy) {
+    if (!fr || !(alpha > 0.01)) return; const s = K1 / fr.k0, k = s / fr.res, B = K1 * 80;
+    c.save(); if (clipY != null) { c.beginPath(); c.rect(X - B, Y - B, B * 2, clipY - (Y - B)); c.clip(); }
+    c.globalAlpha = Math.min(1, alpha); c.translate(X, Y); c.scale(flip ? -k : k, k * (sy || 1)); c.drawImage(fr.cv, -fr.ax, -fr.ay); c.restore();
+  }
+  // a baked picture's points on the screen
+  function frameOut(fr, X, Y, K1, flip) {
+    const s = K1 / fr.k0, f = flip ? -1 : 1, P = p => [X + f * p[0] * s, Y + p[1] * s], o = fr.out, bb = o.bb;
+    return { fistL: P(flip ? o.fistR : o.fistL), fistR: P(flip ? o.fistL : o.fistR), footL: P(o.footL), footR: P(o.footR), chest: P(o.chest), head: P(o.head), eyes: o.eyes.map(e => [X + f * e[0] * s, Y + e[1] * s, e[2]]), bb: flip ? [X - bb[2] * s, Y + bb[1] * s, X - bb[0] * s, Y + bb[3] * s] : [X + bb[0] * s, Y + bb[1] * s, X + bb[2] * s, Y + bb[3] * s] };
+  }
+  // the bake order laid out at a cast: what the entrance and the first steps need, then the rest
+  function planBakes(tier, yaw) {
+    const d0 = ((Math.round(yaw / DA) % DIRS) + DIRS) % DIRS, ring = [0, 1, -1, 2, -2, 3, -3, 4].map(k => ((d0 + k) % 8 + 8) % 8), Y = d => d * DA;
+    const add = (clip, d, side) => CLIPS[clip].ts.forEach((_, i) => want(locate(tier, clip, i, Y(d), side)[0], false));
+    add('rise', d0); add('idle', d0); add('walk', d0);
+    for (const d of ring.slice(1, 5)) { add('idle', d); add('walk', d); }
+    for (const d of ring.slice(0, 3)) { add('punch', d, 'R'); add('punch', d, 'L'); add('back', d, 'L'); add('back', d, 'R'); add('slam', d); }
+    for (const d of ring.slice(5)) { add('idle', d); add('walk', d); }
+    for (const d of ring) { add('punch', d, 'R'); add('punch', d, 'L'); add('back', d, 'L'); add('back', d, 'R'); add('slam', d); }
+    for (const d of ring) { add('wb', d); add('peace', d); }
+  }
 
   /* ================= cached sprites for the effects ================= */
   const puffSpr = () => fxSprite('ttnpuff', 64, 64, g => { let gr = g.createRadialGradient(32, 34, 0, 32, 34, 30); gr.addColorStop(0, 'rgba(104,92,78,0.55)'); gr.addColorStop(0.55, 'rgba(104,92,78,0.26)'); gr.addColorStop(1, 'rgba(104,92,78,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
@@ -605,21 +707,24 @@
     const DMG = { punch: 4.4 * DK, splash: 1.5 * DK, back: 3.8 * DK, slam: 5.4 * DK, wbImp: 6 * DK, wbWave: 5 * DK };
     const R_SLAM = (1.9 + 0.09 * (ev - 1)) * K, R_IMP = (1.9 + 0.067 * (ev - 1)) * K, R_WAVE = (4 + 0.25 * (ev - 1)) * K, LEASH = 6.5, REACH = 1.55 * S;
     const seed = Math.floor(Math.random() * 1000);
-    model(tier); stoneTile(); mossTiles(); clumpSpr(); for (let i = 0; i < 8; i++) slabSpr(i); crackSet(seed % 5); crackSet(5 + seed % 3);
+    // the warm-up, spread over the first frames (the first ones of all are only the sigil): textures, then the stones'
+    // shapes a few at a time, then the effects' sprites
+    { const M = model(tier); const again = st => { const f = () => { if (!st()) FC.tasks.unshift(f); }; return f; }; FC.tasks.push(sigilSpr, () => crackSet((seed + 2) % 5), again(stoneStep), again(mossStep), clumpSpr); const lz = M.parts.filter(p => p.lazy); for (const p of lz) FC.tasks.push(() => p.lazy && p.fin());
+      for (let i = 0; i < 8; i++) FC.tasks.push(() => slabSpr(i)); FC.tasks.push(() => crackSet(seed % 5), () => crackSet(5 + seed % 3), () => crackSet((seed + 4) % 5)); }
     H.X.banner('TITAN', '', C.col, 1.5); H.X.sfx.rumble ? H.X.sfx.rumble() : H.X.sfx.hum(); H.X.shake(3, 0.4);
     // the summon spot: toward the aim and a little aside, on walkable floor, clear of the pet
     const aim = Math.atan2(C.ty - me.y, C.tx - me.x), side = Math.cos(aim) >= 0 ? -1 : 1;
     let spot = null; for (const [d, da] of [[2.1, 0.55 * side], [2.1, -0.55 * side], [1.9, 0], [2.4, Math.PI / 2], [2.4, -Math.PI / 2], [1.6, Math.PI]]) { const p = H.walk(me.x + Math.cos(aim + da) * d, me.y + Math.sin(aim + da) * d); if (Math.hypot(p.x - me.x, p.y - me.y) > 1.2) { spot = p; break; } }
     if (!spot) spot = { x: me.x + Math.cos(aim) * 1.8, y: me.y + Math.sin(aim) * 1.8 };
-    const G = { x: spot.x, y: spot.y, r: 0.4, face: aim, st: 'enter', u: 0, ph: 0, atk: null, cool: 0.4, tgt: null, retT: 0, combo: 0, slamCd: 2, trail: [], moving: 0, eye: 0, prog: 0, progT: 0, stuckT: 0, dimA: 1, lastOut: null, rT: -1 };
-    const pv = {}, pvv = {}; Object.assign(pv, kfPose(RISE, 0)); for (const k of PK) pvv[k] = 0;
+    const G = { lastPick: null, x: spot.x, y: spot.y, r: 0.4, face: aim, st: 'enter', u: 0, ph: 0, atk: null, cool: 0.4, tgt: null, retT: 0, combo: 0, slamCd: 2, trail: [], moving: 0, eye: 0, prog: 0, progT: 0, stuckT: 0, dimA: 1, lastOut: null, rT: -1 };
+    setScale(H.X.Tz(), SC, typeof devicePixelRatio === 'number' ? devicePixelRatio : 1); planBakes(tier, aim);
     const waves = [], vfx = [], pebs = [];
     let gl = { chest: 0, sh: 0, arm: 0, fist: 0, leg: 0, gaunt: 0 }, gaunt = 0, gbreak = 0, crumble = -1, wbT = -1, peace = false, ended = false, life0 = END0 + 6, gone = false, alphaEnd = 1;
     const valid = m => m && !m.dead && !m.under && !m.falling && !m.fobj && !(m.boss && (m.act === 'enter' || m.act === 'sleep'));
     const living = () => H.living().filter(valid);
     const fwd = () => [Math.cos(G.face), Math.sin(G.face)];
     const knock = (m, ox, oy, f) => { if (!m || m.dead || m.still) return; const a = Math.atan2(m.y - oy, m.x - ox), k = f * (m.boss ? 0.12 : 1); m.kbx = (m.kbx || 0) + Math.cos(a) * k; m.kby = (m.kby || 0) + Math.sin(a) * k; };
-    const F = H.add({ key: 'titan', life: life0, x: G.x, y: G.y, entY: G.y, G, pv, waves, vfx, update, draw, drawUnder, drawEnt, onEnd() { ended = true; }, ENTER, END0, hits: { punch: 0, back: 0, slam: 0, wbImp: 0, wbWave: 0 } });
+    const F = H.add({ key: 'titan', life: life0, x: G.x, y: G.y, entY: G.y, G, waves, vfx, update, draw, drawUnder, drawEnt, onEnd() { ended = true; }, ENTER, END0, hits: { punch: 0, back: 0, slam: 0, wbImp: 0, wbWave: 0 } });
     /* ---- the AI ---- */
     function pickTarget() {
       let best = null, bs = 1e9;
@@ -668,20 +773,6 @@
       // the ridge: rock fragments thrown up at the front (decoration: they never hit)
       if (w.kind === 'wb' && w.r < w.R && Math.random() < dt * 40 * H.Q()) { const b = Math.random() * TAU; H.P({ kind: 'shard', x: w.x + Math.cos(b) * w.r, y: w.y + Math.sin(b) * w.r, vx: Math.cos(b) * 2.5, vy: Math.sin(b) * 1.2 - 4 - Math.random() * 3, g: 11, life: 0.7, max: 0.7, size: 4 + Math.random() * 4 * (0.6 + 0.2 * tier), rot: Math.random() * TAU, vr: (Math.random() - 0.5) * 12, color: ['#77716A', '#5A544D', '#A39C90', '#3A342E'][Math.floor(Math.random() * 4)] }); }
     }
-    /* ---- the pose of the moment (before the springs) ---- */
-    function targetPose(t, dt) {
-      if (G.st === 'enter') return kfPose(RISE, t - 0.35);
-      if (G.st === 'wb') return kfPose(WB.KF, t - wbT);
-      if (G.st === 'peace') return kfPose(PEACE, t - wbT);
-      if (G.atk) return kfPose(G.atk.KF, G.atk.u);
-      const w = walkPose(G.ph, 1), id = idlePose(t);
-      return blendP(id, w, sm(G.moving));
-    }
-    function springTo(P, dt) {
-      const n = Math.max(1, Math.ceil(dt / (1 / 60)));
-      const h2 = dt / n;
-      for (let i = 0; i < n; i++) for (const k of PK) { const arm = k[0] === 'a', w = arm ? (k.endsWith('cu') ? 16 : 13) : k === 'rx' || k === 'rz' ? 15 : 19, z = arm ? 0.62 : 0.85; pvv[k] += ((P[k] - pv[k]) * w * w - 2 * z * w * pvv[k]) * h2; pv[k] += pvv[k] * h2; }
-    }
     /* ---- the update ---- */
     function update(dt, f) {
       const t = f.t;
@@ -710,12 +801,13 @@
       }
       if (G.st === 'wb') worldbreaker(dt, t);
       if (G.st === 'peace') { const w = t - wbT; G.eye = 1 - sstep(0.5, 1.0, w); if (w > 0.7 && crumble < 0) { crumble = 0; H.X.sfx.thud(); } }
+      if (crumble >= 0 && !G._cr) { G._cr = 1; crumbleRocks(); }
       if (crumble >= 0) { crumble += dt; if (Math.random() < dt * 18 * H.Q() && crumble < 1.2) dust(G.x + (Math.random() - 0.5) * 1.8 * S, G.y + (Math.random() - 0.5) * 0.8, 1, 0.6, 0.55); alphaEnd = 1 - sstep(1.0, 1.55, crumble); if (crumble > 1.6) gone = true; }
       // the glow fades back unless an attack keeps it
       const tgtGlow = G.st === 'wb' ? null : G.atk ? (0.25 + 0.35 * (tier - 1) / 2) * Math.sin(cl(G.atk.u / G.atk.def.T) * Math.PI) : 0;
       if (tgtGlow != null) for (const k in gl) gl[k] += ((k === 'gaunt' ? 0 : tgtGlow * (k === 'fist' || k === 'arm' ? 1.3 : k === 'leg' ? 0.5 : 1)) - gl[k]) * Math.min(1, dt * 6);
-      // the springs carry the pose (weight, follow-through)
-      const P = targetPose(t, dt); for (const k of PK) if (!(pv[k] === pv[k]) || !(pvv[k] === pvv[k])) { pv[k] = P[k]; pvv[k] = 0; } if (G.st === 'enter' || G.st === 'wb' && t - wbT > WB.HIT - 0.1) { Object.assign(pv, P); for (const k of PK) pvv[k] *= 0.5; } else springTo(P, dt);
+      // the pictures still to bake, a slice at a time
+      if (FC.queue.length || FC.job || FC.tasks.length) bakeStep(typeof window !== 'undefined' && window.__ttnSync ? 1e4 : BUDGET);
       f.x = G.x; f.y = G.y; f.entY = G.y + 0.05;
       if (gone && !waves.length) { f.life = Math.min(f.life, 0.05); f.entY = null; }
       else if (gone) f.entY = null;
@@ -790,18 +882,48 @@
 
     /* ---- drawing ---- */
     let lastT = 0;
+    // the body settling into loose stone: baked rocks thrown from where the golem stood, tumbling down and settling
+    function crumbleRocks() {
+      const O = G.lastOut, T = H.X.Tz(), X = H.sx(G.x), Y = H.sy(G.y); if (!O) return; const bb = O.bb, n = H.n(16 + 4 * tier), R = [];
+      for (let i = 0; i < n; i++) { const px = lerp(bb[0], bb[2], 0.15 + 0.7 * Math.random()), py = lerp(bb[1], bb[3], 0.1 + 0.8 * Math.random()); R.push({ x: (px - X) / T, h: Math.max(0.1, (Y - py) / T), vx: (px - X) / T * (0.6 + Math.random()), vh: Math.random() * 1.5, r: Math.random() * TAU, vr: (Math.random() - 0.5) * 6, s: (0.35 + Math.random() * 0.35) * S, k: i % 8, d: Math.random() * 0.25 }); }
+      vfx.push({ kind: 'rocks', x: G.x, y: G.y, t0: F.t, life: 2.0, R, last: F.t });
+    }
     function petDim(out) {
       if (!out) return 1; const T = H.X.Tz(), PX = H.sx(me.x), PY = H.sy(me.y) - T * 0.45, bb = out.bb;
       const dx = Math.max(bb[0] - PX, 0, PX - bb[2]), dy = Math.max(bb[1] - PY, 0, PY - bb[3]); return 0.32 + 0.68 * sstep(0, T * 0.9, Math.hypot(dx, dy));
     }
+    // the picture of the moment: [clip, frame, arm, extra sink in units, lunge in tiles]
+    const nearest = (ts, u) => { let b = 0; for (let i = 1; i < ts.length; i++) if (Math.abs(ts[i] - u) < Math.abs(ts[b] - u)) b = i; return b; };
+    function pick(t) {
+      if (G.st === 'enter') { const kt = t - 0.35; return ['rise', nearest(CLIPS.rise.ts, kt), 'R', kt < 0.55 ? (0.55 - kt) / 0.55 * 16 : 0, 0]; }
+      if (G.st === 'wb') { const w = t - wbT; return ['wb', w > 1.85 ? 5 : nearest(CLIPS.wb.ts, w), 'R', 0, 0]; }
+      if (G.st === 'peace') return t - wbT < 0.3 ? ['idle', 0, 'R', 0, 0] : ['peace', 0, 'R', 0, 0];
+      if (G.st === 'crumble') return G.lastPick || ['idle', 0, 'R', 0, 0];
+      if (G.atk) { const A = G.atk, u = A.u, cl2 = A.kind === 'punch' ? 'punch' : A.kind === 'back' ? 'back' : 'slam', side = A.kind === 'punch' ? (A.mir ? 'L' : 'R') : A.kind === 'back' ? (A.mir ? 'R' : 'L') : 'R';
+        const lunge = A.kind === 'punch' ? 0.24 * S * (sstep(0.36, 0.5, u) - sstep(0.66, 0.95, u)) : A.kind === 'slam' ? 0.12 * S * (sstep(0.7, 0.86, u) - sstep(1.1, 1.5, u)) : 0;
+        return [cl2, nearest(CLIPS[cl2].ts, u), side, 0, lunge]; }
+      if (G.moving > 0.5) return ['walk', Math.floor(((G.ph % 1) + 1) % 1 * 8 + 0.5) % 8, 'R', 0, 0];
+      return ['idle', -1, 'R', 0, 0];
+    }
     function drawEnt(c, f) {
-      if (gone || G.st === 'gone') return; const T = H.X.Tz(), X = H.sx(G.x), Y = H.sy(G.y), t = F.t; lastT = t;
+      if (gone || G.st === 'gone') return; const T = H.X.Tz(), t = F.t, K1 = T * SC; lastT = t;
+      setScale(T, SC, (() => { const m = c.getTransform(); return Math.hypot(m.a, m.b) || 1; })());
+      const pk = pick(t); G.lastPick = pk;
+      const X = H.sx(G.x) + Math.cos(G.face) * pk[4] * T, Y = H.sy(G.y) + Math.sin(G.face) * pk[4] * T * H.GY;
       // in front of the pet (nearer the viewer) it dims smoothly where it would cover it
       const inFront = G.y > me.y - 0.05; const dimT = inFront ? petDim(G.lastOut) : 1; G.dimA += (dimT - G.dimA) * 0.25;
-      const cut = G.st === 'enter' && t < 2.3 ? Y + 6 * SC * T * SE : null;
-      const o = { tier, glow: gl, eye: G.eye, gaunt, gbreak, crumble: crumble >= 0 ? crumble : undefined, t };
-      const reuse = t - G.rT < 1 / 31 && t >= G.rT; if (!reuse) G.rT = t;
-      const out = drawGolemC(c, X, Y, T, SC, G.face, pv, o, G.dimA * alphaEnd, cut, reuse); G.lastOut = out;
+      const sync = typeof window !== 'undefined' && window.__ttnSync;
+      const get = i => { const r = frameFor(tier, pk[0], i, G.face, pk[2], true); if (sync && FC.queue.length && !FC.frames.has(locate(tier, pk[0], i, G.face, pk[2])[0])) { bakeStep(1e4); return frameFor(tier, pk[0], i, G.face, pk[2], true); } return r; };
+      const cut = G.st === 'enter' && t < 2.3 ? Y + 6 * K1 * SE : null, sink = pk[3] * CE * K1, a = G.dimA * alphaEnd;
+      const sq = crumble >= 0 ? 1 - 0.3 * sstep(0.1, 1.2, crumble) : 1;
+      let fr, flip;
+      if (pk[1] < 0) {   // idle: two breaths cross-faded
+        const w = (1 - Math.sin(t * 1.3)) / 2; [fr, flip] = get(0); const [f2, fl2] = get(1);
+        blitFrame(c, fr, X, Y, K1, flip, a, cut, sq); if (f2 && w > 0.02) blitFrame(c, f2, X, Y, K1, fl2, a * w, cut, sq);
+      } else { [fr, flip] = get(pk[1]); blitFrame(c, fr, X, Y + sink, K1, flip, a, cut, sq); }
+      if (!fr) return;
+      const out = frameOut(fr, X, Y + sink, K1, flip); G.lastOut = out;
+      if (cut != null) { const sp = puffSpr(); c.save(); for (let j = 0; j < 7; j++) { const px = X + (j - 3) * K1 * 4.2 + Math.sin(t * 2 + j) * K1, pr = K1 * (5 + 2 * Math.sin(j * 2.3 + t)); c.globalAlpha = 0.75 * (1 - sstep(1.9, 2.3, t)); c.drawImage(sp, px - pr, cut - pr * 0.55, pr * 2, pr * 1.1); } c.restore(); }
       // the eyes' faint halo (white-green), the fists' light while they glow
       c.save(); c.globalCompositeOperation = 'lighter';
       for (const e of out.eyes) { const r = T * 0.22 * S, a = G.eye * e[2] * G.dimA * alphaEnd; if (a > 0.02) { c.globalAlpha = 0.55 * a; blitSized(c, glowSprite(EYEG), e[0] - r, e[1] - r, r * 2, r * 2); } }
@@ -864,6 +986,9 @@
       for (const w of waves) if (w.kind === 'wb') ridge(c, w, T, t, false);
       for (const v of vfx) if (v.kind === 'spires') spires(c, v, T, t, false);
       const PX = H.sx(me.x), PY = H.sy(me.y) - T * 0.45;
+      for (const v of vfx) { if (v.kind !== 'rocks') continue; const dt = Math.min(0.05, t - v.last), X = H.sx(v.x), Y = H.sy(v.y), lt = t - v.t0, a = 1 - sstep(1.4, 2.0, lt); v.last = t;
+        for (const r of v.R) { if (lt < r.d) continue; r.vh -= 9 * dt; r.h += r.vh * dt; if (r.h < 0) { r.h = 0; r.vh = -r.vh * 0.25; r.vx *= 0.5; r.vr *= 0.5; } r.x += r.vx * dt * 0.6; r.r += r.vr * dt;
+          const spr = slabSpr(r.k), w = T * r.s, hh = w * spr.height / spr.width, px = X + r.x * T, py = Y - r.h * T * CE; c.save(); c.globalAlpha = a; c.translate(px, py); c.rotate(r.r); c.drawImage(spr, -w / 2, -hh * 0.6, w, hh); c.restore(); } }
       for (const v of vfx) { if (v.kind !== 'flash') continue; const u = (t - v.t0) / v.life, x = H.sx(v.x), y = H.sy(v.y) - v.z * CE * T, a = (1 - u) * (0.35 + 0.65 * sstep(T * 0.3, T * 1.2, Math.hypot(x - PX, y - PY))); glowF(c, x, y, T * v.r * (0.6 + 0.4 * u), AMBER, a * 0.8); glowF(c, x, y, T * v.r * 0.35, EMBER, a * 0.9); }
       if (pebs.length && G.lastOut) { const O = G.lastOut; c.save(); for (const p of pebs) { const tgt = O['fist' + p.side]; if (!tgt) continue; const e = p.u * p.u * (3 - 2 * p.u), sx0 = H.sx(p.x0), sy0 = H.sy(p.y0), sw = Math.sin(p.u * Math.PI) * T * 0.7, ang = p.a + p.sp * p.u, x = lerp(sx0, tgt[0], e) + Math.cos(ang) * sw, y = lerp(sy0, tgt[1], e) + Math.sin(ang) * sw * 0.5 - Math.sin(p.u * Math.PI) * T * 0.4, s = T * p.s * 1.3;
         const ro = p.a + p.u * p.sp * 2, cr = Math.cos(ro), sr = Math.sin(ro), pt = (u, v) => [x + (u * cr - v * sr) * s, y + (u * sr + v * cr) * s];
@@ -874,5 +999,5 @@
     return F;
   };
   // the debug door for the harness: the model alone, the poses
-  U.titan.__dbg = { PERF, scr: () => SCR, drawGolem, drawGolemC, model, rig, kfPose, walkPose, idlePose, mirrorP, KP, POSES: { PUNCH, BACKHAND, SLAM, RISE, WB, PEACE }, D0 };
+  U.titan.__dbg = { FC, CLIPS, bakeStep, planBakes, frameFor, blitFrame, setScale, clipPose, drawGolem, prepGolem, paintGolem, model, rig, kfPose, walkPose, idlePose, mirrorP, KP, POSES: { PUNCH, BACKHAND, SLAM, RISE, WB, PEACE }, D0 };
 })();

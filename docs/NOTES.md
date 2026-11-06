@@ -976,3 +976,4 @@ Every new boss painter (rift fiends, Tower bosses, minis that get their own art)
 - v249: Geode Arsenal: no turn (the user disliked it); the pet floats up facing front, waves its arms, dangles its feet and bobs. Rig yaw support kept, unused.
 - v250: Rock Steady by level: prevents 50 / 60 / 70 % of each hit and strikes back at 100x / 200x / 400x the prevented amount (L1 / Adept / Celestial, evenly between).
 - v251: Titan (20k2j, replaces Heart of the Mountain; cd 57): a ~150-stone articulated GeoKit golem with moss, 2.6 s entrance, 25 s ally AI (punch / backhand / ground slam), Worldbreaker finale and crumble; adaptive detail; drawEnt hook in 20b sorts it with monsters and the pet; fist glyph.
+- v252: Titan optimised: no live 3D in play; key poses baked per level tier and 8 facings (5 baked + mirrored), lazily on a 2.4 ms/frame budget, cached across casts (LRU cap 48 MB); ~0.14 ms/frame warm vs ~23 ms before.
