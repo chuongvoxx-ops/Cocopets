@@ -356,6 +356,9 @@ GAMES.dungeon = {
       }
       // Shiny Aqua Illusion's curse (20k7d): +20% from any source; its own finishing burst is not amplified (nor recorded below)
       const aqC = m.aquaCurse && !o.aquaBurst && m.aquaCurse.end > g.t ? m.aquaCurse : null; if (aqC) dmg *= 1.2;
+      // Wind's Pandemonium (20k3i): a monster caught in its storm (m.pandemUntil, refreshed while it is affected) takes 40% more from
+      // every other allied hit, damage over time included; the storm's own ticks and finale carry o.pandem and are not amplified
+      if (m.pandemUntil > g.t && !o.pandem && !flat) { dmg *= 1.4; m.pandemHitT = g.t; }
       const D = MON[m.type];
       if (D && D.armor && !o.dot) dmg *= 1 - D.armor;
       if (m.guardFn && !o.dot && !o.viaProxy) { const k = m.guardFn(m, o); if (k < 1) { dmg *= k; if (k <= 0.2 && Math.random() < 0.35) text(m.x, m.y - m.r - 0.3, 'Guarded!', '#CFE2FF', 12); } }   // (a rift boss's shield side, a shell, a burrow)
@@ -963,7 +966,7 @@ GAMES.dungeon = {
         if (m.lostT > 5) { m.lostT = 0; const p = walkPoint(me.x + (Math.random() - 0.5) * 6, me.y + (Math.random() - 0.5) * 6, m); if (flow[Math.floor(p.y) * MW + Math.floor(p.x)] < 9999) { sparks(m.x, m.y, '#B39CFF', 10, 4); m.x = p.x; m.y = p.y; ring(m.x, m.y, 0.2, 1.2, 0.3, '#B39CFF'); } }
       }
       if (m.boss) { updBoss(m, dt); return; }
-      const held = m.freeze > 0 || m.stun > 0 || g.stopT > 0 || g.cineT > 0;
+      const held = m.freeze > 0 || m.stun > 0 || g.stopT > 0 || g.cineT > 0 || m.liftZ > 0.2;   /* (liftZ: held up in Pandemonium's eye, 20k3i) */
       const slow = (m.curseT > 0 ? 0.7 : 1) * (m.chill > 0 ? 0.55 : 1) * (m.sandT > 0 ? 0.6 : 1) * (g.warpT > 0 ? 0.3 : 1) * (m.hasted > 0 ? 1.35 : 1);
       const dx = me.x - m.x, dy = me.y - m.y, d = hyp(dx, dy) || 0.001;
       if (!m.aggro) {
@@ -1804,10 +1807,10 @@ GAMES.dungeon = {
       if (Math.random() < 0.08) part({ kind: 'star', x: s.x + (Math.random() - 0.5) * 0.6, y: s.y - 0.4 - Math.random() * 0.4, vx: 0, vy: -0.8, life: 0.7, max: 0.7, size: 3, color: P.color });
     }
     function drawMon(c, m) {
-      const T = Tz(), X = sx(m.x), Yg = sy(m.y), r = m.r * T, z = (m.z || 0) * T;
+      const T = Tz(), X = sx(m.x), Yg = sy(m.y), r = m.r * T, z = ((m.z || 0) + (m.liftZ || 0)) * T;   /* (m.liftZ: a drawn height only, Wind's Pandemonium, 20k3i: hits still find it at its floor spot) */
       // shadow
       if (m.fobj) { if (FD) FD.drawObj(c, m, X, Yg); return; }
-      if (!m.under && !m.fiend) { c.fillStyle = 'rgba(0,0,0,.32)'; c.beginPath(); c.ellipse(X, Yg + r * 0.82, r * (0.95 - Math.min(0.4, (m.z || 0) * 0.15)), r * 0.3, 0, 0, 6.283); c.fill(); }
+      if (!m.under && !m.fiend) { c.fillStyle = 'rgba(0,0,0,.32)'; c.beginPath(); c.ellipse(X, Yg + r * 0.82, r * (0.95 - Math.min(0.4, z / T * 0.15)), r * 0.3, 0, 0, 6.283); c.fill(); }
       if (m.fiend) { if (FD) FD.drawBoss(c, m, X, Yg); return; }
       if (m.boss) { drawBoss(c, m, X, Yg - z, r); return; }
       if (m.falling != null) { const u = 1 - m.falling / 0.55; c.save(); c.globalAlpha = 1 - u; c.translate(X, Yg + u * T * 0.8); c.scale(1 - u * 0.7, 1 - u * 0.7); c.rotate(u * 4); const s = DunArt.monSprite(m.type, m.r * TS * SK(), m.ph, m.color, '', false), k2 = g.zoom / SK(); c.drawImage(s.cv, -s.half * k2, -s.half * k2, s.half * 2 * k2, s.half * 2 * k2); c.restore(); return; }
