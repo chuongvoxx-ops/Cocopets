@@ -212,11 +212,13 @@ function openSheet(kind, html) {
   sheetWrap.hidden = false;
   sheetEl.scrollTop = 0;
   updateHint();
+  if (kind !== 'team' && typeof tsSleep === 'function') tsSleep();
   setTimeout(() => { try { $('[data-sheet-close]', sheetEl).focus({ preventScroll: true }); } catch (e) {} }, 50);
 }
 function closeSheet() {
   sheetWrap.hidden = true; sheetKind = null;
   clearInterval(sheetTimer); disarmReset(); updateHint();
+  if (typeof tsSleep === 'function') tsSleep();   // (the Team sheet's live stage stops and lets its pictures go, 21d)
   // (a sheet opened from a run's Team button: once no sheet follows it, the run carries on)
   if (typeof runTeam !== 'undefined' && runTeam) setTimeout(() => { if (sheetWrap.hidden && runTeam) endRunTeam(); }, 0);
 }

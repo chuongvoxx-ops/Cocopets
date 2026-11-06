@@ -53,10 +53,8 @@ function renderTeam() {
       <div class="mb-top"><h3 class="sec">Party</h3><span class="mono">${party.length}/${PARTY_MAX}</span></div>
       <div class="party-grid four">${slots.join('')}</div>
       <div class="tm-sel">
-        <div class="dp-top">
-          <span class="dp-portrait">${petSVG(formOf(P), { frame: 'fit' })}<i class="dp-lv">${S.L}</i></span>
-          <div class="dp-id"><b>${esc(P.name)} ${starsHTML(starsOf(P.rarity))}</b><span>Level ${S.L} · ${STAGES[P.stage].name} · <em class="rx-el small" style="--ec:${E8[el].color}"><i></i>${E8[el].name}</em></span><span>${lead ? 'The pet you play: it leads the party' : inP ? `In the party (P${party.indexOf(P)})` : 'Resting in the pocket'}</span></div>
-        </div>
+        ${teamStageHTML(P, S.L)}
+        <p class="tm-status">${lead ? 'The pet you play: it leads the party' : inP ? `In the party (P${party.indexOf(P)})` : 'Resting in the pocket'}</p>
         <div class="dp-stats"><span class="hp">HP <b>${S.hp}</b></span><span class="mp">MP <b>${S.mp}</b></span><span class="at">Power <b>${S.atk}</b></span></div>
         <div class="dp-row tm-acts">${partyBtn}${leadBtn}</div>
         ${teamEvoHTML(P)}
@@ -72,6 +70,7 @@ function renderTeam() {
     <div class="mb-top tm-all"><h3 class="sec">All pets</h3><span class="mono">tap one to dress it</span></div>
     ${grid}
     <div class="evo-actions"><button class="btn" type="button" data-go="team-anima">${ICON.star}Animas</button><button class="btn" type="button" data-go="team-cards">${ICON.cards || ICON.card}Card collection</button></div>`;
+  teamStageMount(P);   // (the live stage: its canvas moves into this render, 21d)
 }
 /* feeding any pet from the pantry: its level and its bond, with every food that does either, and the Shop for more */
 function teamFeedHTML(P) {
