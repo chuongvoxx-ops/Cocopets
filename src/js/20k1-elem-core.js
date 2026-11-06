@@ -67,7 +67,7 @@ const ELEM_MOVES = {
     ['loom', 'Loom of the Heavens', 'thorns', 95, 18, 'Air ribbons weave a lattice between pressure nodes; its rows sweep down as cutting currents before unravelling into one surge.'],
     ['severance', 'Horizon Severance', 'crescent', 95, 20, 'Crescents stack behind a line of compressed air and release as staggered travelling blades, each wider than the last.'],
     ['dandelion', 'Dandelion Cyclone', 'spin', 90, 18, 'A seed-like core rises amid hundreds of tufts that scatter into spirals, converge on the monsters, then gust across the ground.'],
-    ['giantbow', "Invisible Giant's Bow", 'lance', 100, 20, 'Air bends into a colossal bow above you; its release fires a vast corkscrew lance down the aimed corridor with pressure bursts behind it.'],
+    ['fujin', 'Fujin', 'lance', 100, 22, 'Your pet conjures a spear of emerald light, wrapped in a flowing ribbon, and leaps into spear-first dives that each land harder: 3 dives, 5 at Adept, 7 at Celestial.'],
     ['flowerhurricane', 'Flower Hurricane', 'spin', 95, 20, 'A storm of pink flowers bursts from a wreath round you and whirls through the monsters, every blossom cutting as it passes: 6 s, 8 s at Adept, 10 s at Celestial.'],
     ['breathofthewild', 'Breath of the Wild', 'leaf', 100, 120, 'A flowering meadow stirred by gentle winds grows round you for 20 s; every second it heals all your pets standing in it.'],
     ['terribletornado', 'Terrible Tornado', 'spin', 100, 22, 'Enormous flower-laden tornadoes rise ahead of you and sweep across the battlefield: 1, 3 at Adept, 6 at Celestial.'] ] },
