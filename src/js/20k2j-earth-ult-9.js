@@ -819,7 +819,7 @@
         if (t >= ENTER) { G.st = 'fight'; }
       } else if (G.st === 'fight') {
         if (!G._wbq && t > END0 - 3) { G._wbq = 1; planBakes(tier, G.face, true); }
-        if (t >= END0) {   // the fight's time is over: Worldbreaker, or the peaceful departure when no monster is left
+        if (t >= END0 && !G.mv) {   // the fight's time is over (after a rejoin in progress): Worldbreaker, or the peaceful departure when no monster is left
           G.atk = null; wbT = t; if (living().some(m => Math.hypot(m.x - G.x, m.y - G.y) < 12)) { G.st = 'wb'; H.X.sfx.hum(); } else { G.st = 'peace'; peace = true; }
         } else fight(dt, t);
       }
@@ -837,9 +837,13 @@
       else if (gone) f.entY = null;
     }
     function fight(dt, t) {
-      // keep up: a golem left far behind sinks and rises again beside the pet
+      // keep up: a golem left far behind dissolves and re-forms behind the pet (rejoin)
       const dp = Math.hypot(me.x - G.x, me.y - G.y);
-      if (dp > 11 && !G.atk) { const p = H.walk(me.x - Math.cos(G.face) * 1.6, me.y - 0.8); dust(G.x, G.y, 8, 2, 0.5); G.x = p.x; G.y = p.y; dust(G.x, G.y, 8, 2, 0.5); chips(G.x, G.y, 8, 3, 3); H.X.sfx.thud(); }
+      // the pet's heading (its smoothed motion; its facing when it stands)
+      if (G.pmx == null) { G.pmx = me.x; G.pmy = me.y; G.hx = me.face || 1; G.hy = 0; }
+      { const vx = (me.x - G.pmx) / Math.max(dt, 1e-3), vy = (me.y - G.pmy) / Math.max(dt, 1e-3), sp = Math.hypot(vx, vy); G.pmx = me.x; G.pmy = me.y; if (sp > 0.6 && sp < 40) { const k = Math.min(1, dt * 10); G.hx += (vx / sp - G.hx) * k; G.hy += (vy / sp - G.hy) * k; } }
+      if (G.mv) { rejoin(dt, t); return; }
+      if (dp > 7.5 && !G.atk) { startRejoin(t); return; }
       G.retT -= dt; if (!valid(G.tgt) || G.retT <= 0) { G.tgt = pickTarget(); G.retT = 0.6; }
       const m = valid(G.tgt) ? G.tgt : null;
       if (G.atk) {
@@ -873,6 +877,41 @@
         G.progT += dt; G.prog += s; if (G.progT > 0.8) { G.stuckT = G.prog < 0.1 && go > 0 ? G.stuckT + G.progT : 0; G.prog = 0; G.progT = 0; }
         if (G.stuckT > 2.2 && m) { G.tgt = null; G.retT = 1.5; G.stuckT = 0; }
       } else G.moving = Math.max(0, G.moving - dt * 3);
+    }
+    /* ---- rejoin: left far behind (7.5 tiles), it dissolves into a stream of stones and amber light that arcs to a spot
+       ~2.2 tiles behind the pet (by its heading; beside it if that is a wall) and slams back together there. Out 0.4 s
+       (sinking, stones peeling off), travel ~0.45 s, arrival 0.7 s (stones converge, plates lock, eyes ignite, a heavy
+       step). No attacks meanwhile; the fight's timer keeps running. ---- */
+    const RJ = { OUT: 0.4, IN0: 0.85, LOCK: 1.3, LAND: 1.45, END: 1.6 };
+    function behindSpot() {
+      let hx = G.hx || 1, hy = G.hy || 0; const L = Math.hypot(hx, hy) || 1; hx /= L; hy /= L;
+      for (const [b, sd] of [[2.2, 0], [2.2, 0.5], [2.2, -0.5], [1.8, 1.4], [1.8, -1.4], [2.6, 0.9], [2.6, -0.9]]) {
+        const a = Math.atan2(-hy, -hx) + sd, x = me.x + Math.cos(a) * b, y = me.y + Math.sin(a) * b;
+        if (!H.X.blocked(x, y, 0.45, 0)) return { x, y, a: Math.atan2(hy, hx) };
+      }
+      const p = H.walk(me.x - hx * 2, me.y - hy * 2); return { x: p.x, y: p.y, a: Math.atan2(hy, hx) };
+    }
+    function startRejoin(t) {
+      const to = behindSpot(), O = G.lastOut, T = H.X.Tz(), X = H.sx(G.x), Y = H.sy(G.y), n = H.n(18 + 3 * tier), R = [];
+      G.mv = { t0: t, x0: G.x, y0: G.y, to, done: {} }; G.atk = null; G.tgt = null; G.moving = 0; G.trail.length = 0;
+      // the stones that make the trip: where they peel off the body, where they lock on at the far end
+      for (let i = 0; i < n; i++) { const fx = O ? lerp(O.bb[0], O.bb[2], 0.15 + 0.7 * Math.random()) : X + (Math.random() - 0.5) * T * 2, fy = O ? lerp(O.bb[1], O.bb[3], 0.1 + 0.75 * Math.random()) : Y - Math.random() * T * 2;
+        R.push({ sx: (fx - X) / T, sh: Math.max(0.1, (Y - fy) / T), ex: (Math.random() - 0.5) * 1.4 * S, eh: (0.3 + Math.random() * 1.9) * S, t0: 0.08 + Math.random() * 0.28, d: 0.75 + Math.random() * 0.25, arc: 1.6 + Math.random() * 1.6, r: Math.random() * TAU, vr: (Math.random() - 0.5) * 9, s: (0.45 + Math.random() * 0.35) * S, k: i % 8, mo: Math.random() < 0.35 }); }
+      vfx.push({ kind: 'stream', x0: G.x, y0: G.y, x1: to.x, y1: to.y, t0: t, life: RJ.END + 0.2, R });
+      dust(G.x, G.y, 10, 2.2, 0.5); chips(G.x, G.y - 0.5, 6, 2, 3); H.X.sfx.whoosh();
+      // the pictures it will need at the far end
+      for (const i of [3, 2]) frameFor(tier, 'rise', i, to.a, 'R', true); frameFor(tier, 'idle', 0, to.a, 'R', true);
+    }
+    function rejoin(dt, t) {
+      const M = G.mv, w = t - M.t0; G.moving = 0;
+      if (w < RJ.OUT) { G.eye = 1 - sstep(0, 0.25, w); if (Math.random() < dt * 30 * H.Q()) dust(G.x + (Math.random() - 0.5) * 1.6 * S, G.y + (Math.random() - 0.5) * 0.6, 1, 1.4, 0.45); return; }
+      if (!M.done.move) { M.done.move = 1; G.x = M.to.x; G.y = M.to.y; G.face = M.to.a; }
+      // amber motes gathering where it will stand
+      if (w > RJ.IN0 - 0.25 && w < RJ.LOCK && Math.random() < dt * 30 * H.Q()) { const b = Math.random() * TAU, d = 1 + Math.random() * 0.8; H.P({ kind: 'spark', x: G.x + Math.cos(b) * d, y: G.y + Math.sin(b) * d * 0.6 - 0.6, vx: -Math.cos(b) * d * 2.2, vy: -Math.sin(b) * d * 1.3 - 0.6, g: 0, life: 0.45, max: 0.45, size: 1.6 + Math.random(), color: Math.random() < 0.5 ? GOLD : HONEY }); }
+      G.eye = sstep(RJ.LOCK - 0.05, RJ.END, w);
+      if (!M.done.lock && w > RJ.LOCK) { M.done.lock = 1; vfx.push({ kind: 'flash', x: G.x, y: G.y, z: 1.4 * S, t0: t, life: 0.3, r: 1.2 }); chips(G.x, G.y - 1, 6, 1.5, 3); H.X.sfx.thud(); }
+      if (!M.done.land && w > RJ.LAND) { M.done.land = 1; H.X.sfx.stomp ? H.X.sfx.stomp() : H.X.sfx.thud(); H.X.shake(4, 0.22); vfx.push({ kind: 'ring', x: G.x, y: G.y, R: 1.7 * S, t0: t, life: 0.6 }); dust(G.x, G.y, 8, 2, 0.42); }
+      if (w >= RJ.END) { G.mv = null; G.eye = 1; G.cool = 0.3; G.retT = 0; }
     }
     /* ---- Worldbreaker ---- */
     function worldbreaker(dt, t) {
@@ -919,6 +958,10 @@
     // the picture of the moment: [clip, frame, arm, extra sink in units, lunge in tiles]
     const nearest = (ts, u) => { let b = 0; for (let i = 1; i < ts.length; i++) if (Math.abs(ts[i] - u) < Math.abs(ts[b] - u)) b = i; return b; };
     function pick(t) {
+      if (G.mv) { const w = t - G.mv.t0, P0 = G.mv.pk || (G.mv.pk = G.lastPick && G.lastPick[0] !== 'rise' ? G.lastPick.slice() : ['idle', 0, 'R', 0, 0]);
+        if (w < RJ.OUT) return [P0[0], P0[1] < 0 ? 0 : P0[1], P0[2], (P0[3] || 0) + 7 * sstep(0.05, RJ.OUT, w), 0];
+        if (w < RJ.IN0) return null;
+        return w < RJ.LOCK ? ['rise', 3, 'R', 9 * (1 - H.ease.out(cl((w - RJ.IN0) / (RJ.LOCK - RJ.IN0)))), 0] : ['idle', -1, 'R', 0, 0]; }
       if (G.st === 'enter') { const kt = t - 0.35; return ['rise', nearest(CLIPS.rise.ts, kt), 'R', kt < 0.55 ? (0.55 - kt) / 0.55 * 16 : 0, 0]; }
       if (G.st === 'wb') { const w = t - wbT; return ['wb', w > 1.85 ? 4 : nearest(CLIPS.wb.ts, w), 'R', 0, 0]; }
       if (G.st === 'peace') return t - wbT < 0.3 ? ['idle', 0, 'R', 0, 0] : ['peace', 0, 'R', 0, 0];
@@ -932,14 +975,16 @@
     function drawEnt(c, f) {
       if (gone || G.st === 'gone') return; const T = H.X.Tz(), t = F.t, K1 = T * SC; lastT = t;
       setScale(T, SC, (() => { const m = c.getTransform(); return Math.hypot(m.a, m.b) || 1; })());
-      const pk = pick(t); G.lastPick = pk;
+      const pk = pick(t); if (!pk) return; if (!G.mv) G.lastPick = pk;
+      // (the rejoin: sinking and thinning as it leaves; rising, filling out and locking as it re-forms)
+      let rjA = 1, rjS = 1; if (G.mv) { const w = t - G.mv.t0; if (w < RJ.OUT) { rjA = 1 - sstep(0.12, RJ.OUT, w); rjS = 1 - 0.35 * sstep(0, RJ.OUT, w); } else { const u = cl((w - RJ.IN0) / (RJ.LOCK - RJ.IN0)); rjA = sstep(0, 0.45, u); rjS = 0.6 + 0.4 * H.ease.back(u); } }
       const X = H.sx(G.x) + Math.cos(G.face) * pk[4] * T, Y = H.sy(G.y) + Math.sin(G.face) * pk[4] * T * H.GY;
       // in front of the pet (nearer the viewer) it dims smoothly where it would cover it
       const inFront = G.y > me.y - 0.05; const dimT = inFront ? petDim(G.lastOut) : 1; G.dimA += (dimT - G.dimA) * 0.25;
       const sync = typeof window !== 'undefined' && window.__ttnSync;
       const get = i => { const r = frameFor(tier, pk[0], i, G.face, pk[2], true); if (sync && FC.queue.length && !FC.frames.has(locate(tier, pk[0], i, G.face, pk[2])[0])) { bakeStep(1e4); return frameFor(tier, pk[0], i, G.face, pk[2], true); } return r; };
-      const cut = G.st === 'enter' && t < 2.3 ? Y + 6 * K1 * SE : null, sink = pk[3] * CE * K1, a = G.dimA * alphaEnd;
-      const sq = crumble >= 0 ? 1 - 0.3 * sstep(0.1, 1.2, crumble) : 1;
+      const cut = G.st === 'enter' && t < 2.3 ? Y + 6 * K1 * SE : G.mv ? Y + 4 * K1 * SE : null, sink = pk[3] * CE * K1, a = G.dimA * alphaEnd * rjA;
+      const sq = (crumble >= 0 ? 1 - 0.3 * sstep(0.1, 1.2, crumble) : 1) * rjS;
       let fr, flip;
       if (pk[1] < 0) {   // idle: two breaths cross-faded
         const w = (1 - Math.sin(t * 1.3)) / 2; [fr, flip] = get(0); const [f2, fl2] = get(1);
@@ -947,7 +992,7 @@
       } else { [fr, flip] = get(pk[1]); blitFrame(c, fr, X, Y + sink, K1, flip, a, cut, sq); }
       if (!fr) return;
       const out = frameOut(fr, X, Y + sink, K1, flip); G.lastOut = out;
-      if (cut != null) { const sp = puffSpr(); c.save(); for (let j = 0; j < 7; j++) { const px = X + (j - 3) * K1 * 4.2 + Math.sin(t * 2 + j) * K1, pr = K1 * (5 + 2 * Math.sin(j * 2.3 + t)); c.globalAlpha = 0.75 * (1 - sstep(1.9, 2.3, t)); c.drawImage(sp, px - pr, cut - pr * 0.55, pr * 2, pr * 1.1); } c.restore(); }
+      if (cut != null) { const sp = puffSpr(); c.save(); for (let j = 0; j < 7; j++) { const px = X + (j - 3) * K1 * 4.2 + Math.sin(t * 2 + j) * K1, pr = K1 * (5 + 2 * Math.sin(j * 2.3 + t)); c.globalAlpha = G.mv ? 0.55 * (1 - sstep(RJ.LOCK, RJ.END, t - G.mv.t0)) : 0.75 * (1 - sstep(1.9, 2.3, t)); c.drawImage(sp, px - pr, cut - pr * 0.55, pr * 2, pr * 1.1); } c.restore(); }
       // the eyes' faint halo (white-green), the fists' light while they glow
       c.save(); c.globalCompositeOperation = 'lighter';
       for (const e of out.eyes) { const r = T * 0.22 * S, a = G.eye * e[2] * G.dimA * alphaEnd; if (a > 0.02) { c.globalAlpha = 0.55 * a; blitSized(c, glowSprite(EYEG), e[0] - r, e[1] - r, r * 2, r * 2); } }
@@ -973,6 +1018,7 @@
       for (const v of vfx) { const lt = t - v.t0, u = lt / v.life, vx = H.sx(v.x), vy = H.sy(v.y);
         if (v.kind === 'cracks') { const front = cl(lt / v.sp) * v.R; drawCracks(c, vx, vy, T, v.R, front, (1 - sstep(0.45, 1, u)) * 0.9, v.seed); glowF(c, vx, vy, T * v.R * 0.5, AMBER, 0.35 * (1 - sstep(0, 0.4, u)), H.GY); }
         else if (v.kind === 'ring') { const r = T * v.R * H.ease.out(cl(u / 0.8)); band(c, 'd', vx, vy, r, r * 0.28, (1 - u) * 0.9); }
+        else if (v.kind === 'stream') { const k = (1 - sstep(0.5, 1, u)) * sstep(0, 0.12, u); if (k > 0.01) for (let j = 0; j <= 8; j++) { const q = j / 8, x = H.sx(lerp(v.x0, v.x1, q)), y = H.sy(lerp(v.y0, v.y1, q)), on = sstep(q * 0.5, q * 0.5 + 0.3, u); glowF(c, x, y, T * (0.9 - 0.3 * Math.abs(q - 0.5)), AMBER, 0.22 * k * on, H.GY); } }
         else if (v.kind === 'step') { glowF(c, vx, vy, T * 0.45 * S, '#C8B496', 0.12 * (1 - u), H.GY); }
       }
       // the waves on the floor: the dust band behind, the lit leading edge, the light ripples
@@ -1010,6 +1056,16 @@
       for (const w of waves) if (w.kind === 'wb') ridge(c, w, T, t, false);
       for (const v of vfx) if (v.kind === 'spires') spires(c, v, T, t, false);
       const PX = H.sx(me.x), PY = H.sy(me.y) - T * 0.45;
+      // the rejoin's stream: stones peeling off, arcing over, locking on at the far end, amber light round each
+      for (const v of vfx) { if (v.kind !== 'stream') continue; const w = t - v.t0, PX = H.sx(me.x), PY = H.sy(me.y) - T * 0.45;
+        c.save(); for (const r of v.R) { if (w < r.t0) continue; const u = cl((w - r.t0) / r.d), e = u * u * (3 - 2 * u); if (u >= 1 && w > r.t0 + r.d + 0.15) continue;
+          const x = lerp(v.x0 + r.sx, v.x1 + r.ex, e), y = lerp(v.y0, v.y1, e), hh = lerp(r.sh, r.eh, e) + r.arc * Math.sin(u * Math.PI), sx = H.sx(x), sy = H.sy(y) - hh * T * CE;
+          const a = (u >= 1 ? 1 - (w - r.t0 - r.d) / 0.15 : Math.min(1, (w - r.t0) / 0.08)) * (0.35 + 0.65 * sstep(T * 0.3, T * 1.1, Math.hypot(sx - PX, sy - PY))), spr = slabSpr(r.k), ww = T * r.s * (r.mo ? 0.8 : 1), h2 = ww * spr.height / spr.width;
+          // a feathered streak of amber light behind it along its arc, a halo round it
+          { const u2 = Math.max(0, u - 0.12), e2 = u2 * u2 * (3 - 2 * u2), bx = H.sx(lerp(v.x0 + r.sx, v.x1 + r.ex, e2)), by = H.sy(lerp(v.y0, v.y1, e2)) - (lerp(r.sh, r.eh, e2) + r.arc * Math.sin(u2 * Math.PI)) * T * CE;
+            if (u < 1 && u > 0.04) { c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.strokeStyle = AMBER; c.globalAlpha = 0.3 * a; c.lineWidth = ww * 0.8; c.beginPath(); c.moveTo(bx, by); c.lineTo(sx, sy); c.stroke(); c.strokeStyle = PALE; c.globalAlpha = 0.6 * a; c.lineWidth = Math.max(1, ww * 0.16); c.stroke(); } }
+          c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.5 * a; blitSized(c, glowSprite(u < 1 ? GOLD : HONEY), sx - ww * 1.1, sy - ww * 1.1, ww * 2.2, ww * 2.2);
+          c.globalCompositeOperation = 'source-over'; c.globalAlpha = a; c.translate(sx, sy); c.rotate(r.r + r.vr * u); c.drawImage(spr, -ww / 2, -h2 * 0.55, ww, h2); if (r.mo) { c.globalAlpha = a * 0.9; c.drawImage(clumpSpr(), -ww * 0.45, -h2 * 0.6, ww * 0.9, ww * 0.6); } c.restore(); c.save(); } c.restore(); }
       for (const v of vfx) { if (v.kind !== 'rocks') continue; const dt = Math.min(0.05, t - v.last), X = H.sx(v.x), Y = H.sy(v.y), lt = t - v.t0, a = 1 - sstep(1.4, 2.0, lt); v.last = t;
         for (const r of v.R) { if (lt < r.d) continue; r.vh -= 9 * dt; r.h += r.vh * dt; if (r.h < 0) { r.h = 0; r.vh = -r.vh * 0.25; r.vx *= 0.5; r.vr *= 0.5; } r.x += r.vx * dt * 0.6; r.r += r.vr * dt;
           const spr = slabSpr(r.k), w = T * r.s, hh = w * spr.height / spr.width, px = X + r.x * T, py = Y - r.h * T * CE; c.save(); c.globalAlpha = a; c.translate(px, py); c.rotate(r.r); c.drawImage(spr, -w / 2, -hh * 0.6, w, hh); c.restore(); } }
