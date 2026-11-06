@@ -895,6 +895,7 @@ GAMES.dungeon = {
     const chillPet = t => { me.chill = Math.max(me.chill, t); };
     const X = {
       F, M, me, g, mons, eshots, zones, sfx: api.sfx, freeSpot,   // (freeSpot: the rift brood and their mini bosses place what they call or lay with it)
+      ST: () => ST,   // the pet's live stats (monsters' onDeath hooks use it, e.g. the Torn Hull's charge cell hurting a pet standing too close)
       walkPoint, unstick, moveEnt, blocked, los, rayLen, fleeStep: m => flowStep(m, true),
       warn: warnZone, slam, eshot, lob, ringWave, pillar, rockFall, explodeBomb, gremlinEscape, chillPet,
       inLine, inCone, hurtPet, spawnMon, after, part, text, boom, sparks, ring, shake, light,
