@@ -10,9 +10,9 @@
    smoothly where they cross it, and the paths keep wide gaps, so the pet stays in view.
    The protection (for 15 s, 20 at Adept, 25 at Celestial, evenly between): every hit on the pet (contact, shots, zones,
    boss attacks: all of them go through hurtPet in 20b-game-dungeon.js; this adds a ward with X.addWard, alongside Love
-   Sanctuary's X.setWard) is HALVED: the pet takes (1 - ABSORB) of the damage after its own mitigation, the prevented share
+   Sanctuary's X.setWard) is cut: the pet takes (1 - ABSORB) of the damage after its own mitigation, the prevented share
    is A = ABSORB x d, through the gaps between the rocks too; no finite pool, no break. For every such hit, at once, every
-   monster within 3 / 3.75 / 4.5 x K tiles (evenly between) takes an Earth hit of RET_K x A = 10 x A (not divided between
+   monster within 3 / 3.75 / 4.5 x K tiles (evenly between) takes an Earth hit of RET_K x A (ABSORB 0.5/0.6/0.7, RET_K 100/200/400 at L1/Adept/Celestial) (not divided between
    them), through hitMon's normal mitigation. Those hits carry `reflected: true`: a ward that sees a packet so tagged still
    halves it but never reflects it again (no loop; in this game monsters do not reflect damage at all, so the tag only
    guards against a future reflector). No damage to the party (the only party member on the field is the pet itself).
@@ -27,8 +27,10 @@
   const TAU = Math.PI * 2;
   const DEEP = '#2A2118', CHAR = '#3A3028', UMBER = '#5C4126', EARTH = '#7A5218', AMBER = '#D98A1E', GOLD = '#F2B73A', HONEY = '#FFCF5C', PALE = '#FFE9B8', EMBER = '#FFF4D6', INK = '#120A05';
   /* the rules (the numbers the user set; ABSORB is the identity line's "halve every incoming attack's damage") */
-  const ABSORB = 0.5;   // the share of each hit (after the pet's own mitigation) that Rock Steady prevents
-  const RET_K = 10;     // each prevented amount A strikes back as RET_K x A on every monster in reach
+  // by level (the user, v250): the share of each hit prevented 50 % / 60 % at Adept / 70 % at Celestial, and each prevented
+  // amount A strikes back as RET_K x A on every monster in reach: 100x / 200x at Adept / 400x at Celestial (evenly between)
+  const absorbOf = ev => 0.5 + (ev - 1) * 0.2 / 6;
+  const retOf = ev => ev <= 4 ? 100 + (ev - 1) * 100 / 3 : 200 + (ev - 4) * 200 / 3;
   const PARTY_DMG = false;   // (the friendly-fire switch the spec asks for: the party is never struck; kept for clarity)
   const cl = u => u < 0 ? 0 : u > 1 ? 1 : u, lerp = (a, b, u) => a + (b - a) * u, sm = u => { u = cl(u); return u * u * (3 - 2 * u); };
   const R1 = s => { const v = Math.sin(s * 12.9898 + 78.233) * 43758.5453; return v - Math.floor(v); };
@@ -84,7 +86,7 @@
 
   /* ================= Rock Steady ================= */
   U.rocksteady = (C, h) => {
-    H = h; const g = G(), me = H.me, X0 = H.X, ev = evoOf(C), tier = ev >= 7 ? 3 : ev >= 4 ? 2 : 1, CE = g.CE;
+    H = h; const g = G(), me = H.me, X0 = H.X, ev = evoOf(C), ABSORB = absorbOf(ev), RET_K = retOf(ev), tier = ev >= 7 ? 3 : ev >= 4 ? 2 : 1, CE = g.CE;
     const DUR = 15 + (ev - 1) * 10 / 6, OUT = 1.35, FORM = 1.2;              // 15 s / 20 s at Adept / 25 s at Celestial
     const RR = (3 + (ev - 1) * 0.25) * C.K;                                  // the retaliation reach: 3 / 3.75 / 4.5 x K
     const NR = [6, 6, 7, 8, 9, 10, 12][ev - 1], seed = Math.floor(Math.random() * 1e4);

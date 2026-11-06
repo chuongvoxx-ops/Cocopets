@@ -44,7 +44,7 @@ const ELEM_MOVES = {
     ['geodearsenal', 'Geode Arsenal', 'gem', 95, 18, 'You swirl up into the air and summon ember crystals that circle you, then streak at the monsters one after another as homing missiles: 6 crystals, 10 at Adept, 14 at Celestial (two waves of 7).'],
     ['cataclysm', 'Cataclysm', 'meteor', 95, 18, 'A huge ember-veined boulder falls from the sky and bounces across the monsters (1, 2 at Adept, 3 at Celestial), then shatters into exploding ember crystals.'],
     ['coronation', 'Crystal Coronation', 'gem', 90, 18, 'Crowns of giant golden crystals erupt round the monsters in a widening mineral blossom: 1 crown, 2 at Adept, 3 at Celestial.'],
-    ['rocksteady', 'Rock Steady', 'shield', 100, 120, 'Heavy rocks orbit you for 15 s (20 Adept, 25 Celestial): every hit you take is halved, and each prevented hit strikes back at 10x on every monster nearby.'],
+    ['rocksteady', 'Rock Steady', 'shield', 100, 120, 'Heavy rocks orbit you for 15 s (20 Adept, 25 Celestial): every hit you take is cut by 50% (60% Adept, 70% Celestial), and each prevented hit strikes back at 100x (200x, 400x) on every monster nearby.'],
     ['quicksand', 'Gilded Quicksand', 'vortex', 95, 20, 'The floor turns to glittering mineral sand that slows and grinds the monsters, then hardens into stone plates and ruptures beneath them.'],
     ['obsidiandrill', 'Obsidian Drill', 'spin', 95, 20, 'Giant drills of black stone and golden crystal burst up under the monsters and grind, then plunge together in one rupture: 1, 3 at Adept, 8 at Celestial.'],
     ['mandala', 'Thousand-Peak Mandala', 'nova', 100, 22, 'Rings of stone spires emerge round the aim, turn, and erupt inward; a central peak rises and shatters outward.'],
