@@ -148,7 +148,7 @@ function drawPetRig(c, RG, S, h, o) {
   if (RG.arm) [1, -1].forEach(sd => {
     const sw = mv ? Math.sin(ph + (sd < 0 ? 0 : Math.PI)) * 26 : Math.sin((P.t || 0) * 2.2) * 3;
     const env = cast > 0 ? Math.max(0, Math.min(1, cast * 5, (1 - cast) * 3)) : 0, lift = env * (castUlt ? 112 : -62);
-    lay(baked(RG.arm, RG.armPv, sw * (1 - Math.min(1, Math.abs(lift) / 55)) + lift + (P.hopArm || 0)), sd);   /* (+ hopArm: Earth's Shockwave Trampoline swings them through its jumps, 20k2b) */
+    lay(baked(RG.arm, RG.armPv, sw * (1 - Math.min(1, Math.abs(lift) / 55)) + lift + (P.hopArm || 0) + (P.hopArmS ? P.hopArmS[sd > 0 ? 0 : 1] || 0 : 0)), sd);   /* (+ hopArm: Earth's Shockwave Trampoline swings them through its jumps, 20k2b; hopArmS: each arm its own, Earth's Rocky, 20k2k) */
   });
 }
 /* the pet turned by yaw about its upright axis: each part placed at its own 3D spot (x' = x cos - z sin, depth =

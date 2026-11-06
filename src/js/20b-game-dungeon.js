@@ -1878,18 +1878,18 @@ GAMES.dungeon = {
     function petLook() {
       const moving = !!((me.vx || me.vy) && !me.dead), PF = formOf(P), fl = !!(PF.x && PF.x.gold && PF.stage >= 7 && PF.x.leg && !me.dead);
       return { face: me.dead ? 'hurt' : me.hurtT < 0.4 ? 'hurt' : (g.won || me.lvFx > 0 || g.counterT > 0) ? 'happy' : 'normal',
-        pose: { walk: me.bob, moving, t: g.t, cast: me.castT > 0 ? 1 - me.castT / (me.castM || 1) : 0, ult: !!me.castUlt, wingPh: me.wph || 0, wingAmp: moving ? 14 : fl ? 11 : 8, hopArm: me.hopArm || 0, hopFoot: me.hopFoot || 0, yaw: me.yaw || 0 } };   /* (hopArm / hopFoot: Earth's Shockwave Trampoline, 20k2b; yaw: a turn about the pet's upright axis drawn in 3D by drawPetRig, Earth's Geode Arsenal 20k2d) */
+        pose: { walk: me.bob, moving, t: g.t, cast: me.castT > 0 ? 1 - me.castT / (me.castM || 1) : 0, ult: !!me.castUlt, wingPh: me.wph || 0, wingAmp: moving ? 14 : fl ? 11 : 8, hopArm: me.hopArm || 0, hopFoot: me.hopFoot || 0, hopArmS: me.hopArmS || null, yaw: me.yaw || 0 } };   /* (hopArmS: each arm's own swing [rig arm 1, arm 2], Earth's Rocky, 20k2k) */   /* (hopArm / hopFoot: Earth's Shockwave Trampoline, 20k2b; yaw: a turn about the pet's upright axis drawn in 3D by drawPetRig, Earth's Geode Arsenal 20k2d) */
     }
     let petSnapF = null;   // this frame's picture of the pet, while copies of it are out
     function drawPet(c) {
-      const T = Tz(), X = sx(me.x), Y0 = sy(me.y), z = (me.z || 0) * T, h = T * 1.02 * SIZE * (g.pw.giant ? 1.35 : 1) * (g.petK || 1);
+      const T = Tz(), X = sx(me.x + (me.hopDX || 0)), Y0 = sy(me.y + (me.hopDY || 0)), z = (me.z || 0) * T, h = T * 1.02 * SIZE * (g.pw.giant ? 1.35 : 1) * (g.petK || 1);
       // the pet as drawPetFull shows it everywhere: a Celestial six-star's magic circle and float, the contact shadow and
       // the element's glow on the ground, its lights circling, the body in parts (feet stepping, arms swinging, lifted for
       // a skill, the wings beating; when copies of the pet are out, laid down from the one picture drawn for them all this
       // frame). What the fight adds (the phoenix wings, a supernova, a counter's glow) lies between the ground and the body
       const PF = formOf(P), fl = me.dead ? 0 : petFloatOf(PF, T * SIZE, g.t);
       const blink = me.inv > 0.08 && !me.dash && !me.dodge && !(g.cineT > 0) && !(AN && AN.S.circle) && Math.floor(g.t * 18) % 2 === 0 && g.shieldT <= 0;
-      let sxs = 1, sys = 1, rot = me.tilt;
+      let sxs = 1, sys = 1, rot = me.tilt + (me.hopLean || 0);   /* (hopDX / hopDY: a drawn lunge, hopLean: a lean; Earth's Rocky, 20k2k) */
       if (me.spin) sxs = Math.cos(g.t * 30);
       sxs *= 1 + me.sq * 0.12; sys *= 1 - me.sq * 0.1;
       if (me.hopSq) { sxs *= 1 + me.hopSq * 0.3; sys *= 1 - me.hopSq * 0.3; }   /* (Earth's Shockwave Trampoline, 20k2b: squash + / stretch -, about the feet; me.z lifts it) */
