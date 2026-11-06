@@ -543,8 +543,10 @@ GAMES.dungeon = {
     }
     /* (hook for Light's Love Sanctuary, 20k4i) an active ward, set with ELEM's X.setWard(fn) (null clears it): fn(d, src, o)
        takes the damage after all mitigation, absorbs what its shield pool can while the pet stands inside it, and returns
-       what is left over for the pet (d unchanged when the pet is outside, or the ward is gone) */
-    let petWard = null;
+       what is left over for the pet (d unchanged when the pet is outside, or the ward is gone).
+       (and Earth's Rock Steady, 20k2g) more wards at once: X.addWard(fn) adds one (same contract) and returns its remover;
+       the added ones run first, in the order added, then the setWard one sees what is left */
+    let petWard = null; const petWards = [];
     /* returns true if the hit landed */
     function hurtPet(d, src, o) {
       if (me.dead || g.won) return false;
@@ -555,6 +557,7 @@ GAMES.dungeon = {
       if (RULES) d *= 1 - RULES.defK();
       if (AN) { d *= AN.inK(src); AN.onHurt(d, o && o.dot); }
       if (god) { ring(me.x, me.y, 0.5, 1, 0.15, '#FFE37A', 0.08); return false; }
+      for (const w of petWards.slice()) { d = w(d, src, o); if (!(d > 0)) { me.inv = 0.3; return false; } }   /* (the added wards, above) */
       if (petWard) { d = petWard(d, src, o); if (!(d > 0)) { me.inv = 0.3; return false; } }   /* (Love Sanctuary's ward, above) */
       if (g.guardHP > 0) { const s = Math.min(g.guardHP, d); g.guardHP -= s; d -= s; ring(me.x, me.y, 0.7, 1.1, 0.2, '#8FE3F0', 0.12); if (g.guardHP <= 0) { text(me.x, me.y - 1.2, 'Shield gone!', '#8FE3F0', 13); sparks(me.x, me.y, '#8FE3F0', 12, 5); } if (d <= 0) { me.inv = 0.3; return false; } }
       me.hp -= d; me.inv = 0.55; me.hurtT = 0; g.hurtV = 0.55; g.combo = Math.max(0, Math.floor(g.combo * 0.5)); g.dmgTaken += d; me.sq = 1;
@@ -920,6 +923,8 @@ GAMES.dungeon = {
       party: () => party, restoreParty, partySlot, animas: () => (AN && AN.S && AN.S.list) || [],
       /* (hook for Light's Love Sanctuary, 20k4i) set or clear the ward that absorbs damage in hurtPet */
       setWard: fn => { petWard = fn || null; },
+      /* (hook for Earth's Rock Steady, 20k2g) add one more ward alongside it; returns the remover */
+      addWard: fn => { petWards.push(fn); return () => { const i = petWards.indexOf(fn); if (i >= 0) petWards.splice(i, 1); }; },
       /* (hook for Dark's Thriller, 20k5j) listen to the pet's normal attacks; returns the unsubscribe; onNormalN counts them */
       onNormal: fn => { normalHooks.push(fn); return () => { const i = normalHooks.indexOf(fn); if (i >= 0) normalHooks.splice(i, 1); }; }, onNormalN: () => normalHooks.length });
     RES = DunResidue.create({ me, g, mons, props: propList, M, T_FLOOR, EL, e8Of, REACT_NAME: (a, b) => (REACTIONS[pairKey(a, b)] || {}).name, ST: () => ST, hitMon, part, boom, ring, sparks, text, light, drop, sfx: api.sfx, sx, sy, Tz: () => Tz() });
@@ -939,7 +944,7 @@ GAMES.dungeon = {
       if (m.venom > 0 && !m.dead) { m.venomT -= dt; m.venTick = (m.venTick || 0) - dt; if (m.venTick <= 0) { m.venTick = 0.6; hitMon(m, ST.atk * 0.1 * m.venom * 0.6, { dot: true, dotC: '#B6F09C' }); } if (m.venomT <= 0) m.venom = 0; }
       if (m.dead) return;
       if (m.fobj) { if (FD) FD.updObj(m, dt); return; }
-      m.chill = Math.max(0, m.chill - dt); m.freeze = Math.max(0, m.freeze - dt); m.stun = Math.max(0, m.stun - dt);
+      m.chill = Math.max(0, m.chill - dt); if (m.sandT > 0) m.sandT -= dt; /* (sandT: Gilded Quicksand's own 40% slow, no frost tint) */ m.freeze = Math.max(0, m.freeze - dt); m.stun = Math.max(0, m.stun - dt);
       if (m.fearT > 0) m.fearT -= dt;   // (fear, set by Dark's Dead Scream, 20k5k: see the hook below)
       if (m.kbx || m.kby) {
         if (m.mv === 2) { m.x += m.kbx * dt; m.y += m.kby * dt; } else moveEnt(m, m.kbx * dt, m.kby * dt, 1);
@@ -956,7 +961,7 @@ GAMES.dungeon = {
       }
       if (m.boss) { updBoss(m, dt); return; }
       const held = m.freeze > 0 || m.stun > 0 || g.stopT > 0 || g.cineT > 0;
-      const slow = (m.curseT > 0 ? 0.7 : 1) * (m.chill > 0 ? 0.55 : 1) * (g.warpT > 0 ? 0.3 : 1) * (m.hasted > 0 ? 1.35 : 1);
+      const slow = (m.curseT > 0 ? 0.7 : 1) * (m.chill > 0 ? 0.55 : 1) * (m.sandT > 0 ? 0.6 : 1) * (g.warpT > 0 ? 0.3 : 1) * (m.hasted > 0 ? 1.35 : 1);
       const dx = me.x - m.x, dy = me.y - m.y, d = hyp(dx, dy) || 0.001;
       if (!m.aggro) {
         if (m.type === 'gremlin') { m.aggro = true; return; }
@@ -1012,7 +1017,7 @@ GAMES.dungeon = {
       else if (m.phase === 2 && m.hp < m.maxhp * 0.33) rage(3, 'FRENZY!', '#E07BF0');
       const held = g.stopT > 0 || g.cineT > 0 || (m.stun > 0 && m.act === 'move');
       if (held) return;
-      const slow = (m.curseT > 0 ? 0.8 : 1) * (m.chill > 0 ? 0.7 : 1) * (g.warpT > 0 ? 0.35 : 1), fast = m.phase === 3 ? 1.55 : m.phase === 2 ? 1.25 : 1;
+      const slow = (m.curseT > 0 ? 0.8 : 1) * (m.chill > 0 ? 0.7 : 1) * (m.sandT > 0 ? 0.6 : 1) * (g.warpT > 0 ? 0.35 : 1), fast = m.phase === 3 ? 1.55 : m.phase === 2 ? 1.25 : 1;
       m.actT += dt * slow; m.cd -= dt * slow * fast;
       if (m.bites) m.bites.forEach(b => { if (b && b.snap > 0) b.snap -= dt; });
       const A = {
@@ -1871,7 +1876,7 @@ GAMES.dungeon = {
     function petLook() {
       const moving = !!((me.vx || me.vy) && !me.dead), PF = formOf(P), fl = !!(PF.x && PF.x.gold && PF.stage >= 7 && PF.x.leg && !me.dead);
       return { face: me.dead ? 'hurt' : me.hurtT < 0.4 ? 'hurt' : (g.won || me.lvFx > 0 || g.counterT > 0) ? 'happy' : 'normal',
-        pose: { walk: me.bob, moving, t: g.t, cast: me.castT > 0 ? 1 - me.castT / (me.castM || 1) : 0, ult: !!me.castUlt, wingPh: me.wph || 0, wingAmp: moving ? 14 : fl ? 11 : 8 } };
+        pose: { walk: me.bob, moving, t: g.t, cast: me.castT > 0 ? 1 - me.castT / (me.castM || 1) : 0, ult: !!me.castUlt, wingPh: me.wph || 0, wingAmp: moving ? 14 : fl ? 11 : 8, hopArm: me.hopArm || 0, hopFoot: me.hopFoot || 0 } };   /* (hopArm / hopFoot: Earth's Shockwave Trampoline, 20k2b) */
     }
     let petSnapF = null;   // this frame's picture of the pet, while copies of it are out
     function drawPet(c) {
@@ -1885,6 +1890,7 @@ GAMES.dungeon = {
       let sxs = 1, sys = 1, rot = me.tilt;
       if (me.spin) sxs = Math.cos(g.t * 30);
       sxs *= 1 + me.sq * 0.12; sys *= 1 - me.sq * 0.1;
+      if (me.hopSq) { sxs *= 1 + me.hopSq * 0.3; sys *= 1 - me.hopSq * 0.3; }   /* (Earth's Shockwave Trampoline, 20k2b: squash + / stretch -, about the feet; me.z lifts it) */
       if (me.dodge) rot = me.dodge.t / me.dodge.dur * 6.283 * (me.dodge.vx >= 0 ? 1 : -1);
       if (me.dead) rot = g.t * 4;
       const moving = (me.vx || me.vy) && !me.dead, L2 = petLook();

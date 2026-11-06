@@ -119,13 +119,13 @@ function drawPetRig(c, RG, S, h, o) {
   put(RG.back, 1);
   // feet: stepping, one up as the other comes down, and shuffled a little; still, they rest
   if (RG.foot) [1, -1].forEach(sd => { const q = Math.sin(ph + (sd < 0 ? Math.PI : 0)), lift = mv * Math.max(0, q) * 5.2, sh = mv * Math.cos(ph + (sd < 0 ? Math.PI : 0)) * 1.8;
-    c.save(); if (sd < 0) c.scale(-1, 1); c.translate(sh * k, -lift * k); put(RG.foot, 1); c.restore(); });
+    c.save(); if (sd < 0) c.scale(-1, 1); c.translate(sh * k, (-lift + (P.hopFoot || 0)) * k); put(RG.foot, 1); c.restore(); });   /* (hopFoot: the Trampoline's feet dangle in the air, 20k2b) */
   put(RG.front[o.face || 'normal'] || RG.front.normal, 1);
   // arms: swinging opposite the feet as it walks, breathing at rest; a skill lifts them forward, an Ultimate high overhead
   if (RG.arm) [1, -1].forEach(sd => {
     const sw = mv ? Math.sin(ph + (sd < 0 ? 0 : Math.PI)) * 26 : Math.sin((P.t || 0) * 2.2) * 3;
     const env = cast > 0 ? Math.max(0, Math.min(1, cast * 5, (1 - cast) * 3)) : 0, lift = env * (castUlt ? 112 : -62);
-    lay(baked(RG.arm, RG.armPv, sw * (1 - Math.min(1, Math.abs(lift) / 55)) + lift), sd);
+    lay(baked(RG.arm, RG.armPv, sw * (1 - Math.min(1, Math.abs(lift) / 55)) + lift + (P.hopArm || 0)), sd);   /* (+ hopArm: Earth's Shockwave Trampoline swings them through its jumps, 20k2b) */
   });
 }
 /* the pet in parts drawn once into a picture of its own, for a frame where copies of it walk the floor too (Mirror
