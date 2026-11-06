@@ -68,8 +68,8 @@ const ELEM_MOVES = {
     ['severance', 'Horizon Severance', 'crescent', 95, 20, 'Crescents stack behind a line of compressed air and release as staggered travelling blades, each wider than the last.'],
     ['dandelion', 'Dandelion Cyclone', 'spin', 90, 18, 'A seed-like core rises amid hundreds of tufts that scatter into spirals, converge on the monsters, then gust across the ground.'],
     ['giantbow', "Invisible Giant's Bow", 'lance', 100, 20, 'Air bends into a colossal bow above you; its release fires a vast corkscrew lance down the aimed corridor with pressure bursts behind it.'],
-    ['flowerhurricane', 'Flower Hurricane', 'spin', 95, 20, 'Seven flower-filled twisters rise from a pink wreath and roam through the monsters, trailing petals: 6 s, 8 s at Adept, 10 s at Celestial.'],
-    ['breath', 'Breath Between Mountains', 'wave', 95, 20, 'Two walls of air form beside a wide corridor; a sustained gale tears down it in pulses, ending in a rolling gust.'],
+    ['flowerhurricane', 'Flower Hurricane', 'spin', 95, 20, 'A storm of pink flowers bursts from a wreath round you and whirls through the monsters, every blossom cutting as it passes: 6 s, 8 s at Adept, 10 s at Celestial.'],
+    ['breathofthewild', 'Breath of the Wild', 'leaf', 100, 120, 'A flowering meadow stirred by gentle winds grows round you for 20 s; every second it heals all your pets standing in it.'],
     ['terribletornado', 'Terrible Tornado', 'spin', 100, 22, 'Enormous flower-laden tornadoes rise ahead of you and sweep across the battlefield: 1, 3 at Adept, 6 at Celestial.'] ] },
   light: { strong: [
     ['honeyheart', 'Honey Sugar Heart Attack', 'burst', 24, 2.4, 'You push great glowing heart outlines forward; each breaks open in a burst of pink light: 1, 2 at Adept, 3 at Celestial.'],

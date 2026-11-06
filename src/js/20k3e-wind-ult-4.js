@@ -201,7 +201,7 @@
   // set the bake scale (device px a sword length / a tile); a change of more than 12% drops the old pictures
   function setScale(Tpx) {
     const S = Math.round(Tpx * SL / 4) * 4, R = Math.max(5, Tpx * 0.15);
-    if (BK.S && Math.abs(S - BK.S) / BK.S < 0.12) return false;
+    if (BK.S && Math.abs(S - BK.S) / BK.S < 0.3) return false;   /* (the camera zooms a little during casts: pictures within 30% are reused) */
     BK.S = S; BK.R = R; BK.CS = Math.ceil(R * 2.5) + 4; BK.sw.fill(null); BK.fl.fill(null); BK.sh = []; BK.queue = []; BK.job = null; return true; }
   const has = k => (k[0] === 's' ? !!BK.sw[k[1]] : k[0] === 'f' ? !!BK.fl[k[1]] : BK.sh[1] && BK.sh[1][NSH - 1]);
   // queue what is missing, the urgent first (a list of keys: ['s', bucket] | ['f', variant] | ['h'])
