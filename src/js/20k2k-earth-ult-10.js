@@ -325,7 +325,7 @@
     // Celestial: a second, upper pair (1.4x, higher, further behind and outside) echoes strikes 1-6 a beat later (each its own
     // hit, 65% of the strike it follows) and joins the final punch
     const UPPER = NS === 7, ECHO = 0.15, UK = 1.4, EK = 0.65, echoes = [];
-    const UOFF = s => ({ u: -0.95 * SZ, v: 0.7 * s * SZ, z: 1.45 });
+    const UOFF = s => ({ u: -0.9 * SZ, v: 1.15 * s * SZ, z: 1.85 });
     const strikes = []; { let t = FORM; SPEC[NS].forEach(([type, side, dk], i) => { const d = DUR[type] * (type === 'final' ? 1 : SPD); strikes.push({ i, type, side, dk, s: t, d, ct: CT[type], hit: new Set(), n: 0, on: false, fired: false }); t += d + (NS === 4 && i === 1 ? 0.2 : 0); }); }
     let END0 = strikes[strikes.length - 1].s + strikes[strikes.length - 1].d, endAt = END0;
     const LIFE = END0 + ENDD + 0.9;
@@ -334,9 +334,9 @@
     const fwd = () => [Math.cos(A), Math.sin(A)], sideV = () => [-Math.sin(A), Math.cos(A)];
     const D0 = 1.75 * SZ;
     // rest poses in the aim's frame (u forward, v to the right, z up; yr heading, ph pitch)
-    const guard = s => ({ u: 0.45 * SZ, v: 0.95 * s * SZ, z: 0.78, yr: -0.42 * s, ph: 0.55, sc: 1, rf: 0 });
-    const elev = s => ({ u: 0.95 * SZ, v: 0.85 * s * SZ, z: 1.75, yr: -0.2 * s, ph: 0.45, sc: 1, rf: 0 });
-    const loose = s => ({ u: 0.25 * SZ, v: 1.08 * s * SZ, z: 0.55, yr: -0.45 * s, ph: 1.35, sc: 1, rf: 0 });
+    const guard = s => ({ u: 0.4 * SZ, v: 1.65 * s * SZ, z: 0.78, yr: -0.42 * s, ph: 0.55, sc: 1, rf: 0 });
+    const elev = s => ({ u: 0.95 * SZ, v: 1.45 * s * SZ, z: 1.75, yr: -0.2 * s, ph: 0.45, sc: 1, rf: 0 });
+    const loose = s => ({ u: 0.25 * SZ, v: 1.7 * s * SZ, z: 0.55, yr: -0.45 * s, ph: 1.35, sc: 1, rf: 0 });
     const P = (o, base) => Object.assign({ sc: 1, rf: 0 }, base || {}, o);
     const pol = p => Object.assign({}, p, { th: Math.atan2(p.v, p.u), rr: Math.hypot(p.u, p.v) });
     const EASE = { io: sm, in: u => u * u * u, out: u => 1 - Math.pow(1 - u, 3), lin: u => u };
@@ -360,7 +360,13 @@
       // (the middle of the group round it, so one blow takes in as many as it can)
       let gx = 0, gy = 0, gn = 0; if (best) for (const m of living()) { const d = Math.hypot(m.x - best.x, m.y - best.y); if (d < 1.3) { const w = 1 - d / 1.6; gx += m.x * w; gy += m.y * w; gn += w; } }
       if (gn > 0) { gx /= gn; gy /= gn; }
-      S.aimT = best ? Math.atan2(gy - me.y, gx - me.x) : A; S.D = best ? Math.max(1.25 * SZ, Math.min(2.3 * SZ, Math.hypot(gx - me.x, gy - me.y))) : D0;
+      // (each fist takes its own side of the group: the monster farthest out on that side near the middle, or the middle
+      // when there is none; the final punch takes the middle)
+      let tx = gx, ty = gy;
+      if (best && S.type !== 'final') { const ga = Math.atan2(gy - me.y, gx - me.x), lx = -Math.sin(ga), ly = Math.cos(ga); let pick = null, ps = 0.35;
+        for (const m of living()) { const dx = m.x - gx, dy = m.y - gy, d = Math.hypot(dx, dy); if (d > 2.6) continue; const lat = S.side * (dx * lx + dy * ly) - 0.25 * d; if (lat > ps) { ps = lat; pick = m; } }
+        if (pick) { tx = lerp(gx, pick.x, 0.8); ty = lerp(gy, pick.y, 0.8); } }
+      S.aimT = best ? Math.atan2(ty - me.y, tx - me.x) : A; S.D = best ? Math.max(1.25 * SZ, Math.min(2.6 * SZ, Math.hypot(tx - me.x, ty - me.y))) : D0;
     }
     // the keyframes of a strike for the striking fist (KF), the other (KP) and the pet (PK)
     function build(S) {
@@ -372,28 +378,28 @@
         S.KF = [[0, st], [0.3, P({ u: 0.5 * SZ, v: 0.78 * s * SZ, z: 0.12, yr: -0.15 * s, ph: 0.42 }), 'io'], [0.4, P({ u: 0.42 * SZ, v: 0.74 * s * SZ, z: 0.07, yr: -0.1 * s, ph: 0.3 }), 'io'],
           [0.52, P({ u: D - 0.1, v: 0.3 * s, z: 0.62, yr: -0.05 * s, ph: 0.1 }), 'in'], [0.64, P({ u: D + 0.1, v: 0.26 * s, z: 1.75, yr: 0, ph: 0 }), 'out'], [1, en, 'io']];
         S.PK = [[0, ST0], [0.3, pk(-25, 38, -0.2, 0.4, 0, -0.05)], [0.4, pk(-32, 40, -0.24, 0.44, 0, -0.06)], [0.5, pk(140, 30, 0.3, -0.25, 0.26, 0.2), 'in'], [0.62, pk(150, 28, 0.22, -0.15, 0.3, 0.2), 'out'], [0.8, pk(80, 32, 0.08, 0.05, 0.06, 0.08)], [1, ST0]];
-        S.R = 1.15 * K * (0.9 + 0.1 * SZ); S.at = 0;
+        S.R = 1.38 * K * (0.9 + 0.1 * SZ); S.at = 0;
       } else if (S.type === 'down') {
         S.KF = [[0, st], [0.32, P({ u: D * 0.7, v: 0.5 * s * SZ, z: 2.55, yr: -0.1 * s, ph: 2.2 }), 'io'], [0.42, P({ u: D * 0.66, v: 0.5 * s * SZ, z: 2.78, yr: -0.1 * s, ph: 2.75 }), 'io'],
           [0.52, P({ u: D, v: 0.25 * s, z: 0.2, yr: 0, ph: 3.08 }), 'in'], [0.62, P({ u: D + 0.03, v: 0.25 * s, z: 0.12, yr: 0, ph: 3.12 }), 'out'], [1, en, 'io']];
         S.PK = [[0, ST0], [0.32, pk(150, 40, -0.18, -0.15, 0.12, -0.05)], [0.42, pk(162, 40, -0.24, -0.18, 0.16, -0.06)], [0.52, pk(-5, 34, 0.36, 0.42, 0, 0.22), 'in'], [0.66, pk(-12, 32, 0.28, 0.3, 0, 0.18), 'out'], [1, ST0]];
-        S.R = (S.i === 3 ? 1.6 : 1.25) * K * (0.9 + 0.1 * SZ); S.at = 0;
+        S.R = (S.i === 3 ? 1.9 : 1.5) * K * (0.9 + 0.1 * SZ); S.at = 0;
       } else if (S.type === 'hook') {
         const rr = D * 0.92, ps = pol(st), pe = pol(en), PH = (th, z, ph, rq) => ({ th, rr: rq || rr, z, ph, yr: th - s * 1.25, sc: 1, rf: 0 });
         // (the guard is at a bearing of about 64 degrees to its side: the sweep starts behind it and ends across)
-        S.KF = [[0, ps], [0.34, PH(2.05 * s, 0.8, Math.PI / 2, rr * 0.85), 'io'], [0.42, PH(2.2 * s, 0.82, Math.PI / 2, rr * 0.85), 'io'], [0.62, PH(-0.85 * s, 0.75, Math.PI / 2), 'in'], [0.7, PH(-1.05 * s, 0.74, Math.PI / 2, rr * 0.95), 'out'], [1, pe, 'io']];
+        S.KF = [[0, ps], [0.34, PH(2.25 * s, 0.8, Math.PI / 2, rr * 0.9), 'io'], [0.42, PH(2.4 * s, 0.82, Math.PI / 2, rr * 0.9), 'io'], [0.62, PH(-1.2 * s, 0.75, Math.PI / 2), 'in'], [0.7, PH(-1.4 * s, 0.74, Math.PI / 2, rr * 0.95), 'out'], [1, pe, 'io']];
         S.PK = [[0, ST0], [0.34, pk(20, 40, 0.3, 0.25, 0, -0.04)], [0.42, pk(8, 42, 0.34, 0.28, 0, -0.05)], [0.56, pk(98, 30, -0.32, 0.12, 0, 0.14), 'in'], [0.7, pk(104, 28, -0.36, 0.1, 0, 0.14), 'out'], [1, ST0]];
-        S.th0 = 2.2 * s; S.rr = rr;
+        S.th0 = 2.4 * s; S.rr = rr;
       } else if (S.type === 'body') {
         S.KF = [[0, st], [0.32, P({ u: 0.05, v: 0.75 * s * SZ, z: 0.38, yr: -0.2 * s, ph: Math.PI / 2 }), 'io'], [0.4, P({ u: -0.1, v: 0.7 * s * SZ, z: 0.36, yr: -0.15 * s, ph: Math.PI / 2 }), 'io'],
           [0.52, P({ u: D + 0.35, v: 0.1 * s, z: 0.4, yr: 0, ph: Math.PI / 2 }), 'in'], [0.62, P({ u: D + 0.6, v: 0.08 * s, z: 0.42, yr: 0, ph: Math.PI / 2 }), 'out'], [1, en, 'io']];
         S.PK = [[0, ST0], [0.3, pk(12, 40, -0.1, 0.48, 0, -0.06)], [0.4, pk(5, 42, -0.12, 0.52, 0, -0.08)], [0.52, pk(78, 34, 0.32, 0.45, 0, 0.3), 'in'], [0.66, pk(80, 32, 0.28, 0.38, 0, 0.28), 'out'], [1, ST0]];
-        S.hw = 0.85 * K;
+        S.hw = 1.02 * K;
       } else if (S.type === 'over') {
         S.KF = [[0, st], [0.3, P({ u: 0.4 * SZ, v: 0.65 * s * SZ, z: 2.6, yr: -0.2 * s, ph: 1.0 }), 'io'], [0.42, P({ u: 0.55 * SZ, v: 0.55 * s * SZ, z: 3.0, yr: -0.1 * s, ph: 2.6 }), 'io'], [0.48, P({ u: 0.75 * SZ, v: 0.45 * s * SZ, z: 3.05, yr: 0, ph: 2.95 }), 'io'],
           [0.58, P({ u: D, v: 0.15 * s, z: 0.18, yr: 0, ph: 3.12 }), 'in'], [0.68, P({ u: D + 0.03, v: 0.15 * s, z: 0.1, yr: 0, ph: 3.13 }), 'out'], [1, en, 'io']];
         S.PK = [[0, ST0], [0.3, pk(130, 36, -0.16, -0.15, 0.12, -0.05)], [0.48, pk(166, 38, -0.24, -0.22, 0.22, -0.06)], [0.58, pk(8, 34, 0.38, 0.45, 0, 0.24), 'in'], [0.7, pk(0, 32, 0.3, 0.32, 0, 0.2), 'out'], [1, ST0]];
-        S.R = 1.35 * K * (0.9 + 0.1 * SZ); S.at = 0;
+        S.R = 1.62 * K * (0.9 + 0.1 * SZ); S.at = 0;
       } else {   // the final straight
         const c = S.ct;
         S.KF = [[0, st], [0.16, P({ u: -0.38, v: 0.72 * s * SZ, z: 0.86, yr: -0.1 * s, ph: Math.PI / 2 }), 'out'], [0.56, P({ u: -0.46, v: 0.7 * s * SZ, z: 0.9, yr: -0.08 * s, ph: Math.PI / 2, sc: 1.3, rf: 1 }), 'lin'],
@@ -423,8 +429,8 @@
         for (const k of ['u', 'v', 'z', 'yr', 'ph']) q[k] = lerp(b[k], tg[k] + (k === 'v' ? 0.25 * s : k === 'z' ? 0.15 : 0), m * m * (3 - 2 * m));
         return Object.assign(q, { sc: lerp(UK, 0.7, m), rf: 0, a: 1 - sstep(0.42, 0.54, u), merge: m }); }
       const te = t - ECHO, Si = strikes[curIdx(Math.max(0, te))]; let w = 1;
-      if (Si.on && Si.side === s && te >= Si.s) { const u = (te - Si.s) / Si.d; w = 1 - 0.9 * Math.exp(-Math.pow((u - Si.ct) / 0.15, 2)); }
-      return add(poseAt(s, te), w);
+      let eu = 0, ev = 0; if (Si.on && Si.side === s && te >= Si.s) { const u = (te - Si.s) / Si.d; w = 1 - 0.9 * Math.exp(-Math.pow((u - Si.ct) / 0.15, 2)); const Ee = echoes.find(q => q.main === Si); if (Ee) { eu = (Ee.eu || 0) * (1 - w); ev = (Ee.ev || 0) * (1 - w); } }
+      const q = add(poseAt(s, te), w); q.u += eu; q.v += ev; if (q.th != null) { q.th = Math.atan2(q.v, q.u); q.rr = Math.hypot(q.u, q.v); } return q;
     }
     const curIdx = t => { let i = 0; while (i < strikes.length - 1 && t >= strikes[i + 1].s) i++; return i; };
     const lastPose = { '-1': null, '1': null };
@@ -486,8 +492,15 @@
       if (S.type === 'final') tasks.push(() => E.cracks(7, 2.0 * K * T * 0.75, 9, 2), () => streakSpr()); }
     function flash(x, y, z, r, life, big) { fx.flashes.push({ x, y, z, r, life, t: 0, big }); }
     /* the contact of a strike that lands at one moment (uppercut, downward, overhead) */
+    function echoSpot(S) {
+      const f0 = [Math.cos(S.aimT), Math.sin(S.aimT)], s0 = [-f0[1], f0[0]], mx = me.x + f0[0] * S.D, my = me.y + f0[1] * S.D; let best = null, bd = 1e9;
+      for (const m of living()) { const d = Math.hypot(m.x - mx, m.y - my); if (d < 0.7 || d > 2.8) continue; const sd = d - 0.4 * S.side * ((m.x - mx) * s0[0] + (m.y - my) * s0[1]); if (sd < bd) { bd = sd; best = m; } }
+      let ex = best ? best.x - mx : s0[0] * 1.25 * S.side - f0[0] * 0.2, ey = best ? best.y - my : s0[1] * 1.25 * S.side - f0[1] * 0.2; const L = Math.hypot(ex, ey); if (L > 1.7) { ex *= 1.7 / L; ey *= 1.7 / L; }
+      return { eu: ex * f0[0] + ey * f0[1], ev: ex * s0[0] + ey * s0[1] };
+    }
     function landAt(S, wp) {
-      const R = S.R, cx = anc.x + fwd()[0] * S.D + sideV()[0] * S.at, cy = anc.y + fwd()[1] * S.D + sideV()[1] * S.at; let n = 0;
+      const eu = S.eu || 0, ev = S.ev || 0, R = S.R, cx = anc.x + fwd()[0] * (S.D + eu) + sideV()[0] * (S.at + ev), cy = anc.y + fwd()[1] * (S.D + eu) + sideV()[1] * (S.at + ev); let n = 0;
+      if (S.echo) { wp = [wp[0] + fwd()[0] * eu + sideV()[0] * ev, wp[1] + fwd()[1] * eu + sideV()[1] * ev, wp[2]]; }
       for (const m of living()) if (Math.hypot(m.x - cx, m.y - cy) < R + m.r * 0.6) { if (hit(S, m)) n++; }
       const heavy = S.type !== 'up' || (NS === 7 && S.i === 1) || S.echo, EH = S.echo ? 1.35 : 1;
       if (S.type === 'up') { flash(wp[0], wp[1], wp[2], (0.75 + 0.1 * tier) * EH, 0.28); debris(wp[0], wp[1], Math.max(0.3, wp[2] - 0.2), (7 + 2 * tier) * EH, { up: 5, v: 1.6 * EH, s: 0.12 * EH }); sparks(wp[0], wp[1] - wp[2], 6); H.X.sfx.thud(); H.X.shake(heavy ? 5 : 3.5, 0.15); }
@@ -501,13 +514,13 @@
         // the moving hits
       if (S.type === 'hook' && u >= 0.34 && u <= 0.74) {
         const p = kfEval(S.KF, u), th = p.th, prev = S.thPrev == null ? S.th0 : S.thPrev; S.thPrev = th;
-        for (const m of living()) { if (S.hit.has(m)) continue; const dx = m.x - anc.x, dy = m.y - anc.y, d = Math.hypot(dx, dy); if (d < 0.3 || d > S.rr + 1.0 * K + m.r) continue; const ang = wrapA(Math.atan2(dy, dx) - A), lo = Math.min(prev, th) - 0.12, hi = Math.max(prev, th) + 0.12;
+        for (const m of living()) { if (S.hit.has(m)) continue; const dx = m.x - anc.x, dy = m.y - anc.y, d = Math.hypot(dx, dy); if (d < 0.3 || d > S.rr + 1.2 * K + m.r) continue; const ang = wrapA(Math.atan2(dy, dx) - A), lo = Math.min(prev, th) - 0.12, hi = Math.max(prev, th) + 0.12;
           if (ang >= lo && ang <= hi) hit(S, m, mm => { flash(mm.x, mm.y, 0.75, 0.55, 0.22); debris(mm.x, mm.y, 0.6, 4 + tier, { up: 2.5, v: 2.5, dir: A + th - S.side * Math.PI / 2, spread: 1 }); sparks(mm.x, mm.y - 0.6, 5); }); }
         if (!S.sw && u > 0.5) { S.sw = 1; H.X.shake(4, 0.14); H.X.sfx.thud(); }
       }
       if (S.type === 'body' && u >= 0.38 && u <= 0.72) {
         const p = kfEval(S.KF, u), front = p.u + 0.55 * SZ, f2 = fwd(), sv = sideV();
-        for (const m of living()) { if (S.hit.has(m)) continue; const dx = m.x - anc.x, dy = m.y - anc.y, al = dx * f2[0] + dy * f2[1], of = dx * sv[0] + dy * sv[1]; if (al > 0.1 && al < front + m.r * 0.5 && Math.abs(of - p.v) < S.hw + m.r) hit(S, m, mm => { flash(mm.x, mm.y, 0.45, 0.6, 0.24); debris(mm.x, mm.y, 0.4, 5 + tier, { up: 2.2, v: 3, dir: A, spread: 0.9 }); sparks(mm.x, mm.y - 0.4, 6); }); }
+        for (const m of living()) { if (S.hit.has(m)) continue; const dx = m.x - anc.x, dy = m.y - anc.y, al = dx * f2[0] + dy * f2[1], of = dx * sv[0] + dy * sv[1]; if (al > 0.1 && al < front + (S.eu || 0) + m.r * 0.5 && Math.abs(of - p.v - (S.ev || 0)) < S.hw + m.r) hit(S, m, mm => { flash(mm.x, mm.y, 0.45, 0.6, 0.24); debris(mm.x, mm.y, 0.4, 5 + tier, { up: 2.2, v: 3, dir: A, spread: 0.9 }); sparks(mm.x, mm.y - 0.4, 6); }); }
         if (!S.sw && u > 0.52) { S.sw = 1; H.X.shake(5, 0.16); H.X.sfx.thud(); }
       }
       if (S.type === 'final' && u >= S.ct - 0.06) {
@@ -540,7 +553,7 @@
       if (me.dead && endAt > t) endAt = t;   // (the pet falls: the fists let go at once)
       anc.x += (me.x - anc.x) * Math.min(1, dt * 14); anc.y += (me.y - anc.y) * Math.min(1, dt * 14); f.x = anc.x; f.y = anc.y;
       // strikes: switch on (aim at the nearest monster), turn toward it in the windup, land
-      for (const S of strikes) { if (t >= S.s && !S.on && S.s < endAt) { S.on = true; aimStrike(S); build(S); prepMarks(S); if (UPPER && S.type !== 'final') prepMarks(echoes[echoes.push(Object.assign({}, S, { i: 7 + S.i, dk: S.dk * EK, s: S.s + ECHO, hit: new Set(), n: 0, fired: false, sw: 0, thPrev: null, echo: true, main: S, R: S.R && S.R * 1.12, hw: S.hw && S.hw * 1.1 })) - 1]); if (S.type !== 'final') H.X.sfx.whoosh(); else H.X.sfx.hum(); } }
+      for (const S of strikes) { if (t >= S.s && !S.on && S.s < endAt) { S.on = true; aimStrike(S); build(S); prepMarks(S); if (UPPER && S.type !== 'final') prepMarks(echoes[echoes.push(Object.assign({}, S, echoSpot(S), { i: 7 + S.i, dk: S.dk * EK, s: S.s + ECHO, hit: new Set(), n: 0, fired: false, sw: 0, thPrev: null, echo: true, main: S, R: S.R && S.R * 1.12, hw: S.hw && S.hw * 1.1, rr: S.rr && S.rr + 0.45 })) - 1]); if (S.type !== 'final') H.X.sfx.whoosh(); else H.X.sfx.hum(); } }
       const S = strikes[curIdx(t)];
       if (S.on && t < endAt) {
         const u = (t - S.s) / S.d; if (u < 0.45) { const da = wrapA(S.aimT - A); A += Math.sign(da) * Math.min(Math.abs(da), dt * 7); }
@@ -593,7 +606,7 @@
     function petBox(T) { return [H.sx(me.x + (me.hopDX || 0)), H.sy(me.y + (me.hopDY || 0)) - T * 0.5 - (me.z || 0) * T]; }
     const nearPet = (x, y, T) => { const pb = petBox(T); return 0.35 + 0.65 * sstep(T * 0.35, T * 1.1, Math.hypot(x - pb[0], y - pb[1])); };
     function drawEnt(c, f, s) {
-      if (shattered) return; const p = FS[s]; if (!p) return; const T = H.X.Tz(), t = lastT, wp = world(p), X = H.sx(wp[0]), Y = H.sy(wp[1]) - wp[2] * T, upx = T * UNIT * SZ * p.sc;
+      if (shattered) return; const p = FS[s]; if (!p) return; const T = H.X.Tz(), t = lastT, wp = world(p), upx = T * UNIT * SZ * p.sc, [X, Y] = inView(c, H.sx(wp[0]), H.sy(wp[1]) - wp[2] * T, upx);
       setScale(T, SZ, (() => { const m = c.getTransform(); return Math.min(2, Math.max(1, Math.hypot(m.a, m.b) || 1)); })());
       // in front of the pet it dims smoothly where it would cover it
       const inFront = wp[1] > me.y + 0.02, dt = inFront ? nearPet(X, Y, T) : 1; dimA[s] += (dt - dimA[s]) * 0.25; const a = dimA[s];
@@ -614,9 +627,11 @@
       }
       frag(true);
     }
+    // (a fist kept on screen: eased in from the edges by a margin of its own size)
+    function inView(c, X, Y, upx) { let v; try { v = E.scr(c); } catch (e) { return [X, Y]; } const m = upx * 0.7, x0 = v.x0 + m, x1 = v.x0 + v.w - m, y0 = v.y0 + m * 1.1, y1 = v.y0 + v.h - m * 0.6; return [x1 > x0 ? Math.max(x0, Math.min(x1, X)) : X, y1 > y0 ? Math.max(y0, Math.min(y1, Y)) : Y]; }
     const udim = { '-1': 1, '1': 1 };
     function drawUp(c, f, s) {
-      if (shattered) return; const p = UFS[s]; if (!p || !(p.a > 0.01)) return; const T = H.X.Tz(), t = lastT, wp = world(p), X = H.sx(wp[0]), Y = H.sy(wp[1]) - wp[2] * T, upx = T * UNIT * SZ * p.sc;
+      if (shattered) return; const p = UFS[s]; if (!p || !(p.a > 0.01)) return; const T = H.X.Tz(), t = lastT, wp = world(p), upx = T * UNIT * SZ * p.sc, [X, Y] = inView(c, H.sx(wp[0]), H.sy(wp[1]) - wp[2] * T, upx);
       // (big and high: it dims wherever it would cover the pet, in front or behind)
       const dtg = 0.35 + 0.65 * sstep(T * 0.35, T * 1.0, Math.hypot(X - petBox(T)[0], Y - petBox(T)[1])); udim[s] += (dtg - udim[s]) * 0.25; const a = udim[s] * p.a;
       c.save();
