@@ -126,3 +126,14 @@ in `src/js/02d-cards.js` if missing). File: `src/js/20k2j-earth-ult-9.js` (`dele
   a model turntable montage (front/side/back/three-quarter, fist open/closed) at `.../scratchpad/titan/model.png` and an
   in-game montage (entrance, walk, punch, backhand, slam, Worldbreaker windup, slam, crumble) at L1/L4/L7 at
   `.../scratchpad/titan/titan.png`. Compare with the reference image; iterate until it reads as that golem.
+
+# Round 4 — Rocky (one worker; spec `docs/elem-spec/earth-rocky.md`, verbatim)
+File `src/js/20k2k-earth-ult-10.js` (`U.rocky`, `delete U.mandala` — only the Earth one). Two cel-shaded 3D stone fists
+(4 curled fingers, knuckles, folded thumb, broken wrist cuff, hovering fragments, amber veins), formation from spiralling
+rocks, energy strands to the pet, combos of exactly 2 / 4 / 7 strikes (one hit per enemy per strike), final Celestial
+straight punch the strongest. The pet mirrors the punches using the existing rig hooks (me.hopArm, me.hopFoot, me.hopSq,
+me.z; add a small commented arm-direction/lean hook in the rig only if needed). The user REJECTED the pet's 3D turn
+(pose.yaw) — never turn/twist the pet; use lean, crouch, arm swings and small steps. Performance: bake the fist model into
+cached sprites per orientation bucket (Titan in 20k2j is the precedent: no live 3D in play, lazy baking on a small
+per-frame budget, idle-time warm-up via its hook) — the user's devices are an iPhone and a 2019 iMac, and they felt
+Titan's slowdown. Keep ≲1 ms/frame warm, no hitch > ~8 ms. Same house rules (feather edges, light-only floor, cleanup).
