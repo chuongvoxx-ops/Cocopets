@@ -2459,6 +2459,7 @@ GAMES.dungeon = {
       if (RULES) for (const [y, kk] of RULES.ents()) ents.push([y, 10, kk]);
       if (RIFT) for (const [y, o] of RIFT.ents()) ents.push([y, 11, o]);
       if (FD) for (const p of FD.S.props) if (vis(p.x, p.y)) ents.push([p.y, 9, p]);
+      if (ELEM) for (const f of ELEM.fx) if (f.drawEnt && f.entY != null) ents.push([f.entY, 12, f]);   /* (an elemental move's actor standing among the others, depth-sorted: Earth's Titan, 20k2j) */
       ents.sort((a, b) => a[0] - b[0]);
       // copies of the pet out (Mirror Twins, Shadow Army, Mirror Image): the pet drawn in parts once, into one picture, and
       // it and every copy laid down from that, so the copies walk and move with it at no extra cost
@@ -2478,6 +2479,7 @@ GAMES.dungeon = {
         else if (kind === 9) FD.drawProp(c, e);
         else if (kind === 10) RULES.drawKey(c, e);
         else if (kind === 11) RIFT.drawObj(c, e);
+        else if (kind === 12) { c.save(); e.drawEnt(c, e); c.restore(); }
         else { c.save(); c.globalAlpha = 0.6; blitSized(c, glowSprite(e.color), sx(e.x) - TS * 0.8, sy(e.y) - TS * 1.2, TS * 1.6, TS * 1.6); const br = Math.sin(g.t * 2.4 + e.s) * 0.025; api.pet(c, sx(e.x), sy(e.y) + TS * 0.18, TS * 0.9 * SIZE, petSnapF ? { flip: me.face < 0, snap: petSnapF, sx: 1 + br, sy: 1 - br } : { flip: me.face < 0, face: 'happy' }); c.restore(); }
       }
       petSnapF = null;
