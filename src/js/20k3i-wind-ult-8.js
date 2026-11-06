@@ -76,6 +76,26 @@
   /* a path's normal by finite differences */
   const normd = (at, u) => { const q = at(Math.min(1, u + 0.01)), p0 = at(Math.max(0, u - 0.01)), dx = q[0] - p0[0], dy = q[1] - p0[1], d = Math.hypot(dx, dy) || 1, p = at(u); return [p[0], p[1], -dy / d, dx / d]; };
   const env = u => Math.pow(sm(u / 0.72), 1.25) * sm((1 - u) / 0.16);
+  /* the normal of a path turned to face away from a point (the storm's axis in the sprite) */
+  const awayFrom = (path, cx, cy) => u => { const p = path(u), d = (p[0] - cx) * p[2] + (p[1] - cy) * p[3]; return d < 0 ? [p[0], p[1], -p[2], -p[3]] : p; };
+  /* a wind blade's cross-section (the user's look): across its width, from the side nearest the storm's centre to the
+     side furthest from it: fully transparent -> faint emerald -> stronger emerald -> a thin, crisp, bright mint-white rim.
+     Built as nested fills that all share the outer edge (so that edge is sharp) and start further and further out (so
+     the inner side fades to nothing with no outline); each layer's alpha is chosen so the stack composites (source-over)
+     to the profile. x runs -1 (inner edge) .. +1 (outer edge) in half-widths; rim = the rim's width in half-widths.
+     Passes [colour, alpha, width, offset] for arm() (positive offsets = outward). */
+  const hx = h => { const [r, g, b] = hexRGB(h); return [r, g, b]; }, hexOf = v => '#' + v.map(k => Math.round(k).toString(16).padStart(2, '0')).join('');
+  const ramp = (stops, u) => { u = cl(u); for (let i = 1; i < stops.length; i++) if (u <= stops[i][0]) { const [u0, c0] = stops[i - 1], [u1, c1] = stops[i], k = (u - u0) / (u1 - u0 || 1), a = hx(c0), b = hx(c1); return hexOf(a.map((v, j) => v + (b[j] - v) * k)); } return stops[stops.length - 1][1]; };
+  const BLADE_COL = [[0, DEEP], [0.45, EMER], [0.8, MOSS], [1, MINT]];
+  function bladeProfile(rim, peak, N) {
+    rim = Math.min(0.5, rim); N = N || 16; const xr = 1 - rim, L = []; let prev = 0;
+    const layer = (s, A, col) => { A = Math.min(0.985, A); if (A <= prev + 1e-4) return; const a = 1 - (1 - A) / (1 - prev); prev = A; L.push([col, +a.toFixed(4), (1 - s) / 2, (1 + s) / 2]); };
+    for (let j = 0; j < N; j++) { const s0 = -1 + (xr + 1) * j / N, um = (j + 0.5) / N; layer(s0, peak * Math.pow(um, 1.15) * (0.75 + 0.25 * sm(um)), ramp(BLADE_COL, um)); }
+    layer(xr - rim * 0.35, Math.min(0.93, peak + (0.93 - peak) * 0.45), MINT);   // a hair of anti-aliasing into the rim, not a blur
+    layer(xr, 0.93, PALE); layer(1 - rim * 0.45, 0.97, WHITE);
+    return L; }
+  /* the same layers for a screen-space ribbon (colour strings for fillStyle) */
+  const ribPasses = P => P.map(([col, a, k, off]) => [rgbaS(col, 1), a, k, off]);
   /* rings of arms round a circle (radius RS in an RW sprite), leading clockwise on screen (the flow) */
   const RW = 384, RC = RW / 2, RS = 160;
   function ringBake(o) { const cv = mk(RW, RW), g = cv.getContext('2d');
@@ -84,13 +104,13 @@
   /* the canopy's crown: six wind petals curling outward from the centre like an opening flower */
   function corollaBake() { const cv = mk(RW, RW), g = cv.getContext('2d'), n = 6;
     return { cv, n, step(i) { const a0 = i / n * TAU + 0.2 * R1(i * 2.1), at = u => { const b = a0 + u * 0.9 + 0.55 * u * u, r = RS * (0.3 + 0.82 * u); return [RC + Math.cos(b) * r, RC + Math.sin(b) * r]; };
-      arm(g, u => normd(at, u), u => 30 * Math.pow(Math.sin(Math.PI * Math.pow(u, 0.8)), 0.85) * (1 - 0.25 * u), PETAL, 48); } }; }
+      arm(g, awayFrom(u => normd(at, u), RC, RC), u => 30 * Math.pow(Math.sin(Math.PI * Math.pow(u, 0.8)), 0.85) * (1 - 0.25 * u), COROLLA, 48); } }; }
   /* a floor swirl seen from above: arms spiralling from the rim to the core, carried inward when turned with the flow */
   const SW = 384, SC = SW / 2;
   function swirlBake(o) { const cv = mk(SW, SW), g = cv.getContext('2d');
     return { cv, n: o.n, step(a) { const a0 = a / o.n * TAU + (R1(a * 1.9 + o.seed) - 0.5) * 0.4, k = o.k * (0.85 + 0.3 * R1(a * 4.4 + o.seed)), r0 = SC * o.r0 * (0.92 + 0.08 * R1(a + o.seed)), r1 = SC * o.r1;
       const at = u => { const r = lerp(r0, r1, u), b = a0 - k * u; return [SC + Math.cos(b) * r, SC + Math.sin(b) * r]; };
-      arm(g, u => normd(at, u), u => lerp(o.w0, o.w1, u) * sm(u / o.fin) * sm((1 - u) / o.fout), o.passes, 64); } }; }
+      arm(g, awayFrom(u => normd(at, u), SC, SC), u => lerp(o.w0, o.w1, u) * sm(u / o.fin) * sm((1 - u) / o.fout), o.passes, 64); } }; }
   /* a comet (a streak of air) along one of 16 directions, in an atlas of 48 px cells */
   const CN = 16, CS = 48;
   function cometBake() { const cv = mk(CS * CN, CS), g = cv.getContext('2d');
@@ -123,9 +143,9 @@
   /* a great curved wind petal (the bud and the storm blossom): base at (14, 64), tip at the right, bowed and curling
      up, a deep emerald interior shaded toward its lower side, translucent mint edges, a thin pearly highlight */
   const WPW = 320, WPH = 128, WPB = 14, WPY = 64, WPL = 296;
-  const PETAL = [[EMER, 0.07, 1.3], [DEEP, 0.34, 0.95, 0.1], [EMER, 0.32, 0.72, -0.04], [MOSS, 0.28, 0.46, -0.3], [MINT, 0.3, 0.3, -0.6], [PALE, 0.42, 0.14, -0.76], [WHITE, 0.75, 0.045, -0.82], [MINT, 0.16, 0.12, 0.82], [PALE, 0.14, 0.03, 0.05]];
+  const PETAL = bladeProfile(3.6 / 50, 0.56), COROLLA = bladeProfile(2.8 / 30, 0.55);
   function wpetalBake() { const cv = mk(WPW, WPH), g = cv.getContext('2d'), at = u => [WPB + u * WPL, WPY - Math.sin(Math.PI * u) * 12 - Math.pow(Math.max(0, u - 0.62) / 0.38, 2) * 16];
-    arm(g, u => normd(at, u), u => 50 * Math.pow(Math.sin(Math.PI * Math.min(1, Math.pow(u, 0.7))), 0.75) * (1 - 0.28 * u) * sm(u / 0.05), PETAL, 64); return cv; }
+    arm(g, awayFrom(u => normd(at, u), WPW / 2, WPY + 600), u => 50 * Math.pow(Math.sin(Math.PI * Math.min(1, Math.pow(u, 0.7))), 0.75) * (1 - 0.28 * u) * Math.pow(sm(u / 0.16), 0.7), PETAL, 64); return cv; }
   /* the sharp mint flare of an amplified hit: a soft halo, a long horizontal spike, a shorter vertical, small diagonals */
   function flareBake() { const n = 128, cv = mk(n, n), g = cv.getContext('2d'), c = n / 2, gr = g.createRadialGradient(c, c, 0, c, c, c * 0.6);
     gr.addColorStop(0, 'rgba(255,255,255,0.9)'); gr.addColorStop(0.2, 'rgba(231,255,246,0.6)'); gr.addColorStop(0.55, 'rgba(115,232,182,0.18)'); gr.addColorStop(1, 'rgba(115,232,182,0)'); g.fillStyle = gr; g.fillRect(0, 0, n, n);
@@ -144,7 +164,8 @@
 
   /* the ring variants: broad shaded bands (deep interior toward the axis, mint outer edge, a pearly line), lower funnel
      bands, thin pale streaks, short pressure arcs */
-  const BAND = [[EMER, 0.07, 1.3], [DEEP, 0.30, 0.95, -0.12], [EMER, 0.30, 0.72, 0.02], [MOSS, 0.24, 0.48, 0.3], [MINT, 0.3, 0.3, 0.6], [PALE, 0.42, 0.14, 0.76], [WHITE, 0.7, 0.045, 0.82]];
+  /* (rim widths: about 2 screen px where each sprite is usually drawn) */
+  const BAND = bladeProfile(2.6 / 21, 0.55), BANDB = bladeProfile(2.6 / 17, 0.55), FUNB = bladeProfile(3.4 / 11, 0.55);
   const STREAK = [[MINT, 0.22, 1], [PALE, 0.42, 0.5], [WHITE, 0.8, 0.18]];
   const BAKE = {
     comet: cometBake, petal: () => petalBake('petal'), blossom: () => petalBake('blossom'), leaf: () => petalBake('leaf'), pale: () => petalBake('pale'),
@@ -152,13 +173,13 @@
     ripple: () => radialBake([[0, 'rgba(115,232,182,0)'], [0.8, 'rgba(115,232,182,0)'], [0.9, 'rgba(115,232,182,0.4)'], [0.95, 'rgba(255,255,255,0.75)'], [0.985, 'rgba(231,255,246,0.2)'], [1, 'rgba(231,255,246,0)']], 256),
     pool: () => radialBake([[0, 'rgba(231,255,246,0.7)'], [0.25, 'rgba(115,232,182,0.35)'], [0.6, 'rgba(22,165,123,0.1)'], [1, 'rgba(22,165,123,0)']], 128),
     column: columnBake, cloud: cloudBake,
-    intake: () => swirlBake({ n: 5, k: 2.4, r0: 0.97, r1: 0.12, w0: 22, w1: 5, fin: 0.3, fout: 0.4, seed: 2, passes: [[EMER, 0.10, 1], [MINT, 0.13, 0.6], [PALE, 0.22, 0.25]] }),
+    intake: () => swirlBake({ n: 5, k: 2.4, r0: 0.97, r1: 0.12, w0: 22, w1: 5, fin: 0.3, fout: 0.4, seed: 2, passes: bladeProfile(3.2 / 22, 0.42) }),
     inner: () => swirlBake({ n: 9, k: 3.2, r0: 0.8, r1: 0.1, w0: 4.5, w1: 1.5, fin: 0.25, fout: 0.35, seed: 9, passes: [[MINT, 0.22, 1], [PALE, 0.5, 0.45]] }),
     streak: () => ringBake({ n: 5, span: 0.95, hw: 4.2, seed: 3, jit: 0.6, spanJ: 0.4, rj: 0.1, passes: STREAK }),
     arcs: () => ringBake({ n: 8, span: 0.42, hw: 3.4, seed: 5, jit: 0.5, spanJ: 0.3, rj: 0.16, passes: [[PALE, 0.28, 1], [WHITE, 0.75, 0.4]] }),
-    funnel: () => ringBake({ n: 3, span: 1.7, hw: 11, wave: 3, seed: 11, jit: 0.4, passes: BAND }),
+    funnel: () => ringBake({ n: 3, span: 1.7, hw: 11, wave: 3, seed: 11, jit: 0.4, passes: FUNB }),
     bandA: () => ringBake({ n: 2, span: 2.45, hw: 21, wave: 5, seed: 1, passes: BAND }),
-    bandB: () => ringBake({ n: 3, span: 1.6, hw: 17, wave: 6, seed: 7, jit: 0.5, spanJ: 0.25, passes: BAND }),
+    bandB: () => ringBake({ n: 3, span: 1.6, hw: 17, wave: 6, seed: 7, jit: 0.5, spanJ: 0.25, passes: BANDB }),
     corolla: corollaBake, wpetal: wpetalBake, current: currentBake, flare: flareBake,
   };
   let warmT = 0;
@@ -327,16 +348,16 @@
     function floor(c, X, Y, T, t, te, A) {
       const rx = R * T, aft = te > 0 ? 1 - sm((te - 0.3) / 2.4) : 1, shr = te > 0 ? 1 - 0.75 * sm((te - 0.3) / 2.2) : 1;
       c.globalCompositeOperation = 'lighter';
-      ellBlit(c, want('rim'), X, Y, rx * 1.04 * shr * (1 + 0.012 * Math.sin(t * 3)), 0.6 * A * sm(t / 0.9) * aft);
+      ellBlit(c, want('rim'), X, Y, rx * 1.04 * shr * (1 + 0.012 * Math.sin(t * 3)), 0.45 * A * sm(t / 0.9) * aft);
       // the pattern brightening from the rim inward
       if (t > 0.45 && t < FORM + 0.5) { const u = (t - 0.45) / (FORM + 0.05 - 0.45); ellBlit(c, want('ripple'), X, Y, rx * lerp(1.02, 0.18, eout(u)), Math.sin(Math.PI * cl(u)) * 0.85 * A); }
       const sa = sm((t - 0.7) / 0.8) * A * aft * (1 - 0.4 * hK), sk = (1 - 0.38 * cK) * shr;
-      let s = want('intake'); if (s) floorSpin(c, s, X, Y, rx * 1.02 * sk, t * (0.5 + 0.9 * cK) * sm(t / 1.4) + 0.3, 0.95 * sa);
-      s = want('inner'); if (s) floorSpin(c, s, X, Y, rx * 0.75 * sk, t * (1.5 + 2 * cK) * sm(t / 1.4), 0.8 * sa);
+      c.globalCompositeOperation = 'source-over'; let s = want('intake'); if (s) floorSpin(c, s, X, Y, rx * 1.02 * sk, t * (0.5 + 0.9 * cK) * sm(t / 1.4) + 0.3, 0.95 * sa);
+      c.globalCompositeOperation = 'lighter'; s = want('inner'); if (s) floorSpin(c, s, X, Y, rx * 0.75 * sk, t * (1.5 + 2 * cK) * sm(t / 1.4), 0.5 * sa);
       s = want('pool'); if (s) { const pr = rx * (0.3 + 0.08 * pK) * (1 + 0.06 * Math.sin(t * 5)); ellBlit(c, s, X, Y, pr, (0.5 + 0.3 * cK + 0.4 * pK) * A * sm((t - 1.0) / 0.5) * aft); }
       if (te >= 0) { // the pressure column's strike and the ground shockwave
         ellBlit(c, want('pool'), X, Y, rx * (0.5 + 0.6 * eout(te / 0.3)), (1 - sm(te / 0.7)) * 1.4 * A, GY);
-        const u = te / 0.95, rr = RSW * T * eout3(u); s = want('ripple'); if (s && u < 1.3) { ellBlit(c, s, X, Y, rr, (1 - sm((u - 0.5) / 0.8)) * A); ellBlit(c, s, X, Y, rr * 0.82, (1 - sm((u - 0.3) / 0.6)) * 0.6 * A); }
+        const u = te / 0.95, rr = RSW * T * eout3(u); s = want('ripple'); if (s && u < 1.3) { ellBlit(c, s, X, Y, rr, (1 - sm((u - 0.5) / 0.8)) * 0.75 * A); ellBlit(c, s, X, Y, rr * 0.82, (1 - sm((u - 0.3) / 0.6)) * 0.45 * A); }
         if (CEL && s && u < 1.6) ellBlit(c, s, X, Y, RSW * T * 1.12 * eout3((te - 0.12) / 1.1), (1 - sm((u - 0.6) / 0.9)) * 0.6 * A); }
       c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1;
     }
@@ -350,7 +371,7 @@
         else { z = q.z; r = funR0(q.z) * (1 - 0.06 * Math.sin(t * 0.9)) * (1 - 0.3 * cK); }
         // the opening: from a narrow column, the rings swell out and up into place (the canopy last, like petals)
         r *= lerp(0.12, 1, eout3(gq)) * (1 + 2.2 * br); z = lerp(z * 0.55, z, eout(gq)) + br * 0.8;
-        let a = q.a * gq * A * fad * (1 + 0.6 * pK * (q.L !== 'can' ? 1 : 0.3)); if (side > 0) a *= q.L === 'eye' ? 0.35 : q.L === 'can' ? (z < ZE + 1.5 * sK ? 0.4 : 0.8) : 0.75;
+        let a = q.a * gq * A * fad * (1 + 0.6 * pK * (q.L !== 'can' ? 1 : 0.3)); if (q.v === 'streak' || q.v === 'arcs') a *= 0.7; if (side > 0) a *= q.L === 'eye' ? 0.35 : q.L === 'can' ? (z < ZE + 1.5 * sK ? 0.4 : 0.8) : 0.75;
         if (a <= 0.01) continue; const rr = r * T, cy0 = Y - z * T, ry = rr * GY;
         c.save(); c.beginPath(); if (side < 0) c.rect(X - rr * 1.4, cy0 - ry * 1.5, rr * 2.8, ry * 1.5); else c.rect(X - rr * 1.4, cy0, rr * 2.8, ry * 1.5); c.clip();
         c.globalCompositeOperation = q.v === 'streak' || q.v === 'arcs' ? 'lighter' : 'source-over';
@@ -391,20 +412,20 @@
       const s = want('column'); if (!s) return; const a = sm((t - FORM + 0.3) / 0.8) * (1 - sm((t - TE) / 0.25)) * A; if (a <= 0.01) return;
       c.globalCompositeOperation = 'lighter'; const NS = 10, top = ZE + 0.5 * sK;
       for (let i = 0; i < NS; i++) { const z0 = i / NS * top, z1 = (i + 1) / NS * top, zm = (z0 + z1) / 2, w = funR0(zm) * (1 - 0.3 * cK) * (1 + 0.06 * Math.sin(t * 5 - zm * 2)) * T * 0.95, sy0 = (1 - (i + 1) / NS) * 256, sh = 256 / NS;
-        c.globalAlpha = a * (0.32 + 0.2 * cK + 0.25 * pK) * (zm > ZE - 0.3 ? 1 - sm((zm - ZE + 0.3) / 0.8) * 0.6 : 1); c.drawImage(s, 0, sy0, 64, sh, X - w, Y - z1 * T, w * 2, (z1 - z0) * T + 1); }
+        c.globalAlpha = a * (0.22 + 0.15 * cK + 0.18 * pK) * (zm > ZE - 0.3 ? 1 - sm((zm - ZE + 0.3) / 0.8) * 0.6 : 1); c.drawImage(s, 0, sy0, 64, sh, X - w, Y - z1 * T, w * 2, (z1 - z0) * T + 1); }
       const cm = want('comet'); if (cm) { const n = CEL ? 14 : ADE ? 11 : 9; for (let i = 0; i < n; i++) { const u = (t * 0.9 + i / n) % 1, z = u * top, b = i / n * TAU + u * 7 + t * 3, rr = funR0(z) * (1 - 0.3 * cK) * T * 0.92, x = X + Math.cos(b) * rr, y = Y + Math.sin(b) * rr * GY - z * T;
         c.globalAlpha = Math.sin(Math.PI * u) * a * (0.35 + 0.45 * (Math.sin(b) > 0 ? 1 : 0.4)); cometAt(c, cm, Math.atan2(-top * T * 0.25, -Math.sin(b) * rr), x, y, T * 0.75); } }
       c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1;
     }
     /* a feathered ribbon from screen points (x, y) with a width envelope: three nested untextured fills */
-    function ribbonFill(c, P, wf, passes) {
+    function ribbonFill(c, P, wf, passes, ox, oy) {
       const n = P.length; if (n < 3) return; const nx = [], ny = [];
-      for (let i = 0; i < n; i++) { const a = P[Math.max(0, i - 1)], b = P[Math.min(n - 1, i + 1)], dx = b[0] - a[0], dy = b[1] - a[1], d = Math.hypot(dx, dy) || 1; nx.push(-dy / d); ny.push(dx / d); }
+      for (let i = 0; i < n; i++) { const a = P[Math.max(0, i - 1)], b = P[Math.min(n - 1, i + 1)], dx = b[0] - a[0], dy = b[1] - a[1], d = Math.hypot(dx, dy) || 1; let ax = -dy / d, ay = dx / d; if (ox != null && (P[i][0] - ox) * ax + (P[i][1] - oy) * ay * 2 < 0) { ax = -ax; ay = -ay; } nx.push(ax); ny.push(ay); }
       for (const [col, al, k, off] of passes) { c.fillStyle = col; c.globalAlpha = al; c.beginPath();
         for (let i = 0; i < n; i++) { const w = wf(i / (n - 1)), o = (off || 0) * w; const x = P[i][0] + nx[i] * (w * k + o), y = P[i][1] + ny[i] * (w * k + o); i ? c.lineTo(x, y) : c.moveTo(x, y); }
         for (let i = n - 1; i >= 0; i--) { const w = wf(i / (n - 1)), o = (off || 0) * w; c.lineTo(P[i][0] - nx[i] * (w * k - o), P[i][1] - ny[i] * (w * k - o)); }
         c.closePath(); c.fill(); } c.globalAlpha = 1; }
-    const RIBP = [['rgba(22,165,123,1)', 0.13, 1.25], ['rgba(11,94,72,1)', 0.22, 0.9, -0.1], ['rgba(115,232,182,1)', 0.3, 0.55, 0.3], ['rgba(231,255,246,1)', 0.5, 0.2, 0.55], ['rgba(255,255,255,1)', 0.7, 0.06, 0.62]];
+    const RIBP = ribPasses(bladeProfile(0.2, 0.5, 9));
     /* the broad ribbons: before the storm they coil round the pet and unfurl to the centre; in the storm, long outer
        ribbons curl round the mass and are drawn back into the intake */
     function ribbons(c, X, Y, T, t, A, side) {
@@ -416,14 +437,14 @@
           else { const u = Math.min(1, s - 1), su = sm(u), bx = X - ex, by = (Y - 0.4 * T) - ey, bl = Math.hypot(bx, by) || 1; x = ex + bx * su - by / bl * Math.sin(Math.PI * u) * 1.4 * T * (i % 2 ? 1 : -1); y = ey + by * su + bx / bl * Math.sin(Math.PI * u) * 1.4 * T * (i % 2 ? 1 : -1) - Math.sin(Math.PI * u) * 0.9 * T; }
           Pp.push([x, y]); if (k === 13) mid = s; }
         const front = mid < 1 ? Math.sin(a0 + mid * TAU * 1.1) > 0 : true; if ((side > 0) !== front) continue;
-        ribbonFill(c, Pp, u => T * 0.2 * Math.pow(Math.sin(Math.PI * u), 0.7) * (0.5 + 0.5 * u) * al, RIBP); }
+        ribbonFill(c, Pp, u => T * 0.2 * Math.pow(Math.sin(Math.PI * u), 0.7) * (0.5 + 0.5 * u) * al, RIBP, X, Y - ZE * T * 0.4); }
       // the outer ribbons of the living storm
       const on = sm((t - FORM - 0.6) / 0.8) * (1 - sm((t - (TE - CMP + 0.3)) / 0.6)) * A; if (on <= 0.01) return;
       const NO = CEL ? 4 : ADE ? 3 : 2;
       for (let i = 0; i < NO; i++) { const u0 = ((t - FORM) / 3.4 + i / NO) % 1, th0 = i / NO * TAU + t * 0.35, Pp = []; let mth = 0;
         for (let k = 0; k <= 30; k++) { const s = cl(u0 * 1.5 - 0.5 + k / 30 * 0.55), sr = Math.sin(Math.PI * s), r = RCc * (1.0 + 0.3 * sr) * (1 - 0.15 * s), z = lerp(ZCc * 0.92, 0.25, sm(s)) + 0.5 * sr, th = th0 + s * 2.6; Pp.push([X + Math.cos(th) * r * T, Y + Math.sin(th) * r * T * GY - z * T]); if (k === 15) mth = th; }
         if ((Math.sin(mth) > 0) !== (side > 0)) continue; const al = on * Math.sin(Math.PI * u0);
-        ribbonFill(c, Pp, u => T * 0.32 * Math.pow(Math.sin(Math.PI * u), 0.75) * al, RIBP); }
+        ribbonFill(c, Pp, u => T * 0.32 * Math.pow(Math.sin(Math.PI * u), 0.75) * al, RIBP, X, Y - ZE * T); }
     }
     /* the atmosphere's light marks: strands racing round the footprint, light blades bending inward as a wave passes */
     function prestorm(c, X, Y, T, t, A) {
@@ -447,7 +468,9 @@
         const sn = Math.sin(phi); if ((sn >= 0) !== (side > 0)) continue;
         const bx = X + Math.cos(phi) * rb * T, by = EY + sn * rb * T * GY + E * 0.75 * T * (1 - eo), dx = Math.cos(th) * Math.cos(phi), dy = Math.cos(th) * sn * GY - Math.sin(th), pl = Math.hypot(dx, dy) * L * T; if (pl < 2) continue;
         let a = gi * A * (te > 0 ? 1 - sm((te - 0.3) / 0.75) : 1) * (side > 0 ? (te > 0 ? 0.85 : 0.55) : 0.9); if (a <= 0.01) continue;
-        c.save(); c.translate(bx, by); c.rotate(Math.atan2(dy, dx)); c.scale(pl / WPL, (Math.cos(phi) < 0 ? -1 : 1) * (0.45 + 0.75 * Math.abs(sn)) * L * T / WPL * 1.25); c.globalAlpha = Math.min(1, a); c.drawImage(s, -WPB, -WPY); c.restore();
+        const ang = Math.atan2(dy, dx), mx = bx + Math.cos(ang) * pl * 0.5 - X, my = by + Math.sin(ang) * pl * 0.5 - EY, dd = (mx * Math.sin(ang) - my * Math.cos(ang)) / (Math.hypot(mx, my) || 1);
+        if (!b.fs || Math.abs(dd) > 0.12) b.fs = dd >= 0 ? 1 : -1;   // (the sprite's rim is its -y side: scaled by fs it maps to the side away from the eye)
+        c.save(); c.translate(bx, by); c.rotate(ang); c.scale(pl / WPL, b.fs * (0.45 + 0.75 * Math.abs(sn)) * L * T / WPL * 1.25); c.globalAlpha = Math.min(1, a); c.drawImage(s, -WPB, -WPY); c.restore();
         // a pearly glint racing along the opening petal
         if (te > 0 && te < 0.6) { c.globalCompositeOperation = 'lighter'; c.globalAlpha = (1 - te / 0.6) * 0.8 * A; const u = eout(te / 0.5), gx = bx + dx / Math.hypot(dx, dy) * pl * u, gy = by + dy / Math.hypot(dx, dy) * pl * u, gr = T * 0.5; c.drawImage(glowSprite(PALE), gx - gr, gy - gr, gr * 2, gr * 2); c.globalCompositeOperation = 'source-over'; } }
       c.globalAlpha = 1;
