@@ -1891,6 +1891,7 @@ GAMES.dungeon = {
       if (me.spin) sxs = Math.cos(g.t * 30);
       sxs *= 1 + me.sq * 0.12; sys *= 1 - me.sq * 0.1;
       if (me.hopSq) { sxs *= 1 + me.hopSq * 0.3; sys *= 1 - me.hopSq * 0.3; }   /* (Earth's Shockwave Trampoline, 20k2b: squash + / stretch -, about the feet; me.z lifts it) */
+      if (me.twirl) { const cw = Math.cos(me.twirl); sxs *= (cw < 0 ? -1 : 1) * Math.max(0.14, Math.abs(cw)); }   /* (Earth's Geode Arsenal, 20k2d: the pet twirls in the air, a turn about its upright axis; me.z lifts it) */
       if (me.dodge) rot = me.dodge.t / me.dodge.dur * 6.283 * (me.dodge.vx >= 0 ? 1 : -1);
       if (me.dead) rot = g.t * 4;
       const moving = (me.vx || me.vy) && !me.dead, L2 = petLook();

@@ -6,14 +6,15 @@
    its flights stay legible at, chips kick sideways from the ground contact, fine dust rises between the moving stone
    sections, thin gold highlights travel along the leading edges; its base sits in a collar of broken floor over a dark
    contact shadow and a small amber grinding ring; contact ticks every 0.25 s on the game clock (frame-rate independent),
-   each drill on its own hit area. Adept: two smaller drills erupt to either side a little later; Celestial: four in a
-   diamond round the main one, their golden seams pulsing toward the centre (light runs along the floor to it); the main
-   drill stays the biggest visual and damage focus. Finale: the rotation tightens, loose fragments are drawn inward, all
+   each drill on its own hit area. Adept: two smaller drills erupt to either side a little later (levels 5 and 6 too);
+   Celestial: seven ring the main one, erupting in a ripple round it, the ring turned so a gap faces the pet and each
+   kept clear of it; at Celestial their golden seams pulse toward the centre (light runs along the floor to it); the main drill stays the
+   biggest visual and damage focus. Finale: the rotation tightens, loose fragments are drawn inward, all
    drills plunge together, then one shared radial ground rupture round the formation (one hit per enemy), light racing
    through the cracks and fading beneath settling rubble, a low dust veil, gold specks.
    Damage (DK = base x K x evoK), a monster on the main drill the whole time: eruption 2.6 + contact ticks + rupture 3.4
    = 14 / 17 at Adept / 20 at Celestial x DK (levels between interpolate). A smaller drill: eruption 1.3 and ticks worth
-   45 % of the main drill's, on its own smaller area.
+   45 % of the main drill's on its own smaller area (4.9 / 6.25 / 7.6 x DK), plus the shared rupture for anyone near it.
    The drill is a real constructed model: a faceted core and two helical flights of interlocking stone wedges (each a
    beveled leading edge, a rough dark body, a narrow seam of golden crystal along its rim, gold crystal joints between
    wedges), lit per facet in cel bands with an obsidian gloss, an amber bounce from the floor and an ink edge; rendered
@@ -198,7 +199,7 @@
   /* ================= E9 Obsidian Drill ================= */
   U.obsidiandrill = (C, h) => {
     H = h; const me = H.me, ev = evoOf(C), ADE = ev >= 4, CEL = ev >= 7, K = C.K, evoK = 1 + 0.08 * (ev - 1), DK = C.base * K * evoK;
-    const DUR = 4 + (ev - 1) / 3, WARN = 0.8, PER = 0.25, NSM = CEL ? 4 : ADE ? 2 : 0;
+    const DUR = 4 + (ev - 1) / 3, WARN = 0.8, PER = 0.25, NSM = CEL ? 7 : ADE ? 2 : 0;
     const TOT = (14 + (ev - 1)) * DK, ERU = 2.6 * DK, RUP = 3.4 * DK, TICKS = TOT - ERU - RUP;
     const TF = WARN + DUR, TP = TF + 0.5, TR = TP + 0.22, LIFE = TR + 1.9;
     const seed = Math.floor(Math.random() * 1000);
@@ -206,8 +207,13 @@
     const p0 = H.X.walkPoint(C.tx, C.ty, { r: 0.5, mv: 0 }), cx = p0.x, cy = p0.y;
     const U0 = 0.82 * (1 + 0.04 * (ev - 1)) * K, US = U0 * 0.56;   // the flights' radius in tiles, main and small
     const drills = [{ x: cx, y: cy, u0: U0, main: true, em: WARN, i: 0 }];
-    const Q2 = Math.SQRT1_2, offs = CEL ? [[Q2, Q2], [-Q2, Q2], [Q2, -Q2], [-Q2, -Q2]] : ADE ? [[1, 0], [-1, 0]] : [], DS = (CEL ? 2.15 : 1.85) * K;   // (Celestial: a diamond turned so no corner points back at the pet)
-    offs.forEach(([sx, sf], i) => { const q = H.X.walkPoint(cx + px * sx * DS + fx * sf * DS, cy + py * sx * DS + fy * sf * DS, { r: 0.35, mv: 0 }); drills.push({ x: q.x, y: q.y, u0: US, main: false, em: WARN + 0.22 + 0.09 * i, i: i + 1 }); });
+    // the smaller drills: Adept, one to either side; Celestial, a ring of seven round the main one; the ring turned so that
+    // a gap, not a drill, faces the pet; each kept clear of the pet; they erupt in a ripple round the ring
+    const DS = (CEL ? 2.2 : 1.85) * K, back = Math.atan2(me.y - cy, me.x - cx);
+    for (let i = 0; i < NSM; i++) { let b = back + (i + 0.5) / NSM * TAU, q = null;
+      for (const db of [0, 0.35, -0.35, 0.7, -0.7]) { const bb = b + db, w = H.X.walkPoint(cx + Math.cos(bb) * DS, cy + Math.sin(bb) * DS, { r: 0.35, mv: 0 }); if (Math.hypot(w.x - me.x, w.y - me.y) > 1.5) { q = w; break; } }
+      if (!q) continue; drills.push({ x: q.x, y: q.y, u0: US, main: false, em: WARN + 0.18 + 0.075 * i, i: drills.length }); }
+    const SR = Math.min(1, 3 / Math.max(1, NSM));   // (particle rates of the smaller drills, thinned as they multiply)
     let RR = 2.3 * K; for (const d of drills) RR = Math.max(RR, Math.hypot(d.x - cx, d.y - cy) + 1.35 * K);
     for (const d of drills) { const sc = d.main ? 1 : 0.45; d.hr = d.u0 + 0.55 * (d.main ? 1 : 0.7); d.er = d.hr + 0.25; d.erupt = d.main ? ERU : 1.3 * DK; d.t0 = d.em + 0.35; d.NT = Math.max(1, Math.ceil((TF - d.t0) / PER)); d.tick = TICKS * sc / d.NT; d.nt = 0;
       d.rise = 0; d.rot = R1(seed + d.i) * TAU; d.w = 0; d.sq = 1; d.erupted = false; d.chipAcc = 0; d.dustAcc = 0; d.dir = d.main ? 1 : (d.i % 2 ? -1 : 1); d.cr = R1(seed + d.i * 3) * TAU; }
@@ -255,12 +261,12 @@
           }
           // chips kicked sideways at the ground contact, dust rising between the moving sections, fragments drawn in at the finale
           if (r > 0.6 && t < TP && !dead) {
-            d.chipAcc += dt * (d.main ? 16 : 8) * H.Q(); while (d.chipAcc >= 1) { d.chipAcc--; const b = Math.random() * TAU, tg = b + Math.PI / 2 * d.dir, v = 2 + Math.random() * 2.5, R0 = d.u0 * 1.02;
+            d.chipAcc += dt * (d.main ? 16 : 8 * SR) * H.Q(); while (d.chipAcc >= 1) { d.chipAcc--; const b = Math.random() * TAU, tg = b + Math.PI / 2 * d.dir, v = 2 + Math.random() * 2.5, R0 = d.u0 * 1.02;
               chips.push({ x: d.x + Math.cos(b) * R0, y: d.y + Math.sin(b) * R0 * 0.9, z: 0.08, vx: Math.cos(tg) * v + Math.cos(b) * 0.8, vy: (Math.sin(tg) * v + Math.sin(b) * 0.8) * 0.6, vz: 1.5 + Math.random() * 2.2, rot: Math.random() * TAU, vr: (Math.random() - 0.5) * 16, s: (0.05 + Math.random() * 0.07) * (d.main ? 1 : 0.75), k: Math.floor(Math.random() * 4), t: 0, life: 0.6 + Math.random() * 0.3 }); }
-            d.dustAcc += dt * (d.main ? 7 : 3.5) * H.Q(); while (d.dustAcc >= 1) { d.dustAcc--; const b = Math.random() * TAU, zz = Math.random() * HT * 0.8 * d.u0 * CE;
+            d.dustAcc += dt * (d.main ? 7 : 3.5 * SR) * H.Q(); while (d.dustAcc >= 1) { d.dustAcc--; const b = Math.random() * TAU, zz = Math.random() * HT * 0.8 * d.u0 * CE;
               dust.push({ x: d.x + Math.cos(b) * d.u0 * 0.95, y: d.y + Math.sin(b) * d.u0 * 0.5, z: zz, vx: Math.cos(b) * 0.5, vy: 0, vz: 0.35 + Math.random() * 0.4, t: 0, life: 0.9 + Math.random() * 0.5, s: (0.22 + Math.random() * 0.2) * (d.main ? 1 : 0.7), fine: true }); }
           }
-          if (t > TF && t < TP + 0.1 && !dead && Math.random() < dt * (d.main ? 26 : 12) * H.Q()) { const b = Math.random() * TAU, rr = d.u0 * (1.9 + Math.random() * 1.2);
+          if (t > TF && t < TP + 0.1 && !dead && Math.random() < dt * (d.main ? 26 : 12 * SR) * H.Q()) { const b = Math.random() * TAU, rr = d.u0 * (1.9 + Math.random() * 1.2);
             chips.push({ x: d.x + Math.cos(b) * rr, y: d.y + Math.sin(b) * rr * 0.8, z: 0.05, vx: 0, vy: 0, vz: 0.6 + Math.random(), rot: Math.random() * TAU, vr: (Math.random() - 0.5) * 8, s: 0.06 + Math.random() * 0.08, k: Math.floor(Math.random() * 4), t: 0, life: 0.5, pull: d }); }
         }
         if (!dead && !ruptured && t >= TR) { ruptured = true; rupture(); }
@@ -287,7 +293,7 @@
             c.save(); c.globalAlpha = 0.85 * on; c.drawImage(shadowSpr(), X - u * 1.5, Y - u * 1.5 * SE, u * 3, u * 3 * SE); c.restore();
             c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = on * (0.45 + 0.2 * Math.sin(t * 9 + d.i)); c.translate(X, Y); c.scale(1, SE); c.rotate(d.cr); c.drawImage(baseCrackSpr(), -u * 1.45, -u * 1.45, u * 2.9, u * 2.9); c.restore();
             const gr = u * 1.22; c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = on * (0.55 + 0.15 * Math.sin(t * 13 + d.i)); c.drawImage(bandSpr(), X - gr, Y - gr * SE, gr * 2, gr * 2 * SE); c.restore();
-            const gs = glowSprite(HONEY); c.save(); c.globalCompositeOperation = 'lighter'; for (let k = 0; k < 6; k++) { const b = d.rot * 1.0 + k / 6 * TAU, sx2 = X + Math.cos(b) * gr * 0.93, sy2 = Y + Math.sin(b) * gr * 0.93 * SE, ss = u * 0.14; c.globalAlpha = on * 0.7 * (0.5 + 0.5 * Math.sin(b * 3)); c.drawImage(gs, sx2 - ss, sy2 - ss, ss * 2, ss * 2); } c.restore();
+            const gs = glowSprite(HONEY); c.save(); c.globalCompositeOperation = 'lighter'; for (let k = 0, nk = d.main ? 6 : 3; k < nk; k++) { const b = d.rot * 1.0 + k / nk * TAU, sx2 = X + Math.cos(b) * gr * 0.93, sy2 = Y + Math.sin(b) * gr * 0.93 * SE, ss = u * 0.14; c.globalAlpha = on * 0.7 * (0.5 + 0.5 * Math.sin(b * 3)); c.drawImage(gs, sx2 - ss, sy2 - ss, ss * 2, ss * 2); } c.restore();
             // Celestial: the small drills' gold pulsing toward the centre along the floor
             if (CEL && !d.main && t < TP) { const M = drills[0], MX = H.sx(M.x), MY = H.sy(M.y); c.save(); c.globalCompositeOperation = 'lighter'; for (let k = 0; k < 3; k++) { const q = ((t * 0.9 + k / 3 + d.i * 0.13) % 1), qx = lerp(X, MX, 0.15 + 0.7 * q), qy = lerp(Y, MY, 0.15 + 0.7 * q), ss = u * (0.55 - 0.2 * q); c.globalAlpha = on * 0.55 * Math.sin(q * Math.PI); c.drawImage(glowSprite(GOLD), qx - ss, qy - ss * SE * 1.4, ss * 2, ss * 2 * SE * 1.4); } c.restore(); } }
         }
@@ -339,7 +345,7 @@
         // the rupture in the air: a hot flash low over the formation
         if (ruptured) { const p = t - TR; if (p < 0.35) { H.glow(c, H.sx(cx), H.sy(cy) - T * 0.3, RR * T * 0.55, PALE, 0.3 * (1 - p / 0.35)); H.glow(c, H.sx(cx), H.sy(cy) - T * 0.2, RR * T * 1.0, AMBER, 0.28 * (1 - p / 0.35)); } }
       } });
-    void F; void EARTH;
+    void F; void EARTH; void px; void py; void fx; void fy;
   };
   U.obsidiandrill.preview = (s, phi) => { const S = drillSet(s); return renderPhase(phi, s, S); };   // (for the model preview in tests)
 })();
