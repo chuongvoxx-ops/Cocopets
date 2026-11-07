@@ -129,6 +129,13 @@ function drawPetRig(c, RG, S, h, o) {
         const g2 = cv.getContext('2d'); g2.setTransform(kz, 0, 0, kz, -x0 * kz, -y0 * kz); g2.transform(M.a, M.b, M.c, M.d, M.e, M.f); g2.drawImage(R.cv, vx, vy, vw, vh);
         F2 = w.frames[j] = { cv, x0, y0, w: x1 - x0, h: y1 - y0 };
       }
+      // (pose.wingSmooth: drawn large, as on the Team stage, the 16 stills would show as steps; the still is turned on
+      // about the wing's root by what the beat's angle has moved on since it, so the beat is smooth at any size)
+      let rr = 0;
+      if (P.wingSmooth) { const amp = 12 * BT[1], qj = Math.sin((j + 0.5) / NB * TAU); rr = (clamp(Math.sin(u) * amp, -down, up) - clamp(qj * amp, -down, up)) * w.k * D2R; }
+      if (rr) { const px = w.pv[0] * k, py = w.pv[1] * k;
+        for (const sd of [1, -1]) { c.save(); if (sd < 0) c.scale(-1, 1); c.translate(px, py); c.rotate(rr); c.translate(-px, -py); c.drawImage(F2.cv, F2.x0 * k, F2.y0 * k, F2.w * k, F2.h * k); c.restore(); }
+        return; }
       c.drawImage(F2.cv, F2.x0 * k, F2.y0 * k, F2.w * k, F2.h * k);
       c.save(); c.scale(-1, 1); c.drawImage(F2.cv, F2.x0 * k, F2.y0 * k, F2.w * k, F2.h * k); c.restore();
     }); };
@@ -292,7 +299,7 @@ function drawPetFull(c, X, Ybase, h, o) {
     for (let i = 0; i < NLt; i++) { const ring = i >= 2 ? 1 : 0, [lx, ly, , front] = legLightAt(legLightPhase(i, t), LGeo.cy, LGeo.Rr, ring); if (front !== fr) continue;
       const rr = 15 * kU * (ring ? 0.78 : 1), im = legLightCanvas(PF.x.leg.c, rr * 2 * sc1); if (im) c.drawImage(im, X + (o.flip ? -lx : lx) * kU - rr, Y + ly * kU - rr, rr * 2, rr * 2); } };
   lights(false);
-  const pose = o.pose || { walk, moving, t, cast: o.cast || 0, ult: !!o.ult, wingPh: o.wingPh || 0, wingAmp: o.wingAmp != null ? o.wingAmp : moving ? 14 : fl ? 11 : 8 };
+  const pose = o.pose || { walk, moving, t, cast: o.cast || 0, ult: !!o.ult, wingPh: o.wingPh || 0, wingAmp: o.wingAmp != null ? o.wingAmp : moving ? 14 : fl ? 11 : 8, wingSmooth: !!o.wingSmooth };
   drawPetSprite(c, X, Y, h, { sprites: S, flip: !!o.flip, face: o.face || 'normal', sx, sy, rot: o.rot || 0, rig: o.rig !== false, pose, snap: o.snap, alpha: o.alpha });
   lights(true);
 }

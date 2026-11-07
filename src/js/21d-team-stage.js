@@ -20,7 +20,9 @@ const TS_PAL = {
 const TS_GLYPH = { wind: 'vortex', fire: 'flame', ice: 'snow', water: 'bubbles', thunder: 'bolt', earth: 'gem', dark: 'crescent', light: 'stars' };
 const TS = { cv: null, c: null, W: 0, H: 0, dpr: 1, raf: 0, last: 0, t: 0, inView: true, io: null, ro: null, bound: false,
   uid: null, el: 'thunder', p: null, S: null, want: null, sig: '', bg: null, prevBg: null, xf: 0, out: null, A: null, fx: [], orb: null,
-  ptr: null, hint: true, sprites: new Map(), bgs: new Map(), ms: [], shoot: null, rm: false };
+  ptr: null, hint: true, sprites: new Map(), bgs: new Map(), ms: [], shoot: null, rm: false, bgCv: null, bgC: null, bdpr: 1 };
+/* is the stage's loop running (the town draws itself only now and then under it, 24a) */
+const tsBusy = () => !!TS.raf;
 const tsRM = () => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } };
 
 /* ---------- the backdrop, made once per element and size: a still layer (gradient, glow, dust of stars, a faint
@@ -34,7 +36,8 @@ function tsBackdrop(el, W, H, dpr) {
   if (TS.bgs.has(key)) return TS.bgs.get(key);
   const P = TS_PAL[el] || TS_PAL.thunder, R = tsSeeded('stage:' + el), fy = H * 0.8;
   // the still layer, at full resolution
-  const base = tsCanvas(W * dpr, H * dpr), g = base.getContext('2d'); g.scale(dpr, dpr);
+  // (the backdrop is soft: it is made at 1.5 device pixels per point at most, whatever the phone's density)
+  const bd = Math.min(1.5, dpr), base = tsCanvas(W * bd, H * bd), g = base.getContext('2d'); g.scale(bd, bd);
   let gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, P.sky[0]); gr.addColorStop(0.5, P.sky[1]); gr.addColorStop(0.8, mixHex(P.sky[1], P.sky[2], 0.5)); gr.addColorStop(1, P.sky[2]);
   g.fillStyle = gr; g.fillRect(0, 0, W, H);
   // the soft light behind the pet
@@ -52,7 +55,7 @@ function tsBackdrop(el, W, H, dpr) {
   gr = g.createLinearGradient(0, fy - H * 0.1, 0, H); gr.addColorStop(0, tsRGBA(P.sky[2], 0)); gr.addColorStop(1, tsRGBA(P.sky[2], 0.85)); g.fillStyle = gr; g.fillRect(0, fy - H * 0.1, W, H);
   gr = g.createRadialGradient(W / 2, H * 0.48, Math.min(W, H) * 0.35, W / 2, H * 0.48, Math.max(W, H) * 0.78); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,.55)'); g.fillStyle = gr; g.fillRect(0, 0, W, H);
   // the nebula: three soft clouds, each a few dozen blobs, at a quarter of the size (they are drawn large and soft)
-  const q = 0.25 * dpr, neb = [0, 1, 2].map(j => {
+  const q = 0.25 * bd, neb = [0, 1, 2].map(j => {
     const cw = W * 1.3, ch = H * 1.1, cv = tsCanvas(cw * q, ch * q), n = cv.getContext('2d'); n.scale(q, q);
     const cx = cw * (j === 0 ? 0.32 : j === 1 ? 0.7 : 0.5), cy = ch * (j === 0 ? 0.3 : j === 1 ? 0.42 : 0.62), col = P.neb[j], col2 = P.neb[(j + 1) % 3];
     for (let i = 0; i < 26; i++) {
@@ -66,7 +69,7 @@ function tsBackdrop(el, W, H, dpr) {
     return { cv, w: cw, h: ch, ph: R() * 6.283, sp: 0.05 + R() * 0.04, ax: W * (0.05 + R() * 0.04), ay: H * (0.03 + R() * 0.03) };
   });
   // a light shaft from above, slanting
-  const shaft = tsCanvas(W * 0.5 * dpr, H * 0.5 * dpr); { const s = shaft.getContext('2d'); s.scale(dpr * 0.5, dpr * 0.5); s.translate(W * 0.5, 0); s.transform(1, 0, -0.18, 1, 0, 0);
+  const shaft = tsCanvas(W * 0.5 * bd, H * 0.5 * bd); { const s = shaft.getContext('2d'); s.scale(bd * 0.5, bd * 0.5); s.translate(W * 0.5, 0); s.transform(1, 0, -0.18, 1, 0, 0);
     [[-0.16, 0.12, 0.13], [0.02, 0.07, 0.1], [0.14, 0.05, 0.08]].forEach(([dx, w, a]) => { const lg = s.createLinearGradient(0, 0, 0, H * 0.85); lg.addColorStop(0, tsRGBA(mixHex(P.neb[0], '#FFFFFF', 0.6), a)); lg.addColorStop(1, tsRGBA(P.neb[0], 0));
       const hg = s.createLinearGradient(W * (dx - w), 0, W * (dx + w), 0); hg.addColorStop(0, 'rgba(0,0,0,0)'); hg.addColorStop(0.5, '#000'); hg.addColorStop(1, 'rgba(0,0,0,0)');
       s.fillStyle = lg; s.save(); s.beginPath(); s.rect(W * (dx - w), 0, W * w * 2, H * 0.85); s.clip(); s.fillRect(W * (dx - w), 0, W * w * 2, H * 0.85); s.globalCompositeOperation = 'destination-in'; s.fillStyle = hg; s.fillRect(W * (dx - w), 0, W * w * 2, H * 0.85); s.restore(); }); }
@@ -85,7 +88,7 @@ function tsBackdrop(el, W, H, dpr) {
   const star = tsCanvas(32 * dpr, 32 * dpr); { const s = star.getContext('2d'); s.scale(dpr, dpr); s.translate(16, 16); let b = s.createRadialGradient(0, 0, 0, 0, 0, 7); b.addColorStop(0, 'rgba(255,255,255,1)'); b.addColorStop(0.3, tsRGBA(P.star, 0.75)); b.addColorStop(1, tsRGBA(P.neb[0], 0)); s.fillStyle = b; s.fillRect(-8, -8, 16, 16);
     s.globalCompositeOperation = 'lighter'; [[16, 1.1], [10, 0.8]].forEach(([L, w], i) => { s.save(); s.rotate(i * Math.PI / 4); const lg = s.createLinearGradient(-L, 0, L, 0); lg.addColorStop(0, 'rgba(255,255,255,0)'); lg.addColorStop(0.5, tsRGBA(P.star, i ? 0.4 : 0.9)); lg.addColorStop(1, 'rgba(255,255,255,0)'); s.fillStyle = lg; s.fillRect(-L, -w / 2, L * 2, w); s.fillRect(-w / 2, -L, w, L * 2); s.restore(); }); }
   const mote = glowSprite(mixHex(P.neb[0], '#FFFFFF', 0.25));
-  const out = { el, P, base, neb, shaft, dais, RD, star, mote, W, H };
+  const out = { el, P, base, neb, shaft, dais, RD, star, mote, W, H, bd };
   TS.bgs.set(key, out);
   // (only the last few backdrops are kept: the pets browsed lately)
   while (TS.bgs.size > 3) { const k0 = TS.bgs.keys().next().value, o = TS.bgs.get(k0); TS.bgs.delete(k0); if (o !== TS.bg && o !== TS.prevBg) tsCanvases(o).forEach(cv => { cv.width = cv.height = 0; }); else { TS.bgs.set(k0, o); break; } }
@@ -94,8 +97,8 @@ function tsBackdrop(el, W, H, dpr) {
 /* the twinkling stars and the motes, placed afresh for each element */
 function tsSky(el) {
   const R = tsSeeded('sky:' + el), W = TS.W, H = TS.H;
-  TS.stars = []; for (let i = 0; i < 34; i++) TS.stars.push({ x: R() * W, y: R() * H * 0.72, s: 0.35 + R() * R() * 0.9, ph: R() * 6.283, f: 0.6 + R() * 1.8 });
-  TS.ms = []; for (let i = 0; i < 22; i++) TS.ms.push(tsMote(R, true));
+  TS.stars = []; for (let i = 0; i < 22; i++) TS.stars.push({ x: R() * W, y: R() * H * 0.72, s: 0.35 + R() * R() * 0.9, ph: R() * 6.283, f: 0.6 + R() * 1.8 });
+  TS.ms = []; for (let i = 0; i < 14; i++) TS.ms.push(tsMote(R, true));
 }
 function tsMote(R, fresh) {
   R = R || Math.random; const W = TS.W, H = TS.H, P = TS_PAL[TS.el] || TS_PAL.thunder, k = P.mote;
@@ -109,21 +112,29 @@ function tsMote(R, fresh) {
   return m;
 }
 const tsCanvases = o => [o.base, o.shaft, o.dais, o.star].concat(o.neb.map(n => n.cv), o.sky || []);
-/* the backdrop as one picture: the still layer, the drifting clouds and the shaft are laid together into a spare canvas
-   a layer a frame, and it is swapped in every eighth frame (the clouds move a fraction of a pixel in that time), so a
-   frame copies one full-size picture and at most one more instead of five */
-function tsSkyOf(B, t) {
-  const dpr = TS.dpr, W = B.W, H = B.H;
-  if (!B.sky) { B.sky = [tsCanvas(W * dpr, H * dpr), tsCanvas(W * dpr, H * dpr)]; B.front = 0; B.step = 0;
-    const g = B.sky[0].getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); tsDrawBackdrop(g, B, t, 1); }
-  const st8 = B.step++ % 8, back = B.sky[1 - B.front];
-  if (st8 < 4) {
-    const g = back.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
-    if (st8 === 0) { B.tc = t; g.globalCompositeOperation = 'copy'; g.globalAlpha = 1; g.drawImage(B.base, 0, 0, W, H); g.globalCompositeOperation = 'source-over'; }
-    else tsDrawBackdrop(g, B, B.tc, 1, st8);
-    if (st8 === 3) B.front = 1 - B.front;
+/* the backdrop is a canvas of its own under the pet's (the page lays one over the other): the still layer, the drifting
+   clouds and the shaft are laid together into a spare picture a layer a frame, a few times a second (the clouds move a
+   fraction of a pixel in that time), and only then copied onto it. So most frames the backdrop costs nothing; while one
+   element melts into the next (0.7 s) it is drawn every frame */
+function tsBgFrame(t) {
+  const B = TS.bg, g = TS.bgC; if (!B || !g) return;
+  const bd = B.bd, W = B.W, H = B.H, done = () => B.sky[B.front];
+  if (!B.sky) { B.sky = [tsCanvas(W * bd, H * bd), tsCanvas(W * bd, H * bd)]; B.front = 0; B.step = -1; B.at = t;
+    const g0 = B.sky[0].getContext('2d'); g0.setTransform(bd, 0, 0, bd, 0, 0); tsDrawBackdrop(g0, B, t, 1); B.shown = false; }
+  let fresh = false;
+  if (B.step < 0 && t - B.at >= (TS.rm ? 2 : 0.25)) { B.step = 0; B.tc = t; }
+  if (B.step >= 0) {
+    const back = B.sky[1 - B.front], g2 = back.getContext('2d'); g2.setTransform(bd, 0, 0, bd, 0, 0);
+    if (B.step === 0) { g2.globalCompositeOperation = 'copy'; g2.globalAlpha = 1; g2.drawImage(B.base, 0, 0, W, H); g2.globalCompositeOperation = 'source-over'; }
+    else tsDrawBackdrop(g2, B, B.tc, 1, B.step);
+    if (++B.step > 3) { B.front = 1 - B.front; B.step = -1; B.at = t; fresh = true; }
   }
-  return B.sky[B.front];
+  const PB = TS.prevBg && TS.xf > 0 && TS.prevBg.sky ? TS.prevBg : null;
+  if (!fresh && B.shown && !PB && !B.mixed) return;
+  g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'copy'; g.globalAlpha = 1; g.drawImage(done(), 0, 0, g.canvas.width, g.canvas.height);
+  g.globalCompositeOperation = 'source-over';
+  if (PB) { g.globalAlpha = TS.xf * TS.xf * (3 - 2 * TS.xf); g.drawImage(PB.sky[PB.front], 0, 0, g.canvas.width, g.canvas.height); g.globalAlpha = 1; }
+  B.shown = true; B.mixed = !!PB;
 }
 function tsDrawBackdrop(c, B, t, a, only) {
   if (only) { const W = TS.W, H = TS.H, rm = TS.rm ? 0.25 : 1, n = B.neb[only - 1]; c.globalCompositeOperation = 'lighter';
@@ -165,9 +176,10 @@ function teamStageMount(P) {
   if (!TS.cv) {
     TS.cv = document.createElement('canvas'); TS.cv.className = 'tms-cv'; TS.cv.setAttribute('aria-label', 'Your pet, live: tap, rub or hold it to play');
     TS.cv.setAttribute('role', 'img'); TS.c = TS.cv.getContext('2d');
+    TS.bgCv = document.createElement('canvas'); TS.bgCv.className = 'tms-bg'; TS.bgCv.setAttribute('aria-hidden', 'true'); TS.bgC = TS.bgCv.getContext('2d', { alpha: false });
     tsBind();
   }
-  host.insertBefore(TS.cv, host.firstChild);
+  host.insertBefore(TS.cv, host.firstChild); host.insertBefore(TS.bgCv, TS.cv);
   TS.rm = tsRM();
   tsResize();
   const el = petElement(P), sig = `${P.dlv || 1}|${P.dxp || 0}|${P.xp || 0}|${P.stage}`;
@@ -182,7 +194,7 @@ function tsSwap(P, el, same) {
   if (TS.A && TS.S && !same) TS.out = { S: TS.S, A: TS.A, form: TS.form, el: TS.el, h: TS.h, t: 0 };
   if (TS.bg && TS.el !== el && TS.W) { TS.prevBg = TS.bg; TS.xf = 1; }
   TS.uid = P.uid; TS.p = P; TS.el = el; TS.want = tsKey(P); TS.S = null; TS.A = null; TS.orb = null;
-  if (TS.W) { TS.bg = tsBackdrop(el, TS.W, TS.H, TS.dpr); tsSky(el); }
+  if (TS.W) { TS.bg = tsBackdrop(el, TS.W, TS.H, TS.dpr); TS.bg.shown = false; tsSky(el); }
   TS.first = !TS.out && !TS.prevBg;
 }
 function tsResize() {
@@ -190,9 +202,10 @@ function tsResize() {
   const W = Math.round(cv.parentNode.clientWidth || 0); if (W < 50) return;
   const H = Math.round(clamp(W * 1.02, 260, 440)), dpr = Math.min(2, window.devicePixelRatio || 1);
   if (W === TS.W && H === TS.H && dpr === TS.dpr && cv.width === Math.round(W * dpr)) return;
-  TS.W = W; TS.H = H; TS.dpr = dpr;
+  TS.W = W; TS.H = H; TS.dpr = dpr; TS.bdpr = Math.min(1.5, dpr);
   cv.style.height = H + 'px'; cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
-  if (TS.uid) { TS.bg = tsBackdrop(TS.el, W, H, dpr); TS.prevBg = null; TS.xf = 0; tsSky(TS.el); if (TS.A) tsFit(); }
+  TS.bgCv.style.height = H + 'px'; TS.bgCv.width = Math.round(W * TS.bdpr); TS.bgCv.height = Math.round(H * TS.bdpr);
+  if (TS.uid) { TS.bg = tsBackdrop(TS.el, W, H, dpr); TS.bg.shown = false; TS.prevBg = null; TS.xf = 0; tsSky(TS.el); if (TS.A) tsFit(); }
 }
 function tsBind() {
   if (TS.bound) return; TS.bound = true;
@@ -234,17 +247,20 @@ function tsSleep() {
   if (TS.ptr) { clearTimeout(TS.ptr.timer); TS.ptr = null; if (TS.A && TS.A.held) tsDrop(); }
   // (the sheet closed: its picture's memory goes back; reopening sizes it again)
   // (and the next opening starts afresh: the pet steps onto the dais again)
-  if (TS.cv && (!TS.cv.isConnected || sheetKind !== 'team' || sheetWrap.hidden)) { if (TS.cv.width) { TS.cv.width = TS.cv.height = 0; TS.W = 0; } TS.uid = null; TS.A = null; TS.S = null; TS.out = null; TS.prevBg = null; TS.xf = 0; TS.orb = null; TS.fx.length = 0;
+  if (TS.cv && (!TS.cv.isConnected || sheetKind !== 'team' || sheetWrap.hidden)) { if (TS.cv.width) { TS.cv.width = TS.cv.height = 0; TS.bgCv.width = TS.bgCv.height = 0; TS.W = 0; } TS.uid = null; TS.A = null; TS.S = null; TS.out = null; TS.prevBg = null; TS.xf = 0; TS.orb = null; TS.fx.length = 0;
     TS.bgs.forEach(o => tsCanvases(o).forEach(cv => { cv.width = cv.height = 0; })); TS.bgs.clear(); TS.bg = null;
     while (TS.sprites.size > 4) TS.sprites.delete(TS.sprites.keys().next().value); }
 }
-TS.perfLog = [];
+TS.perfLog = []; TS.parts = [];
 function tsFrame(now) {
   TS.raf = 0;
   if (!tsWanted()) { tsSleep(); return; }
-  const dt = Math.min(0.05, Math.max(0, (now - TS.last) / 1000)); TS.last = now; TS.t += dt;
+  // (real time: a slow frame does not slow the pet, its wings or the sky; the pet's moves are stepped at 30 a second at
+  // least, so a long frame cannot throw it through the floor)
+  const dt = Math.min(0.25, Math.max(0, (now - TS.last) / 1000)); TS.last = now;
   const t0 = performance.now();
-  try { tsUpdate(dt); tsDraw(dt); } catch (e) { console.error(e); if (globalThis.__errbox) __errbox('The Team stage failed: ' + (e && e.message)); return; }
+  try { const n = Math.max(1, Math.ceil(dt / (1 / 30))); for (let i = 0; i < n; i++) { TS.t += dt / n; tsUpdate(dt / n); } const t1 = performance.now(); tsBgFrame(TS.t); const t2 = performance.now(); tsDraw(dt); const t3 = performance.now();
+    TS.parts.push([t1 - t0, t2 - t1, t3 - t2]); if (TS.parts.length > 240) TS.parts.shift(); } catch (e) { console.error(e); if (globalThis.__errbox) __errbox('The Team stage failed: ' + (e && e.message)); return; }
   const ms = performance.now() - t0; TS.perfLog.push(ms); if (TS.perfLog.length > 240) TS.perfLog.shift();
   TS.raf = requestAnimationFrame(tsFrame);
 }
@@ -297,7 +313,7 @@ function tsUpdate(dt) {
     if (S && !TS.out && (S.rig || TS.waitT > 1.5)) {
       TS.waitT = 0;
       TS.S = S; TS.form = S.form; TS.A = tsNewActor(); tsFit();
-      const A = TS.A; A.z = TS.first ? TS.h * 0.25 : TS.h * 1.7; A.enter = 1; A.zv = 0; TS.beam = TS.first ? 0 : 1;
+      const A = TS.A; A.lev = !!(S.form && S.form.x && S.form.x.gold && S.form.stage >= 7 && S.form.x.leg); A.z = TS.first ? TS.h * 0.25 : TS.h * 1.7; A.enter = 1; A.zv = 0; TS.beam = TS.first ? 0 : 1;
       if (!TS.first) sfx.sparkle && sfx.sparkle();
     }
   }
@@ -307,7 +323,7 @@ function tsUpdate(dt) {
   for (let i = 0; i < TS.ms.length; i++) { const m = TS.ms[i]; m.life += dt; m.x += (m.vx + Math.sin(t * 0.8 + m.ph) * 4) * dt; m.y += m.vy * dt; if (m.life > m.max || m.y < -10 || m.y > TS.H + 10 || m.x > TS.W + 10 || m.x < -10) TS.ms[i] = tsMote(); }
   if (!TS.rm) { if (TS.shoot) { TS.shoot.u += dt / 0.8; if (TS.shoot.u >= 1) TS.shoot = null; } else if (Math.random() < dt / 7) TS.shoot = { x: rand(0.2, 0.95) * TS.W, y: rand(0.04, 0.3) * TS.H, a: Math.PI * rand(0.8, 0.9), L: TS.W * rand(0.25, 0.4), u: 0 }; }
   const A = TS.A; if (!A) return;
-  A.mT += dt; A.faceT -= dt; A.wph += dt * (A.mv ? 9 : A.z > 2 ? 16 : 3.4);
+  A.mT += dt; A.faceT -= dt; A.wph += dt * (A.z > 6 ? 17 : A.mv ? 9 : A.lev ? 4 : 3.2);   // (the house's beat: in the air, walking, a Celestial floating, at rest)
   A.blinkT -= dt; if (A.blinkT <= -0.13) A.blinkT = Math.random() < 0.18 ? 0.25 : rand(2.2, 5.5);
   if (A.emote) { A.emote.t -= dt; if (A.emote.t <= 0) A.emote = null; }
   A.boops = A.boops.filter(b => t - b < 2.2);
@@ -436,9 +452,8 @@ function tsDraw() {
   const c = TS.c, W = TS.W, H = TS.H, t = TS.t, dpr = TS.dpr, B = TS.bg;
   c.setTransform(dpr, 0, 0, dpr, 0, 0); c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'medium';
   c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1;
-  if (!B) { c.fillStyle = '#0B0820'; c.fillRect(0, 0, W, H); return; }
-  c.drawImage(tsSkyOf(B, t), 0, 0, W, H);
-  if (TS.prevBg && TS.xf > 0) { const PB = TS.prevBg, a = TS.xf * TS.xf * (3 - 2 * TS.xf); if (PB.sky) { c.globalAlpha = a; c.drawImage(PB.sky[PB.front], 0, 0, W, H); c.globalAlpha = 1; } else tsDrawBackdrop(c, PB, t, a); }
+  c.clearRect(0, 0, W, H);
+  if (!B) return;
   // the twinkling stars
   c.globalCompositeOperation = 'lighter';
   for (const s of TS.stars) { const tw = 0.5 + 0.5 * Math.sin(t * s.f + s.ph), a = 0.15 + 0.85 * tw * tw, z = 14 * s.s * (0.7 + 0.3 * tw); c.globalAlpha = a; c.drawImage(B.star, s.x - z, s.y - z, z * 2, z * 2); }
@@ -471,7 +486,7 @@ function tsDraw() {
   // a jump stretches it going up, squashes it landing
   let sx = A.sx * (1 + A.sq * 0.7), sy = A.sy * (1 - A.sq);
   if (A.z > 0 && !A.held) { const u = clamp(A.zv / (h * 4), -1, 1); sy *= 1 + u * 0.1; sx *= 1 - u * 0.07; }
-  drawPetFull(c, X, fy, h, { sprites: S, form: TS.form, t, face, moving: A.mv, walk: A.walk, wingPh: A.wph, flip: A.face < 0, z: A.z, sx, sy, rot: A.rot, el: TS.el, rig: true });
+  drawPetFull(c, X, fy, h, { sprites: S, form: TS.form, t, face, moving: A.mv, walk: A.walk, wingPh: A.wph, wingSmooth: true, flip: A.face < 0, z: A.z, sx, sy, rot: A.rot, el: TS.el, rig: true });
   // the emote over its head (over a Legendary's wings)
   if (A.emote) { const top = fy - A.z - petFloatOf(TS.form, h / 1.02, t) - h * (S.rig && S.rig.legW && S.rig.legW.length ? 1.2 : 1.02), k = clamp(h / 110, 1, 1.35); c.save(); c.translate(X + A.face * h * 0.3, Math.max(top - 4, 62 + 40 * k)); c.scale(k, k); drawEmote(c, 0, 0, A.emote); c.restore(); }
   tsDrawFx(c);
@@ -489,11 +504,15 @@ function tsDrawFx(c) {
 /* the test hook's handle (the test build exposes it as team.stage) */
 const teamStage = {
   state: () => ({ running: !!TS.raf, uid: TS.uid, el: TS.el, ready: !!TS.A, W: TS.W, H: TS.H, cv: TS.cv ? [TS.cv.width, TS.cv.height] : null, mode: TS.A && TS.A.mode, fx: TS.fx.length, sprites: TS.sprites.size, bgs: TS.bgs.size }),
+  parts: () => { const P = TS.parts, q = (i, f) => { const L = P.map(x => x[i]).sort((a, b) => a - b); return L.length ? +L[Math.floor(L.length * f)].toFixed(2) : null; }; return { update: [q(0, 0.5), q(0, 0.95)], backdrop: [q(1, 0.5), q(1, 0.95)], draw: [q(2, 0.5), q(2, 0.95)] }; },
   perf: () => { const L = TS.perfLog.slice().sort((a, b) => a - b); return L.length ? { n: L.length, avg: +(L.reduce((s, v) => s + v, 0) / L.length).toFixed(3), p50: +L[L.length >> 1].toFixed(3), p95: +L[Math.floor(L.length * 0.95)].toFixed(3), max: +L[L.length - 1].toFixed(3) } : null; },
   petScreen: () => { const A = TS.A; if (!A || !TS.cv) return null; const r = TS.cv.getBoundingClientRect(); return { x: r.left + TS.W / 2 + A.x, y: r.top + TS.fy - A.z - TS.h * 0.5, top: r.top, floor: r.top + TS.fy, left: r.left, w: TS.W }; },
   boop: () => tsBoop(), toss: (x, y) => tsToss(x, y), TS,
-  // (what a frame's parts cost: the backdrop, the stars and motes, the pet; n draws of each)
-  bench: n => { const c = TS.c, B = TS.bg, T = () => performance.now(), r = {}; if (!B || !TS.A) return null; const fl = () => c.getImageData(0, 0, 1, 1); fl(); let t0 = T(); for (let i = 0; i < n; i++) { c.drawImage(tsSkyOf(B, TS.t + i * 0.01), 0, 0, TS.W, TS.H); fl(); } r.backdrop = (T() - t0) / n;
-    t0 = T(); for (let i = 0; i < n; i++) { drawPetFull(c, TS.W / 2, TS.fy, TS.h, { sprites: TS.S, form: TS.form, t: TS.t, el: TS.el, rig: true }); fl(); } r.pet = (T() - t0) / n;
-    t0 = T(); for (let i = 0; i < n; i++) tsDraw(); r.frame = (T() - t0) / n; c.getImageData(0, 0, 1, 1); r.flushAll = (T() - t0) / n; return r; },
+  // (what the parts cost, each drawn n times and then waited for once, so the wait is shared: the backdrop's refresh,
+  // the pet, a whole frame of the pet's canvas)
+  bench: n => { const c = TS.c, B = TS.bg, T = () => performance.now(), r = {}; if (!B || !TS.A) return null; const fl = g => g.getImageData(0, 0, 1, 1);
+    fl(c); fl(TS.bgC); let t0 = T(); fl(c); r.readback = T() - t0;
+    t0 = T(); for (let i = 0; i < n; i++) { B.at = -9; for (let k = 0; k < 5; k++) tsBgFrame(TS.t + i); } fl(TS.bgC); r.backdropRefresh = (T() - t0) / n;
+    t0 = T(); for (let i = 0; i < n; i++) drawPetFull(c, TS.W / 2, TS.fy, TS.h, { sprites: TS.S, form: TS.form, t: TS.t + i * 0.016, el: TS.el, rig: true, wingPh: i * 0.3, wingSmooth: true }); fl(c); r.pet = (T() - t0) / n;
+    t0 = T(); for (let i = 0; i < n; i++) tsDraw(); fl(c); r.frame = (T() - t0) / n; return r; },
 };

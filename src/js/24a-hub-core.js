@@ -758,6 +758,9 @@ function hubFrame(dt) {
   if (overlay !== hub.paused || (gap && !overlay)) { hub.paused = overlay; if (!overlay) { hub.keys = {}; hub.stick = null; hub.places = null; hub.nearKey = ''; hubSyncParty(false); hub.onReturn.forEach(cb => { try { cb(); } catch (e) {} }); } }
   hub.t += dt;
   if (!overlay) hubUpdate(dt);
+  // (under the Team sheet's live stage the town, paused anyway, is drawn once a second: the phone is the stage's, 21d)
+  if (overlay && typeof tsBusy === 'function' && tsBusy() && t0 - (hub.drawnAt || 0) < 1000) return;
+  hub.drawnAt = t0;
   hubDraw(dt);
   const ms = performance.now() - t0; hub.msAvg = hub.msAvg ? hub.msAvg * 0.95 + ms * 0.05 : ms; if (ms > hub.msMax) hub.msMax = ms; hub.frames++;
 }
