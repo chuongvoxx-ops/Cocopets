@@ -7,9 +7,13 @@
      - ramming: swept contact with the car's body deals light damage (TUNE.ram x DK) once per pass per monster (a pass ends
        when the monster leaves the body; never sooner than TUNE.ramGate s), only above TUNE.ramMin of top speed: a parked
        car or one pushing against a monster deals nothing; bosses are never displaced (hitMon's own knockback rules);
-     - Dodge is Drift (the scarlet button): a powerslide with a beginning, a slide and a recovery; the body swings out,
-       tyre trails of pink-white light and luminous smoke follow, and every monster in the broad swept area takes
-       TUNE.drift x DK once per activation; ramming is suppressed for those monsters until they leave the car;
+     - Dodge is Drift (the scarlet button; round 2: the Dodge roll scaled up for a car): a kick, a fast burst along the
+       stick (else the heading, else the aim) with the car spinning through at least one full turn, then a short recovery
+       that hands the speed back to the stick; the Dodge's own invulnerability (0.38 s), a short cooldown with an early
+       press kept; every monster within TUNE.driftR of the car's swept path takes TUNE.drift x DK once per activation with
+       knockback (bosses: hitMon's rule); spiral tyre trails off all four wheels, smoke spirals, a smear of the body, a
+       shockwave ring per strike; ramming is suppressed for those monsters until they leave the car. The pet in the seat
+       rolls one flat 2D turn with the spin, exactly as the Dodge rolls the pet's sprite (never a 3D turn);
      - Strong 1 / 2 are Shooting Star / Love Sensation (worker C2's file, 20k4q, SPORTSCAR_MOVES; a stub here if absent);
      - the Ult button is the Supernova meter: it fills from the damage the form actually deals (ctx.hit: after mitigation,
        no overkill, nothing for misses or invulnerable targets; Supernova's own hits never refill it), and only a press
@@ -42,11 +46,14 @@
   const TUNE = {
     dur: [20, 25, 35],          // s of driving at evo 1-3 / 4-6 / 7, from the moment the car can be driven
     cd: 120,                    // s: the Ult's cooldown, from the exit (the row's own cd is used when present)
-    top: 8.4, accel: 17, coast: 7.5, overK: 5,            // tiles/s, tiles/s2 (the pet walks 4.3)
-    steer: [3.0, 5.4], grip: 11, bumpK: 0.45,             // rad/s at rest .. at top speed; lateral grip /s; speed kept on a wall
-    ram: 0.6, ramGate: 0.45, ramMin: 0.4, ramKb: 3.2,     // x DK per pass; s; share of top speed; knockback (bosses: hitMon's rule)
-    drift: 2.2, driftCd: 1.6, driftPad: 1.05,             // x DK once per activation; s (Dodge's own cadence is 0.85 s); tiles round the body
-    driftPh: [0.14, 0.48, 0.2], driftAng: 0.95, driftGrip: 1.6,   // s begin / slide / recovery; the body's swing (rad); grip while sliding
+    top: 11.8, accel: 24, coast: 10.5, overK: 7,          // tiles/s, tiles/s2 (the pet walks 4.3; round 2: +40% top speed, acceleration to match)
+    steer: [3.3, 6.2], grip: 13, bumpK: 0.45,             // rad/s at rest .. at top speed; lateral grip /s; speed kept on a wall
+    ram: 0.6, ramGate: 0.45, ramMin: 0.3, ramKb: 3.2,     // x DK per pass; s; share of top speed (0.3 x 11.8 = 3.5 tiles/s, as before); knockback (bosses: hitMon's rule)
+    /* Drift (round 2): the Dodge roll scaled up for a car. A burst along the stick (else the heading, else the aim) with
+       the car spinning through at least one full turn, then a short recovery that hands the speed back to the stick */
+    drift: 3.0, driftCd: 0.9, driftR: 2.5, driftKb: 7.5,  // x DK once per monster per activation; s from the press (Dodge: 0.85 s); swept radius round the car's centre (tiles); knockback
+    driftPh: [0.05, 0.3, 0.14], driftV: 19, driftTurn: 5, driftBuf: 0.2,   // s kick / spin-burst / recovery; burst speed (tiles/s, eased off as the Dodge's); steering during the burst (rad/s); a press this early is kept
+    driftInv: 0.38,             // s of invulnerability from the press: the Dodge's own (0.3 s roll + 0.08 s after)
     chargeK: 30,                // the meter fills at chargeK x DK of damage actually dealt (a dense L1 pack, driven well: ~11 s; ordinary play ~15-20 s)
     summon: 1.75, out: 0.85,    // s
     novaCap: 16,                // s: a Supernova that never reports done is ended anyway
@@ -350,6 +357,8 @@
       for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + i / 5 * TAU; c.strokeStyle = rgba(GOLD, 0.5); c.lineWidth = 1.2; c.beginPath(); c.moveTo(Math.cos(a) * R * 0.42, Math.sin(a) * R * 0.42); c.lineTo(Math.cos(a + TAU * 2 / 5) * R * 0.42, Math.sin(a + TAU * 2 / 5) * R * 0.42); c.stroke(); }
       S.seal = cv; }
     yield;
+    // a feathered shockwave ring (laid flat on the floor when drawn): a bright pearl rim fading into a pink haze inside
+    { const P = 128, [cv, c] = mk(P), gr = c.createRadialGradient(64, 64, 0, 64, 64, 63); gr.addColorStop(0, 'rgba(255,127,192,0)'); gr.addColorStop(0.55, 'rgba(255,127,192,.08)'); gr.addColorStop(0.8, 'rgba(255,170,215,.4)'); gr.addColorStop(0.9, 'rgba(255,248,251,1)'); gr.addColorStop(0.95, 'rgba(255,200,230,.45)'); gr.addColorStop(1, 'rgba(255,127,192,0)'); c.fillStyle = gr; c.fillRect(0, 0, P, P); S.ring = cv; }
     // the car's soft shadow (a rounded oblong, laid on the floor along the car)
     { const P = 128, [cv, c] = mk(P, 64); const gr = c.createRadialGradient(64, 32, 4, 64, 32, 62); gr.addColorStop(0, 'rgba(20,4,16,.55)'); gr.addColorStop(0.55, 'rgba(20,4,16,.38)'); gr.addColorStop(1, 'rgba(20,4,16,0)'); c.save(); c.scale(1, 0.5); c.fillStyle = gr; c.beginPath(); c.arc(64, 64, 64, 0, TAU); c.fill(); c.restore(); S.shadow = cv; }
     SM = S;
@@ -408,7 +417,7 @@
     const tgt = X.nearestMon(me.x, me.y, 9) || null; let a = tgt ? Math.atan2(tgt.y - me.y, tgt.x - me.x) : (me.face < 0 ? Math.PI : 0);
     const car = { x: me.x, y: me.y, a, vx: 0, vy: 0, speed: 0, z: 0, susp: 0, lean: 0, slide: 0, glow: 0, scale: 1, locked: true, contact: true, vis: 1, wheelSpin: null, spinA: 0, steer: 0, prevX: me.x, prevY: me.y, prevA: a };
     const S = { H, g, me, X, ev, tier, DK, CD, dur, left: dur, car, phase: 'summon', t: 0, hold: 0, charge: 0, used: false, busy: null, busyT: 0, cdStar: 0, cdLove: 0, cdDrift: 0, drift: null,
-      gate: new Map(), trail: [[], []], parts: [], free: [], lights: 0, ended: false, pet: X.pet ? X.pet() : null, sfxT: 0, bumpT: 0, ltT: 0, outT: 0, outHow: '', stats: { ram: 0, drift: 0, star: 0, love: 0, nova: 0, dealt: 0, charged: 0, hits: 0 }, petStand: null };
+      gate: new Map(), trail: [[], [], [], []], parts: [], free: [], lights: 0, ended: false, pet: X.pet ? X.pet() : null, sfxT: 0, bumpT: 0, ltT: 0, outT: 0, outHow: '', stats: { ram: 0, drift: 0, star: 0, love: 0, nova: 0, dealt: 0, charged: 0, hits: 0 }, petStand: null };
     g._sportscar = S;
     // seat at the pet: the car's centre is ahead of it
     const place = (ang) => { const o = seatOff(car, ang); return { x: me.x - o[0], y: me.y - o[1] }; };
@@ -469,6 +478,8 @@
     const top = TUNE.top * (me.chill > 0 ? 0.75 : 1) * (S.g.buff && S.g.buff.haste > 0 ? 1.15 : 1), D = S.drift;
     const mag = Math.min(1, Math.hypot(mx, my));
     let steerV = 0;
+    if (S.driftQ != null && !D && S.cdDrift <= 0) { S.driftQ = null; tryDrift(S, mx, my); }   // (a press kept from just before it was ready)
+    if (S.drift && S.drift.ph < 2) { driftBurst(S, mx, my, mag, dt, top); syncMe(S); return; }
     if (mag > 0.12) {
       const want2 = Math.atan2(my, mx), da = wrap(want2 - car.a), rate = D ? TUNE.steer[0] * 0.8 : lerp(TUNE.steer[0], TUNE.steer[1], cl(car.speed / top));
       const turn = Math.max(-rate * dt, Math.min(rate * dt, da)); car.a = wrap(car.a + turn); steerV = turn / Math.max(dt, 1e-4);
@@ -476,9 +487,8 @@
       if (car.speed < tgt) car.speed = Math.min(tgt, car.speed + TUNE.accel * dt); else car.speed = Math.max(tgt, car.speed - TUNE.overK * dt);
       car.steer += (Math.max(-0.42, Math.min(0.42, da * 1.1)) - car.steer) * Math.min(1, dt * 10);
     } else { car.speed = Math.max(0, car.speed - TUNE.coast * dt); car.steer *= Math.max(0, 1 - dt * 8); }
-    if (D && D.ph < 2) car.speed = Math.max(car.speed, top * 0.82);
-    // grip pulls the velocity toward the heading; while sliding it barely does
-    const grip = D && D.ph < 2 ? TUNE.driftGrip : D ? TUNE.driftGrip + (TUNE.grip - TUNE.driftGrip) * cl(D.t / TUNE.driftPh[2]) : TUNE.grip;
+    // grip pulls the velocity toward the heading (a little looser while the drift recovers, so it slides out of the spin)
+    const grip = D ? lerp(4, TUNE.grip, cl(D.t / TUNE.driftPh[2])) : TUNE.grip;
     const vdx = Math.cos(car.a) * car.speed, vdy = Math.sin(car.a) * car.speed;
     car.vx += (vdx - car.vx) * Math.min(1, grip * dt); car.vy += (vdy - car.vy) * Math.min(1, grip * dt);
     if (moveCar(S, car.vx * dt, car.vy * dt)) { car.speed *= TUNE.bumpK; car.vx *= 0.4; car.vy *= 0.4; car.susp = Math.max(car.susp, 0.5); if (S.bumpT <= 0) { S.bumpT = 0.35; if (X.sfx && X.sfx.thud) X.sfx.thud(); spawnSparks(S, car.x + Math.cos(car.a) * 1.1, car.y + Math.sin(car.a) * 0.8, 6); } }
@@ -489,25 +499,61 @@
   /* move the car's centre with the walls in the way, an axis at a time in small steps (and its nose and tail too) */
   function moveCar(S, dx, dy) {
     const car = S.car, X = S.X, ab = car.a + car.slide, n = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)) / 0.12)); let hit = false;
-    const stuck = poseBlocked(X, car.x, car.y, ab);
+    // (a turn or the drift's spin can swing the nose or tail into a wall: then the centre alone still collides, so the car
+    //  slides free of it but can never pass through; round 2 fix, the old code let a "stuck" car move unchecked)
+    const stuck = poseBlocked(X, car.x, car.y, ab), bl = stuck ? (x, y) => X.blocked(x, y, 0.5, 0) : (x, y) => poseBlocked(X, x, y, ab);
+    const cStuck = stuck && X.blocked(car.x, car.y, 0.5, 0);
     for (let i = 0; i < n; i++) { const sx = dx / n, sy = dy / n;
-      car.x += sx; if (!stuck && poseBlocked(X, car.x, car.y, ab)) { car.x -= sx; hit = true; }
-      car.y += sy; if (!stuck && poseBlocked(X, car.x, car.y, ab)) { car.y -= sy; hit = true; } }
+      car.x += sx; if (!cStuck && bl(car.x, car.y)) { car.x -= sx; hit = true; }
+      car.y += sy; if (!cStuck && bl(car.x, car.y)) { car.y -= sy; hit = true; } }
     if (stuck && X.blocked(car.x, car.y, 0.5, 0)) { const p = X.walkPoint(car.x, car.y, { r: 0.5, x: car.x, y: car.y }); car.x += (p.x - car.x) * 0.25; car.y += (p.y - car.y) * 0.25; }
     return hit;
   }
   function syncMe(S) { const me = S.me, car = S.car; if (S.ctx.ejecting) { me.x = S.ctx.petX; me.y = S.ctx.petY; } else { me.x = car.x; me.y = car.y; } me.vx = car.vx; me.vy = car.vy; const c = Math.cos(car.a); if (Math.abs(c) > 0.25) me.face = c > 0 ? 1 : -1; me.z = 0; }
   function tryDrift(S, mx, my) {
     const car = S.car, X = S.X;
-    if (S.phase !== 'drive' || car.locked || S.drift || S.cdDrift > 0) return;
-    let side = 0; const mag = Math.hypot(mx, my);
-    if (mag > 0.2) { const cr = Math.cos(car.a) * my - Math.sin(car.a) * mx; side = Math.abs(cr) > 0.08 * mag ? Math.sign(cr) : 0; }
-    if (!side) { const m = X.nearestMon(car.x, car.y, 6); if (m) { const cr = Math.cos(car.a) * (m.y - car.y) - Math.sin(car.a) * (m.x - car.x); side = cr >= 0 ? 1 : -1; } else side = Math.random() < 0.5 ? -1 : 1; }
-    S.drift = { ph: 0, t: 0, side, hit: new Set(), a0: car.a };
+    if (S.phase !== 'drive' || car.locked) return;
+    if (S.drift || S.cdDrift > 0) { if (S.cdDrift <= TUNE.driftBuf) S.driftQ = S.g.t; return; }   // (pressed a moment early: it goes as soon as it can)
+    // the way it bursts: the stick, else the way the car is going, else the aim
+    const mag = Math.hypot(mx, my); let dir;
+    if (mag > 0.2) dir = Math.atan2(my, mx);
+    else if (Math.hypot(car.vx, car.vy) > 2) dir = Math.atan2(car.vy, car.vx);
+    else { const T = target(S); dir = T.m ? Math.atan2(T.y - car.y, T.x - car.x) : car.a; }
+    // the heading jumps to the burst; the body keeps its angle and spins from there through at least one full turn
+    // (away from the new heading first, so a turn of less than a full one never shows)
+    const s0 = wrap(car.a + car.slide - dir), side = Math.abs(s0) > 0.15 ? -Math.sign(s0) : -(S.lastSide || -1);
+    S.lastSide = side;
+    car.a = dir; car.slide = s0;
+    S.drift = { ph: 0, t: 0, side, s0, dir, hit: new Set(), nHit: 0, petRot: 0, vk: 1, x0: car.x, y0: car.y };
     S.cdDrift = TUNE.driftCd * (S.g.buff && S.g.buff.arcane > 0 ? 0.6 : 1) * (S.g.dodgeK || 1);
-    car.speed = Math.max(car.speed, TUNE.top * 0.85); if (Math.hypot(car.vx, car.vy) < TUNE.top * 0.3) { car.vx = Math.cos(car.a) * TUNE.top * 0.6; car.vy = Math.sin(car.a) * TUNE.top * 0.6; }
+    S.me.inv = Math.max(S.me.inv || 0, TUNE.driftInv);   // (the Dodge's own invulnerability, no more)
     S.g.dodges = (S.g.dodges || 0) + 1; S.g.movedOnce = true;
-    const sfx = X.sfx || {}; if (sfx.note) { sfx.note(1150, 0.42, 'sawtooth', 0.022, 1750); sfx.note(1500, 0.38, 'sine', 0.035, 2150, 0.04); } if (sfx.hiss) sfx.hiss(0.45, 0.1, 3200);
+    driftKick(S);
+  }
+  /* the kick: a shockwave ring off the car, a ring of tyre smoke, sparks, a squeal and a whoosh */
+  function driftKick(S) {
+    const car = S.car, X = S.X, Q = lowFx() ? 0.35 : 1, D = S.drift;
+    addPart(S, 6, car.x, car.y, 0, 0, 0, 0, 0.42, TUNE.driftR * 1.05, { v: 0.2 });
+    for (let i = 0; i < Math.round(14 * Q); i++) { const a = i / 14 * TAU + Math.random() * 0.3, v = 3 + Math.random() * 2.5; addPart(S, 4, car.x + Math.cos(a) * 1.1, car.y + Math.sin(a) * 0.8, 0.05, Math.cos(a) * v, Math.sin(a) * v * GY, 0.3, 0.55 + Math.random() * 0.3, 0.5 + Math.random() * 0.3, { grow: 1.5, drag: 3 }); }
+    spawnSparks(S, car.x - Math.cos(D.dir) * 1.2, car.y - Math.sin(D.dir) * 0.9, Math.round(8 * Q));
+    car.glow = Math.max(car.glow, 0.6); car.susp = Math.max(car.susp, 0.45);
+    if (!calm()) X.shake(2.5, 0.1);
+    const sfx = X.sfx || {}; if (sfx.whoosh) sfx.whoosh(); if (sfx.note) { sfx.note(1150, 0.34, 'sawtooth', 0.026, 1900); sfx.note(1500, 0.3, 'sine', 0.04, 2400, 0.03); sfx.note(240, 0.28, 'triangle', 0.08, 120); } if (sfx.hiss) sfx.hiss(0.4, 0.12, 3600);
+  }
+  /* the burst (while the car spins): eased off like the Dodge's roll, bent by the stick, bounced off walls */
+  function driftBurst(S, mx, my, mag, dt, top) {
+    const D = S.drift, car = S.car, P = TUNE.driftPh;
+    if (mag > 0.2) { const da = wrap(Math.atan2(my, mx) - D.dir), tr = TUNE.driftTurn * dt; D.dir = wrap(D.dir + Math.max(-tr, Math.min(tr, da))); }
+    const u = D.ph === 0 ? 0 : cl(D.t / P[1]), v = TUNE.driftV * (1 - u * u * 0.6) * D.vk * (top / TUNE.top);
+    car.a = D.dir; car.vx = Math.cos(D.dir) * v; car.vy = Math.sin(D.dir) * v; car.speed = v;
+    car.steer += (-D.side * 0.42 - car.steer) * Math.min(1, dt * 14); car.lean *= Math.max(0, 1 - dt * 10);
+    const x0 = car.x, y0 = car.y, dx = car.vx * dt, dy = car.vy * dt;
+    if (moveCar(S, dx, dy)) {
+      // a wall: bounce off it (the blocked axis turns back), lose some pace, sparks
+      const bx = Math.abs(dx) > 1e-4 && Math.abs(car.x - x0) < Math.abs(dx) * 0.5, by = Math.abs(dy) > 1e-4 && Math.abs(car.y - y0) < Math.abs(dy) * 0.5;
+      D.dir = Math.atan2(by ? -Math.sin(D.dir) : Math.sin(D.dir), bx ? -Math.cos(D.dir) : Math.cos(D.dir)); D.vk *= 0.65; car.susp = Math.max(car.susp, 0.6);
+      if (S.bumpT <= 0) { S.bumpT = 0.15; const X = S.X; if (X.sfx && X.sfx.thud) X.sfx.thud(); spawnSparks(S, car.x + Math.cos(car.a) * 1.1, car.y + Math.sin(car.a) * 0.8, lowFx() ? 4 : 10); if (!calm()) X.shake(3, 0.08); }
+    }
   }
   function tryMove(S, slot) {
     const car = S.car, X = S.X, sfx = X.sfx || {};
@@ -610,22 +656,42 @@
   function stepDrift(S, dt) {
     const D = S.drift, car = S.car, P = TUNE.driftPh; D.t += dt;
     if (D.ph === 0 && D.t >= P[0]) { D.ph = 1; D.t -= P[0]; }
-    if (D.ph === 1 && D.t >= P[1]) { D.ph = 2; D.t -= P[1]; }
+    if (D.ph === 1 && D.t >= P[1]) { D.ph = 2; D.t -= P[1]; car.speed = Math.max(car.speed, TUNE.top * 0.78); }
     if (D.ph === 2 && D.t >= P[2]) { S.drift = null; car.slide = 0; return; }
-    // the front turns into the slide while the rear swings out; the travel keeps its momentum
-    const sw = D.ph === 0 ? sstep(0, 1, D.t / P[0]) : D.ph === 1 ? 1 + 0.12 * Math.sin(D.t / P[1] * Math.PI) : 1 - sstep(0, 1, D.t / P[2]);
-    car.slide = D.side * TUNE.driftAng * sw;
-    if (D.ph === 1) car.a = wrap(car.a + D.side * dt * 1.1);   // (the slide carves round)
-    car.glow = Math.max(car.glow, 0.25);
+    // the spin: one full turn (and the angle it started from) through the burst, snappy at first as the Dodge's roll,
+    // then a little settling sway in the recovery; the pet in the seat rolls one flat turn with it, as in a Dodge
+    const tot = D.side * TAU - D.s0;
+    if (D.ph === 0) { const u = D.t / P[0]; car.slide = D.s0 + tot * 0.05 * u; D.petRot = D.side * TAU * 0.05 * u; }
+    else if (D.ph === 1) { const u = cl(D.t / P[1]), e = 0.05 + 0.95 * (0.45 * u + 0.55 * (1 - (1 - u) * (1 - u))); car.slide = D.s0 + tot * e; D.petRot = D.side * TAU * e; }
+    else { const u = D.t / P[2]; car.slide = D.side * 0.2 * Math.sin(u * Math.PI) * (1 - u); D.petRot = 0; }
+    D.w = D.ph === 1 ? Math.abs(tot) / P[1] : 0;   // (how fast it spins: the smear and the trails use it)
+    car.glow = Math.max(car.glow, D.ph < 2 ? 0.55 : 0.25);
     if (D.ph < 2) {
-      for (const m of S.H.living()) { if (D.hit.has(m)) continue; if (Math.hypot(m.x - car.x, m.y - car.y) > 4.2 + m.r) continue;
-        if (!sweptHit(S, m, TUNE.driftPad)) continue;
-        D.hit.add(m); const dealt = hitCharge(S, m, S.DK * TUNE.drift, { kb: 4.5 }); S.stats.drift++;
-        impactFx(S, m.x, m.y, 1.25, dealt > 0); car.glow = 1;
+      // every monster the spinning car's sweep reaches (a capsule along its path), once
+      const R = TUNE.driftR, ax = car.prevX, ay = car.prevY, sx = car.x - ax, sy = car.y - ay, L2 = sx * sx + sy * sy;
+      for (const m of S.H.living()) { if (D.hit.has(m)) continue;
+        const u = L2 > 1e-6 ? cl(((m.x - ax) * sx + (m.y - ay) * sy) / L2) : 1, qx = ax + sx * u - m.x, qy = ay + sy * u - m.y, rr = R + (m.r || 0.4) * 0.85;
+        if (qx * qx + qy * qy > rr * rr) continue;
+        D.hit.add(m); const dealt = hitCharge(S, m, S.DK * TUNE.drift, { kb: TUNE.driftKb }); S.stats.drift++;
+        driftImpact(S, m, dealt > 0, D.nHit++ === 0); car.glow = 1;
         const G = S.gate.get(m); if (G) G.inside = true; else S.gate.set(m, { last: S.g.t, inside: true }); }
-      // smoke from the rear tyres
-      if (Math.random() < (lowFx() ? 0.25 : 0.7)) for (const s of [-1, 1]) { const p = l2w(car, AXR - 0.1, s * WY); addPart(S, 4, p[0], p[1], 0.1, (Math.random() - 0.5) * 1.2 - car.vx * 0.12, (Math.random() - 0.5) * 0.8 - car.vy * 0.12, 0.35, 0.9 + Math.random() * 0.4, 0.35 + Math.random() * 0.25, { grow: 1.6, drag: 1.2 }); }
+      // tyre smoke curling off all four wheels (the spin turns the puffs into spirals), sparks off the tread
+      const Q = lowFx() ? 0.3 : 1;
+      for (const [lx, ly] of WH4) if (Math.random() < 0.85 * Q) { const p = l2w(car, lx, ly), ox = p[0] - car.x, oy = (p[1] - car.y) / GY, ol = Math.hypot(ox, oy) || 1, tg = D.side * 2.4;
+        addPart(S, 4, p[0], p[1], 0.08, ox / ol * 1.3 - oy / ol * tg - car.vx * 0.15, (oy / ol * 1.3 + ox / ol * tg) * GY - car.vy * 0.15, 0.25, 0.7 + Math.random() * 0.35, 0.34 + Math.random() * 0.2, { grow: 2.2, drag: 2.2 }); }
+      if (Math.random() < 0.6 * Q) { const w = WH4[(Math.random() * 4) | 0], p = l2w(car, w[0], w[1]); spawnSparks(S, p[0], p[1], 1); }
     }
+  }
+  const WH4 = [[AXR, -WY], [AXR, WY], [AXF, -WY], [AXF, WY]];
+  /* a drift strike: heart flash, a burst of hearts and stars, sparks, a feathered shockwave ring on the floor; the first
+     of each drift adds a short shake and hit-stop (both kept to the motion settings) */
+  function driftImpact(S, m, landed, first) {
+    const X = S.X, Q = lowFx() ? 0.4 : 1;
+    impactFx(S, m.x, m.y, 1.7, landed, !first);
+    addPart(S, 6, m.x, m.y, 0, 0, 0, 0, 0.34, 1.5 + (m.r || 0.4), { v: 0.1 });
+    for (let i = 0; i < Math.round(6 * Q); i++) { const a = i / 6 * TAU + Math.random() * 0.5, v = 5 + Math.random() * 3; addPart(S, 3, m.x, m.y, 0.3, Math.cos(a) * v, Math.sin(a) * v * GY, 2 + Math.random() * 2, 0.35, 0.34, { g: 7, drag: 1.6, col: i % 3 ? '#FFFFFF' : ROSE }); }
+    if (first) { if (X.hitstop) X.hitstop(calm() ? 0.02 : 0.05); if (!calm()) { X.shake(6, 0.16); X.flash(0.07, LIGHT); }
+      const sfx = X.sfx || {}; if (sfx.crash) sfx.crash(); if (sfx.note) sfx.note(1760, 0.22, 'sine', 0.08, 2637); }
   }
   function startOut(S) {
     if (S.phase === 'out') return;
@@ -670,8 +736,8 @@
     S.fx.life = 2.2; S.fx.onEnd = null;
   }
 
-  /* ---- pooled particles: 1 heart, 2 star, 3 spark, 4 smoke puff ---- */
-  const CAP = 240;
+  /* ---- pooled particles: 1 heart, 2 star, 3 spark, 4 smoke puff, 5 heart flash, 6 shockwave ring on the floor (s = radius) ---- */
+  const CAP = 360;
   function addPart(S, kind, x, y, z, vx, vy, vz, life, s, o) {
     if (S.parts.length >= CAP * (lowFx() ? 0.4 : 1)) return null;
     const p = S.free.pop() || {}; p.kind = kind; p.x = x; p.y = y; p.z = z; p.vx = vx; p.vy = vy; p.vz = vz; p.life = p.max = life; p.s = s; p.rot = (Math.random() - 0.5) * 0.8; p.vr = (Math.random() - 0.5) * 3; p.g = (o && o.g) || 0; p.drag = (o && o.drag) || 0; p.grow = (o && o.grow) || 0; p.col = (o && o.col) || null; p.v = (o && o.v) || 0;
@@ -683,22 +749,43 @@
   }
   function spawnSparks(S, x, y, n) { for (let i = 0; i < n; i++) { const a = Math.random() * TAU, v = 2 + Math.random() * 3; addPart(S, 3, x, y, 0.3, Math.cos(a) * v, Math.sin(a) * v * GY, 1 + Math.random() * 2, 0.3 + Math.random() * 0.2, 0.25, { g: 6, col: Math.random() < 0.5 ? GOLD : '#FFFFFF' }); } }
   /* an impact: a heart flash, rising hearts, luminous stars, sparkling streaks */
-  function impactFx(S, x, y, k, landed) {
+  function impactFx(S, x, y, k, landed, quiet) {
     const X = S.X, Q = lowFx() ? 0.4 : 1, n = Math.max(1, Math.round((landed ? 5 : 2) * k * Q));
     addPart(S, 5, x, y, 0.45, 0, 0, 0, 0.32, 0.9 * k, {});   // the heart-shaped flash
     for (let i = 0; i < n; i++) { const a = Math.random() * TAU, v = 1.5 + Math.random() * 2.5 * k; addPart(S, i % 3 === 2 ? 2 : 1, x, y, 0.4, Math.cos(a) * v, Math.sin(a) * v * GY, 1.6 + Math.random() * 1.6, 0.6 + Math.random() * 0.35, (0.16 + Math.random() * 0.12) * (0.8 + 0.3 * k), { g: 2.4, drag: 1.4 }); }
     for (let i = 0; i < Math.round(6 * k * Q); i++) { const a = Math.random() * TAU, v = 4 + Math.random() * 4; addPart(S, 3, x, y, 0.4, Math.cos(a) * v, Math.sin(a) * v * GY, (Math.random() - 0.3) * 3, 0.28 + Math.random() * 0.2, 0.28, { g: 5, drag: 2, col: i % 2 ? GOLD : '#FFFFFF' }); }
     X.light(x, y, 2.2 * k, 0.18);
+    if (quiet) return;   // (a drift's later strikes: the first one shook and rang for them all)
     if (!calm()) X.shake(k > 1 ? 4 : 2.2, 0.1);
     const sfx = X.sfx || {}; if (sfx.thud) sfx.thud(); if (sfx.note) sfx.note(k > 1 ? 1320 : 990, 0.16, 'sine', 0.07, k > 1 ? 1760 : 1480);
   }
-  /* the tyre trails: pink-white light along both rear wheels while sliding or cornering hard */
+  /* the tyre trails: pink-white light along both rear wheels while sliding or cornering hard; while a drift spins, all four
+     wheels lay them, sampled between frames so the spirals stay smooth at any spin rate */
   function trails(S, dt) {
-    const car = S.car, t = S.g.t, sp = Math.hypot(car.vx, car.vy), slip = sp > 0.5 ? Math.abs(wrap(Math.atan2(car.vy, car.vx) - (car.a + car.slide))) : 0, on = S.phase === 'drive' && car.z < 0.1 && (S.drift || (slip > 0.22 && sp > TUNE.top * 0.45));
-    for (let s = 0; s < 2; s++) { const L = S.trail[s]; while (L.length && t - L[0].t > 1.5) L.shift();
-      if (on) { const p = l2w(car, AXR, (s ? 1 : -1) * WY), last = L[L.length - 1]; if (!last || last.br || Math.hypot(p[0] - last.x, p[1] - last.y) > 0.12) L.push({ x: p[0], y: p[1], t, w: S.drift ? 1 : 0.6 }); }
+    const car = S.car, t = S.g.t, sp = Math.hypot(car.vx, car.vy), slip = sp > 0.5 ? Math.abs(wrap(Math.atan2(car.vy, car.vx) - (car.a + car.slide))) : 0, D = S.drift, spin = !!(D && D.ph < 2);
+    const on = S.phase === 'drive' && car.z < 0.1 && (D || (slip > 0.22 && sp > TUNE.top * 0.45));
+    const abN = car.a + car.slide, dA = wrap(abN - car.prevA), n = spin ? Math.max(1, Math.min(8, Math.ceil(Math.max(Math.abs(dA) / 0.12, Math.hypot(car.x - car.prevX, car.y - car.prevY) / 0.2)))) : 1, Pq = { x: 0, y: 0 };
+    for (let s = 0; s < 4; s++) { const L = S.trail[s]; while (L.length && t - L[0].t > 1.5) L.shift();
+      if (on && (s < 2 || spin)) { const w = WH4[s];
+        for (let k = 1; k <= n; k++) { const u = k / n; Pq.x = lerp(car.prevX, car.x, u); Pq.y = lerp(car.prevY, car.y, u); const p = l2w(Pq, w[0], w[1], car.prevA + dA * u), last = L[L.length - 1];
+          if (!last || last.br || Math.hypot(p[0] - last.x, p[1] - last.y) > 0.12) L.push({ x: p[0], y: p[1], t, w: D ? 1 : 0.6 }); } }
       else if (L.length && !L[L.length - 1].br) L[L.length - 1].br = true;
-      if (L.length > 90) L.shift(); }
+      if (L.length > 150) L.shift(); }
+  }
+  /* the trails on the floor: light only (an additive rose haze and a pearl core), feathered at the ends; the segments are
+     grouped into a few bands of age so a long spiral costs a handful of strokes */
+  const TB = 6;
+  function drawTrails(S, c, T) {
+    const H = S.H, t = S.g.t;
+    c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.lineJoin = 'round';
+    for (const L of S.trail) { if (L.length < 2) continue;
+      for (let pass = lowFx() ? 1 : 0; pass < 2; pass++) { for (let b = 0; b < TB; b++) { const a = (1 - (b + 0.5) / TB); let open = false, any = false;
+        c.beginPath();
+        for (let i = 1; i < L.length; i++) { const p0 = L[i - 1], p1 = L[i]; if (p0.br) { open = false; continue; } const age = cl((t - p1.t) / 1.5), bb = Math.min(TB - 1, (age * TB) | 0); if (bb !== b) { open = false; continue; }
+          if (!open) { c.moveTo(H.sx(p0.x), H.sy(p0.y)); open = true; } c.lineTo(H.sx(p1.x), H.sy(p1.y)); any = true; }
+        if (!any) continue; const wk = L[L.length - 1].w;
+        c.globalAlpha = (pass ? 0.85 : 0.3) * a * wk; c.strokeStyle = pass ? '#FFF2FA' : ROSE; c.lineWidth = T * (pass ? 0.05 : 0.18) * (0.6 + 0.4 * a); c.stroke(); } } }
+    c.restore();
   }
 
   /* ================= drawing ================= */
@@ -711,11 +798,8 @@
       const u = S.phase === 'summon' ? S.t : TUNE.summon + S.t, open = sstep(0, 0.45, u) * (1 - sstep(1.9, 2.5, u)), R = T * (1.2 + 1.6 * H.ease.back(Math.min(1, u / 0.5)));
       if (open > 0.01) { c.save(); c.translate(H.sx(S.sealX), H.sy(S.sealY)); c.scale(1, GY * 0.78); c.rotate(u * 0.6); c.globalCompositeOperation = 'lighter'; c.globalAlpha = open * 0.9; c.drawImage(SM.seal, -R, -R, R * 2, R * 2); c.globalAlpha = open * 0.5; blitSized(c, glowSprite(ROSE), -R * 0.9, -R * 0.9, R * 1.8, R * 1.8); c.restore(); }
     }
-    // the tyre trails: two curling ribbons of pink-white light (light only, no stains)
-    for (const L of S.trail) { if (L.length < 2) continue; c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.lineJoin = 'round';
-      for (let pass = 0; pass < 2; pass++) { for (let i = 1; i < L.length; i++) { const p0 = L[i - 1], p1 = L[i]; if (p0.br) continue; const age = t - p1.t, a = cl(1 - age / 1.5) * p1.w; if (a <= 0.02) continue;
-        c.globalAlpha = (pass ? 0.85 : 0.32) * a; c.strokeStyle = pass ? '#FFF2FA' : ROSE; c.lineWidth = T * (pass ? 0.05 : 0.17) * (0.6 + 0.4 * a); c.beginPath(); c.moveTo(H.sx(p0.x), H.sy(p0.y)); c.lineTo(H.sx(p1.x), H.sy(p1.y)); c.stroke(); } }
-      c.restore(); }
+    // the tyre trails: curling ribbons of pink-white light (light only, no stains)
+    drawTrails(S, c, T);
     if (S.phase === 'gone' || car.vis <= 0.01) { drawPartsFloor(S, c); callC2(S, c, 'drawUnder'); return; }
     const [X0, Y0] = carScreen(S), body = bodyAlpha(S), ag = groundA(car.a + car.slide);
     // the soft shadow, the pink underglow, the heart headlights' pools of light ahead
@@ -724,8 +808,20 @@
     c.globalAlpha = (0.32 + 0.12 * Math.sin(t * 5)) * body * car.vis * (1 - cl(car.z)); blitSized(c, glowSprite(ROSE), -HL * 1.3 * T, -HWB * 1.55 * T, HL * 2.6 * T, HWB * 3.1 * T);
     const lt = S.lights * car.vis; if (lt > 0.02) { c.globalAlpha = 0.17 * lt * (1 + car.glow * 0.6); c.drawImage(beamSprite('#FFD1EA'), HL * 0.8 * T, -HWB * 1.0 * T, T * 2.4, HWB * 2.0 * T); }
     c.restore();
+    // the drift's spin smear on the floor: arcs of light swept by the nose and the tail, fading behind them
+    const D = S.drift; if (D && D.ph === 1 && D.w > 4 && body > 0.5) { const sw = Math.min(2.6, D.w * 0.08), R = HL * 1.04 * T, NK = lowFx() ? 2 : 4;
+      c.save(); c.translate(X0, Y0 - car.z * ZK * T); c.scale(1, GY); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round';
+      for (const end of [0, Math.PI]) for (let k = 0; k < NK; k++) { const a1 = ag + end - D.side * sw * k / NK, a0 = ag + end - D.side * sw * (k + 1) / NK, fa = (1 - k / NK) * (end ? 0.7 : 1);
+        c.beginPath(); c.arc(0, 0, R, Math.min(a0, a1), Math.max(a0, a1));
+        c.globalAlpha = 0.2 * fa; c.strokeStyle = ROSE; c.lineWidth = T * 0.6; c.stroke(); c.globalAlpha = 0.45 * fa; c.strokeStyle = '#FFE6F3'; c.lineWidth = T * 0.18; c.stroke(); c.globalAlpha = 0.75 * fa; c.strokeStyle = '#FFFFFF'; c.lineWidth = T * 0.045; c.stroke(); }
+      c.restore(); }
     drawPartsFloor(S, c);
     callC2(S, c, 'drawUnder');
+  }
+  /* the body alone (both pictures) at a ground heading: the drift's motion-blur ghosts */
+  function blitBody(c, T, X0, Y0, ag, alpha) {
+    const b = bucketOf(ag), rb = ready(b) ? b : nearestReady(b); if (rb < 0) return; const spr = BK.spr[rb], kk = T / spr.k, res = wrap(ag - rb / NB * TAU), cr = Math.cos(res), sr = Math.sin(res);
+    c.save(); c.translate(X0, Y0); c.transform(cr, GY * sr, -sr / GY, cr, 0, 0); c.globalAlpha = alpha; for (const B of [spr.back, spr.front]) if (B) c.drawImage(B.cv, B.x * kk, B.y * kk, B.cv.width * kk, B.cv.height * kk); c.restore();
   }
   function callC2(S, c, k) { const MV = moves(); if (MV && MV[k] && S.ctx) { c.save(); try { MV[k](S.ctx, c); } catch (e) { /* (theirs) */ } c.restore(); } }
   /* how solid the body is: it forms during the summoning and dissolves at the timeout */
@@ -769,6 +865,9 @@
     // the summoning's ribbons trace the car before it is solid
     if (S.phase === 'summon') drawRibbons(S, c, T);
     const ghost = S.phase === 'summon' ? sstep(0.6, 1.0, S.t) * (1 - body) : 0;
+    // the drift's smear: the body a moment ago, twice or three times, fainter each (under the car, so never over the pet)
+    const D = S.drift; if (D && D.ph === 1 && D.w > 4 && body > 0.5 && !lowFx()) { const NG = 3;
+      for (let k = NG; k >= 1; k--) { const tk = k * 0.022; blitBody(c, T, X0 - car.vx * tk * T, Y0 - car.vy * tk * T - lift, groundA(ab - D.side * D.w * tk), body * [0, 0.34, 0.2, 0.11][k]); } }
     // the wheels behind the body; the far ones first
     if (body > 0.01 || ghost > 0.01) { c.save(); c.globalAlpha = Math.max(body, ghost * 0.4); const W4 = [[AXF, WY, car.steer], [AXF, -WY, car.steer], [AXR, WY, 0], [AXR, -WY, 0]]; W4.sort((p, q) => l2w(car, p[0], p[1])[1] - l2w(car, q[0], q[1])[1]); for (const w of W4) drawWheel(S, c, w[0], w[1], w[2], T); c.restore(); }
     const spr = rb >= 0 ? BK.spr[rb] : null, kk = spr ? T / spr.k : 1;
@@ -799,7 +898,8 @@
     if (S.phase === 'summon') { const u = sstep(1.12, 1.42, S.t); X = lerp(H.sx(S.petX0), X, u); Y = lerp(H.sy(S.petY0), Y, u) - Math.sin(u * Math.PI) * T * 0.35; }
     if (S.phase === 'out') { const u = sstep(0.12, 0.6, S.t / TUNE.out), gx = H.sx(S.petStand.x), gy = H.sy(S.petStand.y); X = lerp(X, gx, u); Y = lerp(Y, gy, u) - Math.sin(u * Math.PI) * T * 0.45; }
     if (S.phase === 'drive' || S.phase === 'nova') Y -= Math.abs(Math.sin(S.g.t * 9)) * T * 0.012 * cl(Math.hypot(car.vx, car.vy) / TUNE.top) + car.susp * T * 0.03;
-    H.X.drawPetAt(c, X, Y, { maxH: 1.2 });
+    // (during a drift the pet rolls one flat turn with the car, exactly as the Dodge rolls its sprite; never a 3D turn)
+    H.X.drawPetAt(c, X, Y, { maxH: 1.2, rot: S.drift && S.phase === 'drive' ? S.drift.petRot : 0 });
   }
   /* a small gold steering wheel in front of the seat (drawn before the pet when it is behind it on the screen) */
   function drawSteer(S, c, T, body, front) {
@@ -833,7 +933,8 @@
   function ribbonPath(c, pts, w, a) { if (a <= 0.01) return; c.beginPath(); pts.forEach((p, i) => (i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]))); c.globalAlpha = a * 0.35; c.strokeStyle = ROSE; c.lineWidth = w * 2.6; c.stroke(); c.globalAlpha = a * 0.8; c.strokeStyle = '#FFC8E6'; c.lineWidth = w; c.stroke(); c.globalAlpha = a; c.strokeStyle = '#FFFFFF'; c.lineWidth = Math.max(1, w * 0.35); c.stroke(); }
   /* particles over the scene (hearts, stars, sparks) and on the floor (smoke): never over the pet's face */
   function drawPartsFloor(S, c) { const H = S.H, T = H.X.Tz(); c.save(); c.globalCompositeOperation = 'lighter';
-    for (const p of S.parts) { if (p.kind !== 4) continue; const u = 1 - p.life / p.max, a = Math.min(1, u * 5) * (1 - u) * 0.38, r = T * p.s * (1 + p.grow * u); c.globalAlpha = a; blitSized(c, glowSprite('#FFE4F2'), H.sx(p.x) - r, H.sy(p.y) - p.z * ZK * T - r * 0.8, r * 2, r * 1.6); }
+    for (const p of S.parts) { if (p.kind === 6) { if (!SM || !SM.ring) continue; const u = 1 - p.life / p.max, e = 1 - (1 - u) * (1 - u) * (1 - u), r = T * p.s * (0.2 + 0.8 * e); c.globalAlpha = Math.pow(1 - u, 1.4) * 0.95; c.drawImage(SM.ring, H.sx(p.x) - r, H.sy(p.y) - r * GY, r * 2, r * 2 * GY); continue; }
+      if (p.kind !== 4) continue; const u = 1 - p.life / p.max, a = Math.min(1, u * 5) * (1 - u) * 0.38, r = T * p.s * (1 + p.grow * u); c.globalAlpha = a; blitSized(c, glowSprite('#FFE4F2'), H.sx(p.x) - r, H.sy(p.y) - p.z * ZK * T - r * 0.8, r * 2, r * 1.6); }
     c.restore(); }
   function drawOver(S, c) {
     const H = S.H, T = H.X.Tz(), me = S.me;
@@ -842,7 +943,7 @@
     // the pet's head and body on the screen: particles fade near them so the pet stays readable
     let PX = -1e9, PY = -1e9; if (!S.released) { const sp = S.ctx.ejecting ? [H.sx(S.ctx.petX), H.sy(S.ctx.petY) - S.ctx.petZ * ZK * T] : seatScreen(S, T); PX = sp[0]; PY = sp[1] - T * 0.45; } else { PX = H.sx(me.x); PY = H.sy(me.y) - T * 0.45; }
     c.save();
-    for (const p of S.parts) { if (p.kind === 4) continue; const X = H.sx(p.x), Y = H.sy(p.y) - p.z * ZK * T, u = 1 - p.life / p.max, keep = 0.06 + 0.94 * sstep(T * 0.45, T * 1.25, Math.hypot(X - PX, Y - PY));
+    for (const p of S.parts) { if (p.kind === 4 || p.kind === 6) continue; const X = H.sx(p.x), Y = H.sy(p.y) - p.z * ZK * T, u = 1 - p.life / p.max, keep = 0.06 + 0.94 * sstep(T * 0.45, T * 1.25, Math.hypot(X - PX, Y - PY));
       if (p.kind === 5) { const s = T * p.s * (0.6 + 0.8 * u), a = (1 - u) * keep; c.globalCompositeOperation = 'lighter'; c.globalAlpha = a * 0.9; c.save(); c.translate(X, Y - T * 0.2); c.drawImage(SM.heartP, -s, -s * 0.95, s * 2, s * 2); c.restore(); c.globalAlpha = a * 0.6; blitSized(c, glowSprite(ROSE), X - s * 1.4, Y - T * 0.2 - s * 1.4, s * 2.8, s * 2.8); c.globalCompositeOperation = 'source-over'; continue; }
       const a = Math.min(1, u * 8) * cl(p.life / Math.min(0.35, p.max)) * keep; if (a <= 0.01) continue;
       if (p.kind === 3) { c.globalCompositeOperation = 'lighter'; c.globalAlpha = a; const r = T * p.s * 0.5; blitSized(c, glowSprite(p.col || GOLD), X - r, Y - r, r * 2, r * 2); continue; }

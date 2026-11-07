@@ -197,3 +197,17 @@ file exists. The two of you may message each other through files: append notes t
   exit C1 resets `ctx.ejecting = false`, `ctx.supernova = false`, `ctx.petZ = 0`, locks the car and places `me` on
   `nearestStand` (the ejection point for Supernova). `tests/elem-moves.js` now drives the car in circles for sportscar and
   then presses Supernova (if full) or times the car out; EVO=1 and 7 pass.
+
+- (Round 2, single worker) Drift reworked as a scaled-up Dodge roll: burst 19 tiles/s eased off as the Dodge's (stick, else
+  heading, else aim; the stick bends it 5 rad/s; walls bounce it), the body spins >= 1 full turn in 0.3 s (ghosts, floor
+  smear arcs, 4-wheel spiral trails sampled between frames), 0.05 / 0.3 / 0.14 s kick / spin / recovery, cooldown 0.9 s
+  from the press (a press up to 0.2 s early is kept). 3.0 DK once per monster per activation within 2.5 tiles of the car's
+  swept centre path, kb 7.5 (hitMon's x0.12 for bosses), first strike: hit-stop 0.05 s (0.02 under Reduce Motion) and a
+  shake (none under Reduce Motion). Invulnerability = the Dodge's 0.38 s via me.inv. The pet rolls one flat turn with the
+  spin (20b's X.drawPetAt now takes o.rot; the Dodge already rolls the pet's sprite this way). Driving: top 11.8, accel
+  24, coast 10.5, steer 3.3..6.2, grip 13, ramMin 0.3 of top (3.5 tiles/s, as before). moveCar fix: a car whose pose
+  overlaps a wall (after a turn or spin) now still collides its centre instead of moving unchecked (it could tunnel).
+  Supernova (20k4q): pulses 3.2 DK (+20% each), blast 12 DK, noCharge; brake 0.36, burnouts 0.56 s pivoting
+  2.7 + 0.45 j rad, implode 0.85; more hearts, stars, ribbons, rays, rims, after-pops; softer screen flash (0.3);
+  additive particles fade to 10% over the pet. LOW drops ghosts, the trail haze pass, wave rays, two implode rims and
+  the blast's floor heart ring.

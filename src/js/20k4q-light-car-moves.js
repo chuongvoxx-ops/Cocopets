@@ -38,7 +38,9 @@ const SPORTSCAR_MOVES = (() => {
     cd: { shootingStar: 2.6, loveSensation: 3.2 }, starCd: 2.6, loveCd: 3.2,
     star: { volleys: [3, 4, 5], count: [10, 12, 14], dmg: 0.35, speed: 12.5, range: 7.5, hitR: 0.2, sigil: 0.3, gap: 0.17, turn: 0.38 },
     love: { dmg: 3.2, R: 2.4, range: 5.5, min: 1.8, crouch: 0.32, air: 0.62, peak: 1.9, settle: 0.42 },
-    nova: { pulses: [3, 4, 5], dmg: 1.6, rise: 0.2, R0: 2.8, Rstep: 0.45, waveT: 0.5, brake: 0.5, burn: 0.82, implode: 0.95, blast: 6.0, blastR: 4.4, eject: 1.0, ejectH: 2.4, ejectD: 1.7, settle: 0.3 },
+    /* (round 2: every hit doubled, 1.6 -> 3.2 a pulse and 6 -> 12 the blast, still noCharge; the burnouts pivot faster and wider,
+       so the whole sequence is about a second shorter) */
+    nova: { pulses: [3, 4, 5], dmg: 3.2, rise: 0.2, R0: 2.8, Rstep: 0.45, waveT: 0.42, brake: 0.36, burn: 0.56, swing: 2.7, swingStep: 0.45, pivotK: 0.7, wheel: 72, implode: 0.85, blast: 12.0, blastR: 4.6, eject: 1.0, ejectH: 2.4, ejectD: 1.7, settle: 0.3 },
   };
 
   /* ================= baked sprites ================= */
@@ -158,7 +160,7 @@ const SPORTSCAR_MOVES = (() => {
     else if (car && !car.gone) { S.PX = H.sx(car.x); S.PY = H.sy(car.y) - ((car.z || 0) + 0.6) * S.ZT; }
     else { S.PX = H.sx(H.me.x); S.PY = H.sy(H.me.y) - 0.45 * T; } }
   const petK = (S, X, Y, lo) => { const d = Math.hypot(X - S.PX, (Y - S.PY) * 1.15) / S.PR; return d >= 1.4 ? 1 : (lo == null ? 0.3 : lo) + (1 - (lo == null ? 0.3 : lo)) * sm((d - 0.35) / 1.05); };
-  function part(S, kind, x, y, z, vx, vy, vz, life, size, o) { if (!S || S.parts.length > 460) return null; const p = POOL.pop() || {};
+  function part(S, kind, x, y, z, vx, vy, vz, life, size, o) { if (!S || S.parts.length > (LOW() ? 300 : 640)) return null; const p = POOL.pop() || {};
     p.kind = kind; p.x = x; p.y = y; p.z = z; p.vx = vx; p.vy = vy; p.vz = vz; p.life = life; p.t = 0; p.size = size; p.g = 0; p.drag = 0; p.rot = 0; p.vr = 0; p.grow = 0; p.a = 1; p.u = 0; p.v = 0; p.fin = 0.12;
     if (o) for (const k in o) p[k] = o[k]; S.parts.push(p); return p; }
   function partImg(p) { switch (p.kind) { case 0: return sprGlint(GOLD); case 1: return sprGlint(PINK); case 2: return sprHeart(ROSE); case 3: return sprHeart('#FFC56E'); case 4: return sprSmoke(p.v); case 5: return glowSprite(ROSE); case 6: return sprStar(); case 7: return glowSprite(WGOLD); case 8: return sprRing('rim'); default: return sprTail(); } }
@@ -167,7 +169,7 @@ const SPORTSCAR_MOVES = (() => {
       for (let i = 0; i < P.length; i++) { const p = P[i]; if (ADD[p.kind] !== pass || (p.u ? 1 : 0) !== under) continue;
         const u = p.t / p.life, a = p.a * Math.min(1, p.t / p.fin) * (p.kind === 4 || p.kind === 5 ? (1 - u) * (1 - u) : 1 - u * u); if (a < 0.015) continue;
         const X = H.sx(p.x), Y = H.sy(p.y) - p.z * S.ZT, s = p.size * T * (1 + p.grow * u), img = partImg(p);
-        const k = under ? 1 : petK(S, X, Y, p.kind === 4 ? 0.1 : 0.35); if (a * k < 0.015) continue;
+        const k = under ? 1 : petK(S, X, Y, p.kind === 4 || pass ? 0.1 : 0.35);   // (additive light fades almost away over the pet: it must never wash it out) if (a * k < 0.015) continue;
         c.globalAlpha = a * k > 1 ? 1 : a * k;
         if (p.kind === 9) { const ang = Math.atan2(p.vy - p.vz, p.vx); setT(c, B, X, Y, ang); c.drawImage(img, -s, -s * 0.11, s, s * 0.22); }
         else { setT(c, B, X, Y, p.rot, p.flat ? H.GY : 1); c.drawImage(img, -s / 2, -s / 2, s, s); } } }
@@ -296,53 +298,73 @@ const SPORTSCAR_MOVES = (() => {
     const side = Math.random() < 0.5 ? 1 : -1, a0 = car.a || 0;
     const TB = tu.brake, TI = TB + NP * tu.burn, TE = TI + tu.implode;   // brake | burnouts | implode | explosion at TE, ejection after
     let t = 0, ph = 'brake', bi = -1, bA = 0, bD = 0, pivot = null, ex = null, ej = null, finished = false;
-    const rings = [], waves = [], tracks = [[], []];
+    const rings = [], waves = [], tracks = [[], []], rib = [[], []];
     sfx(X, 'note', 880, 0.5, 'sawtooth', 0.05, 1500); sfx(X, 'hiss', 0.5, 0.18, 2600); sfx(X, 'chime', 659, 0.8);
     function smoke(rate, dt) { const n = rate * dt * (LOW() ? 0.4 : 1); for (let s = 0; s < 2; s++) { let k = n + Math.random(); while (k-- >= 1) { const p = carPt(car, -0.34, s ? 0.5 : -0.5), a = Math.random() * TAU, v = rnd(0.4, 1.4);
         part(S, 4, p[0], p[1], 0.1, Math.cos(a) * v, Math.sin(a) * v * 0.7, rnd(0.2, 0.6), rnd(0.9, 1.5), rnd(0.55, 0.85), { grow: 1.6, a: 0.5, u: Math.random() < 0.7 ? 1 : 0, v: (Math.random() * 3) | 0, rot: Math.random() * TAU, vr: rnd(-0.6, 0.6), drag: 1.2, fin: 0.15 });
         if (Math.random() < 0.25) part(S, s ? 0 : 1, p[0], p[1], 0.15, Math.cos(a) * v * 2, Math.sin(a) * v * 1.4, rnd(1, 2.5), rnd(0.3, 0.5), 0.3, { g: 6, drag: 1.5 }); } } }
     function track() { for (let s = 0; s < 2; s++) { const p = carPt(car, -0.34, s ? 0.46 : -0.46), tr = tracks[s], q = tr[0]; if (!q || Math.hypot(q[0] - p[0], q[1] - p[1]) > 0.12) { tr.unshift([p[0], p[1], t]); if (tr.length > 90) tr.pop(); } } }
+    /* gold-white ribbons streaming off the rear corners, and sparks showering off the spinning rear tyres */
+    function ribbons() { for (let s = 0; s < 2; s++) { const p = carPt(car, -0.5, s ? 0.5 : -0.5); rib[s].unshift([p[0], p[1], 0.32, t]); if (rib[s].length > 22) rib[s].pop(); } }
+    function sparks(rate, dt) { let k = rate * dt * (LOW() ? 0.35 : 1) + Math.random(); while (k-- >= 1) { const s = Math.random() < 0.5, p = carPt(car, -0.36, s ? 0.5 : -0.5), a = Math.random() * TAU, v = rnd(1.5, 4);
+        part(S, Math.random() < 0.6 ? 0 : 1, p[0], p[1], 0.15, Math.cos(a) * v, Math.sin(a) * v * 0.7, rnd(1.5, 3.8), rnd(0.3, 0.55), rnd(0.22, 0.34), { g: 9, drag: 1.4 }); } }
     function placeAt(a) { // pivot round the front axle when the new spot is clear; else turn in place
       if (pivot) { const nx = pivot[0] - Math.cos(a) * pivot[2], ny = pivot[1] - Math.sin(a) * pivot[2]; if (standCar(ctx, nx, ny, car)) { car.x = nx; car.y = ny; } } car.a = a; }
     function pulse(i) { const R = tu.R0 + tu.Rstep * i, w = { x: car.x, y: car.y, R, t: 0, i, hit: new Set(), dmg: DK * tu.dmg * (1 + tu.rise * i), rot: Math.random() * TAU };
       waves.push(w); X.shake && X.shake(RM() ? 2 : 3 + i * 1.2, 0.18); X.light && X.light(car.x, car.y, R * 1.6, 0.4); X.flash && !RM() && X.flash(0.05 + 0.02 * i, '#FFE3F2');
       sfx(X, 'note', 220 * Math.pow(1.26, i), 0.5, 'sine', 0.3, 110 * Math.pow(1.26, i)); sfx(X, 'chime', 523 * Math.pow(2, i / 4), 0.8 + 0.1 * i); sfx(X, 'hiss', 0.35, 0.12, 1800);
-      for (let k = 0; k < (LOW() ? 5 : 12); k++) { const a = k / 12 * TAU + Math.random() * 0.3; part(S, 4, w.x + Math.cos(a) * 0.8, w.y + Math.sin(a) * 0.6, 0.1, Math.cos(a) * R * 1.3, Math.sin(a) * R, 0.2, rnd(0.9, 1.3), rnd(0.8, 1.1), { grow: 1.2, a: 0.32, u: 1, v: k % 3, drag: 2.6, rot: Math.random() * TAU }); } }
+      for (let k = 0; k < (LOW() ? 5 : 12); k++) { const a = k / 12 * TAU + Math.random() * 0.3; part(S, 4, w.x + Math.cos(a) * 0.8, w.y + Math.sin(a) * 0.6, 0.1, Math.cos(a) * R * 1.3, Math.sin(a) * R, 0.2, rnd(0.9, 1.3), rnd(0.8, 1.1), { grow: 1.2, a: 0.32, u: 1, v: k % 3, drag: 2.6, rot: Math.random() * TAU }); }
+      // (round 2) hearts and stars flung out with the rim, sparkles bursting off it, streaks of light racing outward
+      const L = LOW(), NH = L ? 3 : 8 + 2 * i, NG = L ? 5 : 14 + 2 * i, NS = L ? 4 : 10 + i;
+      for (let k = 0; k < NH; k++) { const a = w.rot + k / NH * TAU, v = R / tu.waveT * rnd(0.75, 1.0); part(S, k % 3 === 2 ? 3 : 2, w.x + Math.cos(a) * 0.9, w.y + Math.sin(a) * 0.7, rnd(0.3, 0.8), Math.cos(a) * v, Math.sin(a) * v * 0.72, rnd(1.4, 3), rnd(0.6, 0.9), rnd(0.42, 0.6), { g: 3, drag: 2.4, vr: rnd(-3, 3) }); }
+      for (let k = 0; k < NG; k++) { const a = Math.random() * TAU, v = R / tu.waveT * rnd(0.5, 1.05); part(S, k % 3 === 0 ? 6 : k % 2, w.x + Math.cos(a) * 1.2, w.y + Math.sin(a) * 0.9, rnd(0.2, 1.1), Math.cos(a) * v, Math.sin(a) * v * 0.72, rnd(1, 4), rnd(0.45, 0.8), k % 3 === 0 ? rnd(0.3, 0.42) : rnd(0.35, 0.55), { g: 4, drag: 2.2, vr: rnd(-8, 8), rot: Math.random() * TAU }); }
+      for (let k = 0; k < NS; k++) { const a = w.rot + (k + 0.5) / NS * TAU, v = R / tu.waveT * 1.25; part(S, 9, w.x + Math.cos(a) * 1.2, w.y + Math.sin(a) * 0.9, rnd(0.3, 0.9), Math.cos(a) * v, Math.sin(a) * v * 0.72, 0, 0.32, rnd(1.4, 2.1), { drag: 2.5, fin: 0.03 }); }
+      part(S, 7, w.x, w.y, 0.4, 0, 0, 0, 0.2, 2.2 + 0.4 * i, { fin: 0.02, u: 1 }); }
     const act = { update(dt) { t += dt; if (finished) { if (!ex && !ej && !waves.length) act.dead = true; }
         // ---- brake into the sideways pose ----
         if (ph === 'brake') { const u = t / TB, k = Math.exp(-6 * dt); vx *= k; vy *= k; const nx = car.x + vx * dt, ny = car.y + vy * dt; if (standCar(ctx, nx, ny, car)) { car.x = nx; car.y = ny; } else { vx = vy = 0; }
-          car.a = a0 + side * 1.35 * eio(u); car.susp = 0.55 * Math.sin(Math.PI * cl(u)); car.burn = 0.4 * u; car.wheelSpin = 20 * u; smoke(16, dt); track();
+          car.a = a0 + side * 1.35 * eio(u); car.susp = 0.55 * Math.sin(Math.PI * cl(u)); car.burn = 0.4 * u; car.wheelSpin = tu.wheel * 0.45 * u; smoke(20, dt); track(); ribbons(); sparks(14, dt);
           if (t >= TB) { ph = 'burn'; } }
         // ---- the burnouts: each a pivot round the front wheels, ending in a wave ----
         if (ph === 'burn') { const j = Math.min(NP - 1, Math.floor((t - TB) / tu.burn)), u = (t - TB - j * tu.burn) / tu.burn;
-          if (j !== bi) { if (bi >= 0) { placeAt(bA + bD); } bi = j; bA = car.a; bD = side * (j % 2 ? -1 : 1) * (1.9 + 0.35 * j); const f = carPt(car, 0.32, 0); pivot = [f[0], f[1], 0.32 * carL(car)];
-            rings.push({ x: f[0], y: f[1], r: 0.66 * carL(car), t: 0, w: j }); sfx(X, 'note', 700 + 120 * j, 0.6, 'sawtooth', 0.045, 1300 + 160 * j); sfx(X, 'hiss', 0.6, 0.16, 2200 + 300 * j); sfx(X, 'purr'); }
-          placeAt(bA + bD * eio(cl(u / 0.8))); car.burn = 1; car.wheelSpin = 46; car.susp = 0.25 + 0.12 * Math.sin(t * 40); car.lean = 0.1 * Math.sin(t * 9) * side; car.glow = Math.max(car.glow || 0, 0.45 + 0.1 * j);
-          smoke(34 + 6 * j, dt); track();
+          if (j !== bi) { if (bi >= 0) { placeAt(bA + bD); } bi = j; bA = car.a; bD = side * (j % 2 ? -1 : 1) * (tu.swing + tu.swingStep * j); const f = carPt(car, 0.32, 0); pivot = [f[0], f[1], 0.32 * carL(car)];
+            rings.push({ x: f[0], y: f[1], r: 0.66 * carL(car), t: 0, w: j }); part(S, 8, f[0], f[1], 0.1, 0, 0, 0, 0.3, 1.4, { grow: 1.8, fin: 0.01, u: 1, flat: 1 }); sfx(X, 'note', 700 + 120 * j, 0.6, 'sawtooth', 0.045, 1300 + 160 * j); sfx(X, 'hiss', 0.6, 0.16, 2200 + 300 * j); sfx(X, 'purr'); }
+          placeAt(bA + bD * eio(cl(u / tu.pivotK))); car.burn = 1; car.wheelSpin = tu.wheel; car.susp = 0.25 + 0.12 * Math.sin(t * 46); car.lean = 0.1 * Math.sin(t * 13) * side; car.glow = Math.max(car.glow || 0, 0.5 + 0.12 * j);
+          smoke(40 + 8 * j, dt); track(); ribbons(); sparks(30 + 8 * j, dt);
           if (u >= 0.62 && !waves.some(w => w.i === j)) pulse(j);
           if (t >= TI) { placeAt(bA + bD); ph = 'implode'; pivot = null; sfx(X, 'note', 196, tu.implode, 'sawtooth', 0.05, 784); sfx(X, 'note', 392, tu.implode, 'sine', 0.16, 1568); sfx(X, 'hiss', tu.implode, 0.12, 3200); } }
         // ---- the implosion: light streams inward, the aura forms, the lights blaze ----
         if (ph === 'implode') { const u = (t - TI) / tu.implode; car.burn = Math.max(0, 1 - u * 2); car.wheelSpin = 46 * (1 - u); car.lean = 0; car.susp = 0.35 * sm(u) + 0.05 * Math.sin(t * 50) * u; car.glow = 0.5 + 0.5 * sm(u);
-          const n = (LOW() ? 16 : 40) * dt; let k = n + Math.random(); while (k-- >= 1) { const a = Math.random() * TAU, r = rnd(3.2, 5), v = rnd(6, 9) * (1 + u), x = car.x + Math.cos(a) * r, y = car.y + Math.sin(a) * r * 0.85, z = rnd(0.2, 1.6);
+          if (!LOW() || Math.random() < 0.4) { let q = 12 * dt + Math.random(); while (q-- >= 1) { const a = Math.random() * TAU, r = rnd(3, 4.6), v = rnd(5, 8) * (1 + u); part(S, Math.random() < 0.7 ? 2 : 3, car.x + Math.cos(a) * r, car.y + Math.sin(a) * r * 0.85, rnd(0.6, 1.6), -Math.cos(a) * v, -Math.sin(a) * v * 0.85, -0.6, r / v * 0.9, rnd(0.3, 0.46), { fin: 0.06, vr: rnd(-4, 4) }); } }
+          X.light && Math.random() < 0.3 && X.light(car.x, car.y, 2.5 + 3 * u, 0.2);
+          const n = (LOW() ? 20 : 72) * dt; let k = n + Math.random(); while (k-- >= 1) { const a = Math.random() * TAU, r = rnd(3.2, 5), v = rnd(6, 9) * (1 + u), x = car.x + Math.cos(a) * r, y = car.y + Math.sin(a) * r * 0.85, z = rnd(0.2, 1.6);
             part(S, 9, x, y, z, -Math.cos(a) * v, -Math.sin(a) * v * 0.85, (0.6 - z) * v / r, r / v * 0.95, rnd(0.6, 1.1), { fin: 0.05 }); }
-          if (Math.floor((t - TI) / 0.15) !== Math.floor((t - TI - dt) / 0.15)) { const q = Math.floor((t - TI) / 0.15); sfx(X, 'chime', 784 * Math.pow(2, q / 5), 0.45); }
+          if (Math.floor((t - TI) / 0.13) !== Math.floor((t - TI - dt) / 0.13)) { const q = Math.floor((t - TI) / 0.13); sfx(X, 'chime', 784 * Math.pow(2, q / 5), 0.45); }
           if (t >= TE) { ph = 'blast'; blast(); } }
         for (const r of rings) r.t += dt;
         for (let i = waves.length - 1; i >= 0; i--) { const w = waves[i]; w.t += dt; const u = cl(w.t / tu.waveT), r = w.R * eout(u);
           if (!w.done) { for (const m of H.living()) { if (w.hit.has(m)) continue; if (Math.hypot(m.x - w.x, m.y - w.y) - (m.r || 0.4) * 0.5 <= r) { w.hit.add(m); try { ctx.hit(m, w.dmg, { noCharge: true, kb: 2 }); } catch (e) {} } } if (u >= 1) w.done = true; }
           if (w.t > tu.waveT + 0.5) waves.splice(i, 1); }
         for (const tr of tracks) while (tr.length && t - tr[tr.length - 1][2] > 1.6) tr.pop();
-        if (ex) { ex.t += dt; if (ex.t > 1.5) ex = null; }
+        for (const r of rib) while (r.length && t - r[r.length - 1][3] > 0.3) r.pop();
+        if (ex) { ex.t += dt; for (const q of ex.pops) if (!q.on && ex.t >= q.t) { q.on = 1; popAt(q.x, q.y); } if (ex.t > 1.6) ex = null; }
         if (ej) stepEject(dt); },
       under(c, B) { const T = S.T;
         // the glowing tyre tracks (light only) and the interlocking burnout rings
         c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.lineJoin = 'round';
         setT(c, B, 0, 0); for (const tr of tracks) { for (let i = 1; i < tr.length; i++) { const p = tr[i - 1], q = tr[i], a = Math.max(0, 1 - (t - q[2]) / 1.6); if (a < 0.02) continue; c.globalAlpha = a * 0.3; c.strokeStyle = PINK; c.lineWidth = T * 0.17; c.beginPath(); c.moveTo(H.sx(p[0]), H.sy(p[1])); c.lineTo(H.sx(q[0]), H.sy(q[1])); c.stroke(); c.globalAlpha = a * 0.5; c.strokeStyle = PEARL; c.lineWidth = T * 0.045; c.stroke(); } }
+        for (let s = 0; s < 2; s++) ribbon(S, c, B, rib[s], 0.24, s ? ROSE : GOLD, PEARL, 0.95, 0.16, t * 9 + s * 2);   // (round 2: the burnouts' gold-white ribbons)
         const iu = ph === 'implode' || ph === 'blast' ? sm((t - TI) / tu.implode) : 0, endA = finished || ph === 'blast' ? Math.max(0, 1 - (t - TE) / 0.35) : 1;
+        // (round 2) the implosion: rims of light closing in on the car, a core brightening under it
+        if (ph === 'implode') { const u0 = (t - TI) / tu.implode, Xc = H.sx(car.x), Yc = H.sy(car.y);
+          for (let k = 0; k < (LOW() ? 1 : 3); k++) { const u = u0 * 1.7 - k * 0.32; if (u <= 0 || u >= 1) continue; const s = 2 * T * lerp(5.6, 0.7, eio(u)); put(c, B, sprRing('rim'), Xc, Yc, s, s, sm(u / 0.25) * (1 - u * 0.6), 0, H.GY, true); }
+          const cs = carL(car) * T * (0.9 + 2.2 * iu); put(c, B, glowSprite(WGOLD), Xc, Yc, cs, cs, 0.25 + 0.5 * iu, 0, H.GY, true); put(c, B, glowSprite(ROSE), Xc, Yc, cs * 1.6, cs * 1.6, 0.3 * iu, 0, H.GY, true); }
         for (const r of rings) { const a = sm(r.t / 0.3) * endA, s = 2 * r.r * T * (1 - 0.55 * iu) * (1 + 0.04 * Math.sin(r.t * 7 + r.w)), x = lerp(H.sx(r.x), H.sx(car.x), iu), y = lerp(H.sy(r.y), H.sy(car.y), iu); put(c, B, sprRing('gold'), x, y, s * 1.2, s * 1.2, a * (0.85 + 0.4 * iu), r.t * 0.6 * (r.w % 2 ? -1 : 1), H.GY, true); }
         // the waves: rim, inner haze and gold-white ribbons on the floor
         for (const w of waves) { const u = cl(w.t / tu.waveT), r = w.R * eout(u), fa = w.t < tu.waveT ? 1 - 0.3 * u : Math.max(0, 1 - (w.t - tu.waveT) / 0.5) * 0.7, X0 = H.sx(w.x), Y0 = H.sy(w.y), s = 2 * r * T * 1.12, br = 1 + 0.15 * w.i;
           put(c, B, sprRing('rim'), X0, Y0, s, s, fa * 0.95 * br, 0, H.GY, true); put(c, B, glowSprite(ROSE), X0, Y0, s * 0.9, s * 0.9, fa * 0.25, 0, H.GY, true);
+          put(c, B, sprRing('gold'), X0, Y0, s * 0.82, s * 0.82, fa * 0.8, -w.rot, H.GY, true);
+          if (w.t < 0.34 && !LOW() && typeof raySprite === 'function') { const ru = w.t / 0.34, rs = raySprite(w.i % 2 ? PINK : WGOLD), NR = LOW() ? 6 : 12; c.globalCompositeOperation = 'lighter'; for (let k = 0; k < NR; k++) { const a = w.rot + k * TAU / NR, Lr = T * w.R * (0.4 + 0.9 * eout(ru)) * (0.8 + 0.2 * Math.sin(k * 2.7)), wr = T * 0.36; c.globalAlpha = (1 - ru) * (1 - ru) * 0.8; setT(c, B, X0, Y0, a, H.GY); c.drawImage(rs, T * 0.5, -wr / 2, Lr, wr); } }
           c.globalCompositeOperation = 'lighter'; setT(c, B, X0, Y0, 0, H.GY); for (let k = 0; k < 3; k++) { const a0 = w.rot + k * TAU / 3 + u * 1.2, a1 = a0 + 0.8; c.globalAlpha = fa * 0.35; c.strokeStyle = GOLD; c.lineWidth = T * 0.3; c.beginPath(); c.arc(0, 0, r * T * 0.92, a0, a1); c.stroke(); c.globalAlpha = fa * 0.9; c.strokeStyle = WGOLD; c.lineWidth = T * 0.08; c.stroke(); } }
         // the star aura behind the car (forming through the implosion, flaring at the blast)
         if (iu > 0.01 && (!ex || ex.t < 0.5)) { const ea = ex ? 1 - ex.t / 0.5 : 1, s = carL(car) * T * (1.4 + 1.3 * iu) * (ex ? 1 + ex.t * 2 : 1), pu = 1 + 0.06 * Math.sin(t * 22); put(c, B, sprAura(), H.sx(car.x), H.sy(car.y) - T * 0.35, s * pu, s * pu, iu * 0.8 * ea * ea, t * 0.8, 1, true); put(c, B, sprAura(), H.sx(car.x), H.sy(car.y), s * 1.25, s * 1.25, iu * 0.55 * ea * ea, -t * 0.5, H.GY, true); }
@@ -351,9 +373,9 @@ const SPORTSCAR_MOVES = (() => {
         c.setTransform(B); },
       over(c, B) { const T = S.T;
         // hearts, stars riding each wave
-        for (const w of waves) { const u = cl(w.t / tu.waveT), r = w.R * eout(u), fa = w.t < tu.waveT ? 1 : Math.max(0, 1 - (w.t - tu.waveT) / 0.45); if (fa < 0.02) continue; const NH = LOW() ? 4 : 6 + w.i;
+        for (const w of waves) { const u = cl(w.t / tu.waveT), r = w.R * eout(u), fa = w.t < tu.waveT ? 1 : Math.max(0, 1 - (w.t - tu.waveT) / 0.45); if (fa < 0.02) continue; const NH = LOW() ? 4 : 9 + 2 * w.i;
           for (let k = 0; k < NH; k++) { const a = w.rot + k * TAU / NH, x = H.sx(w.x + Math.cos(a) * r * 0.97), y = H.sy(w.y + Math.sin(a) * r * 0.97) - T * (0.55 + 0.25 * Math.sin(u * 5 + k)), s = T * (0.85 + 0.35 * u) * (1 + 0.08 * w.i); put(c, B, sprHeartSoft(), x, y, s, s, fa * 0.6 * petK(S, x, y, 0.2), Math.sin(w.t * 6 + k) * 0.18, 1, false); }
-          for (let k = 0; k < (LOW() ? 4 : 8); k++) { const a = w.rot + (k + 0.5) * TAU / 8, x = H.sx(w.x + Math.cos(a) * r * 0.86), y = H.sy(w.y + Math.sin(a) * r * 0.86) - T * 0.9, s = T * 0.5; put(c, B, sprStar(), x, y, s, s, fa * 0.95 * petK(S, x, y, 0.3), w.t * 9 + k, 1, false); } }
+          const NSt = LOW() ? 4 : 12 + 2 * w.i; for (let k = 0; k < NSt; k++) { const a = w.rot + (k + 0.5) * TAU / NSt, x = H.sx(w.x + Math.cos(a) * r * 0.86), y = H.sy(w.y + Math.sin(a) * r * 0.86) - T * 0.9, s = T * 0.5; put(c, B, sprStar(), x, y, s, s, fa * 0.95 * petK(S, x, y, 0.3), w.t * 9 + k, 1, false); } }
         // the blazing lights (headlights, hubs, emblem) through the implosion
         if ((ph === 'implode' || (ph === 'blast' && ex && ex.t < 0.05)) && !car.gone) { const u = sm((t - TI) / tu.implode), fl = 0.75 + 0.25 * Math.sin(t * 30);
           for (const [f, l, h, r] of [[0.5, -0.3, 0.32, 0.55], [0.5, 0.3, 0.32, 0.55], [0.32, -0.52, 0.2, 0.42], [0.32, 0.52, 0.2, 0.42], [-0.32, -0.52, 0.2, 0.42], [-0.32, 0.52, 0.2, 0.42], [0.4, 0, 0.42, 0.4], [-0.5, 0, 0.42, 0.35]]) { const p = carPt(car, f, l), x = H.sx(p[0]), y = H.sy(p[1]) - h * S.ZT; put(c, B, glowSprite(f === 0.5 ? WGOLD : PINK), x, y, r * T * 2 * (0.6 + u), r * T * 2 * (0.6 + u), u * fl * petK(S, x, y, 0.4), 0, 1, true); put(c, B, sprGlint(f === 0.5 ? GOLD : PINK), x, y, r * T * 1.6 * u, r * T * 1.6 * u, u * fl, t * 4, 1, true); } }
@@ -363,23 +385,37 @@ const SPORTSCAR_MOVES = (() => {
       abort() { car.z = 0; car.susp = 0; car.lean = 0; delete car.burn; delete car.wheelSpin; if (ctx.ejecting) { ctx.petZ = 0; } } };
     // ---- the explosion ----
     function blast() { const x = car.x, y = car.y; let n = 0; try { n = ctx.hitArea(x, y, tu.blastR, DK * tu.blast, { noCharge: true, kb: 5 }); } catch (e) {}
-      ex = { t: 0, x, y, rot: Math.random() * TAU }; car.gone = true; car.vis = 0; car.burn = 0; delete car.wheelSpin; car.glow = 1;
-      X.shake && X.shake(RM() ? 4 : 11, 0.4); X.flash && X.flash(RM() ? 0.2 : 0.5, '#FFF0F7'); X.hitstop && X.hitstop(n ? 0.07 : 0.03); X.light && X.light(x, y, 9, 0.9);
+      // (round 2) a ring of after-pops round the blast, firework-like, a beat after it
+      const pops = [], NPp = LOW() ? 3 : 7; for (let k = 0; k < NPp; k++) { const a = Math.random() * TAU / NPp + k * TAU / NPp, r = tu.blastR * rnd(0.45, 0.75); pops.push({ x: x + Math.cos(a) * r, y: y + Math.sin(a) * r * 0.8, t: 0.14 + k * 0.045 + Math.random() * 0.04, on: 0 }); }
+      ex = { t: 0, x, y, rot: Math.random() * TAU, pops }; car.gone = true; car.vis = 0; car.burn = 0; delete car.wheelSpin; car.glow = 1;
+      X.shake && X.shake(RM() ? 4 : 11, 0.4); X.flash && X.flash(RM() ? 0.14 : 0.3, '#FFF0F7');   // (round 2: softer than before; the layers below carry the brightness and the pet stays readable) X.hitstop && X.hitstop(n ? 0.07 : 0.03); X.light && X.light(x, y, 7, 0.6);
       sfx(X, 'crash'); sfx(X, 'thud'); sfx(X, 'note', 55, 1.3, 'sine', 0.7, 30); sfx(X, 'note', 110, 0.9, 'triangle', 0.25, 55); sfx(X, 'chime', 1046, 1); sfx(X, 'sparkle'); sfx(X, 'hiss', 0.7, 0.3, 900);
       const L = LOW();
+      for (let i = 0; i < (L ? 8 : 24); i++) { const a = i / 24 * TAU, v = rnd(9, 13); part(S, 9, x + Math.cos(a) * 0.8, y + Math.sin(a) * 0.6, rnd(0.3, 1.4), Math.cos(a) * v, Math.sin(a) * v * 0.72, rnd(-1, 2), rnd(0.32, 0.45), rnd(1.8, 2.8), { drag: 2.2, fin: 0.02 }); }
+      for (let i = 0; i < (L ? 4 : 18); i++) { const a = Math.random() * TAU, v = rnd(3, 8); part(S, i % 2 ? 2 : 3, x + Math.cos(a) * 0.6, y + Math.sin(a) * 0.4, rnd(0.5, 1.4), Math.cos(a) * v, Math.sin(a) * v * 0.7, rnd(3, 7), rnd(0.9, 1.4), rnd(0.42, 0.66), { g: 5, drag: 1.2, vr: rnd(-3, 3) }); }
+      for (let i = 0; i < (L ? 4 : 16); i++) { const a = Math.random() * TAU, v = rnd(4, 10); part(S, 6, x, y, rnd(0.4, 1.2), Math.cos(a) * v, Math.sin(a) * v * 0.7, rnd(3, 8), rnd(0.9, 1.4), rnd(0.45, 0.7), { g: 6, drag: 1.1, vr: rnd(-11, 11), rot: Math.random() * TAU }); }
+      for (let i = 0; i < (L ? 6 : 24); i++) { const a = Math.random() * TAU, v = rnd(2, 11); part(S, i % 2, x, y, rnd(0.2, 1.6), Math.cos(a) * v, Math.sin(a) * v * 0.7, rnd(1, 6), rnd(0.6, 1.1), rnd(0.32, 0.5), { g: 5, drag: 1.6, rot: Math.random() }); }
+      part(S, 7, x, y, 0.3, 0, 0, 0, 0.3, tu.blastR * 1.5, { fin: 0.01, u: 1, a: 0.55 }); part(S, 8, x, y, 0.1, 0, 0, 0, 0.55, tu.blastR * 0.8, { grow: 2.4, fin: 0.01, u: 1, flat: 1 });
       for (let i = 0; i < (L ? 10 : 22); i++) { const a = Math.random() * TAU, v = rnd(2.5, 7); part(S, i % 2 ? 2 : 3, x + Math.cos(a) * 0.6, y + Math.sin(a) * 0.4, rnd(0.3, 0.9), Math.cos(a) * v, Math.sin(a) * v * 0.7, rnd(2, 6), rnd(0.8, 1.3), rnd(0.35, 0.55), { g: 5, drag: 1.3, vr: rnd(-3, 3) }); }
       for (let i = 0; i < (L ? 8 : 18); i++) { const a = Math.random() * TAU, v = rnd(3, 8); part(S, 6, x, y, rnd(0.4, 1), Math.cos(a) * v, Math.sin(a) * v * 0.7, rnd(2, 7), rnd(0.8, 1.3), rnd(0.4, 0.62), { g: 6, drag: 1.1, vr: rnd(-9, 9), rot: Math.random() * TAU }); }
       for (let i = 0; i < (L ? 8 : 20); i++) { const a = Math.random() * TAU, v = rnd(2, 9); part(S, i % 2, x, y, rnd(0.2, 1.2), Math.cos(a) * v, Math.sin(a) * v * 0.7, rnd(1, 5), rnd(0.5, 0.9), rnd(0.28, 0.42), { g: 5, drag: 1.6, rot: Math.random() }); }
       for (let i = 0; i < (L ? 4 : 10); i++) { const a = i / 10 * TAU; part(S, 4, x + Math.cos(a) * 1.2, y + Math.sin(a) * 0.9, 0.2, Math.cos(a) * 3, Math.sin(a) * 2.2, 0.3, rnd(1.2, 1.6), rnd(0.9, 1.2), { grow: 1.3, a: 0.22, u: 1, v: i % 3, drag: 1.8, rot: Math.random() * TAU }); part(S, 5, x + Math.cos(a) * 2, y + Math.sin(a) * 1.5, 0.3, Math.cos(a) * 2, Math.sin(a) * 1.5, 0.2, 1.2, 2.2, { grow: 0.6, a: 0.14, u: 1, flat: 1 }); }
       startEject(x, y); }
     function drawBlastUnder(c, B) { const T = S.T, X0 = H.sx(ex.x), Y0 = H.sy(ex.y), t2 = ex.t, R = tu.blastR;
-      if (t2 < 0.4) { const u = t2 / 0.4; put(c, B, glowSprite(WGOLD), X0, Y0 - T * 0.5, R * T * 1.8 * (0.5 + 0.6 * eout(u)), R * T * 1.8 * (0.5 + 0.6 * eout(u)), (1 - u) * (1 - u) * 0.6, 0, 1, true); put(c, B, glowSprite(ROSE), X0, Y0, R * T * 3, R * T * 3, (1 - u) * 0.4, 0, H.GY, true); }
-      for (let k = 0; k < 2; k++) { const u = (t2 - k * 0.1) / 0.6; if (u <= 0 || u >= 1) continue; const s = 2 * R * T * 1.15 * eout(u) * (k ? 0.82 : 1); put(c, B, sprRing(k ? 'gold' : 'rim'), X0, Y0, s, s, (1 - u), 0, H.GY, true); }
-      { const u = t2 / 0.9; if (u < 1) put(c, B, sprHeartLine(), X0, Y0, 2 * R * T * 1.3 * eout(u), 2 * R * T * 1.3 * eout(u), (1 - u) * 0.9, 0, H.GY, true); }
-      if (typeof raySprite === 'function' && t2 < 1.1) { const u = t2 / 1.1, rs = [raySprite(WGOLD), raySprite(PINK)]; c.globalCompositeOperation = 'lighter'; const NR = LOW() ? 6 : 10; for (let i = 0; i < NR; i++) { const a = ex.rot + i * TAU / NR + u * 0.7 * (i % 2 ? 1 : -1), L = T * R * 1.15 * eout(Math.min(1, u * 2.2)) * (0.8 + 0.2 * Math.sin(i * 2.3)), w = T * (0.55 - 0.25 * u); c.globalAlpha = (1 - u) * (1 - u) * 0.85; setT(c, B, X0, Y0 - T * 0.4, a, 0.75); c.drawImage(rs[i % 2], 0, -w / 2, L, w); } } }
+      if (t2 < 0.45) { const u = t2 / 0.45; put(c, B, glowSprite(WGOLD), X0, Y0 - T * 0.5, R * T * 2.2 * (0.5 + 0.6 * eout(u)), R * T * 2.2 * (0.5 + 0.6 * eout(u)), (1 - u) * (1 - u) * 0.5, 0, 1, true); put(c, B, glowSprite(ROSE), X0, Y0, R * T * 3.4, R * T * 3.4, (1 - u) * 0.4, 0, H.GY, true); }
+      if (t2 < 0.12) put(c, B, glowSprite('#FFFFFF'), X0, Y0, R * T * 2.2, R * T * 2.2, (1 - t2 / 0.12) * 0.4, 0, H.GY, true);
+      // (round 2) three shock rims and two heart outlines, staggered; a ring of flat hearts riding out on the floor
+      for (let k = 0; k < 3; k++) { const u = (t2 - k * 0.11) / (0.6 + 0.12 * k); if (u <= 0 || u >= 1) continue; const s = 2 * R * T * (1.2 - 0.18 * k) * eout(u); put(c, B, sprRing(k === 1 ? 'gold' : 'rim'), X0, Y0, s, s, (1 - u), k * 0.7, H.GY, true); }
+      for (let k = 0; k < 2; k++) { const u = (t2 - k * 0.14) / 0.9; if (u > 0 && u < 1) put(c, B, sprHeartLine(), X0, Y0, 2 * R * T * (1.35 - 0.35 * k) * eout(u), 2 * R * T * (1.35 - 0.35 * k) * eout(u), (1 - u) * 0.9, 0, H.GY, true); }
+      if (t2 < 0.85 && !LOW()) { const u = t2 / 0.85, NHr = 14, rr = R * 1.05 * eout(u); for (let k = 0; k < NHr; k++) { const a = ex.rot + k * TAU / NHr, s = T * (0.55 + 0.35 * (1 - u)); put(c, B, sprHeart(k % 2 ? ROSE : '#FFC56E'), H.sx(ex.x + Math.cos(a) * rr), H.sy(ex.y + Math.sin(a) * rr), s, s, (1 - u) * 0.9, a + Math.PI / 2, H.GY, true); } }
+      if (typeof raySprite === 'function' && t2 < 1.2) { const u = t2 / 1.2, rs = [raySprite(WGOLD), raySprite(PINK)]; c.globalCompositeOperation = 'lighter'; const NR = LOW() ? 6 : 18; for (let i = 0; i < NR; i++) { const lay = i % 2, a = ex.rot + i * TAU / NR + u * 0.8 * (lay ? 1 : -1), L = T * R * (lay ? 0.85 : 1.45) * eout(Math.min(1, u * 2.4)) * (0.8 + 0.2 * Math.sin(i * 2.3)), w = T * (lay ? 0.8 - 0.4 * u : 0.42 - 0.2 * u); c.globalAlpha = (1 - u) * (1 - u) * (lay ? 0.7 : 0.9); setT(c, B, X0, Y0 - T * 0.4, a, 0.75); c.drawImage(rs[lay], 0, -w / 2, L, w); } } }
     function drawBlastOver(c, B) { const T = S.T, t2 = ex.t, R = tu.blastR;
       // layered heart silhouettes opening upright round the blast (outlines: the pet and monsters show through)
-      for (let k = 0; k < 3; k++) { const u = (t2 - k * 0.08) / 0.8; if (u <= 0 || u >= 1) continue; const x = H.sx(ex.x), y = H.sy(ex.y) - T * (0.7 + 0.25 * k), s = T * R * (0.5 + (0.45 + 0.2 * k) * eout(u)); put(c, B, sprHeartLine(), x, y, s, s, (1 - u) * (1 - u) * 0.9, 0, 1, true); } }
+      // (round 2: five layers; dimmed where they cross the flying pet)
+      for (let k = 0; k < (LOW() ? 3 : 5); k++) { const u = (t2 - k * 0.07) / 0.85; if (u <= 0 || u >= 1) continue; const x = H.sx(ex.x), y = H.sy(ex.y) - T * (0.7 + 0.22 * k), s = T * R * (0.5 + (0.4 + 0.18 * k) * eout(u)); put(c, B, sprHeartLine(), x, y, s, s, (1 - u) * (1 - u) * 0.9 * petK(S, x, y, 0.25), Math.sin(k * 1.7) * 0.12 * u, 1, true); } }
+    function popAt(x, y) { const L = LOW(); part(S, 8, x, y, 0.5, 0, 0, 0, 0.32, 0.6, { grow: 2.6, fin: 0.01 }); part(S, 7, x, y, 0.5, 0, 0, 0, 0.18, 1.3, { fin: 0.01 });
+      for (let i = 0; i < (L ? 3 : 7); i++) { const a = i / 7 * TAU + Math.random() * 0.4, v = rnd(2, 4.5); part(S, i % 3 === 0 ? 6 : i % 3 === 1 ? 0 : 2, x, y, 0.5, Math.cos(a) * v, Math.sin(a) * v * 0.7, rnd(1, 3), rnd(0.4, 0.7), i % 3 === 2 ? 0.4 : 0.32, { g: 5, drag: 2, vr: rnd(-6, 6), rot: Math.random() * TAU }); }
+      if (Math.random() < 0.5) sfx(X, 'note', 2093 + Math.random() * 1200, 0.18, 'sine', 0.05, 3136); }
     // ---- the ejection: up along a short arc, ribbons and stars behind, down on clear ground ----
     function startEject(x, y) { const prefs = [Math.PI / 2, Math.PI / 2 - 0.7, Math.PI / 2 + 0.7, 0, Math.PI, -Math.PI / 2 + 0.7, -Math.PI / 2 - 0.7, -Math.PI / 2]; let L = null;
       for (const D of [tu.ejectD, tu.ejectD * 0.6, 0.6]) { for (const a of prefs) { const px = x + Math.cos(a) * D, py = y + Math.sin(a) * D; let ok = stand(ctx, px, py); if (ok) { const w = walkTo(ctx, x, y, px, py, (q, r) => stand(ctx, q, r)); ok = Math.hypot(w[0] - px, w[1] - py) < 0.05; } if (ok) { L = [px, py]; break; } } if (L) break; }
