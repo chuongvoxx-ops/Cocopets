@@ -1909,6 +1909,9 @@ GAMES.dungeon = {
     }
     let petSnapF = null;   // this frame's picture of the pet, while copies of it are out
     function drawPet(c) {
+      /* (hook for Dark's Dracula, 20k5o: me.petAlt is an elemental effect that draws the pet as something else; the pet is
+         hidden only while that effect is still running and the pet is alive, so it reappears by itself if the effect ends) */
+      if (me.petAlt && !me.dead && ELEM && ELEM.fx.indexOf(me.petAlt) >= 0) return;
       const T = Tz(), X = sx(me.x + (me.hopDX || 0)), Y0 = sy(me.y + (me.hopDY || 0)), z = (me.z || 0) * T, h = T * 1.02 * SIZE * (g.pw.giant ? 1.35 : 1) * (g.petK || 1);
       // the pet as drawPetFull shows it everywhere: a Celestial six-star's magic circle and float, the contact shadow and
       // the element's glow on the ground, its lights circling, the body in parts (feet stepping, arms swinging, lifted for
