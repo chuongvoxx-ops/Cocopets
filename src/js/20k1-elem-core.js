@@ -96,12 +96,12 @@ const ELEM_MOVES = {
   dark: { strong: [
     ['inkfang', 'Inkfang', 'claw', 24, 2.4, 'Fangs of living darkness lunge low through the monsters and splash into retracting ribbons: 1 fang, 2 at Adept, 3 at Celestial.'],
     ['eclipsedisc', 'Eclipse Disc', 'boom', 24, 2.6, 'A great black disc with a violet rim slides along your aim through the monsters, then contracts to a point and bursts.'],
-    ['hem', 'Shadow Hem', 'crescent', 26, 2.8, 'A dark ribbon draws a curve on the ground, then rises as a cutting curtain.'],
-    ['hollowlantern', 'Hollow Lantern', 'vortex', 26, 3, 'A dark lantern opens over the aim on a tiny void that leans the monsters in, then pulses.'],
+    ['deathspursuit', "Death's Pursuit", 'skull', 26, 3, 'Demonic obsidian skulls rise round you and chase the monsters on curving paths, biting and exploding in violet fire: 2 skulls, 3 at Adept, 4 at Celestial.'],
+    ['shadowseam', 'Shadow Seam', 'crescent', 26, 3, 'A seam tears open in the air and fires razor crescents of darkness down your aim, each piercing every monster in its path: 3 crescents, 5 at Adept, 7 at Celestial.'],
     ['nightneedle', 'Nightneedle Cluster', 'fan', 24, 2.6, 'Shadow needles gather round you at uneven heights and launch in a staggered spread; more needles as your pet evolves.'],
-    ['undertow', 'Velvet Undertow', 'wave', 26, 2.8, 'A low wave of flowing darkness rolls forward, its folded edges dragging monsters along.'],
-    ['ravenfold', 'Ravenfold', 'feather', 24, 2.6, 'Three ravens unfold from your shadow and dart at the target; the last leaves an open-wing trail.'],
-    ['umbralhook', 'Umbral Hook', 'thorns', 26, 2.8, 'A crescent hook flies out on an ink tether, bites, and drags the monster to you.'],
+    ['nightbloom', 'Night Bloom', 'flower', 26, 3.2, 'A black seed grows into a midnight crystal lotus under the monsters and bursts: 1 flower, plus 2 satellite blooms at Adept, 4 at Celestial.'],
+    ['eclipsemantle', 'Eclipse Mantle', 'shield', 28, 8, 'An eclipsed moon wraps you in a shadow mantle that absorbs damage: a shield of 10% of max HP for 6 s (14% for 7 s at Adept, 18% for 8 s at Celestial). Recasting keeps the larger shield.'],
+    ['witchsbrand', "Witch's Brand", 'eye', 26, 3.2, 'A demonic seal brands the monsters below: -15% defence and -20% speed for 6 s (-20% / -25% for 7 s at Adept, -25% / -30% for 8 s at Celestial); each brand explodes for Dark damage when it expires.'],
     ['dracula', 'Dracula', 'feather', 28, 6, 'Your pet becomes a vampire bat and dives on the monsters, biting and siphoning their blood: each successful bite heals 6% of max HP. 2 dives, 3 at Adept, 4 at Celestial.'],
     ['demonblade', 'Demon Blade', 'crescent', 28, 6, 'Your pet summons a cursed greatsword of darkness and unleashes a flowing combo; each connecting swing costs 2% of its HP: 3 swings, 5 at Adept, 7 at Celestial.'] ],
   ult: [
