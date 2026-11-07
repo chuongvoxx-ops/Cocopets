@@ -13,7 +13,11 @@
    the list) blocks a hit with a charge (0 damage, returns nothing to the other wards), otherwise takes 20% off before
    Rock Steady and Love Sanctuary see the rest; after a block any push laid on the pet for 0.2 s is dropped.
    It ends at its time (the ribbons unwind and fade), at once on the pet's death, and with the floor (g is the floor's).
-   No damage is dealt.
+   The feather counter: while it lasts, every hit the pet takes (blocked or not; never a damage-over-time tick; at most one
+   burst per 0.3 s of game time) shoots a ring of sharp wind feathers out of it: 6 / 8 / 10 at levels 1-3 / 4-6 / 7, each
+   bending a little (7 rad/s) toward the nearest monster ahead of it within 4 x K tiles and hitting the first monster it
+   touches once (Wind, through hitMon, src 'ult'): 0.45 / 0.55 / 0.65 x base x K x (1 + 0.08 (evo - 1)) per feather at
+   levels 1 / 4 / 7 (continuous between); feathers with no target fly straight out 4 x K tiles and fade, a wall stops one.
    Visuals: the cast (1.25 s): a crouch with wind motes gathering, a leap (me.z / me.hopSq / me.hopArmS: the pet's own rig,
    never turned in 3D), the wings unfurling (cached feathered membranes: deep emerald at the root to mint, mint rims and
    pearly veins; Celestial eyespots), the wingbeat and its soft floor shockwave, the landing as the wings dissolve.
@@ -38,6 +42,9 @@
   const asOf = ev => (ev <= 4 ? 0.2 + (ev - 1) * 0.1 / 3 : 0.3 + (ev - 4) * 0.05 / 3);   // +20% / +30% / +35%
   const chOf = ev => (ev >= 7 ? 2 : 1);
   const MV = 1.3, DR = 0.8;
+  // the feather counter: feathers per burst (held to their breakpoints), damage per feather x base x K x evoK
+  // (0.45 / 0.55 / 0.65 at levels 1 / 4 / 7, continuous between), reach 4 x K tiles, at most one burst per 0.3 s
+  const nfOf = ev => (ev >= 7 ? 10 : ev >= 4 ? 8 : 6), fkOf = ev => (ev <= 4 ? 0.45 + (ev - 1) * 0.1 / 3 : 0.55 + (ev - 4) * 0.1 / 3), CNT_GAP = 0.3, F_SPD = 12;
   let H = null;
 
   /* ================= sprites (baked once) ================= */
@@ -100,8 +107,22 @@
   // a gust arc (a curved soft streak), for the shockwave
   const gustSpr = () => fxSprite('zpGust', 128, 64, g => { g.lineCap = 'round'; for (const [w, a, col] of [[10, 0.12, MINT], [5, 0.3, MINT], [1.8, 0.75, AIR]]) { g.strokeStyle = col; g.globalAlpha = a; g.lineWidth = w; g.beginPath(); g.moveTo(10, 50); g.quadraticCurveTo(64, 6, 118, 40); g.stroke(); }
     g.globalAlpha = 1; g.globalCompositeOperation = 'destination-in'; const lg = g.createLinearGradient(0, 0, 128, 0); lg.addColorStop(0, 'rgba(0,0,0,0)'); lg.addColorStop(0.3, 'rgba(0,0,0,1)'); lg.addColorStop(0.7, 'rgba(0,0,0,1)'); lg.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = lg; g.fillRect(0, 0, 128, 64); });
-  const WARM = [() => wingSpr(1), () => wingSpr(2), () => wingSpr(3), () => wingGlowSpr(), () => emblemSpr(), () => ringSpr(), () => gustSpr(), () => glowSprite(MINT), () => glowSprite(AIR), () => glowSprite(EMER)];
+  // a counter feather: a sharp spike of wind (pointing along +x at bucket 0): emerald vane, mint rim, pearly shaft
+  const NSP = 24;
+  const spikeSpr = b => fxSprite('zpSpike' + b, 64, 64, g => { g.translate(32, 32); g.rotate(b / NSP * TAU);
+    const vane = q => { q.beginPath(); q.moveTo(27, 0); q.bezierCurveTo(14, -3.2, 0, -6.4, -14, -5.2); q.lineTo(-19, -7.6); q.lineTo(-17, -3.4); q.lineTo(-25, -4.2); q.lineTo(-21, 0); q.lineTo(-25, 4.2); q.lineTo(-17, 3.4); q.lineTo(-19, 7.6); q.lineTo(-14, 5.2); q.bezierCurveTo(0, 6.4, 14, 3.2, 27, 0); q.closePath(); };
+    soft(g, 4, 'rgba(115,232,182,0.95)', q => { q.fillStyle = '#000'; vane(q); q.fill(); });
+    const lg = g.createLinearGradient(0, -6, 0, 6); lg.addColorStop(0, '#9EF2CF'); lg.addColorStop(0.35, '#1FB384'); lg.addColorStop(0.62, '#0E7A5A'); lg.addColorStop(1, '#3FD0A0'); g.fillStyle = lg; vane(g); g.fill();
+    g.strokeStyle = 'rgba(231,255,246,0.9)'; g.lineWidth = 1.1; vane(g); g.stroke();
+    g.strokeStyle = 'rgba(6,70,52,0.45)'; g.lineWidth = 0.7; for (let i = 0; i < 5; i++) { const x = -10 + i * 6; g.beginPath(); g.moveTo(x, 0); g.lineTo(x - 4, -4); g.moveTo(x, 0); g.lineTo(x - 4, 4); g.stroke(); }
+    g.strokeStyle = '#FFFFFF'; g.lineWidth = 1.3; g.beginPath(); g.moveTo(-24, 0); g.lineTo(25, 0); g.stroke(); g.strokeStyle = 'rgba(255,200,228,0.6)'; g.lineWidth = 0.6; g.beginPath(); g.moveTo(-20, 0.9); g.lineTo(18, 0.9); g.stroke(); });
+  // its streak: a feathered trail, bright at the head (+x)
+  const trailSpr = () => fxSprite('zpTrail', 128, 24, (g, W, Hh) => { const lg = g.createLinearGradient(0, 0, W, 0); lg.addColorStop(0, 'rgba(115,232,182,0)'); lg.addColorStop(0.7, 'rgba(115,232,182,0.45)'); lg.addColorStop(1, 'rgba(231,255,246,0.95)');
+    soft(g, 5, 'rgba(115,232,182,0.6)', q => { q.fillStyle = '#000'; q.beginPath(); q.moveTo(0, Hh / 2); q.lineTo(W - 6, Hh / 2 - 4); q.lineTo(W - 6, Hh / 2 + 4); q.closePath(); q.fill(); });
+    g.fillStyle = lg; g.beginPath(); g.moveTo(0, Hh / 2); g.lineTo(W - 4, Hh / 2 - 2.2); g.quadraticCurveTo(W, Hh / 2, W - 4, Hh / 2 + 2.2); g.closePath(); g.fill(); });
+  const WARM = [() => trailSpr(), () => wingSpr(1), () => wingSpr(2), () => wingSpr(3), () => wingGlowSpr(), () => emblemSpr(), () => ringSpr(), () => gustSpr(), () => glowSprite(MINT), () => glowSprite(AIR), () => glowSprite(EMER)];
   for (let v = 0; v < 2; v++) for (let b = 0; b < NROT; b++) WARM.push(() => featherSpr(v, b));
+  for (let b = 0; b < NSP; b++) WARM.push(() => spikeSpr(b));
   let WI = 0; const warmStep = ms => { const t0 = nowMs(); while (WI < WARM.length && nowMs() - t0 < ms) WARM[WI++](); return WI >= WARM.length; };
   // the pet's afterimage: its picture as a soft mint silhouette, one per set of pictures (a pet switch brings another)
   const GHOSTS = new WeakMap(); let GHOST_MS = 0;
@@ -125,10 +146,13 @@
   }
 
   /* ================= the blessing: the party state, the ward, the lasting look ================= */
-  function bless(ev, tier) {
+  function bless(ev, tier, C) {
     const g = H.g, me = H.me, dur = durOf(ev), ch = chOf(ev);
     let Z = g.zephyr; if (!Z) Z = g.zephyr = { guardT: 0, prePush: null, blocks: 0 };
-    Object.assign(Z, { t: dur, dur, as: 1 + asOf(ev), mv: MV, dr: DR, ch, chMax: ch, ev, tier });
+    const K = (C && C.K) || 1;
+    Object.assign(Z, { t: dur, dur, as: 1 + asOf(ev), mv: MV, dr: DR, ch, chMax: ch, ev, tier,
+      nf: nfOf(ev), fd: ((C && C.base) || 0) * K * (1 + 0.08 * (ev - 1)) * fkOf(ev), reach: 4 * K, dmgO: C && C.dmgO ? C.dmgO : (o => o) });
+    if (Z.cntAt == null) Z.cntAt = -9; Z.counters = Z.counters || 0;
     me.chill = 0;   // (slows on the pet cleared)
     if (Z.aura && !Z.aura.ending && H.fx.includes(Z.aura)) Z.aura.refresh(tier); else Z.aura = aura(tier);
     return Z;
@@ -136,13 +160,16 @@
   function aura(tier) {
     const me = H.me, g = H.g, X0 = H.X;
     // the ward: Windguard first (the whole hit blocked, no other ward sees it), otherwise 20% off
+    // (every real hit, blocked or not, never a damage-over-time tick, also shoots the feather counter)
     const ward = (d, src, o) => { const Z = g.zephyr; if (!Z || !(Z.t > 0) || me.dead || !(d > 0)) return d;
-      if (Z.ch > 0 && !(o && o.dot)) { Z.ch--; Z.blocks++; Z.guardT = 0.2; Z.prePush = me.push; onBlock(src); return 0; }
+      const real = !(o && o.dot);
+      if (Z.ch > 0 && real) { Z.ch--; Z.blocks++; Z.guardT = 0.2; Z.prePush = me.push; onBlock(src); counter(src, true); return 0; }
+      if (real) counter(src, false);
       return d * Z.dr; };
     let unWard = X0.addWard ? X0.addWard(ward, true) : null;
     const release = () => { if (unWard) { unWard(); unWard = null; } };
     let lastT = 0, ribA = 0, wrapK = 0, endT = -1, dead = false, emb = [];
-    const ghosts = [], blks = [], spiral = [], sparks = []; let gT = 0, lx = me.x, ly = me.y, vx = 0, vy = 0;
+    const ghosts = [], blks = [], spiral = [], sparks = [], darts = [], flashes = []; let gT = 0, lx = me.x, ly = me.y, vx = 0, vy = 0;
     const NS = tier >= 3 ? 3 : 2, NP = 26;
     const wisps = []; const nW = H.n(tier >= 3 ? 9 : tier >= 2 ? 7 : 5); for (let i = 0; i < nW; i++) wisps.push({ a: i / nW * TAU, w: (1.5 + Math.random() * 0.9) * (i % 3 === 2 ? -1 : 1), r: 0.62 + Math.random() * 0.22, h: 0.15 + (i / nW) * 0.95, ph: Math.random() * TAU, v: i % 2, s: 0.2 + Math.random() * 0.06 });
     const F = H.add({ key: 'zephyrAura', life: 1e6, entY: me.y - 0.004, ending: false, tier, update, draw, drawUnder, onEnd() { release(); if (g.zephyr && g.zephyr.aura === F) g.zephyr = null; kid.life = 0; } });
@@ -157,13 +184,53 @@
       X0.text(me.x, me.y - 1.1 * hT - 0.3, 'WINDGUARD', AIR, 14); X0.light && X0.light(me.x, me.y, 3, 0.35); X0.sfx.whoosh(); X0.sfx.chirp && X0.sfx.chirp();
       X0.ring(me.x, me.y, 0.4, 1.8 * hT, 0.35, MINT, 0.14);
     }
+    /* ---- the feather counter: a ring of sharp wind feathers shot out from the pet, each bending a little toward the
+       nearest monster ahead of it within reach, one hit each on contact (Wind, the move's own damage) ---- */
+    function counter(src, big) {
+      const Z = g.zephyr; if (!Z || g.t - Z.cntAt < CNT_GAP) return; Z.cntAt = g.t; Z.counters++;
+      const n = Z.nf, hT = petHTof(me), a0 = src && isFinite(src.x) ? Math.atan2(src.y - me.y, src.x - me.x) : Math.random() * TAU, mons = H.living().filter(m => Math.hypot(m.x - me.x, m.y - me.y) < Z.reach + m.r);
+      for (let i = 0; i < n; i++) { const a = a0 + i / n * TAU; let tg = null, bd = 1e9;
+        for (const m of mons) { const dx = m.x - me.x, dy = m.y - me.y, d = Math.hypot(dx, dy), off = Math.abs(H.wrap(Math.atan2(dy, dx) - a)); if (off < 0.75 && d + off * 1.5 < bd) { bd = d + off * 1.5; tg = m; } }
+        darts.push({ x: me.x + Math.cos(a) * 0.45 * hT, y: me.y + Math.sin(a) * 0.35 * hT, z: 0.5 * hT, x0: me.x, y0: me.y, hT, a, t: 0, life: (Z.reach + 0.6) / F_SPD + 0.12, tg, dmg: Z.fd, dmgO: Z.dmgO, done: false }); }
+      flashes.push({ t0: lastT, big }); if (flashes.length > 4) flashes.shift();
+      X0.sfx.whoosh(); if (big) X0.sfx.sparkle && X0.sfx.sparkle();
+    }
+    function stepDarts(dt) {
+      const live = darts.length ? H.living() : null;
+      for (const p of darts) { if (p.done) continue; p.t += dt;
+        if (p.tg && (p.tg.dead || p.tg.under || p.tg.falling)) p.tg = null;
+        if (p.tg) { const want = Math.atan2(p.tg.y - p.y, p.tg.x - p.x), da = H.wrap(want - p.a), turn = 7 * dt; p.a += Math.max(-turn, Math.min(turn, da)); }
+        const v = F_SPD * (p.t < 0.06 ? 0.7 + 5 * p.t : 1); p.x += Math.cos(p.a) * v * dt; p.y += Math.sin(p.a) * v * dt; p.z = Math.max(0.25, p.z - dt * 0.4);
+        if (H.X.blocked && H.X.blocked(p.x, p.y, 0.05, 0)) { p.done = true; impact(p, false); continue; }
+        for (const m of live) { if (Math.hypot(m.x - p.x, m.y - p.y) < m.r + 0.22) { p.done = true; H.X.hitMon(m, p.dmg, p.dmgO({ kb: 0.8, src: 'ult' })); impact(p, true); break; } }
+        if (!p.done && p.t >= p.life) p.done = true; }
+      for (let i = darts.length - 1; i >= 0; i--) if (darts[i].done) darts.splice(i, 1);
+      for (let i = flashes.length - 1; i >= 0; i--) if (lastT - flashes[i].t0 > 0.4) flashes.splice(i, 1);
+    }
+    function impact(p, hit) { const T = X0.Tz(), X = H.sx(p.x), Y = H.sy(p.y) + 0.18 * T - p.z * T;
+      for (let i = 0; i < H.n(hit ? 5 : 2); i++) { const an = p.a + Math.PI + (Math.random() - 0.5) * 2.2, v = T * (1.2 + Math.random() * 1.6); sparks.push({ X, Y, vx: Math.cos(an) * v, vy: Math.sin(an) * v - T * 0.4, t: 0, life: 0.3 + Math.random() * 0.2, s: T * 0.05 }); }
+      if (hit) flashes.push({ t0: lastT, imp: 1, X: p.x, Y: p.y, Z: p.z }); }
+    function drawDarts(c) {
+      if (!darts.length && !flashes.length) return; const T = X0.Tz(), hT = petHTof(me), hp = hT * T, Fp = feet(T);
+      for (const f of flashes) { const u = (lastT - f.t0) / 0.35; if (u >= 1) continue;
+        if (f.imp) { const X = H.sx(f.X), Y = H.sy(f.Y) + 0.18 * T - f.Z * T; glowF(c, X, Y, T * 0.55 * (0.6 + u), MINT, 0.7 * (1 - u)); glowF(c, X, Y, T * 0.22, AIR, 0.8 * (1 - u)); }
+        else { const k = f.big ? 1.6 : 1, a = (1 - sm(u)); glowF(c, Fp[0], Fp[1] - hp * 0.5, hp * (0.7 + 0.8 * u) * k, MINT, 0.3 * a);
+          const R = hp * (0.5 + 1.4 * sm(u)) * k; c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.6 * a; c.drawImage(ringSpr(), Fp[0] - R, Fp[1] - hp * 0.5 - R * 0.6, R * 2, R * 1.2); c.restore(); } }
+      if (!darts.length) return; const tr = trailSpr(), L = T * 0.62;
+      c.save();
+      for (const p of darts) { const X = H.sx(p.x), Y = H.sy(p.y) + 0.18 * T - p.z * T, sa = Math.atan2(Math.sin(p.a) * 0.8, Math.cos(p.a)), a = sm((Math.hypot(p.x - p.x0, p.y - p.y0) - 0.45 * p.hT) / (0.55 * p.hT)) * (1 - sm((p.t - (p.life - 0.12)) / 0.12)); if (a < 0.02) continue;   // (they appear clear of the pet: it stays in view)
+        const tl = Math.min(1, p.t / 0.12) * T * 1.5;
+        c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.75 * a; c.translate(X, Y); c.rotate(sa); c.drawImage(tr, -tl, -T * 0.11, tl + T * 0.05, T * 0.22); c.rotate(-sa); c.translate(-X, -Y);
+        c.globalCompositeOperation = 'source-over'; c.globalAlpha = a; const b = ((Math.round(sa / TAU * NSP) % NSP) + NSP) % NSP; c.drawImage(spikeSpr(b), X - L, Y - L, L * 2, L * 2); }
+      c.restore();
+    }
     function spiralAdd(t0, a0, k) { spiral.push({ t0, a0, k, v: spiral.length % 2, s: 0.16 + Math.random() * 0.07, dir: Math.random() < 0.5 ? 1 : -1, hh: 0.6 + Math.random() * 0.8 }); }
     function end(died) { if (F.ending) return; F.ending = true; endT = lastT; dead = died; release(); if (g.zephyr && g.zephyr.aura === F) g.zephyr = null;
       F.life = died ? 0.35 : 1.0; kid.life = F.life; if (!died) { X0.text(me.x, me.y - 1.3, "Zephyr's Blessing faded", '#CFE2FF', 12); for (const w of wisps) w.fly = 1; } }
     function update(dt, f) {
       const t = f.t; lastT = t; const Z = g.zephyr;
       if (!F.ending) {
-        if (me.dead) end(true);
+        if (me.dead) { end(true); darts.length = 0; }
         else if (!Z || Z.aura !== F) end(false);
         else { Z.t -= dt; if (Z.guardT > 0) Z.guardT = Math.max(0, Z.guardT - dt); if (me.chill) me.chill = 0; if (Z.t <= 0) end(false); }
       }
@@ -181,6 +248,7 @@
       for (const w of wisps) { w.a += w.w * dt * (1 + 1.4 * eu); if (w.fly) w.r += dt * 2.2; }
       for (const s of sparks) { s.t += dt; s.X += s.vx * dt; s.Y += s.vy * dt; s.vy += 0.6 * X0.Tz() * dt; } for (let i = sparks.length - 1; i >= 0; i--) if (sparks[i].t >= sparks[i].life) sparks.splice(i, 1);
       for (let i = spiral.length - 1; i >= 0; i--) if (t - spiral[i].t0 > 1.3) spiral.splice(i, 1);
+      if (dead) darts.length = 0; stepDarts(dt);
       for (let i = blks.length - 1; i >= 0; i--) if (t - blks[i].t0 > 0.9) blks.splice(i, 1);
       // a few motes shed off the ribbons as they unwind
       if (F.ending && !dead && Math.random() < dt * 30 * H.Q()) { const T = X0.Tz(), hT = petHTof(me), a = Math.random() * TAU, r = hT * 0.5 * (1 + 1.6 * eu); sparks.push({ X: H.sx(me.x) + Math.cos(a) * r * T, Y: H.sy(me.y) + 0.18 * T - (me.z || 0) * T - hT * T * (0.2 + 0.8 * Math.random()) + Math.sin(a) * r * T * 0.42, vx: Math.cos(a) * T * 0.4, vy: -T * (0.2 + Math.random() * 0.4), t: 0, life: 0.6, s: T * 0.045 }); }
@@ -282,7 +350,7 @@
       for (const b of blks) { const u = lastT - b.t0; if (u > 0.7) continue; const R = hT * T * (0.6 + 2.2 * (1 - Math.pow(1 - cl(u / 0.6), 2))), aa = 0.7 * (1 - sm(u / 0.7)); c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = aa; c.drawImage(ringSpr(), H.sx(me.x) - R, H.sy(me.y) + 0.18 * T - R * GY, R * 2, R * 2 * GY); c.restore(); }
     }
     function draw(c) {
-      drawSpiral(c);
+      drawSpiral(c); drawDarts(c);
       if (sparks.length) { c.save(); c.globalCompositeOperation = 'lighter'; const gs = glowSprite(MINT); for (const s of sparks) { const u = s.t / s.life; c.globalAlpha = 0.85 * (1 - u); const r = s.s * (1 - 0.5 * u); c.drawImage(gs, s.X - r * 2, s.Y - r * 2, r * 4, r * 4); } c.restore(); }
     }
     return F;
@@ -322,14 +390,14 @@
     const feet = T => [H.sx(me.x), H.sy(me.y) + 0.18 * T - (me.z || 0) * T];
     function beat() {
       const T = X0.Tz(), hT = petHTof(me);
-      bless(ev, tier); blessed = true;
+      bless(ev, tier, C); blessed = true;
       X0.sfx.whoosh(); X0.sfx.sparkle && X0.sfx.sparkle(); X0.shake(4, 0.2); X0.light && X0.light(me.x, me.y, 5, 0.45);
       // feathers and a few petals thrown out on the beat
       const n = H.n(14 + 5 * tier); for (let i = 0; i < n; i++) { const a = i / n * TAU + Math.random() * 0.3, v = 2.2 + Math.random() * 2.2; flyers.push({ x: me.x, y: me.y, z: 0.6 + Math.random() * 0.6, vx: Math.cos(a) * v, vy: Math.sin(a) * v * 0.7, vz: 0.6 + Math.random() * 1.2, t: 0, life: 1.0 + Math.random() * 0.5, v: i % 3 === 0 ? 1 : 0, rot: Math.random() * TAU, vr: (Math.random() - 0.5) * 8, s: 0.15 + Math.random() * 0.06, pk: i % 5 === 0 }); }
       for (let i = 0; i < H.n(16); i++) { const a = Math.random() * TAU, v = 3 + Math.random() * 3; H.P({ kind: 'spark', x: me.x + Math.cos(a) * 0.3, y: me.y + Math.sin(a) * 0.2, vx: Math.cos(a) * v, vy: Math.sin(a) * v * 0.55 - 1, g: 3, life: 0.6, max: 0.6, size: 1.6, color: i % 2 ? MINT : AIR }); }
       void T; void hT;
     }
-    const F = H.add({ key: 'zephyr', life: CAST, entY: me.y - 0.004, update, draw, drawUnder, onEnd() { clearPet(); if (!blessed && !me.dead) bless(ev, tier); } });
+    const F = H.add({ key: 'zephyr', life: CAST, entY: me.y - 0.004, update, draw, drawUnder, onEnd() { clearPet(); if (!blessed && !me.dead) bless(ev, tier, C); } });
     F.drawEnt = c => drawWings(c);
     function update(dt, f) {
       const t = f.t; lastT = t;
@@ -384,5 +452,5 @@
   };
   U.zephyrblessing.warm = () => { if (WI >= WARM.length) return; setTimeout(function step() { if (!warmStep(2)) setTimeout(step, 30); }, 300); };
   // the debug door for the harness
-  U.zephyrblessing.__dbg = { get ghostMs() { return GHOST_MS; }, durOf, asOf, chOf, MV, DR, WARM, warmAll: () => warmStep(1e9) };
+  U.zephyrblessing.__dbg = { get ghostMs() { return GHOST_MS; }, nfOf, fkOf, CNT_GAP, durOf, asOf, chOf, MV, DR, WARM, warmAll: () => warmStep(1e9) };
 })();
