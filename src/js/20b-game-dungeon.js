@@ -548,7 +548,9 @@ GAMES.dungeon = {
        takes the damage after all mitigation, absorbs what its shield pool can while the pet stands inside it, and returns
        what is left over for the pet (d unchanged when the pet is outside, or the ward is gone).
        (and Earth's Rock Steady, 20k2g) more wards at once: X.addWard(fn) adds one (same contract) and returns its remover;
-       the added ones run first, in the order added, then the setWard one sees what is left */
+       the added ones run first, in the order added, then the setWard one sees what is left.
+       (and Wind's Zephyr's Blessing, 20k3j) X.addWard(fn, true) puts a ward at the front of that list: its Windguard sees
+       the whole hit first (a block leaves nothing for the others), then its 20% cut, then Rock Steady, then Love Sanctuary */
     let petWard = null; const petWards = [];
     /* returns true if the hit landed */
     function hurtPet(d, src, o) {
@@ -676,7 +678,11 @@ GAMES.dungeon = {
       dx /= d; dy /= d;
       return { t: best, x: dx, y: dy, a: Math.atan2(dy, dx), tap: true, px: tx, py: ty };
     }
-    const normalRate = () => (NORMAL_IV[KIT.normal.key] || 0.32) * (AB.rate || 1) / ((g.warpT > 0 ? 2 : 1) * (g.phoenixT > 0 ? 1.5 : 1) * (g.buff.haste > 0 ? 1.4 : 1) * (g.pw.quick ? 1 + 0.4 * g.pw.quick : 1) * (AN ? AN.rateK() : 1));
+    const normalRate = () => (NORMAL_IV[KIT.normal.key] || 0.32) * (AB.rate || 1) / ((g.warpT > 0 ? 2 : 1) * (g.phoenixT > 0 ? 1.5 : 1) * (g.buff.haste > 0 ? 1.4 : 1) * (g.pw.quick ? 1 + 0.4 * g.pw.quick : 1) * (AN ? AN.rateK() : 1) * zephK('as'));
+    /* (hook for Wind's Zephyr's Blessing, 20k3j) the party blessing on g.zephyr while it lasts (t > 0): as attack speed
+       (1.2-1.35: the normal attack's interval and the Strong cooldowns run that much faster), mv movement (1.3); it also
+       makes the pet immune to slows (chill, mud) and blocks knockback just after a Windguard block (guardT) */
+    function zephK(k) { const Z = g.zephyr; return Z && Z.t > 0 && !me.dead ? Z[k] || 1 : 1; }
     const normalHooks = [];   // (listeners on the pet's normal attack: Dark's Thriller, 20k5j; ELEM's onNormal adds one)
     /* one normal attack toward A, if the pet is ready for it */
     function tryFire(A) {
@@ -930,7 +936,7 @@ GAMES.dungeon = {
       /* (hook for Light's Love Sanctuary, 20k4i) set or clear the ward that absorbs damage in hurtPet */
       setWard: fn => { petWard = fn || null; },
       /* (hook for Earth's Rock Steady, 20k2g) add one more ward alongside it; returns the remover */
-      addWard: fn => { petWards.push(fn); return () => { const i = petWards.indexOf(fn); if (i >= 0) petWards.splice(i, 1); }; },
+      addWard: (fn, first) => { if (first) petWards.unshift(fn); else petWards.push(fn); return () => { const i = petWards.indexOf(fn); if (i >= 0) petWards.splice(i, 1); }; },
       /* (hook for Dark's Thriller, 20k5j) listen to the pet's normal attacks; returns the unsubscribe; onNormalN counts them */
       onNormal: fn => { normalHooks.push(fn); return () => { const i = normalHooks.indexOf(fn); if (i >= 0) normalHooks.splice(i, 1); }; }, onNormalN: () => normalHooks.length });
     RES = DunResidue.create({ me, g, mons, props: propList, M, T_FLOOR, EL, e8Of, REACT_NAME: (a, b) => (REACTIONS[pairKey(a, b)] || {}).name, ST: () => ST, hitMon, part, boom, ring, sparks, text, light, drop, sfx: api.sfx, sx, sy, Tz: () => Tz() });
@@ -1335,11 +1341,12 @@ GAMES.dungeon = {
       if (F.liveCap) liveCapTick(dt);
       if (RX) RX.update(dt); if (STAR) STAR.update(dt); if (ELEM) ELEM.update(dt); if (RES) RES.update(dt); if (g.eclipseT > 0) g.eclipseT -= dt;
       const cdK = (g.buff.arcane > 0 ? 1.6 : 1) * (RULES ? RULES.cdK() : 1) / (1 - Math.min(0.5, accK('cdr')));
-      g.cdS = Math.max(0, g.cdS - dt * cdK); g.cdS2 = Math.max(0, g.cdS2 - dt * cdK); g.cdS3 = Math.max(0, g.cdS3 - dt * cdK); g.cdU = Math.max(0, g.cdU - dt * cdK);
+      const cdA = cdK * zephK('as');   /* (Zephyr's attack speed: the Strongs only, never the Ultimate) */
+      g.cdS = Math.max(0, g.cdS - dt * cdA); g.cdS2 = Math.max(0, g.cdS2 - dt * cdA); g.cdS3 = Math.max(0, g.cdS3 - dt * cdA); g.cdU = Math.max(0, g.cdU - dt * cdK);
       ['warpT', 'stopT', 'shieldT', 'phoenixT', 'dodgeCd', 'counterT', 'frostbite'].forEach(kk => { g[kk] = Math.max(0, g[kk] - dt); });
       if (g.swapCd > 0) g.swapCd -= dt;
       for (const b in g.buff) { if (g.buff[b] > 0) { g.buff[b] -= dt; if (g.buff[b] <= 0) { g.buff[b] = 0; if (b === 'guardian') g.guardHP = 0; text(me.x, me.y - 1.2, `${SHRINES[b].name} faded`, '#CFE2FF', 12); } } }
-      me.inv = Math.max(0, me.inv - dt); me.hurtT += dt; me.lvFx = Math.max(0, me.lvFx - dt); me.chill = Math.max(0, me.chill - dt); me.sq = Math.max(0, me.sq - dt * 4);
+      me.inv = Math.max(0, me.inv - dt); me.hurtT += dt; me.lvFx = Math.max(0, me.lvFx - dt); me.chill = zephK('mv') > 1 ? 0 : Math.max(0, me.chill - dt); me.sq = Math.max(0, me.sq - dt * 4);
       if (g.comboT > 0) { g.comboT -= dt; if (g.comboT <= 0) g.combo = 0; }
       if (g.bloodT > 0) g.bloodT -= dt;
       if (g.tapFx > 0) g.tapFx -= dtReal;
@@ -1361,7 +1368,9 @@ GAMES.dungeon = {
       }
       mxIn = mx; myIn = my;
       const tile = tileAt(Math.floor(me.x), Math.floor(me.y));
-      const spd = 4.3 * (1 + accK('spd')) * (RULES ? RULES.spdK() : 1) * (g.phoenixT > 0 ? 1.35 : 1) * (g.buff.haste > 0 ? 1.3 : 1) * (me.chill > 0 ? 0.6 : 1) * (tile === T_MUD ? 0.62 : 1) * (g.pw.giant ? 0.92 : 1);
+      const spd = 4.3 * (1 + accK('spd')) * (RULES ? RULES.spdK() : 1) * (g.phoenixT > 0 ? 1.35 : 1) * (g.buff.haste > 0 ? 1.3 : 1) * (me.chill > 0 && zephK('mv') === 1 ? 0.6 : 1) * (tile === T_MUD && zephK('mv') === 1 ? 0.62 : 1) * (g.pw.giant ? 0.92 : 1) * zephK('mv');
+      /* (Zephyr's Windguard: a hit it blocked cannot knock the pet back; any push laid on just after the block is dropped) */
+      if (me.push && g.zephyr && g.zephyr.guardT > 0 && me.push !== g.zephyr.prePush) me.push = null;
       if (me.dodge) {
         const D = me.dodge; D.t += dt; const k2 = 1 - Math.pow(D.t / D.dur, 2) * 0.6;
         moveEnt(me, D.vx * dt * k2, D.vy * dt * k2, 0);
@@ -1909,7 +1918,7 @@ GAMES.dungeon = {
         if (supernova > 0) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.8; const s2 = T * (1 + (1 - supernova) * 2); blitSized(c, glowSprite('#FFE37A'), X - s2, Y0 - T * 0.5 - s2, s2 * 2, s2 * 2); c.restore(); }
         if (g.counterT > 0 || g.buff.fury > 0) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.35 + 0.15 * Math.sin(g.t * 12); const s2 = h * 0.9; blitSized(c, glowSprite(g.counterT > 0 ? '#FFE37A' : '#FF5C5C'), X - s2, Y0 - h * 0.5 - s2, s2 * 2, s2 * 2); c.restore(); }
       } });
-      if (!blink && me.chill > 0) { c.save(); c.globalAlpha = 0.3; c.fillStyle = '#9FD8F0'; c.beginPath(); c.ellipse(X, Y0 - h * 0.4 - z - fl, h * 0.45, h * 0.55, 0, 0, 6.283); c.fill(); c.restore(); }
+      if (!blink && me.chill > 0 && zephK('mv') === 1) { c.save(); c.globalAlpha = 0.3; c.fillStyle = '#9FD8F0'; c.beginPath(); c.ellipse(X, Y0 - h * 0.4 - z - fl, h * 0.45, h * 0.55, 0, 0, 6.283); c.fill(); c.restore(); }
       if (g.shieldT > 0 || g.guardHP > 0) { const gr = g.shieldT > 0 ? 1 : 0.6, R2 = h * 0.85, bx = X, by = Y0 - h * 0.35, flick = g.shieldT > 0 && g.shieldT < 1.5 && Math.floor(g.t * 10) % 2 ? 0.45 : 1, col = g.shieldT > 0 && KIT.ult.tier ? '#FFE9A8' : '#8FE3F0';
         c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.9 * gr * flick; const s2 = R2 / 0.86 * (1 + 0.03 * Math.sin(g.t * 6)); blitSized(c, shockSprite(col), bx - s2, by - s2, s2 * 2, s2 * 2);
         c.globalAlpha = 0.16 * gr; blitSized(c, glowSprite('#BFF4FF'), bx - R2, by - R2, R2 * 2, R2 * 2);
@@ -2277,6 +2286,8 @@ GAMES.dungeon = {
       for (const b of SHRINE_KEYS) if (g.buff[b] > 0) chip(SHRINES[b].color, SHRINES[b].name.toUpperCase(), g.buff[b], SHRINES[b].t);
       if (g.counterT > 0) chip('#FFE37A', 'COUNTER', g.counterT, 2.6);
       if (g.bloodT > 0) chip('#FF4D6D', 'BLOOD MOON', g.bloodT, 12);
+      if (g.zephyr && g.zephyr.t > 0) { chip('#73E8B6', 'ZEPHYR', g.zephyr.t, g.zephyr.dur);   /* (Wind's Zephyr's Blessing, 20k3j: its time, and a dot per Windguard charge left) */
+        for (let i = 0; i < (g.zephyr.ch || 0); i++) { c.fillStyle = '#E7FFF6'; c.beginPath(); c.arc(bxx - 66 + 52 - i * 7, y0 + 59.5 + py0, 2.4, 0, 6.283); c.fill(); } }
       // power stones carried this floor
       { let px = x0 - 2, py = y0 + (bxx > x0 - 2 ? 76 : 52) + py0; const keys = Object.keys(g.pw); for (const k2 of keys) { const P = POWERS[k2]; if (px + 24 > W - 110) { px = x0 - 2; py += 26; } c.fillStyle = 'rgba(12,9,26,.72)'; GFX.rr(c, px, py, 22, 22, 7); c.fill(); c.strokeStyle = P.color; c.lineWidth = 1.5; c.stroke(); drawGlyph(c, P.glyph, px + 11, py + 11, 15, 1); if (g.pw[k2] > 1) { c.font = `800 8px ${arcFont}`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = P.color; c.fillText('×' + g.pw[k2], px + 17, py + 17); } px += 25; } }
       if (HPF) HPF('hud:chips');
