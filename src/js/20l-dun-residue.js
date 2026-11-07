@@ -21,23 +21,25 @@ const DunResidue = (() => {
     props.forEach(p => { p.hp = p.kind === 'pillar' || p.kind === 'marble' || p.kind === 'boulder' || p.kind === 'peakrock' ? 3 : 2; p.el = PROP_EL[p.kind] || 'gold'; p.flash = 0; byTile.set(p.k, p); });
     const propAt = (tx, ty) => { const p = byTile.get(ty * M.MW + tx); return p && !p.broken ? p : null; };
     const col = el => el === 'prism' ? '#FFE9A8' : (X.EL(el) || X.EL('gold')).color;
-    function hitProp(p, el, n) {
+    /* (o.quiet: one of several smashed at once, e.g. by Light's Sports Car: no crash or name of its own) */
+    function hitProp(p, el, n, o) {
       if (!p || p.broken) return false;
       p.hp -= n || 1; p.flash = 0.12;
       X.sparks(p.x, p.y - 0.4, col(p.el), 5, 4);
       if (p.hp > 0) { X.sfx.thud(); return true; }
-      breakProp(p); return true;
+      breakProp(p, o); return true;
     }
-    function breakProp(p) {
+    function breakProp(p, o) {
+      const quiet = !!(o && o.quiet);
       p.broken = true; byTile.delete(p.k);
       M.G[p.k] = X.T_FLOOR;
       const c = col(p.el);
       for (let i = 0; i < 12; i++) { const a = Math.random() * TAU, v = 2 + Math.random() * 3.5; X.part({ kind: 'shard', x: p.x, y: p.y - 0.4, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 2, g: 9, life: 0.75, max: 0.75, size: 4 + Math.random() * 4, rot: Math.random() * 6, vr: (Math.random() - 0.5) * 14, color: i % 3 ? c : '#FFFFFF' }); }
-      X.boom(p.x, p.y - 0.2, 0.9, c, '#FFFFFF', { n: 8, shake: 3, smoke: p.el === 'fire' || p.el === 'shadow' ? 4 : 1 });
-      X.sfx.crash();
+      X.boom(p.x, p.y - 0.2, 0.9, c, '#FFFFFF', { n: quiet ? 5 : 8, shake: quiet ? 0 : 3, smoke: p.el === 'fire' || p.el === 'shadow' ? 4 : 1 });
+      if (!quiet) X.sfx.crash();
       if (Math.random() < 0.35) X.drop('coin', p.x, p.y);
       zones.push({ x: p.x, y: p.y - 0.3, el: p.el, r: 1.45, life: 16, max: 16, t: Math.random() * 6, tk: 0, seed: Math.random() * 99 });
-      X.text(p.x, p.y - 1.2, RESIDUE_NAME[p.el] || 'Residue', c, 12, { life: 0.9, max: 0.9 });
+      if (!quiet) X.text(p.x, p.y - 1.2, RESIDUE_NAME[p.el] || 'Residue', c, 12, { life: 0.9, max: 0.9 });
     }
     /* an attack of element `el` touching a patch of another element sets off the reaction */
     function touch(z, el, dmg, o) {

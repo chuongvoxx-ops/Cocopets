@@ -211,3 +211,21 @@ file exists. The two of you may message each other through files: append notes t
   2.7 + 0.45 j rad, implode 0.85; more hearts, stars, ribbons, rays, rims, after-pops; softer screen flash (0.3);
   additive particles fade to 10% over the pet. LOW drops ghosts, the trail haze pass, wave rays, two implode rims and
   the blast's floor heart ring.
+
+- (Round 3, single worker) Cooldowns: Shooting Star and Love Sensation 1.5 s (TUNE.cd / starCd / loveCd; C1's defaults
+  too). Love's lock is 1.36 s. A Strong pressed while a move holds the car is kept (one press, the latest) and fires once
+  as soon as it can, if that is within 1 s of the press; one pressed up to 0.4 s before its cooldown ends likewise.
+  Supernova: 4/5/6 burnouts (0.7 s + 0.03 s each), each 1 + 0.1 j turns round a circle of radius 2.0/2.3/2.6 tiles (centre
+  line), nose 0.6 rad in so the tail sweeps out to about 4 tiles; alternate burnouts go the other way round. The circle is
+  the widest (x1, 0.74, 0.52, 0.32) the car's footprint can drive all the way round (ctx.canDrive: walls and drops block,
+  smashable props do not); a blocked step mid-circle makes it spin on the spot. Sweep: 2.5 DK, kb 7.5, noCharge, once per
+  monster per burnout, within 1.0 tile of the body; impact via ctx.impact (Drift's in full for the first of a burnout,
+  lighter after). Wave pulses 3.2 DK rising, radius 4.2 + 0.5 j (was 2.8 + 0.45 j), centred on the circle. Pink light wave
+  (sprite sc2pw, floor layer, additive) to 3.6 tiles in 0.5 s at each burnout and each full turn. Only the newest 3 tyre
+  rings are kept (2 on low). New ctx: canDrive(x, y), impact(m, landed, first), smash() (C2 calls it after moving the car).
+  Scenery: 20b's X.carProps (null on rift puzzle/trial/gate stages and Super Fiend floors) gives propAt / smashProp
+  (RES.hitProp with 99 damage: 20l's residue, loot, sound; the tile becomes floor, the minimap repaints it, the flow field
+  rebuilds on its 0.25 s timer; props are drawn from propList, which skips broken ones; 20e's ground chunks already paint
+  floor under props) and pots / smashPot (breakPot; never chests). 20l's hitProp/breakProp take { quiet } (no crash or
+  floating name for a prop smashed within 0.14 s of another). C1's SMASH lists the kinds (the Tower lands' props and the
+  rift dungeon lands' scatter); anything else (hourglass, blank, a stage's pipes ...) blocks as before.

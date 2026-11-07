@@ -971,6 +971,14 @@ GAMES.dungeon = {
          with its own sprite at screen X, Y (its feet), no shadow or ground glow, o.maxH capping its height in tiles; line of
          sight; the kit, for the Ult's cooldown */
       vehicle: o => { VEH = o || null; }, los, kit: () => KIT,
+      /* (hook for Light's Sports Car, 20k4p, round 3) the car smashes the scenery it drives over, through the game's own
+         break paths: a prop on a wall tile (RES: its residue, loot, sound; the tile turns to floor, the minimap repaints it,
+         the flow field rebuilds on its own timer) and the pots (breakPot). Which kinds it may smash is the car's list; null
+         on a stage drawn by hand (a rift puzzle, trial or gate: its props are its walls) and on a Super Fiend floor */
+      carProps: (F.rift && (F.rift.gate || F.rift.kind === 'puzzle')) || F.fiend ? null : {
+        propAt: (tx, ty) => (RES ? RES.propAt(tx, ty) : null),
+        smashProp: (p, quiet) => { if (!RES || !p || p.broken) return false; RES.hitProp(p, 'light', 99, { quiet }); if (p.broken) { if (miniNew.length < 4096) miniNew.push(p.k); else miniNew.full = true; } return !!p.broken; },
+        pots: () => pots, smashPot: p => { if (!p || p.broken || p.kind === 'chest') return false; let n = 0; while (!p.broken && n++ < 6) breakPot(p); return true; } },
       drawPetAt: (c, X2, Y2, o) => { o = o || {}; const T = Tz(), k = o.maxH && SIZE > o.maxH ? o.maxH / SIZE : 1, h = T * 1.02 * SIZE * k, L2 = petLook();
         drawPetFull(c, X2, Y2, h, { sprites: arc.sprites, form: formOf(P), t: g.t, unit: T * SIZE * k, tile: T, float: false, el: party[cur].el, z: 0, moving: false, walk: 0, flip: o.flip != null ? !!o.flip : me.face < 0, face: o.face || L2.face, pose: Object.assign({}, L2.pose, { moving: false, walk: 0 }), sx: o.sx || 1, sy: o.sy || 1, rot: o.rot || 0 /* (Sports Car's drift: the Dodge's flat roll) */, rig: !me.dead, shadow: false, glow: false, circle: false, alpha: o.alpha }); } });
     RES = DunResidue.create({ me, g, mons, props: propList, M, T_FLOOR, EL, e8Of, REACT_NAME: (a, b) => (REACTIONS[pairKey(a, b)] || {}).name, ST: () => ST, hitMon, part, boom, ring, sparks, text, light, drop, sfx: api.sfx, sx, sy, Tz: () => Tz() });

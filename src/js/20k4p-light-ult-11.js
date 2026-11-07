@@ -18,6 +18,9 @@
      - the Ult button is the Supernova meter: it fills from the damage the form actually deals (ctx.hit: after mitigation,
        no overkill, nothing for misses or invulnerable targets; Supernova's own hits never refill it), and only a press
        when full starts Supernova (once per transformation; it commits, ignores the timer and ends with the pet ejected).
+   Round 3: the Strongs cool down in 1.5 s, a press made while a move holds the car (or a moment early) is kept and goes
+   once; the car smashes the scenery it drives, drifts, lands or burns out over (SMASH below, through 20b's X.carProps
+   and the game's own break paths), so no grove of props can stop it; walls, drops, doors, chests and rift objects stay.
    Normal attacks are suppressed. The pet keeps its own HP, wards and defences (no vehicle health, no invulnerability).
    Exit: timeout (the car dissolves into hearts and stars and the pet hops down), Supernova's end, the pet's defeat, a
    party swap, the floor's end. Every exit restores the controls (the kit itself is never touched, so the Strongs,
@@ -59,6 +62,22 @@
     novaCap: 16,                // s: a Supernova that never reports done is ended anyway
   };
   const tierOf = ev => ev >= 7 ? 3 : ev >= 4 ? 2 : 1;
+  /* (round 3) the scenery the car smashes as it drives, drifts, lands or burns out: only these kinds, and only where 20b's
+     X.carProps allows it (never on a hand-drawn rift puzzle, trial or gate stage, whose props are its walls, nor on a
+     Super Fiend floor). Each breaks through the game's own path (20l's residue, loot and sound; breakPot for the pots).
+     Walls, gaps, doors, stairs, gates, chests, shrines, rift objects and any other prop kind (a puzzle's hourglass or
+     basin, a stage's pipes) are never touched. Smashing gives no Supernova charge (nothing passes through ctx.hit) */
+  const SMASH = new Set([
+    // the Tower's lands (20-dun-data's prop lists; the same kinds 20l gives a residue)
+    'pillar', 'brokenpillar', 'barrel', 'mangrove', 'reeds', 'stump', 'shroom', 'crystal', 'stalag', 'rock', 'pine', 'boulder', 'bush',
+    'iceblock', 'icespike', 'snowman', 'obsidian', 'bones', 'brazier', 'marble', 'cloudbush', 'statue', 'candles', 'cactus', 'dunerock',
+    'palm', 'frozentree', 'igloo', 'volcrock', 'ashtree', 'peakrock', 'cairn', 'server', 'neonpillar', 'console', 'drum', 'gear', 'pipe',
+    'boiler', 'lamp', 'crate', 'oak', 'log', 'fern', 'bigflower', 'tulips', 'lantern', 'pinkshroom',
+    // the rifts' dungeon lands (their biome scatter: rift 2's forest, 5's frost, 6's engine heart, 7's library)
+    'eggtree', 'thornpine', 'weepwillow', 'giantfern', 'bulbtree', 'glowcaps', 'starlily', 'thornbush', 'mossrock',
+    'icetree', 'frozenvane', 'obsarch', 'telescope', 'stonearch', 'biotube', 'xenospire', 'vertebra', 'metalspike', 'piston',
+    'bookcase', 'mirror', 'silverurn', 'candelabra', 'bookstack', 'lectern', 'libladder']);
+  const SMASH_POTS = new Set(['pot', 'crate', 'barrel']);   // (never a chest)
 
   /* ================= the car's shape, in its own frame: x forward, y to its left, z up (tiles) ================= */
   const HL = 1.62, HWB = 0.78, ZB = 0.17;
@@ -392,7 +411,7 @@
 
   /* ================= C2's moves (looked up at call time), or a stub so the whole flow can run ================= */
   const STUB = {
-    TUNE: { starCd: 2.6, loveCd: 3.2 },
+    TUNE: { starCd: 1.5, loveCd: 1.5 },
     shootingStar(ctx) { let n = 0; const go = () => { if (!ctx.alive()) { ctx.done(); return; } const car = ctx.car; for (const m of ctx.H.living()) { if (Math.hypot(m.x - car.x, m.y - car.y) < 5) ctx.hit(m, ctx.DK * 0.35); } ctx.H.X.ring(car.x, car.y, 0.4, 5, 0.4, GOLD, 0.2); if (++n < ctx.tier + 2) ctx.H.X.after(0.25, go); else ctx.done(); }; go(); },
     loveSensation(ctx) { const car = ctx.car, T = ctx.target(), p = ctx.nearestStand(T.x, T.y), x0 = car.x, y0 = car.y; let t = 0;
       const f = ctx.H.add({ life: 1.2, update(dt) { t += dt; if (!ctx.alive()) { f.life = 0; return; } const u = cl(t / 0.9); car.x = lerp(x0, p.x, u); car.y = lerp(y0, p.y, u); car.z = Math.sin(u * Math.PI) * 1.4; if (u >= 1 && !f.hit) { f.hit = 1; car.z = 0; ctx.hitArea(car.x, car.y, 2.4, ctx.DK * 3.2); ctx.H.X.ring(car.x, car.y, 0.4, 2.4, 0.5, ROSE, 0.3); ctx.done(); } } }); },
@@ -417,7 +436,8 @@
     const tgt = X.nearestMon(me.x, me.y, 9) || null; let a = tgt ? Math.atan2(tgt.y - me.y, tgt.x - me.x) : (me.face < 0 ? Math.PI : 0);
     const car = { x: me.x, y: me.y, a, vx: 0, vy: 0, speed: 0, z: 0, susp: 0, lean: 0, slide: 0, glow: 0, scale: 1, locked: true, contact: true, vis: 1, wheelSpin: null, spinA: 0, steer: 0, prevX: me.x, prevY: me.y, prevA: a };
     const S = { H, g, me, X, ev, tier, DK, CD, dur, left: dur, car, phase: 'summon', t: 0, hold: 0, charge: 0, used: false, busy: null, busyT: 0, cdStar: 0, cdLove: 0, cdDrift: 0, drift: null,
-      gate: new Map(), trail: [[], [], [], []], parts: [], free: [], lights: 0, ended: false, pet: X.pet ? X.pet() : null, sfxT: 0, bumpT: 0, ltT: 0, outT: 0, outHow: '', stats: { ram: 0, drift: 0, star: 0, love: 0, nova: 0, dealt: 0, charged: 0, hits: 0 }, petStand: null };
+      gate: new Map(), trail: [[], [], [], []], parts: [], free: [], lights: 0, ended: false, pet: X.pet ? X.pet() : null, sfxT: 0, bumpT: 0, ltT: 0, outT: 0, outHow: '', stats: { ram: 0, drift: 0, star: 0, love: 0, nova: 0, dealt: 0, charged: 0, hits: 0, smash: 0, pots: 0 }, petStand: null,
+      props: X.carProps || null, smashT: -9, mvQ: null };
     g._sportscar = S;
     // seat at the pet: the car's centre is ahead of it
     const place = (ang) => { const o = seatOff(car, ang); return { x: me.x - o[0], y: me.y - o[1] }; };
@@ -430,7 +450,7 @@
     // the context the moves (C2) are given
     const ctx = S.ctx = { X, H, C, evo: ev, tier, DK, car, petX: me.x, petY: me.y, petZ: 0, ejecting: false, supernova: false,
       hit: (m, dmg, o) => hitCharge(S, m, dmg, o), hitArea: (x, y, r, dmg, o) => { let n = 0; for (const m of H.living()) if (Math.hypot(m.x - x, m.y - y) < r + m.r) { hitCharge(S, m, dmg, o); n++; } return n; },
-      canStand: (x, y) => canStand(X, x, y), nearestStand: (x, y) => nearestStand(S, x, y), target: () => target(S), done: () => actionDone(S), alive: () => !S.ended && !me.dead && !g.over && (S.phase === 'nova' || (S.phase === 'drive' && !g.won)),   /* (a started Supernova finishes even if it wins the floor) */
+      canStand: (x, y) => canStand(X, x, y), canDrive: (x, y) => !blk(S, x, y, 0.38) && !blk(S, x, y, 0.2), impact: (m, landed, first) => novaImpact(S, m, landed, first), smash: () => { if (S.phase === 'drive' || S.phase === 'nova') smashSweep(S); }, nearestStand: (x, y) => nearestStand(S, x, y), target: () => target(S), done: () => actionDone(S), alive: () => !S.ended && !me.dead && !g.over && (S.phase === 'nova' || (S.phase === 'drive' && !g.won)),   /* (a started Supernova finishes even if it wins the floor) */
       T: () => X.Tz(), scr: (x, y, z) => [H.sx(x), H.sy(y) - (z || 0) * ZK * X.Tz()], seat: () => seatWorld(car) };
     // the controls (20b's VEH hook)
     S.veh = { get active() { return !S.released; }, drive: (mx, my, dt) => drive(S, mx, my, dt), dodge: (mx, my) => tryDrift(S, mx, my), strong: slot => tryMove(S, slot), ult: () => tryNova(S), drawBtns: (c, o) => drawBtns(S, c, o), onSwitch: () => finish(S, 'swap') };
@@ -452,8 +472,41 @@
   function seatOff(car, ab) { const p = l2w({ x: 0, y: 0, a: ab, slide: 0 }, SEAT.x, SEAT.y, ab); return p; }
   function seatWorld(car) { const p = l2w(car, SEAT.x, SEAT.y); return { x: p[0], y: p[1], z: SEAT.z + car.z - car.susp * 0.05 }; }
   /* walls: three circles along the car's axis (its nose and tail as they show on the screen) */
-  function poseBlocked(X, x, y, ab) { const ag = groundA(ab), ca = Math.cos(ag), sa = Math.sin(ag), ex = 1.02 * ca, ey = 1.02 * sa * GY;
-    return X.blocked(x, y, 0.5, 0) || X.blocked(x + ex, y + ey, 0.4, 0) || X.blocked(x - ex, y - ey, 0.4, 0); }
+  function poseBlocked(X, x, y, ab) { return poseBlockedB((x2, y2, r) => X.blocked(x2, y2, r, 0), x, y, ab); }
+  function poseBlockedB(B, x, y, ab) { const ag = groundA(ab), ca = Math.cos(ag), sa = Math.sin(ag), ex = 1.02 * ca, ey = 1.02 * sa * GY;
+    return B(x, y, 0.5) || B(x + ex, y + ey, 0.4) || B(x - ex, y - ey, 0.4); }
+  /* (round 3) X.blocked(x, y, r, 0), except that a prop the car may smash is open road */
+  function smashable(S, tx, ty) { const P = S.props; if (!P) return null; const p = P.propAt(tx, ty); return p && !p.broken && SMASH.has(p.kind) ? p : null; }
+  function blk(S, x, y, r) {
+    const X = S.X; if (!X.blocked(x, y, r, 0)) return false; if (!S.props) return true;
+    const x0 = Math.floor(x - r), x1 = Math.floor(x + r), y0 = Math.floor(y - r), y1 = Math.floor(y + r);
+    for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) {
+      if (!X.blocked(tx + 0.5, ty + 0.5, 0.02, 0) || smashable(S, tx, ty)) continue;
+      const cx = cl2(x, tx, tx + 1), cy = cl2(y, ty, ty + 1); if ((x - cx) * (x - cx) + (y - cy) * (y - cy) < r * r) return true; }
+    return false; }
+  const cl2 = (v, a, b) => v < a ? a : v > b ? b : v;
+  /* (round 3) everything the car's body passed through since the last frame (its swept footprint, a little padded):
+     smashable props break and stop blocking, pots (never chests) break with their loot. Only on the ground (a Love
+     Sensation in the air smashes where it lands), never once the car has gone */
+  function inBodyPt(px, py, x, y, ab, pad) { const ag = groundA(ab), ca = Math.cos(ag), sa = Math.sin(ag), gx = px - x, gy = (py - y) / GY, lx = gx * ca + gy * sa, ly = -gx * sa + gy * ca; return Math.abs(lx) < HL + pad && Math.abs(ly) < HWB + pad; }
+  function smashSweep(S) {
+    const P = S.props, car = S.car; if (!P || car.vis < 0.05 || car.gone || car.z > 0.35) return;
+    const ab = car.a + car.slide, d = Math.hypot(car.x - car.prevX, car.y - car.prevY), da = Math.abs(wrap(ab - car.prevA)), n = Math.min(24, Math.max(1, Math.ceil(Math.max(d / 0.35, da / 0.3))));
+    const R = HL + 0.6, bx0 = Math.floor(Math.min(car.x, car.prevX) - R), bx1 = Math.floor(Math.max(car.x, car.prevX) + R), by0 = Math.floor(Math.min(car.y, car.prevY) - R), by1 = Math.floor(Math.max(car.y, car.prevY) + R);
+    const hitAt = (px, py, pad) => { for (let i = 0; i <= n; i++) { const u = i / n; if (inBodyPt(px, py, lerp(car.prevX, car.x, u), lerp(car.prevY, car.y, u), car.prevA + wrap(ab - car.prevA) * u, pad)) return true; } return false; };
+    for (let ty = by0; ty <= by1; ty++) for (let tx = bx0; tx <= bx1; tx++) { const p = smashable(S, tx, ty); if (p && hitAt(tx + 0.5, ty + 0.5, 0.42)) smashProp(S, p, tx + 0.5, ty + 0.5); }
+    const pots = P.pots ? P.pots() : null; if (pots) for (const p of pots) { if (p.broken || !SMASH_POTS.has(p.kind) || p.x < bx0 || p.x > bx1 + 1 || p.y < by0 || p.y > by1 + 1) continue; if (hitAt(p.x, p.y, 0.3) && P.smashPot(p)) { S.stats.pots++; smashFx(S, p.x, p.y, true); } }
+  }
+  function smashProp(S, p, x, y) {
+    const t = S.g.t, quiet = t - S.smashT < 0.14; if (!S.props.smashProp(p, quiet)) return; S.smashT = t; S.stats.smash++; smashFx(S, x, y, quiet);
+  }
+  /* the car's own touch on a smash: a light-pink burst and a puff of pale debris (light only, small; the break itself is 20l's) */
+  function smashFx(S, x, y, quiet) { const Q = lowFx() ? 0.4 : 1, car = S.car;
+    addPart(S, 6, x, y, 0, 0, 0, 0, 0.32, 1.1, { v: 0.15 }); addPart(S, 5, x, y, 0.5, 0, 0, 0, 0.26, 0.8, {});
+    for (let i = 0; i < Math.round(5 * Q); i++) { const a = Math.random() * TAU, v = 2 + Math.random() * 3; addPart(S, i % 2 ? 1 : 3, x, y, 0.35, Math.cos(a) * v, Math.sin(a) * v * GY, 1.5 + Math.random() * 2, 0.4 + Math.random() * 0.25, i % 2 ? 0.16 : 0.24, { g: 5, drag: 1.6, col: i % 4 ? LIGHT : '#FFFFFF' }); }
+    for (let i = 0; i < Math.round(3 * Q); i++) { const a = Math.random() * TAU, v = 1 + Math.random() * 1.5; addPart(S, 4, x, y, 0.1, Math.cos(a) * v, Math.sin(a) * v * GY, 0.4, 0.55 + Math.random() * 0.3, 0.45 + Math.random() * 0.2, { grow: 1.4, drag: 2.4 }); }
+    car.susp = Math.max(car.susp, 0.35); S.X.light(x, y, 1.8, 0.14);
+    if (!quiet && !calm()) S.X.shake(2.2, 0.08); }
   function canStand(X, x, y) { return !X.blocked(x, y, 0.38, 0) && !X.blocked(x, y, 0.2, 0); }
   function nearestStand(S, x, y) { const me = S.me, p = S.X.walkPoint(x, y, { r: 0.4, x: me.x, y: me.y }); return { x: p.x, y: p.y }; }
   function target(S) { const car = S.car, X = S.X; const m = X.nearestMon(car.x, car.y, 8.5, null, true) || X.nearestMon(car.x, car.y, 12); if (m) return { x: m.x, y: m.y, m }; return { x: car.x + Math.cos(car.a) * 4, y: car.y + Math.sin(car.a) * 4, m: null }; }
@@ -501,12 +554,13 @@
     const car = S.car, X = S.X, ab = car.a + car.slide, n = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)) / 0.12)); let hit = false;
     // (a turn or the drift's spin can swing the nose or tail into a wall: then the centre alone still collides, so the car
     //  slides free of it but can never pass through; round 2 fix, the old code let a "stuck" car move unchecked)
-    const stuck = poseBlocked(X, car.x, car.y, ab), bl = stuck ? (x, y) => X.blocked(x, y, 0.5, 0) : (x, y) => poseBlocked(X, x, y, ab);
-    const cStuck = stuck && X.blocked(car.x, car.y, 0.5, 0);
+    // (round 3: a prop the car may smash does not block it; smashSweep breaks it the moment the body reaches it)
+    const B = (x, y, r) => blk(S, x, y, r), stuck = poseBlockedB(B, car.x, car.y, ab), bl = stuck ? (x, y) => B(x, y, 0.5) : (x, y) => poseBlockedB(B, x, y, ab);
+    const cStuck = stuck && B(car.x, car.y, 0.5);
     for (let i = 0; i < n; i++) { const sx = dx / n, sy = dy / n;
       car.x += sx; if (!cStuck && bl(car.x, car.y)) { car.x -= sx; hit = true; }
       car.y += sy; if (!cStuck && bl(car.x, car.y)) { car.y -= sy; hit = true; } }
-    if (stuck && X.blocked(car.x, car.y, 0.5, 0)) { const p = X.walkPoint(car.x, car.y, { r: 0.5, x: car.x, y: car.y }); car.x += (p.x - car.x) * 0.25; car.y += (p.y - car.y) * 0.25; }
+    if (stuck && B(car.x, car.y, 0.5)) { const p = X.walkPoint(car.x, car.y, { r: 0.5, x: car.x, y: car.y }); car.x += (p.x - car.x) * 0.25; car.y += (p.y - car.y) * 0.25; }
     return hit;
   }
   function syncMe(S) { const me = S.me, car = S.car; if (S.ctx.ejecting) { me.x = S.ctx.petX; me.y = S.ctx.petY; } else { me.x = car.x; me.y = car.y; } me.vx = car.vx; me.vy = car.vy; const c = Math.cos(car.a); if (Math.abs(c) > 0.25) me.face = c > 0 ? 1 : -1; me.z = 0; }
@@ -555,14 +609,18 @@
       if (S.bumpT <= 0) { S.bumpT = 0.15; const X = S.X; if (X.sfx && X.sfx.thud) X.sfx.thud(); spawnSparks(S, car.x + Math.cos(car.a) * 1.1, car.y + Math.sin(car.a) * 0.8, lowFx() ? 4 : 10); if (!calm()) X.shake(3, 0.08); }
     }
   }
-  function tryMove(S, slot) {
-    const car = S.car, X = S.X, sfx = X.sfx || {};
-    if (S.phase !== 'drive' || car.locked || S.busy) { if (sfx.wrong && S.phase === 'drive') sfx.wrong(); return; }
-    const MV = moves(), star = slot !== 'strong2';
-    if (star ? S.cdStar > 0 : S.cdLove > 0) return;
+  const MVQ = 0.4;   // s: how long a press made a moment early is kept
+  function tryMove(S, slot, queued) {
+    const car = S.car, X = S.X, sfx = X.sfx || {}, star = slot !== 'strong2', cd = star ? S.cdStar : S.cdLove;
+    if (S.phase !== 'drive') return;
+    // (round 3) held by another move, or a moment early: kept (one press, the latest), fired once when it can go
+    if (car.locked || S.busy) { if (!queued) { if (S.busy !== 'nova') S.mvQ = { slot, t: S.g.t, held: true }; else if (sfx.wrong) sfx.wrong(); } return; }
+    if (cd > 0) { if (!queued && cd <= MVQ) S.mvQ = { slot, t: S.g.t, held: false }; return; }
+    S.mvQ = null;
+    const MV = moves();
     const fn = star ? MV.shootingStar : MV.loveSensation; if (typeof fn !== 'function') return;
     S.busy = star ? 'star' : 'love'; S.busyT = 0; S.busyId = (S.busyId || 0) + 1;
-    if (star) S.cdStar = mvTune('starCd', 2.6); else S.cdLove = mvTune('loveCd', 3.2);
+    if (star) S.cdStar = mvTune('starCd', 1.5); else S.cdLove = mvTune('loveCd', 1.5);
     if (!star || mvTune('starLock', false)) { car.locked = true; if (!star) { car.speed = 0; car.vx *= 0.3; car.vy *= 0.3; } }
     S.stats[star ? 'star' : 'love']++;
     try { fn.call(MV, S.ctx); } catch (e) { if (typeof console !== 'undefined') console.warn('Sports Car: a move failed', e); actionDone(S); }
@@ -612,6 +670,11 @@
       if (S.busy && S.busyT > 8) actionDone(S);   // (a move that never reports done frees the controls anyway)
       if (S.drift) stepDrift(S, dt);
       if (car.contact && car.z < 0.1) ram(S);
+      // (round 3) a Strong pressed while a move holds the car, or a moment before its cooldown runs out, is kept (one press,
+      // the latest) and goes once, as soon as it can: if that comes within 1 s of a press made while held (Love's lock,
+      // 1.36 s, can outlast nothing: the cooldowns are 1.5 s), or MVQ s of an early one; an older press is dropped
+      if (S.mvQ) { const Q = S.mvQ, age = g.t - Q.t, cdq = Q.slot !== 'strong2' ? S.cdStar : S.cdLove;
+        if (age > (Q.held ? 1.0 : MVQ + 0.1)) S.mvQ = null; else if (!S.busy && !car.locked && cdq <= 0) { S.mvQ = null; tryMove(S, Q.slot, true); } }
       // wheels, trails, the engine's hum
       if (S.readyT != null) S.readyT += dt;
     } else if (S.phase === 'nova') {
@@ -625,6 +688,7 @@
     // the engine: a soft, playful hum that rises with speed
     S.sfxT -= dt; if (S.sfxT <= 0 && (S.phase === 'drive' || S.phase === 'nova')) { const k = cl(Math.hypot(car.vx, car.vy) / TUNE.top), sfx = X.sfx || {}; S.sfxT = 0.42; if (sfx.note && (k > 0.15 || S.phase === 'nova')) sfx.note(72 + 70 * k, 0.46, 'triangle', 0.03 + 0.03 * k, 82 + 120 * k); }
     S.ltT -= dt; if (S.ltT <= 0 && S.lights > 0.3 && car.vis > 0.3) { S.ltT = 0.09; X.light(car.x + Math.cos(car.a) * 1.6, car.y + Math.sin(car.a) * 1.2, 3.2, 0.14); }
+    if (S.phase === 'drive' || S.phase === 'nova') smashSweep(S);   // (round 3: the props and pots the body went through)
     car.prevX = car.x; car.prevY = car.y; car.prevA = car.a + car.slide;
   }
   function ignite(S) {
@@ -692,6 +756,12 @@
     for (let i = 0; i < Math.round(6 * Q); i++) { const a = i / 6 * TAU + Math.random() * 0.5, v = 5 + Math.random() * 3; addPart(S, 3, m.x, m.y, 0.3, Math.cos(a) * v, Math.sin(a) * v * GY, 2 + Math.random() * 2, 0.35, 0.34, { g: 7, drag: 1.6, col: i % 3 ? '#FFFFFF' : ROSE }); }
     if (first) { if (X.hitstop) X.hitstop(calm() ? 0.02 : 0.05); if (!calm()) { X.shake(6, 0.16); X.flash(0.07, LIGHT); }
       const sfx = X.sfx || {}; if (sfx.crash) sfx.crash(); if (sfx.note) sfx.note(1760, 0.22, 'sine', 0.08, 2637); }
+  }
+  /* (round 3) Drift's strike for Supernova's sweeping burnouts (ctx.impact): the first of each burnout is Drift's in full
+     (with its hit-stop and shake), the rest lighter (no sound or shake of their own, fewer hearts and sparks) */
+  function novaImpact(S, m, landed, first) {
+    if (first) { driftImpact(S, m, landed, true); return; }
+    impactFx(S, m.x, m.y, 1.0, landed, true); addPart(S, 6, m.x, m.y, 0, 0, 0, 0, 0.3, 1.2 + (m.r || 0.4), { v: 0.1 });
   }
   function startOut(S) {
     if (S.phase === 'out') return;
@@ -960,8 +1030,8 @@
       blitC(c, hudPic(`car|${key}|${rd}|${b.r}`, b.r * 2 + 10, b.r * 2 + 10, (x, w, h) => paint(x, w / 2, h / 2, b.r, rd)), b.x, b.y);
       if (cd > 0.05) { c.beginPath(); c.moveTo(b.x, b.y); c.arc(b.x, b.y, b.r, -Math.PI / 2, -Math.PI / 2 + TAU * Math.min(1, cd / cdMax)); c.closePath(); c.fillStyle = 'rgba(0,0,0,.45)'; c.fill(); GFX.textS(c, cd.toFixed(1), b.x, b.y, 13, '#FFFFFF'); }
       GFX.labelS(c, label, b.x + (dx || 0), b.y + b.r + 9, 8, 800, rim, 'rgba(0,0,0,.7)', 3); };
-    btn(B.s[0], 'star', 'SHOOTING STAR', S.cdStar, mvTune('starCd', 2.6), paintStarBtn, '#FFE7A8');
-    btn(B.s[1], 'love', 'LOVE SENSATION', S.cdLove, mvTune('loveCd', 3.2), paintLoveBtn, '#FFC8E6', -8);
+    btn(B.s[0], 'star', 'SHOOTING STAR', S.cdStar, mvTune('starCd', 1.5), paintStarBtn, '#FFE7A8');
+    btn(B.s[1], 'love', 'LOVE SENSATION', S.cdLove, mvTune('loveCd', 1.5), paintLoveBtn, '#FFC8E6', -8);
     { const b = B.d, rd = S.cdDrift <= 0.01 && !S.drift && S.phase === 'drive' && !S.car.locked;
       if (rd) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.35 + 0.1 * Math.sin(t * 5); blitC(c, glowPic(glowSprite, '#FF3355', Math.round(b.r * 1.7)), b.x, b.y); c.restore(); }
       blitC(c, hudPic(`car|drift|${rd}|${b.r}`, b.r * 2 + 10, b.r * 2 + 10, (x, w, h) => paintDriftBtn(x, w / 2, h / 2, b.r, rd)), b.x, b.y);
