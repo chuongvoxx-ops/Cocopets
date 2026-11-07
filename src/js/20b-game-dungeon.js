@@ -200,7 +200,8 @@ GAMES.dungeon = {
     }
     function skyBolt(x, y) { const pts = []; let px = x + (Math.random() - 0.5) * 2, py = y - 7; for (let i = 0; i <= 8; i++) { const t = i / 8; pts.push([lerp(px, x, t) + (i < 8 ? (Math.random() - 0.5) * 0.8 : 0), lerp(py, y, t)]); } return pts; }
     const timers = [];
-    function after(t, f) { timers.push({ t, f }); }
+    let wornBy = null;   // (Winds of Oblivion's attribution: see byRun, above hurtPet)
+    function after(t, f) { timers.push({ t, f, by: wornBy }); }   /* (by: the monster whose turn set it, for Winds of Oblivion's attack cut) */
     const hexA = (h, a) => { const [r, gg, b] = hexRGB(h); return `rgba(${r},${gg},${b},${clamp(a, 0, 1)})`; };
 
     /* ---------- monsters ---------- */
@@ -359,11 +360,14 @@ GAMES.dungeon = {
       // Wind's Pandemonium (20k3i): a monster caught in its storm (m.pandemUntil, refreshed while it is affected) takes 40% more from
       // every other allied hit, damage over time included; the storm's own ticks and finale carry o.pandem and are not amplified
       if (m.pandemUntil > g.t && !o.pandem && !flat) { dmg *= 1.4; m.pandemHitT = g.t; }
+      // Wind's Winds of Oblivion (20k3k): a Windworn monster (m.wornUntil) has 25% less defence: +25% from every allied hit,
+      // damage over time included (not a flat share, and never a boss: a boss only loses attack power)
+      if (m.wornUntil > g.t && !m.boss && !flat) dmg *= 1.25;
       const D = MON[m.type];
       if (D && D.armor && !o.dot) dmg *= 1 - D.armor;
       if (m.guardFn && !o.dot && !o.viaProxy) { const k = m.guardFn(m, o); if (k < 1) { dmg *= k; if (k <= 0.2 && Math.random() < 0.35) text(m.x, m.y - m.r - 0.3, 'Guarded!', '#CFE2FF', 12); } }   // (a rift boss's shield side, a shell, a burrow)
       if (m.block > 0 && !o.dot) { dmg *= 0.3; if (Math.random() < 0.3) text(m.x, m.y - m.r - 0.3, 'Block!', '#CFE2FF', 12); }
-      if (m.type === 'crab' && !m.block && (m.blockCd || 0) <= 0 && !o.dot && Math.random() < 0.18) { m.block = 1.3; m.blockCd = 4.5; }
+      if (m.type === 'crab' && !m.block && (m.blockCd || 0) <= 0 && !o.dot && !(m.noBuffUntil > g.t) && Math.random() < 0.18) { m.block = 1.3; m.blockCd = 4.5; }
       if (m.shield > 0 && !o.dot) { const s = Math.min(m.shield, F.rift ? dmg * 0.6 : dmg); m.shield -= s; dmg -= s; m.shieldT = 4; ring(m.x, m.y, m.r * 1.2, m.r * 1.5, 0.15, '#8FE3F0', 0.08); if (m.shield <= 0) { text(m.x, m.y - m.r - 0.5, 'Shield broken!', '#8FE3F0', 13); sparks(m.x, m.y, '#8FE3F0', 14, 6); } if (dmg <= 0) return 0; }
       m.hp -= dmg; m.flash = 0.09; m.hitSq = 1; g.lastHit = g.t;
       if (aqC) aqC.rec += dmg;   // the curse records the damage actually taken
@@ -552,12 +556,18 @@ GAMES.dungeon = {
        (and Wind's Zephyr's Blessing, 20k3j) X.addWard(fn, true) puts a ward at the front of that list: its Windguard sees
        the whole hit first (a block leaves nothing for the others), then its 20% cut, then Rock Steady, then Love Sanctuary */
     let petWard = null; const petWards = [];
+    /* (Winds of Oblivion, 20k3k) whose attack this is, for a hit that names no source: the monster whose turn is running
+       (its update, and timers it set), or the one that fired the shot or laid the zone being resolved (b.wby / z.wby,
+       stamped on whatever a monster's turn added to eshots / zones) */
+    function byRun(m, fn, a) { const ne = eshots.length, nz = zones.length, w0 = wornBy; wornBy = m; try { fn(m, a); } finally { wornBy = w0; }
+      if (m) { for (let i = ne; i < eshots.length; i++) if (eshots[i].wby === undefined) eshots[i].wby = m; for (let i = nz; i < zones.length; i++) if (zones[i].wby === undefined) zones[i].wby = m; } }
     /* returns true if the hit landed */
     function hurtPet(d, src, o) {
       if (me.dead || g.won) return false;
       if (me.dodge) { if (me.dodge.t < 0.24 && !(o && o.dot)) perfectDodge(); return false; }
       if (me.inv > 0 || me.dash || g.shieldT > 0 || g.phoenixT > 0 || (me.spin && me.spin.guard) || me.leap) { if (g.shieldT > 0) ring(me.x, me.y, 0.6, 1.1, 0.2, '#7FD3F2', 0.1); return false; }
       if (RX) d *= RX.petHurtK();
+      { const wm = src && typeof src === 'object' && src.maxhp != null ? src : wornBy; if (wm && wm.wornUntil > g.t) d *= 0.75; }   /* (Winds of Oblivion, 20k3k: a Windworn monster hits 25% softer, bosses too) */
       d *= 1 - Math.min(0.6, accK('def'));
       if (RULES) d *= 1 - RULES.defK();
       if (AN) { d *= AN.inK(src); AN.onHurt(d, o && o.dot); }
@@ -949,7 +959,7 @@ GAMES.dungeon = {
       bolt: (x, y, color) => bolts.push({ pts: skyBolt(x, y), life: 0.3, max: 0.3, color, w: 5 }), sx, sy, Tz: () => Tz(), W: () => api.W, H: () => api.H, me }) : null;
     function updMon(m, dt) {
       m.t += dt; if (m.curseT > 0) m.curseT -= dt; m.ph = (m.ph + dt * (DunArt.NF[m.type] === 6 ? 2.2 : 1.6)) % 1;
-      m.flash = Math.max(0, m.flash - dt); m.atkCd = Math.max(0, m.atkCd - dt); m.hitSq = Math.max(0, m.hitSq - dt * 6); m.blockCd = (m.blockCd || 0) - dt; if (m.hasted > 0) m.hasted -= dt;
+      m.flash = Math.max(0, m.flash - dt); m.atkCd = Math.max(0, m.atkCd - dt * (m.wornUntil > g.t && !m.boss ? 0.8 : 1)); m.hitSq = Math.max(0, m.hitSq - dt * 6); m.blockCd = (m.blockCd || 0) - dt; if (m.hasted > 0) m.hasted -= dt;
       if (m.falling != null) { m.falling -= dt; if (m.falling <= 0) killMon(m, false, 'fell'); return; }
       // statuses
       if (m.burn > 0) { m.burn -= dt; m.burnTick = (m.burnTick || 0) - dt; if (m.burnTick <= 0) { m.burnTick = 0.5; hitMon(m, m.burnD * 0.5, { dot: true, dotC: '#FFB066' }); if (Math.random() < 0.8) part({ kind: 'ember', x: m.x + (Math.random() - 0.5) * m.r, y: m.y - m.r * 0.5, vx: 0, vy: -2, life: 0.5, max: 0.5, size: 3, color: '#FF9F43' }); } }
@@ -973,7 +983,10 @@ GAMES.dungeon = {
       }
       if (m.boss) { updBoss(m, dt); return; }
       const held = m.freeze > 0 || m.stun > 0 || g.stopT > 0 || g.cineT > 0 || m.liftZ > 0.2;   /* (liftZ: held up in Pandemonium's eye, 20k3i) */
-      const slow = (m.curseT > 0 ? 0.7 : 1) * (m.chill > 0 ? 0.55 : 1) * (m.sandT > 0 ? 0.6 : 1) * (g.warpT > 0 ? 0.3 : 1) * (m.hasted > 0 ? 1.35 : 1);
+      /* (Winds of Oblivion, 20k3k: a Windworn monster's timers, attacks included, run at 0.8 and its walking speed (A.sp) a
+         further 0.875, so it walks at 0.7; bosses keep their own timing and steps) */
+      const worn = m.wornUntil > g.t;
+      const slow = (m.curseT > 0 ? 0.7 : 1) * (m.chill > 0 ? 0.55 : 1) * (m.sandT > 0 ? 0.6 : 1) * (g.warpT > 0 ? 0.3 : 1) * (m.hasted > 0 ? 1.35 : 1) * (worn ? 0.8 : 1);
       const dx = me.x - m.x, dy = me.y - m.y, d = hyp(dx, dy) || 0.001;
       if (!m.aggro) {
         if (m.type === 'gremlin') { m.aggro = true; return; }
@@ -992,7 +1005,7 @@ GAMES.dungeon = {
       let losC = null;
       m.flank = (m.flank || 0) + dt * 0.25;
       const A = {
-        dt: dt * slow * frostAura, dx, dy, d, a: Math.atan2(dy, dx), ux: dx / d, uy: dy / d, sp: m.spd * mud * (g.bloodT > 0 ? 1.3 : 1),
+        dt: dt * slow * frostAura, dx, dy, d, a: Math.atan2(dy, dx), ux: dx / d, uy: dy / d, sp: m.spd * mud * (g.bloodT > 0 ? 1.3 : 1) * (worn ? 0.875 : 1),
         los: () => (losC == null ? (losC = m.mv === 2 || los(m.x, m.y, me.x, me.y)) : losC),
         steer: (spd) => {
           let tx = me.x, ty = me.y;
@@ -1327,7 +1340,7 @@ GAMES.dungeon = {
       if (g.bossWake === 1 && M.bossAt) { const bm = makeBoss(); bm.x = M.bossAt.x; bm.y = M.bossAt.y; bm.act = 'sleep'; bm.landed = true; mons.push(bm); g.boss = bm; g.bossWake = 2; }
       if (g.bossWake === 2 && g.boss && hyp(me.x - g.boss.x, me.y - g.boss.y) < 8.5 && los(me.x, me.y, g.boss.x, g.boss.y)) { g.bossWake = 3; g.boss.act = 'enter'; g.bossIntro = 2.8; g.bossShow = null; g.slowT = Math.max(g.slowT, 0.4); flash(0.35, g.boss.glow); shake(9, 0.5); api.sfx.hum(); ring(g.boss.x, g.boss.y, 0.3, 4, 0.9, g.boss.glow, 0.35); }
       if (g.bossIntro > 0) { g.bossIntro -= dt; if (g.bossIntro <= 2.3 && !g.shownBoss && !FD) { g.shownBoss = true; banner(g.boss.bname.toUpperCase(), F.rift ? (g.boss.bk.title || F.rift.name) : g.boss.mini ? `Floor ${F.n} guardian` : `Act ${F.act + 1} boss`, g.boss.glow, 2.2, true); shake(10, 0.6); api.sfx.hum(); flash(0.3, g.boss.glow); } }
-      for (let i = timers.length - 1; i >= 0; i--) { timers[i].t -= dt; if (timers[i].t <= 0) { const f = timers[i].f; timers.splice(i, 1); f(); } }
+      for (let i = timers.length - 1; i >= 0; i--) { timers[i].t -= dt; if (timers[i].t <= 0) { const f = timers[i].f, by = timers[i].by; timers.splice(i, 1); if (by) byRun(by, () => f()); else f(); } }
       if (AN) AN.update(dt, dtReal);
       if (RULES) RULES.update(dt);
       if (RIFT) RIFT.update(dt);
@@ -1499,7 +1512,7 @@ GAMES.dungeon = {
       for (let i = shots.length - 1; i >= 0; i--) if (shots[i].life <= 0) { if (shots[i].onEnd) shots[i].onEnd(shots[i]); shots.splice(i, 1); }
       // monsters
       const edt = g.stopT > 0 || g.cineT > 0 ? 0 : dt;
-      for (let i = 0; i < mons.length; i++) updMon(mons[i], dt);
+      for (let i = 0; i < mons.length; i++) byRun(mons[i], updMon, dt);   /* (byRun: Winds of Oblivion's attribution, above hurtPet) */
       for (let i = 0; i < mons.length; i++) {
         const a = mons[i]; if (a.dead || a.mv === 2 || a.falling != null || a.under) continue;
         for (let j = i + 1; j < mons.length; j++) {
@@ -1526,7 +1539,7 @@ GAMES.dungeon = {
         if (b.mine) { for (const m of mons) if (!m.dead && hyp(m.x - b.x, m.y - b.y) < m.r + b.r) { hitMon(m, ST.atk, { el: 'bubble' }); b.life = 0; break; } continue; }
         b.hitT = (b.hitT || 0) - edt;
         if (b.hitT <= 0 && hyp(me.x - b.x, me.y - OY * 0.5 - b.y) < me.r + b.r) {
-          const landed = hurtPet(b.dmg, null);
+          wornBy = b.wby || null; const landed = hurtPet(b.dmg, null); wornBy = null;
           if (landed && b.chill) chillPet(b.chill);
           if (b.keep) b.hitT = 0.5; else if (!me.dodge) b.life = 0;
         }
@@ -1534,6 +1547,7 @@ GAMES.dungeon = {
       for (let i = eshots.length - 1; i >= 0; i--) if (eshots[i].life <= 0) eshots.splice(i, 1);
       // zones (ground effects and warnings)
       for (const z of zones) {
+        wornBy = z.wby || (z.src && typeof z.src === 'object' ? z.src : null);   // (whose zone it is, for Winds of Oblivion's attack cut)
         z.life -= z.own === 'enemy' && (g.stopT > 0 || g.cineT > 0) ? 0 : dt;
         if (z.follow && !z.follow.dead) { z.x = z.follow.x; z.y = z.follow.y; }
         if (z.kind === 'warn') { if (z.life <= 0 && z.fn) z.fn(); continue; }
@@ -1553,7 +1567,7 @@ GAMES.dungeon = {
         if (z.kind === 'stall' && hyp(z.x - me.x, z.y - me.y) < z.r + me.r * 0.5) me.chill = Math.max(me.chill, 0.3);   // (a second-eater's stopped patch)
         if (z.dps) { z.tick -= dt; if (z.tick <= 0) { z.tick = 0.3; if (z.own === 'pet') { for (const m of mons) if (!m.dead && hyp(m.x - z.x, m.y - z.y) < z.r + m.r) hitMon(m, z.dps * 0.3, { dot: true, dotC: z.kind === 'fire' ? '#FFB066' : '#D7B9FF' }); } else { if (hyp(me.x - z.x, me.y - z.y) < z.r) hurtPet(z.dps * 0.3, null, { dot: true }); if (z.hurtsMons) for (const m of mons) if (!m.dead && !m.boss && hyp(m.x - z.x, m.y - z.y) < z.r + m.r) hitMon(m, z.dps * 0.6, { dot: true, dotC: '#B6F09C' }); } } if (z.kind === 'fire' || z.kind === 'efire') { if (Math.random() < 0.5) part({ kind: 'ember', x: z.x + (Math.random() - 0.5) * z.r * 1.6, y: z.y + (Math.random() - 0.5) * z.r * 1.2, vx: 0, vy: -1.5 - Math.random() * 2, life: 0.6, max: 0.6, size: 4 + Math.random() * 4, color: z.kind === 'efire' ? '#FF5C8A' : '#FF9F43' }); light(z.x, z.y, z.r * 1.8, 0.1); } if (z.kind === 'poison' && Math.random() < 0.4) part({ kind: 'bubble', x: z.x + (Math.random() - 0.5) * z.r * 1.6, y: z.y + (Math.random() - 0.5) * z.r, vx: 0, vy: -1, life: 0.8, max: 0.8, size: 3 + Math.random() * 3, color: '#9BE07A' }); if (z.kind === 'evoid' && Math.random() < 0.6) { const aa = Math.random() * 6.283; part({ kind: 'spark', x: z.x + Math.cos(aa) * z.r, y: z.y + Math.sin(aa) * z.r, vx: -Math.cos(aa) * 3, vy: -Math.sin(aa) * 3, life: 0.5, max: 0.5, size: 2.5, color: '#B07CF0' }); } }
       }
-      for (let i = zones.length - 1; i >= 0; i--) if (zones[i].life <= 0) zones.splice(i, 1);
+      wornBy = null; for (let i = zones.length - 1; i >= 0; i--) if (zones[i].life <= 0) zones.splice(i, 1);
       // pickups
       for (const p of picks) {
         p.t += dt; p.vz -= 18 * dt; p.z = Math.max(0, p.z + p.vz * dt); if (p.z === 0) { p.vz = Math.abs(p.vz) > 2 ? -p.vz * 0.4 : 0; p.vx *= 0.8; p.vy *= 0.8; }
