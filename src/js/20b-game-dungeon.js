@@ -618,6 +618,7 @@ GAMES.dungeon = {
       if (i === cur && !forced) return false; const m = party[i]; if (!m || m.down || g.over) return false;
       if (!forced && RULES && RULES.blocks('noswitch')) { text(me.x, me.y - 1.2, 'Cursed: bound', '#E07BF0', 12); api.sfx.wrong(); return false; }
       if (!forced && (g.swapCd > 0 || me.dodge || me.dash || me.leap || me.beam || (AN && AN.S.cine))) return false;
+      if (vehOn() && VEH.onSwitch) VEH.onSwitch();   /* (Sports Car: the driver leaves the car first; its cooldown starts, then is saved below) */
       const old = party[cur]; old.hp = me.hp; old.mp = me.mp; old.cd = { cdS: g.cdS, cdS2: g.cdS2, cdS3: g.cdS3, cdU: g.cdU };
       cur = i; P = m.p; PI = m.kit; AB = PI.AB; KIT = PI.kit; TW = AB.twist; ST = m.ST; SSL = ['strong', 'strong2', 'strong3'].filter(k => KIT[k]); SIZE = dunPetSize(P, formOf(P)); OY = 0.25 * SIZE;
       me.hp = m.hp; me.mp = m.mp; me.r = 0.2 + 0.1 * SIZE; g.cdS = m.cd.cdS; g.cdS2 = m.cd.cdS2; g.cdS3 = m.cd.cdS3; g.cdU = m.cd.cdU; g.hpShow = me.hp / ST.hp;
@@ -633,6 +634,7 @@ GAMES.dungeon = {
        and level read again; a pet taken out leaves, a pet put in joins at full strength; each keeps its share of health
        and magic, its cooldowns, and whether it is knocked out */
     function reparty() {
+      if (vehOn() && VEH.onSwitch) VEH.onSwitch();   /* (Sports Car: re-dressing the party ends the drive first) */
       const old = party[cur]; old.hp = me.hp; old.mp = me.mp; old.cd = { cdS: g.cdS, cdS2: g.cdS2, cdS3: g.cdS3, cdU: g.cdU };
       const playing = old.p, list = partyPets(), anima = typeof animaKitFor === 'function' ? animaKitFor(list) : null;
       const next = list.map(p => { const was = party.find(m => m.p === p), kit = petKit(p); kit.name = p.name; if (anima) kit.anima = anima;
@@ -697,9 +699,16 @@ GAMES.dungeon = {
        makes the pet immune to slows (chill, mud) and blocks knockback just after a Windguard block (guardT) */
     function zephK(k) { const Z = g.zephyr; return Z && Z.t > 0 && !me.dead ? Z[k] || 1 : 1; }
     const normalHooks = [];   // (listeners on the pet's normal attack: Dark's Thriller, 20k5j; ELEM's onNormal adds one)
+    /* (hook for Light's Sports Car, 20k4p) a vehicle form that takes the controls while VEH.active: movement goes to
+       VEH.drive(mx, my, dt), Dodge to VEH.dodge, the Strongs to VEH.strong(slot), the Ult to VEH.ult(), its buttons are
+       drawn by VEH.drawBtns, normal attacks are suppressed, and a party swap first calls VEH.onSwitch. Set through ELEM's
+       X.vehicle(o); null when no form is up */
+    let VEH = null;
+    const vehOn = () => !!(VEH && VEH.active);
     /* one normal attack toward A, if the pet is ready for it */
     function tryFire(A) {
       if (me.dead || g.won || g.intro > 1.9 || g.bossIntro > 0.6 || me.dodge || me.dash || me.leap || g.normalT > 0) return false;
+      if (vehOn()) return false;   /* (Sports Car: no ordinary attacks while driving) */
       const melee = KIT.normal.key === 'shadowclaw';
       if (melee && A.t && hyp(A.t.x - me.x, A.t.y - me.y) > 3 + A.t.r) { const d = hyp(A.t.x - me.x, A.t.y - me.y); moveEnt(me, (A.t.x - me.x) / d * 0.5, (A.t.y - me.y) / d * 0.5, 0); }
       else if (melee) moveEnt(me, A.x * 0.25, A.y * 0.25, 0);
@@ -714,6 +723,7 @@ GAMES.dungeon = {
     }
     let mxIn = 0, myIn = 0;
     function dodge() {
+      if (vehOn()) { if (!me.dead && !g.won) VEH.dodge(mxIn, myIn); return; }   /* (Sports Car: Dodge becomes Drift) */
       if (me.dead || g.won || me.dodge || g.dodgeCd > 0 || me.leap || me.dash || g.intro > 1.9 || g.bossIntro > 0.6) return;
       let dx = mxIn, dy = myIn;
       if (!dx && !dy) { const t = nearestMon(me.x, me.y, 6); if (t) { dx = me.x - t.x; dy = me.y - t.y; } else { dx = me.ax; dy = me.ay; } }
@@ -776,6 +786,8 @@ GAMES.dungeon = {
     /* ---------- strong attacks ---------- */
     let SSL = ['strong', 'strong2', 'strong3'].filter(k => KIT[k]); const CDK = { strong: 'cdS', strong2: 'cdS2', strong3: 'cdS3' };
     function useStrong(slot) {
+      /* (Sports Car: the Strong buttons are Shooting Star and Love Sensation while driving; a skill curse still holds) */
+      if (vehOn()) { if (me.dead || g.won) return; if (RULES && RULES.blocks('noskill')) { text(me.x, me.y - 1.1, 'Cursed: no skills', '#E07BF0', 13); api.sfx.wrong(); return; } VEH.strong(slot || 'strong'); return; }
       slot = slot && KIT[slot] ? slot : 'strong';
       const ab = KIT[slot];
       if (me.dead || g.won || g.intro > 1.9 || g.bossIntro > 0.6) return;
@@ -821,6 +833,7 @@ GAMES.dungeon = {
     function useUlt() {
       const ab = KIT.ult;
       if (me.dead || g.won || g.intro > 1.9 || g.bossIntro > 0.6) return;
+      if (vehOn()) { VEH.ult(); return; }   /* (Sports Car: the Ult button is the Supernova meter while driving; never a recast) */
       if (RULES && RULES.blocks('noult')) { text(me.x, me.y - 1.1, 'Cursed: no Ultimates', '#E07BF0', 13); api.sfx.wrong(); return; }
       if (g.cdU > 0) return;
       if (ab.elem && (ab.star || 0) < ELEM_ULT_STARS) { text(me.x, me.y - 1.1, 'Only a five-star pet can cast this', '#CFE2FF', 13); api.sfx.wrong(); return; }
@@ -953,7 +966,13 @@ GAMES.dungeon = {
       /* (hook for Earth's Rock Steady, 20k2g) add one more ward alongside it; returns the remover */
       addWard: (fn, first) => { if (first) petWards.unshift(fn); else petWards.push(fn); return () => { const i = petWards.indexOf(fn); if (i >= 0) petWards.splice(i, 1); }; },
       /* (hook for Dark's Thriller, 20k5j) listen to the pet's normal attacks; returns the unsubscribe; onNormalN counts them */
-      onNormal: fn => { normalHooks.push(fn); return () => { const i = normalHooks.indexOf(fn); if (i >= 0) normalHooks.splice(i, 1); }; }, onNormalN: () => normalHooks.length });
+      onNormal: fn => { normalHooks.push(fn); return () => { const i = normalHooks.indexOf(fn); if (i >= 0) normalHooks.splice(i, 1); }; }, onNormalN: () => normalHooks.length,
+      /* (hooks for Light's Sports Car, 20k4p) take or give back the controls (see VEH above); the played pet drawn upright
+         with its own sprite at screen X, Y (its feet), no shadow or ground glow, o.maxH capping its height in tiles; line of
+         sight; the kit, for the Ult's cooldown */
+      vehicle: o => { VEH = o || null; }, los, kit: () => KIT,
+      drawPetAt: (c, X2, Y2, o) => { o = o || {}; const T = Tz(), k = o.maxH && SIZE > o.maxH ? o.maxH / SIZE : 1, h = T * 1.02 * SIZE * k, L2 = petLook();
+        drawPetFull(c, X2, Y2, h, { sprites: arc.sprites, form: formOf(P), t: g.t, unit: T * SIZE * k, tile: T, float: false, el: party[cur].el, z: 0, moving: false, walk: 0, flip: o.flip != null ? !!o.flip : me.face < 0, face: o.face || L2.face, pose: Object.assign({}, L2.pose, { moving: false, walk: 0 }), sx: o.sx || 1, sy: o.sy || 1, rot: 0, rig: !me.dead, shadow: false, glow: false, circle: false, alpha: o.alpha }); } });
     RES = DunResidue.create({ me, g, mons, props: propList, M, T_FLOOR, EL, e8Of, REACT_NAME: (a, b) => (REACTIONS[pairKey(a, b)] || {}).name, ST: () => ST, hitMon, part, boom, ring, sparks, text, light, drop, sfx: api.sfx, sx, sy, Tz: () => Tz() });
     RX = DunReact.create({ me, g, mons, eshots, ST: () => ST, AB: () => AB, hitMon, text, part, boom, zap, bolt: (x, y, color) => bolts.push({ pts: skyBolt(x, y), life: 0.3, max: 0.3, color, w: 5 }), sparks, ring, light, drop, heal, banner, sfx: api.sfx, sx, sy, Tz: () => Tz() });
     RULES = F.band ? DunRules.create({ F, M, me, g, mons, R, spawnMon, lesserBoss, walkPoint, freeSpot, after, banner, flash, text, ring, part, sparks, boom, shake, drop, heal, gainMP, ST: () => ST, sfx: api.sfx, sx, sy, Tz: () => Tz() }) : null;
@@ -1263,8 +1282,11 @@ GAMES.dungeon = {
     const btnU = () => ({ x: api.W - 60, y: HB() - 48, r: 38 });
     const btnSs = () => { const U = btnU(), n = SSL.length, A = STRONG_ANG[n - 1]; return SSL.map((k, i) => { const a = A[i] * Math.PI / 180; return { k, x: U.x + Math.cos(a) * 90, y: U.y - Math.sin(a) * 90, r: STRONG_R[n - 1] }; }); };
     const btnS = () => btnSs()[0];
-    const btnSw = () => ({ x: SSL.length > 1 ? api.W - 218 : api.W - 128, y: SSL.length > 1 ? HB() - 16 : HB() - 96, r: 22 });
+    const btnSw = () => ({ x: SSL.length > 1 || vehOn() ? api.W - 218 : api.W - 128, y: SSL.length > 1 || vehOn() ? HB() - 16 : HB() - 96, r: 22 });   /* (vehOn: the Sports Car always shows two Strong buttons) */
     const btnD = () => SSL.length >= 3 ? { x: api.W - 34, y: HB() - 154, r: 26 } : { x: api.W - 52, y: HB() - 138, r: 27 };
+    /* (Sports Car, 20k4p) its buttons while driving: the Ult's place (the Supernova meter), two Strongs as a pet with two
+       has them (Shooting Star, Love Sensation), Drift where Dodge is for that layout */
+    const vehBtns = () => { const U = btnU(); return { u: U, d: { x: api.W - 52, y: HB() - 138, r: 27 }, s: ['strong', 'strong2'].map((k, i) => { const a = STRONG_ANG[1][i] * Math.PI / 180; return { k, x: U.x + Math.cos(a) * 90, y: U.y - Math.sin(a) * 90, r: STRONG_R[1] }; }) }; };
     const onBtn = (b, x, y) => hyp(x - b.x, y - b.y) < b.r + 10;
 
     /* ---------- one-hand controls: tap anywhere and the pet attacks that way and runs there.
@@ -1389,7 +1411,8 @@ GAMES.dungeon = {
       const spd = 4.3 * (1 + accK('spd')) * (RULES ? RULES.spdK() : 1) * (g.phoenixT > 0 ? 1.35 : 1) * (g.buff.haste > 0 ? 1.3 : 1) * (me.chill > 0 && zephK('mv') === 1 ? 0.6 : 1) * (tile === T_MUD && zephK('mv') === 1 ? 0.62 : 1) * (g.pw.giant ? 0.92 : 1) * zephK('mv');
       /* (Zephyr's Windguard: a hit it blocked cannot knock the pet back; any push laid on just after the block is dropped) */
       if (me.push && g.zephyr && g.zephyr.guardT > 0 && me.push !== g.zephyr.prePush) me.push = null;
-      if (me.dodge) {
+      if (vehOn() && !me.dead) VEH.drive(mx, my, dt);   /* (Sports Car: the stick and keys drive and steer; the form moves `me`) */
+      else if (me.dodge) {
         const D = me.dodge; D.t += dt; const k2 = 1 - Math.pow(D.t / D.dur, 2) * 0.6;
         moveEnt(me, D.vx * dt * k2, D.vy * dt * k2, 0);
         if (Math.random() < 0.8) part({ kind: 'afterP', x: me.x, y: me.y, vx: 0, vy: 0, life: 0.22, max: 0.22, size: 1, color: EL(AB.el).color, face: me.face, rot: D.t / D.dur * 6.283 * (D.vx >= 0 ? 1 : -1) });
@@ -2385,6 +2408,8 @@ GAMES.dungeon = {
         if (cd > 0.05) { c.beginPath(); c.moveTo(b.x, b.y); c.arc(b.x, b.y, b.r, -Math.PI / 2, -Math.PI / 2 + 6.283 * cd / cdMax); c.closePath(); c.fillStyle = 'rgba(0,0,0,.5)'; c.fill(); GFX.textS(c, cd >= 60 ? Math.floor(Math.ceil(cd) / 60) + ":" + String(Math.ceil(cd) % 60).padStart(2, "0") : cd.toFixed(1), b.x, b.y, 14, '#FFFFFF'); }
         const lab = isUlt ? `${ab.tier ? 'ULT+' : 'ULT'} · ${ab.cost} MP` : num ? `S${num}${ab.tier ? '+' : ''} · ${ab.cost}` : `STRONG${ab.tier ? '+' : ''} · ${ab.cost} MP`; GFX.labelS(c, lab, b.x, b.y + b.r + 9, 9, 800, can ? '#CFE2FF' : '#FF9AA8', 'rgba(0,0,0,.7)', 3);
       };
+      if (vehOn() && VEH.drawBtns) VEH.drawBtns(c, { B: vehBtns(), blitC, hudPic, glowPic, touchUI });   /* (Sports Car: Shooting Star, Love Sensation, the Supernova meter, Drift) */
+      else {
       btnSs().forEach((b, i) => { const ab = KIT[b.k], cd = g[CDK[b.k]]; drawBtn(b, ab, cd, ab.cd, me.mp >= ab.cost && cd <= 0, false, SSL.length > 1 ? i + 1 : 0); });
       drawBtn(uB, KIT.ult, g.cdU, KIT.ult.cd, me.mp >= KIT.ult.cost && g.cdU <= 0, true);
       { const ready = g.dodgeCd <= 0 && !me.dodge;
@@ -2392,8 +2417,9 @@ GAMES.dungeon = {
           x.save(); x.translate(cx, cy); x.strokeStyle = ready ? '#1F4E6B' : 'rgba(255,255,255,.5)'; x.lineWidth = 3; x.lineCap = 'round'; x.beginPath(); x.arc(0, 0, dB.r * 0.45, -2.6, 1.2); x.stroke(); x.beginPath(); x.moveTo(dB.r * 0.16, dB.r * 0.52); x.lineTo(dB.r * 0.16 + 6, dB.r * 0.52 - 1); x.lineTo(dB.r * 0.16 + 2, dB.r * 0.52 - 6); x.stroke(); x.restore(); }), dB.x, dB.y);
         if (g.dodgeCd > 0.05) { c.beginPath(); c.moveTo(dB.x, dB.y); c.arc(dB.x, dB.y, dB.r, -Math.PI / 2, -Math.PI / 2 + 6.283 * Math.min(1, g.dodgeCd / (0.85 * (g.dodgeK || 1)))); c.closePath(); c.fillStyle = 'rgba(0,0,0,.45)'; c.fill(); }
         GFX.labelS(c, 'DODGE', dB.x, dB.y + dB.r + 9, 9, 800, '#CFEFFF', 'rgba(0,0,0,.7)', 3); }
+      }
       if (party.length > 1) { const b = btnSw(), nxt = party[(cur + [1, 2, 3].find(k => !party[(cur + k) % party.length].down && (cur + k) % party.length !== cur) || 0) % party.length], EE = E8[nxt.el], ready = g.swapCd <= 0; c.save(); c.beginPath(); c.arc(b.x, b.y, b.r, 0, 6.283); c.fillStyle = ready ? 'rgba(30,24,56,.9)' : 'rgba(30,24,56,.6)'; c.fill(); c.lineWidth = 3; c.strokeStyle = ready ? EE.color : 'rgba(255,255,255,.3)'; c.stroke(); const s0 = arc.sprites; arc.sprites = nxt.sprites; c.globalAlpha = ready ? 1 : 0.5; api.pet(c, b.x, b.y + b.r * 0.55, b.r * 1.15, {}); arc.sprites = s0; c.globalAlpha = 1; c.strokeStyle = '#FFFFFF'; c.lineWidth = 2.5; c.lineCap = 'round'; c.beginPath(); c.arc(b.x, b.y, b.r + 5, -2.4, -0.9); c.stroke(); c.beginPath(); c.moveTo(b.x + Math.cos(-0.9) * (b.r + 5) - 5, b.y + Math.sin(-0.9) * (b.r + 5) - 1); c.lineTo(b.x + Math.cos(-0.9) * (b.r + 5) + 1, b.y + Math.sin(-0.9) * (b.r + 5)); c.lineTo(b.x + Math.cos(-0.9) * (b.r + 5) - 1, b.y + Math.sin(-0.9) * (b.r + 5) - 6); c.stroke(); if (g.swapCd > 0.05) { c.beginPath(); c.moveTo(b.x, b.y); c.arc(b.x, b.y, b.r, -Math.PI / 2, -Math.PI / 2 + 6.283 * g.swapCd / 1.1); c.closePath(); c.fillStyle = 'rgba(0,0,0,.5)'; c.fill(); } c.font = `800 9px ${arcFont}`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineWidth = 3; c.strokeStyle = 'rgba(0,0,0,.7)'; c.strokeText('SWITCH', b.x, b.y + b.r + 10); c.fillStyle = '#FFFFFF'; c.fillText('SWITCH', b.x, b.y + b.r + 10); c.restore(); }
-      else { const nx = SSL.length > 1 ? W - 218 : W - 128, ny = SSL.length > 1 ? HB() - 10 : HB() - 96, E = EL(KIT.normal.el), ready = g.normalT <= 0.01; c.globalAlpha = 0.9;
+      else if (!vehOn()) { const nx = SSL.length > 1 ? W - 218 : W - 128, ny = SSL.length > 1 ? HB() - 10 : HB() - 96, E = EL(KIT.normal.el), ready = g.normalT <= 0.01; c.globalAlpha = 0.9;   /* (no tap-attack hint while driving: there are none) */
         blitC(c, hudPic(`tapBtn|${KIT.normal.glyph}|${E.color}|${ready}`, 34, 34, (x, w, h) => { const cx = w / 2, cy = h / 2; x.beginPath(); x.arc(cx, cy, 13, 0, 6.283); x.fillStyle = ready ? hexA(E.color, 0.75) : 'rgba(30,24,56,.85)'; x.fill(); x.lineWidth = 2; x.strokeStyle = ready ? '#FFFFFF' : E.color; x.stroke(); drawGlyph(x, KIT.normal.glyph, cx, cy, 15, 0.9); }), nx, ny);
         GFX.labelS(c, touchUI ? 'TAP' : 'SPACE', nx, ny + 20, 7, 800, '#FFFFFF', null, 0); c.globalAlpha = 1; }
       }
@@ -2610,7 +2636,7 @@ GAMES.dungeon = {
       if (tryFire(g.tapAim)) { g.tapBuf = 0; g.tapAim = null; }
     }
     return {
-      _dbg: { get cam() { return cam; }, get RULES() { return RULES; }, get RIFT() { return RIFT; }, RU, lesserBoss, makeBoss, SKIP, stick, steerTo: (x, y) => { goTo(null, x, y); const d = navDir(1 / 60); nav.goal = null; return d; }, g, me, mons, M, get ST() { return ST; }, KIT, AB, useStrong, useUlt, dodge, hitMon, shots, eshots, zones, parts, helpers, F, pots, picks, shrines, hazards, traps, stones, SIZE, chunks, walkAt, blocked, X, wakeBoss, takeStone, fireEvent, tapAt, toWorld, nav, holds, goTo, banners, get AN() { return AN; }, get FD() { return FD; }, get RX() { return RX; }, get STAR() { return STAR; }, get ELEM() { return ELEM; }, get RES() { return RES; }, propList, get KITR() { return KIT; }, setKit: (slot, a) => { KIT[slot] = a; }, party, cur: () => cur, switchTo, hurtPet, btnSw, setBoss: id => { if (BOSS_BY_ID[id]) { BOSS_KIND = BOSS_BY_ID[id]; F.bossName = BOSS_KIND.name; } } },
+      _dbg: { get cam() { return cam; }, get RULES() { return RULES; }, get RIFT() { return RIFT; }, RU, lesserBoss, makeBoss, SKIP, stick, steerTo: (x, y) => { goTo(null, x, y); const d = navDir(1 / 60); nav.goal = null; return d; }, g, me, mons, M, get ST() { return ST; }, KIT, AB, useStrong, useUlt, dodge, hitMon, shots, eshots, zones, parts, helpers, F, pots, picks, shrines, hazards, traps, stones, SIZE, chunks, walkAt, blocked, X, wakeBoss, takeStone, fireEvent, tapAt, toWorld, nav, holds, goTo, banners, get AN() { return AN; }, get FD() { return FD; }, get RX() { return RX; }, get STAR() { return STAR; }, get ELEM() { return ELEM; }, get RES() { return RES; }, propList, get KITR() { return KIT; }, setKit: (slot, a) => { KIT[slot] = a; }, get VEH() { return VEH; }, vehBtns, party, cur: () => cur, switchTo, hurtPet, btnSw, setBoss: id => { if (BOSS_BY_ID[id]) { BOSS_KIND = BOSS_BY_ID[id]; F.bossName = BOSS_KIND.name; } } },
       resize() { layout(); stick.id = null; },
       /* a meal from the pantry while paused: heals the played pet and feeds it Tower experience */
       feed(k) {
@@ -2635,6 +2661,7 @@ GAMES.dungeon = {
         if (teamOk()) { const tb = btnTeam(); if (hyp(x - tb.x, y - tb.y) < tb.r + 8) { openRunTeam(); return; } }
         if (RIFT && RIFT.tap(x, y)) return;   // (a rift stage that takes the whole screen's taps: the Sandstorm Flight)
         if (!RHd && party.length > 1) { if (x < 60 && y < 62) { switchNext(); return; } const b = btnSw(); if (hyp(x - b.x, y - b.y) < b.r + 8) { switchNext(); return; } if (y > 56 && y < 84 && x > 50 && x < 60 + party.length * 48) { const k = Math.floor((x - 52) / 48); let idx = -1, seen = 0; for (let i = 0; i < party.length; i++) { if (i === cur) continue; if (seen === k) { idx = i; break; } seen++; } if (idx >= 0) { if (!switchTo(idx)) text(me.x, me.y - 1.2, party[idx].down ? 'Knocked out' : 'Not yet', '#CFE2FF', 12); return; } } }
+        if (!RHd && vehOn()) { const VB = vehBtns(); if (onBtn(VB.u, x, y)) { useUlt(); return; } for (const b of VB.s) if (hyp(x - b.x, y - b.y) < b.r + 6) { useStrong(b.k); return; } if (onBtn(VB.d, x, y)) { dodge(); return; } }   /* (Sports Car: its own two-Strong layout) */
         if (!RHd) if (onBtn(btnU(), x, y)) { useUlt(); return; }
         if (!RHd) for (const b of btnSs()) if (hyp(x - b.x, y - b.y) < b.r + 6) { useStrong(b.k); return; }
         if (!RHd) if (onBtn(btnD(), x, y)) { dodge(); return; }

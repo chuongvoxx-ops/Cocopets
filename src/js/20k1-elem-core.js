@@ -92,7 +92,8 @@ const ELEM_MOVES = {
     ['salvation', 'Salvation', 'shield', 95, 300, 'A luminous heart forms beneath you and releases a gentle pink pulse: every teammate is restored to full HP and every fallen teammate is revived at full HP.'],
     ['ribbonheartache', 'Ribbon Rainbow Heartache', 'wave', 95, 20, 'Enormous ribbons of luminous pink satin sweep through the monsters in a graceful dance: 2, 4 at Adept, 6 at Celestial.'],
     ['wishuponastar', 'Wish Upon a Star', 'stars', 95, 20, 'A giant pink wishing star forms beneath the monsters and releases star-shaped shockwaves: 1, 2 at Adept, 3 at Celestial.'],
-    ['lovesanctuary', 'Love Sanctuary', 'shield', 95, 60, 'A pink ward with a great heart draws itself where you stand; a shared shield absorbs the damage to your pet while it stays inside: 10 s, 15 s at Adept, 20 s at Celestial.'] ] },
+    ['lovesanctuary', 'Love Sanctuary', 'shield', 95, 60, 'A pink ward with a great heart draws itself where you stand; a shared shield absorbs the damage to your pet while it stays inside: 10 s, 15 s at Adept, 20 s at Celestial.'] ,
+    ['sportscar', 'Sports Car', 'dash', 100, 120, 'Your pet summons a giant pink magical-girl sports car and drives it for 20 s (25 s at Adept, 35 s at Celestial): ramming monsters deals light damage, Dodge becomes Drift, the Strongs become Shooting Star and Love Sensation, and damage fills a Supernova meter for a finishing burnout barrage and explosion. Cooldown starts when you leave the car.']] },
   dark: { strong: [
     ['inkfang', 'Inkfang', 'claw', 24, 2.4, 'Fangs of living darkness lunge low through the monsters and splash into retracting ribbons: 1 fang, 2 at Adept, 3 at Celestial.'],
     ['eclipsedisc', 'Eclipse Disc', 'boom', 24, 2.6, 'A great black disc with a violet rim slides along your aim through the monsters, then contracts to a point and bursts.'],
