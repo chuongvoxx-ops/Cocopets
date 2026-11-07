@@ -998,3 +998,4 @@ Every new boss painter (rift fiends, Tower bosses, minis that get their own art)
 - v271: all big Pandemonium bands (canopy, outer, funnel bands) use the soft rim, now 0.42 (35 % softer +20 %).
 - v272: Zephyr's Blessing (20k3j, replaces Palace of the Sky; cd 90): party buff on g.zephyr for 10/13/16 s: move x1.3, attack speed +20/30/35 % (normal interval and Strong cooldowns), 20 % damage reduction, slow immunity, Windguard charges 1 (2 at Celestial) block a hit with no knockback; addWard(fn, first) ordering; HUD chip.
 - v273: fix: Zephyr's Blessing could not be equipped — its key `zephyr` clashed with the Wind Strong Returning Zephyr (elemParse found the Strong first). Renamed the Ultimate key to `zephyrblessing`; elem-moves now fails on any shared Strong/Ultimate key.
+- v274: Zephyr's Blessing lasts 25 / 30 / 35 s (L1 / Adept / Celestial, evenly between) with a 60 s cooldown.

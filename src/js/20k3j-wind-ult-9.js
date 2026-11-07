@@ -5,7 +5,7 @@
      +30% movement speed, +20% attack speed (+30% at Adept, +35% at Celestial; continuous levels interpolate:
        20 / 23.3 / 26.7 / 30 / 31.7 / 33.3 / 35%), 20% less damage taken, immune to slows (chill, webs, mud; slows on it are
        cleared at the wingbeat), and Windguard charges (1; 2 at Celestial): the next hit (not a damage-over-time tick) is
-       blocked entirely, and cannot stagger or knock back the pet. Duration 10 / 13 / 16 s at levels 1 / 4 / 7 (9 + level).
+       blocked entirely, and cannot stagger or knock back the pet. Duration 25 / 30 / 35 s at levels 1 / 4 / 7 (25 + 5/3 per level; was 9 + level).
    Party-wide: the state lives on the floor's game object (g.zephyr: t left, dur, as, mv, ch, chMax, guardT, prePush),
    which every party pet shares, so switching pets keeps it; recasting refreshes the time and the charges (no stacking).
    The hooks in 20b-game-dungeon.js (zephK): the normal attack's interval and the Strong cooldowns run `as` times faster
@@ -34,7 +34,7 @@
   const nowMs = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
   const backOut = u => { const s = 1.6; u = cl(u) - 1; return u * u * ((s + 1) * u + s) + 1; };
   // the numbers
-  const durOf = ev => 9 + ev;   // 10 / 13 / 16 s
+  const durOf = ev => 25 + (ev - 1) * 5 / 3;   // 25 / 30 / 35 s (the user)
   const asOf = ev => (ev <= 4 ? 0.2 + (ev - 1) * 0.1 / 3 : 0.3 + (ev - 4) * 0.05 / 3);   // +20% / +30% / +35%
   const chOf = ev => (ev >= 7 ? 2 : 1);
   const MV = 1.3, DR = 0.8;

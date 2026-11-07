@@ -61,7 +61,7 @@ const ELEM_MOVES = {
     ['needle', 'Pressure Needle', 'lance', 26, 2.6, 'Air compresses to a point before you and fires as a piercing lance; dust ripples follow its route.'],
     ['tailwind', 'Tailwind Sweep', 'spin', 24, 2.8, 'Spin: a low crescent sweeps round you and out, and a tailwind quickens your steps for a moment.'] ],
   ult: [
-    ['zephyrblessing', "Zephyr's Blessing", 'leaf', 100, 90, 'Your pet spreads wings of emerald wind and blesses the party: faster moves and attacks, 20% less damage, no slows and a Windguard that blocks a hit, for 10 s (13 s at Adept, 16 s at Celestial).'],
+    ['zephyrblessing', "Zephyr's Blessing", 'leaf', 100, 60, 'Your pet spreads wings of emerald wind and blesses the party: faster moves and attacks, 20% less damage, no slows and a Windguard that blocks a hit, for 25 s (30 s at Adept, 35 s at Celestial).'],
     ['thousandblades', '1000 Blades', 'crescent', 95, 20, 'A fan of great samurai swords rises and shatters into a swarm of green flowers that cuts through the monsters: 10 swords, 30 at Adept, 60 at Celestial.'],
     ['monsoon', 'Monsoon', 'vortex', 95, 25, 'One great storm vortex settles on the aim, pulling the monsters inward and grinding them: 7 s, 10 s at Adept, 12 s at Celestial.'],
     ['pandemonium', 'Pandemonium', 'vortex', 100, 75, 'A colossal emerald cyclone lifts the monsters into its eye and grinds them while every other attack on them deals 40% more, then bursts in a huge wind explosion: 7 s, 10 s at Adept, 14 s at Celestial.'],
