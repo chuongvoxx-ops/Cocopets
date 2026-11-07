@@ -700,7 +700,8 @@ GAMES.dungeon = {
     function zephK(k) { const Z = g.zephyr; return Z && Z.t > 0 && !me.dead ? Z[k] || 1 : 1; }
     const normalHooks = [];   // (listeners on the pet's normal attack: Dark's Thriller, 20k5j; ELEM's onNormal adds one)
     /* (hook for Light's Sports Car, 20k4p) a vehicle form that takes the controls while VEH.active: movement goes to
-       VEH.drive(mx, my, dt), Dodge to VEH.dodge, the Strongs to VEH.strong(slot), the Ult to VEH.ult(), its buttons are
+       VEH.drive(mx, my, dt), Dodge to VEH.dodge, the Strongs to VEH.strong(slot), the Ult to VEH.ult(), the Jump button / J key to
+       VEH.jump(mx, my) (round 4), its buttons are
        drawn by VEH.drawBtns, normal attacks are suppressed, and a party swap first calls VEH.onSwitch. Set through ELEM's
        X.vehicle(o); null when no form is up */
     let VEH = null;
@@ -722,6 +723,8 @@ GAMES.dungeon = {
       return true;
     }
     let mxIn = 0, myIn = 0;
+    /* (Sports Car round 4, 20k4p) the car's Jump: its HUD button above Drift, or J on a keyboard; nothing on foot */
+    function carJump() { if (vehOn() && VEH.jump && !me.dead && !g.won) VEH.jump(mxIn, myIn); }
     function dodge() {
       if (vehOn()) { if (!me.dead && !g.won) VEH.dodge(mxIn, myIn); return; }   /* (Sports Car: Dodge becomes Drift) */
       if (me.dead || g.won || me.dodge || g.dodgeCd > 0 || me.leap || me.dash || g.intro > 1.9 || g.bossIntro > 0.6) return;
@@ -971,6 +974,8 @@ GAMES.dungeon = {
          with its own sprite at screen X, Y (its feet), no shadow or ground glow, o.maxH capping its height in tiles; line of
          sight; the kit, for the Ult's cooldown */
       vehicle: o => { VEH = o || null; }, los, kit: () => KIT,
+      /* (round 4: the car's Jump lands only where the pet could walk back from: the flow field's distance, 9999 = cut off) */
+      flowAt: (x, y) => { const tx = Math.floor(x), ty = Math.floor(y); return inMap(tx, ty) ? flow[ty * MW + tx] : 9999; },
       /* (hook for Light's Sports Car, 20k4p, round 3) the car smashes the scenery it drives over, through the game's own
          break paths: a prop on a wall tile (RES: its residue, loot, sound; the tile turns to floor, the minimap repaints it,
          the flow field rebuilds on its own timer) and the pots (breakPot). Which kinds it may smash is the car's list; null
@@ -1294,7 +1299,7 @@ GAMES.dungeon = {
     const btnD = () => SSL.length >= 3 ? { x: api.W - 34, y: HB() - 154, r: 26 } : { x: api.W - 52, y: HB() - 138, r: 27 };
     /* (Sports Car, 20k4p) its buttons while driving: the Ult's place (the Supernova meter), two Strongs as a pet with two
        has them (Shooting Star, Love Sensation), Drift where Dodge is for that layout */
-    const vehBtns = () => { const U = btnU(); return { u: U, d: { x: api.W - 52, y: HB() - 138, r: 27 }, s: ['strong', 'strong2'].map((k, i) => { const a = STRONG_ANG[1][i] * Math.PI / 180; return { k, x: U.x + Math.cos(a) * 90, y: U.y - Math.sin(a) * 90, r: STRONG_R[1] }; }) }; };
+    const vehBtns = () => { const U = btnU(); return { u: U, d: { x: api.W - 52, y: HB() - 138, r: 27 }, j: HB() - 232 < Math.min(88, api.W * 0.24) + 24 ? { x: api.W - 124, y: HB() - 176, r: 24 } : { x: api.W - 52, y: HB() - 206, r: 26 } /* (round 4: Jump, right above Drift; on a screen too short for that (landscape) it would reach the minimap, so up and left of Drift) */, s: ['strong', 'strong2'].map((k, i) => { const a = STRONG_ANG[1][i] * Math.PI / 180; return { k, x: U.x + Math.cos(a) * 90, y: U.y - Math.sin(a) * 90, r: STRONG_R[1] }; }) }; };
     const onBtn = (b, x, y) => hyp(x - b.x, y - b.y) < b.r + 10;
 
     /* ---------- one-hand controls: tap anywhere and the pet attacks that way and runs there.
@@ -2669,7 +2674,7 @@ GAMES.dungeon = {
         if (teamOk()) { const tb = btnTeam(); if (hyp(x - tb.x, y - tb.y) < tb.r + 8) { openRunTeam(); return; } }
         if (RIFT && RIFT.tap(x, y)) return;   // (a rift stage that takes the whole screen's taps: the Sandstorm Flight)
         if (!RHd && party.length > 1) { if (x < 60 && y < 62) { switchNext(); return; } const b = btnSw(); if (hyp(x - b.x, y - b.y) < b.r + 8) { switchNext(); return; } if (y > 56 && y < 84 && x > 50 && x < 60 + party.length * 48) { const k = Math.floor((x - 52) / 48); let idx = -1, seen = 0; for (let i = 0; i < party.length; i++) { if (i === cur) continue; if (seen === k) { idx = i; break; } seen++; } if (idx >= 0) { if (!switchTo(idx)) text(me.x, me.y - 1.2, party[idx].down ? 'Knocked out' : 'Not yet', '#CFE2FF', 12); return; } } }
-        if (!RHd && vehOn()) { const VB = vehBtns(); if (onBtn(VB.u, x, y)) { useUlt(); return; } for (const b of VB.s) if (hyp(x - b.x, y - b.y) < b.r + 6) { useStrong(b.k); return; } if (onBtn(VB.d, x, y)) { dodge(); return; } }   /* (Sports Car: its own two-Strong layout) */
+        if (!RHd && vehOn()) { const VB = vehBtns(); if (onBtn(VB.u, x, y)) { useUlt(); return; } for (const b of VB.s) if (hyp(x - b.x, y - b.y) < b.r + 6) { useStrong(b.k); return; } const dj = hyp(x - VB.j.x, y - VB.j.y); if (dj < VB.j.r + 8 && dj < hyp(x - VB.d.x, y - VB.d.y)) { carJump(); return; } if (onBtn(VB.d, x, y)) { dodge(); return; } }   /* (Sports Car: its own two-Strong layout; Jump above Drift, the nearer of the two takes a touch between them) */
         if (!RHd) if (onBtn(btnU(), x, y)) { useUlt(); return; }
         if (!RHd) for (const b of btnSs()) if (hyp(x - b.x, y - b.y) < b.r + 6) { useStrong(b.k); return; }
         if (!RHd) if (onBtn(btnD(), x, y)) { dodge(); return; }
@@ -2688,7 +2693,7 @@ GAMES.dungeon = {
       up(x, y, id) {
         if (id === stick.id) { const quick = x >= 0 && stick.far < 12 && g.t - stick.t0 < 0.35, ox = stick.ox, oy = stick.oy; stick.id = null; if (quick) tapAt(ox, oy); return; }   // a quick tap there still attacks
         holds.delete(id); },
-      key(kk, on) { if (!on) return; if (RIFT && (kk === 'tap' || kk === 'up' || kk === 'jump') && RIFT.tap(0, 0)) return; if (RIFT && RIFT.hud && RIFT.hud()) { if (kk === 'ab2' || kk === 'ab1') RIFT.act(); if (kk !== 'tap') return; } if (kk === 'swap') { switchNext(); return; } if (kk === 'ab2') useUlt(); else if (kk === 'dodge') dodge(); else if (kk === 'ab1' || kk === 'jump' || kk === 'drop') useStrong('strong'); else if (kk === 'ab3') useStrong('strong2'); else if (kk === 'ab4') useStrong('strong3'); else if (kk === 'ab5') { if (AN) AN.summon(); } else if (kk === 'tap') { g.tapAim = Object.assign(aim(), { key: true }); g.tapBuf = 0.3; if (tryFire(g.tapAim)) g.tapBuf = 0; } g.movedOnce = true; },
+      key(kk, on) { if (!on) return; if (RIFT && (kk === 'tap' || kk === 'up' || kk === 'jump') && RIFT.tap(0, 0)) return; if (RIFT && RIFT.hud && RIFT.hud()) { if (kk === 'ab2' || kk === 'ab1') RIFT.act(); if (kk !== 'tap') return; } if (kk === 'swap') { switchNext(); return; } if (kk === 'carjump') { carJump(); return; } /* (Sports Car's Jump, J: nothing on foot) */ if (kk === 'ab2') useUlt(); else if (kk === 'dodge') dodge(); else if (kk === 'ab1' || kk === 'jump' || kk === 'drop') useStrong('strong'); else if (kk === 'ab3') useStrong('strong2'); else if (kk === 'ab4') useStrong('strong3'); else if (kk === 'ab5') { if (AN) AN.summon(); } else if (kk === 'tap') { g.tapAim = Object.assign(aim(), { key: true }); g.tapBuf = 0.3; if (tryFire(g.tapAim)) g.tapBuf = 0; } g.movedOnce = true; },
       update, draw,
       idle(dt) { update(dt * 0.5); },
     };

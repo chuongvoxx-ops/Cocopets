@@ -54,11 +54,11 @@
             if (on) { p.t += dt; if (p.t >= 0.95) { p.gone = 4.5; p.tiles.forEach(t => X.setTile(t.tx, t.ty, T_GAP)); dirty = true; X.boom((p.x0 + p.x1) / 2, p.ty + 0.5, 0.8, ICE_HI, '#FFFFFF', { n: 10, shake: 2 }); } }
             else p.t = Math.max(0, p.t - dt * 0.6); }
           if (dirty) X.retile();
-          if (!me.dead && !me.dodge && tileOf(me.x, me.y) === T_GAP) fall('ice');
+          if (!me.dead && !me.dodge && !me.airborne && tileOf(me.x, me.y) === T_GAP) fall('ice');   /* (me.airborne: Light's Sports Car in a Jump, 20k4p; it lands only on ground) */
           // the gusts across the upper bridges
           for (const G of gusts) { const u = ((g.t + G.off) % G.per) / G.per; G.st = u < 0.5 ? 'still' : u < 0.64 ? 'warn' : 'blow'; G.k += ((G.st === 'blow' ? 1 : 0) - G.k) * Math.min(1, dt * 6); }
           const gu = gusts.find(G => G.st === 'blow' && Math.abs(me.y - G.y) < 1.6);
-          if (gu && !me.dodge && !me.dead) { X.moveEnt(me, gu.dir * 2.6 * dt, 0); const edge = tileOf(me.x + gu.dir * (me.r + 0.15), me.y) === T_GAP; S.gustExp = (S.gustExp || 0) + dt * (edge ? 1.3 : 0); if (S.gustExp >= 1) { S.gustExp = 0; fall('wind'); } } else S.gustExp = Math.max(0, (S.gustExp || 0) - dt * 2);
+          if (gu && !me.dodge && !me.dead && !me.airborne) { X.moveEnt(me, gu.dir * 2.6 * dt, 0); const edge = tileOf(me.x + gu.dir * (me.r + 0.15), me.y) === T_GAP; S.gustExp = (S.gustExp || 0) + dt * (edge ? 1.3 : 0); if (S.gustExp >= 1) { S.gustExp = 0; fall('wind'); } } else S.gustExp = Math.max(0, (S.gustExp || 0) - dt * 2);
           // the icicles: faster the higher you climb
           S.icT -= dt; if (S.icT <= 0) { S.icT = 1.7 - S.top * 0.9; icicle(); if (S.top > 0.55) icicle(); }
           if (!S.won && Math.hypot(me.x - O.x, me.y - O.y) < 1.6) win(); },

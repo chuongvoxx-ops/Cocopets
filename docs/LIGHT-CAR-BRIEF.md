@@ -229,3 +229,43 @@ file exists. The two of you may message each other through files: append notes t
   floor under props) and pots / smashPot (breakPot; never chests). 20l's hitProp/breakProp take { quiet } (no crash or
   floating name for a prop smashed within 0.14 s of another). C1's SMASH lists the kinds (the Tower lands' props and the
   rift dungeon lands' scatter); anything else (hourglass, blank, a stage's pipes ...) blocks as before.
+
+- (Round 4, single worker) Jump, for the user's "hard to drive across such narrow bridges": a pearl-pink button with gold
+  trim directly above Drift (20b `vehBtns().j`, r 26 at W-52, HB-206; on a screen too short for that, i.e. landscape,
+  it would reach the minimap, so it sits up and left of Drift at W-124, HB-176, r 24), a car on a dashed arc as its icon,
+  a cooldown sweep. Touch: the nearer of Jump/Drift takes a touch between them. Keyboard: J (12-arcade's DUN_KEYMAP
+  `j: 'carjump'` -> 20b `carJump()` -> `VEH.jump(mx, my)`; nothing on foot; Space is taken by the normal attack). The game
+  maps no controllers, so there is no pad button.
+  - Numbers (TUNE): jumpCd 1.2 s from the press (Arcane shrine x0.6, as Drift); jumpBuf 0.25 s (a press during the last
+    0.25 s of the cooldown, or while Drift / Love / Supernova / the hop itself holds the car, is kept that long);
+    jumpPh 0.09 s squat + 0.6 s air; jumpH 1.15 tiles; launch speed max(jumpV 9.5, speed along the jump) -> 6.6 tiles
+    standing, up to jumpMax 9; jumpExt 2 tiles of reach beyond that for a landing; landing hit 1.2 DK within 1.6 tiles
+    (+ the monster's radius x0.85), kb 5, once per monster per hop, through hitCharge (charges the meter).
+  - What it passes over: T_GAP only (water, pits, lava, sky, sand: every tile that blocks walking but is not a wall;
+    T_SOLID walls and the map's edge stop it in the air: `blk(S, x, y, r, 1)`, 20b's mode 1; smashable props do not).
+  - Safety: the whole hop is planned at the press (`planJump`): the straight line along the stick, else the heading, is
+    marched for air clearance (the car's three wall circles); landings are tried nearest-first: the launch distance, a
+    little further (up to +2), bent up to +-0.6 rad, then shorter, then in place. A landing must pass the driving
+    footprint on the ground (walls and drops, smashable props open) AND be reachable on foot from where the car is (20b's
+    flow field through a new `X.flowAt(x, y)` hook, at the centre, nose or tail), so the car never lands on an island it
+    could not leave or past a rift puzzle's gap. The landing frame re-checks the ground only (the flow field is rebuilt
+    from the pet every 0.25 s and means nothing while it is over water); if the ground changed it uses the take-off,
+    then the nearest drivable pose. `me.airborne` is set in the air; 20s7's Crownstep gate (the only tile-based pet fall
+    in the game: `tileOf(me) === T_GAP -> fall`) and its gust push now skip it. No other rule hurts the pet over a gap.
+  - Rules: no ramming in the air (car.contact off, restored on landing; monsters struck by the landing are marked inside
+    the ram gate). Drift / Strongs / Supernova pressed in the air wait for the landing (Drift if within driftBuf of it,
+    Strongs via mvQ, Supernova via novaQ within 0.6 s). Jump never mid-Drift or while Love / Supernova lock the car;
+    allowed during a (non-locking) Shooting Star. The timer running out waits for the landing; finish / release /
+    startOut call `abortJump` (set down on the planned landing, no hit), so swap, defeat, a won floor never leave the car
+    or the pet in the air.
+  - Look: squat (car.sq: the body scales about its ground point; the pet is not squashed, the seat just sinks), stretch
+    off the ground, wheels droop (car.droop), a compact darker shadow under the lifted car, a pearl ring of light at the
+    planned landing closing in, two fluttering ribbons off the spoiler ends (drawn before the car, never over the pet)
+    and stars/hearts; landing squash on a damped spring (no wobble under Reduce Motion, half squash, no shake), a
+    light-only pink dust ring, pale puffs, hearts and stars. LOW: fewer particles, one ribbon band.
+  - Cost (SwiftShader, 390x844 @1.5): planJump 0.2 ms avg (p95 0.3, worst 4-6 ms single outliers, GC/JIT); a frame in the
+    air about +0.9 ms over plain driving (+0.3 on LOW); landing frame <= ~5 ms in most runs.
+  - Tests: scratchpad/sportscar/r4/jump.js (floor 6 Murk Swamp seed 7: hops over the water beside 2-wide bridges, a wall,
+    open water, the map's edge, cooldown/buffer, landing hit, timeout/swap/defeat in the air, Supernova in the air, the J
+    key, a real touch on the button, button spacing, Reduce Motion), shots.js / perf.js; r3logic-r4.js is r3logic.js
+    with the Supernova cast from an open spot (its "wide arcs" check was flaky on the round-3 build too).

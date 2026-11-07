@@ -18,6 +18,13 @@
      - the Ult button is the Supernova meter: it fills from the damage the form actually deals (ctx.hit: after mitigation,
        no overkill, nothing for misses or invulnerable targets; Supernova's own hits never refill it), and only a press
        when full starts Supernova (once per transformation; it commits, ignores the timer and ends with the pet ejected).
+     - (round 4) Jump: the pearl-pink button above Drift, or J: a squat, a 0.6 s arc along the stick (else the heading) at
+       the car's speed (at least TUNE.jumpV), ribbons and stars off the spoiler, a landing squash with a light-only pink
+       dust ring and one small hit per monster (TUNE.jump x DK, charging the meter). In the air the car passes over gaps
+       (water, pits, lava, the sky: 20b's T_GAP, the one kind that blocks walking but not flying) and never through a
+       wall or past the map's edge; it lands only on a spot planned before take-off where the whole car can drive and
+       the pet could walk back from (planJump). No ramming in the air; Drift, the Strongs and Supernova wait for the
+       landing; every exit sets a car in the air down on its landing first.
    Round 3: the Strongs cool down in 1.5 s, a press made while a move holds the car (or a moment early) is kept and goes
    once; the car smashes the scenery it drives, drifts, lands or burns out over (SMASH below, through 20b's X.carProps
    and the game's own break paths), so no grove of props can stop it; walls, drops, doors, chests and rift objects stay.
@@ -60,6 +67,12 @@
     chargeK: 30,                // the meter fills at chargeK x DK of damage actually dealt (a dense L1 pack, driven well: ~11 s; ordinary play ~15-20 s)
     summon: 1.75, out: 0.85,    // s
     novaCap: 16,                // s: a Supernova that never reports done is ended anyway
+    /* Jump (round 4): a hop along the heading (or the stick) over gaps, water, pits and lava, never over walls. It lands
+       only where the whole car can drive and the pet could walk back from (planned before take-off) */
+    jump: 1.2, jumpR: 1.6, jumpKb: 5,                     // x DK once per monster on landing; radius round the car's centre (tiles, + the monster's own); knockback
+    jumpCd: 1.2, jumpBuf: 0.25,                           // s from the press; a press this early (or while Drift / Love / Supernova holds the car) is kept
+    jumpPh: [0.09, 0.6], jumpH: 1.15,                     // s squat / airtime; peak height (tiles)
+    jumpV: 9.5, jumpMax: 9, jumpExt: 2,                   // least launch speed (tiles/s: a standing jump still goes 9.5 x 0.69 = 6.6 tiles, centre to centre: 3.2 of water for a car 3.2 long); longest planned hop; how much further it may reach for a landing
   };
   const tierOf = ev => ev >= 7 ? 3 : ev >= 4 ? 2 : 1;
   /* (round 3) the scenery the car smashes as it drives, drifts, lands or burns out: only these kinds, and only where 20b's
@@ -436,8 +449,8 @@
     const tgt = X.nearestMon(me.x, me.y, 9) || null; let a = tgt ? Math.atan2(tgt.y - me.y, tgt.x - me.x) : (me.face < 0 ? Math.PI : 0);
     const car = { x: me.x, y: me.y, a, vx: 0, vy: 0, speed: 0, z: 0, susp: 0, lean: 0, slide: 0, glow: 0, scale: 1, locked: true, contact: true, vis: 1, wheelSpin: null, spinA: 0, steer: 0, prevX: me.x, prevY: me.y, prevA: a };
     const S = { H, g, me, X, ev, tier, DK, CD, dur, left: dur, car, phase: 'summon', t: 0, hold: 0, charge: 0, used: false, busy: null, busyT: 0, cdStar: 0, cdLove: 0, cdDrift: 0, drift: null,
-      gate: new Map(), trail: [[], [], [], []], parts: [], free: [], lights: 0, ended: false, pet: X.pet ? X.pet() : null, sfxT: 0, bumpT: 0, ltT: 0, outT: 0, outHow: '', stats: { ram: 0, drift: 0, star: 0, love: 0, nova: 0, dealt: 0, charged: 0, hits: 0, smash: 0, pots: 0 }, petStand: null,
-      props: X.carProps || null, smashT: -9, mvQ: null };
+      gate: new Map(), trail: [[], [], [], []], parts: [], free: [], lights: 0, ended: false, pet: X.pet ? X.pet() : null, sfxT: 0, bumpT: 0, ltT: 0, outT: 0, outHow: '', stats: { ram: 0, drift: 0, star: 0, love: 0, nova: 0, dealt: 0, charged: 0, hits: 0, smash: 0, pots: 0, jump: 0, jumpHit: 0 }, petStand: null,
+      props: X.carProps || null, smashT: -9, mvQ: null, cdJump: 0, jump: null, jumpQ: null, novaQ: null, jt: [[], []], sqV: 0, mx: 0, my: 0 };
     g._sportscar = S;
     // seat at the pet: the car's centre is ahead of it
     const place = (ang) => { const o = seatOff(car, ang); return { x: me.x - o[0], y: me.y - o[1] }; };
@@ -453,7 +466,7 @@
       canStand: (x, y) => canStand(X, x, y), canDrive: (x, y) => !blk(S, x, y, 0.38) && !blk(S, x, y, 0.2), impact: (m, landed, first) => novaImpact(S, m, landed, first), smash: () => { if (S.phase === 'drive' || S.phase === 'nova') smashSweep(S); }, nearestStand: (x, y) => nearestStand(S, x, y), target: () => target(S), done: () => actionDone(S), alive: () => !S.ended && !me.dead && !g.over && (S.phase === 'nova' || (S.phase === 'drive' && !g.won)),   /* (a started Supernova finishes even if it wins the floor) */
       T: () => X.Tz(), scr: (x, y, z) => [H.sx(x), H.sy(y) - (z || 0) * ZK * X.Tz()], seat: () => seatWorld(car) };
     // the controls (20b's VEH hook)
-    S.veh = { get active() { return !S.released; }, drive: (mx, my, dt) => drive(S, mx, my, dt), dodge: (mx, my) => tryDrift(S, mx, my), strong: slot => tryMove(S, slot), ult: () => tryNova(S), drawBtns: (c, o) => drawBtns(S, c, o), onSwitch: () => finish(S, 'swap') };
+    S.veh = { get active() { return !S.released; }, drive: (mx, my, dt) => drive(S, mx, my, dt), dodge: (mx, my) => tryDrift(S, mx, my), jump: (mx, my) => tryJump(S, mx, my), strong: slot => tryMove(S, slot), ult: () => tryNova(S), drawBtns: (c, o) => drawBtns(S, c, o), onSwitch: () => finish(S, 'swap') };
     X.vehicle(S.veh);
     // the effect that runs it all (and hides the pet while it lives: me.petAlt, 20b's drawPet)
     const F = S.fx = H.add({ key: 'sportscar', life: 1e9, entY: car.y,
@@ -477,11 +490,13 @@
     return B(x, y, 0.5) || B(x + ex, y + ey, 0.4) || B(x - ex, y - ey, 0.4); }
   /* (round 3) X.blocked(x, y, r, 0), except that a prop the car may smash is open road */
   function smashable(S, tx, ty) { const P = S.props; if (!P) return null; const p = P.propAt(tx, ty); return p && !p.broken && SMASH.has(p.kind) ? p : null; }
-  function blk(S, x, y, r) {
-    const X = S.X; if (!X.blocked(x, y, r, 0)) return false; if (!S.props) return true;
+  /* (round 4) mode 1: walls alone (a car in the air passes over gaps, water, pits and lava, never through a wall or past
+     the edge of the map) */
+  function blk(S, x, y, r, mode) {
+    const X = S.X; mode = mode || 0; if (!X.blocked(x, y, r, mode)) return false; if (!S.props) return true;
     const x0 = Math.floor(x - r), x1 = Math.floor(x + r), y0 = Math.floor(y - r), y1 = Math.floor(y + r);
     for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) {
-      if (!X.blocked(tx + 0.5, ty + 0.5, 0.02, 0) || smashable(S, tx, ty)) continue;
+      if (!X.blocked(tx + 0.5, ty + 0.5, 0.02, mode) || smashable(S, tx, ty)) continue;
       const cx = cl2(x, tx, tx + 1), cy = cl2(y, ty, ty + 1); if ((x - cx) * (x - cx) + (y - cy) * (y - cy) < r * r) return true; }
     return false; }
   const cl2 = (v, a, b) => v < a ? a : v > b ? b : v;
@@ -526,7 +541,11 @@
   /* ---- the controls ---- */
   function drive(S, mx, my, dt) {
     const car = S.car, me = S.me, X = S.X;
+    S.mx = mx; S.my = my;
+    if (S.jump) { if (me.push) me.push = null; stepJump(S, dt); syncMe(S); return; }   /* (round 4: the hop owns the car until it lands) */
+    if (S.novaQ != null) { const q = S.novaQ; S.novaQ = null; if (S.g.t - q < 0.6) { tryNova(S); if (S.phase !== 'drive') return; } }   /* (Supernova pressed in the air: on landing) */
     if (S.phase !== 'drive' || car.locked) { me.vx = me.vy = 0; if (me.push) me.push = null; syncMe(S); return; }
+    if (S.jumpQ != null) { if (S.g.t - S.jumpQ > TUNE.jumpBuf) S.jumpQ = null; else if (!S.drift && S.cdJump <= 0) { tryJump(S, mx, my, true); if (S.jump) { stepJump(S, dt); syncMe(S); return; } } }   /* (a Jump pressed a moment early) */
     if (me.push) { const P = me.push; P.t -= dt; moveCar(S, P.vx * dt, P.vy * dt); if (P.t <= 0) me.push = null; }
     const top = TUNE.top * (me.chill > 0 ? 0.75 : 1) * (S.g.buff && S.g.buff.haste > 0 ? 1.15 : 1), D = S.drift;
     const mag = Math.min(1, Math.hypot(mx, my));
@@ -567,6 +586,7 @@
   function tryDrift(S, mx, my) {
     const car = S.car, X = S.X;
     if (S.phase !== 'drive' || car.locked) return;
+    if (S.jump) { if (S.jump.F - S.jump.t <= TUNE.driftBuf) S.driftQ = S.g.t; return; }   /* (round 4: not in the air; a press just before landing is kept) */
     if (S.drift || S.cdDrift > 0) { if (S.cdDrift <= TUNE.driftBuf) S.driftQ = S.g.t; return; }   // (pressed a moment early: it goes as soon as it can)
     // the way it bursts: the stick, else the way the car is going, else the aim
     const mag = Math.hypot(mx, my); let dir;
@@ -614,7 +634,7 @@
     const car = S.car, X = S.X, sfx = X.sfx || {}, star = slot !== 'strong2', cd = star ? S.cdStar : S.cdLove;
     if (S.phase !== 'drive') return;
     // (round 3) held by another move, or a moment early: kept (one press, the latest), fired once when it can go
-    if (car.locked || S.busy) { if (!queued) { if (S.busy !== 'nova') S.mvQ = { slot, t: S.g.t, held: true }; else if (sfx.wrong) sfx.wrong(); } return; }
+    if (car.locked || S.busy || S.jump) { if (!queued) { if (S.busy !== 'nova') S.mvQ = { slot, t: S.g.t, held: true }; else if (sfx.wrong) sfx.wrong(); } return; }
     if (cd > 0) { if (!queued && cd <= MVQ) S.mvQ = { slot, t: S.g.t, held: false }; return; }
     S.mvQ = null;
     const MV = moves();
@@ -628,6 +648,7 @@
   function tryNova(S) {
     const X = S.X, sfx = X.sfx || {}, car = S.car;
     if (S.phase !== 'drive') return;
+    if (S.jump && !S.used && S.charge >= 1) { S.novaQ = S.g.t; return; }   /* (round 4: in the air, it goes on landing) */
     if (S.used || S.charge < 1 || car.locked) { if (sfx.wrong) sfx.wrong(); X.text(S.me.x, S.me.y - 1.7, S.used ? 'Supernova used' : `Supernova ${Math.floor(S.charge * 100)}%`, LIGHT, 12, { life: 0.9, max: 0.9, vy: -0.6 }); return; }
     S.used = true; S.phase = 'nova'; S.t = 0; S.busy = 'nova'; S.busyT = 0; S.drift = null; car.slide = 0;
     car.contact = false; car.locked = true; S.ctx.supernova = true; S.stats.nova++;
@@ -641,6 +662,127 @@
     if (S.phase === 'drive') { S.car.locked = false; S.car.z = 0; }
   }
 
+  /* ---- (round 4) Jump: a quick hop over gaps, water, pits and lava ----
+     The press plans the whole hop before the car leaves the ground: a straight line along the stick (else the heading),
+     as long as the speed carries it (at least TUNE.jumpV), clear of walls all the way in the air (props the car may smash
+     do not count), ending where the whole car can drive (its three wall circles, as when it drives) and the pet could
+     walk back from (20b's flow field: never on an island it could not leave). If that spot is no good it reaches a little
+     further (TUNE.jumpExt) or bends up to 0.6 rad either way, the nearest first; failing all of those it falls short, on
+     the ground it can reach; failing even that it hops in place. The car then flies that line: squat, arc, landing */
+  function jumpReach(S) {
+    const X = S.X; if (!X.flowAt) return null;
+    const ok = (x, y) => X.flowAt(x, y) < 9999;
+    return (x, y, ab) => { const ag = groundA(ab), ex = 1.02 * Math.cos(ag), ey = 1.02 * Math.sin(ag) * GY; return ok(x, y) || ok(x + ex, y + ey) || ok(x - ex, y - ey); };
+  }
+  const JOFF = [0, 0.2, -0.2, 0.4, -0.4, 0.6, -0.6];
+  function planJump(S, dir, d0) {
+    const car = S.car, t0 = nowMs(), Ba = (x, y, r) => blk(S, x, y, r, 1), Bg = (x, y, r) => blk(S, x, y, r, 0);
+    let reach = jumpReach(S); if (reach && !reach(car.x, car.y, car.a)) reach = null;   /* (the flow field has not caught up with the car: walls and drops alone) */
+    const C = [];
+    for (const off of JOFF) { const a = wrap(dir + off), ca = Math.cos(a), sa = Math.sin(a); let lim = d0 + TUNE.jumpExt;
+      // how far this line is clear in the air (walls and the map's edge stop it; gaps do not)
+      for (let st = 0.4; st <= lim + 0.21; st += 0.2) if (poseBlockedB(Ba, car.x + ca * st, car.y + sa * st, a)) { lim = st - 0.45; break; }
+      for (let st = 0; st <= lim + 1e-6; st += 0.25) C.push([(st >= d0 - 1e-6 ? st - d0 : 5 + (d0 - st) * 1.2) + Math.abs(off) * 3, st, a]); }
+    C.sort((p, q) => p[0] - q[0]);
+    let n = 0;
+    for (const [, st, a] of C) { n++; const x = car.x + Math.cos(a) * st, y = car.y + Math.sin(a) * st;
+      if (poseBlockedB(Bg, x, y, a) || (reach && !reach(x, y, a))) continue;
+      return { x, y, a, d: st, d0, short: st < d0 - 1e-6, bend: wrap(a - dir), tried: n, ms: nowMs() - t0 }; }
+    return { x: car.x, y: car.y, a: car.a, d: 0, d0, short: true, none: true, bend: 0, tried: n, ms: nowMs() - t0 };
+  }
+  function tryJump(S, mx, my, queued) {
+    const car = S.car, g = S.g, X = S.X;
+    if (S.phase !== 'drive') return;
+    const held = car.locked || S.busy === 'love' || S.busy === 'nova' || !!S.drift || !!S.jump;
+    if (held || S.cdJump > 0) { if (!queued && (held || S.cdJump <= TUNE.jumpBuf)) S.jumpQ = g.t; return; }
+    S.jumpQ = null;
+    const mag = Math.hypot(mx, my), dir = mag > 0.2 ? Math.atan2(my, mx) : car.a;
+    const v0 = Math.max(0, car.vx * Math.cos(dir) + car.vy * Math.sin(dir)), P = TUNE.jumpPh, F = P[0] + P[1];
+    const plan = planJump(S, dir, Math.min(TUNE.jumpMax, Math.max(TUNE.jumpV, v0) * F));
+    S.lastPlan = plan; car.slide = 0;
+    S.jump = { t: 0, F, x0: car.x, y0: car.y, a0: car.a, x1: plan.x, y1: plan.y, a1: plan.d > 0.05 ? plan.a : car.a, h: TUNE.jumpH, v0, short: plan.short, contact: car.contact, plan };
+    car.contact = false; S.me.airborne = true;   /* (no ramming in the air; 20s7's fall checks skip a pet in the air) */
+    S.cdJump = TUNE.jumpCd * (g.buff && g.buff.arcane > 0 ? 0.6 : 1); S.stats.jump++; g.movedOnce = true;
+    // the take-off: a puff of pale smoke off the rear wheels, a small light ring, a springy rising note
+    const Q = lowFx() ? 0.4 : 1;
+    addPart(S, 6, car.x, car.y, 0, 0, 0, 0, 0.3, 1.3, { v: 0.1 });
+    for (const w of WH4) for (let i = 0; i < Math.round(2 * Q); i++) { const p = l2w(car, w[0], w[1]), a = Math.random() * TAU, v = 0.8 + Math.random() * 1.2; addPart(S, 4, p[0], p[1], 0.05, Math.cos(a) * v - car.vx * 0.1, Math.sin(a) * v * GY - car.vy * 0.1, 0.2, 0.45 + Math.random() * 0.2, 0.32 + Math.random() * 0.15, { grow: 1.6, drag: 2.5 }); }
+    const sfx = X.sfx || {}; if (sfx.whoosh) sfx.whoosh(); if (sfx.note) { sfx.note(330, 0.22, 'triangle', 0.07, 880); sfx.note(1320, 0.18, 'sine', 0.035, 1980, 0.06); }
+  }
+  function stepJump(S, dt) {
+    const J = S.jump, car = S.car, P = TUNE.jumpPh, k = calm() ? 0.5 : 1; J.t += dt;
+    const u = cl(J.t / J.F), za = cl((J.t - P[0]) / P[1]);
+    // the momentum carries it at an even pace along the planned line; the nose swings to the line in the first 40%
+    car.x = lerp(J.x0, J.x1, u); car.y = lerp(J.y0, J.y1, u);
+    car.vx = (J.x1 - J.x0) / J.F; car.vy = (J.y1 - J.y0) / J.F; car.speed = Math.hypot(car.vx, car.vy);
+    car.a = wrap(J.a0 + wrap(J.a1 - J.a0) * sstep(0, 0.4, u));
+    car.z = 4 * J.h * za * (1 - za);
+    // the squat, a stretch as it leaves, level at the top, a little stretch reaching down for the landing
+    car.sq = J.t < P[0] ? 0.9 * k * sstep(0, P[0], J.t) : -k * (0.5 * (1 - sstep(0, 0.4, za)) + 0.22 * sstep(0.72, 0.95, za));
+    if (J.t < P[0]) car.susp = Math.max(car.susp, sstep(0, P[0], J.t));
+    car.droop = Math.sin(Math.PI * za); car.lean *= Math.max(0, 1 - dt * 8); car.steer *= Math.max(0, 1 - dt * 6);
+    // ribbons and stars off the spoiler
+    if (car.z > 0.02) { const t = S.g.t; for (let i = 0; i < 2; i++) { const p = l2w(car, -1.55, i ? 0.72 : -0.72); S.jt[i].push({ x: p[0], y: p[1], z: 0.92 + car.z, t }); }
+      { const L0 = S.jt[0], L1 = S.jt[1], vl = Math.hypot(car.vx, car.vy) || 1; L0[L0.length - 1].nx = L1[L1.length - 1].nx = -car.vy / vl; L0[L0.length - 1].ny = L1[L1.length - 1].ny = car.vx / vl; }
+      if (Math.random() < (lowFx() ? 0.35 : 0.85)) { const p = l2w(car, -1.4 - Math.random() * 0.3, (Math.random() - 0.5) * 1.2); addPart(S, Math.random() < 0.6 ? 2 : 1, p[0], p[1], 0.5 + car.z + Math.random() * 0.3, -car.vx * 0.12 + (Math.random() - 0.5), -car.vy * 0.12 + (Math.random() - 0.5) * GY, 0.4, 0.45 + Math.random() * 0.25, 0.11 + Math.random() * 0.08, { g: 1.2, drag: 1.6 }); } }
+    if (J.t >= J.F) landJump(S);
+  }
+  /* is this car pose on drivable ground (walls and drops; with reach, also where the pet could walk back from)? (the
+     flow field is rebuilt from the pet every 0.25 s, so it only means something while the car is on the ground: the
+     plan checks reach before take-off, the landing re-checks the ground alone) */
+  function groundOK(S, x, y, a, reach) { if (poseBlockedB((x2, y2, r) => blk(S, x2, y2, r, 0), x, y, a)) return false; const R = reach ? jumpReach(S) : null; return !R || R(x, y, a); }
+  function landJump(S, how) {
+    const J = S.jump; if (!J) return; S.jump = null;
+    const car = S.car, me = S.me, X = S.X, k = calm() ? 0.5 : 1;
+    // the ground may have changed under it while it flew (a plank of ice gives way): the planned spot if it still holds,
+    // else where it took off, else the nearest drivable pose; never over a drop
+    let x = J.x1, y = J.y1, a = J.a1;
+    if (!groundOK(S, x, y, a)) { if (groundOK(S, J.x0, J.y0, J.a0)) { x = J.x0; y = J.y0; a = J.a0; }
+      else { let best = null; for (let r = 0.3; r < 3 && !best; r += 0.3) for (let i = 0; i < 12 && !best; i++) for (const ab of [a, a + Math.PI / 2]) { const px = J.x1 + Math.cos(i / 12 * TAU) * r, py = J.y1 + Math.sin(i / 12 * TAU) * r; if (groundOK(S, px, py, ab)) { best = { x: px, y: py, a: ab }; break; } }
+        if (best) { x = best.x; y = best.y; a = best.a; } else { const p = X.walkPoint(J.x1, J.y1, { r: 0.5, x: J.x0, y: J.y0 }); x = p.x; y = p.y; } } }
+    car.x = x; car.y = y; car.a = a; car.z = 0; car.droop = 0;
+    const sp = how === 'abort' ? 0 : J.v0 * (J.short ? 0.4 : 1); car.speed = sp; car.vx = Math.cos(a) * sp; car.vy = Math.sin(a) * sp;
+    car.contact = J.contact; me.airborne = false;
+    me.x = car.x; me.y = car.y;
+    if (how === 'abort') { car.sq = 0; S.sqV = 0; return; }
+    car.sq = k; S.sqV = 0; car.susp = 1;
+    // the landing: one hit per monster within reach (it charges the meter like the rest of the driving), knockback;
+    // ramming starts again, but not on the ones it just landed on
+    const t = S.g.t; let n = 0;
+    for (const m of S.H.living()) { if (Math.hypot(m.x - car.x, m.y - car.y) > TUNE.jumpR + (m.r || 0.4) * 0.85) continue;
+      const dealt = hitCharge(S, m, S.DK * TUNE.jump, { kb: TUNE.jumpKb }); S.stats.jumpHit++;
+      impactFx(S, m.x, m.y, 0.9, dealt > 0, n++ > 0);
+      const G = S.gate.get(m); if (G) { G.inside = true; G.last = t; } else S.gate.set(m, { last: t, inside: true }); }
+    // a ring of pale pink dust (light only), puffs round the footprint, a few hearts and stars hopping up
+    const Q = lowFx() ? 0.4 : 1;
+    addPart(S, 6, car.x, car.y, 0, 0, 0, 0, 0.45, TUNE.jumpR * 1.15, { v: 0.12 });
+    for (let i = 0; i < Math.round(12 * Q); i++) { const th = i / 12 * TAU + Math.random() * 0.3, ag = groundA(car.a), ca = Math.cos(ag), sa = Math.sin(ag), lx = Math.cos(th) * HL * 0.9, ly = Math.sin(th) * HWB, p = l2w(car, lx, ly), ox = Math.cos(th) * ca - Math.sin(th) * sa, oy = (Math.cos(th) * sa + Math.sin(th) * ca) * GY, v = 2 + Math.random() * 1.6;
+      addPart(S, 4, p[0], p[1], 0.04, ox * v, oy * v, 0.15, 0.5 + Math.random() * 0.3, 0.34 + Math.random() * 0.18, { grow: 1.8, drag: 3 }); }
+    for (let i = 0; i < Math.round(6 * Q); i++) { const th = Math.random() * TAU, v = 1.5 + Math.random() * 2; addPart(S, i % 2 ? 2 : 1, car.x, car.y, 0.3, Math.cos(th) * v, Math.sin(th) * v * GY, 2 + Math.random() * 1.5, 0.55 + Math.random() * 0.25, 0.14 + Math.random() * 0.08, { g: 4, drag: 1.4 }); }
+    X.light(car.x, car.y, 2.6, 0.18); car.glow = Math.max(car.glow, 0.5);
+    if (!calm()) X.shake(n ? 3.2 : 2.2, 0.1);
+    const sfx = X.sfx || {}; if (sfx.thud) sfx.thud(); if (sfx.note) { sfx.note(196, 0.2, 'triangle', 0.08, 140); sfx.note(1568, 0.2, 'sine', 0.04, 2093, 0.03); }
+  }
+  /* set a hop down at once (the form ends, the pet is swapped or falls): on its planned landing, without the hit */
+  function abortJump(S) { if (S.jump) landJump(S, 'abort'); if (S.me) S.me.airborne = false; }
+  /* the body's squash springs back after a landing (no wobble under Reduce Motion); the ribbons fade */
+  function jumpSettle(S, dt) {
+    const car = S.car, t = S.g.t;
+    if (!S.jump && car.sq) { if (calm()) { car.sq *= Math.max(0, 1 - dt * 10); S.sqV = 0; } else { S.sqV += (-190 * car.sq - 17 * S.sqV) * dt; car.sq += S.sqV * dt; } if (Math.abs(car.sq) < 0.004 && Math.abs(S.sqV) < 0.05) { car.sq = 0; S.sqV = 0; } }
+    for (const L of S.jt) while (L.length && t - L[0].t > 0.32) L.shift();
+  }
+  /* the two ribbons trailing off the spoiler's ends (light, behind the car: drawn before it, so never over the pet) */
+  function drawJumpRibbons(S, c, T) {
+    const H = S.H, t = S.g.t; if (!S.jt[0].length && !S.jt[1].length) return;
+    c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.lineJoin = 'round';
+    for (const L of S.jt) { if (L.length < 2) continue; const NB2 = lowFx() ? 1 : 2;
+      for (let b = 0; b < NB2; b++) { const i0 = Math.floor(b * (L.length - 1) / NB2), i1 = Math.floor((b + 1) * (L.length - 1) / NB2); if (i1 <= i0) continue;
+        // (each ribbon flutters out behind, more the older it is; the two sway in opposite phase)
+        const pts = [], ph = L === S.jt[0] ? 0 : Math.PI; for (let i = i0; i <= i1; i++) { const p = L[i], ag2 = t - p.t, w = Math.sin(ag2 * 17 + ph + p.t * 3) * Math.min(1, ag2 * 5) * 0.2; pts.push([H.sx(p.x + (p.nx || 0) * w), H.sy(p.y + (p.ny || 0) * w) - p.z * ZK * T]); }
+        const age = cl((t - L[i1].t) / 0.32); ribbonPath(c, pts, T * 0.1 * (0.5 + 0.5 * (b + 1) / NB2), (0.35 + 0.65 * (b + 1) / NB2) * (1 - age)); } }
+    c.restore();
+  }
+
   /* ---- the frame: phases, the timer, ramming, the drift, the meter ---- */
   function step(S, dt) {
     const car = S.car, me = S.me, g = S.g, X = S.X;
@@ -650,7 +792,8 @@
     if (g.over || (g.won && S.phase !== 'nova')) { finish(S, 'won'); return; }   // (a Supernova under way on a win plays out, capped by novaCap)
     if (X.pet && S.pet && X.pet() !== S.pet) { finish(S, 'swap'); return; }
     g.cdU = S.CD;   // (held while the car is out: the cooldown starts at the exit)
-    S.t += dt; S.bumpT -= dt; S.cdStar = Math.max(0, S.cdStar - dt); S.cdLove = Math.max(0, S.cdLove - dt); S.cdDrift = Math.max(0, S.cdDrift - dt);
+    S.t += dt; S.bumpT -= dt; S.cdStar = Math.max(0, S.cdStar - dt); S.cdLove = Math.max(0, S.cdLove - dt); S.cdDrift = Math.max(0, S.cdDrift - dt); S.cdJump = Math.max(0, S.cdJump - dt);
+    jumpSettle(S, dt);
     car.glow = Math.max(0, car.glow - dt * 2.2); car.susp = Math.max(0, car.susp - dt * 3);
     S.lights = S.phase === 'out' ? Math.max(0, S.lights - dt * 2) : S.lit ? Math.min(1, S.lights + dt * 3.5) * (S.lights < 0.95 && Math.random() < 0.25 ? 0.6 : 1) : 0;
     if (S.busy) S.busyT += dt;
@@ -666,7 +809,9 @@
     } else if (S.phase === 'drive') {
       S.left -= dt; S.stats.driveT = (S.stats.driveT || 0) + dt;   // (game time, as every timer in the fight: a hit-stop or slow-motion moment pauses it too)
       // a Love Sensation in the air lands before the car can dissolve
-      if (S.left <= 0 && (!car.locked || S.busyT > 3)) { startOut(S); return; }
+      // (round 4: and a Jump lands first; it is never longer than TUNE.jumpPh, a stuck one is put down here)
+      if (S.jump && S.jump.t > S.jump.F + 0.5) landJump(S, 'late');
+      if (S.left <= 0 && !S.jump && (!car.locked || S.busyT > 3)) { startOut(S); return; }
       if (S.busy && S.busyT > 8) actionDone(S);   // (a move that never reports done frees the controls anyway)
       if (S.drift) stepDrift(S, dt);
       if (car.contact && car.z < 0.1) ram(S);
@@ -674,7 +819,7 @@
       // the latest) and goes once, as soon as it can: if that comes within 1 s of a press made while held (Love's lock,
       // 1.36 s, can outlast nothing: the cooldowns are 1.5 s), or MVQ s of an early one; an older press is dropped
       if (S.mvQ) { const Q = S.mvQ, age = g.t - Q.t, cdq = Q.slot !== 'strong2' ? S.cdStar : S.cdLove;
-        if (age > (Q.held ? 1.0 : MVQ + 0.1)) S.mvQ = null; else if (!S.busy && !car.locked && cdq <= 0) { S.mvQ = null; tryMove(S, Q.slot, true); } }
+        if (age > (Q.held ? 1.0 : MVQ + 0.1)) S.mvQ = null; else if (!S.busy && !car.locked && !S.jump && cdq <= 0) { S.mvQ = null; tryMove(S, Q.slot, true); } }
       // wheels, trails, the engine's hum
       if (S.readyT != null) S.readyT += dt;
     } else if (S.phase === 'nova') {
@@ -765,6 +910,7 @@
   }
   function startOut(S) {
     if (S.phase === 'out') return;
+    abortJump(S);
     S.phase = 'out'; S.t = 0; S.drift = null; const car = S.car; car.locked = true; car.contact = false; car.slide = 0; car.speed = 0; car.vx = car.vy = 0;
     const s = seatWorld(car); S.petStand = nearestStand(S, s.x, s.y); S.seatX = s.x; S.seatY = s.y;
     const sfx = S.X.sfx || {}; if (sfx.note) [2093, 1568, 1318, 1046].forEach((f, i) => sfx.note(f, 0.45, 'sine', 0.07, f * 0.99, i * 0.08));
@@ -782,6 +928,7 @@
   /* the end of the form, whichever way it comes: once */
   function finish(S, how) {
     if (S.released) return;
+    abortJump(S);   /* (round 4: a car in the air is set down on its planned landing first, never left over a gap) */
     S.outHow = how;
     if (how === 'nova') { const c = S.ctx, p = nearestStand(S, c.ejecting ? c.petX : S.car.x, c.ejecting ? c.petY : S.car.y); S.me.x = p.x; S.me.y = p.y; }
     else if (how !== 'defeat') { const s = seatWorld(S.car), p = nearestStand(S, s.x, s.y); S.me.x = p.x; S.me.y = p.y; }
@@ -794,6 +941,7 @@
     S.released = true; S.ended = true; S.relT = 0;
     const me = S.me, g = S.g, X = S.X;
     if (S.phase === 'out' && S.petStand) { me.x = S.petStand.x; me.y = S.petStand.y; }
+    abortJump(S); me.airborne = false;
     S.phase = 'gone'; S.drift = null; S.busy = null;
     const c0 = S.ctx; if (c0) { c0.ejecting = false; c0.supernova = false; c0.petZ = 0; } S.car.locked = true; S.car.contact = false; S.car.wheelSpin = null;
     try { X.vehicle(null); } catch (e) { /* (hook) */ }
@@ -874,6 +1022,10 @@
     const [X0, Y0] = carScreen(S), body = bodyAlpha(S), ag = groundA(car.a + car.slide);
     // the soft shadow, the pink underglow, the heart headlights' pools of light ahead
     c.save(); c.translate(X0 + T * 0.06, Y0 + T * 0.05); c.scale(1, GY); c.rotate(ag); const sk = 1 - cl(car.z / 2) * 0.35; c.globalAlpha = 0.9 * body * car.vis * sk; c.drawImage(SM ? SM.shadow : glowSprite('#000000'), -HL * 1.18 * T * sk, -HWB * 1.25 * T * sk, HL * 2.36 * T * sk, HWB * 2.5 * T * sk); c.restore();
+    // (round 4) in a Jump: a tighter, darker shadow right under it (the soft one hides under the lifted body), and a
+    // pearl ring of light where it will land, closing in as it comes down
+    if (car.z > 0.02 && SM) { const zk = cl(car.z / 1.2); c.save(); c.translate(X0, Y0); c.scale(1, GY); c.rotate(ag); c.globalAlpha = (0.35 + 0.35 * zk) * body * car.vis; const k2 = 1 - 0.18 * zk; c.drawImage(SM.shadow, -HL * 0.95 * T * k2, -HWB * 1.05 * T * k2, HL * 1.9 * T * k2, HWB * 2.1 * T * k2); c.restore(); }
+    if (S.jump && SM && SM.ring) { const J = S.jump, u = cl(J.t / J.F), r = T * (2.1 - 0.7 * u), lx = H.sx(J.x1), ly = H.sy(J.y1); c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.55 * sstep(0, 0.25, u) * (1 - sstep(0.9, 1, u)); c.drawImage(SM.ring, lx - r, ly - r * GY, r * 2, r * 2 * GY); c.globalAlpha *= 0.5; blitSized(c, glowSprite(ROSE), lx - r * 0.8, ly - r * 0.8 * GY, r * 1.6, r * 1.6 * GY); c.restore(); }
     c.save(); c.translate(X0, Y0); c.scale(1, GY); c.rotate(ag); c.globalCompositeOperation = 'lighter';
     c.globalAlpha = (0.32 + 0.12 * Math.sin(t * 5)) * body * car.vis * (1 - cl(car.z)); blitSized(c, glowSprite(ROSE), -HL * 1.3 * T, -HWB * 1.55 * T, HL * 2.6 * T, HWB * 3.1 * T);
     const lt = S.lights * car.vis; if (lt > 0.02) { c.globalAlpha = 0.17 * lt * (1 + car.glow * 0.6); c.drawImage(beamSprite('#FFD1EA'), HL * 0.8 * T, -HWB * 1.0 * T, T * 2.4, HWB * 2.0 * T); }
@@ -901,7 +1053,7 @@
   /* one wheel: the tread as the exact silhouette of the tyre (a disc swept across its width), the far face, the near one */
   function drawWheel(S, c, wx, wy, steer, T) {
     const car = S.car, ag = groundA(car.a + car.slide) + steer, ca = Math.cos(ag), sa = Math.sin(ag), p = l2w(car, wx, wy), H = S.H;
-    const cx = H.sx(p[0]), cy = H.sy(p[1]) - (WZ + car.z) * ZK * T, R = WR * T;
+    const cx = H.sx(p[0]), cy = H.sy(p[1]) - (WZ + car.z - (car.droop || 0) * 0.07) * ZK * T, R = WR * T;   /* (round 4: the wheels hang a little lower in a Jump) */
     const Fx = ca * R, Fy = sa * GY * R, Ux = 0, Uy = -ZK * R;   // the wheel's own axes on the screen (forward, up), at radius length
     const lat = [-sa, ca * GY], dx = lat[0] * TWH * T, dy = lat[1] * TWH * T;   // the half width along its axle
     const vis = dy >= 0 ? 1 : -1;   // the face toward the viewer
@@ -926,6 +1078,7 @@
     // the ejected pet (Supernova) is drawn where C2 says, upright
     if (S.ctx.ejecting && !S.released) { if (car.vis > 0.01) drawCar(S, c, T, body); const z = S.ctx.petZ * ZK * T; H.X.drawPetAt(c, H.sx(S.ctx.petX), H.sy(S.ctx.petY) - z, {}); return; }
     if (S.released) { if (body > 0.01) drawCar(S, c, T, body); return; }
+    drawJumpRibbons(S, c, T);
     drawCar(S, c, T, body, true);
   }
   function drawCar(S, c, T, body, withPet) {
@@ -943,7 +1096,7 @@
     const spr = rb >= 0 ? BK.spr[rb] : null, kk = spr ? T / spr.k : 1;
     // the residual turn from the baked heading, in the ground plane (squash, turn, unsquash), and the lean
     const res = rb >= 0 ? wrap(ag - rb / NB * TAU) : 0, cr = Math.cos(res), sr = Math.sin(res);
-    const place = () => { c.translate(X0, Y0 - lift); c.transform(cr, GY * sr, -sr / GY, cr, 0, 0); c.rotate(car.lean); };
+    const sq = car.sq || 0, place = () => { c.translate(X0, Y0 - lift); if (sq) c.scale(1 + sq * 0.07, 1 - sq * 0.13); c.transform(cr, GY * sr, -sr / GY, cr, 0, 0); c.rotate(car.lean); };   /* (round 4: the Jump's squash and stretch, about the car's ground point) */
     const seatS = withPet ? seatScreen(S, T) : null;
     if (spr && spr.back && (body > 0.01 || ghost > 0.01)) { c.save(); place(); c.globalAlpha = Math.max(body, ghost * 0.35); const B = spr.back; c.drawImage(B.cv, B.x * kk, B.y * kk, B.cv.width * kk, B.cv.height * kk);
       if (S.phase === 'summon' && body < 1) { c.globalCompositeOperation = 'lighter'; c.globalAlpha = (1 - body) * sstep(0.7, 1.0, S.t) * 0.9; c.drawImage(B.cv, B.x * kk, B.y * kk, B.cv.width * kk, B.cv.height * kk); }
@@ -967,7 +1120,8 @@
     let X = sp[0], Y = sp[1];
     if (S.phase === 'summon') { const u = sstep(1.12, 1.42, S.t); X = lerp(H.sx(S.petX0), X, u); Y = lerp(H.sy(S.petY0), Y, u) - Math.sin(u * Math.PI) * T * 0.35; }
     if (S.phase === 'out') { const u = sstep(0.12, 0.6, S.t / TUNE.out), gx = H.sx(S.petStand.x), gy = H.sy(S.petStand.y); X = lerp(X, gx, u); Y = lerp(Y, gy, u) - Math.sin(u * Math.PI) * T * 0.45; }
-    if (S.phase === 'drive' || S.phase === 'nova') Y -= Math.abs(Math.sin(S.g.t * 9)) * T * 0.012 * cl(Math.hypot(car.vx, car.vy) / TUNE.top) + car.susp * T * 0.03;
+    if (S.phase === 'drive' || S.phase === 'nova') Y -= Math.abs(Math.sin(S.g.t * 9)) * T * 0.012 * cl(Math.hypot(car.vx, car.vy) / TUNE.top) * (car.z > 0.02 ? 0 : 1) + car.susp * T * 0.03;
+    if (car.sq) Y += car.sq * T * 0.055;   /* (round 4: the seat sinks with the squash; the pet itself stays upright and unsquashed) */
     // (during a drift the pet rolls one flat turn with the car, exactly as the Dodge rolls its sprite; never a 3D turn)
     H.X.drawPetAt(c, X, Y, { maxH: 1.2, rot: S.drift && S.phase === 'drive' ? S.drift.petRot : 0 });
   }
@@ -1037,6 +1191,12 @@
       blitC(c, hudPic(`car|drift|${rd}|${b.r}`, b.r * 2 + 10, b.r * 2 + 10, (x, w, h) => paintDriftBtn(x, w / 2, h / 2, b.r, rd)), b.x, b.y);
       if (S.cdDrift > 0.05) { c.beginPath(); c.moveTo(b.x, b.y); c.arc(b.x, b.y, b.r, -Math.PI / 2, -Math.PI / 2 + TAU * Math.min(1, S.cdDrift / TUNE.driftCd)); c.closePath(); c.fillStyle = 'rgba(40,0,10,.45)'; c.fill(); }
       GFX.labelS(c, 'DRIFT', b.x, b.y + b.r + 9, 9, 800, '#FFD0DA', 'rgba(0,0,0,.7)', 3); }
+    // (round 4) Jump, right above Drift: pearl-pink with gold trim, a car hopping an arc
+    if (B.j) { const b = B.j, rd = S.cdJump <= 0.01 && !S.jump && !S.drift && S.phase === 'drive' && !S.car.locked && S.busy !== 'nova';
+      if (rd) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.3 + 0.1 * Math.sin(t * 5 + 1); blitC(c, glowPic(glowSprite, '#FF8FC8', Math.round(b.r * 1.7)), b.x, b.y); c.restore(); }
+      blitC(c, hudPic(`car|jump|${rd}|${b.r}`, b.r * 2 + 10, b.r * 2 + 10, (x, w, h) => paintJumpBtn(x, w / 2, h / 2, b.r, rd)), b.x, b.y);
+      if (S.cdJump > 0.05) { c.beginPath(); c.moveTo(b.x, b.y); c.arc(b.x, b.y, b.r, -Math.PI / 2, -Math.PI / 2 + TAU * Math.min(1, S.cdJump / TUNE.jumpCd)); c.closePath(); c.fillStyle = 'rgba(40,0,24,.45)'; c.fill(); }
+      GFX.labelS(c, 'JUMP', b.x, b.y + b.r + 8, 9, 800, '#FFE3F2', 'rgba(0,0,0,.7)', 3); }
     // the Supernova meter: a pink-gold ring filling round a star-and-heart emblem; SUPERNOVA when full
     { const b = B.u, full = S.charge >= 1 && !S.used, k = S.used ? 1 : S.charge, nova = S.phase === 'nova';
       if (full || nova) { const pl = 0.5 + 0.5 * Math.sin(t * 6); c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.55 + 0.35 * pl; blitC(c, glowPic(glowSprite, GOLD, Math.round(b.r * (2.1 + 0.25 * pl) * 4) / 4), b.x, b.y); c.globalAlpha = 0.5; blitC(c, glowPic(shockSprite, '#FF9BD2', Math.round(b.r * 1.8)), b.x, b.y); c.restore(); }
@@ -1082,6 +1242,30 @@
     x.lineWidth = 1.1; x.strokeStyle = rd ? GOLD : 'rgba(255,216,107,.35)'; x.beginPath(); x.arc(cx, cy, r - 3.2, 0, TAU); x.stroke();
     if (rd) { x.fillStyle = 'rgba(255,255,255,.35)'; x.beginPath(); x.ellipse(cx - r * 0.3, cy - r * 0.48, r * 0.32, r * 0.14, -0.5, 0, TAU); x.fill(); }
   }
+  /* (round 4) Jump: a pearl-pink face, the gold and white trim of the others; a little car at the top of a dashed arc
+     from one dash of ground to the other, speed ticks under it and a sparkle (quite unlike Drift's tyre tracks) */
+  function paintJumpBtn(x, cx, cy, r, rd) {
+    if (rd) btnBase(x, cx, cy, r, '#FFFFFF', '#FFC6E6', '#E0559E'); else btnBase(x, cx, cy, r, '#4A2B4E', '#2A1830', '#1A0E1E');
+    x.save(); x.globalAlpha = rd ? 1 : 0.5; x.lineCap = 'round';
+    const ink = rd ? '#9C1E63' : '#FFE3F2';
+    // the ground at both ends and the arc between them
+    x.strokeStyle = ink; x.lineWidth = Math.max(1.6, r * 0.075); for (const s of [-1, 1]) { x.beginPath(); x.moveTo(cx + s * r * 0.72, cy + r * 0.5); x.lineTo(cx + s * r * 0.42, cy + r * 0.5); x.stroke(); }
+    x.setLineDash([r * 0.11, r * 0.08]); x.lineWidth = Math.max(1.6, r * 0.075); x.strokeStyle = rd ? 'rgba(194,40,120,.85)' : 'rgba(255,227,242,.8)'; x.beginPath(); x.moveTo(cx - r * 0.56, cy + r * 0.42); x.quadraticCurveTo(cx, cy - r * 0.62, cx + r * 0.56, cy + r * 0.42); x.stroke(); x.setLineDash([]);
+    // an up arrow head on the rising side
+    x.fillStyle = ink; x.beginPath(); x.moveTo(cx - r * 0.36, cy - r * 0.02); x.lineTo(cx - r * 0.5, cy + r * 0.08); x.lineTo(cx - r * 0.3, cy + r * 0.16); x.closePath(); x.fill();
+    // the little car at the top: a rounded body, a cockpit bump, two wheels, a heart headlight
+    const bx = cx + r * 0.02, by = cy - r * 0.16, L = r * 0.8, Hh = r * 0.26;
+    x.fillStyle = rd ? '#FF5FAE' : '#C98AAE'; x.strokeStyle = rd ? '#7A1048' : 'rgba(30,8,28,.8)'; x.lineWidth = 1.2;
+    x.beginPath(); x.moveTo(bx - L / 2, by + Hh * 0.5); x.lineTo(bx - L / 2, by - Hh * 0.1); x.quadraticCurveTo(bx - L * 0.32, by - Hh * 0.55, bx - L * 0.1, by - Hh * 0.55); x.quadraticCurveTo(bx + L * 0.02, by - Hh * 1.25, bx + L * 0.16, by - Hh * 0.55); x.quadraticCurveTo(bx + L * 0.46, by - Hh * 0.45, bx + L / 2, by + Hh * 0.1); x.lineTo(bx + L / 2, by + Hh * 0.5); x.closePath(); x.fill(); x.stroke();
+    x.fillStyle = rd ? '#FFF8FB' : 'rgba(255,248,251,.7)'; x.fillRect(bx - L * 0.36, by - Hh * 0.05, L * 0.62, Math.max(1, Hh * 0.16));
+    for (const s of [-1, 1]) { x.fillStyle = '#2A2030'; x.beginPath(); x.arc(bx + s * L * 0.29, by + Hh * 0.55, r * 0.1, 0, TAU); x.fill(); x.fillStyle = rd ? GOLD : '#9A8050'; x.beginPath(); x.arc(bx + s * L * 0.29, by + Hh * 0.55, r * 0.04, 0, TAU); x.fill(); }
+    x.fillStyle = rd ? '#FFFFFF' : 'rgba(255,255,255,.6)'; heartAt(x, bx + L * 0.45, by - Hh * 0.05, r * 0.0045); x.fill();
+    // speed ticks under it, a sparkle by the arc
+    x.strokeStyle = rd ? 'rgba(156,30,99,.6)' : 'rgba(255,227,242,.5)'; x.lineWidth = 1.2; for (let i = 0; i < 3; i++) { x.beginPath(); x.moveTo(bx - L * 0.2 + i * L * 0.2, by + Hh * 1.25); x.lineTo(bx - L * 0.27 + i * L * 0.2, by + Hh * 1.7); x.stroke(); }
+    starPts(x, cx + r * 0.52, cy - r * 0.42, r * 0.15, r * 0.06, 0); x.fillStyle = rd ? GOLD : '#9A8050'; x.fill();
+    x.restore(); btnRim(x, cx, cy, r, rd);
+    if (rd) { x.fillStyle = 'rgba(255,255,255,.4)'; x.beginPath(); x.ellipse(cx - r * 0.32, cy - r * 0.52, r * 0.28, r * 0.11, -0.5, 0, TAU); x.fill(); }
+  }
   function paintNovaBtn(x, cx, cy, r, full) {
     btnBase(x, cx, cy, r, full ? '#7A2A66' : '#4A1E46', full ? '#3E1236' : '#2A0F28', '#170616');
     // the emblem: a gold star with a glossy pink heart over its heart
@@ -1105,5 +1289,5 @@
   };
   U.sportscar.TUNE = TUNE;
   // (the debug door for tests and the harness)
-  U.sportscar.__dbg = { BK, TUNE, bakeStep, setScale, want, ready, bucketOf, groundA, get MOD() { return MOD; }, get SM() { return SM; }, STUB, moves, NB, GY, ZK, SEAT };
+  U.sportscar.__dbg = { planJump, groundOK, BK, TUNE, bakeStep, setScale, want, ready, bucketOf, groundA, get MOD() { return MOD; }, get SM() { return SM; }, STUB, moves, NB, GY, ZK, SEAT };
 })();
