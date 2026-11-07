@@ -1,5 +1,5 @@
 /* ---------- Wind, new: Zephyr's Blessing ----------
-   A party blessing. Replaces Palace of the Sky (row in 20k1: key 'zephyr', cost 100, cd 90, glyph 'leaf').
+   A party blessing. Replaces Palace of the Sky (row in 20k1: key 'zephyrblessing', cost 100, cd 90, glyph 'leaf').
    The pet leaps and unfurls translucent butterfly wings of emerald wind; one sweeping wingbeat sends a gentle shockwave
    through the party and wraps it in flowing wind ribbons. While the blessing lasts, whichever party pet is on the field:
      +30% movement speed, +20% attack speed (+30% at Adept, +35% at Celestial; continuous levels interpolate:
@@ -22,7 +22,7 @@
    of the pet's last positions while it moves (a cached tinted silhouette of its picture). A blocked hit: the ribbons
    unfold into enormous butterfly wings round the pet, then dissolve back into air with a spiral of feathers.
    HUD: a ZEPHYR chip with its time and a dot per charge (20b). Sprites are baked once (fxSprite), warmed in idle time
-   (U.zephyr.warm); particles go through H.n / H.Q. */
+   (U.zephyrblessing.warm); particles go through H.n / H.Q. */
 (() => {
   const U = ELEM_IMPL.wind.ult; delete U.skypalace;
   const TAU = Math.PI * 2, GY = 0.55;
@@ -290,7 +290,7 @@
 
   /* ================= the cast: the leap, the wings, the wingbeat ================= */
   const CROUCH = 0.28, RISE = 0.6, BEAT0 = 0.76, BEAT = 0.86, BEAT1 = 0.95, LAND = 1.16, CAST = 1.42;
-  U.zephyr = (C, h) => {
+  U.zephyrblessing = (C, h) => {
     H = h; const me = H.me, g = H.g, X0 = H.X, ev = evoOf(C), tier = tierOf(ev);
     X0.banner("ZEPHYR'S BLESSING", '', C.col, 1.4); X0.sfx.hum(); me.castT = 0;
     const hold = { vx: 0, vy: 0, t: 0.12 }; let lastT = 0, blessed = false, done = false;
@@ -382,7 +382,7 @@
       X0.party().forEach((m, i) => { const s = X0.partySlot(i); if (!s || m.down) return; const d = u - i * 0.06; if (d <= 0) return; const a = Math.sin(Math.PI * cl(d / 0.8)); glowF(c, s.x, s.y, 26, MINT, 0.55 * a); glowF(c, s.x, s.y, 12, AIR, 0.5 * a); }); };
     return F;
   };
-  U.zephyr.warm = () => { if (WI >= WARM.length) return; setTimeout(function step() { if (!warmStep(2)) setTimeout(step, 30); }, 300); };
+  U.zephyrblessing.warm = () => { if (WI >= WARM.length) return; setTimeout(function step() { if (!warmStep(2)) setTimeout(step, 30); }, 300); };
   // the debug door for the harness
-  U.zephyr.__dbg = { get ghostMs() { return GHOST_MS; }, durOf, asOf, chOf, MV, DR, WARM, warmAll: () => warmStep(1e9) };
+  U.zephyrblessing.__dbg = { get ghostMs() { return GHOST_MS; }, durOf, asOf, chOf, MV, DR, WARM, warmAll: () => warmStep(1e9) };
 })();

@@ -21,14 +21,16 @@ const path = require('path');
     p.deck = { normal: null, strong: P.elemId(el, s0.key), strong2: P.elemId(other, oth.key), ult: P.elemId(el, u0.key) }; const st0 = p.stage; p.stage = 4; const kit = P.dun.petKit(p).kit; p.stage = st0;
     P.st.devMoves = true; const lockDev = P.elemLock(Object.values(M).filter(m => m.slot === 'strong')[9], p); P.st.devMoves = false;
     const counts = {}; for (const e in P.ELEM_MOVES) counts[e] = [P.ELEM_MOVES[e].strong.length, P.ELEM_MOVES[e].ult.length];
+    const dupKeys = []; for (const e in P.ELEM_MOVES) { const k = P.ELEM_MOVES[e].strong.concat(P.ELEM_MOVES[e].ult).map(r => r[0]); k.forEach((x, n) => { if (k.indexOf(x) !== n) dupKeys.push(e + ':' + x); }); }
     const impl = {}; for (const e in P.ELEM_IMPL) impl[e] = [Object.keys(P.ELEM_IMPL[e].strong).length, Object.keys(P.ELEM_IMPL[e].ult).length];
     p.deck = { normal: null, strong: null, strong2: null, ult: null };
     P.openMap(); P.dun.setMapTab('dungeon', true);
-    return { el, stars: P.starsOf(P.rarityOf(p.forms[p.stage - 1] || p.forms[p.forms.length - 1])), lockS0, lockLast, lockOther, lockUlt, lockDev, kitStrong: kit.strong.key, kitStrong2: kit.strong2 ? kit.strong2.key : null, kitUlt: kit.ult.key, counts, impl };
+    return { dupKeys, el, stars: P.starsOf(P.rarityOf(p.forms[p.stage - 1] || p.forms[p.forms.length - 1])), lockS0, lockLast, lockOther, lockUlt, lockDev, kitStrong: kit.strong.key, kitStrong2: kit.strong2 ? kit.strong2.key : null, kitUlt: kit.ult.key, counts, impl };
   });
   ok(info.lockS0 === '' && info.lockLast === 'level' && info.lockOther === 'element' && info.lockDev === '', 'locks: first Strong open at level 1, the tenth needs a level, another element\'s refused, the dev switch lifts levels', info);
   ok(info.stars >= 5 ? info.lockUlt === '' : info.lockUlt === 'stars', `an Ultimate needs five stars (this pet has ${info.stars})`, info.lockUlt);
   ok(info.kitStrong.slice(0, 3) === 'ex_' && info.kitStrong2 !== null && info.kitStrong2.slice(0, 3) !== 'ex_' && (info.stars >= 5 ? info.kitUlt.slice(0, 3) === 'ey_' : info.kitUlt.slice(0, 3) !== 'ey_'), 'the kit takes a learned move and drops one the pet may not use', { s: info.kitStrong, s2: info.kitStrong2, u: info.kitUlt });
+  ok(info.dupKeys.length === 0, 'no Strong and Ultimate of one element share a key (a shared key makes the Ultimate unpickable)', info.dupKeys);
   ok(Object.values(info.counts).every(c => c[0] === 10 && c[1] === 10) && Object.keys(info.counts).length === 8, 'eight elements, ten Strongs and ten Ultimates each', info.counts);
   console.log('implemented', JSON.stringify(info.impl));
   await page.evaluate(() => window.__pp.dun.startDungeon(3, 11));
@@ -62,12 +64,12 @@ const path = require('path');
   // the five-star rule at the cast: a three-star pet is refused an elemental Ultimate
   const refused = await page.evaluate(() => { const P = window.__pp, D = P.arc.game._dbg, me = D.me, el = Object.keys(P.ELEM_IMPL)[0]; if (!el) return null; const mv = Object.values(P.ELEM_LIST[el]).find(m => m.slot === 'ult'); const ab = Object.assign(P.elemAbility(mv, 'ult', P.st), { star: 3, mult: 1.2, cost: 10, cd: 0 }); D.setKit('ult', ab); me.mp = 500; D.g.cdU = 0; const n0 = D.ELEM.fx.length; D.useUlt(); return { mp: me.mp, fxAdded: D.ELEM.fx.length - n0 }; });
   if (refused) ok(refused.mp === 500 && refused.fxAdded === 0, 'a three-star pet cannot cast an elemental Ultimate (no MP spent, nothing happens)', refused);
-  const TAILW = results.some(r => r.key === 'titan') ? 20 : results.some(r => r.key === 'thriller') ? 30 : results.some(r => r.key === 'rocksteady') ? 30 : results.some(r => r.key === 'deadscream') ? 24 : results.some(r => r.key === 'lovesanctuary') ? 24 : results.some(r => r.key === 'umbraheart') ? 14 : results.some(r => r.key === 'pandemonium') ? 20 : results.some(r => r.key === 'monsoon') ? 16 : results.some(r => r.key === 'breathofthewild') ? 26 : results.some(r => r.key === 'fujin') ? 12 : results.some(r => r.key === 'zephyr') ? 18 : 9;   // long-lasting moves (Thriller's 30 s army, the 20 s ward) need a longer tail before the cleanup count
+  const TAILW = results.some(r => r.key === 'titan') ? 20 : results.some(r => r.key === 'thriller') ? 30 : results.some(r => r.key === 'rocksteady') ? 30 : results.some(r => r.key === 'deadscream') ? 24 : results.some(r => r.key === 'lovesanctuary') ? 24 : results.some(r => r.key === 'umbraheart') ? 14 : results.some(r => r.key === 'pandemonium') ? 20 : results.some(r => r.key === 'monsoon') ? 16 : results.some(r => r.key === 'breathofthewild') ? 26 : results.some(r => r.key === 'fujin') ? 12 : results.some(r => r.key === 'zephyrblessing') ? 18 : 9;   // long-lasting moves (Thriller's 30 s army, the 20 s ward) need a longer tail before the cleanup count
   await page.evaluate(async TW => { const D = window.__pp.arc.game._dbg, g0 = D.g.t; const t0 = performance.now(); while ((D.g.t - g0 < TW || performance.now() - t0 < 6000) && performance.now() - t0 < Math.max(90000, TW * 6000)) { await new Promise(r => requestAnimationFrame(r)); if (D && D.me) { D.me.hp = D.ST.hp; D.me.dead = false; } } }, TAILW);
   const tail = await page.evaluate(() => { const D = window.__pp.arc.game._dbg; return { fx: D.ELEM.fx.length, state: window.__pp.arc.state, petHP: Math.round(D.me.hp), zones: D.zones.filter(z => z.own === 'pet').length }; });
   for (const r of results) console.log(`${r.el.padEnd(8)} ${r.slot.padEnd(6)} ${r.key.padEnd(16)} dmg ${String(r.dmg).padStart(7)} live ${r.live} fxLeft ${r.fx} ${r.z ? 'Z ' + r.z : ''}${r.errs ? 'ERRORS ' + r.errs : ''}${r.missing ? ' MISSING' : ''}`);
   console.log('tail', JSON.stringify(tail));
-  const NODMG = new Set(['salvation', 'lovesanctuary', 'breathofthewild', 'zephyr']);   // support moves (the party heal/revive) deal no damage; tested by their own behaviour
+  const NODMG = new Set(['salvation', 'lovesanctuary', 'breathofthewild', 'zephyrblessing']);   // support moves (the party heal/revive) deal no damage; tested by their own behaviour
   const zero = results.filter(r => r.dmg <= 0 && !NODMG.has(r.key)).map(r => r.key), missing = results.filter(r => r.missing).map(r => r.key);
   ok(!zero.length, 'every move lands damage', zero); ok(!missing.length, 'every move has an implementation', missing);
   ok(tail.fx === 0 && tail.zones === 0, 'every effect and warning is cleaned up afterwards', tail);
