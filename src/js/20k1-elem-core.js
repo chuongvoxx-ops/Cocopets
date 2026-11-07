@@ -11,7 +11,7 @@ if (typeof CanvasRenderingContext2D !== 'undefined' && !CanvasRenderingContext2D
    DunElem builds from the Tower game's context (the same one the star moves use, plus geometry, pulls that respect
    bosses, pet-side warnings and drawing helpers). Everything a move leaves behind lives in its fx list, cleaned up with
    the game. st.lowFx ("Fewer effects" in Settings) thins the decorative particles; shapes, warnings and hits stay. */
-const ELEM_STRONG_LV = [1, 1, 3, 6, 10, 15, 20, 30, 40, 50], ELEM_ULT_LV = [1, 5, 10, 15, 20, 30, 40, 50, 60, 75];
+const ELEM_STRONG_LV = [1, 1, 3, 6, 10, 15, 20, 30, 40, 50], ELEM_ULT_LV = [1, 5, 10, 15, 20, 30, 40, 50, 60, 75, 80];
 /* an elemental Ultimate's new name at Celestial (stage 7), where it has one */
 const ELEM_ULT_PLUS = { armageddon: 'Super Armageddon' };
 /* elemental Strong attacks hit three times as hard as first built (the user found them weak) */
@@ -114,7 +114,8 @@ const ELEM_MOVES = {
     ['deadscream', 'Dead Scream', 'skull', 100, 43, 'A huge vibrating skull hovers over the pet and screams pulses of dark energy into nearby monsters, fearing and stunning them, then bursts: 7 s, 12 s at Adept, 20 s at Celestial.'],
     ['blackrose', 'Black Rose Compass', 'thorns', 95, 20, 'Four thorn-needles form round the aim and strike inward in pairs; a rose of folded shadow opens for the final burst.'],
     ['finaleclipse', 'Final Eclipse', 'orb', 100, 45, 'A raven-winged demon drops from a black sphere over the monsters, charges it with raised hands and hurls it down in one devastating impact.'],
-    ['eventide', 'Eventide Spiral', 'vortex', 100, 22, 'A towering corkscrew of darkness forms at the aim; it unwinds from the top, each coil an expanding wave.'] ] },
+    ['eventide', 'Eventide Spiral', 'vortex', 100, 22, 'A towering corkscrew of darkness forms at the aim; it unwinds from the top, each coil an expanding wave.'],
+    ['dayofthedead', 'Day of the Dead', 'flower', 100, 120, 'A marigold circle blooms and every fallen teammate rises as a spirit at 40% HP (50% Adept, 60% Celestial): together they unleash their Ultimates, then both Strongs, fight for 8 s (11 s, 14 s) and return to rest.'] ] },
   fire: { strong: [
     ['emberkoi', 'Ember Koi', 'twin', 24, 2.4, 'Two fish of flame circle you, then swim through the air to the target and cross in a spiral burst.'],
     ['cinderfan', 'Cinder Wave', 'wave', 24, 2.4, 'A ring of fire rolls out all around you in a burning wave, scattering embers and sparks; it grows into more waves as your pet evolves.'],
@@ -314,7 +315,10 @@ const DunElem = (() => {
     const strong = (key, C) => run('strong', key, C), ult = (key, C) => run('ult', key, C);
     function update(dt) { for (let i = fx.length - 1; i >= 0; i--) { const f = fx[i]; f.t += dt; f.life -= dt; if (f.update) f.update(dt, f); if (f.life <= 0) { if (f.onEnd) f.onEnd(f); fx.splice(i, 1); } } }
     function draw(c, under) { const T = X.Tz(), t = g.t; for (const f of fx) { const fn = under === 'hud' ? f.drawHud : under ? f.drawUnder : f.draw;   /* ('hud': over the HUD's party strip, for Light's Salvation) */ if (!fn) continue; c.save(); fn.call(f, c, f, f.x != null ? X.sx(f.x) : X.sx(me.x), f.y != null ? X.sy(f.y) : X.sy(me.y), T, t); c.restore(); } }
-    return { fx, strong, ult, update, draw, H };
+    /* (hook for Dark's Day of the Dead, 20k5q) a move may refuse its cast when it has nothing to act on: I.refuse(H)
+       returns the reason; the cast path in 20b (useUlt) then shows it and spends no MP and no cooldown */
+    function refuse(kind, key, e8) { const I = ELEM_IMPL[e8] && ELEM_IMPL[e8][kind] && ELEM_IMPL[e8][kind][key]; try { return I && I.refuse ? I.refuse(H) || '' : ''; } catch (e) { return ''; } }
+    return { fx, strong, ult, update, draw, H, refuse };
   }
   return { create };
 })();

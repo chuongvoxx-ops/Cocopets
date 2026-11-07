@@ -822,6 +822,8 @@ GAMES.dungeon = {
       if (g.cdU > 0) return;
       if (ab.elem && (ab.star || 0) < ELEM_ULT_STARS) { text(me.x, me.y - 1.1, 'Only a five-star pet can cast this', '#CFE2FF', 13); api.sfx.wrong(); return; }
       if (me.mp < ab.cost) { text(me.x, me.y - 1.1, `Ult needs ${ab.cost} MP`, '#7FB6FF', 13); api.sfx.wrong(); return; }
+      /* (hook for Dark's Day of the Dead, 20k5q) an elemental Ultimate with nothing to act on refuses: no MP, no cooldown */
+      if (ELEM && ELEM.refuse && ab.elem && String(ab.key).slice(0, 3) === 'ey_') { const why = ELEM.refuse('ult', ab.key.slice(3), ab.e8); if (why) { banner(why.toUpperCase(), ab.name, '#D0AEFF', 1.4); api.sfx.wrong(); return; } }
       me.mp -= ab.cost; g.cdU = ab.cd; me.castT = me.castM = 1.0; me.castUlt = true;   // (its arms go up high)
       const E = EL(ab.el), base = ST.atk * ab.mult, A = aim(), up = ab.tier >= 2;
       g.slowT = up ? 0.5 : 0.35; flash(up ? 0.7 : 0.55, E.color); g.zoomP = up ? 1.16 : 1.12; g.zoomT = up ? 0.7 : 0.5; shake(up ? 11 : 8, 0.35);
