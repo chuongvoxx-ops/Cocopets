@@ -993,3 +993,4 @@ Every new boss painter (rift fiends, Tower bosses, minis that get their own art)
 - v266: Team stage optimised: real-time clock (wings were slowing with the frame rate), smooth wing rotation (wingSmooth in drawPetFull, stage only), background on its own low-DPR canvas refreshed ~4×/s, fewer stars and motes, no badge backdrop blur, town redraws 1×/s under the open sheet. ~2× the frame rate in tests.
 - v267: Pandemonium optimised: ~half the per-frame cost (Celestial warm ~1.2 ms vs 2.2 ms): fewer real petal sprites with denser petal clouds, culling, buffer reuse, no per-frame allocation, 2-step bakes (longest step 1.9 ms), ImageBitmap sprites.
 - v268: Pandemonium eye gets a pulsating, flickering emerald core (cached glow layers, filaments, inbound sparks; grows in, tightens and brightens before the finale, bursts with it).
+- v269: Pandemonium core 35% smaller (all its layers, filaments and sparks scale together).

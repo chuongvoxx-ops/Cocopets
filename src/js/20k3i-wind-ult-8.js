@@ -404,7 +404,7 @@
       const te = t - TE, grow = sm((t - FORM + 0.6) / 1.8), seed = sm((t - FORM + 1.0) / 0.4), burstK = te >= 0 ? 1 - sm(te / 0.28) : 1; if (seed <= 0.01 || burstK <= 0.01) return;
       const hot = want('coreHot'), inn = want('coreIn'), halo = want('coreHalo'); if (!hot || !inn || !halo) return;
       const lev = 1 + 0.06 * (ev - 1), breathe = 1 + 0.1 * Math.sin(t * TAU * 1.4), pul = 0.5 * pK * (ADE ? 1.25 : 1), cmp = 1 - 0.3 * cK, swell = te >= 0 ? 1 + 2.4 * eout(te / 0.28) : 1;
-      const S = E * T * 0.7 * lev * lerp(0.18, 1, grow) * breathe * (1 + 0.18 * pul) * cmp * swell, I = A * seed * burstK * flk * (0.8 + 0.2 * breathe) * (1 + 0.6 * cK + pul) * (CEL ? 1.12 : 1), EY = Y - ZE * T;
+      const S = E * T * 0.7 * 0.65 * lev * lerp(0.18, 1, grow) * breathe * (1 + 0.18 * pul) * cmp * swell, I = A * seed * burstK * flk * (0.8 + 0.2 * breathe) * (1 + 0.6 * cK + pul) * (CEL ? 1.12 : 1), EY = Y - ZE * T;
       c.globalCompositeOperation = 'lighter';
       // under the captives: the wide halo and the emerald glow
       if (side < 0) { let r = S * 3.6; c.globalAlpha = Math.min(1, 0.85 * I); c.drawImage(halo, X - r, EY - r, r * 2, r * 2); r = S * 2.0; c.globalAlpha = Math.min(1, 0.8 * I); c.drawImage(inn, X - r, EY - r, r * 2, r * 2); c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1; return; }
