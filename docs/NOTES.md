@@ -995,3 +995,4 @@ Every new boss painter (rift fiends, Tower bosses, minis that get their own art)
 - v268: Pandemonium eye gets a pulsating, flickering emerald core (cached glow layers, filaments, inbound sparks; grows in, tightens and brightens before the finale, bursts with it).
 - v269: Pandemonium core 35% smaller (all its layers, filaments and sparks scale together).
 - v270: Pandemonium core another 30% smaller (0.455x the v268 size); half the big canopy bands get a 35% softer rim (bladeProfile soft param: wider, dimmer, eased rim; bandAs/bandBs alternating).
+- v271: all big Pandemonium bands (canopy, outer, funnel bands) use the soft rim, now 0.42 (35 % softer +20 %).

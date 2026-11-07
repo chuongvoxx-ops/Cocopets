@@ -171,7 +171,8 @@
   /* the ring variants: broad shaded bands (deep interior toward the axis, mint outer edge, a pearly line), lower funnel
      bands, thin pale streaks, short pressure arcs */
   /* (rim widths: about 2 screen px where each sprite is usually drawn) */
-  const BAND = bladeProfile(2.6 / 21, 0.55), BANDB = bladeProfile(2.6 / 17, 0.55), BANDS = bladeProfile(2.6 / 21, 0.55, 12, 0.35), BANDBS = bladeProfile(2.6 / 17, 0.55, 12, 0.35), FUNB = bladeProfile(3.4 / 11, 0.55);
+  const SOFT = 0.42;   // the big bands' rim softness (the user: all of them, 35 % then 20 % more)
+  const BAND = bladeProfile(2.6 / 21, 0.55, 12, SOFT), BANDB = bladeProfile(2.6 / 17, 0.55, 12, SOFT), FUNB = bladeProfile(3.4 / 11, 0.55);
   const STREAK = [[MINT, 0.22, 1], [PALE, 0.42, 0.5], [WHITE, 0.8, 0.18]];
   const BAKE = {
     comet: cometBake, petal: () => petalBake('petal'), blossom: () => petalBake('blossom'), leaf: () => petalBake('leaf'), pale: () => petalBake('pale'),
@@ -186,8 +187,6 @@
     funnel: () => ringBake({ n: 3, span: 1.7, hw: 11, wave: 3, seed: 11, jit: 0.4, passes: FUNB }),
     bandA: () => ringBake({ n: 2, span: 2.45, hw: 21, wave: 5, seed: 1, passes: BAND }),
     bandB: () => ringBake({ n: 3, span: 1.6, hw: 17, wave: 6, seed: 7, jit: 0.5, spanJ: 0.25, passes: BANDB }),
-    bandAs: () => ringBake({ n: 2, span: 2.45, hw: 21, wave: 5, seed: 1, passes: BANDS }),   // the softer-rimmed twins (half the canopy)
-    bandBs: () => ringBake({ n: 3, span: 1.6, hw: 17, wave: 6, seed: 7, jit: 0.5, spanJ: 0.25, passes: BANDBS }),
     corolla: corollaBake, wpetal: wpetalBake, current: currentBake, flare: flareBake,
     // the eye's glowing core: a tight white-mint heart, an emerald inner glow, a wide soft green halo (all feathered to 0)
     coreHot: () => radialBake([[0, 'rgba(255,255,255,1)'], [0.12, 'rgba(236,255,246,0.97)'], [0.3, 'rgba(150,255,208,0.55)'], [0.6, 'rgba(50,220,155,0.13)'], [1, 'rgba(40,210,140,0)']], 128),
@@ -215,9 +214,9 @@
       { L: 'fun', z: 0.52 * ZE, v: 'funnel', w: 1.6, a: 0.8 }, { L: 'fun', z: 0.74 * ZE, v: 'streak', w: 2.9, a: 0.75 },
       { L: 'eye', z: ZE - 0.2, r: E * 1.18, v: 'arcs', w: 3.3, a: 0.7 }, { L: 'eye', z: ZE + 0.42, r: E * 1.12, v: 'streak', w: 3.0, a: 0.55 } ];
     const CU = CEL ? [0.08, 0.24, 0.4, 0.56, 0.72, 0.87, 1] : ADE ? [0.1, 0.3, 0.5, 0.7, 0.86, 1] : [0.12, 0.36, 0.6, 0.82, 1];
-    CU.forEach((u, i) => RINGS.push({ L: 'can', u, v: (i % 2 ? 'bandB' : 'bandA') + ((i >> 1) % 2 ? 's' : ''), w: lerp(0.62, 0.32, u) * (CEL && i % 2 ? 0.7 : 1), a: 0.92, tilt: CEL ? (i % 2 ? 0.09 : -0.08) : 0 }));
+    CU.forEach((u, i) => RINGS.push({ L: 'can', u, v: i % 2 ? 'bandB' : 'bandA', w: lerp(0.62, 0.32, u) * (CEL && i % 2 ? 0.7 : 1), a: 0.92, tilt: CEL ? (i % 2 ? 0.09 : -0.08) : 0 }));
     [0.48, 0.92].concat(ADE ? [0.25] : []).concat(CEL ? [0.66, 0.8, 0.12] : []).forEach(u => RINGS.push({ L: 'can', u, v: 'streak', w: 1.7, a: CEL ? 0.8 : 0.65, rk: 0.97 }));
-    if (ADE) [0.3, 0.62, 0.9].forEach((u, i) => RINGS.push({ L: 'can', u, v: i % 2 ? 'bandBs' : 'bandB', w: 0.4, a: 0.7, rk: 1.15, dz: -0.3, outer: true }));
+    if (ADE) [0.3, 0.62, 0.9].forEach(u => RINGS.push({ L: 'can', u, v: 'bandB', w: 0.4, a: 0.7, rk: 1.15, dz: -0.3, outer: true }));
     if (CEL) RINGS.push({ L: 'fun', z: 0.9 * ZE, v: 'funnel', w: 2.2, a: 0.7, tilt: 0.06 }, { L: 'can', u: 0.45, v: 'arcs', w: 2.2, a: 0.6, rk: 0.9 });
     RINGS.forEach((q, i) => { q.ph = R1(i * 7.3) * TAU; q.rot = q.ph; q.zb = q.L === 'can' ? canZ(q.u) + (q.dz || 0) : q.z; q.d = q.L === 'can' ? 0.35 + q.u * 0.75 : q.L === 'eye' ? 0.3 : q.z / ZE * 0.25; });
     RINGS.sort((p, q) => p.zb - q.zb);
