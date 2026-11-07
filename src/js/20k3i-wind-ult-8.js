@@ -91,12 +91,15 @@
   const hx = h => { const [r, g, b] = hexRGB(h); return [r, g, b]; }, hexOf = v => '#' + v.map(k => Math.round(k).toString(16).padStart(2, '0')).join('');
   const ramp = (stops, u) => { u = cl(u); for (let i = 1; i < stops.length; i++) if (u <= stops[i][0]) { const [u0, c0] = stops[i - 1], [u1, c1] = stops[i], k = (u - u0) / (u1 - u0 || 1), a = hx(c0), b = hx(c1); return hexOf(a.map((v, j) => v + (b[j] - v) * k)); } return stops[stops.length - 1][1]; };
   const BLADE_COL = [[0, DEEP], [0.45, EMER], [0.8, MOSS], [1, MINT]];
-  function bladeProfile(rim, peak, N) {
-    rim = Math.min(0.5, rim); N = N || 12; const xr = 1 - rim, L = []; let prev = 0;
+  function bladeProfile(rim, peak, N, soft) {
+    soft = soft || 0;   // 0 = the crisp rim; 0.35 = the rim 35 % softer (wider, dimmer, eased in) — used on half the big canopy bands
+    rim = Math.min(0.5, rim * (1 + 1.4 * soft)); N = N || 12; const xr = 1 - rim, L = []; let prev = 0;
     const layer = (s, A, col) => { A = Math.min(0.985, A); if (A <= prev + 1e-4) return; const a = 1 - (1 - A) / (1 - prev); prev = A; L.push([col, +a.toFixed(4), (1 - s) / 2, (1 + s) / 2]); };
     for (let j = 0; j < N; j++) { const s0 = -1 + (xr + 1) * j / N, um = (j + 0.5) / N; layer(s0, peak * Math.pow(um, 1.15) * (0.75 + 0.25 * sm(um)), ramp(BLADE_COL, um)); }
-    layer(xr - rim * 0.35, Math.min(0.93, peak + (0.93 - peak) * 0.45), MINT);   // a hair of anti-aliasing into the rim, not a blur
-    layer(xr, 0.93, PALE); layer(1 - rim * 0.45, 0.97, WHITE);
+    const rk = 1 - soft;   // softer rims: lower peak opacity, and a broader eased step into them
+    if (soft) layer(xr - rim * 1.1, Math.min(0.93 * rk, peak + (0.93 * rk - peak) * 0.25), MINT);
+    layer(xr - rim * (0.35 + 0.4 * soft), Math.min(0.93 * rk, peak + (0.93 * rk - peak) * 0.45), MINT);   // a hair of anti-aliasing into the rim, not a blur
+    layer(xr, 0.93 * rk, PALE); layer(1 - rim * 0.45, 0.97 * rk, WHITE);
     return L; }
   /* the same layers for a screen-space ribbon (colour strings for fillStyle) */
   const ribPasses = P => P.map(([col, a, k, off]) => [rgbaS(col, 1), a, k, off]);
@@ -168,7 +171,7 @@
   /* the ring variants: broad shaded bands (deep interior toward the axis, mint outer edge, a pearly line), lower funnel
      bands, thin pale streaks, short pressure arcs */
   /* (rim widths: about 2 screen px where each sprite is usually drawn) */
-  const BAND = bladeProfile(2.6 / 21, 0.55), BANDB = bladeProfile(2.6 / 17, 0.55), FUNB = bladeProfile(3.4 / 11, 0.55);
+  const BAND = bladeProfile(2.6 / 21, 0.55), BANDB = bladeProfile(2.6 / 17, 0.55), BANDS = bladeProfile(2.6 / 21, 0.55, 12, 0.35), BANDBS = bladeProfile(2.6 / 17, 0.55, 12, 0.35), FUNB = bladeProfile(3.4 / 11, 0.55);
   const STREAK = [[MINT, 0.22, 1], [PALE, 0.42, 0.5], [WHITE, 0.8, 0.18]];
   const BAKE = {
     comet: cometBake, petal: () => petalBake('petal'), blossom: () => petalBake('blossom'), leaf: () => petalBake('leaf'), pale: () => petalBake('pale'),
@@ -183,6 +186,8 @@
     funnel: () => ringBake({ n: 3, span: 1.7, hw: 11, wave: 3, seed: 11, jit: 0.4, passes: FUNB }),
     bandA: () => ringBake({ n: 2, span: 2.45, hw: 21, wave: 5, seed: 1, passes: BAND }),
     bandB: () => ringBake({ n: 3, span: 1.6, hw: 17, wave: 6, seed: 7, jit: 0.5, spanJ: 0.25, passes: BANDB }),
+    bandAs: () => ringBake({ n: 2, span: 2.45, hw: 21, wave: 5, seed: 1, passes: BANDS }),   // the softer-rimmed twins (half the canopy)
+    bandBs: () => ringBake({ n: 3, span: 1.6, hw: 17, wave: 6, seed: 7, jit: 0.5, spanJ: 0.25, passes: BANDBS }),
     corolla: corollaBake, wpetal: wpetalBake, current: currentBake, flare: flareBake,
     // the eye's glowing core: a tight white-mint heart, an emerald inner glow, a wide soft green halo (all feathered to 0)
     coreHot: () => radialBake([[0, 'rgba(255,255,255,1)'], [0.12, 'rgba(236,255,246,0.97)'], [0.3, 'rgba(150,255,208,0.55)'], [0.6, 'rgba(50,220,155,0.13)'], [1, 'rgba(40,210,140,0)']], 128),
@@ -210,9 +215,9 @@
       { L: 'fun', z: 0.52 * ZE, v: 'funnel', w: 1.6, a: 0.8 }, { L: 'fun', z: 0.74 * ZE, v: 'streak', w: 2.9, a: 0.75 },
       { L: 'eye', z: ZE - 0.2, r: E * 1.18, v: 'arcs', w: 3.3, a: 0.7 }, { L: 'eye', z: ZE + 0.42, r: E * 1.12, v: 'streak', w: 3.0, a: 0.55 } ];
     const CU = CEL ? [0.08, 0.24, 0.4, 0.56, 0.72, 0.87, 1] : ADE ? [0.1, 0.3, 0.5, 0.7, 0.86, 1] : [0.12, 0.36, 0.6, 0.82, 1];
-    CU.forEach((u, i) => RINGS.push({ L: 'can', u, v: i % 2 ? 'bandB' : 'bandA', w: lerp(0.62, 0.32, u) * (CEL && i % 2 ? 0.7 : 1), a: 0.92, tilt: CEL ? (i % 2 ? 0.09 : -0.08) : 0 }));
+    CU.forEach((u, i) => RINGS.push({ L: 'can', u, v: (i % 2 ? 'bandB' : 'bandA') + ((i >> 1) % 2 ? 's' : ''), w: lerp(0.62, 0.32, u) * (CEL && i % 2 ? 0.7 : 1), a: 0.92, tilt: CEL ? (i % 2 ? 0.09 : -0.08) : 0 }));
     [0.48, 0.92].concat(ADE ? [0.25] : []).concat(CEL ? [0.66, 0.8, 0.12] : []).forEach(u => RINGS.push({ L: 'can', u, v: 'streak', w: 1.7, a: CEL ? 0.8 : 0.65, rk: 0.97 }));
-    if (ADE) [0.3, 0.62, 0.9].forEach(u => RINGS.push({ L: 'can', u, v: 'bandB', w: 0.4, a: 0.7, rk: 1.15, dz: -0.3, outer: true }));
+    if (ADE) [0.3, 0.62, 0.9].forEach((u, i) => RINGS.push({ L: 'can', u, v: i % 2 ? 'bandBs' : 'bandB', w: 0.4, a: 0.7, rk: 1.15, dz: -0.3, outer: true }));
     if (CEL) RINGS.push({ L: 'fun', z: 0.9 * ZE, v: 'funnel', w: 2.2, a: 0.7, tilt: 0.06 }, { L: 'can', u: 0.45, v: 'arcs', w: 2.2, a: 0.6, rk: 0.9 });
     RINGS.forEach((q, i) => { q.ph = R1(i * 7.3) * TAU; q.rot = q.ph; q.zb = q.L === 'can' ? canZ(q.u) + (q.dz || 0) : q.z; q.d = q.L === 'can' ? 0.35 + q.u * 0.75 : q.L === 'eye' ? 0.3 : q.z / ZE * 0.25; });
     RINGS.sort((p, q) => p.zb - q.zb);
@@ -404,7 +409,7 @@
       const te = t - TE, grow = sm((t - FORM + 0.6) / 1.8), seed = sm((t - FORM + 1.0) / 0.4), burstK = te >= 0 ? 1 - sm(te / 0.28) : 1; if (seed <= 0.01 || burstK <= 0.01) return;
       const hot = want('coreHot'), inn = want('coreIn'), halo = want('coreHalo'); if (!hot || !inn || !halo) return;
       const lev = 1 + 0.06 * (ev - 1), breathe = 1 + 0.1 * Math.sin(t * TAU * 1.4), pul = 0.5 * pK * (ADE ? 1.25 : 1), cmp = 1 - 0.3 * cK, swell = te >= 0 ? 1 + 2.4 * eout(te / 0.28) : 1;
-      const S = E * T * 0.7 * 0.65 * lev * lerp(0.18, 1, grow) * breathe * (1 + 0.18 * pul) * cmp * swell, I = A * seed * burstK * flk * (0.8 + 0.2 * breathe) * (1 + 0.6 * cK + pul) * (CEL ? 1.12 : 1), EY = Y - ZE * T;
+      const S = E * T * 0.7 * 0.65 * 0.7 * lev * lerp(0.18, 1, grow) * breathe * (1 + 0.18 * pul) * cmp * swell, I = A * seed * burstK * flk * (0.8 + 0.2 * breathe) * (1 + 0.6 * cK + pul) * (CEL ? 1.12 : 1), EY = Y - ZE * T;
       c.globalCompositeOperation = 'lighter';
       // under the captives: the wide halo and the emerald glow
       if (side < 0) { let r = S * 3.6; c.globalAlpha = Math.min(1, 0.85 * I); c.drawImage(halo, X - r, EY - r, r * 2, r * 2); r = S * 2.0; c.globalAlpha = Math.min(1, 0.8 * I); c.drawImage(inn, X - r, EY - r, r * 2, r * 2); c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1; return; }

@@ -994,3 +994,4 @@ Every new boss painter (rift fiends, Tower bosses, minis that get their own art)
 - v267: Pandemonium optimised: ~half the per-frame cost (Celestial warm ~1.2 ms vs 2.2 ms): fewer real petal sprites with denser petal clouds, culling, buffer reuse, no per-frame allocation, 2-step bakes (longest step 1.9 ms), ImageBitmap sprites.
 - v268: Pandemonium eye gets a pulsating, flickering emerald core (cached glow layers, filaments, inbound sparks; grows in, tightens and brightens before the finale, bursts with it).
 - v269: Pandemonium core 35% smaller (all its layers, filaments and sparks scale together).
+- v270: Pandemonium core another 30% smaller (0.455x the v268 size); half the big canopy bands get a 35% softer rim (bladeProfile soft param: wider, dimmer, eased rim; bandAs/bandBs alternating).
