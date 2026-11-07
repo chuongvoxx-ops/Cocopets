@@ -65,7 +65,7 @@ const ELEM_MOVES = {
     ['thousandblades', '1000 Blades', 'crescent', 95, 20, 'A fan of great samurai swords rises and shatters into a swarm of green flowers that cuts through the monsters: 10 swords, 30 at Adept, 60 at Celestial.'],
     ['monsoon', 'Monsoon', 'vortex', 95, 25, 'One great storm vortex settles on the aim, pulling the monsters inward and grinding them: 7 s, 10 s at Adept, 12 s at Celestial.'],
     ['pandemonium', 'Pandemonium', 'vortex', 100, 75, 'A colossal emerald cyclone lifts the monsters into its eye and grinds them while every other attack on them deals 40% more, then bursts in a huge wind explosion: 7 s, 10 s at Adept, 14 s at Celestial.'],
-    ['severance', 'Horizon Severance', 'crescent', 95, 20, 'Crescents stack behind a line of compressed air and release as staggered travelling blades, each wider than the last.'],
+    ['oblivion', 'Winds of Oblivion', 'feather', 100, 60, 'A pale halo of wind chimes and spectral feathers sweeps the monsters and marks them Windworn: weaker attacks and defence, slower attacks and steps, and their buffs torn away, for 10 s (14 s at Adept, 17 s at Celestial).'],
     ['dandelion', 'Dandelion Cyclone', 'spin', 90, 18, 'A seed-like core rises amid hundreds of tufts that scatter into spirals, converge on the monsters, then gust across the ground.'],
     ['fujin', 'Fujin', 'lance', 100, 22, 'Your pet conjures a spear of emerald light, wrapped in a flowing ribbon, and leaps into spear-first dives that each land harder: 3 dives, 5 at Adept, 7 at Celestial.'],
     ['flowerhurricane', 'Flower Hurricane', 'spin', 95, 20, 'A storm of pink flowers bursts from a wreath round you and whirls through the monsters, every blossom cutting as it passes: 6 s, 8 s at Adept, 10 s at Celestial.'],
