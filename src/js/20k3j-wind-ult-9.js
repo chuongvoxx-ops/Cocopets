@@ -134,6 +134,11 @@
     G = { cv, foot: W - 10, h: 100 }; GHOSTS.set(S, G); GHOST_MS = nowMs() - t0; return G;
   }
   const glowF = (c, x, y, r, col, a, sy) => { if (a <= 0.004 || r <= 0.5) return; c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = Math.min(1, a); const ry = r * (sy || 1); blitSized(c, glowSprite(col), x - r, y - ry, r * 2, ry * 2); c.restore(); };
+  /* the pet's half width as drawn (pet heights; its picture's box, a margin for wings and ears) and the aura's orbit from it:
+     wide and flat, well outside the silhouette, so the wind never sits across the pet (the user) */
+  const WIDE = new WeakMap();
+  function petHalfW() { const S = typeof arc !== 'undefined' ? arc.sprites : null, s = S && S.normal; if (!s || !s.vb || !S.bodyTop) return 0.5; let w = WIDE.get(S); if (w == null) { w = Math.max(0.35, Math.min(1.1, 0.5 * s.vb[2] / S.bodyTop)); WIDE.set(S, w); } return w; }
+  const auraRof = () => Math.max(0.95, Math.min(1.6, petHalfW() * 1.3 + 0.2)), AY = 0.3;   // (orbit radius in pet heights; the ellipse's depth squash)
   const petHTof = me => { const SZ = Math.max(0.6, ((me.r || 0.3) - 0.2) / 0.1), g = H.g; return 1.02 * SZ * (g.pw && g.pw.giant ? 1.35 : 1) * (g.petK || 1); };
   // a wing pair drawn about its root (screen px): L the wing's length (px), ang its raise (- up), fx its foreshortening,
   // a its opacity, glow the extra additive light, mirror both sides
@@ -171,7 +176,7 @@
     let lastT = 0, ribA = 0, wrapK = 0, endT = -1, dead = false, emb = [];
     const ghosts = [], blks = [], spiral = [], sparks = [], darts = [], flashes = []; let gT = 0, lx = me.x, ly = me.y, vx = 0, vy = 0;
     const NS = tier >= 3 ? 3 : 2, NP = 26;
-    const wisps = []; const nW = H.n(tier >= 3 ? 9 : tier >= 2 ? 7 : 5); for (let i = 0; i < nW; i++) wisps.push({ a: i / nW * TAU, w: (1.5 + Math.random() * 0.9) * (i % 3 === 2 ? -1 : 1), r: 0.62 + Math.random() * 0.22, h: 0.15 + (i / nW) * 0.95, ph: Math.random() * TAU, v: i % 2, s: 0.2 + Math.random() * 0.06 });
+    const wisps = []; const nW = H.n(tier >= 3 ? 9 : tier >= 2 ? 7 : 5); for (let i = 0; i < nW; i++) wisps.push({ a: i / nW * TAU, w: (1.5 + Math.random() * 0.9) * (i % 3 === 2 ? -1 : 1), r: 0.92 + Math.random() * 0.22, h: 0.2 + (i / nW) * 0.65, ph: Math.random() * TAU, v: i % 2, s: 0.2 + Math.random() * 0.06 });
     const F = H.add({ key: 'zephyrAura', life: 1e6, entY: me.y - 0.004, ending: false, tier, update, draw, drawUnder, onEnd() { release(); if (g.zephyr && g.zephyr.aura === F) g.zephyr = null; kid.life = 0; } });
     const kid = H.add({ key: 'zephyrAuraF', life: 1e6, entY: me.y + 0.03 });
     F.refresh = tr => { F.tier = tier = Math.max(tier, tr); wrapK = Math.min(wrapK, 0.35); for (const e of emb) e.gone = 0; for (let i = 0; i < 6; i++) spiralAdd(lastT + i * 0.02, i / 6 * TAU, 0.6); };
@@ -260,54 +265,63 @@
     // the block's wings: how much the ribbons have become wings (0..1) and how open they are
     const blkK = () => { let k = 0; for (const b of blks) { const u = lastT - b.t0; k = Math.max(k, sm(u / 0.06) * (1 - sm((u - 0.4) / 0.4))); } return k; };
     /* ---- the ribbons: NS satin strips spiralling up round the pet, their loose ends streaming behind its motion ---- */
-    const RXa = new Float32Array(NP), RYa = new Float32Array(NP), RW = new Float32Array(NP), RD = new Float32Array(NP), NX = new Float32Array(NP), NY = new Float32Array(NP), TW = new Float32Array(NP);
+    const OV = new Float32Array(NP), RXa = new Float32Array(NP), RYa = new Float32Array(NP), RW = new Float32Array(NP), RD = new Float32Array(NP), NX = new Float32Array(NP), NY = new Float32Array(NP), TW = new Float32Array(NP);
     function ribbons(c, front) {
       const bk = blkK(), al = ribA * (1 - 0.85 * bk); if (al <= 0.01) return; const T = X0.Tz(), hT = petHTof(me), Fp = feet(T), t = lastT, eu = F.ending ? cl((lastT - endT) / 0.95) : 0, hp = hT * T;
       const spd = Math.hypot(vx, vy), tvx = -vx / Math.max(1, spd) * Math.min(1, spd / 5), tvy = -vy / Math.max(1, spd) * Math.min(1, spd / 5);
-      const radK = lerp(2.3, 1, sm(wrapK)) * (1 + 1.8 * sm(eu)) * (1 + 0.6 * bk);
+      const radK = lerp(1.7, 1, sm(wrapK)) * (1 + 1.0 * sm(eu)) * (1 + 0.4 * bk), RA = auraRof(), hw = petHalfW() * hp;
+      // the pet's box on screen: front runs crossing it fade to ~0.15 (feathered at its edges)
+      const bx0 = Fp[0], by1 = Fp[1], by0 = Fp[1] - hp * 1.12, fe = hp * 0.22;
       for (let k = 0; k < NS; k++) {
         const ph = k / NS * TAU, om = 2.1 + 0.25 * k + 2.5 * eu, turns = 1.15 - 0.4 * sm(eu);
         for (let i = 0; i < NP; i++) { const s = i / (NP - 1), th = ph + t * om - s * TAU * turns, tail = sm((s - 0.72) / 0.28);
-          const r = hp * (0.46 + 0.07 * Math.sin(t * 2.3 + s * 5 + k * 2)) * radK * (1 + 0.9 * tail), h = hp * (0.04 + 1.0 * s + 0.07 * Math.sin(t * 3 + s * 6 + k) + 0.25 * tail * Math.sin(t * 2.6 + k));
-          RXa[i] = Fp[0] + Math.cos(th) * r + tvx * tail * hp * 0.9 + Math.sin(t * 1.7 + k + s * 3) * hp * 0.05 * tail; RYa[i] = Fp[1] - h + Math.sin(th) * r * 0.42 + tvy * tail * hp * 0.5;
+          const r = hp * RA * (1 + 0.06 * Math.sin(t * 2.3 + s * 5 + k * 2)) * radK * (1 + 0.3 * tail), h = hp * (0.18 + 0.55 * s + 0.05 * Math.sin(t * 3 + s * 6 + k) + 0.12 * tail * Math.sin(t * 2.6 + k));
+          RXa[i] = Fp[0] + Math.cos(th) * r + tvx * tail * hp * 0.9 + Math.sin(t * 1.7 + k + s * 3) * hp * 0.05 * tail; RYa[i] = Fp[1] - h + Math.sin(th) * r * AY + tvy * tail * hp * 0.4;
           RD[i] = Math.sin(th); TW[i] = 0.4 + 0.6 * Math.abs(Math.cos(s * 7.5 + t * 2.4 + k * 1.7));
-          RW[i] = hp * (tier >= 3 ? 0.2 : 0.17) * TW[i] * sm(s / 0.12) * Math.pow(cl((1 - s) / 0.22), 0.7) * (1 - 0.5 * sm(eu)); }
+          RW[i] = hp * (tier >= 3 ? 0.13 : 0.115) * TW[i] * sm(s / 0.12) * Math.pow(cl((1 - s) / 0.22), 0.7) * (1 - 0.5 * sm(eu)); }
         for (let i = 0; i < NP; i++) { const a = Math.max(0, i - 1), b = Math.min(NP - 1, i + 1), dx = RXa[b] - RXa[a], dy = RYa[b] - RYa[a], l = Math.hypot(dx, dy) || 1; NX[i] = -dy / l; NY[i] = dx / l; }
         // the runs on this side (front ones dimmed over the pet's body)
-        let i0 = -1; for (let i = 0; i <= NP; i++) { const on = i < NP && (RD[i] > 0) === front; if (on && i0 < 0) i0 = Math.max(0, i - 1); if (!on && i0 >= 0) { strip(c, i0, Math.min(NP - 1, i), al * (front ? 0.62 : 1), T, hp); i0 = -1; } }
+        // (front: split again by how much of the pet each point lies over, four steps of dimming)
+        for (let i = 0; i < NP; i++) { if (!front || RD[i] <= 0) { OV[i] = 0; continue; } const dx = Math.abs(RXa[i] - bx0), y = RYa[i]; OV[i] = sm((hw * 1.1 + fe - dx) / fe) * sm((by1 + fe * 0.3 - y) / fe) * sm((y - by0 + fe) / fe); }
+        const lvl = i => (OV[i] > 0.8 ? 3 : OV[i] > 0.5 ? 2 : OV[i] > 0.2 ? 1 : 0), DIM = [0.7, 0.5, 0.3, 0.15];
+        let i0 = -1, l0 = 0; for (let i = 0; i <= NP; i++) { const on = i < NP && (RD[i] > 0) === front, l = on ? lvl(i) : -1;
+          if (i0 >= 0 && (!on || l !== l0)) { strip(c, i0, Math.min(NP - 1, i), al * (front ? DIM[l0] : 1), T, hp); i0 = -1; }
+          if (on && i0 < 0) { i0 = Math.max(0, i - 1); l0 = l; } }
       }
     }
     function strip(c, a, b, al, T, hp) { if (b - a < 1) return;
       const poly = k => { c.beginPath(); for (let i = a; i <= b; i++) { const w = RW[i] * k * 0.5; i === a ? c.moveTo(RXa[i] + NX[i] * w, RYa[i] + NY[i] * w) : c.lineTo(RXa[i] + NX[i] * w, RYa[i] + NY[i] * w); } for (let i = b; i >= a; i--) { const w = RW[i] * k * 0.5; c.lineTo(RXa[i] - NX[i] * w, RYa[i] - NY[i] * w); } c.closePath(); c.fill(); };
       c.lineJoin = 'round'; c.lineCap = 'round';
-      c.globalCompositeOperation = 'lighter'; c.fillStyle = MINT; c.globalAlpha = 0.07 * al; poly(1.7); c.globalAlpha = 0.1 * al; poly(1.3);
-      c.globalCompositeOperation = 'source-over'; c.fillStyle = 'rgb(18,128,96)'; c.globalAlpha = 0.3 * al; poly(1.0);
-      c.globalCompositeOperation = 'lighter'; c.fillStyle = 'rgb(120,226,184)'; c.globalAlpha = 0.26 * al; poly(0.7); c.fillStyle = 'rgb(206,250,232)'; c.globalAlpha = 0.16 * al; poly(0.32);
+      c.globalCompositeOperation = 'lighter'; c.fillStyle = MINT; c.globalAlpha = 0.06 * al; poly(1.8); c.globalAlpha = 0.08 * al; poly(1.3);
+      c.globalCompositeOperation = 'source-over'; c.fillStyle = 'rgb(18,128,96)'; c.globalAlpha = 0.2 * al; poly(1.0);
+      c.globalCompositeOperation = 'lighter'; c.fillStyle = 'rgb(120,226,184)'; c.globalAlpha = 0.18 * al; poly(0.65); c.fillStyle = 'rgb(206,250,232)'; c.globalAlpha = 0.05 * al; poly(0.25);
       // the folds where it twists, a crest where it faces the light
       c.globalCompositeOperation = 'source-over'; c.strokeStyle = 'rgb(6,70,52)'; c.globalAlpha = 0.2 * al; c.lineWidth = Math.max(1, hp * 0.05); c.beginPath(); let on = false;
       for (let i = a; i <= b; i++) { const f = TW[i] < 0.6; if (f && !on) { c.moveTo(RXa[i], RYa[i]); on = true; } else if (f) c.lineTo(RXa[i], RYa[i]); else on = false; } c.stroke();
-      c.globalCompositeOperation = 'lighter'; c.strokeStyle = AIR; c.globalAlpha = 0.28 * al; c.lineWidth = Math.max(1, hp * 0.03); c.beginPath(); on = false;
+      c.globalCompositeOperation = 'lighter'; c.strokeStyle = AIR; c.globalAlpha = 0.14 * al; c.lineWidth = Math.max(1, hp * 0.02); c.beginPath(); on = false;
       for (let i = a; i <= b; i++) { const f = TW[i] > 0.86; if (f && !on) { c.moveTo(RXa[i], RYa[i]); on = true; } else if (f) c.lineTo(RXa[i], RYa[i]); else on = false; } c.stroke();
       // luminous edges (finer and doubled at Adept, a pearly thread at Celestial)
       const edges = k => { c.beginPath(); for (let i = a; i <= b; i++) { const w = RW[i] * 0.5 * k; i === a ? c.moveTo(RXa[i] + NX[i] * w, RYa[i] + NY[i] * w) : c.lineTo(RXa[i] + NX[i] * w, RYa[i] + NY[i] * w); } for (let i = a; i <= b; i++) { const w = RW[i] * 0.5 * k; i === a ? c.moveTo(RXa[i] - NX[i] * w, RYa[i] - NY[i] * w) : c.lineTo(RXa[i] - NX[i] * w, RYa[i] - NY[i] * w); } c.stroke(); };
       c.strokeStyle = MINT; c.globalAlpha = 0.2 * al; c.lineWidth = Math.max(1.5, T * 0.05); edges(0.95);
-      c.strokeStyle = AIR; c.globalAlpha = 0.45 * al; c.lineWidth = Math.max(0.8, T * 0.014); edges(0.92);
+      c.strokeStyle = AIR; c.globalAlpha = 0.28 * al; c.lineWidth = Math.max(0.8, T * 0.012); edges(0.92);
       if (tier >= 2) { c.strokeStyle = MINT; c.globalAlpha = 0.35 * al; c.lineWidth = Math.max(0.6, T * 0.009); edges(0.6); }
       if (tier >= 3) { c.strokeStyle = ['#FFE3F1', '#E6F7FF', '#F3E9FF'][((lastT * 1.3) | 0) % 3]; c.globalAlpha = 0.4 * al; c.lineWidth = Math.max(0.8, T * 0.018); c.beginPath(); for (let i = a; i <= b; i++) i === a ? c.moveTo(RXa[i] + NX[i] * RW[i] * 0.1, RYa[i] + NY[i] * RW[i] * 0.1) : c.lineTo(RXa[i] + NX[i] * RW[i] * 0.1, RYa[i] + NY[i] * RW[i] * 0.1); c.stroke(); }
       c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1; }
+    // (a thing in front of the pet's body fades to 0.2 there, feathered)
+    const overK = (X, Y, Fp, hp) => { const hw = petHalfW() * hp, fe = hp * 0.2; return 1 - 0.8 * sm((hw * 1.05 + fe - Math.abs(X - Fp[0])) / fe) * sm((Fp[1] + fe * 0.3 - Y) / fe) * sm((Y - Fp[1] + hp * 1.12 + fe) / fe); };
     /* ---- the orbiting feather wisps and the Windguard emblems ---- */
     function orbiters(c, front) {
-      const T = X0.Tz(), hT = petHTof(me), hp = hT * T, Fp = feet(T), t = lastT, eu = F.ending ? cl((t - endT) / 0.95) : 0, al = ribA > 0 ? Math.min(1, sm(t / 0.5)) * (1 - sm(eu * 1.2)) : 0;
-      if (al > 0.01) for (const w of wisps) { const sn = Math.sin(w.a); if ((sn > 0) !== front) continue; const r = w.r * hp, X = Fp[0] + Math.cos(w.a) * r, Y = Fp[1] - hp * (w.h + 0.06 * Math.sin(t * 2.2 + w.ph)) + sn * r * 0.42;
-        const dir = Math.atan2(Math.cos(w.a) * 0.42 * Math.sign(w.w), -Math.sin(w.a) * Math.sign(w.w)) + Math.PI / 2 + 0.4 * Math.sin(t * 3 + w.ph), b = ((Math.round(dir / TAU * NROT) % NROT) + NROT) % NROT, sz = w.s * hp * 1.6 * (front ? 1 : 0.9), aa = al * (front ? 0.8 : 0.6);
+      const T = X0.Tz(), hT = petHTof(me), hp = hT * T, Fp = feet(T), t = lastT, RA = auraRof(), eu = F.ending ? cl((t - endT) / 0.95) : 0, al = ribA > 0 ? Math.min(1, sm(t / 0.5)) * (1 - sm(eu * 1.2)) : 0;
+      if (al > 0.01) for (const w of wisps) { const sn = Math.sin(w.a); if ((sn > 0) !== front) continue; const r = w.r * hp * RA, X = Fp[0] + Math.cos(w.a) * r, Y = Fp[1] - hp * (w.h + 0.06 * Math.sin(t * 2.2 + w.ph)) + sn * r * AY;
+        const dir = Math.atan2(Math.cos(w.a) * AY * Math.sign(w.w), -Math.sin(w.a) * Math.sign(w.w)) + Math.PI / 2 + 0.4 * Math.sin(t * 3 + w.ph), b = ((Math.round(dir / TAU * NROT) % NROT) + NROT) % NROT, sz = w.s * hp * 1.6 * (front ? 1 : 0.9), aa = al * (front ? 0.8 * overK(X, Y, Fp, hp) : 0.6);
         // (a short soft trail behind it)
-        c.save(); c.globalCompositeOperation = 'lighter'; for (let j = 1; j <= 2; j++) { const a2 = w.a - w.w * 0.07 * j, X2 = Fp[0] + Math.cos(a2) * r, Y2 = Fp[1] - hp * (w.h + 0.06 * Math.sin(t * 2.2 + w.ph)) + Math.sin(a2) * r * 0.42, s2 = sz * (0.5 - 0.12 * j); c.globalAlpha = aa * (0.3 - 0.1 * j); c.drawImage(glowSprite(MINT), X2 - s2, Y2 - s2, s2 * 2, s2 * 2); } c.restore();
+        c.save(); c.globalCompositeOperation = 'lighter'; for (let j = 1; j <= 2; j++) { const a2 = w.a - w.w * 0.07 * j, X2 = Fp[0] + Math.cos(a2) * r, Y2 = Fp[1] - hp * (w.h + 0.06 * Math.sin(t * 2.2 + w.ph)) + Math.sin(a2) * r * AY, s2 = sz * (0.5 - 0.12 * j); c.globalAlpha = aa * (0.3 - 0.1 * j); c.drawImage(glowSprite(MINT), X2 - s2, Y2 - s2, s2 * 2, s2 * 2); } c.restore();
         c.globalAlpha = aa; c.drawImage(featherSpr(w.v, b), X - sz / 2, Y - sz / 2, sz, sz); }
       c.globalAlpha = 1;
       // the Windguard emblems: circling at the head, a soft halo, bobbing
-      for (const e of emb) { const an = t * 1.25 + e.ph, sn = Math.sin(an); const r = hp * 0.72, X = Fp[0] + Math.cos(an) * r, Y = Fp[1] - hp * (1.05 + 0.05 * Math.sin(t * 2.6 + e.ph)) + sn * r * 0.42; e.X = X; e.Y = Y; if ((sn > 0) !== front) continue;
+      for (const e of emb) { const an = t * 1.25 + e.ph, sn = Math.sin(an); const r = hp * RA * 0.92, X = Fp[0] + Math.cos(an) * r, Y = Fp[1] - hp * (0.85 + 0.05 * Math.sin(t * 2.6 + e.ph)) + sn * r * AY; e.X = X; e.Y = Y; if ((sn > 0) !== front) continue;
         const k = sm(e.k) * (1 - sm(eu * 1.3)); if (k < 0.01) continue; const sz = hp * 0.62 * (0.85 + 0.15 * (sn + 1) / 2) * (0.6 + 0.4 * k), pul = 0.85 + 0.15 * Math.sin(t * 4 + e.ph);
-        glowF(c, X, Y, sz * 1.2, MINT, 0.5 * k * pul); glowF(c, X, Y, sz * 0.45, AIR, 0.4 * k * pul); c.save(); c.translate(X, Y); c.rotate(0.25 * Math.sin(t * 1.8 + e.ph)); c.globalAlpha = k * (front ? 1 : 0.75); c.drawImage(emblemSpr(), -sz / 2, -sz / 2, sz, sz); c.restore(); }
+        glowF(c, X, Y, sz * 1.2, MINT, 0.5 * k * pul); glowF(c, X, Y, sz * 0.45, AIR, 0.4 * k * pul); c.save(); c.translate(X, Y); c.rotate(0.25 * Math.sin(t * 1.8 + e.ph)); c.globalAlpha = k * (front ? overK(X, Y, Fp, hp) : 0.75); c.drawImage(emblemSpr(), -sz / 2, -sz / 2, sz, sz); c.restore(); }
     }
     /* ---- the afterimages: soft mint copies of the pet at its last places ---- */
     function drawGhosts(c) {
