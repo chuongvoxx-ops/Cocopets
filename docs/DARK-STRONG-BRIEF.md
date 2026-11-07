@@ -50,3 +50,21 @@ Wrapper: `(() => { const S = ELEM_IMPL.dark.strong; S.<key> = (C, H) => { ... };
 - A montage at `/tmp/claude-0/-home-claude/78d1fddd-217b-590c-9262-fa063f90a263/scratchpad/dark-strong/<key>.png`
   (rows L1/L4/L7, key beats; copy and adapt `.../scratchpad/rocky/shot.js` for a Strong), look, iterate to the bar.
 - Report briefly: file, damage by level, counts, ms, anything unverified.
+
+# Round 2 — five new Dark Strongs (four workers; spec docs/elem-spec/dark-strongs-5.md, verbatim)
+Rows are set in 20k1 (they replace hem, hollowlantern, undertow, ravenfold, umbralhook). Each file deletes the old key.
+| Worker | File | Move | Replaces |
+|---|---|---|---|
+| S1 | `src/js/20k5r-dark-strong-6.js` | Death's Pursuit `S.deathspursuit` | `delete S.hem` |
+| S2 | `src/js/20k5s-dark-strong-7.js` | Shadow Seam `S.shadowseam` | `delete S.hollowlantern` |
+| S3 | `src/js/20k5t-dark-strong-8.js` | Night Bloom `S.nightbloom` | `delete S.undertow` |
+| S4 | `src/js/20k5u-dark-strong-9.js` | Eclipse Mantle `S.eclipsemantle` + Witch's Brand `S.witchsbrand` | `delete S.ravenfold; delete S.umbralhook` |
+Only S4 edits `src/js/20b-game-dungeon.js` / `src/js/20d-dun-ai.js` (minimal commented hooks; re-read first). Existing hooks to
+reuse: `addWard(fn, first)` in hurtPet (Rock Steady, Zephyr, Love Sanctuary) for the mantle; Winds of Oblivion's Windworn
+(m.wornUntil: defence ×1.25 in hitMon, speed in updMon, bosses) as the pattern for the brand (keep separate fields; strongest
+value wins, no stacking with itself; how it combines with Windworn — multiply, state it). In the Tower only the played pet is
+on the field: the mantle's "allies" = the played pet plus any Day of the Dead spirits nearby (their wards are per-spirit
+X — check 20k5q) — state what you cover. Cleanse: if the game has no cleanse, note it.
+Precedents for new Strongs: Dracula 20k5o, Demon Blade 20k5p (lazy-baked sprites, cleanup, X.pet() swap check). Strong
+costs/cds are in the rows (26–28, 3–8 s). Damage: Strong balance ≈ total 2.3–3 × base × K at L1 scaled by evolution —
+state yours. Witch's Brand detonation coefficient configurable.
