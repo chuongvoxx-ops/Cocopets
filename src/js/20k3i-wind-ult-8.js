@@ -184,6 +184,10 @@
     bandA: () => ringBake({ n: 2, span: 2.45, hw: 21, wave: 5, seed: 1, passes: BAND }),
     bandB: () => ringBake({ n: 3, span: 1.6, hw: 17, wave: 6, seed: 7, jit: 0.5, spanJ: 0.25, passes: BANDB }),
     corolla: corollaBake, wpetal: wpetalBake, current: currentBake, flare: flareBake,
+    // the eye's glowing core: a tight white-mint heart, an emerald inner glow, a wide soft green halo (all feathered to 0)
+    coreHot: () => radialBake([[0, 'rgba(255,255,255,1)'], [0.12, 'rgba(236,255,246,0.97)'], [0.3, 'rgba(150,255,208,0.55)'], [0.6, 'rgba(50,220,155,0.13)'], [1, 'rgba(40,210,140,0)']], 128),
+    coreIn: () => radialBake([[0, 'rgba(110,255,190,0.9)'], [0.25, 'rgba(36,222,148,0.62)'], [0.55, 'rgba(20,180,120,0.22)'], [0.82, 'rgba(18,160,110,0.05)'], [1, 'rgba(18,160,110,0)']], 128),
+    coreHalo: () => radialBake([[0, 'rgba(40,215,140,0.42)'], [0.3, 'rgba(22,175,120,0.2)'], [0.62, 'rgba(18,150,105,0.06)'], [1, 'rgba(18,150,105,0)']], 128),
   };
   let warmT = 0;
   const warm = () => { wantAll(); if (warmT || !BK.q.length) return; const step = () => { bakeStep(4); warmT = BK.q.length || BK.job ? setTimeout(step, 40) : 0; }; warmT = setTimeout(step, 60); };
@@ -225,7 +229,7 @@
     if (CEL) for (let i = 0; i < 6; i++) BP.push({ phi: (i + 0.5) / 6 * TAU, thf: 1.18, lf: LMAX * 0.62, inner: true });
     const NSTR = CEL ? 12 : ADE ? 10 : 8, RSW = R * (CEL ? 1.9 : ADE ? 1.7 : 1.5);
     /* --- the monsters affected: record per monster (captured ones carry a slot, a lift and a release) --- */
-    const rec = new Map(); const CAPS = []; let order = 0, next = 0, scanT = 0, dead = false, fin = false, lastTick = -9, endK = 1, braced = false, lastWh = 0;
+    const rec = new Map(); const CAPS = []; let flk = 1, flkG = 1, flkT = 0, order = 0, next = 0, scanT = 0, dead = false, fin = false, lastTick = -9, endK = 1, braced = false, lastWh = 0;
     H.X.banner('PANDEMONIUM', '', C.col, 1.4); H.X.sfx.hum();
     H.X.after(0.6, () => { if (!dead) H.X.sfx.whoosh(); });
     H.X.after(FORM, () => { if (dead) return; H.X.shake(4, 0.3); H.X.light(cx, cy, R * 0.8, 0.5); H.X.sfx.whoosh(); });
@@ -249,6 +253,7 @@
         if (me.dead && !dead && t < TE) { dead = true; f.life = Math.min(f.life, 0.9); for (const q of rec.values()) { q.m.pandemUntil = 0; letGo(q, t, 0); } }
         if (dead) endK = cl(f.life / 0.9);
         cK = compress(t); hK = holdU(t); pK = pulseAt(t);
+        if (t >= flkT) { flkT = t + 0.05 + Math.random() * 0.05; flkG = 0.82 + Math.random() * 0.36; } flk += (flkG - flk) * Math.min(1, dt * 14);   // (the core's flicker: a new brightness every 50-100 ms, eased toward)
         ZCc = lerp(ZC, ZE + 1.1 * sK, ein(cK) * 0.9) * (1 + 0.03 * Math.sin(t * 0.9)); RCc = lerp(R * 1.06, E * 1.7, eout(cK)) * (1 + 0.05 * Math.sin(t * 0.9));
         // the brace: the pet lowers into its stance while the storm gathers, then straightens
         if (t < FORM + 0.4 && !dead) { braced = true; me.hopSq = 0.16 * sm(t / 0.25) * (1 - sm((t - FORM) / 0.35)); if (t < FORM) me.face = cx >= me.x ? 1 : -1; } else if (braced) { me.hopSq = 0; braced = false; }
@@ -295,6 +300,7 @@
         if (te < 0.4) { { const q0 = P0(); if (!DBG.off['rings']) { rings(c, X, Y, T, t, A, -1); } P1('rings', q0); }; { const q0 = P0(); if (!DBG.off['eye']) { eyeLayer(c, X, Y, T, t, A, -1); } P1('eye', q0); }; }
         { const q0 = P0(); if (!DBG.off['column']) { column(c, X, Y, T, t, A); trunk(c, X, Y, T, t, A); } P1('column', q0); } { const q0 = P0(); if (!DBG.off['ribbons']) { ribbons(c, X, Y, T, t, A, -1); } P1('ribbons', q0); };
         { const q0 = P0(); if (!DBG.off['bud']) { bud(c, X, Y, T, t, A, -1); } P1('bud', q0); }; { const q0 = P0(); if (!DBG.off['parts']) { parts(c, X, Y, T, t, A, -1); } P1('parts', q0); }; { const q0 = P0(); if (!DBG.off['helix']) { helix(c, X, Y, T, t, A, -1); } P1('helix', q0); };
+        { const q0 = P0(); if (!DBG.off['core']) { core(c, X, Y, T, t, A, -1); } P1('core', q0); }
         if (te >= 0) { const q0 = P0(); if (!DBG.off['blast']) { blast(c, X, Y, T, te, A, -1); } P1('blast', q0); };
       },
       draw(c, f, X, Y, T) {
@@ -305,6 +311,7 @@
         { const q0 = P0(); if (!DBG.off['ribbons']) { ribbons(c, X, Y, T, t, A, 1); } P1('ribbons', q0); }; { const q0 = P0(); if (!DBG.off['pre']) { prestorm(c, X, Y, T, t, A); } P1('pre', q0); }; { const q0 = P0(); if (!DBG.off['bud']) { bud(c, X, Y, T, t, A, 1); } P1('bud', q0); }; { const q0 = P0(); if (!DBG.off['parts']) { parts(c, X, Y, T, t, A, 1); } P1('parts', q0); }; { const q0 = P0(); if (!DBG.off['helix']) { helix(c, X, Y, T, t, A, 1); } P1('helix', q0); };
         if (te >= 0) { const q0 = P0(); if (!DBG.off['blast']) { blast(c, X, Y, T, te, A, 1); } P1('blast', q0); };
         if (near) c.restore();
+        { const q0 = P0(); if (!DBG.off['core']) { core(c, X, Y, T, t, A, 1); } P1('core', q0); }
         { const q0 = P0(); if (!DBG.off['currents']) { currents(c, T, t, A); } P1('currents', q0); };
       } });
 
@@ -387,10 +394,34 @@
           c.translate(X, cy0); c.scale(1, GY * 0.9); c.rotate(t * 0.22 - (1 - gq) * 1.4); c.globalAlpha = Math.min(1, a); const k = rr / RS; c.drawImage(s, -RC * k, -RC * k, RW * k, RW * k); c.rotate(-t * 0.5 + 0.5); c.scale(0.62, 0.62); c.globalAlpha = Math.min(1, a * 0.8); c.drawImage(s, -RC * k, -RC * k, RW * k, RW * k); c.restore(); } }
     }
     /* the eye: a clear, faintly lit space; pressure rings tighten on every tick (Celestial: delicate rings at angles) */
+    /* the eye's glowing core: a luminous emerald heart at the anchor, breathing (~1.4 Hz) and swelling with every tick,
+       a smoothed flicker, thin filaments turning round it and sparks drawn into it. It grows from a seed as the storm
+       forms, contracts and intensifies through the build-up, and bursts with the finale (the flash's origin). The
+       bright centre is drawn behind the captives (side -1); over them (side +1) only a faint wide halo, so it never
+       hides them. A few blits from cached sprites. */
+    const CSP = H.n(CEL ? 12 : ADE ? 9 : 7);
+    function core(c, X, Y, T, t, A, side) {
+      const te = t - TE, grow = sm((t - FORM + 0.6) / 1.8), seed = sm((t - FORM + 1.0) / 0.4), burstK = te >= 0 ? 1 - sm(te / 0.28) : 1; if (seed <= 0.01 || burstK <= 0.01) return;
+      const hot = want('coreHot'), inn = want('coreIn'), halo = want('coreHalo'); if (!hot || !inn || !halo) return;
+      const lev = 1 + 0.06 * (ev - 1), breathe = 1 + 0.1 * Math.sin(t * TAU * 1.4), pul = 0.5 * pK * (ADE ? 1.25 : 1), cmp = 1 - 0.3 * cK, swell = te >= 0 ? 1 + 2.4 * eout(te / 0.28) : 1;
+      const S = E * T * 0.7 * lev * lerp(0.18, 1, grow) * breathe * (1 + 0.18 * pul) * cmp * swell, I = A * seed * burstK * flk * (0.8 + 0.2 * breathe) * (1 + 0.6 * cK + pul) * (CEL ? 1.12 : 1), EY = Y - ZE * T;
+      c.globalCompositeOperation = 'lighter';
+      // under the captives: the wide halo and the emerald glow
+      if (side < 0) { let r = S * 3.6; c.globalAlpha = Math.min(1, 0.85 * I); c.drawImage(halo, X - r, EY - r, r * 2, r * 2); r = S * 2.0; c.globalAlpha = Math.min(1, 0.8 * I); c.drawImage(inn, X - r, EY - r, r * 2, r * 2); c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1; return; }
+      // over the petals: the glow again, the filaments, the white-mint heart and the sparks; the solid parts ease off
+      // while captives hang in front of it so it never hides them
+      const cov = te < 0 ? Math.min(1, CAPS.length / 3) : 0;
+      let r = S * 1.9; c.globalAlpha = Math.min(1, 0.75 * I * (1 - 0.45 * cov)); c.drawImage(inn, X - r, EY - r, r * 2, r * 2);
+      const cs = want('current'); if (cs) for (let i = 0; i < (CEL ? 3 : 2); i++) { const fr = S * (1.45 + 0.3 * i); c.save(); c.translate(X, EY); c.rotate(0.5 * i - 0.25); c.scale(1, 0.55 + 0.2 * i); c.rotate(t * (2.4 + 0.9 * i) * (i % 2 ? -1 : 1)); c.globalAlpha = Math.min(1, 0.6 * I); c.drawImage(cs, -fr, -fr, fr * 2, fr * 2); c.restore(); }
+      r = S * (0.74 + 0.05 * Math.sin(t * 23)); c.globalAlpha = Math.min(1, I * (1 - 0.5 * cov)); c.drawImage(hot, X - r, EY - r, r * 2, r * 2); c.drawImage(hot, X - r * 0.45, EY - r * 0.45, r * 0.9, r * 0.9);   // (twice at the heart: a crisp white-mint point)
+      const gs = glowSprite(PALE); for (let i = 0; i < CSP; i++) { const u = (t * 0.9 + i / CSP + R1(i * 3.1) * 0.3) % 1, rr = S * (2.6 - 2.3 * eout(u)), b = i * 2.39996 + u * 4 + t * 0.6, x = X + Math.cos(b) * rr, y = EY + Math.sin(b) * rr * 0.7, sz = T * 0.07 * (0.6 + 0.6 * u);
+        c.globalAlpha = Math.min(1, I * Math.sin(Math.PI * u) * 0.9); c.drawImage(gs, x - sz, y - sz, sz * 2, sz * 2); }
+      c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1;
+    }
     function eyeLayer(c, X, Y, T, t, A, side) {
       const op = sm((t - FORM + 0.2) / 0.8), te = t - TE, fad = te > 0 ? 1 - sm(te / 0.2) : 1, a0 = op * A * fad; if (a0 <= 0.01) return; const EY = Y - ZE * T;
       c.globalCompositeOperation = 'lighter';
-      if (side < 0) { const gr = E * T * (1.8 + 0.3 * cK); c.globalAlpha = (0.22 + 0.25 * cK + 0.25 * pK) * a0; c.drawImage(glowSprite(MINT), X - gr, EY - gr * 0.8, gr * 2, gr * 1.6);
+      if (side < 0) { const gr = E * T * (1.8 + 0.3 * cK); c.globalAlpha = (0.1 + 0.12 * cK + 0.12 * pK) * a0; c.drawImage(glowSprite(MINT), X - gr, EY - gr * 0.8, gr * 2, gr * 1.6);
         if (cK > 0) { const cr = E * T * (1.2 - 0.3 * cK); c.globalAlpha = 0.5 * cK * a0 * (0.8 + 0.2 * Math.sin(t * 20)); c.drawImage(glowSprite(PALE), X - cr, EY - cr, cr * 2, cr * 2); } }
       const s = want('ripple'); if (!s) { c.globalCompositeOperation = 'source-over'; return; }
       const NRg = CEL ? 4 : ADE ? 2 : 1;
