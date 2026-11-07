@@ -103,7 +103,7 @@ const ELEM_MOVES = {
     ['ravenfold', 'Ravenfold', 'feather', 24, 2.6, 'Three ravens unfold from your shadow and dart at the target; the last leaves an open-wing trail.'],
     ['umbralhook', 'Umbral Hook', 'thorns', 26, 2.8, 'A crescent hook flies out on an ink tether, bites, and drags the monster to you.'],
     ['dracula', 'Dracula', 'feather', 28, 6, 'Your pet becomes a vampire bat and dives on the monsters, biting and siphoning their blood: each successful bite heals 6% of max HP. 2 dives, 3 at Adept, 4 at Celestial.'],
-    ['double', 'Midnight Double', 'twin', 26, 3, 'A shadow echo copies your pose; you strike forward, and the echo repeats it wider.'] ],
+    ['demonblade', 'Demon Blade', 'crescent', 28, 6, 'Your pet summons a cursed greatsword of darkness and unleashes a flowing combo; each connecting swing costs 2% of its HP: 3 swings, 5 at Adept, 7 at Celestial.'] ],
   ult: [
     ['hollowmoon', 'Dark Side of the Moon', 'nova', 90, 18, 'A great dark sphere forms over the aim ringed by a silver corona; pulses hammer the monsters beneath it, then it detonates and the world turns negative for a heartbeat.'],
     ['umbraheart', 'Umbra Heart', 'orb', 95, 20, 'A massive heart of glossy shadow hovers over the aim, dripping liquid darkness into a damaging pool, then ruptures: 7 s, 9 s at Adept, 12 s at Celestial.'],

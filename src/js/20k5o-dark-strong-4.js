@@ -339,9 +339,9 @@
     const bs = Math.max(0.9, Math.min(1.3, petHT()));
     const dpr = typeof devicePixelRatio === 'number' ? devicePixelRatio : 1, RES = Math.min(2, Math.max(1, dpr));
     // the pet's own colour, for the collar ruff and the inner ears
-    let acc = '#8C5BC8', PM = null; try { const X = H.X; PM = X.party ? X.party().find(m => m.ST === X.ST()) || null : null; const pal = PM && formOf(PM.p).pal; if (pal && /^#[0-9a-fA-F]{6}$/.test(pal.base)) acc = pal.base; } catch (e) { /* (keep the default) */ }
+    let acc = '#8C5BC8', PM = null; try { const X = H.X; PM = X.pet ? { p: X.pet() } : null; const pal = PM && PM.p && formOf(PM.p).pal; if (pal && /^#[0-9a-fA-F]{6}$/.test(pal.base)) acc = pal.base; } catch (e) { /* (keep the default) */ }
     setScale(H.X.Tz() * RES * bs); plan(acc); bakeStep(1.5);
-    const swapped = () => !!PM && PM.ST !== H.X.ST(), sfx = H.X.sfx, note = (...a) => sfx.note && sfx.note(...a), hiss = (...a) => sfx.hiss && sfx.hiss(...a);
+    const P0 = H.X.pet ? H.X.pet() : null, swapped = () => !!P0 && H.X.pet() !== P0,   /* (the pet on the field changed) */ sfx = H.X.sfx, note = (...a) => sfx.note && sfx.note(...a), hiss = (...a) => sfx.hiss && sfx.hiss(...a);
     H.X.banner('DRACULA', '', C.col, 1.2); hiss(0.5, 0.18, 500); note(180, 0.5, 'sine', 0.18, 90); me.castT = 0;
     const hold = { vx: 0, vy: 0, t: 0.12 };
     const valid = m => m && !m.dead && !m.under && !m.falling && !m.fobj;
