@@ -53,23 +53,27 @@
   const GY = 0.55;
   let H;
   /* (a debug profile by section, off unless U.pandemonium.__dbg.prof is set) */
-  const DBG = { prof: null }; const PR = (k, fn) => { if (!DBG.prof) return fn(); const t0 = performance.now(); fn(); DBG.prof[k] = (DBG.prof[k] || 0) + performance.now() - t0; };
+  const DBG = { prof: null, off: {} }, P0 = () => (DBG.prof ? performance.now() : 0), P1 = (k, t0) => { if (DBG.prof) DBG.prof[k] = (DBG.prof[k] || 0) + performance.now() - t0; };
 
   /* ---- the bake queue (as Monsoon's, 20k3c): size-free sprites painted a step at a time, never all at once ---- */
   const BK = { q: [], keys: new Set(), done: new Map(), ms: 0, built: 0, maxSlice: 0, job: null };
   const mk = (w, h) => { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; return cv; };
   function want(key) { const s = BK.done.get(key); if (s) return s; if (!BK.keys.has(key) && BAKE[key]) { BK.keys.add(key); BK.q.push(key); } return null; }
   function bakeStep(budget) { const t0 = performance.now(); while ((BK.job || BK.q.length) && performance.now() - t0 < budget) { const s = performance.now();
-      if (BK.job) { const j = BK.job; j.step(j.i++); if (j.i >= j.n) { BK.done.set(j.key, j.cv); BK.job = null; BK.built++; } }
-      else { const k = BK.q.shift(), r = BAKE[k](); if (r.step) { r.key = k; r.i = 0; BK.job = r; } else { BK.done.set(k, r); BK.built++; } }
+      if (BK.job) { const j = BK.job; j.step(j.i++); if (j.i >= j.n) { finish(j.key, j.cv); BK.job = null; } }
+      else { const k = BK.q.shift(), r = BAKE[k](); if (r.step) { r.key = k; r.i = 0; BK.job = r; } else finish(k, r); }
       const d = performance.now() - s; BK.ms += d; if (d > BK.maxSlice) BK.maxSlice = d; } }
+  /* a finished picture is handed to the GPU once as an ImageBitmap (a canvas source can be re-uploaded on every draw,
+     which made the big ring pictures the storm's main cost); the canvas serves until the bitmap is ready */
+  function finish(k, cv) { BK.done.set(k, cv); BK.built++; if (typeof createImageBitmap === 'function' && !DBG.noBitmap) createImageBitmap(cv).then(bm => { if (BK.done.get(k) === cv) BK.done.set(k, bm); }, () => {}); }
   function wantAll() { for (const k in BAKE) want(k); }
 
   /* a tapered arm: a centre path (u -> [x, y, nx, ny]) and a half width (u -> px), filled in nested passes from wide and
      faint to narrow and bright, so every edge and both ends are feathered; passes [colour, alpha, width, offset] */
-  function arm(g, path, hw, passes, N) {
+  function arm(g, path, hw, passes, N, h) {
     const P = []; for (let i = 0; i <= N; i++) { const u = i / N; P.push(path(u).concat(hw(u))); }
-    for (const [col, a, wm, off] of passes) { g.fillStyle = rgbaS(col, a); g.beginPath();
+    const q0 = h == null ? 0 : h ? passes.length >> 1 : 0, q1 = h == null ? passes.length : h ? passes.length : passes.length >> 1;
+    for (let q = q0; q < q1; q++) { const [col, a, wm, off] = passes[q]; g.fillStyle = rgbaS(col, a); g.beginPath();
       for (let i = 0; i <= N; i++) { const p = P[i], o = (off || 0) * p[4], k = p[4] * wm + o; const x = p[0] + p[2] * k, y = p[1] + p[3] * k; i ? g.lineTo(x, y) : g.moveTo(x, y); }
       for (let i = N; i >= 0; i--) { const p = P[i], o = (off || 0) * p[4], k = -p[4] * wm + o; g.lineTo(p[0] + p[2] * k, p[1] + p[3] * k); }
       g.closePath(); g.fill(); } }
@@ -88,7 +92,7 @@
   const ramp = (stops, u) => { u = cl(u); for (let i = 1; i < stops.length; i++) if (u <= stops[i][0]) { const [u0, c0] = stops[i - 1], [u1, c1] = stops[i], k = (u - u0) / (u1 - u0 || 1), a = hx(c0), b = hx(c1); return hexOf(a.map((v, j) => v + (b[j] - v) * k)); } return stops[stops.length - 1][1]; };
   const BLADE_COL = [[0, DEEP], [0.45, EMER], [0.8, MOSS], [1, MINT]];
   function bladeProfile(rim, peak, N) {
-    rim = Math.min(0.5, rim); N = N || 16; const xr = 1 - rim, L = []; let prev = 0;
+    rim = Math.min(0.5, rim); N = N || 12; const xr = 1 - rim, L = []; let prev = 0;
     const layer = (s, A, col) => { A = Math.min(0.985, A); if (A <= prev + 1e-4) return; const a = 1 - (1 - A) / (1 - prev); prev = A; L.push([col, +a.toFixed(4), (1 - s) / 2, (1 + s) / 2]); };
     for (let j = 0; j < N; j++) { const s0 = -1 + (xr + 1) * j / N, um = (j + 0.5) / N; layer(s0, peak * Math.pow(um, 1.15) * (0.75 + 0.25 * sm(um)), ramp(BLADE_COL, um)); }
     layer(xr - rim * 0.35, Math.min(0.93, peak + (0.93 - peak) * 0.45), MINT);   // a hair of anti-aliasing into the rim, not a blur
@@ -99,24 +103,23 @@
   /* rings of arms round a circle (radius RS in an RW sprite), leading clockwise on screen (the flow) */
   const RW = 384, RC = RW / 2, RS = 160;
   function ringBake(o) { const cv = mk(RW, RW), g = cv.getContext('2d');
-    return { cv, n: o.n, step(a) { const a0 = a / o.n * TAU + (o.jit ? (R1(a * 3.7 + o.seed) - 0.5) * o.jit : 0), span = o.span * (o.spanJ ? 1 - o.spanJ * R1(a * 5.1 + o.seed) : 1), rr = RS * (o.rj ? 1 + (R1(a * 2.3 + o.seed) - 0.5) * o.rj : 1), wv = o.wave || 0;
-      arm(g, u => { const b = a0 + u * span, r = rr + Math.sin(u * Math.PI * 2 + a) * wv; return [RC + Math.cos(b) * r, RC + Math.sin(b) * r, Math.cos(b), Math.sin(b)]; }, u => o.hw * env(u) * (o.hwJ ? 1 - o.hwJ * R1(a + o.seed) : 1), o.passes, 64); } }; }
+    return { cv, n: o.n * 2, step(i) { const a = i >> 1, h = i & 1, a0 = a / o.n * TAU + (o.jit ? (R1(a * 3.7 + o.seed) - 0.5) * o.jit : 0), span = o.span * (o.spanJ ? 1 - o.spanJ * R1(a * 5.1 + o.seed) : 1), rr = RS * (o.rj ? 1 + (R1(a * 2.3 + o.seed) - 0.5) * o.rj : 1), wv = o.wave || 0;
+      arm(g, u => { const b = a0 + u * span, r = rr + Math.sin(u * Math.PI * 2 + a) * wv; return [RC + Math.cos(b) * r, RC + Math.sin(b) * r, Math.cos(b), Math.sin(b)]; }, u => o.hw * env(u) * (o.hwJ ? 1 - o.hwJ * R1(a + o.seed) : 1), o.passes, Math.round(28 + 22 * o.span), h); } }; }
   /* the canopy's crown: six wind petals curling outward from the centre like an opening flower */
   function corollaBake() { const cv = mk(RW, RW), g = cv.getContext('2d'), n = 6;
-    return { cv, n, step(i) { const a0 = i / n * TAU + 0.2 * R1(i * 2.1), at = u => { const b = a0 + u * 0.9 + 0.55 * u * u, r = RS * (0.3 + 0.82 * u); return [RC + Math.cos(b) * r, RC + Math.sin(b) * r]; };
-      arm(g, awayFrom(u => normd(at, u), RC, RC), u => 30 * Math.pow(Math.sin(Math.PI * Math.pow(u, 0.8)), 0.85) * (1 - 0.25 * u), COROLLA, 48); } }; }
+    return { cv, n: n * 2, step(j) { const i = j >> 1, a0 = i / n * TAU + 0.2 * R1(i * 2.1), at = u => { const b = a0 + u * 0.9 + 0.55 * u * u, r = RS * (0.3 + 0.82 * u); return [RC + Math.cos(b) * r, RC + Math.sin(b) * r]; };
+      arm(g, awayFrom(u => normd(at, u), RC, RC), u => 30 * Math.pow(Math.sin(Math.PI * Math.pow(u, 0.8)), 0.85) * (1 - 0.25 * u), COROLLA, 48, j & 1); } }; }
   /* a floor swirl seen from above: arms spiralling from the rim to the core, carried inward when turned with the flow */
   const SW = 384, SC = SW / 2;
   function swirlBake(o) { const cv = mk(SW, SW), g = cv.getContext('2d');
-    return { cv, n: o.n, step(a) { const a0 = a / o.n * TAU + (R1(a * 1.9 + o.seed) - 0.5) * 0.4, k = o.k * (0.85 + 0.3 * R1(a * 4.4 + o.seed)), r0 = SC * o.r0 * (0.92 + 0.08 * R1(a + o.seed)), r1 = SC * o.r1;
+    return { cv, n: o.n * 2, step(i) { const a = i >> 1, a0 = a / o.n * TAU + (R1(a * 1.9 + o.seed) - 0.5) * 0.4, k = o.k * (0.85 + 0.3 * R1(a * 4.4 + o.seed)), r0 = SC * o.r0 * (0.92 + 0.08 * R1(a + o.seed)), r1 = SC * o.r1;
       const at = u => { const r = lerp(r0, r1, u), b = a0 - k * u; return [SC + Math.cos(b) * r, SC + Math.sin(b) * r]; };
-      arm(g, awayFrom(u => normd(at, u), SC, SC), u => lerp(o.w0, o.w1, u) * sm(u / o.fin) * sm((1 - u) / o.fout), o.passes, 64); } }; }
+      arm(g, awayFrom(u => normd(at, u), SC, SC), u => lerp(o.w0, o.w1, u) * sm(u / o.fin) * sm((1 - u) / o.fout), o.passes, 44, i & 1); } }; }
   /* a comet (a streak of air) along one of 16 directions, in an atlas of 48 px cells */
   const CN = 16, CS = 48;
   function cometBake() { const cv = mk(CS * CN, CS), g = cv.getContext('2d');
-    for (let i = 0; i < CN; i++) { const b = i / CN * TAU, cx = CS * i + CS / 2, cy = CS / 2, L = 42, dx = Math.cos(b), dy = Math.sin(b);
-      arm(g, u => [cx + dx * (u - 0.5) * L, cy + dy * (u - 0.5) * L, -dy, dx], u => 3.2 * env(u), [[MINT, 0.22, 1], [PALE, 0.5, 0.55], [WHITE, 0.85, 0.2]], 20); }
-    return cv; }
+    return { cv, n: CN, step(i) { const b = i / CN * TAU, cx = CS * i + CS / 2, cy = CS / 2, L = 42, dx = Math.cos(b), dy = Math.sin(b);
+      arm(g, u => [cx + dx * (u - 0.5) * L, cy + dy * (u - 0.5) * L, -dy, dx], u => 3.2 * env(u), [[MINT, 0.22, 1], [PALE, 0.5, 0.55], [WHITE, 0.85, 0.2]], 20); } }; }
   /* petal atlases: 12 turns of one shaded shape in 40 px cells */
   const PN = 12, PS = 40;
   function petalBake(kind) { const cv = mk(PS * PN, PS), g = cv.getContext('2d');
@@ -135,7 +138,7 @@
   const QN = 4, QS = 72;
   function cloudBake() { const cv = mk(QS * QN, QS), g = cv.getContext('2d'), tones = [ROSE, '#F38DBE', PINK, '#FFD3E6', '#FFF0F6'];
     return { cv, n: QN, step(v) { const ox = QS * v + QS / 2, oy = QS / 2;
-      for (let i = 0; i < 18; i++) { const a = R1(v * 31 + i * 1.7) * TAU, rr = 26 * Math.sqrt(R1(v * 17 + i * 2.9)), x = ox + Math.cos(a) * rr, y = oy + Math.sin(a) * rr * 0.8, s = 1.6 + 2.2 * R1(v * 7 + i * 5.3), rot = R1(i * 9.1 + v) * TAU;
+      for (let i = 0; i < 30; i++) { const a = R1(v * 31 + i * 1.7) * TAU, rr = 27 * Math.sqrt(R1(v * 17 + i * 2.9)), x = ox + Math.cos(a) * rr, y = oy + Math.sin(a) * rr * 0.8, s = 1.6 + 2.2 * R1(v * 7 + i * 5.3), rot = R1(i * 9.1 + v) * TAU;
         g.save(); g.translate(x, y); g.rotate(rot); g.fillStyle = tones[(i + v) % tones.length]; g.beginPath(); g.ellipse(0, 0, s * 1.5, s * 0.75, 0, 0, TAU); g.fill(); g.fillStyle = 'rgba(255,255,255,0.6)'; g.beginPath(); g.ellipse(-s * 0.3, -s * 0.2, s * 0.6, s * 0.25, 0, 0, TAU); g.fill(); g.restore(); }
       for (let i = 0; i < 3; i++) { const a = R1(v * 13 + i * 4.1) * TAU, rr = 18 * Math.sqrt(R1(v * 5 + i * 8.3)), x = ox + Math.cos(a) * rr, y = oy + Math.sin(a) * rr * 0.8;
         g.fillStyle = '#F79AC6'; for (let p = 0; p < 5; p++) { const b = p / 5 * TAU; g.beginPath(); g.arc(x + Math.cos(b) * 2.6, y + Math.sin(b) * 2.6, 2.2, 0, TAU); g.fill(); } g.fillStyle = '#FFF4C9'; g.beginPath(); g.arc(x, y, 1.4, 0, TAU); g.fill(); }
@@ -210,7 +213,7 @@
     RINGS.forEach((q, i) => { q.ph = R1(i * 7.3) * TAU; q.rot = q.ph; q.zb = q.L === 'can' ? canZ(q.u) + (q.dz || 0) : q.z; q.d = q.L === 'can' ? 0.35 + q.u * 0.75 : q.L === 'eye' ? 0.3 : q.z / ZE * 0.25; });
     RINGS.sort((p, q) => p.zb - q.zb);
     /* --- the petals: kinds, flow modes (0 drift, 1 intake, 2 climb, 3 canopy, 4 outer ribbon, 5 escape, 6 drawn to the core, 7 burst) --- */
-    const NPF = H.n(CEL ? 300 : ADE ? 230 : 170), NCL = H.n(CEL ? 84 : ADE ? 64 : 46), pts = [];
+    const NPF = H.n(CEL ? 110 : ADE ? 95 : 80), NCL = H.n(CEL ? 56 : ADE ? 46 : 36), pts = [];
     const KINDS = ['petal', 'petal', 'blossom', 'petal', 'pale', 'leaf', 'dust', 'petal', 'blossom', 'leaf', 'petal', 'dust', 'pale', 'petal'];
     function respawn(p, first) { p.r = R * (first ? 0.25 + 0.9 * Math.sqrt(Math.random()) : 0.95 + 0.15 * Math.random()); p.th = Math.random() * TAU; p.z = 0.05 + Math.random() * 0.15; p.m = first ? 0 : 1; p.e = 0; p.s0 = 0; p.gone = false; p.al = first ? 0 : -0.3; if (first && Math.random() > 0.3) { p.m = 1; p.r = R * (1.0 + 0.2 * Math.random()); p.al = -0.6 - Math.random() * 2.2; } }
     for (let i = 0; i < NPF + NCL; i++) { const p = { k: i < NPF ? KINDS[i % KINDS.length] : 'cloud', v: i % QN, rot: Math.random() * TAU, vr: (Math.random() - 0.5) * 7, tf: 2 + Math.random() * 4, ph: Math.random() * TAU, s: 0.75 + Math.random() * 0.5, vz: 1.2 + Math.random() * 0.9, off: (Math.random() - 0.5) * 0.7, zo: (Math.random() - 0.5) * 0.8, rec: Math.random() < 0.55, px: null, py: null }; respawn(p, true); pts.push(p); }
@@ -222,7 +225,7 @@
     if (CEL) for (let i = 0; i < 6; i++) BP.push({ phi: (i + 0.5) / 6 * TAU, thf: 1.18, lf: LMAX * 0.62, inner: true });
     const NSTR = CEL ? 12 : ADE ? 10 : 8, RSW = R * (CEL ? 1.9 : ADE ? 1.7 : 1.5);
     /* --- the monsters affected: record per monster (captured ones carry a slot, a lift and a release) --- */
-    const rec = new Map(); let order = 0, next = 0, dead = false, fin = false, lastTick = -9, endK = 1, braced = false, lastWh = 0;
+    const rec = new Map(); const CAPS = []; let order = 0, next = 0, scanT = 0, dead = false, fin = false, lastTick = -9, endK = 1, braced = false, lastWh = 0;
     H.X.banner('PANDEMONIUM', '', C.col, 1.4); H.X.sfx.hum();
     H.X.after(0.6, () => { if (!dead) H.X.sfx.whoosh(); });
     H.X.after(FORM, () => { if (dead) return; H.X.shake(4, 0.3); H.X.light(cx, cy, R * 0.8, 0.5); H.X.sfx.whoosh(); });
@@ -252,30 +255,30 @@
         const live = t >= FORM && t < TE && !dead;
         if (live) {
           // whoever is in the footprint is affected (and, unless a boss or fixed, captured)
-          for (const m of H.living()) if (!rec.has(m) && inField(m, 1.06)) capture(m);
+          if (t >= scanT) { scanT = t + 0.1; for (const m of H.living()) if (!rec.has(m) && inField(m, 1.06)) capture(m); }   // (a look for newcomers ten times a second)
           // the ticks on the game clock: NT of them, every one strictly inside the window, a pressure pulse with each
           while (next < NT && t >= FORM + TICK * (next + 0.5)) { const n0 = next++; lastTick = t; let hit = 0;
             for (const q of rec.values()) { const m = q.m; if (m.dead || q.out) continue; H.X.hitMon(m, PER, C.dmgO({ pandem: true })); hit++; if (Math.random() < 0.4 * H.Q()) H.P({ kind: 'spark', x: m.x, y: m.y - 0.3 - (m.liftZ || 0), vx: (Math.random() - 0.5) * 3, vy: -1.5, life: 0.35, max: 0.35, size: 2, color: PALE }); }
             if (hit && n0 % 4 === 3 && t - lastWh > 1.8) { lastWh = t; H.X.sfx.whoosh(); } }
           // the gathering: an inward spiral into one small turning cluster, lifted on the way in
-          const caps = []; for (const q of rec.values()) { if (q.cap && (q.m.boss || q.m.still)) { q.cap = false; letGoFree(q, t); } if (q.cap && !q.m.dead && !q.rel) caps.push(q); } caps.sort((a, b) => a.k - b.k);
+          CAPS.length = 0; for (const q of rec.values()) { if (q.cap && (q.m.boss || q.m.still)) { q.cap = false; letGoFree(q, t); } if (q.cap && !q.m.dead && !q.rel) CAPS.push(q); }   // (in capture order: the map keeps it)
           const ramp = sm((t - FORM) / 0.7), spin = t * 0.35, SP = 0.5 * (1 - 0.18 * cK);
-          caps.forEach((q, i) => { const m = q.m; q.age += dt; const sa = i * 2.39996 + spin, sr = i ? SP * Math.sqrt(i + 0.3) : 0.12, tx = cx + Math.cos(sa) * sr, ty = cy + Math.sin(sa) * sr * 0.8;
+          for (let i = 0; i < CAPS.length; i++) { const q = CAPS[i], m = q.m; q.age += dt; const sa = i * 2.39996 + spin, sr = i ? SP * Math.sqrt(i + 0.3) : 0.12, tx = cx + Math.cos(sa) * sr, ty = cy + Math.sin(sa) * sr * 0.8;
             const dx = tx - m.x, dy = ty - m.y, d = Math.hypot(dx, dy);
             if (d > 0.02) { const v = Math.min(VMAX, 0.45 + 2.2 * d) * ramp, s = Math.min(d, v * dt), ux = dx / d, uy = dy / d, tw = 0.5 * sm((d - 0.8) / 2); H.X.moveEnt(m, (ux + uy * tw) * s, (uy - ux * tw) * s, 0); }
             const dA = Math.hypot(m.x - cx, m.y - cy), lzT = (ZE - 0.35 * sK + ((i % 3) - 1) * 0.16 + 0.15 * cK) * sm(1.12 - (dA - 0.5) / (R * 0.85)) * sm(q.age / 0.45);
-            q.lz += (lzT - q.lz) * Math.min(1, dt * 2.6); m.liftZ = q.lz + 0.07 * Math.sin(t * 2.2 + q.ph) * sm(q.lz / ZE); });
+            q.lz += (lzT - q.lz) * Math.min(1, dt * 2.6); m.liftZ = q.lz + 0.07 * Math.sin(t * 2.2 + q.ph) * sm(q.lz / ZE); }
           for (const q of rec.values()) { const m = q.m; if (m.dead) continue; if (!q.cap && !inField(m, 1.12)) { q.out = true; continue; } q.out = false; m.pandemUntil = g.t + 0.25; }
         }
         // the finale: one authoritative hit on every captive (before letting go) and on everything in the footprint
-        if (!fin && !dead && t >= TE) { fin = true; let n = 0;
+        if (!fin && !dead && t >= TE) { fin = true; let n = 0; const qh = P0();
           for (const q of rec.values()) { const m = q.m; if (m.dead) continue; m.pandemUntil = 0; if (q.out && !inField(m, 1.15)) continue; H.X.hitMon(m, FIN, C.dmgO({ pandem: true })); n++; }
           for (const m of H.living()) if (!rec.has(m) && inField(m, 1.15)) { H.X.hitMon(m, FIN, C.dmgO({ pandem: true })); n++; }
-          for (const q of rec.values()) letGo(q, t, 6.5);
-          burst(); H.X.shake(CEL ? 16 : ADE ? 13 : 11, 0.5); H.X.flash(0.28, PALE); if (H.X.hitstop) H.X.hitstop(0.06); H.X.light(cx, cy, R * 1.6, 1); H.X.sfx.crash(); H.X.after(0.08, () => H.X.sfx.whoosh());
+          for (const q of rec.values()) letGo(q, t, 6.5); P1('finHits', qh); const qb = P0();
+          burst(); P1('finBurst', qb); H.X.shake(CEL ? 16 : ADE ? 13 : 11, 0.5); H.X.flash(0.28, PALE); if (H.X.hitstop) H.X.hitstop(0.06); H.X.light(cx, cy, R * 1.6, 1); H.X.sfx.crash(); H.X.after(0.08, () => H.X.sfx.whoosh());
           H.burst(cx, cy - ZE * 0.5, 'spark', CEL ? 18 : 12, { v: 7, life: 0.5, size: 2, color: [MINT, PINK, MINT], drag: 2 }); }
         // released captives drop to the floor (a landing squash), then their height is gone
-        for (const [m, q] of rec) { if (m.dead) { if (m.liftZ != null) delete m.liftZ; continue; }
+        for (const q of rec.values()) { const m = q.m; if (m.dead) { if (m.liftZ != null) delete m.liftZ; continue; }
           if (q.rel) { const u = cl((t - q.rel.t0) / 0.42); q.lz = q.rel.z0 * (1 - u * u); if (u >= 1) { if (m.liftZ != null) { delete m.liftZ; if (q.cap && q.rel.z0 > 0.3) { m.hitSq = 1; H.glowAt(m.x, m.y, m.r * 1.4, 0.35, MINT, 0.6); } } } else m.liftZ = q.lz; }
           // the currents' strength and an amplified hit's flare
           const on = !q.out && (t < TE && !dead) && t >= FORM; q.a = cl(q.a + (on ? dt / 0.35 : -dt / 0.3));
@@ -283,33 +286,33 @@
         // the rings turn (the outer slowly, the inner fast), faster as the storm compresses
         const sp = sm((t - 0.8) / 1.0) * (1 + 1.6 * cK) * (1 - 0.3 * hK);
         for (const q of RINGS) q.rot += q.w * dt * sp * (q.L === 'can' ? 1 + 0.8 * cK : 1);
-        flow(dt, t); if (DBG.prof) DBG.prof.update = (DBG.prof.update || 0) + performance.now() - t0p;
+        const tf0 = DBG.prof ? performance.now() : 0; flow(dt, t); if (DBG.prof) DBG.prof.flow = (DBG.prof.flow || 0) + performance.now() - tf0; if (DBG.prof) DBG.prof.update = (DBG.prof.update || 0) + performance.now() - t0p;
       },
       onEnd() { clearAll(); },
       drawUnder(c, f, X, Y, T) {
         const t = f.t, te = t - TE, A = sm(t / 0.3) * endK; if (A <= 0.01) return;
-        PR('floor', () => floor(c, X, Y, T, t, te, A));
-        if (te < 0.4) { PR('rings', () => rings(c, X, Y, T, t, A, -1)); PR('eye', () => eyeLayer(c, X, Y, T, t, A, -1)); }
-        PR('column', () => { column(c, X, Y, T, t, A); trunk(c, X, Y, T, t, A); }); PR('ribbons', () => ribbons(c, X, Y, T, t, A, -1));
-        PR('bud', () => bud(c, X, Y, T, t, A, -1)); PR('parts', () => parts(c, X, Y, T, t, A, -1)); PR('helix', () => helix(c, X, Y, T, t, A, -1));
-        if (te >= 0) PR('blast', () => blast(c, X, Y, T, te, A, -1));
+        { const q0 = P0(); if (!DBG.off['floor']) { floor(c, X, Y, T, t, te, A); } P1('floor', q0); };
+        if (te < 0.4) { { const q0 = P0(); if (!DBG.off['rings']) { rings(c, X, Y, T, t, A, -1); } P1('rings', q0); }; { const q0 = P0(); if (!DBG.off['eye']) { eyeLayer(c, X, Y, T, t, A, -1); } P1('eye', q0); }; }
+        { const q0 = P0(); if (!DBG.off['column']) { column(c, X, Y, T, t, A); trunk(c, X, Y, T, t, A); } P1('column', q0); } { const q0 = P0(); if (!DBG.off['ribbons']) { ribbons(c, X, Y, T, t, A, -1); } P1('ribbons', q0); };
+        { const q0 = P0(); if (!DBG.off['bud']) { bud(c, X, Y, T, t, A, -1); } P1('bud', q0); }; { const q0 = P0(); if (!DBG.off['parts']) { parts(c, X, Y, T, t, A, -1); } P1('parts', q0); }; { const q0 = P0(); if (!DBG.off['helix']) { helix(c, X, Y, T, t, A, -1); } P1('helix', q0); };
+        if (te >= 0) { const q0 = P0(); if (!DBG.off['blast']) { blast(c, X, Y, T, te, A, -1); } P1('blast', q0); };
       },
       draw(c, f, X, Y, T) {
         const t = f.t, te = t - TE, A = sm(t / 0.3) * endK; if (A <= 0.01) return;
         const PX = H.sx(me.x), PY = H.sy(me.y) - T * 0.46, rx = R * T * 1.3, near = Math.abs(PX - X) < rx + T && PY > Y - ZC * T - T && PY < Y + rx * GY + T * 1.2;
         if (near) { c.save(); c.beginPath(); c.rect(-1e5, -1e5, 2e5, 2e5); c.ellipse(PX, PY, T * 0.62, T * 0.74, 0, 0, TAU); c.clip('evenodd'); }
-        if (te < 0.4) { PR('rings', () => rings(c, X, Y, T, t, A, 1)); PR('eye', () => eyeLayer(c, X, Y, T, t, A, 1)); }
-        PR('ribbons', () => ribbons(c, X, Y, T, t, A, 1)); PR('pre', () => prestorm(c, X, Y, T, t, A)); PR('bud', () => bud(c, X, Y, T, t, A, 1)); PR('parts', () => parts(c, X, Y, T, t, A, 1)); PR('helix', () => helix(c, X, Y, T, t, A, 1));
-        if (te >= 0) PR('blast', () => blast(c, X, Y, T, te, A, 1));
+        if (te < 0.4) { { const q0 = P0(); if (!DBG.off['rings']) { rings(c, X, Y, T, t, A, 1); } P1('rings', q0); }; { const q0 = P0(); if (!DBG.off['eye']) { eyeLayer(c, X, Y, T, t, A, 1); } P1('eye', q0); }; }
+        { const q0 = P0(); if (!DBG.off['ribbons']) { ribbons(c, X, Y, T, t, A, 1); } P1('ribbons', q0); }; { const q0 = P0(); if (!DBG.off['pre']) { prestorm(c, X, Y, T, t, A); } P1('pre', q0); }; { const q0 = P0(); if (!DBG.off['bud']) { bud(c, X, Y, T, t, A, 1); } P1('bud', q0); }; { const q0 = P0(); if (!DBG.off['parts']) { parts(c, X, Y, T, t, A, 1); } P1('parts', q0); }; { const q0 = P0(); if (!DBG.off['helix']) { helix(c, X, Y, T, t, A, 1); } P1('helix', q0); };
+        if (te >= 0) { const q0 = P0(); if (!DBG.off['blast']) { blast(c, X, Y, T, te, A, 1); } P1('blast', q0); };
         if (near) c.restore();
-        PR('currents', () => currents(c, T, t, A));
+        { const q0 = P0(); if (!DBG.off['currents']) { currents(c, T, t, A); } P1('currents', q0); };
       } });
 
     /* ---------- the petal flow ---------- */
     function flow(dt, t) {
       const mv = sm((t - 0.45) / 0.5), te = t - TE, fr = 1 - 0.85 * hK, col = t > FORM - 0.5;
-      for (const q of glit) { const dr = Math.exp(-2.6 * dt); q.vx *= dr; q.vy *= dr; q.vz = q.vz * dr - 0.8 * dt; q.x += q.vx * dt; q.y += q.vy * dt; q.z = Math.max(0.05, q.z + q.vz * dt); }
-      for (const q of crest) q.rot += q.vr * dt * (1 - sm(te / 2));
+      if (fin) for (const q of glit) { const dr = Math.exp(-2.6 * dt); q.vx *= dr; q.vy *= dr; q.vz = q.vz * dr - 0.8 * dt; q.x += q.vx * dt; q.y += q.vy * dt; q.z = Math.max(0.05, q.z + q.vz * dt); }
+      if (fin) for (const q of crest) q.rot += q.vr * dt * (1 - sm(te / 2));
       for (const p of pts) { p.rot += p.vr * dt * (p.m === 5 ? 0.4 : 1);
         if (p.m === 7) { const dr = Math.exp(-2.4 * dt); p.vx *= dr; p.vy *= dr; p.vz = p.vz * dr - (te > 0.5 ? 1.1 : 0.3) * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; if (p.z < 0.03) { p.z = 0.03; p.vz = 0; p.vx *= 0.9; p.vy *= 0.9; } p.e += dt; continue; }
         if (p.al < 1) p.al = Math.min(1, p.al + dt / 0.4);
@@ -333,12 +336,14 @@
       for (const p of pts) { if (p.gone) continue; let wx, wy, wz; if (p.m === 7) continue; wx = Math.cos(p.th) * p.r; wy = Math.sin(p.th) * p.r; wz = p.z;
         let dx = wx, dy = wy, dz = wz - ZE, d = Math.hypot(dx, dy, dz); if (d < 0.1) { const a = Math.random() * TAU, b = (Math.random() - 0.3) * 1.2; dx = Math.cos(a) * Math.cos(b); dy = Math.sin(a) * Math.cos(b); dz = Math.sin(b); d = 1; }
         const v = (4.5 + 5 * Math.random()) * sK * (CEL ? 1.25 : ADE ? 1.12 : 1); p.m = 7; p.x = wx; p.y = wy; p.vx = dx / d * v; p.vy = dy / d * v; p.vz = dz / d * v * 0.7 + 1.2; p.e = 0; }
-      const nc = H.n(CEL ? 170 : ADE ? 130 : 96), ck = ['petal', 'blossom', 'leaf', 'petal', 'pale', 'cloud', 'petal', 'glit', 'blossom', 'glit'];
-      for (let i = 0; i < nc; i++) crest.push({ a: i / nc * TAU + Math.random() * 0.08, rr: 0.86 + 0.2 * Math.random(), k: ck[i % ck.length], v: i % QN, s: 0.7 + 0.6 * Math.random(), rot: Math.random() * TAU, vr: (Math.random() - 0.5) * 9, zh: 0.25 + 0.75 * Math.random(), ph: Math.random() * TAU, tf: 2 + Math.random() * 3 });
-      for (let i = 0; i < H.n(CEL ? 60 : 40); i++) { const a = Math.random() * TAU, b = (Math.random() - 0.2) * 1.4, v = (3 + 6 * Math.random()) * sK; glit.push({ x: 0, y: 0, z: ZE, vx: Math.cos(a) * Math.cos(b) * v, vy: Math.sin(a) * Math.cos(b) * v, vz: Math.sin(b) * v, s: 0.5 + Math.random() * 0.7 }); }
     }
+    /* the crest and the glitter are made with the cast and wait for the burst (nothing allocated on the burst's frame) */
+    { const nc = H.n(CEL ? 110 : ADE ? 90 : 70), ck = ['petal', 'blossom', 'cloud', 'leaf', 'petal', 'glit', 'cloud', 'pale', 'blossom', 'glit'];
+      for (let i = 0; i < nc; i++) crest.push({ a: i / nc * TAU + Math.random() * 0.08, rr: 0.86 + 0.2 * Math.random(), k: ck[i % ck.length], v: i % QN, s: 0.7 + 0.6 * Math.random(), rot: Math.random() * TAU, vr: (Math.random() - 0.5) * 9, zh: 0.25 + 0.75 * Math.random(), ph: Math.random() * TAU, tf: 2 + Math.random() * 3 });
+      for (let i = 0; i < H.n(CEL ? 60 : 40); i++) { const a = Math.random() * TAU, b = (Math.random() - 0.2) * 1.4, v = (3 + 6 * Math.random()) * sK; glit.push({ x: 0, y: 0, z: ZE, vx: Math.cos(a) * Math.cos(b) * v, vy: Math.sin(a) * Math.cos(b) * v, vz: Math.sin(b) * v, s: 0.5 + Math.random() * 0.7 }); } }
 
     /* ---------- drawing ---------- */
+    const ATL = { petal: null, blossom: null, leaf: null, pale: null };   // (this frame's petal atlases, looked up once)
     const atlasBlit = (c, at, i, x, y, sz, fy) => c.drawImage(at, i * PS, 0, PS, PS, x - sz / 2, y - sz * fy / 2, sz, sz * fy);
     const cometAt = (c, cm, ang, x, y, L) => { const ci = ((Math.round(ang / TAU * CN) % CN) + CN) % CN; c.drawImage(cm, ci * CS, 0, CS, CS, x - L / 2, y - L / 2, L, L); };
     function floorSpin(c, s, X, Y, r, ang, a) { if (r < 2 || a <= 0.01) return; c.save(); c.translate(X, Y); c.scale(1, GY); c.rotate(ang); c.globalAlpha = Math.min(1, a); c.drawImage(s, -r, -r, r * 2, r * 2); c.restore(); }
@@ -418,33 +423,36 @@
       c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1;
     }
     /* a feathered ribbon from screen points (x, y) with a width envelope: three nested untextured fills */
-    function ribbonFill(c, P, wf, passes, ox, oy) {
-      const n = P.length; if (n < 3) return; const nx = [], ny = [];
-      for (let i = 0; i < n; i++) { const a = P[Math.max(0, i - 1)], b = P[Math.min(n - 1, i + 1)], dx = b[0] - a[0], dy = b[1] - a[1], d = Math.hypot(dx, dy) || 1; let ax = -dy / d, ay = dx / d; if (ox != null && (P[i][0] - ox) * ax + (P[i][1] - oy) * ay * 2 < 0) { ax = -ax; ay = -ay; } nx.push(ax); ny.push(ay); }
-      for (const [col, al, k, off] of passes) { c.fillStyle = col; c.globalAlpha = al; c.beginPath();
-        for (let i = 0; i < n; i++) { const w = wf(i / (n - 1)), o = (off || 0) * w; const x = P[i][0] + nx[i] * (w * k + o), y = P[i][1] + ny[i] * (w * k + o); i ? c.lineTo(x, y) : c.moveTo(x, y); }
-        for (let i = n - 1; i >= 0; i--) { const w = wf(i / (n - 1)), o = (off || 0) * w; c.lineTo(P[i][0] - nx[i] * (w * k - o), P[i][1] - ny[i] * (w * k - o)); }
+    /* a ribbon from screen points in reused buffers (RBX, RBY; n of them) and half widths (RBW), its baked blade
+       profile's layers as untextured fills, the rim turned away from (ox, oy) point by point. No allocation. */
+    const RBX = new Float32Array(24), RBY = new Float32Array(24), RBW = new Float32Array(24), RNX = new Float32Array(24), RNY = new Float32Array(24);
+    function ribbonFill(c, n, passes, ox, oy) {
+      for (let i = 0; i < n; i++) { const a = Math.max(0, i - 1), b = Math.min(n - 1, i + 1), dx = RBX[b] - RBX[a], dy = RBY[b] - RBY[a], d = Math.hypot(dx, dy) || 1; let ax = -dy / d, ay = dx / d; if ((RBX[i] - ox) * ax + (RBY[i] - oy) * ay * 2 < 0) { ax = -ax; ay = -ay; } RNX[i] = ax; RNY[i] = ay; }
+      for (let q = 0; q < passes.length; q++) { const ps = passes[q], k = ps[2], off = ps[3] || 0; c.fillStyle = ps[0]; c.globalAlpha = ps[1]; c.beginPath();
+        for (let i = 0; i < n; i++) { const w = RBW[i], e = w * k + off * w; i ? c.lineTo(RBX[i] + RNX[i] * e, RBY[i] + RNY[i] * e) : c.moveTo(RBX[i] + RNX[i] * e, RBY[i] + RNY[i] * e); }
+        for (let i = n - 1; i >= 0; i--) { const w = RBW[i], e = w * k - off * w; c.lineTo(RBX[i] - RNX[i] * e, RBY[i] - RNY[i] * e); }
         c.closePath(); c.fill(); } c.globalAlpha = 1; }
-    const RIBP = ribPasses(bladeProfile(0.2, 0.5, 9));
+    const RIBP = ribPasses(bladeProfile(0.2, 0.5, 5));
     /* the broad ribbons: before the storm they coil round the pet and unfurl to the centre; in the storm, long outer
        ribbons curl round the mass and are drawn back into the intake */
     function ribbons(c, X, Y, T, t, A, side) {
-      const PX = H.sx(me.x), PY = H.sy(me.y), NRB = ADE ? 3 : 2;
+      const PX = H.sx(me.x), PY = H.sy(me.y), NRB = ADE ? 3 : 2, NK = 18;
       if (t < FORM + 0.8) for (let i = 0; i < NRB; i++) { const hd = 2.1 * eout((t - 0.12 - 0.12 * i) / 1.25), tl = hd - 0.85, a0 = i / NRB * TAU + 0.4, al = A * sm(t / 0.3) * (1 - sm((t - FORM - 0.1) / 0.6)); if (hd <= 0.02 || al <= 0.01) continue;
-        const ex = PX + Math.cos(a0 + TAU * 1.1) * 0.75 * T, ey = PY + Math.sin(a0 + TAU * 1.1) * 0.75 * T * GY - 0.85 * T, Pp = [];
-        let mid = 0; for (let k = 0; k <= 26; k++) { const s = Math.max(0, tl) + (hd - Math.max(0, tl)) * k / 26; let x, y;
+        const t0 = Math.max(0, tl), mid = t0 + (hd - t0) * 0.5, front = mid < 1 ? Math.sin(a0 + mid * TAU * 1.1) > 0 : true; if ((side > 0) !== front) continue;
+        const ex = PX + Math.cos(a0 + TAU * 1.1) * 0.75 * T, ey = PY + Math.sin(a0 + TAU * 1.1) * 0.75 * T * GY - 0.85 * T;
+        for (let k = 0; k <= NK; k++) { const s = t0 + (hd - t0) * k / NK, v = k / NK; let x, y;
           if (s < 1) { const b = a0 + s * TAU * 1.1; x = PX + Math.cos(b) * 0.75 * T; y = PY + Math.sin(b) * 0.75 * T * GY - (0.25 + 0.6 * s) * T; }
-          else { const u = Math.min(1, s - 1), su = sm(u), bx = X - ex, by = (Y - 0.4 * T) - ey, bl = Math.hypot(bx, by) || 1; x = ex + bx * su - by / bl * Math.sin(Math.PI * u) * 1.4 * T * (i % 2 ? 1 : -1); y = ey + by * su + bx / bl * Math.sin(Math.PI * u) * 1.4 * T * (i % 2 ? 1 : -1) - Math.sin(Math.PI * u) * 0.9 * T; }
-          Pp.push([x, y]); if (k === 13) mid = s; }
-        const front = mid < 1 ? Math.sin(a0 + mid * TAU * 1.1) > 0 : true; if ((side > 0) !== front) continue;
-        ribbonFill(c, Pp, u => T * 0.2 * Math.pow(Math.sin(Math.PI * u), 0.7) * (0.5 + 0.5 * u) * al, RIBP, X, Y - ZE * T * 0.4); }
+          else { const u = Math.min(1, s - 1), su = sm(u), bx = X - ex, by = (Y - 0.4 * T) - ey, bl = Math.hypot(bx, by) || 1, sg = (i % 2 ? 1 : -1) * Math.sin(Math.PI * u); x = ex + bx * su - by / bl * sg * 1.4 * T; y = ey + by * su + bx / bl * sg * 1.4 * T - Math.sin(Math.PI * u) * 0.9 * T; }
+          RBX[k] = x; RBY[k] = y; RBW[k] = T * 0.2 * Math.pow(Math.sin(Math.PI * v), 0.7) * (0.5 + 0.5 * v) * al; }
+        ribbonFill(c, NK + 1, RIBP, X, Y - ZE * T * 0.4); }
       // the outer ribbons of the living storm
       const on = sm((t - FORM - 0.6) / 0.8) * (1 - sm((t - (TE - CMP + 0.3)) / 0.6)) * A; if (on <= 0.01) return;
       const NO = CEL ? 4 : ADE ? 3 : 2;
-      for (let i = 0; i < NO; i++) { const u0 = ((t - FORM) / 3.4 + i / NO) % 1, th0 = i / NO * TAU + t * 0.35, Pp = []; let mth = 0;
-        for (let k = 0; k <= 30; k++) { const s = cl(u0 * 1.5 - 0.5 + k / 30 * 0.55), sr = Math.sin(Math.PI * s), r = RCc * (1.0 + 0.3 * sr) * (1 - 0.15 * s), z = lerp(ZCc * 0.92, 0.25, sm(s)) + 0.5 * sr, th = th0 + s * 2.6; Pp.push([X + Math.cos(th) * r * T, Y + Math.sin(th) * r * T * GY - z * T]); if (k === 15) mth = th; }
-        if ((Math.sin(mth) > 0) !== (side > 0)) continue; const al = on * Math.sin(Math.PI * u0);
-        ribbonFill(c, Pp, u => T * 0.32 * Math.pow(Math.sin(Math.PI * u), 0.75) * al, RIBP, X, Y - ZE * T); }
+      for (let i = 0; i < NO; i++) { const u0 = ((t - FORM) / 3.4 + i / NO) % 1, th0 = i / NO * TAU + t * 0.35, al = on * Math.sin(Math.PI * u0); if (al <= 0.01) continue;
+        if ((Math.sin(th0 + cl(u0 * 1.5 - 0.5 + 0.275) * 2.6) > 0) !== (side > 0)) continue;
+        for (let k = 0; k <= NK; k++) { const v = k / NK, s = cl(u0 * 1.5 - 0.5 + v * 0.55), sr = Math.sin(Math.PI * s), r = RCc * (1.0 + 0.3 * sr) * (1 - 0.15 * s), z = lerp(ZCc * 0.92, 0.25, sm(s)) + 0.5 * sr, th = th0 + s * 2.6;
+          RBX[k] = X + Math.cos(th) * r * T; RBY[k] = Y + Math.sin(th) * r * T * GY - z * T; RBW[k] = T * 0.32 * Math.pow(Math.sin(Math.PI * v), 0.75) * al; }
+        ribbonFill(c, NK + 1, RIBP, X, Y - ZE * T); }
     }
     /* the atmosphere's light marks: strands racing round the footprint, light blades bending inward as a wave passes */
     function prestorm(c, X, Y, T, t, A) {
@@ -481,30 +489,32 @@
       const cm = want('comet'); if (!cm) return; const te = t - TE, EY = Y - ZE * T, er = E * T * 1.25, aft = te > 0 ? 1 - sm((te - 1.4) / (AFT - 1.6)) : 1;
       // the screen places, worked out once a frame (the back pass) and kept relative to the storm (the camera's shake
       // makes no trails); then two batched passes a side: the additive trails and motes, then the flowers
+      let bx0 = -1e9, bx1 = 1e9, by0 = -1e9, by1 = 1e9; if (side < 0) { const m = c.getTransform(), ka = m.a || 1, kd = m.d || 1; bx0 = -m.e / ka - X - T; bx1 = bx0 + c.canvas.width / ka + 2 * T; by0 = -m.f / kd - Y - T; by1 = by0 + c.canvas.height / kd + 2 * T; }   // (the view, relative to the storm: petals outside it are skipped)
       if (side < 0) for (const p of pts) { p.vis = false; if (p.gone || p.al <= 0) continue; let x, y, front;
         if (p.m === 7) { x = p.x * T; y = p.y * T * GY - p.z * T; front = p.y >= 0; }
         else { const sn = Math.sin(p.th); x = Math.cos(p.th) * p.r * T; y = sn * p.r * T * GY - p.z * T; front = sn >= 0; }
         let a = A * p.al * aft * (p.m === 5 ? 1 - sm((p.e - 1.4) / 1.0) : 1); if (p.m === 0) a *= 0.7 * sm(t / 0.4);
         if (front && p.m !== 7) { const ex = x / er, ey = (y + ZE * T) / (er * 0.85), d2 = ex * ex + ey * ey; if (d2 < 1) a *= 0.3 + 0.7 * d2; }
-        p.tl = 0; if (p.px != null && p.k !== 'cloud') { const vx = x - p.px, vy = y - p.py, sp = Math.hypot(vx, vy); if (sp > T * 0.12 && sp < T * 2.5) { p.tl = Math.min(T * 1.1, sp * 2.2); p.ta = Math.atan2(vy, vx); p.tk = Math.min(0.75, sp / T * 1.5); } }
-        p.px = x; p.py = y; p.sx = x; p.sy = y; p.fr = front; p.a = a; p.vis = a > 0.02; }
+        p.tl = 0; if (p.px != null && p.k !== 'cloud' && (p.m === 2 || p.m >= 6)) {   // (trails only where petals run fast: the climb, the rush to the core, the burst)
+           const vx = x - p.px, vy = y - p.py, sp = Math.hypot(vx, vy); if (sp > T * 0.12 && sp < T * 2.5) { p.tl = Math.min(T * 1.1, sp * 2.2); p.ta = Math.atan2(vy, vx); p.tk = Math.min(0.75, sp / T * 1.5); } }
+        p.px = x; p.py = y; p.sx = x; p.sy = y; p.fr = front; p.a = a; p.vis = a > 0.02 && x > bx0 && x < bx1 && y > by0 && y < by1; if (p.tl && a * p.tk < 0.04) p.tl = 0; }
       c.globalCompositeOperation = 'lighter'; const gs = glowSprite(PALE);
       for (const p of pts) { if (!p.vis || p.fr !== (side > 0)) continue; const x = X + p.sx, y = Y + p.sy;
-        if (p.tl) { c.globalAlpha = p.a * p.tk; cometAt(c, cm, p.ta, x - Math.cos(p.ta) * p.tl * 0.35, y - Math.sin(p.ta) * p.tl * 0.35, p.tl); }
+        if (p.tl && !DBG.noTrail) { c.globalAlpha = p.a * p.tk; cometAt(c, cm, p.ta, x - Math.cos(p.ta) * p.tl * 0.35, y - Math.sin(p.ta) * p.tl * 0.35, p.tl); }
         if (p.k === 'dust') { const r = T * 0.07 * p.s; c.globalAlpha = p.a * 0.8; c.drawImage(gs, x - r, y - r, r * 2, r * 2); } }
-      c.globalCompositeOperation = 'source-over'; const cla = want('cloud');
+      c.globalCompositeOperation = 'source-over'; const cla = want('cloud'); ATL.petal = want('petal'); ATL.blossom = want('blossom'); ATL.leaf = want('leaf'); ATL.pale = want('pale');
       for (const p of pts) { if (!p.vis || p.fr !== (side > 0) || p.k === 'dust') continue; const x = X + p.sx, y = Y + p.sy;
-        if (p.k === 'cloud') { if (!cla) continue; const sz = T * 0.95 * p.s; c.globalAlpha = Math.min(1, p.a * 0.9); c.drawImage(cla, p.v * QS, 0, QS, QS, x - sz / 2, y - sz * 0.4, sz, sz * 0.8); continue; }
-        const at = want(p.k); if (!at) continue; const ri = ((Math.floor(p.rot / TAU * PN) % PN) + PN) % PN, sz = T * (p.k === 'blossom' ? 0.44 : p.k === 'leaf' ? 0.32 : 0.28) * p.s;
+        if (p.k === 'cloud') { if (!cla) continue; const sz = T * 1.2 * p.s; c.globalAlpha = Math.min(1, p.a * 0.95); c.drawImage(cla, p.v * QS, 0, QS, QS, x - sz / 2, y - sz * 0.4, sz, sz * 0.8); continue; }
+        if (DBG.noSpr) continue; const at = ATL[p.k]; if (!at) continue; const ri = ((Math.floor(p.rot / TAU * PN) % PN) + PN) % PN, sz = T * (p.k === 'blossom' ? 0.44 : p.k === 'leaf' ? 0.32 : 0.28) * p.s;
         c.globalAlpha = Math.min(1, p.a); atlasBlit(c, at, ri, x, y, sz, 0.3 + 0.7 * Math.abs(Math.cos(t * p.tf + p.ph))); }
       // the crest of the shockwave: flowers, leaves, petal clouds and glitter riding the ring, then settling
-      if (te >= 0 && crest.length) { const u = te / 0.95, Rr = RSW * eout3(u) + (te > 0.95 ? (te - 0.95) * 0.25 : 0), fa = A * (1 - sm((te - 1.3) / 1.7));
+      if (te >= 0 && fin) { const u = te / 0.95, Rr = RSW * eout3(u) + (te > 0.95 ? (te - 0.95) * 0.25 : 0), fa = A * (1 - sm((te - 1.3) / 1.7));
         for (const q of crest) { const sn = Math.sin(q.a); if ((sn >= 0) !== (side > 0)) continue; const rr = Rr * q.rr, z = q.zh * 0.7 * Math.sin(Math.PI * cl(u * 0.9)) * (1 - sm((te - 0.9) / 1.2)) + 0.04, x = X + Math.cos(q.a) * rr * T, y = Y + sn * rr * T * GY - z * T;
           if (fa <= 0.02) break;
           if (q.k === 'glit') { const r = T * 0.12 * q.s * (0.7 + 0.3 * Math.sin(t * 20 + q.ph)); c.globalCompositeOperation = 'lighter'; c.globalAlpha = fa; c.drawImage(glowSprite(MINT), x - r, y - r, r * 2, r * 2); c.globalCompositeOperation = 'source-over'; continue; }
           if (q.k === 'cloud') { const at = want('cloud'); if (!at) continue; const sz = T * 0.9 * q.s; c.globalAlpha = fa; c.drawImage(at, q.v * QS, 0, QS, QS, x - sz / 2, y - sz * 0.4, sz, sz * 0.8); continue; }
           const at = want(q.k); if (!at) continue; const ri = ((Math.floor(q.rot / TAU * PN) % PN) + PN) % PN; c.globalAlpha = fa; atlasBlit(c, at, ri, x, y, T * 0.34 * q.s, 0.3 + 0.7 * Math.abs(Math.cos(t * q.tf + q.ph))); } }
-      if (side > 0 && te >= 0 && glit.length) { c.globalCompositeOperation = 'lighter';
+      if (side > 0 && te >= 0 && fin) { c.globalCompositeOperation = 'lighter';
         for (const q of glit) { const x = X + q.x * T, y = Y + q.y * T * GY - q.z * T, r = T * 0.1 * q.s * (0.6 + 0.4 * Math.sin(t * 25 + q.s * 9)); c.globalAlpha = A * (1 - sm((te - 0.8) / 1.6)); if (c.globalAlpha <= 0.02) break; c.drawImage(glowSprite(PALE), x - r, y - r, r * 2, r * 2); } }
       c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1;
     }
@@ -530,7 +540,7 @@
         // strands from the eye to the shockwave's front: stretched, then snapping in the middle and curling away
         if (cm && te < 1.3) { const u = te / 0.95, Rr = RSW * eout3(u) * T;
           for (let i = 0; i < NSTR; i++) { const a = i / NSTR * TAU + 0.3, ex2 = X + Math.cos(a) * Rr, ey2 = Y + Math.sin(a) * Rr * GY, mx = (X + ex2) / 2 + Math.cos(a) * Rr * 0.15, my = (EY + ey2) / 2 - T * (1.2 + 0.6 * R1(i)), gap = 0.5 * sm((te - 0.35) / 0.5), al = A * sm(te / 0.06) * (1 - sm((te - 0.7) / 0.6)) * (Math.sin(a) >= 0 ? 0.9 : 0.6), curl = sm((te - 0.35) / 0.6) * T * 0.9 * (i % 2 ? 1 : -1);
-            if (al <= 0.02) continue; for (let k = 0; k <= 14; k++) { const s = k / 14; if (Math.abs(s - 0.5) < gap) continue; const o = 1 - s, x0 = o * o * X + 2 * o * s * mx + s * s * ex2, y0 = o * o * EY + 2 * o * s * my + s * s * ey2, tx = 2 * o * (mx - X) + 2 * s * (ex2 - mx), ty = 2 * o * (my - EY) + 2 * s * (ey2 - my), tl = Math.hypot(tx, ty) || 1, cw = curl * Math.pow(Math.max(0, 1 - Math.abs(s - 0.5) / Math.max(0.01, gap + 0.25)), 1) * (s < 0.5 ? -1 : 1);
+            if (al <= 0.02) continue; for (let k = 0; k <= 9; k++) { const s = k / 9; if (Math.abs(s - 0.5) < gap) continue; const o = 1 - s, x0 = o * o * X + 2 * o * s * mx + s * s * ex2, y0 = o * o * EY + 2 * o * s * my + s * s * ey2, tx = 2 * o * (mx - X) + 2 * s * (ex2 - mx), ty = 2 * o * (my - EY) + 2 * s * (ey2 - my), tl = Math.hypot(tx, ty) || 1, cw = curl * Math.pow(Math.max(0, 1 - Math.abs(s - 0.5) / Math.max(0.01, gap + 0.25)), 1) * (s < 0.5 ? -1 : 1);
               const x = x0 - ty / tl * cw, y = y0 + tx / tl * cw; c.globalAlpha = al * (0.4 + 0.6 * Math.sin(Math.PI * s)); cometAt(c, cm, Math.atan2(ty, tx) + (gap > 0 ? (s < 0.5 ? -1 : 1) * gap * 1.5 : 0), x, y, T * 0.85); } } }
         // the last strands unravelling over the impact centre
         if (cm && te > 0.7 && te < 3.0) { const n = CEL ? 6 : 4; for (let i = 0; i < n; i++) { const u = (te - 0.7) / 2.3; for (let j = 0; j < 8; j++) { const z = ZE * 0.5 + u * 2.4 * sK + j * 0.13, th = i / n * TAU + j * 0.45 + te * 1.8, r = 0.35 + 0.9 * u + j * 0.03, x = X + Math.cos(th) * r * T, y = Y + Math.sin(th) * r * T * GY - z * T;
@@ -541,12 +551,12 @@
     /* the thin emerald currents round every affected monster, tightening with a sharp mint flare on an amplified hit */
     function currents(c, T, t, A) {
       const cs = want('current'), fl = want('flare'); if (!cs) return; c.globalCompositeOperation = 'lighter';
-      for (const [m, q] of rec) { if (m.dead || q.a <= 0.01) continue; const fk = Math.exp(-Math.max(0, t - q.fl) / 0.13), x = H.sx(m.x), y = H.sy(m.y) - ((m.z || 0) + (m.liftZ || 0)) * T - m.r * T * 0.45, s = m.r * T * (m.boss ? 1.3 : 1.7) * (1 - 0.3 * fk);
+      for (const q of rec.values()) { const m = q.m; if (m.dead || q.a <= 0.01) continue; const fk = Math.exp(-Math.max(0, t - q.fl) / 0.13), x = H.sx(m.x), y = H.sy(m.y) - ((m.z || 0) + (m.liftZ || 0)) * T - m.r * T * 0.45, s = m.r * T * (m.boss ? 1.3 : 1.7) * (1 - 0.3 * fk);
         c.save(); c.translate(x, y); c.scale(1, 0.5); c.rotate(t * 3.2 + q.ph); c.globalAlpha = Math.min(1, q.a * A * (0.38 + 0.62 * fk)); c.drawImage(cs, -s, -s, s * 2, s * 2); c.rotate(2.1); c.scale(0.8, 0.8); c.globalAlpha *= 0.6; c.drawImage(cs, -s, -s, s * 2, s * 2); c.restore();
         if (fl && fk > 0.03) { const fs = m.r * T * (1.1 + 1.4 * (1 - fk)) * (m.boss ? 1.5 : 1); c.globalAlpha = Math.min(1, fk * 1.2 * A); c.drawImage(fl, x - fs, y - fs * 0.7, fs * 2, fs * 1.4); } }
       c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1;
     }
   };
   U.pandemonium.warm = warm;
-  U.pandemonium.__dbg = { BK, bakeStep, DBG };
+  U.pandemonium.__dbg = { BK, bakeStep, DBG, BAKE };
 })();
