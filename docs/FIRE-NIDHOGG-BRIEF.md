@@ -88,7 +88,8 @@ also uses `arc`, `GFX`, `X.vehicle`, `X.drawPetAt` and `H.add`.
 | | `breath` | Idle breathing amplitude |
 | Effects | `vents` | 0..1, open |
 | | `glow` | 0..1, internal light; belly, seams and vents always glow faintly at 0 |
-| | `spikes` | 0..1, dorsal extension |
+| | `spikes` | 0..1, dorsal extension (round 3: no clip drives it past a slight lift) |
+| | `trace` | 0..1, glowing orange-red traced outlines on the plate seams and the silhouette (Ultima charge, beam) |
 | | `ring` | 0..1, visibility |
 | | `ringSpin` | Angle; drivers integrate `ringSpinV` |
 | | `core` | 0..1, the white-hot mouth core |
@@ -152,3 +153,41 @@ no `__pp` (`build.py` asserts this).
   wing roots for Flare, `belly` for the dive's impact point below, and `ring` for the Ultima ring.
 - Reuse `CLIPS` as the moves' pose drivers. Their hints mark the frames for effects and damage, for example `slam`,
   `shot`, `burst` and `beam`.
+
+## Notes, round 3 (2026-11-08)
+User feedback: a bigger, more robust head and horns, a longer tail, no coming apart in turns, no spike growth on the
+Ultima charge (glowing traced outlines instead), and a thicker, glowing ring.
+- **Head:** `HEADK` is 3.0 (was about 2), about 1.5× bigger on screen. It has a heavy skull, a deep jaw with a chin
+  plate, a brow cap, thick swept horns (main horn root radius 0.066) with a lower horn, a crown of 9 spikes, 4
+  cheek-frill spikes per side, jaw frills, and 7 + 6 teeth per side.
+- **Tail:** 16 links (was 12), each 1.3× longer, about 1.4× the length in all. Tail spikes follow `TRAD`.
+- **No separation in turns:** the neck and the tail are each one continuous swept strip. It is filled with a seamless
+  tile cut from a periodic tube model and baked once (`ntube`, `ttube`); it no longer uses rigid segments per
+  heading.
+  - Each shell (torso, head, jaw, tip, foot) is laid on screen by a least-squares affine map fitted to its 3D axes.
+    Shells crossfade between the two nearest headings, picked by world yaw.
+  - Each chain (neck, tail, both wings and both legs) is shifted to where the drawn torso sprite actually puts its
+    root (`attach`). Lights, eyes, hubs and spikes move with their chain.
+  - The neck and tail roots are drawn under the torso.
+  - The bank sign was also fixed: positive bank drops the right wing, and the near wing no longer vanishes.
+- **Turn sweep:** every 5° × fly, dive and hover × banking both ways, with a hard tail counter-swing and head yaw.
+  All 432 frames are one connected piece (alpha > 0.55, 4-connected, pieces > 25 px), with 0 splits.
+- **Ultima:** the `trace` channel replaces spike growth. `ultima` ramps it from 0.4 to 2.2 s, `beam` holds it at 1,
+  and `settle` fades it.
+  - The strips get glowing orange edge strokes and the shells get a soft orange halo (`shadowBlur`, drawn only while
+    `trace` > 0.02).
+- **Ring:** the bands are about 2.2× thicker, each drawn in 4 steady passes (a wide bloom, a body, an inner glow and a
+  hot core). The segments and ticks are thicker too.
+  - The spin is cut from 14 to 3.2 rad/s, so the 24 runes no longer strobe (the old rate moved about 2 rune slots per
+    frame at 30 fps). Runes and counter-rotation are kept.
+- **Numbers:**
+  - Full bake at the in-game scale (k ≈ 104) takes about 8 s of idle-time CPU in 2 ms calls, and 6.7 MB. Glow
+    layers are now half resolution; parts are baked at drawn scale, capped at k = 150.
+  - Bake calls are ≤ 3 ms apart from warm-up and GC outliers: 43 of about 7,300 calls are over 3.5 ms, worst 12 ms.
+    Round 2 measured the same way gave 33 of about 3,600, worst 11 ms.
+  - Draw (CPU) median is 1.0–1.3 ms.
+  - SwiftShader software raster with a flush every frame: median 7.7 ms (11 ms while `trace` = 1), against 4.6 ms in
+    round 2. The extra cost is the strips and the halo.
+  - The headless canvas also stalls periodically (about every 30 frames). This happens in round 2 too, so it is not
+    the model.
+
