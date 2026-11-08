@@ -67,7 +67,8 @@
     /* (round 2) Drift: a spinning, clawing burst, the Dodge scaled up for the machine (as Sports Car's Drift) */
     drift: 3.0, driftCd: 0.9, driftR: 2.6, driftKb: 7.5,   // x DK once per monster per drift; s from the press; swept radius round the centre's path (tiles; the arms reach ~1.9); knockback
     driftPh: [0.07, 0.36, 0.17], driftV: 17, driftTurn: 5, driftBuf: 0.2, driftInv: 0.38,   // s wind-up / spin-burst / recovery; burst speed (tiles/s, eased off); stick bend (rad/s); a press this early is kept; the Dodge's invulnerability
-    chargeK: 30,                                  // the meter fills at chargeK x DK of damage actually dealt
+    chargeK: 30,                                  // the meter fills at chargeK x DK of damage actually dealt (x dmgK)
+    dmgK: 2,                                      // every Beast Machine hit x2 (the user, 2026-11-08); the meter fills at the same pace
     missileCd: 1.8, wrathCd: 2.0, mvHold: 1.0,    // defaults (B2's TUNE_S wins for missiles); Wrath's 2 s from its last strike; a press held while busy
   };
   const tierOf = ev => ev >= 7 ? 2 : ev >= 4 ? 1 : 0;
@@ -701,11 +702,12 @@
   /* ---- damage and the meter: each event once, after mitigation, without overkill ---- */
   function hitCharge(S, m, dmg, o) {
     if (!m || m.dead || m.falling || !(dmg > 0)) return 0;
+    dmg *= TUNE.dmgK || 1;   /* (all of it: riding, Drift, Jump, Missiles, Wrath, Judgement Day) */
     const before = Math.max(0, m.hp), oo = Object.assign({ el: 'thunder', src: 'ult' }, o || {}); delete oo.noCharge; delete oo.exclude;
     const r = S.X.hitMon(m, dmg, oo), dealt = Math.max(0, Math.min(r || 0, before));
     if (!(dealt > 0)) return 0;
     S.stats.dealt += dealt; S.stats.hits++;
-    if (!(o && o.noCharge) && S.phase === 'ride' && !S.used && !S.released) { const c0 = S.charge; S.charge = Math.min(1, S.charge + dealt / (TUNE.chargeK * S.DK)); S.stats.charged += S.charge - c0;
+    if (!(o && o.noCharge) && S.phase === 'ride' && !S.used && !S.released) { const c0 = S.charge; S.charge = Math.min(1, S.charge + dealt / (TUNE.chargeK * (TUNE.dmgK || 1) * S.DK)); S.stats.charged += S.charge - c0;
       if (c0 < 1 && S.charge >= 1) { S.readyT = 0; const sfx = S.X.sfx || {}; if (sfx.note) [392, 523, 784, 1046].forEach((f, i) => sfx.note(f, 0.4, 'sawtooth', 0.035, f * 1.01, i * 0.07)); S.X.text(S.me.x, S.me.y - 2.6, 'JUDGEMENT DAY READY', GOLD, 15, { life: 1.4, max: 1.4, vy: -0.5 }); } }
     return dealt;
   }
