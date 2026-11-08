@@ -1289,6 +1289,7 @@ GAMES.dungeon = {
     const BOT = 52, HB = () => api.H - BOT;
     const stickHome = () => ({ x: 72, y: HB() - 70 });   // bottom left, under the left thumb
     const inStickZone = (x, y) => touchUI && x < api.W * 0.5 && y > api.H * 0.26;   // mice and keyboards move with the keys
+    function takeStick(id, x, y, adopt) { Object.assign(stick, { id, ox: x, oy: y, x, y, t0: g.t, far: 0, adopt: !!adopt }); nav.goal = null; nav.mon = null; g.movedOnce = true; }
     function stickVec() {
       if (stick.id == null) return null;
       const dx = stick.x - stick.ox, dy = stick.y - stick.oy, d = hyp(dx, dy), dz = STICK_R * 0.16;
@@ -2655,7 +2656,7 @@ GAMES.dungeon = {
     }
     return {
       _dbg: { get cam() { return cam; }, get RULES() { return RULES; }, get RIFT() { return RIFT; }, RU, lesserBoss, makeBoss, SKIP, stick, steerTo: (x, y) => { goTo(null, x, y); const d = navDir(1 / 60); nav.goal = null; return d; }, g, me, mons, M, get ST() { return ST; }, KIT, AB, useStrong, useUlt, dodge, hitMon, shots, eshots, zones, parts, helpers, F, pots, picks, shrines, hazards, traps, stones, SIZE, chunks, walkAt, blocked, X, wakeBoss, takeStone, fireEvent, tapAt, toWorld, nav, holds, goTo, banners, get AN() { return AN; }, get FD() { return FD; }, get RX() { return RX; }, get STAR() { return STAR; }, get ELEM() { return ELEM; }, get RES() { return RES; }, propList, get KITR() { return KIT; }, setKit: (slot, a) => { KIT[slot] = a; }, get VEH() { return VEH; }, vehBtns, party, cur: () => cur, switchTo, hurtPet, btnSw, setBoss: id => { if (BOSS_BY_ID[id]) { BOSS_KIND = BOSS_BY_ID[id]; F.bossName = BOSS_KIND.name; } } },
-      resize() { layout(); stick.id = null; },
+      resize() { layout(); if (stick.id != null) { stick.ox = stick.x; stick.oy = stick.y; } },   /* (a resize, a browser bar sliding say, no longer drops a held stick: its base re-centres under the thumb) */
       /* a meal from the pantry while paused: heals the played pet and feeds it Tower experience */
       feed(k) {
         if (!SNACKS[k] || !(st.pantry[k] > 0) || me.dead) return false;
@@ -2685,18 +2686,28 @@ GAMES.dungeon = {
         if (!RHd) if (onBtn(btnD(), x, y)) { dodge(); return; }
         // the left half picks up the move stick, unless the thumb lands right on a monster
         // (a stick already held when a new thumb lands in its zone is a stick whose up was lost: the new thumb takes it)
+        /* (smooth control: a stick held by a finger that is still down is never stolen by a second touch, which only
+           attacks; a stick whose finger was lost is taken over; and the stick pad round the stick's home, under the
+           left thumb, always gives the stick, even when a monster or a big vehicle stands under the thumb there) */
         if (inStickZone(x, y) && !me.dead) {
-          const [wx, wy] = toWorld(x, y), onMon = stick.id == null && mons.some(m => !m.dead && !m.under && !m.falling && hyp(m.x - wx, m.y - (m.z || 0) * 0.5 - wy) < m.r + 0.6);
-          if (!onMon) { Object.assign(stick, { id, ox: x, oy: y, x, y, t0: g.t, far: 0 }); nav.goal = null; nav.mon = null; g.movedOnce = true; return; }
+          const live = stick.id != null && (!api.ptrLive || api.ptrLive(stick.id));
+          if (!live) {
+            const hm = stickHome(), pad = hyp(x - hm.x, y - hm.y) < 120;
+            const [wx, wy] = toWorld(x, y), onMon = !pad && mons.some(m => !m.dead && !m.under && !m.falling && hyp(m.x - wx, m.y - (m.z || 0) * 0.5 - wy) < m.r + 0.6);
+            if (!onMon) { takeStick(id, x, y); return; }
+          }
         }
         // anywhere else: one attack toward the tap
         tapAt(x, y);
       },
       move(x, y, id) {
+        /* (smooth control: a finger on the left that is not the stick and not a held attack, one that went down during a
+           cinematic, a pause or a resize, or landed on a monster, becomes the stick as soon as it drags) */
+        if (stick.id == null && !holds.has(id) && !me.dead && !(AN && AN.S.cine) && inStickZone(x, y)) takeStick(id, x, y, true);
         if (id === stick.id) { stick.x = x; stick.y = y; const dx = x - stick.ox, dy = y - stick.oy, d = hyp(dx, dy); stick.far = Math.max(stick.far, d); if (d > STICK_R) { stick.ox = x - dx / d * STICK_R; stick.oy = y - dy / d * STICK_R; } return; }   // the base trails the thumb
         const h = holds.get(id); if (h) { h.x = x; h.y = y; } },
       up(x, y, id) {
-        if (id === stick.id) { const quick = x >= 0 && stick.far < 12 && g.t - stick.t0 < 0.35, ox = stick.ox, oy = stick.oy; stick.id = null; if (quick) tapAt(ox, oy); return; }   // a quick tap there still attacks
+        if (id === stick.id) { const quick = !stick.adopt && x >= 0 && stick.far < 12 && g.t - stick.t0 < 0.35, ox = stick.ox, oy = stick.oy; stick.id = null; if (quick) tapAt(ox, oy); return; }   // a quick tap there still attacks
         holds.delete(id); },
       key(kk, on) { if (!on) return; if (RIFT && (kk === 'tap' || kk === 'up' || kk === 'jump') && RIFT.tap(0, 0)) return; if (RIFT && RIFT.hud && RIFT.hud()) { if (kk === 'ab2' || kk === 'ab1') RIFT.act(); if (kk !== 'tap') return; } if (kk === 'swap') { switchNext(); return; } if (kk === 'carjump') { carJump(); return; } /* (Sports Car's Jump, J: nothing on foot) */ if (kk === 'ab2') useUlt(); else if (kk === 'dodge') dodge(); else if (kk === 'ab1' || kk === 'jump' || kk === 'drop') useStrong('strong'); else if (kk === 'ab3') useStrong('strong2'); else if (kk === 'ab4') useStrong('strong3'); else if (kk === 'ab5') { if (AN) AN.summon(); } else if (kk === 'tap') { g.tapAim = Object.assign(aim(), { key: true }); g.tapBuf = 0.3; if (tryFire(g.tapAim)) g.tapBuf = 0; } g.movedOnce = true; },
       update, draw,

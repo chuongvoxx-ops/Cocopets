@@ -382,11 +382,11 @@ arcCanvas.addEventListener('pointerdown', e => {
   sfx.unlock();
   e.preventDefault();
   if (arc.state === 'ready') { beginPlay(); return; }
-  if (arc.state !== 'play' || arc.paused) return;
+  if (arc.state !== 'play') return;
   try { arcCanvas.setPointerCapture(e.pointerId); } catch (_) {}
   const [x, y] = arcPt(e);
-  arc.ptr.set(e.pointerId, [x, y]);
-  if (arc.game.down) arc.game.down(x, y, e.pointerId);
+  arc.ptr.set(e.pointerId, [x, y]);   // (tracked even while paused, so a thumb already down when play resumes can still steer)
+  if (!arc.paused && arc.game.down) arc.game.down(x, y, e.pointerId);
 });
 arcCanvas.addEventListener('pointermove', e => {
   if (!arc.ptr.has(e.pointerId)) return;
@@ -511,7 +511,7 @@ function makeApi(W, S) {
   arc.comboWin = COMBO_WIN[W.key] || 3; comboReset();
   return {
     get W() { return arc.W; }, get H() { return arc.H; }, get t() { return arc.t; },
-    def: S, world: W, stageNo: arc.s, keys: arc.keys, form: curForm(), stage: st.stage, sfx,
+    def: S, world: W, stageNo: arc.s, keys: arc.keys, ptrLive: id => arc.ptr.has(id) /* is this finger still on the screen? */, form: curForm(), stage: st.stage, sfx,
     hud: arcHudSet,
     hit: arcHit, miss: arcMiss, get combo() { return arc.combo; }, get mult() { return arc.mult * (arc.fever > 0 ? 2 : 1); }, get fever() { return arc.fever > 0; },
     hitstop: t => { arc.stop = Math.max(arc.stop, t || 0.1); },
