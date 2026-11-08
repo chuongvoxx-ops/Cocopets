@@ -30,7 +30,7 @@ const NIDHOGG_MODEL = (() => {
   const FIRE = '#FF7A1A', EMBER = '#FFB347', CORE = '#FFF4D8', CRIM = '#E0283F', RUNE = '#FF3A2A';
 
   /* ================= signed-distance modelling ================= */
-  const M_SCALE = 0, M_ARMOR = 1, M_STEEL = 2, M_HORN = 3, M_BELLY = 4, M_SEAM = 5, M_VENT = 6, M_EYE = 7, M_TOOTH = 8, M_MOUTH = 9, M_TALON = 10, M_HUB = 11, M_DARK = 12, M_SEAT = 13, M_CLAW = 14;
+  const M_SCALE = 0, M_ARMOR = 1, M_STEEL = 2, M_HORN = 3, M_BELLY = 4, M_SEAM = 5, M_VENT = 6, M_EYE = 7, M_TOOTH = 8, M_MOUTH = 9, M_TALON = 10, M_HUB = 11, M_DARK = 12, M_SEAT = 13, M_CLAW = 14, M_GOLD = 15, M_GEM = 16, M_IRIS = 17;
   const hyp = (a, b) => Math.sqrt(a * a + b * b), hyp3 = (a, b, c) => Math.sqrt(a * a + b * b + c * c);
   const sph = (x, y, z, r) => Math.sqrt(x * x + y * y + z * z) - r;
   function ell(x, y, z, a, b, c) { const X = x / a, Y = y / b, Z = z / c, k0 = Math.sqrt(X * X + Y * Y + Z * Z); if (k0 < 1e-6) return -Math.min(a, b, c); const k1 = Math.sqrt(X * X / (a * a) + Y * Y / (b * b) + Z * Z / (c * c)); return k0 * (k0 - 1) / k1; }
@@ -109,33 +109,75 @@ const NIDHOGG_MODEL = (() => {
     if (ay < 0.02 && Math.abs(z) < 0.05) carve(Math.max(ay - 0.012, Math.abs(z) - 0.06, 0.06 - x, x - 0.5), M_SEAM);
     return 0;
   }
-  /* ---- the head (origin: the top of the neck; x forward): a heavy skull and a deep snout under scarlet plates, a strong
-     brow ridge over glowing eyes, long thick swept-back gunmetal horns (and a lower pair), a dense crown of long spikes,
-     a frill of spikes down the cheeks, big upper teeth ---- */
+  /* ---- the head (origin: the neck joint; x forward, y right, z up): a long, narrow armoured snout of layered scarlet
+     nasal plates (bevelled, seamed, each proud at its front edge) over scaled skin, a ridge of steel studs and small
+     spikes down its top, flared nostrils with an ember glow, a gunmetal lip line over a row of teeth; heavy armoured
+     brows rimmed in bronze and riveted, a crimson gem in a bronze bezel between them, recessed eyes (a glossy eyeball,
+     a slit pupil in a radial gold iris, a glowing rim); riveted cheek plates; thick swept gunmetal horns with bronze
+     bands; a crown and cheek frills of spikes ---- */
+  const nrm0 = v => { const l = hyp3(v[0], v[1], v[2]); return [v[0] / l, v[1] / l, v[2] / l]; }, EYE = [0.21, 0.13, 0.04], EYER = 0.044, EYEG = nrm0([0.4, 0.78, 0.48]), EYEU = (() => { const u = [-0.2, -0.38, 0.9], d = u[0] * EYEG[0] + u[1] * EYEG[1] + u[2] * EYEG[2]; return nrm0([u[0] - EYEG[0] * d, u[1] - EYEG[1] * d, u[2] - EYEG[2] * d]); })();   // (eye centre, radius, gaze, the slit's up)
+  const GEMC = [0.15, 0, 0.122];
+  /* the distance to a segment and (in Q[5]) the parameter along it */
+  function capH(x, y, z, ax, ay, az, bx, by, bz, r1, r2) { const px = x - ax, py = y - ay, pz = z - az, dx = bx - ax, dy = by - ay, dz = bz - az, h = cl((px * dx + py * dy + pz * dz) / (dx * dx + dy * dy + dz * dz)); Q[5] = h; return hyp3(px - dx * h, py - dy * h, pz - dz * h) - lerp(r1, r2, h); }
+  /* a horn segment with bronze bands at the given parameters */
+  function hornSeg(x, y, z, ax, ay, az, bx, by, bz, r1, r2, bands) { const d = capH(x, y, z, ax, ay, az, bx, by, bz, r1, r2), h = Q[5]; add(d, M_HORN, 0.012);
+    if (d < 0.03) for (const hb of bands) add(Math.max(d - 0.011, Math.abs(h - hb) * hyp3(bx - ax, by - ay, bz - az) - 0.013), M_GOLD); }
   function sdHead(x, y, z) {
-    reset(M_SCALE); const ay = Math.abs(y);
-    add(ell(x + 0.02, y, z - 0.03, 0.21, 0.16, 0.14), M_SCALE);
-    { const ax = 0.05, bx = 0.58, h = cl((x - ax) / (bx - ax)), r = 0.135 - 0.07 * h, pz = (z - (0.0 - 0.05 * h)) * 1.25; add((Math.max(hyp(y, pz) - r, ax - 0.1 - x, x - bx - 0.03)) / 1.25, M_SCALE, 0.05); }
-    { const h = cl((x - 0.06) / 0.5); add(Math.max(z - (0.115 - 0.12 * h) - 0.025 * fm(h * 4, 1), -(z - (0.04 - 0.1 * h)), ay - (0.115 - 0.06 * h), 0.04 - x, x - 0.6), M_ARMOR); }
-    add(cap(x, ay, z, 0.27, 0.1, 0.1, 0.03, 0.15, 0.14, 0.05, 0.042), M_ARMOR);
-    carve(sph(x - 0.2, ay - 0.118, z - 0.045, 0.042), M_DARK); add(sph(x - 0.195, ay - 0.112, z - 0.045, 0.028), M_EYE);
-    add(cap(x, ay, z, 0.02, 0.1, 0.12, -0.22, 0.165, 0.22, 0.066, 0.048), M_HORN); add(cap(x, ay, z, -0.22, 0.165, 0.22, -0.62, 0.16, 0.27, 0.048, 0.006), M_HORN);
-    add(cap(x, ay, z, -0.02, 0.13, 0.03, -0.34, 0.21, 0.07, 0.036, 0.004), M_HORN);
+    reset(M_SCALE); const ay = Math.abs(y), h = cl((x - 0.05) / 0.6), zc = -0.03 - 0.03 * h;
+    // the skull, and the snout's core: an angular wedge (a sloping top, flat flanks drawn in below, a chamfer between,
+    // a flat underside) in scaled skin that shows between and under the plates
+    add(ell(x + 0.02, y, z - 0.03, 0.22, 0.165, 0.15), M_SCALE);
+    const wS = 0.122 - 0.062 * h, tS = 0.112 - 0.15 * h, bS = -0.085 + 0.01 * h;
+    const smax = (a, b, k) => -smin(-a, -b, k);
+    const sn = Math.max(smax(smax(smax(z - tS, (ay - wS + (z < zc ? (zc - z) * 0.35 : 0)) * 0.94, 0.03), (ay * 0.85 + z - (tS + wS * 0.6)) * 0.76, 0.025), bS - z, 0.02), x - 0.66, -0.02 - x); add(sn, M_SCALE, 0.03);
+    // the layered nasal plates: four bands over the top and the chamfers, each rising toward its front edge, then a
+    // step down to the next (a seam with a worn bevel)
+    { const u = cl((x - 0.06) / 0.58), f = fm(u * 4 + 0.15, 1), t = 0.008 + 0.02 * f; add(Math.max(sn - t, zc + 0.03 - z, x - 0.645, 0.04 - x), M_ARMOR); }
+    // the ridge down the top: steel studs, small swept spikes between them
+    if (!far(Math.max(Math.abs(x - 0.36) - 0.32, ay - 0.04, -z))) for (let i = 0; i < 6; i++) { const xs = 0.13 + i * 0.085, hs = cl((xs - 0.05) / 0.6), zt = 0.112 - 0.15 * hs + 0.024;
+      if (i & 1) add(cone(x, y, z, xs, 0, zt - 0.01, xs - 0.05, 0, zt + 0.045, 0.017), M_HORN); else add(sph(x - xs, y, z - zt + 0.004, 0.017), M_STEEL); }
+    // the nostrils: a flared rim, an ember-lit hole
+    add(ell(x - 0.6, ay - 0.042, z - 0.0, 0.05, 0.03, 0.028), M_ARMOR, 0.01);
+    carve(sph(x - 0.635, ay - 0.044, z - 0.006, 0.016), M_VENT);
+    // the lip line: a gunmetal trim along each side of the upper jaw; the teeth under it
+    add(cap(x, ay, z, 0.06, 0.118, -0.075, 0.64, 0.055, -0.07, 0.015, 0.01), M_STEEL);
+    if (z < -0.04 && x > 0.1) for (let i = 0; i < 7; i++) { const tx = 0.16 + i * 0.07, ty = 0.1 - i * 0.008, L = i === 6 ? 0.1 : 0.065; add(cone(x, ay, z, tx, ty, -0.08, tx + 0.012, ty - 0.004, -0.08 - L, 0.019), M_TOOTH); }
+    // riveted cheek plates
+    add(Math.max(ell(x - 0.05, ay - 0.13, z + 0.02, 0.14, 0.06, 0.08), ay - 0.172), M_ARMOR, 0.012);
+    if (!far(sph(x - 0.06, ay - 0.18, z + 0.03, 0.12))) for (let i = 0; i < 3; i++) add(sph(x - (-0.03 + i * 0.06), ay - 0.172, z + 0.03 - i * 0.004, 0.0105), M_STEEL);
+    // the eye: a recessed socket, the eyeball, a thin glowing rim round it
+    { const qx = x - EYE[0], qy = ay - EYE[1], qz = z - EYE[2], de = hyp3(qx, qy, qz);
+      if (de < 0.11) { carve(de - 0.056, M_DARK); const tt = qx * EYEG[0] + qy * EYEG[1] + qz * EYEG[2], rr = hyp3(qx - EYEG[0] * tt, qy - EYEG[1] * tt, qz - EYEG[2] * tt);
+        add(hyp(rr - 0.053, tt - 0.012) - 0.007, M_SEAM); add(de - EYER, M_IRIS); } }
+    // the heavy brows over the eyes: armoured, rimmed in bronze, riveted
+    { const px = x - 0.19, py = ay - 0.1, pz = z - 0.132, cy = Math.cos(0.32), sy = Math.sin(0.32), qx = px * cy + py * sy, qy = -px * sy + py * cy, cp = Math.cos(0.3), sp = Math.sin(0.3), rx = qx * cp - pz * sp, rz = qx * sp + pz * cp;
+      const tp = cl((rx + 0.06) / 0.22), d = Math.max(ell(rx, qy, rz, 0.155, 0.058 - 0.03 * tp, 0.038), -rz - 0.012); add(d, M_ARMOR, 0.012);   // (a tapered leaf of armour, flat underneath)
+      add(Math.max(Math.abs(d + 0.004) - 0.009, -rz - 0.012, rz - 0.004, -qy), M_GOLD); }
+    if (!far(sph(x - 0.19, ay - 0.105, z - 0.165, 0.1))) for (let i = 0; i < 3; i++) add(sph(x - (0.13 + i * 0.065), ay - (0.112 - i * 0.016), z - (0.18 - i * 0.008), 0.0095), M_STEEL);
+    // the brow gem in its bronze bezel
+    { const gx = x - GEMC[0], gy = y, gz = z - GEMC[2]; if (hyp3(gx, gy, gz) < 0.08) { add(hyp(hyp(gx * 0.8, gy) - 0.036, gz + 0.006) - 0.01, M_GOLD); add(Math.max((Math.abs(gx) * 0.75 + Math.abs(gy) + Math.abs(gz) * 1.6 - 0.04) * 0.5, sph(gx, gy, gz, 0.036)), M_GEM); } }
+    // the horns: thick swept gunmetal with bronze bands; a lower horn
+    hornSeg(x, ay, z, 0.02, 0.1, 0.12, -0.22, 0.165, 0.22, 0.068, 0.05, [0.35, 0.8]);
+    hornSeg(x, ay, z, -0.22, 0.165, 0.22, -0.62, 0.16, 0.27, 0.05, 0.006, [0.25]);
+    hornSeg(x, ay, z, -0.02, 0.13, 0.03, -0.34, 0.21, 0.07, 0.038, 0.004, [0.3]);
+    // the crown and the cheek frills
     if (!far(sph(x + 0.2, y, z - 0.12, 0.46))) {
       for (let i = -4; i <= 4; i++) { const yy = i * 0.03, L = 0.38 - Math.abs(i) * 0.03; add(cone(x, y, z, -0.02, yy, 0.13, -0.02 - L * 0.85, yy * 2.2, 0.13 + L * 0.5, 0.026), M_ARMOR); }
-      for (let i = 0; i < 4; i++) { const xx = 0.08 - i * 0.07; add(cone(x, ay, z, xx, 0.13, -0.03 - i * 0.01, xx - 0.3, 0.25 + i * 0.03, -0.05 - i * 0.02, 0.026), M_ARMOR); }
+      for (let i = 0; i < 4; i++) { const xx = 0.08 - i * 0.07; add(cone(x, ay, z, xx, 0.15, -0.03 - i * 0.01, xx - 0.3, 0.27 + i * 0.03, -0.05 - i * 0.02, 0.026), M_ARMOR); }
     }
-    if (z < 0 && x > 0.12) for (let i = 0; i < 7; i++) { const tx = 0.16 + i * 0.06, ty = 0.088 - i * 0.009; add(cone(x, ay, z, tx, ty, -0.04 - i * 0.004, tx + 0.01, ty, -0.12 - i * 0.002, 0.02), M_TOOTH); }
-    add(sph(x - 0.6, ay - 0.04, z, 0.016), M_EYE);
     return 0;
   }
-  /* ---- the lower jaw (origin: the hinge): deep and heavy, a chin plate, teeth, a frill of spikes under it, the glowing mouth ---- */
+  /* ---- the lower jaw (origin: the hinge): deep and heavy, banded armour along its sides over scaled skin, a gunmetal lip
+     line with teeth, a riveted chin plate, a frill of spikes under it, the glowing mouth ---- */
   function sdJaw(x, y, z) {
     reset(M_SCALE); const ay = Math.abs(y);
-    add(Math.max(cap(x, y, z * 1.25, 0.0, 0, -0.02, 0.52, 0, -0.02, 0.11, 0.05) / 1.25, -x - 0.06), M_SCALE);
-    add(ell(x - 0.14, y, z + 0.07, 0.17, 0.09, 0.06), M_ARMOR);
+    const jd = Math.max(cap(x, y, z * 1.25, 0.0, 0, -0.02, 0.52, 0, -0.02, 0.11, 0.05) / 1.25, -x - 0.06); add(jd, M_SCALE);
+    { const u = cl(x / 0.5), f = fm(u * 3 + 0.2, 1); add(Math.max(jd - 0.008 - 0.016 * f, z + 0.005, 0.02 - x, x - 0.5), M_ARMOR); }
+    add(ell(x - 0.14, y, z + 0.075, 0.18, 0.09, 0.06), M_ARMOR, 0.01);
+    if (!far(sph(x - 0.14, y, z + 0.12, 0.08))) for (const yy of [-0.05, 0, 0.05]) add(sph(x - 0.14, y - yy, z + 0.128, 0.0095), M_STEEL);
+    add(cap(x, ay, z, 0.02, 0.085, 0.03, 0.5, 0.042, 0.028, 0.014, 0.01), M_STEEL);
     carve(Math.max(cap(x, y, z, 0.05, 0, 0.06, 0.48, 0, 0.03, 0.06, 0.028), -z), M_MOUTH);
-    for (let i = 0; i < 6; i++) { const tx = 0.12 + i * 0.065, ty = 0.07 - i * 0.009; add(cone(x, ay, z, tx, ty, 0.02, tx - 0.008, ty, 0.11, 0.018), M_TOOTH); }
+    for (let i = 0; i < 6; i++) { const tx = 0.12 + i * 0.065, ty = 0.07 - i * 0.009; add(cone(x, ay, z, tx, ty, 0.025, tx - 0.008, ty, 0.12, 0.019), M_TOOTH); }
     for (let i = 0; i < 4; i++) { const xx = 0.05 + i * 0.07; add(cone(x, ay, z, xx, 0.06, -0.07, xx - 0.22, 0.12 + i * 0.02, -0.2, 0.022), M_ARMOR); }
     return 0;
   }
@@ -170,7 +212,7 @@ const NIDHOGG_MODEL = (() => {
   const NRAD = u => RT * lerp(2.95, 1.85, u), TRAD = u => RT * lerp(2.9, 0.75, Math.pow(u, 0.85));   // (the neck's and the tail's radius along them, base to tip)
   const PART_ORDER = ['torso', 'head', 'jaw', 'tip', 'foot'];
   const SEGS = { wbone: { f: sdWbone, L: 1, R: 0.15 }, wfing: { f: sdWfing, L: 1, R: 0.05 }, claw: { f: sdClaw, L: 1, R: 0.17 }, hub: { f: sdHub, L: 0, R: 0.13, ball: true }, spike: { f: sdSpike, L: 1, R: 0.14 }, thigh: { f: sdThigh, L: 0.46, R: 0.17 }, shin: { f: sdShin, L: 0.4, R: 0.1 }, ntube: { f: sdTube(false), L: TL, R: 0.24, tube: true }, ttube: { f: sdTube(true), L: TL, R: 0.24, tube: true } };
-  const SEG_ORDER = Object.keys(SEGS);
+  const SEG_ORDER = Object.keys(SEGS).filter(k => k !== 'spike');   // (the dorsal spikes are drawn as 3D pyramids now: sdSpike is kept for reference, not baked)
 
   /* ================= shading ================= */
   const hsh = (i, j) => { const v = Math.sin(i * 127.1 + j * 311.7) * 43758.5453; return v - Math.floor(v); };
@@ -195,8 +237,11 @@ const NIDHOGG_MODEL = (() => {
     { a: [0.015, 0.01, 0.01], f: [0.04, 0.04, 0.04], r: 0.5, m: 0 },      // a dark recess
     { a: [0.12, 0.03, 0.03], f: [0.05, 0.04, 0.04], r: 0.55, m: 0 },      // the seat's padding
     { a: [0.18, 0.18, 0.2], f: [0.72, 0.73, 0.78], r: 0.16, m: 1 },       // silver claws
+    { a: [0.25, 0.16, 0.05], f: [1.0, 0.7, 0.32], r: 0.27, m: 1 },        // bronze-gold trim
+    { a: [0.4, 0.02, 0.03], f: [0.1, 0.04, 0.04], r: 0.05, m: 0, e: [0.85, 0.12, 0.05] },  // the brow gem (lit from within)
+    { a: [0.9, 0.45, 0.06], f: [0.06, 0.06, 0.06], r: 0.05, m: 0, e: [1.0, 0.5, 0.1] },    // the eyeball (iris, pupil: shaded procedurally)
   ];
-  const GLOWM = [0, 0, 0, 0, 1, 1, 1, 1, 0, 1, 0, 1, 0, 0, 0];   // (materials that feed the emission layer)
+  const GLOWM = [0, 0, 0, 0, 1, 1, 1, 1, 0, 1, 0, 1, 0, 0, 0, 0, 1, 1];   // (materials that feed the emission layer)
   const tone = v => { v = Math.max(0, v); return v * (1 + v / 6) / (1 + v); };
   function env(B, rx, ry, rz, rough) {
     const up = rx * B.UP[0] + ry * B.UP[1] + rz * B.UP[2];
@@ -215,19 +260,30 @@ const NIDHOGG_MODEL = (() => {
       const d = hyp(du, dv * 1.1); if (d > 0.5) cav += 0.75; else { const k = 0.85; nx += du * k * (an ? 1 : 0.5); ny += (an ? dv : 0) * k; nz += (an ? 0 : dv * k); if (dv > 0.3) { ar *= 1.25; ag *= 1.1; } }
       const wn = vnoise(x * 9 + 2, y * 9 + z * 5); ar *= 0.8 + 0.45 * wn; ag *= 0.7 + 0.6 * wn; rough *= 0.8 + 0.4 * wn;
     }
-    if (mat === M_ARMOR || mat === M_STEEL || mat === M_HORN || mat === M_TALON) {
+    if (mat === M_ARMOR || mat === M_STEEL || mat === M_HORN || mat === M_TALON) { const HJ = CUR_PART === 'head' || CUR_PART === 'jaw';
       const q = 12, dk = 0.08; nx += (vnoise(y * q, z * q) - 0.5) * dk; ny += (vnoise(z * q + 3, x * q) - 0.5) * dk; nz += (vnoise(x * q, y * q + 7) - 0.5) * dk;
       const wn = vnoise(x * 7 + y * 3, z * 7 - y * 5); rough = Math.min(0.7, rough * (0.7 + 0.7 * wn));
       // scratches and heat damage: bright streaks; darker scorched blotches
       const sc = Math.abs(fm(x * 15 + y * 9 + z * 5 + vnoise(x * 4, z * 4) * 2.5, 1) - 0.5); if (sc < 0.016 && hsh(Math.floor(x * 15 + y * 9 + z * 5), Math.floor(z * 6)) > 0.6) { wear += 0.6; rough *= 0.5; }
-      if (mat === M_ARMOR) { const pl = Math.abs(fm((x + y * 0.3) / 0.11, 1) - 0.5); if (pl > 0.44) { cav += (pl - 0.44) * 9; } else if (pl > 0.36) { wear += 0.35; }   // (fine plate lines: a dark seam, a worn bevel beside it)
+      if (mat === M_ARMOR) { const pl = HJ ? 0 : Math.abs(fm((x + y * 0.3) / 0.11, 1) - 0.5); if (pl > 0.44) { cav += (pl - 0.44) * 9; } else if (pl > 0.36) { wear += 0.35; }   // (fine plate lines: a dark seam, a worn bevel beside it)
         if (wn < 0.3) { const v = (0.3 - wn) * 3; fr *= 1 - 0.4 * v; fg *= 1 - 0.3 * v; rough = lerp(rough, 0.6, v); } }
     }
+    if (mat === M_ARMOR || mat === M_GOLD) {   // hammered: small soft dents all over the metal
+      const q = 38, dk = mat === M_GOLD ? 0.16 : 0.12; nx += (vnoise(y * q + 5, z * q) - 0.5) * dk; ny += (vnoise(z * q, x * q + 9) - 0.5) * dk; nz += (vnoise(x * q + 3, y * q) - 0.5) * dk;
+      if (mat === M_GOLD) { const wn = vnoise(x * 9 + 4, y * 9 - z * 6); fr *= 0.8 + 0.3 * wn; fg *= 0.78 + 0.3 * wn; if (wn < 0.25) cav += (0.25 - wn) * 1.6; } }
+    if (mat === M_GEM) { const fa = Math.abs(nx) + Math.abs(ny) * 0.8; er *= 0.55 + 0.9 * fa * fa; eg *= 0.5 + 0.9 * fa; }
+    if (mat === M_IRIS) {   // the eyeball: a slit pupil in a radial gold iris, a dark limbal ring, dark red beyond; glossy
+      const qx = x - EYE[0], qy = Math.abs(y) - EYE[1], qz = z - EYE[2], ql = hyp3(qx, qy, qz) || 1, gx = qx / ql, gy = qy / ql, gz = qz / ql, ct = gx * EYEG[0] + gy * EYEG[1] + gz * EYEG[2];
+      const U = EYEU, s2 = gx * U[0] + gy * U[1] + gz * U[2], e1x = EYEG[1] * U[2] - EYEG[2] * U[1], e1y = EYEG[2] * U[0] - EYEG[0] * U[2], e1z = EYEG[0] * U[1] - EYEG[1] * U[0], s1 = gx * e1x + gy * e1y + gz * e1z;
+      const ang = Math.atan2(s2, s1), rad = Math.sqrt(Math.max(0, 1 - ct * ct)), streak = 0.65 + 0.35 * Math.abs(Math.sin(ang * 9 + vnoise(ang * 4 + 3, rad * 8) * 3));
+      if (ct > 0.42) { const pw = 0.055 + 0.03 * (1 - Math.abs(s2) / 0.9); if (Math.abs(s1) < pw && ct > 0.5) { ar = 0.02; ag = 0.01; ab = 0.01; er = 0.05; eg = 0.01; eb = 0; }
+        else { const k2 = streak * (0.7 + 0.5 * rad); ar *= k2; ag *= k2 * (0.8 + 0.4 * rad); er *= k2 * 1.2; eg *= k2 * (0.7 + 0.6 * rad); if (ct < 0.55) { const v = (0.55 - ct) / 0.13; ar *= 1 - 0.6 * v; ag *= 1 - 0.7 * v; er *= 1 - 0.7 * v; eg *= 1 - 0.8 * v; } } }
+      else { ar = 0.25; ag = 0.03; ab = 0.02; er = 0.25; eg = 0.04; eb = 0.0; } }
     if (mat === M_BELLY) { const g2 = vnoise(x * 14, y * 14 + z * 8); ar *= 0.8 + 0.3 * g2; ag *= 0.75 + 0.4 * g2; er *= 0.7 + 0.6 * g2; eg *= 0.7 + 0.6 * g2; }
     { const l = hyp3(nx, ny, nz) || 1; nx /= l; ny /= l; nz /= l; }
     const edge = cl((lap - 8) / 26), crease = cl((-lap - 6) / 22); wear += edge * (mat === M_ARMOR ? 1 : 0.5);
     const grime = Math.min(0.85, crease * 0.55 + (1 - ao) * 0.35 + cav * 0.5);
-    if (wear > 0 && (mat === M_ARMOR || mat === M_STEEL || mat === M_HORN)) { const v = Math.min(1, wear); fr = lerp(fr, 0.75, v * 0.55); fg = lerp(fg, 0.7, v * 0.55); fb = lerp(fb, 0.68, v * 0.55); rough *= 1 - v * 0.4; }
+    if (wear > 0 && (mat === M_ARMOR || mat === M_STEEL || mat === M_HORN || mat === M_GOLD)) { const v = Math.min(1, wear); fr = lerp(fr, 0.75, v * 0.55); fg = lerp(fg, 0.7, v * 0.55); fb = lerp(fb, 0.68, v * 0.55); rough *= 1 - v * 0.4; }
     const L = B.L, V = B.V, ndl = nx * L[0] + ny * L[1] + nz * L[2], ndv = Math.max(0.001, nx * V[0] + ny * V[1] + nz * V[2]);
     const wrapD = mat === M_SCALE || mat === M_BELLY ? Math.max(0, (ndl + 0.25) / 1.25) : Math.max(0, ndl), dif = wrapD * shd;
     const up = nx * B.UP[0] + ny * B.UP[1] + nz * B.UP[2], hm = 0.5 + 0.5 * up, amr = lerp(GNDC[0], SKYC[0], hm) * ao, amg = lerp(GNDC[1], SKYC[1], hm) * ao, amb = lerp(GNDC[2], SKYC[2], hm) * ao;
@@ -238,7 +294,7 @@ const NIDHOGG_MODEL = (() => {
     const rimT = Math.pow(1 - ndv, 2.6) * Math.max(0, nx * B.RIM[0] + ny * B.RIM[1] + nz * B.RIM[2] + 0.35) * ao;
     let r, g, b;
     if (M.m) { r = ar * (dif * KEYC[0] * 0.7 + amr * 0.5) + Fr * (ev * aoS + spec * KEYC[0]) + ec * RIMC[0] * Fr * aoS * 0.6; g = ag * (dif * KEYC[1] * 0.7 + amg * 0.5) + Fg * (ev * aoS + spec * KEYC[1]) + ec * RIMC[1] * Fg * aoS * 0.6; b = ab * (dif * KEYC[2] * 0.7 + amb * 0.5) + Fb * (ev * aoS + spec * KEYC[2]) + ec * RIMC[2] * Fb * aoS * 0.6; }
-    else { const sk = mat === M_SCALE ? 1.6 : 3; r = ar * (dif * KEYC[0] + amr) + Fr * (ev * aoS * 0.6 + spec * KEYC[0] * sk) + ec * RIMC[0] * 0.15; g = ag * (dif * KEYC[1] + amg) + Fg * (ev * aoS * 0.6 + spec * KEYC[1] * sk) + ec * RIMC[1] * 0.15; b = ab * (dif * KEYC[2] + amb) + Fb * (ev * aoS * 0.6 + spec * KEYC[2] * sk) + ec * RIMC[2] * 0.15;
+    else { const sk = mat === M_SCALE ? 1.6 : mat === M_IRIS || mat === M_GEM ? 6 : 3; r = ar * (dif * KEYC[0] + amr) + Fr * (ev * aoS * 0.6 + spec * KEYC[0] * sk) + ec * RIMC[0] * 0.15; g = ag * (dif * KEYC[1] + amg) + Fg * (ev * aoS * 0.6 + spec * KEYC[1] * sk) + ec * RIMC[1] * 0.15; b = ab * (dif * KEYC[2] + amb) + Fb * (ev * aoS * 0.6 + spec * KEYC[2] * sk) + ec * RIMC[2] * 0.15;
       if (mat === M_SCALE) { const sss = Math.pow(1 - ndv, 2) * 0.25; r += sss * 0.9 * ao; g += sss * 0.08 * ao; b += sss * 0.06 * ao; } }
     r += rimT * RIMC[0] * 0.5; g += rimT * RIMC[1] * 0.5; b += rimT * RIMC[2] * 0.5;
     if (mat === M_EYE) { const k = Math.pow(ndv, 2); er *= 0.8 + 0.6 * k; eg *= 0.6 + 0.8 * k; eb *= 0.5 + k; }
@@ -319,15 +375,18 @@ const NIDHOGG_MODEL = (() => {
     if (ecv) { const hc = document.createElement('canvas'); hc.width = Math.max(1, w2 >> 1); hc.height = Math.max(1, h2 >> 1); hc.getContext('2d').drawImage(ecv, 0, 0, hc.width, hc.height); BK.bytes -= w2 * h2 * 3; ecv = hc; }   // (the glow is soft: half resolution)
     store({ cv, x: x0 - ox, y: y0 - oy, k }, ecv ? { cv: ecv, x: (x0 - ox) / 2, y: (y0 - oy) / 2, k: k / 2, half: true, w2, h2 } : null);
   }
-  const PSC = { torso: TK, head: HEADK, jaw: HEADK, tip: 2.0, foot: LK }, KCAP = 150;
+  const PSC = { torso: TK, head: HEADK, jaw: HEADK, tip: 2.0, foot: LK }, KCAP = 150, PCAP = { head: 270, jaw: 230 };   // (the head and jaw are drawn big and close: baked near their drawn scale)
+  let CUR_PART = '';   // (the part being baked: one at a time; the head and jaw skip the generic plate lines)
   function bakePart(name, b, k0, lo) {
-    const P = PARTS[name], B = frameOf(b), c = P.c, R = P.R, k = Math.min(KCAP * (lo ? 0.5 : 1), k0 * (PSC[name] || 1));
+    CUR_PART = name;
+    const P = PARTS[name], B = frameOf(b), c = P.c, R = P.R, k = Math.min((PCAP[name] || KCAP) * (lo ? 0.5 : 1), k0 * (PSC[name] || 1));
     const gx = c[0] * B.ca - c[1] * B.sa, gy = c[0] * B.sa + c[1] * B.ca, cu = gx, cvv = gy * GY - c[2] * ZK;
     const W = Math.ceil(2 * R * k) + 4, box = { W, H: W, ox: -(cu - R) * k + 2, oy: -(cvv - R) * k + 2 };
     return bakeImg(B, P.f, c, R, k, !lo && P.glow, box, (s, e) => { if (lo) BK.lo[name][b] = s; else { BK.spr[name][b] = s; BK.glow[name][b] = e; } });
   }
   const TUBEF = (() => { const V = [0, 0, 1], L = nrm([0.25, 0, 1]); return { L, V, SB: nrm([0.15, 0, 1]), RIM: [0, 0, -1], UP: [0, 0, 1], Hh: nrm([L[0], L[1], L[2] + 1]), D: [0, 0, 1], seg: true }; })();
   function bakeSeg(name, k0) {
+    CUR_PART = name;
     const P = SEGS[name], R = P.R, L = P.L, c = [L / 2, 0, 0], RR = L / 2 + R + 0.02, k = P.tube ? Math.min(KCAP, Math.round(k0 * 2.4 / 8) * 8) : k0;
     const W = Math.ceil((L + 2 * R) * k) + 6, H = Math.ceil(2 * R * k) + 6, box = { W, H, ox: R * k + 3, oy: R * k + 3 };
     return bakeImg(P.tube ? TUBEF : SEGF, P.f, c, RR, k, !!P.tube, box, (s, e) => { s.L = L; s.R = R; BK.seg[name] = s;
@@ -418,7 +477,7 @@ const NIDHOGG_MODEL = (() => {
     const hd = vnrm(vsub(P2, R.neck[4])); let hdir = rZ([hd[0], hd[1], 0], yaw * 0.4); const hl = hyp(hdir[0], hdir[1]) || 1; hdir = [hdir[0] / hl, hdir[1] / hl, 0];
     const pitchH = Math.atan2(-hd[2], hyp(hd[0], hd[1])) * 0.5 + hp * 0.9;   // (the head follows the neck's slope a little, and its own pitch)
     R.head = P2; R.headF = vnrm([hdir[0] * Math.cos(pitchH), hdir[1] * Math.cos(pitchH), -Math.sin(pitchH)]); R.headL = vnrm([-hdir[1], hdir[0], 0]);
-    const HSc = HEADK; R.HS = HSc; const ja = P.jaw * 0.75; R.jawF = vnrm(vadd(vmul(R.headF, Math.cos(ja)), vmul(vcross(R.headL, R.headF), -Math.sin(ja))));   // (opening: turned down about the head's lateral axis)
+    const HSc = HEADK; R.HS = HSc; const ja = P.jaw * 0.75; R.jawF = vnrm(vadd(vmul(R.headF, Math.cos(ja)), vmul(vcross(R.headL, R.headF), Math.sin(ja))));   // (opening: turned down about the head's lateral axis; L x F points down)
     R.hinge = vadd(P2, vadd(vmul(R.headF, -0.02 * HSc), V3(0, 0, -0.07 * HSc)));
     R.mouth = vadd(P2, vadd(vmul(R.headF, 0.42 * HSc), vmul(vadd(R.jawF, vmul(R.headF, -1)), 0.2 * HSc)));
     R.eyes = vadd(P2, vadd(vmul(R.headF, 0.2 * HSc), V3(0, 0, 0.05 * HSc)));
@@ -453,10 +512,10 @@ const NIDHOGG_MODEL = (() => {
     // the dorsal spikes: on the neck, the back and the tail; base, direction, length (the back's grow with `spikes`)
     R.spk = [];
     for (let i = 1; i < 14; i++) { const a = R.neckS[i], b = R.neckS[i + 1], d = vnrm(vsub(b, a)), u = i / 14, rr = R.neckR[i], sd = vnrm([-d[1], d[0], 0]);
-      if (i % 2) R.spk.push({ p: vadd(a, V3(0, 0, rr * 0.85)), d: vnrm(vadd(vmul(d, -0.6), V3(0, 0, 0.8))), L: 0.28 + 0.18 * u, w: 1.5 + 0.4 * u, neck: true });
-      if (u > 0.45 && i % 2 === 0) for (const s2 of [-1, 1]) R.spk.push({ p: vadd(a, vadd(vmul(sd, rr * 0.8 * s2), V3(0, 0, rr * 0.2))), d: vnrm(vadd(vadd(vmul(d, -0.75), vmul(sd, 0.5 * s2)), V3(0, 0, 0.25))), L: 0.22 + 0.3 * u, w: 1.0 + 0.4 * u, neck: true }); }
-    for (let i = 0; i < 6; i++) { const x = 0.24 - i * 0.22; R.spk.push({ p: V3(x * TK, 0, (0.4 - 0.035 * i) * TK + bob), d: vnrm(V3(-0.45, 0, 0.9)), L: (0.42 - 0.02 * i) * (1 + 0.5 * P.spikes), w: 2.3, back: true }); }
-    for (let i = 0; i < 15; i++) { const a = R.tail[i], b = R.tail[i + 1], d = vnrm(vsub(b, a)), u = i / 15; R.spk.push({ p: vadd(vmul(vadd(a, b), 0.5), V3(0, 0, TRAD(u + 0.03) * 0.85)), d: vnrm(vadd(vmul(d, 0.55), V3(0, 0, 0.83))), L: 0.48 - 0.3 * u, w: 2.3 - 1.2 * u, tail: true }); }
+      if (i % 2) R.spk.push({ p: vadd(a, V3(0, 0, rr * 0.85)), d: vnrm(vadd(vmul(d, -0.6), V3(0, 0, 0.8))), t: d, L: 0.28 + 0.18 * u, w: 1.5 + 0.4 * u, neck: true });
+      if (u > 0.45 && i % 2 === 0) for (const s2 of [-1, 1]) R.spk.push({ p: vadd(a, vadd(vmul(sd, rr * 0.8 * s2), V3(0, 0, rr * 0.2))), d: vnrm(vadd(vadd(vmul(d, -0.75), vmul(sd, 0.5 * s2)), V3(0, 0, 0.25))), t: d, L: 0.22 + 0.3 * u, w: 1.0 + 0.4 * u, neck: true, frill: true }); }
+    for (let i = 0; i < 6; i++) { const x = 0.24 - i * 0.22; R.spk.push({ p: V3(x * TK, 0, (0.4 - 0.035 * i) * TK + bob), d: vnrm(V3(-0.45, 0, 0.9)), t: V3(1, 0, 0), L: (0.42 - 0.02 * i) * (1 + 0.5 * P.spikes), w: 2.3, back: true }); }
+    for (let i = 0; i < 15; i++) { const a = R.tail[i], b = R.tail[i + 1], d = vnrm(vsub(b, a)), u = i / 15; R.spk.push({ p: vadd(vmul(vadd(a, b), 0.5), V3(0, 0, TRAD(u + 0.03) * 0.85)), d: vnrm(vadd(vmul(d, 0.55), V3(0, 0, 0.83))), t: vmul(d, -1), L: 0.48 - 0.3 * u, w: 2.3 - 1.2 * u, tail: true }); }
     // anchors (body local)
     R.ring = V3(-0.15 * TK, 0, 0.55 * TK + 0.55 + bob); R.belly = V3(-0.05 * TK, 0, -0.38 * TK + bob); R.chest = V3(0.6 * TK, 0, 0.0 + bob);
     R.vents = [V3(0.12 * TK, -0.48 * TK, 0.02 * TK + bob), V3(0.12 * TK, 0.48 * TK, 0.02 * TK + bob)];
@@ -501,6 +560,27 @@ const NIDHOGG_MODEL = (() => {
   function drawSegImg(c, spr, ax, ay, bx, by, kk, a) {
     const dx = bx - ax, dy = by - ay, len = hyp(dx, dy); if (len < 0.5 || !spr || !spr.cv) return; const phi = Math.atan2(dy, dx), sg = LSX * Math.sin(phi) - LSY * Math.cos(phi) < 0 ? -1 : 1;
     c.save(); c.globalAlpha = a; c.translate(ax, ay); c.rotate(phi); c.scale(len / (spr.L * spr.k), sg * kk); c.drawImage(spr.cv, spr.x, spr.y); c.restore();
+  }
+  /* a dorsal spike as a real four-sided pyramid: a fin-like diamond base (long along the chain, narrow across), the tip
+     swept back; faces turned from the camera are skipped, the rest shaded by their true normal (key light from the
+     upper left, a dark crimson root to a bright red face, a pale lit ridge). A few path fills each; no baked sprite. */
+  const SPK_L = (() => { const l = [-0.42, -0.5, 0.76], n = Math.hypot(l[0], l[1], l[2]); return [l[0] / n, l[1] / n, l[2] / n]; })();
+  function spike3(c, V, S2, off, al, tr, ghost) {
+    const r = (S2.neck ? 0.048 : 0.06) * S2.w, d = S2.d, t0 = S2.t || [1, 0, 0], td = t0[0] * d[0] + t0[1] * d[1] + t0[2] * d[2];
+    const f = vnrm(vsub(t0, vmul(d, td))), sd = vcross(d, f), p = S2.p, tip = vadd(p, vmul(d, S2.L));
+    const C = [vadd(p, vmul(f, r * 1.7)), vadd(p, vmul(sd, r * 0.6)), vadd(p, vmul(f, -r * 1.2)), vadd(p, vmul(sd, -r * 0.6))];
+    const so = q => { const s2 = V.toS(q); return [s2[0] + off[0], s2[1] + off[1]]; }, St = so(tip), Sc = C.map(so);
+    c.save(); c.globalAlpha = al; c.lineJoin = 'round';
+    for (let i = 0; i < 4; i++) { const a = C[i], b = C[(i + 1) & 3], n0 = vcross(vsub(b, a), vsub(tip, a)), cen = vmul(vadd(vadd(a, b), tip), 1 / 3);
+      let n = vnrm(V.dirW(n0)); const out = vsub(cen, p); if (n0[0] * out[0] + n0[1] * out[1] + n0[2] * out[2] < 0) n = vmul(n, -1);
+      if (n[1] * VY + n[2] * VZ <= 0.02) continue;   // (facing away)
+      const lam = Math.max(0, n[0] * SPK_L[0] + n[1] * SPK_L[1] + n[2] * SPK_L[2]), k = 0.28 + 0.72 * lam, hl = Math.pow(lam, 12);
+      const R0 = Math.min(255, 55 + 160 * k + 70 * hl) | 0, G0 = Math.min(255, 6 + 30 * k + 75 * hl) | 0, B0 = Math.min(255, 12 + 26 * k + 65 * hl) | 0;
+      c.beginPath(); c.moveTo(Sc[i][0], Sc[i][1]); c.lineTo(Sc[(i + 1) & 3][0], Sc[(i + 1) & 3][1]); c.lineTo(St[0], St[1]); c.closePath();
+      c.fillStyle = `rgb(${R0},${G0},${B0})`; c.fill(); }
+    if (!ghost) { c.beginPath(); c.moveTo(Sc[0][0], Sc[0][1]); c.lineTo(St[0], St[1]); c.lineTo(Sc[2][0], Sc[2][1]); c.strokeStyle = 'rgba(40,4,8,0.55)'; c.lineWidth = Math.max(0.6, V.T * V.k * 0.012); c.stroke();
+      if (tr > 0.02) { c.globalCompositeOperation = 'lighter'; c.strokeStyle = `rgba(255,${90 + 60 * tr | 0},40,${0.85 * tr})`; c.lineWidth = Math.max(1, V.T * V.k * 0.025); c.stroke(); } }
+    c.restore();
   }
   /* the membrane between projected points (shifted by off): filled with the vein texture mapped by (W -> 0, A -> u, B -> v), lit by its normal */
   let MAT = null;
@@ -567,13 +647,15 @@ const NIDHOGG_MODEL = (() => {
     /* a shell: crossfaded between the two nearest heading buckets (no popping as it turns), mapped by the least-squares
        affine; returns the map of the nearest bucket (for attaching children) */
     const shell = (name, p3, F, L, s, glowA, dOff, w3, traced) => {
+      if (o.skip && o.skip.includes(name)) return null;
       const Fw = V.dirW(F), Lw = V.dirW(L), fb = Math.atan2(Fw[1], Fw[0]) / TAU * NB, f0 = Math.floor(fb), w = fb - f0, b0 = ((f0 % NB) + NB) % NB, b1 = (b0 + 1) % NB, sp = V.toS(p3);
       let B0 = sprOf(name, b0) ? b0 : nearestB(name, b0), B1 = sprOf(name, b1) ? b1 : -1; if (B0 < 0) return null; if (B1 === B0) B1 = -1;
-      const M0 = lsM(B0 / NB * TAU, Fw, Lw, w3), M1 = B1 >= 0 ? lsM(B1 / NB * TAU, Fw, Lw, w3) : null, near = w < 0.5 || B1 < 0 ? [B0, M0] : [B1, M1];
+      if (o.ghost && w >= 0.5 && B1 >= 0) { B0 = B1; B1 = -1; }   // (a ghost: the nearest bucket alone)
+      const M0 = lsM(B0 / NB * TAU, Fw, Lw, w3), M1 = B1 >= 0 && !o.ghost ? lsM(B1 / NB * TAU, Fw, Lw, w3) : null, near = w < 0.5 || B1 < 0 ? [B0, M0] : [B1, M1];
       item(V.depth(p3) + (dOff || 0), () => {
-        if (traced && tr > 0.02) { c.save(); c.shadowColor = `rgba(255,80,30,${0.95 * tr})`; c.shadowBlur = T * 0.45 * sc * tr; drawSpr(c, sprOf(name, B0), M0, sp[0], sp[1], sc * s, T, al); c.restore(); }
+        if (traced && tr > 0.02 && !o.ghost) { c.save(); c.shadowColor = `rgba(255,80,30,${0.95 * tr})`; c.shadowBlur = T * 0.45 * sc * tr; drawSpr(c, sprOf(name, B0), M0, sp[0], sp[1], sc * s, T, al); c.restore(); }
         drawSpr(c, sprOf(name, B0), M0, sp[0], sp[1], sc * s, T, al); if (M1) drawSpr(c, sprOf(name, B1), M1, sp[0], sp[1], sc * s, T, al * w);
-        if (glowA > 0.01) { const g0 = BK.glow[name][B0], g1 = B1 >= 0 ? BK.glow[name][B1] : null, ga = al * Math.min(1, glowA); if (g0) drawSpr(c, g0, M0, sp[0], sp[1], sc * s, T, ga * (g1 ? 1 - w : 1), 'lighter'); if (g1) drawSpr(c, g1, M1, sp[0], sp[1], sc * s, T, ga * w, 'lighter'); } });
+        if (glowA > 0.01 && !o.ghost) { const g0 = BK.glow[name][B0], g1 = B1 >= 0 ? BK.glow[name][B1] : null, ga = al * Math.min(1, glowA); if (g0) drawSpr(c, g0, M0, sp[0], sp[1], sc * s, T, ga * (g1 ? 1 - w : 1), 'lighter'); if (g1) drawSpr(c, g1, M1, sp[0], sp[1], sc * s, T, ga * w, 'lighter'); } });
       return { b: near[0], M: near[1], S: sp, s };
     };
     const glowB = cl(0.38 + 0.62 * Math.max(P.glow, tr * 0.8)), throatG = cl(0.3 + Math.max(P.throat, P.glow * 0.9, tr * 0.7)), ventG = cl(0.5 + Math.max(P.vents, P.glow));
@@ -586,8 +668,8 @@ const NIDHOGG_MODEL = (() => {
     const so = (p3, d) => { const q = V.toS(p3); return [q[0] + d[0], q[1] + d[1]]; };
     // the neck and the tail: one continuous strip each, drawn under the torso (their roots disappear into it)
     const ntube = BK.tube.ntube, ttube = BK.tube.ttube;
-    item(Math.min(V.depth(R.neckS[7]), dTorso - 0.02), () => strip(c, V, R.neckS, R.neckR, ntube, dN, throatG * 0.9, tr, al, low));
-    item(Math.min(V.depth(R.tailS[8]), dTorso - 0.03), () => strip(c, V, R.tailS, R.tailR, ttube, dT, glowB * 0.8, tr, al, low));
+    item(Math.min(V.depth(R.neckS[7]), dTorso - 0.02), () => strip(c, V, R.neckS, R.neckR, ntube, dN, o.ghost ? 0 : throatG * 0.9, o.ghost ? 0 : tr, al, low));
+    item(Math.min(V.depth(R.tailS[8]), dTorso - 0.03), () => strip(c, V, R.tailS, R.tailR, ttube, dT, o.ghost ? 0 : glowB * 0.8, o.ghost ? 0 : tr, al, low));
     // the head and the lower jaw (on the neck's end, shifted with it)
     const Sh = so(R.head, dN), Sj = so(R.hinge, dN);
     { const hs = shell('head', R.head, R.headF, R.headL, HEADK, cl(0.4 + P.glow * 0.6 + P.core * 0.4 + tr * 0.5), 0.01, W_HEAD, true); if (hs) { hs.S[0] = Sh[0]; hs.S[1] = Sh[1]; } }
@@ -600,9 +682,9 @@ const NIDHOGG_MODEL = (() => {
       item(V.depth(vmul(vadd(Lg.kn, Lg.ank), 0.5)) + 0.002, () => drawSegImg(c, BK.seg.shin, k2[0], k2[1], an[0], an[1], kseg * LK, al));
       const fd = vnrm(vadd(vsub(Lg.ank, Lg.kn), V3(0.6, 0, 0))), fs = shell('foot', Lg.ank, [fd[0], fd[1], 0], [-fd[1], fd[0], 0], LK, 0, 0.004, W_SMALL); if (fs) { fs.S[0] = an[0]; fs.S[1] = an[1]; } });
     // the dorsal spikes and the neck's frill (on their strip, shifted with it)
-    const sp = BK.seg.spike, kSp = sp ? T * sc / sp.k : 0;
-    for (const S2 of R.spk) { const d = S2.neck ? dN : S2.tail ? dT : [0, 0], a3 = S2.p, b3 = vadd(a3, vmul(S2.d, S2.L)), A = so(a3, d), B = so(b3, d);
-      item(V.depth(vmul(vadd(a3, b3), 0.5)) - 0.03, () => drawSegImg(c, sp, A[0], A[1], B[0], B[1], kSp * S2.w, al)); }
+    // (true 3D pyramids, projected each frame: right at every heading, no flipping, fanning or sliding; see spike3)
+    if (!o.ghost) for (const S2 of R.spk) { const d = S2.neck ? dN : S2.tail ? dT : attach(S2.p), a3 = S2.p, b3 = vadd(a3, vmul(S2.d, S2.L));
+      item(V.depth(vmul(vadd(a3, b3), 0.5)) - 0.03, () => spike3(c, V, S2, d, al, tr, o.ghost)); }
     // the wings, attached at their roots: membranes, then the arm, the fingers, the claws and the hubs over them
     const hub = BK.seg.hub, kHub = hub ? T * sc / hub.k : 0, cl2 = BK.seg.claw, wf = BK.seg.wfing;
     R.wing.forEach((Wg, wi) => { const { root, elbow, wrist, fing, hipA } = Wg, F = fing, d = dW[wi];
@@ -617,10 +699,11 @@ const NIDHOGG_MODEL = (() => {
       { const dd = vnrm(vsub(wrist, elbow)), th = vadd(wrist, vmul(vnrm(vadd(dd, V3(0.4, 0, 0.25))), 0.42)), St = so(th, d); item(V.depth(wrist) + 0.005, () => drawSegImg(c, cl2, Sw[0], Sw[1], St[0], St[1], T * sc / cl2.k * 1.3, al)); }
       for (const [p3, r] of [[root, 1.6], [elbow, 1.35], [wrist, 1.25]]) { const S3 = so(p3, d); item(V.depth(p3) + 0.008, () => { c.save(); c.globalAlpha = al; c.translate(S3[0], S3[1]); c.scale(kHub * r, kHub * r); c.drawImage(hub.cv, hub.x, hub.y); c.restore(); }); } });
     // the ring over the back (Ultima): its far half behind, its near half in front
-    if (P.ring > 0.01) { const rc = R.ring; item(V.depth(rc) - 0.9, () => drawRing(c, V, R, P, al, 0)); item(V.depth(rc) + 0.9, () => drawRing(c, V, R, P, al, 1)); }
+    if (P.ring > 0.01 && !o.ghost) { const rc = R.ring; item(V.depth(rc) - 0.9, () => drawRing(c, V, R, P, al, 0)); item(V.depth(rc) + 0.9, () => drawRing(c, V, R, P, al, 1)); }
     // sort and draw
     const L2 = ITEMS; for (let i = 1; i < NI; i++) { const it = L2[i]; let j = i - 1; while (j >= 0 && L2[j].d > it.d) { L2[j + 1] = L2[j]; j--; } L2[j + 1] = it; }
     for (let i = 0; i < NI; i++) L2[i].fn();
+    if (o.ghost) return;   // (a motion-blur ghost: the body only)
     lights(c, V, R, P, al, low);
     if (P.heat > 0.03 && !low) { const tt = t * 3; c.save(); c.globalCompositeOperation = 'lighter'; for (let i = 0; i < 7; i++) { const p3 = i < 3 ? R.neck[1 + i] : i < 5 ? R.torso : R.tail[(i - 4) * 4], s3 = V.toS(p3), ph2 = tt + i * 1.7, r = T * sc * (0.5 + 0.25 * Math.sin(ph2)); c.globalAlpha = al * P.heat * (0.12 + 0.06 * Math.sin(ph2 * 1.3));
       blitSized(c, glowSprite(i & 1 ? FIRE : '#FF4A1A'), s3[0] - r + Math.sin(ph2) * T * 0.15, s3[1] - r - T * 0.3 * ((tt * 0.4 + i * 0.3) % 1), r * 2, r * 2); } c.restore(); }
@@ -630,7 +713,7 @@ const NIDHOGG_MODEL = (() => {
   function lights(c, V, R, P, al, low) {
     const T = V.T, sc = V.k, dN = R.dN || [0, 0], dW = R.dW || [[0, 0], [0, 0]], toS = (p3, d) => { const q = V.toS(p3); return [q[0] + d[0], q[1] + d[1]]; };   // (on the parts as drawn: shifted with their chains)
     c.save(); c.globalCompositeOperation = 'lighter';
-    for (const s of [-1, 1]) { const e = toS(vadd(R.eyes, vmul(R.headL, 0.105 * HEADK * s)), dN), r = T * sc * (0.09 + 0.06 * P.glow); c.globalAlpha = al * 0.8; blitSized(c, glowSprite(FIRE), e[0] - r, e[1] - r, r * 2, r * 2); c.globalAlpha = al; blitSized(c, glowSprite(CORE), e[0] - r * 0.3, e[1] - r * 0.3, r * 0.6, r * 0.6); }
+    for (const s of [-1, 1]) { const e = toS(vadd(R.eyes, vmul(R.headL, 0.108 * HEADK * s)), dN), r = T * sc * (0.07 + 0.06 * P.glow); c.globalAlpha = al * (0.45 + 0.4 * P.glow); blitSized(c, glowSprite(FIRE), e[0] - r, e[1] - r, r * 2, r * 2); c.globalAlpha = al; blitSized(c, glowSprite(CORE), e[0] - r * 0.3, e[1] - r * 0.3, r * 0.6, r * 0.6); }
     const m = toS(R.mouth, dN), mk = Math.max(P.jaw * 0.35, P.throat * 0.6, P.core);
     if (mk > 0.02) { const r = T * sc * (0.25 + 0.45 * P.core + 0.15 * P.throat); c.globalAlpha = al * Math.min(1, mk); blitSized(c, glowSprite(FIRE), m[0] - r, m[1] - r, r * 2, r * 2); if (P.core > 0.02) { const r2 = r * (0.35 + 0.15 * Math.sin(nowMs() / 60)); c.globalAlpha = al * P.core; blitSized(c, glowSprite(CORE), m[0] - r2, m[1] - r2, r2 * 2, r2 * 2); blitSized(c, glowSprite('#FFFFFF'), m[0] - r2 * 0.45, m[1] - r2 * 0.45, r2 * 0.9, r2 * 0.9); } }
     if (P.throat > 0.05) for (let i = 1; i < 5; i++) { const p = toS(vadd(R.neck[i], V3(0, 0, -0.1)), dN), r = T * sc * 0.22; c.globalAlpha = al * P.throat * 0.5; blitSized(c, glowSprite(FIRE), p[0] - r, p[1] - r, r * 2, r * 2); }
@@ -670,10 +753,11 @@ const NIDHOGG_MODEL = (() => {
   /* world anchors of the last drawn pose: mouth, belly, chest, wingL / wingR (roots), ventL / ventR, ring (centre over the
      back), seat, tail (the tip), head, eyes */
   function anchor(name) {
-    if (!LAST) return null; const { R, V } = LAST, w = p => { const q = V.toW(p); return { x: q[0], y: q[1], z: q[2] }; };
-    switch (name) { case 'mouth': return w(R.mouth); case 'belly': return w(R.belly); case 'chest': return w(R.chest); case 'wingL': return w(R.wing[0].root); case 'wingR': return w(R.wing[1].root);
-      case 'ventL': return w(R.vents[0]); case 'ventR': return w(R.vents[1]); case 'ring': return w(R.ring); case 'seat': return w(R.seat); case 'tail': return w(R.tail[R.tail.length - 1]); case 'tailTip': return w(vadd(R.tail[R.tail.length - 1], vmul(R.tipDir, 1.0)));
-      case 'head': return w(R.head); case 'eyes': return w(R.eyes); case 'wingTipL': return w(R.wing[0].fing[0]); case 'wingTipR': return w(R.wing[1].fing[0]); default: return w(R.torso); }
+    if (!LAST) return null; const { R, V } = LAST, w = (p, d) => { const q = V.toW(p); return { x: q[0] + (d ? d[0] / V.T : 0), y: q[1] + (d ? d[1] / V.T : 0), z: q[2] }; };   // (with the chain's attach shift: on the part as drawn)
+    const dN = R.dN, dT = R.dT, dW = R.dW || [];
+    switch (name) { case 'mouth': return w(R.mouth, dN); case 'belly': return w(R.belly); case 'chest': return w(R.chest); case 'wingL': return w(R.wing[0].root, dW[0]); case 'wingR': return w(R.wing[1].root, dW[1]);
+      case 'ventL': return w(R.vents[0]); case 'ventR': return w(R.vents[1]); case 'ring': return w(R.ring); case 'seat': return w(R.seat); case 'tail': return w(R.tail[R.tail.length - 1], dT); case 'tailTip': return w(vadd(R.tail[R.tail.length - 1], vmul(R.tipDir, 1.0)), dT);
+      case 'head': return w(R.head, dN); case 'eyes': return w(R.eyes, dN); case 'wingTipL': return w(R.wing[0].fing[0], dW[0]); case 'wingTipR': return w(R.wing[1].fing[0], dW[1]); default: return w(R.torso); }
   }
 
   /* ================= the clips: pose drivers (t in seconds from the clip's start; they write P and return hints) =================
@@ -727,7 +811,7 @@ const NIDHOGG_MODEL = (() => {
     const S = PV = { P, x: me.x, y: me.y, z: 0, a: 0, vx: 0, vy: 0, clip: 'summon', ct: 0, auto: opts.auto !== false, cyc: 0, parts: [], ended: false, mx: 0, my: 0, autoT: 0, zT: 2.6 };
     const ORDER = ['hover', 'fly', 'climb', 'descend', 'dive', 'fireball', 'flare', 'ultima', 'beam', 'settle', 'fly', 'dismiss'];
     const play = (n) => { S.clip = n; S.ct = 0; };
-    S.play = play;
+    S.play = play; S.td = turnDriver({ a: 0 });
     const ember = (x, y, z, vx, vy, vz, life, col, s) => { if (S.parts.length > (lowFx() ? 60 : 160)) return; S.parts.push({ x, y, z, vx, vy, vz, life, max: life, col, s }); };
     S.veh = { get active() { return !S.ended; }, noJumpBtn: false, drive: (mx, my) => { S.mx = mx; S.my = my; }, dodge: () => play('dive'), jump: () => play('climb'), strong: slot => play(slot === 'strong2' ? 'flare' : 'fireball'), ult: () => play('ultima'),
       drawBtns: (c, o2) => { const B = o2.B, lab = (b, s) => { if (!b) return; c.save(); c.globalAlpha = 0.9; c.fillStyle = 'rgba(60,10,6,.75)'; c.beginPath(); c.arc(b.x, b.y, b.r, 0, TAU); c.fill(); c.strokeStyle = '#FF7A1A'; c.lineWidth = 2.5; c.stroke(); c.restore(); if (typeof GFX !== 'undefined') GFX.labelS(c, s, b.x, b.y + 3, 10, 900, '#FFE0B0', 'rgba(0,0,0,.7)', 3); };
@@ -736,11 +820,12 @@ const NIDHOGG_MODEL = (() => {
     X.vehicle(S.veh);
     const F = H.add({ key: 'nidhogg-preview', life: 1e9, entY: me.y,
       update(dt) { if (S.ended) return; S.ct += dt; S.autoT += dt; if (!(g.zoomT > 0)) g.zoomP += (0.74 - g.zoomP) * Math.min(1, dt * 2); bakeStep(S.clip === 'summon' ? 4 : 2);
-        const C = CLIPS[S.clip] || CLIPS.hover, hint = C.run(P, S.ct, dt, { turn: wrap(Math.atan2(S.my, S.mx) - S.a) * (hyp(S.mx, S.my) > 0.2 ? 1 : 0), n: 3 }) || {};
+        const C = CLIPS[S.clip] || CLIPS.hover, TD = S.td, hint = C.run(P, S.ct, dt, { turn: TD.spin ? TD.spin.dir * 0.8 : 1e-4, n: 3 }) || {};
         // the flight: the stick steers (free over walls, gaps and water: no ground navigation); clips hint at speed and height
         const mag = Math.min(1, hyp(S.mx, S.my)), top = 6;
-        if (mag > 0.15) { const want2 = Math.atan2(S.my, S.mx), da = wrap(want2 - S.a); S.a = wrap(S.a + Math.max(-2.2 * dt, Math.min(2.2 * dt, da))); P.bank += (Math.max(-0.7, Math.min(0.7, da * 0.8)) - P.bank) * Math.min(1, dt * 4); P.tailSwing += (-da * 0.7 - P.tailSwing) * Math.min(1, dt * 3); }
-        const spd = mag > 0.15 ? top * mag : (hint.speed || 0) * (S.auto ? 0.4 : 0); S.vx += (Math.cos(S.a) * spd - S.vx) * Math.min(1, dt * 2); S.vy += (Math.sin(S.a) * spd - S.vy) * Math.min(1, dt * 2);
+        // the heading: snap-spins (see turnDriver); the travel follows the stick exactly
+        const tev = TD.step(dt, mag > 0.15 ? S.mx : 0, mag > 0.15 ? S.my : 0, P); S.a = TD.a; if (tev.spinStart) { const sfx = X.sfx || {}; if (sfx.whoosh) sfx.whoosh(); }
+        const mvA = mag > 0.15 ? TD.want : S.a, spd = mag > 0.15 ? top * mag : (hint.speed || 0) * (S.auto ? 0.4 : 0); S.vx += (Math.cos(mvA) * spd - S.vx) * Math.min(1, dt * 2); S.vy += (Math.sin(mvA) * spd - S.vy) * Math.min(1, dt * 2);
         S.x += S.vx * dt; S.y += S.vy * dt;
         if (hint.dz != null) S.z = Math.max(0.15, S.z + hint.dz * dt); else S.z += (S.zT - S.z) * Math.min(1, dt * 1.5);
         if (S.clip !== 'summon' && S.clip !== 'dive') S.z += (S.zT - S.z) * Math.min(1, dt * 0.8);
@@ -763,7 +848,7 @@ const NIDHOGG_MODEL = (() => {
           for (let i = 0; i < 6; i++) { const a = i / 6 * TAU; c.beginPath(); c.moveTo(Math.cos(a) * r * 0.6, Math.sin(a) * r * 0.6); c.lineTo(Math.cos(a + 2.094) * r * 0.6, Math.sin(a + 2.094) * r * 0.6); c.strokeStyle = '#FFB060'; c.lineWidth = T * 0.03; c.stroke(); }
           c.globalAlpha = u * 0.5; blitSized(c, glowSprite(FIRE), -r, -r, r * 2, r * 2); c.restore(); } },
       drawEnt(c) { const T = X.Tz();
-        draw(c, S.x, S.y, S.z, S.a, P, { T, sx: H.sx, sy: H.sy, t: g.t, pet: (cc, PX, PY) => { if (P.alpha > 0.3 && !(S.clip === 'summon' && S.ct < 2.0)) X.drawPetAt(cc, PX, PY, { maxH: 1.0 }); } });
+        drawSpin(c, S.x, S.y, S.z, P, { T, sx: H.sx, sy: H.sy, t: g.t, pet: (cc, PX, PY) => { if (P.alpha > 0.3 && !(S.clip === 'summon' && S.ct < 2.0)) X.drawPetAt(cc, PX, PY, { maxH: 1.0 }); } }, S.td);
         if (S.clip === 'summon' && S.ct < 2.3 && S.ct > 1.0) { const s3 = anchor('seat'), u = sstep(1.9, 2.25, S.ct), PX = lerp(H.sx(S.x) + T * 1.6, H.sx(s3.x), u), PY = lerp(H.sy(S.y) + T * 0.8, H.sy(s3.y) - s3.z * ZK * T, u) - Math.sin(u * Math.PI) * T; X.drawPetAt(c, PX, PY, { maxH: 1.0 }); } },
       draw(c) { const T = X.Tz(); c.save(); c.globalCompositeOperation = 'lighter';
         if (S.beam) { const m = anchor('mouth'), gx = H.sx(m.x), gy = H.sy(m.y) - m.z * ZK * T, ex = H.sx(m.x + Math.cos(S.a) * 0.6), ey = H.sy(m.y + Math.sin(S.a) * 0.6); for (const [w, col, al2] of [[0.9, FIRE, 0.5], [0.45, EMBER, 0.8], [0.18, CORE, 1]]) { c.globalAlpha = al2 * (0.85 + 0.15 * Math.sin(g.t * 50)); c.strokeStyle = col; c.lineWidth = T * w; c.lineCap = 'round'; c.beginPath(); c.moveTo(gx, gy); c.lineTo(ex, ey); c.stroke(); } const r = T * 1.6; c.globalAlpha = 0.8; blitSized(c, glowSprite(FIRE), ex - r, ey - r * GY, r * 2, r * 2 * GY); }
@@ -775,11 +860,71 @@ const NIDHOGG_MODEL = (() => {
     S.fx = F; return S;
   }
 
+  /* ================= snap turns ================= */
+  /* turnDriver(opts): the heading driver for the gameplay core (and the dev preview). The dragon never slews slowly: it
+     holds a steady heading, and any change of direction past `thresh` (default 24 deg) is a quick eased snap-spin
+     (0.12 s for a small change up to 0.2 s for a reversal), with a bank kick, the head leading, a wing-flap burst and the
+     tail whipping through and settling with a little overshoot. With `quant` (default on) the held heading sits exactly
+     on one of the 16 baked headings, so at rest the body is one clean bake (no crossfade) and the spine and spikes are
+     crisp; travel can still follow the stick exactly (use `want`, not `a`, for movement). Without `quant`, changes
+     under the threshold drift at most `drift` rad/s (default 0.35).
+       const D = NIDHOGG_MODEL.turnDriver({ a: startHeading });
+       each frame, after the clip has run:  const ev = D.step(dt, stickX, stickY, pose);   // ev.spinStart: play a whoosh
+       draw with D.a; NIDHOGG_MODEL.drawSpin(c, x, y, z, pose, o, D) draws the blur ghosts, the dragon and the swooshes.
+     D.spin is null at rest, else { from, span, dir, t, dur }; D.u is the spin's progress (0..1). */
+  function turnDriver(opts) {
+    opts = opts || {}; const STEP = TAU / NB, quant = opts.quant !== false, thresh = opts.thresh || 0.42, drift = opts.drift || 0.35, dead = opts.dead || 0.2;
+    const snap = a => quant ? wrap(Math.round(a / STEP) * STEP) : wrap(a);
+    const D = { a: snap(opts.a || 0), want: opts.a || 0, spin: null, u: 0, tail: 0, tailV: 0, blur: 0, last: null, spins: 0,
+      start(to) { const span = wrap(to - D.a); if (Math.abs(span) < 1e-4) return false; D.spin = { from: D.a, span, dir: span > 0 ? 1 : -1, t: 0, dur: 0.12 + 0.08 * Math.min(1, Math.abs(span) / Math.PI), to: wrap(to) }; D.spins++; return true; },
+      /* the heading to face right now (a stick reading or any target angle) */
+      step(dt, mx, my, P) { const ev = { spinStart: false }, mag = hyp(mx || 0, my || 0);
+        if (mag > dead) D.want = Math.atan2(my, mx);
+        if (D.spin) { const S = D.spin; S.t += dt; D.u = Math.min(1, S.t / S.dur); const e = D.u < 0.5 ? 4 * D.u * D.u * D.u : 1 - Math.pow(-2 * D.u + 2, 3) / 2;   // (ease in-out, cubic)
+          D.a = wrap(S.from + S.span * e);
+          if (D.u >= 1) { D.a = S.to; D.tailV = -S.dir * Math.min(1.2, Math.abs(S.span)) * 7; D.last = S; D.spin = null; D.u = 0; D.blur = 0.12; }
+          else if (mag > dead && Math.abs(wrap(D.want - S.to)) > thresh * 1.5 && D.u > 0.5) { if (D.start(snap(D.want))) ev.spinStart = true; } }   // (retarget a spin that is mostly done)
+        else if (mag > dead) { const off = wrap(D.want - D.a);
+          if (Math.abs(off) > thresh) { if (D.start(snap(D.want))) ev.spinStart = true; }
+          else if (!quant) D.a = wrap(D.a + Math.max(-drift * dt, Math.min(drift * dt, off))); }
+        D.blur = Math.max(0, D.blur - dt);
+        if (P) { const S = D.spin, k = S ? Math.sin(Math.PI * D.u) * Math.min(1, Math.abs(S.span) / 0.7) : 0;
+          // bank kick into the spin; the head leads it; a quick flap burst; the tail whips through, then settles on a spring
+          P.bank = S ? S.dir * 0.75 * k : P.bank * Math.max(0, 1 - dt * 10);
+          if (S) { P.headYaw = S.dir * 0.55 * k; P.flap += dt * 2.6 * k; P.flapAmp = Math.max(P.flapAmp, 0.85 * k); D.tail = -S.dir * 1.25 * Math.sin(Math.PI * Math.pow(D.u, 0.75)) * Math.min(1, Math.abs(S.span) / 0.7); D.tailV = 0; }
+          else { D.tailV += (-140 * D.tail - 11 * D.tailV) * dt; D.tail += D.tailV * dt; }
+          P.tailSwing = P.tailSwing * 0.35 + D.tail; }
+        if (ev.spinStart) D.blur = 0;
+        return ev; },
+      /* the headings of the blur ghosts (oldest first) with their alpha; empty at rest */
+      ghosts(n) { const S = D.spin || (D.blur > 0 ? D.last : null); if (!S) return []; const out = [], u0 = D.spin ? D.u : 1, fade = D.spin ? 1 : D.blur / 0.12;
+        for (let i = n; i >= 1; i--) { const u = Math.max(0, u0 - i * 0.16 / Math.max(0.5, S.dur / 0.16)); const e = u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2; out.push({ a: wrap(S.from + S.span * e), al: 0.42 * (1 - (i - 1) / n) * fade }); }
+        return out; } };
+    return D;
+  }
+  /* drawSpin: the dragon with its motion blur. Ghost copies along the spin arc first (body only: no lights, ring, halo
+     or rider; low detail), then the dragon itself, then soft swoosh arcs off the wingtips. At rest it is just draw(). */
+  function drawSpin(c, x, y, z, P, o, D) {
+    const low = o.low != null ? o.low : lowFx(), G = D.ghosts(low ? 1 : 3), a = D.a;
+    if (G.length && P.alpha > 0.05) { const al0 = P.alpha, o2 = Object.assign({}, o, { ghost: true, low: true, pet: null });
+      for (const g2 of G) { if (Math.abs(wrap(g2.a - a)) < 0.03 || g2.al < 0.02) continue; P.alpha = al0 * g2.al; draw(c, x, y, z, g2.a, P, o2); } P.alpha = al0; }
+    draw(c, x, y, z, a, P, o);
+    const S = D.spin || (D.blur > 0 ? D.last : null); if (!S || !LAST || !(P.alpha > 0.05)) return;
+    // the swooshes: each wingtip's path over the arc swept so far, as a tapering additive streak
+    const R = LAST.R, T = o.T, u1 = D.spin ? D.u : 1, fade = (D.spin ? Math.sin(Math.PI * Math.min(1, D.u * 1.3)) : D.blur / 0.12) * P.alpha;
+    if (fade < 0.03) return; const e = u => u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2, N = low ? 6 : 12;
+    c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round';
+    for (const Wg of R.wing) { const tip = Wg.fing[0], pts = [];
+      for (let i = 0; i <= N; i++) { const u = Math.max(0, u1 - 0.55 + 0.55 * i / N), h = wrap(S.from + S.span * e(u)), Wf = frameW(h, P), w = Wf(tip), k = VIS * (o.scale || 1); pts.push([o.sx(x + w[0] * k), o.sy(y + w[1] * k) - (z + w[2] * k) * ZK * T]); }
+      for (let i = 1; i <= N; i++) { const f = i / N; c.beginPath(); c.moveTo(pts[i - 1][0], pts[i - 1][1]); c.lineTo(pts[i][0], pts[i][1]); c.strokeStyle = `rgba(255,${110 + 90 * f | 0},${70 + 80 * f | 0},${0.16 * f * fade})`; c.lineWidth = T * (0.14 + 0.3 * f); c.stroke(); c.strokeStyle = `rgba(255,${200 + 40 * f | 0},${170 + 60 * f | 0},${0.4 * f * fade})`; c.lineWidth = T * (0.03 + 0.07 * f); c.stroke(); } }
+    c.restore();
+  }
+
   /* ================= the interface ================= */
   /* create(opts): an instance with its own pose (opts.T and dpr set the bake scale) */
   function create(opts) { opts = opts || {}; if (opts.T) setScale(opts.T * (opts.dpr || 1)); const P = blankPose(); return { pose: P, draw: (c, x, y, z, a, P2, o) => draw(c, x, y, z, a, P2 || P, o), drawShadow: (c, x, y, z, a, P2, o) => drawShadow(c, x, y, z, a, P2 || P, o), anchor, warm: ms => bakeStep(ms) }; }
   /* idle-time preparation: the scale from a tile size (px) and the device's pixel ratio, then baking in idle slices */
   function warmIdle(T, dpr) { if (T > 0) setScale(T * (dpr || 1)); idleBake(); }
-  return { create, warm: ms => bakeStep(ms), warmIdle, draw, drawShadow, anchor, blankPose, CH, CLIPS, relax, preview, rig, VIS,
+  return { create, warm: ms => bakeStep(ms), warmIdle, draw, drawShadow, turnDriver, drawSpin, anchor, blankPose, CH, CLIPS, relax, preview, rig, VIS,
     __dbg: { BK, setScale, bakeStep, readyB, usableB, want, bucketOf, groundA, PARTS, SEGS, get TX() { return TX; }, frameOf, shade } };
 })();

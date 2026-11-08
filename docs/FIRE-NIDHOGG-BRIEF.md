@@ -24,8 +24,10 @@ also uses `arc`, `GFX`, `X.vehicle`, `X.drawPetAt` and `H.add`.
 - **Affine mapping:** each piece is placed on screen by an affine that maps the bucket's own axes to the piece's
   3D forward and right axes. So one bake serves the body's heading, pitch and bank, every neck and tail segment's
   direction, the head's aim and the jaw's opening.
-- **Bones:** wing arms, fingers, claws, hubs, dorsal spikes and the thigh and shin are traced side-on once and laid
-  along their projected bones.
+- **Bones:** wing arms, fingers, claws, hubs and the thigh and shin are traced side-on once and laid along their
+  projected bones.
+- **Dorsal spikes** (round 4): real four-sided pyramids built from the rig and projected each frame. Faces turned
+  from the camera are skipped and the rest are lit by their true normal, so they look right at every heading.
 - **Membranes:** drawn every frame as panels between the projected bones. Each is filled with a baked vein texture
   mapped per panel, then shaded by its normal: a dark span gradient, key light, and red light coming through,
   stronger with `glow` and `vents` and when edge-on.
@@ -38,7 +40,7 @@ also uses `arc`, `GFX`, `X.vehicle`, `X.drawPetAt` and `H.add`.
 |---|---|---|
 | `VIS` | 1.25 | Tiles per rig unit |
 | `TK` | 1.7 | Torso drawn larger than modelled |
-| `HEADK` | 2.0 | Head drawn larger than modelled |
+| `HEADK` | 3.0 | Head drawn larger than modelled (round 3); the head and jaw are baked near their drawn scale (`PCAP` 270 / 230 px per unit) |
 | `WK` | 1.36 | Wing scale. The wingspan is 1.4× the first review (user request), about 11 tiles at rest |
 | `LK` | 1.6 | Leg scale |
 | `NSC(i)`, `TSC(i)` | — | Drawn scale of neck segment i and tail segment i |
@@ -56,7 +58,8 @@ also uses `arc`, `GFX`, `X.vehicle`, `X.drawPetAt` and `H.add`.
   - It also asks for the bake of the current heading (quick half-size pictures first).
 - `drawShadow(c, x, y, z, heading, pose, o)`: the ground shadow, drawn separately (floor layer). It is dragon-shaped
   (wings and body flattened on the floor), cast a little away from the light, and smaller and fainter with height.
-- `anchor(name)` → world `{x, y, z}` for the last `draw`:
+- `anchor(name)` → world `{x, y, z}` for the last `draw`, on the part as drawn (round 4: anchors include the
+  chain's attach shift):
   - body: `mouth`, `head`, `eyes`, `chest`, `belly`, `seat`;
   - wings: `wingL`, `wingR` (roots), `wingTipL`, `wingTipR`;
   - `ventL`, `ventR`;
@@ -64,6 +67,16 @@ also uses `arc`, `GFX`, `X.vehicle`, `X.drawPetAt` and `H.add`.
   - `tail` (the blade's base), `tailTip`.
 - `blankPose()`, `CH` (the channel list), `CLIPS`, `relax(P, dt)` (ease toward neutral), `rig(P, t)` (body-local
   points), `preview(opts)`.
+- `turnDriver({ a, thresh?, quant?, drift? })` → `D`: the heading driver. Use it for every change of direction
+  (round 4).
+  - Each frame, after the clip has run, call `D.step(dt, stickX, stickY, pose)`. It returns `{ spinStart }`; play a
+    whoosh on it, for example `X.sfx.whoosh()`.
+  - Draw at `D.a`, and move along `D.want`, the exact stick angle.
+  - `D.spin` is null at rest; `D.u` is the spin's progress.
+  - `D.ghosts(n)` gives the blur ghosts' headings and alphas.
+- `drawSpin(c, x, y, z, pose, o, D)`: draws the ghost copies along the spin arc, then the dragon (as `draw` does, at
+  `D.a`), then the wingtip swooshes. At rest it is just `draw`.
+- `o.ghost` (internal to `drawSpin`): draws the body only, with no lights, ring, halo or rider.
 - `__dbg`: the baker's state (`BK`: `k`, `bytes`, `ms`, `maxMs`, `spikes`), `setScale`, `bakeStep`, `readyB`.
 
 ## Pose channels (all numbers; 0 is neutral)
@@ -191,3 +204,73 @@ Ultima charge (glowing traced outlines instead), and a thicker, glowing ring.
   - The headless canvas also stalls periodically (about every 30 frames). This happens in round 2 too, so it is not
     the model.
 
+
+## Notes, round 4 (2026-11-08)
+The user's requests:
+- "Any turn or change of direction the dragon can do a quick spin and we can put a motion blur on it... really the
+  spine and spikes on the back is the only thing that looks odd when the dragon turns."
+- "Can we make [the head] detailed like [Beast Machine's]", with "detailed eyes and snout as well".
+
+**Snap turns** (`turnDriver`; the dev preview uses it):
+- The heading holds steady and rests exactly on one of the 16 baked headings (`quant`). At rest the body is one clean
+  bake with no crossfade, so the spine is crisp. Travel still follows the stick exactly (`D.want`).
+- A change of direction past `thresh` (default 0.42 rad, 24°) is an eased spin (cubic in/out) of 0.12 s for a small
+  change, up to 0.2 s for a reversal. A spin that is more than half done can be retargeted.
+- Smaller stick wobble is ignored. With `quant: false`, changes under the threshold drift at most `drift` rad/s
+  (default 0.35).
+- During a spin:
+  - the bank kicks in, up to 0.75 at mid-spin;
+  - the head leads (`headYaw`) and a flap burst adds speed and amplitude;
+  - the tail whips through the spin, then settles on a damped spring with a little overshoot.
+- The driver owns `bank` and `tailSwing`. Clips get `turn` ≈ 0, so the fly clip's idle sway no longer slides the
+  spine.
+- The preview plays `X.sfx.whoosh()` on each spin.
+
+**Motion blur** (`drawSpin`):
+- Up to 4 ghost copies (2 in low effects) at earlier eased headings along the arc, with alpha falling from about
+  0.42. They are drawn low-detail, with no lights, ring, halo or rider, and only while spinning plus 0.12 s after.
+- Then the dragon, then soft warm swoosh streaks off both wingtips along the swept arc.
+- A test of 6.4 s with 7 direction changes gives 7 spins.
+
+**Spine and dorsal spikes:**
+- The flat side-on spike sprites are gone. Each dorsal spike (neck, back, tail and neck frills) is now a real
+  four-sided pyramid built from the rig: a fin-like diamond base along the chain, with the tip swept back.
+  - Each spike is projected every frame; faces turned from the camera are culled and the rest are lit by their true
+    normal.
+  - Each spike is attached with its chain's shift (back spikes now follow the drawn torso).
+  - They no longer flip, fan or slide at any heading, including side-on and the bucket boundaries.
+- Cost: about 30 small path fills per frame. The old spike sprite is no longer baked.
+
+**Head**, rebuilt to the Beast-head standard, with the same sphere-traced detail and materials:
+- **Snout:** a long angular wedge with chamfered edges. Four layered scarlet nasal plates, each proud at its front
+  edge, step down at bevelled seams over scaled skin.
+- **Snout top:** a ridge of steel studs alternating with small swept spikes. Flared nostrils with ember-lit holes
+  (vent glow). A gunmetal lip line over 7 teeth per side.
+- **Brows:** tapered leaf-shaped armour plates, rimmed in bronze, with 3 rivets each.
+- **Gem:** a crimson faceted brow gem (emissive) in a bronze bezel.
+- **Eyes:** a recessed socket, a glossy eyeball with a slit pupil in a radial-streaked orange-gold iris, a dark
+  limbal ring, a strong specular, and a thin glowing rim. The live eye bloom is smaller so it no longer covers the
+  modelled eye.
+- **Cheeks and horns:** riveted flat-faced cheek plates. Thick swept gunmetal horns with bronze bands (two on the
+  main horn, one at its tip half, one on the lower horn). Crown and cheek frills.
+- **Jaw:** banded armour along its sides, a gunmetal lip line, a riveted chin plate, 6 teeth per side and the
+  glowing mouth.
+- **New materials:** `M_GOLD` (hammered bronze-gold with wear), `M_GEM` and `M_IRIS` (procedural pupil and iris).
+  The armour and gold get a fine hammered dent normal.
+- The head and jaw skip the generic plate-line grid, which read as plaid on the head; they have real seams.
+- **Crispness:** the head and jaw were baked at most 150 px per unit while drawn at about 310 in game, about 2×
+  upscaled and soft. They are now baked near their drawn scale (`PCAP`: head 270, jaw 230).
+- **Jaw fix:** the jaw used to open upward, into the head. It now opens downward, so the open mouth, teeth and throat
+  glow show.
+- **Anchors:** `mouth`, `eyes`, `head`, the wing tips, the wing roots and `tail` now include the chain's attach
+  shift, so they sit on the parts as drawn (checked with crosshairs).
+- **Numbers** (SwiftShader):
+  - Full bake at the in-game scale (k ≈ 104) takes about 18 s of idle-time CPU in 2 ms calls (was about 8 s). The
+    rise comes from the richer head and jaw models baked at about 2× their old resolution.
+  - Memory is 11.1 MB (was 6.7). Bake calls over 3.5 ms: 83 of about 15,800 (warm-up and GC), worst 18 ms.
+  - Lowering `PCAP` to about 200 / 170 would roughly halve the head's share, at some loss of crispness.
+  - Draw (CPU): 1.1 ms median at rest; 2.3 ms median during a spin (3 ghosts), which lasts about 0.2 s.
+  - Software raster with a flush every frame: 11 ms at rest, 38 ms during a spin.
+- **Checks:**
+  - Turn sweep at 15° (144 frames): all one piece.
+  - `turns2.png`: 4 snap-spin strips at 60 fps, plus the 16 stable headings close up on the spine.
