@@ -106,8 +106,8 @@ DK = base × K × (1 + 0.08·(evo−1)).
 | Move | Starting point |
 |---|---|
 | Flight | top speed about 10 tiles/s, responsive |
-| Dive Bomb | about 3 DK, radius about 2.6, knockback; the whole dive about 0.8–1.0 s |
-| Fireballs | 1/2/3 × about 3 DK, radius about 1.8 each, one explosion event per fireball (no separate direct hit); cooldown 2 s |
+| Dive Bomb | about 3 DK, radius about 2.6, knockback; the whole dive about 1.4–1.7 s (round 3; was 0.8–1.0 s) |
+| Fireballs | 1/2/3 × about 3 DK, radius about 1.8 each, one explosion event per fireball (no separate direct hit); cooldown 1 s (round 3; was 2 s) |
 | Flare | 10/20/30 lances × about 0.5 DK with real collision; cooldown 4 s |
 | Meter | dealt / (about 30 × DK) |
 | Ultima beam | about 0.6 DK per 0.15 s tick for about 1.5 s on enemies in the beam's impact radius |
@@ -153,7 +153,7 @@ Ultima's damage is `noCharge`. Durations are 20/25/35 s (configurable). The cool
     (jaw, throat, vents, glow, trace, ring, core, heat) relax to 0 by themselves.
   - Strongs are not locked by N1 (the dragon keeps flying; set `dragon.locked = true` yourself if a move must hold it;
     put it back before `done`). One Strong / dive at a time: a Strong pressed while another move or a dive runs is
-    kept 0.6 s; a press in the last 0.35 s of its cooldown is kept. **Cooldowns:** exactly 2 s (Fireballs) and 4 s
+    kept 0.6 s; a press in the last 0.4 s of its cooldown is kept. **Cooldowns:** exactly 1 s (Fireballs; round 3, was 2 s) and 4 s
     (Flare), counted from the press of the activation, once per activation; a new activation cannot start while the
     previous one is still running (it waits for `done`).
   - Ultima: N1 sets `dragon.locked = true`, `ctx.ultima = true`; N3 owns x / y / z / heading and the pose until
@@ -244,3 +244,55 @@ Ultima's damage is `noCharge`. Durations are 20/25/35 s (configurable). The cool
     or pitched. The model's `dive` clip is retimed to this cadence.
   - Checks: `connected.js` now also samples every frame of three more dives: 0 splits warm (4 runs, ~490 frames each)
     and cold. Logic test: two spins per dive, one full rider roll per spin, slam at ~0.52 s, dive 0.8-1.0 s.
+- (N1, round 3, 2026-11-08; the user: frozen dragon, rigid quick turns, Fireballs 1 s, a heavier Dive Bomb)
+  - The frozen dragon: a cold cache drew the dragon at the nearest baked heading, straightened, until the bake caught
+    up. On an iPhone this lasted seconds because Safari has no `requestIdleCallback`, so the floor-start warm-up hardly
+    ran (the model's fallback is 2.5 ms every 40 ms, and N1's pump never started). Fixes, all in 20k6g, none in the model:
+    - the warm-up pump now runs on every browser, as a slice after each frame sized to the frame rate it measures
+      (3 ms at 60 fps, 1.6 ms when frames run late, 0.8 ms below ~30 fps);
+    - `bakePlan()` rewrites the model's queue in this order: segments; the quick half-size pictures of every other
+      heading, nearest first; the sharp pictures of the facing heading and the next one in the turn; the other quick
+      pictures; the rest sharp, nearest first. Once the 8 even quick sets are in, every heading is drawable: the model
+      maps a neighbour's pictures within 22.5 deg onto the true heading. The model's draw re-queues the drawn heading
+      every frame, so the plan is redone whenever it has;
+    - the summon bakes at 10 ms a frame (8 ms once something is drawable). On a cold cache it then hovers, flapping, at
+      the end of the summon until every heading is drawable (`TUNE.readyHold`, at most 6 s);
+    - the dragon is drawn at its true heading whenever one of the two baked headings around it is usable. If only one is
+      (early in a cold cast), its bank is halved for the draw so the mapped torso keeps the rider's seat;
+    - measured in real time on SwiftShader at dpr 2 (k 56). The game itself runs only 24-30 fps there, slower than an
+      iPhone:
+
+      | Case | Result |
+      |---|---|
+      | Floor-start warm-up, no cast | every heading drawable 25.9 s, all usable 59 s, all sharp 173 s |
+      | Cast 0.3 s into the floor (fully cold) | dragon visible 2.5 s after the press; flies at 9.9 s (summon 3.4 s + 5.9 s hover) |
+      | Cast 0.3 s into the floor, dpr 1.5 | flies at 7.4 s |
+      | Cast 15 s into the floor | flies at 3.8 s (no extra hover) |
+      | Cast 30 s into the floor | already drawable before the cast |
+
+      In every case, 0 frames were drawn at a stand-in heading in flight (`coldcast.js`).
+  - Smooth turns (`TUNE.turn`): flight no longer snap-spins (`turnDriver` is still created, but not used for flight).
+    - The heading follows the stick at up to 5 rad/s. It closes the gap with k 7, and the turn rate eases in and out at
+      26 rad/s2: a reversal takes about 0.75 s.
+    - The fly clip gets the turn rate as its `turn` hint: bank into the turn, the head leading, the tail counter-swinging.
+      The tail also lags on an underdamped spring, and the wings flap harder in hard turns.
+    - The motion blur comes from a stand-in turn driver handed to `drawSpin`. Its ghosts are taken from the recent
+      heading history (2 in flight, 3 in a dive) and its wingtip streaks span the last 0.16 s. Both are scaled by the turn
+      rate over the last 0.1 s, from 0 at 1.6 rad/s to full at 4.6 rad/s, so gentle turns are clean.
+  - Dive Bomb, 1.56 s in all (+ a 0.05/0.08 s hit-stop at the slam; none with reduce-motion):
+    - wind-up spin 0.26 s (snappy, eased in-out, rearing 0.4 tiles);
+    - accelerating plunge 0.30 s; slam at 0.56 s;
+    - impact hold 0.10 s (it sinks into the slam);
+    - grind on the ground 0.62 s: one full turn, fast off the slam (~22 rad/s) and running down (ease-out 2.2); wings
+      spread and dragging, a lean, the tail swinging; a dust and ember swirl flung off the wingtips and tail;
+    - push-off 0.28 s: a downstroke flap, a dust burst and a climb back to cruise.
+    - Unchanged: zero cooldown, the press buffer (last 0.3 s), one AoE hit at the slam, one flat rider roll per spin.
+  - Fireballs' cooldown is 1 s from the press (`TUNE.cdFire`). N2's own `TUNE_S.fireballCd` still reads 2.0: it is only
+    documentation, since 20k6g owns the cooldowns. Fireballs are busy 0.5 / 0.8 / 1.1 s by tier, so at EVO 7 a new
+    volley waits for the last one to end.
+  - Checks:
+    - `connected.js`: warm and cold now include continuous circles at 0.8 / 2 / 3.5 / 6 rad/s. The sweep sets `S.dur`
+      as well, since it runs longer than a form;
+    - logic test: smooth reversal (per-frame step at most the cap, between baked headings, 0.75 s, blurred); a gentle
+      analog curve at 1.2 rad/s (no blur); the grind slower than the wind-up and decelerating; the dive 1.4-1.7 s;
+      Fireballs 1 s.

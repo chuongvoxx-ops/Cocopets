@@ -6,16 +6,18 @@
      - the stick flies and steers in real free flight: an aerial volume of its own (the map plus TUNE.margin tiles of open
        air round it), over walls, gaps, water and beyond the land's outline, never snapped back. It cruises at a steady
        height, climbs to clear walls ahead and stays out of walls it cannot clear (a hand-drawn stage's walls are too
-       tall to fly over). (Round 2: one cruise height; the altitude toggle is gone.) Turns are the model's snap-spins (turnDriver,
-       drawn with drawSpin's motion blur); the camera follows it offshore at the flight zoom (0.9; round 2: the dragon is
-       drawn at 0.65 of the model's size);
-     - Dodge is Dive Bomb: zero cooldown. (Round 2) Like Drift: a full spin, then it folds and plunges at the stick's aim (an enemy near the aim line, else the
+       tall to fly over). (Round 2: one cruise height; the altitude toggle is gone.) (Round 3) Turns are smooth and
+       continuous (TUNE.turn: an eased turn rate, bank, head and tail), drawn with drawSpin's motion blur scaled by the
+       turn rate; the camera follows it offshore at the flight zoom (0.9; round 2: the dragon is drawn at 0.65 of the
+       model's size);
+     - Dodge is Dive Bomb: zero cooldown. A snappy full spin, then it folds and plunges at the stick's aim (an enemy near the aim line, else the
        ground there; with no stick the nearest enemy, else the ground below), flares to brake, slams once (TUNE.dive x DK
-       in TUNE.diveR, knockback; charges the meter), with a fire shockwave, embers and glowing cracks, and climbs back
-       spinning again; the rider rolls one flat turn with each spin (drawPetAt's rot, never a yaw).
+       in TUNE.diveR, knockback; charges the meter) with a hit-stop, a fire shockwave, embers and glowing cracks, grinds
+       round once on the ground (round 3: slow, heavy, wings dragging, a dust and ember swirl) and pushes off back into
+       flight; the rider rolls one flat turn with each spin (drawPetAt's rot, never a yaw).
        The next dive is accepted as soon as dive and recovery end (a press in the last TUNE.diveBuf s is kept). Aimed at
        nothing (open air, water, the void) it shows an invalid marker and keeps flying;
-     - Strong 1 / 2 are Fireballs / Flare (worker N2's 20k6h, NIDHOGG_MOVES; stubs here if absent): exact 2 s / 4 s
+     - Strong 1 / 2 are Fireballs / Flare (worker N2's 20k6h, NIDHOGG_MOVES; stubs here if absent): exact 1 s / 4 s
        cooldowns, once per activation, counted from the press;
      - the Ult button is the Ultima meter: it fills only from the damage the form deals through ctx.hit (Dive Bomb,
        Fireballs, Flare; after mitigation, no overkill); a press when full starts Ultima (worker N3's 20k6i), once per
@@ -47,12 +49,20 @@
     margin: 18,                                    // tiles of open air round the map the dragon may fly in (a soft edge: it simply cannot go further)
     dive: 3.0, diveR: 2.6, diveKb: 6.5,            // x DK once per monster at the slam; radius (+ the monster's own x0.85); knockback
     diveReach: 9, diveCone: 0.5, diveBuf: 0.3,     // tiles; rad either side of the aim for an enemy; s a press is kept before the dive ends
-    /* (round 2) Dive Bomb is a spinning dive with Drift's cadence: a full spin at height, the plunge, the slam, a second
-       spin as it climbs back. Seconds: spin, plunge (to the slam), hold, spin-and-climb: 0.2 + 0.32 + 0.08 + 0.3 = 0.9 s */
-    divePh: [0.2, 0.32, 0.08, 0.3],
+    /* (round 3, the user: "should take more time ... some weight and momentum") Dive Bomb: a snappy wind-up spin at
+       height, a heavy accelerating plunge, the slam (hit-stop) and an impact hold, a slow grinding spin on the ground
+       (fast, then decelerating; wings dragging, a dust and ember swirl), a powerful push-off back into flight.
+       Seconds: spin, plunge (to the slam), hold, grind, push: 0.26 + 0.30 + 0.10 + 0.62 + 0.28 = 1.56 s */
+    divePh: [0.26, 0.30, 0.10, 0.62, 0.28],
+    /* (round 3, the user: "make it normal turn instead and keep the motion blur") flight turns are continuous: the
+       heading follows the stick at up to `max` rad/s (`k`: how hard it closes the gap; `acc`: rad/s2, the turn rate
+       eases in and out), banking into the turn, the head leading and the tail counter-swinging on a spring. The blur
+       ghosts and wingtip streaks fade in with the turn rate between blur[0] and blur[1] rad/s: gentle turns are clean */
+    turn: { max: 5.0, k: 7, acc: 26, blur: [1.6, 4.6] },
     chargeK: 30,                                   // the meter fills at chargeK x DK of damage actually dealt
-    cdFire: 2, cdFlare: 4, mvHold: 0.6,            // s, exact, from the press of an activation; a press held while busy
-    summon: 3.4, ultCap: 14, ultWonCap: 14,        // s: the model's summon clip; a started Ultima is ended anyway after this
+    cdFire: 1, cdFlare: 4, mvHold: 0.6,            // s, exact, from the press of an activation; a press held while busy (round 3: Fireballs 1 s)
+    summon: 3.4, readyHold: 6,                     // s: the model's summon clip; (round 3) the longest it hovers on at its end, on a cold cache, until every heading is drawable
+    ultCap: 14, ultWonCap: 14,        // s: the model's summon clip; a started Ultima is ended anyway after this
     outGlide: [0.35, 1.4], outSpd: 13, dismiss: 1.6,   // s min / max of the glide to the return point; tiles/s; the dismiss clip
   };
   const tierOf = ev => ev >= 7 ? 2 : ev >= 4 ? 1 : 0;
@@ -84,21 +94,63 @@
   const WARMED = {}; let WARMI = 0;
   /* (the fix for the 'split apart' dragon) The model bakes its pieces per heading in the background; a piece whose
      heading is not baked yet is drawn from another heading (or not at all), so a cold model shows the head, neck, body
-     and tail out of step. So the dragon is only ever DRAWN at a heading whose whole picture set is usable (sharp, or the
-     quick half-size pictures); if the heading it should face is not ready, it is drawn at the nearest ready one, while
-     the wanted one goes to the front of the bake queue (quick pictures first). Flight still follows the stick exactly. */
+     and tail out of step. So the dragon is only DRAWN at a heading with a usable picture set (sharp, or the quick
+     half-size pictures) within one bucket of it (the model's least-squares map turns a neighbour's pictures onto the
+     true heading: 22.5 deg at most, still one connected body).
+     (Round 3, the user: "stuck in one position for a couple of seconds") The old rule drew a cold dragon at the nearest
+     ready heading, frozen and straightened, for as long as the bake took, and on an iPhone that was long: Safari has no
+     requestIdleCallback, so the idle warm-up barely ran. Now: bakePlan() orders the model's queue (the quick pictures
+     of every other heading first: with those, EVERY heading is drawable; then the sharp pictures where it is facing,
+     the remaining quick ones, the rest nearest first); the warm-up runs on any browser from the floor's start; the
+     summon bakes hard and, on a cold cache, hovers (flapping) until every heading is drawable before it can fly. */
   function MDB() { const M0 = MOD(); return M0 && M0.__dbg; }
   /* the bake scale: the tile size (px, at zoom 1, times dpr) at the flight zoom; an existing bake within 25% is kept */
   const bakeT = TSdpr => TSdpr * TUNE.zoom * TUNE.size;   /* (round 2: the smaller dragon bakes smaller, so it bakes faster) */
   function bakeScaleOK(TSdpr) { const D = MDB(), k = D && D.BK && D.BK.k; if (!k) return false; const want = Math.round(bakeT(TSdpr) * (MOD().VIS || 1.25) / 8) * 8; return k >= want * 0.75; }
-  function usableAt(a) { const D = MDB(); if (!D || !D.usableB) return true; return D.usableB(D.bucketOf(a)); }
-  function drawHeading(S, a) { const D = MDB(); if (!D || !D.usableB) return a; const NB = 16, b = D.bucketOf(a); if (D.usableB(b)) return a;
-    for (let d = 1; d <= NB / 2; d++) for (const bb of [(b + d) % NB, (b - d + NB) % NB]) if (D.usableB(bb)) { S.offHeading = (S.offHeading || 0) + 1; return bb / NB * TAU; }
+  const NBK = 16;
+  function usableAt(a) { const D = MDB(); if (!D || !D.usableB) return true; const f = Math.floor(wrap(a) / TAU * NBK), b0 = ((f % NBK) + NBK) % NBK; return D.usableB(b0) || D.usableB((b0 + 1) % NBK); }
+  function bothAt(a) { const D = MDB(); if (!D || !D.usableB) return true; const f = Math.floor(wrap(a) / TAU * NBK), b0 = ((f % NBK) + NBK) % NBK; return D.usableB(b0) && D.usableB((b0 + 1) % NBK); }
+  function drawHeading(S, a) { const D = MDB(); if (!D || !D.usableB) return a; if (usableAt(a)) return a; const b = D.bucketOf(a);
+    for (let d = 1; d <= NBK / 2; d++) for (const bb of [(b + d) % NBK, (b - d + NBK) % NBK]) if (D.usableB(bb)) { S.offHeading = (S.offHeading || 0) + 1; return bb / NBK * TAU; }
     return null; }
-  function wantHeading(a) { const D = MDB(); if (!D || !D.want || !D.BK || !D.BK.k) return; const b = D.bucketOf(a); if (!D.readyB(b)) D.want(b, !D.usableB(b)); }
-  /* a stand-in for the turn driver handed to drawSpin: the drawn heading, and only the ghosts whose headings are ready */
-  function spinProxy(S, a) { const TD = S.TD, P = S.TDP || (S.TDP = {}), nb = !!S.noBlur; P.a = a; P.spin = nb ? null : TD.spin; P.blur = nb ? 0 : TD.blur; P.last = TD.last; P.u = TD.u;   /* (S.noBlur: tests count the body without the spin's streaks) */
-    P.ghosts = n => (nb || Math.abs(wrap(a - TD.a)) > 0.05 ? [] : TD.ghosts(n).filter(g => usableAt(g.a))); return P; }
+  /* every heading drawable (each pair of neighbours has one usable set); all usable; all sharp */
+  function bakeState() { const D = MDB(); if (!D || !D.usableB || !D.BK || !D.BK.k) return { draw: true, all: true, sharp: true }; let draw = true, all = true, sharp = true;
+    for (let b = 0; b < NBK; b++) { const u = D.usableB(b); if (!u) { all = false; if (!D.usableB((b + 1) % NBK)) draw = false; } if (!D.readyB(b)) sharp = false; } return { draw, all, sharp }; }
+  let KEYS = null, PLAN = { b: -1, t: 0 };
+  /* the bake order (the model's queue, rewritten in place): its segments, the quick pictures of every other heading
+     (nearest to `a` first), the sharp ones of the facing heading and the next one in the turn's direction, the other
+     quick pictures, then the rest sharp, nearest first */
+  function bakePlan(a, dir, force) { const D = MDB(); if (!D || !D.BK || !D.BK.k || !D.bucketOf) return; const BK = D.BK, parts = Object.keys(BK.spr), b0 = D.bucketOf(a), now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    if (!force && b0 === PLAN.b && dir === PLAN.dir && now - PLAN.t < 250 && BK.queue[0] === PLAN.first) return; PLAN.b = b0; PLAN.dir = dir; PLAN.t = now;   /* (the model's draw moves the drawn heading's sharp pictures to the front each frame: re-planned when it has) */
+    if (!KEYS || KEYS.n !== parts.length) { KEYS = { n: parts.length, lo: [], hi: [] }; for (let b = 0; b < NBK; b++) { KEYS.lo[b] = parts.map(p => 'lo:' + p + ':' + b); KEYS.hi[b] = parts.map(p => p + ':' + b); } }
+    const Q = BK.queue, segs = Q.filter(k => k.startsWith('seg:')), out = segs, seen = new Set(), add = k => { if (k !== BK.genKey && !seen.has(k)) { seen.add(k); out.push(k); } };
+    const near = []; for (let d = 0; d <= NBK / 2; d++) { near.push((b0 + d) % NBK); if (d && d < NBK / 2) near.push((b0 - d + NBK) % NBK); }
+    const lo = b => parts.forEach((p, i) => { if (!BK.spr[p][b] && !BK.lo[p][b]) add(KEYS.lo[b][i]); }), hi = b => parts.forEach((p, i) => { if (!BK.spr[p][b]) add(KEYS.hi[b][i]); });
+    for (const b of near) if (!(b & 1)) lo(b);
+    hi(b0); hi((b0 + (dir < 0 ? NBK - 1 : 1)) % NBK);
+    for (const b of near) if (b & 1) lo(b);
+    for (const b of near) hi(b);
+    Q.length = 0; for (const k of out) Q.push(k); PLAN.first = Q[0]; }
+  /* ---- the heading (round 3): continuous, with an eased turn rate; a short history for the motion blur ---- */
+  const HN = 32;
+  function setHeading(S, a, dt) { const da = wrap(a - S.ha); S.ha = wrap(a); S.au += da; S.hw = dt > 0 ? da / dt : 0; }
+  function steer(S, dt, want, mag) { const T = TUNE.turn; let wT = 0;
+    if (want != null) { const off = wrap(want - S.ha); wT = Math.max(-1, Math.min(1, off * T.k / T.max)) * T.max * (0.6 + 0.4 * Math.min(1, mag)); }
+    const lim = T.acc * dt, w = S.hw + Math.max(-lim, Math.min(lim, wT - S.hw)); S.hw = w; S.ha = wrap(S.ha + w * dt); S.au += w * dt; }
+  function pushHist(S) { const H0 = S.hist; H0.i = (H0.i + 1) % HN; H0.t[H0.i] = S.g.t; H0.a[H0.i] = S.au; if (H0.n < HN) H0.n++; }
+  /* the unwrapped heading `lag` s ago (from the history) */
+  function agoU(S, lag) { const H0 = S.hist, t = S.g.t - lag; let j = H0.i, prev = -1;
+    for (let k = 0; k < H0.n; k++) { if (H0.t[j] <= t) { if (prev < 0) return H0.a[j]; const u = (t - H0.t[j]) / Math.max(1e-6, H0.t[prev] - H0.t[j]); return lerp(H0.a[j], H0.a[prev], cl(u)); } prev = j; j = (j - 1 + HN) % HN; }
+    return prev >= 0 ? H0.a[prev] : S.au; }
+  /* the blur's strength: from the turn rate over the last tenth of a second (gentle turns: none) */
+  function blurK(S) { const T = TUNE.turn, w = Math.abs(S.au - agoU(S, 0.1)) / 0.1; return sstep(T.blur[0], T.blur[1], w); }
+  /* a stand-in for the turn driver handed to drawSpin: the drawn heading, ghosts along the recent arc and the wingtip
+     streaks, both scaled by the turn rate; only ghosts whose headings are drawable */
+  function spinProxy(S, a) { const P = S.TDP || (S.TDP = { spin: null, u: 0, last: { from: 0, span: 0, dir: 1, t: 0, dur: 0.16, to: 0 }, ghosts: n => ghostsOf(S, n) }), nb = !!S.noBlur;   /* (S.noBlur: tests count the body without the streaks) */
+    const k = nb || Math.abs(wrap(a - S.ha)) > 0.05 ? 0 : blurK(S); P.a = a; P.k = k; P.blur = k > 0.03 ? 0.12 * k : 0;
+    const u0 = agoU(S, 0.16), span = S.au - u0; P.last.from = wrap(S.ha - span); P.last.span = span; P.last.dir = span >= 0 ? 1 : -1; P.last.to = S.ha; return P; }
+  function ghostsOf(S, n) { const P = S.TDP; if (!P || !(P.k > 0.03)) return []; const m = Math.min(n, 2), out = [];   /* (2 ghosts in the dive too: 3 peaked near 10 ms) */
+    for (let i = m; i >= 1; i--) { const a = wrap(S.ha - (S.au - agoU(S, i * 0.035))); if (usableAt(a)) out.push({ a, al: 0.42 * (1 - (i - 1) / m) * P.k }); } return out; }
   function warmMoves(ms) { const MV = moves(), ws = ['warmS', 'warmU'].filter(w => MV[w] && !WARMED[w]); if (!ws.length || ms < 0.4) return; const w = ws[(WARMI++) % ws.length]; try { if (MV[w](Math.min(2, ms)) === true) WARMED[w] = true; } catch (e) { WARMED[w] = true; } }
 
   /* ================= the air: the map's tiles, the open air round it, the walls ================= */
@@ -154,10 +206,11 @@
     //  every picture baked in idle time and start again, which is what drew a cold, split dragon)
     const T0 = X.Tz(), dpr = (typeof arc !== 'undefined' && arc.dpr) || 1, inst = M0.create(bakeScaleOK(T0 / Math.max(0.5, g.zoom || 1) * dpr) ? {} : { T: bakeT(T0 / Math.max(0.5, g.zoom || 1) * dpr), dpr: 1 }), P = inst.pose; P.alpha = 0;
     const tgt = X.nearestMon(me.x, me.y, 9); const a0 = tgt ? Math.atan2(tgt.y - me.y, tgt.x - me.x) : (me.face < 0 ? Math.PI : 0);
-    const TD = M0.turnDriver({ a: a0 });
-    const dragon = { x: me.x, y: me.y, z: 0, heading: TD.a, vx: 0, vy: 0, pose: P, locked: true, vis: 1 };
+    const TD = M0.turnDriver({ a: a0 });   /* (kept for the contract; round 3: flight no longer snap-spins, see steer()) */
+    const dragon = { x: me.x, y: me.y, z: 0, heading: a0, vx: 0, vy: 0, pose: P, locked: true, vis: 1 };
     const S = { H, g, me, X, C, ev, tier, DK, CD, dur, left: dur, dragon, inst, TD, phase: 'summon', t: 0, ct: 0, charge: 0, used: false, busy: null, busyT: 0, cdF: 0, cdL: 0, mvQ: null, ultQ: null, dive: null, diveQ: null,
       gate: new Map(), parts: [], free: [], cracks: [], marks: [], ended: false, pet: X.pet ? X.pet() : null, air: airOf(X), home: { x: me.x, y: me.y }, safe: { x: me.x, y: me.y }, safeT: 0, reachT: 2, cam: null, camShake: 0,
+      ha: wrap(a0), au: a0, hw: 0, hist: { i: 0, n: 0, t: new Float64Array(HN), a: new Float64Array(HN) }, turnK: 0, tail: 0, tailV: 0, spinR: 0,
       stats: { dives: 0, diveHit: 0, diveBad: 0, fireballs: 0, flare: 0, ultima: 0, dealt: 0, charged: 0, hits: 0, flyT: 0, offT: 0, maxOff: 0, spins: 0 }, sfxT: 0, mx: 0, my: 0 };
     buildReach(S, me.x, me.y);
     g._nidhogg = S;
@@ -213,9 +266,9 @@
   /* ---- free flight ---- */
   function drive(S, mx, my, dt) { S.mx = mx; S.my = my; syncMe(S); void dt; }   // (the stick is read here; the flight runs in step, every frame)
   function fly(S, dt, steer) {
-    const d = S.dragon, A = S.air, mag = steer ? Math.min(1, Math.hypot(S.mx, S.my)) : 0, TD = S.TD;
+    const d = S.dragon, A = S.air, mag = steer ? Math.min(1, Math.hypot(S.mx, S.my)) : 0;
     const top = TUNE.top * (S.me.chill > 0 ? 0.8 : 1) * (S.g.buff && S.g.buff.haste > 0 ? 1.15 : 1);
-    const want = mag > 0.15 ? TD.want : d.heading, tvx = mag > 0.15 ? Math.cos(want) * top * mag : 0, tvy = mag > 0.15 ? Math.sin(want) * top * mag : 0, k = Math.min(1, (mag > 0.15 ? TUNE.accel / top : TUNE.brake / top) * dt * 2.2);
+    const want = mag > 0.15 ? Math.atan2(S.my, S.mx) : d.heading,   /* (the travel follows the stick exactly; the body turns to it smoothly) */ tvx = mag > 0.15 ? Math.cos(want) * top * mag : 0, tvy = mag > 0.15 ? Math.sin(want) * top * mag : 0, k = Math.min(1, (mag > 0.15 ? TUNE.accel / top : TUNE.brake / top) * dt * 2.2);
     d.vx += (tvx - d.vx) * k; d.vy += (tvy - d.vy) * k;
     // the height: cruise; a wall ahead lifts it to clearance; on a hand-drawn stage walls are never flown over
     let zT = TUNE.cruise; const sp = Math.hypot(d.vx, d.vy), ux = sp > 0.1 ? d.vx / sp : Math.cos(d.heading), uy = sp > 0.1 ? d.vy / sp : Math.sin(d.heading), look = 0.6 + sp * 0.25;
@@ -247,34 +300,52 @@
       const a = Math.hypot(mx, my) > 0.2 ? Math.atan2(my, mx) : d.heading; S.marks.push({ x: d.x + Math.cos(a) * 4.5, y: d.y + Math.sin(a) * 4.5, t: 0, life: 0.7 }); S.stats.diveBad++;
       const sfx = S.X.sfx || {}; if (sfx.wrong) sfx.wrong(); return; }
     const a = Math.atan2(p.y - d.y, p.x - d.x), dist = Math.hypot(p.x - d.x, p.y - d.y), Ph = TUNE.divePh;
-    // (round 2) a full spin first (as Drift: away from the new heading, so a turn of less than a full one never shows), then
-    // the plunge onto the point; the body ends a little short of it along the dive so its belly comes down on it
-    const a1 = dist > 0.3 ? a : d.heading, off = wrap(a1 - S.TD.a), dir = Math.abs(off) > 0.15 ? Math.sign(off) : -(S.lastDir || -1); S.lastDir = dir;
-    S.dive = { t: 0, ct: 0, end: Ph[0] + Ph[1] + Ph[2] + Ph[3], x0: d.x, y0: d.y, z0: d.z, tx: p.x, ty: p.y, m: T.m, a: a1, dist, slam: false, spin2: false, dir };
-    spinTo(S, a1, off + dir * TAU * (Math.abs(off) > 0.15 ? 1 : 1), Ph[0]);
+    // a full spin first (as Drift: away from the new heading, so a turn of less than a full one never shows), then the
+    // plunge onto the point
+    const a1 = dist > 0.3 ? a : d.heading, off = wrap(a1 - S.ha), dir = Math.abs(off) > 0.15 ? Math.sign(off) : -(S.lastDir || -1); S.lastDir = dir;
+    const T1 = Ph[0], T2 = T1 + Ph[1], T3 = T2 + Ph[2], T4 = T3 + Ph[3];
+    S.dive = { t: 0, ct: 0, t1: T1, t2: T2, t3: T3, t4: T4, end: T4 + Ph[4], x0: d.x, y0: d.y, z0: d.z, tx: p.x, ty: p.y, m: T.m, a: a1, dist, slam: false, spin2: false, push: false, dir, sp: null, swirl: 0 };
+    startSpin(S, off + dir * TAU, Ph[0], 'io');
     S.busy = 'dive'; S.busyT = 0; S.stats.dives++; S.g.movedOnce = true; S.g.dodges = (S.g.dodges || 0) + 1;
     const sfx = S.X.sfx || {}; if (sfx.whoosh) sfx.whoosh(); if (sfx.note) { sfx.note(140, 0.4, 'sawtooth', 0.05, 60); sfx.note(320, 0.25, 'triangle', 0.03, 180, 0.08); }
   }
-  /* a full snap-spin through the model's turn driver (its ghosts, swooshes, bank kick and tail whip come with it) */
-  function spinTo(S, to, span, dur) { const TD = S.TD; TD.want = to; TD.spin = { from: TD.a, span, dir: span > 0 ? 1 : -1, t: 0, dur, to: wrap(to) }; TD.u = 0; TD.blur = 0; TD.spins = (TD.spins || 0) + 1; S.stats.spins++; S.spinDir = span > 0 ? 1 : -1; }
+  /* a full spin of the heading (the blur ghosts and streaks follow from the turn rate). 'io': eased in and out (the
+     snappy wind-up); 'out': fast, then decelerating (the grind's momentum running down) */
+  const EASE = { io: u => u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2, out: u => 1 - Math.pow(1 - u, 2.2) };
+  function startSpin(S, span, dur, ease) { S.dive.sp = { from: S.ha, span, t: 0, dur, e: EASE[ease] || EASE.io }; S.stats.spins++; S.spinDir = span > 0 ? 1 : -1; }
+  function runSpin(S, dt) { const Sp = S.dive && S.dive.sp; if (!Sp) { S.spinR = 0; S.hw = 0; return null; } Sp.t += dt; const u = cl(Sp.t / Sp.dur), e = Sp.e(u); setHeading(S, Sp.from + Sp.span * e, dt); S.spinR = (Sp.span > 0 ? 1 : -1) * TAU * e; if (u >= 1) { S.dive.sp = null; S.spinR = 0; } return u; }
   /* the rider's flat 2D roll: one turn per spin, exactly as Drift rolls the pet's sprite (never a yaw) */
-  function petRoll(S) { const TD = S.TD, Sp = TD.spin; if (!S.dive || !Sp) return 0; const u = TD.u, e = u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2; return Sp.dir * TAU * e; }
+  function petRoll(S) { return S.dive ? S.spinR || 0 : 0; }
   function stepDive(S, dt) {
-    const D = S.dive, d = S.dragon, P = d.pose, CL = MOD().CLIPS.dive, Ph = TUNE.divePh, t1 = Ph[0], t2 = t1 + Ph[1], t3 = t2 + Ph[2]; D.t += dt;
-    // the model's dive clip, retimed: fold during the spin, plunge, braking flare to the slam, hold, recovery
-    const t = D.t, prev = D.ct; D.ct = t < t1 ? 0.25 * t / t1 : t < t2 - 0.08 ? 0.25 + 0.55 * (t - t1) / (Ph[1] - 0.08) : t < t2 ? 0.8 + 0.2 * (t - (t2 - 0.08)) / 0.08 : t < t3 ? 1.0 + 0.15 * (t - t2) / Ph[2] : 1.15 + 1.05 * cl((t - t3) / Ph[3]);
+    const D = S.dive, d = S.dragon, P = d.pose, CL = MOD().CLIPS.dive, Ph = TUNE.divePh, t1 = D.t1, t2 = D.t2, t3 = D.t3, t4 = D.t4; D.t += dt;
+    // the model's dive clip, retimed: fold during the spin, plunge, braking flare to the slam, hold (wings spread wide
+    // and legs down), kept there through the grind, then its push-up
+    const t = D.t, prev = D.ct; D.ct = t < t1 ? 0.25 * t / t1 : t < t2 - 0.08 ? 0.25 + 0.55 * (t - t1) / (Ph[1] - 0.08) : t < t2 ? 0.8 + 0.2 * (t - (t2 - 0.08)) / 0.08 : t < t3 ? 1.0 + 0.1 * (t - t2) / Ph[2] : t < t4 ? 1.1 + 0.04 * (t - t3) / Ph[3] : 1.15 + 0.55 * cl((t - t4) / Ph[4]);
     CL.run(P, D.ct, Math.max(0, D.ct - prev));
+    runSpin(S, dt);
     if (D.m && !D.m.dead && t < t2 - 0.1) { D.tx = D.m.x; D.ty = D.m.y; }   // (it tracks an enemy until it is committed)
-    if (t < t1) { d.z = D.z0 + 0.25 * Math.sin(Math.PI * t / t1); d.vx *= 0.8; d.vy *= 0.8; }   // the spin, rising a little
-    else if (t <= t2) { const u = sstep(t1, t2, t), ez = Math.pow(cl((t - t1) / Ph[1]), 1.4); d.x = lerp(D.x0, D.tx, u); d.y = lerp(D.y0, D.ty, u); d.z = lerp(D.z0 + 0.1, 0.3, ez); d.vx = (D.tx - D.x0) / Ph[1]; d.vy = (D.ty - D.y0) / Ph[1];
-      // fire streams from the armour seams on the way down
+    if (t < t1) { d.z = D.z0 + 0.4 * sstep(0, t1, t); d.vx *= 0.8; d.vy *= 0.8; }   // the wind-up: a snappy spin, rearing up
+    else if (t <= t2) { const u0 = cl((t - t1) / Ph[1]), u = Math.pow(u0, 1.8);   // the plunge: accelerating, heavy
+      d.x = lerp(D.x0, D.tx, u); d.y = lerp(D.y0, D.ty, u); d.z = lerp(D.z0 + 0.4, 0.3, Math.pow(u0, 1.5)); d.vx = (D.tx - D.x0) / Ph[1]; d.vy = (D.ty - D.y0) / Ph[1];
       if (Math.random() < dt * (lowFx() ? 20 : 60)) { const a = Math.random() * TAU; addPart(S, 1, d.x + Math.cos(a) * 0.5, d.y + Math.sin(a) * 0.4, d.z + 0.4, -d.vx * 0.15 + Math.cos(a), -d.vy * 0.15 + Math.sin(a) * GY, 1.5 + Math.random() * 2, 0.35 + Math.random() * 0.25, 0.14, { col: Math.random() < 0.5 ? FIRE : EMBER }); } }
     if (!D.slam && t >= t2) { D.slam = true; d.x = D.tx; d.y = D.ty; d.z = 0.3; d.vx = d.vy = 0; slam(S, D.tx, D.ty); }
-    // the second spin as it pushes back up into flight
-    if (t >= t3 && !D.spin2) { D.spin2 = true; spinTo(S, D.a, -D.dir * TAU, Ph[3] * 0.9); const sfx = S.X.sfx || {}; if (sfx.whoosh) sfx.whoosh(); }
-    if (t > t3) { const u = sstep(t3, D.end, t); d.z = lerp(0.3, TUNE.cruise, u); }
-    if (t >= D.end) { S.dive = null; S.busy = null; d.vx = d.vy = 0; if (S.diveQ != null && S.g.t - S.diveQ < TUNE.diveBuf + 0.3) { S.diveQ = null; tryDive(S, S.mx, S.my, true); } }
+    if (t > t2 && t < t3) { const u = (t - t2) / Ph[2]; d.z = 0.3 - 0.08 * Math.sin(Math.PI * u); P.pitch -= 0.25 * Math.sin(Math.PI * u); }   // the impact hold: it sinks into the slam
+    // the grind: one slow heavy turn on the ground (fast off the slam, running down), wings dragging, dust and embers swirling
+    if (t >= t3 && !D.spin2) { D.spin2 = true; startSpin(S, -D.dir * TAU, Ph[3], 'out'); const sfx = S.X.sfx || {}; if (sfx.whoosh) sfx.whoosh(); if (sfx.hiss) sfx.hiss(Ph[3], 0.06, 500); addPart(S, 9, d.x, d.y, 0, 0, 0, 0, 0.7, 2.2, {}); }
+    if (t >= t3 && t < t4) { const u = (t - t3) / Ph[3], w = Math.abs(S.hw), sg = D.dir > 0 ? -1 : 1;
+      d.z = 0.3 + 0.03 * Math.sin(u * 9); P.flapAmp = 0.1; P.downFlex = 0.75; P.spread = 1; P.pitch = -0.22; P.bank = -sg * 0.35 * (1 - u); P.tailSwing = sg * 0.9 * (1 - u * 0.7); P.headYaw = sg * 0.3 * (1 - u); P.legs = 1;
+      D.swirl += dt * (lowFx() ? 22 : 60) * (0.35 + 0.65 * (1 - u)); while (D.swirl >= 1) { D.swirl -= 1; swirlPart(S, d, sg, w); } }
+    // the push-off: a powerful downstroke and a climb straight back to cruise
+    if (t >= t4 && !D.push) { D.push = true; const X = S.X, sfx = X.sfx || {}; if (sfx.whoosh) sfx.whoosh(); if (sfx.note) sfx.note(80, 0.35, 'triangle', 0.06, 120); if (!calm()) X.shake(2.5, 0.12);
+      for (let i = 0; i < (lowFx() ? 6 : 14); i++) { const a = i / (lowFx() ? 6 : 14) * TAU + Math.random() * 0.3, v = 3 + Math.random() * 2.5; addPart(S, 2, d.x + Math.cos(a) * 1.2, d.y + Math.sin(a) * 0.9, 0.1, Math.cos(a) * v, Math.sin(a) * v * GY, 0.4, 0.7 + Math.random() * 0.4, 0.5 + Math.random() * 0.3, { grow: 1.6, drag: 3 }); } }
+    if (t > t4) { const u = cl((t - t4) / Ph[4]); d.z = lerp(0.3, TUNE.cruise, 1 - Math.pow(1 - u, 2)); P.flapAmp = Math.max(P.flapAmp, 1.1); }
+    if (t >= D.end) { S.dive = null; S.busy = null; S.spinR = 0; d.vx = d.vy = 0; if (S.diveQ != null && S.g.t - S.diveQ < TUNE.diveBuf + 0.3) { S.diveQ = null; tryDive(S, S.mx, S.my, true); } }
   }
+  /* one swirl particle off a dragging wingtip or the tail: dust (the floor's) or an ember, flung along the spin */
+  function swirlPart(S, d, sg, w) { const k = Math.floor(Math.random() * 3), a = S.ha + (k === 0 ? Math.PI / 2 : k === 1 ? -Math.PI / 2 : Math.PI) + (Math.random() - 0.5) * 0.5, r = (k === 2 ? 2.0 : 2.4) * TUNE.size / 0.65 * (0.8 + Math.random() * 0.35);
+    const x = d.x + Math.cos(a) * r, y = d.y + Math.sin(a) * r, ta = a + sg * Math.PI / 2, v = Math.min(9, w * r * 0.35) + 0.5;
+    if (Math.random() < 0.55) addPart(S, 2, x, y, 0.05, Math.cos(ta) * v + Math.cos(a), (Math.sin(ta) * v + Math.sin(a)) * GY, 0.3 + Math.random() * 0.4, 0.6 + Math.random() * 0.4, 0.35 + Math.random() * 0.25, { grow: 1.3, drag: 2.5 });
+    else addPart(S, 1, x, y, 0.1, Math.cos(ta) * v * 1.2, Math.sin(ta) * v * 1.2 * GY, 1 + Math.random() * 2, 0.4 + Math.random() * 0.3, 0.1 + Math.random() * 0.06, { col: Math.random() < 0.5 ? FIRE : EMBER, g: 3, drag: 1 }); }
   /* the slam: one damage event per monster in reach, the fire shockwave, embers, glowing cracks (light only) */
   function slam(S, x, y) {
     const X = S.X, Q = lowFx() ? 0.4 : 1; let n = 0;
@@ -285,7 +356,7 @@
     // cracks: jagged glowing lines out from the impact (they cool and fade; nothing dark is left)
     const nc = lowFx() ? 5 : 8; for (let i = 0; i < nc; i++) { const a = i / nc * TAU + Math.random() * 0.5, L = 1.4 + Math.random() * 1.4, pts = [[x, y]]; let px = x, py = y; for (let k = 0; k < 4; k++) { const aa = a + (Math.random() - 0.5) * 0.7, s = L / 4; px += Math.cos(aa) * s; py += Math.sin(aa) * s; pts.push([px, py]); } S.cracks.push({ pts, t: 0, life: 1.8 + Math.random() * 0.6 }); }
     if (S.cracks.length > 24) S.cracks.splice(0, S.cracks.length - 24);
-    X.light(x, y, 3.6, 0.25); if (!calm()) { X.shake(n ? 7 : 5, 0.2); if (n && X.hitstop) X.hitstop(0.05); }
+    X.light(x, y, 3.6, 0.25); if (!calm()) { X.shake(n ? 7 : 5, 0.2); if (X.hitstop) X.hitstop(n ? 0.08 : 0.05); }   /* (round 3: a heavy slam: the hit-stop even on bare ground; none with reduce-motion) */
     const sfx = X.sfx || {}; if (sfx.thud) sfx.thud(); if (sfx.crash) sfx.crash(); if (sfx.stomp) sfx.stomp(); if (sfx.note) { sfx.note(55, 0.55, 'sawtooth', 0.12, 30); sfx.note(110, 0.3, 'square', 0.03, 70, 0.02); } if (sfx.hiss) sfx.hiss(0.4, 0.1, 1400);
   }
 
@@ -321,23 +392,30 @@
 
   /* ---- the frame ---- */
   function step(S, dt) {
-    const d = S.dragon, me = S.me, g = S.g, X = S.X, M0 = MOD(), P = d.pose, TD = S.TD;
+    const d = S.dragon, me = S.me, g = S.g, X = S.X, M0 = MOD(), P = d.pose;
     if (S.released) { S.relT = (S.relT || 0) + dt; stepParts(S, dt); return; }
     if (me.dead) { finish(S, 'defeat'); return; }
     if (g.over || (g.won && S.phase !== 'ultima' && S.phase !== 'out')) { finish(S, 'won'); return; }
     if (X.pet && S.pet && X.pet() !== S.pet) { finish(S, 'swap'); return; }
     g.cdU = S.CD;   // (held while flying: the cooldown starts at the exit)
     S.t += dt; S.cdF = Math.max(0, S.cdF - dt); S.cdL = Math.max(0, S.cdL - dt); if (S.busy) S.busyT += dt;
-    { const DB = MDB(), aW = d.locked ? d.heading : TD.spin ? TD.spin.to : TD.a; wantHeading(aW); if (TD.spin) wantHeading(TD.want);
-      const need = DB && DB.readyB && !DB.readyB(DB.bucketOf(aW)); M0.warm(S.phase === 'summon' ? (drawHeading(S, TD.a) == null ? 7 : 4.5) : need ? 4.5 : 0.8);   /* (the model's slices are <= ~3 ms and never overrun the budget) */ warmMoves(S.phase === 'summon' ? 1.5 : 0.5); }
+    { const B = bakeState(), want = Math.hypot(S.mx, S.my) > 0.15 ? Math.atan2(S.my, S.mx) : S.ha; bakePlan(S.ha, wrap(want - S.ha) < 0 ? -1 : 1);
+      // the bake budget (ms this frame; the model's slices never overrun it): hard while the summon waits, still firm until
+      // every heading is drawable, then while the facing heading is not sharp; a trickle otherwise
+      const DB = MDB(), sharpHere = !DB || !DB.readyB || DB.readyB(DB.bucketOf(S.ha));
+      M0.warm(S.phase === 'summon' ? (B.draw ? (B.all ? 5 : 8) : 10) : !B.draw ? 8 : !B.all ? 4.5 : !sharpHere ? 3 : B.sharp ? 0 : 1.2); S.bake = B;
+      warmMoves(S.phase === 'summon' ? 1.5 : 0.5); }
     let mag = 0;
     if (S.phase === 'summon') {
-      if (S.t > 1.9 && drawHeading(S, TD.a) == null && (S.hold || 0) < 4) { S.hold = (S.hold || 0) + dt; S.t -= dt; }   /* (the seal and the haze play on; on a cold cache the dragon is not drawn until a heading is ready, and the pet's mount at 1.9 s waits for it) */
+      if (S.t > 1.9 && drawHeading(S, S.ha) == null && (S.hold || 0) < 4) { S.hold = (S.hold || 0) + dt; S.t -= dt; }   /* (the seal and the haze play on; on a cold cache the dragon is not drawn until a heading is ready, and the pet's mount at 1.9 s waits for it) */
       const h = M0.CLIPS.summon.run(P, S.t, dt) || {};
       if (h.dz) d.z = Math.min(TUNE.cruise, d.z + h.dz * dt);
       if (h.seal && Math.random() < dt * (lowFx() ? 14 : 40)) { const a = Math.random() * TAU, r = Math.random() * 2.4; addPart(S, 1, d.x + Math.cos(a) * r, d.y + Math.sin(a) * r * 0.8, 0.05, 0, 0, 1 + Math.random() * 2, 1 + Math.random(), 0.12, { col: Math.random() < 0.5 ? FIRE : EMBER }); }
       if (h.mount && !S.mounted) { S.mounted = true; const sfx = X.sfx || {}; if (sfx.jump) sfx.jump(); }
       if (S.t > 2.1 && !S.beat) { S.beat = true; const sfx = X.sfx || {}; if (sfx.whoosh) sfx.whoosh(); if (sfx.note) sfx.note(62, 0.6, 'sawtooth', 0.08, 45); if (!calm()) X.shake(3, 0.15); }
+      /* (round 3) on a cold cache it hovers on at the end of the summon, flapping, until every heading is drawable (so it
+         can never fly frozen at a stand-in heading); at most TUNE.readyHold s */
+      if (S.t >= TUNE.summon - 0.4 && !(S.bake && S.bake.draw) && (S.hold2 || 0) < TUNE.readyHold) { S.hold2 = (S.hold2 || 0) + dt; S.t = TUNE.summon - 0.4; S.hct = (S.hct || 0) + dt; M0.CLIPS.hover.run(P, S.hct, dt); d.z += (TUNE.cruise * 0.8 + 0.12 * Math.sin(S.hct * 2.2) - d.z) * Math.min(1, dt * 3); }
       if (S.t >= TUNE.summon) { S.phase = 'fly'; S.t = 0; d.locked = false; S.left = S.dur; d.z = Math.max(d.z, 1.6); }
     } else if (S.phase === 'fly') {
       S.left -= dt; S.stats.flyT += dt;
@@ -345,7 +423,8 @@
       if (S.busy && S.busy !== 'dive' && S.busyT > 9) actionDone(S);
       if (S.dive) stepDive(S, dt);
       else { mag = fly(S, dt, !d.locked);
-        if (!S.busy) { const C = mag > 0.15 ? M0.CLIPS.fly : M0.CLIPS.hover; S.ct += dt; C.run(P, S.ct, dt, { turn: 1e-4 }); relaxFx(P, dt); const vz = (d.z - (S.zPrev == null ? d.z : S.zPrev)) / Math.max(dt, 1e-3); P.pitch += Math.max(-0.3, Math.min(0.3, -0.09 * vz)); /* (nose up as it climbs, down as it sinks) */ } }
+        if (!d.locked) { steer(S, dt, mag > 0.15 ? Math.atan2(S.my, S.mx) : null, mag); turnPose(S, dt); }
+        if (!S.busy) { const C = mag > 0.15 ? M0.CLIPS.fly : M0.CLIPS.hover; S.ct += dt; C.run(P, S.ct, dt, { turn: S.turnK || 1e-4 }); relaxFx(P, dt); bodyTurn(S, P, dt, C === M0.CLIPS.hover); const vz = (d.z - (S.zPrev == null ? d.z : S.zPrev)) / Math.max(dt, 1e-3); P.pitch += Math.max(-0.3, Math.min(0.3, -0.09 * vz)); /* (nose up as it climbs, down as it sinks) */ } }
       if (S.mvQ) { const Q = S.mvQ, cdq = Q.slot !== 'strong2' ? S.cdF : S.cdL; if (g.t - Q.t > TUNE.mvHold + 0.4) S.mvQ = null; else if (!S.busy && !d.locked && cdq <= 0) { S.mvQ = null; tryMove(S, Q.slot, true); } }
       if (S.diveQ != null && !S.busy && !S.dive) { const q = S.diveQ; S.diveQ = null; if (g.t - q < 0.8) tryDive(S, S.mx, S.my, true); }
       if (S.ultQ != null && !S.busy && !S.dive) { const q = S.ultQ; S.ultQ = null; if (g.t - q < 3) tryUlt(S); }   /* (kept through a dive and its recovery, ~1.8 s, or a Strong) */
@@ -356,12 +435,13 @@
     } else if (S.phase === 'ultima') {
       if (S.t > (g.won ? TUNE.ultWonCap : TUNE.ultCap)) { S.busy = null; S.ctx.ultima = false; S.cam = null; startOut(S, 'ultima'); return; }
     } else if (S.phase === 'out') stepOut(S, dt);
-    // the heading: snap-spins (the model's turnDriver) toward the stick while flying freely
-    if (S.phase === 'fly' && !S.dive && !d.locked) { const ev = TD.step(dt, mag > 0.15 ? S.mx : 0, mag > 0.15 ? S.my : 0, P); if (ev.spinStart) { S.stats.spins++; const sfx = X.sfx || {}; if (sfx.whoosh) sfx.whoosh(); } }
-    else if (S.phase === 'out' && S.outT < (S.outGlide || 0) && S.ret && Math.hypot(S.ret.x - d.x, S.ret.y - d.y) > 0.6) TD.step(dt, S.ret.x - d.x, S.ret.y - d.y, P);   /* (the glide home faces the return point) */
-    else if (S.dive || S.phase === 'out') TD.step(dt, 0, 0, P);
-    // (while locked, Ultima owns dragon.heading: the driver follows it, never the other way, and no snap-spin runs)
-    if (d.locked && (S.phase === 'ultima' || S.busy)) { TD.a = d.heading; TD.want = d.heading; TD.spin = null; TD.blur = 0; } else d.heading = TD.a;
+    // the heading: steered in fly() / the dive's spins / the glide home; while locked, Ultima owns dragon.heading (it is
+    // followed, never fought)
+    if (S.phase === 'out' && S.outT < (S.outGlide || 0) && S.ret && Math.hypot(S.ret.x - d.x, S.ret.y - d.y) > 0.6) { steer(S, dt, Math.atan2(S.ret.y - d.y, S.ret.x - d.x), 1); turnPose(S, dt); }
+    else if (S.phase !== 'fly' && S.phase !== 'ultima') { steer(S, dt, null, 0); turnPose(S, dt); }
+    if (d.locked && (S.phase === 'ultima' || S.busy)) { const da = wrap(d.heading - S.ha); S.ha = wrap(d.heading); S.au += da; S.hw = 0; S.turnK *= 0.8; } else d.heading = S.ha;
+    if (S.busy && !S.dive && S.phase === 'fly' && !d.locked) bodyTurn(S, P, dt, false);   /* (a Strong's clip owns the pose: the bank and the tail's lag go on top) */
+    pushHist(S);
     S.zPrev = d.z;
     const MV = moves(); if (MV.update) { try { MV.update(S.ctx, dt); } catch (e) { /* (theirs) */ } }
     if (S.phase !== 'out' || S.outT < (S.outGlide || 0)) syncMe(S);
@@ -371,6 +451,12 @@
     S.sfxT -= dt; if (S.sfxT <= 0 && S.phase === 'fly') { const sfx = X.sfx || {}; S.sfxT = 0.75 + Math.random() * 0.3; if (sfx.note) { sfx.note(70 + Math.random() * 10, 0.35, 'triangle', 0.035, 50); if (Math.random() < 0.15) sfx.note(48, 0.9, 'sawtooth', 0.03, 40); } if (Math.random() < 0.25 && sfx.hiss) sfx.hiss(0.08, 0.025, 2500); }
   }
   /* when no clip owns them: the effect channels relax (the flight clips set the motion channels themselves) */
+  /* the turn's body language: turnK eases toward the turn rate (-1.3..1.3); the tail lags on an underdamped spring */
+  function turnPose(S, dt) { const k = Math.max(-1.3, Math.min(1.3, S.hw / 3.6)); S.turnK += (k - S.turnK) * Math.min(1, dt * 7);
+    const tg = -S.turnK * 0.8; S.tailV += (-90 * (S.tail - tg) - 9 * S.tailV) * dt; S.tail += S.tailV * dt; }
+  /* after a clip: bank into the turn, the head leading, the tail counter-swinging with its lag, a harder flap in a hard turn */
+  function bodyTurn(S, P, dt, hover) { const k = S.turnK; if (hover) { P.bank = k * 0.5; P.headYaw += k * 0.3; P.tailSwing += S.tail; } else { P.tailSwing += S.tail + k * 0.8; if (Math.abs(k) > 0.02) P.bank = k * 0.5; }
+    P.flap = (P.flap + dt * 0.9 * Math.abs(k)) % 1; }
   function relaxFx(P, dt) { const k = Math.min(1, dt * 3); for (const c of ['jaw', 'throat', 'vents', 'glow', 'trace', 'ring', 'core', 'heat']) P[c] += (0 - P[c]) * k; P.alpha += (1 - P.alpha) * k; }
 
   /* ---- exits: glide to the safe return point, dismiss in fire, set the pet down, restore, cooldown ---- */
@@ -384,8 +470,8 @@
   }
   function stepOut(S, dt) {
     const d = S.dragon, P = d.pose, M0 = MOD(); S.outT += dt;
-    if (S.outT < S.outGlide) { const u = sstep(0, 1, S.outT / S.outGlide); d.x = lerp(S.outFrom.x, S.ret.x, u); d.y = lerp(S.outFrom.y, S.ret.y, u); d.z = lerp(S.outFrom.z, 1.4, u); M0.CLIPS.fly.run(P, S.outT, dt, { turn: 1e-4 }); relaxFx(P, dt);
-      if (Math.hypot(S.ret.x - S.outFrom.x, S.ret.y - S.outFrom.y) > 0.5) S.TD.want = Math.atan2(S.ret.y - S.outFrom.y, S.ret.x - S.outFrom.x); return; }
+    if (S.outT < S.outGlide) { const u = sstep(0, 1, S.outT / S.outGlide); d.x = lerp(S.outFrom.x, S.ret.x, u); d.y = lerp(S.outFrom.y, S.ret.y, u); d.z = lerp(S.outFrom.z, 1.4, u); M0.CLIPS.fly.run(P, S.outT, dt, { turn: S.turnK || 1e-4 }); relaxFx(P, dt); bodyTurn(S, P, dt, false);
+      return; }
     const t = S.outT - S.outGlide, h = M0.CLIPS.dismiss.run(P, t, dt) || {};
     if (!S.hopped) { S.hopped = true; const me = S.me; me.x = S.ret.x; me.y = S.ret.y; S.petHop = 0; const sfx = S.X.sfx || {}; if (sfx.jump) sfx.jump(); if (sfx.hiss) sfx.hiss(0.6, 0.08, 1200); }
     S.petHop += dt;
@@ -444,7 +530,7 @@
     for (const p of S.parts) { if (p.kind !== 9) continue; const u = 1 - p.life / p.max, e = 1 - (1 - u) * (1 - u) * (1 - u), r = T * p.s * (0.2 + 0.8 * e), X0 = H.sx(p.x), Y0 = H.sy(p.y); c.globalAlpha = Math.pow(1 - u, 1.3) * 0.9;
       c.beginPath(); c.ellipse(X0, Y0, r, r * GY, 0, 0, TAU); c.strokeStyle = FIRE; c.lineWidth = T * 0.35 * (1 - u); c.stroke(); c.strokeStyle = CORE; c.lineWidth = T * 0.08 * (1 - u); c.stroke(); c.globalAlpha *= 0.35; blitSized(c, glowSprite(FIRE), X0 - r, Y0 - r * GY, r * 2, r * 2 * GY); }
     // the dive's target ring closing in; an invalid marker (an X in a broken ring) where nothing can be struck
-    if (S.dive && !S.dive.slam) { const D = S.dive, u = cl(D.t / 1.0), r = T * TUNE.diveR * (1.05 - 0.35 * u), X0 = H.sx(D.tx), Y0 = H.sy(D.ty); c.globalAlpha = 0.65 * sstep(0, 0.2, u); c.beginPath(); c.ellipse(X0, Y0, r, r * GY, 0, 0, TAU); c.strokeStyle = FIRE; c.lineWidth = T * 0.07; c.stroke(); c.globalAlpha *= 0.4; blitSized(c, glowSprite(RED), X0 - r, Y0 - r * GY, r * 2, r * 2 * GY); }
+    if (S.dive && !S.dive.slam) { const D = S.dive, u = cl(D.t / D.t2), r = T * TUNE.diveR * (1.05 - 0.35 * u), X0 = H.sx(D.tx), Y0 = H.sy(D.ty); c.globalAlpha = 0.65 * sstep(0, 0.2, u); c.beginPath(); c.ellipse(X0, Y0, r, r * GY, 0, 0, TAU); c.strokeStyle = FIRE; c.lineWidth = T * 0.07; c.stroke(); c.globalAlpha *= 0.4; blitSized(c, glowSprite(RED), X0 - r, Y0 - r * GY, r * 2, r * 2 * GY); }
     c.restore();
     // the dragon's shadow (only over something to fall on: inside the map)
     if (S.phase !== 'gone' && M0 && inMap(S, d.x, d.y)) { const da = drawHeading(S, d.heading); if (da != null) try { M0.drawShadow(c, d.x, d.y, d.z, da, d.pose, { T, sx: H.sx, sy: H.sy, t, scale: TUNE.size }); } catch (e) { /* (model) */ } }
@@ -463,10 +549,10 @@
     const o = { T, sx: H.sx, sy: H.sy, t, low: lowFx(), scale: TUNE.size, pet: (cc, PX, PY) => { const roll = petRoll(S); PY += T * TUNE.size * (0.3 * Math.max(0, d.pose.pitch || 0) + (S.dive ? 0.14 : 0)) + T * 0.22 * Math.abs(Math.sin(roll)); S.seatS = [PX, PY]; if (riding) H.X.drawPetAt(cc, PX, PY, { maxH: 0.85, rot: roll }); } };   /* (rolled on its side the sprite's lowest point rises: it is kept down on the seat) */   /* (nose-down, the back slopes away from the seat point: the rider is seated a little lower, on the plates) */   /* (round 2: drawn at 0.65; the rider a little smaller to sit in the smaller seat, rolling flat with each dive spin) */
     const a0 = d.pose.alpha; d.pose.alpha = a0 * d.vis;
     const da = drawHeading(S, d.heading); S.drawnA = da;
-    if (da != null) { const sub = Math.abs(wrap(da - d.heading)) > 0.05, P0 = d.pose, kb = sub ? [P0.bank, P0.headYaw, P0.tailSwing] : null;
-      if (sub) { P0.bank = 0; P0.headYaw = 0; P0.tailSwing = 0; } const ring0 = P0.ring; if (S.noBlur) P0.ring = 0;   /* (S.noBlur, tests only: the body without the spin's streaks and the Ultima ring's floating segments) */   /* (at a stand-in heading the spin's bank / head yaw / tail swing would turn pieces toward headings not baked yet: drawn straight, every piece and the seat share one heading) */
+    if (da != null) { const sub = Math.abs(wrap(da - d.heading)) > 0.05, P0 = d.pose, half = !sub && !bothAt(da), kb = sub || half ? [P0.bank, P0.headYaw, P0.tailSwing] : null;
+      if (sub) { P0.bank = 0; P0.headYaw = 0; P0.tailSwing = 0; } else if (half) P0.bank *= 0.5;   /* (round 3: only one of the two neighbouring headings baked yet, early in a cold cast: a hard bank is halved so the mapped torso keeps the rider's seat) */ const ring0 = P0.ring; if (S.noBlur) P0.ring = 0;   /* (S.noBlur, tests only: the body without the spin's streaks and the Ultima ring's floating segments) */   /* (at a stand-in heading the spin's bank / head yaw / tail swing would turn pieces toward headings not baked yet: drawn straight, every piece and the seat share one heading) */
       try { M0.drawSpin(c, d.x, d.y, d.z, d.pose, o, spinProxy(S, da)); } catch (e) { /* (model) */ }
-      if (sub) { P0.bank = kb[0]; P0.headYaw = kb[1]; P0.tailSwing = kb[2]; } P0.ring = ring0; }
+      if (kb) { P0.bank = kb[0]; P0.headYaw = kb[1]; P0.tailSwing = kb[2]; } P0.ring = ring0; }
     else if (riding) H.X.drawPetAt(c, H.sx(d.x), H.sy(d.y) - d.z * ZK * T, { maxH: 0.85 });   /* (nothing baked at all yet: the rider alone, never a broken dragon) */
     d.pose.alpha = a0;
     // the pet before it mounts (standing by the seal, then hopping up) and after it hops down at the exit
@@ -560,13 +646,20 @@
     startForm(C, H);
   };
   /* idle-time preparation (20b calls it for an equipped Ultimate): the model's bake, then N2's / N3's sprites */
+  /* idle-time preparation (20b calls it for an equipped Ultimate at the floor's start): the model's bake (in bakePlan's
+     order: every heading drawable as soon as possible), then N2's / N3's sprites.
+     (Round 3) It runs on every browser (Safari, so every iPhone, has no requestIdleCallback, and a busy device has
+     little idle time anyway): a slice after each frame, sized to the frame rate it sees (3 ms at 60 fps, 1.6 ms when
+     frames run late, 0.8 ms on a struggling device), so it never stacks a hitch on a slow frame */
+  let PUMP = null;
   U.nidhogg.warm = o => { setTimeout(() => { const T = typeof o.T === 'function' ? o.T() : o.T, M0 = MOD(); if (!(T > 0) || !M0) return; const dpr = (typeof arc !== 'undefined' && arc.dpr) || 1; const Z = (typeof arc !== 'undefined' && arc.game && arc.game._dbg && arc.game._dbg.g && arc.game._dbg.g.zoom) || 1;
     if (bakeScaleOK(T / Math.max(0.5, Z) * dpr)) M0.warmIdle(0, 1); else M0.warmIdle(bakeT(T / Math.max(0.5, Z) * dpr), 1);   /* (the same scale the cast will use) */
+    bakePlan(0, 1, true);
     const idle = () => { if (['warmS', 'warmU'].every(w => !moves()[w] || WARMED[w])) return; warmMoves(2); if (typeof requestIdleCallback === 'function') requestIdleCallback(idle, { timeout: 300 }); else setTimeout(idle, 60); }; idle();
-    // (the model's bake on the leftover time of each idle period as well, up to 8 ms: its slices are <= ~3 ms and never
-    //  overrun the budget, so frames do not hitch; a dragon cast early in a floor then has its headings ready sooner)
-    const pump = dl => { const ms = dl && dl.timeRemaining ? Math.min(8, dl.timeRemaining() - 1) : 3; if (ms > 1.5 && M0.warm(ms) === true) return; if (typeof requestIdleCallback === 'function') requestIdleCallback(pump, { timeout: 500 }); else setTimeout(pump, 50); };
-    if (typeof requestIdleCallback === 'function') requestIdleCallback(pump, { timeout: 500 }); }, 300); };
+    if (PUMP) return; const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now()); let last = now();
+    const slice = ms => { const g = typeof arc !== 'undefined' && arc.game && arc.game._dbg && arc.game._dbg.g, S = g && g._nidhogg, a = S && !S.released ? S.ha : 0; bakePlan(a, 1, false); return M0.warm(ms) === true; };
+    PUMP = () => requestAnimationFrame(() => setTimeout(() => { const n = now(), gap = n - last; last = n; if (slice(gap < 20 ? 3 : gap < 34 ? 1.6 : 0.8)) { PUMP = null; return; } PUMP(); }, 0));
+    PUMP(); }, 300); };
   U.nidhogg.TUNE = TUNE;
-  U.nidhogg.__dbg = { TUNE, STUB, moves, safeReturn, nearestLand, groundAt, aimPoint, target, petRoll };
+  U.nidhogg.__dbg = { TUNE, STUB, moves, safeReturn, nearestLand, groundAt, aimPoint, target, petRoll, blurK, bakeState, bakePlan };
 })();
