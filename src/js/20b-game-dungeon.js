@@ -117,7 +117,7 @@ GAMES.dungeon = {
       const ok = (x, y) => !blocked(x, y, r, mode) && (mode === 1 || flow[Math.floor(y) * MW + Math.floor(x)] < 9999 || !inMap(Math.floor(x), Math.floor(y)));
       if (ok(tx, ty)) return { x: tx, y: ty };
       for (let rr = 0.3; rr < 4; rr += 0.3) for (let i = 0; i < 12; i++) { const a = i / 12 * 6.283, x = tx + Math.cos(a) * rr, y = ty + Math.sin(a) * rr; if (ok(x, y)) return { x, y }; }
-      return { x: m ? m.x : tx, y: m ? m.y : ty };
+      return { x: m && isFinite(m.x) ? m.x : tx, y: m && isFinite(m.y) ? m.y : ty };   /* (an options object like { r, mv } has no x: it gave NaN when nothing walkable was near, a stone dropped by a pet flying offshore on Nidhogg say) */
     }
     function los(x0, y0, x1, y1) {
       const dx = x1 - x0, dy = y1 - y0, d = hyp(dx, dy), n = Math.ceil(d * 3);
@@ -483,7 +483,8 @@ GAMES.dungeon = {
     /* a power stone appears on the ground near (x, y) */
     function dropStone(x, y, kind) {
       if (RULES && RULES.blocks('nostone')) return;
-      const p = walkPoint(x + (Math.random() - 0.5) * 1.5, y + (Math.random() - 0.5) * 1.5, { r: 0.3, mv: 0 });
+      let p = walkPoint(x + (Math.random() - 0.5) * 1.5, y + (Math.random() - 0.5) * 1.5, { r: 0.3, mv: 0 });
+      if (!isFinite(p.x) || !isFinite(p.y) || blocked(p.x, p.y, 0.3, 0)) { if (!isFinite(me.wx) || !isFinite(me.wy)) return; p = walkPoint(me.wx, me.wy, { r: 0.3, mv: 0 }); }   /* (nothing walkable near, the pet flying offshore on Nidhogg say: the stone goes by its last walkable spot) */
       stones.push({ x: p.x, y: p.y, kind: kind || POWER_KEYS[Math.floor(Math.random() * POWER_KEYS.length)], t: 0, got: false, fresh: 0.6 });
       ring(p.x, p.y, 0.2, 1.4, 0.4, '#FFFFFF', 0.15); sparks(p.x, p.y, '#FFE37A', 10, 5);
     }
