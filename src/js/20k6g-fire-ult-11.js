@@ -149,7 +149,8 @@
   function spinProxy(S, a) { const P = S.TDP || (S.TDP = { spin: null, u: 0, last: { from: 0, span: 0, dir: 1, t: 0, dur: 0.16, to: 0 }, ghosts: n => ghostsOf(S, n) }), nb = !!S.noBlur;   /* (S.noBlur: tests count the body without the streaks) */
     const k = nb || Math.abs(wrap(a - S.ha)) > 0.05 ? 0 : blurK(S); P.a = a; P.k = k; P.blur = k > 0.03 ? 0.12 * k : 0;
     const u0 = agoU(S, 0.16), span = S.au - u0; P.last.from = wrap(S.ha - span); P.last.span = span; P.last.dir = span >= 0 ? 1 : -1; P.last.to = S.ha; return P; }
-  function ghostsOf(S, n) { const P = S.TDP; if (!P || !(P.k > 0.03)) return []; const m = Math.min(n, 2), out = [];   /* (2 ghosts in the dive too: 3 peaked near 10 ms) */
+  function ghostsOf(S, n) { return [];   /* (no blur ghosts at all, the user 2026-11-08: each was a whole extra dragon draw; the wingtip streaks stay) */
+    const P = S.TDP; if (!P || !(P.k > 0.03)) return []; const m = Math.min(n, 2), out = [];   /* (2 ghosts in the dive too: 3 peaked near 10 ms) */
     for (let i = m; i >= 1; i--) { const a = wrap(S.ha - (S.au - agoU(S, i * 0.035))); if (usableAt(a)) out.push({ a, al: 0.42 * (1 - (i - 1) / m) * P.k }); } return out; }
   function warmMoves(ms) { const MV = moves(), ws = ['warmS', 'warmU'].filter(w => MV[w] && !WARMED[w]); if (!ws.length || ms < 0.4) return; const w = ws[(WARMI++) % ws.length]; try { if (MV[w](Math.min(2, ms)) === true) WARMED[w] = true; } catch (e) { WARMED[w] = true; } }
 
