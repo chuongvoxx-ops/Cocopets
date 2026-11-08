@@ -9,10 +9,15 @@
        settles at each step); walls and props block it (nothing is smashed);
      - contact: moving into a monster above TUNE.contactMin of top speed deals TUNE.contact x DK, once per pass, never
        sooner than TUNE.contactGate s per monster; standing against one deals nothing;
-     - Dodge is Jump: a crouch, a high arc toward the stick (else the heading) to a landing planned before take-off (walls
-       stop it in the air, it lands only where the whole machine fits and the pet could walk back from), one landing
-       shockwave (TUNE.jump x DK) and a short recovery; the next jump only after landing (TUNE.jumpCd from the landing);
-       the Dodge's short invulnerability at take-off only;
+     - (round 2) Dodge is Drift (Shift / the Dodge button): a burst along the stick (else the heading) while the
+       machine spins through at least one full turn, arms flung wide and twisting, its talons raking everything round
+       it: TUNE.drift x DK once per monster per drift, the Dodge's invulnerability, TUNE.driftCd from the press (a press
+       a moment early is kept, so drifts chain); the rider rolls one flat 2D turn with it, as in a Dodge;
+     - (round 2) Jump has its own button above Drift (and J): a crouch, a high arc toward the stick (else the heading)
+       to a landing planned before take-off (walls stop it in the air, it lands only where the whole machine fits and
+       the pet could walk back from), one landing shockwave (TUNE.jump x DK); no cooldown: a press in the air is kept
+       and goes the moment it touches down (never a jump in mid-air); a short invulnerability at take-off, at most once
+       per TUNE.jumpInvLock s;
      - Strong 1 / 2 are Homing Missiles / Heaven's Wrath (worker B2's file, 20k9j, BEAST_MOVES; stubs here if absent);
      - the Ult button is the Judgement Day meter: it fills from the damage the form actually deals (ctx.hit: after
        mitigation, no overkill; Judgement's own hits never refill it); a press when full starts Judgement Day (20k9k),
@@ -47,13 +52,17 @@
     dur: [20, 25, 35], cd: 120,                   // s of riding at evo 1-3 / 4-6 / 7 (from the moment it can move); the Ult's cooldown from the exit
     build: 1.85, out: 0.75,                       // s: the construction gag; the timeout pop
     judgeCap: 14, judgeWonCap: 10,                // s: a Judgement that never reports done is ended anyway (sooner on a won floor)
-    top: 8, accel: 15, coast: 9, overK: 6,        // tiles/s, tiles/s2: a heavy bounding gait (the pet walks 4.3)
-    steer: [2.6, 4.2], grip: 9, bumpK: 0.35, stride: 1.9,   // rad/s at rest .. at top speed; lateral grip; speed kept on a wall; tiles per gait cycle
-    contact: 0.6, contactGate: 0.45, contactMin: 0.35, contactKb: 4,   // x DK per pass; s per monster; share of top speed; knockback (bosses: hitMon's rule)
+    top: 10.8, accel: 26, coast: 12, overK: 10,   // tiles/s, tiles/s2 (round 2: +35% top speed, livelier; the pet walks 4.3)
+    steer: [4.4, 6.8], grip: 15, bumpK: 0.35, stride: 2.4,  // rad/s at rest .. at top speed; lateral grip; speed kept on a wall; tiles per gait cycle
+    contact: 0.6, contactGate: 0.45, contactMin: 0.26, contactKb: 4,   // x DK per pass; s per monster; share of top speed (2.8 tiles/s, as before); knockback (bosses: hitMon's rule)
     jump: 2.6, jumpR: 2.6, jumpKb: 6.5,           // x DK once per monster on landing; radius (tiles, + the monster's own x0.85); knockback
-    jumpPh: [0.16, 0.75, 0.24], jumpH: 2.1,       // s crouch / air / recovery; peak height (tiles)
+    jumpPh: [0.14, 0.75, 0.05], jumpH: 2.1,       // s crouch / air / recovery; peak height (tiles)
+    jumpChainC: 0.07,                             // s: the crouch of a hop taken straight off a landing (the landing's own squash is the wind-up)
     jumpD: 4.4, jumpMax: 6.2, jumpExt: 1.6,       // tiles: a standing hop; longest (the speed along the hop adds 0.35 s of it); reach beyond for a landing
-    jumpCd: 1.0, jumpBuf: 0.25, jumpInv: 0.3,     // s from the landing (the Dodge's cadence); a press this early is kept; invulnerability at take-off only
+    jumpCd: 0, jumpBuf: 0.25, jumpInv: 0.3, jumpInvLock: 1.8,   // (round 2) no cooldown; a press this early is kept (in the air: until touchdown); invulnerability at take-off, at most once per jumpInvLock s
+    /* (round 2) Drift: a spinning, clawing burst, the Dodge scaled up for the machine (as Sports Car's Drift) */
+    drift: 3.0, driftCd: 0.9, driftR: 2.6, driftKb: 7.5,   // x DK once per monster per drift; s from the press; swept radius round the centre's path (tiles; the arms reach ~1.9); knockback
+    driftPh: [0.07, 0.36, 0.17], driftV: 17, driftTurn: 5, driftBuf: 0.2, driftInv: 0.38,   // s wind-up / spin-burst / recovery; burst speed (tiles/s, eased off); stick bend (rad/s); a press this early is kept; the Dodge's invulnerability
     chargeK: 30,                                  // the meter fills at chargeK x DK of damage actually dealt
     missileCd: 1.8, wrathCd: 2.0, mvHold: 1.0,    // defaults (B2's TUNE_S wins for missiles); Wrath's 2 s from its last strike; a press held while busy
   };
@@ -558,7 +567,7 @@
   const missileCd = () => { const T = moves().TUNE_S; return T && T.missileCd > 0 ? T.missileCd : TUNE.missileCd; };
 
   /* ================= the rig: pose channels -> joint positions (the machine's frame: x forward, y to its right, z up) ================= */
-  const CH = ['crouch', 'armLRaise', 'armRRaise', 'armLSlam', 'armRSlam', 'armLReach', 'armRReach', 'cannonTilt', 'recoilL', 'recoilR', 'cannonFold', 'torsoDip', 'glow', 'charge', 'shudder', 'legsExt', 'handsIn'];
+  const CH = ['crouch', 'armLRaise', 'armRRaise', 'armLSlam', 'armRSlam', 'armLReach', 'armRReach', 'cannonTilt', 'recoilL', 'recoilR', 'cannonFold', 'torsoDip', 'glow', 'charge', 'shudder', 'legsExt', 'handsIn', 'armLFling', 'armRFling', 'bank'];   // (round 2: armXFling = the arm flung wide to its side, Drift's; bank -1..1 = the shoulders tipped, + lifts the right)
   const blankPose = () => { const o = {}; for (const k of CH) o[k] = 0; return o; };
   const V3 = (x, y, z) => ({ x, y, z });
   /* a two-bone limb: from A toward the target T, bones L1 and L2, the middle joint bending toward the pole */
@@ -591,7 +600,7 @@
     R.neck.x = 0.7 + 0.04 * dip + jx; R.neck.y = k * 0.035 * Math.sin(ph * TAU) + jy; R.neck.z = 0.86 + frontZ * 1.1 - 0.08 * dip + jz;
     R.chest.x = T0.x + 0.62; R.chest.y = T0.y; R.chest.z = T0.z + 0.12;
     for (const s of [-1, 1]) { const L = s < 0, sh = L ? R.shL : R.shR, sd = L ? R.sdL : R.sdR, el = L ? R.elL : R.elR, wr = L ? R.wrL : R.wrR, hp = L ? R.hpL : R.hpR, kn = L ? R.knL : R.knR, an = L ? R.anL : R.anR, mt = L ? R.mtL : R.mtR;
-      sh.x = 0.3 + 0.06 * dip + jx; sh.y = s * 0.84 + jy; sh.z = 1.28 + frontZ + roll * s + jz;
+      sh.x = 0.3 + 0.06 * dip + jx; sh.y = s * 0.84 + jy; sh.z = 1.28 + frontZ + roll * s + jz + s * P.bank * 0.16;
       sd.x = sh.x; sd.y = sh.y + s * 0.04; sd.z = sh.z + 0.06;
       const pa = ph + (L ? 0.06 : -0.06), gx = k * 0.4 * Math.cos(pa * TAU), lift = k * 0.45 * Math.max(0, -Math.sin(pa * TAU));
       const W = V3(0.7 + gx, s * 1.34, 0.3 * HK + lift);
@@ -599,6 +608,7 @@
       lp3(W, [0.8, s * 0.95, 0.9], P.handsIn);
       lp3(W, [0.55, s * 1.12, 2.5 + frontZ], P[L ? 'armLRaise' : 'armRRaise']);
       lp3(W, [1.45, s * 0.9, 0.3], P[L ? 'armLSlam' : 'armRSlam']);
+      lp3(W, [0.42, s * 2.02, 1.02], P[L ? 'armLFling' : 'armRFling']); W.z += s * P.bank * 0.42 * (P[L ? 'armLFling' : 'armRFling'] + 0.3);   // (round 2: Drift's arms flung out, the leading one high, the trailing one raking low)
       ik(sh, W, 0.6, 0.86, [-0.25, s * 0.85, 0.5], el, wr);
       hp.x = -0.5; hp.y = s * 0.42; hp.z = 0.66 + rearZ;
       const pl = ph + 0.5 + (L ? 0.04 : -0.04), lx = k * 0.3 * Math.cos(pl * TAU), ll = k * 0.28 * Math.max(0, -Math.sin(pl * TAU));
@@ -643,10 +653,10 @@
     const T0 = X.Tz(), dpr = (typeof arc !== 'undefined' && arc.dpr) || 1; setScale(T0 * dpr / Math.max(0.6, g.zoom || 1));
     if (typeof TK !== 'undefined') TKK = TK.bind(H);
     const tgt = X.nearestMon(me.x, me.y, 9) || null; const a = tgt ? Math.atan2(tgt.y - me.y, tgt.x - me.x) : (me.face < 0 ? Math.PI : 0);
-    const pose = blankPose(), beast = { x: me.x, y: me.y, a, vx: 0, vy: 0, speed: 0, z: 0, scale: 1, locked: true, contact: true, vis: 1, gone: false, pose, poseSnap: false, prevX: me.x, prevY: me.y, prevA: a };
-    const S = { H, g, me, X, C, ev, tier, DK, CD, dur, left: dur, beast, phase: 'build', t: 0, hold: 0, charge: 0, used: false, busy: null, busyT: 0, cdM: 0, cdW: 0, cdJump: 0, jump: null, jumpQ: null, judgeQ: null, mvQ: null,
+    const pose = blankPose(), beast = { x: me.x, y: me.y, a, vx: 0, vy: 0, speed: 0, z: 0, spin: 0 /* (round 2: Drift's body turn over the heading) */, scale: 1, locked: true, contact: true, vis: 1, gone: false, pose, poseSnap: false, prevX: me.x, prevY: me.y, prevA: a };
+    const S = { H, g, me, X, C, ev, tier, DK, CD, dur, left: dur, beast, phase: 'build', t: 0, hold: 0, charge: 0, used: false, busy: null, busyT: 0, cdM: 0, cdW: 0, cdJump: 0, jump: null, jumpQ: null, jumpLand: false, invT: -9, landT: -9, cdDrift: 0, drift: null, driftQ: null, claw: [[], []], clawFree: [], judgeQ: null, mvQ: null,
       gate: new Map(), parts: [], free: [], ended: false, pet: X.pet ? X.pet() : null, P: blankPose(), R: newRig(), gk: 0, gph: 0, absorb: 0, absV: 0, ag: groundA(a), lit: 0, sparkT: 0.8, sfxT: 0, plantT: [0, 0], bumpT: 0, bi: 0,
-      stats: { contact: 0, missiles: 0, wrath: 0, judge: 0, dealt: 0, charged: 0, hits: 0, jump: 0, jumpHit: 0, rideT: 0 }, petStand: null, items: [], nItems: 0, zap: [], mx: 0, my: 0 };
+      stats: { contact: 0, missiles: 0, wrath: 0, judge: 0, dealt: 0, charged: 0, hits: 0, jump: 0, jumpHit: 0, drift: 0, driftHit: 0, rideT: 0 }, petStand: null, items: [], nItems: 0, zap: [], mx: 0, my: 0 };
     g._beast = S;
     // its place: the machine is centred ahead of the pet, turned or nudged until it fits between the walls
     let best = null; for (let k2 = 0; k2 < 12 && !best; k2++) { const ang = a + (k2 % 2 ? 1 : -1) * Math.ceil(k2 / 2) * (Math.PI / 6), ag = groundA(ang), x = me.x + Math.cos(ag) * 0.3, y = me.y + Math.sin(ag) * 0.3 * GY; if (!poseBlocked(S, x, y, ang, 0)) best = { x, y, a: ang }; }
@@ -665,7 +675,7 @@
       scr: (x, y, z) => [H.sx(x), H.sy(y) - (z || 0) * ZK * X.Tz()], T: () => X.Tz(), seat: () => anchor(S, 'seat'),
       done: () => actionDone(S), alive: () => !S.ended && !me.dead && !g.over && (S.phase === 'judge' || (S.phase === 'ride' && !g.won)),
       calm, low: lowFx };
-    S.veh = { get active() { return !S.released; }, noJumpBtn: true, drive: (mx, my, dt) => drive(S, mx, my, dt), dodge: (mx, my) => tryJump(S, mx, my), jump: (mx, my) => tryJump(S, mx, my), strong: slot => tryMove(S, slot), ult: () => tryJudge(S), drawBtns: (c, o) => drawBtns(S, c, o), onSwitch: () => finish(S, 'swap') };
+    S.veh = { get active() { return !S.released; }, drive: (mx, my, dt) => drive(S, mx, my, dt), dodge: (mx, my) => tryDrift(S, mx, my) /* (round 2: Dodge is Drift; Jump has its own button, as Sports Car's) */, jump: (mx, my) => tryJump(S, mx, my), strong: slot => tryMove(S, slot), ult: () => tryJudge(S), drawBtns: (c, o) => drawBtns(S, c, o), onSwitch: () => finish(S, 'swap') };
     X.vehicle(S.veh);
     const F = S.fx = H.add({ key: 'beastmachine', life: 1e9, entY: beast.y,
       update(dt) { step(S, dt); }, drawUnder(c) { drawUnder(S, c); }, drawEnt(c) { drawEnt(S, c); }, draw(c) { drawOver(S, c); },
@@ -695,10 +705,16 @@
   function drive(S, mx, my, dt) {
     const bm = S.beast, me = S.me; S.mx = mx; S.my = my;
     if (S.jump) { if (me.push) me.push = null; syncMe(S); return; }   /* (the hop owns the machine until it lands; stepJump runs in step) */
-    if (S.phase !== 'ride' || bm.locked || S.recover > 0) { me.vx = me.vy = 0; if (me.push) me.push = null; bm.speed = Math.max(0, bm.speed - TUNE.coast * 2 * dt); bm.vx *= 0.8; bm.vy *= 0.8; syncMe(S); return; }
-    if (S.jumpQ != null) { if (S.g.t - S.jumpQ > TUNE.jumpBuf) S.jumpQ = null; else if (S.cdJump <= 0) { tryJump(S, mx, my, true); if (S.jump) { syncMe(S); return; } } }
+    const hold = () => { me.vx = me.vy = 0; if (me.push) me.push = null; bm.speed = Math.max(0, bm.speed - TUNE.coast * 2 * dt); bm.vx *= 0.8; bm.vy *= 0.8; syncMe(S); };
+    if (S.phase !== 'ride' || bm.locked) { hold(); return; }
+    // (round 2) a kept Jump goes the moment it can, even through the landing's short squash (a queued Strong or Judgement goes first)
+    if (S.jumpQ != null) { if (S.g.t - S.jumpQ > TUNE.jumpBuf) S.jumpQ = null; else if (S.judgeQ == null && !(S.mvQ && !S.busy && (S.mvQ.slot !== 'strong2' ? S.cdM : S.cdW) <= 0)) { tryJump(S, mx, my, true); if (S.jump) { syncMe(S); return; } } }
+    if (S.recover > 0) { hold(); return; }
     if (me.push) { const P = me.push; P.t -= dt; moveBeast(S, P.vx * dt, P.vy * dt); if (P.t <= 0) me.push = null; }
     const top = TUNE.top * (me.chill > 0 ? 0.75 : 1) * (S.g.buff && S.g.buff.haste > 0 ? 1.15 : 1), mag = Math.min(1, Math.hypot(mx, my));
+    // (round 2) Drift: a press kept from a moment early goes now; the burst owns the movement while it spins
+    if (S.driftQ != null && !S.drift && S.cdDrift <= 0) { const q = S.driftQ; S.driftQ = null; if (S.g.t - q < 0.6) tryDrift(S, mx, my, true); }
+    const D = S.drift; if (D && D.ph < 2) { driftBurst(S, mx, my, mag, dt, top); syncMe(S); return; }
     if (mag > 0.12) {
       const want2 = Math.atan2(my, mx), da = wrap(want2 - bm.a), rate = lerp(TUNE.steer[0], TUNE.steer[1], cl(bm.speed / top));
       bm.a = wrap(bm.a + Math.max(-rate * dt, Math.min(rate * dt, da)));
@@ -708,14 +724,15 @@
     // the gait surges: each push of the forearms throws it forward a little, it slows as the feet come through
     const surge = 1 + 0.18 * Math.sin(S.gph * TAU * 2 + 0.6) * S.gk;
     const vdx = Math.cos(bm.a) * bm.speed * surge, vdy = Math.sin(bm.a) * bm.speed * surge;
-    bm.vx += (vdx - bm.vx) * Math.min(1, TUNE.grip * dt); bm.vy += (vdy - bm.vy) * Math.min(1, TUNE.grip * dt);
+    const grip = D ? lerp(3.5, TUNE.grip, cl(D.t / TUNE.driftPh[2])) : TUNE.grip;   // (it slides out of a drift's spin)
+    bm.vx += (vdx - bm.vx) * Math.min(1, grip * dt); bm.vy += (vdy - bm.vy) * Math.min(1, grip * dt);
     if (moveBeast(S, bm.vx * dt, bm.vy * dt)) { bm.speed *= TUNE.bumpK; bm.vx *= 0.4; bm.vy *= 0.4; if (S.bumpT <= 0) { S.bumpT = 0.4; const sfx = S.X.sfx || {}; if (sfx.thud) sfx.thud(); S.absorb = Math.max(S.absorb, 0.35); } }
     syncMe(S);
   }
   /* the centre moves with the walls in the way, an axis at a time in small steps (and its nose and tail too) */
   function moveBeast(S, dx, dy) {
-    const bm = S.beast, X = S.X, n = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)) / 0.12)); let hit = false;
-    const stuck = poseBlocked(S, bm.x, bm.y, bm.a, 0), bl = stuck ? (x, y) => X.blocked(x, y, FP.c, 0) : (x, y) => poseBlocked(S, x, y, bm.a, 0), cStuck = stuck && X.blocked(bm.x, bm.y, FP.c, 0);
+    const bm = S.beast, X = S.X, n = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)) / 0.12)), ab = bm.a + (bm.spin || 0); let hit = false;   // (round 2: the footprint turns with a drift's spin)
+    const stuck = poseBlocked(S, bm.x, bm.y, ab, 0), bl = stuck ? (x, y) => X.blocked(x, y, FP.c, 0) : (x, y) => poseBlocked(S, x, y, ab, 0), cStuck = stuck && X.blocked(bm.x, bm.y, FP.c, 0);
     for (let i = 0; i < n; i++) { const sx = dx / n, sy = dy / n; bm.x += sx; if (!cStuck && bl(bm.x, bm.y)) { bm.x -= sx; hit = true; } bm.y += sy; if (!cStuck && bl(bm.x, bm.y)) { bm.y -= sy; hit = true; } }
     if (stuck && X.blocked(bm.x, bm.y, FP.c, 0)) { const p = X.walkPoint(bm.x, bm.y, { r: 0.6, x: bm.x, y: bm.y }); bm.x += (p.x - bm.x) * 0.25; bm.y += (p.y - bm.y) * 0.25; }
     return hit;
@@ -731,6 +748,7 @@
       let G = S.gate.get(m); if (!G) { G = { last: -9, inside: false }; S.gate.set(m, G); }
       const enter = touch && !G.inside; G.inside = touch;
       if (!enter || !fast || t - G.last < TUNE.contactGate) continue;
+      if (S.drift && S.drift.hit.has(m)) continue;   // (round 2: this drift's claws already struck it)
       G.last = t; const dealt = hitCharge(S, m, S.DK * TUNE.contact, { kb: TUNE.contactKb }); S.stats.contact++;
       impactFx(S, m.x, m.y, 0.8, dealt > 0);
       bm.speed *= m.boss ? 0.5 : 0.9; if (m.boss) { bm.vx *= 0.5; bm.vy *= 0.5; S.absorb = Math.max(S.absorb, 0.4); }
@@ -741,7 +759,7 @@
   function tryMove(S, slot, queued) {
     const bm = S.beast, sfx = S.X.sfx || {}, mis = slot !== 'strong2', cd = mis ? S.cdM : S.cdW;
     if (S.phase !== 'ride') return;
-    if (S.busy || bm.locked || S.jump || S.recover > 0) { if (!queued) { if (S.busy !== 'judge') S.mvQ = { slot, t: S.g.t }; else if (sfx.wrong) sfx.wrong(); } return; }
+    if (S.busy || bm.locked || S.jump || S.recover > 0 || driftHolds(S)) { if (!queued) { if (S.busy !== 'judge') S.mvQ = { slot, t: S.g.t }; else if (sfx.wrong) sfx.wrong(); } return; }
     if (cd > 0) { if (!queued && cd <= 0.4) S.mvQ = { slot, t: S.g.t }; return; }
     S.mvQ = null;
     const MV = moves(), fn = mis ? MV.missiles : MV.wrath; if (typeof fn !== 'function') return;
@@ -753,9 +771,9 @@
   function tryJudge(S) {
     const X = S.X, sfx = X.sfx || {}, bm = S.beast;
     if (S.phase !== 'ride') return;
-    if ((S.jump || S.busy || S.recover > 0) && !S.used && S.charge >= 1) { S.judgeQ = S.g.t; return; }   // (in the air or mid-move: on landing / when it ends)
+    if ((S.jump || S.busy || S.recover > 0 || driftHolds(S)) && !S.used && S.charge >= 1) { S.judgeQ = S.g.t; return; }   // (in the air or mid-move: on landing / when it ends)
     if (S.used || S.charge < 1 || bm.locked) { if (sfx.wrong) sfx.wrong(); X.text(S.me.x, S.me.y - 2.4, S.used ? 'Judgement Day used' : `Judgement Day ${Math.floor(S.charge * 100)}%`, ICE, 12, { life: 0.9, max: 0.9, vy: -0.6 }); return; }
-    S.used = true; S.phase = 'judge'; S.t = 0; S.busy = 'judge'; S.busyT = 0; S.judgeQ = null; S.mvQ = null;
+    endDrift(S); S.used = true; S.phase = 'judge'; S.t = 0; S.busy = 'judge'; S.busyT = 0; S.judgeQ = null; S.mvQ = null;
     bm.contact = false; bm.locked = true; bm.speed = 0; bm.vx = bm.vy = 0; S.ctx.judgement = true; S.stats.judge++;
     const MV = moves();
     try { MV.judgement.call(MV.BM || MV, S.ctx); } catch (e) { if (typeof console !== 'undefined') console.warn('Beast Machine: Judgement Day failed', e); finish(S, 'judge'); }
@@ -768,7 +786,7 @@
     if (S.phase === 'ride') { S.beast.locked = false; S.beast.z = 0; }
   }
 
-  /* ---- Jump (replaces Dodge): crouch, a high planned arc, one landing shockwave, a short recovery ---- */
+  /* ---- Jump (round 2: its own button above Drift, and J; no cooldown): crouch, a high planned arc, one landing shockwave ---- */
   function jumpReach(S) { const X = S.X; if (!X.flowAt) return null; const ok = (x, y) => X.flowAt(x, y) < 9999; return (x, y, ab) => { const ag = groundA(ab), ex = FP.e * Math.cos(ag), ey = FP.e * Math.sin(ag) * GY; return ok(x, y) || ok(x + ex, y + ey) || ok(x - ex, y - ey); }; }
   const JOFF = [0, 0.2, -0.2, 0.4, -0.4, 0.6, -0.6];
   function planJump(S, dir, d0) {
@@ -785,22 +803,28 @@
   function tryJump(S, mx, my, queued) {
     const bm = S.beast, g = S.g, X = S.X;
     if (S.phase !== 'ride') return;
-    const held = bm.locked || S.busy === 'wrath' || S.busy === 'judge' || !!S.jump || S.recover > 0;
-    if (held || S.cdJump > 0) { if (!queued && (held || S.cdJump <= TUNE.jumpBuf)) S.jumpQ = g.t; return; }
-    S.jumpQ = null;
-    const mag = Math.hypot(mx, my), dir = mag > 0.2 ? Math.atan2(my, mx) : bm.a, P = TUNE.jumpPh;
+    // (round 2) never in mid-air: a press in the air is kept and goes the moment it touches down; one while Wrath,
+    // Judgement or a drift's spin holds the machine is kept TUNE.jumpBuf s
+    if (S.jump) { if (!queued) S.jumpLand = true; return; }
+    const held = bm.locked || S.busy === 'wrath' || S.busy === 'judge' || driftHolds(S);
+    if (held || S.cdJump > 0) { if (!queued) S.jumpQ = g.t; return; }
+    S.jumpQ = null; S.jumpLand = false;
+    const mag = Math.hypot(mx, my), dir = mag > 0.2 ? Math.atan2(my, mx) : bm.a, P = TUNE.jumpPh, chain = g.t - S.landT < 0.2, crouch = chain ? TUNE.jumpChainC : P[0];
+    if (S.drift) endDrift(S);   // (a drift's recovery: the hop takes over)
     const v0 = Math.max(0, bm.vx * Math.cos(dir) + bm.vy * Math.sin(dir)), plan = planJump(S, dir, Math.min(TUNE.jumpMax, TUNE.jumpD + v0 * 0.35));
     S.lastPlan = plan;
-    S.jump = { t: 0, F: P[0] + P[1], x0: bm.x, y0: bm.y, a0: bm.a, x1: plan.x, y1: plan.y, a1: plan.d > 0.05 ? plan.a : bm.a, h: TUNE.jumpH, contact: bm.contact, plan, noHit: false };
-    bm.contact = false; S.me.airborne = true; S.me.inv = Math.max(S.me.inv || 0, TUNE.jumpInv);   // (the Dodge's short protection at take-off only)
-    S.cdJump = 99; S.stats.jump++; g.movedOnce = true; g.dodges = (g.dodges || 0) + 1;
+    S.jump = { t: 0, F: crouch + P[1], c: crouch, chain, x0: bm.x, y0: bm.y, a0: bm.a, x1: plan.x, y1: plan.y, a1: plan.d > 0.05 ? plan.a : bm.a, h: TUNE.jumpH, contact: bm.contact, plan, noHit: false };
+    bm.contact = false; S.me.airborne = true;
+    // (the Dodge's short protection at take-off only; round 2: at most once per jumpInvLock s, so a chain of hops is not a shield)
+    if (g.t - S.invT >= TUNE.jumpInvLock) { S.me.inv = Math.max(S.me.inv || 0, TUNE.jumpInv); S.invT = g.t; }
+    S.cdJump = 0; S.stats.jump++; g.movedOnce = true; g.dodges = (g.dodges || 0) + 1;
     const sfx = X.sfx || {}; if (sfx.note) { sfx.note(70, 0.18, 'triangle', 0.09, 50); sfx.note(220, 0.1, 'square', 0.02, 180, 0.02); } if (sfx.hiss) sfx.hiss(0.12, 0.06, 900);
   }
   function stepJump(S, dt) {
     const J = S.jump, bm = S.beast, P = TUNE.jumpPh, pz = bm.pose; J.t += dt;
-    if (J.t < P[0]) { const u = J.t / P[0]; pz.crouch = Math.max(pz.crouch, sstep(0, 1, u)); bm.speed *= 0.85; bm.vx *= 0.85; bm.vy *= 0.85; return; }
+    if (J.t < J.c) { const u = J.t / J.c; pz.crouch = Math.max(pz.crouch, sstep(0, 1, u)); bm.speed *= 0.85; bm.vx *= 0.85; bm.vy *= 0.85; return; }
     if (!J.air) { J.air = true; const X = S.X, sfx = X.sfx || {}; if (sfx.whoosh) sfx.whoosh(); if (sfx.note) sfx.note(90, 0.3, 'sawtooth', 0.04, 260); dustRing(S, bm.x, bm.y, 1.4, 6); }
-    const u = cl((J.t - P[0]) / P[1]);
+    const u = cl((J.t - J.c) / P[1]);
     bm.x = lerp(J.x0, J.x1, u); bm.y = lerp(J.y0, J.y1, u); bm.vx = (J.x1 - J.x0) / P[1]; bm.vy = (J.y1 - J.y0) / P[1]; bm.speed = Math.hypot(bm.vx, bm.vy) * 0.3;
     bm.a = wrap(J.a0 + wrap(J.a1 - J.a0) * sstep(0, 0.35, u));
     bm.z = 4 * J.h * u * (1 - u);
@@ -813,11 +837,13 @@
     const J = S.jump; if (!J) return; S.jump = null;
     const bm = S.beast, me = S.me, X = S.X;
     let x = J.x1, y = J.y1, a = J.a1;
-    if (!groundOK(S, x, y, a)) { if (groundOK(S, J.x0, J.y0, J.a0)) { x = J.x0; y = J.y0; a = J.a0; } else { const p = X.walkPoint(J.x1, J.y1, { r: 0.75, x: J.x0, y: J.y0 }); x = p.x; y = p.y; } }
+    let fb = 0; if (!groundOK(S, x, y, a)) { fb = 1; if (groundOK(S, J.x0, J.y0, J.a0)) { x = J.x0; y = J.y0; a = J.a0; } else { fb = 2; const p = X.walkPoint(J.x1, J.y1, { r: 0.75, x: J.x0, y: J.y0 }); x = p.x; y = p.y; } }
+    S.lastLand = { x, y, fb, x1: J.x1, y1: J.y1, a1: J.a1, how: how || '' };   // (debug: where it came down; fb 1/2 = the planned spot had changed)
     bm.x = x; bm.y = y; bm.a = a; bm.z = 0; bm.speed = 0; bm.vx = bm.vy = 0; bm.contact = J.contact; me.airborne = false; me.x = x; me.y = y;
-    S.cdJump = TUNE.jumpCd * (S.g.buff && S.g.buff.arcane > 0 ? 0.6 : 1) * (S.g.dodgeK || 1);   // from the landing
-    if (how === 'abort') return;
-    S.recover = TUNE.jumpPh[2]; S.absorb = 1; S.absV = 0;
+    S.cdJump = 0;   // (round 2: no cooldown)
+    if (how === 'abort') { S.jumpLand = false; return; }
+    S.recover = TUNE.jumpPh[2]; S.absorb = 1; S.absV = 0; S.landT = S.g.t;
+    if (S.jumpLand) { S.jumpLand = false; S.jumpQ = S.g.t; }   // (pressed in the air: it goes again now)
     if (J.noHit) { dustRing(S, x, y, 1.6, 8); return; }   // (a timeout in the air: a safe, harmless landing)
     // the landing: one powerful shockwave hit per monster in reach (it charges the meter); contact is gated for them
     const t = S.g.t; let n = 0;
@@ -828,6 +854,118 @@
   }
   function abortJump(S) { if (S.jump) landJump(S, 'abort'); if (S.me) S.me.airborne = false; }
 
+  /* ---- (round 2) Drift: the Dodge scaled up for the machine, as Sports Car's Drift. A burst along the stick (else the
+     way it is going, else the heading) while the body spins through at least one full turn, arms flung wide and
+     twisting, talons raking: every monster within TUNE.driftR of the centre's swept path (and not behind a wall) takes
+     TUNE.drift x DK once per drift, knocked outward. The heading jumps to the burst; the drawn body keeps its angle
+     (beast.spin) and spins from there round to it (away from the new heading first, so less than a turn never shows) ---- */
+  const driftHolds = S => !!(S.drift && S.drift.ph < 2);
+  function endDrift(S) { const D = S.drift; if (!D) return; S.drift = null; S.beast.spin = 0;
+    for (const m of D.hit) { const G = S.gate.get(m); if (G) G.last = S.g.t; }   // (no contact hit on a monster the claws struck until contactGate s after the drift)
+  }
+  function tryDrift(S, mx, my, queued) {
+    const bm = S.beast, g = S.g;
+    if (S.phase !== 'ride' || bm.locked || S.busy === 'wrath' || S.busy === 'judge') return;
+    if (S.jump) { if (!queued && S.jump.F - S.jump.t <= TUNE.driftBuf) S.driftQ = g.t; return; }   // (not in the air; a press just before touchdown is kept)
+    if (S.drift || S.cdDrift > 0 || S.recover > 0) { if (!queued && (S.cdDrift <= TUNE.driftBuf || S.recover > 0)) S.driftQ = g.t; return; }   // (a moment early: it goes as soon as it can)
+    S.driftQ = null;
+    const mag = Math.hypot(mx, my), sp = Math.hypot(bm.vx, bm.vy), dir = mag > 0.2 ? Math.atan2(my, mx) : sp > 2 ? Math.atan2(bm.vy, bm.vx) : bm.a;
+    const s0 = wrap(bm.a + (bm.spin || 0) - dir), side = Math.abs(s0) > 0.15 ? -Math.sign(s0) : -(S.lastSide || -1);
+    S.lastSide = side; bm.a = dir; bm.spin = s0;
+    S.drift = { ph: 0, t: 0, side, s0, dir, hit: new Set(), nHit: 0, petRot: 0, vk: 1, w: 0, zt: 0, sl: 0 };
+    S.cdDrift = TUNE.driftCd * (g.buff && g.buff.arcane > 0 ? 0.6 : 1) * (g.dodgeK || 1);
+    S.me.inv = Math.max(S.me.inv || 0, TUNE.driftInv);   // (the Dodge's own invulnerability, no more)
+    S.stats.drift++; g.dodges = (g.dodges || 0) + 1; g.movedOnce = true;
+    driftKick(S);
+  }
+  /* the wind-up: a shockwave ring off the machine, dust, sparks off the talons, a servo shriek and a whoosh */
+  function driftKick(S) {
+    const bm = S.beast, X = S.X, Q = lowFx() ? 0.4 : 1;
+    addPart(S, 9, bm.x, bm.y, 0, 0, 0, 0, 0.42, TUNE.driftR * 1.05, {}); dustRing(S, bm.x, bm.y, 1.5, 8);
+    for (const h of ['handL', 'handR']) { const p = anchor(S, h); for (let i = 0; i < Math.round(5 * Q); i++) { const a = Math.random() * TAU, v = 3 + Math.random() * 3; addPart(S, 1, p.x, p.y, p.z, Math.cos(a) * v, Math.sin(a) * v * GY, 1 + Math.random() * 2, 0.3, 0.26, { g: 6, drag: 2, col: i % 2 ? GOLD : CYAN }); } }
+    if (!calm()) X.shake(2.5, 0.1); X.light(bm.x, bm.y, 2.6, 0.12);
+    const sfx = X.sfx || {}; if (sfx.whoosh) sfx.whoosh(); if (sfx.note) { sfx.note(160, 0.3, 'sawtooth', 0.05, 420); sfx.note(1250, 0.26, 'square', 0.018, 2100, 0.04); sfx.note(70, 0.25, 'triangle', 0.08, 48); } if (sfx.hiss) sfx.hiss(0.32, 0.1, 4200);
+  }
+  /* the burst: eased off as the Dodge's roll, bent by the stick, bounced off walls (in small steps: moveBeast) */
+  function driftBurst(S, mx, my, mag, dt, top) {
+    const D = S.drift, bm = S.beast, P = TUNE.driftPh;
+    if (mag > 0.2) { const da = wrap(Math.atan2(my, mx) - D.dir), tr = TUNE.driftTurn * dt; D.dir = wrap(D.dir + Math.max(-tr, Math.min(tr, da))); }
+    const u = D.ph === 0 ? 0 : cl(D.t / P[1]), v = (D.ph === 0 ? 0.35 : 1) * TUNE.driftV * (1 - u * u * 0.6) * D.vk * (top / TUNE.top);
+    bm.a = D.dir; bm.vx = Math.cos(D.dir) * v; bm.vy = Math.sin(D.dir) * v; bm.speed = v;
+    const x0 = bm.x, y0 = bm.y, dx = bm.vx * dt, dy = bm.vy * dt;
+    if (moveBeast(S, dx, dy)) {
+      const bx = Math.abs(dx) > 1e-4 && Math.abs(bm.x - x0) < Math.abs(dx) * 0.5, by = Math.abs(dy) > 1e-4 && Math.abs(bm.y - y0) < Math.abs(dy) * 0.5;
+      D.dir = Math.atan2(by ? -Math.sin(D.dir) : Math.sin(D.dir), bx ? -Math.cos(D.dir) : Math.cos(D.dir)); D.vk *= 0.65; S.absorb = Math.max(S.absorb, 0.4);
+      if (S.bumpT <= 0) { S.bumpT = 0.15; const X = S.X, sfx = X.sfx || {}; if (sfx.thud) sfx.thud(); impactFx(S, bm.x + Math.cos(bm.a) * 1.3, bm.y + Math.sin(bm.a) * 1.0, 0.7, false, true); if (!calm()) X.shake(3, 0.08); } }
+  }
+  function stepDrift(S, dt) {
+    const D = S.drift, bm = S.beast, P = TUNE.driftPh, pz = bm.pose; D.t += dt;
+    if (D.ph === 0 && D.t >= P[0]) { D.ph = 1; D.t -= P[0]; }
+    if (D.ph === 1 && D.t >= P[1]) { D.ph = 2; D.t -= P[1]; bm.speed = Math.max(bm.speed, TUNE.top * 0.7); recoverFx(S); }
+    if (D.ph === 2 && D.t >= P[2]) { endDrift(S); return; }
+    // the spin: one full turn (and the angle it started from), snappy at first as the Dodge's roll, a settling sway after;
+    // the rider rolls one flat 2D turn with it, exactly as the Dodge rolls the pet's sprite (never a 3D turn)
+    const tot = D.side * TAU - D.s0;
+    if (D.ph === 0) { const u = D.t / P[0]; bm.spin = D.s0 + tot * 0.05 * u; D.petRot = D.side * TAU * 0.05 * u; }
+    else if (D.ph === 1) { const u = cl(D.t / P[1]), e = 0.05 + 0.95 * (0.45 * u + 0.55 * (1 - (1 - u) * (1 - u))); bm.spin = D.s0 + tot * e; D.petRot = D.side * TAU * e; }
+    else { const u = D.t / P[2]; bm.spin = -D.side * 0.16 * Math.sin(u * Math.PI) * (1 - u); D.petRot = 0; }
+    D.w = D.ph === 1 ? Math.abs(tot) / P[1] : 0;
+    // the pose: wind up (crouched, arms tucked), then flung wide and twisting (the leading arm high, the trailing one
+    // raking low, swapping), then both slam down and it settles
+    if (D.ph === 0) { const u = D.t / P[0]; pz.crouch = 0.75; pz.handsIn = 0.8; pz.torsoDip = 0.35; pz.bank = -D.side * 0.35 * u; pz.glow = 0.7; pz.charge = 0.5; pz.armLFling = pz.armRFling = 0; }
+    else if (D.ph === 1) { const u = cl(D.t / P[1]); pz.crouch = 0.3; pz.handsIn = 0; pz.armLFling = pz.armRFling = 1; pz.armLReach = pz.armRReach = 0.15; pz.bank = D.side * 0.85 * Math.sin(u * Math.PI * 2.4 + 0.35); pz.torsoDip = 0.25 + 0.2 * Math.sin(u * Math.PI * 4.8); pz.glow = 1; pz.charge = 0.8; pz.shudder = 0.15; }
+    else { const u = D.t / P[2]; pz.armLFling = pz.armRFling = 0; pz.armLSlam = pz.armRSlam = 0.75 * (1 - u); pz.crouch = 0.55 * (1 - u); pz.torsoDip = 0.5 * (1 - u); pz.bank = 0; pz.glow = 0.6 * (1 - u); pz.charge = 0.3 * (1 - u); pz.shudder = 0; }
+    if (D.ph < 2) {
+      // every monster the spinning claws reach (a capsule round the centre's path this frame), once per drift
+      const R = TUNE.driftR, ax = bm.prevX, ay = bm.prevY, sx = bm.x - ax, sy = bm.y - ay, L2 = sx * sx + sy * sy, X = S.X;
+      for (const m of S.H.living()) { if (D.hit.has(m)) continue;
+        const u = L2 > 1e-6 ? cl(((m.x - ax) * sx + (m.y - ay) * sy) / L2) : 1, qx = ax + sx * u - m.x, qy = ay + sy * u - m.y, rr = R + (m.r || 0.4) * 0.85;
+        if (qx * qx + qy * qy > rr * rr) continue;
+        if (X.los && !X.los(bm.x, bm.y, m.x, m.y)) continue;   // (not through a wall)
+        D.hit.add(m); const dealt = hitCharge(S, m, S.DK * TUNE.drift, { kb: TUNE.driftKb }); S.stats.driftHit++;
+        driftImpact(S, m, dealt > 0, D.nHit++ === 0);
+        if (m.boss) { D.vk *= 0.7; S.absorb = Math.max(S.absorb, 0.35); }
+        const G = S.gate.get(m); if (G) { G.inside = true; G.last = S.g.t; } else S.gate.set(m, { last: S.g.t, inside: true }); }
+      // sparks flung off the talons along the spin, an electric slash now and then
+      if (D.ph === 1) { const Q = lowFx() ? 0.35 : 1;
+        for (let i = 0; i < 2; i++) { if (Math.random() > 0.8 * Q) continue; const h = anchor(S, i ? 'handR' : 'handL'), ox = h.x - bm.x, oy = (h.y - bm.y) / GY, ol = Math.hypot(ox, oy) || 1, tg = D.side * 7;
+          addPart(S, 1, h.x, h.y, h.z * 0.6, ox / ol * 2 - oy / ol * tg, (oy / ol * 2 + ox / ol * tg) * GY, 1 + Math.random() * 2, 0.22 + Math.random() * 0.15, 0.24, { g: 6, drag: 2.5, col: Math.random() < 0.5 ? GOLD : Math.random() < 0.5 ? WHITE : CYAN }); }
+        D.zt -= dt; if (D.zt <= 0 && S.zap.length < 24) { D.zt = lowFx() ? 0.09 : 0.045; const C = S.claw[D.sl++ % 2], n = C.length; if (n > 3) { const p = C[n - 1], q = C[n - 4], A = clawPos(p, 0), B = clawPos(q, 0); S.zap.push({ a: [A[0], A[1], p.z], b: [B[0], B[1], q.z], t: 0, life: 0.1, w: 0.9, seed: (Math.random() * 999) | 0 }); } } }
+    }
+  }
+  /* the recovery beat: both hands slam down, dust off the talons, a clank */
+  function recoverFx(S) {
+    const X = S.X, sfx = X.sfx || {}; for (const h of ['handL', 'handR']) { const p = anchor(S, h); dustRing(S, p.x, p.y, 0.7, 4); }
+    if (sfx.thud) sfx.thud(); clank(S, 240, 1.2); if (sfx.hiss) sfx.hiss(0.12, 0.06, 900);
+  }
+  /* a claw strike: sparks and a bolt (impactFx), three bright talon slashes across it, a feathered ring on the floor; the
+     first of each drift adds a short hit-stop, a shake and a flash (all kept to the motion settings) */
+  function driftImpact(S, m, landed, first) {
+    const X = S.X, bm = S.beast, Q = lowFx() ? 0.4 : 1;
+    impactFx(S, m.x, m.y, 1.4, landed, true);
+    const ta = Math.atan2((m.y - bm.y) / GY, m.x - bm.x) + (S.drift ? S.drift.side : 1) * Math.PI / 2;
+    const sl = addPart(S, 10, m.x, m.y, 0.55 + (m.r || 0.4), 0, 0, 0, 0.24, 0.75 + (m.r || 0.4) * 0.8, {}); if (sl) sl.rot = ta;
+    addPart(S, 9, m.x, m.y, 0, 0, 0, 0, 0.3, 1.1 + (m.r || 0.4), {});
+    for (let i = 0; i < Math.round(5 * Q); i++) { const a = ta + (Math.random() - 0.5) * 0.9, v = 5 + Math.random() * 3; addPart(S, 3, m.x, m.y, 0.4, Math.cos(a) * v, Math.sin(a) * v * GY, 2 + Math.random() * 2, 0.45, 0.07 + Math.random() * 0.05, { g: 14, bounce: 0.25, spin: (Math.random() - 0.5) * 18 }); }
+    if (first) { if (X.hitstop) X.hitstop(calm() ? 0.02 : 0.05); if (!calm()) { X.shake(6, 0.16); X.flash(0.06, EBLUE); }
+      const sfx = X.sfx || {}; if (sfx.crash) sfx.crash(); if (sfx.note) { sfx.note(1900, 0.12, 'square', 0.03, 900); sfx.note(95, 0.3, 'sawtooth', 0.08, 50); } if (sfx.hiss) sfx.hiss(0.1, 0.1, 5200); }
+  }
+  /* the talons' path (round 2): each hand's palm sampled every frame of a drift as (centre, ground angle, radius, height),
+     so the arcs between samples can be redrawn as true arcs round the centre however fast it spins. Pooled, bounded. */
+  const CLAW_N = 60, CLAW_AIR = 0.17, CLAW_FLOOR = 0.9;
+  function clawStep(S) {
+    const t = S.g.t, D = S.drift, bm = S.beast;
+    for (let i = 0; i < 2; i++) { const C = S.claw[i];
+      while (C.length && (t - C[0].t > CLAW_FLOOR || C.length >= CLAW_N)) S.clawFree.push(C.shift());
+      if (!D || S.phase !== 'ride') continue;
+      const h = anchor(S, i ? 'handR' : 'handL'), gx = h.x - bm.x, gy = (h.y - bm.y) / GY, p = S.clawFree.pop() || {};
+      p.t = t; p.bx = bm.x; p.by = bm.y; p.ang = Math.atan2(gy, gx); p.rad = Math.hypot(gx, gy) + 0.12; p.z = h.z; p.ph = D.ph; p.side = D.side; p.k = D.ph === 1 ? 1 : D.ph === 0 ? 0.3 : 0.5;
+      if (C.length) { const q = C[C.length - 1]; p.ang = q.ang + wrap(p.ang - q.ang); } C.push(p); }
+  }
+  const CP = [0, 0];
+  function clawPos(p, dr, out) { const o = out || CP, r = p.rad + dr; o[0] = p.bx + Math.cos(p.ang) * r; o[1] = p.by + Math.sin(p.ang) * r * GY; return o; }
+  function lerpClaw(p, q, u, dr, o) { const r = lerp(p.rad, q.rad, u) + dr, a = lerp(p.ang, q.ang, u), bx = lerp(p.bx, q.bx, u), by = lerp(p.by, q.by, u); o[0] = bx + Math.cos(a) * r; o[1] = by + Math.sin(a) * r * GY; o[2] = lerp(p.z, q.z, u); return o; }
+
   /* ---- the frame ---- */
   function step(S, dt) {
     const bm = S.beast, me = S.me, g = S.g, X = S.X;
@@ -836,18 +974,20 @@
     if (g.over || (g.won && S.phase !== 'judge')) { finish(S, 'won'); return; }
     if (X.pet && S.pet && X.pet() !== S.pet) { finish(S, 'swap'); return; }
     g.cdU = S.CD;   // (held while riding: the cooldown starts at the exit)
-    S.t += dt; S.bumpT -= dt; S.cdM = Math.max(0, S.cdM - dt); S.cdW = Math.max(0, S.cdW - dt); if (!S.jump && S.cdJump < 90) S.cdJump = Math.max(0, S.cdJump - dt); S.recover = Math.max(0, (S.recover || 0) - dt);
+    S.t += dt; S.bumpT -= dt; S.cdM = Math.max(0, S.cdM - dt); S.cdW = Math.max(0, S.cdW - dt); if (!S.jump && S.cdJump < 90) S.cdJump = Math.max(0, S.cdJump - dt); S.recover = Math.max(0, (S.recover || 0) - dt); S.cdDrift = Math.max(0, S.cdDrift - dt);
+    if (S.driftQ != null && g.t - S.driftQ > 0.6) S.driftQ = null;
     if (S.busy) S.busyT += dt;
     // pose: a move owns the channels while it runs; otherwise they relax home. The drawn pose eases toward them
     const pz = bm.pose; if (!S.busy && S.phase !== 'judge') for (const k of CH) if (pz[k] > 0) pz[k] = Math.max(0, pz[k] - dt * 3.5);
     if (S.jump) stepJump(S, dt);
+    if (S.drift) stepDrift(S, dt);   // (round 2)
     const ek = bm.poseSnap ? 1 : Math.min(1, dt / 0.06); for (const k of CH) S.P[k] += (pz[k] - S.P[k]) * ek; bm.poseSnap = false;
     // the landing's absorption: a damped spring back up (no wobble under Reduce Motion)
     if (calm()) S.absorb *= Math.max(0, 1 - dt * 9); else { S.absV += (-110 * S.absorb - 14 * S.absV) * dt; S.absorb = Math.max(-0.15, S.absorb + S.absV * dt); }
     // the gait: phase by distance, amplitude by speed (no stepping in the air or while a move plants it)
-    const sp = Math.hypot(bm.vx, bm.vy), kt = S.jump || bm.z > 0.05 ? 0 : cl(sp / TUNE.top * 1.4); S.gk += (kt - S.gk) * Math.min(1, dt * 6);
-    S.gph = (S.gph + (S.jump ? 0 : sp * dt / TUNE.stride)) % 1;
-    S.ag = groundA(bm.a);
+    const sp = Math.hypot(bm.vx, bm.vy), kt = S.jump || bm.z > 0.05 || driftHolds(S) ? 0 : cl(sp / TUNE.top * 1.4); S.gk += (kt - S.gk) * Math.min(1, dt * (driftHolds(S) ? 14 : 6));
+    S.gph = (S.gph + (S.jump || driftHolds(S) ? 0 : sp * dt / TUNE.stride)) % 1;
+    S.ag = groundA(bm.a + (bm.spin || 0));   // (round 2: a drift spins the drawn body over its heading)
     // background baking: the heading in use first
     const bNow = bucketOf(S.ag); want((bNow + 1) % NB); want((bNow + NB - 1) % NB); want(bNow, !readyB(bNow));
     bakeStep(S.phase === 'build' ? 4.5 : readyB(bNow) ? 0.8 : 3);
@@ -863,8 +1003,8 @@
       if (S.left <= 0 && !S.jump && (!S.busy || S.busyT > 3)) { startOut(S); return; }
       if (S.busy && S.busyT > 9) actionDone(S);   // (a move that never reports done frees the controls anyway)
       if (bm.contact && bm.z < 0.1 && !S.jump) contact(S);
-      if (S.mvQ) { const Q = S.mvQ, cdq = Q.slot !== 'strong2' ? S.cdM : S.cdW; if (g.t - Q.t > TUNE.mvHold) S.mvQ = null; else if (!S.busy && !bm.locked && !S.jump && !(S.recover > 0) && cdq <= 0) { S.mvQ = null; tryMove(S, Q.slot, true); } }
-      if (S.judgeQ != null && !S.jump && !S.busy && !(S.recover > 0)) { const q = S.judgeQ; S.judgeQ = null; if (g.t - q < 1.2) tryJudge(S); }
+      if (S.mvQ) { const Q = S.mvQ, cdq = Q.slot !== 'strong2' ? S.cdM : S.cdW; if (g.t - Q.t > TUNE.mvHold) S.mvQ = null; else if (!S.busy && !bm.locked && !S.jump && !(S.recover > 0) && !driftHolds(S) && cdq <= 0) { S.mvQ = null; tryMove(S, Q.slot, true); } }
+      if (S.judgeQ != null && !S.jump && !S.busy && !(S.recover > 0) && !driftHolds(S)) { const q = S.judgeQ; S.judgeQ = null; if (g.t - q < 1.2) tryJudge(S); }
       if (S.readyT != null) S.readyT += dt;
       gaitFx(S, dt);
     } else if (S.phase === 'judge') {
@@ -873,7 +1013,7 @@
     } else if (S.phase === 'out') stepOut(S, dt);
     const MV = moves(); if (MV.update) { try { MV.update(S.ctx, dt); } catch (e) { /* (theirs) */ } }
     if (S.ignT != null && S.phase !== 'build' && S.ignT < 1) S.ignT += dt;   // (B4: the ignition current runs on past the build, then stops)
-    rig(S); idleSparks(S, dt); stepParts(S, dt);
+    rig(S); clawStep(S); idleSparks(S, dt); stepParts(S, dt);
     S.fx.entY = S.ctx.ejecting ? S.ctx.petY : bm.y + 0.6;
     // a cable buzz while it moves, an occasional crackle
     S.sfxT -= dt; if (S.sfxT <= 0 && (S.phase === 'ride')) { const k = cl(sp / TUNE.top), sfx = X.sfx || {}; S.sfxT = 0.5; if (sfx.note && k > 0.15) sfx.note(98 + 30 * k, 0.5, 'sawtooth', 0.008 + 0.01 * k, 101 + 30 * k); }
@@ -881,7 +1021,7 @@
   }
   /* heavy plants: a soft dust puff (light only) and a deep servo knock as each hand comes down */
   function gaitFx(S, dt) {
-    const k = S.gk; if (k < 0.25 || S.jump) return; const R = S.R, sfx = S.X.sfx || {};
+    const k = S.gk; if (k < 0.25 || S.jump || driftHolds(S)) return; const R = S.R, sfx = S.X.sfx || {};
     for (let i = 0; i < 2; i++) { const w = i ? R.wrR : R.wrL, down = w.z < 0.3 * HK + 0.04, was = S.plantT[i] > 0; S.plantT[i] = down ? 1 : 0;
       if (down && !was) { const p = l2w(S, V3(w.x + 0.3, w.y, 0)); addPart(S, 8, p.x, p.y, 0.05, 0, 0, 0.2, 0.45, 0.55 * k, {}); for (let j = 0; j < (lowFx() ? 1 : 3); j++) { const a = Math.random() * TAU, v = 0.8 + Math.random(); addPart(S, 2, p.x, p.y, 0.1, Math.cos(a) * v, Math.sin(a) * v * GY, 0.6, 0.55, 0.32, { grow: 1.6, drag: 2.4, front: Math.random() < 0.5 }); }
         if (i === 0 && sfx.note) { sfx.note(52 + Math.random() * 8, 0.2, 'triangle', 0.08 * k, 38); if (sfx.hiss) sfx.hiss(0.06, 0.03, 700); } } }
@@ -922,7 +1062,7 @@
 
   /* ---- exits ---- */
   function startOut(S) {
-    if (S.phase === 'out') return; abortJump(S);
+    if (S.phase === 'out') return; abortJump(S); endDrift(S);
     S.phase = 'out'; S.t = 0; const bm = S.beast; bm.locked = true; bm.contact = false; bm.speed = 0; bm.vx = bm.vy = 0;
     const s = anchor(S, 'seat'); S.petStand = nearestStand(S, s.x + 0.9, s.y + 0.6); S.seatW = s;
     const sfx = S.X.sfx || {}; if (sfx.note) [330, 260, 200].forEach((f, i) => sfx.note(f, 0.12, 'square', 0.035, f * 0.9, i * 0.07));
@@ -941,7 +1081,7 @@
     for (let i = 0; i < Math.round(12 * Q * k); i++) { const a = Math.random() * TAU, v = 3 + Math.random() * 4; addPart(S, 1, bm.x, bm.y, 1 + Math.random(), Math.cos(a) * v, Math.sin(a) * v * GY, 2 + Math.random() * 2, 0.35, 0.3, { g: 6, drag: 1.5, col: Math.random() < 0.5 ? WHITE : CYAN }); }
     S.X.light(bm.x, bm.y, 2.4, 0.16); if (!calm()) S.X.shake(2.5, 0.1); }
   function finish(S, how) {
-    if (S.released) return; abortJump(S); S.outHow = how;
+    if (S.released) return; abortJump(S); endDrift(S); S.outHow = how;
     if (how === 'judge') { const c = S.ctx, p = nearestStand(S, c.ejecting ? c.petX : S.beast.x, c.ejecting ? c.petY : S.beast.y); S.me.x = p.x; S.me.y = p.y; }
     else if (how !== 'defeat') { const s = anchor(S, 'seat'), p = nearestStand(S, s.x, s.y); S.me.x = p.x; S.me.y = p.y; }
     if (how !== 'judge' && S.beast.vis > 0.05 && !S.beast.gone && S.phase !== 'out') { popFx(S, 0.6); S.fade = 0.25; }
@@ -952,8 +1092,8 @@
     S.released = true; S.ended = true; S.relT = 0;
     const me = S.me, g = S.g, X = S.X;
     if (S.phase === 'out' && S.petStand) { me.x = S.petStand.x; me.y = S.petStand.y; }
-    abortJump(S); me.airborne = false;
-    S.phase = 'gone'; S.busy = null; S.mvQ = null; S.judgeQ = null; S.jumpQ = null;
+    abortJump(S); endDrift(S); me.airborne = false;
+    S.phase = 'gone'; S.busy = null; S.mvQ = null; S.judgeQ = null; S.jumpQ = null; S.driftQ = null; S.jumpLand = false;
     const c0 = S.ctx; if (c0) { c0.ejecting = false; c0.judgement = false; c0.petZ = 0; } S.beast.locked = true; S.beast.contact = false;
     try { X.vehicle(null); } catch (e) { /* (hook) */ }
     if (me.petAlt === S.fx) me.petAlt = null;
@@ -1029,6 +1169,7 @@
       if (p.kind === 9) { c.globalAlpha = Math.pow(1 - u, 1.3); c.drawImage(SM2.ring, X - r, Y - r * GY, r * 2, r * 2 * GY); }
       else { c.globalAlpha = 0.35 * (1 - u); c.drawImage(SM2.dust, X - r, Y - r * GY, r * 2, r * 2 * GY); } }
     for (const z of S.zap) if (z.floor) drawZap(S, c, T, z);
+    drawClawFloor(S, c, T);
     c.restore(); }
   function drawZap(S, c, T, z) { if (!TKK) return; const H = S.H, a = 1 - z.t / z.life; TKK.arc(c, H.sx(z.a[0]), H.sy(z.a[1]) - z.a[2] * ZK * T, H.sx(z.b[0]), H.sy(z.b[1]) - z.b[2] * ZK * T, z.seed + Math.floor(z.t * 30), T * 0.045 * z.w, a, { forks: lowFx() ? 0 : 2 }); }
   /* the machine and the rider, depth sorted part by part */
@@ -1037,8 +1178,16 @@
     if (S.ctx.ejecting && !S.released) { if (bm.vis > 0.01 && !bm.gone) drawMachine(S, c, T, false); H.X.drawPetAt(c, H.sx(S.ctx.petX), H.sy(S.ctx.petY) - S.ctx.petZ * ZK * T, {}); drawSmoke(S, c, T, true); return; }
     if (S.released) { if (S.fade && S.relT < S.fade) { c.save(); c.globalAlpha = 1 - S.relT / S.fade; drawMachine(S, c, T, false); c.restore(); } drawSmoke(S, c, T, false); drawSmoke(S, c, T, true); return; }
     drawSmoke(S, c, T, false);
-    if (bm.vis > 0.01 && !bm.gone) drawMachine(S, c, T, true); else drawPetOnly(S, c, T);
+    if (bm.vis > 0.01 && !bm.gone) { drawGhosts(S, c, T); drawMachine(S, c, T, true); } else drawPetOnly(S, c, T);
     drawSmoke(S, c, T, true);
+  }
+  /* (round 2) a drift's motion blur: the machine a moment ago, faint, drawn under it (so never over the
+     rider); the baked headings are reused, nothing new is baked. LOW: none */
+  function drawGhosts(S, c, T) {
+    const D = S.drift, bm = S.beast; if (!D || D.ph !== 1 || D.w < 4 || lowFx() || S.phase !== 'ride') return;
+    const ag0 = S.ag, v0 = bm.vis, x0 = bm.x, y0 = bm.y, st = Math.min(0.42, D.w * 0.016);
+    { S.ag = groundA(bm.a + bm.spin - D.side * st * 1.4); bm.vis = v0 * 0.26; bm.x = x0 - bm.vx * 0.016; bm.y = y0 - bm.vy * 0.016; drawMachine(S, c, T, false, true); }   // (one ghost: about one machine draw, for the 0.36 s spin only)
+    S.ag = ag0; bm.vis = v0; bm.x = x0; bm.y = y0;
   }
   function petScreen(S, T) {
     const H = S.H, bm = S.beast, s = l2w(S, S.R.seat); let X = H.sx(s.x), Y = H.sy(s.y) - s.z * ZK * T, a = 1;
@@ -1051,9 +1200,9 @@
     if (S.phase === 'out') { const u = sstep(0.4, 0.9, S.t / TUNE.out), gx = H.sx(S.petStand.x), gy = H.sy(S.petStand.y); X = lerp(X, gx, u); Y = lerp(Y, gy, u) - Math.sin(u * Math.PI) * T * 0.9; }
     return [X, Y, a];
   }
-  function drawPetOnly(S, c, T) { const p = petScreen(S, T); if (p[2] > 0.01) S.H.X.drawPetAt(c, p[0], p[1], { maxH: 1.1, alpha: p[2] < 1 ? p[2] : undefined }); }
+  function drawPetOnly(S, c, T) { const p = petScreen(S, T); if (p[2] > 0.01) S.H.X.drawPetAt(c, p[0], p[1], { maxH: 1.1, alpha: p[2] < 1 ? p[2] : undefined, rot: S.drift && S.phase === 'ride' ? S.drift.petRot : 0 /* (round 2: during a drift the rider rolls one flat 2D turn, as the Dodge rolls its sprite; never a 3D turn) */ }); }
   function itemAt(S) { const I = S.items[S.nItems] || (S.items[S.nItems] = {}); S.nItems++; I.p = null; I.q = null; I.r = 0; I.name = ''; I.a = 1; I.o = null; I.side = 0; I.cap = null; I.dir = null; I.cannon = 0; return I; }
-  function drawMachine(S, c, T, withPet) {
+  function drawMachine(S, c, T, withPet, ghost) {
     const R = S.R, bm = S.beast; S.nItems = 0;
     const out = S.phase === 'out' ? cl((S.t / TUNE.out - 0.45) / 0.08) : 0, vis = bm.vis * (1 - out);
     if (vis <= 0.01) { if (withPet) drawPetOnly(S, c, T); return; }
@@ -1095,7 +1244,7 @@
       else if (it.kind === 'cable') drawCable(S, c, T, it, vis);
       else if (it.kind === 'panel') drawPanel(S, c, T); }
     c.restore();
-    drawLights(S, c, T, vis);
+    if (!ghost) drawLights(S, c, T, vis);
     // the rider last: always in clear view between the batteries (upright, its own sprite)
     if (withPet) drawPetOnly(S, c, T);
   }
@@ -1161,7 +1310,7 @@
     if (!SM2 || !S.parts.length) return; const H = S.H;
     const pp = !S.released && S.phase !== 'gone' ? petScreen(S, T) : null, PX = pp ? pp[0] : -1e9, PY = pp ? pp[1] - T * 0.5 : -1e9;
     c.save();
-    for (const p of S.parts) { if (p.kind === 1 || p.kind === 8 || p.kind === 9) continue; if (!!p.front !== front) continue; const X = H.sx(p.x), Y = H.sy(p.y) - p.z * ZK * T, u = 1 - p.life / p.max;
+    for (const p of S.parts) { if (p.kind === 1 || p.kind === 8 || p.kind === 9 || p.kind === 10) continue; if (!!p.front !== front) continue; const X = H.sx(p.x), Y = H.sy(p.y) - p.z * ZK * T, u = 1 - p.life / p.max;
       if (p.kind === 2) { const r = T * p.s * (1 + p.grow * u), keep = S.phase === 'build' && S.t < 1.38 ? 1 : 0.15 + 0.85 * sstep(T * 0.4, T * 1.3, Math.hypot(X - PX, Y - PY)); c.globalAlpha = Math.min(1, u * 6) * (p.dense ? 1 - u * u : 1 - u) * (p.dense ? 0.66 : 0.42) * keep; c.drawImage(p.steam ? SM2.steam : SM2.smoke, X - r, Y - r, r * 2, r * 2); continue; }
       const a = cl(p.life / Math.min(0.25, p.max)); c.globalAlpha = a;
       if (p.kind === 6) { const img = p.tool ? SM2.wrench : SM2.hammer, s = T * p.s; c.save(); c.translate(X, Y); c.rotate(Math.sin(u * Math.PI * 2) * 1.1 * Math.sign(p.vr)); c.globalAlpha = a * 0.85 * Math.sin(u * Math.PI); c.drawImage(img, -s, -s * 1.5, s * 2, s * 2); c.restore(); continue; }
@@ -1173,18 +1322,48 @@
   function drawOver(S, c) {
     const H = S.H, T = H.X.Tz();
     callM(S, c, 'drawOver');
-    if (!S.parts.length && !S.zap.length) return;
+    if (!S.parts.length && !S.zap.length && !S.claw[0].length && !S.claw[1].length) return;
     const pp = !S.released ? petScreen(S, T) : [H.sx(S.me.x), H.sy(S.me.y)], PX = pp[0], PY = pp[1] - T * 0.5;
     c.save(); c.globalCompositeOperation = 'lighter';
     for (const p of S.parts) { if (p.kind !== 1) continue; const X = H.sx(p.x), Y = H.sy(p.y) - p.z * ZK * T, a = cl(p.life / Math.min(0.2, p.max)) * (0.08 + 0.92 * sstep(T * 0.35, T * 1.1, Math.hypot(X - PX, Y - PY))); if (a < 0.02) continue; const r = T * p.s * 0.5; c.globalAlpha = a; blitSized(c, glowSprite(p.col || CYAN), X - r, Y - r, r * 2, r * 2); }
     for (const z of S.zap) if (!z.floor) drawZap(S, c, T, z);
+    drawClawAir(S, c, T, PX, PY); drawSlashes(S, c, T, PX, PY);
     c.restore();
+  }
+  /* (round 2) Drift's light. The talons' arcs in the air: three tapered streaks per hand (electric blue round a white-gold
+     core), fading along the arc and away from the rider. The spiral marks they leave on the floor: light only, three
+     fine scratches each, fading over CLAW_FLOOR s. Both redraw true arcs between the frames' samples. */
+  const CQ = [0, 0, 0], CQ2 = [0, 0, 0], TAL = [-0.15, 0, 0.15];
+  function drawClawAir(S, c, T, PX, PY) {
+    const H = S.H, t = S.g.t, sub = lowFx() ? 2 : 4;
+    for (let i = 0; i < 2; i++) { const C = S.claw[i], n = C.length; if (n < 2 || t - C[n - 1].t > CLAW_AIR) continue;
+      for (let j = n - 1; j > 0; j--) { const p = C[j - 1], q = C[j], age = t - q.t; if (age > CLAW_AIR) break; const a = (1 - age / CLAW_AIR) * q.k; if (a < 0.03) continue;
+        lerpClaw(p, q, 0.5, 0, CQ); const sx = H.sx(CQ[0]), sy = H.sy(CQ[1]) - CQ[2] * ZK * T, keep = 0.12 + 0.88 * sstep(T * 0.5, T * 1.3, Math.hypot(sx - PX, sy - PY)), A = a * keep;
+        c.beginPath(); for (const dr of TAL) { for (let k = 0; k <= sub; k++) { lerpClaw(p, q, k / sub, dr, CQ); const X = H.sx(CQ[0]), Y = H.sy(CQ[1]) - CQ[2] * ZK * T; if (k) c.lineTo(X, Y); else c.moveTo(X, Y); } }
+        c.lineCap = 'round'; c.globalAlpha = A * 0.4; c.strokeStyle = EBLUE; c.lineWidth = T * 0.16 * (0.5 + 0.5 * a); c.stroke();
+        c.globalAlpha = A * 0.95; c.strokeStyle = j > n - 3 ? WHITE : '#FFF0C0'; c.lineWidth = T * 0.045 * (0.4 + 0.6 * a); c.stroke(); } }
+  }
+  function drawClawFloor(S, c, T) {
+    const H = S.H, t = S.g.t, sub = lowFx() ? 2 : 3;
+    for (let i = 0; i < 2; i++) { const C = S.claw[i], n = C.length; if (n < 2) continue;
+      for (let j0 = 1; j0 < n; j0 += 4) { const j1 = Math.min(n - 1, j0 + 4), age = t - C[j1].t, a = Math.pow(cl(1 - age / CLAW_FLOOR), 1.5) * 0.55; if (a < 0.02) continue;
+        c.beginPath(); for (const dr of TAL) { for (let j = j0; j <= j1; j++) { const p = C[j - 1], q = C[j]; for (let k = j === j0 ? 0 : 1; k <= sub; k++) { lerpClaw(p, q, k / sub, dr * 0.8, CQ2); const X = H.sx(CQ2[0]), Y = H.sy(CQ2[1]); if (j === j0 && k === 0) c.moveTo(X, Y); else c.lineTo(X, Y); } } }
+        c.lineCap = 'round'; c.globalAlpha = a * 0.45; c.strokeStyle = EBLUE; c.lineWidth = T * 0.09; c.stroke(); c.globalAlpha = a; c.strokeStyle = ICE; c.lineWidth = T * 0.025; c.stroke(); } }
+  }
+  /* three bright talon slashes across a monster a drift strikes */
+  function drawSlashes(S, c, T, PX, PY) {
+    const H = S.H; for (const p of S.parts) { if (p.kind !== 10) continue; const u = 1 - p.life / p.max, X = H.sx(p.x), Y = H.sy(p.y) - p.z * ZK * T, L = T * p.s, a = (1 - u) * (0.15 + 0.85 * sstep(T * 0.4, T * 1.2, Math.hypot(X - PX, Y - PY))); if (a < 0.03) continue;
+      const ca = Math.cos(p.rot), sa = Math.sin(p.rot) * GY, nx = -sa, ny = ca, gw = Math.min(1, u * 5);
+      c.lineCap = 'round';
+      for (let k = -1; k <= 1; k++) { const ox = nx * k * T * 0.16, oy = ny * k * T * 0.16, l0 = -L * gw, l1 = L * gw * (1 - k * 0.12);
+        c.beginPath(); c.moveTo(X + ox + ca * l0, Y + oy + sa * l0); c.quadraticCurveTo(X + ox + nx * T * 0.14, Y + oy + ny * T * 0.14, X + ox + ca * l1, Y + oy + sa * l1);
+        c.globalAlpha = a * 0.5; c.strokeStyle = EBLUE; c.lineWidth = T * 0.14; c.stroke(); c.globalAlpha = a; c.strokeStyle = k ? ICE : WHITE; c.lineWidth = T * 0.045; c.stroke(); } }
   }
 
   /* ================= the HUD while riding: Homing Missiles, Heaven's Wrath, Jump and the Judgement Day meter ================= */
   const rgba = (h, a) => { const [r, g, b] = hexRGB(h); return `rgba(${r},${g},${b},${cl(a)})`; };
   function drawBtns(S, c, o) {
-    const { B, blitC, hudPic, glowPic } = o, t = S.g.t, idle = S.phase !== 'ride' || S.beast.locked || !!S.jump || S.recover > 0;
+    const { B, blitC, hudPic, glowPic } = o, t = S.g.t, idle = S.phase !== 'ride' || S.beast.locked || !!S.jump || S.recover > 0 || driftHolds(S);
     const btn = (b, key, label, cd, cdMax, paint, col, busy, dx) => { const rd = cd <= 0.01 && !idle && !S.busy;
       if (rd) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.28 + 0.08 * Math.sin(t * 5); blitC(c, glowPic(glowSprite, EBLUE, Math.round(b.r * 1.7)), b.x, b.y); c.restore(); }
       blitC(c, hudPic(`beast|${key}|${rd}|${b.r}`, b.r * 2 + 10, b.r * 2 + 10, (x, w, h) => paint(x, w / 2, h / 2, b.r, rd)), b.x, b.y);
@@ -1193,12 +1372,18 @@
       GFX.labelS(c, label, b.x + (dx || 0), b.y + b.r + 9, 8, 800, col, 'rgba(0,0,0,.7)', 3); };
     btn(B.s[0], 'mis', 'HOMING MISSILES', S.cdM, missileCd(), paintMissileBtn, '#BFEAFF', S.busy === 'missiles');
     btn(B.s[1], 'wrath', "HEAVEN'S WRATH", S.cdW, TUNE.wrathCd, paintFistBtn, '#FFE3A0', S.busy === 'wrath', -8);
-    { const b = B.d, cd = S.jump ? 0 : S.cdJump, rd = cd <= 0.01 && !idle && S.busy !== 'wrath' && S.busy !== 'judge';
+    // (round 2) Drift on the Dodge button: a claw-spin swirl; Jump right above it (20b's shared vehicle layout, as Sports Car's)
+    { const b = B.d, D = S.drift, rd = S.cdDrift <= 0.01 && !D && S.phase === 'ride' && !S.beast.locked && !S.jump;
+      if (rd) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.32 + 0.1 * Math.sin(t * 5 + 2); blitC(c, glowPic(glowSprite, EBLUE, Math.round(b.r * 1.7)), b.x, b.y); c.restore(); }
+      blitC(c, hudPic(`beast|drift|${rd}|${b.r}`, b.r * 2 + 10, b.r * 2 + 10, (x, w, h) => paintDriftBtn(x, w / 2, h / 2, b.r, rd)), b.x, b.y);
+      if (D && D.ph < 2) { c.save(); c.lineWidth = 3; c.strokeStyle = rgba(CYAN, 0.9); c.beginPath(); c.arc(b.x, b.y, b.r + 2, t * 14, t * 14 + 2.2); c.stroke(); c.restore(); }
+      else if (S.cdDrift > 0.05) { c.beginPath(); c.moveTo(b.x, b.y); c.arc(b.x, b.y, b.r, -Math.PI / 2, -Math.PI / 2 + TAU * Math.min(1, S.cdDrift / TUNE.driftCd)); c.closePath(); c.fillStyle = 'rgba(8,14,30,.5)'; c.fill(); }
+      GFX.labelS(c, 'DRIFT', b.x, b.y + b.r + 9, 9, 800, '#BFEAFF', 'rgba(0,0,0,.7)', 3); }
+    if (B.j) { const b = B.j, rd = !idle && !driftHolds(S) && S.busy !== 'wrath' && S.busy !== 'judge';
       if (rd) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.32 + 0.1 * Math.sin(t * 5 + 1); blitC(c, glowPic(glowSprite, GOLD, Math.round(b.r * 1.7)), b.x, b.y); c.restore(); }
-      blitC(c, hudPic(`beast|jump|${rd}|${b.r}`, b.r * 2 + 10, b.r * 2 + 10, (x, w, h) => paintJumpBtn(x, w / 2, h / 2, b.r, rd)), b.x, b.y);
-      if (S.jump || S.recover > 0) { c.save(); c.lineWidth = 3; c.strokeStyle = rgba(GOLD, 0.85); c.beginPath(); c.arc(b.x, b.y, b.r + 2, t * 7, t * 7 + 1.4); c.stroke(); c.restore(); }
-      else if (cd > 0.05) { c.beginPath(); c.moveTo(b.x, b.y); c.arc(b.x, b.y, b.r, -Math.PI / 2, -Math.PI / 2 + TAU * Math.min(1, cd / TUNE.jumpCd)); c.closePath(); c.fillStyle = 'rgba(30,16,4,.5)'; c.fill(); }
-      GFX.labelS(c, 'JUMP', b.x, b.y + b.r + 9, 9, 800, '#FFE7B0', 'rgba(0,0,0,.7)', 3); }
+      blitC(c, hudPic(`beast|jump|${rd || !!S.jump}|${b.r}`, b.r * 2 + 10, b.r * 2 + 10, (x, w, h) => paintJumpBtn(x, w / 2, h / 2, b.r, rd || !!S.jump)), b.x, b.y);
+      if (S.jump) { c.save(); c.lineWidth = 3; c.strokeStyle = rgba(GOLD, S.jumpLand ? 1 : 0.7); c.beginPath(); c.arc(b.x, b.y, b.r + 2, t * 7, t * 7 + (S.jumpLand ? 4.2 : 1.4)); c.stroke(); c.restore(); }   // (a press kept for touchdown: a longer arc)
+      GFX.labelS(c, 'JUMP', b.x, b.y + b.r + 8, 9, 800, '#FFE7B0', 'rgba(0,0,0,.7)', 3); }
     // the Judgement Day meter: an electric-blue ring rising round a lightning-sphere emblem whose bolts brighten with it
     { const b = B.u, full = S.charge >= 1 && !S.used, k = S.used ? 1 : S.charge, judge = S.phase === 'judge';
       if (full || judge) { const pl = 0.5 + 0.5 * Math.sin(t * 6); c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.5 + 0.35 * pl; blitC(c, glowPic(glowSprite, EBLUE, Math.round(b.r * (2.1 + 0.25 * pl) * 4) / 4), b.x, b.y); c.globalAlpha = 0.45; blitC(c, glowPic(shockSprite, GOLD, Math.round(b.r * 1.8)), b.x, b.y); c.restore(); }
@@ -1251,6 +1436,20 @@
     for (const s of [-1, 1]) { x.beginPath(); x.moveTo(r * 0.1 + s * r * 0.05, r * 0.05); x.lineTo(r * 0.18 + s * r * 0.06, r * 0.3); x.lineWidth = r * 0.1; x.strokeStyle = rd ? '#7A4A1C' : '#2A1E14'; x.stroke(); }
     x.lineWidth = r * 0.06; x.strokeStyle = rd ? '#B9C2D0' : '#4A4A52'; for (const s of [-1, 1]) { x.beginPath(); x.moveTo(-r * 0.12 + s * r * 0.06, -r * 0.12); x.lineTo(r * 0.02 + s * r * 0.06, -r * 0.38); x.stroke(); }
     x.fillStyle = rd ? CRIM : '#5A2028'; x.beginPath(); x.arc(r * 0.36, r * 0.04, r * 0.035, 0, TAU); x.fill();
+    x.restore(); btnRim(x, cx, cy, r, rd); }
+  /* (round 2) Drift: a claw-spin swirl: three curved gold talon slashes wheeling round an electric-blue vortex, spin ticks */
+  function paintDriftBtn(x, cx, cy, r, rd) { btnFace(x, cx, cy, r, rd); x.save(); x.globalAlpha = rd ? 1 : 0.5; x.translate(cx, cy); x.lineCap = 'round';
+    // the vortex: a spiral of electric blue closing on a white core
+    x.strokeStyle = rd ? EBLUE : 'rgba(63,200,255,.5)'; x.lineWidth = r * 0.07; x.beginPath(); for (let i = 0; i <= 40; i++) { const u = i / 40, a = u * TAU * 1.6, rr = r * (0.1 + 0.42 * u); if (i) x.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); else x.moveTo(Math.cos(a) * rr, Math.sin(a) * rr); } x.stroke();
+    const cg = x.createRadialGradient(0, 0, 0, 0, 0, r * 0.22); cg.addColorStop(0, rd ? '#FFFFFF' : '#9AB4C0'); cg.addColorStop(1, 'rgba(95,228,255,0)'); x.fillStyle = cg; x.beginPath(); x.arc(0, 0, r * 0.22, 0, TAU); x.fill();
+    // three talons sweeping round it (curved blades, thick at the root, needle tips), with speed streaks behind
+    for (let k = 0; k < 3; k++) { x.save(); x.rotate(k * TAU / 3 - 0.4);
+      x.strokeStyle = rd ? 'rgba(191,242,255,.75)' : 'rgba(191,242,255,.3)'; x.lineWidth = 1.2; for (let j = 0; j < 2; j++) { x.beginPath(); x.arc(0, 0, r * (0.5 + j * 0.13), -1.25, -0.45); x.stroke(); }
+      const g = x.createLinearGradient(r * 0.2, -r * 0.6, r * 0.75, 0); g.addColorStop(0, rd ? '#FFF2B8' : '#9A8A60'); g.addColorStop(0.5, rd ? GOLD : '#8A7440'); g.addColorStop(1, rd ? '#9A5A12' : '#4A3A20');
+      x.fillStyle = g; x.strokeStyle = 'rgba(30,14,4,.85)'; x.lineWidth = 1;
+      x.beginPath(); x.moveTo(r * 0.3, -r * 0.08); x.quadraticCurveTo(r * 0.7, -r * 0.12, r * 0.8, r * 0.3); x.quadraticCurveTo(r * 0.58, r * 0.06, r * 0.26, r * 0.1); x.closePath(); x.fill(); x.stroke();
+      x.fillStyle = rd ? 'rgba(255,255,255,.55)' : 'rgba(255,255,255,.2)'; x.beginPath(); x.moveTo(r * 0.36, -r * 0.05); x.quadraticCurveTo(r * 0.64, -r * 0.07, r * 0.76, r * 0.22); x.quadraticCurveTo(r * 0.6, r * 0.0, r * 0.36, -r * 0.01); x.closePath(); x.fill();
+      x.restore(); }
     x.restore(); btnRim(x, cx, cy, r, rd); }
   /* the lightning sphere: a translucent electric-blue shell, a white-gold core, violet filaments (the live bolts go on top) */
   function paintJudgeBtn(x, cx, cy, r, full) {

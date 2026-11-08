@@ -16,7 +16,7 @@ entries.
 The VEH hook in 20b is generic (`X.vehicle(o)`). Beast Machine sets its own VEH object; it must not break Sports Car.
 
 ## Differences from Sports Car
-- **Dodge is Jump** (a heavy bounding hop with landing damage). There's no separate Jump button and no Drift.
+- **Dodge is Jump** (a heavy bounding hop with landing damage). There's no separate Jump button and no Drift. (Round 2 changed this: Dodge is Drift, Jump has its own button; see the Notes.)
   - The vehicle HUD needs a Beast variant: bronze, electric blue and gold, with missile, fist, jump and lightning-sphere
     icons.
   - Show the remaining form time.
@@ -238,3 +238,41 @@ DK = base × K × (1 + 0.08·(evo−1)).
     k = 132, plus ~3 MB reused scratch. Draw ~0.2 ms median per frame (SwiftShader); update while riding 0.1-0.2 ms
     once baked.
   - Fixed on the way: `S.ignT` stopped advancing after the build, so the ignition current stayed lit on the cables.
+- (Round 2, single worker, 2026-11-08; user: "bit rigid to control ... movement faster by 35% ... bring back the drift
+  button ... no cooldown on the jump button") All in `20k9i` plus one line in 20b. Supersedes "Dodge is Jump" above.
+  - Riding: top 8 -> 10.8 tiles/s, accel 15 -> 26, coast 9 -> 12, overK 6 -> 10, steer 2.6..4.2 -> 4.4..6.8 rad/s,
+    grip 9 -> 15, stride 1.9 -> 2.4 tiles per gait cycle (cadence 4.2 -> 4.5 Hz at top). Contact unchanged (0.6 DK, 0.45 s
+    gate) but contactMin 0.35 -> 0.26 of top, so the threshold stays 2.8 tiles/s. moveBeast still sub-steps at 0.12 tiles.
+  - Controls (Sports Car's layout): Dodge (Shift / Dodge button) = Drift; Jump = its own button above Drift
+    (20b `vehBtns().j`, the car's exact positions) and J. `S.veh.noJumpBtn` is gone and 20b's `noJumpBtn` branch was
+    removed (the car never set it, so its layout is unchanged).
+  - Drift (TUNE.drift*): wind-up 0.07 / spin-burst 0.36 / recovery 0.17 s; burst 17 tiles/s eased off as the Dodge's
+    along the stick, else the way it moves, else the heading; the stick bends it 5 rad/s; walls bounce it. Body spin =
+    `beast.spin` (new field, added to the heading for drawing, anchors and the footprint; 0 outside a drift): one full
+    turn plus the start offset (1 to 1.5 turns), ending square to the heading. 3.0 DK once per monster per drift within
+    2.6 tiles (+0.85 m.r) of the centre's swept path, line of sight required, kb 7.5 (bosses: hitMon's x0.12; a boss
+    hit also slows the burst). First strike: hit-stop 0.05 s (0.02 under Reduce Motion), shake + small flash (none under
+    Reduce Motion). me.inv 0.38 s at the press. Cooldown 0.9 s from the press; a press in its last 0.2 s (or in the
+    landing squash, or within 0.2 s of a touchdown while airborne) is kept, so drifts chain. No contact hit on a monster
+    the claws struck until contactGate s after the drift ends. Strongs / Judgement pressed during the spin are queued.
+  - Pose channels added (CH): `armLFling`, `armRFling` 0..1 (that arm flung out wide to its side, hand lifted),
+    `bank` -1..1 (shoulders tipped; + lifts the right side and the flung arms swap high/low). Drift writes crouch,
+    handsIn, torsoDip, bank, fling, armXReach, armXSlam (recovery slam), glow, charge, shudder.
+  - Drift look: one faint motion ghost of the whole machine (baked headings reused; none on LOW), talon arcs from both
+    hands (three streaks each, redrawn as true arcs round the centre between frames, faded near the rider), light-only
+    spiral scratch marks on the floor (0.9 s), sparks flung along the spin, electric slashes between talon samples, a
+    shockwave ring at the wind-up, three-line talon slashes and a ring on every monster struck (new pooled part kind 10),
+    a two-hand slam with dust at the recovery. Pooled: claw samples <= 60 per hand, parts CAP 260, zaps capped at 24.
+  - The rider: during a drift, one flat 2D roll through `drawPetAt`'s `o.rot`, as Sports Car's (exactly one turn, ending
+    upright); otherwise upright. No yaw or 3D turn.
+  - Jump: no cooldown (jumpCd 0); landing recovery 0.24 -> 0.05 s and a Jump goes through it; crouch 0.14 s (0.07 s for a
+    hop taken within 0.2 s of a landing). A press in the air is kept (S.jumpLand) and fires on the touchdown frame; never a
+    jump in mid-air. Planned safe landing and the landing hit unchanged (2.6 DK once per monster per landing). Take-off
+    invulnerability 0.3 s, granted at most once per jumpInvLock 1.8 s (so a hop chain is not a permanent shield).
+    A queued Strong or Judgement goes before a queued Jump.
+  - Debug: `S.lastLand` {x, y, fb (1/2 = the planned spot had changed), x1, y1}; stats.drift / driftHit.
+  - Cost (SwiftShader, 390x844 @1.5, machine draw = G.draw with minus without the machine): riding ~2.1-2.4 ms, mid-spin
+    ~3.5 ms (the ghost), LOW mid-spin ~0.3 ms; whole update p50 2.5 ms, unchanged by Drift; 20-hop chain worst update
+    frame 4-9 ms (planJump + landing fx; GC on SwiftShader).
+  - Tests (scratchpad/beast/r2): logic5.js (B1's logic.js, Jump on J), drift.js (drift hits/spin/rider roll/buffer/mash,
+    tunnelling at 60 and 20 fps, Strongs held, no drift in the air, 20-hop J-mash chain), smoke5.js, shot5.js, perf5.js.
