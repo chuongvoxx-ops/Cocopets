@@ -327,6 +327,9 @@ const BM = (self.BEAST_MOVES = self.BEAST_MOVES || {});
     function impact() { const o = oval(), hd = hand(k), ha = anchor(ctx, 'hand' + hd), a = o.ang, ca = Math.cos(a), sa = Math.sin(a);
       // the hand's place on the floor (held to the oval's near half, so the eruption starts where the hand lands)
       let hx = ha.x, hy = ha.y; { const du = (hx - o.cx) * ca + (hy - o.cy) * sa, dv = -(hx - o.cx) * sa + (hy - o.cy) * ca, uu = Math.max(-tu.rx * 0.95, Math.min(0, du)), vv = Math.max(-tu.ry * 0.6, Math.min(tu.ry * 0.6, dv)); hx = o.cx + uu * ca - vv * sa; hy = o.cy + uu * sa + vv * ca; }
+      // (Beast round 3) the strike smashes the environmental props in its oval first, through B1's ctx (20k0v; never
+      // through a real wall, no charge), so a prop no longer shields what stands behind it
+      if (S.alive && ctx.smashOval) { try { ctx.smashOval(o.cx, o.cy, tu.rx, tu.ry, a); } catch (e) {} }
       a0 = a; aT = a; const n = S.alive ? hitOval(ctx, H, X, b, o.cx, o.cy, tu.rx, tu.ry, a, dmg, { kb: tu.kb, src: 'strong', el: 'thunder' }) : 0;
       // filaments: from the hand to points spread over the oval (golden-angle), each relayed through a nearer point, so
       // the lightning forms a branching net that reaches across the whole footprint; spectral fractures of light

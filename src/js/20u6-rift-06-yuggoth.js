@@ -253,7 +253,7 @@ const YUG = { INK: '#2B2433', HULL: '#2A2F3E', HULL_HI: '#4A5268', VIOLET: '#C45
   const CONDUCT = { metalspike: 3.4, pylon: 3.1, neonpost: 2.8, hullshard: 1.6 };
   function ambientArcs(X, dt) { const A = ARCS; A.t -= dt; A.list = A.list.filter(a => (a.life -= dt) > 0);
     const W = X.W(), Hh = X.H ? X.H() : 900, T = X.Tz(), on = p => { const xs = X.sx(p.x), ys = X.sy(p.y); return xs > -T * 2 && xs < W + T * 2 && ys > -T * 2 && ys < Hh + T * 4; };
-    if (A.t <= 0) { A.t = 0.12 + Math.random() * 0.25; const tall = (X.props || []).filter(p => CONDUCT[p.kind] && on(p));
+    if (A.t <= 0) { A.t = 0.12 + Math.random() * 0.25; const tall = (X.props || []).filter(p => CONDUCT[p.kind] && !p.broken && on(p));   /* (!broken: a vehicle may smash them, 20k0v) */
       const r = Math.random();
       if (tall.length >= 2 && r < 0.55) { const a = tall[Math.floor(Math.random() * tall.length)], near = tall.filter(b => b !== a && Math.hypot(b.x - a.x, b.y - a.y) < 7); if (near.length) { const b = near[Math.floor(Math.random() * near.length)]; A.list.push({ ax: a.x, ay: a.y, ah: CONDUCT[a.kind], bx: b.x, by: b.y, bh: CONDUCT[b.kind], life: 0.22, max: 0.22, seed: Math.random() * 99 }); } }
       else if (tall.length && r < 0.85) { const a = tall[Math.floor(Math.random() * tall.length)], ang = Math.random() * TAU, d = 1.5 + Math.random() * 2.5; A.list.push({ ax: a.x, ay: a.y, ah: CONDUCT[a.kind], bx: a.x + Math.cos(ang) * d, by: a.y + Math.sin(ang) * d * 0.7, bh: 0, life: 0.18, max: 0.18, seed: Math.random() * 99, ground: true }); }

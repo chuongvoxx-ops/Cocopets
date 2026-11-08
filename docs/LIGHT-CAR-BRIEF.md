@@ -269,3 +269,10 @@ file exists. The two of you may message each other through files: append notes t
     open water, the map's edge, cooldown/buffer, landing hit, timeout/swap/defeat in the air, Supernova in the air, the J
     key, a real touch on the button, button spacing, Reduce Motion), shots.js / perf.js; r3logic-r4.js is r3logic.js
     with the Supernova cast from an open spot (its "wide arcs" check was flaky on the round-3 build too).
+
+- (Beast round 3, 2026-11-08) The car's smash logic moved to `src/js/20k0v-vehicle-smash.js` (`VEH_SMASH`), shared with
+  Beast Machine; `smashSweep` is unchanged in shape and order. The list is now every environmental prop kind of the
+  Tower and the rift dungeon lands (see the Beast brief's round 3 note), and at the user's request chests (opened through
+  breakPot, full reward once) and the floor's shrines (blessing once through useShrine, then broken) are smashed too.
+  Still never: walls, gaps, bridges, doors / gates / exits / stairs, floor keys, rift objects, `hourglass`, `stairstub`,
+  `eyeshrine`, `blank`, and nothing on puzzle / trial / gate stages or Super Fiend floors.

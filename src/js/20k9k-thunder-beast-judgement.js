@@ -221,7 +221,9 @@
     const want = Math.max(0, Math.min(TUNE.range, d - Math.min(TUNE.short, d * 0.5)));
     tx = x0 + dx / d * want; ty = y0 + dy / d * want;
     let reach = flowOf(ctx, H); if (reach && !reach(x0, y0)) reach = null;   /* (the flow field has not caught up with the machine) */
-    const ok = (x, y) => stand(ctx, x, y) && (!reach || reach(x, y));
+    // (Beast round 3) the machine's own ground: ctx.canDrive treats the props it smashes as open (ctx.flowAt counts them
+    // reachable); the impact clears them. Falls back to the pet's canStand
+    const ok = (x, y) => (ctx.canDrive ? (() => { try { return !!ctx.canDrive(x, y); } catch (e) { return false; } })() : stand(ctx, x, y)) && (!reach || reach(x, y));
     let [lx, ly] = walkTo(x0, y0, tx, ty, ok);
     if (!ok(lx, ly)) { [lx, ly] = stand(ctx, x0, y0) ? [x0, y0] : nearest(ctx, x0, y0); }
     return { x: lx, y: ly, dir: Math.atan2(dy, dx) };
@@ -358,6 +360,7 @@
     function risingFx(dt) { if (Math.random() < (LOW() ? 6 : 18) * dt) { const p = anchorW(ctx, Math.random() < 0.5 ? 'handL' : 'handR'); part(S, 4, p.x + rnd(-0.4, 0.4), p.y, p.z - 0.2, 0, 0, -9, 0.22, rnd(1.0, 1.6), { fin: 0.02 }); } }
     function fallFx(dt) { if (Math.random() < (LOW() ? 10 : 30) * dt) { const a = Math.random() * TAU, r = rnd(0.6, 1.4); part(S, 4, bm.x + Math.cos(a) * r, bm.y + Math.sin(a) * r * 0.5, (bm.z || 0) + rnd(1.0, 2.6), 0, 0, 11, 0.16, rnd(1.4, 2.2), { fin: 0.02 }); } }
     function impact() { landed = true; bm.x = lx; bm.y = ly; bm.z = 0; bm.vx = bm.vy = 0; handP = anchorW(ctx, 'hand' + hand);
+      try { if (ctx.smashArea) ctx.smashArea(lx, ly, tu.impR); } catch (e) {}   /* (Beast round 3: the impact smashes the props in its reach, B1's ctx, no charge) */
       let n = 0; try { n = ctx.hitArea(lx, ly, tu.impR, DK * tu.impact, { noCharge: true, kb: tu.impKb }); } catch (e) {}
       impacts.push({ x: handP.x, y: handP.y, t: 0, R: tu.impR, cx: lx, cy: ly, v: (Math.random() * 2) | 0, rot: Math.random() * TAU });
       X.shake && X.shake(RM() ? 4 : 12, 0.35); X.flash && X.flash(RM() ? 0.08 : 0.18, '#DDF4FF'); X.hitstop && X.hitstop(n ? 0.07 : 0.03); X.light && X.light(lx, ly, 7, 0.55);

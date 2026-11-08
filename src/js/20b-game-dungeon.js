@@ -983,7 +983,12 @@ GAMES.dungeon = {
       carProps: (F.rift && (F.rift.gate || F.rift.kind === 'puzzle')) || F.fiend ? null : {
         propAt: (tx, ty) => (RES ? RES.propAt(tx, ty) : null),
         smashProp: (p, quiet) => { if (!RES || !p || p.broken) return false; RES.hitProp(p, 'light', 99, { quiet }); if (p.broken) { if (miniNew.length < 4096) miniNew.push(p.k); else miniNew.full = true; } return !!p.broken; },
-        pots: () => pots, smashPot: p => { if (!p || p.broken || p.kind === 'chest') return false; let n = 0; while (!p.broken && n++ < 6) breakPot(p); return true; } },
+        /* (Beast round 3, the user: chests and shrines too) a chest bursts open through breakPot (its full reward, once: a
+           broken pot never breaks again); a shrine gives its blessing through useShrine as if the pet had walked onto it
+           (only if still unused: once), then is broken (no longer drawn, walked onto or shown on the minimap). Floor keys
+           are not pots or shrines and are never touched */
+        pots: () => pots, smashPot: p => { if (!p || p.broken) return false; let n = 0; while (!p.broken && n++ < 6) breakPot(p); return true; },
+        shrines: () => shrines, smashShrine: s => { if (!s || s.broken) return false; if (!s.used && !me.dead) useShrine(s); s.used = true; s.broken = true; return true; } },
       drawPetAt: (c, X2, Y2, o) => { o = o || {}; const T = Tz(), k = o.maxH && SIZE > o.maxH ? o.maxH / SIZE : 1, h = T * 1.02 * SIZE * k, L2 = petLook();
         drawPetFull(c, X2, Y2, h, { sprites: arc.sprites, form: formOf(P), t: g.t, unit: T * SIZE * k, tile: T, float: false, el: party[cur].el, z: 0, moving: false, walk: 0, flip: o.flip != null ? !!o.flip : me.face < 0, face: o.face || L2.face, pose: Object.assign({}, L2.pose, { moving: false, walk: 0 }), sx: o.sx || 1, sy: o.sy || 1, rot: o.rot || 0 /* (Sports Car's drift: the Dodge's flat roll) */, rig: !me.dead, shadow: false, glow: false, circle: false, alpha: o.alpha }); } });
     RES = DunResidue.create({ me, g, mons, props: propList, M, T_FLOOR, EL, e8Of, REACT_NAME: (a, b) => (REACTIONS[pairKey(a, b)] || {}).name, ST: () => ST, hitMon, part, boom, ring, sparks, text, light, drop, sfx: api.sfx, sx, sy, Tz: () => Tz() });
@@ -2528,7 +2533,7 @@ GAMES.dungeon = {
       const vis = (x, y) => x > vx0 && x < vx1 && y > vy0 && y < vy1;
       for (const p of propList) if (!p.broken && vis(p.x, p.y) && (explored[p.k] || explored[Math.min(MH - 1, Math.floor(p.y) + 1) * MW + Math.floor(p.x)])) ents.push([p.y, 1, p]);
       for (const p of pots) if (!p.broken && vis(p.x, p.y) && isExp(p.x, p.y)) ents.push([p.y + 0.3, 2, p]);
-      for (const s of shrines) if (vis(s.x, s.y) && isExp(s.x, s.y)) ents.push([s.y + 0.3, 3, s]);
+      for (const s of shrines) if (!s.broken && vis(s.x, s.y) && isExp(s.x, s.y)) ents.push([s.y + 0.3, 3, s]);   /* (!broken: smashed by a vehicle, 20k0v) */
       for (const m of mons) if (!m.dead && vis(m.x, m.y) && (isExp(m.x, m.y) || (m.boss && m.act !== 'sleep'))) ents.push([m.y + (m.boss ? 0.3 : 0), 4, m]);
       ents.push([me.y + 0.01, 5, null]);
       helpers.forEach(h => ents.push([h.y, 6, h]));

@@ -6,7 +6,11 @@
    eyes and crimson fittings light as a current runs along the cables. For 20 s (25 at Adept, 35 at Celestial; game time,
    from the moment it can move) the controls are the machine's (20b's VEH hook):
      - the stick / keys ride and steer it: a heavy bounding gait (hands and feet plant, the shoulders roll, the body
-       settles at each step); walls and props block it (nothing is smashed);
+       settles at each step); (round 3) it smashes every environmental prop it rides, drifts, lands or strikes through
+       (20k0v's VEH_SMASH, shared with Sports Car: trees, rocks, pillars, statues, monuments, crystals, the rift lands'
+       scatter, pots, crates, barrels; chests burst open with their reward and shrines give their blessing, each once), so
+       nothing but walls, gaps and the protected pieces can stop it; doors, gates, exits, stairs, bridges, floor keys and
+       rift objects stay, and nothing smashes on a hand-drawn stage or a Super Fiend floor;
      - contact: moving into a monster above TUNE.contactMin of top speed deals TUNE.contact x DK, once per pass, never
        sooner than TUNE.contactGate s per monster; standing against one deals nothing;
      - (round 2) Dodge is Drift (Shift / the Dodge button): a burst along the stick (else the heading) while the
@@ -656,11 +660,11 @@
     const pose = blankPose(), beast = { x: me.x, y: me.y, a, vx: 0, vy: 0, speed: 0, z: 0, spin: 0 /* (round 2: Drift's body turn over the heading) */, scale: 1, locked: true, contact: true, vis: 1, gone: false, pose, poseSnap: false, prevX: me.x, prevY: me.y, prevA: a };
     const S = { H, g, me, X, C, ev, tier, DK, CD, dur, left: dur, beast, phase: 'build', t: 0, hold: 0, charge: 0, used: false, busy: null, busyT: 0, cdM: 0, cdW: 0, cdJump: 0, jump: null, jumpQ: null, jumpLand: false, invT: -9, landT: -9, cdDrift: 0, drift: null, driftQ: null, claw: [[], []], clawFree: [], judgeQ: null, mvQ: null,
       gate: new Map(), parts: [], free: [], ended: false, pet: X.pet ? X.pet() : null, P: blankPose(), R: newRig(), gk: 0, gph: 0, absorb: 0, absV: 0, ag: groundA(a), lit: 0, sparkT: 0.8, sfxT: 0, plantT: [0, 0], bumpT: 0, bi: 0,
-      stats: { contact: 0, missiles: 0, wrath: 0, judge: 0, dealt: 0, charged: 0, hits: 0, jump: 0, jumpHit: 0, drift: 0, driftHit: 0, rideT: 0 }, petStand: null, items: [], nItems: 0, zap: [], mx: 0, my: 0 };
+      stats: { contact: 0, missiles: 0, wrath: 0, judge: 0, dealt: 0, charged: 0, hits: 0, jump: 0, jumpHit: 0, drift: 0, driftHit: 0, rideT: 0, smash: 0, pots: 0 }, petStand: null, vs: VEH_SMASH.create(X, g) /* (round 3: the scenery it smashes) */, items: [], nItems: 0, zap: [], mx: 0, my: 0 };
     g._beast = S;
     // its place: the machine is centred ahead of the pet, turned or nudged until it fits between the walls
-    let best = null; for (let k2 = 0; k2 < 12 && !best; k2++) { const ang = a + (k2 % 2 ? 1 : -1) * Math.ceil(k2 / 2) * (Math.PI / 6), ag = groundA(ang), x = me.x + Math.cos(ag) * 0.3, y = me.y + Math.sin(ag) * 0.3 * GY; if (!poseBlocked(S, x, y, ang, 0)) best = { x, y, a: ang }; }
-    if (!best) for (let r = 0.3; r < 2.6 && !best; r += 0.3) for (let i = 0; i < 12 && !best; i++) { const x = me.x + Math.cos(i / 12 * TAU) * r, y = me.y + Math.sin(i / 12 * TAU) * r; if (!poseBlocked(S, x, y, a, 0)) best = { x, y, a }; }
+    let best = null; for (let k2 = 0; k2 < 12 && !best; k2++) { const ang = a + (k2 % 2 ? 1 : -1) * Math.ceil(k2 / 2) * (Math.PI / 6), ag = groundA(ang), x = me.x + Math.cos(ag) * 0.3, y = me.y + Math.sin(ag) * 0.3 * GY; if (!poseBlocked(S, x, y, ang, 0, true)) best = { x, y, a: ang }; }
+    if (!best) for (let r = 0.3; r < 2.6 && !best; r += 0.3) for (let i = 0; i < 12 && !best; i++) { const x = me.x + Math.cos(i / 12 * TAU) * r, y = me.y + Math.sin(i / 12 * TAU) * r; if (!poseBlocked(S, x, y, a, 0, true)) best = { x, y, a }; }
     if (best) { beast.x = best.x; beast.y = best.y; beast.a = best.a; }
     beast.prevX = beast.x; beast.prevY = beast.y; beast.prevA = beast.a; S.ag = groundA(beast.a);
     S.petX0 = me.x; S.petY0 = me.y; S.petStand = { x: me.x, y: me.y };
@@ -669,7 +673,11 @@
       hit: (m, dmg, o) => hitCharge(S, m, dmg, o),
       hitArea: (x, y, r, dmg, o) => { let n = 0; const ex = o && o.exclude; for (const m of H.living()) { if (ex && (ex === m || (ex.has && ex.has(m)))) continue; if (Math.hypot(m.x - x, m.y - y) < r + (m.r || 0.4)) { hitCharge(S, m, dmg, o); n++; } } return n; },
       hitOval: (cx, cy, rx, ry, ang, dmg, o) => { let n = 0; const ex = o && o.exclude, ca = Math.cos(ang), sa = Math.sin(ang); for (const m of H.living()) { if (ex && (ex === m || (ex.has && ex.has(m)))) continue; const dx = m.x - cx, dy = m.y - cy, u = dx * ca + dy * sa, v = -dx * sa + dy * ca, mr = m.r || 0.4; if ((u / (rx + mr)) ** 2 + (v / (ry + mr)) ** 2 <= 1) { hitCharge(S, m, dmg, o); n++; } } return n; },
-      mons: () => H.living(), target: () => target(S), canStand: (x, y) => canStand(S, x, y), nearestStand: (x, y) => nearestStand(S, x, y), flowAt: (x, y) => (X.flowAt ? X.flowAt(x, y) : 0),
+      mons: () => H.living(), target: () => target(S), canStand: (x, y) => canStand(S, x, y), nearestStand: (x, y) => nearestStand(S, x, y),
+      /* (round 3) the machine's own ground: smashable props are open (the pet's canStand is unchanged); the flow field with
+         smashable props passable; smash the props in an area (Wrath's oval, Judgement's impact), never through a wall */
+      canDrive: (x, y) => !S.vs.blk(x, y, 0.38, 0) && !S.vs.blk(x, y, 0.2, 0), flowAt: (x, y) => (X.flowAt ? S.vs.flowAt(x, y) : 0),
+      smashArea: (x, y, r) => smashArea(S, x, y, r), smashOval: (cx, cy, rx, ry, ang) => smashOval(S, cx, cy, rx, ry, ang),
       aimDir: () => { const m = Math.hypot(S.mx, S.my); return m > 0.2 ? Math.atan2(S.my, S.mx) : beast.a; }, stick: () => ({ x: S.mx, y: S.my, mag: Math.min(1, Math.hypot(S.mx, S.my)) }),
       anchor: n => anchor(S, n), cannonDir: side => { const d = S.R[side === 'L' ? 'dL' : 'dR'], ag = S.ag, ca = Math.cos(ag), sa = Math.sin(ag); const x = d.x * ca - d.y * sa, y = (d.x * sa + d.y * ca) * GY, l = Math.hypot(x, y, d.z) || 1; return { x: x / l, y: y / l, z: d.z / l }; },
       scr: (x, y, z) => [H.sx(x), H.sy(y) - (z || 0) * ZK * X.Tz()], T: () => X.Tz(), seat: () => anchor(S, 'seat'),
@@ -683,8 +691,9 @@
     me.petAlt = F;
     return S;
   }
-  /* walls: three circles along the machine's axis (mode 1: walls and the map's edge only, for the air) */
-  function poseBlocked(S, x, y, ang, mode) { const X = S.X, ag = groundA(ang), ex = FP.e * Math.cos(ag), ey = FP.e * Math.sin(ag) * GY; return X.blocked(x, y, FP.c, mode) || X.blocked(x + ex, y + ey, FP.r, mode) || X.blocked(x - ex, y - ey, FP.r, mode); }
+  /* walls: three circles along the machine's axis (mode 1: walls and the map's edge only, for the air). (round 3) a prop
+     it may smash does not block it (S.vs.blk); strict = every prop blocks (its first place, before it can smash) */
+  function poseBlocked(S, x, y, ang, mode, strict) { const B = strict ? S.X.blocked : S.vs.blk, ag = groundA(ang), ex = FP.e * Math.cos(ag), ey = FP.e * Math.sin(ag) * GY; return B(x, y, FP.c, mode) || B(x + ex, y + ey, FP.r, mode) || B(x - ex, y - ey, FP.r, mode); }
   function canStand(S, x, y) { return !S.X.blocked(x, y, 0.38, 0) && !S.X.blocked(x, y, 0.2, 0); }
   function nearestStand(S, x, y) { const me = S.me, p = S.X.walkPoint(x, y, { r: 0.4, x: me.x, y: me.y }); return { x: p.x, y: p.y }; }
   function target(S) { const b = S.beast, X = S.X; const m = X.nearestMon(b.x, b.y, 9, null, true) || X.nearestMon(b.x, b.y, 13); if (m) return { x: m.x, y: m.y, m }; return { x: b.x + Math.cos(b.a) * 4, y: b.y + Math.sin(b.a) * 4, m: null }; }
@@ -732,9 +741,11 @@
   /* the centre moves with the walls in the way, an axis at a time in small steps (and its nose and tail too) */
   function moveBeast(S, dx, dy) {
     const bm = S.beast, X = S.X, n = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)) / 0.12)), ab = bm.a + (bm.spin || 0); let hit = false;   // (round 2: the footprint turns with a drift's spin)
-    const stuck = poseBlocked(S, bm.x, bm.y, ab, 0), bl = stuck ? (x, y) => X.blocked(x, y, FP.c, 0) : (x, y) => poseBlocked(S, x, y, ab, 0), cStuck = stuck && X.blocked(bm.x, bm.y, FP.c, 0);
+    const B = S.vs.blk;   // (round 3: smashable props are open; smashSweep breaks them as the body reaches them)
+    const stuck = poseBlocked(S, bm.x, bm.y, ab, 0), bl = stuck ? (x, y) => B(x, y, FP.c, 0) : (x, y) => poseBlocked(S, x, y, ab, 0), cStuck = stuck && B(bm.x, bm.y, FP.c, 0);
     for (let i = 0; i < n; i++) { const sx = dx / n, sy = dy / n; bm.x += sx; if (!cStuck && bl(bm.x, bm.y)) { bm.x -= sx; hit = true; } bm.y += sy; if (!cStuck && bl(bm.x, bm.y)) { bm.y -= sy; hit = true; } }
-    if (stuck && X.blocked(bm.x, bm.y, FP.c, 0)) { const p = X.walkPoint(bm.x, bm.y, { r: 0.6, x: bm.x, y: bm.y }); bm.x += (p.x - bm.x) * 0.25; bm.y += (p.y - bm.y) * 0.25; }
+    if (stuck && B(bm.x, bm.y, FP.c, 0)) { const p = X.walkPoint(bm.x, bm.y, { r: 0.6, x: bm.x, y: bm.y }); bm.x += (p.x - bm.x) * 0.25; bm.y += (p.y - bm.y) * 0.25; }
+    if (S.phase === 'ride' || S.phase === 'judge') smashSweep(S);   // (round 3: break what it reached at once, so no frame ends inside a prop)
     return hit;
   }
   function syncMe(S) { const me = S.me, bm = S.beast; if (S.ctx.ejecting) { me.x = S.ctx.petX; me.y = S.ctx.petY; } else { me.x = bm.x; me.y = bm.y; } me.vx = bm.vx; me.vy = bm.vy; const c = Math.cos(bm.a); if (Math.abs(c) > 0.25) me.face = c > 0 ? 1 : -1; me.z = 0; }
@@ -754,6 +765,39 @@
       bm.speed *= m.boss ? 0.5 : 0.9; if (m.boss) { bm.vx *= 0.5; bm.vy *= 0.5; S.absorb = Math.max(S.absorb, 0.4); }
     }
   }
+
+  /* ---- (round 3) the scenery: everything its body passed through since the last frame (its swept oval, a little wider
+     than the walking footprint so the planted hands clear a path), props in an area (Drift's claws, the Jump's landing,
+     Wrath's oval, Judgement's impact; never through a real wall), each through 20k0v's VEH_SMASH and the game's own break
+     paths; on the ground only, never once the machine has gone. No damage, no Judgement charge ---- */
+  const SMB = { hl: BODY.hl + 0.1, hw: BODY.hw + 0.2 };
+  function inOval(px, py, x, y, ab, pad) { const ag = groundA(ab), ca = Math.cos(ag), sa = Math.sin(ag), gx = px - x, gy = (py - y) / GY, lx = gx * ca + gy * sa, ly = -gx * sa + gy * ca; return (lx / (SMB.hl + pad)) ** 2 + (ly / (SMB.hw + pad)) ** 2 < 1; }
+  const smashOn = S => !!S.vs.props && !S.released && S.beast.vis > 0.05 && !S.beast.gone && S.beast.z < 0.35;
+  function smashSweep(S) {
+    if (!smashOn(S)) return; const bm = S.beast, ab = bm.a + (bm.spin || 0), a0 = S.prevAB != null ? S.prevAB : ab; S.prevAB = ab;
+    const d = Math.hypot(bm.x - bm.prevX, bm.y - bm.prevY), da = Math.abs(wrap(ab - a0)), n = Math.min(24, Math.max(1, Math.ceil(Math.max(d / 0.35, da / 0.3))));
+    const R = SMB.hl + 0.6, bx0 = Math.floor(Math.min(bm.x, bm.prevX) - R), bx1 = Math.floor(Math.max(bm.x, bm.prevX) + R), by0 = Math.floor(Math.min(bm.y, bm.prevY) - R), by1 = Math.floor(Math.max(bm.y, bm.prevY) + R);
+    const hitAt = (px, py, pad) => { for (let i = 0; i <= n; i++) { const u = i / n, x = lerp(bm.prevX, bm.x, u), y = lerp(bm.prevY, bm.y, u), a = a0 + wrap(ab - a0) * u; if (inOval(px, py, x, y, a, pad) || (pad > 0.4 && fpTile(px, py, x, y, a))) return true; } return false; };
+    S.vs.sweep(bx0, by0, bx1, by1, hitAt, smashCb(S));
+  }
+  /* (the walking footprint's three circles against a prop's whole tile: a corner the oval misses still breaks, so the
+     machine never ends a frame over an unbroken prop) */
+  function fpTile(px, py, x, y, ab) { const ag = groundA(ab), ex = FP.e * Math.cos(ag), ey = FP.e * Math.sin(ag) * GY, tx = px - 0.5, ty = py - 0.5;
+    const hit = (cx, cy, r) => { const qx = cx < tx ? tx : cx > tx + 1 ? tx + 1 : cx, qy = cy < ty ? ty : cy > ty + 1 ? ty + 1 : cy; return (cx - qx) * (cx - qx) + (cy - qy) * (cy - qy) < (r + 0.04) * (r + 0.04); };
+    return hit(x, y, FP.c) || hit(x + ex, y + ey, FP.r) || hit(x - ex, y - ey, FP.r); }
+  function smashBody(S, x, y, ab) { if (!smashOn(S)) return; const R = SMB.hl + 0.6; S.vs.sweep(Math.floor(x - R), Math.floor(y - R), Math.floor(x + R), Math.floor(y + R), (px, py, pad) => inOval(px, py, x, y, ab, pad) || (pad > 0.4 && fpTile(px, py, x, y, ab)), smashCb(S)); }
+  function smashArea(S, x, y, r) { if (!smashOn(S)) return 0; const bm = S.beast; return S.vs.circle(x, y, r, smashCb(S), bm.x, bm.y); }
+  function smashOval(S, cx, cy, rx, ry, ang) { if (!smashOn(S)) return 0; const bm = S.beast; return S.vs.oval(cx, cy, rx, ry, ang, smashCb(S), bm.x, bm.y); }
+  const smashCb = S => S.smashCb || (S.smashCb = (x, y, quiet, pot) => { S.stats[pot ? 'pots' : 'smash']++; smashFx(S, x, y, quiet); });
+  /* the machine's own touch on a smash (the break itself is 20l's / breakPot's): bronze chips and gold-and-blue sparks
+     thrown off, a short electric arc, a feathered ring of light; light only, small, fewer on LOW */
+  function smashFx(S, x, y, quiet) { const Q = lowFx() ? 0.4 : 1;
+    for (let i = 0; i < Math.round(6 * Q); i++) { const a = Math.random() * TAU, v = 3 + Math.random() * 3.5; addPart(S, 1, x, y, 0.5, Math.cos(a) * v, Math.sin(a) * v * GY, 1.5 + Math.random() * 2.5, 0.28 + Math.random() * 0.2, 0.24, { g: 7, drag: 1.8, col: i % 3 ? (i % 2 ? GOLD : CYAN) : WHITE }); }
+    for (let i = 0; i < Math.round(5 * Q); i++) { const a = Math.random() * TAU, v = 2 + Math.random() * 3; addPart(S, 3, x, y, 0.4, Math.cos(a) * v, Math.sin(a) * v * GY, 2.5 + Math.random() * 2.5, 0.55 + Math.random() * 0.25, 0.06 + Math.random() * 0.06, { g: 14, bounce: 0.25, spin: (Math.random() - 0.5) * 18 }); }
+    addPart(S, 9, x, y, 0, 0, 0, 0, 0.26, 0.9, {}); if (!lowFx()) addPart(S, 2, x, y, 0.15, 0, 0, 0.4, 0.5, 0.42, { grow: 1.3, drag: 2.4, front: true });
+    if (!quiet && S.zap.length < 24) S.zap.push({ a: [x - 0.4 + Math.random() * 0.8, y - 0.3, 1.1], b: [x, y, 0.2], t: 0, life: 0.1, w: 0.9, seed: (Math.random() * 999) | 0 });
+    S.absorb = Math.max(S.absorb, 0.15); S.X.light(x, y, 1.6, 0.12);
+    if (!quiet && !calm()) S.X.shake(2.2, 0.08); }
 
   /* ---- the Strongs and Judgement Day ---- */
   function tryMove(S, slot, queued) {
@@ -787,7 +831,7 @@
   }
 
   /* ---- Jump (round 2: its own button above Drift, and J; no cooldown): crouch, a high planned arc, one landing shockwave ---- */
-  function jumpReach(S) { const X = S.X; if (!X.flowAt) return null; const ok = (x, y) => X.flowAt(x, y) < 9999; return (x, y, ab) => { const ag = groundA(ab), ex = FP.e * Math.cos(ag), ey = FP.e * Math.sin(ag) * GY; return ok(x, y) || ok(x + ex, y + ey) || ok(x - ex, y - ey); }; }
+  function jumpReach(S) { const X = S.X; if (!X.flowAt) return null; const ok = (x, y) => S.vs.flowAt(x, y) < 9999;   /* (round 3: through smashable props) */ return (x, y, ab) => { const ag = groundA(ab), ex = FP.e * Math.cos(ag), ey = FP.e * Math.sin(ag) * GY; return ok(x, y) || ok(x + ex, y + ey) || ok(x - ex, y - ey); }; }
   const JOFF = [0, 0.2, -0.2, 0.4, -0.4, 0.6, -0.6];
   function planJump(S, dir, d0) {
     const bm = S.beast, t0 = nowMs(); let reach = jumpReach(S); if (reach && !reach(bm.x, bm.y, bm.a)) reach = null;
@@ -844,8 +888,10 @@
     if (how === 'abort') { S.jumpLand = false; return; }
     S.recover = TUNE.jumpPh[2]; S.absorb = 1; S.absV = 0; S.landT = S.g.t;
     if (S.jumpLand) { S.jumpLand = false; S.jumpQ = S.g.t; }   // (pressed in the air: it goes again now)
-    if (J.noHit) { dustRing(S, x, y, 1.6, 8); return; }   // (a timeout in the air: a safe, harmless landing)
-    // the landing: one powerful shockwave hit per monster in reach (it charges the meter); contact is gated for them
+    if (J.noHit) { dustRing(S, x, y, 1.6, 8); smashBody(S, x, y, a); return; }   // (a timeout in the air: a safe, harmless landing; round 3: only what it lands on breaks)
+    // the landing: one powerful shockwave hit per monster in reach (it charges the meter); contact is gated for them;
+    // (round 3) the shockwave smashes every smashable prop in the same reach (no charge)
+    smashArea(S, x, y, TUNE.jumpR);
     const t = S.g.t; let n = 0;
     for (const m of S.H.living()) { if (Math.hypot(m.x - x, m.y - y) > TUNE.jumpR + (m.r || 0.4) * 0.85) continue;
       const dealt = hitCharge(S, m, S.DK * TUNE.jump, { kb: TUNE.jumpKb }); S.stats.jumpHit++; impactFx(S, m.x, m.y, 1.1, dealt > 0, true); n++;
@@ -926,6 +972,8 @@
         driftImpact(S, m, dealt > 0, D.nHit++ === 0);
         if (m.boss) { D.vk *= 0.7; S.absorb = Math.max(S.absorb, 0.35); }
         const G = S.gate.get(m); if (G) { G.inside = true; G.last = S.g.t; } else S.gate.set(m, { last: S.g.t, inside: true }); }
+      // (round 3) the claws smash every smashable prop they reach on the same swept path (sampled every half tile)
+      { const ns = Math.max(1, Math.ceil(Math.sqrt(L2) / 0.5)); for (let i = 1; i <= ns; i++) { const u = i / ns; smashArea(S, ax + sx * u, ay + sy * u, R); } }
       // sparks flung off the talons along the spin, an electric slash now and then
       if (D.ph === 1) { const Q = lowFx() ? 0.35 : 1;
         for (let i = 0; i < 2; i++) { if (Math.random() > 0.8 * Q) continue; const h = anchor(S, i ? 'handR' : 'handL'), ox = h.x - bm.x, oy = (h.y - bm.y) / GY, ol = Math.hypot(ox, oy) || 1, tg = D.side * 7;
@@ -1013,6 +1061,7 @@
     } else if (S.phase === 'out') stepOut(S, dt);
     const MV = moves(); if (MV.update) { try { MV.update(S.ctx, dt); } catch (e) { /* (theirs) */ } }
     if (S.ignT != null && S.phase !== 'build' && S.ignT < 1) S.ignT += dt;   // (B4: the ignition current runs on past the build, then stops)
+    if (S.phase === 'ride' || S.phase === 'judge') smashSweep(S);   // (round 3: the props and pots its body went through)
     rig(S); clawStep(S); idleSparks(S, dt); stepParts(S, dt);
     S.fx.entY = S.ctx.ejecting ? S.ctx.petY : bm.y + 0.6;
     // a cable buzz while it moves, an occasional crackle
@@ -1474,5 +1523,5 @@
     setTimeout(() => { const T = typeof o.T === 'function' ? o.T() : o.T; if (!(T > 0)) return; const dpr = (typeof arc !== 'undefined' && arc.dpr) || 1; setScale(T * dpr); idleBake(); }, 300);
   };
   U.beastmachine.TUNE = TUNE;
-  U.beastmachine.__dbg = { BK, TUNE, bakeStep, setScale, want, readyB, bucketOf, groundA, planJump, STUB, moves, NB, PARTS, get SM2() { return SM2; }, rig, anchor, CH, SEGS, VIS, l2w, drawMachine, frameOf, shade, MATS };
+  U.beastmachine.__dbg = { BK, TUNE, bakeStep, setScale, want, readyB, bucketOf, groundA, planJump, STUB, moves, NB, PARTS, get SM2() { return SM2; }, rig, anchor, CH, SEGS, VIS, l2w, drawMachine, frameOf, shade, MATS, VS: VEH_SMASH /* (round 3) */, FP, SMB };
 })();

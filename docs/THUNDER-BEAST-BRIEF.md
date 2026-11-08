@@ -23,7 +23,8 @@ The VEH hook in 20b is generic (`X.vehicle(o)`). Beast Machine sets its own VEH 
   - If `vehBtns()` / the J key assume the car layout, make it per-vehicle: J may also trigger Beast's Jump. Keep the
     change small and commented, and keep Sports Car pixel-identical.
 - **No prop smashing.** The spec says "Do not permanently destroy terrain". The machine collides like the car's
-  non-smash path: walls and props block it.
+  non-smash path: walls and props block it. (Round 3, 2026-11-08, overrides this at the user's request: the machine smashes
+  environmental props, chests and shrines; see the Notes.)
 - **Jump:** no immunity for the whole flight. Mirror the Dodge's short i-frame convention only at take-off, if any. The
   next jump only after landing and recovery.
 - **Numbers:** durations 20/25/35 s and a 120 s cooldown from exit, as Sports Car.
@@ -276,3 +277,39 @@ DK = base × K × (1 + 0.08·(evo−1)).
     frame 4-9 ms (planJump + landing fx; GC on SwiftShader).
   - Tests (scratchpad/beast/r2): logic5.js (B1's logic.js, Jump on J), drift.js (drift hits/spin/rider roll/buffer/mash,
     tunnelling at 60 and 20 fps, Strongs held, no drift in the air, 20-hop J-mash chain), smoke5.js, shot5.js, perf5.js.
+- (Round 3, single worker, 2026-11-08; user: "Beast machine need to be able to destroy environmental objects aswell,
+  trees, monuments etc, everything except doors and bridges connecting the lands together so that it can move around
+  freely", then "Chest and shires should be destroyable aswell".) **This overrides the spec's "Do not permanently destroy
+  terrain" for environmental objects** (walls, gaps and bridges, the actual terrain, still never change).
+  - Shared helper: new `src/js/20k0v-vehicle-smash.js` (`VEH_SMASH.create(X, g)`, loads before 20k1 / 20k4p / 20k9i)
+    holds the allowlist (`KINDS`), `PROTECT`, the pots, the `blk` passability check (X.blocked with smashable props open;
+    mode 1 for the air), the swept `sweep`, `circle` / `oval` area smashes (never through a real wall: a mode-1 line from
+    the machine, smashable props on the way don't stop it), the 0.14 s quiet rule, and `flowAt` (the flow field with a
+    chain of smashable props counted reachable, for landing plans). Sports Car's `smashable` / `blk` / `smashSweep` now
+    call it (same sweep, same order: props then pots; car behaviour unchanged apart from the wider list). Both still go
+    through 20b's `X.carProps` hook (null on rift puzzle / trial / gate stages and Super Fiend floors).
+  - Kinds: every environmental blocking prop the generators place (survey: genFloor over every Tower floor x3 seeds,
+    every rift fight stage x4, drawn-stage legends, BIOMES lists): the Tower's 48 kinds, plus the rift lands' scatter and
+    room-edge dressing (Garden, Dunes, Sepulchre, Aurora, Yuggoth, Library, Moon/castle, Basilica, Colours, Choir).
+    Protected by name: `hourglass` (Sepulchre stage mechanic), `stairstub` (a stair), `eyeshrine` (shrine-like),
+    `blank` (a drawn stage's wall); any unlisted kind blocks as before.
+  - Chests and shrines (both vehicles): pots now include `chest`, opened through breakPot (full reward; a broken pot
+    never pays again). 20b's hook gained `shrines()` / `smashShrine(s)`: an unused shrine gives its blessing through
+    useShrine (as if walked onto), then is marked `used` + `broken` (not drawn, not walked onto again). No shrine has a
+    cost or choice, none is a rift objective or counted by a floor rule; floor keys are neither pots nor shrines and are
+    never touched. Shrine/pot smashes count in `stats.pots`.
+  - Beast (20k9i): `S.vs`; `poseBlocked` / `moveBeast` use `S.vs.blk` (the first placement stays strict); ride, Drift
+    and Jump planning (air and ground) pass through smashable props; `jumpReach` and `ctx.flowAt` use `S.vs.flowAt`.
+    New ctx: `canDrive(x, y)`, `smashArea(x, y, r)`, `smashOval(cx, cy, rx, ry, ang)`. Body sweep each frame (in
+    `moveBeast` and in `step`, ride/judge, z < 0.35): an oval (BODY + 0.1 / + 0.2) swept prev -> now plus the walking
+    footprint's three circles against each prop tile, so no frame ends over an unbroken prop. Drift: `smashArea(R =
+    driftR)` along the centre's swept path; Jump landing: `smashArea(jumpR)` (a timeout landing: the body only); smash
+    fx: gold/blue sparks, bronze chips, a feathered ring, a short arc, light (fewer on LOW, no shake under Reduce Motion
+    or for quiet chains). No damage, no Judgement charge.
+  - 20k9j (Wrath): one guarded call `ctx.smashOval(...)` before each strike's hits. 20k9k (Judgement): planLanding uses
+    `ctx.canDrive` when present; impact calls `ctx.smashArea(lx, ly, impR)` before its hit.
+  - Cosmetic: 20u6 / 20zb2's ambient arcs and light threads skip broken props.
+  - Tests: `scratchpad/beast/r3/props-beast.js` (Tower 21 forest, Tower 106 ruins, rift 2 Egg Orchard, rift 8 Inner
+    Tide: ride / Drift / Jump / Wrath / Judgement through props, integrity, chests, shrines, bridge, protected kind,
+    disabled stages); montage `scratchpad/beast/smash.png`.
+

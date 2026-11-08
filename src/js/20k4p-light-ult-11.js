@@ -26,8 +26,9 @@
        the pet could walk back from (planJump). No ramming in the air; Drift, the Strongs and Supernova wait for the
        landing; every exit sets a car in the air down on its landing first.
    Round 3: the Strongs cool down in 1.5 s, a press made while a move holds the car (or a moment early) is kept and goes
-   once; the car smashes the scenery it drives, drifts, lands or burns out over (SMASH below, through 20b's X.carProps
-   and the game's own break paths), so no grove of props can stop it; walls, drops, doors, chests and rift objects stay.
+   once; the car smashes the scenery it drives, drifts, lands or burns out over (20k0v's VEH_SMASH list, through 20b's X.carProps
+   and the game's own break paths), so no grove of props can stop it (and, Beast round 3, chests burst open and shrines bless once); walls, drops,
+   doors and rift objects stay.
    Normal attacks are suppressed. The pet keeps its own HP, wards and defences (no vehicle health, no invulnerability).
    Exit: timeout (the car dissolves into hearts and stars and the pet hops down), Supernova's end, the pet's defeat, a
    party swap, the floor's end. Every exit restores the controls (the kit itself is never touched, so the Strongs,
@@ -75,22 +76,12 @@
     jumpV: 9.5, jumpMax: 9, jumpExt: 2,                   // least launch speed (tiles/s: a standing jump still goes 9.5 x 0.69 = 6.6 tiles, centre to centre: 3.2 of water for a car 3.2 long); longest planned hop; how much further it may reach for a landing
   };
   const tierOf = ev => ev >= 7 ? 3 : ev >= 4 ? 2 : 1;
-  /* (round 3) the scenery the car smashes as it drives, drifts, lands or burns out: only these kinds, and only where 20b's
-     X.carProps allows it (never on a hand-drawn rift puzzle, trial or gate stage, whose props are its walls, nor on a
-     Super Fiend floor). Each breaks through the game's own path (20l's residue, loot and sound; breakPot for the pots).
-     Walls, gaps, doors, stairs, gates, chests, shrines, rift objects and any other prop kind (a puzzle's hourglass or
-     basin, a stage's pipes) are never touched. Smashing gives no Supernova charge (nothing passes through ctx.hit) */
-  const SMASH = new Set([
-    // the Tower's lands (20-dun-data's prop lists; the same kinds 20l gives a residue)
-    'pillar', 'brokenpillar', 'barrel', 'mangrove', 'reeds', 'stump', 'shroom', 'crystal', 'stalag', 'rock', 'pine', 'boulder', 'bush',
-    'iceblock', 'icespike', 'snowman', 'obsidian', 'bones', 'brazier', 'marble', 'cloudbush', 'statue', 'candles', 'cactus', 'dunerock',
-    'palm', 'frozentree', 'igloo', 'volcrock', 'ashtree', 'peakrock', 'cairn', 'server', 'neonpillar', 'console', 'drum', 'gear', 'pipe',
-    'boiler', 'lamp', 'crate', 'oak', 'log', 'fern', 'bigflower', 'tulips', 'lantern', 'pinkshroom',
-    // the rifts' dungeon lands (their biome scatter: rift 2's forest, 5's frost, 6's engine heart, 7's library)
-    'eggtree', 'thornpine', 'weepwillow', 'giantfern', 'bulbtree', 'glowcaps', 'starlily', 'thornbush', 'mossrock',
-    'icetree', 'frozenvane', 'obsarch', 'telescope', 'stonearch', 'biotube', 'xenospire', 'vertebra', 'metalspike', 'piston',
-    'bookcase', 'mirror', 'silverurn', 'candelabra', 'bookstack', 'lectern', 'libladder']);
-  const SMASH_POTS = new Set(['pot', 'crate', 'barrel']);   // (never a chest)
+  /* (round 3) the scenery the car smashes as it drives, drifts, lands or burns out: the kinds, the 20b hook and the
+     break paths now live in 20k0v's VEH_SMASH, shared with Lightning's Beast Machine (the Beast round 3 widened the list
+     to every environmental prop of the Tower's lands and the rifts' dungeon lands, for both vehicles). Never on a
+     hand-drawn rift puzzle, trial or gate stage, nor on a Super Fiend floor (20b's X.carProps is null there). Walls,
+     gaps, bridges, doors, stairs, gates, floor keys, rift objects and the protected or unknown kinds are never touched;
+     chests open through breakPot and shrines bless through useShrine, each once. Smashing gives no Supernova charge (nothing passes through ctx.hit) */
 
   /* ================= the car's shape, in its own frame: x forward, y to its left, z up (tiles) ================= */
   const HL = 1.62, HWB = 0.78, ZB = 0.17;
@@ -450,7 +441,7 @@
     const car = { x: me.x, y: me.y, a, vx: 0, vy: 0, speed: 0, z: 0, susp: 0, lean: 0, slide: 0, glow: 0, scale: 1, locked: true, contact: true, vis: 1, wheelSpin: null, spinA: 0, steer: 0, prevX: me.x, prevY: me.y, prevA: a };
     const S = { H, g, me, X, ev, tier, DK, CD, dur, left: dur, car, phase: 'summon', t: 0, hold: 0, charge: 0, used: false, busy: null, busyT: 0, cdStar: 0, cdLove: 0, cdDrift: 0, drift: null,
       gate: new Map(), trail: [[], [], [], []], parts: [], free: [], lights: 0, ended: false, pet: X.pet ? X.pet() : null, sfxT: 0, bumpT: 0, ltT: 0, outT: 0, outHow: '', stats: { ram: 0, drift: 0, star: 0, love: 0, nova: 0, dealt: 0, charged: 0, hits: 0, smash: 0, pots: 0, jump: 0, jumpHit: 0 }, petStand: null,
-      props: X.carProps || null, smashT: -9, mvQ: null, cdJump: 0, jump: null, jumpQ: null, novaQ: null, jt: [[], []], sqV: 0, mx: 0, my: 0 };
+      props: X.carProps || null, vs: VEH_SMASH.create(X, g), mvQ: null, cdJump: 0, jump: null, jumpQ: null, novaQ: null, jt: [[], []], sqV: 0, mx: 0, my: 0 };
     g._sportscar = S;
     // seat at the pet: the car's centre is ahead of it
     const place = (ang) => { const o = seatOff(car, ang); return { x: me.x - o[0], y: me.y - o[1] }; };
@@ -489,19 +480,11 @@
   function poseBlockedB(B, x, y, ab) { const ag = groundA(ab), ca = Math.cos(ag), sa = Math.sin(ag), ex = 1.02 * ca, ey = 1.02 * sa * GY;
     return B(x, y, 0.5) || B(x + ex, y + ey, 0.4) || B(x - ex, y - ey, 0.4); }
   /* (round 3) X.blocked(x, y, r, 0), except that a prop the car may smash is open road */
-  function smashable(S, tx, ty) { const P = S.props; if (!P) return null; const p = P.propAt(tx, ty); return p && !p.broken && SMASH.has(p.kind) ? p : null; }
   /* (round 4) mode 1: walls alone (a car in the air passes over gaps, water, pits and lava, never through a wall or past
      the edge of the map) */
-  function blk(S, x, y, r, mode) {
-    const X = S.X; mode = mode || 0; if (!X.blocked(x, y, r, mode)) return false; if (!S.props) return true;
-    const x0 = Math.floor(x - r), x1 = Math.floor(x + r), y0 = Math.floor(y - r), y1 = Math.floor(y + r);
-    for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) {
-      if (!X.blocked(tx + 0.5, ty + 0.5, 0.02, mode) || smashable(S, tx, ty)) continue;
-      const cx = cl2(x, tx, tx + 1), cy = cl2(y, ty, ty + 1); if ((x - cx) * (x - cx) + (y - cy) * (y - cy) < r * r) return true; }
-    return false; }
-  const cl2 = (v, a, b) => v < a ? a : v > b ? b : v;
+  function blk(S, x, y, r, mode) { return S.vs.blk(x, y, r, mode); }   /* (20k0v: X.blocked with smashable props open) */
   /* (round 3) everything the car's body passed through since the last frame (its swept footprint, a little padded):
-     smashable props break and stop blocking, pots (never chests) break with their loot. Only on the ground (a Love
+     smashable props break and stop blocking, pots break with their loot (Beast round 3: chests open, shrines bless). Only on the ground (a Love
      Sensation in the air smashes where it lands), never once the car has gone */
   function inBodyPt(px, py, x, y, ab, pad) { const ag = groundA(ab), ca = Math.cos(ag), sa = Math.sin(ag), gx = px - x, gy = (py - y) / GY, lx = gx * ca + gy * sa, ly = -gx * sa + gy * ca; return Math.abs(lx) < HL + pad && Math.abs(ly) < HWB + pad; }
   function smashSweep(S) {
@@ -509,11 +492,7 @@
     const ab = car.a + car.slide, d = Math.hypot(car.x - car.prevX, car.y - car.prevY), da = Math.abs(wrap(ab - car.prevA)), n = Math.min(24, Math.max(1, Math.ceil(Math.max(d / 0.35, da / 0.3))));
     const R = HL + 0.6, bx0 = Math.floor(Math.min(car.x, car.prevX) - R), bx1 = Math.floor(Math.max(car.x, car.prevX) + R), by0 = Math.floor(Math.min(car.y, car.prevY) - R), by1 = Math.floor(Math.max(car.y, car.prevY) + R);
     const hitAt = (px, py, pad) => { for (let i = 0; i <= n; i++) { const u = i / n; if (inBodyPt(px, py, lerp(car.prevX, car.x, u), lerp(car.prevY, car.y, u), car.prevA + wrap(ab - car.prevA) * u, pad)) return true; } return false; };
-    for (let ty = by0; ty <= by1; ty++) for (let tx = bx0; tx <= bx1; tx++) { const p = smashable(S, tx, ty); if (p && hitAt(tx + 0.5, ty + 0.5, 0.42)) smashProp(S, p, tx + 0.5, ty + 0.5); }
-    const pots = P.pots ? P.pots() : null; if (pots) for (const p of pots) { if (p.broken || !SMASH_POTS.has(p.kind) || p.x < bx0 || p.x > bx1 + 1 || p.y < by0 || p.y > by1 + 1) continue; if (hitAt(p.x, p.y, 0.3) && P.smashPot(p)) { S.stats.pots++; smashFx(S, p.x, p.y, true); } }
-  }
-  function smashProp(S, p, x, y) {
-    const t = S.g.t, quiet = t - S.smashT < 0.14; if (!S.props.smashProp(p, quiet)) return; S.smashT = t; S.stats.smash++; smashFx(S, x, y, quiet);
+    S.vs.sweep(bx0, by0, bx1, by1, hitAt, S.smashCb || (S.smashCb = (x, y, quiet, pot) => { S.stats[pot ? 'pots' : 'smash']++; smashFx(S, x, y, quiet); }));   /* (20k0v: the props, then the pots) */
   }
   /* the car's own touch on a smash: a light-pink burst and a puff of pale debris (light only, small; the break itself is 20l's) */
   function smashFx(S, x, y, quiet) { const Q = lowFx() ? 0.4 : 1, car = S.car;
