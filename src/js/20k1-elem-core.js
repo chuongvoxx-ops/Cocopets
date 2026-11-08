@@ -204,7 +204,8 @@ const ELEM_MOVES = {
     ['heavensbow', "Heaven's Bow", 'lance', 95, 20, 'A gigantic bow of lightning forms beside you: a fan of arrows, then one immense piercing arrow: 3 arrows, 5 at Adept, 9 at Celestial.'],
     ['lotus', 'Thunder Lotus', 'flower', 95, 20, 'A seed of lightning grows into a vast lotus of electricity round the monsters; pulses climb its petals: 6 petals, 2 rings at Adept, 3 at Celestial.'],
     ['butterfly', 'Butterfly Tempest', 'feather', 95, 20, 'Razor-winged lightning butterflies spiral up and strike, then join into one great butterfly: 6, 12 at Adept, 24 at Celestial.'],
-    ['worldsplitter', 'Worldsplitter', 'beam', 100, 22, 'You strike the ground: a fault runs through the monsters, then erupts outward as a travelling curtain of lightning: more branches as you evolve.'] ] },
+    ['worldsplitter', 'Worldsplitter', 'beam', 100, 22, 'You strike the ground: a fault runs through the monsters, then erupts outward as a travelling curtain of lightning: more branches as you evolve.'] ,
+    ['beastmachine', 'Beast Machine', 'fist', 100, 120, 'Your pet hammers together a hulking bronze-and-gold mechanical beast in a cloud of smoke and rides it for 20 s (25 s at Adept, 35 s at Celestial): Dodge becomes a heavy Jump with a lightning shockwave, the Strongs become Homing Missiles (10 / 15 / 20) and Heaven\'s Wrath (1 / 2 / 3 ground-pounding strikes), and damage fills a Judgement Day meter for a leap, impalement, lightning-sphere storm and final burst. Cooldown starts when you leave the machine.']] },
 };
 const ELEM_LIST = {}; for (const e in ELEM_MOVES) { ELEM_LIST[e] = {}; for (const s of ['strong', 'ult']) ELEM_MOVES[e][s].forEach((row, i) => { ELEM_LIST[e][(s === 'ult' ? 'ey_' : 'ex_') + row[0]] = { el: e, slot: s, key: row[0], i, name: row[1], glyph: row[2], cost: row[3], cd: row[4], desc: row[5], lv: (s === 'ult' ? ELEM_ULT_LV : ELEM_STRONG_LV)[i] }; }); }
 const elemId = (el, key) => `e:${el}:${key}`;
