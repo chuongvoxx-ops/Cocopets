@@ -974,6 +974,9 @@ GAMES.dungeon = {
          with its own sprite at screen X, Y (its feet), no shadow or ground glow, o.maxH capping its height in tiles; line of
          sight; the kit, for the Ult's cooldown */
       vehicle: o => { VEH = o || null; }, los, kit: () => KIT,
+      /* (hook for Fire's Nidhogg, 20k6g: free flight needs the map's size and raw tiles (tileAt is T_SOLID off the map), and
+         whether the stage is drawn by hand (a rift puzzle, trial or gate, or a Super Fiend floor: its walls are too tall to fly over)) */
+      air: () => ({ w: MW, h: MH, tile: tileAt, hand: !!((F.rift && (F.rift.gate || F.rift.kind === 'puzzle')) || F.fiend) }),
       /* (round 4: the car's Jump lands only where the pet could walk back from: the flow field's distance, 9999 = cut off) */
       flowAt: (x, y) => { const tx = Math.floor(x), ty = Math.floor(y); return inMap(tx, ty) ? flow[ty * MW + tx] : 9999; },
       /* (hook for Light's Sports Car, 20k4p, round 3) the car smashes the scenery it drives over, through the game's own
@@ -1376,7 +1379,7 @@ GAMES.dungeon = {
       g.flash = Math.max(0, g.flash - dtReal * 2.2); g.hurtV = Math.max(0, g.hurtV - dtReal * 1.4);
       if (g.zoomT > 0) { g.zoomT -= dtReal; if (g.zoomT <= 0) g.zoomP = 1; }
       // the camera pulls back a little while a boss is up
-      { const bossUp = g.boss && !g.boss.dead && g.boss.act !== 'sleep', fz = FD && FD.camFocus ? FD.camFocus() : RIFT && RIFT.cam ? RIFT.cam() : null, want = (fz && fz.zoom ? fz.zoom : FD ? (bossUp ? 0.66 : 0.78) : bossUp ? 0.86 : 1) * g.zoomP; g.zoom += (want - g.zoom) * Math.min(1, dtReal * 3); if (Math.abs(g.zoom - want) < 0.002) g.zoom = want; }
+      { const bossUp = g.boss && !g.boss.dead && g.boss.act !== 'sleep', fz = FD && FD.camFocus ? FD.camFocus() : RIFT && RIFT.cam ? RIFT.cam() : vehOn() && VEH.cam ? VEH.cam() : null /* (Fire's Nidhogg, 20k6g: its flight zoom and Ultima framing) */, want = (fz && fz.zoom ? fz.zoom : FD ? (bossUp ? 0.66 : 0.78) : bossUp ? 0.86 : 1) * g.zoomP; g.zoom += (want - g.zoom) * Math.min(1, dtReal * 3); if (Math.abs(g.zoom - want) < 0.002) g.zoom = want; }
       if (g.hitStop > 0) { g.hitStop -= dtReal; return; }
       g.ts = g.slowT > 0 ? 0.3 : 1; if (g.slowT > 0) g.slowT -= dtReal;
       const dt = dtReal * g.ts; curDt = dt;
@@ -1643,7 +1646,7 @@ GAMES.dungeon = {
       // camera: follow the pet with a little look-ahead (and keep the boss in frame)
       const bossUp = g.boss && !g.boss.dead && g.boss.act !== 'sleep';
       // a Super Fiend may say where to look (its body high over its feet, its own ending after it falls)
-      const fc = FD && FD.camFocus ? FD.camFocus() : RIFT && RIFT.cam ? RIFT.cam() : null;
+      const fc = FD && FD.camFocus ? FD.camFocus() : RIFT && RIFT.cam ? RIFT.cam() : vehOn() && VEH.cam ? VEH.cam() : null;   /* (Nidhogg, 20k6g: { x, y, k, zoom }) */
       const bf = fc ? fc.k : bossUp ? 0.38 : 0, look = 0.7, fx = fc ? fc.x : bossUp ? g.boss.x : me.x, fy = fc ? fc.y : bossUp ? g.boss.y : me.y;
       // (the pull toward a boss is held to a few tiles, so the pet never leaves the screen)
       let ox = (fx - me.x) * bf, oy = (fy - me.y) * bf; if (!fc) { const od = Math.hypot(ox, oy), cap = 3.2; if (od > cap) { ox *= cap / od; oy *= cap / od; } }

@@ -138,7 +138,8 @@ const ELEM_MOVES = {
     ['fallingsuns', 'Crown of Falling Suns', 'meteor', 95, 20, 'Blazing spheres gather into a crown overhead, each falling on a marked spot, then the crown itself descends.'],
     ['apocalypse', 'Apocalypse', 'nova', 100, 22, 'A huge red fireball gathers over the aim, then explodes in a magical blast of fire and fireworks: the strongest fire there is.'],
     ['ninetails', 'Nine-Tailed Conflagration', 'claw', 100, 22, 'Nine flame tails unfurl behind you and lash the ground ahead one by one, then braid into one spiral lance.'],
-    ['paperflames', 'World of Paper Flames', 'flame', 95, 20, 'Sheets of flame unfold into banners round the aim and sweep the monsters as their edges burn, then fold into one shape and burst.'] ] },
+    ['paperflames', 'World of Paper Flames', 'flame', 95, 20, 'Sheets of flame unfold into banners round the aim and sweep the monsters as their edges burn, then fold into one shape and burst.'] ,
+    ['nidhogg', 'Nidhogg', 'dragon', 100, 120, 'Your pet summons Nidhogg, a vast crimson dragon of living scale and furnace machinery, and rides it for 20 s (25 s at Adept, 35 s at Celestial), flying freely over the land, water and open sky: Dodge becomes a zero-cooldown Dive Bomb, the Strongs become Fireballs (1 / 2 / 3) and Flare (10 / 20 / 30 fire lances), and damage fills an Ultima meter for a dorsal ring charge, a colossal fire beam and an explosion like a nuclear blast. Cooldown starts when you dismount.']] },
   water: { strong: [
     ['ribbonfin', 'Ribbonfin', 'wave', 24, 2.4, 'A water ribbon curls into a fish and darts forward; it wraps the target once and bursts.'],
     ['tideglass', 'Tideglass Orb', 'orb', 24, 2.6, 'A clear sphere of water rolls slowly through the monsters, then stretches up and splashes.'],
