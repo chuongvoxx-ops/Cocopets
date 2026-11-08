@@ -430,7 +430,7 @@ GAMES.dungeon = {
       const E = EL(AB.el);
       if (m.boss && !m.lesser) { bossDeath(m); return; }
       if (m.lesser) { boom(m.x, m.y, 2.4, m.glow || '#FFE37A', '#FFFFFF', { n: 30, shake: 10 }); hitstop(0.08); if (!m.brute) banner('LESSER BOSS DOWN', m.bname, '#FF9F43', 1.6); for (let i = 0; i < 8; i++) drop(i % 4 === 0 ? 'hp' : i % 3 === 0 ? 'mp' : 'coin', m.x, m.y); if (accChance(0.3)) dropAcc(m.x, m.y, { bonus: 10 }); gainXP(m.xp, m.x, m.y); api.sfx.crash(); return; }
-      const dx = how === 'fell' ? m.wx : m.x, dy = how === 'fell' ? m.wy : m.y;
+      const fin = (a, b) => isFinite(a) && isFinite(b), [dx, dy] = how === 'fell' && fin(m.wx, m.wy) ? [m.wx, m.wy] : fin(m.x, m.y) ? [m.x, m.y] : fin(m.wx, m.wy) ? [m.wx, m.wy] : [me.x, me.y];   /* (a monster that fell with no last walkable spot recorded, a rift spawn knocked off an edge by Nidhogg say, dropped its coins at NaN and broke the drawing: fall back to its position, then the pet's last ground) */
       for (let i = 0; i < (m.elite ? 26 : 14); i++) { const a = Math.random() * 6.283, v = 2 + Math.random() * 4; part({ kind: 'confetti', x: m.x, y: m.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 2, g: 9, life: 0.9, max: 0.9, size: 3 + Math.random() * 3, rot: Math.random() * 6, vr: (Math.random() - 0.5) * 18, color: [m.color, E.color, '#FFE37A', '#FFFFFF'][i % 4] }); }
       part({ kind: 'glow', x: m.x, y: m.y, vx: 0, vy: 0, life: 0.3, max: 0.3, size: m.r * 3.2, color: E.color });
       ring(m.x, m.y, 0.2, m.r * 2.6, 0.3, '#FFFFFF', 0.12);
@@ -470,6 +470,7 @@ GAMES.dungeon = {
       if (how === 'fell') { text(m.x, m.y - 0.6, ['Bye!', 'Splash!', 'Wheee!'][Math.floor(Math.random() * 3)], '#FFFFFF', 15); }
     }
     function drop(kind, x, y, food) {
+      if (!isFinite(x) || !isFinite(y)) { x = isFinite(me.wx) ? me.wx : me.x; y = isFinite(me.wy) ? me.wy : me.y; }   /* (never a pickup at a non-finite spot) */
       const a = Math.random() * 6.283, v = 1.5 + Math.random() * 2.5;
       const p = { kind, x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, z: 0, vz: 4 + Math.random() * 2, t: 0, v: kind === 'coin' ? 3 + Math.floor(F.n / 2) : 0 };
       if (kind === 'gem') p.gem = wkeyR(Math.random, GIFT_GEMS);
@@ -477,7 +478,7 @@ GAMES.dungeon = {
       picks.push(p);
     }
     /* an accessory drops: its rarity is rolled now, from the floor (and how big the foe was) */
-    function dropAcc(x, y, o) { o = o || {}; const p = { kind: 'acc', x, y, vx: (Math.random() - 0.5) * 3, vy: (Math.random() - 0.5) * 3, z: 0, vz: 5 + Math.random() * 2, t: 0, v: 0, acc: rollAccessory(F.n, o) }; picks.push(p); return p; }
+    function dropAcc(x, y, o) { o = o || {}; if (!isFinite(x) || !isFinite(y)) { x = me.wx; y = me.wy; } const p = { kind: 'acc', x, y, vx: (Math.random() - 0.5) * 3, vy: (Math.random() - 0.5) * 3, z: 0, vz: 5 + Math.random() * 2, t: 0, v: 0, acc: rollAccessory(F.n, o) }; picks.push(p); return p; }
     const accChance = c => Math.random() < c * (1 + accK('luck'));
     /* a power stone appears on the ground near (x, y) */
     function dropStone(x, y, kind) {

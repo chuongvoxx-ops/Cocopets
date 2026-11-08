@@ -724,6 +724,7 @@ const GFX = {
   rr(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); },
   /* a round shaded thing with a glint: lit from the top left like everything else in the game */
   blob(c, x, y, r, fill, lw) {
+    if (!isFinite(x) || !isFinite(y) || !(r >= 0)) return;   /* (a non-finite position throws inside createRadialGradient and stops the frame: skip it) */
     c.beginPath(); c.arc(x, y, r, 0, 6.283);
     if (r > 6 && typeof fill === 'string' && fill.charAt(0) === '#') { const g = c.createRadialGradient(x - r * 0.35, y - r * 0.4, r * 0.1, x, y, r * 1.15); g.addColorStop(0, shadeC(fill, 0.34)); g.addColorStop(0.55, fill); g.addColorStop(1, shadeC(fill, -0.3)); c.fillStyle = g; }
     else c.fillStyle = fill;
