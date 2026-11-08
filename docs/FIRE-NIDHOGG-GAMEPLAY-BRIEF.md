@@ -227,3 +227,20 @@ Ultima's damage is `noCharge`. Durations are 20/25/35 s (configurable). The cool
   - Limit: a truly cold cast (cast before the idle bake has run) shows the dragon facing the nearest baked heading for
     its first seconds of flight. On SwiftShader the first usable heading costs ~1.1 s CPU and each further one ~0.9 s
     (the head and jaw are baked near their drawn size, `PCAP`); real devices should be several times faster.
+- (N1, round 2, 2026-11-08; the user: smaller by 35%, no cruise/high button, a Drift-like spinning Dive Bomb)
+  - Size: the dragon is drawn at `TUNE.size` 0.65 of the model (`o.scale` on draw / drawSpin / drawShadow; anchors and
+    the spin streaks follow it). Flight zoom 0.74 -> 0.9. Cruise height 2.6 -> 2.2 tiles, wall clearance 3.4 -> 3.0.
+    The rider is drawn at maxH 0.85 (was 1.0) to sit in the smaller seat. The bake scale follows (TS x dpr x 0.9 x 0.65).
+    Full bake (SwiftShader, 88 pictures): dpr 1.5 11.2 s / 4.6 MB -> 8.9 s / 3.4 MB; dpr 2 (game cap) 16.4 s / 7.6 MB ->
+    10.7 s / 4.6 MB. N2's and N3's effects are all anchor-based (mouth, vents, seat, ring) and line up unchanged; no
+    edits to 20k6h / 20k6i. Gameplay radii and damage unchanged.
+  - Altitude toggle removed: no HUD button (VEH.noJumpBtn, so 20b leaves no slot), J does nothing, no `dragon.high`.
+    One cruise height plus the automatic climb over walls with clearance.
+  - Dive Bomb: spin (0.2 s, one full turn plus the turn to the target, through the turn driver: ghosts, wingtip streaks,
+    bank kick, tail whip) -> plunge (0.32 s) -> slam at 0.52 s (one AoE hit, 3 DK, r 2.6, unchanged) -> hold 0.08 s ->
+    a second full spin while climbing back (0.3 s). 0.9 s in all (was 1.88 s). Zero cooldown; a press in the last 0.3 s
+    is kept; the invalid marker as before. No sweep hits on the way down (the spec's "one damage event at impact"). The
+    rider rolls one flat 2D turn per spin through drawPetAt's `rot` (never a yaw), kept down on the seat while rolled
+    or pitched. The model's `dive` clip is retimed to this cadence.
+  - Checks: `connected.js` now also samples every frame of three more dives: 0 splits warm (4 runs, ~490 frames each)
+    and cold. Logic test: two spins per dive, one full rider roll per spin, slam at ~0.52 s, dive 0.8-1.0 s.
