@@ -1026,3 +1026,4 @@ Every new boss painter (rift fiends, Tower bosses, minis that get their own art)
 - v299: no more NaN stones: walkPoint no longer reads x/y from its options object when nothing walkable is near (gave NaN), and dropStone falls back to the pet's last walkable spot when the pet is offshore on Nidhogg.
 - v300: Nidhogg round 3 — warm-up runs on every browser (Safari has no requestIdleCallback) with a quick-pictures-first bake plan, cold summon hovers until drawable so it never flies frozen; smooth continuous turns (5 rad/s, bank, head lead, tail lag) with turn-rate motion blur; Fireballs cd 1 s; heavier Dive Bomb 1.56 s (slam hit-stop, 0.62 s grinding ground spin, push-off); 2 blur ghosts max.
 - v301: Nidhogg draws no motion-blur ghosts at all (ghostsOf returns none); the wingtip streaks stay.
+- v302: Sports Car deals double damage on every hit (TUNE.dmgK 2 in hitCharge); the Supernova meter keeps its pace.

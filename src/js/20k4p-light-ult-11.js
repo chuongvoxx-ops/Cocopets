@@ -65,6 +65,7 @@
     drift: 3.0, driftCd: 0.9, driftR: 2.5, driftKb: 7.5,  // x DK once per monster per activation; s from the press (Dodge: 0.85 s); swept radius round the car's centre (tiles); knockback
     driftPh: [0.05, 0.3, 0.14], driftV: 19, driftTurn: 5, driftBuf: 0.2,   // s kick / spin-burst / recovery; burst speed (tiles/s, eased off as the Dodge's); steering during the burst (rad/s); a press this early is kept
     driftInv: 0.38,             // s of invulnerability from the press: the Dodge's own (0.3 s roll + 0.08 s after)
+    dmgK: 2,                    // every Sports Car hit x2 (the user, 2026-11-12): ramming, Drift, Jump, Shooting Star, Love Sensation, Supernova; the meter keeps its pace
     chargeK: 30,                // the meter fills at chargeK x DK of damage actually dealt (a dense L1 pack, driven well: ~11 s; ordinary play ~15-20 s)
     summon: 1.75, out: 0.85,    // s
     novaCap: 16,                // s: a Supernova that never reports done is ended anyway
@@ -508,11 +509,12 @@
   /* ---- damage and the meter: every event counted once, after mitigation, without overkill ---- */
   function hitCharge(S, m, dmg, o) {
     if (!m || m.dead || m.falling || !(dmg > 0)) return 0;
+    dmg *= TUNE.dmgK || 1;
     const before = Math.max(0, m.hp), r = S.X.hitMon(m, dmg, Object.assign({ el: 'light', src: 'ult' }, o || {}));
     const dealt = Math.max(0, Math.min(r || 0, before));
     if (!(dealt > 0)) return 0;
     S.stats.dealt += dealt; S.stats.hits++;
-    if (!(o && o.noCharge) && S.phase === 'drive' && !S.used) { const c0 = S.charge; S.charge = Math.min(1, S.charge + dealt / (TUNE.chargeK * S.DK)); S.stats.charged += S.charge - c0;
+    if (!(o && o.noCharge) && S.phase === 'drive' && !S.used) { const c0 = S.charge; S.charge = Math.min(1, S.charge + dealt / (TUNE.chargeK * (TUNE.dmgK || 1) * S.DK)); S.stats.charged += S.charge - c0;
       if (c0 < 1 && S.charge >= 1) { S.readyT = 0; const sfx = S.X.sfx || {}; if (sfx.note) [784, 988, 1175, 1568].forEach((f, i) => sfx.note(f, 0.35, 'triangle', 0.08, f, i * 0.07)); S.X.text(S.me.x, S.me.y - 1.9, 'SUPERNOVA READY', GOLD, 15, { life: 1.4, max: 1.4, vy: -0.5 }); } }
     return dealt;
   }
