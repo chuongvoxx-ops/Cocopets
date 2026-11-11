@@ -59,6 +59,7 @@
        eases in and out), banking into the turn, the head leading and the tail counter-swinging on a spring. The blur
        ghosts and wingtip streaks fade in with the turn rate between blur[0] and blur[1] rad/s: gentle turns are clean */
     turn: { max: 5.0, k: 7, acc: 26, blur: [1.6, 4.6] },
+    grindR: 2.8, bodyL: 1.5, bodyW: 0.8,           // (round 4) tiles: the grind's smash radius; the flying body's smash oval (half length, half width)
     chargeK: 30,                                   // the meter fills at chargeK x DK of damage actually dealt
     cdFire: 1, cdFlare: 4, mvHold: 0.6,            // s, exact, from the press of an activation; a press held while busy (round 3: Fireballs 1 s)
     summon: 3.4, readyHold: 6,                     // s: the model's summon clip; (round 3) the longest it hovers on at its end, on a cold cache, until every heading is drawable
@@ -159,7 +160,7 @@
   function inMap(S, x, y) { const A = S.air; return !!A && x >= 0 && y >= 0 && x < A.w && y < A.h; }
   const tileOf = (S, x, y) => inMap(S, x, y) ? S.air.tile(Math.floor(x), Math.floor(y)) : -1;   // (-1: open air off the map)
   /* a wall the dragon must clear (T_SOLID inside the map) within r of (x, y) */
-  function wallNear(S, x, y, r) { for (let ty = Math.floor(y - r); ty <= Math.floor(y + r); ty++) for (let tx = Math.floor(x - r); tx <= Math.floor(x + r); tx++) { if (!inMap(S, tx + 0.5, ty + 0.5) || S.air.tile(tx, ty) !== T_SOLID) continue; const cx = Math.max(tx, Math.min(x, tx + 1)), cy = Math.max(ty, Math.min(y, ty + 1)); if ((x - cx) ** 2 + (y - cy) ** 2 < r * r) return true; } return false; }
+  function wallNear(S, x, y, r) { for (let ty = Math.floor(y - r); ty <= Math.floor(y + r); ty++) for (let tx = Math.floor(x - r); tx <= Math.floor(x + r); tx++) { if (!inMap(S, tx + 0.5, ty + 0.5) || S.air.tile(tx, ty) !== T_SOLID || (S.vs && !S.air.hand && S.vs.smashable(tx, ty))) continue;   /* (round 4: a smashable prop is no wall: the body smashes through it) */ const cx = Math.max(tx, Math.min(x, tx + 1)), cy = Math.max(ty, Math.min(y, ty + 1)); if ((x - cx) ** 2 + (y - cy) ** 2 < r * r) return true; } return false; }
   /* solid ground to strike: walkable floor inside the map (not a wall top, water, a pit, lava, the sky or the void) */
   function groundAt(S, x, y) { const t = tileOf(S, x, y); return t >= 0 && T_WALK[t] === 1; }
   function surfaceAt(S, x, y) { const t = tileOf(S, x, y); return t < 0 ? 'void' : t === T_SOLID ? 'wall' : T_WALK[t] === 1 ? 'floor' : 'gap'; }
@@ -210,14 +211,15 @@
     const TD = M0.turnDriver({ a: a0 });   /* (kept for the contract; round 3: flight no longer snap-spins, see steer()) */
     const dragon = { x: me.x, y: me.y, z: 0, heading: a0, vx: 0, vy: 0, pose: P, locked: true, vis: 1 };
     const S = { H, g, me, X, C, ev, tier, DK, CD, dur, left: dur, dragon, inst, TD, phase: 'summon', t: 0, ct: 0, charge: 0, used: false, busy: null, busyT: 0, cdF: 0, cdL: 0, mvQ: null, ultQ: null, dive: null, diveQ: null,
-      gate: new Map(), parts: [], free: [], cracks: [], marks: [], ended: false, pet: X.pet ? X.pet() : null, air: airOf(X), home: { x: me.x, y: me.y }, safe: { x: me.x, y: me.y }, safeT: 0, reachT: 2, cam: null, camShake: 0,
+      gate: new Map(), parts: [], free: [], cracks: [], marks: [], ended: false, pet: X.pet ? X.pet() : null, air: airOf(X), vs: typeof VEH_SMASH !== 'undefined' ? VEH_SMASH.create(X, g) : null /* (round 4: the scenery it smashes) */, home: { x: me.x, y: me.y }, safe: { x: me.x, y: me.y }, safeT: 0, reachT: 2, cam: null, camShake: 0,
       ha: wrap(a0), au: a0, hw: 0, hist: { i: 0, n: 0, t: new Float64Array(HN), a: new Float64Array(HN) }, turnK: 0, tail: 0, tailV: 0, spinR: 0,
-      stats: { dives: 0, diveHit: 0, diveBad: 0, fireballs: 0, flare: 0, ultima: 0, dealt: 0, charged: 0, hits: 0, flyT: 0, offT: 0, maxOff: 0, spins: 0 }, sfxT: 0, mx: 0, my: 0 };
+      stats: { smash: 0, pots: 0, dives: 0, diveHit: 0, diveBad: 0, fireballs: 0, flare: 0, ultima: 0, dealt: 0, charged: 0, hits: 0, flyT: 0, offT: 0, maxOff: 0, spins: 0 }, sfxT: 0, mx: 0, my: 0 };
     buildReach(S, me.x, me.y);
     g._nidhogg = S;
     const ctx = S.ctx = { X, H, C, evo: ev, tier, DK, dragon, petX: me.x, petY: me.y, petZ: 0, ultima: false, sfx: X.sfx || {}, model: M0,
       hit: (m, dmg, o) => hitCharge(S, m, dmg, o),
-      hitArea: (x, y, r, dmg, o) => { let n = 0; const ex = o && o.exclude; for (const m of H.living()) { if (ex && (ex === m || (ex.has && ex.has(m)))) continue; if (Math.hypot(m.x - x, m.y - y) < r + (m.r || 0.4)) { hitCharge(S, m, dmg, o); n++; } } return n; },
+      hitArea: (x, y, r, dmg, o) => { if (!(o && o.noSmash)) smashArea(S, x, y, r);   /* (round 4: every area hit also smashes the scenery in it: Fireballs' bursts, Ultima's beam ticks and explosion) */ let n = 0; const ex = o && o.exclude; for (const m of H.living()) { if (ex && (ex === m || (ex.has && ex.has(m)))) continue; if (Math.hypot(m.x - x, m.y - y) < r + (m.r || 0.4)) { hitCharge(S, m, dmg, o); n++; } } return n; },
+      smashArea: (x, y, r) => smashArea(S, x, y, r), smashCircle: (x, y, r) => smashArea(S, x, y, r), smashOval: (cx, cy, rx, ry, ang) => smashOval(S, cx, cy, rx, ry, ang),   /* (round 4: the scenery only: no damage, no charge) */
       mons: () => H.living(), target: () => target(S), aimPoint: () => aimPoint(S), aimDir: () => { const m = Math.hypot(S.mx, S.my); return m > 0.2 ? Math.atan2(S.my, S.mx) : dragon.heading; }, stick: () => ({ x: S.mx, y: S.my, mag: Math.min(1, Math.hypot(S.mx, S.my)) }),
       groundAt: (x, y) => groundAt(S, x, y), surfaceAt: (x, y) => surfaceAt(S, x, y), canStand: (x, y) => canStand(S, x, y), nearestLand: (x, y) => nearestLand(S, x, y, 8) || safeReturn(S),
       anchor: n => { const p = inst.anchor(n); return p ? { x: p.x, y: p.y, z: p.z } : { x: dragon.x, y: dragon.y, z: dragon.z }; },
@@ -329,9 +331,10 @@
     else if (t <= t2) { const u0 = cl((t - t1) / Ph[1]), u = Math.pow(u0, 1.8);   // the plunge: accelerating, heavy
       d.x = lerp(D.x0, D.tx, u); d.y = lerp(D.y0, D.ty, u); d.z = lerp(D.z0 + 0.4, 0.3, Math.pow(u0, 1.5)); d.vx = (D.tx - D.x0) / Ph[1]; d.vy = (D.ty - D.y0) / Ph[1];
       if (Math.random() < dt * (lowFx() ? 20 : 60)) { const a = Math.random() * TAU; addPart(S, 1, d.x + Math.cos(a) * 0.5, d.y + Math.sin(a) * 0.4, d.z + 0.4, -d.vx * 0.15 + Math.cos(a), -d.vy * 0.15 + Math.sin(a) * GY, 1.5 + Math.random() * 2, 0.35 + Math.random() * 0.25, 0.14, { col: Math.random() < 0.5 ? FIRE : EMBER }); } }
-    if (!D.slam && t >= t2) { D.slam = true; d.x = D.tx; d.y = D.ty; d.z = 0.3; d.vx = d.vy = 0; slam(S, D.tx, D.ty); }
+    if (!D.slam && t >= t2) { D.slam = true; d.x = D.tx; d.y = D.ty; d.z = 0.3; d.vx = d.vy = 0; smashArea(S, D.tx, D.ty, TUNE.diveR); slam(S, D.tx, D.ty); }
     if (t > t2 && t < t3) { const u = (t - t2) / Ph[2]; d.z = 0.3 - 0.08 * Math.sin(Math.PI * u); P.pitch -= 0.25 * Math.sin(Math.PI * u); }   // the impact hold: it sinks into the slam
     // the grind: one slow heavy turn on the ground (fast off the slam, running down), wings dragging, dust and embers swirling
+    if (t >= t3 && Math.floor((t - t3) / 0.15) !== D.gk && t < t4) { D.gk = Math.floor((t - t3) / 0.15); smashArea(S, d.x, d.y, TUNE.grindR); }   // (round 4: the grind's dragging wings and tail sweep the ground round it)
     if (t >= t3 && !D.spin2) { D.spin2 = true; startSpin(S, -D.dir * TAU, Ph[3], 'out'); const sfx = S.X.sfx || {}; if (sfx.whoosh) sfx.whoosh(); if (sfx.hiss) sfx.hiss(Ph[3], 0.06, 500); addPart(S, 9, d.x, d.y, 0, 0, 0, 0, 0.7, 2.2, {}); }
     if (t >= t3 && t < t4) { const u = (t - t3) / Ph[3], w = Math.abs(S.hw), sg = D.dir > 0 ? -1 : 1;
       d.z = 0.3 + 0.03 * Math.sin(u * 9); P.flapAmp = 0.1; P.downFlex = 0.75; P.spread = 1; P.pitch = -0.22; P.bank = -sg * 0.35 * (1 - u); P.tailSwing = sg * 0.9 * (1 - u * 0.7); P.headYaw = sg * 0.3 * (1 - u); P.legs = 1;
@@ -360,6 +363,35 @@
     X.light(x, y, 3.6, 0.25); if (!calm()) { X.shake(n ? 7 : 5, 0.2); if (X.hitstop) X.hitstop(n ? 0.08 : 0.05); }   /* (round 3: a heavy slam: the hit-stop even on bare ground; none with reduce-motion) */
     const sfx = X.sfx || {}; if (sfx.thud) sfx.thud(); if (sfx.crash) sfx.crash(); if (sfx.stomp) sfx.stomp(); if (sfx.note) { sfx.note(55, 0.55, 'sawtooth', 0.12, 30); sfx.note(110, 0.3, 'square', 0.03, 70, 0.02); } if (sfx.hiss) sfx.hiss(0.4, 0.1, 1400);
   }
+
+  /* ---- (round 4, the user: "the same environmental destruction ... same as beast machine") the scenery, through 20k0v's
+     VEH_SMASH (its allowlist and protected kinds; the game's own break paths: chests open, shrines bless then break;
+     nothing on a hand-drawn rift / puzzle / gate stage or a Super Fiend floor; walls, gaps, bridges, doors, gates, exits,
+     stairs, keys and rift objects never). The rules, for a dragon that flies:
+       - its body: at its height (cruise is low enough that its belly and legs brush the tall props) everything under its
+         torso's swept oval (TUNE.bodyL x bodyW along the heading) breaks as it flies through; a smashable prop is not
+         a wall it must climb (the wings span wide and pass over: they smash nothing);
+       - Dive Bomb: the slam smashes its whole area (TUNE.diveR); the grind sweeps TUNE.grindR round it every 0.15 s;
+       - every ctx.hitArea also smashes its area (Fireballs' bursts, Ultima's beam ticks and explosion) unless
+         { noSmash }; Flare's lances call ctx.smashArea where each one strikes (one call in 20k6h);
+       - areas never smash through a real wall (a line from the area's centre).
+     No damage, no Ultima charge (never through hitCharge) ---- */
+  const smashOn = S => !!(S.vs && S.vs.props) && !S.released && (S.phase === 'fly' || S.phase === 'ultima' || (S.phase === 'out' && !S.hopped)) && S.dragon.vis > 0.05;
+  function inBody(px, py, x, y, a, pad) { const gx = px - x, gy = py - y, ca = Math.cos(a), sa = Math.sin(a), u = gx * ca + gy * sa, v = -gx * sa + gy * ca; return (u / (TUNE.bodyL + pad)) ** 2 + (v / (TUNE.bodyW + pad)) ** 2 < 1; }
+  function smashBody(S) { const d = S.dragon; if (!smashOn(S)) { S.sb = null; return; } const p = S.sb || (S.sb = { x: d.x, y: d.y, a: d.heading }); if (Math.hypot(d.x - p.x, d.y - p.y) > 6) { p.x = d.x; p.y = d.y; }
+    const n = Math.min(16, Math.max(1, Math.ceil(Math.max(Math.hypot(d.x - p.x, d.y - p.y) / 0.35, Math.abs(wrap(d.heading - p.a)) / 0.3)))), R = TUNE.bodyL + 0.6, a0 = p.a, da = wrap(d.heading - a0);
+    const hit = (px, py, pad) => { for (let i = 0; i <= n; i++) { const u = i / n; if (inBody(px, py, lerp(p.x, d.x, u), lerp(p.y, d.y, u), a0 + da * u, pad)) return true; } return false; };
+    S.vs.sweep(Math.floor(Math.min(p.x, d.x) - R), Math.floor(Math.min(p.y, d.y) - R), Math.floor(Math.max(p.x, d.x) + R), Math.floor(Math.max(p.y, d.y) + R), hit, smashCb(S));
+    p.x = d.x; p.y = d.y; p.a = d.heading; }
+  function smashArea(S, x, y, r) { if (!smashOn(S) || !(r > 0) || !isFinite(x) || !isFinite(y)) return 0; return S.vs.circle(x, y, r, smashCb(S)); }
+  function smashOval(S, cx, cy, rx, ry, ang) { if (!smashOn(S) || !isFinite(cx) || !isFinite(cy)) return 0; return S.vs.oval(cx, cy, rx, ry, ang, smashCb(S)); }
+  const smashCb = S => S.smashCb || (S.smashCb = (x, y, quiet, pot) => { S.stats[pot ? 'pots' : 'smash']++; smashFx(S, x, y, quiet); });
+  /* the dragon's own touch on a smash (the break itself is 20l's / breakPot's): embers and ash thrown off, a small fire
+     ring, a flash of light; light only, small, fewer on LOW; no shake for a quiet chain or under Reduce Motion */
+  function smashFx(S, x, y, quiet) { const Q = lowFx() ? 0.4 : 1;
+    for (let i = 0; i < Math.round(7 * Q); i++) { const a = Math.random() * TAU, v = 2.5 + Math.random() * 3.5; addPart(S, 1, x + Math.cos(a) * 0.2, y + Math.sin(a) * 0.15, 0.4, Math.cos(a) * v, Math.sin(a) * v * GY, 1.5 + Math.random() * 2.5, 0.3 + Math.random() * 0.25, 0.12 + Math.random() * 0.06, { col: i % 3 ? FIRE : i % 2 ? EMBER : CORE, g: 6, drag: 1.5 }); }
+    addPart(S, 9, x, y, 0, 0, 0, 0, 0.28, 0.85, {}); if (!lowFx()) addPart(S, 2, x, y, 0.2, 0, 0, 0.5, 0.6, 0.4, { grow: 1.3, drag: 2.4 });
+    S.X.light(x, y, 1.6, 0.12); if (!quiet && !calm()) S.X.shake(2, 0.08); }
 
   /* ---- the Strongs and Ultima ---- */
   function tryMove(S, slot, queued) {
@@ -404,7 +436,7 @@
       // the bake budget (ms this frame; the model's slices never overrun it): hard while the summon waits, still firm until
       // every heading is drawable, then while the facing heading is not sharp; a trickle otherwise
       const DB = MDB(), sharpHere = !DB || !DB.readyB || DB.readyB(DB.bucketOf(S.ha));
-      M0.warm(S.phase === 'summon' ? (B.draw ? (B.all ? 5 : 8) : 10) : !B.draw ? 8 : !B.all ? 4.5 : !sharpHere ? 3 : B.sharp ? 0 : 1.2); S.bake = B;
+      M0.warm(S.phase === 'summon' ? (B.draw ? (B.all ? 5 : 8) : S.hold2 > 0 || S.hold > 0 ? 13 : 10) : !B.draw ? 8 : !B.all ? 4.5 : !sharpHere ? 3 : B.sharp ? 0 : 1.2); S.bake = B;
       warmMoves(S.phase === 'summon' ? 1.5 : 0.5); }
     let mag = 0;
     if (S.phase === 'summon') {
@@ -443,6 +475,7 @@
     if (d.locked && (S.phase === 'ultima' || S.busy)) { const da = wrap(d.heading - S.ha); S.ha = wrap(d.heading); S.au += da; S.hw = 0; S.turnK *= 0.8; } else d.heading = S.ha;
     if (S.busy && !S.dive && S.phase === 'fly' && !d.locked) bodyTurn(S, P, dt, false);   /* (a Strong's clip owns the pose: the bank and the tail's lag go on top) */
     pushHist(S);
+    smashBody(S);
     S.zPrev = d.z;
     const MV = moves(); if (MV.update) { try { MV.update(S.ctx, dt); } catch (e) { /* (theirs) */ } }
     if (S.phase !== 'out' || S.outT < (S.outGlide || 0)) syncMe(S);
@@ -547,7 +580,7 @@
     if (S.phase === 'gone') { const da = drawHeading(S, d.heading); if (S.fade && S.relT < S.fade && M0 && da != null) { const a0 = d.pose.alpha; d.pose.alpha = a0 * (1 - S.relT / S.fade); M0.drawSpin(c, d.x, d.y, d.z, d.pose, { T, sx: H.sx, sy: H.sy, t, low: lowFx(), scale: TUNE.size }, spinProxy(S, da)); d.pose.alpha = a0; } return; }
     if (!M0 || d.vis <= 0.01) { if (S.phase !== 'out' || !S.hopped) H.X.drawPetAt(c, H.sx(d.x), H.sy(d.y) - d.z * ZK * T, { maxH: 0.85 }); return; }
     const riding = !(S.phase === 'summon' && S.t < 2.2) && !(S.phase === 'out' && S.hopped);
-    const o = { T, sx: H.sx, sy: H.sy, t, low: lowFx(), scale: TUNE.size, pet: (cc, PX, PY) => { const roll = petRoll(S); PY += T * TUNE.size * (0.3 * Math.max(0, d.pose.pitch || 0) + (S.dive ? 0.14 : 0)) + T * 0.22 * Math.abs(Math.sin(roll)); S.seatS = [PX, PY]; if (riding) H.X.drawPetAt(cc, PX, PY, { maxH: 0.85, rot: roll }); } };   /* (rolled on its side the sprite's lowest point rises: it is kept down on the seat) */   /* (nose-down, the back slopes away from the seat point: the rider is seated a little lower, on the plates) */   /* (round 2: drawn at 0.65; the rider a little smaller to sit in the smaller seat, rolling flat with each dive spin) */
+    const o = { T, sx: H.sx, sy: H.sy, t, low: lowFx(), scale: TUNE.size, pet: (cc, PX, PY) => { const roll = petRoll(S); PY += T * TUNE.size * (0.3 * Math.max(0, d.pose.pitch || 0) * (1 + 0.8 * Math.max(0, -Math.sin(d.heading))) + (S.dive ? 0.14 : 0)) + T * 0.22 * Math.abs(Math.sin(roll)); S.seatS = [PX, PY]; if (riding) H.X.drawPetAt(cc, PX, PY, { maxH: 0.85, rot: roll }); } };   /* (rolled on its side the sprite's lowest point rises: it is kept down on the seat) */   /* (nose-down, the back slopes away from the seat point: the rider is seated a little lower, on the plates) */   /* (round 2: drawn at 0.65; the rider a little smaller to sit in the smaller seat, rolling flat with each dive spin) */
     const a0 = d.pose.alpha; d.pose.alpha = a0 * d.vis;
     const da = drawHeading(S, d.heading); S.drawnA = da;
     if (da != null) { const sub = Math.abs(wrap(da - d.heading)) > 0.05, P0 = d.pose, half = !sub && !bothAt(da), kb = sub || half ? [P0.bank, P0.headYaw, P0.tailSwing] : null;
@@ -662,5 +695,5 @@
     PUMP = () => requestAnimationFrame(() => setTimeout(() => { const n = now(), gap = n - last; last = n; if (slice(gap < 20 ? 3 : gap < 34 ? 1.6 : 0.8)) { PUMP = null; return; } PUMP(); }, 0));
     PUMP(); }, 300); };
   U.nidhogg.TUNE = TUNE;
-  U.nidhogg.__dbg = { TUNE, STUB, moves, safeReturn, nearestLand, groundAt, aimPoint, target, petRoll, blurK, bakeState, bakePlan };
+  U.nidhogg.__dbg = { VS: typeof VEH_SMASH !== "undefined" ? VEH_SMASH : null, smashArea, smashOn, TUNE, STUB, moves, safeReturn, nearestLand, groundAt, aimPoint, target, petRoll, blurK, bakeState, bakePlan };
 })();
