@@ -41,8 +41,10 @@ const BM = (self.BEAST_MOVES = self.BEAST_MOVES || {});
     missiles: { count: [10, 15, 20], dmg: 0.45, splash: 0.5, splashR: 0.9, range: 9, tilt: 0.24, gap: [0.054, 0.06, 0.05], settle: 0.22,
       rise: [5.0, 6.6], fan: [1.8, 3.2], over: [2.2, 3.2], dur: 0.95, durPer: 0.055, life: 4, kb: 0.5, retarget: 6, hitZ: 0.35 },
     /* Heaven's Wrath: strikes 1/2/3; the oval is `ahead` tiles in front of the machine's centre, rx along the heading,
-       ry across it (3.4 x 2.2 tiles across x deep); a strike is lift + slam + recoil (the first lift a little longer) */
-    wrath: { strikes: [1, 2, 3], dmg: 3.0, kb: 2.6, ahead: 1.8, rx: 1.1, ry: 1.7, lift0: 0.32, lift: 0.24, slam: 0.09, recoil: 0.3, maxTurn: 0.7, turnRate: 3.4 },
+       ry across it (now 4.8 x 3.1 tiles across x deep; was 3.4 x 2.2); a strike is lift + slam + recoil (the first lift a little longer) */
+    /* (2026-11-11, the user: "too weak, make its AOE double ... double its damage": the oval's area doubled (rx, ry x sqrt 2:
+       1.1 x 1.7 -> 1.56 x 2.4), set a little further ahead (1.8 -> 2.2) so it still lies in front; damage 3.0 -> 6.0 DK) */
+    wrath: { strikes: [1, 2, 3], dmg: 6.0, kb: 2.6, ahead: 2.2, rx: 1.56, ry: 2.4, skyBolts: [4, 5, 6], lift0: 0.32, lift: 0.24, slam: 0.09, recoil: 0.3, maxTurn: 0.7, turnRate: 3.4 },
     cd: 2.0,   // (Heaven's Wrath: 20k9i owns it; exactly 2 s from the final strike's recoil end)
   };
 
@@ -316,6 +318,7 @@ const BM = (self.BEAST_MOVES = self.BEAST_MOVES || {});
     for (const m of mons(ctx, H)) { if (gone(m)) continue; const dx = m.x - cx, dy = m.y - cy, u = dx * ca + dy * sa, v = -dx * sa + dy * ca, r = m.r || 0.4;
       if ((u * u) / ((rx + r) * (rx + r)) + (v * v) / ((ry + r) * (ry + r)) >= 1) continue; if (wallBetween(X, b.x, b.y, m.x, m.y)) continue;
       try { ctx.hit(m, dmg, o); } catch (e) {} n++; } return n; }
+  const j0 = h => { h.snd = (h.snd || 0) + 1; return h.snd <= 2; };
   function wrath(ctx) {
     const E = setup(ctx), done = once(ctx); if (!E) { done(); return; }
     const { S, H, X, b, tier, DK } = E, tu = TUNE.wrath, NS = tu.strikes[tier], dmg = DK * tu.dmg;
@@ -333,21 +336,23 @@ const BM = (self.BEAST_MOVES = self.BEAST_MOVES || {});
       a0 = a; aT = a; const n = S.alive ? hitOval(ctx, H, X, b, o.cx, o.cy, tu.rx, tu.ry, a, dmg, { kb: tu.kb, src: 'strong', el: 'thunder' }) : 0;
       // filaments: from the hand to points spread over the oval (golden-angle), each relayed through a nearer point, so
       // the lightning forms a branching net that reaches across the whole footprint; spectral fractures of light
-      const NF = LOW() ? 7 : 13, fil = [], cracks = [];
+      const NF = LOW() ? 9 : 16, fil = [], cracks = [];
       for (let i = 0; i < NF; i++) { const r = Math.sqrt((i + 0.6) / NF) * 0.96, th = i * 2.39996 + k * 0.7, u = Math.cos(th) * r * tu.rx, v = Math.sin(th) * r * tu.ry, x = o.cx + u * ca - v * sa, y = o.cy + u * sa + v * ca, d = Math.hypot(x - hx, y - hy);
         let px = hx, py = hy; if (fil.length && d > 1) { let bd = 1e9; for (const f of fil) { const dd = Math.hypot(f.x - x, f.y - y), dh = Math.hypot(f.x - hx, f.y - hy); if (dh < d * 0.8 && dd < bd) { bd = dd; px = f.x; py = f.y; } } }
         fil.push({ x, y, px, py, d: Math.hypot(x - hx, y - hy), s: Math.random() * 1000, gold: i % 5 === 2 }); }
-      for (let i = 0; i < (LOW() ? 5 : 8); i++) { const th = (i + 0.5) / 8 * TAU + rnd(-0.3, 0.3), pts = [[hx, hy]]; let x = hx, y = hy, dir = th;
+      for (let i = 0; i < (LOW() ? 6 : 11); i++) { const th = (i + 0.5) / 11 * TAU + rnd(-0.3, 0.3), pts = [[hx, hy]]; let x = hx, y = hy, dir = th;
         const reach = () => { const du = (x - o.cx) * ca + (y - o.cy) * sa, dv = -(x - o.cx) * sa + (y - o.cy) * ca; return (du * du) / (tu.rx * tu.rx) + (dv * dv) / (tu.ry * tu.ry); };
-        for (let j = 0; j < 6; j++) { dir += rnd(-0.55, 0.55); x += Math.cos(dir) * rnd(0.25, 0.42); y += Math.sin(dir) * rnd(0.25, 0.42); if (reach() > 0.92) break; pts.push([x, y]); } if (pts.length > 2) cracks.push(pts); }
-      hits.push({ t: 0, cx: o.cx, cy: o.cy, ang: a, hx, hy, fil, cracks, n });
+        for (let j = 0; j < 9; j++) { dir += rnd(-0.55, 0.55); x += Math.cos(dir) * rnd(0.25, 0.42); y += Math.sin(dir) * rnd(0.25, 0.42); if (reach() > 0.92) break; pts.push([x, y]); } if (pts.length > 2) cracks.push(pts); }
+      // bolts striking down out of the sky into the oval, staggered over the first 0.2 s (drawn; the hit above is the strike's)
+      const sky = []; for (let i = 0; i < tu.skyBolts[tier]; i++) { const r = Math.sqrt(rnd(0.05, 0.9)), th = Math.random() * TAU, u = Math.cos(th) * r * tu.rx, v = Math.sin(th) * r * tu.ry; sky.push({ x: o.cx + u * ca - v * sa, y: o.cy + u * sa + v * ca, t0: i ? rnd(0.02, 0.22) : 0, s: Math.random() * 1000, gold: i % 3 === 1, hit: false }); }
+      hits.push({ t: 0, cx: o.cx, cy: o.cy, ang: a, hx, hy, fil, cracks, n, sky });
       // the flash: sparks, golden flashes, an oval shock, the shake
       const big = !LOW();
-      part(S, 3, hx, hy, 0.25, 0, 0, 0, 0.12, 1.5, { fin: 0.01 }); part(S, 7, hx, hy, 0.2, 0, 0, 0, 0.35, 2.4, { fin: 0.01, a: 0.45 });
+      part(S, 3, hx, hy, 0.25, 0, 0, 0, 0.16, 2.6, { fin: 0.01 }); part(S, 7, hx, hy, 0.2, 0, 0, 0, 0.4, 3.6, { fin: 0.01, a: 0.55 }); part(S, 4, o.cx, o.cy, 0.05, 0, 0, 0, 0.5, Math.max(tu.rx, tu.ry) * 2.6, { fin: 0.01, a: 0.7, u: 1, grow: 0.5, flat: 1 });
       for (let i = 0; i < (big ? 18 : 8); i++) { const f = fil[i % fil.length], a2 = Math.random() * TAU, v = rnd(2, 6); part(S, i % 4 === 0 ? 6 : 5, f.x, f.y, 0.1, Math.cos(a2) * v, Math.sin(a2) * v * 0.7, rnd(2, 6), rnd(0.25, 0.45), rnd(0.4, 0.6), { g: 10, drag: 1.4 }); }
       for (let i = 0; i < (big ? 5 : 2); i++) { const f = fil[(i * 3 + 1) % fil.length]; part(S, 8, f.x, f.y, 0.2, 0, 0, 0.5, rnd(0.18, 0.3), rnd(1.0, 1.5), { fin: 0.02, a: 0.75 }); part(S, 1, f.x, f.y, rnd(0.2, 0.5), 0, 0, 0.6, 0.22, rnd(0.5, 0.7), { fin: 0.01, rot: Math.random() }); }
       for (let i = 0; i < (big ? 6 : 3); i++) part(S, 2, hx + rnd(-0.4, 0.4), hy + rnd(-0.3, 0.3), 0.1, rnd(-1.5, 1.5), rnd(-1.2, 1.2), rnd(0.3, 1), rnd(0.5, 0.8), rnd(0.6, 0.9), { drag: 2.2, grow: 0.8, v: i % 3, rot: Math.random() * TAU, a: 0.45 });
-      X.shake && X.shake(RM() ? 2.5 : 7, 0.24); X.flash && X.flash(RM() ? 0.06 : 0.12, '#DDF6FF'); X.hitstop && n && X.hitstop(0.05); X.light && X.light(o.cx, o.cy, 4, 0.45);
+      X.shake && X.shake(RM() ? 2.5 : 8, 0.26); X.flash && X.flash(RM() ? 0.08 : 0.2, '#DDF6FF'); X.hitstop && n && X.hitstop(0.05); X.light && X.light(o.cx, o.cy, 6, 0.55);
       sfx(X, 'note', 62, 0.55, 'sine', 0.6, 34); sfx(X, 'crash'); sfx(X, 'thud'); sfx(X, 'stomp'); sfx(X, 'crack'); sfx(X, 'hiss', 0.25, 0.12, 4200, 0.04); sfx(X, 'hiss', 0.12, 0.08, 6500, 0.11); sfx(X, 'note', 1600, 0.09, 'square', 0.03, 400, 0.07); sfx(X, 'note', 2400, 0.06, 'square', 0.02, 900, 0.15); }
     function setPose(dt) { const p = pose(b); if (!p) return; const hd = hand(k), oh = hd === 'L' ? 'R' : 'L', d = D(k);
       let raise = 0, slam = 0, dip = 0, crouch = 0.15, shud = 0;
@@ -360,6 +365,9 @@ const BM = (self.BEAST_MOVES = self.BEAST_MOVES || {});
     function finish() { if (finished) return; finished = true; b.locked = false; b.contact = wasC == null ? true : wasC; done(); }
     const act = { update(dt) {
         for (let i = hits.length - 1; i >= 0; i--) { hits[i].t += dt; if (hits[i].t > 1.0) hits.splice(i, 1); }
+        // each sky bolt's landing (a flash and sparks), and arcs crawling over the struck ground for a moment
+        for (const h of hits) { for (const sb of h.sky) if (!sb.hit && h.t >= sb.t0) { sb.hit = true; part(S, 3, sb.x, sb.y, 0.2, 0, 0, 0, 0.1, 1.4, { fin: 0.01 }); part(S, sb.gold ? 8 : 7, sb.x, sb.y, 0.15, 0, 0, 0, 0.3, 2.0, { fin: 0.01, a: 0.5 }); for (let j = 0; j < (LOW() ? 3 : 7); j++) { const a2 = Math.random() * TAU, v = rnd(2, 5); part(S, sb.gold ? 6 : 5, sb.x, sb.y, 0.1, Math.cos(a2) * v, Math.sin(a2) * v * 0.7, rnd(2, 5), rnd(0.2, 0.4), rnd(0.35, 0.55), { g: 10, drag: 1.4 }); } if (j0(h)) sfx(X, 'crack'); }
+          if (h.t < 0.75 && Math.random() < dt * (LOW() ? 10 : 20)) { const ca = Math.cos(h.ang), sa = Math.sin(h.ang), r = Math.sqrt(Math.random()) * 0.92, th = Math.random() * TAU, u = Math.cos(th) * r * tu.rx, v = Math.sin(th) * r * tu.ry, x = h.cx + u * ca - v * sa, y = h.cy + u * sa + v * ca, d2 = rnd(0.4, 0.9), b2 = Math.random() * TAU; zap(S, x, y, 0.04, x + Math.cos(b2) * d2, y + Math.sin(b2) * d2 * 0.7, 0.04, 0.03, rnd(0.07, 0.14), { forks: 1, gold: Math.random() < 0.2 }); } }
         if (act.dying) { if (!finished) { finished = true; b.locked = false; b.contact = wasC == null ? true : wasC; done(); } if (!hits.length) act.dead = true; return; }
         if (finished) { if (!hits.length) act.dead = true; return; }
         t += dt; b.vx = 0; b.vy = 0;
@@ -392,6 +400,7 @@ const BM = (self.BEAST_MOVES = self.BEAST_MOVES || {});
         c.setTransform(B); },
       /* above: the filaments racing out over the oval, crackling while they last */
       over(c, B) { if (!hits.length || typeof TK === 'undefined') return; const T = S.T, K = TK.bind(H); c.setTransform(B);
+        for (const h of hits) for (const sb of h.sky) { const a2 = h.t - sb.t0; if (a2 < 0 || a2 > 0.18) continue; const X1 = H.sx(sb.x), Y1 = H.sy(sb.y), fl = (1 - a2 / 0.18) * (a2 < 0.1 || Math.sin(S.t * 90 + sb.s) > -0.3 ? 1 : 0.35); K.skyBolt(c, X1, Y1, T * 9, Math.floor(S.t * 30) + sb.s, Math.max(1, T * 0.08), fl * petK(S, X1, Y1 - T, 0.2), { gold: sb.gold, forks: LOW() ? 1 : 2 }); c.setTransform(B); }
         for (const h of hits) { const u = h.t; if (u > 0.5) continue; const front = eout(u / 0.12) * 4.2, fa = 1 - sm((u - 0.18) / 0.32);
           for (const f of h.fil) { if (f.d > front + 0.2) continue; const ia = cl((front - f.d) / 0.6 + 0.3), a = fa * ia; if (a < 0.03) continue;
             const X0 = H.sx(f.px), Y0 = H.sy(f.py) - 0.05 * S.ZT, X1 = H.sx(f.x), Y1 = H.sy(f.y) - 0.05 * S.ZT, L = Math.hypot(X1 - X0, Y1 - Y0);

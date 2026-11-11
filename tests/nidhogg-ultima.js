@@ -23,7 +23,7 @@ const path = require('path');
       let i = 0; for (const m of D.mons) { if (m.boss || m.dead) continue; m.hp = m.maxhp = 1e7; m.still = true; m.spd = 0; m.atkCd = 99; m.dmg = 0; if (i < 8) { m.x = me.x + 2 + (i % 4) * 1.1; m.y = me.y + (i < 4 ? 1.2 : 2.6); } i++; }
       const mv = P.ELEM_LIST.fire.ey_nidhogg; D.setKit('ult', Object.assign(P.elemAbility(mv, 'ult', P.st), { star: 6, mult: 1.2, cost: 0, cd: 0, tier: 1, evo })); D.g.cdU = 0; me.mp = 999;
       const step = (s, fn) => { const t1 = D.g.t + s; let n = 0; while (D.g.t < t1 - 1e-6 && n++ < 4000) { if (!kill) { me.inv = 1; me.hp = Math.max(me.hp, 1); } G.update(1 / 60); if (fn) fn(); } };
-      D.useUlt(); step(5);
+      D.useUlt(); step(2); { let w = 0; while (w < 13 && !(D.g._nidhogg && D.g._nidhogg.phase === 'fly')) { step(0.5); w += 0.5; } }   /* (a cold summon hovers until every heading is drawable: wait for flight, up to ~15 s) */
       const S = D.g._nidhogg; if (!S || S.phase !== 'fly') return { err: 'no flight', phase: S && S.phase };
       const c = S.ctx, L = []; let t0 = 0, doneAt = null, asked = 0; const ha = c.hitArea, h0 = c.hit, d0 = c.done, sr = c.safeReturn;
       c.hit = (m, d, o) => { L.push(['hit', +(D.g.t - t0).toFixed(3), 0, !!(o && o.noCharge)]); return h0(m, d, o); };
@@ -44,7 +44,7 @@ const path = require('path');
   const gaps = ticks.slice(1).map((h, i) => +(h[1] - ticks[i][1]).toFixed(3)); ok(gaps.every(g => Math.abs(g - 0.15) < 0.04), 'at a fixed 0.15 s cadence', gaps);
   ok(blasts.length === 1, 'exactly one explosion damage event', blasts.length);
   ok(blasts.length === 1 && blasts[0][1] > ticks[ticks.length - 1][1], 'the explosion follows the beam', blasts[0] && blasts[0][1]);
-  ok(r.plan.blastR >= 6 && r.plan.blastR <= 7, 'the dome radius is 6-7 tiles', r.plan.blastR);
+  ok(r.plan.blastR >= 6 && r.plan.blastR <= 8, 'the dome radius is 6-8 tiles (7 / 7.5 / 8 since the round-2 effects pass)', r.plan.blastR);
   ok(r.L.length === ticks.length + blasts.length, 'no other Ultima damage events', r.L.length);
   ok(r.L.every(h => h[3]), 'every Ultima hit is noCharge');
   ok(r.doneAt != null && r.L.every(h => h[1] <= r.doneAt), 'done is called once the settle ends; nothing hits after it', r.doneAt);

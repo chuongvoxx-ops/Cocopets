@@ -313,3 +313,22 @@ DK = base × K × (1 + 0.08·(evo−1)).
     Tide: ride / Drift / Jump / Wrath / Judgement through props, integrity, chests, shrines, bridge, protected kind,
     disabled stages); montage `scratchpad/beast/smash.png`.
 
+
+- (FX worker, 2026-11-11; the user: "The stomping strong attack is too weak, make its AOE double add more lightning
+  effects. Double its damage." `20k9j` only)
+  - **AoE:** the oval's area is doubled: rx and ry × √2, from 1.1 × 1.7 to **1.56 × 2.4** tiles (3.4 × 2.2 → 4.8 × 3.1
+    across × deep). It sits a little further ahead (`ahead` 1.8 → 2.2) so it still lies in front of the machine.
+    `hitOval` and `smashOval` use the same numbers, so the light is still exactly the hit area.
+  - **Damage:** `TUNE_S.wrath.dmg` 3.0 → **6.0** DK per strike, on top of the core's `TUNE.dmgK` × 2.
+  - **Lightning:**
+    - 4 / 5 / 6 branching bolts strike down out of the sky into the oval per strike, staggered over 0.22 s, each with a
+      landing flash and sparks. They are drawn only; the strike's one hit per monster is unchanged.
+    - Arcs crawl over the struck ground for 0.75 s (20/s, 10 on low).
+    - 16 filaments (was 13) and 11 fractures (was 8) cover the larger oval.
+    - A bigger white flash (screen flash 0.12 → 0.2), a larger glow, a floor shock ring across the oval and a stronger
+      light.
+  - Unchanged: strikes 1 / 2 / 3, the timing, the lock and turn, the exact 2 s cooldown from the final strike, and
+    `ctx.alive()` stops everything.
+  - **Cost** (SwiftShader, the strongs fx forced to raster, EVO 7, the median of 150 frames): before 6–9 ms, after
+    about 20 ms. Most of the rise is the oval sprites covering twice the area. Untested on a device.
+  - **Montage:** `scratchpad/fx/wrath.png` (before / after).

@@ -296,3 +296,84 @@ Ultima's damage is `noCharge`. Durations are 20/25/35 s (configurable). The cool
     - logic test: smooth reversal (per-frame step at most the cap, between baked headings, 0.75 s, blurred); a gentle
       analog curve at 1.2 rad/s (no blur); the grind slower than the wind-up and decelerating; the dive 1.4-1.7 s;
       Fireballs 1 s.
+- (N1, round 4, 2026-11-11; the user: "apply the same environmental destruction to it while riding the dragon same as
+  beast machine")
+  - 20k6g uses the shared helper 20k0v `VEH_SMASH` (as Beast Machine): its allowlist and `PROTECT` list, the game's own
+    break paths (chests burst open with their full reward once; shrines give their blessing once, then break).
+  - Nothing smashes where 20b gives no hook: rift puzzle, trial or gate stages, and Super Fiend floors. Walls, gaps,
+    bridges, doors, gates, exits, stairs, keys and rift objects are never touched.
+  - Smashing deals no damage and gives no Ultima charge (it never goes through `hitCharge`). Fx: embers, a small fire
+    ring, a puff and light; fewer on LOW; the 0.14 s quiet rule; no shake under Reduce Motion.
+  - Rules for a flying dragon:
+    - Flight: the torso's swept oval (`TUNE.bodyL` 1.5 x `bodyW` 0.8 tiles along the heading) smashes what it flies
+      through at cruise. The wings pass over and smash nothing. A smashable prop is no longer a wall to climb over.
+    - Dive Bomb: the slam smashes `TUNE.diveR` (2.6). The grind sweeps `TUNE.grindR` (2.8) round the dragon every 0.15 s.
+    - Every `ctx.hitArea` also smashes its own area unless `{ noSmash }` is passed. This covers Fireballs' bursts and
+      Ultima's beam ticks and explosion, so 20k6i needed no change.
+    - Flare: one commented call in 20k6h's lance `pop` runs `ctx.smashArea(x, y, 0.6)` where each lance strikes (below
+      1.3 tiles of height).
+    - Areas never smash through a real wall: the line runs from the area's centre.
+  - New ctx: `smashArea(x, y, r)` (alias `smashCircle`) and `smashOval(cx, cy, rx, ry, ang)`.
+  - Stats: `stats.smash` and `stats.pots`.
+  - Test: `scratchpad/nidhogg/r4/props-nid.js` (adapted from props-beast.js) runs on Tower 21, Tower 106, the rift 2
+    Egg Orchard and rift 8 Inner Tide:
+    - flight through a run of props, Dive Bomb, Fireballs, Flare and Ultima into clusters;
+    - integrity: walls, gaps and bridges unchanged; protected kinds intact; flow and walkPoint open; rift objects and
+      exit kept;
+    - an hourglass survives a fly-through, a dive and Fireballs; chests and shrines pay once; a bridge stays; the
+      disabled stages smash nothing.
+    - Montage: `scratchpad/nidhogg/smash.png`.
+
+- (FX worker, 2026-11-11; the user's effects round: "more effects and elaborate the fire ult", "the edges of the fire is too
+  sharp ... fire is meant to be formless", "a blur in the shadow of the dragon". `20k6i` and the model's `drawShadow`
+  only; 20k6g untouched; the damage events, noCharge, timeline and `ctx.alive()` checks unchanged)
+  - **Charge** (4.52 s): rhythmic waves of fire blow outward from the dragon's chest, every 0.85 s at first and every
+    0.32 s at the end. Each wave is a soft, distorted ring of flame on the floor (radius to 5.8 tiles) plus a pressure
+    ring of flame round the dragon at chest height (to 4.3 tiles), with a burst of soft flame puffs flung out (12, 5 on
+    low effects). Wavy glowing strings of fire (up to 13, 6 on low) spiral in from 3 to 5.4 tiles round the dragon and
+    flow into the mouth; there are more of them, and they flow faster, as the charge builds. The mouth's core swells and
+    throbs faster, with flame tongues round it, and a final inrush ring contracts into the mouth in the last 0.45 s.
+  - **Beam:** formless, with no clip and no hard edge.
+    - A soft flame strip (gaussian across, its width wandering with noise, so it has no threshold) is drawn in 3 layers
+      that scroll at different speeds: a faint wide heat haze, the billowing body (normal blend) and hotter flame
+      (additive). It widens from the mouth to the ground in 7 segments, with a slight wobble.
+    - The hot core is gaussian `beamSprite` strips, so it has no line caps.
+    - 10 flickering tongues lick off both sides (5 on low). The molten spirals are softened, and soft flame puffs (46/s,
+      18 on low) roll down the beam and drift off it.
+    - The body is drawn at half resolution into a reused buffer and blitted up (the `lowRes` helper): softer, with a
+      quarter of the pixels.
+  - **Explosion:** the dome and its damage radius grew from 6.0 / 6.5 / 7.0 to **7.0 / 7.5 / 8.0** tiles. The one damage
+    event, 14 DK, is unchanged. The `tests/nidhogg-ultima.js` bound is now 6–8.
+    - The column is 10 → 13 tiles tall and its puffs 40% wider; the cap is about 30% wider with 9 → 14 puffs, lit from
+      within by additive soft flame. Smoke starts later, so it stays hot longer.
+    - 6 / 9 / 12 secondary bursts (flash, fireball, shock ring, sparks, debris) go off round the field 0.2–1.5 s after
+      the blast. They are visual only, with no extra hits.
+    - 6 / 8 / 10 fires are left burning for 2.6–4 s, shedding embers. More sparks, embers and burning debris; the floor
+      glow lasts about 4–5 s; the cloud lives 4.0 → 5.5 s (it fades after `done`, as before).
+    - The cloud (dome, billows, column and cap) is drawn at half resolution (a third on low effects) and blitted up;
+      the puffs crossfade hot → smoke only between cool 0.3 and 0.7.
+  - **Shadow** (`20k6f` `drawShadow`, the model's only change): the same silhouette is drawn into a canvas about 56 px
+    across, box-blurred twice there and blitted up with smoothing, so it reads as one soft smudge. The alpha went
+    0.32 → 0.42 because it is now softer.
+  - **New sprites** (baked in `warmU`'s queue): `nuBeamS`, `nuTongue0-2`, `nuSoft0-2`, `nuWave0-1`, plus `beamSprite`
+    in 3 colours. New particle kinds: 6 (soft flame puff, normal blend) and 7 (soft flame puff, additive).
+  - **Cost** (SwiftShader, the draw of the Ultima's own fx, forced to raster, median per frame; the machine was loaded
+    by other workers, so ±30%):
+
+    | Phase | Before (ms) | After (ms) |
+    |---|---|---|
+    | Charge | 0.2 | 6–10 |
+    | Beam | 8 | 12–13 |
+    | Blast | 22–24 | 33–35 |
+    | Settle | 18–24 | 27–33 |
+
+    SwiftShader is a CPU rasteriser, several times slower than a phone's GPU canvas. On a device the charge should cost
+    about 1–2 ms and the blast about 5–8 ms. Untested on a real iPhone.
+  - **Montages** in `scratchpad/fx/`: `ultima.png`, `ultima.gif` (charge, beam, explosion) and `shadow.png`.
+  - **`tests/nidhogg-ultima.js`:** after the cast it now waits for the `'fly'` phase (up to about 15 s) instead of a fixed
+    5 s, because a cold summon hovers until every heading is drawable. Its dome-radius bound is now 6–8. It passes at
+    EVO 4 on the v303 build: `ctx.hitArea` smashes props there, and nothing in 20k6i opts out.
+  - **Shadow cost** (SwiftShader, forced raster, median): 0.9 ms after against 1.0 ms before, so the blurred smudge is no
+    dearer.
+  - **What the user may see:** the cloud's column is hidden wherever the floor's fog of war covers the sky above an
+    unexplored edge. That is the game's own overlay, not a clip in 20k6i.

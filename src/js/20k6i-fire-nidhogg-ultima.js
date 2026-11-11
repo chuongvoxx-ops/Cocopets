@@ -34,8 +34,8 @@
      0.15 s from 4.67) | explosion at 6.07 | settle 1.6 from 6.4 | safeReturn + done at about 8.1; the cloud fades by 9.1 */
   const TUNE = {
     chargeK: 1.15, beam: 1.5, tick: 0.15, tickDmg: 0.6, beamR: 1.8, reach: [3.8, 7.0],
-    blast: 14, blastR: [6.0, 6.5, 7.0], blastKb: 6, blastAt: 0.05, settleAt: 0.35, settle: 1.6,
-    zoom: 0.6, cloudLife: 4.0, columnH: 10,
+    blast: 14, blastR: [7.0, 7.5, 8.0], blastKb: 6, blastAt: 0.05, settleAt: 0.35, settle: 1.6,   /* (round 2: the dome and its damage radius 6.0/6.5/7.0 -> 7.0/7.5/8.0) */
+    zoom: 0.6, cloudLife: 5.5, columnH: 13, secondary: [6, 9, 12], fires: [6, 8, 10],
   };
 
   /* ================= baked sprites ================= */
@@ -88,8 +88,25 @@
   const sprGlint = () => fxCache.get('nuGlint') || fxSprite('nuGlint', 32, 32, g => { let gr = g.createRadialGradient(16, 16, 0, 16, 16, 16); gr.addColorStop(0, 'rgba(255,240,200,1)'); gr.addColorStop(0.25, 'rgba(255,170,64,0.7)'); gr.addColorStop(0.6, 'rgba(255,90,26,0.18)'); gr.addColorStop(1, 'rgba(255,90,26,0)'); g.fillStyle = gr; g.fillRect(0, 0, 32, 32); });
   /* a streak (an ember's or a shard's tail): head at the right, white-yellow, tapering to red nothing at the left */
   const sprStreak = () => imgSprite('nuStreak', 128, 32, (x, y, w, h) => { const u = (x + 0.5) / w, hw = 0.1 + 0.9 * Math.pow(u, 0.75), v = (y + 0.5 - h / 2) / (h / 2), q = v / hw; if (q * q >= 1) return null; const across = Math.exp(-q * q * 3.4), a = across * Math.pow(u, 1.5) * Math.min(1, (1 - u) / 0.05 + 0.4), c = ramp(0.35 + 0.65 * across * u); return [c[0], c[1], c[2], a]; });
+  /* ---- round 2 (2026-11-11, the user: "fire is meant to be formless": soft, feathered, no hard edges) ----
+     every flame below is soft by construction: alpha falls off along smooth curves (no thresholds), so the stretched
+     sprites read as glowing gas, not cut-outs (no filter: Safari's canvas has none) */
+  /* the beam's soft flame strip (tileable along x): a hot core blooming out, billowing turbulence, edges that melt away */
+  const sprBeamSoft = () => imgSprite('nuBeamS', 256, 96, (x, y) => { const v = (y + 0.5 - 48) / 48, n = fbm(x / (256 / 10), y / 14, 4, 10), n2 = fbm(x / (256 / 24), y / 7, 13, 24), wv = 0.5 + 0.28 * (n - 0.5) + 0.1 * (n2 - 0.5), q = v / Math.max(0.12, wv), a = Math.exp(-q * q * 1.6) * (0.75 + 0.5 * (n2 - 0.35));
+    if (a < 0.01) return null; const core = Math.exp(-v * v * 10), k = cl(0.18 + 0.7 * core + 0.4 * (n - 0.5) + 0.25 * Math.exp(-q * q * 2.5)), c = ramp(k); return [c[0], c[1], c[2], cl(a)]; });
+  /* a licking flame tongue (tip up, base at the bottom centre), soft all round; 3 variants */
+  const sprTongue = v => imgSprite('nuTongue' + v, 64, 128, (x, y) => { const u = 1 - (y + 0.5) / 128, sw = Math.sin(u * 3.1 + v * 2) * 0.18 * u + (fbm(u * 3 + v * 7, v, 21 + v) - 0.5) * 0.35 * u, dx = (x + 0.5 - 32) / 32 - sw, wid = 0.62 * Math.pow(1 - u, 0.55) * (0.6 + 0.4 * Math.sin(Math.min(1, u * 6) * 1.57)) + 0.02, q = dx / wid;
+    const a = Math.exp(-q * q * 2.2) * sm((1 - u) / 0.35) * sm(u / 0.06) * (0.8 + 0.4 * (fbm(x / 9, y / 9, 30 + v) - 0.5)); if (a < 0.01) return null; const c = ramp(0.25 + 0.75 * Math.exp(-q * q * 4) * (1 - u * 0.7)); return [c[0], c[1], c[2], cl(a)]; });
+  /* a soft rolling flame puff (no hard silhouette: a cloud of gaussian blobs, lit hot in the middle); 3 variants */
+  const sprSoft = v => fxCache.get('nuSoft' + v) || imgSprite('nuSoft' + v, 96, 96, (() => { let s = 11 + v * 37; const R = () => { s = (s * 9301 + 49297) % 233280; return s / 233280; }; const Bl = []; for (let k = 0; k < 7; k++) Bl.push([48 + (R() - 0.5) * 36, 48 + (R() - 0.5) * 30, 10 + R() * 11, 0.5 + R() * 0.5]);
+    return (x, y) => { let d2 = 0; for (const b of Bl) { const dx = x - b[0], dy = y - b[1]; d2 += b[3] * Math.exp(-(dx * dx + dy * dy) / (b[2] * b[2])); } const r = Math.hypot(x - 48, y - 48) / 48, n = fbm(x / 8, y / 8, 40 + v), dd = d2 * (0.75 + 0.5 * n), a = cl(dd * 0.9) * sm((1 - r) / 0.45); if (a < 0.01) return null; const c = ramp(0.22 + 0.6 * cl(dd / 1.6) + 0.2 * (n - 0.5)); return [c[0], c[1], c[2], a * 0.9]; }; })());
+  /* a wave of fire blowing outward: a soft ring whose radius wanders with the angle (distorted), a flame band with a hot
+     leading edge and a trailing haze, feathered both sides (additive); 2 variants */
+  const sprWave = v => imgSprite('nuWave' + v, 192, 192, (x, y) => { const dx = (x + 0.5 - 96) / 96, dy = (y + 0.5 - 96) / 96, d = Math.hypot(dx, dy); if (d >= 1) return null; const an = Math.atan2(dy, dx), n = fbm(Math.cos(an) * 2.2 + 3 + v * 5, Math.sin(an) * 2.2 + 3, 50 + v), n2 = fbm(Math.cos(an) * 6 + 9, Math.sin(an) * 6 + v * 4, 60 + v);
+    const rr = 0.74 + 0.16 * (n - 0.5) + 0.06 * (n2 - 0.5), e = (d - rr) / 0.07, band = e > 0 ? Math.exp(-e * e * 1.4) : Math.exp(-e * e * 0.18) * 0.55, a = band * (0.55 + 0.6 * n2) * sm((1 - d) / 0.12); if (a < 0.01) return null; const c = ramp(0.3 + 0.62 * Math.exp(-e * e * 0.9)); return [c[0], c[1], c[2], cl(a)]; });
   const BAKE = [sprGlint, sprEdge, sprShock, sprStreak, sprBeam, sprBall, () => sprCrack(0), () => sprCrack(1), sprDome, () => sprPuff('hot', 0), () => sprPuff('hot', 1), () => sprPuff('hot', 2), () => sprPuff('smoke', 0), () => sprPuff('smoke', 1), () => sprPuff('smoke', 2),
-    () => glowSprite(C.org), () => glowSprite(C.yel), () => glowSprite(C.wht), () => glowSprite(C.red), () => glowSprite(C.amb), () => glowSprite('#FFFFFF')];
+    () => glowSprite(C.org), () => glowSprite(C.yel), () => glowSprite(C.wht), () => glowSprite(C.red), () => glowSprite(C.amb), () => glowSprite('#FFFFFF'),
+    () => sprWave(0), () => sprWave(1), () => sprSoft(0), () => sprSoft(1), () => sprSoft(2), sprBeamSoft, () => sprTongue(0), () => sprTongue(1), () => sprTongue(2), () => beamSprite(C.yel), () => beamSprite('#FFFFFF'), () => beamSprite(C.org)];
   let baked = 0;
   function warm(budgetMs) { const t0 = performance.now(), B = budgetMs == null ? 4 : budgetMs; DEADLINE = t0 + B;
     try { while (baked < BAKE.length && performance.now() - t0 < B) { let r = null; try { r = BAKE[baked](); } catch (e) { r = 1; } if (!r) break; baked++; } } finally { DEADLINE = 0; } return baked >= BAKE.length; }
@@ -97,12 +114,26 @@
   /* ================= drawing helpers ================= */
   function setT(c, B, x, y, rot, sy) { const cs = rot ? Math.cos(rot) : 1, sn = rot ? Math.sin(rot) : 0, k = sy == null ? 1 : sy; c.setTransform(B.a * cs + B.c * k * sn, B.b * cs + B.d * k * sn, -B.a * sn + B.c * k * cs, -B.b * sn + B.d * k * cs, B.a * x + B.c * y + B.e, B.b * x + B.d * y + B.f); }
   function put(c, B, img, x, y, w, h, a, rot, sy, add) { if (!(a > 0.01) || !(w > 0.5)) return; c.globalCompositeOperation = add ? 'lighter' : 'source-over'; c.globalAlpha = a > 1 ? 1 : a; setT(c, B, x, y, rot, sy); c.drawImage(img, -w / 2, -h / 2, w, h); }
+  /* draw soft things at a fraction (k) of the screen's resolution into a reused canvas, then blit it up with smoothing:
+     the fire is soft anyway (the upscale blurs it a little more, which the user asked for), and it costs a quarter of the
+     pixels at k = 0.5. (x0, y0)-(x1, y1) is the screen box; op the composite for the blit. Falls back to drawing straight
+     when the base transform is turned */
+  const LRC = {};
+  function lowRes(c, B, key, x0, y0, x1, y1, k, op, fn) {
+    if (B.b || B.c || !(B.a > 0) || !(B.d > 0)) { fn(c, B); return; }
+    const W = c.canvas.width, Hc = c.canvas.height; x0 = Math.max(x0, -B.e / B.a); y0 = Math.max(y0, -B.f / B.d); x1 = Math.min(x1, (W - B.e) / B.a); y1 = Math.min(y1, (Hc - B.f) / B.d); if (x1 - x0 < 2 || y1 - y0 < 2) return;
+    const dw = Math.ceil((x1 - x0) * B.a * k), dh = Math.ceil((y1 - y0) * B.d * k); let cv = LRC[key]; if (!cv) cv = LRC[key] = document.createElement('canvas');
+    if (cv.width < dw || cv.height < dh) { cv.width = Math.max(cv.width, dw + 16); cv.height = Math.max(cv.height, dh + 16); }
+    const g = cv.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; g.clearRect(0, 0, dw + 2, dh + 2);
+    g.save(); try { fn(g, { a: B.a * k, b: 0, c: 0, d: B.d * k, e: -x0 * B.a * k, f: -y0 * B.d * k }); } catch (e) {} g.restore();
+    c.save(); c.setTransform(B); petHole(c, S0()); c.globalCompositeOperation = op || 'source-over'; c.globalAlpha = 1; c.imageSmoothingEnabled = true; c.drawImage(cv, 0, 0, dw, dh, x0, y0, dw / (B.a * k), dh / (B.d * k)); c.restore(); }
+  let CUR_S = null; const S0 = () => CUR_S;
   function petHole(c, S) { c.beginPath(); c.rect(-1e5, -1e5, 2e5, 2e5); c.ellipse(S.PX, S.PY, S.PR * 0.7, S.PR * 0.85, 0, 0, TAU); c.clip('evenodd'); }
 
   /* ================= the per-transformation system: one act + pooled particles + a depth-sorted ent ================= */
   const POOL = [];
   /* particle kinds: 0 ember glint, 1 streak, 2 hot puff, 3 smoke puff, 4 flash (glow), 5 shard (dark red streak, gravity) */
-  const ADD = [1, 1, 0, 0, 1, 1];
+  const ADD = [1, 1, 0, 0, 1, 1, 0, 1];   /* 6 soft flame puff (normal), 7 soft flame puff (additive) */
   function kitH(ctx) { return ctx.H && ctx.H.add ? ctx.H : null; }
   function zk(ctx, T) { try { if (ctx.scr && T > 0) { const a = ctx.scr(0, 0, 0), b = ctx.scr(0, 0, 1), k = (a[1] - b[1]) / T; if (k > 0.2 && k < 2) return k; } } catch (e) {} return 0.695; }
   function sysOf(ctx) {
@@ -123,8 +154,8 @@
           if (p.drag) { const k = Math.exp(-p.drag * dt); p.vx *= k; p.vy *= k; p.vz *= k; } p.vz -= p.g * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; if (p.z < 0) { p.z = 0; p.vz = 0; p.vx *= 0.8; p.vy *= 0.8; } p.rot += p.vr * dt; }
         if (!S.acts.length && !P.length) { kill(); f.life = 0; }
       },
-      drawUnder(c) { if (!S.on) return; petPos(S); const B = c.getTransform(); c.save(); for (const a of S.acts) if (a.under) a.under(c, B); drawParts(S, c, B, 1); c.restore(); },
-      draw(c) { if (!S.on) return; petPos(S); const B = c.getTransform(); c.save(); for (const a of S.acts) if (a.over) a.over(c, B); drawParts(S, c, B, 0); c.restore(); },
+      drawUnder(c) { if (!S.on) return; petPos(S); CUR_S = S; const B = c.getTransform(); c.save(); for (const a of S.acts) if (a.under) a.under(c, B); drawParts(S, c, B, 1); c.restore(); },
+      draw(c) { if (!S.on) return; petPos(S); CUR_S = S; const B = c.getTransform(); c.save(); for (const a of S.acts) if (a.over) a.over(c, B); drawParts(S, c, B, 0); c.restore(); },
       onEnd() { if (S.on) kill(); } });
     return S;
   }
@@ -136,11 +167,11 @@
   function part(S, kind, x, y, z, vx, vy, vz, life, size, o) { if (!S || S.parts.length > (LOW() ? 260 : 600)) return null; const p = POOL.pop() || {};
     p.kind = kind; p.x = x; p.y = y; p.z = z; p.vx = vx; p.vy = vy; p.vz = vz; p.life = life; p.t = 0; p.size = size; p.g = 0; p.drag = 0; p.rot = 0; p.vr = 0; p.grow = 0; p.a = 1; p.u = 0; p.v = 0; p.fin = 0.08; p.flat = 0;
     if (o) for (const k in o) p[k] = o[k]; S.parts.push(p); return p; }
-  function partImg(p) { switch (p.kind) { case 0: return sprGlint(); case 1: case 5: return sprStreak(); case 2: return sprPuff('hot', p.v); case 3: return sprPuff('smoke', p.v); default: return glowSprite(C.yel); } }
+  function partImg(p) { switch (p.kind) { case 0: return sprGlint(); case 1: case 5: return sprStreak(); case 2: return sprPuff('hot', p.v); case 3: return sprPuff('smoke', p.v); case 6: case 7: return sprSoft(p.v); default: return glowSprite(C.yel); } }
   function drawParts(S, c, B, under) { const H = S.H, T = S.T, P = S.parts; if (!P.length) return;
     for (let pass = 0; pass < 2; pass++) { c.globalCompositeOperation = pass ? 'lighter' : 'source-over';
       for (let i = 0; i < P.length; i++) { const p = P[i]; if (ADD[p.kind] !== pass || (p.u ? 1 : 0) !== under) continue;
-        const u = p.t / p.life, a = p.a * Math.min(1, p.t / p.fin) * (p.kind === 2 || p.kind === 3 ? (1 - u) * (1 - u) : 1 - u * u); if (a < 0.015) continue;
+        const u = p.t / p.life, a = p.a * Math.min(1, p.t / p.fin) * (p.kind === 2 || p.kind === 3 || p.kind >= 6 ? (1 - u) * (1 - u) : 1 - u * u); if (a < 0.015) continue;
         const X = H.sx(p.x), Y = H.sy(p.y) - p.z * S.ZT, s = p.size * T * (1 + p.grow * u), img = partImg(p), k = under ? 1 : petK(S, X, Y, pass ? 0.1 : 0.25); if (a * k < 0.015) continue;
         c.globalAlpha = a * k > 1 ? 1 : a * k;
         if (p.kind === 1 || p.kind === 5) { const ang = Math.atan2(p.vy * 0.72 - p.vz * 0.7, p.vx); setT(c, B, X, Y, ang); c.drawImage(img, -s, -s * 0.11, s, s * 0.22); }
@@ -182,7 +213,11 @@
     const ax = Math.cos(IP.a), ay = Math.sin(IP.a), xs = d.x, ys = d.y, Dd = Math.max(tu.reach[0], Math.min(tu.reach[1], Math.hypot(ix - xs, iy - ys))), x0 = ix - ax * Dd, y0 = iy - ay * Dd;
     const TC = (CL && CL.ultima ? CL.ultima.dur : 5.2) / tu.chargeK, TB = TC + tu.beam, TE = TB + tu.blastAt, TS = TE + tu.settleAt, TD = TS + tu.settle;
     let t = 0, ph = 'charge', nTick = 0, blast = null, finished = false, recoil = 0, pTick = -9, warmed = false;
-    const waves = [], ticks = [];
+    const waves = [], ticks = [], cwaves = [];   /* cwaves: the charge's waves of fire blowing outward */
+    /* the strings of fire drawn into the mouth while it charges: each a wavy glowing ribbon spiralling in from round the
+       dragon, flowing toward the mouth (a moving window along its path), more and quicker as the charge builds */
+    const STR = []; for (let i = 0; i < 18; i++) STR.push({ th: i / 18 * TAU + rnd(-0.2, 0.2), R: rnd(3.0, 5.4), z0: rnd(-1.2, 2.6), spin: (i % 2 ? 1 : -1) * rnd(0.45, 0.85), ph: Math.random(), sp: rnd(0.55, 0.85), wf: rnd(0.8, 1.4), wa: rnd(0.14, 0.3), wp: Math.random() * TAU, on: i / 18 });
+    let nextWave = 0.35;
     ctx.ultimaPlan = { x: ix, y: iy, beamR: RB, blastR: RX, ticks: Math.round(tu.beam / tu.tick) };   /* (read-only, for tests) */
     cam(ctx, { zoom: tu.zoom, x: lerp(x0, ix, 0.5), y: lerp(y0, iy, 0.5) - 1.5, k: 0.7 });
     sfx(X, 'note', 55, 2.4, 'sawtooth', 0.12, 110); sfx(X, 'note', 82, 2.4, 'sine', 0.3, 165); sfx(X, 'hum'); sfx(X, 'grumble');
@@ -194,13 +229,14 @@
         // the beam's ticks: one every tick (s), ten in all; one hit per monster in the impact ring each tick
         if (ph === 'beam') { while (nTick < Math.round(tu.beam / tu.tick) && t >= TC + tu.tick * (nTick + 1) - 1e-6) tick(nTick++); }
         if (ph === 'beam' && t >= TE) { ph = 'blast'; explode(); }
-        if (blast) blast.t += dt;
+        if (blast) { blast.t += dt; blastFx(dt); }
         for (let i = waves.length - 1; i >= 0; i--) { waves[i].t += dt; if (waves[i].t > 0.7) waves.splice(i, 1); }
+        for (let i = cwaves.length - 1; i >= 0; i--) { cwaves[i].t += dt; if (cwaves[i].t > 1.0) cwaves.splice(i, 1); }
         if (ph === 'blast' && t >= TS && !S.ret) { S.ret = true; let rp = null; try { rp = ctx.safeReturn ? ctx.safeReturn() : null; } catch (e) {} ctx.returnPoint = rp; }   /* (the validated landing, asked as it settles) */
         if (ph === 'blast' && t >= TD && !finished) { finished = true; S.keep = true; S.seatOK = false; cam(ctx, null); done(); }
         if (finished && (!blast || blast.t > tu.cloudLife + 0.2)) act.dead = true; },
-      under(c, B) { drawUnder(c, B); c.setTransform(B); },
-      over(c, B) { drawCloud(c, B); c.setTransform(B); drawOver(c, B); c.setTransform(B); },
+      under(c, B) { drawUnder(c, B); c.setTransform(B); if (ph === 'charge' || cwaves.length) { chargeUnder(c, B); c.setTransform(B); } },
+      over(c, B) { if (blast) { drawAfter(c, B); c.setTransform(B); } drawCloud(c, B); c.setTransform(B); if (ph === 'charge' || cwaves.length) { chargeOver(c, B); c.setTransform(B); } drawOver(c, B); c.setTransform(B); },
       abort() { if (!finished) { cam(ctx, null); try { for (const k of ['core', 'jaw', 'throat', 'ring', 'trace']) if (P[k] != null) P[k] = 0; } catch (e) {} } } };
     S.acts.push(act);
 
@@ -217,6 +253,10 @@
       d.vx = d.vy = 0; }
     /* ---- effects ---- */
     function chargeFx(dt) { const u = t / TC, q = LOW() ? 0.4 : 1;
+      // rhythmic waves of fire blowing outward from the dragon, quicker as the charge builds (a beat: the ring's pulse)
+      if (t >= nextWave && t < TC - 0.45) { nextWave = t + lerp(0.85, 0.32, eio(u)); const ch = anchorW(ctx, 'chest'), w = { t: 0, x: ch.x, y: ch.y, z: ch.z, k: 0.55 + 0.6 * u, rot: Math.random() * TAU, v: (Math.random() * 2) | 0 }; cwaves.push(w);
+        sfx(X, 'whoosh'); if (u > 0.4) shake(ctx, X, 1 + 2.5 * u, 0.15);
+        const n = Math.round((LOW() ? 5 : 12) * (0.6 + 0.6 * u)); for (let i = 0; i < n; i++) { const a = i / n * TAU + rnd(-0.25, 0.25), v = rnd(4.5, 7) * (0.8 + 0.4 * u); part(S, i % 3 ? 6 : 7, ch.x + Math.cos(a) * 0.9, ch.y + Math.sin(a) * 0.65, Math.max(0.2, ch.z + rnd(-0.6, 0.4)), Math.cos(a) * v, Math.sin(a) * v * 0.72, rnd(-0.5, 0.8), rnd(0.55, 0.85), rnd(0.9, 1.5) * (0.8 + 0.4 * u), { drag: 2.4, grow: 1.1, a: i % 3 ? 0.55 : 0.5, v: i % 3, rot: Math.random() * TAU, vr: rnd(-2, 2), fin: 0.05 }); } }
       // embers drawn in round the ring once it shows, then toward the mouth as the core forms
       if (u > 0.25) { const rc = anchorW(ctx, 'ring'), mo = anchorW(ctx, 'mouth'), toMouth = u > 0.68; let k = (14 + 26 * u) * dt * q + Math.random(); while (k-- >= 1) { const a = Math.random() * TAU, r = rnd(1.6, 2.6), sx = rc.x + Math.cos(a) * r, sy = rc.y + Math.sin(a) * r * 0.72, sz = rc.z + rnd(-0.4, 0.8), T2 = toMouth ? mo : rc, life = rnd(0.35, 0.55);
         part(S, toMouth ? 1 : 0, sx, sy, sz, (T2.x - sx) / life, (T2.y - sy) / life, (T2.z - sz) / life, life, toMouth ? rnd(0.7, 1.1) : rnd(0.22, 0.34), { fin: 0.06 }); } }
@@ -231,23 +271,48 @@
       // sparks and embers thrown off the impact; fire licking up
       let k = 40 * dt * q + Math.random(); while (k-- >= 1) { const a = Math.random() * TAU, v = rnd(3, 8); part(S, Math.random() < 0.6 ? 1 : 0, ix + Math.cos(a) * 0.4, iy + Math.sin(a) * 0.3, 0.3, Math.cos(a) * v, Math.sin(a) * v * 0.72, rnd(1, 5), rnd(0.3, 0.6), rnd(0.5, 1.0), { g: 9, drag: 1.2 }); }
       if (Math.random() < dt * 14 * q) { const a = Math.random() * TAU, r = rnd(0.5, 1.4); part(S, 2, ix + Math.cos(a) * r, iy + Math.sin(a) * r * 0.7, 0.2, Math.cos(a) * 0.8, Math.sin(a) * 0.6, rnd(1.2, 2.4), rnd(0.4, 0.6), rnd(0.8, 1.3), { grow: 0.6, a: 0.85, v: (Math.random() * 3) | 0, rot: Math.random() * TAU, vr: rnd(-2, 2) }); }
+      // billowing flame volumes rolling down and off the beam (soft puffs carried along it, drifting out and up)
+      { const mo = anchorW(ctx, 'mouth'), bdx = ix - mo.x, bdy = iy - mo.y, bdz = 0.25 - mo.z; let k2 = (LOW() ? 18 : 46) * dt + Math.random(); while (k2-- >= 1) { const v = Math.random(), a = Math.random() * TAU, sp = rnd(0.6, 1.2), lat = rnd(0.6, 1.8) * (0.4 + v);
+        part(S, Math.random() < 0.6 ? 6 : 7, mo.x + bdx * v, mo.y + bdy * v, Math.max(0.1, mo.z + bdz * v), bdx * sp + Math.cos(a) * lat, bdy * sp + Math.sin(a) * lat * 0.72, bdz * sp + rnd(0.3, 1.4), rnd(0.35, 0.6), rnd(0.7, 1.3) * (0.6 + 0.8 * v), { drag: 1.6, grow: 1.2, a: rnd(0.45, 0.7), v: (Math.random() * 3) | 0, rot: Math.random() * TAU, vr: rnd(-3, 3), fin: 0.05 }); } }
       if (Math.floor(u * 6) !== Math.floor((u - dt / tu.beam) * 6)) waves.push({ t: 0 }); }
     function tick(k) { let n = 0; try { n = ctx.hitArea(ix, iy, RB, DK * tu.tickDmg, { noCharge: true, kb: 0 }); } catch (e) {} ticks.push(t); pTick = t; if (n && k % 2 === 0) sfx(X, 'crack'); }
     function ringBreakFx(dt) { const rc = anchorW(ctx, 'ring'), q = LOW() ? 0.4 : 1; let k = 60 * dt * q + Math.random(); while (k-- >= 1) { const a = Math.random() * TAU, v = rnd(1.2, 2.6); part(S, 0, rc.x + Math.cos(a) * 1.3, rc.y + Math.sin(a) * 0.95, rc.z + rnd(-0.2, 0.2), Math.cos(a) * v, Math.sin(a) * v * 0.72, rnd(-0.5, 1.2), rnd(0.6, 1.0), rnd(0.2, 0.32), { drag: 1.2, g: 0.8 }); } }
     /* the explosion: one hit per monster inside the dome's radius */
     function explode() { let n = 0; try { n = ctx.hitArea(ix, iy, RX, DK * tu.blast, { noCharge: true, kb: tu.blastKb }); } catch (e) {}
       blast = { t: 0, n, rot: Math.random() * TAU, v: (Math.random() * 2) | 0, puffs: [] };
-      for (let i = 0; i < 9; i++) blast.puffs.push({ a: i / 9 * TAU + rnd(-0.2, 0.2), r: rnd(0.85, 1.05), s: rnd(0.85, 1.15), v: i % 3, ph: Math.random() * TAU });
+      for (let i = 0; i < 14; i++) blast.puffs.push({ a: i / 14 * TAU + rnd(-0.2, 0.2), r: rnd(0.85, 1.05), s: rnd(0.85, 1.15), v: i % 3, ph: Math.random() * TAU });
+      // secondary bursts round the field (visual only: the one damage event above is the explosion's), and fires left burning
+      blast.sec = []; const NSC = tu.secondary[tier]; for (let i = 0; i < NSC; i++) { const a = i / NSC * TAU + rnd(-0.3, 0.3), r = RX * rnd(0.35, 0.92); blast.sec.push({ x: ix + Math.cos(a) * r, y: iy + Math.sin(a) * r * 0.85, t0: rnd(0.22, 1.5), s: rnd(0.8, 1.3), done: false, v: i % 3 }); }
+      blast.fires = []; const NF = tu.fires[tier]; for (let i = 0; i < NF; i++) { const a = Math.random() * TAU, r = RX * Math.sqrt(rnd(0.08, 0.85)); blast.fires.push({ x: ix + Math.cos(a) * r, y: iy + Math.sin(a) * r * 0.85, t0: rnd(0.3, 0.9), life: rnd(2.6, 4.0), s: rnd(0.7, 1.2), v: i % 3, ph: Math.random() * TAU }); }
       shake(ctx, X, 16, 0.6); X.flash && X.flash(RM() ? 0.1 : 0.22, '#FFE9C8'); X.hitstop && X.hitstop(n ? 0.1 : 0.04); X.light && X.light(ix, iy, RX * 1.6, 0.9);
       sfx(X, 'crash'); sfx(X, 'thud'); sfx(X, 'note', 36, 2.2, 'sine', 0.95, 22); sfx(X, 'note', 72, 1.4, 'triangle', 0.35, 36); sfx(X, 'hiss', 2.0, 0.4, 500); sfx(X, 'stomp');
       cam(ctx, { zoom: tu.zoom * 0.95, x: ix, y: iy - 2.5, k: 0.8 });
       const L = LOW();
-      for (let i = 0; i < (L ? 12 : 36); i++) { const a = Math.random() * TAU, v = rnd(6, 13); part(S, 1, ix + Math.cos(a) * 0.8, iy + Math.sin(a) * 0.6, rnd(0.3, 1.5), Math.cos(a) * v, Math.sin(a) * v * 0.72, rnd(2, 9), rnd(0.5, 0.9), rnd(1.2, 2.2), { g: 6, drag: 1.4, fin: 0.02 }); }
-      for (let i = 0; i < (L ? 10 : 30); i++) { const a = Math.random() * TAU, v = rnd(2, 8); part(S, 0, ix, iy, rnd(0.5, 3), Math.cos(a) * v, Math.sin(a) * v * 0.72, rnd(2, 8), rnd(1.2, 2.2), rnd(0.25, 0.45), { g: 1.5, drag: 0.9 }); }
-      for (let i = 0; i < (L ? 6 : 16); i++) { const a = Math.random() * TAU, v = rnd(4, 9); part(S, 5, ix, iy, 0.5, Math.cos(a) * v, Math.sin(a) * v * 0.72, rnd(5, 10), rnd(0.7, 1.1), rnd(0.6, 1.0), { g: 14, drag: 0.6 }); }
+      for (let i = 0; i < (L ? 14 : 44); i++) { const a = Math.random() * TAU, v = rnd(6, 15); part(S, 1, ix + Math.cos(a) * 0.8, iy + Math.sin(a) * 0.6, rnd(0.3, 1.5), Math.cos(a) * v, Math.sin(a) * v * 0.72, rnd(2, 9), rnd(0.5, 0.9), rnd(1.2, 2.2), { g: 6, drag: 1.4, fin: 0.02 }); }
+      for (let i = 0; i < (L ? 12 : 44); i++) { const a = Math.random() * TAU, v = rnd(2, 9); part(S, 0, ix, iy, rnd(0.5, 3.5), Math.cos(a) * v, Math.sin(a) * v * 0.72, rnd(2, 9), rnd(1.4, 3.4), rnd(0.25, 0.5), { g: 0.6, drag: 0.9 }); }
+      for (let i = 0; i < (L ? 8 : 26); i++) { const a = Math.random() * TAU, v = rnd(4, 11); part(S, 5, ix, iy, 0.5, Math.cos(a) * v, Math.sin(a) * v * 0.72, rnd(5, 12), rnd(0.9, 1.6), rnd(0.6, 1.2), { g: 13, drag: 0.5 }); }
       // the ground surge: low rolling puffs racing out to the dome's edge
-      for (let i = 0; i < (L ? 6 : 14); i++) { const a = i / 14 * TAU + rnd(-0.1, 0.1), v = RX * rnd(1.6, 2.1); part(S, i % 2 ? 3 : 2, ix + Math.cos(a) * 0.8, iy + Math.sin(a) * 0.6, 0.3, Math.cos(a) * v, Math.sin(a) * v * 0.72, 0.4, rnd(1.2, 1.6), rnd(1.4, 2.0), { grow: 0.8, a: i % 2 ? 0.55 : 0.7, drag: 2.2, v: i % 3, rot: Math.random() * TAU, vr: rnd(-1, 1) }); } }
+      for (let i = 0; i < (L ? 8 : 24); i++) { const a = i / 24 * TAU + rnd(-0.1, 0.1), v = RX * rnd(1.6, 2.1); part(S, i % 2 ? 3 : 2, ix + Math.cos(a) * 0.8, iy + Math.sin(a) * 0.6, 0.3, Math.cos(a) * v, Math.sin(a) * v * 0.72, 0.4, rnd(1.2, 1.6), rnd(1.4, 2.0), { grow: 0.8, a: i % 2 ? 0.55 : 0.7, drag: 2.2, v: i % 3, rot: Math.random() * TAU, vr: rnd(-1, 1) }); } }
 
+    /* the explosion's aftermath each frame: secondary bursts going off round the field, embers rising off the fires */
+    function blastFx(dt) { const L = LOW(), q = L ? 0.35 : 1;
+      for (const b of blast.sec) { if (b.done || blast.t < b.t0) continue; b.done = true; b.at = blast.t; sfx(X, b.v ? 'thud' : 'crash'); shake(ctx, X, 4, 0.2); X.light && X.light(b.x, b.y, 3.2 * b.s, 0.5);
+        for (let i = 0; i < (L ? 5 : 11); i++) { const a = Math.random() * TAU, v = rnd(3, 8) * b.s; part(S, i % 2 ? 1 : 0, b.x, b.y, 0.4, Math.cos(a) * v, Math.sin(a) * v * 0.72, rnd(2, 7), rnd(0.4, 0.9), rnd(0.5, 1.1), { g: 7, drag: 1.2, fin: 0.02 }); }
+        for (let i = 0; i < (L ? 3 : 8); i++) { const a = Math.random() * TAU, v = rnd(0.8, 2.2) * b.s; part(S, i % 2 ? 6 : 2, b.x, b.y, rnd(0.3, 1.2), Math.cos(a) * v, Math.sin(a) * v * 0.72, rnd(1.5, 3.5), rnd(0.8, 1.3), rnd(1.4, 2.2) * b.s, { grow: 0.9, drag: 1.4, a: 0.8, v: i % 3, rot: Math.random() * TAU, vr: rnd(-1.5, 1.5) }); }
+        for (let i = 0; i < (L ? 2 : 5); i++) { const a = Math.random() * TAU, v = rnd(3, 7); part(S, 5, b.x, b.y, 0.4, Math.cos(a) * v, Math.sin(a) * v * 0.72, rnd(4, 8), rnd(0.8, 1.3), rnd(0.5, 0.8), { g: 13, drag: 0.5 }); } }
+      for (const f of blast.fires) { const a2 = blast.t - f.t0; if (a2 < 0 || a2 > f.life) continue; if (Math.random() < dt * 3 * q) part(S, 0, f.x + rnd(-0.3, 0.3), f.y + rnd(-0.2, 0.2), rnd(0.3, 1.0), rnd(-0.4, 0.4), rnd(-0.3, 0.3), rnd(1.2, 2.6), rnd(0.8, 1.6), rnd(0.18, 0.32), { drag: 0.6, g: -0.4 }); }
+      // the field keeps shedding embers as it cools
+      if (blast.t < 3.5 && Math.random() < dt * 16 * q) { const a = Math.random() * TAU, r = RX * Math.sqrt(Math.random()); part(S, 0, ix + Math.cos(a) * r, iy + Math.sin(a) * r * 0.85, rnd(0.2, 1.2), rnd(-0.6, 0.6), rnd(-0.4, 0.4), rnd(1.5, 3.5), rnd(1.0, 2.0), rnd(0.2, 0.36), { drag: 0.7, g: -0.2 }); } }
+    /* the secondary bursts (a flash, a fireball, a ring) and the fires left burning, over the actors (the pet cut out) */
+    function drawAfter(c, B) { const T = S.T, GY = H.GY || 0.55, L = LOW(); c.save(); c.setTransform(B); petHole(c, S);
+      for (const b of blast.sec) { if (!b.done) continue; const a2 = blast.t - b.at; if (a2 > 1.1) continue; const X0 = H.sx(b.x), Y0 = H.sy(b.y), r = T * 1.6 * b.s * eout(a2 / 0.35);
+        if (a2 < 0.25) put(c, B, glowSprite('#FFFFFF'), X0, Y0 - r * 0.4, r * 2.4, r * 2.4, (1 - a2 / 0.25) * 0.7, 0, 1, true);
+        put(c, B, sprShock(), X0, Y0, r * 3.2, r * 3.2, Math.max(0, 1 - a2 / 0.6) * 0.8, 0, GY, true);
+        const fa = Math.pow(Math.max(0, 1 - a2 / 1.1), 1.3); put(c, B, sprSoft(b.v), X0, Y0 - r * 0.55, r * 2.2, r * 2.0, fa * 0.9, a2 * 1.5 + b.v, 1, false); put(c, B, sprSoft((b.v + 1) % 3), X0, Y0 - r * 0.7, r * 1.4, r * 1.3, fa * 0.8, -a2 * 2, 1, true); put(c, B, glowSprite(C.yel), X0, Y0 - r * 0.5, r * 1.6, r * 1.6, fa * 0.5, 0, 1, true); }
+      for (const f of blast.fires) { const a2 = blast.t - f.t0; if (a2 < 0 || a2 > f.life) continue; const k = sm(a2 / 0.25) * (1 - sm((a2 - f.life + 0.9) / 0.9)), X0 = H.sx(f.x), Y0 = H.sy(f.y), hh = T * 1.1 * f.s * k;
+        put(c, B, glowSprite(C.org), X0, Y0, T * 2.2 * f.s, T * 2.2 * f.s * GY, 0.55 * k, 0, 1, true);
+        for (let j = 0; j < (L ? 1 : 3); j++) { const fl = 0.75 + 0.25 * Math.sin(blast.t * (13 + j * 4) + f.ph + j * 2), w = hh * (0.55 - j * 0.1), hj = hh * fl * (1 - j * 0.2); setT(c, B, X0 + (j - 1) * w * 0.45, Y0 + T * 0.05, Math.sin(blast.t * 5 + f.ph + j) * 0.12); c.globalCompositeOperation = j === 1 ? 'source-over' : 'lighter'; c.globalAlpha = Math.min(1, 0.85 * k); c.drawImage(sprTongue((f.v + j) % 3), -w / 2, -hj, w, hj); } }
+      c.restore(); }
     /* ---- drawing ---- */
     const scr = (x, y, z) => [H.sx(x), H.sy(y) - (z || 0) * S.ZT];
     function drawUnder(c, B) { const T = S.T, GY = H.GY || 0.55, X0 = H.sx(ix), Y0 = H.sy(iy);
@@ -263,27 +328,71 @@
       // the explosion on the floor: the broad shockwave (its edge reaches the dome's radius), the glowing fractures, light
       if (blast) { const u = blast.t;
         if (u < 0.5) put(c, B, glowSprite('#FFFFFF'), X0, Y0, RX * 2.2 * T, RX * 2.2 * T, (1 - u / 0.5) * 0.45, 0, GY, true);
-        put(c, B, glowSprite(C.org), X0, Y0, RX * 2.4 * T, RX * 2.4 * T, 0.5 * Math.max(0, 1 - u / 2.2), 0, GY, true);
+        put(c, B, glowSprite(C.org), X0, Y0, RX * 2.6 * T, RX * 2.6 * T, 0.55 * Math.max(0, 1 - u / 4.2), 0, GY, true); put(c, B, glowSprite(C.red), X0, Y0, RX * 1.6 * T, RX * 1.6 * T, 0.4 * Math.max(0, 1 - u / 5.0), 0, GY, true);
         for (let k = 0; k < 3; k++) { const v = (u - k * 0.12) / (0.5 + 0.15 * k); if (v <= 0 || v >= 1) continue; const sz = 2 * RX * T * (1.11 - 0.06 * k) * eout(v); put(c, B, sprShock(), X0, Y0, sz, sz, (1 - v) * (k ? 0.6 : 1), 0, GY, true); }
         const ca = (u < 0.15 ? u / 0.15 : 1) * Math.max(0, 1 - Math.max(0, u - 0.8) / 1.8); if (ca > 0.01) { const s = 2 * RX * T * 1.05 * eout(u / 0.3); put(c, B, sprCrack(blast.v), X0, Y0, s, s, ca, blast.rot, GY, true); if (!LOW()) put(c, B, sprCrack(1 - blast.v), X0, Y0, s * 0.62, s * 0.62, ca * 0.8, blast.rot + 1.4, GY, true); } } }
+    /* ---- the charge: waves of fire blowing outward (on the floor and as a pressure ring round the dragon at chest
+       height), wavy glowing strings of fire flowing into the mouth, the mouth's core swelling and a final inrush ---- */
+    function chargeUnder(c, B) { const T = S.T, GY = H.GY || 0.55;
+      for (const w of cwaves) { const v = w.t / 1.0, r = T * lerp(1.2, 5.8, eout(v)) * (0.85 + 0.3 * w.k), a = Math.min(1, Math.pow(1 - v, 1.2) * 1.6 * w.k); put(c, B, sprWave(w.v), H.sx(w.x), H.sy(w.y), r * 2, r * 2, a, w.rot + v * 0.6, GY, true); }
+      if (ph === 'charge') { const u = t / TC, dg = anchorW(ctx, 'belly'); put(c, B, glowSprite(C.org), H.sx(dg.x), H.sy(dg.y), T * (2.5 + 3 * u), T * (2.5 + 3 * u), 0.18 + 0.4 * u, 0, GY, true); } }
+    function chargeOver(c, B) { const T = S.T, GY = H.GY || 0.55, L = LOW(); c.save(); c.setTransform(B); petHole(c, S);
+      // the pressure rings round the dragon (the near half bright, the far half faint: a disc of flame at chest height)
+      for (const w of cwaves) { const v = w.t / 1.0, r = T * lerp(1.0, 4.3, eout(v)) * (0.85 + 0.3 * w.k), a = Math.min(1, Math.pow(1 - v, 1.4) * 1.35 * w.k), [X0, Y0] = scr(w.x, w.y, w.z); put(c, B, sprWave(1 - w.v), X0, Y0, r * 2, r * 2, a, -w.rot - v * 0.8, GY * 0.9, true); }
+      if (ph !== 'charge') { c.restore(); return; }
+      const u = t / TC, mo = anchorW(ctx, 'mouth'), [mx, my] = scr(mo.x, mo.y, mo.z), live = u < 0.06 ? 0 : sm((u - 0.06) / 0.3), n = Math.round((L ? 6 : 13) * (0.45 + 0.55 * u));
+      // the strings (drawn at half resolution into a buffer and added on: soft glowing ribbons, a quarter of the fill)
+      lowRes(c, B, 'strings', mx - T * 6.5, my - T * 5.5, mx + T * 6.5, my + T * 5, L ? 0.34 : 0.5, 'lighter', (c, B) => {
+      // the strings: points along a spiral from far round the dragon into the mouth, waving across their path
+      c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.lineJoin = 'round';
+      for (let i = 0; i < n; i++) { const st = STR[i], head = ((t * st.sp * (0.8 + 1.2 * u) + st.ph) % 1.25), win = 0.55 + 0.2 * u; if (head <= 0.02) continue; const s0 = Math.max(0, head - win), s1 = Math.min(1, head); if (s1 <= s0) continue;
+        const NP = L ? 10 : 16, pts = []; for (let j = 0; j <= NP; j++) { const sv = lerp(s0, s1, j / NP), rr = st.R * Math.pow(1 - sv, 1.15), an = st.th + st.spin * (1 - sv) * 1.4 + t * 0.3 * st.spin, z = lerp(mo.z + st.z0, mo.z, Math.pow(sv, 0.8)); const [px, py] = scr(mo.x + Math.cos(an) * rr, mo.y + Math.sin(an) * rr * 0.72, z); pts.push([px, py, sv]); }
+        // the wave across the path (screen), shrinking as it nears the mouth
+        for (let j = 0; j < pts.length; j++) { const p = pts[j], q = pts[Math.min(pts.length - 1, j + 1)], o = pts[Math.max(0, j - 1)], dx = q[0] - o[0], dy = q[1] - o[1], dl = Math.hypot(dx, dy) || 1, w = Math.sin(p[2] * st.wf * Math.PI * 2 - t * 9 + st.wp) * st.wa * T * (1 - p[2]) * 1.2; p[0] += -dy / dl * w; p[1] += dx / dl * w; }
+        const fl = (0.75 + 0.25 * Math.sin(t * 23 + i * 1.7)) * live, chunks = 3; c.setTransform(B); c.globalCompositeOperation = 'lighter';
+        for (let k = 0; k < chunks; k++) { const j0 = Math.floor(k * NP / chunks), j1 = Math.floor((k + 1) * NP / chunks), wk = (k + 1) / chunks;   /* (thin at the tail, full at the head) */
+          /* (a smooth curve through the midpoints, so the ribbon flows instead of zigzagging) */
+          c.beginPath(); c.moveTo(pts[j0][0], pts[j0][1]); for (let j = j0 + 1; j < j1; j++) c.quadraticCurveTo(pts[j][0], pts[j][1], (pts[j][0] + pts[j + 1][0]) / 2, (pts[j][1] + pts[j + 1][1]) / 2); c.lineTo(pts[j1][0], pts[j1][1]);
+          c.globalAlpha = 0.3 * fl; c.strokeStyle = C.org; c.lineWidth = T * 0.6 * wk; c.stroke(); c.globalAlpha = 0.7 * fl; c.strokeStyle = C.amb; c.lineWidth = T * 0.22 * wk; c.stroke(); c.globalAlpha = 0.65 * fl; c.strokeStyle = C.yel; c.lineWidth = Math.max(1, T * 0.08 * wk); c.stroke(); }
+        const hp = pts[pts.length - 1]; put(c, B, glowSprite(C.amb), hp[0], hp[1], T * 1.5, T * 1.5, 0.7 * fl, 0, 1, true); put(c, B, glowSprite('#FFFFFF'), hp[0], hp[1], T * 0.55, T * 0.55, 0.9 * fl, 0, 1, true);
+        if (s1 >= 0.995) put(c, B, glowSprite(C.yel), mx, my, T * 1.4, T * 1.4, 0.5 * fl, 0, 1, true); }
+      }); c.setTransform(B);
+      // the mouth's core: a swelling, throbbing heat (faster and brighter as it fills), and a final inrush ring
+      const pul = 1 + (0.08 + 0.2 * u) * Math.sin(t * (6 + 18 * u)), rc = T * (0.5 + 2.2 * eio(u)) * pul; put(c, B, glowSprite(C.org), mx, my, rc * 2.5, rc * 2.5, 0.3 + 0.45 * u, 0, 1, true); put(c, B, glowSprite(C.yel), mx, my, rc * 1.6, rc * 1.6, 0.35 + 0.5 * u, 0, 1, true); put(c, B, glowSprite('#FFFFFF'), mx, my, rc * 0.7, rc * 0.7, 0.4 + 0.6 * u, 0, 1, true);
+      if (!L) for (let k = 0; k < 3; k++) { const a = t * 2.5 + k * 2.1; put(c, B, sprTongue(k), mx + Math.cos(a) * rc * 0.25, my + Math.sin(a) * rc * 0.25, rc * 0.7, rc * 1.4, 0.45 * u, a + Math.PI / 2, 1, true); }
+      const ir = (t - (TC - 0.45)) / 0.45; if (ir > 0 && ir < 1) { const r = T * 5 * (1 - eio(ir)); put(c, B, sprWave(0), mx, my, r * 2, r * 2, 0.9 * Math.sin(ir * Math.PI), t * 3, 0.7, true); }
+      c.restore(); }
     /* the beam over the actors (the pet cut out): from the mouth anchor to the impact every frame */
     function drawOver(c, B) { const T = S.T; if (!(ph === 'beam' || (blast && blast.t < 0.12))) return;
       const m = anchorW(ctx, 'mouth'), [ax0, ay0] = scr(m.x, m.y, m.z), [bx, by] = scr(ix, iy, 0.25), dx = bx - ax0, dy = by - ay0, Lb = Math.hypot(dx, dy); if (Lb < 4) return;
       const fade = blast ? Math.max(0, 1 - blast.t / 0.12) : sm((t - TC) / 0.06), ang = Math.atan2(dy, dx), w0 = T * 0.75, w1 = T * 1.5, pul = 1 + 0.06 * Math.sin(t * 47) + 0.04 * Math.sin(t * 29);
       c.save(); c.setTransform(B); petHole(c, S);
-      // a broad heat bloom along it
-      for (let i = 0; i <= 4; i++) { const u = i / 4; put(c, B, glowSprite(C.org), lerp(ax0, bx, u), lerp(ay0, by, u), T * lerp(1.8, 3.2, u), T * lerp(1.8, 3.2, u), 0.35 * fade, 0, 1, true); }
-      // the body: the scrolling flame texture in a trapezoid (narrow at the mouth, wide at the ground), red edges
-      setT(c, B, ax0, ay0, ang); c.beginPath(); c.moveTo(0, -w0 * 0.55 * pul); c.lineTo(Lb, -w1 * 0.6 * pul); c.lineTo(Lb, w1 * 0.6 * pul); c.lineTo(0, w0 * 0.55 * pul); c.closePath(); c.save(); c.clip();
-      const tex = sprBeam(), o = ((t * 3.2) % 1) * 256, segW = Lb * (256 - o) / 256, H2 = w1 * 1.35 * pul;
-      c.globalCompositeOperation = 'source-over'; c.globalAlpha = fade; c.drawImage(tex, o, 0, 256 - o, 64, 0, -H2 / 2, segW, H2); if (o > 0.5) c.drawImage(tex, 0, 0, o, 64, segW, -H2 / 2, Lb - segW, H2);
-      const o2 = ((t * 5.1 + 0.37) % 1) * 256, seg2 = Lb * (256 - o2) / 256, H3 = w1 * 0.85; c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.6 * fade; c.drawImage(tex, o2, 0, 256 - o2, 64, 0, -H3 / 2, seg2, H3); if (o2 > 0.5) c.drawImage(tex, 0, 0, o2, 64, seg2, -H3 / 2, Lb - seg2, H3);
-      c.restore();
-      // the white-yellow centre
-      c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.beginPath(); c.moveTo(0, 0); c.lineTo(Lb, 0); c.globalAlpha = 0.7 * fade; c.strokeStyle = C.yel; c.lineWidth = w0 * 0.55 * pul; c.stroke(); c.globalAlpha = fade; c.strokeStyle = C.wht; c.lineWidth = w0 * 0.22 * pul; c.stroke();
-      // two molten streams spiralling round it (the far half dimmer)
-      const NS = 26; for (let s = 0; s < 2; s++) { for (let half = 0; half < 2; half++) { c.beginPath(); let pen = false; for (let i = 0; i <= NS; i++) { const u = i / NS, x = u * Lb, ph2 = u * 14 - t * 22 + s * Math.PI, z = Math.cos(ph2), y = Math.sin(ph2) * lerp(w0, w1, u) * 0.62; if ((z >= 0) === !!half) { pen ? c.lineTo(x, y) : c.moveTo(x, y); pen = true; } else pen = false; }
-          c.globalAlpha = (half ? 0.9 : 0.35) * fade; c.strokeStyle = C.amb; c.lineWidth = T * (half ? 0.12 : 0.08); c.stroke(); if (half) { c.globalAlpha = 0.9 * fade; c.strokeStyle = C.wht; c.lineWidth = T * 0.035; c.stroke(); } } }
+      // round 2: no clip and no hard edge anywhere; soft layers drawn at half resolution and blitted up (softer, cheaper)
+      { const mg = Math.max(w1 * 2.6, T * 2.2); lowRes(c, B, 'beam', Math.min(ax0, bx) - mg, Math.min(ay0, by) - mg, Math.max(ax0, bx) + mg, Math.max(ay0, by) + mg, LOW() ? 0.34 : 0.5, 'source-over', (c, B) => {
+      // a broad heat bloom along it, and the heat haze: a faint wavering envelope round the fire
+      for (let i = 0; i <= 4; i++) { const u = i / 4; put(c, B, glowSprite(C.org), lerp(ax0, bx, u), lerp(ay0, by, u), T * lerp(2.0, 3.6, u), T * lerp(2.0, 3.6, u), 0.32 * fade, 0, 1, true); }
+      const L2 = LOW(), tex = sprBeamSoft(), NSEG = L2 ? 4 : 7;
+      /* one soft strip along the beam, widening from the mouth (w0) to the ground (w1): drawn in segments that each take the
+         next stretch of the scrolling texture, so the flame flows from the mouth to the ground */
+      const strip = (img, scroll, wk, a, add, wob) => { setT(c, B, ax0, ay0, ang); c.globalCompositeOperation = add ? 'lighter' : 'source-over'; c.globalAlpha = a > 1 ? 1 : a; const o = ((t * scroll) % 1 + 1) % 1;
+        for (let k = 0; k < NSEG; k++) { const u0 = k / NSEG, u1 = (k + 1) / NSEG, x0 = Lb * u0, x1 = Lb * u1, hw = lerp(w0, w1, (u0 + u1) / 2) * wk * pul, sx0 = ((o + u0 * 1.6) % 1) * 256, sw = 1.6 / NSEG * 256, yo = wob ? Math.sin(t * 11 + k * 1.9) * wob * T : 0;
+          if (sx0 + sw <= 256) c.drawImage(img, sx0, 0, sw, 96, x0, -hw + yo, x1 - x0 + 1, hw * 2); else { const f1 = (256 - sx0) / sw; c.drawImage(img, sx0, 0, 256 - sx0, 96, x0, -hw + yo, (x1 - x0) * f1 + 0.5, hw * 2); c.drawImage(img, 0, 0, sw - (256 - sx0), 96, x0 + (x1 - x0) * f1, -hw + yo, (x1 - x0) * (1 - f1) + 1, hw * 2); } } };
+      if (!L2) strip(tex, 1.1, 2.4, 0.13 * fade, true, 0.12);                  // the heat haze
+      strip(tex, 2.4, 1.6, 0.8 * fade, false, 0.05);                            // the billowing body (normal blend: it has volume)
+      strip(tex, 3.6, 1.15, 0.55 * fade, true, 0.03);                           // hotter flame racing down it
+      // the hot core blooming out (gaussian strips, no caps)
+      setT(c, B, ax0, ay0, ang); c.globalCompositeOperation = 'lighter';
+      c.globalAlpha = 0.75 * fade; c.drawImage(beamSprite(C.yel), -w0 * 0.3, -w0 * 0.75 * pul, Lb + w0 * 0.6, w0 * 1.5 * pul);
+      c.globalAlpha = fade; c.drawImage(beamSprite('#FFFFFF'), -w0 * 0.2, -w0 * 0.32 * pul, Lb + w0 * 0.4, w0 * 0.64 * pul);
+      // flickering tongues licking off both sides, leaning back toward the ground (they slide down the beam)
+      const NT = L2 ? 5 : 10; for (let i = 0; i < NT; i++) { const u = ((i * 0.618 + t * 0.9) % 1), side = i % 2 ? 1 : -1, hw = lerp(w0, w1, u) * 0.75, fl = 0.65 + 0.35 * Math.sin(t * 17 + i * 2.3) * Math.sin(t * 11 + i), sz = T * lerp(0.8, 1.8, u) * fl;
+        const tx = Lb * u, ty = side * hw * 0.8, rot = side > 0 ? Math.PI * 0.85 : Math.PI * 0.15; setT(c, B, ax0, ay0, ang); c.translate(tx, ty); c.rotate(rot - (side > 0 ? 0.35 : -0.35) * Math.sin(t * 7 + i)); c.globalCompositeOperation = i % 3 ? 'lighter' : 'source-over'; c.globalAlpha = Math.min(1, fade * Math.sin(u * Math.PI) * (i % 3 ? 0.75 : 0.6)); c.drawImage(sprTongue(i % 3), -sz * 0.25, -sz, sz * 0.5, sz); }
+      // two molten streams spiralling round it (a soft glow under a thin bright thread; the far half dimmer)
+      setT(c, B, ax0, ay0, ang); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round';
+      const NS = 26; for (let s2 = 0; s2 < 2; s2++) { for (let half = 0; half < 2; half++) { c.beginPath(); let pen = false; for (let i = 0; i <= NS; i++) { const u = i / NS, x = u * Lb, ph2 = u * 14 - t * 22 + s2 * Math.PI, z = Math.cos(ph2), y = Math.sin(ph2) * lerp(w0, w1, u) * 0.62; if ((z >= 0) === !!half) { pen ? c.lineTo(x, y) : c.moveTo(x, y); pen = true; } else pen = false; }
+          c.globalAlpha = (half ? 0.3 : 0.12) * fade; c.strokeStyle = C.org; c.lineWidth = T * (half ? 0.4 : 0.26); c.stroke(); c.globalAlpha = (half ? 0.8 : 0.3) * fade; c.strokeStyle = C.amb; c.lineWidth = T * (half ? 0.11 : 0.07); c.stroke(); if (half) { c.globalAlpha = 0.7 * fade; c.strokeStyle = C.wht; c.lineWidth = T * 0.03; c.stroke(); } } }
+      c.setTransform(B);
+      }); c.setTransform(B); }
       // the impact sphere swelling under the pressure, its glow; the mouth's flare
       const u = cl((t - TC) / tu.beam), rs = T * (0.55 + 1.15 * eout(u)) * pul;
       put(c, B, glowSprite(C.yel), bx, by, rs * 4, rs * 4, 0.6 * fade, 0, 1, true); put(c, B, sprBall(), bx, by - rs * 0.25, rs * 2.3, rs * 2.3, fade, t * 2.4, 1, false); put(c, B, sprBall(), bx, by - rs * 0.25, rs * 1.6, rs * 1.6, 0.6 * fade, -t * 3.1, 1, true); put(c, B, glowSprite('#FFFFFF'), bx, by - rs * 0.25, rs * 1.3, rs * 1.3, 0.8 * fade, 0, 1, true);
@@ -294,21 +403,24 @@
     function drawCloud(c, B) { if (!blast) return; const u = blast.t, T = S.T, life = tu.cloudLife; if (u > life) return;
       const X0 = H.sx(ix), Y0 = H.sy(iy), fadeAll = 1 - sm((u - (life - 1.3)) / 1.3);
       c.save(); c.setTransform(B); petHole(c, S);
-      // the white flash core (short; bounded)
+      // the white flash core (short; bounded; full resolution)
       if (u < 0.3) put(c, B, glowSprite('#FFFFFF'), X0, Y0 - T * RX * 0.25, RX * 2.2 * T, RX * 2.2 * T, (1 - u / 0.3) * 0.75, 0, 1, true);
+      c.restore();
+      // the rest at half resolution (a third on low effects) and blitted up: soft, and a quarter of the pixels
+      lowRes(c, B, 'cloud', X0 - RX * T * 1.7, Y0 - (tu.columnH + RX * 0.9) * S.ZT - RX * T * 1.0, X0 + RX * T * 1.7, Y0 + RX * T * 0.7, LOW() ? 0.34 : 0.5, 'source-over', (c, B) => {
       // the fire dome: its base the dome's radius (the damage area), rising and thinning into the column
-      const dr = RX * T * eout(u / 0.3), dA = (u < 0.6 ? 1 : 1 - sm((u - 0.6) / 0.9)) * fadeAll; if (dA > 0.01 && dr > 2) { const hh = dr * 0.82 * (1 + 0.25 * sm((u - 0.4) / 1.0)), lift = T * 1.2 * sm((u - 0.5) / 1.2);
+      const dr = RX * T * eout(u / 0.3), dA = (u < 0.9 ? 1 : 1 - sm((u - 0.9) / 1.1)) * fadeAll; if (dA > 0.01 && dr > 2) { const hh = dr * 0.82 * (1 + 0.25 * sm((u - 0.4) / 1.0)), lift = T * 1.2 * sm((u - 0.5) / 1.2);
         c.globalCompositeOperation = 'source-over'; c.globalAlpha = 0.92 * dA; setT(c, B, X0, Y0 - lift, 0); c.drawImage(sprDome(), -dr * 1.032, -hh * 1.07, dr * 2.065, hh * 1.143);
         // rolling fire billows along its silhouette (cooling as the dome lifts), so it reads as a churning volume
         const NB = LOW() ? 6 : 11; for (let i = 0; i < NB; i++) { const th = Math.PI + (i + 0.5) / NB * Math.PI, ro = 0.92 + 0.06 * Math.sin(u * 4 + i * 2.1), bx2 = X0 + Math.cos(th) * dr * ro, by2 = Y0 - lift + Math.sin(th) * hh * ro, bs = dr * (0.34 + 0.06 * Math.sin(i * 1.7)) * (0.8 + 0.4 * eout(u / 0.5));
           drawPuff(c, B, bx2, by2, bs, u * (i % 2 ? 1.2 : -1.2) + i, i % 3, sm((u - 0.35) / 1.0) * 0.8, dA * 0.95); }
         put(c, B, glowSprite(C.yel), X0, Y0 - hh * 0.3 - lift, dr * 1.4, dr * 1.1, 0.45 * dA, 0, 1, true); }
       // the column and the cap: rolling puffs climbing; hot to smoke as they cool; the cap lit from within (underside glow)
-      const rise = eout((u - 0.15) / 1.6), Hc = tu.columnH * rise, cool = sm((u - 0.9) / 1.6), puffA = sm((u - 0.15) / 0.3) * fadeAll * 0.92;
+      const rise = eout((u - 0.15) / 1.6), Hc = tu.columnH * rise, cool = sm((u - 1.5) / 2.0), puffA = sm((u - 0.15) / 0.3) * fadeAll * 0.92;
       if (puffA > 0.01 && Hc > 0.3) {
-        const NSt = LOW() ? 5 : 8; for (let i = 0; i < NSt; i++) { const v = i / (NSt - 1), z = Hc * v * 0.88, w = RX * (0.24 - 0.08 * v) * (0.85 + 0.15 * Math.sin(u * 3 + i)), x = X0 + Math.sin(u * 2 + i * 1.7) * T * 0.15, y = Y0 - z * S.ZT, s = w * T * 2.1, rot = u * (i % 2 ? 0.8 : -0.8) + i;
+        const NSt = LOW() ? 6 : 12; for (let i = 0; i < NSt; i++) { const v = i / (NSt - 1), z = Hc * v * 0.88, w = RX * (0.34 - 0.1 * v) * (0.85 + 0.15 * Math.sin(u * 3 + i)), x = X0 + Math.sin(u * 2 + i * 1.7) * T * 0.15, y = Y0 - z * S.ZT, s = w * T * 2.1, rot = u * (i % 2 ? 0.8 : -0.8) + i;
           drawPuff(c, B, x, y, s, rot, i % 3, cool * (0.7 + 0.3 * v), puffA); }
-        const capZ = Hc + RX * 0.22, cy = Y0 - capZ * S.ZT, cw = RX * T * (0.42 + 0.3 * rise), ch = cw * 0.38;
+        const capZ = Hc + RX * 0.22, cy = Y0 - capZ * S.ZT, cw = RX * T * (0.55 + 0.4 * rise), ch = cw * 0.4;
         put(c, B, glowSprite(C.org), X0, cy + ch * 0.5, cw * 2.4, cw * 1.4, 0.55 * puffA * (1 - cool * 0.6), 0, 1, true);
         // the toroidal cap: back puffs, the middle, then front puffs; each a little curled under
         const PF = blast.puffs, n = LOW() ? 6 : PF.length, order = []; for (let i = 0; i < n; i++) { const a = PF[i].a + u * 0.6; order.push([Math.sin(a), i, a]); } order.sort((p, q) => p[0] - q[0]);
@@ -316,10 +428,11 @@
         drawPuff(c, B, X0, cy - ch * 0.35, cw * 1.05, u * 0.5, 1, cool * 0.75, puffA);
         for (const [sn, i, a] of order) { if (sn < 0) continue; const p = PF[i]; drawPuff(c, B, X0 + Math.cos(a) * cw * p.r, cy + sn * ch * p.r, cw * 0.7 * p.s, a + u, p.v, cool * 0.9, puffA); }
         // lit from within: the core of the cap and the column's stem glowing through
-        put(c, B, glowSprite(C.yel), X0, cy, cw * 1.2, cw * 0.8, 0.45 * puffA * (1 - cool * 0.7), 0, 1, true); put(c, B, glowSprite(C.amb), X0, lerp(Y0, cy, 0.5), cw * 0.6, Math.abs(Y0 - cy) * 1.1 + 1, 0.35 * puffA * (1 - cool * 0.7), 0, 1, true); }
-      c.restore(); }
+        put(c, B, glowSprite(C.yel), X0, cy, cw * 1.2, cw * 0.8, 0.45 * puffA * (1 - cool * 0.7), 0, 1, true); { const hotA = puffA * (1 - cool * 0.8); if (hotA > 0.02) { for (let k = 0; k < (LOW() ? 3 : 6); k++) { const a2 = k / 6 * TAU + u * 0.9, px = X0 + Math.cos(a2) * cw * 0.55, py = cy + ch * 0.35 + Math.sin(a2) * ch * 0.3; put(c, B, sprSoft(k % 3), px, py, cw * 0.75, cw * 0.6, 0.45 * hotA, a2, 1, true); } for (let k = 0; k < (LOW() ? 3 : 5); k++) { const v = (k + 0.5) / 5; put(c, B, sprSoft((k + 1) % 3), X0 + Math.sin(u * 3 + k) * T * 0.2, lerp(Y0, cy, v), RX * T * 0.42, RX * T * 0.42, 0.4 * hotA, u * 2 + k, 1, true); } } } put(c, B, glowSprite(C.amb), X0, lerp(Y0, cy, 0.5), cw * 0.6, Math.abs(Y0 - cy) * 1.1 + 1, 0.35 * puffA * (1 - cool * 0.7), 0, 1, true); }
+      }); }
     /* one rolling puff: the hot sprite crossfading to the smoke sprite as it cools (light from the fire underneath) */
-    function drawPuff(c, B, x, y, s, rot, v, cool, a) { if (s < 2 || a < 0.01) return; if (cool < 0.98) put(c, B, sprPuff('hot', v), x, y, s, s, a * (1 - cool), rot, 1, false); if (cool > 0.02) put(c, B, sprPuff('smoke', v), x, y, s, s, a * cool, rot, 1, false); }
+    function drawPuff(c, B, x, y, s, rot, v, cool, a) { if (s < 2 || a < 0.01) return; const k = sm((cool - 0.3) / 0.4);   /* (one sprite outside the crossfade: half the fill) */
+      if (k < 0.99) put(c, B, sprPuff('hot', v), x, y, s, s, a * (1 - k), rot, 1, false); if (k > 0.01) put(c, B, sprPuff('smoke', v), x, y, s, s, a * k, rot, 1, false); }
   }
 
   NM.ultima = ultima;

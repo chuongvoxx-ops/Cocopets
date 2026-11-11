@@ -740,15 +740,31 @@ const NIDHOGG_MODEL = (() => {
     const sp2 = Math.min(1, Math.abs(P.ringSpinV || 0) / 2.4); if (sp2 > 0.05) for (let i = 0; i < 14; i++) { const th = spin * 1.3 + i * 0.09, s = Math.sin(th); if ((half && s < 0) || (!half && s >= 0)) continue; const px = C[0] + Math.cos(th) * 1.5 * k, py = C[1] + s * 1.5 * k * GY, r = T * 0.07 * sc * (1 - i / 14); c.globalAlpha = A * sp2 * (1 - i / 14); blitSized(c, glowSprite(EMBER), px - r, py - r, r * 2, r * 2); }
     c.restore(); void ctr;
   }
-  /* the ground shadow: soft, dragon-shaped (body, tail and the wings' current span), smaller and fainter with height */
+  /* the ground shadow: soft and smudgy (the user, 2026-11-11: "a blur in the shadow ... so you can't make out the little
+     parts"): the dragon's silhouette (body, tail and the wings' current span) is drawn into a tiny canvas (about 56 px
+     across), box-blurred there twice, and blitted up to size with smoothing, so only a soft dark smudge of the wings and
+     body reaches the floor. Smaller and fainter with height. Cost: a few dozen tiny strokes and five small blits a frame */
+  const SHB = { a: null, b: null };
+  function shCanvas(k, w, h) { let cv = SHB[k]; if (!cv) { cv = SHB[k] = document.createElement('canvas'); } if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; } else cv.getContext('2d').clearRect(0, 0, w, h); return cv; }
   function drawShadow(c, x, y, z, a, P, o) {
-    if (!TX) return; const T = o.T, R = rig(P, o.t || 0), V = mkView(x, y, 0, a, P, o), k = 1 / (1 + Math.max(0, z) * 0.16), al = 0.32 * k * (P.alpha == null ? 1 : P.alpha);
+    if (!TX) return; const T = o.T, R = rig(P, o.t || 0), V = mkView(x, y, 0, a, P, o), k = 1 / (1 + Math.max(0, z) * 0.16), al = 0.42 * k * (P.alpha == null ? 1 : P.alpha);
+    if (!(al > 0.01)) return;
     const S = p => { const w = V.toW(p); return [o.sx(w[0] + 0.25 * z), o.sy(w[1] + 0.12 * z)]; };   // (flattened on the floor, cast a little away from the key light)
-    c.save(); c.globalAlpha = al; c.fillStyle = 'rgb(8,3,4)'; c.strokeStyle = 'rgb(8,3,4)'; c.lineCap = 'round'; c.lineJoin = 'round';
-    for (const blur of [1.6, 1.0, 0.5]) { c.globalAlpha = al * (blur > 1.2 ? 0.25 : blur === 1 ? 0.35 : 0.5); const wd = blur * T * VIS * 0.12 * (1 + z * 0.08);
-      for (const Wg of R.wing) { const pts = [Wg.root, Wg.elbow, Wg.wrist, Wg.fing[0], Wg.fing[1], Wg.fing[2], Wg.fing[3], Wg.hipA].map(S); c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.closePath(); c.lineWidth = wd; c.fill(); c.stroke(); }
-      const chain = [R.head].concat(R.neck.slice().reverse(), [R.torso], R.tail).map(S); for (let i = 1; i < chain.length; i++) { c.beginPath(); c.moveTo(chain[i - 1][0], chain[i - 1][1]); c.lineTo(chain[i][0], chain[i][1]); const u = i / chain.length; c.lineWidth = T * VIS * (i < 7 ? 0.32 : i === 7 ? 0.7 : 0.4 * (1 - u) + 0.08) + wd; c.stroke(); } }
-    c.restore();
+    const wings = R.wing.map(Wg => [Wg.root, Wg.elbow, Wg.wrist, Wg.fing[0], Wg.fing[1], Wg.fing[2], Wg.fing[3], Wg.hipA].map(S)), chain = [R.head].concat(R.neck.slice().reverse(), [R.torso], R.tail).map(S);
+    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; for (const L of wings.concat([chain])) for (const p of L) { if (p[0] < x0) x0 = p[0]; if (p[0] > x1) x1 = p[0]; if (p[1] < y0) y0 = p[1]; if (p[1] > y1) y1 = p[1]; }
+    const pad = T * VIS * 0.9 * (1 + z * 0.1); x0 -= pad; y0 -= pad; x1 += pad; y1 += pad; if (!(x1 > x0 && y1 > y0)) return;
+    // the small canvas: about 40 px on its long side (the blur's softness scales with the shadow's size)
+    const ds = Math.max(x1 - x0, y1 - y0) / 56, W = Math.max(4, Math.ceil((x1 - x0) / ds)), Hh = Math.max(4, Math.ceil((y1 - y0) / ds));
+    const A = shCanvas('a', W, Hh), g = A.getContext('2d'); g.setTransform(1 / ds, 0, 0, 1 / ds, -x0 / ds, -y0 / ds);
+    g.fillStyle = 'rgb(8,3,4)'; g.strokeStyle = 'rgb(8,3,4)'; g.lineCap = 'round'; g.lineJoin = 'round'; const wd = T * VIS * 0.12 * (1 + z * 0.08);
+    g.globalAlpha = 0.75; for (const pts of wings) { g.beginPath(); pts.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.closePath(); g.lineWidth = wd; g.fill(); g.stroke(); }
+    g.globalAlpha = 1; for (let i = 1; i < chain.length; i++) { g.beginPath(); g.moveTo(chain[i - 1][0], chain[i - 1][1]); g.lineTo(chain[i][0], chain[i][1]); const u = i / chain.length; g.lineWidth = T * VIS * (i < 7 ? 0.32 : i === 7 ? 0.7 : 0.4 * (1 - u) + 0.08) + wd; g.stroke(); }
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    // two box-blur passes (A -> B -> A): the small parts melt into one soft smudge
+    const B2 = shCanvas('b', W, Hh), gb = B2.getContext('2d');
+    for (let pass = 0; pass < 2; pass++) { const src = pass ? B2 : A, dst = pass ? A : B2, gd = pass ? g : gb; if (pass) gd.clearRect(0, 0, W, Hh); const r = pass ? 1 : 1.5;
+      gd.globalAlpha = 0.34; gd.drawImage(src, 0, 0); gd.globalAlpha = 0.22; gd.drawImage(src, -r, 0); gd.drawImage(src, r, 0); gd.drawImage(src, 0, -r); gd.drawImage(src, 0, r); gd.globalAlpha = 1; void dst; }
+    c.save(); c.globalAlpha = al; c.imageSmoothingEnabled = true; c.drawImage(A, 0, 0, W, Hh, x0, y0, W * ds, Hh * ds); c.restore();
   }
   /* world anchors of the last drawn pose: mouth, belly, chest, wingL / wingR (roots), ventL / ventR, ring (centre over the
      back), seat, tail (the tip), head, eyes */
