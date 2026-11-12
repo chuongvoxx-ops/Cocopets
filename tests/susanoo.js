@@ -58,7 +58,7 @@ const path = require('path');
   const A = await R('full', `
     const { D, g, me } = H, S = H.cast(); if (!S) return { err: 'no session' };
     const out = { mv0: g.mvMods ? g.mvMods.susanoo : null, mvSet: S.stats.mvSet, leftR0: +S.leftR.toFixed(2), cdHeld: g.cdU, lab1: H.labels() };
-    // robot attacks: Glides into the line of monsters, Death Ray (Strong 1), Dark Spikes; one hit per enemy per activation
+    // robot attacks: Glides into the line of monsters, Death Bombs (Strong 1), Dark Spikes; one hit per enemy per activation
     H.face(0); const n0 = H.log.length; const gs0 = S.stats.glides, pre = { busy: S.busy, cd: S.cd.dodge, locked: S.V.locked, glide: !!S.glide }; H.press('dodge'); H.release(); out.gdbg = { pre, started: S.stats.glides - gs0, v: [S.V.x - H.me.x, S.V.vx], mons: H.D.mons.filter(m => m._tag && !m.dead).map(m => [m._tag, +(m.x - S.V.x).toFixed(1), +(m.y - S.V.y).toFixed(1)]) }; H.step(1.2); out.glide = H.log.slice(n0).map(h => h.m); out.gdbg.after = [S.stats.glideHit, +S.V.x.toFixed(1)];
     const n1 = H.log.length; H.press('strong'); H.step(2.6); out.blade = H.log.slice(n1).map(h => h.m);
     const n2 = H.log.length; H.press('strong2'); H.step(3.6); out.spikes = H.log.slice(n2).map(h => h.m);
@@ -85,10 +85,10 @@ const path = require('path');
   if (A && !A.err) {
     ok(A.mv0 === 1.35 && A.mvSet === 1, 'the movement modifier is exactly 1.35, applied once', { mv: A.mv0, set: A.mvSet });
     ok(A.leftR0 > 34.5 && A.leftR0 <= 35, 'robot control starts at 35 s', A.leftR0);
-    ok(['GLIDES', 'DEATH RAY', 'DARK SPIKES', 'TRANSFORM'].every(s => A.lab1.includes(s)), 'robot controls: Glides, Death Ray, Dark Spikes, Transform', A.lab1);
+    ok(['GLIDES', 'DEATH BOMBS', 'DARK SPIKES', 'TRANSFORM'].every(s => A.lab1.includes(s)), 'robot controls: Glides, Death Bombs, Dark Spikes, Transform', A.lab1);
     const once = L => L.length === new Set(L).size;
     ok(A.glide.length > 0 && once(A.glide), 'Glides hits, one hit per enemy', A.glide.length ? A.glide : A.gdbg);
-    ok(A.blade.length > 0 && once(A.blade), 'Death Ray hits, one hit per enemy', A.blade);
+    ok(A.blade.length > 0 && Object.values(A.blade.reduce((o, m) => (o[m] = (o[m] || 0) + 1, o), {})).every(n => n <= 2), 'Death Bombs hit, at most two hits per enemy over the five circles', A.blade);
     ok(A.spikes.length > 0, 'Dark Spikes hits (an eruption and a burst: at most one hit each per enemy)', A.spikes);
     ok(Object.values(A.spikes.reduce((o, m) => (o[m] = (o[m] || 0) + 1, o), {})).every(c => c <= 2), 'Dark Spikes: no enemy hit more than twice (one per phase)');
     ok(A.chargeR > 0 && A.robotHits > 0, 'robot damage fills the meter', A.chargeR);
@@ -97,7 +97,7 @@ const path = require('path');
     ok(A.afterXf.leftA > 19.7 && A.afterXf.leftA <= 20 && A.afterXf.airGrants === 1, 'a fresh 20 s airship phase, granted exactly once', A.afterXf);
     ok(A.afterXf.chargeKept && A.afterXf.hpKept, 'Transform keeps the charge and HP');
     ok(A.afterXf.mvSet === 1 && A.afterXf.mv === 1.35 && A.afterXf.cd === A.afterXf.cd0, 'Transform neither re-applies x1.35 nor starts the outer cooldown', A.afterXf);
-    ok(['DIVE', 'PULSAR'].every(s => A.lab2.includes(s)) && !A.lab2.includes('DARK SPIKES') && !A.lab2.includes('DEATH RAY') && A.lab2.some(s => /MESSIAH/.test(s)), 'airship controls: Dive, one Pulsar, Dark Messiah; no second Strong', A.lab2);
+    ok(['DIVE', 'PULSAR'].every(s => A.lab2.includes(s)) && !A.lab2.includes('DARK SPIKES') && !A.lab2.includes('DEATH BOMBS') && A.lab2.some(s => /MESSIAH/.test(s)), 'airship controls: Dive, one Pulsar, Dark Messiah; no second Strong', A.lab2);
     ok(A.s2.same && !A.s2.busy, 'the second Strong binding does nothing in the airship', A.s2);
     ok(A.pulsar.length > 0 && A.chargeAirUp, 'Shockwave Pulsar hits and airship damage fills the same meter', A.pulsar);
     ok(A.dive.length > 0 && once(A.dive), 'Dive hits, one hit per enemy', A.dive.length ? A.dive : A.ddbg);

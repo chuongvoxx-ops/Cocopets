@@ -40,7 +40,7 @@
     summon: 2.6,                                   // s: the assembly, until the robot can move
     size: 1,                                       // the model's drawn scale
     zoomR: 0.86, zoomA: 0.8,                       // the camera's zoom in robot and airship form
-    camLift: 0.5,                                  // tiles: in the air the camera centres this far above the ship's drawn anchor (its hull's middle)
+    camLift: 0.4,                                  // tiles: in the air the camera aims this far above the ship's drawn centre, so the ship sits a little under the screen's middle
     hover: 0.35,                                   // tiles: the robot floats this high on its foot exhaust
     robotAcc: 9,                                   // 1/s: how fast its glide reaches the stick's speed (mass)
     turn: { max: 6.0, k: 8, acc: 30 },            // its heading: rad/s cap, gap closing, turn-rate easing (as Nidhogg's)
@@ -414,7 +414,11 @@
        the ground under it, so the airship sits mid-screen instead of in the top half; its velocity / 6 leads the aim
        by exactly the lag of 20b's camera follow, dtReal * 6, so it stays centred at full speed too) */
     const air = S.phase === 'air' || S.phase === 'messiah' ? 1 : S.phase === 'xform' ? sstep(0, XFT.total, S.xt) : 0;
-    if (air > 0 && !(c && c.x != null)) return { x: d.x + (d.vx || 0) / 6 * air, y: d.y + ((d.vy || 0) / 6 - (d.z || 0) * ZK - TUNE.camLift) * air, k: air, zoom: c && c.zoom ? c.zoom : zf };
+    /* (v313: the target is the model's own drawn centre, its 'center' anchor projected to the screen, since the drawn ship sits
+       well above d.z * ZK at the model's scale; camLift then sets it a little below the screen's middle, clear of the HUD) */
+    if (air > 0 && !(c && c.x != null)) { const M0 = S.ctx && S.ctx.model, p = M0 && M0.anchor ? M0.anchor('center') : null, okp = p && isFinite(p.x) && isFinite(p.y) && isFinite(p.z);
+      const bx = okp ? p.x : d.x, by = okp ? p.y - p.z * ZK : d.y - (d.z || 0) * ZK - 1.8;
+      return { x: d.x + (bx - d.x + (d.vx || 0) / 6) * air, y: d.y + (by - d.y + (d.vy || 0) / 6 - TUNE.camLift) * air, k: air, zoom: c && c.zoom ? c.zoom : zf }; }
     return { x: c && c.x != null ? c.x : d.x, y: c && c.y != null ? c.y : d.y, k: c && c.x != null ? (c.k != null ? c.k : 0.6) : 0, zoom: c && c.zoom ? c.zoom : zf }; }
 
   /* ---- targeting (Nidhogg's): an enemy near the stick's aim line, else the ground along it; no stick: the nearest ---- */

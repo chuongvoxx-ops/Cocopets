@@ -1,10 +1,10 @@
 /* ---------- Dark's Susano O (12th Dark ult): the attacks (worker E) ----------
    The model is 20k5v (SUSANO_MODEL), the session, both forms, movement, menus and timers are 20k5w (U.susanoo). This file
    adds the four attacks to the SUSANOO_MOVES contract (docs/DARK-SUSANOO-BRIEF.md):
-   - SM.deathRay(ctx) (also SM.darkBlade, the slot's old name): Death Ray. The free hand points at a spot ahead and a
-     purple laser from the palm carves a magic circle on the ground (rings, a star, sigils, runes); the ray cuts off, the
-     circle pulses brighter as its runes turn, then bursts in a column of violet-white light and a shockwave ring: one hit
-     per enemy inside the drawn circle (charges the meter).
+   - SM.deathBombs(ctx) (also SM.deathRay / SM.darkBlade, the slot's old names): Death Bombs. The free arm flings five
+     dark-violet energy bombs, 0.08 s apart, to the nearest enemies (then spread spots along the aim); each sinks in, a
+     magic circle blooms and pulses under it, and the circles burst in a ripple (column of light, shockwave ring, smoke):
+     each burst hits the enemies inside its circle, at most twice per enemy over the five (charges the meter).
    - SM.darkSpikes(ctx): Dark Spikes. The sword turns point-down and is driven into the ground; dark fissures race from it
      to the aimed area; then the Earth ult Crystal Coronation (20k2f, assumed to be the spec's "Crown of Rock") runs as
      its Dark variant through its V hook: the same ray-cast crystal spires, formation and eruption, in glossy black
@@ -39,10 +39,11 @@
 
   /* ---- the numbers (DK = ctx.DK = base x K x (1 + 0.08 (evo - 1)); tiers 0/1/2 = evo 1-3 / 4-6 / 7) ---- */
   const TUNE = SM.TUNE = {
-    /* Death Ray (robot Strong 1, the slot True Dark Blade had; same damage budget and cooldown): wind-up, the ray carves a
-       circle of radius r for `carve` s, the circle charges, then bursts: dmg x DK once per enemy inside it (charges the
-       meter). The target spot: the aim within reach (at least minReach), stopped short of a wall, on ground. */
-    ray: { dmg: 4.0, r: [2.6, 2.8, 3.0], reach: 5.5, minReach: 2.0, windup: 0.3, carve: 0.9, charge: 0.4, release: 0.3, burst: 0.9, kb: 3, cd: 2.5 },
+    /* Death Bombs (robot Strong 1, the slot True Dark Blade then Death Ray had; same cooldown, a comparable per-enemy
+       budget): n bombs `every` s apart after the wind-up, flight flight[0] + flight[1] x dist/reach s, a circle of radius r
+       blooms on landing and bursts `bloom` s later (bursts at least `gap` apart); dmg x DK per burst to each enemy inside
+       it, at most `cap` per enemy (so at most 5 x DK, typically 2.5 x DK), charging the meter. */
+    bombs: { dmg: 2.5, cap: 2, n: 5, r: [1.8, 1.9, 2.0], reach: 6.5, windup: 0.25, every: 0.08, flight: [0.32, 0.18], bloom: 0.55, gap: 0.12, release: 0.3, burst: 0.8, kb: 2, cd: 2.5 },
     /* Dark Spikes: the impalement, then Coronation's Dark variant: phase 1 the eruption (one hit per enemy over the whole
        formation), phase 2 the burst (one hit per enemy); timings of the build-up scaled by timeK. Cooldown ~3.5 s */
     spikes: { erupt: 2.5, burst: 3.0, turn: 0.3, plunge: 0.12, fissure: 0.26, timeK: 0.55, recoil: 0.35, cd: 3.5 },
@@ -216,110 +217,96 @@
   function tierOf(ctx) { const ev = evoOf(ctx); return ctx.tier != null ? ctx.tier : ev >= 7 ? 2 : ev >= 4 ? 1 : 0; }
   function dkOf(ctx) { const ev = evoOf(ctx), Cc = ctx.C || {}; return ctx.DK > 0 ? ctx.DK : (Cc.base || 10) * (Cc.K || 1) * (1 + 0.08 * (ev - 1)); }
 
-  /* ================= Death Ray (robot Strong 1; replaced True Dark Blade) =================
-     The free hand (handL) points at a spot on the ground ahead; a purple laser fires from the palm to the ground and its
-     contact point carves a magic circle (the outer rings, a star, inner sigils and runes); the ray cuts off, the circle
-     pulses brighter as its runes turn, then bursts: a column of violet-white light, a shockwave ring, sparks. ONE hit
-     per enemy inside the drawn circle at the burst (it charges the meter). Pose: A's 'rayAim' (windup 0.3 s), 'rayHold' (the
-     carve 0.9 s, the arm tracking the contact point, then held at the centre through the 0.4 s charge), 'rayRecoil' (0.3 s
-     from the burst); extra { x, y } is where the arm points. */
-  /* the circle's figure, in unit radius: polylines in carving order ([x, y] lists); runes ride a band that turns */
-  const RAY_FIG = (() => { const P = [], C = (r, n, a0) => { const L = []; for (let i = 0; i <= n; i++) { const a = a0 + i / n * TAU; L.push([Math.cos(a) * r, Math.sin(a) * r]); } return L; };
+  /* ================= Death Bombs (robot Strong 1; replaced Death Ray, which replaced True Dark Blade) =================
+     The free arm thrusts toward each landing spot in turn and five dark-violet energy bombs arc out 0.08 s apart: to the
+     nearest enemies first (up to five, within reach, on ground the robot can see), the rest to spread spots along the aim.
+     Each bomb sinks into the ground and a magic circle blooms under it (ring, star, runes), glowing and pulsing with its
+     runes turning; the circles burst one after another in a ripple: a violet-white column, a shockwave ring, dark smoke,
+     sparks. Each burst hits the enemies inside its drawn circle; an enemy takes at most `cap` hits (it charges the meter).
+     Pose: A's ray clip ('rayAim' the wind-up, 'rayHold' with extra { x, y } at each launch target, 'rayRecoil'). */
+  const MAGIC_FIG = (() => { const P = [], C = (r, n, a0) => { const L = []; for (let i = 0; i <= n; i++) { const a = a0 + i / n * TAU; L.push([Math.cos(a) * r, Math.sin(a) * r]); } return L; };
     P.push({ pts: C(1.0, 64, -Math.PI / 2), w: 1.25, k: 'ring' }); P.push({ pts: C(0.86, 56, -Math.PI / 2), w: 0.8, k: 'ring' });
     const star = []; for (let i = 0; i <= 5; i++) { const a = -Math.PI / 2 + (i * 2 % 5) / 5 * TAU; star.push([Math.cos(a) * 0.86, Math.sin(a) * 0.86]); } P.push({ pts: star, w: 1.0, k: 'star' });
     P.push({ pts: C(0.4, 36, Math.PI / 2), w: 0.85, k: 'star' });
     for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + i / 5 * TAU, cx = Math.cos(a) * 0.86, cy = Math.sin(a) * 0.86, L = []; for (let j = 0; j <= 12; j++) { const b = j / 12 * TAU; L.push([cx + Math.cos(b) * 0.07, cy + Math.sin(b) * 0.07]); } P.push({ pts: L, w: 0.7, k: 'star' }); }
-    // runes: twelve small glyphs between the rings (a few strokes each, deterministic)
-    let s = 7; const R = () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
     for (let i = 0; i < 12; i++) { const a = -Math.PI / 2 + (i + 0.5) / 12 * TAU, rc = 0.93, ca = Math.cos(a), sa = Math.sin(a), tx = -sa, ty = ca, g = (u, v) => [ca * (rc + v) + tx * u, sa * (rc + v) + ty * u];
       const kind = i % 4, L = kind === 0 ? [g(-0.04, -0.04), g(0, 0.04), g(0.04, -0.04)] : kind === 1 ? [g(-0.04, 0.035), g(-0.04, -0.035), g(0.04, 0), g(-0.04, 0.035)] : kind === 2 ? [g(0, -0.045), g(0, 0.045), g(-0.035, 0.01), g(0.035, 0.01)] : [g(-0.04, -0.03), g(0.04, -0.03), g(0.0, 0.04), g(-0.02, 0.0), g(0.03, 0.01)];
-      void R; P.push({ pts: L, w: 0.6, k: 'rune' }); }
-    // the inner sigil: a small triangle and a dot ring
+      P.push({ pts: L, w: 0.6, k: 'rune' }); }
     const tri = []; for (let i = 0; i <= 3; i++) { const a = Math.PI / 2 + i / 3 * TAU; tri.push([Math.cos(a) * 0.3, Math.sin(a) * 0.3]); } P.push({ pts: tri, w: 0.7, k: 'star' });
-    let tot = 0; for (const p of P) { p.len = 0; p.cum = [0]; for (let i = 1; i < p.pts.length; i++) { p.len += Math.hypot(p.pts[i][0] - p.pts[i - 1][0], p.pts[i][1] - p.pts[i - 1][1]); p.cum.push(p.len); } p.s0 = tot; tot += p.len + 0.25; }   /* (+0.25: the ray's short hop between strokes) */
-    return { P, tot }; })();
-  function deathRay(ctx) {
+    return P; })();
+  /* the circle on the ground: feathered passes (a wide violet haze, a violet line, a pale core); runes and star turn by spin */
+  function drawFigure(c, B, T, X0, Y0, RP, GY, k, spin, rot0) { if (!(k > 0.01) || RP < 2) return;
+    c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.lineJoin = 'round';
+    for (const pass of [[C.vio2, 0.2, 0.22], [C.vio, 0.07, 0.6], [C.pale, 0.024, 0.85]]) { c.strokeStyle = pass[0];
+      for (const p of MAGIC_FIG) { setT(c, B, X0, Y0, 0, 1, GY); c.rotate(rot0 + (p.k === 'rune' ? spin : p.k === 'star' ? -spin * 0.6 : 0)); c.lineWidth = Math.max(1, T * pass[1] * p.w); c.globalAlpha = Math.min(1, pass[2] * k);
+        c.beginPath(); c.moveTo(p.pts[0][0] * RP, p.pts[0][1] * RP); for (let i = 1; i < p.pts.length; i++) c.lineTo(p.pts[i][0] * RP, p.pts[i][1] * RP); c.stroke(); } }
+    c.setTransform(B); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over'; }
+  function deathBombs(ctx) {
     const S = sysOf(ctx), done = once(ctx), v = ctx.vehicle; if (!S || !v) { done(); return; }
-    const H = S.H, X = H.X, tu = TUNE.ray, tier = tierOf(ctx), DK = dkOf(ctx), R = tu.r[tier], L = LOW();
-    // the target spot: the aim (stick or nearest enemy, as target() picks), within reach, on ground the robot can see
-    const A = aimOf(ctx, H, v, tu.reach), ang = A.a; let d0 = Math.min(tu.reach, Math.max(tu.minReach, isFinite(A.d) ? A.d : tu.reach));
-    let tx = v.x + Math.cos(ang) * d0, ty = v.y + Math.sin(ang) * d0;
-    for (let s = 0.5; s <= d0; s += 0.25) { const x = v.x + Math.cos(ang) * s, y = v.y + Math.sin(ang) * s; if (blocked(X, x, y)) { const k = Math.max(tu.minReach * 0.5, s - 0.5); tx = v.x + Math.cos(ang) * k; ty = v.y + Math.sin(ang) * k; break; } }
-    if (!ground(ctx, tx, ty)) { try { const p = ctx.nearestLand && ctx.nearestLand(tx, ty); if (p && isFinite(p.x)) { tx = p.x; ty = p.y; } } catch (e) {} }
-    v.heading = ang; if (v.wantHeading !== undefined) v.wantHeading = ang;
-    const TW = tu.windup, TC = TW + tu.carve, TQ = TC + tu.charge, TE = TQ + tu.burst, rot0 = ang + Math.PI / 2;
-    let t = 0, ph = 'windup', finished = false, boomT = -1; const hits = new Set();
-    ctx.rayPlan = { x: tx, y: ty, R };   /* (read-only, for tests) */
-    sfx(X, 'note', 220, 0.3, 'sine', 0.05, 440); sfx(X, 'hum');
-    const contact = u => { /* the ray's point on the figure at carve progress u (0..1), world */ const sAt = u * RAY_FIG.tot; let p = RAY_FIG.P[0];
-      for (const q of RAY_FIG.P) { if (sAt >= q.s0) p = q; else break; } const ls = Math.min(p.len, sAt - p.s0); let i = 1; while (i < p.cum.length - 1 && p.cum[i] < ls) i++;
-      const a = p.pts[i - 1], b = p.pts[i], f = cl((ls - p.cum[i - 1]) / Math.max(1e-6, p.cum[i] - p.cum[i - 1])), lx = lerp(a[0], b[0], f), ly = lerp(a[1], b[1], f), cr = Math.cos(rot0), sr = Math.sin(rot0);
-      return { x: tx + (lx * cr - ly * sr) * R, y: ty + (lx * sr + ly * cr) * R }; };
+    const H = S.H, X = H.X, tu = TUNE.bombs, tier = tierOf(ctx), DK = dkOf(ctx), R = tu.r[tier], L = LOW(), N = tu.n;
+    const A = aimOf(ctx, H, v, 4), ang = A.a; v.heading = ang; if (v.wantHeading !== undefined) v.wantHeading = ang;
+    /* a spot the robot can see: walk out to it, stop short of a wall, then onto ground */
+    const sight = (x, y) => { const dx = x - v.x, dy = y - v.y, d = Math.hypot(dx, dy) || 1e-6, ux = dx / d, uy = dy / d; let k = d;
+      for (let s = 0.5; s <= d; s += 0.25) if (blocked(X, v.x + ux * s, v.y + uy * s)) { k = Math.max(0.8, s - 0.5); break; }
+      let px = v.x + ux * k, py = v.y + uy * k; if (!ground(ctx, px, py)) { try { const p = ctx.nearestLand && ctx.nearestLand(px, py); if (p && isFinite(p.x)) { px = p.x; py = p.y; } } catch (e) {} } return { x: px, y: py }; };
+    // targets: the nearest enemies first (up to N, within reach), the rest at spread spots along the aim (a fan)
+    const mons = monsOf(ctx, H).filter(m => !gone(m) && Math.hypot(m.x - v.x, m.y - v.y) <= tu.reach).sort((p, q) => Math.hypot(p.x - v.x, p.y - v.y) - Math.hypot(q.x - v.x, q.y - v.y));
+    const spots = []; for (const m of mons) { if (spots.length >= N) break; if (spots.some(s => Math.hypot(s.x - m.x, s.y - m.y) < R * 0.9)) continue; spots.push(sight(m.x, m.y)); }
+    const FAN = [[3.2, 0], [4.6, -0.55], [4.6, 0.55], [2.6, -0.95], [2.6, 0.95], [5.8, 0], [3.8, -1.25], [3.8, 1.25]]; for (const [d, da] of FAN) { if (spots.length >= N) break; const a = ang + da, p = sight(v.x + Math.cos(a) * d, v.y + Math.sin(a) * d); if (spots.some(s => Math.hypot(s.x - p.x, s.y - p.y) < R * 1.1)) continue; spots.push(p); }
+    while (spots.length < N) { const a = ang + rnd(-1.2, 1.2), d = rnd(2, tu.reach - 0.5); spots.push(sight(v.x + Math.cos(a) * d, v.y + Math.sin(a) * d)); }
+    // the schedule: launches 0.08 s apart after the wind-up; flight by distance; bursts ripple (land + bloom, at least `gap` apart)
+    let tPrev = 0; const bombs = spots.map((p, i) => { const tl = tu.windup + i * tu.every, dist = Math.hypot(p.x - v.x, p.y - v.y), fl = tu.flight[0] + tu.flight[1] * dist / tu.reach, land = tl + fl; const tb = Math.max(land + tu.bloom, tPrev + tu.gap); tPrev = tb;
+      return { x: p.x, y: p.y, tl, land, tb, fl, sx: 0, sy: 0, sz: 0, launched: false, boomed: false, rot: rnd(0, TAU), peak: 1.6 + 0.35 * dist }; });
+    const TEND = bombs[N - 1].tb, count = new Map();
+    ctx.bombPlan = bombs.map(b => ({ x: b.x, y: b.y, R, t: b.tb }));   /* (read-only, for tests) */
+    let t = 0, finished = false; sfx(X, 'note', 140, 0.25, 'sine', 0.06, 280);
+    const posOf = (b, tt) => { const u = cl((tt - b.tl) / b.fl); return { x: lerp(b.sx, b.x, u), y: lerp(b.sy, b.y, u), z: lerp(b.sz, 0, u) + b.peak * 4 * u * (1 - u), u }; };
     const act = { update(dt) { t += dt;
         if (!S.alive) { if (!finished) { finished = true; done(); } act.dead = true; return; }
-        // A's ray clip (20k5w): 'rayAim' the arm rises and points, 'rayHold' held while the ray carves (the arm follows the
-        // contact point, extra x/y), held at the centre through the charge, 'rayRecoil' as the circle bursts
-        const gl = { glow: t < TC ? 0.4 + 0.6 * sm(t / TW) : 0.6, channel: 0.3 };
-        if (t < TW) setPose(ctx, 'rayAim', t / TW, Object.assign({ x: tx, y: ty }, gl));
-        else if (t < TC) { const p = contact(cl((t - TW) / tu.carve)); setPose(ctx, 'rayHold', (t - TW) / tu.carve, Object.assign({ x: p.x, y: p.y }, gl)); }
-        else if (t < TQ) setPose(ctx, 'rayHold', 1, Object.assign({ x: tx, y: ty }, gl));
-        else if (!finished) setPose(ctx, 'rayRecoil', cl((t - TQ) / tu.release), { x: tx, y: ty, glow: 0.4, channel: 0.2 });
-        if (t < TW) { if (Math.random() < (L ? 0.3 : 0.7)) { const h = anchorW(ctx, 'handL'); part(S, 0, h.x + rnd(-0.2, 0.2), h.y + rnd(-0.15, 0.15), h.z + rnd(-0.2, 0.2), 0, 0, rnd(0.2, 0.8), rnd(0.25, 0.4), rnd(0.2, 0.32), { fin: 0.03 }); } }
-        else if (t < TC) { if (ph === 'windup') { ph = 'carve'; sfx(X, 'zap'); sfx(X, 'hiss', tu.carve, 0.2, 1400); sfx(X, 'note', 640, tu.carve, 'sawtooth', 0.04, 600); }
-          const p = contact(cl((t - TW) / tu.carve)); if (!(S.lt > t) && X.light) { S.lt = t + 0.12; X.light(p.x, p.y, 2.2, 0.25); }
-          let k = (L ? 10 : 30) * dt + Math.random(); while (k-- >= 1) { const a2 = Math.random() * TAU, sp = rnd(1.5, 4.5); if (Math.random() < 0.6) part(S, 1, p.x, p.y, 0.05, Math.cos(a2) * sp, Math.sin(a2) * sp * 0.7, rnd(1.5, 4), rnd(0.2, 0.4), rnd(0.12, 0.22), { g: 9, drag: 2 }); else part(S, 0, p.x + rnd(-0.1, 0.1), p.y + rnd(-0.1, 0.1), 0.05, rnd(-0.2, 0.2), rnd(-0.2, 0.2), rnd(0.8, 1.6), rnd(0.6, 1.1), rnd(0.12, 0.22), { g: -0.6, drag: 1.5, fin: 0.05 }); } }   /* (sparks at the contact, embers rising off the cut) */
-        else if (t < TQ) { if (ph === 'carve') { ph = 'charge'; sfx(X, 'note', 180, tu.charge, 'sine', 0.12, 720); } if (!(S.lt > t) && X.light) { S.lt = t + 0.1; X.light(tx, ty, R + 0.5, 0.2); }
-          if (Math.random() < dt * (L ? 12 : 30)) { const a2 = Math.random() * TAU, r = R * Math.sqrt(Math.random()); part(S, 0, tx + Math.cos(a2) * r, ty + Math.sin(a2) * r * 0.9, 0.05, 0, 0, rnd(1, 2.5), rnd(0.4, 0.7), rnd(0.15, 0.25), { g: -1, drag: 1, fin: 0.04 }); } }
-        else if (boomT < 0) { ph = 'burst'; boomT = t; boom(); }
-        if (t >= TQ + tu.release && !finished) { finished = true; setPose(ctx, 'rest', 1, { glow: 0, channel: 0, crouch: 0 }); done(); }
-        if (boomT >= 0 && t - boomT > tu.burst) act.dead = true; },
-      under(c, B) { const T = S.T, GY = S.GY, X0 = H.sx(tx), Y0 = H.sy(ty), RP = R * T, LO = lowBegin(S, c);
-        // the telegraph while the arm rises; then the carved figure; its glow builds through the charge; it flashes and fades
-        if (t < TC + 0.05) LO.floor(sprBand(), X0, Y0, RP * 1.02, 0.22 * sm(t / TW) * (1 - sm((t - TW) / 0.3)), true, GY);
-        const cu = t < TW ? 0 : cl((t - TW) / tu.carve), q = t < TC ? 0 : cl((t - TC) / tu.charge), bu = boomT < 0 ? 0 : (t - boomT) / tu.burst;
-        const pulse = 0.5 + 0.5 * Math.sin((t - TC) * (10 + 26 * q)), kq = 0.75 + 0.9 * q * q + 0.35 * q * pulse, fadeB = boomT < 0 ? 1 : 1 - sm(bu / 0.7);
-        if (q > 0 && fadeB > 0.01) LO.floor(glowSprite(C.vio2), X0, Y0, RP * 1.15, (0.18 + 0.4 * q * q) * fadeB, true, GY);
-        if (boomT >= 0 && bu < 0.6) LO.floor(glowSprite(C.wht), X0, Y0, RP * 1.4, (1 - bu / 0.6) * 0.7, true, GY);
-        lowFlush(c, LO);
-        if (cu > 0 && fadeB > 0.01) drawFig(c, B, X0, Y0, RP, GY, cu, kq * fadeB * (boomT >= 0 ? 1 + 1.5 * (1 - sm(bu / 0.25)) : 1), q * q * 1.6 + (boomT >= 0 ? bu * 2 : 0));
-        // the shockwave ring
-        if (boomT >= 0 && bu < 1) { const rr = RP * (0.6 + 1.0 * eout(bu / 0.7)); floor(c, B, sprShadowRing(), X0, Y0, rr, (1 - bu) * 0.5, false, GY); floor(c, B, sprBand(), X0, Y0, rr * 1.06, (1 - sm(bu / 0.8)) * 0.9, true, GY); } },
+        // the pose: the arm rises, then points at each bomb's spot as it leaves; the recoil after the last
+        const iL = bombs.findIndex(b => !b.launched), cur = iL < 0 ? bombs[N - 1] : bombs[iL];
+        if (t < tu.windup) setPose(ctx, 'rayAim', t / tu.windup, { x: bombs[0].x, y: bombs[0].y, glow: 0.4 + 0.6 * sm(t / tu.windup), channel: 0.3 });
+        else if (iL >= 0) setPose(ctx, 'rayHold', (t - tu.windup) / (N * tu.every), { x: cur.x, y: cur.y, glow: 1, channel: 0.3 });
+        else if (!finished) setPose(ctx, 'rayRecoil', cl((t - bombs[N - 1].tl) / tu.release), { x: cur.x, y: cur.y, glow: 0.5, channel: 0.2 });
+        if (t < tu.windup && Math.random() < (L ? 0.3 : 0.7)) { const h = anchorW(ctx, 'handL'); part(S, 0, h.x + rnd(-0.2, 0.2), h.y + rnd(-0.15, 0.15), h.z + rnd(-0.2, 0.2), 0, 0, rnd(0.2, 0.8), rnd(0.25, 0.4), rnd(0.2, 0.32), { fin: 0.03 }); }
+        for (const b of bombs) {
+          if (!b.launched && t >= b.tl) { b.launched = true; const h = anchorW(ctx, 'handL'); b.sx = h.x; b.sy = h.y; b.sz = h.z; sfx(X, 'whoosh'); sfx(X, 'note', 300 + 40 * bombs.indexOf(b), 0.12, 'square', 0.03, 160); }
+          if (b.launched && t < b.land) { const p = posOf(b, t); if (Math.random() < (L ? 0.5 : 1)) part(S, Math.random() < 0.5 ? 0 : 1, p.x, p.y, p.z, rnd(-0.5, 0.5), rnd(-0.5, 0.5), rnd(-0.3, 0.6), rnd(0.2, 0.4), rnd(0.14, 0.24), { fin: 0.02, drag: 2 }); }   /* (the sparking trail) */
+          if (b.launched && !b.landed && t >= b.land) { b.landed = true; sfx(X, 'thud'); if (X.light) X.light(b.x, b.y, R, 0.5); for (let i = 0; i < (L ? 3 : 8); i++) { const a2 = Math.random() * TAU; part(S, 1, b.x, b.y, 0.1, Math.cos(a2) * rnd(1, 3), Math.sin(a2) * rnd(1, 3) * 0.7, rnd(1, 3), rnd(0.2, 0.35), rnd(0.12, 0.2), { g: 9, drag: 2 }); } }
+          if (!b.boomed && t >= b.tb) { b.boomed = true; boom(b); } }
+        if (t >= bombs[N - 1].tl + tu.release && !finished) { finished = true; setPose(ctx, 'rest', 1, { glow: 0, channel: 0 }); done(); }
+        if (t > TEND + tu.burst) act.dead = true; },
+      under(c, B) { const T = S.T, GY = S.GY;
+        for (const b of bombs) { if (!b.landed) continue; const X0 = H.sx(b.x), Y0 = H.sy(b.y), RP = R * T, q = cl((t - b.land) / Math.max(0.05, b.tb - b.land)), bu = b.boomed ? (t - b.tb) / tu.burst : 0; if (bu >= 1) continue;
+          const bloom = eout(cl((t - b.land) / 0.22)), pulse = 0.5 + 0.5 * Math.sin((t - b.land) * (12 + 22 * q)), k = (0.55 + 0.8 * q * q + 0.3 * q * pulse) * (b.boomed ? (1 + 1.4 * (1 - sm(bu / 0.2))) * (1 - sm(bu / 0.6)) : 1), spin = q * 1.6 + bu * 1.5;
+          floor(c, B, glowSprite(C.vio2), X0, Y0, RP * 1.15 * bloom, (0.15 + 0.35 * q * q) * (b.boomed ? 1 - sm(bu / 0.5) : 1), true, GY);
+          drawFigure(c, B, T, X0, Y0, RP * (0.35 + 0.65 * bloom), GY, k * bloom, spin, b.rot);
+          if (b.boomed && bu < 1) { const rr = RP * (0.55 + 1.0 * eout(bu / 0.7)); floor(c, B, sprShadowRing(), X0, Y0, rr, (1 - bu) * 0.5, false, GY); floor(c, B, sprBand(), X0, Y0, rr * 1.06, (1 - sm(bu / 0.8)) * 0.9, true, GY); if (bu < 0.5) floor(c, B, glowSprite(C.wht), X0, Y0, RP * 1.3, (1 - bu / 0.5) * 0.6, true, GY); } } },
       over(c, B) { const T = S.T;
-        // the ray: palm to the contact point, a hot pale core inside a violet glow, flickering
-        if (t >= TW && t < TC + 0.06) { const h = anchorW(ctx, 'handL'), p = contact(cl((t - TW) / tu.carve)), HX = H.sx(h.x), HY = H.sy(h.y) - h.z * S.ZT, PX = H.sx(p.x), PY = H.sy(p.y), Ls = Math.hypot(PX - HX, PY - HY), an = Math.atan2(PY - HY, PX - HX);
-          const on = Math.min(1, (t - TW) / 0.05) * (t > TC ? 1 - (t - TC) / 0.06 : 1), fl = 0.85 + 0.15 * Math.sin(t * 90) + 0.08 * Math.sin(t * 57), k = petK(S, HX, HY, 0.5) * on;
-          c.globalCompositeOperation = 'lighter'; const beam = (img, w, a) => { setT(c, B, HX, HY, an); c.globalAlpha = Math.min(1, a); c.drawImage(img, -w * 0.4, -w, Ls + w * 0.8, w * 2); };
-          beam(beamSprite(C.vio2), T * 0.55 * fl, 0.55 * k); beam(beamSprite(C.vio), T * 0.24 * fl, 0.85 * k); beam(beamSprite(C.pale), T * 0.085, 0.95 * k);
-          c.setTransform(B); put(c, B, glowSprite(C.vio2), HX, HY, T * 1.3, T * 1.3, 0.6 * k, 0, true); put(c, B, glowSprite(C.pale), HX, HY, T * 0.5, T * 0.5, 0.8 * k, 0, true);
-          put(c, B, glowSprite(C.vio2), PX, PY, T * 1.6 * fl, T * 1.0 * fl, 0.75 * on, 0, true); put(c, B, glowSprite(C.wht), PX, PY, T * 0.55, T * 0.4, 0.95 * on, 0, true); }
-        else if (t < TW) { const h = anchorW(ctx, 'handL'), HX = H.sx(h.x), HY = H.sy(h.y) - h.z * S.ZT, k = petK(S, HX, HY, 0.5) * sm(t / TW); put(c, B, glowSprite(C.vio2), HX, HY, T * 1.1, T * 1.1, 0.55 * k, 0, true); put(c, B, glowSprite(C.pale), HX, HY, T * 0.4, T * 0.4, 0.8 * k, 0, true); }
-        // the burst: a column of violet-white light rising from the circle
-        if (boomT >= 0) { const bu = (t - boomT) / tu.burst; if (bu < 1) { const X0 = H.sx(tx), Y0 = H.sy(ty), RP = R * T, hh = RP * (1.2 + 2.4 * eout(bu / 0.35)), wv = RP * 1.7 * (1 - 0.55 * sm(bu / 0.8)), a = (1 - sm((bu - 0.25) / 0.75)) * petK(S, X0, Y0 - hh * 0.5, 0.35);
-            c.globalCompositeOperation = 'lighter'; setT(c, B, X0, Y0, -Math.PI / 2); c.globalAlpha = Math.min(1, 0.65 * a); c.drawImage(beamSprite(C.vio2), -RP * 0.15, -wv / 2, hh, wv); c.globalAlpha = Math.min(1, 0.8 * a); c.drawImage(beamSprite(C.vio), -RP * 0.1, -wv * 0.28, hh * 0.92, wv * 0.56); c.globalAlpha = Math.min(1, 0.9 * a); c.drawImage(beamSprite(C.pale), -RP * 0.05, -wv * 0.1, hh * 0.85, wv * 0.2);
-            c.setTransform(B); put(c, B, glowSprite(C.vio2), X0, Y0 - RP * 0.3, RP * 3, RP * 2.2, 0.5 * a, 0, true); } } } };
-    /* the carved figure on the ground: each stroke as far as the carve has reached, three feathered passes (a wide violet
-       haze, a violet line, a pale core); the rune band and the star turn as the circle charges (spin) */
-    function drawFig(c, B, X0, Y0, RP, GY, cu, k, spin) { const sAt = cu * RAY_FIG.tot, T = S.T;
-      c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.lineJoin = 'round';
-      for (const pass of [[C.vio2, 0.22, 0.22], [C.vio, 0.075, 0.6], [C.pale, 0.026, 0.85]]) { c.strokeStyle = pass[0];
-        for (const p of RAY_FIG.P) { if (sAt <= p.s0) break; const ls = Math.min(p.len, sAt - p.s0), rot = rot0 + (p.k === 'rune' ? spin : p.k === 'star' ? -spin * 0.6 : 0);
-          setT(c, B, X0, Y0, 0, 1, GY); c.rotate(rot); c.lineWidth = Math.max(1, T * pass[1] * p.w); c.globalAlpha = Math.min(1, pass[2] * k);
-          c.beginPath(); c.moveTo(p.pts[0][0] * RP, p.pts[0][1] * RP); for (let i = 1; i < p.pts.length; i++) { if (p.cum[i] <= ls) c.lineTo(p.pts[i][0] * RP, p.pts[i][1] * RP); else { const f = (ls - p.cum[i - 1]) / (p.cum[i] - p.cum[i - 1]); c.lineTo(lerp(p.pts[i - 1][0], p.pts[i][0], f) * RP, lerp(p.pts[i - 1][1], p.pts[i][1], f) * RP); break; } } c.stroke(); } }
-      c.setTransform(B); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over'; }
-    function boom() { // ONE hit per enemy inside the drawn circle (charges the meter)
-      for (const m of monsOf(ctx, H)) { if (gone(m) || hits.has(m)) continue; if (Math.hypot(m.x - tx, (m.y - ty)) - (m.r || 0.4) * 0.5 < R) { hits.add(m); hitM(ctx, m, DK * tu.dmg, { kb: tu.kb, el: 'dark', src: 'strong' }); } }
-      shake(ctx, X, 7, 0.25); X.hitstop && X.hitstop(0.05); X.light && X.light(tx, ty, R * 1.8, 0.6); sfx(X, 'crash'); sfx(X, 'thud'); sfx(X, 'note', 90, 0.8, 'sine', 0.3, 40); sfx(X, 'sparkle');
-      for (let i = 0; i < (L ? 14 : 40); i++) { const a2 = Math.random() * TAU, r = R * Math.sqrt(Math.random()); part(S, i % 3 ? 1 : 0, tx + Math.cos(a2) * r, ty + Math.sin(a2) * r * 0.9, 0.1, Math.cos(a2) * rnd(0.5, 2), Math.sin(a2) * rnd(0.5, 2), rnd(4, 9), rnd(0.5, 1.0), rnd(0.15, 0.3), { g: 3, drag: 0.8 }); }
-      for (let i = 0; i < (L ? 6 : 16); i++) { const a2 = i / 16 * TAU; part(S, 2, tx + Math.cos(a2) * R * 0.9, ty + Math.sin(a2) * R * 0.8, 0.2, Math.cos(a2) * 1.5, Math.sin(a2) * 1.2, 0.4, rnd(0.6, 0.9), rnd(0.6, 1.0), { grow: 0.8, a: 0.45, drag: 2, v: i % 3, rot: Math.random() * TAU }); } }
+        if (t < tu.windup + N * tu.every) { const h = anchorW(ctx, 'handL'), HX = H.sx(h.x), HY = H.sy(h.y) - h.z * S.ZT, k = petK(S, HX, HY, 0.5) * sm(t / tu.windup); put(c, B, glowSprite(C.vio2), HX, HY, T * 1.2, T * 1.2, 0.55 * k, 0, true); put(c, B, glowSprite(C.pale), HX, HY, T * 0.45, T * 0.45, 0.8 * k, 0, true); }
+        for (const b of bombs) {
+          // the bomb: a glowing orb, dark core and violet rim; sinking into the ground as it lands
+          if (b.launched && t < b.land + 0.18) { const p = posOf(b, Math.min(t, b.land)), sink = t > b.land ? 1 - (t - b.land) / 0.18 : 1, X0 = H.sx(p.x), Y0 = H.sy(p.y) - p.z * S.ZT, s = T * 0.55 * sink * (0.9 + 0.1 * Math.sin(t * 40 + b.rot)), k = petK(S, X0, Y0, 0.4);
+            put(c, B, glowSprite(C.vio2), X0, Y0, s * 3.2, s * 3.2, 0.7 * k, 0, true); put(c, B, sprBloom(), X0, Y0, s * 1.15, s * 1.15, 0.95 * sink, t * 3, false); put(c, B, glowSprite(C.vio), X0, Y0, s * 1.5, s * 1.5, 0.45 * k, 0, true); put(c, B, glowSprite(C.pale), X0 - s * 0.15, Y0 - s * 0.18, s * 0.5, s * 0.5, 0.7 * k, 0, true); }
+          // the burst: a column of violet-white light from the circle
+          if (b.boomed) { const bu = (t - b.tb) / tu.burst; if (bu < 1) { const X0 = H.sx(b.x), Y0 = H.sy(b.y), RP = R * T, hh = RP * (1.2 + 2.6 * eout(bu / 0.3)), wv = RP * 1.6 * (1 - 0.55 * sm(bu / 0.8)), a = (1 - sm((bu - 0.2) / 0.8)) * petK(S, X0, Y0 - hh * 0.5, 0.35);
+              c.globalCompositeOperation = 'lighter'; setT(c, B, X0, Y0, -Math.PI / 2); c.globalAlpha = Math.min(1, 0.6 * a); c.drawImage(beamSprite(C.vio2), -RP * 0.15, -wv / 2, hh, wv); c.globalAlpha = Math.min(1, 0.8 * a); c.drawImage(beamSprite(C.vio), -RP * 0.1, -wv * 0.28, hh * 0.92, wv * 0.56); c.globalAlpha = Math.min(1, 0.9 * a); c.drawImage(beamSprite(C.pale), -RP * 0.05, -wv * 0.1, hh * 0.85, wv * 0.2);
+              c.setTransform(B); put(c, B, glowSprite(C.vio2), X0, Y0 - RP * 0.3, RP * 2.6, RP * 1.9, 0.45 * a, 0, true); } } } } };
+    function boom(b) { // the enemies inside this drawn circle, each at most `cap` times over the five
+      for (const m of monsOf(ctx, H)) { if (gone(m)) continue; const n = count.get(m) || 0; if (n >= tu.cap) continue; if (Math.hypot(m.x - b.x, m.y - b.y) - (m.r || 0.4) * 0.5 < R) { count.set(m, n + 1); hitM(ctx, m, DK * tu.dmg, { kb: tu.kb, el: 'dark', src: 'strong' }); } }
+      shake(ctx, X, 4, 0.16); X.light && X.light(b.x, b.y, R * 1.6, 0.4); sfx(X, 'crash'); sfx(X, 'note', 70 + 12 * bombs.indexOf(b), 0.5, 'sine', 0.25, 35);
+      for (let i = 0; i < (L ? 8 : 22); i++) { const a2 = Math.random() * TAU, r = R * Math.sqrt(Math.random()); part(S, i % 3 ? 1 : 0, b.x + Math.cos(a2) * r, b.y + Math.sin(a2) * r * 0.9, 0.1, Math.cos(a2) * rnd(0.5, 2), Math.sin(a2) * rnd(0.5, 2), rnd(3, 8), rnd(0.4, 0.9), rnd(0.13, 0.26), { g: 3, drag: 0.8 }); }
+      for (let i = 0; i < (L ? 4 : 10); i++) { const a2 = i / 10 * TAU; part(S, 2, b.x + Math.cos(a2) * R * 0.8, b.y + Math.sin(a2) * R * 0.7, 0.2, Math.cos(a2) * 1.4, Math.sin(a2) * 1.1, 0.5, rnd(0.6, 0.9), rnd(0.5, 0.85), { grow: 0.8, a: 0.5, drag: 2, v: i % 3, rot: Math.random() * TAU }); } }
     S.acts.push(act);
   }
-  /* the Death Ray button's glyph (between the core's btnFace and btnRim): a hand's ray onto a glowing circle */
-  function paintDeathRayGlyph(x, cx, cy, r, rd) { x.save(); x.translate(cx, cy); x.globalAlpha = rd ? 1 : 0.55; x.lineCap = 'round';
-    x.save(); x.scale(1, 0.5); x.translate(0, r * 0.62); x.strokeStyle = rd ? 'rgba(185,131,245,0.45)' : 'rgba(140,130,160,0.4)'; x.lineWidth = r * 0.16; x.beginPath(); x.arc(0, 0, r * 0.55, 0, TAU); x.stroke();
-    x.strokeStyle = rd ? '#E0D2FF' : '#A49CB4'; x.lineWidth = r * 0.06; x.beginPath(); x.arc(0, 0, r * 0.55, 0, TAU); x.stroke(); x.beginPath(); for (let i = 0; i <= 5; i++) { const a = -Math.PI / 2 + (i * 2 % 5) / 5 * TAU; const px = Math.cos(a) * r * 0.45, py = Math.sin(a) * r * 0.45; i ? x.lineTo(px, py) : x.moveTo(px, py); } x.lineWidth = r * 0.045; x.stroke(); x.restore();
-    const hx = -r * 0.42, hy = -r * 0.45; x.strokeStyle = rd ? 'rgba(138,77,255,0.55)' : 'rgba(120,110,140,0.4)'; x.lineWidth = r * 0.2; x.beginPath(); x.moveTo(hx, hy); x.lineTo(r * 0.12, r * 0.24); x.stroke(); x.strokeStyle = rd ? '#F4ECFF' : '#B8B0C8'; x.lineWidth = r * 0.06; x.stroke();
-    x.fillStyle = rd ? '#2A1F3A' : '#2A2630'; x.beginPath(); x.ellipse(hx, hy, r * 0.2, r * 0.15, -0.8, 0, TAU); x.fill(); x.strokeStyle = rd ? '#CFC3E8' : '#8A8494'; x.lineWidth = r * 0.04; x.stroke();
-    x.fillStyle = rd ? '#FFFFFF' : '#CCC'; x.beginPath(); x.arc(r * 0.12, r * 0.24, r * 0.07, 0, TAU); x.fill(); x.restore(); }
+  /* the Death Bombs button glyph (between the core's btnFace and btnRim): five orbs arcing over a glowing circle */
+  function paintDeathBombsGlyph(x, cx, cy, r, rd) { x.save(); x.translate(cx, cy); x.globalAlpha = rd ? 1 : 0.55; x.lineCap = 'round';
+    x.save(); x.scale(1, 0.45); x.translate(0, r * 0.95); x.strokeStyle = rd ? 'rgba(185,131,245,0.45)' : 'rgba(140,130,160,0.4)'; x.lineWidth = r * 0.16; x.beginPath(); x.arc(0, 0, r * 0.62, 0, TAU); x.stroke();
+    x.strokeStyle = rd ? '#E0D2FF' : '#A49CB4'; x.lineWidth = r * 0.06; x.beginPath(); x.arc(0, 0, r * 0.62, 0, TAU); x.stroke(); x.beginPath(); for (let i = 0; i <= 5; i++) { const a = -Math.PI / 2 + (i * 2 % 5) / 5 * TAU; const px = Math.cos(a) * r * 0.5, py = Math.sin(a) * r * 0.5; i ? x.lineTo(px, py) : x.moveTo(px, py); } x.lineWidth = r * 0.045; x.stroke(); x.restore();
+    for (let i = 0; i < 5; i++) { const a = Math.PI + (i + 0.5) / 5 * Math.PI, ox = Math.cos(a) * r * 0.58, oy = Math.sin(a) * r * 0.42 - r * 0.02, rr = r * 0.13;
+      const g = x.createRadialGradient(ox, oy, 0, ox, oy, rr * 2); g.addColorStop(0, rd ? 'rgba(185,131,245,0.75)' : 'rgba(150,140,170,0.5)'); g.addColorStop(1, 'rgba(138,77,255,0)'); x.fillStyle = g; x.beginPath(); x.arc(ox, oy, rr * 2, 0, TAU); x.fill();
+      x.fillStyle = rd ? '#170A26' : '#24202A'; x.beginPath(); x.arc(ox, oy, rr, 0, TAU); x.fill(); x.strokeStyle = rd ? '#C9A2FF' : '#8A8494'; x.lineWidth = r * 0.035; x.stroke(); x.fillStyle = rd ? '#F4ECFF' : '#BBB'; x.beginPath(); x.arc(ox - rr * 0.3, oy - rr * 0.3, rr * 0.28, 0, TAU); x.fill(); }
+    x.restore(); }
 
   /* ================= Dark Spikes (Crystal Coronation's Dark variant) ================= */
   function darkSpikes(ctx) {
@@ -518,9 +505,9 @@
     S.acts.push(act);
   }
 
-  SM.deathRay = deathRay;
-  SM.darkBlade = deathRay;   /* (the core's slot still calls darkBlade: the same move until A renames it) */
-  SM.icons = { deathRay: paintDeathRayGlyph };   /* (the button glyph, drawn between the core's btnFace and btnRim) */
+  SM.deathBombs = deathBombs;
+  SM.deathRay = deathBombs; SM.darkBlade = deathBombs;   /* (the core's Strong 1 slot calls deathRay, else darkBlade: both are Death Bombs until it is rewired) */
+  SM.icons = { deathBombs: paintDeathBombsGlyph, deathRay: paintDeathBombsGlyph };   /* (the button glyph, drawn between the core's btnFace and btnRim) */
   SM.darkSpikes = darkSpikes;
   SM.pulsar = pulsar;
   SM.messiah = messiah;
