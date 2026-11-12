@@ -448,3 +448,12 @@ The user: "I don't really like the shape of the ice crystals, it should be bulki
 - **Staging**: a blizzard ring and frost over the floor from the burnout; each mass erupts with cracked ground, a shock ring, flying chunks, a thud and a small shake; mist at the bases; the camera pulls back a step per beat (`pull`; not with reduce-motion, and shakes are scaled as before). Lightning arcs up from the tips and between masses, re-struck 18 times a second, more often through the crack phase. The shatter: flash, 16 light shafts, 8 radial bolts, three shockwave rings, big tumbling chunks, 210 slow-glinting sparkles.
 - **Gameplay unchanged**: `burnout` 0.8 s, beats at 0.80 / 1.35 / 1.90 s, shatter at 3.31 s and `done()` at 3.91 s exactly as before; one hit of 95 / 115 / 125 x DK within R 6.6, `noCharge`; nothing at the exit. Freeze by beat within `reach` 3.3 / 5.3 / 7.1 tiles (before: four rings reaching 2.5 / 4.0 / 5.6 / 7.1), 3 s, bosses chilled. The hit radius did not change.
 - **Cost** (Diamond Dust, GPU): at most 6 draw calls a frame (7 with the Frozen beam, which never runs with it), 720 mass triangles, 120 crystal triangles (chunks), about 300 light quads, about 570 points. 0 pixels with rgb > a over the whole move.
+- (H, 2026-11-12, **the intermittent "attacks smash props" failure: the test, not the game**) Reproduced with a
+  logging loop (10 runs, same floor each time). The 20b hook was present every run (`S.vs.props` set) and every prop
+  Fenrir got within about 2.5 tiles of broke. The failures were the scenario's free drive: its start spot is random,
+  and on some spots the nearest props were 9-15 tiles away; it drove at most 1.5 s toward each (keys give only eight
+  directions) and Drifted where the bike happened to face, so on those runs it never reached a prop (`broke: 0`).
+  No null hook, blocked reach or timing window in the core. The scenario is now deterministic and stricter:
+  Fenrir is set 2.3 tiles from a named smashable prop with a clear line and Drifts through it (that prop must break),
+  then fires Ice Cannon at another from 4 tiles (that one must break too); the core's `smashed` count and the
+  protected kinds are checked. `tests/fenrir.js` is 48 checks: 6 runs in a row all ok (EVO 4, 7, 1, 4, 7, 4).

@@ -187,19 +187,36 @@ const path = require('path');
   if (T4 && !T4.err) ok(T4.dead && T4.after === 0 && !T4.veh && !T4.fx.some(k => /fenrir/i.test(k)), 'pet defeat during Frozen: the beam and its damage stop, the pet stays defeated, cleanup', T4);
 
   // ---- 5. the environment: attacks smash props; doors and bridges stay ----
+  // Deterministic (H, after an intermittent failure: the old free drive started up to 15 tiles from the nearest prop
+  // on some start spots and simply never reached one). Fenrir is set down 2.3 tiles from a known smashable prop, on
+  // open floor in one of the eight key directions with a clear line, and Drifts straight at it; then the same for an
+  // Ice Cannon shot from 4 tiles at another prop. Each named prop must break.
   const E1 = await R('smash', LIB + `
-    ready(); const X = S.X, P0 = X.carProps; if (!P0) return { noHook: true };
-    const props = D.propList.filter(p => !p.broken), near = props.map(p => [p, Math.hypot(p.x - me.x, p.y - me.y)]).sort((a, b) => a[1] - b[1]).slice(0, 6).map(q => q[0]);
-    const kinds0 = {}; for (const p of D.propList) kinds0[p.kind] = (kinds0[p.kind] || 0) + (p.broken ? 0 : 1);
-    const M = D.M, bridges0 = M && M.tiles ? Array.from(M.tiles).filter(t => t === (self.T_BRIDGE != null ? self.T_BRIDGE : -99)).length : null;
-    const b0 = D.propList.filter(p => p.broken).length, sm0 = H.st(S, ['smashed', 'smash']);
-    // drive at the nearest props and attack there: a Drift through them, then the cannon and the second Strong
-    for (const p of near.slice(0, 3)) { const a = Math.atan2(p.y - S.V.y, p.x - S.V.x); H.face(a); H.step(Math.min(1.5, Math.hypot(p.x - S.V.x, p.y - S.V.y) / 6)); H.until(() => H.pick(S.cd, ['dodge', 'drift'], 0) <= 0 && H.ready(S), 4); H.face(a); H.press('dodge'); H.release(); H.until(() => !H.drifting(S) && H.ready(S), 8); H.press('strong'); H.step(1.5); }
-    const doors = D.propList.filter(p => /door|gate|stair|bridge/i.test(p.kind)), bridges1 = M && M.tiles ? Array.from(M.tiles).filter(t => t === (self.T_BRIDGE != null ? self.T_BRIDGE : -99)).length : null;
-    return { broke: D.propList.filter(p => p.broken).length - b0, stat: H.st(S, ['smashed', 'smash']) - sm0, protectedBroken: doors.filter(p => p.broken).length, bridges0, bridges1, nearKinds: near.map(p => p.kind) };`);
+    ready(); const vs = S.vs || null, X = S.X; if (!X.carProps || (vs && !vs.props)) return { noHook: true };
+    for (const m of D.mons) if (!m.boss) { m.dead = true; m.x += 90; }   // (no targets: the attacks go where Fenrir faces)
+    const W = (x, y) => D.walkAt(Math.floor(x), Math.floor(y)) && !D.blocked(x, y, 0.55, 0), sm = p => vs ? !!vs.smashable(Math.floor(p.x), Math.floor(p.y)) : true;
+    const spotFor = (p, dist, used) => { for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4, x = p.x - Math.cos(a) * dist, y = p.y - Math.sin(a) * dist; if (!W(x, y)) continue; let clear = true;
+        for (let q = 0.4; q < dist - 0.7 && clear; q += 0.3) { const px = x + Math.cos(a) * q, py = y + Math.sin(a) * q; if (D.blocked(px, py, 0.3, 0)) clear = false; }
+        if (clear && !D.propList.some(o => o !== p && !o.broken && Math.hypot(o.x - x, o.y - y) < 1.2)) return { x, y, a }; } return null; };
+    const cand = D.propList.filter(p => !p.broken && sm(p)).map(p => [p, Math.hypot(p.x - S.V.x, p.y - S.V.y)]).sort((a, b) => a[1] - b[1]).map(q => q[0]);
+    const put = sp => { S.V.x = me.x = sp.x; S.V.y = me.y = sp.y; S.V.vx = S.V.vy = 0; if ('heading' in S.V) S.V.heading = sp.a; H.face(sp.a); H.step(0.25); S.V.x = me.x = sp.x; S.V.y = me.y = sp.y; };
+    const out = { cands: cand.length, kinds0: cand.slice(0, 6).map(p => p.kind), sm0: H.st(S, ['smashed', 'smash']) };
+    const protect0 = D.propList.filter(p => /door|gate|stair|bridge|exit/i.test(p.kind) && !p.broken).length;
+    // (a) Drift straight through a prop
+    let pd = null, sd = null; for (const p of cand) { const sp = spotFor(p, 2.3); if (sp) { pd = p; sd = sp; break; } }
+    if (pd) { put(sd); H.until(() => H.pick(S.cd, ['dodge', 'drift'], 0) <= 0 && H.ready(S), 4); H.face(sd.a); H.press('dodge'); H.release(); H.until(() => H.drifting(S), 1); H.until(() => !H.drifting(S) && H.ready(S), 8); H.step(0.3);
+      out.drift = { kind: pd.kind, broken: !!pd.broken, a: +sd.a.toFixed(2), end: +Math.hypot(S.V.x - pd.x, S.V.y - pd.y).toFixed(1) }; }
+    // (b) Ice Cannon at another prop from 4 tiles
+    let pc = null, sc = null; for (const p of cand) { if (p === pd || p.broken) continue; const sp = spotFor(p, 4); if (sp) { pc = p; sc = sp; break; } }
+    if (pc) { put(sc); H.until(() => H.pick(S.cd, ['cannon', 's1', 'strong'], 0) <= 0 && H.ready(S) && !S.busy, 5); S.V.x = me.x = sc.x; S.V.y = me.y = sc.y; H.face(sc.a); H.press('strong'); H.release(); H.step(3.2);
+      out.cannon = { kind: pc.kind, broken: !!pc.broken, a: +sc.a.toFixed(2) }; }
+    out.stat = H.st(S, ['smashed', 'smash']) - out.sm0; out.protectedBroken = protect0 - D.propList.filter(p => /door|gate|stair|bridge|exit/i.test(p.kind) && !p.broken).length;
+    return out;`);
   if (E1 && !E1.err) { if (E1.noHook) console.log('skip  no smash hook on this floor');
-    else { ok(E1.broke > 0, 'Fenrir\'s attacks and driving smash environmental props', E1);
-      ok(E1.protectedBroken === 0 && E1.bridges0 === E1.bridges1, 'doors, gates, stairs and bridges are kept', E1); } }
+    else { ok(!!E1.drift && E1.drift.broken, 'a Drift straight through a smashable prop breaks it', E1.drift || E1);
+      ok(!!E1.cannon && E1.cannon.broken, 'an Ice Cannon shot at a smashable prop breaks it', E1.cannon || E1);
+      ok(E1.stat >= 2, 'the core counts what it smashed', E1.stat);
+      ok(E1.protectedBroken === 0, 'doors, gates, stairs and bridges are kept', E1.protectedBroken); } }
 
   ok(!errors.length, 'no page errors', errors.slice(0, 4));
   console.log('manual (montages / captures): transformation clearances and the continuous seat; exactly two tyres and two cannons in both forms; the pet in the open on the saddle, never yawed; spikes drawn at every Drift endpoint; effect quality; sound.');
