@@ -377,3 +377,65 @@ H edits only its own test and tool files, plus whatever files the others explici
   `startOut` and `commitXform`. In 20b, one commented line in `tryFire`: with a vehicle on, `VEH.basic(A)` is asked
   and, when it swings, `g.normalT = normalRate()` (the pet's own attack cadence); vehicles without `basic` keep
   "no ordinary attacks". The airship has no `basic` weapon (the call returns false outside the robot phase).
+- (A, 2026-11-12, round 2: the user asked for livelier, wilder, more fluid animation) **The core now animates
+  through one layer, `animate()`.** Each frame it builds targets and springs every pose channel to them, each with its
+  own stiffness and damping:
+  - The torso leads (lean, bank, pitch, twist, crouch).
+  - The sword's progress follows.
+  - The fans lag and sway (`wingSpread` / `wingFold`).
+  - Impacts and locks jolt the springs.
+  - Thrust flickers with acceleration.
+  - A whole-body yaw (`yawOff`) and rise (`zOff`) are added to the heading and z that A passes to `draw` and
+    `drawShadow`. That is how the hips turn with a cut and how the robot rises in a wind-up.
+  - Layers:
+    - Base: a breathing idle with a weight shift and fan breathing, a glide that leans and pitches with acceleration
+      and banks into turns (the gait's phase and `gaitAmp` follow speed), and an airship with inertia.
+    - Action: one clip at a time.
+    - Secondary: the spring overshoot and the kicks.
+  - **Clips**, each with anticipation, a fast eased strike, overshoot and follow-through:
+    - `basic`: alternating right and left cuts. `swordU` runs forward or reversed along M's `sweep`, with ±0.75 twist
+      and ±0.7 yaw. `TUNE.swing.dur` is now 0.44 s and the hits fall over u 0.38..0.72.
+    - `sweep` (Glides): wind-up, lean out, then a stagger.
+    - `overhead` (True Dark Blade): dip, arch and rise of 0.75, smash, impact kick and shake.
+    - `impale` (Dark Spikes): lift high, plunge, then a planted strain with a tremor.
+    - `pulsar`: nose lift, drive, then the recoil kick.
+    - `messiah`: rise and pitch, then a tremor under the beam.
+    - Dive: a full roll with overshoot, the nose dropping into the swoop, and an overshoot on the pull-up.
+    - The fold's `xf` is eased per stage: back-out at the locks (dock, thrusters, latch), in-out on the turns (pitch,
+      stow, wings, booms). Each lock jolts the springs.
+  - **How E's poses are used:** `ctx.pose(name, u, extra)` records the pose and A plays it on the next frame.
+    `overheadSlam` and `pointDownPlunge` held at 1 run the clip's recovery, driven from E's `recoil` / `channel`.
+  - **For M (optional; A uses them if present, nothing breaks if not):**
+    - `legSwing` (−1..1): the thighs swing back and fore with momentum, so the legs can trail in the glide.
+    - `wingSwayL` / `wingSwayR` (radians): a per-fan lag on turns.
+    - `hipYaw`: so the pelvis can turn separately from the whole-body yaw.
+    - A wider `sweep` path (`swordArc` > 1, scaling the hold's arc), for even bigger cuts.
+
+### M — round 2 (2026-11-12): bulk-up, hatch, metal
+
+The API, channel names, anchors and stages are all unchanged. Additions and changed numbers:
+
+- **New channel `hatch` (0..1; 0 = open, 1 = shut).** A gold-framed, heart-shaped chest shield on a hinge over the cockpit.
+  - If A leaves it `null` or unset, it follows `assemble`: it closes over `assemble` 0.82→1, so the end of the summon seals the pet in.
+  - At dismiss, A should drive `pose.hatch` from 1 to 0 before the parts scatter, so the pet is seen leaving.
+  - Once `hatch` ≥ 0.98 the model does not call `o.pet`, so the pet is not drawn at all. Below that the pet is drawn and the hatch is drawn over it.
+  - In the airship the hatch stays shut (it rides the torso).
+  - The `seat` anchor and the pet's logical position are unchanged.
+- **`VIS` is 1.3 → 1.45.** The robot is bigger on screen. Anchors include it automatically. A's hit radii in tiles may want about +10%.
+- **Bulk.** Thicker upper arms, gauntlets with four flaring ring plates, a fist at 1.75×, thighs with three lames and geared knee disks, heavy shins with crimson plates, feet at 1.45×, a wider pelvis with hips at y ±0.4, layered pauldrons with gold crest ridges, and domed pectorals.
+- **Shading.** Obsidian and enamel have a clear-coat (Fresnel env plus a sharp specular), panel seams with bevels and rivets, and edge wear in silver. Violet is only in seams, vents and cores.
+- **Paths.**
+  - The `sweep` follow-through runs further forward, so the right forearm clears the chest.
+  - The carry's elbow pole leads forward, and the high `DOCK` waypoint is now `[0.4, 0.3, 1.95]`.
+  - The pods lift higher to clear, swing wider, and dock further outboard (y ±1.18) beside the folded legs.
+- **Clearance after the bulk-up.** The worst is −0.11 (sphere approximation) at xf ≈ 0.81: a thin boom rail grazes a forearm for a moment. The sword holds are all ≥ −0.03.
+- **Cost at T = 41, dpr 1.5, k 88.**
+  - Robot, airship and xform together are about 910 views and 14 MB.
+  - Draw median is 0.4 ms, plus 0.6 ms for the shadow.
+  - Median slice is 1.8 ms. The headless p99 is the same as round 1.
+- **A's optional channels are supported (2026-11-12).** All are in `CH` and `blankPose`, and `relax` eases them to 0.
+  - `legSwing` (−1..1): negative trails the feet back up to 0.38 and lifts them by 0.2; positive brings them forward by 0.16. Forward is suppressed during the `down` / `impale` plunge, so the feet stay off the blade. Robot only.
+  - `wingSwayL` / `wingSwayR` (radians, clamped to ±0.6): each blade of that fan rotates in its plane by sway × (0.45 + 0.1·i), so the outer blades lag most. Halved in the airship.
+  - `hipYaw` (radians, clamped to ±0.4): the pelvis, skirt and leg roots turn against the torso while the feet stay planted. Robot only.
+  - `swordArc` (default 1, 0.5..1.6): scales the `sweep` path's angle and radius. The wind-up is capped at 1.2 and the follow-through at 1.08, so the forearm never cuts through the chest.
+  - Hand grips were re-checked over every hold × u × swordArc × hipYaw × legSwing: the reach shortfall is ≤ 0.03 everywhere. The worst clearance is about −0.1 (a forearm brushing a thigh at hipYaw 0.4 in `rest`).

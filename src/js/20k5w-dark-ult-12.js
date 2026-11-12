@@ -44,11 +44,11 @@
     robotAcc: 9,                                   // 1/s: how fast its glide reaches the stick's speed (mass)
     turn: { max: 6.0, k: 8, acc: 30 },            // its heading: rad/s cap, gap closing, turn-rate easing (as Nidhogg's)
     // Glides (Dodge): prep, a committed spinning sweep along the stick, recovery; one hit per enemy per activation
-    glide: { prep: 0.1, sweep: 0.42, rec: 0.2, dist: 5.2, steer: 2.2, reach: 2.7, dmg: 3, kb: 4, spins: 1 },
+    glide: { prep: 0.1, sweep: 0.42, rec: 0.2, dist: 5.2, steer: 2.2, reach: 3.0, dmg: 3, kb: 4, spins: 1 },
     // (H, 2026-11-12) the robot's basic sword swing (spec §4, last paragraph): the game's basic-attack input (tap / attack
     // key, at the pet's own normal-attack cadence: 20b sets g.normalT) swings the sword in a frontal arc; one hit per enemy
     // per swing through ctx.hit (it charges the meter); the airship has no basic weapon
-    swing: { dur: 0.3, hit0: 0.2, hit1: 0.62, reach: 2.4, arc: 2.3, dmg: 0.8, kb: 1.5 },
+    swing: { dur: 0.44, hit0: 0.38, hit1: 0.72,   /* (round 2: a bigger cut: wind-up, cut, follow-through; the hits over the cut) */ reach: 2.65, arc: 2.3, dmg: 0.8,   /* (M round 2: VIS 1.45, the reach +10%) */ kb: 1.5 },
     dodgeCd: 0.85,                                 // s after the recovery: the game's dodge cadence (x its arcane / dodgeK modifiers)
     // the robot's Strongs (E's moves own their own tuning; these are the cooldowns, from the press)
     cdBlade: 2.5, cdSpikes: 3.5, cdPulsar: 2.0, mvHold: 0.6,
@@ -61,7 +61,7 @@
     dive: { roll: 0.24, swoop: 0.3, pass: 0.14, climb: 0.38, dmg: 3, r: 2.4, kb: 5, reach: 9, cone: 0.6, cone2: 1.0, reach2: 6 },   // (cone: rad either side of the aim for an enemy; cone2 / reach2: a looser second look before falling back to the ground (a keyboard aims in 45 deg steps))
     chargeK: 32,                                   // the meter fills at chargeK x DK of damage actually dealt
     messiahCap: 16,                                // s: a committed Dark Messiah is ended anyway after this
-    outGlide: [0.35, 1.3], outSpd: 13, hop: 0.55, dissolve: 1.3,
+    outGlide: [0.35, 1.3], outSpd: 13, hop: 0.55, dissolve: 1.3, hatch: 0.4,   // s: the hatch opening before the pet leaves
   };
   const tierOf = ev => ev >= 7 ? 2 : ev >= 4 ? 1 : 0;
   const XFT = (() => { let t = 0; const L = TUNE.xfStages.map(([n, d]) => { const o = { n, t0: t, t1: t + d }; t += d; return o; }); return { L, total: t }; })();
@@ -139,29 +139,147 @@
     const pick = k => typeof SM[k] === 'function' ? SM[k] : STUB[k];
     return (MVC = { TUNE: SM.TUNE || {}, darkBlade: pick('darkBlade'), darkSpikes: pick('darkSpikes'), pulsar: pick('pulsar'), messiah: pick('messiah'), warm: SM.warm, update: SM.update, drawUnder: SM.drawUnder, drawOver: SM.drawOver, SM }); }
 
-  /* ================= the attack pose clips (E drives them: ctx.clip(name, u), u 0..1 through the action) =================
-     Each sets the pose's body and sword channels at progress u; `hit` is the u of its strike / impact (where E's damage
-     belongs), `rec` where the recovery starts. Documented in the brief's Notes. */
-  const CLIPS = {
-    // Glides: a one-hand sweep: wind back, the sweep through a full turn (the core spins the body), follow-through
-    sweep: { hit: 0.25, rec: 0.8, run(P, u) { P.sword = 'sweep'; P.swordU = u < 0.18 ? 0.15 * sstep(0, 0.18, u) : u < 0.8 ? lerp(0.15, 1, (u - 0.18) / 0.62) : 1; P.crouch = 0.25 * Math.sin(Math.PI * cl(u / 0.8)); P.wing = lerp(0.6, 0.25, sstep(0, 0.2, u)) + 0.35 * sstep(0.8, 1, u); P.lean = 0.4 * Math.sin(Math.PI * cl(u / 0.8)); P.channel = 0.3 + 0.5 * Math.sin(Math.PI * cl(u / 0.8)); } },
-    // True Dark Blade: both hands, overhead lift (elbows up, spine arches), the drive down into the ground, recoil
-    overhead: { hit: 0.62, rec: 0.75, run(P, u) { P.sword = 'overhead'; P.swordU = u; P.pitch = u < 0.5 ? -0.25 * sstep(0, 0.5, u) : u < 0.62 ? lerp(-0.25, 0.35, sstep(0.5, 0.62, u)) : lerp(0.35, 0, sstep(0.7, 1, u)); P.crouch = u < 0.5 ? 0.1 * u : u < 0.62 ? lerp(0.05, 0.55, (u - 0.5) / 0.12) : lerp(0.55, 0, sstep(0.66, 1, u)); P.channel = u < 0.6 ? sstep(0.1, 0.6, u) : 1 - sstep(0.7, 1, u); P.wing = 0.6 + 0.3 * Math.sin(Math.PI * cl(u / 0.62)); } },
-    // Dark Spikes: both hands, point down, the vertical drive (sword planted), withdrawal
-    impale: { hit: 0.45, rec: 0.75, run(P, u) { P.sword = 'down'; P.swordU = u; P.crouch = u < 0.35 ? 0.15 * sstep(0, 0.35, u) : u < 0.45 ? lerp(0.15, 0.7, (u - 0.35) / 0.1) : u < 0.75 ? 0.7 : lerp(0.7, 0, sstep(0.75, 1, u)); P.pitch = 0.25 * (P.crouch || 0); P.channel = u < 0.45 ? sstep(0.05, 0.45, u) : 1 - sstep(0.75, 1, u) * 0.8; } },
-    // the airship's Shockwave Pulsar: nose down onto the aim, a charge in the sword channel, release, recoil
-    pulsar: { hit: 0.5, rec: 0.6, run(P, u) { P.pitch = 0.35 * Math.sin(Math.PI * cl(u / 0.6)); P.channel = u < 0.5 ? sstep(0, 0.5, u) : 1 - sstep(0.5, 1, u); P.charge = u < 0.5 ? sstep(0.1, 0.5, u) : 0; P.thrust = 0.5 + 0.4 * sstep(0.5, 0.6, u) * (1 - sstep(0.6, 1, u)); } },
-    // Dark Messiah: a hold above the aim, a long charge through the hull into the sword, the beam (channel full), the release
-    messiah: { hit: 0.75, rec: 0.85, run(P, u) { P.pitch = 0.4 * sstep(0, 0.2, u) * (1 - sstep(0.85, 1, u)); P.channel = sstep(0.05, 0.6, u) * (1 - sstep(0.85, 1, u) * 0.7); P.charge = sstep(0.05, 0.6, u) * (1 - sstep(0.6, 0.66, u)); P.glow = 0.5 + 0.5 * sstep(0.1, 0.6, u); P.thrust = 0.3 + 0.5 * sstep(0.6, 0.75, u); P.wing = 1; } },
-  };
+  /* ================= the animation (round 2, the user: "more lively, more realistic movements, bigger and wilder swings
+     ... more fluid") =================
+     The core no longer writes the model's pose directly. Every frame it builds TARGETS (G below: the body's lean, bank,
+     torso pitch and twist, crouch, a whole-body yaw and rise, the sword's hold and progress, the fans, the thrust) from
+     three layers, then springs the pose to them, each channel with its own stiffness and damping, so motion overlaps:
+       - the base: a living idle (breathing, a slow weight shift, the fans breathing, a sword bob), the ground glide
+         (leaning and pitching into acceleration, rearing back on the brake, banking into turns, the legs' gait swinging
+         with the speed) and the airship (banking, pitching and wobbling with inertia);
+       - an action clip (a basic cut, Glides, E's attacks through ctx.pose, Dive, the fold), keyed with anticipation, a
+         fast eased strike, overshoot and follow-through;
+       - secondary motion: the torso leads and the sword, then the fans follow on softer springs (they lag and sway),
+         impact kicks (a spring's velocity jolted at a slam or a lock), thruster flicker that answers acceleration.
+     The pose channels the model reads are only ever written here (and form / xf / alpha / assemble by the session). */
+  const outBack = (u, s) => { s = s == null ? 1.70158 : s; u = cl(u) - 1; return 1 + (s + 1) * u * u * u + s * u * u; };   // (eased out past 1, then back)
+  const inOut = u => { u = cl(u); return u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2; };
+  const outQ = u => 1 - Math.pow(1 - cl(u), 3), inQ = u => Math.pow(cl(u), 3);
+  /* a critically under-damped spring per channel: w (rad/s) stiffness, z damping (< 1 overshoots) */
+  function spring(S, key, target, w, z, dt) { const A = S.an; let s = A[key]; if (!s) s = A[key] = { x: target, v: 0 }; if (!isFinite(s.x)) { s.x = target; s.v = 0; }
+    const h = Math.min(dt, 1 / 30), n = dt > h ? Math.ceil(dt / h) : 1, st = dt / n; for (let i = 0; i < n; i++) { const a = -w * w * (s.x - target) - 2 * z * w * s.v; s.v += a * st; s.x += s.v * st; } return s.x; }
+  const kick = (S, key, dv) => { const s = S.an[key]; if (s) s.v += dv; };
+  /* the per-channel springs: [stiffness, damping] (the torso leads; the sword follows; the fans lag and sway) */
+  const SPR = { lean: [11, 0.42], bank: [10, 0.4], pitch: [13, 0.42], twist: [15, 0.4], crouch: [16, 0.45], yaw: [12, 0.42], z: [9, 0.4], swordU: [24, 0.62], swordK: [11, 0.7], wing: [5.5, 0.3], fold: [8, 0.45], thrust: [18, 0.6], roll: [9, 0.55], hip: [13, 0.45], arc: [10, 0.7] };
+  const TG = () => ({ sword: 'rest', swordU: 0, swordK: 0, twist: 0, pitch: 0, crouch: 0, lean: 0, bank: 0, yaw: 0, z: 0, wing: 0.9, fold: 0, thrust: 0.35, roll: 0, hip: null, arc: 1, channel: null, glow: null, charge: null, recoil: 0 });
 
-  /* E's named poses (ctx.pose(name, u, extra)): each maps onto a stretch of a clip; `extra` channels are written after */
+  /* ---- the action clips: each writes targets into G at progress u (0..1); `hit` is the u of its strike, `rec` its
+     recovery (E's damage belongs at hit). s = the side (+1 forehand, -1 backhand) where a clip has one ---- */
+  const CLIPS = {
+    /* the basic cut: a big wind-up twisted back, a fast wide cut sweeping well past the body (the whole body turns with
+       it: hips, torso, shoulders), the follow-through, the settle; s alternates left and right */
+    basic: { hit: 0.38, rec: 0.72, run(G, u, s) { s = s || 1; const wu = sstep(0, 0.32, u), cut = outBack(cl((u - 0.32) / 0.3), 1.1), back = sstep(0.7, 1, u);
+      G.sword = 'sweep'; G.arc = 1.45; G.swordK = 1 - 0.85 * back; const pathU = u < 0.32 ? 0.04 * wu : lerp(0.04, 1, Math.min(1, cut)); G.swordU = s > 0 ? pathU : 1 - pathU;
+      G.twist = s * (u < 0.32 ? 0.75 * wu : lerp(0.75, -0.95, cut) * (1 - back)); G.yaw = s * (u < 0.32 ? 0.55 * wu : lerp(0.55, -0.75, cut) * (1 - back));
+      G.crouch = 0.22 * Math.sin(Math.PI * cl(u / 0.75)) + 0.12 * wu * (1 - cut); G.lean = u < 0.32 ? -0.25 * wu : lerp(-0.25, 0.55, cut) * (1 - back); G.bank = -s * 0.35 * Math.sin(Math.PI * cl((u - 0.2) / 0.6));
+      G.pitch = u < 0.32 ? -0.15 * wu : 0.3 * cut * (1 - back); G.wing = 0.75 + 0.25 * cut * (1 - back); G.fold = 0.25 * wu * (1 - cut); G.channel = 0.25 + 0.6 * Math.sin(Math.PI * cl((u - 0.25) / 0.5)); } },
+    /* Glides: wind-up (a crouch, twisted against the spin), the full turn with the body leaning out and the sword at full
+       extension (the core turns the heading), then the heavy recovery: a stagger the springs carry */
+    sweep: { hit: 0.25, rec: 0.75, run(G, u, s) { s = s || 1; const pre = sstep(0, 0.18, u), sp = cl((u - 0.18) / 0.57), rec = sstep(0.75, 1, u);
+      G.sword = 'sweep'; G.arc = 1.3; G.swordK = 1 - 0.8 * rec; G.swordU = u < 0.18 ? 0.1 * pre : lerp(0.1, 0.5, outQ(sp / 0.3)) * (1 - rec) + 0.5 * rec * 0;
+      G.twist = u < 0.18 ? s * 0.7 * pre : lerp(s * 0.7, -s * 0.35, outQ(sp)) * (1 - rec); G.crouch = 0.35 * pre * (1 - outQ(sp)) + 0.28 * Math.sin(Math.PI * cl(sp)) + 0.32 * Math.sin(Math.PI * rec);
+      G.lean = 0.55 * Math.sin(Math.PI * sp) - 0.2 * Math.sin(Math.PI * rec); G.bank = -s * 0.75 * Math.sin(Math.PI * sp) + s * 0.25 * Math.sin(TAU * rec);
+      G.pitch = -0.12 * pre + 0.25 * Math.sin(Math.PI * sp) - 0.18 * Math.sin(Math.PI * rec); G.wing = lerp(0.95, 0.4, sstep(0, 0.25, u)) + 0.55 * rec; G.fold = 0.35 * Math.sin(Math.PI * sp);
+      G.z = 0.15 * Math.sin(Math.PI * sp) - 0.08 * Math.sin(Math.PI * rec); G.channel = 0.3 + 0.6 * Math.sin(Math.PI * cl(sp)); } },
+    /* True Dark Blade (E: 'overhead' u 0..0.5 the lift, 'overheadSlam' 0.5..0.62 the drive, then the recoil to 1): a dip
+       of anticipation, a huge lift with the back arched and the body rising on its thrusters, the smash with the whole
+       body following through (a deep crouch, pitched over), the recoil, the settle */
+    overhead: { hit: 0.62, rec: 0.75, run(G, u) { const dip = Math.sin(Math.PI * cl(u / 0.12)), lift = sstep(0.05, 0.5, u), slam = inQ(cl((u - 0.5) / 0.12)), rec = sstep(0.66, 1, u);
+      G.sword = 'overhead'; G.swordK = 1 - 0.9 * sstep(0.85, 1, u); G.swordU = u < 0.5 ? 0 : u < 0.62 ? slam : 1;
+      G.pitch = u < 0.5 ? -0.75 * lift : lerp(-0.75, 0.95, slam) * (1 - rec) + 0.0 * rec; G.crouch = 0.3 * dip * (1 - lift) + (u < 0.5 ? 0 : 0.95 * slam * (1 - rec));
+      G.z = u < 0.5 ? 0.75 * lift : lerp(0.75, -0.1, slam) * (1 - rec); G.lean = u < 0.5 ? -0.35 * lift : lerp(-0.35, 0.6, slam) * (1 - rec); G.twist = u < 0.5 ? 0.25 * lift : lerp(0.25, -0.2, slam) * (1 - rec);
+      G.wing = u < 0.5 ? 0.9 + 0.1 * lift : lerp(1, 0.55, slam) + 0.4 * rec; G.fold = u < 0.5 ? 0 : 0.25 * slam * (1 - rec); G.thrust = 0.35 + 0.55 * lift * (1 - slam); } },
+    /* Dark Spikes (E: 'pointDown' u 0..0.35 the lift, 'pointDownPlunge' 0.35..0.6 the plunge, held planted to 0.75, the
+       withdrawal to 1): the sword lifted high, point down, the body rising; the plunge with a crouch and full weight;
+       planted, the robot strains (a tremor through the body), then hauls it out */
+    impale: { hit: 0.45, rec: 0.75, run(G, u, t) { const lift = sstep(0, 0.35, u), pl = inQ(cl((u - 0.35) / 0.1)), held = u >= 0.45 && u < 0.75, rec = sstep(0.75, 1, u);
+      G.sword = 'down'; G.swordK = 1 - 0.9 * sstep(0.85, 1, u); G.swordU = u < 0.35 ? 0 : u < 0.45 ? pl : 1 - 0.6 * rec;
+      G.z = u < 0.35 ? 0.6 * lift : lerp(0.6, -0.15, pl) * (1 - rec); G.pitch = u < 0.35 ? -0.45 * lift : lerp(-0.45, 0.6, pl) * (1 - rec); G.crouch = u < 0.35 ? 0.12 * Math.sin(Math.PI * lift) : lerp(0, 1, pl) * (1 - rec);
+      G.lean = u < 0.35 ? -0.2 * lift : 0.45 * pl * (1 - rec); G.wing = 1; G.fold = 0; G.thrust = 0.3 + 0.6 * lift * (1 - pl);
+      if (held) { const tr = Math.sin((t || 0) * 47) * 0.5 + Math.sin((t || 0) * 31) * 0.5; G.pitch += 0.05 * tr; G.crouch += 0.04 * tr; G.bank += 0.05 * Math.sin((t || 0) * 23); G.twist += 0.04 * Math.sin((t || 0) * 19); } } },
+    /* the airship's Shockwave Pulsar: the nose lifts (anticipation), drives down onto the aim, the release, the recoil
+       throwing the nose up, the settle */
+    pulsar: { hit: 0.5, rec: 0.6, run(G, u) { const ant = Math.sin(Math.PI * cl(u / 0.2)), aim = sstep(0.12, 0.45, u), rk = Math.sin(Math.PI * cl((u - 0.5) / 0.3)); G.pitch = -0.3 * ant * (1 - aim) + 0.65 * aim * (1 - sstep(0.5, 0.9, u)) - 0.55 * rk; G.thrust = 0.5 + 0.5 * rk; G.channel = u < 0.5 ? sstep(0, 0.5, u) : 1 - sstep(0.5, 1, u); G.charge = u < 0.5 ? sstep(0.1, 0.5, u) : 0; G.wing = 1 - 0.2 * rk; } },
+    /* Dark Messiah: rising and pitching over the aim as it charges, wings flung wide, the hull trembling under the beam */
+    messiah: { hit: 0.75, rec: 0.85, run(G, u, t) { const ch = sstep(0, 0.6, u), fire = u >= 0.6 && u < 0.85; G.pitch = 0.6 * sstep(0, 0.25, u) * (1 - sstep(0.85, 1, u)); G.z = 0.5 * ch * (1 - sstep(0.85, 1, u)); G.channel = sstep(0.05, 0.6, u) * (1 - sstep(0.85, 1, u) * 0.7); G.charge = ch * (1 - sstep(0.6, 0.66, u)); G.glow = 0.5 + 0.5 * ch; G.thrust = 0.4 + 0.5 * sstep(0.6, 0.75, u); G.wing = 1;
+      if (fire) { const tr = Math.sin((t || 0) * 41) + Math.sin((t || 0) * 27); G.roll += 0.03 * tr; G.pitch += 0.04 * tr; } } },
+  };
+  /* E's named poses (ctx.pose(name, u, extra)): each maps onto a stretch of a clip; they are recorded and played by the
+     animation next frame (`extra` effect channels pass through; crouch / recoil add to the targets) */
   const POSES = { rest: null, overhead: ['overhead', 0, 0.5], overheadSlam: ['overhead', 0.5, 0.62], pointDown: ['impale', 0, 0.35], pointDownPlunge: ['impale', 0.35, 0.6], sweep: ['sweep', 0, 1],
     pulsarAim: ['pulsar', 0, 0.5], pulsarFire: ['pulsar', 0.5, 1], messiah: ['messiah', 0, 0.6], messiahFire: ['messiah', 0.6, 0.85] };
-  function poseNamed(S, name, u, extra) { const P = S.V.pose, m = POSES[name];
-    if (m) CLIPS[m[0]].run(P, lerp(m[1], m[2], cl(u))); else if (name === 'rest' || !(name in POSES)) { P.sword = 'rest'; P.swordU = 0; }
-    if (extra) for (const k in extra) if (k !== 'sword') P[k] = extra[k];
-    if (extra && extra.recoil != null) { P.recoil = extra.recoil; } }
+  function poseNamed(S, name, u, extra) { const E = S.eAct || (S.eAct = {}); const prev = E.name; E.name = name; E.u = cl(u); E.extra = extra || null; E.t = S.g.t;
+    // a slam or a plunge reaching its end: the impact kick (the body jolts down and over, the fans flap)
+    if ((name === 'overheadSlam' || name === 'pointDownPlunge') && u >= 1 && !E.hitDone) { E.hitDone = true; kick(S, 'crouch', 5); kick(S, 'pitch', 4); kick(S, 'z', -3); kick(S, 'wing', -3); if (!calm()) S.X.shake(name === 'overheadSlam' ? 5 : 4, 0.18); }
+    if (name !== prev && name !== 'overheadSlam' && name !== 'pointDownPlunge') E.hitDone = false;
+    if (name === 'pulsarAim' && prev === 'pulsarAim' && extra && extra.recoil > 0.9 && !E.rk) { E.rk = true; kick(S, 'pitch', -5); } if (name !== 'pulsarAim') E.rk = false; }
+  /* where on its clip E's current pose is (clip, u), or null when E is not driving (a stale record after ~0.1 s) */
+  function eClip(S) { const E = S.eAct; if (!E || S.g.t - E.t > 0.12) return null; if (E.name === '_clip') return CLIPS[E.clip] ? { c: E.clip, u: E.u } : null; const m = POSES[E.name];
+    if (!m) return null; let u = lerp(m[1], m[2], E.u);
+    // after the strike, E holds 'overheadSlam' / 'pointDownPlunge' at 1 through its recoil: run the clip's recovery from E's recoil / channel fade
+    if (E.name === 'overheadSlam' && E.u >= 1 && E.extra && E.extra.recoil != null) u = lerp(0.62, 0.95, cl(1 - E.extra.recoil));
+    if (E.name === 'pointDownPlunge' && E.u >= 1 && E.extra && E.extra.channel != null) u = lerp(0.6, 0.74, cl((1 - E.extra.channel) / 0.5));
+    return { c: m[0], u }; }
+
+  /* ---- the base layer and the compose, every frame ---- */
+  function animate(S, dt) {
+    const d = S.V, P = d.pose, g = S.g, t = g.t, ph = S.phase, G = S.tg || (S.tg = TG()), A = S.an || (S.an = {});
+    Object.assign(G, TG.base || (TG.base = TG()));
+    // the motion this frame: forward / lateral acceleration in the heading's frame
+    const ax = (d.vx - (S.pvx || 0)) / Math.max(dt, 1e-3), ay = (d.vy - (S.pvy || 0)) / Math.max(dt, 1e-3); S.pvx = d.vx; S.pvy = d.vy;
+    const ch = Math.cos(d.heading), sh = Math.sin(d.heading), fa = Math.max(-40, Math.min(40, ax * ch + ay * sh)), la = Math.max(-40, Math.min(40, -ax * sh + ay * ch)), sp = Math.hypot(d.vx, d.vy);
+    S.accS = (S.accS || 0) + (fa - (S.accS || 0)) * Math.min(1, dt * 8); S.latS = (S.latS || 0) + (la - (S.latS || 0)) * Math.min(1, dt * 8);
+    const breath = Math.sin(t * 1.6), shift = Math.sin(t * 0.47), sway = Math.sin(t * 0.83 + 1);
+    const robotish = ph === 'robot' || ph === 'summon' || (ph === 'out' && S.fromPhase === 'robot'), airish = ph === 'air' || ph === 'messiah' || (ph === 'out' && S.fromPhase !== 'robot');
+    if (robotish) {   // the living idle and the ground glide
+      const mv = Math.min(1, sp / 5);
+      G.crouch = 0.05 + 0.04 * breath * (1 - mv) - 0.04 * mv; G.bank = 0.07 * shift * (1 - mv) + Math.max(-0.7, Math.min(0.7, S.turnK * 0.55 + S.latS * 0.02)); G.twist = 0.06 * sway * (1 - mv) - S.turnK * 0.2;
+      G.lean = Math.max(-0.45, Math.min(0.75, 0.32 * mv + S.accS * 0.035)); G.pitch = 0.03 * breath + Math.max(-0.35, Math.min(0.45, S.accS * 0.025 + 0.12 * mv));   // (pitched forward speeding up, reared back braking)
+      G.wing = 0.86 + 0.1 * Math.sin(t * 1.1) - 0.25 * Math.min(1, Math.abs(S.turnK)) - 0.15 * mv; G.fold = 0.12 * mv + 0.25 * Math.min(1, Math.abs(S.turnK));
+      G.thrust = 0.28 + 0.35 * mv + Math.min(0.4, Math.abs(S.accS) * 0.03); G.z = 0.04 * breath; G.swordU = 0; G.recoil = 0.06 * (breath * 0.5 + 0.5) * (1 - mv);   // (the sword's slow bob with the breath)
+      P.gait = (P.gait || 0) + dt * (1.2 + sp * 1.25); P.gaitAmp = Math.min(1.2, sp / 4.5);
+    } else if (airish) {   // the airship: bank, pitch and wobble with inertia
+      G.bank = Math.max(-0.9, Math.min(0.9, S.turnK * 0.75 + S.latS * 0.025)); G.pitch = Math.max(-0.4, Math.min(0.4, S.accS * 0.02 - (d.z - (S.pz == null ? d.z : S.pz)) / Math.max(dt, 1e-3) * 0.04)) + 0.03 * Math.sin(t * 1.3);
+      G.roll = 0.035 * Math.sin(t * 1.7) + 0.02 * Math.sin(t * 2.9 + 1); G.z = 0.06 * Math.sin(t * 1.4); G.wing = 1 - 0.18 * Math.min(1, Math.abs(S.turnK)) + 0.04 * Math.sin(t * 2.1); G.thrust = 0.35 + Math.min(0.55, sp / 16) + Math.min(0.3, Math.max(0, S.accS) * 0.02); P.gaitAmp = 0;
+    }
+    S.pz = d.z;
+    // the action layer
+    let ac = null;
+    if (S.swing) ac = ['basic', S.swing.u || 0, S.swing.side];
+    else if (S.glide) ac = ['sweep', S.glide.u || 0, S.glide.dir];
+    else { const e = eClip(S); if (e) ac = [e.c, e.u, 0]; }
+    if (ac) { const C = CLIPS[ac[0]]; if (C) { if (ac[0] === 'impale' || ac[0] === 'messiah') C.run(G, ac[1], t); else C.run(G, ac[1], ac[2]); } }
+    if (S.dive) diveTargets(S, G);
+    if (ph === 'xform') xformTargets(S, G);
+    if (ph === 'summon') { const u = cl(S.t / TUNE.summon); G.wing = lerp(0.1, 0.9, sstep(0.55, 0.85, u)); G.fold = 0.6 * (1 - sstep(0.55, 0.85, u)); G.crouch = 0.25 * (1 - sstep(0.7, 1, u)); G.z = 0.3 * (1 - outBack(sstep(0.6, 1, u), 2.2)); G.glow = 0.3 + 0.7 * Math.exp(-Math.pow((S.t - (TUNE.summon - 0.15)) / 0.12, 2)); }
+    // E's effect channels pass through; its crouch / recoil add
+    const E = S.eAct && S.g.t - S.eAct.t < 0.12 ? S.eAct.extra : null;
+    if (E) { if (E.crouch != null) G.crouch += E.crouch * 0.5; if (E.recoil != null) G.recoil = Math.max(G.recoil, E.recoil); for (const k of ['channel', 'glow', 'charge', 'thrust']) if (E[k] != null) G[k] = E[k]; }
+    // the sword's hold: a new hold restarts its progress spring there (two holds never blend through each other)
+    if (G.sword !== S.hold) { if (S.hold && S.hold !== 'rest' && G.sword !== 'rest') { const s = A.swordU; if (s) { s.x = G.swordU; s.v = 0; } } if (G.sword !== 'rest') S.hold = G.sword; else if ((A.swordK ? A.swordK.x : 0) < 0.05) S.hold = 'rest'; }
+    P.sword = S.hold || 'rest';
+    // the compose: each channel on its spring (overlap: the torso leads, the sword follows, the fans lag)
+    const k = (c, v) => spring(S, c, v, SPR[c][0], SPR[c][1], dt);
+    P.lean = k('lean', G.lean); P.bank = k('bank', G.bank); P.pitch = k('pitch', G.pitch); P.twist = k('twist', G.twist); P.crouch = Math.max(0, k('crouch', G.crouch));
+    S.yawOff = k('yaw', G.yaw); S.zOff = k('z', G.z); P.swordU = cl(k('swordU', G.swordU)); P.swordK = cl(k('swordK', P.sword === 'rest' ? 0 : G.swordK));
+    P.wingSpread = cl(k('wing', G.wing)); P.wingFold = cl(k('fold', G.fold)); P.thrust = cl(k('thrust', G.thrust) + 0.05 * Math.sin(t * 37) * Math.sin(t * 23) + Math.min(0.15, Math.abs(S.accS) * 0.006) * Math.sin(t * 53));
+    if (airish || ph === 'xform') P.roll = k('roll', G.roll) + (S.dive ? S.dive.rollA || 0 : 0); else P.roll = 0;
+    // (for M's optional channels: the legs trailing with momentum; each fan lagging on its own spring)
+    P.legSwing = robotish ? Math.max(-1, Math.min(1, spring(S, 'leg', -(Math.min(1, sp / 5) * 0.55 + S.accS * 0.03), 7, 0.35, dt))) : 0;
+    { const sw = -S.turnK * 0.35 - S.latS * 0.012; P.wingSwayL = spring(S, 'swL', sw, 5, 0.3, dt); P.wingSwayR = spring(S, 'swR', sw, 4.2, 0.28, dt); }
+    // the hips turn into the cut (M's hipYaw, clamped as the model does) and the sweep's arc widens on the big swings
+    P.hipYaw = Math.max(-0.4, Math.min(0.4, k('hip', G.hip != null ? G.hip : (G.yaw * 0.45 + G.twist * 0.3)))); P.swordArc = Math.max(0.5, Math.min(1.6, k('arc', G.arc)));
+    P.recoil = G.recoil; if (G.channel != null) P.channel = G.channel; else P.channel += (0.18 - (P.channel || 0)) * Math.min(1, dt * 4); if (G.glow != null) P.glow = G.glow; else P.glow += (0.5 - (P.glow || 0)) * Math.min(1, dt * 3); if (G.charge != null) P.charge = G.charge; else P.charge = (P.charge || 0) * Math.max(0, 1 - dt * 4);
+  }
+  /* Dive's targets: the roll (a full turn, eased, overshooting and settling on its spring), the swoop nose-down after a
+     lift of anticipation, the pull-up overshooting nose-up, the thrust surging */
+  function diveTargets(S, G) { const D = S.dive, t = D.t, d1 = D.t1, d2 = D.t2, d3 = D.t3;
+    const ant = Math.sin(Math.PI * cl(t / (d1 * 0.6)));
+    D.rollA = D.rollDir * TAU * inOut(cl(t / d1)) + (t > d1 ? D.rollDir * 0.35 * Math.sin(Math.PI * cl((t - d1) / 0.25)) * Math.exp(-(t - d1) * 4) : 0);
+    G.pitch = t < d1 ? -0.3 * ant : t < d2 ? 0.75 * sstep(d1, d1 + 0.1, t) : t < d3 ? lerp(0.75, -0.5, sstep(d2, d3, t)) : -0.5 * (1 - sstep(d3, D.end, t)); G.thrust = t < d2 ? 0.7 + 0.3 * sstep(0, d1, t) : 1; G.wing = t < d2 ? lerp(1, 0.6, sstep(d1, d2, t)) : lerp(0.6, 1, sstep(d3, D.end, t)); G.bank = D.rollDir * 0.2 * Math.sin(Math.PI * cl((t - d2) / (D.end - d2))); }
+  /* the fold's body: jolts at each lock (a dip and a pitch kick on the springs), the fans drawn in, then flung out */
+  function xformTargets(S, G) { const st = xfStage(S.xt); G.wing = st.i < 5 ? 0.35 : lerp(0.35, 1, st.i === 5 ? outBack(st.u, 1.2) : 1); G.fold = st.i < 5 ? 0.4 : 0; G.thrust = st.i === 0 ? 0.4 + 0.5 * st.u : st.i === 7 ? 0.3 + 0.5 * st.u : st.i >= 8 ? 0.75 : 0.6; G.crouch = st.i === 0 ? 0.3 * Math.sin(Math.PI * st.u) : 0; G.roll = 0.02 * Math.sin(S.xt * 9);
+    if (st.i !== S.xfKick) { S.xfKick = st.i; if (st.i >= 1) { kick(S, 'z', -1.6); kick(S, 'pitch', st.i % 2 ? 1.6 : -1.6); kick(S, 'roll', st.i % 2 ? 0.8 : -0.8); } } }
 
   /* ================= the air: the map's tiles, the open air round it, the walls (Nidhogg's) ================= */
   function airOf(X) { try { return X.air ? X.air() : null; } catch (e) { return null; } }
@@ -211,7 +329,7 @@
     const V = { x: me.x, y: me.y, z: 0, heading: a0, vx: 0, vy: 0, pose: P, form: 0, locked: true, vis: 1 };
     const S = { H, g, me, X, C, ev, tier, DK, CD, V, inst, phase: 'summon', t: 0, charge: 0, used: false, busy: null, busyT: 0, cd: { blade: 0, spikes: 0, pulsar: 0, dodge: 0 }, mvQ: null, xfQ: null, dQ: null, glide: null, dive: null,
       leftR: TUNE.robotDur, leftA: 0, airGranted: false, menu: 'robot', menuSets: 0, xt: 0, mvOn: false, press: { ult: -9, strong: -9, strong2: -9 }, needFresh: { strong: false, strong2: false }, armT: -9,
-      ha: a0, au: a0, hw: 0, turnK: 0, parts: [], free: [], marks: [], trail: [], ended: false, pet: X.pet ? X.pet() : null, air: airOf(X), home: { x: me.x, y: me.y }, safe: { x: me.x, y: me.y }, safeT: 0, reachT: 2, cam: null,
+      ha: a0, au: a0, hw: 0, turnK: 0, an: {}, yawOff: 0, zOff: 0, parts: [], free: [], marks: [], trail: [], ended: false, pet: X.pet ? X.pet() : null, air: airOf(X), home: { x: me.x, y: me.y }, safe: { x: me.x, y: me.y }, safeT: 0, reachT: 2, cam: null,
       stats: { glides: 0, glideHit: 0, dives: 0, diveHit: 0, diveBad: 0, blade: 0, spikes: 0, pulsar: 0, messiah: 0, dealt: 0, charged: 0, hits: 0, robotT: 0, airT: 0, xfT: 0, mvSet: 0, mvClear: 0, cdSet: 0, menuSets: 0, airGrants: 0 }, sfxT: 0, mx: 0, my: 0, spd: 4.3 };
     buildReach(S, me.x, me.y);
     g._susanoo = S;
@@ -226,7 +344,7 @@
       anchor: n => { const p = M0.anchor ? M0.anchor(n) : null; return p ? { x: p.x, y: p.y, z: p.z } : { x: S.V.x, y: S.V.y, z: S.V.z + 1.5 }; },
       scr: (x, y, z) => [H.sx(x), H.sy(y) - (z || 0) * ZK * X.Tz()], T: () => X.Tz(),
       camera: o => { if (!o) { S.cam = null; return; } if (o.shake && !calm()) X.shake(Math.min(10, o.shake), Math.min(0.5, o.dur || 0.25)); const c0 = S.cam || {}; S.cam = { zoom: o.zoom != null ? Math.max(0.5, Math.min(1.1, o.zoom)) : c0.zoom, x: o.x != null ? o.x : c0.x, y: o.y != null ? o.y : c0.y, k: o.k != null ? cl(o.k) : c0.k }; },
-      clip: (name, u) => { const Cl = CLIPS[name]; if (Cl) Cl.run(S.V.pose, cl(u)); },
+      clip: (name, u) => { const E = S.eAct || (S.eAct = {}); E.name = '_clip'; E.clip = name; E.u = cl(u); E.extra = null; E.t = S.g.t; },
       safeReturn: () => { const p = safeReturn(S); S.retPt = p; return { x: p.x, y: p.y }; },
       done: () => actionDone(S), alive: () => alive(S), calm, low: lowFx };
     S.veh = { get active() { return !S.released; }, drive: (mx, my, dt, spd) => { S.mx = mx; S.my = my; if (spd > 0) S.spd = spd; syncMe(S); void dt; },
@@ -289,12 +407,8 @@
     if (steerOK) steer(S, dt, mag > 0.15 ? Math.atan2(S.my, S.mx) : null, mag); else steer(S, dt, null, 0);
     return mag;
   }
-  /* the robot's idle / glide body: gait from speed, lean into acceleration, bank through turns, wings drawn in when sharp */
-  function robotBody(S, dt) { const P = S.V.pose, d = S.V, sp = Math.hypot(d.vx, d.vy), k = Math.min(1, dt * 6);
-    P.gait = (P.gait || 0) + dt * (0.6 + sp * 0.25); P.lean += (Math.min(1, sp / 6) * 0.6 - P.lean) * k; P.bank += (S.turnK * 0.6 - P.bank) * k;
-    P.wing += ((Math.abs(S.turnK) > 0.6 ? 0.3 : 0.65) - P.wing) * k; P.thrust += (0.25 + Math.min(0.5, sp / 12) - P.thrust) * k; P.crouch += (0 - P.crouch) * k; P.pitch += (0 - P.pitch) * k; P.channel += (0.15 - P.channel) * k;
-    if (!S.busy && !S.glide && !S.swing) { P.sword = 'rest'; P.swordU = 0; }
-    d.z += (TUNE.hover + 0.06 * Math.sin(S.g.t * 2.4) - d.z) * Math.min(1, dt * 5); }
+  /* the robot's hover (its body language is animate()'s) */
+  function robotBody(S, dt) { const d = S.V; d.z += (TUNE.hover - d.z) * Math.min(1, dt * 5); }
 
   /* ---- Glides (Dodge, robot): a spinning sword sweep along the stick; one hit per enemy per activation ---- */
   function tryDodge(S, mx, my) { if (S.phase === 'robot') tryGlide(S, mx, my); else if (S.phase === 'air') tryDive(S, mx, my); }
@@ -311,39 +425,39 @@
   }
   function stepGlide(S, dt) {
     const Gl = S.glide, G = TUNE.glide, d = S.V, P = d.pose, me = S.me; Gl.t += dt; const t = Gl.t, t1 = G.prep, t2 = G.prep + G.sweep;
-    CLIPS.sweep.run(P, Gl.t / Gl.end);
+    Gl.u = Gl.t / Gl.end;   // (animate() plays the sweep clip from this)
     // bounded steering of the travel during the sweep
     const mag = Math.hypot(S.mx, S.my); if (mag > 0.2 && t < t2) { const off = wrap(Math.atan2(S.my, S.mx) - Gl.a); Gl.a = wrap(Gl.a + Math.max(-G.steer * dt, Math.min(G.steer * dt, off))); }
     const v = t < t1 ? 0 : t < t2 ? G.dist / G.sweep * (1.35 - 0.7 * (t - t1) / G.sweep) : 0;
     d.vx = Math.cos(Gl.a) * v; d.vy = Math.sin(Gl.a) * v; me.x = d.x; me.y = d.y; S.X.moveEnt(me, d.vx * dt, d.vy * dt, 0); d.x = me.x; d.y = me.y;
     // the spin: one full turn (or more) through the sweep, ending on the travel heading
     const u = cl((t - t1) / G.sweep), e = easeIO(u), aH = t < t1 ? Gl.from + wrap(Gl.a - Gl.from) * sstep(0, t1, t) * 0.3 : Gl.a + Gl.dir * TAU * G.spins * (e - 1) + 0 * e;
-    setHeading(S, t < t2 ? aH : Gl.a, dt); P.spin = 0;
+    setHeading(S, t < t2 ? aH : Gl.a, dt);
     // the sword's swept arc: every enemy the blade's circle passes over, once
     if (t >= t1 && t <= t2 + 0.02) { const R = G.reach; for (const m of S.H.living()) { if (Gl.hits.has(m)) continue; const dx = m.x - d.x, dy = m.y - d.y, dist = Math.hypot(dx, dy); if (dist > R + (m.r || 0.4) || dist < 0.2) continue;
         Gl.hits.add(m); const dealt = hitCharge(S, m, S.DK * G.dmg, { kb: G.kb, src: 'ult' }); if (dealt > 0) { S.stats.glideHit++; sparks(S, m.x, m.y, 1); } } }
     // the crescent trail along the sword's edge, a ground wake
     if (t >= t1 * 0.6 && t <= t2 + 0.1) pushTrail(S); if (t >= t1 && t < t2 && Math.random() < dt * (lowFx() ? 25 : 60)) { const a = Math.random() * TAU; addPart(S, 2, d.x + Math.cos(a) * 0.6, d.y + Math.sin(a) * 0.4, 0.05, -d.vx * 0.2, -d.vy * 0.2, 0.2, 0.5, 0.35, { grow: 1.2, drag: 2, col: '#2A1A3A' }); }
-    if (t >= Gl.end) { S.glide = null; S.cd.dodge = dodgeCd(S); P.sword = 'rest'; if (S.dQ != null && S.g.t - S.dQ < 0.5) { S.dQ = null; } }
+    if (t >= Gl.end) { S.glide = null; S.cd.dodge = dodgeCd(S); kick(S, 'crouch', 2.5); kick(S, 'bank', Gl.dir * 2.5);   /* (the heavy recovery: a stagger the springs carry) */ if (S.dQ != null && S.g.t - S.dQ < 0.5) { S.dQ = null; } }
   }
   /* ---- (H) the basic sword swing (robot only): M's one-hand sweep hold, a frontal arc, one hit per enemy per swing ---- */
   function trySwing(S, A) {
     const d = S.V; if (S.phase !== 'robot' || S.swing || S.glide || S.busy || d.locked || S.released) return false;   // (the airship, the fold, an attack or Glides: no swing)
     const t = A && A.t && !A.t.dead ? A.t : null, a = t ? Math.atan2(t.y - d.y, t.x - d.x) : A && isFinite(A.a) ? A.a : d.heading;
-    S.swing = { t: 0, a, hits: new Set() }; S.stats.swings = (S.stats.swings || 0) + 1;
+    S.swingSide = -(S.swingSide || -1); S.swing = { t: 0, a, hits: new Set(), side: S.swingSide, u: 0 };   /* (round 2: cuts alternate right and left) */ S.stats.swings = (S.stats.swings || 0) + 1;
     const sfx = S.X.sfx || {}; if (sfx.whoosh) sfx.whoosh(); if (sfx.note) sfx.note(240, 0.18, 'sawtooth', 0.025, 520);
     return true;
   }
   function stepSwing(S, dt) {
     const Sw = S.swing, W = TUNE.swing, d = S.V, P = d.pose; if (S.glide || S.busy || S.phase !== 'robot') { S.swing = null; return; }
     Sw.t += dt; const u = cl(Sw.t / W.dur);
-    CLIPS.sweep.run(P, u);   // (the sweep hold: wind-up, the cut, the follow-through)
+    Sw.u = u;   // (animate() plays the basic cut from this: wind-up, the cut, the follow-through)
     setHeading(S, S.ha + wrap(Sw.a - S.ha) * Math.min(1, dt * 16), dt);   // (it turns into the cut; the travel stays the stick's)
     if (u >= W.hit0 && u <= W.hit1) { pushTrail(S);   // (the light crescent along the sword's edge: Glides' trail)
       for (const m of S.H.living()) { if (Sw.hits.has(m)) continue; const dx = m.x - d.x, dy = m.y - d.y, dist = Math.hypot(dx, dy), pr = m.r || 0.4; if (dist > W.reach + pr) continue;
         if (dist > 0.3 && Math.abs(wrap(Math.atan2(dy, dx) - Sw.a)) > W.arc / 2 + Math.asin(Math.min(1, pr / Math.max(dist, pr)))) continue;
         Sw.hits.add(m); if (S.ctx.hit(m, S.DK * W.dmg, { kb: W.kb, src: 'normal' }) > 0) { S.stats.swingHit = (S.stats.swingHit || 0) + 1; sparks(S, m.x, m.y, 1); } } }
-    if (u >= 1) { S.swing = null; P.sword = 'rest'; P.swordU = 0; }
+    if (u >= 1) { S.swing = null; }
   }
   function pushTrail(S) { const M0 = MOD(); const tip = M0.anchor ? M0.anchor('swordTip') : null, hilt = M0.anchor ? (M0.anchor('swordChannel') || M0.anchor('hilt')) : null; if (!tip || !hilt) return; const L = S.trail; const q = L.length >= 14 ? L.pop() : {}; q.a = [tip.x, tip.y, tip.z]; q.b = [hilt.x, hilt.y, hilt.z]; q.t = S.g.t; L.unshift(q); }
 
@@ -395,13 +509,13 @@
   }
   /* the stage at time t, with its own progress */
   function xfStage(t) { for (let i = 0; i < XFT.L.length; i++) { const s = XFT.L[i]; if (t < s.t1) return { i, n: s.n, u: cl((t - s.t0) / (s.t1 - s.t0)) }; } return { i: XFT.L.length - 1, n: XFT.L[XFT.L.length - 1].n, u: 1 }; }
+  const XF_SNAP = { dock: 1, thrusters: 1, latch: 1 }, XF_ROT = { pitch: 1, stow: 1, wings: 1, booms: 1 };
   function stepXform(S, dt) {
     const d = S.V, P = d.pose, M0 = MOD(); S.xt += dt; S.stats.xfT = S.xt;
     const st = xfStage(S.xt);   /* (xf runs linearly through the timed stages; M's XF_STAGES are ranges of xf, so its stages keep their order and overlaps) */
     // xf: 0..1 through the ordered stages, each stage's share as the model names them (its boundaries, else equal)
-    const B = Array.isArray(M0.XF_BOUNDS) ? M0.XF_BOUNDS : null; P.xf = B ? lerp(B[st.i], B[st.i + 1], st.u) : (st.i + st.u) / XFT.L.length; P.stage = st.n; P.stageU = st.u;
-    P.form = st.n === 'establish' && st.u >= 1 ? 1 : 0; P.sword = 'rest'; P.swordU = 0; P.lean *= 0.9; P.bank *= 0.9; P.wing = st.i < 5 ? 0.3 : lerp(0.3, 1, st.i === 5 ? st.u : 1);
-    P.thrust = st.i === 0 ? 0.4 + 0.5 * st.u : st.i === 7 ? 0.3 + 0.4 * st.u : st.i >= 8 ? 0.7 : 0.6; P.glow = 0.5 + 0.3 * (st.n === 'latch' ? Math.sin(Math.PI * st.u) : 0);
+    const B = Array.isArray(M0.XF_BOUNDS) ? M0.XF_BOUNDS : null; const eu = XF_SNAP[st.n] ? outBack(st.u, 1.3) : XF_ROT[st.n] ? inOut(st.u) : outQ(st.u);   /* (round 2: snappy where a lock closes, smooth where a part turns) */ P.xf = B ? lerp(B[st.i], B[st.i + 1], eu) : (st.i + eu) / XFT.L.length; P.stage = st.n; P.stageU = st.u;
+    P.form = st.n === 'establish' && st.u >= 1 ? 1 : 0;
     // the lift: up off the ground in the first stage, on to the cruise height through the fold; the heading held
     d.z = lerp(S.xfFrom.z, TUNE.cruise, sstep(0, XFT.L[3].t1, S.xt)); d.vx *= 0.85; d.vy *= 0.85; setHeading(S, S.ha, dt);
     // the clunks: each stage's lock
@@ -433,8 +547,7 @@
     if (!holdHeading) steer(S, dt, mag > 0.15 ? want : null, mag);
     return mag;
   }
-  function airBody(S, dt) { const P = S.V.pose, d = S.V, sp = Math.hypot(d.vx, d.vy), k = Math.min(1, dt * 5); P.form = 1; P.xf = 1;
-    P.bank += (S.turnK * 0.7 - P.bank) * k; P.thrust += (0.35 + Math.min(0.6, sp / 14) - P.thrust) * k; P.wing += (1 - Math.abs(S.turnK) * 0.15 - P.wing) * k; P.pitch += (0 - P.pitch) * k; P.channel += (0.2 - P.channel) * k; P.charge += (0 - P.charge) * k; P.roll += (0 - P.roll) * k; }
+  function airBody(S) { const P = S.V.pose; P.form = 1; P.xf = 1; }   /* (its body language is animate()'s) */
 
   /* ---- Dive (Dodge, airship): a roll, a swoop on the target, one hit per enemy at the low pass, the climb back ---- */
   function tryDive(S, mx, my, queued) {
@@ -454,14 +567,14 @@
     const D = S.dive, d = S.V, P = d.pose, Tn = TUNE.dive; D.t += dt; const t = D.t;
     if (D.m && !D.m.dead && t < D.t2 - 0.1) { D.tx = D.m.x; D.ty = D.m.y; }
     // the roll about the long axis (the pose's roll; the pet rolls flat with it), turning onto the dive's heading
-    if (t < D.t1) { const u = easeIO(t / D.t1); P.roll = D.rollDir * TAU * u; setHeading(S, D.from + wrap(D.a - D.from) * u, dt); d.vx *= 0.85; d.vy *= 0.85; d.z = D.z0 + 0.3 * Math.sin(Math.PI * u); P.thrust = 0.6 + 0.4 * u; }
-    else if (t < D.t3) { P.roll = 0; setHeading(S, D.a, dt); const u = cl((t - D.t1) / (D.t3 - D.t1)), e = Math.pow(cl((t - D.t1) / Tn.swoop), 1.6);
-      d.x = lerp(D.x0, D.tx, Math.min(1, e)); d.y = lerp(D.y0, D.ty, Math.min(1, e)); d.z = lerp(D.z0 + 0.3, 0.55, Math.min(1, e)); P.pitch = 0.45 * (1 - u); P.thrust = 1; void u;
+    if (t < D.t1) { const u = easeIO(t / D.t1); setHeading(S, D.from + wrap(D.a - D.from) * u, dt); d.vx *= 0.85; d.vy *= 0.85; d.z = D.z0 + 0.3 * Math.sin(Math.PI * u); }
+    else if (t < D.t3) { setHeading(S, D.a, dt); const u = cl((t - D.t1) / (D.t3 - D.t1)), e = Math.pow(cl((t - D.t1) / Tn.swoop), 1.6);
+      d.x = lerp(D.x0, D.tx, Math.min(1, e)); d.y = lerp(D.y0, D.ty, Math.min(1, e)); d.z = lerp(D.z0 + 0.3, 0.55, Math.min(1, e)); void u;
       // the low pass: one hit per enemy inside the footprint, swept along the pass
       if (t >= D.t2 - 0.04) { for (const m of S.H.living()) { if (D.hits.has(m)) continue; if (Math.hypot(m.x - d.x, m.y - d.y) > Tn.r + (m.r || 0.4)) continue; D.hits.add(m); if (hitCharge(S, m, S.DK * Tn.dmg, { kb: Tn.kb }) > 0) { S.stats.diveHit++; sparks(S, m.x, m.y, 1); } }
         if (!D.struck) { D.struck = true; addPart(S, 9, d.x, d.y, 0, 0, 0, 0, 0.55, Tn.r * 1.05, {}); const sfx = S.X.sfx || {}; if (sfx.crash) sfx.crash(); if (!calm()) S.X.shake(4, 0.15); for (let i = 0; i < (lowFx() ? 10 : 24); i++) { const a = Math.random() * TAU, v = 2 + Math.random() * 4; addPart(S, 1, d.x, d.y, 0.2, Math.cos(a) * v, Math.sin(a) * v * GY, 1 + Math.random() * 2, 0.4 + Math.random() * 0.4, 0.12, { col: i % 2 ? VIO : VIO2, g: 4 }); } } } }
-    else { const u = sstep(D.t3, D.end, t); d.z = lerp(0.55, TUNE.cruise, u); d.vx = Math.cos(D.a) * 4 * (1 - u); d.vy = Math.sin(D.a) * 4 * (1 - u); d.x += d.vx * dt; d.y += d.vy * dt; P.pitch = -0.3 * Math.sin(Math.PI * u); P.roll = 0; }
-    if (t >= D.end) { S.dive = null; S.cd.dodge = dodgeCd(S); P.roll = 0; }
+    else { const u = sstep(D.t3, D.end, t); d.z = lerp(0.55, TUNE.cruise, u); d.vx = Math.cos(D.a) * 4 * (1 - u); d.vy = Math.sin(D.a) * 4 * (1 - u); d.x += d.vx * dt; d.y += d.vy * dt; }
+    if (t >= D.end) { S.dive = null; S.cd.dodge = dodgeCd(S); }
   }
 
   /* ================= the frame ================= */
@@ -502,12 +615,11 @@
     const MV = moves(); if (MV.update) { try { MV.update(S.ctx, dt); } catch (e) { /* (theirs) */ } }
     if (S.phase !== 'out' || !S.hopped) syncMe(S);
     stepParts(S, dt);
-    mapPose(S, P);
+    animate(S, dt);
     S.fx.entY = d.y + 1 + d.z;
     S.sfxT -= dt; if (S.sfxT <= 0 && (S.phase === 'robot' || S.phase === 'air')) { const sfx = X.sfx || {}; S.sfxT = 1.1 + Math.random() * 0.4; if (sfx.note) sfx.note(S.phase === 'air' ? 62 : 46, 0.9, 'sawtooth', 0.02, S.phase === 'air' ? 66 : 48); }
   }
   /* A's channels onto the model's names (M, 20k5v): the fans' spread, the gait's amplitude */
-  function mapPose(S, P) { const d = S.V; P.wingSpread = cl(P.wing == null ? 1 : P.wing); P.wingFold = 0; P.gaitAmp = S.phase === 'robot' ? Math.min(1, Math.hypot(d.vx, d.vy) / 6) : 0; }
   const busyLocks = S => S.busy === 'spikes';   // (the sword is planted: it holds still; True Dark Blade lets it drift)
   function queues(S) { const g = S.g, d = S.V;
     if (S.mvQ) { const Q = S.mvQ, k = S.phase === 'air' ? 'pulsar' : Q.slot === 'strong2' ? 'spikes' : 'blade'; if (g.t - Q.t > TUNE.mvHold + 0.4) S.mvQ = null; else if (!S.busy && !S.glide && !S.dive && !d.locked && S.cd[k] <= 0) { S.mvQ = null; tryMove(S, Q.slot, true); } }
@@ -517,7 +629,7 @@
   /* ---- the summon: the seal, the cockpit rising round the pet, the assembly, the lock and pulse ---- */
   function stepSummon(S, dt) {
     const d = S.V, P = d.pose, t = S.t, T = TUNE.summon;
-    P.alpha = sstep(0.15, 0.6, t); P.form = 0; P.xf = 0; P.assemble = sstep(0.2, T - 0.4, t); P.wing = lerp(0, 0.65, sstep(T * 0.55, T * 0.85, t)); P.sword = 'rest'; P.swordU = 0; P.glow = 0.3 + 0.7 * Math.exp(-Math.pow((t - (T - 0.15)) / 0.12, 2));
+    P.alpha = sstep(0.15, 0.6, t); P.form = 0; P.xf = 0; P.assemble = sstep(0.2, T - 0.4, t); P.glow = 0.3 + 0.7 * Math.exp(-Math.pow((t - (T - 0.15)) / 0.12, 2));
     d.z = TUNE.hover * sstep(0.4, T, t);
     if (Math.random() < dt * (lowFx() ? 15 : 40) && t < T - 0.3) { const a = Math.random() * TAU, r = Math.random() * 2.4; addPart(S, 1, d.x + Math.cos(a) * r, d.y + Math.sin(a) * r * 0.8, 0.05, 0, 0, 0.8 + Math.random() * 1.5, 0.8 + Math.random() * 0.6, 0.11, { col: Math.random() < 0.5 ? VIO : VIO2 }); }
     if (!S.locked1 && t >= T - 0.18) { S.locked1 = true; const sfx = S.X.sfx || {}; if (sfx.stomp) sfx.stomp(); if (sfx.note) sfx.note(55, 0.6, 'square', 0.05, 40); if (!calm()) S.X.shake(3, 0.12); }
@@ -538,10 +650,12 @@
     const d = S.V, P = d.pose; S.outT += dt;
     if (S.outT < S.outGlide) { const u = sstep(0, 1, S.outT / S.outGlide); d.x = lerp(S.outFrom.x, S.ret.x, u); d.y = lerp(S.outFrom.y, S.ret.y, u); d.z = lerp(S.outFrom.z, 1.4, u); if (Math.hypot(S.ret.x - d.x, S.ret.y - d.y) > 0.4) steer(S, dt, Math.atan2(S.ret.y - S.outFrom.y, S.ret.x - S.outFrom.x), 1); return; }
     const t = S.outT - S.outGlide;
+    // (M round 2) the chest hatch opens first, so the pet is seen leaving; then the hop
+    if (!S.hopped) { S.hatchU = (S.hatchU || 0) + dt / TUNE.hatch; P.hatch = 1 - inOut(S.hatchU); if (S.hatchU < 1) return; P.hatch = 0; }
     if (!S.hopped) { S.hopped = true; S.petHop = 0; const sfx = S.X.sfx || {}; if (sfx.jump) sfx.jump(); }
     S.petHop += dt; const me = S.me; const u = cl(S.petHop / TUNE.hop); me.x = lerp(d.x, S.ret.x, u); me.y = lerp(d.y, S.ret.y, u); me.vx = me.vy = 0;
     // the dissolve: armour silhouettes fading, violet fragments and dark mist (after the rider is clear)
-    if (S.petHop > TUNE.hop) { const v = cl((t - TUNE.hop) / TUNE.dissolve); P.alpha = 1 - v; if (Math.random() < dt * (lowFx() ? 25 : 70)) { const a = Math.random() * TAU, r = Math.random() * 2; addPart(S, Math.random() < 0.6 ? 1 : 2, d.x + Math.cos(a) * r, d.y + Math.sin(a) * r * 0.7, d.z + Math.random() * 2.2, Math.cos(a) * 0.8, Math.sin(a) * 0.6, 0.5 + Math.random(), 0.7 + Math.random() * 0.5, 0.14, { col: Math.random() < 0.5 ? VIO : DEEP, grow: 1.4, drag: 1 }); }
+    if (S.petHop > TUNE.hop) { const v = cl((S.petHop - TUNE.hop) / TUNE.dissolve); void t; P.alpha = 1 - v; if (Math.random() < dt * (lowFx() ? 25 : 70)) { const a = Math.random() * TAU, r = Math.random() * 2; addPart(S, Math.random() < 0.6 ? 1 : 2, d.x + Math.cos(a) * r, d.y + Math.sin(a) * r * 0.7, d.z + Math.random() * 2.2, Math.cos(a) * 0.8, Math.sin(a) * 0.6, 0.5 + Math.random(), 0.7 + Math.random() * 0.5, 0.14, { col: Math.random() < 0.5 ? VIO : DEEP, grow: 1.4, drag: 1 }); }
       if (v >= 1) release(S); }
   }
   function finish(S, how) {
@@ -599,7 +713,7 @@
     c.restore();
     // the robot's foot exhaust: a soft violet glow on the floor under it (light only), stronger as it accelerates
     if ((S.phase === 'robot' || S.phase === 'summon' || (S.phase === 'xform' && S.xt < 1.2)) && inMap(S, d.x, d.y)) { const k = cl((d.pose.thrust || 0.3) * (d.pose.alpha == null ? 1 : d.pose.alpha)) * (S.phase === 'xform' ? 1 + S.xt : 1), r = T * (0.9 + 0.5 * k); c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.3 * k; blitSized(c, glowSprite(VIO), H.sx(d.x) - r, H.sy(d.y) - r * GY, r * 2, r * 2 * GY); c.restore(); }
-    if (S.phase !== 'gone' && M0 && inMap(S, d.x, d.y)) { try { M0.drawShadow(c, d.x, d.y, d.z, d.heading, d.pose, { T, sx: H.sx, sy: H.sy, t, scale: TUNE.size }); } catch (e) { /* (model) */ } }
+    if (S.phase !== 'gone' && M0 && inMap(S, d.x, d.y)) { try { M0.drawShadow(c, d.x, d.y, d.z + (S.zOff || 0), d.heading + (S.yawOff || 0), d.pose, { T, sx: H.sx, sy: H.sy, t, scale: TUNE.size }); } catch (e) { /* (model) */ } }
     callM(S, c, 'drawUnder');
   }
   function callM(S, c, k) { const MV = moves(); if (MV[k] && S.ctx) { c.save(); try { MV[k](S.ctx, c); } catch (e) { /* (theirs) */ } c.restore(); } }
@@ -610,7 +724,7 @@
     drawTrail(S, c);
     const roll = d.pose.roll || 0;
     const o = { T, sx: H.sx, sy: H.sy, t, low: lowFx(), scale: TUNE.size, pet: (cc, PX, PY) => { S.seatS = [PX, PY]; if (riding) H.X.drawPetAt(cc, PX, PY + T * 0.12 * Math.abs(Math.sin(roll)), { maxH: 0.7, rot: roll }); } };
-    try { M0.draw(c, d.x, d.y, d.z, d.heading, d.pose, o); } catch (e) { if (riding) H.X.drawPetAt(c, H.sx(d.x), H.sy(d.y) - (d.z + 1.5) * ZK * T, { maxH: 0.7 }); }
+    try { M0.draw(c, d.x, d.y, d.z + (S.zOff || 0), d.heading + (S.yawOff || 0), d.pose, o); }   /* (the animation's whole-body yaw and rise) */ catch (e) { if (riding) H.X.drawPetAt(c, H.sx(d.x), H.sy(d.y) - (d.z + 1.5) * ZK * T, { maxH: 0.7 }); }
     if (S.phase === 'summon' && S.t < 0.5) H.X.drawPetAt(c, H.sx(S.home.x), H.sy(S.home.y), {});
     if (S.phase === 'out' && S.hopped) { const u = cl(S.petHop / TUNE.hop), s3 = S.seatS || [H.sx(d.x), H.sy(d.y) - d.z * ZK * T], gx = H.sx(S.ret.x), gy = H.sy(S.ret.y); H.X.drawPetAt(c, lerp(s3[0], gx, u), lerp(s3[1], gy, u) - Math.sin(u * Math.PI) * T * 0.9, u < 1 ? { maxH: 0.7 } : {}); }
   }
