@@ -40,7 +40,9 @@ const path = require('path'), fs = require('fs');
   console.log('pet twist', setup.tw);
   const VEH = { sportscar: { g: '_sportscar', ready: 'drive', fin: 'supernova' }, beastmachine: { g: '_beast', ready: 'ride', fin: 'judgement' }, nidhogg: { g: '_nidhogg', ready: 'fly', fin: 'ultima' }, susanoo: { g: '_susanoo', ready: 'air', fin: 'messiah', xform: true },
     /* (Fenrir has two finishers, one per form: both are measured; 'fenrir' is Diamond Dust from the motorcycle, 'fenrir+frozen' is Frozen from the wolf, after one Drift) */
-    fenrir: { g: '_fenrir', ready: 'ride', fin: 'dust', pin: true }, 'fenrir+frozen': { g: '_fenrir', ready: 'ride', fin: 'frozen', drift: true, pin: true, key: 'fenrir' } };
+    fenrir: { g: '_fenrir', ready: 'ride', fin: 'dust', pin: true }, 'fenrir+frozen': { g: '_fenrir', ready: 'ride', fin: 'frozen', drift: true, pin: true, key: 'fenrir' },
+    /* (Belladonna: Twister from the flying flower; the six tornadoes circle the caster, so the target is pinned beside it) */
+    belladonna: { g: '_belladonna', ready: 'fly', fin: 'twister', pin: true } };
   const SKIP = { thriller: 'echoes the pet\'s own normal attacks', dayofthedead: 'needs a downed teammate (raises allies)' };
   const rows = [];
   for (const evo of EVOS) for (const el of Object.keys(setup.L)) { if (ELEMS && !ELEMS.includes(el)) continue; for (const key of setup.L[el]) {
