@@ -576,3 +576,54 @@ The transformation is clean: nothing collides visibly at xf 0.15–1, and the sp
   - `SUSANOO_GFX.blit` lays the left half `source-over`, then the right half `lighter`, so the light adds the same way in every browser. The LK-in-alpha hack is gone.
   - Cost: 4 draw calls and two `drawImage` calls a frame. Use `u_pass` and `u_off` to choose the half.
   - `SUSANOO_GFX.check()` (for tests) counts the pixels that break rgb <= a: 0 in every phase tested.
+
+### M — round 6 (2026-11-12): the free arm at rest; the airship's prow
+
+**The free (left) arm at rest.**
+- It hangs beside the body, a little off the hip, the elbow nearly straight with a slight bend.
+- The hand is relaxed and half open, its palm toward the thigh, the fingers loosely curled.
+- During the transformation the left hand comes up smoothly to the hilt; it no longer pops onto it.
+- A's springs still add to this pose. The holds are unchanged, and every hold reaches its grips (shortfall ≤ 0.03).
+
+**The airship's prow.**
+- The sword no longer docks in the back cradle; the cradle stays folded.
+- Instead, both fists carry the sword up before the face during the dock stage, blade up. The pitch then turns it forward, and as the body stows the hilt settles on the hull's line just ahead of the head.
+- In the airship the two fists hold the crossguard's ends, either side of the head. The head is the nose: its face is tipped up a little and the eye slits are larger.
+- The blade runs ahead as the prow, angled slightly down.
+- The pods now dock at y ±1.3 (was 1.18), clear of the long folded legs.
+
+**For A and E.**
+- In the airship, `swordTip`, `swordChannel` and `hilt` now point forward from the nose (they were under the hull). The Dark Messiah sword-point focus therefore sits ahead of the ship.
+- `handL` and `handR` are the fists on the guard.
+
+**Clearances.** The worst along the whole transformation is −0.08, a forearm brushing a drum while the sword rises. The helmet and the sword are clear throughout.
+- (E, 2026-11-12, True Dark Blade v2) **The wave is now a thin flying crescent slash, not a standing wall** (the user's request after v310).
+  - **Shape:** the crescent lies flat over the ground at z 0.35 (`TUNE.blade.z`).
+    - It is 0.62 tiles thick at its centre (`thick`) and tapers to points at the tips.
+    - It is bowed forward by min(1.5, 0.24 × width), so the tips trail the centre.
+  - **Drawing:** a dark core with a sharp edge, a bright violet edge glow and a pale thread along the front, and a feathered violet outer glow.
+    - Sparks, dark wisps and motes trail behind it, and violet fissures under its path light up, then fade.
+    - Each segment fades on its own where its lane stops at a wall.
+  - **Gameplay:** the reach, width, speed, damage (4 × DK, once per enemy) and wall stops are unchanged. The hit test now also follows the bow, so a monster is struck only when the drawn crescent reaches it.
+
+### M — round 7 (2026-11-12): the head as the airship's nose
+
+**The head is the figurehead.**
+- During stow (from about stow 0.62) the helmet turns half a turn to face along the flight line, crown and horns up and swept back.
+- It moves forward and up to lead the hull: above and just behind the crossguard, between the fists. It is drawn 1.5× in the airship (1.22 in the robot).
+- An armoured neck extension (`neckx`, drawn with the rail mesh) joins it to the gorget, so there is no gap.
+
+**The eyes.** The eye slits are larger, with 2D violet glows at both eyes (new anchors `eyeL` and `eyeR`). They are strong in the airship and readable in game.
+
+**The prow.**
+- The fists bring the hilt to the nose while the head waits.
+- The blade runs straight along the flight line, slightly down (−0.05).
+- `swordTip`, `hilt` and `swordChannel` stay valid and point ahead of the ship.
+
+**Clearances.** One known graze: the turning helmet brushes the sword's pommel by −0.12 (sphere approximation) for a brief moment at xf ≈ 0.52 (I estimate under 0.1 s). Everything else is ≥ −0.08.
+- (E, 2026-11-12, True Dark Blade v3) **The slash now reads as a wide horizontal arc in every direction.**
+  - **Orientation:** the chord lies along world x, which is screen-x, leaning by 0.24 × cos(travel) toward the travel direction.
+  - **Bulge:** the arc bulges down the screen (bow 1.6 × min(1.5, 0.24 × width)) when travelling down or sideways, and up the screen when travelling up. It passes smoothly through a straight line at about 20° above level.
+  - **Thickness:** 0.62 × 0.75 tiles on screen.
+  - **Hits:** a monster is struck when the drawn arc passes over it, within `TUNE.blade.band` 0.5 + its radius, once per activation. Each lane still stops at its wall.
+  - **Gameplay:** damage, reach, speed and the arc's width are unchanged. A sideways slash now sweeps a horizontal band (its width along the travel), not a tall wall.

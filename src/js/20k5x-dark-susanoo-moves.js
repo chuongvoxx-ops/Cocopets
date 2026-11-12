@@ -2,10 +2,11 @@
    The model is 20k5v (SUSANO_MODEL), the session, both forms, movement, menus and timers are 20k5w (U.susanoo). This file
    adds the four attacks to the SUSANOO_MOVES contract (docs/DARK-SUSANOO-BRIEF.md):
    - SM.darkBlade(ctx): True Dark Blade. The sword rises overhead in both hands while violet light climbs its channel, then
-     drives down; at the slam a towering, curved wave of darkness rolls out ahead (a smoky black-violet face, a soft
-     violet crest, fragments drawn up its surface, violet fissures lighting under its leading edge and fading behind). Its
-     front is the hit: one hit per enemy per activation, the blade's own impact counted in the same set. Each lane of the
-     wave stops at a wall (nothing is hit behind one).
+     drives down; at the slam a thin slash of darkness flies out ahead: a crescent lying flat just above the ground, bowed
+     forward with tapering tips, a dark sharp-edged core with a bright violet edge glow and a feathered outer glow,
+     sparks and dark wisps trailing, violet fissures lighting under it and fading behind. Its front (the drawn crescent,
+     tips trailing) is the hit: one hit per enemy per activation, the blade's own impact counted in the same set. Each
+     part of the slash stops at a wall (nothing is hit behind one).
    - SM.darkSpikes(ctx): Dark Spikes. The sword turns point-down and is driven into the ground; dark fissures race from it
      to the aimed area; then the Earth ult Crystal Coronation (20k2f, assumed to be the spec's "Crown of Rock") runs as
      its Dark variant through its V hook: the same ray-cast crystal spires, formation and eruption, in glossy black
@@ -42,7 +43,7 @@
   const TUNE = SM.TUNE = {
     /* True Dark Blade: lift + slam, then the wave rolls `range` tiles at `speed`; `width` across at the start, widening
        by `spread` per tile; one hit per enemy (the blade's impact r `impactR` included). Cooldown is 20k5w's (~2.5 s) */
-    blade: { dmg: 4.0, lift: 0.38, slam: 0.12, recoil: 0.32, range: [7, 8, 9], speed: 9, width: [4.6, 5.6, 6.6], spread: 0.18, height: [2.4, 2.8, 3.2], impactR: 1.3, kb: 3, lanes: 13, cd: 2.5 },
+    blade: { dmg: 4.0, lift: 0.38, slam: 0.12, recoil: 0.32, range: [7, 8, 9], speed: 9, width: [4.6, 5.6, 6.6], spread: 0.18, height: [2.4, 2.8, 3.2], impactR: 1.3, kb: 3, lanes: 13, cd: 2.5, thick: 0.62, z: 0.35, band: 0.5 },
     /* Dark Spikes: the impalement, then Coronation's Dark variant: phase 1 the eruption (one hit per enemy over the whole
        formation), phase 2 the burst (one hit per enemy); timings of the build-up scaled by timeK. Cooldown ~3.5 s */
     spikes: { erupt: 2.5, burst: 3.0, turn: 0.3, plunge: 0.12, fissure: 0.26, timeK: 0.55, recoil: 0.35, cd: 3.5 },
@@ -109,7 +110,7 @@
     band: vband, dust: vdust, warm: vwarm, mote: vmote, puff: vpuff };
 
   const BAKE = [() => glowSprite(C.vio), () => glowSprite(C.vio2), () => glowSprite(C.pale), () => glowSprite(C.wht), () => sprBand(), () => sprShadowRing(), () => sprCracks(0), () => sprCracks(1),
-    () => sprWave('b', 0), () => sprWave('b', 1), () => sprWave('r', 0), () => sprWave('r', 1), () => sprSmoke(0), () => sprSmoke(1), () => sprSmoke(2),
+    () => sprSmoke(0), () => sprSmoke(1), () => sprSmoke(2),
     () => sprBeam('c'), () => sprBeam('e'), () => sprBloom(), vband, vdust, vwarm, vmote, vpuff, () => beamSprite(C.vio), () => beamSprite(C.pale)];
   let baked = 0, sp = { done: false, Spx: 0 };
   /* SM.warm(ms): bake a slice; true when every sprite is ready. A Spikes prewarm (the obsidian spires at the screen's
@@ -229,7 +230,12 @@
     v.heading = ang; if (v.wantHeading !== undefined) v.wantHeading = ang;
     const hits = new Set(); let t = 0, ph = 'lift', fired = false, finished = false, ox = 0, oy = 0, front = 0;
     const lanes = []; for (let i = 0; i < NL; i++) lanes.push({ u: (i + 0.5) / NL - 0.5, stop: RANGE, s: Math.random() * 10, seed: i });
-    const marks = [];   // floor fissures left under the leading edge (light only, fading)
+    const marks = [], bowOf = w => Math.min(1.5, w * 0.24);   // floor fissures left under the leading edge (light only, fading); the crescent's bow
+    /* the slash's frame: whatever the direction, its chord lies roughly along screen-x (world x, leaning a little with
+       the travel), so it always reads as a wide horizontal arc; it bulges toward the travel's depth side (down the screen
+       going down or sideways, up the screen going up, passing smoothly through straight at about 20 deg above level) */
+    const lean = 0.24 * ca, ex = Math.cos(lean), ey = Math.sin(lean), nx = -ey, ny = ex, fb = sa >= 0 ? 1 : lerp(1, -1, sm(-sa / 0.7));
+    const arcPt = (u, f) => { const w = W0 + tu.spread * Math.min(f, RANGE), b = bowOf(w) * 1.6 * fb * (1 - Math.min(1, 4 * u * u)); return { x: ox + ca * f + ex * u * w + nx * b, y: oy + sa * f + ey * u * w + ny * b }; };
     sfx(X, 'note', 70, 0.4, 'sawtooth', 0.07, 120); sfx(X, 'hum');
     const act = { update(dt) { t += dt;
         if (!S.alive) { if (!finished) { finished = true; done(); } if (!fired || front >= RANGE + 1 || t > 3) act.dead = true; return; }
@@ -241,14 +247,18 @@
         if (fired && t >= T3 && !finished) { finished = true; setPose(ctx, 'rest', 1, { channel: 0, glow: 0, recoil: 0 }); done(); }
         if (fired) { const prev = front; front = Math.min(RANGE + 1.2, front + tu.speed * dt);
           // each lane advances until a wall: the hit is the lane's front passing over a monster (once per activation)
-          for (const ln of lanes) { if (ln.stop < RANGE) continue; const f2 = Math.min(front, RANGE), w = W0 + tu.spread * f2, px = ox + ca * f2 - sa * ln.u * w, py = oy + sa * f2 + ca * ln.u * w; if (f2 > 0.6 && blocked(X, px, py)) ln.stop = Math.max(0.4, f2 - 0.3); }
-          if (front <= RANGE + 0.3) for (const m of monsOf(ctx, H)) { if (gone(m) || hits.has(m)) continue; const dx = m.x - ox, dy = m.y - oy, al = dx * ca + dy * sa, of = -dx * sa + dy * ca, r = m.r || 0.4; if (al < -r || al > front + r || al < prev - 1.2) continue;
-            const w = W0 + tu.spread * Math.max(0, al), lu = of / w; if (Math.abs(lu) > 0.5 + r / w) continue; const ln = lanes[Math.max(0, Math.min(NL - 1, Math.floor((lu + 0.5) * NL)))]; if (al > ln.stop + r) continue;
-            hits.add(m); hitM(ctx, m, dmg, { kb: tu.kb, el: 'dark', src: 'strong' }); }
+          for (const ln of lanes) { if (ln.stop < RANGE) continue; const f2 = Math.min(front, RANGE), q = arcPt(ln.u, f2); if (f2 > 0.6 && blocked(X, q.x, q.y)) ln.stop = Math.max(0.4, f2 - 0.3); }
+          // the hit: the drawn arc (each lane at its own front, stopped ones excluded) passing over a monster, once per activation
+          if (front <= RANGE + 0.3) { const A = lanes.map(ln => front > ln.stop + 0.4 ? null : arcPt(ln.u, Math.min(front, ln.stop))), band = tu.band;
+            for (const m of monsOf(ctx, H)) { if (gone(m) || hits.has(m)) continue; const r = (m.r || 0.4) + band; let hit = false;
+              for (let i = 1; i < A.length && !hit; i++) { const p = A[i - 1], q = A[i]; if (!p || !q) continue; const vx = q.x - p.x, vy = q.y - p.y, l2 = vx * vx + vy * vy || 1e-6, k = Math.max(0, Math.min(1, ((m.x - p.x) * vx + (m.y - p.y) * vy) / l2)); if (Math.hypot(m.x - p.x - vx * k, m.y - p.y - vy * k) < r) hit = true; }
+              if (hit) { hits.add(m); hitM(ctx, m, dmg, { kb: tu.kb, el: 'dark', src: 'strong' }); } } }
           // fragments drawn up the face, smoke rolling off the crest; floor fissures under the leading edge
-          if (front < RANGE) { let k = (L ? 10 : 26) * dt + Math.random(); while (k-- >= 1) { const ln = lanes[(Math.random() * NL) | 0]; if (front > ln.stop) continue; const w = W0 + tu.spread * front, px = ox + ca * front - sa * ln.u * w, py = oy + sa * front + ca * ln.u * w;
-              if (Math.random() < 0.6) part(S, 3, px, py, rnd(0.1, HW * 0.6), ca * tu.speed * 0.6, sa * tu.speed * 0.6, rnd(2, 5), rnd(0.3, 0.55), rnd(0.25, 0.45), { v: (Math.random() * 3) | 0, rot: Math.random() * TAU, vr: rnd(-6, 6), g: 3, drag: 1.5 });
-              else part(S, 2, px, py, HW * rnd(0.6, 0.95), ca * tu.speed * 0.4, sa * tu.speed * 0.4, rnd(0.5, 1.5), rnd(0.5, 0.8), rnd(0.9, 1.4), { v: (Math.random() * 3) | 0, rot: Math.random() * TAU, vr: rnd(-1, 1), grow: 0.8, drag: 2, a: 0.7 }); }
+          if (front < RANGE) { let k = (L ? 10 : 26) * dt + Math.random(); while (k-- >= 1) { const ln = lanes[(Math.random() * NL) | 0]; if (front > ln.stop) continue; const q0 = arcPt(ln.u, front);
+              const qx = q0.x, qy = q0.y, rr = Math.random();
+              if (rr < 0.5) part(S, 1, qx, qy, tu.z, ca * tu.speed * rnd(0.5, 0.9) + rnd(-1.5, 1.5), sa * tu.speed * rnd(0.5, 0.9) + rnd(-1.5, 1.5), rnd(0.5, 2), rnd(0.2, 0.4), rnd(0.14, 0.24), { g: 4, drag: 2.5 });   // sparks thrown off the edge
+              else if (rr < 0.85) part(S, 2, qx - ca * 0.3, qy - sa * 0.3, tu.z * rnd(0.5, 1.2), ca * rnd(0.5, 1.5), sa * rnd(0.5, 1.5), rnd(0.1, 0.5), rnd(0.35, 0.6), rnd(0.35, 0.6), { v: (Math.random() * 3) | 0, rot: Math.random() * TAU, vr: rnd(-2, 2), grow: 0.9, drag: 3, a: 0.45 });   // dark wisps trailing
+              else part(S, 0, qx, qy, tu.z, ca * 1.5, sa * 1.5, rnd(0.3, 1), rnd(0.3, 0.6), rnd(0.18, 0.3), { drag: 2, fin: 0.03 }); }
             if (Math.floor(front / 1.1) !== Math.floor(prev / 1.1)) marks.push({ x: ox + ca * front, y: oy + sa * front, t: 0, rot: Math.random() * TAU, v: marks.length % 2, s: 0.8 + 0.3 * Math.random() + 0.1 * front }); }
           for (const mk of marks) mk.t += dt;
           if (front >= RANGE + 1.2 && marks.every(m => m.t > 1.4)) act.dead = true; } },
@@ -258,22 +268,23 @@
         // the blade's impact: a soft violet bloom and a band of light
         const it = t - tu.lift - tu.slam; if (it < 0.7) { floor(c, B, glowSprite(C.vio2), H.sx(ox), H.sy(oy), T * 2.6, 0.7 * (1 - it / 0.7), true, GY); floor(c, B, sprBand(), H.sx(ox), H.sy(oy), T * (0.6 + 2.6 * eout(it / 0.4)), (1 - sm(it / 0.5)) * 0.9, true, GY); }
         // a light under the wave's front
-        if (front < RANGE + 0.6) { const w = W0 + tu.spread * Math.min(front, RANGE); for (let i = 0; i < 3; i++) { const u = (i - 1) / 3; floor(c, B, glowSprite(C.vio2), H.sx(ox + ca * front - sa * u * w), H.sy(oy + sa * front + ca * u * w), T * w * 0.35, 0.35 * (1 - sm((front - RANGE) / 0.6)), true, GY); } } },
-      over(c, B) { if (!fired) return; const T = S.T, fade = 1 - sm((front - RANGE) / 1.2); if (fade <= 0.01) return;
-        // the wave: a curved standing face of lanes, its back lanes first; each lane a stretched body + crest sprite
-        const w = W0 + tu.spread * Math.min(front, RANGE), bow = Math.min(1.2, w * 0.18), order = lanes;
-        const rise = sm(front / 1.0);
-        const crest = []; for (const ln of order) { const fl = Math.min(front, ln.stop), endA = 1 - sm((front - ln.stop) / 0.5); if (endA <= 0.01) { crest.push(null); continue; }
-          const lu = ln.u, f2 = fl - bow * (lu * lu * 4), px = ox + ca * f2 - sa * lu * w, py = oy + sa * f2 + ca * lu * w, X0 = H.sx(px), Y0 = H.sy(py), hh = T * HW * (0.9 + 0.12 * Math.sin(S.t * 3 + ln.seed * 0.55)) * (1 - 0.35 * Math.abs(lu) * 2) * (0.55 + 0.45 * rise) * (0.75 + 0.25 * fade), lsx = Math.abs(sa) * w / NL * T, ws = Math.max(lsx * 2.2, T * (1.3 + 1.6 * Math.abs(ca))) * (1 + 0.15 * Math.sin(S.t * 5 + ln.seed));   /* (a lane's width on screen: wide enough to overlap its neighbours however the face is turned) */
-          const a = fade * endA * rise * petK(S, X0, Y0 - hh * 0.5, 0.35), vv = ln.seed % 2;
-          crest.push([X0, Y0 - hh * 0.9, a, ws]); const scroll = ((S.t * 0.6 + ln.seed * 0.37) % 1) * 128;
-          c.globalCompositeOperation = 'source-over'; c.globalAlpha = Math.min(1, a * 0.92); setT(c, B, X0, Y0, 0); drawScroll(c, sprWave('b', vv), -ws / 2, -hh, ws, hh, scroll);
-          c.globalCompositeOperation = 'lighter'; c.globalAlpha = Math.min(1, a * 0.4); drawScroll(c, sprWave('r', vv), -ws / 2, -hh, ws, hh, scroll * 1.6); c.globalAlpha = Math.min(1, a * 0.18); c.drawImage(glowSprite(C.vio2), -ws * 0.7, -hh * 0.95, ws * 1.4, hh * 0.9); }
-        // the crest: one continuous soft violet edge along the tops of the lanes (whatever the face's turn), a pale thread in it
-        c.setTransform(B); c.globalCompositeOperation = 'lighter'; const xs = sm((Math.abs(sa) - 0.35) / 0.5);   /* (only when the face is broad on screen: seen edge-on the lanes stack in depth and a line through their tops would zigzag) */
-        for (let i = 1; i < crest.length; i++) { const p = crest[i - 1], q = crest[i]; if (!p || !q) continue; const dx = q[0] - p[0], dy = q[1] - p[1], Ls = Math.hypot(dx, dy), an = Math.atan2(dy, dx), a = Math.min(p[2], q[2]) * xs, wc = T * 0.55; if (a < 0.02) continue;
-          setT(c, B, p[0], p[1], an); c.globalAlpha = Math.min(1, 0.85 * a); c.drawImage(beamSprite(C.vio2), -wc * 0.6, -wc, Ls + wc * 1.2, wc * 2); c.globalAlpha = Math.min(1, 0.45 * a); c.drawImage(beamSprite(C.pale), -wc * 0.3, -wc * 0.3, Ls + wc * 0.6, wc * 0.6); }
-        c.setTransform(B); }
+        if (front < RANGE + 0.6) { const w = W0 + tu.spread * Math.min(front, RANGE); for (let i = 0; i < 3; i++) { const u = (i - 1) / 3, q = arcPt(u, front); floor(c, B, glowSprite(C.vio2), H.sx(q.x), H.sy(q.y), T * w * 0.3, 0.22 * (1 - sm((front - RANGE) / 0.6)), true, GY); } } },
+      over(c, B) { if (!fired) return; const T = S.T, fade = 1 - sm((front - RANGE) / 1.0); if (fade <= 0.01) return;
+        /* the slash: a thin crescent lying flat over the ground (a little above it), bowed forward, its tips trailing and
+           tapering to points; a dark core with a sharp edge, a bright violet edge glow along its front, a feathered outer
+           glow, a pale hot thread. Each part of it stops at its lane's wall. */
+        const N = 26, zz = tu.z * S.ZT, grow = sm(front / 0.7), P = [], GY = S.GY, nl = Math.hypot(nx, ny * GY) || 1, sg = fb < 0 ? -1 : 1, bnx = -sg * nx / nl, bny = -sg * ny * GY / nl;   /* (bn: the inner side, on screen) */
+        for (let i = 0; i <= N; i++) { const u = i / N - 0.5, ln = lanes[Math.max(0, Math.min(NL - 1, Math.floor((u + 0.5) * NL)))], endA = 1 - sm((front - ln.stop) / 0.4), q = arcPt(u, Math.min(front, ln.stop)), tp = Math.pow(Math.max(0, 1 - 4 * u * u), 0.6), th = tu.thick * T * 0.75 * tp * (0.5 + 0.5 * grow);
+          const X0 = H.sx(q.x), Y0 = H.sy(q.y) - zz;
+          P.push({ X: X0, Y: Y0, BX: X0 + bnx * th, BY: Y0 + bny * th, a: fade * endA * petK(S, X0, Y0, 0.35), tp }); }
+        const strip = (img, wk, ak, back) => { for (let i = 1; i < P.length; i++) { const p = P[i - 1], q = P[i], x0 = back ? p.BX : p.X, y0 = back ? p.BY : p.Y, x1 = back ? q.BX : q.X, y1 = back ? q.BY : q.Y, a = Math.min(p.a, q.a) * ak * (0.25 + 0.75 * Math.min(p.tp, q.tp)); if (a < 0.02) continue;
+            const Ls = Math.hypot(x1 - x0, y1 - y0), wc = T * wk * (0.35 + 0.65 * Math.max(p.tp, q.tp)); setT(c, B, x0, y0, Math.atan2(y1 - y0, x1 - x0)); c.globalAlpha = Math.min(1, a); c.drawImage(img, -wc * 0.5, -wc, Ls + wc, wc * 2); } };
+        // the feathered outer glow (behind the core), the dark core, then the edge light
+        c.globalCompositeOperation = 'lighter'; strip(beamSprite(C.vio2), 0.9, 0.55, false); strip(beamSprite(C.vio2), 0.55, 0.3, true);
+        c.setTransform(B); c.globalCompositeOperation = 'source-over'; c.fillStyle = '#140822';   /* (per segment, so a part stopped at a wall fades with its glow) */
+        for (let i = 1; i < P.length; i++) { const p = P[i - 1], q = P[i], a = Math.min(p.a, q.a); if (a < 0.02) continue; c.globalAlpha = Math.min(1, 0.92 * a); c.beginPath(); c.moveTo(p.X, p.Y); c.lineTo(q.X + (q.X - p.X) * 0.04, q.Y + (q.Y - p.Y) * 0.04); c.lineTo(q.BX, q.BY); c.lineTo(p.BX, p.BY); c.closePath(); c.fill(); }
+        c.globalCompositeOperation = 'lighter'; strip(beamSprite(C.vio), 0.32, 0.9, false); strip(beamSprite(C.pale), 0.11, 0.95, false);
+        c.setTransform(B); c.globalCompositeOperation = 'source-over'; }
     };
     function impact() { const tip = anchorW(ctx, 'swordTip'); ox = tip.x; oy = tip.y; if (!isFinite(ox)) { ox = v.x + ca * 1.8; oy = v.y + sa * 1.8; }
       // the blade's own impact: in the same hit set as the wave
