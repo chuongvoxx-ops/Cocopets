@@ -418,3 +418,33 @@
 - Rig, stage order, channels, API, materials and ice unchanged. 55k triangles drawn.
 - `clearance`: no overlap anywhere through xf 0..1 (least 0.01, the jaw over the front arch at xf 0.6), nor in `curl`, `gaitK`, `crouch`, `pawLock`; `tail`/`fender` now count as joined (the tail's root sits on the rump arch).
 - Checks with my page: `tests/fenrir.js` 46 ok, `elem-moves` ice/fenrir passed, `tests/susanoo.js` 49 ok, smoke 0 errors.
+- (A, 2026-11-12, **Jump, both forms** (the user: "add a jump button and function similar to beast machine and sport cars"))
+  - `VEH.jump` (the JUMP button above Drift, the J key) -> `tryJump`. It runs inside `S.phase === 'ride'` as `S.jump`
+    (`{ t, air, x0, y0, x1, y1, h, plan }`), never during a Drift, a finisher, the summon or the exit. No cooldown; a
+    press in the air is kept for the touchdown (`S.jumpLand`); a Drift, a Strong or the Ult pressed in the air waits
+    for the landing. Take-off protection 0.3 s at most once per 1.8 s (`S.invT`, `stats.jumpInv`).
+  - The landing is planned before take-off (`planJump`, as the Sports Car's): along the stick, else the heading; walls
+    and the map's edge stop the flight; it lands only where the whole body fits, on walkable ground the pet could walk
+    from (`landOK`); nowhere to land = a hop on the spot. 0.1 s squat, 0.62 s in the air, 5.9 to 8 tiles by speed.
+  - Landing: 2.6 DK once per monster within 2.6 tiles through `hitCharge` (it charges the gauge), the scenery in the
+    same circle broken through `VEH_SMASH`, a frost ring and burst of mine. `stats.jump`, `stats.jumpHit`.
+  - Animation on M's existing channels: motorcycle = squat (`susp`, `crouch`), wheelie (`pitch` up to +0.5), wheels
+    spinning, nose down before the touchdown, compression on landing; wolf = `crouch` to 0.95 in the air with `pitch`
+    arcing. **M, a wish, not a blocker:** a `tuck` 0..1 channel that folds the four legs up under the body would read
+    better than `crouch` for the wolf's leap.
+  - Tests: `tests/fenrir-jump.js` (13 checks).
+
+### M, model round 5 (2026-11-12): surface polish, crystal glow, engine glow, `tuck`
+- **New channel `crystalGlow`** (default 1, range 0..2): the light inside the ice blades (mane, crests, tail and cowl, head, neck) and their halo. It breathes slowly by itself; A: drive it above 1 with speed or while attacking, 0 switches the glow off. A pose without the key reads as 1.
+- **New channel `tuck`** (default 0, 0..1; A's Jump wish): draws the wolf's four legs up under the body, paws hanging toes-down. It scales with the legs' unfold, so it does nothing in the motorcycle form. A: use it for the airborne part of the wolf's leap in place of `crouch`.
+- **Two blues**: the crystals are sapphire to azure-cyan (`#3FA8FF` halo); the engine (the reactor, hub rings, the running gear's and legs' light strips, new material 20) is a deep electric violet-blue (`#6A4DFF` halo) and spills a faint violet light onto the underside of nearby armour. Eyes, head lights and the cannons stay cyan. `glow` still drives the engine and cyan lights.
+- **Surface**: the armour shader gains a slow relief so plates are not flat, engraved chevrons, vent slots, small hazard inlays and brighter highlights; new geometry: brake calipers, toothed rings at the pivots and shoulders, a chain run on each wheel arm, sidewall ribs, turbine vanes and a bolt circle on the wheels, eye housings and a full row of teeth, heat-tinted exhaust tips (material 21). 63k triangles drawn.
+- `GLM`: materials 20 and 21 and the per-item `glow2` / `spill` are additions; left unset they are 0 and Susano O draws as before.
+
+### E, Diamond Dust revision (2026-11-12): fewer, colossal ice masses; lightning; a grander shatter
+The user: "I don't really like the shape of the ice crystals, it should be bulkier and bigger and not as many ... I want more effects/lightning aswell, it should feel elaborate and grande". Only `20k8o` changed.
+- **Ice**: the four rings of 52 thin shards are gone. Ten masses rise in three beats (3 at 2.3 tiles, 3 at 4.3, 4 at 5.7; `TUNE.dust.rings`, heights `tall` 3.6 / 4.9 / 6.2 tiles, half-widths `wide` 1.0 / 1.3 / 1.6). Each mass is three thick curved slabs (a great leaning tusk, a second curling behind it, a short heavy one in front): 30 slabs in all, 20 with low effects. Those in front of the bike stand lower and all lean outward.
+- **GPU**: a new program in FENRIR_GFX (`PM`), slabs as triangle strips (12 segments, 24 triangles each, 720 at most), drawn twice: the body (three wandering facets, milky cloud, blue-grey depth, feathered edges) and its light (rim, ridges, veins, fractures that climb and whiten, lightning flickering inside, a sliding glint, sparkle, base frost). Painter calls `Q.slab` and `Q.bolt` exist in both painters; the 2D fallback draws the same silhouettes as filled polygons with facets, rim, fracture and lightning lines (its cached field picture is no longer needed).
+- **Staging**: a blizzard ring and frost over the floor from the burnout; each mass erupts with cracked ground, a shock ring, flying chunks, a thud and a small shake; mist at the bases; the camera pulls back a step per beat (`pull`; not with reduce-motion, and shakes are scaled as before). Lightning arcs up from the tips and between masses, re-struck 18 times a second, more often through the crack phase. The shatter: flash, 16 light shafts, 8 radial bolts, three shockwave rings, big tumbling chunks, 210 slow-glinting sparkles.
+- **Gameplay unchanged**: `burnout` 0.8 s, beats at 0.80 / 1.35 / 1.90 s, shatter at 3.31 s and `done()` at 3.91 s exactly as before; one hit of 95 / 115 / 125 x DK within R 6.6, `noCharge`; nothing at the exit. Freeze by beat within `reach` 3.3 / 5.3 / 7.1 tiles (before: four rings reaching 2.5 / 4.0 / 5.6 / 7.1), 3 s, bosses chilled. The hit radius did not change.
+- **Cost** (Diamond Dust, GPU): at most 6 draw calls a frame (7 with the Frozen beam, which never runs with it), 720 mass triangles, 120 crystal triangles (chunks), about 300 light quads, about 570 points. 0 pixels with rgb > a over the whole move.

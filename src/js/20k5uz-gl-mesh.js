@@ -146,7 +146,7 @@ precision mediump float;
 #endif
 varying vec3 vW, vN, vL, vNL, vA;
 uniform vec3 uV, uLK, uLS, uLR, uUP;
-uniform float uGlow, uAlpha, uKind, uLow, uWear, uFx;
+uniform float uGlow, uAlpha, uKind, uLow, uWear, uFx, uGlow2, uSpill;
 uniform vec3 uRim, uAmb;
 float hs(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vn(vec2 p) { vec2 i = floor(p), f = p - i; vec2 u = f * f * (3.0 - 2.0 * f); return mix(mix(hs(i), hs(i + vec2(1.0, 0.0)), u.x), mix(hs(i + vec2(0.0, 1.0)), hs(i + vec2(1.0, 1.0)), u.x), u.y); }
@@ -197,7 +197,10 @@ void main() {
     c += crack * vec3(0.5, 0.9, 1.3) * (0.5 + uGlow);
     float eg = smoothstep(0.8, 1.0, edge); c = mix(c, vec3(0.82, 0.95, 1.2) * (0.6 + 0.6 * ev + 0.4 * wrap), eg * 0.85);
     float fr = smoothstep(0.55, 0.95, dot(n, uUP) * 0.55 + vn(L.xy * 38.0 + L.z * 17.0) * 0.75); c = mix(c, vec3(0.75, 0.87, 1.0) * (0.45 + 0.55 * wrap), fr * 0.3 * (1.0 - uLow));
-    c += (vec3(0.0, 0.1, 0.32) + tipc * 0.22 * tp) * (0.5 + uGlow) * (0.6 + 0.4 * w2); c = frostFx(c, L);
+    c += (vec3(0.0, 0.1, 0.32) + tipc * 0.22 * tp) * (0.5 + uGlow) * (0.6 + 0.4 * w2);
+    if (uGlow2 > 0.0) { float core = ndv * ndv * (0.55 + 0.45 * w1), vein = smoothstep(0.09, 0.0, min(k1, k2));   // (lit from within: a core seen through the flat faces, brighter veins, cracks and edges)
+      c += uGlow2 * (vec3(0.03, 0.3, 1.2) * core * (0.35 + 0.5 * tp) + vec3(0.2, 0.7, 1.4) * vein * 0.4 + crack * vec3(0.7, 1.0, 1.3) * 0.9 + eg * vec3(0.3, 0.75, 1.2) * 0.7); }
+    c = frostFx(c, L);
     gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
   else if (id == 15) { alb = vec3(0.022, 0.022, 0.026); F0 = vec3(0.04); rough = 0.8; metal = 0.0;   // rough rubber: fine sidewall ribs, dusty wear
     float rr = length(L.xz); cav += 0.35 * step(0.5, fract(rr * 46.0)) * step(rr, 0.47); alb *= 0.75 + 0.6 * vn(L.xz * 30.0 + L.y * 11.0); }
@@ -206,14 +209,25 @@ void main() {
   else if (id == 17) { alb = vec3(0.018, 0.018, 0.022); F0 = vec3(0.045); rough = 0.42; metal = 0.0;   // the black saddle: quilted leather
     vec2 q = vec2(L.x + L.y, L.x - L.y) * 9.0; vec2 f = abs(fract(q) - 0.5); float st = min(f.x, f.y); if (st < 0.04) cav += 0.7; else n = normalize(n + vec3(fract(q.x) - 0.5, fract(q.y) - 0.5, 0.0) * 0.5); }
   else if (id == 18) { alb = vec3(0.045, 0.047, 0.055); F0 = vec3(0.3, 0.31, 0.34); rough = 0.42;   // dark machinery: cast, ribbed
-    cav += 0.3 * step(0.6, fract((L.x + L.z * 0.4) * 24.0)); rough *= 0.8 + 0.5 * vn(L.xy * 22.0 + L.z * 13.0); }
+    cav += 0.3 * step(0.6, fract((L.x + L.z * 0.4) * 24.0)); rough *= 0.8 + 0.5 * vn(L.xy * 22.0 + L.z * 13.0); em += vec3(0.05, 0.04, 0.3) * uSpill; }
   else if (id == 19) { alb = vec3(0.3, 0.31, 0.34); F0 = vec3(0.93, 0.94, 0.98); rough = 0.17;   // polished silver armour: panel seams, rivets
     vec3 an = abs(NL); vec2 uv = an.z >= an.x && an.z >= an.y ? L.xy : an.y >= an.x ? L.xz : L.yz;
     float row = floor(uv.y / 0.19), fu = fract(uv.x / 0.31 + mod(row, 2.0) * 0.5), fv = fract(uv.y / 0.19), du = min(fu, 1.0 - fu) * 0.31, dv = min(fv, 1.0 - fv) * 0.19, dm = min(du, dv);
     if (dm < 0.005) cav += (1.0 - dm / 0.005) * 0.9; else if (dm < 0.016) wear += 0.3;
     float rd = length(vec2(du, dv) - 0.028); if (rd < 0.011) { rough = 0.1; wear += 0.5; if (rd > 0.007) cav += 0.5; }
     rough *= 0.75 + 0.6 * vn(L.xy * 9.0 + L.z * 5.0);
+    if (uLow < 0.5) { n = normalize(n + (vec3(vn(L.yz * 3.3), vn(L.zx * 3.3 + 5.0), vn(L.xy * 3.3 + 9.0)) - 0.5) * 0.1);   // (plates are never dead flat)
+      vec2 cell = vec2(floor(uv.x / 0.31 + mod(row, 2.0) * 0.5), row); float hc = hs(cell + 3.7);
+      if (dm > 0.03) { if (hc > 0.7) { float g2 = abs(fract((fu * 0.5 + fv) * 5.0) - 0.5); if (g2 < 0.035 && fv > 0.25 && fv < 0.75) cav += 0.55; }                 // (engraved chevrons)
+        else if (hc > 0.5) { float g3 = abs(fract(fu * 9.0) - 0.5); if (g3 < 0.14 && fu > 0.5 && fu < 0.9 && fv > 0.3 && fv < 0.62) { cav += 0.9; rough = 0.5; } }     // (vent slots)
+        else if (hc < 0.12) { if (fu > 0.2 && fu < 0.52 && fv > 0.4 && fv < 0.52) { float st = step(0.5, fract((fu + fv * 0.6) * 14.0)); alb = mix(vec3(0.02), vec3(0.2, 0.25, 0.9), st); F0 = vec3(0.1); rough = 0.4; em += st * vec3(0.06, 0.07, 0.5) * (0.4 + uGlow); } } }   // (a hazard inlay)
+      float sc2 = vn(uv * vec2(60.0, 7.0)); if (sc2 > 0.78) rough *= 0.6; }
+    rough *= 0.85; em += vec3(0.07, 0.06, 0.42) * uSpill * smoothstep(0.35, -0.7, dot(n, uUP)) * (0.6 + 0.4 * vn(L.xy * 2.0));
     float fz = smoothstep(0.62, 0.95, edge * 0.5 + dot(n, uUP) * 0.3 + vn(L.xy * 31.0 + L.z * 19.0) * 0.55) * (1.0 - uLow); if (fz > 0.0) { alb = mix(alb, vec3(0.7, 0.8, 0.95), fz * 0.8); F0 = mix(F0, vec3(0.3, 0.4, 0.55), fz * 0.8); rough = mix(rough, 0.6, fz); } }   // (frost gathering on the armour's edges)
+  else if (id == 20) { float ndv = max(0.0, dot(n, uV)), k = 0.55 + 0.7 * ndv * ndv, fl = 0.85 + 0.3 * vn(L.xy * 22.0 + L.z * 9.0), g = 0.6 + 1.1 * uGlow;   // the engine's light: a deep electric violet-blue, white-hot at its heart
+    vec3 c = frostFx((vec3(0.3, 0.16, 1.7) + vec3(0.3, 0.32, 0.3) * pow(ndv, 8.0)) * k * fl * g * 0.85, L); gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
+  else if (id == 21) { float h = clamp(L.x * -2.4 - 0.9 + 0.5 * vn(L.yz * 14.0), 0.0, 1.0);   // heat-tinted steel (an exhaust tip): straw to purple to blue
+    alb = mix(vec3(0.3, 0.3, 0.32), mix(vec3(0.5, 0.36, 0.12), vec3(0.2, 0.14, 0.5), smoothstep(0.3, 0.9, h)), smoothstep(0.0, 0.3, h)) * 0.6; F0 = mix(vec3(0.9, 0.9, 0.93), mix(vec3(1.0, 0.75, 0.35), vec3(0.45, 0.4, 1.0), smoothstep(0.3, 0.9, h)), smoothstep(0.0, 0.3, h)); rough = 0.2; }
   else { coat = 1.0; }
   // surface detail, from the part's own coordinates (it stays on the part as it moves)
   if (metal > 0.5 && uLow < 0.5) { float s1 = abs(fract(L.x * 13.0 + L.y * 8.0 + L.z * 5.0 + vn(L.xz * 4.0) * 2.5) - 0.5);
@@ -264,7 +278,7 @@ void main() {
     const p = gl.createProgram(); gl.attachShader(p, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, FS));
     gl.bindAttribLocation(p, 0, 'aP'); gl.bindAttribLocation(p, 1, 'aN'); gl.bindAttribLocation(p, 2, 'aA'); gl.linkProgram(p);
     if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error('GLM link: ' + gl.getProgramInfoLog(p));
-    prog = p; U = {}; for (const n of ['uR0', 'uR1', 'uR2', 'uT', 'uPX', 'uPY', 'uPD', 'uCl', 'uV', 'uLK', 'uLS', 'uLR', 'uUP', 'uGlow', 'uAlpha', 'uKind', 'uFx', 'uRim', 'uAmb', 'uLow', 'uWear']) U[n] = gl.getUniformLocation(p, n);
+    prog = p; U = {}; for (const n of ['uR0', 'uR1', 'uR2', 'uT', 'uPX', 'uPY', 'uPD', 'uCl', 'uV', 'uLK', 'uLS', 'uLR', 'uUP', 'uGlow', 'uAlpha', 'uKind', 'uFx', 'uRim', 'uAmb', 'uLow', 'uWear', 'uGlow2', 'uSpill']) U[n] = gl.getUniformLocation(p, n);
     ext32 = isGL2 ? true : gl.getExtension('OES_element_index_uint'); gen++;
   }
   /* is WebGL ready (made on first call)? */
@@ -307,7 +321,7 @@ void main() {
     for (const it of items) { const g = upload(it.mesh); if (!g) continue;
       if (lastM !== g) { gl.bindBuffer(gl.ARRAY_BUFFER, g.p); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0); gl.bindBuffer(gl.ARRAY_BUFFER, g.n); gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0); gl.bindBuffer(gl.ARRAY_BUFFER, g.a); gl.vertexAttribPointer(2, 3, gl.FLOAT, false, 0, 0); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, g.i); lastM = g; }
       gl.uniform3fv(U.uR0, it.R0); gl.uniform3fv(U.uR1, it.R1); gl.uniform3fv(U.uR2, it.R2); gl.uniform3fv(U.uT, it.T);
-      gl.uniform1f(U.uAlpha, it.alpha); gl.uniform1f(U.uFx, it.fx || 0); gl.uniform1f(U.uGlow, it.glow); gl.uniform1f(U.uKind, it.kind || 0); gl.uniform1f(U.uWear, it.wear == null ? 1 : it.wear);
+      gl.uniform1f(U.uAlpha, it.alpha); gl.uniform1f(U.uFx, it.fx || 0); gl.uniform1f(U.uGlow2, it.glow2 || 0); gl.uniform1f(U.uSpill, it.spill || 0); gl.uniform1f(U.uGlow, it.glow); gl.uniform1f(U.uKind, it.kind || 0); gl.uniform1f(U.uWear, it.wear == null ? 1 : it.wear);
       gl.depthMask(it.alpha > 0.995);
       gl.drawElements(gl.TRIANGLES, g.n3, g.it, 0); calls++; tris += g.n3 / 3; }
     gl.depthMask(true);

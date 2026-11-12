@@ -52,7 +52,7 @@ const FENRIR_MODEL = (() => {
   const dirXZ = a => [Math.cos(a), 0, Math.sin(a)];   // a direction in the side plane: the angle from forward, toward up
 
   /* ================= materials (GLM's ids) ================= */
-  const M_GUN = 1, M_SILV = 2, M_DARK = 7, M_STEEL = 11, M_ICE = 14, M_RUB = 15, M_CYAN = 16, M_LEATH = 17, M_MECH = 18, M_ARM = 19;
+  const M_GUN = 1, M_SILV = 2, M_DARK = 7, M_STEEL = 11, M_ICE = 14, M_RUB = 15, M_CYAN = 16, M_LEATH = 17, M_MECH = 18, M_ARM = 19, M_ENG = 20, M_HEAT = 21;
 
   /* ================= the rig's measures ================= */
   const FX = 1.04;                                  // the frame's plating is laid out short and stretched this much along its length
@@ -93,16 +93,20 @@ const FENRIR_MODEL = (() => {
       B.push([0, 1, 0], [0, 0, 1], [1, 0, 0], [0, 0, 0]);
       B.lathe([[-WW, 0.3, M_RUB], [-WW, 0.42, M_RUB], [-WW * 0.86, 0.468, M_RUB], [-WW * 0.5, 0.48, M_RUB], [WW * 0.5, 0.48, M_RUB], [WW * 0.86, 0.468, M_RUB], [WW, 0.42, M_RUB], [WW, 0.3, M_RUB]], M_RUB, { seg: 36 });
       B.lathe([[-WW * 0.97, 0.31, M_ARM], [-WW * 0.82, 0.275, M_ARM], [-0.07, 0.22, M_ARM], [0.07, 0.22, M_ARM], [WW * 0.82, 0.275, M_ARM], [WW * 0.97, 0.31, M_ARM]], M_ARM, { seg: 30 });
-      for (const s of [-1, 1]) { B.torX([s * WW * 0.99, 0, 0], 0.318, 0.022, M_CYAN, { seg: 32, rseg: 5 }); B.torX([s * WW * 0.99, 0, 0], 0.355, 0.012, M_ARM, { seg: 32, rseg: 4 });
-        B.tube([s * 0.125, 0, 0], [s * 0.148, 0, 0], 0.255, 0.255, M_STEEL, { seg: 28, cap0: 'flat', cap1: 'flat' }); B.torX([s * 0.15, 0, 0], 0.2, 0.012, M_CYAN, { seg: 24, rseg: 4 });
+      for (const s of [-1, 1]) { B.torX([s * WW * 0.99, 0, 0], 0.318, 0.022, M_ENG, { seg: 32, rseg: 5 }); B.torX([s * WW * 0.99, 0, 0], 0.355, 0.012, M_ARM, { seg: 32, rseg: 4 });
+        B.tube([s * 0.125, 0, 0], [s * 0.148, 0, 0], 0.255, 0.255, M_STEEL, { seg: 28, cap0: 'flat', cap1: 'flat' }); B.torX([s * 0.15, 0, 0], 0.2, 0.012, M_ENG, { seg: 24, rseg: 4 });
         for (let i = 0; i < 10; i++) { const a = i / 10 * TAU; B.tube([s * 0.146, Math.cos(a) * 0.228, Math.sin(a) * 0.228], [s * 0.152, Math.cos(a) * 0.228, Math.sin(a) * 0.228], 0.016, 0.016, M_DARK, { seg: 5, cap0: 'flat', cap1: 'flat' }); }   // (the disc's drilled holes)
-        B.tube([s * 0.1, 0, 0], [s * (WW + 0.02), 0, 0], 0.1, 0.08, M_GUN, { seg: 16, cap0: 'flat', cap1: 'flat' }); B.tube([s * (WW + 0.016), 0, 0], [s * (WW + 0.04), 0, 0], 0.055, 0.055, M_CYAN, { seg: 12, cap0: 'flat', cap1: 'flat' });
+        B.tube([s * 0.1, 0, 0], [s * (WW + 0.02), 0, 0], 0.1, 0.08, M_GUN, { seg: 16, cap0: 'flat', cap1: 'flat' }); B.tube([s * (WW + 0.016), 0, 0], [s * (WW + 0.04), 0, 0], 0.055, 0.055, M_ENG, { seg: 12, cap0: 'flat', cap1: 'flat' });
         for (let i = 0; i < 6; i++) { const a = i / 6 * TAU; B.sph([s * (WW + 0.02), Math.cos(a) * 0.078, Math.sin(a) * 0.078], 0.012, M_STEEL, 5); }
         for (let i = 0; i < 5; i++) { const a = (i + (s > 0 ? 0 : 0.5)) / 5 * TAU, c = Math.cos(a), sn = Math.sin(a); B.tube([s * 0.15, c * 0.09, sn * 0.09], [s * 0.18, c * 0.29, sn * 0.29], 0.036, 0.026, M_ARM, { seg: 6 }); } }
       B.pop();
       const NT = 20; for (let i = 0; i < NT; i++) for (let r = -1; r <= 1; r++) { const a = (i + (r ? 0.5 : 0)) / NT * TAU, c = Math.cos(a), sn = Math.sin(a), rr = r ? 0.48 : 0.492;
         B.push([c, 0, sn], [0, 1, 0], [-sn, 0, c], [c * rr, r * 0.122, sn * rr]); B.box([0, 0, 0], [0.03, 0.052, 0.056], 0, M_RUB); B.pop(); }
       for (let i = 0; i < NT; i++) for (const s of [-1, 1]) { const a = (i + 0.25) / NT * TAU, c = Math.cos(a), sn = Math.sin(a); B.push([c, 0, sn], [0, 1, 0], [-sn, 0, c], [c * 0.445, s * 0.186, sn * 0.445]); B.box([0, 0, 0], [0.035, 0.012, 0.04], 0, M_RUB); B.pop(); }   // (the shoulder lugs)
+      // polish: raised lettering-style ribs round each sidewall, turbine vanes between the spokes, a bolt circle on the rim
+      for (const s of [-1, 1]) { for (let i = 0; i < 28; i++) { if (i % 7 > 4) continue; const a = i / 28 * TAU, c = Math.cos(a), sn = Math.sin(a); B.push([c, 0, sn], [0, 1, 0], [-sn, 0, c], [c * 0.385, s * (WW + 0.002), sn * 0.385]); B.box([0, 0, 0], [0.022, 0.006, 0.012], 0, M_RUB); B.pop(); }
+        for (let i = 0; i < 10; i++) { const a = (i + 0.5) / 10 * TAU, c = Math.cos(a), sn = Math.sin(a); B.push([c, 0, sn], [0, 1, 0], [-sn, 0, c], [c * 0.2, s * 0.165, sn * 0.2]); B.box([0, 0, 0], [0.07, 0.004, 0.012], 0, M_GUN); B.pop(); }
+        for (let i = 0; i < 12; i++) { const a = i / 12 * TAU; B.sph([Math.cos(a) * 0.3, s * (WW * 0.9), Math.sin(a) * 0.3], 0.009, M_STEEL, 5); } }
       out.wheel = B.done(); }
     // ---- the frame (origin: its middle): the engine with its cyan reactor discs, the spine, the black saddle, the tank armour,
     //      the pivots' bosses, pipes, belly ice ----
@@ -118,7 +122,7 @@ const FENRIR_MODEL = (() => {
       // the tank armour ahead of it, the side armour with cyan slits
       loft(B, [[0.16, 0.1, 0.6, 0.46, 0.04], [0.3, 0.15, 0.63, 0.44, 0.05], [0.48, 0.13, 0.6, 0.42, 0.05], [0.6, 0.07, 0.54, 0.42, 0.03]], M_ARM, { sub: 2 });
       for (const s of [-1, 1]) { plate(B, [[-0.34, 0.3], [0.3, 0.34], [0.38, 0.2], [0.24, 0.02], [-0.2, -0.02], [-0.4, 0.14]], s * 0.2, 0.02, M_ARM, 0.012);
-        for (let i = 0; i < 3; i++) plate(B, [[-0.2 + i * 0.09, 0.26], [-0.15 + i * 0.09, 0.26], [-0.19 + i * 0.09, 0.14], [-0.24 + i * 0.09, 0.14]], s * 0.222, 0.004, M_CYAN, 0);
+        for (let i = 0; i < 3; i++) plate(B, [[-0.2 + i * 0.09, 0.26], [-0.15 + i * 0.09, 0.26], [-0.19 + i * 0.09, 0.14], [-0.24 + i * 0.09, 0.14]], s * 0.222, 0.004, M_ENG, 0);
         // pipes and cables along the flanks
         B.tube([0.16, s * 0.15, -0.14], [0.5, s * 0.17, 0.06], 0.028, 0.028, M_STEEL, { seg: 6 }); B.tube([-0.16, s * 0.15, -0.14], [-0.46, s * 0.17, 0.02], 0.028, 0.028, M_STEEL, { seg: 6 });
         B.tube([-0.3, s * 0.1, 0.36], [0.3, s * 0.1, 0.38], 0.02, 0.02, M_DARK, { seg: 5 });
@@ -130,10 +134,10 @@ const FENRIR_MODEL = (() => {
         B.sph([x0 - 0.03, s * 0.29, 0.03], 0.012, M_STEEL, 5); }
       for (let i = 0; i < 3; i++) { loft(B, [[0.2 + i * 0.13, 0.085, 0.67 - i * 0.012, 0.6, 0.02], [0.34 + i * 0.13, 0.07, 0.655 - i * 0.012, 0.59, 0.02]], M_ARM, { sub: 1 }); loft(B, [[-0.72 + i * 0.1, 0.1, 0.58 + i * 0.012, 0.5, 0.02], [-0.6 + i * 0.1, 0.085, 0.6 + i * 0.012, 0.5, 0.02]], M_ARM, { sub: 1 }); }
       // twin exhausts each side, swept back and up, dark-throated; a cyan vent strip along the tank
-      for (const s of [-1, 1]) { for (let i = 0; i < 2; i++) { const z0 = -0.14 + i * 0.09; B.tube([-0.1, s * 0.2, z0], [-0.5, s * 0.25, z0 + 0.1], 0.036, 0.04, M_STEEL, { seg: 8 }); B.tube([-0.5, s * 0.25, z0 + 0.1], [-0.66, s * 0.27, z0 + 0.18], 0.04, 0.05, M_ARM, { seg: 8, cap1: 'flat', capM: M_DARK }); B.torX([-0.5, s * 0.25, z0 + 0.1], 0.042, 0.01, M_CYAN, { seg: 8, rseg: 4 }); }
-        B.box([0.36, s * 0.142, 0.54], [0.1, 0.004, 0.012], 0, M_CYAN); }
+      for (const s of [-1, 1]) { for (let i = 0; i < 2; i++) { const z0 = -0.14 + i * 0.09; B.tube([-0.1, s * 0.2, z0], [-0.5, s * 0.25, z0 + 0.1], 0.036, 0.04, M_STEEL, { seg: 8 }); B.tube([-0.5, s * 0.25, z0 + 0.1], [-0.66, s * 0.27, z0 + 0.18], 0.04, 0.05, M_HEAT, { seg: 8, cap1: 'flat', capM: M_DARK }); B.torX([-0.5, s * 0.25, z0 + 0.1], 0.042, 0.01, M_ENG, { seg: 8, rseg: 4 }); }
+        B.box([0.36, s * 0.142, 0.54], [0.1, 0.004, 0.012], 0, M_ENG); }
       B.pop();
-      for (const s of [-1, 1]) { disc(B, [0, s * 0.18, -0.02], Y, 0.15, 0.025, M_ARM, 22); disc(B, [0, s * 0.2, -0.02], Y, 0.085, 0.022, M_CYAN, 16); B.torY([0, s * 0.205, -0.02], 0.118, 0.016, M_STEEL, { seg: 20, rseg: 5 });
+      for (const s of [-1, 1]) { disc(B, [0, s * 0.18, -0.02], Y, 0.15, 0.025, M_ARM, 22); disc(B, [0, s * 0.2, -0.02], Y, 0.085, 0.022, M_ENG, 16); B.torY([0, s * 0.205, -0.02], 0.118, 0.016, M_STEEL, { seg: 20, rseg: 5 });
         for (let i = 0; i < 6; i++) { const a = i / 6 * TAU; B.sph([Math.cos(a) * 0.135, s * 0.207, -0.02 + Math.sin(a) * 0.135], 0.013, M_STEEL, 6); } }
       // the bosses: shoulders, hips, the wheel arms' pivots, the cannon mounts (steel), each on a strut from the spine
       for (const s of [-1, 1]) for (const [p, r, yy] of [[SHO(1), 0.1, 0.44], [HIPJ(1), 0.1, 0.44], [PIVF, 0.085, 0.2], [PIVR, 0.085, 0.2], [CBOSS(1), 0.07, 0.25]]) { disc(B, [p[0], s * yy, p[2]], Y, r, 0.06, M_STEEL, 14); B.tube([p[0], s * (yy - 0.04), p[2]], [p[0] * 0.8, s * 0.1, 0.4], 0.05, 0.055, M_MECH, { seg: 7 }); }
@@ -149,11 +153,11 @@ const FENRIR_MODEL = (() => {
         B.surf((u, v) => { const a = lerp(a0, a1, u), y = lerp(-HW, HW, v), r = R0 - 0.04 * Math.pow(Math.abs(y) / HW, 3); return [Math.cos(a) * r, y, Math.sin(a) * r]; }, 6, 4, () => M_ARM, { e: (u, v) => (v < 0.02 || v > 0.98 || u < 0.03 || u > 0.97) ? 1 : 0 });
         B.surf((u, v) => { const y = lerp(-HW, HW, u), r = lerp(R0 - 0.06, R0, v); return [Math.cos(a1) * r, y, Math.sin(a1) * r]; }, 2, 1, () => M_ARM, { e: () => 1 });
         for (const s of [-1, 1]) { B.surf((u, v) => { const a = lerp(a0, a1, u), r = lerp(R0 - 0.035, R0 - 0.11, v); return [Math.cos(a) * r, s * (HW - 0.015 * v), Math.sin(a) * r]; }, 5, 1, () => M_ARM, { flip: s < 0, e: (u, v) => v > 0.8 ? 1 : 0.2 });
-          const am = (a0 + a1) / 2, d = dirXZ(am + 0.5 * Math.PI + 0.3); B.push(d, [0, 1, 0], vcross(d, [0, 1, 0]), [Math.cos(am) * (R0 - 0.07), s * (HW + 0.004), Math.sin(am) * (R0 - 0.07)]); B.box([0, 0, 0], [0.07, 0.005, 0.012], 0, M_CYAN); B.pop();
+          const am = (a0 + a1) / 2, d = dirXZ(am + 0.5 * Math.PI + 0.3); B.push(d, [0, 1, 0], vcross(d, [0, 1, 0]), [Math.cos(am) * (R0 - 0.07), s * (HW + 0.004), Math.sin(am) * (R0 - 0.07)]); B.box([0, 0, 0], [0.07, 0.005, 0.012], 0, M_ENG); B.pop();
           for (let j = 0; j < 3; j++) { const ar = lerp(a0, a1, (j + 0.5) / 3); B.sph([Math.cos(ar) * (R0 - 0.035), s * (HW - 0.002), Math.sin(ar) * (R0 - 0.035)], 0.012, M_STEEL, 5); } } }
       // the prow: a keel plate and two cheek plates ahead of the tyre
       plate(B, [[0.6, 0.12], [0.76, 0.02], [0.7, -0.2], [0.6, -0.1]], 0, 0.05, M_ARM, 0.015);
-      for (const s of [-1, 1]) { plate(B, [[0.5, 0.34], [0.7, 0.16], [0.66, -0.06], [0.56, 0.06]], s * 0.2, 0.03, M_ARM, 0.012); B.box([0.615, s * 0.234, 0.14], [0.012, 0.004, 0.07], 0, M_CYAN);
+      for (const s of [-1, 1]) { plate(B, [[0.5, 0.34], [0.7, 0.16], [0.66, -0.06], [0.56, 0.06]], s * 0.2, 0.03, M_ARM, 0.012); B.box([0.615, s * 0.234, 0.14], [0.012, 0.004, 0.07], 0, M_ENG);
         for (let i = 0; i < 2; i++) { const a = (112 - i * 40) * DEG, p = [Math.cos(a) * 0.63, s * 0.11, Math.sin(a) * 0.63]; blade(B, p, [Math.cos(a + 1.05), s * 0.12, Math.sin(a + 1.05)], 0.36 - 0.06 * i, 0.1, [0, s, 0.4], -0.08, i + s); } }
       plate(B, [[-0.36, 0.56], [0.0, 0.7], [0.4, 0.55], [0.0, 0.62]], 0, 0.03, M_ARM, 0.012);
       { const a = 152 * DEG, p = [Math.cos(a) * 0.6, 0, Math.sin(a) * 0.6], t = [-Math.sin(a), 0, Math.cos(a)]; B.spike(vadd(p, vmul(t, -0.04)), vadd(p, vmul(t, 0.26)), 0.12, M_ARM, { seg: 5 }); }
@@ -166,32 +170,37 @@ const FENRIR_MODEL = (() => {
     // ---- a wheel's carrier arm (origin: its pivot on the frame; x to the hub): a forged silver arm, a steel stanchion, the axle clamp ----
     { const B = nb();
       plate(B, [[-0.05, 0.05], [0.2, 0.06], [LARM + 0.06, 0.045], [LARM + 0.07, -0.045], [0.2, -0.05], [-0.05, -0.05]], 0, 0.03, M_ARM, 0.012);
-      B.tube([0.04, 0.036, 0], [LARM - 0.06, 0.036, 0], 0.03, 0.03, M_STEEL, { seg: 8 }); disc(B, [LARM, 0.01, 0], Y, 0.085, 0.04, M_GUN, 14); disc(B, [LARM, 0.05, 0], Y, 0.045, 0.012, M_CYAN, 10); disc(B, [0, 0.01, 0], Y, 0.07, 0.04, M_GUN, 12);
-      B.box([0.3, 0.034, 0.0], [0.05, 0.006, 0.018], 0, M_CYAN);
+      B.tube([0.04, 0.036, 0], [LARM - 0.06, 0.036, 0], 0.03, 0.03, M_STEEL, { seg: 8 }); disc(B, [LARM, 0.01, 0], Y, 0.085, 0.04, M_GUN, 14); disc(B, [LARM, 0.05, 0], Y, 0.045, 0.012, M_ENG, 10); disc(B, [0, 0.01, 0], Y, 0.07, 0.04, M_GUN, 12);
+      B.box([0.3, 0.034, 0.0], [0.05, 0.006, 0.018], 0, M_ENG);
       B.tube([0.04, -0.036, 0], [LARM - 0.06, -0.036, 0], 0.03, 0.03, M_STEEL, { seg: 8 }); for (let i = 0; i < 3; i++) for (const s of [-1, 1]) B.torX([0.16 + i * 0.16, s * 0.036, 0], 0.031, 0.007, M_GUN, { seg: 8, rseg: 4 });
       for (let i = 0; i < 4; i++) for (const k of [-1, 1]) B.sph([0.1 + i * 0.13, 0.03, k * 0.04], 0.008, M_STEEL, 5); B.tube([0.06, 0, 0.055], [LARM - 0.1, 0, 0.05], 0.012, 0.012, M_MECH, { seg: 5 });
+      // polish: a brake caliper over the disc, a toothed ring at the pivot, a drive chain's run
+      B.box([LARM - 0.2, 0.0, 0.12], [0.07, 0.05, 0.045], 0.015, M_GUN); B.box([LARM - 0.2, 0.052, 0.12], [0.04, 0.004, 0.02], 0, M_ENG); for (const k of [-1, 1]) B.sph([LARM - 0.2 + k * 0.045, 0.05, 0.145], 0.011, M_STEEL, 5);
+      B.torY([0, 0.045, 0], 0.075, 0.012, M_STEEL, { seg: 18, rseg: 4, teeth: 12, tooth: 0.014 });
+      for (let i = 0; i < 9; i++) B.box([0.08 + i * 0.055, 0.046, -0.058], [0.02, 0.008, 0.009], 0.003, i % 2 ? M_STEEL : M_GUN);
       out.arm = B.done(); }
     // ---- an upper leg (origin: the shoulder or hip; x to the elbow; y outward on the right side): a big cyan-cored joint
     //      disc, a dark core with a piston, layered silver armour, an ice shard along the back ----
     { const B = nb();
       B.push([1, 0, 0], [0, 2.1, 0], [0, 0, 1.85], [0, 0, 0]);
       B.tube([0.03, 0, 0], [LU - 0.04, 0, 0], 0.065, 0.055, M_MECH, { seg: 9 });
-      for (const s of [-1, 1]) { disc(B, [0, s * 0.07, 0], Y, 0.12, 0.03, M_ARM, 20); disc(B, [0, s * 0.1, 0], Y, 0.06, 0.014, M_CYAN, 14); B.torY([0, s * 0.102, 0], 0.088, 0.014, M_STEEL, { seg: 16, rseg: 4 });
+      for (const s of [-1, 1]) { disc(B, [0, s * 0.07, 0], Y, 0.12, 0.03, M_ARM, 20); disc(B, [0, s * 0.1, 0], Y, 0.06, 0.014, M_ENG, 14); B.torY([0, s * 0.102, 0], 0.088, 0.014, M_STEEL, { seg: 16, rseg: 4 });
         plate(B, [[0.1, 0.1], [0.5, 0.085], [0.64, 0.02], [0.6, -0.07], [0.14, -0.09]], s * 0.075, 0.02, M_ARM, 0.012);
-        B.box([0.36, s * 0.097, 0.0], [0.11, 0.004, 0.014], 0, M_CYAN);
-        disc(B, [LU, s * 0.06, 0], Y, 0.085, 0.025, M_STEEL, 12); disc(B, [LU, s * 0.088, 0], Y, 0.04, 0.008, M_CYAN, 8); }
+        B.box([0.36, s * 0.097, 0.0], [0.11, 0.004, 0.014], 0, M_ENG);
+        disc(B, [LU, s * 0.06, 0], Y, 0.085, 0.025, M_STEEL, 12); disc(B, [LU, s * 0.088, 0], Y, 0.04, 0.008, M_ENG, 8); }
       plate(B, [[0.08, 0.13], [0.52, 0.11], [0.62, 0.06], [0.1, 0.07]], 0, 0.07, M_ARM, 0.015);
       B.tube([0.12, 0, -0.085], [0.6, 0, -0.07], 0.022, 0.022, M_STEEL, { seg: 6 }); B.tube([0.1, 0, -0.085], [0.36, 0, -0.08], 0.034, 0.034, M_GUN, { seg: 6 });
       B.crystal([0.14, 0, -0.06], [0.5, 0, -0.26], 0.06, M_ICE, { n: 4, thin: 0.72, seed: 2 });
       B.sph([LU, 0, 0], 0.085, M_GUN, 10);
       B.pop();
+      for (const s of [-1, 1]) { B.torY([0, s * 0.2, 0], 0.13, 0.014, M_STEEL, { seg: 20, rseg: 4, teeth: 14, tooth: 0.016 }); for (let i = 0; i < 5; i++) B.sph([0.2 + i * 0.09, s * 0.19, 0.105], 0.009, M_STEEL, 5); }
       out.legU = B.done(); }
     // ---- a lower leg (origin: the elbow or hock; x to the ankle): slimmer; a silver shin, twin steel rods, a cyan strip ----
     { const B = nb();
       B.push([1, 0, 0], [0, 2.0, 0], [0, 0, 2.0], [0, 0, 0]);
       B.tube([0.03, 0, 0], [LL - 0.03, 0, 0], 0.05, 0.042, M_MECH, { seg: 8 });
       loft(B, [[0.06, 0.05, 0.095, 0.02, 0.02], [0.2, 0.075, 0.105, 0.0, 0.025], [0.5, 0.06, 0.085, 0.0, 0.02], [0.66, 0.035, 0.06, 0.0, 0.015]], M_ARM, { sub: 2 });
-      for (const s of [-1, 1]) { B.tube([0.05, s * 0.04, -0.055], [0.64, s * 0.035, -0.045], 0.016, 0.016, M_STEEL, { seg: 5 }); B.box([0.34, s * 0.071, 0.05], [0.12, 0.003, 0.012], 0, M_CYAN); }
+      for (const s of [-1, 1]) { B.tube([0.05, s * 0.04, -0.055], [0.64, s * 0.035, -0.045], 0.016, 0.016, M_STEEL, { seg: 5 }); B.box([0.34, s * 0.071, 0.05], [0.12, 0.003, 0.012], 0, M_ENG); }
       B.crystal([0.12, 0, -0.04], [0.4, 0, -0.2], 0.045, M_ICE, { n: 4, thin: 0.72, seed: 5 });
       B.sph([LL, 0, 0], 0.07, M_GUN, 9); B.torY([LL, 0, 0], 0.07, 0.016, M_STEEL, { seg: 12, rseg: 4 });
       B.pop();
@@ -202,7 +211,7 @@ const FENRIR_MODEL = (() => {
       B.tube([0.02, 0, 0], [LH - 0.02, 0, 0], 0.07, 0.065, M_MECH, { seg: 9 });
       loft(B, [[0.02, 0.085, 0.11, -0.02, 0.03], [0.16, 0.1, 0.12, -0.03, 0.035], [0.3, 0.085, 0.1, -0.02, 0.03]], M_ARM, { sub: 2 });
       B.tube([0.03, 0, -0.085], [0.29, 0, -0.08], 0.024, 0.024, M_STEEL, { seg: 6 }); B.tube([0.02, 0, -0.085], [0.16, 0, -0.082], 0.036, 0.036, M_GUN, { seg: 6 });
-      for (const s of [-1, 1]) { B.box([0.16, s * 0.102, 0.05], [0.07, 0.004, 0.014], 0, M_CYAN); disc(B, [LH, s * 0.09, 0], Y, 0.07, 0.014, M_STEEL, 12); disc(B, [LH, s * 0.106, 0], Y, 0.036, 0.006, M_CYAN, 8); }
+      for (const s of [-1, 1]) { B.box([0.16, s * 0.102, 0.05], [0.07, 0.004, 0.014], 0, M_ENG); disc(B, [LH, s * 0.09, 0], Y, 0.07, 0.014, M_STEEL, 12); disc(B, [LH, s * 0.106, 0], Y, 0.036, 0.006, M_ENG, 8); }
       B.sph([LH, 0, 0], 0.095, M_GUN, 10); B.spike([0.04, 0, -0.03], [-0.12, 0, -0.2], 0.05, M_ARM, { seg: 5 });
       out.hock = B.done(); }
     // ---- a paw (origin: the ankle; x forward along the toes; z up): a broad armoured foot, four thick toes with knuckles, big
@@ -215,7 +224,7 @@ const FENRIR_MODEL = (() => {
         B.tube([0.3, y0 + sp, -0.035], [0.39, y0 + sp * 1.6, -0.05], 0.042, 0.036, M_ARM, { seg: 7 });
         B.tube([0.38, y0 + sp * 1.6, -0.04], [0.48, y0 + sp * 2.1, -0.045], 0.04, 0.03, M_STEEL, { seg: 6, cap1: false }); B.spike([0.47, y0 + sp * 2.1, -0.045], [0.6, y0 + sp * 2.7, -0.14], 0.032, M_STEEL, { seg: 5 }); }   // (a claw: curving down to its point)
       B.spike([-0.05, 0, -0.02], [-0.2, 0, -0.1], 0.045, M_STEEL, { seg: 5 });
-      disc(B, [0, 0.11, 0], Y, 0.05, 0.008, M_CYAN, 8); disc(B, [0, -0.11, 0], Y, 0.05, 0.008, M_CYAN, 8);
+      disc(B, [0, 0.11, 0], Y, 0.05, 0.008, M_ENG, 8); disc(B, [0, -0.11, 0], Y, 0.05, 0.008, M_ENG, 8);
       out.paw = B.done(); }
     // ---- the head (origin: the back of the skull, on the neck; x to the nose; z up): a broad armoured cranium, a stop down to
     //      a long tapered muzzle with a dark nose, a brow ridge over each narrow cyan eye, cheek plates, tall ears swept back,
@@ -249,6 +258,9 @@ const FENRIR_MODEL = (() => {
         B.tube([-0.04, s * 0.06, -0.08], [0.26, s * 0.05, -0.075], 0.016, 0.014, M_MECH, { seg: 6 }); B.tube([-0.04, s * 0.1, -0.06], [0.1, s * 0.12, -0.1], 0.012, 0.012, M_STEEL, { seg: 5 });
         B.box([0.2, s * 0.08, 0.176], [0.1, 0.004, 0.004], 0, M_DARK); B.box([0.1, s * 0.186, 0.02], [0.004, 0.004, 0.06], 0, M_DARK);
         for (let i = 0; i < 3; i++) B.sph([0.16 + i * 0.09, s * (0.165 - i * 0.022), 0.19 - i * 0.03], 0.007, M_STEEL, 5); }
+      for (const s of [-1, 1]) { plate(B, [[0.13, 0.15], [0.4, 0.07], [0.4, 0.045], [0.15, 0.08]], s * 0.156, 0.02, M_GUN, 0.008);                       // (an eye's housing under the slit)
+        for (let i = 0; i < 6; i++) B.spike([0.4 + i * 0.05, s * (0.072 - i * 0.006), -0.045], [0.402 + i * 0.05, s * (0.071 - i * 0.006), -0.07], 0.009, M_SILV, { seg: 4 });   // (the small teeth between the fangs)
+        plate(B, [[0.02, 0.03], [0.24, -0.01], [0.2, -0.09], [0.04, -0.09]], s * 0.19, 0.008, M_SILV, 0.006); B.box([0.12, s * 0.2, -0.03], [0.06, 0.003, 0.006], 0, M_CYAN); }
       B.box([0.12, 0, 0.19], [0.1, 0.012, 0.006], 0.004, M_SILV); for (let i = 0; i < 4; i++) B.box([0.36 + i * 0.1, 0, 0.098 - i * 0.02], [0.006, 0.03 - i * 0.004, 0.004], 0, M_DARK);
       B.pop();
       out.head = B.done(); }
@@ -327,7 +339,7 @@ const FENRIR_MODEL = (() => {
       disc(B, [0, 0, 0], Y, 0.06, 0.035, M_GUN, 10); disc(B, [LCM, 0, 0], Y, 0.05, 0.035, M_GUN, 10); B.box([LCM * 0.5, -0.024, 0], [0.1, 0.003, 0.012], 0, M_CYAN);
       out.cmount = B.done(); }
     // ---- a piston's sleeve and its rod (origin: an end; x along it; 0.34 long each: they telescope) ----
-    { const B = nb(); B.tube([0, 0, 0], [0.34, 0, 0], 0.036, 0.036, M_GUN, { seg: 8, cap1: 'flat' }); B.sph([0, 0, 0], 0.045, M_STEEL, 7); B.torX([0.32, 0, 0], 0.036, 0.008, M_CYAN, { seg: 10, rseg: 4 }); out.pistonA = B.done(); }
+    { const B = nb(); B.tube([0, 0, 0], [0.34, 0, 0], 0.036, 0.036, M_GUN, { seg: 8, cap1: 'flat' }); B.sph([0, 0, 0], 0.045, M_STEEL, 7); B.torX([0.32, 0, 0], 0.036, 0.008, M_ENG, { seg: 10, rseg: 4 }); out.pistonA = B.done(); }
     { const B = nb(); B.tube([0, 0, 0], [0.34, 0, 0], 0.02, 0.02, M_STEEL, { seg: 7 }); B.sph([0, 0, 0], 0.04, M_STEEL, 7); out.pistonB = B.done(); }
     return out;
   }
@@ -405,7 +417,7 @@ const FENRIR_MODEL = (() => {
       const ph = run + PH[key], stride = 0.46 * ra, up = Math.max(0, Math.sin(ph)) * 0.34 * ra;
       const aW = [(f > 0 ? 0.92 : -1.12) + stride * Math.cos(ph) + (f > 0 ? 0.16 : -0.14) * lock, s * (0.74 + 0.16 * lock), 0.19 + up], hvW = [f > 0 ? -0.1 : -0.22, 0, 0.27];
       // (the front pair unfolds first, the rear pair a beat later: their upper legs pass each other clear; curled, they fold again)
-      const u0 = S.legs, u = cl(f > 0 ? u0 * 1.3 : u0 * 1.3 - 0.3) * (1 - ease(curl)), eu = ease(u), mid = Math.sin(Math.PI * u), ank = vadd(vlerp(aB, aW, eu), [0, s * 0.2 * mid, 0.1 * mid]);
+      const u0 = S.legs, u = cl(f > 0 ? u0 * 1.3 : u0 * 1.3 - 0.3) * (1 - ease(curl)), eu = ease(u), mid = Math.sin(Math.PI * u), tk = ease(cl(P.tuck || 0)) * eu, ank = vlerp(vadd(vlerp(aB, aW, eu), [0, s * 0.2 * mid, 0.1 * mid]), toC(f > 0 ? [0.98, s * 0.7, -0.56] : [-0.72, s * 0.7, -0.62]), tk);   // (tuck: the legs drawn up under the body for a leap)
       const hv = vmul(vnrm(vlerp(hvB, hvW, eu)), LH * LS), top = vadd(ank, hv);
       const poleW = dC(f > 0 ? [-1, 0, 0.1] : [1, 0, 0.35]), pole = vnrm(vadd(vlerp(poleB, poleW, eu), dC([0, s * 1.1 * mid, -0.3 * mid])));   // (the elbow swings round the outside, never through the frame)
       const k = ik2(J, top, LU * LS, LL * LS, pole), yo = dC([0, 1, 0]);
@@ -413,8 +425,8 @@ const FENRIR_MODEL = (() => {
       I('legL' + key, 'legL', frameXZ(vsub(k.W, k.E), vcross(vsub(k.W, k.E), yo)), k.E, LS);
       I('hock' + key, 'hock', frameXZ(vsub(ank, k.W), vcross(vsub(ank, k.W), yo)), k.W, LS);
       // the paw: flat on the floor, toes forward (wolf; toes down in the air); along the frame, claws tucked (motorcycle)
-      const pB = frameXZ(dC([f > 0 ? -1 : 1, 0, 0.04]), dC([0, 0, 1])), pW = frameXZ([1, 0, -0.7 * up], [0, 0, 1]);
-      I('paw' + key, 'paw', mslerp(pB, pW, eu), ank, lerp(1.0, 1.25, eu));
+      const pB = frameXZ(dC([f > 0 ? -1 : 1, 0, 0.04]), dC([0, 0, 1])), pW = frameXZ([1, 0, -0.7 * up], [0, 0, 1]), pT = frameXZ(dC(f > 0 ? [0.55, 0, -0.85] : [0.7, 0, -0.7]), dC([0, 0, 1]));
+      I('paw' + key, 'paw', tk > 0.001 ? mslerp(mslerp(pB, pW, eu), pT, tk) : mslerp(pB, pW, eu), ank, lerp(1.0, 1.25, eu));
       out.A['paw' + key] = vadd(ank, [0.12, 0, -0.1]);
     }
     // the neck and the head: the fairing over the front wheel, turning with the steering (motorcycle); forward and up (wolf)
@@ -481,12 +493,12 @@ const FENRIR_MODEL = (() => {
     let W = Math.ceil((bx1 - bx0) * dev), H = Math.ceil((by1 - by0) * dev); const sc = Math.min(1, GLCAP / Math.max(W, H)); W = Math.max(2, Math.ceil(W * sc)); H = Math.max(2, Math.ceil(H * sc));
     const bw = bx1 - bx0, bh = by1 - by0, tl = w => { const a = vdot(w, EXW), b = vdot(w, EYW), cc = vdot(w, CW); return K ? vadd(vadd(vmul(K.EX, a), vmul(K.EY, b)), vmul(K.C, cc)) : w; };
     const S = { px: PX, py: PY, pd: PD, cl: [2 * k / bw, 2 * (X0[0] - bx0) / bw - 1, -2 * k / bh, 1 - 2 * (X0[1] - by0) / bh], v: PD, lk: tl(LW), ls: tl(SBW), lr: tl(RIMW), up: tl(UPW), low: o.low != null ? o.low : lowFx(), rim: RIMC, amb: AMBC };
-    const glowK = cl(0.3 + 0.7 * (P.glow == null ? 0.5 : P.glow)), bg = cl(P.barrel || 0), fx = cl(P.crack || 0);
+    const cg2 = cgOf(P) * PULSE, glowK = cl(0.3 + 0.7 * (P.glow == null ? 0.5 : P.glow)), bg = cl(P.barrel || 0), fx = cl(P.crack || 0);
     let n = 0; const items = GLJ; items.length = 0;
     for (const it of list) { const mesh = MESH[it.part]; if (!mesh) continue; const Rw = mm(V.Rh, it.R), s2 = it.s, T = mv(V.Rh, it.o), al = al0 * it.al;
       const g = GLI[n] || (GLI[n] = { R0: new Float32Array(3), R1: new Float32Array(3), R2: new Float32Array(3), T: new Float32Array(3) }); n++;
       g.mesh = mesh; for (let i = 0; i < 3; i++) { g.R0[i] = Rw.x[i] * s2; g.R1[i] = Rw.y[i] * s2; g.R2[i] = Rw.z[i] * s2; g.T[i] = T[i]; }
-      g.alpha = al; g.glow = it.part === 'barrel' || it.part === 'cannon' ? Math.max(glowK, bg) : glowK; g.kind = 0; g.wear = 1; g.fx = fx; g.d = vdot(T, PD); items.push(g); }
+      g.alpha = al; g.glow = it.part === 'barrel' || it.part === 'cannon' ? Math.max(glowK, bg) : glowK; g.kind = 0; g.wear = 1; g.fx = fx; g.glow2 = cg2; g.spill = glowK; g.d = vdot(T, PD); items.push(g); }
     items.sort((p, q) => (p.alpha > 0.995 ? 0 : 1) - (q.alpha > 0.995 ? 0 : 1) || (p.alpha > 0.995 ? 0 : p.d - q.d));
     const t0 = nowMs(), cvs = GLM.render(W, H, S, items); if (!cvs) return;
     c.drawImage(cvs, 0, 0, W, H, bx0, by0, bw, bh); GLMS = GLMS * 0.9 + (nowMs() - t0) * 0.1; GLN++; GLBOX = [W, H];
@@ -507,10 +519,16 @@ const FENRIR_MODEL = (() => {
     c.restore();
   }
   /* the live 2D lights over the picture: the hubs' and the reactor's cyan, the eyes, the muzzles' charge */
+  let PULSE = 1;                                   // the crystals' slow breathing (set per draw)
+  const cgOf = P => Math.max(0, Math.min(2, P.crystalGlow == null ? 1 : P.crystalGlow));
   function lights(c, V, R, P, al, low) {
     if (typeof glowSprite !== 'function' || typeof blitSized !== 'function') return; const A = R.A, k = V.k, g = cl(P.glow == null ? 0.5 : P.glow), bg = cl(P.barrel || 0);
     c.save(); c.globalCompositeOperation = 'lighter'; const blob = (p, r, a2, col) => { const q = V.toS(p), rr = r * k; c.globalAlpha = al * a2; blitSized(c, glowSprite(col || '#58E4FF'), q[0] - rr, q[1] - rr, rr * 2, rr * 2); };
-    if (!low) { blob(A.wheelF, 0.42, 0.14 + 0.16 * g); blob(A.wheelR, 0.42, 0.14 + 0.16 * g); blob(A.center, 0.3, 0.12 + 0.14 * g); }
+    const ENG = '#6A4DFF', ICE = '#3FA8FF', cg = cgOf(P) * PULSE;
+    // the engine's halo (a deep violet-blue): the reactor, both hubs; the crystals' (a brighter azure): each crest, the tail's links, the head
+    blob(A.center, 0.34, 0.2 + 0.2 * g, ENG); if (!low) { blob(A.wheelF, 0.46, 0.16 + 0.18 * g, ENG); blob(A.wheelR, 0.46, 0.16 + 0.18 * g, ENG); blob(A.center, 0.8, 0.07 + 0.06 * g, ENG); }
+    if (cg > 0.02) for (const it of R.inst) { const pt = it.part; if (it.al < 0.5 || (pt !== 'tail' && pt !== 'maneF' && pt !== 'maneR' && pt !== 'head' && pt !== 'neck')) continue; if (low && pt !== 'maneF' && pt !== 'tail') continue;
+      const Pt = PARTS[pt], q = vadd(it.o, mv(it.R, vmul(pt === 'tail' ? [0.5, 0, 0.3] : pt === 'head' ? [-0.05, 0, 0.3] : Pt.c, it.s))); blob(q, (pt === 'tail' ? 0.62 : pt === 'neck' ? 0.4 : 0.7) * it.s, (pt === 'tail' || pt === 'neck' ? 0.1 : 0.16) * cg, ICE); }
     blob(A.eyeL, 0.09, 0.5 + 0.3 * g); blob(A.eyeR, 0.09, 0.5 + 0.3 * g);
     if (bg > 0.02) for (const sd of ['L', 'R']) { blob(A['muzzle' + sd], 0.14 + 0.2 * bg, bg * 0.9); blob(A['muzzle' + sd], 0.07 + 0.08 * bg, bg, '#EAFBFF'); blob(A['breech' + sd], 0.16, bg * 0.5); }
     c.restore();
@@ -519,7 +537,7 @@ const FENRIR_MODEL = (() => {
      The pet (o.pet, at the saddle) is drawn over the body; whatever of the machine stands nearer the camera than the rider
      (the cannons, the head or the crests, by the heading) is then drawn over the pet. */
   function draw(c, x, y, z, a, P, o) {
-    o = o || {}; const t = o.t != null ? o.t : nowMs() / 1000, R = rig(P, t), V = mkView(x, y, z, a, o); LAST = { R, V, P };
+    o = o || {}; const t = o.t != null ? o.t : nowMs() / 1000, R = rig(P, t), V = mkView(x, y, z, a, o); LAST = { R, V, P }; PULSE = 0.8 + 0.2 * Math.sin(t * 1.7);
     const al0 = P.alpha == null ? 1 : P.alpha; if (!(al0 > 0.01)) return;
     const low = o.low != null ? o.low : lowFx(), vis = R.inst.filter(it => it.al > 0.004);
     if (glOn()) { let ok = true;
@@ -564,8 +582,8 @@ const FENRIR_MODEL = (() => {
      elevation); load 0..1, barrel 0..1 (the chambers' and the barrels' glow); tail (sway), tailLift 0..1; mane 0..1 (the
      crests flared); head (yaw), headPitch; jaw 0..1; glow 0..1 (the cyan channels); crack 0..1 (frost cracking over
      everything, before the exit); drift 0..1 (a lower stance). */
-  const CH = ['xf', 'alpha', 'wheelF', 'wheelR', 'steer', 'lean', 'pitch', 'flip', 'susp', 'gait', 'gaitK', 'crouch', 'curl', 'pawLock', 'piston', 'recoilL', 'recoilR', 'cannonPitch', 'load', 'barrel', 'tail', 'tailLift', 'mane', 'head', 'headPitch', 'jaw', 'glow', 'crack', 'drift'];
-  function blankPose() { return { xf: 0, alpha: 1, wheelF: 0, wheelR: 0, steer: 0, lean: 0, pitch: 0, flip: 0, susp: 0, gait: 0, gaitK: 0, crouch: 0, curl: 0, pawLock: 0, piston: 0, recoilL: 0, recoilR: 0, cannonPitch: 0, load: 0, barrel: 0, tail: 0, tailLift: 0, mane: 0, head: 0, headPitch: 0, jaw: 0, glow: 0.5, crack: 0, drift: 0 }; }
+  const CH = ['xf', 'alpha', 'wheelF', 'wheelR', 'steer', 'lean', 'pitch', 'flip', 'susp', 'gait', 'gaitK', 'crouch', 'curl', 'pawLock', 'piston', 'recoilL', 'recoilR', 'cannonPitch', 'load', 'barrel', 'tail', 'tailLift', 'mane', 'head', 'headPitch', 'jaw', 'glow', 'crack', 'drift', 'crystalGlow', 'tuck'];
+  function blankPose() { return { xf: 0, alpha: 1, wheelF: 0, wheelR: 0, steer: 0, lean: 0, pitch: 0, flip: 0, susp: 0, gait: 0, gaitK: 0, crouch: 0, curl: 0, pawLock: 0, piston: 0, recoilL: 0, recoilR: 0, cannonPitch: 0, load: 0, barrel: 0, tail: 0, tailLift: 0, mane: 0, head: 0, headPitch: 0, jaw: 0, glow: 0.5, crack: 0, drift: 0, crystalGlow: 1, tuck: 0 }; }
   /* relax(P, dt): ease the body channels toward neutral (not xf, alpha, the wheels, the gait's phase or the cracks) */
   function relax(P, dt) { const k = Math.min(1, dt * 6); for (const c2 of ['steer', 'lean', 'pitch', 'susp', 'gaitK', 'crouch', 'curl', 'pawLock', 'piston', 'recoilL', 'recoilR', 'cannonPitch', 'load', 'barrel', 'tail', 'tailLift', 'mane', 'head', 'headPitch', 'jaw', 'drift']) if (P[c2]) P[c2] += (0 - P[c2]) * k; }
 

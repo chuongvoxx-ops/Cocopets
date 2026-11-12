@@ -51,6 +51,10 @@
       spikeAt: 0.07, spikeR: 3.0, spikeDmg: 4.0, spikeKb: 5, spikeFreeze: 0.5 },   /* damage phase 2, the eruption at the stop: s into it, tiles, x DK once per monster */
     cannonCd: 2.5, s2Cd: 3.5,   /* s (E's FENRIR_MOVES.TUNE.cannonCd / s2Cd win when present); both shared across the forms */
     chargeK: 32,                /* the gauge fills at chargeK x DK of damage actually dealt */
+    /* Jump (both forms; the Sports Car's and the Beast Machine's): a hop along the stick (else the heading) over gaps,
+       water, pits and lava, never through a wall; the landing is planned before take-off, where the whole body fits and
+       the pet could walk from. No cooldown; a press in the air is kept for the touchdown; never a jump in mid-air */
+    jump: { dmg: 2.6, r: 2.6, kb: 6, ph: [0.1, 0.62], h: [1.5, 1.9], v: 9.5, max: 8, ext: 2, buf: 0.25, inv: 0.3, invLock: 1.8 },   /* x DK once per monster on landing; tiles; knockback; s squat / airtime; peak height bike / wolf; least launch speed; longest hop; how much further it may reach; a press this early is kept; take-off protection, at most once per invLock s */
     summon: 1.5, hop: 0.42, dissolve: 0.75, finCap: 16, busyCap: 9,
     freshGap: 0.28, mvHold: 0.5,
   };
@@ -133,10 +137,10 @@
   function spring(S, key, target, w, z, dt) { const A = S.an; let s = A[key]; if (!s) s = A[key] = { x: target, v: 0 }; if (!isFinite(s.x) || !isFinite(s.v)) { s.x = target; s.v = 0; }
     let left = Math.min(dt, 0.1); while (left > 1e-5) { const h = Math.min(left, 1 / 120); s.v += (-2 * z * w * s.v - w * w * (s.x - target)) * h; s.x += s.v * h; left -= h; } return s.x; }
   const kick = (S, key, dv) => { const s = S.an[key]; if (s) s.v += dv; };
-  const SPR = { lean: [10, 0.5], pitch: [12, 0.42], susp: [15, 0.38], steer: [16, 0.62], crouch: [15, 0.5], drift: [16, 0.6], z: [12, 0.42], tail: [6, 0.3], tailLift: [8, 0.5], head: [11, 0.6], mane: [9, 0.45], gaitK: [10, 0.9],
+  const SPR = { tuck: [17, 0.62], crystalGlow: [9, 0.85], lean: [10, 0.5], pitch: [12, 0.42], susp: [15, 0.38], steer: [16, 0.62], crouch: [15, 0.5], drift: [16, 0.6], z: [12, 0.42], tail: [6, 0.3], tailLift: [8, 0.5], head: [11, 0.6], mane: [9, 0.45], gaitK: [10, 0.9],
     pawLock: [22, 0.5], piston: [18, 0.55], recoilL: [30, 0.55], recoilR: [30, 0.55], load: [20, 0.7], barrel: [14, 0.9], vent: [12, 0.9], jaw: [14, 0.5], glow: [9, 0.8] };
   const DIRECT = ['flip', 'curl', 'crack'];
-  const TG = () => ({ lean: 0, pitch: 0, susp: 0, steer: 0, crouch: 0, drift: 0, z: 0, tail: 0, tailLift: 0, head: 0, mane: 0, gaitK: 0, pawLock: 0, piston: 0, recoilL: 0, recoilR: 0, load: 0, barrel: 0, vent: 0, jaw: 0, glow: 0.5, flip: 0, curl: 0, crack: 0, wheelK: 0, rearK: 0 });
+  const TG = () => ({ tuck: 0, crystalGlow: 1, lean: 0, pitch: 0, susp: 0, steer: 0, crouch: 0, drift: 0, z: 0, tail: 0, tailLift: 0, head: 0, mane: 0, gaitK: 0, pawLock: 0, piston: 0, recoilL: 0, recoilR: 0, load: 0, barrel: 0, vent: 0, jaw: 0, glow: 0.5, flip: 0, curl: 0, crack: 0, wheelK: 0, rearK: 0 });
   const bump = (u, a, b, c2) => sstep(a, b, u) * (1 - sstep(b, c2, u));
   /* the action clips E plays with ctx.clip(name, u, extra) (u 0..1 each frame while it lasts); s = the session */
   const CLIPS = {
@@ -184,6 +188,8 @@
     G.tail = 0.22 * Math.sin(t * 2.1) * (1 - k) + clamp(S.hw * 0.06, -0.5, 0.5) + w * k * 0.12 * Math.sin(gp); G.tailLift = 0.25 + 0.55 * k;
     G.susp += (1 - w) * (0.025 * Math.sin(t * 31) * (0.4 + 0.6 * k)) + w * (1 - k) * 0.05 * Math.sin(t * 1.9);
     G.mane = 0.25 + 0.5 * k; G.glow = 0.45 + 0.3 * k;
+    /* the body crystals' inner glow (M, round 5): 1 at rest to 1.4 at full speed, flaring to 2 in an attack (a Drift, a Strong, a finisher, a Jump's landing) */
+    G.crystalGlow = 1 + 0.4 * k; if (D || S.busy || S.phase === 'finisher' || (S.landT != null && t - S.landT < 0.4)) G.crystalGlow = 2;
     if (riding && !D) { const T = S.aimM; if (T && !T.dead) G.head = -clamp(wrap(Math.atan2(T.y - V.y, T.x - V.x) - V.heading), -0.7, 0.7) * (0.35 + 0.65 * w) * (1 - 0.6 * k); }
     /* --- the Drift: the low spinning skid, the hard stop, the unfolding --- */
     if (D) { const Dt = TUNE.drift.ph;
@@ -191,6 +197,12 @@
       else if (D.ph === 2) { const u = cl(D.t / Dt[2]); G.drift = 1 - sstep(0.3, 1, u); G.crouch = 0.75 * (1 - sstep(0.25, 1, u)); G.susp = 0.8 * (1 - u); G.pitch -= 0.1 * (1 - sstep(0, 0.5, u)); G.lean = -D.side * 0.2 * (1 - u); G.wheelK = 0; G.gaitK = 0; G.mane = 1; G.glow = 1; G.jaw = w; }
       else { const u = cl(D.t / Dt[3]); G.crouch = 0.5 * bump(u, 0, 0.18, 0.4) + 0.35 * sstep(0.85, 1, u) * (1 - sstep(0.93, 1, u)); G.z += 0.4 * Math.sin(Math.PI * sstep(0.1, 0.85, u)); G.pitch += 0.16 * Math.sin(Math.PI * u) * (D.to === 'wolf' ? 1 : -0.6); G.wheelK = 0.3; G.gaitK = 0; G.mane = 1; G.glow = 1; G.tailLift = 0.5 + 0.5 * u; }
     }
+    /* --- the Jump: the motorcycle's wheelie launch and nose-down landing; the wolf's crouch and tucked leap --- */
+    if (S.jump) { const Jp = S.jump, J = TUNE.jump;
+      if (!Jp.air) { const u = cl(Jp.t / J.ph[0]); G.crouch = 0.9 * u; G.susp = 0.8 * u; G.pitch += (1 - w) * 0.12 * u; G.gaitK = 0; G.tailLift = 0.2; G.mane = 0.8; }
+      else { const u = cl((Jp.t - J.ph[0]) / J.ph[1]), up = 1 - sstep(0, 0.55, u), dn = sstep(0.5, 1, u);
+        G.pitch += (1 - w) * (0.5 * up - 0.2 * dn) + w * (0.32 * up - 0.28 * dn); G.susp = -0.6 * (1 - w) * Math.sin(Math.PI * u); G.wheelK = 2.4; G.rearK = 1.2 * (1 - w) * up;
+        G.tuck = w * sstep(0, 0.22, u) * (1 - sstep(0.7, 0.93, u)); G.crouch = 0.15 * w; G.crystalGlow = Math.max(G.crystalGlow, 1.6);   /* (M's tuck folds the four legs under the body; released before the landing, so the paws are down for the settle) */ G.gaitK = 0; G.tailLift = 1; G.tail = 0; G.mane = 1; G.glow = 0.9; G.jaw = 0.5 * w * up; G.lean = 0; G.steer = 0; G.head = 0; } }
     /* --- E's clip, last: it owns the channels it sets --- */
     const E = eClip(S); if (E) { try { CLIPS[E.clip](G, E.u, S, E.extra); } catch (e) { /* (a clip never breaks the frame) */ } }
     /* the gait and the wheels: accumulated (never sprung), driven by the ground actually covered */
@@ -200,7 +212,7 @@
     if (E && E.clip === 'burnout' && E.extra && E.extra.spin != null && S.phase === 'finisher') S.spin = E.extra.spin; else if (S.phase === 'finisher' && S.spin) S.spin = 0;
     for (const key in SPR) { const p = SPR[key]; P[key] = spring(S, key, G[key], p[0], p[1], dt); }
     for (const key of DIRECT) P[key] = G[key];
-    P.gaitK = cl(P.gaitK); P.susp = clamp(P.susp, -0.3, 1); P.crouch = clamp(P.crouch, -0.2, 1.1);
+    P.gaitK = cl(P.gaitK); P.tuck = cl(P.tuck); P.crystalGlow = clamp(P.crystalGlow, 0, 2); P.susp = clamp(P.susp, -0.3, 1); P.crouch = clamp(P.crouch, -0.2, 1.1);
     S.zOff = Math.max(-0.2, P.z || 0); P.z = 0;   /* (the rise is whole-body: added to the height it is drawn at) */
     P.form = S.form === 'wolf' ? 1 : 0; P.speed = k; P.t = t;
     /* E's raw channel overrides for this frame (ctx.chan), applied over everything */
@@ -262,7 +274,7 @@
       drift: null, mvQ: null, dQ: null, ultQ: null, press: { ult: -9, strong: -9, strong2: -9 }, hw: 0, spin: 0, an: {}, zOff: 0, gait: 0, wF: 0, wR: 0, eAct: null, eCh: null, cam: null,
       parts: [], free: [], ended: false, released: false, pet: X.pet ? X.pet() : null, air: airOf(X), home: { x: me.x, y: me.y }, safe: { x: me.x, y: me.y }, safeT: 0, prev: { x: me.x, y: me.y, a: a0 }, swT: 0, bumpT: 0, sfxT: 0, mx: 0, my: 0, lastSide: 1,
       vs: VEH_SMASH.create(X, g),
-      stats: { drifts: 0, driftSweepHits: 0, spikes: 0, spikeHits: 0, switches: 0, menuSets: 0, cannon: 0, somersault: 0, wheel: 0, dust: 0, frozen: 0, smashed: 0, cdSet: 0, dealt: 0, charged: 0, hits: 0, rideT: 0, bikeT: 0, wolfT: 0 } };
+      stats: { jump: 0, jumpHit: 0, jumpInv: 0, drifts: 0, driftSweepHits: 0, spikes: 0, spikeHits: 0, switches: 0, menuSets: 0, cannon: 0, somersault: 0, wheel: 0, dust: 0, frozen: 0, smashed: 0, cdSet: 0, dealt: 0, charged: 0, hits: 0, rideT: 0, bikeT: 0, wolfT: 0 } };
     /* a place the whole body fits: the heading turned, or the centre nudged, until it is clear of the walls */
     { const B = (x, y, r) => X.blocked(x, y, r, 0); let best = null;
       for (let k2 = 0; k2 < 12 && !best; k2++) { const ang = a0 + (k2 % 2 ? 1 : -1) * Math.ceil(k2 / 2) * (Math.PI / 6); if (!poseBlocked(B, me.x, me.y, ang)) best = { x: me.x, y: me.y, a: ang }; }
@@ -290,7 +302,7 @@
       chan: o => { S.eCh = { o, t: g.t }; }, kick: (key, dv) => kick(S, key, dv),
       vanish: () => { S.V.vis = 0; }, safeReturn: () => { const p = safeReturn(S); S.retPt = p; return { x: p.x, y: p.y }; },
       done: () => actionDone(S), alive: () => alive(S), calm, low: lowFx };
-    S.veh = { get active() { return !S.released; }, drive: (mx, my, dt) => { S.mx = mx; S.my = my; void dt; }, dodge: (mx, my) => tryDrift(S, mx, my), strong: slot => tryMove(S, slot), ult: () => tryUlt(S),
+    S.veh = { get active() { return !S.released; }, drive: (mx, my, dt) => { S.mx = mx; S.my = my; void dt; }, dodge: (mx, my) => tryDrift(S, mx, my), jump: (mx, my) => tryJump(S, mx, my), strong: slot => tryMove(S, slot), ult: () => tryUlt(S),
       drawBtns: (c, o) => drawBtns(S, c, o), onSwitch: () => finish(S, 'swap'), cam: () => camFocus(S) };
     X.vehicle(S.veh);
     const F = S.fx = H.add({ key: 'fenrir', life: 1e9, entY: me.y, update(dt) { step(S, dt); }, drawUnder(c) { drawUnder(S, c); }, drawEnt(c) { drawEnt(S, c); }, draw(c) { drawOver(S, c); }, onEnd() { if (!S.released) release(S); } });
@@ -319,7 +331,7 @@
       if (c0 < 1 && S.charge >= 1) { const sfx = S.X.sfx || {}; if (sfx.note) [784, 1047, 1319, 1568].forEach((f, i) => sfx.note(f, 0.4, 'triangle', 0.07, f, i * 0.07)); S.X.text(S.V.x, S.V.y - 2.2, S.form === 'wolf' ? 'FROZEN READY' : 'DIAMOND DUST READY', ICE2, 15, { life: 1.4, max: 1.4, vy: -0.5 }); } }
     return dealt;
   }
-  function syncMe(S) { const me = S.me, V = S.V; me.x = V.x; me.y = V.y; me.vx = V.vx; me.vy = V.vy; me.z = 0; const c = Math.cos(V.heading); if (Math.abs(c) > 0.25) me.face = c > 0 ? 1 : -1; }
+  function syncMe(S) { const me = S.me, V = S.V; me.x = V.x; me.y = V.y; me.vx = V.vx; me.vy = V.vy; me.z = 0; me.airborne = !!(S.jump && S.jump.air); const c = Math.cos(V.heading); if (Math.abs(c) > 0.25) me.face = c > 0 ? 1 : -1; }
 
   /* ================= the ride: the motorcycle drives, the wolf runs (one model of motion, two sets of numbers) ================= */
   function ride(S, dt) {
@@ -348,7 +360,7 @@
   const dodgeCd = S => TUNE.drift.cd * (S.g.buff && S.g.buff.arcane > 0 ? 0.6 : 1) * (S.g.dodgeK || 1);
   function tryDrift(S, mx, my, queued) {
     const V = S.V, g = S.g, Dt = TUNE.drift;
-    if (S.phase !== 'ride' || S.busy || V.locked || S.drift) { if (!queued && (S.phase === 'ride' || S.phase === 'drift') && !(S.drift && S.drift.ph < 3)) S.dQ = g.t; return; }
+    if (S.phase !== 'ride' || S.busy || V.locked || S.drift || S.jump) { if (!queued && (S.phase === 'ride' || S.phase === 'drift') && !(S.drift && S.drift.ph < 3)) S.dQ = g.t; return; }   /* (in the air: it goes on landing) */
     if (S.cd.dodge > 0) { if (!queued && S.cd.dodge <= Dt.buf) S.dQ = g.t; return; }
     S.dQ = null;
     const mag = Math.hypot(mx, my); let dir;
@@ -418,13 +430,68 @@
   }
   function setMenu(S) { if (S.menu === S.form) return; S.menu = S.form; S.stats.menuSets++; }
 
+  /* ================= JUMP (both forms): the planned hop, the landing's frost shock ================= */
+  const JOFF = [0, 0.2, -0.2, 0.4, -0.4, 0.6, -0.6];
+  /* a landing: the whole body fits there (a prop it may smash is open: the landing breaks it), the pet could stand and walk from it */
+  function landOK(S, x, y, a) { if (poseBlocked((x2, y2, r) => blk(S, x2, y2, r), x, y, a)) return false; if (S.X.blocked(x, y, 0.38, 0) && !S.vs.smashable(Math.floor(x), Math.floor(y))) return false; if (!groundAt(S, x, y)) return false; const F = S.vs.flowAt ? S.vs.flowAt(x, y) : S.X.flowAt ? S.X.flowAt(x, y) : 0; return F < 9999; }
+  function planJump(S, dir, d0) {
+    const V = S.V, J = TUNE.jump, X = S.X, C = [];
+    for (const off of JOFF) { const a = wrap(dir + off), ca = Math.cos(a), sa = Math.sin(a); let lim = d0 + J.ext;
+      for (let st = 0.4; st <= lim + 0.21; st += 0.2) if (X.blocked(V.x + ca * st, V.y + sa * st, 0.4, 1)) { lim = st - 0.45; break; }   /* (walls and the map's edge stop it in the air) */
+      for (let st = 0; st <= lim + 1e-6; st += 0.25) C.push([(st >= d0 - 1e-6 ? st - d0 : 5 + (d0 - st) * 1.2) + Math.abs(off) * 3, st, a]); }
+    C.sort((p, q) => p[0] - q[0]);
+    for (const [, st, a] of C) { const x = V.x + Math.cos(a) * st, y = V.y + Math.sin(a) * st; if (st > 0.05 && !landOK(S, x, y, a)) continue; if (st <= 0.05) break; return { x, y, a, d: st, d0 }; }
+    return { x: V.x, y: V.y, a: V.heading, d: 0, d0, none: true };   /* (nowhere to land: a hop on the spot) */
+  }
+  function tryJump(S, mx, my, queued) {
+    const V = S.V, g = S.g, J = TUNE.jump; if (mx != null) { S.mx = mx; S.my = my; }
+    if (S.released || S.phase !== 'ride') return;   /* (never during a Drift, a finisher, the summon or the exit) */
+    if (S.jump) { if (!queued) S.jumpLand = true; return; }   /* (in the air: kept for the touchdown, never a jump in mid-air) */
+    if (S.busy || V.locked || S.drift) { if (!queued) S.jumpQ = g.t; return; }
+    S.jumpQ = null; S.jumpLand = false;
+    const mag = Math.hypot(S.mx, S.my), dir = mag > 0.2 ? Math.atan2(S.my, S.mx) : V.heading, v0 = Math.max(J.v, V.vx * Math.cos(dir) + V.vy * Math.sin(dir)), plan = planJump(S, dir, Math.min(J.max, v0 * J.ph[1]));
+    S.lastPlan = plan;
+    S.jump = { t: 0, x0: V.x, y0: V.y, a0: V.heading, x1: plan.x, y1: plan.y, a1: plan.d > 0.05 ? plan.a : V.heading, h: J.h[S.form === 'wolf' ? 1 : 0] * (plan.none ? 0.7 : 1), plan, air: false, form: S.form };
+    if (g.t - (S.invT == null ? -9 : S.invT) >= J.invLock) { S.me.inv = Math.max(S.me.inv || 0, J.inv); S.invT = g.t; S.stats.jumpInv++; }   /* (the take-off's short protection, at most once per invLock s: a chain of hops is not a shield) */
+    S.stats.jump++; g.movedOnce = true;
+    const sfx = S.X.sfx || {}; if (sfx.note) { sfx.note(S.form === 'wolf' ? 82 : 110, 0.2, 'triangle', 0.07, S.form === 'wolf' ? 60 : 180); } if (sfx.hiss) sfx.hiss(0.14, 0.05, 1800);
+  }
+  function stepJump(S, dt) {
+    const Jp = S.jump, V = S.V, J = TUNE.jump; Jp.t += dt;
+    if (Jp.t < J.ph[0]) { const k = Math.max(0, 1 - dt * 6); V.vx *= k; V.vy *= k; moveV(S, V.vx * dt, V.vy * dt); smashSweep(S); return; }   /* (the squat: animate() plays it) */
+    if (!Jp.air) { Jp.air = true; Jp.x0 = V.x; Jp.y0 = V.y; if (Jp.plan.none) { Jp.x1 = V.x; Jp.y1 = V.y; } const sfx = S.X.sfx || {}; if (sfx.whoosh) sfx.whoosh(); if (sfx.jump) sfx.jump();
+      addPart(S, 9, V.x, V.y, 0, 0, 0, 0, 0.35, 1.4); frost(S, V.x - Math.cos(V.heading) * 0.9, V.y - Math.sin(V.heading) * 0.7, 10, 4); kick(S, 'pitch', S.form === 'wolf' ? 2 : 4); }
+    const u = cl((Jp.t - J.ph[0]) / J.ph[1]);
+    V.x = lerp(Jp.x0, Jp.x1, u); V.y = lerp(Jp.y0, Jp.y1, u); V.vx = (Jp.x1 - Jp.x0) / J.ph[1]; V.vy = (Jp.y1 - Jp.y0) / J.ph[1]; V.speed = Math.hypot(V.vx, V.vy);
+    const a = Jp.a0 + wrap(Jp.a1 - Jp.a0) * sstep(0, 0.4, u); S.hw = dt > 0 ? wrap(a - V.heading) / dt : 0; V.heading = wrap(a);
+    V.z = 4 * Jp.h * u * (1 - u); S.prev.x = V.x; S.prev.y = V.y; S.prev.a = V.heading;
+    if (Math.random() < dt * (lowFx() ? 12 : 36)) addPart(S, 1, V.x + (Math.random() - 0.5) * 1.6, V.y + (Math.random() - 0.5) * 0.9, V.z + 0.3 + Math.random() * 0.6, -V.vx * 0.1, -V.vy * 0.1, -0.5, 0.4 + Math.random() * 0.3, 0.07, { col: Math.random() < 0.5 ? ICE2 : CYAN });
+    if (u >= 1) landJump(S);
+  }
+  function landJump(S) {
+    const Jp = S.jump; if (!Jp) return; S.jump = null;
+    const V = S.V, J = TUNE.jump, X = S.X; let x = Jp.x1, y = Jp.y1;
+    if (!Jp.plan.none && !landOK(S, x, y, V.heading)) { if (landOK(S, Jp.x0, Jp.y0, V.heading)) { x = Jp.x0; y = Jp.y0; } else { const p = safeReturn(S); x = p.x; y = p.y; } }   /* (the ground changed under the plan: back where it left, else the nearest safe ground) */
+    V.x = x; V.y = y; V.z = 0; S.hw = 0; S.me.airborne = false; S.lastLand = { x, y }; S.landT = S.g.t;
+    V.speed = Math.min(TUNE[S.form].top, Math.hypot(V.vx, V.vy)) * 0.8; V.vx = Math.cos(V.heading) * V.speed; V.vy = Math.sin(V.heading) * V.speed;   /* (it lands rolling) */
+    /* the landing's frost shock: one hit per monster in reach (it charges the gauge), the scenery inside it broken */
+    let n = 0; for (const m of S.H.living()) { if (Math.hypot(m.x - x, m.y - y) > J.r + (m.r || 0.4) * 0.85) continue; if (hitCharge(S, m, S.DK * J.dmg, { kb: J.kb, chill: true }) > 0) { S.stats.jumpHit++; frost(S, m.x, m.y, 5, 3); n++; } }
+    S.prev.x = x; S.prev.y = y; S.prev.a = V.heading; S.swT = 0; smashSweep(S); smashArea(S, x, y, J.r);
+    addPart(S, 9, x, y, 0, 0, 0, 0, 0.5, J.r * 1.05); addPart(S, 9, x, y, 0, 0, 0, 0, 0.75, J.r * 0.6); frost(S, x, y, lowFx() ? 10 : 24, 6);
+    for (let i = 0; i < (lowFx() ? 3 : 8); i++) { const a = Math.random() * TAU; addPart(S, 2, x + Math.cos(a) * 0.8, y + Math.sin(a) * 0.6, 0.1, Math.cos(a) * 2.5, Math.sin(a) * 2.5 * GY, 0.3, 0.6, 0.5, { grow: 1.5, drag: 2.5 }); }
+    X.light(x, y, 3, 0.2); kick(S, 'susp', 9); kick(S, 'crouch', 6); kick(S, 'pitch', -3); kick(S, 'z', -2.5);   /* (a heavy landing: the springs carry the compression back up) */
+    if (!calm()) X.shake(n ? 5 : 3.5, 0.15); const sfx = X.sfx || {}; if (sfx.stomp) sfx.stomp(); if (sfx.note) sfx.note(1319, 0.25, 'triangle', 0.05, 1976);
+    if (S.dQ != null) S.dQ = S.g.t; if (S.mvQ) S.mvQ.t = S.g.t; if (S.ultQ != null) S.ultQ = S.g.t;   /* (a Drift, a Strong or the Ult pressed in the air waited for this) */
+    if (S.jumpLand) { S.jumpLand = false; S.jumpQ = S.g.t; }   /* (pressed in the air: it goes again now) */
+  }
+
   /* ================= the commands ================= */
   function fresh(S, key) { const t = S.g.t, p = S.press[key]; S.press[key] = t; return t - p >= TUNE.freshGap; }
   function tryMove(S, slot, queued) {
     const V = S.V, g = S.g, sfx = S.X.sfx || {}, s2 = slot === 'strong2', key = s2 ? 's2' : 'cannon';
     if (!queued && !fresh(S, s2 ? 'strong2' : 'strong')) return;
     if (S.phase !== 'ride' && S.phase !== 'drift') return;
-    if (S.phase === 'drift' || S.busy || V.locked) { if (!queued) S.mvQ = { slot, t: g.t }; return; }
+    if (S.phase === 'drift' || S.busy || V.locked || S.jump) { if (!queued) S.mvQ = { slot, t: g.t }; return; }
     if (S.cd[key] > 0) { if (!queued) { if (S.cd[key] <= TUNE.mvHold) S.mvQ = { slot, t: g.t }; else if (sfx.wrong) sfx.wrong(); } return; }
     S.mvQ = null;
     const name = !s2 ? 'iceCannon' : S.form === 'bike' ? 'somersault' : 'spinningWheel', [MV, fn] = mvFn(name); if (!fn) return;
@@ -439,7 +506,7 @@
     if (S.phase !== 'ride' && S.phase !== 'drift') return;
     const name = S.form === 'wolf' ? 'Frozen' : 'Diamond Dust';
     if (S.used || S.charge < 1) { if (!queued) { if (sfx.wrong) sfx.wrong(); X.text(V.x, V.y - 2, S.used ? name + ' used' : `${name} ${Math.floor(S.charge * 100)}%`, ICE, 12, { life: 0.9, max: 0.9, vy: -0.6 }); } return; }
-    if (S.phase === 'drift' || S.busy || V.locked) { if (!queued) S.ultQ = g.t; return; }   /* (a Drift or a Strong in progress: it goes when that ends, in the form it ends in) */
+    if (S.phase === 'drift' || S.busy || V.locked || S.jump) { if (!queued) S.ultQ = g.t; return; }   /* (a Drift or a Strong in progress: it goes when that ends, in the form it ends in) */
     const key = S.form === 'wolf' ? 'frozen' : 'fenrirDust', FM = moves(), fnName = S.form === 'wolf' ? 'frozen' : typeof FM.diamondDust === 'function' ? 'diamondDust' : 'fenrirDust', [MV, fn] = mvFn(fnName);
     S.ultQ = null; S.used = true; S.phase = 'finisher'; S.t = 0; S.busy = key; S.busyT = 0; S.busyForm = S.form; V.locked = true; V.speed = 0; V.vx = V.vy = 0; S.spin = 0;
     S.ctx.finisher = key; S.ctx[S.form === 'wolf' ? 'frozen' : 'dust'] = true; S.stats[S.form === 'wolf' ? 'frozen' : 'dust']++;
@@ -450,7 +517,8 @@
     if (S.phase === 'finisher' || kind === 'frozen' || kind === 'fenrirDust') { S.cam = null; startOut(S, 'finisher'); return; }
     if (S.phase === 'ride' || S.phase === 'drift') { V.locked = false; V.z = 0; S.cam = null; }
   }
-  function queues(S) { const g = S.g, V = S.V; if (S.busy || V.locked || S.drift) return;
+  function queues(S) { const g = S.g, V = S.V; if (S.busy || V.locked || S.drift || S.jump) return;
+    if (S.jumpQ != null) { const q = S.jumpQ; S.jumpQ = null; if (g.t - q <= TUNE.jump.buf + 0.35) { tryJump(S, null, null, true); if (S.jump) return; } }
     if (S.ultQ != null) { const q = S.ultQ; S.ultQ = null; if (g.t - q < 2 && S.charge >= 1 && !S.used) { tryUlt(S, true); if (S.phase !== 'ride') return; } }
     if (S.dQ != null && S.cd.dodge <= 0) { const q = S.dQ; S.dQ = null; if (g.t - q < 0.6) { tryDrift(S, S.mx, S.my, true); if (S.drift) return; } }
     if (S.mvQ) { const Q = S.mvQ, key = Q.slot === 'strong2' ? 's2' : 'cannon'; if (g.t - Q.t > TUNE.mvHold + 1.6) S.mvQ = null; else if (S.cd[key] <= 0) { S.mvQ = null; tryMove(S, Q.slot, true); } } }
@@ -471,7 +539,7 @@
       S.left = Math.min(S.left - dt, S.endT - g.t); S.stats.rideT += dt; S.stats[S.form + 'T'] += dt;   /* (the game clock: a hit-stop, which pauses this step, still counts) */
       if (S.left <= 0) { startOut(S, 'timeout'); return; }   /* (the timeout wins: a Drift not yet complete does not switch, a Strong's later hits are dropped, no free finisher) */
       if (S.busy && S.busyT > TUNE.busyCap) actionDone(S);
-      if (S.drift) stepDrift(S, dt);
+      if (S.jump) stepJump(S, dt); else if (S.drift) stepDrift(S, dt);
       else { ride(S, dt); queues(S); }
     } else if (S.phase === 'finisher') { if (S.t > TUNE.finCap) { S.busy = null; startOut(S, 'finisher'); return; } smashSweep(S); }
     else if (S.phase === 'out') stepOut(S, dt);
@@ -497,7 +565,7 @@
   /* ---- exits: the pet set down on valid ground beside it, the body cracks and dissolves, the controls restored, the cooldown ---- */
   function startOut(S, how) {
     if (S.phase === 'out' || S.released) return;
-    const V = S.V; S.drift = null; S.spin = 0; S.busy = null; S.mvQ = null; S.dQ = null; S.ultQ = null;
+    const V = S.V; S.drift = null; S.spin = 0; S.busy = null; S.mvQ = null; S.dQ = null; S.ultQ = null; S.jump = null; S.jumpQ = null; S.jumpLand = false; S.me.airborne = false;
     S.outHow = how || 'timeout'; S.fromPhase = S.phase; S.phase = 'out'; S.t = 0; S.outT = 0; V.locked = true; V.vx = V.vy = 0; V.speed = 0; V.z = 0; S.cam = null; S.ctx.finisher = null;
     V.pose.xf = S.form === 'wolf' ? 1 : 0;   /* (a Drift cut short settles back to the form it had) */
     /* the dismount: a step off to the side nearest open ground */
@@ -512,7 +580,7 @@
     if (!S.hopped) { S.hopped = true; S.petHop = 0; const sfx = S.X.sfx || {}; if (sfx.jump) sfx.jump(); }
     S.petHop += dt; const u = cl(S.petHop / TUNE.hop); me.x = lerp(V.x, S.ret.x, u); me.y = lerp(V.y, S.ret.y, u); me.vx = me.vy = 0;
     if (S.petHop > TUNE.hop) { const gone = V.vis < 0.05 || (P.alpha || 0) < 0.02 && S.outV == null, v = gone ? 1 : (S.outV = cl((S.petHop - TUNE.hop) / TUNE.dissolve));
-      if (!gone) { S.outCrack = sstep(0, 0.55, v); P.alpha = 1 - sstep(0.45, 1, v); S.eCh = { o: { crack: S.outCrack }, t: S.g.t };
+      if (!gone) { S.outCrack = sstep(0, 0.55, v); P.alpha = 1 - sstep(0.45, 1, v); S.eCh = { o: { crack: S.outCrack, crystalGlow: 1 - sstep(0, 0.8, v) }, t: S.g.t };   /* (the crystals' glow dies as it cracks and dissolves) */
         if (Math.random() < dt * (lowFx() ? 25 : 70)) { const a = Math.random() * TAU, r = Math.random() * 1.6; addPart(S, Math.random() < 0.7 ? 1 : 2, V.x + Math.cos(a) * r, V.y + Math.sin(a) * r * GY, Math.random() * 1.4, Math.cos(a) * 1.2, Math.sin(a) * 0.9, 0.4 + Math.random() * 1.2, 0.6 + Math.random() * 0.5, 0.1, { col: Math.random() < 0.5 ? ICE : ICE2, grow: 1.3, drag: 1 }); } }
       if (v >= 1) release(S); }
   }
@@ -525,7 +593,7 @@
   /* the one guarded cleanup path: the controls, the camera, the cooldown, once */
   function release(S) {
     if (S.released) return;
-    S.released = true; S.ended = true; S.relT = 0;
+    S.released = true; S.ended = true; S.relT = 0; S.jump = null; S.jumpQ = null;
     const me = S.me, g = S.g, X = S.X;
     if (S.ret && S.phase === 'out') { me.x = S.ret.x; me.y = S.ret.y; }
     if (!canStand(S, me.x, me.y)) { const p = safeReturn(S); me.x = p.x; me.y = p.y; }
@@ -594,7 +662,7 @@
   }
 
   /* ================= the HUD: one contextual menu (Drift; Ice Cannon; Somersault / Spinning Wheel; Diamond Dust / Frozen),
-     the summon timer apart from the gauge. No Jump button ================= */
+     the summon timer apart from the gauge; Jump above Drift, in both forms ================= */
   const rgba = (h, a) => { const [r, g, b] = hexRGB(h); return `rgba(${r},${g},${b},${cl(a)})`; };
   function drawBtns(S, c, o) {
     const { B, blitC, hudPic, glowPic } = o, t = S.g.t, wolf = (S.menu || S.form) === 'wolf', idle = (S.phase !== 'ride' && S.phase !== 'drift') || (S.V.locked && !S.busy), ic = moves().icons || null;
@@ -608,6 +676,7 @@
     btn(B.s[0], 'iceCannon', 'ICE CANNON', S.cd.cannon, M2.cannon || TUNE.cannonCd, paintCannonBtn, S.busy === 'iceCannon');
     if (wolf) btn(B.s[1], 'spinningWheel', 'SPINNING WHEEL', S.cd.s2, M2.s2 || TUNE.s2Cd, paintWheelBtn, S.busy === 'spinningWheel'); else btn(B.s[1], 'somersault', 'SOMERSAULT', S.cd.s2, M2.s2 || TUNE.s2Cd, paintSomersaultBtn, S.busy === 'somersault');
     btn(B.d, wolf ? 'driftWolf' : 'driftBike', 'DRIFT', S.cd.dodge, S.cdDodgeMax || TUNE.drift.cd, wolf ? paintDriftWolfBtn : paintDriftBikeBtn, !!S.drift);
+    if (B.j) btn(B.j, wolf ? 'jumpWolf' : 'jumpBike', 'JUMP', 0, 1, wolf ? paintJumpWolfBtn : paintJumpBikeBtn, !!S.jump);
     /* the Ult: the finisher of the form in play, its gauge as a ring, the summon timer as an outer arc with the seconds */
     { const b = B.u, full = S.charge >= 1 && !S.used, k = S.used ? 1 : S.charge, fin = S.phase === 'finisher', name = wolf ? 'FROZEN' : 'DIAMOND DUST';
       if (full || fin) { const pl = 0.5 + 0.5 * Math.sin(t * 6); c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.5 + 0.35 * pl; blitC(c, glowPic(glowSprite, ICE, Math.round(b.r * (2.1 + 0.25 * pl) * 4) / 4), b.x, b.y); c.restore(); }
@@ -638,6 +707,10 @@
   function driftArc(x, r, rd) { x.strokeStyle = rd ? ICE2 : 'rgba(207,243,255,.35)'; x.lineWidth = r * 0.1; x.lineCap = 'round'; x.beginPath(); x.arc(-r * 0.05, r * 0.05, r * 0.46, Math.PI * 0.75, Math.PI * 1.85); x.stroke(); shard(x, r * 0.42, r * 0.02, r * 0.34, r * 0.1, rd); shard(x, r * 0.24, r * 0.06, r * 0.22, r * 0.08, rd); }
   function paintDriftBikeBtn(x, cx, cy, r, rd) { x.save(); x.translate(cx, cy); x.globalAlpha = rd ? 1 : 0.55; driftArc(x, r, rd); x.fillStyle = rd ? SILV : '#69727E'; x.beginPath(); x.ellipse(-r * 0.05, r * 0.2, r * 0.15, r * 0.12, 0, 0, TAU); x.fill(); for (const [dx, dy] of [[-0.2, 0.02], [-0.08, -0.04], [0.05, -0.02], [0.14, 0.08]]) { x.beginPath(); x.arc(dx * r, dy * r, r * 0.055, 0, TAU); x.fill(); } x.restore(); }
   function paintDriftWolfBtn(x, cx, cy, r, rd) { x.save(); x.translate(cx, cy); x.globalAlpha = rd ? 1 : 0.55; driftArc(x, r, rd); wheelG(x, -r * 0.05, r * 0.12, r * 0.2, rd); x.restore(); }
+  /* Jump: an arc of frost off a ring of light, the wheel (motorcycle) or the paw (wolf) at its top */
+  function jumpArc(x, r, rd) { x.strokeStyle = rd ? CYAN : 'rgba(95,242,255,.3)'; x.lineWidth = 2; x.beginPath(); x.ellipse(0, r * 0.48, r * 0.5, r * 0.15, 0, 0, TAU); x.stroke(); x.strokeStyle = rd ? ICE2 : 'rgba(207,243,255,.35)'; x.lineWidth = r * 0.09; x.lineCap = 'round'; x.beginPath(); x.moveTo(-r * 0.42, r * 0.42); x.quadraticCurveTo(-r * 0.3, -r * 0.3, r * 0.02, -r * 0.3); x.stroke(); shard(x, -r * 0.2, r * 0.5, r * 0.22, r * 0.07, rd); shard(x, r * 0.28, r * 0.5, r * 0.16, r * 0.06, rd); }
+  function paintJumpBikeBtn(x, cx, cy, r, rd) { x.save(); x.translate(cx, cy); x.globalAlpha = rd ? 1 : 0.55; jumpArc(x, r, rd); x.translate(r * 0.18, -r * 0.18); x.rotate(-0.5); wheelG(x, -r * 0.2, 0, r * 0.15, rd); wheelG(x, r * 0.22, 0, r * 0.15, rd); x.fillStyle = rd ? SILV : '#69727E'; x.fillRect(-r * 0.22, -r * 0.17, r * 0.46, r * 0.1); x.restore(); }
+  function paintJumpWolfBtn(x, cx, cy, r, rd) { x.save(); x.translate(cx, cy); x.globalAlpha = rd ? 1 : 0.55; jumpArc(x, r, rd); x.translate(r * 0.2, -r * 0.2); x.fillStyle = rd ? SILV : '#69727E'; x.beginPath(); x.ellipse(0, r * 0.08, r * 0.16, r * 0.13, 0, 0, TAU); x.fill(); for (const [dx, dy] of [[-0.17, -0.08], [-0.06, -0.15], [0.07, -0.14], [0.17, -0.05]]) { x.beginPath(); x.arc(dx * r, dy * r, r * 0.055, 0, TAU); x.fill(); } x.restore(); }
   function paintUltFace(x, cx, cy, r, full) { const g = x.createRadialGradient(cx - r * 0.3, cy - r * 0.35, r * 0.1, cx, cy, r); g.addColorStop(0, full ? '#2E64B8' : '#1E2A3C'); g.addColorStop(0.6, full ? '#0E2A66' : '#101824'); g.addColorStop(1, '#03060C'); x.fillStyle = g; x.beginPath(); x.arc(cx, cy, r, 0, TAU); x.fill(); }
   /* Diamond Dust: concentric crystals round a bright core */
   function paintDustBtn(x, cx, cy, r, full) { x.save(); x.translate(cx, cy); for (const [rr, n, h] of [[0.5, 10, 0.2], [0.3, 6, 0.24]]) for (let i = 0; i < n; i++) { const a = i / n * TAU + rr; shard(x, Math.cos(a) * r * rr, Math.sin(a) * r * rr * 0.75 + r * 0.12, r * h, r * 0.07, full); }
@@ -664,5 +737,5 @@
     PUMP = () => requestAnimationFrame(() => setTimeout(() => { const n = nowMs(), gap = n - last; last = n; if (slice(gap < 20 ? 3 : gap < 34 ? 1.6 : 0.8)) { PUMP = null; return; } PUMP(); }, 0));
     PUMP(); }, 300); };
   U.fenrir.TUNE = TUNE; U.fenrir.CLIPS = CLIPS;
-  U.fenrir.__dbg = { TUNE, CLIPS, SPR, STUB, STUBM, MOD, moves, safeReturn, target, switchForm, startOut, finish };
+  U.fenrir.__dbg = { planJump, landOK, TUNE, CLIPS, SPR, STUB, STUBM, MOD, moves, safeReturn, target, switchForm, startOut, finish };
 })();
