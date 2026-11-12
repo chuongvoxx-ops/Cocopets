@@ -70,7 +70,8 @@ const ELEM_MOVES = {
     ['fujin', 'Fujin', 'lance', 100, 22, 'Your pet conjures a spear of emerald light, wrapped in a flowing ribbon, and leaps into spear-first dives that each land harder: 3 dives, 5 at Adept, 7 at Celestial.'],
     ['flowerhurricane', 'Flower Hurricane', 'spin', 95, 20, 'A storm of pink flowers bursts from a wreath round you and whirls through the monsters, every blossom cutting as it passes: 6 s, 8 s at Adept, 10 s at Celestial.'],
     ['breathofthewild', 'Breath of the Wild', 'leaf', 100, 120, 'A flowering meadow stirred by gentle winds grows round you for 20 s; every second it heals all your pets standing in it.'],
-    ['terribletornado', 'Terrible Tornado', 'spin', 100, 22, 'Enormous flower-laden tornadoes rise ahead of you and sweep across the battlefield: 1, 3 at Adept, 6 at Celestial.'] ] },
+    ['terribletornado', 'Terrible Tornado', 'spin', 100, 22, 'Enormous flower-laden tornadoes rise ahead of you and sweep across the battlefield: 1, 3 at Adept, 6 at Celestial.'],
+    ['belladonna', 'Belladonna', 'flower', 100, 120, 'Your pet blooms into Belladonna, floating at the heart of an enormous flower under a spinning ring of eight swords, and flies freely for 20 s (25 s at Adept, 35 s at Celestial). Dodge becomes Swoosh, a spinning pass round enemies; the Strongs become Wildflowers, a hurricane of pink blossoms, and Ring Blade, which hurls the ring and its swords. Damage fills the Twister gauge: six tornadoes of wind and flowers.'] ] },
   light: { strong: [
     ['honeyheart', 'Honey Sugar Heart Attack', 'burst', 24, 2.4, 'You push great glowing heart outlines forward; each breaks open in a burst of pink light: 1, 2 at Adept, 3 at Celestial.'],
     ['luvchain', 'Luv Me Luv Me Chain', 'orbit', 24, 2.6, 'A chain of glowing heart links whips the monsters in sweeping lashes: 2, 3 at Adept, 5 at Celestial, longer as it grows.'],

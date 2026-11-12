@@ -105,7 +105,7 @@ const GLM = (() => {
         const at = (i, j) => G[Math.max(0, Math.min(nv, j)) * (nu + 1) + Math.max(0, Math.min(nu, i))];
         for (let j = 0; j <= nv; j++) for (let i = 0; i <= nu; i++) { const a = at(i + 1, j), b = at(i - 1, j), c2 = at(i, j + 1), d = at(i, j - 1), du = [a[0] - b[0], a[1] - b[1], a[2] - b[2]], dv = [c2[0] - d[0], c2[1] - d[1], c2[2] - d[2]];
           let n = [du[1] * dv[2] - du[2] * dv[1], du[2] * dv[0] - du[0] * dv[2], du[0] * dv[1] - du[1] * dv[0]]; if (o.flip) n = [-n[0], -n[1], -n[2]];
-          vtx(at(i, j), n, m(i / nu, j / nv), o.e ? o.e(i / nu, j / nv) : 0); }
+          const ax0 = AUX; if (o.a) AUX = o.a(i / nu, j / nv); vtx(at(i, j), n, m(i / nu, j / nv), o.e ? o.e(i / nu, j / nv) : 0); AUX = ax0; }   // (o.e: the second attribute; o.a: the third, else the current AUX)
         for (let j = 0; j < nv; j++) for (let i = 0; i < nu; i++) { const a = base + j * (nu + 1) + i; if (o.flip) quad(a, a + nu + 1, a + nu + 2, a + 1); else quad(a, a + 1, a + nu + 2, a + nu + 1); }
         return B; },
       /* an outline (2D points in the frame's x-y plane, star-shaped about its centroid) extruded along z from z0 to z1;
@@ -131,12 +131,14 @@ const GLM = (() => {
   let gl = null, cv = null, prog = null, failed = false, lost = false, isGL2 = false, soft = false, U = {}, AT = {}, gen = 0, ext32 = null;
   const VS = `
 attribute vec3 aP; attribute vec3 aN; attribute vec3 aA;
-uniform vec3 uR0, uR1, uR2, uT, uPX, uPY, uPD; uniform vec4 uCl;
+uniform vec3 uR0, uR1, uR2, uT, uPX, uPY, uPD, uOutV; uniform vec4 uCl;
 varying vec3 vW, vN, vL, vNL, vA;
 void main() {
   vec3 w = uR0 * aP.x + uR1 * aP.y + uR2 * aP.z + uT;
   vW = w; vN = uR0 * aN.x + uR1 * aN.y + uR2 * aN.z; vL = aP; vNL = aN; vA = aA;
-  gl_Position = vec4(dot(w, uPX) * uCl.x + uCl.y, dot(w, uPY) * uCl.z + uCl.w, 0.5 - dot(w, uPD) * 0.06, 1.0);
+  vec4 p = vec4(dot(w, uPX) * uCl.x + uCl.y, dot(w, uPY) * uCl.z + uCl.w, 0.5 - dot(w, uPD) * 0.06, 1.0);
+  if (uOutV.z > 0.0) { vec2 d = vec2(dot(vN, uPX), dot(vN, uPY)); float l = length(d); if (l > 1e-5) p.xy += d / l * vec2(uOutV.x, -uOutV.y); p.z += uOutV.z; }   // (the outline pass: the hull pushed out a fixed number of pixels along the normal as seen, and back in depth)
+  gl_Position = p;
 }`;
   const FS = `
 #ifdef GL_FRAGMENT_PRECISION_HIGH
@@ -146,7 +148,7 @@ precision mediump float;
 #endif
 varying vec3 vW, vN, vL, vNL, vA;
 uniform vec3 uV, uLK, uLS, uLR, uUP;
-uniform float uGlow, uAlpha, uKind, uLow, uWear, uFx, uGlow2, uSpill;
+uniform float uGlow, uAlpha, uKind, uLow, uWear, uFx, uGlow2, uSpill, uTime; uniform vec4 uOutF;
 uniform vec3 uRim, uAmb;
 float hs(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vn(vec2 p) { vec2 i = floor(p), f = p - i; vec2 u = f * f * (3.0 - 2.0 * f); return mix(mix(hs(i), hs(i + vec2(1.0, 0.0)), u.x), mix(hs(i + vec2(0.0, 1.0)), hs(i + vec2(1.0, 1.0)), u.x), u.y); }
@@ -159,10 +161,29 @@ float env(vec3 r, float rough, out float ec) {
   float rr = dot(r, uLR); ec = smoothstep(0.62 - w * 1.5, 0.97 - w * 0.5, rr) / (1.0 + rough * 2.0);
   return e;
 }
+// cel shading (ids 30..35): three designed bands (shadow, midtone, light) with soft joins, and a little gradient inside
+// each so a curved surface keeps its volume; lit returns 0 shadow .. 0.5 midtone .. 1 light
+vec3 cel3(vec3 sh, vec3 md, vec3 li, vec3 n, out float lit) {
+  float hm = 0.5 + 0.5 * dot(n, uUP), x = dot(n, uLK) * 0.8 + (hm - 0.5) * 0.3, b = 0.5 * smoothstep(-0.12, -0.04, x) + 0.5 * smoothstep(0.42, 0.52, x); lit = b;
+  vec3 c = b < 0.5 ? mix(sh, md, b * 2.0) : mix(md, li, b * 2.0 - 1.0); return c * (0.88 + 0.2 * hm + 0.08 * clamp(x, -1.0, 1.0)) * uAmb; }
+float celSpec(vec3 n, float tight) { vec3 hh = normalize(uLK + uV); return smoothstep(tight, tight + 0.012, dot(n, hh)); }
+vec3 celRim(vec3 n) { float ndv = max(0.0, dot(n, uV)); return smoothstep(0.62, 0.72, 1.0 - ndv) * max(0.0, dot(n, uLR) + 0.3) * uRim * 0.22; }
+// soft plant tissue (petals, leaves, tentacles): wrapped key light, sky/ground ambient, light coming through from behind
+// (trans), a broad or tight highlight (gloss, glossK), the rim light
+vec3 petalLit(vec3 alb, vec3 n, vec3 trans, float gloss, float glossK) {
+  float ndl = dot(n, uLK), wrap = max(0.0, (ndl + 0.45) / 1.45), ndv = max(0.0, dot(n, uV)), hm = 0.5 + 0.5 * dot(n, uUP);
+  vec3 amb = mix(vec3(0.22, 0.16, 0.26), vec3(0.66, 0.64, 0.8), hm) * uAmb;
+  float back = max(0.0, -ndl) * (0.45 + 0.55 * pow(max(0.0, dot(uV, -uLK)), 2.0));
+  vec3 hh = normalize(uLK + uV); float nh = max(0.0, dot(n, hh));
+  vec3 c = alb * (wrap * vec3(1.5, 1.42, 1.36) + amb) + trans * (back * 0.95 + 0.1 * (1.0 - wrap));
+  c += pow(nh, gloss) * glossK * max(0.0, ndl + 0.2) * vec3(1.0, 0.98, 0.95);
+  c += pow(1.0 - ndv, 3.0) * max(0.0, dot(n, uLR) + 0.35) * uRim * 0.35;
+  return c; }
 // (uFx: a frost that cracks across every surface - a summon freezing over as it leaves)
 vec3 frostFx(vec3 c, vec3 L) { if (uFx <= 0.0) return c; float w = vn(L.xy * 5.0 + L.z * 3.0), c1 = abs(fract(dot(L, vec3(4.3, 2.9, 3.7)) + w * 1.8) - 0.5), c2 = abs(fract(dot(L, vec3(-3.1, 5.2, 2.2)) + w * 1.4) - 0.5);
   float k = smoothstep(0.5 * uFx, 0.0, min(c1, c2)) * min(1.0, uFx * 2.0); return mix(c, vec3(0.82, 0.93, 1.05) * (0.7 + 0.5 * w), min(1.0, k + uFx * uFx * 0.6)); }
 void main() {
+  if (uOutF.a > 0.0) { gl_FragColor = vec4(uOutF.rgb * uAlpha, uAlpha); return; }
   int id = int(vA.x + 0.5); float edge = vA.y, ao = vA.z;
   vec3 n = normalize(vN); if (dot(n, uV) < -0.02) n = -n;   // (a surface seen from inside, a thin shell: face the viewer)
   vec3 L = vL, NL = normalize(vNL);
@@ -228,6 +249,81 @@ void main() {
     vec3 c = frostFx((vec3(0.3, 0.16, 1.7) + vec3(0.3, 0.32, 0.3) * pow(ndv, 8.0)) * k * fl * g * 0.85, L); gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
   else if (id == 21) { float h = clamp(L.x * -2.4 - 0.9 + 0.5 * vn(L.yz * 14.0), 0.0, 1.0);   // heat-tinted steel (an exhaust tip): straw to purple to blue
     alb = mix(vec3(0.3, 0.3, 0.32), mix(vec3(0.5, 0.36, 0.12), vec3(0.2, 0.14, 0.5), smoothstep(0.3, 0.9, h)), smoothstep(0.0, 0.3, h)) * 0.6; F0 = mix(vec3(0.9, 0.9, 0.93), mix(vec3(1.0, 0.75, 0.35), vec3(0.45, 0.4, 1.0), smoothstep(0.3, 0.9, h)), smoothstep(0.0, 0.3, h)); rough = 0.2; }
+  else if (id >= 22 && id <= 26) {   // ---- plant tissue. Petals and leaves: vA.y = along the blade (0 root, 1 tip), vA.z = across it (0.5 the midrib)
+    float al = clamp(edge, 0.0, 1.0), ac = clamp(ao, 0.0, 1.0), d = abs(ac - 0.5) * 2.0, under = dot(normalize(vN), uV) < -0.02 ? 1.0 : 0.0, ndv = max(0.0, dot(n, uV)); vec3 c;
+    if (id == 22) {   // a leaf: emerald to spring green, a pale-gold midrib and side veins, waxy, lit yellow-green from behind
+      vec3 alb = mix(vec3(0.012, 0.15, 0.055), vec3(0.2, 0.55, 0.1), smoothstep(0.0, 1.0, al + 0.2 * (vn(vec2(al * 9.0, ac * 6.0)) - 0.5)));
+      float mid = smoothstep(0.075 * (1.0 - 0.6 * al), 0.0, d), sf = abs(fract(al * 8.0 - d * 1.9) - 0.5), side = smoothstep(0.07, 0.0, sf) * (1.0 - d * 0.55) * step(0.04, d), fine = smoothstep(0.1, 0.0, abs(fract(al * 31.0 - d * 5.0 + ac * 13.0) - 0.5)) * 0.25;
+      alb = mix(alb, vec3(0.78, 0.72, 0.36), min(1.0, mid * 0.9 + side * 0.5)) * (1.0 - fine * 0.25) * (1.0 - 0.45 * under) * (0.82 + 0.18 * (1.0 - d * d));
+      n = normalize(n + (vec3(vn(L.yz * 17.0), vn(L.zx * 17.0 + 3.0), vn(L.xy * 17.0 + 7.0)) - 0.5) * 0.12);
+      c = petalLit(alb, n, vec3(0.5, 0.75, 0.08), 70.0, 0.55 * (1.0 - under));
+      vec3 r = 2.0 * ndv * n - uV; float e2; float ce = env(r, 0.08, e2); c += (0.04 + 0.96 * pow(1.0 - ndv, 5.0)) * (ce + e2) * 0.4 * (1.0 - under); }
+    else if (id == 23) {   // a pink petal: deep rose in the fold, rich pink, blush at the ruffled edge; fine veins; satin; glows warm pink from behind
+      float t2 = max(al, d * 0.92 * smoothstep(0.1, 0.6, al));
+      vec3 alb = mix(mix(vec3(0.42, 0.0, 0.09), vec3(1.0, 0.1, 0.36), smoothstep(0.0, 0.5, al)), vec3(1.0, 0.56, 0.7), smoothstep(0.66, 1.0, t2)) * (0.72 + 0.28 * smoothstep(0.0, 0.3, al));
+      float vv = smoothstep(0.16, 0.0, abs(fract((ac - 0.5) * (22.0 - 9.0 * al) + 0.5 + 0.25 * vn(vec2(al * 7.0, ac * 3.0))) - 0.5)) * (1.0 - 0.6 * al);
+      alb *= (1.0 - 0.2 * vv) * (1.0 - 0.3 * under) * (0.9 + 0.2 * vn(vec2(ac * 40.0, al * 5.0)));
+      c = petalLit(alb, n, vec3(1.0, 0.3, 0.48), 9.0, 0.34) + pow(1.0 - ndv, 2.5) * vec3(0.55, 0.22, 0.34) * 0.4; c = mix(vec3(dot(c, vec3(0.3, 0.5, 0.2))), c, 1.18);
+      c += uGlow * vec3(1.15, 0.42, 0.6) * pow(1.0 - al, 2.0) * (0.8 + 0.4 * (1.0 - d)); }
+    else if (id == 24) {   // a pearl petal: white, ivory toward the root, a pink bounce, an iridescent sheen at grazing angles
+      vec3 alb = mix(vec3(0.9, 0.7, 0.6), vec3(0.94, 0.94, 0.96), smoothstep(0.0, 0.62, al)) * (0.74 + 0.26 * smoothstep(0.0, 0.5, al)) * (1.0 - 0.14 * d * d * (1.0 - 0.5 * al));   // (pink-ivory and shaded toward the base and the sides: neighbours read apart)
+      alb *= (1.0 - 0.1 * smoothstep(0.2, 0.0, abs(fract((ac - 0.5) * 16.0 + 0.5) - 0.5)) * (1.0 - al)) * (1.0 - 0.2 * under);
+      c = petalLit(alb, n, vec3(1.0, 0.8, 0.78), 16.0, 0.4) + alb * 0.07; float fr = pow(1.0 - ndv, 2.2);
+      c += (0.5 + 0.5 * cos(6.2832 * (fr * 1.4 + al * 0.6 + vec3(0.0, 0.33, 0.67)))) * fr * 0.4 + vec3(0.12, 0.02, 0.05) * (1.0 - (0.5 + 0.5 * dot(n, uUP)));
+      c += uGlow * vec3(1.1, 1.0, 0.85) * (0.22 + 0.6 * pow(1.0 - al, 2.0)); }
+    else if (id == 25) {   // a green tentacle (a tube: its own normal runs the veins length-wise): a paler belly, a soft sheen
+      float belly = smoothstep(0.15, -0.7, dot(n, uUP)), vs = smoothstep(0.5, 0.72, vn(NL.xy * 8.0 + NL.z * 6.0));
+      vec3 alb = mix(vec3(0.03, 0.27, 0.07), vec3(0.42, 0.62, 0.22), belly) * (1.0 - 0.3 * vs) * (0.85 + 0.3 * vn(L.xy * 9.0 + L.z * 5.0));
+      c = petalLit(alb, n, vec3(0.4, 0.65, 0.08), 28.0, 0.45) + pow(1.0 - ndv, 3.0) * vec3(0.2, 0.45, 0.15) * 0.4; }
+    else {                 // a white tentacle: pearl, a cool rim
+      vec3 alb = vec3(0.9, 0.9, 0.9) * (0.9 + 0.1 * smoothstep(0.5, 0.72, vn(NL.xy * 8.0 + NL.z * 6.0))) - vec3(0.0, 0.02, 0.06) * smoothstep(0.15, -0.7, dot(n, uUP));
+      c = petalLit(alb, n, vec3(0.9, 0.85, 0.8), 30.0, 0.5) + pow(1.0 - ndv, 2.4) * vec3(0.45, 0.75, 1.1) * 0.6 + uGlow * vec3(0.3, 0.5, 0.4) * 0.3; }
+    c = frostFx(c, L); gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
+  else if (id >= 30 && id <= 35) {   // ---- premium cel shading (Jaws). vA.y = 1 at a panel line or a plate's edge; vA.z = 1 sound paint, 0 worn to bare metal
+    float lit, ndv = max(0.0, dot(n, uV)), hm = 0.5 + 0.5 * dot(n, uUP); vec3 c, r = 2.0 * ndv * n - uV;
+    float line = smoothstep(0.82, 0.95, edge), scr = 0.0;
+    if (uLow < 0.5) { float s1 = abs(fract(L.x * 11.0 + L.y * 7.0 + L.z * 5.0 + vn(L.xz * 4.0) * 2.5) - 0.5); if (s1 < 0.012 && hs(vec2(floor(L.x * 11.0 + L.y * 7.0 + L.z * 5.0), floor(L.z * 5.0))) > 0.6) scr = 1.0; }   // (fine scratches)
+    if (id == 30) {   // cobalt paint: three blue bands, a tight gloss band and a soft sky band, panel variation, panel lines, chips to bare metal beside edges
+      vec3 cell = floor(L * 2.6 + 0.5); float pv = hs(cell.xy + cell.z * 7.3) - 0.5;
+      c = cel3(vec3(0.016, 0.06, 0.27), vec3(0.035, 0.2, 0.72), vec3(0.14, 0.4, 1.0), n, lit) * (1.0 + 0.12 * pv);
+      c += celSpec(n, 0.955) * vec3(0.5, 0.72, 1.0) * 0.45 + smoothstep(0.3, 0.36, r.z) * (1.0 - smoothstep(0.52, 0.6, r.z)) * vec3(0.1, 0.22, 0.4) * (0.4 + 0.6 * lit);
+      float chip = smoothstep(0.64, 0.72, vn(L.xy * 23.0 + L.z * 17.0) * (0.3 + 0.62 * smoothstep(0.55, 0.85, edge)) + (1.0 - clamp(ao, 0.0, 1.0)) * 0.75) * (1.0 - line) * (1.0 - uLow);   // (chips only beside a panel line or where vA.z marks a worn edge)
+      vec3 bare = cel3(vec3(0.2, 0.22, 0.27), vec3(0.55, 0.58, 0.63), vec3(0.95, 0.96, 1.0), n, lit); c = mix(c, bare, chip * uWear);
+      c = mix(c, c * 1.5 + 0.06, scr * 0.5) * (1.0 - 0.8 * line) + celRim(n); }
+    else if (id == 31) {   // chrome: a stylised sky and ground with a hard horizon, one sharp key band, brushed machining
+      float t = r.z + 0.1 * (vn(vec2(L.x * 2.0, (L.y + L.z) * 60.0)) - 0.5) * (1.0 - uLow);
+      vec3 sky = mix(vec3(0.82, 0.9, 0.98), vec3(0.2, 0.36, 0.72), smoothstep(0.1, 0.9, t)), gnd = mix(vec3(0.15, 0.18, 0.27), vec3(0.44, 0.48, 0.58), smoothstep(-0.9, -0.05, t));
+      c = mix(gnd, sky, smoothstep(-0.03, 0.03, t)) + smoothstep(0.0, 0.03, t) * (1.0 - smoothstep(0.09, 0.14, t)) * 0.3;
+      cel3(vec3(0.0), vec3(0.5), vec3(1.0), n, lit); c *= 0.7 + 0.45 * lit; c += celSpec(n, 0.94) * 0.9 + smoothstep(0.8, 0.83, dot(r, uLS)) * 0.25;
+      c = mix(c, c * 0.7, scr * 0.5) * (1.0 - 0.75 * line) + celRim(n); }
+    else if (id == 32) {   // dark steel: recessed machinery, matte, a cyan bounce from the emitters near it (spill)
+      c = cel3(vec3(0.012, 0.016, 0.03), vec3(0.045, 0.055, 0.08), vec3(0.11, 0.13, 0.17), n, lit) * (0.85 + 0.3 * vn(L.xy * 14.0 + L.z * 9.0));
+      c *= 1.0 - 0.35 * step(0.62, fract((L.x + L.z * 0.35) * 18.0)) * (1.0 - uLow); c += celSpec(n, 0.9) * 0.1 + vec3(0.03, 0.42, 0.62) * uSpill * (0.2 + 0.5 * (1.0 - hm)) * (0.6 + 0.4 * lit);
+      c *= 1.0 - 0.7 * line; }
+    else if (id == 33) {   // reactor cyan: water-energy with its structure showing: bands flowing along the mesh's own x, cell walls, a darker limb
+      float f = fract(L.x * 3.2 - uTime * 0.7 + 0.25 * vn(L.yz * 5.0)), bandf = smoothstep(0.0, 0.12, f) * (1.0 - smoothstep(0.55, 0.95, f)), wall = smoothstep(0.42, 0.5, abs(fract(atan(L.z, L.y) * 1.2732 + 0.5) - 0.5)), g = 0.45 + 1.0 * uGlow;
+      float cau = vn(vec2(L.x * 9.0 - uTime * 1.6, atan(L.z, L.y) * 3.0)), fine = smoothstep(0.62, 0.8, cau);
+      c = mix(vec3(0.0, 0.13, 0.34), vec3(0.08, 0.75, 1.15), bandf) * (0.5 + 0.5 * ndv) + vec3(0.6, 0.95, 1.0) * fine * bandf * 0.6;
+      c = c * g * (1.0 - 0.72 * wall) * (1.0 - 0.6 * line) + vec3(0.02, 0.2, 0.3) * pow(1.0 - ndv, 2.0); }
+    else if (id == 34) {   // a tooth: off-white enamel-chrome, hard bands, a sharp glint
+      c = cel3(vec3(0.42, 0.47, 0.6), vec3(0.8, 0.83, 0.87), vec3(1.0, 1.0, 0.97), n, lit) + celSpec(n, 0.93) * 0.6 + smoothstep(0.0, 0.04, r.z) * (1.0 - smoothstep(0.1, 0.16, r.z)) * vec3(0.12, 0.16, 0.22);
+      c = c * (1.0 - 0.6 * line) + celRim(n); }
+    else {                 // canopy glass: dark blue, semi-gloss: a hard sky reflection, a glint streak, a lighter limb
+      c = cel3(vec3(0.004, 0.012, 0.045), vec3(0.01, 0.035, 0.11), vec3(0.03, 0.09, 0.24), n, lit);
+      c += smoothstep(0.25, 0.3, r.z) * (1.0 - smoothstep(0.62, 0.7, r.z)) * vec3(0.12, 0.28, 0.52) * (0.5 + 0.5 * lit) + celSpec(n, 0.985) * vec3(0.9, 0.97, 1.0) + smoothstep(0.55, 0.75, 1.0 - ndv) * vec3(0.05, 0.18, 0.32) + vec3(0.02, 0.2, 0.3) * uSpill * 0.4;
+      c *= 1.0 - 0.7 * line; }
+    c = frostFx(c, L); gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
+  else if (id == 27) { alb = vec3(0.52, 0.47, 0.34); F0 = vec3(1.0, 0.94, 0.8); rough = 0.13;   // the ring's metal (its axis the mesh's own z): pale gold-white, an engraved vine with green enamel leaves
+    float ang = atan(L.y, L.x), fu = fract(ang / 6.2832 * 18.0), v = clamp(L.z * 10.0, -1.0, 1.0), wv = 0.42 * sin(fu * 6.2832);
+    if (abs(v - wv) < 0.07) { cav += 0.75; rough = 0.3; alb *= 0.35; F0 *= 0.3; }                                             // (the stem)
+    vec2 lf = vec2((fract(fu * 2.0) - 0.5) * 1.7, v - wv - 0.3 * (fu < 0.5 ? 1.0 : -1.0)); float le = dot(lf * vec2(1.0, 2.6), lf * vec2(1.0, 2.6));
+    if (le < 0.16) { alb = vec3(0.012, 0.32, 0.13) * (0.7 + 0.6 * step(abs(lf.x * 0.35 + lf.y), 0.03)); F0 = vec3(0.07); rough = 0.12; metal = 0.0; coat = 1.0; if (le > 0.12) cav += 0.6; }   // (a leaf of enamel, its rim cut in)
+    if (abs(abs(v) - 0.86) < 0.035) cav += 0.6; }                                                     // (a bead line near each edge)
+  else if (id == 28) { float ang = atan(L.y, L.x), ndv = max(0.0, dot(n, uV)), fl = 0.62 + 0.38 * sin(ang * 9.0 - uTime * 3.2 + 3.0 * vn(vec2(ang * 3.0, uTime * 0.7))), sp = vn(vec2(ang * 30.0 - uTime * 6.0, L.z * 20.0));   // mint energy, flowing round the ring
+    vec3 c = frostFx((vec3(0.5, 1.5, 0.95) * fl + vec3(0.9, 1.0, 0.95) * (pow(ndv, 3.0) * 0.6 + smoothstep(0.7, 0.95, sp) * 0.7)) * (0.45 + 1.15 * uGlow), L); gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
+  else if (id == 29) { alb = vec3(0.34, 0.36, 0.37); F0 = vec3(0.95, 0.97, 0.97); rough = 0.07;   // a sword's blade: pale mirror steel, a fuller line, a luminous mint edge (vA.y = 1 at the cutting edges, 0 at the spine)
+    float eg = smoothstep(0.6, 1.0, edge); em = vec3(0.35, 1.35, 0.85) * (eg * eg * (0.55 + 1.3 * uGlow) + 0.06 * uGlow);
+    if (edge > 0.1 && edge < 0.16) { cav += 0.7; rough = 0.2; } rough *= 0.8 + 0.5 * vn(L.xy * 40.0 + L.z * 3.0); }
   else { coat = 1.0; }
   // surface detail, from the part's own coordinates (it stays on the part as it moves)
   if (metal > 0.5 && uLow < 0.5) { float s1 = abs(fract(L.x * 13.0 + L.y * 8.0 + L.z * 5.0 + vn(L.xz * 4.0) * 2.5) - 0.5);
@@ -278,7 +374,7 @@ void main() {
     const p = gl.createProgram(); gl.attachShader(p, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, FS));
     gl.bindAttribLocation(p, 0, 'aP'); gl.bindAttribLocation(p, 1, 'aN'); gl.bindAttribLocation(p, 2, 'aA'); gl.linkProgram(p);
     if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error('GLM link: ' + gl.getProgramInfoLog(p));
-    prog = p; U = {}; for (const n of ['uR0', 'uR1', 'uR2', 'uT', 'uPX', 'uPY', 'uPD', 'uCl', 'uV', 'uLK', 'uLS', 'uLR', 'uUP', 'uGlow', 'uAlpha', 'uKind', 'uFx', 'uRim', 'uAmb', 'uLow', 'uWear', 'uGlow2', 'uSpill']) U[n] = gl.getUniformLocation(p, n);
+    prog = p; U = {}; for (const n of ['uR0', 'uR1', 'uR2', 'uT', 'uPX', 'uPY', 'uPD', 'uCl', 'uV', 'uLK', 'uLS', 'uLR', 'uUP', 'uGlow', 'uAlpha', 'uKind', 'uFx', 'uRim', 'uAmb', 'uLow', 'uWear', 'uGlow2', 'uSpill', 'uTime', 'uOutV', 'uOutF']) U[n] = gl.getUniformLocation(p, n);
     ext32 = isGL2 ? true : gl.getExtension('OES_element_index_uint'); gen++;
   }
   /* is WebGL ready (made on first call)? */
@@ -304,10 +400,13 @@ void main() {
     return M.gl;
   }
   /* refresh a mesh's attributes (occlusion) after it changed */
+  /* touchGeo(M): a mesh whose positions and normals were rewritten in place (a tube rebuilt along a moving curve) */
+  function touchGeo(M) { if (M.gl && gl && M.gl.gen === gen) { gl.bindBuffer(gl.ARRAY_BUFFER, M.gl.p); gl.bufferData(gl.ARRAY_BUFFER, M.pos, gl.DYNAMIC_DRAW); gl.bindBuffer(gl.ARRAY_BUFFER, M.gl.n); gl.bufferData(gl.ARRAY_BUFFER, M.nrm, gl.DYNAMIC_DRAW); } }
   function touch(M) { if (M.gl && gl && M.gl.gen === gen) { gl.bindBuffer(gl.ARRAY_BUFFER, M.gl.a); gl.bufferData(gl.ARRAY_BUFFER, M.att, gl.STATIC_DRAW); } }
   /* render a frame: W x H pixels; S = { px, py, pd (projection rows), cl ([ax, bx, ay, by]), v, lk, ls, lr, up, low };
      items: [{ mesh, R0, R1, R2, T (part -> world), alpha, glow, kind, wear }] (opaque ones first). Returns the canvas. */
   let calls = 0, tris = 0, LX = null; const RIM0 = [0.8, 0.55, 1.45], AMB0 = [1, 1, 1];   // (the defaults: Susano O's violet rim)
+  const OUTC = [0.012, 0.03, 0.1];
   function render(W, H, S, items) {
     if (!ok()) return null;
     if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
@@ -315,9 +414,18 @@ void main() {
     gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL); gl.disable(gl.CULL_FACE); gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
     gl.useProgram(prog);
     gl.uniform3fv(U.uPX, S.px); gl.uniform3fv(U.uPY, S.py); gl.uniform3fv(U.uPD, S.pd); gl.uniform4fv(U.uCl, S.cl);
-    gl.uniform3fv(U.uV, S.v); gl.uniform3fv(U.uLK, S.lk); gl.uniform3fv(U.uLS, S.ls); gl.uniform3fv(U.uLR, S.lr); gl.uniform3fv(U.uUP, S.up); gl.uniform1f(U.uLow, S.low ? 1 : 0); gl.uniform3fv(U.uRim, S.rim || RIM0); gl.uniform3fv(U.uAmb, S.amb || AMB0);
+    gl.uniform3fv(U.uV, S.v); gl.uniform3fv(U.uLK, S.lk); gl.uniform3fv(U.uLS, S.ls); gl.uniform3fv(U.uLR, S.lr); gl.uniform3fv(U.uUP, S.up); gl.uniform1f(U.uLow, S.low ? 1 : 0); gl.uniform1f(U.uTime, S.t || 0); gl.uniform3fv(U.uRim, S.rim || RIM0); gl.uniform3fv(U.uAmb, S.amb || AMB0);
     gl.enableVertexAttribArray(0); gl.enableVertexAttribArray(1); gl.enableVertexAttribArray(2);
     calls = 0; tris = 0; let lastM = null;
+    const bindM = g => { if (lastM !== g) { gl.bindBuffer(gl.ARRAY_BUFFER, g.p); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0); gl.bindBuffer(gl.ARRAY_BUFFER, g.n); gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0); gl.bindBuffer(gl.ARRAY_BUFFER, g.a); gl.vertexAttribPointer(2, 3, gl.FLOAT, false, 0, 0); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, g.i); lastM = g; } };
+    // the outline (S.outline: its thickness in pixels of this image; off when absent): every opaque item that has not opted out
+    // (item.outline === false) is drawn first as a hull pushed out along its normals by that many pixels and set back in
+    // depth, in one flat colour (S.outlineCol, a dark blue by default); the items then draw over their own hulls
+    if (S.outline > 0) { const oc = S.outlineCol || OUTC; gl.uniform3f(U.uOutV, 2 * S.outline / W, 2 * S.outline / H, S.outlineBias || 0.006); gl.uniform4f(U.uOutF, oc[0], oc[1], oc[2], 1); gl.depthMask(true);
+      for (const it of items) { if (it.outline === false || !(it.alpha > 0.6)) continue; const g = upload(it.mesh); if (!g) continue; bindM(g);
+        gl.uniform3fv(U.uR0, it.R0); gl.uniform3fv(U.uR1, it.R1); gl.uniform3fv(U.uR2, it.R2); gl.uniform3fv(U.uT, it.T); gl.uniform1f(U.uAlpha, it.alpha > 0.995 ? 1 : it.alpha);
+        gl.drawElements(gl.TRIANGLES, g.n3, g.it, 0); calls++; tris += g.n3 / 3; } }
+    gl.uniform3f(U.uOutV, 0, 0, 0); gl.uniform4f(U.uOutF, 0, 0, 0, 0);
     for (const it of items) { const g = upload(it.mesh); if (!g) continue;
       if (lastM !== g) { gl.bindBuffer(gl.ARRAY_BUFFER, g.p); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0); gl.bindBuffer(gl.ARRAY_BUFFER, g.n); gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0); gl.bindBuffer(gl.ARRAY_BUFFER, g.a); gl.vertexAttribPointer(2, 3, gl.FLOAT, false, 0, 0); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, g.i); lastM = g; }
       gl.uniform3fv(U.uR0, it.R0); gl.uniform3fv(U.uR1, it.R1); gl.uniform3fv(U.uR2, it.R2); gl.uniform3fv(U.uT, it.T);
@@ -327,5 +435,14 @@ void main() {
     gl.depthMask(true);
     return cv;
   }
-  return { builder, ok, render, touch, get stats() { return { calls, tris, gl2: isGL2, lost, failed, soft }; }, get soft() { return soft; }, get canvas() { return cv; }, loseForTest() { LX = gl && gl.getExtension('WEBGL_lose_context'); if (LX) LX.loseContext(); return !!LX; }, restoreForTest() { if (LX) LX.restoreContext(); } };
+  /* halos(c, list): soft feathered light discs composited with 'lighter' over what is drawn (a ring's, a blade edge's, a
+     flower's inner glow). list = [{ x, y, r, a, col, sy }] in the canvas's own units: r the radius, a the strength 0..1, col a
+     '#RRGGBB' (see HALO for the stock ones), sy an optional vertical squash (an ellipse on the floor plane). */
+  const HALO = { mint: '#7CFFC4', pink: '#FF7EB0', pearl: '#FFF1DC', gold: '#FFD98A', ice: '#3FA8FF', engine: '#6A4DFF' }, HSPR = {};
+  function haloSprite(col) { let s = HSPR[col]; if (s) return s; if (typeof document === 'undefined') return null; s = document.createElement('canvas'); s.width = s.height = 64; const g = s.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    gr.addColorStop(0, col); gr.addColorStop(0.35, col + '88'); gr.addColorStop(0.7, col + '22'); gr.addColorStop(1, col + '00'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return (HSPR[col] = s); }
+  function halos(c, list) { if (!list || !list.length) return; c.save(); c.globalCompositeOperation = 'lighter';
+    for (const h of list) { const a = Math.max(0, Math.min(1, h.a == null ? 0.3 : h.a)); if (!(a > 0.004) || !(h.r > 0)) continue; const sp = haloSprite(HALO[h.col] || h.col || HALO.mint); if (!sp) break; const ry = h.r * (h.sy == null ? 1 : h.sy); c.globalAlpha = a; c.drawImage(sp, h.x - h.r, h.y - ry, h.r * 2, ry * 2); }
+    c.restore(); }
+  return { builder, ok, render, touch, touchGeo, halos, HALO, get stats() { return { calls, tris, gl2: isGL2, lost, failed, soft }; }, get soft() { return soft; }, get canvas() { return cv; }, loseForTest() { LX = gl && gl.getExtension('WEBGL_lose_context'); if (LX) LX.loseContext(); return !!LX; }, restoreForTest() { if (LX) LX.restoreContext(); } };
 })();
