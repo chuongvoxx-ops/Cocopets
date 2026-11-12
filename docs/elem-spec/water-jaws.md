@@ -92,7 +92,7 @@ Control	Jaws	Leviathan
 Movement	Free flight and steering	Hold position; turn to aim
 Dodge	Maw	Hydrojet
 Strong attack 1	Water Ray	Depth Charge
-Strong attack 2	Rolling Wave	Maelstrom
+Strong attack 2	Water Bombs	Maelstrom
 Ultimate	Shark Attack gauge and activation	The same gauge and activation
 Additional form command	Anchor	Release
 
@@ -172,17 +172,15 @@ Leave a Tidal Pool at the valid impact surface, subject to the three-pool rules.
 
 Preserve existing tuning. If no value exists, the earlier two-second cooldown remains a provisional starting point.
 
-Rolling Wave: shark strong attack 2
+Water Bombs: shark strong attack 2
 
-The shark coils its body and flicks its tail, releasing a thick rolling wave.
+(Changed by the user: "Change Rolling Wave to Water Bombs: Jaws will throw 7 water bombs at enemies, the bomb explode into water splash dealing water damages.")
 
-Give it a dark-blue body, translucent turquoise edges, a curling crest, foam and trailing spray.
+Jaws lobs 7 water bombs in a quick volley from its mouth. Each targets an enemy in range, spread round-robin over the nearest enemies (one enemy takes all seven; seven enemies take one each); with no enemy in range they land in a fan ahead of the shark.
 
-The wave travels across the battlefield, damages enemies once as it passes and pushes movable targets toward the aimed location. Support aiming the wave to gather enemies into a Tidal Pool.
+Each bomb is a tumbling glowing blue-white sphere of water with a short trail on an arcing lob, leading a moving target slightly.
 
-Respect boss and enemy displacement resistance while preserving ordinary Water damage.
-
-If cast from height, connect the tail motion to the battlefield through a descending sheet of water that becomes the travelling wave.
+Each bomb bursts into a water splash (a crown of spray, a ring wave on the floor, droplets, a brief flash) and deals one Water damage event to every enemy inside its splash. Bombs charge the finisher and break props like the other attacks. It can be cast while flying.
 
 Preserve existing tuning. If no value exists, the earlier four-second cooldown remains a provisional starting point.
 
@@ -240,7 +238,7 @@ Shared Shark Attack gauge
 
 Use one continuous finisher gauge for the entire summon.
 
-Charge it from actual enemy damage dealt by Maw, Water Ray, Rolling Wave, Depth Charge, empowered geysers and Maelstrom.
+Charge it from actual enemy damage dealt by Maw, Water Ray, Water Bombs, Depth Charge, empowered geysers and Maelstrom.
 
 Count each resolved damage event once after mitigation and exclude overkill. Movement, Anchor, Release, pool creation and cosmetic effects grant no charge.
 
@@ -314,7 +312,7 @@ Preserve normal cooldown progression. Keep encounter clocks independent of summo
 
 Sound, performance and verification
 
-Use distinct sound identities: mechanical air-swimming, a jaw snap and heavy splash for Maw, pressure charging for Water Ray, rushing surf for Rolling Wave, locking mechanisms for Anchor, short violent jets for Hydrojet, a deep cannon discharge for Depth Charge and spiralling suction for Maelstrom.
+Use distinct sound identities: mechanical air-swimming, a jaw snap and heavy splash for Maw, pressure charging for Water Ray, a volley of lobbed splashes for Water Bombs, locking mechanisms for Anchor, short violent jets for Hydrojet, a deep cannon discharge for Depth Charge and spiralling suction for Maelstrom.
 
 Shark Attack should build from an underwater hush into a huge surge and decisive bite.
 

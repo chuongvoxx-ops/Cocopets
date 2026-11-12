@@ -164,8 +164,8 @@ float env(vec3 r, float rough, out float ec) {
 // cel shading (ids 30..35): three designed bands (shadow, midtone, light) with soft joins, and a little gradient inside
 // each so a curved surface keeps its volume; lit returns 0 shadow .. 0.5 midtone .. 1 light
 vec3 cel3(vec3 sh, vec3 md, vec3 li, vec3 n, out float lit) {
-  float hm = 0.5 + 0.5 * dot(n, uUP), x = dot(n, uLK) * 0.8 + (hm - 0.5) * 0.3, b = 0.5 * smoothstep(-0.12, -0.04, x) + 0.5 * smoothstep(0.42, 0.52, x); lit = b;
-  vec3 c = b < 0.5 ? mix(sh, md, b * 2.0) : mix(md, li, b * 2.0 - 1.0); return c * (0.88 + 0.2 * hm + 0.08 * clamp(x, -1.0, 1.0)) * uAmb; }
+  float hm = 0.5 + 0.5 * dot(n, uUP), x = dot(n, uLK) * 0.8 + (hm - 0.5) * 0.3, b = 0.5 * smoothstep(0.02, 0.09, x) + 0.5 * smoothstep(0.5, 0.57, x); lit = b;   // (a clear shadow band, a crisp light band)
+  vec3 c = b < 0.5 ? mix(sh, md, b * 2.0) : mix(md, li, b * 2.0 - 1.0); return c * (0.84 + 0.24 * hm + 0.12 * clamp(x, -1.0, 1.0)) * uAmb; }
 float celSpec(vec3 n, float tight) { vec3 hh = normalize(uLK + uV); return smoothstep(tight, tight + 0.012, dot(n, hh)); }
 vec3 celRim(vec3 n) { float ndv = max(0.0, dot(n, uV)); return smoothstep(0.62, 0.72, 1.0 - ndv) * max(0.0, dot(n, uLR) + 0.3) * uRim * 0.22; }
 // soft plant tissue (petals, leaves, tentacles): wrapped key light, sky/ground ambient, light coming through from behind
@@ -282,27 +282,28 @@ void main() {
     c = frostFx(c, L); gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
   else if (id >= 30 && id <= 36) {   // ---- premium cel shading (Jaws). vA.y = 1 at a panel line or a plate's edge; vA.z = 1 sound paint, 0 worn to bare metal
     float lit, ndv = max(0.0, dot(n, uV)), hm = 0.5 + 0.5 * dot(n, uUP); vec3 c, r = 2.0 * ndv * n - uV;
-    float line = smoothstep(0.82, 0.95, edge), scr = 0.0;
+    float line = smoothstep(0.82, 0.95, edge), scr = 0.0, occ = 1.0 - 0.3 * smoothstep(0.35, 0.8, edge) * (1.0 - line);   // (occ: the recess beside a panel line or a plate's step is in shade)
     if (uLow < 0.5) { float s1 = abs(fract(L.x * 11.0 + L.y * 7.0 + L.z * 5.0 + vn(L.xz * 4.0) * 2.5) - 0.5); if (s1 < 0.012 && hs(vec2(floor(L.x * 11.0 + L.y * 7.0 + L.z * 5.0), floor(L.z * 5.0))) > 0.6) scr = 1.0; }   // (fine scratches)
     if (id == 30) {   // cobalt paint: three blue bands, a tight gloss band and a soft sky band, panel variation, panel lines, chips to bare metal beside edges
       vec3 cell = floor(L * 2.6 + 0.5); float pv = hs(cell.xy + cell.z * 7.3) - 0.5;
-      c = cel3(vec3(0.016, 0.06, 0.27), vec3(0.035, 0.2, 0.72), vec3(0.14, 0.4, 1.0), n, lit) * (1.0 + 0.12 * pv);
+      c = cel3(vec3(0.012, 0.045, 0.22), vec3(0.03, 0.16, 0.62), vec3(0.12, 0.37, 0.96), n, lit) * (1.0 + 0.18 * pv) * occ;
       c += celSpec(n, 0.955) * vec3(0.5, 0.72, 1.0) * 0.45 * (1.0 - 0.8 * smoothstep(0.7, 0.95, dot(n, uUP))) + smoothstep(0.3, 0.36, r.z) * (1.0 - smoothstep(0.52, 0.6, r.z)) * vec3(0.1, 0.22, 0.4) * (0.4 + 0.6 * lit);
       float chip = smoothstep(0.64, 0.72, vn(L.xy * 23.0 + L.z * 17.0) * (0.3 + 0.62 * smoothstep(0.55, 0.85, edge)) + (1.0 - clamp(ao, 0.0, 1.0)) * 0.75) * (1.0 - line) * (1.0 - uLow);   // (chips only beside a panel line or where vA.z marks a worn edge)
       vec3 bare = cel3(vec3(0.2, 0.22, 0.27), vec3(0.55, 0.58, 0.63), vec3(0.95, 0.96, 1.0), n, lit); c = mix(c, bare, chip * uWear);
-      c = min(c, vec3(0.2, 0.5, 1.25)); c = mix(c, c * 1.5 + 0.06, scr * 0.5) * (1.0 - 0.8 * line) + celRim(n); }   // (a ceiling: a flat fin square to the light stays cobalt)
+      c = min(c, vec3(0.17, 0.44, 1.12)); c = mix(c, c * 1.5 + 0.06, scr * 0.5) * (1.0 - 0.8 * line) + celRim(n); }   // (a ceiling: a flat fin square to the light stays cobalt)
     else if (id == 31) {   // chrome: a stylised sky and ground with a hard horizon, one sharp key band, brushed machining
-      float t = r.z + 0.1 * (vn(vec2(L.x * 2.0, (L.y + L.z) * 60.0)) - 0.5) * (1.0 - uLow);
-      vec3 sky = mix(vec3(0.82, 0.9, 0.98), vec3(0.2, 0.36, 0.72), smoothstep(0.1, 0.9, t)), gnd = mix(vec3(0.15, 0.18, 0.27), vec3(0.44, 0.48, 0.58), smoothstep(-0.9, -0.05, t));
-      c = mix(gnd, sky, smoothstep(-0.03, 0.03, t)) + smoothstep(0.0, 0.03, t) * (1.0 - smoothstep(0.09, 0.14, t)) * 0.3;
+      float t = r.z + 0.045 * (vn(vec2(L.x * 2.0, (L.y + L.z) * 60.0)) - 0.5) * (1.0 - uLow);
+      vec3 sky = mix(vec3(0.86, 0.93, 1.0), vec3(0.18, 0.34, 0.72), smoothstep(0.08, 0.85, t)), gnd = mix(vec3(0.07, 0.09, 0.15), vec3(0.4, 0.44, 0.54), smoothstep(-0.9, -0.04, t));
+      c = mix(gnd, sky, smoothstep(-0.025, 0.025, t)) + smoothstep(0.0, 0.025, t) * (1.0 - smoothstep(0.07, 0.11, t)) * 0.42 + smoothstep(0.4, 0.48, t) * (1.0 - smoothstep(0.56, 0.66, t)) * 0.14;   // (a hard horizon, a hot line over it, a soft second band higher up)
+      vec3 cell = floor(L * 3.0 + 0.5); c *= 0.93 + 0.14 * hs(cell.xy + cell.z * 5.1); c *= occ;
       cel3(vec3(0.0), vec3(0.5), vec3(1.0), n, lit); c *= 0.7 + 0.45 * lit; c += celSpec(n, 0.94) * 0.9 + smoothstep(0.8, 0.83, dot(r, uLS)) * 0.25;
-      c = mix(c, c * 0.7, scr * 0.5) * (1.0 - 0.75 * line) + celRim(n); }
+      c = mix(c, c * 0.7, scr * 0.6) * (1.0 - 0.75 * line) + celRim(n); }
     else if (id == 32) {   // dark steel: recessed machinery, matte, a cyan bounce from the emitters near it (spill)
-      c = cel3(vec3(0.012, 0.016, 0.03), vec3(0.045, 0.055, 0.08), vec3(0.11, 0.13, 0.17), n, lit) * (0.85 + 0.3 * vn(L.xy * 14.0 + L.z * 9.0));
+      c = cel3(vec3(0.01, 0.013, 0.026), vec3(0.042, 0.05, 0.075), vec3(0.12, 0.14, 0.19), n, lit) * (0.85 + 0.3 * vn(L.xy * 14.0 + L.z * 9.0)) * occ; c *= 1.0 - 0.18 * smoothstep(0.35, 0.5, abs(fract(length(L.yz) * 30.0) - 0.5)) * (1.0 - uLow);   // (turned machining rings)
       c *= 1.0 - 0.35 * step(0.62, fract((L.x + L.z * 0.35) * 18.0)) * (1.0 - uLow); c += celSpec(n, 0.9) * 0.1 + vec3(0.03, 0.42, 0.62) * uSpill * (0.2 + 0.5 * (1.0 - hm)) * (0.6 + 0.4 * lit);
       c *= 1.0 - 0.7 * line; }
     else if (id == 33) {   // reactor cyan: water-energy with its structure showing: bands flowing along the mesh's own x, cell walls, a darker limb
-      float f = fract(L.x * 3.2 - uTime * 0.7 + 0.25 * vn(L.yz * 5.0)), bandf = smoothstep(0.0, 0.12, f) * (1.0 - smoothstep(0.55, 0.95, f)), wall = smoothstep(0.42, 0.5, abs(fract(atan(L.z, L.y) * 1.2732 + 0.5) - 0.5)), g = 0.45 + 1.0 * uGlow;
+      float f = fract(L.x * 3.2 - uTime * 0.7 + 0.25 * vn(L.yz * 5.0)), bandf = smoothstep(0.0, 0.12, f) * (1.0 - smoothstep(0.55, 0.95, f)), wall = smoothstep(0.42, 0.5, abs(fract(atan(L.z, L.y) * 1.2732 + 0.5) - 0.5)), g = 0.6 + 1.15 * uGlow;
       float cau = vn(vec2(L.x * 9.0 - uTime * 1.6, atan(L.z, L.y) * 3.0)), fine = smoothstep(0.62, 0.8, cau);
       c = mix(vec3(0.0, 0.13, 0.34), vec3(0.08, 0.75, 1.15), bandf) * (0.5 + 0.5 * ndv) + vec3(0.6, 0.95, 1.0) * fine * bandf * 0.6;
       c = c * g * (1.0 - 0.72 * wall) * (1.0 - 0.6 * line) + vec3(0.02, 0.2, 0.3) * pow(1.0 - ndv, 2.0); }

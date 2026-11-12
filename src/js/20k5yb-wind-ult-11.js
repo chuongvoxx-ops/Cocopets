@@ -39,7 +39,8 @@
     cd: 120,                    /* s: the Ult's cooldown, from the exit (the kit row's own cd is used when present) */
     size: 1,                    /* a multiplier on the model's own scale (the pink bloom about 5.5 tiles across) */
     petH: 0.7,                  /* the pet's height at the flower's heart, tiles */
-    zoom: 0.8, camLift: 1.2,    /* the camera's zoom; how far above the model's centre it aims, so the ring stays on the screen (the whole assembly: about 8 tiles wide, 9 tall) */
+    viewW: 9.5,                 /* tiles across a 390-wide phone view at zoom 1 */
+    zoom: 0.8, camLift: 1.2,    /* the camera's zoom and lift at v318's full-size model (leaves 9.5 tiles across); camOf() rescales both from the model's SIZE, so a smaller flower is framed as closely, up to the game's own zoom 1 */
     /* the summon: the seal, the four leaves, the pink flower, the white flower, the tentacles, the ring, the lift-off */
     summon: 3.0,
     sum: { seal: [0, 0.5], leaves: [0.3, 1.0], bloom: [0.75, 1.5], white: [1.25, 1.75], tentG: [1.5, 2.2], tentW: [1.75, 2.4], ring: [2.05, 2.6], lift: [2.35, 3.0] },
@@ -94,6 +95,10 @@
         if (!(P.ringAway > 0.5)) { const p = A.ring; ringAt(c, o.sx(p.x), o.sy(p.y) - p.z * ZK * T, T, P, s, al); } },
     };
   })();
+  /* the framing for the model as it is now: the zoom that keeps the assembly filling the view as it did at v318 (capped at the game's 1), the lift scaled with it */
+  function camOf(M0) { let Z = null, Lf = null; try { const SZ = M0 && M0.SIZE; if (SZ) { if (+SZ.tentSpan > 1) Z = clamp(TUNE.viewW / SZ.tentSpan, TUNE.zoom, 1); else if (+SZ.leafSpan > 1) Z = clamp(TUNE.zoom * 9.5 / SZ.leafSpan, TUNE.zoom, 1); if (+SZ.ringH > 0.5) Lf = clamp(0.25 * SZ.ringH, 0.4, 1.4); } } catch (e) { Z = null; }
+    /* (the green tendrils' tip-to-tip span fills the phone's width: 9.5 tiles at zoom 1 on a 390-wide view; the lift keeps the ring on the screen) */
+    return { zoom: Z == null ? TUNE.zoom : Z, lift: Lf == null ? TUNE.camLift : Lf }; }
   const MOD = () => (typeof BELLADONNA_MODEL !== 'undefined' && BELLADONNA_MODEL && BELLADONNA_MODEL.draw ? BELLADONNA_MODEL : STUBM);
 
   /* ================= E's moves (looked up at call time), or stubs so the flow can run ================= */
@@ -138,52 +143,81 @@
   function spring(S, key, target, w, z, dt) { const A = S.an; let s = A[key]; if (!s) s = A[key] = { x: target, v: 0 }; if (!isFinite(s.x) || !isFinite(s.v)) { s.x = target; s.v = 0; }
     let left = Math.min(dt, 0.1); while (left > 1e-5) { const h = Math.min(left, 1 / 120); s.v += (-2 * z * w * s.v - w * w * (s.x - target)) * h; s.x += s.v * h; left -= h; } return s.x; }
   const kick = (S, key, dv) => { const s = S.an[key]; if (s) s.v += dv; };
-  const SPR = { bloom: [7, 0.5], leaves: [6, 0.55], white: [8, 0.5], tentG: [5, 0.6], tentW: [6, 0.55], ring: [9, 0.5], ringTilt: [5, 0.35], ringGlow: [10, 0.7], fold: [9, 0.6], bank: [7, 0.45], lean: [7, 0.5], yaw: [6, 0.55],
-    accX: [5.2, 0.28], accY: [5.2, 0.28], glow: [8, 0.8], brace: [9, 0.55], z: [8, 0.5] };
-  const TG = () => ({ bloom: 1, leaves: 1, white: 1, tentG: 1, tentW: 1, ring: 1, ringTilt: 0, ringGlow: 0.6, fold: 0, bank: 0, lean: 0, yaw: 0, accX: 0, accY: 0, glow: 0.5, brace: 0, z: 0, spinV: 1.5, swayV: 1.6 });
+  const SPR = { bloom: [7.5, 0.34], leaves: [5.5, 0.32], white: [8.5, 0.32], tentG: [4.6, 0.3], tentW: [5.6, 0.28], ring: [9, 0.32], ringTilt: [4.5, 0.25], ringGlow: [10, 0.7], fold: [9, 0.45], bank: [6, 0.28], lean: [6, 0.3], yaw: [5, 0.32],
+    accX: [4.4, 0.2], accY: [4.4, 0.2], glow: [8, 0.8], brace: [9, 0.4], z: [7, 0.32] };
+  const TG = () => ({ shiver: 0, tremble: 0, bloom: 1, leaves: 1, white: 1, tentG: 1, tentW: 1, ring: 1, ringTilt: 0, ringGlow: 0.6, fold: 0, bank: 0, lean: 0, yaw: 0, accX: 0, accY: 0, glow: 0.5, brace: 0, z: 0, spinV: 1.5, swayV: 1.6 });
   /* the action clips E plays with ctx.clip(name, u, extra) (u 0..1 each frame while it lasts); also ctx.pose */
   const CLIPS = {
     /* Wildflowers' cast: the pink bloom gathers a breath, then opens wider than its rest and glows */
-    cast(G, u) { const a = bump(u, 0, 0.25, 0.4), o = sstep(0.3, 0.6, u); G.bloom = 1 - 0.12 * a + 0.25 * o; G.glow = 0.6 + 0.9 * o + 0.6 * bump(u, 0.3, 0.55, 0.9); G.fold = 0; G.lean -= 0.1 * o; G.tentW = 1 + 0.08 * o; G.ringGlow = 1; G.swayV = 2.2; },
+    cast(G, u) { const a = bump(u, 0, 0.22, 0.34), o = outBack(cl((u - 0.28) / 0.35), 2.2); G.bloom = 1 - 0.15 * a + 0.25 * o * (u > 0.28 ? 1 : 0); G.white = 1 - 0.12 * a + 0.12 * o * (u > 0.28 ? 1 : 0); G.leaves = 1 - 0.06 * a + 0.04 * o; G.tentG = 1 - 0.14 * a + 0.1 * (u > 0.28 ? o : 0); G.tentW = 1 - 0.16 * a + 0.18 * (u > 0.28 ? o : 0); G.accY = 0.5 * a - 0.6 * bump(u, 0.28, 0.4, 0.75);
+      G.glow = 0.6 + 0.9 * o + 0.6 * bump(u, 0.3, 0.55, 0.9); G.fold = 0; G.lean += 0.06 * a - 0.1 * o; G.ringGlow = 1; G.swayV = 1.4 + 2.8 * bump(u, 0.28, 0.4, 1); G.shiver = 0.035 * bump(u, 0.28, 0.36, 0.8); },   /* (it gathers inward, then bursts open with a shiver of the petals; the tentacles flick out) */
     /* Ring Blade: the ring brightens and the swords accelerate; the throw's lunge; the catch */
-    ringWind(G, u) { G.ringGlow = 0.8 + 1.2 * u; G.spinV = 1.5 + 16 * u * u; G.ringTilt -= 0.42 * sstep(0, 0.8, u); G.lean -= 0.12 * u; G.bloom = 1 + 0.08 * u; },
-    ringThrow(G, u) { G.ringGlow = 2; G.spinV = 18; G.ringTilt += 0.5 * bump(u, 0, 0.2, 0.7); G.lean += 0.3 * bump(u, 0, 0.3, 1); G.bloom = 1.12; G.fold = 0.2 * bump(u, 0, 0.3, 1); },
-    ringCatch(G, u) { G.ringGlow = 2 * (1 - u) + 0.6; G.spinV = lerp(14, 1.5, u); G.lean -= 0.1 * bump(u, 0, 0.3, 1); },
+    /* (it leans back away from the throw, the tentacles drawn back; the throw lunges and flings them forward; the catch recoils it all) */
+    ringWind(G, u, s) { const d = s.throwDir || 1, b = sstep(0, 0.8, u); G.ringGlow = 0.8 + 1.2 * u; G.spinV = 1.5 + 16 * u * u; G.ringTilt -= 0.42 * b; G.lean -= 0.2 * b; G.bank = -d * 0.18 * b; G.bloom = 1 + 0.08 * u; G.accX = d * 0.9 * b; G.accY = 0.4 * b; G.tentW = 1 - 0.1 * b; G.tentG = 1 - 0.08 * b; G.tremble = 0.006 * u; },
+    ringThrow(G, u, s) { const d = s.throwDir || 1, f = bump(u, 0, 0.18, 0.8); G.ringGlow = 2; G.spinV = 18; G.ringTilt += 0.5 * bump(u, 0, 0.2, 0.7); G.lean += 0.32 * f; G.bank = d * 0.22 * f; G.bloom = 1.12; G.fold = 0.2 * f; G.accX = -d * 1.3 * f; G.accY = -0.7 * f; G.tentW = 1 + 0.18 * f; G.tentG = 1 + 0.1 * f; G.swayV = 3.5; },
+    ringCatch(G, u) { const r = bump(u, 0, 0.15, 0.6); G.ringGlow = 2 * (1 - u) + 0.6; G.spinV = lerp(14, 1.5, u); G.lean -= 0.16 * r; G.bloom = 1 - 0.06 * r; G.tentW = 1 - 0.08 * r; G.accY = 0.6 * r; },
     /* Twister: the flower opens fully, the leaves brace, the white blossom glows, the ring spins up; the hold; the last pulse; the unwinding */
-    twisterOpen(G, u) { const o = outBack(u, 1.4); G.bloom = 1 + 0.3 * o; G.brace = sstep(0.1, 0.7, u); G.glow = 0.6 + 1.2 * u; G.ringGlow = 0.8 + 1.2 * u; G.spinV = 1.5 + 14 * u; G.fold = 0; G.tentG = 1 + 0.06 * u; G.tentW = 1 + 0.1 * u; G.swayV = 1.6 + 1.4 * u; G.bank = 0; G.yaw = 0; G.lean = -0.06 * u; },
-    twisterHold(G, u, s) { const t = s.g.t; G.bloom = 1.3 + 0.03 * Math.sin(t * 5); G.brace = 1; G.glow = 1.6 + 0.3 * Math.sin(t * 7) + 0.1 * u; G.ringGlow = 2; G.spinV = 16 + 8 * u; G.fold = 0; G.tentW = 1.1; G.tentG = 1.06; G.swayV = 3; G.bank = 0.04 * Math.sin(t * 2.3); G.yaw = 0; G.lean = -0.06; },
-    twisterPulse(G, u) { CLIPS.twisterHold(G, 1, CLIPS._s); G.bloom = 1.3 + 0.12 * bump(u, 0, 0.2, 1); G.glow = 2; G.ringGlow = 2; },
-    unwind(G, u) { G.bloom = lerp(1.3, 1, u); G.brace = 1 - u; G.glow = lerp(1.6, 0.5, u); G.ringGlow = lerp(2, 0.6, u); G.spinV = lerp(16, 1.5, u); },
+    twisterOpen(G, u) { const o = outBack(u, 1.4); G.tremble = 0.004 + 0.014 * u * u; G.shiver = 0.012 * u; G.bloom = 1 + 0.3 * o; G.brace = sstep(0.1, 0.7, u); G.glow = 0.6 + 1.2 * u; G.ringGlow = 0.8 + 1.2 * u; G.spinV = 1.5 + 14 * u; G.fold = 0; G.tentG = 1 + 0.06 * u; G.tentW = 1 + 0.1 * u; G.swayV = 1.6 + 1.4 * u; G.bank = 0; G.yaw = 0; G.lean = -0.06 * u; },
+    twisterHold(G, u, s) { const t = s.g.t; G.tremble = 0.016 + 0.022 * u; G.shiver = 0.012 + 0.016 * u; G.accX = 0.35 * Math.sin(t * 2.6); G.accY = 0.3 * Math.cos(t * 2.1); G.bloom = 1.3 + 0.03 * Math.sin(t * 5); G.brace = 1; G.glow = 1.6 + 0.3 * Math.sin(t * 7) + 0.1 * u; G.ringGlow = 2; G.spinV = 16 + 8 * u; G.fold = 0; G.tentW = 1.1; G.tentG = 1.06; G.swayV = 3; G.bank = 0.04 * Math.sin(t * 2.3); G.yaw = 0; G.lean = -0.06; },
+    twisterPulse(G, u) { CLIPS.twisterHold(G, 1, CLIPS._s); const r = bump(u, 0, 0.12, 1); G.tremble = 0.03 * (1 - u); G.bloom = 1.3 + 0.12 * r; G.tentW = 1.1 + 0.12 * r; G.tentG = 1.06 + 0.08 * r; G.accY = -0.9 * r; G.shiver = 0.04 * r; G.glow = 2; G.ringGlow = 2; },   /* (the release: everything flung open) */
+    unwind(G, u) { G.tremble = 0.01 * (1 - u); G.bloom = lerp(1.3, 1, u); G.brace = 1 - u; G.glow = lerp(1.6, 0.5, u); G.ringGlow = lerp(2, 0.6, u); G.spinV = lerp(16, 1.5, u); },
   };
   function eClip(S) { const E = S.eAct; return E && S.g.t - E.t <= 0.12 && CLIPS[E.clip] ? E : null; }
   function animate(S, dt) {
     const V = S.V, P = V.pose, g = S.g, t = g.t, G = TG(), top = Math.max(1, S.spd * TUNE.airK), sp = Math.hypot(V.vx, V.vy), k = cl(sp / top), Sw = S.swoosh;
     /* the acceleration on the screen (x right, y down the screen = toward the camera), smoothed: the tentacles swing against it */
     const ax = dt > 0 ? (V.vx - (S.pvx == null ? V.vx : S.pvx)) / dt : 0, ay = dt > 0 ? (V.vy - (S.pvy == null ? V.vy : S.pvy)) / dt : 0; S.pvx = V.vx; S.pvy = V.vy;
-    S.axS = (S.axS || 0) + (clamp(ax / 26, -1.4, 1.4) - (S.axS || 0)) * Math.min(1, dt * 10); S.ayS = (S.ayS || 0) + (clamp(ay / 26, -1.4, 1.4) - (S.ayS || 0)) * Math.min(1, dt * 10);
+    S.axS = (S.axS || 0) + (clamp(ax / 17, -1.5, 1.5) - (S.axS || 0)) * Math.min(1, dt * 10); S.ayS = (S.ayS || 0) + (clamp(ay / 17, -1.5, 1.5) - (S.ayS || 0)) * Math.min(1, dt * 10);
     /* --- flight: everything breathes; the bloom banks into the turn and leans along its travel, the petals sweep back with speed --- */
-    G.bloom = 1 + 0.035 * Math.sin(t * 1.45) + 0.012 * Math.sin(t * 2.7 + 1.3);
-    G.white = 1 + 0.03 * Math.sin(t * 1.45 - 0.9); G.tentW = 1 + 0.025 * Math.sin(t * 1.1 + 0.5); G.tentG = 1 + 0.02 * Math.sin(t * 0.9 + 2);
+    /* the breath: a 3 s cycle that ripples outward, the white flower first, then the pink bloom, then the leaves */
+    const bw = TAU / 3, br = t * bw;
+    G.white = 1 + 0.05 * Math.sin(br + 0.75); G.bloom = 1 + 0.05 * Math.sin(br) + 0.012 * Math.sin(t * 2.7 + 1.3); G.leaves = 1 + 0.035 * Math.sin(br - 0.8) + 0.015 * Math.sin(t * 0.77 + 2.1);
+    /* the tentacles: the green ones coil and uncoil their tips slowly, the white ones reach and draw back like feelers (each on its own beat in the model) */
+    G.tentG = 1 - 0.08 * (0.5 + 0.5 * Math.sin(t * 0.71 + 0.4)) + 0.02 * Math.sin(t * 1.9);
+    G.tentW = 1 + 0.07 * Math.sin(t * 1.27 + 0.5) + 0.03 * Math.sin(t * 2.3 + 1.1);
+    /* the hover: a gentle bob and a slow drift side to side, rolling a little into it */
+    G.z = 0.14 * Math.sin(t * 1.7) + 0.05 * Math.sin(t * 2.9 + 1); S.swayX = 0.12 * Math.sin(t * 0.83) * (1 - 0.6 * k);
     const vxn = V.vx / top, vyn = V.vy / top;
-    G.bank = clamp(vxn * 0.3 + S.hw * 0.035 * k, -0.5, 0.5); G.yaw = clamp(vxn * 0.34, -0.4, 0.4); G.lean = clamp(vyn * 0.2, -0.22, 0.22);
-    G.fold = 0.3 * k * k; G.accX = -S.axS - vxn * 0.35; G.accY = -S.ayS - vyn * 0.35;
-    G.ringTilt = G.bank * 0.9 + clamp(S.hw * 0.05, -0.3, 0.3); G.spinV = 1.5 + 1.4 * k; G.swayV = 1.6 + 0.8 * k;
+    /* into the travel: it rolls and pitches toward where it goes, on springs that overshoot and settle (a stop swings it past and back) */
+    G.bank = clamp(vxn * 0.32 + S.hw * 0.035 * k - S.axS * 0.08, -0.55, 0.55) + 0.04 * Math.sin(t * 0.83 + 0.6); G.yaw = clamp(vxn * 0.34, -0.4, 0.4) + 0.045 * Math.sin(t * 0.61); G.lean = clamp(vyn * 0.22 - S.ayS * 0.06, -0.26, 0.26) + 0.025 * Math.sin(t * 1.13 + 2);
+    /* the tentacles' lag: they swing against every change of speed (strongly), and drift on their own when it hangs still */
+    G.fold = 0.3 * k * k; G.accX = -S.axS * 1.15 - vxn * 0.4 + (0.24 * Math.sin(t * 0.53) + 0.1 * Math.sin(t * 1.31 + 2)) * (1 - 0.5 * k); G.accY = -S.ayS * 1.15 - vyn * 0.4 + (0.18 * Math.sin(t * 0.61 + 1) + 0.08 * Math.sin(t * 1.7)) * (1 - 0.5 * k);
+    /* the ring: a steady spin, a slow wobble in its tilt, leaning into the turn */
+    G.ringTilt = G.bank * 0.9 + clamp(S.hw * 0.05, -0.3, 0.3) + 0.07 * Math.sin(t * 0.9) + 0.035 * Math.sin(t * 2.1 + 1); G.spinV = 1.5 + 1.4 * k; G.swayV = 1.6 + 0.35 * Math.sin(t * 0.37) + 1.0 * k;
     G.glow = 0.5 + 0.25 * S.charge + (S.charge >= 1 && !S.used ? 0.35 + 0.15 * Math.sin(t * 5) : 0); G.ringGlow = 0.6 + 0.3 * k + (S.charge >= 1 && !S.used ? 0.9 + 0.3 * Math.sin(t * 6) : 0);
+    /* --- reactions: a shudder and a flutter of the petals when the pet is hurt; a happy bloom when the gauge fills; a flick outward of every tentacle at each attack --- */
+    { const hu = S.hurtT != null ? t - S.hurtT : 9, hp = S.happyT != null ? t - S.happyT : 9, fl = S.flickT != null ? t - S.flickT : 9;
+      if (hu < 0.5) { const e = Math.exp(-hu * 7); G.shiver += 0.04 * e; G.tremble += 0.02 * e; G.bloom -= 0.06 * e; G.tentW -= 0.08 * e; }
+      if (hp < 0.9) { const e = bump(hp, 0, 0.15, 0.9); G.bloom += 0.16 * e; G.white += 0.12 * e; G.leaves += 0.05 * e; G.tentW += 0.1 * e; G.glow += 0.8 * e; G.ringGlow += 0.8 * e; G.shiver += 0.02 * e; }
+      if (fl < 0.55) { const e = bump(fl, 0, 0.08, 0.55); G.tentG += 0.1 * e; G.tentW += 0.16 * e; G.swayV += 3.5 * e; } }
     /* --- the summon: the layers unfold in order (stepSummon writes their targets) --- */
+    if (S.phase === 'out' && S.exitShiver) G.shiver += S.exitShiver;
     if (S.phase === 'summon' || S.phase === 'out') { const Q = S.unf; G.leaves = Q.leaves; G.bloom = Q.bloom * G.bloom; G.white = Q.white; G.tentG = Q.tentG; G.tentW = Q.tentW; G.ring = Q.ring; G.glow = Q.glow; G.ringGlow = Q.ringGlow; G.fold = Q.fold || 0; G.spinV = Q.spinV == null ? G.spinV : Q.spinV; }
     /* --- Swoosh: banked hard into the circle, the petals swept back, the whole flower spinning; then it opens --- */
     if (Sw) { const T = TUNE.swoosh;
-      if (Sw.ph === 0) { const u = cl(Sw.t / T.bank); G.bank = Sw.dir * 0.45 * u; G.fold = 0.5 * u; G.bloom = 1 - 0.1 * u; G.lean = 0.12 * u; }
-      else if (Sw.ph === 1) { G.bank = Sw.dir * 0.6; G.fold = 0.75; G.bloom = 0.88; G.lean = 0.18; G.ringGlow = 1.4; G.spinV = 9; G.swayV = 3; }
+      if (Sw.ph === 0) { const u = cl(Sw.t / T.bank); G.bank = Sw.dir * 0.45 * u; G.fold = 0.5 * u; G.bloom = 1 - 0.1 * u; G.white = 1 - 0.08 * u; G.lean = 0.12 * u; G.tentW = 1 - 0.1 * u; }
+      else if (Sw.ph === 1) { G.bank = Sw.dir * 0.6; G.fold = 0.75; G.bloom = 0.88; G.lean = 0.18; G.ringGlow = 1.4; G.spinV = 9; G.swayV = 3.6; G.accY = -0.9; G.tentW = 1.08; }
       else if (Sw.ph === 2) { const u = cl(Sw.t / T.orbit); G.bank = Sw.dir * 0.55; G.fold = 0.7; G.bloom = 0.9; G.ringGlow = 1.8; G.glow = 1.1; G.spinV = 14; G.swayV = 4.2; G.yaw = 0; G.lean = 0.1;
-        G.accX = -Sw.dir * 1.1 * Math.cos(u * TAU * T.turns) - 0.35 * Sw.dir; G.accY = -Sw.dir * 0.9 * Math.sin(u * TAU * T.turns); G.ringTilt = Sw.dir * 0.5; }   /* (the tentacle tips trail the pinwheel: the lag turns with it) */
-      else { const u = cl(Sw.t / T.rec); G.bloom = 1 + 0.1 * (1 - sstep(0.3, 1, u)); G.fold = 0; G.accX = Sw.dir * 0.5 * (1 - u); G.bank = Sw.dir * 0.2 * (1 - u); G.glow = 1.2 * (1 - u) + 0.5; G.ringGlow = 1.4 * (1 - u) + 0.6; G.spinV = lerp(12, 1.5, u); }
+        G.accX = -Sw.dir * 1.3 * Math.cos(u * TAU * T.turns) - 0.35 * Sw.dir; G.accY = -Sw.dir * 1.1 * Math.sin(u * TAU * T.turns); G.ringTilt = Sw.dir * 0.5; G.tentW = 1.16; G.tentG = 1.1; G.leaves = 0.94; G.white = 0.94; }   /* (the tentacle tips trail the pinwheel: the lag turns with it) */
+      else { const u = cl(Sw.t / T.rec), fl = bump(u, 0, 0.18, 1); G.bloom = 1 + 0.15 * fl; G.white = 1 + 0.12 * fl; G.leaves = 1 + 0.05 * fl; G.tentW = 1 + 0.14 * fl; G.shiver = 0.03 * bump(u, 0, 0.12, 0.7); G.fold = 0; G.accX = Sw.dir * 0.5 * (1 - u); G.bank = Sw.dir * 0.2 * (1 - u); G.glow = 1.2 * (1 - u) + 0.5; G.ringGlow = 1.4 * (1 - u) + 0.6; G.spinV = lerp(12, 1.5, u); }
       G.yaw = clamp(G.yaw, -0.2, 0.2); }
     /* --- E's clip, last: it owns the channels it sets --- */
     const E = eClip(S); if (E) { CLIPS._s = S; try { CLIPS[E.clip](G, E.u, S, E.extra); } catch (e) { /* (a clip never breaks the frame) */ } }
     for (const key in SPR) { const p = SPR[key]; P[key] = spring(S, key, G[key], p[0], p[1], dt); }
     S.ringSpin = (S.ringSpin || 0) + (S.spinV = (S.spinV == null ? G.spinV : S.spinV + (G.spinV - S.spinV) * Math.min(1, dt * 5))) * dt; S.sway = (S.sway || 0) + G.swayV * dt;
     P.ringSpin = S.ringSpin; P.sway = S.sway; P.spin = S.spinA || 0; P.ringAway = S.ring === 'overhead' ? 0 : 1;
+    /* the fast layers on top of the springs: a shiver of the petals and a tremble of the whole flower (attacks, hurt, Twister's build) */
+    if (G.shiver > 0.001) { P.bloom += G.shiver * Math.sin(t * 52); P.white += G.shiver * 0.8 * Math.sin(t * 47 + 1.3); P.leaves += G.shiver * 0.5 * Math.sin(t * 39 + 2.1); }
+    if (G.tremble > 0.0005) { P.bank += G.tremble * 1.6 * Math.sin(t * 43); P.lean += G.tremble * Math.sin(t * 37 + 1); P.z = (P.z || 0) + G.tremble * 3 * Math.sin(t * 31 + 2); }
+    /* the swords catch the light as each passes the front */
+    P.ringGlow += 0.22 * Math.pow(0.5 + 0.5 * Math.cos(8 * S.ringSpin), 8);
+    /* per-tentacle life for the model (M, Notes): each tentacle its own wave phase and speed, amplitude, coil (green) or reach (white); a model without them ignores them */
+    { const TP = S.tp || (S.tp = { g: [0.9, 1.15, 1.37, 1.04, 1.26, 0.83].map((w, i) => ({ w, ph: i * 1.9 })), w: [1.21, 0.97, 1.43, 1.12, 1.33, 1.05, 0.91, 1.5].map((w, i) => ({ w, ph: i * 2.3 })) });
+      const tgPh = P.tgPh || (P.tgPh = new Array(6).fill(0)), tgAmp = P.tgAmp || (P.tgAmp = new Array(6).fill(1)), tgCoil = P.tgCoil || (P.tgCoil = new Array(6).fill(0)), twPh = P.twPh || (P.twPh = new Array(8).fill(0)), twAmp = P.twAmp || (P.twAmp = new Array(8).fill(1)), twReach = P.twReach || (P.twReach = new Array(8).fill(0));
+      const vk = G.swayV / 1.6, ex = clamp(Math.hypot(P.accX, P.accY), 0, 1.5);
+      for (let i = 0; i < 6; i++) { const q = TP.g[i]; q.ph += q.w * 1.6 * vk * dt; tgPh[i] = q.ph; tgAmp[i] = 1 + 0.35 * Math.sin(t * 0.43 + i * 1.7) + 0.5 * ex; tgCoil[i] = 0.5 + 0.5 * Math.sin(t * (0.5 + 0.07 * i) + i * 2.2); }
+      for (let i = 0; i < 8; i++) { const q = TP.w[i]; q.ph += q.w * 1.6 * vk * dt; twPh[i] = q.ph; twAmp[i] = 1 + 0.3 * Math.sin(t * 0.51 + i * 1.3) + 0.4 * ex; twReach[i] = 0.6 * Math.sin(t * (0.9 + 0.11 * i) + i * 1.9) + (P.tentW - 1) * 3; }
+      P.flick = S.flickT != null ? Math.exp(-Math.max(0, t - S.flickT) * 5) : 0; P.breath = br; }
     P.bloom = clamp(P.bloom, 0, 1.4); P.fold = cl(P.fold); P.brace = cl(P.brace); P.ring = cl(P.ring); P.leaves = clamp(P.leaves, 0, 1.08); P.white = clamp(P.white, 0, 1.1); P.tentG = clamp(P.tentG, 0, 1.15); P.tentW = clamp(P.tentW, 0, 1.2);
     P.yaw = clamp(P.yaw, -0.4, 0.4); P.glow = clamp(P.glow, 0, 2); P.ringGlow = clamp(P.ringGlow, 0, 2); P.accX = clamp(P.accX, -1.3, 1.3); P.accY = clamp(P.accY, -1.3, 1.3);
     S.zOff = P.z || 0; P.z = 0; P.t = t; P.speed = k;
@@ -236,7 +270,7 @@
   function startForm(C, H) {
     const me = H.me, g = H.g, X = H.X, M0 = MOD(), ev = evoOf(C), tier = tierOf(ev), K = C.K || 1, DK = C.base * K * (1 + 0.08 * (ev - 1));
     const kit = X.kit ? X.kit() : null, CD = (kit && kit.ult && kit.ult.key === 'ey_belladonna' && kit.ult.cd) || TUNE.cd, dur = TUNE.dur[tier];
-    let inst; try { inst = M0.create({ T: X.Tz() * TUNE.zoom * ((typeof arc !== 'undefined' && arc.dpr) || 1) * TUNE.size, dpr: 1 }); } catch (e) { inst = null; } if (!inst || !inst.pose) inst = { pose: {} };
+    let inst; try { inst = M0.create({ T: X.Tz() * camOf(M0).zoom * ((typeof arc !== 'undefined' && arc.dpr) || 1) * TUNE.size, dpr: 1 }); } catch (e) { inst = null; } if (!inst || !inst.pose) inst = { pose: {} };
     const P = inst.pose; P.alpha = 0; for (const k of ['bloom', 'leaves', 'white', 'tentG', 'tentW', 'ring']) P[k] = 0;
     const tgt = X.nearestMon(me.x, me.y, 9), a0 = tgt ? Math.atan2(tgt.y - me.y, tgt.x - me.x) : (me.face < 0 ? Math.PI : 0);
     const V = { x: me.x, y: me.y, z: 0.2, heading: a0, vx: 0, vy: 0, pose: P, locked: true, vis: 1 };
@@ -265,7 +299,7 @@
       chan: o => { S.eCh = { o, t: g.t }; }, setPose: o => { if (o) S.eCh = { o: Object.assign({}, o), t: g.t }; },   /* (setPose: E's name for chan; ringAway follows the ring's state, not this) */ kick: (key, dv) => kick(S, key, dv),
       /* the one ring: E moves it through its states ('overhead' -> 'outbound' -> 'returning' -> 'overhead'); while it is away
          the model hides its own (pose.ringAway) and E draws it with model.drawRing; Ring Blade cannot be recast */
-      ringState: s => { if (s !== 'overhead' && s !== 'outbound' && s !== 'returning') return S.ring; if (s === S.ring) return s; if (s === 'outbound') S.stats.ringOut++; if (s === 'overhead') { S.stats.ringBack++; ctx.recall = false; if (S.phase === 'fly') { S.cd.s2 = mvTune('ringCd', TUNE.ringCd); S.cdMax.s2 = S.cd.s2; } kick(S, 'ringGlow', 4); kick(S, 'ringTilt', 2.4); kick(S, 'z', -1.6); kick(S, 'bloom', 0.5); }   /* (the catch: the ring rocks, the whole flower dips and bounces) */ S.ring = s; S.ringT = g.t; return s; },
+      ringState: s => { if (s !== 'overhead' && s !== 'outbound' && s !== 'returning') return S.ring; if (s === S.ring) return s; if (s === 'outbound') S.stats.ringOut++; if (s === 'overhead') { S.stats.ringBack++; ctx.recall = false; S.flickT = g.t; kick(S, 'accY', 6); kick(S, 'tentW', -1.5); kick(S, 'lean', -1.2); if (S.phase === 'fly') { S.cd.s2 = mvTune('ringCd', TUNE.ringCd); S.cdMax.s2 = S.cd.s2; } kick(S, 'ringGlow', 4); kick(S, 'ringTilt', 2.4); kick(S, 'z', -1.6); kick(S, 'bloom', 0.5); }   /* (the catch: the ring rocks, the whole flower dips and bounces) */ S.ring = s; S.ringT = g.t; return s; },
       vanish: () => { S.V.vis = 0; }, safeReturn: () => { const p = safeReturn(S); S.retPt = p; return { x: p.x, y: p.y }; },
       done: () => actionDone(S), alive: () => alive(S), calm, low: lowFx };
     S.veh = { get active() { return !S.released; }, drive: (mx, my, dt, spd) => { S.mx = mx; S.my = my; if (spd > 0) S.spd = spd; void dt; }, dodge: (mx, my) => trySwoosh(S, mx, my), strong: slot => tryMove(S, slot), ult: () => tryUlt(S),
@@ -281,12 +315,12 @@
   /* alive: the session runs and an action may go on (a committed Twister stays alive, even on a won floor, up to its cap) */
   function alive(S) { const me = S.me, g = S.g; if (S.ended || S.released || me.dead || g.over) return false; if (S.phase === 'finisher') return S.t < TUNE.finCap; return S.phase === 'fly' && !g.won; }
   /* the camera frames the form itself: centred on the model's drawn centre, a little under the screen's middle, led by its velocity */
-  function camFocus(S) { const V = S.V, c = S.cam, z = S.phase === 'summon' ? lerp(1, TUNE.zoom, sstep(0.3, TUNE.summon, S.t)) : S.phase === 'gone' ? 1 : S.phase === 'out' ? lerp(TUNE.zoom, 1, sstep(0, 1, (S.outT || 0) / 1.2)) : TUNE.zoom;
+  function camFocus(S) { const V = S.V, c = S.cam, CF = S.camF || (S.camF = camOf(S.ctx && S.ctx.model)), Z = CF.zoom, z = S.phase === 'summon' ? lerp(1, Z, sstep(0.3, TUNE.summon, S.t)) : S.phase === 'gone' ? 1 : S.phase === 'out' ? lerp(Z, 1, sstep(0, 1, (S.outT || 0) / 1.2)) : Z;
     if (c && c.x != null) return { x: c.x, y: c.y, k: c.k != null ? c.k : 0.6, zoom: c.zoom || z };
     if (S.phase === 'gone') return { x: V.x, y: V.y, k: 0, zoom: 1 };
     const M0 = S.ctx && S.ctx.model; let p = null; try { p = M0 && M0.anchor ? M0.anchor('center') : null; } catch (e) { p = null; } const okp = p && isFinite(p.x) && isFinite(p.y) && isFinite(p.z);
-    const by = okp ? p.y - p.z * ZK : V.y - (V.z + 1.6) * ZK, own = S.phase === 'summon' ? sstep(0.2, 1.4, S.t) : S.phase === 'out' ? 1 - sstep(0, 1, (S.outT || 0) / 1.2) : 1;
-    return { x: V.x + (V.vx || 0) / 6 * own, y: V.y + (by - V.y - TUNE.camLift + (V.vy || 0) / 6) * own, k: Math.max(0.02, own), zoom: c && c.zoom ? c.zoom : z }; }
+    const by = (okp ? p.y - p.z * ZK : V.y - (V.z + 1.6) * ZK) + (S.zOff || 0) * ZK, own = S.phase === 'summon' ? sstep(0.2, 1.4, S.t) : S.phase === 'out' ? 1 - sstep(0, 1, (S.outT || 0) / 1.2) : 1;
+    return { x: V.x + (V.vx || 0) / 6 * own, y: V.y + (by - V.y - CF.lift + (V.vy || 0) / 6) * own, k: Math.max(0.02, own), zoom: c && c.zoom ? c.zoom : z }; }
 
   /* ---- targeting (Nidhogg's): an enemy near the stick's aim line, else the ground along it; no stick: the nearest ---- */
   function target(S) { const d = S.V, mag = Math.hypot(S.mx, S.my), M = S.H.living(), D = TUNE.swoosh;
@@ -309,7 +343,7 @@
     if (!(dealt > 0)) return 0;
     S.stats.dealt += dealt; S.stats.hits++;
     if (!(o && o.noCharge) && S.phase === 'fly' && !S.used) { const c0 = S.charge; S.charge = Math.min(1, S.charge + dealt / (TUNE.chargeK * S.DK)); S.stats.charged += S.charge - c0;
-      if (c0 < 1 && S.charge >= 1) { const sfx = S.X.sfx || {}; if (sfx.note) [784, 1047, 1319, 1568].forEach((f, i) => sfx.note(f, 0.4, 'triangle', 0.06, f, i * 0.07)); S.X.text(S.V.x, S.V.y - 4, 'TWISTER READY', MINT2, 15, { life: 1.4, max: 1.4, vy: -0.5 }); kick(S, 'ringGlow', 8); kick(S, 'bloom', 1.2); } }
+      if (c0 < 1 && S.charge >= 1) { const sfx = S.X.sfx || {}; if (sfx.note) [784, 1047, 1319, 1568].forEach((f, i) => sfx.note(f, 0.4, 'triangle', 0.06, f, i * 0.07)); S.X.text(S.V.x, S.V.y - 4, 'TWISTER READY', MINT2, 15, { life: 1.4, max: 1.4, vy: -0.5 }); kick(S, 'ringGlow', 8); kick(S, 'bloom', 1.2); S.happyT = S.g.t; } }
     return dealt;
   }
   function setHeading(S, a, dt) { const da = wrap(a - S.ha); S.ha = wrap(a); S.au += da; S.hw = dt > 0 ? da / dt : 0; }
@@ -369,7 +403,7 @@
     if (!plan) {   /* (only an aim outside the flight volume is refused) */ S.marks.push({ x: cx, y: cy, t: 0, life: 0.7 }); S.stats.swooshBad++; const sfx = S.X.sfx || {}; if (sfx.wrong) sfx.wrong(); return; }
     const info = { spot: !!plan.spot, high: !!plan.high, cx, cy, R: plan.R, hitR: T.hitR, dir: plan.dir, x: d.x, y: d.y, z: d.z, u: 0, ph: 'bank', a: plan.e0, group: nG, m: Tg.m || null, dur: T.bank + T.approach + T.orbit + T.rec };
     S.swoosh = { ph: 0, t: 0, plan, cx, cy, dir: plan.dir, x0: d.x, y0: d.y, z0: d.z, hits: new Set(), nHit: 0, from: S.ha, info, spin0: S.spinA || 0 };
-    S.me.inv = Math.max(S.me.inv || 0, T.inv); S.stats.swooshes++; g.movedOnce = true; g.dodges = (g.dodges || 0) + 1;
+    S.flickT = g.t; S.me.inv = Math.max(S.me.inv || 0, T.inv); S.stats.swooshes++; g.movedOnce = true; g.dodges = (g.dodges || 0) + 1;
     const sfx = S.X.sfx || {}; if (sfx.whoosh) sfx.whoosh(); if (sfx.note) { sfx.note(660, 0.5, 'sine', 0.04, 1320); sfx.note(330, 0.4, 'triangle', 0.03, 880, 0.05); } if (sfx.hiss) sfx.hiss(0.5, 0.08, 2600);
     callMove(S, 'swoosh', info);
   }
@@ -404,6 +438,7 @@
     if (S.cd[key] > 0) { if (!queued) { if (S.cd[key] <= TUNE.mvHold) S.mvQ = { slot, t: g.t }; else if (sfx.wrong) sfx.wrong(); } return; }
     S.mvQ = null;
     const name = s2 ? 'ringBlade' : 'wildflowers', [MV, fn] = mvFn(name); if (!fn) return;
+    S.flickT = S.g.t; if (s2) { const T2 = target(S); S.throwDir = T2.x >= S.V.x ? 1 : -1; }
     S.busy = name; S.busyT = 0; S.cd[key] = mvTune(tk, TUNE[tk]); S.cdMax[key] = S.cd[key]; S.stats[s2 ? 'ring' : 'wild']++;
     try { fn.call(MV, S.ctx); } catch (e) { if (typeof console !== 'undefined') console.warn('Belladonna: a move failed', e); actionDone(S); }
   }
@@ -417,7 +452,7 @@
     if (S.ring !== 'overhead') {
       if (typeof moves().ringState === 'function') { if (S.recallT == null) { S.recallT = g.t; S.ctx.recall = true; S.stats.recalls++; } }   /* (E's moves keep the ring themselves: their Twister opens with the recall, so the finisher is committed at the press) */
       else { if (S.recallT == null) { S.recallT = g.t; S.ctx.recall = true; S.stats.recalls++; callMove(S, 'recallRing'); } if (g.t - S.recallT < TUNE.recallCap) { S.ultQ = g.t; return; } S.ctx.ringState('overhead'); } }
-    S.recallT = null; S.ultQ = null; S.used = true; S.phase = 'finisher'; S.t = 0; S.busy = 'twister'; S.busyT = 0; V.locked = true; S.ctx.finisher = 'twister'; S.stats.twister++;
+    S.flickT = g.t; S.recallT = null; S.ultQ = null; S.used = true; S.phase = 'finisher'; S.t = 0; S.busy = 'twister'; S.busyT = 0; V.locked = true; S.ctx.finisher = 'twister'; S.stats.twister++;
     const [MV, fn] = mvFn('twister');
     try { fn.call(MV, S.ctx); } catch (e) { if (typeof console !== 'undefined') console.warn('Belladonna: Twister failed', e); actionDone(S); }
   }
@@ -442,6 +477,7 @@
     g.cdU = S.CD;   /* (held through the session: the cooldown starts at the exit) */
     S.t += dt; for (const k in S.cd) S.cd[k] = Math.max(0, S.cd[k] - dt); if (S.busy) S.busyT += dt;
     if (M0.warm) { try { M0.warm(S.phase === 'summon' ? 5 : 1); } catch (e) { /* (model) */ } }
+    { const hp = me.hp; if (S.hpPrev != null && hp < S.hpPrev - 0.01) { S.hurtT = g.t; kick(S, 'z', -1.6); kick(S, 'bank', (Math.random() < 0.5 ? -1 : 1) * 1.4); } S.hpPrev = hp; }   /* (the pet hurt: the flower flinches) */
     const MVw = moves(); if (MVw.warm && !S.wDone) { try { if (MVw.warm(S.phase === 'summon' ? 1.5 : 0.6) === true) S.wDone = true; } catch (e) { S.wDone = true; } }
     if (S.phase === 'summon') stepSummon(S, dt);
     else if (S.phase === 'fly') {
@@ -475,7 +511,7 @@
   function stepSummon(S, dt) {
     const d = S.V, P = d.pose, t = S.t, T = TUNE.summon, Q = TUNE.sum, U2 = S.unf, w = (r, x) => sstep(r[0], r[1], x);
     P.alpha = sstep(0.1, 0.45, t);
-    U2.leaves = outBack(w(Q.leaves, t), 1.3); U2.bloom = outBack(w(Q.bloom, t), 1.6); U2.white = outBack(w(Q.white, t), 1.5); U2.tentG = outBack(w(Q.tentG, t), 1.2); U2.tentW = outBack(w(Q.tentW, t), 1.5); U2.ring = outBack(w(Q.ring, t), 2.0);
+    U2.leaves = outBack(w(Q.leaves, t), 2.4); U2.bloom = outBack(w(Q.bloom, t), 2.6); U2.white = outBack(w(Q.white, t), 2.6); U2.tentG = outBack(w(Q.tentG, t), 2.0); U2.tentW = outBack(w(Q.tentW, t), 2.2); U2.ring = outBack(w(Q.ring, t), 2.8);
     U2.glow = 0.3 + 1.2 * bump(t, Q.bloom[0], Q.bloom[1], Q.white[1]) + 0.4 * w(Q.white, t); U2.ringGlow = 2 * bump(t, Q.ring[0], Q.ring[1], T) + 0.6 * w(Q.ring, t); U2.spinV = lerp(9, 1.5, w([Q.ring[0], T], t)); U2.fold = 0;
     d.z = lerp(0.2, TUNE.cruise, inOut(w(Q.lift, t))); d.vx = d.vy = 0;
     /* each layer opening: a breath of petals and light (E's summon draws the seal and the rest) */
@@ -503,7 +539,8 @@
     S.petHop += dt; me.x = S.ret.x; me.y = S.ret.y; me.vx = me.vy = 0;
     /* the fold, outside in reverse of the summon: ring, tentacles, white flower, pink flower, leaves; then light */
     const v = cl((S.outT - S.outGlide) / TUNE.fold), gone = d.vis < 0.05;
-    U2.ring = 1 - sstep(0, 0.25, v); U2.tentW = 1 - sstep(0.08, 0.4, v); U2.tentG = 1 - sstep(0.12, 0.48, v); U2.white = 1 - sstep(0.3, 0.55, v); U2.bloom = 1 - sstep(0.4, 0.8, v); U2.leaves = 1 - sstep(0.55, 0.92, v); U2.fold = sstep(0.3, 0.7, v); U2.glow = 0.8 + 0.8 * bump(v, 0.3, 0.6, 0.9); U2.ringGlow = 1.6 * (1 - sstep(0, 0.25, v));
+    const rs = bump(v, 0, 0.09, 0.22), ez = (a, b) => Math.pow(sstep(a, b, v), 1.7);   /* (it resists: a last breath open with a shiver, then the fold gathers pace) */
+    U2.ring = 1 - ez(0.06, 0.3); U2.tentW = 1 + 0.12 * rs - ez(0.12, 0.44); U2.tentG = 1 + 0.08 * rs - ez(0.16, 0.52); U2.white = 1 + 0.08 * rs - ez(0.32, 0.58); U2.bloom = 1 + 0.12 * rs - ez(0.42, 0.82); U2.leaves = 1 + 0.04 * rs - ez(0.56, 0.93); S.exitShiver = 0.03 * bump(v, 0.03, 0.12, 0.3); U2.fold = sstep(0.3, 0.7, v); U2.glow = 0.8 + 0.8 * bump(v, 0.3, 0.6, 0.9); U2.ringGlow = 1.6 * (1 - sstep(0, 0.25, v));
     P.alpha = gone ? 0 : 1 - sstep(0.7, 1, v);
     if (!gone && Math.random() < dt * (lowFx() ? 20 : 60) * (0.3 + v)) { const a = Math.random() * TAU, r = Math.random() * 2.6 * (1 - 0.6 * v); addPart(S, Math.random() < 0.75 ? 3 : 1, d.x + Math.cos(a) * r, d.y, d.z + 1.6 + Math.sin(a) * r * 0.9, Math.cos(a) * 1.4, (Math.random() - 0.5) * 0.6, 0.6 + Math.random() * 1.4, 0.9 + Math.random() * 0.7, 0.12, { col: Math.random() < 0.6 ? PINK : Math.random() < 0.5 ? BLUSH : MINT2, drag: 0.8 }); }
     if (v >= 1 || (gone && S.petHop > TUNE.hop)) release(S);
@@ -556,7 +593,7 @@
     c.save(); c.globalCompositeOperation = 'lighter';
     for (const p of S.parts) { if (p.kind !== 9) continue; const u = 1 - p.life / p.max, e = 1 - (1 - u) ** 3, r = T * p.s * (0.25 + 0.75 * e); c.globalAlpha = Math.pow(1 - u, 1.4) * 0.4; blitSized(c, glowSprite(MINT), H.sx(p.x) - r, H.sy(p.y) - r * GY, r * 2, r * 2 * GY); }
     c.restore();
-    if (S.phase !== 'gone' && d.vis > 0.05 && M0.drawShadow && inMap(S, d.x, d.y) && groundAt(S, d.x, d.y)) { try { M0.drawShadow(c, d.x, d.y, d.z + (S.zOff || 0), 0, d.pose, mOpts(S, T)); } catch (e) { /* (model) */ } }   /* (no shadow on the open air) */
+    if (S.phase !== 'gone' && d.vis > 0.05 && M0.drawShadow && inMap(S, d.x, d.y) && groundAt(S, d.x, d.y)) { try { M0.drawShadow(c, d.x + (S.swayX || 0), d.y, d.z + (S.zOff || 0), 0, d.pose, mOpts(S, T)); } catch (e) { /* (model) */ } }   /* (no shadow on the open air) */
     callM(S, c, 'drawUnder');
   }
   function drawEnt(S, c) {
@@ -565,7 +602,7 @@
     const out = S.phase === 'out' && S.hopped, ph = S.phase === 'summon' ? lerp(1.5, TUNE.petH, sstep(0.3, 1.2, S.t)) : TUNE.petH;
     /* the pet at the flower's heart: upright, never yawed or rolled, always in view */
     let petDone = false; const o = mOpts(S, T, { pet: (cc, PX, PY) => { petDone = true; S.seatS = [PX, PY]; if (!out) H.X.drawPetAt(cc, PX, PY, { maxH: ph }); } });
-    let drawn = false; if (d.vis > 0.05) { try { M0.draw(c, d.x, d.y, d.z + (S.zOff || 0), 0, d.pose, o); drawn = true; } catch (e) { drawn = false; } }
+    let drawn = false; if (d.vis > 0.05) { try { M0.draw(c, d.x + (S.swayX || 0), d.y, d.z + (S.zOff || 0), 0, d.pose, o); drawn = true; } catch (e) { drawn = false; } }
     if (!petDone) { const p = S.ctx.anchor('seat'); S.seatS = [H.sx(p.x), H.sy(p.y) - p.z * ZK * T]; if (!out) H.X.drawPetAt(c, S.seatS[0], S.seatS[1], { maxH: ph }); }   /* (the lead's model leaves the pet to the core: drawn at the seat anchor, over the flower) */
     if (out) { const u = cl(S.petHop / TUNE.hop), s3 = S.seatS, gx = H.sx(S.ret.x), gy = H.sy(S.ret.y); H.X.drawPetAt(c, lerp(s3[0], gx, u), lerp(s3[1], gy, u * u), u < 1 ? { maxH: lerp(TUNE.petH, 1.5, u * u) } : {}); }
     callM(S, c, 'drawEnt');

@@ -59,9 +59,14 @@ const JAWS_MODEL = (() => {
     const seam = (t, list) => { for (const s of list) if (Math.abs(t - s) < 0.012) return 1; return 0; };
     const plate = (B, out, th, mat) => { B.prism(out, -th, th, mat, { b: th * 0.6 }); };
     // a raised armour plate on the hull (t s0..s1, angle b0..b1 degrees): a chrome-edged border bevelled down to the shell below (k0), stepping up to kTop
-    const armour = (B, s0, s1, b0, b1, k0, kTop, mat, NU2, NV2) => { NU2 = NU2 || 10; NV2 = NV2 || 12; const kk = (u, v) => k0 + (kTop - k0) * Math.min(1, Math.min(u, 1 - u) * NU2 * 1.0, Math.min(v, 1 - v) * NV2 * 1.0);
-      B.surf((u, v) => fus(lerp(s0, s1, v), lerp(b0, b1, u) * DEG, kk(u, v)), NU2, NV2, (u, v) => (u < 1.5 / NU2 || u > 1 - 1.5 / NU2 || v < 1.5 / NV2 || v > 1 - 1.5 / NV2 ? M_CHR : mat), { e: (u, v) => (u < 0.5 / NU2 || u > 1 - 0.5 / NU2 || v < 0.5 / NV2 || v > 1 - 0.5 / NV2 ? 1 : Math.abs(u - 2 / NU2) < 0.3 / NU2 || Math.abs(u - 1 + 2 / NU2) < 0.3 / NU2 || Math.abs(v - 2 / NV2) < 0.3 / NV2 || Math.abs(v - 1 + 2 / NV2) < 0.3 / NV2 ? 0.9 : 0) }); };
+    const armour = (B, s0, s1, b0, b1, k0, kTop, mat, NU2, NV2, sec) => { sec = sec || fus; NU2 = NU2 || 10; NV2 = NV2 || 12; const kk = (u, v) => k0 + (kTop - k0) * Math.min(1, Math.min(u, 1 - u) * NU2 * 1.0, Math.min(v, 1 - v) * NV2 * 1.0);
+      B.surf((u, v) => sec(lerp(s0, s1, v), lerp(b0, b1, u) * DEG, kk(u, v)), NU2, NV2, (u, v) => (u < 1.5 / NU2 || u > 1 - 1.5 / NU2 || v < 1.5 / NV2 || v > 1 - 1.5 / NV2 ? M_CHR : mat), { e: (u, v) => (u < 0.5 / NU2 || u > 1 - 0.5 / NU2 || v < 0.5 / NV2 || v > 1 - 0.5 / NV2 ? 1 : Math.abs(u - 2 / NU2) < 0.3 / NU2 || Math.abs(u - 1 + 2 / NU2) < 0.3 / NU2 || Math.abs(v - 2 / NV2) < 0.3 / NV2 || Math.abs(v - 1 + 2 / NV2) < 0.3 / NV2 ? 0.9 : 0) }); };
     const rivets = (B, pts, r) => { for (const p of pts) B.sph(p, r || 0.022, M_CHR, 5); };
+    // a light strip (or a cable) along a curve on the hull: short tubes between its points
+    const strip = (B, pts, r, mat) => { for (let i = 0; i + 1 < pts.length; i++) B.tube(pts[i], pts[i + 1], r, r, mat, { seg: 5, cap0: i ? false : 'round', cap1: i + 2 < pts.length ? false : 'round' }); };
+    const along = (f, t0, t1, nn) => { const a = []; for (let i = 0; i <= nn; i++) a.push(f(lerp(t0, t1, i / nn))); return a; };
+    // a vent: a dark recessed box with chrome louvres, set into a surface at p, its face toward nrm, long along dir
+    const vent = (B, p, nrm, dir, L, W, nl) => { B.along(p, dir, nrm); B.box([0, 0, -0.01], [L, W, 0.014], 0.006, M_STEEL); for (let i = 0; i < nl; i++) B.box([lerp(-L * 0.75, L * 0.75, nl > 1 ? i / (nl - 1) : 0.5), 0, 0.006], [0.008, W * 0.8, 0.01], 0.003, M_CHR); B.pop(); };
     // a strip joining two edge curves (a plate's visible thickness)
     const rim = (B, f0, f1, nn, mat, flip) => B.surf((u, v) => { const a = f0(u), b = f1(u); return [lerp(a[0], b[0], v), lerp(a[1], b[1], v), lerp(a[2], b[2], v)]; }, nn, 1, () => mat, { e: () => 1, flip: !!flip });
     { const B = GLM.builder(q);   // ---- the head: a broad flat wedge. The blue cap with its silver chevron, the chrome snout, cheeks and brow line,
@@ -84,6 +89,12 @@ const JAWS_MODEL = (() => {
         B.pop();
         for (let i = 0; i < 10; i++) { const t = lerp(T_JAW + 0.03, 0.975, i / 9), p = hsec(t, sd > 0 ? a0 : a1, 0.95), L = 0.27 + 0.06 * Math.sin(i * 2.3 + sd) - 0.07 * (i / 9); B.spike([p[0], p[1], p[2] + 0.02], [p[0] + 0.03, p[1] * 0.94, p[2] - L], 0.074 + 0.014 * Math.sin(i * 1.7), M_TOOTH, { seg: 4 }); }
         rivets(B, [0.67, 0.72, 0.77, 0.82].map(t => hsec(t, sd > 0 ? 6 * DEG : 174 * DEG, 1.01))); }
+      // the cap's armour: two stepped plates either side of the chevron, a nose ridge, rivet rows, an intake under each eye
+      for (const sd of [1, -1]) { armour(B, T_HEAD + 0.005, 0.735, sd > 0 ? 58 : 98, sd > 0 ? 82 : 122, 1.0, 1.035, M_BLUE, 8, 8, hsec);
+        rivets(B, [0.66, 0.69, 0.72, 0.75, 0.78].map(t => hsec(t, sd > 0 ? 40 * DEG : 140 * DEG, 1.012)), 0.018);
+        const ip = hsec(0.735, sd > 0 ? 18 * DEG : 162 * DEG, 1.0), inr = vnrm([0.15, sd * 0.95, 0.15]); vent(B, ip, inr, [1, 0, 0], 0.075, 0.035, 4); }
+      B.surf((u, v) => hsec(lerp(0.74, 0.97, u), (90 + (v - 0.5) * 7) * DEG, 1.018), 10, 2, () => M_CHR, { e: (u, v) => (v < 0.1 || v > 0.9 ? 0.8 : 0) });   // (the nose ridge)
+      for (const tt of [0.9, 0.95]) strip(B, along(ph => { const q2 = hsec(tt, ph * DEG, 0.82); return [q2[0], q2[1], q2[2] - 0.035]; }, -8, 188, 14), 0.02, M_CYAN);   // (the throat lights: two cyan arcs under the mouth's roof, behind the teeth; they glow in the resting mouth's gap)   // (the throat light: an arc over the packed cannon's muzzle; it glows in the resting mouth's gap)
       for (let i = 0; i < 5; i++) { const y = lerp(-0.24, 0.24, i / 4), p = [XN - 0.1, y, fzc(1) - frz(1) * 0.5]; B.spike([p[0], p[1], p[2] + 0.02], [p[0] + 0.03, p[1], p[2] - 0.2 - 0.03 * (i % 2)], 0.066, M_TOOTH, { seg: 4 }); }
       M.head = B.done(); }
     { const B = GLM.builder(q);   // ---- the lower jaw, about its hinge: a thick chrome shell with a blunt chin, hinge bosses, lower teeth, the dark tongue
@@ -119,7 +130,9 @@ const JAWS_MODEL = (() => {
         rivets(B, [0.15, 0.25, 0.35, 0.45].map(t => fus(t, sd > 0 ? 64 * DEG : 116 * DEG, 1.01))); }
       for (let i = 0; i < 4; i++) for (const sd of [1, -1]) armour(B, 0.115 + i * 0.097, 0.215 + i * 0.097, sd > 0 ? 62 : 97, sd > 0 ? 83 : 118, 1.0, 1.05 + 0.006 * i, M_BLUE, 8, 8);   // (the spine's row of plates, either side of the fin's rail)
       B.push([1, 0, 0], [0, 0, 1], [0, -1, 0], [0, 0, 0]); plate(B, [[fx(0.6), -0.5], [fx(0.6) - 0.1, -0.74], [fx(0.2), -0.7], [fx(0.12), -0.42]], 0.05, M_CHR); B.pop();                       // (the chrome keel)
-      B.box([DORS0[0], 0, DORS0[2] - 0.02], [0.5, 0.075, 0.04], 0.02, M_CHR);                                                               // (the dorsal fin's hinge rail)
+      B.box([DORS0[0], 0, DORS0[2] - 0.02], [0.5, 0.075, 0.04], 0.02, M_CHR);
+      for (const sd of [1, -1]) { strip(B, [[-0.72, sd * 0.43, 0.06], [-0.2, sd * 0.45, 0.08], [0.5, sd * 0.43, 0.06]], 0.022, M_STEEL); strip(B, [[-0.72, sd * 0.43, -0.08], [-0.2, sd * 0.45, -0.1], [0.5, sd * 0.43, -0.08]], 0.016, M_STEEL);   // (cable runs past the reactor)
+        for (let i = 0; i < 3; i++) vent(B, fus(0.16 + i * 0.097, (sd > 0 ? 74 : 106) * DEG, 1.056 + 0.006 * i), vnrm([0, sd * 0.45, 1]), [1, 0, 0], 0.04, 0.03, 3); }                                                               // (the dorsal fin's hinge rail)
       B.lathe([[XT + 0.12, 0.26, M_CHR], [XT - 0.02, 0.3, M_CHR], [XT - 0.1, 0.27, M_CHR], [XT - 0.08, 0.2, M_STEEL], [XT + 0.02, 0.17, M_STEEL]], M_CHR, { seg: n(18) }); B.ell([XT + 0.0, 0, 0], [0.04, 0.17, 0.17], M_CYAN, { seg: n(12), rings: 5 });
       for (let i = 0; i < 4; i++) { const a = i / 4 * TAU + 0.78; B.box([XT - 0.04, Math.cos(a) * 0.14, Math.sin(a) * 0.14], [0.05, 0.012 + 0.07 * Math.abs(Math.cos(a)), 0.012 + 0.07 * Math.abs(Math.sin(a))], 0.004, M_STEEL); }
       M.core = B.done(); }
@@ -134,9 +147,13 @@ const JAWS_MODEL = (() => {
       armour(B, 0.12, 0.3, 4, 60, 1.02, 1.065, M_BLUE); armour(B, 0.265, 0.455, 4, 60, 1.03, 1.09, M_BLUE); armour(B, 0.42, T_HEAD - 0.02, 16, 60, 1.04, 1.115, M_BLUE);
       for (const [tt, kk2] of [[0.21, 1.075], [0.36, 1.1], [0.52, 1.125]]) B.surf((u, v) => fus(tt + 0.055 * (u - 0.5) + (Math.abs(v - 0.5) - 0.25) * 0.09, lerp(24, 52, v) * DEG + 0, kk2), 2, 8, () => M_CHR, { e: (u, v) => (u < 0.1 || u > 0.9 ? 0.7 : 0) });   // (a silver chevron on each)
       rivets(B, [0.15, 0.27, 0.3, 0.42, 0.45, 0.58].map(t => fus(t, 54 * DEG, 1.1)));
+      strip(B, along(t => fus(t, 6 * DEG, 1.075), 0.13, 0.42, 6), 0.011, M_CYAN); strip(B, along(t => fus(t, 6 * DEG, 1.1), 0.45, T_HEAD - 0.03, 3), 0.011, M_CYAN);   // (light strips along the plates' lower seam)
+      for (const t of [0.3, 0.455]) strip(B, along(a => fus(t, a * DEG, 1.09), 10, 54, 4), 0.012, M_CHR);                                   // (chrome lips on the steps)
+      for (const [t0, t1] of [[0.14, 0.28], [0.29, 0.43]]) rivets(B, along(t => fus(t, -6 * DEG, 1.04), t0, t1, 4), 0.017);
       // the gills: a dark frame with a chrome border, four slanted cyan slots, low on the shoulder
       armour(B, 0.455, 0.615, -16, 12, 1.02, 1.07, M_STEEL, 8, 10);
-      for (let i = 0; i < 4; i++) { const t = 0.487 + i * 0.03, pa = fus(t, -11 * DEG, 1.085), pb = fus(t + 0.016, -2 * DEG, 1.085), pc = fus(t, 7 * DEG, 1.085); B.tube(pa, pb, 0.026, 0.026, M_CYAN, { seg: 6, cap0: 'round', cap1: 'round' }); B.tube(pb, pc, 0.026, 0.026, M_CYAN, { seg: 6, cap0: 'round', cap1: 'round' }); }
+      for (let i = 0; i < 4; i++) { const t = 0.487 + i * 0.03, pa = fus(t, -11 * DEG, 1.085), pb = fus(t + 0.016, -2 * DEG, 1.085), pc = fus(t, 7 * DEG, 1.085); const qa = fus(t, -11 * DEG, 1.05), qb = fus(t + 0.016, -2 * DEG, 1.05), qc = fus(t, 7 * DEG, 1.05); for (const [q0, q1] of [[qa, qb], [qb, qc]]) B.tube(q0, q1, 0.042, 0.042, M_STEEL, { seg: 6, cap0: 'round', cap1: 'round' });   // (a dark louvre recessed behind each slot: depth)
+         B.tube(pa, pb, 0.026, 0.026, M_CYAN, { seg: 6, cap0: 'round', cap1: 'round' }); B.tube(pb, pc, 0.026, 0.026, M_CYAN, { seg: 6, cap0: 'round', cap1: 'round' }); }
       rivets(B, [0.14, 0.24, 0.34, 0.44, 0.54].map(t => fus(t, -24 * DEG, 1.03)));
       for (const t of [0.2, 0.52]) { B.box(fus(t, 12 * DEG, 0.8), [0.07, 0.04, 0.08], 0.02, M_STEEL); }                                     // (the rails' sockets behind the plate)
       M.flank = B.done(); }
@@ -159,6 +176,11 @@ const JAWS_MODEL = (() => {
       B.tube([0.3, -0.13, 0.36], [0.3, 0.13, 0.36], 0.02, 0.02, M_CHR, { seg: 6, cap0: 'round', cap1: 'round' });
       B.facet([[0.21, -0.23, 0.19], [0.21, 0.23, 0.19], [0.295, 0.125, 0.35], [0.295, -0.125, 0.35]], M_GLASS); B.facet([[0.295, -0.125, 0.35], [0.295, 0.125, 0.35], [0.21, 0.23, 0.19], [0.21, -0.23, 0.19]], M_GLASS);
       B.box([0.15, 0, 0.13], [0.05, 0.13, 0.05], 0.015, M_STEEL); for (const y of [-0.07, 0.07]) B.box([0.118, y, 0.165], [0.012, 0.045, 0.022], 0.004, M_CYAN); B.tube([0.1, 0, 0.14], [0.04, 0, 0.2], 0.012, 0.012, M_CHR, { seg: 5 }); B.torY([0.03, 0, 0.21], 0.04, 0.01, M_STEEL, { seg: 10, rseg: 4 });   // (the console, two screens, the yoke)
+      for (const sd of [1, -1]) { B.push([1, 0, 0], [0, 1, 0], [0, 0, 1], [-0.02, sd * 0.33, 0.22]); B.tor([0, 0, 0], 0.07, 0.012, M_CHR, { seg: 10, rseg: 4, ph0: 0, ph1: Math.PI }); B.pop();   // (a grab handle each side of the rim)
+        B.box([-0.1, sd * 0.255, 0.16], [0.09, 0.012, 0.05], 0.008, M_STEEL); for (let i = 0; i < 3; i++) B.box([-0.16 + i * 0.06, sd * 0.268, 0.17], [0.012, 0.004, 0.012], 0, i === 1 ? M_CYAN : M_CHR);   // (side panels with switches)
+        B.tube([0.2, sd * 0.24, 0.18], [0.2, sd * 0.24, 0.02], 0.016, 0.016, M_CHR, { seg: 5 }); }                                       // (the windscreen frame's posts)
+      for (let i = 0; i < 4; i++) B.box([0.13, -0.06 + i * 0.04, 0.188], [0.01, 0.012, 0.006], 0.003, i % 2 ? M_CHR : M_CYAN);            // (buttons on the console)
+      B.tube([-0.25, -0.12, 0.43], [-0.25, 0.12, 0.43], 0.014, 0.014, M_CHR, { seg: 5, cap0: 'round', cap1: 'round' });                    // (a roll bar over the headrest)
       M.cockpit = B.done(); }
     { const B = GLM.builder(q);   // ---- the dorsal fin, from its root: a tall swept blade (x-z plane): a silver leading edge and root, a swoosh marking
       B.push([1, 0, 0], [0, 0, 1], [0, -1, 0], [0, 0, 0]);
@@ -169,10 +191,15 @@ const JAWS_MODEL = (() => {
       for (const x of [-0.4, -0.1, 0.2]) B.sph([x, 0.09, 0], 0.058, M_STEEL, 6);
       B.pop(); M.dorsal = B.done(); }
     { const B = GLM.builder(q);   // ---- the right pectoral fin, from its root joint: a broad swept blade (x-y plane): a silver leading edge, a marking, the joint with its cyan ring
-      plate(B, [[0.42, 0], [-0.46, 1.48], [-0.92, 1.44], [-0.62, 0.8], [-0.66, 0]], 0.036, M_BLUE);
-      plate(B, [[0.46, 0], [-0.42, 1.5], [-0.54, 1.5], [0.3, 0.06], [0.26, 0]], 0.047, M_CHR);
+      const pY = u => 1.46 * u, xLE = y => 0.42 - 0.6 * y, xTE = y => (y < 0.8 ? -0.66 + 0.05 * y : -0.62 - (y - 0.8) * 0.47), cam = (u, v) => 0.05 * Math.sin(Math.PI * v) * (1 - 0.55 * u);
+      const pP = (u, v, sg) => { const y = pY(u), x = lerp(xLE(y), xTE(y), v); return [x, y, sg > 0 ? 0.03 * (1 - 0.6 * u) + cam(u, v) : -0.03 * (1 - 0.6 * u) + cam(u, v) * 0.35]; };
+      B.surf((u, v) => pP(u, v, 1), n(10), n(8), () => M_BLUE, { e: (u, v) => Math.max(v < 0.06 || v > 0.94 || u > 0.97 ? 1 : 0, seam(u, [0.36, 0.7])) });
+      B.surf((u, v) => pP(u, v, -1), n(8), n(6), () => M_BLUE, { flip: true, e: (u, v) => (v < 0.06 || v > 0.94 ? 1 : 0) });
+      rim(B, u => pP(u, 1, 1), u => pP(u, 1, -1), n(8), M_BLUE, true); rim(B, u => pP(1, u, 1), u => pP(1, u, -1), 4, M_BLUE);
+      B.surf((u, v) => { const p = pP(u, v * 0.13, 1); return [p[0], p[1], p[2] + 0.008]; }, n(10), 2, () => M_CHR, { e: (u, v) => (v > 0.9 ? 0.8 : 0) });                 // (the silver leading edge)
+      B.surf((u, v) => { const uu = lerp(0.46, 0.72, u), vv = 0.3 + 0.2 * u + (v - 0.5) * 0.09, p = pP(uu, vv, 1); return [p[0], p[1], p[2] + 0.008]; }, 6, 2, () => M_CHR, { e: (u, v) => (v < 0.1 || v > 0.9 ? 0.7 : 0) });   // (the marking: one slim silver slash)
       plate(B, [[0.46, 0], [0.34, 0.15], [-0.64, 0.15], [-0.7, 0]], 0.05, M_CHR);
-      plate(B, [[-0.12, 0.64], [-0.38, 1.05], [-0.47, 1.05], [-0.31, 0.78], [-0.4, 0.62]], 0.042, M_CHR);
+      for (let i = 0; i < 4; i++) { const p = pP(0.12 + 0.2 * i, 0.82, 1); B.sph([p[0], p[1], p[2] + 0.004], 0.014, M_CHR, 4); }
       B.tube([0, -0.1, 0], [0, 0.12, 0], 0.16, 0.14, M_CHR, { seg: n(14), cap0: 'flat', cap1: 'round' }); B.torY([0, 0.0, 0], 0.165, 0.03, M_CYAN, { seg: n(16), rseg: 5 }); B.torY([0, 0.07, 0], 0.15, 0.02, M_STEEL, { seg: n(14), rseg: 4 });
       M.pec = B.done(); }
     { const B = GLM.builder(q);   // ---- a pectoral's inner panel (the same frame): it slides out of the trailing edge as the fin becomes a stabiliser
@@ -184,6 +211,7 @@ const JAWS_MODEL = (() => {
       B.lathe([[0.04, r0 * 0.8, M_CHR], [0.04, r0 * 1.06, M_CHR], [0.1, r0 * 1.06, M_CHR], [0.1, r0 * 0.97, j % 2 ? M_CHR : M_BLUE], [LTAIL - 0.09, r1 * 1.0, j % 2 ? M_CHR : M_BLUE], [LTAIL - 0.09, r1 * 1.1, M_CHR], [LTAIL - 0.04, r1 * 1.1, M_CHR], [LTAIL - 0.04, r1 * 0.8, M_CHR]], M_BLUE, { seg: n(16) });
       B.tube([0.1, 0, r0 * 0.97], [LTAIL - 0.09, 0, r1 * 1.0], 0.022, 0.022, M_CYAN, { seg: 5, cap0: 'round', cap1: 'round' });
       for (const sd of [1, -1]) B.box([LTAIL * 0.5, sd * (r0 + r1) * 0.5, 0], [0.07, 0.012, 0.05], 0.006, M_CHR);
+      for (const a of [40, 140, 220, 320]) { const ar = a * DEG, rr = (r0 + r1) * 0.5 * 1.02, c = Math.cos(ar), sn = Math.sin(ar); B.push([1, 0, 0], [0, c, sn], [0, -sn, c], [LTAIL * 0.5, 0, 0]); B.box([0, 0, rr], [LTAIL * 0.24, rr * 0.36, 0.014], 0.008, j % 2 ? M_BLUE : M_CHR); B.sph([-LTAIL * 0.18, 0, rr + 0.012], 0.012, M_CHR, 4); B.sph([LTAIL * 0.18, 0, rr + 0.012], 0.012, M_CHR, 4); B.pop(); }   // (raised plates round the sleeve)
       if (j === 1) { B.push([1, 0, 0], [0, 0, 1], [0, -1, 0], [0, 0, 0]); plate(B, [[0.3, r0 * 0.8], [-0.02, r0 + 0.3], [-0.14, r0 + 0.28], [0.04, r0 * 0.8]], 0.02, M_BLUE); plate(B, [[0.28, -r0 * 0.8], [0.02, -r0 - 0.2], [-0.08, -r0 - 0.18], [0.06, -r0 * 0.8]], 0.02, M_CHR); B.pop(); }   // (the small second dorsal and the anal fin)
       M['tail' + j] = B.done(); }
     { const B = GLM.builder(q);   // ---- the tail fin: a hub with a cyan ring and a large crescent of two lobes (x-z plane), silver leading edges
@@ -192,6 +220,8 @@ const JAWS_MODEL = (() => {
       plate(B, [[0.0, 0.06], [0.34, 0.72], [0.74, 1.3], [0.84, 1.22], [0.6, 0.62], [0.36, 0.1]], 0.03, M_BLUE); plate(B, [[0.0, -0.06], [0.3, -0.5], [0.56, -0.86], [0.66, -0.8], [0.48, -0.42], [0.34, -0.08]], 0.03, M_BLUE);
       plate(B, [[-0.04, 0.06], [0.3, 0.74], [0.72, 1.32], [0.76, 1.3], [0.4, 0.7], [0.06, 0.06]], 0.04, M_CHR); plate(B, [[-0.04, -0.06], [0.27, -0.52], [0.54, -0.88], [0.58, -0.86], [0.36, -0.5], [0.06, -0.06]], 0.04, M_CHR);
       plate(B, [[0.3, 0.42], [0.54, 0.9], [0.62, 0.88], [0.44, 0.44]], 0.036, M_CHR);
+      plate(B, [[0.0, -0.16], [0.36, -0.12], [0.36, 0.14], [0.0, 0.18]], 0.06, M_STEEL); for (const z of [-0.1, 0.0, 0.1]) B.tube([0.0, z, 0.06], [0.34, z, 0.06], 0.012, 0.012, M_CHR, { seg: 5 });   // (the root spar)
+      for (const [a, b2] of [[[0.38, 0.3], [0.62, 0.95]], [[0.32, -0.25], [0.5, -0.66]]]) for (const zs of [1, -1]) B.tube([a[0], a[1], zs * 0.032], [b2[0], b2[1], zs * 0.032], 0.012, 0.009, M_STEEL, { seg: 5 });   // (ribs on each lobe)
       B.pop(); M.tailfin = B.done(); }
     return M;
   }

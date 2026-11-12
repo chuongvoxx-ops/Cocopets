@@ -9,7 +9,7 @@
    registry (create, refresh, replace the oldest available, claim, release, consume, clear); and the animation layer on
    the model's pose channels (the air-swim, banking, the jaw, the transformation's beats, recoil).
      the model:  JAWS_MODEL (the lead, 20k7m), or the stand-in below
-     the moves:  self.JAWS_MOVES (worker E, 20k7o), or the stubs below: waterRay, rollingWave, depthCharge, maelstrom,
+     the moves:  self.JAWS_MOVES (worker E, 20k7o), or the stubs below: waterRay, waterBombs, depthCharge, maelstrom,
                  sharkAttack, and the pictures maw / hydrojet / anchor / release / summon / exit
    Every hit goes through ctx.hit / ctx.hitArea / ctx.hitOval: effective damage (after mitigation, without overkill)
    charges the gauge (never Shark Attack's: noCharge), and an area hit also breaks the scenery inside it through
@@ -51,7 +51,7 @@
     /* Hydrojet (Leviathan Dodge): a short violent burst along the stick (else straight back), then the hull settles */
     jet: { dist: 4.6, burst: 0.26, settle: 0.3, inv: 0.38 },
     dodgeRec: 0.18,             /* s: the one recovery Maw and Hydrojet share after the action ends (no cooldown beyond it; a form change never resets it) */
-    s1Cd: 2, s2Cd: 4,           /* s from the end of the cast (held from the press): Water Ray / Depth Charge share one, Rolling Wave / Maelstrom the other (JAWS_MOVES.TUNE.s1Cd / s2Cd win when present) */
+    s1Cd: 2, s2Cd: 4,           /* s from the end of the cast (held from the press): Water Ray / Depth Charge share one, Water Bombs / Maelstrom the other (JAWS_MOVES.TUNE.s1Cd / s2Cd win when present) */
     chargeK: [36, 45, 60],      /* the gauge fills at chargeK x DK of damage actually dealt, by tier (H: the session is long, so a single-target fight fills it a little past its middle) */
     finFold: 0.9, finCap: 22, busyCap: 10,
     outGlide: [0.3, 1.3], outSpd: 13, outZ: 1.0, hop: 0.45, dissolve: 0.9,
@@ -86,13 +86,13 @@
 
   /* ================= E's moves (looked up at call time), or stubs so the flow can run ================= */
   const STUB = {
-    stub: true, TUNE: {}, stats: { rays: 0, waves: 0, charges: 0, empowered: 0, maelTicks: 0, beam: 0, bite: 0 },
+    stub: true, TUNE: {}, stats: { rays: 0, bombs: 0, charges: 0, empowered: 0, maelTicks: 0, beam: 0, bite: 0 },
     /* one authored explosion at the aim; a Tidal Pool left there (the core's rules decide whether one is made) */
     waterRay(ctx) { const T = ctx.target(); let t = 0; const f = ctx.H.add({ key: 'jaws-moves', life: 9, update(dt) { if (!ctx.alive()) { f.life = 0; return; } t += dt; if (t < 0.3) { ctx.clip('rayCharge', t / 0.3); return; } ctx.clip('rayFire', cl((t - 0.3) / 0.3));
       if (!f.hit) { f.hit = 1; STUB.stats.rays++; ctx.hitArea(T.x, T.y, 2.2, ctx.DK * 5, { kb: 2 }); ctx.pools.create(T.x, T.y); ctx.X.ring(T.x, T.y, 0.3, 2.2, 0.4, CYAN, 0.3); } if (t >= 0.6) { f.life = 0; ctx.done(); } } }); },
-    /* a wave from the shark toward the aim: one hit per enemy as it passes, pushed toward the aim */
-    rollingWave(ctx) { const V = ctx.vehicle, T = ctx.target(), a = Math.atan2(T.y - V.y, T.x - V.x), x0 = V.x, y0 = V.y, D = Math.max(4, Math.hypot(T.x - x0, T.y - y0)), once = {}; let t = 0; const f = ctx.H.add({ key: 'jaws-moves', life: 9, update(dt) { if (!ctx.alive()) { f.life = 0; return; } t += dt;
-      if (t < 0.3) { ctx.clip('waveCoil', t / 0.3); return; } if (!f.dn) { f.dn = 1; STUB.stats.waves++; ctx.done(); } const u = cl((t - 0.3) / 0.7), x = x0 + Math.cos(a) * D * u, y = y0 + Math.sin(a) * D * u; ctx.clip('waveFlick', cl((t - 0.3) / 0.25));
+    /* (stand-in for Water Bombs: a sweep from the shark toward the aim, one hit per enemy) */
+    waterBombs(ctx) { const V = ctx.vehicle, T = ctx.target(), a = Math.atan2(T.y - V.y, T.x - V.x), x0 = V.x, y0 = V.y, D = Math.max(4, Math.hypot(T.x - x0, T.y - y0)), once = {}; let t = 0; const f = ctx.H.add({ key: 'jaws-moves', life: 9, update(dt) { if (!ctx.alive()) { f.life = 0; return; } t += dt;
+      if (t < 0.3) { ctx.clip('waveCoil', t / 0.3); return; } if (!f.dn) { f.dn = 1; STUB.stats.bombs++; ctx.done(); } const u = cl((t - 0.3) / 0.7), x = x0 + Math.cos(a) * D * u, y = y0 + Math.sin(a) * D * u; ctx.clip('waveFlick', cl((t - 0.3) / 0.25));
       for (const m of ctx.mons()) { if (Math.hypot(m.x - x, m.y - y) > 2 + (m.r || 0.4)) continue; const s = once.__seen || (once.__seen = new Set()); if (s.has(m)) continue; ctx.hitArea(m.x, m.y, 0.2, ctx.DK * 4, { once, noSmash: true }); if (!m.boss && !m.still) { m.x += (T.x - m.x) * 0.5; m.y += (T.y - m.y) * 0.5; } } ctx.smashArea(x, y, 1.8); if (u >= 1) f.life = 0; } }); },
     /* a sphere to the aim; onto an available pool it claims it at launch and resolves as one much larger blast, consuming it */
     depthCharge(ctx) { const V = ctx.vehicle, T = ctx.target(), own = {}, pool = ctx.pools.at(T.x, T.y), tx = pool ? pool.x : T.x, ty = pool ? pool.y : T.y; let t = 0, claimed = false; const f = ctx.H.add({ key: 'jaws-moves', life: 9, update(dt) { if (!ctx.alive()) { f.life = 0; ctx.pools.release(own); return; } t += dt;
@@ -282,7 +282,7 @@
       pools: [], poolLog: [], poolId: 0,
       parts: [], free: [], marks: [], ended: false, released: false, pet: X.pet ? X.pet() : null, air: airOf(X), home: { x: me.x, y: me.y }, safe: { x: me.x, y: me.y }, safeT: 0, reachT: 2, sfxT: 0, mx: 0, my: 0, spd: 4.3,
       vs: VEH_SMASH.create(X, g),
-      stats: { maws: 0, mawHits: 0, mawBad: 0, mawSmash: 0, hydrojets: 0, anchors: 0, releases: 0, anchorBad: 0, switches: 0, menuSets: 0, timerSets: 0, ray: 0, wave: 0, depth: 0, mael: 0, maelRefused: 0, shark: 0, smashed: 0, cdSet: 0, dealt: 0, charged: 0, hits: 0,
+      stats: { maws: 0, mawHits: 0, mawBad: 0, mawSmash: 0, hydrojets: 0, anchors: 0, releases: 0, anchorBad: 0, switches: 0, menuSets: 0, timerSets: 0, ray: 0, bombs: 0, depth: 0, mael: 0, maelRefused: 0, shark: 0, smashed: 0, cdSet: 0, dealt: 0, charged: 0, hits: 0,
         flyT: 0, siegeT: 0, xfT: 0, offT: 0, offshoreExit: 0, poolsMade: 0, poolsRefreshed: 0, poolsReplaced: 0, poolClaim: 0, claimsReleased: 0, poolsConsumed: 0, poolClear: 0, poolFull: 0, poolBlocked: 0, poolInvalid: 0 } };
     S.clipOK = canClip(M0); S.emerge = S.clipOK;   /* (with a model that cuts at a height, the summon is a real emergence through the ring: snout and teeth first) */
     buildReach(S, me.x, me.y);
@@ -514,7 +514,7 @@
 
   /* ================= the commands ================= */
   function fresh(S, key) { const t = S.g.t, p = S.press[key]; S.press[key] = t; return t - p >= TUNE.freshGap; }
-  const MOVES = { shark: { strong: ['waterRay', 's1', 'ray'], strong2: ['rollingWave', 's2', 'wave'] }, leviathan: { strong: ['depthCharge', 's1', 'depth'], strong2: ['maelstrom', 's2', 'mael'] } };
+  const MOVES = { shark: { strong: ['waterRay', 's1', 'ray'], strong2: ['waterBombs', 's2', 'bombs'] }, leviathan: { strong: ['depthCharge', 's1', 'depth'], strong2: ['maelstrom', 's2', 'mael'] } };
   function tryMove(S, slot, queued) {
     const V = S.V, g = S.g, sfx = S.X.sfx || {}, sl = slot === 'strong2' ? 'strong2' : 'strong';
     if (!queued && !fresh(S, sl)) return;
@@ -708,7 +708,7 @@
     c.restore();
   }
 
-  /* ================= the HUD: the contextual menu (shark: Water Ray, Rolling Wave, Maw; Leviathan: Depth Charge, Maelstrom,
+  /* ================= the HUD: the contextual menu (shark: Water Ray, Water Bombs, Maw; Leviathan: Depth Charge, Maelstrom,
      Hydrojet), the small Anchor / Release button above Dodge, Shark Attack's gauge, the summon time apart from it, three pool indicators ================= */
   const rgba = (h, a) => { const [r, g, b] = hexRGB(h); return `rgba(${r},${g},${b},${cl(a)})`; };
   function drawBtns(S, c, o) {
@@ -720,7 +720,7 @@
       if (cd > 0.05) { c.beginPath(); c.moveTo(b.x, b.y); c.arc(b.x, b.y, R, -Math.PI / 2, -Math.PI / 2 + TAU * Math.min(1, cd / Math.max(0.1, cdMax))); c.closePath(); c.fillStyle = 'rgba(4,10,24,.55)'; c.fill(); GFX.textS(c, cd.toFixed(1), b.x, b.y, 13, '#FFFFFF'); }
       GFX.labelS(c, label, b.x, b.y + R + 9, small ? 7.5 : 8, 800, '#E4F6FF', 'rgba(0,0,0,.7)', 3); };
     const noPool = lev && !S.pools.some(p => p.state === 'available');
-    if (!lev) { btn(B.s[0], 'waterRay', 'WATER RAY', S.cd.s1, S.cdMax.s1 || TUNE.s1Cd, paintRayBtn, S.busy === 'waterRay'); btn(B.s[1], 'rollingWave', 'ROLLING WAVE', S.cd.s2, S.cdMax.s2 || TUNE.s2Cd, paintWaveBtn, S.busy === 'rollingWave'); btn(B.d, 'maw', 'MAW', S.cd.dodge, S.cdMax.dodge || TUNE.dodgeRec, paintMawBtn, !!S.maw); }
+    if (!lev) { btn(B.s[0], 'waterRay', 'WATER RAY', S.cd.s1, S.cdMax.s1 || TUNE.s1Cd, paintRayBtn, S.busy === 'waterRay'); btn(B.s[1], 'waterBombs', 'WATER BOMBS', S.cd.s2, S.cdMax.s2 || TUNE.s2Cd, paintBombsBtn, S.busy === 'waterBombs'); btn(B.d, 'maw', 'MAW', S.cd.dodge, S.cdMax.dodge || TUNE.dodgeRec, paintMawBtn, !!S.maw); }
     else { btn(B.s[0], 'depthCharge', 'DEPTH CHARGE', S.cd.s1, S.cdMax.s1 || TUNE.s1Cd, paintDepthBtn, S.busy === 'depthCharge'); btn(B.s[1], 'maelstrom', noPool ? 'NEEDS A POOL' : 'MAELSTROM', S.cd.s2, S.cdMax.s2 || TUNE.s2Cd, paintMaelBtn, S.busy === 'maelstrom', noPool); btn(B.d, 'hydrojet', 'HYDROJET', S.cd.dodge, S.cdMax.dodge || TUNE.dodgeRec, paintJetBtn, !!S.jet); }
     /* Anchor / Release: small, labelled, above Dodge */
     if (B.j) btn(B.j, lev ? 'release' : 'anchor', S.xfm ? (S.xfm.to === 'leviathan' ? 'ANCHORING' : 'RELEASING') : lev ? 'RELEASE' : 'ANCHOR', 0, 1, lev ? paintReleaseBtn : paintAnchorBtn, !!S.xfm, false, true);
@@ -748,7 +748,7 @@
   const pal = rd => ({ a: rd ? CYAN2 : '#7C8894', b: rd ? CYAN : '#56626E', c: rd ? CHROME : '#6C7682', d: rd ? COB : '#3A4452' });
   const jawG = (x, r, rd, open) => { const p = pal(rd); for (const sd of [-1, 1]) { x.save(); x.rotate(sd * open); x.fillStyle = p.c; x.beginPath(); x.moveTo(-r * 0.5, 0); x.quadraticCurveTo(0, sd * r * 0.5, r * 0.55, sd * r * 0.04); x.lineTo(r * 0.55, 0); x.closePath(); x.fill(); x.fillStyle = rd ? WHITE : '#9AA4AE'; for (let i = 0; i < 4; i++) { const tx = -r * 0.25 + i * r * 0.2; x.beginPath(); x.moveTo(tx, 0); x.lineTo(tx + r * 0.07, -sd * r * 0.14); x.lineTo(tx + r * 0.14, 0); x.closePath(); x.fill(); } x.restore(); } };
   function paintRayBtn(x, cx, cy, r, rd) { const p = pal(rd); x.save(); x.translate(cx, cy); x.rotate(-0.5); x.globalAlpha = rd ? 1 : 0.55; const g = x.createLinearGradient(-r * 0.6, 0, r * 0.6, 0); g.addColorStop(0, p.a); g.addColorStop(1, p.d); x.fillStyle = g; x.fillRect(-r * 0.6, -r * 0.09, r * 1.0, r * 0.18); x.strokeStyle = p.a; x.lineWidth = 1.5; for (const rr of [0.2, 0.32]) { x.beginPath(); x.ellipse(r * 0.45, 0, r * rr * 0.5, r * rr, 0, 0, TAU); x.stroke(); } x.fillStyle = p.b; x.beginPath(); x.ellipse(r * 0.45, r * 0.42, r * 0.3, r * 0.1, 0.5, 0, TAU); x.fill(); x.restore(); }
-  function paintWaveBtn(x, cx, cy, r, rd) { const p = pal(rd); x.save(); x.translate(cx, cy); x.globalAlpha = rd ? 1 : 0.55; x.fillStyle = p.d; x.beginPath(); x.moveTo(-r * 0.65, r * 0.4); x.quadraticCurveTo(-r * 0.2, -r * 0.7, r * 0.35, -r * 0.35); x.quadraticCurveTo(r * 0.05, -r * 0.2, r * 0.2, r * 0.05); x.quadraticCurveTo(r * 0.45, r * 0.3, r * 0.65, r * 0.4); x.closePath(); x.fill(); x.strokeStyle = rd ? FOAM : '#8A949E'; x.lineWidth = r * 0.08; x.lineCap = 'round'; x.beginPath(); x.moveTo(-r * 0.3, -r * 0.25); x.quadraticCurveTo(r * 0.05, -r * 0.6, r * 0.35, -r * 0.35); x.stroke(); x.restore(); }
+  function paintBombsBtn(x, cx, cy, r, rd) { const p = pal(rd); x.save(); x.translate(cx, cy); x.globalAlpha = rd ? 1 : 0.55; for (const [px, py, k] of [[-0.36, 0.22, 0.2], [0.04, -0.22, 0.25], [0.42, 0.16, 0.18]]) { x.fillStyle = p.d; x.beginPath(); x.arc(px * r, py * r, k * r, 0, Math.PI * 2); x.fill(); x.fillStyle = rd ? FOAM : '#8A949E'; x.beginPath(); x.arc((px - 0.07) * r, (py - 0.07) * r, k * r * 0.32, 0, Math.PI * 2); x.fill(); } x.strokeStyle = rd ? FOAM : '#8A949E'; x.lineWidth = r * 0.07; x.lineCap = 'round'; x.beginPath(); x.moveTo(-r * 0.62, r * 0.56); x.quadraticCurveTo(0, r * 0.32, r * 0.62, r * 0.56); x.stroke(); x.restore(); }
   function paintMawBtn(x, cx, cy, r, rd) { x.save(); x.translate(cx, cy); x.globalAlpha = rd ? 1 : 0.55; x.rotate(0.35); jawG(x, r, rd, 0.42); x.restore(); }
   function paintDepthBtn(x, cx, cy, r, rd) { const p = pal(rd); x.save(); x.translate(cx, cy); x.globalAlpha = rd ? 1 : 0.55; const g = x.createRadialGradient(-r * 0.1, -r * 0.1, 0, 0, 0, r * 0.42); g.addColorStop(0, p.a); g.addColorStop(0.6, p.d); g.addColorStop(1, rd ? DEEP : '#20262E'); x.fillStyle = g; x.beginPath(); x.arc(0, 0, r * 0.42, 0, TAU); x.fill(); x.strokeStyle = p.a; x.lineWidth = 1.4; for (const rr of [0.24, 0.34]) { x.beginPath(); x.arc(0, 0, r * rr, 0.4, 2.6); x.stroke(); } x.strokeStyle = p.b; x.lineWidth = r * 0.07; x.lineCap = 'round'; x.beginPath(); x.moveTo(-r * 0.62, -r * 0.3); x.quadraticCurveTo(-r * 0.5, 0, -r * 0.42, r * 0.02); x.stroke(); x.restore(); }
   function paintMaelBtn(x, cx, cy, r, rd) { const p = pal(rd); x.save(); x.translate(cx, cy); x.globalAlpha = rd ? 1 : 0.55; x.lineCap = 'round'; for (let i = 0; i < 3; i++) { x.strokeStyle = i ? p.b : p.a; x.lineWidth = r * (0.1 - i * 0.02); x.beginPath(); for (let k = 0; k <= 22; k++) { const a = i * 2.1 + k / 22 * 4.4, rr = r * 0.62 * (1 - 0.78 * k / 22); const px = Math.cos(a) * rr, py = Math.sin(a) * rr * 0.72; if (k) x.lineTo(px, py); else x.moveTo(px, py); } x.stroke(); } x.restore(); }

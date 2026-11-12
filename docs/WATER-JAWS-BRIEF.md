@@ -15,7 +15,7 @@
 ## Fixed numbers (the spec's)
 - Duration, shared by both forms: **30 s base, 45 s Adept, 60 s Celestial**. Outer cooldown **150 s**, set once when
   normal control returns. At most **3** Tidal Pools. **One** Shark Attack per summon.
-- Provisional cooldowns: Water Ray / Depth Charge slot 2 s, Rolling Wave / Maelstrom slot 4 s, Maw / Hydrojet no extra
+- Provisional cooldowns: Water Ray / Depth Charge slot 2 s, Water Bombs / Maelstrom slot 4 s, Maw / Hydrojet no extra
   cooldown after recovery. Shared per slot across forms; a form change never readies the paired move.
 
 ## Files
@@ -23,7 +23,7 @@
 |---|---|---|
 | **Lead**, with **M** in support | `JAWS_MODEL`: one part set, both forms, the transformation, pose channels, anchors, drawn with `GLM` and M's cel materials (ids 30..35, `S.outline`) | `src/js/20k7m-water-jaws-model.js` |
 | **A** | `U.jaws`: session, Nidhogg-style flight for the shark, anchored aiming for Leviathan, Anchor / Release, Maw, Hydrojet, the menu and the extra form button, timers, gauge, the pool registry (create, refresh, replace, claim, consume), cleanup, the animation layer | `src/js/20k7n-water-ult-11.js` |
-| **E** | `JAWS_MOVES`: Water Ray, Rolling Wave, Depth Charge (plain and empowered), Maelstrom, Shark Attack, the pools' look, Maw's and Hydrojet's effects, the summon, the anchor halo, the exit, sound; real 3D on the GPU with 2D fallbacks | `src/js/20k7o-water-jaws-moves.js` |
+| **E** | `JAWS_MOVES`: Water Ray, Water Bombs (was Rolling Wave), Depth Charge (plain and empowered), Maelstrom, Shark Attack, the pools' look, Maw's and Hydrojet's effects, the summon, the anchor halo, the exit, sound; real 3D on the GPU with 2D fallbacks | `src/js/20k7o-water-jaws-moves.js` |
 | **H** | `tests/jaws.js` (the spec's verify list), the balance audit, anything asked in Notes | tests and Notes |
 
 ## Precedents
@@ -304,3 +304,16 @@ Clearance sweep rerun (same method): nothing crosses; the closest pair is a hing
 - It is `S.clip = [height in the model's own units, band]` in `GLM.render`, off unless a model passes it: Fenrir, Susano O and Belladonna do not.
 - The 2D fallback clips with a rectangle at the waterline's screen height (game camera only).
 - Also: the cannon's lens sits near the muzzle's lip now (no anchor moved), and the pectorals' silver root strip and marking are smaller.
+
+### E, Rolling Wave replaced by Water Bombs (2026-11-12; the user: "Jaws will throw 7 water bombs at enemies, the bomb explode into water splash dealing water damages")
+Supersedes every Rolling Wave entry above (H's numbers, A's labels, my contract).
+- **Names:** move key `waterBombs` (was `rollingWave`), the shark's Strong 2 slot, cooldown 4 s shared with Maelstrom as before. Button `WATER BOMBS`, its icon three bombs over a splash (`paintBombsBtn` in `20k7n`, `icons.waterBombs` in `20k7o`). The core's stat is `bombs` (was `wave`), the plan key `['waterBombs', 's2', 'bombs']`; `TUNE.bombsCd` (was `waveCd`).
+- **Behaviour:** after 0.15 s the shark lobs 7 bombs 0.09 s apart from `anchor('mouth')`, so the volley is out in 0.78 s and `done()` follows 0.1 s later. Targets are the enemies within 7 tiles, nearest first, round-robin; each throw leads a moving target by half its flight. Each bomb flies 0.4 to 0.5 s on an arc 1.6 tiles high. With no enemy in range the bombs land in a fan ahead along `aimDir()`, from 2.5 to 5.8 tiles out.
+- **Damage:** each splash is one `hitArea` of **1.5 DK within 1.3 tiles**, with its own registry, so seven bombs on one enemy are seven hits (10.5 DK). Each splash charges the gauge and smashes props. A bomb landing in an available Tidal Pool makes a bigger splash and a small geyser; the damage is the same.
+- `ctx.bombPlan = { n, targets, dmg, r, hits, burst }`; `JAWS_MOVES.stats.bombHits`, `bombVolleys`.
+- **For H:** `tests/jaws.js` 5c now checks Water Bombs: 7 hits on a lone enemy, a spread over six enemies, the gauge, a fan with no enemy, cast in flight. The prop check for Water Bombs puts an enemy beside the prop.
+
+### M, polish pass (`20k7m`, GLM ids 30-36) (2026-11-12, after v318)
+No anchor, channel, part name or count changed; the part set is still 36 items at every `xf`; `waterline` unchanged.
+- **Geometry:** stepped chrome-edged plates on the head cap either side of the chevron, a chrome nose ridge, rivet rows and an intake vent under each eye; vents on the spine plates; cable runs past the reactor; cyan light strips along the flank plates' lower seam and chrome lips on each plate's step; rivet rows along the flanks; the gill slots recessed in dark louvres; the cockpit has grab handles, side panels with switches, windscreen posts, console buttons and a roll bar; raised plates and rivets round every tail sleeve; a root spar and ribs on the tail fin; the pectorals are cambered blades with a slim silver slash and rivets (they no longer read pale from above), keeping the silver leading edge; two cyan throat lights under the mouth's roof (they show when the jaw opens; at rest the gap is too small to see them).
+- **Shading:** sharper cel bands (a clear shadow band and a crisp light band), more panel-to-panel tint, a recess darkening beside every panel line and plate step, richer chrome (a darker ground, a hotter horizon line, a soft second sky band, per-panel tint), turned machining rings on dark steel, the reactor and gills a little brighter. Fenrir, Susano O and Belladonna do not use ids 30-36.

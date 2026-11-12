@@ -210,8 +210,13 @@ const path = require('path');
     ok(Math.abs(T1.cd - 120) < 4 && T1.cdSet <= 1, 'the 120 s cooldown starts once at the exit', { cd: T1.cd, sets: T1.cdSet });
   } else ok(false, 'timeout ran', T1);
   const T4 = await R('defeat', LIB + `
-    ready(); S.charge = 1; H.step(0.4); D.useUlt(); H.until(() => H.log.some(h => h.nc), 12); const n0 = H.log.length; H.mortal = true; me.inv = 0; me.hp = 0; me.dead = true; H.step(4);
-    return { dead: me.dead, after: H.log.length - n0, veh: !!(D.VEH && D.VEH.active), fx: D.ELEM.fx.map(f => f.key || '?') };`);
+    ready(); S.charge = 1; H.step(0.4); D.useUlt(); H.until(() => H.log.some(h => h.nc), 12); const n0 = H.log.length; H.mortal = true; me.inv = 0; me.hp = 0; me.dead = true; const tD = g.t;
+    /* (the exit's dissolve is decoration that runs its course: 1.85 s of falling petals, each living up to 2.2 s, so the
+       shared 'belladonna-moves' effect ends 3.6 to 4.05 s after the defeat. Wait for it, capped at 6 s, rather than
+       sampling at exactly 4 s, which raced it about one run in three.) */
+    const fxOf = () => D.ELEM.fx.filter(f => /belladonna/i.test(f.key || '')).map(f => f.key || '?');
+    H.until(() => g.t - tD >= 2 && !fxOf().length, 6); const goneAt = +(g.t - tD).toFixed(2); H.step(Math.max(0, 4 - (g.t - tD)));
+    return { dead: me.dead, after: H.log.length - n0, veh: !!(D.VEH && D.VEH.active), goneAt, fx: fxOf() };`);
   if (T4 && !T4.err) ok(T4.dead && T4.after === 0 && !T4.veh && !T4.fx.some(k => /belladonna/i.test(k)), 'pet defeat during Twister: the storm and its damage stop, the pet stays defeated, cleanup', T4);
 
   // ---- 5. the environment: attacks smash props; doors and bridges stay (deterministic: set beside a known prop) ----

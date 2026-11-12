@@ -1,7 +1,8 @@
 /* ---------- Jaws (11th Water ult): the moves and effects (E) ----------
    JAWS_MOVES, called by A's core (20k7n) with one `ctx` per cast (the contract is in docs/WATER-JAWS-BRIEF.md, Notes).
    - JM.waterRay(ctx): the mouth charge, the beam, ONE explosion hit at the impact, then a Tidal Pool asked of the core.
-   - JM.rollingWave(ctx): a rolling wave that hits each enemy once and carries movable ones toward the aim.
+   - JM.waterBombs(ctx): a volley of seven water bombs lobbed onto the nearest enemies (round-robin); each bursts into a
+     splash with ONE hit of its own.
    - JM.depthCharge(ctx): the cannon's sphere; a plain blast, or (aimed at an available pool, claimed at the launch) one
      amplified blast with a towering geyser that consumes the pool.
    - JM.maelstrom(ctx): claims every available pool; each a whirlpool that pulls and ticks through one registry a tick;
@@ -26,13 +27,14 @@
   const P = { mint: '#5FE3FF', pale: '#DDF6FF', white: '#FFFFFF', deep: '#0B2A6B', pink: '#2F7BFF', rose: '#123E9C', blush: '#9CCBFF', gold: '#FFE9A8', pearl: '#F2FBFF' };
 
   /* ================= tuning (x DK = the ult's base damage unit; provisional until H's audit) ================= */
-  const stats = JM.stats = { rayHits: 0, pools: 0, waveHits: 0, depthHits: 0, depthBig: 0, claims: 0, maelTicks: 0, maelHits: 0, maelBursts: 0 };   /* (counters for tests/jaws.js) */
+  const stats = JM.stats = { rayHits: 0, pools: 0, bombHits: 0, bombVolleys: 0, depthHits: 0, depthBig: 0, claims: 0, maelTicks: 0, maelHits: 0, maelBursts: 0 };   /* (counters for tests/jaws.js) */
   const TUNE = JM.TUNE = {
-    rayCd: 2, waveCd: 4,   /* (s, per slot, shared across the forms: the core reads these) */
+    rayCd: 2, bombsCd: 4,   /* (s, per slot, shared across the forms: the core reads these) */
     /* Water Ray: `charge` s, the beam for `beam` s reaching the impact `travel` s in; one explosion of `dmg` x DK within r; a pool of radius poolR */
     ray: { charge: 0.35, beam: 0.45, travel: 0.1, recover: 0.2, reach: 9, r: 2.2, dmg: 5, poolR: 2.2, poolAt: 0.5 },
-    /* Rolling Wave: `windup` s, then `dist` tiles at `speed`; its crest (half-width `half`, `thick` deep) hits once for `dmg` x DK and carries movable enemies `push` tiles/s toward the aim */
-    wave: { windup: 0.3, recover: 0.35, dist: 9, speed: 10, half: 2.6, thick: 0.9, dmg: 7, push: 9 },
+    /* Water Bombs: `windup` s, then `n` bombs `every` s apart at the nearest enemies within `range` (round-robin; a fan with none), each `flight` s on an arc `arc` tiles high;
+       a splash of `dmg` x DK within r each (7 on one enemy: 10.5); the shark is free `recover` s after the last throw */
+    bombs: { windup: 0.15, n: 7, every: 0.09, range: 7, flight: 0.45, arc: 1.6, dmg: 1.5, r: 1.3, recover: 0.1 },
     /* Depth Charge: `charge` s, `travel` s of flight; plain: `dmg` x DK within r; into a pool: `plunge` s, then `big` x DK within bigR (2.5 x) */
     depth: { charge: 0.35, travel: 0.45, reach: 10, r: 2.4, dmg: 6, plunge: 0.3, bigR: 4.4, big: 15 },
     /* Maelstrom: `windup` s; each whirlpool (the pool's radius + grow) pulls within `reach` beyond it at `pull` tiles/s and ticks `dmg` x DK every `every` s for `dur` s; `collapse` s later all burst for `burst` x DK within burstR */
@@ -400,29 +402,46 @@ void main(){ if (u_pass > 0.5) { if (v_c.a < 0.5) discard; gl_FragColor = vec4(0
           for (let i = 0; i < 4; i++) { const q = ((tt * 2.5 + i / 4) % 1) * k; Q.halo(lerp(m0.x, aim.x, q), lerp(m0.y, aim.y, q), lerp(m0.z, 0.1, q), 0.55, 0.7 * a, P.pale, 0.2); }
           Q.glow(m0.x, m0.y, m0.z, 1.2, P.white, 0.6 * a); if (k >= 1) { Q.glow(aim.x, aim.y, 0.4, 1.8, P.white, 0.7 * a); Q.star(aim.x, aim.y, 0.5, 2.4, a); Q.halo(aim.x, aim.y, 0.5, 2.2 * cl((t - tu.travel) / 0.15), a * (1 - cl((t - tu.travel) / 0.2)), P.white, 0.4); Q.ring(aim.x, aim.y, 0.05, tu.r, 0.5 * a, P.mint, 0.5); } } } }); }
 
-  /* ================= Rolling Wave ================= */
-  function rollingWave(ctx) { const done = once(ctx), v = ctx.vehicle; if (!ctx.H || !v) { done(); return; }
-    const H = ctx.H, X = H.X, tu = TUNE.wave, aim = aimOf(ctx, tu.dist), ca = Math.cos(aim.a), sa = Math.sin(aim.a), reg = {}, x0 = v.x, y0 = v.y, z0 = Math.max(0, (anchor(ctx, 'tailTip').z || 0)), N = 13, pts = new Float32Array(3 * N), L = LOW(), DK = dkOf(ctx);
-    let t = 0, ph = 0, s = 0; sfx(X, 'whoosh');
-    add(ctx, { life: 9, abort() { clip(ctx, 'rest'); done(); },
-      update(dt, it) { t += dt;
-        if (ph === 0) { clip(ctx, 'tailFlick', t / tu.windup); if (t >= tu.windup) { ph = 1; t = 0; sfx(X, 'splash'); sfx(X, 'hiss', tu.dist / tu.speed + 0.3, 0.3, 500); sfx(X, 'note', 70, 0.9, 'sine', 0.4, 45); shake(ctx, 4, 0.2); } return; }
-        if (ph === 1 && t >= tu.recover && !it.free) { it.free = true; clip(ctx, 'rest'); done(); }
-        s = Math.min(tu.dist, t * tu.speed); const cx = x0 + ca * s, cy = y0 + sa * s, fade = s >= tu.dist;
-        if (!fade) { // the crest: each enemy once; movable ones are carried toward the aim while it is on them
-          stats.waveHits += hitO(ctx, cx, cy, tu.thick, tu.half, aim.a, DK * tu.dmg, { once: reg, el: 'water', src: 'strong', kb: 0.001 });
-          for (const m of monsOf(ctx)) { if (gone(m)) continue; const dx = m.x - cx, dy = m.y - cy, u = dx * ca + dy * sa, w = -dx * sa + dy * ca; if (Math.abs(u) < tu.thick + 0.5 && Math.abs(w) < tu.half + (m.r || 0.4)) carry(ctx, m, aim.x, aim.y, tu.push * dt); }   /* (H.pull leaves bosses and rooted enemies where they are) */
-          if (!L || Math.random() < 0.5) emit(ctx, 0, cx - sa * rnd(-tu.half, tu.half), cy + ca * rnd(-tu.half, tu.half), 1.2, 1, { v: 2, up: 2, life: 0.6 }); }
-        else if ((it.out = (it.out || 0) + dt / 0.4) >= 1) it.life = 0; },
-      paint(Q, it) { if (ph === 0) return; const a = 1 - (it.out || 0), tt = Q.t, grow = sm(t / 0.25), cx = x0 + ca * s, cy = y0 + sa * s, GY = Q.GY;
-        // from height: a sheet of water falling from the tail to where the wave starts
-        if (z0 > 0.8 && t < 0.5) { const tp = anchor(ctx, 'tailTip'), k = 1 - t / 0.5; for (const o of [-1, 0, 1]) Q.beam(tp.x - sa * o * 0.8, tp.y + ca * o * 0.8 * GY, tp.z, x0 - sa * o * tu.half * 0.7, y0 + ca * o * tu.half * 0.7 * GY, 0.1, 0.5, o ? P.pink : P.mint, 0.7 * k); }
-        // the wave: its dark body on the floor, then bands of water stacked and curling forward to a white crest
-        Q.shade(cx - ca * 0.5, cy - sa * 0.5, tu.half * 0.85 * grow, 0.4 * a, '#0A2F7A');
-        for (let k = 0; k < 6; k++) { const q = k / 5, hz = 0.1 + 1.5 * q * grow, fwd = -0.9 + 1.5 * q * q + 0.25 * Math.sin(tt * 6 + k), col = k === 5 ? P.white : k >= 4 ? P.pearl : k >= 2 ? P.mint : P.pink;
-          for (let i = 0; i < N; i++) { const w = (i / (N - 1) * 2 - 1), bow = -0.9 * w * w, al = fwd + bow, ac = w * tu.half * grow; pts[i * 3] = cx + ca * al - sa * ac; pts[i * 3 + 1] = cy + (sa * al + ca * ac) * GY; pts[i * 3 + 2] = hz * (1 - 0.5 * w * w) + (k === 5 ? 0.12 * Math.sin(i * 1.7 + tt * 9) : 0); }
-          Q.ribbon(pts, N, 0.75 - 0.06 * k, -1, col, (0.95 - 0.06 * k) * a); }
-        Q.glow(cx, cy, 0.8, tu.half, P.mint, 0.25 * a); Q.ring(cx, cy, 0.04, tu.half * 0.9 * grow, 0.3 * a, P.mint, 0.5); } }); }
+  /* ================= Water Bombs (shark Strong 2) =================
+     A quick volley of `n` bombs lobbed from the mouth, spread round-robin over the nearest enemies within `range` (one
+     enemy takes all of them; seven take one each); with none, a fan ahead of the shark. Each flies an arc for `flight`
+     s (leading a moving target a little) and bursts into a splash: ONE hit of `dmg` x DK within r (its own registry, so
+     two bombs on one enemy are two hits, as intended), which charges the gauge and smashes props. A bomb landing in a
+     Tidal Pool makes a bigger splash (the look only). */
+  function waterBombs(ctx) { const done = once(ctx), v = ctx.vehicle; if (!ctx.H || !v) { done(); return; }
+    const H = ctx.H, X = H.X, tu = TUNE.bombs, L = LOW(), DK = dkOf(ctx), GY = H.GY || 0.55, PL = poolsOf(ctx), hd = (() => { try { const a = ctx.aimDir && ctx.aimDir(); if (isFinite(a)) return a; } catch (e) {} return v.heading || 0; })();
+    const foes = monsOf(ctx).filter(m => !gone(m) && Math.hypot(m.x - v.x, m.y - v.y) <= tu.range).sort((p, q) => Math.hypot(p.x - v.x, p.y - v.y) - Math.hypot(q.x - v.x, q.y - v.y));
+    const B = []; for (let i = 0; i < tu.n; i++) B.push({ i, t0: i * tu.every, m: foes.length ? foes[i % foes.length] : null, fan: hd + (i - (tu.n - 1) / 2) * 0.17, ph: 0, x: 0, y: 0, z: 0, tr: [], rot: R1(i * 3.1) * TAU });
+    let t = 0, k = 0; stats.bombVolleys++; ctx.bombPlan = { n: tu.n, targets: B.map(b => b.m ? (b.m._tag || b.m.id || true) : null), dmg: tu.dmg, r: tu.r, hits: 0, burst: 0 };
+    sfx(X, 'note', 330, 0.25, 'triangle', 0.05, 660);
+    const land = b => { b.ph = 2; b.bt = 0; const pool = (() => { try { return PL.at ? PL.at(b.tx, b.ty) : null; } catch (e) { return null; } })(); b.big = !!pool;
+      const n = hitA(ctx, b.tx, b.ty, tu.r, DK * tu.dmg, { once: {}, el: 'water', src: 'strong', kb: 1.5 }); stats.bombHits += n; ctx.bombPlan.hits += n; ctx.bombPlan.burst++;   /* (ONE hit per bomb per enemy inside its splash) */
+      sfx(X, 'splash'); if (b.i % 2 === 0) sfx(X, 'pop'); if (b.i === tu.n - 1) sfx(X, 'thud'); shake(ctx, b.big ? 3 : 1.6, 0.1); X.light && X.light(b.tx, b.ty, tu.r * 1.6, 0.25);
+      emit(ctx, 0, b.tx, b.ty, 0.3, L ? 4 : (b.big ? 14 : 8), { v: b.big ? 5 : 3.5, up: b.big ? 4.5 : 3, life: 0.6, size: 0.1 }); if (b.big) geyser(ctx, b.tx, b.ty, 0.45, 2.2, { dur: 0.6, ring: 2.6 }); };
+    add(ctx, { life: 9, abort() { clip(ctx, 'rest'); done(); },   /* (bombs already thrown finish on their own clock: their item is this one, which keeps running after done()) */
+      keep: true,
+      update(dt, it) { t += dt; if (!it.freed && !live(ctx)) { it.life = 0; clip(ctx, 'rest'); done(); return; }
+        clip(ctx, 'tailFlick', t / (tu.windup + tu.n * tu.every));
+        for (const b of B) { const tb = t - tu.windup - b.t0;
+          if (b.ph === 0 && tb >= 0) { const m0 = anchor(ctx, 'mouth'); b.sx = m0.x; b.sy = m0.y; b.sz = Math.max(0.4, m0.z); b.ph = 1; k++;
+            if (b.m && !gone(b.m)) { const vx = b.m.vx || 0, vy = b.m.vy || 0; b.tx = b.m.x + vx * tu.flight * 0.5; b.ty = b.m.y + vy * tu.flight * 0.5; } else { const d = 2.5 + b.i * 0.55, a = hd + [0, 0.3, -0.3, 0.5, -0.5, 0.18, -0.18][b.i % 7]; b.tx = v.x + Math.cos(a) * d; b.ty = v.y + Math.sin(a) * d; }   /* (no enemy: a fan ahead of the shark, near to far; a slight lead on a moving target above) */
+            b.fl = tu.flight * (0.9 + 0.2 * R1(b.i * 2.7)); sfx(X, 'whoosh'); if (b.i % 2) sfx(X, 'blip'); }
+          if (b.ph === 1) { const u = cl(tb / b.fl); b.x = lerp(b.sx, b.tx, u); b.y = lerp(b.sy, b.ty, u); b.z = lerp(b.sz, 0.2, u) + tu.arc * 4 * u * (1 - u); b.rot += dt * 9;
+            b.tr.unshift(b.x, b.y, b.z); if (b.tr.length > 18) b.tr.length = 18; if (u >= 1) land(b); }
+          if (b.ph === 2) { b.bt += dt; if (b.bt > 0.6) b.ph = 3; } }
+        if (!it.freed && k >= tu.n && t >= tu.windup + tu.n * tu.every + tu.recover) { it.freed = true; clip(ctx, 'rest'); done(); }   /* (the shark is free once the volley is thrown) */
+        if (B.every(b => b.ph === 3)) it.life = 0; },
+      paint(Q, it) { const tt = Q.t, m0 = anchor(ctx, 'mouth'), w = t < tu.windup + tu.n * tu.every ? sm(t / tu.windup) : 0; if (w > 0.01) { Q.glow(m0.x, m0.y, m0.z, 0.9, P.mint, 0.6 * w); Q.spark(m0.x, m0.y, m0.z, 0.2, P.white, w); }
+        for (const b of B) {
+          if (b.ph === 1) { // the bomb: a tumbling glowing sphere of water (a dense core, a blue body, a band wound round it), a short trail; its landing marked on the floor
+            Q.glow(b.x, b.y, b.z, 0.7, P.pink, 0.85); Q.glow(b.x, b.y, b.z, 0.34, P.mint, 0.9); Q.spark(b.x, b.y, b.z, 0.15, P.white, 1); Q.arc(b.x, b.y, b.z - 0.12, 0.3, b.rot, 4, 0.1, P.pale, 0.9, 0.24);
+            const n = b.tr.length / 3; if (n > 2) Q.ribbon(b.tr, n, 0.16, b.i % 2 ? 1 : -1, P.mint, 0.65);
+            const u = cl((t - tu.windup - b.t0) / b.fl); Q.ring(b.tx, b.ty, 0.04, tu.r * (1 - 0.3 * u), 0.25 + 0.35 * u, P.mint, 0.25); }
+          else if (b.ph === 2) { const u = b.bt / 0.6, a = 1 - u, R = tu.r * (b.big ? 1.5 : 1);   // the splash: a flash, a crown of spray, a ring wave on the floor, the water's body
+            if (u < 0.25) Q.glow(b.tx, b.ty, 0.4, 1.4, P.white, 0.8 * (1 - u / 0.25));
+            Q.shade(b.tx, b.ty, R * (0.4 + 0.5 * eout(u)), 0.4 * a, '#0A2F7A'); Q.ring(b.tx, b.ty, 0.04, R * (0.3 + 0.9 * eout(u)), a, P.white, 0.4); Q.ring(b.tx, b.ty, 0.05, R * (0.2 + 0.6 * eout(u)), 0.7 * a, P.mint, 0.3); Q.floorGlow(b.tx, b.ty, 0.02, R * 1.2, 0.4 * a, P.pink);
+            Q.funnel(b.tx, b.ty, 0, R * (0.35 + 0.35 * u), (b.big ? 1.8 : 1.1) * Math.sin(Math.min(1, u * 1.6) * PI), 1.6, 0.85 * a, 10, b.i, P.pale);   /* (the crown: a short flaring cone) */
+            for (let j = 0; j < 3; j++) Q.arc(b.tx, b.ty, 0.15 + 0.35 * j * u, R * (0.45 + 0.4 * u + 0.1 * j), tt * 4 + j * 2.1 + b.i, 2, 0.25, j % 2 ? P.pearl : P.mint, 0.8 * a, 0.2); } } } }); }
 
   /* ================= Depth Charge ================= */
   function depthCharge(ctx) { const done = once(ctx), v = ctx.vehicle; if (!ctx.H || !v) { done(); return; }
@@ -557,14 +576,14 @@ void main(){ if (u_pass > 0.5) { if (v_c.a < 0.5) discard; gl_FragColor = vec4(0
   const ic = (x, cx, cy, r, rd, f) => { x.save(); x.translate(cx, cy); x.globalAlpha = rd ? 1 : 0.55; x.lineCap = 'round'; x.lineJoin = 'round'; f(rd ? P.mint : '#9AA', rd ? P.pale : '#BBC', rd ? P.pink : '#889'); x.restore(); };
   const icons = {
     waterRay(x, cx, cy, r, rd) { ic(x, cx, cy, r, rd, (a, b, c) => { x.strokeStyle = c; x.lineWidth = r * 0.3; x.beginPath(); x.moveTo(-r * 0.55, r * 0.3); x.lineTo(r * 0.5, -r * 0.3); x.stroke(); x.strokeStyle = b; x.lineWidth = r * 0.1; x.stroke(); x.strokeStyle = a; x.lineWidth = r * 0.06; x.beginPath(); x.arc(r * 0.5, -r * 0.3, r * 0.22, 0, TAU); x.stroke(); }); },
-    rollingWave(x, cx, cy, r, rd) { ic(x, cx, cy, r, rd, (a, b, c) => { x.strokeStyle = c; x.lineWidth = r * 0.14; x.beginPath(); x.moveTo(-r * 0.6, r * 0.35); x.quadraticCurveTo(-r * 0.1, -r * 0.7, r * 0.45, -r * 0.2); x.quadraticCurveTo(r * 0.55, r * 0.1, r * 0.2, r * 0.05); x.stroke(); x.strokeStyle = b; x.lineWidth = r * 0.07; x.beginPath(); x.moveTo(-r * 0.6, r * 0.45); x.lineTo(r * 0.6, r * 0.45); x.stroke(); }); },
+    waterBombs(x, cx, cy, r, rd) { ic(x, cx, cy, r, rd, (a, b, c) => { for (const [px, py, s] of [[-0.35, 0.25, 0.2], [0.05, -0.2, 0.24], [0.42, 0.18, 0.18]]) { x.fillStyle = c; x.beginPath(); x.arc(px * r, py * r, s * r, 0, TAU); x.fill(); x.fillStyle = b; x.beginPath(); x.arc((px - 0.06) * r, (py - 0.06) * r, s * r * 0.35, 0, TAU); x.fill(); } x.strokeStyle = a; x.lineWidth = r * 0.06; x.beginPath(); x.moveTo(-r * 0.6, r * 0.55); x.quadraticCurveTo(0, r * 0.3, r * 0.6, r * 0.55); x.stroke(); }); },
     depthCharge(x, cx, cy, r, rd) { ic(x, cx, cy, r, rd, (a, b, c) => { x.fillStyle = c; x.beginPath(); x.arc(0, 0, r * 0.34, 0, TAU); x.fill(); x.strokeStyle = b; x.lineWidth = r * 0.06; for (const k of [0.34, 0.5, 0.64]) { x.beginPath(); x.arc(0, 0, r * k, -0.6, 0.9); x.stroke(); } }); },
     maelstrom(x, cx, cy, r, rd) { ic(x, cx, cy, r, rd, (a, b, c) => { x.lineWidth = r * 0.09; for (let i = 0; i < 3; i++) { x.strokeStyle = i % 2 ? b : a; x.beginPath(); x.arc(0, 0, r * (0.22 + 0.2 * i), i * 2.1, i * 2.1 + 4.2); x.stroke(); } }); },
     sharkAttack(x, cx, cy, r, rd) { ic(x, cx, cy, r, rd, (a, b, c) => { x.strokeStyle = a; x.lineWidth = r * 0.09; x.beginPath(); x.arc(0, r * 0.05, r * 0.6, PI * 1.08, PI * 1.92); x.stroke(); x.beginPath(); x.arc(0, -r * 0.05, r * 0.6, PI * 0.08, PI * 0.92); x.stroke(); x.fillStyle = b; for (let i = -2; i <= 2; i++) { x.beginPath(); x.moveTo(i * r * 0.2 - r * 0.07, -r * 0.42); x.lineTo(i * r * 0.2, -r * 0.14); x.lineTo(i * r * 0.2 + r * 0.07, -r * 0.42); x.fill(); x.beginPath(); x.moveTo(i * r * 0.2 - r * 0.07, r * 0.42); x.lineTo(i * r * 0.2, r * 0.14); x.lineTo(i * r * 0.2 + r * 0.07, r * 0.42); x.fill(); } }); },
   };
   icons.maw = icons.sharkAttack; icons.hydrojet = icons.waterRay;
 
-  JM.waterRay = waterRay; JM.rollingWave = rollingWave; JM.depthCharge = depthCharge; JM.maelstrom = maelstrom; JM.sharkAttack = sharkAttack; JM.maw = maw; JM.hydrojet = hydrojet; JM.summon = summon; JM.anchorHalo = anchorHalo; JM.transform = transform; JM.exit = exit;
+  JM.waterRay = waterRay; JM.waterBombs = waterBombs; JM.depthCharge = depthCharge; JM.maelstrom = maelstrom; JM.sharkAttack = sharkAttack; JM.maw = maw; JM.hydrojet = hydrojet; JM.summon = summon; JM.anchorHalo = anchorHalo; JM.transform = transform; JM.exit = exit;
   JM.poolFx = poolFx; JM.pools = poolsOf; JM.geyser = geyser; JM.icons = icons; JM.emit = emit;
   JM.warm = () => { try { for (const c of [P.mint, P.pale, P.pink, P.blush, P.white]) glowSprite(c); beamSprite(P.white); beamSprite(P.pale); flowerSprite(P.pearl, true); gpuOn(); } catch (e) {} return true; };
   JM.update = ctx => { try { if (ctx && ctx.H && poolsOf(ctx).list().length) poolFx(ctx); } catch (e) {} };   /* (the pools are drawn for as long as the core holds any) */

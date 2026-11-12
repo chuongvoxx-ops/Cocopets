@@ -112,7 +112,7 @@ const path = require('path');
   if (A && !A.err) { const has = (L, re) => L.some(s => re.test(s));
     ok(Math.abs(A.left0 - DUR) < 1.2, `the shared session lasts ${DUR} s at this tier`, A.left0);
     ok(A.form0 === 'shark' && A.pools0 === 0 && A.charge0 === 0, 'it begins as the shark with an empty gauge and no pools', [A.form0, A.pools0, A.charge0]);
-    ok(has(A.lab0, /MAW/) && has(A.lab0, /WATER RAY/) && has(A.lab0, /ROLLING WAVE/) && has(A.lab0, /ANCHOR/) && has(A.lab0, /SHARK ATTACK/), 'shark commands: Maw, Water Ray, Rolling Wave, Anchor, Shark Attack', A.lab0);
+    ok(has(A.lab0, /MAW/) && has(A.lab0, /WATER RAY/) && has(A.lab0, /WATER BOMBS/) && has(A.lab0, /ANCHOR/) && has(A.lab0, /SHARK ATTACK/), 'shark commands: Maw, Water Ray, Water Bombs, Anchor, Shark Attack', A.lab0);
     ok(A.anchorOK && A.form1 === 'leviathan', 'Anchor works in the air with no pool needed', [A.anchorOK, A.form1, A.pools1]);
     ok(has(A.lab1, /HYDROJET/) && has(A.lab1, /DEPTH CHARGE/) && has(A.lab1, /MAELSTROM/) && has(A.lab1, /RELEASE/) && has(A.lab1, /SHARK ATTACK/) && !has(A.lab1, /^MAW/), 'Leviathan commands: Hydrojet, Depth Charge, Maelstrom, Release, Shark Attack', A.lab1);
     ok(A.dl0 != null && A.dl1 === A.dl0 && A.dl2 === A.dl0 && A.timerSets <= 1, 'exactly one timer: Anchor and Release never restart or extend it', { dl: [A.dl0, A.dl1, A.dl2], sets: A.timerSets });
@@ -130,7 +130,7 @@ const path = require('path');
     zero(); H.until(() => H.ready(S), 5); H.face(0); H.press('dodge'); H.release(); H.until(() => H.ready(S), 5); const cdj = cdD(); H.to('shark'); out.dodge = { afterJet: +cdj.toFixed(2), inShark: +cdD().toFixed(2) };
     zero(); H.until(() => H.ready(S), 5); H.press('strong2'); H.step(0.5, () => hold(P0)); H.until(() => H.ready(S), 5); const c2 = cdS2(); H.to('leviathan'); out.s2 = { after: +c2.toFixed(2), inLev: +cdS2().toFixed(2) }; return out;`);
   if (C && !C.err) { ok(C.s1.after > 0.3 && C.s1.inLev > 0 && C.s1.inLev <= C.s1.after && C.s1.fired === 0, 'Water Ray then Anchor: Depth Charge is not ready (one cooldown for the slot)', C.s1);
-    ok(C.s2.after > 0.3 && C.s2.inLev > 0 && C.s2.inLev <= C.s2.after, 'Rolling Wave then Anchor: Maelstrom shares its cooldown', C.s2);
+    ok(C.s2.after > 0.3 && C.s2.inLev > 0 && C.s2.inLev <= C.s2.after, 'Water Bombs then Anchor: Maelstrom shares its cooldown', C.s2);
     ok(C.dodge.inShark <= C.dodge.afterJet + 1e-6, 'Hydrojet then Release: the Dodge recovery is not reset', C.dodge); } else ok(false, 'cooldowns ran', C);
 
   // ---- 3. the pool registry: creation, refresh, at most three, oldest available replaced, claims count, a cancelled claim is released ----
@@ -231,21 +231,17 @@ const path = require('path');
     console.log('      Maelstrom on one enemy:', MN[0].tot.m0, 'DK (', MN[0].per.m0, 'hits )');
   } else ok(false, 'Maelstrom with 1 / 2 / 3 pools ran', MN);
 
-  // ---- 5c. Rolling Wave: one hit as it passes, movable enemies carried toward the aim, a rooted enemy and a boss stay and are still damaged ----
-  const WAVE = LIB + `
-    ready(); const P0 = pins(); for (const q of P0.slice(3)) { q[0].dead = true; q[0].x += 90; } const A0 = P0[0][0], B0 = P0[1][0], T0 = P0[2][0];
-    let best = { a: 0, L: 0 }; for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; let L = 0; while (L < 9 && D.walkAt(Math.floor(S.V.x + Math.cos(a) * L), Math.floor(S.V.y + Math.sin(a) * L)) && !D.blocked(S.V.x + Math.cos(a) * L, S.V.y + Math.sin(a) * L, 0.5, 0)) L += 0.25; if (L > best.L) best = { a, L }; }
-    const a = best.a, ca = Math.cos(a), sa = Math.sin(a), far = Math.min(6.5, best.L - 0.6);
-    /* the aim: a rooted enemy (or a real boss) far down the line; a movable one and a rooted one near the shark, either side of the line */
-    let boss = null; if (arg) { try { boss = D.lesserBoss(S.V.x + ca * 2.2 + sa * 1.9, S.V.y + sa * 2.2 - ca * 1.9, 0.5, 'Test'); boss.hp = boss.maxhp = 1e9; boss._tag = 'boss'; boss.spd = 0; boss.atkCd = 99; } catch (e) {} } T0.x = S.V.x + ca * far; T0.y = S.V.y + sa * far;
-    const tg = T0, bb = boss ? [boss.x, boss.y] : null; let bossPull = null; if (boss) { try { const q = [boss.x, boss.y], r = S.ctx.H.pull(boss, T0.x, T0.y, 1); bossPull = { ret: !!r, moved: +Math.hypot(boss.x - q[0], boss.y - q[1]).toFixed(3) }; } catch (e) {} } A0.still = false; A0.spd = 0; A0.stun = 99; A0.x = S.V.x + ca * 2.2 - sa * 1.9; A0.y = S.V.y + sa * 2.2 + ca * 1.9; B0.x = S.V.x + ca * 2.2 + sa * 1.9; B0.y = S.V.y + sa * 2.2 - ca * 1.9; B0.still = false; B0.spd = 0; B0.stun = 99; if (boss) { B0.dead = true; B0.x += 90; }
-    const dist = m => Math.hypot(m.x - tg.x, m.y - tg.y), dA = dist(A0), b0 = [B0.x, B0.y], t0 = [tg.x, tg.y]; H.face(a); const n0 = H.log.length; H.press('strong2'); const aimed = S.ctx.target ? S.ctx.target() : null; H.step(0.2); H.release(); H.step(2.3);   /* (the stick held at the press: the aim is the enemy on its line) */
-    const L = H.log.slice(n0);
-    return { line: +best.L.toFixed(1), boss: !!boss, per: perM(L.filter(h => /^m|boss/.test(h.m))), bossPull, bossOwnMoves: boss ? +Math.hypot(boss.x - bb[0], boss.y - bb[1]).toFixed(2) : null, aimOff: aimed ? +Math.hypot(aimed.x - tg.x, aimed.y - tg.y).toFixed(2) : null, carried: +(dA - dist(A0)).toFixed(2), carried2: +(Math.hypot(b0[0] - t0[0], b0[1] - t0[1]) - dist(B0)).toFixed(2), target: +Math.hypot(tg.x - t0[0], tg.y - t0[1]).toFixed(2), walk: !!D.walkAt(Math.floor(A0.x), Math.floor(A0.y)) };`;
-  const RW = await R('wave', WAVE, false), RB = await R('wave+boss', WAVE, true);
-  if (RW && !RW.err) { ok(RW.per.m0 === 1 && RW.per.m1 === 1 && RW.per.m2 === 1, 'Rolling Wave hits each enemy once as it passes', RW.per);
-    ok(RW.carried > 1 && RW.carried2 > 1 && RW.walk && RW.target < 0.3, 'movable enemies on both sides are gathered toward the aimed point, on valid ground', RW); } else ok(false, 'Rolling Wave ran', RW);
-  if (RB && !RB.err && RB.boss) ok(RB.per.boss === 1 && RB.bossPull && !RB.bossPull.ret && RB.bossPull.moved === 0, "a boss in the wave is damaged once and resists the push (the moves' own pull call leaves it in place)", RB); else console.log('skip  Rolling Wave against a boss', RB && RB.err);
+  // ---- 5c. Water Bombs: seven bombs a volley, spread round-robin over the nearest enemies in range, one splash hit each; a fan with no enemy; cast in flight ----
+  const BOMBS = LIB + `
+    ready(); const P0 = pins(), z0 = +(S.V.z || 0).toFixed(2); const ring = (n, r) => { for (let i = 0; i < P0.length; i++) { const m = P0[i][0]; if (i < n) { const a = i / n * Math.PI * 2; m.dead = false; m.hp = 1e9; m.x = S.V.x + Math.cos(a) * r; m.y = S.V.y + Math.sin(a) * r; m.still = true; m.spd = 0; } else { m.dead = true; m.x += 90; } } return pins(); };
+    const volley = n => { const PP = ring(n, n === 1 ? 3 : 4); zero(); H.until(() => H.ready(S), 6); const n0 = H.log.length, c0 = S.charge; H.press('strong2'); H.step(1.6, () => hold(PP)); const L = H.log.slice(n0).filter(h => /^m/.test(h.m)), pl = S.ctx.bombPlan || {}; return { per: perM(L), dmg: L.map(h => Math.round(h.d)), targets: pl.targets || null, bursts: pl.burst, charged: S.charge > c0 }; };
+    const out = { z0 }; out.many = volley(Math.min(7, P0.length)); out.one = volley(1); out.none = volley(0);   /* (most enemies first: a killed test enemy may leave the list) */ out.n = P0.length; return out;`;
+  const WB = await R('bombs', BOMBS, false);
+  if (WB && !WB.err) { const n1 = Object.values(WB.one.per); ok(n1.length === 1 && n1[0] === 7 && WB.one.bursts === 7, 'Water Bombs: one enemy in range takes all seven bombs, one splash hit each', WB.one);
+    const nm = Math.min(7, WB.n), vm = Object.values(WB.many.per); ok(vm.length === nm && vm.every(c => c >= 1) && WB.many.bursts === 7 && new Set((WB.many.targets || []).filter(Boolean)).size === nm, 'Water Bombs: spread round-robin over the nearest enemies, every one hit', WB.many);
+    ok(WB.one.charged && WB.many.charged, 'Water Bombs charge the Shark Attack gauge', [WB.one.charged, WB.many.charged]);
+    ok(WB.none.bursts === 7 && Object.keys(WB.none.per).length === 0, 'Water Bombs with no enemy in range: seven bombs in a fan ahead, no hits', WB.none);
+    ok(WB.z0 > 0.3, 'Water Bombs are cast in flight', WB.z0); } else ok(false, 'Water Bombs ran', WB);
 
   // ---- 6. the gauge and Shark Attack, from each form, with no pools ----
   const sharkFrom = form => R('shark-attack@' + form, LIB + `
@@ -307,10 +303,10 @@ const path = require('path');
     const put = sp => { S.V.x = me.x = sp.x; S.V.y = me.y = sp.y; S.V.vx = S.V.vy = 0; H.face(sp.a); H.step(0.25); S.V.x = me.x = sp.x; S.V.y = me.y = sp.y; H.release(); };
     const prot = () => D.propList.filter(p => /door|gate|stair|bridge|exit/i.test(p.kind) && !p.broken).length, pr0 = prot(), sm0 = H.st(S, ['smashed', 'smash']), out = {};
     const tryAt = (btn, dist, wait, form, enemy) => { for (const p of cand) { if (p.broken) continue; const sp = spotFor(p, dist); if (!sp) continue; H.to(form); zero(); put(sp); H.until(() => H.ready(S), 6); S.V.x = me.x = sp.x; S.V.y = me.y = sp.y; const ex = p.x - Math.cos(sp.a) * 1.1, ey = p.y - Math.sin(sp.a) * 1.1; if (enemy && m0) { m0.dead = false; m0.hp = 1e9; m0.x = ex; m0.y = ey; } aimAt(p.x, p.y); H.press(btn); H.step(wait, () => { if (enemy && m0) { m0.x = ex; m0.y = ey; } }); if (m0) { m0.dead = true; m0.x += 90; } return { kind: p.kind, broken: !!p.broken }; } return null; };
-    out.ray = tryAt('strong', 4, 3, 'shark'); out.wave = tryAt('strong2', 3, 4, 'shark'); out.maw = tryAt('dodge', 4.2, 4, 'shark', true); out.depth = tryAt('strong', 4, 4, 'leviathan');
+    out.ray = tryAt('strong', 4, 3, 'shark'); out.bombs = tryAt('strong2', 3, 4, 'shark', true); out.maw = tryAt('dodge', 4.2, 4, 'shark', true); out.depth = tryAt('strong', 4, 4, 'leviathan');
     out.stat = H.st(S, ['smashed', 'smash']) - sm0; out.protectedBroken = pr0 - prot(); return out;`);
   if (E1 && !E1.err) { if (E1.noHook) console.log('skip  no smash hook on this floor'); else {
-    for (const [k, nm] of [['ray', 'Water Ray'], ['wave', 'Rolling Wave'], ['maw', 'Maw'], ['depth', 'Depth Charge']]) ok(!!E1[k] && E1[k].broken, nm + ' breaks a smashable prop', E1[k] || E1);
+    for (const [k, nm] of [['ray', 'Water Ray'], ['bombs', 'Water Bombs'], ['maw', 'Maw'], ['depth', 'Depth Charge']]) ok(!!E1[k] && E1[k].broken, nm + ' breaks a smashable prop', E1[k] || E1);
     ok(E1.stat >= 3, 'the session counts what it smashed', E1.stat); ok(E1.protectedBroken === 0, 'doors, gates, stairs and bridges are kept', E1.protectedBroken); } } else ok(false, 'smash ran', E1);
 
   ok(!errors.length, 'no page errors', errors.slice(0, 4));

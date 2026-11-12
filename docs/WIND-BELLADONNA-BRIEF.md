@@ -379,3 +379,31 @@ Supersedes the numbers in my entry above where they differ. `tests/belladonna.js
     hits an enemy, the same at 20, 60 and 144 fps. Targets stand on the plan's orbit and under the storm's core.
   - **Full rank audit, all elements:** Twister 95 / 115 / 125 DK, third behind Supernova, level with Fenrir's two.
     Dark Messiah first at every evo: 130 / 175 / 210 DK, lead 1.34x / 1.40x / 1.51x.
+
+### M, smaller with longer tendrils (2026-11-12, after v318)
+- **Scale:** `VIS` 1 → **0.65** (the user: 35% smaller). Every placed part and anchor scales with it through the view (`anchor()`, `anchorAt()`); nothing in the rig's own frame moved. The pet is the core's and keeps its size, so it now reads larger in the flower, as asked. `drawShadow` now scales with `VIS` too (it did not before).
+- **Tendrils:** both sets are 1.5x longer in the model's frame (`LG` 0.66 → 0.99, `LWT` 0.56 → 0.84; roots a little thicker), so against the smaller flower the green ones reach about as far as before in tiles and the white ones a little further. Counts unchanged (6 green, 8 white). The anchors `tg0..5` and `tw0..7` (the tips) moved out: read them from the model.
+- **`SIZE` (tiles), new / v318:** `flower` 3.58 / 5.5; `leafSpan` 6.18 / 9.5; `ringR` 0.78 / 1.2; **`swordSpan` 3.9 / 6.0**; `hub` 0.39 / 0.6; `ringH` 3.18 (now in tiles; it was in model units, 4.89); new **`tentSpan` 11.2** (the green tendrils' full width at rest, tip to tip). `seat` stays in the flower's own frame.
+- **E:** the thrown ring's sword tips now reach **1.95 tiles** from the ring's centre (`SIZE.swordSpan / 2`, was 3.0); `tipR()` picks that up by itself. Ring Blade's trail and damage reach should follow it.
+- **A:** the flower is 0.65 of its v318 size; the tendrils span about 11.2 tiles. Size the camera zoom to `SIZE.tentSpan` or `SIZE.leafSpan` as suits. The `size` multiplier in `20k5yb` still applies on top.
+- Clearance over 486 poses (`bank`, `lean`, `fold`, `sway`, `accX/Y`, `bloom` 0.5 to 1.3): the green tendrils clear the swords' disc by 0.9 or more; the white ones by 0.02 at the most extreme combination (`fold` 1 with full bank, lean and acceleration); every tendril clears the pet (a 0.32-tile sphere on the seat) by 0.05 or more.
+- (A, v318 feedback "more lively ... it all looks very stiff", **per-tentacle channels, for M**) The core now drives
+  everything the current channels allow (a 3 s breath that ripples white, pink, leaves; a hover bob and side drift;
+  rolls and pitches into travel on springs that overshoot; strong tentacle lag with overshoot on stops; idle drift of
+  `accX` / `accY`; `tentG` dipping to coil the green tips, `tentW` reaching like feelers; a shiver and a tremble on
+  attacks; the swords' glint in `ringGlow`). What the model cannot show yet is tentacles moving **independently**:
+  today every tentacle's wave runs on the one `sway` phase at one speed and amplitude. The core already writes these
+  each frame; a model without them ignores them, so nothing breaks either way:
+  - `tgPh[6]`, `twPh[8]`: each tentacle's own wave phase (radians, accumulated at its own speed, 0.83 to 1.5 times the
+    shared one). Please use it **in place of** `sway` in that tentacle's travelling wave (`sin(tgPh[n] - jj * 0.75)`).
+  - `tgAmp[6]`, `twAmp[8]`: a multiplier on that wave's amplitude (about 0.65 to 2.2; it rises with acceleration). Please
+    also let the base amplitude grow: 0.11 and 0.09 rad read as stiff at the game camera; 0.2 and 0.16 would be closer.
+  - `tgCoil[6]` (0..1): extra curl at the green tip (the last two links), slowly coiling and uncoiling.
+  - `twReach[8]` (about -1..1): the white tentacle reaching forward (+) or drawing back (-), like a feeler; a few degrees
+    of `W_FWD` and a little length.
+  - `flick` (0..1, decays in 0.2 s): every tentacle flung outward at an attack (spread the roots' angle outward).
+  - `breath` (radians, 3 s a cycle): if each petal row offsets its open angle by it (front row a quarter cycle after the
+    back row, the white rows before both), the bloom ripples outward instead of breathing as one.
+  - The model's size is read from `SIZE.leafSpan` for the camera (zoom 1.0 at 65%, lift 0.78): keep it true.
+- **Later the same day: the ring is back to its v318 size** (the user: "bigger"). The flower, leaves and tendrils stay at `VIS` 0.65; the ring and its swords (and their halos) are drawn at `RS = 1 / VIS`, so in tiles they are exactly v318's: **`SIZE.ringR` 1.2, `SIZE.swordSpan` 6.0** (E: the thrown ring's reach is 3.0 tiles again through `tipR()`). The ring sits a little higher to clear the longer tendrils (`RING_Z` 1.55 → 1.8 in the flower's frame): **`SIZE.ringH` 3.34 tiles**; `anchor('ring')`, `sword0..7` and `hilt0..7` follow (A: the held ring's pose and the camera). The upper white tendrils leave a little lower (`TW_A` 48, 16 → 34, 10 degrees), so `twRoot*` moved slightly. Clearance over the same 486 poses: the whole disc the swords sweep (at any `ringSpin`) clears every tendril by 0.12 or more; the pet by 0.07.
+- **M, A's per-tentacle channels are read** (2026-11-12): `tgPh[6]`/`twPh[8]` replace `sway` in each tentacle's travelling wave; `tgAmp`/`twAmp` multiply a base of 0.2 and 0.16 rad (was 0.11 and 0.09); `tgCoil` winds the last two green links up to 34 degrees tighter a link; `twReach` adds up to 7 degrees of forward reach and 7% length to a white feeler; `flick` flings the lower tentacles' roots down and out (up to 30% of their spread), opens the green coils and lengthens the lower feelers 6%; `breath` opens and closes each petal row 0.045 rad, the white rows a quarter cycle before the back pink row and the front pink row a quarter after. Absent channels fall back to the v318 shared wave, so an old pose looks as before. To keep the full-size ring clear, the two upper green and two upper white tentacles (the ones beside the ring) wave at 0.42 and 0.55 of that amplitude, do not fling at a flick, and `twReach` only draws the upper feelers back. Swept over 1080 poses (bank, lean, fold, acceleration, bloom, with random phases, amplitudes 0.65 to 2.2, coils, reaches, flick 0 / 0.5 / 1): the swords' whole disc clears every tentacle by 0.04 or more, the pet by 0.07.
