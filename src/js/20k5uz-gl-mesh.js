@@ -14,12 +14,14 @@ const GLM = (() => {
     q = q || 1; const sq = (n, lo) => Math.max(lo || 3, Math.round(n * q));   // (q: the detail level - the round segment counts scale with it)
     const P = [], N = [], A = [], I = []; let F = { x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1], o: [0, 0, 0] }; const stack = [];
     const tp = p => [F.o[0] + F.x[0] * p[0] + F.y[0] * p[1] + F.z[0] * p[2], F.o[1] + F.x[1] * p[0] + F.y[1] * p[1] + F.z[1] * p[2], F.o[2] + F.x[2] * p[0] + F.y[2] * p[1] + F.z[2] * p[2]];
-    const tn = n => { const v = [F.x[0] * n[0] + F.y[0] * n[1] + F.z[0] * n[2], F.x[1] * n[0] + F.y[1] * n[1] + F.z[1] * n[2], F.x[2] * n[0] + F.y[2] * n[1] + F.z[2] * n[2]]; const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
+    const tn = n => { const A2 = F.n ? F.n[0] : F.x, B2 = F.n ? F.n[1] : F.y, C2 = F.n ? F.n[2] : F.z, v = [A2[0] * n[0] + B2[0] * n[1] + C2[0] * n[2], A2[1] * n[0] + B2[1] * n[1] + C2[1] * n[2], A2[2] * n[0] + B2[2] * n[1] + C2[2] * n[2]]; const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
     const vtx = (p, n, m, e) => { const q = tp(p), nn = tn(n); P.push(q[0], q[1], q[2]); N.push(nn[0], nn[1], nn[2]); A.push(m, e || 0, 1); return P.length / 3 - 1; };
     const quad = (a, b, c, d) => { I.push(a, b, c, a, c, d); };
     const B = {
       /* place what follows in a frame: columns x, y, z (need not be unit: a scale) and origin o, within the current one */
-      push(x, y, z, o) { stack.push(F); const nf = { x: [0, 0, 0], y: [0, 0, 0], z: [0, 0, 0], o: tp(o || [0, 0, 0]) }; const lin = v => [F.x[0] * v[0] + F.y[0] * v[1] + F.z[0] * v[2], F.x[1] * v[0] + F.y[1] * v[1] + F.z[1] * v[2], F.x[2] * v[0] + F.y[2] * v[1] + F.z[2] * v[2]]; nf.x = lin(x); nf.y = lin(y); nf.z = lin(z); F = nf; return B; },
+      push(x, y, z, o) { stack.push(F); const nf = { x: [0, 0, 0], y: [0, 0, 0], z: [0, 0, 0], o: tp(o || [0, 0, 0]) }; const lin = v => [F.x[0] * v[0] + F.y[0] * v[1] + F.z[0] * v[2], F.x[1] * v[0] + F.y[1] * v[1] + F.z[1] * v[2], F.x[2] * v[0] + F.y[2] * v[1] + F.z[2] * v[2]]; nf.x = lin(x); nf.y = lin(y); nf.z = lin(z);
+        const cr = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]; nf.n = [cr(nf.y, nf.z), cr(nf.z, nf.x), cr(nf.x, nf.y)];   // (normals: the inverse transpose, for a scaled frame)
+        F = nf; return B; },
       at(o) { return B.push([1, 0, 0], [0, 1, 0], [0, 0, 1], o); },
       /* a frame with x along d (from o), z as near zh as it can be */
       along(o, d, zh) { const l = Math.hypot(d[0], d[1], d[2]) || 1, x = [d[0] / l, d[1] / l, d[2] / l]; zh = zh || (Math.abs(x[2]) < 0.9 ? [0, 0, 1] : [1, 0, 0]); let y = [zh[1] * x[2] - zh[2] * x[1], zh[2] * x[0] - zh[0] * x[2], zh[0] * x[1] - zh[1] * x[0]]; const ly = Math.hypot(y[0], y[1], y[2]) || 1; y = [y[0] / ly, y[1] / ly, y[2] / ly]; const z = [x[1] * y[2] - x[2] * y[1], x[2] * y[0] - x[0] * y[2], x[0] * y[1] - x[1] * y[0]]; return B.push(x, y, z, o); },

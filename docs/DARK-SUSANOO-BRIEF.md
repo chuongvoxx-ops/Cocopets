@@ -480,3 +480,32 @@ The user asked for it to be "drawn on the GPU". Susano O is now a real rigged 3D
   - the rail arms now telescope out of the pack, so in robot form they are no longer loose sticks;
   - thicker, armoured rails.
 - `warm`, `warmPlan` and `warmIdle` return at once on the GL path; nothing needs baking.
+
+### M — round 4 (2026-11-12): a tall, hovering stance (for A)
+
+The API and channels are unchanged. What changed in the model:
+
+**Proportions.**
+- Thigh 0.76 → 1.12, shin 0.76 → 1.1; the plating is stretched to match and the joints keep their size.
+- The waist is narrower (0.34 → 0.25 half-width), and the neck is lifted 0.11.
+- The spine pivot stands at z 2.72 (was 1.7). The airship keeps its old height.
+
+**Base pose.** The robot now hovers, standing tall:
+- the left leg extended down and slightly back, its foot pointed;
+- the right knee raised forward;
+- the torso upright and the chest open;
+- the fans lifted (`BLADE_R` now runs from −8° to 130°).
+- The `rest` hold is now one-handed: the sword is held out and down at the right side. In every one-handed hold the left arm is flung out wide.
+
+**Legs and the channels A drives.**
+- `gait` / `gaitAmp`: only a light flutter (±0.1 at the ankles); no walking.
+- `legSwing` < 0: both legs trail back and lift.
+- `crouch` (the holds' and A's own) briefly plants both feet: the raised knee drops and the extended leg comes in. Releasing it returns to the tall stance.
+- `lean`, `bank`, `pitch`, `twist`: unchanged.
+
+**For A.** Please drive the idle and glide from this stance and keep `crouch` near 0 except during the moves' wind-ups and impacts.
+- The anchors are unchanged in meaning. `feet` and `footL` / `footR` now sit about 0.2–0.6 above the floor (hovering), and the robot is taller.
+
+**Checks.**
+- Transformation clearances are about the same as before; the worst is a thin rail grazing a forearm.
+- Every hold × `legSwing` is clear, with no reach shortfall.

@@ -58,7 +58,7 @@
     // the airship's flight (Nidhogg's): speed = the stat system's speed (with the session's x1.35) x airK
     airK: 1.75, accel: 20, brake: 13, cruise: 2.4, wallZ: 3.2, climbV: 5, sinkV: 2.6, margin: 16,
     // Dive (Dodge): roll, swoop, low pass, climb; one hit per enemy at the low pass
-    dive: { roll: 0.24, swoop: 0.3, pass: 0.14, climb: 0.38, dmg: 3, r: 2.4, kb: 5, reach: 9, cone: 0.6, cone2: 1.0, reach2: 6 },   // (cone: rad either side of the aim for an enemy; cone2 / reach2: a looser second look before falling back to the ground (a keyboard aims in 45 deg steps))
+    dive: { roll: 0.24, swoop: 0.3, pass: 0.14, climb: 0.38, dmg: 3, r: 2.4, kb: 5, reach: 11, cone: 0.6, cone2: 1.0, reach2: 6 },   // (cone: rad either side of the aim for an enemy; cone2 / reach2: a looser second look before falling back to the ground (a keyboard aims in 45 deg steps))
     chargeK: 32,                                   // the meter fills at chargeK x DK of damage actually dealt
     messiahCap: 16,                                // s: a committed Dark Messiah is ended anyway after this
     outGlide: [0.35, 1.3], outSpd: 13, hop: 0.55, dissolve: 1.3, hatch: 0.4,   // s: the hatch opening before the pet leaves
@@ -233,11 +233,13 @@
     const robotish = ph === 'robot' || ph === 'summon' || (ph === 'out' && S.fromPhase === 'robot'), airish = ph === 'air' || ph === 'messiah' || (ph === 'out' && S.fromPhase !== 'robot');
     if (robotish) {   // the living idle and the ground glide
       const mv = Math.min(1, sp / 5);
-      G.crouch = 0.05 + 0.04 * breath * (1 - mv) - 0.04 * mv; G.bank = 0.07 * shift * (1 - mv) + Math.max(-0.7, Math.min(0.7, S.turnK * 0.55 + S.latS * 0.02)); G.twist = 0.06 * sway * (1 - mv) - S.turnK * 0.2;
-      G.lean = Math.max(-0.45, Math.min(0.75, 0.32 * mv + S.accS * 0.035)); G.pitch = 0.03 * breath + Math.max(-0.35, Math.min(0.45, S.accS * 0.025 + 0.12 * mv));   // (pitched forward speeding up, reared back braking)
-      G.wing = 0.86 + 0.1 * Math.sin(t * 1.1) - 0.25 * Math.min(1, Math.abs(S.turnK)) - 0.15 * mv; G.fold = 0.12 * mv + 0.25 * Math.min(1, Math.abs(S.turnK));
-      G.thrust = 0.28 + 0.35 * mv + Math.min(0.4, Math.abs(S.accS) * 0.03); G.z = 0.04 * breath; G.swordU = 0; G.recoil = 0.06 * (breath * 0.5 + 0.5) * (1 - mv);   // (the sword's slow bob with the breath)
-      P.gait = (P.gait || 0) + dt * (1.2 + sp * 1.25); P.gaitAmp = Math.min(1.2, sp / 4.5);
+      // (round 3, the user: "stand strong and powerful") the tall hovering hero stance is the rest: no crouch; the chest
+      // breathes, the body bobs on its thrusters, the fans breathe open; moving, it leans and banks forward like flying
+      G.crouch = 0; G.bank = 0.05 * shift * (1 - mv) + Math.max(-0.8, Math.min(0.8, S.turnK * 0.65 + S.latS * 0.025)); G.twist = 0.05 * sway * (1 - mv) - S.turnK * 0.2;
+      G.lean = Math.max(-0.4, Math.min(0.9, 0.55 * mv + S.accS * 0.035)); G.pitch = -0.04 * breath * (1 - mv) + Math.max(-0.35, Math.min(0.5, S.accS * 0.025 + 0.2 * mv));   // (pitched forward speeding up, reared back braking)
+      G.wing = 0.92 + 0.08 * Math.sin(t * 1.1) - 0.2 * Math.min(1, Math.abs(S.turnK)) - 0.1 * mv; G.fold = 0.15 * mv + 0.2 * Math.min(1, Math.abs(S.turnK));
+      G.thrust = 0.3 + 0.35 * mv + Math.min(0.4, Math.abs(S.accS) * 0.03); G.z = 0.09 * Math.sin(t * 1.9) + 0.04 * breath; G.swordU = 0; G.recoil = 0;
+      P.gait = (P.gait || 0) + dt * (1.0 + sp * 0.5); P.gaitAmp = Math.min(0.35, sp / 12);   /* (it flies: the legs trail (legSwing) rather than walk) */
     } else if (airish) {   // the airship: bank, pitch and wobble with inertia
       G.bank = Math.max(-0.9, Math.min(0.9, S.turnK * 0.75 + S.latS * 0.025)); G.pitch = Math.max(-0.4, Math.min(0.4, S.accS * 0.02 - (d.z - (S.pz == null ? d.z : S.pz)) / Math.max(dt, 1e-3) * 0.04)) + 0.03 * Math.sin(t * 1.3);
       G.roll = 0.035 * Math.sin(t * 1.7) + 0.02 * Math.sin(t * 2.9 + 1); G.z = 0.06 * Math.sin(t * 1.4); G.wing = 1 - 0.18 * Math.min(1, Math.abs(S.turnK)) + 0.04 * Math.sin(t * 2.1); G.thrust = 0.35 + Math.min(0.55, sp / 16) + Math.min(0.3, Math.max(0, S.accS) * 0.02); P.gaitAmp = 0;
@@ -265,7 +267,7 @@
     P.wingSpread = cl(k('wing', G.wing)); P.wingFold = cl(k('fold', G.fold)); P.thrust = cl(k('thrust', G.thrust) + 0.05 * Math.sin(t * 37) * Math.sin(t * 23) + Math.min(0.15, Math.abs(S.accS) * 0.006) * Math.sin(t * 53));
     if (airish || ph === 'xform') P.roll = k('roll', G.roll) + (S.dive ? S.dive.rollA || 0 : 0); else P.roll = 0;
     // (for M's optional channels: the legs trailing with momentum; each fan lagging on its own spring)
-    P.legSwing = robotish ? Math.max(-1, Math.min(1, spring(S, 'leg', -(Math.min(1, sp / 5) * 0.55 + S.accS * 0.03), 7, 0.35, dt))) : 0;
+    P.legSwing = robotish ? Math.max(-1, Math.min(1, spring(S, 'leg', -(Math.min(1, sp / 5) * 0.85 + S.accS * 0.03), 7, 0.35, dt))) : 0;
     { const sw = -S.turnK * 0.35 - S.latS * 0.012; P.wingSwayL = spring(S, 'swL', sw, 5, 0.3, dt); P.wingSwayR = spring(S, 'swR', sw, 4.2, 0.28, dt); }
     // the hips turn into the cut (M's hipYaw, clamped as the model does) and the sweep's arc widens on the big swings
     P.hipYaw = Math.max(-0.4, Math.min(0.4, k('hip', G.hip != null ? G.hip : (G.yaw * 0.45 + G.twist * 0.3)))); P.swordArc = Math.max(0.5, Math.min(1.6, k('arc', G.arc)));
