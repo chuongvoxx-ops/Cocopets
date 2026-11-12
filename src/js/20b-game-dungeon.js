@@ -1385,7 +1385,7 @@ GAMES.dungeon = {
       g.flash = Math.max(0, g.flash - dtReal * 2.2); g.hurtV = Math.max(0, g.hurtV - dtReal * 1.4);
       if (g.zoomT > 0) { g.zoomT -= dtReal; if (g.zoomT <= 0) g.zoomP = 1; }
       // the camera pulls back a little while a boss is up
-      { const bossUp = g.boss && !g.boss.dead && g.boss.act !== 'sleep', fz = FD && FD.camFocus ? FD.camFocus() : RIFT && RIFT.cam ? RIFT.cam() : vehOn() && VEH.cam ? VEH.cam() : null /* (Fire's Nidhogg, 20k6g: its flight zoom and Ultima framing) */, want = (fz && fz.zoom ? fz.zoom : FD ? (bossUp ? 0.66 : 0.78) : bossUp ? 0.86 : 1) * g.zoomP; g.zoom += (want - g.zoom) * Math.min(1, dtReal * 3); if (Math.abs(g.zoom - want) < 0.002) g.zoom = want; }
+      { const bossUp = g.boss && !g.boss.dead && g.boss.act !== 'sleep', fz = camPick() /* (Fire's Nidhogg, 20k6g: its flight zoom and Ultima framing) */, want = (fz && fz.zoom ? fz.zoom : FD ? (bossUp ? 0.66 : 0.78) : bossUp ? 0.86 : 1) * g.zoomP; g.zoom += (want - g.zoom) * Math.min(1, dtReal * 3); if (Math.abs(g.zoom - want) < 0.002) g.zoom = want; }
       if (g.hitStop > 0) { g.hitStop -= dtReal; return; }
       g.ts = g.slowT > 0 ? 0.3 : 1; if (g.slowT > 0) g.slowT -= dtReal;
       const dt = dtReal * g.ts; curDt = dt;
@@ -1652,7 +1652,7 @@ GAMES.dungeon = {
       // camera: follow the pet with a little look-ahead (and keep the boss in frame)
       const bossUp = g.boss && !g.boss.dead && g.boss.act !== 'sleep';
       // a Super Fiend may say where to look (its body high over its feet, its own ending after it falls)
-      const fc = FD && FD.camFocus ? FD.camFocus() : RIFT && RIFT.cam ? RIFT.cam() : vehOn() && VEH.cam ? VEH.cam() : null;   /* (Nidhogg, 20k6g: { x, y, k, zoom }) */
+      const fc = camPick();   /* (Nidhogg, 20k6g: { x, y, k, zoom }) */
       const bf = fc ? fc.k : bossUp ? 0.38 : 0, look = 0.7, fx = fc ? fc.x : bossUp ? g.boss.x : me.x, fy = fc ? fc.y : bossUp ? g.boss.y : me.y;
       // (the pull toward a boss is held to a few tiles, so the pet never leaves the screen)
       let ox = (fx - me.x) * bf, oy = (fy - me.y) * bf; if (!fc) { const od = Math.hypot(ox, oy), cap = 3.2; if (od > cap) { ox *= cap / od; oy *= cap / od; } }
@@ -1663,6 +1663,14 @@ GAMES.dungeon = {
       floorClearCheck();
       hudSync();
     }
+    /* (v314) who the camera listens to: a Super Fiend's own framing when it has one (its cinematics, its endings), then a
+       ridden form that frames itself (k > 0: Susano O's airship, centred on the drawn ship), then the rift's, then a form's
+       zoom-only focus. Before, a Super Fiend floor's hook (always present, mostly null) or any rift's camera hid the ridden
+       form's framing entirely, so on those floors the airship sat high on the screen. */
+    function camPick() { const v = vehOn() && VEH.cam ? VEH.cam() : null, own = v && v.k > 0;
+      if (FD && FD.camFocus) { const f = FD.camFocus(); return f || (own ? Object.assign({}, v, { zoom: Math.min(v.zoom || 1, 0.78) }) : null); }   /* (a fiend arena keeps its wider view) */
+      if (RIFT && RIFT.cam) return own ? v : RIFT.cam();
+      return v; }
     function m2tick(key, every, f) { g['tk_' + key] = (g['tk_' + key] || 0) - curDt; if (g['tk_' + key] <= 0) { g['tk_' + key] = every; f(); } }
     /* drifting dust, fireflies, snow, embers, leaves and sparkles: each land has its own air */
     function ambient(dt) {
