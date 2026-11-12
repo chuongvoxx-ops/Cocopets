@@ -332,3 +332,23 @@ DK = base × K × (1 + 0.08·(evo−1)).
   - **Cost** (SwiftShader, the strongs fx forced to raster, EVO 7, the median of 150 frames): before 6–9 ms, after
     about 20 ms. Most of the rise is the oval sprites covering twice the area. Untested on a device.
   - **Montage:** `scratchpad/fx/wrath.png` (before / after).
+
+- (FX worker, 2026-11-12; the user: "feather out the edges of the oval area ... add more lightning particles effects to
+  make it more flashy"; `20k9j` only. The hit oval (1.56 × 2.4), one hit per monster per strike, damage and timing are
+  unchanged)
+  - **Floor light:** the stroked telegraph ring, its ticks and the crisp shock rim are gone.
+    - A baked soft-oval sprite (`bm2soft`) fills the oval and fades smoothly to nothing. It is drawn 1.25× the hit
+      oval, so no line marks the edge.
+    - The travelling shock is a broad, faint, blurred band (`bm2sband`), both in the lift sweep and at impact.
+  - **Fading toward the edge:**
+    - filaments fade and thin out over the outer half (alpha down to 15%, width to half);
+    - fractures stop at 0.8 of the oval, with their outer 40% at 35% alpha;
+    - crawling arcs are placed inside 0.85 of the oval and continue as a residual crackle until about 1.1 s.
+  - **More lightning per strike:**
+    - a spark shower: 26 streaks, 10 on low effects;
+    - 14 electric motes (6 on low) that bounce (a new particle `bounce` option), with small arcs hopping between
+      neighbouring motes;
+    - a brighter, softer white flash over the whole oval.
+  - **Cost** (SwiftShader, EVO 7, median, quiet machine): v304 5.7–5.8 ms, now 6.6–7.4 ms. Earlier figures in these
+    Notes were taken on a loaded machine.
+  - **Montage:** `scratchpad/fx/wrath2.png` (before and after).

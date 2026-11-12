@@ -126,9 +126,17 @@
     if (cv.width < dw || cv.height < dh) { cv.width = Math.max(cv.width, dw + 16); cv.height = Math.max(cv.height, dh + 16); }
     const g = cv.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; g.clearRect(0, 0, dw + 2, dh + 2);
     g.save(); try { fn(g, { a: B.a * k, b: 0, c: 0, d: B.d * k, e: -x0 * B.a * k, f: -y0 * B.d * k }); } catch (e) {} g.restore();
-    c.save(); c.setTransform(B); petHole(c, S0()); c.globalCompositeOperation = op || 'source-over'; c.globalAlpha = 1; c.imageSmoothingEnabled = true; c.drawImage(cv, 0, 0, dw, dh, x0, y0, dw / (B.a * k), dh / (B.d * k)); c.restore(); }
+    { const Sx = S0(); if (Sx && Sx.PY > -1e3) softMask(g, (Sx.PX * B.a + B.e - (x0 * B.a + B.e)) * k, (Sx.PY * B.d + B.f - (y0 * B.d + B.f)) * k, Sx.PR * B.a * k); }
+    c.save(); c.setTransform(B); c.globalCompositeOperation = op || 'source-over'; c.globalAlpha = 1; c.imageSmoothingEnabled = true; c.drawImage(cv, 0, 0, dw, dh, x0, y0, dw / (B.a * k), dh / (B.d * k)); c.restore(); }
   let CUR_S = null; const S0 = () => CUR_S;
-  function petHole(c, S) { c.beginPath(); c.rect(-1e5, -1e5, 2e5, 2e5); c.ellipse(S.PX, S.PY, S.PR * 0.7, S.PR * 0.85, 0, 0, TAU); c.clip('evenodd'); }
+  /* (2026-11-12, the user: "a circle around the pet masking it from the effects ... fix this") the pet is no longer cut out
+     with a clip (it showed as a hard disc). The fire drawn over the actors goes through buffers (lowRes), and each buffer is
+     thinned round the rider by a very wide, smooth falloff (a raised-cosine, no edge anywhere: at most 55% at the rider,
+     nothing beyond about 2.4 tiles); the few things drawn straight scale their alpha by the same kind of falloff (petK).
+     petHole stays as a no-op so nothing else changes shape */
+  function petHole() {}
+  const sprPetMask = () => fxCache.get('nuPetMask') || fxSprite('nuPetMask', 64, 64, g => { const im = g.createImageData(64, 64), d = im.data; for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) { const r = Math.hypot(x + 0.5 - 32, y + 0.5 - 32) / 32, a = r >= 1 ? 0 : 0.5 + 0.5 * Math.cos(r * Math.PI), i = (y * 64 + x) * 4; d[i] = d[i + 1] = d[i + 2] = 255; d[i + 3] = Math.round(255 * a); } g.putImageData(im, 0, 0); });
+  function softMask(g, px, py, pr) { if (!PET_SOFT) return; const R = pr * 2.6; g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'destination-out'; g.globalAlpha = 0.55; g.drawImage(sprPetMask(), px - R, py - R * 1.1, R * 2, R * 2.2); g.restore(); }
 
   /* ================= the per-transformation system: one act + pooled particles + a depth-sorted ent ================= */
   const POOL = [];
@@ -163,7 +171,10 @@
   function anchorW(ctx, name) { try { const p = ctx.anchor && ctx.anchor(name); if (p && isFinite(p.x)) return p; } catch (e) {} const d = ctx.dragon || {}, a = d.heading || 0, f = { mouth: 2.2, head: 2.0, chest: 0.8, belly: 0.2, ring: -0.2, seat: 0.3 }[name] || 0, z = { mouth: -0.3, head: 0.1, belly: -0.5, ring: 1.0, seat: 0.5 }[name] || 0; return { x: (d.x || 0) + Math.cos(a) * f, y: (d.y || 0) + Math.sin(a) * f * 0.72, z: (d.z || 0) + z }; }
   function petPos(S) { const H = S.H, ctx = S.ctx, T = S.T; S.PR = T * 0.95; let s = null; if (ctx.dragon && !ctx.dragon.gone && S.seatOK !== false) s = anchorW(ctx, 'seat');
     if (s) { S.PX = H.sx(s.x); S.PY = H.sy(s.y) - ((s.z || 0) + 0.35) * S.ZT; } else { S.PX = H.sx(H.me.x); S.PY = H.sy(H.me.y) - 0.45 * T; } }
-  const petK = (S, X, Y, lo) => { const d = Math.hypot(X - S.PX, (Y - S.PY) * 1.15) / S.PR; return d >= 1.4 ? 1 : lo + (1 - lo) * sm((d - 0.35) / 1.05); };
+  /* (2026-11-12, the user: "the effect from the explosion will have to be in front of the pet and cover it, it's only temporary":
+     the Ultima no longer cuts or dims anything round the rider. PET_SOFT = true would bring back the soft falloff) */
+  const PET_SOFT = false;
+  const petK = (S, X, Y, lo) => { if (!PET_SOFT) return 1; const d = Math.hypot(X - S.PX, (Y - S.PY) * 1.15) / S.PR; return d >= 2.4 ? 1 : lo + (1 - lo) * sm(d / 2.4); };
   function part(S, kind, x, y, z, vx, vy, vz, life, size, o) { if (!S || S.parts.length > (LOW() ? 260 : 600)) return null; const p = POOL.pop() || {};
     p.kind = kind; p.x = x; p.y = y; p.z = z; p.vx = vx; p.vy = vy; p.vz = vz; p.life = life; p.t = 0; p.size = size; p.g = 0; p.drag = 0; p.rot = 0; p.vr = 0; p.grow = 0; p.a = 1; p.u = 0; p.v = 0; p.fin = 0.08; p.flat = 0;
     if (o) for (const k in o) p[k] = o[k]; S.parts.push(p); return p; }
@@ -172,7 +183,7 @@
     for (let pass = 0; pass < 2; pass++) { c.globalCompositeOperation = pass ? 'lighter' : 'source-over';
       for (let i = 0; i < P.length; i++) { const p = P[i]; if (ADD[p.kind] !== pass || (p.u ? 1 : 0) !== under) continue;
         const u = p.t / p.life, a = p.a * Math.min(1, p.t / p.fin) * (p.kind === 2 || p.kind === 3 || p.kind >= 6 ? (1 - u) * (1 - u) : 1 - u * u); if (a < 0.015) continue;
-        const X = H.sx(p.x), Y = H.sy(p.y) - p.z * S.ZT, s = p.size * T * (1 + p.grow * u), img = partImg(p), k = under ? 1 : petK(S, X, Y, pass ? 0.1 : 0.25); if (a * k < 0.015) continue;
+        const X = H.sx(p.x), Y = H.sy(p.y) - p.z * S.ZT, s = p.size * T * (1 + p.grow * u), img = partImg(p), k = under ? 1 : petK(S, X, Y, pass ? 0.4 : 0.5); if (a * k < 0.015) continue;
         c.globalAlpha = a * k > 1 ? 1 : a * k;
         if (p.kind === 1 || p.kind === 5) { const ang = Math.atan2(p.vy * 0.72 - p.vz * 0.7, p.vx); setT(c, B, X, Y, ang); c.drawImage(img, -s, -s * 0.11, s, s * 0.22); }
         else { setT(c, B, X, Y, p.rot, p.flat ? 0.55 : 1); c.drawImage(img, -s / 2, -s / 2, s, s); } } }
@@ -306,15 +317,17 @@
     /* the secondary bursts (a flash, a fireball, a ring) and the fires left burning, over the actors (the pet cut out) */
     function drawAfter(c, B) { const T = S.T, GY = H.GY || 0.55, L = LOW(); c.save(); c.setTransform(B); petHole(c, S);
       for (const b of blast.sec) { if (!b.done) continue; const a2 = blast.t - b.at; if (a2 > 1.1) continue; const X0 = H.sx(b.x), Y0 = H.sy(b.y), r = T * 1.6 * b.s * eout(a2 / 0.35);
-        if (a2 < 0.25) put(c, B, glowSprite('#FFFFFF'), X0, Y0 - r * 0.4, r * 2.4, r * 2.4, (1 - a2 / 0.25) * 0.7, 0, 1, true);
-        put(c, B, sprShock(), X0, Y0, r * 3.2, r * 3.2, Math.max(0, 1 - a2 / 0.6) * 0.8, 0, GY, true);
-        const fa = Math.pow(Math.max(0, 1 - a2 / 1.1), 1.3); put(c, B, sprSoft(b.v), X0, Y0 - r * 0.55, r * 2.2, r * 2.0, fa * 0.9, a2 * 1.5 + b.v, 1, false); put(c, B, sprSoft((b.v + 1) % 3), X0, Y0 - r * 0.7, r * 1.4, r * 1.3, fa * 0.8, -a2 * 2, 1, true); put(c, B, glowSprite(C.yel), X0, Y0 - r * 0.5, r * 1.6, r * 1.6, fa * 0.5, 0, 1, true); }
+        if (a2 < 0.25) putK(c, B, glowSprite('#FFFFFF'), X0, Y0 - r * 0.4, r * 2.4, r * 2.4, (1 - a2 / 0.25) * 0.7, 0, 1, true);
+        putK(c, B, sprShock(), X0, Y0, r * 3.2, r * 3.2, Math.max(0, 1 - a2 / 0.6) * 0.8, 0, GY, true);
+        const fa = Math.pow(Math.max(0, 1 - a2 / 1.1), 1.3); putK(c, B, sprSoft(b.v), X0, Y0 - r * 0.55, r * 2.2, r * 2.0, fa * 0.9, a2 * 1.5 + b.v, 1, false); putK(c, B, sprSoft((b.v + 1) % 3), X0, Y0 - r * 0.7, r * 1.4, r * 1.3, fa * 0.8, -a2 * 2, 1, true); putK(c, B, glowSprite(C.yel), X0, Y0 - r * 0.5, r * 1.6, r * 1.6, fa * 0.5, 0, 1, true); }
       for (const f of blast.fires) { const a2 = blast.t - f.t0; if (a2 < 0 || a2 > f.life) continue; const k = sm(a2 / 0.25) * (1 - sm((a2 - f.life + 0.9) / 0.9)), X0 = H.sx(f.x), Y0 = H.sy(f.y), hh = T * 1.1 * f.s * k;
-        put(c, B, glowSprite(C.org), X0, Y0, T * 2.2 * f.s, T * 2.2 * f.s * GY, 0.55 * k, 0, 1, true);
-        for (let j = 0; j < (L ? 1 : 3); j++) { const fl = 0.75 + 0.25 * Math.sin(blast.t * (13 + j * 4) + f.ph + j * 2), w = hh * (0.55 - j * 0.1), hj = hh * fl * (1 - j * 0.2); setT(c, B, X0 + (j - 1) * w * 0.45, Y0 + T * 0.05, Math.sin(blast.t * 5 + f.ph + j) * 0.12); c.globalCompositeOperation = j === 1 ? 'source-over' : 'lighter'; c.globalAlpha = Math.min(1, 0.85 * k); c.drawImage(sprTongue((f.v + j) % 3), -w / 2, -hj, w, hj); } }
+        putK(c, B, glowSprite(C.org), X0, Y0, T * 2.2 * f.s, T * 2.2 * f.s * GY, 0.55 * k, 0, 1, true);
+        for (let j = 0; j < (L ? 1 : 3); j++) { const fl = 0.75 + 0.25 * Math.sin(blast.t * (13 + j * 4) + f.ph + j * 2), w = hh * (0.55 - j * 0.1), hj = hh * fl * (1 - j * 0.2); setT(c, B, X0 + (j - 1) * w * 0.45, Y0 + T * 0.05, Math.sin(blast.t * 5 + f.ph + j) * 0.12); c.globalCompositeOperation = j === 1 ? 'source-over' : 'lighter'; c.globalAlpha = Math.min(1, 0.85 * k * petK(S, X0, Y0 - hj * 0.5, 0.45)); c.drawImage(sprTongue((f.v + j) % 3), -w / 2, -hj, w, hj); } }
       c.restore(); }
     /* ---- drawing ---- */
     const scr = (x, y, z) => [H.sx(x), H.sy(y) - (z || 0) * S.ZT];
+    /* a sprite drawn straight over the actors: its alpha eased down softly near the rider (no clip, no edge) */
+    const putK = (c, B, img, x, y, w, h, a, rot, sy, add) => put(c, B, img, x, y, w, h, a * petK(S, x, y, 0.45), rot, sy, add);
     function drawUnder(c, B) { const T = S.T, GY = H.GY || 0.55, X0 = H.sx(ix), Y0 = H.sy(iy);
       // the telegraphs: the beam's impact ring (its ticks) from the late charge, the dome's ring (the explosion) through the beam
       const tA = sm((t - (TC - 0.8)) / 0.5) * (blast ? Math.max(0, 1 - blast.t / 0.15) : 1);
@@ -336,9 +349,9 @@
     function chargeUnder(c, B) { const T = S.T, GY = H.GY || 0.55;
       for (const w of cwaves) { const v = w.t / 1.0, r = T * lerp(1.2, 5.8, eout(v)) * (0.85 + 0.3 * w.k), a = Math.min(1, Math.pow(1 - v, 1.2) * 1.6 * w.k); put(c, B, sprWave(w.v), H.sx(w.x), H.sy(w.y), r * 2, r * 2, a, w.rot + v * 0.6, GY, true); }
       if (ph === 'charge') { const u = t / TC, dg = anchorW(ctx, 'belly'); put(c, B, glowSprite(C.org), H.sx(dg.x), H.sy(dg.y), T * (2.5 + 3 * u), T * (2.5 + 3 * u), 0.18 + 0.4 * u, 0, GY, true); } }
-    function chargeOver(c, B) { const T = S.T, GY = H.GY || 0.55, L = LOW(); c.save(); c.setTransform(B); petHole(c, S);
-      // the pressure rings round the dragon (the near half bright, the far half faint: a disc of flame at chest height)
-      for (const w of cwaves) { const v = w.t / 1.0, r = T * lerp(1.0, 4.3, eout(v)) * (0.85 + 0.3 * w.k), a = Math.min(1, Math.pow(1 - v, 1.4) * 1.35 * w.k), [X0, Y0] = scr(w.x, w.y, w.z); put(c, B, sprWave(1 - w.v), X0, Y0, r * 2, r * 2, a, -w.rot - v * 0.8, GY * 0.9, true); }
+    function chargeOver(c, B) { const T = S.T, GY = H.GY || 0.55, L = LOW(); c.save(); c.setTransform(B);
+      // the pressure rings round the dragon (a disc of flame at chest height; in a buffer, thinned softly round the rider)
+      if (cwaves.length) { const ch0 = anchorW(ctx, 'chest'), [cx0, cy0] = scr(ch0.x, ch0.y, ch0.z); lowRes(c, B, 'cwave', cx0 - T * 5.6, cy0 - T * 3.4, cx0 + T * 5.6, cy0 + T * 3.4, L ? 0.34 : 0.5, 'lighter', (c, B) => { for (const w of cwaves) { const v = w.t / 1.0, r = T * lerp(1.0, 4.3, eout(v)) * (0.85 + 0.3 * w.k), a = Math.min(1, Math.pow(1 - v, 1.4) * 1.35 * w.k), [X0, Y0] = scr(w.x, w.y, w.z); put(c, B, sprWave(1 - w.v), X0, Y0, r * 2, r * 2, a, -w.rot - v * 0.8, GY * 0.9, true); } }); c.setTransform(B); }
       if (ph !== 'charge') { c.restore(); return; }
       const u = t / TC, mo = anchorW(ctx, 'mouth'), [mx, my] = scr(mo.x, mo.y, mo.z), live = u < 0.06 ? 0 : sm((u - 0.06) / 0.3), n = Math.round((L ? 6 : 13) * (0.45 + 0.55 * u));
       // the strings (drawn at half resolution into a buffer and added on: soft glowing ribbons, a quarter of the fill)
@@ -358,9 +371,9 @@
         if (s1 >= 0.995) put(c, B, glowSprite(C.yel), mx, my, T * 1.4, T * 1.4, 0.5 * fl, 0, 1, true); }
       }); c.setTransform(B);
       // the mouth's core: a swelling, throbbing heat (faster and brighter as it fills), and a final inrush ring
-      const pul = 1 + (0.08 + 0.2 * u) * Math.sin(t * (6 + 18 * u)), rc = T * (0.5 + 2.2 * eio(u)) * pul; put(c, B, glowSprite(C.org), mx, my, rc * 2.5, rc * 2.5, 0.3 + 0.45 * u, 0, 1, true); put(c, B, glowSprite(C.yel), mx, my, rc * 1.6, rc * 1.6, 0.35 + 0.5 * u, 0, 1, true); put(c, B, glowSprite('#FFFFFF'), mx, my, rc * 0.7, rc * 0.7, 0.4 + 0.6 * u, 0, 1, true);
-      if (!L) for (let k = 0; k < 3; k++) { const a = t * 2.5 + k * 2.1; put(c, B, sprTongue(k), mx + Math.cos(a) * rc * 0.25, my + Math.sin(a) * rc * 0.25, rc * 0.7, rc * 1.4, 0.45 * u, a + Math.PI / 2, 1, true); }
-      const ir = (t - (TC - 0.45)) / 0.45; if (ir > 0 && ir < 1) { const r = T * 5 * (1 - eio(ir)); put(c, B, sprWave(0), mx, my, r * 2, r * 2, 0.9 * Math.sin(ir * Math.PI), t * 3, 0.7, true); }
+      const pul = 1 + (0.08 + 0.2 * u) * Math.sin(t * (6 + 18 * u)), rc = T * (0.5 + 2.2 * eio(u)) * pul; putK(c, B, glowSprite(C.org), mx, my, rc * 2.5, rc * 2.5, 0.3 + 0.45 * u, 0, 1, true); putK(c, B, glowSprite(C.yel), mx, my, rc * 1.6, rc * 1.6, 0.35 + 0.5 * u, 0, 1, true); putK(c, B, glowSprite('#FFFFFF'), mx, my, rc * 0.7, rc * 0.7, 0.4 + 0.6 * u, 0, 1, true);
+      if (!L) for (let k = 0; k < 3; k++) { const a = t * 2.5 + k * 2.1; putK(c, B, sprTongue(k), mx + Math.cos(a) * rc * 0.25, my + Math.sin(a) * rc * 0.25, rc * 0.7, rc * 1.4, 0.45 * u, a + Math.PI / 2, 1, true); }
+      const ir = (t - (TC - 0.45)) / 0.45; if (ir > 0 && ir < 1) { const r = T * 5 * (1 - eio(ir)); putK(c, B, sprWave(0), mx, my, r * 2, r * 2, 0.9 * Math.sin(ir * Math.PI), t * 3, 0.7, true); }
       c.restore(); }
     /* the beam over the actors (the pet cut out): from the mouth anchor to the impact every frame */
     function drawOver(c, B) { const T = S.T; if (!(ph === 'beam' || (blast && blast.t < 0.12))) return;
@@ -395,8 +408,8 @@
       }); c.setTransform(B); }
       // the impact sphere swelling under the pressure, its glow; the mouth's flare
       const u = cl((t - TC) / tu.beam), rs = T * (0.55 + 1.15 * eout(u)) * pul;
-      put(c, B, glowSprite(C.yel), bx, by, rs * 4, rs * 4, 0.6 * fade, 0, 1, true); put(c, B, sprBall(), bx, by - rs * 0.25, rs * 2.3, rs * 2.3, fade, t * 2.4, 1, false); put(c, B, sprBall(), bx, by - rs * 0.25, rs * 1.6, rs * 1.6, 0.6 * fade, -t * 3.1, 1, true); put(c, B, glowSprite('#FFFFFF'), bx, by - rs * 0.25, rs * 1.3, rs * 1.3, 0.8 * fade, 0, 1, true);
-      put(c, B, glowSprite(C.yel), ax0, ay0, T * 1.6, T * 1.6, 0.8 * fade, 0, 1, true); put(c, B, glowSprite('#FFFFFF'), ax0, ay0, T * 0.7, T * 0.7, fade, 0, 1, true);
+      putK(c, B, glowSprite(C.yel), bx, by, rs * 4, rs * 4, 0.6 * fade, 0, 1, true); putK(c, B, sprBall(), bx, by - rs * 0.25, rs * 2.3, rs * 2.3, fade, t * 2.4, 1, false); putK(c, B, sprBall(), bx, by - rs * 0.25, rs * 1.6, rs * 1.6, 0.6 * fade, -t * 3.1, 1, true); putK(c, B, glowSprite('#FFFFFF'), bx, by - rs * 0.25, rs * 1.3, rs * 1.3, 0.8 * fade, 0, 1, true);
+      putK(c, B, glowSprite(C.yel), ax0, ay0, T * 1.6, T * 1.6, 0.8 * fade, 0, 1, true); putK(c, B, glowSprite('#FFFFFF'), ax0, ay0, T * 0.7, T * 0.7, fade, 0, 1, true);
       c.restore(); }
     /* the dome, the column and the mushroom cloud (over everything but the pet: an explosion this size engulfs the scene,
        then thins and fades so the field reads again) */
@@ -404,7 +417,7 @@
       const X0 = H.sx(ix), Y0 = H.sy(iy), fadeAll = 1 - sm((u - (life - 1.3)) / 1.3);
       c.save(); c.setTransform(B); petHole(c, S);
       // the white flash core (short; bounded; full resolution)
-      if (u < 0.3) put(c, B, glowSprite('#FFFFFF'), X0, Y0 - T * RX * 0.25, RX * 2.2 * T, RX * 2.2 * T, (1 - u / 0.3) * 0.75, 0, 1, true);
+      if (u < 0.3) putK(c, B, glowSprite('#FFFFFF'), X0, Y0 - T * RX * 0.25, RX * 2.2 * T, RX * 2.2 * T, (1 - u / 0.3) * 0.75, 0, 1, true);
       c.restore();
       // the rest at half resolution (a third on low effects) and blitted up: soft, and a quarter of the pixels
       lowRes(c, B, 'cloud', X0 - RX * T * 1.7, Y0 - (tu.columnH + RX * 0.9) * S.ZT - RX * T * 1.0, X0 + RX * T * 1.7, Y0 + RX * T * 0.7, LOW() ? 0.34 : 0.5, 'source-over', (c, B) => {

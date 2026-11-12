@@ -110,9 +110,15 @@ const BM = (self.BEAST_MOVES = self.BEAST_MOVES || {});
     : radialSprite('bm2r' + kind, kind === 'fill' ? 160 : 128, d => {
       if (kind === 'fill') { const a = (0.45 + 0.55 * (1 - d * d)) * sm((1 - d) / 0.12), k = 0.75 * cl(1 - d * 1.1); return [Math.round(lerp(95, 250, k)), Math.round(lerp(190, 252, k)), 255, a]; }
       const pk = Math.exp(-Math.pow((d - 0.88) / 0.035, 2)), hz = 0.4 * Math.exp(-Math.pow((d - 0.86) / 0.11, 2)), s = pk + hz; if (s < 0.004) return null; const k = pk / s; return [Math.round(lerp(63, 245, k)), Math.round(lerp(168, 252, k)), 255, Math.min(1, s) * sm((1 - d) / 0.06)]; });
+  /* (2026-11-12, the user: "feather out the edges of the oval ... not a hard edge") the Wrath's floor light: 'soft' a glow
+     that fills the oval and fades smoothly to nothing (it reaches past the hit oval's edge by 25%, so no line marks it);
+     'sband' a broad, faint band of light (the travelling shock, blurred: no crisp rim) */
+  const sprSoft = kind => radialSprite('bm2' + kind, 192, d => {
+    if (kind === 'soft') { const a = Math.pow(1 - sm(d), 1.6) * (0.55 + 0.45 * Math.exp(-Math.pow((d - 0.5) / 0.28, 2))); if (a < 0.004) return null; const k = cl(1 - d * 1.2); return [Math.round(lerp(70, 235, k)), Math.round(lerp(170, 250, k)), 255, a]; }
+    const a = Math.exp(-Math.pow((d - 0.72) / 0.13, 2)) * (1 - sm((d - 0.82) / 0.18)); if (a < 0.004) return null; return [Math.round(lerp(110, 230, a)), Math.round(lerp(200, 248, a)), 255, a * 0.85]; });
   const sprShadow = () => radialSprite('bm2shd', 48, d => [30, 30, 60, 0.4 * Math.pow(1 - sm(d), 1.4)]);
   const BAKE = [sprMissile, sprFlame, () => sprGlint(CYAN), () => sprGlint(GOLD), () => sprStreak(CYAN), () => sprStreak(GOLD), () => sprPuff(0), () => sprPuff(1), () => sprPuff(2),
-    () => sprRing('rim'), () => sprRing('tele'), () => sprRing('fill'), sprShadow, () => glowSprite(CYAN), () => glowSprite(BLUE), () => glowSprite(WHITE), () => glowSprite(GOLD), () => glowSprite(VIOLET)];
+    () => sprRing('rim'), () => sprRing('tele'), () => sprRing('fill'), () => sprSoft('soft'), () => sprSoft('sband'), sprShadow, () => glowSprite(CYAN), () => glowSprite(BLUE), () => glowSprite(WHITE), () => glowSprite(GOLD), () => glowSprite(VIOLET)];
   let baked = 0;
   function warmS(budgetMs) { const t0 = performance.now(), B = budgetMs == null ? 4 : budgetMs; while (baked < BAKE.length && performance.now() - t0 < B) { try { BAKE[baked](); } catch (e) {} baked++; } return baked >= BAKE.length; }
   BM.warmS = warmS;
@@ -128,7 +134,7 @@ const BM = (self.BEAST_MOVES = self.BEAST_MOVES || {});
   /* ================= the per-form system: acts + pooled particles ================= */
   const POOL = [], MPOOL = [];
   /* particle kinds: 0 cyan glint, 1 gold glint, 2 puff, 3 white flash, 4 floor ring, 5 cyan streak, 6 gold streak, 7 cyan glow, 8 gold glow */
-  const ADD = [1, 1, 0, 1, 1, 1, 1, 1, 1];
+  const ADD = [1, 1, 0, 1, 1, 1, 1, 1, 1, 1];   /* 9: the soft shock band (Wrath) */
   function sysOf(ctx) {
     if (ctx._bm2 && ctx._bm2.on) return ctx._bm2;
     const H = ctx.H && ctx.H.add ? ctx.H : null; if (!H) return null;
@@ -145,7 +151,7 @@ const BM = (self.BEAST_MOVES = self.BEAST_MOVES || {});
         S.T = H.X.Tz();
         for (let i = S.acts.length - 1; i >= 0; i--) { const a = S.acts[i]; a.update(dt); if (a.dead) S.acts.splice(i, 1); }
         const P = S.parts; for (let i = P.length - 1; i >= 0; i--) { const p = P[i]; p.t += dt; if (p.t >= p.life) { P[i] = P[P.length - 1]; P.pop(); POOL.push(p); continue; }
-          if (p.drag) { const k = Math.exp(-p.drag * dt); p.vx *= k; p.vy *= k; p.vz *= k; } p.vz -= p.g * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; if (p.z < 0) { p.z = 0; p.vz = 0; } p.rot += p.vr * dt; }
+          if (p.drag) { const k = Math.exp(-p.drag * dt); p.vx *= k; p.vy *= k; p.vz *= k; } p.vz -= p.g * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; if (p.z < 0) { p.z = 0; if (p.bounce && p.vz < -0.6) { p.vz = -p.vz * p.bounce; p.vx *= 0.7; p.vy *= 0.7; } else p.vz = 0; } p.rot += p.vr * dt; }
         const Z = S.zaps; for (let i = Z.length - 1; i >= 0; i--) { Z[i].t += dt; if (Z[i].t >= Z[i].life) { Z[i] = Z[Z.length - 1]; Z.pop(); } }
         if (!S.acts.length && !P.length && !Z.length) { S.on = false; f.life = 0; }
       },
@@ -163,7 +169,7 @@ const BM = (self.BEAST_MOVES = self.BEAST_MOVES || {});
   function part(S, kind, x, y, z, vx, vy, vz, life, size, o) { if (!S || S.parts.length > (LOW() ? 220 : 520)) return null; const p = POOL.pop() || {};
     p.kind = kind; p.x = x; p.y = y; p.z = z; p.vx = vx; p.vy = vy; p.vz = vz; p.life = life; p.t = 0; p.size = size; p.g = 0; p.drag = 0; p.rot = 0; p.vr = 0; p.grow = 0; p.a = 1; p.u = 0; p.v = 0; p.fin = 0.06; p.flat = 0;
     if (o) for (const k in o) p[k] = o[k]; S.parts.push(p); return p; }
-  function partImg(p) { switch (p.kind) { case 0: return sprGlint(CYAN); case 1: return sprGlint(GOLD); case 2: return sprPuff(p.v); case 3: return glowSprite(WHITE); case 4: return sprRing('rim'); case 5: return sprStreak(CYAN); case 6: return sprStreak(GOLD); case 7: return glowSprite(CYAN); default: return glowSprite(GOLD); } }
+  function partImg(p) { switch (p.kind) { case 0: return sprGlint(CYAN); case 1: return sprGlint(GOLD); case 2: return sprPuff(p.v); case 3: return glowSprite(WHITE); case 4: return sprRing('rim'); case 5: return sprStreak(CYAN); case 6: return sprStreak(GOLD); case 7: return glowSprite(CYAN); case 9: return sprSoft('sband'); default: return glowSprite(GOLD); } }
   function drawParts(S, c, B, under) { const H = S.H, T = S.T, P = S.parts; if (!P.length) return;
     for (let pass = 0; pass < 2; pass++) { c.globalCompositeOperation = pass ? 'lighter' : 'source-over';
       for (let i = 0; i < P.length; i++) { const p = P[i]; if (ADD[p.kind] !== pass || (p.u ? 1 : 0) !== under) continue;
@@ -339,16 +345,23 @@ const BM = (self.BEAST_MOVES = self.BEAST_MOVES || {});
       const NF = LOW() ? 9 : 16, fil = [], cracks = [];
       for (let i = 0; i < NF; i++) { const r = Math.sqrt((i + 0.6) / NF) * 0.96, th = i * 2.39996 + k * 0.7, u = Math.cos(th) * r * tu.rx, v = Math.sin(th) * r * tu.ry, x = o.cx + u * ca - v * sa, y = o.cy + u * sa + v * ca, d = Math.hypot(x - hx, y - hy);
         let px = hx, py = hy; if (fil.length && d > 1) { let bd = 1e9; for (const f of fil) { const dd = Math.hypot(f.x - x, f.y - y), dh = Math.hypot(f.x - hx, f.y - hy); if (dh < d * 0.8 && dd < bd) { bd = dd; px = f.x; py = f.y; } } }
-        fil.push({ x, y, px, py, d: Math.hypot(x - hx, y - hy), s: Math.random() * 1000, gold: i % 5 === 2 }); }
+        fil.push({ rr: r, x, y, px, py, d: Math.hypot(x - hx, y - hy), s: Math.random() * 1000, gold: i % 5 === 2 }); }
       for (let i = 0; i < (LOW() ? 6 : 11); i++) { const th = (i + 0.5) / 11 * TAU + rnd(-0.3, 0.3), pts = [[hx, hy]]; let x = hx, y = hy, dir = th;
         const reach = () => { const du = (x - o.cx) * ca + (y - o.cy) * sa, dv = -(x - o.cx) * sa + (y - o.cy) * ca; return (du * du) / (tu.rx * tu.rx) + (dv * dv) / (tu.ry * tu.ry); };
-        for (let j = 0; j < 9; j++) { dir += rnd(-0.55, 0.55); x += Math.cos(dir) * rnd(0.25, 0.42); y += Math.sin(dir) * rnd(0.25, 0.42); if (reach() > 0.92) break; pts.push([x, y]); } if (pts.length > 2) cracks.push(pts); }
+        for (let j = 0; j < 9; j++) { dir += rnd(-0.55, 0.55); x += Math.cos(dir) * rnd(0.25, 0.42); y += Math.sin(dir) * rnd(0.25, 0.42); if (reach() > 0.8) break; pts.push([x, y]); } if (pts.length > 2) cracks.push(pts); }
       // bolts striking down out of the sky into the oval, staggered over the first 0.2 s (drawn; the hit above is the strike's)
       const sky = []; for (let i = 0; i < tu.skyBolts[tier]; i++) { const r = Math.sqrt(rnd(0.05, 0.9)), th = Math.random() * TAU, u = Math.cos(th) * r * tu.rx, v = Math.sin(th) * r * tu.ry; sky.push({ x: o.cx + u * ca - v * sa, y: o.cy + u * sa + v * ca, t0: i ? rnd(0.02, 0.22) : 0, s: Math.random() * 1000, gold: i % 3 === 1, hit: false }); }
-      hits.push({ t: 0, cx: o.cx, cy: o.cy, ang: a, hx, hy, fil, cracks, n, sky });
+      // (2026-11-12, "more lightning particles ... more flashy") spark showers thrown up over the oval, electric motes that
+      // bounce and hop arcs between each other, a brighter, softer flash (all decoration: the hit above is the strike's one)
+      const inOval = rmax => { const r = Math.pow(Math.random(), 0.7) * rmax, th = Math.random() * TAU, u = Math.cos(th) * r * tu.rx, v = Math.sin(th) * r * tu.ry; return [o.cx + u * ca - v * sa, o.cy + u * sa + v * ca]; };
+      const motes = [], NM = LOW() ? 6 : 14;
+      for (let i = 0; i < (LOW() ? 10 : 26); i++) { const [x, y] = inOval(0.8), a2 = Math.random() * TAU, v = rnd(1, 3.5); part(S, i % 5 === 0 ? 6 : 5, x, y, 0.1, Math.cos(a2) * v, Math.sin(a2) * v * 0.7, rnd(4, 9), rnd(0.35, 0.7), rnd(0.35, 0.6), { g: 14, drag: 0.8 }); }
+      for (let i = 0; i < NM; i++) { const [x, y] = inOval(0.75), a2 = Math.random() * TAU, v = rnd(0.6, 2.2), p = part(S, i % 4 === 0 ? 1 : 0, x, y, rnd(0.1, 0.5), Math.cos(a2) * v, Math.sin(a2) * v * 0.7, rnd(2.5, 5), rnd(0.8, 1.3), rnd(0.3, 0.5), { g: 11, bounce: 0.55, drag: 0.5, fin: 0.02, rot: Math.random() }); if (p) motes.push(p); }
+      part(S, 3, o.cx, o.cy, 0.3, 0, 0, 0, 0.22, Math.max(tu.rx, tu.ry) * 2.8, { fin: 0.015, a: 0.55 });
+      hits.push({ t: 0, cx: o.cx, cy: o.cy, ang: a, hx, hy, fil, cracks, n, sky, motes });
       // the flash: sparks, golden flashes, an oval shock, the shake
       const big = !LOW();
-      part(S, 3, hx, hy, 0.25, 0, 0, 0, 0.16, 2.6, { fin: 0.01 }); part(S, 7, hx, hy, 0.2, 0, 0, 0, 0.4, 3.6, { fin: 0.01, a: 0.55 }); part(S, 4, o.cx, o.cy, 0.05, 0, 0, 0, 0.5, Math.max(tu.rx, tu.ry) * 2.6, { fin: 0.01, a: 0.7, u: 1, grow: 0.5, flat: 1 });
+      part(S, 3, hx, hy, 0.25, 0, 0, 0, 0.16, 2.6, { fin: 0.01 }); part(S, 7, hx, hy, 0.2, 0, 0, 0, 0.4, 3.6, { fin: 0.01, a: 0.55 }); part(S, 9, o.cx, o.cy, 0.05, 0, 0, 0, 0.55, Math.max(tu.rx, tu.ry) * 2.6, { fin: 0.01, a: 0.6, u: 1, grow: 0.5, flat: 1 });
       for (let i = 0; i < (big ? 18 : 8); i++) { const f = fil[i % fil.length], a2 = Math.random() * TAU, v = rnd(2, 6); part(S, i % 4 === 0 ? 6 : 5, f.x, f.y, 0.1, Math.cos(a2) * v, Math.sin(a2) * v * 0.7, rnd(2, 6), rnd(0.25, 0.45), rnd(0.4, 0.6), { g: 10, drag: 1.4 }); }
       for (let i = 0; i < (big ? 5 : 2); i++) { const f = fil[(i * 3 + 1) % fil.length]; part(S, 8, f.x, f.y, 0.2, 0, 0, 0.5, rnd(0.18, 0.3), rnd(1.0, 1.5), { fin: 0.02, a: 0.75 }); part(S, 1, f.x, f.y, rnd(0.2, 0.5), 0, 0, 0.6, 0.22, rnd(0.5, 0.7), { fin: 0.01, rot: Math.random() }); }
       for (let i = 0; i < (big ? 6 : 3); i++) part(S, 2, hx + rnd(-0.4, 0.4), hy + rnd(-0.3, 0.3), 0.1, rnd(-1.5, 1.5), rnd(-1.2, 1.2), rnd(0.3, 1), rnd(0.5, 0.8), rnd(0.6, 0.9), { drag: 2.2, grow: 0.8, v: i % 3, rot: Math.random() * TAU, a: 0.45 });
@@ -364,10 +377,10 @@ const BM = (self.BEAST_MOVES = self.BEAST_MOVES || {});
     function clearPose() { const p = pose(b); if (!p) return; for (const s of ['L', 'R']) { p['arm' + s + 'Raise'] = 0; p['arm' + s + 'Slam'] = 0; } p.torsoDip = 0; p.crouch = 0; p.shudder = 0; p.charge = 0; p.glow = 0; }
     function finish() { if (finished) return; finished = true; b.locked = false; b.contact = wasC == null ? true : wasC; done(); }
     const act = { update(dt) {
-        for (let i = hits.length - 1; i >= 0; i--) { hits[i].t += dt; if (hits[i].t > 1.0) hits.splice(i, 1); }
+        for (let i = hits.length - 1; i >= 0; i--) { hits[i].t += dt; if (hits[i].t > 1.3) hits.splice(i, 1); }
         // each sky bolt's landing (a flash and sparks), and arcs crawling over the struck ground for a moment
         for (const h of hits) { for (const sb of h.sky) if (!sb.hit && h.t >= sb.t0) { sb.hit = true; part(S, 3, sb.x, sb.y, 0.2, 0, 0, 0, 0.1, 1.4, { fin: 0.01 }); part(S, sb.gold ? 8 : 7, sb.x, sb.y, 0.15, 0, 0, 0, 0.3, 2.0, { fin: 0.01, a: 0.5 }); for (let j = 0; j < (LOW() ? 3 : 7); j++) { const a2 = Math.random() * TAU, v = rnd(2, 5); part(S, sb.gold ? 6 : 5, sb.x, sb.y, 0.1, Math.cos(a2) * v, Math.sin(a2) * v * 0.7, rnd(2, 5), rnd(0.2, 0.4), rnd(0.35, 0.55), { g: 10, drag: 1.4 }); } if (j0(h)) sfx(X, 'crack'); }
-          if (h.t < 0.75 && Math.random() < dt * (LOW() ? 10 : 20)) { const ca = Math.cos(h.ang), sa = Math.sin(h.ang), r = Math.sqrt(Math.random()) * 0.92, th = Math.random() * TAU, u = Math.cos(th) * r * tu.rx, v = Math.sin(th) * r * tu.ry, x = h.cx + u * ca - v * sa, y = h.cy + u * sa + v * ca, d2 = rnd(0.4, 0.9), b2 = Math.random() * TAU; zap(S, x, y, 0.04, x + Math.cos(b2) * d2, y + Math.sin(b2) * d2 * 0.7, 0.04, 0.03, rnd(0.07, 0.14), { forks: 1, gold: Math.random() < 0.2 }); } }
+          if (h.t < 1.1 && Math.random() < dt * (LOW() ? 10 : 22) * (h.t < 0.6 ? 1 : 0.5)) { const ca = Math.cos(h.ang), sa = Math.sin(h.ang), r = Math.pow(Math.random(), 0.8) * 0.85, th = Math.random() * TAU, u = Math.cos(th) * r * tu.rx, v = Math.sin(th) * r * tu.ry, x = h.cx + u * ca - v * sa, y = h.cy + u * sa + v * ca, d2 = rnd(0.4, 0.9), b2 = Math.random() * TAU; zap(S, x, y, 0.04, x + Math.cos(b2) * d2, y + Math.sin(b2) * d2 * 0.7, 0.04, 0.03, rnd(0.07, 0.14), { forks: 1, gold: Math.random() < 0.2 }); } }
         if (act.dying) { if (!finished) { finished = true; b.locked = false; b.contact = wasC == null ? true : wasC; done(); } if (!hits.length) act.dead = true; return; }
         if (finished) { if (!hits.length) act.dead = true; return; }
         t += dt; b.vx = 0; b.vy = 0;
@@ -383,28 +396,33 @@ const BM = (self.BEAST_MOVES = self.BEAST_MOVES || {});
         if (!finished) setPose(dt); },
       cancel() {},
       /* the floor: the telegraph (from the lift on), the fill at impact, the fractures, the shock rim (light only) */
-      under(c, B) { const T = S.T, tele = sprRing('tele'), fill = sprRing('fill'), rim = sprRing('rim');
+      under(c, B) { const T = S.T, soft = sprSoft('soft'), band = sprSoft('sband');
+        /* (the floor light is a soft glow that fades to nothing past the oval's edge, drawn 1.25x the hit oval: the hit oval
+           itself is unchanged; there is no stroked rim anywhere) */
         const ovalAt = (img, cx, cy, ang, kx, ky, a) => { if (!(a > 0.01)) return; c.globalCompositeOperation = 'lighter'; c.globalAlpha = a > 1 ? 1 : a; setT(c, B, H.sx(cx), H.sy(cy), ang, tu.rx * T * kx, tu.ry * T * ky); c.drawImage(img, -1, -1, 2, 2); };
+        const F = 1.25;
         if (!finished && !act.dying) { const o = oval(), d = D(k), u = ph === 'lift' ? t / d : ph === 'slam' ? 1 : 0;
-          if (ph !== 'recoil') { const a = sm(u * 1.6) * (0.75 + 0.25 * Math.sin(S.t * 22)); ovalAt(tele, o.cx, o.cy, o.ang, 1, 1, a); ovalAt(fill, o.cx, o.cy, o.ang, 1, 1, 0.12 * sm(u) + (ph === 'slam' ? 0.15 : 0));
-            const sw = 1 - (u * 1.3 % 1); ovalAt(rim, o.cx, o.cy, o.ang, sw * 1.05, sw * 1.05, 0.35 * sm(u * 3) * (1 - sw * 0.5)); }
-          else if (k < NS - 1) { const o2 = oval(); ovalAt(tele, o2.cx, o2.cy, o2.ang, 1, 1, 0.3 * sm(t / tu.recoil)); } }
-        for (const h of hits) { const u = h.t; ovalAt(fill, h.cx, h.cy, h.ang, 1, 1, u < 0.04 ? u / 0.04 * 0.5 : 0.5 * (1 - sm((u - 0.04) / 0.35)));
-          ovalAt(tele, h.cx, h.cy, h.ang, 1, 1, 0.9 * (1 - sm(u / 0.5)));
-          const su = eout(u / 0.32); ovalAt(rim, h.cx, h.cy, h.ang, 0.25 + 0.85 * su, 0.25 + 0.85 * su, (1 - sm(u / 0.4)) * 0.95);
-          // spectral fractures: violet haze under an ice-white thread, fading (no dark marks)
+          if (ph !== 'recoil') { const a = sm(u * 1.6) * (0.55 + 0.15 * Math.sin(S.t * 22)) + (ph === 'slam' ? 0.25 : 0); ovalAt(soft, o.cx, o.cy, o.ang, F, F, a);
+            const sw = 1 - (u * 1.3 % 1); ovalAt(band, o.cx, o.cy, o.ang, sw * 1.15, sw * 1.15, 0.4 * sm(u * 3) * (1 - sw * 0.5)); }
+          else if (k < NS - 1) { const o2 = oval(); ovalAt(soft, o2.cx, o2.cy, o2.ang, F, F, 0.25 * sm(t / tu.recoil)); } }
+        for (const h of hits) { const u = h.t; ovalAt(soft, h.cx, h.cy, h.ang, F, F, u < 0.04 ? u / 0.04 * 1.0 : 1.0 * (1 - sm((u - 0.04) / 0.5)));
+          const su = eout(u / 0.35); ovalAt(band, h.cx, h.cy, h.ang, 0.3 + 1.0 * su, 0.3 + 1.0 * su, (1 - sm(u / 0.45)) * 0.9);
+          // spectral fractures: violet haze under an ice-white thread; their outer reaches fainter, so they thin out (no line ends them)
           const fa = 1 - sm((u - 0.15) / 0.8); if (fa > 0.02) { c.setTransform(B); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.lineJoin = 'round';
-            for (const [col, w, al] of [[VIOLET, 0.09, 0.35], [CYAN, 0.04, 0.55], [ICE, 0.016, 0.9]]) { c.strokeStyle = col; c.lineWidth = Math.max(0.6, w * T); c.globalAlpha = al * fa; c.beginPath();
-              for (const pts of h.cracks) { const g = Math.min(pts.length, 1 + Math.floor(pts.length * cl(u / 0.12))); c.moveTo(H.sx(pts[0][0]), H.sy(pts[0][1])); for (let i = 1; i < g; i++) c.lineTo(H.sx(pts[i][0]), H.sy(pts[i][1])); } c.stroke(); } }
-          put(c, B, glowSprite(BLUE), H.sx(h.hx), H.sy(h.hy), T * 3.2, T * 1.8, 0.6 * (1 - sm(u / 0.6)), 0, true); }
+            for (let part2 = 0; part2 < 2; part2++) for (const [col, w, al] of [[VIOLET, 0.09, 0.35], [CYAN, 0.04, 0.55], [ICE, 0.016, 0.9]]) { c.strokeStyle = col; c.lineWidth = Math.max(0.6, w * T * (part2 ? 0.7 : 1)); c.globalAlpha = al * fa * (part2 ? 0.35 : 1); c.beginPath();
+              for (const pts of h.cracks) { const g = Math.min(pts.length, 1 + Math.floor(pts.length * cl(u / 0.12))), mid = Math.max(2, Math.ceil(pts.length * 0.6)), a0 = part2 ? mid - 1 : 0, a1 = part2 ? g : Math.min(g, mid); if (a1 - a0 < 2) continue; c.moveTo(H.sx(pts[a0][0]), H.sy(pts[a0][1])); for (let i = a0 + 1; i < a1; i++) c.lineTo(H.sx(pts[i][0]), H.sy(pts[i][1])); } c.stroke(); } }
+          put(c, B, glowSprite(BLUE), H.sx(h.hx), H.sy(h.hy), T * 3.6, T * 2.0, 0.6 * (1 - sm(u / 0.6)), 0, true); }
         c.setTransform(B); },
       /* above: the filaments racing out over the oval, crackling while they last */
       over(c, B) { if (!hits.length || typeof TK === 'undefined') return; const T = S.T, K = TK.bind(H); c.setTransform(B);
+        // small arcs jumping between neighbouring motes while they bounce
+        for (const h of hits) { if (!h.motes || h.t > 1.1 || LOW() && Math.random() < 0.5) continue; const M = h.motes; for (let i = 0; i + 1 < M.length; i++) { const p = M[i], q = M[i + 1]; if (!(p.t < p.life && q.t < q.life) || p.kind > 1 || q.kind > 1) continue; if (Math.random() > 0.35) continue; const dd = Math.hypot(p.x - q.x, p.y - q.y); if (dd > 1.3 || dd < 0.1) continue;
+          const X0 = H.sx(p.x), Y0 = H.sy(p.y) - p.z * S.ZT, X1 = H.sx(q.x), Y1 = H.sy(q.y) - q.z * S.ZT; K.arc(c, X0, Y0, X1, Y1, Math.floor(S.t * 40) + i * 7, Math.max(0.6, T * 0.025), 0.75 * (1 - h.t / 1.1) * Math.min(petK(S, X0, Y0, 0.2), petK(S, X1, Y1, 0.2)), { forks: 0, gold: i % 4 === 0, jit: dd * T * 0.25 }); c.setTransform(B); } }
         for (const h of hits) for (const sb of h.sky) { const a2 = h.t - sb.t0; if (a2 < 0 || a2 > 0.18) continue; const X1 = H.sx(sb.x), Y1 = H.sy(sb.y), fl = (1 - a2 / 0.18) * (a2 < 0.1 || Math.sin(S.t * 90 + sb.s) > -0.3 ? 1 : 0.35); K.skyBolt(c, X1, Y1, T * 9, Math.floor(S.t * 30) + sb.s, Math.max(1, T * 0.08), fl * petK(S, X1, Y1 - T, 0.2), { gold: sb.gold, forks: LOW() ? 1 : 2 }); c.setTransform(B); }
         for (const h of hits) { const u = h.t; if (u > 0.5) continue; const front = eout(u / 0.12) * 4.2, fa = 1 - sm((u - 0.18) / 0.32);
-          for (const f of h.fil) { if (f.d > front + 0.2) continue; const ia = cl((front - f.d) / 0.6 + 0.3), a = fa * ia; if (a < 0.03) continue;
+          for (const f of h.fil) { if (f.d > front + 0.2) continue; const ia = cl((front - f.d) / 0.6 + 0.3), a = fa * ia * (1 - 0.85 * sm((f.rr - 0.45) / 0.55)); if (a < 0.03) continue;
             const X0 = H.sx(f.px), Y0 = H.sy(f.py) - 0.05 * S.ZT, X1 = H.sx(f.x), Y1 = H.sy(f.y) - 0.05 * S.ZT, L = Math.hypot(X1 - X0, Y1 - Y0);
-            K.arc(c, X0, Y0, X1, Y1, Math.floor(S.t * 24) + f.s, Math.max(1, T * (u < 0.08 ? 0.07 : 0.05)), a, { forks: LOW() ? 0 : 1, gold: f.gold, jit: L * 0.2 });
+            K.arc(c, X0, Y0, X1, Y1, Math.floor(S.t * 24) + f.s, Math.max(0.7, T * (u < 0.08 ? 0.07 : 0.05) * (1 - 0.5 * f.rr)), a, { forks: LOW() ? 0 : 1, gold: f.gold, jit: L * 0.2 });
             if (u < 0.3 && !LOW()) { const pr = 0.4 * (1 - u / 0.3); put(c, B, glowSprite(f.gold ? GOLD : CYAN), X1, Y1, T * 0.9, T * 0.9, pr * a, 0, true); } }
           if (u < 0.22) { const X0 = H.sx(h.hx), Y0 = H.sy(h.hy); K.arc(c, X0, Y0 - T * 2.4, X0, Y0, Math.floor(S.t * 30) + 7, Math.max(1, T * 0.06), (1 - u / 0.22) * 0.8 * petK(S, X0, Y0 - T, 0.2), { forks: LOW() ? 0 : 2 }); c.setTransform(B); } }
         c.setTransform(B); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over'; },

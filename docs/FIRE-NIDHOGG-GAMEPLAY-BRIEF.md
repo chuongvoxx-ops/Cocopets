@@ -377,3 +377,22 @@ Ultima's damage is `noCharge`. Durations are 20/25/35 s (configurable). The cool
     dearer.
   - **What the user may see:** the cloud's column is hidden wherever the floor's fog of war covers the sky above an
     unexplored edge. That is the game's own overlay, not a clip in 20k6i.
+
+- (FX worker, 2026-11-12; the user on v304: "a circle around the pet masking it from the effects in ultima ... fix this")
+  - **Cause:** every over-actor layer in 20k6i was clipped with `petHole`, a hard ellipse round the rider. Inside the
+    blast and the cloud it read as a clear, unlit disc. 20k6h never used it; it fades with `petK`.
+  - **Fix:** there is no clip anywhere now; `petHole` is a no-op.
+    - The soft layers (the strings, the charge's pressure rings, which are now buffered too, the beam body and the
+      cloud) are drawn into the `lowRes` buffers. Each buffer is thinned round the rider by a raised-cosine falloff
+      (`destination-out`): 55% at most at the rider, nothing beyond about 2.5 tiles, with no edge anywhere.
+    - What is drawn straight over the actors uses `putK`, its alpha scaled by `petK`. That covers the mouth core,
+      the impact sphere, the mouth flare, the cloud's flash, and the secondary bursts and fires.
+    - `petK` itself is now a wide smoothstep over 2.4 rider radii, never a disc. The particles' floor near the rider
+      went from 0.1 / 0.25 to 0.4 / 0.5.
+  - **Checks:** the rider stays readable through the cloud, with no visible circle (`scratchpad/fx/petmask.png`, before
+    and after). The draw cost is unchanged or a little lower without the clip. SwiftShader medians at a quiet moment,
+    v304 → now: charge 4.8 → 4.2, beam 5.9 → 5.6, blast 16.2 → 16.3, settle 16.4 → 12.6 ms.
+  - **Superseded the same day.** The user: "The effect from the explosion will have to be in front of the pet and cover it,
+    it's only temporary anyway." So the Ultima now draws all of its over-actor layers in front of the rider, with no
+    cut-out and no dimming: `PET_SOFT = false` turns off both the buffer falloff and `petK`. The pet is not redrawn on
+    top. This applies to the Ultima only; Wrath and every other effect keep the standing rule.
