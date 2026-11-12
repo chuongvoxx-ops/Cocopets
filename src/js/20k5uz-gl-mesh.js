@@ -15,7 +15,8 @@ const GLM = (() => {
     const P = [], N = [], A = [], I = []; let F = { x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1], o: [0, 0, 0] }; const stack = [];
     const tp = p => [F.o[0] + F.x[0] * p[0] + F.y[0] * p[1] + F.z[0] * p[2], F.o[1] + F.x[1] * p[0] + F.y[1] * p[1] + F.z[1] * p[2], F.o[2] + F.x[2] * p[0] + F.y[2] * p[1] + F.z[2] * p[2]];
     const tn = n => { const A2 = F.n ? F.n[0] : F.x, B2 = F.n ? F.n[1] : F.y, C2 = F.n ? F.n[2] : F.z, v = [A2[0] * n[0] + B2[0] * n[1] + C2[0] * n[2], A2[1] * n[0] + B2[1] * n[1] + C2[1] * n[2], A2[2] * n[0] + B2[2] * n[1] + C2[2] * n[2]]; const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
-    const vtx = (p, n, m, e) => { const q = tp(p), nn = tn(n); P.push(q[0], q[1], q[2]); N.push(nn[0], nn[1], nn[2]); A.push(m, e || 0, 1); return P.length / 3 - 1; };
+    let AUX = 1;   // (the third attribute: occlusion, 1 = open; a crystal writes 1 - its length-wise position there, for the ice's gradient)
+    const vtx = (p, n, m, e) => { const q = tp(p), nn = tn(n); P.push(q[0], q[1], q[2]); N.push(nn[0], nn[1], nn[2]); A.push(m, e || 0, AUX); return P.length / 3 - 1; };
     const quad = (a, b, c, d) => { I.push(a, b, c, a, c, d); };
     const B = {
       /* place what follows in a frame: columns x, y, z (need not be unit: a scale) and origin o, within the current one */
@@ -48,6 +49,24 @@ const GLM = (() => {
           for (let i = 0; i <= seg; i++) { const ph = ph0 + (ph1 - ph0) * i / seg; vtx([c[0] + r[0] * rr * Math.cos(ph), c[1] + r[1] * rr * Math.sin(ph), c[2] + r[2] * zc], [0, 0, -1], o.capM == null ? m : o.capM, 0.6); }
           for (let i = 0; i < seg; i++) I.push(cb, b2 + i + 1, b2 + i); }
         return B; },
+      /* a flat-shaded polygon (a facet): its own vertices, one normal; the edge weight runs from 0 at its centre to 1 at
+         its rim (for bright, frosted facet edges) */
+      facet(pts, m) { const n = pts.length; let cx = 0, cy = 0, cz = 0; for (const q of pts) { cx += q[0]; cy += q[1]; cz += q[2]; } cx /= n; cy /= n; cz /= n;
+        let nx = 0, ny = 0, nz = 0; for (let i = 0; i < n; i++) { const a = pts[i], b = pts[(i + 1) % n]; nx += (a[1] - b[1]) * (a[2] + b[2]); ny += (a[2] - b[2]) * (a[0] + b[0]); nz += (a[0] - b[0]) * (a[1] + b[1]); }
+        const nn = [nx, ny, nz], c0 = vtx([cx, cy, cz], nn, m, 0), b0 = P.length / 3; for (const q of pts) vtx(q, nn, m, 1); for (let i = 0; i < n; i++) I.push(c0, b0 + i, b0 + (i + 1) % n); return B; },
+      /* a crystal shard from base a to a sharp tip b: n flat sides (hard facets), widest (r) at `belly` of its length,
+         flattened to a blade by `thin` across the frame's z (up hint `up`), its tip bent sideways by `bend` */
+      crystal(a, b, r, m, o) { o = o || {}; const n = o.n || 5, d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], L = Math.hypot(d[0], d[1], d[2]) || 1e-6, th = o.thin == null ? 1 : o.thin, bl = o.belly == null ? 0.3 : o.belly, sd = o.seed || 0, bend = o.bend || 0, r0 = o.base == null ? 0.6 : o.base;
+        const jk = o.jit == null ? 0.22 : o.jit, jit = i => 1 + jk * Math.sin(i * 2.7 + sd * 5.3), rot = o.rot == null ? sd * 1.3 : o.rot;
+        B.along(a, d, o.up); const ring = (x, rr, yo) => { const R2 = []; for (let i = 0; i < n; i++) { const ph = rot + i / n * Math.PI * 2; R2.push([x, yo + rr * jit(i) * Math.cos(ph), rr * jit(i) * Math.sin(ph) * th]); } return R2; };
+        const A0 = ring(0, r * r0, 0), A1 = ring(L * bl, r, bend * L * bl * bl), tip = [L, bend * L, 0];
+        // (each facet's vertices carry the place along the shard, base to tip, through AUX: set per vertex by z order here)
+        const fac = (pts, ts) => { const n2 = pts.length; let cx = 0, cy = 0, cz = 0, ct = 0; for (let i = 0; i < n2; i++) { cx += pts[i][0]; cy += pts[i][1]; cz += pts[i][2]; ct += ts[i]; } cx /= n2; cy /= n2; cz /= n2; ct /= n2;
+          let nx = 0, ny = 0, nz = 0; for (let i = 0; i < n2; i++) { const a2 = pts[i], b2 = pts[(i + 1) % n2]; nx += (a2[1] - b2[1]) * (a2[2] + b2[2]); ny += (a2[2] - b2[2]) * (a2[0] + b2[0]); nz += (a2[0] - b2[0]) * (a2[1] + b2[1]); }
+          const nn = [nx, ny, nz]; AUX = 1 - ct; const c0 = vtx([cx, cy, cz], nn, m, 0), b0 = P.length / 3; for (let i = 0; i < n2; i++) { AUX = 1 - ts[i]; vtx(pts[i], nn, m, 1); } for (let i = 0; i < n2; i++) I.push(c0, b0 + i, b0 + (i + 1) % n2); AUX = 1; };
+        for (let i = 0; i < n; i++) { const j = (i + 1) % n; fac([A0[i], A0[j], A1[j], A1[i]], [0, 0, bl, bl]); fac([A1[i], A1[j], tip], [bl, bl, 1]); }
+        if (o.cap !== false) fac(A0.slice().reverse(), A0.map(() => 0));
+        return B.pop(); },
       /* a spike: a faceted, bevelled cone from base a to a sharp tip b (base radius r); its ridges carry edge wear */
       spike(a, b, r, m, o) { o = o || {}; return B.tube(a, b, r, 0.0015, m, { seg: o.seg || 6, cap0: 'flat', cap1: false, edge: 0.7, up: o.up }); },
       sph(c, r, m, seg) { return B.ell(c, [r, r, r], m, { seg: seg || 10, rings: Math.max(4, (seg || 10) >> 1) }); },
@@ -127,7 +146,8 @@ precision mediump float;
 #endif
 varying vec3 vW, vN, vL, vNL, vA;
 uniform vec3 uV, uLK, uLS, uLR, uUP;
-uniform float uGlow, uAlpha, uKind, uLow, uWear;
+uniform float uGlow, uAlpha, uKind, uLow, uWear, uFx;
+uniform vec3 uRim, uAmb;
 float hs(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vn(vec2 p) { vec2 i = floor(p), f = p - i; vec2 u = f * f * (3.0 - 2.0 * f); return mix(mix(hs(i), hs(i + vec2(1.0, 0.0)), u.x), mix(hs(i + vec2(0.0, 1.0)), hs(i + vec2(1.0, 1.0)), u.x), u.y); }
 float tone(float v) { v = max(0.0, v); return v * (1.0 + v / 6.0) / (1.0 + v); }
@@ -139,6 +159,9 @@ float env(vec3 r, float rough, out float ec) {
   float rr = dot(r, uLR); ec = smoothstep(0.62 - w * 1.5, 0.97 - w * 0.5, rr) / (1.0 + rough * 2.0);
   return e;
 }
+// (uFx: a frost that cracks across every surface - a summon freezing over as it leaves)
+vec3 frostFx(vec3 c, vec3 L) { if (uFx <= 0.0) return c; float w = vn(L.xy * 5.0 + L.z * 3.0), c1 = abs(fract(dot(L, vec3(4.3, 2.9, 3.7)) + w * 1.8) - 0.5), c2 = abs(fract(dot(L, vec3(-3.1, 5.2, 2.2)) + w * 1.4) - 0.5);
+  float k = smoothstep(0.5 * uFx, 0.0, min(c1, c2)) * min(1.0, uFx * 2.0); return mix(c, vec3(0.82, 0.93, 1.05) * (0.7 + 0.5 * w), min(1.0, k + uFx * uFx * 0.6)); }
 void main() {
   int id = int(vA.x + 0.5); float edge = vA.y, ao = vA.z;
   vec3 n = normalize(vN); if (dot(n, uV) < -0.02) n = -n;   // (a surface seen from inside, a thin shell: face the viewer)
@@ -158,6 +181,39 @@ void main() {
   else if (id == 11) { alb = vec3(0.2, 0.2, 0.22); F0 = vec3(0.7, 0.72, 0.77); rough = 0.14; }
   else if (id == 12) { alb = vec3(0.5, 0.35, 0.8); F0 = vec3(0.7, 0.6, 0.85); rough = 0.12; em = vec3(0.65, 0.25, 1.3) * (0.5 + uGlow); }
   else if (id == 13) { alb = vec3(0.4, 0.03, 0.05); F0 = vec3(0.05, 0.04, 0.04); rough = 0.5; metal = 0.0; }
+  else if (id == 14) {   // faceted translucent ice (flat-shaded crystal blades; ao carries 1 - the place along the blade): deep sapphire
+    // at the root to luminous cyan at the tip, the studio seen through it (a fake refraction), sharp reflections, bright
+    // white facet edges, internal cracks, a fresnel rim, frost
+    float tp = clamp(1.0 - ao, 0.0, 1.0), ndv = max(0.001, dot(n, uV)), w1 = vn(L.xy * 7.0 + L.z * 3.0), w2 = vn(L.yz * 6.0 + L.x * 4.0);
+    float k1 = abs(fract(dot(L, vec3(5.1, 3.3, 4.2)) + w1 * 1.6) - 0.5), k2 = abs(fract(dot(L, vec3(-3.7, 6.1, 2.4)) + w2 * 1.6) - 0.5);
+    float crack = smoothstep(0.035, 0.0, min(k1, k2)) * smoothstep(0.25, 0.5, vn(L.zx * 3.0 + L.y * 2.0));
+    vec3 deep = vec3(0.01, 0.045, 0.5), mid = vec3(0.04, 0.3, 1.15), tipc = vec3(0.3, 0.95, 1.5);
+    vec3 body = mix(mix(deep, mid, smoothstep(0.0, 0.55, tp + 0.25 * (w1 - 0.5))), tipc, smoothstep(0.45, 1.0, tp)) * (0.55 + 0.45 * (1.0 - ndv * ndv * 0.7));
+    vec3 rf = refract(-uV, n, 0.72); float e2; float tr = env(normalize(n * (0.6 * (w2 - 0.5)) - rf), 0.25, e2); body += mid * tr * 0.4 + vec3(0.15, 0.5, 0.95) * e2 * 0.45;
+    float wrap = max(0.0, dot(n, uLK) * 0.5 + 0.5); body *= 0.5 + 0.75 * wrap * wrap;
+    vec3 r = 2.0 * ndv * n - uV; float ec; float ev = env(r, 0.05, ec); float F = 0.05 + 0.95 * pow(1.0 - ndv, 4.0);
+    vec3 hh = normalize(uLK + uV); float nh = max(0.0, dot(n, hh)), spec = pow(nh, 260.0) * 12.0 * max(0.0, dot(n, uLK));
+    vec3 c = body + (ev * F * 0.9 + spec) * vec3(0.8, 0.92, 1.1) + ec * F * uRim * 1.2 + pow(1.0 - ndv, 3.0) * vec3(0.1, 0.5, 0.9) * 0.6;
+    c += crack * vec3(0.5, 0.9, 1.3) * (0.5 + uGlow);
+    float eg = smoothstep(0.8, 1.0, edge); c = mix(c, vec3(0.82, 0.95, 1.2) * (0.6 + 0.6 * ev + 0.4 * wrap), eg * 0.85);
+    float fr = smoothstep(0.55, 0.95, dot(n, uUP) * 0.55 + vn(L.xy * 38.0 + L.z * 17.0) * 0.75); c = mix(c, vec3(0.75, 0.87, 1.0) * (0.45 + 0.55 * wrap), fr * 0.3 * (1.0 - uLow));
+    c += (vec3(0.0, 0.1, 0.32) + tipc * 0.22 * tp) * (0.5 + uGlow) * (0.6 + 0.4 * w2); c = frostFx(c, L);
+    gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
+  else if (id == 15) { alb = vec3(0.022, 0.022, 0.026); F0 = vec3(0.04); rough = 0.8; metal = 0.0;   // rough rubber: fine sidewall ribs, dusty wear
+    float rr = length(L.xz); cav += 0.35 * step(0.5, fract(rr * 46.0)) * step(rr, 0.47); alb *= 0.75 + 0.6 * vn(L.xz * 30.0 + L.y * 11.0); }
+  else if (id == 16) { float ndv = max(0.0, dot(n, uV)), k = 0.6 + 0.6 * ndv * ndv, fl = 0.88 + 0.24 * vn(L.xy * 26.0 + L.z * 9.0), g = 0.55 + 1.1 * uGlow;   // cyan energy
+    vec3 c = frostFx(vec3(0.22, 1.25, 1.75) * k * fl * g, L); gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
+  else if (id == 17) { alb = vec3(0.018, 0.018, 0.022); F0 = vec3(0.045); rough = 0.42; metal = 0.0;   // the black saddle: quilted leather
+    vec2 q = vec2(L.x + L.y, L.x - L.y) * 9.0; vec2 f = abs(fract(q) - 0.5); float st = min(f.x, f.y); if (st < 0.04) cav += 0.7; else n = normalize(n + vec3(fract(q.x) - 0.5, fract(q.y) - 0.5, 0.0) * 0.5); }
+  else if (id == 18) { alb = vec3(0.045, 0.047, 0.055); F0 = vec3(0.3, 0.31, 0.34); rough = 0.42;   // dark machinery: cast, ribbed
+    cav += 0.3 * step(0.6, fract((L.x + L.z * 0.4) * 24.0)); rough *= 0.8 + 0.5 * vn(L.xy * 22.0 + L.z * 13.0); }
+  else if (id == 19) { alb = vec3(0.3, 0.31, 0.34); F0 = vec3(0.93, 0.94, 0.98); rough = 0.17;   // polished silver armour: panel seams, rivets
+    vec3 an = abs(NL); vec2 uv = an.z >= an.x && an.z >= an.y ? L.xy : an.y >= an.x ? L.xz : L.yz;
+    float row = floor(uv.y / 0.19), fu = fract(uv.x / 0.31 + mod(row, 2.0) * 0.5), fv = fract(uv.y / 0.19), du = min(fu, 1.0 - fu) * 0.31, dv = min(fv, 1.0 - fv) * 0.19, dm = min(du, dv);
+    if (dm < 0.005) cav += (1.0 - dm / 0.005) * 0.9; else if (dm < 0.016) wear += 0.3;
+    float rd = length(vec2(du, dv) - 0.028); if (rd < 0.011) { rough = 0.1; wear += 0.5; if (rd > 0.007) cav += 0.5; }
+    rough *= 0.75 + 0.6 * vn(L.xy * 9.0 + L.z * 5.0);
+    float fz = smoothstep(0.62, 0.95, edge * 0.5 + dot(n, uUP) * 0.3 + vn(L.xy * 31.0 + L.z * 19.0) * 0.55) * (1.0 - uLow); if (fz > 0.0) { alb = mix(alb, vec3(0.7, 0.8, 0.95), fz * 0.8); F0 = mix(F0, vec3(0.3, 0.4, 0.55), fz * 0.8); rough = mix(rough, 0.6, fz); } }   // (frost gathering on the armour's edges)
   else { coat = 1.0; }
   // surface detail, from the part's own coordinates (it stays on the part as it moves)
   if (metal > 0.5 && uLow < 0.5) { float s1 = abs(fract(L.x * 13.0 + L.y * 8.0 + L.z * 5.0 + vn(L.xz * 4.0) * 2.5) - 0.5);
@@ -189,18 +245,18 @@ void main() {
   if (wear > 0.0 && metal > 0.5) { float v = min(1.0, wear); if (id == 0) { F0 = mix(F0, vec3(0.9, 0.9, 0.95), v * 0.75); rough = mix(rough, 0.14, v); } else { F0 = mix(F0, id == 3 ? vec3(1.0, 0.92, 0.62) : vec3(1.0, 0.95, 0.98), v * 0.45); } rough *= 1.0 - v * 0.4; }
   float ndl = dot(n, uLK), ndv = max(0.001, dot(n, uV));
   float dif = id == 4 ? max(0.0, (ndl + 0.25) / 1.25) : max(0.0, ndl);
-  float hm = 0.5 + 0.5 * dot(n, uUP); vec3 amb = mix(vec3(0.22, 0.16, 0.26), vec3(0.66, 0.64, 0.8), hm) * ao;
+  float hm = 0.5 + 0.5 * dot(n, uUP); vec3 amb = mix(vec3(0.22, 0.16, 0.26), vec3(0.66, 0.64, 0.8), hm) * ao * uAmb;
   vec3 r = 2.0 * ndv * n - uV; float ec; float ev = env(r, rough, ec);
   float fk = pow(1.0 - ndv, 5.0) * (1.0 - rough * 0.7); vec3 Fr = F0 + (1.0 - F0) * fk;
   vec3 hh = normalize(uLK + uV); float nh = max(0.0, dot(n, hh)), pw = 2.0 / (rough * rough + 0.004), spec = pow(nh, pw) * (pw + 2.0) / 8.0 * max(0.0, ndl) * 0.9;
   float aoS = min(1.0, ao * 0.85 + 0.15) * (1.0 - cav * 0.6);
   float rimT = pow(1.0 - ndv, 2.6) * max(0.0, dot(n, uLR) + 0.35) * ao;
-  vec3 KEYC = vec3(1.5, 1.42, 1.36), RIMC = vec3(0.8, 0.55, 1.45), c;
+  vec3 KEYC = vec3(1.5, 1.42, 1.36), RIMC = uRim, c;
   if (metal > 0.5) c = alb * (dif * KEYC * 0.7 + amb * 0.5) + Fr * (ev * aoS + spec * KEYC) + ec * RIMC * Fr * aoS * 0.7;
   else { float sk = id == 5 ? 5.0 : 2.5; c = alb * (dif * KEYC + amb) + Fr * (ev * aoS * 0.6 + spec * KEYC * sk) + ec * RIMC * 0.15; }
   c += rimT * RIMC * 0.45;
   if (coat > 0.0) { float ccF = 0.04 + 0.96 * pow(1.0 - ndv, 5.0), ec2; float ccE = env(r, 0.03, ec2); float ccS = pow(nh, 900.0) * 120.0 * max(0.0, ndl); float kk = (0.55 * ccF * (ccE + ec2 * 0.8) * aoS + 0.025 * ccS) * coat; c += kk * vec3(0.95, 0.93, 1.05); }
-  c *= 1.0 - grime * 0.55; c += em;
+  c *= 1.0 - grime * 0.55; c += em; c = frostFx(c, L);
   gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha);
 }`;
   function compile() {
@@ -208,7 +264,7 @@ void main() {
     const p = gl.createProgram(); gl.attachShader(p, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, FS));
     gl.bindAttribLocation(p, 0, 'aP'); gl.bindAttribLocation(p, 1, 'aN'); gl.bindAttribLocation(p, 2, 'aA'); gl.linkProgram(p);
     if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error('GLM link: ' + gl.getProgramInfoLog(p));
-    prog = p; U = {}; for (const n of ['uR0', 'uR1', 'uR2', 'uT', 'uPX', 'uPY', 'uPD', 'uCl', 'uV', 'uLK', 'uLS', 'uLR', 'uUP', 'uGlow', 'uAlpha', 'uKind', 'uLow', 'uWear']) U[n] = gl.getUniformLocation(p, n);
+    prog = p; U = {}; for (const n of ['uR0', 'uR1', 'uR2', 'uT', 'uPX', 'uPY', 'uPD', 'uCl', 'uV', 'uLK', 'uLS', 'uLR', 'uUP', 'uGlow', 'uAlpha', 'uKind', 'uFx', 'uRim', 'uAmb', 'uLow', 'uWear']) U[n] = gl.getUniformLocation(p, n);
     ext32 = isGL2 ? true : gl.getExtension('OES_element_index_uint'); gen++;
   }
   /* is WebGL ready (made on first call)? */
@@ -237,7 +293,7 @@ void main() {
   function touch(M) { if (M.gl && gl && M.gl.gen === gen) { gl.bindBuffer(gl.ARRAY_BUFFER, M.gl.a); gl.bufferData(gl.ARRAY_BUFFER, M.att, gl.STATIC_DRAW); } }
   /* render a frame: W x H pixels; S = { px, py, pd (projection rows), cl ([ax, bx, ay, by]), v, lk, ls, lr, up, low };
      items: [{ mesh, R0, R1, R2, T (part -> world), alpha, glow, kind, wear }] (opaque ones first). Returns the canvas. */
-  let calls = 0, tris = 0, LX = null;
+  let calls = 0, tris = 0, LX = null; const RIM0 = [0.8, 0.55, 1.45], AMB0 = [1, 1, 1];   // (the defaults: Susano O's violet rim)
   function render(W, H, S, items) {
     if (!ok()) return null;
     if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
@@ -245,13 +301,13 @@ void main() {
     gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL); gl.disable(gl.CULL_FACE); gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
     gl.useProgram(prog);
     gl.uniform3fv(U.uPX, S.px); gl.uniform3fv(U.uPY, S.py); gl.uniform3fv(U.uPD, S.pd); gl.uniform4fv(U.uCl, S.cl);
-    gl.uniform3fv(U.uV, S.v); gl.uniform3fv(U.uLK, S.lk); gl.uniform3fv(U.uLS, S.ls); gl.uniform3fv(U.uLR, S.lr); gl.uniform3fv(U.uUP, S.up); gl.uniform1f(U.uLow, S.low ? 1 : 0);
+    gl.uniform3fv(U.uV, S.v); gl.uniform3fv(U.uLK, S.lk); gl.uniform3fv(U.uLS, S.ls); gl.uniform3fv(U.uLR, S.lr); gl.uniform3fv(U.uUP, S.up); gl.uniform1f(U.uLow, S.low ? 1 : 0); gl.uniform3fv(U.uRim, S.rim || RIM0); gl.uniform3fv(U.uAmb, S.amb || AMB0);
     gl.enableVertexAttribArray(0); gl.enableVertexAttribArray(1); gl.enableVertexAttribArray(2);
     calls = 0; tris = 0; let lastM = null;
     for (const it of items) { const g = upload(it.mesh); if (!g) continue;
       if (lastM !== g) { gl.bindBuffer(gl.ARRAY_BUFFER, g.p); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0); gl.bindBuffer(gl.ARRAY_BUFFER, g.n); gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0); gl.bindBuffer(gl.ARRAY_BUFFER, g.a); gl.vertexAttribPointer(2, 3, gl.FLOAT, false, 0, 0); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, g.i); lastM = g; }
       gl.uniform3fv(U.uR0, it.R0); gl.uniform3fv(U.uR1, it.R1); gl.uniform3fv(U.uR2, it.R2); gl.uniform3fv(U.uT, it.T);
-      gl.uniform1f(U.uAlpha, it.alpha); gl.uniform1f(U.uGlow, it.glow); gl.uniform1f(U.uKind, it.kind || 0); gl.uniform1f(U.uWear, it.wear == null ? 1 : it.wear);
+      gl.uniform1f(U.uAlpha, it.alpha); gl.uniform1f(U.uFx, it.fx || 0); gl.uniform1f(U.uGlow, it.glow); gl.uniform1f(U.uKind, it.kind || 0); gl.uniform1f(U.uWear, it.wear == null ? 1 : it.wear);
       gl.depthMask(it.alpha > 0.995);
       gl.drawElements(gl.TRIANGLES, g.n3, g.it, 0); calls++; tris += g.n3 / 3; }
     gl.depthMask(true);

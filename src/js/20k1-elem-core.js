@@ -184,7 +184,8 @@ const ELEM_MOVES = {
     ['frozensingularity', 'Frozen Singularity', 'nova', 95, 20, 'Ice rings compress a crystal core until it detonates in a broad wave of ice: 2 rings, 3 at Adept, 5 at Celestial.'],
     ['frozenvortex', 'Frozen Vortex', 'vortex', 95, 20, 'A swirling vortex of cold ice blades drives forward, slicing through the monsters: 1 vortex, 4 at Celestial lasting 3 s longer.'],
     ['catastrophe', 'Catastrophe', 'snow', 100, 21, 'Swirling beams of ice light fall from the sky and sweep the battlefield while snow falls: 5 s, 10 beams for 10 s at Celestial.'],
-    ['iceage', 'Ice Age', 'meteor', 100, 22, 'A giant crystal falls from the sky and bursts in waves of blue light; crystals sprout from the ground for more damage and freeze for 3 s. The ultimate ice spell.'] ] },
+    ['iceage', 'Ice Age', 'meteor', 100, 22, 'A giant crystal falls from the sky and bursts in waves of blue light; crystals sprout from the ground for more damage and freeze for 3 s. The ultimate ice spell.'],
+    ['fenrir', 'Fenrir', 'dash', 100, 120, 'Your pet summons Fenrir, a giant mechanical ice wolf that folds into a motorcycle, and rides it for 20 s (25 s at Adept, 35 s at Celestial). Drift attacks and switches form; Ice Cannon fires paired crystal shells; the bike somersaults, the wolf rolls as a spinning wheel. A full gauge unlocks one finisher: Diamond Dust on the bike, the five-second Frozen beam as the wolf.'] ] },
   thunder: { strong: [
     ['forkedfang', 'Forked Fang', 'twin', 24, 2.4, 'Two lances of lightning twist round one path and split before impact, or converge on one monster.'],
     ['stormbead', 'Stormbead Chain', 'bolt', 26, 2.8, 'Charged beads form round the target and discharge from monster to monster.'],
