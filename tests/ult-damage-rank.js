@@ -42,7 +42,9 @@ const path = require('path'), fs = require('fs');
     /* (Fenrir has two finishers, one per form: both are measured; 'fenrir' is Diamond Dust from the motorcycle, 'fenrir+frozen' is Frozen from the wolf, after one Drift) */
     fenrir: { g: '_fenrir', ready: 'ride', fin: 'dust', pin: true }, 'fenrir+frozen': { g: '_fenrir', ready: 'ride', fin: 'frozen', drift: true, pin: true, key: 'fenrir' },
     /* (Belladonna: Twister from the flying flower; the six tornadoes circle the caster, so the target is pinned beside it) */
-    belladonna: { g: '_belladonna', ready: 'fly', fin: 'twister', pin: true } };
+    belladonna: { g: '_belladonna', ready: 'fly', fin: 'twister', pin: true },
+    /* (Jaws: Shark Attack from the shark form; the sky beam and the jaw closure cover the field, the target is pinned beside it) */
+    jaws: { g: '_jaws', ready: 'fly', fin: 'shark', pin: true } };
   const SKIP = { thriller: 'echoes the pet\'s own normal attacks', dayofthedead: 'needs a downed teammate (raises allies)' };
   const rows = [];
   for (const evo of EVOS) for (const el of Object.keys(setup.L)) { if (ELEMS && !ELEMS.includes(el)) continue; for (const key of setup.L[el]) {

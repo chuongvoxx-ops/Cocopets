@@ -163,7 +163,8 @@ const ELEM_MOVES = {
     ['bubblereverie', 'Bubble Reverie', 'bubbles', 90, 18, 'Large pearlescent bubbles gather in floating arcs round you, then launch along curved paths and burst on the monsters: eighteen at Celestial.'],
     ['heavenfall', 'Heavenfall', 'beam', 95, 20, 'Huge luminous rings open overhead and pour powerful waterfalls onto the monsters: five in a sweeping cascade at Celestial.'],
     ['neptunetrident', "Neptune's Trident", 'lance', 100, 22, 'A giant trident emerges from a rippling sky and plunges into the ground, cracking it open in a vast water explosion; at Celestial ten smaller tridents rain down after it.'],
-    ['jellyfish', 'Jellyfish Aurora', 'bubbles', 95, 20, 'Giant jellyfish of water descend over the aim, tendrils sweeping lanes beneath; their bells contract together.'] ] },
+    ['jellyfish', 'Jellyfish Aurora', 'bubbles', 95, 20, 'Giant jellyfish of water descend over the aim, tendrils sweeping lanes beneath; their bells contract together.'],
+    ['jaws', 'Jaws', 'wave', 100, 150, 'Your pet summons Jaws, a flying mechanical shark, and rides it for 30 s (45 s at Adept, 60 s at Celestial). Water Ray leaves Tidal Pools (up to three) and Rolling Wave herds enemies into them; Anchor unfolds it into Leviathan, a siege submarine whose Depth Charge and Maelstrom spend the pools for far bigger blasts, and Release folds it back. Damage fills one gauge for Shark Attack: a starry ocean, a beam through the ground and colossal spirit jaws that snap shut.'] ] },
   ice: { strong: [
     ['antler', 'Crystal Antler', 'thorns', 24, 2.4, 'Branching ice antlers grow along a short path ahead and shatter outward.'],
     ['skate', 'Glacier Skate', 'crescent', 24, 2.6, 'A smooth blade of ice slides low across the floor, then tilts up and fractures into a fan.'],

@@ -148,7 +148,7 @@ precision mediump float;
 #endif
 varying vec3 vW, vN, vL, vNL, vA;
 uniform vec3 uV, uLK, uLS, uLR, uUP;
-uniform float uGlow, uAlpha, uKind, uLow, uWear, uFx, uGlow2, uSpill, uTime; uniform vec4 uOutF;
+uniform float uGlow, uAlpha, uKind, uLow, uWear, uFx, uGlow2, uSpill, uTime; uniform vec4 uOutF; uniform vec3 uClip;
 uniform vec3 uRim, uAmb;
 float hs(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vn(vec2 p) { vec2 i = floor(p), f = p - i; vec2 u = f * f * (3.0 - 2.0 * f); return mix(mix(hs(i), hs(i + vec2(1.0, 0.0)), u.x), mix(hs(i + vec2(0.0, 1.0)), hs(i + vec2(1.0, 1.0)), u.x), u.y); }
@@ -183,6 +183,7 @@ vec3 petalLit(vec3 alb, vec3 n, vec3 trans, float gloss, float glossK) {
 vec3 frostFx(vec3 c, vec3 L) { if (uFx <= 0.0) return c; float w = vn(L.xy * 5.0 + L.z * 3.0), c1 = abs(fract(dot(L, vec3(4.3, 2.9, 3.7)) + w * 1.8) - 0.5), c2 = abs(fract(dot(L, vec3(-3.1, 5.2, 2.2)) + w * 1.4) - 0.5);
   float k = smoothstep(0.5 * uFx, 0.0, min(c1, c2)) * min(1.0, uFx * 2.0); return mix(c, vec3(0.82, 0.93, 1.05) * (0.7 + 0.5 * w), min(1.0, k + uFx * uFx * 0.6)); }
 void main() {
+  if (uClip.x > 0.5) { if (vW.z < uClip.y) discard; if (vW.z < uClip.y + uClip.z) { float wl = 1.0 - (vW.z - uClip.y) / uClip.z; gl_FragColor = vec4(mix(vec3(0.35, 0.9, 1.0), vec3(1.0), wl * wl) * uAlpha, uAlpha); return; } }   // (S.clip: nothing below a level; a bright waterline band just above the cut)
   if (uOutF.a > 0.0) { gl_FragColor = vec4(uOutF.rgb * uAlpha, uAlpha); return; }
   int id = int(vA.x + 0.5); float edge = vA.y, ao = vA.z;
   vec3 n = normalize(vN); if (dot(n, uV) < -0.02) n = -n;   // (a surface seen from inside, a thin shell: face the viewer)
@@ -279,17 +280,17 @@ void main() {
       vec3 alb = vec3(0.9, 0.9, 0.9) * (0.9 + 0.1 * smoothstep(0.5, 0.72, vn(NL.xy * 8.0 + NL.z * 6.0))) - vec3(0.0, 0.02, 0.06) * smoothstep(0.15, -0.7, dot(n, uUP));
       c = petalLit(alb, n, vec3(0.9, 0.85, 0.8), 30.0, 0.5) + pow(1.0 - ndv, 2.4) * vec3(0.45, 0.75, 1.1) * 0.6 + uGlow * vec3(0.3, 0.5, 0.4) * 0.3; }
     c = frostFx(c, L); gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
-  else if (id >= 30 && id <= 35) {   // ---- premium cel shading (Jaws). vA.y = 1 at a panel line or a plate's edge; vA.z = 1 sound paint, 0 worn to bare metal
+  else if (id >= 30 && id <= 36) {   // ---- premium cel shading (Jaws). vA.y = 1 at a panel line or a plate's edge; vA.z = 1 sound paint, 0 worn to bare metal
     float lit, ndv = max(0.0, dot(n, uV)), hm = 0.5 + 0.5 * dot(n, uUP); vec3 c, r = 2.0 * ndv * n - uV;
     float line = smoothstep(0.82, 0.95, edge), scr = 0.0;
     if (uLow < 0.5) { float s1 = abs(fract(L.x * 11.0 + L.y * 7.0 + L.z * 5.0 + vn(L.xz * 4.0) * 2.5) - 0.5); if (s1 < 0.012 && hs(vec2(floor(L.x * 11.0 + L.y * 7.0 + L.z * 5.0), floor(L.z * 5.0))) > 0.6) scr = 1.0; }   // (fine scratches)
     if (id == 30) {   // cobalt paint: three blue bands, a tight gloss band and a soft sky band, panel variation, panel lines, chips to bare metal beside edges
       vec3 cell = floor(L * 2.6 + 0.5); float pv = hs(cell.xy + cell.z * 7.3) - 0.5;
       c = cel3(vec3(0.016, 0.06, 0.27), vec3(0.035, 0.2, 0.72), vec3(0.14, 0.4, 1.0), n, lit) * (1.0 + 0.12 * pv);
-      c += celSpec(n, 0.955) * vec3(0.5, 0.72, 1.0) * 0.45 + smoothstep(0.3, 0.36, r.z) * (1.0 - smoothstep(0.52, 0.6, r.z)) * vec3(0.1, 0.22, 0.4) * (0.4 + 0.6 * lit);
+      c += celSpec(n, 0.955) * vec3(0.5, 0.72, 1.0) * 0.45 * (1.0 - 0.8 * smoothstep(0.7, 0.95, dot(n, uUP))) + smoothstep(0.3, 0.36, r.z) * (1.0 - smoothstep(0.52, 0.6, r.z)) * vec3(0.1, 0.22, 0.4) * (0.4 + 0.6 * lit);
       float chip = smoothstep(0.64, 0.72, vn(L.xy * 23.0 + L.z * 17.0) * (0.3 + 0.62 * smoothstep(0.55, 0.85, edge)) + (1.0 - clamp(ao, 0.0, 1.0)) * 0.75) * (1.0 - line) * (1.0 - uLow);   // (chips only beside a panel line or where vA.z marks a worn edge)
       vec3 bare = cel3(vec3(0.2, 0.22, 0.27), vec3(0.55, 0.58, 0.63), vec3(0.95, 0.96, 1.0), n, lit); c = mix(c, bare, chip * uWear);
-      c = mix(c, c * 1.5 + 0.06, scr * 0.5) * (1.0 - 0.8 * line) + celRim(n); }
+      c = min(c, vec3(0.2, 0.5, 1.25)); c = mix(c, c * 1.5 + 0.06, scr * 0.5) * (1.0 - 0.8 * line) + celRim(n); }   // (a ceiling: a flat fin square to the light stays cobalt)
     else if (id == 31) {   // chrome: a stylised sky and ground with a hard horizon, one sharp key band, brushed machining
       float t = r.z + 0.1 * (vn(vec2(L.x * 2.0, (L.y + L.z) * 60.0)) - 0.5) * (1.0 - uLow);
       vec3 sky = mix(vec3(0.82, 0.9, 0.98), vec3(0.2, 0.36, 0.72), smoothstep(0.1, 0.9, t)), gnd = mix(vec3(0.15, 0.18, 0.27), vec3(0.44, 0.48, 0.58), smoothstep(-0.9, -0.05, t));
@@ -308,6 +309,9 @@ void main() {
     else if (id == 34) {   // a tooth: off-white enamel-chrome, hard bands, a sharp glint
       c = cel3(vec3(0.42, 0.47, 0.6), vec3(0.8, 0.83, 0.87), vec3(1.0, 1.0, 0.97), n, lit) + celSpec(n, 0.93) * 0.6 + smoothstep(0.0, 0.04, r.z) * (1.0 - smoothstep(0.1, 0.16, r.z)) * vec3(0.12, 0.16, 0.22);
       c = c * (1.0 - 0.6 * line) + celRim(n); }
+    else if (id == 36) {   // cel leather (a seat): near-black navy in three bands, quilted stitching, a soft sheen
+      vec2 qd = vec2(L.x + L.y, L.x - L.y) * 14.0; vec2 fq = abs(fract(qd) - 0.5); float stc = smoothstep(0.06, 0.02, min(fq.x, fq.y));
+      c = cel3(vec3(0.008, 0.01, 0.022), vec3(0.03, 0.036, 0.062), vec3(0.085, 0.1, 0.15), n, lit) * (1.0 - 0.55 * stc) + celSpec(n, 0.9) * vec3(0.1, 0.13, 0.2) + celRim(n) * 0.6; c *= 1.0 - 0.6 * line; }
     else {                 // canopy glass: dark blue, semi-gloss: a hard sky reflection, a glint streak, a lighter limb
       c = cel3(vec3(0.004, 0.012, 0.045), vec3(0.01, 0.035, 0.11), vec3(0.03, 0.09, 0.24), n, lit);
       c += smoothstep(0.25, 0.3, r.z) * (1.0 - smoothstep(0.62, 0.7, r.z)) * vec3(0.12, 0.28, 0.52) * (0.5 + 0.5 * lit) + celSpec(n, 0.985) * vec3(0.9, 0.97, 1.0) + smoothstep(0.55, 0.75, 1.0 - ndv) * vec3(0.05, 0.18, 0.32) + vec3(0.02, 0.2, 0.3) * uSpill * 0.4;
@@ -374,7 +378,7 @@ void main() {
     const p = gl.createProgram(); gl.attachShader(p, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, FS));
     gl.bindAttribLocation(p, 0, 'aP'); gl.bindAttribLocation(p, 1, 'aN'); gl.bindAttribLocation(p, 2, 'aA'); gl.linkProgram(p);
     if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error('GLM link: ' + gl.getProgramInfoLog(p));
-    prog = p; U = {}; for (const n of ['uR0', 'uR1', 'uR2', 'uT', 'uPX', 'uPY', 'uPD', 'uCl', 'uV', 'uLK', 'uLS', 'uLR', 'uUP', 'uGlow', 'uAlpha', 'uKind', 'uFx', 'uRim', 'uAmb', 'uLow', 'uWear', 'uGlow2', 'uSpill', 'uTime', 'uOutV', 'uOutF']) U[n] = gl.getUniformLocation(p, n);
+    prog = p; U = {}; for (const n of ['uR0', 'uR1', 'uR2', 'uT', 'uPX', 'uPY', 'uPD', 'uCl', 'uV', 'uLK', 'uLS', 'uLR', 'uUP', 'uGlow', 'uAlpha', 'uKind', 'uFx', 'uRim', 'uAmb', 'uLow', 'uWear', 'uGlow2', 'uSpill', 'uTime', 'uOutV', 'uOutF', 'uClip']) U[n] = gl.getUniformLocation(p, n);
     ext32 = isGL2 ? true : gl.getExtension('OES_element_index_uint'); gen++;
   }
   /* is WebGL ready (made on first call)? */
@@ -414,7 +418,7 @@ void main() {
     gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL); gl.disable(gl.CULL_FACE); gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
     gl.useProgram(prog);
     gl.uniform3fv(U.uPX, S.px); gl.uniform3fv(U.uPY, S.py); gl.uniform3fv(U.uPD, S.pd); gl.uniform4fv(U.uCl, S.cl);
-    gl.uniform3fv(U.uV, S.v); gl.uniform3fv(U.uLK, S.lk); gl.uniform3fv(U.uLS, S.ls); gl.uniform3fv(U.uLR, S.lr); gl.uniform3fv(U.uUP, S.up); gl.uniform1f(U.uLow, S.low ? 1 : 0); gl.uniform1f(U.uTime, S.t || 0); gl.uniform3fv(U.uRim, S.rim || RIM0); gl.uniform3fv(U.uAmb, S.amb || AMB0);
+    gl.uniform3fv(U.uV, S.v); gl.uniform3fv(U.uLK, S.lk); gl.uniform3fv(U.uLS, S.ls); gl.uniform3fv(U.uLR, S.lr); gl.uniform3fv(U.uUP, S.up); gl.uniform1f(U.uLow, S.low ? 1 : 0); gl.uniform1f(U.uTime, S.t || 0); if (S.clip) gl.uniform3f(U.uClip, 1, S.clip[0], S.clip[1] || 0.05); else gl.uniform3f(U.uClip, 0, 0, 0); gl.uniform3fv(U.uRim, S.rim || RIM0); gl.uniform3fv(U.uAmb, S.amb || AMB0);
     gl.enableVertexAttribArray(0); gl.enableVertexAttribArray(1); gl.enableVertexAttribArray(2);
     calls = 0; tris = 0; let lastM = null;
     const bindM = g => { if (lastM !== g) { gl.bindBuffer(gl.ARRAY_BUFFER, g.p); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0); gl.bindBuffer(gl.ARRAY_BUFFER, g.n); gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0); gl.bindBuffer(gl.ARRAY_BUFFER, g.a); gl.vertexAttribPointer(2, 3, gl.FLOAT, false, 0, 0); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, g.i); lastM = g; } };
