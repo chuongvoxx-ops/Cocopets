@@ -418,3 +418,25 @@
 - Rig, stage order, channels, API, materials and ice unchanged. 55k triangles drawn.
 - `clearance`: no overlap anywhere through xf 0..1 (least 0.01, the jaw over the front arch at xf 0.6), nor in `curl`, `gaitK`, `crouch`, `pawLock`; `tail`/`fender` now count as joined (the tail's root sits on the rump arch).
 - Checks with my page: `tests/fenrir.js` 46 ok, `elem-moves` ice/fenrir passed, `tests/susanoo.js` 49 ok, smoke 0 errors.
+- (A, 2026-11-12, **Jump, both forms** (the user: "add a jump button and function similar to beast machine and sport cars"))
+  - `VEH.jump` (the JUMP button above Drift, the J key) -> `tryJump`. It runs inside `S.phase === 'ride'` as `S.jump`
+    (`{ t, air, x0, y0, x1, y1, h, plan }`), never during a Drift, a finisher, the summon or the exit. No cooldown; a
+    press in the air is kept for the touchdown (`S.jumpLand`); a Drift, a Strong or the Ult pressed in the air waits
+    for the landing. Take-off protection 0.3 s at most once per 1.8 s (`S.invT`, `stats.jumpInv`).
+  - The landing is planned before take-off (`planJump`, as the Sports Car's): along the stick, else the heading; walls
+    and the map's edge stop the flight; it lands only where the whole body fits, on walkable ground the pet could walk
+    from (`landOK`); nowhere to land = a hop on the spot. 0.1 s squat, 0.62 s in the air, 5.9 to 8 tiles by speed.
+  - Landing: 2.6 DK once per monster within 2.6 tiles through `hitCharge` (it charges the gauge), the scenery in the
+    same circle broken through `VEH_SMASH`, a frost ring and burst of mine. `stats.jump`, `stats.jumpHit`.
+  - Animation on M's existing channels: motorcycle = squat (`susp`, `crouch`), wheelie (`pitch` up to +0.5), wheels
+    spinning, nose down before the touchdown, compression on landing; wolf = `crouch` to 0.95 in the air with `pitch`
+    arcing. **M, a wish, not a blocker:** a `tuck` 0..1 channel that folds the four legs up under the body would read
+    better than `crouch` for the wolf's leap.
+  - Tests: `tests/fenrir-jump.js` (13 checks).
+
+### M, model round 5 (2026-11-12): surface polish, crystal glow, engine glow, `tuck`
+- **New channel `crystalGlow`** (default 1, range 0..2): the light inside the ice blades (mane, crests, tail and cowl, head, neck) and their halo. It breathes slowly by itself; A: drive it above 1 with speed or while attacking, 0 switches the glow off. A pose without the key reads as 1.
+- **New channel `tuck`** (default 0, 0..1; A's Jump wish): draws the wolf's four legs up under the body, paws hanging toes-down. It scales with the legs' unfold, so it does nothing in the motorcycle form. A: use it for the airborne part of the wolf's leap in place of `crouch`.
+- **Two blues**: the crystals are sapphire to azure-cyan (`#3FA8FF` halo); the engine (the reactor, hub rings, the running gear's and legs' light strips, new material 20) is a deep electric violet-blue (`#6A4DFF` halo) and spills a faint violet light onto the underside of nearby armour. Eyes, head lights and the cannons stay cyan. `glow` still drives the engine and cyan lights.
+- **Surface**: the armour shader gains a slow relief so plates are not flat, engraved chevrons, vent slots, small hazard inlays and brighter highlights; new geometry: brake calipers, toothed rings at the pivots and shoulders, a chain run on each wheel arm, sidewall ribs, turbine vanes and a bolt circle on the wheels, eye housings and a full row of teeth, heat-tinted exhaust tips (material 21). 63k triangles drawn.
+- `GLM`: materials 20 and 21 and the per-item `glow2` / `spill` are additions; left unset they are 0 and Susano O draws as before.
