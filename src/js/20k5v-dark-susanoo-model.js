@@ -20,7 +20,7 @@ const SUSANO_MODEL = (() => {
   const nowMs = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
   const lowFx = () => typeof st !== 'undefined' && st && st.lowFx;
   const GY = 0.72, ZK = 0.695, VY = 0.6945, VZ = 0.7195;   // (the game camera: an orthographic view about 46 deg above the floor)
-  const VIS = 1.45;   // the model is drawn this much larger than its rig's units (tiles); anchors include it
+  const VIS = 1.1;   // the model is drawn this much larger than its rig's units (tiles); anchors include it
   const VIOLET = '#A55CFF', VDEEP = '#6A22FF', VCORE = '#F4E6FF', GOLDC = '#FFD27A';
 
   /* ================= vectors and rotations (a rotation: its three columns, the local axes in the parent frame) ================= */
@@ -107,7 +107,15 @@ const SUSANO_MODEL = (() => {
       if (!far(bnd(x, ay, z, -0.36, 0, 0.54, 0.05, 0.18, 0.4))) for (let i = 0; i < 4; i++) { const zc = 0.24 + i * 0.2, e = rbox2(y, z - zc, 0.17 - 0.02 * Math.abs(i - 1.5), 0.08, 0.03), d = Math.max(e, Math.abs(x + 0.36) - 0.035); add(d, trim(e, 0.016)); }
       if (x < -0.3 && ay < 0.05) carve(Math.max(ay - 0.022, -x - 0.42, Math.abs(z - 0.56) - 0.38), M_VIO);
     }
-    if (!far(bnd(x, ay, z, -0.38, 0.22, 1.02, 0.12, 0.12, 0.12))) { add(sph(x + 0.36, ay - 0.22, z - 1.02, 0.085), M_STEEL); add(torX(x + 0.38, ay - 0.22, z - 1.02, 0.09, 0.022), M_GOLD); }
+    // the reactor pack on the back: an armoured housing (gold-framed lames, a violet vent grille) carrying the two thruster
+    // pods in steel sockets on its shoulders; the rail arms telescope out of it
+    if (!far(bnd(x, ay, z, -0.55, 0, 0.82, 0.24, 0.56, 0.42))) {
+      const hb = rbox(x + 0.52, y, z - 0.8, 0.2, 0.46 - 0.1 * cl((0.62 - z) / 0.3), 0.36, 0.1); add(hb, M_OBS, 0.04);
+      add(Math.max(Math.abs(hb + 0.012) - 0.018, -(x + 0.62), z - 1.1), M_GOLD);   // (the gold frame round its back face)
+      for (let i = 0; i < 3; i++) { const zc = 0.58 + 0.17 * i, e = rbox2(y, z - zc, 0.36 - 0.03 * i, 0.06, 0.03), d = Math.max(e, Math.abs(x + 0.73) - 0.03); add(d, trim(e, 0.014)); }
+      if (x < -0.66 && ay < 0.2) carve(Math.max(Math.abs(fm(y + 0.2, 0.08) - 0.04) - 0.012, Math.abs(z - 1.02) - 0.06, -x - 0.76), M_VIO);
+      for (let s2 = -1; s2 <= 1; s2 += 2) { const yy = y - s2 * 0.36; add(cap(x, yy, z, -0.6, 0, 0.92, -0.62, 0, 1.12, 0.17, 0.15), M_GUN); add(torZ(x + 0.62, yy, z - 1.12, 0.15, 0.03), M_GOLD); add(torZ(x + 0.61, yy, z - 1.0, 0.175, 0.022), M_GOLD); }
+    }
     // the cockpit: an oval recess (dark), a violet cradle ring at its back, two gold control rings
     carve(ell(x - 0.46, y, z - COCK[2], 0.36, 0.29, 0.32), M_DARK);
     if (!far(bnd(x, ay, z, 0.22, 0, 0.6, 0.12, 0.26, 0.26))) { add(torX(x - 0.15, y, z - 0.62, 0.2, 0.02), M_VIO); add(torZ(x - 0.3, ay - 0.19, z - 0.48, 0.05, 0.013), M_GOLD); }
@@ -350,9 +358,9 @@ const SUSANO_MODEL = (() => {
   const LRAIL = 0.82;
   function sdRail(x, y, z) {
     reset(M_GUN);
-    add(rbox(x - LRAIL / 2, y, z, LRAIL / 2 - 0.04, 0.032, 0.05, 0.014), M_GUN);
-    add(cap(x, y, z, 0.1, 0.0, 0.07, LRAIL - 0.12, 0.0, 0.07, 0.016), M_STEEL);
-    for (let _K3 = 0; _K3 < K3.length; _K3++) { const xc = K3[_K3];  add(sph(x - xc, y, z, 0.058), M_GUN); add(torY(x - xc, y, z, 0.058, 0.014), M_GOLD); }
+    { const b = rbox(x - LRAIL / 2, y, z, LRAIL / 2 - 0.04, 0.06, 0.08, 0.025); add(b, M_GUN); add(Math.max(Math.abs(b + 0.01) - 0.012, Math.abs(z) - 0.05), M_GOLD); }   // (an armoured beam, gold-edged flanks)
+    add(cap(x, y, z, 0.12, 0.0, 0.1, LRAIL - 0.14, 0.0, 0.1, 0.024), M_STEEL);
+    for (let _K3 = 0; _K3 < K3.length; _K3++) { const xc = K3[_K3];  add(sph(x - xc, y, z, 0.1), M_GUN); add(torY(x - xc, y, z, 0.1, 0.02), M_GOLD); }
     return 0;
   }
   /* ---- the sword cradle (origin: its hinge on the lower back; x out to the clamp at 0.6): a gunmetal arm, a gold fork ---- */
@@ -393,12 +401,236 @@ const SUSANO_MODEL = (() => {
     thigh: { f: sdThigh, kind: 'axis', x0: -0.15, x1: LTH + 0.26, hw: 0.42, glow: true, w: [LTH, 0.36, 0.36] },
     shin: { f: sdShin, kind: 'axis', x0: -0.13, x1: LSH + 0.15, hw: 0.37, glow: true, w: [LSH, 0.28, 0.3] },
     pod: { f: sdPod, kind: 'axis', x0: -0.12, x1: 0.84, hw: 0.19, glow: true, w: [0.85, 0.32, 0.32] },
-    rail: { f: sdRail, kind: 'axis', x0: -0.08, x1: LRAIL + 0.08, hw: 0.1, w: [LRAIL, 0.1, 0.12] },
+    rail: { f: sdRail, kind: 'axis', x0: -0.12, x1: LRAIL + 0.12, hw: 0.14, w: [LRAIL, 0.1, 0.12] },
     cradle: { f: sdCradle, kind: 'axis', x0: -0.09, x1: 0.7, hw: 0.13, w: [0.6, 0.2, 0.1] },
     sword: { f: sdSword, kind: 'axis', x0: -0.54, x1: SW.tip + 0.03, hw: 0.42, glow: true, w: [3.6, 0.55, 0.12] },
     blade: { f: sdBlade, kind: 'axis', x0: -0.1, x1: BL + 0.04, hw: 0.7, glow: true, w: [2.0, 0.6, 0.08] },
   };
   const PART_NAMES = Object.keys(PARTS);
+
+  /* ================= the GPU meshes =================
+     Every part as a real mesh in its own frame (the same frames and measures as its shape above): bevelled boxes,
+     domes, tubes, tori, lathes, extruded outlines, swept surfaces. One material per triangle (a material change is a
+     seam of doubled vertices). Built once, on first use (a few ms). */
+  let MESH = null;
+  function buildMeshes() {
+    const G = M => M.done(), DQ = lowFx() ? 0.45 : 0.7, nb = () => GLM.builder(DQ);
+    const out = {};
+    const goldRing = (B, c, R, r, seg) => B.torX(c, R, r, M_GOLD, { seg: seg || 22, rseg: 6 });
+    // ---- the torso ----
+    { const B = nb();
+      B.box([-0.02, 0, 0.7], [0.42, 0.62, 0.34], 0.15, M_OBS);
+      for (const s of [-1, 1]) { B.push([1, 0, 0], [0, Math.cos(0.29), -s * Math.sin(0.29)], [0, s * Math.sin(0.29), Math.cos(0.29)], [-0.06, s * 0.42, 0.93]); B.box([0, 0, 0], [0.34, 0.44, 0.13], 0.11, M_OBS); B.pop(); }
+      B.box([0, 0, 0.25], [0.28, 0.34, 0.27], 0.1, M_OBS);
+      // the gorget round the neck: two gold-edged domed collars
+      for (let i = 0; i < 2; i++) { const zz = 1.04 + 0.06 * i, r = [0.3 - 0.05 * i, 0.4 - 0.07 * i, 0.13]; B.ell([-0.02, 0, zz], r, M_OBS, { seg: 20, rings: 4, th0: 0, th1: 1.25 }); B.ell([-0.02, 0, zz], r, M_GOLD, { seg: 20, rings: 2, th0: 1.25, th1: 1.62 }); }
+      // the pectoral domes beside the cockpit: obsidian with a gold rim
+      for (const s of [-1, 1]) for (let ip = 0; ip < 2; ip++) { const pz = ip ? 0.6 : 0.88, cy = ip ? 0.52 : 0.55, rw = ip ? 0.24 : 0.3, rh = ip ? 0.15 : 0.17;
+        B.push([0, 1, 0], [0, 0, 1], [1, 0, 0], [0.26, s * cy, pz]); B.ell([0, 0, 0], [rw, rh, 0.2], M_OBS, { seg: 18, rings: 5, th0: 0, th1: 0.95 }); B.ell([0, 0, 0], [rw, rh, 0.2], M_GOLD, { seg: 18, rings: 1, th0: 0.95, th1: 1.2, cap: false }); B.pop(); }
+      // abdomen lames (gunmetal, gold lower edge), flank vents
+      for (let i = 0; i < 3; i++) { const zc = 0.14 + i * 0.1; B.box([0.25 - i * 0.01, 0, zc + 0.008], [0.035, 0.24 - 0.03 * i, 0.034], 0.014, M_GUN); B.box([0.252 - i * 0.01, 0, zc - 0.03], [0.034, 0.24 - 0.03 * i, 0.012], 0.008, M_GOLD); }
+      for (const s of [-1, 1]) for (let i = 0; i < 4; i++) B.box([0.02, s * 0.342, 0.19 + i * 0.075], [0.15, 0.006, 0.014], 0.004, M_VIO);
+      // the back: spine plates
+      for (let i = 0; i < 4; i++) { const zc = 0.24 + i * 0.2, hy = 0.17 - 0.02 * Math.abs(i - 1.5); B.box([-0.36, 0, zc], [0.035, hy, 0.08], 0.03, M_GOLD); B.box([-0.372, 0, zc], [0.03, hy - 0.02, 0.064], 0.025, M_OBS); }
+      // the reactor pack: housing, gold frame, lames, vent grille, the pod sockets
+      B.box([-0.52, 0, 0.8], [0.2, 0.46, 0.36], 0.1, M_OBS);
+      B.box([-0.705, 0, 1.14], [0.03, 0.42, 0.018], 0.012, M_GOLD); B.box([-0.705, 0, 0.46], [0.03, 0.36, 0.018], 0.012, M_GOLD);
+      for (const s of [-1, 1]) B.box([-0.705, s * 0.44, 0.8], [0.03, 0.018, 0.34], 0.012, M_GOLD);
+      for (let i = 0; i < 3; i++) { const zc = 0.58 + 0.17 * i, hy = 0.36 - 0.03 * i; B.box([-0.74, 0, zc], [0.03, hy, 0.06], 0.03, M_OBS); B.box([-0.742, 0, zc - 0.05], [0.028, hy, 0.012], 0.008, M_GOLD); }
+      for (let i = 0; i < 5; i++) B.box([-0.755, -0.16 + i * 0.08, 1.02], [0.012, 0.012, 0.055], 0.004, M_VIO);
+      for (const s of [-1, 1]) { B.tube([-0.6, s * 0.36, 0.9], [-0.62, s * 0.36, 1.12], 0.17, 0.15, M_GUN, { seg: 18, cap0: 'flat', cap1: 'flat' }); B.torZ([-0.62, s * 0.36, 1.12], 0.15, 0.03, M_GOLD, { seg: 20, rseg: 6 }); B.torZ([-0.61, s * 0.36, 1.0], 0.175, 0.022, M_GOLD, { seg: 20, rseg: 6 }); }
+      // the cockpit: a dark oval recess, a violet cradle ring; the gold ribs round it, the crest above, the keel below
+      B.ell([0.41, 0, 0.64], [0.06, 0.29, 0.32], M_DARK, { seg: 20, rings: 6 });
+      B.torX([0.45, 0, 0.62], 0.2, 0.02, M_VIO, { seg: 20, rseg: 5 });
+      for (let i = 0; i < 4; i++) { const ry = 0.3 + 0.07 * i, rz = 0.34 + 0.06 * i, x0 = 0.4 - 0.028 * i, tr = 0.038 - 0.004 * i, s0 = Math.min(0.99, (0.27 + 0.03 * i) / rz), a0 = Math.asin(s0);
+        B.push([0, ry, 0], [0, 0, rz], [1, 0, 0], [x0, 0, 0.64]); B.tor([0, 0, 0], 1, tr / Math.min(ry, rz), M_GOLD, { seg: 30, rseg: 6, ph0: Math.PI - a0, ph1: Math.PI * 2 + a0 }); B.pop(); }
+      B.tube([0.42, 0, 0.96], [0.44, 0, 1.12], 0.05, 0.008, M_GOLD, { seg: 10 });
+      for (const s of [-1, 1]) B.tube([0.42, 0, 0.97], [0.37, s * 0.22, 1.06], 0.034, 0.008, M_GOLD, { seg: 8 });
+      B.box([0.38, 0, 0.26], [0.035, 0.12, 0.08], 0.012, M_GOLD); B.sph([0.41, 0, 0.26], 0.04, M_ENAM, 10);
+      // the shoulder sockets, the neck, the rope belt and its knot
+      for (const s of [-1, 1]) B.sph([0, s * 0.78, 0.86], 0.19, M_GUN, 14);
+      B.tube([0.03, 0, 0.98], [0.03, 0, 1.2], 0.1, 0.1, M_GUN, { seg: 14 });
+      B.torZ([0, 0, 0.07], 0.37, 0.045, M_ROPE, { seg: 30, rseg: 7 }); B.sph([0.37, 0, 0.05], 0.07, M_ROPE, 10);
+      out.torso = G(B); }
+    // ---- the pelvis ----
+    { const B = nb();
+      B.box([0, 0, 0], [0.24, 0.34, 0.17], 0.08, M_OBS);
+      B.box([0.21, 0, -0.04], [0.035, 0.13, 0.17], 0.035, M_GOLD); B.box([0.224, 0, -0.04], [0.03, 0.1, 0.14], 0.03, M_OBS);
+      B.push([1, 0, 0], [0, Math.SQRT1_2, Math.SQRT1_2], [0, -Math.SQRT1_2, Math.SQRT1_2], [0.255, 0, -0.03]); B.box([0, 0, 0], [0.012, 0.042, 0.042], 0.008, M_ENAM); B.pop();
+      for (const s of [-1, 1]) { B.sph([0, s * 0.4, -0.1], 0.17, M_GUN, 14); B.torY([0, s * 0.47, -0.1], 0.15, 0.028, M_GOLD, { seg: 20, rseg: 6 });
+        B.box([0, s * 0.4, -0.01], [0.18, 0.035, 0.13], 0.04, M_GOLD); B.box([0, s * 0.414, -0.01], [0.155, 0.03, 0.105], 0.035, M_OBS); }
+      B.torZ([0, 0, 0.18], 0.25, 0.026, M_GOLD, { seg: 26, rseg: 6 }); B.tube([0, 0, 0.1], [0, 0, 0.26], 0.11, 0.11, M_GUN, { seg: 14 });
+      out.pelvis = G(B); }
+    // ---- the rear half-skirt: a curved panel round an axis 0.26 in front of the hinge, a gold border, a violet seam ----
+    { const B = nb(), rad = z => 0.36 + 0.13 * Math.min(1, Math.max(0, -z / 0.8)), Z = [0.02, -0.04, -0.04, -0.646, -0.646, -0.674, -0.674, -0.76, -0.76, -0.8], ZM = [M_GOLD, M_GOLD, M_OBS, M_OBS, M_VIO, M_VIO, M_OBS, M_OBS, M_GOLD, M_GOLD];
+      const TH = [-1.2, -1.12, -1.12, 1.12, 1.12, 1.2], TM = [M_GOLD, M_GOLD, -1, -1, M_GOLD, M_GOLD];
+      for (const side of [1, -1]) { const off = side * 0.034;
+        for (let a = 0; a < TH.length - 1; a++) { if (TH[a] === TH[a + 1]) continue;
+          for (let k = 0; k < Z.length - 1; k++) { if (Z[k] === Z[k + 1]) continue; const mat = TM[a] >= 0 ? TM[a] : ZM[k];
+            B.surf((u, v) => { const th = TH[a] + (TH[a + 1] - TH[a]) * u, z = Z[k] + (Z[k + 1] - Z[k]) * v, r = rad(z) + off; return [0.26 - r * Math.cos(th), r * Math.sin(th), z]; }, TM[a] >= 0 ? 1 : 14, 2, () => mat, { flip: side < 0, e: (u, v) => TM[a] >= 0 || ZM[k] === M_GOLD ? 0.8 : 0 }); } } }
+      for (const z of [0.02, -0.8]) B.surf((u, v) => { const th = -1.2 + 2.4 * u, r = rad(z) - 0.034 + 0.068 * v; return [0.26 - r * Math.cos(th), r * Math.sin(th), z]; }, 16, 1, () => M_GOLD, { flip: z < 0, e: () => 1 });
+      for (const th of [-1.2, 1.2]) B.surf((u, v) => { const z = 0.02 - 0.82 * u, r = rad(z) - 0.034 + 0.068 * v; return [0.26 - r * Math.cos(th), r * Math.sin(th), z]; }, 4, 1, () => M_GOLD, { flip: th > 0, e: () => 1 });
+      // the engraved crescent, raised in gold
+      B.push([1, 0, 0], [0, 1, 0], [0, 0, 1], [0, 0, 0]); for (let i = 0; i <= 10; i++) { const t = -1 + 2 * i / 10, th = t * 0.33, z = -0.42 + 0.15 * Math.cos(t * 1.4) - 0.0, r = rad(z) + 0.04; if (i) { const tp = -1 + 2 * (i - 1) / 10, thp = tp * 0.33, zp = -0.42 + 0.15 * Math.cos(tp * 1.4), rp = rad(zp) + 0.04; B.tube([0.26 - rp * Math.cos(thp), rp * Math.sin(thp), zp], [0.26 - r * Math.cos(th), r * Math.sin(th), z], 0.012, 0.012, M_GOLD, { seg: 5 }); } } B.pop();
+      B.tube([0, -0.2, 0], [0, 0.2, 0], 0.036, 0.036, M_GUN, { seg: 10 });
+      out.skirt = G(B); }
+    // ---- the helmet ----
+    { const B = nb();
+      B.ell([-0.02, 0, 0.26], [0.24, 0.215, 0.22], M_OBS, { seg: 22, rings: 10, th0: 0, th1: 2.53, cap: true, capM: M_GUN });
+      for (const s of [-1, 1]) { const a = s * 0.33; B.push([Math.cos(a), Math.sin(a), 0], [-Math.sin(a), Math.cos(a), 0], [0, 0, 1], [0.14, s * 0.06, 0.17]); B.box([0, 0, 0], [0.045, 0.075, 0.105], 0.03, M_GOLD); B.box([0.012, 0, 0], [0.04, 0.062, 0.09], 0.028, M_GUN); B.pop();
+        B.push([1, 0, 0], [0, Math.cos(0.25), s * Math.sin(0.25)], [0, -s * Math.sin(0.25), Math.cos(0.25)], [0.205, s * 0.068, 0.235]); B.box([0, 0, 0], [0.012, 0.045, 0.011], 0.006, M_EYE); B.pop();
+        B.tube([0.17, 0, 0.32], [0.12, s * 0.17, 0.3], 0.026, 0.022, M_GOLD, { seg: 8 });
+        B.tube([0.17, s * 0.04, 0.33], [0.14, s * 0.14, 0.54], 0.036, 0.026, M_GOLD, { seg: 8 }); B.tube([0.14, s * 0.14, 0.54], [0.05, s * 0.21, 0.79], 0.026, 0.005, M_GOLD, { seg: 8 });
+        B.box([-0.03, s * 0.2, 0.2], [0.09, 0.022, 0.07], 0.02, M_GOLD); B.box([-0.03, s * 0.208, 0.2], [0.075, 0.018, 0.055], 0.016, M_OBS); }
+      B.tube([0.19, 0, 0.33], [0.17, 0, 0.52], 0.03, 0.004, M_GOLD, { seg: 8 }); B.sph([0.205, 0, 0.33], 0.028, M_VIO, 8);
+      for (let i = 0; i < 2; i++) { const zz = 0.1 - 0.065 * i, r = [0.23 + 0.03 * i, 0.22 + 0.03 * i, 0.09]; B.ell([-0.04, 0, zz], r, M_OBS, { seg: 16, rings: 3, th0: 1.0, th1: 1.75, ph0: Math.PI * 0.45, ph1: Math.PI * 1.55 }); B.ell([-0.04, 0, zz], r, M_GOLD, { seg: 16, rings: 1, th0: 1.75, th1: 2.0, ph0: Math.PI * 0.45, ph1: Math.PI * 1.55 }); }
+      out.helmet = G(B); }
+    // ---- the shoulder drums (one each side: the rope knot hangs outward) ----
+    for (const s of [-1, 1]) { const B = nb();
+      B.tube([-0.02, s * 0.03, 0.04], [-0.02, s * 0.49, 0.04], 0.4, 0.4, M_OBS, { seg: 28, cap0: 'flat', cap1: 'flat', up: [0, 0, 1] });
+      for (const wi of [0.04, 0.48]) B.torY([-0.02, s * wi, 0.04], 0.4, 0.042, M_GOLD, { seg: 30, rseg: 6 });
+      for (const wi of [0.15, 0.26, 0.37]) B.torY([-0.02, s * wi, 0.04], 0.43, 0.058, M_ROPE, { seg: 30, rseg: 7 });
+      for (let i = 0; i < 3; i++) { const c = [-0.02, s * 0.3, 0.02 + 0.07 * i], r = [0.58 - 0.06 * i, 0.46 - 0.05 * i, 0.55 - 0.07 * i], cut = 0.12 + 0.02 * i, t1 = Math.acos(Math.min(0.99, cut / r[2]));
+        B.ell(c, r, M_OBS, { seg: 26, rings: 7, th0: 0, th1: t1 - 0.12 }); B.ell(c, [r[0] + 0.004, r[1] + 0.004, r[2] + 0.004], M_GOLD, { seg: 26, rings: 2, th0: t1 - 0.12, th1: t1, cap: true, capM: M_OBS });
+        B.ell(c, [r[0] + 0.024, 0.04, r[2] + 0.024], M_GOLD, { seg: 4, rings: 8, th0: 0, th1: t1 - 0.05 }); }
+      B.tube([-0.24, s * 0.3, 0.1], [-0.46, s * 0.36, 0.14], 0.09, 0.09, M_GUN, { seg: 12 });
+      B.sph([0.3, s * 0.27, -0.3], 0.075, M_ROPE, 10); B.tube([0.3, s * 0.27, -0.33], [0.33, s * 0.29, -0.52], 0.03, 0.05, M_ROPE, { seg: 8, cap1: 'flat' });
+      out[s < 0 ? 'drumL' : 'drumR'] = G(B); }
+    // ---- a wing hub ----
+    { const B = nb();
+      B.tube([0, 0, -0.04], [0, 0, 0.04], 0.2, 0.2, M_GOLD, { seg: 30, cap0: 'flat', cap1: 'flat' });
+      B.torZ([0, 0, 0], 0.2, 0.03, M_GOLD, { seg: 36, rseg: 5, teeth: 36, tooth: 0.016 });
+      B.tube([0, 0, -0.055], [0, 0, 0.055], 0.165, 0.165, M_GUN, { seg: 26, cap0: 'flat', cap1: 'flat' });
+      B.tube([0, 0, -0.01], [0, 0, 0.072], 0.075, 0.075, M_VIO, { seg: 16, cap0: 'flat', cap1: 'flat' });
+      for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2, c = Math.cos(a), sn = Math.sin(a); B.tube([c * 0.08, sn * 0.08, 0.06], [c * 0.15, sn * 0.15, 0.06], 0.016, 0.016, M_STEEL, { seg: 6 }); }
+      out.hub = G(B); }
+    // ---- a wing blade: the spar, then the curved engraved scimitar, lens-thick, its outer edge violet ----
+    { const B = nb(), BLc = BL;
+      B.tube([-0.04, 0, 0], [0.36, 0, 0], 0.05, 0.04, M_GUN, { seg: 8 }); B.torX([0.14, 0, 0], 0.05, 0.016, M_GOLD, { seg: 10, rseg: 4 }); B.torX([0.3, 0, 0], 0.045, 0.014, M_GOLD, { seg: 10, rseg: 4 });
+      // across the blade: knots (fraction from the inner edge -wi to the outer +wo) and their materials
+      const KN = [[0, M_SILV], [0.1, M_SILV], [0.1, M_BLADE], [0.82, M_BLADE], [0.82, M_SILV], [0.9, M_SILV], [0.9, M_VEDGE], [1, M_VEDGE]];
+      const pt = (x, f, sg) => { const w = bladeW(x), wo = w * 0.62, wi = w * 0.38, v = -wi + (wo + wi) * f, mid = (wo - wi) / 2, hw = Math.max(1e-3, (wo + wi) / 2), q = Math.max(0, 1 - Math.pow((v - mid) / hw, 2)), th = 0.004 + 0.034 * Math.sqrt(q) * (0.4 + 0.6 * Math.min(1, w / 0.12)); return [x, bladeC(x) + v, sg * th]; };
+      const NX = 10, xs = u => 0.27 + (BLc - 0.27) * u;
+      for (const sg of [1, -1]) for (let k = 0; k < KN.length - 1; k++) { if (KN[k][0] === KN[k + 1][0]) continue; const f0 = KN[k][0], f1 = KN[k + 1][0], mat = KN[k][1];
+        B.surf((u, v) => pt(xs(u), f0 + (f1 - f0) * v, sg), NX, f1 - f0 > 0.3 ? 2 : 1, () => mat, { flip: sg < 0, e: () => mat === M_SILV ? 0.6 : 0 }); }
+      out.blade = G(B); }
+    // ---- the sword ----
+    { const B = nb();
+      B.sph([-0.45, 0, 0], 0.072, M_GOLD, 12); B.tube([-0.45, 0, 0], [-0.36, 0, 0], 0.045, 0.05, M_GOLD, { seg: 12 });
+      B.tube([-0.37, 0, 0], [0.08, 0, 0], 0.052, 0.056, M_GRIP, { seg: 14, rings: 4 });
+      B.box([0.14, 0, 0], [0.07, 0.15, 0.075], 0.035, M_GOLD);
+      for (const s of [-1, 1]) { B.tube([0.13, s * 0.1, 0], [0.28, s * 0.3, 0], 0.055, 0.03, M_GOLD, { seg: 8 }); B.tube([0.28, s * 0.3, 0], [0.44, s * 0.38, 0], 0.03, 0.006, M_GOLD, { seg: 8 });
+        B.tube([0.13, s * 0.1, 0], [0.02, s * 0.26, 0], 0.038, 0.008, M_GOLD, { seg: 7 }); B.tube([0.2, s * 0.06, 0], [0.36, s * 0.2, 0], 0.026, 0.004, M_GOLD, { seg: 6 });
+        B.sph([0.15, 0, s * 0.07], 0.042, M_ENAM, 10); }
+      B.torX([0.07, 0, 0], 0.07, 0.02, M_GOLD, { seg: 14, rseg: 5 });
+      B.box([0.27, 0, 0], [0.05, 0.186, 0.05], 0.02, M_GOLD);
+      // the blade: across it, from one edge to the other: silver bevel, black metal, gold filigree band, black, the violet channel (recessed)
+      const ys = x => { const w = swW(x); return [[-w, M_SILV], [-(w - 0.05), M_SILV], [-(w - 0.05), M_OBS], [-0.08, M_OBS], [-0.08, M_GOLD], [-0.055, M_GOLD], [-0.055, M_OBS], [-0.036, M_OBS], [-0.036, M_VIO], [0.036, M_VIO], [0.036, M_OBS], [0.055, M_OBS], [0.055, M_GOLD], [0.08, M_GOLD], [0.08, M_OBS], [w - 0.05, M_OBS], [w - 0.05, M_SILV], [w, M_SILV]]; };
+      const tz = (x, y) => { const w = swW(x), bev = Math.max(0, Math.abs(y) - (w - 0.05)); let t = Math.max(0.006, 0.046 - bev * 0.8); if (Math.abs(y) < 0.0361 && x > 0.35 && x < 2.7) t = 0.03; return t; };
+      const NXs = 34, xs = u => SW.base + (SW.tip - SW.base) * u, NK = 18;
+      for (const sg of [1, -1]) for (let k = 0; k < NK - 1; k++) { const mk = ys(1)[k][1]; if (ys(1)[k][0] === ys(1)[k + 1][0]) continue;
+        B.surf((u, v) => { const x = xs(u), K = ys(x), y = K[k][0] + (K[k + 1][0] - K[k][0]) * v, inGap = x < 0.35 || x > 2.7; const m2 = (mk === M_VIO || mk === M_GOLD) && inGap; void m2; return [x, y, sg * tz(x, y)]; }, NXs, 1, () => mk, { flip: sg < 0, e: () => mk === M_SILV ? 0.7 : 0 }); }
+      out.sword = G(B); }
+    // ---- the upper arm ----
+    { const B = nb();
+      B.tube([0.02, 0, 0], [LUA - 0.05, 0, 0], 0.15, 0.13, M_GUN, { seg: 14 });
+      for (let i = 0; i < 3; i++) { const x0 = 0.04 + i * 0.21, R0 = 0.245 - 0.012 * i;
+        B.push([1, 0, 0], [0, 1, 0], [0, 0, 1], [0, 0, 0.02]); B.lathe([[x0, R0 - 0.06, M_OBS], [x0, R0, M_OBS], [x0 + 0.215, R0 + 0.03, M_OBS], [x0 + 0.215, R0 + 0.03, M_GOLD], [x0 + 0.25, R0 + 0.035, M_GOLD], [x0 + 0.25, R0 - 0.04, M_GOLD]], M_OBS, { seg: 22, edge: j => j >= 3 ? 0.8 : 0 }); B.pop(); }
+      for (const s of [-1, 1]) { B.tube([0.12, s * 0.07, -0.17], [0.66, s * 0.07, -0.15], 0.03, 0.03, M_STEEL, { seg: 8 }); B.tube([0.1, s * 0.07, -0.17], [0.38, s * 0.07, -0.16], 0.045, 0.045, M_GUN, { seg: 8 }); }
+      B.tube([0.15, 0, -0.2], [0.6, 0, -0.19], 0.028, 0.028, M_CABLE, { seg: 6 });
+      B.sph([LUA, 0, 0], 0.19, M_GUN, 14); goldRing(B, [LUA, 0, 0], 0.18, 0.035); B.sph([LUA, 0, -0.15], 0.05, M_VIO, 8);
+      out.uarm = G(B); }
+    // ---- the forearm gauntlet ----
+    { const B = nb();
+      B.tube([0, 0, 0], [LFA, 0, 0], 0.15, 0.13, M_GUN, { seg: 14 });
+      for (let i = 0; i < 4; i++) { const x0 = 0.04 + i * 0.16, Rr = 0.2 + 0.024 * i + 0.011; B.box([x0 + 0.08, 0, 0.01], [0.08, Rr, Rr * 1.05], 0.065, M_OBS); B.box([x0 + 0.165, 0, 0.01], [0.012, Rr + 0.006, Rr * 1.05 + 0.006], 0.055, M_GOLD); }
+      B.box([0.38, 0, 0.3], [0.3, 0.11, 0.045], 0.035, M_GOLD); B.box([0.38, 0, 0.318], [0.27, 0.085, 0.04], 0.03, M_OBS);
+      for (let i = 0; i < 5; i++) B.box([0.17 + i * 0.085, 0, 0.358], [0.013, 0.055, 0.004], 0.003, M_VIO);
+      B.sph([LFA, 0, 0], 0.12, M_STEEL, 12);
+      out.farm = G(B); }
+    // ---- the fist ----
+    { const B = nb();
+      B.box([0, 0, 0.09], [0.118, 0.098, 0.062], 0.03, M_GOLD); B.box([0, 0, 0.102], [0.1, 0.08, 0.066], 0.03, M_OBS);
+      for (let j = 0; j < 4; j++) { const xj = -0.08 + j * 0.053; B.torX([xj, 0, 0], 0.084, 0.027, M_GUN, { seg: 16, rseg: 6 }); B.torX([xj, 0, 0], 0.086, 0.032, M_GOLD, { seg: 6, rseg: 6, ph0: 0.7, ph1: 2.45 }); }
+      B.tube([0.11, 0.075, 0.07], [0.105, 0.095, -0.035], 0.034, 0.028, M_GUN, { seg: 8 });
+      for (let j = 0; j < 2; j++) for (let k = 0; k < 2; k++) B.sph([-0.07 + j * 0.14, -0.06 + k * 0.12, 0.168], 0.013, M_STEEL, 6);
+      B.tube([0, 0, 0.12], [0, 0, 0.2], 0.075, 0.075, M_GUN, { seg: 12 }); B.torZ([0, 0, 0.16], 0.078, 0.02, M_GOLD, { seg: 16, rseg: 5 });
+      out.hand = G(B); }
+    // ---- the thigh ----
+    { const B = nb();
+      B.tube([0.02, 0, 0], [LTH - 0.05, 0, 0], 0.17, 0.15, M_GUN, { seg: 14 });
+      for (let i = 0; i < 3; i++) { const x0 = i * 0.22, R0 = 0.31 - 0.02 * i;
+        B.push([1, 0, 0], [0, 1.06, 0], [0, 0, 1], [0, 0, 0.02]); B.lathe([[x0, R0 - 0.07, M_OBS], [x0, R0, M_OBS], [x0 + 0.24, R0 + 0.027, M_OBS], [x0 + 0.24, R0 + 0.027, M_GOLD], [x0 + 0.27, R0 + 0.03, M_GOLD], [x0 + 0.27, R0 - 0.05, M_GOLD]], M_OBS, { seg: 24, edge: j => j >= 3 ? 0.8 : 0 }); B.pop(); }
+      for (const s of [-1, 1]) { B.box([0.38, s * 0.33, -0.02], [0.27, 0.035, 0.16], 0.05, M_GOLD); B.box([0.38, s * 0.346, -0.02], [0.245, 0.03, 0.135], 0.045, M_OBS);
+        B.tube([0.1, s * 0.08, -0.2], [0.64, s * 0.08, -0.18], 0.032, 0.032, M_STEEL, { seg: 8 }); B.tube([0.08, s * 0.08, -0.2], [0.34, s * 0.08, -0.19], 0.05, 0.05, M_GUN, { seg: 8 }); }
+      B.sph([LTH, 0, 0], 0.2, M_GUN, 14);
+      for (const s of [-1, 1]) { B.push([1, 0, 0], [0, 0, 1], [0, -s, 0], [LTH, s * 0.25, 0]); B.tube([0, 0, -0.045], [0, 0, 0.045], 0.21, 0.21, M_GOLD, { seg: 24, cap0: 'flat', cap1: 'flat', up: [1, 0, 0] }); B.pop();
+        B.torY([LTH, s * 0.25, 0], 0.205, 0.035, M_GOLD, { seg: 24, rseg: 5, teeth: 24, tooth: 0.018 });
+        B.push([1, 0, 0], [0, 0, 1], [0, -s, 0], [LTH, s * 0.29, 0]); B.tube([0, 0, -0.03], [0, 0, 0.032], 0.13, 0.13, M_OBS, { seg: 18, cap0: 'flat', cap1: 'flat', up: [1, 0, 0] }); B.pop(); }
+      B.ell([LTH, 0, 0.09], [0.24, 0.26, 0.18], M_OBS, { seg: 20, rings: 6, th0: 0, th1: 1.3 }); B.ell([LTH, 0, 0.09], [0.245, 0.265, 0.185], M_GOLD, { seg: 20, rings: 2, th0: 1.3, th1: 1.62, cap: true, capM: M_GUN });
+      B.sph([LTH, 0, 0.27], 0.045, M_VIO, 8);
+      out.thigh = G(B); }
+    // ---- the shin ----
+    { const B = nb();
+      B.box([0.3, 0, 0], [0.28, 0.24, 0.25], 0.085, M_OBS); B.box([0.56, 0, 0], [0.024, 0.248, 0.258], 0.08, M_GOLD);
+      B.box([0.63, 0, -0.01], [0.14, 0.21, 0.22], 0.07, M_OBS); B.box([0.74, 0, -0.01], [0.02, 0.216, 0.226], 0.065, M_GOLD);
+      B.box([0.32, 0, 0.255], [0.21, 0.135, 0.03], 0.03, M_GOLD); B.box([0.32, 0, 0.268], [0.175, 0.1, 0.025], 0.02, M_ENAM);
+      for (const s of [-1, 1]) B.box([0.32, s * 0.25, 0], [0.24, 0.02, 0.05], 0.015, M_GOLD);
+      for (let i = 0; i < 5; i++) B.box([0.16 + i * 0.08, 0, -0.253], [0.013, 0.07, 0.006], 0.004, M_VIO);
+      B.sph([LSH, 0, 0], 0.12, M_STEEL, 12); B.tube([0, 0, 0], [0.12, 0, 0], 0.15, 0.15, M_GUN, { seg: 14 });
+      out.shin = G(B); }
+    // ---- the foot ----
+    { const B = nb();
+      B.box([0.08, 0, -0.07], [0.24, 0.14, 0.065], 0.045, M_OBS);
+      for (let i = 0; i < 3; i++) { const x0 = 0.14 + i * 0.09; B.box([x0 + 0.045, 0, -0.05 - i * 0.012], [0.055, 0.13 - 0.02 * i, 0.06 - 0.008 * i], 0.03, M_OBS); B.box([x0 + 0.098, 0, -0.05 - i * 0.012], [0.014, 0.128 - 0.02 * i, 0.058 - 0.008 * i], 0.012, M_GOLD); }
+      B.tube([-0.1, 0, -0.06], [-0.24, 0, -0.11], 0.05, 0.012, M_GUN, { seg: 8 });
+      B.ell([0, 0, 0], [0.165, 0.155, 0.115], M_GOLD, { seg: 18, rings: 5, th0: 0, th1: 1.75 });
+      B.box([0.08, 0, -0.136], [0.14, 0.06, 0.006], 0.004, M_VIO);
+      out.foot = G(B); }
+    // ---- the chest hatch: a heart-shaped shield, gold frame, obsidian field (filigree in the shader), crimson stone ----
+    { const B = nb(), body = (y, zc) => { const ay = Math.abs(y), lobe = Math.hypot(ay - 0.14, zc - 0.12) - 0.2, pt = (ay * 0.95 + (-zc - 0.02) * 0.62) - 0.25; return Math.max(Math.min(lobe, Math.max(pt, zc - 0.14)), -zc - 0.42); };
+      const outline = (ins) => { const pts = [], cy = 0, cz = -0.06; for (let i = 0; i < 40; i++) { const a = i / 40 * Math.PI * 2, dy = Math.cos(a), dz = Math.sin(a); let lo = 0, hi = 0.6; for (let k = 0; k < 22; k++) { const m = (lo + hi) / 2; if (body(cy + dy * m, cz + dz * m) < -ins) lo = m; else hi = m; } pts.push([cy + dy * lo, cz + dz * lo - 0.3]); } return pts; };
+      B.push([0, 1, 0], [0, 0, 1], [1, 0, 0], [0, 0, 0]);
+      B.prism(outline(0), -0.035, 0.035, M_GOLD, { b: 0.018 });
+      B.prism(outline(0.06), 0.0, 0.058, M_OBS, { b: 0.012 });
+      B.prism(outline(0.105), 0.0, 0.07, M_GOLD, { b: 0.01 }); B.prism(outline(0.12), 0.0, 0.078, M_OBS, { b: 0.012 });
+      B.pop();
+      B.tube([0.04, 0, -0.32], [0.11, 0, -0.32], 0.085, 0.085, M_GOLD, { seg: 18, cap0: 'flat', cap1: 'flat' }); B.sph([0.12, 0, -0.32], 0.05, M_ENAM, 12);
+      for (const s2 of [-1, 1]) B.tube([0.09, s2 * 0.06, -0.2], [0.09, s2 * 0.2, -0.12], 0.016, 0.006, M_GOLD, { seg: 6 });
+      B.tube([0, -0.18, 0], [0, 0.18, 0], 0.032, 0.032, M_GUN, { seg: 10 });
+      out.hatch = G(B); }
+    // ---- a thruster pod ----
+    { const B = nb(), pr = [];
+      for (let x = 0.04; x <= 0.66 + 1e-6; x += 0.03) pr.push([x, Math.round((x - 0.04) / 0.03) % 2 ? 0.144 : 0.155, M_GUN]);
+      B.lathe(pr, M_GUN, { seg: 18 }); for (const xc of [0.1, 0.52]) goldRing(B, [xc, 0, 0], 0.16, 0.028, 20);
+      B.tube([0.275, 0, 0], [0.345, 0, 0], 0.169, 0.169, M_ENAM, { seg: 20, cap0: 'flat', cap1: 'flat' });
+      B.lathe([[0.62, 0.1, M_STEEL], [0.64, 0.12, M_STEEL], [0.8, 0.19, M_STEEL], [0.8, 0.17, M_STEEL], [0.66, 0.1, M_STEEL]], M_STEEL, { seg: 20, edge: j => j === 2 ? 1 : 0 });
+      B.tube([0.66, 0, 0], [0.72, 0, 0], 0.1, 0.1, M_VIO, { seg: 16, cap0: 'flat', cap1: 'flat' });
+      B.sph([0.04, 0, 0], 0.14, M_GUN, 14); B.tube([-0.02, 0, 0], [-0.08, 0, 0], 0.06, 0.06, M_STEEL, { seg: 10 });
+      out.pod = G(B); }
+    // ---- a rail arm link ----
+    { const B = nb();
+      B.box([LRAIL / 2, 0, 0], [LRAIL / 2 - 0.04, 0.06, 0.08], 0.025, M_GUN);
+      for (const s of [-1, 1]) B.box([LRAIL / 2, s * 0.062, 0], [LRAIL / 2 - 0.08, 0.004, 0.035], 0.003, M_GOLD);
+      B.tube([0.12, 0, 0.1], [LRAIL - 0.14, 0, 0.1], 0.024, 0.024, M_STEEL, { seg: 8 });
+      for (const xc of [0, LRAIL]) { B.sph([xc, 0, 0], 0.1, M_GUN, 12); B.torY([xc, 0, 0], 0.1, 0.02, M_GOLD, { seg: 16, rseg: 5 }); }
+      out.rail = G(B); }
+    // ---- the sword cradle ----
+    { const B = nb();
+      B.box([0.28, 0, 0], [0.27, 0.05, 0.045], 0.02, M_GUN); B.sph([0, 0, 0], 0.07, M_STEEL, 10);
+      for (const s of [-1, 1]) B.tube([0.52, s * 0.06, 0], [0.66, s * 0.1, 0], 0.03, 0.015, M_GOLD, { seg: 7 });
+      B.box([0.55, 0, 0], [0.04, 0.09, 0.05], 0.015, M_GOLD);
+      out.cradle = G(B); }
+    // ---- the pilot's seat ----
+    { const B = nb();
+      B.box([-0.09, 0, 0.13], [0.025, 0.12, 0.15], 0.03, M_ENAM);
+      B.box([-0.11, 0, 0.31], [0.022, 0.15, 0.018], 0.01, M_GOLD); B.box([-0.11, 0, -0.05], [0.022, 0.15, 0.018], 0.01, M_GOLD);
+      for (const s of [-1, 1]) B.box([-0.11, s * 0.15, 0.13], [0.022, 0.018, 0.18], 0.01, M_GOLD);
+      B.box([0, 0, -0.01], [0.09, 0.12, 0.02], 0.015, M_GOLD);
+      out.seat = G(B); }
+    out.drum = null;
+    return out;
+  }
 
   /* ================= materials, shading ================= */
   const CW = [0, VY, VZ], EXW = [1, 0, 0], EYW = vcross(CW, EXW);   // the camera: toward the viewer; screen right; screen down
@@ -535,7 +767,7 @@ const SUSANO_MODEL = (() => {
   /* ================= the bake ================= */
   const GA = { hit: 0, t: 0, x: 0, y: 0, z: 0, nx: 0, ny: 0, nz: 0, mat: 0, ao: 0, sh: 0, lap: 0 }, NG = 12, AOS = [0.02, 0.05, 0.11, 0.22], AOW = [1, 0.7, 0.45, 0.3];
   /* one ray: image point (u, v) (units, from the frame's origin), marched along -D through the part's bound */
-  let NTR = 0;
+  let NTR = 0, FASTB = false;   // (FASTB: the quick pictures: no occlusion or shadow marches)
   function trace(B, f, u, v, G) {
     G.hit = 0; NTR++; const R = B.R, d2 = B.axis ? v * v : u * u + v * v; if (d2 > R * R) return;
     const EX = B.EX, EY = B.EY, D = B.D, o = B.o, ox = o[0] + u * EX[0] + v * EY[0], oy = o[1] + u * EX[1] + v * EY[1], oz = o[2] + u * EX[2] + v * EY[2];
@@ -546,17 +778,17 @@ const SUSANO_MODEL = (() => {
     f(x, y, z); const f0 = Q[0], mat = SM; f(x + e, y, z); const fxp = Q[0]; f(x - e, y, z); const fxm = Q[0]; f(x, y + e, z); const fyp = Q[0]; f(x, y - e, z); const fym = Q[0]; f(x, y, z + e); const fzp = Q[0]; f(x, y, z - e); const fzm = Q[0];
     let nx = fxp - fxm, ny = fyp - fym, nz = fzp - fzm; const nl = hyp3(nx, ny, nz) || 1; nx /= nl; ny /= nl; nz /= nl;
     const lap = (fxp + fxm + fyp + fym + fzp + fzm - 6 * f0) / (e * e) * 0.35;
-    let ao = 1; for (let i = 1; i < 4; i++) { const s2 = AOS[i]; f(x + nx * s2, y + ny * s2, z + nz * s2); ao -= AOW[i] * Math.max(0, s2 - Q[0]) / s2 * 0.42; } ao = cl(ao);
-    let sh = 1; const L = B.L; if (L[0] * nx + L[1] * ny + L[2] * nz > -0.1) { let tt = 0.015; for (let i = 0; i < 11 && tt < 1.2; i++) { f(x + nx * 0.004 + L[0] * tt, y + ny * 0.004 + L[1] * tt, z + nz * 0.004 + L[2] * tt); const h = Q[0]; if (h < 0.001) { sh = 0; break; } sh = Math.min(sh, 7 * h / tt); tt += Math.max(0.02, h * 0.95); } sh = cl(sh); sh = sh * sh * (3 - 2 * sh); } else sh = 0;
+    let ao = 1; if (FASTB) ao = 0.82; else for (let i = 1; i < 4; i++) { const s2 = AOS[i]; f(x + nx * s2, y + ny * s2, z + nz * s2); ao -= AOW[i] * Math.max(0, s2 - Q[0]) / s2 * 0.42; } ao = cl(ao);
+    let sh = 1; const L = B.L; if (FASTB) sh = 1; else if (L[0] * nx + L[1] * ny + L[2] * nz > -0.1) { let tt = 0.015; for (let i = 0; i < 11 && tt < 1.2; i++) { f(x + nx * 0.004 + L[0] * tt, y + ny * 0.004 + L[1] * tt, z + nz * 0.004 + L[2] * tt); const h = Q[0]; if (h < 0.001) { sh = 0; break; } sh = Math.min(sh, 7 * h / tt); tt += Math.max(0.02, h * 0.95); } sh = cl(sh); sh = sh * sh * (3 - 2 * sh); } else sh = 0;
     G.hit = 1; G.t = t; G.x = x; G.y = y; G.z = z; G.nx = nx; G.ny = ny; G.nz = nz; G.mat = mat; G.ao = ao; G.sh = sh; G.lap = lap;
   }
   let IMG = null; const SCR = {};
   function scratch(k, n, T) { const b = SCR[k]; if (b && b.length >= n) return b; return (SCR[k] = new T(Math.ceil(n * 1.25))); }
   const OUT = [0, 0, 0], EOUT = [0, 0, 0];
-  const BK = { k: 0, spr: new Map(), byPart: {}, gen: null, genKey: '', queue: [], qset: new Set(), ms: 0, maxMs: 0, maxAt: '', n: 0, st: '', bytes: 0, spikes: [] };
+  const BK = { pri: new Map(), prn: 0, k: 0, spr: new Map(), byPart: {}, gen: null, genKey: '', queue: [], qset: new Set(), ms: 0, maxMs: 0, maxAt: '', n: 0, st: '', bytes: 0, spikes: [] };
   /* bake one picture (and its emission layer): geometry on every other pixel, full-resolution shading from it (traced
      afresh where the samples disagree), silhouette and material seams supersampled, a soft dark outline */
-  function* bakeImg(B, f, k, glow, box, store) {
+  function* bakeImg(B, f, k, glow, box, store, fast) {
     const W = box.W, Hh = box.H, ox = box.ox, oy = box.oy, CW2 = (W >> 1) + 2, CH = (Hh >> 1) + 2; yield; const Gd = scratch('g', CW2 * CH * NG, Float32Array); let tY = nowMs();
     const put = (q, G) => { if (!G.hit) { Gd[q] = -1; return; } Gd[q] = G.mat; Gd[q + 1] = G.t; Gd[q + 2] = G.x; Gd[q + 3] = G.y; Gd[q + 4] = G.z; Gd[q + 5] = G.nx; Gd[q + 6] = G.ny; Gd[q + 7] = G.nz; Gd[q + 8] = G.ao; Gd[q + 9] = G.sh; Gd[q + 10] = G.lap; };
     BK.st = 'geo';
@@ -571,10 +803,11 @@ const SUSANO_MODEL = (() => {
       for (let s = 0; s < 4; s++) { if (w4[s] === 0) continue; const qq = ix[s], m = Gd[qq]; if (m >= 0) any = true; if (m !== m0 || m < 0) { ok = false; continue; } if (Math.abs(Gd[qq + 1] - Gd[ix[0] + 1]) > 0.02 || Gd[qq + 5] * Gd[ix[0] + 5] + Gd[qq + 6] * Gd[ix[0] + 6] + Gd[qq + 7] * Gd[ix[0] + 7] < 0.9) ok = false; }
       if (ok && m0 >= 0) { let x = 0, y = 0, z = 0, nx = 0, ny = 0, nz = 0, ao = 0, sh = 0, lap = 0; for (let s = 0; s < 4; s++) { const w = w4[s]; if (w === 0) continue; const qq = ix[s]; x += Gd[qq + 2] * w; y += Gd[qq + 3] * w; z += Gd[qq + 4] * w; nx += Gd[qq + 5] * w; ny += Gd[qq + 6] * w; nz += Gd[qq + 7] * w; ao += Gd[qq + 8] * w; sh += Gd[qq + 9] * w; lap += Gd[qq + 10] * w; }
         const nl = hyp3(nx, ny, nz) || 1; shade(B, m0, x, y, z, nx / nl, ny / nl, nz / nl, lap, ao, sh, o, E); A[q * 4] = o[0]; A[q * 4 + 1] = o[1]; A[q * 4 + 2] = o[2]; A[q * 4 + 3] = 1; ID[q] = m0; putE(q); }
+      else if (any && fast) { let bs = -1, bw = -1; for (let s2 = 0; s2 < 4; s2++) if (w4[s2] > bw && Gd[ix[s2]] >= 0) { bw = w4[s2]; bs = ix[s2]; } if (bw >= 0.25) { const qq = bs; shade(B, Gd[qq], Gd[qq + 2], Gd[qq + 3], Gd[qq + 4], Gd[qq + 5], Gd[qq + 6], Gd[qq + 7], Gd[qq + 10], Gd[qq + 8], Gd[qq + 9], o, E); A[q * 4] = o[0]; A[q * 4 + 1] = o[1]; A[q * 4 + 2] = o[2]; A[q * 4 + 3] = 1; ID[q] = Gd[qq]; } }   // (quick: the nearest sample's surface, no new ray)
       else if (any) { trace(B, f, (px + 0.5 - ox) / k, (py + 0.5 - oy) / k, GA); if (GA.hit) { shade(B, GA.mat, GA.x, GA.y, GA.z, GA.nx, GA.ny, GA.nz, GA.lap, GA.ao, GA.sh, o, E); A[q * 4] = o[0]; A[q * 4 + 1] = o[1]; A[q * 4 + 2] = o[2]; A[q * 4 + 3] = 1; ID[q] = GA.mat; putE(q); } }
       if (nowMs() - tY > 0.5) { yield; tY = nowMs(); } }
     BK.st = 'aa';
-    for (let py = 0; py < Hh; py++) { for (let px = 0; px < W; px++) { const pi = py * W + px, id = ID[pi];
+    if (!fast) for (let py = 0; py < Hh; py++) { for (let px = 0; px < W; px++) { const pi = py * W + px, id = ID[pi];
       if (!((px + 1 < W && ID[pi + 1] !== id) || (px > 0 && ID[pi - 1] !== id) || (py + 1 < Hh && ID[pi + W] !== id) || (py > 0 && ID[pi - W] !== id))) continue;
       let r = 0, g = 0, bb = 0, a = 0, e0 = 0, e1 = 0, e2 = 0; for (let si = 0; si < 4; si++) { if (si && nowMs() - tY > 0.5) { yield; tY = nowMs(); } trace(B, f, (px + 0.5 + (si & 1 ? 0.25 : -0.25) - ox) / k, (py + 0.5 + (si & 2 ? 0.25 : -0.25) - oy) / k, GA); if (!GA.hit) continue; shade(B, GA.mat, GA.x, GA.y, GA.z, GA.nx, GA.ny, GA.nz, GA.lap, GA.ao, GA.sh, o, E); r += o[0]; g += o[1]; bb += o[2]; a += 1; if (E) { e0 += E[0]; e1 += E[1]; e2 += E[2]; } }
       const q = pi * 4, a0 = A[q + 3], na = (a0 + a) / 5; if (na > 0) { A[q] = (A[q] * a0 + r) / 5 / na; A[q + 1] = (A[q + 1] * a0 + g) / 5 / na; A[q + 2] = (A[q + 2] * a0 + bb) / 5 / na; } A[q + 3] = na;
@@ -595,24 +828,24 @@ const SUSANO_MODEL = (() => {
       if (any) { const full = mk(EA), hc = document.createElement('canvas'); hc.width = Math.max(1, w2 >> 1); hc.height = Math.max(1, h2 >> 1); hc.getContext('2d').drawImage(full, 0, 0, hc.width, hc.height); BK.bytes -= w2 * h2 * 3; ecv = hc; } }   // (the glow is soft: half resolution)
     store({ cv, x: x0 - ox, y: y0 - oy, k }, ecv ? { cv: ecv, x: (x0 - ox) / 2, y: (y0 - oy) / 2, k: k / 2 } : null);
   }
-  const KCAP = 100, PSC = { hand: 1.15, hub: 1.0, helmet: 1.1 };
+  const KCAP = 96, KQ = 30, PSC = { hand: 1.15, hub: 1.0, helmet: 1.1 };
   /* bake one part at one view key */
   function bakeKey(key, k0, lo) {
     const [name, vk] = key.split('|'), P = PARTS[name]; CUR_PART = name === 'drumL' || name === 'drumR' ? 'drum' : name;
-    const B = frameOfKey(P, vk), k = Math.max(12, Math.min(KCAP * (lo ? 0.5 : 1), k0 * (PSC[name] || 1) * (lo ? 0.5 : 1)));
+    const B = frameOfKey(P, vk), k = lo ? Math.max(12, Math.min(KQ, k0 * 0.45) * (PSC[name] || 1)) : Math.max(12, Math.min(KCAP, k0 * (PSC[name] || 1)));
     let box; if (P.kind === 'axis') { const W = Math.ceil((P.x1 - P.x0) * k) + 6, H = Math.ceil(2 * P.hw * k) + 6; box = { W, H, ox: -P.x0 * k + 3, oy: P.hw * k + 3 }; }
     else { const W = Math.ceil(2 * P.R * k) + 6; box = { W, H: W, ox: P.R * k + 3, oy: P.R * k + 3 }; }
     return bakeImg(B, P.f, k, !lo && !!P.glow, box, (s, e) => { s.gl = e; s.F = B; s.lo = !!lo; const prev = BK.spr.get(key); if (prev && !prev.lo && lo) return; BK.spr.set(key, s);
-      const L2 = BK.byPart[name] || (BK.byPart[name] = []); const j = L2.findIndex(r => r.vk === vk); if (j >= 0) L2[j].s = s; else L2.push({ vk, F: B, s }); });
+      const L2 = BK.byPart[name] || (BK.byPart[name] = []); const j = L2.findIndex(r => r.vk === vk); if (j >= 0) L2[j].s = s; else L2.push({ vk, F: B, s }); }, lo);
   }
   /* the background baker: bake for at most ms (in slices of about 1 ms; none starts that would overrun); true when idle */
   function bakeStep(ms) {
     const t0 = nowMs();
     if (!TX) { buildTex(); return false; }
-    while (nowMs() - t0 < ms - 1.5) {
+    while (nowMs() - t0 < Math.max(ms * 0.6, ms - 1.5)) {
       if (!BK.gen) { while (BK.queue.length && doneKey(BK.queue[0])) BK.qset.delete(BK.queue.shift()); if (!BK.queue.length || !BK.k) break; const key = BK.queue.shift(); BK.qset.delete(key);
         const lo = key.endsWith('#lo'); BK.gen = bakeKey(lo ? key.slice(0, -3) : key, BK.k, lo); BK.genKey = key; }
-      const st0 = BK.st, s0 = nowMs(), r = BK.gen.next(), d = nowMs() - s0; BK.ms += d; if (d > BK.maxMs) { BK.maxMs = d; BK.maxAt = BK.genKey + '/' + st0 + '>' + BK.st; } if (d > 6 && BK.spikes.length < 40) BK.spikes.push(BK.genKey + '/' + st0 + ' ' + d.toFixed(1));
+      const st0 = BK.st, s0 = nowMs(); FASTB = BK.genKey.endsWith('#lo'); const r = BK.gen.next(); FASTB = false; const d = nowMs() - s0; BK.ms += d; if (d > BK.maxMs) { BK.maxMs = d; BK.maxAt = BK.genKey + '/' + st0 + '>' + BK.st; } if (d > 6 && BK.spikes.length < 40) BK.spikes.push(BK.genKey + '/' + st0 + ' ' + d.toFixed(1));
       if (r.done) { BK.gen = null; BK.genKey = ''; BK.n++; }
     }
     return !BK.gen && !BK.queue.length && !!BK.k;
@@ -621,7 +854,9 @@ const SUSANO_MODEL = (() => {
   /* ask for a key: front (now) or back (later) of the queue */
   function want(key, front) { if (BK.qset.has(key) || BK.genKey === key || doneKey(key)) return; BK.qset.add(key); if (front) BK.queue.unshift(key); else BK.queue.push(key); }   // (O(1) when already queued: draw calls this for every part every frame)
   /* the bake scale (device px per tile at the scale it will be drawn); a larger one restarts the bake */
-  function setScale(k) { k *= VIS; k = Math.max(32, Math.min(KCAP, Math.round(k / 8) * 8)); if (BK.k && Math.abs(k - BK.k) < BK.k * 0.2) return; BK.k = k; BK.spr.clear(); BK.byPart = {}; BK.bytes = 0; BK.gen = null; BK.genKey = ''; BK.queue = []; BK.qset.clear(); }
+  function setScale(k) { k *= VIS; k = Math.max(32, Math.min(KCAP, Math.round(k / 8) * 8)); if (!BK.k) { BK.k = k; return; } if (k <= BK.k * 1.25) return;
+    // (a larger scale keeps every picture already made - each carries its own scale, so a frame may mix them - and asks again for the sharp ones)
+    BK.k = k; for (const sp of BK.spr.values()) sp.lo = true; }
 
   /* ================= painted bits: soft sprites for the shadow and the thruster plumes ================= */
   let TX = null;
@@ -673,7 +908,7 @@ const SUSANO_MODEL = (() => {
   }
   /* the sword's way to its cradle on the back (torso frame): over the right shoulder, behind, down; blade up */
   const DOCK = [{ G: [0.78, 0.62, 0.62], A: vnrm([0.4, 0.15, 1]), Z: [1, 0, 0] }, { G: [0.4, 0.3, 1.95], A: [0, 0, 1], Z: [1, 0, 0] }, { G: [-0.86, 0.05, 1.62], A: [0, 0, 1], Z: [-1, 0, 0] }, { G: [-0.98, 0, 0.55], A: [0, 0, 1], Z: [-1, 0, 0] }];
-  const SHOULDER = s => [0, s * 1.06, 0.62], HIP = s => [0, s * 0.4, -0.1], RAILM = s => [-0.37, s * 0.22, 1.02], CRADLE_H = [-0.48, 0, 0.88], SEAT = [0.27, 0, 0.4], NECK = [0.03, 0, 1.16], DRUM = s => [0, s * 0.78, 0.86], HUB = s => [-0.52, s * 1.2, 1.0];
+  const SHOULDER = s => [0, s * 1.06, 0.62], HIP = s => [0, s * 0.4, -0.1], RAILM = s => [-0.6, s * 0.22, 0.98], CRADLE_H = [-0.48, 0, 0.88], SEAT = [0.27, 0, 0.4], NECK = [0.03, 0, 1.16], DRUM = s => [0, s * 0.78, 0.86], HUB = s => [-0.52, s * 1.2, 1.0];
   const FAN_N = s => vnrm([-1, s * 0.28, 0.12]);
   const BLADE_R = [4, 30, 56, 82, 108, 134, 160].map(d => d * Math.PI / 180), BLADE_A = [72, 86, 100, 114, 128, 142, 156].map(d => d * Math.PI / 180), BLADE_LEN = [2.0, 2.3, 2.5, 2.6, 2.5, 2.3, 2.0];
   /* assembly order for the summon: the cockpit first, then the frame, the limbs, the armour, the wings, the helmet, the sword */
@@ -783,16 +1018,17 @@ const SUSANO_MODEL = (() => {
     }
     // the thruster pods on their rail arms: behind the shoulders, nozzles up (robot); swung out and aft along the booms (airship)
     for (const s of [-1, 1]) { const sd = s < 0 ? 'L' : 'R', u = ease(S.thrust), pre = 0;
-      const rR = [-0.38, s * 0.42, 1.12], aR = vnrm([-0.12, s * 0.32, 1]), rA = [-0.28, s * 1.18, -0.42], aA = vnrm([0.03, -s * 0.03, -1]), ctl = [-1.08, s * 0.95, 1.15], ctl2 = [-1.15, s * 1.6, 0.4];
+      const rR = [-0.6, s * 0.38, 1.08], aR = vnrm([-0.18, s * 0.26, 1]), rA = [-0.28, s * 1.18, -0.42], aA = vnrm([0.03, -s * 0.03, -1]), ctl = [-1.08, s * 0.95, 1.15], ctl2 = [-1.15, s * 1.6, 0.4];
       // (first a clearance pose in stage 1: up and out over the hubs, opening the space behind the head for the sword)
       const r1 = [-0.66, s * 0.82, 1.75], a1 = vnrm([0.02, s * 0.5, 1]), u1 = ease(S.lift), r0 = vlerp(rR, r1, u1), F0 = mslerp(frameXZ(aR, [0, s, 0]), frameXZ(a1, [0, s, 0]), u1);
       const rp = bez3(r0, ctl, ctl2, rA, u), Fm = frameXZ(vnrm([-0.35, s, -0.35]), [1, 0, 0]), ur = sstep(0, 0.55, u), F = ur < 0.5 ? mslerp(F0, Fm, ur * 2) : mslerp(Fm, frameXZ(aA, [0, s, 0]), ur * 2 - 1); void pre;   // (nozzles turned out, then aft, early; then down the side)
       const Rpod = M3(dirT(F.x), dirT(F.y), dirT(F.z)), pO = toT(rp);
       I('pod' + sd, 'pod', Rpod, pO, 1.3);
       const m = toT(RAILM(s)), knuckle = vadd(pO, vmul(Rpod.x, -0.1)), pole = vnrm(vlerp(dirT([-0.9, s * 0.2, -0.4]), dirT([-0.8, s * 0.6, 0.2]), u));
-      const k = ik2(m, knuckle, LRAIL, LRAIL, pole);
-      I('rail1' + sd, 'rail', frameXZ(vsub(k.E, m), pole), m);
-      I('rail2' + sd, 'rail', frameXZ(vsub(k.W, k.E), pole), k.E);
+      const rs = lerp(0.3, 1, sstep(0, 0.6, Math.max(u1, u)));   // (the rails telescope: stowed in the pack (robot), drawn out to carry the pods)
+      const k = ik2(m, knuckle, LRAIL * rs, LRAIL * rs, pole);
+      I('rail1' + sd, 'rail', frameXZ(vsub(k.E, m), pole), m, rs);
+      I('rail2' + sd, 'rail', frameXZ(vsub(k.W, k.E), pole), k.E, rs);
       out.A['thruster' + sd] = vadd(pO, vmul(Rpod.x, 1.04)); out.A['thrusterDir' + sd] = Rpod.x;
     }
     // the rear half-skirt: hinged at the back of the waist; lifts clear, rides the waist ring round to the front, lowers as the dorsal cowling
@@ -830,31 +1066,59 @@ const SUSANO_MODEL = (() => {
     const det = a00 * a11 - a01 * a01 || 1e-9, i00 = a11 / det, i01 = -a01 / det, i11 = a00 / det;
     return [b00 * i00 + b01 * i01, b00 * i01 + b01 * i11, b10 * i00 + b11 * i01, b10 * i01 + b11 * i11];
   }
-  /* the nearest baked view of a part to a camera (when its own is not baked yet) */
-  function nearest(name, cam, axis) { const L2 = BK.byPart[name]; if (!L2 || !L2.length) return null; let best = null, bs = -1e9;
-    for (const r of L2) { if (!r.s || !r.s.cv) continue; const sc = axis ? vdot(r.F.D, cam.D) - Math.abs(cam.D[0]) * 0 : vdot(r.F.D, cam.D) * 2 + vdot(r.F.EY, cam.EY); if (sc > bs) { bs = sc; best = r; } } return best; }
+  /* a part's view at a heading: its key and the camera in its frame */
   const STATE = new Map(), FADE = 0.12;
-  let LAST = null, NI = 0; const ITEMS = [];
+  let LAST = null, NI = 0, OK = null; const ITEMS = [], MISS = [];
+  /* the picture a part draws from for a camera: its own view (sharp or quick); else, for a full part, the same view at
+     another roll (the same image turned in its plane: exact in shape); else none */
+  function pick(Pt, part, cam) {
+    const vk = viewKey(Pt, cam), key = part + '|' + vk; let spr = BK.spr.get(key);
+    if (spr) return { spr, key, F: spr.F };
+    if (Pt.kind !== 'axis' && !Pt.noRoll) { const pre = key.slice(0, key.lastIndexOf('.') + 1), ri = +vk.slice(vk.lastIndexOf('.') + 1);
+      for (let d = 1; d <= 8; d++) for (const r2 of [ri + d, ri - d]) { const k2 = pre + (((r2 % 16) + 16) % 16), s2 = BK.spr.get(k2); if (s2) return { spr: s2, key: k2, F: s2.F, alt: key }; } }
+    return { spr: null, key };
+  }
+  /* is the whole pose drawable, coherently, at heading a (every visible part from its own view)? collects the missing keys */
+  function coherent(R, a, K, miss) { const Rh = rotZ(a); let ok = true;
+    for (const it of R.inst) { if (!(it.al > 0.004)) continue; const Pt = PARTS[it.part], p = pick(Pt, it.part, camIn(mm(Rh, it.R), K)); if (!p.spr) { if (miss) miss.push(p.key); if (it.al < 0.999) continue; ok = false; if (!miss) return false; } else if (p.alt && miss) want(p.alt + '#lo'); }   // (a part still fading in during the summon may wait for its view; it just appears a moment later)
+    return ok; }
   const item = (d, fn) => { const I2 = ITEMS[NI] || (ITEMS[NI] = {}); NI++; I2.d = d; I2.fn = fn; };
   function blit(c, spr, M, S0, f, al, op) { if (!spr || !spr.cv) return; const g = f / spr.k; c.save(); c.globalAlpha = al; if (op) c.globalCompositeOperation = op;
     c.transform(M[0] * g, M[2] * g, M[1] * g, M[3] * g, S0[0] + (M[0] * spr.x + M[1] * spr.y) * g, S0[1] + (M[2] * spr.x + M[3] * spr.y) * g); c.drawImage(spr.cv, 0, 0); c.restore(); }
-  /* draw(c, x, y, z, heading, pose, o): o = { T, sx, sy, t, scale, low, pet(c, X, Y) } */
-  function draw(c, x, y, z, a, P, o) {
-    o = o || {}; const t = o.t != null ? o.t : nowMs() / 1000, R = rig(P, t), V = mkView(x, y, z, a, o); LAST = { R, V, P };
-    if (!TX) buildTex(); if (!(P.alpha > 0.01) || !BK.k) return;
+  /* draw(c, x, y, z, heading, pose, o): o = { T, sx, sy, t, scale, low, pet(c, X, Y), sync (ms) }.
+     Every part of a frame is drawn from its own view of one camera, never a stand-in view of another angle: a part's
+     missing view is baked now (quick, within a hard cap); failing that the whole model is drawn at the nearest heading
+     at which every part is ready; failing that the last whole frame is held (moved to where the model now is). */
+  function drawSprite(c, x, y, z, a, P, o) {
+    o = o || {}; const t = o.t != null ? o.t : nowMs() / 1000; let R = rig(P, t);
+    if (!TX) buildTex(); if (!(P.alpha > 0.01) || !BK.k) { LAST = { R, V: mkView(x, y, z, a, o), P }; return; }
+    const K = o.cam ? camAt(o.cam[0], o.cam[1]) : null; let a2 = a, frozen = false;
+    MISS.length = 0;
+    const whole = coherent(R, a, K, MISS);
+    for (let i = MISS.length - 1; i >= 0; i--) want(MISS[i] + '#lo', true);
+    if (!whole) {
+      const cap = o.sync != null ? o.sync : !OK ? 12 : BK.held ? 8 : 4; if (cap > 0) bakeStep(cap + 1.5);
+      if (!coherent(R, a, K, null)) { let found = false;
+        for (let d = 1; d <= 3 && !found; d++) for (const sg of [1, -1]) { const a3 = a + sg * d * STEP; if (coherent(R, a3, K, null)) { a2 = a3; found = true; break; } }
+        if (!found) { if (!OK) { const V0 = mkView(x, y, z, a, o); LAST = { R, V: V0, P }; if (o.pet && !(R.hatch >= 0.98)) { const s3 = V0.toS(R.A.seat); o.pet(c, s3[0], s3[1]); } return; }
+          R = OK.R; a2 = OK.a; frozen = true; }   // (the last whole frame, held where the model now is, until its views are ready)
+      }
+    }
+    if (!frozen) OK = { R, a: a2, t }; BK.frozen = frozen; BK.held = frozen || a2 !== a;
+    const V = mkView(x, y, z, a2, o); LAST = { R, V, P }; BK.drawnOff = a2 - a;
     const al0 = P.alpha == null ? 1 : P.alpha, low = o.low != null ? o.low : lowFx(), glowK = cl(0.35 + 0.65 * (P.glow == null ? 0.5 : P.glow)), chK = cl(0.25 + 0.75 * (P.channel || 0));
     NI = 0;
     const shut = R.hatch >= 0.98; let hatchItem = null;
     for (const it of R.inst) {
-      const Pt = PARTS[it.part], Rw = mm(V.Rh, it.R), cam = camIn(Rw, V.K), vk = viewKey(Pt, cam), key = it.part + '|' + vk;
-      let spr = BK.spr.get(key), F;
-      if (!spr || spr.lo) { want(key, true); if (!spr) want(key + '#lo', true); }
-      if (spr && spr.cv !== undefined) F = spr.F; else { const nb = nearest(it.part, cam, Pt.kind === 'axis'); if (!nb) continue; spr = nb.s; F = nb.F; }
+      if (!(it.al > 0.004)) continue;
+      const Pt = PARTS[it.part], Rw = mm(V.Rh, it.R), cam = camIn(Rw, V.K), p = pick(Pt, it.part, cam); if (!p.spr) continue;
+      if (p.spr.lo || p.alt) want(p.alt || p.key);
+      const spr = p.spr, F = p.F, usedKey = p.key;
       const M = fitM(F, cam, Pt.w), oimg = Pt.kind === 'axis' ? [0, 0, 0] : Pt.c, base = vadd(it.o, mv(it.R, vmul(oimg, it.s))), S0 = V.toS(base), f = V.k * it.s;
       // a change of view fades over FADE seconds (the new picture under the old one fading out)
-      let st2 = STATE.get(it.name); const usedKey = spr === BK.spr.get(key) ? key : 'n:' + it.part + '|' + (F && F.D ? F.D.join() : '');
+      let st2 = STATE.get(it.name);
       if (!st2) { st2 = { key: usedKey, spr, F, prev: null, pF: null, t0: -9 }; STATE.set(it.name, st2); }
-      else if (st2.key !== usedKey) { if (t - st2.t0 > 0.03 && Math.abs(t - st2.t0) < 5) { st2.prev = st2.spr; st2.pF = st2.F; st2.t0 = t; } else st2.prev = null; st2.key = usedKey; st2.spr = spr; st2.F = F; }
+      else if (st2.key !== usedKey || st2.spr !== spr) { if (t - st2.t0 > 0.03 && Math.abs(t - st2.t0) < 5 && st2.key !== usedKey) { st2.prev = st2.spr; st2.pF = st2.F; st2.t0 = t; } else if (st2.key !== usedKey) st2.prev = null; st2.key = usedKey; st2.spr = spr; st2.F = F; }
       const fadeU = st2.prev ? (t - st2.t0) / FADE : 1, prev = fadeU < 1 && fadeU >= 0 ? st2.prev : null, pM = prev ? fitM(st2.pF, cam, Pt.w) : null;
       const al = al0 * it.al, gk = it.part === 'sword' ? chK : it.part === 'pod' ? cl(0.3 + 0.7 * (P.thrust == null ? 0.4 : P.thrust)) : glowK, dep = V.depth(vadd(it.o, mv(it.R, vmul(Pt.kind === 'axis' ? [(Pt.x0 + Pt.x1) / 2, 0, 0] : Pt.c, it.s)))) + it.dep;
       const fnI = () => { blit(c, spr, M, S0, f, al); if (prev) blit(c, prev, pM, S0, f, al * (1 - fadeU)); if (spr.gl && gk > 0.02 && !low || (spr.gl && it.part === 'sword')) blit(c, spr.gl, M, S0, f, al * gk, 'lighter'); };
@@ -867,6 +1131,52 @@ const SUSANO_MODEL = (() => {
     if (o.pet && !shut) { const s3 = V.toS(R.A.seat); o.pet(c, s3[0], s3[1]); }
     if (hatchItem) hatchItem();
   }
+
+  /* ================= drawing on the GPU =================
+     The posed meshes rendered live into one WebGL canvas sized to the model's bounds on screen (device pixels, capped),
+     laid into the game canvas as one image; the plumes and glows, the pet and the shadow stay 2D. With no WebGL (or a
+     lost context) the pictures above are drawn instead. */
+  let NOGL = false, GLMS = 0, GLR = 0, GLD = 0, GLN = 0; const GLI = [], GLJ = [];
+  // (a software rasteriser - a browser with no usable GPU - would take a large part of a second a frame: the pictures are
+  //  drawn there instead, unless asked: window.__SUSANO_GL = 1, for tests and studio renders)
+  const glOn = () => { if (NOGL || typeof GLM === 'undefined' || !GLM.ok()) return false; if (GLM.soft && !(typeof window !== 'undefined' && window.__SUSANO_GL)) return false; if (!MESH) { try { const t0 = nowMs(); MESH = buildMeshes(); MESH_MS = nowMs() - t0; } catch (e) { NOGL = true; return false; } } return true; };
+  let MESH_MS = 0;
+  const KIND = { blade: 1, sword: 2, hatch: 3, hub: 2, seat: 2 };
+  const meshOf = it => MESH[it.part === 'drumL' || it.part === 'drumR' ? it.part : it.part];
+  const GLCAP = 1600;
+  function glPass(c, V, R, P, o, list, al0) {
+    const k = V.k, K = V.K, PX = K ? K.EX : EXW, PY = K ? K.EY : [0, GY, -ZK], PD = K ? K.C : CW, X0 = V.toS([0, 0, 0]);
+    let bx0 = 1e9, by0 = 1e9, bx1 = -1e9, by1 = -1e9;
+    for (const it of list) { const Pt = PARTS[it.part], cc = Pt.kind === 'axis' ? [(Pt.x0 + Pt.x1) / 2, 0, 0] : Pt.c, rr = (Pt.kind === 'axis' ? Math.hypot((Pt.x1 - Pt.x0) / 2, Pt.hw) : Pt.R) * it.s * 1.04 * k, w = mv(V.Rh, vadd(it.o, mv(it.R, vmul(cc, it.s)))), sx = X0[0] + vdot(w, PX) * k, sy = X0[1] + vdot(w, PY) * k;
+      if (sx - rr < bx0) bx0 = sx - rr; if (sx + rr > bx1) bx1 = sx + rr; if (sy - rr < by0) by0 = sy - rr; if (sy + rr > by1) by1 = sy + rr; }
+    if (!(bx1 > bx0)) return;
+    const m = c.getTransform ? c.getTransform() : null, dev = (m ? Math.max(0.25, Math.hypot(m.a, m.b)) : 1) * (GLM.soft && !(typeof window !== 'undefined' && window.__SUSANO_GLHQ) ? 0.4 : 1);   // (a software rasteriser draws it at reduced resolution)
+    let W = Math.ceil((bx1 - bx0) * dev), H = Math.ceil((by1 - by0) * dev); const sc = Math.min(1, GLCAP / Math.max(W, H)); W = Math.max(2, Math.ceil(W * sc)); H = Math.max(2, Math.ceil(H * sc));
+    const bw = bx1 - bx0, bh = by1 - by0, tl = w => { const a = vdot(w, EXW), b = vdot(w, EYW), cc = vdot(w, CW); return K ? vadd(vadd(vmul(K.EX, a), vmul(K.EY, b)), vmul(K.C, cc)) : w; };
+    const S = { px: PX, py: PY, pd: PD, cl: [2 * k / bw, 2 * (X0[0] - bx0) / bw - 1, -2 * k / bh, 1 - 2 * (X0[1] - by0) / bh], v: PD, lk: tl(LW), ls: tl(SBW), lr: tl(RIMW), up: tl(UPW), low: o.low != null ? o.low : lowFx() };
+    const glowK = cl(0.35 + 0.65 * (P.glow == null ? 0.5 : P.glow)), chK = cl(0.25 + 0.75 * (P.channel || 0)), thK = cl(0.3 + 0.7 * (P.thrust == null ? 0.4 : P.thrust));
+    let n = 0; const items = GLJ; items.length = 0;
+    for (const it of list) { const Rw = mm(V.Rh, it.R), s2 = it.s, T = mv(V.Rh, it.o), al = al0 * it.al;
+      const g = GLI[n] || (GLI[n] = { R0: new Float32Array(3), R1: new Float32Array(3), R2: new Float32Array(3), T: new Float32Array(3) }); n++;
+      g.mesh = meshOf(it); if (!g.mesh) continue; for (let i = 0; i < 3; i++) { g.R0[i] = Rw.x[i] * s2; g.R1[i] = Rw.y[i] * s2; g.R2[i] = Rw.z[i] * s2; g.T[i] = T[i]; }
+      g.alpha = al; g.glow = it.part === 'sword' ? chK : it.part === 'pod' ? thK : glowK; g.kind = KIND[it.part] || 0; g.wear = 1; g.d = vdot(T, PD); items.push(g); }
+    items.sort((p, q) => (p.alpha > 0.995 ? 0 : 1) - (q.alpha > 0.995 ? 0 : 1) || (p.alpha > 0.995 ? 0 : p.d - q.d));
+    const t0 = nowMs(), cvs = GLM.render(W, H, S, items); if (!cvs) return; const t1 = nowMs();
+    c.drawImage(cvs, 0, 0, W, H, bx0, by0, bw, bh); const t2 = nowMs(); GLMS = GLMS * 0.9 + (t2 - t0) * 0.1; GLR = GLR * 0.9 + (t1 - t0) * 0.1; GLD = GLD * 0.9 + (t2 - t1) * 0.1; GLN++;
+    BK.glBox = [W, H];
+  }
+  function drawGL(c, x, y, z, a, P, o) {
+    o = o || {}; const t = o.t != null ? o.t : nowMs() / 1000, R = rig(P, t), V = mkView(x, y, z, a, o); LAST = { R, V, P };
+    if (!(P.alpha > 0.01)) return;
+    const al0 = P.alpha == null ? 1 : P.alpha, low = o.low != null ? o.low : lowFx(), shut = R.hatch >= 0.98;
+    const vis = R.inst.filter(it => it.al > 0.004), body = shut || !o.pet ? vis : vis.filter(it => !it.isHatch), hatch = shut || !o.pet ? null : vis.filter(it => it.isHatch);
+    glPass(c, V, R, P, o, body, al0);
+    lights(c, V, R, P, al0, low, t);
+    if (o.pet && !shut) { const s3 = V.toS(R.A.seat); o.pet(c, s3[0], s3[1]); }
+    if (hatch && hatch.length) glPass(c, V, R, P, o, hatch, al0);
+  }
+  /* draw(c, x, y, z, heading, pose, o): live on the GPU when it can; else the baked pictures */
+  function draw(c, x, y, z, a, P, o) { if (glOn()) { try { return drawGL(c, x, y, z, a, P, o); } catch (e) { NOGL = true; } } return drawSprite(c, x, y, z, a, P, o); }
   /* the live lights: the thruster plumes (and the robot's hover glow under its feet), the eyes, the cockpit core, the sword's
      channel and the charge at its point */
   function lights(c, V, R, P, al, low, t) {
@@ -910,37 +1220,41 @@ const SUSANO_MODEL = (() => {
   function keysFor(P, a, set, camv) { const R = rig(P, 0), Rh = rotZ(a), K = camv ? camAt(camv[0], camv[1]) : null; for (const it of R.inst) { const Pt = PARTS[it.part], cam = camIn(mm(Rh, it.R), K); set.add(it.part + '|' + viewKey(Pt, cam)); } return set; }
   const HEADINGS = Array.from({ length: 16 }, (_, i) => i * STEP);
   const poseOf = (o) => Object.assign(blankPose(), o);
-  /* the poses each form is drawn in (the sword's holds, leaning, banking, the dive's roll) */
+  /* the poses each form is drawn in besides its base (the sword's holds and the body's lean and bank): their quick views
+     follow the base set (A's moves add more; a view a frame lacks is baked then, or the frame waits on a whole one) */
   function plannedPoses(form) {
-    if (form === 'airship') return [poseOf({ form: 1 })];   // (banks and the Dive's quick roll draw from the nearest baked views)
-    return [poseOf({})];   // (the holds move only axis parts - arms, hands, sword - and every view round those is planned anyway)
+    if (form === 'airship') return [poseOf({ form: 1, bank: 0.8 }), poseOf({ form: 1, bank: -0.8 }), poseOf({ form: 1, pitch: 0.6 })];
+    return [poseOf({ sword: 'sweep', swordU: 0 }), poseOf({ sword: 'sweep', swordU: 0.5 }), poseOf({ sword: 'sweep', swordU: 1 }), poseOf({ sword: 'overhead', swordU: 0 }), poseOf({ sword: 'overhead', swordU: 1 }), poseOf({ sword: 'down', swordU: 1 }), poseOf({ lean: 0.8 }), poseOf({ bank: 0.8 }), poseOf({ bank: -0.8 })];
   }
-  /* warmPlan({ form: 'robot' | 'airship' | 'xform' | 'all', heading, lo }): order the bake queue. The quick half-size
-     pictures of the base pose at every heading first (so every heading is drawable soon), then the sharp ones nearest the
-     heading first; 'xform' adds every view the transformation passes through at that heading. Returns { pending, total }. */
+  /* warmPlan({ form: 'robot' | 'airship' | 'xform' | 'all', heading, lo }): order the bake queue so that whole, coherent
+     sets come first: the quick pictures of the base pose at the heading, then at the other headings (every 45 degrees
+     first, then between), the transformation's at the heading, the planned poses'; then the sharp ones in the same
+     order. Returns { pending, total }. */
   function warmPlan(o) {
+    if (glOn()) return { pending: 0, total: 0 };
     o = o || {}; const form = o.form || 'robot', a0 = o.heading || 0, b0 = Math.round(a0 / STEP);
-    const order = HEADINGS.map((_, i) => ((b0 + (i % 2 ? (i + 1) / 2 : -i / 2)) % 16 + 16) % 16);
+    const order = [0, 2, -2, 4, -4, 6, -6, 8, 1, -1, 3, -3, 5, -5, 7, -7].map(d => (((b0 + d) % 16) + 16) % 16);
     const forms = form === 'all' ? ['robot', 'airship', 'xform'] : [form];
     const keys = [], seen = new Set(), push = k => { if (!seen.has(k)) { seen.add(k); keys.push(k); } };
-    for (const fm2 of forms) {
-      if (fm2 === 'xform') { const s = new Set(); for (let i = 0; i <= 32; i++) keysFor(poseOf({ xf: i / 32 }), b0 * STEP, s); for (const k of s) push(k); continue; }
-      const base = poseOf(fm2 === 'airship' ? { form: 1 } : {});
-      if (o.lo !== false) for (const bi of order) for (const k of keysFor(base, bi * STEP, new Set())) push(k + '#lo');
-      for (const bi of order) for (const k of keysFor(base, bi * STEP, new Set())) push(k);
-      const ps = plannedPoses(fm2); for (const bi of order) { const s = new Set(); for (const p of ps) keysFor(p, bi * STEP, s); for (const k of s) push(k); }
+    const tiers = o.lo === false ? [''] : ['#lo', ''];
+    for (const tier of tiers) {
+      for (const fm2 of forms) {
+        if (fm2 === 'xform') { const s = new Set(); for (let i = 0; i <= 24; i++) keysFor(poseOf({ xf: i / 24 }), b0 * STEP, s); for (const k of s) push(k + tier); continue; }
+        const base = poseOf(fm2 === 'airship' ? { form: 1 } : {});
+        for (const bi of order) for (const k of keysFor(base, bi * STEP, new Set())) push(k + tier);
+      }
+      for (const fm2 of forms) { if (fm2 === 'xform') continue; const ps = plannedPoses(fm2); for (const bi of order.slice(0, 8)) { const s = new Set(); for (const p of ps) keysFor(p, bi * STEP, s); for (const k of s) push(k + tier); } }
     }
-    // axis parts: every view round them (cheap) after the base set
-    for (const nm of PART_NAMES) if (PARTS[nm].kind === 'axis') for (let i = 0; i < 16; i++) push(nm + '|a' + i);
     let pending = 0; const fresh = [];
     for (const k of keys) { if (doneKey(k)) continue; pending++; if (!BK.qset.has(k) && BK.genKey !== k) { BK.qset.add(k); fresh.push(k); } }
-    // the planned keys go ahead of anything queued for later, keeping draw-time requests in front
-    BK.queue = BK.queue.concat([]); BK.queue.push(...fresh);
-    const pri = new Map(keys.map((k, i) => [k, i])); BK.queue.sort((p, q) => (pri.has(p) ? pri.get(p) : -1) - (pri.has(q) ? pri.get(q) : -1));
+    // every quick picture of every plan before any sharp one; within a tier, in the order planned (a later plan's after an
+    // earlier's); the views a frame asked for stay in front
+    for (const k of keys) if (!BK.pri.has(k)) BK.pri.set(k, (k.endsWith('#lo') ? 0 : 1e7) + BK.prn++);
+    BK.queue.push(...fresh); const pri = BK.pri; BK.queue.sort((p, q) => (pri.has(p) ? pri.get(p) : -1) - (pri.has(q) ? pri.get(q) : -1));
     return { pending, total: keys.length };
   }
   /* is a form drawable (every part of its base pose baked, sharp or quick) at a heading? */
-  function ready(form, a, sharp) { if (!BK.k) return false; const s = keysFor(poseOf(form === 'airship' ? { form: 1 } : {}), Math.round((a || 0) / STEP) * STEP, new Set()); for (const k of s) { const sp = BK.spr.get(k); if (!sp || (sharp && sp.lo)) return false; } return true; }
+  function ready(form, a, sharp) { if (glOn()) return true; if (!BK.k) return false; const s = keysFor(poseOf(form === 'airship' ? { form: 1 } : {}), Math.round((a || 0) / STEP) * STEP, new Set()); for (const k of s) { const sp = BK.spr.get(k); if (!sp || (sharp && sp.lo)) return false; } return true; }
   let IDLE = false;
   function idleBake() { if (IDLE || !(BK.gen || !TX || BK.queue.length)) return; IDLE = true; const go = () => { IDLE = false; idleBake(); };
     if (typeof requestIdleCallback === 'function') requestIdleCallback(dl => { bakeStep(dl.didTimeout ? 2 : Math.max(1, Math.min(3, dl.timeRemaining() - 1))); go(); }, { timeout: 150 });
@@ -958,7 +1272,7 @@ const SUSANO_MODEL = (() => {
   const SPH = { torso: [[0, 0, 0.3, 0.3], [0, 0, 0.7, 0.42], [0.05, 0.3, 0.9, 0.24], [0.05, -0.3, 0.9, 0.24]], pelvis: [[0, 0, 0, 0.26]], skirt: [[-0.12, 0, -0.3, 0.2], [-0.1, 0.25, -0.5, 0.18], [-0.1, -0.25, -0.5, 0.18]], helmet: [[0.02, 0, 0.25, 0.2], [0.1, 0.15, 0.6, 0.06], [0.1, -0.15, 0.6, 0.06]],
     drumL: [[-0.02, -0.28, 0.04, 0.44]], drumR: [[-0.02, 0.28, 0.04, 0.44]], hub: [[0, 0, 0, 0.18]], hand: [[0, 0, 0.06, 0.1]], foot: [[0.1, 0, -0.06, 0.12]], seat: [[-0.05, 0, 0.12, 0.1]] };
   const axisSph = (Pt, n, r) => { const o = []; for (let i = 0; i < n; i++) o.push([Pt.x0 + 0.08 + (Pt.x1 - Pt.x0 - 0.16) * (i + 0.5) / n, 0, 0, r]); return o; };
-  const ASPH = { uarm: axisSph(PARTS.uarm, 3, 0.17), farm: axisSph(PARTS.farm, 3, 0.19), thigh: axisSph(PARTS.thigh, 3, 0.24), shin: axisSph(PARTS.shin, 3, 0.2), pod: axisSph(PARTS.pod, 4, 0.16), rail: axisSph(PARTS.rail, 3, 0.045), cradle: axisSph(PARTS.cradle, 2, 0.05), sword: axisSph(PARTS.sword, 14, 0.07) };
+  const ASPH = { uarm: axisSph(PARTS.uarm, 3, 0.17), farm: axisSph(PARTS.farm, 3, 0.19), thigh: axisSph(PARTS.thigh, 3, 0.24), shin: axisSph(PARTS.shin, 3, 0.2), pod: axisSph(PARTS.pod, 4, 0.16), rail: axisSph(PARTS.rail, 3, 0.07), cradle: axisSph(PARTS.cradle, 2, 0.05), sword: axisSph(PARTS.sword, 14, 0.07) };
   const base = n => n.replace(/[LR][0-6]?$/, '').replace(/[0-6]$/, '');
   function clearance(P) {
     const R = rig(P, 0), S2 = [];
@@ -973,8 +1287,8 @@ const SUSANO_MODEL = (() => {
   /* create({ T, dpr }): an instance with its own pose */
   function create(opts) { opts = opts || {}; if (opts.T) setScale(opts.T * (opts.dpr || 1) * (opts.scale || 1)); const P = blankPose();
     return { pose: P, draw: (c, x, y, z, a, P2, o) => draw(c, x, y, z, a, P2 || P, o), drawShadow: (c, x, y, z, a, P2, o) => drawShadow(c, x, y, z, a, P2 || P, o), anchor, anchorDir, warm: ms => bakeStep(ms) }; }
-  function warmIdle(T, dpr) { if (T > 0) setScale(T * (dpr || 1)); idleBake(); }
-  return { create, warm: ms => bakeStep(ms), warmIdle, warmPlan, ready, setScale, draw, drawShadow, anchor, anchorDir, ANCHORS, DIRS, blankPose, relax, CH, XF_STAGES, XF_BOUNDS, POSES, VIS, stagesAt, rig, clearance, SWORD: SW, VIEW: { GY, ZK },
-    __dbg: { get NTR() { return NTR; }, BK, PARTS, bakeStep, keysFor, viewKey, camIn, frameOfKey, want, get TX() { return TX; }, swordHold } };
+  function warmIdle(T, dpr) { if (glOn()) return; if (T > 0) setScale(T * (dpr || 1)); idleBake(); }
+  return { create, warm: ms => glOn() ? true : bakeStep(ms), warmIdle, warmPlan, ready, setScale, draw, drawShadow, anchor, anchorDir, ANCHORS, DIRS, blankPose, relax, CH, XF_STAGES, XF_BOUNDS, POSES, VIS, stagesAt, rig, clearance, SWORD: SW, VIEW: { GY, ZK },
+    __dbg: { get GLM() { return typeof GLM !== "undefined" ? GLM : null; }, get gl() { return glOn(); }, set noGL(v) { NOGL = !!v; }, get glStats() { const st2 = typeof GLM !== 'undefined' ? GLM.stats : {}; return Object.assign({}, st2, { ms: +GLMS.toFixed(2), renderMs: +GLR.toFixed(2), copyMs: +GLD.toFixed(2), frames: GLN, box: BK.glBox, meshMs: +MESH_MS.toFixed(1), meshTris: MESH ? Object.values(MESH).reduce((a, m) => a + (m ? m.ntri : 0), 0) : 0 }); }, get MESH() { return MESH; }, drawSprite, get NTR() { return NTR; }, BK, PARTS, bakeStep, keysFor, viewKey, camIn, frameOfKey, want, get TX() { return TX; }, swordHold } };
 
 })();

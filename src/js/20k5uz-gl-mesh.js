@@ -1,0 +1,257 @@
+/* ---------- GLM: a small self-contained WebGL mesh renderer (for models drawn live on the GPU: Susano O) ----------
+   Builds meshes procedurally (bevelled boxes, ellipsoids and domes, tubes and cones, tori, lathes, extruded outlines,
+   parametric surfaces), each vertex carrying a material id, an edge-wear weight and an occlusion term; renders posed
+   rigid parts into one offscreen WebGL canvas (WebGL2 where there is one, else WebGL1) with a physically based shader
+   (metal / roughness per material, a lacquer clear coat, a key light, a cool rim, a studio environment, procedural
+   seams, filigree, scratches, braid, emissive violet), which the 2D game canvas then draws as one image.
+   The context is made on first use; if WebGL is missing, or the context is lost, ok() says so (the model then draws its
+   own fallback); a restored context rebuilds the program and re-uploads every mesh. */
+const GLM = (() => {
+  /* ================= mesh building ================= */
+  // a builder: positions, normals, attributes (material id, edge wear, occlusion), indices; a frame stack (rotation
+  // columns x, y, z and an origin) the primitives are placed in
+  function builder(q) {
+    q = q || 1; const sq = (n, lo) => Math.max(lo || 3, Math.round(n * q));   // (q: the detail level - the round segment counts scale with it)
+    const P = [], N = [], A = [], I = []; let F = { x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1], o: [0, 0, 0] }; const stack = [];
+    const tp = p => [F.o[0] + F.x[0] * p[0] + F.y[0] * p[1] + F.z[0] * p[2], F.o[1] + F.x[1] * p[0] + F.y[1] * p[1] + F.z[1] * p[2], F.o[2] + F.x[2] * p[0] + F.y[2] * p[1] + F.z[2] * p[2]];
+    const tn = n => { const v = [F.x[0] * n[0] + F.y[0] * n[1] + F.z[0] * n[2], F.x[1] * n[0] + F.y[1] * n[1] + F.z[1] * n[2], F.x[2] * n[0] + F.y[2] * n[1] + F.z[2] * n[2]]; const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
+    const vtx = (p, n, m, e) => { const q = tp(p), nn = tn(n); P.push(q[0], q[1], q[2]); N.push(nn[0], nn[1], nn[2]); A.push(m, e || 0, 1); return P.length / 3 - 1; };
+    const quad = (a, b, c, d) => { I.push(a, b, c, a, c, d); };
+    const B = {
+      /* place what follows in a frame: columns x, y, z (need not be unit: a scale) and origin o, within the current one */
+      push(x, y, z, o) { stack.push(F); const nf = { x: [0, 0, 0], y: [0, 0, 0], z: [0, 0, 0], o: tp(o || [0, 0, 0]) }; const lin = v => [F.x[0] * v[0] + F.y[0] * v[1] + F.z[0] * v[2], F.x[1] * v[0] + F.y[1] * v[1] + F.z[1] * v[2], F.x[2] * v[0] + F.y[2] * v[1] + F.z[2] * v[2]]; nf.x = lin(x); nf.y = lin(y); nf.z = lin(z); F = nf; return B; },
+      at(o) { return B.push([1, 0, 0], [0, 1, 0], [0, 0, 1], o); },
+      /* a frame with x along d (from o), z as near zh as it can be */
+      along(o, d, zh) { const l = Math.hypot(d[0], d[1], d[2]) || 1, x = [d[0] / l, d[1] / l, d[2] / l]; zh = zh || (Math.abs(x[2]) < 0.9 ? [0, 0, 1] : [1, 0, 0]); let y = [zh[1] * x[2] - zh[2] * x[1], zh[2] * x[0] - zh[0] * x[2], zh[0] * x[1] - zh[1] * x[0]]; const ly = Math.hypot(y[0], y[1], y[2]) || 1; y = [y[0] / ly, y[1] / ly, y[2] / ly]; const z = [x[1] * y[2] - x[2] * y[1], x[2] * y[0] - x[0] * y[2], x[0] * y[1] - x[1] * y[0]]; return B.push(x, y, z, o); },
+      pop() { F = stack.pop(); return B; },
+      /* a box with rounded (bevelled) edges: centre c, half sizes h, bevel radius b; the bevels carry edge wear */
+      box(c, h, b, m, mf) { b = Math.min(b || 0, h[0], h[1], h[2]); if (b < 0.0065) b = 0; const S = hx => b > 0.07 ? [-hx, -hx + 0.3 * b, -hx + b, hx - b, hx - 0.3 * b, hx] : b > 1e-4 ? [-hx, -hx + b, hx - b, hx] : [-hx, hx];   // (a big bevel rounded in two steps, a small one chamfered)
+        const ax = [S(h[0]), S(h[1]), S(h[2])];
+        for (let f = 0; f < 6; f++) { const k = f >> 1, sg = f & 1 ? 1 : -1, u = (k + 1) % 3, v = (k + 2) % 3, U = ax[u], Vv = ax[v], base = P.length / 3;
+          for (let j = 0; j < Vv.length; j++) for (let i = 0; i < U.length; i++) { const q = [0, 0, 0]; q[k] = sg * h[k]; q[u] = U[i]; q[v] = Vv[j];
+            const inr = [Math.max(-h[0] + b, Math.min(h[0] - b, q[0])), Math.max(-h[1] + b, Math.min(h[1] - b, q[1])), Math.max(-h[2] + b, Math.min(h[2] - b, q[2]))];
+            let d = [q[0] - inr[0], q[1] - inr[1], q[2] - inr[2]]; const l = Math.hypot(d[0], d[1], d[2]); if (l < 1e-6) { d = [0, 0, 0]; d[k] = sg; } else d = [d[0] / l, d[1] / l, d[2] / l];
+            const p = b > 1e-4 ? [inr[0] + d[0] * b, inr[1] + d[1] * b, inr[2] + d[2] * b] : q, e = 1 - Math.abs(d[k]);
+            vtx([p[0] + c[0], p[1] + c[1], p[2] + c[2]], d, mf ? mf(p, d) : m, Math.min(1, e * 2.2)); }
+          const nu = U.length; for (let j = 0; j < Vv.length - 1; j++) for (let i = 0; i < nu - 1; i++) { const a = base + j * nu + i; if (sg > 0) quad(a, a + 1, a + nu + 1, a + nu); else quad(a, a + nu, a + nu + 1, a + 1); } }
+        return B; },
+      /* an ellipsoid (radii r) or a part of one: polar angle from th0 to th1 (0 = +z pole); seg round, rings down */
+      ell(c, r, m, o) { o = o || {}; const seg = sq(o.seg || 16, 6), rings = sq(o.rings || 10, 1), t0 = o.th0 || 0, t1 = o.th1 == null ? Math.PI : o.th1, base = P.length / 3, ph0 = o.ph0 || 0, ph1 = o.ph1 == null ? Math.PI * 2 : o.ph1;
+        for (let j = 0; j <= rings; j++) { const th = t0 + (t1 - t0) * j / rings, st = Math.sin(th), ct = Math.cos(th);
+          for (let i = 0; i <= seg; i++) { const ph = ph0 + (ph1 - ph0) * i / seg, x = st * Math.cos(ph), y = st * Math.sin(ph), z = ct;
+            const e = o.rim && j === rings ? 1 : o.rim && j === rings - 1 ? 0.5 : 0;
+            vtx([c[0] + r[0] * x, c[1] + r[1] * y, c[2] + r[2] * z], [x / r[0], y / r[1], z / r[2]], o.mf ? o.mf(x, y, z, j / rings) : m, e); } }
+        for (let j = 0; j < rings; j++) for (let i = 0; i < seg; i++) { const a = base + j * (seg + 1) + i; quad(a, a + seg + 1, a + seg + 2, a + 1); }
+        if (o.cap && t1 < Math.PI - 1e-3) { const zc = Math.cos(t1), rr = Math.sin(t1), cb = vtx([c[0], c[1], c[2] + r[2] * zc], [0, 0, -1], o.capM == null ? m : o.capM, 0), b2 = P.length / 3;
+          for (let i = 0; i <= seg; i++) { const ph = ph0 + (ph1 - ph0) * i / seg; vtx([c[0] + r[0] * rr * Math.cos(ph), c[1] + r[1] * rr * Math.sin(ph), c[2] + r[2] * zc], [0, 0, -1], o.capM == null ? m : o.capM, 0.6); }
+          for (let i = 0; i < seg; i++) I.push(cb, b2 + i + 1, b2 + i); }
+        return B; },
+      sph(c, r, m, seg) { return B.ell(c, [r, r, r], m, { seg: seg || 10, rings: Math.max(4, (seg || 10) >> 1) }); },
+      /* a tube from a to b (radii r1, r2), its ends capped: 'round' (a hemisphere), 'flat' or none */
+      tube(a, b, r1, r2, m, o) { o = o || {}; const seg = sq(o.seg || 12, 5), d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], L = Math.hypot(d[0], d[1], d[2]) || 1e-6;
+        B.along(a, d, o.up); const base = P.length / 3, sl = (r1 - r2) / L, nl = 1 / Math.hypot(1, sl), rs = o.rings || 1;
+        for (let j = 0; j <= rs; j++) { const u = j / rs, x = L * u, r = r1 + (r2 - r1) * u; for (let i = 0; i <= seg; i++) { const ph = i / seg * Math.PI * 2, cy = Math.cos(ph), sz = Math.sin(ph); vtx([x, r * cy, r * sz], [sl * nl, cy * nl, sz * nl], o.mf ? o.mf(u, ph) : m, o.edge || 0); } }
+        for (let j = 0; j < rs; j++) for (let i = 0; i < seg; i++) { const q = base + j * (seg + 1) + i; quad(q, q + 1, q + seg + 2, q + seg + 1); }
+        const capE = (x, r, sg, kind) => { if (!kind || r < 1e-4) return; if (kind === 'round') { const b0 = P.length / 3, rr = 3; for (let j = 0; j <= rr; j++) { const t = j / rr * Math.PI / 2, cx = Math.cos(t), sx = Math.sin(t); for (let i = 0; i <= seg; i++) { const ph = i / seg * Math.PI * 2; vtx([x + sg * r * sx, r * cx * Math.cos(ph), r * cx * Math.sin(ph)], [sg * sx, cx * Math.cos(ph), cx * Math.sin(ph)], m, 0); } }
+            for (let j = 0; j < rr; j++) for (let i = 0; i < seg; i++) { const q = b0 + j * (seg + 1) + i; if (sg > 0) quad(q, q + 1, q + seg + 2, q + seg + 1); else quad(q, q + seg + 1, q + seg + 2, q + 1); } }
+          else { const cc = vtx([x, 0, 0], [sg, 0, 0], o.capM == null ? m : o.capM, 0), b0 = P.length / 3; for (let i = 0; i <= seg; i++) { const ph = i / seg * Math.PI * 2; vtx([x, r * Math.cos(ph), r * Math.sin(ph)], [sg, 0, 0], o.capM == null ? m : o.capM, 0.8); } for (let i = 0; i < seg; i++) { if (sg > 0) I.push(cc, b0 + i, b0 + i + 1); else I.push(cc, b0 + i + 1, b0 + i); } } };
+        capE(0, r1, -1, o.cap0 == null ? 'round' : o.cap0); capE(L, r2, 1, o.cap1 == null ? 'round' : o.cap1);
+        return B.pop(); },
+      /* a torus round the z axis of the frame (centre c, ring radius R, tube radius r) */
+      tor(c, R, r, m, o) { o = o || {}; const seg = o.teeth ? o.seg || 24 : sq(o.seg || 24, 6), rs = sq(o.rseg || 8, 4), base = P.length / 3, ph0 = o.ph0 || 0, ph1 = o.ph1 == null ? Math.PI * 2 : o.ph1;
+        for (let j = 0; j <= seg; j++) { const ph = ph0 + (ph1 - ph0) * j / seg, cp = Math.cos(ph), sp = Math.sin(ph), rr = R + (o.teeth && (Math.floor(j * o.teeth / seg) & 1) ? o.tooth : 0);
+          for (let i = 0; i <= rs; i++) { const t = i / rs * Math.PI * 2, ct = Math.cos(t), st = Math.sin(t); vtx([c[0] + (rr + r * ct) * cp, c[1] + (rr + r * ct) * sp, c[2] + r * st], [ct * cp, ct * sp, st], m, 0.25 + 0.5 * Math.max(0, ct)); } }
+        for (let j = 0; j < seg; j++) for (let i = 0; i < rs; i++) { const a = base + j * (rs + 1) + i; quad(a, a + rs + 1, a + rs + 2, a + 1); }
+        return B; },
+      torX(c, R, r, m, o) { B.push([0, 1, 0], [0, 0, 1], [1, 0, 0], c); B.tor([0, 0, 0], R, r, m, o); return B.pop(); },
+      torY(c, R, r, m, o) { B.push([0, 0, 1], [1, 0, 0], [0, 1, 0], c); B.tor([0, 0, 0], R, r, m, o); return B.pop(); },
+      torZ(c, R, r, m, o) { return B.tor(c, R, r, m, o); },
+      /* a lathe round the frame's x axis: profile [[x, r, material], ...] (an open polyline; a material change is made
+         by repeating a point with the new material, so no triangle mixes two materials) */
+      lathe(prof, m, o) { o = o || {}; const seg = sq(o.seg || 20, 6), base = P.length / 3, n = prof.length, mt = j => prof[j][2] == null ? m : prof[j][2];
+        const same = (a, b) => Math.abs(prof[a][0] - prof[b][0]) + Math.abs(prof[a][1] - prof[b][1]) < 1e-7;
+        for (let j = 0; j < n; j++) { let ja = j - 1, jb = j + 1; while (ja >= 0 && same(ja, j)) ja--; while (jb < n && same(jb, j)) jb++;
+          if (ja >= 0 && mt(ja) !== mt(j) && jb < n) ja = j; if (jb < n && mt(jb) !== mt(j) && ja >= 0 && ja !== j) jb = j;
+          const pa = prof[Math.max(0, ja)], pb = prof[Math.min(n - 1, jb)], dx = pb[0] - pa[0], dr = pb[1] - pa[1], l = Math.hypot(dx, dr) || 1, nx = -dr / l, nr = dx / l;
+          for (let i = 0; i <= seg; i++) { const ph = i / seg * Math.PI * 2, cy = Math.cos(ph), sz = Math.sin(ph); vtx([prof[j][0], prof[j][1] * cy, prof[j][1] * sz], [nx, nr * cy, nr * sz], mt(j), o.edge ? o.edge(j) : 0); } }
+        for (let j = 0; j < n - 1; j++) { if (same(j, j + 1)) continue; for (let i = 0; i < seg; i++) { const a = base + j * (seg + 1) + i; quad(a, a + 1, a + seg + 2, a + seg + 1); } }
+        return B; },
+      /* a parametric surface: pos(u, v) for u, v in [0, 1] (nu x nv cells), m(u, v), e(u, v); normals from the grid */
+      surf(pos, nu, nv, m, o) { o = o || {}; const base = P.length / 3, G = [];
+        for (let j = 0; j <= nv; j++) for (let i = 0; i <= nu; i++) G.push(pos(i / nu, j / nv));
+        const at = (i, j) => G[Math.max(0, Math.min(nv, j)) * (nu + 1) + Math.max(0, Math.min(nu, i))];
+        for (let j = 0; j <= nv; j++) for (let i = 0; i <= nu; i++) { const a = at(i + 1, j), b = at(i - 1, j), c2 = at(i, j + 1), d = at(i, j - 1), du = [a[0] - b[0], a[1] - b[1], a[2] - b[2]], dv = [c2[0] - d[0], c2[1] - d[1], c2[2] - d[2]];
+          let n = [du[1] * dv[2] - du[2] * dv[1], du[2] * dv[0] - du[0] * dv[2], du[0] * dv[1] - du[1] * dv[0]]; if (o.flip) n = [-n[0], -n[1], -n[2]];
+          vtx(at(i, j), n, m(i / nu, j / nv), o.e ? o.e(i / nu, j / nv) : 0); }
+        for (let j = 0; j < nv; j++) for (let i = 0; i < nu; i++) { const a = base + j * (nu + 1) + i; if (o.flip) quad(a, a + nu + 1, a + nu + 2, a + 1); else quad(a, a + 1, a + nu + 2, a + nu + 1); }
+        return B; },
+      /* an outline (2D points in the frame's x-y plane, star-shaped about its centroid) extruded along z from z0 to z1;
+         the faces bevelled by b (the face inset, the sides chamfered) */
+      prism(pts, z0, z1, m, o) { o = o || {}; const n = pts.length, b = o.b || 0, cx = pts.reduce((s, p) => s + p[0], 0) / n, cy = pts.reduce((s, p) => s + p[1], 0) / n;
+        const ins = (p, k) => { const dx = p[0] - cx, dy = p[1] - cy, l = Math.hypot(dx, dy) || 1; return [p[0] - dx / l * k, p[1] - dy / l * k]; };
+        const face = (z, sg, mm) => { const c0 = vtx([cx, cy, z], [0, 0, sg], mm, 0), b0 = P.length / 3; for (let i = 0; i < n; i++) { const q = ins(pts[i], b); vtx([q[0], q[1], z], [0, 0, sg], o.mf ? o.mf(q[0], q[1], z) : mm, 0); } for (let i = 0; i < n; i++) { const a = b0 + i, c2 = b0 + (i + 1) % n; if (sg > 0) I.push(c0, a, c2); else I.push(c0, c2, a); } return b0; };
+        const zz0 = z0 + (b ? b : 0), zz1 = z1 - (b ? b : 0);
+        const f1 = face(z1, 1, m), f0 = o.back === false ? -1 : face(z0, -1, o.backM == null ? m : o.backM);
+        const ring = (z, k, nz) => { const r0 = P.length / 3; for (let i = 0; i < n; i++) { const p = ins(pts[i], k), pp = pts[(i + n - 1) % n], pn = pts[(i + 1) % n]; let tx = pn[0] - pp[0], ty = pn[1] - pp[1]; const l = Math.hypot(tx, ty) || 1; const nx = ty / l, ny = -tx / l; const sgn = ((p[0] - cx) * nx + (p[1] - cy) * ny) < 0 ? -1 : 1; vtx([p[0], p[1], z], [nx * sgn, ny * sgn, nz], o.sideM == null ? m : o.sideM, 1); } return r0; };
+        const rings = b ? [ring(z1, b, 0.7), ring(zz1, 0, 0), ring(zz0, 0, 0), ring(z0, b, -0.7)] : [ring(z1, 0, 0), ring(z0, 0, 0)];
+        for (let r = 0; r < rings.length - 1; r++) for (let i = 0; i < n; i++) { const a = rings[r] + i, c2 = rings[r] + (i + 1) % n, d = rings[r + 1] + (i + 1) % n, e = rings[r + 1] + i; quad(a, e, d, c2); }
+        if (b) { for (let i = 0; i < n; i++) { const a = f1 + i, c2 = f1 + (i + 1) % n; quad(a, c2, rings[0] + (i + 1) % n, rings[0] + i); } if (f0 >= 0) for (let i = 0; i < n; i++) { const a = f0 + i, c2 = f0 + (i + 1) % n; quad(a, rings[3] + i, rings[3] + (i + 1) % n, c2); } }
+        return B; },
+      /* the finished mesh (typed arrays) */
+      done() { const nv = P.length / 3; return { pos: new Float32Array(P), nrm: new Float32Array(N), att: new Float32Array(A), idx: nv > 65535 ? new Uint32Array(I) : new Uint16Array(I), nv, ntri: I.length / 3, gl: null }; },
+      get nv() { return P.length / 3; },
+    };
+    return B;
+  }
+
+  /* ================= the renderer ================= */
+  let gl = null, cv = null, prog = null, failed = false, lost = false, isGL2 = false, soft = false, U = {}, AT = {}, gen = 0, ext32 = null;
+  const VS = `
+attribute vec3 aP; attribute vec3 aN; attribute vec3 aA;
+uniform vec3 uR0, uR1, uR2, uT, uPX, uPY, uPD; uniform vec4 uCl;
+varying vec3 vW, vN, vL, vNL, vA;
+void main() {
+  vec3 w = uR0 * aP.x + uR1 * aP.y + uR2 * aP.z + uT;
+  vW = w; vN = uR0 * aN.x + uR1 * aN.y + uR2 * aN.z; vL = aP; vNL = aN; vA = aA;
+  gl_Position = vec4(dot(w, uPX) * uCl.x + uCl.y, dot(w, uPY) * uCl.z + uCl.w, 0.5 - dot(w, uPD) * 0.06, 1.0);
+}`;
+  const FS = `
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+precision highp float;
+#else
+precision mediump float;
+#endif
+varying vec3 vW, vN, vL, vNL, vA;
+uniform vec3 uV, uLK, uLS, uLR, uUP;
+uniform float uGlow, uAlpha, uKind, uLow, uWear;
+float hs(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float vn(vec2 p) { vec2 i = floor(p), f = p - i; vec2 u = f * f * (3.0 - 2.0 * f); return mix(mix(hs(i), hs(i + vec2(1.0, 0.0)), u.x), mix(hs(i + vec2(0.0, 1.0)), hs(i + vec2(1.0, 1.0)), u.x), u.y); }
+float tone(float v) { v = max(0.0, v); return v * (1.0 + v / 6.0) / (1.0 + v); }
+float env(vec3 r, float rough, out float ec) {
+  float up = dot(r, uUP);
+  float e = up >= 0.0 ? 0.18 + 0.48 * pow(up, 1.2) : 0.13 + 0.06 * (1.0 + up);
+  float hz = (up - 0.1) / (0.035 + rough * 0.3); e += 0.55 * exp(-hz * hz) / (1.0 + rough * 2.0);
+  float w = 0.05 + rough * 0.32, sb = dot(r, uLS); e += 3.3 * smoothstep(1.0 - 2.6 * w, 1.0 - 0.25 * w, sb) / (1.0 + rough * 2.5);
+  float rr = dot(r, uLR); ec = smoothstep(0.62 - w * 1.5, 0.97 - w * 0.5, rr) / (1.0 + rough * 2.0);
+  return e;
+}
+void main() {
+  int id = int(vA.x + 0.5); float edge = vA.y, ao = vA.z;
+  vec3 n = normalize(vN); if (dot(n, uV) < -0.02) n = -n;   // (a surface seen from inside, a thin shell: face the viewer)
+  vec3 L = vL, NL = normalize(vNL);
+  vec3 alb = vec3(0.03, 0.026, 0.038), F0 = vec3(0.17, 0.16, 0.21), em = vec3(0.0); float rough = 0.27, metal = 1.0, cav = 0.0, wear = 0.0, coat = 0.0;
+  if (id == 1) { alb = vec3(0.12, 0.12, 0.13); F0 = vec3(0.55, 0.56, 0.6); rough = 0.3; }
+  else if (id == 2) { alb = vec3(0.3, 0.3, 0.32); F0 = vec3(0.95, 0.95, 0.98); rough = 0.16; }
+  else if (id == 3) { alb = vec3(0.55, 0.38, 0.1); F0 = vec3(1.0, 0.78, 0.36); rough = 0.22; }
+  else if (id == 4) { alb = vec3(0.62, 0.05, 0.08); F0 = vec3(0.06, 0.05, 0.05); rough = 0.55; metal = 0.0; }
+  else if (id == 5) { alb = vec3(0.32, 0.012, 0.035); F0 = vec3(0.07, 0.06, 0.06); rough = 0.12; metal = 0.0; coat = 1.2; }
+  else if (id == 6 || id == 8) { float ndv = max(0.0, dot(n, uV)), k = 0.55 + 0.6 * ndv * ndv, fl = 0.85 + 0.3 * vn(L.xy * 30.0 + L.z * 7.0);
+    vec3 e = id == 6 ? vec3(0.85, 0.32, 1.7) : vec3(1.2, 0.85, 1.7); float g = 0.75 + 0.9 * uGlow;
+    gl_FragColor = vec4(vec3(tone(e.r * k * fl * g), tone(e.g * k * fl * g), tone(e.b * k * fl * g)) * uAlpha, uAlpha); return; }
+  else if (id == 7) { float k = 0.6 + 0.4 * ao; gl_FragColor = vec4(vec3(0.016, 0.012, 0.024) * k * uAlpha, uAlpha); return; }
+  else if (id == 9) { alb = vec3(0.55, 0.55, 0.6); F0 = vec3(0.9, 0.9, 0.95); rough = 0.2; }
+  else if (id == 10) { alb = vec3(0.025, 0.022, 0.03); F0 = vec3(0.05); rough = 0.55; metal = 0.0; }
+  else if (id == 11) { alb = vec3(0.2, 0.2, 0.22); F0 = vec3(0.7, 0.72, 0.77); rough = 0.14; }
+  else if (id == 12) { alb = vec3(0.5, 0.35, 0.8); F0 = vec3(0.7, 0.6, 0.85); rough = 0.12; em = vec3(0.65, 0.25, 1.3) * (0.5 + uGlow); }
+  else if (id == 13) { alb = vec3(0.4, 0.03, 0.05); F0 = vec3(0.05, 0.04, 0.04); rough = 0.5; metal = 0.0; }
+  else { coat = 1.0; }
+  // surface detail, from the part's own coordinates (it stays on the part as it moves)
+  if (metal > 0.5 && uLow < 0.5) { float s1 = abs(fract(L.x * 13.0 + L.y * 8.0 + L.z * 5.0 + vn(L.xz * 4.0) * 2.5) - 0.5);
+    if (s1 < 0.014 && hs(vec2(floor(L.x * 13.0 + L.y * 8.0 + L.z * 5.0), floor(L.z * 6.0))) > 0.62) { wear += 0.5; rough *= 0.55; }
+    n = normalize(n + (vec3(vn(L.yz * 13.0), vn(L.zx * 13.0 + 3.0), vn(L.xy * 13.0 + 7.0)) - 0.5) * (id == 2 || id == 9 ? 0.04 : 0.07)); }
+  if (id == 0) { float wn = vn(L.xy * 6.0 + L.z * 4.0); rough = min(0.5, rough * (0.75 + 0.6 * wn)); F0.b *= 1.0 + 0.12 * wn;
+    if (uKind < 0.5) { vec3 an = abs(NL); vec2 uv = an.z >= an.x && an.z >= an.y ? L.xy : an.y >= an.x ? L.xz : L.yz;
+      float row = floor(uv.y / 0.23), fu = fract(uv.x / 0.34 + mod(row, 2.0) * 0.5), fv = fract(uv.y / 0.23), du = min(fu, 1.0 - fu) * 0.34, dv = min(fv, 1.0 - fv) * 0.23, dm = min(du, dv);
+      float sw = 0.006 + 0.004 * uLow; if (dm < sw) cav += (1.0 - dm / sw) * 0.85; else if (dm < 0.02) wear += (0.02 - dm) / 0.014 * 0.25;
+      float rd = length(vec2(du, dv) - 0.03); if (rd < 0.012 && hs(floor(vec2(uv.x / 0.34 * 2.0 + 0.5, uv.y / 0.23 * 2.0 + 0.5))) > 0.45) { F0 = vec3(0.85, 0.85, 0.9); rough = 0.18; wear += 0.3; if (rd > 0.008) cav += 0.4; } }
+    float sc = vn(vec2(L.x * 44.0 + L.z * 21.0, L.y * 44.0 - L.z * 13.0)); if (sc > 0.82) wear += (sc - 0.82) * 2.2; }
+  if (id == 0 && uKind > 2.5) { vec2 q = vec2(abs(L.y), L.z + 0.3); float sc = abs(sin(q.x * 26.0 + cos(q.y * 18.0) * 1.6) * 0.5 + sin(q.y * 30.0 + q.x * 8.0) * 0.5); if (sc < 0.08 && L.x > 0.03) { alb = vec3(0.55, 0.38, 0.1); F0 = vec3(1.0, 0.78, 0.36); rough = 0.25; coat = 0.0; } }   // (the hatch: gold filigree inlaid in its obsidian field)
+  if (id == 1) { float s2 = abs(fract((L.x + L.z * 0.6) * 46.0 + vn(L.yx * 9.0) * 3.0) - 0.5); rough *= s2 < 0.12 ? 0.6 : 1.08; }
+  if (id == 3) { vec3 q = L * 26.0; float u = q.x + sin(q.z * 0.5) * 1.2, v = (q.y + q.z) * 0.7, sc = abs(sin(u) * 0.5 + sin(v * 0.8 + cos(u * 0.5) * 1.6) * 0.5);
+    if (sc < 0.08) { cav += (0.08 - sc) * 7.0; rough = min(0.6, rough + 0.15); }
+    float wn = vn(L.xy * 16.0 + L.z * 9.0); rough *= 0.7 + 0.8 * wn; if (wn < 0.3) F0 *= vec3(0.8, 0.72, 0.66); }
+  if (id == 9 && uKind > 0.5 && uKind < 1.5) { float x = L.x, w = x < 0.28 ? 0.0 : x < 1.0 ? mix(0.2, 0.5, sqrt((x - 0.28) / 0.72)) : 0.5 * pow(clamp(2.0 - x, 0.0, 1.0), 0.7);
+    float v = L.y - 0.42 * pow(clamp(x / 2.0, 0.0, 1.0), 2.0), vv = (v - w * 0.12) / max(0.02, w * 0.5);
+    if (abs(vv) < 0.75 && x > 0.4 && x < 1.75) { float ph = x * 13.0, c1 = abs(vv - 0.45 * sin(ph)), c2 = abs(vv + 0.45 * sin(ph)), cc = length(vec2(fract(x * 13.0 / 3.14159) - 0.5, vv * 0.6));
+      if (min(c1, c2) < 0.075 || abs(cc - 0.16) < 0.03) { cav += 0.55; rough = 0.35; F0 *= vec3(0.55, 0.55, 0.6); } }
+    if (abs(abs(vv) - 0.85) < 0.04 && x > 0.4) cav += 0.35; }
+  else if (id == 9) { float sc = abs(sin(L.x * 22.0) * 0.5 + sin(L.y * 30.0 + cos(L.x * 11.0) * 2.0) * 0.5); if (sc < 0.06) cav += 0.45; }
+  if (id == 4) { float a = (L.x * 1.3 + L.y + L.z * 0.7) * 52.0, b = (L.x * 0.7 - L.y * 1.1 + L.z * 1.2) * 52.0, f1 = sin(a), f2 = sin(b);
+    n = normalize(n + vec3(f1, f2, f1 - f2) * 0.3); if (abs(f1) < 0.2 || abs(f2) < 0.2) cav += 0.35; alb *= 0.8 + 0.4 * vn(vec2(L.x * 120.0 + L.y * 40.0, L.z * 120.0)); }
+  if (id == 13) { float an = atan(L.z, L.y), f1 = fract(L.x * 16.0 + an * 1.3), f2 = fract(L.x * 16.0 - an * 1.3); if (min(f1, 1.0 - f1) < 0.1 || min(f2, 1.0 - f2) < 0.1) cav += 0.6; }
+  if (id == 5) alb *= 0.8 + 0.4 * vn(L.xy * 20.0 + L.z * 10.0);
+  wear += edge * (id == 0 ? 1.1 * uWear : id == 3 ? 0.9 : 0.5);
+  float grime = min(0.85, (1.0 - ao) * 0.5 + cav * 0.5);
+  if (wear > 0.0 && metal > 0.5) { float v = min(1.0, wear); if (id == 0) { F0 = mix(F0, vec3(0.9, 0.9, 0.95), v * 0.75); rough = mix(rough, 0.14, v); } else { F0 = mix(F0, id == 3 ? vec3(1.0, 0.92, 0.62) : vec3(1.0, 0.95, 0.98), v * 0.45); } rough *= 1.0 - v * 0.4; }
+  float ndl = dot(n, uLK), ndv = max(0.001, dot(n, uV));
+  float dif = id == 4 ? max(0.0, (ndl + 0.25) / 1.25) : max(0.0, ndl);
+  float hm = 0.5 + 0.5 * dot(n, uUP); vec3 amb = mix(vec3(0.22, 0.16, 0.26), vec3(0.66, 0.64, 0.8), hm) * ao;
+  vec3 r = 2.0 * ndv * n - uV; float ec; float ev = env(r, rough, ec);
+  float fk = pow(1.0 - ndv, 5.0) * (1.0 - rough * 0.7); vec3 Fr = F0 + (1.0 - F0) * fk;
+  vec3 hh = normalize(uLK + uV); float nh = max(0.0, dot(n, hh)), pw = 2.0 / (rough * rough + 0.004), spec = pow(nh, pw) * (pw + 2.0) / 8.0 * max(0.0, ndl) * 0.9;
+  float aoS = min(1.0, ao * 0.85 + 0.15) * (1.0 - cav * 0.6);
+  float rimT = pow(1.0 - ndv, 2.6) * max(0.0, dot(n, uLR) + 0.35) * ao;
+  vec3 KEYC = vec3(1.5, 1.42, 1.36), RIMC = vec3(0.8, 0.55, 1.45), c;
+  if (metal > 0.5) c = alb * (dif * KEYC * 0.7 + amb * 0.5) + Fr * (ev * aoS + spec * KEYC) + ec * RIMC * Fr * aoS * 0.7;
+  else { float sk = id == 5 ? 5.0 : 2.5; c = alb * (dif * KEYC + amb) + Fr * (ev * aoS * 0.6 + spec * KEYC * sk) + ec * RIMC * 0.15; }
+  c += rimT * RIMC * 0.45;
+  if (coat > 0.0) { float ccF = 0.04 + 0.96 * pow(1.0 - ndv, 5.0), ec2; float ccE = env(r, 0.03, ec2); float ccS = pow(nh, 900.0) * 120.0 * max(0.0, ndl); float kk = (0.55 * ccF * (ccE + ec2 * 0.8) * aoS + 0.025 * ccS) * coat; c += kk * vec3(0.95, 0.93, 1.05); }
+  c *= 1.0 - grime * 0.55; c += em;
+  gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha);
+}`;
+  function compile() {
+    const sh = (t, s) => { const o = gl.createShader(t); gl.shaderSource(o, s); gl.compileShader(o); if (!gl.getShaderParameter(o, gl.COMPILE_STATUS)) throw new Error('GLM shader: ' + gl.getShaderInfoLog(o)); return o; };
+    const p = gl.createProgram(); gl.attachShader(p, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, FS));
+    gl.bindAttribLocation(p, 0, 'aP'); gl.bindAttribLocation(p, 1, 'aN'); gl.bindAttribLocation(p, 2, 'aA'); gl.linkProgram(p);
+    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error('GLM link: ' + gl.getProgramInfoLog(p));
+    prog = p; U = {}; for (const n of ['uR0', 'uR1', 'uR2', 'uT', 'uPX', 'uPY', 'uPD', 'uCl', 'uV', 'uLK', 'uLS', 'uLR', 'uUP', 'uGlow', 'uAlpha', 'uKind', 'uLow', 'uWear']) U[n] = gl.getUniformLocation(p, n);
+    ext32 = isGL2 ? true : gl.getExtension('OES_element_index_uint'); gen++;
+  }
+  /* is WebGL ready (made on first call)? */
+  function ok() {
+    if (failed) return false; if (gl) return !lost && !gl.isContextLost();
+    try {
+      if (typeof document === 'undefined') { failed = true; return false; }
+      cv = document.createElement('canvas'); cv.width = 64; cv.height = 64;
+      const opt = { alpha: true, premultipliedAlpha: true, antialias: !(typeof window !== 'undefined' && window.__GLNOAA), depth: true, stencil: false, preserveDrawingBuffer: false, powerPreference: 'default' };
+      gl = cv.getContext('webgl2', opt); isGL2 = !!gl; if (!gl) gl = cv.getContext('webgl', opt) || cv.getContext('experimental-webgl', opt);
+      if (!gl) { failed = true; return false; }
+      cv.addEventListener('webglcontextlost', e => { e.preventDefault(); lost = true; }, false);
+      cv.addEventListener('webglcontextrestored', () => { try { compile(); lost = false; } catch (e) { failed = true; } }, false);
+      try { const di = gl.getExtension('WEBGL_debug_renderer_info'), rn = String(di ? gl.getParameter(di.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)); soft = /swiftshader|llvmpipe|software|softpipe/i.test(rn); } catch (e) { soft = false; }   // (a CPU rasteriser: the model then renders at reduced resolution)
+      compile(); return true;
+    } catch (e) { failed = true; gl = null; return false; }
+  }
+  function upload(M) {
+    if (M.gl && M.gl.gen === gen) return M.gl;
+    if (M.idx instanceof Uint32Array && !ext32) return null;
+    const mk = (t, d) => { const b = gl.createBuffer(); gl.bindBuffer(t, b); gl.bufferData(t, d, gl.STATIC_DRAW); return b; };
+    M.gl = { gen, p: mk(gl.ARRAY_BUFFER, M.pos), n: mk(gl.ARRAY_BUFFER, M.nrm), a: mk(gl.ARRAY_BUFFER, M.att), i: mk(gl.ELEMENT_ARRAY_BUFFER, M.idx), it: M.idx instanceof Uint32Array ? gl.UNSIGNED_INT : gl.UNSIGNED_SHORT, n3: M.idx.length };
+    return M.gl;
+  }
+  /* refresh a mesh's attributes (occlusion) after it changed */
+  function touch(M) { if (M.gl && gl && M.gl.gen === gen) { gl.bindBuffer(gl.ARRAY_BUFFER, M.gl.a); gl.bufferData(gl.ARRAY_BUFFER, M.att, gl.STATIC_DRAW); } }
+  /* render a frame: W x H pixels; S = { px, py, pd (projection rows), cl ([ax, bx, ay, by]), v, lk, ls, lr, up, low };
+     items: [{ mesh, R0, R1, R2, T (part -> world), alpha, glow, kind, wear }] (opaque ones first). Returns the canvas. */
+  let calls = 0, tris = 0, LX = null;
+  function render(W, H, S, items) {
+    if (!ok()) return null;
+    if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+    gl.viewport(0, 0, W, H); gl.clearColor(0, 0, 0, 0); gl.clearDepth(1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL); gl.disable(gl.CULL_FACE); gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    gl.useProgram(prog);
+    gl.uniform3fv(U.uPX, S.px); gl.uniform3fv(U.uPY, S.py); gl.uniform3fv(U.uPD, S.pd); gl.uniform4fv(U.uCl, S.cl);
+    gl.uniform3fv(U.uV, S.v); gl.uniform3fv(U.uLK, S.lk); gl.uniform3fv(U.uLS, S.ls); gl.uniform3fv(U.uLR, S.lr); gl.uniform3fv(U.uUP, S.up); gl.uniform1f(U.uLow, S.low ? 1 : 0);
+    gl.enableVertexAttribArray(0); gl.enableVertexAttribArray(1); gl.enableVertexAttribArray(2);
+    calls = 0; tris = 0; let lastM = null;
+    for (const it of items) { const g = upload(it.mesh); if (!g) continue;
+      if (lastM !== g) { gl.bindBuffer(gl.ARRAY_BUFFER, g.p); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0); gl.bindBuffer(gl.ARRAY_BUFFER, g.n); gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0); gl.bindBuffer(gl.ARRAY_BUFFER, g.a); gl.vertexAttribPointer(2, 3, gl.FLOAT, false, 0, 0); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, g.i); lastM = g; }
+      gl.uniform3fv(U.uR0, it.R0); gl.uniform3fv(U.uR1, it.R1); gl.uniform3fv(U.uR2, it.R2); gl.uniform3fv(U.uT, it.T);
+      gl.uniform1f(U.uAlpha, it.alpha); gl.uniform1f(U.uGlow, it.glow); gl.uniform1f(U.uKind, it.kind || 0); gl.uniform1f(U.uWear, it.wear == null ? 1 : it.wear);
+      gl.depthMask(it.alpha > 0.995);
+      gl.drawElements(gl.TRIANGLES, g.n3, g.it, 0); calls++; tris += g.n3 / 3; }
+    gl.depthMask(true);
+    return cv;
+  }
+  return { builder, ok, render, touch, get stats() { return { calls, tris, gl2: isGL2, lost, failed, soft }; }, get soft() { return soft; }, get canvas() { return cv; }, loseForTest() { LX = gl && gl.getExtension('WEBGL_lose_context'); if (LX) LX.loseContext(); return !!LX; }, restoreForTest() { if (LX) LX.restoreContext(); } };
+})();

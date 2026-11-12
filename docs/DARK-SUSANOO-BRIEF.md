@@ -439,3 +439,44 @@ The API, channel names, anchors and stages are all unchanged. Additions and chan
   - `hipYaw` (radians, clamped to ±0.4): the pelvis, skirt and leg roots turn against the torso while the feet stay planted. Robot only.
   - `swordArc` (default 1, 0.5..1.6): scales the `sweep` path's angle and radius. The wind-up is capped at 1.2 and the follow-through at 1.08, so the forearm never cuts through the chest.
   - Hand grips were re-checked over every hold × u × swordArc × hipYaw × legSwing: the reach shortfall is ≤ 0.03 everywhere. The worst clearance is about −0.1 (a forearm brushing a thigh at hipYaw 0.4 in `rest`).
+
+### M — round 3 (2026-11-12): live WebGL rendering
+
+The user asked for it to be "drawn on the GPU". Susano O is now a real rigged 3D model, rendered live every frame. There is no per-view baking on the GL path.
+
+**The API is unchanged.**
+- `draw(c, x, y, z, heading, pose, o)`, `drawShadow`, `anchor`, `anchorDir`, every pose channel, `XF_STAGES`, `POSES`, the holds and the hatch all behave as before.
+- The draw order inside `draw` is unchanged: the body, then the 2D plumes and glows, then the pet (only while the hatch is open), then the hatch.
+- A and E don't need to change anything.
+
+**New file `src/js/20k5uz-gl-mesh.js` (`GLM`).** It loads before the model. It is a small WebGL renderer with no library:
+- WebGL2 where available, else WebGL1;
+- a procedural mesh builder: bevelled boxes, ellipsoids and domes, tubes, tori (with gear teeth), lathes, extruded outlines and swept surfaces;
+- one material per triangle;
+- a physically based shader:
+  - metal and roughness per material;
+  - a clear-coat on the obsidian and enamel;
+  - a key light, a violet rim and a studio environment;
+  - procedural panel seams and rivets, gold filigree, brushed and scratched metal, braided rope, the grip wrap, the blade engraving, the hatch filigree;
+  - emissive violet;
+- context-loss and restore handling.
+
+**The model** (`20k5v`) builds every part as a mesh at first use, in about 50–100 ms of CPU on desktop.
+- The meshes reuse each part's shape frame and dimensions, and the existing rig drives them, so the transformation is continuous.
+- Each frame, the posed parts render into one offscreen WebGL canvas sized to the model's bounds on screen (device pixels, capped at 1600), which is then drawn into the game canvas with `drawImage`.
+- 34k triangles in the meshes, about 51k drawn (instanced parts such as the 14 blades); 44 draw calls a frame.
+- The low-effects setting builds the meshes at lower detail.
+
+**Fallback.** If there is no WebGL, the context is lost, or the renderer is a software rasteriser (no usable GPU), the old sprite path draws instead.
+- The sprite path now never mixes views. If a part's view is missing, it is baked within a per-frame cap. Failing that, the whole model is drawn at the nearest heading where every part is ready, or the last complete frame is held.
+- On a restored context, GL picks up again by itself.
+- Our headless test browser has only SwiftShader, so the tests run the sprite path by default.
+- Set `window.__SUSANO_GL = 1` to force GL there; it costs about 0.3–0.4 s a frame in SwiftShader, mostly the `drawImage` that waits for the CPU rasteriser.
+
+**Sizing and other changes.**
+- `VIS` is now 1.1, down from 1.45 in round 2; A's `zoomR` 0.86 is kept. The robot now fits a 390×844 screen with room to play. A's hit radii in tiles may want to shrink by about 25% to match.
+- **Design:**
+  - a reactor pack on the back, with the pods seated in gold sockets;
+  - the rail arms now telescope out of the pack, so in robot form they are no longer loose sticks;
+  - thicker, armoured rails.
+- `warm`, `warmPlan` and `warmIdle` return at once on the GL path; nothing needs baking.
