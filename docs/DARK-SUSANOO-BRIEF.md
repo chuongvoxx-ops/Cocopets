@@ -712,3 +712,17 @@ The transformation is clean: nothing collides visibly at xf 0.15–1, and the sp
 **Clearances.**
 - At hard-left aims the forearm passes close to the left fan's blades (sphere approximation −0.09; −0.18 if aimed upward).
 - In the transformation the worst is a helmet/forearm graze at xf ≈ 0.52 (−0.11).
+- (E, 2026-11-12, Death Bombs) **Robot Strong 1 is now Death Bombs; the Death Ray laser is deleted.**
+  - **API:** `SM.deathBombs(ctx)`. `SM.deathRay` and `SM.darkBlade` point to the same function, so the core's current slot already plays it.
+  - **Icon:** `SM.icons.deathBombs(x, cx, cy, r, rd)` (five orbs arcing over a glowing circle with a star), drawn between `btnFace` and `btnRim`. `SM.icons.deathRay` is the same glyph for now.
+  - **Label:** "DEATH BOMBS". The coordinator wires it in `20k5w`.
+  - **Targets:** the nearest enemies within 6.5 tiles come first, skipping any that would overlap an earlier circle; the remaining bombs go to a fan of spread spots along the aim.
+    - Every spot is checked along the line of sight: stopped 0.5 short of a wall, then moved to `nearestLand` if it isn't ground.
+    - `ctx.bombPlan = [{ x, y, R, t }]` is readable for tests.
+  - **Timeline:**
+    - 0.25 s wind-up (`rayAim`);
+    - launches 0.08 s apart (`rayHold`, with extra `{ x, y }` at each bomb's target, so the arm points at each in turn);
+    - `rayRecoil` for 0.3 s, then `done()` at about 0.87 s;
+    - each bomb flies 0.32–0.5 s, sinks in, and its circle blooms;
+    - the circle bursts 0.55 s after landing, with bursts at least 0.12 s apart, as a ripple.
+  - **Damage:** 2.5 × DK per burst to each enemy inside that circle (radius 1.8 / 1.9 / 2.0), at most 2 hits per enemy (so at most 5 × DK), charging the meter. The cooldown stays 2.5 s.

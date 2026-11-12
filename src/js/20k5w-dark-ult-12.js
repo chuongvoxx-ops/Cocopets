@@ -40,7 +40,7 @@
     summon: 2.6,                                   // s: the assembly, until the robot can move
     size: 1,                                       // the model's drawn scale
     zoomR: 0.86, zoomA: 0.8,                       // the camera's zoom in robot and airship form
-    camLift: 0.5,                                  // tiles: in the air the camera centres this far above the ship's drawn anchor (its hull's middle)
+    camLift: 0.4,                                  // tiles: in the air the camera aims this far above the ship's drawn centre, so the ship sits a little under the screen's middle
     hover: 0.35,                                   // tiles: the robot floats this high on its foot exhaust
     robotAcc: 9,                                   // 1/s: how fast its glide reaches the stick's speed (mass)
     turn: { max: 6.0, k: 8, acc: 30 },            // its heading: rad/s cap, gap closing, turn-rate easing (as Nidhogg's)
@@ -150,10 +150,10 @@
   };
   let MVC = null, MVK = null;
   function moves() { let SM = null; try { SM = typeof self !== 'undefined' && self.SUSANOO_MOVES ? self.SUSANOO_MOVES : null; } catch (e) { SM = null; } if (!SM) return STUB;
-    const key = [SM.deathRay, SM.darkBlade, SM.darkSpikes, SM.pulsar, SM.messiah, SM.TUNE, SM.warm, SM.update, SM.drawUnder, SM.drawOver];
+    const key = [SM.deathBombs, SM.deathRay, SM.darkBlade, SM.darkSpikes, SM.pulsar, SM.messiah, SM.TUNE, SM.warm, SM.update, SM.drawUnder, SM.drawOver];
     if (MVC && MVK && MVK.every((v, i) => v === key[i])) return MVC; MVK = key;
     const pick = k => typeof SM[k] === 'function' ? SM[k] : STUB[k];
-    return (MVC = { TUNE: SM.TUNE || {}, darkBlade: typeof SM.deathRay === 'function' ? SM.deathRay : pick('darkBlade'),   /* (Strong 1: Death Ray, the old slot name as the fallback) */ darkSpikes: pick('darkSpikes'), pulsar: pick('pulsar'), messiah: pick('messiah'), warm: SM.warm, update: SM.update, drawUnder: SM.drawUnder, drawOver: SM.drawOver, SM }); }
+    return (MVC = { TUNE: SM.TUNE || {}, darkBlade: typeof SM.deathBombs === 'function' ? SM.deathBombs : typeof SM.deathRay === 'function' ? SM.deathRay : pick('darkBlade'),   /* (Strong 1: Death Bombs from v313, the older names as fallbacks) */ darkSpikes: pick('darkSpikes'), pulsar: pick('pulsar'), messiah: pick('messiah'), warm: SM.warm, update: SM.update, drawUnder: SM.drawUnder, drawOver: SM.drawOver, SM }); }
 
   /* ================= the animation (round 2, the user: "more lively, more realistic movements, bigger and wilder swings
      ... more fluid") =================
@@ -414,7 +414,11 @@
        the ground under it, so the airship sits mid-screen instead of in the top half; its velocity / 6 leads the aim
        by exactly the lag of 20b's camera follow, dtReal * 6, so it stays centred at full speed too) */
     const air = S.phase === 'air' || S.phase === 'messiah' ? 1 : S.phase === 'xform' ? sstep(0, XFT.total, S.xt) : 0;
-    if (air > 0 && !(c && c.x != null)) return { x: d.x + (d.vx || 0) / 6 * air, y: d.y + ((d.vy || 0) / 6 - (d.z || 0) * ZK - TUNE.camLift) * air, k: air, zoom: c && c.zoom ? c.zoom : zf };
+    /* (v313: the target is the model's own drawn centre, its 'center' anchor projected to the screen, since the drawn ship sits
+       well above d.z * ZK at the model's scale; camLift then sets it a little below the screen's middle, clear of the HUD) */
+    if (air > 0 && !(c && c.x != null)) { const M0 = S.ctx && S.ctx.model, p = M0 && M0.anchor ? M0.anchor('center') : null, okp = p && isFinite(p.x) && isFinite(p.y) && isFinite(p.z);
+      const bx = okp ? p.x : d.x, by = okp ? p.y - p.z * ZK : d.y - (d.z || 0) * ZK - 1.8;
+      return { x: d.x + (bx - d.x + (d.vx || 0) / 6) * air, y: d.y + (by - d.y + (d.vy || 0) / 6 - TUNE.camLift) * air, k: air, zoom: c && c.zoom ? c.zoom : zf }; }
     return { x: c && c.x != null ? c.x : d.x, y: c && c.y != null ? c.y : d.y, k: c && c.x != null ? (c.k != null ? c.k : 0.6) : 0, zoom: c && c.zoom ? c.zoom : zf }; }
 
   /* ---- targeting (Nidhogg's): an enemy near the stick's aim line, else the ground along it; no stick: the nearest ---- */
@@ -896,7 +900,7 @@
       if (busy) { c.save(); c.lineWidth = 3; c.strokeStyle = rgba(VIO2, 0.85); c.beginPath(); c.arc(b.x, b.y, b.r + 2, t * 6, t * 6 + 1.6); c.stroke(); c.restore(); }
       if (cd > 0.05) { c.beginPath(); c.moveTo(b.x, b.y); c.arc(b.x, b.y, b.r, -Math.PI / 2, -Math.PI / 2 + TAU * Math.min(1, cd / cdMax)); c.closePath(); c.fillStyle = 'rgba(8,4,14,.55)'; c.fill(); GFX.textS(c, cd.toFixed(1), b.x, b.y, 13, '#FFFFFF'); }
       GFX.labelS(c, label, b.x, b.y + b.r + 9, 8, 800, '#E6DCFF', 'rgba(0,0,0,.7)', 3); };
-    if (!air) { btn(B.s[0], 'blade', 'DEATH RAY', S.cd.blade, TUNE.cdBlade, paintRayBtn, S.busy === 'blade');   /* (round 6: Strong 1 is E's Death Ray; the slot key stays 'blade') */ btn(B.s[1], 'spikes', 'DARK SPIKES', S.cd.spikes, TUNE.cdSpikes, paintSpikesBtn, S.busy === 'spikes'); btn(B.d, 'glides', 'GLIDES', 0, 1, paintGlideBtn, !!S.glide);   /* (round 6: no cooldown) */
+    if (!air) { btn(B.s[0], 'blade', 'DEATH BOMBS', S.cd.blade, TUNE.cdBlade, paintRayBtn, S.busy === 'blade');   /* (v313: Strong 1 is E's Death Bombs; the slot key stays 'blade') */ btn(B.s[1], 'spikes', 'DARK SPIKES', S.cd.spikes, TUNE.cdSpikes, paintSpikesBtn, S.busy === 'spikes'); btn(B.d, 'glides', 'GLIDES', 0, 1, paintGlideBtn, !!S.glide);   /* (round 6: no cooldown) */
       { // the combo's stage: four pips over the button, lit to the current stage while the combo runs (the finisher's pip glows white)
         const b = B.d, n = S.glide ? S.glide.n : (S.comboN && t - S.comboT <= TUNE.combo.win ? S.comboN : 0);
         for (let i = 0; i < 4; i++) { const a = -Math.PI / 2 + (i - 1.5) * 0.36, px = b.x + Math.cos(a) * (b.r + 7), py = b.y + Math.sin(a) * (b.r + 7), on = i < n;
@@ -931,7 +935,7 @@
     const g = x.createLinearGradient(0, r * 0.5, r * 0.6, -r * 0.4); g.addColorStop(0, rd ? 'rgba(40,10,70,.9)' : 'rgba(40,30,50,.8)'); g.addColorStop(1, rd ? 'rgba(201,162,255,.9)' : 'rgba(120,110,140,.6)'); x.fillStyle = g; x.beginPath(); x.moveTo(-r * 0.1, r * 0.5); x.quadraticCurveTo(r * 0.2, -r * 0.6, r * 0.62, -r * 0.3); x.quadraticCurveTo(r * 0.4, r * 0.1, r * 0.5, r * 0.5); x.closePath(); x.fill();
     x.rotate(1.2); x.translate(-r * 0.62, r * 0.1); blade(x, rd, r * 0.62, r * 0.075); x.restore(); btnRim(x, cx, cy, r, rd); }
   /* Death Ray: E's glyph (a hand's ray onto a glowing circle) between the face and the rim; the old blade glyph without it */
-  function paintRayBtn(x, cx, cy, r, rd) { const SM = moves().SM, ic = SM && SM.icons && SM.icons.deathRay; if (!ic) { paintBladeBtn(x, cx, cy, r, rd); return; } btnFace(x, cx, cy, r, rd); try { ic(x, cx, cy, r, rd); } catch (e) { /* (theirs) */ } btnRim(x, cx, cy, r, rd); }
+  function paintRayBtn(x, cx, cy, r, rd) { const SM = moves().SM, ic = SM && SM.icons && (SM.icons.deathBombs || SM.icons.deathRay); if (!ic) { paintBladeBtn(x, cx, cy, r, rd); return; } btnFace(x, cx, cy, r, rd); try { ic(x, cx, cy, r, rd); } catch (e) { /* (theirs) */ } btnRim(x, cx, cy, r, rd); }
   /* Dark Spikes: obsidian formations bursting up round a planted sword */
   function paintSpikesBtn(x, cx, cy, r, rd) { btnFace(x, cx, cy, r, rd); x.save(); x.translate(cx, cy + r * 0.35); x.globalAlpha = rd ? 1 : 0.55;
     for (const [dx, h, w] of [[-0.45, 0.5, 0.14], [-0.2, 0.75, 0.16], [0.25, 0.62, 0.15], [0.48, 0.42, 0.12]]) { x.fillStyle = rd ? '#120E18' : '#0E0C12'; x.beginPath(); x.moveTo((dx - w) * r, 0); x.lineTo(dx * r, -h * r); x.lineTo((dx + w) * r, 0); x.closePath(); x.fill(); x.strokeStyle = rd ? '#B488FF' : 'rgba(180,136,255,.35)'; x.lineWidth = 1.2; x.beginPath(); x.moveTo(dx * r, -h * r); x.lineTo((dx + w * 0.3) * r, 0); x.stroke(); }
