@@ -48,6 +48,8 @@ const GLM = (() => {
           for (let i = 0; i <= seg; i++) { const ph = ph0 + (ph1 - ph0) * i / seg; vtx([c[0] + r[0] * rr * Math.cos(ph), c[1] + r[1] * rr * Math.sin(ph), c[2] + r[2] * zc], [0, 0, -1], o.capM == null ? m : o.capM, 0.6); }
           for (let i = 0; i < seg; i++) I.push(cb, b2 + i + 1, b2 + i); }
         return B; },
+      /* a spike: a faceted, bevelled cone from base a to a sharp tip b (base radius r); its ridges carry edge wear */
+      spike(a, b, r, m, o) { o = o || {}; return B.tube(a, b, r, 0.0015, m, { seg: o.seg || 6, cap0: 'flat', cap1: false, edge: 0.7, up: o.up }); },
       sph(c, r, m, seg) { return B.ell(c, [r, r, r], m, { seg: seg || 10, rings: Math.max(4, (seg || 10) >> 1) }); },
       /* a tube from a to b (radii r1, r2), its ends capped: 'round' (a hemisphere), 'flat' or none */
       tube(a, b, r1, r2, m, o) { o = o || {}; const seg = sq(o.seg || 12, 5), d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], L = Math.hypot(d[0], d[1], d[2]) || 1e-6;

@@ -14,13 +14,15 @@
    - SM.pulsar(ctx): Shockwave Pulsar. A compact white-violet charge at the docked sword's point, a short bright ray to the
      ground, the darkness compressing to a point, then a black-violet shockwave: one hit per enemy within its radius
      (the drawn footprint), once per cast.
-   - SM.messiah(ctx): Dark Messiah. Energy runs from the thrusters and wing roots through the hull into the sword's
-     channel, a violet-white charge at the point inside a turning ring; one massive dark beam from the point to the
-     ground (a dark core, a bright violet boundary, twisting filaments, turbulent smoke); the darkness compresses into a
-     dense sphere and erupts: a black-violet bloom, a brilliant purple shockfront, rising columns of shadow, ground rings,
-     lifted debris. ONE decisive hit per enemy, dealt as the drawn shockfront reaches it (noCharge). Then
-     ctx.safeReturn() and ctx.done(); the cloud fades on its own. The explosion may cover the pet (the user's rule for
-     finishers); everything else never does.
+   - SM.messiah(ctx): Dark Messiah (v2, the user's design). Dark pulsing energy is drawn in from all round into the
+     airship's underbelly (tendrils, spiralling motes, inward pulses beating faster); it condenses into one small speck of
+     purple-white light (a beat of near-silence); the ship drops the speck, which falls with a thin trail onto the
+     telegraphed ground; then a nuclear-style blast of dark energy: core flash, shockwave dome, pulsing dark ground rings,
+     glowing fractures, a fireball rising into a column and a rolling mushroom cap lit from within, thousands of sparks,
+     embers, debris and dark motes, a lingering pulse. ONE decisive hit per enemy, dealt as the dome's front reaches it
+     (noCharge). Then ctx.safeReturn() and ctx.done(); the cloud fades on its own. The explosion may cover the pet.
+     Drawn on the GPU by SUSANOO_GFX (end of this file) where WebGL runs on real hardware; a simplified 2D fallback
+     otherwise.
    Soft by construction: every flame of darkness is a baked sprite with feathered edges (no strokes for bodies, no crisp
    rims). Sprites bake lazily in slices (SM.warm(ms)); particles are pooled; nothing uses timers: one per-session fx steps
    the acts and checks ctx.alive() every frame, dropping everything (no damage) when the session ends. */
@@ -46,9 +48,11 @@
     spikes: { erupt: 2.5, burst: 3.0, turn: 0.3, plunge: 0.12, fissure: 0.26, timeK: 0.55, recoil: 0.35, cd: 3.5 },
     /* Shockwave Pulsar: aim, charge, a short ray, the compression, then one hit per enemy within r (the drawn footprint) */
     pulsar: { dmg: 5.0, r: [2.8, 3.0, 3.2], aim: 0.14, charge: 0.28, ray: 0.12, squeeze: 0.08, recoil: 0.3, kb: 4, cd: 2.0 },
-    /* Dark Messiah: charge, the beam (no damage of its own), the compression, then the explosion: blast x DK once per
+    /* Dark Messiah: gather, condense, drop (no damage), then the explosion: blast x DK once per
        enemy within R (the drawn shockfront), noCharge. blast [tier 0/1/2 = evo 1-3 / 4-6 / 7] is from H's damage audit (the brief's Notes, 2026-11-12) */
-    messiah: { charge: 2.6, beam: 1.6, squeeze: 0.32, front: 0.42, blast: [130, 175, 210], R: [7.0, 7.5, 8.0], kb: 7, cloud: 4.2, settle: 0.9, zoom: 0.62 },
+    messiah: { gather: 2.4, condense: 0.6, drop: 0.55, bellyDrop: 0.9, front: 0.42, blast: [130, 175, 210], R: [7.0, 7.5, 8.0], kb: 7, cloud: 5.6, settle: 0.9, zoom: 0.7,
+      /* the GPU layer: canvas scale, its cap, low-effects scale and point share */
+      gpu: { res: 0.5, resLow: 0.36, maxSide: 1100, lowK: 0.4 } },
   };
 
   /* ================= baked sprites (per-pixel, a few rows per slice) ================= */
@@ -367,6 +371,13 @@
   }
 
   /* ================= Dark Messiah ================= */
+  /* ================= Dark Messiah (v2: gather, condense, drop, detonate) =================
+     Gather: dark pulsing energy drawn in from all round into the airship's underbelly (tendrils, spiralling motes, pulses
+     beating faster). Condense: all of it collapses to one small speck of purple-white light; a beat of near-silence.
+     Drop: the speck falls to the battlefield with a thin trail, the telegraph on the ground. Detonate: a nuclear-style
+     blast of dark energy; ONE hit per enemy as the visible shockfront (dome radius, R at `front` s) reaches it, noCharge.
+     Drawn by SUSANOO_GFX on the GPU where it can be; the 2D fallback keeps the simplified sprite visuals. */
+  const GFX = () => { try { const G = self.SUSANOO_GFX; return G && G.usable() ? G : null; } catch (e) { return null; } };
   function messiah(ctx) {
     const S = sysOf(ctx), done = once(ctx), v = ctx.vehicle; if (!S || !v) { done(); return; }
     const H = S.H, X = H.X, tu = TUNE.messiah, tier = tierOf(ctx), DK = dkOf(ctx), RX = tu.R[tier], L = LOW();
@@ -378,73 +389,75 @@
       if (!ground(ctx, tx, ty)) { try { const p = ctx.nearestLand && ctx.nearestLand(tx, ty); if (p && isFinite(p.x)) { tx = p.x; ty = p.y; } } catch (e) {} } }
     const ix = tx, iy = ty, aI = Math.atan2(iy - v.y, ix - v.x);
     if (Math.hypot(ix - v.x, iy - v.y) > 0.4) { v.heading = aI; if (v.wantHeading !== undefined) v.wantHeading = aI; }
-    const TC = tu.charge, TB = TC + tu.beam, TQ = TB + tu.squeeze, TE = TQ + tu.front, TS = TE + 0.25, TD = TS + tu.settle;
-    let t = 0, ph = 'charge', blast = null, finished = false, retAsked = false;
-    const hits = new Set();
-    ctx.messiahPlan = { x: ix, y: iy, R: RX, blast: tu.blast[tierOf(ctx)] };   /* (read-only, for tests and H's audit) */
+    const TG = tu.gather, TC = TG + tu.condense, TQ = TC + tu.drop, TE = TQ + tu.front, TS = TE + 0.25, TD = TS + tu.settle;
+    let t = 0, ph = 'gather', blast = null, finished = false, retAsked = false, drop0 = null, lastPulse = 0;
+    const hits = new Set(), trail = [];
+    ctx.messiahPlan = { x: ix, y: iy, R: RX, blast: tu.blast[tier], tDetonate: TQ };   /* (read-only, for tests and H's audit) */
     cam(ctx, { zoom: tu.zoom, x: lerp(v.x, ix, 0.5), y: lerp(v.y, iy, 0.5) - 1.5, k: 0.6 });
-    sfx(X, 'note', 50, TC + 0.2, 'sawtooth', 0.12, 100); sfx(X, 'note', 75, TC, 'sine', 0.3, 150); sfx(X, 'hum'); sfx(X, 'grumble');
-    // the conduits: energy runs from these anchors into the sword's channel
-    const SRC = ['thrusterL', 'thrusterR', 'wingRootL', 'wingRootR', 'cockpit'];
-    const act = { update(dt) { t += dt;
+    sfx(X, 'note', 45, TG + 0.2, 'sawtooth', 0.1, 70); sfx(X, 'note', 68, TG, 'sine', 0.25, 120); sfx(X, 'hum'); sfx(X, 'grumble');
+    /* the underbelly: under the hull's centre (M's `center`, else the vehicle's height) */
+    const belly = () => { const c0 = anchorW(ctx, 'center'), ok = c0 && isFinite(c0.z) && Math.abs(c0.x - v.x) + Math.abs(c0.y - v.y) < 4; return ok ? { x: c0.x, y: c0.y, z: Math.max(0.6, c0.z - tu.bellyDrop) } : { x: v.x, y: v.y, z: (v.z || 0) + 2.3 }; };
+    const speck = () => { if (!drop0) return null; const u = cl((t - TC) / tu.drop), e = u * u * (0.35 + 0.65 * u); return { x: lerp(drop0.x, ix, eio(u)), y: lerp(drop0.y, iy, eio(u)), z: drop0.z * (1 - e) }; };
+    const SRC = ['thrusterL', 'thrusterR', 'wingRootL', 'wingRootR'];
+    const act = { update(dt) { t += dt; const G = GFX();
         if (!S.alive && !S.keep) { if (!finished) { finished = true; done(); } act.dead = true; return; }
-        const P = poseOf(ctx);
-        if (t < TC) { const u = t / TC; setPose(ctx, 'messiah', u, { channel: sm(u * 1.3), charge: sm(u), glow: 0.4 + 0.6 * sm(u), thrust: 1 - 0.5 * sm(u) });
-          // energy streaming in along the hull to the channel; dark particles drawn inward from all round
-          const ch = anchorW(ctx, 'swordChannel'); let k = (L ? 10 : 30) * (0.4 + u) * dt + Math.random(); while (k-- >= 1) { const src = anchorW(ctx, SRC[(Math.random() * SRC.length) | 0]), life = rnd(0.3, 0.5); part(S, Math.random() < 0.5 ? 0 : 1, src.x, src.y, src.z, (ch.x - src.x) / life, (ch.y - src.y) / life, (ch.z - src.z) / life, life, rnd(0.2, 0.32), { fin: 0.04 }); }
-          if (u > 0.3) { const tip = anchorW(ctx, 'swordTip'); let k2 = (L ? 6 : 18) * u * dt + Math.random(); while (k2-- >= 1) { const a2 = Math.random() * TAU, r = rnd(2.5, 5), life = rnd(0.45, 0.7), sx = tip.x + Math.cos(a2) * r, sy = tip.y + Math.sin(a2) * r * 0.7, sz = Math.max(0.2, tip.z + rnd(-2, 2)); part(S, 2, sx, sy, sz, (tip.x - sx) / life, (tip.y - sy) / life, (tip.z - sz) / life, life, rnd(0.4, 0.7), { v: (Math.random() * 3) | 0, rot: Math.random() * TAU, a: 0.6 }); } }
-          if (Math.floor(t / 0.8) !== Math.floor((t - dt) / 0.8)) { shake(ctx, X, 1 + 2.5 * u, 0.3); sfx(X, 'note', 40 + 8 * u, 0.8, 'sawtooth', 0.07, 52); } }
-        else if (t < TB) { if (ph === 'charge') { ph = 'beam'; sfx(X, 'crash'); sfx(X, 'whoosh'); sfx(X, 'hiss', tu.beam, 0.3, 700); sfx(X, 'note', 60, tu.beam + 0.4, 'sawtooth', 0.22, 40); shake(ctx, X, 7, 0.3); X.flash && X.flash(RM() ? 0.05 : 0.1, '#D8C2FF'); }
-          setPose(ctx, 'messiahFire', (t - TC) / tu.beam, { channel: 1, charge: 1, glow: 1, recoil: 0.6 + 0.4 * Math.sin(t * 40) * 0.2 });
-          if (Math.random() < dt * 10) shake(ctx, X, 3, 0.12); if (!(S.lt > t)) { S.lt = t + 0.1; X.light && X.light(ix, iy, 3.5, 0.25); }
-          // smoke rolling up from the impact, sparks thrown off it
-          let k = (L ? 12 : 34) * dt + Math.random(); while (k-- >= 1) { const a2 = Math.random() * TAU, r = rnd(0.3, 1.4); if (Math.random() < 0.55) part(S, 2, ix + Math.cos(a2) * r, iy + Math.sin(a2) * r * 0.7, 0.2, Math.cos(a2) * 1.2, Math.sin(a2) * 0.9, rnd(1.5, 3), rnd(0.6, 1.0), rnd(1.0, 1.6), { grow: 0.9, drag: 1.4, v: (Math.random() * 3) | 0, rot: Math.random() * TAU, vr: rnd(-1.5, 1.5), a: 0.75 }); else part(S, 1, ix, iy, 0.3, Math.cos(a2) * rnd(3, 7), Math.sin(a2) * rnd(3, 7) * 0.7, rnd(1, 5), rnd(0.3, 0.5), rnd(0.25, 0.4), { g: 9, drag: 1.2 }); } }
-        else if (t < TQ) { if (ph === 'beam') { ph = 'squeeze'; sfx(X, 'note', 120, tu.squeeze, 'sine', 0.3, 30); } setPose(ctx, 'messiahFire', 1, { channel: 1 - sm((t - TB) / tu.squeeze), charge: 0, recoil: 0.3 }); }
-        else { if (ph === 'squeeze') { ph = 'blast'; explode(); }
+        // light the dark round the effect (the floor's darkness is drawn over the effects): the gather, the fall, the cloud
+        if (X.light && !(S.lt2 > t)) { S.lt2 = t + 0.2; if (t < TQ) { const f = belly(); X.light(f.x, f.y, t < TG ? 3 + 4 * cl(t / TG) : 5, 0.35); if (ph === 'drop') { const p = speck(); if (p) X.light(p.x, p.y, 3, 0.3); } }
+          else if (blast && blast.t < tu.cloud - 0.5) { const k = 1 - sm((blast.t - (tu.cloud - 2)) / 1.5); X.light(ix, iy, RX * 1.3 * k + 1, 0.35); X.light(ix, iy - 3.5, 5.5 * k + 1, 0.35); X.light(ix, iy - 7, 6 * k + 1, 0.35); } }
+        if (t < TG) { const u = t / TG, pr = 0.7 + 2.3 * u * u; setPose(ctx, 'messiah', u * 0.9, { channel: 0.4 * sm(u), charge: 0, glow: 0.4 + 0.6 * sm(u), thrust: 1 - 0.4 * sm(u) });
+          // the pulses: a low beat that quickens (sound, a small shake)
+          lastPulse += dt * pr; if (lastPulse >= 1) { lastPulse -= 1; sfx(X, 'note', 38 + 22 * u, 0.35, 'sine', 0.18 + 0.2 * u, 30); if (u > 0.35) shake(ctx, X, 0.6 + 2 * u, 0.12); }
+          if (!G) { const f = belly(); let k = (L ? 10 : 32) * (0.4 + u) * dt + Math.random(); while (k-- >= 1) { const a2 = Math.random() * TAU, r = rnd(2.5, 7), life = rnd(0.5, 0.9), sx = f.x + Math.cos(a2) * r, sy = f.y + Math.sin(a2) * r * 0.75, sz = Math.max(0.2, f.z + rnd(-2.5, 1.5)); part(S, Math.random() < 0.35 ? 2 : Math.random() < 0.6 ? 0 : 1, sx, sy, sz, (f.x - sx) / life, (f.y - sy) / life, (f.z - sz) / life, life, rnd(0.25, 0.5), { fin: 0.05, v: (Math.random() * 3) | 0, rot: Math.random() * TAU, a: 0.7 }); }
+            let k2 = (L ? 3 : 8) * dt + Math.random() * 0.5; while (k2-- >= 1) { const src = anchorW(ctx, SRC[(Math.random() * SRC.length) | 0]), life = rnd(0.3, 0.5); part(S, 0, src.x, src.y, src.z, (f.x - src.x) / life, (f.y - src.y) / life, (f.z - src.z) / life, life, rnd(0.2, 0.3), { fin: 0.04 }); } } }
+        else if (t < TC) { if (ph === 'gather') { ph = 'condense'; sfx(X, 'note', 1400, 0.25, 'sine', 0.05, 2600); shake(ctx, X, 2, 0.1); }
+          setPose(ctx, 'messiah', 0.9 + 0.1 * (t - TG) / tu.condense, { channel: 0.5, charge: 0, glow: 1, thrust: 0.5 }); }
+        else if (t < TQ) { if (ph === 'condense') { ph = 'drop'; drop0 = belly(); sfx(X, 'note', 1800, tu.drop, 'sine', 0.08, 300); sfx(X, 'whoosh'); }
+          setPose(ctx, 'messiahFire', (t - TC) / tu.drop, { channel: 0.3, charge: 0, glow: 0.8, recoil: 0.3 * (1 - (t - TC) / tu.drop) });
+          const p = speck(); trail.push({ x: p.x, y: p.y, z: p.z, t }); while (trail.length && t - trail[0].t > 0.22) trail.shift();
+          if (!G && Math.random() < 0.8) part(S, 0, p.x, p.y, p.z, 0, 0, 0, 0.25, 0.25, { fin: 0.02 }); }
+        else { if (ph === 'drop') { ph = 'blast'; explode(G); }
           if (blast) { blast.t += dt;
-            // ONE decisive hit per enemy, as the drawn shockfront reaches it
-            const fr = RX * eout(blast.t / tu.front); if (blast.t <= tu.front + 0.05 && S.alive !== false) for (const m of monsOf(ctx, H)) { if (gone(m) || hits.has(m)) continue; if (Math.hypot(m.x - ix, m.y - iy) - (m.r || 0.4) < fr) { hits.add(m); hitM(ctx, m, DK * tu.blast[tierOf(ctx)], { noCharge: true, kb: tu.kb, el: 'dark', src: 'ult' }); } }
-            if (blast.t < 3 && Math.random() < dt * (L ? 8 : 22)) { const a2 = Math.random() * TAU, r = RX * Math.sqrt(Math.random()); part(S, 0, ix + Math.cos(a2) * r, iy + Math.sin(a2) * r * 0.8, rnd(0.2, 1.5), 0, 0, rnd(1, 2.5), rnd(1, 1.8), rnd(0.2, 0.34), { drag: 0.5, g: -0.3 }); } }
+            // ONE decisive hit per enemy, as the drawn shockfront (the dome's radius) reaches it
+            const fr = RX * eout3(blast.t / tu.front); if (blast.t <= tu.front + 0.05 && S.alive !== false) for (const m of monsOf(ctx, H)) { if (gone(m) || hits.has(m)) continue; if (Math.hypot(m.x - ix, m.y - iy) - (m.r || 0.4) < fr) { hits.add(m); hitM(ctx, m, DK * tu.blast[tier], { noCharge: true, kb: tu.kb, el: 'dark', src: 'ult' }); } }
+            if (blast.t > 0.8 && blast.t < 3.5 && Math.floor(blast.t / 0.9) !== Math.floor((blast.t - dt) / 0.9)) { shake(ctx, X, 1.5, 0.15); sfx(X, 'note', 36, 0.5, 'sine', 0.25, 28); X.light && X.light(ix, iy, RX, 0.5); }
+            if (!G && blast.t < 3 && Math.random() < dt * (L ? 8 : 22)) { const a2 = Math.random() * TAU, r = RX * Math.sqrt(Math.random()); part(S, 0, ix + Math.cos(a2) * r, iy + Math.sin(a2) * r * 0.8, rnd(0.2, 1.5), 0, 0, rnd(1, 2.5), rnd(1, 1.8), rnd(0.2, 0.34), { drag: 0.5, g: -0.3 }); } }
           if (t >= TS && !retAsked) { retAsked = true; let rp = null; try { rp = ctx.safeReturn ? ctx.safeReturn() : null; } catch (e) {} ctx.returnPoint = rp; setPose(ctx, 'rest', 1, { channel: 0, glow: 0.2, thrust: 0.3 }); }
           if (t >= TD && !finished) { finished = true; S.keep = 1; S.noPet = true; cam(ctx, null); done(); } }
         if (finished && (!blast || blast.t > tu.cloud)) act.dead = true; },
-      under(c, B) { const T = S.T, GY = S.GY, X0 = H.sx(ix), Y0 = H.sy(iy), LO = lowBegin(S, c);   /* (big soft floor light at 1/3 size; the cracks stay sharp) */
-        // the telegraph: the explosion's footprint, soft, from the late charge
-        const tA = sm((t - (TC - 1.0)) / 0.6) * (blast ? Math.max(0, 1 - blast.t / 0.2) : 1); if (tA > 0.01) { LO.floor(sprBand(), X0, Y0, RX * T * 1.08, tA * (0.45 + 0.15 * Math.sin(t * 8)), true, GY); LO.floor(glowSprite(C.vio2), X0, Y0, RX * T * 0.8, 0.15 * tA, true, GY); }
-        if (ph === 'beam' || ph === 'squeeze') { const u = cl((t - TC) / tu.beam); LO.floor(glowSprite(C.vio2), X0, Y0, T * (2 + 3 * u), 0.7, true, GY); setT(c, B, X0, Y0, 0, 1, GY); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.4 + 0.5 * u; c.rotate(0.6); const rr = T * (1.6 + 3 * eout(u)); c.drawImage(sprCracks(0), -rr, -rr, rr * 2, rr * 2); }
+      under(c, B) { if (GFX()) return; const T = S.T, GY = S.GY, X0 = H.sx(ix), Y0 = H.sy(iy), LO = lowBegin(S, c);   /* (2D fallback: big soft floor light at 1/3 size; the cracks stay sharp) */
+        const tA = sm((t - (TC - 0.3)) / 0.4) * (blast ? Math.max(0, 1 - blast.t / 0.2) : 1); if (tA > 0.01) { LO.floor(sprBand(), X0, Y0, RX * T * 1.08, tA * (0.45 + 0.15 * Math.sin(t * 8)), true, GY); LO.floor(glowSprite(C.vio2), X0, Y0, RX * T * 0.8, 0.15 * tA, true, GY); }
         if (blast) { const u = blast.t;
           if (u < 0.5) LO.floor(glowSprite(C.wht), X0, Y0, RX * T * 1.1, (1 - u / 0.5) * 0.5, true, GY);
           LO.floor(glowSprite(C.vio2), X0, Y0, RX * T * 1.3, 0.6 * Math.max(0, 1 - u / 3.5), true, GY);
-          // the shockfront (its peak at RX when the hits finish), then two expanding ground rings
           for (const [d, sc, w] of [[0, 1.0, 1], [0.15, 1.25, 0.6], [0.35, 1.5, 0.4]]) { const q = cl((u - d) / (tu.front + 0.25 + d)); if (q > 0 && q < 1) { LO.floor(sprShadowRing(), X0, Y0, RX * T * sc * eout(q) * 1.02, (1 - q) * 0.8 * w, false, GY); LO.floor(sprBand(), X0, Y0, RX * T * sc * eout(q) * 1.1, (1 - q) * w, true, GY); } }
-          const ca = (u < 0.1 ? u / 0.1 : 1) * Math.max(0, 1 - Math.max(0, u - 0.6) / 1.1); if (ca > 0.01) { setT(c, B, X0, Y0, 0, 1, GY); c.globalCompositeOperation = 'lighter'; c.globalAlpha = ca; c.rotate(1.3); const rr = RX * T * 1.05 * eout(u / 0.3); c.drawImage(sprCracks(1), -rr, -rr, rr * 2, rr * 2); const c2 = ca * 0.8 * (1 - sm((u - 0.5) / 0.4)); if (c2 > 0.01) { c.rotate(1.7); c.globalAlpha = c2; c.drawImage(sprCracks(0), -rr * 0.7, -rr * 0.7, rr * 1.4, rr * 1.4); } }   /* (the full-size crack layers are the costly fill here: brief) */ }  lowFlush(c, LO); },
-      over(c, B) { const T = S.T;
-        const tip = anchorW(ctx, 'swordTip'), FX = H.sx(tip.x), FY = H.sy(tip.y) - tip.z * S.ZT, X0 = H.sx(ix), Y0 = H.sy(iy);
-        // the charge at the focus: a compact violet-white core inside a turning ring of energy, its light controlled
-        if (t < TB + 0.1) { const u = cl(t / TC), k = petK(S, FX, FY, 0.4), pul = 1 + 0.1 * Math.sin(t * (8 + 20 * u)), r = T * (0.3 + 0.9 * eio(u)) * pul, fa = t < TB ? 1 : 1 - (t - TB) / 0.1;
-          put(c, B, glowSprite(C.vio2), FX, FY, r * 4, r * 4, (0.25 + 0.5 * u) * k * fa, 0, true); put(c, B, glowSprite(C.pale), FX, FY, r * 1.6, r * 1.6, (0.4 + 0.5 * u) * k * fa, 0, true); put(c, B, glowSprite(C.wht), FX, FY, r * 0.7, r * 0.7, (0.5 + 0.5 * u) * k * fa, 0, true);
-          if (u > 0.2) { setT(c, B, FX, FY, 0, 1, 0.45); c.globalCompositeOperation = 'lighter'; c.globalAlpha = sm((u - 0.2) / 0.3) * 0.4 * k * fa; c.rotate(t * 3.2); const rr = r * 2.4; c.drawImage(sprBand(), -rr, -rr, rr * 2, rr * 2); c.globalAlpha *= 0.7; c.drawImage(glowSprite(C.vio), -rr * 1.2, -rr * 1.2, rr * 2.4, rr * 2.4); c.setTransform(B); }   /* (one faint turning band in a haze: no stack of crisp rings) */ }
-        // the beam: continuous from the focus to the ground; a dark core, the violet boundary, twisting filaments
-        if (ph === 'beam' || ph === 'squeeze') { const dx = X0 - FX, dy = Y0 - FY, Lb = Math.hypot(dx, dy); if (Lb > 4) { const an = Math.atan2(dy, dx), fade = ph === 'squeeze' ? 1 - (t - TB) / tu.squeeze : sm((t - TC) / 0.08), w0 = T * 0.9, w1 = T * 1.7, pul = 1 + 0.05 * Math.sin(t * 43) + 0.04 * Math.sin(t * 27);
-            const LO = lowBegin(S, c), NSEG = L ? 4 : 7, strip = (img, scroll, wk, a, add) => { const c = add ? LO.l : LO.d; LO.mark(add, FX, FY, w1 * wk * 1.2); LO.mark(add, X0, Y0, w1 * wk * 1.2); LO.mark(add, (FX + X0) / 2, (FY + Y0) / 2, w1 * wk * 1.2); setT(c, LO.B, FX, FY, an); c.globalCompositeOperation = add ? 'lighter' : 'source-over'; c.globalAlpha = a > 1 ? 1 : a; const o = ((t * scroll) % 1 + 1) % 1;
-                for (let k = 0; k < NSEG; k++) { const u0 = k / NSEG, u1 = (k + 1) / NSEG, x0 = Lb * u0, x1 = Lb * u1, hw = lerp(w0, w1, (u0 + u1) / 2) * wk * pul, s0 = ((o + u0 * 1.5) % 1) * 256, sw = 1.5 / NSEG * 256;
-                  if (s0 + sw <= 256) c.drawImage(img, s0, 0, sw, 96, x0, -hw, x1 - x0 + 1, hw * 2); else { const f1 = (256 - s0) / sw; c.drawImage(img, s0, 0, 256 - s0, 96, x0, -hw, (x1 - x0) * f1 + 0.5, hw * 2); c.drawImage(img, 0, 0, sw - (256 - s0), 96, x0 + (x1 - x0) * f1, -hw, (x1 - x0) * (1 - f1) + 1, hw * 2); } } };
-            for (let i = 0; i <= 3; i++) { const u = i / 3; LO.put(glowSprite(C.vio2), lerp(FX, X0, u), lerp(FY, Y0, u), T * lerp(2.2, 3.8, u), T * lerp(2.2, 3.8, u), 0.3 * fade, 0, true); }
-            strip(sprBeam('c'), 2.2, 1.5, 0.95 * fade, false); strip(sprBeam('e'), 3.4, 1.6, 0.9 * fade, true); strip(sprBeam('e'), 1.3, 2.2, 0.25 * fade, true); lowFlush(c, LO);
-            // twisting translucent filaments (soft: a wide faint pass under a thin one)
-            setT(c, B, FX, FY, an); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; const NS = 24;
-            const cyc = Math.max(0.6, Lb / (T * 3.2)) * TAU;   /* (about one turn per 3 tiles of beam, whatever its length: no lattice) */
-            for (let s2 = 0; s2 < 2; s2++) { c.beginPath(); for (let i = 0; i <= NS; i++) { const u = i / NS, x = u * Lb, y = Math.sin(u * cyc - t * 9 + s2 * Math.PI) * lerp(w0, w1, u) * 0.6; i ? c.lineTo(x, y) : c.moveTo(x, y); } c.globalAlpha = 0.16 * fade; c.strokeStyle = C.vio2; c.lineWidth = T * 0.35; c.stroke(); c.globalAlpha = 0.3 * fade; c.strokeStyle = C.pale; c.lineWidth = Math.max(1, T * 0.06); c.stroke(); }
-            c.setTransform(B);
-            // the impact: darkness pressing into a dense sphere under the beam
-            const u = cl((t - TC) / tu.beam), sq = ph === 'squeeze' ? 1 - (t - TB) / tu.squeeze : 1, rs = T * (0.7 + 1.3 * eout(u)) * sq + T * 0.25; const L2 = lowBegin(S, c); L2.put(glowSprite(C.vio2), X0, Y0 - rs * 0.3, rs * 4, rs * 4, 0.6 * fade, 0, true); lowFlush(c, L2); put(c, B, sprBloom(), X0, Y0 - rs * 0.3, rs * 2.2, rs * 2.2, 0.95, t * 1.5, false); put(c, B, glowSprite(C.pale), X0, Y0 - rs * 0.3, rs * 1.0, rs * 1.0, 0.7 * fade, 0, true); } }
+          const ca = (u < 0.1 ? u / 0.1 : 1) * Math.max(0, 1 - Math.max(0, u - 0.6) / 1.1); if (ca > 0.01) { setT(c, B, X0, Y0, 0, 1, GY); c.globalCompositeOperation = 'lighter'; c.globalAlpha = ca; c.rotate(1.3); const rr = RX * T * 1.05 * eout(u / 0.3); c.drawImage(sprCracks(1), -rr, -rr, rr * 2, rr * 2); } }
+        lowFlush(c, LO); },
+      over(c, B) { const G = GFX(); if (G) { gpu(G, c, B); return; }
+        const T = S.T, f = belly(), FX = H.sx(f.x), FY = H.sy(f.y) - f.z * S.ZT;
+        // 2D fallback: the orb under the hull, beating; the speck; its trail; then the blast sprites
+        if (t < TC) { const u = cl(t / TG), cd = cl((t - TG) / tu.condense), k = petK(S, FX, FY, 0.4), beat = Math.pow(0.5 + 0.5 * Math.sin(t * TAU * (0.7 + 2.3 * u * u)), 3), r = T * lerp(0.25 + 0.75 * u * (0.85 + 0.3 * beat), 0.1, sm(cd / 0.6));
+          put(c, B, glowSprite(C.vio2), FX, FY, r * 5, r * 5, (0.3 + 0.4 * u) * k * (1 - 0.6 * cd), 0, true); put(c, B, glowSprite(C.pale), FX, FY, r * 1.8, r * 1.8, (0.5 + 0.4 * u) * k, 0, true); put(c, B, glowSprite(C.wht), FX, FY, r * 0.8, r * 0.8, (0.6 + 0.4 * u) * k, 0, true); }
+        if (ph === 'drop') { const p = speck(), SX = H.sx(p.x), SY = H.sy(p.y) - p.z * S.ZT; if (trail.length > 1) { const q = trail[0], QX = H.sx(q.x), QY = H.sy(q.y) - q.z * S.ZT, Ls = Math.hypot(SX - QX, SY - QY), an = Math.atan2(QY - SY, QX - SX), wc = T * 0.2; setT(c, B, SX, SY, an); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.8; c.drawImage(beamSprite(C.vio2), 0, -wc, Ls, wc * 2); c.setTransform(B); }
+          put(c, B, glowSprite(C.vio2), SX, SY, T * 1.6, T * 1.6, 0.7, 0, true); put(c, B, glowSprite(C.wht), SX, SY, T * 0.5, T * 0.5, 1, 0, true); }
         if (blast) drawBlast(c, B); } };
-    function explode() { blast = { t: 0, cols: [], puffs: [] }; S.cover = true;   /* (the finisher may cover the pet) */
+    const eout3 = u => { u = cl(u); return 1 - Math.pow(1 - u, 3); };   /* (the dome's growth: the same curve the shader draws) */
+    /* the GPU frame: every uniform from the world, in the GL canvas's pixels */
+    function gpu(G, c, B) { const cv0 = c.canvas, cw = cv0.width, chh = cv0.height, res = L ? tu.gpu.resLow : tu.gpu.res, k0 = Math.min(res, tu.gpu.maxSide / Math.max(cw, chh)), W = Math.max(8, Math.round(cw * k0)), Hh = Math.max(8, Math.round(chh * k0)), kx = W / cw;
+      const sc = Math.sqrt(Math.abs(B.a * B.d - B.b * B.c)) || 1, T = S.T, toG = (sx, sy) => [(B.a * sx + B.c * sy + B.e) * kx, (B.b * sx + B.d * sy + B.f) * kx], wG = (x, y, z) => toG(H.sx(x), H.sy(y) - (z || 0) * S.ZT);
+      const f = belly(), p = speck(), q = trail.length ? trail[0] : null, cd = t < TG ? -1 : cl((t - TG) / tu.condense);
+      const U = { u_T: T * sc * kx, u_gy: S.GY, u_zk: S.ZT / T, u_time: t, u_f: wG(f.x, f.y, f.z), u_g: t < TC ? cl(t / TG) : -1, u_cd: t < TC ? cd : -1,
+        u_sp: p ? wG(p.x, p.y, p.z) : [0, 0], u_tr: q ? wG(q.x, q.y, q.z) : [0, 0], u_spa: ph === 'drop' ? 1 : 0, u_c: wG(ix, iy, 0), u_R: RX,
+        u_tel: sm((t - (TC - 0.3)) / 0.4) * (blast ? Math.max(0, 1 - blast.t / 0.15) : 1), u_bt: blast ? blast.t : -1, u_front: tu.front, u_life: tu.cloud,
+        u_pet: toG(S.PX, S.PY), u_pr: Math.max(4, S.PR * sc * kx), u_prot: S.cover ? 0 : 1, u_px: T * sc * kx / 18, u_oct: L ? 3 : 5 };
+      const n = Math.round(G.total() * (L ? tu.gpu.lowK : 1)), cvG = G.render({ W, H: Hh, u: U, n }); if (!cvG) return;
+      c.save(); c.setTransform(1, 0, 0, 1, 0, 0); G.blit(c, W, Hh, 0, 0, cw, chh); c.restore(); }
+    function explode(G) { blast = { t: 0, cols: [], puffs: [] }; S.cover = true;   /* (the finisher may cover the pet) */
+      shake(ctx, X, 18, 0.7); X.flash && X.flash(RM() ? 0.06 : 0.12, '#D9C4FF'); X.hitstop && X.hitstop(0.12); X.light && X.light(ix, iy, RX * 1.6, 1.0);
+      sfx(X, 'crash'); sfx(X, 'thud'); sfx(X, 'stomp'); sfx(X, 'note', 30, 3.0, 'sine', 1.0, 16); sfx(X, 'note', 60, 1.8, 'triangle', 0.4, 26); sfx(X, 'hiss', 3.0, 0.4, 380);
+      cam(ctx, { zoom: tu.zoom * 0.95, x: ix, y: iy - 3.6, k: 0.8 });
+      if (G) return;   /* (the GPU draws its own thousands of particles) */
       for (let i = 0; i < (L ? 5 : 9); i++) { const a2 = i / 9 * TAU + rnd(-0.3, 0.3), r = RX * rnd(0.25, 0.75); blast.cols.push({ x: ix + Math.cos(a2) * r, y: iy + Math.sin(a2) * r * 0.85, d: rnd(0.05, 0.5), h: rnd(4, 7), w: rnd(0.8, 1.3), v: i % 3 }); }
       for (let i = 0; i < 12; i++) blast.puffs.push({ a: i / 12 * TAU + rnd(-0.2, 0.2), r: rnd(0.8, 1.05), s: rnd(0.8, 1.2), v: i % 3 });
-      shake(ctx, X, 18, 0.7); X.flash && X.flash(RM() ? 0.12 : 0.3, '#E6D4FF'); X.hitstop && X.hitstop(0.12); X.light && X.light(ix, iy, RX * 1.6, 1.0);
-      sfx(X, 'crash'); sfx(X, 'thud'); sfx(X, 'stomp'); sfx(X, 'note', 30, 2.6, 'sine', 1.0, 18); sfx(X, 'note', 60, 1.6, 'triangle', 0.4, 30); sfx(X, 'hiss', 2.4, 0.4, 400);
-      cam(ctx, { zoom: tu.zoom * 0.95, x: ix, y: iy - 2.5, k: 0.8 });
       for (let i = 0; i < (L ? 12 : 40); i++) { const a2 = Math.random() * TAU, sp2 = rnd(4, 11); part(S, 3, ix, iy, rnd(0.3, 1.2), Math.cos(a2) * sp2, Math.sin(a2) * sp2 * 0.72, rnd(4, 10), rnd(0.8, 1.6), rnd(0.35, 0.7), { g: 9, drag: 0.6, v: i % 3, rot: Math.random() * TAU, vr: rnd(-6, 6) }); }
       for (let i = 0; i < (L ? 14 : 44); i++) { const a2 = Math.random() * TAU, sp2 = rnd(3, 9); part(S, i % 2, ix, iy, rnd(0.5, 2.5), Math.cos(a2) * sp2, Math.sin(a2) * sp2 * 0.72, rnd(2, 7), rnd(1.0, 2.0), rnd(0.25, 0.45), { g: 1, drag: 0.9 }); }
       for (let i = 0; i < (L ? 8 : 22); i++) { const a2 = i / 22 * TAU + rnd(-0.1, 0.1), sp2 = RX * rnd(1.6, 2.1); part(S, 2, ix + Math.cos(a2) * 0.8, iy + Math.sin(a2) * 0.6, 0.3, Math.cos(a2) * sp2, Math.sin(a2) * sp2 * 0.72, 0.4, rnd(1.2, 1.7), rnd(1.4, 2.2), { grow: 0.9, a: 0.85, drag: 2.2, v: i % 3, rot: Math.random() * TAU, vr: rnd(-1, 1) }); } }
@@ -476,4 +489,202 @@
   SM.warm = warm;
   SM.update = (ctx) => { lastCtx = ctx; };   /* (the core calls it every frame: only remembers the ctx for the spires' prewarm) */
   SM.__dbg = { BAKE, baked: () => baked, VAR, OBS };
+})();
+
+/* ---------- SUSANOO_GFX: a small WebGL effects layer for Dark Messiah (worker E) ----------
+   One offscreen WebGL canvas (WebGL2, else WebGL1), sized to the game canvas x `res`, cleared and redrawn each frame
+   while the finisher runs, then drawn into the game canvas with one drawImage (as GLM's model is). Two draw calls:
+   - a full-canvas quad whose fragment shader paints everything soft and volumetric-looking, from noise: the gather's
+     tendrils and inward pulses, the orb and the condensed speck, its fall and trail, the ground telegraph, then the
+     detonation (core flash, shockwave dome, pulsing dark ground rings, glowing fractures, the fireball, the rising
+     column, the rolling mushroom cap and the base surge, lit from within, with the lingering pulse);
+   - one batch of GPU point sprites, stateless (each point's whole life is a function of its seed and the time, so the
+     CPU never touches them): gather motes spiralling in, sparks, rising embers, dark debris, drifting dark motes.
+   Every output is valid premultiplied colour (rgb <= a): the canvas is twice as wide and each frame draws two passes,
+   the smoke (and dark points) in the left half, the light alone in the right half with alpha = its brightest channel;
+   blit() lays the left half 'source-over' and the right half 'lighter', so the light adds the same in every browser
+   (WebKit included). 4 draw calls a frame.
+   Used only where WebGL works on a real GPU (a software rasteriser draws the 2D fallback) unless window.__SM_GL = 1.
+   window.__SM_GL = 0 forces the fallback. A lost context falls back; a restored one is rebuilt on the next use. */
+self.SUSANOO_GFX = self.SUSANOO_GFX || (() => {
+  const KINDS = [['gather', 2600], ['spark', 4000], ['ember', 2600], ['debris', 900], ['mote', 1900]];
+  const VS_Q = 'attribute vec2 a_p; uniform vec2 u_res; void main(){ gl_Position = vec4(a_p.x / u_res.x * 2.0 - 1.0, 1.0 - a_p.y / u_res.y * 2.0, 0.0, 1.0); }';
+  const HDR = '#ifdef GL_FRAGMENT_PRECISION_HIGH\nprecision highp float;\n#else\nprecision mediump float;\n#endif\n';
+  const NOISE = `
+float h1(vec2 p){ p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
+float n2(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(h1(i), h1(i + vec2(1.0, 0.0)), f.x), mix(h1(i + vec2(0.0, 1.0)), h1(i + vec2(1.0, 1.0)), f.x), f.y); }
+uniform int u_oct;
+float fbm(vec2 p){ float s = 0.0, a = 0.5; for (int i = 0; i < 5; i++) { if (i >= u_oct) break; s += a * n2(p); p = p * 2.03 + vec2(1.7, 9.2); a *= 0.5; } return s + a * 0.5; }
+vec2 vor(vec2 p){ vec2 i = floor(p), f = fract(p); float d1 = 8.0, d2 = 8.0;
+  for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) { vec2 g = vec2(float(x), float(y)); vec2 o = vec2(h1(i + g), h1(i + g + 17.3)); vec2 r = g + o - f; float d = dot(r, r); if (d < d1) { d2 = d1; d1 = d; } else if (d < d2) d2 = d; }
+  return vec2(sqrt(d1), sqrt(d2)); }`;
+  const FS_Q = HDR + `
+uniform vec2 u_res, u_f, u_sp, u_tr, u_c, u_pet;
+uniform float u_T, u_gy, u_zk, u_time, u_g, u_cd, u_spa, u_R, u_tel, u_bt, u_front, u_life, u_pr, u_prot, u_pass, u_off;
+` + NOISE + `
+void main(){
+  vec2 p = vec2(gl_FragCoord.x - u_off, u_res.y - gl_FragCoord.y);   /* (u_off: the light pass draws in the right half) */
+  vec3 L = vec3(0.0), Lx = vec3(0.0); vec4 Sm = vec4(0.0); float T = u_T;   /* (Lx: the orb and the speck, never dimmed for the pet) */
+  // ---- the gather: tendrils of dark energy and inward pulses into the underbelly, the orb beating faster ----
+  if (u_g >= 0.0) {
+    vec2 q = (p - u_f) / T; float r = length(q * vec2(1.0, 1.3)), an = atan(q.y, q.x), g = u_g, cd = max(u_cd, 0.0);
+    float pr = 0.7 + 2.3 * g * g, vis = smoothstep(0.0, 0.25, g) * (1.0 - smoothstep(0.0, 0.5, cd));
+    float nz = fbm(vec2(an * 1.6 + u_time * 0.25, r * 0.7 - u_time * 1.4));
+    float sw = an * 4.0 + log(r + 0.08) * 3.4 - u_time * (1.6 + 3.5 * g) + nz * 3.2;
+    float tend = pow(max(0.0, 0.5 + 0.5 * sin(sw)), 5.0) * smoothstep(10.0, 2.0, r) * smoothstep(0.12, 0.9, r) * vis;
+    float beat = pow(0.5 + 0.5 * sin(u_time * 6.2832 * pr), 3.0);
+    float tedge = pow(max(0.0, 0.5 + 0.5 * sin(sw + 0.55)), 9.0) * smoothstep(10.0, 2.0, r) * smoothstep(0.12, 0.9, r) * vis;
+    Sm += vec4(vec3(0.05, 0.015, 0.09), 1.0) * tend * (0.62 + 0.25 * beat);
+    L += vec3(0.55, 0.28, 1.0) * (tend * 0.3 + tedge * 1.1) * (0.5 + 0.6 * g) * (0.6 + 0.7 * beat);
+    for (int k = 0; k < 2; k++) { float ph = fract(u_time * pr * 0.5 + float(k) * 0.5), rp = 7.0 * (1.0 - ph);
+      float ring = exp(-pow((r - rp) / (0.16 + 0.35 * (1.0 - ph)), 2.0)) * ph * vis; L += vec3(0.62, 0.36, 1.0) * ring * (0.25 + 0.3 * g); Sm += vec4(vec3(0.03, 0.0, 0.06), 1.0) * ring * 0.2; }
+    Sm += vec4(vec3(0.02, 0.0, 0.05), 1.0) * smoothstep(6.5, 1.0, r) * 0.38 * g * vis * (1.0 - Sm.a);
+    float ro = mix(0.22 + 0.75 * g * (0.8 + 0.4 * beat), 0.05, smoothstep(0.0, 0.55, cd)), d = r / ro;
+    Lx += vec3(1.0, 0.92, 1.0) * exp(-d * d * 1.6) * (0.7 + 0.8 * g + 0.6 * cd) + vec3(0.55, 0.22, 1.0) * exp(-d * 0.9) * (0.35 + 0.45 * g) * (1.0 - 0.6 * smoothstep(0.0, 0.6, cd));
+    Sm += vec4(vec3(0.03, 0.0, 0.07), 1.0) * smoothstep(1.9, 1.15, d) * smoothstep(0.5, 1.1, d) * 0.55 * (1.0 - cd);
+    if (cd > 0.0) { float ci = clamp(cd / 0.4, 0.0, 1.0), rc = 5.5 * (1.0 - ci * ci); L += vec3(0.75, 0.5, 1.0) * exp(-pow((r - rc) / (0.12 + 0.4 * (1.0 - ci)), 2.0)) * (1.0 - ci) * 0.9; Sm += vec4(vec3(0.02, 0.0, 0.05), 1.0) * smoothstep(rc + 0.5, rc - 1.5, r) * smoothstep(rc - 3.0, rc - 0.5, r) * 0.35 * (1.0 - ci); }
+    if (cd > 0.0) { float k2 = smoothstep(0.35, 1.0, cd) * (0.85 + 0.15 * sin(u_time * 40.0)); vec2 a = abs(q);
+      Lx += vec3(1.0, 0.88, 1.0) * k2 * (exp(-a.x * 0.7) * exp(-a.y * 26.0) + exp(-a.y * 1.3) * exp(-a.x * 34.0)) * 1.8 + vec3(0.65, 0.35, 1.0) * k2 * exp(-r * 1.6) * 0.8; }
+  }
+  // ---- the speck falling, its thin trail ----
+  if (u_spa > 0.0) { vec2 q = (p - u_sp) / T; float r = length(q);
+    Lx += (vec3(1.0, 0.94, 1.0) * exp(-r * r / 0.006) * 1.6 + vec3(0.7, 0.38, 1.0) * exp(-r * 2.6) * (0.7 + 0.2 * sin(u_time * 50.0)) + vec3(1.0, 0.9, 1.0) * exp(-abs(q.x) * 1.4) * exp(-abs(q.y) * 26.0) * 0.35) * u_spa;
+    vec2 ab = u_tr - u_sp; float l2 = max(dot(ab, ab), 1.0), hh = clamp(dot(p - u_sp, ab) / l2, 0.0, 1.0), dd = length(p - u_sp - ab * hh) / T;
+    L += vec3(0.72, 0.46, 1.0) * exp(-dd * dd / (0.004 + 0.02 * hh)) * pow(1.0 - hh, 1.2) * u_spa * 1.2; }
+  // ---- the ground: telegraph, then the blast ----
+  vec2 e = (p - u_c) / T, ge = vec2(e.x, e.y / u_gy); float rr = length(ge);
+  if (u_tel > 0.0) { float ring = exp(-pow((rr - u_R) / 0.2, 2.0)), fill = smoothstep(u_R, u_R * 0.15, rr) * 0.1 * (0.6 + 0.4 * sin(u_time * 10.0 - rr * 1.6));
+    L += vec3(0.6, 0.3, 1.0) * (ring * 0.5 + fill) * u_tel; Sm += vec4(vec3(0.03, 0.0, 0.06), 1.0) * smoothstep(u_R, 0.0, rr) * 0.18 * u_tel; }
+  if (u_bt >= 0.0) {
+    float bt = u_bt, R = u_R, fade = 1.0 - smoothstep(u_life - 1.8, u_life, bt), pulse = 0.72 + 0.28 * sin(bt * 7.0 - 1.5);
+    float Rd = bt < u_front ? R * (1.0 - pow(1.0 - bt / u_front, 3.0)) : R * (1.0 + 0.24 * (bt - u_front) / 0.8), da = 1.0 - smoothstep(u_front, u_front + 0.8, bt);
+    // the core flash
+    float fl = exp(-bt * 9.0), dsc = length(vec2(e.x, e.y + 1.2 * u_zk)) / R;
+    L += mix(vec3(0.62, 0.35, 1.0), vec3(1.0, 0.95, 1.0), fl) * fl * (1.8 * exp(-dsc * dsc * 7.0) + 3.0 * exp(-dsc * dsc * 80.0) + 0.1);
+    // glowing fractures, revealed under the front
+    if (rr < Rd * 1.03) { vec2 v = vor(ge * 0.95 + vec2(3.7, 1.3)), v2 = vor(ge * 2.3 + vec2(9.1, 4.4));
+      float edge = 1.0 - smoothstep(0.0, 0.06 + 0.04 * rr / R, v.y - v.x), edge2 = (1.0 - smoothstep(0.0, 0.05, v2.y - v2.x)) * 0.45;
+      float glow = max(edge, edge2) * (1.0 - smoothstep(0.2, 1.05, rr / R)) * (exp(-bt * 0.85) * 1.3 + 0.28 * pulse) * fade * smoothstep(Rd * 1.03, Rd * 0.88, rr);
+      L += mix(vec3(0.6, 0.3, 1.0), vec3(1.0, 0.85, 1.0), clamp(glow - 0.6, 0.0, 1.0)) * glow * 0.85; }
+    // pulsing dark rings along the ground
+    for (int k = 0; k < 7; k++) { float b0 = float(k) * 0.45, q = (bt - b0) / 1.6; if (q < 0.0 || q > 1.0) continue;
+      float rk = R * (0.12 + 1.3 * (1.0 - pow(1.0 - q, 2.0))), w = 0.22 + 0.55 * q, band = exp(-pow((rr - rk) / w, 2.0)), ed = exp(-pow((rr - rk - w * 0.7) / (w * 0.3), 2.0)), a = (1.0 - q) * fade;
+      Sm += vec4(vec3(0.03, 0.0, 0.06), 1.0) * band * 0.5 * a * (1.0 - Sm.a); L += vec3(0.62, 0.32, 1.0) * ed * 0.65 * a; }
+    // the shockwave dome: a bright shell, faint refraction inside
+    if (da > 0.0) { float dn = e.y < 0.0 ? length(vec2(e.x / Rd, e.y / (Rd * u_zk * 1.05))) : length(vec2(e.x / Rd, e.y / (Rd * u_gy)));
+      float shell = exp(-pow((dn - 1.0) / 0.05, 2.0)) * (0.7 + 0.5 * n2(e * 2.0 + bt * 4.0)), inner = smoothstep(1.0, 0.5, dn) * (0.08 + 0.12 * n2(e * 1.4 - bt * 3.0));
+      L += vec3(0.82, 0.62, 1.0) * (shell * 1.25 + inner) * da; Sm += vec4(vec3(0.04, 0.0, 0.07), 1.0) * smoothstep(1.0, 0.8, dn) * 0.2 * da * (1.0 - Sm.a); }
+    // the mushroom: fireball, column, rolling cap, base surge (x across, z up the screen)
+    float z = -e.y / u_zk, rise = 1.0 - exp(-bt * 1.5), capZ = 1.0 + 7.6 * rise, cw = R * (0.2 + 0.46 * rise), chh = cw * 0.66;
+    float nn = fbm(vec2(e.x * 0.8, z * 0.8 - bt * 0.9) * 1.3 + 4.0);
+    float colW = (0.6 + 0.6 * rise) * (1.0 + 0.5 * smoothstep(capZ * 0.4, capZ, z) + 0.6 * smoothstep(1.2, 0.0, z)) * (0.8 + 0.4 * nn);
+    float colD = smoothstep(colW, colW * 0.3, abs(e.x + 0.25 * sin(z * 1.2 + bt))) * smoothstep(-0.4, 0.3, z) * smoothstep(capZ + chh * 0.2, capZ - chh * 0.5, z);
+    vec2 cq = vec2(e.x / cw, (z - capZ) / chh); float cr = length(vec2(cq.x, cq.y > 0.0 ? cq.y * 0.95 : cq.y * 1.9 - 0.25 * cq.x * cq.x)), cang = atan(cq.y, cq.x);   /* (a domed top, a flatter rolled underside) */
+    float roll = fbm(vec2(cang * 2.4 + bt * 0.45, cr * 3.0 - bt * 1.2) * 1.25), capD = smoothstep(1.05, 0.45, cr + (roll - 0.5) * 0.55) * smoothstep(0.0, 0.5, bt);
+    float torus = exp(-pow((cr - 0.72) / 0.22, 2.0)) * capD;
+    float rs = R * (0.3 + 0.8 * (1.0 - exp(-bt * 1.5))), baseD = smoothstep(0.0, 1.0, 1.0 - abs(rr - rs * 0.62) / (rs * 0.5)) * smoothstep(1.4, -0.2, z) * smoothstep(0.08, 0.5, bt) * (0.5 + 0.7 * nn);
+    float fbR = R * 0.32 * (1.0 - pow(1.0 - min(bt / 0.3, 1.0), 3.0)) * (1.0 + 0.3 * rise), fbZ = 0.6 + capZ * 0.75 * smoothstep(0.1, 1.2, bt); vec2 fq = vec2(e.x, (z - fbZ) * 1.1) / max(fbR, 0.01); float fd = length(fq);
+    float fireD = smoothstep(1.0, 0.25, fd + (fbm(fq * 2.2 + bt * 2.0) - 0.5) * 0.7) * (1.0 - smoothstep(0.9, 2.4, bt));
+    float D = max(max(colD * (0.5 + 0.65 * nn), capD * (0.6 + 0.5 * nn)), max(baseD, fireD)) * smoothstep(0.0, 0.1, bt) * fade;
+    // pseudo-lit billows: a second sample offset toward the light gives a slope; the underside glows from the core
+    float nl = fbm(vec2(e.x * 0.8 + 0.18, z * 0.8 - bt * 0.9 + 0.22) * 1.3 + 4.0), lit = clamp((nn - nl) * 5.0 + 0.45, 0.0, 1.0);
+    float under = max(capD * smoothstep(0.2, -0.9, cq.y) * smoothstep(1.1, 0.3, cr), colD * smoothstep(colW, 0.0, abs(e.x)) * 0.8);
+    float heat = exp(-bt * 1.1), glowP = 0.35 + 0.65 * pulse;
+    vec3 sc = mix(vec3(0.05, 0.02, 0.09), vec3(0.5, 0.38, 0.66), lit * 0.7 + torus * 0.25) * (0.75 + 0.5 * nn);
+    float a = clamp(D * 1.05, 0.0, 1.0);
+    Sm += vec4(sc * a, a) * (1.0 - Sm.a);
+    vec3 em = mix(vec3(0.7, 0.4, 1.0), vec3(1.0, 0.92, 1.0), heat) * fireD * (heat * 2.6 + 0.4) + mix(vec3(0.45, 0.14, 0.95), vec3(0.95, 0.7, 1.0), heat) * under * (0.45 + 1.4 * heat) * glowP + vec3(0.35, 0.14, 0.7) * 0.22 * glowP + vec3(0.5, 0.25, 1.0) * capD * smoothstep(0.85, 1.05, cr + (roll - 0.5) * 0.55) * 0.35 * glowP + vec3(0.75, 0.45, 1.0) * torus * smoothstep(0.3, -0.5, cq.y) * (0.3 + 0.9 * heat) * glowP;
+    L += em * D;
+  }
+  if (u_prot > 0.0) { float k = mix(1.0, 0.35 + 0.65 * smoothstep(0.0, 1.6, length(p - u_pet) / u_pr), u_prot); L *= k; Sm *= k; }
+  L = min(L + Lx, vec3(1.5));
+  // two valid premultiplied outputs (rgb <= a): pass 0 the smoke (composited source-over), pass 1 the light alone with
+  // alpha = its brightest channel (composited 'lighter', so it adds exactly; nothing relies on colour above alpha)
+  if (u_pass < 0.5) gl_FragColor = vec4(min(Sm.rgb, vec3(Sm.a)), clamp(Sm.a, 0.0, 1.0));
+  else { vec3 Lc = min(L * (1.0 - Sm.a * 0.65), vec3(1.0)); gl_FragColor = vec4(Lc, max(max(Lc.r, Lc.g), Lc.b)); }
+}`;
+  const VS_P = `attribute vec4 a_s; attribute float a_k;
+uniform vec2 u_res, u_f, u_c, u_pet; uniform float u_T, u_gy, u_zk, u_time, u_g, u_cd, u_bt, u_R, u_px, u_pr, u_prot;
+varying vec4 v_c; varying float v_d;
+void main(){
+  vec3 w = vec3(0.0); vec2 O = u_c; float al = 0.0, sz = 2.0, dk = 0.0; vec3 col = vec3(1.0); float k = a_k; bool on = true;
+  if (k < 0.5) {
+    if (u_g < 0.0) on = false; else {
+      float life = 0.5 + 0.9 * a_s.x, ph = fract(u_time / life + a_s.y), cd = max(u_cd, 0.0), u = mix(ph, 1.0, smoothstep(0.0, 0.45, cd));
+      float r0 = 2.0 + 9.0 * a_s.z, an = a_s.w * 6.2832 + 2.8 * u * (1.0 + a_s.z), r = r0 * pow(1.0 - u, 1.6);
+      w = vec3(cos(an) * r, sin(an) * r, (a_s.x - 0.5) * 5.0 * (1.0 - u)); O = u_f;
+      al = smoothstep(0.0, 0.15, ph) * (0.3 + 0.7 * u) * smoothstep(0.0, 0.2, u_g) * (1.0 - smoothstep(0.45, 0.85, cd)) * (0.4 + 0.6 * u_g);
+      dk = a_s.y < 0.18 ? 1.0 : 0.0; col = dk > 0.5 ? vec3(0.06, 0.0, 0.11) : (a_s.y < 0.82 ? vec3(0.62, 0.34, 1.0) : vec3(1.0, 0.88, 1.0)); sz = (0.8 + 1.4 * a_s.z) * (0.6 + 0.6 * u); al *= 0.75; }
+  } else if (u_bt < 0.0) on = false;
+  else if (k < 1.5) { float t = u_bt - a_s.x * 0.12, life = 0.45 + 1.5 * a_s.y; if (t < 0.0 || t > life) on = false; else {
+      float an = a_s.z * 6.2832, el = 0.04 + 1.25 * a_s.w, v = 8.0 + 20.0 * a_s.y, s = (1.0 - exp(-2.0 * t)) / 2.0;
+      w = vec3(cos(an) * (cos(el) * v * s + 0.7), sin(an) * (cos(el) * v * s + 0.7), max(0.0, sin(el) * v * s + 0.3 - 2.6 * t * t)); float q = t / life;
+      al = (1.0 - q) * (1.0 - q) * 0.75 * smoothstep(0.0, 0.06, t) * (0.4 + 0.6 * a_s.y); col = mix(vec3(1.0, 0.96, 1.0), vec3(0.66, 0.36, 1.0), q); sz = 0.7 + 1.3 * a_s.w * (1.0 - q); } }
+  else if (k < 2.5) { float t = u_bt - 0.1 - a_s.x * 1.8, life = 1.8 + 2.6 * a_s.y; if (t < 0.0 || t > life) on = false; else {
+      float an = a_s.z * 6.2832, r = u_R * (0.08 + 0.14 * sqrt(a_s.w)) * (1.0 + 0.4 * t); w = vec3(cos(an) * r + 0.35 * sin(t * 3.0 + a_s.x * 20.0), sin(an) * r * 0.6, 0.6 + t * (1.6 + 2.8 * a_s.y)); float q = t / life;
+      al = smoothstep(0.0, 0.15, q) * (1.0 - q) * (0.45 + 0.4 * sin(t * 17.0 + a_s.y * 30.0)); col = mix(vec3(0.95, 0.66, 1.0), vec3(0.55, 0.22, 1.0), q); sz = 0.8 + 1.4 * a_s.z; } }
+  else if (k < 3.5) { float t = u_bt - a_s.x * 0.08, life = 1.0 + 1.4 * a_s.y; if (t < 0.0 || t > life) on = false; else {
+      float an = a_s.z * 6.2832, el = 0.25 + 1.05 * a_s.w, v = 5.0 + 12.0 * a_s.y; w = vec3(cos(an) * cos(el) * v * t * 0.8, sin(an) * cos(el) * v * t * 0.8, max(0.0, sin(el) * v * t - 6.5 * t * t)); float q = t / life;
+      w.xy += vec2(cos(an), sin(an)) * 0.6; al = (1.0 - q * q) * smoothstep(0.0, 0.1, t) * 0.85; col = vec3(0.035, 0.01, 0.06); dk = 1.0; sz = 1.0 + 1.8 * a_s.z; } }
+  else { float t = u_bt - 0.5 - a_s.x * 2.6, life = 2.0 + 2.2 * a_s.y; if (t < 0.0 || t > life) on = false; else {
+      float an = a_s.z * 6.2832, r = u_R * 1.15 * sqrt(a_s.w); w = vec3(cos(an) * r + 0.4 * sin(t + a_s.y * 9.0), sin(an) * r, 0.2 + t * (0.35 + 0.9 * a_s.y)); float q = t / life;
+      al = sin(q * 3.1416) * 0.6; dk = a_s.y < 0.3 ? 1.0 : 0.0; col = dk > 0.5 ? vec3(0.04, 0.0, 0.08) : vec3(0.62, 0.36, 1.0); sz = 0.9 + 1.8 * a_s.z; } }
+  vec2 sp = O + vec2(w.x, w.y * u_gy - w.z * u_zk) * u_T;
+  if (!on || al < 0.004) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); gl_PointSize = 1.0; v_c = vec4(0.0); v_d = 0.0; return; }
+  if (u_prot > 0.0) al *= mix(1.0, 0.25 + 0.75 * smoothstep(0.0, 2.0, length(sp - u_pet) / u_pr), u_prot);
+  gl_Position = vec4(sp.x / u_res.x * 2.0 - 1.0, 1.0 - sp.y / u_res.y * 2.0, 0.0, 1.0); gl_PointSize = clamp(sz * u_px, 1.0, 48.0);
+  v_c = vec4(col, al); v_d = dk;
+}`;
+  const FS_P = HDR + `uniform float u_pass; varying vec4 v_c; varying float v_d;
+void main(){ vec2 d = gl_PointCoord - 0.5; float m = exp(-dot(d, d) * 13.0), a = clamp(v_c.a * m, 0.0, 1.0);
+  if ((v_d > 0.5) != (u_pass < 0.5)) discard;   /* (dark points in the smoke pass, light points in the light pass) */
+  if (u_pass < 0.5) gl_FragColor = vec4(v_c.rgb * a, a);
+  else { vec3 c = min(v_c.rgb * a * 1.25, vec3(1.0)); gl_FragColor = vec4(c, max(max(c.r, c.g), c.b)); } }`;
+
+  let cv = null, gl = null, PQ = null, PP = null, qb = null, pb = null, NP = 0, ok = null, soft = false, info = '', why = '';
+  const stats = { points: 0, draws: 0, W: 0, H: 0, frames: 0 };
+  function sh(type, src) { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) { const m = gl.getShaderInfoLog(s); gl.deleteShader(s); throw new Error('shader: ' + m); } return s; }
+  function prog(vs, fs, attrs) { const p = gl.createProgram(); gl.attachShader(p, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs)); attrs.forEach((a, i) => gl.bindAttribLocation(p, i, a)); gl.linkProgram(p);
+    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error('link: ' + gl.getProgramInfoLog(p)); const U = {}; const n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS); for (let i = 0; i < n; i++) { const u = gl.getActiveUniform(p, i); U[u.name] = gl.getUniformLocation(p, u.name); } return { p, U }; }
+  /* the points: kinds interleaved in a fixed shuffled order, so a prefix (low effects) keeps every kind */
+  function points() { const tot = KINDS.reduce((s, k) => s + k[1], 0), a = new Float32Array(tot * 5); let s = 7, o = 0; const R = () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
+    const left = KINDS.map(k => k[1]); for (let i = 0; i < tot; i++) { let k = 0, best = -1; for (let j = 0; j < KINDS.length; j++) { const f = left[j] / KINDS[j][1]; if (f > best) { best = f; k = j; } } left[k]--;
+      a[o++] = R(); a[o++] = R(); a[o++] = R(); a[o++] = R(); a[o++] = k; } NP = tot; return a; }
+  function build() {
+    if (!cv) { cv = document.createElement('canvas'); cv.width = cv.height = 4; cv.addEventListener('webglcontextlost', e => { e.preventDefault(); ok = false; why = 'context lost'; }); cv.addEventListener('webglcontextrestored', () => { ok = null; PQ = PP = null; }); }
+    const o = { alpha: true, premultipliedAlpha: true, antialias: false, depth: false, stencil: false, preserveDrawingBuffer: false };
+    gl = gl || cv.getContext('webgl2', o) || cv.getContext('webgl', o); if (!gl) { why = 'no WebGL'; return false; }
+    try { const di = gl.getExtension('WEBGL_debug_renderer_info'); info = String(di ? gl.getParameter(di.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)); } catch (e) { info = '?'; }
+    soft = /swiftshader|llvmpipe|software|softpipe/i.test(info);
+    PQ = prog(VS_Q, FS_Q, ['a_p']); PP = prog(VS_P, FS_P, ['a_s', 'a_k']);
+    qb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, qb); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(12), gl.DYNAMIC_DRAW);
+    pb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, pb); gl.bufferData(gl.ARRAY_BUFFER, points(), gl.STATIC_DRAW);
+    return true; }
+  /* may this device draw with it? (builds on first ask; true / false) */
+  function usable() { let f = null; try { f = typeof window !== 'undefined' ? window.__SM_GL : null; } catch (e) {} if (f === 0) return false;
+    if (ok === false) return false; if (ok === null) { try { ok = build(); } catch (e) { ok = false; why = String(e && e.message || e); try { console.warn('Susano O GFX: ' + why); } catch (e2) {} } }
+    if (!ok) return false; return !soft || f === 1 || (typeof window !== 'undefined' && window.__SUSANO_GL === 1); }
+  /* draw one frame: F = { W, H (GL px), u: { name: value }, n (points to draw) }; returns the canvas, 2W wide: the smoke
+     in [0, W), the light in [W, 2W) (see blit) - or null */
+  function render(F) { if (!usable()) return null;
+    try { if (cv.width !== F.W * 2 || cv.height !== F.H) { cv.width = F.W * 2; cv.height = F.H; }
+      gl.viewport(0, 0, F.W * 2, F.H); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); gl.enable(gl.BLEND); gl.disable(gl.DEPTH_TEST);
+      const set = (P, k, v) => { const l = P.U[k]; if (l == null) return; if (k === 'u_oct') gl.uniform1i(l, v); else if (Array.isArray(v)) gl.uniform2f(l, v[0], v[1]); else gl.uniform1f(l, v); };
+      const b = F.box || [0, 0, F.W, F.H], x0 = b[0], y0 = b[1], x1 = b[2], y1 = b[3], n = Math.min(NP, F.n || NP);
+      gl.bindBuffer(gl.ARRAY_BUFFER, qb); gl.bufferSubData(gl.ARRAY_BUFFER, 0, new Float32Array([x0, y0, x1, y0, x0, y1, x0, y1, x1, y0, x1, y1]));
+      /* pass 0, the left half: smoke and dark points, premultiplied 'over'; pass 1, the right half: light only, added
+         (each output keeps rgb <= a, so the 2D canvas composites them the same in every browser) */
+      for (let pass = 0; pass < 2; pass++) { gl.viewport(pass * F.W, 0, F.W, F.H); if (pass) gl.blendFunc(gl.ONE, gl.ONE); else gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+        gl.useProgram(PQ.p); for (const k in F.u) set(PQ, k, F.u[k]); set(PQ, 'u_res', [F.W, F.H]); set(PQ, 'u_pass', pass); set(PQ, 'u_off', pass * F.W);
+        gl.bindBuffer(gl.ARRAY_BUFFER, qb); gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0); gl.disableVertexAttribArray(1); gl.drawArrays(gl.TRIANGLES, 0, 6);
+        gl.useProgram(PP.p); for (const k in F.u) set(PP, k, F.u[k]); set(PP, 'u_res', [F.W, F.H]); set(PP, 'u_pass', pass);
+        gl.bindBuffer(gl.ARRAY_BUFFER, pb); gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 4, gl.FLOAT, false, 20, 0); gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 1, gl.FLOAT, false, 20, 16);
+        gl.drawArrays(gl.POINTS, 0, n); gl.disableVertexAttribArray(1); }
+      stats.points = n; stats.draws = 4; stats.W = F.W; stats.H = F.H; stats.frames++;
+      return cv; } catch (e) { ok = false; why = String(e && e.message || e); return null; } }
+  /* composite a rendered frame into a 2D context over (dx, dy, dw, dh): the smoke 'over', then the light 'lighter' */
+  function blit(c, W, H, dx, dy, dw, dh) { c.globalAlpha = 1; c.globalCompositeOperation = 'source-over'; c.drawImage(cv, 0, 0, W, H, dx, dy, dw, dh); c.globalCompositeOperation = 'lighter'; c.drawImage(cv, W, 0, W, H, dx, dy, dw, dh); c.globalCompositeOperation = 'source-over'; }
+  /* (tests) right after render: how many pixels break rgb <= a (premultiplied validity), out of how many */
+  function check() { if (!gl) return null; const W = cv.width, H = cv.height, px = new Uint8Array(W * H * 4); gl.readPixels(0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, px); let bad = 0, lit = 0; for (let i = 0; i < px.length; i += 4) { const a = px[i + 3]; if (a) lit++; if (px[i] > a + 1 || px[i + 1] > a + 1 || px[i + 2] > a + 1) bad++; } return { bad, lit, px: W * H }; }
+  return { usable, render, blit, stats, check, KINDS, total: () => KINDS.reduce((s, k) => s + k[1], 0), info: () => ({ ok, soft, renderer: info, why }) };
 })();

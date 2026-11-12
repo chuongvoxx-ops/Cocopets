@@ -285,6 +285,17 @@ const SUSANO_MODEL = (() => {
     carve(r - 0.052, M_DARK);
     return 0;
   }
+  /* ---- an open claw (origin: the wrist; x along the hand to the fingertips; z the back of the hand): a gold-trimmed back
+     plate, four splayed talon fingers curling down, a thumb, silver claw tips ---- */
+  const CLAWF = [[-0.06, -0.12], [-0.02, -0.04], [0.02, 0.04], [0.06, 0.12]];
+  function sdClaw(x, y, z) {
+    reset(M_OBS);
+    add(ell(x - 0.1, y, z, 0.1, 0.085, 0.045), z > 0 ? M_OBS : M_GUN); add(cap(x, y, z, 0.185, -0.085, 0.012, 0.185, 0.085, 0.012, 0.018), M_GOLD);
+    add(cap(x, y, z, -0.02, 0, 0, 0.04, 0, 0, 0.07, 0.07), M_GUN);
+    for (let j = 0; j < 4; j++) { const y0 = CLAWF[j][0], sp = CLAWF[j][1]; add(cap(x, y, z, 0.18, y0, 0, 0.27, y0 + sp * 0.5, -0.03, 0.026, 0.022), M_GUN); add(cap(x, y, z, 0.27, y0 + sp * 0.5, -0.03, 0.33, y0 + sp * 0.8, -0.1, 0.022, 0.018), M_GUN); add(cap(x, y, z, 0.33, y0 + sp * 0.8, -0.1, 0.35, y0 + sp * 0.9, -0.18, 0.016, 0.003), M_SILV); add(sph(x - 0.27, y - y0 - sp * 0.5, z + 0.03, 0.026), M_GOLD); }
+    add(cap(x, y, z, 0.06, 0.08, -0.02, 0.13, 0.16, -0.07, 0.03, 0.024), M_GUN); add(cap(x, y, z, 0.13, 0.16, -0.07, 0.17, 0.18, -0.14, 0.022, 0.003), M_SILV);
+    return 0;
+  }
   /* ---- a thigh (origin: the hip; x to the knee; z its front): massive. A gunmetal core, three layered obsidian lames
      (gold lower rims, rivet rings), gold-trimmed side panels, pistons and cables behind; the knee housing: a geared gold
      disk each side, a domed obsidian guard in front, a violet core ---- */
@@ -395,6 +406,7 @@ const SUSANO_MODEL = (() => {
     drumR: { f: sdDrum(1), kind: 'full', c: [-0.04, 0.28, 0.06], R: 0.72, w: [0.85, 0.55, 0.85] },
     hub: { f: sdHub, kind: 'full', noRoll: true, c: [0, 0, 0.0], R: 0.25, glow: true, w: [0.4, 0.4, 0.1] },
     hand: { f: sdHand, kind: 'axis', x0: -0.17, x1: 0.17, hw: 0.25, w: [0.28, 0.24, 0.28] },
+    claw: { f: sdClaw, kind: 'axis', x0: -0.1, x1: 0.4, hw: 0.24, w: [0.38, 0.3, 0.2] },
     hatch: { f: sdHatch, kind: 'full', c: [0.02, 0, -0.32], R: 0.42, glow: true, w: [0.1, 0.68, 0.72] },
     foot: { f: sdFoot, kind: 'full', c: [0.08, 0, -0.04], R: 0.38, glow: true, w: [0.5, 0.2, 0.2] },
     seat: { f: sdSeat, kind: 'full', c: [-0.04, 0, 0.12], R: 0.26, w: [0.2, 0.3, 0.35] },
@@ -441,6 +453,7 @@ const SUSANO_MODEL = (() => {
       for (let i = 0; i < 3; i++) { const zc = 0.58 + 0.17 * i, hy = 0.36 - 0.03 * i; B.box([-0.74, 0, zc], [0.03, hy, 0.06], 0.03, M_OBS); B.box([-0.742, 0, zc - 0.05], [0.028, hy, 0.012], 0.008, M_GOLD); }
       for (let i = 0; i < 5; i++) B.box([-0.755, -0.16 + i * 0.08, 1.02], [0.012, 0.012, 0.055], 0.004, M_VIO);
       for (const s of [-1, 1]) { B.tube([-0.6, s * 0.36, 0.9], [-0.62, s * 0.36, 1.12], 0.17, 0.15, M_GUN, { seg: 18, cap0: 'flat', cap1: 'flat' }); B.torZ([-0.62, s * 0.36, 1.12], 0.15, 0.03, M_GOLD, { seg: 20, rseg: 6 }); B.torZ([-0.61, s * 0.36, 1.0], 0.175, 0.022, M_GOLD, { seg: 20, rseg: 6 }); }
+      for (const s of [-1, 1]) { B.spike([-0.72, s * 0.3, 0.5], [-0.98, s * 0.42, 0.36], 0.05, M_GUN); B.spike([-0.6, s * 0.47, 0.82], [-0.8, s * 0.68, 0.98], 0.045, M_SILV); B.spike([-0.6, s * 0.47, 0.6], [-0.78, s * 0.66, 0.6], 0.04, M_SILV); }   // (the pack's spikes: low and at its flanks)
       // the cockpit: a dark oval recess, a violet cradle ring; the gold ribs round it, the crest above, the keel below
       B.ell([0.41, 0, 0.64], [0.06, 0.29, 0.32], M_DARK, { seg: 20, rings: 6 });
       B.torX([0.45, 0, 0.62], 0.2, 0.02, M_VIO, { seg: 20, rseg: 5 });
@@ -475,6 +488,7 @@ const SUSANO_MODEL = (() => {
       // the engraved crescent, raised in gold
       B.push([1, 0, 0], [0, 1, 0], [0, 0, 1], [0, 0, 0]); for (let i = 0; i <= 10; i++) { const t = -1 + 2 * i / 10, th = t * 0.33, z = -0.42 + 0.15 * Math.cos(t * 1.4) - 0.0, r = rad(z) + 0.04; if (i) { const tp = -1 + 2 * (i - 1) / 10, thp = tp * 0.33, zp = -0.42 + 0.15 * Math.cos(tp * 1.4), rp = rad(zp) + 0.04; B.tube([0.26 - rp * Math.cos(thp), rp * Math.sin(thp), zp], [0.26 - r * Math.cos(th), r * Math.sin(th), z], 0.012, 0.012, M_GOLD, { seg: 5 }); } } B.pop();
       B.tube([0, -0.2, 0], [0, 0.2, 0], 0.036, 0.036, M_GUN, { seg: 10 });
+      for (const th of [-0.9, -0.45, 0, 0.45, 0.9]) { const r = rad(-0.8), b = [0.26 - r * Math.cos(th), r * Math.sin(th), -0.79]; B.spike(b, [0.26 - (r + 0.1) * Math.cos(th), (r + 0.1) * Math.sin(th), -1.0 - (th === 0 ? 0.06 : 0)], 0.035, M_SILV); }   // (the hem's spikes)
       out.skirt = G(B); }
     // ---- the helmet ----
     { const B = nb();
@@ -486,6 +500,9 @@ const SUSANO_MODEL = (() => {
         B.box([-0.03, s * 0.2, 0.2], [0.09, 0.022, 0.07], 0.02, M_GOLD); B.box([-0.03, s * 0.208, 0.2], [0.075, 0.018, 0.055], 0.016, M_OBS); }
       B.tube([0.19, 0, 0.33], [0.17, 0, 0.52], 0.03, 0.004, M_GOLD, { seg: 8 }); B.sph([0.205, 0, 0.33], 0.028, M_VIO, 8);
       for (let i = 0; i < 2; i++) { const zz = 0.1 - 0.065 * i, r = [0.23 + 0.03 * i, 0.22 + 0.03 * i, 0.09]; B.ell([-0.04, 0, zz], r, M_OBS, { seg: 16, rings: 3, th0: 1.0, th1: 1.75, ph0: Math.PI * 0.45, ph1: Math.PI * 1.55 }); B.ell([-0.04, 0, zz], r, M_GOLD, { seg: 16, rings: 1, th0: 1.75, th1: 2.0, ph0: Math.PI * 0.45, ph1: Math.PI * 1.55 }); }
+      // the crown: three spikes swept back from the bowl
+      for (const s of [-1, 1]) B.spike([-0.1, s * 0.12, 0.4], [-0.42, s * 0.24, 0.64], 0.04, M_SILV);
+      B.spike([-0.17, 0, 0.42], [-0.5, 0, 0.6], 0.045, M_SILV);
       out.helmet = G(B); }
     // ---- the shoulder drums (one each side: the rope knot hangs outward) ----
     for (const s of [-1, 1]) { const B = nb();
@@ -497,6 +514,10 @@ const SUSANO_MODEL = (() => {
         B.ell(c, [r[0] + 0.024, 0.04, r[2] + 0.024], M_GOLD, { seg: 4, rings: 8, th0: 0, th1: t1 - 0.05 }); }
       B.tube([-0.24, s * 0.3, 0.1], [-0.46, s * 0.36, 0.14], 0.09, 0.09, M_GUN, { seg: 12 });
       B.sph([0.3, s * 0.27, -0.3], 0.075, M_ROPE, 10); B.tube([0.3, s * 0.27, -0.33], [0.33, s * 0.29, -0.52], 0.03, 0.05, M_ROPE, { seg: 8, cap1: 'flat' });
+      // spikes: a crest of three along the top pauldron, three on the lowest rim (outward, down), two at the back
+      for (const [xb, h] of [[-0.26, 0.3], [0, 0.44], [0.26, 0.3]]) B.spike([xb, s * 0.32, 0.5], [xb * 1.3, s * 0.48, 0.5 + h], 0.065, M_SILV);
+      for (const xb of [-0.24, 0, 0.24]) B.spike([xb, s * 0.7, 0.16], [xb * 1.1, s * 0.96, 0.02], 0.04, M_GUN);
+      B.spike([-0.4, s * 0.16, 0.22], [-0.7, s * 0.2, 0.34], 0.05, M_GOLD); B.spike([-0.38, s * 0.16, -0.12], [-0.64, s * 0.2, -0.24], 0.045, M_GOLD);
       out[s < 0 ? 'drumL' : 'drumR'] = G(B); }
     // ---- a wing hub ----
     { const B = nb();
@@ -545,10 +566,11 @@ const SUSANO_MODEL = (() => {
     // ---- the forearm gauntlet ----
     { const B = nb();
       B.tube([0, 0, 0], [LFA, 0, 0], 0.15, 0.13, M_GUN, { seg: 14 });
-      for (let i = 0; i < 4; i++) { const x0 = 0.04 + i * 0.16, Rr = 0.2 + 0.024 * i + 0.011; B.box([x0 + 0.08, 0, 0.01], [0.08, Rr, Rr * 1.05], 0.065, M_OBS); B.box([x0 + 0.165, 0, 0.01], [0.012, Rr + 0.006, Rr * 1.05 + 0.006], 0.055, M_GOLD); }
+      for (let i = 0; i < 4; i++) { const x0 = 0.04 + i * 0.16, Rr = 0.2 + 0.024 * i + 0.011; B.box([x0 + 0.08, 0, 0.01], [0.08, Rr, Rr * 1.05], 0.075, M_OBS); B.push([1, 0, 0], [0, 1, 0], [0, 0, 1], [x0 + 0.165, 0, 0.01]); B.tube([-0.012, 0, 0], [0.012, 0, 0], Rr * 1.1, Rr * 1.1, M_GOLD, { seg: 20, cap0: 'flat', cap1: 'flat' }); B.pop(); }
       B.box([0.38, 0, 0.3], [0.3, 0.11, 0.045], 0.035, M_GOLD); B.box([0.38, 0, 0.318], [0.27, 0.085, 0.04], 0.03, M_OBS);
       for (let i = 0; i < 5; i++) B.box([0.17 + i * 0.085, 0, 0.358], [0.013, 0.055, 0.004], 0.003, M_VIO);
       B.sph([LFA, 0, 0], 0.12, M_STEEL, 12);
+      for (const [xb, h] of [[0.2, 0.15], [0.4, 0.2], [0.6, 0.15]]) B.spike([xb, 0, 0.34], [xb - 0.12, 0, 0.34 + h], 0.035, M_SILV);   // (the gauntlet's ridge: three swept spikes)
       out.farm = G(B); }
     // ---- the fist ----
     { const B = nb();
@@ -558,6 +580,15 @@ const SUSANO_MODEL = (() => {
       for (let j = 0; j < 2; j++) for (let k = 0; k < 2; k++) B.sph([-0.07 + j * 0.14, -0.06 + k * 0.12, 0.168], 0.013, M_STEEL, 6);
       B.tube([0, 0, 0.12], [0, 0, 0.2], 0.075, 0.075, M_GUN, { seg: 12 }); B.torZ([0, 0, 0.16], 0.078, 0.02, M_GOLD, { seg: 16, rseg: 5 });
       out.hand = G(B); }
+    // ---- the open claw ----
+    { const B = nb();
+      B.ell([0.1, 0, 0], [0.1, 0.085, 0.045], M_OBS, { seg: 14, rings: 4, th0: 0, th1: 1.5708 }); B.ell([0.1, 0, 0], [0.1, 0.085, 0.03], M_GUN, { seg: 14, rings: 3, th0: 1.5708, th1: Math.PI });
+      B.tube([0.185, -0.085, 0.012], [0.185, 0.085, 0.012], 0.018, 0.018, M_GOLD, { seg: 8 }); B.tube([0.03, 0, 0.04], [0.16, 0, 0.045], 0.012, 0.01, M_GOLD, { seg: 6 });
+      B.tube([-0.02, 0, 0], [0.04, 0, 0], 0.07, 0.07, M_GUN, { seg: 12 }); B.torX([0.0, 0, 0], 0.072, 0.018, M_GOLD, { seg: 14, rseg: 5 });
+      for (const [y0, sp] of CLAWF) { const a = [0.18, y0, 0], b = [0.27, y0 + sp * 0.5, -0.03], c2 = [0.33, y0 + sp * 0.8, -0.1], d = [0.35, y0 + sp * 0.9, -0.2];
+        B.tube(a, b, 0.026, 0.022, M_GUN, { seg: 8 }); B.tube(b, c2, 0.022, 0.018, M_GUN, { seg: 8 }); B.spike(c2, d, 0.019, M_SILV); B.sph(b, 0.027, M_GOLD, 8); B.sph(a, 0.028, M_GOLD, 8); }
+      B.tube([0.06, 0.08, -0.02], [0.13, 0.16, -0.07], 0.03, 0.024, M_GUN, { seg: 8 }); B.spike([0.13, 0.16, -0.07], [0.17, 0.19, -0.15], 0.023, M_SILV);
+      out.claw = G(B); }
     // ---- the thigh (its plating laid out on 0.76, stretched to the long thigh) ----
     { const B = nb();
       B.tube([0.02, 0, 0], [LTH - 0.05, 0, 0], 0.17, 0.15, M_GUN, { seg: 14 });
@@ -573,6 +604,7 @@ const SUSANO_MODEL = (() => {
         B.push([1, 0, 0], [0, 0, 1], [0, -s, 0], [LTH, s * 0.29, 0]); B.tube([0, 0, -0.03], [0, 0, 0.032], 0.13, 0.13, M_OBS, { seg: 18, cap0: 'flat', cap1: 'flat', up: [1, 0, 0] }); B.pop(); }
       B.ell([LTH, 0, 0.09], [0.24, 0.26, 0.18], M_OBS, { seg: 20, rings: 6, th0: 0, th1: 1.3 }); B.ell([LTH, 0, 0.09], [0.245, 0.265, 0.185], M_GOLD, { seg: 20, rings: 2, th0: 1.3, th1: 1.62, cap: true, capM: M_GUN });
       B.sph([LTH, 0, 0.27], 0.045, M_VIO, 8);
+      B.spike([LTH + 0.04, 0, 0.25], [LTH + 0.22, 0, 0.5], 0.05, M_SILV); for (const s of [-1, 1]) B.spike([LTH - 0.02, s * 0.3, 0.06], [LTH - 0.1, s * 0.46, 0.12], 0.03, M_GOLD);   // (the knee guard's spike; the gear hubs' studs)
       out.thigh = G(B); }
     // ---- the shin (likewise stretched to the long shin) ----
     { const B = nb();
@@ -987,17 +1019,19 @@ const SUSANO_MODEL = (() => {
     for (const s of [-1, 1]) { const sd = s < 0 ? 'L' : 'R', Sh = toT(SHOULDER(s));
       let grip, hx, free = false;
       if (s > 0 || two) { grip = s > 0 ? gripR : gripL; hx = aw; }
-      else { free = true; grip = toT([0.18, -1.98, 0.22]); hx = dirT([0.25, -1, -0.15]); }   // (the free arm flung out wide)
+      else { free = true; grip = toT([0.1, -1.72, 0.28]); hx = dirT([0.25, -1, -0.15]); }   // (the free arm flung out wide: an open, clawed hand)
       let wz = vsub(Sh, grip); wz = vsub(wz, vmul(hx, vdot(wz, hx))); wz = vlen(wz) > 1e-5 ? vnrm(wz) : dirT([0, 0, 1]);
-      const wrist = vadd(grip, vmul(wz, 0.3));
+      const wrist = free ? grip : vadd(grip, vmul(wz, 0.3));
       const carry = Math.sin(Math.PI * cl(S.dock * 1.15)) * (s > 0 ? 1 : 0.4);
       const pole = vnrm(vlerp(vlerp(dirT(two && !free ? [-0.15, s * 1, -0.45] : free ? [-0.45, s * 0.2, -1] : [-0.5, s * 0.85, -0.6]), dirT([0.9, s * 0.5, 0.6]), carry), dirT([0.25, s * 1.0, 0.35]), S.stow));
       const k = ik2(Sh, wrist, LUA, LFA, pole); out.short = Math.max(out.short, free ? 0 : k.short);
-      const out2 = dirT([0, s, 0]);
+      const out2 = free ? vnrm(vlerp(dirT([0, s, 0]), dirT([0.15, 0, 1]), sstep(0.2, 0.7, Math.abs(vdot(vnrm(vsub(k.W, k.E)), dirT([0, 1, 0])))))) : dirT([0, s, 0]);   // (an arm flung out sideways turns its armoured back up, the palm down)
       I('uarm' + sd, 'uarm', frameXZ(vsub(k.E, Sh), out2), Sh);
       I('farm' + sd, 'farm', frameXZ(vsub(k.W, k.E), out2), k.E);
-      I('hand' + sd, 'hand', frameXZ(hx, wz), grip, 1.75, 0.01);
-      out.A['hand' + sd] = grip;
+      if (free) {   // the claw: on the wrist, along the forearm, the palm turned down and a little forward, the fingers splayed
+        const fd = vnrm(vsub(k.W, k.E)), cx = vnrm(vadd(fd, dirT([0.3, 0, -0.45]))), Rc = frameXZ(cx, vadd(dirT([0, 0, 1]), vmul(fd, -0.2)));
+        I('hand' + sd, 'claw', Rc, k.W, 1.55, 0.01); out.A['hand' + sd] = vadd(k.W, vmul(cx, 0.3));
+      } else { I('hand' + sd, 'hand', frameXZ(hx, wz), grip, 1.75, 0.01); out.A['hand' + sd] = grip; }
     }
     // the legs: robot (reaching the floor, a gentle gait), hanging (lifted), folded into booms (airship)
     const ga = P.gaitAmp || 0, gp = P.gait || 0, hover = 0.12;

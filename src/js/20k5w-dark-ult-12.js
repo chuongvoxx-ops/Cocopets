@@ -40,6 +40,7 @@
     summon: 2.6,                                   // s: the assembly, until the robot can move
     size: 1,                                       // the model's drawn scale
     zoomR: 0.86, zoomA: 0.8,                       // the camera's zoom in robot and airship form
+    camLift: 0.5,                                  // tiles: in the air the camera centres this far above the ship's drawn anchor (its hull's middle)
     hover: 0.35,                                   // tiles: the robot floats this high on its foot exhaust
     robotAcc: 9,                                   // 1/s: how fast its glide reaches the stick's speed (mass)
     turn: { max: 6.0, k: 8, acc: 30 },            // its heading: rad/s cap, gap closing, turn-rate easing (as Nidhogg's)
@@ -49,6 +50,9 @@
     // key, at the pet's own normal-attack cadence: 20b sets g.normalT) swings the sword in a frontal arc; one hit per enemy
     // per swing through ctx.hit (it charges the meter); the airship has no basic weapon
     swing: { dur: 0.44, hit0: 0.38, hit1: 0.72,   /* (round 2: a bigger cut: wind-up, cut, follow-through; the hits over the cut) */ reach: 2.65, arc: 2.3, dmg: 0.8,   /* (M round 2: VIS 1.45, the reach +10%) */ kb: 1.5 },
+    // (round 5, the user: "a jumping function/button to the robot ... like beast machine") Jump (robot only, its own button
+    // above Glides, and J): no cooldown; crouch, a thruster-boosted planned arc, one landing shockwave
+    jump: { dmg: 2.6, r: 2.6, kb: 6.5, ph: [0.16, 0.72, 0.12], h: 2.2, d: 4.4, max: 6.2, ext: 1.6, buf: 0.25, inv: 0.3, invLock: 1.8 },
     dodgeCd: 0.85,                                 // s after the recovery: the game's dodge cadence (x its arcane / dodgeK modifiers)
     // the robot's Strongs (E's moves own their own tuning; these are the cooldowns, from the press)
     cdBlade: 2.5, cdSpikes: 3.5, cdPulsar: 2.0, mvHold: 0.6,
@@ -161,7 +165,7 @@
   const kick = (S, key, dv) => { const s = S.an[key]; if (s) s.v += dv; };
   /* the per-channel springs: [stiffness, damping] (the torso leads; the sword follows; the fans lag and sway) */
   const SPR = { lean: [11, 0.42], bank: [10, 0.4], pitch: [13, 0.42], twist: [15, 0.4], crouch: [16, 0.45], yaw: [12, 0.42], z: [9, 0.4], swordU: [24, 0.62], swordK: [11, 0.7], wing: [5.5, 0.3], fold: [8, 0.45], thrust: [18, 0.6], roll: [9, 0.55], hip: [13, 0.45], arc: [10, 0.7] };
-  const TG = () => ({ sword: 'rest', swordU: 0, swordK: 0, twist: 0, pitch: 0, crouch: 0, lean: 0, bank: 0, yaw: 0, z: 0, wing: 0.9, fold: 0, thrust: 0.35, roll: 0, hip: null, arc: 1, channel: null, glow: null, charge: null, recoil: 0 });
+  const TG = () => ({ sword: 'rest', swordU: 0, swordK: 0, twist: 0, pitch: 0, crouch: 0, lean: 0, bank: 0, yaw: 0, z: 0, wing: 0.9, fold: 0, thrust: 0.35, roll: 0, hip: null, arc: 1, leg: null, channel: null, glow: null, charge: null, recoil: 0 });
 
   /* ---- the action clips: each writes targets into G at progress u (0..1); `hit` is the u of its strike, `rec` its
      recovery (E's damage belongs at hit). s = the side (+1 forehand, -1 backhand) where a clip has one ---- */
@@ -251,6 +255,7 @@
     else if (S.glide) ac = ['sweep', S.glide.u || 0, S.glide.dir];
     else { const e = eClip(S); if (e) ac = [e.c, e.u, 0]; }
     if (ac) { const C = CLIPS[ac[0]]; if (C) { if (ac[0] === 'impale' || ac[0] === 'messiah') C.run(G, ac[1], t); else C.run(G, ac[1], ac[2]); } }
+    if (S.jump) jumpTargets(S, G);
     if (S.dive) diveTargets(S, G);
     if (ph === 'xform') xformTargets(S, G);
     if (ph === 'summon') { const u = cl(S.t / TUNE.summon); G.wing = lerp(0.1, 0.9, sstep(0.55, 0.85, u)); G.fold = 0.6 * (1 - sstep(0.55, 0.85, u)); G.crouch = 0.25 * (1 - sstep(0.7, 1, u)); G.z = 0.3 * (1 - outBack(sstep(0.6, 1, u), 2.2)); G.glow = 0.3 + 0.7 * Math.exp(-Math.pow((S.t - (TUNE.summon - 0.15)) / 0.12, 2)); }
@@ -267,12 +272,17 @@
     P.wingSpread = cl(k('wing', G.wing)); P.wingFold = cl(k('fold', G.fold)); P.thrust = cl(k('thrust', G.thrust) + 0.05 * Math.sin(t * 37) * Math.sin(t * 23) + Math.min(0.15, Math.abs(S.accS) * 0.006) * Math.sin(t * 53));
     if (airish || ph === 'xform') P.roll = k('roll', G.roll) + (S.dive ? S.dive.rollA || 0 : 0); else P.roll = 0;
     // (for M's optional channels: the legs trailing with momentum; each fan lagging on its own spring)
-    P.legSwing = robotish ? Math.max(-1, Math.min(1, spring(S, 'leg', -(Math.min(1, sp / 5) * 0.85 + S.accS * 0.03), 7, 0.35, dt))) : 0;
+    P.legSwing = robotish ? Math.max(-1, Math.min(1, spring(S, 'leg', G.leg != null ? G.leg : -(Math.min(1, sp / 5) * 0.85 + S.accS * 0.03), 7, 0.35, dt))) : 0;
     { const sw = -S.turnK * 0.35 - S.latS * 0.012; P.wingSwayL = spring(S, 'swL', sw, 5, 0.3, dt); P.wingSwayR = spring(S, 'swR', sw, 4.2, 0.28, dt); }
     // the hips turn into the cut (M's hipYaw, clamped as the model does) and the sweep's arc widens on the big swings
     P.hipYaw = Math.max(-0.4, Math.min(0.4, k('hip', G.hip != null ? G.hip : (G.yaw * 0.45 + G.twist * 0.3)))); P.swordArc = Math.max(0.5, Math.min(1.6, k('arc', G.arc)));
     P.recoil = G.recoil; if (G.channel != null) P.channel = G.channel; else P.channel += (0.18 - (P.channel || 0)) * Math.min(1, dt * 4); if (G.glow != null) P.glow = G.glow; else P.glow += (0.5 - (P.glow || 0)) * Math.min(1, dt * 3); if (G.charge != null) P.charge = G.charge; else P.charge = (P.charge || 0) * Math.max(0, 1 - dt * 4);
   }
+  /* the Jump: a deep crouch wind-up; in the air the legs tucked and trailing, the fans flung wide, the sword trailing
+     behind, the torso pitched into the leap then rearing for the landing (the landing's crouch is a spring kick) */
+  function jumpTargets(S, G) { const Jp = S.jump, J = TUNE.jump; if (Jp.t < Jp.c) { const u = Jp.t / Jp.c; G.crouch = 0.75 * sstep(0, 1, u); G.pitch = 0.15 * u; G.wing = 0.6; G.fold = 0.3; G.thrust = 0.4 + 0.5 * u; return; }
+    const u = cl((Jp.t - Jp.c) / J.ph[1]); G.crouch = 0; G.leg = -1; G.wing = 1; G.fold = 0; G.thrust = 1 - 0.5 * sstep(0.3, 0.7, u) + 0.4 * sstep(0.85, 1, u);
+    G.sword = 'sweep'; G.swordK = 0.7; G.swordU = 0.95; G.arc = 1.2; G.pitch = lerp(0.35, -0.25, sstep(0.2, 0.95, u)); G.lean = 0.3 * (1 - u); }
   /* Dive's targets: the roll (a full turn, eased, overshooting and settling on its spring), the swoop nose-down after a
      lift of anticipation, the pull-up overshooting nose-up, the thrust surging */
   function diveTargets(S, G) { const D = S.dive, t = D.t, d1 = D.t1, d2 = D.t2, d3 = D.t3;
@@ -351,7 +361,7 @@
       done: () => actionDone(S), alive: () => alive(S), calm, low: lowFx };
     S.veh = { get active() { return !S.released; }, drive: (mx, my, dt, spd) => { S.mx = mx; S.my = my; if (spd > 0) S.spd = spd; syncMe(S); void dt; },
       basic: A => trySwing(S, A),   /* (H: the basic-attack input; true when it swung, so 20b starts the attack cadence) */
-      dodge: (mx, my) => tryDodge(S, mx, my), jump: () => {}, strong: slot => tryMove(S, slot), ult: () => tryUlt(S), drawBtns: (c, o) => drawBtns(S, c, o), onSwitch: () => finish(S, 'swap'), cam: () => camFocus(S) };
+      dodge: (mx, my) => tryDodge(S, mx, my), jump: (mx, my) => tryJump(S, mx, my), strong: slot => tryMove(S, slot), ult: () => tryUlt(S), drawBtns: (c, o) => drawBtns(S, c, o), onSwitch: () => finish(S, 'swap'), cam: () => camFocus(S) };
     X.vehicle(S.veh);
     const F = S.fx = H.add({ key: 'susanoo', life: 1e9, entY: me.y, update(dt) { step(S, dt); }, drawUnder(c) { drawUnder(S, c); }, drawEnt(c) { drawEnt(S, c); }, draw(c) { drawOver(S, c); }, onEnd() { if (!S.released) release(S); } });
     me.petAlt = F;
@@ -362,6 +372,11 @@
   /* alive: the session runs and the action may go on (a committed Dark Messiah stays alive, even on a won floor, up to its cap) */
   function alive(S) { const me = S.me, g = S.g; if (S.ended || me.dead || g.over) return false; if (S.phase === 'messiah') return S.t < TUNE.messiahCap; return (S.phase === 'robot' || S.phase === 'air') && !g.won; }
   function camFocus(S) { const d = S.V, c = S.cam, zf = S.phase === 'air' || S.phase === 'messiah' ? TUNE.zoomA : S.phase === 'xform' ? lerp(TUNE.zoomR, TUNE.zoomA, sstep(0.2, 0.9, S.xt / XFT.total)) : S.phase === 'summon' ? lerp(1, TUNE.zoomR, sstep(0.3, 1.6, S.t)) : S.phase === 'out' || S.phase === 'gone' ? 1 : TUNE.zoomR;
+    /* (v310: in the air the camera centres on the ship as it is drawn, its height lifted off the ground point, not on
+       the ground under it, so the airship sits mid-screen instead of in the top half; its velocity / 6 leads the aim
+       by exactly the lag of 20b's camera follow, dtReal * 6, so it stays centred at full speed too) */
+    const air = S.phase === 'air' || S.phase === 'messiah' ? 1 : S.phase === 'xform' ? sstep(0, XFT.total, S.xt) : 0;
+    if (air > 0 && !(c && c.x != null)) return { x: d.x + (d.vx || 0) / 6 * air, y: d.y + ((d.vy || 0) / 6 - (d.z || 0) * ZK - TUNE.camLift) * air, k: air, zoom: c && c.zoom ? c.zoom : zf };
     return { x: c && c.x != null ? c.x : d.x, y: c && c.y != null ? c.y : d.y, k: c && c.x != null ? (c.k != null ? c.k : 0.6) : 0, zoom: c && c.zoom ? c.zoom : zf }; }
 
   /* ---- targeting (Nidhogg's): an enemy near the stick's aim line, else the ground along it; no stick: the nearest ---- */
@@ -417,7 +432,7 @@
   function dodgeCd(S) { const g = S.g; return TUNE.dodgeCd * (g.buff && g.buff.arcane > 0 ? 0.6 : 1) * (g.dodgeK || 1); }
   function tryGlide(S, mx, my, queued) {
     const d = S.V; S.mx = mx; S.my = my;
-    if (S.glide || S.busy || S.cd.dodge > 0 || d.locked) { if (!queued && ((S.glide && S.glide.t > S.glide.end - 0.25) || (S.cd.dodge > 0 && S.cd.dodge < 0.25))) S.dQ = S.g.t; return; }
+    if (S.glide || S.busy || S.cd.dodge > 0 || d.locked || S.jump) { if (!queued && ((S.glide && S.glide.t > S.glide.end - 0.25) || (S.cd.dodge > 0 && S.cd.dodge < 0.25))) S.dQ = S.g.t; return; }
     S.dQ = null; const G = TUNE.glide, mag = Math.hypot(mx, my), a = mag > 0.2 ? Math.atan2(my, mx) : (() => { const t = S.X.nearestMon(d.x, d.y, 6); return t ? Math.atan2(t.y - d.y, t.x - d.x) : d.heading; })();
     const dir = wrap(a - S.ha) >= 0 ? 1 : -1;
     S.glide = { t: 0, end: G.prep + G.sweep + G.rec, a, dir, from: S.ha, hits: new Set(), seen: 0 };
@@ -444,7 +459,7 @@
   }
   /* ---- (H) the basic sword swing (robot only): M's one-hand sweep hold, a frontal arc, one hit per enemy per swing ---- */
   function trySwing(S, A) {
-    const d = S.V; if (S.phase !== 'robot' || S.swing || S.glide || S.busy || d.locked || S.released) return false;   // (the airship, the fold, an attack or Glides: no swing)
+    const d = S.V; if (S.phase !== 'robot' || S.swing || S.glide || S.busy || S.jump || d.locked || S.released) return false;   // (the airship, the fold, an attack or Glides: no swing)
     const t = A && A.t && !A.t.dead ? A.t : null, a = t ? Math.atan2(t.y - d.y, t.x - d.x) : A && isFinite(A.a) ? A.a : d.heading;
     S.swingSide = -(S.swingSide || -1); S.swing = { t: 0, a, hits: new Set(), side: S.swingSide, u: 0 };   /* (round 2: cuts alternate right and left) */ S.stats.swings = (S.stats.swings || 0) + 1;
     const sfx = S.X.sfx || {}; if (sfx.whoosh) sfx.whoosh(); if (sfx.note) sfx.note(240, 0.18, 'sawtooth', 0.025, 520);
@@ -463,6 +478,60 @@
   }
   function pushTrail(S) { const M0 = MOD(); const tip = M0.anchor ? M0.anchor('swordTip') : null, hilt = M0.anchor ? (M0.anchor('swordChannel') || M0.anchor('hilt')) : null; if (!tip || !hilt) return; const L = S.trail; const q = L.length >= 14 ? L.pop() : {}; q.a = [tip.x, tip.y, tip.z]; q.b = [hilt.x, hilt.y, hilt.z]; q.t = S.g.t; L.unshift(q); }
 
+  /* ---- Jump (robot only; its own button above Glides, and J; no cooldown, as Beast Machine's): a crouch, a planned
+     arc boosted by the thrusters, one landing shockwave. Never in mid-air: a press in the air is kept and goes the moment
+     it touches down; a press during an attack is kept TUNE.jump.buf s. The landing is planned on safe ground (walkable,
+     the pet could walk there: the flow field), walls stop the arc, a gap is never landed in. ---- */
+  const JOFF = [0, 0.2, -0.2, 0.4, -0.4, 0.6, -0.6];
+  function landOK(S, x, y) { const X = S.X; return canStand(S, x, y) && (!X.flowAt || X.flowAt(x, y) < 9999); }
+  function planJump(S, dir, d0) {
+    const d = S.V, J = TUNE.jump, X = S.X, C = [];
+    for (const off of JOFF) { const a = wrap(dir + off), ca = Math.cos(a), sa = Math.sin(a); let lim = d0 + J.ext;
+      for (let st = 0.4; st <= lim + 0.21; st += 0.2) if (X.blocked(d.x + ca * st, d.y + sa * st, 0.4, 1)) { lim = st - 0.45; break; }   // (walls and the map's edge stop it in the air)
+      for (let st = 0; st <= lim + 1e-6; st += 0.25) C.push([(st >= d0 - 1e-6 ? st - d0 : 5 + (d0 - st) * 1.2) + Math.abs(off) * 3, st, a]); }
+    C.sort((p, q) => p[0] - q[0]);
+    for (const [, st, a] of C) { const x = d.x + Math.cos(a) * st, y = d.y + Math.sin(a) * st; if (!landOK(S, x, y)) continue; return { x, y, a, d: st, d0 }; }
+    return { x: d.x, y: d.y, a: d.heading, d: 0, d0, none: true };
+  }
+  function tryJump(S, mx, my, queued) {
+    const d = S.V, g = S.g, J = TUNE.jump; if (mx != null) { S.mx = mx; S.my = my; }
+    if (S.phase !== 'robot' || S.released) return;   // (the airship has no Jump)
+    if (S.jump) { if (!queued) S.jumpLand = true; return; }   // (in the air: kept for the touchdown, never a jump in mid-air)
+    if (S.busy || S.glide || S.swing || d.locked) { if (!queued) S.jumpQ = g.t; return; }
+    S.jumpQ = null; S.jumpLand = false;
+    const mag = Math.hypot(S.mx, S.my), dir = mag > 0.2 ? Math.atan2(S.my, S.mx) : S.ha, v0 = Math.max(0, d.vx * Math.cos(dir) + d.vy * Math.sin(dir)), plan = planJump(S, dir, mag > 0.2 ? Math.min(J.max, J.d + v0 * 0.35) : 0);
+    S.lastPlan = plan;
+    S.jump = { t: 0, c: J.ph[0], F: J.ph[0] + J.ph[1], x0: d.x, y0: d.y, z0: d.z, a0: S.ha, x1: plan.x, y1: plan.y, a1: plan.d > 0.05 ? plan.a : S.ha, plan, air: false };
+    if (g.t - (S.invT == null ? -9 : S.invT) >= J.invLock) { S.me.inv = Math.max(S.me.inv || 0, J.inv); S.invT = g.t; }   // (the take-off's short protection, at most once per invLock s)
+    S.stats.jump = (S.stats.jump || 0) + 1; g.movedOnce = true;
+    const sfx = S.X.sfx || {}; if (sfx.note) { sfx.note(62, 0.2, 'triangle', 0.08, 48); sfx.note(196, 0.1, 'square', 0.02, 160, 0.03); } if (sfx.hiss) sfx.hiss(0.14, 0.05, 700);
+  }
+  function stepJump(S, dt) {
+    const Jp = S.jump, d = S.V, J = TUNE.jump, me = S.me; Jp.t += dt;
+    if (Jp.t < Jp.c) { d.vx *= 0.8; d.vy *= 0.8; me.x = d.x; me.y = d.y; return; }   // (the crouch: animate() plays it)
+    if (!Jp.air) { Jp.air = true; me.airborne = true; const sfx = S.X.sfx || {}; if (sfx.whoosh) sfx.whoosh(); if (sfx.note) sfx.note(90, 0.35, 'sawtooth', 0.04, 300);
+      for (let i = 0; i < (lowFx() ? 6 : 14); i++) { const a = Math.random() * TAU, v = 2 + Math.random() * 2.5; addPart(S, 2, d.x + Math.cos(a) * 0.6, d.y + Math.sin(a) * 0.45, 0.05, Math.cos(a) * v, Math.sin(a) * v * GY, 0.3, 0.6 + Math.random() * 0.3, 0.4, { grow: 1.4, drag: 2.5, col: '#2A1A3A' }); }
+      addPart(S, 9, d.x, d.y, 0, 0, 0, 0, 0.35, 1.3, {}); }
+    const u = cl((Jp.t - Jp.c) / J.ph[1]);
+    d.x = lerp(Jp.x0, Jp.x1, u); d.y = lerp(Jp.y0, Jp.y1, u); d.vx = (Jp.x1 - Jp.x0) / J.ph[1]; d.vy = (Jp.y1 - Jp.y0) / J.ph[1]; me.x = d.x; me.y = d.y;
+    setHeading(S, Jp.a0 + wrap(Jp.a1 - Jp.a0) * sstep(0, 0.35, u), dt);
+    d.z = TUNE.hover + 4 * J.h * u * (1 - u);
+    if (u >= 1) landJump(S);
+  }
+  function landJump(S) {
+    const Jp = S.jump; if (!Jp) return; S.jump = null;
+    const d = S.V, me = S.me, J = TUNE.jump; let x = Jp.x1, y = Jp.y1;
+    if (!landOK(S, x, y)) { if (landOK(S, Jp.x0, Jp.y0)) { x = Jp.x0; y = Jp.y0; } else { const p = nearestLand(S, x, y, 4) || safeReturn(S); x = p.x; y = p.y; } }   // (the ground changed under the plan: back where it left, else the nearest safe ground)
+    S.lastLand = { x, y }; d.x = x; d.y = y; d.z = TUNE.hover; d.vx = d.vy = 0; me.x = x; me.y = y; me.airborne = false; S.landT = S.g.t;
+    // one dark shockwave hit per monster in reach (it charges the meter)
+    let n = 0; for (const m of S.H.living()) { if (Math.hypot(m.x - x, m.y - y) > J.r + (m.r || 0.4) * 0.85) continue; const dealt = hitCharge(S, m, S.DK * J.dmg, { kb: J.kb }); S.stats.jumpHit = (S.stats.jumpHit || 0) + 1; if (dealt > 0) sparks(S, m.x, m.y, 1); n++; }
+    addPart(S, 9, x, y, 0, 0, 0, 0, 0.55, J.r * 1.05, {}); addPart(S, 9, x, y, 0, 0, 0, 0, 0.8, J.r * 0.6, {});
+    for (let i = 0; i < (lowFx() ? 8 : 20); i++) { const a = Math.random() * TAU, v = 2.5 + Math.random() * 4; addPart(S, i % 3 ? 2 : 1, x + Math.cos(a) * 0.5, y + Math.sin(a) * 0.4, 0.15, Math.cos(a) * v, Math.sin(a) * v * GY, i % 3 ? 0.4 : 2 + Math.random() * 2, 0.5 + Math.random() * 0.4, i % 3 ? 0.45 : 0.12, { grow: 1.5, drag: 2.5, col: i % 3 ? '#24162E' : (i % 2 ? VIO : VIO2), g: i % 3 ? 0 : 5 }); }
+    S.X.light(x, y, 3, 0.2); kick(S, 'crouch', 7); kick(S, 'z', -4); kick(S, 'pitch', 3); kick(S, 'wing', -4);   // (a heavy landing: the springs carry the crouch back up to the stance)
+    if (!calm()) S.X.shake(n ? 5 : 3.5, 0.15); const sfx = S.X.sfx || {}; if (sfx.stomp) sfx.stomp(); if (sfx.note) sfx.note(50, 0.4, 'sawtooth', 0.08, 36);
+    if (S.jumpLand) { S.jumpLand = false; S.jumpQ = S.g.t; }   // (pressed in the air: it goes again now)
+  }
+
   /* ---- the Strongs and the Ult ---- */
   function fresh(S, key) { const t = S.g.t, p = S.press[key]; S.press[key] = t; return t - p >= TUNE.freshGap; }
   function tryMove(S, slot, queued) {
@@ -472,7 +541,7 @@
     if (air && slot === 'strong2') return;   // (the airship has one Strong: the second slot's binding does nothing)
     if (!queued && S.needFresh[key]) { if (!isFresh) return; S.needFresh[key] = false; }   // (a key held through the Transform never casts in the airship: a release and a fresh press first)
     const k = air ? 'pulsar' : slot === 'strong2' ? 'spikes' : 'blade', cd = S.cd[k];
-    if (S.busy || S.glide || S.dive || d.locked) { if (!queued && S.busy !== 'messiah') S.mvQ = { slot, t: S.g.t }; return; }
+    if (S.busy || S.glide || S.dive || S.jump || d.locked) { if (!queued && S.busy !== 'messiah') S.mvQ = { slot, t: S.g.t }; return; }
     if (cd > 0) { if (!queued && cd <= 0.4) S.mvQ = { slot, t: S.g.t }; return; }
     S.mvQ = null;
     const MV = moves(), fn = MV[k === 'blade' ? 'darkBlade' : k === 'spikes' ? 'darkSpikes' : 'pulsar']; if (typeof fn !== 'function') return;
@@ -483,7 +552,7 @@
   function tryUlt(S) {
     const X = S.X, sfx = X.sfx || {}, isFresh = fresh(S, 'ult');
     if (S.phase === 'robot') { // Transform (no meter needed); during an attack it waits for the recovery
-      if (!isFresh || S.xfQ != null) return;   /* (the Ult held from the cast never transforms on its own) */ if (S.busy || S.glide) { S.xfQ = S.g.t; return; } commitXform(S); return; }
+      if (!isFresh || S.xfQ != null) return;   /* (the Ult held from the cast never transforms on its own) */ if (S.busy || S.glide || S.jump) { S.xfQ = S.g.t; return; } commitXform(S); return; }
     if (S.phase !== 'air') return;   // (summoning, folding, committed: ignored)
     if (!isFresh || S.g.t - S.armT < TUNE.freshGap) return;   // (a held / repeated press from the Transform never fires the finisher)
     if (S.used || S.charge < 1) { if (sfx.wrong) sfx.wrong(); X.text(S.V.x, S.V.y - 2.6, S.used ? 'Dark Messiah used' : `Dark Messiah ${Math.floor(S.charge * 100)}%`, VIO2, 12, { life: 0.9, max: 0.9, vy: -0.6 }); return; }
@@ -595,9 +664,10 @@
       S.leftR = Math.min(S.leftR - dt, S.endR - g.t); S.stats.robotT += dt;   /* (the game clock: a hit-stop, which pauses this step, still counts) */
       if (S.leftR <= 0) { startOut(S, 'timeout'); return; }   // (exactly 35 s: a Glide or a Strong in progress is cut (its later hits are dropped: alive() is false); a Transform not yet committed at expiry is dropped: the timeout wins, deterministically)
       if (S.busy && S.busyT > 9) actionDone(S);
-      if (S.glide) stepGlide(S, dt); else { moveRobot(S, dt, !d.locked && !busyLocks(S)); if (S.swing) stepSwing(S, dt); }
-      if (!S.glide) robotBody(S, dt);
-      if (S.xfQ != null && !S.busy && !S.glide) { if (g.t - S.xfQ < 3) commitXform(S); else S.xfQ = null; }
+      if (S.jump) stepJump(S, dt); else if (S.glide) stepGlide(S, dt); else { moveRobot(S, dt, !d.locked && !busyLocks(S)); if (S.swing) stepSwing(S, dt); }
+      if (!S.glide && !S.jump) robotBody(S, dt);
+      if (S.jumpQ != null && !S.jump) { if (g.t - S.jumpQ > TUNE.jump.buf) S.jumpQ = null; else if (!S.busy && !S.glide && !S.swing && !d.locked) tryJump(S, S.mx, S.my, true); }
+      if (S.xfQ != null && !S.busy && !S.glide && !S.jump) { if (g.t - S.xfQ < 3) commitXform(S); else S.xfQ = null; }
       queues(S);
     } else if (S.phase === 'xform') stepXform(S, dt);
     else if (S.phase === 'air') {
@@ -624,8 +694,8 @@
   /* A's channels onto the model's names (M, 20k5v): the fans' spread, the gait's amplitude */
   const busyLocks = S => S.busy === 'spikes';   // (the sword is planted: it holds still; True Dark Blade lets it drift)
   function queues(S) { const g = S.g, d = S.V;
-    if (S.mvQ) { const Q = S.mvQ, k = S.phase === 'air' ? 'pulsar' : Q.slot === 'strong2' ? 'spikes' : 'blade'; if (g.t - Q.t > TUNE.mvHold + 0.4) S.mvQ = null; else if (!S.busy && !S.glide && !S.dive && !d.locked && S.cd[k] <= 0) { S.mvQ = null; tryMove(S, Q.slot, true); } }
-    if (S.dQ != null && !S.busy && !S.glide && !S.dive && S.cd.dodge <= 0) { const q = S.dQ; S.dQ = null; if (g.t - q < 0.6) tryDodge2(S, q); } }
+    if (S.mvQ) { const Q = S.mvQ, k = S.phase === 'air' ? 'pulsar' : Q.slot === 'strong2' ? 'spikes' : 'blade'; if (g.t - Q.t > TUNE.mvHold + 0.4) S.mvQ = null; else if (!S.busy && !S.glide && !S.dive && !S.jump && !d.locked && S.cd[k] <= 0) { S.mvQ = null; tryMove(S, Q.slot, true); } }
+    if (S.dQ != null && !S.busy && !S.glide && !S.dive && !S.jump && S.cd.dodge <= 0) { const q = S.dQ; S.dQ = null; if (g.t - q < 0.6) tryDodge2(S, q); } }
   function tryDodge2(S) { if (S.phase === 'robot') tryGlide(S, S.mx, S.my, true); else if (S.phase === 'air') tryDive(S, S.mx, S.my, true); }
 
   /* ---- the summon: the seal, the cockpit rising round the pet, the assembly, the lock and pulse ---- */
@@ -642,7 +712,7 @@
   /* ---- exits: the pet set down on valid ground, the form dissolves, restore, cooldown ---- */
   function startOut(S, how) {
     if (S.phase === 'out' || S.released) return;
-    const d = S.V; S.glide = null; S.swing = null; S.dive = null; S.busy = null; S.xfQ = null; S.mvQ = null; S.dQ = null; S.ultQ = null;
+    const d = S.V; if (S.jump) { S.jump = null; S.me.airborne = false; } S.jumpQ = null; S.glide = null; S.swing = null; S.dive = null; S.busy = null; S.xfQ = null; S.mvQ = null; S.dQ = null; S.ultQ = null;
     S.outHow = how || 'timeout'; S.fromPhase = S.phase; S.phase = 'out'; S.t = 0; S.outT = 0; d.locked = true; S.cam = null; S.ctx.messiah = false;
     const p = S.retPt && safeOK(S, S.retPt.x, S.retPt.y) ? S.retPt : safeReturn(S); S.ret = p;
     S.outFrom = { x: d.x, y: d.y, z: d.z }; S.outGlide = S.fromPhase === 'robot' ? 0 : Math.max(TUNE.outGlide[0], Math.min(TUNE.outGlide[1], Math.hypot(p.x - d.x, p.y - d.y) / TUNE.outSpd));
@@ -764,6 +834,7 @@
       if (cd > 0.05) { c.beginPath(); c.moveTo(b.x, b.y); c.arc(b.x, b.y, b.r, -Math.PI / 2, -Math.PI / 2 + TAU * Math.min(1, cd / cdMax)); c.closePath(); c.fillStyle = 'rgba(8,4,14,.55)'; c.fill(); GFX.textS(c, cd.toFixed(1), b.x, b.y, 13, '#FFFFFF'); }
       GFX.labelS(c, label, b.x, b.y + b.r + 9, 8, 800, '#E6DCFF', 'rgba(0,0,0,.7)', 3); };
     if (!air) { btn(B.s[0], 'blade', 'DARK BLADE', S.cd.blade, TUNE.cdBlade, paintBladeBtn, S.busy === 'blade'); btn(B.s[1], 'spikes', 'DARK SPIKES', S.cd.spikes, TUNE.cdSpikes, paintSpikesBtn, S.busy === 'spikes'); btn(B.d, 'glides', 'GLIDES', S.cd.dodge, dodgeCd(S), paintGlideBtn, !!S.glide); }
+    if (!air && B.j) btn(B.j, 'jump', 'JUMP', 0, 1, paintJumpBtn, !!S.jump);   // (round 5: the robot's Jump, above Glides (the shared vehicle layout); the airship has none)
     else { btn(B.s[0], 'pulsar', 'PULSAR', S.cd.pulsar, TUNE.cdPulsar, paintPulsarBtn, S.busy === 'pulsar'); btn(B.d, 'dive', 'DIVE', S.cd.dodge, dodgeCd(S), paintDiveBtn, !!S.dive); }   // (the airship: no second Strong button)
     // the Ult: TRANSFORM (robot; the Dark Messiah meter as a thin ring) or DARK MESSIAH (airship: the meter, ready pulse)
     { const b = B.u, full = S.charge >= 1 && !S.used, k = S.used ? 1 : S.charge, msh = S.phase === 'messiah', xf = S.phase === 'xform';
@@ -802,6 +873,14 @@
     x.fillStyle = VIO2; x.beginPath(); x.moveTo(r * 0.6, r * 0.05); x.lineTo(r * 0.15, -r * 0.2); x.lineTo(r * 0.25, r * 0.05); x.lineTo(r * 0.15, r * 0.3); x.closePath(); x.fill();
     x.strokeStyle = GOLD; x.lineWidth = 2; x.lineCap = 'round'; x.beginPath(); x.arc(0, r * 0.05, r * 0.35, -2.4, -0.7); x.stroke(); x.beginPath(); x.moveTo(r * 0.27, -r * 0.27); x.lineTo(r * 0.2, -r * 0.12); x.lineTo(r * 0.33, -r * 0.15); x.stroke();
     x.restore(); x.lineWidth = 2.4; x.strokeStyle = SILV; x.beginPath(); x.arc(cx, cy, r, 0, TAU); x.stroke(); }
+  /* Jump: the robot's silhouette leaping off a violet shock ring, an arc of exhaust under it */
+  function paintJumpBtn(x, cx, cy, r, rd) { btnFace(x, cx, cy, r, rd); x.save(); x.translate(cx, cy); x.globalAlpha = rd ? 1 : 0.55;
+    x.strokeStyle = rd ? `rgba(155,92,255,.85)` : 'rgba(155,92,255,.3)'; x.lineWidth = 2; x.beginPath(); x.ellipse(0, r * 0.45, r * 0.5, r * 0.15, 0, 0, TAU); x.stroke();
+    x.strokeStyle = rd ? VIO2 : 'rgba(201,162,255,.35)'; x.lineWidth = r * 0.08; x.lineCap = 'round'; x.beginPath(); x.moveTo(-r * 0.32, r * 0.4); x.quadraticCurveTo(-r * 0.25, -r * 0.1, 0, -r * 0.22); x.stroke();
+    x.fillStyle = rd ? '#120E18' : '#0E0C12'; x.strokeStyle = rd ? SILV : 'rgba(216,212,232,.45)'; x.lineWidth = 1.2;
+    x.beginPath(); x.moveTo(r * 0.05, -r * 0.55); x.lineTo(r * 0.22, -r * 0.42); x.lineTo(r * 0.2, -r * 0.08); x.lineTo(r * 0.34, r * 0.1); x.lineTo(r * 0.16, r * 0.14); x.lineTo(r * 0.06, r * 0.0); x.lineTo(-r * 0.12, r * 0.12); x.lineTo(-r * 0.2, r * 0.0); x.lineTo(-r * 0.06, -r * 0.12); x.lineTo(-r * 0.12, -r * 0.42); x.closePath(); x.fill(); x.stroke();
+    x.fillStyle = rd ? VIO2 : 'rgba(201,162,255,.4)'; x.fillRect(r * 0.0, -r * 0.48, r * 0.12, r * 0.03);
+    x.restore(); btnRim(x, cx, cy, r, rd); }
   /* Dive: the craft rolling down a violet swoop */
   function paintDiveBtn(x, cx, cy, r, rd) { btnFace(x, cx, cy, r, rd); x.save(); x.translate(cx, cy); x.globalAlpha = rd ? 1 : 0.55;
     x.strokeStyle = rd ? VIO2 : 'rgba(201,162,255,.4)'; x.lineWidth = r * 0.12; x.lineCap = 'round'; x.beginPath(); x.moveTo(-r * 0.55, -r * 0.45); x.quadraticCurveTo(-r * 0.1, r * 0.55, r * 0.55, -r * 0.2); x.stroke();

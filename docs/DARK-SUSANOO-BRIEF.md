@@ -509,3 +509,70 @@ The API and channels are unchanged. What changed in the model:
 **Checks.**
 - Transformation clearances are about the same as before; the worst is a thin rail grazing a forearm.
 - Every hold × `legSwing` is clear, with no reach shortfall.
+
+### M — round 5 (2026-11-12): spikes, the open claw, and the GLM API for E
+
+**Spikes.** These are real meshes: faceted, bevelled cones with sharp tips, in silver, gunmetal and gold. They sit on:
+- the helmet crown (three, swept back);
+- each pauldron (a crest of three, plus three on the lower rim);
+- the backs of the shoulder drums (two each);
+- the gauntlet ridges (three each);
+- the knees (a guard spike plus gear studs);
+- the skirt hem (five);
+- the reactor pack (low and on the flanks).
+
+The transformation is clean: nothing collides visibly at xf 0.15–1, and the sphere clearances are the same as round 4. The sprite fallback has no spikes.
+
+**The off-hand is an open claw.** A new part, `claw`, has a domed back, four splayed talon fingers with silver tips, and a thumb. It is used whenever the left hand is free.
+- The arm is flung out with the forearm's armoured back turned up and the palm down.
+- Grips that use both hands still use the fist.
+- `anchor('handL')` is the middle of the palm while the claw shows.
+- The gauntlet rings now end in round gold flanges, not square plates.
+
+**For E: the `GLM` API is stable.**
+- `GLM.ok()`: true when WebGL is usable. It makes the context on first call, and returns false when lost or failed.
+- `GLM.soft`: true on a software rasteriser. Draw your own 2D fallback there.
+- `GLM.builder(q)`: build a mesh. It has frames (`push(x, y, z, o)` with scaled frames allowed, `at(o)`, `along(o, d, up)`, `pop()`) and these primitives:
+  - `box(c, h, bevel, mat)`
+  - `ell(c, r, mat, { th0, th1, ph0, ph1, seg, rings, cap })`
+  - `sph(c, r, mat, seg)`
+  - `tube(a, b, r1, r2, mat, { cap0, cap1: 'round' | 'flat' | false })`
+  - `spike(a, b, r, mat)`
+  - `tor`, `torX`, `torY`, `torZ(c, R, r, mat, { teeth, tooth })`
+  - `lathe([[x, r, mat], ...])`
+  - `surf(pos(u, v), nu, nv, mat(u, v))`
+  - `prism(outline2D, z0, z1, mat, { b })`
+  - `done()` returns a mesh.
+- Material ids are the model's `M_*`: 0 obsidian, 1 gunmetal, 2 silver, 3 gold, 4 rope, 5 crimson enamel, 6 violet (emissive), 7 dark, 8 eye, 9 blade silver, 10 cable, 11 steel, 12 violet edge, 13 grip.
+- `GLM.render(W, H, S, items)` returns the WebGL canvas.
+  - `S = { px, py, pd, cl, v, lk, ls, lr, up, low }`: the projection rows and clip mapping, the view direction and the lights.
+  - Each item is `{ mesh, R0, R1, R2, T, alpha, glow, kind, wear }`.
+  - It clears and renders one frame into the shared canvas, so copy it out with `drawImage` before the next call. The model renders inside its own `draw`, so call yours outside it.
+- `glPass` inside `20k5v` shows how to build `S` for the game camera.
+- One shared context serves both of us. Ask in Notes if you need a second program or blending mode, and I'll add it without changing these calls.
+- (E, 2026-11-12, later) **Dark Messiah v2: gather, condense, drop, detonate (the user's design, after v309).**
+  - **Sequence (`TUNE.messiah`):**
+    - gather 2.4 s into the underbelly (M's `center` anchor lowered by `bellyDrop` 0.9);
+    - condense 0.6 s into one speck;
+    - drop 0.55 s, with the telegraph;
+    - detonation at 3.55 s, which is `ctx.messiahPlan.tDetonate`.
+  - **Gameplay is unchanged:**
+    - 130 / 175 / 210 DK, once per enemy, as the dome's front (R 7 / 7.5 / 8, reached at `front` 0.42 s) passes it, with `noCharge`;
+    - nothing before the blast deals damage;
+    - `safeReturn()` and `done()` come 0.25 s and 1.15 s after the front ends.
+    - The cloud lasts 5.6 s, and the explosion covers the pet.
+  - **GPU layer:** `self.SUSANOO_GFX`, at the end of `20k5x` and separate from GLM.
+    - One offscreen WebGL canvas (WebGL2, else WebGL1) at 0.5× the game canvas (0.36× on low effects; long side capped at 1100), drawn into the game canvas with one `drawImage` per frame.
+    - Each frame makes 2 draw calls (4 since the WebKit fix below):
+      - a full-canvas quad whose noise shader paints every soft and volumetric part;
+      - one batch of 12,000 stateless point sprites (2,600 gather, 4,000 sparks, 2,600 embers, 900 debris, 1,900 motes; 40% of them on low effects).
+    - It is used on real-GPU WebGL. On a software rasteriser (SwiftShader) or without WebGL, the simplified 2D path draws instead, so the headless tests run 2D.
+    - `window.__SM_GL = 1` forces the GPU layer and `0` forces 2D. A lost context falls back to 2D.
+    - Because the floor's darkness overlay is painted over the effects, the move calls `X.light` around the gather, the fall and the cloud.
+- (E, 2026-11-12, WebKit fix) **The GPU layer's output is now valid premultiplied colour everywhere (rgb <= a).**
+  - The GL canvas is twice as wide:
+    - pass 0 draws the smoke and dark points in the left half, premultiplied, blended over;
+    - pass 1 draws the light alone in the right half, added together, with alpha = its brightest channel.
+  - `SUSANOO_GFX.blit` lays the left half `source-over`, then the right half `lighter`, so the light adds the same way in every browser. The LK-in-alpha hack is gone.
+  - Cost: 4 draw calls and two `drawImage` calls a frame. Use `u_pass` and `u_off` to choose the half.
+  - `SUSANOO_GFX.check()` (for tests) counts the pixels that break rgb <= a: 0 in every phase tested.
