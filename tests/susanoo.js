@@ -58,7 +58,7 @@ const path = require('path');
   const A = await R('full', `
     const { D, g, me } = H, S = H.cast(); if (!S) return { err: 'no session' };
     const out = { mv0: g.mvMods ? g.mvMods.susanoo : null, mvSet: S.stats.mvSet, leftR0: +S.leftR.toFixed(2), cdHeld: g.cdU, lab1: H.labels() };
-    // robot attacks: Glides into the line of monsters, True Dark Blade, Dark Spikes; one hit per enemy per activation
+    // robot attacks: Glides into the line of monsters, Death Ray (Strong 1), Dark Spikes; one hit per enemy per activation
     H.face(0); const n0 = H.log.length; const gs0 = S.stats.glides, pre = { busy: S.busy, cd: S.cd.dodge, locked: S.V.locked, glide: !!S.glide }; H.press('dodge'); H.release(); out.gdbg = { pre, started: S.stats.glides - gs0, v: [S.V.x - H.me.x, S.V.vx], mons: H.D.mons.filter(m => m._tag && !m.dead).map(m => [m._tag, +(m.x - S.V.x).toFixed(1), +(m.y - S.V.y).toFixed(1)]) }; H.step(1.2); out.glide = H.log.slice(n0).map(h => h.m); out.gdbg.after = [S.stats.glideHit, +S.V.x.toFixed(1)];
     const n1 = H.log.length; H.press('strong'); H.step(2.6); out.blade = H.log.slice(n1).map(h => h.m);
     const n2 = H.log.length; H.press('strong2'); H.step(3.6); out.spikes = H.log.slice(n2).map(h => h.m);
@@ -85,10 +85,10 @@ const path = require('path');
   if (A && !A.err) {
     ok(A.mv0 === 1.35 && A.mvSet === 1, 'the movement modifier is exactly 1.35, applied once', { mv: A.mv0, set: A.mvSet });
     ok(A.leftR0 > 34.5 && A.leftR0 <= 35, 'robot control starts at 35 s', A.leftR0);
-    ok(['GLIDES', 'DARK BLADE', 'DARK SPIKES', 'TRANSFORM'].every(s => A.lab1.includes(s)), 'robot controls: Glides, True Dark Blade, Dark Spikes, Transform', A.lab1);
+    ok(['GLIDES', 'DEATH RAY', 'DARK SPIKES', 'TRANSFORM'].every(s => A.lab1.includes(s)), 'robot controls: Glides, Death Ray, Dark Spikes, Transform', A.lab1);
     const once = L => L.length === new Set(L).size;
     ok(A.glide.length > 0 && once(A.glide), 'Glides hits, one hit per enemy', A.glide.length ? A.glide : A.gdbg);
-    ok(A.blade.length > 0 && once(A.blade), 'True Dark Blade hits, one hit per enemy', A.blade);
+    ok(A.blade.length > 0 && once(A.blade), 'Death Ray hits, one hit per enemy', A.blade);
     ok(A.spikes.length > 0, 'Dark Spikes hits (an eruption and a burst: at most one hit each per enemy)', A.spikes);
     ok(Object.values(A.spikes.reduce((o, m) => (o[m] = (o[m] || 0) + 1, o), {})).every(c => c <= 2), 'Dark Spikes: no enemy hit more than twice (one per phase)');
     ok(A.chargeR > 0 && A.robotHits > 0, 'robot damage fills the meter', A.chargeR);
@@ -97,7 +97,7 @@ const path = require('path');
     ok(A.afterXf.leftA > 19.7 && A.afterXf.leftA <= 20 && A.afterXf.airGrants === 1, 'a fresh 20 s airship phase, granted exactly once', A.afterXf);
     ok(A.afterXf.chargeKept && A.afterXf.hpKept, 'Transform keeps the charge and HP');
     ok(A.afterXf.mvSet === 1 && A.afterXf.mv === 1.35 && A.afterXf.cd === A.afterXf.cd0, 'Transform neither re-applies x1.35 nor starts the outer cooldown', A.afterXf);
-    ok(['DIVE', 'PULSAR'].every(s => A.lab2.includes(s)) && !A.lab2.includes('DARK SPIKES') && !A.lab2.includes('DARK BLADE') && A.lab2.some(s => /MESSIAH/.test(s)), 'airship controls: Dive, one Pulsar, Dark Messiah; no second Strong', A.lab2);
+    ok(['DIVE', 'PULSAR'].every(s => A.lab2.includes(s)) && !A.lab2.includes('DARK SPIKES') && !A.lab2.includes('DEATH RAY') && A.lab2.some(s => /MESSIAH/.test(s)), 'airship controls: Dive, one Pulsar, Dark Messiah; no second Strong', A.lab2);
     ok(A.s2.same && !A.s2.busy, 'the second Strong binding does nothing in the airship', A.s2);
     ok(A.pulsar.length > 0 && A.chargeAirUp, 'Shockwave Pulsar hits and airship damage fills the same meter', A.pulsar);
     ok(A.dive.length > 0 && once(A.dive), 'Dive hits, one hit per enemy', A.dive.length ? A.dive : A.ddbg);
@@ -170,6 +170,30 @@ const path = require('path');
     ok(SW.sw1 === 1 && SW.one.length > 0 && once(SW.one), 'a basic attack swings the robot\'s sword: it hits, each target once per swing', SW);
     ok(SW.sw2 === 2 && SW.two.length > 0 && once(SW.two) && SW.chargeUp, 'the next swing at the attack cadence hits again (once each) and charges the meter', { sw2: SW.sw2, two: SW.two, chargeUp: SW.chargeUp });
     ok(SW.air.swings === 0 && SW.air.hits === 0 && SW.air.phase === 'air', 'in the airship the basic attack does nothing (no basic weapon)', SW.air); }
+  // ---- (A, round 6) Glides: no cooldown, a 4-stage combo (presses chain 1 -> 2 -> 3 -> 4, then a new combo), one hit per enemy per stage, the finisher's shockwave ----
+  const GC = await R('glides-combo', `
+    const { D, g, me } = H, S = H.cast(); const out = {}; const dodge = () => D.dodge();
+    H.face(0); H.release(); H.step(0.2); const per = { 1: [], 2: [], 3: [], 4: [] }, st0 = { ...S.stats }; let n0 = H.log.length, lastN = 0, waveTag = null, maxN = 0;
+    dodge(); const seq = [];
+    H.step(2.6, () => { const Gl = S.glide; if (Gl) { lastN = Gl.n; maxN = Math.max(maxN, Gl.n); if (!seq.length || seq[seq.length - 1] !== Gl.n) seq.push(Gl.n); }
+      for (const h of H.log.slice(n0)) if (h.ph === 'robot' && lastN) per[lastN].push(h.m); n0 = H.log.length;
+      // a monster placed just outside the blade but inside the shockwave right before the finisher's slam
+      if (Gl && Gl.n === 4 && !waveTag) { const St = H.P.ELEM_IMPL.dark.ult.susanoo.TUNE.combo.st[3]; if (Gl.t >= St.prep + St.act - 1.5 / 60) { const m = D.mons.find(q => !q.dead && !q.boss && !Gl.hits.has(q)); if (m) { m.x = S.V.x; m.y = S.V.y + 3.3; m.hp = m.maxhp = 1e8; m.still = true; m.spd = 0; m.kbx = m.kby = 0; m.push = null; if (!m._tag) m._tag = 'w'; waveTag = m._tag; } } }
+      if (Gl && !Gl.next && Gl.n < 4) dodge(); if (Gl && Gl.n === 4 && Gl.t > 0.1) {} });
+    out.seq = seq; out.maxN = maxN; out.per = per; out.stats = { g1: (S.stats.glide1 || 0) - (st0.glide1 || 0), g2: (S.stats.glide2 || 0) - (st0.glide2 || 0), g3: (S.stats.glide3 || 0) - (st0.glide3 || 0), g4: (S.stats.glide4 || 0) - (st0.glide4 || 0), fin: (S.stats.finisherHit || 0) - (st0.finisherHit || 0) };
+    out.wave = waveTag ? per[4].includes(waveTag) : null; out.waveTag = waveTag;
+    // after the finisher: the combo resets; no cooldown (the next press starts stage 1 at once)
+    H.until(() => !S.glide, 2); out.reset = S.comboN; dodge(); out.next = S.glide ? S.glide.n : null; out.cd = S.cd.dodge;
+    // mashing: a stage can't be cut short (presses every frame give at most one stage per prep + act)
+    H.until(() => !S.glide, 2); H.step(0.6); const m0 = S.stats.glides, t0 = g.t; H.step(1.0, () => { dodge(); }); out.mash = { stages: S.stats.glides - m0, secs: +(g.t - t0).toFixed(2) };
+    return out;`);
+  if (GC) { const once = L => L.length === new Set(L).size;
+    ok(GC.seq.slice(0, 4).join() === '1,2,3,4' && GC.stats.g1 >= 1 && GC.stats.g2 >= 1 && GC.stats.g3 >= 1 && GC.stats.g4 >= 1, 'Glides chain 1 -> 2 -> 3 -> 4 on presses in the combo window', { seq: GC.seq, stats: GC.stats });
+    ok([1, 2, 3, 4].every(k => once(GC.per[k])) && [1, 2, 3].some(k => GC.per[k].length > 0), 'one hit per enemy per stage', GC.per);
+    ok(GC.stats.fin > 0 && GC.wave === true, 'the finisher slams with a dark shockwave beyond the blade', { fin: GC.stats.fin, wave: GC.wave, p4: GC.per[4] });
+    ok(GC.reset === 0 && GC.next === 1 && GC.cd === 0, 'after the finisher the combo resets; no cooldown (the next press starts stage 1 at once)', { reset: GC.reset, next: GC.next, cd: GC.cd });
+    ok(GC.mash.stages >= 2 && GC.mash.stages <= 5, 'mashing gives no more than about one stage per 0.27-0.5 s (no stage is cut short)', GC.mash);
+  }
   ok(!errors.length, 'no page errors', errors.slice(0, 4));
   console.log('manual (montages / captures): cockpit readable in motion, attacks and the fold; the model matches the two-form concept; torso pitch, cockpit counter-rotation, helmet stow, wings, legs, thrusters, the rear skirt as dorsal cowling; the sword docks with no duplicate; Messiah fires from the docked sword focus clear of rider and hull; effects at Beast Machine / Sports Car quality.');
   await browser.close();

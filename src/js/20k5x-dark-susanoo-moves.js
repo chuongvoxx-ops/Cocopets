@@ -1,12 +1,10 @@
 /* ---------- Dark's Susano O (12th Dark ult): the attacks (worker E) ----------
    The model is 20k5v (SUSANO_MODEL), the session, both forms, movement, menus and timers are 20k5w (U.susanoo). This file
    adds the four attacks to the SUSANOO_MOVES contract (docs/DARK-SUSANOO-BRIEF.md):
-   - SM.darkBlade(ctx): True Dark Blade. The sword rises overhead in both hands while violet light climbs its channel, then
-     drives down; at the slam a thin slash of darkness flies out ahead: a crescent lying flat just above the ground, bowed
-     forward with tapering tips, a dark sharp-edged core with a bright violet edge glow and a feathered outer glow,
-     sparks and dark wisps trailing, violet fissures lighting under it and fading behind. Its front (the drawn crescent,
-     tips trailing) is the hit: one hit per enemy per activation, the blade's own impact counted in the same set. Each
-     part of the slash stops at a wall (nothing is hit behind one).
+   - SM.deathRay(ctx) (also SM.darkBlade, the slot's old name): Death Ray. The free hand points at a spot ahead and a
+     purple laser from the palm carves a magic circle on the ground (rings, a star, sigils, runes); the ray cuts off, the
+     circle pulses brighter as its runes turn, then bursts in a column of violet-white light and a shockwave ring: one hit
+     per enemy inside the drawn circle (charges the meter).
    - SM.darkSpikes(ctx): Dark Spikes. The sword turns point-down and is driven into the ground; dark fissures race from it
      to the aimed area; then the Earth ult Crystal Coronation (20k2f, assumed to be the spec's "Crown of Rock") runs as
      its Dark variant through its V hook: the same ray-cast crystal spires, formation and eruption, in glossy black
@@ -41,9 +39,10 @@
 
   /* ---- the numbers (DK = ctx.DK = base x K x (1 + 0.08 (evo - 1)); tiers 0/1/2 = evo 1-3 / 4-6 / 7) ---- */
   const TUNE = SM.TUNE = {
-    /* True Dark Blade: lift + slam, then the wave rolls `range` tiles at `speed`; `width` across at the start, widening
-       by `spread` per tile; one hit per enemy (the blade's impact r `impactR` included). Cooldown is 20k5w's (~2.5 s) */
-    blade: { dmg: 4.0, lift: 0.38, slam: 0.12, recoil: 0.32, range: [7, 8, 9], speed: 9, width: [4.6, 5.6, 6.6], spread: 0.18, height: [2.4, 2.8, 3.2], impactR: 1.3, kb: 3, lanes: 13, cd: 2.5, thick: 0.62, z: 0.35, band: 0.5 },
+    /* Death Ray (robot Strong 1, the slot True Dark Blade had; same damage budget and cooldown): wind-up, the ray carves a
+       circle of radius r for `carve` s, the circle charges, then bursts: dmg x DK once per enemy inside it (charges the
+       meter). The target spot: the aim within reach (at least minReach), stopped short of a wall, on ground. */
+    ray: { dmg: 4.0, r: [2.6, 2.8, 3.0], reach: 5.5, minReach: 2.0, windup: 0.3, carve: 0.9, charge: 0.4, release: 0.3, burst: 0.9, kb: 3, cd: 2.5 },
     /* Dark Spikes: the impalement, then Coronation's Dark variant: phase 1 the eruption (one hit per enemy over the whole
        formation), phase 2 the burst (one hit per enemy); timings of the build-up scaled by timeK. Cooldown ~3.5 s */
     spikes: { erupt: 2.5, burst: 3.0, turn: 0.3, plunge: 0.12, fissure: 0.26, timeK: 0.55, recoil: 0.35, cd: 3.5 },
@@ -71,11 +70,6 @@
   const DR = [[0, [8, 5, 14]], [0.4, [26, 16, 44]], [0.7, [58, 38, 96]], [1, [140, 112, 196]]];
   const LR = [[0, [70, 24, 150]], [0.45, [138, 77, 255]], [0.75, [185, 131, 245]], [1, [246, 240, 255]]];
   function ramp(R, k) { k = cl(k); for (let i = 1; i < R.length; i++) if (k <= R[i][0]) { const a = R[i - 1], b = R[i], u = (k - a[0]) / (b[0] - a[0]); return [lerp(a[1][0], b[1][0], u), lerp(a[1][1], b[1][1], u), lerp(a[1][2], b[1][2], u)]; } return R[R.length - 1][1]; }
-  /* the wave's face, one lane wide (tileable across x): smoky black-violet rising from the floor, densest low, thinning
-     and churning toward the crest; 'b' the body (normal blend), 'r' the crest's soft violet light and inner veins (additive) */
-  const sprWave = (kind, v) => imgSprite('smW' + kind + v, 64, 128, (x, y, w, h) => { const u = 1 - (y + 0.5) / h, n = fbm(x / (w / 4), y / 13 + v * 3, 30 + v, 4), n2 = fbm(x / (w / 8), y / 6 + v * 7, 50 + v, 8), top = 0.78 + 0.16 * (n - 0.5) + 0.06 * (n2 - 0.5), side = sm(Math.min(x + 0.5, w - x - 0.5) / (w * 0.32));   /* (soft sides: lanes overlap and melt together) */
-    if (kind === 'b') { const a = side * sm(u / 0.06) * (1 - sm((u - top + 0.12) / 0.16)) * (0.62 + 0.45 * (n2 - 0.3)); if (a < 0.01) return null; const c = ramp(DR, 0.12 + 0.45 * n + 0.35 * sm((u - 0.4) / 0.4)); return [c[0], c[1], c[2], cl(a)]; }
-    const crest = Math.exp(-Math.pow((u - top + 0.06) / 0.07, 2)), vein = Math.max(0, 1 - Math.abs(n2 - 0.5) * 9) * 0.45 * sm(u / 0.2) * (1 - sm((u - top) / 0.1)), a = side * (crest * (0.7 + 0.5 * (n - 0.4)) + vein); if (a < 0.01) return null; const c = ramp(LR, 0.35 + 0.6 * crest); return [c[0], c[1], c[2], cl(a)]; });
   /* a soft dark smoke puff (gaussian blobs, ink to violet-grey, lit violet from below): 3 variants */
   const sprSmoke = v => fxCache.get('smS' + v) || imgSprite('smS' + v, 80, 80, (() => { let s = 13 + v * 41; const Rr = () => { s = (s * 9301 + 49297) % 233280; return s / 233280; }; const Bl = []; for (let k = 0; k < 7; k++) Bl.push([40 + (Rr() - 0.5) * 30, 40 + (Rr() - 0.5) * 26, 8 + Rr() * 9, 0.5 + Rr() * 0.5]);
     const D = (x, y) => { let d2 = 0; for (const b of Bl) { const dx = x - b[0], dy = y - b[1]; d2 += b[3] * Math.exp(-(dx * dx + dy * dy) / (b[2] * b[2])); } return d2; };
@@ -222,79 +216,110 @@
   function tierOf(ctx) { const ev = evoOf(ctx); return ctx.tier != null ? ctx.tier : ev >= 7 ? 2 : ev >= 4 ? 1 : 0; }
   function dkOf(ctx) { const ev = evoOf(ctx), Cc = ctx.C || {}; return ctx.DK > 0 ? ctx.DK : (Cc.base || 10) * (Cc.K || 1) * (1 + 0.08 * (ev - 1)); }
 
-  /* ================= True Dark Blade ================= */
-  function darkBlade(ctx) {
+  /* ================= Death Ray (robot Strong 1; replaced True Dark Blade) =================
+     The free hand (handL) points at a spot on the ground ahead; a purple laser fires from the palm to the ground and its
+     contact point carves a magic circle (the outer rings, a star, inner sigils and runes); the ray cuts off, the circle
+     pulses brighter as its runes turn, then bursts: a column of violet-white light, a shockwave ring, sparks. ONE hit
+     per enemy inside the drawn circle at the burst (it charges the meter). Pose: A's 'rayAim' (windup 0.3 s), 'rayHold' (the
+     carve 0.9 s, the arm tracking the contact point, then held at the centre through the 0.4 s charge), 'rayRecoil' (0.3 s
+     from the burst); extra { x, y } is where the arm points. */
+  /* the circle's figure, in unit radius: polylines in carving order ([x, y] lists); runes ride a band that turns */
+  const RAY_FIG = (() => { const P = [], C = (r, n, a0) => { const L = []; for (let i = 0; i <= n; i++) { const a = a0 + i / n * TAU; L.push([Math.cos(a) * r, Math.sin(a) * r]); } return L; };
+    P.push({ pts: C(1.0, 64, -Math.PI / 2), w: 1.25, k: 'ring' }); P.push({ pts: C(0.86, 56, -Math.PI / 2), w: 0.8, k: 'ring' });
+    const star = []; for (let i = 0; i <= 5; i++) { const a = -Math.PI / 2 + (i * 2 % 5) / 5 * TAU; star.push([Math.cos(a) * 0.86, Math.sin(a) * 0.86]); } P.push({ pts: star, w: 1.0, k: 'star' });
+    P.push({ pts: C(0.4, 36, Math.PI / 2), w: 0.85, k: 'star' });
+    for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + i / 5 * TAU, cx = Math.cos(a) * 0.86, cy = Math.sin(a) * 0.86, L = []; for (let j = 0; j <= 12; j++) { const b = j / 12 * TAU; L.push([cx + Math.cos(b) * 0.07, cy + Math.sin(b) * 0.07]); } P.push({ pts: L, w: 0.7, k: 'star' }); }
+    // runes: twelve small glyphs between the rings (a few strokes each, deterministic)
+    let s = 7; const R = () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
+    for (let i = 0; i < 12; i++) { const a = -Math.PI / 2 + (i + 0.5) / 12 * TAU, rc = 0.93, ca = Math.cos(a), sa = Math.sin(a), tx = -sa, ty = ca, g = (u, v) => [ca * (rc + v) + tx * u, sa * (rc + v) + ty * u];
+      const kind = i % 4, L = kind === 0 ? [g(-0.04, -0.04), g(0, 0.04), g(0.04, -0.04)] : kind === 1 ? [g(-0.04, 0.035), g(-0.04, -0.035), g(0.04, 0), g(-0.04, 0.035)] : kind === 2 ? [g(0, -0.045), g(0, 0.045), g(-0.035, 0.01), g(0.035, 0.01)] : [g(-0.04, -0.03), g(0.04, -0.03), g(0.0, 0.04), g(-0.02, 0.0), g(0.03, 0.01)];
+      void R; P.push({ pts: L, w: 0.6, k: 'rune' }); }
+    // the inner sigil: a small triangle and a dot ring
+    const tri = []; for (let i = 0; i <= 3; i++) { const a = Math.PI / 2 + i / 3 * TAU; tri.push([Math.cos(a) * 0.3, Math.sin(a) * 0.3]); } P.push({ pts: tri, w: 0.7, k: 'star' });
+    let tot = 0; for (const p of P) { p.len = 0; p.cum = [0]; for (let i = 1; i < p.pts.length; i++) { p.len += Math.hypot(p.pts[i][0] - p.pts[i - 1][0], p.pts[i][1] - p.pts[i - 1][1]); p.cum.push(p.len); } p.s0 = tot; tot += p.len + 0.25; }   /* (+0.25: the ray's short hop between strokes) */
+    return { P, tot }; })();
+  function deathRay(ctx) {
     const S = sysOf(ctx), done = once(ctx), v = ctx.vehicle; if (!S || !v) { done(); return; }
-    const H = S.H, X = H.X, tu = TUNE.blade, tier = tierOf(ctx), DK = dkOf(ctx), dmg = DK * tu.dmg, L = LOW();
-    const A = aimOf(ctx, H, v, 4), ang = A.a, ca = Math.cos(ang), sa = Math.sin(ang), RANGE = tu.range[tier], W0 = tu.width[tier], HW = tu.height[tier], NL = tu.lanes;
+    const H = S.H, X = H.X, tu = TUNE.ray, tier = tierOf(ctx), DK = dkOf(ctx), R = tu.r[tier], L = LOW();
+    // the target spot: the aim (stick or nearest enemy, as target() picks), within reach, on ground the robot can see
+    const A = aimOf(ctx, H, v, tu.reach), ang = A.a; let d0 = Math.min(tu.reach, Math.max(tu.minReach, isFinite(A.d) ? A.d : tu.reach));
+    let tx = v.x + Math.cos(ang) * d0, ty = v.y + Math.sin(ang) * d0;
+    for (let s = 0.5; s <= d0; s += 0.25) { const x = v.x + Math.cos(ang) * s, y = v.y + Math.sin(ang) * s; if (blocked(X, x, y)) { const k = Math.max(tu.minReach * 0.5, s - 0.5); tx = v.x + Math.cos(ang) * k; ty = v.y + Math.sin(ang) * k; break; } }
+    if (!ground(ctx, tx, ty)) { try { const p = ctx.nearestLand && ctx.nearestLand(tx, ty); if (p && isFinite(p.x)) { tx = p.x; ty = p.y; } } catch (e) {} }
     v.heading = ang; if (v.wantHeading !== undefined) v.wantHeading = ang;
-    const hits = new Set(); let t = 0, ph = 'lift', fired = false, finished = false, ox = 0, oy = 0, front = 0;
-    const lanes = []; for (let i = 0; i < NL; i++) lanes.push({ u: (i + 0.5) / NL - 0.5, stop: RANGE, s: Math.random() * 10, seed: i });
-    const marks = [], bowOf = w => Math.min(1.5, w * 0.24);   // floor fissures left under the leading edge (light only, fading); the crescent's bow
-    /* the slash's frame: whatever the direction, its chord lies roughly along screen-x (world x, leaning a little with
-       the travel), so it always reads as a wide horizontal arc; it bulges toward the travel's depth side (down the screen
-       going down or sideways, up the screen going up, passing smoothly through straight at about 20 deg above level) */
-    const lean = 0.24 * ca, ex = Math.cos(lean), ey = Math.sin(lean), nx = -ey, ny = ex, fb = sa >= 0 ? 1 : lerp(1, -1, sm(-sa / 0.7));
-    const arcPt = (u, f) => { const w = W0 + tu.spread * Math.min(f, RANGE), b = bowOf(w) * 1.6 * fb * (1 - Math.min(1, 4 * u * u)); return { x: ox + ca * f + ex * u * w + nx * b, y: oy + sa * f + ey * u * w + ny * b }; };
-    sfx(X, 'note', 70, 0.4, 'sawtooth', 0.07, 120); sfx(X, 'hum');
+    const TW = tu.windup, TC = TW + tu.carve, TQ = TC + tu.charge, TE = TQ + tu.burst, rot0 = ang + Math.PI / 2;
+    let t = 0, ph = 'windup', finished = false, boomT = -1; const hits = new Set();
+    ctx.rayPlan = { x: tx, y: ty, R };   /* (read-only, for tests) */
+    sfx(X, 'note', 220, 0.3, 'sine', 0.05, 440); sfx(X, 'hum');
+    const contact = u => { /* the ray's point on the figure at carve progress u (0..1), world */ const sAt = u * RAY_FIG.tot; let p = RAY_FIG.P[0];
+      for (const q of RAY_FIG.P) { if (sAt >= q.s0) p = q; else break; } const ls = Math.min(p.len, sAt - p.s0); let i = 1; while (i < p.cum.length - 1 && p.cum[i] < ls) i++;
+      const a = p.pts[i - 1], b = p.pts[i], f = cl((ls - p.cum[i - 1]) / Math.max(1e-6, p.cum[i] - p.cum[i - 1])), lx = lerp(a[0], b[0], f), ly = lerp(a[1], b[1], f), cr = Math.cos(rot0), sr = Math.sin(rot0);
+      return { x: tx + (lx * cr - ly * sr) * R, y: ty + (lx * sr + ly * cr) * R }; };
     const act = { update(dt) { t += dt;
-        if (!S.alive) { if (!finished) { finished = true; done(); } if (!fired || front >= RANGE + 1 || t > 3) act.dead = true; return; }
-        const T1 = tu.lift, T2 = T1 + tu.slam, T3 = T2 + tu.recoil;
-        if (t < T1) { setPose(ctx, 'overhead', sm(t / T1), { channel: sm(t / T1), glow: 0.4 + 0.6 * sm(t / T1), crouch: 0.1 }); const tip = anchorW(ctx, 'swordTip'); if (Math.random() < (L ? 0.3 : 0.8)) part(S, 0, tip.x + rnd(-0.3, 0.3), tip.y + rnd(-0.2, 0.2), tip.z + rnd(-0.4, 0.2), 0, 0, rnd(0.5, 1.5), rnd(0.25, 0.4), rnd(0.25, 0.4), { fin: 0.03 }); }
-        else if (t < T2) { setPose(ctx, 'overheadSlam', ein((t - T1) / tu.slam), { channel: 1, glow: 1, crouch: 0.3 }); }
-        else if (!fired) { fired = true; impact(); }
-        if (fired && t < T3) setPose(ctx, 'overheadSlam', 1, { channel: 1 - sm((t - T2) / tu.recoil), glow: 1 - 0.6 * sm((t - T2) / tu.recoil), crouch: 0.3 * (1 - sm((t - T2) / tu.recoil)), recoil: 1 - (t - T2) / tu.recoil });
-        if (fired && t >= T3 && !finished) { finished = true; setPose(ctx, 'rest', 1, { channel: 0, glow: 0, recoil: 0 }); done(); }
-        if (fired) { const prev = front; front = Math.min(RANGE + 1.2, front + tu.speed * dt);
-          // each lane advances until a wall: the hit is the lane's front passing over a monster (once per activation)
-          for (const ln of lanes) { if (ln.stop < RANGE) continue; const f2 = Math.min(front, RANGE), q = arcPt(ln.u, f2); if (f2 > 0.6 && blocked(X, q.x, q.y)) ln.stop = Math.max(0.4, f2 - 0.3); }
-          // the hit: the drawn arc (each lane at its own front, stopped ones excluded) passing over a monster, once per activation
-          if (front <= RANGE + 0.3) { const A = lanes.map(ln => front > ln.stop + 0.4 ? null : arcPt(ln.u, Math.min(front, ln.stop))), band = tu.band;
-            for (const m of monsOf(ctx, H)) { if (gone(m) || hits.has(m)) continue; const r = (m.r || 0.4) + band; let hit = false;
-              for (let i = 1; i < A.length && !hit; i++) { const p = A[i - 1], q = A[i]; if (!p || !q) continue; const vx = q.x - p.x, vy = q.y - p.y, l2 = vx * vx + vy * vy || 1e-6, k = Math.max(0, Math.min(1, ((m.x - p.x) * vx + (m.y - p.y) * vy) / l2)); if (Math.hypot(m.x - p.x - vx * k, m.y - p.y - vy * k) < r) hit = true; }
-              if (hit) { hits.add(m); hitM(ctx, m, dmg, { kb: tu.kb, el: 'dark', src: 'strong' }); } } }
-          // fragments drawn up the face, smoke rolling off the crest; floor fissures under the leading edge
-          if (front < RANGE) { let k = (L ? 10 : 26) * dt + Math.random(); while (k-- >= 1) { const ln = lanes[(Math.random() * NL) | 0]; if (front > ln.stop) continue; const q0 = arcPt(ln.u, front);
-              const qx = q0.x, qy = q0.y, rr = Math.random();
-              if (rr < 0.5) part(S, 1, qx, qy, tu.z, ca * tu.speed * rnd(0.5, 0.9) + rnd(-1.5, 1.5), sa * tu.speed * rnd(0.5, 0.9) + rnd(-1.5, 1.5), rnd(0.5, 2), rnd(0.2, 0.4), rnd(0.14, 0.24), { g: 4, drag: 2.5 });   // sparks thrown off the edge
-              else if (rr < 0.85) part(S, 2, qx - ca * 0.3, qy - sa * 0.3, tu.z * rnd(0.5, 1.2), ca * rnd(0.5, 1.5), sa * rnd(0.5, 1.5), rnd(0.1, 0.5), rnd(0.35, 0.6), rnd(0.35, 0.6), { v: (Math.random() * 3) | 0, rot: Math.random() * TAU, vr: rnd(-2, 2), grow: 0.9, drag: 3, a: 0.45 });   // dark wisps trailing
-              else part(S, 0, qx, qy, tu.z, ca * 1.5, sa * 1.5, rnd(0.3, 1), rnd(0.3, 0.6), rnd(0.18, 0.3), { drag: 2, fin: 0.03 }); }
-            if (Math.floor(front / 1.1) !== Math.floor(prev / 1.1)) marks.push({ x: ox + ca * front, y: oy + sa * front, t: 0, rot: Math.random() * TAU, v: marks.length % 2, s: 0.8 + 0.3 * Math.random() + 0.1 * front }); }
-          for (const mk of marks) mk.t += dt;
-          if (front >= RANGE + 1.2 && marks.every(m => m.t > 1.4)) act.dead = true; } },
-      under(c, B) { if (!fired) return; const T = S.T, GY = S.GY;
-        // fissures that light under the leading edge and fade behind it (light only)
-        for (const mk of marks) { const a = Math.min(1, mk.t / 0.08) * (1 - sm((mk.t - 0.2) / 1.2)); if (a > 0.01) { setT(c, B, H.sx(mk.x), H.sy(mk.y), 0, 1, GY); c.globalCompositeOperation = 'lighter'; c.globalAlpha = a * 0.85; c.rotate(mk.rot); const r = T * 1.7 * mk.s; c.drawImage(sprCracks(mk.v), -r, -r, r * 2, r * 2); } }
-        // the blade's impact: a soft violet bloom and a band of light
-        const it = t - tu.lift - tu.slam; if (it < 0.7) { floor(c, B, glowSprite(C.vio2), H.sx(ox), H.sy(oy), T * 2.6, 0.7 * (1 - it / 0.7), true, GY); floor(c, B, sprBand(), H.sx(ox), H.sy(oy), T * (0.6 + 2.6 * eout(it / 0.4)), (1 - sm(it / 0.5)) * 0.9, true, GY); }
-        // a light under the wave's front
-        if (front < RANGE + 0.6) { const w = W0 + tu.spread * Math.min(front, RANGE); for (let i = 0; i < 3; i++) { const u = (i - 1) / 3, q = arcPt(u, front); floor(c, B, glowSprite(C.vio2), H.sx(q.x), H.sy(q.y), T * w * 0.3, 0.22 * (1 - sm((front - RANGE) / 0.6)), true, GY); } } },
-      over(c, B) { if (!fired) return; const T = S.T, fade = 1 - sm((front - RANGE) / 1.0); if (fade <= 0.01) return;
-        /* the slash: a thin crescent lying flat over the ground (a little above it), bowed forward, its tips trailing and
-           tapering to points; a dark core with a sharp edge, a bright violet edge glow along its front, a feathered outer
-           glow, a pale hot thread. Each part of it stops at its lane's wall. */
-        const N = 26, zz = tu.z * S.ZT, grow = sm(front / 0.7), P = [], GY = S.GY, nl = Math.hypot(nx, ny * GY) || 1, sg = fb < 0 ? -1 : 1, bnx = -sg * nx / nl, bny = -sg * ny * GY / nl;   /* (bn: the inner side, on screen) */
-        for (let i = 0; i <= N; i++) { const u = i / N - 0.5, ln = lanes[Math.max(0, Math.min(NL - 1, Math.floor((u + 0.5) * NL)))], endA = 1 - sm((front - ln.stop) / 0.4), q = arcPt(u, Math.min(front, ln.stop)), tp = Math.pow(Math.max(0, 1 - 4 * u * u), 0.6), th = tu.thick * T * 0.75 * tp * (0.5 + 0.5 * grow);
-          const X0 = H.sx(q.x), Y0 = H.sy(q.y) - zz;
-          P.push({ X: X0, Y: Y0, BX: X0 + bnx * th, BY: Y0 + bny * th, a: fade * endA * petK(S, X0, Y0, 0.35), tp }); }
-        const strip = (img, wk, ak, back) => { for (let i = 1; i < P.length; i++) { const p = P[i - 1], q = P[i], x0 = back ? p.BX : p.X, y0 = back ? p.BY : p.Y, x1 = back ? q.BX : q.X, y1 = back ? q.BY : q.Y, a = Math.min(p.a, q.a) * ak * (0.25 + 0.75 * Math.min(p.tp, q.tp)); if (a < 0.02) continue;
-            const Ls = Math.hypot(x1 - x0, y1 - y0), wc = T * wk * (0.35 + 0.65 * Math.max(p.tp, q.tp)); setT(c, B, x0, y0, Math.atan2(y1 - y0, x1 - x0)); c.globalAlpha = Math.min(1, a); c.drawImage(img, -wc * 0.5, -wc, Ls + wc, wc * 2); } };
-        // the feathered outer glow (behind the core), the dark core, then the edge light
-        c.globalCompositeOperation = 'lighter'; strip(beamSprite(C.vio2), 0.9, 0.55, false); strip(beamSprite(C.vio2), 0.55, 0.3, true);
-        c.setTransform(B); c.globalCompositeOperation = 'source-over'; c.fillStyle = '#140822';   /* (per segment, so a part stopped at a wall fades with its glow) */
-        for (let i = 1; i < P.length; i++) { const p = P[i - 1], q = P[i], a = Math.min(p.a, q.a); if (a < 0.02) continue; c.globalAlpha = Math.min(1, 0.92 * a); c.beginPath(); c.moveTo(p.X, p.Y); c.lineTo(q.X + (q.X - p.X) * 0.04, q.Y + (q.Y - p.Y) * 0.04); c.lineTo(q.BX, q.BY); c.lineTo(p.BX, p.BY); c.closePath(); c.fill(); }
-        c.globalCompositeOperation = 'lighter'; strip(beamSprite(C.vio), 0.32, 0.9, false); strip(beamSprite(C.pale), 0.11, 0.95, false);
-        c.setTransform(B); c.globalCompositeOperation = 'source-over'; }
-    };
-    function impact() { const tip = anchorW(ctx, 'swordTip'); ox = tip.x; oy = tip.y; if (!isFinite(ox)) { ox = v.x + ca * 1.8; oy = v.y + sa * 1.8; }
-      // the blade's own impact: in the same hit set as the wave
-      for (const m of monsOf(ctx, H)) { if (gone(m) || hits.has(m)) continue; if (Math.hypot(m.x - ox, m.y - oy) < tu.impactR + (m.r || 0.4)) { hits.add(m); hitM(ctx, m, dmg, { kb: tu.kb, el: 'dark', src: 'strong' }); } }
-      shake(ctx, X, 8, 0.25); X.hitstop && X.hitstop(0.05); X.light && X.light(ox, oy, 3, 0.4); sfx(X, 'crash'); sfx(X, 'thud'); sfx(X, 'whoosh'); sfx(X, 'note', 48, 0.6, 'sawtooth', 0.12, 30);
-      for (let i = 0; i < (L ? 6 : 16); i++) { const a2 = Math.random() * TAU, sp2 = rnd(2, 6); part(S, i % 3 ? 3 : 1, ox, oy, 0.2, Math.cos(a2) * sp2, Math.sin(a2) * sp2 * 0.7, rnd(2, 6), rnd(0.35, 0.7), i % 3 ? rnd(0.25, 0.45) : rnd(0.3, 0.5), { g: 12, drag: 1, v: i % 3, rot: Math.random() * TAU, vr: rnd(-8, 8) }); } }
+        if (!S.alive) { if (!finished) { finished = true; done(); } act.dead = true; return; }
+        // A's ray clip (20k5w): 'rayAim' the arm rises and points, 'rayHold' held while the ray carves (the arm follows the
+        // contact point, extra x/y), held at the centre through the charge, 'rayRecoil' as the circle bursts
+        const gl = { glow: t < TC ? 0.4 + 0.6 * sm(t / TW) : 0.6, channel: 0.3 };
+        if (t < TW) setPose(ctx, 'rayAim', t / TW, Object.assign({ x: tx, y: ty }, gl));
+        else if (t < TC) { const p = contact(cl((t - TW) / tu.carve)); setPose(ctx, 'rayHold', (t - TW) / tu.carve, Object.assign({ x: p.x, y: p.y }, gl)); }
+        else if (t < TQ) setPose(ctx, 'rayHold', 1, Object.assign({ x: tx, y: ty }, gl));
+        else if (!finished) setPose(ctx, 'rayRecoil', cl((t - TQ) / tu.release), { x: tx, y: ty, glow: 0.4, channel: 0.2 });
+        if (t < TW) { if (Math.random() < (L ? 0.3 : 0.7)) { const h = anchorW(ctx, 'handL'); part(S, 0, h.x + rnd(-0.2, 0.2), h.y + rnd(-0.15, 0.15), h.z + rnd(-0.2, 0.2), 0, 0, rnd(0.2, 0.8), rnd(0.25, 0.4), rnd(0.2, 0.32), { fin: 0.03 }); } }
+        else if (t < TC) { if (ph === 'windup') { ph = 'carve'; sfx(X, 'zap'); sfx(X, 'hiss', tu.carve, 0.2, 1400); sfx(X, 'note', 640, tu.carve, 'sawtooth', 0.04, 600); }
+          const p = contact(cl((t - TW) / tu.carve)); if (!(S.lt > t) && X.light) { S.lt = t + 0.12; X.light(p.x, p.y, 2.2, 0.25); }
+          let k = (L ? 10 : 30) * dt + Math.random(); while (k-- >= 1) { const a2 = Math.random() * TAU, sp = rnd(1.5, 4.5); if (Math.random() < 0.6) part(S, 1, p.x, p.y, 0.05, Math.cos(a2) * sp, Math.sin(a2) * sp * 0.7, rnd(1.5, 4), rnd(0.2, 0.4), rnd(0.12, 0.22), { g: 9, drag: 2 }); else part(S, 0, p.x + rnd(-0.1, 0.1), p.y + rnd(-0.1, 0.1), 0.05, rnd(-0.2, 0.2), rnd(-0.2, 0.2), rnd(0.8, 1.6), rnd(0.6, 1.1), rnd(0.12, 0.22), { g: -0.6, drag: 1.5, fin: 0.05 }); } }   /* (sparks at the contact, embers rising off the cut) */
+        else if (t < TQ) { if (ph === 'carve') { ph = 'charge'; sfx(X, 'note', 180, tu.charge, 'sine', 0.12, 720); } if (!(S.lt > t) && X.light) { S.lt = t + 0.1; X.light(tx, ty, R + 0.5, 0.2); }
+          if (Math.random() < dt * (L ? 12 : 30)) { const a2 = Math.random() * TAU, r = R * Math.sqrt(Math.random()); part(S, 0, tx + Math.cos(a2) * r, ty + Math.sin(a2) * r * 0.9, 0.05, 0, 0, rnd(1, 2.5), rnd(0.4, 0.7), rnd(0.15, 0.25), { g: -1, drag: 1, fin: 0.04 }); } }
+        else if (boomT < 0) { ph = 'burst'; boomT = t; boom(); }
+        if (t >= TQ + tu.release && !finished) { finished = true; setPose(ctx, 'rest', 1, { glow: 0, channel: 0, crouch: 0 }); done(); }
+        if (boomT >= 0 && t - boomT > tu.burst) act.dead = true; },
+      under(c, B) { const T = S.T, GY = S.GY, X0 = H.sx(tx), Y0 = H.sy(ty), RP = R * T, LO = lowBegin(S, c);
+        // the telegraph while the arm rises; then the carved figure; its glow builds through the charge; it flashes and fades
+        if (t < TC + 0.05) LO.floor(sprBand(), X0, Y0, RP * 1.02, 0.22 * sm(t / TW) * (1 - sm((t - TW) / 0.3)), true, GY);
+        const cu = t < TW ? 0 : cl((t - TW) / tu.carve), q = t < TC ? 0 : cl((t - TC) / tu.charge), bu = boomT < 0 ? 0 : (t - boomT) / tu.burst;
+        const pulse = 0.5 + 0.5 * Math.sin((t - TC) * (10 + 26 * q)), kq = 0.75 + 0.9 * q * q + 0.35 * q * pulse, fadeB = boomT < 0 ? 1 : 1 - sm(bu / 0.7);
+        if (q > 0 && fadeB > 0.01) LO.floor(glowSprite(C.vio2), X0, Y0, RP * 1.15, (0.18 + 0.4 * q * q) * fadeB, true, GY);
+        if (boomT >= 0 && bu < 0.6) LO.floor(glowSprite(C.wht), X0, Y0, RP * 1.4, (1 - bu / 0.6) * 0.7, true, GY);
+        lowFlush(c, LO);
+        if (cu > 0 && fadeB > 0.01) drawFig(c, B, X0, Y0, RP, GY, cu, kq * fadeB * (boomT >= 0 ? 1 + 1.5 * (1 - sm(bu / 0.25)) : 1), q * q * 1.6 + (boomT >= 0 ? bu * 2 : 0));
+        // the shockwave ring
+        if (boomT >= 0 && bu < 1) { const rr = RP * (0.6 + 1.0 * eout(bu / 0.7)); floor(c, B, sprShadowRing(), X0, Y0, rr, (1 - bu) * 0.5, false, GY); floor(c, B, sprBand(), X0, Y0, rr * 1.06, (1 - sm(bu / 0.8)) * 0.9, true, GY); } },
+      over(c, B) { const T = S.T;
+        // the ray: palm to the contact point, a hot pale core inside a violet glow, flickering
+        if (t >= TW && t < TC + 0.06) { const h = anchorW(ctx, 'handL'), p = contact(cl((t - TW) / tu.carve)), HX = H.sx(h.x), HY = H.sy(h.y) - h.z * S.ZT, PX = H.sx(p.x), PY = H.sy(p.y), Ls = Math.hypot(PX - HX, PY - HY), an = Math.atan2(PY - HY, PX - HX);
+          const on = Math.min(1, (t - TW) / 0.05) * (t > TC ? 1 - (t - TC) / 0.06 : 1), fl = 0.85 + 0.15 * Math.sin(t * 90) + 0.08 * Math.sin(t * 57), k = petK(S, HX, HY, 0.5) * on;
+          c.globalCompositeOperation = 'lighter'; const beam = (img, w, a) => { setT(c, B, HX, HY, an); c.globalAlpha = Math.min(1, a); c.drawImage(img, -w * 0.4, -w, Ls + w * 0.8, w * 2); };
+          beam(beamSprite(C.vio2), T * 0.55 * fl, 0.55 * k); beam(beamSprite(C.vio), T * 0.24 * fl, 0.85 * k); beam(beamSprite(C.pale), T * 0.085, 0.95 * k);
+          c.setTransform(B); put(c, B, glowSprite(C.vio2), HX, HY, T * 1.3, T * 1.3, 0.6 * k, 0, true); put(c, B, glowSprite(C.pale), HX, HY, T * 0.5, T * 0.5, 0.8 * k, 0, true);
+          put(c, B, glowSprite(C.vio2), PX, PY, T * 1.6 * fl, T * 1.0 * fl, 0.75 * on, 0, true); put(c, B, glowSprite(C.wht), PX, PY, T * 0.55, T * 0.4, 0.95 * on, 0, true); }
+        else if (t < TW) { const h = anchorW(ctx, 'handL'), HX = H.sx(h.x), HY = H.sy(h.y) - h.z * S.ZT, k = petK(S, HX, HY, 0.5) * sm(t / TW); put(c, B, glowSprite(C.vio2), HX, HY, T * 1.1, T * 1.1, 0.55 * k, 0, true); put(c, B, glowSprite(C.pale), HX, HY, T * 0.4, T * 0.4, 0.8 * k, 0, true); }
+        // the burst: a column of violet-white light rising from the circle
+        if (boomT >= 0) { const bu = (t - boomT) / tu.burst; if (bu < 1) { const X0 = H.sx(tx), Y0 = H.sy(ty), RP = R * T, hh = RP * (1.2 + 2.4 * eout(bu / 0.35)), wv = RP * 1.7 * (1 - 0.55 * sm(bu / 0.8)), a = (1 - sm((bu - 0.25) / 0.75)) * petK(S, X0, Y0 - hh * 0.5, 0.35);
+            c.globalCompositeOperation = 'lighter'; setT(c, B, X0, Y0, -Math.PI / 2); c.globalAlpha = Math.min(1, 0.65 * a); c.drawImage(beamSprite(C.vio2), -RP * 0.15, -wv / 2, hh, wv); c.globalAlpha = Math.min(1, 0.8 * a); c.drawImage(beamSprite(C.vio), -RP * 0.1, -wv * 0.28, hh * 0.92, wv * 0.56); c.globalAlpha = Math.min(1, 0.9 * a); c.drawImage(beamSprite(C.pale), -RP * 0.05, -wv * 0.1, hh * 0.85, wv * 0.2);
+            c.setTransform(B); put(c, B, glowSprite(C.vio2), X0, Y0 - RP * 0.3, RP * 3, RP * 2.2, 0.5 * a, 0, true); } } } };
+    /* the carved figure on the ground: each stroke as far as the carve has reached, three feathered passes (a wide violet
+       haze, a violet line, a pale core); the rune band and the star turn as the circle charges (spin) */
+    function drawFig(c, B, X0, Y0, RP, GY, cu, k, spin) { const sAt = cu * RAY_FIG.tot, T = S.T;
+      c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.lineJoin = 'round';
+      for (const pass of [[C.vio2, 0.22, 0.22], [C.vio, 0.075, 0.6], [C.pale, 0.026, 0.85]]) { c.strokeStyle = pass[0];
+        for (const p of RAY_FIG.P) { if (sAt <= p.s0) break; const ls = Math.min(p.len, sAt - p.s0), rot = rot0 + (p.k === 'rune' ? spin : p.k === 'star' ? -spin * 0.6 : 0);
+          setT(c, B, X0, Y0, 0, 1, GY); c.rotate(rot); c.lineWidth = Math.max(1, T * pass[1] * p.w); c.globalAlpha = Math.min(1, pass[2] * k);
+          c.beginPath(); c.moveTo(p.pts[0][0] * RP, p.pts[0][1] * RP); for (let i = 1; i < p.pts.length; i++) { if (p.cum[i] <= ls) c.lineTo(p.pts[i][0] * RP, p.pts[i][1] * RP); else { const f = (ls - p.cum[i - 1]) / (p.cum[i] - p.cum[i - 1]); c.lineTo(lerp(p.pts[i - 1][0], p.pts[i][0], f) * RP, lerp(p.pts[i - 1][1], p.pts[i][1], f) * RP); break; } } c.stroke(); } }
+      c.setTransform(B); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over'; }
+    function boom() { // ONE hit per enemy inside the drawn circle (charges the meter)
+      for (const m of monsOf(ctx, H)) { if (gone(m) || hits.has(m)) continue; if (Math.hypot(m.x - tx, (m.y - ty)) - (m.r || 0.4) * 0.5 < R) { hits.add(m); hitM(ctx, m, DK * tu.dmg, { kb: tu.kb, el: 'dark', src: 'strong' }); } }
+      shake(ctx, X, 7, 0.25); X.hitstop && X.hitstop(0.05); X.light && X.light(tx, ty, R * 1.8, 0.6); sfx(X, 'crash'); sfx(X, 'thud'); sfx(X, 'note', 90, 0.8, 'sine', 0.3, 40); sfx(X, 'sparkle');
+      for (let i = 0; i < (L ? 14 : 40); i++) { const a2 = Math.random() * TAU, r = R * Math.sqrt(Math.random()); part(S, i % 3 ? 1 : 0, tx + Math.cos(a2) * r, ty + Math.sin(a2) * r * 0.9, 0.1, Math.cos(a2) * rnd(0.5, 2), Math.sin(a2) * rnd(0.5, 2), rnd(4, 9), rnd(0.5, 1.0), rnd(0.15, 0.3), { g: 3, drag: 0.8 }); }
+      for (let i = 0; i < (L ? 6 : 16); i++) { const a2 = i / 16 * TAU; part(S, 2, tx + Math.cos(a2) * R * 0.9, ty + Math.sin(a2) * R * 0.8, 0.2, Math.cos(a2) * 1.5, Math.sin(a2) * 1.2, 0.4, rnd(0.6, 0.9), rnd(0.6, 1.0), { grow: 0.8, a: 0.45, drag: 2, v: i % 3, rot: Math.random() * TAU }); } }
     S.acts.push(act);
   }
-  /* a tileable vertical-scrolling blit (the smoke climbs the face) */
-  function drawScroll(c, img, x, y, w, h, o) { if (!img) return; const H2 = img.height, off = ((o % H2) + H2) % H2, k = h / H2; if (off < 0.5) { c.drawImage(img, x, y, w, h); return; } c.drawImage(img, 0, off, img.width, H2 - off, x, y, w, (H2 - off) * k); c.drawImage(img, 0, 0, img.width, off, x, y + (H2 - off) * k, w, off * k); }
+  /* the Death Ray button's glyph (between the core's btnFace and btnRim): a hand's ray onto a glowing circle */
+  function paintDeathRayGlyph(x, cx, cy, r, rd) { x.save(); x.translate(cx, cy); x.globalAlpha = rd ? 1 : 0.55; x.lineCap = 'round';
+    x.save(); x.scale(1, 0.5); x.translate(0, r * 0.62); x.strokeStyle = rd ? 'rgba(185,131,245,0.45)' : 'rgba(140,130,160,0.4)'; x.lineWidth = r * 0.16; x.beginPath(); x.arc(0, 0, r * 0.55, 0, TAU); x.stroke();
+    x.strokeStyle = rd ? '#E0D2FF' : '#A49CB4'; x.lineWidth = r * 0.06; x.beginPath(); x.arc(0, 0, r * 0.55, 0, TAU); x.stroke(); x.beginPath(); for (let i = 0; i <= 5; i++) { const a = -Math.PI / 2 + (i * 2 % 5) / 5 * TAU; const px = Math.cos(a) * r * 0.45, py = Math.sin(a) * r * 0.45; i ? x.lineTo(px, py) : x.moveTo(px, py); } x.lineWidth = r * 0.045; x.stroke(); x.restore();
+    const hx = -r * 0.42, hy = -r * 0.45; x.strokeStyle = rd ? 'rgba(138,77,255,0.55)' : 'rgba(120,110,140,0.4)'; x.lineWidth = r * 0.2; x.beginPath(); x.moveTo(hx, hy); x.lineTo(r * 0.12, r * 0.24); x.stroke(); x.strokeStyle = rd ? '#F4ECFF' : '#B8B0C8'; x.lineWidth = r * 0.06; x.stroke();
+    x.fillStyle = rd ? '#2A1F3A' : '#2A2630'; x.beginPath(); x.ellipse(hx, hy, r * 0.2, r * 0.15, -0.8, 0, TAU); x.fill(); x.strokeStyle = rd ? '#CFC3E8' : '#8A8494'; x.lineWidth = r * 0.04; x.stroke();
+    x.fillStyle = rd ? '#FFFFFF' : '#CCC'; x.beginPath(); x.arc(r * 0.12, r * 0.24, r * 0.07, 0, TAU); x.fill(); x.restore(); }
 
   /* ================= Dark Spikes (Crystal Coronation's Dark variant) ================= */
   function darkSpikes(ctx) {
@@ -493,7 +518,9 @@
     S.acts.push(act);
   }
 
-  SM.darkBlade = darkBlade;
+  SM.deathRay = deathRay;
+  SM.darkBlade = deathRay;   /* (the core's slot still calls darkBlade: the same move until A renames it) */
+  SM.icons = { deathRay: paintDeathRayGlyph };   /* (the button glyph, drawn between the core's btnFace and btnRim) */
   SM.darkSpikes = darkSpikes;
   SM.pulsar = pulsar;
   SM.messiah = messiah;

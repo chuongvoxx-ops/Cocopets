@@ -627,3 +627,88 @@ The transformation is clean: nothing collides visibly at xf 0.15–1, and the sp
   - **Thickness:** 0.62 × 0.75 tiles on screen.
   - **Hits:** a monster is struck when the drawn arc passes over it, within `TUNE.blade.band` 0.5 + its radius, once per activation. Each lane still stops at its wall.
   - **Gameplay:** damage, reach, speed and the arc's width are unchanged. A sideways slash now sweeps a horizontal band (its width along the travel), not a tall wall.
+- (E, 2026-11-12, Death Ray) **Robot Strong 1 is now Death Ray; True Dark Blade is deleted.**
+  - **API:** `SM.deathRay(ctx)`. `SM.darkBlade` is the same function until A switches the slot over.
+  - **Timeline:**
+    - 0.3 s wind-up, with the telegraph and the palm glowing;
+    - 0.9 s carve: the ray fires from `anchor('handL')` and its contact point traces the circle (outer rings, a star, sigils, 12 runes);
+    - 0.4 s charge: the ray is off, the circle pulses brighter and its runes turn;
+    - then the burst: one hit per enemy inside the drawn circle, 4 × DK, charging the meter. A column of light and a shockwave ring follow, with the visuals lasting 0.9 s.
+    - `done()` is called 0.3 s after the burst, so the move takes 1.9 s in all. The cooldown is unchanged at 2.5 s.
+  - **Target spot:** taken from `aimOf`, which is the stick, else `target()`.
+    - Its distance is clamped to between 2 and 5.5 tiles, stopped 0.5 short of the first wall along the line, and moved to `nearestLand` if it isn't ground.
+    - The radius is 2.6 / 2.8 / 3.0 by tier.
+    - `ctx.rayPlan = { x, y, R }` is readable for tests.
+  - **Poses used (A's round-6 clips):**
+    - `rayAim` u 0..1 over the wind-up;
+    - `rayHold` u 0..1 over the carve, with extra `{ x, y }` set to the moving contact point so the arm follows the ray;
+    - then `rayHold` 1 at the centre through the charge;
+    - `rayRecoil` u 0..1 over 0.3 s from the burst.
+  - **For A, please:**
+    - label the button **"DEATH RAY"**;
+    - draw its icon as `btnFace(...)`, then `SUSANOO_MOVES.icons.deathRay(x, cx, cy, r, rd)` (a hand's ray onto a glowing circle with a star), then `btnRim(...)`;
+    - call `SM.deathRay` for the slot (falling back to `darkBlade`);
+    - update any comments or hints that still say True Dark Blade. The internal slot key `blade` can stay.
+  - **Other updates:** I updated `tests/susanoo.js` (it now expects "DEATH RAY") and the roster text in `20k1` ("Death Ray, a laser from the free hand that carves a magic circle which then explodes").
+- (A, 2026-11-12, round 6) **Glides is a 4-stage combo with no cooldown, and Death Ray now runs in Strong 1.**
+  - **Glides (`TUNE.combo`):** a press chains the next stage, 1 → 2 → 3 → 4.
+    - A press during a stage is held and fires at the end of that stage's act (the glide and its hits), so there is no
+      snap back to idle.
+    - A press in the recovery, or up to 0.4 s after it, starts the next stage at once.
+    - After stage 4, or once the window lapses, the next press starts stage 1.
+    - Anti-spam: a stage can't be cut short. Its prep + act (0.27–0.5 s) is the minimum.
+    - The dodge protection (0.06 s) is granted at most every 0.8 s.
+  - **The four stages:**
+
+    | Stage | Motion | Damage |
+    |---|---|---|
+    | 1 | a quick forward glide, cutting right to left in a 2.8 rad frontal arc | 3 × DK |
+    | 2 | the return cut, left to right | 3 × DK |
+    | 3 | a spinning glide, a full turn, all round | 3 × DK |
+    | 4 (finisher) | a crouch, a leap-glide 1.4 tiles high, an overhead slam | 4.8 × DK in the blade's reach (3.0), and a dark shockwave of 3 × DK out to 3.6 |
+
+    - The finisher also has knockback 8, a brief hit-stop (none under reduce-motion), and a spring kick of the body.
+    - Every stage hits each enemy once and charges the meter.
+  - **Button:** four pips over the Glides button show the current stage (the fourth glows white).
+  - **Clips:** `glide1` / `glide2` (`cutClip`), `sweep` (stage 3) and `glide4`. Each stage starts from the pose the
+    previous one left, so the springs carry it through.
+  - **Death Ray:**
+    - The slot calls `SM.deathRay`, falling back to `darkBlade`.
+    - The button reads DEATH RAY and draws `SUSANOO_MOVES.icons.deathRay` between `btnFace` and `btnRim`.
+    - The `ray` clip matches E's names: `rayAim` → u 0..0.25, `rayHold` → 0.25..0.8 (a slight strain), `rayRecoil` →
+      0.8..1. The torso braces (a small crouch, leaning back about 0.18, twisted 0.25 toward the arm). The recoil throws
+      the body back.
+    - The `overhead` / `overheadSlam` poses are retired; the `overhead` clip stays for `ctx.clip`.
+    - Your timing (0.3 s wind-up, 0.9 s carve, then the 0.4 s charge holding `rayHold` at 1, then a 0.3 s recoil) fits as
+      is.
+  - **For M: the free arm's aim.** A writes these every frame, from E's `extra.x` / `extra.y` (the moving contact point,
+    so it tracks the ray):
+    - `aimL` (0..1): the blend from the hanging free left arm to pointing;
+    - `aimLYaw` (radians, body frame: 0 straight ahead, positive to the body's right as the heading turns);
+    - `aimLPitch` (radians down from horizontal, toward the spot on the ground).
+
+    Please aim the free left arm (the shoulder → the hand, the palm toward the target) along that direction when
+    `aimL` > 0. Until then, Death Ray reads only through the torso.
+
+### M — round 8 (2026-11-12): the head seated, the flight mask, the free arm's aim
+
+**The head is seated in both forms; there is no neck.**
+- **Robot:** the helmet sits down into a flared, gold-rimmed collar on the gorget. The neck pivot is lowered 0.07.
+- **Airship:** the helmet turns to face along the flight line and sits between the pauldrons at the shoulder line, flush with the hull and partly enclosed by the shoulder armour. It is drawn at 1.38×. The fists and the sword prow stay ahead of it.
+- The round-7 neck bridge (`neckx`) is gone.
+
+**The flight mask.** A new part, `visor`: curved armour plates, gold trim, a narrow violet eye slit and a gold crest.
+- It swings down over the face at xf 0.58–0.68, once the head has settled at the nose, and stays closed in the airship.
+- In the robot it is retracted (not drawn).
+- `eyeL` and `eyeR` move to the slit as it closes.
+
+**The free arm's aim (A's channels).** `aimL`, `aimLYaw` and `aimLPitch` are now read.
+- Direction in the heading's frame: `[cos(yaw)·cos(pitch), sin(yaw)·cos(pitch), −sin(pitch)]`.
+- The shoulder and elbow extend toward it, blended by `aimL` over the hanging rest pose. The hand bends back at the wrist, fingers up, palm toward the target.
+- `handL` is the palm, the ray's origin.
+- Robot only, and only while the left hand is free.
+- `relax` eases `aimL` back to 0.
+
+**Clearances.**
+- At hard-left aims the forearm passes close to the left fan's blades (sphere approximation −0.09; −0.18 if aimed upward).
+- In the transformation the worst is a helmet/forearm graze at xf ≈ 0.52 (−0.11).

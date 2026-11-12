@@ -407,6 +407,8 @@ const SUSANO_MODEL = (() => {
     hub: { f: sdHub, kind: 'full', noRoll: true, c: [0, 0, 0.0], R: 0.25, glow: true, w: [0.4, 0.4, 0.1] },
     hand: { f: sdHand, kind: 'axis', x0: -0.17, x1: 0.17, hw: 0.25, w: [0.28, 0.24, 0.28] },
     claw: { f: sdClaw, kind: 'axis', x0: -0.1, x1: 0.4, hw: 0.24, w: [0.38, 0.3, 0.2] },
+    visor: { f: (x, y, z) => { reset(M_OBS); const e = Math.max(Math.abs(ell(x + 0.02, y, z - 0.26, 0.255, 0.23, 0.235)) - 0.01, -(x - 0.02)); add(e, Math.abs(z - 0.235) < 0.012 ? M_EYE : M_OBS); return 0; }, kind: 'full', c: [0.08, 0, 0.26], R: 0.36, glow: true, w: [0.2, 0.46, 0.46] },
+    neckseg: { f: (x, y, z) => { reset(M_OBS); add(cap(x, y, z, 0, 0, 0, 0.36, 0, 0, 0.17, 0.2), x > 0.3 ? M_GOLD : M_OBS); return 0; }, kind: 'axis', x0: -0.04, x1: 0.4, hw: 0.25, w: [0.36, 0.2, 0.2] },
     hatch: { f: sdHatch, kind: 'full', c: [0.02, 0, -0.32], R: 0.42, glow: true, w: [0.1, 0.68, 0.72] },
     foot: { f: sdFoot, kind: 'full', c: [0.08, 0, -0.04], R: 0.38, glow: true, w: [0.5, 0.2, 0.2] },
     seat: { f: sdSeat, kind: 'full', c: [-0.04, 0, 0.12], R: 0.26, w: [0.2, 0.3, 0.35] },
@@ -503,7 +505,28 @@ const SUSANO_MODEL = (() => {
       // the crown: three spikes swept back from the bowl
       for (const s of [-1, 1]) B.spike([-0.1, s * 0.12, 0.4], [-0.42, s * 0.24, 0.64], 0.04, M_SILV);
       B.spike([-0.17, 0, 0.42], [-0.5, 0, 0.6], 0.045, M_SILV);
+      // the collar the head sits down into: a flared gunmetal ring, gold-rimmed, round the base of the bowl
+      B.push([0, 0, 1], [0, 1, 0], [-1, 0, 0], [-0.02, 0, 0]); B.lathe([[-0.16, 0.13, M_GUN], [-0.02, 0.19, M_GUN], [0.06, 0.225, M_GUN], [0.06, 0.225, M_GOLD], [0.09, 0.235, M_GOLD], [0.09, 0.2, M_GOLD]], M_GUN, { seg: 20, edge: j => j >= 3 ? 0.8 : 0 }); B.pop();
       out.helmet = G(B); }
+    // ---- the flight visor: a curved armoured face plate (slightly proud of the bowl), gold-trimmed, a narrow violet eye
+    //      slit across it, a gold centre crest; it closes over the face for flight and retracts into the helmet ----
+    { const B = nb(), c = [-0.02, 0, 0.26], r = [0.255, 0.23, 0.235];
+      B.ell(c, r, M_OBS, { seg: 12, rings: 3, th0: 0.62, th1: 1.5, ph0: -0.95, ph1: 0.95 });
+      B.ell(c, r, M_OBS, { seg: 12, rings: 4, th0: 1.62, th1: 2.42, ph0: -0.95, ph1: 0.95 });
+      B.ell(c, [r[0] - 0.006, r[1] - 0.006, r[2] - 0.006], M_EYE, { seg: 12, rings: 1, th0: 1.5, th1: 1.62, ph0: -0.8, ph1: 0.8 });
+      B.ell(c, [r[0] + 0.006, r[1] + 0.006, r[2] + 0.006], M_GOLD, { seg: 12, rings: 1, th0: 0.55, th1: 0.64, ph0: -0.97, ph1: 0.97 });
+      B.ell(c, [r[0] + 0.006, r[1] + 0.006, r[2] + 0.006], M_GOLD, { seg: 12, rings: 1, th0: 2.38, th1: 2.46, ph0: -0.97, ph1: 0.97 });
+      for (const sg of [-1, 1]) B.ell(c, [r[0] + 0.006, r[1] + 0.006, r[2] + 0.006], M_GOLD, { seg: 1, rings: 8, th0: 0.6, th1: 2.42, ph0: sg * 0.95 - 0.03, ph1: sg * 0.95 + 0.03 });
+      B.ell(c, [r[0] + 0.022, 0.03, r[2] + 0.02], M_GOLD, { seg: 4, rings: 6, th0: 0.5, th1: 1.42, ph0: -0.4, ph1: 0.4 });   // (the centre crest down the brow)
+      B.ell(c, [r[0] + 0.012, 0.03, r[2] + 0.01], M_GOLD, { seg: 4, rings: 5, th0: 1.72, th1: 2.4, ph0: -0.4, ph1: 0.4 });
+      out.visor = G(B); }
+    // ---- an armoured neck segment (telescoping, for the airship's neck): a tapered obsidian sleeve, a gold rim, two
+    //      cables and a steel piston along it ----
+    { const B = nb();
+      B.lathe([[0, 0.17, M_OBS], [0.3, 0.2, M_OBS], [0.3, 0.2, M_GOLD], [0.36, 0.21, M_GOLD], [0.36, 0.13, M_GOLD]], M_OBS, { seg: 18, edge: j => j >= 2 ? 0.8 : 0 });
+      for (const sg of [-1, 1]) B.tube([0.02, sg * 0.17, -0.08], [0.34, sg * 0.19, -0.09], 0.026, 0.026, M_CABLE, { seg: 6 });
+      B.tube([0.03, 0, -0.19], [0.33, 0, -0.2], 0.022, 0.022, M_STEEL, { seg: 6 }); B.tube([0.03, 0, -0.19], [0.18, 0, -0.195], 0.035, 0.035, M_GUN, { seg: 6 });
+      out.neckseg = G(B); }
     // ---- the shoulder drums (one each side: the rope knot hangs outward) ----
     for (const s of [-1, 1]) { const B = nb();
       B.tube([-0.02, s * 0.03, 0.04], [-0.02, s * 0.49, 0.04], 0.4, 0.4, M_OBS, { seg: 28, cap0: 'flat', cap1: 'flat', up: [0, 0, 1] });
@@ -948,7 +971,7 @@ const SUSANO_MODEL = (() => {
   // (the sword's way to the prow: raised before the chest, both fists on the hilt above the helmet, the blade up - which the
   //  pitch then turns forward: in the airship the fists grip the hilt at the nose and the blade runs ahead as the prow)
   const DOCK = [{ G: [0.66, 0.5, 0.75], A: vnrm([0.25, 0.15, 1]), Z: [1, 0, 0] }, { G: [0.52, 0.18, 1.3], A: [0, 0, 1], Z: [1, 0, 0] }, { G: [0.58, 0.04, 1.74], A: vnrm([-0.1, 0, 1]), Z: [1, 0, 0] }, { G: [0.58, 0, 1.88], A: vnrm([-0.2, 0, 1]), Z: [1, 0, 0] }];
-  const SHOULDER = s => [0, s * 1.06, 0.62], HIP = s => [0, s * 0.4, -0.1], RAILM = s => [-0.6, s * 0.22, 0.98], CRADLE_H = [-0.48, 0, 0.88], SEAT = [0.27, 0, 0.4], NECK = [0.03, 0, 1.27], DRUM = s => [0, s * 0.78, 0.86], HUB = s => [-0.52, s * 1.2, 1.0];
+  const SHOULDER = s => [0, s * 1.06, 0.62], HIP = s => [0, s * 0.4, -0.1], RAILM = s => [-0.6, s * 0.22, 0.98], CRADLE_H = [-0.48, 0, 0.88], SEAT = [0.27, 0, 0.4], NECK = [0.03, 0, 1.2], DRUM = s => [0, s * 0.78, 0.86], HUB = s => [-0.52, s * 1.2, 1.0];
   const FAN_N = s => vnrm([-1, s * 0.28, 0.12]);
   const BLADE_R = [-8, 15, 38, 61, 84, 107, 130].map(d => d * Math.PI / 180), BLADE_A = [72, 86, 100, 114, 128, 142, 156].map(d => d * Math.PI / 180), BLADE_LEN = [2.0, 2.3, 2.5, 2.6, 2.5, 2.3, 2.0];
   /* assembly order for the summon: the cockpit first, then the frame, the limbs, the armour, the wings, the helmet, the sword */
@@ -991,9 +1014,10 @@ const SUSANO_MODEL = (() => {
     // the helmet: in the airship it is the figurehead - turned (half a turn about its diagonal) to face along the flight
     // line, crown up, carried forward on a neck extension to lead the hull just behind the crossguard, a little larger
     const hk2 = sstep(0.62, 1, S.stow), HM = M3([0, 0, 1], [0, -1, 0], [1, 0, 0]), Rh = hk2 > 0 ? mm(Rt, rotAxis(vnrm([-1, 0, -1]), Math.PI * hk2)) : Rt;
-    const neckT = vlerp(NECK, [0.66, 0, 1.6], hk2), neck = toT(neckT);
-    I('helmet', 'helmet', Rh, neck, lerp(1.22, 1.5, hk2));
-    if (hk2 > 0.05) { const n0 = toT([0.03, 0, 1.22]), dn = vsub(neck, n0), L = vlen(dn); if (L > 0.12) I('neckx', 'rail', frameXZ(dn, dirT([1, 0, 0])), n0, L / LRAIL); }
+    const neckT = vlerp(NECK, [0.16, 0, 1.16], hk2), neck = toT(neckT);   // (in the airship the head sits down between the pauldrons, flush with the hull: no neck)
+    I('helmet', 'helmet', Rh, neck, lerp(1.22, 1.38, hk2));
+    // the flight visor: closes over the face once the head has settled at the nose (a clear beat); retracted into the helmet otherwise
+    { const vk = sstep(0.58, 0.68, xf); out.visor = vk; if (vk > 0.001) I('visor', 'visor', mm(Rh, rotY(0.9 * (1 - vk))), neck, lerp(1.22, 1.38, hk2) * lerp(0.93, 1, vk), -0.005); }
     // the shoulder drums, the wing hubs and their blades
     for (const s of [-1, 1]) { const sd = s < 0 ? 'L' : 'R';
       I('drum' + sd, 'drum' + sd, Rt, toT(DRUM(s)));
@@ -1032,6 +1056,11 @@ const SUSANO_MODEL = (() => {
       const gL = s < 0 && !two ? (S.dock > 0 ? sstep(0.25, 0.72, S.dock) : 0) : 1;
       if (s > 0 || two) { grip = s > 0 ? gripR : gripL; hx = s > 0 ? hxR : hxL; }
       else { free = true; grip = vlerp(toT([0.06, -1.24, -0.68]), gripL, gL); hx = vnrm(vlerp(dirT([0, 0, -1]), aw, gL)); }
+      // (Death Ray: the free arm aims - A's aimL / aimLYaw / aimLPitch, the direction in the heading's frame - the shoulder
+      //  and elbow extending so the open palm points the ray at its target)
+      const aimK = free ? cl(P.aimL || 0) * robotK * (1 - gL) : 0;
+      let aimD = null; if (aimK > 0) { const ya = P.aimLYaw || 0, pa = P.aimLPitch == null ? 0.6 : P.aimLPitch; aimD = vnrm([Math.cos(ya) * Math.cos(pa), Math.sin(ya) * Math.cos(pa), -Math.sin(pa)]);
+        grip = vlerp(grip, vadd(Sh, vmul(aimD, (LUA + LFA) * 0.97)), ease(aimK)); }
       let wz = vsub(Sh, grip); wz = vsub(wz, vmul(hx, vdot(wz, hx))); wz = vlen(wz) > 1e-5 ? vnrm(wz) : dirT([0, 0, 1]);
       const wrist = free ? vadd(grip, vmul(wz, 0.3 * gL)) : vadd(grip, vmul(wz, 0.3));
       const carry = Math.sin(Math.PI * cl(S.dock * 1.15)) * (s > 0 ? 1 : 0.4);
@@ -1041,8 +1070,9 @@ const SUSANO_MODEL = (() => {
       I('uarm' + sd, 'uarm', frameXZ(vsub(k.E, Sh), out2), Sh);
       I('farm' + sd, 'farm', frameXZ(vsub(k.W, k.E), out2), k.E);
       if (free && gL < 0.5) {   // the relaxed hand: on the wrist, along the forearm, the palm toward the thigh, the fingers loosely curled
-        const fd = vnrm(vsub(k.W, k.E)), cx = vnrm(vadd(fd, dirT([0.1, -s * 0.12, 0]))), Rc = frameXZ(cx, dirT([0, s, 0]));
-        I('hand' + sd, 'claw', Rc, k.W, 1.5, 0.01); out.A['hand' + sd] = vadd(k.W, vmul(cx, 0.3));
+        const fd = vnrm(vsub(k.W, k.E)); let cx = vnrm(vadd(fd, dirT([0.1, -s * 0.12, 0]))), Rc = frameXZ(cx, dirT([0, s, 0]));
+        if (aimD) { const up = vnrm(vsub([0, 0, 1], vmul(aimD, aimD[2]))), ca = vnrm(vlerp(aimD, up, 0.8)), Ra = frameXZ(ca, vmul(aimD, -1)); Rc = mslerp(Rc, Ra, ease(aimK)); cx = Rc.x; }   // (the hand bent back at the wrist, fingers up, the palm toward the target)
+        I('hand' + sd, 'claw', Rc, k.W, 1.5, 0.01); out.A['hand' + sd] = vadd(vadd(k.W, vmul(cx, lerp(0.3, 0.17, aimK))), aimD ? vmul(aimD, 0.06 * aimK) : [0, 0, 0]);   // (the palm: the ray's origin)
       } else { I('hand' + sd, 'hand', frameXZ(hx, wz), grip, 1.75, 0.01); out.A['hand' + sd] = grip; }
     }
     // the legs: robot (reaching the floor, a gentle gait), hanging (lifted), folded into booms (airship)
@@ -1101,7 +1131,7 @@ const SUSANO_MODEL = (() => {
     const AA = out.A; AA.cockpit = toT(COCK); AA.seat = seatP; AA.pivot = pivot; AA.center = toT([0, 0, 0.5]);
     AA.hilt = swO; AA.swordBase = vadd(swO, vmul(aw, SW.base)); AA.swordTip = vadd(swO, vmul(aw, SW.tip)); AA.swordChannel = vadd(swO, vmul(aw, 1.5));
     AA.swordEdgeA = vadd(vadd(swO, vmul(aw, 2.6)), vmul(swR.y, 0.16)); AA.swordEdgeB = vadd(vadd(swO, vmul(aw, 2.6)), vmul(swR.y, -0.16)); AA.swordDir = aw; AA.swordFlat = swR.z;
-    AA.helm = vadd(neck, mv(Rh, [0.07, 0, 0.37])); { const hs = lerp(1.22, 1.5, hk2); AA.eyeL = vadd(neck, mv(Rh, vmul([0.215, -0.068, 0.235], hs))); AA.eyeR = vadd(neck, mv(Rh, vmul([0.215, 0.068, 0.235], hs))); } AA.feet = vmul(vadd(AA.footL, AA.footR), 0.5);
+    AA.helm = vadd(neck, mv(Rh, [0.07, 0, 0.37])); { const hs = lerp(1.22, 1.38, hk2); const ev = out.visor || 0; AA.eyeL = vadd(neck, mv(Rh, vmul([lerp(0.215, 0.24, ev), lerp(-0.068, -0.09, ev), 0.235], hs))); AA.eyeR = vadd(neck, mv(Rh, vmul([lerp(0.215, 0.24, ev), lerp(0.068, 0.09, ev), 0.235], hs))); } AA.feet = vmul(vadd(AA.footL, AA.footR), 0.5);
     AA.up = mv(Rt, [0, 0, 1]); AA.forward = mv(Rbody, [1, 0, 0]);
     out.Rt = Rt; out.Rbody = Rbody; out.pivot = pivot;
     return out;
@@ -1320,18 +1350,18 @@ const SUSANO_MODEL = (() => {
     else setTimeout(() => { bakeStep(2.5); go(); }, 40); }
 
   /* ================= pose channels ================= */
-  const CH = ['form', 'xf', 'assemble', 'alpha', 'gait', 'gaitAmp', 'lean', 'bank', 'crouch', 'pitch', 'twist', 'roll', 'swordU', 'swordK', 'wingSpread', 'wingFold', 'thrust', 'glow', 'channel', 'charge', 'hatch', 'legSwing', 'wingSwayL', 'wingSwayR', 'hipYaw', 'swordArc'];
-  function blankPose() { return { form: 0, xf: 0, assemble: 1, alpha: 1, gait: 0, gaitAmp: 0, lean: 0, bank: 0, crouch: 0, pitch: 0, twist: 0, roll: 0, sword: 'rest', swordU: 0, swordK: 1, wingSpread: 1, wingFold: 0, thrust: 0.4, glow: 0.5, channel: 0.3, charge: 0, legSwing: 0, wingSwayL: 0, wingSwayR: 0, hipYaw: 0, swordArc: 1 }; }
+  const CH = ['form', 'xf', 'assemble', 'alpha', 'gait', 'gaitAmp', 'lean', 'bank', 'crouch', 'pitch', 'twist', 'roll', 'swordU', 'swordK', 'wingSpread', 'wingFold', 'thrust', 'glow', 'channel', 'charge', 'hatch', 'legSwing', 'wingSwayL', 'wingSwayR', 'hipYaw', 'swordArc', 'aimL', 'aimLYaw', 'aimLPitch'];
+  function blankPose() { return { form: 0, xf: 0, assemble: 1, alpha: 1, gait: 0, gaitAmp: 0, lean: 0, bank: 0, crouch: 0, pitch: 0, twist: 0, roll: 0, sword: 'rest', swordU: 0, swordK: 1, wingSpread: 1, wingFold: 0, thrust: 0.4, glow: 0.5, channel: 0.3, charge: 0, legSwing: 0, wingSwayL: 0, wingSwayR: 0, hipYaw: 0, swordArc: 1, aimL: 0, aimLYaw: 0, aimLPitch: 0.6 }; }
   const NEUTRAL = blankPose();
   /* relax(P, dt): ease the body channels toward neutral (not form, xf, sword or assemble) */
-  function relax(P, dt) { const k = Math.min(1, dt * 6); for (const c2 of ['lean', 'bank', 'crouch', 'pitch', 'twist', 'gaitAmp', 'wingFold', 'charge', 'legSwing', 'wingSwayL', 'wingSwayR', 'hipYaw']) if (P[c2] != null) P[c2] += (NEUTRAL[c2] - P[c2]) * k; for (const c2 of ['wingSpread', 'thrust', 'glow', 'channel']) P[c2] += (NEUTRAL[c2] - P[c2]) * k * 0.5; }
+  function relax(P, dt) { const k = Math.min(1, dt * 6); for (const c2 of ['lean', 'bank', 'crouch', 'pitch', 'twist', 'gaitAmp', 'wingFold', 'charge', 'legSwing', 'wingSwayL', 'wingSwayR', 'hipYaw', 'aimL']) if (P[c2] != null) P[c2] += (NEUTRAL[c2] - P[c2]) * k; for (const c2 of ['wingSpread', 'thrust', 'glow', 'channel']) P[c2] += (NEUTRAL[c2] - P[c2]) * k * 0.5; }
 
   /* ================= clearance (the rig's collision check: each part as spheres; the closest approach of parts that are not joined) ================= */
-  const JOINED = [['torso', 'pelvis'], ['torso', 'seat'], ['torso', 'hatch'], ['seat', 'hatch'], ['torso', 'helmet'], ['torso', 'drum'], ['torso', 'uarm'], ['torso', 'rail1'], ['torso', 'cradle'], ['drum', 'uarm'], ['drum', 'hub'], ['hub', 'blade'], ['blade', 'blade'], ['uarm', 'farm'], ['farm', 'hand'], ['hand', 'sword'], ['cradle', 'sword'], ['pelvis', 'thigh'], ['thigh', 'shin'], ['shin', 'foot'], ['pelvis', 'skirt'], ['rail1', 'rail2'], ['rail2', 'pod'], ['torso', 'hand'], ['hand', 'hand'], ['farm', 'sword'], ['torso', 'skirt'], ['thigh', 'skirt'], ['drum', 'helmet'], ['torso', 'neckx'], ['helmet', 'neckx']];
+  const JOINED = [['torso', 'pelvis'], ['torso', 'seat'], ['torso', 'hatch'], ['seat', 'hatch'], ['torso', 'helmet'], ['torso', 'drum'], ['torso', 'uarm'], ['torso', 'rail1'], ['torso', 'cradle'], ['drum', 'uarm'], ['drum', 'hub'], ['hub', 'blade'], ['blade', 'blade'], ['uarm', 'farm'], ['farm', 'hand'], ['hand', 'sword'], ['cradle', 'sword'], ['pelvis', 'thigh'], ['thigh', 'shin'], ['shin', 'foot'], ['pelvis', 'skirt'], ['rail1', 'rail2'], ['rail2', 'pod'], ['torso', 'hand'], ['hand', 'hand'], ['farm', 'sword'], ['torso', 'skirt'], ['thigh', 'skirt'], ['drum', 'helmet'], ['torso', 'neckx'], ['helmet', 'neckx'], ['neckx', 'neckx'], ['helmet', 'visor']];
   const SPH = { torso: [[0, 0, 0.3, 0.3], [0, 0, 0.7, 0.42], [0.05, 0.3, 0.9, 0.24], [0.05, -0.3, 0.9, 0.24]], pelvis: [[0, 0, 0, 0.26]], skirt: [[-0.12, 0, -0.3, 0.2], [-0.1, 0.25, -0.5, 0.18], [-0.1, -0.25, -0.5, 0.18]], helmet: [[0.02, 0, 0.25, 0.2], [0.1, 0.15, 0.6, 0.06], [0.1, -0.15, 0.6, 0.06]],
     drumL: [[-0.02, -0.28, 0.04, 0.44]], drumR: [[-0.02, 0.28, 0.04, 0.44]], hub: [[0, 0, 0, 0.18]], hand: [[0, 0, 0.06, 0.1]], foot: [[0.1, 0, -0.06, 0.12]], seat: [[-0.05, 0, 0.12, 0.1]] };
   const axisSph = (Pt, n, r) => { const o = []; for (let i = 0; i < n; i++) o.push([Pt.x0 + 0.08 + (Pt.x1 - Pt.x0 - 0.16) * (i + 0.5) / n, 0, 0, r]); return o; };
-  const ASPH = { uarm: axisSph(PARTS.uarm, 3, 0.17), farm: axisSph(PARTS.farm, 3, 0.19), thigh: axisSph(PARTS.thigh, 3, 0.24), shin: axisSph(PARTS.shin, 3, 0.2), pod: axisSph(PARTS.pod, 4, 0.16), rail: axisSph(PARTS.rail, 3, 0.07), cradle: axisSph(PARTS.cradle, 2, 0.05), sword: axisSph(PARTS.sword, 14, 0.07) };
+  const ASPH = { uarm: axisSph(PARTS.uarm, 3, 0.17), farm: axisSph(PARTS.farm, 3, 0.19), thigh: axisSph(PARTS.thigh, 3, 0.24), shin: axisSph(PARTS.shin, 3, 0.2), pod: axisSph(PARTS.pod, 4, 0.16), rail: axisSph(PARTS.rail, 3, 0.07), cradle: axisSph(PARTS.cradle, 2, 0.05), neckseg: axisSph(PARTS.neckseg, 2, 0.15), sword: axisSph(PARTS.sword, 14, 0.07) };
   const base = n => n.replace(/[LR][0-6]?$/, '').replace(/[0-6]$/, '');
   function clearance(P) {
     const R = rig(P, 0), S2 = [];
