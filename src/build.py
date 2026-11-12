@@ -22,7 +22,7 @@ HOOK = ("window.__pp = { get st() { return st; }, arc, startStage, beginPlay, cl
         "team: { openTeam, renderTeam, teamPet, teamToggleParty, teamLead, cardsPet, accPet, get teamUid() { return teamUid; }, get stage() { return typeof teamStage !== 'undefined' ? teamStage : null; } }, "
         "acc: { rollAccessory, accStats, accBank, accRarityWeights, accName, accLines, accSVG, ACC_R, ACC_TYPES, openAccs, renderAccs, accEquip, accTakeOff, accScrap, accScrapLow, accWearer, accRowHTML }, sanitize, serialize, "
         "shop: { openShop, renderShop, shopBuy, SHOP_ITEMS, feedPet, foodXP, foodEffect, bondFoodXP, bondInfo, SNACKS, SPECIAL_FOODS, FOOD_DROPS, BOSS_FOOD, dunXpNeed, fuseStonesFor }, "
-        "get retro() { return typeof retro !== 'undefined' ? retro : null; }, get music() { return typeof music !== 'undefined' ? music : null; }, get nidhogg() { return typeof NIDHOGG_MODEL !== 'undefined' ? NIDHOGG_MODEL : null; }, nidhoggPreview: (o) => (typeof NIDHOGG_MODEL !== 'undefined' ? NIDHOGG_MODEL.preview(o) : null), __extra: (typeof __PP_EXTRA === 'function' ? __PP_EXTRA() : null) };")
+        "get retro() { return typeof retro !== 'undefined' ? retro : null; }, get music() { return typeof music !== 'undefined' ? music : null; }, get nidhogg() { return typeof NIDHOGG_MODEL !== 'undefined' ? NIDHOGG_MODEL : null; }, nidhoggPreview: (o) => (typeof NIDHOGG_MODEL !== 'undefined' ? NIDHOGG_MODEL.preview(o) : null), get susano() { return typeof SUSANO_MODEL !== 'undefined' ? SUSANO_MODEL : null; }, __extra: (typeof __PP_EXTRA === 'function' ? __PP_EXTRA() : null) };")
 
 def build(test, web=False):
     parts = [rd('head.html'), '<style>\n', rd('styles.css'), '</style>\n\n', rd('body.html'), '<script>\n(() => {\n\'use strict\';\n']

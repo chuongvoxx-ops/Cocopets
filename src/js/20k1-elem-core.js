@@ -11,7 +11,7 @@ if (typeof CanvasRenderingContext2D !== 'undefined' && !CanvasRenderingContext2D
    DunElem builds from the Tower game's context (the same one the star moves use, plus geometry, pulls that respect
    bosses, pet-side warnings and drawing helpers). Everything a move leaves behind lives in its fx list, cleaned up with
    the game. st.lowFx ("Fewer effects" in Settings) thins the decorative particles; shapes, warnings and hits stay. */
-const ELEM_STRONG_LV = [1, 1, 3, 6, 10, 15, 20, 30, 40, 50], ELEM_ULT_LV = [1, 5, 10, 15, 20, 30, 40, 50, 60, 75, 80];
+const ELEM_STRONG_LV = [1, 1, 3, 6, 10, 15, 20, 30, 40, 50], ELEM_ULT_LV = [1, 5, 10, 15, 20, 30, 40, 50, 60, 75, 80, 85];
 /* an elemental Ultimate's new name at Celestial (stage 7), where it has one */
 const ELEM_ULT_PLUS = { armageddon: 'Super Armageddon' };
 /* elemental Strong attacks hit three times as hard as first built (the user found them weak) */
@@ -116,7 +116,8 @@ const ELEM_MOVES = {
     ['blackrose', 'Black Rose Compass', 'thorns', 95, 20, 'Four thorn-needles form round the aim and strike inward in pairs; a rose of folded shadow opens for the final burst.'],
     ['finaleclipse', 'Final Eclipse', 'orb', 100, 45, 'A raven-winged demon drops from a black sphere over the monsters, charges it with raised hands and hurls it down in one devastating impact.'],
     ['eventide', 'Eventide Spiral', 'vortex', 100, 22, 'A towering corkscrew of darkness forms at the aim; it unwinds from the top, each coil an expanding wave.'],
-    ['dayofthedead', 'Day of the Dead', 'flower', 100, 120, 'A marigold circle blooms and every fallen teammate rises as a spirit at 40% HP (50% Adept, 60% Celestial): together they unleash their Ultimates, then both Strongs, fight for 8 s (11 s, 14 s) and return to rest.'] ] },
+    ['dayofthedead', 'Day of the Dead', 'flower', 100, 120, 'A marigold circle blooms and every fallen teammate rises as a spirit at 40% HP (50% Adept, 60% Celestial): together they unleash their Ultimates, then both Strongs, fight for 8 s (11 s, 14 s) and return to rest.'] ,
+    ['susanoo', 'Susano O', 'crescent', 100, 240, 'Your pet summons Susano O, a towering dark samurai robot, and pilots it from a cockpit in its chest for 35 s, gliding 35% faster: Dodge becomes Glides, a spinning sword sweep, and the Strongs become True Dark Blade, a wave of darkness, and Dark Spikes, obsidian formations bursting from the ground. Ult becomes Transform: the robot folds into a blade-winged airship you fly for 20 s, with Dive, one Strong, Shockwave Pulsar, and Dark Messiah, the strongest attack in the game, once the shared meter is full. Cooldown 4 min, starting when you dismount.']] },
   fire: { strong: [
     ['emberkoi', 'Ember Koi', 'twin', 24, 2.4, 'Two fish of flame circle you, then swim through the air to the target and cross in a spiral burst.'],
     ['cinderfan', 'Cinder Wave', 'wave', 24, 2.4, 'A ring of fire rolls out all around you in a burning wave, scattering embers and sparks; it grows into more waves as your pet evolves.'],

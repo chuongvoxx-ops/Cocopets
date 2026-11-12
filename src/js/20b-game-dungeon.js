@@ -708,10 +708,13 @@ GAMES.dungeon = {
        X.vehicle(o); null when no form is up */
     let VEH = null;
     const vehOn = () => !!(VEH && VEH.active);
+    /* (hook for Dark's Susano O, 20k5w) keyed movement-speed modifiers: X.mvMod(key, k) sets one, X.mvMod(key, null) removes
+       only that one; the stat system's speed is multiplied by all of them */
+    const mvModK = () => { let k = 1; if (g.mvMods) for (const q in g.mvMods) k *= g.mvMods[q]; return k; };
     /* one normal attack toward A, if the pet is ready for it */
     function tryFire(A) {
       if (me.dead || g.won || g.intro > 1.9 || g.bossIntro > 0.6 || me.dodge || me.dash || me.leap || g.normalT > 0) return false;
-      if (vehOn()) return false;   /* (Sports Car: no ordinary attacks while driving) */
+      if (vehOn()) { if (VEH.basic && VEH.basic(A)) { g.normalT = normalRate(); return true; } return false; }   /* (Sports Car: no ordinary attacks while driving; Susano O's robot (20k5w, VEH.basic) swings its sword instead, at the normal-attack cadence) */
       const melee = KIT.normal.key === 'shadowclaw';
       if (melee && A.t && hyp(A.t.x - me.x, A.t.y - me.y) > 3 + A.t.r) { const d = hyp(A.t.x - me.x, A.t.y - me.y); moveEnt(me, (A.t.x - me.x) / d * 0.5, (A.t.y - me.y) / d * 0.5, 0); }
       else if (melee) moveEnt(me, A.x * 0.25, A.y * 0.25, 0);
@@ -976,6 +979,7 @@ GAMES.dungeon = {
          with its own sprite at screen X, Y (its feet), no shadow or ground glow, o.maxH capping its height in tiles; line of
          sight; the kit, for the Ult's cooldown */
       vehicle: o => { VEH = o || null; }, los, kit: () => KIT,
+      mvMod: (key, k) => { g.mvMods = g.mvMods || {}; if (k == null) delete g.mvMods[key]; else g.mvMods[key] = k; return mvModK(); },   /* (Susano O, 20k5w: see mvModK) */
       /* (hook for Fire's Nidhogg, 20k6g: free flight needs the map's size and raw tiles (tileAt is T_SOLID off the map), and
          whether the stage is drawn by hand (a rift puzzle, trial or gate, or a Super Fiend floor: its walls are too tall to fly over)) */
       air: () => ({ w: MW, h: MH, tile: tileAt, hand: !!((F.rift && (F.rift.gate || F.rift.kind === 'puzzle')) || F.fiend) }),
@@ -1432,10 +1436,10 @@ GAMES.dungeon = {
       }
       mxIn = mx; myIn = my;
       const tile = tileAt(Math.floor(me.x), Math.floor(me.y));
-      const spd = 4.3 * (1 + accK('spd')) * (RULES ? RULES.spdK() : 1) * (g.phoenixT > 0 ? 1.35 : 1) * (g.buff.haste > 0 ? 1.3 : 1) * (me.chill > 0 && zephK('mv') === 1 ? 0.6 : 1) * (tile === T_MUD && zephK('mv') === 1 ? 0.62 : 1) * (g.pw.giant ? 0.92 : 1) * zephK('mv');
+      const spd = 4.3 * (1 + accK('spd')) * (RULES ? RULES.spdK() : 1) * (g.phoenixT > 0 ? 1.35 : 1) * (g.buff.haste > 0 ? 1.3 : 1) * (me.chill > 0 && zephK('mv') === 1 ? 0.6 : 1) * (tile === T_MUD && zephK('mv') === 1 ? 0.62 : 1) * (g.pw.giant ? 0.92 : 1) * zephK('mv') * mvModK();   /* (mvModK: keyed session modifiers, Dark's Susano O, 20k5w: x1.35 once, removed once) */
       /* (Zephyr's Windguard: a hit it blocked cannot knock the pet back; any push laid on just after the block is dropped) */
       if (me.push && g.zephyr && g.zephyr.guardT > 0 && me.push !== g.zephyr.prePush) me.push = null;
-      if (vehOn() && !me.dead) VEH.drive(mx, my, dt);   /* (Sports Car: the stick and keys drive and steer; the form moves `me`) */
+      if (vehOn() && !me.dead) VEH.drive(mx, my, dt, spd);   /* (spd: the stat system's movement speed, for Susano O's robot) */   /* (Sports Car: the stick and keys drive and steer; the form moves `me`) */
       else if (me.dodge) {
         const D = me.dodge; D.t += dt; const k2 = 1 - Math.pow(D.t / D.dur, 2) * 0.6;
         moveEnt(me, D.vx * dt * k2, D.vy * dt * k2, 0);

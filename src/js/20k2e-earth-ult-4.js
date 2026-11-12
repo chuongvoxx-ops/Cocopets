@@ -78,8 +78,9 @@ const EARTHC = (() => {
       for (let y = 0; y < Hh; y++) { let acc = 0; const o = y * W; for (let x = -r; x < W + r; x++) { if (x + r < W) acc += A[o + Math.min(W - 1, x + r)]; if (x - r - 1 >= 0) acc -= A[o + x - r - 1]; if (x >= 0 && x < W) tmp[o + x] = acc / (2 * r + 1); } }
       for (let x = 0; x < W; x++) { let acc = 0; for (let y = -r; y < Hh + r; y++) { if (y + r < Hh) acc += tmp[Math.min(Hh - 1, y + r) * W + x]; if (y - r - 1 >= 0) acc -= tmp[(y - r - 1) * W + x]; if (y >= 0 && y < Hh) A[y * W + x] = acc / (2 * r + 1); } } } }
   // emissive -> an additive canvas: amber, honey, ember-core white by intensity, with a soft halo round it
-  function glowCanvas(E, W, Hh, r, halo) { const B = E.slice(); blur(B, W, Hh, r); const cv = mk(W, Hh), g = cv.getContext('2d'), im = g.createImageData(W, Hh), d = im.data;
+  function glowCanvas(E, W, Hh, r, halo, pal) { const B = E.slice(); blur(B, W, Hh, r); const cv = mk(W, Hh), g = cv.getContext('2d'), im = g.createImageData(W, Hh), d = im.data, GC = pal && pal.glow;
     for (let i = 0, o = 0; i < W * Hh; i++, o += 4) { const e = E[i], a = cl(e + halo * B[i]); if (a < 0.004) continue; const k = cl(e * 1.15);
+      if (GC) { GC(k, d, o); d[o + 3] = a * 255; continue; }   /* (a palette's own glow colours: see clusterGen's pal) */
       d[o] = 217 + 38 * sm(k * 2); d[o + 1] = k < 0.5 ? 138 + 69 * sm(k * 2) : 207 + 37 * sm(k * 2 - 1); d[o + 2] = k < 0.5 ? 30 + 62 * sm(k * 2) : 92 + 122 * sm(k * 2 - 1); d[o + 3] = a * 255; }
     g.putImageData(im, 0, 0); return cv; }
 
@@ -169,7 +170,12 @@ const EARTHC = (() => {
      the union of convex parts, each { md (a crystal or rock model), M (its orientation in the cluster), off (its origin),
      mat: 'crystal' | 'stone', sc (rock scale) }. Per pixel the nearest part is shaded (blended with the one behind at its
      edge). Body + emissive (crystals glow from inside, by their thickness). Its anchor (the origin) in px: cx, cy. */
-  function* clusterGen(parts, Mw, Spx, res, floorCut) {
+  /* (2026-11-12, Susano O's Dark Spikes) pal: an optional material palette for a variant of the same crystals; when it is
+     left out every value below is the original Earth literal, so Earth's crystals are drawn exactly as before.
+     { cry: 6 ramp colours, rock: 5, inner: [r0, r1, g0, g1, b], st: [r, g, b] (streaks), spec, frs, edge (crystal bevel),
+       bounce (stone's warm bounce), sedge (stone edge), seam, glow: (k, data, offset) => writes r, g, b } */
+  function* clusterGen(parts, Mw, Spx, res, floorCut, pal) {
+    const CRp = pal && pal.cry || CRY, RKp = pal && pal.rock || ROCK, IN = pal && pal.inner || [60, 40, 44, 34, 12], STp = pal && pal.st || [28, 22, 12], SPp = pal && pal.spec || [255, 246, 225], FRp = pal && pal.frs || [120, 105, 70], EDp = pal && pal.edge || [255, 233, 184], BOp = pal && pal.bounce || [150, 86, 20], SEp = pal && pal.sedge || [150, 124, 94], SMp = pal && pal.seam || [255, 196, 84];
     const PP = parts.map(pt => { const Mc = mmul(Mw, pt.M), off = mv(Mw, pt.off || [0, 0, 0]), sc = pt.sc || 1, pl = pt.md.pl.map(p => { const n = mv(Mc, p.n); return { n, d: p.d * sc + n[0] * off[0] + n[1] * off[1] + n[2] * off[2] }; });
       if (floorCut !== false) pl.push({ n: [0, 0, -1], d: 0 }); return { pt, Mc, off, sc, P: prep(pl), o: pt.md.o, seed: pt.md.seed, R: { i1: 0, i2: -1, jl: 0, y: 0, th: 0, sil: 0, ed: 0 } }; });
     let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
@@ -193,20 +199,20 @@ const EARTHC = (() => {
       if (rk < 0.999) {
         // the crystal: cel-banded amber to honey by the light, darker facets turned away; the back facets show through
         // as inner planes (each its own tone); streaks along the axis; pale gold bevelled edges; a hard specular
-        const th = cl(R.th / (o.r * 2)), lit = bands(ndl) * 0.62 + 0.38 * ndl, k = cl(0.04 + 0.78 * lit + 0.14 * th) * 5, ri = Math.min(4, Math.floor(k)), rf = k - ri, RA = CRY[ri], RB = CRY[ri + 1];
+        const th = cl(R.th / (o.r * 2)), lit = bands(ndl) * 0.62 + 0.38 * ndl, k = cl(0.04 + 0.78 * lit + 0.14 * th) * 5, ri = Math.min(4, Math.floor(k)), rf = k - ri, RA = CRp[ri], RB = CRp[ri + 1];
         cr = RA[0] + (RB[0] - RA[0]) * rf; cg = RA[1] + (RB[1] - RA[1]) * rf; cb = RA[2] + (RB[2] - RA[2]) * rf;
         const jb = R.jl, inner = Math.abs(P.NX[jb] * LIT[0] + P.NY[jb] * LIT[1] + P.NZ[jb] * LIT[2]), pan = R1(jb * 7.3 + sd), ip = sstep(0.2, 0.9, inner) * (0.3 + 0.7 * th) * (1 - 0.5 * ndl), st = sstep(0.6, 0.8, vn3(qx * 7 + sd, qy * 7, qz * 1.6));
-        cr += (60 + 40 * pan) * ip + 28 * st; cg += (44 + 34 * pan) * ip + 22 * st; cb += 12 * ip + 12 * st;
-        const spec = Math.pow(ndh, 46) * 1.1, frs = Math.pow(1 - ndv, 3) * 0.28; cr += 255 * spec + 120 * frs; cg += 246 * spec + 105 * frs; cb += 225 * spec + 70 * frs;
-        const ek = edge * (0.4 + 0.6 * cl(ndl * 1.6)); cr = lerp(cr, 255, ek * 0.85); cg = lerp(cg, 233, ek * 0.85); cb = lerp(cb, 184, ek * 0.85);
+        cr += (IN[0] + IN[1] * pan) * ip + STp[0] * st; cg += (IN[2] + IN[3] * pan) * ip + STp[1] * st; cb += IN[4] * ip + STp[2] * st;
+        const spec = Math.pow(ndh, 46) * 1.1, frs = Math.pow(1 - ndv, 3) * 0.28; cr += SPp[0] * spec + FRp[0] * frs; cg += SPp[1] * spec + FRp[1] * frs; cb += SPp[2] * spec + FRp[2] * frs;
+        const ek = edge * (0.4 + 0.6 * cl(ndl * 1.6)); cr = lerp(cr, EDp[0], ek * 0.85); cg = lerp(cg, EDp[1], ek * 0.85); cb = lerp(cb, EDp[2], ek * 0.85);
         em = ((0.15 + 0.85 * Math.pow(th, 1.3)) * 0.8 + edge * 0.35 + st * 0.15) * (1 - rk); }
       if (rk > 0.001) {
         // dark stone: rough, cel-banded, a warm bounce from below, lit edges
-        const t2 = vn3(qx * 14, qy * 14, qz * 14 + sd), t3 = vn3(qx * 31 + sd, qy * 31, qz * 31), b = cl((0.56 * bands(ndl) + 0.44 * ndl) * (0.8 + 0.4 * (t2 - 0.5) + 0.25 * (n1 - 0.5) + (t3 > 0.8 ? 0.25 : 0)) + 0.07) * 4, ri = Math.min(3, Math.floor(b)), rf = b - ri, RA = ROCK[ri], RB = ROCK[ri + 1];
-        let sr = RA[0] + (RB[0] - RA[0]) * rf, sg = RA[1] + (RB[1] - RA[1]) * rf, sb = RA[2] + (RB[2] - RA[2]) * rf; const fr = Math.pow(1 - ndv, 2.4) * cl(-nz + 0.5); sr += 150 * fr * 0.5; sg += 86 * fr * 0.5; sb += 20 * fr * 0.5;
-        const ek = edge * 0.45 * cl(ndl * 2); sr = lerp(sr, 150, ek); sg = lerp(sg, 124, ek); sb = lerp(sb, 94, ek);
+        const t2 = vn3(qx * 14, qy * 14, qz * 14 + sd), t3 = vn3(qx * 31 + sd, qy * 31, qz * 31), b = cl((0.56 * bands(ndl) + 0.44 * ndl) * (0.8 + 0.4 * (t2 - 0.5) + 0.25 * (n1 - 0.5) + (t3 > 0.8 ? 0.25 : 0)) + 0.07) * 4, ri = Math.min(3, Math.floor(b)), rf = b - ri, RA = RKp[ri], RB = RKp[ri + 1];
+        let sr = RA[0] + (RB[0] - RA[0]) * rf, sg = RA[1] + (RB[1] - RA[1]) * rf, sb = RA[2] + (RB[2] - RA[2]) * rf; const fr = Math.pow(1 - ndv, 2.4) * cl(-nz + 0.5); sr += BOp[0] * fr * 0.5; sg += BOp[1] * fr * 0.5; sb += BOp[2] * fr * 0.5;
+        const ek = edge * 0.45 * cl(ndl * 2); sr = lerp(sr, SEp[0], ek); sg = lerp(sg, SEp[1], ek); sb = lerp(sb, SEp[2], ek);
         cr = lerp(cr, sr, rk); cg = lerp(cg, sg, rk); cb = lerp(cb, sb, rk); }
-      if (seamB > 0.01) { cr = lerp(cr, 255, seamB * 0.7); cg = lerp(cg, 196, seamB * 0.7); cb = lerp(cb, 84, seamB * 0.7); em += seamB * 0.9; }
+      if (seamB > 0.01) { cr = lerp(cr, SMp[0], seamB * 0.7); cg = lerp(cg, SMp[1], seamB * 0.7); cb = lerp(cb, SMp[2], seamB * 0.7); em += seamB * 0.9; }
       const ink = 0.32 + 0.68 * sstep(0, 2.0, R.sil); out[0] = cr * ink; out[1] = cg * ink; out[2] = cb * ink; out[3] = em; }
     const NP = PP.length;
     // (the pixel work lives in a plain function: a generator keeps its locals boxed on the heap)
@@ -225,7 +231,7 @@ const EARTHC = (() => {
     for (let py = 0; py < Hh; py++) { if (py % 8 === 0) yield 0; row(py); }
     g.putImageData(im, 0, 0); yield 0;
     const rr = parts[0].md.o ? parts[0].md.o.r : 0.2;
-    Object.assign(res, { body: cv, glow: glowCanvas(E, W, Hh, Math.max(2, Math.round(Spx * rr * 0.35)), 0.8), W, H: Hh, cx, cy, S: Spx }); res.ready = true; }
+    Object.assign(res, { body: cv, glow: glowCanvas(E, W, Hh, Math.max(2, Math.round(Spx * rr * 0.35)), 0.8, pal), W, H: Hh, cx, cy, S: Spx }); res.ready = true; }
   const I3 = [1, 0, 0, 0, 1, 0, 0, 0, 1];
   const crystalGen = (md, M, Spx, res, floorCut) => clusterGen([{ md, M: I3, mat: 'crystal' }], M, Spx, res, floorCut);
   /* run a generator to the end, or for at most ms */
