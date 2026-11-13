@@ -165,3 +165,10 @@ After Twister, safely return the pet to valid ground. Fold and dissolve the flow
 Restore normal controls and start the configured outer cooldown once. Handle offshore expiry, interruptions and defeat safely.
 
 Verify exactly four outer leaves, eight outward-pointing swords, six green rear tentacles, eight long white forward-reaching tentacles and six Twister tornadoes.
+
+Update (v321, the user's later changes, recorded by the team; they take precedence over the text above where they differ)
+
+* Duration: 45 seconds at every level (was 20 / 25 / 35).
+* Cooldowns: Wildflowers 1.0 second, Ring Blade 1.5 seconds (from the catch).
+* Swoosh: the bloom closes into a bud as it rises, dives and swoops through the enemies as a bud, then bursts into bloom, spins in place and slams its six green tentacles on the ground around it one after another, then all together. Each tentacle slam is a small Wind hit at its spot (about 1.2 DK within 1.2 tiles); the final slam about 3 DK within 3 tiles; every slam charges the gauge and breaks props.
+* The pet is hidden inside the closed bud and reappears as it bursts open.

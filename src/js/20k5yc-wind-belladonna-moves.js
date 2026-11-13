@@ -344,19 +344,19 @@ void main(){ if (u_pass > 0.5) { if (v_c.a < 0.5) discard; gl_FragColor = vec4(0
     add(ctx, { life: 5, abort() { done(); }, update(dt, it) { const u = cl((now(ctx) - tC) / tu.cast); clip(ctx, 'cast', u); if (u >= 1) { clip(ctx, 'rest'); it.life = 0; done(); } },
       paint(Q) { const p = anchor(ctx, 'center'), u = cl((now(ctx) - tC) / tu.cast); Q.glow(p.x, p.y, p.z, 1.5 + 2 * u, P.pink, 0.4 * (1 - u)); Q.halo(p.x, p.y, p.z, 3.2 * eout(u), 0.7 * (1 - u), P.blush, 0.5); } });
     // one field a caster: a recast moves and restarts the one that stands
-    if (S.wild && S.wild.life > 0) { const F = S.wild; F.x = aim.x; F.y = aim.y; F.t0 = tC + tu.cast * 0.5; F.k = 0; F.ctx = ctx; F.born = F.t0; ctx.wildPlan = F.plan(); ctx.field = F; return; }
+    if (S.wild && S.wild.life > 0) { const F = S.wild; F.x = aim.x; F.y = aim.y; F.n = F.k + nT; F.ctx = ctx; F.moved = tC; ctx.wildPlan = F.plan(); ctx.field = F; return; }   /* (a recast moves the field and extends it to a full duration from now; its tick clock keeps running, so recasting never loses a tick) */
     // what the storm is made of: blossoms, petals and ribbons on their own orbits (radius as a share of r, height, speed)
     const NB = L ? 16 : 34, NP = L ? 10 : 22, NRB = L ? 5 : 9, fl = [], rb = [];
     for (let i = 0; i < NB + NP; i++) fl.push({ pet: i >= NB, r: 0.2 + 0.78 * Math.sqrt(R1(i * 3.1)), z: 0.35 + 0.95 * (i % 4) + 0.3 * R1(i * 5.3), ph: R1(i * 7.7) * TAU, w: 1.5 + 1.6 * R1(i * 2.9), s: 0.34 + 0.16 * R1(i * 9.1), col: PINKS[i % PINKS.length], vr: 2 + 4 * R1(i * 4.4) });
     for (let i = 0; i < NRB; i++) rb.push({ r: 0.36 + 0.64 * (i / (NRB - 1)), z: 0.2 + 2.4 * R1(i * 6.1 + 2), ph: i * 2.4, w: 2.6 - 1.2 * (i / NRB), span: 1.5 + 1.3 * R1(i * 3.3 + 1), wd: 0.5 + 0.35 * R1(i * 8.3), col: i % 3 === 2 ? P.blush : i % 3 ? P.mint : P.pale });
     stats.fields = 1;
-    const F = S.wild = add(ctx, { life: 60, x: aim.x, y: aim.y, r: tu.r, t0: tC + tu.cast * 0.5, born: tC + tu.cast * 0.5, k: 0, tick: 0,
-      plan() { return { x: this.x, y: this.y, r: tu.r, t0: this.t0, ticks: nT, tick: tu.every, every: tu.every, life: tu.dur, dmg: tu.dmg }; }, abort() { S.wild = null; stats.fields = 0; },
+    const F = S.wild = add(ctx, { life: 60, x: aim.x, y: aim.y, r: tu.r, t0: tC + tu.cast * 0.5, born: tC + tu.cast * 0.5, k: 0, n: nT, tick: 0,
+      plan() { return { x: this.x, y: this.y, r: tu.r, t0: this.t0, ticks: this.n, fired: this.k, tick: tu.every, every: tu.every, life: tu.dur, dmg: tu.dmg }; }, abort() { S.wild = null; stats.fields = 0; },
       update(dt, it) { const c2 = it.ctx, t = now(c2);
-        while (it.k < nT && t >= it.t0 + (it.k + 1) * tu.every) { it.k++; it.tick = 1; stats.wildTicks++; stats.wildHits += hitA(c2, it.x, it.y, tu.r, dkOf(c2) * tu.dmg, { once: {}, el: 'wind', src: 'strong', kb: 0 }); sfx(X, 'hiss', 0.25, 0.1, 1400); if (it.k % 2) sfx(X, 'note', 1320 + 220 * (it.k % 3), 0.12, 'sine', 0.035, 1760);
+        while (it.k < it.n && t >= it.t0 + (it.k + 1) * tu.every) { it.k++; it.tick = 1; stats.wildTicks++; stats.wildHits += hitA(c2, it.x, it.y, tu.r, dkOf(c2) * tu.dmg, { once: {}, el: 'wind', src: 'strong', kb: 0 }); sfx(X, 'hiss', 0.25, 0.1, 1400); if (it.k % 2) sfx(X, 'note', 1320 + 220 * (it.k % 3), 0.12, 'sine', 0.035, 1760);
           emit(c2, 2, it.x, it.y, 0.6, 4, { r: tu.r * 0.6, v: 3, up: 2 }); }
-        it.tick = Math.max(0, it.tick - dt * 3.5); if (t >= it.t0 + nT * tu.every + 0.5) { it.life = 0; S.wild = null; stats.fields = 0; if (c2.field === it) c2.field = null; } },
-      paint(Q, it) { const t = now(it.ctx), age = t - it.born, end = it.t0 + nT * tu.every, A = sm(age / 0.35) * (1 - sm((t - end) / 0.5)); if (A <= 0.01) return; const x = it.x, y = it.y, R = tu.r, grow = 0.55 + 0.45 * eout(age / 0.4), tt = Q.t;
+        it.tick = Math.max(0, it.tick - dt * 3.5); if (t >= it.t0 + it.n * tu.every + 0.5) { it.life = 0; S.wild = null; stats.fields = 0; if (c2.field === it) c2.field = null; } },
+      paint(Q, it) { const t = now(it.ctx), age = t - it.born, end = it.t0 + it.n * tu.every, A = sm(age / 0.35) * (1 - sm((t - end) / 0.5)); if (A <= 0.01) return; const x = it.x, y = it.y, R = tu.r, grow = 0.55 + 0.45 * eout(age / 0.4), tt = Q.t;
         // the bounded footprint on the floor (light only): its sharp rim is the damage radius
         Q.floorGlow(x, y, 0.02, R * 1.05, 0.2 * A, P.pink); Q.ring(x, y, 0.03, R * grow, (0.55 + 0.4 * it.tick) * A, P.mint, 0.5); Q.air(x, y, 0.04, R * grow, 0.5 * A, 2);
         if (it.tick > 0.02) Q.ring(x, y, 0.05, R * (1 - 0.5 * it.tick), 0.5 * it.tick * A, P.blush, 0.4);
@@ -365,7 +365,13 @@ void main(){ if (u_pass > 0.5) { if (v_c.a < 0.5) discard; gl_FragColor = vec4(0
         for (let i = 0; i < (L ? 4 : 6); i++) Q.arc(x, y, 0.25 + 1.05 * (i >> 1), R * grow, tt * (1.9 - 0.25 * (i >> 1)) + (i & 1) * PI + i * 0.5, 2.7, 0.75, i % 3 ? P.mint : P.pale, 0.95 * A, 0.5);   /* (long currents right round the field's edge: its footprint) */
         // the flowers on their orbits at several heights: the far ones first (the 2D path has no depth of its own)
         for (let pass = 0; pass < 2; pass++) for (const q of fl) { const an = q.ph + tt * q.w / (0.5 + q.r), si = Math.sin(an); if ((si < 0) !== (pass === 0)) continue; const rr = R * q.r * grow, fx = x + Math.cos(an) * rr, fy = y + si * rr * GY, fz = q.z + 0.25 * Math.sin(tt * 2 + q.ph), a = A * (si < 0 ? 0.5 : 1);
-          if (q.pet) Q.petal(fx, fy, fz, q.s, an * 2 + tt * q.vr, q.col, a, 1.1 * Math.sin(tt * 2.2 + q.ph), an); else Q.blossom(fx, fy, fz, q.s, tt * q.vr * 0.4 + q.ph, q.col, a, -0.9 + 0.5 * Math.sin(tt * 1.7 + q.ph), 0.6 * Math.sin(an)); } } });
+          if (q.pet) Q.petal(fx, fy, fz, q.s, an * 2 + tt * q.vr, q.col, a, 1.1 * Math.sin(tt * 2.2 + q.ph), an); else Q.blossom(fx, fy, fz, q.s, tt * q.vr * 0.4 + q.ph, q.col, a, -0.9 + 0.5 * Math.sin(tt * 1.7 + q.ph), 0.6 * Math.sin(an)); }
+        // flowers sprouting from the ground, each in its own time, and wilting as the field ends
+        const life = end - it.born; for (let i = 0; i < (L ? 6 : 14); i++) { const sp = it.born + life * 0.6 * R1(i * 4.7), g = sm((t - sp) / 0.35) * (1 - sm((t - end + 0.2 + 0.5 * R1(i * 2.3)) / 0.5)); if (g <= 0.02) continue; const an = R1(i * 9.1) * TAU, rr = R * 0.95 * Math.sqrt(R1(i * 3.3)), gx = x + Math.cos(an) * rr, gy = y + Math.sin(an) * rr * GY;
+          Q.petal(gx, gy, 0.05 + 0.18 * g, 0.22 * g, an, '#6FD47E', A * g, 0.2, an); Q.blossom(gx, gy, 0.12 + 0.3 * g, 0.26 * g, tt * 0.5 + i, PINKS[i % 5], A * g, -0.4 - 0.5 * g, 0); }
+        // pollen motes drifting up, and soft shafts of light through the storm
+        for (let i = 0; i < (L ? 8 : 20); i++) { const an = R1(i * 5.1) * TAU + tt * 0.4, rr = R * Math.sqrt(R1(i * 7.9)), hq = ((tt * (0.15 + 0.1 * R1(i)) + R1(i * 3.7)) % 1); Q.spark(x + Math.cos(an) * rr, y + Math.sin(an) * rr * GY, 0.2 + 3.6 * hq, 0.07, i % 3 ? P.gold : P.pale, A * Math.sin(hq * PI)); }
+        for (let i = 0; i < (L ? 2 : 4); i++) { const an = i * 1.7 + tt * 0.15, rr = R * (0.2 + 0.5 * R1(i * 2.9)), sx = x + Math.cos(an) * rr, sy = y + Math.sin(an) * rr * GY; Q.beam(sx, sy, 0.05, sx + 0.4, sy, 5.5, 0.45, P.blush, 0.18 * A * (0.6 + 0.4 * Math.sin(tt * 1.3 + i))); } } });
     ctx.wildPlan = F.plan(); ctx.field = F; }
 
   /* ================= Ring Blade ================= */
@@ -383,10 +389,10 @@ void main(){ if (u_pass > 0.5) { if (v_c.a < 0.5) discard; gl_FragColor = vec4(0
     const home = () => { ringSet(ctx, S, 'overhead'); S.ringItem = null; clip(ctx, 'rest'); };
     const hitAt = (x, y, r) => { stats.ringHits += hitA(ctx, x, y, r, DK * tu.dmg, { once: reg, el: 'wind', src: 'strong', kb: 3 }); };
     const wantBack = it => it.recall || !!ctx.recall;
-    S.ringItem = add(ctx, { life: 30, recall: false, abort() { home(); done(); },
+    S.ringItem = add(ctx, { life: 30, recall: false, seen: new Set(), abort() { home(); done(); },
       update(dt, it) { t += dt; spin += (ph === 0 ? 8 + 26 * sm(t / tu.windup) : ph === 3 ? 14 : 30) * dt;
         if (ph === 0) { p = anchor(ctx, 'ring'); clip(ctx, 'ringWind', t / tu.windup); if (t >= tu.windup) { ph = 1; t = 0; ringSet(ctx, S, 'outbound'); clip(ctx, 'ringThrow', 1); sfx(X, 'whoosh'); sfx(X, 'note', 1400, 0.3, 'sawtooth', 0.04, 700); from.x = p.x; from.y = p.y; from.z = p.z; tOut = Math.max(0.12, Math.hypot(aim.x - p.x, aim.y - p.y) / tu.speed); done(); } }
-        else if (ph === 1) { const u = cl(t / tOut); p.x = lerp(from.x, aim.x, u); p.y = lerp(from.y, aim.y, u); p.z = lerp(from.z, tu.low, sm(u * 1.6)); hitAt(p.x, p.y, tu.r);   /* (the sweep) */
+        else if (ph === 1) { const u = cl(t / tOut); p.x = lerp(from.x, aim.x, u); p.y = lerp(from.y, aim.y, u); p.z = lerp(from.z, tu.low, sm(u * 1.6)); hitAt(p.x, p.y, tu.r);   /* (the sweep) */ for (const m of monsOf(ctx)) { if (gone(m) || it.seen.has(m) || Math.hypot(m.x - p.x, m.y - p.y) > tu.r + (m.r || 0.4)) continue; it.seen.add(m); emit(ctx, 0, m.x, m.y, 0.8, L ? 5 : 10, { v: 6, up: 2, life: 0.4, size: 0.08, col: P.white }); emit(ctx, 2, m.x, m.y, 0.8, L ? 2 : 4, { v: 4, up: 2, life: 0.8 }); }   /* (sparks and torn petals where a blade bites) */
           if (!L || Math.random() < 0.5) emit(ctx, 2, p.x, p.y, p.z, 1, { v: 2, up: 0.6, life: 0.7 });
           if (u >= 1 || wantBack(it)) { ph = 2; t = 0; if (u >= 1) { hitAt(p.x, p.y, tu.flourishR); fl = 1; sfx(X, 'whoosh'); sfx(X, 'hiss', 0.5, 0.25, 1200); sfx(X, 'chime', 1175, 1); shake(ctx, 4, 0.18); X.light && X.light(p.x, p.y, tu.flourishR * 1.3, 0.4); emit(ctx, 1, p.x, p.y, 0.8, 14, { v: 8, up: 2.5, r: 1 }); emit(ctx, 2, p.x, p.y, 0.8, 30, { v: 9, up: 2.5, r: 1 }); emit(ctx, 0, p.x, p.y, 0.8, 14, { v: 8 }); } } }   /* (the flourish: the same registry, so the whole throw is one activation an enemy) */
         else if (ph === 2) { if (t >= tu.flourish || wantBack(it)) { ph = 3; t = 0; ringSet(ctx, S, 'returning'); b0 = { x: p.x, y: p.y, z: p.z }; if (wantBack(it)) back = tu.recall; sfx(X, 'hiss', back, 0.1, 2000); } }
@@ -407,6 +413,9 @@ void main(){ if (u_pass > 0.5) { if (v_c.a < 0.5) discard; gl_FragColor = vec4(0
         // the luminous rim and the eight blade trails (each a short ribbon in the ring's plane behind its sword tip)
         const a = away ? 1 : 0.7 * k; Q.glow(p.x, p.y, p.z, R * 0.9, P.mint, 0.4 * a); Q.ring(p.x, p.y, Math.max(0.3, p.z), R * 0.36, a, P.pale, 0.25); Q.ring(p.x, p.y, Math.max(0.3, p.z), R, 0.75 * a, P.mint, 0.5);
         for (let i = 0; i < 8; i++) Q.arc(p.x, p.y, p.z, away ? R : R * 0.9, spin + i * TAU / 8, -(0.4 + 0.6 * k), 0.6, i % 2 ? P.pale : P.mint, 0.95 * a, 0);
+        if (away) { for (let i = 0; i < 8; i++) Q.arc(p.x, p.y, p.z, R * 1.04, spin + i * TAU / 8 - 0.5, -0.9, 0.12, P.white, 0.6 * a, 0);   /* (thin afterimages of the blades, a step behind) */
+          if (ph < 3) { for (let i = 0; i < 3; i++) Q.arc(p.x, p.y, 0.15 + 0.2 * i, R * (0.8 + 0.15 * i), Q.t * -7 + i * 2.1, 2, 0.4, i % 2 ? P.mint : P.pale, 0.5, 0.1); }   /* (the wind wake on the floor) */
+          else { Q.glow(p.x, p.y, p.z, R * 1.1, P.pale, 0.35); Q.halo(p.x, p.y, p.z, R * 1.15, 0.5, P.mint, 0.3); } }   /* (the glowing return) */
         // the flourish at the end of its route: a broad spiral of wind thrown outward and upward
         if (fl > 0.01) { const u = 1 - fl, RF = tu.flourishR * (0.35 + 0.65 * eout(u)); Q.ring(p.x, p.y, 0.05, RF, fl, P.pale, 0.7); Q.air(p.x, p.y, 0.06, RF, 0.8 * fl, 4); Q.floorGlow(p.x, p.y, 0.02, RF * 1.1, 0.5 * fl, P.mint);
           for (let i = 0; i < 8; i++) Q.arc(p.x, p.y, 0.3 + 0.4 * i + 1.2 * u, RF * (0.45 + 0.08 * i), spin * 0.5 + i * 0.9, 2.6, 0.8, i % 3 === 2 ? P.blush : i % 3 ? P.mint : P.pale, fl, 0.6); } } });
@@ -462,6 +471,11 @@ void main(){ if (u_pass > 0.5) { if (v_c.a < 0.5) discard; gl_FragColor = vec4(0
             if (!Q.lite2d) Q.floorGlow(bx, by, 0.03, R * 1.5, (0.3 + 0.4 * pulse) * rise * fade, i % 2 ? P.blush : P.mint); Q.ring(bx, by, 0.04, R * (1 + (ph === 4 ? (tu.lastR - 1) * eout(un * 3) : 0)), rise * fade, P.white, 0.55); Q.air(bx, by, 0.05, R, 0.45 * rise * fade, i);
             if (!F2) for (let j = 0; j < 3; j++) Q.arc(bx, by, 0.3, R, -tt * (3 + 2 * build) + j * TAU / 3 + i, 1.5, 0.5, j % 2 ? P.pale : P.mint, rise * fade * (0.8 + 0.2 * pulse), 0);   /* (the bright turning base ring: the damage radius) */
             Q.funnel(bx, by, lift, wT, hh, 0.24, 0.95 * a, sp, i, i % 2 ? P.pale : P.mint);
+            if (!F2) { Q.funnel(bx, by, lift, wT * 1.35, hh * 0.8, 0.4, 0.45 * a, -sp * 0.6, i + 9, P.blush);   /* (an outer, slower, counter-turning layer) */
+              for (let j = 0; j < (L ? 3 : 6); j++) { const hq = ((R1(i * 7 + j) + tt * 0.5) % 1), an = j * 1.9 - tt * sp * 0.35 + i, rx = wT * (1.25 + 0.3 * R1(j)), fx = bx + Math.cos(an) * rx, fy = by + Math.sin(an) * rx * GY * 0.8; Q.petal(fx, fy, lift + hq * hh * 0.7, 0.32, an * 3, '#6FD47E', a * Math.sin(hq * PI), 1.5 * Math.sin(tt * 4 + j), an); }   /* (leaves, wider and slower) */
+              for (let j = 0; j < (L ? 3 : 6); j++) { const hq = ((R1(i * 5 + j * 2) + tt * 0.8) % 1), an = j * 2.7 + tt * sp * 0.7 + i, rx = wT * 0.55, fx = bx + Math.cos(an) * rx, fy = by + Math.sin(an) * rx * GY * 0.8; Q.spark(fx, fy, lift + hq * hh * 0.5, 0.09, '#C9B48A', a * Math.sin(hq * PI)); }   /* (debris, tight and fast) */
+              for (let j = 0; j < 3; j++) Q.arc(bx, by, 0.06, R * (0.55 + 0.25 * j), tt * (8 + 3 * j) + j * 2 + i, 1.3, 0.35, '#C9B48A', 0.45 * rise * fade, 0);   /* (the ground scoured round its base) */
+              const fl = Math.floor(tt * 14 + i * 3); for (let j = 0; j < 4; j++) { const q0 = j / 4, q1 = (j + 1) / 4, o0 = (R1(fl * 3 + j + i) - 0.5) * 0.5 * wT, o1 = (R1(fl * 3 + j + 1 + i) - 0.5) * 0.5 * wT; Q.beam(bx + o0, by, lift + q0 * hh * 0.85, bx + o1, by, lift + q1 * hh * 0.85, 0.09, P.pink, 0.85 * a * (0.5 + 0.5 * build)); } }   /* (a flickering pink lightning core) */
             const NA = F2 ? 2 : L ? 4 : 7; for (let j = 0; j < NA; j++) { const hq = ((j / NA + tt * (0.22 + 0.1 * build) + i * 0.13) % 1), rx = wT * lerp(0.36, 1.05, Math.pow(hq, 1.5)); Q.arc(bx, by, lift + hq * hh, rx, tt * sp * 0.5 + j * 2.1 + i, 2.3, rx * 0.32, j % 3 === 2 ? P.blush : j % 3 ? P.mint : P.pale, a * Math.sin(hq * PI) * 0.8, 0.35); }
             const NF = F2 ? 4 : L ? 8 : 16; for (let j = 0; j < NF; j++) { const hq = ((R1(i * 11 + j * 3) + tt * (0.3 + 0.12 * build)) % 1), an = j * 2.4 + tt * sp * 0.55 + i, rx = wT * lerp(0.4, 1.1, Math.pow(hq, 1.5)), fx = bx + Math.cos(an) * rx, fy = by + Math.sin(an) * rx * GY, fz = lift + hq * hh, al = rise * fade * near * Math.min(1, Math.sin(hq * PI) * 2.5);
               if (j % 3 === 2) Q.petal(fx, fy, fz, 0.3, an * 2, P.pearl, al, 1.2 * Math.sin(tt * 3 + j), an); else Q.blossom(fx, fy, fz, (F2 ? 0.5 : 0.36) + 0.08 * (j % 2), tt * 3 + j, PINKS[j % 3], al, -0.9 + 0.6 * Math.sin(tt * 2 + j), an + PI / 2); } } }
@@ -482,8 +496,9 @@ void main(){ if (u_pass > 0.5) { if (v_c.a < 0.5) discard; gl_FragColor = vec4(0
     sfx(X, 'whoosh'); sfx(X, 'hiss', 0.9, 0.2, 1500); sfx(X, 'note', 900, 0.5, 'sine', 0.05, 300);
     const burst = (x, y, z) => { bt = 0; bx = x; by = y; bz = z; sfx(X, 'sparkle'); sfx(X, 'whoosh'); sfx(X, 'chime', 1318, 1); sfx(X, 'note', 260, 0.35, 'triangle', 0.08, 520);
       emit(ctx, 2, x, y, z, L ? 12 : 30, { v: 7, up: 2.5, life: 1.4 }); emit(ctx, 1, x, y, z, L ? 4 : 10, { v: 5.5, up: 2.5, life: 1.4 }); emit(ctx, 0, x, y, z, L ? 6 : 14, { v: 6, up: 2, life: 0.6, col: P.mint }); };
-    return add(ctx, { life: 12, update(dt, it) { t += dt; spin += 11 * dt; if (bt >= 0) bt += dt; const c0 = anchor(ctx, 'center'), hx = c0.x, hy = c0.y, hz = c0.z, bu = bulbOf(ctx); let cur = D; try { if ('swoosh' in ctx) cur = ctx.swoosh; } catch (e) {}
+    return add(ctx, { life: 12, slammed: new Set(), update(dt, it) { t += dt; spin += 11 * dt; if (bt >= 0) bt += dt; const c0 = anchor(ctx, 'center'), hx = c0.x, hy = c0.y, hz = c0.z, bu = bulbOf(ctx); let cur = D; try { if ('swoosh' in ctx) cur = ctx.swoosh; } catch (e) {}
         if (bu > 0.5) closed = true; const over = D.done || cur !== D || t > (D.dur || 1.5) + 0.6;
+        { let Pl = null; try { Pl = D.plan || ctx.swooshPlan; } catch (e) {} if (Pl && Array.isArray(Pl.at)) { const tn = now(ctx); for (const e of Pl.at) if (!it.slammed.has(e) && tn >= e.t) { it.slammed.add(e); let x = e.x, y = e.y; if (e.kind !== 'final' && e.i >= 0) { const q = anchor(ctx, 'tg' + e.i); if (q && Math.hypot(q.x - e.x, q.y - e.y) < 2 && q.z < 0.8) { x = q.x; y = q.y; } } slam(ctx, x, y, e.r || 1.2, e.kind === 'final'); } } }   /* (at the tentacle's own tip when M's anchor tgN lies on the floor near the hit, else at the hit's place) */   /* (the tentacle slams, on the core's deadlines) */
         if (bt < 0 && ((closed && bu < 0.5) || D.burst || (!closed && D.ph && D.ph !== 'bank' && D.ph !== 'approach') || over)) burst(hx, hy, hz);   /* (it bursts open from the bud's centre, in step with the pet popping back) */
         if (n > 4) { const j = Math.min(n - 1, 6), ddx = hx - tr[j * 3], ddy = (hy - tr[j * 3 + 1]) / GY, d = Math.hypot(ddx, ddy); if (d > 0.05) { dx = ddx / d; dy = ddy / d; } }
         if (over) { out += dt / 0.5; if (out >= 1 && bt > 0.9) it.life = 0; }
@@ -503,6 +518,18 @@ void main(){ if (u_pass > 0.5) { if (v_c.a < 0.5) discard; gl_FragColor = vec4(0
           for (let i = 0; i < 6; i++) Q.arc(bx, by, bz - 0.6 + 0.25 * i, 1 + 2.4 * eout(u), i * 1.05 + u * 4, 1.4, 0.4, i % 2 ? '#7CE38B' : P.pink, 0.8 * k, 0.2); }
         // the circular air distortion round the enemies it sweeps
         if (a > 0.01 && isFinite(D.cx) && D.R > 0 && bt >= 0) { const R = D.R + (D.hitR || 0) * 0.5, dir = D.dir || 1, g = sm(bt / 0.3); Q.air(D.cx, D.cy, 0.05, R, 0.6 * a * g, 3); Q.ring(D.cx, D.cy, 0.05, R, 0.5 * a * g, P.mint, 0.4); for (let i = 0; i < 4; i++) Q.arc(D.cx, D.cy, 0.3 + 0.5 * i, R * (0.7 + 0.12 * i), spin * dir + i * 1.6, 2.1 * dir, 0.55, i % 2 ? P.pale : P.mint, 0.75 * a * g, 0.4); } } }); }
+  /* a tentacle's slam (the core's Swoosh plan): the floor cracks with green energy, a shock ring of petals and dust; the final slam (all six together) a
+     bloom-shaped shockwave with flowers erupting. Pictures only: the core deals the hits on the same deadlines. */
+  function slam(ctx, x, y, r, final) { if (!ctx.H) return null; const X = ctx.H.X, L = LOW(), dur = final ? 1.2 : 0.75, cr = []; let t = 0;
+    for (let i = 0; i < (final ? 10 : 5); i++) { const a = i / (final ? 10 : 5) * TAU + R1(x * 3 + i) * 0.6, pts = [[x, y]]; let px = x, py = y, aa = a; for (let k = 0; k < 4; k++) { aa += (R1(i * 7 + k + x) - 0.5) * 0.9; const st = r * (final ? 0.42 : 0.38); px += Math.cos(aa) * st; py += Math.sin(aa) * st * 0.55; pts.push([px, py]); } cr.push(pts); }
+    sfx(X, final ? 'crash' : 'thud'); if (final) { sfx(X, 'sparkle'); sfx(X, 'note', 70, 0.8, 'sine', 0.5, 40); } shake(ctx, final ? 9 : 3, final ? 0.3 : 0.12); X.light && X.light(x, y, r * 1.5, final ? 0.6 : 0.3);
+    emit(ctx, 2, x, y, 0.2, L ? 4 : (final ? 26 : 8), { v: final ? 7 : 4, up: final ? 3 : 2, life: 1.1 }); emit(ctx, 0, x, y, 0.15, L ? 3 : (final ? 16 : 6), { v: final ? 6 : 3.5, up: 1.2, life: 0.6, size: 0.1, col: '#C9B48A' }); if (final) emit(ctx, 1, x, y, 0.3, L ? 6 : 16, { v: 5, up: 6, life: 1.6, g: 3 });
+    return add(ctx, { life: 5, keep: true, update(dt, it) { t += dt; if (t > dur) it.life = 0; },
+      paint(Q) { const u = t / dur, k = 1 - u, g = sm(u / 0.15);
+        for (const pts of cr) for (let i = 1; i < pts.length; i++) { const q = cl(u * 6 - (i - 1) * 0.6); if (q <= 0) continue; const a0 = pts[i - 1], a1 = pts[i]; Q.beam(a0[0], a0[1], 0.05, lerp(a0[0], a1[0], q), lerp(a0[1], a1[1], q), 0.05, 0.12, '#6FD47E', 0.9 * k); Q.beam(a0[0], a0[1], 0.05, lerp(a0[0], a1[0], q), lerp(a0[1], a1[1], q), 0.05, 0.04, P.white, 0.7 * k); }   /* (green energy cracks running out) */
+        Q.ring(x, y, 0.05, r * (0.3 + (final ? 1.6 : 1.1) * eout(u)), k, P.pink, final ? 0.7 : 0.45); Q.ring(x, y, 0.06, r * (0.2 + (final ? 1.3 : 0.9) * eout(u)), 0.8 * k, '#6FD47E', 0.35); Q.floorGlow(x, y, 0.02, r * 1.3, 0.5 * k * g, P.pink);
+        for (let i = 0; i < (final ? 6 : 3); i++) Q.arc(x, y, 0.1 + 0.15 * i, r * (0.4 + 0.9 * eout(u) + 0.1 * i), i * 2.1 + u * 3, 1.6, 0.35, i % 2 ? '#C9B48A' : P.blush, 0.7 * k, 0.1);   /* (dust and petals blown out) */
+        if (final) { Q.seal(x, y, 0.04, r * (0.5 + 1.4 * eout(u)), k, u * 2, 1, P.pink); Q.seal(x, y, 0.05, r * (0.3 + 1.0 * eout(u)), 0.8 * k, -u * 3, 1, '#6FD47E'); if (u < 0.2) Q.glow(x, y, 0.8, r * 1.6, P.white, 0.8 * (1 - u / 0.2)); } } }); }   /* (the bloom-shaped shockwave) */
   /* the summon: a Wind seal beneath the pet, the wind rising off it; a burst of petals when the bloom opens. D { x, y, dur, stages } */
   function summon(ctx, D) { if (!ctx.H) return null; const H = ctx.H, X = H.X, tu = TUNE.summon; D = D || {}; const v = ctx.vehicle || {}, x = isFinite(D.x) ? D.x : v.x, y = isFinite(D.y) ? D.y : v.y, dur = D.dur || tu.dur, st = D.stages || {}, tb = st.bloom ? (Array.isArray(st.bloom) ? st.bloom[0] : +st.bloom) : dur * 0.4; let t = 0, bl = false;
     sfx(X, 'hum'); sfx(X, 'hiss', dur, 0.16, 800);
@@ -529,7 +556,7 @@ void main(){ if (u_pass > 0.5) { if (v_c.a < 0.5) discard; gl_FragColor = vec4(0
     twister(x, cx, cy, r, rd) { x.save(); x.translate(cx, cy); x.globalAlpha = rd ? 1 : 0.55; x.lineCap = 'round'; for (let i = 0; i < 4; i++) { const q = i / 3, w = r * (0.16 + 0.42 * q), y = r * (0.5 - 1.0 * q); x.strokeStyle = rd ? (i % 2 ? P.pale : P.mint) : '#9AA'; x.lineWidth = r * 0.085; x.beginPath(); x.ellipse(0, y, w, w * 0.32, 0, PI * 0.1, PI * 1.5); x.stroke(); } x.fillStyle = rd ? P.pink : '#AAB'; x.beginPath(); x.arc(r * 0.4, -r * 0.1, r * 0.09, 0, TAU); x.fill(); x.beginPath(); x.arc(-r * 0.34, r * 0.22, r * 0.07, 0, TAU); x.fill(); x.restore(); },
   };
 
-  BM.wildflowers = wildflowers; BM.ringBlade = ringBlade; BM.twister = twister; BM.swoosh = swoosh; BM.summon = summon; BM.bloom = bloom; BM.exit = exit; BM.icons = icons;
+  BM.wildflowers = wildflowers; BM.ringBlade = ringBlade; BM.twister = twister; BM.swoosh = swoosh; BM.slam = slam; BM.summon = summon; BM.bloom = bloom; BM.exit = exit; BM.icons = icons;
   BM.emit = emit;   /* (the core may throw petals of its own: emit(ctx, kind, x, y, z, n, o)) */
   BM.warm = () => { try { for (const c of [P.mint, P.pale, P.pink, P.blush, P.white]) glowSprite(c); beamSprite(P.white); beamSprite(P.pale); flowerSprite(P.pink, false); flowerSprite(P.pink, true); gpuOn(); } catch (e) {} return true; };
   BM.update = () => {};

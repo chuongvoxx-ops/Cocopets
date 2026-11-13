@@ -33,9 +33,12 @@
 
   /* ================= the tuning ================= */
   const TUNE = {
-    dur: [30, 45, 60],          /* s, shared by both forms and their transformations, from the moment the shark can be flown (60 at Celestial is the spec's) */
+    dur: [60, 60, 60],          /* s, shared by both forms and their transformations, from the moment the shark can be flown (v321, the user: 60 s at every evo; it was 30 / 45 / 60) */
     cd: 150,                    /* s: the outer cooldown, set once when normal control returns (the spec's) */
-    pools: 3, poolR: 1.7, poolSame: 1.5,   /* at most three Tidal Pools; a pool's radius; a Water Ray landing this near an existing pool's centre refreshes it */
+    pools: [3, 3, 5], poolR: 1.7, poolSame: 1.5,   /* the most Tidal Pools at once by tier (v321: five at Celestial); a pool's radius; a Water Ray landing this near an existing pool's centre refreshes it */
+    autoXf: 5,                  /* (v321) Water Ray casts that made or refreshed a pool before Jaws turns into Leviathan by itself (the count restarts at each Transform back) */
+    xfLock: 1.0,                /* s after either change of form before another can start */
+    levK: 0.8,                  /* (v321) Leviathan flies too now (no anchoring), at this share of the shark's speed */
     size: 1, petH: 0.6, zoom: 0.92, camLift: 0.4,
     summon: 2.4,
     /* the shark's flight (Nidhogg's): speed = the stat system's movement speed x airK */
@@ -51,7 +54,7 @@
     /* Hydrojet (Leviathan Dodge): a short violent burst along the stick (else straight back), then the hull settles */
     jet: { dist: 4.6, burst: 0.26, settle: 0.3, inv: 0.38 },
     dodgeRec: 0.18,             /* s: the one recovery Maw and Hydrojet share after the action ends (no cooldown beyond it; a form change never resets it) */
-    s1Cd: 2, s2Cd: 4,           /* s from the end of the cast (held from the press): Water Ray / Depth Charge share one, Water Bombs / Maelstrom the other (JAWS_MOVES.TUNE.s1Cd / s2Cd win when present) */
+    s1Cd: 1.0, s2Cd: 1.5,       /* s from the end of the cast (held from the press): (v321) Water Bombs / Depth Charge share Strong 1, Water Ray / Maelstrom Strong 2; the core's own, E's TUNE does not override them */
     chargeK: [36, 45, 60],      /* the gauge fills at chargeK x DK of damage actually dealt, by tier (H: the session is long, so a single-target fight fills it a little past its middle) */
     finFold: 0.9, finCap: 22, busyCap: 10,
     outGlide: [0.3, 1.3], outSpd: 13, outZ: 1.0, hop: 0.45, dissolve: 0.9,
@@ -247,7 +250,7 @@
     const g = S.g, L = S.pools, live = () => L.filter(p => p.state !== 'consumed'), find = q => (q && q.id != null && q.state) ? (L.indexOf(q) >= 0 ? q : L.find(p => p.id === q.id) || null) : typeof q === 'number' ? L.find(p => p.id === q) || null : null;
     const drop = p => { p.state = 'consumed'; p.owner = null; p.goneT = g.t; const i = L.indexOf(p); if (i >= 0) L.splice(i, 1); S.poolLog.push(p); if (S.poolLog.length > 12) S.poolLog.shift(); };
     const A = {
-      max: TUNE.pools, get r() { return TUNE.poolR; },
+      get max() { return S.poolMax; }, get r() { return TUNE.poolR; },
       list: () => L.slice(), available: () => L.filter(p => p.state === 'available'), claimed: owner => L.filter(p => p.state === 'claimed' && (owner == null || p.owner === owner)),
       count: () => ({ total: L.length, available: L.filter(p => p.state === 'available').length, claimed: L.filter(p => p.state === 'claimed').length }),
       /* the AVAILABLE pool whose surface holds (x, y) (the nearest), or null; { any: true } also returns a claimed one; { r } widens the catch */
@@ -258,9 +261,9 @@
         if (!alive(S) || S.phase === 'finisher') return R('closed');
         if (!A.valid(x, y)) { const q = A.snap(x, y); if (!q) { S.stats.poolInvalid++; return R('invalid'); } x = q.x; y = q.y; }   /* (an impact on a wall's edge or a gap's lip: the pool forms on the nearest ground, within 1.5 tiles) */
         let near = null, nd = 1e9; for (const p of L) { const d = Math.hypot(p.x - x, p.y - y); if (d <= TUNE.poolSame && d < nd) { nd = d; near = p; } }
-        if (near) { if (near.state === 'available') { near.t = g.t; near.refreshed = (near.refreshed || 0) + 1; S.stats.poolsRefreshed++; return R('refresh', near); } S.stats.poolBlocked++; return R('claimed', near); }
-        if (L.length >= TUNE.pools) { let old = null; for (const p of L) if (p.state === 'available' && (!old || p.born < old.born)) old = p; if (!old) { S.stats.poolFull++; return R('full'); } drop(old); old.how = 'replaced'; S.stats.poolsReplaced++; }
-        const p = { id: ++S.poolId, x, y, r: r > 0.5 && r < 4 ? r : TUNE.poolR, born: g.t, t: g.t, state: 'available', owner: null, refreshed: 0 }; L.push(p); S.stats.poolsMade++; return R('new', p); },
+        if (near) { if (near.state === 'available') { near.t = g.t; near.refreshed = (near.refreshed || 0) + 1; S.stats.poolsRefreshed++; poolCast(S); return R('refresh', near); } S.stats.poolBlocked++; return R('claimed', near); }
+        if (L.length >= S.poolMax) { let old = null; for (const p of L) if (p.state === 'available' && (!old || p.born < old.born)) old = p; if (!old) { S.stats.poolFull++; return R('full'); } drop(old); old.how = 'replaced'; S.stats.poolsReplaced++; }
+        const p = { id: ++S.poolId, x, y, r: r > 0.5 && r < 4 ? r : TUNE.poolR, born: g.t, t: g.t, state: 'available', owner: null, refreshed: 0 }; L.push(p); S.stats.poolsMade++; poolCast(S); return R('new', p); },
       claim: (q, owner) => { const p = find(q); if (owner == null) owner = 'cast'; if (!p || p.state !== 'available') return null; p.state = 'claimed'; p.owner = owner; p.claimT = g.t; S.stats.poolClaim++; return p; },
       claimAll: owner => { const out = []; if (owner == null) return out; for (const p of L) if (p.state === 'available') { p.state = 'claimed'; p.owner = owner; p.claimT = g.t; S.stats.poolClaim++; out.push(p); } return out; },
       release: q => { let n = 0; const one = find(q); for (const p of L) if (p.state === 'claimed' && (one ? p === one : p.owner === q)) { p.state = 'available'; p.owner = null; S.stats.claimsReleased++; n++; } return n; },
@@ -269,8 +272,10 @@
     };
     return A;
   }
-  /* the three indicators: 'available' | 'claimed' | 'empty', oldest first */
-  const poolPips = S => { const out = S.pools.map(p => p.state); while (out.length < TUNE.pools) out.push('empty'); return out.slice(0, TUNE.pools); };
+  /* (v321) a Water Ray cast that made or refreshed a pool: the fifth turns the shark into Leviathan, once, by itself */
+  function poolCast(S) { S.poolCasts++; S.stats.poolCasts = S.poolCasts; if (!S.autoDone && S.form === 'shark' && S.poolCasts >= TUNE.autoXf) S.autoXf = true; }
+  /* the indicators: 'available' | 'claimed' | 'empty', oldest first (three, five at Celestial) */
+  const poolPips = S => { const out = S.pools.map(p => p.state); while (out.length < S.poolMax) out.push('empty'); return out.slice(0, S.poolMax); };
 
   /* ================= the session ================= */
   function startForm(C, H) {
@@ -282,10 +287,10 @@
     const V = { x: me.x, y: me.y, z: 0.6, heading: a0, vx: 0, vy: 0, pose: P, form: 'shark', locked: true, vis: 1 };
     const S = { H, g, me, X, C, ev, tier, DK, CD, dur, V, inst, size: TUNE.size, phase: 'summon', form: 'shark', menu: null, t: 0, left: dur, endT: null, charge: 0, used: false, busy: null, busyT: 0, cd: { s1: 0, s2: 0, dodge: 0 }, cdMax: {},
       maw: null, jet: null, xfm: null, mvQ: null, dQ: null, ultQ: null, xQ: null, press: { ult: -9, strong: -9, strong2: -9, extra: -9 }, ha: a0, au: a0, hw: 0, an: {}, zOff: 0, eAct: null, eCh: null, cam: null,
-      pools: [], poolLog: [], poolId: 0,
+      pools: [], poolLog: [], poolId: 0, poolMax: TUNE.pools[tier], poolCasts: 0, autoDone: false,
       parts: [], free: [], marks: [], ended: false, released: false, pet: X.pet ? X.pet() : null, air: airOf(X), home: { x: me.x, y: me.y }, safe: { x: me.x, y: me.y }, safeT: 0, reachT: 2, sfxT: 0, mx: 0, my: 0, spd: 4.3,
       vs: VEH_SMASH.create(X, g),
-      stats: { maws: 0, mawHits: 0, mawBad: 0, mawSmash: 0, hydrojets: 0, anchors: 0, releases: 0, anchorBad: 0, switches: 0, menuSets: 0, timerSets: 0, ray: 0, bombs: 0, depth: 0, mael: 0, maelRefused: 0, shark: 0, smashed: 0, cdSet: 0, dealt: 0, charged: 0, hits: 0,
+      stats: { autoXf: 0, poolCasts: 0, maws: 0, mawHits: 0, mawBad: 0, mawSmash: 0, hydrojets: 0, anchors: 0, releases: 0, anchorBad: 0, switches: 0, menuSets: 0, timerSets: 0, ray: 0, bombs: 0, depth: 0, mael: 0, maelRefused: 0, shark: 0, smashed: 0, cdSet: 0, dealt: 0, charged: 0, hits: 0,
         flyT: 0, siegeT: 0, xfT: 0, offT: 0, offshoreExit: 0, poolsMade: 0, poolsRefreshed: 0, poolsReplaced: 0, poolClaim: 0, claimsReleased: 0, poolsConsumed: 0, poolClear: 0, poolFull: 0, poolBlocked: 0, poolInvalid: 0 } };
     S.clipOK = canClip(M0); S.emerge = S.clipOK;   /* (with a model that cuts at a height, the summon is a real emergence through the ring: snout and teeth first) */
     buildReach(S, me.x, me.y);
@@ -311,13 +316,14 @@
       pose: (name, u, extra) => ctx.clip(name, u, extra), setPose: o => { if (o) S.eCh = { o: Object.assign({}, o), t: g.t }; },
       chan: o => { S.eCh = { o, t: g.t }; }, kick: (key, dv) => kick(S, key, dv),
       notice: (text, col) => { S.noticeT = g.t; X.text(S.V.x, S.V.y - 2.8, String(text), col || CYAN2, 12, { life: 1.3, max: 1.3, vy: -0.5 }); if (X.sfx && X.sfx.wrong) X.sfx.wrong(); },
-      toggleForm: () => tryExtra(S, false, true), pips: () => poolPips(S),
+      toggleForm: () => { if (S.form === 'leviathan') { tryExtra(S, false, true); return; } S.poolCasts = Math.max(S.poolCasts, TUNE.autoXf); S.autoXf = true; },   /* (a test hook: in the shark as if the fifth pool had been cast; in Leviathan the TRANSFORM button) */ pips: () => poolPips(S),
       vanish: () => { S.V.vis = 0; }, safeReturn: () => { const p = safeReturn(S); S.retPt = p; return { x: p.x, y: p.y }; },
       done: () => actionDone(S), alive: () => alive(S), calm, low: lowFx };
     S.veh = { get active() { return !S.released; }, drive: (mx, my, dt, spd) => { S.mx = mx; S.my = my; if (spd > 0) S.spd = spd; void dt; }, dodge: (mx, my) => tryDodge(S, mx, my), strong: slot => tryMove(S, slot), ult: () => tryUlt(S),
       /* Anchor / Release: the small extra button (the vehicle layout's slot above Dodge: touch, and its J key) and the F key
          (the attack key; the form has no basic attack, so 20b's basic-attack hook carries it: a key press only, never a tap on the screen) */
-      form: () => tryExtra(S, false, true), jump: () => tryExtra(S), basic: A => (A && A.key ? tryExtra(S) : false),
+      /* (v321) TRANSFORM: the Jump slot and its J key, in Leviathan only (back to the shark); in the shark the slot is empty */
+      get jump() { return S.form === 'leviathan' || S.phase === 'xform' ? (() => { if (S.form === 'leviathan') tryExtra(S); }) : null; },
       drawBtns: (c, o) => drawBtns(S, c, o), onSwitch: () => finish(S, 'swap'), cam: () => camFocus(S) };
     X.vehicle(S.veh);
     const F = S.fx = H.add({ key: 'jaws', life: 1e9, entY: me.y, update(dt) { step(S, dt); }, drawUnder(c) { drawUnder(S, c); }, drawEnt(c) { drawEnt(S, c); }, draw(c) { drawOver(S, c); }, onEnd() { if (!S.released) release(S); } });
@@ -375,7 +381,7 @@
 
   /* ================= the flight (Nidhogg's) ================= */
   function fly(S, dt, steerOK) {
-    const d = S.V, A = S.air, mag = steerOK ? Math.min(1, Math.hypot(S.mx, S.my)) : 0, top = S.spd * TUNE.airK;
+    const d = S.V, A = S.air, mag = steerOK ? Math.min(1, Math.hypot(S.mx, S.my)) : 0, top = S.spd * TUNE.airK * (S.form === 'leviathan' ? TUNE.levK : 1);
     const want = mag > 0.15 ? Math.atan2(S.my, S.mx) : d.heading, tvx = mag > 0.15 ? Math.cos(want) * top * mag : 0, tvy = mag > 0.15 ? Math.sin(want) * top * mag : 0, k = Math.min(1, (mag > 0.15 ? TUNE.accel / top : TUNE.brake / top) * dt * 2.2);
     d.vx += (tvx - d.vx) * k; d.vy += (tvy - d.vy) * k;
     let zT = TUNE.cruise; const sp = Math.hypot(d.vx, d.vy), ux = sp > 0.1 ? d.vx / sp : Math.cos(d.heading), uy = sp > 0.1 ? d.vy / sp : Math.sin(d.heading), look = 0.6 + sp * 0.25;
@@ -405,6 +411,7 @@
     const g = S.g, d = S.V, sfx = S.X.sfx || {};
     if (!queued && !force && !fresh(S, 'extra')) return true;   /* (a held key: one press) */
     if (!ctrl(S)) return true;
+    if (S.xfLockT != null && g.t - S.xfLockT < TUNE.xfLock) return true;   /* (a short lockout after either change of form: a double tap cannot flip it twice) */
     if (S.busy || S.maw || S.jet || d.locked) { if (!queued) S.xQ = g.t; return true; }   /* (a move in progress: it goes when that ends) */
     S.xQ = null;
     const to = S.form === 'shark' ? 'leviathan' : 'shark', T = TUNE.anchor;
@@ -434,8 +441,9 @@
   function switchForm(S) {
     const X = S.xfm, d = S.V; if (!X) return; S.xfm = null;
     S.form = d.form = X.to; d.pose.xf = X.to === 'leviathan' ? 1 : 0; d.x = X.x1; d.y = X.y1; d.vx = d.vy = 0; S.stats.switches++;
+    S.xfLockT = S.g.t; if (X.to === 'shark') { S.poolCasts = 0; S.autoDone = false; S.autoXf = false; S.stats.transformsBack = (S.stats.transformsBack || 0) + 1; }   /* (back to the shark: five more pool casts to transform again; the pools stay) */
     S.phase = X.to === 'leviathan' ? 'siege' : 'fly'; d.locked = false; S.anchorZ = holdZ(S, d.x, d.y); setMenu(S);
-    if (S.form === 'leviathan') { S.halo = { on: true, x: d.x, y: d.y, z: d.z }; callMove(S, 'anchorHalo', S.halo); }   /* (E's thin halo of water under the anchored hull: a picture, not a pool) */
+    /* (v321: Leviathan is no longer anchored, so there is no anchor halo) */
   }
   function setMenu(S) { if (S.menu === S.form) return; S.menu = S.form; S.stats.menuSets++; }
   /* Leviathan: it holds its place and its height; the stick turns the hull to aim */
@@ -517,7 +525,7 @@
 
   /* ================= the commands ================= */
   function fresh(S, key) { const t = S.g.t, p = S.press[key]; S.press[key] = t; return t - p >= TUNE.freshGap; }
-  const MOVES = { shark: { strong: ['waterRay', 's1', 'ray'], strong2: ['waterBombs', 's2', 'bombs'] }, leviathan: { strong: ['depthCharge', 's1', 'depth'], strong2: ['maelstrom', 's2', 'mael'] } };
+  const MOVES = { shark: { strong: ['waterBombs', 's1', 'bombs'], strong2: ['waterRay', 's2', 'ray'] }, leviathan: { strong: ['depthCharge', 's1', 'depth'], strong2: ['maelstrom', 's2', 'mael'] } };
   function tryMove(S, slot, queued) {
     const V = S.V, g = S.g, sfx = S.X.sfx || {}, sl = slot === 'strong2' ? 'strong2' : 'strong';
     if (!queued && !fresh(S, sl)) return;
@@ -530,7 +538,7 @@
     if (name === 'maelstrom' && !S.pools.some(p => p.state === 'available')) { S.mvQ = null; S.stats.maelRefused++; S.needPoolT = g.t; if (sfx.wrong) sfx.wrong(); S.X.text(V.x, V.y - 2.8, 'Needs a Tidal Pool: Water Ray makes one', CYAN2, 12, { life: 1.3, max: 1.3, vy: -0.5 }); return; }
     S.mvQ = null;
     const [MV, fn] = mvFn(name); if (!fn) return;
-    S.busy = name; S.busyT = 0; S.busyForm = S.form; S.cd[key] = mvTune(key + 'Cd', TUNE[key + 'Cd']); S.cdMax[key] = S.cd[key]; S.stats[stat]++;
+    S.busy = name; S.busyT = 0; S.busyForm = S.form; S.cd[key] = TUNE[key + 'Cd']; S.cdMax[key] = S.cd[key]; S.stats[stat]++;
     let r; try { r = fn.call(MV, S.ctx); } catch (e) { if (typeof console !== 'undefined') console.warn('Jaws: a move failed', e); actionDone(S); return; }
     if (r === false && S.busy === name) { S.busy = null; S.cd[key] = 0; S.stats[stat]--; if (name === 'maelstrom') S.stats.maelRefused++; }   /* (the move refused itself: nothing spent) */
   }
@@ -549,12 +557,12 @@
   function actionDone(S) {
     if (!S.busy) return; const kind = S.busy; S.busy = null;
     if (S.phase === 'finisher' || kind === 'sharkAttack') { S.cam = null; startOut(S, 'finisher'); return; }
-    if (ctrl(S) || S.phase === 'xform') { S.V.locked = S.phase === 'xform'; S.cam = null; const M2 = MOVES[S.busyForm || S.form], e = M2 && Object.values(M2).find(q => q[0] === kind); if (e) { S.cd[e[1]] = Math.max(S.cd[e[1]], mvTune(e[1] + 'Cd', TUNE[e[1] + 'Cd'])); S.cdMax[e[1]] = S.cd[e[1]]; } }   /* (the slot's cooldown runs from the end of the cast: a form change right after can never find the paired move ready) */
+    if (ctrl(S) || S.phase === 'xform') { S.V.locked = S.phase === 'xform'; S.cam = null; const M2 = MOVES[S.busyForm || S.form], e = M2 && Object.values(M2).find(q => q[0] === kind); if (e) { S.cd[e[1]] = Math.max(S.cd[e[1]], TUNE[e[1] + 'Cd']); S.cdMax[e[1]] = S.cd[e[1]]; } }   /* (the slot's cooldown runs from the end of the cast: a form change right after can never find the paired move ready) */
   }
   function queues(S) { const g = S.g, V = S.V; if (S.busy || S.maw || S.jet || S.xfm) return;
     if (S.ultQ != null) { const q = S.ultQ; S.ultQ = null; if (g.t - q < 2.5 && S.charge >= 1 && !S.used) { tryUlt(S, true); if (!ctrl(S)) return; } }
     if (V.locked) return;
-    if (S.xQ != null) { const q = S.xQ; S.xQ = null; if (g.t - q < 1.2) { tryExtra(S, true); if (S.xfm) return; } }
+    if (S.autoXf && !S.autoDone && S.form === 'shark') { tryExtra(S, true, true); if (S.xfm) { S.autoXf = false; S.autoDone = true; S.stats.autoXf++; S.X.text(V.x, V.y - 2.8, 'LEVIATHAN', CYAN2, 14, { life: 1.2, max: 1.2, vy: -0.5 }); return; } }   /* (the fifth pool: it transforms by itself; a cramped spot on a full-height stage waits until there is room) */
     if (S.dQ != null && S.cd.dodge <= 0) { const q = S.dQ; S.dQ = null; if (g.t - q < 0.6) { tryDodge(S, null, null, true); if (S.maw || S.jet) return; } }
     if (S.mvQ) { const Q = S.mvQ, key = MOVES[S.form][Q.slot][1]; if (g.t - Q.t > TUNE.mvHold + 1.2) S.mvQ = null; else if (S.cd[key] <= 0) { S.mvQ = null; tryMove(S, Q.slot, true); } } }
 
@@ -579,7 +587,7 @@
       if (S.busy && S.busyT > TUNE.busyCap) actionDone(S);
       if (S.phase === 'xform') stepXform(S, dt);
       else if (S.phase === 'fly') { if (S.maw) stepMaw(S, dt); else fly(S, dt, !d.locked); }
-      else { if (S.jet) stepJet(S, dt); else siege(S, dt); }
+      else { if (S.jet) stepJet(S, dt); else fly(S, dt, !d.locked); }   /* (v321: Leviathan flies too, slower; Hydrojet is still its dodge) */
       queues(S);
     } else if (S.phase === 'finisher') {
       if (S.t > TUNE.finCap) { S.busy = null; startOut(S, 'finisher'); return; }
@@ -675,9 +683,10 @@
   const mOpts = (S, T, extra) => Object.assign({ T, sx: S.H.sx, sy: S.H.sy, t: S.g.t, low: lowFx(), scale: S.size }, extra || null);
   function callM(S, c, k) { const MV = moves(); if (MV[k] && S.ctx) { c.save(); try { MV[k](S.ctx, c); } catch (e) { /* (theirs) */ } c.restore(); } }
   function drawUnder(S, c) {
-    const H = S.H, T = H.X.Tz(), d = S.V, M0 = MOD(), t = S.g.t, stubMv = !!moves().stub || typeof moves().drawPools !== 'function' && !moves().drawUnder;
-    /* the pools' stand-in picture, only while E's moves do not draw them: light on the floor, a dashed rim when claimed */
-    if (stubMv && S.pools.length) { c.save(); for (const p of S.pools) { const X0 = H.sx(p.x), Y0 = H.sy(p.y), r = T * p.r * (0.9 + 0.1 * sstep(0, 0.4, t - p.born)); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.34; blitSized(c, glowSprite(COB), X0 - r * 1.2, Y0 - r * 1.2 * GY, r * 2.4, r * 2.4 * GY); c.globalAlpha = 0.22 + 0.2 * Math.exp(-(t - p.t) * 4); blitSized(c, glowSprite(CYAN), X0 - r * 0.7, Y0 - r * 0.7 * GY, r * 1.4, r * 1.4 * GY);
+    const H = S.H, T = H.X.Tz(), d = S.V, M0 = MOD(), t = S.g.t;
+    /* the Tidal Pools: M's picture (one GPU pass, every frame with the whole list: it notices a consumed pool by its absence); the stand-in only without it */
+    if (M0.drawPools) { try { M0.drawPools(c, S.pools, mOpts(S, T)); } catch (e) { /* (model) */ } }
+    else if (S.pools.length) { c.save(); for (const p of S.pools) { const X0 = H.sx(p.x), Y0 = H.sy(p.y), r = T * p.r * (0.9 + 0.1 * sstep(0, 0.4, t - p.born)); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.34; blitSized(c, glowSprite(COB), X0 - r * 1.2, Y0 - r * 1.2 * GY, r * 2.4, r * 2.4 * GY); c.globalAlpha = 0.22 + 0.2 * Math.exp(-(t - p.t) * 4); blitSized(c, glowSprite(CYAN), X0 - r * 0.7, Y0 - r * 0.7 * GY, r * 1.4, r * 1.4 * GY);
         c.globalCompositeOperation = 'source-over'; c.globalAlpha = 0.75; c.strokeStyle = p.state === 'claimed' ? AMBER : CYAN2; c.lineWidth = T * 0.05; if (p.state === 'claimed') c.setLineDash([T * 0.2, T * 0.16]); c.beginPath(); c.ellipse(X0, Y0, r, r * GY, 0, 0, TAU); c.stroke(); c.setLineDash([]); } c.restore(); }
     c.save(); c.globalCompositeOperation = 'lighter';
     for (const p of S.parts) { if (p.kind !== 9) continue; const u = 1 - p.life / p.max, e = 1 - (1 - u) ** 3, r = T * p.s * (0.25 + 0.75 * e); c.globalAlpha = Math.pow(1 - u, 1.4) * 0.4; blitSized(c, glowSprite(CYAN), H.sx(p.x) - r, H.sy(p.y) - r * GY, r * 2, r * 2 * GY); }
@@ -723,10 +732,10 @@
       if (cd > 0.05) { c.beginPath(); c.moveTo(b.x, b.y); c.arc(b.x, b.y, R, -Math.PI / 2, -Math.PI / 2 + TAU * Math.min(1, cd / Math.max(0.1, cdMax))); c.closePath(); c.fillStyle = 'rgba(4,10,24,.55)'; c.fill(); GFX.textS(c, cd.toFixed(1), b.x, b.y, 13, '#FFFFFF'); }
       GFX.labelS(c, label, b.x, b.y + R + 9, small ? 7.5 : 8, 800, '#E4F6FF', 'rgba(0,0,0,.7)', 3); };
     const noPool = lev && !S.pools.some(p => p.state === 'available');
-    if (!lev) { btn(B.s[0], 'waterRay', 'WATER RAY', S.cd.s1, S.cdMax.s1 || TUNE.s1Cd, paintRayBtn, S.busy === 'waterRay'); btn(B.s[1], 'waterBombs', 'WATER BOMBS', S.cd.s2, S.cdMax.s2 || TUNE.s2Cd, paintBombsBtn, S.busy === 'waterBombs'); btn(B.d, 'maw', 'MAW', S.cd.dodge, S.cdMax.dodge || TUNE.dodgeRec, paintMawBtn, !!S.maw); }
+    if (!lev) { btn(B.s[0], 'waterBombs', 'WATER BOMBS', S.cd.s1, S.cdMax.s1 || TUNE.s1Cd, paintBombsBtn, S.busy === 'waterBombs'); btn(B.s[1], 'waterRay', 'WATER RAY', S.cd.s2, S.cdMax.s2 || TUNE.s2Cd, paintRayBtn, S.busy === 'waterRay'); btn(B.d, 'maw', 'MAW', S.cd.dodge, S.cdMax.dodge || TUNE.dodgeRec, paintMawBtn, !!S.maw); }
     else { btn(B.s[0], 'depthCharge', 'DEPTH CHARGE', S.cd.s1, S.cdMax.s1 || TUNE.s1Cd, paintDepthBtn, S.busy === 'depthCharge'); btn(B.s[1], 'maelstrom', noPool ? 'NEEDS A POOL' : 'MAELSTROM', S.cd.s2, S.cdMax.s2 || TUNE.s2Cd, paintMaelBtn, S.busy === 'maelstrom', noPool); btn(B.d, 'hydrojet', 'HYDROJET', S.cd.dodge, S.cdMax.dodge || TUNE.dodgeRec, paintJetBtn, !!S.jet); }
-    /* Anchor / Release: small, labelled, above Dodge */
-    if (B.j) btn(B.j, lev ? 'release' : 'anchor', S.xfm ? (S.xfm.to === 'leviathan' ? 'ANCHORING' : 'RELEASING') : lev ? 'RELEASE' : 'ANCHOR', 0, 1, lev ? paintReleaseBtn : paintAnchorBtn, !!S.xfm, false, true);
+    /* (v321) no Anchor: the shark turns into Leviathan by itself at the fifth pool. TRANSFORM (small, labelled, above Dodge) takes Leviathan back to the shark; the shark has no button there */
+    if (B.j && (lev || (S.xfm && S.xfm.to === 'shark'))) { const lk = S.xfLockT != null ? Math.max(0, TUNE.xfLock - (t - S.xfLockT)) : 0; btn(B.j, 'transform', S.xfm ? 'TRANSFORMING' : 'TRANSFORM', lk, TUNE.xfLock, paintReleaseBtn, !!S.xfm, false, true); }
     { const b = B.u, full = S.charge >= 1 && !S.used, k = S.used ? 1 : S.charge, fin = S.phase === 'finisher';
       if (full || fin) { const pl = 0.5 + 0.5 * Math.sin(t * 6); c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.5 + 0.35 * pl; blitC(c, glowPic(glowSprite, CYAN, Math.round(b.r * (2.1 + 0.25 * pl) * 4) / 4), b.x, b.y); c.restore(); }
       blitC(c, hudPic(`jaw|ult|${full || fin}|${b.r}|${ic && ic.sharkAttack ? 1 : 0}`, b.r * 2 + 12, b.r * 2 + 12, (x, w, h) => { const cx = w / 2, cy = h / 2; let ok = false; paintUltFace(x, cx, cy, b.r, full || fin); if (ic && typeof ic.sharkAttack === 'function') { try { ic.sharkAttack(x, cx, cy, b.r, full || fin); ok = true; } catch (e) { ok = false; } } if (!ok) paintAttackBtn(x, cx, cy, b.r, full || fin); x.lineWidth = 2; x.strokeStyle = full || fin ? CHROME : 'rgba(220,230,242,.4)'; x.beginPath(); x.arc(cx, cy, b.r, 0, TAU); x.stroke(); }), b.x, b.y);
@@ -740,10 +749,10 @@
       if (full) { const s = 1 + 0.08 * Math.sin(t * 7); c.save(); c.translate(b.x, b.y + b.r + 10); c.scale(s, s); GFX.labelS(c, lab, 0, 0, 11, 900, WHITE, 'rgba(8,30,80,.9)', 3.5); c.restore(); }
       else GFX.labelS(c, lab, b.x, b.y + b.r + 9, 9, 800, '#E4F6FF', 'rgba(0,0,0,.7)', 3);
       /* three pool indicators beside it: a filled drop = available, an amber ring with a dot = committed to an attack, a dark socket = empty */
-      const pips = poolPips(S), n = pips.length; for (let i = 0; i < n; i++) { const a = -Math.PI / 2 - 0.62 - (n - 1 - i) * 0.34, px = b.x + Math.cos(a) * (b.r + 15), py = b.y + Math.sin(a) * (b.r + 15), st2 = pips[i]; c.save();
+      const pips = poolPips(S), n = pips.length; for (let i = 0; i < n; i++) { const a = -Math.PI / 2 - 0.62 - (n - 1 - i) * (n > 3 ? 0.27 : 0.34), px = b.x + Math.cos(a) * (b.r + 15), py = b.y + Math.sin(a) * (b.r + 15), st2 = pips[i]; c.save();
         c.beginPath(); c.arc(px, py, 5.2, 0, TAU); c.fillStyle = st2 === 'available' ? CYAN : 'rgba(6,14,30,.85)'; c.fill(); c.lineWidth = 1.6; c.strokeStyle = st2 === 'available' ? WHITE : st2 === 'claimed' ? AMBER : 'rgba(160,190,220,.45)'; c.stroke();
         if (st2 === 'claimed') { c.beginPath(); c.arc(px, py, 2, 0, TAU); c.fillStyle = AMBER; c.fill(); } c.restore(); }
-      const cnt = S.ctx.pools.count(); GFX.labelS(c, `POOLS ${cnt.available}` + (cnt.claimed ? `+${cnt.claimed}` : '') + `/${TUNE.pools}`, b.x - b.r * 0.9, b.y - b.r - 26, 7.5, 800, cnt.claimed ? '#FFE2A8' : '#CFEFFF', 'rgba(0,0,0,.7)', 3); }
+      const cnt = S.ctx.pools.count(); GFX.labelS(c, `POOLS ${cnt.available}` + (cnt.claimed ? `+${cnt.claimed}` : '') + `/${S.poolMax}`, b.x - b.r * 0.9, b.y - b.r - 26, 7.5, 800, cnt.claimed ? '#FFE2A8' : '#CFEFFF', 'rgba(0,0,0,.7)', 3); }
   }
   /* deep blue faces, a chrome rim, a cyan inner ring when ready */
   function btnFace(x, cx, cy, r, rd) { const g = x.createRadialGradient(cx - r * 0.35, cy - r * 0.4, r * 0.1, cx, cy, r); if (rd) { g.addColorStop(0, '#3B6FD8'); g.addColorStop(0.55, '#123A8E'); g.addColorStop(1, '#040E2A'); } else { g.addColorStop(0, '#28303E'); g.addColorStop(0.6, '#141A24'); g.addColorStop(1, '#080B10'); } x.fillStyle = g; x.beginPath(); x.arc(cx, cy, r, 0, TAU); x.fill(); }

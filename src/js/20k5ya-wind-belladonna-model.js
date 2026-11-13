@@ -57,6 +57,7 @@ const BELLADONNA_MODEL = (() => {
   for (let j = 0; j < NG; j++) { const k = j / (NG - 1), k0 = Math.max(0, j - 1) / (NG - 1); G_CURL.push((j && j < 5 ? -4 : 0) + 380 * (Math.pow(k, 3.2) - Math.pow(k0, 3.2))); }
   for (let j = 0; j < NSEG; j++) { const k = j / (NSEG - 1); W_FWD.push(40 * (1 - Math.exp(-j / 2.4))); W_DROOP.push(44 * Math.pow(k, 1.6)); }
   const BUD = [90, 87, 92, 94, 1.5, 1.12, 70, 0.65, 0.4], BRA = 0.2;   // (the closed bud: its tilt toward the flower's up, the pink rows' and the white rows' closed angles, the pink rows' scales, the leaves' angle (degrees), how much each sheet's cup flattens, how much it stretches along its length)   // (the closed bud: its tilt, each row's closed angle in degrees and scale; breath's range, rad)
+  const SLAM_A = [-4, 34, 72, 184, 146, 108];   // (each green tentacle's default slam direction on the floor, degrees from the model's +x toward the camera: a ring round the front and sides)
   const RING_R = 1.2, RING_T = 0.1, SWORD_L = 1.8, RS = 1 / VIS;   // (RS: the ring and its swords keep their v318 size in tiles while the flower is VIS; the user asked for the bigger ring back)    // the ring (the approved, already-reduced size) and a sword, guard to point
   const RING_UP = 3.05, RING_Z = 2.15;                // the ring's centre: along the flower's up, then straight up (a clear gap over the petals)
   const RING_N = vnrm([0, -0.35, 1]);                 // the ring's axis at rest: nearly upright, tipped so the game camera sees a broad ellipse
@@ -187,13 +188,27 @@ const BELLADONNA_MODEL = (() => {
         cs = TG_CURL[i] * side, s = 0.3 + 0.7 * tg, gph = arr(P.tgPh, n, null), gA = gph == null ? 0.11 : 0.2 * Math.max(0, Math.min(TG_A[i] > 20 ? 2 : 3.5, arr(P.tgAmp, n, 1))) * (TG_A[i] > 20 ? 0.4 : 1),   // (the upper pair waves less: it stays clear of the ring)
         gC = cl(arr(P.tgCoil, n, 0)) * (1 - flk); let p = at(Math.cos(a0 * DEG) * 0.9, Math.sin(a0 * DEG) * 0.9, -0.92), al = a0 * DEG;
         A['tgRoot' + n] = p;
-        const cv = []; TG.push(cv);
+        const cv = []; TG.push(cv); const li0 = list.length;
         for (let j = 0; j < NG; j++) { const p0 = p, inc = cs * (G_CURL[j] * (1 - (TG_A[i] > 20 ? 0 : 0.35) * flk) + (j && j < 5 ? TG_S[i] : 0) + (j >= NG - 2 ? 34 * gC : 0)) * DEG * (1 + 1.6 * (1 - tg));   // (tgCoil: the last two links wind tighter; flick: the coil opens)
           for (let m = 0; m < NSUB; m++) { const jj = j + (m + 0.5) / NSUB, k = Math.min(1, jj / (NG - 1));   // (the link's turn spread over its length: a smooth curve)
             al += (inc + gA * k * Math.sin((gph == null ? sw * 1.15 + n * 1.7 : gph) - jj * 0.75) - (ax * side > 0 ? 0.05 : 0.09) * ax * k - 0.06 * ay * k * Math.cos(al)) / NSUB;
             const dz = -0.04 - 0.25 * fold * k - 2.6 * bE * Math.sqrt(k), D = vnrm(vadd(vadd(vmul(r, Math.cos(al)), vmul(u, Math.sin(al))), vmul(f, dz))); cv.push(p); p = vadd(p, vmul(D, LG * GLEN[j] * s / NSUB)); }
           const dl = vsub(p, p0); list.push({ part: 'tg' + j, o: p0, R: frameXZ(dl, f), s, al: cl(tg * 4), len: vlen(dl) }); }
-        cv.push(p); A['tg' + n] = p; }
+        cv.push(p);
+        // slam[n] (0 rest, 1 raised high, 2 slammed flat with its tip on the floor) and slamDir[n] (the floor direction, radians in the model's x-y; else straight out from the hub):
+        // the tentacle's curve is blended toward a raised arc (up and well out, clear of the ring) and then a slam arc (over and down, its last third lying on the floor at floorZ)
+        const sl = Math.max(0, Math.min(2, arr(P.slam, n, 0)));
+        if (sl > 0.001) { const N = cv.length, Ltot = LG * NG * 0.94 * s, R0 = cv[0], dA = arr(P.slamDir, n, null), dA2 = dA != null ? dA : SLAM_A[n] * DEG, dd = [Math.cos(dA2), Math.sin(dA2), 0], UP = [0, 0, 1];
+          const fz = (P.floorZ != null ? P.floorZ : -1.2) / VIS, bez = (a, b, c2, d, t) => { const m1 = 1 - t; return [0, 1, 2].map(i => m1 * m1 * m1 * a[i] + 3 * m1 * m1 * t * b[i] + 3 * m1 * t * t * c2[i] + t * t * t * d[i]); };
+          const sg = vdot(vsub(R0, HUB), r0) >= 0 ? 1 : -1, ro = vmul(r0, sg), UPr = vnrm(vadd(u0, [0, 0, 0.35])), rB = vnrm(vadd(vmul(ro, 0.85), vmul(dd, 0.15))), rA = [R0, vadd(R0, vadd(vmul(rB, 0.42 * Ltot), vmul(UPr, 0.16 * Ltot))), vadd(R0, vadd(vmul(rB, 0.8 * Ltot), vmul(UPr, 0.85 * Ltot))), vadd(R0, vadd(vmul(rB, 0.58 * Ltot), vmul(UPr, 1.12 * Ltot)))];   // (raised high and out, the tip coiled back over: about to strike)   // (raised: in the flower's own frame, so it stays clear of the ring as the flower banks)   // (raised: up and out, the tip curling over)
+          const Rr = Math.max(1.5, Math.min(7, arr(P.slamR, n, 3.5))) / VIS, sp = Math.max(0, Ltot - Rr), lf = Math.min(0.36 * Ltot, 0.5 * Rr), G = [HUB[0] + dd[0] * Rr, HUB[1] + dd[1] * Rr, fz], sA = [R0, vadd(R0, vadd(vadd(vmul(ro, 0.3 * Ltot + 0.1 * Rr), vmul(dd, 0.15 * Rr)), vmul(UPr, 0.42 * Ltot + 0.35 * sp))), [G[0] - dd[0] * lf, G[1] - dd[1] * lf, fz + 0.03], G];   // (slammed, slamR tiles out: the root rears up and over like a whip, higher for a short reach, so the tip still comes down onto the floor and lies flat there)
+          const w1 = sstep(0, 1, Math.min(1, sl)), w2 = sstep(0, 1, Math.max(0, sl - 1));
+          const swing = (p0, p1, w) => { if (w <= 0) return p0; if (w >= 1) return p1; const a = vsub(p0, R0), b = vsub(p1, R0), la = vlen(a), lb = vlen(b); if (la < 1e-6 || lb < 1e-6) return vadd(vmul(p0, 1 - w), vmul(p1, w)); const na = vmul(a, 1 / la), nb = vmul(b, 1 / lb), om = Math.acos(Math.max(-1, Math.min(1, vdot(na, nb)))); if (om < 1e-4) return vadd(R0, vmul(na, lerp(la, lb, w)));
+            const sn = Math.sin(om), d = vadd(vmul(na, Math.sin((1 - w) * om) / sn), vmul(nb, Math.sin(w * om) / sn)); return vadd(R0, vmul(d, lerp(la, lb, w))); };   // (a point swings round the root on an arc: the tentacle whips over, it never folds in through the chord)
+          for (let i = 1; i < N; i++) { const tt = i / (N - 1), a = bez(rA[0], rA[1], rA[2], rA[3], tt), b2 = bez(sA[0], sA[1], sA[2], sA[3], tt); cv[i] = swing(swing(cv[i], a, w1), b2, w2); }
+          for (let j = 0; j < NG; j++) { const it = list[li0 + j], a = cv[j * NSUB], b2 = cv[(j + 1) * NSUB], dl = vsub(b2, a); it.o = a; it.R = frameXZ(dl, f); it.len = vlen(dl); }
+          p = cv[N - 1]; }
+        A['tg' + n] = p; }
       TGs = 0.3 + 0.7 * tg; TGa = cl(tg * 4); }
     const BR = off => (P.breath == null ? 0 : BRA * (1 - bE) * Math.sin(P.breath + off));   // (breath: each row opens and closes a few degrees, a quarter cycle after the one inside it)
     // 3. the pink flower: the back row, then the front row
@@ -212,7 +227,7 @@ const BELLADONNA_MODEL = (() => {
       for (let i = 0; i < 5; i++) { const th = (90 + i * 72) * DEG; put('whiteB', th, lerp(88, 36, wh) * DEG - spread * 10 * DEG + 0.05 * Math.sin(sw * 1.3 + i * 1.9) + BR(Math.PI / 2 + 0.6), 0.24, 0.34, 0.4 + 0.6 * wh, cl(wh * 3), (BU[3] + 6) * DEG, 0.8); } }
     // 6. the eight white tentacles, rooted behind the white flower, reaching forward
     { const tw = cl(P.tentW == null ? 1 : P.tentW); let n = 0;
-      for (const side of [1, -1]) for (let i = 0; i < 4; i++, n++) { const a0 = (side > 0 ? TW_A[i] : 180 - TW_A[i]) + side * flk * Math.min(0, TW_A[i] - 4) * 0.35, wph = arr(P.twPh, n, null), wA = wph == null ? 0.09 : 0.16 * Math.max(0, Math.min(TW_A[i] > 20 ? 2 : 3.5, arr(P.twAmp, n, 1))) * (TW_A[i] > 20 ? 0.5 : 1), rch = Math.max(-1.2, Math.min(1.2, arr(P.twReach, n, 0))), s = (0.3 + 0.7 * tw) * (TW_A[i] > 20 ? 1 + 0.03 * Math.min(0, rch) : 1 + 0.07 * rch + 0.06 * flk); let p = at(Math.cos(a0 * DEG) * 0.46, Math.sin(a0 * DEG) * 0.46, 0.02), al = a0 * DEG;   // (twReach and flick lengthen the lower feelers; the upper pair, near the ring, only draws back)
+      for (const side of [1, -1]) for (let i = 0; i < 4; i++, n++) { const a0 = (side > 0 ? TW_A[i] : 180 - TW_A[i]) + side * flk * Math.min(0, TW_A[i] - 4) * 0.35, wph = arr(P.twPh, n, null), wA = wph == null ? 0.09 : 0.16 * Math.max(0, Math.min(TW_A[i] > 20 ? 2 : 3.5, arr(P.twAmp, n, 1))) * (TW_A[i] > 20 ? 0.4 : 1), rch = Math.max(-1.2, Math.min(1.2, arr(P.twReach, n, 0))), s = (0.3 + 0.7 * tw) * (TW_A[i] > 20 ? 1 + 0.03 * Math.min(0, rch) : 1 + 0.07 * rch + 0.06 * flk); let p = at(Math.cos(a0 * DEG) * 0.46, Math.sin(a0 * DEG) * 0.46, 0.02), al = a0 * DEG;   // (twReach and flick lengthen the lower feelers; the upper pair, near the ring, only draws back)
         A['twRoot' + n] = p;
         const cv = []; TW.push(cv);
         for (let j = 0; j < NSEG; j++) { const p0 = p, dr = (j ? W_DROOP[j] - W_DROOP[j - 1] : 0) * DEG;
@@ -325,7 +340,7 @@ const BELLADONNA_MODEL = (() => {
   function anchorAt(name, x, y, z, P, o) { const R = rig(P), p = R.A[name]; if (!p || p.x) return null; const sc = ((o && o.scale) || 1) * VIS; return { x: x + p[0] * sc, y: y + p[1] * GY * sc, z: z + p[2] * sc }; }
   /* the model's own frame, for studio checks and the tests: every placed part and anchor of a pose */
   function rigOf(P) { return rig(P || blankPose()); }
-  function blankPose() { return { alpha: 1, bloom: 1, leaves: 1, white: 1, tentG: 1, tentW: 1, ring: 1, ringSpin: 0, ringTilt: 0, ringGlow: 0.6, ringAway: 0, fold: 0, bank: 0, lean: 0, yaw: 0, sway: 0, accX: 0, accY: 0, glow: 0.35, brace: 0, spin: 0, flick: 0, bulb: 0, flutter: 0 }; }
+  function blankPose() { return { alpha: 1, bloom: 1, leaves: 1, white: 1, tentG: 1, tentW: 1, ring: 1, ringSpin: 0, ringTilt: 0, ringGlow: 0.6, ringAway: 0, fold: 0, bank: 0, lean: 0, yaw: 0, sway: 0, accX: 0, accY: 0, glow: 0.35, brace: 0, spin: 0, flick: 0, bulb: 0, flutter: 0, floorZ: -1.2 }; }
   function create() { const P = blankPose(); return { pose: P, draw: (c, x, y, z, a, P2, o) => draw(c, x, y, z, a, P2 || P, o), drawShadow: (c, x, y, z, a, P2, o) => drawShadow(c, x, y, z, a, P2 || P, o), drawRing: (c, x, y, z, P2, o) => drawRing(c, x, y, z, P2 || P, o) }; }
   const SIZE = { flower: 2 * LP1 * VIS, leafSpan: 2 * (LLF + 0.35) * VIS, ringR: RING_R * VIS * RS, swordSpan: 2 * (RING_R + SWORD_L) * VIS * RS, hub: 0.6 * VIS, seat: SEAT.slice(), ringH: (RING_UP * Math.cos(TILT) + RING_Z + HUB[2]) * VIS, tentSpan: (() => { const R = rig(blankPose()); let m = 0; for (const cv of R.tent.g.concat(R.tent.w)) for (const p of cv) m = Math.max(m, Math.abs(p[0])); return 2 * m * VIS; })() };   // (tiles; seat stays in the flower's own frame)
   return { create, warm: () => { glOn(); return true; }, warmIdle: () => { glOn(); }, warmPlan: () => ({ pending: 0, total: 0 }), ready: () => true, draw, drawRing, drawShadow, anchor, anchorDir, anchorAt, rigOf, blankPose, COUNTS, SIZE, PARTS,

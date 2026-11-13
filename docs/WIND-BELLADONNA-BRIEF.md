@@ -445,3 +445,78 @@ Supersedes the numbers in my entry above where they differ. `tests/belladonna.js
   longest tendrils' tips may leave the edges of a phone view).
 - **Bulb, revised after the lead's review:** the closed bud keeps its volume (about 90% of the open pink bloom's width, 65 to 70% with the leaves, and taller than wide): the pink rows grow (1.5x and 1.12x) and stretch along their length as they close, their sheets flatten so the outer row overlaps the inner like scales and the top comes to one point; the bud's axis is now the flower's own up (it stands up from the hub, its side toward the game camera), the leaves cup its lower third, the pet stays at its front. **New channel `bulbTip`** (radians, default 0): leans the bud's axis in the flower's plane (+ toward the flower's right), scaled by `bulb`; A: point it along the dive on screen, and use `lean` for toward or away from the camera. **The ring rises with the bud** (2.1 units along the flower's up at `bulb` 1, about 1.4 tiles), so `anchor('ring')`, `sword*` and `hilt*` move up while it is closed. Clearance: every petal and leaf vertex clears the swords' disc by 0.66 or more over bulb 0.5 to 1, bank, lean and bulbTip ±1; the tentacle sweep is as above (0.12 and 0.07).
 - **Closed bud seals the pet in** (after the user's note): at `bulb` 1 the hub and the pet's cushion draw in (to 0.45) under the bud, the leaves stand up round its base as a calyx (70 degrees), and the white flower's pearl and pink halos fade out, so nothing pale shows at the front. `rigOf(P).A.bulb` gives the eased closure (0..1) if A wants to time the pet's hiding to it. The model draws no pet placeholder.
+
+### E, effects pass for v321 (2026-11-13; the user: "more advance and elaborate")
+- **Swoop slams:** I draw each slam on the core's `D.plan.at` / `ctx.swooshPlan.at` deadlines through `BELLADONNA_MOVES.slam(ctx, x, y, r, final)`.
+  - A tip slam: green energy cracks running out, pink and green shock rings, petals and dust.
+  - The final slam: a bloom-shaped (rosette) shockwave, a flash, flowers erupting.
+  - Pictures only; the core deals the hits.
+- **Wildflowers:** flowers sprout from the ground and wilt as the field ends; pollen motes drift up; soft light shafts.
+- **Ring Blade:** sparks and torn petals on each enemy a blade reaches; thin blade afterimages; a wind wake on the floor; a glowing return.
+- **Twister:** an outer counter-turning layer on each funnel; leaves on a wider, slower orbit; debris on a tight, fast one; scoured ground at the base; a flickering pink lightning core. Low effects drop the extra layers.
+- (A, **v321 in the core, for H and E**) The user's changes, in `20k5yb`:
+  - `TUNE.dur` 45 / 45 / 45 (was 20 / 25 / 35). Cooldowns: Wildflowers 1.0 s, Ring Blade 1.5 s from the catch; the core
+    owns them now (E's `TUNE.wildCd` / `ringCd` are no longer read).
+  - **Swoosh's new phase, `'slam'`,** between the swoop (`'orbit'`, still a closed bud) and the recovery (`'open'`): the bud
+    bursts into bloom (`D.burst` true from that frame; **E: please fire your burst on `D.burst` / `ph === 'slam'` now, not
+    on `'orbit'`**), spins in place and slams. **`ctx.swooshPlan` = `D.plan`** = `{ t0, t1, x, y, fired, at: [{ i, kind:
+    'tip' | 'final', t, x, y, r, dmg, hits, done }] }`: six tip slams (tentacles 0, 3, 1, 4, 2, 5) at `t0 + 0.18` and every
+    0.09 s after, on a ring 2.4 tiles round the flower, each one `ctx.hitArea` of 1.2 DK within 1.2 tiles with its own
+    registry; then the final slam at `t0 + 0.87`, 3 DK within 3 tiles at the flower. All charge the gauge and break props.
+    The phase lasts 1.05 s, so a Swoosh is now 2.47 s in all. Stats: `slams`, `slamFinal`, `slamHits`.
+  - **M:** `tgSlam[6]` per green tentacle: -1 thrown up (the 0.16 s before its slam), +1 slammed onto the ground (its
+    deadline), easing back to 0 over 0.35 s; the final slam drives all six. The core fakes it meanwhile with `tentG`,
+    `accY` and a jolt of the flower.
+  - **For H, `tests/belladonna.js`:** durations are 45 at every evo; the Swoosh's damage now has the slams after the pass
+    (an enemy near the flower takes the swoop hit and up to one tip slam and the final slam: three hits, each its own
+    event; filter by phase `slam` or by time after `swooshPlan.t0` if a check wants "one hit per enemy per pass").
+
+
+### M, v320: the tentacle slam (2026-11-13)
+- **New channel `slam[6]`** (one per green tentacle, same order as `tg0..5`: 0..2 the right side, upper to lower, 3..5 the left): **0** rest (as before), **1** raised high (thrown up and well out to its side, in the flower's own frame so it clears the ring as the flower banks), **2** slammed (over and down, its last third lying flat on the floor, its tip on the floor). Values between blend smoothly (A animates 0 → 1 → 2 → 0).
+- **`slamDir[6]`** (optional, radians in the model's floor plane: 0 = the model's +x, positive toward the camera): where that tentacle lands. Without it they land in a ring round the sides and front (-4, 34, 72 degrees on the right; 184, 146, 108 on the left), about 6.4 tiles out. Slam 1 raises them high above the flower out at its sides; between 1 and 2 each point swings round the root on an arc (a whip cracking over, never folding in).
+- **`floorZ`** (tiles, default -1.2): the floor's height relative to the model's origin (the `z` A draws it at, negated), so the tips land on the ground: A, pass `-z` of the draw (times 1 / the `size` multiplier if it is not 1).
+- `anchor('tg0'..'tg5')` are the tips (on the floor when slammed): E can put the impact there.
+- Clearance with random slams (0 to 2) added to the 1080-pose sweep: the swords' disc clears every tentacle by 0.12 or more and the tentacles clear the pet by 0.07.
+- (H, **v321 in `tests/belladonna.js`: 61 of 61 at evo 1 / 4 / 7**, on `test-belH.html`, before E's effects pass ends)
+  - **Updated:** 45 s at every evo. Cooldowns are read from `S.cdMax`: Wildflowers 1.0 s, Ring Blade 1.5 s. Swoosh's
+    "one hit per enemy" now covers the swoop alone (hits before `swooshPlan.t0`).
+  - **Added for the slams:** six tip slams and one final slam, all fired on their deadlines; each slam hits an enemy at
+    most once; the final slam hits every enemy within its 3 tiles; 1.2 DK a tip slam, 3 DK the final; the slams charge
+    the gauge (it is emptied as they begin); with no enemy present, every smashable prop well inside a slam circle
+    breaks. The placement uses one press to learn the offset from start to slam centre, then puts that centre on a prop.
+- (H, **balance read, v321, for the lead; numbers unchanged**) Sustained damage over 10 s, no finisher, crits suppressed,
+  rooted neutral targets 3.5 tiles ahead, each slot pressed once whenever it is ready. One run each, so expect about 10 %
+  spread; Fenrir's projectiles often miss in this crude driver. In DK/s at evo 4, one target / five targets:
+  | Form | Strong 1 | Strong 2 | Everything incl. Dodge |
+  |---|---|---|---|
+  | Belladonna | Wildflowers 1.8 / 14 | Ring Blade 4.0 / 16-23 | 8.3 / 73 (11.6 / 77 at evo 1) |
+  | Jaws, shark | Water Bombs 5.4 / 28 | Water Ray 2.0 / 14 | 7.8 / 54 |
+  | Jaws, Leviathan (no pools) | Depth Charge 4.2 / 28 | Maelstrom 0 (needs a pool) | |
+  | Nidhogg | 5.4 / 47 | 2.5 / 9 | 5.6 / 42 |
+  | Beast Machine | 6.8 / 15 | 7.2 / 38 | 7.7 / 28 |
+  | Susano O | 1.8 / 11 | 1.7 / 8 | 6.3 / 33 |
+  | Fenrir | (misses) | (misses) / 9 | 6.7 / 55 |
+  | Sports Car | 1.1 / 4 | 3.8 / 23 | 3.1 / 18 |
+  - **Out of line:** Belladonna with every command used, on a group: 73-77 DK/s at evo 1 and 4, the highest in the
+    table (next: Fenrir 55, Jaws 54, Nidhogg 42 at evo 4). Swoosh has no cooldown, and its slams add about 4 DK an
+    enemy near the bloom, so Swoosh spam is the bulk. On one target it is 8-12 DK/s, also at the top.
+  - **Odd, not high:** Wildflowers recast at its new 1.0 s cooldown restarts the field's tick clock (0.3 s ticks,
+    10 a field), so spamming it deals 1.8 DK/s. Letting the field run its 3 s gives 3 DK/s. A player who presses it as
+    soon as it is ready loses damage.
+  - Jaws is in line: Water Bombs is the strongest single-target strong attack of the two forms (5.4 DK/s, about Nidhogg's
+    Fireballs). Depth Charge's 3.8-tile blast gives 28 DK/s on five, level with Water Bombs and Nidhogg.
+- (A, **balance trim, for H**) Swoosh's slams after H's read: each tentacle slam **0.8 DK** (was 1.2) within 1.2 tiles, the final slam **2.0 DK** (was 3.0) within 3 tiles; radii and timing unchanged. Please match the slam-damage check.
+- (E, **for H: Wildflowers recast**) A recast while a field is active no longer resets its tick clock. The field moves to the new aim and is extended to a full duration from the recast (`n = k + 10` ticks). Its ticks carry on at `t0 + (k + 1) x 0.3` on the same clock, so pressing it whenever it is ready never loses a tick. `ctx.wildPlan` now has `ticks` = the field's current total, `fired` = ticks so far, and `t0` unchanged across recasts. Still one field per caster.
+- (E) **Slam placement:** a tip slam's impact now sits at M's `anchor('tg' + i)`, when that anchor is on the floor (z < 0.8) within 2 tiles of the plan's hit position; otherwise it sits at the plan's `x`, `y`. The final slam stays at the plan's centre.
+- (H, **after A's slam trim and E's Wildflowers fix**) `tests/belladonna.js` 62 of 62 and `tests/jaws.js` 87 of 87 at
+  evo 1 / 4 / 7. The slam check is now 0.8 / 2.0 DK. New check: Wildflowers recast whenever ready never deals less
+  than one cast left to run (6 s on one enemy: one cast 9 DK; five recasts 17.1 DK on one tick clock). Belladonna DPS
+  with everything in use: 47 / 54 / 39 DK/s on five targets at evo 1 / 4 / 7, 7.9 / 7.9 / 4.2 on one (was 73-77 / 8-12),
+  in the table's range (Fenrir 55, Jaws 54, Nidhogg 42 at evo 4). Wildflowers spammed is now 2.9 DK/s, was 1.8.
+- (H, **the evo 7 "dip" in Belladonna's DPS is my driver's noise, not the game**) Repeated runs: five targets 39-74 DK/s
+  at evo 1 and 29-69 at evo 7, one target 7.7-7.9 at evo 1 and 7.9-10.9 at evo 7. The spread comes from how many
+  Wildflowers / Ring Blade casts fit around the 2.5 s Swooshes, which varied 1 to 4 a run. In some runs the targets also
+  lost HP the session's `stats.dealt` does not count. No move scales the wrong way by tier: `20k5yb` has `dur` 45 / 45 / 45,
+  fixed cooldowns and `size` 1, and DK carries the evo factor. Treat the group figures in my table as about ±40 %.
+- **Revised slam (after A's hookup): new `slamR[6]`** (tiles from the hub, clamped 1.5 to 7, default **3.5**): where each slammed tip lands, along `slamDir` (or its default direction). The last part of the tentacle lies flat on the floor up to the tip at that distance; for a short reach the root rears up higher and the tentacle bends more at its middle, so it still comes down onto the floor rather than folding inward. `anchor('tg0'..'tg5')` is the landed tip. `slam` 1 raises them high above the flower out at its sides; 1 to 2 swings each point round the root (a whip cracking over). Clearance with random reaches 2.5 to 5 added to the sweep: the swords' disc clears every tentacle by 0.04 or more (the two upper white feelers' wave is capped a little lower for it); the pet by 0.07.

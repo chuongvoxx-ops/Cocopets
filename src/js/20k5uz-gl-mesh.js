@@ -318,6 +318,32 @@ void main() {
       c += smoothstep(0.25, 0.3, r.z) * (1.0 - smoothstep(0.62, 0.7, r.z)) * vec3(0.12, 0.28, 0.52) * (0.5 + 0.5 * lit) + celSpec(n, 0.985) * vec3(0.9, 0.97, 1.0) + smoothstep(0.55, 0.75, 1.0 - ndv) * vec3(0.05, 0.18, 0.32) + vec3(0.02, 0.2, 0.3) * uSpill * 0.4;
       c *= 1.0 - 0.7 * line; }
     c = frostFx(c, L); gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
+  else if (id == 37) {   // ---- a Tidal Pool's water (Jaws): a unit disc on the floor (its own x-y). uGlow2 = forming 0..1, uWear = draining (+) or bursting (-) 0..1,
+    // uGlow = claimed 0..1 (brighter, swirling), uSpill = the pool's seed. Feathered: it writes its own alpha (premultiplied), nothing past its lapping rim.
+    vec2 q = L.xy; float rr = length(q), ang = atan(q.y, q.x), sd = uSpill * 7.13, t = uTime;
+    float form = clamp(uGlow2, 0.0, 1.0), dr = max(uWear, 0.0), bu = max(-uWear, 0.0), clm = clamp(uGlow, 0.0, 1.0), fe = 1.0 - pow(1.0 - form, 3.0);
+    float R0 = mix(0.25, 1.0, fe) * (1.0 - 0.85 * dr) * (1.0 + 0.45 * bu), rn = rr / max(R0, 0.02);
+    float lap = 0.022 * sin(ang * 5.0 + t * 1.7 + sd) + 0.014 * sin(ang * 11.0 - t * 2.3 + sd * 2.0) + 0.018 * sin(ang * 3.0 + t * 0.9 - sd), eR = 1.0 + lap;   // (the rim laps in and out)
+    if (rn > eR + 0.14) discard;
+    float sw = clm * (t * 1.8 + (1.0 - min(rn, 1.0)) * 3.5) + 0.25 * t + dr * (1.0 - min(rn, 1.0)) * 9.0,   // (a drain: the water spirals in)
+          ca = cos(sw), sa = sin(sw); vec2 p = vec2(q.x * ca - q.y * sa, q.x * sa + q.y * ca) / max(R0, 0.3);   // (claimed: the water swirls)
+    vec2 c1 = p * 4.2 + vec2(t * 0.31, -t * 0.23) + sd; float n1 = vn(c1 + vn(c1 * 0.7 + t * 0.17) * 1.6), n2 = vn(p * 5.6 - vec2(t * 0.27, t * 0.36) + sd * 3.0 + vn(p * 3.0 - t * 0.2) * 1.2);
+    float caus = smoothstep(0.09, 0.0, abs(n1 - n2)) * (0.55 + 0.45 * vn(p * 2.0 + t * 0.4)), caus2 = smoothstep(0.05, 0.0, abs(vn(p * 7.0 + t * 0.5 + 4.0) - vn(p * 7.0 - t * 0.43 + 9.0)));   // (caustics: where two moving fields cross)
+    float rip = sin(rn * 15.0 - t * 2.8 + sd) * 0.5 + 0.5, rip2 = sin(rn * 23.0 - t * 4.1 + ang * 0.0 + sd * 1.3) * 0.5 + 0.5, ripK = smoothstep(0.15, 0.6, rn) * (1.0 - smoothstep(0.85, 1.0, rn));   // (ripples running out)
+    vec3 deep = vec3(0.02, 0.1, 0.3), shal = vec3(0.17, 0.5, 0.86), c = mix(deep, shal, smoothstep(0.05, 0.95, rn * rn));   // (deeper toward the centre)
+    c *= 0.85 + 0.25 * ripK * (rip * 0.7 + rip2 * 0.3);
+    c += vec3(0.45, 0.82, 1.1) * (caus * 0.7 + caus2 * 0.35) * (0.55 + 0.45 * rn) * (1.0 + 0.8 * clm);
+    float spiral = clm * smoothstep(0.55, 1.0, sin(ang * 3.0 - rn * 9.0 + t * 5.0)) * (1.0 - smoothstep(0.7, 1.0, rn)) * smoothstep(0.08, 0.3, rn); c += vec3(0.6, 0.9, 1.15) * spiral * 0.55;
+    float fb = smoothstep(eR - 0.2, eR - 0.05, rn) * (1.0 - smoothstep(eR - 0.02, eR + 0.1, rn)), fn = vn(vec2(ang * 9.0 + t * 0.6, rn * 14.0 - t * 1.2) + sd) * 0.6 + vn(vec2(ang * 23.0 - t, rn * 30.0) + sd) * 0.4;
+    float foam = fb * smoothstep(0.35, 0.7, fn + 0.25 * sin(t * 2.2 + ang * 4.0 + sd));   // (a foamy luminous rim)
+    c = mix(c, vec3(0.75, 0.93, 1.1), foam * 0.85) + vec3(0.3, 0.65, 0.95) * fb * 0.45;
+    vec2 gc = floor(p * 9.0); float gh = hs(gc + sd), gl = step(0.93, gh) * pow(max(0.0, sin(t * (3.0 + gh * 6.0) + gh * 40.0)), 12.0) * smoothstep(0.08, 0.0, length(fract(p * 9.0) - 0.5) - 0.06) * (1.0 - smoothstep(0.9, 1.0, rn));   // (glints)
+    float bb = step(0.9, hs(gc * 1.7 + sd + 3.0)) * smoothstep(0.1, 0.0, abs(length(fract(p * 9.0 + vec2(0.0, t * 0.2)) - 0.5) - 0.12)) * (1.0 - rn);   // (small bubbles)
+    c += vec3(1.0) * gl * 1.4 + vec3(0.7, 0.9, 1.0) * bb * 0.35;
+    float lift = 0.85 + 0.15 * sin(t * 1.3 + sd) + 0.6 * clm; c *= lift * (1.0 - 0.45 * dr); c += vec3(0.5, 0.8, 1.0) * (1.0 - smoothstep(0.0, 0.18, abs(rn - (0.3 + 0.7 * bu)))) * bu * 2.2 + vec3(0.6, 0.85, 1.0) * bu * (1.0 - bu) * 0.6;   // (claimed: brighter; a burst: a bright ring running out)
+    float a = (1.0 - smoothstep(eR - 0.04, eR + 0.12, rn)) * mix(0.82, 0.62, smoothstep(0.3, 1.0, rn)) * smoothstep(0.0, 0.35, form) * (1.0 - dr * dr) * (1.0 - bu * bu);
+    a = max(a, foam * 0.9 * smoothstep(0.0, 0.3, form) * (1.0 - dr) * (1.0 - bu)); a *= uAlpha;
+    gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * a, a); return; }
   else if (id == 27) { alb = vec3(0.52, 0.47, 0.34); F0 = vec3(1.0, 0.94, 0.8); rough = 0.13;   // the ring's metal (its axis the mesh's own z): pale gold-white, an engraved vine with green enamel leaves
     float ang = atan(L.y, L.x), fu = fract(ang / 6.2832 * 18.0), v = clamp(L.z * 10.0, -1.0, 1.0), wv = 0.42 * sin(fu * 6.2832);
     if (abs(v - wv) < 0.07) { cav += 0.75; rough = 0.3; alb *= 0.35; F0 *= 0.3; }                                             // (the stem)

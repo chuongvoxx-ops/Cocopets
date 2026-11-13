@@ -63,7 +63,7 @@ const path = require('path');
       H.left = S => pick(S, ['left'], S.endT != null ? S.endT - g.t : null);
       H.st = (S, names) => pick(S.stats, names, pick(self.BELLADONNA_MOVES && self.BELLADONNA_MOVES.stats, names, 0));
       H.swooshing = S => S.phase === 'swoosh' || !!S.swoosh || !!S.dive; H.drifting = H.swooshing;
-      H.wrap = () => { const S = H.S(), X = S.X; if (X.__w) return; X.__w = 1; const h0 = X.hitMon; X.hitMon = (m, d, o) => { const r = h0(m, d, o); if (m && !m._tag) m._tag = 'n' + (H.nTag = (H.nTag || 0) + 1); const s2 = H.S(); H.log.push({ m: m && m._tag, d: r, nc: !!(s2 && FIN(s2)), ph: s2 ? s2.phase : 'none', form: s2 ? H.form(s2) : '', dr: !!(s2 && H.drifting(s2)), boss: !!(m && m.boss), frz: m ? m.freeze : 0, t: g.t }); return r; }; };   /* (every hit of the session, A's own Glides and Dive included; Dark Messiah's are the noCharge ones) */
+      H.wrap = () => { const S = H.S(), X = S.X; if (X.__w) return; X.__w = 1; const h0 = X.hitMon; X.hitMon = (m, d, o) => { const r = h0(m, d, o); if (m && !m._tag) m._tag = 'n' + (H.nTag = (H.nTag || 0) + 1); const s2 = H.S(); H.log.push({ m: m && m._tag, d: r, raw: d, nc: !!(s2 && FIN(s2)), ph: s2 ? s2.phase : 'none', form: s2 ? H.form(s2) : '', dr: !!(s2 && H.drifting(s2)), boss: !!(m && m.boss), frz: m ? m.freeze : 0, t: g.t }); return r; }; };   /* (every hit of the session, A's own Glides and Dive included; Dark Messiah's are the noCharge ones) */
       H.cast = () => { D.useUlt(); H.until(() => H.S() && H.ready(H.S()), 10); if (H.S()) H.wrap(); return H.S(); };
       H.labels = () => { const L = [], f0 = window.GFX_LABELS_PATCH; const GF = P.GFX, l0 = GF.labelS; GF.labelS = (c, s) => { L.push(String(s)); }; try { const cv = document.createElement('canvas'); cv.width = 400; cv.height = 900; const c = cv.getContext('2d'); const pic = (k, w, h, paint) => { const q = document.createElement('canvas'); q.width = Math.max(1, w | 0); q.height = Math.max(1, h | 0); try { paint(q.getContext('2d'), q.width, q.height); } catch (e) {} return q; };
         D.VEH.drawBtns(c, { B: D.vehBtns(), blitC: () => {}, hudPic: pic, glowPic: () => pic('', 4, 4, () => {}), touchUI: true }); } finally { GF.labelS = l0; } void f0; return L; };
@@ -75,7 +75,7 @@ const path = require('path');
   }
   const R = async (name, body, arg) => { try { return await scen(name, body, arg); } catch (e) { ok(false, name + ': ' + e.message.split('\n')[0]); return null; } };
 
-  const DUR = { 1: 20, 2: 20, 3: 20, 4: 25, 5: 25, 6: 25, 7: 35 }[EVO];
+  const DUR = 45;   /* (v321: 45 s at every evo) */
   const LIB = `
     const { D, g, me } = H; const S = H.cast(); if (!S) return { err: 'no session' };
     const ready = () => H.until(() => H.ready(S) && !S.busy, 8);
@@ -95,8 +95,14 @@ const path = require('path');
       if (M && rc) { let outw = 0, ns = 0; for (let i = 0; i < 8; i++) { const t = a('sword' + i), h = a('hilt' + i); if (!t) continue; ns++; const dt = Math.hypot(t.x - rc.x, t.y - rc.y, (t.z - rc.z)), dh = h ? Math.hypot(h.x - rc.x, h.y - rc.y, (h.z - rc.z)) : 0; if (dt > dh + 0.05) outw++; } out.swords = { n: ns, outward: outw };
         let fw = 0, nw = 0; for (let i = 0; i < 8; i++) { const t = a('tw' + i) || a('tentW' + i), r = a('twRoot' + i) || a('tentWroot' + i); if (!t || !r) continue; nw++; let gx = 0, gy = 0, gn = 0; for (let j = 0; j < 6; j++) { const q = a('tg' + j), q0 = a('tgRoot' + j); if (q && q0) { gx += q.x - q0.x; gy += q.y - q0.y; gn++; } } /* forward = away from where the green rear tentacles trail */ const F = a('forward'); if (F) { gx = -F.x; gy = -F.y; gn = 1; } if (gn && (t.x - r.x) * -gx + (t.y - r.y) * -gy > 0 && Math.hypot(t.x - r.x, t.y - r.y, t.z - r.z) > 1) fw++; } out.white = { n: nw, forward: fw }; } } catch (e) { out.modelErr = String(e); }
     // Swoosh: one hit per enemy per activation
-    const c00 = S.charge; const sw0 = H.st(S, ['swooshes']), n0 = H.log.length; H.face(0); H.press('dodge'); H.release(); H.until(() => H.swooshing(S), 1); H.until(() => !H.swooshing(S) && H.ready(S), 8, ); H.step(0.3);
-    out.swoosh = { started: H.st(S, ['swooshes']) - sw0, hits: H.log.slice(n0).map(h => h.m), z: +(S.V.z || 0).toFixed(2) }; ready();
+    const c00 = S.charge; const sw0 = H.st(S, ['swooshes']), n0 = H.log.length; H.face(0); H.press('dodge'); H.release(); H.until(() => H.swooshing(S), 1); H.until(() => { const pl = S.ctx.swooshPlan; if (pl && out.chAt0 == null && g.t >= pl.t0) { S.charge = 0; out.chAt0 = 0; }   /* (emptied as the slams begin: at Celestial the swoop alone may already have filled it) */ return !H.swooshing(S) && H.ready(S); }, 8); H.step(0.3);
+    { const pl = S.ctx.swooshPlan || null, L = H.log.slice(n0).filter(h => /^m/.test(h.m)), t0 = pl ? pl.t0 : 1e9, AT = pl ? pl.at : [];
+      /* the slams: each hit assigned to the slam whose deadline it is nearest; a slam hits an enemy at most once */
+      const per = {}; let dup = 0; for (const h of L) if (h.t >= t0 - 1e-6) { let b = 0; for (let j = 1; j < AT.length; j++) if (Math.abs(h.t - AT[j].t) < Math.abs(h.t - AT[b].t)) b = j; const k = h.m + ':' + b; if (per[k]) dup++; per[k] = (per[k] || 0) + 1; }
+      const fin = AT.find(e => e.kind === 'final'), finHits = fin ? L.filter(h => Math.abs(h.t - fin.t) < 0.03).map(h => h.m) : [], inFin = fin ? D.mons.filter(m => m._tag && m._tag[0] === 'm' && !m.dead && Math.hypot(m.x - fin.x, m.y - fin.y) < fin.r - 0.3).map(m => m._tag) : [];
+      const tipD = L.filter(h => h.t >= t0 && (!fin || Math.abs(h.t - fin.t) >= 0.03)).map(h => +(h.raw / S.DK).toFixed(2)), finD = L.filter(h => fin && Math.abs(h.t - fin.t) < 0.03).map(h => +(h.raw / S.DK).toFixed(2));
+      out.swoosh = { started: H.st(S, ['swooshes']) - sw0, hits: L.filter(h => h.t < t0).map(h => h.m), z: +(S.V.z || 0).toFixed(2), plan: pl ? { tips: AT.filter(e => e.kind === 'tip').length, finals: AT.filter(e => e.kind === 'final').length, fired: pl.fired, done: AT.every(e => e.done) } : null,
+        slamDup: dup, finHits, inFin, tipDK: [...new Set(tipD)], finDK: [...new Set(finD)], slamCharge: +((S.charge - (out.chAt0 != null ? out.chAt0 : S.charge))).toFixed(4), slamStat: H.st(S, ['slamHits']) }; } ready();
     // Wildflowers: one field; ticks on a fixed cadence; a recast refreshes (never two fields, never double ticks)
     for (const q of P0) { q[1] = S.V.x + 2 + 0.5 * P0.indexOf(q); q[2] = S.V.y + (P0.indexOf(q) % 2 ? 0.6 : -0.6); } hold(P0); H.face(0); H.release();
     const n1 = H.log.length, c0 = S.charge; H.press('strong'); let maxF = 0; const tW = g.t; H.until(() => { hold(P0); maxF = Math.max(maxF, H.st(S, ['fields'])); return g.t - tW > 1.2; }, 3);
@@ -108,7 +114,7 @@ const path = require('path');
     const n2 = H.log.length, r0 = H.st(S, ['ring', 'ringThrows']); hold(P0); H.press('strong2'); let st1 = ringState(); let agree = true; H.until(() => { hold(P0); st1 = ringState(); return st1 !== 'overhead'; }, 1.5); if (BMr() && typeof S.ring === 'string' && BMr() !== S.ring) agree = false; if (S.cd) for (const k of ['s2', 'ring', 'ringblade', 'strong2']) if (k in S.cd) S.cd[k] = 0; H.press('strong2'); H.step(0.1, () => hold(P0));
     const throwsMid = H.st(S, ['ring', 'ringThrows']) - r0; let sawRet = false, hitsInReturn = 0, lastLen = H.log.length; H.until(() => { hold(P0); const rs = ringState(); if (rs === 'returning') { sawRet = true; hitsInReturn += H.log.length - lastLen; } lastLen = H.log.length; return rs === 'overhead' && !S.busy; }, 9); H.step(0.3);
     const RL = H.log.slice(n2).map(h => h.m), rper = RL.reduce((o, m) => (o[m] = (o[m] || 0) + 1, o), {});
-    out.ring = { agree, core: S.ring, stateOut: st1, throwsMid, per: rper, sawReturn: sawRet, hitsInReturn, back: ringState() };
+    out.cds = { s1: S.cdMax && S.cdMax.s1, s2: S.cdMax && S.cdMax.s2 }; out.ring = { agree, core: S.ring, stateOut: st1, throwsMid, per: rper, sawReturn: sawRet, hitsInReturn, back: ringState() };
     return out;`);
   if (A && !A.err) { const has = (L, re) => L.some(s => re.test(s)), once = L => L.length === new Set(L).size;
     ok(Math.abs(A.left0 - DUR) < 1.2, `the flight lasts ${DUR} s at this tier`, A.left0);
@@ -116,16 +122,31 @@ const path = require('path');
     ok(A.z > 0.5, 'it flies (a cruise height above the floor)', A.z);
     if (A.swords && A.swords.n) ok(A.swords.n === 8 && A.swords.outward === 8, 'the 8 swords point radially outward on the drawn model', A.swords); else console.log('skip  sword anchors not exposed yet', A.modelErr || '');
     if (A.white && A.white.n) ok(A.white.n === 8 && A.white.forward === 8, 'the 8 white tentacles reach forward', A.white); else console.log('skip  white tentacle anchors not exposed yet');
-    ok(A.swoosh.started === 1 && A.swoosh.hits.length > 0 && once(A.swoosh.hits), 'Swoosh hits, one hit per enemy per activation', A.swoosh);
+    ok(A.swoosh.started === 1 && A.swoosh.hits.length > 0 && once(A.swoosh.hits), 'Swoosh: its swoop hits each enemy once', A.swoosh.hits);
+    ok(A.swoosh.plan && A.swoosh.plan.tips === 6 && A.swoosh.plan.finals === 1 && A.swoosh.plan.done, 'the slam phase: six tentacle slams and a final slam, all on their deadlines', A.swoosh.plan);
+    ok(A.swoosh.slamDup === 0 && A.swoosh.finHits.length >= A.swoosh.inFin.length && A.swoosh.inFin.every(m => A.swoosh.finHits.includes(m)), 'each slam hits an enemy at most once; the final slam hits every enemy within its radius', { dup: A.swoosh.slamDup, final: A.swoosh.finHits, within: A.swoosh.inFin });
+    ok(A.swoosh.tipDK.every(v => Math.abs(v - 0.8) < 0.05) && A.swoosh.finDK.every(v => Math.abs(v - 2.0) < 0.05) && A.swoosh.finDK.length === 1, 'slam damage: 0.8 DK a tentacle slam, 2.0 DK the final slam', { tips: A.swoosh.tipDK, final: A.swoosh.finDK });
+    ok(A.swoosh.slamCharge > 0, 'the slams charge the gauge', A.swoosh.slamCharge);
     ok(A.wild.maxFields <= 1 && A.wild.casts >= 2, 'Wildflowers: a recast refreshes the one field (never two)', A.wild);
-    ok(A.wild.ticksOnOne > 3 && A.wild.gapMin != null && A.wild.gapMin > 0.2 && A.wild.odd <= 1, 'Wildflowers ticks on a fixed cadence (only the recast restarts the clock; never a double tick)', A.wild);
+    ok(A.wild.ticksOnOne > 3 && A.wild.gapMin != null && A.wild.gapMin > 0.2 && A.wild.odd === 0, 'Wildflowers ticks on one fixed cadence through a recast (the clock is never reset; never a double tick)', A.wild);
     ok(A.wild.chargeUp, 'real damage charges the gauge', A.wild.charge);
     ok(A.ring.stateOut === 'outbound' || A.ring.stateOut === 'returning', 'Ring Blade throws the ring (outbound)', A.ring.stateOut);
     ok(A.ring.agree, 'the core and the moves agree on the ring state while it is away', { core: A.ring.core, moves: A.ring.stateOut });
+    ok(A.cds && Math.abs(A.cds.s1 - 1.0) < 0.05 && Math.abs(A.cds.s2 - 1.5) < 0.05, 'cooldowns: Wildflowers 1.0 s, Ring Blade 1.5 s (from the catch)', A.cds);
     ok(A.ring.throwsMid === 1, 'no recast while the ring is away', A.ring.throwsMid);
     ok(Object.keys(A.ring.per).length > 0 && Object.values(A.ring.per).every(c => c <= 2), 'Ring Blade: at most the sweep and the flourish per enemy', A.ring.per);
     ok(A.ring.sawReturn && A.ring.hitsInReturn === 0 && A.ring.back === 'overhead', 'the return is harmless and the ring comes back overhead', A.ring);
   } else ok(false, 'moves sequence ran', A);
+
+  // ---- 1b. Wildflowers: recasting whenever it is ready never lowers the damage (v321: a recast extends the field on the same clock) ----
+  const WR = await R('wild-recast', LIB + `
+    ready(); const P0 = pins().slice(0, 1); for (const m of D.mons) if (!m.boss && !P0.some(q => q[0] === m)) { m.dead = true; m.x += 90; } P0[0][1] = S.V.x + 3; P0[0][2] = S.V.y; hold(P0);
+    const run = spam => { H.until(() => { hold(P0); return H.ready(S) && !(S.ctx.wildPlan && S.ctx.wildPlan.fired < S.ctx.wildPlan.ticks && g.t < 99999 && S.wild); }, 8); H.step(0.5, () => hold(P0)); if (S.cd) S.cd.s1 = 0;
+      const n0 = H.log.length, t0 = g.t; H.face(0); H.release(); H.press('strong'); const pt0 = S.ctx.wildPlan ? S.ctx.wildPlan.t0 : null; let casts = 1, t0s = new Set([pt0]);
+      H.until(() => { hold(P0); if (spam && (S.cd ? S.cd.s1 <= 0 : true) && !S.busy && H.ready(S) && g.t - t0 < 5) { H.press('strong'); casts++; const p = S.ctx.wildPlan; if (p) t0s.add(p.t0); } return g.t - t0 >= 6; }, 7);
+      const L = H.log.slice(n0).filter(h => h.m === 'm0'); return { casts, dk: +(L.reduce((a, h) => a + h.raw, 0) / S.DK).toFixed(2), hits: L.length, t0s: t0s.size }; };
+    return { once: run(false), spam: run(true) };`);
+  if (WR && !WR.err) ok(WR.spam.casts > 2 && WR.spam.dk >= WR.once.dk - 0.01 && WR.spam.t0s === 1, 'Wildflowers recast whenever ready never deals less than a single cast (one tick clock across the recasts)', WR); else ok(false, 'Wildflowers recast ran', WR);
 
   // ---- 2. flight over gaps and offshore; the tracked safe return; expiry offshore ----
   const O = await R('offshore', LIB + `
@@ -160,13 +181,13 @@ const path = require('path');
     if (!pick) return { none: true };
     const out = { tries: 0, started: 0, bad: 0, low: 0, hits: 0 };
     for (let i = 0; i < 3; i++) { m0.dead = false; m0.hp = 1e9; const px = pick.x, py = pick.y; S.V.x = me.x = px - Math.cos(pick.b) * 4; S.V.y = me.y = py - Math.sin(pick.b) * 4; S.V.vx = S.V.vy = 0; H.release(); H.until(() => { m0.x = px; m0.y = py; return H.ready(S) && !S.busy && !(cdD() > 0); }, 6); H.step(0.5, () => { m0.x = px; m0.y = py; });
-      const s0 = H.st(S, ['swooshes']), b0 = H.st(S, ['swooshBad']), n0 = H.log.length; H.face(pick.b); H.press('dodge'); H.release(); out.tries++;
+      const s0 = H.st(S, ['swooshes']), b0 = H.st(S, ['swooshBad']), n0 = H.log.length; S.ctx.swooshPlan = null; H.face(pick.b); H.press('dodge'); H.release(); out.tries++;
       H.until(() => { m0.x = px; m0.y = py; if (isWall(S.V.x, S.V.y) && S.V.z < wallZ - 0.36) out.low++; return g.t > 0 && !H.swooshing(S) && H.ready(S) && H.st(S, ['swooshes']) > s0; }, 6);
-      out.started += H.st(S, ['swooshes']) - s0; out.bad += H.st(S, ['swooshBad']) - b0; out.hits += H.log.slice(n0).filter(h => h.m === 'm0').length; }
+      out.started += H.st(S, ['swooshes']) - s0; out.bad += H.st(S, ['swooshBad']) - b0; const pl = S.ctx.swooshPlan, t0 = pl ? pl.t0 : 1e9; out.hits += H.log.slice(n0).filter(h => h.m === 'm0' && h.t < t0).length; }
     out.spot = H.st(S, ['swooshSpot']); return out;`);
   if (SWW && !SWW.err) { if (SWW.none) console.log('skip  no spot against a wall found'); else {
     ok(SWW.started === SWW.tries && SWW.bad === 0, 'Swoosh at an enemy tucked against a wall is never refused', SWW);
-    ok(SWW.low === 0 && SWW.hits === SWW.tries, 'its pass never goes through the wall below the crossing height, and it still hits once a press', SWW); } } else ok(false, 'swoosh by a wall ran', SWW);
+    ok(SWW.low === 0 && SWW.hits === SWW.tries, 'its pass never goes through the wall below the crossing height, and its swoop still hits once a press', SWW); } } else ok(false, 'swoosh by a wall ran', SWW);
 
   // ---- 3. Twister: full gauge only, once, six tornadoes, the ring recalled first, a shared registry, frame-rate independent ticks ----
   const twAt = fps => R('twister@' + fps, LIB + `
@@ -234,6 +255,15 @@ const path = require('path');
     let sw = null; for (const p of cand) { if (p.broken) continue; const sp = spotFor(p, 4.2); if (!sp) continue; const ex = p.x - Math.cos(sp.a) * 1.1, ey = p.y - Math.sin(sp.a) * 1.1; if (!m0) break; m0.dead = false; m0.hp = 1e9; put(sp); H.until(() => { m0.x = ex; m0.y = ey; return H.ready(S) && !S.busy && !(cdD() > 0); }, 6); S.V.x = me.x = sp.x; S.V.y = me.y = sp.y; H.step(0.4, () => { m0.x = ex; m0.y = ey; }); const s0 = H.st(S, ['swooshes']); H.face(sp.a); H.press('dodge'); H.release(); H.until(() => { m0.x = ex; m0.y = ey; return !H.swooshing(S) && H.ready(S) && H.st(S, ['swooshes']) > s0; }, 6); H.step(0.3); sw = { kind: p.kind, broken: !!p.broken, started: H.st(S, ['swooshes']) - s0, swooshSmash: H.st(S, ['swooshSmash']) }; break; }
     if (m0) { m0.dead = true; m0.x += 90; }
     out.stat = H.st(S, ['smashed', 'smash']) - out.sm0;
+    /* the Swoosh's slams: with no enemy anywhere, a press beside props; every smashable prop well inside a slam's circle breaks */
+    if (m0) { m0.dead = true; m0.x += 90; } let sl = null; const dbg = [];
+    /* where a press from a spot ends its swoop varies, so: one press to learn the offset from the start to the slam centre, then
+       presses from spots placed so that centre lands on a smashable prop (any prop well inside a slam circle counts) */
+    let off = null; { H.until(() => H.ready(S) && !S.busy && !(cdD() > 0), 6); const x0 = S.V.x, y0 = S.V.y, a0 = 0; S.ctx.swooshPlan = null; H.face(a0); H.press('dodge'); H.release(); H.until(() => !H.swooshing(S) && H.ready(S), 6); const pl = S.ctx.swooshPlan; if (pl) off = { d: Math.hypot(pl.x - x0, pl.y - y0), a: Math.atan2(pl.y - y0, pl.x - x0) - a0 }; }
+    for (const p of cand) { if (sl || !off || dbg.length > 8) break; if (p.broken) continue; for (let k = 0; k < 8 && !sl; k++) { const a = k * Math.PI / 4, sx = p.x - Math.cos(a + off.a) * off.d, sy = p.y - Math.sin(a + off.a) * off.d; if (!W(sx, sy)) continue;
+      put({ x: sx, y: sy, a }); H.until(() => H.ready(S) && !S.busy && !(cdD() > 0), 6); S.V.x = me.x = sx; S.V.y = me.y = sy; const before = D.propList.filter(q => !q.broken && sm(q)); S.ctx.swooshPlan = null; H.face(a); H.press('dodge'); H.release(); H.until(() => !H.swooshing(S) && H.ready(S), 6); const pl = S.ctx.swooshPlan; if (!pl) continue;
+      const cov = before.filter(q => pl.at.some(e => Math.hypot(q.x - e.x, q.y - e.y) < e.r - 0.3)); dbg.push([+Math.hypot(pl.x - p.x, pl.y - p.y).toFixed(1), cov.length]); if (cov.length) sl = { covered: cov.length, broken: cov.filter(q => q.broken).length, kinds: cov.map(q => q.kind) }; break; } }
+    out.slam = sl || { none: true, off, dbg };
     /* Twister: hovering beside a prop, no enemy anywhere: a tick's own circles break it */
     let tw = null; for (const p of cand) { if (p.broken) continue; const sp = spotFor(p, 2.0); if (!sp) continue; put(sp); H.until(() => H.ready(S) && !S.busy, 6); S.V.x = me.x = sp.x; S.V.y = me.y = sp.y; S.charge = 1; H.step(0.6); D.useUlt(); H.until(() => S.phase === 'gone', 14); tw = { kind: p.kind, broken: !!p.broken, used: S.used }; break; }
     if (w) delete w.p; if (r) delete r.p; out.wild = w; out.ring = r; out.swoosh = sw; out.twister = tw;
@@ -242,6 +272,7 @@ const path = require('path');
     else { ok(!!E1.wild && E1.wild.broken, 'Wildflowers cast beside a smashable prop breaks it', E1.wild || E1);
       ok(!!E1.ring && E1.ring.broken, 'Ring Blade thrown at a smashable prop breaks it', E1.ring || E1);
       ok(!!E1.swoosh && E1.swoosh.started === 1 && E1.swoosh.broken, "Swoosh's pass breaks a prop beside its target", E1.swoosh || E1);
+      ok(!!E1.slam && !E1.slam.none && E1.slam.broken === E1.slam.covered, "the Swoosh's slams break the props inside their circles", E1.slam);
       ok(!!E1.twister && E1.twister.used && E1.twister.broken, 'a Twister tick breaks a prop with no enemy near', E1.twister || E1);
       ok(E1.stat >= 3, 'the session counts what it smashed', E1.stat);
       ok(E1.protectedBroken === 0, 'doors, gates, stairs and bridges are kept', E1.protectedBroken); } }

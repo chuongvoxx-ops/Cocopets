@@ -336,3 +336,77 @@ No anchor, channel, part name or count changed; the part set is still 36 items a
 - Also fixed: a comment written in the waterline round had swallowed the rest of a line in the cannon's mesh, so the muzzle's chrome and steel rings, bolts, cyan slots and slide rods were missing since then. They are back.
 - (A) `glowK` rescaled to M's range: rest 1 (a little more with speed, in Leviathan and with Shark Attack ready), casts / Maw / Hydrojet 1.6, transformation 1.3, charging and firing clips 2.0, Shark Attack 2.5, on the same slow spring.
 - **Revised after the lead's review:** the wing cannons are chunkier (a cowled breech block, a barrel of twice the radius with a finned sleeve, a flared muzzle with a baby-blue ring), hung lower and further forward so they show under and ahead of each wing; in the shark they are **scale 0 and alpha 0** (still listed, so the part set is unchanged) and their halos are gated by the same factor (`rigOf(P).A.wingGunOut`, 0..1). `cannonL`/`cannonR` moved to the new muzzles. The glow is stronger: id 33 brighter, larger and stronger halos round the eyes, gills and reactor, a two-layer body aura, and the flicker's stutters dip to about 47% (never darker). **A:** `glowK` is 1 at rest; use about 2 to 2.5 in attacks.
+
+### E, effects pass for v321 (2026-11-13; the user: "more advance and elaborate", "Give Depth Charge more effects and bigger AOE")
+- **Depth Charge, for H:** the radius is **3.8** tiles plain (was 2.4) and **7.0** empowered (was 4.4), 1.6x, matched to the drawn blast. Damage per hit is unchanged (6 / 15 DK).
+- **Depth Charge timing:** a plain shot now sinks for **0.42 s** after landing (a glowing charge, three countdown pulses) before it blasts. An empowered shot keeps its 0.3 s plunge. The blast adds:
+  - a dome of water bursting up;
+  - three shock rings across the floor;
+  - a 7-tile geyser column (13 tiles empowered, with a ring of eight smaller ones);
+  - falling rain;
+  - foam lingering 2.4 to 3 s.
+- **Other moves:**
+  - Water Ray: a caustic sheath, sparks and spiral spray along the beam; foam and rain at the impact.
+  - Water Bombs: a small geyser per splash, foam and rain.
+  - Maelstrom: a vortex column over each whirlpool, foam spirals and rising currents.
+  - Maw and Hydrojet: more spray, foam on the floor, Hydrojet's pressure rings.
+  - Shark Attack: rain and lingering foam at the snap.
+- **Pools, for M:** the Tidal Pools' look is still drawn in `20k7o` (`poolFx`). If you draw them in `20k7m`, tell me in Notes and I will gate mine (for example on `JAWS_MODEL.drawsPools`) so they are not drawn twice.
+- All of it is in the slot-independent move functions, so A's slot swap needs nothing from me.
+- (A, **v321 in the core, for H and E**) The user's changes, in `20k7n`:
+  - `TUNE.dur` 60 / 60 / 60 (was 30 / 45 / 60). `S.poolMax` by tier 3 / 3 / 5 (`TUNE.pools`; a 4 at Adept is a one-number
+    change). The pips and the `POOLS a+c/max` label follow it.
+  - **Slots:** shark Strong 1 = `waterBombs` (`cd.s1`, 1.0 s), Strong 2 = `waterRay` (`cd.s2`, 1.5 s); Leviathan Strong 1 =
+    `depthCharge` (`cd.s1`, 1.0 s), Strong 2 = `maelstrom` (`cd.s2`, 1.5 s). The slots stay paired across forms (the same
+    numbers, so nothing is forced longer). The core owns the numbers now; E's `rayCd` / `bombsCd` are not read.
+  - **No Anchor / Release:** no button in the Jump slot, no J key, no F key, `D.VEH.form` gone. `ctx.toggleForm()`
+    remains as a **test hook only**: it counts as the fifth pool and transforms at the next free frame.
+  - **Auto-transform:** `S.poolCasts` (also `stats.poolCasts`) counts Water Ray casts whose `pools.create` returned a pool
+    (`'new'` or `'refresh'`); at 5 the shark transforms into Leviathan at its next free frame (`stats.autoXf` 1, a
+    `LEVIATHAN` text), with the same transformation and beats. It never transforms back (`tryExtra` refuses from
+    Leviathan); Shark Attack still folds it to the shark for its dive.
+  - **Leviathan flies** (`phase` stays `'siege'`), at 0.8 of the shark's speed; Hydrojet is still its Dodge; it aims along
+    its hull, which now follows the stick. No anchor halo (E's `anchorHalo` is no longer called).
+  - **For H, `tests/jaws.js`:** replace every `H.toggle()` / `H.to('leviathan')` with five Water Ray casts on separate
+    ground (or `S.ctx.toggleForm()`), and drop the Release cases (`H.to('shark')`, the timeout `@anchoring`,
+    "anchored: position holds", "Release"). Strong 1 / 2 in the shark are now Bombs / Ray (the slot-cooldown checks swap).
+    Expect labels `WATER BOMBS`, `WATER RAY`, `MAW`; no `ANCHOR` / `RELEASE`. Durations 60 at every evo; `poolMax` 5 at
+    evo 7 (the fourth-pool-replaces case needs a sixth pool there).
+- (A, **the user's answer: TRANSFORM back, for H and E**) Leviathan now has a **`TRANSFORM`** button in the Jump slot
+  (above Dodge; key **J**, through 20b's `carJump` / `VEH.jump`), shown and usable **only in Leviathan** (its label reads
+  `TRANSFORMING` while the change runs). In the shark the slot is empty: no button, and `VEH.jump` is null. Pressing it
+  plays the same transformation back to the shark; the Strongs return to Water Bombs and Water Ray. Leviathan otherwise
+  stays until Transform or the end. After going back, `S.poolCasts` restarts at 0 (five more pool casts transform it
+  again; `stats.transformsBack` counts the returns); the pools stay. A 1 s lockout follows either change of form
+  (`TUNE.xfLock`; the button shows it as a cooldown). **H:** use `D.VEH.jump()` (or `G.key('carjump', true)`) in
+  Leviathan for the way back, or `S.ctx.toggleForm()` (in Leviathan it presses Transform; in the shark it counts as the
+  fifth pool). Expect the label `TRANSFORM` only in Leviathan, never `ANCHOR` / `RELEASE`.
+
+
+### M, the Tidal Pools' look (v320 round, 2026-11-13). Proposed split: M owns the look, A the records and rules, E the lifecycle effects
+- **`JAWS_MODEL.drawPools(c, pools, o)`**: draws every pool in one GPU pass (one disc each, GLM material 37: a feathered water surface with animated caustics, ripples running out, a deeper centre, a foamy luminous rim that laps in and out, glints and small bubbles, baby blue), then soft feathered light on the floor round each and motes of light rising (`GLM.halos`). Without a usable GPU, a 2D picture of the same (gradient body, caustic sprite, lapping rim arcs, ripples, the swirl). Low-effects mode drops the motes and the 2D caustics.
+  - `pools`: the core's records as they are (`ctx.pools.list()` or `S.pools`): it reads `id, x, y, r, born, t, state, claimT`. `o = { T, sx, sy, t, low }`, with `t` on the same clock as `born` (the core's `g.t`; `mOpts()` already has it).
+  - **States**, all from the records: **forming** blooms out over 0.45 s after `born`; **idle**; **claimed** brightens and swirls (eased in from `claimT`); **refreshed** pulses when `t` moves; **gone**: when a record leaves the list (or turns `consumed`), the pool drains (spirals in and shrinks over 0.6 s), or **bursts** (a bright ring running out, 0.5 s) if it was claimed. It keeps those last frames itself, so the core can drop the record at once.
+  - Call it **once per frame with the full list** (the drain and burst are detected by absence), in the floor layer, under the creatures and the model.
+- **A:** call it from `drawUnder` (in place of the stand-in), e.g. `MOD().drawPools && MOD().drawPools(c, S.pools, mOpts(S, T))`, before the shadow.
+- **E:** please drop the pool paint in `poolFx` (`Q.shade`, `air`, `floorGlow`, rings and arcs for each pool) once A's call is in, so they are not drawn twice; the geysers, splashes and claim beams stay yours. If you would rather keep the call on your side, call the same function from your `drawUnder`; just one of you, please.
+- Cost: one `GLM.render` for all pools (one draw call each, five at most), up to 25 small halos.
+- (H, **v321 in `tests/jaws.js`: 87 of 87 at evo 1 / 4 / 7**, on `test-jawH.html`, before E's effects pass ends)
+  - **Removed:** every Anchor / Release case and "anchored: position holds".
+  - **Added or changed:**
+    - 60 s at every evo; `S.poolMax` 3 / 3 / 5 and the `POOLS 0/N` label; the registry cases filled to the tier's cap.
+    - Slots: shark Strong 1 Water Bombs and Strong 2 Water Ray; Leviathan Strong 1 Depth Charge and Strong 2 Maelstrom.
+      `cdMax` 1.0 / 1.5 in both forms, and again after Transform back.
+    - A cooldown carries through the change of form (set to 6 s, it keeps running down).
+    - Five Water Ray casts: casts 1-4 count (`poolCasts` 1..4) and leave the shark as it is; the fifth turns it into
+      Leviathan (`stats.autoXf` 1). The buttons then switch to Depth Charge, Maelstrom, Hydrojet, Shark Attack and
+      `TRANSFORM`, with no Ray, Bombs, Maw, Anchor or Release.
+    - `TRANSFORM` via `D.VEH.jump()`: does nothing inside the 1 s lockout, then returns to the shark
+      (`transformsBack` 1). `poolCasts` is back at 0; pools and the timer stay. No Transform button or `VEH.jump` in the
+      shark. Five more casts transform it again (`autoXf` 2).
+    - Depth Charge radius from `depthPlan.r` and who is hit: 3.8 plain and 7.0 empowered. Enemies inside are hit once;
+      enemies 0.6 or more outside are not.
+  - **Test-side timing fixes:** `zero()` waits for the cast to end before clearing cooldowns (they now start at the
+    end of the cast). The Maelstrom is let finish before Hydrojet and Transform. The enemy at the whirlpool's rim is put
+    on open floor with a clear line to the pool.
+- (E) **Pools:** `poolFx` no longer paints anything. M's GPU pool renderer, hooked through the core's `drawUnder`, draws the pools, so they are not drawn twice. The moves' own pool moments (Depth Charge's plunge, Maelstrom's whirlpools) still draw over the pool.

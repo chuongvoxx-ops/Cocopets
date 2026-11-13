@@ -67,8 +67,11 @@ const path = require('path');
         D.VEH.drawBtns(c, { B: D.vehBtns(), blitC: () => {}, hudPic: pic, glowPic: () => pic('', 4, 4, () => {}), touchUI: true }); } finally { GF.labelS = l0; } void f0; return L; };
       H.face = a => { const S = H.S(); S.mx = Math.cos(a); S.my = Math.sin(a); const K = P.arc.keys; if (K) { K.right = Math.cos(a) > 0.5; K.left = Math.cos(a) < -0.5; K.down = Math.sin(a) > 0.5; K.up = Math.sin(a) < -0.5; } H.step(1 / 60); };
       H.release = () => { const K = P.arc.keys; if (K) K.right = K.left = K.up = K.down = false; };
-      H.toggle = () => { const S = H.S(), c = S.ctx || {}; for (const f of [D.VEH && D.VEH.form, c.toggleForm, c.form, D.vehForm, S.toggleForm]) if (typeof f === 'function') { f.call(D.VEH, S); return true; } const K = P.arc.keys; if (K) { K.f = K.F = true; G.update(1 / 60); K.f = K.F = false; return true; } return false; };
-      H.to = form => { const S = H.S(); if (H.form(S) === form && H.ready(S)) return true; H.until(() => H.ready(S), 6); H.toggle(); return H.until(() => H.form(S) === form && H.ready(S), 8); };
+      /* (v321) no Anchor / Release: the shark turns into Leviathan by itself at the fifth pool cast; Leviathan's TRANSFORM
+         (the Jump slot, J) takes it back. H.toLev uses A's test hook (as if the fifth pool had been cast), H.toShark the button. */
+      H.jump = () => { const S = H.S(); if (D.VEH && typeof D.VEH.jump === 'function') { D.VEH.jump(); return 'jump'; } if (S.ctx && S.ctx.toggleForm && H.form(S) === 'leviathan') { S.ctx.toggleForm(); return 'hook'; } return null; };
+      H.to = form => { const S = H.S(); if (H.form(S) === form && H.ready(S)) return true; H.until(() => H.ready(S) && !(S.xfLockT != null && g.t - S.xfLockT < 1.05), 6); if (form === 'leviathan') S.ctx.toggleForm(); else H.jump(); return H.until(() => H.form(S) === form && H.ready(S), 8); };
+      H.toggle = () => { const S = H.S(); if (H.form(S) === 'leviathan') return H.jump(); S.ctx.toggleForm(); return 'hook'; };
       H.pools = () => { const S = H.S(), L = pick(S, ['pools'], pick(S.ctx, ['pools'], [])); return (Array.isArray(L) ? L : Object.values(L)).filter(p => p && p.state !== 'consumed' && !p.dead); };
       H.pool = () => { const S = H.S(), c = S.ctx || {}; return c.pool || c.pools_ || { create: c.poolCreate, claim: c.poolClaim, release: c.poolRelease, consume: c.poolConsume }; };
       H.press = k => { if (k === 'ult') D.useUlt(); else if (k === 'dodge') D.dodge(); else D.useStrong(k); };
@@ -77,12 +80,12 @@ const path = require('path');
   }
   const R = async (name, body, arg) => { try { return await scen(name, body, arg); } catch (e) { ok(false, name + ': ' + e.message.split('\n')[0]); return null; } };
 
-  const DUR = { 1: 30, 2: 30, 3: 30, 4: 45, 5: 45, 6: 45, 7: 60 }[EVO];
+  const DUR = 60, PMAX = EVO >= 7 ? 5 : 3;   /* (v321: 60 s at every evo; five pools at Celestial, three below) */
   const LIB = `
     const { D, g, me } = H; const S = H.cast(); if (!S) return { err: 'no session' };
     const ready = () => H.until(() => H.ready(S), 8);
     const cd = names => H.pick(S.cd, names, 0), cdS1 = () => cd(['s1', 'strong']), cdS2 = () => cd(['s2', 'strong2']), cdD = () => cd(['dodge']);
-    const zero = () => { if (S.cd) for (const k in S.cd) S.cd[k] = 0; };
+    const zero = () => { H.until(() => H.ready(S) && !S.busy, 6); if (S.cd) for (const k in S.cd) S.cd[k] = 0; };   /* (v321: slot cooldowns start at the end of the cast, so wait for it to end first) */
     const dl = () => S.endT != null ? S.endT : null;   /* the one deadline on the game clock */
     const only = () => { for (const m of D.mons) if (!m.dead && !m.boss && (!m._tag || m._tag[0] === 'n')) { m.dead = true; m.x += 90; } };
     const pins = () => D.mons.filter(m => m._tag && m._tag[0] === 'm' && !m.dead).map(m => [m, m.x, m.y]);
@@ -95,75 +98,96 @@ const path = require('path');
     const aimAt = (x, y) => { const a = Math.atan2(y - S.V.y, x - S.V.x); if (H.form(S) === 'leviathan') { S.V.heading = a; if (S.ha != null) S.ha = a; if (S.au != null) S.au = a; } S.aim = { x, y }; if (S.ctx) S.ctx.aimPoint = { x, y }; H.face(a); H.release(); return a; };
   `;
 
-  // ---- 1. both forms: commands, one timer, anchored aiming, Hydrojet, the form change keeps everything ----
+  // ---- 1. the shark: its commands, one timer, the pool cap; five pool casts turn it into Leviathan by itself ----
   const A = await R('forms', LIB + `
-    ready(); const out = { left0: +H.left(S).toFixed(2), form0: H.form(S), pools0: pools().length, charge0: S.charge, lab0: H.labels(), dl0: dl(), z0: +(S.V.z || 0).toFixed(2), pet0: !!(S.pet || me.petAlt || S.ctx) };
-    const P0 = pins(); hold(P0);
-    // a little real damage first, so there is charge and a cooldown to carry across
-    H.press('strong'); H.until(() => H.log.length > 0, 4, ); H.step(0.4, () => hold(P0)); ready(); const ch1 = S.charge, np1 = pools().length, id1 = ids().join();
-    out.anchorOK = H.to('leviathan'); out.form1 = H.form(S); out.lab1 = H.labels(); out.dl1 = dl(); out.ch1 = [ch1, S.charge]; out.pools1 = [np1, pools().length, id1 === ids().join()];
-    // anchored: the stick turns the hull, the position holds
-    const p0 = [S.V.x, S.V.y, S.V.z], h0 = S.V.heading; H.face(h0 + 2); const K = H.P.arc.keys; H.step(1.0); H.release(); out.hold = { moved: +Math.hypot(S.V.x - p0[0], S.V.y - p0[1]).toFixed(3), dz: +Math.abs(S.V.z - p0[2]).toFixed(3), turned: +Math.abs(S.V.heading - h0).toFixed(2) };
-    // Hydrojet: a short hop, no damage, no pool, it settles anchored again
-    zero(); const n0 = H.log.length, j0 = H.st(S, ['hydrojets', 'jets']), c0 = S.charge; H.face(0); H.press('dodge'); H.release(); H.step(0.15); const midPhase = S.phase; H.until(() => H.ready(S), 5);
-    out.jet = { n: H.st(S, ['hydrojets', 'jets']) - j0, moved: +Math.hypot(S.V.x - p0[0], S.V.y - p0[1]).toFixed(2), hits: H.log.length - n0, form: H.form(S), charge: S.charge === c0, pools: pools().length, mid: midPhase }; const p1 = [S.V.x, S.V.y]; H.step(0.6); out.jet.settled = Math.hypot(S.V.x - p1[0], S.V.y - p1[1]) < 0.05;
-    out.releaseOK = H.to('shark'); out.lab2 = H.labels(); out.dl2 = dl(); out.ch2 = S.charge; out.pools2 = pools().length; out.timerSets = H.st(S, ['timerSets']); out.left2 = +H.left(S).toFixed(2); out.t = g.t;
-    out.anchors = H.st(S, ['anchors']); out.releases = H.st(S, ['releases']); return out;`);
-  if (A && !A.err) { const has = (L, re) => L.some(s => re.test(s));
+    ready(); const out = { left0: +H.left(S).toFixed(2), form0: H.form(S), pools0: pools().length, charge0: S.charge, lab0: H.labels(), dl0: dl(), max: H.pick(S, ['poolMax'], null), jump0: !!(D.VEH && D.VEH.jump) };
+    const P0 = pins(); const T = P0[0]; for (const q of P0.slice(1)) { q[0].dead = true; q[0].x += 90; } const PP = [T]; T[1] = S.V.x + 4; T[2] = S.V.y; hold(PP);
+    /* Water Ray (Strong 2) five times at one enemy: casts 1 to 4 make or refresh a pool and leave the shark as it is, the fifth transforms it */
+    const casts = []; for (let i = 0; i < 5; i++) { zero(); H.until(() => { hold(PP); return H.ready(S); }, 6); const r0 = H.st(S, ['ray']), b0 = H.st(S, ['bombs']); aimAt(T[1], T[2]); H.press('strong2'); H.release(); H.step(1.0, () => hold(PP));
+      casts.push({ ray: H.st(S, ['ray']) - r0, bombs: H.st(S, ['bombs']) - b0, n: H.pick(S, ['poolCasts'], null), form: H.form(S), xf: !!S.xfm, cd2: +(S.cdMax && S.cdMax.s2 || 0).toFixed(2) }); }
+    out.casts = casts; out.ch1 = S.charge; out.pools1 = ids().join(); H.until(() => { hold(PP); return H.form(S) === 'leviathan' && H.ready(S); }, 6);
+    out.form1 = H.form(S); out.auto = H.st(S, ['autoXf']); out.lab1 = H.labels(); out.dl1 = dl(); out.ch1b = S.charge; out.pools1b = ids().join(); out.jump1 = !!(D.VEH && D.VEH.jump);
+    return out;`);
+  if (A && !A.err) { const has = (L, re) => L.some(s => re.test(s)), C5 = A.casts;
     ok(Math.abs(A.left0 - DUR) < 1.2, `the shared session lasts ${DUR} s at this tier`, A.left0);
+    ok(A.max === PMAX && has(A.lab0, new RegExp('POOLS 0/' + PMAX)), `the pool cap at this tier is ${PMAX}`, { max: A.max, lab: A.lab0.filter(s => /POOLS/.test(s)) });
     ok(A.form0 === 'shark' && A.pools0 === 0 && A.charge0 === 0, 'it begins as the shark with an empty gauge and no pools', [A.form0, A.pools0, A.charge0]);
-    ok(has(A.lab0, /MAW/) && has(A.lab0, /WATER RAY/) && has(A.lab0, /WATER BOMBS/) && has(A.lab0, /ANCHOR/) && has(A.lab0, /SHARK ATTACK/), 'shark commands: Maw, Water Ray, Water Bombs, Anchor, Shark Attack', A.lab0);
-    ok(A.anchorOK && A.form1 === 'leviathan', 'Anchor works in the air with no pool needed', [A.anchorOK, A.form1, A.pools1]);
-    ok(has(A.lab1, /HYDROJET/) && has(A.lab1, /DEPTH CHARGE/) && has(A.lab1, /MAELSTROM/) && has(A.lab1, /RELEASE/) && has(A.lab1, /SHARK ATTACK/) && !has(A.lab1, /^MAW/), 'Leviathan commands: Hydrojet, Depth Charge, Maelstrom, Release, Shark Attack', A.lab1);
-    ok(A.dl0 != null && A.dl1 === A.dl0 && A.dl2 === A.dl0 && A.timerSets <= 1, 'exactly one timer: Anchor and Release never restart or extend it', { dl: [A.dl0, A.dl1, A.dl2], sets: A.timerSets });
-    ok(A.ch1[1] === A.ch1[0] && A.ch2 === A.ch1[0] && A.ch1[0] > 0, 'the gauge is kept across both form changes, and the changes themselves charge nothing', [A.ch1, A.ch2]);
-    ok(A.pools1[0] === A.pools1[1] && A.pools1[2] && A.pools2 === A.pools1[0] && A.pools1[0] >= 1, 'pools are kept through the form changes', [A.pools1, A.pools2]);
-    ok(A.hold.moved < 0.1 && A.hold.dz < 0.1 && A.hold.turned > 0.3, 'anchored: the stick turns the hull, position and altitude hold', A.hold);
-    ok(A.jet.n === 1 && A.jet.moved > 0.8 && A.jet.hits === 0 && A.jet.form === 'leviathan' && A.jet.charge && A.jet.settled, 'Hydrojet: a hop with no damage and no charge, settling anchored in Leviathan form', A.jet);
-    ok(A.releaseOK && has(A.lab2, /MAW/) && has(A.lab2, /ANCHOR/), 'Release returns the same shark and its commands', A.lab2);
+    ok(has(A.lab0, /WATER BOMBS/) && has(A.lab0, /WATER RAY/) && has(A.lab0, /MAW/) && has(A.lab0, /SHARK ATTACK/) && !has(A.lab0, /ANCHOR|RELEASE|TRANSFORM/) && !A.jump0, 'shark commands: Water Bombs, Water Ray, Maw, Shark Attack; no Anchor, no Transform button', A.lab0);
+    ok(C5.every(c => c.ray === 1 && c.bombs === 0), 'Strong 2 in the shark is Water Ray (five casts, no bombs)', C5.map(c => [c.ray, c.bombs]));
+    ok(C5.slice(0, 4).every((c, i) => c.form === 'shark' && !c.xf && c.n === i + 1) && C5[4].n >= 5, 'each Water Ray that makes or refreshes a pool counts; the shark stays the shark through the first four', C5.map(c => [c.n, c.form, c.xf]));
+    ok(A.form1 === 'leviathan' && A.auto === 1, 'the fifth pool cast turns it into Leviathan by itself', { form: A.form1, autoXf: A.auto, fifth: C5[4] });
+    ok(has(A.lab1, /DEPTH CHARGE/) && has(A.lab1, /MAELSTROM/) && has(A.lab1, /HYDROJET/) && has(A.lab1, /SHARK ATTACK/) && has(A.lab1, /^TRANSFORM/) && !has(A.lab1, /WATER RAY|WATER BOMBS|^MAW|ANCHOR|RELEASE/) && A.jump1, 'the buttons switch: Depth Charge, Maelstrom, Hydrojet, Shark Attack and Transform in Leviathan', A.lab1);
+    ok(A.dl0 != null && A.dl1 === A.dl0, 'one timer: the transformation never restarts or extends it', [A.dl0, A.dl1]);
+    ok(A.ch1b === A.ch1 && A.pools1b === A.pools1 && A.pools1.length > 0, 'the gauge and the pools are kept through the transformation', { charge: [A.ch1, A.ch1b], pools: A.pools1b });
+    ok(Math.abs(C5[0].cd2 - 1.5) < 0.05, 'Water Ray cooldown 1.5 s', C5[0].cd2);
   } else ok(false, 'forms sequence ran', A);
 
-  // ---- 2. shared slot cooldowns across a form change ----
+  // ---- 2. cooldowns by slot and form; shared across the change of form; Hydrojet; TRANSFORM back, its lockout, the count restarting ----
   const C = await R('cooldowns', LIB + `
-    ready(); const P0 = pins(); hold(P0); const out = {};
-    H.press('strong'); H.step(0.5, () => hold(P0)); H.until(() => H.ready(S), 5); const c1 = cdS1(); H.to('leviathan'); const c1b = cdS1(), d0 = H.st(S, ['depth', 'depthCharges']); if (c1b > 0.05) { H.press('strong'); H.step(0.1); } out.s1 = { after: +c1.toFixed(2), inLev: +c1b.toFixed(2), fired: H.st(S, ['depth', 'depthCharges']) - d0 };
-    zero(); H.until(() => H.ready(S), 5); H.face(0); H.press('dodge'); H.release(); H.until(() => H.ready(S), 5); const cdj = cdD(); H.to('shark'); out.dodge = { afterJet: +cdj.toFixed(2), inShark: +cdD().toFixed(2) };
-    zero(); H.until(() => H.ready(S), 5); H.press('strong2'); H.step(0.5, () => hold(P0)); H.until(() => H.ready(S), 5); const c2 = cdS2(); H.to('leviathan'); out.s2 = { after: +c2.toFixed(2), inLev: +cdS2().toFixed(2) }; return out;`);
-  if (C && !C.err) { ok(C.s1.after > 0.3 && C.s1.inLev > 0 && C.s1.inLev <= C.s1.after && C.s1.fired === 0, 'Water Ray then Anchor: Depth Charge is not ready (one cooldown for the slot)', C.s1);
-    ok(C.s2.after > 0.3 && C.s2.inLev > 0 && C.s2.inLev <= C.s2.after, 'Water Bombs then Anchor: Maelstrom shares its cooldown', C.s2);
-    ok(C.dodge.inShark <= C.dodge.afterJet + 1e-6, 'Hydrojet then Release: the Dodge recovery is not reset', C.dodge); } else ok(false, 'cooldowns ran', C);
+    ready(); const P0 = pins(); const T = P0[0]; for (const q of P0.slice(1)) { q[0].dead = true; q[0].x += 90; } const PP = [T]; T[1] = S.V.x + 4; T[2] = S.V.y; hold(PP); const out = {};
+    const cdAfter = (btn, k) => { zero(); H.until(() => { hold(PP); return H.ready(S); }, 6); aimAt(T[1], T[2]); H.press(btn); H.release(); H.until(() => { hold(PP); return H.ready(S); }, 6); return +(S.cdMax && S.cdMax[k] || 0).toFixed(2); };
+    out.bombs = cdAfter('strong', 's1'); out.bombStat = H.st(S, ['bombs']);
+    /* a cooldown carried into the change of form: set it long, transform, it keeps running down (never reset to ready) */
+    S.cd.s1 = 6; S.cd.s2 = 6; S.cd.dodge = Math.max(S.cd.dodge || 0, 0); const t0 = g.t; H.to('leviathan'); const el = g.t - t0; out.carry = { s1: +S.cd.s1.toFixed(2), s2: +S.cd.s2.toFixed(2), want: +(6 - el).toFixed(2) };
+    out.depth = cdAfter('strong', 's1'); out.depthStat = H.st(S, ['depth']);
+    if (PL && PL.create) { mk(T[1], T[2]); out.mael = cdAfter('strong2', 's2'); H.until(() => { const pl = S.ctx.maelPlan, tb = pl && (pl.burst != null ? pl.burst : pl.burstAt); return !pl || (tb != null && g.t > tb + 1); }, 8); H.step(0.5); }
+    /* Hydrojet: a hop with no damage, no charge, no pool */
+    zero(); H.until(() => H.ready(S), 5); const p0 = [S.V.x, S.V.y], n0 = H.log.length, j0 = H.st(S, ['hydrojets', 'jets']), c0 = S.charge, np = pools().length; H.face(0); H.press('dodge'); H.release(); H.until(() => H.ready(S), 5);
+    out.jet = { n: H.st(S, ['hydrojets', 'jets']) - j0, moved: +Math.hypot(S.V.x - p0[0], S.V.y - p0[1]).toFixed(2), hits: H.log.length - n0, form: H.form(S), charge: S.charge === c0, pools: pools().length === np };
+    /* TRANSFORM back: only in Leviathan; a lockout after each change of form; the count restarts and five more casts transform again; pools stay */
+    if (PL && PL.create) { const sp = spots(2, 3); for (const q of sp) mk(q.x, q.y); } const idsL = ids().join(), dlL = dl();
+    S.xfLockT = g.t; const lk0 = H.jump(); H.step(0.1); out.locked = { how: lk0, form: H.form(S), xf: !!S.xfm };   /* (pressed inside the lockout: nothing) */
+    H.step(1.0); const how = H.jump(); H.step(0.05); out.back = { how, label: H.labels().filter(s => /TRANSFORM/.test(s)) }; H.until(() => H.form(S) === 'shark' && H.ready(S), 6);
+    out.shark = { form: H.form(S), n: H.pick(S, ['poolCasts'], null), backs: H.st(S, ['transformsBack']), pools: ids().join() === idsL, dl: dl() === dlL, lab: H.labels(), jump: !!(D.VEH && D.VEH.jump) };
+    out.s1Shark = cdAfter('strong', 's1'); out.s2Shark = cdAfter('strong2', 's2');   /* (Water Bombs and Water Ray again) */
+    H.step(0.1); const cnt = [H.pick(S, ['poolCasts'], null)]; for (let i = 0; i < 4; i++) { if (i === 3) { out.again = { counts: cnt.slice(), form4: H.form(S) }; } cdAfter('strong2', 's2'); cnt.push(H.pick(S, ['poolCasts'], null)); }
+    out.again.all = cnt; out.again.form = out.again.form4; H.until(() => H.form(S) === 'leviathan' && H.ready(S), 6); out.again.after = H.form(S); out.again.auto = H.st(S, ['autoXf']);
+    return out;`);
+  if (C && !C.err) {
+    ok(Math.abs(C.bombs - 1.0) < 0.05 && C.bombStat >= 1, 'Strong 1 in the shark is Water Bombs, cooldown 1.0 s', { cd: C.bombs, bombs: C.bombStat });
+    ok(C.carry.s1 > 0.5 && Math.abs(C.carry.s1 - C.carry.want) < 0.1 && Math.abs(C.carry.s2 - C.carry.want) < 0.1, 'slot cooldowns run on through the change of form (a form change never readies the paired move)', C.carry);
+    ok(Math.abs(C.depth - 1.0) < 0.05 && C.depthStat >= 1, 'Strong 1 in Leviathan is Depth Charge, cooldown 1.0 s', { cd: C.depth, depth: C.depthStat });
+    if (C.mael != null) ok(Math.abs(C.mael - 1.5) < 0.05, 'Strong 2 in Leviathan is Maelstrom, cooldown 1.5 s', C.mael);
+    ok(C.jet.n === 1 && C.jet.moved > 0.8 && C.jet.hits === 0 && C.jet.form === 'leviathan' && C.jet.charge && C.jet.pools, 'Hydrojet: a hop with no damage, no charge, no pool, still Leviathan', C.jet);
+    ok(C.locked.form === 'leviathan' && !C.locked.xf, 'about 1 s lockout after a change of form: Transform pressed inside it does nothing', C.locked);
+    ok(C.back.how === 'jump' && C.shark.form === 'shark' && C.shark.backs === 1, 'TRANSFORM (the Jump slot) turns Leviathan back into the shark', { back: C.back, shark: C.shark.form, backs: C.shark.backs });
+    ok(C.shark.n === 0 && C.shark.pools && C.shark.dl, 'back in the shark: the pool cast count restarts at 0, the pools stay, the timer runs on', C.shark);
+    ok(!C.shark.lab.some(s => /TRANSFORM|ANCHOR|RELEASE/.test(s)) && !C.shark.jump && C.shark.lab.some(s => /WATER BOMBS/.test(s)), 'the Transform button exists only in Leviathan', C.shark.lab);
+    ok(Math.abs(C.s1Shark - 1.0) < 0.05 && Math.abs(C.s2Shark - 1.5) < 0.05, 'back in the shark, Water Bombs 1.0 s and Water Ray 1.5 s again', [C.s1Shark, C.s2Shark]);
+    ok(C.again.counts.join() === '1,2,3,4' && C.again.form === 'shark' && C.again.after === 'leviathan' && C.again.auto === 2, 'five more pool casts transform it again', C.again);
+  } else ok(false, 'cooldowns ran', C);
 
   // ---- 3. the pool registry: creation, refresh, at most three, oldest available replaced, claims count, a cancelled claim is released ----
   const PO = await R('pools', LIB + `
     ready(); const P0 = pins(); hold(P0); const out = {}; if (!PL || !PL.create) out.noApi = true;
     // a real Water Ray: one explosion hit per enemy, one pool, and the pool itself neither hits nor charges
-    const n0 = H.log.length; H.press('strong'); H.until(() => pools().length > 0, 5, ); H.step(0.8, () => hold(P0)); const L = H.log.slice(n0), ch = S.charge, nl = H.log.length; H.step(1.5, () => hold(P0));
+    const n0 = H.log.length; H.press('strong2'); H.until(() => pools().length > 0, 5, ); H.step(0.8, () => hold(P0)); const L = H.log.slice(n0), ch = S.charge, nl = H.log.length; H.step(1.5, () => hold(P0));
     out.ray = { per: perM(L), pools: pools().length, laterHits: H.log.length - nl, laterCharge: S.charge - ch, state: pools()[0] && pools()[0].state };
     if (out.noApi) return out;
     const p0 = pools()[0]; if (!p0) return Object.assign(out, { noPool: true }); const x = p0.x, y = p0.y, c0 = S.charge, h0 = H.log.length;
     mk(x + 0.3, y); out.refresh = { pools: pools().length, sameId: pools()[0].id === p0.id, stat: H.st(S, ['poolsRefreshed']) };
-    const SP = spots(6, 3.5, { x, y }, 4.5); out.spots = SP.length; if (SP.length < 5) return Object.assign(out, { fewSpots: true }); mk(SP[0].x, SP[0].y); mk(SP[1].x, SP[1].y); out.three = pools().length; const idsA = pools().slice().sort((a, b) => a.born - b.born).map(p => p.id); mk(SP[2].x, SP[2].y); const idsB = ids(); out.four = { n: idsB.length, oldestGone: !idsB.includes(idsA[0]) && idsA.slice(1).every(i => idsB.includes(i)) };
+    const MX = S.poolMax, SP = spots(MX + 3, 3.5, { x, y }, 4.5); out.spots = SP.length; out.max = MX; if (SP.length < MX + 2) return Object.assign(out, { fewSpots: true }); for (let i = 0; i < MX - 1; i++) mk(SP[i].x, SP[i].y); out.three = pools().length; const idsA = pools().slice().sort((a, b) => a.born - b.born).map(p => p.id); mk(SP[MX - 1].x, SP[MX - 1].y); const idsB = ids(); out.four = { n: idsB.length, oldestGone: !idsB.includes(idsA[0]) && idsA.slice(1).every(i => idsB.includes(i)) };
     out.silent = { hits: H.log.length - h0, charge: S.charge - c0 };
     // claims: a claimed pool is never the one replaced; all three claimed = no new pool, and Water Ray still hits
-    const B = pools().slice().sort((a, b) => a.born - b.born); PL.claim(B[0].id); mk(SP[3].x, SP[3].y); const idsC = ids(); out.claimKept = { n: idsC.length, claimedStill: idsC.includes(B[0].id), secondOldestGone: !idsC.includes(B[1].id) };
-    for (const p of pools()) if (p.state !== 'claimed') PL.claim(p.id); const idsD = ids().join(); const r = mk(SP[4].x, SP[4].y); zero(); H.until(() => H.ready(S), 5); const n1 = H.log.length; H.press('strong'); H.step(1.6, () => hold(P0));
+    const B = pools().slice().sort((a, b) => a.born - b.born); PL.claim(B[0].id); mk(SP[MX].x, SP[MX].y); const idsC = ids(); out.claimKept = { n: idsC.length, claimedStill: idsC.includes(B[0].id), secondOldestGone: !idsC.includes(B[1].id) };
+    for (const p of pools()) if (p.state !== 'claimed') PL.claim(p.id); const idsD = ids().join(); const r = mk(SP[MX + 1].x, SP[MX + 1].y); zero(); H.until(() => H.ready(S), 5); const n1 = H.log.length; H.press('strong2'); H.step(1.6, () => hold(P0));
     out.allClaimed = { n: pools().length, same: ids().join() === idsD, created: !!r && ids().includes(r.id || r), rayHits: H.log.length - n1 };
     const one = pools()[0]; PL.release(one.id); out.released = { state: pools().find(p => p.id === one.id).state, stat: H.st(S, ['claimsReleased']) };
-    PL.consume(pools()[1].id); out.consumed = pools().length; return out;`);
+    const nb = pools().length; PL.consume(pools()[1].id); out.consumed = [nb, pools().length]; return out;`);
   if (PO && !PO.err) {
     ok(Object.keys(PO.ray.per).length > 0 && Object.values(PO.ray.per).every(c => c === 1), 'Water Ray: one explosion hit per enemy (no frame-by-frame beam hits)', PO.ray.per);
     ok(PO.ray.pools === 1 && PO.ray.laterHits === 0 && PO.ray.laterCharge === 0, 'it leaves one pool, and the pool neither damages nor charges', PO.ray);
     if (PO.noPool || PO.fewSpots) ok(false, 'the pool registry cases could be set up', PO); else if (PO.noApi) console.log('skip  pool registry API not found on ctx (create / claim / release / consume)'); else {
       ok(PO.refresh.pools === 1 && PO.refresh.sameId, 'a Water Ray on an existing pool refreshes it (no stacking)', PO.refresh);
-      ok(PO.three === 3 && PO.four.n === 3 && PO.four.oldestGone, 'at most three pools: a fourth replaces the oldest available', [PO.three, PO.four]);
+      ok(PO.max === PMAX && PO.three === PMAX && PO.four.n === PMAX && PO.four.oldestGone, `at most ${PMAX} pools: one more replaces the oldest available`, [PO.three, PO.four]);
       ok(PO.silent.hits === 0 && PO.silent.charge === 0, 'creating, refreshing and replacing pools deals no damage and charges nothing', PO.silent);
-      ok(PO.claimKept.n === 3 && PO.claimKept.claimedStill && PO.claimKept.secondOldestGone, 'a claimed pool is never the one replaced', PO.claimKept);
-      ok(PO.allClaimed.n === 3 && PO.allClaimed.same && !PO.allClaimed.created && PO.allClaimed.rayHits > 0, 'claims count toward the limit: with three claimed, Water Ray still hits but makes no pool', PO.allClaimed);
+      ok(PO.claimKept.n === PMAX && PO.claimKept.claimedStill && PO.claimKept.secondOldestGone, 'a claimed pool is never the one replaced', PO.claimKept);
+      ok(PO.allClaimed.n === PMAX && PO.allClaimed.same && !PO.allClaimed.created && PO.allClaimed.rayHits > 0, 'claims count toward the limit: with every pool claimed, Water Ray still hits but makes no pool', PO.allClaimed);
       ok(PO.released.state === 'available', 'a cancelled claim is released back to available', PO.released);
-      ok(PO.consumed === 2, 'a consumed pool leaves the registry', PO.consumed); }
+      ok(PO.consumed[1] === PO.consumed[0] - 1, 'a consumed pool leaves the registry', PO.consumed); }
   } else ok(false, 'pools ran', PO);
 
-  // ---- 4. Depth Charge: plain, empowered (one amplified blast an enemy, the pool consumed), a shot finishing after Release ----
+  // ---- 4. Depth Charge: plain, empowered (one amplified blast an enemy, the pool consumed); the blast radius ----
   const DC = await R('depth', LIB + `
     ready(); const P0 = pins().slice(0, 3); for (const m of D.mons) if (!m.boss && !P0.some(q => q[0] === m)) { m.dead = true; m.x += 90; } const T = P0[0];
     for (const q of P0) { const i = P0.indexOf(q); q[1] = S.V.x + 4.5 + 0.5 * i; q[2] = S.V.y + (i - 1) * 0.6; } hold(P0); H.to('leviathan'); zero(); const out = {};
@@ -171,17 +195,28 @@ const path = require('path');
     const shot = () => { zero(); H.until(() => { keep(); return H.ready(S); }, 5); keep(); aimAt(T[1], T[2]); const n0 = H.log.length, c0 = S.charge; H.press('strong'); let k = 0; H.until(() => { hold(P0); return H.log.length > n0; }, 6); H.step(1.2, () => hold(P0)); const L = H.log.slice(n0); return { per: perM(L), dmg: L.filter(h => h.m === 'm0').reduce((a, h) => a + h.raw, 0), charged: S.charge > c0 || S.charge >= 1, src: [...new Set(L.map(h => h.src))] }; };
     out.plain = shot(); out.plainDbg = { heading: +S.V.heading.toFixed(2), want: +Math.atan2(T[2] - S.V.y, T[1] - S.V.x).toFixed(2), d: +Math.hypot(T[1] - S.V.x, T[2] - S.V.y).toFixed(1), plan: S.ctx.depthPlan ? [+(S.ctx.depthPlan.x - T[1]).toFixed(1), +(S.ctx.depthPlan.y - T[2]).toFixed(1)] : null, depth: H.st(S, ['depth']), form: H.form(S), z: +S.V.z.toFixed(1) }; out.plainPools = pools().length;
     if (PL && PL.create) { mk(T[1], T[2]); const id = pools()[0] && pools()[0].id; out.emp = shot(); out.empPool = { left: pools().length, stat: H.st(S, ['depthEmp', 'empowered']), consumed: !ids().includes(id) };
-      // a launched shot keeps its claim and lands after Release
-      mk(T[1], T[2]); const id2 = pools()[0] && pools()[0].id; zero(); H.until(() => { keep(); return H.ready(S); }, 5); keep(); aimAt(T[1], T[2]); const n0 = H.log.length; H.press('strong'); H.until(() => !S.busy || claimed().length > 0, 2); const claimedAtLaunch = claimed().length; H.toggle(); H.until(() => { hold(P0); return H.form(S) === 'shark' && H.ready(S); }, 8); H.step(1.5, () => hold(P0));
-      const L = H.log.slice(n0); out.after = { claimedAtLaunch, form: H.form(S), per: perM(L), dmg: L.filter(h => h.m === 'm0').reduce((a, h) => a + h.raw, 0), consumed: !ids().includes(id2) }; }
+    }
     return out;`);
+  /* the blast's radius (v321: 3.8 plain, 7.0 empowered, 1.6x): enemies on rings round the aimed one, in an open direction; who is hit against the drawn radius */
+  const DR = await R('depth-radius', LIB + `
+    ready(); H.to('leviathan'); const P0 = pins(); const T = P0[0], out = {};
+    let best = { a: 0, L: 0 }; for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; let L = 0; while (L < 14 && D.walkAt(Math.floor(S.V.x + Math.cos(a) * L), Math.floor(S.V.y + Math.sin(a) * L))) L += 0.25; if (L > best.L) best = { a, L }; }
+    const ca = Math.cos(best.a), sa = Math.sin(best.a), cx = S.V.x + ca * 4.5, cy = S.V.y + sa * 4.5; T[1] = cx; T[2] = cy;
+    const blast = (radii, emp) => { const QQ = [T]; for (let i = 1; i < P0.length; i++) { const q = P0[i], r = radii[i - 1]; if (r == null) { q[0].dead = true; q[0].x += 90; continue; } q[0].dead = false; q[0].hp = 1e9; const a = best.a + Math.PI / 2 * (i % 2 ? 1 : -1); q[1] = cx + Math.cos(a) * r; q[2] = cy + Math.sin(a) * r; QQ.push(q); }
+      for (const m of D.mons) if (!m.dead && !m.boss && !QQ.some(q => q[0] === m)) { m.dead = true; m.x += 90; } hold(QQ); if (emp && PL && PL.create) mk(cx, cy);
+      zero(); H.until(() => { hold(QQ); return H.ready(S); }, 6); aimAt(cx, cy); const n0 = H.log.length; H.press('strong'); H.step(2.2, () => hold(QQ)); const pl = S.ctx.depthPlan || {}, L = H.log.slice(n0);
+      return { r: pl.r, emp: !!pl.empowered, at: [+((pl.x || 0) - cx).toFixed(2), +((pl.y || 0) - cy).toFixed(2)], rows: QQ.map(q => [q[0]._tag, +Math.hypot(q[0].x - (pl.x != null ? pl.x : cx), q[0].y - (pl.y != null ? pl.y : cy)).toFixed(2), L.filter(h => h.m === q[0]._tag).length]) }; };
+    out.plain = blast([2.4, 3.4, 4.3, 5.2, null]); out.emp = blast([3.5, 6.3, 7.8, null, null], true); return out;`);
+  if (DR && !DR.err) { const fits = (B, R) => B.rows.every(([m, d, n]) => d < R - 0.4 ? n === 1 : d > R + 0.6 ? n === 0 : n <= 1);
+    ok(Math.abs(DR.plain.r - 3.8) < 0.05 && !DR.plain.emp && fits(DR.plain, 3.8), 'plain Depth Charge: radius 3.8 (1.6x the old 2.4); enemies inside hit once, outside untouched', DR.plain);
+    ok(Math.abs(DR.emp.r - 7.0) < 0.05 && DR.emp.emp && fits(DR.emp, 7.0), 'empowered Depth Charge: radius 7.0', DR.emp); } else ok(false, 'Depth Charge radius ran', DR);
   if (DC && !DC.err) { const once = o => Object.keys(o).length > 0 && Object.values(o).every(c => c === 1);
     ok(once(DC.plain.per) && DC.plain.charged, 'plain Depth Charge: one blast per enemy, it charges the gauge', [DC.plain, DC.plainDbg]);
     if (DC.emp) { const k = DC.emp.dmg / Math.max(1, DC.plain.dmg);
       ok(once(DC.emp.per), 'empowered Depth Charge: one amplified blast per enemy (the geyser adds no hit)', DC.emp);
       ok(k > 1.8 && k < 3.5, 'the empowered blast is substantially stronger (about 2.5x)', +k.toFixed(2));
       ok(DC.empPool.consumed && DC.empPool.left === 0, 'the pool it used is consumed', DC.empPool);
-      ok(DC.after.form === 'shark' && once(DC.after.per) && DC.after.dmg > DC.plain.dmg * 1.8 && DC.after.consumed, 'a shot launched before Release still lands empowered and consumes its claimed pool', DC.after); } else console.log('skip  empowered Depth Charge (no pool API)');
+    } else console.log('skip  empowered Depth Charge (no pool API)');
   } else ok(false, 'Depth Charge ran', DC);
 
   // ---- 5. Maelstrom: refused with no pool; finite ticks at any frame rate; shared registries; a resisting boss still damaged; only captured pools consumed ----
@@ -194,7 +229,7 @@ const path = require('path');
     for (const q of P0) { const i = P0.indexOf(q); if (i < 3) { q[1] = ax + (i - 1) * 0.5; q[2] = ay + (i - 1) * 0.3; } else if (i === 3) { q[1] = bx; q[2] = by + 0.4; } else { q[0].dead = true; q[0].x += 90; } } const PP = P0.filter(q => !q[0].dead); hold(PP);
     let boss = null; try { boss = D.lesserBoss(bx + 1.2, by, 0.5, 'Test'); boss.hp = boss.maxhp = 1e9; boss._tag = 'boss'; } catch (e) {} const bp = boss ? [boss.x, boss.y] : null; let bossPull = null; if (boss) { try { const q = [boss.x, boss.y], r = S.ctx.H.pull(boss, bx, by, 1); bossPull = { ret: !!r, moved: +Math.hypot(boss.x - q[0], boss.y - q[1]).toFixed(3) }; } catch (e) { bossPull = { err: String(e) }; } }
     // one loose ordinary enemy at a pool's rim: it should be pulled inward
-    const loose = P0[4] ? P0[4][0] : null; if (loose) { loose.dead = false; loose.hp = 1e9; loose.still = false; loose.spd = 0; loose.stun = 99; loose.x = bx - 3.4; loose.y = by - 0.2; } const ld0 = loose ? Math.hypot(loose.x - bx, loose.y - by) : 0;
+    const loose = P0[4] ? P0[4][0] : null; if (loose) { loose.dead = false; loose.hp = 1e9; loose.still = false; loose.spd = 0; loose.stun = 99; let lp = null; for (let k = 0; k < 16 && !lp; k++) { const a = Math.PI + k * Math.PI / 8 * (k % 2 ? 1 : -1) / 2, x = bx + Math.cos(a) * 3.2, y = by + Math.sin(a) * 3.2; let clear = true; for (let q = 0.5; q <= 3.2 && clear; q += 0.3) if (!D.walkAt(Math.floor(bx + Math.cos(a) * q), Math.floor(by + Math.sin(a) * q)) || D.blocked(bx + Math.cos(a) * q, by + Math.sin(a) * q, 0.4, 0)) clear = false; if (clear) lp = [x, y]; } if (!lp) lp = [bx - 3.2, by]; loose.x = lp[0]; loose.y = lp[1]; }   /* (on open floor with a clear line to the pool: a spot in a wall cannot be pulled) */ const ld0 = loose ? Math.hypot(loose.x - bx, loose.y - by) : 0;
     zero(); H.until(() => H.ready(S), 5); const n0 = H.log.length; H.press('strong2'); const G = H.G; let k = 0, late = null, made = false, ldMin = ld0;
     while (k++ < 20000) { me.inv = 1; me.hp = Math.max(me.hp, 1); for (const q of PP) { q[0].x = q[1]; q[0].y = q[2]; } G.update(1 / fps); const pl = S.ctx.maelPlan; if (loose) { loose.stun = 99; ldMin = Math.min(ldMin, Math.hypot(loose.x - bx, loose.y - by)); }
       if (pl && pl.t0 != null && !made && g.t > pl.t0 + 0.5) { made = true; late = SQ[2] ? mk(SQ[2].x, SQ[2].y) : null; }   /* a pool made after the capture */
@@ -222,19 +257,19 @@ const path = require('path');
     const PP = []; for (const q of P0) { const i = P0.indexOf(q); if (i < n) { q[1] = SQ[i].x + 0.3; q[2] = SQ[i].y; PP.push(q); } else { q[0].dead = true; q[0].x += 90; } } hold(PP); H.to('leviathan'); zero(); H.until(() => H.ready(S), 5);
     const n0 = H.log.length, c0 = S.charge; H.press('strong2'); H.until(() => { hold(PP); const pl = S.ctx.maelPlan, tb = pl && (pl.burst != null ? pl.burst : pl.burstAt); return pl && tb != null && g.t > tb + 0.8 && !S.busy; }, 14);
     const L = H.log.slice(n0).filter(h => /^m/.test(h.m)), tot = {}; for (const h of L) tot[h.m] = +((tot[h.m] || 0) + h.raw / S.DK).toFixed(2);
-    return { made: cap.length, tot, per: perM(L), gone: cap.every(i => !ids().includes(i)), left: pools().length, charged: S.charge > c0 || S.charge >= 1, cd: +cdS2().toFixed(2) };`, k);
+    return { made: cap.length, tot, per: perM(L), gone: cap.every(i => !ids().includes(i)), left: pools().length, charged: S.charge > c0 || S.charge >= 1, chg: [+c0.toFixed(3), +S.charge.toFixed(3), +H.st(S, ['charged']).toFixed(3)], cd: +cdS2().toFixed(2), cdMax: S.cdMax && S.cdMax.s2 };`, k);
   const MN = [await maelN(1), await maelN(2), await maelN(3)];
   if (MN.every(m => m && !m.err && !m.fewSpots)) {
     ok(MN.every((m, i) => m.made === i + 1 && Object.keys(m.tot).length === i + 1 && m.gone && m.left === 0), 'Maelstrom with one, two and three pools: every captured pool strikes its enemy and is consumed', MN.map(m => [m.made, Object.keys(m.tot).length, m.left]));
     ok(MN.every(m => Object.values(m.tot).every(v => Math.abs(v - MN[0].tot.m0) < 0.05)), 'an enemy in a pool takes the same Maelstrom whatever the number of pools', MN.map(m => m.tot));
-    ok(MN.every(m => m.charged && m.cd > 0.5), 'it charges the gauge and spends the slot cooldown', MN.map(m => m.cd));
+    ok(MN.every(m => m.charged && Math.abs(m.cdMax - 1.5) < 0.05), 'it charges the gauge and spends its 1.5 s slot cooldown', MN.map(m => [m.chg, m.cdMax]));
     console.log('      Maelstrom on one enemy:', MN[0].tot.m0, 'DK (', MN[0].per.m0, 'hits )');
   } else ok(false, 'Maelstrom with 1 / 2 / 3 pools ran', MN);
 
   // ---- 5c. Water Bombs: seven bombs a volley, spread round-robin over the nearest enemies in range, one splash hit each; a fan with no enemy; cast in flight ----
   const BOMBS = LIB + `
     ready(); const P0 = pins(), z0 = +(S.V.z || 0).toFixed(2); const ring = (n, r) => { for (let i = 0; i < P0.length; i++) { const m = P0[i][0]; if (i < n) { const a = i / n * Math.PI * 2; m.dead = false; m.hp = 1e9; m.x = S.V.x + Math.cos(a) * r; m.y = S.V.y + Math.sin(a) * r; m.still = true; m.spd = 0; } else { m.dead = true; m.x += 90; } } return pins(); };
-    const volley = n => { const PP = ring(n, n === 1 ? 3 : 4); zero(); H.until(() => H.ready(S), 6); const n0 = H.log.length, c0 = S.charge; H.press('strong2'); H.step(1.6, () => hold(PP)); const L = H.log.slice(n0).filter(h => /^m/.test(h.m)), pl = S.ctx.bombPlan || {}; return { per: perM(L), dmg: L.map(h => Math.round(h.d)), targets: pl.targets || null, bursts: pl.burst, charged: S.charge > c0 }; };
+    const volley = n => { const PP = ring(n, n === 1 ? 3 : 4); zero(); H.until(() => H.ready(S), 6); const n0 = H.log.length, c0 = S.charge; H.press('strong'); H.step(1.6, () => hold(PP)); const L = H.log.slice(n0).filter(h => /^m/.test(h.m)), pl = S.ctx.bombPlan || {}; return { per: perM(L), dmg: L.map(h => Math.round(h.d)), targets: pl.targets || null, bursts: pl.burst, charged: S.charge > c0 }; };
     const out = { z0 }; out.many = volley(Math.min(7, P0.length)); out.one = volley(1); out.none = volley(0);   /* (most enemies first: a killed test enemy may leave the list) */ out.n = P0.length; return out;`;
   const WB = await R('bombs', BOMBS, false);
   if (WB && !WB.err) { const n1 = Object.values(WB.one.per); ok(n1.length === 1 && n1[0] === 7 && WB.one.bursts === 7, 'Water Bombs: one enemy in range takes all seven bombs, one splash hit each', WB.one);
@@ -259,7 +294,7 @@ const path = require('path');
     out.late = L.filter(h => relT != null && h.t > relT).length; out.used = S.used; out.sharks = H.st(S, ['shark', 'sharkAttacks']); out.recharged = chMax; out.cd = g.cdU; out.cdSet = H.st(S, ['cdSet']); out.walk = !!D.walkAt(Math.floor(me.x), Math.floor(me.y)); out.veh = !!(D.VEH && D.VEH.active); out.poolsEnd = pools().length; out.fx = D.ELEM.fx.filter(f => /jaws/i.test(f.key || '')).length; return out;`, form);
   const SA = await sharkFrom('shark'), SL = await sharkFrom('leviathan');
   for (const [nm, T] of [['the shark', SA], ['Leviathan', SL]]) { if (!T || T.err) { ok(false, 'Shark Attack from ' + nm + ' ran', T); continue; }
-    if (nm === 'the shark') { ok(T.idle === 0, 'Anchor, Hydrojet, Release and pool changes charge nothing', T.idle); ok(!T.notFull, 'Shark Attack does not start below a full gauge'); }
+    if (nm === 'the shark') { ok(T.idle === 0, 'the transformations both ways, Hydrojet and pool changes charge nothing', T.idle); ok(!T.notFull, 'Shark Attack does not start below a full gauge'); }
     ok(T.started && T.pools === 0 && T.lab.length > 0, `Shark Attack starts from ${nm} at full gauge with zero pools`, { form: T.form, pools: T.pools, lab: T.lab });
     ok(T.events.beam === 6 && T.events.beamOnce === 6 && T.events.bite === 6 && T.events.biteOnce === 6 && T.events.other === 0, 'two authored events: one sky-beam hit and one jaw-closure hit per enemy, nothing else', { events: T.events, per: T.per });
     ok(T.noC && T.recharged === 0, 'its own damage does not recharge the gauge', { noCharge: T.noC, charge: T.recharged });
@@ -282,10 +317,10 @@ const path = require('path');
   const tmo = state => R('timeout@' + state, LIB + `
     ready(); const state = arg, P0 = pins(); hold(P0); if (PL && PL.create) mk(S.V.x + 4, S.V.y);
     const cut = () => { if (S.endT != null) S.endT = g.t + 0.12; else S.left = 0.12; };
-    if (state === 'siege') H.to('leviathan'); if (state === 'anchoring') { H.toggle(); H.step(0.2); } if (state === 'maw') { H.press('dodge'); H.step(0.15); } if (state === 'shot') { H.to('leviathan'); zero(); H.press('strong'); H.step(0.1); }
+    if (state === 'siege') H.to('leviathan'); if (state === 'transforming') { H.toggle(); H.step(0.2); } if (state === 'maw') { H.press('dodge'); H.step(0.15); } if (state === 'shot') { H.to('leviathan'); zero(); H.press('strong'); H.step(0.1); }
     const ph = S.phase, n0 = H.log.length, t0 = g.t; cut(); let relT = null; H.until(() => { if (relT == null && S.released) relT = g.t; return S.phase === 'gone'; }, 14); H.step(2.5);
     return { ph, end: S.phase, late: H.log.slice(n0).filter(h => relT != null && h.t > relT + 0.05).length, fin: H.st(S, ['shark']), walk: !!D.walkAt(Math.floor(me.x), Math.floor(me.y)), blocked: D.blocked(me.x, me.y, (me.r || 0.3) * 0.9, 0), veh: !!(D.VEH && D.VEH.active), petAlt: !!me.petAlt, cd: g.cdU, cdSet: H.st(S, ['cdSet']), pools: pools().length, fx: D.ELEM.fx.filter(f => /jaws/i.test(f.key || '')).length, lab: H.labels().filter(s => /ANCHOR|RELEASE/.test(s)).length };`, state);
-  for (const st of ['shark', 'siege', 'anchoring', 'maw', 'shot']) { const T = await tmo(st); if (!T || T.err) { ok(false, 'timeout in ' + st + ' ran', T); continue; }
+  for (const st of ['shark', 'siege', 'transforming', 'maw', 'shot']) { const T = await tmo(st); if (!T || T.err) { ok(false, 'timeout in ' + st + ' ran', T); continue; }
     ok(T.end === 'gone' && T.fin === 0 && T.late === 0 && T.walk && !T.blocked && !T.veh && !T.petAlt && T.pools === 0 && T.fx === 0 && T.lab === 0 && Math.abs(T.cd - 150) < 5 && T.cdSet <= 1, `timeout (${st}): safe exit, no finisher, no later damage, pools, effects and the form control gone, the cooldown once`, T); }
   const DF = await R('defeat', LIB + `
     ready(); const P0 = pins(); hold(P0); if (PL && PL.create) { mk(P0[0][1], P0[0][2]); H.to('leviathan'); zero(); H.press('strong2'); H.until(() => S.ctx.maelPlan && S.ctx.maelPlan.t0 != null, 4); H.step(0.5, () => hold(P0)); }
@@ -303,7 +338,7 @@ const path = require('path');
     const put = sp => { S.V.x = me.x = sp.x; S.V.y = me.y = sp.y; S.V.vx = S.V.vy = 0; H.face(sp.a); H.step(0.25); S.V.x = me.x = sp.x; S.V.y = me.y = sp.y; H.release(); };
     const prot = () => D.propList.filter(p => /door|gate|stair|bridge|exit/i.test(p.kind) && !p.broken).length, pr0 = prot(), sm0 = H.st(S, ['smashed', 'smash']), out = {};
     const tryAt = (btn, dist, wait, form, enemy) => { for (const p of cand) { if (p.broken) continue; const sp = spotFor(p, dist); if (!sp) continue; H.to(form); zero(); put(sp); H.until(() => H.ready(S), 6); S.V.x = me.x = sp.x; S.V.y = me.y = sp.y; const ex = p.x - Math.cos(sp.a) * 1.1, ey = p.y - Math.sin(sp.a) * 1.1; if (enemy && m0) { m0.dead = false; m0.hp = 1e9; m0.x = ex; m0.y = ey; } aimAt(p.x, p.y); H.press(btn); H.step(wait, () => { if (enemy && m0) { m0.x = ex; m0.y = ey; } }); if (m0) { m0.dead = true; m0.x += 90; } return { kind: p.kind, broken: !!p.broken }; } return null; };
-    out.ray = tryAt('strong', 4, 3, 'shark'); out.bombs = tryAt('strong2', 3, 4, 'shark', true); out.maw = tryAt('dodge', 4.2, 4, 'shark', true); out.depth = tryAt('strong', 4, 4, 'leviathan');
+    out.ray = tryAt('strong2', 4, 3, 'shark'); out.bombs = tryAt('strong', 3, 4, 'shark', true); out.maw = tryAt('dodge', 4.2, 4, 'shark', true); out.depth = tryAt('strong', 4, 4, 'leviathan');
     out.stat = H.st(S, ['smashed', 'smash']) - sm0; out.protectedBroken = pr0 - prot(); return out;`);
   if (E1 && !E1.err) { if (E1.noHook) console.log('skip  no smash hook on this floor'); else {
     for (const [k, nm] of [['ray', 'Water Ray'], ['bombs', 'Water Bombs'], ['maw', 'Maw'], ['depth', 'Depth Charge']]) ok(!!E1[k] && E1[k].broken, nm + ' breaks a smashable prop', E1[k] || E1);

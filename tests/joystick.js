@@ -19,7 +19,7 @@ const path = require('path');
   const frames = n => page.evaluate(n => new Promise(r => { let k = 0; const f = () => (++k >= n ? r() : requestAnimationFrame(f)); requestAnimationFrame(f); }), n);
   const S = () => page.evaluate(() => { const D = window.__pp.arc.game._dbg; return { id: D.stick.id, x: D.me.x, y: D.me.y, ptr: window.__pp.arc.ptr.size }; });
   const H = await page.evaluate(() => window.__pp.arc.H), hx = 72, hy = H - 52 - 70;   // the stick's home
-  const reset = async () => { try { await touch('touchEnd', []); } catch (e) {} await frames(4); await page.evaluate(() => { const D = window.__pp.arc.game._dbg; D.me.hp = D.ST.hp; D.me.dead = false; D.mons.forEach(m => { m.hp = 0; m.dead = true; }); if (!window.__home) window.__home = [D.me.x, D.me.y]; D.me.x = window.__home[0]; D.me.y = window.__home[1]; }); await frames(2); };
+  const reset = async () => { try { await touch('touchEnd', []); } catch (e) {} await frames(4); await page.evaluate(() => { const D = window.__pp.arc.game._dbg; D.me.hp = D.ST.hp; D.me.dead = false; D.mons.forEach(m => { m.hp = 0; m.dead = true; }); D.g.cleared = true; D.g.slowT = 0;   /* (clearing the floor this way must not count as the player clearing it: that starts the boss's drop-in beside the pet 1.6 to 2.4 s later, with its slow motion, and the next reset then kills the boss, which wins the floor and stops all movement) */ if (!window.__home) window.__home = [D.me.x, D.me.y]; D.me.x = window.__home[0]; D.me.y = window.__home[1]; }); await frames(2); };
   await reset();
 
   // 1. a thumb drags: the pet moves

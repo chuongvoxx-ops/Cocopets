@@ -337,3 +337,11 @@ Verify the complete ability:
 * Safe offshore return, timeout, defeat, reset and full cleanup.
 
 Implement the complete updated ability, run appropriate project checks and inspect gameplay captures. Report the chosen provisional balance values and any actual remaining limitations.
+
+Update (v321, the user's later changes, recorded by the team; they take precedence over the text above where they differ)
+
+* Duration: 60 seconds at every level. Outer cooldown unchanged (150 seconds).
+* Shark commands: Strong attack 1 is Water Bombs (1.0 second cooldown), Strong attack 2 is Water Ray (1.5 seconds). Leviathan: Strong attack 1 is Depth Charge (1.0 second), Strong attack 2 is Maelstrom (1.5 seconds). Each slot keeps one cooldown across the forms.
+* Tidal Pools: at most three at once, five at Celestial.
+* There is no Anchor command any more. After the fifth Water Ray cast that makes or refreshes a pool, Jaws transforms into Leviathan by itself (the same transformation animation). In Leviathan a Transform command (the former Anchor/Release button, available only in Leviathan form) transforms it back to the shark; the pool cast count then restarts, so five more pool casts transform it again. Existing pools stay. A short lockout (about one second) follows either transformation.
+* Leviathan is no longer anchored: it flies like the shark, a little slower, and Hydrojet remains its Dodge.

@@ -35,7 +35,7 @@
 
   /* ================= the tuning ================= */
   const TUNE = {
-    dur: [20, 25, 35],          /* s of flight at evo 1-3 / 4-6 / 7, from the lift-off */
+    dur: [45, 45, 45],          /* s of flight at every evo, from the lift-off (v321, the user: 45 s; it was 20 / 25 / 35) */
     cd: 120,                    /* s: the Ult's cooldown, from the exit (the kit row's own cd is used when present) */
     size: 1,                    /* a multiplier on the model's own scale (the pink bloom about 5.5 tiles across) */
     petH: 0.7,                  /* the pet's height at the flower's heart, tiles */
@@ -49,9 +49,13 @@
     turn: { max: 6.0, k: 8, acc: 30 },
     /* Swoosh (Dodge): the bank onto the line, the approach to the circle, the spinning pass round the group, the opening
        and the climb back. One hit per enemy; the whole route is checked before it starts */
+    /* (v321, the user: "dive down and swoop the enemies, and then bloom and spin and smash its tentacles on the ground") after the swoop the bud
+       bursts open and spins in place, its six green tentacles slamming the ground in a ring one after another (slamT s after the burst, slamGap apart),
+       then all together (finalT): each slam one hitArea at its spot (slamDmg x DK within slamR; the final finalDmg within finalR), every slam its own registry */
+    slam: { dur: 1.2, spinT: 0.36, slamT: 0.38, slamGap: 0.07, finalT: 0.98, ringR: 2.4, aimR: 5, restR: 3.5, minR: 2.5, maxR: 5, slamR: 1.2, slamDmg: 0.8, finalR: 3.0, finalDmg: 2.0,   /* (H's balance read: trimmed from 1.2 and 3.0) */ z: 1.15, order: [0, 3, 1, 4, 2, 5] },
     swoosh: { bank: 0.16, approach: 0.3, orbit: 0.62, rec: 0.34, R: [2.5, 1.8, 1.2], z: 1.5, hitR: 2.3, dmg: 4, kb: 4, group: 3.6, reach: 11, cone: 0.6, cone2: 1.0, reach2: 6, inv: 0.06, turns: 1, spins: 2 },
     dodgeCd: 0.85,              /* s after the pass: the game's dodge cadence (x its arcane / dodgeK modifiers), as Dive Bomb's */
-    wildCd: 3.5, ringCd: 4,     /* s: Wildflowers from the cast, Ring Blade from the catch (it cannot be recast while away anyway); E's BELLADONNA_MOVES.TUNE.wildCd / ringCd win when present */
+    wildCd: 1.0, ringCd: 1.5,   /* s: Wildflowers from the cast, Ring Blade from the catch (it cannot be recast while away anyway). The core's own (v321, the user: 1 s and 1.5 s); E's TUNE no longer overrides them */
     recallCap: 1.4,             /* s: Twister pressed while the ring is away waits this long at most for it to come back */
     chargeK: 32,                /* the gauge fills at chargeK x DK of damage actually dealt */
     finCap: 18, busyCap: 9,
@@ -205,11 +209,13 @@
       else if (Sw.ph === 1) { const u = cl(Sw.t / T.approach); G.bulb = 1; G.fold = 0; G.lean = 0.3; G.bank = Sw.dir * 0.25; G.z += 0.55 * (1 - sstep(0, 0.7, u));
         { const a = Math.atan2(vx, -vy * GY), sd = Math.abs(vx) > 0.05 ? Math.sign(vx) : (Sw.dir || 1); G.bulbTip = clamp(Math.abs(a) > 1.1 ? sd * 1.1 : a, -1.1, 1.1); G.lean = 0.35; }   /* (M's bulbTip: the bud leans along its dive on the screen, its tip at the target) */
         G.accX = -vx / vm * 1.5; G.accY = -vy / vm * 1.5; G.tentW = 1.18; G.tentG = 1.12; G.ringGlow = 1.4; G.spinV = 9; G.swayV = 4.4; G.flutter = 0.15; G.stream = 1; }   /* (the dart: the bud pitched down onto them, every tendril streaming straight behind) */
-      else if (Sw.ph === 2) { const u = cl(Sw.t / T.orbit), a = u * TAU * T.turns, o = outBack(cl(u / 0.4), 2.6), st = sstep(0.4, 1, u);   /* (impact: the bud bursts open as it reaches the group (E's burst fires on the same frame), past full and back, the petals shivering; then it spins round them open, settling) */
-        G.bulb = 1 - sstep(0, 0.16, u); G.fold = 0; G.bloom = lerp(1, 1.28, o) * (1 - st) + (1 + 0.05 * Math.sin(u * 20)) * st; G.white = lerp(1, 1.12, o) * (1 - st) + st; G.leaves = lerp(1, 1.06, o) * (1 - st) + st;
-        G.shiver = 0.045 * bump(u, 0.04, 0.14, 0.6); G.flutter = 0.6 + 1.0 * bump(u, 0, 0.12, 1); G.bank = Sw.dir * 0.4; G.lean = 0.12; G.ringGlow = 1.8; G.glow = 1.6 * (1 - 0.5 * u) + 0.4; G.spinV = 14; G.swayV = 4.8; G.yaw = 0;
-        G.accX = -Sw.dir * 1.45 * Math.cos(a) - 0.35 * Sw.dir; G.accY = -Sw.dir * 1.25 * Math.sin(a); G.ringTilt = Sw.dir * 0.5; G.tentW = 1 + 0.18 * bump(u, 0, 0.12, 0.8); G.tentG = 1 + 0.12 * bump(u, 0, 0.12, 0.8); G.stream = 1 - sstep(0, 0.3, u); }
-      else { const u = cl(Sw.t / T.rec); G.bulb = 0; G.fold = 0; G.bloom = 1 + 0.04 * Math.sin(u * 14) * (1 - u); G.flutter = 0.6 * (1 - u) + 0.35; G.bank = Sw.dir * 0.2 * (1 - u); G.glow = 0.9 * (1 - u) + 0.5; G.ringGlow = 1.4 * (1 - u) + 0.6; G.spinV = lerp(12, 1.5, u); }   /* (it settles back into flight) */
+      else if (Sw.ph === 2) { const u = cl(Sw.t / T.orbit), a = u * TAU * T.turns; G.bulb = 1; G.fold = 0; G.bank = Sw.dir * 0.4; G.lean = 0.16; G.ringGlow = 1.8; G.glow = 1.1; G.spinV = 14; G.swayV = 4.8; G.yaw = 0;
+        G.accX = -Sw.dir * 1.45 * Math.cos(a) - 0.35 * Sw.dir; G.accY = -Sw.dir * 1.25 * Math.sin(a); G.ringTilt = Sw.dir * 0.5; G.tentW = 1.18; G.tentG = 1.12; G.flutter = 0.15; G.stream = 1; }   /* (the swoop: still a bud, spinning through the group, the tendrils trailing the circle) */
+      else if (Sw.ph === 3) { const L = TUNE.slam, u = cl(Sw.t / L.dur), o = outBack(cl(u / 0.3), 2.6), st = sstep(0.3, 0.8, u), Pl = Sw.slam;   /* (it bursts into bloom, spins in place, and the tentacles are thrown up and slammed down one after another, then all together) */
+        G.bulb = 1 - sstep(0, 0.14, u); G.fold = 0; G.bloom = lerp(1, 1.28, o) * (1 - st) + 1.12 * st; G.white = lerp(1, 1.12, o) * (1 - st) + 1.05 * st; G.leaves = lerp(1, 1.06, o) * (1 - st) + st; G.shiver = 0.04 * bump(u, 0.02, 0.1, 0.4); G.flutter = 0.7 + 0.9 * bump(u, 0, 0.1, 1);
+        G.bank = 0; G.yaw = 0; G.lean = 0; G.accX = 0; G.accY = 0; G.ringGlow = 1.6; G.glow = 1.4; G.spinV = 12; G.swayV = 3; G.stream = 0;
+        if (Pl) { let dn = 0; for (const e of Pl.at) { const x = t - e.t; if (x >= 0 && x < 0.25) dn += (e.kind === 'final' ? 1 : 0.25) * (1 - x / 0.25); } G.z -= 0.12 * Math.min(1, dn); } }   /* (M's slam channels move the tentacles; the flower only jolts down with each) */
+      else { const u = cl(Sw.t / T.rec); G.bulb = 0; G.fold = 0; G.bloom = 1 + 0.04 * Math.sin(u * 14) * (1 - u); G.flutter = 0.6 * (1 - u) + 0.35; G.bank = 0; G.glow = 0.9 * (1 - u) + 0.5; G.ringGlow = 1.4 * (1 - u) + 0.6; G.spinV = lerp(12, 1.5, u); }   /* (it settles back into flight) */
       G.yaw = clamp(G.yaw, -0.2, 0.2); }
     /* --- E's clip, last: it owns the channels it sets --- */
     const E = eClip(S); if (E) { CLIPS._s = S; try { CLIPS[E.clip](G, E.u, S, E.extra); } catch (e) { /* (a clip never breaks the frame) */ } }
@@ -229,6 +235,12 @@
       if (!S.reach1 || t > S.reach1.t1 + 0.8 + Math.random() * 1.6) { const g2 = Math.random() < 0.5; S.reach1 = { g: g2, i: Math.floor(Math.random() * (g2 ? 6 : 8)), t0: t, t1: t + 1.6 }; }
       const R1 = S.reach1, ru = bump(t, R1.t0, R1.t0 + 0.7, R1.t1);
       /* each tentacle: its own speed, wandering (two sines), a bigger and less regular wave, whipped by every change of speed and turn; streaming straight behind in a dart */
+      /* (v321) the Swoosh's slams on M's channels */
+      /* M's slam[6] (0 rest, 1 raised high, 2 slammed with the tip on the floor), slamDir[6] (where each lands: the plan's) and floorZ (the floor under the drawn flower):
+         raised over 0.15 s, slammed down accelerating so the tip touches the floor exactly on its plan.at deadline, held 0.12 s, eased back */
+      const slam = P.slam || (P.slam = new Array(6).fill(0)), SW = S.swoosh, SP = SW && SW.slam; for (let i = 0; i < 6; i++) { let v = 0; if (SP) for (const e of SP.at) { if (e.kind !== 'final' && e.i !== i) continue; const x = t - e.t;
+        const w2 = x < -0.22 ? 0 : x < -0.07 ? sstep(-0.22, -0.07, x) : x < 0 ? 1 + Math.pow((x + 0.07) / 0.07, 2) : x < 0.12 ? 2 : x < 0.42 ? 2 * (1 - sstep(0.12, 0.42, x)) : 0; v = Math.max(v, w2); } slam[i] = v; }
+      if (SW && SW.slamDir) { P.slamDir = SW.slamDir; P.slamR = SW.slamR; } P.floorZ = -(V.z + (S.zOff || 0)) / S.size;
       for (let i = 0; i < 6; i++) { const q = TP.g[i], r = R1.g && R1.i === i ? ru : 0; q.ph += q.w * 1.9 * vk * (1 + 0.3 * Math.sin(t * 0.31 + i * 1.3) + 0.15 * Math.sin(t * 0.83 + i)) * dt; tgPh[i] = q.ph;
         tgAmp[i] = (1.45 + 0.45 * Math.sin(t * 0.43 + i * 1.7) + 0.28 * Math.sin(t * 1.13 + i * 0.6) + 0.85 * ex + 0.6 * r) * (1 - 0.55 * sm); tgCoil[i] = (0.5 + 0.35 * Math.sin(t * (0.5 + 0.07 * i) + i * 2.2) + 0.15 * Math.sin(t * 1.4 + i)) * (1 - r) * (1 - sm); }
       for (let i = 0; i < 8; i++) { const q = TP.w[i], r = !R1.g && R1.i === i ? ru : 0; q.ph += q.w * 1.9 * vk * (1 + 0.3 * Math.sin(t * 0.37 + i * 1.1) + 0.15 * Math.sin(t * 0.97 + i * 2)) * dt; twPh[i] = q.ph;
@@ -297,7 +309,7 @@
       unf: { leaves: 0, bloom: 0, white: 0, tentG: 0, tentW: 0, ring: 0, glow: 0.3, ringGlow: 0 },
       parts: [], free: [], marks: [], ended: false, released: false, pet: X.pet ? X.pet() : null, air: airOf(X), home: { x: me.x, y: me.y }, safe: { x: me.x, y: me.y }, safeT: 0, reachT: 2, sfxT: 0, mx: 0, my: 0, spd: 4.3,
       vs: VEH_SMASH.create(X, g),
-      stats: { swooshSpot: 0, swooshSmash: 0, swooshes: 0, swooshHits: 0, swooshBad: 0, offT: 0, wild: 0, ring: 0, ringOut: 0, ringBack: 0, recalls: 0, twister: 0, smashed: 0, cdSet: 0, dealt: 0, charged: 0, hits: 0, flyT: 0, menuSets: 0, offshoreExit: 0 } };
+      stats: { slams: 0, slamFinal: 0, slamHits: 0, swooshSpot: 0, swooshSmash: 0, swooshes: 0, swooshHits: 0, swooshBad: 0, offT: 0, wild: 0, ring: 0, ringOut: 0, ringBack: 0, recalls: 0, twister: 0, smashed: 0, cdSet: 0, dealt: 0, charged: 0, hits: 0, flyT: 0, menuSets: 0, offshoreExit: 0 } };
     buildReach(S, me.x, me.y);
     g._belladonna = S;
     const ctx = S.ctx = { X, H, C, g, evo: ev, tier, DK, model: M0, poseObj: P, CLIPS, TUNE, sfx: X.sfx || {}, finisher: null, twisterPlan: null, field: null, recall: false,
@@ -317,7 +329,7 @@
       chan: o => { S.eCh = { o, t: g.t }; }, setPose: o => { if (o) S.eCh = { o: Object.assign({}, o), t: g.t }; },   /* (setPose: E's name for chan; ringAway follows the ring's state, not this) */ kick: (key, dv) => kick(S, key, dv),
       /* the one ring: E moves it through its states ('overhead' -> 'outbound' -> 'returning' -> 'overhead'); while it is away
          the model hides its own (pose.ringAway) and E draws it with model.drawRing; Ring Blade cannot be recast */
-      ringState: s => { if (s !== 'overhead' && s !== 'outbound' && s !== 'returning') return S.ring; if (s === S.ring) return s; if (s === 'outbound') S.stats.ringOut++; if (s === 'overhead') { S.stats.ringBack++; ctx.recall = false; S.flickT = g.t; kick(S, 'accY', 6); kick(S, 'tentW', -1.5); kick(S, 'lean', -1.2); if (S.phase === 'fly') { S.cd.s2 = mvTune('ringCd', TUNE.ringCd); S.cdMax.s2 = S.cd.s2; } kick(S, 'ringGlow', 4); kick(S, 'ringTilt', 2.4); kick(S, 'z', -1.6); kick(S, 'bloom', 0.5); }   /* (the catch: the ring rocks, the whole flower dips and bounces) */ S.ring = s; S.ringT = g.t; return s; },
+      ringState: s => { if (s !== 'overhead' && s !== 'outbound' && s !== 'returning') return S.ring; if (s === S.ring) return s; if (s === 'outbound') S.stats.ringOut++; if (s === 'overhead') { S.stats.ringBack++; ctx.recall = false; S.flickT = g.t; kick(S, 'accY', 6); kick(S, 'tentW', -1.5); kick(S, 'lean', -1.2); if (S.phase === 'fly') { S.cd.s2 = TUNE.ringCd; S.cdMax.s2 = S.cd.s2; } kick(S, 'ringGlow', 4); kick(S, 'ringTilt', 2.4); kick(S, 'z', -1.6); kick(S, 'bloom', 0.5); }   /* (the catch: the ring rocks, the whole flower dips and bounces) */ S.ring = s; S.ringT = g.t; return s; },
       vanish: () => { S.V.vis = 0; }, safeReturn: () => { const p = safeReturn(S); S.retPt = p; return { x: p.x, y: p.y }; },
       done: () => actionDone(S), alive: () => alive(S), calm, low: lowFx };
     S.veh = { get active() { return !S.released; }, drive: (mx, my, dt, spd) => { S.mx = mx; S.my = my; if (spd > 0) S.spd = spd; void dt; }, dodge: (mx, my) => trySwoosh(S, mx, my), strong: slot => tryMove(S, slot), ult: () => tryUlt(S),
@@ -419,7 +431,7 @@
     if (Tg.m) { let sx = 0, sy = 0; for (const m of S.H.living()) { if (Math.hypot(m.x - Tg.m.x, m.y - Tg.m.y) > T.group) continue; sx += m.x; sy += m.y; nG++; } if (nG > 1) { cx = lerp(Tg.m.x, sx / nG, 0.7); cy = lerp(Tg.m.y, sy / nG, 0.7); } }   /* (the group round the target: the circle centres on it, held near the target itself) */
     const plan = inVolume(S, cx, cy) ? planSwoosh(S, cx, cy) : null; if (plan && plan.spot) { cx = plan.cx; cy = plan.cy; S.stats.swooshSpot++; }
     if (!plan) {   /* (only an aim outside the flight volume is refused) */ S.marks.push({ x: cx, y: cy, t: 0, life: 0.7 }); S.stats.swooshBad++; const sfx = S.X.sfx || {}; if (sfx.wrong) sfx.wrong(); return; }
-    const info = { spot: !!plan.spot, high: !!plan.high, cx, cy, R: plan.R, hitR: T.hitR, dir: plan.dir, x: d.x, y: d.y, z: d.z, u: 0, ph: 'bank', a: plan.e0, group: nG, m: Tg.m || null, dur: T.bank + T.approach + T.orbit + T.rec };
+    const info = { spot: !!plan.spot, high: !!plan.high, cx, cy, R: plan.R, hitR: T.hitR, dir: plan.dir, x: d.x, y: d.y, z: d.z, u: 0, ph: 'bank', a: plan.e0, group: nG, m: Tg.m || null, dur: T.bank + T.approach + T.orbit + TUNE.slam.dur + T.rec };
     S.swoosh = { ph: 0, t: 0, plan, cx, cy, dir: plan.dir, x0: d.x, y0: d.y, z0: d.z, hits: new Set(), nHit: 0, from: S.ha, info, spin0: S.spinA || 0 };
     S.flickT = g.t; S.me.inv = Math.max(S.me.inv || 0, T.inv); S.stats.swooshes++; g.movedOnce = true; g.dodges = (g.dodges || 0) + 1;
     const sfx = S.X.sfx || {}; if (sfx.whoosh) sfx.whoosh(); if (sfx.note) { sfx.note(660, 0.5, 'sine', 0.04, 1320); sfx.note(330, 0.4, 'triangle', 0.03, 880, 0.05); } if (sfx.hiss) sfx.hiss(0.5, 0.08, 2600);
@@ -430,19 +442,38 @@
     if (W.ph === 0) { const u = cl(W.t / T.bank); d.vx *= 0.86; d.vy *= 0.86; d.x += d.vx * dt; d.y += d.vy * dt; setHeading(S, W.from + wrap(Math.atan2(Pn.ey - d.y, Pn.ex - d.x) - W.from) * inOut(u), dt);
       if (W.t >= T.bank) { W.ph = 1; W.t -= T.bank; W.x0 = d.x; W.y0 = d.y; W.z0 = d.z; I.ph = 'approach'; } }
     if (W.ph === 1) { const u = cl(W.t / T.approach), e = u * u * (3 - 2 * u); d.x = lerp(W.x0, Pn.ex, e); d.y = lerp(W.y0, Pn.ey, e); d.z = lerp(W.z0, Pn.z, e); if (u < 1) setHeading(S, Math.atan2(Pn.ey - W.y0, Pn.ex - W.x0), dt);
-      if (W.t >= T.approach) { W.ph = 2; W.t -= T.approach; I.ph = 'orbit'; I.burst = true; S.flickT = S.g.t; kick(S, 'z', -1.2); } }
+      if (W.t >= T.approach) { W.ph = 2; W.t -= T.approach; I.ph = 'orbit'; kick(S, 'z', -1.2); } }
     if (W.ph === 2) { const u = cl(W.t / T.orbit), a = Pn.e0 + W.dir * TAU * T.turns * u; d.x = W.cx + Math.cos(a) * Pn.R; d.y = W.cy + Math.sin(a) * Pn.R * GY; d.z = Pn.z + 0.25 * Math.sin(u * Math.PI * 2);
       setHeading(S, Math.atan2(Math.cos(a) * W.dir * GY, -Math.sin(a) * W.dir), dt); S.spinA = W.spin0 + W.dir * TAU * T.spins * inOut(u); I.a = a;
-      if (W.t >= T.orbit) { W.ph = 3; W.t -= T.orbit; S.spinA = 0; W.vx = Pn.tx * 7; W.vy = Pn.ty * 7; I.ph = 'open'; kick(S, 'tentW', 1.0); kick(S, 'tentG', 0.6); kick(S, 'accX', -W.dir * 4); const sfx = S.X.sfx || {}; if (sfx.note) sfx.note(1319, 0.3, 'sine', 0.04, 1976); } }
-    if (W.ph === 3) { const u = cl(W.t / T.rec); d.vx = W.vx * (1 - u); d.vy = W.vy * (1 - u); d.x += d.vx * dt; d.y += d.vy * dt; d.z = lerp(Pn.z, Pn.high ? TUNE.wallZ : TUNE.cruise, sstep(0, 1, u)); }
-    else if (dt > 0) { d.vx = (d.x - x0) / dt; d.vy = (d.y - y0) / dt; }
+      if (W.t >= T.orbit) { W.ph = 3; W.t -= T.orbit; W.spin1 = S.spinA || 0; I.ph = 'slam'; I.burst = true; S.flickT = S.g.t; kick(S, 'tentW', 1.0); kick(S, 'tentG', 0.6); kick(S, 'accX', -W.dir * 4); const sfx = S.X.sfx || {}; if (sfx.note) sfx.note(1319, 0.3, 'sine', 0.04, 1976);
+        /* the slams' plan, on the game clock (E hangs its effects on it: ctx.swooshPlan / D.plan) */
+        const L = TUNE.slam, t0 = S.g.t, A0 = [-0.6, 0, 0.6], at = [];
+        /* each tentacle's floor direction (M's slamDir), and where its tip lands: read from the model's slammed pose at the height it will slam from (anchorAt), so the hit is where the tip touches the floor */
+        const zH = Pn.high ? Math.max(L.z, TUNE.wallZ) : L.z, M0 = MOD(), dirs = [0, 1, 2, 3, 4, 5].map(n => n < 3 ? A0[n] : Math.PI - A0[n - 3]), rads = [0, 1, 2, 3, 4, 5].map(() => L.restR); W.zH = zH;
+        /* (aimed) the nearest enemies within aimR, one tentacle each, the tentacle whose own side and angle suit it best; the rest land on a ring at restR. slamDir / slamR in the model's floor plane (its y is the world's / GY) */
+        { const M = S.H.living().map(m => ({ m, dx: m.x - d.x, dy: (m.y - d.y) / GY })).map(q => Object.assign(q, { r: Math.hypot(q.dx, q.dy) })).filter(q => q.r <= L.aimR).sort((p, q) => p.r - q.r).slice(0, 6), free = [0, 1, 2, 3, 4, 5];
+          for (const q of M) { const a = Math.atan2(q.dy, q.dx); let bi = 0, bd = 9; for (let j = 0; j < free.length; j++) { const da = Math.abs(wrap(a - dirs[free[j]])); if (da < bd) { bd = da; bi = j; } } const n = free.splice(bi, 1)[0]; dirs[n] = a; rads[n] = clamp(q.r / S.size, L.minR, L.maxR); W.slamTgt = (W.slamTgt || 0) + 1; } }
+        W.slamDir = dirs; W.slamR = rads;
+        let P2 = null; try { if (M0.anchorAt && !M0.stub) P2 = Object.assign({}, d.pose, { slam: [2, 2, 2, 2, 2, 2], slamDir: dirs, slamR: rads, floorZ: -zH / S.size, spin: 0, bank: 0, lean: 0, yaw: 0, accX: 0, accY: 0, bulb: 0, fold: 0 }); } catch (e) { P2 = null; }
+        L.order.forEach((n, k) => { const a = dirs[n]; let x = d.x + Math.cos(a) * rads[n] * S.size, y = d.y + Math.sin(a) * rads[n] * S.size * GY; if (P2) { try { const q = M0.anchorAt('tg' + n, d.x, d.y, zH, P2, { scale: S.size }); if (q && isFinite(q.x) && isFinite(q.y)) { x = q.x; y = q.y; } } catch (e) { /* (the ring) */ } }
+          at.push({ i: n, kind: 'tip', t: t0 + L.slamT + k * L.slamGap, x, y, r: L.slamR, dmg: L.slamDmg, hits: 0, done: false }); });
+        at.push({ i: -1, kind: 'final', t: t0 + L.finalT, x: d.x, y: d.y, r: L.finalR, dmg: L.finalDmg, hits: 0, done: false });
+        W.slam = S.ctx.swooshPlan = I.plan = { t0, t1: t0 + L.dur, at, fired: 0, x: d.x, y: d.y }; } }
+    if (W.ph === 3) { const L = TUNE.slam, u = cl(W.t / L.dur), Pl = W.slam;   /* it holds its place, sinks a little and spins, the tentacles slamming on their deadlines */
+      d.vx *= Math.max(0, 1 - dt * 10); d.vy *= Math.max(0, 1 - dt * 10); d.x += d.vx * dt; d.y += d.vy * dt; d.vx = d.vy = 0; d.z += (W.zH - d.z) * Math.min(1, dt * 8); S.spinA = W.spin1 + W.dir * TAU * inOut(cl(W.t / L.spinT)); I.u2 = u;   /* (it spins first, then holds still for the slams) */
+      for (const e of Pl.at) { if (e.done || S.g.t < e.t) continue; e.done = true; Pl.fired++; e.hits = S.ctx.hitArea(e.x, e.y, e.r, S.DK * e.dmg, { once: {}, kb: e.kind === 'final' ? 5 : 2.5 }); S.stats[e.kind === 'final' ? 'slamFinal' : 'slams']++; S.stats.slamHits += e.hits;
+        kick(S, 'z', e.kind === 'final' ? -3.2 : -1.1); kick(S, 'bloom', e.kind === 'final' ? 1.4 : 0.4); addPart(S, 9, e.x, e.y, 0, 0, 0, 0, 0.4, e.r * 1.1); petals(S, e.x, e.y, 0.2, e.kind === 'final' ? 16 : 5, 3);
+        if (!calm()) S.X.shake(e.kind === 'final' ? 5 : 1.8, e.kind === 'final' ? 0.16 : 0.06); const sfx = S.X.sfx || {}; if (sfx.thud) sfx.thud(); if (e.kind === 'final' && sfx.stomp) sfx.stomp(); }
+      if (W.t >= L.dur) { W.ph = 4; W.t -= L.dur; S.spinA = 0; W.vx = Pn.tx * 3; W.vy = Pn.ty * 3; W.z4 = d.z; I.ph = 'open'; } }
+    if (W.ph === 4) { const u = cl(W.t / T.rec); d.vx = W.vx * (1 - u); d.vy = W.vy * (1 - u); d.x += d.vx * dt; d.y += d.vy * dt; d.z = lerp(W.z4, Pn.high ? TUNE.wallZ : TUNE.cruise, sstep(0, 1, u)); }
+    else if (W.ph !== 3 && dt > 0) { d.vx = (d.x - x0) / dt; d.vy = (d.y - y0) / dt; }
     /* the swept volume: every enemy the folded flower passes on the approach's end and round the circle, once */
     if ((W.ph === 1 && W.t > T.approach * 0.6) || W.ph === 2) { for (const m of S.H.living()) { if (W.hits.has(m)) continue; if (Math.hypot(m.x - d.x, m.y - d.y) > T.hitR + (m.r || 0.4)) continue; W.hits.add(m); if (hitCharge(S, m, S.DK * T.dmg, { kb: T.kb }) > 0) { W.nHit++; S.stats.swooshHits++; if (S.g.t - (S.biteT || -9) > 0.08) { S.biteT = S.g.t; kick(S, 'z', -1.4); kick(S, 'lean', 1.6); kick(S, 'bloom', 0.8); } petals(S, m.x, m.y, 0.5, 4, 3); } }
       /* the same swept volume breaks the scenery under the pass (every few frames; VEH_SMASH: doors and bridges kept, chests opened, shrines triggered) */
       W.smT = (W.smT || 0) - dt; if (W.smT <= 0) { W.smT = 0.05; S.stats.swooshSmash += smashArea(S, d.x, d.y, T.hitR) || 0; }
       if (Math.random() < dt * (lowFx() ? 14 : 40)) addPart(S, Math.random() < 0.5 ? 3 : 1, d.x + (Math.random() - 0.5) * 2, d.y + (Math.random() - 0.5) * 1.2, d.z + Math.random() * 2, -d.vx * 0.12, -d.vy * 0.12, 0.3, 0.5 + Math.random() * 0.4, 0.12, { col: Math.random() < 0.5 ? PINK : MINT2, drag: 1.5 }); }
-    I.x = d.x; I.y = d.y; I.z = d.z; I.u = cl(((W.ph > 0 ? T.bank : 0) + (W.ph > 1 ? T.approach : 0) + (W.ph > 2 ? T.orbit : 0) + W.t) / I.dur);
-    if (W.ph === 3 && W.t >= T.rec) { S.swoosh = null; S.cd.dodge = dodgeCd(S); S.cdMax.dodge = S.cd.dodge; }
+    I.x = d.x; I.y = d.y; I.z = d.z; I.u = cl(((W.ph > 0 ? T.bank : 0) + (W.ph > 1 ? T.approach : 0) + (W.ph > 2 ? T.orbit : 0) + (W.ph > 3 ? TUNE.slam.dur : 0) + W.t) / I.dur);
+    if (W.ph === 4 && W.t >= T.rec) { S.swoosh = null; S.cd.dodge = dodgeCd(S); S.cdMax.dodge = S.cd.dodge; }
   }
 
   /* ================= the commands ================= */
@@ -457,7 +488,7 @@
     S.mvQ = null;
     const name = s2 ? 'ringBlade' : 'wildflowers', [MV, fn] = mvFn(name); if (!fn) return;
     S.flickT = S.g.t; if (s2) { const T2 = target(S); S.throwDir = T2.x >= S.V.x ? 1 : -1; }
-    S.busy = name; S.busyT = 0; S.cd[key] = mvTune(tk, TUNE[tk]); S.cdMax[key] = S.cd[key]; S.stats[s2 ? 'ring' : 'wild']++;
+    S.busy = name; S.busyT = 0; S.cd[key] = TUNE[tk]; S.cdMax[key] = S.cd[key]; S.stats[s2 ? 'ring' : 'wild']++;
     try { fn.call(MV, S.ctx); } catch (e) { if (typeof console !== 'undefined') console.warn('Belladonna: a move failed', e); actionDone(S); }
   }
   function tryUlt(S, queued) {
@@ -480,7 +511,7 @@
     if (S.phase === 'fly') { S.V.locked = false; S.cam = null; }
   }
   function queues(S) { const g = S.g, V = S.V; if (S.busy || S.swoosh) return;
-    if (S.ultQ != null) { const q = S.ultQ; S.ultQ = null; if (g.t - q < 2 && S.charge >= 1 && !S.used) { tryUlt(S, true); if (S.phase !== 'fly') return; } }
+    if (S.ultQ != null) { const q = S.ultQ; S.ultQ = null; if (g.t - q < 3.5 && S.charge >= 1 && !S.used) { tryUlt(S, true); if (S.phase !== 'fly') return; } }
     if (V.locked) return;
     if (S.dQ != null && S.cd.dodge <= 0) { const q = S.dQ; S.dQ = null; if (g.t - q < 0.6) { trySwoosh(S, null, null, true); if (S.swoosh) return; } }
     if (S.mvQ) { const Q = S.mvQ, key = Q.slot === 'strong2' ? 's2' : 's1'; if (g.t - Q.t > TUNE.mvHold + 0.8) S.mvQ = null; else if (S.cd[key] <= 0) { S.mvQ = null; tryMove(S, Q.slot, true); } } }

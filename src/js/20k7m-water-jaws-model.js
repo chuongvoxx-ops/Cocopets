@@ -377,12 +377,69 @@ const JAWS_MODEL = (() => {
     const X0 = o.sx(x), Y0 = o.sy(y); c.save(); c.globalAlpha = al; c.translate(X0, Y0); c.rotate(Math.atan2(Math.sin(a) * GY, Math.cos(a))); c.scale(1, 0.4);
     const g = c.createRadialGradient(0, 0, 0, 0, 0, 2.3 * k); g.addColorStop(0, 'rgba(6,12,28,0.9)'); g.addColorStop(0.6, 'rgba(6,12,28,0.4)'); g.addColorStop(1, 'rgba(6,12,28,0)'); c.fillStyle = g; c.beginPath(); c.arc(0, 0, 2.3 * k, 0, TAU); c.fill(); c.restore();
   }
+  /* ================= the Tidal Pools' look (the core owns the records and their rules; this only draws them) =================
+     drawPools(c, pools, o): every pool in one GPU pass (a disc each, GLM id 37), then soft light rising off them; a 2D
+     picture without a usable GPU. pools: the core's records ({ id, x, y, r, born, t, state, claimT }); o: { T, sx, sy, t, low }
+     with t the same clock as `born`. States: forming (it blooms out for 0.45 s after `born`), idle, claimed (brighter, swirling),
+     refreshed (a pulse when `t` moves), and gone: a pool that leaves the list (or turns 'consumed') drains away, or bursts if it
+     was claimed; this keeps those last 0.6 s itself, so the core can drop the record at once. */
+  const PM = new Map(); let POOLMESH = null, CAUS = null; const PI0 = [], PJ = [], PHL = [];
+  const poolMesh = () => { if (!POOLMESH) { const B = GLM.builder(1); B.surf((u, v) => { const a = u * TAU, r = 1.2 * Math.pow(v, 0.8); return [Math.cos(a) * r, Math.sin(a) * r, 0]; }, 56, 20, () => 37, { e: (u, v) => v }); POOLMESH = B.done(); } return POOLMESH; };
+  function poolState(pools, t) {
+    const seen = new Set(), out = [];
+    for (const p of pools || []) { if (!p || !isFinite(p.x) || !isFinite(p.y)) continue; seen.add(p.id); let m = PM.get(p.id); if (!m) { m = { id: p.id, born: p.born != null && p.born <= t ? p.born : t, seed: ((p.id || 0) * 0.6180339) % 1, wc: 0 }; PM.set(p.id, m); }
+      m.x = p.x; m.y = p.y; m.r = p.r > 0.2 ? p.r : 1.6; m.st = p.state; m.ct = p.claimT; m.rt = p.t; if (p.state === 'claimed') m.wc = 1; else if (p.state === 'available') m.wc = 0;
+      if (p.state === 'consumed' && m.goneT == null) { m.goneT = t; m.burst = !!m.wc; } }
+    for (const [id, m] of PM) { if (!seen.has(id) && m.goneT == null) { m.goneT = t; m.burst = m.st === 'claimed' || !!m.wc; } if (m.goneT != null && (t - m.goneT > 0.7 || t < m.goneT)) PM.delete(id); }
+    for (const [, m] of PM) { const form = cl((t - m.born) / 0.45), clm = m.st === 'claimed' ? cl((t - (m.ct != null ? m.ct : t - 1)) / 0.3) : 0, ref = m.rt != null && m.rt > m.born + 0.05 ? Math.exp(-Math.max(0, t - m.rt) * 4) : 0;
+      const gone = m.goneT != null ? cl((t - m.goneT) / (m.burst ? 0.5 : 0.6)) : 0; out.push({ m, form: m.goneT != null ? 1 : form, clm: Math.max(clm, m.goneT != null && m.burst ? 1 - gone : 0), ref, wear: m.goneT != null ? (m.burst ? -gone : gone) : 0 }); }
+    return out;
+  }
+  function poolHalos(c, L, o, t) { if (typeof GLM === 'undefined' || !GLM.halos) return; const T = o.T; PHL.length = 0;
+    for (const q of L) { const m = q.m, X = o.sx(m.x), Y = o.sy(m.y), g = (0.5 + 0.5 * q.form) * (1 - Math.abs(q.wear)), r = m.r * (0.4 + 0.6 * q.form);
+      PHL.push({ x: X, y: Y, r: r * 1.45 * T, a: (0.16 + 0.22 * q.clm + 0.25 * q.ref) * g, col: '#8FD8FF', sy: GY });   // (the light on the floor round it)
+      if (!o.low) for (let i = 0; i < 4; i++) { const ph = (t * 0.35 + i / 4 + m.seed) % 1, an = m.seed * 40 + i * 1.7 + t * 0.2, rr = r * (0.25 + 0.5 * ((i * 0.37 + m.seed) % 1)); PHL.push({ x: X + Math.cos(an) * rr * T, y: Y + Math.sin(an) * rr * T * GY - ph * 1.3 * ZK * T, r: (0.16 + 0.1 * (1 - ph)) * T, a: 0.32 * Math.sin(Math.PI * ph) * g * (1 + q.clm), col: '#BFEAFF' }); }   // (motes of light rising)
+      if (q.wear < 0) { const u = -q.wear; PHL.push({ x: X, y: Y, r: m.r * (0.6 + 1.2 * u) * T, a: 0.6 * (1 - u), col: '#DFF6FF', sy: GY }); }
+      if (q.form < 1) { const u = q.form; PHL.push({ x: X, y: Y, r: m.r * (0.3 + 1.0 * u) * T, a: 0.7 * Math.sin(Math.PI * u), col: '#DFF6FF', sy: GY }); }   // (forming: a bright rim racing outward)
+      if (q.ref > 0.02) { const u = 1 - q.ref; PHL.push({ x: X, y: Y, r: m.r * (0.9 + 0.5 * u) * T, a: 0.55 * q.ref, col: '#DFF6FF', sy: GY }); } }   // (refreshed: a bright ring pulse)
+    GLM.halos(c, PHL); }
+  function causSprite() { if (CAUS || typeof document === 'undefined') return CAUS; const N = 128, cv = document.createElement('canvas'); cv.width = cv.height = N; const g = cv.getContext('2d'); g.strokeStyle = 'rgba(190,235,255,0.9)'; g.lineWidth = 1.6; g.lineJoin = 'round';
+    for (let k = 0; k < 26; k++) { let x = (Math.sin(k * 12.9) * 0.5 + 0.5) * N, y = (Math.sin(k * 78.2) * 0.5 + 0.5) * N, a = k * 2.4; g.beginPath(); g.moveTo(x, y); for (let i = 0; i < 6; i++) { a += Math.sin(k * 3.1 + i) * 1.2; x += Math.cos(a) * 9; y += Math.sin(a) * 9; g.lineTo(x, y); } g.stroke(); }
+    return CAUS = cv; }
+  function poolsFallback(c, L, o, t) { const T = o.T, sp = causSprite();
+    for (const q of L) { const m = q.m, X = o.sx(m.x), Y = o.sy(m.y), dr = Math.max(0, q.wear), bu = Math.max(0, -q.wear), fe = 1 - Math.pow(1 - q.form, 3), r = m.r * T * (0.3 + 0.7 * fe) * (1 - 0.8 * dr * dr) * (1 + 0.3 * bu), al = Math.min(1, q.form / 0.35) * (1 - dr) * (1 - bu * bu); if (r < 1 || al < 0.01) continue;
+      c.save(); c.translate(X, Y); c.scale(1, GY); const gr = c.createRadialGradient(0, 0, 0, 0, 0, r * 1.08); gr.addColorStop(0, 'rgba(5,26,77,' + 0.82 * al + ')'); gr.addColorStop(0.6, 'rgba(26,95,180,' + 0.72 * al + ')'); gr.addColorStop(0.9, 'rgba(70,160,230,' + 0.55 * al + ')'); gr.addColorStop(1, 'rgba(120,200,255,0)');
+      c.fillStyle = gr; c.beginPath(); c.arc(0, 0, r * 1.08, 0, TAU); c.fill();
+      if (sp && !o.low) { c.save(); c.beginPath(); c.arc(0, 0, r * 0.95, 0, TAU); c.clip(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = (0.28 + 0.25 * q.clm) * al; c.rotate(t * 0.15 * (1 + 3 * q.clm) + m.seed * 6); c.drawImage(sp, -r, -r, r * 2, r * 2); c.rotate(-t * 0.35 * (1 + 2 * q.clm)); c.globalAlpha *= 0.7; c.drawImage(sp, -r * 0.8, -r * 0.8, r * 1.6, r * 1.6); c.restore(); }
+      c.globalCompositeOperation = 'lighter'; c.lineCap = 'round';
+      for (let i = 0; i < 3; i++) { c.strokeStyle = 'rgba(200,240,255,' + (0.5 - 0.12 * i) * al + ')'; c.lineWidth = Math.max(1, r * (0.07 - 0.015 * i)); const a0 = t * (0.6 + 0.3 * i) * (i % 2 ? -1 : 1) + m.seed * 9 + i * 2; c.beginPath(); c.arc(0, 0, r * (0.97 + 0.025 * Math.sin(t * 1.7 + i)), a0, a0 + 2.2 + 0.5 * Math.sin(t + i)); c.stroke(); }   // (the foamy rim, lapping)
+      for (let i = 0; i < 2; i++) { const u = (t * 0.5 + i * 0.5 + m.seed) % 1; c.strokeStyle = 'rgba(160,220,255,' + 0.3 * (1 - u) * al + ')'; c.lineWidth = Math.max(1, r * 0.025); c.beginPath(); c.arc(0, 0, r * (0.2 + 0.7 * u), 0, TAU); c.stroke(); }   // (ripples)
+      if (q.clm > 0.02) { c.strokeStyle = 'rgba(210,245,255,' + 0.55 * q.clm * al + ')'; c.lineWidth = Math.max(1, r * 0.05); for (let k = 0; k < 3; k++) { c.beginPath(); for (let j = 0; j <= 14; j++) { const f = j / 14, a = k * TAU / 3 - t * 4 + f * 3.2, rr = r * (0.15 + 0.7 * f); if (j) c.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); else c.moveTo(Math.cos(a) * rr, Math.sin(a) * rr); } c.stroke(); } }   // (claimed: a swirl)
+      c.restore(); } }
+  function drawPools(c, pools, o) {
+    o = o || {}; const t = o.t != null ? o.t : nowMs() / 1000, L = poolState(pools, t); if (!L.length || !o.T) return;
+    if (o.low == null) o.low = lowFx();
+    if (glOn()) { try { poolsGL(c, L, o, t); poolHalos(c, L, o, t); return; } catch (e) { if (typeof console !== 'undefined') console.warn('Jaws: pools', e); } }
+    poolsFallback(c, L, o, t); poolHalos(c, L, o, t);
+  }
+  function poolsGL(c, L, o, t) {
+    const k = o.T, x0 = L[0].m.x, y0 = L[0].m.y, X0 = o.sx(x0), Y0 = o.sy(y0); let bx0 = 1e9, by0 = 1e9, bx1 = -1e9, by1 = -1e9;
+    for (const q of L) { const X = o.sx(q.m.x), Y = o.sy(q.m.y), rr = q.m.r * 1.45 * k; bx0 = Math.min(bx0, X - rr); bx1 = Math.max(bx1, X + rr); by0 = Math.min(by0, Y - rr * GY); by1 = Math.max(by1, Y + rr * GY); }
+    const m = c.getTransform ? c.getTransform() : null, soft = GLM.soft && !(typeof window !== 'undefined' && window.__JAWS_GLHQ), dev = (m ? Math.max(0.25, Math.hypot(m.a, m.b)) : 1) * (soft ? 0.4 : 1);
+    let W = Math.ceil((bx1 - bx0) * dev), H = Math.ceil((by1 - by0) * dev); const sc = Math.min(1, GLCAP / Math.max(W, H)); W = Math.max(2, Math.ceil(W * sc)); H = Math.max(2, Math.ceil(H * sc)); const bw = bx1 - bx0, bh = by1 - by0;
+    const S = { px: EXW, py: [0, GY, -ZK], pd: CW, cl: [2 * k / bw, 2 * (X0 - bx0) / bw - 1, -2 * k / bh, 1 - 2 * (Y0 - by0) / bh], v: CW, lk: LW, ls: SBW, lr: RIMW, up: UPW, low: o.low, rim: RIMC, amb: AMBC, t };
+    const mesh = poolMesh(); PJ.length = 0; let n = 0;
+    for (const q of L) { const g = PI0[n] || (PI0[n] = { R0: new Float32Array(3), R1: new Float32Array(3), R2: new Float32Array(3), T: new Float32Array(3) }); n++; const r = q.m.r;
+      g.mesh = mesh; g.R0[0] = r; g.R0[1] = 0; g.R0[2] = 0; g.R1[0] = 0; g.R1[1] = r; g.R1[2] = 0; g.R2[0] = 0; g.R2[1] = 0; g.R2[2] = 1; g.T[0] = q.m.x - x0; g.T[1] = (q.m.y - y0) / GY; g.T[2] = 0;
+      g.alpha = 0.99; g.glow = Math.min(1, q.clm + 0.6 * q.ref); g.glow2 = q.form; g.wear = q.wear; g.spill = q.m.seed; g.fx = 0; g.kind = 0; g.outline = false; PJ.push(g); }
+    const cvs = GLM.render(W, H, S, PJ); if (cvs) c.drawImage(cvs, 0, 0, W, H, bx0, by0, bw, bh);
+  }
   function anchor(name) { if (!LAST) return null; const p = LAST.R.A[name]; if (!p) return null; return LAST.V.toW(p); }
   function anchorDir(name) { if (!LAST) return null; const p = LAST.R.A[name]; if (!p) return null; const w = mv(LAST.V.Rh, p); return { x: w[0], y: w[1] * GY, z: w[2] }; }
   function anchorAt(name, x, y, z, a, P, o) { const R = rig(P), p = R.A[name]; if (!p) return null; const sc = ((o && o.scale) || 1) * VIS, w = mv(rotZ(a), p); return { x: x + w[0] * sc, y: y + w[1] * GY * sc, z: z + w[2] * sc }; }
   function blankPose() { return { xf: 0, alpha: 1, swim: 0, swimK: 0.5, jaw: 0, cannon: 0, recoil: 0, bank: 0, pitch: 0, fin: 0, tail: 0, glow: 0.5, charge: 0, breath: 0, waterline: null, wingGun: 0, glowK: 1 }; }
   function create() { const P = blankPose(); return { pose: P, draw: (c, x, y, z, a, P2, o) => draw(c, x, y, z, a, P2 || P, o), drawShadow: (c, x, y, z, a, P2, o) => drawShadow(c, x, y, z, a, P2 || P, o) }; }
   const SIZE = { len: (XN - XT) * VIS, lenTail: (XN - XT + NTAIL * LTAIL + 0.6) * VIS, wid: 1.5 * VIS, widLev: (1.5 + 2 * FLANK_OUT) * VIS, span: 3.6 * VIS, r: 1.7 * VIS };
-  return { create, warm: () => { glOn(); return true; }, warmIdle: () => { glOn(); }, warmPlan: () => ({ pending: 0, total: 0 }), ready: () => true, draw, drawShadow, anchor, anchorDir, anchorAt, rigOf: P => rig(P || blankPose()), blankPose, SIZE, PARTS, __dbg: { get MESH() { return MESH; }, OUTL },
+  return { create, warm: () => { glOn(); return true; }, warmIdle: () => { glOn(); }, warmPlan: () => ({ pending: 0, total: 0 }), ready: () => true, draw, drawShadow, anchor, anchorDir, anchorAt, rigOf: P => rig(P || blankPose()), blankPose, drawPools, SIZE, PARTS, __dbg: { get MESH() { return MESH; }, OUTL },
     get gl() { return glOn(); }, get stats() { return { ms: GLMS, n: GLN, meshMs: MESH_MS }; } };
 })();
