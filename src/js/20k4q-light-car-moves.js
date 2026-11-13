@@ -73,6 +73,26 @@ const SPORTSCAR_MOVES = (() => {
     starPath(g, C, C, R, r); g.strokeStyle = 'rgba(194,80,143,0.65)'; g.lineWidth = 1.3; g.stroke();
     g.save(); starPath(g, C, C, R, r); g.clip(); starPath(g, C - 0.9, C - 1.1, R * 0.97, r * 0.97); g.strokeStyle = 'rgba(255,248,251,0.7)'; g.lineWidth = 1.2; g.stroke(); g.restore();
     gr = g.createRadialGradient(C - 2, C - 3, 0, C, C, 9); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.5, 'rgba(255,250,225,0.6)'); gr.addColorStop(1, 'rgba(255,250,225,0)'); g.fillStyle = gr; g.fillRect(C - 10, C - 10, 20, 20); });
+  /* (v326, the user: "make the stars smaller and pink and varied in sizes") Shooting Star's missiles: the same bevelled star in pink, three bodies
+     (pink, hot pink, a lighter blush), a pale pink-white bevel highlight, a soft pink halo; and a pink comet tail */
+  const STARP = [['#FF7AC8', '#E0559F'], ['#FF3FA6', '#C42A80'], ['#FFB3DC', '#F07AB8']];
+  const sprStarP = v => fxSprite('sc2starP' + v, 80, 80, g => {
+    const C = 40, R = 25, r = 10.5, LX = -0.6, LY = -0.8, [B0, B1] = STARP[v];
+    let gr = g.createRadialGradient(C, C, 0, C, C, 40); gr.addColorStop(0, 'rgba(255,190,226,0.5)'); gr.addColorStop(0.4, 'rgba(255,92,168,0.22)'); gr.addColorStop(1, 'rgba(255,92,168,0)'); g.fillStyle = gr; g.fillRect(0, 0, 80, 80);
+    starPath(g, C, C, R, r); g.fillStyle = B0; g.fill();
+    for (let k = 0; k < 5; k++) { const at = -Math.PI / 2 + k * TAU / 5, tip = [C + Math.cos(at) * R, C + Math.sin(at) * R];
+      for (const sd of [-1, 1]) { const av = at + sd * Math.PI / 5, val = [C + Math.cos(av) * r, C + Math.sin(av) * r], nm = at + sd * Math.PI / 2 * 0.55, sh = cl(0.5 + 0.65 * (Math.cos(nm) * LX + Math.sin(nm) * LY));
+        gr = g.createLinearGradient(C, C, (tip[0] + val[0]) / 2, (tip[1] + val[1]) / 2);
+        gr.addColorStop(0, '#FFF6FB'); gr.addColorStop(0.28, mixH('#FFE3F2', B0, 1 - sh)); gr.addColorStop(0.7, mixH(B0, B1, 1 - sh * 0.85)); gr.addColorStop(1, mixH(B1, DARKP, 0.6 * (1 - sh)));
+        g.beginPath(); g.moveTo(C, C); g.lineTo(tip[0], tip[1]); g.lineTo(val[0], val[1]); g.closePath(); g.fillStyle = gr; g.fill(); g.strokeStyle = gr; g.lineWidth = 0.6; g.stroke(); } }
+    g.lineCap = 'round'; g.lineJoin = 'round';
+    for (let k = 0; k < 5; k++) { const at = -Math.PI / 2 + k * TAU / 5, lit = Math.cos(at) * LX + Math.sin(at) * LY; g.strokeStyle = `rgba(255,240,248,${0.35 + 0.4 * Math.max(0, lit)})`; g.lineWidth = 1.1; g.beginPath(); g.moveTo(C, C); g.lineTo(C + Math.cos(at) * R * 0.94, C + Math.sin(at) * R * 0.94); g.stroke(); }
+    starPath(g, C, C, R, r); g.strokeStyle = 'rgba(194,60,130,0.7)'; g.lineWidth = 1.3; g.stroke();
+    g.save(); starPath(g, C, C, R, r); g.clip(); starPath(g, C - 0.9, C - 1.1, R * 0.97, r * 0.97); g.strokeStyle = 'rgba(255,236,246,0.75)'; g.lineWidth = 1.2; g.stroke(); g.restore();
+    gr = g.createRadialGradient(C - 2, C - 3, 0, C, C, 9); gr.addColorStop(0, 'rgba(255,250,253,1)'); gr.addColorStop(0.5, 'rgba(255,226,242,0.6)'); gr.addColorStop(1, 'rgba(255,226,242,0)'); g.fillStyle = gr; g.fillRect(C - 10, C - 10, 20, 20); });
+  const sprTailP = () => imgSprite('sc2tailP', 128, 32, (x, y, w, h) => { const u = (x + 0.5) / w, hw = 0.1 + 0.9 * Math.pow(u, 0.75), v = (y + 0.5 - h / 2) / (h / 2), q = v / hw;
+    if (q * q >= 1) return null; const across = (Math.exp(-q * q * 3.4) - Math.exp(-3.4)) / (1 - Math.exp(-3.4)), a = across * Math.pow(u, 1.7) * Math.min(1, (1 - u) / 0.05 + 0.4), k = cl(across * 1.25) * (0.25 + 0.75 * u);
+    return [255, Math.round(lerp(63, 226, k)), Math.round(lerp(166, 242, k)), a]; });
   /* a comet tail: head at the right edge, tapering and fading to nothing at the left, gold-white core in rose */
   const sprTail = () => imgSprite('sc2tail', 128, 32, (x, y, w, h) => { const u = (x + 0.5) / w, hw = 0.1 + 0.9 * Math.pow(u, 0.75), v = (y + 0.5 - h / 2) / (h / 2), q = v / hw;
     if (q * q >= 1) return null; const across = (Math.exp(-q * q * 3.4) - Math.exp(-3.4)) / (1 - Math.exp(-3.4)), a = across * Math.pow(u, 1.7) * Math.min(1, (1 - u) / 0.05 + 0.4), k = cl(across * 1.25) * (0.25 + 0.75 * u);
@@ -124,7 +144,7 @@ const SPORTSCAR_MOVES = (() => {
     const pk = Math.exp(-Math.pow((d - 0.86) / 0.045, 2)), halo = 0.42 * Math.exp(-Math.pow((d - 0.86) / 0.11, 2)), hz = 0.3 * sm((d - 0.28) / 0.55) * (d < 0.86 ? 1 : 0), s = pk + halo + hz;
     if (s < 0.004) return null; const k = cl(pk / s), edge = sm((1 - d) / 0.08); return [255, Math.round(lerp(150, 246, k)), Math.round(lerp(208, 252, k)), Math.min(1, s) * edge]; });
   const sprShadow = () => radialSprite('sc2shd', 64, d => { return [40, 20, 40, 0.55 * Math.pow(1 - sm(d), 1.4)]; });
-  const BAKE = [sprStar, sprTail, () => sprGlint(GOLD), () => sprGlint(PINK), () => sprHeart(ROSE), () => sprHeart('#FFC56E'), sprHeartLine, sprHeartSoft, () => sprRing('rim'), () => sprRing('gold'), sprSigil, sprMarker, () => sprSmoke(0), () => sprSmoke(1), () => sprSmoke(2), sprAura, sprShadow, sprPinkWave,
+  const BAKE = [sprStar, sprTail, () => sprStarP(0), () => sprStarP(1), () => sprStarP(2), sprTailP, () => sprGlint(GOLD), () => sprGlint(PINK), () => sprHeart(ROSE), () => sprHeart('#FFC56E'), sprHeartLine, sprHeartSoft, () => sprRing('rim'), () => sprRing('gold'), sprSigil, sprMarker, () => sprSmoke(0), () => sprSmoke(1), () => sprSmoke(2), sprAura, sprShadow, sprPinkWave,
     () => glowSprite(ROSE), () => glowSprite(WGOLD), () => glowSprite(PINK), () => glowSprite(GOLD), () => typeof raySprite === 'function' && raySprite(WGOLD), () => typeof raySprite === 'function' && raySprite(PINK)];
   let baked = 0;
   function warm(budgetMs) { const t0 = performance.now(), B = budgetMs == null ? 4 : budgetMs; while (baked < BAKE.length && performance.now() - t0 < B) { try { BAKE[baked](); } catch (e) {} baked++; } return baked >= BAKE.length; }
@@ -243,7 +263,7 @@ const SPORTSCAR_MOVES = (() => {
     const ms = []; let t = 0, fired = 0, sent = false, gone = 0; const sig = Math.max(1.2, carL(car) * 0.56);
     sfx(X, 'chime', 1318, 0.7); sfx(X, 'note', 2093, 0.35, 'sine', 0.07, 3136, 0.05);
     function fire(v) { const off = base + v * (TAU / NM) * tu.turn, cx = car.x, cy = car.y; car.glow = Math.max(car.glow || 0, 0.6);
-      for (let i = 0; i < NM; i++) { const a = off + i * TAU / NM, m = MPOOL.pop() || {}; m.x = cx + Math.cos(a) * sig * 0.75; m.y = cy + Math.sin(a) * sig * 0.75; m.a = a; m.d = 0; m.t = 0; m.z = 0.55 + 0.12 * Math.sin(i * 1.7); m.rot = Math.random() * TAU; m.vr = (i % 2 ? 1 : -1) * rnd(2.2, 3.4); m.end = 0; m.ex = 0; ms.push(m); }
+      for (let i = 0; i < NM; i++) { const a = off + i * TAU / NM, m = MPOOL.pop() || {}; m.x = cx + Math.cos(a) * sig * 0.75; m.y = cy + Math.sin(a) * sig * 0.75; m.a = a; m.d = 0; m.t = 0; m.z = 0.55 + 0.12 * Math.sin(i * 1.7); m.rot = Math.random() * TAU; m.vr = (i % 2 ? 1 : -1) * rnd(2.2, 3.4); m.end = 0; m.ex = 0; m.sz = 0.58 * rnd(0.5, 1.4); m.pv = Math.random() < 0.2 ? 2 : Math.random() < 0.5 ? 0 : 1; ms.push(m); }   /* (v326: each star its own size, 0.5-1.4x of a new average 0.55x of the old, and its own pink) */
       for (let k = 0; k < 5; k++) { const a = base + k * TAU / 5 + t * 0.9; part(S, 7, cx + Math.cos(a) * sig, cy + Math.sin(a) * sig, 0.25, 0, 0, 1.5, 0.22, 0.9, { fin: 0.02 }); }
       sfx(X, 'note', 1760 + v * 150, 0.12, 'triangle', 0.06, 2637); sfx(X, 'note', 2637 + v * 200, 0.2, 'sine', 0.045, 3520, 0.03); sfx(X, 'hiss', 0.07, 0.045, 6500); }
     function pop(m, x, y, hard) { m.end = m.t; m.ex = 1; const z = m.z; part(S, 7, x, y, z, 0, 0, 0, 0.16, hard ? 1.1 : 0.6, { fin: 0.01 }); if (hard) part(S, 8, x, y, z, 0, 0, 0, 0.26, 0.35, { grow: 2.6, fin: 0.01 }); burstAt(S, x, y, z, hard ? 5 : 2); }
@@ -261,25 +281,25 @@ const SPORTSCAR_MOVES = (() => {
         if (sent && !ms.length && t > tu.sigil + NV * tu.gap + 0.35) act.dead = true; },
       under(c, B) { const T = S.T, cx = car.x, cy = car.y; const fa = Math.min(1, t / 0.2) * (1 - sm((t - (tu.sigil + NV * tu.gap)) / 0.35));
         if (fa > 0.01 && !car.gone) for (let k = 0; k < 5; k++) { const a = base + k * TAU / 5 + t * 0.9, x = H.sx(cx + Math.cos(a) * sig), y = H.sy(cy + Math.sin(a) * sig), pul = 1 + 0.12 * Math.sin(t * 14 + k); put(c, B, sprSigil(), x, y, T * 0.8 * pul * sm(t / 0.25 + 0.3), T * 0.8 * pul * sm(t / 0.25 + 0.3), fa * 0.95, -t * 2.2 + k, H.GY, true); put(c, B, glowSprite(PINK), x, y, T * 1.3, T * 1.3, fa * 0.35, 0, H.GY, true); }
-        if (!LOW()) for (const m of ms) if (!m.ex) put(c, B, glowSprite(PINK), H.sx(m.x), H.sy(m.y), T * 0.9, T * 0.9, 0.28, 0, H.GY, true);
+        if (!LOW()) for (const m of ms) if (!m.ex) put(c, B, glowSprite(PINK), H.sx(m.x), H.sy(m.y), T * 0.9 * (m.sz || 1), T * 0.9 * (m.sz || 1), 0.28, 0, H.GY, true);
         c.setTransform(B); },
-      over(c, B) { const T = S.T, tail = sprTail(), star = sprStar(), glo = glowSprite(ROSE);
+      over(c, B) { const T = S.T, tail = sprTailP(), glo = glowSprite(ROSE);
         for (const m of ms) { const X0 = H.sx(m.x), Y0 = H.sy(m.y) - m.z * S.ZT, k = petK(S, X0, Y0, 0.4), fo = m.ex ? 1 - (m.t - m.end) / 0.14 : 1; if (fo <= 0.01) continue;
-          const len = Math.min(m.d, 2.0) * T * fo, w = T * 0.42;
+          const sz = m.sz || 1, len = Math.min(m.d, 2.0) * T * fo * (0.6 + 0.4 * sz / 0.58), w = T * 0.42 * sz;
           if (len > 2) { c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.95 * k * fo; setT(c, B, X0, Y0, m.a); c.drawImage(tail, -len, -w / 2, len + w * 0.15, w); }
           if (m.ex) continue;
-          put(c, B, glo, X0, Y0, T * 1.2, T * 1.2, 0.5 * k, 0, 1, true);
-          const s = T * 0.74; put(c, B, star, X0, Y0, s, s, Math.min(1, m.t / 0.06) * (0.55 + 0.45 * k), m.rot * 0.35, 1, false); }
+          put(c, B, glo, X0, Y0, T * 1.2 * sz, T * 1.2 * sz, 0.5 * k, 0, 1, true);
+          const s = T * 0.74 * sz; put(c, B, sprStarP(m.pv || 0), X0, Y0, s, s, Math.min(1, m.t / 0.06) * (0.55 + 0.45 * k), m.rot * 0.35, 1, false); }
         c.setTransform(B); },
       gpuUnder(Q) { const T = S.T, cx = car.x, cy = car.y, GY = H.GY || 0.55; const fa = Math.min(1, t / 0.2) * (1 - sm((t - (tu.sigil + NV * tu.gap)) / 0.35));
         if (fa > 0.01 && !car.gone) for (let k = 0; k < 5; k++) { const a = base + k * TAU / 5 + t * 0.9, x = H.sx(cx + Math.cos(a) * sig), y = H.sy(cy + Math.sin(a) * sig), pul = 1 + 0.12 * Math.sin(t * 14 + k), r = T * 0.4 * pul * sm(t / 0.25 + 0.3);
           Q.ring(x, y, r, PINK, fa * 0.9, T * 0.05, GY); Q.starL(x, y, r * 0.8, -t * 2.2 + k, GOLD, fa * 0.95, GY, true, 0.07); Q.glow(x, y, T * 0.65, PINK, fa * 0.35, GY); }
-        if (!LOW()) for (const m of ms) if (!m.ex) Q.glow(H.sx(m.x), H.sy(m.y), T * 0.45, PINK, 0.28, GY); },
+        if (!LOW()) for (const m of ms) if (!m.ex) Q.glow(H.sx(m.x), H.sy(m.y), T * 0.45 * (m.sz || 1), PINK, 0.28, GY); },
       gpuOver(Q) { const T = S.T;
         for (const m of ms) { const X0 = H.sx(m.x), Y0 = H.sy(m.y) - m.z * S.ZT, fo = m.ex ? 1 - (m.t - m.end) / 0.14 : 1; if (fo <= 0.01) continue;
-          const len = Math.min(m.d, 2.0) * T * fo, ca = Math.cos(m.a), sa = Math.sin(m.a); if (len > 2) { Q.ray(X0 - ca * len, Y0 - sa * len, X0 + ca * T * 0.06, Y0 + sa * T * 0.06, T * 0.21, PINK, 0.95 * fo); Q.ray(X0 - ca * len * 0.6, Y0 - sa * len * 0.6, X0, Y0, T * 0.07, WGOLD, 0.9 * fo); }
+          const sz = m.sz || 1, len = Math.min(m.d, 2.0) * T * fo * (0.6 + 0.4 * sz / 0.58), ca = Math.cos(m.a), sa = Math.sin(m.a); if (len > 2) { Q.ray(X0 - ca * len, Y0 - sa * len, X0 + ca * T * 0.06 * sz, Y0 + sa * T * 0.06 * sz, T * 0.21 * sz, '#FF7AC8', 0.95 * fo); Q.ray(X0 - ca * len * 0.6, Y0 - sa * len * 0.6, X0, Y0, T * 0.07 * sz, '#FFE3F2', 0.9 * fo); }
           if (m.ex) continue;
-          Q.glow(X0, Y0, T * 0.6, ROSE, 0.5); Q.starB(X0, Y0, T * 0.37, m.rot * 0.35, Math.min(1, m.t / 0.06)); } },
+          Q.glow(X0, Y0, T * 0.6 * sz, ROSE, 0.5); Q.starB(X0, Y0, T * 0.37 * sz, m.rot * 0.35, Math.min(1, m.t / 0.06), STARP[m.pv || 0][0], '#FF8FD0'); } },
       abort() { for (const m of ms) MPOOL.push(m); ms.length = 0; } };
     S.acts.push(act);
   }
@@ -616,7 +636,7 @@ void main(){ vec2 u = v_uv; float r = length(u), edge = 1.0 - smoothstep(0.85, 1
       float f = fbm(u * 2.2 + vec2(v_q.y * 3.1, v_q.y - t * 0.35)), d = clamp((1.0 - r * r) * (0.55 + 0.9 * f) - 0.25, 0.0, 1.0) * edge; a = d; c = mix(col * 0.82, mix(col, vec3(1.0), 0.45), smoothstep(-0.6, 0.6, -u.y + f * 0.5)); }
     else if (v_k < 10.5) { // a star (solid): bevelled facets lit from the upper left, a pearl-gold heart, rose edges
       float d = sdStar(u / 0.95, 0.45) * 0.95; a = 1.0 - smoothstep(-0.03, 0.02, d); float bn = mod(atan(u.x, -u.y) + 0.6283185, 1.2566371) - 0.6283185, sd = sign(bn), fa = atan(u.y, u.x);
-      float lit = 0.55 + 0.45 * cos(fa + 2.36 + sd * 0.35), rim = smoothstep(-0.12, 0.0, d); c = mix(mix(vec3(1.0, 0.85, 0.42), vec3(1.0, 0.98, 0.9), exp(-r * r * 6.0)), vec3(1.0, 0.36, 0.66), rim * 0.8) * (0.55 + 0.6 * lit); }
+      float lit = 0.55 + 0.45 * cos(fa + 2.36 + sd * 0.35), rim = smoothstep(-0.12, 0.0, d); vec3 hc = mix(vec3(1.0, 0.85, 0.42), vec3(1.0, 0.98, 0.9), exp(-r * r * 6.0)), ec = vec3(1.0, 0.36, 0.66); if (col.g < 0.95) { hc = mix(col, vec3(1.0, 0.93, 0.97), exp(-r * r * 7.0) * 0.85); ec = col * vec3(0.85, 0.6, 0.8); } c = mix(hc, ec, rim * 0.8) * (0.55 + 0.6 * lit); }
     else if (v_k < 11.5) { // a heart (solid): puffed, lit from the upper left, a glossy highlight
       float d = sdHeart(u); a = 1.0 - smoothstep(-0.03, 0.02, d); float b = smoothstep(0.0, -0.3, d), lit = clamp(dot(normalize(vec3(-u.x * 1.2, u.y * 1.2 - 0.2, 0.6 + b)), normalize(vec3(-0.5, -0.6, 0.65))), 0.0, 1.0);
       c = col * (0.45 + 0.7 * lit) + vec3(1.0) * 0.55 * exp(-dot2((u - vec2(-0.32, -0.3)) / vec2(0.16, 0.1))); }
@@ -668,7 +688,7 @@ void main(){ vec2 u = v_uv; float r = length(u), edge = 1.0 - smoothstep(0.85, 1
     /* a quad turned by rot and squashed by sy (floor things) */
     rq(kind, x, y, rx, ry, rot, sy, col, a, q0, q1, q2) { const c = Math.cos(rot || 0), s = Math.sin(rot || 0), k = sy || 1; this.quad(kind, x, y, c * rx, s * rx * k, -s * ry, c * ry * k, col, a, q0, q1, q2); },
     starL(x, y, r, rot, col, a, sy, outline, w) { if (r > 0.5) this.rq(5, x, y, r, r, rot, sy, col || '#FFB3E0', a, outline ? 1 : 0, 0, w || 0.06); },
-    starB(x, y, r, rot, a) { if (r > 0.5) { this.rq(10, x, y, r, r, rot, 1, '#FFFFFF', a); this.rq(5, x, y, r * 1.25, r * 1.25, rot, 1, '#FFD86B', a * 0.45, 0); } },   /* (a solid bevelled star, its light round it) */
+    starB(x, y, r, rot, a, col, gcol) { if (r > 0.5) { this.rq(10, x, y, r, r, rot, 1, col || '#FFFFFF', a); this.rq(5, x, y, r * 1.25, r * 1.25, rot, 1, gcol || '#FFD86B', a * 0.45, 0); } },   /* (col: a tinted body, a pale pink-white bevel; white = the gold star) */   /* (a solid bevelled star, its light round it) */
     heartL(x, y, r, rot, col, a, sy, outline, w) { if (r > 0.5) this.rq(6, x, y, r, r, rot, sy, col || '#FF5CA8', a, outline ? 1 : 0, 0, w || 0.05); },
     heartB(x, y, r, rot, col, a) { if (r > 0.5) { this.rq(11, x, y, r, r, rot, 1, col, a); this.rq(6, x, y, r * 1.2, r * 1.2, rot, 1, col, a * 0.25, 0); } },
     ray(x0, y0, x1, y1, w, col, a) { const dx = (x1 - x0) / 2, dy = (y1 - y0) / 2, L = Math.hypot(dx, dy); if (L < 0.5) return; this.quad(7, x0 + dx, y0 + dy, dx, dy, -dy / L * w, dx / L * w, col, a); },   /* (root at x1, y1: bright and wide there) */
