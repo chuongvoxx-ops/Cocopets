@@ -40,7 +40,7 @@
   const MOD = () => (typeof NIDHOGG_MODEL !== 'undefined' ? NIDHOGG_MODEL : null);
 
   /* ================= the tuning (configurable) ================= */
-  const ULT_Z0 = 0.9, ULT_CAM_K = 0.25;   /* (v327, the user: "zoom back in by 50%" again: a quarter of the authored pull-back is kept; charge and beam about 0.54, blast about 0.53 at the 0.585 flight zoom) (ULT_Z0: the flight zoom the moves' and the Ultima's camera zooms were authored against) */
+  const ULT_Z0 = 0.9, ULT_CAM_K = 0.175;   /* (v330, the user: 30% less pull-back again) (v327, the user: "zoom back in by 50%" again: a quarter of the authored pull-back is kept; charge and beam about 0.54, blast about 0.53 at the 0.585 flight zoom) (ULT_Z0: the flight zoom the moves' and the Ultima's camera zooms were authored against) */
   /* (v325, the user: "camera pull back too far during ultima, zoom back in by half") the share of the Ultima's own zoom-out that is kept (framing only, not a gameplay number) */
   const TUNE = {
     dur: [20, 25, 35], cd: 120,                    // s of flight at evo 1-3 / 4-6 / 7 (from the moment it can fly); the Ult's cooldown from the exit
