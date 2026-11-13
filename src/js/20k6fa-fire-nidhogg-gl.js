@@ -376,7 +376,7 @@ const NIDHOGG_GL = (() => {
     let W = Math.ceil((bx1 - bx0) * dev), H = Math.ceil((by1 - by0) * dev); const sc = Math.min(1, GLCAP / Math.max(W, H)); W = Math.max(2, Math.ceil(W * sc)); H = Math.max(2, Math.ceil(H * sc));
     const bw = bx1 - bx0, bh = by1 - by0;
     const S = { px: PXW, py: PYW, pd: VW, cl: [2 * k / bw, 2 * (X0[0] - bx0) / bw - 1, -2 * k / bh, 1 - 2 * (X0[1] - by0) / bh], v: VW, lk: LW, ls: SBW, lr: RIMW, up: UPW, low, rim: RIMC, amb: AMBC, t: nowMs() / 1000,
-      outline: Math.max(1, 1.35 * (W / bw) * (1 + 0.7 * tr) * (o.outlineK || 1)), outlineCol: tr > 0.01 ? [lerp(OUTC[0], 1.0, tr * 0.85), lerp(OUTC[1], 0.4, tr * 0.85), lerp(OUTC[2], 0.1, tr * 0.85)] : OUTC };
+      outline: Math.max(1, 1.35 * (W / bw) * (o.outlineK || 1)), outlineCol: OUTC };   /* (v326, the user: no hard line round the dragon in the Ultima: the outline stays its normal dark self; the glow is the soft aura below) */
     let n = 0; const items = GLJ; items.length = 0;
     for (const F of frames) { if (!(F.al > 0.004)) continue;
       for (const pt of parts) { const [mesh, org, ax, glow, kind, ghostOK, noOut] = pt; if (!F.main && !ghostOK) continue;
@@ -393,8 +393,13 @@ const NIDHOGG_GL = (() => {
       for (const sg of [-1, 1]) for (const xx of [-0.6, -0.15, 0.3, 0.66]) { const p = vadd(R.torso, [xx * tk, sg * 0.36 * tk * TORSO_Y, -0.22 * tk]), s2 = V.toS(p), fl = 0.85 + 0.15 * Math.sin(tw * 3.1 + xx * 7 + sg); HL.push({ x: s2[0], y: s2[1], r: 0.36 * k, a: 0.09 * A * fl, col: '#FF6A1A' }); }
       GLM.halos(c, HL); }
     // the trace: soft fire halos along the silhouette (the neck, the tail, the wing edges)
-    if (tr > 0.02 && GLM.halos && !low) { const HL = [], add = (p, r, a) => { const s2 = V.toS(p); HL.push({ x: s2[0], y: s2[1], r: r * k * 0.7, a: a * 0.45 * tr * al0, col: '#FF6A2A' }); };
-      for (let i = 0; i < R.neckS.length; i += 3) add(R.neckS[i], 0.9, 0.22); for (let i = 0; i < R.tailS.length; i += 4) add(R.tailS[i], 0.8, 0.18); for (const Wg of R.wing) for (const f of Wg.fing) add(f, 0.7, 0.2); add(R.torso, 2.2, 0.16);
+    /* (v326, the user: "more subtle and softened out ... a vivid but soft orange red glow as it charges up") a wide, feathered aura:
+       many broad low halos overlapping along the neck, body, tail and wings, building with the charge, a gentle warm pulse */
+    if (tr > 0.02 && GLM.halos) { const HL = [], tw2 = (o.t != null ? o.t : nowMs() / 1000), pul = 0.85 + 0.15 * Math.sin(tw2 * 4.2), e = tr * tr * (3 - 2 * tr), aa = 2.0 * e * al0 * pul * (low ? 1.4 : 1),
+        add = (p, r, a, col) => { const s2 = V.toS(p); HL.push({ x: s2[0], y: s2[1], r: r * k * 1.25, a: a * aa, col: col || '#FF4A1E' }); };
+      const st = low ? 2 : 1; for (let i = 0; i < R.neckS.length; i += 2 * st) add(R.neckS[i], 1.25, 0.11); for (let i = 0; i < R.tailS.length; i += 3 * st) add(R.tailS[i], 1.0, 0.09);
+      for (const Wg of R.wing) { add(Wg.elbow, 1.4, 0.08); add(Wg.wrist, 1.3, 0.08); if (!low) for (const f of Wg.fing) add(f, 1.0, 0.06); }
+      add(R.torso, 3.0, 0.14, '#FF3A1A'); add(R.torso, 1.8, 0.12, '#FF7A30'); add(R.head, 1.5, 0.12);
       GLM.halos(c, HL); }
     return true;
   }

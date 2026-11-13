@@ -692,14 +692,14 @@ void main(){ vec2 d = gl_PointCoord - 0.5; float m = exp(-dot(d, d) * 13.0), a =
   /* draw one frame: F = { W, H (GL px), u: { name: value }, n (points to draw) }; returns the canvas, 2W wide: the smoke
      in [0, W), the light in [W, 2W) (see blit) - or null */
   function render(F) { if (!usable()) return null;
-    try { if (cv.width !== F.W * 2 || cv.height !== F.H) { cv.width = F.W * 2; cv.height = F.H; }
-      gl.viewport(0, 0, F.W * 2, F.H); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); gl.enable(gl.BLEND); gl.disable(gl.DEPTH_TEST);
+    try { if (cv.width !== F.W * 2 + 4 || cv.height !== F.H) { cv.width = F.W * 2 + 4; cv.height = F.H; }   /* (4 px of nothing between the halves) */
+      gl.viewport(0, 0, F.W * 2 + 4, F.H); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); gl.enable(gl.BLEND); gl.disable(gl.DEPTH_TEST);
       const set = (P, k, v) => { const l = P.U[k]; if (l == null) return; if (k === 'u_oct') gl.uniform1i(l, v); else if (Array.isArray(v)) gl.uniform2f(l, v[0], v[1]); else gl.uniform1f(l, v); };
       const b = F.box || [0, 0, F.W, F.H], x0 = b[0], y0 = b[1], x1 = b[2], y1 = b[3], n = Math.min(NP, F.n || NP);
       gl.bindBuffer(gl.ARRAY_BUFFER, qb); gl.bufferSubData(gl.ARRAY_BUFFER, 0, new Float32Array([x0, y0, x1, y0, x0, y1, x0, y1, x1, y0, x1, y1]));
       /* pass 0, the left half: smoke and dark points, premultiplied 'over'; pass 1, the right half: light only, added
          (each output keeps rgb <= a, so the 2D canvas composites them the same in every browser) */
-      for (let pass = 0; pass < 2; pass++) { gl.viewport(pass * F.W, 0, F.W, F.H); if (pass) gl.blendFunc(gl.ONE, gl.ONE); else gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+      for (let pass = 0; pass < 2; pass++) { gl.viewport(pass * (F.W + 4), 0, F.W, F.H); if (pass) gl.blendFunc(gl.ONE, gl.ONE); else gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
         gl.useProgram(PQ.p); for (const k in F.u) set(PQ, k, F.u[k]); set(PQ, 'u_res', [F.W, F.H]); set(PQ, 'u_pass', pass); set(PQ, 'u_off', pass * F.W);
         gl.bindBuffer(gl.ARRAY_BUFFER, qb); gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0); gl.disableVertexAttribArray(1); gl.drawArrays(gl.TRIANGLES, 0, 6);
         gl.useProgram(PP.p); for (const k in F.u) set(PP, k, F.u[k]); set(PP, 'u_res', [F.W, F.H]); set(PP, 'u_pass', pass);
@@ -708,7 +708,7 @@ void main(){ vec2 d = gl_PointCoord - 0.5; float m = exp(-dot(d, d) * 13.0), a =
       stats.points = n; stats.draws = 4; stats.W = F.W; stats.H = F.H; stats.frames++;
       return cv; } catch (e) { ok = false; why = String(e && e.message || e); return null; } }
   /* composite a rendered frame into a 2D context over (dx, dy, dw, dh): the smoke 'over', then the light 'lighter' */
-  function blit(c, W, H, dx, dy, dw, dh) { c.globalAlpha = 1; c.globalCompositeOperation = 'source-over'; c.drawImage(cv, 0, 0, W, H, dx, dy, dw, dh); c.globalCompositeOperation = 'lighter'; c.drawImage(cv, W, 0, W, H, dx, dy, dw, dh); c.globalCompositeOperation = 'source-over'; }
+  function blit(c, W, H, dx, dy, dw, dh) { c.globalAlpha = 1; c.globalCompositeOperation = 'source-over'; c.drawImage(cv, 0, 0, W, H, dx, dy, dw, dh); c.globalCompositeOperation = 'lighter'; c.drawImage(cv, W + 4, 0, W, H, dx, dy, dw, dh); c.globalCompositeOperation = 'source-over'; }
   /* (tests) right after render: how many pixels break rgb <= a (premultiplied validity), out of how many */
   function check() { if (!gl) return null; const W = cv.width, H = cv.height, px = new Uint8Array(W * H * 4); gl.readPixels(0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, px); let bad = 0, lit = 0; for (let i = 0; i < px.length; i += 4) { const a = px[i + 3]; if (a) lit++; if (px[i] > a + 1 || px[i + 1] > a + 1 || px[i + 2] > a + 1) bad++; } return { bad, lit, px: W * H }; }
   return { usable, render, blit, stats, check, KINDS, total: () => KINDS.reduce((s, k) => s + k[1], 0), info: () => ({ ok, soft, renderer: info, why }) };

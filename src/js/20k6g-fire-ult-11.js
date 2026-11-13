@@ -40,12 +40,12 @@
   const MOD = () => (typeof NIDHOGG_MODEL !== 'undefined' ? NIDHOGG_MODEL : null);
 
   /* ================= the tuning (configurable) ================= */
-  const ULT_Z0 = 0.9, ULT_CAM_K = 0.5;   /* (ULT_Z0: the flight zoom the Ultima's framing was authored against) */
+  const ULT_Z0 = 0.9, ULT_CAM_K = 0.5;   /* (ULT_Z0: the flight zoom the moves' and the Ultima's camera zooms were authored against) */
   /* (v325, the user: "camera pull back too far during ultima, zoom back in by half") the share of the Ultima's own zoom-out that is kept (framing only, not a gameplay number) */
   const TUNE = {
     dur: [20, 25, 35], cd: 120,                    // s of flight at evo 1-3 / 4-6 / 7 (from the moment it can fly); the Ult's cooldown from the exit
     size: 0.65,                                    // (round 2, the user: "smaller by 35%") the dragon's drawn scale: wingspan ~7 tiles
-    zoom: 0.78,                                    // the flight zoom (v325: 0.9 -> 0.78 for M's wings, span 10.5 -> 14.8 tiles, so a wingbeat stays on a 390 x 844 phone)
+    zoom: 0.585,                                   // the flight zoom (v325: 0.9 -> 0.78 for M's wings; v326, the user: "zoom back by 25% when on the dragon": 0.585)
     top: 10, accel: 22, brake: 14,                 // tiles/s, tiles/s2
     cruise: 2.2, wallZ: 3.0, climbV: 5, sinkV: 2.6,   // tiles: the one cruise height (round 2: no high setting), the height that clears a wall; tiles/s up / down
     margin: 18,                                    // tiles of open air round the map the dragon may fly in (a soft edge: it simply cannot go further)
@@ -226,7 +226,7 @@
       groundAt: (x, y) => groundAt(S, x, y), surfaceAt: (x, y) => surfaceAt(S, x, y), canStand: (x, y) => canStand(S, x, y), nearestLand: (x, y) => nearestLand(S, x, y, 8) || safeReturn(S),
       anchor: n => { const p = inst.anchor(n); return p ? { x: p.x, y: p.y, z: p.z } : { x: dragon.x, y: dragon.y, z: dragon.z }; },
       scr: (x, y, z) => [H.sx(x), H.sy(y) - (z || 0) * ZK * X.Tz()], T: () => X.Tz(),
-      camera: o => { if (!o) { S.cam = null; return; } if (o.shake) { if (!calm()) X.shake(Math.min(10, o.shake), Math.min(0.5, o.dur || 0.25)); } const c0 = S.cam || {}, uz = S.phase === 'ultima' && o.zoom != null && o.zoom < ULT_Z0 ? Math.min(TUNE.zoom, ULT_Z0 + (o.zoom - ULT_Z0) * ULT_CAM_K) : o.zoom; S.cam = { zoom: uz != null ? Math.max(0.5, Math.min(1.1, uz)) : c0.zoom, x: o.x != null ? o.x : c0.x, y: o.y != null ? o.y : c0.y, k: o.k != null ? cl(o.k) : c0.k }; },   /* (a framing point x, y with k = how far the view leans to it; zoom; a later call merges) */
+      camera: o => { if (!o) { S.cam = null; return; } if (o.shake) { if (!calm()) X.shake(Math.min(10, o.shake), Math.min(0.5, o.dur || 0.25)); } const c0 = S.cam || {}, rz = o.zoom != null ? o.zoom / ULT_Z0 : null, uz = rz == null ? null : TUNE.zoom * (S.phase === 'ultima' && rz < 1 ? 1 + (rz - 1) * ULT_CAM_K : rz); S.cam = { zoom: uz != null ? Math.max(0.3, Math.min(1.1, uz)) : c0.zoom,   /* (every authored zoom is relative to the flight zoom it was made for (0.9); the Ultima keeps half its pull-back) */ x: o.x != null ? o.x : c0.x, y: o.y != null ? o.y : c0.y, k: o.k != null ? cl(o.k) : c0.k }; },   /* (a framing point x, y with k = how far the view leans to it; zoom; a later call merges) */
       safeReturn: () => { const p = safeReturn(S); S.retPt = p; return { x: p.x, y: p.y }; },
       done: () => actionDone(S), alive: () => !S.ended && !me.dead && !g.over && (S.phase === 'ultima' || (S.phase === 'fly' && !g.won)),
       calm, low: lowFx };
@@ -625,10 +625,13 @@
     if (me.hp < L.hp - 0.5) { L.hit = t; L.hd = Math.random() < 0.5 ? -1 : 1; } L.hp = me.hp;
     { const u = t - L.hit; if (u >= 0 && u < 0.7) { const e = Math.exp(-u * 6), w2 = Math.cos(u * 22); V.bank += 0.22 * L.hd * e * w2; V.headPitch -= 0.3 * e; V.jaw = (V.jaw || 0) + 0.5 * e; V.tailSwing += 0.3 * L.hd * e * w2; V.spread -= 0.15 * e; V.pitch -= 0.08 * e; V.shoulder -= 0.35 * e * w2; V.elbow += 0.3 * e; } }
     if (S.phase === 'ultima') { const u = S.t, r = bumpL(u, 0, 0.4, 1.0);   /* the anticipation: it rears back, the chest swells, the wings lift */
-      V.pitch -= 0.3 * r; V.headPitch -= 0.35 * r; V.neckCurve += 0.3 * r; V.breath += 1.4 * r; V.spread += 0.25 * r; V.shoulder += 0.4 * r; V.fingerSpread += 0.5 * r; V.billow += 0.4 * r;
+      V.pitch -= 0.3 * r; V.headPitch -= 0.35 * r; V.neckCurve += 0.3 * r; V.breath += 1.4 * r;   /* (the wings: held low and back under the ring, below) */
       if (L.jaw0 < 0.9 && (P.jaw || 0) >= 0.9) L.rec = t; L.jaw0 = P.jaw || 0;   /* the beam's first instant: the recoil through the neck and body */
       const e = t - L.rec < 1.2 ? Math.exp(-(t - L.rec) * 4) : 0; V.pitch -= 0.22 * e; V.headPitch -= 0.18 * e; V.neckCurve -= 0.22 * e; V.tailLift += 0.15 * e; }
     else L.jaw0 = 0;
+    /* (v326, the user: "make sure that the wings don't come through" the Ultima's ring) through the whole Ultima the wings are held spread low and back,
+       under the ring's plane: eased in over 0.2 s from the cast and out after it; checked over every clip frame by __dbg.ultWingCheck */
+    L.uw = (L.uw || 0) + ((S.phase === 'ultima' ? 1 : 0) - (L.uw || 0)) * Math.min(1, dt / 0.2); if (L.uw > 0.001) ultHold(P, V, L.uw);
     if (S.phase === 'summon') { const r = bumpL(S.t, 1.95, 2.25, 3.0);   /* the summon's roar as it takes the rider: wings flung wide, head up, jaws open */
       V.spread += 0.4 * r; V.shoulder += 0.45 * r; V.fingerSpread += 0.6 * r; V.jaw = (V.jaw || 0) + 0.75 * r; V.headPitch -= 0.4 * r; V.neckCurve += 0.3 * r; V.pitch -= 0.22 * r; V.tailLift += 0.15 * r; }
     if (S.phase === 'out') { const G2 = S.outGlide || 0, r2 = bumpL(S.outT, G2 - 0.45, G2 - 0.12, G2 + 0.15), r = bumpL(S.outT - G2, 0, 0.18, 0.7);   /* the exit: a braking flare onto the spot (its weight: legs down, the body settling), then a last roar as it burns away */
@@ -636,6 +639,15 @@
     /* every clip change eased: the drawn channels follow the written ones through a short low-pass (the bank has its own spring) */
     const SM = L.sm; for (const k in SMK) { const v = P[k] || 0; if (SM[k] == null || !isFinite(SM[k])) SM[k] = v; const tau = SMK[k]; if (tau > 0) { SM[k] += (v - SM[k]) * Math.min(1, dt / tau); V[k] = (V[k] || 0) + (SM[k] - v); } }
   }
+  const ULT_HOLD = { flap: 0.25, flapAmp: 0.12, shoulder: 0.5, elbow: 0.4, wrist: -0.3, fold: 0.15, spread: 0.3, downFlex: 0, fingerSpread: 0.2, billow: 0.3 };   /* (shoulder + lowers the whole wing in the rig; about 1.2 rig units under the 1.6x ring at worst) */
+  function ultHold(P, V, w, H) { H = H || ULT_HOLD; for (const k in H) { let d = H[k] - (P[k] || 0); if (k === 'flap') d = ((d % 1) + 1.5) % 1 - 0.5; V[k] = lerp(V[k] || 0, d, w); } }
+  /* the check (tests, via __dbg): the Ultima's clips (ultima, beam, settle) frame by frame, the hold applied, every wing point (root, elbow, wrist,
+     the four finger tips) against the ring's plane wherever the ring shows; returns the smallest clearance below it (rig units; above 0 = clear) */
+  function ultWingCheck(o) { o = o || {}; const M0 = MOD(); if (!M0 || !M0.rig || !M0.CLIPS) return null; const P = M0.blankPose(), dt = 1 / 60, H = o.hold, rk = o.ringK || 1.6; let worst = 1e9, at = null, n = 0;
+    for (const nm of ['ultima', 'beam', 'settle']) { const C = M0.CLIPS[nm]; if (!C) continue; for (let t = 0; t <= C.dur + 1e-6; t += dt) { C.run(P, t, dt); if (!(P.ring > 0.02)) continue; const V = {}; ultHold(P, V, 1, H); const Q = Object.assign({}, P); for (const k in V) Q[k] = (Q[k] || 0) + V[k]; Q.flap = ((Q.flap % 1) + 1) % 1;
+        const R = M0.rig(Q, t), rz = R.ring[2], rx = R.ring[0], ry = R.ring[1], rr = 1.45 * 1.45 * rk; n++;
+        for (const Wg of R.wing) for (const q of [Wg.elbow, Wg.wrist].concat(Wg.fing)) { const c2 = rz - q[2], hd = Math.hypot(q[0] - rx, q[1] - ry); if (c2 < worst) { worst = c2; at = { clip: nm, t: +t.toFixed(2), r: +hd.toFixed(2), z: +q[2].toFixed(2), ringZ: +rz.toFixed(2), ringR: +rr.toFixed(2) }; } } } }
+    return { clearance: +worst.toFixed(3), frames: n, at }; }
   const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
   function lifeOn(S, P) { const V = S.LV; if (!V) return null; const keep = {}; for (const k in V) { if (!V[k]) continue; keep[k] = P[k]; P[k] = (P[k] || 0) + V[k]; } sanePose(P, MOD()); return keep; }
   function lifeOff(P, keep) { if (keep) for (const k in keep) P[k] = keep[k]; }
@@ -766,5 +778,5 @@
     PUMP = () => requestAnimationFrame(() => setTimeout(() => { const n = now(), gap = n - last; last = n; if (slice(gap < 20 ? 3 : gap < 34 ? 1.6 : 0.8)) { PUMP = null; return; } PUMP(); }, 0));
     PUMP(); }, 300); };
   U.nidhogg.TUNE = TUNE;
-  U.nidhogg.__dbg = { VS: typeof VEH_SMASH !== "undefined" ? VEH_SMASH : null, smashArea, smashOn, TUNE, STUB, moves, safeReturn, nearestLand, groundAt, aimPoint, target, petRoll, blurK, bakeState, bakePlan };
+  U.nidhogg.__dbg = { ultWingCheck, ULT_HOLD, VS: typeof VEH_SMASH !== "undefined" ? VEH_SMASH : null, smashArea, smashOn, TUNE, STUB, moves, safeReturn, nearestLand, groundAt, aimPoint, target, petRoll, blurK, bakeState, bakePlan };
 })();

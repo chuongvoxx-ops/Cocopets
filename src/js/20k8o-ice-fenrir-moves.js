@@ -204,8 +204,8 @@ void main(){ vec2 p = vec2(gl_FragCoord.x - u_off, u_res.y - gl_FragCoord.y); ve
     function usable() { let f = null; try { f = typeof window !== 'undefined' ? window.__FM_GL : null; } catch (e) {} if (f === 0 || ok === false) return false; if (ok === null) { try { ok = build(); } catch (e) { ok = false; why = String(e && e.message || e); try { console.warn('Fenrir GFX: ' + why); } catch (e2) {} } } return !!ok && (!soft || f === 1); }
     const attr = (i, n, stride, off) => { gl.enableVertexAttribArray(i); gl.vertexAttribPointer(i, n, gl.FLOAT, false, stride * 4, off * 4); }, offA = n => { for (let i = n; i < 5; i++) gl.disableVertexAttribArray(i); };
     /* F: { W, H, t, quads (Float32Array, 12 a vertex), nq, tris (11 a vertex), nt, pts (9 a point), np, beam (uniforms or null), pet [x, y], pr, prot } */
-    function render(F) { if (!usable()) return null; try { const W = F.W, Hh = F.H; if (cv.width !== W * 2 || cv.height !== Hh) { cv.width = W * 2; cv.height = Hh; }
-        gl.viewport(0, 0, W * 2, Hh); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); gl.enable(gl.BLEND); gl.disable(gl.DEPTH_TEST); let draws = 0;
+    function render(F) { if (!usable()) return null; try { const W = F.W, Hh = F.H; if (cv.width !== W * 2 + 4 || cv.height !== Hh) { cv.width = W * 2 + 4; cv.height = Hh; }   /* (4 px of nothing between the halves) */
+        gl.viewport(0, 0, W * 2 + 4, Hh); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); gl.enable(gl.BLEND); gl.disable(gl.DEPTH_TEST); let draws = 0;
         const crystals = pass => { if (!F.nt) return; gl.useProgram(PC.p); gl.uniform2f(PC.U.u_res, W, Hh); gl.uniform1f(PC.U.u_t, F.t); gl.uniform1f(PC.U.u_pass, pass); gl.uniform1f(PC.U.u_prot, F.prot); gl.uniform1f(PC.U.u_pr, F.pr); gl.uniform2f(PC.U.u_pet, F.pet[0], F.pet[1]);
           gl.bindBuffer(gl.ARRAY_BUFFER, bc); if (!pass) gl.bufferData(gl.ARRAY_BUFFER, F.tris.subarray(0, F.nt * 11), gl.DYNAMIC_DRAW); attr(0, 2, 11, 0); attr(1, 2, 11, 2); attr(2, 3, 11, 4); attr(3, 4, 11, 7); offA(4); gl.drawArrays(gl.TRIANGLES, 0, F.nt); draws++; };
         const masses = pass => { if (!F.nm) return; gl.useProgram(PM.p); gl.uniform2f(PM.U.u_res, W, Hh); gl.uniform1f(PM.U.u_t, F.t); gl.uniform1f(PM.U.u_pass, pass);
@@ -213,7 +213,7 @@ void main(){ vec2 p = vec2(gl_FragCoord.x - u_off, u_res.y - gl_FragCoord.y); ve
         // the left half: what is solid
         gl.viewport(0, 0, W, Hh); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); masses(0); crystals(0);
         // the right half: light alone, added
-        gl.viewport(W, 0, W, Hh); gl.blendFunc(gl.ONE, gl.ONE);
+        gl.viewport(W + 4, 0, W, Hh); gl.blendFunc(gl.ONE, gl.ONE);
         if (F.nq) { gl.useProgram(PQ.p); gl.uniform2f(PQ.U.u_res, W, Hh); gl.uniform1f(PQ.U.u_t, F.t); gl.bindBuffer(gl.ARRAY_BUFFER, bq); gl.bufferData(gl.ARRAY_BUFFER, F.quads.subarray(0, F.nq * 12), gl.DYNAMIC_DRAW); attr(0, 2, 12, 0); attr(1, 2, 12, 2); attr(2, 1, 12, 4); attr(3, 4, 12, 5); attr(4, 3, 12, 9); gl.drawArrays(gl.TRIANGLES, 0, F.nq); draws++; }
         masses(1); crystals(1);
         if (F.np) { gl.useProgram(PP.p); gl.uniform2f(PP.U.u_res, W, Hh); gl.uniform1f(PP.U.u_t, F.t); gl.bindBuffer(gl.ARRAY_BUFFER, bp); gl.bufferData(gl.ARRAY_BUFFER, F.pts.subarray(0, F.np * 9), gl.DYNAMIC_DRAW); attr(0, 2, 9, 0); attr(1, 3, 9, 2); attr(2, 4, 9, 5); offA(3); gl.drawArrays(gl.POINTS, 0, F.np); draws++; }
@@ -221,7 +221,7 @@ void main(){ vec2 p = vec2(gl_FragCoord.x - u_off, u_res.y - gl_FragCoord.y); ve
           gl.bindBuffer(gl.ARRAY_BUFFER, bf); attr(0, 2, 2, 0); offA(1); gl.drawArrays(gl.TRIANGLES, 0, 6); draws++; }
         stats.draws = draws; stats.quads = F.nq / 6; stats.tris = F.nt / 3; stats.points = F.np; stats.massTris = (F.nm || 0) / 3; stats.maxMassTris = Math.max(stats.maxMassTris || 0, stats.massTris); stats.W = W; stats.H = Hh; stats.frames++; stats.maxDraws = Math.max(stats.maxDraws || 0, draws); stats.maxTris = Math.max(stats.maxTris || 0, F.nt / 3); stats.maxPoints = Math.max(stats.maxPoints || 0, F.np); stats.maxQuads = Math.max(stats.maxQuads || 0, F.nq / 6);
         return cv; } catch (e) { ok = false; why = String(e && e.message || e); return null; } }
-    function blit(c, W, Hh, dx, dy, dw, dh) { c.globalAlpha = 1; c.globalCompositeOperation = 'source-over'; c.drawImage(cv, 0, 0, W, Hh, dx, dy, dw, dh); c.globalCompositeOperation = 'lighter'; c.drawImage(cv, W, 0, W, Hh, dx, dy, dw, dh); c.globalCompositeOperation = 'source-over'; }
+    function blit(c, W, Hh, dx, dy, dw, dh) { c.globalAlpha = 1; c.globalCompositeOperation = 'source-over'; c.drawImage(cv, 0, 0, W, Hh, dx, dy, dw, dh); c.globalCompositeOperation = 'lighter'; c.drawImage(cv, W + 4, 0, W, Hh, dx, dy, dw, dh); c.globalCompositeOperation = 'source-over'; }
     /* (tests) right after render: pixels that break rgb <= a */
     function check() { if (!gl) return null; const W = cv.width, Hh = cv.height, px = new Uint8Array(W * Hh * 4); gl.readPixels(0, 0, W, Hh, gl.RGBA, gl.UNSIGNED_BYTE, px); let bad = 0, lit = 0; for (let i = 0; i < px.length; i += 4) { const a = px[i + 3]; if (a) lit++; if (px[i] > a + 1 || px[i + 1] > a + 1 || px[i + 2] > a + 1) bad++; } return { bad, lit, px: W * Hh }; }
     return { usable, render, blit, check, stats, info: () => ({ ok, soft, renderer: info, why }) }; })();

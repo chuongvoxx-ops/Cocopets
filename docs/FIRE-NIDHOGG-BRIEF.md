@@ -420,3 +420,36 @@ Called on `NIDHOGG_MODEL` by the core (`20k6g`), the moves (`20k6h`) and the Ult
   supersampling (the sharp pictures, baked after, keep full quality). Now: the 48 quick pictures take 1.3 s of bake time
   (was 3.0 s), the hold is 1.15 s of game time (was 6.9 s), flight starts 8.6 s real after the cast (was 15.8 s).
   `elem-moves` (fire) passes with Nidhogg dealing damage; `nidhogg-ultima` passes at EVO 1/4/7; `nidhogg.js` 25 ok.
+
+## Notes (A, 2026-11-13, v326): camera, the Ultima's wings and the ring
+
+- **Camera:** the flight zoom is 0.585. It was 0.78; the user asked for 25% further out. Every zoom the moves and the
+  Ultima ask for through `ctx.camera` was authored against a 0.9 flight zoom, so it is now scaled to the flight zoom.
+  The Ultima keeps half its pull-back (`ULT_CAM_K` 0.5): charge and beam about 0.49, blast about 0.48 (was 0.6 and
+  0.57).
+- **The wings under the ring:** through the whole Ultima the core holds the wings spread low and back (`ULT_HOLD` in
+  `20k6g`). It eases in over 0.2 s from the cast and out after it, over every clip, with the core's anticipation and
+  recoil on top.
+- **For H (a check to add):** `ELEM_IMPL.fire.ult.nidhogg.__dbg.ultWingCheck({ ringK })` runs the `ultima`, `beam` and
+  `settle` clips frame by frame with the hold applied. For each frame where the ring shows, it measures every wing
+  point (elbow, wrist, the four finger tips) against the ring's plane. It returns
+  `{ clearance, frames, at }`: clearance is in rig units below the plane, and above 0 means no wing reaches the ring.
+  - Today it gives 1.2 with `ringK` 1.6 (E's larger ring, radius 1.45 × 1.45 × 1.6 ≈ 3.4 rig units). Without the hold
+    it would be -3.2: in `settle`, a wing tip 3.2 above the ring.
+  - It is a plane test: a wing wholly below the plane cannot pass through the ring at any radius.
+  - Suggested pass: `clearance > 0.3`.
+
+## Notes (E, 2026-11-13, v326): hard edges, the Ultima ring, the charge aura
+- **Hard crops (the user's "common problem"):** two causes, both fixed. (1) Noise-warped fire / body / smoke and lightning
+  halos could reach their quad's edge (a straight cut). Every kind in FGFX (20k6h), EGFX (20k9j) and LGFX (20k4q) now
+  fades to exactly 0 well inside its quad (round kinds from 0.72 of the radius, rings / rims from 0.92, strips across
+  from 0.8). (2) The solid and light halves of every GPU effect layer sat edge to edge in one canvas, so bilinear
+  sampling at a half's edge could pick up the other half; there are now 4 px of nothing between them (FGFX, EGFX,
+  LGFX and the Susano O, Fenrir, Belladonna and Jaws painters).
+- **Ultima ring (20k6f drawRing):** radius x RING_K = 1.6 (outer band 1.45 x 1.6 = 2.32 rig units round R.ring, the
+  floating segments to 1.62 x 1.6), rune size x 1.35, a wider brighter bloom, visual spin x 1.5. Both halves are now
+  drawn over the dragon (2D items at the top depth; after the GPU body), so no wing can slice through it. A: 20k6g's
+  ultWingCheck already uses ringK 1.6, which matches.
+- **Charge aura:** the outline no longer turns orange or thickens with P.trace (20k6fa); instead wide, low, overlapping
+  orange-red halos along the neck, torso, head, tail and wings, eased in with the charge, with a gentle 4.2 rad/s
+  pulse; the 2D path's trace shadow is softer and wider.

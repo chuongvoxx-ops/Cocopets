@@ -58,6 +58,14 @@ const path = require('path');
   const k = await run(5.0);
   ok(k.r.after === 0 && !k.r.sysOn, 'a defeat mid-beam drops the Ultima at once (no hits after it)', k.r);
   ok(!k.errors.length, 'no page errors (defeat)', k.errors.slice(0, 3));
+  /* A's wing check: through the ultima, beam and settle clips (the core's wing hold applied), every wing point stays below the
+     ring's plane, so no wing passes through E's ring. The ring scale is E's own when exposed (RINGK=... overrides). */
+  { const page = await browser.newPage(); if (process.env.GLFLAGS) await page.addInitScript(fl => { for (const f of fl) window[f] = 1; }, process.env.GLFLAGS.split(','));
+    await page.goto('file://' + path.resolve(__dirname, '..', process.env.HTML || 'test.html')); await page.waitForFunction(() => window.__pp, null, { timeout: 60000 });
+    const w = await page.evaluate(rk => { const P = window.__pp, D = (P.ELEM_IMPL.fire.ult.nidhogg || {}).__dbg; if (!D || !D.ultWingCheck) return { missing: true }; const NM = self.NIDHOGG_MOVES || {}, TU = NM.TUNE_U || {};
+      const ringK = rk || TU.ringK || (TU.ring && TU.ring.k) || 1.6; return Object.assign({ ringK, from: rk ? 'RINGK' : TU.ringK || (TU.ring && TU.ring.k) ? 'TUNE_U' : 'E\'s RING_K 1.6 (20k6f drawRing)' }, D.ultWingCheck({ ringK })); }, +process.env.RINGK || 0);
+    if (w.missing) ok(false, 'the wing check is exposed (__dbg.ultWingCheck)'); else ok(w.frames > 30 && w.clearance > 0.3, 'Ultima: no wing reaches the ring (clearance above its plane > 0.3 in every frame it shows)', w);
+    await page.close(); }
   await browser.close();
   console.log(bad ? `${bad} FAILED` : 'all ok'); process.exit(bad ? 1 : 0);
 })();

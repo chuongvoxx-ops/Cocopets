@@ -4,7 +4,7 @@
   "core.dur": "[20,25,35]",
   "core.cd": 120,
   "core.size": 0.65,
-  "core.zoom": 0.78,
+  "core.zoom": 0.585,
   "core.top": 10,
   "core.accel": 22,
   "core.brake": 14,
@@ -98,7 +98,7 @@
    "ULTIMA %"
   ],
   "z": 2.2,
-  "zoom": 0.78,
+  "zoom": 0.585,
   "camOff": 0,
   "CD": 120
  },
@@ -130,7 +130,7 @@
    "noCharge": 0
   },
   "strong2": {
-   "dbgAll": "10 hits, first: [[\"m0\",0.5,0.73],[\"m0\",0.5,0.77],[\"m1\",0.5,0.83],[\"m4\",0.5,0.87]]",
+   "dbgAll": "10 hits, first: [[\"m0\",0.5,0.77],[\"m0\",0.5,0.78],[\"m1\",0.5,0.8],[\"m4\",0.5,0.85]]",
    "uses": 2,
    "again": 4,
    "dk": [
@@ -170,10 +170,10 @@
  },
  "smash": {
   "dodge": {
-   "kind": "brokenpillar",
+   "kind": "pillar",
    "broken": true
   },
   "protectedBroken": 0,
-  "smashStat": 2
+  "smashStat": 1
  }
 }

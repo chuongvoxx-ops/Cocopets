@@ -659,7 +659,7 @@ const NIDHOGG_MODEL = (() => {
       if (o.ghost && w >= 0.5 && B1 >= 0) { B0 = B1; B1 = -1; }   // (a ghost: the nearest bucket alone)
       const M0 = lsM(B0 / NB * TAU, Fw, Lw, w3), M1 = B1 >= 0 && !o.ghost ? lsM(B1 / NB * TAU, Fw, Lw, w3) : null, near = w < 0.5 || B1 < 0 ? [B0, M0] : [B1, M1];
       item(V.depth(p3) + (dOff || 0), () => {
-        if (traced && tr > 0.02 && !o.ghost) { c.save(); c.shadowColor = `rgba(255,80,30,${0.95 * tr})`; c.shadowBlur = T * 0.45 * sc * tr; drawSpr(c, sprOf(name, B0), M0, sp[0], sp[1], sc * s, T, al); c.restore(); }
+        if (traced && tr > 0.02 && !o.ghost) { c.save(); c.shadowColor = `rgba(255,70,30,${0.55 * tr * tr * (3 - 2 * tr)})`; c.shadowBlur = T * 1.2 * sc * (0.5 + 0.5 * tr);   /* (v326: a soft, wide warm aura, never a crisp line) */ drawSpr(c, sprOf(name, B0), M0, sp[0], sp[1], sc * s, T, al); c.restore(); }
         drawSpr(c, sprOf(name, B0), M0, sp[0], sp[1], sc * s, T, al); if (M1) drawSpr(c, sprOf(name, B1), M1, sp[0], sp[1], sc * s, T, al * w);
         if (glowA > 0.01 && !o.ghost) { const g0 = BK.glow[name][B0], g1 = B1 >= 0 ? BK.glow[name][B1] : null, ga = al * Math.min(1, glowA); if (g0) drawSpr(c, g0, M0, sp[0], sp[1], sc * s, T, ga * (g1 ? 1 - w : 1), 'lighter'); if (g1) drawSpr(c, g1, M1, sp[0], sp[1], sc * s, T, ga * w, 'lighter'); } });
       return { b: near[0], M: near[1], S: sp, s };
@@ -705,7 +705,7 @@ const NIDHOGG_MODEL = (() => {
       { const dd = vnrm(vsub(wrist, elbow)), th = vadd(wrist, vmul(vnrm(vadd(dd, V3(0.4, 0, 0.25))), 0.42)), St = so(th, d); item(V.depth(wrist) + 0.005, () => drawSegImg(c, cl2, Sw[0], Sw[1], St[0], St[1], T * sc / cl2.k * 1.3, al)); }
       for (const [p3, r] of [[root, 1.6], [elbow, 1.35], [wrist, 1.25]]) { const S3 = so(p3, d); item(V.depth(p3) + 0.008, () => { c.save(); c.globalAlpha = al; c.translate(S3[0], S3[1]); c.scale(kHub * r, kHub * r); c.drawImage(hub.cv, hub.x, hub.y); c.restore(); }); } });
     // the ring over the back (Ultima): its far half behind, its near half in front
-    if (P.ring > 0.01 && !o.ghost) { const rc = R.ring; item(V.depth(rc) - 0.9, () => drawRing(c, V, R, P, al, 0)); item(V.depth(rc) + 0.9, () => drawRing(c, V, R, P, al, 1)); }
+    if (P.ring > 0.01 && !o.ghost) { const rc = R.ring; item(V.depth(rc) + 50, () => drawRing(c, V, R, P, al, 0)); item(V.depth(rc) + 50.1, () => drawRing(c, V, R, P, al, 1)); }   /* (v326, the user: no wing may slice through the ring: both halves are drawn over the dragon) */
     // sort and draw
     const L2 = ITEMS; for (let i = 1; i < NI; i++) { const it = L2[i]; let j = i - 1; while (j >= 0 && L2[j].d > it.d) { L2[j + 1] = L2[j]; j--; } L2[j + 1] = it; }
     for (let i = 0; i < NI; i++) L2[i].fn();
@@ -724,9 +724,8 @@ const NIDHOGG_MODEL = (() => {
     const al = P.alpha, low = o.low != null ? o.low : lowFx();
     R.dN = [0, 0]; R.dT = [0, 0]; R.dW = [[0, 0], [0, 0]];   // (drawn where the rig puts them: the anchors are exact)
     const ring = P.ring > 0.01;
-    if (ring) drawRing(c, V, R, P, al, 0);   // (the ring's far half behind the body, its near half in front)
     if (!NIDHOGG_GL.draw(c, R, V, P, o, frameW(a, P), GHOSTS, frameW)) return false;
-    if (ring) drawRing(c, V, R, P, al, 1);
+    if (ring) { drawRing(c, V, R, P, al, 0); drawRing(c, V, R, P, al, 1); }   // (v326: the whole ring over the dragon, so no wing slices through it)
     lights(c, V, R, P, al, low);
     if (P.heat > 0.03 && !low) { const tt = t * 3, T = V.T, sc = V.k; c.save(); c.globalCompositeOperation = 'lighter'; for (let i = 0; i < 7; i++) { const p3 = i < 3 ? R.neck[1 + i] : i < 5 ? R.torso : R.tail[(i - 4) * 4], s3 = V.toS(p3), ph2 = tt + i * 1.7, r = T * sc * (0.5 + 0.25 * Math.sin(ph2)); c.globalAlpha = al * P.heat * (0.12 + 0.06 * Math.sin(ph2 * 1.3));
       blitSized(c, glowSprite(i & 1 ? FIRE : '#FF4A1A'), s3[0] - r + Math.sin(ph2) * T * 0.15, s3[1] - r - T * 0.3 * ((tt * 0.4 + i * 0.3) % 1), r * 2, r * 2); } c.restore(); }
@@ -747,15 +746,18 @@ const NIDHOGG_MODEL = (() => {
   }
   /* the Ultima ring: concentric luminous bands over the back, runes on the outer band, floating angular segments; the
      inner bands counter-rotate. half: 0 the far half, 1 the near half */
+  /* (v326, the user: "the ring should be bigger as it glows and spins") its radius over the 1.45 that crowns the back: 1.6x;
+     20k6g keeps the wings under its plane through the Ultima (ultWingCheck uses the same 1.6) */
+  const RING_K = 1.6;
   function drawRing(c, V, R, P, al, half) {
-    const T = V.T, sc = V.k, ctr = V.toW(R.ring), C = V.toS(R.ring), vis = P.ring, spin = P.ringSpin, k = T * sc * 1.45;   // (the ring sized to the back it crowns)
+    const T = V.T, sc = V.k, ctr = V.toW(R.ring), C = V.toS(R.ring), vis = P.ring, spin = P.ringSpin * 1.5, k = T * sc * 1.45 * RING_K;   // (the ring sized to the back it crowns; v326: RING_K larger, spinning faster)
     const ell = (rad, a0, a1, w, col, alpha) => { c.beginPath(); c.ellipse(C[0], C[1], rad * k, rad * k * GY, 0, a0, a1); c.lineWidth = w; c.strokeStyle = col; c.globalAlpha = alpha; c.stroke(); };
     const a0 = half ? 0 : Math.PI, a1 = half ? Math.PI : TAU;   // (the near half is the lower half of the ellipse)
     c.save(); c.globalCompositeOperation = 'lighter'; const A = al * vis;
     // thick bands, each three steady passes: a wide soft bloom, the body, a hot core (no time terms: no strobing)
-    for (const [rad, w, alp] of [[1.45, 0.15, 0.4], [1.32, 0.06, 0.95], [1.08, 0.09, 0.65], [0.78, 0.05, 0.85]]) { ell(rad, a0, a1, T * w * 5.0 * sc, 'rgba(255,40,20,1)', A * alp * 0.12); ell(rad, a0, a1, T * w * 2.4 * sc, 'rgba(255,70,35,1)', A * alp * 0.35); ell(rad, a0, a1, Math.max(1.5, T * w * 1.1 * sc), 'rgba(255,130,80,1)', A * alp * 0.7); ell(rad, a0, a1, Math.max(1, T * w * 0.45 * sc), 'rgba(255,225,190,1)', A * alp); }
+    for (const [rad, w, alp] of [[1.45, 0.15, 0.4], [1.32, 0.06, 0.95], [1.08, 0.09, 0.65], [0.78, 0.05, 0.85]]) { ell(rad, a0, a1, T * w * 7.5 * sc, 'rgba(255,40,20,1)', A * alp * 0.2); ell(rad, a0, a1, T * w * 2.4 * sc, 'rgba(255,70,35,1)', A * alp * 0.35); ell(rad, a0, a1, Math.max(1.5, T * w * 1.1 * sc), 'rgba(255,130,80,1)', A * alp * 0.7); ell(rad, a0, a1, Math.max(1, T * w * 0.45 * sc), 'rgba(255,225,190,1)', A * alp); }
     // the runes round the outer band, turning; the inner band's ticks counter-turning
-    if (TX && TX.runes) { const n = 24; for (let i = 0; i < n; i++) { const th = i / n * TAU + spin; const s = Math.sin(th); if ((half && s < 0) || (!half && s >= 0)) continue; const px = C[0] + Math.cos(th) * 1.2 * k, py = C[1] + s * 1.2 * k * GY, w = T * 0.2 * sc, h = T * 0.12 * sc;
+    if (TX && TX.runes) { const n = 24; for (let i = 0; i < n; i++) { const th = i / n * TAU + spin; const s = Math.sin(th); if ((half && s < 0) || (!half && s >= 0)) continue; const px = C[0] + Math.cos(th) * 1.2 * k, py = C[1] + s * 1.2 * k * GY, w = T * 0.2 * sc * 1.35, h = T * 0.12 * sc * 1.35;
       c.save(); c.translate(px, py); c.rotate(th + Math.PI / 2); c.scale(1, 0.6 + 0.4 * Math.abs(Math.cos(th))); c.globalAlpha = A * 0.9; c.drawImage(TX.runes, (i % 16) * 32, 0, 32, 32, -w / 2, -h / 2, w, h); c.restore(); } }
     for (let i = 0; i < 12; i++) { const th = i / 12 * TAU - spin * 1.6, s = Math.sin(th); if ((half && s < 0) || (!half && s >= 0)) continue; const r0 = 0.82, r1 = 0.98; c.beginPath(); c.moveTo(C[0] + Math.cos(th) * r0 * k, C[1] + s * r0 * k * GY); c.lineTo(C[0] + Math.cos(th + 0.06) * r1 * k, C[1] + Math.sin(th + 0.06) * r1 * k * GY); c.strokeStyle = 'rgba(255,170,120,1)'; c.lineWidth = Math.max(1.5, T * 0.045 * sc); c.globalAlpha = A * 0.85; c.stroke(); }
     // floating angular segments on the outside, and a trail of embers circling with the spin
