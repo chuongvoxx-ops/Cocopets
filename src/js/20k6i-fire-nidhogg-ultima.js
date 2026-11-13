@@ -394,9 +394,9 @@
       // the dome, the column and the mushroom cloud: fire cooling into smoke as it climbs, the cap lit from within
       const u = blast.t, life = tu.cloudLife; if (u > life) return; const X0 = H.sx(ix), Y0 = H.sy(iy), fadeAll = 1 - sm((u - (life - 1.3)) / 1.3);
       if (u < 0.25) Q.glow(X0, Y0 - T * RX * 0.25, RX * 1.0 * T, '#FFFFFF', Math.pow(1 - u / 0.25, 1.5) * 0.7);
-      const puff = (x, y, s, sd, cool, a) => { if (s < 2 || a < 0.01 || S.f3d) return; const k = sm((cool - 0.3) / 0.4); if (k > 0.01) Q.smoke(x, y, s * 0.55, a * (0.35 + 0.65 * k), sd, '#3A302C', 1 - k); if (k < 0.99) Q.billow(x, y, s * 0.55, 0.85 - 0.6 * cool, a * (1 - k), sd); };   /* (not too hot: stacked, the billows must stay orange and read as volumes) */
+      const puff = (x, y, s, sd, cool, a) => { if (s < 2 || a < 0.01) return; const k = sm((cool - 0.3) / 0.4); if (k > 0.01) Q.smoke(x, y, s * 0.55, a * (0.35 + 0.65 * k), sd, '#3A302C', 1 - k); if (k < 0.99) Q.billow(x, y, s * 0.55, 0.85 - 0.6 * cool, a * (1 - k), sd); };   /* (not too hot: stacked, the billows must stay orange and read as volumes) */
       const dr = RX * T * eout(u / 0.3), dA = (u < 0.9 ? 1 : 1 - sm((u - 0.9) / 1.1)) * fadeAll; if (dA > 0.01 && dr > 2) { const hh = dr * 0.82 * (1 + 0.25 * sm((u - 0.4) / 1.0)), lift = T * 1.2 * sm((u - 0.5) / 1.2);
-        if (!S.f3d) Q.billow(X0, Y0 - hh * 0.45 - lift, dr * 0.95, 0.95 - 0.65 * sm(u / 1.6), 0.9 * dA, 4.4, hh / dr * 0.75);   /* (the dome: one great turbulent ball of fire, squat) */
+        Q.billow(X0, Y0 - hh * 0.45 - lift, dr * 0.95, 0.95 - 0.65 * sm(u / 1.6), 0.9 * dA, 4.4, hh / dr * 0.75);   /* (the dome: one great turbulent ball of fire, squat) */
         const NB = L ? 6 : 11; for (let i = 0; i < NB; i++) { const th = Math.PI + (i + 0.5) / NB * Math.PI, ro = 0.92 + 0.06 * Math.sin(u * 4 + i * 2.1); puff(X0 + Math.cos(th) * dr * ro, Y0 - lift + Math.sin(th) * hh * ro, dr * (0.34 + 0.06 * Math.sin(i * 1.7)) * (0.8 + 0.4 * eout(u / 0.5)), i * 1.3, sm((u - 0.35) / 1.0) * 0.8, dA * 0.95); }
         Q.glow(X0, Y0 - hh * 0.3 - lift, dr * 0.6, C.yel, 0.22 * dA * (1 - sm(u / 0.8)));
         const hc = (1 - sm((u - 0.2) / 1.0)) * dA; if (hc > 0.01) { Q.fire(X0, Y0 - hh * 0.4 - lift, dr * 0.42, 1.15, hc, 8.3, 0.85); Q.glow(X0, Y0 - hh * 0.4 - lift, dr * 0.16, '#FFFFFF', 0.7 * hc); } }   /* (the dome's white-hot heart: structure inside the wash) */
@@ -410,7 +410,7 @@
        the mouth's core; the beam a cylinder of churning fire, a white-hot core and two spiralling fire tubes, seen in
        perspective; the blast a dome of fire swelling from the floor, a stem and a mushroom cap of fire cooling into smoke,
        shock rings as tori on the floor; the secondary bursts as balls of fire */
-    const GP3 = [[], [], []];
+    const GP3 = [[], [], []], BLAST3D = false;   /* (v329, the user: the blast and the mushroom cloud looked better as the GPU-painted version (v327); only the ring, the charge and the beam stay in 3D) */
     function gpu3d(Q3) { const K = Q3.K, low = Q3.low, now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
       if ((P.ring || 0) > 0.02) { const rg = anchorW(ctx, 'ring'), A = Math.min(1, P.ring), sp = (P.ringSpin || 0) * 1.5, R1 = 2.2 * (d.scale || 1), tl = [0.16 * Math.cos(sp * 0.3), 0.16 * Math.sin(sp * 0.3), 0.975];
         Q3.torus(rg.x, rg.y, rg.z, R1, 0.1, tl, sp, K.runes, '#FF4A22', A, {}); Q3.torus(rg.x, rg.y, rg.z, R1 * 0.91, 0.045, tl, -sp * 0.7, K.floor, '#FF7A2E', A * 0.9, { heat: 1.0 });
@@ -424,7 +424,7 @@
         if (!low) for (let s2 = 0; s2 < 2; s2++) { const AS = s2 ? A2 : A1, NS = 18; for (let i = 0; i < NS; i++) { const u = i / (NS - 1), ph2 = u * 14 - t * 22 + s2 * Math.PI, rr = lerp(0.48, 0.85, u), q = AS[i] || (AS[i] = [0, 0, 0]); q[0] = lerp(m.x, ix, u) + Math.cos(ph2) * rr * 0.7; q[1] = lerp(m.y, iy, u) + Math.sin(ph2) * rr * 0.7; q[2] = lerp(m.z, 0.25, u) + Math.sin(ph2) * rr * 0.5; }
           Q3.tube(AS, NS, () => 0.07, K.fire, '#FFB060', 0.8 * fade, { heat: 1.0, seed: s2 + 4, m: 5 }); }
         const u = cl((t - TC) / tu.beam); Q3.sphere(ix, iy, 0.3, 0.5 + 0.8 * eout(u), K.fire, '#FF7A2E', fade, { heat: 1.0, seed: 3.3, amp: 0.35, flow: 2, sz: 0.7 }); }
-      if (!blast) return; const u = blast.t, life = tu.cloudLife; if (u > life) return; const fadeAll = 1 - sm((u - (life - 1.3)) / 1.3);
+      if (!blast || !BLAST3D) return; const u = blast.t, life = tu.cloudLife; if (u > life) return; const fadeAll = 1 - sm((u - (life - 1.3)) / 1.3);
       for (const b of blast.sec) { if (!b.done) continue; const a2 = blast.t - b.at; if (a2 > 1.1) continue; const r = 0.8 * b.s * eout(a2 / 0.35), fa = Math.pow(Math.max(0, 1 - a2 / 1.1), 1.3); Q3.sphere(b.x, b.y, r * 0.6, r, K.fire, '#FF7A2E', fa, { heat: 0.9 - 0.5 * a2, seed: b.v * 2.1, amp: 0.3 }); if (a2 > 0.3) Q3.sphere(b.x, b.y, r * 0.9, r * 1.1, K.smoke, '#3A2A24', fa * 0.7, { seed: b.v, amp: 0.3, warm: 0.5 }); }
       for (let k = 0; k < 3; k++) { const v = (u - k * 0.12) / (0.5 + 0.15 * k); if (v <= 0 || v >= 1) continue; Q3.torus(ix, iy, 0.05, RX * (1.11 - 0.06 * k) * eout(v), 0.12 * (1 - v) + 0.03, [0, 0, 1], 0, K.floor, k ? '#FF7A2E' : '#FFD27A', (1 - v), { heat: 1.0 - 0.3 * k }); }
       const dr = RX * eout(u / 0.3), dA = (u < 0.9 ? 1 : 1 - sm((u - 0.9) / 1.1)) * fadeAll, cool0 = sm(u / 1.6);
