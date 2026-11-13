@@ -26,7 +26,7 @@ const NIDHOGG_MODEL = (() => {
   const lowFx = () => typeof st !== 'undefined' && st && st.lowFx;
   /* the camera (the game's): orthographic from 46 degrees up; a tile across is a tile on screen, GY toward the viewer, ZK of height */
   const GY = 0.72, ZK = 0.695, VY = 0.6945, VZ = 0.7195;
-  const VIS = 1.25, HEADK = 3.0, TK = 1.7, WK = 1.36, LK = 1.6;   // (the head and the torso drawn this much larger than modelled)   // (the head drawn this much larger than modelled)   // the rig's units drawn at this many tiles
+  const VIS = 1.25, HEADK = 3.0, TK = 1.7, WK = 1.36, LK = 1.6, WSPAN = 1.5, WCHORD = 1.1, WZ = 1.25;   // (the head and the torso drawn this much larger than modelled)   // (the head drawn this much larger than modelled)   // the rig's units drawn at this many tiles
   const FIRE = '#FF7A1A', EMBER = '#FFB347', CORE = '#FFF4D8', CRIM = '#E0283F', RUNE = '#FF3A2A';
 
   /* ================= signed-distance modelling ================= */
@@ -328,8 +328,8 @@ const NIDHOGG_MODEL = (() => {
     f(x, y, z); const f0 = Q[0], mat = SM; f(x + e, y, z); const fxp = Q[0]; f(x - e, y, z); const fxm = Q[0]; f(x, y + e, z); const fyp = Q[0]; f(x, y - e, z); const fym = Q[0]; f(x, y, z + e); const fzp = Q[0]; f(x, y, z - e); const fzm = Q[0];
     let nx = fxp - fxm, ny = fyp - fym, nz = fzp - fzm; const nl = hyp3(nx, ny, nz) || 1; nx /= nl; ny /= nl; nz /= nl;
     const lap = (fxp + fxm + fyp + fym + fzp + fzm - 6 * f0) / (e * e) * 0.5;
-    let ao = 1; for (let i = 0; i < 4; i++) { const s2 = AOS[i]; f(x + nx * s2, y + ny * s2, z + nz * s2); ao -= AOW[i] * Math.max(0, s2 - Q[0]) / s2 * 0.42; } ao = cl(ao);
-    let sh = 1; const L = B.L; if (L[0] * nx + L[1] * ny + L[2] * nz > -0.1) { let tt = 0.02; for (let i = 0; i < 16 && tt < R * 1.6; i++) { f(x + nx * 0.005 + L[0] * tt, y + ny * 0.005 + L[1] * tt, z + nz * 0.005 + L[2] * tt); const h = Q[0]; if (h < 0.0012) { sh = 0; break; } sh = Math.min(sh, 7 * h / tt); tt += Math.max(0.014, h * 0.9); } sh = cl(sh); sh = sh * sh * (3 - 2 * sh); } else sh = 0;
+    let ao = 1; for (let i = B.lo ? 1 : 0; i < 4; i += B.lo ? 2 : 1) { const s2 = AOS[i]; f(x + nx * s2, y + ny * s2, z + nz * s2); ao -= AOW[i] * Math.max(0, s2 - Q[0]) / s2 * 0.42; } ao = cl(ao);
+    let sh = 1; const L = B.L; if (L[0] * nx + L[1] * ny + L[2] * nz > -0.1) { let tt = 0.02; const NS = B.lo ? 7 : 16, mn = B.lo ? 0.035 : 0.014; for (let i = 0; i < NS && tt < R * 1.6; i++) { f(x + nx * 0.005 + L[0] * tt, y + ny * 0.005 + L[1] * tt, z + nz * 0.005 + L[2] * tt); const h = Q[0]; if (h < 0.0012) { sh = 0; break; } sh = Math.min(sh, 7 * h / tt); tt += Math.max(mn, h * 0.9); } sh = cl(sh); sh = sh * sh * (3 - 2 * sh); } else sh = 0;
     G.hit = 1; G.t = t; G.x = x; G.y = y; G.z = z; G.nx = nx; G.ny = ny; G.nz = nz; G.mat = mat; G.ao = ao; G.sh = sh; G.lap = lap;
   }
   let IMG = null, IMG2 = null; const SCR = {};
@@ -355,7 +355,7 @@ const NIDHOGG_MODEL = (() => {
       else if (any) { trace(B, f, c[0], c[1], c[2], R, (px + 0.5 - ox) / k, (py + 0.5 - oy) / k, GA); if (GA.hit) { shade(B, GA.mat, GA.x, GA.y, GA.z, GA.nx, GA.ny, GA.nz, GA.lap, GA.ao, GA.sh, o, E); A[q * 4] = o[0]; A[q * 4 + 1] = o[1]; A[q * 4 + 2] = o[2]; A[q * 4 + 3] = 1; ID[q] = GA.mat; putE(q); } }
       if ((px & 3) === 3 && nowMs() - tY > 1.0) { yield; tY = nowMs(); } }
     BK.st = 'aa';
-    for (let py = 0; py < Hh; py++) { for (let px = 0; px < W; px++) { const pi = py * W + px, id = ID[pi];
+    if (!B.lo) for (let py = 0; py < Hh; py++) { for (let px = 0; px < W; px++) { const pi = py * W + px, id = ID[pi];
       if (!((px + 1 < W && ID[pi + 1] !== id) || (px > 0 && ID[pi - 1] !== id) || (py + 1 < Hh && ID[pi + W] !== id) || (py > 0 && ID[pi - W] !== id))) continue;
       let r = 0, g = 0, bb = 0, a = 0, e0 = 0, e1 = 0, e2 = 0; for (let si = 0; si < 4; si++) { trace(B, f, c[0], c[1], c[2], R, (px + 0.5 + (si & 1 ? 0.25 : -0.25) - ox) / k, (py + 0.5 + (si & 2 ? 0.25 : -0.25) - oy) / k, GA); if (!GA.hit) continue; shade(B, GA.mat, GA.x, GA.y, GA.z, GA.nx, GA.ny, GA.nz, GA.lap, GA.ao, GA.sh, o, E); r += o[0]; g += o[1]; bb += o[2]; a += 1; if (E) { e0 += E[0]; e1 += E[1]; e2 += E[2]; } }
       const q = pi * 4, a0 = A[q + 3], na = (a0 + a) / 5; if (na > 0) { A[q] = (A[q] * a0 + r) / 5 / na; A[q + 1] = (A[q + 1] * a0 + g) / 5 / na; A[q + 2] = (A[q + 2] * a0 + bb) / 5 / na; } A[q + 3] = na;
@@ -379,7 +379,7 @@ const NIDHOGG_MODEL = (() => {
   let CUR_PART = '';   // (the part being baked: one at a time; the head and jaw skip the generic plate lines)
   function bakePart(name, b, k0, lo) {
     CUR_PART = name;
-    const P = PARTS[name], B = frameOf(b), c = P.c, R = P.R, k = Math.min((PCAP[name] || KCAP) * (lo ? 0.5 : 1), k0 * (PSC[name] || 1));
+    const P = PARTS[name], B = lo ? Object.assign({}, frameOf(b), { lo: true }) : frameOf(b), c = P.c, R = P.R, k = Math.min((PCAP[name] || KCAP) * (lo ? 0.5 : 1), k0 * (PSC[name] || 1));   // (a quick picture: fewer occlusion and shadow samples, no edge supersampling; the sharp one replaces it)
     const gx = c[0] * B.ca - c[1] * B.sa, gy = c[0] * B.sa + c[1] * B.ca, cu = gx, cvv = gy * GY - c[2] * ZK;
     const W = Math.ceil(2 * R * k) + 4, box = { W, H: W, ox: -(cu - R) * k + 2, oy: -(cvv - R) * k + 2 };
     return bakeImg(B, P.f, c, R, k, !lo && P.glow, box, (s, e) => { if (lo) BK.lo[name][b] = s; else { BK.spr[name][b] = s; BK.glow[name][b] = e; } });
@@ -454,7 +454,7 @@ const NIDHOGG_MODEL = (() => {
 
   /* ================= the pose ================= */
   /* the channels (all numbers; see the brief). flap is a phase (cycles), ringSpin an angle; the rest are amounts */
-  const CH = ['flap', 'flapAmp', 'downFlex', 'spread', 'fold', 'finger', 'neckCurve', 'headYaw', 'headPitch', 'jaw', 'throat', 'pitch', 'bank', 'tailSwing', 'tailLift', 'legs', 'breath', 'vents', 'glow', 'spikes', 'trace', 'ring', 'ringSpin', 'core', 'alpha', 'heat'];
+  const CH = ['flap', 'flapAmp', 'downFlex', 'spread', 'fold', 'finger', 'neckCurve', 'headYaw', 'headPitch', 'jaw', 'throat', 'pitch', 'bank', 'tailSwing', 'tailLift', 'legs', 'breath', 'vents', 'glow', 'spikes', 'trace', 'ring', 'ringSpin', 'core', 'alpha', 'heat', 'shoulder', 'elbow', 'wrist', 'fingerSpread', 'billow'];
   const blankPose = () => { const o = {}; for (const k of CH) o[k] = 0; o.flapAmp = 0.8; o.breath = 1; o.alpha = 1; o.legs = 0.3; return o; };
   /* ---- 3D helpers ---- */
   const V3 = (x, y, z) => [x, y, z];
@@ -494,17 +494,20 @@ const NIDHOGG_MODEL = (() => {
     R.leg = []; for (const s of [-1, 1]) { const hip = V3(-0.62 * TK, 0.3 * TK * s, -0.2 * TK + bob), ank = V3(hip[0] + lerp(-0.42, 0.12, P.legs) * LK, (0.34 * TK + 0.06 * P.legs) * s, hip[2] + lerp(-0.1, -0.5, P.legs) * LK), kn = V3(hip[0] + lerp(0.05, 0.22, P.legs) * LK, (0.36 * TK) * s, hip[2] + lerp(-0.08, -0.22, P.legs) * LK); R.leg.push({ s, hip, kn, ank }); }
     // the wings: root, elbow, wrist, four fingers, the hip attachment; flapping, flexing, folding, spreading
     R.wing = [];
-    const up = Math.max(0, Math.cos(ph)), phi = amp * 0.72 * Math.sin(ph), phi2 = amp * 0.5 * Math.sin(ph - 0.7), flex = (P.downFlex + amp * 0.45 * Math.max(0, -Math.cos(ph))) * 0.5;
+    // (the user, 2026-11-13: wings 1.5x as long and 1.1x as wide: the span scaled by WSPAN, the chord by WCHORD, their droop by WZ; the shoulder, the hip attachment unchanged.
+    //  Joint channels for A, all amounts about 0: shoulder (raises the whole wing, -1..1), elbow (sweeps the forearm back, 0..1), wrist (droops the hand and fingers, -1..1), fingerSpread (fans the fingers, -1..1), billow (the membrane's belly, GPU))
+    const up = Math.max(0, Math.cos(ph)), phi = amp * 0.72 * Math.sin(ph) + (P.shoulder || 0) * 0.5, phi2 = amp * 0.5 * Math.sin(ph - 0.7), flex = (P.downFlex + amp * 0.45 * Math.max(0, -Math.cos(ph))) * 0.5;
     for (const s of [-1, 1]) {
       const root = V3(0.16 * TK, 0.44 * TK * s, 0.3 * TK + bob), f = P.fold, sp = P.spread;
       let hv = V3(-0.14 - 0.35 * f + 0.12 * sp, 0.72 * (1 - 0.3 * f), 0.14 - 0.12 * f + 0.1 * sp), fv = V3(0.3 - 0.5 * f + 0.12 * sp, 0.82 * (1 - 0.45 * f - 0.18 * up * amp), 0.02);
-      hv[1] *= s; fv[1] *= s; hv = vmul(hv, WK); fv = vmul(fv, WK);
+      hv = V3(hv[0] * WCHORD, hv[1] * WSPAN * s, hv[2] * WZ); fv = V3(fv[0] * WCHORD, fv[1] * WSPAN * s, fv[2] * WZ); hv = vmul(hv, WK); fv = vmul(fv, WK);
+      if (P.elbow) fv = rZ(fv, (P.elbow || 0) * 0.6 * s);
       const rot = v => rX(v, -phi * s), rot2 = v => rX(v, -(phi + phi2 * 0.6) * s);
       const elbow = vadd(root, rot(hv)), wrist = vadd(elbow, rot2(fv));
       const fing = [];
       const FA = [[0.42, 0.91, 1.3], [-0.2, 0.98, 1.32], [-0.68, 0.73, 1.2], [-0.97, 0.24, 1.0]];
-      for (let i = 0; i < 4; i++) { let [fx, fy, L] = FA[i]; const fan = 1 + 0.25 * sp - 0.55 * f - 0.25 * up * amp; let a = Math.atan2(fx, fy) * fan - 0.4 * f; fx = Math.sin(a); fy = Math.cos(a); L *= 1 - 0.38 * f - 0.15 * up * amp;
-        L *= WK; let v = V3(fx * L, fy * L * s, (-0.05 - flex * (0.2 + i * 0.05) + 0.12 * sp - P.finger * 0.18) * WK);
+      for (let i = 0; i < 4; i++) { let [fx, fy, L] = FA[i]; const fan = 1 + 0.25 * sp - 0.55 * f - 0.25 * up * amp + 0.3 * (P.fingerSpread || 0); let a = Math.atan2(fx, fy) * fan - 0.4 * f; fx = Math.sin(a); fy = Math.cos(a); L *= 1 - 0.38 * f - 0.15 * up * amp;
+        L *= WK; let v = V3(fx * L * WCHORD, fy * L * s * WSPAN, (-0.05 - flex * (0.2 + i * 0.05) + 0.12 * sp - P.finger * 0.18 - (P.wrist || 0) * 0.22) * WK * WZ);
         v = rX(v, -(phi + phi2) * s * 1.0); fing.push(vadd(wrist, v)); }
       const hipA = V3(-0.75 * TK, 0.34 * TK * s, 0.06 * TK + bob);
       R.wing.push({ s, root, elbow, wrist, fing, hipA });
@@ -641,7 +644,10 @@ const NIDHOGG_MODEL = (() => {
     o = o || {}; const T = o.T, t = o.t != null ? o.t : nowMs() / 1000;
     const want0 = bucketOf(a); if (BK.k) { if (!readyB(want0)) want(want0, !usableB(want0)); }
     const R = rig(P, t), V = mkView(x, y, z, a, P, o); LAST = { R, V, x, y, z, a, P };
-    if (!TX || !segsReady() || !(P.alpha > 0.01)) return;
+    if (!(P.alpha > 0.01)) return;
+    // the GPU model first (20k6fa): the same rig drawn as real 3D meshes in one pass; this 2D picture is its fallback
+    if (!o.ghost && glOn()) { try { if (glDraw(c, R, V, P, o, t, x, y, z, a)) return; } catch (e) { glFail(); if (typeof console !== 'undefined') console.warn('Nidhogg: GL draw', e); } }
+    if (!TX || !segsReady()) return;
     const al = P.alpha, sc = V.k, kseg = BK.seg.wbone ? T * sc / BK.seg.wbone.k : 0, low = o.low != null ? o.low : lowFx(), tr = cl(P.trace);
     NI = 0;
     /* a shell: crossfaded between the two nearest heading buckets (no popping as it turns), mapped by the least-squares
@@ -709,6 +715,23 @@ const NIDHOGG_MODEL = (() => {
       blitSized(c, glowSprite(i & 1 ? FIRE : '#FF4A1A'), s3[0] - r + Math.sin(ph2) * T * 0.15, s3[1] - r - T * 0.3 * ((tt * 0.4 + i * 0.3) % 1), r * 2, r * 2); } c.restore(); }
     // the rider last, upright, in clear view on its seat
     if (o.pet) { const s3 = V.toS(R.seat); o.pet(c, s3[0], s3[1]); }
+  }
+  /* ---- the GPU path (NIDHOGG_GL, 20k6fa): a failure falls back to the 2D picture for 1.5 s; for good after 3 failures within 20 s ---- */
+  let NOGL = false, GLFAIL = 0, GLRETRY = 0, GLLAST = 0, GHOSTS = null;
+  const glFail = () => { const t = nowMs(); if (t - GLLAST > 20000) GLFAIL = 0; GLLAST = t; GLFAIL++; if (GLFAIL >= 3) NOGL = true; else GLRETRY = t + 1500; };
+  const glOn = () => !NOGL && !(GLRETRY && nowMs() < GLRETRY) && typeof NIDHOGG_GL !== 'undefined' && NIDHOGG_GL.on();
+  function glDraw(c, R, V, P, o, t, x, y, z, a) {
+    const al = P.alpha, low = o.low != null ? o.low : lowFx();
+    R.dN = [0, 0]; R.dT = [0, 0]; R.dW = [[0, 0], [0, 0]];   // (drawn where the rig puts them: the anchors are exact)
+    const ring = P.ring > 0.01;
+    if (ring) drawRing(c, V, R, P, al, 0);   // (the ring's far half behind the body, its near half in front)
+    if (!NIDHOGG_GL.draw(c, R, V, P, o, frameW(a, P), GHOSTS, frameW)) return false;
+    if (ring) drawRing(c, V, R, P, al, 1);
+    lights(c, V, R, P, al, low);
+    if (P.heat > 0.03 && !low) { const tt = t * 3, T = V.T, sc = V.k; c.save(); c.globalCompositeOperation = 'lighter'; for (let i = 0; i < 7; i++) { const p3 = i < 3 ? R.neck[1 + i] : i < 5 ? R.torso : R.tail[(i - 4) * 4], s3 = V.toS(p3), ph2 = tt + i * 1.7, r = T * sc * (0.5 + 0.25 * Math.sin(ph2)); c.globalAlpha = al * P.heat * (0.12 + 0.06 * Math.sin(ph2 * 1.3));
+      blitSized(c, glowSprite(i & 1 ? FIRE : '#FF4A1A'), s3[0] - r + Math.sin(ph2) * T * 0.15, s3[1] - r - T * 0.3 * ((tt * 0.4 + i * 0.3) % 1), r * 2, r * 2); } c.restore(); }
+    if (o.pet) { const s3 = V.toS(R.seat); o.pet(c, s3[0], s3[1]); }
+    return true;
   }
   function lights(c, V, R, P, al, low) {
     const T = V.T, sc = V.k, dN = R.dN || [0, 0], dW = R.dW || [[0, 0], [0, 0]], toS = (p3, d) => { const q = V.toS(p3); return [q[0] + d[0], q[1] + d[1]]; };   // (on the parts as drawn: shifted with their chains)
@@ -809,7 +832,7 @@ const NIDHOGG_MODEL = (() => {
     dismiss: { dur: 1.6, run(P, t, dt) { flapAt(P, dt, 1.6, 0.9); P.alpha = 1 - sstep(0.4, 1.4, t); P.glow = sstep(0, 0.4, t) * (1 - sstep(0.8, 1.4, t)); P.heat = 1; P.vents = P.glow; return { speed: 0, embers: t < 1.3 }; } },
   };
   /* steady relaxing toward a neutral flight pose (call each frame when no clip owns a channel) */
-  function relax(P, dt) { const k = Math.min(1, dt * 3); for (const c2 of ['downFlex', 'spread', 'fold', 'finger', 'headYaw', 'headPitch', 'jaw', 'throat', 'pitch', 'bank', 'tailSwing', 'tailLift', 'legs', 'vents', 'glow', 'spikes', 'trace', 'ring', 'core', 'heat']) P[c2] += (0 - P[c2]) * k; P.alpha += (1 - P.alpha) * k; }
+  function relax(P, dt) { const k = Math.min(1, dt * 3); for (const c2 of ['downFlex', 'spread', 'fold', 'finger', 'headYaw', 'headPitch', 'jaw', 'throat', 'pitch', 'bank', 'tailSwing', 'tailLift', 'legs', 'vents', 'glow', 'spikes', 'trace', 'ring', 'core', 'heat', 'shoulder', 'elbow', 'wrist', 'fingerSpread', 'billow']) P[c2] += (0 - (P[c2] || 0)) * k; P.alpha += (1 - P.alpha) * k; }
 
   /* ================= the dev preview (test builds only: reached through the test hook (nidhoggPreview there)) =================
      The dragon flies over the current Tower floor with the pet on its back. The stick steers; Dodge dives; Strong 1
@@ -922,9 +945,10 @@ const NIDHOGG_MODEL = (() => {
      or rider; low detail), then the dragon itself, then soft swoosh arcs off the wingtips. At rest it is just draw(). */
   function drawSpin(c, x, y, z, P, o, D) {
     const low = o.low != null ? o.low : lowFx(), G = D.ghosts(low ? 1 : 3), a = D.a;
-    if (G.length && P.alpha > 0.05) { const al0 = P.alpha, o2 = Object.assign({}, o, { ghost: true, low: true, pet: null });
+    if (glOn()) { GHOSTS = G.length && P.alpha > 0.05 ? G.filter(g2 => Math.abs(wrap(g2.a - a)) >= 0.03 && g2.al >= 0.02) : null; }   // (on the GPU the ghosts go in the body's own pass)
+    else if (G.length && P.alpha > 0.05) { const al0 = P.alpha, o2 = Object.assign({}, o, { ghost: true, low: true, pet: null });
       for (const g2 of G) { if (Math.abs(wrap(g2.a - a)) < 0.03 || g2.al < 0.02) continue; P.alpha = al0 * g2.al; draw(c, x, y, z, g2.a, P, o2); } P.alpha = al0; }
-    draw(c, x, y, z, a, P, o);
+    try { draw(c, x, y, z, a, P, o); } finally { GHOSTS = null; }
     const S = D.spin || (D.blur > 0 ? D.last : null); if (!S || !LAST || !(P.alpha > 0.05)) return;
     // the swooshes: each wingtip's path over the arc swept so far, as a tapering additive streak
     const R = LAST.R, T = o.T, u1 = D.spin ? D.u : 1, fade = (D.spin ? Math.sin(Math.PI * Math.min(1, D.u * 1.3)) : D.blur / 0.12) * P.alpha;
@@ -938,9 +962,15 @@ const NIDHOGG_MODEL = (() => {
 
   /* ================= the interface ================= */
   /* create(opts): an instance with its own pose (opts.T and dpr set the bake scale) */
-  function create(opts) { opts = opts || {}; if (opts.T) setScale(opts.T * (opts.dpr || 1)); const P = blankPose(); return { pose: P, draw: (c, x, y, z, a, P2, o) => draw(c, x, y, z, a, P2 || P, o), drawShadow: (c, x, y, z, a, P2, o) => drawShadow(c, x, y, z, a, P2 || P, o), anchor, warm: ms => bakeStep(ms) }; }
+  function create(opts) { opts = opts || {}; if (opts.T) setScale(opts.T * (opts.dpr || 1)); const P = blankPose(); return { pose: P, draw: (c, x, y, z, a, P2, o) => draw(c, x, y, z, a, P2 || P, o), drawShadow: (c, x, y, z, a, P2, o) => drawShadow(c, x, y, z, a, P2 || P, o), anchor, warm: ms => glWarm(ms) }; }
   /* idle-time preparation: the scale from a tile size (px) and the device's pixel ratio, then baking in idle slices */
-  function warmIdle(T, dpr) { if (T > 0) setScale(T * (dpr || 1)); idleBake(); }
-  return { create, warm: ms => bakeStep(ms), warmIdle, draw, drawShadow, turnDriver, drawSpin, anchor, blankPose, CH, CLIPS, relax, preview, rig, VIS,
-    __dbg: { BK, setScale, bakeStep, readyB, usableB, want, bucketOf, groundA, PARTS, SEGS, get TX() { return TX; }, frameOf, shade } };
+  function warmIdle(T, dpr) { if (T > 0) setScale(T * (dpr || 1)); if (!glOn()) idleBake(); }   // (on the GPU nothing needs baking)
+  /* the drawn extents (tiles, at scale 1, the hover pose; for the camera and the clearance checks) */
+  const SIZE = (() => { const P = blankPose(), R = rig(P, 0), k = VIS; let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9, z0 = 1e9, z1 = -1e9; const pts = [R.head, R.mouth, R.tail[R.tail.length - 1]].concat(R.tail, R.neckS); for (const Wg of R.wing) pts.push(Wg.root, Wg.elbow, Wg.wrist, ...Wg.fing); for (const Lg of R.leg) pts.push(Lg.ank);
+    for (const p of pts) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); z0 = Math.min(z0, p[2]); z1 = Math.max(z1, p[2]); }
+    return { length: (x1 - x0) * k, span: (y1 - y0) * k, height: (z1 - z0) * k, nose: x1 * k, tail: -x0 * k, seatZ: R.seat[2] * k }; })();
+  const glWarm = ms => (glOn() ? true : bakeStep(ms));
+  return { create, warm: glWarm, warmIdle, draw, drawShadow, turnDriver, drawSpin, anchor, blankPose, CH, CLIPS, relax, preview, rig, VIS, SIZE,
+    get gl() { return glOn(); }, get stats() { return typeof NIDHOGG_GL !== 'undefined' ? NIDHOGG_GL.stats : null; }, COUNTS: () => (typeof NIDHOGG_GL !== 'undefined' ? NIDHOGG_GL.COUNTS() : null),
+    __dbg: { BK, setScale, bakeStep, readyB: b => glOn() || readyB(b), usableB: b => glOn() || usableB(b), want, bucketOf, groundA, PARTS, SEGS, get TX() { return TX; }, frameOf, shade, glFail, get NOGL() { return NOGL; }, get GL() { return typeof NIDHOGG_GL !== 'undefined' ? NIDHOGG_GL.__dbg : null; } } };
 })();

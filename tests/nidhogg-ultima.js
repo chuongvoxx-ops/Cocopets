@@ -13,6 +13,8 @@ const path = require('path');
   async function run(kill) {
     const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1.5, hasTouch: true });
     const errors = []; page.on('pageerror', e => errors.push(e.message + ' @ ' + (e.stack || '').split('\n').slice(1, 3).join(' ')));
+    /* GLFLAGS=__NIDHOGG_GL,__NG_GL (comma list): set before any game script, to run on the forced GPU path (the user: the 2D version need not be tested beyond smoke) */
+    if (process.env.GLFLAGS) await page.addInitScript(fl => { for (const f of fl) window[f] = 1; }, process.env.GLFLAGS.split(','));
     await page.goto('file://' + path.resolve(__dirname, '..', process.env.HTML || 'test.html'));
     await page.waitForFunction(() => window.__pp, null, { timeout: 60000 }); await page.waitForTimeout(300);
     await page.evaluate(() => { const P = window.__pp; P.quickStart('Elem'); P.st.unlockAll = true; P.st.energy = 100; P.st.dun.best = 30; P.st.dlv = 30; P.openMap(); P.dun.setMapTab('dungeon', true); P.dun.startDungeon(3, 11); });

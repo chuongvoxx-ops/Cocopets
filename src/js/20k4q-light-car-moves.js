@@ -162,8 +162,12 @@ const SPORTSCAR_MOVES = (() => {
           if (p.drag) { const k = Math.exp(-p.drag * dt); p.vx *= k; p.vy *= k; p.vz *= k; } p.vz -= p.g * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; if (p.z < 0) { p.z = 0; p.vz = 0; } p.rot += p.vr * dt; }
         if (!S.acts.length && !P.length) { S.on = false; f.life = 0; }
       },
-      drawUnder(c) { if (!S.on) return; petPos(S); const B = c.getTransform(); c.save(); for (const a of S.acts) if (a.under) a.under(c, B); drawParts(S, c, B, 1); c.restore(); },
-      draw(c) { if (!S.on) return; petPos(S); const B = c.getTransform(); c.save(); for (const a of S.acts) if (a.over) a.over(c, B); drawParts(S, c, B, 0); c.restore(); },
+      drawUnder(c) { if (!S.on) return; petPos(S); const B = c.getTransform(); c.save();
+        if (gpuOn()) { const Q = SPORTSCAR_MOVES.LGFX.begin(c, null); for (const a of S.acts) { if (a.gpuUnder) a.gpuUnder(Q); else if (a.under) a.under(c, B); } c.setTransform(B); gpuParts(S, Q, 1); SPORTSCAR_MOVES.LGFX.flush(c); c.restore(); return; }   /* (the GPU layer; the 2D pictures stay as the fallback) */
+        for (const a of S.acts) if (a.under) a.under(c, B); drawParts(S, c, B, 1); c.restore(); },
+      draw(c) { if (!S.on) return; petPos(S); const B = c.getTransform(); c.save();
+        if (gpuOn()) { const Q = SPORTSCAR_MOVES.LGFX.begin(c, [S.PX, S.PY, S.PR]); for (const a of S.acts) { if (a.gpuOver) a.gpuOver(Q); else if (a.over) a.over(c, B); } c.setTransform(B); gpuParts(S, Q, 0); SPORTSCAR_MOVES.LGFX.flush(c); c.restore(); return; }
+        for (const a of S.acts) if (a.over) a.over(c, B); drawParts(S, c, B, 0); c.restore(); },
       onEnd() { if (S.on) kill(); } });
     return S;
   }
@@ -191,6 +195,28 @@ const SPORTSCAR_MOVES = (() => {
     c.setTransform(B); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over'; }
 
   /* ================= shared bits ================= */
+  /* ---- the GPU (SPORTSCAR_MOVES.LGFX, below): the particles, and the ribbons, from the same numbers as the 2D ones ---- */
+  const gpuOn = () => { try { return !!(typeof SPORTSCAR_MOVES !== 'undefined' && SPORTSCAR_MOVES.LGFX && SPORTSCAR_MOVES.LGFX.usable()); } catch (e) { return false; } };
+  function gpuParts(S, Q, under) { const H = S.H, T = S.T, P = S.parts, GY = H.GY || 0.55;
+    for (let i = 0; i < P.length; i++) { const p = P[i]; if ((p.u ? 1 : 0) !== under) continue;
+      const u = p.t / p.life, a = p.a * Math.min(1, p.t / p.fin) * (p.kind === 4 || p.kind === 5 ? (1 - u) * (1 - u) : 1 - u * u); if (a < 0.015) continue;
+      const X = H.sx(p.x), Y = H.sy(p.y) - p.z * S.ZT, s = p.size * T * (1 + p.grow * u), fy = p.flat ? GY : 1;
+      switch (p.kind) {
+        case 0: case 1: Q.star(X, Y, s * 0.5, a, p.kind ? '#FFD9F0' : '#FFF0C2'); Q.glow(X, Y, s * 0.35, p.kind ? PINK : GOLD, a * 0.5); break;
+        case 2: case 3: Q.heartB(X, Y, s * 0.5, p.rot || 0, p.kind === 2 ? ROSE : '#FFC56E', a); break;
+        case 4: Q.smoke(X, Y, s * 0.5, a, (p.rot || 0) * 0.3 + i * 0.13); break;
+        case 5: Q.glow(X, Y, s * 0.5, ROSE, a, fy); break;
+        case 6: Q.starB(X, Y, s * 0.45, p.rot || 0, a); break;
+        case 7: Q.glow(X, Y, s * 0.5, WGOLD, a, fy); break;
+        case 8: Q.ring(X, Y, s * 0.44, PINK, a, s * 0.05, fy); break;
+        default: { const ang = Math.atan2(p.vy - p.vz, p.vx), cs = Math.cos(ang), sn = Math.sin(ang); Q.ray(X - cs * s, Y - sn * s, X, Y, s * 0.11, WGOLD, a); } } } }
+  /* a ribbon on the GPU: the same curl and taper as ribbon() */
+  function ribbonG(S, Q, pts, w, col, a, curl, ph) { const n = pts.length; if (n < 3 || !(a > 0.01)) return; const H = S.H, T = S.T; let px = 0, py = 0;
+    for (let i = 0; i < n; i++) { const p = pts[i], u = i / (n - 1), q = pts[Math.min(n - 1, i + 1)], r = pts[Math.max(0, i - 1)], dx = q[0] - r[0], dy = q[1] - r[1], L = Math.hypot(dx, dy) || 1, off = curl * Math.sin(u * 7 + ph) * u;
+      const X = H.sx(p[0] - dy / L * off), Y = H.sy(p[1] + dx / L * off) - p[2] * S.ZT;
+      if (i) { const k = 1 - u, ia = sm(u / 0.12); Q.seg(px, py, X, Y, Math.max(0.5, w * T * k * 0.5), col, a * k * ia); }
+      px = X; py = Y; } }
+
   function setup(ctx) { const S = sysOf(ctx); if (!S) return null; const H = S.H, C = ctx.C || {}, ev = Math.max(1, Math.min(7, Math.round(ctx.evo || C.evo || 1)));
     const base = C.base != null ? C.base : (H.X.ST ? H.X.ST().atk : 10);
     return { S, H, X: H.X, me: H.me, car: ctx.car, ev, tier: ev >= 7 ? 2 : ev >= 4 ? 1 : 0, DK: ctx.DK > 0 ? ctx.DK : base * (C.K || 1) * (1 + 0.08 * (ev - 1)) }; }
@@ -245,6 +271,15 @@ const SPORTSCAR_MOVES = (() => {
           put(c, B, glo, X0, Y0, T * 1.2, T * 1.2, 0.5 * k, 0, 1, true);
           const s = T * 0.74; put(c, B, star, X0, Y0, s, s, Math.min(1, m.t / 0.06) * (0.55 + 0.45 * k), m.rot * 0.35, 1, false); }
         c.setTransform(B); },
+      gpuUnder(Q) { const T = S.T, cx = car.x, cy = car.y, GY = H.GY || 0.55; const fa = Math.min(1, t / 0.2) * (1 - sm((t - (tu.sigil + NV * tu.gap)) / 0.35));
+        if (fa > 0.01 && !car.gone) for (let k = 0; k < 5; k++) { const a = base + k * TAU / 5 + t * 0.9, x = H.sx(cx + Math.cos(a) * sig), y = H.sy(cy + Math.sin(a) * sig), pul = 1 + 0.12 * Math.sin(t * 14 + k), r = T * 0.4 * pul * sm(t / 0.25 + 0.3);
+          Q.ring(x, y, r, PINK, fa * 0.9, T * 0.05, GY); Q.starL(x, y, r * 0.8, -t * 2.2 + k, GOLD, fa * 0.95, GY, true, 0.07); Q.glow(x, y, T * 0.65, PINK, fa * 0.35, GY); }
+        if (!LOW()) for (const m of ms) if (!m.ex) Q.glow(H.sx(m.x), H.sy(m.y), T * 0.45, PINK, 0.28, GY); },
+      gpuOver(Q) { const T = S.T;
+        for (const m of ms) { const X0 = H.sx(m.x), Y0 = H.sy(m.y) - m.z * S.ZT, fo = m.ex ? 1 - (m.t - m.end) / 0.14 : 1; if (fo <= 0.01) continue;
+          const len = Math.min(m.d, 2.0) * T * fo, ca = Math.cos(m.a), sa = Math.sin(m.a); if (len > 2) { Q.ray(X0 - ca * len, Y0 - sa * len, X0 + ca * T * 0.06, Y0 + sa * T * 0.06, T * 0.21, PINK, 0.95 * fo); Q.ray(X0 - ca * len * 0.6, Y0 - sa * len * 0.6, X0, Y0, T * 0.07, WGOLD, 0.9 * fo); }
+          if (m.ex) continue;
+          Q.glow(X0, Y0, T * 0.6, ROSE, 0.5); Q.starB(X0, Y0, T * 0.37, m.rot * 0.35, Math.min(1, m.t / 0.06)); } },
       abort() { for (const m of ms) MPOOL.push(m); ms.length = 0; } };
     S.acts.push(act);
   }
@@ -292,6 +327,18 @@ const SPORTSCAR_MOVES = (() => {
         c.setTransform(B); },
       over(c, B) { if (t >= T0) for (let s = 0; s < 2; s++) ribbon(S, c, B, trail[s], 0.2, s ? ROSE : CANDY, PEARL, 0.9, 0.22, t * 6 + s * 2);
         if (slam) drawSlamOver(S, c, B, slam.t, tx, ty, tu.R); c.setTransform(B); },
+      gpuUnder(Q) { const T = S.T, X1 = H.sx(tx), Y1 = H.sy(ty), GY = H.GY || 0.55;
+        if (!landed) { const fa = sm(t / 0.2), pul = 1 + 0.06 * Math.sin(t * 16), dk = sm((t - T0) / tu.air), r = tu.R * T * (1.18 - 0.18 * dk) * pul, hb = 0.85 + 0.15 * Math.sin(t * 11);   /* (the landing marker: a crisp gold-and-rose ring with ticks, a glowing heart filling as the car comes down, light on the floor) */
+          Q.glow(X1, Y1, r * 1.1, PINK, fa * (0.35 + 0.3 * dk), GY); Q.glow(X1, Y1, r * 0.55, WGOLD, fa * (0.2 + 0.35 * dk) * hb, GY);
+          Q.ring(X1, Y1, r, GOLD, fa, T * 0.34, GY); Q.ring(X1, Y1, r * 0.995, '#FFFFFF', fa * 0.85, T * 0.07, GY); Q.ring(X1, Y1, r * 0.84, ROSE, fa * 0.95, T * 0.24, GY);
+          for (let k = 0; k < 16; k++) { const a = k / 16 * TAU + t * 1.6, r0 = r * (k % 2 ? 0.86 : 0.89), r1 = r * 0.98, ca = Math.cos(a), sa = Math.sin(a) * GY; Q.seg(X1 + ca * r0, Y1 + sa * r0, X1 + ca * r1, Y1 + sa * r1, T * 0.06, GOLD, fa); }
+          const hr = r * (0.42 + 0.08 * dk) * (0.95 + 0.05 * hb); Q.heartL(X1, Y1, hr, 0, ROSE, fa * (0.35 + 0.65 * dk) * hb, GY, false); Q.heartL(X1, Y1, hr, 0, BLUSH, fa * hb, GY, true, 0.05); }
+        if (t >= T0 && !landed) { const z = car.z || 0, sz = carL(car) * T * (1.15 - 0.12 * z) * 0.5; Q.shadow(H.sx(car.x), H.sy(car.y), sz, sz * 0.62, 0.75 - 0.2 * z, car.a); }
+        const ga = t < T0 ? sm(t / T0) : t < T1 ? 1 - sm((t - T0) / (tu.air * 0.7)) : 0;
+        if (ga > 0.01) { const sz = carL(car) * T * (0.55 + 0.45 * sm(t / T0)) * 0.36, Xc = H.sx(car.x), Yc = H.sy(car.y) - (car.z || 0) * S.ZT * 0.85; Q.glow(Xc, Yc, sz * 1.6, ROSE, ga * 0.5, GY); Q.heartL(Xc, Yc, sz, 0, ROSE, ga * 0.85, GY, false); Q.heartL(Xc, Yc, sz * 1.1, 0, PINK, ga * 0.9, GY, true, 0.05); }
+        if (slam) slamUnderG(S, Q, slam.t, X1, Y1, tu.R); },
+      gpuOver(Q) { if (t >= T0) for (let s2 = 0; s2 < 2; s2++) ribbonG(S, Q, trail[s2], 0.2, s2 ? ROSE : CANDY, 0.9, 0.22, t * 6 + s2 * 2);
+        if (slam && slam.t <= 0.5) { const T = S.T, u = slam.t / 0.5, X1 = H.sx(tx), Y1 = H.sy(ty) - T * (0.4 + 0.8 * u); Q.star(X1, Y1, T * 0.9 * (1 - u * 0.5), (1 - u) * 0.8, '#FFF0C2'); Q.glow(X1, Y1, T * 0.5, GOLD, (1 - u) * 0.5); } },
       abort() { car.z = 0; car.susp = 0; } };
     S.acts.push(act);
   }
@@ -306,6 +353,12 @@ const SPORTSCAR_MOVES = (() => {
     for (let k = 0; k < 2; k++) { const u = (t - k * 0.09) / 0.75; if (u <= 0 || u >= 1) continue; const s = R * 2 * T * (0.35 + 0.95 * eout(u)) * (k ? 0.8 : 1.12); put(c, B, sprHeartLine(), X1, Y1 + T * 0.05, s, s, (1 - u) * (k ? 0.7 : 1), 0, H.GY, true); }
     if (t < 0.45) { const u = t / 0.45, s = R * 2 * T * (0.3 + 0.85 * eout(u)); put(c, B, sprRing('rim'), X1, Y1, s, s, (1 - u) * 0.9, 0, H.GY, true); }
     if (t < 0.7 && typeof raySprite === 'function') { const u = t / 0.7, rs = raySprite(WGOLD); c.globalCompositeOperation = 'lighter'; for (let i = 0; i < 7; i++) { const a = -Math.PI / 2 + (i - 3) * 0.33 + Math.sin(i * 3.1) * 0.08, L = T * R * (0.6 + 0.9 * eout(u)) * (0.75 + 0.25 * Math.sin(i * 1.9)), w = T * 0.32; c.globalAlpha = (1 - u) * 0.75; setT(c, B, X1, Y1 - T * 0.2, a); c.drawImage(rs, 0, -w / 2, L, w); } } }
+  function slamUnderG(S, Q, t, X1, Y1, R) { const T = S.T, GY = S.H.GY || 0.55;
+    if (t < 0.25) Q.glow(X1, Y1, R * 1.3 * T, WGOLD, (1 - t / 0.25) * 0.8, GY);
+    if (t < 0.6) { const u = t / 0.6; Q.heartL(X1, Y1, R * 1.1 * T * (0.6 + 0.4 * eout(u)), 0, ROSE, (1 - u) * 0.7, GY, false); }
+    for (let k = 0; k < 2; k++) { const u = (t - k * 0.09) / 0.75; if (u <= 0 || u >= 1) continue; Q.heartL(X1, Y1 + T * 0.05, R * T * (0.35 + 0.95 * eout(u)) * (k ? 0.8 : 1.12), 0, PINK, (1 - u) * (k ? 0.7 : 1), GY, true, 0.04); }
+    if (t < 0.45) { const u = t / 0.45; Q.ring(X1, Y1, R * T * (0.3 + 0.85 * eout(u)) * 0.9, PINK, (1 - u) * 0.9, T * 0.12, GY); }
+    if (t < 0.7) { const u = t / 0.7; for (let i = 0; i < 7; i++) { const a = -Math.PI / 2 + (i - 3) * 0.33 + Math.sin(i * 3.1) * 0.08, L = T * R * (0.6 + 0.9 * eout(u)) * (0.75 + 0.25 * Math.sin(i * 1.9)), x0 = X1, y0 = Y1 - T * 0.2; Q.ray(x0 + Math.cos(a) * L, y0 + Math.sin(a) * L, x0, y0, T * 0.16, WGOLD, (1 - u) * 0.75); } } }
   function drawSlamOver(S, c, B, t, x, y, R) { /* the rising sparkle column above the impact (dims at the pet) */ const T = S.T, H = S.H; if (t > 0.5) return; const u = t / 0.5, X1 = H.sx(x), Y1 = H.sy(y) - T * (0.4 + 0.8 * u); put(c, B, sprGlint(GOLD), X1, Y1, T * 1.8 * (1 - u * 0.5), T * 1.8 * (1 - u * 0.5), (1 - u) * 0.8 * petK(S, X1, Y1, 0.3), t * 3, 1, true); }
 
   /* ================= Supernova ================= */
@@ -436,6 +489,37 @@ const SPORTSCAR_MOVES = (() => {
         if (ex) drawBlastOver(c, B);
         if (ej) drawEjectOver(c, B);
         c.setTransform(B); },
+      gpuUnder(Q) { const T = S.T, GY = H.GY || 0.55, low = LOW();
+        for (const tr of tracks) for (let i = 1; i < tr.length; i += low ? 2 : 1) { const a = Math.max(0, 1 - (t - tr[i][2]) / 1.6); if (a < 0.02) break; const j = Math.max(0, i - (low ? 2 : 1)); Q.seg(H.sx(tr[j][0]), H.sy(tr[j][1]), H.sx(tr[i][0]), H.sy(tr[i][1]), T * 0.045, PINK, a * 0.6); }
+        for (let s2 = 0; s2 < 2; s2++) ribbonG(S, Q, rib[s2], 0.24, s2 ? ROSE : GOLD, 0.95, 0.16, t * 9 + s2 * 2);
+        const iu = ph === 'implode' || ph === 'blast' ? sm((t - TI) / tu.implode) : 0, endA = finished || ph === 'blast' ? Math.max(0, 1 - (t - TE) / 0.35) : 1;
+        if (ph === 'implode') { const u0 = (t - TI) / tu.implode, Xc = H.sx(car.x), Yc = H.sy(car.y);
+          for (let k = 0; k < (low ? 1 : 3); k++) { const u = u0 * 1.7 - k * 0.32; if (u <= 0 || u >= 1) continue; Q.ring(Xc, Yc, T * lerp(5.6, 0.7, eio(u)) * 0.9, PINK, sm(u / 0.25) * (1 - u * 0.6), T * 0.14, GY); }
+          const cs = carL(car) * T * (0.9 + 2.2 * iu) * 0.5; Q.glow(Xc, Yc, cs, WGOLD, 0.25 + 0.5 * iu, GY); Q.glow(Xc, Yc, cs * 1.6, ROSE, 0.3 * iu, GY); }
+        for (const q of pinks) { const u = q.t / tu.pinkT, r = tu.pinkR * q.k * (0.15 + 0.85 * eout(u)), a = Math.pow(1 - u, 1.3) * sm(q.t / 0.04); Q.wave(H.sx(q.x), H.sy(q.y), r * T * 1.08, PINK, a, GY, 0.85, 0.07); if (!low && u < 0.4) Q.glow(H.sx(q.x), H.sy(q.y), T * 1.2 * q.k, PINK, (1 - u / 0.4) * 0.45, GY); }
+        const keepR = low ? 2 : 3; for (let ri = Math.max(0, rings.length - keepR - 1); ri < rings.length; ri++) { const r = rings[ri], old = rings.length - 1 - ri >= keepR ? Math.max(0, 1 - rings[rings.length - 1].t / 0.35) : 1; if (old <= 0.01) continue; const a = sm(r.t / 0.3) * endA * old, rr = r.r * T * (1 - 0.55 * iu) * (1 + 0.04 * Math.sin(r.t * 7 + r.w)), x = lerp(H.sx(r.x), H.sx(car.x), iu), y = lerp(H.sy(r.y), H.sy(car.y), iu);
+          Q.ring(x, y, rr * 1.1, GOLD, a * (0.85 + 0.4 * iu), T * 0.1, GY); Q.ring(x, y, rr * 1.04, PINK, a * 0.5, T * 0.2, GY); }
+        for (const w of waves) { const u = cl(w.t / tu.waveT), r = w.R * eout(u), fa = w.t < tu.waveT ? 1 - 0.3 * u : Math.max(0, 1 - (w.t - tu.waveT) / 0.5) * 0.7, X0 = H.sx(w.x), Y0 = H.sy(w.y), br = 1 + 0.15 * w.i;
+          Q.wave(X0, Y0, r * T * 1.12, ROSE, fa * 0.95 * br, GY, 0.88, 0.06); Q.ring(X0, Y0, r * T * 0.92, GOLD, fa * 0.8, T * 0.08, GY);
+          if (w.t < 0.34 && !low) { const ru = w.t / 0.34, NR = 12; for (let k = 0; k < NR; k++) { const a = w.rot + k * TAU / NR, Lr = T * w.R * (0.4 + 0.9 * eout(ru)) * (0.8 + 0.2 * Math.sin(k * 2.7)), ca = Math.cos(a), sa = Math.sin(a) * GY; Q.ray(X0 + ca * (T * 0.5 + Lr), Y0 + sa * (T * 0.5 + Lr), X0 + ca * T * 0.5, Y0 + sa * T * 0.5, T * 0.18, w.i % 2 ? PINK : WGOLD, (1 - ru) * (1 - ru) * 0.8); } }
+          for (let k = 0; k < 3; k++) { const a0 = w.rot + k * TAU / 3 + u * 1.2, rr = r * T * 0.92; let px = X0 + Math.cos(a0) * rr, py = Y0 + Math.sin(a0) * rr * GY; for (let j = 1; j <= 6; j++) { const a = a0 + 0.8 * j / 6, x = X0 + Math.cos(a) * rr, y = Y0 + Math.sin(a) * rr * GY; Q.seg(px, py, x, y, T * 0.06, GOLD, fa * 0.8); px = x; py = y; } } }
+        if (iu > 0.01 && (!ex || ex.t < 0.5)) { const ea = ex ? 1 - ex.t / 0.5 : 1, sz = carL(car) * T * (1.4 + 1.3 * iu) * (ex ? 1 + ex.t * 2 : 1) * 0.5, pu = 1 + 0.06 * Math.sin(t * 22); Q.aura(H.sx(car.x), H.sy(car.y) - T * 0.35, sz * pu, t * 0.8, BLUSH, iu * 0.8 * ea * ea); Q.aura(H.sx(car.x), H.sy(car.y), sz * 1.25, -t * 0.5, PINK, iu * 0.55 * ea * ea, GY); }
+        if (ex) { const X0 = H.sx(ex.x), Y0 = H.sy(ex.y), t2 = ex.t, R = tu.blastR;
+          if (t2 < 0.45) { const u = t2 / 0.45; Q.glow(X0, Y0 - T * 0.5, R * T * 1.1 * (0.5 + 0.6 * eout(u)), WGOLD, (1 - u) * (1 - u) * 0.5); Q.glow(X0, Y0, R * T * 1.7, ROSE, (1 - u) * 0.4, GY); }
+          if (t2 < 0.12) Q.glow(X0, Y0, R * T * 1.1, '#FFFFFF', (1 - t2 / 0.12) * 0.4, GY);
+          for (let k = 0; k < 3; k++) { const u = (t2 - k * 0.11) / (0.6 + 0.12 * k); if (u <= 0 || u >= 1) continue; Q.ring(X0, Y0, R * T * (1.2 - 0.18 * k) * eout(u) * 0.9, k === 1 ? GOLD : PINK, 1 - u, T * (k === 1 ? 0.1 : 0.16), GY); }
+          for (let k = 0; k < 2; k++) { const u = (t2 - k * 0.14) / 0.9; if (u > 0 && u < 1) Q.heartL(X0, Y0, R * T * (1.35 - 0.35 * k) * eout(u), 0, ROSE, (1 - u) * 0.9, GY, true, 0.025); }
+          if (t2 < 0.85 && !low) { const u = t2 / 0.85, rr = R * 1.05 * eout(u); for (let k = 0; k < 14; k++) { const a = ex.rot + k * TAU / 14; Q.heartL(H.sx(ex.x + Math.cos(a) * rr), H.sy(ex.y + Math.sin(a) * rr), T * (0.28 + 0.18 * (1 - u)), a + Math.PI / 2, k % 2 ? ROSE : '#FFC56E', (1 - u) * 0.9, GY, false); } }
+          if (t2 < 1.2) { const u = t2 / 1.2, NR = low ? 6 : 18; for (let i = 0; i < NR; i++) { const lay = i % 2, a = ex.rot + i * TAU / NR + u * 0.8 * (lay ? 1 : -1), L = T * R * (lay ? 0.85 : 1.45) * eout(Math.min(1, u * 2.4)) * (0.8 + 0.2 * Math.sin(i * 2.3)), w = T * (lay ? 0.4 - 0.2 * u : 0.21 - 0.1 * u), x0 = X0, y0 = Y0 - T * 0.4; Q.ray(x0 + Math.cos(a) * L, y0 + Math.sin(a) * L * 0.75, x0, y0, w, lay ? PINK : WGOLD, (1 - u) * (1 - u) * (lay ? 0.7 : 0.9)); } } }
+        if (ej) { if (!ej.landed) { const z = ctx.petZ || 0, sz = T * (0.45 - 0.05 * z); Q.shadow(H.sx(ctx.petX), H.sy(ctx.petY), sz, sz * 0.55, 0.6 - 0.12 * z); Q.glow(H.sx(ej.x1), H.sy(ej.y1), T * 0.7, PINK, 0.35 * sm(ej.t / 0.3), GY); } else { const u = (ej.t - ej.lt) / 0.5; if (u < 1) Q.ring(H.sx(ej.x1), H.sy(ej.y1), T * 1.0 * eout(u), PINK, 1 - u, T * 0.1, GY); } } },
+      gpuOver(Q) { const T = S.T, low = LOW();
+        for (const w of waves) { const u = cl(w.t / tu.waveT), r = w.R * eout(u), fa = w.t < tu.waveT ? 1 : Math.max(0, 1 - (w.t - tu.waveT) / 0.45); if (fa < 0.02) continue; const NH = low ? 4 : 9 + 2 * w.i;
+          for (let k = 0; k < NH; k++) { const a = w.rot + k * TAU / NH, x = H.sx(w.x + Math.cos(a) * r * 0.97), y = H.sy(w.y + Math.sin(a) * r * 0.97) - T * (0.55 + 0.25 * Math.sin(u * 5 + k)), sz = T * (0.85 + 0.35 * u) * (1 + 0.08 * w.i) * 0.5; Q.heartL(x, y, sz, Math.sin(w.t * 6 + k) * 0.18, k % 2 ? ROSE : PINK, fa * 0.6, 1, false); Q.heartL(x, y, sz, Math.sin(w.t * 6 + k) * 0.18, BLUSH, fa * 0.5, 1, true, 0.04); }
+          const NSt = low ? 4 : 12 + 2 * w.i; for (let k = 0; k < NSt; k++) { const a = w.rot + (k + 0.5) * TAU / NSt, x = H.sx(w.x + Math.cos(a) * r * 0.86), y = H.sy(w.y + Math.sin(a) * r * 0.86) - T * 0.9; Q.starB(x, y, T * 0.22, w.t * 9 + k, fa * 0.95); } }
+        if ((ph === 'implode' || (ph === 'blast' && ex && ex.t < 0.05)) && !car.gone) { const u = sm((t - TI) / tu.implode), fl = 0.75 + 0.25 * Math.sin(t * 30);
+          for (const [f, l, h, r] of [[0.5, -0.3, 0.32, 0.55], [0.5, 0.3, 0.32, 0.55], [0.32, -0.52, 0.2, 0.42], [0.32, 0.52, 0.2, 0.42], [-0.32, -0.52, 0.2, 0.42], [-0.32, 0.52, 0.2, 0.42], [0.4, 0, 0.42, 0.4], [-0.5, 0, 0.42, 0.35]]) { const p = carPt(car, f, l), x = H.sx(p[0]), y = H.sy(p[1]) - h * S.ZT; Q.glow(x, y, r * T * (0.6 + u), f === 0.5 ? WGOLD : PINK, u * fl); Q.star(x, y, r * T * 0.8 * u, u * fl, f === 0.5 ? '#FFF0C2' : '#FFD9F0'); } }
+        if (ex) { const t2 = ex.t, R = tu.blastR; for (let k = 0; k < (low ? 3 : 5); k++) { const u = (t2 - k * 0.07) / 0.85; if (u <= 0 || u >= 1) continue; const x = H.sx(ex.x), y = H.sy(ex.y) - T * (0.7 + 0.22 * k); Q.heartL(x, y, T * R * (0.5 + (0.4 + 0.18 * k) * eout(u)) * 0.5, Math.sin(k * 1.7) * 0.12 * u, k % 2 ? PINK : ROSE, (1 - u) * (1 - u) * 0.9, 1, true, 0.03); } }
+        if (ej) for (let s2 = 0; s2 < 2; s2++) ribbonG(S, Q, ej.tr[s2], 0.16, s2 ? ROSE : CANDY, 0.85, 0.2, ej.t * 8 + s2 * 2.4); },
       abort() { car.z = 0; car.susp = 0; car.lean = 0; delete car.burn; delete car.wheelSpin; if (ctx.ejecting) { ctx.petZ = 0; } } };
     // ---- the explosion ----
     function blast() { const x = car.x, y = car.y; let n = 0; try { n = ctx.hitArea(x, y, tu.blastR, DK * tu.blast, { noCharge: true, kb: 5 }); } catch (e) {}
@@ -494,4 +578,118 @@ const SPORTSCAR_MOVES = (() => {
   }
 
   return { TUNE, shootingStar, loveSensation, supernova, warm };
+})();
+
+/* ================= LOVE_GFX (SPORTSCAR_MOVES.LGFX): the Sports Car's moves on the GPU =================
+   The same frame as Nidhogg's and the Beast's painters: one offscreen WebGL canvas twice the game canvas's width x res;
+   its left half takes what is solid (premultiplied, laid over), its right half light alone (screened, then added). Two
+   draw calls a pass, one shader; each quad's kind is maths in the fragment shader:
+     0 a feathered glow · 1 a ring · 2 a beam · 3 a ribbon of light (pearl core, coloured body, soft halo) · 4 a glint ·
+     5 a star of light (filled or its outline) · 6 a heart of light (soft or its outline) · 7 a ray / comet tail ·
+     8 the star aura · 13 a feathered wave of light · and solid: 9 tyre smoke · 10 a bevelled star (facets lit from the
+     upper left, a pearl-gold heart, rose edges) · 11 a puffed glossy heart · 12 a soft shadow.
+   Shapes are signed distances (iq's heart and five-point star), so they stay crisp at any size. The painter takes the
+   2D path's own screen coordinates; the pet's face is a soft hole where asked. Real-GPU WebGL only (software GL and no
+   WebGL keep the 2D path); window.__SC_GL = 1 forces it, 0 forces 2D; a lost context falls back to 2D. */
+(() => {
+  const NM = SPORTSCAR_MOVES;
+  let cv = null, gl = null, PR = null, bq = null, ok = null, soft = false, info = '', why = '';
+  const stats = { draws: 0, quads: 0, smoke: 0, W: 0, H: 0, frames: 0, maxDraws: 0, maxQuads: 0, maxSmoke: 0 };
+  const HDR = '#ifdef GL_FRAGMENT_PRECISION_HIGH\nprecision highp float;\n#else\nprecision mediump float;\n#endif\n';
+  const VS = `attribute vec2 a_p, a_uv; attribute float a_k; attribute vec4 a_c; attribute vec3 a_q; uniform vec2 u_res; varying vec2 v_uv, v_px; varying float v_k; varying vec4 v_c; varying vec3 v_q;
+void main(){ gl_Position = vec4(a_p.x / u_res.x * 2.0 - 1.0, 1.0 - a_p.y / u_res.y * 2.0, 0.0, 1.0); v_uv = a_uv; v_k = a_k; v_c = a_c; v_q = a_q; v_px = a_p; }`;
+  const FS = HDR + `uniform float u_t, u_pass; uniform vec3 u_pet; varying vec2 v_uv, v_px; varying float v_k; varying vec4 v_c; varying vec3 v_q;
+float h1(vec2 p){ p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
+float n2(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(h1(i), h1(i + vec2(1.0, 0.0)), f.x), mix(h1(i + vec2(0.0, 1.0)), h1(i + vec2(1.0, 1.0)), f.x), f.y); }
+float fbm(vec2 p){ float s = 0.0, a = 0.5; for (int i = 0; i < 4; i++) { s += a * n2(p); p = p * 2.03 + vec2(1.7, 9.2); a *= 0.5; } return s; }
+float sq(float x){ return x * x; }
+float dot2(vec2 v){ return dot(v, v); }
+/* a heart, tip down, about the unit disc (iq's heart distance) */
+float sdHeart(vec2 u){ vec2 p = vec2(abs(u.x) * 0.8, -u.y * 0.8 + 0.5); if (p.y + p.x > 1.0) return sqrt(dot2(p - vec2(0.25, 0.75))) - 0.35355; return sqrt(min(dot2(p - vec2(0.0, 1.0)), dot2(p - 0.5 * max(p.x + p.y, 0.0)))) * sign(p.x - p.y); }
+/* a five-point star (radius 1, inner 0.45): its distance, and which facet (light from the upper left) */
+float sdStar(vec2 q, float rf){ const vec2 k1 = vec2(0.809016994375, -0.587785252292); vec2 k2 = vec2(-k1.x, k1.y), p = vec2(abs(q.x), -q.y); p -= 2.0 * max(dot(k1, p), 0.0) * k1; p -= 2.0 * max(dot(k2, p), 0.0) * k2; p.x = abs(p.x); p.y -= 1.0; vec2 ba = rf * vec2(-k1.y, k1.x) - vec2(0.0, 1.0); float h = clamp(dot(p, ba) / dot(ba, ba), 0.0, 1.0); return length(p - ba * h) * sign(p.y * ba.x - p.x * ba.y); }
+void main(){ vec2 u = v_uv; float r = length(u), edge = 1.0 - smoothstep(0.85, 1.0, r); vec3 col = v_c.rgb; float t = u_t + v_q.y * 7.3;
+  float pk = u_pet.z > 0.0 ? mix(0.1, 1.0, smoothstep(0.4, 1.4, length((v_px - u_pet.xy) * vec2(1.0, 1.1)) / u_pet.z)) : 1.0;   /* (the rider's face stays clear) */
+  if (v_k > 8.5 && v_k < 12.5) { vec3 c = vec3(0.0); float a = 0.0;
+    if (v_k < 9.5) { // tyre smoke (solid): soft pink, billowing
+      float f = fbm(u * 2.2 + vec2(v_q.y * 3.1, v_q.y - t * 0.35)), d = clamp((1.0 - r * r) * (0.55 + 0.9 * f) - 0.25, 0.0, 1.0) * edge; a = d; c = mix(col * 0.82, mix(col, vec3(1.0), 0.45), smoothstep(-0.6, 0.6, -u.y + f * 0.5)); }
+    else if (v_k < 10.5) { // a star (solid): bevelled facets lit from the upper left, a pearl-gold heart, rose edges
+      float d = sdStar(u / 0.95, 0.45) * 0.95; a = 1.0 - smoothstep(-0.03, 0.02, d); float bn = mod(atan(u.x, -u.y) + 0.6283185, 1.2566371) - 0.6283185, sd = sign(bn), fa = atan(u.y, u.x);
+      float lit = 0.55 + 0.45 * cos(fa + 2.36 + sd * 0.35), rim = smoothstep(-0.12, 0.0, d); c = mix(mix(vec3(1.0, 0.85, 0.42), vec3(1.0, 0.98, 0.9), exp(-r * r * 6.0)), vec3(1.0, 0.36, 0.66), rim * 0.8) * (0.55 + 0.6 * lit); }
+    else if (v_k < 11.5) { // a heart (solid): puffed, lit from the upper left, a glossy highlight
+      float d = sdHeart(u); a = 1.0 - smoothstep(-0.03, 0.02, d); float b = smoothstep(0.0, -0.3, d), lit = clamp(dot(normalize(vec3(-u.x * 1.2, u.y * 1.2 - 0.2, 0.6 + b)), normalize(vec3(-0.5, -0.6, 0.65))), 0.0, 1.0);
+      c = col * (0.45 + 0.7 * lit) + vec3(1.0) * 0.55 * exp(-dot2((u - vec2(-0.32, -0.3)) / vec2(0.16, 0.1))); }
+    else { a = 1.0 - smoothstep(0.0, 1.0, r); a *= a; c = col; }   // a soft shadow
+    a *= v_c.a * pk; gl_FragColor = vec4(min(c, vec3(1.0)) * a, a); }
+  else { vec3 L = vec3(0.0);
+    if (v_k < 0.5) L = col * exp(-r * r * 4.2) * edge * 0.6;                                                              // a glow
+    else if (v_k < 1.5) { float d = max((v_q.x - r) / v_q.z, 0.0); L = mix(col, vec3(1.0), 0.6 * exp(-d * 12.0)) * (1.0 - smoothstep(v_q.x - 0.012, v_q.x + 0.01, r)) * (0.25 * exp(-d * 3.0) + 0.75 * exp(-d * 12.0)); }   // a ring
+    else if (v_k < 2.5) L = col * exp(-u.y * u.y * 5.0) * (1.0 - smoothstep(0.6, 1.0, abs(u.x)));                       // a beam
+    else if (v_k < 3.5) { float d = abs(u.y) * 2.4, e = 1.0 - smoothstep(0.75, 1.0, abs(u.x)) * 0.5; L = (vec3(1.0, 0.97, 0.99) * exp(-sq(d / 0.28)) + col * 0.9 * exp(-sq(d / 0.7)) + col * 0.3 * exp(-sq(d / 1.9))) * e; }   // a ribbon of light: a pearl core, a coloured body, a soft halo
+    else if (v_k < 4.5) { vec2 a = abs(u); L = col * (exp(-a.x * 2.5) * exp(-a.y * 30.0) + exp(-a.y * 2.5) * exp(-a.x * 30.0) + 0.5 * exp(-r * r * 9.0)) * edge; }   // a four-point glint
+    else if (v_k < 5.5) { // a star of light (q.x: 0 a glowing star, 1 its outline only, width q.z)
+      float d = sdStar(u / 0.9, 0.45) * 0.9; L = v_q.x > 0.5 ? mix(col, vec3(1.0), 0.5) * exp(-sq(d / v_q.z)) * 1.2 : (mix(col, vec3(1.0, 0.98, 0.9), exp(-r * r * 5.0)) * (1.0 - smoothstep(-0.02, 0.05, d)) * 0.8 + col * 0.5 * exp(-max(d, 0.0) * 9.0)); }
+    else if (v_k < 6.5) { // a heart of light (q.x: 0 a soft filled heart, 1 its outline, width q.z)
+      float d = sdHeart(u); L = v_q.x > 0.5 ? mix(col, vec3(1.0), 0.45) * (exp(-sq(d / v_q.z)) + 0.35 * exp(-sq(d / (v_q.z * 3.0)))) : col * (1.0 - smoothstep(-0.25, 0.05, d) * 0.6) * exp(-max(d, 0.0) * 6.0) * (0.7 + 0.3 * smoothstep(0.0, -0.4, d)); L *= edge; }
+    else if (v_k < 7.5) { float x = (u.x + 1.0) * 0.5, w = 0.15 + 0.85 * x, e = exp(-sq(u.y / (0.55 * w))); L = mix(col, vec3(1.0), e * x * 0.6) * e * pow(x, 1.6) * (1.0 - smoothstep(0.92, 1.0, x)); }   // a ray (and a comet tail): its root at uv.x = 1
+    else if (v_k < 8.5) { // the star aura: a soft five-point glow with a turning shimmer
+      float d = sdStar(u / 0.85, 0.5) * 0.85, n = fbm(vec2(atan(u.y, u.x) * 3.0, r * 4.0 - t * 1.5)); L = mix(col, vec3(1.0, 0.95, 0.85), exp(-r * r * 6.0)) * exp(-max(d, 0.0) * 5.0) * (0.55 + 0.45 * n) * (1.0 - smoothstep(-0.6, 0.1, d) * 0.4) * edge; }
+    else { float n = fbm(vec2(atan(u.y, u.x) * 4.0, r * 5.0 - t * 2.0)), a = exp(-sq((r - v_q.x) / v_q.z)) * (1.0 - smoothstep(0.92, 1.0, r)) * (0.7 + 0.5 * n) + 0.25 * exp(-sq((r - v_q.x * 0.7) / (v_q.z * 3.0))) * step(r, v_q.x); L = mix(col, vec3(1.0), a * 0.45) * a; }   // 13: a feathered wave of light, bright at its rim
+    L *= pk; L = min(L * v_c.a, vec3(1.0)); gl_FragColor = vec4(L, max(max(L.r, L.g), L.b)); } }`;
+  function prog(vs, fs, attrs) { const sh = (ty, src) => { const q = gl.createShader(ty); gl.shaderSource(q, src); gl.compileShader(q); if (!gl.getShaderParameter(q, gl.COMPILE_STATUS)) throw new Error('shader: ' + gl.getShaderInfoLog(q)); return q; };
+    const p = gl.createProgram(); gl.attachShader(p, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs)); attrs.forEach((a, i) => gl.bindAttribLocation(p, i, a)); gl.linkProgram(p); if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error('link: ' + gl.getProgramInfoLog(p));
+    const U = {}, n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS); for (let i = 0; i < n; i++) { const q = gl.getActiveUniform(p, i); U[q.name] = gl.getUniformLocation(p, q.name); } return { p, U }; }
+  function build() { if (!cv) { cv = document.createElement('canvas'); cv.width = cv.height = 4; cv.addEventListener('webglcontextlost', e => { e.preventDefault(); ok = false; why = 'context lost'; }); cv.addEventListener('webglcontextrestored', () => { ok = null; PR = null; }); }
+    const o = { alpha: true, premultipliedAlpha: true, antialias: false, depth: false, stencil: false }; gl = gl || cv.getContext('webgl2', o) || cv.getContext('webgl', o); if (!gl) { why = 'no WebGL'; return false; }
+    try { const di = gl.getExtension('WEBGL_debug_renderer_info'); info = String(di ? gl.getParameter(di.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)); } catch (e) { info = '?'; } soft = /swiftshader|llvmpipe|software|softpipe/i.test(info);
+    PR = prog(VS, FS, ['a_p', 'a_uv', 'a_k', 'a_c', 'a_q']); bq = gl.createBuffer(); return true; }
+  function usable() { let f = null; try { f = typeof window !== 'undefined' ? window.__SC_GL : null; } catch (e) {} if (f === 0 || ok === false) return false; if (ok === null) { try { ok = build(); } catch (e) { ok = false; why = String(e && e.message || e); try { console.warn('Sports Car GFX: ' + why); } catch (e2) {} } } return !!ok && (!soft || f === 1); }
+  const LOWQ = () => typeof st !== 'undefined' && st && !!st.lowFx;
+  /* the batch: light quads and smoke quads, 12 floats a vertex */
+  const RGB = new Map(), rgbOf = h => { let v = RGB.get(h); if (!v) { const q = hexRGB(h || '#FF7A2E'); v = [q[0] / 255, q[1] / 255, q[2] / 255]; RGB.set(h, v); } return v; };
+  const QV = [[-1, -1], [1, -1], [-1, 1], [-1, 1], [1, -1], [1, 1]];
+  const Q = { lit: new Float32Array(12 * 6 * 600), nl: 0, smk: new Float32Array(12 * 6 * 200), ns: 0, a: 1, b: 0, c0: 0, d: 1, e: 0, f: 0, k: 1, t: 0, W: 0, Hh: 0, pet: [0, 0, 0], gpu: true,
+    X(x, y) { return this.a * x + this.c0 * y + this.e; }, Y(x, y) { return this.b * x + this.d * y + this.f; },
+    /* one quad: centre (screen px), half-axes (ux, uy), (vx, vy) in screen px */
+    quad(kind, x, y, ux, uy, vx, vy, col, al, q0, q1, q2) { if (!(al > 0.004)) return; const solid = kind >= 9 && kind < 13; let A = solid ? this.smk : this.lit; const n = solid ? this.ns : this.nl;
+      if ((n + 6) * 12 > A.length) { const q = new Float32Array(A.length * 2); q.set(A); A = q; if (solid) this.smk = q; else this.lit = q; }
+      const cx = this.X(x, y), cy = this.Y(x, y), a = this.a, b = this.b, c = this.c0, d = this.d, Ux = a * ux + c * uy, Uy = b * ux + d * uy, Vx = a * vx + c * vy, Vy = b * vx + d * vy, C = rgbOf(col); let o = n * 12;
+      for (let j = 0; j < 6; j++) { const su = QV[j][0], sv = QV[j][1]; A[o++] = cx + Ux * su + Vx * sv; A[o++] = cy + Uy * su + Vy * sv; A[o++] = su; A[o++] = sv; A[o++] = kind; A[o++] = C[0]; A[o++] = C[1]; A[o++] = C[2]; A[o++] = al > 1 ? 1 : al; A[o++] = q0 || 0; A[o++] = q1 || 0; A[o++] = q2 || 0; }
+      if (solid) this.ns += 6; else this.nl += 6; },
+    rq(kind, x, y, w, h, rot, col, al, q0, q1, q2) { const c = Math.cos(rot || 0), s = Math.sin(rot || 0); this.quad(kind, x, y, c * w, s * w, -s * h, c * h, col, al, q0, q1, q2); },
+    glow(x, y, r, col, a, sy) { if (r > 0.5) this.quad(0, x, y, r, 0, 0, r * (sy || 1), col, a); },
+    ring(x, y, r, col, a, w, sy) { if (r > 0.5) this.quad(1, x, y, r * 1.04, 0, 0, r * 1.04 * (sy || 1), col, a, 0.96, 0, Math.max(0.02, (w || r * 0.1) / r * 0.6)); },
+    beam(x0, y0, x1, y1, w, col, a) { const dx = (x1 - x0) / 2, dy = (y1 - y0) / 2, L = Math.hypot(dx, dy); if (L < 0.5) return; this.quad(2, x0 + dx, y0 + dy, dx, dy, -dy / L * w, dx / L * w, col, a); },
+    /* a stretch of a ribbon of light, its body half-width w (the halo reaches 2.4 w), joints overlapped; never thinner than a pixel of the layer */
+    seg(x0, y0, x1, y1, w, col, a) { let dx = x1 - x0, dy = y1 - y0; const L = Math.hypot(dx, dy); if (L < 0.3 || !(a > 0.01)) return; const wm = 1.3 / this.k; if (w < wm) { a *= Math.sqrt(w / wm); w = wm; } const ex = dx / L * w * 0.5, ey = dy / L * w * 0.5; x0 -= ex; y0 -= ey; x1 += ex; y1 += ey; dx = (x1 - x0) / 2; dy = (y1 - y0) / 2; const h = Math.hypot(dx, dy), W = w * 2.4;
+      this.quad(3, x0 + dx, y0 + dy, dx, dy, -dy / h * W, dx / h * W, col, a); },
+    star(x, y, s, a, col) { this.quad(4, x, y, s, 0, 0, s, col || '#FFFFFF', a); },   /* (a four-point glint) */
+    /* a quad turned by rot and squashed by sy (floor things) */
+    rq(kind, x, y, rx, ry, rot, sy, col, a, q0, q1, q2) { const c = Math.cos(rot || 0), s = Math.sin(rot || 0), k = sy || 1; this.quad(kind, x, y, c * rx, s * rx * k, -s * ry, c * ry * k, col, a, q0, q1, q2); },
+    starL(x, y, r, rot, col, a, sy, outline, w) { if (r > 0.5) this.rq(5, x, y, r, r, rot, sy, col || '#FFB3E0', a, outline ? 1 : 0, 0, w || 0.06); },
+    starB(x, y, r, rot, a) { if (r > 0.5) { this.rq(10, x, y, r, r, rot, 1, '#FFFFFF', a); this.rq(5, x, y, r * 1.25, r * 1.25, rot, 1, '#FFD86B', a * 0.45, 0); } },   /* (a solid bevelled star, its light round it) */
+    heartL(x, y, r, rot, col, a, sy, outline, w) { if (r > 0.5) this.rq(6, x, y, r, r, rot, sy, col || '#FF5CA8', a, outline ? 1 : 0, 0, w || 0.05); },
+    heartB(x, y, r, rot, col, a) { if (r > 0.5) { this.rq(11, x, y, r, r, rot, 1, col, a); this.rq(6, x, y, r * 1.2, r * 1.2, rot, 1, col, a * 0.25, 0); } },
+    ray(x0, y0, x1, y1, w, col, a) { const dx = (x1 - x0) / 2, dy = (y1 - y0) / 2, L = Math.hypot(dx, dy); if (L < 0.5) return; this.quad(7, x0 + dx, y0 + dy, dx, dy, -dy / L * w, dx / L * w, col, a); },   /* (root at x1, y1: bright and wide there) */
+    aura(x, y, r, rot, col, a, sy) { if (r > 0.5) this.rq(8, x, y, r, r, rot, sy, col || '#FFD4EE', a); },
+    smoke(x, y, r, a, seed, col) { if (r > 0.5) this.quad(9, x, y, r, 0, 0, r, col || '#FFC9E6', a, 0, seed || 0); },
+    shadow(x, y, rx, ry, a, rot) { if (rx > 0.5) this.rq(12, x, y, rx, ry, rot, 1, '#2A1E36', a); },
+    wave(x, y, r, col, a, sy, rim, w) { if (r > 0.5) this.quad(13, x, y, r, 0, 0, r * (sy || 1), col, a, rim || 0.85, 0, w || 0.08); } };
+  /* begin a pass on the game canvas c (its transform is the camera); pet: [screen x, y, radius] to keep clear, or null */
+  function begin(c, pet) { const B = c.getTransform(), cv0 = c.canvas, L = LOWQ(), k0 = Math.min(L ? 0.42 : 0.6, 1200 / Math.max(cv0.width, cv0.height)); Q.W = Math.max(8, Math.round(cv0.width * k0)); Q.Hh = Math.max(8, Math.round(cv0.height * k0)); const kx = Q.W / cv0.width;
+    Q.a = B.a * kx; Q.b = B.b * kx; Q.c0 = B.c * kx; Q.d = B.d * kx; Q.e = B.e * kx; Q.f = B.f * kx; Q.k = (Math.sqrt(Math.abs(B.a * B.d - B.b * B.c)) || 1) * kx; Q.nl = Q.ns = 0; Q.low = L; Q.t = (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000 % 1000;
+    if (pet) { Q.pet[0] = Q.X(pet[0], pet[1]); Q.pet[1] = Q.Y(pet[0], pet[1]); Q.pet[2] = pet[2] * Q.k; } else Q.pet[2] = 0; return Q; }
+  function flush(c) { if (!Q.nl && !Q.ns) return; if (!usable()) return; try { const W = Q.W, Hh = Q.Hh; if (cv.width !== W * 2 || cv.height !== Hh) { cv.width = W * 2; cv.height = Hh; }
+      gl.viewport(0, 0, W * 2, Hh); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); gl.enable(gl.BLEND); gl.useProgram(PR.p); gl.uniform2f(PR.U.u_res, W, Hh); gl.uniform1f(PR.U.u_t, Q.t); gl.uniform3f(PR.U.u_pet, Q.pet[0], Q.pet[1], Q.pet[2]); gl.bindBuffer(gl.ARRAY_BUFFER, bq);
+      const attr = (i, n, off) => { gl.enableVertexAttribArray(i); gl.vertexAttribPointer(i, n, gl.FLOAT, false, 48, off * 4); }; let draws = 0;
+      const pass = (A, n) => { gl.bufferData(gl.ARRAY_BUFFER, A.subarray(0, n * 12), gl.DYNAMIC_DRAW); attr(0, 2, 0); attr(1, 2, 2); attr(2, 1, 4); attr(3, 4, 5); attr(4, 3, 9); gl.drawArrays(gl.TRIANGLES, 0, n); draws++; };
+      if (Q.ns) { gl.viewport(0, 0, W, Hh); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); pass(Q.smk, Q.ns); }   // the left half: smoke, solid
+      if (Q.nl) { gl.viewport(W, 0, W, Hh); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_COLOR); pass(Q.lit, Q.nl); }    // the right half: light, screened (stacked fire saturates softly, never clips to a white slab)
+      stats.draws = draws; stats.quads = Q.nl / 6; stats.smoke = Q.ns / 6; stats.W = W; stats.H = Hh; stats.frames++; stats.maxDraws = Math.max(stats.maxDraws, draws); stats.maxQuads = Math.max(stats.maxQuads, Q.nl / 6); stats.maxSmoke = Math.max(stats.maxSmoke, Q.ns / 6);
+      const cv0 = c.canvas; c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1; if (Q.ns) { c.globalCompositeOperation = 'source-over'; c.drawImage(cv, 0, 0, W, Hh, 0, 0, cv0.width, cv0.height); } c.globalCompositeOperation = 'lighter'; c.drawImage(cv, W, 0, W, Hh, 0, 0, cv0.width, cv0.height); c.restore();
+    } catch (e) { ok = false; why = String(e && e.message || e); } }
+  /* (tests) pixels that break rgb <= a, right after a flush */
+  function check() { if (!gl) return null; const W = cv.width, Hh = cv.height, px = new Uint8Array(W * Hh * 4); gl.readPixels(0, 0, W, Hh, gl.RGBA, gl.UNSIGNED_BYTE, px); let bad = 0, lit = 0; for (let i = 0; i < px.length; i += 4) { const a = px[i + 3]; if (a) lit++; if (px[i] > a + 1 || px[i + 1] > a + 1 || px[i + 2] > a + 1) bad++; } return { bad, lit }; }
+  NM.LGFX = { usable, begin, flush, check, stats, info: () => ({ ok, soft, renderer: info, why }) };
+  try { self.SPORTSCAR_LGFX = NM.LGFX; } catch (e) {}   /* (read-only, for the tests' draw-call counts) */
 })();

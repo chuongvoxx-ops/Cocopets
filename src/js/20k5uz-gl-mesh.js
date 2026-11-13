@@ -149,9 +149,13 @@ precision mediump float;
 varying vec3 vW, vN, vL, vNL, vA;
 uniform vec3 uV, uLK, uLS, uLR, uUP;
 uniform float uGlow, uAlpha, uKind, uLow, uWear, uFx, uGlow2, uSpill, uTime; uniform vec4 uOutF; uniform vec3 uClip;
-uniform vec3 uRim, uAmb;
+uniform vec3 uRim, uAmb; uniform vec3 uM0, uM1, uM2; uniform vec4 uOcc[12]; uniform float uNOcc;   // (uOcc: analytic occluders, spheres posed with the model: occlusion and soft key-light shadows between its parts)   // (uM*: the part's axes, for normal detail made in its own frame)
 float hs(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vn(vec2 p) { vec2 i = floor(p), f = p - i; vec2 u = f * f * (3.0 - 2.0 * f); return mix(mix(hs(i), hs(i + vec2(1.0, 0.0)), u.x), mix(hs(i + vec2(0.0, 1.0)), hs(i + vec2(1.0, 1.0)), u.x), u.y); }
+float hrt(vec2 p) { p = vec2(p.x * 1.05, p.y * 1.05 + 0.1); float a = dot(p, p) - 1.0; return a * a * a - p.x * p.x * p.y * p.y * p.y; }   // (the heart curve, y up: < 0 inside)
+float occAO(vec3 p, vec3 nr) { float o = 1.0; for (int i = 0; i < 12; i++) { if (float(i) >= uNOcc) break; vec4 s = uOcc[i]; vec3 d = s.xyz - p; float l = length(d); if (l < s.w * 1.02) continue; float h = l / s.w; o *= 1.0 - clamp(max(0.0, dot(nr, d / l)) / (h * h), 0.0, 0.9); } return o; }
+float occSH(vec3 p, vec3 rd) { float sh = 1.0; for (int i = 0; i < 12; i++) { if (float(i) >= uNOcc) break; vec4 s = uOcc[i]; vec3 oc = p - s.xyz; float b = dot(oc, rd), c = dot(oc, oc) - s.w * s.w; if (c < 0.0) continue; float h = b * b - c, d = sqrt(max(0.0, s.w * s.w - h)) - s.w, t = -b - sqrt(max(h, 0.0)); if (t > 0.0) sh = min(sh, smoothstep(0.0, 1.0, 2.5 * 4.0 * d / t)); } return sh; }
+float tone5(float v) { v = max(0.0, v); return v * (1.0 + v / 5.5) / (1.0 + v); }   // (the Beast's 2D tone curve)
 float tone(float v) { v = max(0.0, v); return v * (1.0 + v / 6.0) / (1.0 + v); }
 float env(vec3 r, float rough, out float ec) {
   float up = dot(r, uUP);
@@ -356,9 +360,152 @@ void main() {
   else if (id == 29) { alb = vec3(0.34, 0.36, 0.37); F0 = vec3(0.95, 0.97, 0.97); rough = 0.07;   // a sword's blade: pale mirror steel, a fuller line, a luminous mint edge (vA.y = 1 at the cutting edges, 0 at the spine)
     float eg = smoothstep(0.6, 1.0, edge), gr = clamp(uGlow2, 0.0, 1.0); em = mix(vec3(0.35, 1.35, 0.85), vec3(0.25, 1.7, 0.42), gr) * (eg * eg * (0.55 + 1.3 * uGlow) * (1.0 + 0.7 * gr) + (0.06 + 0.12 * gr) * uGlow);
     if (edge > 0.1 && edge < 0.16) { cav += 0.7; rough = 0.2; } rough *= 0.8 + 0.5 * vn(L.xy * 40.0 + L.z * 3.0); }
+  else if (id == 48) {   // ---- Nidhogg's wing membrane: vA.y = across the panels (a finger at each whole number), vA.z = out from the arm (0) to the trailing edge (1). Dark thin leather lit through toward its edge, a network of dark veins branching out from the bones (thick there, thinning outward)
+    float pu = edge, pv = ao, fi = fract(pu), pi = floor(pu), ndl = dot(n, uLK), ndv = max(0.0, dot(n, uV)), hm = 0.5 + 0.5 * dot(n, uUP), trc = clamp(uGlow2, 0.0, 1.0), w1 = vn(vec2(pu * 3.0, pv * 4.0)), w2 = vn(vec2(pu * 9.0 + 3.0, pv * 11.0));
+    float d = min(fi, 1.0 - fi), sd = fi < 0.5 ? 0.0 : 1.0;   // (d: the distance from the nearer bone, across the panel)
+    float vb = smoothstep(0.075, 0.035, d);   // (the vein running beside each bone)
+    vec2 wq = vec2(vn(vec2(pu * 4.0, pv * 3.0) + 7.0), vn(vec2(pu * 4.0, pv * 3.0) + 13.0)) - 0.5;   // (a warp: the veins meander)
+    float r1 = abs(vn(vec2(pu * 9.0, pv * 2.2) + wq * 1.0 + 2.0) * 2.0 - 1.0), r2 = abs(vn(vec2(pu * 18.0, pv * 5.5) + wq * 1.5 + 5.0) * 2.0 - 1.0), r3 = abs(vn(vec2(pu * 34.0, pv * 12.0) + wq * 2.2 + 9.0) * 2.0 - 1.0);   // (ridged noise: its zero lines form a branching network, elongated outward)
+    float tp = 1.0 - 0.65 * pv;   // (every vein thins toward the edge)
+    float rad = 1.0; for (int k = 1; k <= 3; k++) { float fk = float(k) / 4.0 + 0.05 * sin(pv * 7.0 + float(k) * 2.3 + pi * 1.7) + 0.08 * (wq.x); rad = min(rad, abs(fi - fk)); }   // (three main veins fanning out from the wrist across each panel)
+    float b0 = smoothstep(0.03 * tp + 0.006, 0.004, rad) * smoothstep(0.02, 0.1, pv);
+    float b1 = smoothstep(0.13 * tp * (1.2 - d), 0.02, r1) * smoothstep(0.04, 0.12, pv), b2 = smoothstep(0.1 * tp, 0.012, r2) * 0.85 * smoothstep(0.08, 0.18, pv), b3 = smoothstep(0.075, 0.01, r3) * 0.55 * smoothstep(0.2, 0.35, pv);
+    float vein = clamp(max(max(vb, max(b0, b1)), max(b2, b3)) * smoothstep(0.0, 0.05, pv), 0.0, 1.0);
+    vec3 a2 = mix(vec3(0.07, 0.005, 0.012), vec3(0.32, 0.02, 0.04), smoothstep(0.0, 0.9, pv)) * (0.8 + 0.4 * w1);   // (dark at the arm, lighter toward the edge)
+    a2 = mix(a2, vec3(0.035, 0.002, 0.008), vein * 0.92);
+    float wrap = max(0.0, (ndl + 0.3) / 1.3), back = max(0.0, -ndl) * (0.5 + 0.5 * max(0.0, dot(uV, -uLK) + 0.5));
+    vec3 amb2 = mix(vec3(0.12, 0.07, 0.11), vec3(0.42, 0.38, 0.5), hm) * uAmb;
+    vec3 trans = vec3(1.0, 0.17, 0.04) * (0.2 + 0.6 * back + 0.45 * uGlow) * (0.25 + 1.15 * smoothstep(0.15, 0.95, pv)) * (0.75 + 0.5 * w1) * (1.0 - 0.85 * vein);   // (light through the membrane: warmest toward the edge, blocked by the veins)
+    vec3 hh = normalize(uLK + uV); float nh = max(0.0, dot(n, hh));
+    vec3 c = a2 * (wrap * vec3(1.45, 1.35, 1.25) + amb2) + trans * 0.7 + pow(nh, 30.0) * 0.18 * max(0.0, ndl) * (1.0 - 0.5 * vein) + pow(1.0 - ndv, 3.0) * max(0.0, dot(n, uLR) + 0.3) * uRim * 0.3 + vec3(1.0, 0.35, 0.08) * vein * trc * 0.9;
+    float hem = smoothstep(0.93, 0.985, pv) + smoothstep(0.025, 0.0, pv); c = mix(c, vec3(0.06, 0.005, 0.012), min(1.0, hem) * 0.85) + vec3(1.6, 0.8, 0.35) * trc * smoothstep(0.92, 0.99, pv) * 0.9;
+    gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
+  else if (id >= 38 && id <= 47) {   // ---- Nidhogg (M). uKind 0 a rigid part (detail from its own coordinates), 6 a swept tube (vA.y = along it in armour periods, vA.z = round it, 0 the top, 0.5 the belly), 7 a moving part with a true edge and occlusion; uGlow2 = the trace (Ultima: every seam white-hot)
+    float su = edge, sv = ao, trc = clamp(uGlow2, 0.0, 1.0), gK = 0.35 + 0.9 * uGlow + 0.45 * trc, ndv0 = max(0.0, dot(n, uV)); vec3 fireC = vec3(1.0, 0.3, 0.05), hotC = vec3(1.6, 0.9, 0.42);
+    if (uKind > 5.5 && uKind < 6.5) { edge = 0.0; ao = 0.72 + 0.28 * smoothstep(0.0, 0.32, abs(sv - 0.5)); }   // (a tube: its underside shaded)
+    if (id == 43 || id == 44 || id == 47) { float fl = 0.86 + 0.28 * vn(L.xy * 23.0 + L.z * 9.0 + vec2(uTime * 1.3, -uTime)); vec3 hh = normalize(uLK + uV); float nh = max(0.0, dot(n, hh)); vec3 c;
+      if (id == 43) c = mix(vec3(0.85, 0.1, 0.02), hotC, ndv0 * ndv0 * (0.45 + 0.55 * min(1.0, uGlow + trc))) * fl * gK;   // fire: seams, vent slots, the mouth, the hubs' rings
+      else if (id == 44) c = mix(vec3(1.1, 0.28, 0.02), vec3(1.8, 1.25, 0.55), pow(ndv0, 3.0)) * (0.7 + 0.4 * uGlow) * fl + pow(nh, 240.0) * 1.4;   // an eye: molten amber, a small wet glint
+      else c = vec3(0.36, 0.008, 0.035) * (0.8 + 0.8 * uGlow) + vec3(1.0, 0.3, 0.38) * pow(1.0 - ndv0, 2.0) * 0.7 + pow(nh, 70.0) * 2.4 + vec3(0.9, 0.1, 0.15) * smoothstep(0.7, 1.0, edge) * 0.5;   // the gem: crimson glass, hard facet glints
+      gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
+    if (id == 38) {   // crimson scales: staggered rows of rounded scales, each tilted its own way (a sparkle of tight highlights), dark in the crevice at its root, a lighter worn edge, a dark line where the next overlaps; a faint fire in the joints
+      metal = 0.0; F0 = vec3(0.05); vec2 uv; if (uKind > 5.5 && uKind < 6.5) uv = vec2(su * 3.0, sv * 16.0); else { vec3 an = abs(NL); uv = (an.z >= an.x && an.z >= an.y ? L.xy : an.y >= an.x ? L.xz : L.yz) * 12.0; }
+      float row = floor(uv.x); vec2 f = vec2(fract(uv.x), fract(uv.y + 0.5 * mod(row, 2.0))); vec2 cell = vec2(row, floor(uv.y + 0.5 * mod(row, 2.0))); float d = length(vec2(f.x, (f.y - 0.5) * 1.5)), hc = hs(cell), hc2 = hs(cell + 4.1), hc3 = hs(cell + 8.3);
+      alb = mix(vec3(0.08, 0.005, 0.012), vec3(0.46, 0.026, 0.045), smoothstep(0.05, 0.8, d)) * (0.8 + 0.4 * hc); alb = mix(alb, vec3(0.62, 0.07, 0.07), smoothstep(0.8, 0.95, d) * (1.0 - smoothstep(0.95, 1.0, d)) * 0.6);   // (deep crimson, a lighter rim)
+      if (uLow < 0.5) n = normalize(n + (vec3(hc, hc2, hc3) - 0.5) * 0.55 * smoothstep(0.15, 0.6, d) * smoothstep(1.0, 0.92, d));   // (each scale's own tilt)
+      rough = mix(0.5, 0.16, smoothstep(0.3, 0.9, d)) * (0.75 + 0.5 * hc2); coat = 0.08 + 0.18 * hc * smoothstep(0.5, 0.9, d); cav += smoothstep(0.88, 1.0, d) * 1.1 + smoothstep(0.35, 0.0, d) * 0.45;
+      em += fireC * smoothstep(0.93, 1.0, d) * 0.12 * uGlow;
+      if (uKind > 5.5 && uKind < 6.5) { float top = smoothstep(0.17, 0.1, min(sv, 1.0 - sv)), fs = fract(su), sm = smoothstep(0.08, 0.0, fs) + smoothstep(0.97, 1.0, fs); em += mix(fireC, hotC, sm) * sm * top * gK * 0.7; } }   // (the glowing seam between two lames)
+    else if (id == 39) {   // scarlet lacquered armour: a deep coat, panel lines at the plate's rims, chips to bare steel near the edges
+      metal = 0.0; alb = vec3(0.5, 0.026, 0.042); F0 = vec3(0.05); rough = 0.3; coat = 0.38; float line = smoothstep(0.82, 0.96, edge); cav += line * 0.85;
+      if (uKind < 5.5) { alb *= 0.9 + 0.2 * vn(L.xy * 7.0 + L.z * 3.0); if (uLow < 0.5) n = normalize(n + (vec3(vn(L.yz * 21.0), vn(L.zx * 21.0 + 3.0), vn(L.xy * 21.0 + 7.0)) - 0.5) * 0.12); float chip = smoothstep(0.66, 0.74, vn(L.xy * 27.0 + L.z * 13.0) * 0.55 + smoothstep(0.3, 0.8, edge) * 0.5) * (1.0 - line) * (1.0 - uLow);
+        if (chip > 0.0) { metal = chip; alb = mix(alb, vec3(0.12, 0.11, 0.12), chip); F0 = mix(F0, vec3(0.55, 0.53, 0.52), chip); rough = mix(rough, 0.28, chip); coat *= 1.0 - chip; } }
+      em += (fireC * 0.6 * uGlow + hotC * 0.9 * trc) * line; }
+    else if (id == 40) {   // dark steel / gunmetal: turned machining, a warm bounce from the belly's light below; a moving rail's glowing centre seam
+      alb = vec3(0.06, 0.055, 0.062); F0 = vec3(0.42, 0.4, 0.43); rough = 0.34; if (uKind < 5.5) { cav += 0.25 * step(0.62, fract((L.x + L.z * 0.3) * 20.0)) * (1.0 - uLow); rough *= 0.8 + 0.4 * vn(L.xy * 15.0 + L.z * 7.0); }
+      em += vec3(0.3, 0.06, 0.012) * uGlow * smoothstep(0.2, -0.7, dot(n, uUP));
+      if (uKind > 6.5) { float sm = smoothstep(0.9, 0.98, edge); em += mix(fireC, hotC, sm) * sm * gK; edge = 0.0; } }
+    else if (id == 41) {   // horn: gunmetal with growth grooves
+      alb = vec3(0.05, 0.048, 0.055); F0 = vec3(0.3, 0.29, 0.32); rough = 0.4; float g = abs(fract(length(L) * 34.0 + vn(L.xy * 6.0) * 0.6) - 0.5); cav += smoothstep(0.12, 0.0, g) * 0.5 * (1.0 - uLow); rough *= 0.85 + 0.3 * vn(L.yz * 20.0); }
+    else if (id == 42) {   // the belly: bronze-dark plates lit from within, the seams between them glowing
+      metal = 0.0; alb = vec3(0.28, 0.05, 0.03); F0 = vec3(0.05); rough = 0.36; coat = 0.6; float sm;
+      if (uKind > 5.5 && uKind < 6.5) { float fs = fract(su * 2.0); sm = max(smoothstep(0.08, 0.0, fs) + smoothstep(0.96, 1.0, fs), smoothstep(0.012, 0.0, abs(sv - 0.5))); alb *= 0.75 + 0.5 * fs; }
+      else sm = smoothstep(0.84, 0.97, edge);
+      cav += sm * 0.4; em += mix(fireC, hotC, sm * 0.7) * (sm * 1.3 + 0.16 + 0.12 * (1.0 - ndv0)) * gK; }
+    else if (id == 45) { metal = 0.0; alb = vec3(0.78, 0.71, 0.6); F0 = vec3(0.06); rough = 0.28; coat = 0.6; em += fireC * 0.05 * uGlow; }   // teeth: old ivory, lit a little by the mouth
+    else { metal = 0.0; alb = vec3(0.022, 0.01, 0.013); F0 = vec3(0.06); rough = 0.17; coat = 1.0; } }   // talons, pupils: black-red, glossy
+  else if ((id >= 49 && id <= 57) || id == 67 || id == 68) {   // ---- the Beast Machine (M): the core's own 2D shading (20k9i shade()) on the GPU: its palette, mottled rust, pitting, scratches, hex panels with corner rivets (uKind 1), the domes' riveted panels (uKind 2), gold rivets, worn edges, a warm key, cool sky and rim, its tone curve. 49 bronze, 50 plate, 51 gold, 52 steel, 54 leather, 55 cable, 56 eye, 57 dark bronze, 67 vent glow, 68 jewel. uGlow2 = the stored charge (a thin pulse of light along the rims and seams)
+    float chg = clamp(uGlow2, 0.0, 1.0), ndv = max(0.001, dot(n, uV));
+    if (id == 56) { float k = 0.6 + 0.5 * ndv * ndv, d3 = ndv * ndv * ndv; vec3 hh0 = normalize(uLK + uV); float glint = pow(max(0.0, dot(n, hh0)), 240.0) * 1.4;   // (the 2D's eye: a red iris, a small hot core where it faces you, a tiny glint)
+      float hc = pow(max(ndv, 0.0), 1.2); vec3 c = vec3(tone5(2.4 * k * (0.8 + 0.3 * uGlow)), tone5(0.35 + 1.5 * hc), tone5(0.18 + 0.9 * hc * hc)) + glint; gl_FragColor = vec4(c * uAlpha, uAlpha); return; }
+    if (id == 67) { float k = 0.6 + 0.5 * ndv * ndv; gl_FragColor = vec4(vec3(tone5(1.5 * k), tone5(0.3 * k), tone5(0.12 * k)) * uAlpha, uAlpha); return; }
+    vec3 a, f; float rgh, mt = 1.0, cv = 0.0, wk = 0.0, su = 0.0;
+    if (id == 49) { a = vec3(0.23, 0.105, 0.065); f = vec3(0.58, 0.33, 0.23); rgh = 0.46; }
+    else if (id == 50) { a = vec3(0.26, 0.12, 0.07); f = vec3(0.68, 0.4, 0.27); rgh = 0.36; }
+    else if (id == 51) { a = vec3(0.5, 0.33, 0.08); f = vec3(1.0, 0.76, 0.3); rgh = 0.2; }
+    else if (id == 52) { a = vec3(0.12, 0.125, 0.14); f = vec3(0.52, 0.54, 0.6); rgh = 0.26; }
+    else if (id == 54) { a = vec3(0.42, 0.05, 0.06); f = vec3(0.05, 0.04, 0.04); rgh = 0.5; mt = 0.0; }
+    else if (id == 55) { a = vec3(0.25, 0.1, 0.36); f = vec3(0.06, 0.05, 0.08); rgh = 0.32; mt = 0.0; }
+    else if (id == 68) { a = vec3(0.5, 0.02, 0.05); f = vec3(0.09, 0.08, 0.08); rgh = 0.03; mt = 0.0; }
+    else { a = vec3(0.17, 0.075, 0.045); f = vec3(0.62, 0.32, 0.2); rgh = 0.33; }
+    bool dyn = uKind > 5.5, bronze = id == 49 || id == 50 || id == 57; vec3 q = L, nl = NL;
+    if (uKind > 5.5 && uKind < 6.5) { su = edge; edge = 0.0; ao = 1.0; }
+    if (!dyn && uLow < 0.5 && (bronze || id == 51 || id == 52)) { float dk = id == 51 ? 0.05 : 0.1; nl += (vec3(vn(vec2(q.y, q.z) * 11.0), vn(vec2(q.z, q.x) * 11.0 + 3.0), vn(vec2(q.x, q.y) * 11.0 + 7.0)) - 0.5) * dk; }   // (dents)
+    if (bronze && !dyn) {
+      float wn = (vn(vec2(q.x + q.z * 0.7, q.y - q.z * 0.3) * 6.0 + vec2(3.0, 0.0)) + vn(vec2(q.y * 1.3 + 5.0 / 6.0, q.z * 1.3 - q.x * 0.4) * 6.0)) * 0.5, wn2 = vn(vec2(q.x * 23.0 + q.y * 7.0, q.z * 23.0 - q.y * 5.0));
+      float k = 0.55 + 0.85 * wn * (0.8 + 0.4 * wn2); a *= vec3(k, k * (0.92 + 0.12 * wn), k * 0.9); f *= vec3(0.85 + 0.25 * wn, 0.8 + 0.3 * wn, 0.8 + 0.25 * wn); rgh = min(0.75, rgh * (0.75 + 0.7 * (1.0 - wn)) + 0.08 * wn2);   // (mottled rust)
+      float pit = vn(vec2(q.x * 70.0 + q.z * 31.0, q.y * 70.0 - q.z * 23.0)); if (pit > 0.78) { cv += (pit - 0.78) * 2.2; rgh = min(0.8, rgh + 0.2); }
+      if (wn < 0.44) { float v = min(1.0, (0.44 - wn) * 2.4); a = mix(a, vec3(0.33, 0.12, 0.06), v * 0.5); f *= vec3(1.0 - v * 0.45, 1.0 - v * 0.55, 1.0 - v * 0.55); rgh = mix(rgh, 0.7, v); }
+      if (uKind > 0.5 && uKind < 1.5 && id != 57 && uLow < 0.5) {   // hex panels: bevelled edges, dark seams, an inner step, rivets at the corners
+        vec3 an = abs(nl); vec2 uv; vec3 t1, t2; if (an.z >= an.x && an.z >= an.y) { uv = q.xy; t1 = vec3(1.0, 0.0, 0.0); t2 = vec3(0.0, 1.0, 0.0); } else if (an.y >= an.x) { uv = q.xz; t1 = vec3(1.0, 0.0, 0.0); t2 = vec3(0.0, 0.0, 1.0); } else { uv = q.yz; t1 = vec3(0.0, 1.0, 0.0); t2 = vec3(0.0, 0.0, 1.0); }
+        uv = uv / 0.12 + vec2(0.37, 0.21);
+        vec2 A2 = vec2(mod(uv.x, 1.0) - 0.5, mod(uv.y, 1.7320508) - 0.8660254), B2 = vec2(mod(uv.x - 0.5, 1.0) - 0.5, mod(uv.y - 0.8660254, 1.7320508) - 0.8660254), g = dot(A2, A2) < dot(B2, B2) ? A2 : B2, ag = abs(g);
+        float hr = max(ag.x, ag.x * 0.5 + ag.y * 0.8660254); vec3 td = (t1 * g.x + t2 * g.y) / (length(g) + 1e-4);
+        float tilt = hr > 0.4 ? (hr - 0.4) / 0.1 * 0.55 : (hr > 0.28 && hr < 0.32 ? -0.35 * (1.0 - abs(hr - 0.3) / 0.02) : 0.0); nl += td * tilt; if (hr > 0.475) cv += (hr - 0.475) / 0.025 * 0.75;
+        float rd1 = length(vec2(ag.x, ag.y - 0.577)), rd2 = length(vec2(ag.x - 0.5, ag.y - 0.2887)); vec2 cc = rd2 < rd1 ? vec2(0.5, 0.2887) : vec2(0.0, 0.577); float rd = min(rd1, rd2);
+        if (rd < 0.085) { vec2 s2 = sign(g) * (ag - cc) / 0.085; nl += (t1 * s2.x + t2 * s2.y) * 0.9; f = min(vec3(1.0), f * vec3(1.25, 1.2, 1.15)); rgh *= 0.6; cv = max(0.0, cv - 0.9) + (rd / 0.085 > 0.8 ? 0.5 : 0.0); } }
+      if (uKind > 1.5 && uKind < 2.5 && id == 49 && uLow < 0.5) {   // the dome's panels: latitude and longitude seams, bevelled, riveted along the seams
+        float px = q.x, py = abs(q.y) - 0.04, pz = q.z + 0.02, rh = length(vec2(px, py)), az = atan(py, px), el = atan(pz, rh), rr = length(vec2(rh, pz)), sy = q.y < 0.0 ? -1.0 : 1.0;
+        float fa = fract(az / 0.62 + 0.3), fe = fract(el / 0.5 + 0.25), da = min(fa, 1.0 - fa) * 0.62 * rr, de = min(fe, 1.0 - fe) * 0.5 * rr, dmin = min(da, de);
+        if (dmin < 0.04) { float k3 = (1.0 - dmin / 0.04) * 0.5; if (da < de) { float sg = fa < 0.5 ? 1.0 : -1.0; nl += vec3(-sin(az) * sg, cos(az) * sg * sy, 0.0) * k3; } else { float sg = fe < 0.5 ? 1.0 : -1.0; nl += vec3(-sin(el) * cos(az) * sg, -sin(el) * sin(az) * sg * sy, cos(el) * sg) * k3; } if (dmin < 0.008) cv += (1.0 - dmin / 0.008) * 0.85; }
+        float ra = da < de ? fract(el * rr / 0.075) : fract(az * rr / 0.075), rd3 = length(vec2(min(ra, 1.0 - ra) * 0.075, dmin - 0.022));
+        if (rd3 < 0.016) { f = min(vec3(1.0), f * vec3(1.3, 1.25, 1.2)); rgh *= 0.55; if (rd3 > 0.012) cv += 0.5; else nl.z += 0.4; } }
+      float sc1 = abs(fract(q.x * 13.0 + q.y * 8.0 + q.z * 5.0 + vn(q.xz * 4.0) * 2.5) - 0.5), sc2 = abs(fract(-q.x * 7.0 + q.y * 11.0 + q.z * 9.0 + vn(q.yx * 4.0) * 2.5) - 0.5);   // (fine scratches)
+      if ((sc1 < 0.018 && hs(vec2(floor(q.x * 13.0 + q.y * 8.0 + q.z * 5.0), floor(q.z * 6.0))) > 0.6) || (sc2 < 0.014 && hs(vec2(floor(q.y * 11.0 - q.x * 7.0), floor(q.x * 5.0))) > 0.7)) { wk += 0.55; rgh *= 0.5; } }
+    if (id == 51 && !dyn && uLow < 0.5) { vec3 gq = floor(q / 0.085 + 0.5) * 0.085, dq = q - gq; float rd = length(dq); if (rd < 0.024 && hs(gq.xy * 9.0 + gq.z * 3.7) < 0.75) { nl += dq / 0.024 * 1.3; rgh *= 0.7; if (rd / 0.024 > 0.85) cv += 0.4; }   // (gold: rivets on a fine lattice, worn)
+      float wn = vn(vec2(q.x * 18.0, q.y * 18.0 + q.z * 9.0)); rgh *= 0.7 + 0.8 * wn; if (wn < 0.3) f *= vec3(0.82, 0.75, 0.7); }
+    if (id == 52 && !dyn) { float s2 = abs(fract((q.x + q.z) * 40.0 + vn(q.yx * 9.0) * 3.0) - 0.5); if (s2 < 0.1) rgh *= 0.6; }
+    if (id == 55) { float fr = abs(fract(dyn ? su * 0.8 : (q.x + q.y * 0.3) * 26.0) - 0.5); if (fr < 0.16) cv += 0.6; }
+    if (id == 54 && !dyn) { vec2 uv2 = vec2(q.x + q.y, q.x - q.y) * 11.0, dd = fract(uv2) - 0.5; float d = length(dd); if (d < 0.18) { cv += (0.18 - d) * 2.6; nl.xy -= dd * 0.6; if (d < 0.07) a = vec3(0.75, 0.5, 0.18); } else { nl.xy += dd * 0.25; nl.z += 0.2; } }
+    { vec3 n2 = normalize(normalize(uM0) * nl.x + normalize(uM1) * nl.y + normalize(uM2) * nl.z); if (dot(n2, n) < 0.0) n2 = -n2; n = n2; ndv = max(0.001, dot(n, uV)); }
+    wk += smoothstep(0.3, 0.9, edge) * (id == 52 ? 0.4 : 0.9);   // (edges worn bright)
+    if (wk > 0.0) { float v = min(1.0, wk); f = mix(f, vec3(1.0, id == 51 ? 0.92 : 0.72, id == 51 ? 0.6 : 0.5), v * 0.5); rgh *= 1.0 - v * 0.45; }
+    float oAO = 1.0, oSH = 1.0; if (uNOcc > 0.5 && uLow < 0.5) { oAO = occAO(vW, n); oSH = occSH(vW, uLK); } ao *= oAO;   // (the other parts: occlusion, the key light's soft shadow)
+    float ndl = dot(n, uLK), dif = max(0.0, ndl) * oSH, hm = 0.5 + 0.5 * dot(n, uUP); vec3 am = mix(vec3(0.11, 0.065, 0.045), vec3(0.34, 0.35, 0.43), hm * hm) * ao * ao * 0.66;
+    vec3 r = 2.0 * ndv * n - uV; float upr = dot(r, uUP), ev = upr >= 0.0 ? 0.08 + 0.3 * pow(upr, 1.4) : 0.03 + 0.05 * (1.0 + upr), hz = (upr - 0.1) / (0.035 + rgh * 0.3); ev += 0.45 * exp(-hz * hz) / (1.0 + rgh * 2.0);
+    float w = 0.05 + rgh * 0.32; ev += 3.4 * smoothstep(1.0 - 2.6 * w, 1.0 - 0.25 * w, dot(r, uLS)) / (1.0 + rgh * 2.5); float ec = smoothstep(0.62 - w * 1.5, 0.97 - w * 0.5, dot(r, uLR)) / (1.0 + rgh * 2.0);
+    float fk = pow(1.0 - ndv, 5.0) * (1.0 - rgh * 0.7); vec3 Fr = f + (1.0 - f) * fk;
+    vec3 hh = normalize(uLK + uV); float nh = max(0.0, dot(n, hh)), pw = 2.0 / (rgh * rgh + 0.004), spec = pow(nh, pw) * (pw + 2.0) / 8.0 * dif * 0.9;
+    float aoS = min(1.0, ao + 0.1) * (1.0 - cv * 0.6), rimT = pow(1.0 - ndv, 2.6) * max(0.0, dot(n, uLR) + 0.35) * ao; vec3 KEY = vec3(1.25, 1.12, 0.94), RIM = vec3(0.42, 0.8, 1.2), c;
+    if (mt > 0.5) c = a * 0.18 * (dif * KEY + am) + Fr * (ev * aoS + spec * KEY) + ec * RIM * Fr * aoS * 0.6 + a * (dif * 0.55 + am * 0.45);
+    else c = a * (dif * KEY + am) + Fr * (ev * aoS + spec * KEY * 3.0) + ec * RIM * 0.3;
+    c += rimT * RIM * (id == 68 ? 0.15 : 0.75);
+    if (id == 68) { float inner = pow(ndv, 1.4), cs = max(0.0, -dot(n.xy, uLK.xy) * 0.8 + n.z * 0.3); c += vec3(0.75, 0.04, 0.08) * inner + vec3(0.5, 0.05, 0.06) * cs * cs; }
+    float grime = min(0.85, (1.0 - ao) * 0.35 + cv * 0.55); c *= (1.0 - grime) * 1.14 * vec3(1.0, 1.0 - grime * 0.05, 1.0 - grime * 0.1);
+    if (chg > 0.0) { float pl = 0.75 + 0.25 * sin(uTime * 3.2 + dot(q, vec3(2.0, 1.3, 1.7))); c += vec3(0.25, 0.7, 1.25) * chg * pl * (smoothstep(0.75, 1.0, edge) * 0.35 + min(1.0, cv) * 0.18 + (id == 51 ? 0.06 : 0.0)); }   // (the charge: a thin light along the rims and the seams)
+    if (id == 55 && dyn && chg > 0.0) c += vec3(0.25, 0.7, 1.25) * smoothstep(0.86, 1.0, fract(su * 1.5 - uTime * 1.7)) * chg * 0.6;
+    gl_FragColor = vec4(vec3(tone5(c.r), tone5(c.g), tone5(c.b)) * uAlpha, uAlpha); return; }
+  else if (id >= 58 && id <= 66) {   // ---- the Sports Car (M): 58 candy-pink paint (flake, clear coat, a pearl flip; its decals and lamps by the car's own coordinates: x forward, y left, z up), 59 pearl, 60 the cockpit floor, 61 the seat's pearl-pink leather, 62 the dash, 63 the heart headrest, 64 the bonnet's heart emblem, 66 glass. uGlow2 = the lamps (headlights, taillights, the sill strip), uGlow = the car's glow
+    float ndv0 = max(0.0, dot(n, uV)), ayc = abs(L.y), lmp = clamp(uGlow2, 0.0, 1.0); vec3 NLc = NL;
+    metal = 0.0; F0 = vec3(0.05); rough = 0.22; coat = 0.0;
+    if (id == 58) {
+      float hf1 = (NLc.z > 0.38 && L.x > 1.14) ? hrt(vec2((ayc - 0.44) / 0.15, (L.x - 1.34) / 0.15)) : 1.0, hf2 = NLc.x < -0.5 ? hrt(vec2((ayc - 0.42) / 0.12, (L.z - 0.37) / 0.12)) : 1.0, hf3 = (NLc.x > 0.55 && L.z < 0.4) ? hrt(vec2(ayc / 0.13, (L.z - 0.26) / 0.1)) : 1.0;
+      float dh = (abs(NLc.y) > 0.45 && L.x > -0.52 && L.x < 0.08 && L.z > 0.22) ? hrt(vec2((L.x + 0.22) / 0.15, (L.z - 0.36) / 0.13)) : 1.0;
+      if (hf1 < 0.0) { if (hrt(vec2((ayc - 0.44) / 0.108, (L.x - 1.346) / 0.108)) < 0.0) { float hot = hrt(vec2((ayc - 0.44) / 0.06, (L.x - 1.352) / 0.06)) < 0.0 ? 1.0 : 0.0; vec3 c = mix(vec3(1.0, 0.66, 0.84), vec3(1.25, 1.18, 1.22), hot) * (0.45 + 0.75 * lmp) + vec3(0.25) * pow(ndv0, 4.0); gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
+        metal = 1.0; alb = vec3(0.5, 0.35, 0.1); F0 = vec3(1.0, 0.8, 0.38); rough = 0.2; }   // (the heart headlights in gold bezels)
+      else if (hf2 < 0.0) { if (hrt(vec2((ayc - 0.42) / 0.085, (L.z - 0.37) / 0.085)) < 0.0) { vec3 c = vec3(1.1, 0.22, 0.45) * (0.4 + 0.8 * lmp); gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
+        metal = 1.0; alb = vec3(0.5, 0.35, 0.1); F0 = vec3(1.0, 0.8, 0.38); rough = 0.2; }   // (the heart taillights)
+      else if (hf3 < 0.0) { if (hrt(vec2(ayc / 0.095, (L.z - 0.262) / 0.072)) < 0.0) { alb = vec3(0.3, 0.03, 0.15); rough = 0.25; coat = 0.6; } else { metal = 1.0; alb = vec3(0.5, 0.35, 0.1); F0 = vec3(1.0, 0.8, 0.38); rough = 0.2; } }   // (the heart grille)
+      else if (dh < 0.0) { if (hrt(vec2((L.x + 0.22) / 0.15 * 1.25, (L.z - 0.36) / 0.13 * 1.25 + 0.02)) < 0.0) { alb = vec3(0.9, 0.85, 0.9); rough = 0.12; coat = 1.0; } else { metal = 1.0; alb = vec3(0.5, 0.35, 0.1); F0 = vec3(1.0, 0.8, 0.38); rough = 0.2; } }   // (pearl hearts on the doors, gold rims)
+      else if (abs(NLc.y) > 0.8 && L.z > 0.19 && L.z < 0.225 && L.x > -1.4 && L.x < 1.22 && abs(L.x - 0.98) > 0.43 && abs(L.x + 0.98) > 0.43) { vec3 c = vec3(1.0, 0.75, 0.93) * (0.55 + 0.6 * lmp); gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }   // (the glowing sill strip)
+      else if (abs(NLc.y) > 0.3 && L.z > 0.455 && L.z < 0.475 && L.x > -1.5 && L.x < 1.36) { metal = 1.0; alb = vec3(0.5, 0.35, 0.1); F0 = vec3(1.0, 0.8, 0.38); rough = 0.18; }   // (the gold pin-stripe)
+      else if (L.z < 0.235 && abs(NLc.y) > 0.65) { alb = vec3(0.86, 0.8, 0.88); rough = 0.14; coat = 0.9; }   // (the pearl sill)
+      else {   // candy pink: a deep base, metallic flake sparkling under the clear coat, a pearl-lavender flip at grazing angles
+        alb = vec3(0.78, 0.13, 0.42); F0 = vec3(0.07, 0.04, 0.06); rough = 0.3; coat = 1.15;
+        float fl = vn(L.xy * 180.0 + L.z * 90.0), fk = smoothstep(0.82, 0.95, fl) * (1.0 - uLow); vec3 hh = normalize(uLK + uV); em += vec3(1.0, 0.7, 0.85) * fk * pow(max(0.0, dot(n, hh)), 18.0) * 0.9;
+        alb = mix(alb, vec3(0.86, 0.66, 0.95), pow(1.0 - ndv0, 2.5) * 0.55); alb = mix(vec3(0.38, 0.03, 0.17), alb, 0.55 + 0.45 * smoothstep(-0.3, 0.6, dot(n, uLK))); }
+      em += vec3(0.5, 0.12, 0.3) * uGlow * 0.1; }
+    else if (id == 59) { alb = vec3(0.9, 0.86, 0.9); rough = 0.12; coat = 1.0; alb = mix(alb, vec3(0.95, 0.72, 0.95), pow(1.0 - ndv0, 2.0) * 0.6); }   // pearl
+    else if (id == 60) { alb = vec3(0.16, 0.03, 0.1); rough = 0.6; }   // the cockpit floor: deep plum
+    else if (id == 61) { alb = vec3(0.92, 0.76, 0.86); rough = 0.4; coat = 0.3; float ch = abs(sin(L.y * 19.0)); if (ch < 0.12 && ayc < 0.36) cav += 0.6 * (1.0 - ch / 0.12); alb = mix(alb, vec3(0.96, 0.8, 0.98), pow(1.0 - ndv0, 2.0) * 0.4); }   // pearl-pink leather, channel-stitched
+    else if (id == 62) { alb = vec3(0.7, 0.13, 0.38); rough = 0.35; coat = 0.6; }   // the dash
+    else if (id == 63) { alb = vec3(0.98, 0.58, 0.8); rough = 0.2; coat = 0.9; }   // the heart headrest
+    else if (id == 64) { alb = vec3(1.0, 0.7, 0.88); rough = 0.06; coat = 1.4; em += vec3(0.25, 0.06, 0.14) * (0.3 + uGlow); }   // the heart emblem
+    else { float fr = pow(1.0 - ndv0, 3.0); vec3 c = vec3(0.1, 0.04, 0.08) + vec3(1.0, 0.85, 0.95) * (0.08 + 0.8 * fr) + smoothstep(0.3, 0.36, (2.0 * ndv0 * n - uV).z) * (1.0 - smoothstep(0.55, 0.62, (2.0 * ndv0 * n - uV).z)) * vec3(0.5, 0.45, 0.55);   // glass: a pink-tinted pane, a sky reflection
+      float a = uAlpha * (0.35 + 0.5 * fr); gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * a, a); return; } }
   else { coat = 1.0; }
   // surface detail, from the part's own coordinates (it stays on the part as it moves)
-  if (metal > 0.5 && uLow < 0.5) { float s1 = abs(fract(L.x * 13.0 + L.y * 8.0 + L.z * 5.0 + vn(L.xz * 4.0) * 2.5) - 0.5);
+  if (metal > 0.5 && uLow < 0.5 && !(uKind > 5.5)) { float s1 = abs(fract(L.x * 13.0 + L.y * 8.0 + L.z * 5.0 + vn(L.xz * 4.0) * 2.5) - 0.5);
     if (s1 < 0.014 && hs(vec2(floor(L.x * 13.0 + L.y * 8.0 + L.z * 5.0), floor(L.z * 6.0))) > 0.62) { wear += 0.5; rough *= 0.55; }
     n = normalize(n + (vec3(vn(L.yz * 13.0), vn(L.zx * 13.0 + 3.0), vn(L.xy * 13.0 + 7.0)) - 0.5) * (id == 2 || id == 9 ? 0.04 : 0.07)); }
   if (id == 0) { float wn = vn(L.xy * 6.0 + L.z * 4.0); rough = min(0.5, rough * (0.75 + 0.6 * wn)); F0.b *= 1.0 + 0.12 * wn;
@@ -406,7 +553,7 @@ void main() {
     const p = gl.createProgram(); gl.attachShader(p, sh(gl.VERTEX_SHADER, VS)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, FS));
     gl.bindAttribLocation(p, 0, 'aP'); gl.bindAttribLocation(p, 1, 'aN'); gl.bindAttribLocation(p, 2, 'aA'); gl.linkProgram(p);
     if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error('GLM link: ' + gl.getProgramInfoLog(p));
-    prog = p; U = {}; for (const n of ['uR0', 'uR1', 'uR2', 'uT', 'uPX', 'uPY', 'uPD', 'uCl', 'uV', 'uLK', 'uLS', 'uLR', 'uUP', 'uGlow', 'uAlpha', 'uKind', 'uFx', 'uRim', 'uAmb', 'uLow', 'uWear', 'uGlow2', 'uSpill', 'uTime', 'uOutV', 'uOutF', 'uClip']) U[n] = gl.getUniformLocation(p, n);
+    prog = p; U = {}; for (const n of ['uR0', 'uR1', 'uR2', 'uT', 'uPX', 'uPY', 'uPD', 'uCl', 'uV', 'uLK', 'uLS', 'uLR', 'uUP', 'uGlow', 'uAlpha', 'uKind', 'uFx', 'uRim', 'uAmb', 'uLow', 'uWear', 'uGlow2', 'uSpill', 'uTime', 'uOutV', 'uOutF', 'uClip', 'uM0', 'uM1', 'uM2', 'uOcc', 'uNOcc']) U[n] = gl.getUniformLocation(p, n);
     ext32 = isGL2 ? true : gl.getExtension('OES_element_index_uint'); gen++;
   }
   /* is WebGL ready (made on first call)? */
@@ -448,7 +595,7 @@ void main() {
     gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL); gl.disable(gl.CULL_FACE); gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
     gl.useProgram(prog);
     gl.uniform3fv(U.uPX, S.px); gl.uniform3fv(U.uPY, S.py); gl.uniform3fv(U.uPD, S.pd); gl.uniform4fv(U.uCl, S.cl);
-    gl.uniform3fv(U.uV, S.v); gl.uniform3fv(U.uLK, S.lk); gl.uniform3fv(U.uLS, S.ls); gl.uniform3fv(U.uLR, S.lr); gl.uniform3fv(U.uUP, S.up); gl.uniform1f(U.uLow, S.low ? 1 : 0); gl.uniform1f(U.uTime, S.t || 0); if (S.clip) gl.uniform3f(U.uClip, 1, S.clip[0], S.clip[1] || 0.05); else gl.uniform3f(U.uClip, 0, 0, 0); gl.uniform3fv(U.uRim, S.rim || RIM0); gl.uniform3fv(U.uAmb, S.amb || AMB0);
+    gl.uniform3fv(U.uV, S.v); gl.uniform3fv(U.uLK, S.lk); gl.uniform3fv(U.uLS, S.ls); gl.uniform3fv(U.uLR, S.lr); gl.uniform3fv(U.uUP, S.up); gl.uniform1f(U.uLow, S.low ? 1 : 0); gl.uniform1f(U.uTime, S.t || 0); if (S.clip) gl.uniform3f(U.uClip, 1, S.clip[0], S.clip[1] || 0.05); else gl.uniform3f(U.uClip, 0, 0, 0); if (S.occ && U.uOcc) { gl.uniform4fv(U.uOcc, S.occ); gl.uniform1f(U.uNOcc, S.nocc || 0); } else gl.uniform1f(U.uNOcc, 0); gl.uniform3fv(U.uRim, S.rim || RIM0); gl.uniform3fv(U.uAmb, S.amb || AMB0);
     gl.enableVertexAttribArray(0); gl.enableVertexAttribArray(1); gl.enableVertexAttribArray(2);
     calls = 0; tris = 0; let lastM = null;
     const bindM = g => { if (lastM !== g) { gl.bindBuffer(gl.ARRAY_BUFFER, g.p); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0); gl.bindBuffer(gl.ARRAY_BUFFER, g.n); gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0); gl.bindBuffer(gl.ARRAY_BUFFER, g.a); gl.vertexAttribPointer(2, 3, gl.FLOAT, false, 0, 0); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, g.i); lastM = g; } };
@@ -462,7 +609,7 @@ void main() {
     gl.uniform3f(U.uOutV, 0, 0, 0); gl.uniform4f(U.uOutF, 0, 0, 0, 0);
     for (const it of items) { const g = upload(it.mesh); if (!g) continue;
       if (lastM !== g) { gl.bindBuffer(gl.ARRAY_BUFFER, g.p); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0); gl.bindBuffer(gl.ARRAY_BUFFER, g.n); gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0); gl.bindBuffer(gl.ARRAY_BUFFER, g.a); gl.vertexAttribPointer(2, 3, gl.FLOAT, false, 0, 0); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, g.i); lastM = g; }
-      gl.uniform3fv(U.uR0, it.R0); gl.uniform3fv(U.uR1, it.R1); gl.uniform3fv(U.uR2, it.R2); gl.uniform3fv(U.uT, it.T);
+      gl.uniform3fv(U.uR0, it.R0); gl.uniform3fv(U.uR1, it.R1); gl.uniform3fv(U.uR2, it.R2); gl.uniform3fv(U.uT, it.T); gl.uniform3fv(U.uM0, it.R0); gl.uniform3fv(U.uM1, it.R1); gl.uniform3fv(U.uM2, it.R2);
       gl.uniform1f(U.uAlpha, it.alpha); gl.uniform1f(U.uFx, it.fx || 0); gl.uniform1f(U.uGlow2, it.glow2 || 0); gl.uniform1f(U.uSpill, it.spill || 0); gl.uniform1f(U.uGlow, it.glow); gl.uniform1f(U.uKind, it.kind || 0); gl.uniform1f(U.uWear, it.wear == null ? 1 : it.wear);
       gl.depthMask(it.alpha > 0.995);
       gl.drawElements(gl.TRIANGLES, g.n3, g.it, 0); calls++; tris += g.n3 / 3; }

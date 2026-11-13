@@ -276,3 +276,52 @@ file exists. The two of you may message each other through files: append notes t
   breakPot, full reward once) and the floor's shrines (blessing once through useShrine, then broken) are smashed too.
   Still never: walls, gaps, bridges, doors / gates / exits / stairs, floor keys, rift objects, `hourglass`, `stairstub`,
   `eyeshrine`, `blank`, and nothing on puzzle / trial / gate stages or Super Fiend floors.
+
+
+## Notes (A, 2026-11-13): what the core and moves use today (the GPU model must keep all of it)
+
+The car is drawn by the core (`20k4p`, `drawCar`): baked heading sprites (`BK.spr`, back and front layers with the
+pet and steering wheel between), separate wheels and 2D light glows. The GPU model replaces that draw. Its contract:
+- **Body state read by the draw:**
+  - Placement: `car.x`, `y`, `z`, `a` and `slide` (the drawn heading is `a + slide`), `susp` (suspension, lifts and
+    lowers the body), `lean` (roll), `sq` (the Jump's squash -1..1).
+  - Wheels and lights: `steer` (front wheels), `wheelSpin`, `glow` (hubs and lights), `S.lights` (headlights and
+    taillights on).
+  - Visibility: `vis` and the body alpha (`bodyAlpha`: summon, exit and Supernova).
+  - Also used: `droop`, `burn`, `spinA`, and `vx` / `vy` (the drift smear).
+- **Summon and exit:** ribbons trace the car, then a ghost becomes solid (`S.t` from 0.6 to 1.0), and the exit
+  fades with an additive glow. They need equivalents (alpha plus a `ghost` / `glowK` channel).
+- **Local points** (car frame: x forward, y left, z up; tiles × car scale):
+  - Lights: headlights (1.4, ±0.45, 0.42); taillights (-1.62, ±0.42, 0.37).
+  - Chassis: the wheels (axles ±0.98, track ±0.63, radius 0.285); the roof or centre (0.02, 0, 0.6); the exhausts
+    (-1.55, ±0.72) and the exhaust spray (-1.4…).
+  - The seat (`SEAT` via `seatWorld`: the pet, `ctx.seat()`, Supernova's eject).
+  - These should become model anchors: headL, headR, tailL, tailR, wheelFL, wheelFR, wheelRL, wheelRR, roof,
+    exhaustL, exhaustR, seat.
+- **The pet and the wheel:** the pet sits between the back and front layers with the steering wheel drawn behind
+  or in front by facing (`drawSteer`). The GPU draw needs a `pet(cc, PX, PY)` hook at the seat, and a wheel part or
+  the wheel left to the core.
+
+- (H, 2026-11-13, **GPU remake: today's gameplay is pinned; please run these before and after each change**)
+  `tests/nidhogg.js`, `tests/beast.js` and `tests/car.js` (shared harness `tests/lib/vehpin.js`) measure the ride on the
+  real game and compare it with `tests/baseline/<key>-evo<N>.json`, which was written from a clean build of main
+  (b5878f7). Run `HTML=<your page> EVO=1|4|7 node tests/<x>.js`.
+  - **Strict, fails on any change:** every number in the core's and the move files' `TUNE`; the ride's length and the
+    120 s cooldown; the buttons; the camera zoom while riding; for each move, the damage per hit, the cadence and the
+    rate the meter fills; the finisher (one use, it never recharges the meter, nothing lands after the release); the
+    exit on timeout; props broken by the dodge move and the jump; doors, gates, stairs and bridges kept.
+  - **Soft, prints WARN only:** how many enemies a cast happened to reach; the camera's offset from the ride; the
+    Supernova total (the car drives through its pulses).
+  - Only intended gameplay changes need the baseline rewritten (`UPDATE=1`), and that should be said in Notes.
+
+## Notes (E, 2026-11-13): the moves on the GPU
+- **One GPU painter, `SPORTSCAR_MOVES.LGFX`** (end of `20k4q`; also `self.SPORTSCAR_LGFX`, read-only, for tests): one
+  program, one offscreen canvas (left half solid, premultiplied; right half light, screened), at most two draws per
+  pass, 0.6 res (0.42 lowFx). Kinds: glow, ring, beam, ribbon of light (pearl core, coloured body, halo), glint, star of
+  light (filled or outline), heart of light (soft or outline), ray / comet tail, the star aura, a feathered wave; solid:
+  tyre smoke, a bevelled star (facets lit from the upper left, pearl-gold heart, rose edges), a puffed glossy heart, a
+  soft shadow. Hearts and stars are signed distances (crisp at any size).
+- **Switch:** real-GPU WebGL; software GL keeps 2D unless `window.__SC_GL = 1`; `0` forces 2D. No WebGL / lost context /
+  shader error: the old 2D pictures. Gameplay untouched (hits, radii, timings, projectiles, the leap, the burnouts).
+- **Counts at the heaviest moment (draws / light quads / solid quads), desktop | lowFx:** Shooting Star 2 / 249 / 25 |
+  2 / 194 / 19; Love Sensation 2 / 101 / 31 | lower; Supernova 2 / 288 / 127 | 2 / 167 / 43.

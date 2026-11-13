@@ -1,0 +1,152 @@
+{
+ "evo": 4,
+ "tune": {
+  "core.dur": "[20,25,35]",
+  "core.cd": 120,
+  "core.top": 11.8,
+  "core.accel": 24,
+  "core.coast": 10.5,
+  "core.overK": 7,
+  "core.steer": "[3.3,6.2]",
+  "core.grip": 13,
+  "core.bumpK": 0.45,
+  "core.ram": 0.6,
+  "core.ramGate": 0.45,
+  "core.ramMin": 0.3,
+  "core.ramKb": 3.2,
+  "core.drift": 3,
+  "core.driftCd": 0.9,
+  "core.driftR": 2.5,
+  "core.driftKb": 7.5,
+  "core.driftPh": "[0.05,0.3,0.14]",
+  "core.driftV": 19,
+  "core.driftTurn": 5,
+  "core.driftBuf": 0.2,
+  "core.driftInv": 0.38,
+  "core.dmgK": 2,
+  "core.chargeK": 30,
+  "core.summon": 1.75,
+  "core.out": 0.85,
+  "core.novaCap": 16,
+  "core.jump": 1.2,
+  "core.jumpR": 1.6,
+  "core.jumpKb": 5,
+  "core.jumpCd": 1.2,
+  "core.jumpBuf": 0.25,
+  "core.jumpPh": "[0.09,0.6]",
+  "core.jumpH": 1.15,
+  "core.jumpV": 9.5,
+  "core.jumpMax": 9,
+  "core.jumpExt": 2
+ },
+ "ride": {
+  "left": 25,
+  "labels": [
+   "SHOOTING STAR",
+   "LOVE SENSATION",
+   "DRIFT",
+   "JUMP",
+   "SUPERNOVA %"
+  ],
+  "z": 0,
+  "zoom": 1,
+  "camOff": 0,
+  "CD": 120
+ },
+ "moves": {
+  "dodge": {
+   "dbgAll": "6 hits, first: [[\"m0\",6,0.02],[\"m1\",6,0.02],[\"m2\",6,0.02],[\"m3\",6,0.02]]",
+   "uses": 2,
+   "again": 1,
+   "dk": [
+    6
+   ],
+   "enemies": 6,
+   "maxPer": 1,
+   "hits": 6,
+   "chargeK": 60,
+   "noCharge": 0
+  },
+  "jump": {
+   "dbgAll": "5 hits, first: [[\"m0\",2.4,0.7],[\"m1\",2.4,0.7],[\"m2\",2.4,0.7],[\"m3\",2.4,0.7]]",
+   "uses": 2,
+   "again": 1.2,
+   "dk": [
+    2.4
+   ],
+   "enemies": 5,
+   "maxPer": 1,
+   "hits": 5,
+   "chargeK": 60,
+   "noCharge": 0
+  },
+  "strong": {
+   "dbgAll": "4 hits, first: [[\"m0\",0.7,0.47],[\"m3\",0.7,0.65],[\"m0\",0.7,0.8],[\"m3\",0.7,0.97]]",
+   "uses": 2,
+   "again": 1.5,
+   "dk": [
+    0.7
+   ],
+   "enemies": 2,
+   "maxPer": 2,
+   "hits": 4,
+   "chargeK": 60,
+   "noCharge": 0
+  },
+  "strong2": {
+   "dbgAll": "6 hits, first: [[\"m0\",6.4,0.95],[\"m1\",6.4,0.95],[\"m2\",6.4,0.95],[\"m3\",6.4,0.95]]",
+   "uses": 2,
+   "again": 1.6,
+   "dk": [
+    6.4
+   ],
+   "enemies": 6,
+   "maxPer": 1,
+   "hits": 6,
+   "chargeK": 60,
+   "noCharge": 0
+  }
+ },
+ "finisher": {
+  "started": true,
+  "dk": 93.8,
+  "dkSet": [
+   5,
+   6.4,
+   7.7,
+   8.95,
+   10.25,
+   11.5,
+   24
+  ],
+  "hits": 11,
+  "allNoCharge": true,
+  "recharged": 0,
+  "late": 0,
+  "cd": 118.2,
+  "used": true,
+  "walk": true,
+  "veh": false,
+  "fx": 1
+ },
+ "timeout": {
+  "gone": true,
+  "fin": 0,
+  "cd": 118.5,
+  "walk": true,
+  "blocked": false,
+  "veh": false
+ },
+ "smash": {
+  "dodge": {
+   "kind": "brokenpillar",
+   "broken": true
+  },
+  "jump": {
+   "kind": "pillar",
+   "broken": true
+  },
+  "protectedBroken": 0,
+  "smashStat": 2
+ }
+}

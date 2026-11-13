@@ -596,24 +596,46 @@
     else if (name === 'cannon') { o.a = cl(pop(1.04, 0.06)); }
     return o;
   }
+  /* ---- (GPU remake, A) the life layer: authored springs and waves the rig adds over its pose, for weight and follow-through:
+     the walk's weight (the body shifting over the planted hand, the planted shoulder taking the load, the head lagging),
+     the arms' and the batteries' follow-through (underdamped springs after the pose's own targets), recoil (the body
+     knocked back, the barrels climbing), slams (a rear-back as the arms rise, a squash on impact), idle breathing and small
+     servo twitches of the head and barrels. Nothing during the assembly; phases wrapped; every value guarded. ---- */
+  const sprB = (o, k, tg, w, z, dt) => { if (!isFinite(o[k]) || !isFinite(o[k + 'v'])) { o[k] = tg; o[k + 'v'] = 0; } let left = Math.min(dt, 0.1); while (left > 1e-5) { const h = Math.min(left, 1 / 120); o[k + 'v'] += (-2 * z * w * o[k + 'v'] - w * w * (o[k] - tg)) * h; o[k] += o[k + 'v'] * h; left -= h; } return o[k]; };
+  function lifeB(S, dt) {
+    const P = S.P, L = S.L || (S.L = { br: 0, twT: 1.2, tw: { ny: 0, nz: 0, bL: 0, bR: 0 }, twC: { ny: 0, nz: 0, bL: 0, bR: 0 }, sq: 0, sqv: 0, sl: [0, 0], on: 0 });
+    L.on += ((S.phase === 'build' ? 0 : 1) - L.on) * Math.min(1, dt / 0.3);
+    for (const k of CH) { let v = P[k]; if (!(typeof v === 'number' && isFinite(v))) v = 0; P[k] = k === 'bank' ? Math.max(-1, Math.min(1, v)) : Math.max(-0.2, Math.min(1.3, v)); }   /* (every channel guarded: NaN to rest, held to its range with the springs' overshoot) */
+    if (!(dt > 0)) return;
+    L.br = (L.br + dt * 1.5) % TAU;
+    /* servos: every 1.2-3.5 s, while it is not walking hard, a small new set for the head and the barrels, reached quickly (a servo, not a sway) */
+    L.twT -= dt; if (L.twT <= 0) { L.twT = 1.2 + Math.random() * 2.3; const q = 1 - S.gk; L.twC.ny = q * (Math.random() - 0.5) * 0.09; L.twC.nz = q * (Math.random() - 0.5) * 0.05; L.twC.bL = q * (Math.random() - 0.5) * 0.12; L.twC.bR = q * (Math.random() - 0.5) * 0.12; }
+    const kq = Math.min(1, dt * 14); for (const k in L.tw) { L.tw[k] += (L.twC[k] - L.tw[k]) * kq; if (!isFinite(L.tw[k])) L.tw[k] = 0; }
+    /* a slam's impact: the hand reaching the floor kicks a squash through the body */
+    for (let i = 0; i < 2; i++) { const v = P[i ? 'armRSlam' : 'armLSlam'] || 0; if (L.sl[i] < 0.75 && v >= 0.75 && S.phase !== 'build') L.sqv -= 2.6; L.sl[i] = v; }
+    sprB(L, 'sq', 0, 17, 0.32, dt); L.sq = Math.max(-0.35, Math.min(0.2, L.sq));
+  }
   function rig(S) {
     const bm = S.beast, P = S.P, R = S.R, k = S.gk, ph = S.gph, c = Math.max(P.crouch, S.absorb), dip = P.torsoDip;
     const sj = P.shudder > 0.01 && !calm() ? P.shudder * 0.05 : 0, jx = sj ? (Math.random() - 0.5) * sj : 0, jy = sj ? (Math.random() - 0.5) * sj : 0, jz = sj ? (Math.random() - 0.5) * sj : 0;
-    const bob = k * 0.06 * Math.cos(ph * TAU * 2), roll = k * 0.055 * Math.sin(ph * TAU), frontZ = -0.3 * c - 0.3 * dip + bob - 0.02 * k, rearZ = -0.2 * c + bob * 0.6;
-    const T0 = R.torso; T0.x = -0.05 * dip + jx; T0.y = jy; T0.z = 0.95 + (frontZ + rearZ) / 2 + jz;
+    const LF = S.L, on = LF ? LF.on : 0, rc = cl((P.recoilL || 0) + (P.recoilR || 0)), rs = Math.max(P.armLRaise || 0, P.armRRaise || 0), sq = on * (LF ? LF.sq : 0), brz = on * (1 - k) * 0.014 * Math.sin(LF ? LF.br : 0);
+    const bob = k * 0.06 * Math.cos(ph * TAU * 2), roll = k * 0.055 * Math.sin(ph * TAU), frontZ = -0.3 * c - 0.3 * dip + bob - 0.02 * k + 0.13 * sq + 0.04 * on * rs, rearZ = -0.2 * c + bob * 0.6 + 0.08 * sq;
+    const T0 = R.torso; T0.x = -0.05 * dip + jx + on * (-0.08 * rc - 0.06 * rs); T0.y = jy + on * k * 0.07 * Math.sin(ph * TAU); T0.z = 0.95 + (frontZ + rearZ) / 2 + jz + brz;   /* (the weight over the planted hand; knocked back by a shot; reared back as the arms rise; breathing at rest) */
     R.seat.x = T0.x + SEAT.x; R.seat.y = T0.y; R.seat.z = T0.z + SEAT.z + 0.04;
-    R.neck.x = 0.7 + 0.04 * dip + jx; R.neck.y = k * 0.035 * Math.sin(ph * TAU) + jy; R.neck.z = 0.86 + frontZ * 1.1 - 0.08 * dip + jz;
+    R.neck.x = 0.7 + 0.04 * dip + jx; R.neck.y = k * 0.035 * Math.sin(ph * TAU) + jy + on * (k * 0.05 * Math.sin(ph * TAU - 0.6) + (LF ? LF.tw.ny : 0)); R.neck.z = 0.86 + frontZ * 1.1 - 0.08 * dip + jz + on * (0.6 * brz + 0.035 * rc + (LF ? LF.tw.nz : 0));
     R.chest.x = T0.x + 0.62; R.chest.y = T0.y; R.chest.z = T0.z + 0.12;
     for (const s of [-1, 1]) { const L = s < 0, sh = L ? R.shL : R.shR, sd = L ? R.sdL : R.sdR, el = L ? R.elL : R.elR, wr = L ? R.wrL : R.wrR, hp = L ? R.hpL : R.hpR, kn = L ? R.knL : R.knR, an = L ? R.anL : R.anR, mt = L ? R.mtL : R.mtR;
-      sh.x = 0.3 + 0.06 * dip + jx; sh.y = s * 0.84 + jy; sh.z = 1.28 + frontZ + roll * s + jz + s * P.bank * 0.16;
+      sh.x = 0.3 + 0.06 * dip + jx; sh.y = s * 0.84 + jy; sh.z = 1.28 + frontZ + roll * s + jz + s * P.bank * 0.16 - on * k * 0.06 * Math.max(0, Math.sin((ph + (L ? 0.06 : -0.06)) * TAU));   /* (the planted side's shoulder takes the load) */
       sd.x = sh.x; sd.y = sh.y + s * 0.04; sd.z = sh.z + 0.06;
       const pa = ph + (L ? 0.06 : -0.06), gx = k * 0.4 * Math.cos(pa * TAU), lift = k * 0.45 * Math.max(0, -Math.sin(pa * TAU));
-      const W = V3(0.7 + gx, s * 1.34, 0.3 * HK + lift);
+      const W = V3(0.7 + gx, s * 1.34, 0.3 * HK + lift), W0x = W.x, W0y = W.y, W0z = W.z;
       lp3(W, [1.5, s * 1.05, 0.7], P[L ? 'armLReach' : 'armRReach']);
       lp3(W, [0.8, s * 0.95, 0.9], P.handsIn);
       lp3(W, [0.55, s * 1.12, 2.5 + frontZ], P[L ? 'armLRaise' : 'armRRaise']);
       lp3(W, [1.45, s * 0.9, 0.3], P[L ? 'armLSlam' : 'armRSlam']);
       lp3(W, [0.42, s * 2.02, 1.02], P[L ? 'armLFling' : 'armRFling']); W.z += s * P.bank * 0.42 * (P[L ? 'armLFling' : 'armRFling'] + 0.3);   // (round 2: Drift's arms flung out, the leading one high, the trailing one raking low)
+      if (LF && on > 0.01 && S.ldt > 0) { const A2 = LF[L ? 'aL' : 'aR'] || (LF[L ? 'aL' : 'aR'] = { x: 0, xv: 0, y: 0, yv: 0, z: 0, zv: 0 }); const dx = W.x - W0x, dy = W.y - W0y, dz = W.z - W0z;   /* (the arm's follow-through: its pose offset through a stiff underdamped spring) */
+        W.x = W0x + lerp(dx, sprB(A2, 'x', dx, 22, 0.45, S.ldt), on); W.y = W0y + lerp(dy, sprB(A2, 'y', dy, 22, 0.45, S.ldt), on); W.z = W0z + lerp(dz, sprB(A2, 'z', dz, 22, 0.45, S.ldt), on); }
       ik(sh, W, 0.6, 0.86, [-0.25, s * 0.85, 0.5], el, wr);
       hp.x = -0.5; hp.y = s * 0.42; hp.z = 0.66 + rearZ;
       const pl = ph + 0.5 + (L ? 0.04 : -0.04), lx = k * 0.3 * Math.cos(pl * TAU), ll = k * 0.28 * Math.max(0, -Math.sin(pl * TAU));
@@ -622,6 +644,8 @@
       // the battery's trunnion on top of the dome; three thick barrels in a row, rest up and forward, tilt toward upright, folded = braced low
       mt.x = sd.x - 0.22; mt.y = sd.y; mt.z = sd.z + 0.38;
       let th = lerp(1.0, 1.45, P.cannonTilt); th = lerp(th, 0.12, P.cannonFold);
+      if (LF && on > 0.01 && S.ldt > 0) { const Bk = LF[L ? 'tL' : 'tR'] || (LF[L ? 'tL' : 'tR'] = { a: th, av: 0 }), rcs = P[L ? 'recoilL' : 'recoilR'] || 0;   /* (the batteries: they lag and overshoot a change of tilt, climb on a shot, bob with the walk, and twitch at rest) */
+        const tt = th + 0.14 * rcs + k * 0.045 * Math.sin(ph * TAU * 2 - 1.2) + (LF.tw[L ? 'bL' : 'bR'] || 0); th = lerp(th, sprB(Bk, 'a', tt, 18, 0.42, S.ldt), on); }
       if (S.phase === 'build') { const u = cl((S.t - 1.04) / 0.3); th = lerp(2.7, th, backOut(u)); }
       const spl = s * 0.05 * (1 - P.cannonFold), dl = Math.hypot(Math.cos(th), spl, Math.sin(th)), dir = L ? R.dL : R.dR; dir.x = Math.cos(th) / dl; dir.y = spl / dl; dir.z = Math.sin(th) / dl;
       const rc = P[L ? 'recoilL' : 'recoilR'];
@@ -1039,11 +1063,12 @@
     S.gph = (S.gph + (S.jump || driftHolds(S) ? 0 : sp * dt / TUNE.stride)) % 1;
     S.ag = groundA(bm.a + (bm.spin || 0));   // (round 2: a drift spins the drawn body over its heading)
     // background baking: the heading in use first
-    const bNow = bucketOf(S.ag); want((bNow + 1) % NB); want((bNow + NB - 1) % NB); want(bNow, !readyB(bNow));
-    bakeStep(S.phase === 'build' ? 4.5 : readyB(bNow) ? 0.8 : 3);
+    const bNow = bucketOf(S.ag), gpu = glOn(); if (!gpu) { want((bNow + 1) % NB); want((bNow + NB - 1) % NB); want(bNow, !readyB(bNow));
+    bakeStep(S.phase === 'build' ? 4.5 : readyB(bNow) ? 0.8 : 3); }   /* (on the GPU there is nothing to bake and nothing to wait for) */
     if (S.phase === 'build') {
       // the parts must be baked before they show (the cloud covers the wait, a moment at most)
-      if (S.t > 0.3 && !usableB(bNow) && S.hold < 2.2) { S.hold += dt; S.t -= dt; }
+      if (!gpu && S.t > 0.3 && !usableB(bNow) && S.hold < 2.2) { S.hold += dt; S.t -= dt; }
+      else if (gpu && S.t > 0.3 && !S.glDrawn && S.hold < 2.2) { S.hold += dt; S.t -= dt; }   /* (on the GPU: the assembly waits for the model's first drawn frame, so a late first frame (a mesh build) never skips it) */
       buildStep(S, dt);
       if (S.t >= TUNE.build) { S.phase = 'ride'; S.t = 0; bm.locked = false; S.left = S.dur; S.lit = 1; }
       syncMe(S);
@@ -1064,7 +1089,7 @@
     const MV = moves(); if (MV.update) { try { MV.update(S.ctx, dt); } catch (e) { /* (theirs) */ } }
     if (S.ignT != null && S.phase !== 'build' && S.ignT < 1) S.ignT += dt;   // (B4: the ignition current runs on past the build, then stops)
     if (S.phase === 'ride' || S.phase === 'judge') smashSweep(S);   // (round 3: the props and pots its body went through)
-    rig(S); clawStep(S); idleSparks(S, dt); stepParts(S, dt);
+    lifeB(S, dt); S.ldt = dt; rig(S); S.ldt = 0; clawStep(S); idleSparks(S, dt); stepParts(S, dt);
     S.fx.entY = S.ctx.ejecting ? S.ctx.petY : bm.y + 0.6;
     // a cable buzz while it moves, an occasional crackle
     S.sfxT -= dt; if (S.sfxT <= 0 && (S.phase === 'ride')) { const k = cl(sp / TUNE.top), sfx = X.sfx || {}; S.sfxT = 0.5; if (sfx.note && k > 0.15) sfx.note(98 + 30 * k, 0.5, 'sawtooth', 0.008 + 0.01 * k, 101 + 30 * k); }
@@ -1257,6 +1282,8 @@
     const R = S.R, bm = S.beast; S.nItems = 0;
     const out = S.phase === 'out' ? cl((S.t / TUNE.out - 0.45) / 0.08) : 0, vis = bm.vis * (1 - out);
     if (vis <= 0.01) { if (withPet) drawPetOnly(S, c, T); return; }
+    /* (GPU remake, M's hook) the machine on the GPU when it is on: the same rig (S.R), the same assembly (buildOff); the lights, the loose panel and the rider stay 2D, over it */
+    if (typeof BEAST_GL !== 'undefined' && BEAST_GL.on()) { try { if (BEAST_GL.draw(c, S, T, { vis, ghost, off: (n, s2) => buildOff(S, n, s2), rattle: S.phase === 'build' && S.t < 1.38 ? Math.sin(S.t * 47) * 0.012 : 0 })) { S.glDrawn = true; if (S.phase === 'build' && S.t > 1.04 && S.t < 1.4) drawPanel(S, c, T); if (!ghost) drawLights(S, c, T, vis); if (withPet) drawPetOnly(S, c, T); return; } } catch (e) { BEAST_GL.fail(); if (typeof console !== 'undefined') console.warn('Beast: GL draw', e); } }
     const oT = buildOff(S, 'torso'), oL = buildOff(S, 'leg'), oH = buildOff(S, 'head'), oC = buildOff(S, 'cannon');
     const add = (kind, d, set) => { const I = itemAt(S); I.kind = kind; I.d = d; set(I); };
     const off3 = (p, o) => o ? V3(p.x + o.dx, p.y + o.dy, p.z + o.dz) : p;
@@ -1522,8 +1549,10 @@
   };
   /* idle-time preparation (20b calls it for an equipped Ultimate): the small pictures, then every part at every heading */
   U.beastmachine.warm = o => {
-    setTimeout(() => { const T = typeof o.T === 'function' ? o.T() : o.T; if (!(T > 0)) return; const dpr = (typeof arc !== 'undefined' && arc.dpr) || 1; setScale(T * dpr); idleBake(); }, 300);
+    { const idle = f => typeof requestIdleCallback === 'function' ? requestIdleCallback(f, { timeout: 1000 }) : setTimeout(f, 200); idle(() => { try { if (typeof BEAST_GL !== 'undefined') BEAST_GL.on(); } catch (e) {} }); }   /* (BEAST_GL.on() builds the GPU meshes once, 160-340 ms: here, at idle, before any summon) */
+    setTimeout(() => { if (glOn()) return;   /* (no 2D bake while the GPU model is on) */ const T = typeof o.T === 'function' ? o.T() : o.T; if (!(T > 0)) return; const dpr = (typeof arc !== 'undefined' && arc.dpr) || 1; setScale(T * dpr); idleBake(); }, 300);
   };
   U.beastmachine.TUNE = TUNE;
-  U.beastmachine.__dbg = { BK, TUNE, bakeStep, setScale, want, readyB, bucketOf, groundA, planJump, STUB, moves, NB, PARTS, get SM2() { return SM2; }, rig, anchor, CH, SEGS, VIS, l2w, drawMachine, frameOf, shade, MATS, VS: VEH_SMASH /* (round 3) */, FP, SMB };
+  function glOn() { try { return typeof BEAST_GL !== 'undefined' && !!BEAST_GL.on(); } catch (e) { return false; } }
+  U.beastmachine.__dbg = { get GL() { return typeof BEAST_GL !== 'undefined' ? BEAST_GL : null; }, newRig, buildOff, BK, TUNE, bakeStep, setScale, want, readyB, bucketOf, groundA, planJump, STUB, moves, NB, PARTS, get SM2() { return SM2; }, rig, anchor, CH, SEGS, VIS, l2w, drawMachine, frameOf, shade, MATS, VS: VEH_SMASH /* (round 3) */, FP, SMB };
 })();

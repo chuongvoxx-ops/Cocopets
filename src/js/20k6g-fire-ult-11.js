@@ -40,10 +40,12 @@
   const MOD = () => (typeof NIDHOGG_MODEL !== 'undefined' ? NIDHOGG_MODEL : null);
 
   /* ================= the tuning (configurable) ================= */
+  const ULT_Z0 = 0.9, ULT_CAM_K = 0.5;   /* (ULT_Z0: the flight zoom the Ultima's framing was authored against) */
+  /* (v325, the user: "camera pull back too far during ultima, zoom back in by half") the share of the Ultima's own zoom-out that is kept (framing only, not a gameplay number) */
   const TUNE = {
     dur: [20, 25, 35], cd: 120,                    // s of flight at evo 1-3 / 4-6 / 7 (from the moment it can fly); the Ult's cooldown from the exit
     size: 0.65,                                    // (round 2, the user: "smaller by 35%") the dragon's drawn scale: wingspan ~7 tiles
-    zoom: 0.9,                                     // the flight zoom: frames the smaller dragon on a 390 x 844 phone with room to aim
+    zoom: 0.78,                                    // the flight zoom (v325: 0.9 -> 0.78 for M's wings, span 10.5 -> 14.8 tiles, so a wingbeat stays on a 390 x 844 phone)
     top: 10, accel: 22, brake: 14,                 // tiles/s, tiles/s2
     cruise: 2.2, wallZ: 3.0, climbV: 5, sinkV: 2.6,   // tiles: the one cruise height (round 2: no high setting), the height that clears a wall; tiles/s up / down
     margin: 18,                                    // tiles of open air round the map the dragon may fly in (a soft edge: it simply cannot go further)
@@ -224,7 +226,7 @@
       groundAt: (x, y) => groundAt(S, x, y), surfaceAt: (x, y) => surfaceAt(S, x, y), canStand: (x, y) => canStand(S, x, y), nearestLand: (x, y) => nearestLand(S, x, y, 8) || safeReturn(S),
       anchor: n => { const p = inst.anchor(n); return p ? { x: p.x, y: p.y, z: p.z } : { x: dragon.x, y: dragon.y, z: dragon.z }; },
       scr: (x, y, z) => [H.sx(x), H.sy(y) - (z || 0) * ZK * X.Tz()], T: () => X.Tz(),
-      camera: o => { if (!o) { S.cam = null; return; } if (o.shake) { if (!calm()) X.shake(Math.min(10, o.shake), Math.min(0.5, o.dur || 0.25)); } const c0 = S.cam || {}; S.cam = { zoom: o.zoom != null ? Math.max(0.5, Math.min(1.1, o.zoom)) : c0.zoom, x: o.x != null ? o.x : c0.x, y: o.y != null ? o.y : c0.y, k: o.k != null ? cl(o.k) : c0.k }; },   /* (a framing point x, y with k = how far the view leans to it; zoom; a later call merges) */
+      camera: o => { if (!o) { S.cam = null; return; } if (o.shake) { if (!calm()) X.shake(Math.min(10, o.shake), Math.min(0.5, o.dur || 0.25)); } const c0 = S.cam || {}, uz = S.phase === 'ultima' && o.zoom != null && o.zoom < ULT_Z0 ? Math.min(TUNE.zoom, ULT_Z0 + (o.zoom - ULT_Z0) * ULT_CAM_K) : o.zoom; S.cam = { zoom: uz != null ? Math.max(0.5, Math.min(1.1, uz)) : c0.zoom, x: o.x != null ? o.x : c0.x, y: o.y != null ? o.y : c0.y, k: o.k != null ? cl(o.k) : c0.k }; },   /* (a framing point x, y with k = how far the view leans to it; zoom; a later call merges) */
       safeReturn: () => { const p = safeReturn(S); S.retPt = p; return { x: p.x, y: p.y }; },
       done: () => actionDone(S), alive: () => !S.ended && !me.dead && !g.over && (S.phase === 'ultima' || (S.phase === 'fly' && !g.won)),
       calm, low: lowFx };
@@ -478,6 +480,7 @@
     smashBody(S);
     S.zPrev = d.z;
     const MV = moves(); if (MV.update) { try { MV.update(S.ctx, dt); } catch (e) { /* (theirs) */ } }
+    life(S, dt);
     if (S.phase !== 'out' || S.outT < (S.outGlide || 0)) syncMe(S);
     stepParts(S, dt);
     S.fx.entY = d.y + 1 + d.z;
@@ -575,8 +578,76 @@
     const H = S.H; if (S.phase === 'summon') { const s3 = S.seatS; const u = sstep(1.9, 2.25, S.t); if (!s3) return null; return [lerp(H.sx(S.home.x) + T * 1.6, s3[0], u), lerp(H.sy(S.home.y) + T * 0.8, s3[1], u) - Math.sin(u * Math.PI) * T, u]; }
     return null;
   }
+  /* ---- (GPU remake, A) the life layer: authored waves and springs added over whatever wrote the pose this frame (the
+     clips, the moves, the Ultima), applied for the draw only and taken off after it, so nothing feeds back into the clips:
+     the wings' follow-through and a harder downstroke, neck and tail S-curves lagging the body, a bank that overshoots
+     into turns, the head tracking the nearest enemy, breathing, a flinch when the rider is hurt, the Ultima's rear-back,
+     chest swell and recoil, and a stronger summon and exit. Its phases are wrapped; sanePose clamps the result. ---- */
+  const bumpL = (u, a, b, c2) => u <= a || u >= c2 ? 0 : u < b ? sstep(a, b, u) : 1 - sstep(b, c2, u);
+  const SMK = { pitch: 0.09, bank: 0, headYaw: 0.07, headPitch: 0.07, neckCurve: 0.1, tailSwing: 0.12, tailLift: 0.12, legs: 0.12, spread: 0.08, fold: 0.08, finger: 0.08, downFlex: 0.05, jaw: 0.035, throat: 0.05 };   /* (s: every clip change blended over ~3 of these) */
+  function life(S, dt) {
+    const d = S.dragon, P = d.pose, t = S.g.t, me = S.me, V = S.LV || (S.LV = {}); for (const k in V) V[k] = 0;
+    const L = S.L || (S.L = { ph: 0, bk: P.bank || 0, bkv: 0, hy: 0, hyv: 0, hp: me.hp, hit: -9, hd: 1, rec: -9, jaw0: 0, fp: P.flap || 0, amp: P.flapAmp || 0.8, w: 0, glide: 0, gT: 2, sm: {}, zb: 0 });
+    if (!(S.phase === 'fly' || S.phase === 'summon' || S.phase === 'out' || S.phase === 'ultima') || !(dt > 0)) { L.hp = me.hp; L.fp = P.flap || 0; L.w = 0; return; }
+    const sp = cl(Math.hypot(d.vx || 0, d.vy || 0) / TUNE.top), dive = !!S.dive, free = S.phase === 'fly' && !dive && !S.busy, own = dive ? 0.25 : S.busy ? 0.6 : 1, tk = S.turnK || 0;
+    L.ph = (L.ph + dt * (1.5 + 1.1 * sp)) % TAU;
+    /* ---- the flight: the core's own wingbeat while it flies free (the clips keep theirs in a dive, a Strong, the Ultima, the summon and exit):
+       hovering, a steady beat; cruising straight, glides on spread wings broken by two or three strong beats; climbing or turning hard, harder and quicker;
+       just after take-off, a heavy beat. Its phase is written back into the pose, so a clip taking over carries on from it with no jump */
+    L.w += ((free ? 1 : 0) - L.w) * Math.min(1, dt / 0.2);
+    const vz = (d.z - (L.zp == null ? d.z : L.zp)) / dt; L.zp = d.z;
+    const toff = S.phase === 'fly' ? 1 - sstep(0, 0.9, S.t) : 0, cruise = sp > 0.55 && Math.abs(tk) < 0.35 && vz < 0.4 && toff < 0.1;
+    L.gT -= dt; if (L.gT <= 0) { if (L.glide) { L.glide = 0; L.gT = (2 + Math.floor(Math.random() * 2)) / 1.25; } else if (cruise) { L.glide = 1; L.gT = 1.4 + Math.random() * 1.4; } else L.gT = 0.4; }
+    if (!cruise && L.glide) { L.glide = 0; L.gT = 0.8; }
+    let rate = sp < 0.25 ? 1.5 : 1.25, ampT = sp < 0.25 ? 0.95 : 0.78; if (vz > 0.4 || Math.abs(tk) > 0.6) { rate = 1.75; ampT = 1.0; } if (toff > 0) { rate = lerp(rate, 1.95, toff); ampT = lerp(ampT, 1.12, toff); }
+    const gl = L.glide ? 1 : 0; L.gk = (L.gk || 0) + (gl - (L.gk || 0)) * Math.min(1, dt / 0.35); ampT = lerp(ampT, 0.1, L.gk); rate = lerp(rate, 0.25, L.gk);
+    L.amp += (ampT - L.amp) * Math.min(1, dt / 0.25);
+    if (L.w > 0.02) { const f0 = L.fp, sn = Math.sin(f0 * TAU); L.fp = (f0 + dt * rate * (1 + 0.38 * -Math.cos(f0 * TAU))) % 1;   /* (a quick, hard downstroke and a slower recovery) */ P.flap = L.fp; } else L.fp = P.flap || 0;
+    const fp = (((P.flap || 0) % 1) + 1) % 1 * TAU, ampC = cl(P.flapAmp || 0), amp = lerp(ampC, L.amp, L.w), dn = Math.max(0, -Math.cos(fp)), upk = Math.max(0, Math.cos(fp));
+    V.flapAmp = amp - ampC;
+    /* downstroke: spread wide and cupped (fingers fanned); upstroke: folded at the wrist; the tips trail the arm; gliding: spread and still, a slight dihedral */
+    V.spread = own * (0.16 * amp * dn + 0.25 * L.gk * L.w); V.finger = own * 0.18 * amp * dn; V.fold = own * 0.1 * amp * upk; V.downFlex = own * 0.25 * amp * Math.sin(fp - 1.1);
+    /* M's wing joints (v325): the hand trails the arm through each stroke, the fingers fan and the membrane bellies (cupped) on the downstroke,
+       the forearm sweeps back on the upstroke; gliding, a slight dihedral, the membrane full, the fingers open */
+    V.wrist = own * 0.4 * amp * Math.sin(fp - 1.2); V.fingerSpread = own * (0.45 * amp * dn - 0.3 * amp * upk + 0.25 * L.gk * L.w); V.billow = own * (0.6 * amp * dn + 0.35 * L.gk * L.w); V.elbow = own * 0.45 * amp * upk; V.shoulder = own * (0.15 * L.gk * L.w - 0.08 * amp * dn);
+    L.zb = own * 0.09 * amp * -Math.sin(fp - 0.5);   /* the body heaves up on each downstroke (a drawn height, never the dragon's own) */
+    V.pitch = own * 0.03 * amp * Math.sin(fp + 0.6) - 0.14 * toff;
+    /* the neck and tail as continuous S-waves: one slow wave down the body and the beat's echo, each later than the last; the head leads the turn, the tail swings wide */
+    V.neckCurve = own * (0.08 * Math.sin(L.ph) + 0.06 * amp * Math.sin(fp - 0.9)); V.headPitch = own * (-0.05 * Math.sin(L.ph - 0.7) - 0.04 * amp * Math.sin(fp - 1.4));
+    V.tailSwing = own * ((0.12 + 0.06 * sp) * Math.sin(L.ph * 0.8 - 1.6) - 0.35 * tk); V.tailLift = own * (0.09 * amp * Math.sin(fp - 2.0) + 0.05 * Math.sin(L.ph - 2.4)) - 0.12 * toff;
+    V.breath = 0.35 * (1 - sp);
+    /* the bank: an underdamped spring after whatever bank this frame asks for (rolls into the turn, swings past, settles) */
+    { const tg = (P.bank || 0) + (free ? 0.12 * tk : 0), w = 6.5, z = 0.38; L.bkv += (-2 * z * w * L.bkv - w * w * (L.bk - tg)) * dt; L.bk += L.bkv * dt; if (!isFinite(L.bk)) { L.bk = tg; L.bkv = 0; } V.bank = dive ? 0 : clamp(L.bk - (P.bank || 0), -0.45, 0.45); }
+    /* the head: leads the turn, and turns a little toward the nearest enemy ahead (8 tiles, 100 degrees either side) */
+    { let ty = free ? 0.3 * tk : 0; if (!dive && S.phase === 'fly') { let best = 64; for (const m of S.H.living()) { const dx = m.x - d.x, dy = m.y - d.y, r2 = dx * dx + dy * dy; if (r2 >= best) continue; const a = wrap(Math.atan2(dy, dx) - d.heading); if (Math.abs(a) > 1.75) continue; best = r2; ty += clamp(a, -0.5, 0.5) * 0.6; } }
+      const w = 6, z = 0.6; L.hyv += (-2 * z * w * L.hyv - w * w * (L.hy - ty)) * dt; L.hy += L.hyv * dt; if (!isFinite(L.hy)) { L.hy = 0; L.hyv = 0; } V.headYaw = clamp(L.hy, -0.6, 0.6); }
+    /* hurt: a flinch, the head snapping back, a sideways jolt through the bank and the tail, the jaw open in a snarl */
+    if (me.hp < L.hp - 0.5) { L.hit = t; L.hd = Math.random() < 0.5 ? -1 : 1; } L.hp = me.hp;
+    { const u = t - L.hit; if (u >= 0 && u < 0.7) { const e = Math.exp(-u * 6), w2 = Math.cos(u * 22); V.bank += 0.22 * L.hd * e * w2; V.headPitch -= 0.3 * e; V.jaw = (V.jaw || 0) + 0.5 * e; V.tailSwing += 0.3 * L.hd * e * w2; V.spread -= 0.15 * e; V.pitch -= 0.08 * e; V.shoulder -= 0.35 * e * w2; V.elbow += 0.3 * e; } }
+    if (S.phase === 'ultima') { const u = S.t, r = bumpL(u, 0, 0.4, 1.0);   /* the anticipation: it rears back, the chest swells, the wings lift */
+      V.pitch -= 0.3 * r; V.headPitch -= 0.35 * r; V.neckCurve += 0.3 * r; V.breath += 1.4 * r; V.spread += 0.25 * r; V.shoulder += 0.4 * r; V.fingerSpread += 0.5 * r; V.billow += 0.4 * r;
+      if (L.jaw0 < 0.9 && (P.jaw || 0) >= 0.9) L.rec = t; L.jaw0 = P.jaw || 0;   /* the beam's first instant: the recoil through the neck and body */
+      const e = t - L.rec < 1.2 ? Math.exp(-(t - L.rec) * 4) : 0; V.pitch -= 0.22 * e; V.headPitch -= 0.18 * e; V.neckCurve -= 0.22 * e; V.tailLift += 0.15 * e; }
+    else L.jaw0 = 0;
+    if (S.phase === 'summon') { const r = bumpL(S.t, 1.95, 2.25, 3.0);   /* the summon's roar as it takes the rider: wings flung wide, head up, jaws open */
+      V.spread += 0.4 * r; V.shoulder += 0.45 * r; V.fingerSpread += 0.6 * r; V.jaw = (V.jaw || 0) + 0.75 * r; V.headPitch -= 0.4 * r; V.neckCurve += 0.3 * r; V.pitch -= 0.22 * r; V.tailLift += 0.15 * r; }
+    if (S.phase === 'out') { const G2 = S.outGlide || 0, r2 = bumpL(S.outT, G2 - 0.45, G2 - 0.12, G2 + 0.15), r = bumpL(S.outT - G2, 0, 0.18, 0.7);   /* the exit: a braking flare onto the spot (its weight: legs down, the body settling), then a last roar as it burns away */
+      V.spread += 0.3 * r2 + 0.4 * r; V.billow += 0.6 * r2; V.fingerSpread += 0.5 * r2 + 0.5 * r; V.shoulder += 0.3 * r; V.pitch -= 0.2 * r2 + 0.15 * r; V.legs = (V.legs || 0) + 0.4 * r2; L.zb -= 0.12 * r2; V.jaw = (V.jaw || 0) + 0.7 * r; V.headPitch -= 0.35 * r; V.neckCurve += 0.25 * r; }
+    /* every clip change eased: the drawn channels follow the written ones through a short low-pass (the bank has its own spring) */
+    const SM = L.sm; for (const k in SMK) { const v = P[k] || 0; if (SM[k] == null || !isFinite(SM[k])) SM[k] = v; const tau = SMK[k]; if (tau > 0) { SM[k] += (v - SM[k]) * Math.min(1, dt / tau); V[k] = (V[k] || 0) + (SM[k] - v); } }
+  }
+  const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+  function lifeOn(S, P) { const V = S.LV; if (!V) return null; const keep = {}; for (const k in V) { if (!V[k]) continue; keep[k] = P[k]; P[k] = (P[k] || 0) + V[k]; } sanePose(P, MOD()); return keep; }
+  function lifeOff(P, keep) { if (keep) for (const k in keep) P[k] = keep[k]; }
+  /* every pose channel sane before a draw (the core, the moves, the Ultima and the clips all write it): phases wrapped
+     (flap in cycles, ringSpin in radians), NaN or Infinity to the rest value, amounts and angles held to a wide range */
+  const PSIGN = { pitch: 1, bank: 1, headYaw: 1, headPitch: 1, neckCurve: 1, tailSwing: 1, tailLift: 1, downFlex: 1 };
+  function sanePose(P, M0) { const B = sanePose.B || (sanePose.B = M0 && M0.blankPose ? M0.blankPose() : {});
+    for (const k in P) { let v = P[k]; if (typeof v !== 'number') continue; if (!isFinite(v)) { P[k] = B[k] != null ? B[k] : 0; continue; }
+      if (k === 'flap') v = ((v % 1) + 1) % 1; else if (k === 'shoulder' || k === 'wrist' || k === 'fingerSpread') v = v < -1 ? -1 : v > 1 ? 1 : v; else if (k === 'elbow' || k === 'billow') v = v < 0 ? 0 : v > 1 ? 1 : v; else if (k === 'ringSpin') v = v % TAU; else if (k === 'ringSpinV') v = Math.max(-20, Math.min(20, v)); else if (k === 'alpha') v = v < 0 ? 0 : v > 1 ? 1 : v; else if (PSIGN[k]) v = v < -2 ? -2 : v > 2 ? 2 : v; else v = v < -0.5 ? -0.5 : v > 1.6 ? 1.6 : v;   /* (amounts: a little overshoot either way is the clips' own spring) */
+      P[k] = v; } }
   function drawEnt(S, c) {
-    const H = S.H, T = H.X.Tz(), d = S.dragon, M0 = MOD(), t = S.g.t;
+    const H = S.H, T = H.X.Tz(), d = S.dragon, M0 = MOD(), t = S.g.t; if (d && d.pose) sanePose(d.pose, M0);
     if (S.phase === 'gone') { const da = drawHeading(S, d.heading); if (S.fade && S.relT < S.fade && M0 && da != null) { const a0 = d.pose.alpha; d.pose.alpha = a0 * (1 - S.relT / S.fade); M0.drawSpin(c, d.x, d.y, d.z, d.pose, { T, sx: H.sx, sy: H.sy, t, low: lowFx(), scale: TUNE.size }, spinProxy(S, da)); d.pose.alpha = a0; } return; }
     if (!M0 || d.vis <= 0.01) { if (S.phase !== 'out' || !S.hopped) H.X.drawPetAt(c, H.sx(d.x), H.sy(d.y) - d.z * ZK * T, { maxH: 0.85 }); return; }
     const riding = !(S.phase === 'summon' && S.t < 2.2) && !(S.phase === 'out' && S.hopped);
@@ -585,7 +656,7 @@
     const da = drawHeading(S, d.heading); S.drawnA = da;
     if (da != null) { const sub = Math.abs(wrap(da - d.heading)) > 0.05, P0 = d.pose, half = !sub && !bothAt(da), kb = sub || half ? [P0.bank, P0.headYaw, P0.tailSwing] : null;
       if (sub) { P0.bank = 0; P0.headYaw = 0; P0.tailSwing = 0; } else if (half) P0.bank *= 0.5;   /* (round 3: only one of the two neighbouring headings baked yet, early in a cold cast: a hard bank is halved so the mapped torso keeps the rider's seat) */ const ring0 = P0.ring; if (S.noBlur) P0.ring = 0;   /* (S.noBlur, tests only: the body without the spin's streaks and the Ultima ring's floating segments) */   /* (at a stand-in heading the spin's bank / head yaw / tail swing would turn pieces toward headings not baked yet: drawn straight, every piece and the seat share one heading) */
-      try { M0.drawSpin(c, d.x, d.y, d.z, d.pose, o, spinProxy(S, da)); } catch (e) { /* (model) */ }
+      const LK = sub ? null : lifeOn(S, P0), zb = LK && S.L ? S.L.zb * TUNE.size : 0; try { M0.drawSpin(c, d.x, d.y, d.z + zb, d.pose, o, spinProxy(S, da)); } catch (e) { /* (model) */ } lifeOff(P0, LK);
       if (kb) { P0.bank = kb[0]; P0.headYaw = kb[1]; P0.tailSwing = kb[2]; } P0.ring = ring0; }
     else if (riding) H.X.drawPetAt(c, H.sx(d.x), H.sy(d.y) - d.z * ZK * T, { maxH: 0.85 });   /* (nothing baked at all yet: the rider alone, never a broken dragon) */
     d.pose.alpha = a0;

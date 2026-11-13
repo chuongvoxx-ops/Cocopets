@@ -134,8 +134,12 @@ const NM = (self.NIDHOGG_MOVES = self.NIDHOGG_MOVES || {});
           if (p.drag) { const k = Math.exp(-p.drag * dt); p.vx *= k; p.vy *= k; p.vz *= k; } p.vz -= p.g * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; if (p.z < p.floor) { p.z = p.floor; p.vz = 0; } p.rot += p.vr * dt; }
         if (!S.acts.length && !P.length) { S.on = false; f.life = 0; }
       },
-      drawUnder(c) { if (!S.on) return; view(S); const B = c.getTransform(); c.save(); for (const a of S.acts) if (a.under) a.under(c, B); drawParts(S, c, B, 1); c.setTransform(B); c.restore(); },
-      draw(c) { if (!S.on) return; view(S); const B = c.getTransform(); c.save(); drawParts(S, c, B, 0); for (const a of S.acts) if (a.over) a.over(c, B); c.setTransform(B); c.restore(); },
+      drawUnder(c) { if (!S.on) return; view(S); const B = c.getTransform(); c.save();
+        if (gpuOn()) { const Q = NM.FGFX.begin(c, null); for (const a of S.acts) { if (a.gpuUnder) a.gpuUnder(Q); else if (a.under) a.under(c, B); } c.setTransform(B); gpuParts(S, Q, 1); NM.FGFX.flush(c); c.restore(); return; }   /* (the GPU layer; a move without a GPU picture keeps its 2D one) */
+        for (const a of S.acts) if (a.under) a.under(c, B); drawParts(S, c, B, 1); c.setTransform(B); c.restore(); },
+      draw(c) { if (!S.on) return; view(S); const B = c.getTransform(); c.save();
+        if (gpuOn()) { const Q = NM.FGFX.begin(c, [S.PX, S.PY, S.PR]); gpuParts(S, Q, 0); for (const a of S.acts) { if (a.gpuOver) a.gpuOver(Q); else if (a.over) a.over(c, B); } c.setTransform(B); NM.FGFX.flush(c); c.restore(); return; }
+        drawParts(S, c, B, 0); for (const a of S.acts) if (a.over) a.over(c, B); c.setTransform(B); c.restore(); },
       onEnd() { if (S.on) kill(); } });
     return S;
   }
@@ -159,6 +163,24 @@ const NM = (self.NIDHOGG_MOVES = self.NIDHOGG_MOVES || {});
         else if (p.u) { setT(c, B, X, Y, 0, 1, S.GY); c.drawImage(img, -s / 2, -s / 2, s, s); }
         else { setT(c, B, X, Y, p.rot); c.drawImage(img, -s / 2, -s / 2, s, s); } } }
     c.setTransform(B); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over'; }
+
+  /* the particles on the GPU layer: fire puffs as turbulent balls of fire cooling with age, smoke and steam as solid
+     billowing volumes, embers as streaks with hot heads, floor rings and light as light-only marks */
+  const gpuOn = () => { try { return !!(NM.FGFX && NM.FGFX.usable()); } catch (e) { return false; } };
+  function gpuParts(S, Q, under) { const H = S.H, T = S.T, P = S.parts, GY = S.GY || 0.55;
+    for (let i = 0; i < P.length; i++) { const p = P[i]; if ((p.u ? 1 : 0) !== under) continue;
+      const u = p.t / p.life, a = p.a * Math.min(1, p.t / p.fin) * (p.kind === 1 || p.kind === 7 || p.kind === 0 ? (1 - u) * (1 - u) : 1 - u * u); if (a < 0.015) continue;
+      const X = H.sx(p.x), Y = H.sy(p.y) - p.z * S.ZT, s = p.size * T * (1 + p.grow * u), sd = (p.rot || 0) * 0.3 + i * 0.13;
+      switch (p.kind) {
+        case 0: Q.billow(X, Y, s * 0.6, 0.78 - 0.6 * u, a * 0.85, sd); break;
+        case 1: Q.smoke(X, Y, s * 0.55, a * 0.85, sd, '#3A302C', 0.4 * (1 - u)); break;
+        case 2: { const sx = p.vx * T, sy = p.vy * T - p.vz * S.ZT, sp = Math.hypot(sx, sy) || 1, L = s * (0.6 + Math.min(1.4, sp / (T * 5))); Q.beam(X - sx / sp * L, Y - sy / sp * L, X, Y, s * 0.07, u < 0.4 ? YEL : AMB, a); Q.glow(X, Y, s * 0.18, WHT, a * 0.8); break; }
+        case 3: Q.glow(X, Y, s * 0.6, WHT, a); Q.star(X, Y, s * 0.5, a * 0.6); break;
+        case 4: Q.glow(X, Y, s * 0.6, ORG, a); break;
+        case 5: Q.ring(X, Y, s * 0.5, AMB, a, s * 0.06, GY); Q.ground(X, Y, s * 0.4, 0.5 * (1 - u), a * 0.5, sd, GY, 0.4); break;
+        case 6: Q.ground(X, Y, s * 0.62, 0.35 + 0.6 * (1 - u), a, sd, GY, 0.7); break;
+        case 7: Q.smoke(X, Y, s * 0.55, a * 0.7, sd, '#D9D2CC', 0); break;
+        default: Q.shimmer(X, Y, s * 0.5, a, GY); } } }
 
   /* ================= shared bits ================= */
   const sfx = (X, k, ...a) => { try { if (X.sfx && X.sfx[k]) X.sfx[k](...a); } catch (e) {} };
@@ -277,6 +299,21 @@ const NM = (self.NIDHOGG_MOVES = self.NIDHOGG_MOVES || {});
           put(c, B, sprBall(f0), X0, Y0, R * 1.35, R * 1.35, k * ia, S.t * 2.2 + b.i, false); put(c, B, sprBall(f1), X0, Y0, R * 1.32, R * 1.32, fu * k * ia, -S.t * 3.1 + b.i * 2, false);
           put(c, B, glowSprite(WHT), X0 - R * 0.08, Y0 - R * 0.1, R * 0.8, R * 0.8, 0.85 * k * ia, 0, true); }
         c.setTransform(B); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over'; },
+      /* the GPU pictures: the same numbers, drawn as turbulent fire, smoke and light */
+      gpuUnder(Q) { const T = S.T; for (const b of balls) { if (b.ex) continue; const u = cl(b.t / b.dur), gx = H.sx(b.tx), gy = H.sy(b.ty); if (!ground(ctx, b.tx, b.ty)) continue;
+          const r = T * tu.R * (1.08 - 0.08 * u), k = sm((u - 0.3) / 0.7); Q.ring(gx, gy, r, AMB, 0.65 * sm(u * 4) * (1 - 0.3 * u), T * 0.12, S.GY); Q.ring(gx, gy, r * (1 - 0.6 * u), ORG, 0.4 * sm(u * 4), T * 0.08, S.GY); Q.ground(H.sx(b.x), H.sy(b.y), T * (1 + 1.6 * k), 0.6 * k, 0.6 * k, b.i, S.GY, 0.3); }
+        for (const b of balls) { if (b.ex !== 1) continue; const u = (S.t - b.end) / 0.75; if (u >= 1 || b.bz > 0.6) continue; Q.ground(H.sx(b.x), H.sy(b.y), T * tu.R * (0.6 + 0.8 * eout(u / 0.3)), 1 - 0.8 * u, 1 - u, b.i + 3, S.GY, 1); } },   /* (the scorched, glowing ground under a burst) */
+      gpuOver(Q) { const T = S.T, ZT = S.ZT;
+        for (const b of balls) { if (b.ex !== 1) continue; const u = (S.t - b.end) / 0.75; if (u >= 1) continue; // the burst: a ball of fire that swells, rolls and cools, its smoke, its flash
+          const X0 = H.sx(b.x), Y0 = H.sy(b.y) - (b.bz + 0.5 * eout(u)) * ZT, r = T * tu.R * (0.35 + 0.75 * eout(u / 0.45)), a = 1 - sm((u - 0.25) / 0.75);
+          Q.smoke(X0, Y0 - r * 0.4 * u, r * (0.95 + 0.5 * u), 0.75 * sm((u - 0.08) / 0.35) * a, b.i * 1.7, '#3A2A24', 0.7 * (1 - u)); Q.glow(X0, Y0, r * 1.4, ORG, 0.2 * a);
+          Q.billow(X0, Y0, r * 1.05, 0.8 - 0.55 * u, a, b.i * 2.3); Q.fire(X0, Y0 - r * 0.25, r * 0.6, 0.8 - 0.5 * u, 0.55 * a, b.i * 2.3 + 5);
+          if (u < 0.3) { Q.glow(X0, Y0, r * 0.55, WHT, (1 - u / 0.3) * 0.45); Q.ring(X0, Y0, r * (0.6 + 1.3 * eout(u / 0.3)), YEL, 0.5 * (1 - u / 0.3), r * 0.1, 1); } }
+        for (const b of balls) { if (b.ex !== 3) continue; const u = (S.t - b.end) / 0.5; if (u >= 1) continue; const X0 = H.sx(b.x), Y0 = H.sy(b.y) + u * u * T * 2.2, R = T * tu.r * 2.5 * (1 - 0.6 * u); Q.glow(X0, Y0, R * 1.5, ORG, 0.4 * (1 - u)); Q.fire(X0, Y0, R * 0.7, 0.9 - 0.5 * u, 1 - u, b.i); }
+        for (const b of balls) { if (b.ex) continue; const X0 = H.sx(b.x), Y0 = H.sy(b.y) - b.z * ZT, R = T * tu.r * 2.5, ia = Math.min(1, b.t / 0.06);   // in flight: a rolling ball of fire, a comet tail of flame behind it, a hot core
+          const svx = b.vx * T, svy = b.vy * T - b.vz * ZT, sp = Math.hypot(svx, svy) || 1, L = Math.min(T * 4.2, sp * 0.24 + R);
+          Q.glow(X0, Y0, R * 1.5, ORG, 0.35 * ia); if (L > R) Q.firebeam(X0 - svx / sp * L * 0.8, Y0 - svy / sp * L * 0.8, X0, Y0, R * 0.42, 0.62, 0.85 * ia, b.i * 1.3, 6);
+          Q.fire(X0, Y0, R * 0.7, 0.88, ia, b.i * 3.1); Q.glow(X0 - R * 0.08, Y0 - R * 0.1, R * 0.28, WHT, 0.6 * ia); } },
       abort() { for (const b of balls) FPOOL.push(b); balls.length = 0; } };
     S.acts.push(act);
   }
@@ -298,7 +335,7 @@ const NM = (self.NIDHOGG_MOVES = self.NIDHOGG_MOVES || {});
       // the fan: five directions spread over ~150 deg round one side, each fan turned on round the dragon
       const a0 = headingOf(d), fa = a0 + side * (1.3 + 0.55 * f) + (j - 2) * 0.45 + rnd(-0.1, 0.1), out = lerp(tu.out[0], tu.out[1], R1(i * 1.7)), up = lerp(tu.up[0], tu.up[1], R1(i * 2.3 + 0.4));
       l.P[0][0] = o.x; l.P[0][1] = o.y; l.P[0][2] = o.z; l.P[1][0] = o.x + Math.cos(fa) * out; l.P[1][1] = o.y + Math.sin(fa) * out * 0.75; l.P[1][2] = o.z + up;
-      l.m = Pn.m || null; l.gx = Pn.m ? Pn.m.x : Pn.x; l.gy = Pn.m ? Pn.m.y : Pn.y; l.fx = Math.cos(fa) * out * 0.12; l.fy = Math.sin(fa) * out * 0.1; aimL(l);   // (the last leg comes in from above, so a monster by a wall is not shielded by it; aimL was once swallowed by this comment, so a fresh lance aimed at the map origin and Flare dealt nothing)
+      l.m = Pn.m || null; l.gx = Pn.m ? Pn.m.x : Pn.x; l.gy = Pn.m ? Pn.m.y : Pn.y; l.fx = Math.cos(fa) * out * 0.12; l.fy = Math.sin(fa) * out * 0.1; aimL(l);   // (the last leg comes in from above, so a monster by a wall is not shielded by it. A, 2026-11-13: aimL was inside this comment, so a fresh lance timed its flight to the map's origin, not its mark, and ran out its life first: Flare dealt nothing far from (0, 0))
       const dist = Math.hypot(l.P[3][0] - o.x, l.P[3][1] - o.y); l.dur = tu.fly0 + dist * tu.flyPer + rnd(0, 0.08); l.t = 0; l.age = 0; l.ex = 0; l.i = i; l.x = o.x; l.y = o.y; l.z = o.z; l.vx = 0; l.vy = 0; l.vz = 0; l.tr.length = 0; l.trT = 0; l.free = 0; ls.push(l);
       part(S, 3, o.x, o.y, o.z, 0, 0, 0, 0.1, 0.9, { fin: 0.01 }); if (!LOW() || j % 2 === 0) { const an = fa + rnd(-0.4, 0.4); puff(S, o.x, o.y, o.z, Math.cos(an) * 2, Math.sin(an) * 1.6, rnd(0.5, 1.5), 0.3, 0.45, 0); }
       if (j === 0) { kick = 1; sfx(X, 'hiss', 0.16, 0.1, 2200 + f * 200); sfx(X, 'note', 180 + f * 20, 0.12, 'square', 0.04, 90); if (waves < 3 || f === NF - 1) { waves++; const c0 = anchor(ctx, 'seat'); part(S, 8, d.x, d.y, 0, 0, 0, 0, 0.6, 1.2, { u: 1, grow: 5, fin: 0.02, a: 0.7 }); part(S, 4, c0.x, c0.y, c0.z - 0.2, 0, 0, 0, 0.25, 2.6, { fin: 0.02, a: 0.35 }); } } }
@@ -346,6 +383,13 @@ const NM = (self.NIDHOGG_MOVES = self.NIDHOGG_MOVES || {});
         for (const l of ls) { if (l.ex) continue; const X0 = H.sx(l.x), Y0 = H.sy(l.y) - l.z * ZT, k = petK(S, X0, Y0, 0.1), ang = Math.atan2(l.vy * T - l.vz * ZT, l.vx * T), ia = Math.min(1, l.age / 0.04);
           put(c, B, gl, X0, Y0, T * 1.1, T * 1.1, 0.5 * k * ia, 0, true); c.globalCompositeOperation = 'lighter'; c.globalAlpha = k * ia; setT(c, B, X0, Y0, ang); c.drawImage(lh, -T * 0.55, -T * 0.16, T * 0.8, T * 0.26); }
         c.setTransform(B); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over'; },
+      /* the GPU pictures: each lance a molten head with a tapering trail of turbulent fire; the vents' heat shimmer */
+      gpuOver(Q) { const T = S.T, ZT = S.ZT, PT = act._PT || (act._PT = []);
+        for (const l of ls) { const n = l.tr.length; if (n < 1) continue; const fo = l.ex ? cl(1 - (S.t - l.end) / 0.3) : 1; if (fo <= 0.01) continue; let m = 0;
+          const stp = LOW() ? 2 : 1; PT[m++] = [H.sx(l.x), H.sy(l.y) - l.z * ZT]; for (let j = 0; j < n; j += stp) PT[m++] = [H.sx(l.tr[j][0]), H.sy(l.tr[j][1]) - l.tr[j][2] * ZT];
+          if (m > 1) { Q.trail(PT, m, T * 0.14, 0.85, 0.85 * fo, l.i * 0.7); const nb = Math.min(m - 1, LOW() ? 2 : 6); for (let j = 0; j < nb; j++) { const k = j / nb; Q.beam(PT[j][0], PT[j][1], PT[j + 1][0], PT[j + 1][1], T * 0.055 * (1 - k), j < 2 ? WHT : YEL, 0.85 * fo * (1 - k)); } } }   /* (a white-hot thread down the first of it keeps the lance sharp) */
+        for (const l of ls) { if (l.ex) continue; const X0 = H.sx(l.x), Y0 = H.sy(l.y) - l.z * ZT, ia = Math.min(1, l.age / 0.04); Q.glow(X0, Y0, T * 0.55, ORG, 0.5 * ia); Q.fire(X0, Y0, T * 0.2, 1.2, ia, l.i); Q.glow(X0, Y0, T * 0.12, WHT, ia); }
+        if (!sent) { const op = sm(t / tu.open), c0 = anchor(ctx, 'seat'); Q.shimmer(H.sx(c0.x), H.sy(c0.y) - c0.z * ZT, T * 2.4 * (0.7 + 0.3 * op), 0.3 * op, 0.75); } },
       abort() { for (const l of ls) LPOOL.push(l); ls.length = 0; } };
     S.acts.push(act);
   }
@@ -353,4 +397,118 @@ const NM = (self.NIDHOGG_MOVES = self.NIDHOGG_MOVES || {});
   NM.fireballs = fireballs;
   NM.flare = flare;
   NM.__dbgS = { ST: DST, TUNE, BAKE, sprBall, sprPuff, sprLance, anchor };
+})();
+
+/* ================= FIRE_GFX (NIDHOGG_MOVES.FGFX): Nidhogg's effects on the GPU =================
+   One offscreen WebGL canvas (WebGL2, else WebGL1), twice the game canvas's width x `res`: the left half takes what is
+   solid (smoke and steam, premultiplied, laid over), the right half takes light alone (alpha = its brightest channel,
+   added). blit() lays the left half 'source-over' and the right 'lighter', so every output is valid premultiplied colour
+   and adds the same in every browser. Two draw calls a pass (smoke, light), one shader; each quad's kind is drawn from
+   maths and noise in the fragment shader:
+     0 a feathered glow · 1 a ring sharp outside and fading inward · 2 a gaussian beam · 3 a ball of fire (turbulent fbm,
+     a temperature ramp white -> yellow -> orange -> red -> nothing, rolling with time) · 4 a flame tongue (a licking
+     teardrop of fire, scrolling up it) · 5 burning ground (patchy embers and glowing cracks, light only) · 6 a fire beam
+     (scrolling turbulent flame along a strip, white-hot core, ragged edges) · 7 a sparkle · 8 a heat shimmer ring ·
+     9 smoke (solid: billowing fbm density).
+   The painter takes the 2D path's own screen coordinates (under the game's camera transform), so each move's GPU picture
+   is drawn from the same numbers as its 2D one; the pet's face is protected by a soft hole in the shader where asked.
+   Used on real-GPU WebGL; a software rasteriser or no WebGL keeps the 2D path. window.__NG_GL = 1 forces it, 0 forces
+   2D; a lost context falls back to 2D (rebuilt when restored). Draw calls, quads and the light / smoke split are in stats. */
+(() => {
+  const NM = self.NIDHOGG_MOVES;
+  let cv = null, gl = null, PR = null, bq = null, ok = null, soft = false, info = '', why = '';
+  const stats = { draws: 0, quads: 0, smoke: 0, W: 0, H: 0, frames: 0, maxDraws: 0, maxQuads: 0, maxSmoke: 0 };
+  const HDR = '#ifdef GL_FRAGMENT_PRECISION_HIGH\nprecision highp float;\n#else\nprecision mediump float;\n#endif\n';
+  const VS = `attribute vec2 a_p, a_uv; attribute float a_k; attribute vec4 a_c; attribute vec3 a_q; uniform vec2 u_res; varying vec2 v_uv, v_px; varying float v_k; varying vec4 v_c; varying vec3 v_q;
+void main(){ gl_Position = vec4(a_p.x / u_res.x * 2.0 - 1.0, 1.0 - a_p.y / u_res.y * 2.0, 0.0, 1.0); v_uv = a_uv; v_k = a_k; v_c = a_c; v_q = a_q; v_px = a_p; }`;
+  const FS = HDR + `uniform float u_t, u_pass; uniform vec3 u_pet; varying vec2 v_uv, v_px; varying float v_k; varying vec4 v_c; varying vec3 v_q;
+float h1(vec2 p){ p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
+float n2(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(h1(i), h1(i + vec2(1.0, 0.0)), f.x), mix(h1(i + vec2(0.0, 1.0)), h1(i + vec2(1.0, 1.0)), f.x), f.y); }
+float fbm(vec2 p){ float s = 0.0, a = 0.5; for (int i = 0; i < 5; i++) { s += a * n2(p); p = p * 2.03 + vec2(1.7, 9.2); a *= 0.5; } return s; }
+vec3 ramp(float k){ k = clamp(k, 0.0, 1.2); vec3 c = mix(vec3(0.0), vec3(0.62, 0.1, 0.03), smoothstep(0.0, 0.25, k)); c = mix(c, vec3(0.95, 0.32, 0.09), smoothstep(0.2, 0.45, k)); c = mix(c, vec3(1.0, 0.6, 0.2), smoothstep(0.42, 0.65, k)); c = mix(c, vec3(1.0, 0.86, 0.42), smoothstep(0.62, 0.85, k)); return mix(c, vec3(1.0, 0.98, 0.9), smoothstep(0.85, 1.1, k)); }
+float sq(float x){ return x * x; }
+void main(){ vec2 u = v_uv; float r = length(u), m = 0.0, edge = 1.0 - smoothstep(0.85, 1.0, r); vec3 col = v_c.rgb; float t = u_t + v_q.y * 7.3, pk = u_pet.z > 0.0 ? mix(0.12, 1.0, smoothstep(0.4, 1.4, length((v_px - u_pet.xy) * vec2(1.0, 1.1)) / u_pet.z)) : 1.0;   /* (the rider's face stays clear: light, body and smoke) */
+  if (v_k > 10.5) { // the body of a fire beam (solid, under its light): it keeps its colour over a pale floor
+    float al = u.x * 0.5 + 0.5, f = fbm(vec2(al * 6.0 - t * v_q.z, u.y * 2.2 + v_q.y)), ay = abs(u.y) / (0.62 + 0.4 * f);
+    float dns = (1.0 - smoothstep(0.45, 0.95, ay)) * smoothstep(0.0, 0.06, al) * (1.0 - smoothstep(0.9, 1.0, al)), temp = v_q.x * (1.2 - ay * 1.05) + (f - 0.5) * 0.4, a = dns * v_c.a * pk * smoothstep(0.1, 0.45, temp);
+    gl_FragColor = vec4(ramp(min(temp, 0.78)) * 0.9 * a, a); }
+  else if (v_k > 9.5) { // the body of fire (the solid pass, under its light): the same turbulent ball, its colour laid over so it reads on a bright floor
+    vec2 w = u + 0.22 * vec2(fbm(u * 2.0 + vec2(t * 0.7, -t * 1.6)) - 0.5, fbm(u * 2.0 + vec2(5.2, -t * 1.9)) - 0.5); float rr = length(w), f = fbm(w * 3.0 + vec2(0.0, -t * 2.2)), dns = 1.0 - smoothstep(0.4 + 0.35 * f, 0.95, rr);
+    float temp = v_q.x * (1.15 - rr * 0.95) + (f - 0.5) * 0.55, a = dns * v_c.a * pk * smoothstep(0.1, 0.45, temp); gl_FragColor = vec4(ramp(min(temp, 0.8)) * 0.85 * a, a); }
+  else if (v_k > 8.5) { // smoke (the solid pass): billowing density, darker in its heart, lit a little from below
+    float f = fbm(u * 2.2 + vec2(v_q.y * 3.1, v_q.y - t * 0.35)), d = clamp((1.0 - r * r) * (0.55 + 0.9 * f) - 0.25, 0.0, 1.0) * edge; float a = d * v_c.a * pk;
+    vec3 c = mix(col * 0.6, col, smoothstep(-0.5, 0.6, -u.y + f * 0.5)) + vec3(0.35, 0.12, 0.03) * v_q.x * smoothstep(0.0, 1.0, u.y + 0.3); gl_FragColor = vec4(c * a, a); }
+  else { vec3 L = vec3(0.0);
+    if (v_k < 0.5) L = col * exp(-r * r * 4.2) * edge * 0.6;                                                              // a glow
+    else if (v_k < 1.5) { float d = max((v_q.x - r) / v_q.z, 0.0); L = mix(col, vec3(1.0), 0.6 * exp(-d * 12.0)) * (1.0 - smoothstep(v_q.x - 0.012, v_q.x + 0.01, r)) * (0.4 * exp(-d * 2.4) + 0.7 * exp(-d * 12.0)); }   // a ring
+    else if (v_k < 2.5) L = col * exp(-u.y * u.y * 5.0) * (1.0 - smoothstep(0.6, 1.0, abs(u.x)));                       // a beam
+    else if (v_k < 3.5) { // a ball of fire
+      vec2 w = u + 0.22 * vec2(fbm(u * 2.0 + vec2(t * 0.7, -t * 1.6)) - 0.5, fbm(u * 2.0 + vec2(5.2, -t * 1.9)) - 0.5); float rr = length(w), f = fbm(w * 3.0 + vec2(0.0, -t * 2.2)), dns = 1.0 - smoothstep(0.45 + 0.35 * f, 0.98, rr);
+      float temp = v_q.x * (1.15 - rr * 0.95) + (f - 0.5) * 0.55; L = ramp(min(temp, 0.74 + 0.4 * smoothstep(0.9, 1.2, v_q.x))) * dns * (0.5 + 0.55 * f); }   /* (white only in a very hot ball's heart) */
+    else if (v_k < 4.5) { // a flame tongue: base at uv.y = 1, tip at -1
+      float h = (1.0 - u.y) * 0.5, wob = (fbm(vec2(h * 3.0 - t * 2.5, v_q.y)) - 0.5) * 0.5 * h, x = (u.x - wob) / max(0.05, (1.0 - pow(h, 1.6)) * (0.55 + 0.45 * sin(min(1.0, h * 3.0) * 1.57)));
+      float f = fbm(vec2(u.x * 2.0, h * 3.0 - t * 3.4) + v_q.y), dns = (1.0 - smoothstep(0.55, 1.0, abs(x))) * smoothstep(0.0, 0.08, h) * (1.0 - smoothstep(0.75 + 0.2 * f, 1.0, h));
+      float temp = v_q.x * (1.1 - h * 0.9 - abs(x) * 0.35) + (f - 0.5) * 0.45; L = ramp(temp) * dns * (0.6 + 0.6 * f); }
+    else if (v_k < 5.5) { // burning ground: patchy glow and bright cracks (seen from the camera: squashed by the quad)
+      float f = fbm(u * 3.0 + v_q.y), cr = 1.0 - smoothstep(0.0, 0.06, abs(fbm(u * 4.0 + v_q.y * 2.0) - 0.5)), rad = exp(-r * r * 2.6) * edge;
+      float temp = v_q.x * (0.55 * rad + 0.35 * f * rad + 0.8 * cr * smoothstep(1.0, 0.2, r)); L = ramp(temp) * (0.5 + 0.5 * f) * rad + ramp(v_q.x * 0.9) * cr * smoothstep(1.0, 0.25, r) * 0.7 * v_q.z; }
+    else if (v_k < 6.5) { // a fire beam: uv.x along (-1 mouth .. 1 end), uv.y across
+      float al = u.x * 0.5 + 0.5, f = fbm(vec2(al * 6.0 - t * v_q.z, u.y * 2.2 + v_q.y)), f2 = fbm(vec2(al * 13.0 - t * v_q.z * 1.6, u.y * 4.0 - 3.0)), ay = abs(u.y) / (0.62 + 0.4 * f);
+      float dns = (1.0 - smoothstep(0.5, 1.0, ay)) * smoothstep(0.0, 0.05, al) * (1.0 - smoothstep(0.92, 1.0, al)), temp = v_q.x * (1.2 - ay * 1.05) + (f2 - 0.5) * 0.5; L = ramp(temp) * dns * (0.55 + 0.6 * f); }
+    else if (v_k < 7.5) { vec2 a = abs(u); L = col * (exp(-a.x * 2.5) * exp(-a.y * 30.0) + exp(-a.y * 2.5) * exp(-a.x * 30.0)) * edge; }   // a sparkle
+    else { float n = fbm(vec2(atan(u.y, u.x) * 3.0, r * 6.0 - t * 2.0)); L = col * (exp(-sq((r - 0.82) / 0.07)) + 0.6 * exp(-sq((r - 0.68) / 0.05))) * (0.4 + 0.8 * n) * edge; }   // heat shimmer
+    L *= pk;
+    L = min(L * v_c.a, vec3(1.0)); gl_FragColor = vec4(L, max(max(L.r, L.g), L.b)); } }`;
+  function prog(vs, fs, attrs) { const sh = (ty, src) => { const q = gl.createShader(ty); gl.shaderSource(q, src); gl.compileShader(q); if (!gl.getShaderParameter(q, gl.COMPILE_STATUS)) throw new Error('shader: ' + gl.getShaderInfoLog(q)); return q; };
+    const p = gl.createProgram(); gl.attachShader(p, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs)); attrs.forEach((a, i) => gl.bindAttribLocation(p, i, a)); gl.linkProgram(p); if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error('link: ' + gl.getProgramInfoLog(p));
+    const U = {}, n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS); for (let i = 0; i < n; i++) { const q = gl.getActiveUniform(p, i); U[q.name] = gl.getUniformLocation(p, q.name); } return { p, U }; }
+  function build() { if (!cv) { cv = document.createElement('canvas'); cv.width = cv.height = 4; cv.addEventListener('webglcontextlost', e => { e.preventDefault(); ok = false; why = 'context lost'; }); cv.addEventListener('webglcontextrestored', () => { ok = null; PR = null; }); }
+    const o = { alpha: true, premultipliedAlpha: true, antialias: false, depth: false, stencil: false }; gl = gl || cv.getContext('webgl2', o) || cv.getContext('webgl', o); if (!gl) { why = 'no WebGL'; return false; }
+    try { const di = gl.getExtension('WEBGL_debug_renderer_info'); info = String(di ? gl.getParameter(di.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)); } catch (e) { info = '?'; } soft = /swiftshader|llvmpipe|software|softpipe/i.test(info);
+    PR = prog(VS, FS, ['a_p', 'a_uv', 'a_k', 'a_c', 'a_q']); bq = gl.createBuffer(); return true; }
+  function usable() { let f = null; try { f = typeof window !== 'undefined' ? window.__NG_GL : null; } catch (e) {} if (f === 0 || ok === false) return false; if (ok === null) { try { ok = build(); } catch (e) { ok = false; why = String(e && e.message || e); try { console.warn('Nidhogg GFX: ' + why); } catch (e2) {} } } return !!ok && (!soft || f === 1); }
+  const LOWQ = () => typeof st !== 'undefined' && st && !!st.lowFx;
+  /* the batch: light quads and smoke quads, 12 floats a vertex */
+  const RGB = new Map(), rgbOf = h => { let v = RGB.get(h); if (!v) { const q = hexRGB(h || '#FF7A2E'); v = [q[0] / 255, q[1] / 255, q[2] / 255]; RGB.set(h, v); } return v; };
+  const QV = [[-1, -1], [1, -1], [-1, 1], [-1, 1], [1, -1], [1, 1]];
+  const Q = { lit: new Float32Array(12 * 6 * 600), nl: 0, smk: new Float32Array(12 * 6 * 200), ns: 0, a: 1, b: 0, c0: 0, d: 1, e: 0, f: 0, k: 1, t: 0, W: 0, Hh: 0, pet: [0, 0, 0], gpu: true,
+    X(x, y) { return this.a * x + this.c0 * y + this.e; }, Y(x, y) { return this.b * x + this.d * y + this.f; },
+    /* one quad: centre (screen px), half-axes (ux, uy), (vx, vy) in screen px */
+    quad(kind, x, y, ux, uy, vx, vy, col, al, q0, q1, q2) { if (!(al > 0.004)) return; const solid = kind >= 9; let A = solid ? this.smk : this.lit; const n = solid ? this.ns : this.nl;
+      if ((n + 6) * 12 > A.length) { const q = new Float32Array(A.length * 2); q.set(A); A = q; if (solid) this.smk = q; else this.lit = q; }
+      const cx = this.X(x, y), cy = this.Y(x, y), a = this.a, b = this.b, c = this.c0, d = this.d, Ux = a * ux + c * uy, Uy = b * ux + d * uy, Vx = a * vx + c * vy, Vy = b * vx + d * vy, C = rgbOf(col); let o = n * 12;
+      for (let j = 0; j < 6; j++) { const su = QV[j][0], sv = QV[j][1]; A[o++] = cx + Ux * su + Vx * sv; A[o++] = cy + Uy * su + Vy * sv; A[o++] = su; A[o++] = sv; A[o++] = kind; A[o++] = C[0]; A[o++] = C[1]; A[o++] = C[2]; A[o++] = al > 1 ? 1 : al; A[o++] = q0 || 0; A[o++] = q1 || 0; A[o++] = q2 || 0; }
+      if (solid) this.ns += 6; else this.nl += 6; },
+    rq(kind, x, y, w, h, rot, col, al, q0, q1, q2) { const c = Math.cos(rot || 0), s = Math.sin(rot || 0); this.quad(kind, x, y, c * w, s * w, -s * h, c * h, col, al, q0, q1, q2); },
+    glow(x, y, r, col, a, sy) { if (r > 0.5) this.quad(0, x, y, r, 0, 0, r * (sy || 1), col, a); },
+    ring(x, y, r, col, a, w, sy) { if (r > 0.5) this.quad(1, x, y, r * 1.04, 0, 0, r * 1.04 * (sy || 1), col, a, 0.96, 0, Math.max(0.02, (w || r * 0.1) / r * 0.6)); },
+    beam(x0, y0, x1, y1, w, col, a) { const dx = (x1 - x0) / 2, dy = (y1 - y0) / 2, L = Math.hypot(dx, dy); if (L < 0.5) return; this.quad(2, x0 + dx, y0 + dy, dx, dy, -dy / L * w, dx / L * w, col, a); },
+    fire(x, y, r, heat, a, seed, sy) { if (r > 0.5) { this.quad(10, x, y, r, 0, 0, r * (sy || 1), '#FFFFFF', a * 0.6, heat, seed || 0); this.quad(3, x, y, r, 0, 0, r * (sy || 1), '#FFFFFF', a * 0.8, heat, seed || 0); } },   /* (its body laid over, its light added) */
+    billow(x, y, r, heat, a, seed, sy) { if (r > 0.5) { this.quad(10, x, y, r, 0, 0, r * (sy || 1), '#FFFFFF', a, heat, seed || 0); this.quad(3, x, y, r * 0.9, 0, 0, r * 0.9 * (sy || 1), '#FFFFFF', a * 0.3, heat * 0.9, seed || 0); } },   /* (a rolling volume of flame: mostly body, a little light; stacked by the dozen it stays orange) */
+    tongue(x, y, w, h, rot, heat, a, seed) { if (h > 0.5) { const c = Math.cos(rot || 0), s = Math.sin(rot || 0); this.quad(4, x + s * h, y - c * h, c * w, s * w, -s * h, c * h, '#FFFFFF', a, heat, seed || 0); } },   /* (base at (x, y), rot 0 up) */
+    ground(x, y, r, heat, a, seed, sy, cracks) { if (r > 0.5) this.quad(5, x, y, r, 0, 0, r * (sy || 0.55), '#FFFFFF', a, heat, seed || 0, cracks == null ? 1 : cracks); },
+    firebeam(x0, y0, x1, y1, w, heat, a, seed, scroll) { const dx = (x1 - x0) / 2, dy = (y1 - y0) / 2, L = Math.hypot(dx, dy); if (L < 0.5) return; this.quad(6, x0 + dx, y0 + dy, dx, dy, -dy / L * w, dx / L * w, '#FFFFFF', a, heat, seed || 0, scroll || 3); },
+    firebody(x0, y0, x1, y1, w, heat, a, seed, scroll) { const dx = (x1 - x0) / 2, dy = (y1 - y0) / 2, L = Math.hypot(dx, dy); if (L < 0.5) return; this.quad(11, x0 + dx, y0 + dy, dx, dy, -dy / L * w, dx / L * w, '#FFFFFF', a, heat, seed || 0, scroll || 3); },   /* (a fire beam's body: laid over, so it reads on any floor) */
+    star(x, y, s, a, col) { this.quad(7, x, y, s, 0, 0, s, col || '#FFF6D8', a); },
+    shimmer(x, y, r, a, sy, col) { if (r > 0.5) this.quad(8, x, y, r, 0, 0, r * (sy || 1), col || '#FFA640', a); },
+    smoke(x, y, r, a, seed, col, lit) { if (r > 0.5) this.quad(9, x, y, r, 0, 0, r, col || '#3A2E2A', a, lit || 0, seed || 0); },
+    /* a comet trail of fire through screen points (head first), each stretch a fire-beam quad, tapering */
+    trail(P, n, w, heat, a, seed) { for (let i = 0; i < n - 1; i++) { const k = i / (n - 1), x0 = P[i][0], y0 = P[i][1], x1 = P[i + 1][0], y1 = P[i + 1][1], dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy) || 1, ex = dx / L * w * 0.4, ey = dy / L * w * 0.4;
+      this.firebeam(x0 - ex, y0 - ey, x1 + ex, y1 + ey, w * (1 - 0.75 * k), heat * (1 - 0.6 * k), a * (1 - k * k), (seed || 0) + i * 0.37, 4); } } };
+  /* begin a pass on the game canvas c (its transform is the camera); pet: [screen x, y, radius] to keep clear, or null */
+  function begin(c, pet) { const B = c.getTransform(), cv0 = c.canvas, L = LOWQ(), k0 = Math.min(L ? 0.42 : 0.6, 1200 / Math.max(cv0.width, cv0.height)); Q.W = Math.max(8, Math.round(cv0.width * k0)); Q.Hh = Math.max(8, Math.round(cv0.height * k0)); const kx = Q.W / cv0.width;
+    Q.a = B.a * kx; Q.b = B.b * kx; Q.c0 = B.c * kx; Q.d = B.d * kx; Q.e = B.e * kx; Q.f = B.f * kx; Q.k = (Math.sqrt(Math.abs(B.a * B.d - B.b * B.c)) || 1) * kx; Q.nl = Q.ns = 0; Q.t = (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000 % 1000;
+    if (pet) { Q.pet[0] = Q.X(pet[0], pet[1]); Q.pet[1] = Q.Y(pet[0], pet[1]); Q.pet[2] = pet[2] * Q.k; } else Q.pet[2] = 0; return Q; }
+  function flush(c) { if (!Q.nl && !Q.ns) return; if (!usable()) return; try { const W = Q.W, Hh = Q.Hh; if (cv.width !== W * 2 || cv.height !== Hh) { cv.width = W * 2; cv.height = Hh; }
+      gl.viewport(0, 0, W * 2, Hh); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); gl.enable(gl.BLEND); gl.useProgram(PR.p); gl.uniform2f(PR.U.u_res, W, Hh); gl.uniform1f(PR.U.u_t, Q.t); gl.uniform3f(PR.U.u_pet, Q.pet[0], Q.pet[1], Q.pet[2]); gl.bindBuffer(gl.ARRAY_BUFFER, bq);
+      const attr = (i, n, off) => { gl.enableVertexAttribArray(i); gl.vertexAttribPointer(i, n, gl.FLOAT, false, 48, off * 4); }; let draws = 0;
+      const pass = (A, n) => { gl.bufferData(gl.ARRAY_BUFFER, A.subarray(0, n * 12), gl.DYNAMIC_DRAW); attr(0, 2, 0); attr(1, 2, 2); attr(2, 1, 4); attr(3, 4, 5); attr(4, 3, 9); gl.drawArrays(gl.TRIANGLES, 0, n); draws++; };
+      if (Q.ns) { gl.viewport(0, 0, W, Hh); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); pass(Q.smk, Q.ns); }   // the left half: smoke, solid
+      if (Q.nl) { gl.viewport(W, 0, W, Hh); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_COLOR); pass(Q.lit, Q.nl); }    // the right half: light, screened (stacked fire saturates softly, never clips to a white slab)
+      stats.draws = draws; stats.quads = Q.nl / 6; stats.smoke = Q.ns / 6; stats.W = W; stats.H = Hh; stats.frames++; stats.maxDraws = Math.max(stats.maxDraws, draws); stats.maxQuads = Math.max(stats.maxQuads, Q.nl / 6); stats.maxSmoke = Math.max(stats.maxSmoke, Q.ns / 6);
+      const cv0 = c.canvas; c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1; if (Q.ns) { c.globalCompositeOperation = 'source-over'; c.drawImage(cv, 0, 0, W, Hh, 0, 0, cv0.width, cv0.height); } c.globalCompositeOperation = 'lighter'; c.drawImage(cv, W, 0, W, Hh, 0, 0, cv0.width, cv0.height); c.restore();
+    } catch (e) { ok = false; why = String(e && e.message || e); } }
+  /* (tests) pixels that break rgb <= a, right after a flush */
+  function check() { if (!gl) return null; const W = cv.width, Hh = cv.height, px = new Uint8Array(W * Hh * 4); gl.readPixels(0, 0, W, Hh, gl.RGBA, gl.UNSIGNED_BYTE, px); let bad = 0, lit = 0; for (let i = 0; i < px.length; i += 4) { const a = px[i + 3]; if (a) lit++; if (px[i] > a + 1 || px[i + 1] > a + 1 || px[i + 2] > a + 1) bad++; } return { bad, lit }; }
+  NM.FGFX = { usable, begin, flush, check, stats, info: () => ({ ok, soft, renderer: info, why }) };
 })();

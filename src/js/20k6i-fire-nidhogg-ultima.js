@@ -162,8 +162,12 @@
           if (p.drag) { const k = Math.exp(-p.drag * dt); p.vx *= k; p.vy *= k; p.vz *= k; } p.vz -= p.g * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; if (p.z < 0) { p.z = 0; p.vz = 0; p.vx *= 0.8; p.vy *= 0.8; } p.rot += p.vr * dt; }
         if (!S.acts.length && !P.length) { kill(); f.life = 0; }
       },
-      drawUnder(c) { if (!S.on) return; petPos(S); CUR_S = S; const B = c.getTransform(); c.save(); for (const a of S.acts) if (a.under) a.under(c, B); drawParts(S, c, B, 1); c.restore(); },
-      draw(c) { if (!S.on) return; petPos(S); CUR_S = S; const B = c.getTransform(); c.save(); for (const a of S.acts) if (a.over) a.over(c, B); drawParts(S, c, B, 0); c.restore(); },
+      drawUnder(c) { if (!S.on) return; petPos(S); CUR_S = S; const B = c.getTransform(); c.save();
+        if (gpuOn()) { const Q = NM.FGFX.begin(c, null); for (const a of S.acts) { if (a.gpuUnder) a.gpuUnder(Q); else if (a.under) a.under(c, B); } c.setTransform(B); gpuParts(S, Q, 1); NM.FGFX.flush(c); c.restore(); return; }
+        for (const a of S.acts) if (a.under) a.under(c, B); drawParts(S, c, B, 1); c.restore(); },
+      draw(c) { if (!S.on) return; petPos(S); CUR_S = S; const B = c.getTransform(); c.save();
+        if (gpuOn()) { const Q = NM.FGFX.begin(c, null); for (const a of S.acts) { if (a.gpuOver) a.gpuOver(Q); else if (a.over) a.over(c, B); } c.setTransform(B); gpuParts(S, Q, 0); NM.FGFX.flush(c); c.restore(); return; }   /* (the ultima keeps nothing off the rider: the user's call) */
+        for (const a of S.acts) if (a.over) a.over(c, B); drawParts(S, c, B, 0); c.restore(); },
       onEnd() { if (S.on) kill(); } });
     return S;
   }
@@ -188,6 +192,20 @@
         if (p.kind === 1 || p.kind === 5) { const ang = Math.atan2(p.vy * 0.72 - p.vz * 0.7, p.vx); setT(c, B, X, Y, ang); c.drawImage(img, -s, -s * 0.11, s, s * 0.22); }
         else { setT(c, B, X, Y, p.rot, p.flat ? 0.55 : 1); c.drawImage(img, -s / 2, -s / 2, s, s); } } }
     c.setTransform(B); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over'; }
+
+  /* the particles on the GPU layer (0 glint, 1/5 streak, 2 hot puff, 3 smoke puff, 6/7 soft flame, else a glow) */
+  const gpuOn = () => { try { return !!(NM.FGFX && NM.FGFX.usable()); } catch (e) { return false; } };
+  function gpuParts(S, Q, under) { const H = S.H, T = S.T, P = S.parts;
+    for (let i = 0; i < P.length; i++) { const p = P[i]; if ((p.u ? 1 : 0) !== under) continue;
+      const u = p.t / p.life, a = p.a * Math.min(1, p.t / p.fin) * (p.kind === 2 || p.kind === 3 || p.kind >= 6 ? (1 - u) * (1 - u) : 1 - u * u); if (a < 0.015) continue;
+      const X = H.sx(p.x), Y = H.sy(p.y) - p.z * S.ZT, s = p.size * T * (1 + p.grow * u), sd = (p.rot || 0) * 0.3 + i * 0.11;
+      switch (p.kind) {
+        case 0: Q.glow(X, Y, s * 0.7, C.amb, a * 0.8); Q.glow(X, Y, s * 0.25, C.wht, a); break;
+        case 1: case 5: { const sx = p.vx, sy = p.vy * 0.72 - p.vz * 0.7, sp = Math.hypot(sx, sy) || 1; Q.beam(X - sx / sp * s, Y - sy / sp * s, X, Y, s * 0.08, p.kind === 5 ? C.org : C.yel, a); Q.glow(X, Y, s * 0.12, C.wht, a * 0.8); break; }
+        case 2: Q.billow(X, Y, s * 0.6, 0.9 - 0.6 * u, a, sd, p.flat ? 0.55 : 1); break;
+        case 3: Q.smoke(X, Y, s * 0.55, a * 0.85, sd, '#3A302C', 0.3 * (1 - u)); break;
+        case 6: case 7: Q.billow(X, Y, s * 0.55, 0.85 - 0.5 * u, a * 0.9, sd, p.flat ? 0.55 : 1); break;
+        default: Q.glow(X, Y, s * 0.5, C.yel, a); } } }
 
   /* ================= shared bits ================= */
   const sfx = (X, k, ...a) => { try { const F = X.sfx; if (F && F[k]) F[k](...a); } catch (e) {} };
@@ -247,6 +265,7 @@
         if (ph === 'blast' && t >= TD && !finished) { finished = true; S.keep = true; S.seatOK = false; cam(ctx, null); done(); }
         if (finished && (!blast || blast.t > tu.cloudLife + 0.2)) act.dead = true; },
       under(c, B) { drawUnder(c, B); c.setTransform(B); if (ph === 'charge' || cwaves.length) { chargeUnder(c, B); c.setTransform(B); } },
+      gpuUnder(Q) { gpuUnder(Q); }, gpuOver(Q) { gpuOver(Q); },   /* (the GPU layer's pictures of the same moment) */
       over(c, B) { if (blast) { drawAfter(c, B); c.setTransform(B); } drawCloud(c, B); c.setTransform(B); if (ph === 'charge' || cwaves.length) { chargeOver(c, B); c.setTransform(B); } drawOver(c, B); c.setTransform(B); },
       abort() { if (!finished) { cam(ctx, null); try { for (const k of ['core', 'jaw', 'throat', 'ring', 'trace']) if (P[k] != null) P[k] = 0; } catch (e) {} } } };
     S.acts.push(act);
@@ -326,6 +345,66 @@
       c.restore(); }
     /* ---- drawing ---- */
     const scr = (x, y, z) => [H.sx(x), H.sy(y) - (z || 0) * S.ZT];
+    /* ---- the GPU pictures (the same numbers as the 2D ones below): turbulent fire, solid smoke, light-only floor marks ---- */
+    const GP0 = [], GP1 = [];
+    function gpuUnder(Q) { const T = S.T, GY = H.GY || 0.55, X0 = H.sx(ix), Y0 = H.sy(iy), L = LOW();
+      // the telegraphs: the beam's impact ring, the dome's ring
+      const tA = sm((t - (TC - 0.8)) / 0.5) * (blast ? Math.max(0, 1 - blast.t / 0.15) : 1);
+      if (tA > 0.01) { const pul = 1 + 0.03 * Math.sin(t * 12); Q.ring(X0, Y0, RB * T * pul, C.amb, tA * 0.95, T * 0.25, GY); Q.ground(X0, Y0, RB * T, 0.45 * tA, 0.5 * tA, 1, GY, 0.2);
+        const dA = sm((t - (TC - 0.3)) / 0.6) * (blast ? Math.max(0, 1 - blast.t / 0.2) : 1); Q.ring(X0, Y0, RX * T, C.org, dA * (0.55 + 0.25 * Math.sin(t * 9)), T * 0.3, GY); }
+      // the charge: waves of fire blowing out over the floor, the light under the dragon
+      for (const w of cwaves) { const v = w.t / 1.0, r = T * lerp(1.2, 5.8, eout(v)) * (0.85 + 0.3 * w.k), a = Math.min(1, Math.pow(1 - v, 1.2) * 1.6 * w.k); Q.ring(H.sx(w.x), H.sy(w.y), r, C.org, a * 0.9, T * 0.22, GY); Q.ring(H.sx(w.x), H.sy(w.y), r * 0.94, C.yel, a * 0.5, T * 0.07, GY); }   /* (crisp rings over the floor: no filled disc, no haze) */
+      if (ph === 'charge') { const u = t / TC, dg = anchorW(ctx, 'belly'); Q.ground(H.sx(dg.x), H.sy(dg.y), T * (1.0 + 1.0 * u), 0.3 + 0.35 * u, 0.2 + 0.25 * u, 2, GY, 0.3); }
+      // under the beam: the floor burning, pressure rings, cracks growing
+      if (ph === 'beam' || (blast && blast.t < 0.2)) { const u = cl((t - TC) / tu.beam); Q.ground(X0, Y0, T * (1.6 + 2.6 * eout(u)), 0.75 + 0.3 * u, 1, 4, GY, 1);
+        for (const w of waves) { const v = w.t / 0.7; Q.ring(X0, Y0, T * lerp(RB * 0.5, RB * 2.2, eout(v)), C.yel, (1 - v) * 0.9, T * 0.2, GY); } }
+      // the explosion on the floor: the broad shockwave, the burning field, the glowing fractures
+      if (blast) { const u = blast.t; if (u < 0.5) Q.glow(X0, Y0, RX * 1.1 * T, '#FFFFFF', (1 - u / 0.5) * 0.45, GY);
+        Q.ground(X0, Y0, RX * 1.15 * T, 0.75 * Math.max(0, 1 - u / 4.5), 0.6 * Math.max(0, 1 - u / 4.2), blast.rot, GY, Math.max(0, 1 - Math.max(0, u - 0.8) / 1.8));
+        for (let k = 0; k < 3; k++) { const v = (u - k * 0.12) / (0.5 + 0.15 * k); if (v <= 0 || v >= 1) continue; Q.ring(X0, Y0, RX * T * (1.11 - 0.06 * k) * eout(v), k ? C.org : C.yel, Math.min(1, (1 - v) * (k ? 0.85 : 1.2)), T * (0.24 - 0.05 * k), GY); Q.ring(X0, Y0, RX * T * (1.11 - 0.06 * k) * eout(v) * 0.97, '#FFFFFF', (1 - v) * (k ? 0.25 : 0.6), T * 0.06, GY); Q.shimmer(X0, Y0, RX * T * (1.2 - 0.06 * k) * eout(v), (1 - v) * 0.4, GY); }   /* (distinct shock fronts, a white-hot leading edge) */
+        for (const f of blast.fires) { const a2 = blast.t - f.t0; if (a2 < 0 || a2 > f.life) continue; const k = sm(a2 / 0.25) * (1 - sm((a2 - f.life + 0.9) / 0.9)); Q.ground(H.sx(f.x), H.sy(f.y), T * 1.2 * f.s, 0.8 * k, 0.8 * k, f.ph, GY, 0.6); } } }
+    function gpuOver(Q) { const T = S.T, GY = H.GY || 0.55, L = LOW();
+      // the charge: pressure discs round the dragon at chest height, strings of fire flowing into the mouth, the mouth's core
+      for (const w of cwaves) { const v = w.t / 1.0, r = T * lerp(1.0, 4.3, eout(v)) * (0.85 + 0.3 * w.k), a = Math.min(1, Math.pow(1 - v, 1.4) * 1.35 * w.k), [X1, Y1] = scr(w.x, w.y, w.z); Q.ring(X1, Y1, r, C.amb, a * 0.85, T * 0.18, 0.62); Q.shimmer(X1, Y1, r * 1.05, a * 0.25, 0.62); }
+      if (ph === 'charge') { const u = t / TC, mo = anchorW(ctx, 'mouth'), [mx, my] = scr(mo.x, mo.y, mo.z), live = u < 0.06 ? 0 : sm((u - 0.06) / 0.3), n = Math.round((L ? 6 : 13) * (0.45 + 0.55 * u)), PT = GP0;
+        for (let i = 0; i < n; i++) { const st = STR[i], head = ((t * st.sp * (0.8 + 1.2 * u) + st.ph) % 1.25), win = 0.55 + 0.2 * u; if (head <= 0.02) continue; const s0 = Math.max(0, head - win), s1 = Math.min(1, head); if (s1 <= s0) continue;
+          const NP = L ? 8 : 12; let m = 0; for (let j = NP; j >= 0; j--) { const sv = lerp(s0, s1, j / NP), rr = st.R * Math.pow(1 - sv, 1.15), an = st.th + st.spin * (1 - sv) * 1.4 + t * 0.3 * st.spin, z = lerp(mo.z + st.z0, mo.z, Math.pow(sv, 0.8)), q = scr(mo.x + Math.cos(an) * rr, mo.y + Math.sin(an) * rr * 0.72, z), w = Math.sin(sv * st.wf * TAU - t * 9 + st.wp) * st.wa * T * (1 - sv); PT[m++] = [q[0], q[1] + w]; }
+          const fl = (0.75 + 0.25 * Math.sin(t * 23 + i * 1.7)) * live; Q.trail(PT, m, T * 0.34, 0.95, fl, i * 1.3); for (let j = 0; j < m - 1; j++) { const k = j / (m - 1); Q.beam(PT[j][0], PT[j][1], PT[j + 1][0], PT[j + 1][1], T * (0.09 - 0.06 * k), k < 0.3 ? '#FFF1C9' : C.yel, fl * (1 - k * k)); }   /* (a bright thread down each string keeps it vivid on any floor) */ Q.glow(PT[0][0], PT[0][1], T * 0.4, C.amb, 0.45 * fl); Q.glow(PT[0][0], PT[0][1], T * 0.16, '#FFFFFF', 0.8 * fl); }
+        const pul = 1 + (0.08 + 0.2 * u) * Math.sin(t * (6 + 18 * u)), rc = T * (0.5 + 2.2 * eio(u)) * pul; Q.glow(mx, my, rc * 1.0, C.org, 0.12 + 0.18 * u); Q.billow(mx, my, rc * 0.5, 0.9, 0.5 + 0.4 * u, 7.1); Q.fire(mx, my, rc * 0.45, 1.0 + 0.2 * u, 0.6 + 0.4 * u, 7.7); Q.glow(mx, my, rc * 0.18, '#FFFFFF', 0.5 + 0.5 * u);   /* (a tight bright core, a soft low glow round it) */
+        if (!L) for (let k = 0; k < 3; k++) { const a = t * 2.5 + k * 2.1; Q.tongue(mx + Math.cos(a) * rc * 0.25, my + Math.sin(a) * rc * 0.25, rc * 0.3, rc * 0.7, a + Math.PI / 2, 0.95, 0.45 * u, k); }
+        const ir = (t - (TC - 0.45)) / 0.45; if (ir > 0 && ir < 1) Q.ring(mx, my, T * 5 * (1 - eio(ir)), C.yel, 0.9 * Math.sin(ir * Math.PI), T * 0.35, 0.7); }
+      // the beam: a broad heat bloom, turbulent flame racing from the mouth to the ground, a white-hot core, tongues licking off it, two molten streams round it
+      if (ph === 'beam' || (blast && blast.t < 0.12)) { const m = anchorW(ctx, 'mouth'), [ax0, ay0] = scr(m.x, m.y, m.z), [bx, by] = scr(ix, iy, 0.25), dx = bx - ax0, dy = by - ay0, Lb = Math.hypot(dx, dy);
+        if (Lb >= 4) { const fade = blast ? Math.max(0, 1 - blast.t / 0.12) : sm((t - TC) / 0.06), w0 = T * 0.75, w1 = T * 1.5, pul = 1 + 0.06 * Math.sin(t * 47) + 0.04 * Math.sin(t * 29), nx = -dy / Lb, ny = dx / Lb, NSEG = L ? 3 : 5;
+          for (let i = 0; i <= 4; i++) { const u = i / 4; Q.glow(lerp(ax0, bx, u), lerp(ay0, by, u), T * lerp(1.0, 1.8, u), C.org, 0.2 * fade); }
+          Q.firebody(ax0, ay0, bx, by, w1 * 1.3, 0.9, 0.9 * fade, 2.7, 5.5);   /* (the beam's body, so it holds its colour over a pale floor) */
+          for (let k = 0; k < NSEG; k++) { const u0 = k / NSEG, u1 = (k + 1) / NSEG, hw = lerp(w0, w1, (u0 + u1) / 2) * pul, e0 = -0.04, e1 = 0.04; Q.firebeam(lerp(ax0, bx, u0 + e0 * (k > 0)), lerp(ay0, by, u0 + e0 * (k > 0)), lerp(ax0, bx, u1 + e1 * (k < NSEG - 1)), lerp(ay0, by, u1 + e1 * (k < NSEG - 1)), hw * 1.7, 1.0, fade, k * 0.31, 5.5); }
+          Q.firebeam(ax0, ay0, bx, by, w0 * 1.2, 1.25, 0.8 * fade, 9.1, 8); Q.beam(ax0, ay0, bx, by, w0 * 0.55 * pul, C.yel, 0.75 * fade); Q.beam(ax0, ay0, bx, by, w0 * 0.25 * pul, '#FFFFFF', fade);
+          for (let i = 0; i < (L ? 5 : 10); i++) { const u = ((i * 0.618 + t * 0.9) % 1), side = i % 2 ? 1 : -1, hw = lerp(w0, w1, u) * 0.75, fl = 0.65 + 0.35 * Math.sin(t * 17 + i * 2.3) * Math.sin(t * 11 + i), sz = T * lerp(0.8, 1.8, u) * fl, px = lerp(ax0, bx, u) + nx * side * hw * 0.8, py = lerp(ay0, by, u) + ny * side * hw * 0.8;
+            Q.tongue(px, py, sz * 0.28, sz * 0.5, Math.atan2(ny * side, nx * side) + Math.PI / 2 + side * 0.3, 0.85, fade * Math.sin(u * Math.PI) * 0.8, i); }
+          const PT = GP1; for (let s2 = 0; s2 < 2; s2++) { let m2 = 0; for (let i = 0; i <= 18; i++) { const u = i / 18, ph2 = u * 14 - t * 22 + s2 * Math.PI, o = Math.sin(ph2) * lerp(w0, w1, u) * 0.62; PT[m2++] = [lerp(ax0, bx, u) + nx * o, lerp(ay0, by, u) + ny * o]; } for (let i = 0; i < m2 - 1; i++) Q.beam(PT[i][0], PT[i][1], PT[i + 1][0], PT[i + 1][1], T * 0.08, i % 2 ? C.amb : C.yel, 0.7 * fade); }
+          const u = cl((t - TC) / tu.beam), rs = T * (0.55 + 1.15 * eout(u)) * pul; Q.glow(bx, by, rs * 2, C.yel, 0.35 * fade); Q.billow(bx, by - rs * 0.25, rs * 1.2, 0.95, 0.9 * fade, 6.1); Q.fire(bx, by - rs * 0.25, rs * 0.9, 1.05, 0.8 * fade, 3.3); Q.glow(bx, by - rs * 0.25, rs * 0.5, '#FFFFFF', 0.6 * fade); Q.glow(ax0, ay0, T * 0.8, C.yel, 0.8 * fade); Q.glow(ax0, ay0, T * 0.35, '#FFFFFF', fade); } }
+      if (!blast) return;
+      // the secondary bursts round the field and the fires left burning
+      for (const b of blast.sec) { if (!b.done) continue; const a2 = blast.t - b.at; if (a2 > 1.1) continue; const X1 = H.sx(b.x), Y1 = H.sy(b.y), r = T * 1.6 * b.s * eout(a2 / 0.35), fa = Math.pow(Math.max(0, 1 - a2 / 1.1), 1.3);
+        if (a2 < 0.2) Q.glow(X1, Y1 - r * 0.4, r * 0.9, '#FFFFFF', (1 - a2 / 0.2) * 0.45); Q.smoke(X1, Y1 - r * 0.9, r * 0.9, fa * 0.6 * sm(a2 / 0.4), b.v + 1, '#3A302C', 0.5); Q.fire(X1, Y1 - r * 0.55, r * 1.0, 0.85 - 0.55 * a2, fa, b.v * 2.1); Q.glow(X1, Y1 - r * 0.5, r * 0.8, C.yel, fa * 0.25); }
+      for (const f of blast.fires) { const a2 = blast.t - f.t0; if (a2 < 0 || a2 > f.life) continue; const k = sm(a2 / 0.25) * (1 - sm((a2 - f.life + 0.9) / 0.9)), X1 = H.sx(f.x), Y1 = H.sy(f.y), hh = T * 1.1 * f.s * k;
+        for (let j = 0; j < (L ? 1 : 3); j++) { const fl = 0.75 + 0.25 * Math.sin(blast.t * (13 + j * 4) + f.ph + j * 2), w = hh * (0.55 - j * 0.1), hj = hh * fl * (1 - j * 0.2); Q.tongue(X1 + (j - 1) * w * 0.45, Y1 + T * 0.05, w * 0.5, hj * 0.5, Math.sin(blast.t * 5 + f.ph + j) * 0.12, 0.95 - j * 0.1, 0.9 * k, f.ph + j); } }
+      // the dome, the column and the mushroom cloud: fire cooling into smoke as it climbs, the cap lit from within
+      const u = blast.t, life = tu.cloudLife; if (u > life) return; const X0 = H.sx(ix), Y0 = H.sy(iy), fadeAll = 1 - sm((u - (life - 1.3)) / 1.3);
+      if (u < 0.25) Q.glow(X0, Y0 - T * RX * 0.25, RX * 1.0 * T, '#FFFFFF', Math.pow(1 - u / 0.25, 1.5) * 0.7);
+      const puff = (x, y, s, sd, cool, a) => { if (s < 2 || a < 0.01) return; const k = sm((cool - 0.3) / 0.4); if (k > 0.01) Q.smoke(x, y, s * 0.55, a * (0.35 + 0.65 * k), sd, '#3A302C', 1 - k); if (k < 0.99) Q.billow(x, y, s * 0.55, 0.85 - 0.6 * cool, a * (1 - k), sd); };   /* (not too hot: stacked, the billows must stay orange and read as volumes) */
+      const dr = RX * T * eout(u / 0.3), dA = (u < 0.9 ? 1 : 1 - sm((u - 0.9) / 1.1)) * fadeAll; if (dA > 0.01 && dr > 2) { const hh = dr * 0.82 * (1 + 0.25 * sm((u - 0.4) / 1.0)), lift = T * 1.2 * sm((u - 0.5) / 1.2);
+        Q.billow(X0, Y0 - hh * 0.45 - lift, dr * 0.95, 0.95 - 0.65 * sm(u / 1.6), 0.9 * dA, 4.4, hh / dr * 0.75);   /* (the dome: one great turbulent ball of fire, squat) */
+        const NB = L ? 6 : 11; for (let i = 0; i < NB; i++) { const th = Math.PI + (i + 0.5) / NB * Math.PI, ro = 0.92 + 0.06 * Math.sin(u * 4 + i * 2.1); puff(X0 + Math.cos(th) * dr * ro, Y0 - lift + Math.sin(th) * hh * ro, dr * (0.34 + 0.06 * Math.sin(i * 1.7)) * (0.8 + 0.4 * eout(u / 0.5)), i * 1.3, sm((u - 0.35) / 1.0) * 0.8, dA * 0.95); }
+        Q.glow(X0, Y0 - hh * 0.3 - lift, dr * 0.6, C.yel, 0.22 * dA * (1 - sm(u / 0.8)));
+        const hc = (1 - sm((u - 0.2) / 1.0)) * dA; if (hc > 0.01) { Q.fire(X0, Y0 - hh * 0.4 - lift, dr * 0.42, 1.15, hc, 8.3, 0.85); Q.glow(X0, Y0 - hh * 0.4 - lift, dr * 0.16, '#FFFFFF', 0.7 * hc); } }   /* (the dome's white-hot heart: structure inside the wash) */
+      const rise = eout((u - 0.15) / 1.6), Hc = tu.columnH * rise, cool = sm((u - 1.5) / 2.0), puffA = sm((u - 0.15) / 0.3) * fadeAll * 0.92;
+      if (puffA > 0.01 && Hc > 0.3) { const NSt = L ? 6 : 12; for (let i = 0; i < NSt; i++) { const v = i / (NSt - 1), z = Hc * v * 0.88, w = RX * (0.34 - 0.1 * v) * (0.85 + 0.15 * Math.sin(u * 3 + i)); puff(X0 + Math.sin(u * 2 + i * 1.7) * T * 0.15, Y0 - z * S.ZT, w * T * 2.1, i * 0.7, cool * (0.7 + 0.3 * v), puffA); }
+        const capZ = Hc + RX * 0.22, cy = Y0 - capZ * S.ZT, cw = RX * T * (0.55 + 0.4 * rise), ch = cw * 0.4; Q.glow(X0, cy + ch * 0.5, cw * 1.2, C.org, 0.3 * puffA * (1 - cool * 0.6), 0.6);
+        const PF = blast.puffs, n = L ? 6 : PF.length; for (let i = 0; i < n; i++) { const p = PF[i], a = p.a + u * 0.6, sn = Math.sin(a); puff(X0 + Math.cos(a) * cw * p.r, cy + sn * ch * p.r, cw * 0.7 * p.s, i * 1.9, cool * (sn < 0 ? 0.85 : 0.9), puffA); }
+        puff(X0, cy - ch * 0.35, cw * 1.05, 0.5, cool * 0.75, puffA); Q.glow(X0, cy, cw * 0.6, C.yel, 0.22 * puffA * (1 - cool * 0.7), 0.7); } }
+
     /* a sprite drawn straight over the actors: its alpha eased down softly near the rider (no clip, no edge) */
     const putK = (c, B, img, x, y, w, h, a, rot, sy, add) => put(c, B, img, x, y, w, h, a * petK(S, x, y, 0.45), rot, sy, add);
     function drawUnder(c, B) { const T = S.T, GY = H.GY || 0.55, X0 = H.sx(ix), Y0 = H.sy(iy);

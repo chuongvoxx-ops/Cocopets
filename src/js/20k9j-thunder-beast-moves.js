@@ -155,8 +155,12 @@ const BM = (self.BEAST_MOVES = self.BEAST_MOVES || {});
         const Z = S.zaps; for (let i = Z.length - 1; i >= 0; i--) { Z[i].t += dt; if (Z[i].t >= Z[i].life) { Z[i] = Z[Z.length - 1]; Z.pop(); } }
         if (!S.acts.length && !P.length && !Z.length) { S.on = false; f.life = 0; }
       },
-      drawUnder(c) { if (!S.on) return; view(S); const B = c.getTransform(); c.save(); for (const a of S.acts) if (a.under) a.under(c, B); drawParts(S, c, B, 1); c.setTransform(B); c.restore(); },
-      draw(c) { if (!S.on) return; view(S); const B = c.getTransform(); c.save(); for (const a of S.acts) if (a.over) a.over(c, B); drawZaps(S, c, B); drawParts(S, c, B, 0); c.setTransform(B); c.restore(); },
+      drawUnder(c) { if (!S.on) return; view(S); const B = c.getTransform(); c.save();
+        if (gpuOn()) { const Q = BM.EGFX.begin(c, null); Q.GY = S.GY; for (const a of S.acts) { if (a.gpuUnder) a.gpuUnder(Q); else if (a.under) a.under(c, B); } c.setTransform(B); gpuParts(S, Q, 1); BM.EGFX.flush(c); c.restore(); return; }   /* (the GPU layer; the 2D pictures stay as the fallback) */
+        for (const a of S.acts) if (a.under) a.under(c, B); drawParts(S, c, B, 1); c.setTransform(B); c.restore(); },
+      draw(c) { if (!S.on) return; view(S); const B = c.getTransform(); c.save();
+        if (gpuOn()) { const Q = BM.EGFX.begin(c, [S.PX, S.PY, S.PR]); Q.GY = S.GY; for (const a of S.acts) { if (a.gpuOver) a.gpuOver(Q); else if (a.over) a.over(c, B); } c.setTransform(B); gpuZaps(S, Q); gpuParts(S, Q, 0); BM.EGFX.flush(c); c.restore(); return; }
+        for (const a of S.acts) if (a.over) a.over(c, B); drawZaps(S, c, B); drawParts(S, c, B, 0); c.setTransform(B); c.restore(); },
       onEnd() { if (S.on) kill(); } });
     return S;
   }
@@ -188,6 +192,27 @@ const BM = (self.BEAST_MOVES = self.BEAST_MOVES || {});
       const X0 = H.sx(z.x0), Y0 = H.sy(z.y0) - z.z0 * S.ZT, X1 = H.sx(z.x1), Y1 = H.sy(z.y1) - z.z1 * S.ZT, k = Math.min(petK(S, X0, Y0, 0.15), petK(S, X1, Y1, 0.15));
       K.arc(c, X0, Y0, X1, Y1, Math.floor(S.t * 24) + z.s, Math.max(0.8, z.w * T), a * k, { forks: LOW() ? 0 : z.forks, gold: z.gold, jit: Math.hypot(X1 - X0, Y1 - Y0) * 0.22 }); }
     c.setTransform(B); }
+
+  /* ---- the GPU pictures of the particles and the short arcs (the same numbers as drawParts / drawZaps) ---- */
+  const gpuOn = () => { try { return !!(BM.EGFX && BM.EGFX.usable()); } catch (e) { return false; } };
+  BM.gpuOn = gpuOn;
+  function gpuParts(S, Q, under) { const H = S.H, T = S.T, P = S.parts;
+    for (let i = 0; i < P.length; i++) { const p = P[i]; if ((p.u ? 1 : 0) !== under) continue;
+      const u = p.t / p.life, a = p.a * Math.min(1, p.t / p.fin) * (p.kind === 2 ? (1 - u) * (1 - u) : 1 - u * u); if (a < 0.015) continue;
+      const X = H.sx(p.x), Y = H.sy(p.y) - p.z * S.ZT, s = p.size * T * (1 + p.grow * u), fy = p.flat ? S.GY : 1;
+      switch (p.kind) {
+        case 0: case 1: Q.star(X, Y, s * 0.5, a, p.kind ? '#FFE6A6' : '#D8F7FF'); Q.glow(X, Y, s * 0.4, p.kind ? GOLD : CYAN, a * 0.5); break;
+        case 2: Q.puff(X, Y, s * 0.5, a, (p.rot || 0) * 0.3 + i * 0.13); break;
+        case 3: Q.glow(X, Y, s * 0.5, WHITE, a, fy); break;
+        case 4: Q.ring(X, Y, s * 0.44, BLUE, a, s * 0.05, fy); break;
+        case 5: case 6: { const sx = p.vx * T, sy = p.vy * T - p.vz * S.ZT, sp = Math.hypot(sx, sy) || 1, L = s * (0.5 + Math.min(1.5, sp / (T * 6))); Q.seg(X - sx / sp * L, Y - sy / sp * L, X, Y, s * 0.07, a, p.kind === 6); Q.glow(X, Y, s * 0.16, p.kind === 6 ? GOLD : ICE, a * 0.7); break; }
+        case 7: Q.glow(X, Y, s * 0.5, CYAN, a, fy); break;
+        case 9: Q.oval(6, X, Y, s * 0.5, 0, 0, s * 0.5 * fy, CYAN, a * 0.85, 0.72, 0.13); break;
+        default: Q.glow(X, Y, s * 0.5, GOLD, a, fy); } } }
+  function gpuZaps(S, Q) { const Z = S.zaps, H = S.H, T = S.T;
+    for (const z of Z) { const u = z.t / z.life, a = (1 - u * u) * Math.min(1, z.t / 0.02); if (a < 0.02) continue;
+      const X0 = H.sx(z.x0), Y0 = H.sy(z.y0) - z.z0 * S.ZT, X1 = H.sx(z.x1), Y1 = H.sy(z.y1) - z.z1 * S.ZT;
+      Q.arc(X0, Y0, X1, Y1, Math.floor(S.t * 24) + z.s, Math.max(0.8, z.w * T), a, { forks: z.forks, gold: z.gold, jit: Math.hypot(X1 - X0, Y1 - Y0) * 0.22 }); } }
 
   /* ================= shared bits ================= */
   const sfx = (X, k, ...a) => { try { if (X.sfx && X.sfx[k]) X.sfx[k](...a); } catch (e) {} };
@@ -313,6 +338,21 @@ const BM = (self.BEAST_MOVES = self.BEAST_MOVES || {});
           const fk = 0.85 + 0.3 * R1(Math.floor(S.t * 30) + m.i), FL = L * 0.62 * fk; c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.95 * k * ia; setT(c, B, X0 - ca * L * 0.3, Y0 - sa * L * 0.3, m.ang); c.drawImage(fl, -FL, -Wd * 0.38, FL, Wd * 0.76);
           c.globalCompositeOperation = 'source-over'; c.globalAlpha = (0.6 + 0.4 * k) * ia; setT(c, B, X0, Y0, m.ang, 1, m.left ? -1 : 1); c.drawImage(mis, -L * 0.5, -Wd / 2, L, Wd); }
         c.setTransform(B); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over'; },
+      /* the GPU pictures: shaded 3D missiles (steel, gold nose and bands, fins, the lit core window), turbulent exhaust
+         flames, tapering lightning-lit trails, the barrels' glow; the same numbers as under/over */
+      gpuUnder(Q) { const T = S.T; if (LOW()) return; for (const m of ms) { if (m.ex) continue; const k = cl(1 - m.z / 4); if (k > 0.05) Q.shadow(H.sx(m.x), H.sy(m.y), T * 0.24, T * 0.12, 0.55 * k); } },
+      gpuOver(Q) { const T = S.T, ZT = S.ZT, PT = act._PT || (act._PT = []);
+        const tEnd = tu.tilt + (N - 1) * gap, br = act.dying ? 0 : sm(t / tu.tilt) * (1 - sm((t - tEnd) / 0.3));
+        if (br > 0.02) for (const s of ['L', 'R']) { const mz = anchor(ctx, 'muzzle' + s), X0 = H.sx(mz.x), Y0 = H.sy(mz.y) - mz.z * ZT; Q.glow(X0, Y0, T * 0.45, CYAN, br * 0.7 * (0.8 + 0.2 * Math.sin(t * 40 + (s === 'L' ? 0 : 2)))); Q.glow(X0, Y0, T * 0.16, WHITE, br * 0.8); Q.star(X0, Y0, T * 0.3, br * 0.5 * (0.6 + 0.4 * Math.sin(t * 33 + (s === 'L' ? 1 : 3)))); }
+        const TW = T * 0.13, low = LOW();
+        for (const m of ms) { const n = m.tr.length; if (n < 2) continue; const fo = m.ex ? cl(1 - (S.t - m.end) / 0.3) : 1; if (fo <= 0.01) continue; const age = S.t - m.tr[n - 1][3], ta = cl(1 - age / 0.5) * 0.8 + 0.2;
+          let k2 = 0; PT[k2++] = PT[k2 - 1] || [0, 0]; PT[0][0] = H.sx(m.x) - Math.cos(m.ang) * T * 0.3; PT[0][1] = H.sy(m.y) - m.z * ZT - Math.sin(m.ang) * T * 0.3;
+          for (let j = 0; j < n; j += low ? 2 : 1) { const q = PT[k2] || (PT[k2] = [0, 0]); q[0] = H.sx(m.tr[j][0]); q[1] = H.sy(m.tr[j][1]) - m.tr[j][2] * ZT; k2++; }
+          for (let j = 0; j + 1 < k2; j++) { const k = j / (k2 - 1); Q.seg(PT[j][0], PT[j][1], PT[j + 1][0], PT[j + 1][1], TW * 0.42 * (1 - 0.75 * k), 0.9 * fo * (1 - k) * (k > 0.6 ? ta : 1), false); } }
+        for (const m of ms) { if (m.ex) continue; const X0 = H.sx(m.x), Y0 = H.sy(m.y) - m.z * ZT, L = T * 0.68, Wd = L * 36 / 112, ca = Math.cos(m.ang), sa = Math.sin(m.ang), ia = Math.min(1, m.age / 0.04);
+          Q.glow(X0 - ca * L * 0.05, Y0 - sa * L * 0.05, T * 0.4, CYAN, 0.42 * ia);
+          const fk = 0.85 + 0.3 * R1(Math.floor(S.t * 30) + m.i), FL = L * 0.62 * fk, rx = X0 - ca * L * 0.3, ry = Y0 - sa * L * 0.3; Q.flame(rx - ca * FL, ry - sa * FL, rx, ry, Wd * 0.4, 0.95 * ia, m.i * 1.7);
+          Q.missile(X0, Y0, m.ang, L, ia, m.left); Q.glow(X0 - ca * L * 0.054, Y0 - sa * L * 0.054, L * 0.14, CYAN, 0.55 * ia); Q.glow(rx, ry, Wd * 0.45, ICE, 0.7 * ia); } },
       abort() { for (const m of ms) MPOOL.push(m); ms.length = 0; const p = pose(b); if (p) { p.cannonTilt = 0; p.recoilL = p.recoilR = 0; p.charge = 0; } } };
     S.acts.push(act);
   }
@@ -426,6 +466,29 @@ const BM = (self.BEAST_MOVES = self.BEAST_MOVES || {});
             if (u < 0.3 && !LOW()) { const pr = 0.4 * (1 - u / 0.3); put(c, B, glowSprite(f.gold ? GOLD : CYAN), X1, Y1, T * 0.9, T * 0.9, pr * a, 0, true); } }
           if (u < 0.22) { const X0 = H.sx(h.hx), Y0 = H.sy(h.hy); K.arc(c, X0, Y0 - T * 2.4, X0, Y0, Math.floor(S.t * 30) + 7, Math.max(1, T * 0.06), (1 - u / 0.22) * 0.8 * petK(S, X0, Y0 - T, 0.2), { forks: LOW() ? 0 : 2 }); c.setTransform(B); } }
         c.setTransform(B); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over'; },
+      /* the GPU pictures: the floor's oval light and travelling band, the fractures as glowing lightning threads, the
+         filaments, the sky bolts and the mote arcs grown as the kit grows them */
+      gpuUnder(Q) { const T = S.T, F = 1.25;
+        const ov = (kind, cx, cy, ang, kx, ky, a, col) => { if (!(a > 0.01)) return; const ca = Math.cos(ang), sa = Math.sin(ang), ax = tu.rx * T * kx, ay = tu.ry * T * ky; Q.oval(kind, H.sx(cx), H.sy(cy), ca * ax, sa * ax, -sa * ay, ca * ay, col || (kind === 5 ? '#46AAFF' : '#6EC8FF'), a, 0.72, 0.13); };
+        if (!finished && !act.dying) { const o = oval(), d = D(k), u = ph === 'lift' ? t / d : ph === 'slam' ? 1 : 0;
+          if (ph !== 'recoil') { const a = sm(u * 1.6) * (0.55 + 0.15 * Math.sin(S.t * 22)) + (ph === 'slam' ? 0.25 : 0); ov(5, o.cx, o.cy, o.ang, F, F, a);
+            const sw = 1 - (u * 1.3 % 1); ov(6, o.cx, o.cy, o.ang, sw * 1.15, sw * 1.15, 0.4 * sm(u * 3) * (1 - sw * 0.5)); }
+          else if (k < NS - 1) { const o2 = oval(); ov(5, o2.cx, o2.cy, o2.ang, F, F, 0.25 * sm(t / tu.recoil)); } }
+        for (const h of hits) { const u = h.t; ov(5, h.cx, h.cy, h.ang, F, F, u < 0.04 ? u / 0.04 : 1 - sm((u - 0.04) / 0.5));
+          const su = eout(u / 0.35); ov(6, h.cx, h.cy, h.ang, 0.3 + 1.0 * su, 0.3 + 1.0 * su, (1 - sm(u / 0.45)) * 0.9);
+          const fa = 1 - sm((u - 0.15) / 0.8); if (fa > 0.02) for (const pts of h.cracks) { const g = Math.min(pts.length, 1 + Math.floor(pts.length * cl(u / 0.12))), mid = Math.max(2, Math.ceil(pts.length * 0.6));
+            for (let i = 0; i + 1 < g; i++) { const outer = i >= mid - 1; Q.seg(H.sx(pts[i][0]), H.sy(pts[i][1]), H.sx(pts[i + 1][0]), H.sy(pts[i + 1][1]), T * 0.04 * (outer ? 0.7 : 1), 0.85 * fa * (outer ? 0.4 : 1), false, ICE); } }
+          Q.ell(H.sx(h.hx), H.sy(h.hy), T * 1.8, T * 1.0, BLUE, 0.6 * (1 - sm(u / 0.6))); } },
+      gpuOver(Q) { if (!hits.length) return; const T = S.T, low = LOW();
+        for (const h of hits) { if (!h.motes || h.t > 1.1 || low && Math.random() < 0.5) continue; const M = h.motes; for (let i = 0; i + 1 < M.length; i++) { const p = M[i], q = M[i + 1]; if (!(p.t < p.life && q.t < q.life) || p.kind > 1 || q.kind > 1) continue; if (Math.random() > 0.35) continue; const dd = Math.hypot(p.x - q.x, p.y - q.y); if (dd > 1.3 || dd < 0.1) continue;
+          const X0 = H.sx(p.x), Y0 = H.sy(p.y) - p.z * S.ZT, X1 = H.sx(q.x), Y1 = H.sy(q.y) - q.z * S.ZT; Q.arc(X0, Y0, X1, Y1, Math.floor(S.t * 40) + i * 7, Math.max(0.6, T * 0.025), 0.75 * (1 - h.t / 1.1), { forks: 0, gold: i % 4 === 0, jit: dd * T * 0.25 }); } }
+        for (const h of hits) for (const sb of h.sky) { const a2 = h.t - sb.t0; if (a2 < 0 || a2 > 0.18) continue; const X1 = H.sx(sb.x), Y1 = H.sy(sb.y), fl = (1 - a2 / 0.18) * (a2 < 0.1 || Math.sin(S.t * 90 + sb.s) > -0.3 ? 1 : 0.35); Q.skyBolt(X1, Y1, T * 9, Math.floor(S.t * 30) + sb.s, Math.max(1, T * 0.08), fl, { gold: sb.gold, forks: low ? 1 : 2 }); }
+        for (const h of hits) { const u = h.t; if (u > 0.5) continue; const front = eout(u / 0.12) * 4.2, fa = 1 - sm((u - 0.18) / 0.32);
+          for (const f of h.fil) { if (f.d > front + 0.2) continue; const ia = cl((front - f.d) / 0.6 + 0.3), a = fa * ia * (1 - 0.85 * sm((f.rr - 0.45) / 0.55)); if (a < 0.03) continue;
+            const X0 = H.sx(f.px), Y0 = H.sy(f.py) - 0.05 * S.ZT, X1 = H.sx(f.x), Y1 = H.sy(f.y) - 0.05 * S.ZT, L = Math.hypot(X1 - X0, Y1 - Y0);
+            Q.arc(X0, Y0, X1, Y1, Math.floor(S.t * 24) + f.s, Math.max(0.7, T * (u < 0.08 ? 0.07 : 0.05) * (1 - 0.5 * f.rr)), a, { forks: low ? 0 : 1, gold: f.gold, jit: L * 0.2 });
+            if (u < 0.3 && !low) Q.glow(X1, Y1, T * 0.45, f.gold ? GOLD : CYAN, 0.4 * (1 - u / 0.3) * a); }
+          if (u < 0.22) { const X0 = H.sx(h.hx), Y0 = H.sy(h.hy); Q.arc(X0, Y0 - T * 2.4, X0, Y0, Math.floor(S.t * 30) + 7, Math.max(1, T * 0.06), (1 - u / 0.22) * 0.8, { forks: low ? 0 : 2 }); Q.glow(X0, Y0, T * 1.2, ICE, 0.6 * (1 - u / 0.22)); } } },
       abort() { if (!finished) { finished = true; clearPose(); b.locked = false; b.contact = wasC == null ? true : wasC; } } };
     S.acts.push(act);
   }
@@ -433,4 +496,142 @@ const BM = (self.BEAST_MOVES = self.BEAST_MOVES || {});
   BM.missiles = missiles;
   BM.wrath = wrath;
   BM.__dbgS = { TUNE, BAKE, sprMissile, sprFlame, sprRing, hitOval, anchor };
+})();
+
+/* ================= ELECTRIC_GFX (BEAST_MOVES.EGFX): the Beast Machine's effects on the GPU =================
+   The same frame as Nidhogg's painter (20k6h): one offscreen WebGL canvas twice the game canvas's width x res; its left
+   half takes what is solid (premultiplied, laid over), its right half light alone (screened, then added). Two draw calls
+   a pass, one shader; each quad's kind is maths in the fragment shader:
+     0 a feathered glow · 1 a ring sharp outside, fading inward · 2 a gaussian beam · 3 a stretch of lightning (white
+     thread, coloured body, blue haze, violet bloom; gold for gold arcs) · 4 a four-point glint · 5 the soft floor light
+     over an oval · 6 a travelling band of light · 7 a lightning sphere's light (white-gold heart, turning plasma,
+     filaments, a lit rim) · 8 an exhaust flame · and solid: 9 an exhaust puff · 10 the missile (steel, gold nose and
+     bands, fins, the cyan window, lit from above) · 11 a soft shadow · 12 a sphere's glass shell.
+   Lightning paths are grown on the CPU exactly as the thunder kit grows them (TK.path / arc / skyBolt / ribbon), into
+   pooled points. The painter takes the 2D path's screen coordinates, so each GPU picture comes from the same numbers;
+   the pet's face is a soft hole where asked. Real-GPU WebGL only: software GL and no WebGL keep the 2D path;
+   window.__BM_GL = 1 forces it, 0 forces 2D; a lost context falls back to 2D. Used by 20k9j and 20k9k. */
+(() => {
+  const NM = self.BEAST_MOVES;
+  let cv = null, gl = null, PR = null, bq = null, ok = null, soft = false, info = '', why = '';
+  const stats = { draws: 0, quads: 0, smoke: 0, W: 0, H: 0, frames: 0, maxDraws: 0, maxQuads: 0, maxSmoke: 0 };
+  const HDR = '#ifdef GL_FRAGMENT_PRECISION_HIGH\nprecision highp float;\n#else\nprecision mediump float;\n#endif\n';
+  const VS = `attribute vec2 a_p, a_uv; attribute float a_k; attribute vec4 a_c; attribute vec3 a_q; uniform vec2 u_res; varying vec2 v_uv, v_px; varying float v_k; varying vec4 v_c; varying vec3 v_q;
+void main(){ gl_Position = vec4(a_p.x / u_res.x * 2.0 - 1.0, 1.0 - a_p.y / u_res.y * 2.0, 0.0, 1.0); v_uv = a_uv; v_k = a_k; v_c = a_c; v_q = a_q; v_px = a_p; }`;
+  const FS = HDR + `uniform float u_t, u_pass; uniform vec3 u_pet; varying vec2 v_uv, v_px; varying float v_k; varying vec4 v_c; varying vec3 v_q;
+float h1(vec2 p){ p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
+float n2(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(h1(i), h1(i + vec2(1.0, 0.0)), f.x), mix(h1(i + vec2(0.0, 1.0)), h1(i + vec2(1.0, 1.0)), f.x), f.y); }
+float fbm(vec2 p){ float s = 0.0, a = 0.5; for (int i = 0; i < 4; i++) { s += a * n2(p); p = p * 2.03 + vec2(1.7, 9.2); a *= 0.5; } return s; }
+float sq(float x){ return x * x; }
+float inTri(vec2 p, vec2 a, vec2 b, vec2 c){ float d1 = (p.x - b.x) * (a.y - b.y) - (a.x - b.x) * (p.y - b.y), d2 = (p.x - c.x) * (b.y - c.y) - (b.x - c.x) * (p.y - c.y), d3 = (p.x - a.x) * (c.y - a.y) - (c.x - a.x) * (p.y - a.y); return ((d1 < 0.0 || d2 < 0.0 || d3 < 0.0) && (d1 > 0.0 || d2 > 0.0 || d3 > 0.0)) ? 0.0 : 1.0; }
+void main(){ vec2 u = v_uv; float r = length(u), edge = 1.0 - smoothstep(0.85, 1.0, r); vec3 col = v_c.rgb; float t = u_t + v_q.y * 7.3;
+  float pk = u_pet.z > 0.0 ? mix(0.1, 1.0, smoothstep(0.4, 1.4, length((v_px - u_pet.xy) * vec2(1.0, 1.1)) / u_pet.z)) : 1.0;   /* (the rider's face stays clear) */
+  if (v_k > 11.5 && v_k < 12.5) { // a sphere's shell (solid): translucent blue glass lit from the upper left, darker and denser at its limb
+    float z = sqrt(max(0.0, 1.0 - r * r)), lit = clamp(dot(vec3(u.x, -u.y, z), normalize(vec3(-0.55, 0.6, 0.6))), 0.0, 1.0), a = (0.22 + 0.5 * pow(1.0 - z, 2.0)) * (1.0 - smoothstep(0.96, 1.0, r)) * v_c.a * pk;
+    vec3 c = mix(vec3(0.05, 0.1, 0.35), col, 0.35 + 0.65 * lit); gl_FragColor = vec4(c * a, a); }
+  else if (v_k > 10.5) { // a soft shadow (solid)
+    float a = (1.0 - smoothstep(0.0, 1.0, r)) * v_c.a * pk; a *= a; gl_FragColor = vec4(col * a, a); }
+  else if (v_k > 9.5) { // the missile (solid), drawn from its 112 x 36 plan (nose to +x); q.x = 1 flips it so its light stays above
+    vec2 p = vec2((u.x + 1.0) * 56.0, (u.y * (v_q.x > 0.5 ? -1.0 : 1.0) + 1.0) * 18.0); float dy = p.y - 18.0, R = 6.4, ady = abs(dy); vec3 c = vec3(0.0); float a = 0.0;
+    float k = clamp((ady - R) / (16.0 - R), 0.0, 1.0), xl = mix(21.0, 16.0, k), xr = mix(38.0, 24.0, k);
+    if (ady >= R - 1.0 && ady < 16.0 && p.x > xl && p.x < xr) { c = dy < 0.0 ? mix(vec3(0.72, 0.53, 0.29), vec3(0.89, 0.71, 0.42), k) : mix(vec3(0.43, 0.29, 0.15), vec3(0.29, 0.18, 0.09), k); a = 1.0; }
+    if (p.x >= 15.0 && p.x < 23.0 && ady < R + 1.2 * (23.0 - p.x) / 8.0) { float n = dy / (R + 1.2); c = mix(vec3(0.54, 0.58, 0.65), vec3(0.13, 0.15, 0.18), clamp(n * 0.5 + 0.5, 0.0, 1.0)); if (p.x < 17.5) c = mix(c, vec3(0.6, 0.95, 1.0), (1.0 - ady / R) * 0.9); a = 1.0; }
+    if (p.x >= 22.0 && p.x <= 80.0 && ady < R) { float n = dy / R; c = mix(mix(vec3(0.6, 0.64, 0.71), vec3(0.95, 0.96, 1.0), smoothstep(-1.0, -0.64, n)), vec3(0.22, 0.24, 0.3), smoothstep(-0.5, 0.85, n)); c += vec3(0.25) * exp(-sq((n + 0.64) / 0.08));
+      if ((p.x > 23.0 && p.x < 28.0) || (p.x > 74.0 && p.x < 79.0)) c = mix(mix(vec3(1.0, 0.89, 0.63), vec3(0.85, 0.64, 0.32), smoothstep(-0.8, -0.2, n)), vec3(0.35, 0.22, 0.09), smoothstep(-0.1, 0.9, n));
+      if (p.x > 42.0 && p.x < 59.0 && ady < R - 1.4) c = mix(vec3(0.11, 0.23, 0.4), vec3(0.75, 0.95, 1.0), exp(-sq((p.x - 50.0) / 6.0)) * (1.0 - ady / R));
+      a = 1.0; }
+    float xs = (p.x - 80.0) / 24.0; if (xs >= 0.0 && xs < 1.0 && ady < R * sqrt(max(0.0, 1.0 - xs * xs)) * (1.0 - 0.15 * xs)) { float n = dy / (R * sqrt(max(0.01, 1.0 - xs * xs))); c = mix(mix(vec3(0.91, 0.72, 0.38), vec3(1.0, 0.95, 0.75), smoothstep(-1.0, -0.6, n)), vec3(0.37, 0.23, 0.09), smoothstep(-0.3, 1.0, n)); a = 1.0; }
+    a *= v_c.a * pk; gl_FragColor = vec4(c * a, a); }
+  else if (v_k > 8.5) { // an exhaust puff (solid): pale blue-grey, billowing, feathered
+    float f = fbm(u * 2.2 + vec2(v_q.y * 3.1, v_q.y - t * 0.35)), d = clamp((1.0 - r * r) * (0.55 + 0.9 * f) - 0.25, 0.0, 1.0) * edge, a = d * v_c.a * pk;
+    vec3 c = mix(vec3(0.69, 0.77, 0.87), vec3(0.91, 0.94, 0.99), smoothstep(-0.6, 0.6, -u.y + f * 0.5)); gl_FragColor = vec4(c * a, a); }
+  else { vec3 L = vec3(0.0);
+    if (v_k < 0.5) L = col * exp(-r * r * 4.2) * edge * 0.6;                                                              // a glow
+    else if (v_k < 1.5) { float d = max((v_q.x - r) / v_q.z, 0.0); L = mix(col, vec3(1.0), 0.6 * exp(-d * 12.0)) * (1.0 - smoothstep(v_q.x - 0.012, v_q.x + 0.01, r)) * (0.25 * exp(-d * 3.0) + 0.75 * exp(-d * 12.0)); }   // a ring
+    else if (v_k < 2.5) L = col * exp(-u.y * u.y * 5.0) * (1.0 - smoothstep(0.6, 1.0, abs(u.x)));                       // a beam
+    else if (v_k < 3.5) { // a stretch of lightning: a white-hot thread in a coloured body in a blue haze in a violet bloom (q.x 1: gold)
+      float d = abs(u.y) * 2.4, e = 1.0 - smoothstep(0.7, 1.0, abs(u.x)) * 0.6; vec3 hz = mix(vec3(0.54, 0.36, 1.0), vec3(1.0, 0.7, 0.25), v_q.x), md = mix(vec3(0.25, 0.66, 1.0), vec3(1.0, 0.82, 0.4), v_q.x);
+      L = (vec3(1.0) * exp(-sq(d / 0.2)) + col * 0.95 * exp(-sq(d / 0.55)) + md * 0.45 * exp(-sq(d / 1.0)) + hz * 0.28 * exp(-sq(d / 1.9))) * e; }
+    else if (v_k < 4.5) { vec2 a = abs(u); L = col * (exp(-a.x * 2.5) * exp(-a.y * 30.0) + exp(-a.y * 2.5) * exp(-a.x * 30.0) + 0.5 * exp(-r * r * 9.0)) * edge; }   // a four-point glint
+    else if (v_k < 5.5) { // the soft floor light: it fills its oval and fades to nothing, whitening at the heart
+      float a = pow(1.0 - smoothstep(0.0, 1.0, r), 1.6) * (0.55 + 0.45 * exp(-sq((r - 0.5) / 0.28))); L = mix(col, vec3(0.92, 0.98, 1.0), clamp(1.0 - r * 1.2, 0.0, 1.0)) * a; }
+    else if (v_k < 6.5) { // a soft travelling band of light (q.x its radius, q.z its width), crackling a little
+      float n = fbm(vec2(atan(u.y, u.x) * 4.0, r * 5.0 - t * 3.0)), a = exp(-sq((r - v_q.x) / v_q.z)) * (1.0 - smoothstep(0.9, 1.0, r)) * (0.65 + 0.6 * n); L = mix(col, vec3(1.0), a * 0.5) * a; }
+    else if (v_k < 7.5) { // a lightning sphere's light: a white-gold heart, plasma turning inside, filaments, a lit rim (q.x the heart's heat)
+      float th = t * 0.9, cs = cos(th), sn = sin(th); vec2 w = mat2(cs, -sn, sn, cs) * u; float z = sqrt(max(0.0, 1.0 - r * r));
+      float f = fbm(w * 2.6 / (0.35 + z) + vec2(t * 0.6, -t * 0.4)), rid = pow(1.0 - abs(f * 2.0 - 1.0), 7.0), f2 = fbm(w.yx * 3.4 + vec2(-t * 0.8, t * 0.5) + 7.0), rid2 = pow(1.0 - abs(f2 * 2.0 - 1.0), 9.0);
+      float heart = exp(-r * r * 9.0) * v_q.x, rim = exp(-sq((r - 0.93) / 0.06)) * (0.5 + 0.5 * clamp(dot(normalize(u + 1e-4), vec2(-0.7, -0.7)), 0.0, 1.0)), inside = 1.0 - smoothstep(0.92, 1.0, r);
+      L = (vec3(1.0, 0.95, 0.75) * heart * 1.4 + col * (rid * 0.75 + 0.05) * inside + vec3(0.6, 0.45, 1.0) * rid2 * 0.6 * inside + mix(col, vec3(1.0), 0.4) * rim * 0.8) + col * 0.35 * exp(-sq((r - 1.0) / 0.12)); }
+    else if (v_k > 12.5) { // fractures of light over the floor: branching ridged cracks round the centre, white in their hearts (q.y the seed)
+      float an = atan(u.y, u.x), f = fbm(vec2(an * 2.2 + v_q.y, r * 2.4 + v_q.y * 0.3)), rid = pow(1.0 - abs(f * 2.0 - 1.0), 16.0), f2 = fbm(vec2(an * 1.3 + v_q.y * 1.7, r * 1.1)), sp = 1.0 - smoothstep(0.0, 0.04, abs(f2 - 0.5)), fall = 1.0 - smoothstep(0.55, 1.0, r);
+      float k = (rid * 0.9 + sp * 0.7) * fall; L = mix(col, vec3(1.0), k * k) * k + col * 0.12 * exp(-r * r * 3.0); }
+    else { // an exhaust flame, its root at uv.x = 1, tapering and feathering to uv.x = -1
+      float a1 = (u.x + 1.0) * 0.5, hw = 0.12 + 0.88 * pow(a1, 0.6), q = u.y / hw; if (q * q < 1.0) { float fl = 0.8 + 0.4 * n2(vec2(a1 * 6.0 - t * 14.0, q * 2.0 + v_q.y)), ac = exp(-q * q * 3.0) * (1.0 - q * q), a = ac * pow(a1, 1.3) * fl, k = clamp(ac * 1.4 * pow(a1, 2.2), 0.0, 1.0); L = mix(vec3(0.31, 0.67, 1.0), vec3(1.0), k) * a; } }
+    L *= pk; L = min(L * v_c.a, vec3(1.0)); gl_FragColor = vec4(L, max(max(L.r, L.g), L.b)); } }`;
+  function prog(vs, fs, attrs) { const sh = (ty, src) => { const q = gl.createShader(ty); gl.shaderSource(q, src); gl.compileShader(q); if (!gl.getShaderParameter(q, gl.COMPILE_STATUS)) throw new Error('shader: ' + gl.getShaderInfoLog(q)); return q; };
+    const p = gl.createProgram(); gl.attachShader(p, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs)); attrs.forEach((a, i) => gl.bindAttribLocation(p, i, a)); gl.linkProgram(p); if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error('link: ' + gl.getProgramInfoLog(p));
+    const U = {}, n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS); for (let i = 0; i < n; i++) { const q = gl.getActiveUniform(p, i); U[q.name] = gl.getUniformLocation(p, q.name); } return { p, U }; }
+  function build() { if (!cv) { cv = document.createElement('canvas'); cv.width = cv.height = 4; cv.addEventListener('webglcontextlost', e => { e.preventDefault(); ok = false; why = 'context lost'; }); cv.addEventListener('webglcontextrestored', () => { ok = null; PR = null; }); }
+    const o = { alpha: true, premultipliedAlpha: true, antialias: false, depth: false, stencil: false }; gl = gl || cv.getContext('webgl2', o) || cv.getContext('webgl', o); if (!gl) { why = 'no WebGL'; return false; }
+    try { const di = gl.getExtension('WEBGL_debug_renderer_info'); info = String(di ? gl.getParameter(di.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)); } catch (e) { info = '?'; } soft = /swiftshader|llvmpipe|software|softpipe/i.test(info);
+    PR = prog(VS, FS, ['a_p', 'a_uv', 'a_k', 'a_c', 'a_q']); bq = gl.createBuffer(); return true; }
+  function usable() { let f = null; try { f = typeof window !== 'undefined' ? window.__BM_GL : null; } catch (e) {} if (f === 0 || ok === false) return false; if (ok === null) { try { ok = build(); } catch (e) { ok = false; why = String(e && e.message || e); try { console.warn('Beast GFX: ' + why); } catch (e2) {} } } return !!ok && (!soft || f === 1); }
+  const LOWQ = () => typeof st !== 'undefined' && st && !!st.lowFx;
+  /* the batch: light quads and smoke quads, 12 floats a vertex */
+  const RGB = new Map(), rgbOf = h => { let v = RGB.get(h); if (!v) { const q = hexRGB(h || '#FF7A2E'); v = [q[0] / 255, q[1] / 255, q[2] / 255]; RGB.set(h, v); } return v; };
+  const QV = [[-1, -1], [1, -1], [-1, 1], [-1, 1], [1, -1], [1, 1]];
+  const Q = { lit: new Float32Array(12 * 6 * 600), nl: 0, smk: new Float32Array(12 * 6 * 200), ns: 0, a: 1, b: 0, c0: 0, d: 1, e: 0, f: 0, k: 1, t: 0, W: 0, Hh: 0, pet: [0, 0, 0], gpu: true, k0: 1, low: false, GY: 0.55, pn: 0,
+    X(x, y) { return this.a * x + this.c0 * y + this.e; }, Y(x, y) { return this.b * x + this.d * y + this.f; },
+    /* one quad: centre (screen px), half-axes (ux, uy), (vx, vy) in screen px */
+    quad(kind, x, y, ux, uy, vx, vy, col, al, q0, q1, q2) { if (!(al > 0.004)) return; const solid = kind >= 9 && kind < 13; let A = solid ? this.smk : this.lit; const n = solid ? this.ns : this.nl;
+      if ((n + 6) * 12 > A.length) { const q = new Float32Array(A.length * 2); q.set(A); A = q; if (solid) this.smk = q; else this.lit = q; }
+      const cx = this.X(x, y), cy = this.Y(x, y), a = this.a, b = this.b, c = this.c0, d = this.d, Ux = a * ux + c * uy, Uy = b * ux + d * uy, Vx = a * vx + c * vy, Vy = b * vx + d * vy, C = rgbOf(col); let o = n * 12;
+      for (let j = 0; j < 6; j++) { const su = QV[j][0], sv = QV[j][1]; A[o++] = cx + Ux * su + Vx * sv; A[o++] = cy + Uy * su + Vy * sv; A[o++] = su; A[o++] = sv; A[o++] = kind; A[o++] = C[0]; A[o++] = C[1]; A[o++] = C[2]; A[o++] = al > 1 ? 1 : al; A[o++] = q0 || 0; A[o++] = q1 || 0; A[o++] = q2 || 0; }
+      if (solid) this.ns += 6; else this.nl += 6; },
+    rq(kind, x, y, w, h, rot, col, al, q0, q1, q2) { const c = Math.cos(rot || 0), s = Math.sin(rot || 0); this.quad(kind, x, y, c * w, s * w, -s * h, c * h, col, al, q0, q1, q2); },
+    glow(x, y, r, col, a, sy) { if (r > 0.5) this.quad(0, x, y, r, 0, 0, r * (sy || 1), col, a); },
+    ell(x, y, rx, ry, col, a) { if (rx > 0.5) this.quad(0, x, y, rx, 0, 0, ry, col, a); },
+    ring(x, y, r, col, a, w, sy) { if (r > 0.5) this.quad(1, x, y, r * 1.04, 0, 0, r * 1.04 * (sy || 1), col, a, 0.96, 0, Math.max(0.02, (w || r * 0.1) / r * 0.6)); },
+    beam(x0, y0, x1, y1, w, col, a) { const dx = (x1 - x0) / 2, dy = (y1 - y0) / 2, L = Math.hypot(dx, dy); if (L < 0.5) return; this.quad(2, x0 + dx, y0 + dy, dx, dy, -dy / L * w, dx / L * w, col, a); },
+    /* one stretch of lightning from (x0, y0) to (x1, y1), its body half-width w (the haze reaches 2.4 w), joints overlapped */
+    seg(x0, y0, x1, y1, w, a, gold, col) { let dx = x1 - x0, dy = y1 - y0; const L = Math.hypot(dx, dy); if (L < 0.3 || !(a > 0.01)) return; const wm = 1.3 / this.k; if (w < wm) { a *= Math.sqrt(w / wm); w = wm; }   /* (never thinner than a pixel and a third of the layer: a thinner one thins its light instead) */ const ex = dx / L * w * 0.5, ey = dy / L * w * 0.5; x0 -= ex; y0 -= ey; x1 += ex; y1 += ey; dx = (x1 - x0) / 2; dy = (y1 - y0) / 2; const h = Math.hypot(dx, dy), W = w * 2.4;
+      this.quad(3, x0 + dx, y0 + dy, dx, dy, -dy / h * W, dx / h * W, col || (gold ? '#FFB238' : '#5FE4FF'), a, gold ? 1 : 0); },
+    /* a bolt along screen points (n of them): its stretches and a bloom every third point */
+    bolt(P, n, w, a, gold) { if (n < 2 || !(a > 0.01)) return; for (let i = 0; i + 1 < n; i++) this.seg(P[i][0], P[i][1], P[i + 1][0], P[i + 1][1], w, a, gold); if (!this.low) for (let i = 0; i < n; i += 3) this.glow(P[i][0], P[i][1], w * 5, gold ? '#FFD266' : '#3FA8FF', 0.3 * a); },
+    /* the thunder kit's arc, on the GPU: a jittered path re-grown with the seed, forks off it */
+    arc(x0, y0, x1, y1, s, w, a, o) { const L = Math.hypot(x1 - x0, y1 - y0), jit = o && o.jit != null ? o.jit : Math.min(26 * this.k0, L * 0.14), P = this.path(0, x0, y0, x1, y1, s, jit), n = this.pn; this.bolt(P, n, w, a, o && o.gold);
+      const forks = this.low ? 0 : o && o.forks != null ? o.forks : Math.min(4, Math.floor(L / (40 * this.k0))); for (let i = 0; i < forks; i++) { const k = 1 + Math.floor(R1(s + i * 5.1) * (n - 2)), px = P[k][0], py = P[k][1], b = Math.atan2(y1 - y0, x1 - x0) + (R1(s + i * 9.7) - 0.5) * 2.2, fl = L * (0.12 + 0.18 * R1(s + i * 3.3)); const F = this.path(1, px, py, px + Math.cos(b) * fl, py + Math.sin(b) * fl, s + i * 31, fl * 0.25, 4); this.bolt(F, this.pn, w * 0.5, a * 0.8, o && o.gold); } return P; },
+    skyBolt(X, Y, h, s, w, a, o) { this.arc(X + (R1(s) - 0.5) * h * 0.2, Y - h, X, Y, s, w, a, { forks: o && o.forks != null ? o.forks : 4, gold: o && o.gold }); this.glow(X, Y, w * 6, '#5FE4FF', 0.7 * a); this.glow(X, Y, w * 10, '#3FA8FF', 0.6 * a, this.GY); this.ring(X, Y, w * 7, '#BFF2FF', 0.5 * a, w * 1.2, this.GY); },
+    /* a jittered polyline into pooled points (slot 0 the main path, 1 a fork); this.pn its length */
+    path(slot, x0, y0, x1, y1, s, jit, segs) { const P = this.PP[slot], dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L, n = segs || Math.max(3, Math.min(18, Math.ceil(L / (11 * this.k0))));
+      P[0][0] = x0; P[0][1] = y0; for (let i = 1; i < n; i++) { const u = i / n, o = (R1(s * 7.13 + i * 3.37) - 0.5) * 2 * jit * Math.sqrt(Math.sin(u * Math.PI)); P[i][0] = x0 + dx * u + nx * o; P[i][1] = y0 + dy * u + ny * o; } P[n][0] = x1; P[n][1] = y1; this.pn = n + 1; return P; },
+    /* a tapered plasma ribbon through screen points (tail first, head last): white at the head, cyan, violet fringes */
+    ribbon(P, n, w, a, gold) { for (let i = 1; i < n; i++) { const u = i / (n - 1); this.seg(P[i - 1][0], P[i - 1][1], P[i][0], P[i][1], w * (0.15 + 0.85 * u), a * (0.3 + 0.7 * u), gold); } },
+    star(x, y, s, a, col) { this.quad(4, x, y, s, 0, 0, s, col || '#FFFFFF', a); },
+    /* the floor's light over an oval: centre, its axes (screen px vectors), a soft fill (5) or a travelling band (6: radius rr, width ww) */
+    oval(kind, x, y, ux, uy, vx, vy, col, a, rr, ww) { this.quad(kind, x, y, ux, uy, vx, vy, col, a, rr || 0.72, 0, ww || 0.13); },
+    orb(x, y, r, col, a, heat, seed) { if (r > 0.5) { this.quad(12, x, y, r, 0, 0, r, '#7FC8FF', a); this.quad(7, x, y, r * 1.12, 0, 0, r * 1.12, col || '#5FE4FF', a, heat == null ? 1 : heat, seed || 0); } },
+    flame(x0, y0, x1, y1, w, a, seed) { const dx = (x1 - x0) / 2, dy = (y1 - y0) / 2, L = Math.hypot(dx, dy); if (L < 0.5) return; this.quad(8, x0 + dx, y0 + dy, dx, dy, -dy / L * w, dx / L * w, '#FFFFFF', a, 0, seed || 0); },   /* (root at x1, y1) */
+    puff(x, y, r, a, seed) { if (r > 0.5) this.quad(9, x, y, r, 0, 0, r, '#FFFFFF', a, 0, seed || 0); },
+    missile(x, y, ang, L, a, flip) { const c = Math.cos(ang), s = Math.sin(ang), h = L * 18 / 112; this.quad(10, x, y, c * L / 2, s * L / 2, -s * h, c * h, '#FFFFFF', a, flip ? 1 : 0); },
+    frac(x, y, r, col, a, seed, sy, rot) { if (r > 0.5) { const c = Math.cos(rot || 0), s = Math.sin(rot || 0), ry = r * (sy || 1); this.quad(13, x, y, c * r, s * ry, -s * r, c * ry, col || '#9FE8FF', a, 0, seed || 0); } },
+    shadow(x, y, rx, ry, a) { if (rx > 0.5) this.quad(11, x, y, rx, 0, 0, ry, '#1E1E3C', a); } };
+  const R1 = s => { const v = Math.sin(s * 12.9898 + 78.233) * 43758.5453; return v - Math.floor(v); };
+  Q.PP = [[], []]; for (let s = 0; s < 2; s++) for (let i = 0; i < 24; i++) Q.PP[s].push([0, 0]);
+  /* begin a pass on the game canvas c (its transform is the camera); pet: [screen x, y, radius] to keep clear, or null */
+  function begin(c, pet) { const B = c.getTransform(), cv0 = c.canvas, L = LOWQ(), k0 = Math.min(L ? 0.42 : 0.6, 1200 / Math.max(cv0.width, cv0.height)); Q.W = Math.max(8, Math.round(cv0.width * k0)); Q.Hh = Math.max(8, Math.round(cv0.height * k0)); const kx = Q.W / cv0.width;
+    Q.a = B.a * kx; Q.b = B.b * kx; Q.c0 = B.c * kx; Q.d = B.d * kx; Q.e = B.e * kx; Q.f = B.f * kx; Q.k = (Math.sqrt(Math.abs(B.a * B.d - B.b * B.c)) || 1) * kx; Q.nl = Q.ns = 0; Q.low = L; Q.t = (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000 % 1000;
+    if (pet) { Q.pet[0] = Q.X(pet[0], pet[1]); Q.pet[1] = Q.Y(pet[0], pet[1]); Q.pet[2] = pet[2] * Q.k; } else Q.pet[2] = 0; return Q; }
+  function flush(c) { if (!Q.nl && !Q.ns) return; if (!usable()) return; try { const W = Q.W, Hh = Q.Hh; if (cv.width !== W * 2 || cv.height !== Hh) { cv.width = W * 2; cv.height = Hh; }
+      gl.viewport(0, 0, W * 2, Hh); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); gl.enable(gl.BLEND); gl.useProgram(PR.p); gl.uniform2f(PR.U.u_res, W, Hh); gl.uniform1f(PR.U.u_t, Q.t); gl.uniform3f(PR.U.u_pet, Q.pet[0], Q.pet[1], Q.pet[2]); gl.bindBuffer(gl.ARRAY_BUFFER, bq);
+      const attr = (i, n, off) => { gl.enableVertexAttribArray(i); gl.vertexAttribPointer(i, n, gl.FLOAT, false, 48, off * 4); }; let draws = 0;
+      const pass = (A, n) => { gl.bufferData(gl.ARRAY_BUFFER, A.subarray(0, n * 12), gl.DYNAMIC_DRAW); attr(0, 2, 0); attr(1, 2, 2); attr(2, 1, 4); attr(3, 4, 5); attr(4, 3, 9); gl.drawArrays(gl.TRIANGLES, 0, n); draws++; };
+      if (Q.ns) { gl.viewport(0, 0, W, Hh); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); pass(Q.smk, Q.ns); }   // the left half: smoke, solid
+      if (Q.nl) { gl.viewport(W, 0, W, Hh); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_COLOR); pass(Q.lit, Q.nl); }    // the right half: light, screened (stacked fire saturates softly, never clips to a white slab)
+      stats.draws = draws; stats.quads = Q.nl / 6; stats.smoke = Q.ns / 6; stats.W = W; stats.H = Hh; stats.frames++; stats.maxDraws = Math.max(stats.maxDraws, draws); stats.maxQuads = Math.max(stats.maxQuads, Q.nl / 6); stats.maxSmoke = Math.max(stats.maxSmoke, Q.ns / 6); stats.maxDrawsFrame = Math.max(stats.maxDrawsFrame || 0, (stats.fd = (stats.ft === Q.t ? stats.fd : 0) + draws)); stats.ft = Q.t;
+      const cv0 = c.canvas; c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1; if (Q.ns) { c.globalCompositeOperation = 'source-over'; c.drawImage(cv, 0, 0, W, Hh, 0, 0, cv0.width, cv0.height); } c.globalCompositeOperation = 'lighter'; c.drawImage(cv, W, 0, W, Hh, 0, 0, cv0.width, cv0.height); c.restore();
+    } catch (e) { ok = false; why = String(e && e.message || e); } }
+  /* (tests) pixels that break rgb <= a, right after a flush */
+  function check() { if (!gl) return null; const W = cv.width, Hh = cv.height, px = new Uint8Array(W * Hh * 4); gl.readPixels(0, 0, W, Hh, gl.RGBA, gl.UNSIGNED_BYTE, px); let bad = 0, lit = 0; for (let i = 0; i < px.length; i += 4) { const a = px[i + 3]; if (a) lit++; if (px[i] > a + 1 || px[i + 1] > a + 1 || px[i + 2] > a + 1) bad++; } return { bad, lit }; }
+  NM.EGFX = { usable, begin, flush, check, stats, info: () => ({ ok, soft, renderer: info, why }) };
 })();

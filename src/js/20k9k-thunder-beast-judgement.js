@@ -165,8 +165,12 @@
           if (p.z < 0) { p.z = 0; if (p.bounce && p.vz < -1.2) { p.vz = -p.vz * p.bounce; p.vx *= 0.6; p.vy *= 0.6; p.vr *= 0.6; if (p.snd && p.nb++ < 1) S.bounceSfx = (S.bounceSfx || 0) + 1; } else p.vz = 0; } p.rot += p.vr * dt; }
         if (!S.acts.length && !P.length) { kill(); f.life = 0; }
       },
-      drawUnder(c) { if (!S.on) return; petPos(S); const B = c.getTransform(); c.save(); for (const a of S.acts) if (a.under) a.under(c, B); drawParts(S, c, B, 1); c.restore(); },
-      draw(c) { if (!S.on) return; petPos(S); const B = c.getTransform(); c.save(); for (const a of S.acts) if (a.over) a.over(c, B); drawParts(S, c, B, 0); c.restore(); },
+      drawUnder(c) { if (!S.on) return; petPos(S); const B = c.getTransform(); c.save();
+        if (gpuOn()) { const Q = BM.EGFX.begin(c, null); Q.GY = S.H.GY || 0.55; for (const a of S.acts) if (a.gpuUnder) a.gpuUnder(Q); gpuParts(S, Q, 1); BM.EGFX.flush(c); c.setTransform(B); drawParts(S, c, B, 1, true); c.restore(); return; }   /* (the GPU layer; the 2D pictures stay as the fallback) */
+        for (const a of S.acts) if (a.under) a.under(c, B); drawParts(S, c, B, 1); c.restore(); },
+      draw(c) { if (!S.on) return; petPos(S); const B = c.getTransform(); c.save();
+        if (gpuOn()) { c.setTransform(B); drawParts(S, c, B, 0, true); const Q = BM.EGFX.begin(c, [S.PX, S.PY, S.PR]); Q.GY = S.H.GY || 0.55; for (const a of S.acts) if (a.gpuOver) a.gpuOver(Q); gpuParts(S, Q, 0); BM.EGFX.flush(c); c.restore(); return; }   /* (the nuts, bolts and gears stay solid 2D pieces under the light) */
+        for (const a of S.acts) if (a.over) a.over(c, B); drawParts(S, c, B, 0); c.restore(); },
       onEnd() { if (S.on) kill(); } });
     return S;
   }
@@ -184,9 +188,9 @@
     p.kind = kind; p.x = x; p.y = y; p.z = z; p.vx = vx; p.vy = vy; p.vz = vz; p.life = life; p.t = 0; p.size = size; p.g = 0; p.drag = 0; p.rot = 0; p.vr = 0; p.grow = 0; p.a = 1; p.u = 0; p.v = 0; p.fin = 0.1; p.flat = 0; p.bounce = 0; p.snd = 0; p.nb = 0;
     if (o) for (const k in o) p[k] = o[k]; S.parts.push(p); return p; }
   function partImg(p) { switch (p.kind) { case 0: return sprGlint(C.cyan); case 1: return sprGlint(C.gold); case 2: return sprGlint(C.violet); case 3: case 10: return sprSmoke(p.v); case 4: return sprStreak(); case 5: return glowSprite(C.wgold); case 6: return sprNut(); case 7: return sprBolt(); case 8: return sprGear(); case 9: return sprGlint(C.crimson); default: return sprRing('shock'); } }
-  function drawParts(S, c, B, under) { const H = S.H, T = S.T, P = S.parts; if (!P.length) return;
+  function drawParts(S, c, B, under, mech) { const H = S.H, T = S.T, P = S.parts; if (!P.length) return;
     for (let pass = 0; pass < 2; pass++) { c.globalCompositeOperation = pass ? 'lighter' : 'source-over';
-      for (let i = 0; i < P.length; i++) { const p = P[i]; if (ADD[p.kind] !== pass || (p.u ? 1 : 0) !== under) continue;
+      for (let i = 0; i < P.length; i++) { const p = P[i]; if (ADD[p.kind] !== pass || (p.u ? 1 : 0) !== under || (mech && !(p.kind >= 6 && p.kind <= 8))) continue;
         const u = p.t / p.life, a = p.a * Math.min(1, p.t / p.fin) * (p.kind === 3 || p.kind === 10 ? (1 - u) * (1 - u) : p.kind >= 6 && p.kind <= 8 ? 1 - sm((u - 0.75) / 0.25) : 1 - u * u); if (a < 0.015) continue;
         const X = H.sx(p.x), Y = H.sy(p.y) - p.z * S.ZT, s = p.size * T * (1 + p.grow * u), img = partImg(p);
         const k = under ? 1 : petK(S, X, Y, pass ? 0.1 : 0.35); if (a * k < 0.015) continue;
@@ -194,6 +198,19 @@
         if (p.kind === 4) { const ang = Math.atan2(p.vy - p.vz * 0.9, p.vx); setT(c, B, X, Y, ang); c.drawImage(img, -s, -s * 0.11, s, s * 0.22); }
         else { setT(c, B, X, Y, p.rot, p.flat ? H.GY : 1); c.drawImage(img, -s / 2, -s / 2, s, s); } } }
     c.setTransform(B); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over'; }
+
+  /* ---- the GPU (BEAST_MOVES.EGFX, 20k9j): the particles drawn as light and soft smoke (the debris stays 2D) ---- */
+  const gpuOn = () => { try { return !!(BM.gpuOn && BM.gpuOn()); } catch (e) { return false; } };
+  function gpuParts(S, Q, under) { const H = S.H, T = S.T, P = S.parts, GY = H.GY || 0.55;
+    for (let i = 0; i < P.length; i++) { const p = P[i]; if ((p.u ? 1 : 0) !== under || (p.kind >= 6 && p.kind <= 8)) continue;
+      const u = p.t / p.life, a = p.a * Math.min(1, p.t / p.fin) * (p.kind === 3 || p.kind === 10 ? (1 - u) * (1 - u) : 1 - u * u); if (a < 0.015) continue;
+      const X = H.sx(p.x), Y = H.sy(p.y) - p.z * S.ZT, s = p.size * T * (1 + p.grow * u), fy = p.flat ? GY : 1;
+      switch (p.kind) {
+        case 0: case 1: case 2: case 9: { const col = [C.cyan, C.gold, C.violet, 0, 0, 0, 0, 0, 0, C.crimson][p.kind]; Q.star(X, Y, s * 0.5, a, p.kind === 9 ? '#FFC2CA' : p.kind === 1 ? '#FFE6A6' : p.kind === 2 ? '#E2D4FF' : '#D8F7FF'); Q.glow(X, Y, s * 0.4, col, a * 0.5, fy); break; }
+        case 3: case 10: Q.puff(X, Y, s * 0.5, a, (p.rot || 0) * 0.3 + i * 0.13); break;
+        case 4: { const ang = Math.atan2(p.vy - p.vz * 0.9, p.vx), cs = Math.cos(ang), sn = Math.sin(ang); Q.seg(X - cs * s, Y - sn * s, X, Y, s * 0.08, a, false); Q.glow(X, Y, s * 0.14, C.ice, a * 0.7); break; }
+        case 5: Q.glow(X, Y, s * 0.5, C.wgold, a, fy); break;
+        default: Q.ring(X, Y, s * 0.44, C.ice, a, s * 0.05, fy); } } }
 
   /* ================= shared bits ================= */
   const sfx = (X, k, ...a) => { try { if (X.sfx && X.sfx[k]) X.sfx[k](...a); } catch (e) {} };
@@ -320,6 +337,7 @@
         if (finished && (!burst || burst.done) && !ej && (!popped || popped.t > 1.2)) act.dead = true; },
       under(c, B) { drawUnder(c, B); c.setTransform(B); },
       over(c, B) { drawOver(c, B); c.setTransform(B); },
+      gpuUnder(Q) { gpuUnder(Q); }, gpuOver(Q) { gpuOver(Q); },
       abort() { if (!popped) { bm.z = 0; try { setPose(pose0); } catch (e) {} } } };
     S.acts.push(act);
 
@@ -478,7 +496,7 @@
       if (ej) { if (!ej.landed) put(c, B, glowSprite(C.cyan), H.sx(ej.x1), H.sy(ej.y1), T * 1.4, T * 1.4, 0.4 * sm(ej.t / 0.3), 0, GY, true); else { const u = (ej.t - ej.lt) / 0.5; if (u < 1) put(c, B, sprRing('shock'), H.sx(ej.x1), H.sy(ej.y1), T * 2 * eout(u), T * 2 * eout(u), 1 - u, 0, GY, true); }
         if (!ej.landed) { const z = ctx.petZ || 0, s = T * (0.9 - 0.08 * z); put(c, B, sprShadow(), H.sx(ctx.petX), H.sy(ctx.petY), s, s * 0.55, 0.55 - 0.1 * z, 0, 1, false); } } }
     /* just behind the machine: the charge glow while gathering, and the branching halo it is silhouetted against at the top */
-    function drawBack(c, B) { if (popped) return; const T = S.T, ch = anchorW(ctx, 'chest'), [X0, Y0] = scr(ch.x, ch.y, ch.z), sc = bm.scale || 1;
+    function drawBack(c, B) { if (popped || gpuOn()) return; const T = S.T, ch = anchorW(ctx, 'chest'), [X0, Y0] = scr(ch.x, ch.y, ch.z), sc = bm.scale || 1;
       if (t < TR) { const u = sm(t / TG) * (t < TG ? 1 : 1 - sm((t - TG) / 0.2)); put(c, B, glowSprite(C.crimson), X0, Y0, T * 3.4 * sc, T * 3.4 * sc, 0.28 * u, 0, 1, true); put(c, B, glowSprite(C.blue), X0, Y0, T * 4.2 * sc, T * 4.2 * sc, 0.3 * u, 0, 1, true); }
       const hs = TR - 0.14, he = TH + 0.1; if (t > hs && t < he) { const u = (t - hs) / (he - hs), a = sm(u / 0.2) * (1 - sm((u - 0.75) / 0.25)), sz = T * 4.6 * sc * (0.75 + 0.3 * eout(u)), fl = 0.85 + 0.15 * Math.sin(t * 50);
         put(c, B, glowSprite(C.white), X0, Y0, sz * 0.9, sz * 0.9, 0.55 * a, 0, 1, true); put(c, B, glowSprite(C.blue), X0, Y0, sz * 1.5, sz * 1.5, 0.5 * a, 0, 1, true);
@@ -496,7 +514,7 @@
       if (front) { c0.globalAlpha = Math.min(1, 0.35 * a); c0.strokeStyle = C.violet; c0.lineWidth = Math.max(1, r * 0.11); c0.stroke(); c0.globalAlpha = Math.min(1, 0.85 * a); c0.strokeStyle = C.lilac; c0.lineWidth = Math.max(0.7, r * 0.04); c0.stroke(); c0.globalAlpha = Math.min(1, 0.6 * a); c0.strokeStyle = C.white; c0.lineWidth = Math.max(0.5, r * 0.015); c0.stroke(); }
       else { c0.globalAlpha = Math.min(1, 0.3 * a); c0.strokeStyle = C.violet; c0.lineWidth = Math.max(0.7, r * 0.06); c0.stroke(); } }
     let c0 = null;
-    function drawSphere(c, B, s) { if (!s.on || s.sc < 0.02) return; c0 = c; const T = S.T, [X0, Y0] = scr(s.x, s.y, s.z), pk = s.pk, pull = ph === 'pull' ? sm((t - TP) / tu.pull) : 0, r = T * tu.sphVis * s.sc * (1 + 0.1 * pk + 0.025 * Math.sin(t * 7 + s.seed)), a = s.a;
+    function drawSphere(c, B, s) { if (!s.on || s.sc < 0.02 || gpuOn()) return; c0 = c; const T = S.T, [X0, Y0] = scr(s.x, s.y, s.z), pk = s.pk, pull = ph === 'pull' ? sm((t - TP) / tu.pull) : 0, r = T * tu.sphVis * s.sc * (1 + 0.1 * pk + 0.025 * Math.sin(t * 7 + s.seed)), a = s.a;
       c.setTransform(B); if (Math.hypot(X0 - S.PX, Y0 - S.PY) < r * 1.6 + S.PR) petHole(c, S);
       // the soft light it throws, a violet fringe
       put(c, B, glowSprite(C.blue), X0, Y0, r * 2.6, r * 2.6, (0.22 + 0.25 * pk + 0.2 * pull) * a, 0, 1, true);
@@ -536,6 +554,85 @@
       // the ejection's trail (the pet itself is cut out)
       if (ej && ej.tr.length > 2) { const pts = ej.tr.map(p => scr(p[0], p[1], p[2])); c.setTransform(B); K.ribbon(c, pts.reverse(), Math.max(2, T * 0.16), 0.75, true); }
       c.restore(); }
+
+    /* ================= the GPU pictures (the same numbers as drawUnder / drawBack / drawSphere / drawOver) =================
+       the floor: the landing marker, the marks, the fractures of light, shock rims, veins of lightning, the damage rings
+       and their pulses, the pull-in, the burst; behind the machine (under the actors): the charge glow and the halo.
+       over: the fittings' arcs, the spheres (a glass shell, plasma, a white-gold heart, filaments wheeling round it, arcs
+       on its skin), the arcs between them, the pulse zaps, the bolts climbing out of the burst, the ejection's ribbon */
+    const GV = []; for (let i = 0; i < 48; i++) GV.push([0, 0]);
+    function gpuUnder(Q) { const T = S.T, GY = H.GY || 0.55, low = LOW(), fade = burst ? Math.max(0, 1 - burst.t / 0.6) : 1;
+      if (!landed) { const fa = sm(t / 0.25), pul = 1 + 0.05 * Math.sin(t * 16), sz = tu.impR * T * (1.15 - 0.15 * sm((t - TG) / (TI - TG))) * pul, X0 = H.sx(lx), Y0 = H.sy(ly);
+        Q.ring(X0, Y0, sz * 0.95, C.cyan, fa * 0.9, T * 0.12, GY); Q.ring(X0, Y0, sz * 0.78, C.gold, fa * 0.55 * (0.7 + 0.3 * Math.sin(t * 9)), T * 0.05, GY); Q.ring(X0, Y0, tu.impR * T, C.ice, fa * 0.45, T * 0.2, GY);
+        Q.glow(X0, Y0, sz * 0.45, C.crimson, fa * 0.45, GY); Q.star(X0, Y0, sz * 0.3, fa * 0.7, '#FFC2CA'); }
+      if (t > TG * 0.5) for (const s of sph) { if (s.on && t - s.t0 > 0.4) continue; const fa = sm((t - TG * 0.5) / 0.4) * fade * (s.on ? 1 - (t - s.t0) / 0.4 : 1), X0 = H.sx(s.x), Y0 = H.sy(s.y), r = T * tu.sphR * (0.7 + 0.08 * Math.sin(t * 5 + s.i)) * (s.on ? 0.85 : 1);
+        Q.ring(X0, Y0, r, C.violet, 0.7 * fa, T * 0.1, GY); Q.ring(X0, Y0, r * 0.6, C.lilac, 0.45 * fa, T * 0.05, GY); Q.glow(X0, Y0, r * 0.5, C.violet, 0.3 * fa, GY); }
+      if (tu.shadow && t >= TG && !landed) { const z = bm.z || 0, sz = T * 1.5 * (bm.scale || 1) * (1.15 - 0.05 * z); Q.shadow(H.sx(bm.x), H.sy(bm.y), sz, sz * 0.6, 0.7 - 0.08 * z); }
+      for (const im of impacts) { const u = im.t, X0 = H.sx(im.x), Y0 = H.sy(im.y), Xc = H.sx(im.cx), Yc = H.sy(im.cy);
+        if (u < 0.3) Q.glow(Xc, Yc, im.R * 1.1 * T, C.white, (1 - u / 0.3) * 0.45, GY);
+        const ca = (u < 0.08 ? u / 0.08 : 1) * Math.max(0, 1 - Math.max(0, u - 0.5) / 0.9); if (ca > 0.01) { Q.frac(X0, Y0, im.R * 1.15 * T, C.cyan, ca, im.v * 3.1 + 1, GY, im.rot); if (!low) Q.frac(X0, Y0, im.R * 0.8 * T, C.ice, ca * 0.6, im.v * 5.3 + 7, GY, im.rot + 1.3); }
+        for (let k = 0; k < 3; k++) { const v = (u - k * 0.09) / (0.55 + 0.1 * k); if (v <= 0 || v >= 1) continue; Q.ring(Xc, Yc, im.R * T * (1.25 - 0.15 * k) * 0.9 * eout(v), k ? C.cyan : C.ice, (1 - v) * (k ? 0.75 : 1), T * (0.16 - 0.04 * k), GY); }
+        if (u < 0.6) Q.glow(X0, Y0, T * 1.2, C.cyan, (1 - u / 0.6) * 0.6, GY); }
+      if (veins.length) { const fv = burst ? fade : 1, w = Math.max(1, T * 0.05);
+        for (const v of veins) { const reachD = v.d * cl(v.t / v.arr), n = v.pts.length; let m = 0; const SP = v.gp || (v.gp = v.pts.map(() => [0, 0]));
+          for (let i = 0; i < n; i++) { if (v.ds[i] > reachD) { if (i > 0) { const u = (reachD - v.ds[i - 1]) / (v.ds[i] - v.ds[i - 1] || 1); SP[i][0] = H.sx(lerp(v.pts[i - 1][0], v.pts[i][0], u)); SP[i][1] = H.sy(lerp(v.pts[i - 1][1], v.pts[i][1], u)); m = i + 1; } break; } SP[i][0] = H.sx(v.pts[i][0]); SP[i][1] = H.sy(v.pts[i][1]); m = i + 1; }
+          const fl = 0.75 + 0.25 * Math.sin(t * 31 + v.s.i * 2), grow = v.t < v.arr + 0.1, a = (grow ? 1 : 0.55 + 0.45 * v.s.pk) * fl * fv;
+          Q.bolt(SP, m, w * (grow ? 1.3 : 1), a, false);
+          for (const b of v.br) { if (reachD < b.at + 0.05) continue; const q = b.gp || (b.gp = b.pts.map(() => [0, 0])); for (let i = 0; i < b.pts.length; i++) { q[i][0] = H.sx(b.pts[i][0]); q[i][1] = H.sy(b.pts[i][1]); } Q.bolt(q, Math.max(2, Math.round(q.length * cl((reachD - b.at) / b.L))), w * 0.6, a * 0.75, false); }
+          if (grow && m > 0) { Q.glow(SP[m - 1][0], SP[m - 1][1], T * 0.6, C.cyan, 0.8 * fv, GY); Q.star(SP[m - 1][0], SP[m - 1][1], T * 0.35, 0.8 * fv); } } }
+      for (const s of sph) { if (!s.on) continue; const X0 = H.sx(s.x), Y0 = H.sy(s.y), f = s.a * fade, r = tu.sphR * T;
+        if (s.pk > 0.05) Q.glow(X0, Y0, r * 1.2, C.blue, 0.4 * s.pk * f, GY);
+        Q.ring(X0, Y0, r, C.cyan, (0.45 + 0.5 * s.pk) * f, T * 0.09, GY); Q.ring(X0, Y0, r * 0.98, C.white, 0.3 * s.pk * f, T * 0.03, GY); }
+      for (const p of pulses) { const u = p.t / 0.55, s = p.s; Q.ring(H.sx(s.x), H.sy(s.y), tu.sphR * T * 1.02 * (0.25 + 0.75 * eout(u * 1.6)), C.ice, (1 - u) * fade, T * 0.14, GY); }
+      if (ph === 'pull' || (burst && burst.t < 0.1)) { const u = sm((t - TP) / tu.pull), fa = burst ? 1 - burst.t / 0.1 : 1;
+        for (const s of sph) { if (!s.on) continue; const X0 = H.sx(s.x), Y0 = H.sy(s.y), r = tu.burstR * T;
+          Q.ring(X0, Y0, r, C.gold, (0.35 + 0.65 * u) * fa * (0.85 + 0.15 * Math.sin(t * 40 + s.i)), T * 0.14, GY);
+          for (let k = 0; k < 2; k++) { const v = ((t - TP) * 2.6 + k * 0.5 + s.i * 0.13) % 1; Q.ring(X0, Y0, r * lerp(1, 0.35, eio(v)), C.cyan, sm(v / 0.2) * (1 - v) * 0.8 * fa, T * 0.08, GY); }
+          Q.glow(X0, Y0, r * 0.7, C.wgold, 0.25 * u * fa, GY); } }
+      if (burst && burst.t < 1.3) { const u0 = burst.t;
+        for (const s of sph) { if (!s.on) continue; const X0 = H.sx(s.x), Y0 = H.sy(s.y), r = tu.burstR * T;
+          if (u0 < 0.35) Q.glow(X0, Y0, r * 1.1, C.white, (1 - u0 / 0.35) * 0.4, GY);
+          for (let k = 0; k < 2; k++) { const v = (u0 - k * 0.1) / 0.6; if (v <= 0 || v >= 1) continue; Q.ring(X0, Y0, r * (1.2 - 0.2 * k) * eout(v), k ? C.gold : C.ice, 1 - v, T * (k ? 0.1 : 0.16), GY); }
+          const ca = Math.max(0, 1 - u0 / 0.9); if (!low && ca > 0.01) Q.frac(X0, Y0, r * 0.9, C.cyan, ca * ca * 0.8, s.i * 2.7 + 3, GY, s.ph); } }
+      if (ej) { if (!ej.landed) Q.glow(H.sx(ej.x1), H.sy(ej.y1), T * 0.7, C.cyan, 0.4 * sm(ej.t / 0.3), GY); else { const u = (ej.t - ej.lt) / 0.5; if (u < 1) Q.ring(H.sx(ej.x1), H.sy(ej.y1), T * eout(u), C.ice, 1 - u, T * 0.1, GY); }
+        if (!ej.landed) { const z = ctx.petZ || 0, sz = T * (0.45 - 0.04 * z); Q.shadow(H.sx(ctx.petX), H.sy(ctx.petY), sz, sz * 0.55, 0.55 - 0.1 * z); } }
+      // behind the machine (this layer is under the actors): the charge glow, then the halo it hangs against
+      if (!popped) { const ch = anchorW(ctx, 'chest'), [X0, Y0] = scr(ch.x, ch.y, ch.z), sc = bm.scale || 1;
+        if (t < TR) { const u = sm(t / TG) * (t < TG ? 1 : 1 - sm((t - TG) / 0.2)); Q.glow(X0, Y0, T * 1.7 * sc, C.crimson, 0.28 * u); Q.glow(X0, Y0, T * 2.1 * sc, C.blue, 0.3 * u); }
+        const hs = TR - 0.14, he = TH + 0.1; if (t > hs && t < he) { const u = (t - hs) / (he - hs), a = sm(u / 0.2) * (1 - sm((u - 0.75) / 0.25)), sz = T * 4.6 * sc * (0.75 + 0.3 * eout(u)), fl = 0.85 + 0.15 * Math.sin(t * 50);
+          Q.glow(X0, Y0, sz * 0.45, C.white, 0.55 * a); Q.glow(X0, Y0, sz * 0.75, C.blue, 0.5 * a); Q.ring(X0, Y0, sz * 0.42, C.ice, 0.8 * a * fl, sz * 0.03); if (!low) Q.ring(X0, Y0, sz * 0.55, C.violet, 0.45 * a, sz * 0.05);
+          const sd = Math.floor(t * 16) + 7 * 101; for (let i = 0; i < (low ? 3 : 7); i++) { const b = i / 7 * TAU + R1(sd + i) * 0.6, r0 = sz * 0.22, r1 = sz * (0.55 + 0.3 * R1(sd + i * 3)); Q.arc(X0 + Math.cos(b) * r0, Y0 + Math.sin(b) * r0, X0 + Math.cos(b) * r1, Y0 + Math.sin(b) * r1, sd + i * 5, Math.max(1, T * 0.05), a * 0.9 * fl, { forks: low ? 0 : 1, jit: T * 0.25, gold: i % 3 === 0 }); } } } }
+    function gpuSphere(Q, s) { const T = S.T, [X0, Y0] = scr(s.x, s.y, s.z), pk = s.pk, pull = ph === 'pull' ? sm((t - TP) / tu.pull) : 0, r = T * tu.sphVis * s.sc * (1 + 0.1 * pk + 0.025 * Math.sin(t * 7 + s.seed)), a = s.a, low = LOW();
+      Q.glow(X0, Y0, r * 1.3, C.blue, (0.22 + 0.25 * pk + 0.2 * pull) * a);
+      const fil = front => { const nq = low ? 2 : 3, sp = ph === 'pull' ? 1 + 2.5 * pull : 1, NP = 16;
+        for (let q = 0; q < nq; q++) { const al = 0.5 + q * 1.05 + Math.sin(t * 0.7 + s.seed) * 0.3, be = t * (1.3 + 0.5 * q) * sp * (q % 2 ? -1 : 1) + s.seed + q * 2.1, ca = Math.cos(al), sa = Math.sin(al), cb = Math.cos(be), sb = Math.sin(be), st0 = t * (3.2 + q) * sp + q * 2, sd = Math.floor(t * 18) + (s.i * 7 + q) * 101;
+          let px = 0, py = 0, pv = false; for (let i = 0; i < NP; i++) { const th = st0 + i / (NP - 1) * TAU * 0.62, jr = r * (0.98 + 0.08 * q) + (R1(sd + i * 1.7) - 0.5) * r * 0.07, cx = Math.cos(th), cy = Math.sin(th), y1 = cy * ca, z1 = cy * sa, x2 = cx * cb + z1 * sb, z2 = -cx * sb + z1 * cb, x = X0 + x2 * jr, y = Y0 + y1 * jr, on = (z2 >= 0) === front;
+            if (on && pv) Q.seg(px, py, x, y, Math.max(0.6, r * (front ? 0.035 : 0.028)), a * (front ? 0.85 : 0.3), false, front ? C.lilac : C.violet); px = x; py = y; pv = on; } } };
+      fil(false);
+      Q.orb(X0, Y0, r, C.cyan, 0.95 * a, 0.75 + 0.5 * pk + 0.6 * pull, s.seed);
+      const cr = r * (0.85 + 0.1 * Math.sin(t * 11 + s.seed) + 0.3 * pk + 0.4 * pull); Q.glow(X0, Y0, cr * 0.6, C.gold, 0.38 * a); Q.glow(X0, Y0, cr * 0.25, C.white, 0.9 * a); Q.star(X0, Y0, cr * 0.5, 0.7 * a, '#FFF3C4');
+      fil(true);
+      const sd = Math.floor(t * 16) + s.i * 13 * 101; for (let j = 0; j < (low ? 1 : 2); j++) { const b = R1(sd + j * 3.1) * TAU, rr = r * (0.82 + 0.12 * R1(sd + j)); Q.arc(X0, Y0, X0 + Math.cos(b) * rr, Y0 + Math.sin(b) * rr, sd + j * 7, Math.max(0.8, r * 0.05), 0.85 * a, { forks: 0, jit: r * 0.18, gold: j === 1 }); }
+      if (R1(sd + 40) < 0.55 + 0.4 * pk) { const b = R1(sd + 41) * TAU, b2 = b + 0.7 + R1(sd + 42) * 0.8, rr = r * 1.03; Q.arc(X0 + Math.cos(b) * rr, Y0 + Math.sin(b) * rr, X0 + Math.cos(b2) * rr, Y0 + Math.sin(b2) * rr, sd + 43, Math.max(0.8, r * 0.045), 0.9 * a, { forks: 0, jit: r * 0.22 }); }
+      if (R1(sd + 77) < 0.06 + 0.6 * pk) { const b = R1(sd + 78) * TAU, gx = H.sx(s.x + Math.cos(b) * tu.sphR * 0.8), gy = H.sy(s.y + Math.sin(b) * tu.sphR * 0.6); Q.arc(X0, Y0 + r * 0.8, gx, gy, sd + 79, Math.max(0.8, r * 0.05), 0.75 * a, { forks: 0, jit: r * 0.3 }); Q.glow(gx, gy, T * 0.5, C.cyan, 0.6 * a, H.GY || 0.55); }
+      if (burst && burst.t < 0.12) Q.glow(X0, Y0, r * 1.5, C.white, 0.7 * (1 - burst.t / 0.12)); }
+    const SPO = [];
+    function gpuOver(Q) { const T = S.T, low = LOW();
+      if (!landed && !popped && t < TH) { const u = t < TG ? sm(t / TG) : 1, sd = Math.floor(t * 18) + 3 * 101, names = ['chest', 'handL', 'handR', 'eyes', 'cannonL', 'cannonR'];
+        for (let i = 0; i < (low ? 2 : 4); i++) { const A = anchorW(ctx, names[(R1(sd + i) * 6) | 0]), Bp = anchorW(ctx, names[(R1(sd + i + 9) * 6) | 0]); if (A === Bp) continue; const pa = scr(A.x, A.y, A.z), pb = scr(Bp.x, Bp.y, Bp.z); if (Math.hypot(pa[0] - pb[0], pa[1] - pb[1]) < T * 0.2) continue; Q.arc(pa[0], pa[1], pb[0], pb[1], sd + i * 11, Math.max(0.8, T * 0.035), 0.85 * u, { forks: 0, jit: T * 0.18, gold: i === 0 }); }
+        for (const nm of ['eyes', 'chest']) { const p = anchorW(ctx, nm), [x, y] = scr(p.x, p.y, p.z), fl = 0.8 + 0.2 * Math.sin(t * 37 + (nm === 'eyes' ? 0 : 2)), rr = T * (nm === 'eyes' ? 0.65 : 0.8); Q.glow(x, y, rr, C.crimson, 0.6 * u * fl); Q.star(x, y, T * 0.45 * u, 0.9 * u * fl, '#FFC2CA'); } }
+      SPO.length = 0; for (const s of sph) if (s.on && s.sc >= 0.02) SPO.push(s); SPO.sort((p, q) => p.y - q.y); for (const s of SPO) gpuSphere(Q, s);   /* (back to front) */
+      const sd = Math.floor(t * 14) + 31 * 101;
+      for (let e = 0; e < edges.length; e++) { const p = sph[edges[e][0]], q = sph[edges[e][1]]; if (!p.on || !q.on) continue; const a = Math.min(p.a, q.a) * (burst ? Math.max(0, 1 - burst.t / 0.1) : 1); if (a < 0.02) continue;
+        const [x1, y1] = scr(p.x, p.y, p.z), [x2, y2] = scr(q.x, q.y, q.z), dx = x2 - x1, dy = y2 - y1, d = Math.hypot(dx, dy) || 1, r1 = T * tu.sphVis * p.sc * 0.9, r2 = T * tu.sphVis * q.sc * 0.9; if (d < r1 + r2 + 4) continue;
+        const pk = Math.max(p.pk, q.pk), pull = ph === 'pull' ? sm((t - TP) / tu.pull) : 0, fl = 0.7 + 0.3 * R1(sd + e * 3);
+        Q.arc(x1 + dx / d * r1, y1 + dy / d * r1, x2 - dx / d * r2, y2 - dy / d * r2, sd + e * 17, Math.max(1, T * (0.035 + 0.02 * pk + 0.015 * pull)), a * fl * (0.75 + 0.25 * pk), { forks: low ? 0 : 1, jit: Math.min(T * 0.45, d * 0.1) });
+        if (!low && pk > 0.3) Q.arc(x1 + dx / d * r1, y1 + dy / d * r1 - T * 0.1, x2 - dx / d * r2, y2 - dy / d * r2 - T * 0.1, sd + e * 29, Math.max(0.8, T * 0.03), a * 0.7, { forks: 0, jit: Math.min(T * 0.8, d * 0.16), gold: true }); }
+      for (const z of zaps) { const u = z.t / 0.24, s = z.s, [x1, y1] = scr(s.x, s.y, s.z), m = z.m, mx = H.sx(m && !m.dead ? m.x : z.x), my = H.sy(m && !m.dead ? m.y : z.y) - T * 0.4; Q.arc(x1, y1 + T * 0.3, mx, my, z.sd + Math.floor(z.t * 30), Math.max(1, T * 0.05), (1 - u) * 0.95, { forks: 0, jit: T * 0.35 }); Q.glow(mx, my, T * 0.55, C.ice, 0.7 * (1 - u)); Q.star(mx, my, T * 0.4, 0.8 * (1 - u)); }
+      if (burst && burst.t < 0.55) { const u = burst.t / 0.55; let i = 0;
+        for (const s of sph) { if (!s.on) continue; const [x1, y1] = scr(s.x, s.y, s.z), ups = burst.ups[i++] || []; for (const b of ups) { const L = b.L * T * eout(Math.min(1, u * 3)); Q.arc(x1, y1 - T * 0.6, x1 + Math.cos(b.a) * L * 0.35, y1 - L, b.sd + Math.floor(burst.t * 20), Math.max(1.1, T * 0.04), (1 - u) * (1 - u) * 0.95, { forks: low ? 1 : 2, jit: T * 0.45, gold: b === ups[1] }); }
+          if (!low) Q.glow(x1, y1, tu.burstR * 0.8 * T * (0.6 + 0.6 * eout(u)), C.wgold, (1 - u) * 0.3); } }
+      if (ej && ej.tr.length > 2) { const n = Math.min(ej.tr.length, GV.length); for (let i = 0; i < n; i++) { const p = ej.tr[n - 1 - i], q = scr(p[0], p[1], p[2]); GV[i][0] = q[0]; GV[i][1] = q[1]; } Q.ribbon(GV, n, Math.max(2, T * 0.16), 0.75, true); } }
   }
 
   BM.judgement = judgement;

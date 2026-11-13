@@ -352,3 +352,96 @@ DK = base × K × (1 + 0.08·(evo−1)).
   - **Cost** (SwiftShader, EVO 7, median, quiet machine): v304 5.7–5.8 ms, now 6.6–7.4 ms. Earlier figures in these
     Notes were taken on a loaded machine.
   - **Montage:** `scratchpad/fx/wrath2.png` (before and after).
+
+
+## Notes (A, 2026-11-13): what the core, moves and Judgement use today (the GPU model must keep all of it)
+
+The body is drawn by the core's own rig (`20k9i`: `rig(S)` turns pose channels into joint positions, then the
+SDF-baked parts are drawn per joint), so the GPU model replaces that draw. Its contract:
+- **Pose channels** (`CH`, 0..1 unless noted): crouch, armLRaise, armRRaise, armLSlam, armRSlam, armLReach,
+  armRReach, cannonTilt, recoilL, recoilR, cannonFold, torsoDip, glow, charge, shudder, legsExt, handsIn, armLFling,
+  armRFling, and bank (-1..1).
+  - The core relaxes them home when idle. Moves write cannonTilt and recoilL; Judgement writes cannonFold, charge,
+    crouch, glow, handsIn, legsExt, shudder and torsoDip.
+  - The body also uses `bm.spin` (Drift's turn over the heading), `bm.scale`, `bm.vis`, `bm.z` and `bm.poseSnap`.
+  - The construction offsets per part (`buildOff`: torso, cable, leg, arm, head, shield, cannon) give the summon's
+    assembly. They need an equivalent (a `build` 0..1 channel, or per-part alpha and offset).
+- **Anchors** (`ctx.anchor(name)`, from the rig's joints): muzzleL and muzzleR (the 3-barrel average),
+  muzzleL0..2 and muzzleR0..2, cannonL, cannonR, handL, handR, elbowL, elbowR, seat, eyes, head, back, chest (the
+  default).
+  - Also used: `ctx.cannonDir('L' | 'R')` (from the rig's `dL` / `dR`).
+  - The spark pairs (`SPK`) join: muzzle0 to cannon, muzzle2 to muzzle1, elbow to hand, cannon to seat, eyes to
+    chest.
+  - The pet is drawn at `seat` (`ctx.seat`, `ctx.petX` / `petY` / `petZ` during Judgement's eject).
+- **Contact:** the body's oval swept between poses (`bm.prevX` / `prevY` / `prevA`) uses the core's size, not the
+  model.
+
+- (H, 2026-11-13, **GPU remake: today's gameplay is pinned; please run these before and after each change**)
+  `tests/nidhogg.js`, `tests/beast.js` and `tests/car.js` (shared harness `tests/lib/vehpin.js`) measure the ride on the
+  real game and compare it with `tests/baseline/<key>-evo<N>.json`, which was written from a clean build of main
+  (b5878f7). Run `HTML=<your page> EVO=1|4|7 node tests/<x>.js`.
+  - **Strict, fails on any change:** every number in the core's and the move files' `TUNE`; the ride's length and the
+    120 s cooldown; the buttons; the camera zoom while riding; for each move, the damage per hit, the cadence and the
+    rate the meter fills; the finisher (one use, it never recharges the meter, nothing lands after the release); the
+    exit on timeout; props broken by the dodge move and the jump; doors, gates, stairs and bridges kept.
+  - **Soft, prints WARN only:** how many enemies a cast happened to reach; the camera's offset from the ride; the
+    Supernova total (the car drives through its pulses).
+  - Only intended gameplay changes need the baseline rewritten (`UPDATE=1`), and that should be said in Notes.
+
+## Notes (E, 2026-11-13): the Strongs and Judgement Day on the GPU
+- **One GPU painter, `BEAST_MOVES.EGFX`** (end of `20k9j`), used by `beast-strongs` and `beast-judgement`: one program,
+  one offscreen canvas (left half solid, premultiplied; right half light, screened), at most two draws per pass, 0.6
+  res (0.42 lowFx). Kinds: glow, ring, beam, lightning stretch (white thread, coloured body, blue haze, violet bloom;
+  gold arcs), glint, the soft oval floor light, a travelling band, a lightning sphere's light (white-gold heart, turning
+  plasma, filaments, lit rim), exhaust flame, floor fractures of light; solid: exhaust puff, the missile (steel, gold
+  nose and bands, fins, lit core window), soft shadow, a sphere's glass shell. Lightning paths are grown on the CPU the
+  way the thunder kit grows them (`TK.path / arc / skyBolt / ribbon`, same seeds), into pooled points; lines never go
+  thinner than about a pixel of the layer (thinner ones dim instead).
+- **Switch:** real-GPU WebGL; software GL keeps 2D unless `window.__BM_GL = 1`; `0` forces 2D; `BEAST_MOVES.gpuOn()`.
+  No WebGL / lost context / shader error: the old 2D pictures. Gameplay untouched (every hit, radius and timing).
+- **Judgement on the GPU:** the spheres and the halo are drawn in the effect's own passes (the halo under the actors,
+  the spheres over them, back to front, the rider cut out) instead of per-sphere ents, so the frame stays at two flushes;
+  the ents draw nothing while the GPU is on. The nuts, bolts and gears of the pop stay 2D sprites.
+- **Counts at the heaviest moment (draws / light quads / solid quads), desktop | lowFx:** Homing Missiles (20) 2 / 500
+  / 41 | 2 / 207 / 11; Heaven's Wrath 2 / 529 / 6 | 2 / 266 / 3; Judgement (spheres + veins, 2.3 s; pop 6.35 s) 2 / 771
+  / 17 | 2 / 386 / 10.
+
+## Notes (M, 2026-11-13): the GPU model (plan, parts, the hook for A)
+
+- **File:** `src/js/20k9ia-thunder-beast-gl.js` (`BEAST_GL`), new; GLM (`20k5uz`) gains ids 49–57 (weathered bronze with
+  verdigris and dents, plate bronze, raised hex plates (item kind 1, as the 2D's hex pattern), worn gold trim, dark steel,
+  tufted crimson leather with gold buttons, ribbed violet cable with a running charge, red emitters, dark bronze). The
+  stored charge (`charge`) lights the gold rims and seams electric blue and tints the outline.
+- **Same rig, same channels, same anchors:** the GPU body is posed from the core's `S.R` (after `rig(S)`), so every `CH`
+  channel, `bm.spin / scale / vis / z / poseSnap`, `ctx.anchor`, `ctx.cannonDir` and the spark pairs are unchanged. No
+  new channels.
+- **Assembly:** `draw()` takes the core's `buildOff` as `off(name, side)` (per-part alpha, offset, scale: torso, cable,
+  leg, arm, head, shield, cannon), exactly the 2D's construction; or, drawn alone, `build` 0..1 (the same timeline,
+  `BEAST_GL.buildAt(t, name, side)`). The torso's build rattle is `rattle` (radians).
+- **Parts (about 27 items, one GLM pass):** torso (traced from the 2D model's own shape: weathered bronze with hex plates,
+  the gold-rimmed chest plate, back lames, flank plates with rivets, the dark steel belly frame and its ribs, violet cables
+  and pistons underneath, the neck with its gold collar, hip joints, the open seat: gold plinth, tufted crimson saddle and
+  backrest in a gold frame, twin levers with jewel tips; the crest and rear gems); head (skull, banded wedge snout with
+  gold trims and crest, the gold-rimmed brow with its diamond, recessed glowing eyes, gold horn crests, cheek plates,
+  steel jaw, teeth, snout studs); two shoulder domes (rusty bronze, gold band, raised hex cluster in a gold ring, lower
+  lame, faceted gem, gold spike, the joint); upper arms, forearms (elbow ball, ringed bronze with gold lips, wrist band,
+  gem, piston), hands (gold cuff, hex-plated back, gem, bronze finger segments, gold talons); thighs, shins with knees,
+  splayed feet; two housings (dark bronze, gold straps, red vents with louvres, trunnions, gem); six barrels (breech
+  collar, gold bands, muzzle ring, deep bore); pistons (rod and sleeve) and the four cables as small dynamic meshes.
+- **For A, the hook** (in `drawMachine`, right after `if (vis <= 0.01) {...}`; I could not add it, `20k9i` is yours; this
+  exact text is what I tested in a scratch build):
+  ```
+  if (typeof BEAST_GL !== 'undefined' && BEAST_GL.on()) { try { if (BEAST_GL.draw(c, S, T, { vis, ghost, off: (n, s2) => buildOff(S, n, s2), rattle: S.phase === 'build' && S.t < 1.38 ? Math.sin(S.t * 47) * 0.012 : 0 })) { if (S.phase === 'build' && S.t > 1.04 && S.t < 1.4) drawPanel(S, c, T); if (!ghost) drawLights(S, c, T, vis); if (withPet) drawPetOnly(S, c, T); return; } } catch (e) { BEAST_GL.fail(); if (typeof console !== 'undefined') console.warn('Beast: GL draw', e); } }
+  ```
+  - Software GL stays 2D unless `window.__BEAST_GL = 1` (`__BEAST_GLHQ` for full resolution there).
+  - Please also call `BEAST_GL.on()` from `U.beastmachine.warm` (it builds the meshes once, 160–340 ms on the test
+    machine, so do it idle-time), and skip the 2D bake / bake gating while `BEAST_GL.on()` is true (as Nidhogg does).
+  - For the tests: `get GL() { return typeof BEAST_GL !== 'undefined' ? BEAST_GL : null; }` and `newRig`, `buildOff` in
+    `U.beastmachine.__dbg` (my studio and sweep use them).
+  - The bores' cyan glow (the 2D's `drawSeg` cap) is drawn by the GPU path as halos; `drawLights` (eyes, brow, gems,
+    charge) and the loose panel stay 2D, over the picture. Drift's ghost goes through the same hook (alpha, no outline).
+- **For H:** 27 items, 52 draw calls with outlines, about 62k triangles (123k with outline hulls). Extents (farthest
+  point from the body's origin, tiles, scale 1, worst over four headings): rest 3.18, raise both 3.59, fling 3.61,
+  reach 3.32, slam 3.18 (a hand 0.07 below the floor, as the 2D rig), crouch 2.88, fold 2.66, the walk 3.22. The rider is
+  drawn after the body, so it is never covered; the nearest part to its line of sight is a housing or a barrel, 0.19 tiles
+  (fling, tilt).

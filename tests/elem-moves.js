@@ -10,6 +10,8 @@ const path = require('path');
   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1.5, hasTouch: true });
   const errors = []; page.on('pageerror', e => errors.push(e.message + ' @ ' + (e.stack || '').split('\n').slice(1, 3).join(' ')));
   let bad = 0; const ok = (c, m, x) => { console.log((c ? 'ok   ' : 'FAIL ') + m, x === undefined ? '' : JSON.stringify(x)); if (!c) bad++; };
+  /* GLFLAGS=__NIDHOGG_GL,__NG_GL (comma list): set before any game script, to run on the forced GPU path (the user: the 2D version need not be tested beyond smoke) */
+  if (process.env.GLFLAGS) await page.addInitScript(fl => { for (const f of fl) window[f] = 1; }, process.env.GLFLAGS.split(','));
   await page.goto('file://' + path.resolve(__dirname, '..', process.env.HTML || 'test.html'));   // (HTML=name.html: a test build of your own)
   await page.waitForFunction(() => window.__pp, null, { timeout: 15000 }); await page.waitForTimeout(300);
   const info = await page.evaluate(() => {

@@ -274,3 +274,149 @@ The user's requests:
 - **Checks:**
   - Turn sweep at 15° (144 frames): all one piece.
   - `turns2.png`: 4 snap-spin strips at 60 fps, plus the 16 stable headings close up on the spine.
+
+
+## Notes (A, 2026-11-13): what the cores, moves and cameras use today (the GPU model must keep all of it)
+
+Called on `NIDHOGG_MODEL` by the core (`20k6g`), the moves (`20k6h`) and the Ultima (`20k6i`):
+- **API:** `create(opts)` (returns `{ pose, draw, anchor }`); `warm(ms)` and `warmIdle(T, dpr)` (idle-time
+  readiness; the core holds the summon until the body is ready); `drawSpin(c, x, y, z, P, o, proxy)` (the only body
+  draw: `o` = `{ T, sx, sy, t, low, scale, pet(cc, PX, PY) }`, and the proxy gives `a`, `k`, `blur`, `last`, `ghosts`);
+  `drawShadow`; `turnDriver({ a })` (kept for the contract); `anchor(name)` / `inst.anchor(name)`; `blankPose`; `CH`;
+  `CLIPS`; `relax`; `preview` (the test hook); `rig`; `VIS`.
+- **The pet:** `o.pet(cc, PX, PY)` is called at the seat during the draw, so the pet is layered in the body. The core
+  adds its own pitch lift and roll to the pet.
+- **Pose channels written:**
+  - Core: flap, flapAmp, downFlex, spread, headYaw, jaw, throat, pitch, bank, tailSwing, legs, vents, glow, trace,
+    ring, core, alpha, heat.
+  - Moves: flap, spread, neckCurve, headPitch, jaw, throat, pitch, vents, glow, ring, core, heat.
+  - Ultima: jaw, throat, trace, ring, core.
+  - Through the clips: every `CH` channel (fold, finger, tailLift, breath, spikes, ringSpin, ringSpinV too).
+- **Clips run** (`CLIPS[name].run(P, t, dt, ctx)`): hover and fly (with `{ turn }`), dive, fireball (with `{ n }`,
+  returns `shot`), flare, summon (returns `dz`, `seal`, `mount`), dismiss, ultima, beam, settle. Also present: climb,
+  descend. Return fields read: `speed`, `dz`, `slam`, `shot`, `seal`, `mount`.
+- **Anchors** (world `{ x, y, z }`):
+  - Used: mouth (fireballs, flare, beam), seat (the pet, moves), belly, chest, ring (the Ultima), and ventL, ventR,
+    wingL, wingR, ring (ember sources).
+  - Defined but unused today: head, eyes, tail, tailTip, wingTipL, wingTipR (the wingtip streaks use the tips).
+  - The moves' fallback guesses (`GUESS` in `20k6h`) assume the 0.65-of-size frame.
+- **Camera:** `camFocus` uses the dragon's place, not anchors. The flight zoom is `TUNE.zoom`, with Ultima zooms
+  0.62 and the shake. If the GPU model changes the drawn size, A retunes `TUNE.size` and the zoom.
+
+## Notes (M, 2026-11-13): the GPU model, plan and part list (before modelling)
+
+- **Where:** a new file `src/js/20k6fa-fire-nidhogg-gl.js` (`NIDHOGG_GL`), called from `20k6f`'s `draw()` before the
+  2D path. `20k6f` keeps its rig, clips, anchors, shadow, ring, lights and the 2D sprite art (the fallback: no WebGL, a
+  CPU renderer without `window.__NIDHOGG_GL`, or a GPU failure: 1.5 s, for good after 3 failures in 20 s).
+- **Same rig, same channels, same anchors:** the GPU body is posed from `rig(P, t)` exactly as the 2D one (every `CH`
+  channel, every clip). With the GPU on, the chains are drawn exactly where the rig puts them, so the anchors are the
+  rig's points with no attach shift. No new channels needed; none renamed.
+- **Camera:** the 2D one (`toS`: x across, y down the screen, height up by ZK), so the ring, the lights, the embers, the
+  pet and every anchor line up with the GPU picture.
+- **One GLM pass, about 15 items** (each item one draw call, plus its outline): torso; head; lower jaw; tail blade;
+  skin (the neck and tail tubes, one dynamic mesh); lames (the scarlet armour shingles on neck and tail); belly bands
+  (the lit plates under neck and tail); tail rails (steel, glowing seam); dorsal spikes (all 34, one dynamic mesh);
+  membranes (both wings, one dynamic mesh); wing kit L / R (arm bones, fingers, claws, hubs); leg kit L / R (thigh,
+  shin, foot, talons).
+- **Parts (fidelity upgrade, same design):** the torso surface traced from the 2D model's own shape (chest, abdomen,
+  haunches, wing shoulders) in crimson scales, six overlapping scarlet back lames, a segmented belly lit from within
+  with glowing seams, flank vents (steel housings, glowing slots, louvres), flank tubes, wing mounts with orange-lit
+  rings, hip joints, the armoured seat (padded cup, high back, roll hoop), spike sockets; the head (scaled skull,
+  wedge snout, four layered nasal plates, studs and small spikes on the ridge, ember nostrils, gunmetal lip lines,
+  upper teeth, riveted cheek plates, recessed glowing eyes with slit pupils and a lit rim, armoured brows with bronze
+  trim and rivets, the brow gem in a bronze bezel, swept gunmetal horns with bronze bands, lower horns, a crown and
+  cheek frills of spikes); the jaw (banded armour, chin plate, lip lines, lower teeth, the glowing mouth, a frill);
+  the bladed tail tip (leaf blade, barbs, collar, glowing centre seam); veined membranes lit through red; the wing
+  arms (shingled armour, ridge spikes, brace and piston), fingers, silver claws, hubs; legs with talons.
+- **Materials (GLM ids 38–48, Nidhogg's own):** 38 crimson scales, 39 scarlet lacquered armour (worn edges), 40 dark
+  steel / gunmetal, 41 horn, 42 the lit belly plates, 43 fire emitter (seams, vent slots, mouth, hub rings), 44 eye,
+  45 teeth, 46 talons, 47 gem, 48 membrane. The trace (`trace`) heats the outline and every seam (GPU), plus soft
+  halos along the silhouette.
+- **Kept 2D (they are light, not body):** the Ultima ring, the eye / mouth / throat / belly / hub / vent glows, the heat
+  embers, the shadow, the wingtip swooshes. The spin's ghosts are drawn in the same GPU pass (translucent body copies).
+- **Exports added:** `NIDHOGG_MODEL.gl` (is the GPU drawing), `stats`, `SIZE` (extents for H), `COUNTS`.
+
+## Notes (E, 2026-11-13): the moves and the Ultima on the GPU
+- **One GPU fire painter, `NIDHOGG_MOVES.FGFX`** (end of `20k6h`), used by both `nidhogg-strongs` and `nidhogg-ultima`:
+  one program, one offscreen canvas (left half solid, premultiplied source-over; right half light, screened), two draws
+  per pass at most, 0.6 res (0.42 lowFx), 1200 quads cap. Kinds: glow, ring, beam, turbulent fire ball (fbm, a
+  temperature ramp white > yellow > orange > red), flame tongue, burning ground (light only), fire beam (scrolling flame
+  strip), sparkle, heat shimmer, smoke (solid), fire body and fire-beam body (solid: the colour laid over, so fire reads
+  on pale floors). Painter calls: `glow ring beam fire billow tongue ground firebeam firebody star shimmer smoke trail`.
+  The rider's face is a hole in every kind (`begin(c, [x, y, r])`; the Ultima passes null: it engulfs the scene).
+- **Switch:** GPU on real hardware; software GL (SwiftShader) keeps the 2D pictures unless `window.__NG_GL = 1`;
+  `__NG_GL = 0` forces 2D. No WebGL, a lost context or a shader error: the old 2D pictures, unchanged. Each act has
+  `gpuUnder/gpuOver` beside its `under/over`; gameplay (timing, hits, radii, props) is untouched.
+- **Looks:** Fireballs: a rolling fire ball with a flame-strip comet tail and a hot core; aim rings and floor light;
+  bursts are a billowing body of fire turning to dark smoke, a short flash ring, scorched glowing ground. Flare: each
+  lance a molten head with a tapering turbulent trail and a white-hot thread; vent heat shimmer. Ultima: fire strings
+  flowing into the mouth, pressure rings, the mouth core; the beam a flame body + turbulent strip + white core, tongues,
+  two molten spirals, an impact fire; the blast flash, shock rings, glowing fractures (light only), the dome, column and
+  mushroom cloud as billows cooling into smoke.
+- **Counts at the heaviest moment (one frame; draws / light quads / solid quads), desktop | lowFx:** Fireballs 2 / 108 /
+  53 | 2 / 53 / 29; Flare (30 lances) 2 / 570 / 45 | 2 / 289 / 39; Ultima (cloud at 7.6 s) 2 / 618 / 131 | 2 / 236 / 62.
+- Dive Bomb's effects live in `20k6g` (A's core) and were not changed.
+
+- (H, 2026-11-13, **GPU remake: today's gameplay is pinned; please run these before and after each change**)
+  `tests/nidhogg.js`, `tests/beast.js` and `tests/car.js` (shared harness `tests/lib/vehpin.js`) measure the ride on the
+  real game and compare it with `tests/baseline/<key>-evo<N>.json`, which was written from a clean build of main
+  (b5878f7). Run `HTML=<your page> EVO=1|4|7 node tests/<x>.js`.
+  - **Strict, fails on any change:** every number in the core's and the move files' `TUNE`; the ride's length and the
+    120 s cooldown; the buttons; the camera zoom while riding; for each move, the damage per hit, the cadence and the
+    rate the meter fills; the finisher (one use, it never recharges the meter, nothing lands after the release); the
+    exit on timeout; props broken by the dodge move and the jump; doors, gates, stairs and bridges kept.
+  - **Soft, prints WARN only:** how many enemies a cast happened to reach; the camera's offset from the ride; the
+    Supernova total (the car drives through its pulses).
+  - Only intended gameplay changes need the baseline rewritten (`UPDATE=1`), and that should be said in Notes.
+  - **A bug on main, for A and E (not caused by the remake):** Flare sometimes deals no damage at all. Its counter goes
+    up, but no lance hits. It happens when the pet has moved about 19 tiles from where it stood before the summon (1
+    of 3 runs in a minimal repro; never at the spawn spot). The repro script is
+    `/tmp/claude-0/-home-claude/78d1fddd-217b-590c-9262-fa063f90a263/scratchpad/nidflare-repro.js`; it needs `HTML=`.
+    No lance ends on a wall in that run. `tests/nidhogg.js` keeps the pet where it is (`noMove`) until this is fixed.
+  - (H, after v324) A fixed the Flare bug (`aimL` had slipped into a comment), and `noMove` is gone from
+    `tests/nidhogg.js`. On the working tree it passes 25 of 25 at evo 1, 4 and 7; the only WARN is how many times one
+    enemy was struck, which varies from run to run.
+
+## Notes (M, 2026-11-13): the GPU model, as delivered
+
+- **Files:** `src/js/20k6fa-fire-nidhogg-gl.js` (new, `NIDHOGG_GL`); `20k6f` calls it first in `draw()` (fallback: its 2D
+  sprites); GLM (`20k5uz`) gains ids 38–48. Force on a CPU renderer with `window.__NIDHOGG_GL = 1` (`__NIDHOGG_GLHQ` for full
+  resolution there).
+- **No channel, clip or anchor changed.** On the GPU the chains are drawn exactly where the rig puts them (`R.dN/dT/dW`
+  are zero), so every anchor is the rig's point. The ring, eye / mouth / throat / belly / hub / vent glows, embers,
+  shadow, swooshes and the pet (`o.pet` at the seat) are drawn as before, over the GPU picture (the ring's far half under it).
+- **For A:** with the GPU on, `__dbg.readyB / usableB` answer true and `warm()` returns true at once (nothing to bake), so
+  the summon is not held and `drawHeading` never snaps. If the GPU drops out, they answer the 2D bake state again.
+  `drawSpin`'s ghosts go into the body's own GPU pass. New exports: `NIDHOGG_MODEL.gl`, `.stats`, `.COUNTS()`, `.SIZE`
+  (`length` 12.4, `span` 10.5, `height` 2.4, `nose` 5.0, `tail` 7.4, `seatZ` 1.04 tiles, hover pose, scale 1). Drawn size is
+  the 2D model's (no retune needed). The neck and tail are drawn at 0.8 and 0.6 of the rig's radius and the torso at 0.88
+  of its width, to match the 2D silhouette.
+- **For H:** one pass, 16 items, 31 draw calls (with outlines), about 60k triangles (120k with outline hulls); dynamic
+  meshes about 17k vertices rewritten a frame (1.4 ms median on the test machine's CPU); mesh build 65–150 ms once (at
+  warm). Extents (farthest point from the body's origin, tiles, scale 1), worst over each clip: tail blade 9.0, tail 7.45,
+  head 5.75 (6.1 in the dive), wings 5.5, membranes 5.2, legs 3.0; the seat is never covered (nearest other geometry
+  0.14 tiles below it, a back spike's base). Suggest adding Nidhogg to `tests/gl.js` (`NIDHOGG_MODEL.gl` with the flag).
+
+## Notes (M, 2026-11-13): bigger wings (the user: 1.5x length, 1.1x width)
+
+- In the rig (`20k6f`), so the GPU model and the 2D fallback match: the wing's span by `WSPAN` 1.5, its chord by `WCHORD`
+  1.1, its droop by `WZ` 1.25. The shoulders (roots) and the hip attachment are unchanged; veins and scalloped edge kept.
+- **New joint channels for A** (amounts about 0, in `CH`, eased to 0 by `relax`): `shoulder` (-1..1, raises or lowers
+  the whole wing on top of the flap), `elbow` (0..1, sweeps the forearm back), `wrist` (-1..1, droops or lifts the hand
+  and fingers), `fingerSpread` (-1..1, fans the fingers), `billow` (0..1, the membrane's belly; GPU only).
+- **A (camera):** `SIZE.span` 10.5 -> 14.8 tiles; `height` 2.4 -> 2.8; length unchanged (12.4).
+- **H (extent guard):** the wings now reach 8.9 tiles from the body's origin (was 5.5); the tail blade is still the
+  farthest point at 9.0. Clearance through every clip: wings at least 2.0 tiles from the head and 1.47 from the tail
+  (summon); with the new channels at their limits (all folded) 1.36 from the tail; the seat is never covered (0.14).
+- **E:** `wingL` / `wingR` (the roots) are unchanged; `wingTipL` / `wingTipR` (finger tips) move out with the span.
+
+## Notes (M, 2026-11-13): the 2D fallback's bake (the summon's hold on a CPU renderer)
+
+- The bake cost did not change with the bigger wings (the baked pictures are the same pieces at the same sizes: torso
+  258x141, head 279x156 at k 72; the full bake 55 s before the GPU work, 59 s with the old wings, 59 s now on the test
+  machine), and the time to flight was the same before and after the wings (hold 6.2 vs 6.9 s of game time, about 16 s
+  real): the summon waits for 48 quick pictures (8 headings x 5 pieces at half scale, plus the 9 bones).
+- Fixed by making those quick pictures cheaper: half the occlusion samples, a shorter shadow march, no edge
+  supersampling (the sharp pictures, baked after, keep full quality). Now: the 48 quick pictures take 1.3 s of bake time
+  (was 3.0 s), the hold is 1.15 s of game time (was 6.9 s), flight starts 8.6 s real after the cast (was 15.8 s).
+  `elem-moves` (fire) passes with Nidhogg dealing damage; `nidhogg-ultima` passes at EVO 1/4/7; `nidhogg.js` 25 ok.
