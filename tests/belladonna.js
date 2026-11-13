@@ -28,6 +28,14 @@ const path = require('path');
     ok(g1(C, ['tentG', 'greenTentacles', 'green']) === 6, 'exactly 6 green tentacles', C);
     ok(g1(C, ['tentW', 'whiteTentacles', 'white8', 'whiteT']) === 8, 'exactly 8 white tentacles', C);
   } else console.log('skip  BELLADONNA_MODEL.COUNTS not exposed yet' + (ros.model ? '' : ' (no model)'));
+  /* the numeric guard, as Jaws's (a phase channel read as a distance makes parts drift out over a session): every item
+     centre within 9.0 tiles of the origin (worst 7.8 now, at a white tendril's tip; +15 %), with sway, ringSpin and spin to 6000 */
+  const EXT = await page.evaluate(() => { const M = window.__pp.belladonna; if (!M || !M.rigOf || !M.PARTS || !M.anchorAt) return null; const P0 = M.blankPose(), A0 = M.rigOf(P0).A, an = M.anchorAt('top', 0, 0, 0, P0), k = Math.abs(A0.top[2]) > 1e-3 ? an.z / A0.top[2] : an.x / A0.top[0]; let worst = 0, at = '';
+    for (const big of [0, 60, 600, 6000]) for (const ph of [0, 1.3, 2.9, 4.4].map(v => v + big)) for (const bank of [-0.5, 0, 0.5]) for (const lean of [-0.4, 0, 0.4]) for (const bloom of [0.5, 1, 1.3]) {
+      const P = Object.assign(M.blankPose(), { sway: ph, ringSpin: ph * 1.7, spin: ph * 0.6, bank, lean, bloom, flutter: 2, accX: 1.5, accY: 1.5 }), R = M.rigOf(P);
+      for (const it of R.list) { const Pt = M.PARTS[it.part]; if (!Pt || !Pt.c) continue; const c = [0, 1, 2].map(i => it.o[i] + it.R.x[i] * Pt.c[0] * it.s + it.R.y[i] * Pt.c[1] * it.s + it.R.z[i] * Pt.c[2] * it.s), d = Math.hypot(c[0], c[1], c[2]) * k; if (d > worst) { worst = d; at = { part: it.part, phase: ph, bank, lean, bloom }; } } }
+    return { worst: +worst.toFixed(2), at, k }; });
+  if (EXT) ok(EXT.worst <= 9.0, 'no part drifts: every part centre within 9.0 tiles at any sway / ring-spin phase, bank, lean and bloom', EXT); else console.log('skip  BELLADONNA_MODEL.rigOf not exposed');
   console.log('E\'s moves:', ros.BM ? ros.BM.join(',') : 'absent');
   if (ros.impl !== 'function') { console.log('core absent: stopping' ); await browser.close(); console.log(bad ? `${bad} of ${n} FAILED` : `all ${n} ok (core absent)`); process.exit(1); }
   ok(true, 'U.belladonna is implemented');

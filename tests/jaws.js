@@ -25,6 +25,14 @@ const path = require('path');
     return out; });
   if (ros.model && ros.same != null) { ok(ros.same && ros.parts > 8, 'one persistent part set: the identical list of parts at xf 0, 0.5 and 1', { items: ros.parts });
     ok(ros.seat === 11, 'the seat anchor stays on the hull at every step of the transformation', ros.seatZ); } else console.log('skip  model rig not exposed', ros.modelErr || '');
+  /* M's numeric guard (v323: the model once read the ever-growing breath phase as a distance and parts drifted out): every
+     item centre within 3.2 tiles of the origin, for xf 0 and 1, breath to 6000, swim to 900, bank and pitch at their extremes */
+  const EXT = await page.evaluate(() => { const M = window.__pp.jaws; if (!M || !M.rigOf || !M.PARTS || !M.SIZE) return null; const VIS = M.SIZE.len / 3.5; let worst = 0, at = '';
+    for (const xf of [0, 1]) for (const breath of [0, 5, 60, 600, 6000]) for (const swim of [0, 2, 40, 900]) for (const bank of [-0.5, 0, 0.5]) for (const pitch of [-0.4, 0, 0.4]) {
+      const P = Object.assign(M.blankPose(), { xf, breath, swim, swimK: 1, bank, pitch, tail: 0.6, fin: 1, jaw: 1, glowK: 2 }), R = M.rigOf(P);
+      for (const it of R.list) { const Pt = M.PARTS[it.part], c = [0, 1, 2].map(i => it.o[i] + it.R.x[i] * Pt.c[0] * it.s + it.R.y[i] * Pt.c[1] * it.s + it.R.z[i] * Pt.c[2] * it.s), d = Math.hypot(c[0], c[1], c[2]) * VIS; if (d > worst) { worst = d; at = { part: it.part, xf, breath, swim, bank, pitch }; } } }
+    return { worst: +worst.toFixed(2), at }; });
+  if (EXT) ok(EXT.worst <= 3.2, 'no part drifts: every part centre within 3.2 tiles at any breath / swim phase, bank and pitch, in both forms', EXT); else console.log('skip  JAWS_MODEL.rigOf / PARTS / SIZE not exposed');
   if (ros.i >= 0) { ok(ros.i === 10 && ros.n === 11, 'Jaws is the 11th Water Ultimate', { i: ros.i, n: ros.n }); ok(ros.cd === 150, 'its outer cooldown in the roster is 150 s', ros.cd); } else console.log('skip  no roster row yet');
   console.log("E's moves:", ros.JM ? ros.JM.join(',') : 'absent');
   if (ros.impl !== 'function') { console.log('core absent: stopping'); await browser.close(); console.log(bad ? `${bad} of ${n} FAILED` : `all ${n} ok (core absent)`); process.exit(1); }
@@ -156,6 +164,16 @@ const path = require('path');
     ok(Math.abs(C.s1Shark - 1.0) < 0.05 && Math.abs(C.s2Shark - 1.5) < 0.05, 'back in the shark, Water Bombs 1.0 s and Water Ray 1.5 s again', [C.s1Shark, C.s2Shark]);
     ok(C.again.counts.join() === '1,2,3,4' && C.again.form === 'shark' && C.again.after === 'leviathan' && C.again.auto === 2, 'five more pool casts transform it again', C.again);
   } else ok(false, 'cooldowns ran', C);
+
+  // ---- 2a. the pet is inside: the canopy closes at the end of the summon, and while Jaws flies the pet is not drawn ----
+  const CAN = await R('canopy', `
+    const { D, g, me } = H, G = H.G, cv = document.createElement('canvas'); cv.width = 390; cv.height = 844; const c = cv.getContext('2d'); let pets = 0;
+    D.useUlt(); let S = null; H.until(() => (S = H.S()) != null, 3); const X = S.X, d0 = X.drawPetAt; X.drawPetAt = function () { pets++; return d0.apply(this, arguments); };
+    const draw = n => { let k = 0; for (let i = 0; i < n; i++) { pets = 0; try { G.draw(c); } catch (e) {} k += pets; G.update(1 / 60); } return k; };
+    const inSummon = draw(10); H.until(() => S.phase === 'fly', 6); H.step(0.5); const fly = draw(30), can1 = S.V.pose.canopy, hid1 = !!S.petHid;
+    S.ctx.toggleForm(); H.until(() => S.form === 'leviathan' && !S.xfm, 6); const siege = draw(30), can2 = S.V.pose.canopy;
+    X.drawPetAt = d0; return { inSummon, fly, siege, canopy: [can1, can2], hid: hid1 };`);
+  if (CAN && !CAN.err) ok(CAN.fly === 0 && CAN.siege === 0 && CAN.canopy[0] === 1 && CAN.canopy[1] === 1 && CAN.hid, 'the pet is hidden inside while Jaws is active (canopy closed at 1; the pet is not drawn in the shark or in Leviathan)', CAN); else ok(false, 'canopy ran', CAN);
 
   // ---- 2b. the form channel: whenever the core says shark and no morph runs, xf is exactly 0 (no Leviathan wings on the shark) ----
   const XF = await R('xf-shark', `
