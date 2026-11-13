@@ -27,7 +27,7 @@
   const P = { mint: '#5FE3FF', pale: '#DDF6FF', white: '#FFFFFF', deep: '#0B2A6B', pink: '#2F7BFF', rose: '#123E9C', blush: '#9CCBFF', gold: '#FFE9A8', pearl: '#F2FBFF' };
 
   /* ================= tuning (x DK = the ult's base damage unit; provisional until H's audit) ================= */
-  const stats = JM.stats = { rayHits: 0, pools: 0, bombHits: 0, bombVolleys: 0, depthHits: 0, depthBig: 0, claims: 0, maelTicks: 0, maelHits: 0, maelBursts: 0 };   /* (counters for tests/jaws.js) */
+  const stats = JM.stats = { rayHits: 0, pools: 0, bombHits: 0, bombVolleys: 0, gunShots: 0, gunHits: 0, depthHits: 0, depthBig: 0, claims: 0, maelTicks: 0, maelHits: 0, maelBursts: 0 };   /* (counters for tests/jaws.js) */
   const TUNE = JM.TUNE = {
     rayCd: 2, bombsCd: 4,   /* (s, per slot, shared across the forms: the core reads these) */
     /* Water Ray: `charge` s, the beam for `beam` s reaching the impact `travel` s in; one explosion of `dmg` x DK within r; a pool of radius poolR */
@@ -41,6 +41,8 @@
     mael: { windup: 0.5, recover: 0.6, dur: 2.4, every: 0.3, dmg: 1.0, grow: 0.7, reach: 1.6, pull: 3.2, collapse: 0.35, burst: 8, burstR: 3.4 },
     /* Shark Attack: the ocean, the dive, the sky beam (beamShare of `total` x DK by tier, within beamR), the stars gathering, the jaws rising, the pause, the snap (the rest, within R), the aftermath */
     shark: { ocean: 0.9, dive: 1.0, beam: 0.8, gather: 1.1, rise: 0.9, pause: 0.4, snap: 0.14, after: 1.6, R: 7, beamR: 3.2, beamDmg: [30, 35, 40], bite: [65, 80, 85], zoom: 0.7 },
+    /* the wing cannons (Leviathan): shots `every` s apart (4 with Depth Charge, 6 through Maelstrom), each `flight` s to its mark; `dmg` x DK within r if above 0 (0: the shots are the look and sound only, so the moves' hits stay as they were) */
+    guns: { every: 0.1, flight: 0.12, dmg: 0, r: 0.8, depth: 4, mael: 6, maelEvery: 0.35 },
     gpu: { res: 0.8, resLow: 0.55, maxSide: 1400 },
   };
 
@@ -443,11 +445,31 @@ void main(){ if (u_pass > 0.5) { if (v_c.a < 0.5) discard; gl_FragColor = vec4(0
             Q.funnel(b.tx, b.ty, 0, R * (0.35 + 0.35 * u), (b.big ? 1.8 : 1.1) * Math.sin(Math.min(1, u * 1.6) * PI), 1.6, 0.85 * a, 10, b.i, P.pale);   /* (the crown: a short flaring cone) */
             for (let j = 0; j < 3; j++) Q.arc(b.tx, b.ty, 0.15 + 0.35 * j * u, R * (0.45 + 0.4 * u + 0.1 * j), tt * 4 + j * 2.1 + b.i, 2, 0.25, j % 2 ? P.pearl : P.mint, 0.8 * a, 0.2); } } } }); }
 
+  /* ================= the wing cannons (Leviathan): small guns under the wings that fire alongside its ranged attacks =================
+     Alternating left / right shots at a point (or an enemy, followed): a baby-blue muzzle flash, a short tracer, a small
+     water burst at the impact (a small hit of its own only if TUNE.guns.dmg > 0; 0 as shipped), and kicks the model's `wingGun`
+     recoil. JM.wingGuns(ctx, target, n, o) also serves the core. */
+  const BB = '#8FD8FF', BB2 = '#BFEAFF';
+  function gunMuzzles(ctx) { let L = anchor(ctx, 'cannonL'), R = anchor(ctx, 'cannonR'); if (Math.hypot(L.x - R.x, L.y - R.y) < 0.2) { const fl = anchor(ctx, 'finL'), fr = anchor(ctx, 'finR'); if (Math.hypot(fl.x - fr.x, fl.y - fr.y) > 0.2) { L = { x: fl.x, y: fl.y, z: Math.max(0.3, fl.z - 0.25) }; R = { x: fr.x, y: fr.y, z: Math.max(0.3, fr.z - 0.25) }; } else { const v = ctx.vehicle || {}, a = (v.heading || 0) + PI / 2; L = { x: v.x + Math.cos(a) * 1.1, y: v.y + Math.sin(a) * 1.1, z: (v.z || 0) + 0.6 }; R = { x: v.x - Math.cos(a) * 1.1, y: v.y - Math.sin(a) * 1.1, z: (v.z || 0) + 0.6 }; } } return [L, R]; }   /* (until the model has its cannon anchors: under the wings) */
+  function wingGuns(ctx, tg, n, o) { if (!ctx.H) return null; const X = ctx.H.X, tu = TUNE.guns, L = LOW(); o = o || {}; const every = o.every || tu.every, delay = o.delay || 0, shots = []; let t = 0, k = 0;
+    const where = i => { const q = typeof tg === 'function' ? tg(i) : tg; if (q && q.m && !gone(q.m)) return { x: q.m.x, y: q.m.y }; return q && isFinite(q.x) ? { x: q.x, y: q.y } : null; };
+    return add(ctx, { life: 20, update(dt, it) { t += dt;
+        while (k < n && t >= delay + k * every) { const side = k % 2, p0 = gunMuzzles(ctx)[side], q = where(k); k++; if (!q) continue; const j = 0.35, tx = q.x + rnd(-j, j), ty = q.y + rnd(-j, j);
+          shots.push({ side, x0: p0.x, y0: p0.y, z0: p0.z, tx, ty, t: 0, hit: false }); sfx(X, 'pop'); sfx(X, 'note', 520 + 80 * side, 0.06, 'square', 0.03, 260);
+          try { if (ctx.kick) ctx.kick('wingGun', 6); if (ctx.kick) ctx.kick(side ? 'wingGunR' : 'wingGunL', 6); } catch (e) {} }   /* (the recoil: the model's channel, the side's own if it has one) */
+        for (const s of shots) { s.t += dt; if (!s.hit && s.t >= tu.flight) { s.hit = true; if (tu.dmg > 0) stats.gunHits += hitA(ctx, s.tx, s.ty, tu.r, dkOf(ctx) * tu.dmg, { once: {}, el: 'water', src: 'guns', kb: 0.5 }); stats.gunShots++; emit(ctx, 0, s.tx, s.ty, 0.3, L ? 2 : 5, { v: 2.5, up: 2, life: 0.4, size: 0.08, col: BB2 }); if (s.side) sfx(X, 'splash'); } }
+        if (k >= n && shots.every(s => s.t > tu.flight + 0.35)) it.life = 0; },
+      paint(Q) { for (const s of shots) { const u = s.t;
+          if (u < 0.09) { const a = 1 - u / 0.09; Q.glow(s.x0, s.y0, s.z0, 0.7, BB, 0.9 * a); Q.star(s.x0, s.y0, s.z0, 0.6, a); Q.spark(s.x0, s.y0, s.z0, 0.18, P.white, a); }   /* (the muzzle flash) */
+          if (u < tu.flight + 0.05) { const k1 = cl(u / tu.flight), k0 = cl((u - 0.06) / tu.flight), f = (q, a, b) => lerp(a, b, q); Q.beam(f(k0, s.x0, s.tx), f(k0, s.y0, s.ty), f(k0, s.z0, 0.25), f(k1, s.x0, s.tx), f(k1, s.y0, s.ty), f(k1, s.z0, 0.25), 0.12, BB, 1); Q.beam(f(k0, s.x0, s.tx), f(k0, s.y0, s.ty), f(k0, s.z0, 0.25), f(k1, s.x0, s.tx), f(k1, s.y0, s.ty), f(k1, s.z0, 0.25), 0.05, P.white, 1); }   /* (the tracer) */
+          else { const v = (u - tu.flight) / 0.35; if (v < 1) { Q.ring(s.tx, s.ty, 0.04, tu.r * (0.3 + 0.8 * eout(v)), 1 - v, BB2, 0.3); Q.glow(s.tx, s.ty, 0.3, 0.8, BB, 0.6 * (1 - v)); Q.funnel(s.tx, s.ty, 0, 0.35, 0.7 * Math.sin(Math.min(1, v * 1.8) * PI), 1.7, 0.7 * (1 - v), 10, s.side, BB2); } } } } }); }   /* (the small water burst) */
+
   /* ================= Depth Charge ================= */
   function depthCharge(ctx) { const done = once(ctx), v = ctx.vehicle; if (!ctx.H || !v) { done(); return; }
     const H = ctx.H, X = H.X, tu = TUNE.depth, PL = poolsOf(ctx), DK = dkOf(ctx), NT = 14, tr = new Float32Array(3 * NT); let aim = aimOf(ctx, tu.reach), pool = null, t = 0, ph = 0, n = 0, p = anchor(ctx, 'mouth'), from = null; poolFx(ctx);
     try { pool = PL.at(aim.x, aim.y); if (pool && PL.claim(pool.id, 'depthCharge')) { aim = { x: pool.x, y: pool.y, a: aim.a }; stats.claims++; } else pool = null; } catch (e) { pool = null; }   /* (aimed at an available pool: it is claimed at the launch, and nothing else can take it) */
     sfx(X, 'note', 110, tu.charge, 'sawtooth', 0.08, 330); sfx(X, 'hum');
+    { let tg = null; try { tg = ctx.target && ctx.target(); } catch (e) {} wingGuns(ctx, tg && tg.m && !pool ? { m: tg.m, x: tg.x, y: tg.y } : { x: aim.x, y: aim.y }, TUNE.guns.depth, { delay: 0.05 }); }   /* (the wing cannons open up while the cannon charges) */
     const blast = () => { if (pool) { stats.depthBig += hitA(ctx, aim.x, aim.y, tu.bigR, DK * tu.big, { once: {}, el: 'water', src: 'strong', kb: 6 }); boom(ctx, aim.x, aim.y, tu.bigR, true); geyser(ctx, aim.x, aim.y, 1.9, 11, { dur: 1.7, ring: 3.2 }); for (let i = 0; i < 6; i++) geyser(ctx, aim.x + Math.cos(i * TAU / 6) * tu.bigR * 0.6, aim.y + Math.sin(i * TAU / 6) * tu.bigR * 0.6 * 0.55, 0.8, 4.5, { dur: 1.1 }); emit(ctx, 0, aim.x, aim.y, 1, 30, { v: 10, up: 7, life: 1.2 }); X.hitstop && X.hitstop(0.07); pool.hide = false; X.flash && X.flash(RM() ? 0.05 : 0.12, '#DDF6FF'); try { PL.consume(pool.id); } catch (e) {} }   /* (ONE amplified blast; the pool is spent as it resolves) */
       else { stats.depthHits += hitA(ctx, aim.x, aim.y, tu.r, DK * tu.dmg, { once: {}, el: 'water', src: 'strong', kb: 4 }); boom(ctx, aim.x, aim.y, tu.r); geyser(ctx, aim.x, aim.y, tu.r * 0.5, 3); } };
     add(ctx, { life: 9, abort() { if (pool && ph < 3) { try { pool.hide = false; PL.release(pool.id); } catch (e) {} } clip(ctx, 'rest'); done(); },   /* (a shot that never resolves gives its claim back) */
@@ -473,6 +495,7 @@ void main(){ if (u_pass > 0.5) { if (v_c.a < 0.5) discard; gl_FragColor = vec4(0
     stats.claims += set.length; poolFx(ctx); const t0 = now(ctx) + tu.windup, nT = Math.round(tu.dur / tu.every), tEnd = t0 + nT * tu.every, tBurst = tEnd + tu.collapse, R = p => p.r + tu.grow; let k = 0, ph = 0, freed = false;
     ctx.maelPlan = { t0, ticks: nT, tick: tu.every, at: Array.from({ length: nT }, (q, i) => t0 + (i + 1) * tu.every), burst: tBurst, pools: set.map(p => p.id), fired: 0 };
     sfx(X, 'hum'); sfx(X, 'note', 90, tu.windup + tu.dur, 'sawtooth', 0.07, 180); sfx(X, 'hiss', tu.windup + tu.dur, 0.28, 400);
+    wingGuns(ctx, i => { const p = set[i % set.length]; let best = null, bd = R(p) + tu.reach; for (const m of monsOf(ctx)) { if (gone(m)) continue; const d = Math.hypot(m.x - p.x, m.y - p.y); if (d < bd) { bd = d; best = m; } } return best ? { m: best } : { x: p.x, y: p.y }; }, TUNE.guns.mael, { delay: tu.windup, every: TUNE.guns.maelEvery });   /* (the wing cannons pick off what the whirlpools hold) */
     add(ctx, { life: 30, abort() { for (const p of set) { try { p.hide = false; ph < 2 ? PL.release(p.id) : PL.consume(p.id); } catch (e) {} } clip(ctx, 'rest'); done(); },
       update(dt, it) { const t = now(ctx); clip(ctx, 'maelstrom', (t - (t0 - tu.windup)) / tu.windup); if (!freed && t >= t0 + tu.recover) { freed = true; clip(ctx, 'rest'); done(); }
         if (t >= t0 && ph === 0) ph = 1;
@@ -583,7 +606,7 @@ void main(){ if (u_pass > 0.5) { if (v_c.a < 0.5) discard; gl_FragColor = vec4(0
   };
   icons.maw = icons.sharkAttack; icons.hydrojet = icons.waterRay;
 
-  JM.waterRay = waterRay; JM.waterBombs = waterBombs; JM.depthCharge = depthCharge; JM.maelstrom = maelstrom; JM.sharkAttack = sharkAttack; JM.maw = maw; JM.hydrojet = hydrojet; JM.summon = summon; JM.anchorHalo = anchorHalo; JM.transform = transform; JM.exit = exit;
+  JM.waterRay = waterRay; JM.waterBombs = waterBombs; JM.wingGuns = wingGuns; JM.depthCharge = depthCharge; JM.maelstrom = maelstrom; JM.sharkAttack = sharkAttack; JM.maw = maw; JM.hydrojet = hydrojet; JM.summon = summon; JM.anchorHalo = anchorHalo; JM.transform = transform; JM.exit = exit;
   JM.poolFx = poolFx; JM.pools = poolsOf; JM.geyser = geyser; JM.icons = icons; JM.emit = emit;
   JM.warm = () => { try { for (const c of [P.mint, P.pale, P.pink, P.blush, P.white]) glowSprite(c); beamSprite(P.white); beamSprite(P.pale); flowerSprite(P.pearl, true); gpuOn(); } catch (e) {} return true; };
   JM.update = ctx => { try { if (ctx && ctx.H && poolsOf(ctx).list().length) poolFx(ctx); } catch (e) {} };   /* (the pools are drawn for as long as the core holds any) */

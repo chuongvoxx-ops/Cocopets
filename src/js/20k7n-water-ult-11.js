@@ -127,8 +127,8 @@
   function spring(S, key, target, w, z, dt) { const A = S.an; let s = A[key]; if (!s) s = A[key] = { x: target, v: 0 }; if (!isFinite(s.x) || !isFinite(s.v)) { s.x = target; s.v = 0; }
     let left = Math.min(dt, 0.1); while (left > 1e-5) { const h = Math.min(left, 1 / 120); s.v += (-2 * z * w * s.v - w * w * (s.x - target)) * h; s.x += s.v * h; left -= h; } return s.x; }
   const kick = (S, key, dv) => { const s = S.an[key]; if (s) s.v += dv; };
-  const SPR = { swimK: [6, 0.8], jaw: [20, 0.42], cannon: [12, 0.55], recoil: [26, 0.5], bank: [9, 0.48], pitch: [10, 0.5], fin: [11, 0.5], tail: [9, 0.4], glow: [8, 0.8], charge: [12, 0.8], z: [9, 0.45] };
-  const TG = () => ({ zAbs: null, fwd: 0, swimK: 0.5, jaw: 0, cannon: 0, recoil: 0, bank: 0, pitch: 0, fin: 0, tail: 0, glow: 0.5, charge: 0, z: 0, swimV: 2.4 });
+  const SPR = { swimK: [6, 0.8], jaw: [20, 0.42], cannon: [12, 0.55], recoil: [26, 0.5], bank: [9, 0.48], pitch: [10, 0.5], fin: [11, 0.5], tail: [9, 0.4], glow: [8, 0.8], charge: [12, 0.8], z: [9, 0.45], glowK: [5, 0.95] };
+  const TG = () => ({ glowK: 1, zAbs: null, fwd: 0, swimK: 0.5, jaw: 0, cannon: 0, recoil: 0, bank: 0, pitch: 0, fin: 0, tail: 0, glow: 0.5, charge: 0, z: 0, swimV: 2.4 });
   /* the action clips E plays with ctx.clip(name, u, extra) (u 0..1 each frame while it lasts) */
   const CLIPS = {
     rayCharge(G, u) { G.jaw = 0.75 * sstep(0, 0.6, u); G.charge = u; G.glow = 0.6 + 0.9 * u; G.pitch -= 0.06 * u; G.swimK *= 1 - 0.6 * u; },
@@ -168,15 +168,18 @@
     if (J) { const T = TUNE.jet, u = J.ph === 0 ? cl(J.t / T.burst) : 1, sd = Math.sin(wrap(J.a - V.heading)), fw = Math.cos(wrap(J.a - V.heading)); G.fin = (J.ph === 0 ? 1 : 0.3) * (sd >= 0 ? 1 : -1) * (0.4 + 0.6 * Math.abs(sd)); G.bank += -0.3 * sd * (J.ph === 0 ? 1 : 0.2); G.pitch += -0.14 * fw * (J.ph === 0 ? 1 - 0.5 * u : 0); G.glow = 1.3; }
     /* --- the summon and the exit --- */
     if (S.phase === 'summon') { const u = cl(S.t / TUNE.summon); G.pitch = (S.emerge ? 1.15 : 0.5) * (1 - sstep(S.emerge ? 0.45 : 0.3, 0.95, u)); G.jaw = 0.5 * bump(u, 0.1, 0.3, 0.6); G.swimK = 0.2 + 0.5 * u; G.glow = 0.3 + 1.2 * bump(u, 0.5, 0.75, 1) + 0.3 * u; }
+    /* --- the baby-blue glow (M's glowK): low between attacks, up through every attack, charge and Shark Attack, easing back (a slow spring) --- */
+    G.glowK = 1 + 0.1 * k + 0.1 * w + (S.charge >= 1 && !S.used ? 0.15 + 0.1 * Math.sin(t * 5) : 0);   /* (M: 1 is the rest, up to 2.5) */
+    if (S.busy) G.glowK = 1.6; if (M) G.glowK = Math.max(G.glowK, M.ph >= 1 ? 1.6 : 1.3); if (J) G.glowK = Math.max(G.glowK, 1.6); if (X) G.glowK = Math.max(G.glowK, 1.3); if (S.phase === 'finisher') G.glowK = 2.5;
     /* --- E's clip, last: it owns the channels it sets --- */
-    const E = eClip(S); if (E) { try { CLIPS[E.clip](G, E.u, S, E.extra); } catch (e) { /* (a clip never breaks the frame) */ } }
+    const E = eClip(S); if (E) { try { CLIPS[E.clip](G, E.u, S, E.extra); } catch (e) { /* (a clip never breaks the frame) */ } if (/Charge|charge|maelstrom|Fire|fire/.test(E.clip)) G.glowK = Math.max(G.glowK, 2.0); }
     /* under E's ocean between the dive and the breach: held below the surface, gliding */
     if (S.phase !== 'finisher') S.under = false; else if (S.under && G.zAbs == null) { G.zAbs = -(V.z + 2.9); G.fwd = 2.2; G.pitch = 0.35; G.swimK = 0.6; G.jaw = 0.1; }
     for (const key in SPR) { const p = SPR[key]; P[key] = spring(S, key, G[key], p[0], p[1], dt); }
     if (G.zAbs != null) { const zs = S.an.z; zs.x = G.zAbs; zs.v = 0; P.z = G.zAbs; }   /* (a whole-body move: exact, not sprung) */
     S.fwd = (S.fwd || 0) + (G.fwd - (S.fwd || 0)) * Math.min(1, dt * 14);
     S.swimV = S.swimV == null ? G.swimV : S.swimV + (G.swimV - S.swimV) * Math.min(1, dt * 6); S.swim = (S.swim || 0) + S.swimV * dt; P.swim = S.swim; P.breath = t * 1.2;
-    P.swimK = cl(P.swimK); P.jaw = cl(P.jaw); P.cannon = cl(P.cannon); P.recoil = cl(P.recoil); P.fin = clamp(P.fin, -1, 1); P.tail = clamp(P.tail, -1.2, 1.2); P.glow = clamp(P.glow, 0, 2); P.charge = cl(P.charge);
+    P.swimK = cl(P.swimK); P.jaw = cl(P.jaw); P.cannon = cl(P.cannon); P.recoil = cl(P.recoil); P.fin = clamp(P.fin, -1, 1); P.tail = clamp(P.tail, -1.2, 1.2); P.glow = clamp(P.glow, 0, 2); P.charge = cl(P.charge); P.glowK = clamp(P.glowK, 0, 2.5);
     S.zOff = P.z || 0; P.z = 0; P.t = t; P.speed = k;
     const C2 = S.eCh; if (C2 && t - C2.t <= 0.12) { for (const key in C2.o) if (key !== 'alpha' && key !== 'xf') P[key] = C2.o[key]; }
     /* the waterline: E's ocean (ctx.waterline / JAWS_MOVES.waterline(ctx), a world height while the shark is under) and the

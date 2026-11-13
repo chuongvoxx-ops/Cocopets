@@ -290,23 +290,23 @@ void main() {
       c += celSpec(n, 0.955) * vec3(0.5, 0.72, 1.0) * 0.45 * (1.0 - 0.8 * smoothstep(0.7, 0.95, dot(n, uUP))) + smoothstep(0.3, 0.36, r.z) * (1.0 - smoothstep(0.52, 0.6, r.z)) * vec3(0.1, 0.22, 0.4) * (0.4 + 0.6 * lit);
       float chip = smoothstep(0.64, 0.72, vn(L.xy * 23.0 + L.z * 17.0) * (0.3 + 0.62 * smoothstep(0.55, 0.85, edge)) + (1.0 - clamp(ao, 0.0, 1.0)) * 0.75) * (1.0 - line) * (1.0 - uLow);   // (chips only beside a panel line or where vA.z marks a worn edge)
       vec3 bare = cel3(vec3(0.2, 0.22, 0.27), vec3(0.55, 0.58, 0.63), vec3(0.95, 0.96, 1.0), n, lit); c = mix(c, bare, chip * uWear);
-      c = min(c, vec3(0.17, 0.44, 1.12)); c = mix(c, c * 1.5 + 0.06, scr * 0.5) * (1.0 - 0.8 * line) + celRim(n); }   // (a ceiling: a flat fin square to the light stays cobalt)
+      c = min(c, vec3(0.17, 0.44, 1.12)); c = mix(c, c * 1.5 + 0.06, scr * 0.5) * (1.0 - 0.8 * line) + celRim(n) + vec3(0.42, 0.72, 0.95) * uGlow2 * (line * 0.7 + 0.25 * smoothstep(0.35, 0.8, edge) * (1.0 - line) + 0.05); }   // (a ceiling: a flat fin square to the light stays cobalt)
     else if (id == 31) {   // chrome: a stylised sky and ground with a hard horizon, one sharp key band, brushed machining
       float t = r.z + 0.045 * (vn(vec2(L.x * 2.0, (L.y + L.z) * 60.0)) - 0.5) * (1.0 - uLow);
       vec3 sky = mix(vec3(0.86, 0.93, 1.0), vec3(0.18, 0.34, 0.72), smoothstep(0.08, 0.85, t)), gnd = mix(vec3(0.07, 0.09, 0.15), vec3(0.4, 0.44, 0.54), smoothstep(-0.9, -0.04, t));
       c = mix(gnd, sky, smoothstep(-0.025, 0.025, t)) + smoothstep(0.0, 0.025, t) * (1.0 - smoothstep(0.07, 0.11, t)) * 0.42 + smoothstep(0.4, 0.48, t) * (1.0 - smoothstep(0.56, 0.66, t)) * 0.14;   // (a hard horizon, a hot line over it, a soft second band higher up)
       vec3 cell = floor(L * 3.0 + 0.5); c *= 0.93 + 0.14 * hs(cell.xy + cell.z * 5.1); c *= occ;
       cel3(vec3(0.0), vec3(0.5), vec3(1.0), n, lit); c *= 0.7 + 0.45 * lit; c += celSpec(n, 0.94) * 0.9 + smoothstep(0.8, 0.83, dot(r, uLS)) * 0.25;
-      c = mix(c, c * 0.7, scr * 0.6) * (1.0 - 0.75 * line) + celRim(n); }
+      c = mix(c, c * 0.7, scr * 0.6) * (1.0 - 0.75 * line) + celRim(n) + vec3(0.42, 0.72, 0.95) * uGlow2 * line * 0.6; }
     else if (id == 32) {   // dark steel: recessed machinery, matte, a cyan bounce from the emitters near it (spill)
       c = cel3(vec3(0.01, 0.013, 0.026), vec3(0.042, 0.05, 0.075), vec3(0.12, 0.14, 0.19), n, lit) * (0.85 + 0.3 * vn(L.xy * 14.0 + L.z * 9.0)) * occ; c *= 1.0 - 0.18 * smoothstep(0.35, 0.5, abs(fract(length(L.yz) * 30.0) - 0.5)) * (1.0 - uLow);   // (turned machining rings)
       c *= 1.0 - 0.35 * step(0.62, fract((L.x + L.z * 0.35) * 18.0)) * (1.0 - uLow); c += celSpec(n, 0.9) * 0.1 + vec3(0.03, 0.42, 0.62) * uSpill * (0.2 + 0.5 * (1.0 - hm)) * (0.6 + 0.4 * lit);
       c *= 1.0 - 0.7 * line; }
     else if (id == 33) {   // reactor cyan: water-energy with its structure showing: bands flowing along the mesh's own x, cell walls, a darker limb
-      float f = fract(L.x * 3.2 - uTime * 0.7 + 0.25 * vn(L.yz * 5.0)), bandf = smoothstep(0.0, 0.12, f) * (1.0 - smoothstep(0.55, 0.95, f)), wall = smoothstep(0.42, 0.5, abs(fract(atan(L.z, L.y) * 1.2732 + 0.5) - 0.5)), g = 0.6 + 1.15 * uGlow;
+      float f = fract(L.x * 3.2 - uTime * 0.7 + 0.25 * vn(L.yz * 5.0)), bandf = smoothstep(0.0, 0.12, f) * (1.0 - smoothstep(0.55, 0.95, f)), wall = smoothstep(0.42, 0.5, abs(fract(atan(L.z, L.y) * 1.2732 + 0.5) - 0.5)), g = 0.75 + 1.5 * uGlow;
       float cau = vn(vec2(L.x * 9.0 - uTime * 1.6, atan(L.z, L.y) * 3.0)), fine = smoothstep(0.62, 0.8, cau);
-      c = mix(vec3(0.0, 0.13, 0.34), vec3(0.08, 0.75, 1.15), bandf) * (0.5 + 0.5 * ndv) + vec3(0.6, 0.95, 1.0) * fine * bandf * 0.6;
-      c = c * g * (1.0 - 0.72 * wall) * (1.0 - 0.6 * line) + vec3(0.02, 0.2, 0.3) * pow(1.0 - ndv, 2.0); }
+      c = mix(vec3(0.03, 0.17, 0.38), vec3(0.42, 0.82, 1.2), bandf) * (0.55 + 0.45 * ndv) + vec3(0.7, 0.92, 1.1) * fine * bandf * 0.45;   // (baby blue)
+      c = c * g * (1.0 - 0.62 * wall) * (1.0 - 0.5 * line) + vec3(0.25, 0.5, 0.65) * pow(1.0 - ndv, 2.0) * (0.4 + 0.4 * uGlow); }
     else if (id == 34) {   // a tooth: off-white enamel-chrome, hard bands, a sharp glint
       c = cel3(vec3(0.42, 0.47, 0.6), vec3(0.8, 0.83, 0.87), vec3(1.0, 1.0, 0.97), n, lit) + celSpec(n, 0.93) * 0.6 + smoothstep(0.0, 0.04, r.z) * (1.0 - smoothstep(0.1, 0.16, r.z)) * vec3(0.12, 0.16, 0.22);
       c = c * (1.0 - 0.6 * line) + celRim(n); }

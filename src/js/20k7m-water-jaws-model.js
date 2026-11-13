@@ -113,7 +113,7 @@ const JAWS_MODEL = (() => {
     { const B = GLM.builder(q);   // ---- the mouth cannon, from its breech along +x: a pressure cannon of stepped rings, a glowing lens deep in its bell
       const C = M_CHR, S = M_STEEL;
       B.lathe([[0, 0.12, S], [0, 0.19, S], [0.24, 0.19, S], [0.24, 0.225, C], [0.31, 0.225, C], [0.31, 0.195, S], [0.5, 0.195, S], [0.5, 0.235, C], [0.58, 0.235, C], [0.58, 0.205, S], [0.72, 0.21, S], [0.72, 0.25, C], [0.8, 0.255, C], [CAN_L, 0.27, C], [CAN_L + 0.02, 0.25, C], [CAN_L - 0.02, 0.215, S], [CAN_L - 0.14, 0.2, S]], S, { seg: n(24) });
-      B.ell([CAN_L - 0.05, 0, 0], [0.035, 0.215, 0.215], M_CYAN, { seg: n(16), rings: 5 });   // (the lens, near the lip: it glows in the resting mouth's gap) B.torX([CAN_L - 0.1, 0, 0], 0.15, 0.022, M_CHR, { seg: n(18), rseg: 4 }); B.torX([CAN_L - 0.06, 0, 0], 0.2, 0.018, M_STEEL, { seg: n(18), rseg: 4 });
+      B.ell([CAN_L - 0.05, 0, 0], [0.035, 0.215, 0.215], M_CYAN, { seg: n(16), rings: 5 }); B.torX([CAN_L - 0.1, 0, 0], 0.15, 0.022, M_CHR, { seg: n(18), rseg: 4 }); B.torX([CAN_L - 0.06, 0, 0], 0.2, 0.018, M_STEEL, { seg: n(18), rseg: 4 });   // (the lens sits near the lip)
       for (let i = 0; i < 8; i++) { const a = i / 8 * TAU; B.sph([0.76, Math.cos(a) * 0.255, Math.sin(a) * 0.255], 0.022, M_STEEL, 5); B.box([0.4, Math.cos(a) * 0.2, Math.sin(a) * 0.2], [0.07, 0.012, 0.012], 0, M_CYAN); }
       for (const sd of [1, -1]) B.tube([-0.3, sd * 0.17, 0], [0.22, sd * 0.17, 0], 0.035, 0.035, M_CHR, { seg: 8 });                         // (the mount's slide rods)
       M.cannon = B.done(); }
@@ -206,6 +206,15 @@ const JAWS_MODEL = (() => {
       plate(B, [[-0.5, 0.54], [-0.58, 1.3], [-0.98, 1.2], [-1.0, 0.58]], 0.026, M_BLUE); plate(B, [[-0.92, 0.57], [-0.9, 1.22], [-1.0, 1.2], [-1.02, 0.57]], 0.034, M_CHR);
       for (const y of [0.5, 0.8, 1.1]) B.box([-0.72, y, 0], [0.2, 0.012, 0.034], 0.004, M_STEEL);
       M.pecIn = B.done(); }
+    { const B = GLM.builder(q);   // ---- a wing cannon (Leviathan's): a hard-point pylon down from the wing's underside (origin), a cowled breech block, a thick finned barrel, a flared muzzle with a glowing ring; x forward
+      B.box([0.0, 0, -0.05], [0.14, 0.04, 0.055], 0.015, M_STEEL); B.box([0.0, 0, -0.006], [0.2, 0.07, 0.012], 0.008, M_CHR); for (const xx of [-0.12, 0.12]) B.sph([xx, 0, 0.004], 0.016, M_CHR, 5);
+      B.box([-0.1, 0, -0.19], [0.22, 0.1, 0.09], 0.035, M_STEEL); B.surf((u, v) => { const ph = lerp(0.2, Math.PI - 0.2, u); return [lerp(-0.34, 0.14, v), Math.cos(ph) * 0.125, -0.19 + Math.sin(ph) * 0.11]; }, 10, 4, () => M_BLUE, { e: (u, v) => (u < 0.06 || u > 0.94 || v < 0.08 || v > 0.92 ? 1 : 0) });   // (the breech block under a blue cowl)
+      for (const sd2 of [1, -1]) { B.box([-0.12, sd2 * 0.105, -0.22], [0.12, 0.006, 0.03], 0, M_CYAN); B.sph([0.06, sd2 * 0.1, -0.15], 0.014, M_CHR, 5); }
+      B.tube([0.1, 0, -0.19], [0.92, 0, -0.19], 0.068, 0.062, M_STEEL, { seg: n(14), cap0: 'flat', cap1: 'flat' }); for (let i = 0; i < 5; i++) B.torX([0.2 + i * 0.09, 0, -0.19], 0.075, 0.014, i % 2 ? M_CHR : M_STEEL, { seg: n(14), rseg: 4 });   // (a finned cooling sleeve on the barrel)
+      B.tube([0.62, 0, -0.19], [0.94, 0, -0.19], 0.058, 0.058, M_CHR, { seg: n(14), cap0: 'flat', cap1: 'flat' });
+      B.push([1, 0, 0], [0, 1, 0], [0, 0, 1], [0, 0, -0.19]); B.lathe([[0.92, 0.05, M_STEEL], [0.92, 0.085, M_CHR], [1.0, 0.1, M_CHR], [1.06, 0.11, M_CHR], [1.06, 0.07, M_STEEL], [1.0, 0.05, M_STEEL]], M_CHR, { seg: n(16) }); B.pop();   // (the flared muzzle)
+      B.push([1, 0, 0], [0, 1, 0], [0, 0, 1], [0, 0, -0.19]); B.torX([1.065, 0, 0], 0.088, 0.016, M_CYAN, { seg: n(16), rseg: 5 }); B.ell([1.0, 0, 0], [0.02, 0.05, 0.05], M_CYAN, { seg: n(10), rings: 4 }); B.pop();
+      M.wingGun = B.done(); }
     for (let j = 0; j < NTAIL; j++) { const B = GLM.builder(q), r0 = lerp(0.25, 0.1, j / NTAIL), r1 = lerp(0.25, 0.1, (j + 1) / NTAIL);   // ---- a tail link, along +x from its joint: an armoured blue sleeve between chrome collars, a cyan line, a dark joint
       B.sph([0, 0, 0], r0 * 0.92, M_STEEL, n(10));
       B.lathe([[0.04, r0 * 0.8, M_CHR], [0.04, r0 * 1.06, M_CHR], [0.1, r0 * 1.06, M_CHR], [0.1, r0 * 0.97, j % 2 ? M_CHR : M_BLUE], [LTAIL - 0.09, r1 * 1.0, j % 2 ? M_CHR : M_BLUE], [LTAIL - 0.09, r1 * 1.1, M_CHR], [LTAIL - 0.04, r1 * 1.1, M_CHR], [LTAIL - 0.04, r1 * 0.8, M_CHR]], M_BLUE, { seg: n(16) });
@@ -228,6 +237,7 @@ const JAWS_MODEL = (() => {
   const PARTS = { head: { c: [1.55, 0, 0], R: 0.85, col: '#2B4FC9' }, jaw: { c: [0.42, 0, -0.2], R: 0.7, col: '#C9D1DC' }, cannon: { c: [0.4, 0, 0], R: 0.78, col: '#3A4250' }, core: { c: [-0.2, 0, 0], R: 1.75, col: '#2B303B' }, flank: { c: [-0.1, 0.4, 0], R: 1.45, col: '#2B4FC9' },
     cockpit: { c: [0, 0, 0.1], R: 0.45, col: '#8FA0B8' }, rails: { c: [-0.1, 0, 0], R: 1.4, col: '#2B303B' }, dorsal: { c: [-0.1, 0, 0.65], R: 1.0, col: '#2B4FC9' }, pec: { c: [-0.2, 0.75, 0], R: 1.1, col: '#2B4FC9' }, pecIn: { c: [-0.75, 0.75, 0], R: 0.7, col: '#2B4FC9' }, tailfin: { c: [0.4, 0, 0.2], R: 1.15, col: '#2B4FC9' }, strut: { c: [0.5, 0, 0], R: 0.12, col: '#8FA0B8' }, lock: { c: [0, 0.05, 0], R: 0.16, col: '#C9D1DC' } };
   for (let j = 0; j < NTAIL; j++) PARTS['tail' + j] = { c: [LTAIL / 2, 0, 0], R: 0.36, col: '#2B4FC9' };
+  PARTS.wingGun = { c: [0.4, 0, -0.16], R: 0.75, col: '#C9D1DC' };
 
   /* ================= the rig ================= */
   function rig(P) {
@@ -259,12 +269,15 @@ const JAWS_MODEL = (() => {
     // the pectoral fins: swept and drooped for swimming, spread level as stabilisers
     for (const sd of [1, -1]) { const flap = 0.1 * (1 - sFin) * Math.sin(sw * 0.5 + (sd > 0 ? 0 : 0.5)) + (P.fin || 0) * 0.3, R0 = mm(rotX((lerp(-24, 0, sFin)) * DEG + flap), rotZ(lerp(34, 8, sFin) * DEG)), R = sd > 0 ? R0 : mm(MIR, mm(R0, MIR)), s = lerp(1, 1.18, sFin);
       const o = [PEC0[0] - 0.1 * sFin, sd * (PEC0[1] + FLANK_OUT * sFl), PEC0[2] + 0.2 * sFl]; const Rp = mm(Rb, sd > 0 ? R : mm(R, MIR)); { const a2 = mv(Rb, [PEC0[0], sd * 0.44, PEC0[2]]), d2 = vsub(mv(Rb, o), a2), L2 = vlen(d2), F2 = mm(Bm, frameXZ(d2, [0, 0, 1])); list.push({ part: 'strut', o: at(a2), R: M3(vmul(F2.x, L2), vmul(F2.y, 1.8), vmul(F2.z, 1.8)), s: 1, al: 1 }); } list.push({ part: 'pecIn', o: at(mv(Rb, vadd(o, mv(Rp, [0.36 * (1 - sFin) * s, 0, 0])))), R: mm(Bm, Rp), s, al: 1 }); list.push({ part: 'pec', o: at(mv(Rb, o)), R: mm(Bm, Rp), s, al: 1 });   // (the inner panel slides out of the trailing edge)
+      { const ug = sstep(0.55, 0.95, xf), sg = 1.5 * ug, rec = 0.12 * cl(P.wingGun || 0), go = vadd(vadd(o, mv(sd > 0 ? R : mm(R, MIR), [-0.22 * s, 0.8 * s, -0.035 * s])), [-rec, 0, 0.06 * (1 - ug)]);   // (a wing cannon: deployed under each wing in Leviathan, shrunk up into the wing's root in the shark)
+        list.push({ part: 'wingGun', o: at(mv(Rb, go)), R: mm(Bm, Rb), s: Math.max(1e-3, sg), al: cl(ug * 5) }); A[sd > 0 ? 'cannonL' : 'cannonR'] = at(mv(Rb, vadd(go, [1.07 * sg, 0, -0.19 * sg]))); A.wingGunOut = ug; }   // (in the shark: scale and alpha 0, still listed)
       A[sd > 0 ? 'finL' : 'finR'] = at(mv(Rb, vadd(o, mv(R, [-0.7 * s, sd * 1.46 * s, 0])))); A[sd > 0 ? 'gillL' : 'gillR'] = at(mv(Rb, vadd(fus(0.535, -2 * DEG, 1.09), [0, 0, 0]).map((v, i) => (i === 1 ? sd * (v + FLANK_OUT * sFl) : v)))); }
     // the tail: a swimming chain, or folded down and forward under the stern, its fin turned to control surfaces
     { let p = mv(Rb, [XT, 0, 0]), F = null, dir = [-1, 0, 0];
       for (let j = 0; j < NTAIL; j++) { const th = TAIL_FOLD[j] * DEG * sTail, ps = sk * 0.52 * Math.sin(sw - (j + 1) * 0.95) * (j + 1) / NTAIL + (P.tail || 0) * 0.5 * (j + 1) / NTAIL;
         dir = mv(Rb, [-Math.cos(th) * Math.cos(ps), Math.sin(ps), -Math.sin(th) * Math.cos(ps)]); F = frameXZ(dir, th > 1.2 ? [-1, 0, 0] : [0, 0, 1]); put('tail' + j, p, F); p = vadd(p, vmul(dir, LTAIL * 0.92 * lerp(1, TAIL_NEST, sTail))); }   // (in Leviathan the links telescope into one another: a short stern)
       put('tailfin', p, mm(F, rotX(sTail * Math.PI / 2)), lerp(1, 0.9, sTail)); A.tailTip = at(vadd(p, vmul(dir, 0.5))); A.jet = at(mv(Rb, [XT - 0.1, 0, 0])); }
+    A.eyeL = at(mv(Rb, hsec(0.8, 47 * DEG, 1.05))); A.eyeR = at(mv(Rb, hsec(0.8, 133 * DEG, 1.05)));
     A.center = at([0.1, 0, 0]); A.reactor = at([-0.05, 0, 0]); A.belly = at([0.1, 0, -0.5]); A.up = at([0, 0, 1]);
     return { list, A };
   }
@@ -283,6 +296,21 @@ const JAWS_MODEL = (() => {
   const glOn = () => { if (NOGL || typeof GLM === 'undefined' || !GLM.ok()) return false; if (GLM.soft && !(typeof window !== 'undefined' && window.__JAWS_GL)) return false;
     if (!MESH) { try { const t0 = nowMs(); MESH = buildMeshes(); MESH_MS = nowMs() - t0; } catch (e) { NOGL = true; if (typeof console !== 'undefined') console.warn('Jaws: meshes', e); return false; } } return true; };
   const GLCAP = 1600, RIMC = [0.35, 0.8, 1.3], AMBC = [0.85, 0.95, 1.15];
+  /* the baby-blue light's flicker: a slow pulse, a quicker shimmer and now and then a short electrical stutter; per part (seed), never dark */
+  const hsh = x => { const v = Math.sin(x * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
+  function flick(t, seed) { const st = Math.floor(t * 13 + seed * 3.1), d = hsh(st + seed * 17.3) > 0.85 ? 0.25 + 0.25 * hsh(st * 1.7 + seed) : 0;
+    return Math.max(0.47, 0.88 + 0.1 * Math.sin(t * 1.9 + seed) + 0.07 * Math.sin(t * 7.3 + seed * 2.3) - d); }
+  /* the soft baby-blue halos (GLM.halos, over the picture): round the eyes, the gills, the reactor and the wing cannons' muzzles, and a broad faint one round the body */
+  const HL = [], BB = '#9FDFFF';
+  function halos(c, V, R, P, al0) {
+    if (typeof GLM === 'undefined' || !GLM.halos) return; const A = R.A, k = V.k, t = nowMs() / 1000, gK = Math.max(0, Math.min(2.5, P.glowK == null ? 1 : P.glowK)), g0 = (0.35 + 0.65 * cl(P.glow == null ? 0.5 : P.glow)) * (0.6 + 0.4 * gK), low = lowFx(), xf = cl(P.xf || 0); HL.length = 0;
+    const add = (p, r, a, seed) => { if (!p) return; const q = V.toS(p); HL.push({ x: q[0], y: q[1], r: r * k * 1.15, a: Math.min(0.95, 1.5 * a * g0 * flick(t, seed) * al0), col: BB }); };
+    add(A.center, 2.9, 0.2, 0.3); add(A.center, 1.6, 0.14, 0.9);
+    if (A.eyeL) { add(A.eyeL, 0.55, 0.75, 1.1); add(A.eyeR, 0.55, 0.75, 2.3); }
+    add(A.gillL, 0.7, 0.65, 3.7); add(A.gillR, 0.7, 0.65, 4.9);
+    if (!low) { add(A.reactor, 0.8 + 0.6 * xf, 0.22 + 0.35 * xf, 6.1); const gu = A.wingGunOut || 0; if (gu > 0.02) { add(A.cannonL, 0.32, 0.5 * gu, 7.3); add(A.cannonR, 0.32, 0.5 * gu, 8.9); } }
+    if (P.waterline != null && !V.K) { const yw = V.toS([0, 0, 0])[1] - ((P.waterline - V.z) / V.sc) * ZK * k; c.save(); c.beginPath(); c.rect(-1e5, -1e5, 2e5, 1e5 + yw); c.clip(); GLM.halos(c, HL); c.restore(); } else GLM.halos(c, HL);
+  }
   function glPass(c, V, P, o, list, al0) {
     const k = V.k, K = V.K, PX = K ? K.EX : EXW, PY = K ? K.EY : [0, GY, -ZK], PD = K ? K.C : CW, X0 = V.toS([0, 0, 0]);
     let bx0 = 1e9, by0 = 1e9, bx1 = -1e9, by1 = -1e9;
@@ -293,12 +321,12 @@ const JAWS_MODEL = (() => {
     let W = Math.ceil((bx1 - bx0) * dev), H = Math.ceil((by1 - by0) * dev); const sc = Math.min(1, GLCAP / Math.max(W, H)); W = Math.max(2, Math.ceil(W * sc)); H = Math.max(2, Math.ceil(H * sc));
     const bw = bx1 - bx0, bh = by1 - by0, tl = w => { const a = vdot(w, EXW), b = vdot(w, EYW), cc = vdot(w, CW); return K ? vadd(vadd(vmul(K.EX, a), vmul(K.EY, b)), vmul(K.C, cc)) : w; };
     const S = { px: PX, py: PY, pd: PD, cl: [2 * k / bw, 2 * (X0[0] - bx0) / bw - 1, -2 * k / bh, 1 - 2 * (X0[1] - by0) / bh], v: PD, lk: tl(LW), ls: tl(SBW), lr: tl(RIMW), up: tl(UPW), low: o.low != null ? o.low : lowFx(), rim: RIMC, amb: AMBC, t: nowMs() / 1000, outline: Math.max(1, 1.4 * (W / bw) * (o.outlineK || 1)), clip: P.waterline != null ? [(P.waterline - V.z) / V.sc, 0.07] : null };   // (waterline: a world height above the floor; nothing of the model below it is drawn)
-    const glowK = cl(0.35 + 0.65 * (P.glow == null ? 0.5 : P.glow)), mouth = cl(P.charge || 0);
+    const gK = Math.max(0, Math.min(2.5, P.glowK == null ? 1 : P.glowK)), glowK = cl((0.35 + 0.65 * (P.glow == null ? 0.5 : P.glow)) * (0.75 + 0.25 * gK)), mouth = cl(P.charge || 0), tF = S.t;
     let n = 0; const items = GLJ; items.length = 0;
     for (const it of list) { const mesh = MESH[it.part]; if (!mesh) continue; const Rw = mm(V.Rh, it.R), s2 = it.s, T = mv(V.Rh, it.o), al = al0 * it.al;
       const g = GLI[n] || (GLI[n] = { R0: new Float32Array(3), R1: new Float32Array(3), R2: new Float32Array(3), T: new Float32Array(3) }); n++;
       g.mesh = mesh; for (let i = 0; i < 3; i++) { g.R0[i] = Rw.x[i] * s2; g.R1[i] = Rw.y[i] * s2; g.R2[i] = Rw.z[i] * s2; g.T[i] = T[i]; }
-      g.alpha = al; g.glow = it.part === 'cannon' || it.part === 'head' ? Math.max(glowK, mouth) : glowK; g.kind = 0; g.wear = 0.6; g.fx = 0; g.glow2 = 0; g.spill = glowK; g.d = vdot(T, PD); items.push(g); }
+      const fl = flick(tF, n * 1.37); g.alpha = al; g.glow = cl((it.part === 'cannon' || it.part === 'head' ? Math.max(glowK, mouth) : glowK) * fl); g.kind = 0; g.wear = 0.6; g.fx = 0; g.glow2 = 0.32 * gK * fl * glowK; g.spill = glowK * fl; g.d = vdot(T, PD); items.push(g); }
     items.sort((p, q) => (p.alpha > 0.995 ? 0 : 1) - (q.alpha > 0.995 ? 0 : 1) || (p.alpha > 0.995 ? 0 : p.d - q.d));
     const t0 = nowMs(), cvs = GLM.render(W, H, S, items); if (!cvs) return;
     c.drawImage(cvs, 0, 0, W, H, bx0, by0, bw, bh); GLMS = GLMS * 0.9 + (nowMs() - t0) * 0.1; GLN++;
@@ -340,7 +368,7 @@ const JAWS_MODEL = (() => {
   function draw(c, x, y, z, a, P, o) {
     o = o || {}; const V = mkView(x, y, z, a, o), R = rig(P); LAST = { V, R };
     const al0 = cl(P.alpha == null ? 1 : P.alpha); if (al0 < 0.01) return;
-    if (glOn()) { try { glPass(c, V, P, o, R.list, al0); return; } catch (e) { NOGL = true; if (typeof console !== 'undefined') console.warn('Jaws: GL draw', e); } }
+    if (glOn()) { try { glPass(c, V, P, o, R.list, al0); halos(c, V, R, P, al0); return; } catch (e) { NOGL = true; if (typeof console !== 'undefined') console.warn('Jaws: GL draw', e); } }
     if (P.waterline != null && !V.K) { const yw = o.sy(y) - P.waterline * ZK * V.T; c.save(); c.beginPath(); c.rect(-1e5, -1e5, 2e5, 1e5 + yw); c.clip(); drawFallback(c, V, R, al0, P); c.restore(); return; }   // (the 2D picture: clipped at the waterline's screen height)
     drawFallback(c, V, R, al0, P);
   }
@@ -352,7 +380,7 @@ const JAWS_MODEL = (() => {
   function anchor(name) { if (!LAST) return null; const p = LAST.R.A[name]; if (!p) return null; return LAST.V.toW(p); }
   function anchorDir(name) { if (!LAST) return null; const p = LAST.R.A[name]; if (!p) return null; const w = mv(LAST.V.Rh, p); return { x: w[0], y: w[1] * GY, z: w[2] }; }
   function anchorAt(name, x, y, z, a, P, o) { const R = rig(P), p = R.A[name]; if (!p) return null; const sc = ((o && o.scale) || 1) * VIS, w = mv(rotZ(a), p); return { x: x + w[0] * sc, y: y + w[1] * GY * sc, z: z + w[2] * sc }; }
-  function blankPose() { return { xf: 0, alpha: 1, swim: 0, swimK: 0.5, jaw: 0, cannon: 0, recoil: 0, bank: 0, pitch: 0, fin: 0, tail: 0, glow: 0.5, charge: 0, breath: 0, waterline: null }; }
+  function blankPose() { return { xf: 0, alpha: 1, swim: 0, swimK: 0.5, jaw: 0, cannon: 0, recoil: 0, bank: 0, pitch: 0, fin: 0, tail: 0, glow: 0.5, charge: 0, breath: 0, waterline: null, wingGun: 0, glowK: 1 }; }
   function create() { const P = blankPose(); return { pose: P, draw: (c, x, y, z, a, P2, o) => draw(c, x, y, z, a, P2 || P, o), drawShadow: (c, x, y, z, a, P2, o) => drawShadow(c, x, y, z, a, P2 || P, o) }; }
   const SIZE = { len: (XN - XT) * VIS, lenTail: (XN - XT + NTAIL * LTAIL + 0.6) * VIS, wid: 1.5 * VIS, widLev: (1.5 + 2 * FLANK_OUT) * VIS, span: 3.6 * VIS, r: 1.7 * VIS };
   return { create, warm: () => { glOn(); return true; }, warmIdle: () => { glOn(); }, warmPlan: () => ({ pending: 0, total: 0 }), ready: () => true, draw, drawShadow, anchor, anchorDir, anchorAt, rigOf: P => rig(P || blankPose()), blankPose, SIZE, PARTS, __dbg: { get MESH() { return MESH; }, OUTL },

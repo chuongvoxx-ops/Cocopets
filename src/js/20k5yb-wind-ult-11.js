@@ -144,8 +144,8 @@
     let left = Math.min(dt, 0.1); while (left > 1e-5) { const h = Math.min(left, 1 / 120); s.v += (-2 * z * w * s.v - w * w * (s.x - target)) * h; s.x += s.v * h; left -= h; } return s.x; }
   const kick = (S, key, dv) => { const s = S.an[key]; if (s) s.v += dv; };
   const SPR = { bloom: [7.5, 0.34], leaves: [5.5, 0.32], white: [8.5, 0.32], tentG: [4.6, 0.3], tentW: [5.6, 0.28], ring: [9, 0.32], ringTilt: [4.5, 0.25], ringGlow: [10, 0.7], fold: [9, 0.45], bank: [6, 0.28], lean: [6, 0.3], yaw: [5, 0.32],
-    accX: [4.4, 0.2], accY: [4.4, 0.2], glow: [8, 0.8], brace: [9, 0.4], z: [7, 0.32] };
-  const TG = () => ({ shiver: 0, tremble: 0, bloom: 1, leaves: 1, white: 1, tentG: 1, tentW: 1, ring: 1, ringTilt: 0, ringGlow: 0.6, fold: 0, bank: 0, lean: 0, yaw: 0, accX: 0, accY: 0, glow: 0.5, brace: 0, z: 0, spinV: 1.5, swayV: 1.6 });
+    accX: [4.4, 0.2], accY: [4.4, 0.2], glow: [8, 0.8], brace: [9, 0.4], z: [7, 0.32], bulb: [12, 0.6], bulbTip: [10, 0.55], flutter: [6, 0.9], stream: [8, 0.8] };
+  const TG = () => ({ bulbTip: 0, bulb: 0, flutter: 0.35, stream: 0, shiver: 0, tremble: 0, bloom: 1, leaves: 1, white: 1, tentG: 1, tentW: 1, ring: 1, ringTilt: 0, ringGlow: 0.6, fold: 0, bank: 0, lean: 0, yaw: 0, accX: 0, accY: 0, glow: 0.5, brace: 0, z: 0, spinV: 1.5, swayV: 1.6 });
   /* the action clips E plays with ctx.clip(name, u, extra) (u 0..1 each frame while it lasts); also ctx.pose */
   const CLIPS = {
     /* Wildflowers' cast: the pink bloom gathers a breath, then opens wider than its rest and glows */
@@ -167,7 +167,7 @@
     const V = S.V, P = V.pose, g = S.g, t = g.t, G = TG(), top = Math.max(1, S.spd * TUNE.airK), sp = Math.hypot(V.vx, V.vy), k = cl(sp / top), Sw = S.swoosh;
     /* the acceleration on the screen (x right, y down the screen = toward the camera), smoothed: the tentacles swing against it */
     const ax = dt > 0 ? (V.vx - (S.pvx == null ? V.vx : S.pvx)) / dt : 0, ay = dt > 0 ? (V.vy - (S.pvy == null ? V.vy : S.pvy)) / dt : 0; S.pvx = V.vx; S.pvy = V.vy;
-    S.axS = (S.axS || 0) + (clamp(ax / 17, -1.5, 1.5) - (S.axS || 0)) * Math.min(1, dt * 10); S.ayS = (S.ayS || 0) + (clamp(ay / 17, -1.5, 1.5) - (S.ayS || 0)) * Math.min(1, dt * 10);
+    S.axS = (S.axS || 0) + (clamp(ax / 13, -1.6, 1.6) - (S.axS || 0)) * Math.min(1, dt * 10); S.ayS = (S.ayS || 0) + (clamp(ay / 13, -1.6, 1.6) - (S.ayS || 0)) * Math.min(1, dt * 10);
     /* --- flight: everything breathes; the bloom banks into the turn and leans along its travel, the petals sweep back with speed --- */
     /* the breath: a 3 s cycle that ripples outward, the white flower first, then the pink bloom, then the leaves */
     const bw = TAU / 3, br = t * bw;
@@ -181,7 +181,7 @@
     /* into the travel: it rolls and pitches toward where it goes, on springs that overshoot and settle (a stop swings it past and back) */
     G.bank = clamp(vxn * 0.32 + S.hw * 0.035 * k - S.axS * 0.08, -0.55, 0.55) + 0.04 * Math.sin(t * 0.83 + 0.6); G.yaw = clamp(vxn * 0.34, -0.4, 0.4) + 0.045 * Math.sin(t * 0.61); G.lean = clamp(vyn * 0.22 - S.ayS * 0.06, -0.26, 0.26) + 0.025 * Math.sin(t * 1.13 + 2);
     /* the tentacles' lag: they swing against every change of speed (strongly), and drift on their own when it hangs still */
-    G.fold = 0.3 * k * k; G.accX = -S.axS * 1.15 - vxn * 0.4 + (0.24 * Math.sin(t * 0.53) + 0.1 * Math.sin(t * 1.31 + 2)) * (1 - 0.5 * k); G.accY = -S.ayS * 1.15 - vyn * 0.4 + (0.18 * Math.sin(t * 0.61 + 1) + 0.08 * Math.sin(t * 1.7)) * (1 - 0.5 * k);
+    G.flutter = 0.35 + 0.55 * k; G.fold = 0.3 * k * k; G.accX = -S.axS * 1.4 - vxn * 0.45 - clamp(S.hw * 0.07, -0.6, 0.6) + (0.24 * Math.sin(t * 0.53) + 0.1 * Math.sin(t * 1.31 + 2)) * (1 - 0.5 * k); G.accY = -S.ayS * 1.4 - vyn * 0.45 + (0.18 * Math.sin(t * 0.61 + 1) + 0.08 * Math.sin(t * 1.7)) * (1 - 0.5 * k);
     /* the ring: a steady spin, a slow wobble in its tilt, leaning into the turn */
     G.ringTilt = G.bank * 0.9 + clamp(S.hw * 0.05, -0.3, 0.3) + 0.07 * Math.sin(t * 0.9) + 0.035 * Math.sin(t * 2.1 + 1); G.spinV = 1.5 + 1.4 * k; G.swayV = 1.6 + 0.35 * Math.sin(t * 0.37) + 1.0 * k;
     G.glow = 0.5 + 0.25 * S.charge + (S.charge >= 1 && !S.used ? 0.35 + 0.15 * Math.sin(t * 5) : 0); G.ringGlow = 0.6 + 0.3 * k + (S.charge >= 1 && !S.used ? 0.9 + 0.3 * Math.sin(t * 6) : 0);
@@ -189,17 +189,27 @@
     { const hu = S.hurtT != null ? t - S.hurtT : 9, hp = S.happyT != null ? t - S.happyT : 9, fl = S.flickT != null ? t - S.flickT : 9;
       if (hu < 0.5) { const e = Math.exp(-hu * 7); G.shiver += 0.04 * e; G.tremble += 0.02 * e; G.bloom -= 0.06 * e; G.tentW -= 0.08 * e; }
       if (hp < 0.9) { const e = bump(hp, 0, 0.15, 0.9); G.bloom += 0.16 * e; G.white += 0.12 * e; G.leaves += 0.05 * e; G.tentW += 0.1 * e; G.glow += 0.8 * e; G.ringGlow += 0.8 * e; G.shiver += 0.02 * e; }
-      if (fl < 0.55) { const e = bump(fl, 0, 0.08, 0.55); G.tentG += 0.1 * e; G.tentW += 0.16 * e; G.swayV += 3.5 * e; } }
+      if (fl < 0.55) { const e = bump(fl, 0, 0.08, 0.55); G.tentG += 0.1 * e; G.tentW += 0.16 * e; G.swayV += 3.5 * e; }
+      if (S.stats.hits !== S.hits0) { S.hits0 = S.stats.hits; S.hitFlT = t; } const hf = S.hitFlT != null ? t - S.hitFlT : 9; if (hf < 0.6) G.flutter += 0.9 * Math.exp(-hf * 5); if (hu < 0.5) G.flutter += 1.1 * Math.exp(-hu * 6); }   /* (the petals flutter harder at every hit dealt or taken) */
     /* --- the summon: the layers unfold in order (stepSummon writes their targets) --- */
     if (S.phase === 'out' && S.exitShiver) G.shiver += S.exitShiver;
     if (S.phase === 'summon' || S.phase === 'out') { const Q = S.unf; G.leaves = Q.leaves; G.bloom = Q.bloom * G.bloom; G.white = Q.white; G.tentG = Q.tentG; G.tentW = Q.tentW; G.ring = Q.ring; G.glow = Q.glow; G.ringGlow = Q.ringGlow; G.fold = Q.fold || 0; G.spinV = Q.spinV == null ? G.spinV : Q.spinV; }
     /* --- Swoosh: banked hard into the circle, the petals swept back, the whole flower spinning; then it opens --- */
-    if (Sw) { const T = TUNE.swoosh;
-      if (Sw.ph === 0) { const u = cl(Sw.t / T.bank); G.bank = Sw.dir * 0.45 * u; G.fold = 0.5 * u; G.bloom = 1 - 0.1 * u; G.white = 1 - 0.08 * u; G.lean = 0.12 * u; G.tentW = 1 - 0.1 * u; }
-      else if (Sw.ph === 1) { G.bank = Sw.dir * 0.6; G.fold = 0.75; G.bloom = 0.88; G.lean = 0.18; G.ringGlow = 1.4; G.spinV = 9; G.swayV = 3.6; G.accY = -0.9; G.tentW = 1.08; }
-      else if (Sw.ph === 2) { const u = cl(Sw.t / T.orbit); G.bank = Sw.dir * 0.55; G.fold = 0.7; G.bloom = 0.9; G.ringGlow = 1.8; G.glow = 1.1; G.spinV = 14; G.swayV = 4.2; G.yaw = 0; G.lean = 0.1;
-        G.accX = -Sw.dir * 1.3 * Math.cos(u * TAU * T.turns) - 0.35 * Sw.dir; G.accY = -Sw.dir * 1.1 * Math.sin(u * TAU * T.turns); G.ringTilt = Sw.dir * 0.5; G.tentW = 1.16; G.tentG = 1.1; G.leaves = 0.94; G.white = 0.94; }   /* (the tentacle tips trail the pinwheel: the lag turns with it) */
-      else { const u = cl(Sw.t / T.rec), fl = bump(u, 0, 0.18, 1); G.bloom = 1 + 0.15 * fl; G.white = 1 + 0.12 * fl; G.leaves = 1 + 0.05 * fl; G.tentW = 1 + 0.14 * fl; G.shiver = 0.03 * bump(u, 0, 0.12, 0.7); G.fold = 0; G.accX = Sw.dir * 0.5 * (1 - u); G.bank = Sw.dir * 0.2 * (1 - u); G.glow = 1.2 * (1 - u) + 0.5; G.ringGlow = 1.4 * (1 - u) + 0.6; G.spinV = lerp(12, 1.5, u); }
+    /* --- Swoosh (v319, the user: "the flowers should fold inward and close as it swoops down and attacks enemies like a flower bulb"):
+       the bloom closes into a tight bud as it rises; the bud darts down onto the group with the tendrils streaming behind
+       and spins round it closed (a jolt at each bite); at the pass's end it bursts open (overshoot, a shiver of the petals)
+       and settles. The timing, the route, the damage and the hit frames are the move's, unchanged */
+    if (Sw) { const T = TUNE.swoosh, vx = V.vx / top, vy = V.vy / top, vm = Math.max(0.2, Math.hypot(vx, vy));
+      if (Sw.ph === 0) { const u = cl(Sw.t / T.bank), c = sstep(0, 1, u); G.bulb = c; G.fold = 0; G.tentG = 1 - 0.1 * c; G.tentW = 1 - 0.18 * c;
+        G.z += 0.55 * c; G.bank = Sw.dir * 0.3 * c; G.lean = -0.14 * c; G.accY = 0.6 * c; G.flutter = 0.2; }   /* (it gathers itself up: a closed bud, lifted, drawn back) */
+      else if (Sw.ph === 1) { const u = cl(Sw.t / T.approach); G.bulb = 1; G.fold = 0; G.lean = 0.3; G.bank = Sw.dir * 0.25; G.z += 0.55 * (1 - sstep(0, 0.7, u));
+        { const a = Math.atan2(vx, -vy * GY), sd = Math.abs(vx) > 0.05 ? Math.sign(vx) : (Sw.dir || 1); G.bulbTip = clamp(Math.abs(a) > 1.1 ? sd * 1.1 : a, -1.1, 1.1); G.lean = 0.35; }   /* (M's bulbTip: the bud leans along its dive on the screen, its tip at the target) */
+        G.accX = -vx / vm * 1.5; G.accY = -vy / vm * 1.5; G.tentW = 1.18; G.tentG = 1.12; G.ringGlow = 1.4; G.spinV = 9; G.swayV = 4.4; G.flutter = 0.15; G.stream = 1; }   /* (the dart: the bud pitched down onto them, every tendril streaming straight behind) */
+      else if (Sw.ph === 2) { const u = cl(Sw.t / T.orbit), a = u * TAU * T.turns, o = outBack(cl(u / 0.4), 2.6), st = sstep(0.4, 1, u);   /* (impact: the bud bursts open as it reaches the group (E's burst fires on the same frame), past full and back, the petals shivering; then it spins round them open, settling) */
+        G.bulb = 1 - sstep(0, 0.16, u); G.fold = 0; G.bloom = lerp(1, 1.28, o) * (1 - st) + (1 + 0.05 * Math.sin(u * 20)) * st; G.white = lerp(1, 1.12, o) * (1 - st) + st; G.leaves = lerp(1, 1.06, o) * (1 - st) + st;
+        G.shiver = 0.045 * bump(u, 0.04, 0.14, 0.6); G.flutter = 0.6 + 1.0 * bump(u, 0, 0.12, 1); G.bank = Sw.dir * 0.4; G.lean = 0.12; G.ringGlow = 1.8; G.glow = 1.6 * (1 - 0.5 * u) + 0.4; G.spinV = 14; G.swayV = 4.8; G.yaw = 0;
+        G.accX = -Sw.dir * 1.45 * Math.cos(a) - 0.35 * Sw.dir; G.accY = -Sw.dir * 1.25 * Math.sin(a); G.ringTilt = Sw.dir * 0.5; G.tentW = 1 + 0.18 * bump(u, 0, 0.12, 0.8); G.tentG = 1 + 0.12 * bump(u, 0, 0.12, 0.8); G.stream = 1 - sstep(0, 0.3, u); }
+      else { const u = cl(Sw.t / T.rec); G.bulb = 0; G.fold = 0; G.bloom = 1 + 0.04 * Math.sin(u * 14) * (1 - u); G.flutter = 0.6 * (1 - u) + 0.35; G.bank = Sw.dir * 0.2 * (1 - u); G.glow = 0.9 * (1 - u) + 0.5; G.ringGlow = 1.4 * (1 - u) + 0.6; G.spinV = lerp(12, 1.5, u); }   /* (it settles back into flight) */
       G.yaw = clamp(G.yaw, -0.2, 0.2); }
     /* --- E's clip, last: it owns the channels it sets --- */
     const E = eClip(S); if (E) { CLIPS._s = S; try { CLIPS[E.clip](G, E.u, S, E.extra); } catch (e) { /* (a clip never breaks the frame) */ } }
@@ -214,9 +224,17 @@
     /* per-tentacle life for the model (M, Notes): each tentacle its own wave phase and speed, amplitude, coil (green) or reach (white); a model without them ignores them */
     { const TP = S.tp || (S.tp = { g: [0.9, 1.15, 1.37, 1.04, 1.26, 0.83].map((w, i) => ({ w, ph: i * 1.9 })), w: [1.21, 0.97, 1.43, 1.12, 1.33, 1.05, 0.91, 1.5].map((w, i) => ({ w, ph: i * 2.3 })) });
       const tgPh = P.tgPh || (P.tgPh = new Array(6).fill(0)), tgAmp = P.tgAmp || (P.tgAmp = new Array(6).fill(1)), tgCoil = P.tgCoil || (P.tgCoil = new Array(6).fill(0)), twPh = P.twPh || (P.twPh = new Array(8).fill(0)), twAmp = P.twAmp || (P.twAmp = new Array(8).fill(1)), twReach = P.twReach || (P.twReach = new Array(8).fill(0));
-      const vk = G.swayV / 1.6, ex = clamp(Math.hypot(P.accX, P.accY), 0, 1.5);
-      for (let i = 0; i < 6; i++) { const q = TP.g[i]; q.ph += q.w * 1.6 * vk * dt; tgPh[i] = q.ph; tgAmp[i] = 1 + 0.35 * Math.sin(t * 0.43 + i * 1.7) + 0.5 * ex; tgCoil[i] = 0.5 + 0.5 * Math.sin(t * (0.5 + 0.07 * i) + i * 2.2); }
-      for (let i = 0; i < 8; i++) { const q = TP.w[i]; q.ph += q.w * 1.6 * vk * dt; twPh[i] = q.ph; twAmp[i] = 1 + 0.3 * Math.sin(t * 0.51 + i * 1.3) + 0.4 * ex; twReach[i] = 0.6 * Math.sin(t * (0.9 + 0.11 * i) + i * 1.9) + (P.tentW - 1) * 3; }
+      const vk = G.swayV / 1.6, ex = clamp(Math.hypot(P.accX, P.accY), 0, 1.6), sm = P.stream || 0;
+      /* now and then one tentacle makes a slow reaching gesture of its own (about every 2.5 s, 1.6 s long) */
+      if (!S.reach1 || t > S.reach1.t1 + 0.8 + Math.random() * 1.6) { const g2 = Math.random() < 0.5; S.reach1 = { g: g2, i: Math.floor(Math.random() * (g2 ? 6 : 8)), t0: t, t1: t + 1.6 }; }
+      const R1 = S.reach1, ru = bump(t, R1.t0, R1.t0 + 0.7, R1.t1);
+      /* each tentacle: its own speed, wandering (two sines), a bigger and less regular wave, whipped by every change of speed and turn; streaming straight behind in a dart */
+      for (let i = 0; i < 6; i++) { const q = TP.g[i], r = R1.g && R1.i === i ? ru : 0; q.ph += q.w * 1.9 * vk * (1 + 0.3 * Math.sin(t * 0.31 + i * 1.3) + 0.15 * Math.sin(t * 0.83 + i)) * dt; tgPh[i] = q.ph;
+        tgAmp[i] = (1.45 + 0.45 * Math.sin(t * 0.43 + i * 1.7) + 0.28 * Math.sin(t * 1.13 + i * 0.6) + 0.85 * ex + 0.6 * r) * (1 - 0.55 * sm); tgCoil[i] = (0.5 + 0.35 * Math.sin(t * (0.5 + 0.07 * i) + i * 2.2) + 0.15 * Math.sin(t * 1.4 + i)) * (1 - r) * (1 - sm); }
+      for (let i = 0; i < 8; i++) { const q = TP.w[i], r = !R1.g && R1.i === i ? ru : 0; q.ph += q.w * 1.9 * vk * (1 + 0.3 * Math.sin(t * 0.37 + i * 1.1) + 0.15 * Math.sin(t * 0.97 + i * 2)) * dt; twPh[i] = q.ph;
+        twAmp[i] = (1.3 + 0.35 * Math.sin(t * 0.51 + i * 1.3) + 0.2 * Math.sin(t * 1.21 + i * 0.4) + 0.6 * ex) * (1 - 0.5 * sm); twReach[i] = 0.55 * Math.sin(t * (0.9 + 0.11 * i) + i * 1.9) + 0.2 * Math.sin(t * 2.1 + i) + (P.tentW - 1) * 3 + 1.2 * r + 0.8 * sm; }
+      /* the petals (v319, the user: "flutter and fold inward and outward ... almost like breathing"): flutter always on, more with speed and at hits; the rows' breath at its full range, closed in a bud */
+      P.flutter = clamp(P.flutter, 0, 2); P.bulb = cl(P.bulb || 0); P.bulbTip = clamp(P.bulbTip || 0, -1.2, 1.2);   /* (M's model reads flutter on P.t and fades its breath in the bud by itself) */
       P.flick = S.flickT != null ? Math.exp(-Math.max(0, t - S.flickT) * 5) : 0; P.breath = br; }
     P.bloom = clamp(P.bloom, 0, 1.4); P.fold = cl(P.fold); P.brace = cl(P.brace); P.ring = cl(P.ring); P.leaves = clamp(P.leaves, 0, 1.08); P.white = clamp(P.white, 0, 1.1); P.tentG = clamp(P.tentG, 0, 1.15); P.tentW = clamp(P.tentW, 0, 1.2);
     P.yaw = clamp(P.yaw, -0.4, 0.4); P.glow = clamp(P.glow, 0, 2); P.ringGlow = clamp(P.ringGlow, 0, 2); P.accX = clamp(P.accX, -1.3, 1.3); P.accY = clamp(P.accY, -1.3, 1.3);
@@ -412,14 +430,14 @@
     if (W.ph === 0) { const u = cl(W.t / T.bank); d.vx *= 0.86; d.vy *= 0.86; d.x += d.vx * dt; d.y += d.vy * dt; setHeading(S, W.from + wrap(Math.atan2(Pn.ey - d.y, Pn.ex - d.x) - W.from) * inOut(u), dt);
       if (W.t >= T.bank) { W.ph = 1; W.t -= T.bank; W.x0 = d.x; W.y0 = d.y; W.z0 = d.z; I.ph = 'approach'; } }
     if (W.ph === 1) { const u = cl(W.t / T.approach), e = u * u * (3 - 2 * u); d.x = lerp(W.x0, Pn.ex, e); d.y = lerp(W.y0, Pn.ey, e); d.z = lerp(W.z0, Pn.z, e); if (u < 1) setHeading(S, Math.atan2(Pn.ey - W.y0, Pn.ex - W.x0), dt);
-      if (W.t >= T.approach) { W.ph = 2; W.t -= T.approach; I.ph = 'orbit'; } }
+      if (W.t >= T.approach) { W.ph = 2; W.t -= T.approach; I.ph = 'orbit'; I.burst = true; S.flickT = S.g.t; kick(S, 'z', -1.2); } }
     if (W.ph === 2) { const u = cl(W.t / T.orbit), a = Pn.e0 + W.dir * TAU * T.turns * u; d.x = W.cx + Math.cos(a) * Pn.R; d.y = W.cy + Math.sin(a) * Pn.R * GY; d.z = Pn.z + 0.25 * Math.sin(u * Math.PI * 2);
       setHeading(S, Math.atan2(Math.cos(a) * W.dir * GY, -Math.sin(a) * W.dir), dt); S.spinA = W.spin0 + W.dir * TAU * T.spins * inOut(u); I.a = a;
       if (W.t >= T.orbit) { W.ph = 3; W.t -= T.orbit; S.spinA = 0; W.vx = Pn.tx * 7; W.vy = Pn.ty * 7; I.ph = 'open'; kick(S, 'tentW', 1.0); kick(S, 'tentG', 0.6); kick(S, 'accX', -W.dir * 4); const sfx = S.X.sfx || {}; if (sfx.note) sfx.note(1319, 0.3, 'sine', 0.04, 1976); } }
     if (W.ph === 3) { const u = cl(W.t / T.rec); d.vx = W.vx * (1 - u); d.vy = W.vy * (1 - u); d.x += d.vx * dt; d.y += d.vy * dt; d.z = lerp(Pn.z, Pn.high ? TUNE.wallZ : TUNE.cruise, sstep(0, 1, u)); }
     else if (dt > 0) { d.vx = (d.x - x0) / dt; d.vy = (d.y - y0) / dt; }
     /* the swept volume: every enemy the folded flower passes on the approach's end and round the circle, once */
-    if ((W.ph === 1 && W.t > T.approach * 0.6) || W.ph === 2) { for (const m of S.H.living()) { if (W.hits.has(m)) continue; if (Math.hypot(m.x - d.x, m.y - d.y) > T.hitR + (m.r || 0.4)) continue; W.hits.add(m); if (hitCharge(S, m, S.DK * T.dmg, { kb: T.kb }) > 0) { W.nHit++; S.stats.swooshHits++; petals(S, m.x, m.y, 0.5, 4, 3); } }
+    if ((W.ph === 1 && W.t > T.approach * 0.6) || W.ph === 2) { for (const m of S.H.living()) { if (W.hits.has(m)) continue; if (Math.hypot(m.x - d.x, m.y - d.y) > T.hitR + (m.r || 0.4)) continue; W.hits.add(m); if (hitCharge(S, m, S.DK * T.dmg, { kb: T.kb }) > 0) { W.nHit++; S.stats.swooshHits++; if (S.g.t - (S.biteT || -9) > 0.08) { S.biteT = S.g.t; kick(S, 'z', -1.4); kick(S, 'lean', 1.6); kick(S, 'bloom', 0.8); } petals(S, m.x, m.y, 0.5, 4, 3); } }
       /* the same swept volume breaks the scenery under the pass (every few frames; VEH_SMASH: doors and bridges kept, chests opened, shrines triggered) */
       W.smT = (W.smT || 0) - dt; if (W.smT <= 0) { W.smT = 0.05; S.stats.swooshSmash += smashArea(S, d.x, d.y, T.hitR) || 0; }
       if (Math.random() < dt * (lowFx() ? 14 : 40)) addPart(S, Math.random() < 0.5 ? 3 : 1, d.x + (Math.random() - 0.5) * 2, d.y + (Math.random() - 0.5) * 1.2, d.z + Math.random() * 2, -d.vx * 0.12, -d.vy * 0.12, 0.3, 0.5 + Math.random() * 0.4, 0.12, { col: Math.random() < 0.5 ? PINK : MINT2, drag: 1.5 }); }
@@ -601,9 +619,14 @@
     if (S.phase === 'gone') { if (S.fade && S.relT < S.fade && d.vis > 0.05) { const a0 = d.pose.alpha; d.pose.alpha = a0 * (1 - S.relT / S.fade); try { M0.draw(c, d.x, d.y, d.z, 0, d.pose, mOpts(S, T)); } catch (e) { /* (model) */ } d.pose.alpha = a0; } return; }
     const out = S.phase === 'out' && S.hopped, ph = S.phase === 'summon' ? lerp(1.5, TUNE.petH, sstep(0.3, 1.2, S.t)) : TUNE.petH;
     /* the pet at the flower's heart: upright, never yawed or rolled, always in view */
-    let petDone = false; const o = mOpts(S, T, { pet: (cc, PX, PY) => { petDone = true; S.seatS = [PX, PY]; if (!out) H.X.drawPetAt(cc, PX, PY, { maxH: ph }); } });
+    /* (v319, the user: "when the flower buds close the pet shouldn't be visible, it is covered inside the bud") the pet fades out as the bud closes
+       (bulb 0.55 to 0.85), stays hidden through the dart and the spin, and pops back in as the bud bursts open. Purely the picture: its place, its hitbox and the damage it takes are untouched */
+    const bu = cl(d.pose.bulb || 0), pa = 1 - sstep(0.55, 0.85, bu); if (pa < 0.05) S.petHid = true; else if (S.petHid && bu < 0.5) { S.petHid = false; S.petPopT = S.g.t; }
+    const pp = S.petPopT != null ? S.g.t - S.petPopT : 9, pk = 1 + 0.28 * Math.sin(Math.PI * cl(pp / 0.3)) * (pp < 0.3 ? 1 : 0), petO = pa < 0.999 || pk > 1.001 ? { maxH: ph * pk, alpha: pa } : { maxH: ph };
+    const petDraw = (cc, X2, Y2) => { if (pa > 0.02) H.X.drawPetAt(cc, X2, Y2, petO); };
+    let petDone = false; const o = mOpts(S, T, { pet: (cc, PX, PY) => { petDone = true; S.seatS = [PX, PY]; if (!out) petDraw(cc, PX, PY); } });
     let drawn = false; if (d.vis > 0.05) { try { M0.draw(c, d.x + (S.swayX || 0), d.y, d.z + (S.zOff || 0), 0, d.pose, o); drawn = true; } catch (e) { drawn = false; } }
-    if (!petDone) { const p = S.ctx.anchor('seat'); S.seatS = [H.sx(p.x), H.sy(p.y) - p.z * ZK * T]; if (!out) H.X.drawPetAt(c, S.seatS[0], S.seatS[1], { maxH: ph }); }   /* (the lead's model leaves the pet to the core: drawn at the seat anchor, over the flower) */
+    if (!petDone) { const p = S.ctx.anchor('seat'); S.seatS = [H.sx(p.x), H.sy(p.y) - p.z * ZK * T]; if (!out) petDraw(c, S.seatS[0], S.seatS[1]); }   /* (the lead's model leaves the pet to the core: drawn at the seat anchor, over the flower) */
     if (out) { const u = cl(S.petHop / TUNE.hop), s3 = S.seatS, gx = H.sx(S.ret.x), gy = H.sy(S.ret.y); H.X.drawPetAt(c, lerp(s3[0], gx, u), lerp(s3[1], gy, u * u), u < 1 ? { maxH: lerp(TUNE.petH, 1.5, u * u) } : {}); }
     callM(S, c, 'drawEnt');
   }

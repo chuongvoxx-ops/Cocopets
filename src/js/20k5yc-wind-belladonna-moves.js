@@ -53,6 +53,8 @@
   /* the model's anchors (world x, y and height z in tiles); a core without them gets places round the vehicle */
   function anchor(ctx, name) { try { const p = ctx.anchor && ctx.anchor(name); if (p && isFinite(p.x) && isFinite(p.y)) return { x: p.x, y: p.y, z: p.z || 0 }; } catch (e) {} const v = ctx.vehicle || {};
     const D = { ring: [0, 4.6], center: [0, 1.4], seat: [0, 1.2], top: [0, 3.4] }[name] || [0, 1.4]; return { x: v.x || 0, y: v.y || 0, z: (v.z || 0) + D[1] }; }
+  /* how closed the flower is (0 open .. 1 a bud): while it is a bud the pet is hidden inside and nothing protects or marks its seat */
+  const bulbOf = ctx => { try { const P0 = ctx.poseObj || (ctx.model && ctx.model.pose); return P0 && isFinite(P0.bulb) ? cl(P0.bulb) : 0; } catch (e) { return 0; } };
   const zk = (ctx, T) => { try { if (ctx.scr && T > 0) { const a = ctx.scr(0, 0, 0), b = ctx.scr(0, 0, 1), k = (a[1] - b[1]) / T; if (k > 0.2 && k < 2) return k; } } catch (e) {} return 0.8; };
   const gone = m => !m || m.dead || m.under || m.falling;
   const monsOf = ctx => { try { if (ctx.mons) { const L = ctx.mons(); if (L) return L; } } catch (e) {} return ctx.H.living(); };
@@ -313,11 +315,11 @@ void main(){ if (u_pass > 0.5) { if (v_c.a < 0.5) discard; gl_FragColor = vec4(0
         const v = GS.ctx.vehicle || {}, ox = v.x || 0, oy = v.y || 0, SX0 = H.sx(ox), SY0 = H.sy(oy), Tx = (H.sx(ox + 1) - SX0) || T, Ty = (H.sy(oy + 1) - SY0) || T, A = B.a * kx, Bb = B.b * kx, Cc = B.c * kx, D = B.d * kx, E = B.e * kx, Ff = B.f * kx, zr = Z / Tx, nn = Math.hypot(zr, GY), cy = zr / nn, cz = GY / nn;
         PG.begin({ L: layer, ox, oy, ky: Ty / (Tx * GY), Tx, zk: zr, GY, t, c2: c, T, Z }); Q = PG; paint();
         const PX = [A * Tx * 2 / W, Cc * Tx * GY * 2 / W, -Cc * Z * 2 / W, (A * SX0 + Cc * SY0 + E) * 2 / W - 1], PY = [-Bb * Tx * 2 / Hh, -D * Tx * GY * 2 / Hh, D * Z * 2 / Hh, 1 - (Bb * SX0 + D * SY0 + Ff) * 2 / Hh];
-        const st = anchor(GS.ctx, 'seat'), lx = PG.lx(st.x), ly = PG.ly(st.y), lz = st.z + 0.35, hole = 0.42 * Tx * Math.abs(A), bright = !layer || !v.x && !v.y || GS.items.some(it => it.bright);   /* (the pet's face: a soft hole about 0.8 tiles wide; not on the ground layer, which lies under the pet anyway) */
+        const st = anchor(GS.ctx, 'seat'), lx = PG.lx(st.x), ly = PG.ly(st.y), lz = st.z + 0.35, hole = 0.42 * Tx * Math.abs(A), bright = !layer || !v.x && !v.y || GS.items.some(it => it.bright) || bulbOf(GS.ctx) > 0.5;   /* (the pet's face: a soft hole about 0.8 tiles wide; not on the ground layer, which lies under the pet anyway) */
         const cvG = GFXM.render({ W, H: Hh, t, ground: !layer, px: PX, py: PY, pet: [PX[0] * lx + PX[1] * ly + PX[2] * lz + PX[3], PY[0] * lx + PY[1] * ly + PY[2] * lz + PY[3], bright ? 0 : 1], pa: [W / 2 / hole, Hh / 2 / hole], pd: [0, -cy / 60, -cz / 60, 0], ps: [A * 2 / W, -D * 2 / Hh], v: [0, cy, cz], l: [-0.34, 0.47, 0.81],
           quads: PG.quads, nq: PG.nq, rib: PG.rib, nr: PG.nr, fun: PG.fun, nf: PG.nf, flo: PG.flo, nb: PG.nb, pet: PG.pet, np: PG.np });
         if (cvG) { c.save(); c.setTransform(1, 0, 0, 1, 0, 0); GFXM.blit(c, W, Hh, 0, 0, cv0.width, cv0.height, !layer); c.restore(); } }
-      else { D2.c = c; D2.GY = GY; D2.t = t; P2.H = H; P2.T = T; P2.Z = Z; P2.GY = GY; P2.t = t; P2.L = layer; P2.c2 = c; { const st = anchor(GS.ctx, 'seat'); P2.px = H.sx(st.x); P2.py = H.sy(st.y) - (st.z + 0.35) * Z; P2.pr = GS.items.some(it => it.bright) ? 0 : 0.75 * T; } Q = P2; c.save(); paint(); c.restore(); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over'; } };
+      else { D2.c = c; D2.GY = GY; D2.t = t; P2.H = H; P2.T = T; P2.Z = Z; P2.GY = GY; P2.t = t; P2.L = layer; P2.c2 = c; { const st = anchor(GS.ctx, 'seat'); P2.px = H.sx(st.x); P2.py = H.sy(st.y) - (st.z + 0.35) * Z; P2.pr = GS.items.some(it => it.bright) || bulbOf(GS.ctx) > 0.5 ? 0 : 0.75 * T; } Q = P2; c.save(); paint(); c.restore(); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over'; } };
     GS.fx = H.add({ key: 'belladonna-moves', life: 1e9, t: 0,
       update(dt, ff) { const PA = GS.parts; ff.t = (ff.t || 0) + dt; for (let i = PA.length - 1; i >= 0; i--) { const p = PA[i]; p.t += dt; if (p.t >= p.life) { PA[i] = PA[PA.length - 1]; PA.pop(); continue; }
           const dr = Math.max(0, 1 - p.drag * dt); p.vx *= dr; p.vy *= dr; p.vz = p.vz * dr - p.g * dt; p.x += (p.vx + Math.sin(p.t * 3 + p.ph) * p.fl) * dt; p.y += p.vy * dt; p.z += p.vz * dt; p.rot += p.vr * dt; if (p.z < 0.05) { p.z = 0.05; p.vz = 0; p.vx *= 0.9; p.vy *= 0.9; p.vr *= 0.9; } }
@@ -471,16 +473,36 @@ void main(){ if (u_pass > 0.5) { if (v_c.a < 0.5) discard; gl_FragColor = vec4(0
         if (ph === 4 && un < 0.45) { const f = 1 - un / 0.45, rm = RM() ? 0.5 : 1; Q.glow(x0, y0, 1.5, OR * 2.2, P.white, 0.8 * f * rm); for (const [d, kk] of [[0, 1.5], [0.08, 1.9]]) { const q = cl((un - d) / 0.6); if (q > 0 && q < 1) Q.ring(x0, y0, 0.06, (OR + R) * (0.4 + kk * eout(q)), 1 - q, P.pale, 0.9); } } } }); }
 
   /* ================= Swoosh, the summon and the exit: pictures and sound for the core ================= */
-  /* D (the core's live ctx.swoosh): { x, y, z } the flower, { cx, cy, R, dir } the circle it sweeps, ph, u, dur */
-  function swoosh(ctx, D) { if (!ctx.H) return null; const H = ctx.H, X = H.X, L = LOW(), NTR = 24, tr = new Float32Array(3 * NTR), pts = new Float32Array(3 * NTR), GY = H.GY || 0.55; let n = 0, t = 0, out = 0, spin = 0; D = D || {};
-    sfx(X, 'whoosh'); sfx(X, 'hiss', 0.9, 0.2, 1500); sfx(X, 'note', 700, 0.6, 'sine', 0.05, 1400);
-    return add(ctx, { life: 12, update(dt, it) { t += dt; spin += 9 * dt; const v = ctx.vehicle || {}, c0 = anchor(ctx, 'center'), hx = isFinite(D.x) ? D.x : v.x, hy = isFinite(D.y) ? D.y : v.y, hz = c0.z; let cur = D; try { if ('swoosh' in ctx) cur = ctx.swoosh; } catch (e) {}
-        if (D.done || cur !== D || t > (D.dur || 1.5) + 0.6) { out += dt / 0.45; if (out >= 1) it.life = 0; } else { if (n < NTR) n++; tr.copyWithin(3, 0, (NTR - 1) * 3); tr[0] = hx; tr[1] = hy; tr[2] = hz; if (!L || Math.random() < 0.5) { emit(ctx, 2, hx, hy, hz, 1, { v: 1.5, up: 0.4, r: 0.8, rz: 0.6, life: 1.1 }); if (Math.random() < 0.25) emit(ctx, 1, hx, hy, hz, 1, { v: 1.5, up: 0.4, r: 0.8, life: 1.2 }); } } },
-      paint(Q) { const a = (1 - out) * sm(t / 0.15); if (a <= 0.01) return;
-        // mint-white ribbons off both sides of its path, a blush one inside
-        if (n > 3) for (const [sd, off, col] of [[-1, 1.7, P.mint], [1, 1.7, P.pale], [1, 0.7, P.blush]]) { for (let i = 0; i < n; i++) { const i0 = Math.max(0, i - 1), i1 = Math.min(n - 1, i + 1), dx = tr[i0 * 3] - tr[i1 * 3], dy = (tr[i0 * 3 + 1] - tr[i1 * 3 + 1]) / GY, d = Math.hypot(dx, dy) || 1; pts[i * 3] = tr[i * 3] - dy / d * off * sd; pts[i * 3 + 1] = tr[i * 3 + 1] + dx / d * off * sd * GY; pts[i * 3 + 2] = tr[i * 3 + 2]; } Q.ribbon(pts, n, 0.8, sd, col, 0.85 * a); }
+  /* Swoosh as a swoop: the flower closes into a bulb and dives with the pet hidden inside; a spiral of petals and mint wind
+     streams off the bud's tip along its path; as the bud bursts open (bulb falling back through 0.5, else the end of the
+     approach, D.burst, or the end) a flash from the bud's centre, a burst of petals and a pink-green shock ring; then the
+     circle of air round the enemies it sweeps. Everything is laid on the bud (the model's centre), never on the pet's seat.
+     D (the core's live ctx.swoosh): { x, y, z, cx, cy, R, hitR, dir, ph, u, dur, burst } */
+  function swoosh(ctx, D) { if (!ctx.H) return null; const H = ctx.H, X = H.X, L = LOW(), NTR = 28, tr = new Float32Array(3 * NTR), pts = new Float32Array(3 * NTR), GY = H.GY || 0.55; let n = 0, t = 0, out = 0, spin = 0, bt = -1, bx = 0, by = 0, bz = 0, closed = false, dx = 1, dy = 0; D = D || {};
+    sfx(X, 'whoosh'); sfx(X, 'hiss', 0.9, 0.2, 1500); sfx(X, 'note', 900, 0.5, 'sine', 0.05, 300);
+    const burst = (x, y, z) => { bt = 0; bx = x; by = y; bz = z; sfx(X, 'sparkle'); sfx(X, 'whoosh'); sfx(X, 'chime', 1318, 1); sfx(X, 'note', 260, 0.35, 'triangle', 0.08, 520);
+      emit(ctx, 2, x, y, z, L ? 12 : 30, { v: 7, up: 2.5, life: 1.4 }); emit(ctx, 1, x, y, z, L ? 4 : 10, { v: 5.5, up: 2.5, life: 1.4 }); emit(ctx, 0, x, y, z, L ? 6 : 14, { v: 6, up: 2, life: 0.6, col: P.mint }); };
+    return add(ctx, { life: 12, update(dt, it) { t += dt; spin += 11 * dt; if (bt >= 0) bt += dt; const c0 = anchor(ctx, 'center'), hx = c0.x, hy = c0.y, hz = c0.z, bu = bulbOf(ctx); let cur = D; try { if ('swoosh' in ctx) cur = ctx.swoosh; } catch (e) {}
+        if (bu > 0.5) closed = true; const over = D.done || cur !== D || t > (D.dur || 1.5) + 0.6;
+        if (bt < 0 && ((closed && bu < 0.5) || D.burst || (!closed && D.ph && D.ph !== 'bank' && D.ph !== 'approach') || over)) burst(hx, hy, hz);   /* (it bursts open from the bud's centre, in step with the pet popping back) */
+        if (n > 4) { const j = Math.min(n - 1, 6), ddx = hx - tr[j * 3], ddy = (hy - tr[j * 3 + 1]) / GY, d = Math.hypot(ddx, ddy); if (d > 0.05) { dx = ddx / d; dy = ddy / d; } }
+        if (over) { out += dt / 0.5; if (out >= 1 && bt > 0.9) it.life = 0; }
+        else { if (n < NTR) n++; tr.copyWithin(3, 0, (NTR - 1) * 3); tr[0] = hx; tr[1] = hy; tr[2] = hz;   /* (the bud's path) */
+          if (bt < 0) for (let j = L ? 1 : 2; j > 0; j--) { const a = spin * 1.3 + j * PI; emit(ctx, 2, hx - dx * 0.6 + Math.cos(a) * 0.45, hy - dy * 0.6 * GY + Math.sin(a) * 0.3, hz + Math.sin(a) * 0.45, 1, { v: 1, up: 0.3, life: 1.3, dir: Math.atan2(-dy, -dx), spread: 0.6 }); } } },
+      paint(Q) { const a = (1 - out) * sm(t / 0.12), tt = Q.t;
+        if (a > 0.01 && n > 3 && bt < 0.3) { // the trail: a spiral of wind ribbons (mint, blush) streaming back from the bud along its path, widening, petals riding it
+          const ta = a * (bt < 0 ? 1 : 1 - bt / 0.3), M = 16; let len = 0; for (let i = 1; i < n; i++) len += Math.hypot(tr[i * 3] - tr[i * 3 - 3], (tr[i * 3 + 1] - tr[i * 3 - 2]) / GY);
+          const back = q => { const L2 = q * 3.2; if (len >= L2 && len > 0.5) { let acc = 0; for (let i = 1; i < n; i++) { const sgl = Math.hypot(tr[i * 3] - tr[i * 3 - 3], (tr[i * 3 + 1] - tr[i * 3 - 2]) / GY); if (acc + sgl >= L2) { const f = (L2 - acc) / (sgl || 1); return [lerp(tr[i * 3 - 3], tr[i * 3], f), lerp(tr[i * 3 - 2], tr[i * 3 + 1], f), lerp(tr[i * 3 - 1], tr[i * 3 + 2], f)]; } acc += sgl; } }
+            return [tr[0] - dx * L2, tr[1] - dy * L2 * GY, tr[2] + 0.15 * L2]; };   /* (a point q of the way down the trail; past the recorded path, straight back along the dive) */
+          for (const [ph0, col, w] of [[0, P.mint, 0.6], [PI, P.blush, 0.5], [PI / 2, P.mint, 0.4]]) { for (let i = 0; i < M; i++) { const q = i / (M - 1), p = back(q), an = ph0 + spin - q * 7, rr = 0.55 + 0.9 * q; pts[i * 3] = p[0] + Math.cos(an) * rr * 0.8; pts[i * 3 + 1] = p[1] + Math.sin(an) * rr * GY * 0.5; pts[i * 3 + 2] = Math.max(0.1, p[2] + Math.sin(an) * rr); } Q.ribbon(pts, M, w, 1, col, 0.9 * ta * 1); }
+          for (let i = 1; i < 9; i++) { const q = i / 9, p = back(q), an = spin * 0.8 - q * 7 + i, rr = 0.6 + 0.9 * q; Q.petal(p[0] + Math.cos(an) * rr * 0.8, p[1] + Math.sin(an) * rr * GY * 0.5, Math.max(0.1, p[2] + Math.sin(an) * rr), 0.34, an * 2, i % 3 === 1 ? P.blush : P.pink, ta * (1 - 0.7 * q), 1.2 * Math.sin(tt * 3 + i), an); } }
+        if (bt >= 0 && bt < 0.9) { const u = bt / 0.9, k = 1 - u; // the bud bursting open: a flash from its centre, a pink shock ring and a green one behind it, petals thrown out
+          if (u < 0.2) Q.glow(bx, by, bz, 2.4, P.white, 0.8 * (1 - u / 0.2)); Q.glow(bx, by, bz, 3, P.pink, 0.45 * k);
+          Q.halo(bx, by, bz, 0.6 + 3.6 * eout(u), k, P.pink, 0.5); Q.halo(bx, by, bz, 0.4 + 2.8 * eout(cl(u * 1.15 - 0.05)), 0.85 * k, '#7CE38B', 0.4);
+          Q.ring(bx, by, 0.05, 0.6 + 4 * eout(u), 0.8 * k, P.pink, 0.5); Q.ring(bx, by, 0.06, 0.4 + 3.2 * eout(u), 0.7 * k, '#7CE38B', 0.35);
+          for (let i = 0; i < 6; i++) Q.arc(bx, by, bz - 0.6 + 0.25 * i, 1 + 2.4 * eout(u), i * 1.05 + u * 4, 1.4, 0.4, i % 2 ? '#7CE38B' : P.pink, 0.8 * k, 0.2); }
         // the circular air distortion round the enemies it sweeps
-        if (isFinite(D.cx) && D.R > 0) { const R = D.R + (D.hitR || 0) * 0.5, dir = D.dir || 1; Q.air(D.cx, D.cy, 0.05, R, 0.6 * a, 3); Q.ring(D.cx, D.cy, 0.05, R, 0.5 * a, P.mint, 0.4); for (let i = 0; i < 4; i++) Q.arc(D.cx, D.cy, 0.3 + 0.5 * i, R * (0.7 + 0.12 * i), spin * dir + i * 1.6, 2.1 * dir, 0.55, i % 2 ? P.pale : P.mint, 0.75 * a, 0.4); } } }); }
+        if (a > 0.01 && isFinite(D.cx) && D.R > 0 && bt >= 0) { const R = D.R + (D.hitR || 0) * 0.5, dir = D.dir || 1, g = sm(bt / 0.3); Q.air(D.cx, D.cy, 0.05, R, 0.6 * a * g, 3); Q.ring(D.cx, D.cy, 0.05, R, 0.5 * a * g, P.mint, 0.4); for (let i = 0; i < 4; i++) Q.arc(D.cx, D.cy, 0.3 + 0.5 * i, R * (0.7 + 0.12 * i), spin * dir + i * 1.6, 2.1 * dir, 0.55, i % 2 ? P.pale : P.mint, 0.75 * a * g, 0.4); } } }); }
   /* the summon: a Wind seal beneath the pet, the wind rising off it; a burst of petals when the bloom opens. D { x, y, dur, stages } */
   function summon(ctx, D) { if (!ctx.H) return null; const H = ctx.H, X = H.X, tu = TUNE.summon; D = D || {}; const v = ctx.vehicle || {}, x = isFinite(D.x) ? D.x : v.x, y = isFinite(D.y) ? D.y : v.y, dur = D.dur || tu.dur, st = D.stages || {}, tb = st.bloom ? (Array.isArray(st.bloom) ? st.bloom[0] : +st.bloom) : dur * 0.4; let t = 0, bl = false;
     sfx(X, 'hum'); sfx(X, 'hiss', dur, 0.16, 800);
