@@ -182,7 +182,7 @@
     if (S.form === 'shark' && !S.xfm && !S.finFold) P.xf = 0; else if (S.form === 'leviathan' && !S.xfm && !S.finFold) P.xf = 1;   /* (the form channel is never sprung: exact outside a morph or the fold) */
     if (G.zAbs != null) { const zs = S.an.z; zs.x = G.zAbs; zs.v = 0; P.z = G.zAbs; }   /* (a whole-body move: exact, not sprung) */
     S.fwd = (S.fwd || 0) + (G.fwd - (S.fwd || 0)) * Math.min(1, dt * 14);
-    S.swimV = S.swimV == null ? G.swimV : S.swimV + (G.swimV - S.swimV) * Math.min(1, dt * 6); S.swim = (S.swim || 0) + S.swimV * dt; P.swim = S.swim; P.breath = t * 1.2;
+    S.swimV = S.swimV == null ? G.swimV : S.swimV + (G.swimV - S.swimV) * Math.min(1, dt * 6); S.swim = ((S.swim || 0) + S.swimV * dt) % (4 * Math.PI); P.swim = S.swim; P.breath = (t * 1.2) % TAU;   /* (phases kept bounded, radians: sin(swim / 2) needs the 4π wrap) */
     P.swimK = cl(P.swimK); P.jaw = cl(P.jaw); P.cannon = cl(P.cannon); P.recoil = cl(P.recoil); P.fin = clamp(P.fin, -1, 1); P.tail = clamp(P.tail, -1.2, 1.2); P.glow = clamp(P.glow, 0, 2); P.charge = cl(P.charge); P.glowK = clamp(P.glowK, 0, 2.5);
     S.zOff = P.z || 0; P.z = 0; P.t = t; P.speed = k;
     const C2 = S.eCh; if (C2 && t - C2.t <= 0.12) { for (const key in C2.o) if (key !== 'alpha' && key !== 'xf') P[key] = C2.o[key]; }
@@ -192,7 +192,16 @@
     S.waterline = wl != null && isFinite(wl) ? wl : null;
     if (S.waterline != null) { P.clipZ = P.waterline = S.waterline; if (!S.clipOK && S.phase === 'finisher') { S.sunkA = cl((V.z + (S.zOff || 0) - S.waterline + 0.55) / 1.1); P.alpha = Math.min(P.alpha == null ? 1 : P.alpha, S.sunkA); S.sunk = true; } }
     else { if (P.clipZ != null || P.waterline != null) P.clipZ = P.waterline = null; if (S.sunk) { S.sunk = false; if (S.phase === 'finisher') P.alpha = 1; } }
+    /* (v322, the user: the pet is inside, closed under the cockpit's canopy) canopy 0 open .. 1 closed: it closes at the end of the summon, stays shut through
+       both forms and every move, and opens as the glide home ends, just before the pet hops down */
+    P.canopy = S.phase === 'summon' ? sstep(TUNE.summon - 0.6, TUNE.summon - 0.15, S.t) : S.phase === 'out' ? 1 - sstep(S.outGlide - 0.3, S.outGlide, S.outT || 0) : S.phase === 'gone' ? 0 : 1;
+    sanePose(P);
   }
+  /* every channel to its documented range each frame, NaN and Infinity (a long frame, a resume from the background, a bad clip value) to the rest value */
+  const PRANGE = { xf: [0, 1, 0], alpha: [0, 1, 1], swimK: [0, 1, 0.5], jaw: [0, 1, 0], cannon: [0, 1, 0], recoil: [0, 1, 0], bank: [-0.9, 0.9, 0], pitch: [-1.2, 1.2, 0], fin: [-1, 1, 0], tail: [-1.2, 1.2, 0],
+    glow: [0, 2, 0.5], charge: [0, 1, 0], glowK: [0, 2.5, 1], wingGun: [0, 1, 0], wingGunL: [0, 1, 0], wingGunR: [0, 1, 0], canopy: [0, 1, 1], swim: [-1e3, 1e3, 0], breath: [-1e3, 1e3, 0], z: [-6, 6, 0] };
+  function sanePose(P) { for (const k in PRANGE) { const v = P[k]; if (v == null) continue; const r = PRANGE[k]; P[k] = typeof v === 'number' && isFinite(v) ? (v < r[0] ? r[0] : v > r[1] ? r[1] : v) : r[2]; }
+    if (P.clipZ != null && !isFinite(P.clipZ)) P.clipZ = P.waterline = null; }
 
   /* ================= the air: the map's tiles, the open air round it, the walls (Nidhogg's) ================= */
   function airOf(X) { try { return X.air ? X.air() : null; } catch (e) { return null; } }
@@ -700,11 +709,16 @@
     if (S.phase === 'gone') { if (S.fade && S.relT < S.fade && d.vis > 0.05) { const a0 = d.pose.alpha; d.pose.alpha = a0 * (1 - S.relT / S.fade); try { M0.draw(c, d.x, d.y, d.z, d.heading, d.pose, mOpts(S, T)); } catch (e) { /* (model) */ } d.pose.alpha = a0; } return; }
     const out = S.phase === 'out' && S.hopped, ph = S.phase === 'summon' ? lerp(1.5, TUNE.petH, sstep(0.5, 1.5, S.t)) : TUNE.petH;
     const wl = S.waterline, under = wl != null && S.ctx.anchor('seat').z < wl + 0.15;
-    let petDone = false; const o = mOpts(S, T, { clipZ: wl, waterline: wl, pet: (cc, PX, PY) => { petDone = true; S.seatS = [PX, PY]; if (!out && !under) H.X.drawPetAt(cc, PX, PY, { maxH: ph }); } });
+    /* (v322, the user: "Pet should be covered when the shark is summoned like the pet is inside controlling the shark") the pet fades as the canopy closes (0.55 to 0.85),
+       stays hidden in both forms, and pops back as it opens at the exit. Purely the picture: its place, hitbox, damage and HUD are untouched */
+    const cn = cl(d.pose.canopy == null ? 0 : d.pose.canopy), pa = 1 - sstep(0.55, 0.85, cn); if (pa < 0.05) S.petHid = true; else if (S.petHid && cn < 0.5) { S.petHid = false; S.petPopT = S.g.t; }
+    const pp = S.petPopT != null ? S.g.t - S.petPopT : 9, pk = 1 + 0.28 * Math.sin(Math.PI * cl(pp / 0.3)) * (pp < 0.3 ? 1 : 0), petO = pa < 0.999 || pk > 1.001 ? { maxH: ph * pk, alpha: pa } : { maxH: ph };
+    const petAt = (cc, X2, Y2) => { if (pa > 0.02) H.X.drawPetAt(cc, X2, Y2, petO); };
+    let petDone = false; const o = mOpts(S, T, { clipZ: wl, waterline: wl, pet: (cc, PX, PY) => { petDone = true; S.seatS = [PX, PY]; if (!out && !under) petAt(cc, PX, PY); } });
     const fx2 = (S.fwd || 0) * Math.cos(d.heading), fy2 = (S.fwd || 0) * Math.sin(d.heading) * GY;
     if (d.vis > 0.05) { try { M0.draw(c, d.x + fx2, d.y + fy2, d.z + (S.zOff || 0), d.heading, d.pose, o); } catch (e) { /* (model) */ } }
     /* the pet in the open cockpit: upright, never yawed or rolled, always in view (the lead's model leaves it to the core) */
-    if (!petDone) { const p = S.ctx.anchor('seat'); S.seatS = [H.sx(p.x), H.sy(p.y) - p.z * ZK * T]; if (!out && !(wl != null && p.z < wl + 0.15) && !(S.sunk && S.sunkA < 0.5)) H.X.drawPetAt(c, S.seatS[0], S.seatS[1], { maxH: ph }); }   /* (under E's ocean the pet goes under with its seat) */
+    if (!petDone) { const p = S.ctx.anchor('seat'); S.seatS = [H.sx(p.x), H.sy(p.y) - p.z * ZK * T]; if (!out && !(wl != null && p.z < wl + 0.15) && !(S.sunk && S.sunkA < 0.5)) petAt(c, S.seatS[0], S.seatS[1]); }   /* (under E's ocean the pet goes under with its seat) */
     if (S.phase === 'summon' && under) H.X.drawPetAt(c, H.sx(S.home.x), H.sy(S.home.y), {});   /* (the pet waits in the ring until the cockpit rises under it) */
     if (out) { const u = cl(S.petHop / TUNE.hop), s3 = S.seatS, gx = H.sx(S.ret.x), gy = H.sy(S.ret.y); H.X.drawPetAt(c, lerp(s3[0], gx, u), lerp(s3[1], gy, u * u) - Math.sin(u * Math.PI) * T * 0.3, u < 1 ? { maxH: lerp(TUNE.petH, 1.5, u * u) } : {}); }
     callM(S, c, 'drawEnt');

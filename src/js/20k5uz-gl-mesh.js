@@ -316,6 +316,7 @@ void main() {
     else {                 // canopy glass: dark blue, semi-gloss: a hard sky reflection, a glint streak, a lighter limb
       c = cel3(vec3(0.004, 0.012, 0.045), vec3(0.01, 0.035, 0.11), vec3(0.03, 0.09, 0.24), n, lit);
       c += smoothstep(0.25, 0.3, r.z) * (1.0 - smoothstep(0.62, 0.7, r.z)) * vec3(0.12, 0.28, 0.52) * (0.5 + 0.5 * lit) + celSpec(n, 0.985) * vec3(0.9, 0.97, 1.0) + smoothstep(0.55, 0.75, 1.0 - ndv) * vec3(0.05, 0.18, 0.32) + vec3(0.02, 0.2, 0.3) * uSpill * 0.4;
+      c += (vec3(0.18, 0.42, 0.62) * smoothstep(0.35, 0.95, 1.0 - ndv) + vec3(0.35, 0.65, 0.9) * smoothstep(0.55, 0.6, r.z) * (1.0 - smoothstep(0.66, 0.72, r.z))) * uGlow2 * 1.6;   // (uGlow2: Jaws' baby-blue light on the canopy)
       c *= 1.0 - 0.7 * line; }
     c = frostFx(c, L); gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
   else if (id == 37) {   // ---- a Tidal Pool's water (Jaws): a unit disc on the floor (its own x-y). uGlow2 = forming 0..1, uWear = draining (+) or bursting (-) 0..1,

@@ -182,6 +182,15 @@ const JAWS_MODEL = (() => {
       for (let i = 0; i < 4; i++) B.box([0.13, -0.06 + i * 0.04, 0.188], [0.01, 0.012, 0.006], 0.003, i % 2 ? M_CHR : M_CYAN);            // (buttons on the console)
       B.tube([-0.25, -0.12, 0.43], [-0.25, 0.12, 0.43], 0.014, 0.014, M_CHR, { seg: 5, cap0: 'round', cap1: 'round' });                    // (a roll bar over the headrest)
       M.cockpit = B.done(); }
+    { const B = GLM.builder(q);   // ---- the canopy (the cockpit's frame): a closed bubble of tinted glass with a chrome frame and a centre spine; a faint dark silhouette of a rider inside
+      B.ell([-0.06, 0, 0.28], [0.13, 0.12, 0.15], M_SEAT, { seg: n(10), rings: n(6) }); B.ell([-0.06, 0, 0.12], [0.16, 0.16, 0.1], M_SEAT, { seg: n(10), rings: n(5) });
+      for (const sd of [1, -1]) B.spike([-0.08, sd * 0.07, 0.38], [-0.12, sd * 0.13, 0.5], 0.045, M_SEAT, { seg: 4 });   // (the silhouette's ears)
+      const dome = (u, v, k) => { const a = u * TAU, ph = v * Math.PI / 2, rx = 0.36 * k, ry = 0.31 * k, rz = 0.36 * k; return [0.02 + Math.cos(a) * rx * Math.cos(ph) * (Math.cos(a) > 0 ? 1.12 : 1), Math.sin(a) * ry * Math.cos(ph), 0.2 + rz * Math.sin(ph)]; };
+      B.surf((u, v) => dome(u, v, 1), n(28), n(10), () => M_GLASS, { e: (u, v) => (v < 0.04 ? 1 : 0), a: () => 0.99 });
+      B.surf((u, t) => { const p = dome(u, 0, 1), a = u * TAU, ta = t * TAU, rr = 0.026; return [p[0] + Math.cos(a) * Math.cos(ta) * rr, p[1] + Math.sin(a) * Math.cos(ta) * rr, p[2] + Math.sin(ta) * rr]; }, n(28), 5, () => M_CHR, { e: () => 0.4 });   // (the frame's ring)
+      B.surf((v, t) => { const p = dome(0, v, 1.012), q2 = dome(0.5, v, 1.012); return [lerp(p[0], q2[0], 0.5) + (Math.cos(v * Math.PI / 2) * (p[0] - q2[0]) * 0.5) * Math.cos(t * Math.PI), (t - 0.5) * 0.05, p[2] + 0.002]; }, n(10), 1, () => M_CHR, { e: () => 0.6 });   // (the centre spine)
+      for (let i = 0; i < 6; i++) { const p = dome(i / 6 + 1 / 12, 0, 1.03); B.sph(p, 0.016, M_CHR, 4); }
+      M.canopy = B.done(); }
     { const B = GLM.builder(q);   // ---- the dorsal fin, from its root: a tall swept blade (x-z plane): a silver leading edge and root, a swoosh marking
       B.push([1, 0, 0], [0, 0, 1], [0, -1, 0], [0, 0, 0]);
       plate(B, [[0.52, 0], [-0.34, 1.3], [-0.72, 1.28], [-0.5, 0.86], [-0.42, 0.42], [-0.56, 0]], 0.04, M_BLUE);
@@ -235,7 +244,7 @@ const JAWS_MODEL = (() => {
     return M;
   }
   const PARTS = { head: { c: [1.55, 0, 0], R: 0.85, col: '#2B4FC9' }, jaw: { c: [0.42, 0, -0.2], R: 0.7, col: '#C9D1DC' }, cannon: { c: [0.4, 0, 0], R: 0.78, col: '#3A4250' }, core: { c: [-0.2, 0, 0], R: 1.75, col: '#2B303B' }, flank: { c: [-0.1, 0.4, 0], R: 1.45, col: '#2B4FC9' },
-    cockpit: { c: [0, 0, 0.1], R: 0.45, col: '#8FA0B8' }, rails: { c: [-0.1, 0, 0], R: 1.4, col: '#2B303B' }, dorsal: { c: [-0.1, 0, 0.65], R: 1.0, col: '#2B4FC9' }, pec: { c: [-0.2, 0.75, 0], R: 1.1, col: '#2B4FC9' }, pecIn: { c: [-0.75, 0.75, 0], R: 0.7, col: '#2B4FC9' }, tailfin: { c: [0.4, 0, 0.2], R: 1.15, col: '#2B4FC9' }, strut: { c: [0.5, 0, 0], R: 0.12, col: '#8FA0B8' }, lock: { c: [0, 0.05, 0], R: 0.16, col: '#C9D1DC' } };
+    cockpit: { c: [0, 0, 0.1], R: 0.45, col: '#8FA0B8' }, canopy: { c: [0, 0, 0.3], R: 0.5, col: '#2A5C8C' }, rails: { c: [-0.1, 0, 0], R: 1.4, col: '#2B303B' }, dorsal: { c: [-0.1, 0, 0.65], R: 1.0, col: '#2B4FC9' }, pec: { c: [-0.2, 0.75, 0], R: 1.1, col: '#2B4FC9' }, pecIn: { c: [-0.75, 0.75, 0], R: 0.7, col: '#2B4FC9' }, tailfin: { c: [0.4, 0, 0.2], R: 1.15, col: '#2B4FC9' }, strut: { c: [0.5, 0, 0], R: 0.12, col: '#8FA0B8' }, lock: { c: [0, 0.05, 0], R: 0.16, col: '#C9D1DC' } };
   for (let j = 0; j < NTAIL; j++) PARTS['tail' + j] = { c: [LTAIL / 2, 0, 0], R: 0.36, col: '#2B4FC9' };
   PARTS.wingGun = { c: [0.4, 0, -0.16], R: 0.75, col: '#C9D1DC' };
 
@@ -250,7 +259,8 @@ const JAWS_MODEL = (() => {
     put('core', [0, 0, 0], Rb);
     { const hl = fry(0.5) * 0.82 + FLANK_OUT * sFl, Rr = mm(Bm, Rb); list.push({ part: 'rails', o: at([0, 0, 0]), R: M3(Rr.x, vmul(Rr.y, hl), Rr.z), s: 1, al: 1 }); }   // (the rails reach exactly to the plates)
     // the flank plates, on their rails
-    { const out = FLANK_OUT * sFl + 0.02 * (P.breath || 0); const tl = FLANK_TILT * sFl, Rl = rotX(tl), Rr2 = rotX(-tl), c0 = [0, 0.7, 0.1], c1 = [0, -0.7, 0.1];   // (slid out and turned flat-topped about their own middles: a broad deck each side, the reactor open between them)
+    { const out = FLANK_OUT * sFl + 0.02 * sFl * Math.sin(P.breath || 0);   // (breath is a phase (radians, A's core accumulates it without bound): a small in-and-out swell of the open flanks, nothing in the shark. It was an offset: the flanks drifted away from the body over a session)
+      const tl = FLANK_TILT * sFl, Rl = rotX(tl), Rr2 = rotX(-tl), c0 = [0, 0.7, 0.1], c1 = [0, -0.7, 0.1];   // (slid out and turned flat-topped about their own middles: a broad deck each side, the reactor open between them)
       put('flank', mv(Rb, vadd([0, out, -0.04 * sFl], vsub(c0, mv(Rl, c0)))), mm(Rb, Rl)); put('flank', mv(Rb, vadd([0, -out, -0.04 * sFl], vsub(c1, mv(Rr2, c1)))), mm(Rb, mm(Rr2, MIR)));
       const strut = (a, b, al) => { const d = vsub(b, a), L = vlen(d), F = mm(Bm, frameXZ(d, [0, 0, 1])); list.push({ part: 'strut', o: at(a), R: M3(vmul(F.x, L), F.y, F.z), s: 1, al }); };
       const sLock = sstep(0.84, 1, xf), aF = cl(sFl * 6);   // (the arms and the latches are there in both forms: stowed inside the closed plates in the shark)
@@ -264,7 +274,9 @@ const JAWS_MODEL = (() => {
       for (const sd of [1, -1]) { const a = mv(Rb, [fx(T_JAW + 0.012), sd * 0.6, 0.1]), b = mv(Rb, vadd(JAW_H, mv(rotY(jawA), [0.3, sd * 0.58, -0.16]))), d = vsub(b, a), L = vlen(d), F = mm(Bm, frameXZ(d, [1, 0, 0])); list.push({ part: 'strut', o: at(a), R: M3(vmul(F.x, L), F.y, F.z), s: 1, al: 1 }); }   // (the jaw's pistons)
       A.mouth = at(mv(Rb, [cx + CAN_L, 0, fzc(0.8) - 0.05])); A.breech = at(mv(Rb, [cx, 0, fzc(0.8) - 0.05])); A.forward = at(mv(Rb, [1, 0, 0])); A.head = at(mv(Rb, [fx(0.86), 0, fzc(0.86) + frz(0.86)])); A.snout = at(mv(Rb, [XN, 0, fzc(1)])); }
     // the cockpit and the pet's seat
-    { const o = [SEAT0[0], 0, SEAT0[2] - SEAT_DROP * sSeat]; put('cockpit', mv(Rb, o), Rb); A.seat = at(mv(Rb, [o[0] - 0.06, 0, o[2] + 0.1])); }
+    { const o = [SEAT0[0], 0, SEAT0[2] - SEAT_DROP * sSeat]; put('cockpit', mv(Rb, o), Rb); A.seat = at(mv(Rb, [o[0] - 0.06, 0, o[2] + 0.1]));
+      // the canopy: closed (canopy 1, the default) over the pet; it swings open back about a hinge at the cockpit's rear (canopy 0)
+      const cn = cl(P.canopy == null ? 1 : P.canopy), oa = (1 - cn) * 105 * DEG, hg = [-0.33, 0, 0.2], Rc = rotY(-oa); list.push({ part: 'canopy', o: at(mv(Rb, vadd(o, vsub(hg, mv(Rc, hg))))), R: mm(Bm, mm(Rb, Rc)), s: 1, al: 1, glass: 1 }); A.canopy = cn; }
     // the dorsal fin: raked back as the command spine
     { const o = [DORS0[0] - 0.12 * sSeat, 0, DORS0[2] - 0.05 * sSeat], R = mm(Rb, rotY(-(22 * sFl) * DEG)); put('dorsal', mv(Rb, o), mm(R, rotX(0.06 * sk * Math.sin(sw + 0.6)))); A.dorsalTip = at(mv(Rb, vadd(o, mv(R, [-0.5, 0, 1.28])))); }
     // the pectoral fins: swept and drooped for swimming, spread level as stabilisers
@@ -328,7 +340,7 @@ const JAWS_MODEL = (() => {
     for (const it of list) { const mesh = MESH[it.part]; if (!mesh || !(it.al > 0.004) || !(it.s > 0.002)) continue; const Rw = mm(V.Rh, it.R), s2 = it.s, T = mv(V.Rh, it.o), al = al0 * it.al;   // (a stowed part, scale or alpha 0, is not drawn at all: no outline hull either)
       const g = GLI[n] || (GLI[n] = { R0: new Float32Array(3), R1: new Float32Array(3), R2: new Float32Array(3), T: new Float32Array(3) }); n++;
       g.mesh = mesh; for (let i = 0; i < 3; i++) { g.R0[i] = Rw.x[i] * s2; g.R1[i] = Rw.y[i] * s2; g.R2[i] = Rw.z[i] * s2; g.T[i] = T[i]; }
-      const fl = flick(tF, n * 1.37); g.alpha = al; g.glow = cl((it.part === 'cannon' || it.part === 'head' ? Math.max(glowK, mouth) : glowK) * fl); g.kind = 0; g.wear = 0.6; g.fx = 0; g.glow2 = 0.32 * gK * fl * glowK; g.spill = glowK * fl; g.d = vdot(T, PD); items.push(g); }
+      const fl = flick(tF, n * 1.37); g.alpha = it.glass ? al * 0.86 : al; g.glow = cl((it.part === 'cannon' || it.part === 'head' ? Math.max(glowK, mouth) : glowK) * fl); g.kind = 0; g.wear = 0.6; g.fx = 0; g.glow2 = 0.32 * gK * fl * glowK; g.spill = glowK * fl; g.d = vdot(T, PD); items.push(g); }
     items.sort((p, q) => (p.alpha > 0.995 ? 0 : 1) - (q.alpha > 0.995 ? 0 : 1) || (p.alpha > 0.995 ? 0 : p.d - q.d));
     const t0 = nowMs(), cvs = GLM.render(W, H, S, items); if (!cvs) return;
     c.drawImage(cvs, 0, 0, W, H, bx0, by0, bw, bh); GLMS = GLMS * 0.9 + (nowMs() - t0) * 0.1; GLN++;
@@ -342,6 +354,7 @@ const JAWS_MODEL = (() => {
     O.flank = ring((t, ph) => fus(t, ph, 1.04), [T_FL0, 0.3, 0.5, T_HEAD], [-34, -10, 13, 37, 60]);
     O.cannon = []; for (const [x, r] of [[0, 0.19], [0.7, 0.21], [CAN_L, 0.27]]) for (let i = 0; i < 8; i++) O.cannon.push([x, Math.cos(i / 8 * TAU) * r, Math.sin(i / 8 * TAU) * r]);
     O.cockpit = []; for (let i = 0; i < 8; i++) { const a = i / 8 * TAU; O.cockpit.push([Math.cos(a) * 0.33, Math.sin(a) * 0.33, 0.2], [Math.cos(a) * 0.27, Math.sin(a) * 0.27, 0]); } O.cockpit.push([0.3, 0.13, 0.36], [0.3, -0.13, 0.36], [-0.24, 0, 0.42]);
+    O.canopy = []; for (let i = 0; i < 10; i++) { const a = i / 10 * TAU; for (const ph of [0, 0.7]) O.canopy.push([0.02 + Math.cos(a) * 0.36 * Math.cos(ph) * (Math.cos(a) > 0 ? 1.12 : 1), Math.sin(a) * 0.31 * Math.cos(ph), 0.2 + 0.36 * Math.sin(ph)]); } O.canopy.push([0.02, 0, 0.56]);
     O.dorsal = xz([[0.56, 0], [-0.3, 1.31], [-0.72, 1.28], [-0.58, 0]]); O.pec = xy([[0.46, 0], [-0.42, 1.5], [-0.92, 1.44], [-0.7, 0]]); O.pecIn = xy([[-0.5, 0.3], [-0.58, 1.3], [-0.98, 1.2], [-1.0, 0.34]]);
     O.tailfin = xz([[-0.04, 0.1], [0.72, 1.32], [0.84, 1.22], [0.4, 0], [0.66, -0.8], [0.54, -0.88], [-0.04, -0.1]]);
     for (let j = 0; j < NTAIL; j++) { const r0 = lerp(0.25, 0.1, j / NTAIL) * 1.06, r1 = lerp(0.25, 0.1, (j + 1) / NTAIL) * 1.06; O['tail' + j] = [[0, r0, 0], [0, -r0, 0], [0, 0, r0], [0, 0, -r0], [LTAIL, r1, 0], [LTAIL, -r1, 0], [LTAIL, 0, r1], [LTAIL, 0, -r1]]; }
@@ -357,13 +370,14 @@ const JAWS_MODEL = (() => {
       c.beginPath(); c.moveTo(H[0][0], H[0][1]); for (let i = 1; i < H.length; i++) c.lineTo(H[i][0], H[i][1]); c.closePath();
       let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9; for (const h of H) { if (h[0] < x0) x0 = h[0]; if (h[0] > x1) x1 = h[0]; if (h[1] < y0) y0 = h[1]; if (h[1] > y1) y1 = h[1]; }
       const gr = c.createLinearGradient(0, y0, 0, y1), blue = Pt.col === '#2B4FC9'; gr.addColorStop(0, blue ? '#4D7BEF' : it.part === 'core' ? '#3A4352' : '#E6ECF4'); gr.addColorStop(0.55, Pt.col); gr.addColorStop(1, blue ? '#16307F' : it.part === 'core' ? '#161A24' : '#8794A8');
-      c.fillStyle = gr; c.fill(); c.strokeStyle = '#081235'; c.lineWidth = Math.max(1, 0.035 * k); c.stroke();
+      c.fillStyle = it.part === 'canopy' ? 'rgba(30,80,140,0.88)' : gr; c.fill(); c.strokeStyle = '#081235'; c.lineWidth = Math.max(1, 0.035 * k); c.stroke();
       c.strokeStyle = 'rgba(88,230,255,' + (0.55 + 0.45 * g) + ')'; c.fillStyle = c.strokeStyle;
       if (it.part === 'head') { for (const sd of [1, -1]) { const a = W(it, hsec(0.75, sd > 0 ? 50 * DEG : 130 * DEG, 1.02)), b = W(it, hsec(0.85, sd > 0 ? 44 * DEG : 136 * DEG, 1.02)); c.lineWidth = Math.max(1.2, 0.07 * k); c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke(); }
         c.fillStyle = '#F4F7FB'; for (const sd of [1, -1]) for (let i = 0; i < 6; i++) { const t = lerp(T_JAW + 0.04, 0.97, i / 5), a = W(it, hsec(t - 0.012, sd > 0 ? -14 * DEG : 194 * DEG, 0.96)), b = W(it, hsec(t + 0.012, sd > 0 ? -14 * DEG : 194 * DEG, 0.96)), q = hsec(t, sd > 0 ? -14 * DEG : 194 * DEG, 0.94), tp = W(it, [q[0], q[1], q[2] - 0.18]); c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.lineTo(tp[0], tp[1]); c.closePath(); c.fill(); } }
       else if (it.part === 'flank') { c.lineWidth = Math.max(1, 0.05 * k); for (let i = 0; i < 4; i++) { const t = 0.487 + i * 0.03, a = W(it, fus(t, -11 * DEG, 1.08)), b = W(it, fus(t + 0.016, -2 * DEG, 1.08)), d = W(it, fus(t, 7 * DEG, 1.08)); c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.lineTo(d[0], d[1]); c.stroke(); } }
       else if (it.part === 'core') { const a = W(it, [-0.7, 0, 0.3]), b = W(it, [0.5, 0, 0.3]); c.lineWidth = Math.max(2, 0.3 * k); c.globalAlpha = al0 * 0.5 * (0.5 + 0.5 * g); c.lineCap = 'butt'; c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke(); c.lineCap = 'round'; }
       else if (it.part === 'cannon') { const a = W(it, [CAN_L, 0, 0]); c.beginPath(); c.arc(a[0], a[1], 0.17 * k, 0, TAU); c.fill(); }
+      else if (it.part === 'canopy') { const a = W(it, [0.12, 0.08, 0.42]); c.fillStyle = 'rgba(200,235,255,0.55)'; c.beginPath(); c.ellipse(a[0], a[1], 0.09 * k, 0.05 * k, -0.4, 0, TAU); c.fill(); }   // (a highlight on the glass)
       else if (it.part === 'cockpit') { const a = W(it, [0, 0, 0.12]); c.fillStyle = '#141B2C'; c.beginPath(); c.ellipse(a[0], a[1], 0.26 * k, 0.17 * k, 0, 0, TAU); c.fill(); } }
     c.restore();
   }
@@ -439,7 +453,7 @@ const JAWS_MODEL = (() => {
   function anchor(name) { if (!LAST) return null; const p = LAST.R.A[name]; if (!p) return null; return LAST.V.toW(p); }
   function anchorDir(name) { if (!LAST) return null; const p = LAST.R.A[name]; if (!p) return null; const w = mv(LAST.V.Rh, p); return { x: w[0], y: w[1] * GY, z: w[2] }; }
   function anchorAt(name, x, y, z, a, P, o) { const R = rig(P), p = R.A[name]; if (!p) return null; const sc = ((o && o.scale) || 1) * VIS, w = mv(rotZ(a), p); return { x: x + w[0] * sc, y: y + w[1] * GY * sc, z: z + w[2] * sc }; }
-  function blankPose() { return { xf: 0, alpha: 1, swim: 0, swimK: 0.5, jaw: 0, cannon: 0, recoil: 0, bank: 0, pitch: 0, fin: 0, tail: 0, glow: 0.5, charge: 0, breath: 0, waterline: null, wingGun: 0, glowK: 1 }; }
+  function blankPose() { return { xf: 0, alpha: 1, swim: 0, swimK: 0.5, jaw: 0, cannon: 0, recoil: 0, bank: 0, pitch: 0, fin: 0, tail: 0, glow: 0.5, charge: 0, breath: 0, waterline: null, canopy: 1, wingGun: 0, glowK: 1 }; }
   function create() { const P = blankPose(); return { pose: P, draw: (c, x, y, z, a, P2, o) => draw(c, x, y, z, a, P2 || P, o), drawShadow: (c, x, y, z, a, P2, o) => drawShadow(c, x, y, z, a, P2 || P, o) }; }
   const SIZE = { len: (XN - XT) * VIS, lenTail: (XN - XT + NTAIL * LTAIL + 0.6) * VIS, wid: 1.5 * VIS, widLev: (1.5 + 2 * FLANK_OUT) * VIS, span: 3.6 * VIS, r: 1.7 * VIS };
   return { create, warm: () => { glOn(); return true; }, warmIdle: () => { glOn(); }, warmPlan: () => ({ pending: 0, total: 0 }), ready: () => true, draw, drawShadow, anchor, anchorDir, anchorAt, rigOf: P => rig(P || blankPose()), blankPose, drawPools, SIZE, PARTS, __dbg: { get MESH() { return MESH; }, OUTL },
