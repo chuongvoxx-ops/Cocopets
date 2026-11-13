@@ -750,6 +750,7 @@ const NIDHOGG_MODEL = (() => {
      20k6g keeps the wings under its plane through the Ultima (ultWingCheck uses the same 1.6) */
   const RING_K = 1.6;
   function drawRing(c, V, R, P, al, half) {
+    try { const N3 = self.NIDHOGG_MOVES; if (N3 && N3.ring3dT && (typeof performance !== 'undefined' ? performance.now() : Date.now()) - N3.ring3dT < 150) return; } catch (e) {}   /* (v327: the Ultima draws this ring as a real 3D torus on the GPU; the flat one stands down) */
     const T = V.T, sc = V.k, ctr = V.toW(R.ring), C = V.toS(R.ring), vis = P.ring, spin = P.ringSpin * 1.5, k = T * sc * 1.45 * RING_K;   // (the ring sized to the back it crowns; v326: RING_K larger, spinning faster)
     const ell = (rad, a0, a1, w, col, alpha) => { c.beginPath(); c.ellipse(C[0], C[1], rad * k, rad * k * GY, 0, a0, a1); c.lineWidth = w; c.strokeStyle = col; c.globalAlpha = alpha; c.stroke(); };
     const a0 = half ? 0 : Math.PI, a1 = half ? Math.PI : TAU;   // (the near half is the lower half of the ellipse)

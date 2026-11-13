@@ -440,12 +440,11 @@ Called on `NIDHOGG_MODEL` by the core (`20k6g`), the moves (`20k6h`) and the Ult
   - Suggested pass: `clearance > 0.3`.
 
 ## Notes (E, 2026-11-13, v326): hard edges, the Ultima ring, the charge aura
-- **Hard crops (the user's "common problem"):** two causes, both fixed. (1) Noise-warped fire / body / smoke and lightning
+- **Hard crops (the user's "common problem"):** fixed: Noise-warped fire / body / smoke and lightning
   halos could reach their quad's edge (a straight cut). Every kind in FGFX (20k6h), EGFX (20k9j) and LGFX (20k4q) now
   fades to exactly 0 well inside its quad (round kinds from 0.72 of the radius, rings / rims from 0.92, strips across
-  from 0.8). (2) The solid and light halves of every GPU effect layer sat edge to edge in one canvas, so bilinear
-  sampling at a half's edge could pick up the other half; there are now 4 px of nothing between them (FGFX, EGFX,
-  LGFX and the Susano O, Fenrir, Belladonna and Jaws painters).
+  from 0.8). (The vertical line in the user's screenshots is the game's aged-film filter, not a crop. FGFX, EGFX and
+  LGFX also now paint one layer at a time and copy the whole canvas each time: no half-canvas copies.)
 - **Ultima ring (20k6f drawRing):** radius x RING_K = 1.6 (outer band 1.45 x 1.6 = 2.32 rig units round R.ring, the
   floating segments to 1.62 x 1.6), rune size x 1.35, a wider brighter bloom, visual spin x 1.5. Both halves are now
   drawn over the dragon (2D items at the top depth; after the GPU body), so no wing can slice through it. A: 20k6g's

@@ -138,7 +138,8 @@ const NM = (self.NIDHOGG_MOVES = self.NIDHOGG_MOVES || {});
         if (gpuOn()) { const Q = NM.FGFX.begin(c, null); for (const a of S.acts) { if (a.gpuUnder) a.gpuUnder(Q); else if (a.under) a.under(c, B); } c.setTransform(B); gpuParts(S, Q, 1); NM.FGFX.flush(c); c.restore(); return; }   /* (the GPU layer; a move without a GPU picture keeps its 2D one) */
         for (const a of S.acts) if (a.under) a.under(c, B); drawParts(S, c, B, 1); c.setTransform(B); c.restore(); },
       draw(c) { if (!S.on) return; view(S); const B = c.getTransform(); c.save();
-        if (gpuOn()) { const Q = NM.FGFX.begin(c, [S.PX, S.PY, S.PR]); gpuParts(S, Q, 0); for (const a of S.acts) { if (a.gpuOver) a.gpuOver(Q); else if (a.over) a.over(c, B); } c.setTransform(B); NM.FGFX.flush(c); c.restore(); return; }
+        if (gpuOn()) { S.f3d = f3dOn(); if (S.f3d) { const o = anchor(S.ctx, 'seat'), Q3 = NM.F3D.begin(c, S.H, S.ZT, o.x, o.y, [S.PX, S.PY, S.PR]); for (const a of S.acts) if (a.gpu3d) a.gpu3d(Q3); NM.F3D.flush(c); }   /* (v327: the volumes in true 3D first; the soft glows over them) */
+          const Q = NM.FGFX.begin(c, [S.PX, S.PY, S.PR]); gpuParts(S, Q, 0); for (const a of S.acts) { if (a.gpuOver) a.gpuOver(Q); else if (a.over) a.over(c, B); } c.setTransform(B); NM.FGFX.flush(c); c.restore(); return; }
         drawParts(S, c, B, 0); for (const a of S.acts) if (a.over) a.over(c, B); c.setTransform(B); c.restore(); },
       onEnd() { if (S.on) kill(); } });
     return S;
@@ -167,6 +168,7 @@ const NM = (self.NIDHOGG_MOVES = self.NIDHOGG_MOVES || {});
   /* the particles on the GPU layer: fire puffs as turbulent balls of fire cooling with age, smoke and steam as solid
      billowing volumes, embers as streaks with hot heads, floor rings and light as light-only marks */
   const gpuOn = () => { try { return !!(NM.FGFX && NM.FGFX.usable()); } catch (e) { return false; } };
+  const f3dOn = () => { try { return !!(NM.F3D && NM.F3D.usable()); } catch (e) { return false; } };
   function gpuParts(S, Q, under) { const H = S.H, T = S.T, P = S.parts, GY = S.GY || 0.55;
     for (let i = 0; i < P.length; i++) { const p = P[i]; if ((p.u ? 1 : 0) !== under) continue;
       const u = p.t / p.life, a = p.a * Math.min(1, p.t / p.fin) * (p.kind === 1 || p.kind === 7 || p.kind === 0 ? (1 - u) * (1 - u) : 1 - u * u); if (a < 0.015) continue;
@@ -307,13 +309,24 @@ const NM = (self.NIDHOGG_MOVES = self.NIDHOGG_MOVES || {});
         for (const b of balls) { if (b.ex !== 1) continue; const u = (S.t - b.end) / 0.75; if (u >= 1) continue; // the burst: a ball of fire that swells, rolls and cools, its smoke, its flash
           const X0 = H.sx(b.x), Y0 = H.sy(b.y) - (b.bz + 0.5 * eout(u)) * ZT, r = T * tu.R * (0.35 + 0.75 * eout(u / 0.45)), a = 1 - sm((u - 0.25) / 0.75);
           Q.smoke(X0, Y0 - r * 0.4 * u, r * (0.95 + 0.5 * u), 0.75 * sm((u - 0.08) / 0.35) * a, b.i * 1.7, '#3A2A24', 0.7 * (1 - u)); Q.glow(X0, Y0, r * 1.4, ORG, 0.2 * a);
-          Q.billow(X0, Y0, r * 1.05, 0.8 - 0.55 * u, a, b.i * 2.3); Q.fire(X0, Y0 - r * 0.25, r * 0.6, 0.8 - 0.5 * u, 0.55 * a, b.i * 2.3 + 5);
+          if (!S.f3d) { Q.billow(X0, Y0, r * 1.05, 0.8 - 0.55 * u, a, b.i * 2.3); Q.fire(X0, Y0 - r * 0.25, r * 0.6, 0.8 - 0.5 * u, 0.55 * a, b.i * 2.3 + 5); }   /* (v327: drawn as a 3D volume instead) */
           if (u < 0.3) { Q.glow(X0, Y0, r * 0.55, WHT, (1 - u / 0.3) * 0.45); Q.ring(X0, Y0, r * (0.6 + 1.3 * eout(u / 0.3)), YEL, 0.5 * (1 - u / 0.3), r * 0.1, 1); } }
         for (const b of balls) { if (b.ex !== 3) continue; const u = (S.t - b.end) / 0.5; if (u >= 1) continue; const X0 = H.sx(b.x), Y0 = H.sy(b.y) + u * u * T * 2.2, R = T * tu.r * 2.5 * (1 - 0.6 * u); Q.glow(X0, Y0, R * 1.5, ORG, 0.4 * (1 - u)); Q.fire(X0, Y0, R * 0.7, 0.9 - 0.5 * u, 1 - u, b.i); }
         for (const b of balls) { if (b.ex) continue; const X0 = H.sx(b.x), Y0 = H.sy(b.y) - b.z * ZT, R = T * tu.r * 2.5, ia = Math.min(1, b.t / 0.06);   // in flight: a rolling ball of fire, a comet tail of flame behind it, a hot core
           const svx = b.vx * T, svy = b.vy * T - b.vz * ZT, sp = Math.hypot(svx, svy) || 1, L = Math.min(T * 4.2, sp * 0.24 + R);
-          Q.glow(X0, Y0, R * 1.5, ORG, 0.35 * ia); if (L > R) Q.firebeam(X0 - svx / sp * L * 0.8, Y0 - svy / sp * L * 0.8, X0, Y0, R * 0.42, 0.62, 0.85 * ia, b.i * 1.3, 6);
-          Q.fire(X0, Y0, R * 0.7, 0.88, ia, b.i * 3.1); Q.glow(X0 - R * 0.08, Y0 - R * 0.1, R * 0.28, WHT, 0.6 * ia); } },
+          Q.glow(X0, Y0, R * 1.5, ORG, 0.35 * ia); if (L > R && !S.f3d) Q.firebeam(X0 - svx / sp * L * 0.8, Y0 - svy / sp * L * 0.8, X0, Y0, R * 0.42, 0.62, 0.85 * ia, b.i * 1.3, 6);
+          if (!S.f3d) Q.fire(X0, Y0, R * 0.7, 0.88, ia, b.i * 3.1); Q.glow(X0 - R * 0.08, Y0 - R * 0.1, R * 0.28, WHT, 0.6 * ia); } },
+      /* (v327) in true 3D: a churning fireball (a displaced sphere of fire round a hot body and a white core) under a comet
+         tail curving back along its own arc; the burst a swelling 3D ball of fire cooling into smoke, a shock ring on the floor */
+      gpu3d(Q3) { const K = Q3.K, PT = act._P3 || (act._P3 = []);
+        for (const b of balls) { if (b.ex) continue; const u = cl(b.t / b.dur), ia = Math.min(1, b.t / 0.06), r = tu.r * 1.55;   /* (as big as the old ball: about 0.85 of a tile) */
+          let n = 0; for (let i = 0; i < (Q3.low ? 7 : 11); i++) { const v = u - i * 0.06; if (v < 0) break; const q = PT[n] || (PT[n] = [0, 0, 0]); q[0] = lerp(b.x0, b.tx, v); q[1] = lerp(b.y0, b.ty, v); q[2] = lerp(b.z0, b.tz, v * v * 0.4 + v * 0.6) + tu.arc * 4 * v * (1 - v) * 0.6; n++; }
+          if (n > 1) { Q3.tube(PT, n, w => r * 0.7 * (1 - 0.8 * w), K.body, '#FF7A2E', 0.75 * ia, { heat: 0.9, seed: b.i * 1.3, af: w => 1 - w }); Q3.tube(PT, n, w => r * 0.9 * (1 - 0.75 * w), K.fire, '#FF7A2E', ia, { heat: 1.05, seed: b.i * 1.3, scroll: 3, af: w => 1 - w * w }); }
+          Q3.sphere(b.x, b.y, b.z, r * 0.82, K.body, '#FF7A2E', 0.9 * ia, { heat: 0.95, seed: b.i * 2.1, amp: 0.2 }); Q3.sphere(b.x, b.y, b.z, r, K.fire, '#FF7A2E', ia, { heat: 1.12, seed: b.i * 2.1, amp: 0.25, flow: 1.6 }); Q3.sphere(b.x, b.y, b.z, r * 0.42, K.core, '#FFF0C8', ia, { amp: 0 }); }
+        for (const b of balls) { if (b.ex !== 1) continue; const u = (S.t - b.end) / 0.75; if (u >= 1) continue; const z = b.bz + 0.5 * eout(u), r = tu.R * 1.05 * (0.35 + 0.75 * eout(u / 0.45)), a = 1 - sm((u - 0.25) / 0.75);   /* (the old burst's size: about 2 tiles across at its peak) */
+          if (u > 0.15) Q3.sphere(b.x, b.y, z + r * 0.35 * u, r * (0.95 + 0.4 * u), K.smoke, '#3A2A24', 0.85 * sm((u - 0.15) / 0.35) * a, { seed: b.i * 1.7, amp: 0.3, warm: 0.7 * (1 - u), rise: u });
+          Q3.sphere(b.x, b.y, z, r * 0.95, K.body, '#FF7A2E', Math.min(1, a * 1.15), { heat: 1.0 - 0.45 * u, seed: b.i * 2.3, amp: 0.3 }); Q3.sphere(b.x, b.y, z, r, K.fire, '#FF7A2E', a, { heat: 1.12 - 0.6 * u, seed: b.i * 2.3, amp: 0.32, flow: 1.4 }); if (u < 0.45) Q3.sphere(b.x, b.y, z, r * 0.45 * (1 - u), K.core, '#FFF0C8', (1 - u / 0.45), { amp: 0.1 });
+          if (b.bz < 0.6) Q3.torus(b.x, b.y, 0.04, tu.R * (0.3 + 0.75 * eout(u / 0.6)), 0.06 + 0.06 * (1 - u), [0, 0, 1], 0, K.floor, '#FF7A2E', (1 - u) * 0.9, { heat: 0.9 - 0.4 * u }); } },
       abort() { for (const b of balls) FPOOL.push(b); balls.length = 0; } };
     S.acts.push(act);
   }
@@ -387,9 +400,17 @@ const NM = (self.NIDHOGG_MOVES = self.NIDHOGG_MOVES || {});
       gpuOver(Q) { const T = S.T, ZT = S.ZT, PT = act._PT || (act._PT = []);
         for (const l of ls) { const n = l.tr.length; if (n < 1) continue; const fo = l.ex ? cl(1 - (S.t - l.end) / 0.3) : 1; if (fo <= 0.01) continue; let m = 0;
           const stp = LOW() ? 2 : 1; PT[m++] = [H.sx(l.x), H.sy(l.y) - l.z * ZT]; for (let j = 0; j < n; j += stp) PT[m++] = [H.sx(l.tr[j][0]), H.sy(l.tr[j][1]) - l.tr[j][2] * ZT];
-          if (m > 1) { Q.trail(PT, m, T * 0.14, 0.85, 0.85 * fo, l.i * 0.7); const nb = Math.min(m - 1, LOW() ? 2 : 6); for (let j = 0; j < nb; j++) { const k = j / nb; Q.beam(PT[j][0], PT[j][1], PT[j + 1][0], PT[j + 1][1], T * 0.055 * (1 - k), j < 2 ? WHT : YEL, 0.85 * fo * (1 - k)); } } }   /* (a white-hot thread down the first of it keeps the lance sharp) */
-        for (const l of ls) { if (l.ex) continue; const X0 = H.sx(l.x), Y0 = H.sy(l.y) - l.z * ZT, ia = Math.min(1, l.age / 0.04); Q.glow(X0, Y0, T * 0.55, ORG, 0.5 * ia); Q.fire(X0, Y0, T * 0.2, 1.2, ia, l.i); Q.glow(X0, Y0, T * 0.12, WHT, ia); }
+          if (m > 1 && !S.f3d) { Q.trail(PT, m, T * 0.14, 0.85, 0.85 * fo, l.i * 0.7); const nb = Math.min(m - 1, LOW() ? 2 : 6); for (let j = 0; j < nb; j++) { const k = j / nb; Q.beam(PT[j][0], PT[j][1], PT[j + 1][0], PT[j + 1][1], T * 0.055 * (1 - k), j < 2 ? WHT : YEL, 0.85 * fo * (1 - k)); } } }   /* (a white-hot thread down the first of it keeps the lance sharp) */
+        for (const l of ls) { if (l.ex) continue; const X0 = H.sx(l.x), Y0 = H.sy(l.y) - l.z * ZT, ia = Math.min(1, l.age / 0.04); Q.glow(X0, Y0, T * 0.55, ORG, 0.5 * ia); if (!S.f3d) Q.fire(X0, Y0, T * 0.2, 1.2, ia, l.i); Q.glow(X0, Y0, T * 0.12, WHT, ia); }
         if (!sent) { const op = sm(t / tu.open), c0 = anchor(ctx, 'seat'); Q.shimmer(H.sx(c0.x), H.sy(c0.y) - c0.z * ZT, T * 2.4 * (0.7 + 0.3 * op), 0.3 * op, 0.75); } },
+      /* (v327) in true 3D: each lance a tapered shaft of fire along its own path, wrapped in two spiralling fire ribbons, a molten head */
+      gpu3d(Q3) { const K = Q3.K, PT = act._P3 || (act._P3 = []), PS = act._PS || (act._PS = [[], []]), low = Q3.low;
+        for (const l of ls) { const n0 = l.tr.length; if (n0 < 1) continue; const fo = l.ex ? cl(1 - (S.t - l.end) / 0.3) : 1; if (fo <= 0.01) continue; let n = 0;
+          const put = (x, y, z) => { const q = PT[n] || (PT[n] = [0, 0, 0]); q[0] = x; q[1] = y; q[2] = z; n++; }; put(l.x, l.y, l.z); for (let j = 0; j < n0; j += low ? 2 : 1) put(l.tr[j][0], l.tr[j][1], l.tr[j][2]);
+          if (n > 1) { Q3.tube(PT, n, w => 0.12 * (1 - 0.75 * w), K.body, '#FF7A2E', 0.8 * fo, { heat: 0.95, seed: l.i * 0.7, m: low ? 5 : 7, af: w => 1 - w }); Q3.tube(PT, n, w => 0.19 * (1 - 0.75 * w), K.fire, '#FF7A2E', fo, { heat: 1.15, seed: l.i * 0.7, scroll: 4, m: low ? 5 : 7, af: w => 1 - w * 0.8 }); Q3.tube(PT, Math.max(2, n >> 1), w => 0.05 * (1 - w), K.core, '#FFF0C8', fo, { m: 4 });
+            if (!low) for (let s2 = 0; s2 < 2; s2++) { const P2 = PS[s2]; for (let j = 0; j < n; j++) { const q = PT[j], w = j / (n - 1), ph = S.t * 14 + j * 1.3 + s2 * Math.PI, rr = 0.24 * (1 - 0.5 * w), p = P2[j] || (P2[j] = [0, 0, 0]); p[0] = q[0] + Math.cos(ph) * rr * 0.7; p[1] = q[1] + Math.cos(ph) * rr * 0.7; p[2] = q[2] + Math.sin(ph) * rr; }
+              Q3.tube(P2, n, w => 0.06 * (1 - 0.6 * w), K.fire, '#FFB060', fo, { heat: 1.05, seed: l.i + s2, m: 4, af: w => 1 - w }); } }
+          if (!l.ex) { Q3.sphere(l.x, l.y, l.z, 0.24, K.fire, '#FF7A2E', 1, { heat: 1.2, seed: l.i, amp: 0.3, flow: 2 }); Q3.sphere(l.x, l.y, l.z, 0.11, K.core, '#FFF2C8', 1, { amp: 0 }); } } },
       abort() { for (const l of ls) LPOOL.push(l); ls.length = 0; } };
     S.acts.push(act);
   }

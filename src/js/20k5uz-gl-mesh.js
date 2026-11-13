@@ -380,6 +380,25 @@ void main() {
     vec3 c = a2 * (wrap * vec3(1.45, 1.35, 1.25) + amb2) + trans * 0.7 + pow(nh, 30.0) * 0.18 * max(0.0, ndl) * (1.0 - 0.5 * vein) + pow(1.0 - ndv, 3.0) * max(0.0, dot(n, uLR) + 0.3) * uRim * 0.3 + vec3(1.0, 0.35, 0.08) * vein * trc * 0.9;
     float hem = smoothstep(0.93, 0.985, pv) + smoothstep(0.025, 0.0, pv); c = mix(c, vec3(0.06, 0.005, 0.012), min(1.0, hem) * 0.85) + vec3(1.6, 0.8, 0.35) * trc * smoothstep(0.92, 0.99, pv) * 0.9;
     gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
+  else if (id >= 69 && id <= 74) {   // ---- Genbu (lead): 69 sandstone armour (warm beige, stone grain, carved geometric markings, chipped edges to rust primer, dust on top), 70 burnt-orange paint (borders, fittings, drill flutes; chips to steel), 71 dark steel machinery (machined, oily), 72 polished piston chrome, 73 amber light (eyes, slots; uGlow = power, uFx-free), 74 track iron (treads along x)
+    float ndv0 = max(0.0, dot(n, uV)), up = max(0.0, dot(n, uUP)), w1 = vn(L.xy * 3.1 + L.z * 1.7), w2 = vn(L.yz * 9.0 + L.x * 4.0), w3 = vn(L.xz * 27.0 + L.y * 11.0);
+    if (id == 73) { vec3 hh = normalize(uLK + uV); float fl = 0.9 + 0.1 * sin(uTime * 3.0 + L.x * 9.0); vec3 c = mix(vec3(0.95, 0.38, 0.04), vec3(1.7, 1.15, 0.5), pow(ndv0, 1.6)) * (0.55 + 0.6 * uGlow) * fl + pow(max(0.0, dot(n, hh)), 160.0) * 1.2;
+      gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
+    float chipN = smoothstep(0.62, 0.72, w3 * 0.6 + smoothstep(0.35, 0.95, edge) * 0.55) * (1.0 - uLow);
+    if (id == 69) { metal = 0.0; F0 = vec3(0.04); rough = 0.66 + 0.2 * w2; alb = vec3(0.64, 0.53, 0.38) * (0.82 + 0.3 * w1) * vec3(1.0, 0.98 + 0.04 * w2, 0.95 + 0.06 * w2);
+      if (uLow < 0.5) { n = normalize(n + (vec3(vn(L.yz * 17.0), vn(L.zx * 17.0 + 3.0), vn(L.xy * 17.0 + 7.0)) - 0.5) * 0.16);   // (stone grain)
+        vec3 an = abs(NL); vec2 uv = (an.z >= an.x && an.z >= an.y ? L.xy : an.y >= an.x ? L.xz : L.yz) * 2.6; vec2 g = fract(uv) - 0.5, ci = floor(uv); float mk = hs(ci) > 0.55 ? 1.0 : 0.0;   // (carved geometric markings: a stepped chevron in some cells)
+        float ch = abs(abs(g.x) * 1.4 + g.y - 0.12); if (mk > 0.5 && max(abs(g.x), abs(g.y)) < 0.36 && ch < 0.035) cav += 0.9;
+        float sc = abs(fract(L.x * 9.0 + L.y * 5.0 + w2 * 2.0) - 0.5); if (sc < 0.02 && hs(floor(L.xz * 6.0)) > 0.62) { alb *= 1.18; rough *= 0.8; } }   // (fine scratches)
+      if (chipN > 0.0) alb = mix(alb, vec3(0.3, 0.12, 0.05), chipN);   // (chipped to the rust primer)
+      alb = mix(alb, vec3(0.74, 0.66, 0.52), up * up * 0.35 * (0.6 + 0.4 * w1)); }   // (dust settled on top)
+    else if (id == 70) { metal = 0.0; F0 = vec3(0.05); rough = 0.48 + 0.18 * w2; coat = 0.12; alb = vec3(0.4, 0.13, 0.04) * (0.82 + 0.3 * w1);
+      if (chipN > 0.0) { metal = chipN; alb = mix(alb, vec3(0.1, 0.095, 0.1), chipN); F0 = mix(F0, vec3(0.5, 0.48, 0.47), chipN); rough = mix(rough, 0.32, chipN); }
+      alb = mix(alb, vec3(0.6, 0.47, 0.34), up * up * 0.22 * w1); }
+    else if (id == 71) { alb = vec3(0.07, 0.068, 0.072); F0 = vec3(0.4, 0.39, 0.41); rough = 0.38 + 0.2 * w2; if (uLow < 0.5) cav += 0.3 * step(0.66, fract((L.x + L.z * 0.4) * 18.0)); em += vec3(0.28, 0.1, 0.01) * 0.25 * uGlow * smoothstep(0.1, -0.6, dot(n, uUP)); }
+    else if (id == 72) { alb = vec3(0.32, 0.32, 0.34); F0 = vec3(0.94, 0.94, 0.96); rough = 0.09 + 0.06 * w3; }
+    else { metal = 0.6; alb = vec3(0.045, 0.042, 0.04); F0 = vec3(0.28, 0.27, 0.27); rough = 0.62; float tr = abs(fract(L.x * 7.0) - 0.5); cav += smoothstep(0.12, 0.02, tr) * 0.8; alb = mix(alb, vec3(0.42, 0.33, 0.23), up * 0.3 * w1); }   // (track iron, caked with dirt)
+    cav += smoothstep(0.9, 0.99, edge) * 0.5; ao *= 1.0 - 0.18 * (1.0 - w1) * (1.0 - uLow); }
   else if (id >= 38 && id <= 47) {   // ---- Nidhogg (M). uKind 0 a rigid part (detail from its own coordinates), 6 a swept tube (vA.y = along it in armour periods, vA.z = round it, 0 the top, 0.5 the belly), 7 a moving part with a true edge and occlusion; uGlow2 = the trace (Ultima: every seam white-hot)
     float su = edge, sv = ao, trc = clamp(uGlow2, 0.0, 1.0), gK = 0.35 + 0.9 * uGlow + 0.45 * trc, ndv0 = max(0.0, dot(n, uV)); vec3 fireC = vec3(1.0, 0.3, 0.05), hotC = vec3(1.6, 0.9, 0.42);
     if (uKind > 5.5 && uKind < 6.5) { edge = 0.0; ao = 0.72 + 0.28 * smoothstep(0.0, 0.32, abs(sv - 0.5)); }   // (a tube: its underside shaded)

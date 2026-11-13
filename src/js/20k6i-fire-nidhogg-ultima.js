@@ -166,7 +166,8 @@
         if (gpuOn()) { const Q = NM.FGFX.begin(c, null); for (const a of S.acts) { if (a.gpuUnder) a.gpuUnder(Q); else if (a.under) a.under(c, B); } c.setTransform(B); gpuParts(S, Q, 1); NM.FGFX.flush(c); c.restore(); return; }
         for (const a of S.acts) if (a.under) a.under(c, B); drawParts(S, c, B, 1); c.restore(); },
       draw(c) { if (!S.on) return; petPos(S); CUR_S = S; const B = c.getTransform(); c.save();
-        if (gpuOn()) { const Q = NM.FGFX.begin(c, null); for (const a of S.acts) { if (a.gpuOver) a.gpuOver(Q); else if (a.over) a.over(c, B); } c.setTransform(B); gpuParts(S, Q, 0); NM.FGFX.flush(c); c.restore(); return; }   /* (the ultima keeps nothing off the rider: the user's call) */
+        if (gpuOn()) { S.f3d = (() => { try { return !!(NM.F3D && NM.F3D.usable()); } catch (e) { return false; } })(); if (S.f3d) { const o = anchorW(S.ctx, 'seat'), Q3 = NM.F3D.begin(c, S.H, S.ZT, o.x, o.y, null); for (const a of S.acts) if (a.gpu3d) a.gpu3d(Q3); NM.F3D.flush(c); }   /* (v327: the volumes in true 3D first; the soft glows over them) */
+          const Q = NM.FGFX.begin(c, null); for (const a of S.acts) { if (a.gpuOver) a.gpuOver(Q); else if (a.over) a.over(c, B); } c.setTransform(B); gpuParts(S, Q, 0); NM.FGFX.flush(c); c.restore(); return; }   /* (the ultima keeps nothing off the rider: the user's call) */
         for (const a of S.acts) if (a.over) a.over(c, B); drawParts(S, c, B, 0); c.restore(); },
       onEnd() { if (S.on) kill(); } });
     return S;
@@ -265,7 +266,7 @@
         if (ph === 'blast' && t >= TD && !finished) { finished = true; S.keep = true; S.seatOK = false; cam(ctx, null); done(); }
         if (finished && (!blast || blast.t > tu.cloudLife + 0.2)) act.dead = true; },
       under(c, B) { drawUnder(c, B); c.setTransform(B); if (ph === 'charge' || cwaves.length) { chargeUnder(c, B); c.setTransform(B); } },
-      gpuUnder(Q) { gpuUnder(Q); }, gpuOver(Q) { gpuOver(Q); },   /* (the GPU layer's pictures of the same moment) */
+      gpuUnder(Q) { gpuUnder(Q); }, gpuOver(Q) { gpuOver(Q); }, gpu3d(Q3) { gpu3d(Q3); },   /* (the GPU layer's pictures of the same moment) */
       over(c, B) { if (blast) { drawAfter(c, B); c.setTransform(B); } drawCloud(c, B); c.setTransform(B); if (ph === 'charge' || cwaves.length) { chargeOver(c, B); c.setTransform(B); } drawOver(c, B); c.setTransform(B); },
       abort() { if (!finished) { cam(ctx, null); try { for (const k of ['core', 'jaw', 'throat', 'ring', 'trace']) if (P[k] != null) P[k] = 0; } catch (e) {} } } };
     S.acts.push(act);
@@ -377,12 +378,12 @@
       if (ph === 'beam' || (blast && blast.t < 0.12)) { const m = anchorW(ctx, 'mouth'), [ax0, ay0] = scr(m.x, m.y, m.z), [bx, by] = scr(ix, iy, 0.25), dx = bx - ax0, dy = by - ay0, Lb = Math.hypot(dx, dy);
         if (Lb >= 4) { const fade = blast ? Math.max(0, 1 - blast.t / 0.12) : sm((t - TC) / 0.06), w0 = T * 0.75, w1 = T * 1.5, pul = 1 + 0.06 * Math.sin(t * 47) + 0.04 * Math.sin(t * 29), nx = -dy / Lb, ny = dx / Lb, NSEG = L ? 3 : 5;
           for (let i = 0; i <= 4; i++) { const u = i / 4; Q.glow(lerp(ax0, bx, u), lerp(ay0, by, u), T * lerp(1.0, 1.8, u), C.org, 0.2 * fade); }
-          Q.firebody(ax0, ay0, bx, by, w1 * 1.3, 0.9, 0.9 * fade, 2.7, 5.5);   /* (the beam's body, so it holds its colour over a pale floor) */
-          for (let k = 0; k < NSEG; k++) { const u0 = k / NSEG, u1 = (k + 1) / NSEG, hw = lerp(w0, w1, (u0 + u1) / 2) * pul, e0 = -0.04, e1 = 0.04; Q.firebeam(lerp(ax0, bx, u0 + e0 * (k > 0)), lerp(ay0, by, u0 + e0 * (k > 0)), lerp(ax0, bx, u1 + e1 * (k < NSEG - 1)), lerp(ay0, by, u1 + e1 * (k < NSEG - 1)), hw * 1.7, 1.0, fade, k * 0.31, 5.5); }
-          Q.firebeam(ax0, ay0, bx, by, w0 * 1.2, 1.25, 0.8 * fade, 9.1, 8); Q.beam(ax0, ay0, bx, by, w0 * 0.55 * pul, C.yel, 0.75 * fade); Q.beam(ax0, ay0, bx, by, w0 * 0.25 * pul, '#FFFFFF', fade);
+          if (!S.f3d) Q.firebody(ax0, ay0, bx, by, w1 * 1.3, 0.9, 0.9 * fade, 2.7, 5.5);   /* (the beam's body, so it holds its colour over a pale floor) */
+          if (!S.f3d) for (let k = 0; k < NSEG; k++) { const u0 = k / NSEG, u1 = (k + 1) / NSEG, hw = lerp(w0, w1, (u0 + u1) / 2) * pul, e0 = -0.04, e1 = 0.04; Q.firebeam(lerp(ax0, bx, u0 + e0 * (k > 0)), lerp(ay0, by, u0 + e0 * (k > 0)), lerp(ax0, bx, u1 + e1 * (k < NSEG - 1)), lerp(ay0, by, u1 + e1 * (k < NSEG - 1)), hw * 1.7, 1.0, fade, k * 0.31, 5.5); }
+          if (!S.f3d) Q.firebeam(ax0, ay0, bx, by, w0 * 1.2, 1.25, 0.8 * fade, 9.1, 8); Q.beam(ax0, ay0, bx, by, w0 * 0.55 * pul, C.yel, 0.75 * fade); Q.beam(ax0, ay0, bx, by, w0 * 0.25 * pul, '#FFFFFF', fade);
           for (let i = 0; i < (L ? 5 : 10); i++) { const u = ((i * 0.618 + t * 0.9) % 1), side = i % 2 ? 1 : -1, hw = lerp(w0, w1, u) * 0.75, fl = 0.65 + 0.35 * Math.sin(t * 17 + i * 2.3) * Math.sin(t * 11 + i), sz = T * lerp(0.8, 1.8, u) * fl, px = lerp(ax0, bx, u) + nx * side * hw * 0.8, py = lerp(ay0, by, u) + ny * side * hw * 0.8;
             Q.tongue(px, py, sz * 0.28, sz * 0.5, Math.atan2(ny * side, nx * side) + Math.PI / 2 + side * 0.3, 0.85, fade * Math.sin(u * Math.PI) * 0.8, i); }
-          const PT = GP1; for (let s2 = 0; s2 < 2; s2++) { let m2 = 0; for (let i = 0; i <= 18; i++) { const u = i / 18, ph2 = u * 14 - t * 22 + s2 * Math.PI, o = Math.sin(ph2) * lerp(w0, w1, u) * 0.62; PT[m2++] = [lerp(ax0, bx, u) + nx * o, lerp(ay0, by, u) + ny * o]; } for (let i = 0; i < m2 - 1; i++) Q.beam(PT[i][0], PT[i][1], PT[i + 1][0], PT[i + 1][1], T * 0.08, i % 2 ? C.amb : C.yel, 0.7 * fade); }
+          const PT = GP1; if (!S.f3d) for (let s2 = 0; s2 < 2; s2++) { let m2 = 0; for (let i = 0; i <= 18; i++) { const u = i / 18, ph2 = u * 14 - t * 22 + s2 * Math.PI, o = Math.sin(ph2) * lerp(w0, w1, u) * 0.62; PT[m2++] = [lerp(ax0, bx, u) + nx * o, lerp(ay0, by, u) + ny * o]; } for (let i = 0; i < m2 - 1; i++) Q.beam(PT[i][0], PT[i][1], PT[i + 1][0], PT[i + 1][1], T * 0.08, i % 2 ? C.amb : C.yel, 0.7 * fade); }
           const u = cl((t - TC) / tu.beam), rs = T * (0.55 + 1.15 * eout(u)) * pul; Q.glow(bx, by, rs * 2, C.yel, 0.35 * fade); Q.billow(bx, by - rs * 0.25, rs * 1.2, 0.95, 0.9 * fade, 6.1); Q.fire(bx, by - rs * 0.25, rs * 0.9, 1.05, 0.8 * fade, 3.3); Q.glow(bx, by - rs * 0.25, rs * 0.5, '#FFFFFF', 0.6 * fade); Q.glow(ax0, ay0, T * 0.8, C.yel, 0.8 * fade); Q.glow(ax0, ay0, T * 0.35, '#FFFFFF', fade); } }
       if (!blast) return;
       // the secondary bursts round the field and the fires left burning
@@ -393,9 +394,9 @@
       // the dome, the column and the mushroom cloud: fire cooling into smoke as it climbs, the cap lit from within
       const u = blast.t, life = tu.cloudLife; if (u > life) return; const X0 = H.sx(ix), Y0 = H.sy(iy), fadeAll = 1 - sm((u - (life - 1.3)) / 1.3);
       if (u < 0.25) Q.glow(X0, Y0 - T * RX * 0.25, RX * 1.0 * T, '#FFFFFF', Math.pow(1 - u / 0.25, 1.5) * 0.7);
-      const puff = (x, y, s, sd, cool, a) => { if (s < 2 || a < 0.01) return; const k = sm((cool - 0.3) / 0.4); if (k > 0.01) Q.smoke(x, y, s * 0.55, a * (0.35 + 0.65 * k), sd, '#3A302C', 1 - k); if (k < 0.99) Q.billow(x, y, s * 0.55, 0.85 - 0.6 * cool, a * (1 - k), sd); };   /* (not too hot: stacked, the billows must stay orange and read as volumes) */
+      const puff = (x, y, s, sd, cool, a) => { if (s < 2 || a < 0.01 || S.f3d) return; const k = sm((cool - 0.3) / 0.4); if (k > 0.01) Q.smoke(x, y, s * 0.55, a * (0.35 + 0.65 * k), sd, '#3A302C', 1 - k); if (k < 0.99) Q.billow(x, y, s * 0.55, 0.85 - 0.6 * cool, a * (1 - k), sd); };   /* (not too hot: stacked, the billows must stay orange and read as volumes) */
       const dr = RX * T * eout(u / 0.3), dA = (u < 0.9 ? 1 : 1 - sm((u - 0.9) / 1.1)) * fadeAll; if (dA > 0.01 && dr > 2) { const hh = dr * 0.82 * (1 + 0.25 * sm((u - 0.4) / 1.0)), lift = T * 1.2 * sm((u - 0.5) / 1.2);
-        Q.billow(X0, Y0 - hh * 0.45 - lift, dr * 0.95, 0.95 - 0.65 * sm(u / 1.6), 0.9 * dA, 4.4, hh / dr * 0.75);   /* (the dome: one great turbulent ball of fire, squat) */
+        if (!S.f3d) Q.billow(X0, Y0 - hh * 0.45 - lift, dr * 0.95, 0.95 - 0.65 * sm(u / 1.6), 0.9 * dA, 4.4, hh / dr * 0.75);   /* (the dome: one great turbulent ball of fire, squat) */
         const NB = L ? 6 : 11; for (let i = 0; i < NB; i++) { const th = Math.PI + (i + 0.5) / NB * Math.PI, ro = 0.92 + 0.06 * Math.sin(u * 4 + i * 2.1); puff(X0 + Math.cos(th) * dr * ro, Y0 - lift + Math.sin(th) * hh * ro, dr * (0.34 + 0.06 * Math.sin(i * 1.7)) * (0.8 + 0.4 * eout(u / 0.5)), i * 1.3, sm((u - 0.35) / 1.0) * 0.8, dA * 0.95); }
         Q.glow(X0, Y0 - hh * 0.3 - lift, dr * 0.6, C.yel, 0.22 * dA * (1 - sm(u / 0.8)));
         const hc = (1 - sm((u - 0.2) / 1.0)) * dA; if (hc > 0.01) { Q.fire(X0, Y0 - hh * 0.4 - lift, dr * 0.42, 1.15, hc, 8.3, 0.85); Q.glow(X0, Y0 - hh * 0.4 - lift, dr * 0.16, '#FFFFFF', 0.7 * hc); } }   /* (the dome's white-hot heart: structure inside the wash) */
@@ -405,6 +406,42 @@
         const PF = blast.puffs, n = L ? 6 : PF.length; for (let i = 0; i < n; i++) { const p = PF[i], a = p.a + u * 0.6, sn = Math.sin(a); puff(X0 + Math.cos(a) * cw * p.r, cy + sn * ch * p.r, cw * 0.7 * p.s, i * 1.9, cool * (sn < 0 ? 0.85 : 0.9), puffA); }
         puff(X0, cy - ch * 0.35, cw * 1.05, 0.5, cool * 0.75, puffA); Q.glow(X0, cy, cw * 0.6, C.yel, 0.22 * puffA * (1 - cool * 0.7), 0.7); } }
 
+    /* (v327) the Ultima in true 3D: the rune ring a tilted spinning torus (three bands, runes on the outer) over the dragon;
+       the mouth's core; the beam a cylinder of churning fire, a white-hot core and two spiralling fire tubes, seen in
+       perspective; the blast a dome of fire swelling from the floor, a stem and a mushroom cap of fire cooling into smoke,
+       shock rings as tori on the floor; the secondary bursts as balls of fire */
+    const GP3 = [[], [], []];
+    function gpu3d(Q3) { const K = Q3.K, low = Q3.low, now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+      if ((P.ring || 0) > 0.02) { const rg = anchorW(ctx, 'ring'), A = Math.min(1, P.ring), sp = (P.ringSpin || 0) * 1.5, R1 = 2.2 * (d.scale || 1), tl = [0.16 * Math.cos(sp * 0.3), 0.16 * Math.sin(sp * 0.3), 0.975];
+        Q3.torus(rg.x, rg.y, rg.z, R1, 0.1, tl, sp, K.runes, '#FF4A22', A, {}); Q3.torus(rg.x, rg.y, rg.z, R1 * 0.91, 0.045, tl, -sp * 0.7, K.floor, '#FF7A2E', A * 0.9, { heat: 1.0 });
+        Q3.torus(rg.x, rg.y, rg.z, R1 * 0.74, 0.07, tl, -sp * 1.6, K.runes, '#FF6A2A', A * 0.8, { nu: low ? 18 : 30 }); Q3.torus(rg.x, rg.y, rg.z, R1 * 0.54, 0.05, tl, sp * 1.2, K.floor, '#FFB060', A * 0.85, { heat: 0.9 });
+        NM.ring3dT = now; }   /* (the model's flat ring stands down while this one is drawn) */
+      if (ph === 'charge') { const u = t / TC, mo = anchorW(ctx, 'mouth'), r = 0.12 + 0.55 * eio(u); Q3.sphere(mo.x, mo.y, mo.z, r, K.fire, '#FF7A2E', 0.6 + 0.4 * u, { heat: 0.95 + 0.25 * u, seed: 7.7, amp: 0.3, flow: 2.5 }); Q3.sphere(mo.x, mo.y, mo.z, r * 0.4, K.core, '#FFF2C8', 0.5 + 0.5 * u, { amp: 0 }); }
+      if (ph === 'beam' || (blast && blast.t < 0.12)) { const m = anchorW(ctx, 'mouth'), fade = blast ? Math.max(0, 1 - blast.t / 0.12) : sm((t - TC) / 0.06), pul = 1 + 0.06 * Math.sin(t * 47), N = low ? 5 : 9, A0 = GP3[0], A1 = GP3[1], A2 = GP3[2];
+        for (let i = 0; i < N; i++) { const u = i / (N - 1), q = A0[i] || (A0[i] = [0, 0, 0]); q[0] = lerp(m.x, ix, u); q[1] = lerp(m.y, iy, u); q[2] = lerp(m.z, 0.25, u); }
+        Q3.tube(A0, N, u => lerp(0.32, 0.62, u) * pul, K.body, '#FF7A2E', 0.85 * fade, { heat: 0.9, seed: 2.7, m: low ? 7 : 12 }); Q3.tube(A0, N, u => lerp(0.4, 0.75, u) * pul, K.fire, '#FF7A2E', fade, { heat: 1.05, seed: 2.7, scroll: 6, m: low ? 7 : 12, qlen: 6 });
+        Q3.tube(A0, N, u => lerp(0.1, 0.16, u), K.core, '#FFF6E0', fade, { m: 6 });
+        if (!low) for (let s2 = 0; s2 < 2; s2++) { const AS = s2 ? A2 : A1, NS = 18; for (let i = 0; i < NS; i++) { const u = i / (NS - 1), ph2 = u * 14 - t * 22 + s2 * Math.PI, rr = lerp(0.48, 0.85, u), q = AS[i] || (AS[i] = [0, 0, 0]); q[0] = lerp(m.x, ix, u) + Math.cos(ph2) * rr * 0.7; q[1] = lerp(m.y, iy, u) + Math.sin(ph2) * rr * 0.7; q[2] = lerp(m.z, 0.25, u) + Math.sin(ph2) * rr * 0.5; }
+          Q3.tube(AS, NS, () => 0.07, K.fire, '#FFB060', 0.8 * fade, { heat: 1.0, seed: s2 + 4, m: 5 }); }
+        const u = cl((t - TC) / tu.beam); Q3.sphere(ix, iy, 0.3, 0.5 + 0.8 * eout(u), K.fire, '#FF7A2E', fade, { heat: 1.0, seed: 3.3, amp: 0.35, flow: 2, sz: 0.7 }); }
+      if (!blast) return; const u = blast.t, life = tu.cloudLife; if (u > life) return; const fadeAll = 1 - sm((u - (life - 1.3)) / 1.3);
+      for (const b of blast.sec) { if (!b.done) continue; const a2 = blast.t - b.at; if (a2 > 1.1) continue; const r = 0.8 * b.s * eout(a2 / 0.35), fa = Math.pow(Math.max(0, 1 - a2 / 1.1), 1.3); Q3.sphere(b.x, b.y, r * 0.6, r, K.fire, '#FF7A2E', fa, { heat: 0.9 - 0.5 * a2, seed: b.v * 2.1, amp: 0.3 }); if (a2 > 0.3) Q3.sphere(b.x, b.y, r * 0.9, r * 1.1, K.smoke, '#3A2A24', fa * 0.7, { seed: b.v, amp: 0.3, warm: 0.5 }); }
+      for (let k = 0; k < 3; k++) { const v = (u - k * 0.12) / (0.5 + 0.15 * k); if (v <= 0 || v >= 1) continue; Q3.torus(ix, iy, 0.05, RX * (1.11 - 0.06 * k) * eout(v), 0.12 * (1 - v) + 0.03, [0, 0, 1], 0, K.floor, k ? '#FF7A2E' : '#FFD27A', (1 - v), { heat: 1.0 - 0.3 * k }); }
+      const dr = RX * eout(u / 0.3), dA = (u < 0.9 ? 1 : 1 - sm((u - 0.9) / 1.1)) * fadeAll, cool0 = sm(u / 1.6);
+      if (dA > 0.01 && dr > 0.1) { const lift = 1.2 * sm((u - 0.5) / 1.2), hz = 0.82 * (1 + 0.25 * sm((u - 0.4) / 1.0));
+        Q3.sphere(ix, iy, lift * 0.5, dr * 0.85, K.body, '#FF7A2E', 0.55 * dA * (1 - cool0), { heat: 0.95 - 0.6 * cool0, seed: 4.4, amp: 0.22, sz: hz, hemi: true });
+        Q3.sphere(ix, iy, lift * 0.5, dr, K.fire, '#FF7A2E', dA, { heat: 1.0 - 0.65 * cool0, seed: 4.4, amp: 0.25, sz: hz, hemi: true, flow: 1.2 });
+        if (u > 0.5) Q3.sphere(ix, iy, lift * 0.5, dr * 1.04, K.smoke, '#3A2A24', dA * 0.4 * sm((u - 0.5) / 1.0), { seed: 5.1, amp: 0.3, sz: hz, hemi: true, warm: 0.8 }); }
+      const rise = eout((u - 0.15) / 1.6), Hc = tu.columnH * rise, cool = sm((u - 1.5) / 2.0), pA = sm((u - 0.15) / 0.3) * fadeAll * 0.92;
+      if (pA > 0.01 && Hc > 0.3) { const A0 = GP3[0]; for (let i = 0; i < 5; i++) { const q = A0[i] || (A0[i] = [0, 0, 0]); q[0] = ix + Math.sin(u * 2 + i * 1.7) * 0.08; q[1] = iy; q[2] = Hc * i / 4; }
+        const rc = w => RX * (0.32 - 0.12 * w);
+        Q3.tube(A0, 5, rc, K.smoke, '#3A2A24', pA * (0.2 + 0.45 * cool), { seed: 1.3, m: low ? 8 : 12, warm: 0.8 * (1 - cool) }); Q3.tube(A0, 5, w => rc(w) * 1.05, K.fire, '#FF7A2E', pA * (1 - cool), { heat: 0.85 - 0.5 * cool, seed: 1.3, scroll: 1.2, m: low ? 8 : 12 });
+        const capZ = Hc * 0.72 + RX * 0.12, cw = RX * (0.42 + 0.22 * rise);   /* (lower and larger: a crown of a few big rolling balls) */
+        /* the mushroom cap: a crown of billowing 3D balls of fire (the 2D cloud's own puff layout), rolling and cooling into smoke */
+        const nP = low ? 4 : 6, cA = pA * (1 - cool * 0.75);
+        for (let i = 0; i < nP; i++) { const a = i / nP * Math.PI * 2 + u * 0.7, x = ix + Math.cos(a) * cw * 0.62, y = iy + Math.sin(a) * cw * 0.3, z = capZ + Math.sin(a) * cw * 0.12, r = cw * 0.5;
+          Q3.sphere(x, y, z, r * 0.92, K.body, '#FF7A2E', cA * 0.9, { heat: 0.95 - 0.45 * cool, seed: i * 1.9, amp: 0.28, flow: 0.7 }); Q3.sphere(x, y, z, r, K.fire, '#FF7A2E', cA, { heat: 1.1 - 0.5 * cool, seed: i * 1.9, amp: 0.3, flow: 0.7 }); if (cool > 0.05) Q3.sphere(x, y, z + r * 0.15, r * 1.08, K.smoke, '#3A2A24', pA * 0.75 * cool, { seed: i * 1.9 + 3, amp: 0.3, warm: 0.6, flow: 0.4 }); }
+        Q3.sphere(ix, iy, capZ + cw * 0.12, cw * 0.55, K.fire, '#FF7A2E', cA, { heat: 1.05 - 0.5 * cool, seed: 2.9, amp: 0.3, sz: 0.7, flow: 0.6 }); } }
     /* a sprite drawn straight over the actors: its alpha eased down softly near the rider (no clip, no edge) */
     const putK = (c, B, img, x, y, w, h, a, rot, sy, add) => put(c, B, img, x, y, w, h, a * petK(S, x, y, 0.45), rot, sy, add);
     function drawUnder(c, B) { const T = S.T, GY = H.GY || 0.55, X0 = H.sx(ix), Y0 = H.sy(iy);

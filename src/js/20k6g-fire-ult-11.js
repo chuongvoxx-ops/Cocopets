@@ -40,7 +40,7 @@
   const MOD = () => (typeof NIDHOGG_MODEL !== 'undefined' ? NIDHOGG_MODEL : null);
 
   /* ================= the tuning (configurable) ================= */
-  const ULT_Z0 = 0.9, ULT_CAM_K = 0.5;   /* (ULT_Z0: the flight zoom the moves' and the Ultima's camera zooms were authored against) */
+  const ULT_Z0 = 0.9, ULT_CAM_K = 0.25;   /* (v327, the user: "zoom back in by 50%" again: a quarter of the authored pull-back is kept; charge and beam about 0.54, blast about 0.53 at the 0.585 flight zoom) (ULT_Z0: the flight zoom the moves' and the Ultima's camera zooms were authored against) */
   /* (v325, the user: "camera pull back too far during ultima, zoom back in by half") the share of the Ultima's own zoom-out that is kept (framing only, not a gameplay number) */
   const TUNE = {
     dur: [20, 25, 35], cd: 120,                    // s of flight at evo 1-3 / 4-6 / 7 (from the moment it can fly); the Ult's cooldown from the exit
@@ -569,6 +569,18 @@
     // the dive's target ring closing in; an invalid marker (an X in a broken ring) where nothing can be struck
     if (S.dive && !S.dive.slam) { const D = S.dive, u = cl(D.t / D.t2), r = T * TUNE.diveR * (1.05 - 0.35 * u), X0 = H.sx(D.tx), Y0 = H.sy(D.ty); c.globalAlpha = 0.65 * sstep(0, 0.2, u); c.beginPath(); c.ellipse(X0, Y0, r, r * GY, 0, 0, TAU); c.strokeStyle = FIRE; c.lineWidth = T * 0.07; c.stroke(); c.globalAlpha *= 0.4; blitSized(c, glowSprite(RED), X0 - r, Y0 - r * GY, r * 2, r * 2 * GY); }
     c.restore();
+    // (v327) Dive Bomb in true 3D on the GPU (NIDHOGG_MOVES.F3D; the flat marks above stay as its light on the floor): a
+    // flaming trail along the dive path, then at the slam a dome of fire swelling out of the ground over a crater ring
+    // of fire, cooling into smoke; under the actors, so the dragon and its rider sit in it
+    try { const F3 = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.F3D; if (F3 && F3.usable() && (S.dive || S.parts.some(p => p.kind === 9 && p.s > 2))) { const Q3 = F3.begin(c, H, T * ZK, d.x, d.y, null), K = Q3.K, D = S.dive;
+      if (D && D.t > D.t1 && D.t < D.t2 + 0.08) { const Ph = TUNE.divePh, u0 = cl((D.t - D.t1) / Ph[1]), fade = D.t > D.t2 ? 1 - (D.t - D.t2) / 0.08 : sstep(0, 0.2, u0), PT = S.p3 || (S.p3 = []), n = Q3.low ? 6 : 10;
+        for (let i = 0; i < n; i++) { const v = Math.max(0, u0 - i * 0.05), u = Math.pow(v, 1.8), q = PT[i] || (PT[i] = [0, 0, 0]); q[0] = lerp(D.x0, D.tx, u); q[1] = lerp(D.y0, D.ty, u); q[2] = lerp(D.z0 + 0.4, 0.3, Math.pow(v, 1.5)) + 0.5; }
+        Q3.tube(PT, n, w => 0.7 * (1 - 0.8 * w), K.body, '#FF7A2E', 0.8 * fade, { heat: 0.95, seed: 3.1, af: w => 1 - w }); Q3.tube(PT, n, w => 0.95 * (1 - 0.75 * w), K.fire, '#FF7A2E', fade, { heat: 1.12, seed: 3.1, scroll: 4, af: w => 1 - w * w }); }
+      for (const p of S.parts) { if (p.kind !== 9 || !(p.s > 2)) continue; const u = 1 - p.life / p.max, e = 1 - (1 - u) * (1 - u), r = TUNE.diveR * (0.45 + 0.6 * e), a = 1 - sstep(0.35, 1, u);
+        Q3.sphere(p.x, p.y, 0, r * 0.95, K.body, '#FF7A2E', 0.9 * a, { heat: 1.0 - 0.5 * u, seed: 6.1, amp: 0.25, sz: 0.85, hemi: true }); Q3.sphere(p.x, p.y, 0, r, K.fire, '#FF7A2E', a, { heat: 1.15 - 0.6 * u, seed: 6.1, amp: 0.28, sz: 0.85, hemi: true, flow: 1.5 }); if (u < 0.4) Q3.sphere(p.x, p.y, 0.2, r * 0.4, K.core, '#FFF0C8', 1 - u / 0.4, { amp: 0.1, sz: 0.8 });
+        if (u > 0.3) Q3.sphere(p.x, p.y, r * 0.25, r * 1.05, K.smoke, '#3A2A26', 0.7 * a * sstep(0.3, 0.6, u), { seed: 6.7, amp: 0.3, sz: 0.55, hemi: true, warm: 0.7 });
+        Q3.torus(p.x, p.y, 0.04, TUNE.diveR * (0.3 + 0.8 * e), 0.1 * (1 - u) + 0.03, [0, 0, 1], 0, K.floor, '#FF8A3A', 1 - u, { heat: 0.95 - 0.4 * u }); }
+      F3.flush(c); } } catch (e) { /* (the 3D layer; the flat pictures stand) */ }
     // the dragon's shadow (only over something to fall on: inside the map)
     if (S.phase !== 'gone' && M0 && inMap(S, d.x, d.y)) { const da = drawHeading(S, d.heading); if (da != null) try { M0.drawShadow(c, d.x, d.y, d.z, da, d.pose, { T, sx: H.sx, sy: H.sy, t, scale: TUNE.size }); } catch (e) { /* (model) */ } }
     callM(S, c, 'drawUnder');
@@ -684,6 +696,14 @@
       for (const m of S.marks) { const a = 1 - Math.pow(Math.min(1, m.t / m.life), 2), X0 = H.sx(m.x), Y0 = H.sy(m.y), r = T * 0.7; c.globalCompositeOperation = 'source-over'; c.globalAlpha = 0.85 * a; c.strokeStyle = '#FF3A3A'; c.lineWidth = T * 0.09; c.setLineDash([T * 0.18, T * 0.14]); c.beginPath(); c.ellipse(X0, Y0, r, r * GY, 0, 0, TAU); c.stroke(); c.setLineDash([]);
         c.beginPath(); c.moveTo(X0 - r * 0.5, Y0 - r * 0.35); c.lineTo(X0 + r * 0.5, Y0 + r * 0.35); c.moveTo(X0 + r * 0.5, Y0 - r * 0.35); c.lineTo(X0 - r * 0.5, Y0 + r * 0.35); c.stroke(); c.globalCompositeOperation = 'lighter'; }
       c.restore(); }
+    // (v327) Dive Bomb's flaming trail and the slam's rising fireball over the actors (3D, the rider's face kept clear)
+    try { const F3 = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.F3D, D = S.dive, d = S.dragon; if (F3 && F3.usable() && (D || S.parts.some(p => p.kind === 9 && p.s > 2))) { const sp0 = S.seatS || [-1e9, -1e9], Q3 = F3.begin(c, H, T * ZK, d.x, d.y, [sp0[0], sp0[1] - T * 0.45, T * 0.95]), K = Q3.K;
+      if (D && D.t > D.t1 && D.t < D.t2 + 0.1) { const Ph = TUNE.divePh, u0 = cl((D.t - D.t1) / Ph[1]), fade = D.t > D.t2 ? 1 - (D.t - D.t2) / 0.1 : sstep(0, 0.2, u0), PT = S.p3o || (S.p3o = []), n = Q3.low ? 6 : 10;
+        for (let i = 0; i < n; i++) { const v = Math.max(0, u0 - 0.05 - i * 0.06), u = Math.pow(v, 1.8), q = PT[i] || (PT[i] = [0, 0, 0]); q[0] = lerp(D.x0, D.tx, u); q[1] = lerp(D.y0, D.ty, u); q[2] = lerp(D.z0 + 0.4, 0.3, Math.pow(v, 1.5)) + 0.9; }
+        Q3.tube(PT, n, w => 0.6 * (1 - 0.8 * w), K.body, '#FF7A2E', 0.8 * fade, { heat: 0.95, seed: 3.1, af: w => 1 - w }); Q3.tube(PT, n, w => 0.85 * (1 - 0.75 * w), K.fire, '#FF7A2E', fade, { heat: 1.12, seed: 3.1, scroll: 4, af: w => 1 - w * w }); }
+      for (const p of S.parts) { if (p.kind !== 9 || !(p.s > 2)) continue; const u = 1 - p.life / p.max; if (u > 0.6) continue; const v = u / 0.6, r = TUNE.diveR * (0.35 + 0.3 * (1 - (1 - v) * (1 - v))), z = 0.6 + 1.4 * v;
+        Q3.sphere(p.x, p.y, z, r * 0.9, K.body, '#FF7A2E', 1 - v, { heat: 1.0 - 0.5 * v, seed: 8.1, amp: 0.3 }); Q3.sphere(p.x, p.y, z, r, K.fire, '#FF7A2E', 1 - v, { heat: 1.15 - 0.6 * v, seed: 8.1, amp: 0.32, flow: 1.6 }); if (v > 0.35) Q3.sphere(p.x, p.y, z + r * 0.3, r * 1.1, K.smoke, '#3A2A26', 0.7 * (v - 0.35) / 0.65, { seed: 8.7, amp: 0.3, warm: 0.6 }); }
+      F3.flush(c); } } catch (e) { /* (the 3D layer) */ }
     if (!S.parts.length) return;
     const sp = S.seatS || [-1e9, -1e9], PX = sp[0], PY = sp[1] - T * 0.45;
     c.save();
