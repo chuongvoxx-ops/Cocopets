@@ -1223,10 +1223,11 @@ const SUSANO_MODEL = (() => {
      The posed meshes rendered live into one WebGL canvas sized to the model's bounds on screen (device pixels, capped),
      laid into the game canvas as one image; the plumes and glows, the pet and the shadow stay 2D. With no WebGL (or a
      lost context) the pictures above are drawn instead. */
-  let NOGL = false, GLMS = 0, GLR = 0, GLD = 0, GLN = 0; const GLI = [], GLJ = [];
+  let NOGL = false, GLFAIL = 0, GLRETRY = 0, GLMS = 0, GLR = 0, GLD = 0, GLN = 0; const GLI = [], GLJ = [];
   // (a software rasteriser - a browser with no usable GPU - would take a large part of a second a frame: the pictures are
   //  drawn there instead, unless asked: window.__SUSANO_GL = 1, for tests and studio renders)
-  const glOn = () => { if (NOGL || typeof GLM === 'undefined' || !GLM.ok()) return false; if (GLM.soft && !(typeof window !== 'undefined' && window.__SUSANO_GL)) return false; if (!MESH) { try { const t0 = nowMs(); MESH = buildMeshes(); MESH_MS = nowMs() - t0; } catch (e) { NOGL = true; return false; } } return true; };
+  let GLLAST = 0; const glFail = () => { const t = nowMs(); if (t - GLLAST > 20000) GLFAIL = 0; GLLAST = t; GLFAIL++; if (GLFAIL >= 3) NOGL = true; else GLRETRY = t + 1500; };   // (a GPU draw that throws: the 2D picture for 1.5 s, then the GPU again; for good only after 3 failures within 20 s)
+  const glOn = () => { if (NOGL || (GLRETRY && nowMs() < GLRETRY) || typeof GLM === 'undefined' || !GLM.ok()) return false; if (GLM.soft && !(typeof window !== 'undefined' && window.__SUSANO_GL)) return false; if (!MESH) { try { const t0 = nowMs(); MESH = buildMeshes(); MESH_MS = nowMs() - t0; } catch (e) { NOGL = true; return false; } } return true; };
   let MESH_MS = 0;
   const KIND = { blade: 1, sword: 2, hatch: 3, hub: 2, seat: 2 };
   const meshOf = it => MESH[it.part === 'drumL' || it.part === 'drumR' ? it.part : it.part];
@@ -1263,7 +1264,7 @@ const SUSANO_MODEL = (() => {
     if (hatch && hatch.length) glPass(c, V, R, P, o, hatch, al0);
   }
   /* draw(c, x, y, z, heading, pose, o): live on the GPU when it can; else the baked pictures */
-  function draw(c, x, y, z, a, P, o) { if (glOn()) { try { return drawGL(c, x, y, z, a, P, o); } catch (e) { NOGL = true; } } return drawSprite(c, x, y, z, a, P, o); }
+  function draw(c, x, y, z, a, P, o) { if (glOn()) { try { return drawGL(c, x, y, z, a, P, o); } catch (e) { glFail(); } } return drawSprite(c, x, y, z, a, P, o); }
   /* the live lights: the thruster plumes (and the robot's hover glow under its feet), the eyes, the cockpit core, the sword's
      channel and the charge at its point */
   function lights(c, V, R, P, al, low, t) {

@@ -477,10 +477,11 @@ const FENRIR_MODEL = (() => {
     const depth = p => vdot(mv(Rh, p), K ? K.C : CW);
     return { T, sc, k, Rh, toS, toW, depth, x, y, z, a, K };
   }
-  let LAST = null, NOGL = false, GLMS = 0, GLN = 0, GLBOX = null; const GLI = [], GLJ = [];
+  let LAST = null, NOGL = false, GLFAIL = 0, GLRETRY = 0, GLMS = 0, GLN = 0, GLBOX = null; const GLI = [], GLJ = [];
   // (a software rasteriser - a browser with no usable GPU - takes a large part of a second a frame: the low-detail picture is
   //  drawn there instead, unless asked for: window.__FENRIR_GL = 1, for tests and studio renders)
-  const glOn = () => { if (NOGL || typeof GLM === 'undefined' || !GLM.ok()) return false; if (GLM.soft && !(typeof window !== 'undefined' && window.__FENRIR_GL)) return false;
+  let GLLAST = 0; const glFail = () => { const t = nowMs(); if (t - GLLAST > 20000) GLFAIL = 0; GLLAST = t; GLFAIL++; if (GLFAIL >= 3) NOGL = true; else GLRETRY = t + 1500; };   // (a GPU draw that throws: the 2D picture for 1.5 s, then the GPU again; for good only after 3 failures within 20 s)
+  const glOn = () => { if (NOGL || (GLRETRY && nowMs() < GLRETRY) || typeof GLM === 'undefined' || !GLM.ok()) return false; if (GLM.soft && !(typeof window !== 'undefined' && window.__FENRIR_GL)) return false;
     if (!MESH) { try { const t0 = nowMs(); MESH = buildMeshes(); MESH_MS = nowMs() - t0; } catch (e) { NOGL = true; if (typeof console !== 'undefined') console.warn('Fenrir: meshes', e); return false; } } return true; };
   const GLCAP = 1600, RIMC = [0.3, 0.85, 1.5], AMBC = [0.82, 0.95, 1.22];
   function glPass(c, V, P, o, list, al0) {
@@ -544,7 +545,7 @@ const FENRIR_MODEL = (() => {
       try { if (o.pet) { const ds = V.depth(vadd(R.A.seat, [0, 0, 0.3])), over = it => /^(cannon|barrel|cmount|head|jaw|maneF|maneR|neck)/.test(it.name) && V.depth(vadd(it.o, mv(it.R, vmul(PARTS[it.part].c, it.s)))) > ds + 0.12;
           const front = vis.filter(over); glPass(c, V, P, o, front.length ? vis.filter(it => !over(it)) : vis, al0); lights(c, V, R, P, al0, low);
           const s3 = V.toS(R.A.seat); o.pet(c, s3[0], s3[1]); if (front.length) glPass(c, V, P, o, front, al0); }
-        else { glPass(c, V, P, o, vis, al0); lights(c, V, R, P, al0, low); } } catch (e) { NOGL = true; ok = false; }
+        else { glPass(c, V, P, o, vis, al0); lights(c, V, R, P, al0, low); } } catch (e) { glFail(); ok = false; }
       if (ok) return; }
     drawFallback(c, V, R, al0); lights(c, V, R, P, al0, low); if (o.pet) { const s3 = V.toS(R.A.seat); o.pet(c, s3[0], s3[1]); }
   }

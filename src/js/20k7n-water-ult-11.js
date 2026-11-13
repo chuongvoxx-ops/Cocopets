@@ -179,6 +179,7 @@
     /* under E's ocean between the dive and the breach: held below the surface, gliding */
     if (S.phase !== 'finisher') S.under = false; else if (S.under && G.zAbs == null) { G.zAbs = -(V.z + 2.9); G.fwd = 2.2; G.pitch = 0.35; G.swimK = 0.6; G.jaw = 0.1; }
     for (const key in SPR) { const p = SPR[key]; P[key] = spring(S, key, G[key], p[0], p[1], dt); }
+    if (S.form === 'shark' && !S.xfm && !S.finFold) P.xf = 0; else if (S.form === 'leviathan' && !S.xfm && !S.finFold) P.xf = 1;   /* (the form channel is never sprung: exact outside a morph or the fold) */
     if (G.zAbs != null) { const zs = S.an.z; zs.x = G.zAbs; zs.v = 0; P.z = G.zAbs; }   /* (a whole-body move: exact, not sprung) */
     S.fwd = (S.fwd || 0) + (G.fwd - (S.fwd || 0)) * Math.min(1, dt * 14);
     S.swimV = S.swimV == null ? G.swimV : S.swimV + (G.swimV - S.swimV) * Math.min(1, dt * 6); S.swim = (S.swim || 0) + S.swimV * dt; P.swim = S.swim; P.breath = t * 1.2;
@@ -735,7 +736,8 @@
     if (!lev) { btn(B.s[0], 'waterBombs', 'WATER BOMBS', S.cd.s1, S.cdMax.s1 || TUNE.s1Cd, paintBombsBtn, S.busy === 'waterBombs'); btn(B.s[1], 'waterRay', 'WATER RAY', S.cd.s2, S.cdMax.s2 || TUNE.s2Cd, paintRayBtn, S.busy === 'waterRay'); btn(B.d, 'maw', 'MAW', S.cd.dodge, S.cdMax.dodge || TUNE.dodgeRec, paintMawBtn, !!S.maw); }
     else { btn(B.s[0], 'depthCharge', 'DEPTH CHARGE', S.cd.s1, S.cdMax.s1 || TUNE.s1Cd, paintDepthBtn, S.busy === 'depthCharge'); btn(B.s[1], 'maelstrom', noPool ? 'NEEDS A POOL' : 'MAELSTROM', S.cd.s2, S.cdMax.s2 || TUNE.s2Cd, paintMaelBtn, S.busy === 'maelstrom', noPool); btn(B.d, 'hydrojet', 'HYDROJET', S.cd.dodge, S.cdMax.dodge || TUNE.dodgeRec, paintJetBtn, !!S.jet); }
     /* (v321) no Anchor: the shark turns into Leviathan by itself at the fifth pool. TRANSFORM (small, labelled, above Dodge) takes Leviathan back to the shark; the shark has no button there */
-    if (B.j && (lev || (S.xfm && S.xfm.to === 'shark'))) { const lk = S.xfLockT != null ? Math.max(0, TUNE.xfLock - (t - S.xfLockT)) : 0; btn(B.j, 'transform', S.xfm ? 'TRANSFORMING' : 'TRANSFORM', lk, TUNE.xfLock, paintReleaseBtn, !!S.xfm, false, true); }
+    if (B.j && (lev || S.xfm)) {   /* (any morph shows TRANSFORMING, the auto one into Leviathan too: the shark's menu stays until the last beat, so without it the spreading plates read as a glitch) */
+      const lk = S.xfLockT != null ? Math.max(0, TUNE.xfLock - (t - S.xfLockT)) : 0; btn(B.j, 'transform', S.xfm ? 'TRANSFORMING' : 'TRANSFORM', lk, TUNE.xfLock, paintReleaseBtn, !!S.xfm, false, true); }
     { const b = B.u, full = S.charge >= 1 && !S.used, k = S.used ? 1 : S.charge, fin = S.phase === 'finisher';
       if (full || fin) { const pl = 0.5 + 0.5 * Math.sin(t * 6); c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.5 + 0.35 * pl; blitC(c, glowPic(glowSprite, CYAN, Math.round(b.r * (2.1 + 0.25 * pl) * 4) / 4), b.x, b.y); c.restore(); }
       blitC(c, hudPic(`jaw|ult|${full || fin}|${b.r}|${ic && ic.sharkAttack ? 1 : 0}`, b.r * 2 + 12, b.r * 2 + 12, (x, w, h) => { const cx = w / 2, cy = h / 2; let ok = false; paintUltFace(x, cx, cy, b.r, full || fin); if (ic && typeof ic.sharkAttack === 'function') { try { ic.sharkAttack(x, cx, cy, b.r, full || fin); ok = true; } catch (e) { ok = false; } } if (!ok) paintAttackBtn(x, cx, cy, b.r, full || fin); x.lineWidth = 2; x.strokeStyle = full || fin ? CHROME : 'rgba(220,230,242,.4)'; x.beginPath(); x.arc(cx, cy, b.r, 0, TAU); x.stroke(); }), b.x, b.y);

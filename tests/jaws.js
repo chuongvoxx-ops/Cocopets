@@ -157,6 +157,22 @@ const path = require('path');
     ok(C.again.counts.join() === '1,2,3,4' && C.again.form === 'shark' && C.again.after === 'leviathan' && C.again.auto === 2, 'five more pool casts transform it again', C.again);
   } else ok(false, 'cooldowns ran', C);
 
+  // ---- 2b. the form channel: whenever the core says shark and no morph runs, xf is exactly 0 (no Leviathan wings on the shark) ----
+  const XF = await R('xf-shark', `
+    const { D, g, me } = H; const out = { bad: [], frames: 0 };
+    const xfOf = S => { const P = S.V && S.V.pose; return P && P.xf != null ? P.xf : 0; };
+    const watch = (S, sec, tag, each) => { H.step(sec, () => { if (each) each(); if (S.form === 'shark' && !S.xfm && !S.finFold && S.phase !== 'gone' && S.phase !== 'out') { out.frames++; const x = xfOf(S); if (x !== 0 && out.bad.length < 6) out.bad.push([tag, +g.t.toFixed(2), S.phase, x]); } }); };
+    D.useUlt(); let S = null; H.until(() => (S = H.S()) != null, 3); watch(S, 3.5, 'summon');
+    S.ctx.toggleForm(); H.until(() => S.form === 'leviathan' && !S.xfm, 6); H.step(1.1); H.jump(); watch(S, 2.5, 'back');
+    /* TRANSFORM mid-morph: the shark turning into Leviathan, then Leviathan turning back, each pressed half-way */
+    H.step(1.1); S.ctx.toggleForm(); H.until(() => !!S.xfm, 2); H.step(0.5); H.jump(); if (S.ctx.toggleForm && S.form === 'leviathan') S.ctx.toggleForm(); watch(S, 3, 'mid-anchor');
+    H.until(() => S.form === 'leviathan' && !S.xfm, 6); H.step(1.1); H.jump(); H.until(() => !!S.xfm, 1); H.step(0.4); H.jump(); S.ctx.toggleForm(); watch(S, 3.5, 'mid-back');
+    /* a new session after one that ended in Leviathan */
+    if (S.form !== 'leviathan') { H.until(() => !S.xfm, 4); H.step(1.1); S.ctx.toggleForm(); H.until(() => S.form === 'leviathan' && !S.xfm, 6); } out.endedAs = S.form; if (S.endT != null) S.endT = g.t + 0.1; else S.left = 0.1; H.until(() => S.phase === 'gone', 10); H.step(1);
+    g.cdU = 0; D.useUlt(); let S2 = null; H.until(() => (S2 = H.S()) !== S && S2 != null, 3); out.newSession = !!S2 && S2 !== S; if (S2) { H.wrap(); watch(S2, 3.5, 'new'); out.form2 = S2.form; out.xf2 = xfOf(S2); }
+    return out;`);
+  if (XF && !XF.err) ok(XF.frames > 200 && XF.bad.length === 0 && XF.newSession && XF.endedAs === 'leviathan' && XF.form2 === 'shark' && XF.xf2 === 0, 'the shark never shows Leviathan: xf is exactly 0 whenever the core says shark and no morph runs (summon, Transform back, Transform mid-morph, a new session after a Leviathan one)', XF); else ok(false, 'xf check ran', XF);
+
   // ---- 3. the pool registry: creation, refresh, at most three, oldest available replaced, claims count, a cancelled claim is released ----
   const PO = await R('pools', LIB + `
     ready(); const P0 = pins(); hold(P0); const out = {}; if (!PL || !PL.create) out.noApi = true;

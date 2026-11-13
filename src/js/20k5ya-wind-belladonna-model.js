@@ -257,10 +257,11 @@ const BELLADONNA_MODEL = (() => {
     const toW = p => ({ x: x + p[0] * sc, y: y + p[1] * GY * sc, z: z + p[2] * sc });
     return { T, sc, k, toS, toW, depth: p => vdot(p, K ? K.C : CW), x, y, z, K };
   }
-  let LAST = null, NOGL = false, GLMS = 0, GLN = 0; const GLI = [], GLJ = [];
+  let LAST = null, NOGL = false, GLFAIL = 0, GLRETRY = 0, GLMS = 0, GLN = 0; const GLI = [], GLJ = [];
   // (a software rasteriser takes a large part of a second a frame: the 2D picture is drawn there instead, unless asked
   //  for: window.__BELLA_GL = 1, for tests and studio renders)
-  const glOn = () => { if (NOGL || typeof GLM === 'undefined' || !GLM.ok()) return false; if (GLM.soft && !(typeof window !== 'undefined' && window.__BELLA_GL)) return false;
+  let GLLAST = 0; const glFail = () => { const t = nowMs(); if (t - GLLAST > 20000) GLFAIL = 0; GLLAST = t; GLFAIL++; if (GLFAIL >= 3) NOGL = true; else GLRETRY = t + 1500; };   // (a GPU draw that throws: the 2D picture for 1.5 s, then the GPU again; for good only after 3 failures within 20 s)
+  const glOn = () => { if (NOGL || (GLRETRY && nowMs() < GLRETRY) || typeof GLM === 'undefined' || !GLM.ok()) return false; if (GLM.soft && !(typeof window !== 'undefined' && window.__BELLA_GL)) return false;
     if (!MESH) { try { const t0 = nowMs(); MESH = buildMeshes(); MESH_MS = nowMs() - t0; } catch (e) { NOGL = true; if (typeof console !== 'undefined') console.warn('Belladonna: meshes', e); return false; } } return true; };
   const GLCAP = 1700, RIMC = [0.75, 1.0, 0.85], AMBC = [1.0, 0.97, 0.96];
   const ID3 = [new Float32Array([1, 0, 0]), new Float32Array([0, 1, 0]), new Float32Array([0, 0, 1]), new Float32Array(3)];
@@ -279,7 +280,7 @@ const BELLADONNA_MODEL = (() => {
     for (const it of list) { const mesh = MESH[it.part]; if (!mesh) continue; const s2 = it.s, al = al0 * it.al;
       const g = GLI[n] || (GLI[n] = { R0: new Float32Array(3), R1: new Float32Array(3), R2: new Float32Array(3), T: new Float32Array(3) }); n++;
       g.mesh = mesh; for (let i = 0; i < 3; i++) { g.R0[i] = it.R.x[i] * s2; g.R1[i] = it.R.y[i] * s2; g.R2[i] = it.R.z[i] * s2; g.T[i] = it.o[i]; }
-      g.alpha = al; g.glow = it.ring ? rgl : pg; g.kind = 0; g.wear = 0; g.fx = 0; g.glow2 = 0; g.spill = 0; g.d = vdot(it.o, PD); items.push(g); }
+      g.alpha = al; g.glow = it.ring ? rgl : pg; g.kind = 0; g.wear = 0; g.fx = 0; g.glow2 = it.ring ? cl(P.ringGreen || 0) : 0; g.spill = 0; g.d = vdot(it.o, PD); items.push(g); }
     if (tent) for (const [key, cvs2, nu, nv, rad, sc2, a2] of [['tentG', tent.g, TGU, TGV, radG, tent.gs, tent.ga], ['tentW', tent.w, TWU, TWV, radW, tent.ws, tent.wa]]) { const mesh = MESH[key]; if (!mesh || !cvs2.length || al0 * a2 < 0.02) continue;
       setTube(mesh, cvs2, nu, nv, rad, sc2, PD); const g = GLI[n] || (GLI[n] = { R0: new Float32Array(3), R1: new Float32Array(3), R2: new Float32Array(3), T: new Float32Array(3) }); n++;
       g.mesh = mesh; g.R0.set(ID3[0]); g.R1.set(ID3[1]); g.R2.set(ID3[2]); g.T.set(ID3[3]); g.alpha = al0 * a2; g.glow = pg; g.kind = 0; g.wear = 0; g.fx = 0; g.glow2 = 0; g.spill = 0; g.d = key === 'tentG' ? -9 : 9; items.push(g); }
@@ -310,15 +311,16 @@ const BELLADONNA_MODEL = (() => {
   const HL = [];
   function halos(c, V, R, P, al0) {
     if (typeof GLM === 'undefined' || !GLM.halos) return; const A = R.A, k = V.k, rgl = cl((P.ringGlow == null ? 0.6 : P.ringGlow) / 2), pg = cl((P.glow == null ? 0.35 : P.glow) / 2), rg = cl(P.ring == null ? 1 : P.ring), low = lowFx(); HL.length = 0;
-    if (A.ring && A.ringR && rg > 0.05 && (!P.ringAway || !A.seat)) { const q = V.toS(A.ring); HL.push({ x: q[0], y: q[1], r: RING_R * 1.55 * rg * RS * k, a: (0.1 + 0.34 * rgl) * al0, col: 'mint', sy: 0.62 });
-      if (!low) for (let i = 0; i < 8; i++) { const a = i / 8 * TAU, d = mv(A.ringR, [Math.cos(a), Math.sin(a), 0]), m = V.toS(vadd(A.ring, vmul(d, (RING_R + SWORD_L * 0.55) * rg * RS))); HL.push({ x: m[0], y: m[1], r: 0.62 * rg * RS * k, a: (0.05 + 0.2 * rgl) * al0, col: 'mint' }); } }
+    if (A.ring && A.ringR && rg > 0.05 && (!P.ringAway || !A.seat)) { const q = V.toS(A.ring), gr = cl(P.ringGreen || 0), rgx = Math.max(0, (P.ringGlow || 0) - 1), hc = gr > 0.5 ? (gr > 0.85 ? '#5DFF8A' : '#8CFFA8') : gr > 0.15 ? '#9BFFC0' : 'mint';   // (ringGreen: green, larger and stronger halos; ringGlow above 1 brighter still)
+      HL.push({ x: q[0], y: q[1], r: RING_R * (1.55 + 0.6 * gr) * rg * RS * k, a: Math.min(0.95, (0.1 + 0.34 * rgl) * (1 + 0.9 * gr) * (1 + 0.5 * rgx * gr)) * al0, col: hc, sy: 0.62 }); if (gr > 0.05) HL.push({ x: q[0], y: q[1], r: RING_R * 2.6 * rg * RS * k, a: 0.22 * gr * (1 + 0.4 * rgx) * al0, col: '#B6FFCF', sy: 0.62 });
+      if (!low) for (let i = 0; i < 8; i++) { const a = i / 8 * TAU, d = mv(A.ringR, [Math.cos(a), Math.sin(a), 0]), m = V.toS(vadd(A.ring, vmul(d, (RING_R + SWORD_L * 0.55) * rg * RS))); HL.push({ x: m[0], y: m[1], r: (0.62 + 0.3 * gr) * rg * RS * k, a: Math.min(0.9, (0.05 + 0.2 * rgl) * (1 + 1.2 * gr)) * al0, col: hc }); } }
     if (A.seat) { const wh = cl(P.white == null ? 1 : P.white) * cl((P.bloom == null ? 1 : P.bloom) * 2) * (1 - (A.bulb || 0)), q = V.toS(A.seat); if (wh > 0.05) { HL.push({ x: q[0], y: q[1], r: 1.15 * k, a: (0.1 + 0.3 * pg) * wh * al0, col: 'pearl' }); if (!low) HL.push({ x: q[0], y: q[1], r: 2.1 * k, a: (0.04 + 0.2 * pg) * wh * al0, col: 'pink' }); } }
     GLM.halos(c, HL);
   }
   function draw(c, x, y, z, a, P, o) {
     o = o || {}; const V = mkView(x, y, z, o), R = rig(P); LAST = { V, R };
     const al0 = cl(P.alpha == null ? 1 : P.alpha); if (al0 < 0.01) return;
-    if (glOn()) { try { glPass(c, V, P, o, R.list, al0, R.tent); halos(c, V, R, P, al0); return; } catch (e) { NOGL = true; if (typeof console !== 'undefined') console.warn('Belladonna: GL draw', e); } }
+    if (glOn()) { try { glPass(c, V, P, o, R.list, al0, R.tent); halos(c, V, R, P, al0); return; } catch (e) { glFail(); if (typeof console !== 'undefined') console.warn('Belladonna: GL draw', e); } }
     drawFallback(c, V, R, P, al0); halos(c, V, R, P, al0 * 0.7);
   }
   /* the ring assembly alone, at a world point (Ring Blade, while it is away): P gives ringSpin, ringGlow, ring; o.axis its axis */
@@ -326,7 +328,7 @@ const BELLADONNA_MODEL = (() => {
     o = o || {}; const V = mkView(x, y, z, o), nz = o.axis ? vnrm(o.axis) : RING_N, Rr = mm(frameXZ(vsub([1, 0, 0], vmul(nz, nz[0])), nz), rotZ(P.ringSpin || 0)), rg = cl(P.ring == null ? 1 : P.ring);
     const list = [{ part: 'ring', o: [0, 0, 0], R: Rr, s: rg * RS, al: 1, ring: 1 }], al0 = cl(P.alpha == null ? 1 : P.alpha); if (al0 < 0.01) return;
     const RR = { list, A: { ring: [0, 0, 0], ringR: Rr } };
-    if (glOn()) { try { glPass(c, V, P, o, list, al0); halos(c, V, RR, P, al0); return; } catch (e) { NOGL = true; } }
+    if (glOn()) { try { glPass(c, V, P, o, list, al0); halos(c, V, RR, P, al0); return; } catch (e) { glFail(); } }
     drawFallback(c, V, RR, P, al0); halos(c, V, RR, P, al0 * 0.7);
   }
   function drawShadow(c, x, y, z, a, P, o) {
@@ -340,7 +342,7 @@ const BELLADONNA_MODEL = (() => {
   function anchorAt(name, x, y, z, P, o) { const R = rig(P), p = R.A[name]; if (!p || p.x) return null; const sc = ((o && o.scale) || 1) * VIS; return { x: x + p[0] * sc, y: y + p[1] * GY * sc, z: z + p[2] * sc }; }
   /* the model's own frame, for studio checks and the tests: every placed part and anchor of a pose */
   function rigOf(P) { return rig(P || blankPose()); }
-  function blankPose() { return { alpha: 1, bloom: 1, leaves: 1, white: 1, tentG: 1, tentW: 1, ring: 1, ringSpin: 0, ringTilt: 0, ringGlow: 0.6, ringAway: 0, fold: 0, bank: 0, lean: 0, yaw: 0, sway: 0, accX: 0, accY: 0, glow: 0.35, brace: 0, spin: 0, flick: 0, bulb: 0, flutter: 0, floorZ: -1.2 }; }
+  function blankPose() { return { alpha: 1, bloom: 1, leaves: 1, white: 1, tentG: 1, tentW: 1, ring: 1, ringSpin: 0, ringTilt: 0, ringGlow: 0.6, ringAway: 0, fold: 0, bank: 0, lean: 0, yaw: 0, sway: 0, accX: 0, accY: 0, glow: 0.35, brace: 0, spin: 0, flick: 0, bulb: 0, flutter: 0, floorZ: -1.2, ringGreen: 0 }; }
   function create() { const P = blankPose(); return { pose: P, draw: (c, x, y, z, a, P2, o) => draw(c, x, y, z, a, P2 || P, o), drawShadow: (c, x, y, z, a, P2, o) => drawShadow(c, x, y, z, a, P2 || P, o), drawRing: (c, x, y, z, P2, o) => drawRing(c, x, y, z, P2 || P, o) }; }
   const SIZE = { flower: 2 * LP1 * VIS, leafSpan: 2 * (LLF + 0.35) * VIS, ringR: RING_R * VIS * RS, swordSpan: 2 * (RING_R + SWORD_L) * VIS * RS, hub: 0.6 * VIS, seat: SEAT.slice(), ringH: (RING_UP * Math.cos(TILT) + RING_Z + HUB[2]) * VIS, tentSpan: (() => { const R = rig(blankPose()); let m = 0; for (const cv of R.tent.g.concat(R.tent.w)) for (const p of cv) m = Math.max(m, Math.abs(p[0])); return 2 * m * VIS; })() };   // (tiles; seat stays in the flower's own frame)
   return { create, warm: () => { glOn(); return true; }, warmIdle: () => { glOn(); }, warmPlan: () => ({ pending: 0, total: 0 }), ready: () => true, draw, drawRing, drawShadow, anchor, anchorDir, anchorAt, rigOf, blankPose, COUNTS, SIZE, PARTS,

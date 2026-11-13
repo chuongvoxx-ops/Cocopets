@@ -128,7 +128,7 @@ const GLM = (() => {
   }
 
   /* ================= the renderer ================= */
-  let gl = null, cv = null, prog = null, failed = false, lost = false, isGL2 = false, soft = false, U = {}, AT = {}, gen = 0, ext32 = null;
+  let lostT = 0, gl = null, cv = null, prog = null, failed = false, lost = false, isGL2 = false, soft = false, U = {}, AT = {}, gen = 0, ext32 = null;
   const VS = `
 attribute vec3 aP; attribute vec3 aN; attribute vec3 aA;
 uniform vec3 uR0, uR1, uR2, uT, uPX, uPY, uPD, uOutV; uniform vec4 uCl;
@@ -351,9 +351,9 @@ void main() {
     if (le < 0.16) { alb = vec3(0.012, 0.32, 0.13) * (0.7 + 0.6 * step(abs(lf.x * 0.35 + lf.y), 0.03)); F0 = vec3(0.07); rough = 0.12; metal = 0.0; coat = 1.0; if (le > 0.12) cav += 0.6; }   // (a leaf of enamel, its rim cut in)
     if (abs(abs(v) - 0.86) < 0.035) cav += 0.6; }                                                     // (a bead line near each edge)
   else if (id == 28) { float ang = atan(L.y, L.x), ndv = max(0.0, dot(n, uV)), fl = 0.62 + 0.38 * sin(ang * 9.0 - uTime * 3.2 + 3.0 * vn(vec2(ang * 3.0, uTime * 0.7))), sp = vn(vec2(ang * 30.0 - uTime * 6.0, L.z * 20.0));   // mint energy, flowing round the ring
-    vec3 c = frostFx((vec3(0.5, 1.5, 0.95) * fl + vec3(0.9, 1.0, 0.95) * (pow(ndv, 3.0) * 0.6 + smoothstep(0.7, 0.95, sp) * 0.7)) * (0.45 + 1.15 * uGlow), L); gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
+    float gr = clamp(uGlow2, 0.0, 1.0); vec3 c = frostFx((mix(vec3(0.5, 1.5, 0.95), vec3(0.32, 1.9, 0.5), gr) * fl * (1.0 + 0.6 * gr) + mix(vec3(0.9, 1.0, 0.95), vec3(0.75, 1.15, 0.8), gr) * (pow(ndv, 3.0) * 0.6 + smoothstep(0.7, 0.95, sp) * 0.7)) * (0.45 + 1.15 * uGlow), L); gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }   // (uGlow2: Belladonna's ringGreen, a saturated green light)
   else if (id == 29) { alb = vec3(0.34, 0.36, 0.37); F0 = vec3(0.95, 0.97, 0.97); rough = 0.07;   // a sword's blade: pale mirror steel, a fuller line, a luminous mint edge (vA.y = 1 at the cutting edges, 0 at the spine)
-    float eg = smoothstep(0.6, 1.0, edge); em = vec3(0.35, 1.35, 0.85) * (eg * eg * (0.55 + 1.3 * uGlow) + 0.06 * uGlow);
+    float eg = smoothstep(0.6, 1.0, edge), gr = clamp(uGlow2, 0.0, 1.0); em = mix(vec3(0.35, 1.35, 0.85), vec3(0.25, 1.7, 0.42), gr) * (eg * eg * (0.55 + 1.3 * uGlow) * (1.0 + 0.7 * gr) + (0.06 + 0.12 * gr) * uGlow);
     if (edge > 0.1 && edge < 0.16) { cav += 0.7; rough = 0.2; } rough *= 0.8 + 0.5 * vn(L.xy * 40.0 + L.z * 3.0); }
   else { coat = 1.0; }
   // surface detail, from the part's own coordinates (it stays on the part as it moves)
@@ -410,7 +410,9 @@ void main() {
   }
   /* is WebGL ready (made on first call)? */
   function ok() {
-    if (failed) return false; if (gl) return !lost && !gl.isContextLost();
+    if (failed) return false;
+    if (gl) { const L = lost || gl.isContextLost(), t = typeof performance !== 'undefined' ? performance.now() : Date.now(); if (!L) { lostT = 0; return true; } if (!lostT) lostT = t; if (t - lostT < 1500) return false;
+      gl = null; cv = null; prog = null; lost = false; lostT = 0; }   // (lost and not restored: drop it and make a fresh context; the meshes upload again, their buffers are tagged by gen)
     try {
       if (typeof document === 'undefined') { failed = true; return false; }
       cv = document.createElement('canvas'); cv.width = 64; cv.height = 64;
@@ -420,7 +422,7 @@ void main() {
       cv.addEventListener('webglcontextlost', e => { e.preventDefault(); lost = true; }, false);
       cv.addEventListener('webglcontextrestored', () => { try { compile(); lost = false; } catch (e) { failed = true; } }, false);
       try { const di = gl.getExtension('WEBGL_debug_renderer_info'), rn = String(di ? gl.getParameter(di.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)); soft = /swiftshader|llvmpipe|software|softpipe/i.test(rn); } catch (e) { soft = false; }   // (a CPU rasteriser: the model then renders at reduced resolution)
-      compile(); return true;
+      gen++; compile(); return true;
     } catch (e) { failed = true; gl = null; return false; }
   }
   function upload(M) {

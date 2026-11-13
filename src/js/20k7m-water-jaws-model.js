@@ -242,7 +242,8 @@ const JAWS_MODEL = (() => {
   /* ================= the rig ================= */
   function rig(P) {
     const xf = cl(P.xf || 0), list = [], A = {};
-    const sFin = sstep(0, 0.4, xf), sFl = sstep(0.12, 0.6, xf), sCan = sstep(0.3, 0.78, xf), sSeat = sstep(0.35, 0.8, xf), sTail = sstep(0.4, 1, xf);
+    const sFin = sstep(0.15, 0.5, xf), sFl = sstep(0.3, 0.8, xf),   // (the fins and the flanks start late: a small xf, a spring's overshoot, shows nothing of Leviathan)
+          sCan = sstep(0.3, 0.78, xf), sSeat = sstep(0.35, 0.8, xf), sTail = sstep(0.4, 1, xf);
     const Bm = mm(rotY(P.pitch || 0), rotX(P.bank || 0)), at = p => mv(Bm, p), put = (part, o, R, s, al) => list.push({ part, o: at(o), R: mm(Bm, R), s: s || 1, al: al == null ? 1 : al });
     const sw = P.swim || 0, sk = (P.swimK == null ? 0.5 : P.swimK) * (1 - sTail), bodyYaw = 0.085 * sk * Math.sin(sw + 1.2);   // (the body counter-flexes against the tail)
     const Rb = rotZ(bodyYaw);
@@ -252,7 +253,7 @@ const JAWS_MODEL = (() => {
     { const out = FLANK_OUT * sFl + 0.02 * (P.breath || 0); const tl = FLANK_TILT * sFl, Rl = rotX(tl), Rr2 = rotX(-tl), c0 = [0, 0.7, 0.1], c1 = [0, -0.7, 0.1];   // (slid out and turned flat-topped about their own middles: a broad deck each side, the reactor open between them)
       put('flank', mv(Rb, vadd([0, out, -0.04 * sFl], vsub(c0, mv(Rl, c0)))), mm(Rb, Rl)); put('flank', mv(Rb, vadd([0, -out, -0.04 * sFl], vsub(c1, mv(Rr2, c1)))), mm(Rb, mm(Rr2, MIR)));
       const strut = (a, b, al) => { const d = vsub(b, a), L = vlen(d), F = mm(Bm, frameXZ(d, [0, 0, 1])); list.push({ part: 'strut', o: at(a), R: M3(vmul(F.x, L), F.y, F.z), s: 1, al }); };
-      const sLock = sstep(0.84, 1, xf), aF = 1;   // (the arms and the latches are there in both forms: stowed inside the closed plates in the shark)
+      const sLock = sstep(0.84, 1, xf), aF = cl(sFl * 6);   // (the arms and the latches are there in both forms: stowed inside the closed plates in the shark)
       for (const sd of [1, -1]) { for (const x of [-0.7, 0.34]) { strut(mv(Rb, [x, sd * 0.3, 0.26]), mv(Rb, [x + 0.22, sd * (fry(0.5) * 0.8 + out), 0.02]), aF); strut(mv(Rb, [x + 0.1, sd * 0.3, -0.24]), mv(Rb, [x - 0.12, sd * (fry(0.5) * 0.8 + out), -0.22]), aF); }   // (the support arms)
         for (const x of [-0.82, -0.2, 0.52]) { const y = fry(0.5) * 0.82 + out - 0.2 + 0.1 * sLock; list.push({ part: 'lock', o: at(mv(Rb, [x, sd * y, 0.3 - 0.05 * sFl])), R: mm(Bm, sd > 0 ? Rb : mm(Rb, MIR)), s: 1, al: aF }); } }   // (the latches: they slide out and seat on the plates' inner edges as the change ends)
       A.lock = sLock; }
@@ -268,7 +269,7 @@ const JAWS_MODEL = (() => {
     { const o = [DORS0[0] - 0.12 * sSeat, 0, DORS0[2] - 0.05 * sSeat], R = mm(Rb, rotY(-(22 * sFl) * DEG)); put('dorsal', mv(Rb, o), mm(R, rotX(0.06 * sk * Math.sin(sw + 0.6)))); A.dorsalTip = at(mv(Rb, vadd(o, mv(R, [-0.5, 0, 1.28])))); }
     // the pectoral fins: swept and drooped for swimming, spread level as stabilisers
     for (const sd of [1, -1]) { const flap = 0.1 * (1 - sFin) * Math.sin(sw * 0.5 + (sd > 0 ? 0 : 0.5)) + (P.fin || 0) * 0.3, R0 = mm(rotX((lerp(-24, 0, sFin)) * DEG + flap), rotZ(lerp(34, 8, sFin) * DEG)), R = sd > 0 ? R0 : mm(MIR, mm(R0, MIR)), s = lerp(1, 1.18, sFin);
-      const o = [PEC0[0] - 0.1 * sFin, sd * (PEC0[1] + FLANK_OUT * sFl), PEC0[2] + 0.2 * sFl]; const Rp = mm(Rb, sd > 0 ? R : mm(R, MIR)); { const a2 = mv(Rb, [PEC0[0], sd * 0.44, PEC0[2]]), d2 = vsub(mv(Rb, o), a2), L2 = vlen(d2), F2 = mm(Bm, frameXZ(d2, [0, 0, 1])); list.push({ part: 'strut', o: at(a2), R: M3(vmul(F2.x, L2), vmul(F2.y, 1.8), vmul(F2.z, 1.8)), s: 1, al: 1 }); } list.push({ part: 'pecIn', o: at(mv(Rb, vadd(o, mv(Rp, [0.36 * (1 - sFin) * s, 0, 0])))), R: mm(Bm, Rp), s, al: 1 }); list.push({ part: 'pec', o: at(mv(Rb, o)), R: mm(Bm, Rp), s, al: 1 });   // (the inner panel slides out of the trailing edge)
+      const o = [PEC0[0] - 0.1 * sFin, sd * (PEC0[1] + FLANK_OUT * sFl), PEC0[2] + 0.2 * sFl]; const Rp = mm(Rb, sd > 0 ? R : mm(R, MIR)); { const a2 = mv(Rb, [PEC0[0], sd * 0.44, PEC0[2]]), d2 = vsub(mv(Rb, o), a2), L2 = vlen(d2), F2 = mm(Bm, frameXZ(d2, [0, 0, 1])); list.push({ part: 'strut', o: at(a2), R: M3(vmul(F2.x, L2), vmul(F2.y, 1.8), vmul(F2.z, 1.8)), s: 1, al: cl(sFl * 6) }); } list.push({ part: 'pecIn', o: at(mv(Rb, vadd(o, mv(Rp, [0.36 * (1 - sFin) * s, 0, 0])))), R: mm(Bm, Rp), s, al: 1 }); list.push({ part: 'pec', o: at(mv(Rb, o)), R: mm(Bm, Rp), s, al: 1 });   // (the inner panel slides out of the trailing edge)
       { const ug = sstep(0.55, 0.95, xf), sg = 1.5 * ug, rec = 0.12 * cl(P.wingGun || 0), go = vadd(vadd(o, mv(sd > 0 ? R : mm(R, MIR), [-0.22 * s, 0.8 * s, -0.035 * s])), [-rec, 0, 0.06 * (1 - ug)]);   // (a wing cannon: deployed under each wing in Leviathan, shrunk up into the wing's root in the shark)
         list.push({ part: 'wingGun', o: at(mv(Rb, go)), R: mm(Bm, Rb), s: Math.max(1e-3, sg), al: cl(ug * 5) }); A[sd > 0 ? 'cannonL' : 'cannonR'] = at(mv(Rb, vadd(go, [1.07 * sg, 0, -0.19 * sg]))); A.wingGunOut = ug; }   // (in the shark: scale and alpha 0, still listed)
       A[sd > 0 ? 'finL' : 'finR'] = at(mv(Rb, vadd(o, mv(R, [-0.7 * s, sd * 1.46 * s, 0])))); A[sd > 0 ? 'gillL' : 'gillR'] = at(mv(Rb, vadd(fus(0.535, -2 * DEG, 1.09), [0, 0, 0]).map((v, i) => (i === 1 ? sd * (v + FLANK_OUT * sFl) : v)))); }
@@ -292,8 +293,9 @@ const JAWS_MODEL = (() => {
     const toW = p => { const w = mv(Rh, p); return { x: x + w[0] * sc, y: y + w[1] * GY * sc, z: z + w[2] * sc }; };
     return { T, sc, k, Rh, toS, toW, depth: p => vdot(mv(Rh, p), K ? K.C : CW), x, y, z, a, K };
   }
-  let LAST = null, NOGL = false, GLMS = 0, GLN = 0; const GLI = [], GLJ = [];
-  const glOn = () => { if (NOGL || typeof GLM === 'undefined' || !GLM.ok()) return false; if (GLM.soft && !(typeof window !== 'undefined' && window.__JAWS_GL)) return false;
+  let LAST = null, NOGL = false, GLFAIL = 0, GLRETRY = 0, GLMS = 0, GLN = 0; const GLI = [], GLJ = [];
+  let GLLAST = 0; const glFail = () => { const t = nowMs(); if (t - GLLAST > 20000) GLFAIL = 0; GLLAST = t; GLFAIL++; if (GLFAIL >= 3) NOGL = true; else GLRETRY = t + 1500; };   // (a GPU draw that throws: the 2D picture for 1.5 s, then the GPU again; for good only after 3 failures within 20 s)
+  const glOn = () => { if (NOGL || (GLRETRY && nowMs() < GLRETRY) || typeof GLM === 'undefined' || !GLM.ok()) return false; if (GLM.soft && !(typeof window !== 'undefined' && window.__JAWS_GL)) return false;
     if (!MESH) { try { const t0 = nowMs(); MESH = buildMeshes(); MESH_MS = nowMs() - t0; } catch (e) { NOGL = true; if (typeof console !== 'undefined') console.warn('Jaws: meshes', e); return false; } } return true; };
   const GLCAP = 1600, RIMC = [0.35, 0.8, 1.3], AMBC = [0.85, 0.95, 1.15];
   /* the baby-blue light's flicker: a slow pulse, a quicker shimmer and now and then a short electrical stutter; per part (seed), never dark */
@@ -323,7 +325,7 @@ const JAWS_MODEL = (() => {
     const S = { px: PX, py: PY, pd: PD, cl: [2 * k / bw, 2 * (X0[0] - bx0) / bw - 1, -2 * k / bh, 1 - 2 * (X0[1] - by0) / bh], v: PD, lk: tl(LW), ls: tl(SBW), lr: tl(RIMW), up: tl(UPW), low: o.low != null ? o.low : lowFx(), rim: RIMC, amb: AMBC, t: nowMs() / 1000, outline: Math.max(1, 1.4 * (W / bw) * (o.outlineK || 1)), clip: P.waterline != null ? [(P.waterline - V.z) / V.sc, 0.07] : null };   // (waterline: a world height above the floor; nothing of the model below it is drawn)
     const gK = Math.max(0, Math.min(2.5, P.glowK == null ? 1 : P.glowK)), glowK = cl((0.35 + 0.65 * (P.glow == null ? 0.5 : P.glow)) * (0.75 + 0.25 * gK)), mouth = cl(P.charge || 0), tF = S.t;
     let n = 0; const items = GLJ; items.length = 0;
-    for (const it of list) { const mesh = MESH[it.part]; if (!mesh) continue; const Rw = mm(V.Rh, it.R), s2 = it.s, T = mv(V.Rh, it.o), al = al0 * it.al;
+    for (const it of list) { const mesh = MESH[it.part]; if (!mesh || !(it.al > 0.004) || !(it.s > 0.002)) continue; const Rw = mm(V.Rh, it.R), s2 = it.s, T = mv(V.Rh, it.o), al = al0 * it.al;   // (a stowed part, scale or alpha 0, is not drawn at all: no outline hull either)
       const g = GLI[n] || (GLI[n] = { R0: new Float32Array(3), R1: new Float32Array(3), R2: new Float32Array(3), T: new Float32Array(3) }); n++;
       g.mesh = mesh; for (let i = 0; i < 3; i++) { g.R0[i] = Rw.x[i] * s2; g.R1[i] = Rw.y[i] * s2; g.R2[i] = Rw.z[i] * s2; g.T[i] = T[i]; }
       const fl = flick(tF, n * 1.37); g.alpha = al; g.glow = cl((it.part === 'cannon' || it.part === 'head' ? Math.max(glowK, mouth) : glowK) * fl); g.kind = 0; g.wear = 0.6; g.fx = 0; g.glow2 = 0.32 * gK * fl * glowK; g.spill = glowK * fl; g.d = vdot(T, PD); items.push(g); }
@@ -368,7 +370,7 @@ const JAWS_MODEL = (() => {
   function draw(c, x, y, z, a, P, o) {
     o = o || {}; const V = mkView(x, y, z, a, o), R = rig(P); LAST = { V, R };
     const al0 = cl(P.alpha == null ? 1 : P.alpha); if (al0 < 0.01) return;
-    if (glOn()) { try { glPass(c, V, P, o, R.list, al0); halos(c, V, R, P, al0); return; } catch (e) { NOGL = true; if (typeof console !== 'undefined') console.warn('Jaws: GL draw', e); } }
+    if (glOn()) { try { glPass(c, V, P, o, R.list, al0); halos(c, V, R, P, al0); return; } catch (e) { glFail(); if (typeof console !== 'undefined') console.warn('Jaws: GL draw', e); } }
     if (P.waterline != null && !V.K) { const yw = o.sy(y) - P.waterline * ZK * V.T; c.save(); c.beginPath(); c.rect(-1e5, -1e5, 2e5, 1e5 + yw); c.clip(); drawFallback(c, V, R, al0, P); c.restore(); return; }   // (the 2D picture: clipped at the waterline's screen height)
     drawFallback(c, V, R, al0, P);
   }

@@ -148,8 +148,8 @@
     let left = Math.min(dt, 0.1); while (left > 1e-5) { const h = Math.min(left, 1 / 120); s.v += (-2 * z * w * s.v - w * w * (s.x - target)) * h; s.x += s.v * h; left -= h; } return s.x; }
   const kick = (S, key, dv) => { const s = S.an[key]; if (s) s.v += dv; };
   const SPR = { bloom: [7.5, 0.34], leaves: [5.5, 0.32], white: [8.5, 0.32], tentG: [4.6, 0.3], tentW: [5.6, 0.28], ring: [9, 0.32], ringTilt: [4.5, 0.25], ringGlow: [10, 0.7], fold: [9, 0.45], bank: [6, 0.28], lean: [6, 0.3], yaw: [5, 0.32],
-    accX: [4.4, 0.2], accY: [4.4, 0.2], glow: [8, 0.8], brace: [9, 0.4], z: [7, 0.32], bulb: [12, 0.6], bulbTip: [10, 0.55], flutter: [6, 0.9], stream: [8, 0.8] };
-  const TG = () => ({ bulbTip: 0, bulb: 0, flutter: 0.35, stream: 0, shiver: 0, tremble: 0, bloom: 1, leaves: 1, white: 1, tentG: 1, tentW: 1, ring: 1, ringTilt: 0, ringGlow: 0.6, fold: 0, bank: 0, lean: 0, yaw: 0, accX: 0, accY: 0, glow: 0.5, brace: 0, z: 0, spinV: 1.5, swayV: 1.6 });
+    accX: [4.4, 0.2], accY: [4.4, 0.2], glow: [8, 0.8], brace: [9, 0.4], z: [7, 0.32], bulb: [12, 0.6], bulbTip: [10, 0.55], flutter: [6, 0.9], stream: [8, 0.8], ringGreen: [12, 0.7] };
+  const TG = () => ({ ringGreen: 0, bulbTip: 0, bulb: 0, flutter: 0.35, stream: 0, shiver: 0, tremble: 0, bloom: 1, leaves: 1, white: 1, tentG: 1, tentW: 1, ring: 1, ringTilt: 0, ringGlow: 0.6, fold: 0, bank: 0, lean: 0, yaw: 0, accX: 0, accY: 0, glow: 0.5, brace: 0, z: 0, spinV: 1.5, swayV: 1.6 });
   /* the action clips E plays with ctx.clip(name, u, extra) (u 0..1 each frame while it lasts); also ctx.pose */
   const CLIPS = {
     /* Wildflowers' cast: the pink bloom gathers a breath, then opens wider than its rest and glows */
@@ -219,6 +219,14 @@
       G.yaw = clamp(G.yaw, -0.2, 0.2); }
     /* --- E's clip, last: it owns the channels it sets --- */
     const E = eClip(S); if (E) { CLIPS._s = S; try { CLIPS[E.clip](G, E.u, S, E.extra); } catch (e) { /* (a clip never breaks the frame) */ } }
+    /* Twister's green light on the ring and swords (M's ringGreen 0..1): up through the build, a strong ~2.5 Hz pulse (never dark) while the ring spins, a bright flash at the release, easing back with the unwind */
+    { const nm = E && S.phase === 'finisher' ? E.clip : null, u = E ? cl(E.u || 0) : 0; let gb = 0, pa = 0;
+      if (nm === 'twisterOpen') { gb = 0.15 + 0.6 * sstep(0, 1, u); pa = 0.15 * u; G.ringGlow = Math.max(G.ringGlow, 1.1 + 0.8 * u); }
+      else if (nm === 'twisterHold') { gb = 0.74; pa = 0.24; G.ringGlow = Math.max(G.ringGlow, 1.7); }
+      else if (nm === 'twisterPulse') { gb = 1; pa = 0; G.ringGlow = 2; if (S.grPrev !== nm) { kick(S, 'ringGreen', 8); kick(S, 'ringGlow', 6); } }
+      else if (nm === 'unwind') { gb = 0.85 * (1 - sstep(0, 1, u)); pa = 0.12 * (1 - u); G.ringGlow = Math.max(G.ringGlow, 2 - 1.2 * u); }
+      else if (S.phase === 'finisher' && S.grB != null) { gb = S.grB; pa = S.grA; }   /* (between E's clips: as it was) */
+      G.ringGreen = gb; S.grB = gb; S.grA = pa; if (E || S.phase !== 'finisher') S.grPrev = nm; }
     for (const key in SPR) { const p = SPR[key]; P[key] = spring(S, key, G[key], p[0], p[1], dt); }
     S.ringSpin = (S.ringSpin || 0) + (S.spinV = (S.spinV == null ? G.spinV : S.spinV + (G.spinV - S.spinV) * Math.min(1, dt * 5))) * dt; S.sway = (S.sway || 0) + G.swayV * dt;
     P.ringSpin = S.ringSpin; P.sway = S.sway; P.spin = S.spinA || 0; P.ringAway = S.ring === 'overhead' ? 0 : 1;
@@ -227,6 +235,7 @@
     if (G.tremble > 0.0005) { P.bank += G.tremble * 1.6 * Math.sin(t * 43); P.lean += G.tremble * Math.sin(t * 37 + 1); P.z = (P.z || 0) + G.tremble * 3 * Math.sin(t * 31 + 2); }
     /* the swords catch the light as each passes the front */
     P.ringGlow += 0.22 * Math.pow(0.5 + 0.5 * Math.cos(8 * S.ringSpin), 8);
+    { const pu = Math.sin(t * TAU * 2.5); P.ringGreen = clamp((P.ringGreen || 0) + (S.grA || 0) * pu, 0, 1); if (S.grA > 0.01) P.ringGlow += 0.35 * S.grA / 0.24 * (0.5 + 0.5 * pu); }
     /* per-tentacle life for the model (M, Notes): each tentacle its own wave phase and speed, amplitude, coil (green) or reach (white); a model without them ignores them */
     { const TP = S.tp || (S.tp = { g: [0.9, 1.15, 1.37, 1.04, 1.26, 0.83].map((w, i) => ({ w, ph: i * 1.9 })), w: [1.21, 0.97, 1.43, 1.12, 1.33, 1.05, 0.91, 1.5].map((w, i) => ({ w, ph: i * 2.3 })) });
       const tgPh = P.tgPh || (P.tgPh = new Array(6).fill(0)), tgAmp = P.tgAmp || (P.tgAmp = new Array(6).fill(1)), tgCoil = P.tgCoil || (P.tgCoil = new Array(6).fill(0)), twPh = P.twPh || (P.twPh = new Array(8).fill(0)), twAmp = P.twAmp || (P.twAmp = new Array(8).fill(1)), twReach = P.twReach || (P.twReach = new Array(8).fill(0));
