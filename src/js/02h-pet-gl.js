@@ -287,9 +287,12 @@ void main() { float u = vUV.x, v = vUV.y, T = uAT.x, S = uAT.y;
     // a Legendary: its golden aura, its lights on the far side of their rings, its pairs of wings (behind all of it)
     const LG = C.leg, LS = LG ? LG.sc : 1;
     // the aurora's ribbons: the far ones now, the near ones (only out at its sides) over everything at the end
-    const aurora = near => { if (!LG || !LG.aurora || !PA || !o.aurora) return;   // (o.aurora: only where the caller asks for it, in the dungeons and the Rift)
+    // (o.aurora: only where the caller asks for it, in the dungeons and the Rift: 1, or less as it fades; o.mirror: the
+    // caller draws the pet flipped, so the aurora is drawn flipped too, and stays as it was whichever way the pet faces)
+    const aK = o.aurora === true ? 1 : +o.aurora || 0;
+    const aurora = near => { if (!LG || !LG.aurora || !PA || aK < 0.01) return;
       const sh3 = LG.aurora, hgt = Math.max(60, -fb[1]), mx = fb[2] / 2;
-      gl.useProgram(PA); gl.uniform4f(UA.uView, fx + fw / 2, fy + fh / 2, 2 / fw, 2 / fh); gl.blendFunc(gl.ONE, gl.ONE);
+      gl.useProgram(PA); gl.uniform4f(UA.uView, fx + fw / 2, fy + fh / 2, (o.mirror ? -2 : 2) / fw, 2 / fh);   // (the frame is centred on the pet: flipping it about the middle mirrors about the pet) gl.blendFunc(gl.ONE, gl.ONE);
       gl.bindBuffer(gl.ARRAY_BUFFER, G1.vb); gl.enableVertexAttribArray(aPA); gl.vertexAttribPointer(aPA, 2, gl.FLOAT, false, 0, 0); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, G1.ib);
       const hsh = x => { const v = Math.sin(x * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
       for (let i = 0; i < 10; i++) { if ((i % 3 === 2) !== near) continue;
@@ -300,7 +303,7 @@ void main() { float u = vUV.x, v = vUV.y, T = uAT.x, S = uAT.y;
         gl.uniform4f(UA.uR0, x0, y0, L, w); gl.uniform4f(UA.uR1, 5 + 10 * hsh(s0 + 6), 3.5 + 4.5 * hsh(s0 + 7), s0 * 9 - t * (0.9 + 0.6 * hsh(s0 + 8)), 2 + 4 * hsh(s0 + 10));
         gl.uniform4f(UA.uR2, 5 + 4 * hsh(s0 + 11), s0 * 5 + t * 1.3, -side * (8 + 22 * hsh(s0 + 12)), 0);
         const o = [sh3[0], sh3[1], sh3[2]], k3 = Math.floor(hsh(s0 + 14) * 3); gl.uniform3fv(UA.uC0, o[k3 % 3]); gl.uniform3fv(UA.uC1, o[(k3 + 1) % 3]); gl.uniform3fv(UA.uC2, o[2]);
-        gl.uniform1f(UA.uThr, thr ? 1 : 0); gl.uniform3f(UA.uAT, t, s0 * 10, life * (near ? 0.6 : 0.95) * (thr ? 0.75 : 1));
+        gl.uniform1f(UA.uThr, thr ? 1 : 0); gl.uniform3f(UA.uAT, t, s0 * 10, aK * life * (near ? 0.6 : 0.95) * (thr ? 0.75 : 1));
         gl.drawElements(gl.TRIANGLES, G1.n, gl.UNSIGNED_SHORT, 0); }
       gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); gl.useProgram(PR); };
     if (LG && LG.aura) { const cy = LG.aura.cy, sp = t * 0.7, q = 1 + 0.04 * Math.sin(t * 2.1);

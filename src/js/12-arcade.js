@@ -123,7 +123,7 @@ function drawPetRig(c, RG, S, h, o) {
     let Y = PGL_YAW.get(S); if (!Y) { Y = { y: 0, t: P.t || 0 }; PGL_YAW.set(S, Y); } const ydt = clamp((P.t || 0) - Y.t, 0, 0.1); Y.t = P.t || 0; Y.y += ((mv ? 0.3 : 0) - Y.y) * (1 - Math.exp(-ydt * 6));
     const GP = { t: P.t || 0, yaw: P.yaw ? P.yaw : Y.y, face: o.face || 'normal', footL: fs(1), footR: fs(-1), armL: arm(1), armR: arm(-1), wing: Math.sin(P.wingPh || 0) * (P.wingAmp || 8), tail: Math.sin((P.t || 0) * 2.4 + ph) * (mv ? 12 : 6),
       legPh: P.wingPh || 0, legAmp: P.wingAmp || 8 };
-    if (PetGL.draw(c, S.form, k, GP, { lite: true, lights: !!o.glLights, aurora: !!o.aurora })) return;
+    if (PetGL.draw(c, S.form, k, GP, { lite: true, lights: !!o.glLights, aurora: o.aurora || 0, mirror: !!o.flip })) return;
   }
   // wings: a Legendary's pairs beat as they do in the room (rise and close, sweep down and open; each a moment after
   // the main one); an ordinary pet's wings flutter
@@ -285,7 +285,7 @@ const petFloatOf = (f, unit, t) => f && f.x && f.x.gold && f.stage >= 7 && f.x.l
    { sprites (loadSprites' pictures, .rig from loadRig when made), form (default sprites.form), t (seconds), face
      'normal'|'happy'|'hurt'|'blink', moving, walk (the step's phase), wingPh, wingAmp, flip, z (px up in a jump), sx, sy,
      rot, el (its element key: the glow's colour; none without), aurora (a six-star's aurora round it, on the GPU: the
-     dungeons and the Rift), unit (the ground unit the shadow and float are measured
+     dungeons and the Rift; 0..1, less as it fades), unit (the ground unit the shadow and float are measured
      in, default h / 1.02), tile (the step bob's unit, default unit), float (default: a Celestial six-star's; false when it
      lies dead), circle/glow/shadow/lights (default on), rig (default true), snap (petSnap's copy), pose (overrides the
      one built here), pre(c, lay) (drawn after the ground layer and before the body: lay = { X, Y: the feet in the air,
@@ -326,7 +326,7 @@ function drawPetFull(c, X, Ybase, h, o) {
       const rr = 15 * kU * (ring ? 0.78 : 1), im = legLightCanvas(PF.x.leg.c, rr * 2 * sc1); if (im) c.drawImage(im, X + (o.flip ? -lx : lx) * kU - rr, Y + ly * kU - rr, rr * 2, rr * 2); } };
   lights(false);
   const pose = o.pose || { walk, moving, t, cast: o.cast || 0, ult: !!o.ult, wingPh: o.wingPh || 0, wingAmp: o.wingAmp != null ? o.wingAmp : moving ? 14 : fl ? 11 : 8, wingSmooth: !!o.wingSmooth };
-  drawPetSprite(c, X, Y, h, { sprites: S, flip: !!o.flip, face: o.face || 'normal', sx, sy, rot: o.rot || 0, rig: o.rig !== false, pose, snap: o.snap, alpha: o.alpha, glLights: glL, aurora: !!o.aurora });
+  drawPetSprite(c, X, Y, h, { sprites: S, flip: !!o.flip, face: o.face || 'normal', sx, sy, rot: o.rot || 0, rig: o.rig !== false, pose, snap: o.snap, alpha: o.alpha, glLights: glL, aurora: o.aurora || 0 });
   lights(true);
 }
 
