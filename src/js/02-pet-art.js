@@ -43,6 +43,7 @@ const EARS = [
   G('antenna', 'Antennae', 1, 6), G('leaf', 'Leaf sprouts', 1, 6), G('feather', 'Feather tufts', 2, 4),
   G('fox', 'Fox ears', 1, 0), G('lynx', 'Tufted ears', 1, 0), G('bat', 'Bat ears', 1, 0), G('bloom', 'Flower ears', 2, 0),
   G('elf', 'Long pointed ears', 1, 0), G('crystal', 'Crystal ears', 3, 0), G('flame', 'Flame ears', 3, 0),
+  G('bow', 'Ribbon bows', 1, 4), G('spike', 'Spiked ears', 2, 0), G('shell', 'Shell ears', 2, 3), G('shroom', 'Mushroom caps', 2, 3), G('hound', 'Hound ears', 0, 5), G('rock', 'Rock ears', 2, 0),
 ];
 const EYES = [
   G('round', 'Round eyes', 0, 30), G('dot', 'Dot eyes', 0, 14), G('big', 'Big eyes', 0, 14), G('button', 'Button eyes', 0, 10),
@@ -62,11 +63,13 @@ const ARMS = [
   G('none', 'No arms', 0, 38), G('nub', 'Stubby arms', 0, 42), G('paw', 'Little paws', 0, 8), G('flipper', 'Flippers', 1, 5),
   G('tentacle', 'Tentacle arms', 2, 3), G('wingarm', 'Wing arms', 2, 2), G('mitten', 'Mitten hands', 1, 0), G('claw', 'Claws', 1, 0),
   G('long', 'Long arms', 1, 0), G('crystal', 'Crystal fists', 3, 0),
+  G('spike', 'Spiked arms', 2, 0), G('stone', 'Stone fists', 2, 0), G('pincer', 'Pincers', 2, 2), G('ribbon', 'Ribbon wraps', 1, 0), G('leaf', 'Leaf hands', 1, 2), G('flame', 'Flame fists', 3, 0),
 ];
 const LEGS = [
   G('nub', 'Nub feet', 0, 60), G('paw', 'Paw feet', 0, 14), G('webbed', 'Webbed feet', 1, 6), G('stump', 'Stompy legs', 0, 8),
   G('tentacle', 'Tentacle legs', 2, 3), G('float', 'Floats', 3, 1.2), G('long', 'Long legs', 1, 0), G('bird', 'Bird legs', 1, 0),
   G('hoof', 'Hooves', 1, 0), G('boots', 'Fluffy boots', 1, 0),
+  G('stone', 'Stone feet', 2, 0), G('crystal', 'Crystal feet', 3, 0), G('talon', 'Talons', 1, 3), G('ribbon', 'Ribbon shoes', 1, 0), G('cloud', 'Cloud feet', 2, 1), G('spiked', 'Spiked boots', 2, 0),
 ];
 const TAILS = [
   G('none', 'No tail', 1, 6), G('nub', 'Nub tail', 0, 10), G('puff', 'Puff tail', 0, 14), G('cat', 'Long tail', 0, 14),
@@ -74,12 +77,15 @@ const TAILS = [
   G('lizard', 'Lizard tail', 2, 4), G('leaf', 'Leaf tail', 2, 3), G('devil', 'Arrow tail', 2, 2), G('star', 'Star tail', 3, 0.6),
   G('fox', 'Fox brush', 1, 0), G('flame', 'Flame tail', 3, 0), G('feather', 'Plume tail', 2, 0), G('ribbon', 'Ribbon tail', 2, 0),
   G('crystal', 'Crystal tail', 3, 0), G('bolt', 'Bolt tail', 3, 0),
+  G('spade', 'Devil tail', 2, 2), G('club', 'Spiked club', 2, 0), G('pebble', 'Pebble tail', 2, 2), G('sting', 'Stinger', 2, 0), G('bow', 'Bow tail', 1, 3), G('cloud', 'Cloud tail', 2, 2),
 ];
-const FURS = [G('smooth', 'Smooth', 0, 44), G('fluffy', 'Fluffy fur', 0, 22), G('woolly', 'Woolly fur', 1, 7), G('shaggy', 'Shaggy fur', 1, 5), G('sleek', 'Sleek coat', 0, 8), G('scaly', 'Scales', 2, 4), G('slime', 'Jelly body', 2, 3), G('spiky', 'Spiky fur', 2, 0)];
+const FURS = [G('smooth', 'Smooth', 0, 44), G('fluffy', 'Fluffy fur', 0, 22), G('woolly', 'Woolly fur', 1, 7), G('shaggy', 'Shaggy fur', 1, 5), G('sleek', 'Sleek coat', 0, 8), G('scaly', 'Scales', 2, 4), G('slime', 'Jelly body', 2, 3), G('spiky', 'Spiky fur', 2, 0),
+  G('crystal', 'Crystallised skin', 3, 0), G('stone', 'Stone skin', 2, 1), G('feather', 'Feathered', 2, 2), G('magma', 'Magma skin', 3, 0), G('moss', 'Mossy coat', 1, 2), G('starry', 'Starry skin', 3, 0)];
 const PATTERNS = [
   G('plain', 'Plain', 0, 24), G('spots', 'Spotted', 0, 14), G('stripes', 'Striped', 0, 11), G('socks', 'Socks', 0, 9), G('cap', 'Capped', 1, 8),
   G('mask', 'Masked', 1, 6), G('patch', 'Eye patch', 1, 6), G('freckled', 'Speckled', 0, 5), G('split', 'Two-tone', 2, 3), G('saddle', 'Saddle marks', 1, 4),
   G('tiger', 'Tiger stripes', 1, 0), G('diamond', 'Diamond marks', 2, 0),
+  G('hearts', 'Hearts', 1, 4), G('stars', 'Star marks', 2, 2), G('zigzag', 'Zigzags', 1, 3), G('rosette', 'Rosettes', 1, 0), G('swirl', 'Swirls', 2, 2), G('bands', 'Bands', 0, 4),
 ];
 const BELLIES = [G('oval', 'Belly patch', 0, 50), G('round', 'Round belly', 0, 15), G('chest', 'Fluffy chest', 0, 12), G('heart', 'Heart belly', 1, 4), G('none', 'No belly patch', 0, 10)];
 const CAT = { ears: EARS, eyes: EYES, mouth: MOUTHS, nose: NOSES, cheeks: CHEEKS, arms: ARMS, legs: LEGS, tail: TAILS, fur: FURS, pattern: PATTERNS, belly: BELLIES };
@@ -88,19 +94,19 @@ const trar = (cat, id) => (CAT[cat].find(o => o.id === id) || { r: 0 }).r;
 
 /* how each part can develop when the pet evolves (a type may repeat to make "stays the same" likelier) */
 const NEXT = {
-  ears: { none: ['none', 'nub', 'antenna', 'fin', 'leaf'], nub: ['round', 'cat', 'mouse', 'nub', 'bunny'], round: ['round', 'mouse', 'lop', 'bat'], mouse: ['mouse', 'round', 'bat'], cat: ['cat', 'fox', 'lynx', 'bat', 'elf'], fox: ['fox', 'lynx', 'elf'], lynx: ['lynx', 'fox'], bunny: ['bunny', 'lop', 'elf'], lop: ['lop', 'bunny'], bat: ['bat', 'elf', 'flame'], fin: ['fin', 'elf'], antenna: ['antenna', 'feather'], leaf: ['leaf', 'bloom'], bloom: ['bloom'], feather: ['feather', 'elf'], elf: ['elf', 'crystal'], crystal: ['crystal'], flame: ['flame'] },
+  ears: { none: ['none', 'nub', 'antenna', 'fin', 'leaf'], nub: ['round', 'cat', 'mouse', 'nub', 'bunny'], round: ['round', 'mouse', 'lop', 'bat'], mouse: ['mouse', 'round', 'bat'], cat: ['cat', 'fox', 'lynx', 'bat', 'elf'], fox: ['fox', 'lynx', 'elf'], lynx: ['lynx', 'fox'], bunny: ['bunny', 'lop', 'elf'], lop: ['lop', 'bunny'], bat: ['bat', 'elf', 'flame'], fin: ['fin', 'elf'], antenna: ['antenna', 'feather'], leaf: ['leaf', 'bloom'], bloom: ['bloom'], feather: ['feather', 'elf'], elf: ['elf', 'crystal', 'spike'], crystal: ['crystal'], flame: ['flame'], bow: ['bow'], spike: ['spike', 'rock'], shell: ['shell', 'fin'], shroom: ['shroom', 'bloom'], hound: ['hound', 'lop'], rock: ['rock', 'crystal'] },
   eyes: { round: ['round', 'big', 'cat', 'sparkle', 'fierce'], dot: ['dot', 'round', 'button', 'oval'], big: ['big', 'sparkle', 'round'], button: ['button', 'round', 'glow'], oval: ['oval', 'cat', 'round'], sparkle: ['sparkle', 'star', 'heart', 'big'], sleepy: ['sleepy', 'round', 'fierce'], cat: ['cat', 'fierce', 'glow'], heart: ['heart', 'sparkle'], star: ['star', 'sparkle', 'glow'], hetero: ['hetero', 'cat'], fierce: ['fierce', 'glow', 'cat'], glow: ['glow'], cyclops: ['cyclops'], triple: ['triple'], quad: ['quad'], compound: ['compound'] },
   mouth: { smile: ['smile', 'cat', 'fang', 'grin', 'tongue'], cat: ['cat', 'fangs', 'blep'], blep: ['blep', 'tongue', 'cat'], o: ['o', 'smile', 'beak'], fang: ['fang', 'fangs', 'grin'], buck: ['buck', 'grin'], beak: ['beak'], smirk: ['smirk', 'fang'], grin: ['grin', 'zigzag'], fangs: ['fangs', 'tusks', 'zigzag'], tusks: ['tusks'], zigzag: ['zigzag'], tongue: ['tongue', 'grin'] },
-  arms: { none: ['none', 'nub', 'nub', 'flipper'], nub: ['paw', 'mitten', 'nub', 'flipper'], paw: ['paw', 'claw', 'long', 'mitten'], mitten: ['mitten', 'paw', 'claw'], flipper: ['flipper', 'wingarm'], tentacle: ['tentacle'], claw: ['claw', 'long', 'crystal'], wingarm: ['wingarm'], long: ['long', 'claw'], crystal: ['crystal'] },
-  legs: { nub: ['nub', 'paw', 'stump', 'webbed', 'paw'], paw: ['paw', 'boots', 'hoof', 'stump'], stump: ['stump', 'hoof', 'boots'], webbed: ['webbed', 'paw'], long: ['paw', 'stump'], bird: ['webbed'], hoof: ['hoof'], boots: ['boots', 'paw'], tentacle: ['tentacle'], float: ['float'] },
-  tail: { none: ['none', 'nub', 'puff'], nub: ['nub', 'puff', 'cat', 'curly'], puff: ['puff', 'fluffy', 'fox'], cat: ['cat', 'lion', 'devil', 'fox'], fluffy: ['fluffy', 'fox', 'feather'], curly: ['curly', 'cat', 'devil'], lion: ['lion', 'flame', 'star'], fish: ['fish', 'ribbon', 'feather'], lizard: ['lizard', 'flame', 'crystal'], leaf: ['leaf', 'ribbon'], devil: ['devil', 'flame', 'bolt'], fox: ['fox'], flame: ['flame'], feather: ['feather'], ribbon: ['ribbon'], crystal: ['crystal'], star: ['star'], bolt: ['bolt'] },
-  fur: { smooth: ['smooth', 'fluffy', 'sleek', 'scaly'], fluffy: ['fluffy', 'shaggy', 'woolly'], woolly: ['woolly', 'shaggy'], shaggy: ['shaggy', 'spiky', 'fluffy'], sleek: ['sleek', 'scaly'], scaly: ['scaly', 'spiky'], slime: ['slime', 'sleek'], spiky: ['spiky'] },
-  pattern: { plain: ['plain', 'spots', 'stripes', 'cap', 'saddle'], spots: ['spots', 'freckled', 'patch'], stripes: ['stripes', 'tiger'], socks: ['socks', 'cap'], cap: ['cap', 'mask', 'split'], mask: ['mask', 'tiger'], patch: ['patch', 'spots'], freckled: ['freckled', 'spots'], split: ['split', 'diamond'], tiger: ['tiger', 'diamond'], diamond: ['diamond'], saddle: ['saddle', 'stripes'] },
+  arms: { none: ['none', 'nub', 'nub', 'flipper'], nub: ['paw', 'mitten', 'nub', 'flipper', 'leaf'], paw: ['paw', 'claw', 'long', 'mitten', 'ribbon', 'stone'], mitten: ['mitten', 'paw', 'claw'], flipper: ['flipper', 'wingarm', 'pincer'], tentacle: ['tentacle'], claw: ['claw', 'long', 'crystal', 'spike', 'flame'], wingarm: ['wingarm'], long: ['long', 'claw', 'spike'], crystal: ['crystal'], spike: ['spike', 'crystal'], stone: ['stone', 'spike'], pincer: ['pincer', 'claw'], ribbon: ['ribbon'], leaf: ['leaf', 'paw'], flame: ['flame'] },
+  legs: { nub: ['nub', 'paw', 'stump', 'webbed', 'paw'], paw: ['paw', 'boots', 'hoof', 'stump', 'talon', 'ribbon'], stump: ['stump', 'hoof', 'boots', 'stone'], webbed: ['webbed', 'paw', 'talon'], long: ['paw', 'stump'], bird: ['webbed'], hoof: ['hoof', 'spiked'], boots: ['boots', 'paw', 'spiked'], tentacle: ['tentacle'], float: ['float', 'cloud'], stone: ['stone', 'crystal'], crystal: ['crystal'], talon: ['talon'], ribbon: ['ribbon'], cloud: ['cloud'], spiked: ['spiked'] },
+  tail: { none: ['none', 'nub', 'puff'], nub: ['nub', 'puff', 'cat', 'curly'], puff: ['puff', 'fluffy', 'fox'], cat: ['cat', 'lion', 'devil', 'fox'], fluffy: ['fluffy', 'fox', 'feather'], curly: ['curly', 'cat', 'devil'], lion: ['lion', 'flame', 'star'], fish: ['fish', 'ribbon', 'feather'], lizard: ['lizard', 'flame', 'crystal', 'club', 'sting'], leaf: ['leaf', 'ribbon'], devil: ['devil', 'flame', 'bolt', 'spade'], fox: ['fox'], flame: ['flame'], feather: ['feather'], ribbon: ['ribbon', 'bow'], crystal: ['crystal'], star: ['star'], bolt: ['bolt'], spade: ['spade'], club: ['club'], pebble: ['pebble', 'club', 'crystal'], sting: ['sting'], bow: ['bow', 'ribbon'], cloud: ['cloud', 'star'] },
+  fur: { smooth: ['smooth', 'fluffy', 'sleek', 'scaly', 'stone'], fluffy: ['fluffy', 'shaggy', 'woolly', 'feather'], woolly: ['woolly', 'shaggy', 'moss'], shaggy: ['shaggy', 'spiky', 'fluffy'], sleek: ['sleek', 'scaly', 'starry'], scaly: ['scaly', 'spiky', 'crystal', 'magma'], slime: ['slime', 'sleek', 'crystal'], spiky: ['spiky', 'crystal'], crystal: ['crystal'], stone: ['stone', 'crystal', 'magma'], feather: ['feather'], magma: ['magma'], moss: ['moss'], starry: ['starry'] },
+  pattern: { plain: ['plain', 'spots', 'stripes', 'cap', 'saddle'], spots: ['spots', 'freckled', 'patch', 'rosette', 'hearts'], stripes: ['stripes', 'tiger'], socks: ['socks', 'cap'], cap: ['cap', 'mask', 'split'], mask: ['mask', 'tiger'], patch: ['patch', 'spots'], freckled: ['freckled', 'spots'], split: ['split', 'diamond'], tiger: ['tiger', 'diamond'], diamond: ['diamond'], saddle: ['saddle', 'stripes', 'bands'], hearts: ['hearts', 'stars'], stars: ['stars'], zigzag: ['zigzag', 'tiger'], rosette: ['rosette'], swirl: ['swirl'], bands: ['bands', 'zigzag'] },
 };
 /* legs stay short and round at every stage, like a pocket monster's; the old long and bird legs became paws and webbed feet */
-const LEG_LEN = { nub: [0, 4], paw: [4, 9], stump: [4, 9], webbed: [2, 7], long: [4, 9], bird: [2, 7], hoof: [4, 9], boots: [4, 9], tentacle: [4, 9], float: [10, 14] };
+const LEG_LEN = { stone: [4, 9], crystal: [4, 9], talon: [2, 7], ribbon: [4, 9], cloud: [6, 10], spiked: [4, 9], nub: [0, 4], paw: [4, 9], stump: [4, 9], webbed: [2, 7], long: [4, 9], bird: [2, 7], hoof: [4, 9], boots: [4, 9], tentacle: [4, 9], float: [10, 14] };
 const LEG_ALIAS = { long: 'paw', bird: 'webbed' };
-const MULTI_TAIL = ['cat', 'fluffy', 'fox', 'lion', 'devil', 'flame', 'feather', 'ribbon', 'crystal', 'star', 'bolt', 'leaf', 'lizard', 'fish', 'curly'];
+const MULTI_TAIL = ['cat', 'fluffy', 'fox', 'lion', 'devil', 'flame', 'feather', 'ribbon', 'crystal', 'star', 'bolt', 'leaf', 'lizard', 'fish', 'curly', 'spade', 'sting', 'pebble'];
 
 /* ---------- evolution stages and gemstones ---------- */
 const GEMS = {
@@ -222,14 +228,14 @@ function makeGenome(R) {
 }
 
 /* ---------- evolving: every part may develop in a random direction ---------- */
-const FUR_WORD = { smooth: 'smooth', fluffy: 'fluffy', woolly: 'woolly', shaggy: 'shaggy', sleek: 'sleek and shiny', scaly: 'into scales', slime: 'to jelly', spiky: 'spiky' };
+const FUR_WORD = { smooth: 'smooth', fluffy: 'fluffy', woolly: 'woolly', shaggy: 'shaggy', sleek: 'sleek and shiny', scaly: 'into scales', slime: 'to jelly', spiky: 'spiky', crystal: 'to crystal', stone: 'to stone', feather: 'to feathers', magma: 'to glowing magma', moss: 'mossy', starry: 'starry' };
 const EYE_MUT = { triple: 'Opened a third eye!', cyclops: 'Its eyes merged into one big eye!', quad: 'Grew four eyes!', compound: 'Got shimmering bug eyes!' };
 const MOUTH_WORD = { fang: 'Grew a tiny fang', fangs: 'Grew fangs', tusks: 'Grew tusks', grin: 'A big toothy grin', zigzag: 'A jagged monster mouth', tongue: 'Sticks its tongue out now', blep: 'Learned to blep', beak: 'Grew a beak', cat: 'A cat smile', smile: 'A sweet smile', smirk: 'A sly smirk', o: 'A little o mouth', buck: 'Buck teeth' };
-const ARM_WORD = { nub: 'Grew stubby arms', paw: 'Grew little paws', mitten: 'Hands became round mittens', claw: 'Grew sharp claws', flipper: 'Grew flippers', wingarm: 'Arms turned into little wings', tentacle: 'Grew tentacle arms', long: 'Arms grew long', crystal: 'Fists turned to crystal' };
-const LEG_WORD = { paw: 'Got proper paws', stump: 'Grew stompy legs', webbed: 'Got webbed feet', long: 'Grew long legs', bird: 'Grew bird legs', hoof: 'Grew hooves', boots: 'Feet became fluffy boots', tentacle: 'Grew tentacle legs', float: 'Now floats instead of walking', nub: 'Nub feet' };
-const TAIL_WORD = { nub: 'a little nub', puff: 'a cotton puff', cat: 'a long tail', fluffy: 'a fluffy tail', curly: 'a curly tail', lion: 'a tufted tail', fish: 'a fin', lizard: 'a lizard tail', leaf: 'a leafy tail', devil: 'an arrow tail', star: 'a star tail', fox: 'a fox brush', flame: 'a flame tail', feather: 'a plume of feathers', ribbon: 'flowing ribbons', crystal: 'a crystal tail', bolt: 'a lightning bolt' };
-const HORN_WORD = { goat: 'Grew curved horns', ram: 'Grew ram horns', uni: 'Grew a single spiral horn', devil: 'Grew little devil horns', bull: 'Grew wide bull horns', crystal: 'Grew crystal horns', antlers: 'Grew antlers' };
-const WING_WORD = { feather: 'Spread feathered wings', bat: 'Spread bat wings', fairy: 'Grew see-through fairy wings', butterfly: 'Grew butterfly wings', leaf: 'Grew leaf wings', cloud: 'Grew fluffy cloud wings', crystal: 'Grew crystal wings', flame: 'Grew wings of flame' };
+const ARM_WORD = { nub: 'Grew stubby arms', paw: 'Grew little paws', mitten: 'Hands became round mittens', claw: 'Grew sharp claws', flipper: 'Grew flippers', wingarm: 'Arms turned into little wings', tentacle: 'Grew tentacle arms', long: 'Arms grew long', crystal: 'Fists turned to crystal', spike: 'Spikes grew on its arms', stone: 'Fists turned to stone', pincer: 'Grew pincers', ribbon: 'Arms wrapped in ribbons', leaf: 'Hands sprouted leaves', flame: 'Fists burst into flame' };
+const LEG_WORD = { paw: 'Got proper paws', stump: 'Grew stompy legs', webbed: 'Got webbed feet', long: 'Grew long legs', bird: 'Grew bird legs', hoof: 'Grew hooves', boots: 'Feet became fluffy boots', tentacle: 'Grew tentacle legs', float: 'Now floats instead of walking', nub: 'Nub feet', stone: 'Feet turned to stone', crystal: 'Feet turned to crystal', talon: 'Grew talons', ribbon: 'Got ribbon shoes', cloud: 'Walks on little clouds', spiked: 'Got spiked boots' };
+const TAIL_WORD = { nub: 'a little nub', puff: 'a cotton puff', cat: 'a long tail', fluffy: 'a fluffy tail', curly: 'a curly tail', lion: 'a tufted tail', fish: 'a fin', lizard: 'a lizard tail', leaf: 'a leafy tail', devil: 'an arrow tail', star: 'a star tail', fox: 'a fox brush', flame: 'a flame tail', feather: 'a plume of feathers', ribbon: 'flowing ribbons', crystal: 'a crystal tail', bolt: 'a lightning bolt', spade: 'a devil tail', club: 'a spiked club', pebble: 'a tail of pebbles', sting: 'a stinger', bow: 'a ribbon bow', cloud: 'a puff of cloud' };
+const HORN_WORD = { goat: 'Grew curved horns', ram: 'Grew ram horns', uni: 'Grew a single spiral horn', devil: 'Grew little devil horns', bull: 'Grew wide bull horns', crystal: 'Grew crystal horns', antlers: 'Grew antlers', spike: 'Grew a crown of spikes', stone: 'Grew stone horns', oni: 'Grew oni horns', spiral: 'Grew spiral horns', coral: 'Grew coral horns', moon: 'Grew crescent horns' };
+const WING_WORD = { feather: 'Spread feathered wings', bat: 'Spread bat wings', fairy: 'Grew see-through fairy wings', butterfly: 'Grew butterfly wings', leaf: 'Grew leaf wings', cloud: 'Grew fluffy cloud wings', crystal: 'Grew crystal wings', flame: 'Grew wings of flame', dragon: 'Spread dragon wings', petal: 'Grew petal wings', bubble: 'Grew bubble wings', moth: 'Grew soft moth wings', ribbon: 'Grew ribbon wings', star: 'Grew wings of stars' };
 
 /* late stages stop growing in size (they were simply too big) and grow features instead */
 const GROW_CAP = 1.18, GROW_CAP_LATE = 1.06, WING_CAP = 1.15;
@@ -335,15 +341,23 @@ function evolveForm(prev, R, stage) {
   }
   if (stage === 4) {
     delete X.bud;
-    let t = wkey(R, [['goat', 14], ['ram', 12], ['uni', 12], ['devil', 12], ['bull', 10], ['crystal', 14], ['antlers', 14]]);
+    let t = wkey(R, [['goat', 14], ['ram', 12], ['uni', 12], ['devil', 12], ['bull', 10], ['crystal', 14], ['antlers', 14], ['spike', 7], ['stone', 7], ['oni', 7], ['spiral', 7], ['coral', 5], ['moon', 6]]);
+    if (f.body.fur === 'stone' && R() < 0.5) t = 'stone';
+    if ((f.tail.t === 'spade' || f.tail.t === 'devil') && R() < 0.4) t = 'oni';
     if (f.ears.t === 'ram' && t === 'ram') t = 'goat';
     X.horns = { t, size: r1(0.9 + R() * 0.3) };
     say(5, HORN_WORD[t]);
   }
   if (stage === 5) {
-    const bias = { feather: 24, bat: 18, fairy: 16, butterfly: 12, leaf: 8, cloud: 10, crystal: 7, flame: 5 };
+    const bias = { feather: 24, bat: 18, fairy: 16, butterfly: 12, leaf: 8, cloud: 10, crystal: 7, flame: 5, dragon: 10, petal: 7, bubble: 6, moth: 7, ribbon: 5, star: 5 };
     const et = f.ears.t, tt = f.tail.t;
     if (et === 'bat' || et === 'lynx' || tt === 'devil') bias.bat *= 3;
+    if (tt === 'spade' || tt === 'club' || tt === 'lizard' || f.body.fur === 'scaly' || f.body.fur === 'magma') bias.dragon *= 4;
+    if (et === 'bow' || tt === 'bow' || tt === 'ribbon') bias.ribbon *= 5;
+    if (et === 'bloom' || et === 'shroom') bias.petal *= 4;
+    if (et === 'shell' || et === 'fin') bias.bubble *= 4;
+    if (et === 'antenna' || et === 'feather') bias.moth *= 3;
+    if (tt === 'star' || f.body.fur === 'starry') bias.star *= 5;
     if (et === 'leaf' || et === 'bloom' || tt === 'leaf') bias.leaf *= 4;
     if (et === 'flame' || tt === 'flame') bias.flame *= 4;
     if (et === 'crystal' || tt === 'crystal' || (X.horns && X.horns.t === 'crystal')) bias.crystal *= 4;
