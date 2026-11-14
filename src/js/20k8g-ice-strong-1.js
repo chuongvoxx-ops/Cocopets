@@ -122,23 +122,59 @@
   function frost(c, x, y, r, u, seed, alpha, arms) { if (u <= 0 || r < 2) return; const rr = Math.max(8, Math.round(r / 8) * 8), sd = Math.round((seed || 0) * 4) / 4, cv = frostSprite(rr, sd, arms || 6), Sz = cv.width, k = u * r / rr; c.save(); c.globalAlpha *= Math.max(0, Math.min(1, alpha)); c.translate(x, y); c.scale(k, k * H.GY); c.drawImage(cv, -Sz / 2, -Sz / 2); c.restore(); }
   const glint = (x, y, k, z) => { for (let i = 0; i < H.n(k); i++) H.P({ kind: 'star', x: x + (Math.random() - 0.5) * 0.8, y: y - (z || 0.5) + (Math.random() - 0.5) * 0.6, vx: 0, vy: -0.3, life: 0.5 + Math.random() * 0.4, max: 0.9, size: 2 + Math.random() * 2, color: i % 2 ? WHITE : ICE_L }); };
   const crackle = (x, y, r) => { H.X.light(x, y, r * 1.5, 0.25); H.X.sfx.crack ? H.X.sfx.crack() : H.X.sfx.crash(); };
-  S.rimecoil = (C, h) => { bind(h); const E = K.evo(C), s = 1 + 2 * (E - 1) / 6, me = H.me;
+  /* (v357) Rimecoil, rebuilt: a band of clear ice winds up the target out of a bloom of frost, a real helix in 3D: every
+     stretch of it a translucent ribbon shaded by which way it faces (lit from the upper left, a polished highlight sliding
+     round it, deeper and fainter where its inner side shows through at the back), a white rim along its top edge furred
+     with hoarfrost spikes, a cyan lower edge, fractures glowing inside it; faceted crystal plates grow out along it as it
+     climbs; on the GPU cold energy streams up inside it, glints climb it and its growing tip burns as a point of ice light,
+     over a pulsing frost wave and freezing fog. Its far half is drawn behind the target, its near half in front. At the
+     snap it bursts: the plates and the band fly apart as tumbling faceted shards, a flash of cold light, a frost wave
+     rolling out across the floor. Evolution as before: the coil grows smoothly to 3x by Celestial. */
+  S.rimecoil = (C, h) => { bind(h); const E = K.evo(C), s = 1 + 2 * (E - 1) / 6, me = H.me, P_ = K.P;
     const near = H.sortNear(C.tx, C.ty)[0], tgt = near && Math.hypot(near.x - C.tx, near.y - C.ty) < 2.5 * Math.max(1, s * 0.7) ? near : null, WIND = 0.85, SNAP = 1.0;
-    // a coil that would wrap the pet is moved off it, away from the pet (only once it has grown past its Hatchling size)
     const p0 = tgt ? [tgt.x, tgt.y] : [C.tx, C.ty]; let ox = 0, oy = 0; { const need = s > 1 ? 0.62 * s * 1.15 + 0.75 : 0, dx = p0[0] - me.x, dy = p0[1] - me.y, d = Math.hypot(dx, dy); if (d < need) { const ux = d > 0.05 ? dx / d : Math.cos(C.a), uy = d > 0.05 ? dy / d : Math.sin(C.a); ox = ux * (need - d); oy = uy * (need - d); } }
     const at = () => (tgt && !tgt.dead ? [tgt.x + ox, tgt.y + oy] : [p0[0] + ox, p0[1] + oy]); H.X.sfx.hum(); if (!tgt) H.warn(p0[0] + ox, p0[1] + oy, 1.2 * s, SNAP, C.col);
-    const dmg = C.base * 2.5 * C.K * K.evoK(C) * bonus(C) * (1 + (s - 1) * 0.5);
-    H.add({ life: SNAP + 0.4, drawUnder(c, f, X, Y, T) { const [x, y] = at(); frost(c, H.sx(x), H.sy(y), T * 0.9 * s, Math.min(1, f.t / WIND), 0.6, 0.7 * Math.min(1, f.life / 0.3), 6); },
+    const dmg = C.base * 2.5 * C.K * K.evoK(C) * bonus(C) * (1 + (s - 1) * 0.5), TURNS = 2.5, NS = 64, NPL = 9, SD = Math.random() * 40;
+    const RAMP = [[18, 60, 104], [36, 110, 170], [96, 186, 232], [176, 230, 252], [236, 250, 255]];
+    const ramp = k => { k = cl(k) * 3.999; const i = Math.floor(k), f = k - i, A = RAMP[i], B = RAMP[i + 1]; return [A[0] + (B[0] - A[0]) * f, A[1] + (B[1] - A[1]) * f, A[2] + (B[2] - A[2]) * f]; };
+    // the helix: screen points along it as it has grown (u), each with its turn b, depth sin b, and half-height
+    const helix = (cx, cy, T, u) => { const Hh = T * 1.9 * s, P = []; for (let i = 0; i <= NS; i++) { const v = i / NS * u, b = v * TAU * TURNS - Math.PI / 2, r = T * s * (0.66 - v * 0.18); P.push({ v, b, d: Math.sin(b), x: cx + Math.cos(b) * r, y: cy - T * 0.08 - v * Hh + Math.sin(b) * r * 0.36, hb: T * s * (0.085 + 0.045 * Math.sin(Math.PI * Math.min(1, v * 1.4))) }); } return P; };
+    const plateAt = (cx, cy, T, i, u) => { const v = (i + 0.6) / NPL; if (v > u) return null; const Hh = T * 1.9 * s, b = v * TAU * TURNS - Math.PI / 2, r = T * s * (0.66 - v * 0.18), g = cl((u - v) / 0.14); return { v, b, d: Math.sin(b), x: cx + Math.cos(b) * r * 1.04, y: cy - T * 0.08 - v * Hh + Math.sin(b) * r * 0.36, g, ang: Math.atan2(Math.sin(b) * 0.3 - 0.95, Math.cos(b) * 0.85) }; };
+    function band(c, P, back, T, t, a) { c.save(); c.lineJoin = 'round'; c.lineCap = 'round';
+      for (let i = 1; i < P.length; i++) { const p = P[i - 1], q = P[i], dm = (p.d + q.d) / 2; if ((dm < 0) !== back) continue;
+        const cb = Math.cos((p.b + q.b) / 2), lit = back ? 0.18 + 0.12 * Math.max(0, -cb) : 0.38 + 0.36 * Math.max(0, -cb * 0.8 + 0.2) + 0.2 * dm, spec = back ? 0 : Math.pow(Math.max(0, 1 - Math.abs(cb + 0.45) * 2.4), 3), col = ramp(lit + spec * 0.5);
+        const g = c.createLinearGradient(p.x, p.y - p.hb, p.x, p.y + p.hb), al = (back ? 0.55 : 0.82) * a;
+        g.addColorStop(0, `rgba(${Math.min(255, col[0] + 50) | 0},${Math.min(255, col[1] + 40) | 0},${Math.min(255, col[2] + 20) | 0},${al})`); g.addColorStop(0.45, `rgba(${col[0] | 0},${col[1] | 0},${col[2] | 0},${al})`); g.addColorStop(1, `rgba(${col[0] * 0.55 | 0},${col[1] * 0.7 | 0},${col[2] * 0.85 | 0},${al})`);
+        c.fillStyle = g; c.beginPath(); c.moveTo(p.x, p.y - p.hb); c.lineTo(q.x, q.y - q.hb); c.lineTo(q.x, q.y + q.hb); c.lineTo(p.x, p.y + p.hb); c.closePath(); c.fill();
+        if (spec > 0.05) { c.fillStyle = `rgba(255,255,255,${0.55 * spec * a})`; c.beginPath(); c.moveTo(p.x, p.y - p.hb * 0.6); c.lineTo(q.x, q.y - q.hb * 0.6); c.lineTo(q.x, q.y - q.hb * 0.1); c.lineTo(p.x, p.y - p.hb * 0.1); c.closePath(); c.fill(); } }
+      // its edges: a white rim along the top (cyan at the back), a cyan lower edge; fractures glowing inside; hoarfrost on the rim
+      const edge = (dy, col, w) => { c.strokeStyle = col; c.lineWidth = w; c.beginPath(); let on = false; for (const p of P) { if ((p.d < 0) !== back) { on = false; continue; } const y = p.y + dy * p.hb; on ? c.lineTo(p.x, y) : c.moveTo(p.x, y); on = true; } c.stroke(); };
+      edge(-1, back ? rgbaS(P_.cyan, 0.5 * a) : rgbaS(WHITE, 0.95 * a), Math.max(1, T * 0.035 * s)); edge(1, rgbaS(back ? ICE_D : P_.cyan, 0.75 * a), Math.max(1, T * 0.025 * s));
+      c.globalCompositeOperation = 'lighter'; c.strokeStyle = rgbaS(P_.cyan, (back ? 0.35 : 0.7) * a); c.lineWidth = Math.max(0.8, T * 0.018 * s); c.beginPath();
+      for (let i = 3; i < P.length - 1; i += 4) { const p = P[i]; if ((p.d < 0) !== back) continue; const q = P[i + 1]; c.moveTo(p.x - (q.x - p.x) * 0.6, p.y + p.hb * 0.6); c.lineTo(p.x, p.y - p.hb * 0.1); c.lineTo(q.x + (q.x - p.x) * 0.3, q.y - p.hb * 0.55); } c.stroke();
+      c.globalCompositeOperation = 'source-over'; if (!back) { c.fillStyle = rgbaS(WHITE, 0.9 * a); for (let i = 2; i < P.length; i += 3) { const p = P[i]; if (p.d < 0) continue; const hh = p.hb * (0.6 + 0.6 * K.R1(i + SD)); c.beginPath(); c.moveTo(p.x - p.hb * 0.18, p.y - p.hb); c.lineTo(p.x + (K.R1(i * 3 + SD) - 0.5) * p.hb * 0.5, p.y - p.hb - hh); c.lineTo(p.x + p.hb * 0.18, p.y - p.hb); c.closePath(); c.fill(); } }
+      c.restore(); }
+    // cold energy streaming up inside the band (GPU), glints climbing it, the growing tip a point of ice light
+    function energy(c, P, back, T, t, a, u) { const Q = K.gq(); if (!Q) return; for (let i = 1; i < P.length; i++) { const p = P[i - 1], q = P[i]; if ((((p.d + q.d) / 2) < 0) !== back) continue; const dx = q.x - p.x, dy = q.y - p.y; Q.ebeam(p.x - dx * 0.25, p.y - dy * 0.25, q.x + dx * 0.25, q.y + dy * 0.25, p.hb * 0.75, '#7FDCFF', 0.82, (back ? 0.35 : 0.6) * a, SD + i * 0.43, 9); }
+      for (let j = 0; j < 4; j++) { const v = ((t * 0.9 + j / 4) % 1) * u, i = Math.min(P.length - 1, Math.round(v / Math.max(0.001, u) * NS)), p = P[i]; if (!p || (p.d < 0) !== back) continue; Q.star(p.x, p.y - p.hb * 0.3, T * 0.24 * Math.sqrt(s), 0.85 * a, '#FFFFFF'); }
+      const tip = P[P.length - 1]; if (tip && (tip.d < 0) === back && u < 1) K.iceOrb(c, tip.x, tip.y, T * 0.22 * s, 0.9 * a, SD + 3); }
+    const fx = H.add({ life: SNAP + 0.4,
+      drawUnder(c, f, X, Y, T, t) { const [x, y] = at(), cx = H.sx(x), cy = H.sy(y), u = Math.min(1, f.t / WIND), a = Math.min(1, f.life / 0.3), live = f.t <= SNAP;
+        frost(c, cx, cy, T * 0.9 * s, Math.min(1, f.t / WIND), 0.6, 0.7 * a, 6); K.floorLight(c, cx, cy, T * 1.3 * s, 0.4 * a * u, P_.cyan);
+        if (K.gq()) { K.frostWave(c, cx, cy, T * s * (0.55 + 0.25 * ((t * 1.4) % 1)), 0.45 * a * u * (1 - (t * 1.4) % 1), SD, 0.25); for (let i = 0; i < 5; i++) { const b = i / 5 * TAU + t * 0.6, p = K.gpuXY(c, cx + Math.cos(b) * T * 0.75 * s, cy + Math.sin(b) * T * 0.75 * s * H.GY); K.gq().smoke(p[0], p[1], T * 0.5 * s, 0.22 * a * u, SD + i, '#D6ECFF', 0.8); } }   // a pulsing frost wave, freezing fog round its foot
+        if (!live) return; const P = helix(cx, cy, T, u), pl = []; for (let i = 0; i < NPL; i++) { const q = plateAt(cx, cy, T, i, u); if (q && q.d < 0) pl.push(q); }
+        band(c, P, true, T, t, a); for (const q of pl) shardQ(c, q.x, q.y, T * 0.17 * s * q.g, T * 0.46 * s * q.g, q.ang, q.v * 7 + 1, 0.75 * a, t); energy(c, P, true, T, t, a, u); },
       update(dt, f) { const [x, y] = at(); if (f.t > 0.15 && f.t < SNAP) { if (tgt && !tgt.dead) H.slow(tgt, 0.4); if (s > 1.05) for (const m of H.near(x, y, 0.62 * s)) H.slow(m, 0.4); }
-        if (f.t < SNAP) { const k = 0.6 * H.Q() * s; let n = Math.floor(k) + (Math.random() < k % 1 ? 1 : 0); while (n-- > 0) { const u = Math.min(1, f.t / WIND), b = u * TAU * 2.5 + Math.random() * 0.4; H.P({ kind: 'snow', x: x + Math.cos(b) * 0.55 * s, y: y + Math.sin(b) * 0.3 * s - u * 1.5 * s, vx: -Math.sin(b) * 0.8 * s, vy: Math.cos(b) * 0.4 * s - 0.3, life: 0.4, max: 0.4, size: 1.5 * Math.sqrt(s) }); } } },
-      draw(c, f, X, Y, T) { if (f.t > SNAP) return; const [x, y] = at(), cx = H.sx(x), cy = H.sy(y), u = Math.min(1, f.t / WIND), TURNS = 2.5, Hh = T * 1.7 * s, pts = []; for (let i = 0; i <= 40; i++) { const v = i / 40 * u, b = v * TAU * TURNS - Math.PI / 2, r = T * s * (0.62 - v * 0.15); pts.push([cx + Math.cos(b) * r, cy - v * Hh + Math.sin(b) * r * 0.35, Math.sin(b)]); }
-        aroundPet(c, cx - T * s * 0.9, cy - Hh - T * 0.4 * s, cx + T * s * 0.9, cy + T * 0.3 * s, () => {
-          // the ribbon behind the target first, then the plates and the front half, so it reads as wrapping
-          const draw = (list, lit) => { if (list.length > 1) H.ribbon(c, list, T * 0.14 * s, H.rgba(lit ? ICE_L : ICE_D, 0.85), lit ? WHITE : ICE, undefined); }; let seg = []; for (const p of pts) { if (p[2] < 0) seg.push(p); else { draw(seg, false); seg = []; } } draw(seg, false);
-          const np = Math.floor(u * 7); for (let i = 0; i < np; i++) { const v = (i + 0.5) / 7, b = v * TAU * TURNS - Math.PI / 2, r = T * s * (0.62 - v * 0.15), g = Math.min(1, (u * 7 - i) / 1.5); H.crystal(c, cx + Math.cos(b) * r * 1.15, cy - v * Hh + Math.sin(b) * r * 0.35, T * 0.16 * g * s, T * 0.42 * g * s, b + Math.PI / 2 + 0.3, i % 2 ? ICE : ICE_L, WHITE); }
-          seg = []; for (const p of pts) { if (p[2] >= 0) seg.push(p); else { draw(seg, true); seg = []; } } draw(seg, true); if (f.t > WIND) H.glow(c, cx, cy - Hh * 0.5, T * 1.1 * s, WHITE, 0.3 * Math.min(1, (f.t - WIND) / 0.15)); }); } });
-    H.X.after(SNAP, () => { const [x, y] = at(); H.hitArea(x, y, 1.25 * s, dmg, C.dmgO({ kb: 3 + s, freeze: 0.8 })); const n = Math.round(10 * Math.sqrt(s) * 1.2) - 2; for (let i = 0; i < H.n(n); i++) { const b = i / n * TAU; H.P({ kind: 'shard', x: x + Math.cos(b) * 0.4 * s, y: y - 0.3 * s - (i % 3) * 0.5 * s, vx: Math.cos(b) * 7 * Math.sqrt(s), vy: Math.sin(b) * 3.5 * Math.sqrt(s) - 1.5, g: 10, life: 0.55 * Math.sqrt(s), max: 0.55 * Math.sqrt(s), size: 4.5 * Math.sqrt(s), rot: b, vr: 6, color: i % 2 ? ICE : ICE_L }); }
-      glint(x, y, Math.round(6 * s), 1 * s); H.X.ring(x, y, 0.2, 1.25 * s, 0.35, ICE_L, 0.4); if (s > 1.3) H.X.ring(x, y, 0.2, 0.8 * s, 0.3, WHITE, 0.3); crackle(x, y, 1.2 * s); H.X.shake(4 * Math.sqrt(s), 0.1); H.X.hitstop(0.03); }); };
+        if (f.t < SNAP) { const k = 0.8 * H.Q() * s; let n = Math.floor(k) + (Math.random() < k % 1 ? 1 : 0); while (n-- > 0) { const u = Math.min(1, f.t / WIND), b = u * TAU * 2.5 + Math.random() * 0.4; H.P({ kind: 'snow', x: x + Math.cos(b) * 0.6 * s, y: y + Math.sin(b) * 0.3 * s - u * 1.6 * s, vx: -Math.sin(b) * 0.8 * s, vy: Math.cos(b) * 0.4 * s - 0.3, life: 0.5, max: 0.5, size: 1.6 * Math.sqrt(s) }); } } },
+      draw(c, f, X, Y, T, t) { if (f.t > SNAP) return; const [x, y] = at(), cx = H.sx(x), cy = H.sy(y), u = Math.min(1, f.t / WIND), a = 1;
+        const P = helix(cx, cy, T, u), pl = []; for (let i = 0; i < NPL; i++) { const q = plateAt(cx, cy, T, i, u); if (q && q.d >= 0) pl.push(q); }
+        band(c, P, false, T, t, a); pl.sort((p, q) => p.d - q.d); for (const q of pl) shardQ(c, q.x, q.y, T * 0.17 * s * q.g, T * 0.46 * s * q.g, q.ang, q.v * 7 + 1, 0.95 * a, t); energy(c, P, false, T, t, a, u);
+        if (f.t > WIND) { const k = Math.min(1, (f.t - WIND) / 0.15); K.glow(c, cx, cy - T * 0.95 * s, T * 1.2 * s, WHITE, 0.3 * k); K.iceOrb(c, cx, cy - T * 0.95 * s, T * 0.55 * s * k, 0.5 * k, SD + 9); } } });   // (the charge before the snap: cold light gathering in its heart)
+    H.X.after(SNAP, () => { const [x, y] = at(); H.hitArea(x, y, 1.25 * s, dmg, C.dmgO({ kb: 3 + s, freeze: 0.8 }));
+      shardBurst(x, y, 0.9 * s, { n: Math.round(12 + 6 * s), v: 6 * Math.sqrt(s), up: 3, w: 0.13 * s, h: 0.36 * s, life: 0.75, spread: TAU });   // the band and its plates flying apart as tumbling faceted shards
+      H.add({ life: 0.55, x, y, drawUnder(c, f, X, Y, T) { const u = f.t / 0.55, e = H.ease.out(u); K.frostWave(c, X, Y, T * 1.6 * s * (0.3 + 0.9 * e), 0.9 * (1 - u), SD + 5, 0.22); K.iceRing(c, X, Y, T * 1.4 * s * e, (1 - u) * 0.8, null, f.t, Math.max(2, T * 0.08 * (1 - u))); },
+        draw(c, f, X, Y, T) { const u = f.t / 0.3; if (u < 1) { K.iceOrb(c, X, Y - T * 0.9 * s, T * 0.9 * s * (0.5 + u), 0.9 * (1 - u), SD + 7); K.glow(c, X, Y - T * 0.9 * s, T * 2 * s, WHITE, 0.5 * (1 - u)); } } });   // a flash of cold light, a frost wave rolling out
+      glint(x, y, Math.round(6 * s), 1 * s); H.X.ring(x, y, 0.2, 1.25 * s, 0.35, ICE_L, 0.4); crackle(x, y, 1.2 * s); H.X.shake(4 * Math.sqrt(s), 0.1); H.X.hitstop(0.03); }); };
 
   /* ============ I-S09 Thousand-Wing Snowfall ============
      A column of snow rises at the aim and crystal moths climb out of it to orbit at many heights, their faceted translucent
