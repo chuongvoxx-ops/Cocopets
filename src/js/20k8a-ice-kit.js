@@ -9,9 +9,27 @@ const IK = (() => {
   const P = { white: '#FFFFFF', frost: '#E8FBFF', pale: '#BFEFFF', cyan: '#5FE8FF', ice: '#7FC8F0', blue: '#3B8EE0', deep: '#1E4FA0', abyss: '#122E66', lav: '#C8B8FF', silver: '#DDE8F5' };
   let H;
   const rgba = (h, a) => H.rgba(h, a);
+  /* (v356) the GPU mode (as the fire kit's): between gpuBegin and gpuEnd the kit's glows, floor light, mist, rings, veins and
+     the new ice energy (iceBeam, iceOrb, frostWave, iceVortex) paint through Nidhogg's painter (20k6h FGFX) in the ice
+     colours; the crafted shards and crystals stay crisp 2D. window[flag] = 0 or window.__ICE_GL = 0 keeps the 2D */
+  let GQ = null, GF = null, BM = null;
+  function gpuBegin(c, flag) { if (GQ) return null; try { if (window[flag] === 0 || window.__ICE_GL === 0) return null; const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; if (!F || !F.usable()) return null; GF = F; GQ = F.begin(c, null); BM = c.getTransform(); return GQ; } catch (e) { GQ = null; return null; } }
+  function gpuEnd(c) { if (!GQ) return; const F = GF; GQ = null; GF = null; try { F.flush(c); } catch (e) {} }
+  function gpuXY(c, x, y) { const m = c.getTransform(); if (!BM || (m.a === BM.a && m.b === BM.b && m.c === BM.c && m.d === BM.d && m.e === BM.e && m.f === BM.f)) return [x, y, 0, 1];
+    const X = m.a * x + m.c * y + m.e, Y = m.b * x + m.d * y + m.f, det = BM.a * BM.d - BM.b * BM.c, dx = X - BM.e, dy = Y - BM.f;
+    return [(BM.d * dx - BM.c * dy) / det, (-BM.b * dx + BM.a * dy) / det, Math.atan2(m.b, m.a) - Math.atan2(BM.b, BM.a), Math.sqrt(Math.abs((m.a * m.d - m.b * m.c) / det)) || 1]; }
+  const ICE_E = '#6FD8FF', ICE_D = '#3B8EE0';
+  /* a beam of ice light from (x0, y0) to (x1, y1), w its half-width: turbulent cold energy in overlapping stretches, a white core */
+  function iceBeam(c, x0, y0, x1, y1, w, a, seed, col) { if (!GQ || !(a > 0.01)) return; const p0 = gpuXY(c, x0, y0), p1 = gpuXY(c, x1, y1), L = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]); if (L < 1) return; const W2 = w * p0[3], n = Math.max(1, Math.min(14, Math.ceil(L / (W2 * 2.4)))), dx = (p1[0] - p0[0]) / n, dy = (p1[1] - p0[1]) / n;
+    for (let i = 0; i < n; i++) GQ.ebeam(p0[0] + dx * (i - 0.2), p0[1] + dy * (i - 0.2), p0[0] + dx * (i + 1.2), p0[1] + dy * (i + 1.2), W2, col || ICE_E, 0.95, a, (seed || 0) + i * 0.71, 7);
+    GQ.beam(p0[0], p0[1], p1[0], p1[1], W2 * 0.28, '#FFFFFF', 0.8 * a); }
+  /* an orb of cold energy, a frost wave rolling over the floor, a vortex of ice light (sy squashes it to the floor) */
+  function iceOrb(c, x, y, r, a, seed, col) { if (!GQ || !(a > 0.01)) return; const p = gpuXY(c, x, y); GQ.eorb(p[0], p[1], r * p[3], col || ICE_E, 0.92, a, seed || 0, 2); GQ.glow(p[0], p[1], r * 2.2 * p[3], col || ICE_E, 0.35 * a); }
+  function frostWave(c, x, y, r, a, seed, th, sy) { if (!GQ || !(a > 0.01)) return; const p = gpuXY(c, x, y); GQ.ewave(p[0], p[1], r * p[3], ICE_E, 0.88, a, seed || 0, sy == null ? H.GY : sy, th == null ? 0.2 : th); }
+  function iceVortex(c, x, y, r, a, seed, spin, sy) { if (!GQ || !(a > 0.01)) return; const p = gpuXY(c, x, y); GQ.evortex(p[0], p[1], r * p[3], ICE_E, 0.9, a, seed || 0, spin || 1, sy == null ? H.GY : sy); }
   const R1 = s => { const v = Math.sin(s * 12.9898 + 78.233) * 43758.5453; return v - Math.floor(v); };
-  function glow(c, x, y, r, col, a) { if (r < 1 || !(a > 0.01)) return; c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = Math.min(1, a); blitSized(c, glowSprite(col || P.cyan), x - r, y - r, r * 2, r * 2); c.restore(); }
-  function floorLight(c, X, Y, r, a, col) { if (r < 1 || !(a > 0.01)) return; c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = Math.min(1, a); blitSized(c, glowSprite(col || P.ice), X - r, Y - r * H.GY, r * 2, r * 2 * H.GY); c.restore(); }
+  function glow(c, x, y, r, col, a) { if (r < 1 || !(a > 0.01)) return; if (GQ) { const p = gpuXY(c, x, y); GQ.glow(p[0], p[1], r * 1.1 * p[3], col || P.cyan, Math.min(1, a * 1.25)); return; } c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = Math.min(1, a); blitSized(c, glowSprite(col || P.cyan), x - r, y - r, r * 2, r * 2); c.restore(); }
+  function floorLight(c, X, Y, r, a, col) { if (r < 1 || !(a > 0.01)) return; if (GQ) { const p = gpuXY(c, X, Y); GQ.glow(p[0], p[1], r * 1.1 * p[3], col || P.ice, Math.min(1, a * 1.25), H.GY); return; } c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = Math.min(1, a); blitSized(c, glowSprite(col || P.ice), X - r, Y - r * H.GY, r * 2, r * 2 * H.GY); c.restore(); }
   /* a faceted shard standing at (x, y) (its base), pointing along screen angle ang (default up), w wide and h long; s a
      seed for its fractures; a alpha. A translucent lit face and shaded face meet on a bright ridge, a cyan rim, glowing
      fracture lines inside, a lavender glint sliding with t. Cached as sprites by size bucket, so many stay cheap. */
@@ -35,6 +53,7 @@ const IK = (() => {
     if (shardCache.size > 160) shardCache.clear(); shardCache.set(key, cv); cv._ax = W / 2; cv._ay = Hh - pad; return cv; }
   function rgbaS(h, a) { const [r, g, b] = hexRGB(h); return `rgba(${r},${g},${b},${a})`; }
   function shard(c, x, y, w, h, ang, s, a, t) { if (h < 2 || !(a > 0.01)) return; const cv = shardSprite(w, h, s | 0), sc = w / Math.max(4, Math.round(w / 3) * 3); c.save(); c.translate(x, y); c.rotate((ang == null ? -Math.PI / 2 : ang) + Math.PI / 2); c.globalAlpha = a; c.scale(sc, h / Math.max(6, Math.round(h / 4) * 4) ); c.drawImage(cv, -cv._ax, -cv._ay); c.restore();
+    if (GQ && h > 6) { const b = (ang == null ? -Math.PI / 2 : ang), p0 = gpuXY(c, x + Math.cos(b) * h * 0.08, y + Math.sin(b) * h * 0.08), p1 = gpuXY(c, x + Math.cos(b) * h * 0.85, y + Math.sin(b) * h * 0.85); GQ.beam(p0[0], p0[1], p1[0], p1[1], w * 0.22 * p0[3], P.cyan, 0.32 * a); }   // (v356: cold light glowing inside the shard, on the GPU)
     // a lavender glint sliding up the lit face
     if (t != null) { const u = ((t * 0.8 + (s || 0) * 0.37) % 1.6) / 1.6; if (u < 1) { const b = (ang == null ? -Math.PI / 2 : ang), gx = x + Math.cos(b) * h * u - Math.sin(b) * w * 0.12, gy = y + Math.sin(b) * h * u + Math.cos(b) * w * 0.12; glow(c, gx, gy, w * 0.5, P.lav, 0.5 * a * Math.sin(u * Math.PI)); } } }
   /* a crystal standing on the floor at (X, Y): a shard with a cyan glow and floor light at its foot */
@@ -43,18 +62,21 @@ const IK = (() => {
   function iceRing(c, X, Y, r, a, ry, t, w) { if (r < 1 || !(a > 0.01)) return; ry = ry == null ? r * H.GY : ry; w = w || Math.max(2, r * 0.08); c.save(); c.globalAlpha = a; c.lineCap = 'round';
     c.strokeStyle = rgbaS(P.deep, 0.45); c.lineWidth = w * 1.4; c.beginPath(); c.ellipse(X, Y, r, Math.max(0.1, Math.abs(ry)), 0, 0, TAU); c.stroke(); c.strokeStyle = rgbaS(P.pale, 0.85); c.lineWidth = w; c.stroke();
     c.globalCompositeOperation = 'lighter'; c.strokeStyle = rgbaS(P.cyan, 0.8); c.lineWidth = Math.max(1, w * 0.35); c.beginPath(); c.ellipse(X, Y, Math.max(0.1, r - w * 0.3), Math.max(0.1, ry - w * 0.3 * ry / r), 0, 0, TAU); c.stroke();
-    for (let i = 0; i < 3; i++) { const b = (t || 0) * 0.9 + i * 2.1; glow(c, X + Math.cos(b) * r, Y + Math.sin(b) * ry, w * 2.5, P.white, 0.6 * a); } c.restore(); }
+    for (let i = 0; i < 3; i++) { const b = (t || 0) * 0.9 + i * 2.1; glow(c, X + Math.cos(b) * r, Y + Math.sin(b) * ry, w * 2.5, P.white, 0.6 * a); if (GQ) { const p = gpuXY(c, X + Math.cos(b) * r, Y + Math.sin(b) * ry); GQ.star(p[0], p[1], w * 3, 0.8 * a, '#FFFFFF'); } }
+    if (GQ) { const p = gpuXY(c, X, Y); GQ.ring(p[0], p[1], r * p[3], P.cyan, 0.55 * a, w * 1.6, Math.abs(ry) / r); } c.restore(); }   /* (v356: a cold glow along the ring, star glints) */
   /* frost veins spreading across the floor from (X, Y) out to radius r (u 0..1 how far grown); fades with a */
   function frostVeins(c, X, Y, r, u, a, s, n) { if (!(a > 0.01) || u <= 0) return; n = n || 7; c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round';
     for (let i = 0; i < n; i++) { let b = (s || 0) + i / n * TAU + R1(i + (s || 0)) * 0.5, x = X, y = Y; const seg = 6, L = r * u * (0.7 + 0.3 * R1(i * 3 + (s || 0))); c.beginPath(); c.moveTo(x, y);
       for (let k = 1; k <= seg; k++) { b += (R1(i * 13 + k + (s || 0)) - 0.5) * 0.7; x += Math.cos(b) * L / seg; y += Math.sin(b) * L / seg * H.GY; c.lineTo(x, y);
         if (k === 3 || k === 5) { const bb = b + (R1(i + k) < 0.5 ? 0.8 : -0.8); c.moveTo(x, y); c.lineTo(x + Math.cos(bb) * L * 0.18, y + Math.sin(bb) * L * 0.18 * H.GY); c.moveTo(x, y); } }
-      c.globalAlpha = 0.35 * a; c.strokeStyle = P.blue; c.lineWidth = 3; c.stroke(); c.globalAlpha = 0.8 * a; c.strokeStyle = P.pale; c.lineWidth = 1.2; c.stroke(); } c.restore(); }
+      c.globalAlpha = 0.35 * a; c.strokeStyle = P.blue; c.lineWidth = 3; c.stroke(); c.globalAlpha = 0.8 * a; c.strokeStyle = P.pale; c.lineWidth = 1.2; c.stroke();
+      if (GQ) { let px = X, py = Y, bb = (s || 0) + i / n * TAU + R1(i + (s || 0)) * 0.5; for (let k = 1; k <= seg; k++) { bb += (R1(i * 13 + k + (s || 0)) - 0.5) * 0.7; const nx = px + Math.cos(bb) * L / seg, ny = py + Math.sin(bb) * L / seg * H.GY, p0 = gpuXY(c, px, py), p1 = gpuXY(c, nx, ny); GQ.beam(p0[0], p0[1], p1[0], p1[1], 3.2 * (1 - k / (seg + 2)), P.cyan, 0.45 * a); px = nx; py = ny; } } } c.restore(); }   /* (v356: cold light glowing along each vein) */
   /* a glassy frozen pool on the floor: a pale translucent sheen, a cyan rim, glints (light only, fades) */
   function frozenPool(c, X, Y, r, a, t) { if (r < 1 || !(a > 0.01)) return; c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.22 * a; c.fillStyle = P.ice; H.floorEllipse(c, X, Y, r); c.fill(); c.globalAlpha = 0.5 * a; c.strokeStyle = P.cyan; c.lineWidth = 1.5; H.floorEllipse(c, X, Y, r); c.stroke(); c.restore(); floorLight(c, X, Y, r * 1.1, 0.35 * a, P.pale);
     for (let i = 0; i < 4; i++) { const b = i * 1.7 + (t || 0) * 0.2, rr = r * (0.3 + 0.15 * i); glow(c, X + Math.cos(b) * rr, Y + Math.sin(b) * rr * H.GY, 4, P.white, 0.5 * a * (0.5 + 0.5 * Math.sin((t || 0) * 3 + i))); } }
   /* a low skirt of freezing mist round (X, Y) */
-  function mist(c, X, Y, r, a, t) { if (!(a > 0.01)) return; c.save(); c.globalCompositeOperation = 'lighter'; for (let i = 0; i < 6; i++) { const b = i / 6 * TAU + (t || 0) * 0.4, x = X + Math.cos(b) * r * 0.8, y = Y + Math.sin(b) * r * 0.8 * H.GY; c.globalAlpha = 0.18 * a; blitSized(c, glowSprite(P.frost), x - r * 0.6, y - r * 0.3, r * 1.2, r * 0.6); } c.restore(); }
+  function mist(c, X, Y, r, a, t) { if (!(a > 0.01)) return;
+    c.save(); c.globalCompositeOperation = 'lighter'; for (let i = 0; i < 6; i++) { const b = i / 6 * TAU + (t || 0) * 0.4, x = X + Math.cos(b) * r * 0.8, y = Y + Math.sin(b) * r * 0.8 * H.GY; c.globalAlpha = 0.18 * a; blitSized(c, glowSprite(P.frost), x - r * 0.6, y - r * 0.3, r * 1.2, r * 0.6); } c.restore(); }
   /* particles (world units): snow, glittering fragments, frost sparks */
   const snow = (x, y, k, o) => H.burst(x, y, 'ember', k, Object.assign({ v: 1.2, up: 0.6, g: 0.8, life: 1.2, size: 2.6, color: [P.white, P.frost, P.pale] }, o || {}));
   const glitter = (x, y, k, v, o) => H.burst(x, y, 'spark', k, Object.assign({ v: v || 5, up: 2, g: 7, life: 0.55, size: 2, color: [P.white, P.cyan, P.pale, P.lav] }, o || {}));
@@ -67,6 +89,6 @@ const IK = (() => {
   const evoN = (C, a, b) => Math.round(a + (b - a) * (evo(C) - 1) / 6);
   const lv = (C, L) => { const e = evo(C); return e >= 7 ? L[2] : e >= 4 ? L[1] : L[0]; };
   const evoK = C => 1 + 0.08 * (evo(C) - 1);
-  const K = { P, TAU, R1, glow, floorLight, shard, crystal, iceRing, frostVeins, frozenPool, mist, snow, glitter, fragments, aura, shatterAt, evo, evoN, lv, evoK };
+  const K = { gpuBegin, gpuEnd, gq: () => GQ, gpuXY, iceBeam, iceOrb, frostWave, iceVortex, P, TAU, R1, glow, floorLight, shard, crystal, iceRing, frostVeins, frozenPool, mist, snow, glitter, fragments, aura, shatterAt, evo, evoN, lv, evoK };
   return { bind: h => { H = h; return K; }, P };
 })();

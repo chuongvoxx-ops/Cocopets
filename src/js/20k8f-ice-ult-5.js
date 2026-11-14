@@ -217,7 +217,9 @@
           for (let pi = 0; pi < b.tr.length; pi++) { const p = b.tr[pi], age = tt - p.t, k = Math.max(0, 1 - age / 1.3); if (k <= 0 || (p.n & 3)) continue; const qx = H.sx(p.x), qy = H.sy(p.y); if (qx < S.x0 - m || qx > S.x0 + S.w + m || qy < S.y0 - m || qy > S.y0 + S.h + m) continue; K.floorLight(c, qx, qy, T * BR * 1.9 * (0.6 + 0.4 * k), 0.36 * k * kN, P.pale); }
           if (a <= 0.01 || BX < S.x0 - m || BX > S.x0 + S.w + m || BY < S.y0 - m || BY > S.y0 + S.h + m) continue;
           // the floor under it (one cached picture in the floor's plane, turned): light pool, swirl, mist, the ice ring
-          const br = 1 + 0.067 * Math.sin(tt * 3 + b.ph), sc = T * BR * 2.1 * br / 128, rot = tt * 2.6 * b.spin + b.ph, R0 = T * BR * br, rs = R0 * 1.5; c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.65 * kN * a; c.drawImage(swirlAt(rot), BX - rs, BY - rs * H.GY, rs * 2, rs * 2 * H.GY);
+          const br = 1 + 0.067 * Math.sin(tt * 3 + b.ph), sc = T * BR * 2.1 * br / 128, rot = tt * 2.6 * b.spin + b.ph, R0 = T * BR * br, rs = R0 * 1.5;
+          if (K.gq && K.gq()) { K.iceVortex(c, BX, BY, rs * 0.95, 0.4 * kN * a, b.sd, 1.6 * b.spin); K.frostWave(c, BX, BY, R0 * 0.95, 0.45 * a * kN, b.sd + 2, 0.16); const Q = K.gq(); for (let i = 0; i < 3; i++) { const q = tt * 2 * b.spin + i * 2.1; Q.star(BX + Math.cos(q) * R0 * 0.95, BY + Math.sin(q) * R0 * 0.95 * H.GY, T * 0.2, 0.7 * a, '#FFFFFF'); } }   /* (v356: on the GPU the turning cold light and a frost wave under the original's crisp floor) */
+          c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.65 * kN * a; c.drawImage(swirlAt(rot), BX - rs, BY - rs * H.GY, rs * 2, rs * 2 * H.GY);
           /* the ice ring's three glints running round it */
           const gq = Math.max(2, T * 0.06) * 2.5; c.globalAlpha = 0.42 * a; for (let i = 0; i < 3; i++) { const q = tt * 2 * b.spin + i * 2.1; c.drawImage(glowSprite(P.white), BX + Math.cos(q) * R0 * 0.95 - gq, BY + Math.sin(q) * R0 * 0.95 * H.GY - gq, gq * 2, gq * 2); } c.restore();
           c.save(); c.translate(BX, BY); c.scale(sc, sc * H.GY);
@@ -230,7 +232,8 @@
         // the vortex in the sky the beams fall from
         const VX = X, VY = S.y0 + T * 0.6;
         K.glow(c, VX, VY, T * 7, P.blue, 0.4 * fa); K.glow(c, VX, VY, T * 3, P.cyan, 0.18 * fa);
-        c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.55 * fa; const vr = T * 6.5; c.drawImage(swirlAt(-tt * 0.9), VX - vr, VY - vr * 0.38, vr * 2, vr * 2 * 0.38); c.globalAlpha = 0.35 * fa; c.drawImage(swirlAt(tt * 0.7), VX - vr * 0.6, VY - vr * 0.6 * 0.38, vr * 1.2, vr * 1.2 * 0.38); c.restore();
+        if (K.gq && K.gq()) { K.iceVortex(c, VX, VY, T * 6.5, 0.45 * fa, 7.7, -0.9, 0.38); K.iceVortex(c, VX, VY, T * 3.9, 0.3 * fa, 3.1, 0.7, 0.38); } {   /* (v356: on the GPU a vortex of ice light turning in the original's swirls) */
+        c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.55 * fa; const vr = T * 6.5; c.drawImage(swirlAt(-tt * 0.9), VX - vr, VY - vr * 0.38, vr * 2, vr * 2 * 0.38); c.globalAlpha = 0.35 * fa; c.drawImage(swirlAt(tt * 0.7), VX - vr * 0.6, VY - vr * 0.6 * 0.38, vr * 1.2, vr * 1.2 * 0.38); c.restore(); }
         const tq = 48, tk = T / tq, gw = glowSprite(P.white);
         // the beams
         for (const b of beams) { if (tt < b.s) continue; const on = tt < b.e, out = on ? 0 : cl((tt - b.e) / 0.45); if (out >= 1) continue;
@@ -245,10 +248,15 @@
             // the column with its turning ribbons: one of 32 cached turning frames
             const ph = (((tt * 7 * b.spin) / TAU) % 1 + 1) % 1 * NBF;
             if (Lg - top0 > 1) { c.globalAlpha = a; c.drawImage(beamFrame(Math.round(ph) % NBF, kq, bq), -w * 0.55, top0, w * 1.1, Lg - top0); }
+            if (Lg - top0 > 1 && K.gq && K.gq()) { c.restore(); const ca = Math.cos(ang), sa = Math.sin(ang), at = v => [TX - sa * 0 + (-v[0]) * 0 + (v[0] * ca - v[1] * sa), TY + (v[0] * sa + v[1] * ca)], A0 = at([0, top0]), A1 = at([0, Lg]);
+              K.iceBeam(c, A0[0], A0[1], A1[0], A1[1], w * 0.24, a * kN * 0.5, b.sd, '#5FD4FF');   // cold energy streaming down inside the column
+              const Q = K.gq(), NS = 12; for (const sd of [0, Math.PI]) { let q = null; for (let j = 0; j <= NS; j++) { const u = j / NS, yy = top0 + (Lg - top0) * u, xx = Math.sin(u * 9 - tt * 7 * b.spin + sd + b.ph) * w * 0.42, P2 = at([xx, yy]); if (q) { const dx = P2[0] - q[0], dy = P2[1] - q[1]; Q.ebeam(q[0] - dx * 0.2, q[1] - dy * 0.2, P2[0] + dx * 0.2, P2[1] + dy * 0.2, w * 0.07, '#BFF4FF', 0.95, 0.5 * a * kN, b.sd + j * 0.5 + sd, 9); } q = P2; } }   // two ribbons of light turning round it
+              for (let j = 0; j < 7; j++) { const u = (tt * 0.55 + j / 7 + b.i * 0.13) % 1, yy = top0 + (Lg - top0) * u, P2 = at([Math.sin(u * 12 + j * 1.3 - tt * 3 * b.spin) * w * 0.45, yy]); Q.star(P2[0], P2[1], T * 0.22, 0.85 * a, '#FFFFFF'); }   // ice motes spiralling down inside it
+              c.save(); }   /* (v356: on the GPU, inside the original's crisp column) */
             // ice motes spiralling down inside it
             c.restore();
             // ice motes spiralling down inside it (placed along the beam, blitted unturned: the cheap path)
-            if (Lg > T) { const mr = T * 0.22, ca = Math.cos(ang), sa = Math.sin(ang); c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.8 * a; for (let j = 0; j < 6; j++) { const u = (tt * 0.55 + j / 6 + b.i * 0.13) % 1, yy = top0 + (Lg - top0) * u, q = u * 12 + j * 1.3 - tt * 3 * b.spin, xx = Math.sin(q) * w * 0.45; if (yy > Lg) continue; c.drawImage(gw, TX + xx * ca - yy * sa - mr, TY + xx * sa + yy * ca - mr, mr * 2, mr * 2); } c.restore(); } }
+            if (Lg > T && !(K.gq && K.gq())) { const mr = T * 0.22, ca = Math.cos(ang), sa = Math.sin(ang); c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.8 * a; for (let j = 0; j < 6; j++) { const u = (tt * 0.55 + j / 6 + b.i * 0.13) % 1, yy = top0 + (Lg - top0) * u, q = u * 12 + j * 1.3 - tt * 3 * b.spin, xx = Math.sin(q) * w * 0.45; if (yy > Lg) continue; c.drawImage(gw, TX + xx * ca - yy * sa - mr, TY + xx * sa + yy * ca - mr, mr * 2, mr * 2); } c.restore(); } }
           if (BX < S.x0 - m || BX > S.x0 + S.w + m || BY < S.y0 - m || BY > S.y0 + S.h + m * 2) continue;
           const nearP = Math.abs(BX - PX) < T * 5 && Math.abs(BY - PY) < T * 4; if (nearP) { c.save(); petHole(c, T); }
           // where it meets the floor: a splash of light, a slowly turning crown of shards (cached frames)

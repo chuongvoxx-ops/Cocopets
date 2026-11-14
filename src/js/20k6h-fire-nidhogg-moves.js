@@ -487,7 +487,12 @@ void main(){ vec2 u = v_uv; float r = length(u), m = 0.0, edge = 1.0 - smoothste
     float f = fbm(u * 2.2 + vec2(v_q.y * 3.1, v_q.y - t * 0.35)), d = clamp((1.0 - r * r) * (0.55 + 0.9 * f) - 0.25, 0.0, 1.0) * edge; float a = d * v_c.a * pk;
     vec3 c = mix(col * 0.6, col, smoothstep(-0.5, 0.6, -u.y + f * 0.5)) + vec3(0.35, 0.12, 0.03) * v_q.x * smoothstep(0.0, 1.0, u.y + 0.3); gl_FragColor = vec4(c * a, a); }
   else { vec3 L = vec3(0.0);
-    if (v_k > 21.5) { // (v354) a tongue of energy in the quad's colour (as a flame tongue: base at uv.y = 1, soft rounded root)
+    if (v_k > 22.5) { // (v356) a vortex of energy in the quad's colour (as kind 14: log-spiral arms round a bright eye; v_q.z its turn)
+      float rr = r, an = atan(u.y, u.x), sw = an + v_q.z * t + 2.4 * log(rr + 0.08), arms = 0.5 + 0.5 * cos(3.0 * sw);
+      vec2 sp = vec2(cos(sw), sin(sw)) * (0.5 + rr * 2.6); float f = fbm(sp * 1.5 + vec2(v_q.y, -t * 0.6) + rr * 2.0), g = fbm(sp * 4.2 + vec2(t * 0.9, v_q.y * 1.7));
+      float dns = (pow(arms, 1.5) * (0.5 + 0.75 * f) + 0.22 * f) * (1.0 - smoothstep(0.5, 1.0, rr)), temp = v_q.x * (1.12 - rr * 0.95) * (0.5 + 0.65 * f) + 0.3 * exp(-rr * rr * 30.0);
+      L = eramp(temp, col) * dns * (0.55 + 0.55 * g) + eramp(min(1.05, v_q.x * 1.05), col) * exp(-rr * rr * 45.0) * 0.6; }
+    else if (v_k > 21.5) { // (v354) a tongue of energy in the quad's colour (as a flame tongue: base at uv.y = 1, soft rounded root)
       float h0 = (1.0 - u.y) * 0.5, h = h0 * 1.14 - 0.12, hp = max(h, 0.0), wob = (fbm(vec2(h * 3.0 - t * 2.5, v_q.y)) - 0.5) * 0.5 * hp, x = (u.x - wob) / max(0.05, (1.0 - pow(hp, 1.6)) * (0.5 + 0.5 * sin(min(1.0, hp * 3.0 + 0.25) * 1.57)));
       float f = fbm(vec2(u.x * 2.0, h * 3.0 - t * 3.4) + v_q.y), root = smoothstep(-0.11, 0.1, h - 0.22 * x * x + (f - 0.5) * 0.09), dns = (1.0 - smoothstep(0.55, 1.0, abs(x))) * root * (1.0 - smoothstep(0.75 + 0.2 * f, 1.0, h));
       float temp = v_q.x * (1.1 - hp * 0.9 - abs(x) * 0.35 - 0.3 * (1.0 - smoothstep(-0.04, 0.12, h))) + (f - 0.5) * 0.45; L = eramp(temp, col) * dns * (0.6 + 0.6 * f) * (1.0 - smoothstep(0.8, 1.0, abs(u.x))) * (1.0 - smoothstep(0.86, 1.0, u.y)); }
@@ -591,6 +596,7 @@ void main(){ vec2 u = v_uv; float r = length(u), m = 0.0, edge = 1.0 - smoothste
     eorb(x, y, r, col, heat, a, seed, swirl) { if (r > 0.5) this.quad(19, x, y, r, 0, 0, r, col, a, heat, seed || 0, swirl || 0); },
     ebeam(x0, y0, x1, y1, w, col, heat, a, seed, scroll) { const dx = (x1 - x0) / 2, dy = (y1 - y0) / 2, L = Math.hypot(dx, dy); if (L < 0.5) return; this.quad(20, x0 + dx, y0 + dy, dx, dy, -dy / L * w, dx / L * w, col, a, heat, seed || 0, scroll || 3); },
     ewave(x, y, r, col, heat, a, seed, sy, th) { if (r > 1 && a > 0.01) this.quad(21, x, y, r * 1.3, 0, 0, r * 1.3 * (sy || 1), col, a, heat, seed || 0, th == null ? 0.18 : th); },
+    evortex(x, y, r, col, heat, a, seed, spin, sy) { if (r > 0.5) this.quad(23, x, y, r, 0, 0, r * (sy || 1), col, a, heat, seed || 0, spin || 1); },
     etongue(x, y, w, h, rot, col, heat, a, seed) { if (h > 0.5) { const c = Math.cos(rot || 0), s = Math.sin(rot || 0); this.quad(22, x + s * h, y - c * h, c * w, s * w, -s * h, c * h, col, a, heat, seed || 0); } },
     shimmer(x, y, r, a, sy, col) { if (r > 0.5) this.quad(8, x, y, r, 0, 0, r * (sy || 1), col || '#FFA640', a); },
     smoke(x, y, r, a, seed, col, lit) { if (r > 0.5) this.quad(9, x, y, r, 0, 0, r, col || '#3A2E2A', a, lit || 0, seed || 0); },
