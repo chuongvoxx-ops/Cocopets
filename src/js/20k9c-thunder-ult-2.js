@@ -320,7 +320,10 @@
         if (monu && !f.domeB && t >= LAST.ERU + 0.85) { f.domeB = 1; const rd = LAST.RA * 0.8; for (let i = 0; i < H.n(90); i++) { const b = Math.random() * TAU, el = Math.random() * Math.PI / 2, rr = rd * Math.cos(el); H.P({ kind: Math.random() < 0.6 ? 'spark' : 'ember', x: LAST.ox + Math.cos(b) * rr, y: LAST.oy + Math.sin(b) * rr * H.GY - rd * Math.sin(el) * 0.95, vx: Math.cos(b) * 0.6, vy: 0.5, g: 5, drag: 0.6, life: 0.7 + Math.random() * 0.5, max: 1.2, size: 2 + Math.random() * 1.6, color: Math.random() < 0.3 ? P.white : Math.random() < 0.5 ? P.cyan : Math.random() < 0.5 ? P.violet : P.gold }); } }
         if (!f.disB && t >= DIS0) { f.disB = 1; for (const p of PL) { const w = plateWorld(Q, p.c); K.sparks(w[0], w[1], 2, 4); } K.motes(LAST.ox, LAST.oy - HP.hl, 14, { v: 3 }); }
       },
-      drawUnder(c, f, X, Y, T) {
+      // (v346) on the GPU where it can be: every arc, bolt, ribbon, glow, ring and the cores as plasma (TK's GPU mode); the hammer's plates stay crisp solids (2D)
+      drawUnder(c, f, X, Y, T) { K.gpuBegin(c, '__RG_GL', null); try { f.underImpl(c, f, X, Y, T); } finally { K.gpuEnd(c); } },
+      draw(c, f, X, Y, T) { K.gpuBegin(c, '__RG_GL', [H.sx(me.x), H.sy(me.y) - T * 0.46, T * 0.62]); try { f.drawImpl(c, f, X, Y, T); } finally { K.gpuEnd(c); } },
+      underImpl(c, f, X, Y, T) {
         const t = f.t;   /* (the runner passes the game's clock; this move runs on its own) */
         c.save(); c.globalCompositeOperation = 'lighter';
         for (const S of STR) {
@@ -341,7 +344,7 @@
         }
         c.restore();
       },
-      draw(c, f, X, Y, T) {
+      drawImpl(c, f, X, Y, T) {
         const t = f.t;   /* (the runner passes the game's clock; this move runs on its own) */
         petHole(c, T); const q = pose(t), sp = pt => spq(q, pt, T), S = STR[q.k];
         // fragments rising off the floor to become the plates
@@ -394,7 +397,7 @@
       // the spiral (front turns bright) and grip bands
       c.strokeStyle = rgba(P.ice, 0.9); c.lineWidth = Math.max(1, w * 0.12); c.beginPath(); const n = Math.max(8, Math.round(L / (w * 0.5))); for (let i = 0; i <= n; i++) { const u = i / n, ph = u * L / (w * 1.4) * Math.PI - t * 9, o = Math.sin(ph) * w * 0.55; const px = A[0] + dx * u + nx * o, py = A[1] + dy * u + ny * o; i ? c.lineTo(px, py) : c.moveTo(px, py); } c.stroke();
       for (let i = 0; i < 3; i++) { const u = 0.06 + i * 0.07, px = A[0] + dx * u, py = A[1] + dy * u; c.strokeStyle = rgba(P.gold, 0.8); c.lineWidth = Math.max(1, w * 0.18); c.beginPath(); c.moveTo(px + nx * w * 0.6, py + ny * w * 0.6); c.lineTo(px - nx * w * 0.6, py - ny * w * 0.6); c.stroke(); }
-      c.globalCompositeOperation = 'source-over'; blit(c, coreSprite(true), A[0] - dx / L * w * 0.5, A[1] - dy / L * w * 0.5, w * 0.85); c.globalCompositeOperation = 'lighter'; K.glow(c, A[0], A[1], w * 2.2, P.gold, 0.45 * a);
+      c.globalCompositeOperation = 'source-over'; if (K.gq()) K.orb(c, A[0] - dx / L * w * 0.5, A[1] - dy / L * w * 0.5, w * 0.85, t, 5, a, true); else blit(c, coreSprite(true), A[0] - dx / L * w * 0.5, A[1] - dy / L * w * 0.5, w * 0.85); c.globalCompositeOperation = 'lighter'; K.glow(c, A[0], A[1], w * 2.2, P.gold, 0.45 * a);
       if (growing) { K.glow(c, B[0], B[1], w * 3, P.cyan, 0.8 * a); K.glow(c, B[0], B[1], w * 1.2, P.white, a); }
       c.restore();
     }
@@ -417,7 +420,7 @@
       }
       // the core inside: a white-hot sphere (Adept on: gyroscope rings; Celestial: a large rotating core with three)
       const hc = scr([0, 0], 0), rc = T * W * q.hs * (monu ? 0.42 : ev >= 4 ? 0.34 : 0.28) * (0.92 + 0.08 * Math.sin(t * 13)) * Math.min(1, (t - PL0 + 0.3) / 0.5) * (1 - dk * 0.6);
-      if (rc > 1) { c.globalCompositeOperation = 'lighter'; K.glow(c, hc[0], hc[1], rc * 4, P.blue, 0.5 * fa); K.glow(c, hc[0], hc[1], rc * 2.2, P.cyan, 0.6 * fa); c.globalCompositeOperation = 'source-over'; c.globalAlpha = fa; blit(c, coreSprite(false), hc[0], hc[1], rc); c.globalCompositeOperation = 'lighter';
+      if (rc > 1) { c.globalCompositeOperation = 'lighter'; K.glow(c, hc[0], hc[1], rc * 4, P.blue, 0.5 * fa); K.glow(c, hc[0], hc[1], rc * 2.2, P.cyan, 0.6 * fa); c.globalCompositeOperation = 'source-over'; c.globalAlpha = fa; if (K.gq()) K.orb(c, hc[0], hc[1], rc * 1.1, t, 3, fa); else blit(c, coreSprite(false), hc[0], hc[1], rc); c.globalCompositeOperation = 'lighter';
         const nr = monu ? 3 : ev >= 4 ? 2 : 1; for (let k = 0; k < nr; k++) { c.save(); c.translate(hc[0], hc[1]); c.rotate(t * (1.4 + k * 0.9) * (k % 2 ? -1 : 1) + k * 1.1); c.strokeStyle = rgba(k === 2 ? P.gold : k ? P.violet : P.ice, 0.85 * fa); c.lineWidth = Math.max(1, rc * 0.09); c.beginPath(); c.ellipse(0, 0, rc * (1.45 + k * 0.28), rc * (0.35 + 0.25 * Math.abs(Math.sin(t * 1.3 + k))), 0, 0, TAU); c.stroke(); c.restore(); }
         K.glow(c, hc[0], hc[1], rc * 1.1, P.white, 0.9 * fa); }
       // the plates: translucent, each shaded by the way it faces; flying in from their fragments; Celestial: floating apart
