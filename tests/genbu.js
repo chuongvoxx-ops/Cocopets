@@ -41,7 +41,7 @@ const path = require('path');
       for (let k = 0; k < 120; k++) G.update(1 / 60);
       const W = (x, y) => D.walkAt(Math.floor(x), Math.floor(y)) && !D.blocked(x, y, 0.5, 0); let best = null;
       for (let k = 0; k < 1500; k++) { const sx = me.x + (Math.random() - 0.5) * 34, sy = me.y + (Math.random() - 0.5) * 34; if (!W(sx, sy)) continue; let L = 0; while (L < 7 && W(sx + L, sy) && W(sx - L, sy) && W(sx, sy - L * 0.7) && W(sx, sy + L * 0.7)) L += 0.25; if (!best || L > best.L) best = { x: sx, y: sy, L }; }
-      if (best) { me.x = best.x; me.y = best.y; }
+      if (best) { me.x = best.x; me.y = best.y; } const c0 = { x: me.x, y: me.y };
       const spots = [[2.6, 0], [3.4, 1.2], [3.0, -1.4], [4.6, 0.4], [-2.8, 0.8], [0.6, 3.0]]; let i = 0;
       for (const m of D.mons) { if (m.boss) continue; if (i < spots.length) { let px = me.x + spots[i][0], py = me.y + spots[i][1]; for (let k = 0; k < 40 && !W(px, py); k++) { px = me.x + spots[i][0] * (1 - k / 40) + Math.cos(k) * 0.3; py = me.y + spots[i][1] * (1 - k / 40) + Math.sin(k) * 0.3; } spots[i] = [px - me.x, py - me.y]; } if (i < spots.length) Object.assign(m, { dead: false, x: me.x + spots[i][0], y: me.y + spots[i][1], hp: 1e8, maxhp: 1e8, still: true, spd: 0, atkCd: 99, dmg: 0, stun: 0, freeze: 0, falling: null, under: false, _tag: 'm' + i }); else Object.assign(m, { dead: true, x: me.x + 90 }); i++; }
       me.hp = D.ST.hp; me.mp = 999; me.dead = false; g.intro = 0; g.bossIntro = 0; g.cdU = 0;
@@ -61,7 +61,7 @@ const path = require('path');
       H.st = (S, names) => pick(S.stats, names, pick(self.GENBU_MOVES && self.GENBU_MOVES.stats, names, 0));
       H.rolling = S => S.phase === 'roll' || !!S.roll; H.drifting = H.rolling;
       H.wrap = () => { const S = H.S(), X = S.X; if (X.__w) return; X.__w = 1; const h0 = X.hitMon; X.hitMon = (m, d, o) => { const r = h0(m, d, o); if (m && !m._tag) m._tag = 'n' + (H.nTag = (H.nTag || 0) + 1); const s2 = H.S(); H.log.push({ m: m && m._tag, d: r, raw: d, nc: !!(s2 && FIN(s2)), ph: s2 ? s2.phase : 'none', form: s2 ? H.form(s2) : '', dr: !!(s2 && H.drifting(s2)), boss: !!(m && m.boss), frz: m ? m.freeze : 0, t: g.t }); return r; }; };   /* (every hit of the session, A's own Glides and Dive included; Dark Messiah's are the noCharge ones) */
-      H.cast = () => { D.useUlt(); H.until(() => H.S() && H.ready(H.S()), 10); if (H.S()) H.wrap(); return H.S(); };
+      H.cast = () => { D.useUlt(); H.until(() => H.S() && H.ready(H.S()), 10); const S = H.S(); if (S) { H.wrap(); const b = S.body; b.x = b.prevX = c0.x; b.y = b.prevY = c0.y; me.x = c0.x; me.y = c0.y; } return S; };   /* (v336: Genbu now surfaces in front of the pet; the scenarios start it in the arena's open centre, as before) */
       H.labels = () => { const L = [], f0 = window.GFX_LABELS_PATCH; const GF = P.GFX, l0 = GF.labelS; GF.labelS = (c, s) => { L.push(String(s)); }; try { const cv = document.createElement('canvas'); cv.width = 400; cv.height = 900; const c = cv.getContext('2d'); const pic = (k, w, h, paint) => { const q = document.createElement('canvas'); q.width = Math.max(1, w | 0); q.height = Math.max(1, h | 0); try { paint(q.getContext('2d'), q.width, q.height); } catch (e) {} return q; };
         D.VEH.drawBtns(c, { B: D.vehBtns(), blitC: () => {}, hudPic: pic, glowPic: () => pic('', 4, 4, () => {}), touchUI: true }); } finally { GF.labelS = l0; } void f0; return L; };
       H.face = a => { const S = H.S(); S.mx = Math.cos(a); S.my = Math.sin(a); const K = P.arc.keys; if (K) { K.right = Math.cos(a) > 0.5; K.left = Math.cos(a) < -0.5; K.down = Math.sin(a) > 0.5; K.up = Math.sin(a) < -0.5; } H.step(1 / 60); };
@@ -97,6 +97,12 @@ const path = require('path');
     ok(has(/SHELL ROLL/) && has(/ROCK YOU/) && has(/DRILL CANNON/) && has(/CALAMITY/) && (has(/JUMP/) || A.jumpBtn), 'the commands: Shell Roll, Jump, Rock You, Drill Cannon, Calamity', A.labels);
     ok(A.seq.rolling && A.seq.jumpAfterRoll === 1 && A.seq.inJump && A.seq.rolls === 2 && A.seq.jumps === 2, 'Shell Roll and Jump are separate: a Jump pressed in a roll goes after it, a roll pressed in a jump goes after it', A.seq);
   } else ok(false, 'ride ran', A);
+  /* 1b. the summon (v336): it drills up out of the ground in front of the pet (from below the floor, drill form), the pet waits on the ground, then climbs on */
+  const SM = await R('summon', `
+    const { D, g, me } = H; D.useUlt(); const S = H.S(); if (!S) return { err: 'no session' }; let riseMin = 0, xfMax = 0, petStill = true, apart = 0, n = 0;
+    H.until(() => { n++; if (S.phase === 'summon') { riseMin = Math.min(riseMin, S.rise || 0); xfMax = Math.max(xfMax, S.P.xf || 0); if (S.t < S.ctx.SUMMON.mount0 && Math.hypot(me.x - S.petX0, me.y - S.petY0) > 0.05) petStill = false; apart = Math.max(apart, Math.hypot(S.body.x - S.petX0, S.body.y - S.petY0)); } return S.phase === 'walk'; }, 6);
+    const seat = S.ctx.anchor('seat'); return { walk: S.phase === 'walk', riseMin: +riseMin.toFixed(2), xfMax: +xfMax.toFixed(2), petStill, apart: +apart.toFixed(2), onSeat: Math.hypot(me.x - S.body.x, me.y - S.body.y) < 0.05, seat: !!seat };`);
+  if (SM && !SM.err) ok(SM.walk && SM.riseMin < -1.5 && SM.xfMax > 0.9 && SM.petStill && SM.apart > 1 && SM.onSeat, 'the summon: Genbu drills up from under the floor in front of the pet, which waits, then climbs on', SM); else ok(false, 'summon ran', SM);
   /* 2. Shell Roll: one hit per enemy per roll (the spikes never add a hit) */
   const RL = await R('roll', LIB + `
     ready(); const P0 = pins(); place(P0, 3.2, 0.8); zero(); const n0 = H.log.length; H.face(B().a); H.press('dodge'); H.release(); H.until(() => !S.ctx.roll && H.ready(S), 4); H.step(0.2);
@@ -117,37 +123,38 @@ const path = require('path');
     return { crystals: plan ? plan.crystals.length : 0, p1: perM(ph1), p2: perM(ph2), dk1: [...new Set(ph1.map(h => +(h.raw / S.DK).toFixed(2)))], dk2: [...new Set(ph2.map(h => +(h.raw / S.DK).toFixed(2)))], late: L.filter(h => h.t > bt + 0.1).length };`);
   if (RK && !RK.err) { ok(Object.keys(RK.p1).length >= 1 && Object.values(RK.p1).every(c => c === 1), 'Rock You eruption: one hit per enemy across all the crystals', RK);
     ok(Object.keys(RK.p2).length >= 1 && Object.values(RK.p2).every(c => c === 1) && RK.late === 0, 'Rock You explosion: one hit per enemy, and nothing after it (debris is picture only)', RK); } else ok(false, 'Rock You ran', RK);
-  /* 5. Drill Cannon: bounded route, a hit cadence per enemy, one impact, the return and docking; no Strong or Shell Roll while away */
+  /* 5. Drill Cannon (v336): fired at the target, it stays there drilling (a tick cadence per enemy), explodes once, a new bit materialises; no second cannon meanwhile */
   const DC = await R('cannon', LIB + `
     ready(); const P0 = pins(); place(P0, 5, 0.4); zero(); const n0 = H.log.length, d0 = H.st(S, ['drill']), r0 = H.st(S, ['rock']), ro0 = H.st(S, ['roll']); H.press('strong2'); const states = [], maxR = { d: 0 }; let away = false, tried = false, imp = null;
-    H.until(() => { hold(P0); const d = S.ctx.drill; if (!states.length || states[states.length - 1] !== d.state) states.push(d.state); if (d.state === 'out' || d.state === 'back') { away = true; maxR.d = Math.max(maxR.d, Math.hypot(d.x - B().x, d.y - B().y)); if (!tried) { tried = true; H.press('strong'); H.step(0.05); H.press('strong2'); H.step(0.05); H.press('dodge'); } } if (d.impact) imp = d.impact; return away && d.state === 'docked'; }, 8); H.step(0.3, () => hold(P0));
-    const L = H.log.slice(n0).filter(h => /^m/.test(h.m)), it = imp ? imp.t : 1e9, isImp = h => Math.abs(h.t - it) <= 0.02 && h.raw / S.DK > 2, route = L.filter(h => h.t < it + 0.02 && !isImp(h)), im = L.filter(isImp)   /* (the impact by its damage (3.2 x DK; a route tick is 0.9): a tick on the frame before it is a route hit) */, byM = {}; for (const h of route) (byM[h.m] = byM[h.m] || []).push(h.t);
+    H.until(() => { hold(P0); const d = S.ctx.drill; if (!states.length || states[states.length - 1] !== d.state) states.push(d.state); if (d.state === 'out' || d.state === 'drill') { away = true; maxR.d = Math.max(maxR.d, Math.hypot(d.x - B().x, d.y - B().y)); if (!tried && d.state === 'drill') { tried = true; H.press('strong2'); } } if (d.impact) imp = d.impact; return away && d.state === 'docked'; }, 8); H.step(0.3, () => hold(P0));
+    const L = H.log.slice(n0).filter(h => /^m/.test(h.m)), it = imp ? imp.t : 1e9, TD = S.ctx.TUNE, isImp = h => Math.abs(h.t - it) <= 0.02 && h.raw / S.DK > (TD.drill.dmg + TD.drill.impact) / 2 * (TD.dmgK || 1), route = L.filter(h => h.t < it + 0.02 && !isImp(h)), im = L.filter(isImp)   /* (the impact by its damage (3.2 x DK; a route tick is 0.9): a tick on the frame before it is a route hit) */, byM = {}; for (const h of route) (byM[h.m] = byM[h.m] || []).push(h.t);
     const gapMin = Math.min(9, ...Object.values(byM).flatMap(ts => ts.slice(1).map((t, i) => t - ts[i])));
     return { states, maxR: +maxR.d.toFixed(2), casts: H.st(S, ['drill']) - d0, lockout: { rock: H.st(S, ['rock']) - r0, roll: H.st(S, ['roll']) - ro0 }, routePer: Object.fromEntries(Object.entries(byM).map(([k, v]) => [k, v.length])), gapMin: +gapMin.toFixed(2), imp: perM(im), docked: S.ctx.drill.state, docks: H.st(S, ['docks']) };`);
-  if (DC && !DC.err) { ok(DC.states.includes('out') && DC.states.includes('back') && DC.docked === 'docked', 'Drill Cannon: the bit flies out, returns and docks', DC.states);
+  if (DC && !DC.err) { ok(DC.states.includes('out') && DC.states.includes('drill') && DC.states.includes('mat') && !DC.states.includes('back') && DC.docked === 'docked', 'Drill Cannon: the bit is fired, drills where it lands, and a new one materialises (no return trip)', DC.states);
     ok(DC.maxR <= 9.6, 'its route stays within its 9-tile bound', DC.maxR);
-    ok(Object.values(DC.routePer).every(c => c <= 3) && DC.gapMin >= 0.28, 'on the way: at most 3 hits per enemy, never closer than 0.3 s apart (fragments never add hits)', DC);
+    ok(Object.keys(DC.routePer).length >= 1 && Object.values(DC.routePer).every(c => c <= 4) && DC.gapMin >= 0.28, 'drilling in place: at most 4 grinding hits per enemy, never closer than 0.3 s apart', DC);
     ok(Object.keys(DC.imp).length >= 1 && Object.values(DC.imp).every(c => c === 1), 'the final impact hits each enemy once', DC.imp);
-    ok(DC.casts === 1 && DC.lockout.rock === 0 && DC.lockout.roll === 0, 'no Drill Cannon, Rock You or Shell Roll while the bit is away', DC.lockout); } else ok(false, 'Drill Cannon ran', DC);
+    ok(DC.casts === 1, 'no second Drill Cannon until the new bit has materialised', DC.casts); } else ok(false, 'Drill Cannon ran', DC);
   /* 6 + 7. the gauge, Calamity pressed while the bit is away (recall first), the roam, the eight drills, the crumble, the cooldown */
   const CAL = await R('calamity', LIB + `
     ready(); const P0 = pins(); place(P0, 4, 0.8);
     const c0 = S.charge; H.step(1.5); const idleCharge = S.charge - c0;   /* (standing about charges nothing) */
     zero(); H.press('strong2'); H.until(() => S.ctx.drill.state === 'out', 2); S.charge = 1; H.press('ult'); let sawRecall = false, xfWhileAway = false;
-    const n0 = H.log.length, depth = { min: 9, max: -9 }; let strongs = null, drills = null, burstT = null, phases = [], outside = 0;
+    const n0 = H.log.length, depth = { min: 9, max: -9 }; let strongs = null, drills = null, burstT = null, phases = [], outside = 0, dT0 = null, dT1 = null;
     const K = H.P.arc.keys; let k = 0;
     H.until(() => { hold(P0); const c = S.ctx.calamity; if (c) { if (!phases.length || phases[phases.length - 1] !== c.phase) phases.push(c.phase); if (c.phase === 'recall') sawRecall = true; if (c.phase === 'xform' && S.ctx.drill.state !== 'docked') xfWhileAway = true;
-        if (c.phase === 'drill') { k++; const b = B(); depth.min = Math.min(depth.min, b.z); depth.max = Math.max(depth.max, b.z); if (!D.walkAt(Math.floor(b.x), Math.floor(b.y))) outside++;
+        if (c.phase === 'drill') { if (dT0 == null) dT0 = g.t; dT1 = g.t; k++; const b = B(); depth.min = Math.min(depth.min, b.z); depth.max = Math.max(depth.max, b.z); if (!D.walkAt(Math.floor(b.x), Math.floor(b.y))) outside++;
           K.right = (k % 240) < 120; K.left = !K.right; if (k === 30) H.press('dodge'); if (k === 150) H.press('jump'); if (k === 60 && strongs == null) { const r0 = H.st(S, ['rock']), d0 = H.st(S, ['drill']); H.press('strong'); H.step(0.05); H.press('strong2'); strongs = H.st(S, ['rock']) - r0 + H.st(S, ['drill']) - d0; } }
         if (c.drills && !drills) drills = c.drills.length; if (c.burstDone && burstT == null) burstT = g.t; } return S.released; }, 40); K.left = K.right = false; H.step(2);
     const L = H.log.slice(n0).filter(h => /^m/.test(h.m)), post = L.filter(h => burstT != null && h.t > burstT + 0.02);
-    return { idleCharge, sawRecall, xfWhileAway, phases, depth: { min: +depth.min.toFixed(2), max: +depth.max.toFixed(2) }, outside, strongs, drills, charged: +H.st(S, ['charged']).toFixed(4), chargeEnd: +S.charge.toFixed(3), noChargeAll: L.every(h => h.nc), post: post.length,
+    return { idleCharge, drillLen: dT0 == null ? 0 : +(dT1 - dT0).toFixed(2), drillDur: S.ctx.TUNE.cal.dur[S.tier], sawRecall, xfWhileAway, phases, depth: { min: +depth.min.toFixed(2), max: +depth.max.toFixed(2) }, outside, strongs, drills, charged: +H.st(S, ['charged']).toFixed(4), chargeEnd: +S.charge.toFixed(3), noChargeAll: L.every(h => h.nc), post: post.length,
       dives: H.st(S, ['dives']), rises: H.st(S, ['rises']), walk: !!D.walkAt(Math.floor(me.x), Math.floor(me.y)), blocked: D.blocked(me.x, me.y, (me.r || 0.3) * 0.9, 0), cd: +g.cdU.toFixed(1), cdSet: H.st(S, ['cdSet']), veh: !!(D.VEH && D.VEH.active), drillState: S.ctx.drill && S.ctx.drill.state };`);
   if (CAL && !CAL.err) {
     ok(CAL.idleCharge === 0, 'standing about charges nothing (the gauge fills from mounted attacks only)', CAL.idleCharge);
     ok(CAL.sawRecall && !CAL.xfWhileAway, 'Calamity pressed while the bit is away recalls it, and the transform waits for the dock', { recall: CAL.sawRecall, xfAway: CAL.xfWhileAway, phases: CAL.phases });
-    ok(CAL.dives >= 1 && CAL.rises >= 1 && CAL.depth.min < -0.8 && CAL.depth.min >= -1.2 && CAL.depth.max <= 1.5, 'Calamity is steerable: Dodge dives, Jump rises, within the depth and height bounds', { dives: CAL.dives, rises: CAL.rises, depth: CAL.depth });
+    ok(CAL.dives >= 1 && CAL.rises >= 1 && CAL.depth.min < -0.8 && CAL.depth.min >= -1.2 && CAL.depth.max <= 1.5, 'Calamity is steerable: one command drills under and rises, within the depth and height bounds', { dives: CAL.dives, rises: CAL.rises, depth: CAL.depth });
     ok(CAL.outside === 0, 'it never leaves walkable space', CAL.outside);
+    ok(Math.abs(CAL.drillLen - CAL.drillDur) < 0.3, 'Calamity drills for its full time (16 / 18 / 20 s)', { len: CAL.drillLen, dur: CAL.drillDur });
     ok(CAL.strongs === 0, 'Rock You and Drill Cannon are refused during Calamity', CAL.strongs);
     ok(CAL.drills === 8, 'exactly eight climax drills', CAL.drills);
     ok(CAL.noChargeAll, "Calamity's hits are all noCharge (they never charge the gauge)", { noCharge: CAL.noChargeAll, chargeEnd: CAL.chargeEnd });

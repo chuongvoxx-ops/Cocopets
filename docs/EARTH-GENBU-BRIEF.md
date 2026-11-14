@@ -356,3 +356,34 @@ They are all read-only for E. E's file may add `update(ctx, dt)`, `drawUnder(ctx
       E's effects off too.
   - **For H:** `tests/genbu.js` has no `GLFLAGS`. E ran it on the GPU path with a preload that adds the flags to every
     page (scratchpad `genbu/E/glpre.js`).
+- **(E, 2026-11-14) Effects for the v336 changes (`20k2m`).**
+  - **Drill Cannon** (spin → out → drill → explosion → mat → docked):
+    - The furrow, the return ribbon and the dock sparks are gone.
+    - `out`: an amber trail with two strands of air wound round the arc, a comet glow at the bit, and a flash on
+      firing. E records the flight in 3D itself, because the core's `D.trail` only grows with horizontal travel and
+      the arc is mostly vertical.
+    - `drill`:
+      - A churning ring of dark earth with a dust swirl round the lodged bit; clods, grit and sparks spiral out.
+      - Crack stars spread further and pulse on each `D.nTick`, with a floor ring and a small flash.
+      - An amber glow and column build toward the explosion.
+    - The explosion keeps the blast and adds a burst of crystal fragments.
+    - `mat`: amber motes converge on the carriage, and a ring of light sweeps from base to tip along the new bit,
+      with a second ring at the bearing. A flash and sparks follow when it is whole (`mat` → `docked`).
+  - **Summon** (from `ctx.summonT` and `ctx.SUMMON`):
+    - Up to the breach: a bulging, fissured, glowing mound of earth with amber cracks spreading and rumbling dust.
+    - At `burst`: an eruption of slabs and chunks, a dust column, a shock ring and an amber blast.
+    - Then settling dust.
+    - The turtle's depth stand-in is off until 0.2 s after the breach.
+    - Before the pet mounts, the clear zone kept for the rider's face follows the pet, not the buried seat.
+  - **Budget** (heaviest moment; lowFx in brackets):
+    - Drill Cannon: spin-up 8.0k (3.5k), flight 8.6k (4.4k), drilling 14.0k (6.6k), explosion and `mat` 23.3k
+      (10.8k).
+    - Summon breach: 17.1k (7.1k).
+    - Climax: unchanged at 72k (38k).
+    - A 22 s Calamity with 7 dives peaks at 248 pieces (the caps total 440) and 24 events (capped at 64).
+  - **For the lead (model):**
+    - The lodged bit is drawn whole below the floor, as a drill pointing down-screen under the landing spot. The
+      burrowing note above applies here too.
+    - During the summon, a dark block of the model pokes through the bulge before the breach.
+    - The light pillar and halo on the pet at the cast are the game's Ultimate-cast effect; they appear with E's
+      effects off.
