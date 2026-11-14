@@ -4,7 +4,7 @@ const pet = {
   phase: 0, lift: 0, liftV: 0, perch: 0, perchZ: 0, squash: 0, rot: 0, stretch: 0, stageS: 0.6, scale: 0.6, hover: 0, hoverT: 0,
   look: { x: 0, y: 0 }, lookGoal: null, lookUntil: 0, face: null, faceUntil: 0,
   blinkAt: 2, blinkEnd: 0, tailPhase: 0, wingPhase: 0, react: null, boops: [], rubAcc: 0, lastRub: 0,
-  kickCd: 0, kickStreak: 0, stirs: [], needT: 6, zT: 0, eatFood: null, lastBite: 0,
+  yaw: 0, kickCd: 0, kickStreak: 0, stirs: [], needT: 6, zT: 0, eatFood: null, lastBite: 0,
   carryOff: { x: 0, y: 0 }, idleFor: 0, purrT: 0, earT: 0, spinC: null, use: null, trailT: 0, zOver: 0, trick: null, awakeUntil: 0,
 };
 let parts = {};
@@ -30,12 +30,33 @@ function buildPet(force) {
   parts.eyeY = parts.blink ? +parts.blink.getAttribute('data-ey') || -66 : -66;
   parts.leg = legParts(parts.rig);
   if (parts.orbs) { const o = parts.orbs.getAttribute('data-orbit').split(' ').map(Number); parts.orbit = o; parts.orbEls = $$(':scope > g', parts.orbs); }
+  parts.gl = glRig(parts.rig, svg);
   parts.floaty = f.legs.t === 'float';
   // a six-star Legendary at Celestial floats in the air
   parts.levit = !!(f.x && f.x.gold && f.stage >= 7);
   acache = {};
   const g = st.stage >= 2 ? GEMS[STAGE_GEM[st.stage]] : null;
   petEl.style.setProperty('--gem-glow', g ? g.color : '#FFFFFF');
+}
+/* a pet in the room drawn on the GPU (PetGL, 2.5D): a canvas over its picture in the rig, laid out as the picture is
+   (the rig's box, the picture's own frame); the picture is hidden while the canvas shows the pet, and shows again
+   whenever the pet cannot be drawn that way (no WebGL, its layers not made yet, a Legendary). The rig's transform
+   still lifts, tilts, squashes and turns it to face its way; the canvas is kept about as sharp as the pet is shown */
+function glRig(rig, svg) {
+  if (typeof PetGL === 'undefined' || !rig || !svg || !PetGL.available()) return null;
+  const vb = (svg.getAttribute('viewBox') || '').split(/[\s,]+/).map(Number); if (vb.length !== 4 || !(vb[2] > 0)) return null;
+  const cv = document.createElement('canvas'); cv.className = 'pet-gl'; cv.setAttribute('aria-hidden', 'true'); rig.appendChild(cv);
+  return { cv, g: cv.getContext('2d'), vb, rig, on: false, px: 0 };
+}
+function glFrame(R, f, s, P) {
+  if (!R || !R.g) return false;
+  const dpr = Math.min(3, window.devicePixelRatio || 1), q = clamp(Math.ceil(s * 10) / 10, 0.3, 1.6), px = Math.max(16, Math.round(pb * dpr * q));
+  if (R.px !== px) { R.px = px; R.cv.width = R.cv.height = px; }
+  const g = R.g, r = px / pb, [vx, vy, vw, vh] = R.vb, sc = Math.min(pb / vw, pb / vh), ox = (pb - vw * sc) / 2 - vx * sc, oy = (pb - vh * sc) / 2 - vy * sc;
+  g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, px, px); g.setTransform(r, 0, 0, r, ox * r, oy * r);
+  let ok = false; try { ok = PetGL.draw(g, f, sc, P, { frame: "room" }); } catch (e) { ok = false; if (!glFrame.warned) { glFrame.warned = 1; console.warn("PetGL", e && e.message); } }
+  if (ok !== R.on) { R.on = ok; R.rig.classList.toggle('gl', ok); }
+  return ok;
 }
 function setA(el, key, k, v) { if (el && acache[key] !== v) { acache[key] = v; el.setAttribute(k, v); } }
 
@@ -520,21 +541,24 @@ function renderPet(dt) {
   // walking: each foot lifts in turn, high enough to see, and shuffles forward and back as it steps
   let sl = 0, sr = 0;
   if (moving) { const a = Math.sin(pet.phase * 2), b = Math.cos(pet.phase * 2); fl = Math.max(0, a) * 8; fr = Math.max(0, -a) * 8; sl = b * 2.2; sr = -b * 2.2; }
+  const GP = { t, footL: [0, 0], footR: [0, 0], tail: 0, earR: 0, wing: 0, armL: 0, armR: 0 };   // (the same pose for the GPU drawing)
   if (pet.mode === 'carried') { const a = Math.sin(pet.phase); fl = 3 + a * 3; fr = 3 - a * 3; }
+  GP.footL = [sl, -fl]; GP.footR = [-sr, -fr];
   setA(parts.footL, 'fl', 'transform', `translate(${sl.toFixed(1)} ${(-fl).toFixed(1)})`);
   setA(parts.footR, 'fr', 'transform', `translate(${sr.toFixed(1)} ${(-fr).toFixed(1)})`);
   const tp = tailParams();
   pet.tailPhase += dt * tp[1];
-  if (parts.tail) setA(parts.tail, 'tail', 'transform', `rotate(${(Math.sin(pet.tailPhase) * tp[0]).toFixed(1)} ${parts.tailPivot})`);
+  GP.tail = Math.sin(pet.tailPhase) * tp[0];
+  if (parts.tail) setA(parts.tail, 'tail', 'transform', `rotate(${GP.tail.toFixed(1)} ${parts.tailPivot})`);
   if (parts.earR) {
-    if (pet.earT > 0) { pet.earT -= dt; setA(parts.earR, 'ear', 'transform', `rotate(${(Math.sin(pet.earT * 40) * 9).toFixed(1)} ${parts.earPivot})`); }
+    if (pet.earT > 0) { pet.earT -= dt; GP.earR = Math.sin(pet.earT * 40) * 9; setA(parts.earR, 'ear', 'transform', `rotate(${GP.earR.toFixed(1)} ${parts.earPivot})`); }
     else setA(parts.earR, 'ear', 'transform', `rotate(0 ${parts.earPivot})`);
   }
   if (parts.wingL) {
     const flying = pet.hover > 2 || air > 6;
     const amp = flying ? 22 : moving ? 10 : 5, spd = flying ? 20 : moving ? 10 : 2.6;
     pet.wingPhase += dt * spd;
-    const a = (Math.sin(pet.wingPhase) * amp).toFixed(1);
+    GP.wing = Math.sin(pet.wingPhase) * amp; const a = GP.wing.toFixed(1);
     setA(parts.wingL, 'wl', 'transform', `rotate(${a} ${parts.wingPivot})`);
     setA(parts.wingR, 'wr', 'transform', `rotate(${a} ${parts.wingPivot})`);
   }
@@ -552,6 +576,8 @@ function renderPet(dt) {
     else if (moving) { const a2 = Math.sin(pet.phase * 2) * 26; al = a2; ar = -a2; }   // (arms swing with the steps)
     else if (f2.eyes === 'happy' || pet.mode === 'petted' || pet.mode === 'carried') { const a2 = -26 + Math.sin(t * 14) * 12; al = a2; ar = a2; }
     else { al = ar = Math.sin(t * 2) * 3; }
+    GP.armL = al; GP.armR = ar;
+    if (al < -12) { GP.armL = -al; GP.armR = -ar; }   // (on the GPU the arms grow from behind the body: a happy flap goes out and up, not in where it would hide)
     setA(parts.armL, 'al', 'transform', `rotate(${al.toFixed(1)} ${parts.armPivot})`);
     setA(parts.armR, 'ar', 'transform', `rotate(${ar.toFixed(1)} ${parts.armPivot})`);
   }
@@ -568,6 +594,14 @@ function renderPet(dt) {
   setA(parts.svg, 'brows', 'data-brows', f.brows || 'none');
   setA(parts.svg, 'cheeks', 'data-cheeks', f.cheeks || 'normal');
   setA(parts.dirt, 'dirt', 'opacity', dirtLevel().toFixed(2));
+  // on the GPU: it turns a little toward what it looks at, and toward where it walks
+  if (parts.gl) {
+    const yt = pet.mode === 'sleep' || st.asleep ? 0 : clamp(pet.look.x * 0.55, -0.45, 0.45);
+    pet.yaw += (yt - pet.yaw) * (1 - Math.exp(-dt * 5));
+    GP.yaw = pet.yaw; GP.look = [pet.look.x, pet.look.y]; GP.dirt = dirtLevel();
+    GP.face = t < pet.blinkEnd ? Object.assign({}, f, { eyes: 'closed' }) : f;
+    glFrame(parts.gl, curForm(), s, GP);
+  }
   petEl.classList.toggle('glow', st.stage >= 6 && (st.lightsOff || isNight()));
 }
 

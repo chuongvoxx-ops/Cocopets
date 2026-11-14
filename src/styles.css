@@ -200,6 +200,7 @@ body.decorating .decor.selected::after{border-color:var(--coral);border-width:2.
 /* a Legendary in the room: its aura, each wing and its lights are layers of their own round its picture, turned and
    moved by the compositor (never painted again); the glow at night goes on each layer, not the whole */
 .pet-rig .pet-svg{position:relative}
+.pet-gl{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}.pet-rig.gl>.pet-svg{visibility:hidden}
 .pet-rig:has(.leg-lights) .pet-svg{z-index:2}
 .leg-l{position:absolute;pointer-events:none}
 .leg-l>svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}

@@ -53,9 +53,9 @@ async function makeRig(f, extra) {
   };
   try {
     // (the boxes are measured one after another, in the hidden copy; the pictures are then all made at once)
-    const L = R0.leg ? R0.leg.wings : [], jobs = [[R0.back, R0], [R0.front, R0], [Rh.front, Rh], [Rd.front, Rd], [R0.foot, R0], [R0.arm, R0], [R0.wing, R0]].concat(L.map(w => [w.g, R0])).concat([[Rb.front, Rb]]).map(([ct, R]) => ct ? [ct, bboxOf(ct, R.defs), R.defs] : null);
+    const L = R0.leg ? R0.leg.wings : [], jobs = [[R0.back, R0], [R0.front, R0], [Rh.front, Rh], [Rd.front, Rd], [R0.foot, R0], [R0.arm, R0], [R0.wing, R0]].concat(L.map(w => [w.g, R0])).concat([[Rb.front, Rb], [R0.paul, R0]]).map(([ct, R]) => ct ? [ct, bboxOf(ct, R.defs), R.defs] : null);
     const got = await Promise.all(jobs.map(j => j && j[1] ? tight(j[0], j[1], j[2]) : null));
-    const out = { back: got[0], front: { normal: got[1], happy: got[2], hurt: got[3], blink: got[7 + L.length] }, foot: got[4], footPv: R0.footPv, arm: got[5], armPv: R0.armPv, wing: got[6], wingPv: R0.wingPv, legW: null, flap: null };
+    const out = { back: got[0], front: { normal: got[1], happy: got[2], hurt: got[3], blink: got[7 + L.length] }, foot: got[4], footPv: R0.footPv, arm: got[5], armPv: R0.armPv, paul: got[8 + L.length], paulPv: R0.paulPv, wing: got[6], wingPv: R0.wingPv, legW: null, flap: null };
     if (R0.leg) { out.legW = L.map((w, i) => Object.assign(got[7 + i] || {}, { pv: w.pv, lag: w.lag, k: w.k, th: 180 + w.mid })); out.flap = R0.leg.flap; out.beat = R0.leg.beat || [1, 1, 1]; }
     return out;
   } finally { box.remove(); }
@@ -93,6 +93,7 @@ function petRaster(s, ppu, exact) {
 }
 /* the pet in parts (o.pose: its walk's phase and how far it walks, a skill's lift of the arms, the wings' beat): the
    wings, what lies behind the body, the feet, the body and face, the arms. Falls back to the whole picture */
+const PGL_YAW = new WeakMap();
 function drawPetRig(c, RG, S, h, o) {
   const k = h / S.bodyTop, m = c.getTransform(), ppu = k * Math.max(Math.hypot(m.a, m.b), Math.hypot(m.c, m.d), 0.5), P = o.pose || {};
   const put = (pt2, side) => { if (!pt2 || !pt2.img) return; const R = petRaster(pt2, ppu, true), [vx, vy, vw, vh] = pt2.vb; if (side < 0) { c.save(); c.scale(-1, 1); c.drawImage(R ? R.cv : pt2.img, vx * k, vy * k, vw * k, vh * k); c.restore(); } else c.drawImage(R ? R.cv : pt2.img, vx * k, vy * k, vw * k, vh * k); };
@@ -110,6 +111,18 @@ function drawPetRig(c, RG, S, h, o) {
     return F2; };
   const lay = (F2, side) => { if (!F2) return; if (side < 0) { c.save(); c.scale(-1, 1); } c.drawImage(F2.cv, F2.x0 * k, F2.y0 * k, F2.w * k, F2.h * k); if (side < 0) c.restore(); };
   const D2R = Math.PI / 180, ph = P.walk || 0, mv = P.moving ? 1 : 0, cast = P.cast || 0, castUlt = !!P.ult;
+  // on the GPU (PetGL, 2.5D): the same pose, the arms and plates growing from behind the body, a little turn; the parts
+  // below draw it as before when it cannot be drawn that way (no WebGL, its layers not made yet, a Legendary)
+  if (typeof PetGL !== 'undefined' && S.form && !RG.legW && !o.noGL) {
+    const fs = sd => { const a = ph + (sd < 0 ? Math.PI : 0); return [mv * Math.cos(a) * 1.8 * sd, -mv * Math.max(0, Math.sin(a)) * 5.2 + (P.hopFoot || 0)]; };
+    // (a skill lifts the arms out and up: they grow from behind the body, so a lift toward it would hide them)
+    const env = cast > 0 ? Math.max(0, Math.min(1, cast * 5, (1 - cast) * 3)) : 0, lift = env * (castUlt ? 112 : 62);
+    const arm = sd => { const swg = mv ? Math.sin(ph + (sd < 0 ? 0 : Math.PI)) * 26 : Math.sin((P.t || 0) * 2.2) * 3; return swg * (1 - Math.min(1, Math.abs(lift) / 55)) + lift + (P.hopArm || 0) + (P.hopArmS ? P.hopArmS[sd > 0 ? 0 : 1] || 0 : 0); };
+    // (it turns a little the way it walks, easing round as it sets off and stops; a pose's own yaw wins)
+    let Y = PGL_YAW.get(S); if (!Y) { Y = { y: 0, t: P.t || 0 }; PGL_YAW.set(S, Y); } const ydt = clamp((P.t || 0) - Y.t, 0, 0.1); Y.t = P.t || 0; Y.y += ((mv ? 0.3 : 0) - Y.y) * (1 - Math.exp(-ydt * 6));
+    const GP = { t: P.t || 0, yaw: P.yaw ? P.yaw : Y.y, face: o.face || 'normal', footL: fs(1), footR: fs(-1), armL: arm(1), armR: arm(-1), wing: Math.sin(P.wingPh || 0) * (P.wingAmp || 8), tail: Math.sin((P.t || 0) * 2.4 + ph) * (mv ? 12 : 6) };
+    if (PetGL.draw(c, S.form, k, GP, { lite: true })) return;
+  }
   // wings: a Legendary's pairs beat as they do in the room (rise and close, sweep down and open; each a moment after
   // the main one); an ordinary pet's wings flutter
   const legWings = () => {
@@ -150,13 +163,16 @@ function drawPetRig(c, RG, S, h, o) {
   // feet: stepping, one up as the other comes down, and shuffled a little; still, they rest
   if (RG.foot) [1, -1].forEach(sd => { const q = Math.sin(ph + (sd < 0 ? Math.PI : 0)), lift = mv * Math.max(0, q) * 5.2, sh = mv * Math.cos(ph + (sd < 0 ? Math.PI : 0)) * 1.8;
     c.save(); if (sd < 0) c.scale(-1, 1); c.translate(sh * k, (-lift + (P.hopFoot || 0)) * k); put(RG.foot, 1); c.restore(); });   /* (hopFoot: the Trampoline's feet dangle in the air, 20k2b) */
-  put(RG.front[o.face || 'normal'] || RG.front.normal, 1);
-  // arms: swinging opposite the feet as it walks, breathing at rest; a skill lifts them forward, an Ultimate high overhead
-  if (RG.arm) [1, -1].forEach(sd => {
+  // arms: swinging opposite the feet as it walks, breathing at rest; a skill lifts them forward, an Ultimate high overhead.
+  // They grow out from behind the body (drawn before it), each with its shoulder plate over its root
+  if (RG.arm || RG.paul) [1, -1].forEach(sd => {
     const sw = mv ? Math.sin(ph + (sd < 0 ? 0 : Math.PI)) * 26 : Math.sin((P.t || 0) * 2.2) * 3;
     const env = cast > 0 ? Math.max(0, Math.min(1, cast * 5, (1 - cast) * 3)) : 0, lift = env * (castUlt ? 112 : -62);
-    lay(baked(RG.arm, RG.armPv, sw * (1 - Math.min(1, Math.abs(lift) / 55)) + lift + (P.hopArm || 0) + (P.hopArmS ? P.hopArmS[sd > 0 ? 0 : 1] || 0 : 0)), sd);   /* (+ hopArm: Earth's Shockwave Trampoline swings them through its jumps, 20k2b; hopArmS: each arm its own, Earth's Rocky, 20k2k) */
+    const deg = sw * (1 - Math.min(1, Math.abs(lift) / 55)) + lift + (P.hopArm || 0) + (P.hopArmS ? P.hopArmS[sd > 0 ? 0 : 1] || 0 : 0);   /* (+ hopArm: Earth's Shockwave Trampoline swings them through its jumps, 20k2b; hopArmS: each arm its own, Earth's Rocky, 20k2k) */
+    if (RG.arm) lay(baked(RG.arm, RG.armPv, deg), sd);
+    if (RG.paul && RG.paulPv) lay(baked(RG.paul, RG.paulPv, deg * 0.18), sd);
   });
+  put(RG.front[o.face || 'normal'] || RG.front.normal, 1);
 }
 /* the pet turned by yaw about its upright axis: each part placed at its own 3D spot (x' = x cos - z sin, depth =
    x sin + z cos; z toward the viewer), drawn far to near round the body. The body keeps its outline and its light (a

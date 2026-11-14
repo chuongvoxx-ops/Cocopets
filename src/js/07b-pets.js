@@ -23,7 +23,7 @@ function buildCompanions() {
     const c = { i, o, el, rig: $('.pet-rig', el), svg: $('.pet-rig svg', el), bub: $('.bubble', el), shadow: $('.pet-shadow', el), circle: $('.pet-circle', el),
       x: old ? old.x : rand(B.x0, B.x1), y: old ? old.y : rand(B.y0 + (B.y1 - B.y0) * 0.3, B.y1), vx: 0, vy: 0, facing: Math.random() < 0.5 ? 1 : -1,
       goal: null, think: rand(0.5, 3), phase: 0, lift: 0, liftV: 0, blinkEnd: 0, blinkAt: now() + rand(1, 4), zT: rand(0, 2), bubT: 0, sq: 0, face: '', needT: rand(4, 12) };
-    c.leg = legParts(c.rig); c.legPh = Math.random() * 6;
+    c.leg = legParts(c.rig); c.legPh = Math.random() * 6; c.gl = glRig(c.rig, c.svg); c.yaw = 0; c.tailPh = Math.random() * 6;
     const cf = formOf(o); c.levit = !!(cf.x && cf.x.gold && cf.stage >= 7);
     comps.push(c);
   });
@@ -98,8 +98,17 @@ function updateCompanions(dt) {
     if (face !== c.face) { c.face = face; c.svg.setAttribute('data-eyes', eyes); c.svg.setAttribute('data-mouth', mouth); }
     if (c.bubT > 0) { c.bubT -= dt; if (c.bubT <= 0) c.bub.hidden = true; }
     if (c.leg && !asleep) { const fly = c.lift > 4; c.legPh += dt * (fly ? 17 : moving ? 9 : 3.2); legMove(c.leg, t + c.i, c.legPh, fly ? 24 : moving ? 14 : 8); }
+    // on the GPU: stepping, swinging its arms, wagging, turning a little the way it walks
+    if (c.gl) {
+      const a = moving ? Math.sin(c.phase * 2) : 0, b = moving ? Math.cos(c.phase * 2) : 0, sw2 = moving ? a * 26 : Math.sin(t * 2 + c.i) * 3;
+      c.tailPh += dt * (asleep ? 0 : c.happyT > 0 ? 15 : 5); c.yaw += ((moving ? 0.38 : 0) - c.yaw) * (1 - Math.exp(-dt * 5));
+      const P = { t: t + c.i, yaw: c.yaw, face: { eyes, mouth }, footL: [b * 2.2, -Math.max(0, a) * 8], footR: [b * 2.2, -Math.max(0, -a) * 8], armL: asleep ? 8 : c.happyT > 0 ? 26 + Math.sin(t * 14) * 12 : sw2, armR: asleep ? 8 : c.happyT > 0 ? 26 + Math.sin(t * 14) * 12 : -sw2,
+        tail: Math.sin(c.tailPh) * (asleep ? 0 : c.happyT > 0 ? 16 : 6), wing: Math.sin(t * (c.lift > 4 ? 20 : 2.6) + c.i) * (c.lift > 4 ? 22 : 5), dirt: clamp((60 - (o.clean == null ? 60 : o.clean)) / 60, 0, 0.9) };
+      glFrame(c.gl, of2(o), s, P);
+    }
   }
 }
+const of2 = o => formOf(o);
 function hitComp(x, y) {
   let best = null, bz = -1;
   for (const c of comps) {
