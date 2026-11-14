@@ -122,7 +122,7 @@ const ELEM_MOVES = {
     ['susanoo', 'Susano O', 'crescent', 100, 240, 'Your pet summons Susano O, a towering dark samurai robot, and pilots it from a cockpit in its chest for 35 s, gliding 35% faster: Dodge becomes Glides, a spinning sword sweep, and the Strongs become Death Bombs, five dark energy bombs flung across the battlefield that sink into magic circles and explode in turn, and Dark Spikes, obsidian formations bursting from the ground. Ult becomes Transform: the robot folds into a blade-winged airship you fly for 20 s, with Dive, one Strong, Shockwave Pulsar, and Dark Messiah, the strongest attack in the game, once the shared meter is full. Cooldown 4 min, starting when you dismount.']] },
   fire: { strong: [
     ['emberkoi', 'Ember Koi', 'twin', 24, 2.4, 'Two fish of flame circle you, then swim through the air to the target and cross in a spiral burst.'],
-    ['cinderfan', 'Cinder Wave', 'wave', 24, 2.4, 'A ring of fire rolls out all around you in a burning wave, scattering embers and sparks; it grows into more waves as your pet evolves.'],
+    ['cinderfan', 'Ring of Fire', 'orbit', 30, 23, 'A massive ring of engraved, burning metal spins round you, glowing with fire and red aetherial energy, and burns every monster it touches: 10 s, 13 s at Adept, 16 s at Celestial.'],
     ['furnaceseed', 'Furnace Seed', 'burst', 26, 3, 'A glowing coal lands at the aim, cracks as heat builds, and erupts; the ground burns a while.'],
     ['moltenlash', 'Molten Lash', 'crescent', 24, 2.6, 'A ribbon of molten fire whips across the aimed arc and snaps at its tip.'],
     ['phoenixtalon', 'Phoenix Talon', 'claw', 26, 2.8, 'Three flaming claw marks fall across the aim and flare where they cross.'],

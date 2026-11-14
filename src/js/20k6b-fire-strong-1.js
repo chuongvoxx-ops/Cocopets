@@ -124,55 +124,84 @@
       } });
   };
 
-  /* ================= F-S02 Cinder Wave =================
-     Flames gather in a low ring at your feet, then a wall of fire rolls out all round you over the floor: a glowing crest
-     of soft volumetric tongues leaning outward, a white-hot leading edge, a dark smouldering wake behind it, light sweeping
-     over the floor, embers and sparks thrown forward; it leaves a scorched ring that cools. It never covers you: its far
-     side is drawn behind you and its near side stays low until it has rolled clear.
-     Evolution: 1 wave at Hatchling, 2 from stage 4, 3 bigger and faster waves at Celestial, the last breaking into a ring
-     of fire pillars at its rim (damage split over the waves, about evoK in total, a little more at Celestial). */
+  /* ================= F-S02 Ring of Fire (v350; it replaces Cinder Wave, keeping its key) =================
+     A massive ring of engraved metal rises round you, burning, and spins round you wherever you go: a solid 3D band (a short,
+     wide cylinder, tilted and slowly wobbling) of hot dark steel and bronze, lit from the upper left with a sliding glint; its
+     outer face cut with etched borders, a meander and runes whose grooves glow with fire; a bevelled top rim; its inner face
+     lit by the fire within, red-hot along its foot; flames streaming off its top rim against the spin; red aetherial energy
+     coiling round it. It burns whatever it touches (a hit every 0.3 s). Its far half is drawn behind you, its near half in front.
+     Evolution: 10 s at Hatchling, 13 s from Adept (stage 4), 16 s at Celestial; a little larger as you evolve. */
   S.cinderfan = (C, h) => {
-    bind(h); const me = H.me, E = K.evo(C), CEL = E >= 7, NW = CEL ? 3 : E >= 4 ? 2 : 1, x0 = me.x, y0 = me.y, WIND = 0.22, R0 = 0.8, tot = C.base * 2.4 * C.K * K.evoK(C) * (CEL ? 1.1 : 1);
-    const waves = []; for (let i = 0; i < NW; i++) { const last = CEL && i === NW - 1; waves.push({ i, t0: WIND + i * (CEL ? 0.26 : 0.34), dur: CEL ? 0.48 : 0.58, R: (3.0 + 0.1 * (E - 1)) * (last ? 1.15 : 1) + i * 0.2, hk: (0.95 + 0.04 * (E - 1)) * (last ? 1.25 : 1), nf: NW === 1 ? 18 : NW === 2 ? 16 : 14, hits: new Set(), last, prev: R0, dmg: tot / NW, done: false }); }
-    const LW = waves[NW - 1], END = LW.t0 + LW.dur, PIL = 12;
-    const rad = (w, ft) => { const u = cl((ft - w.t0) / w.dur); return { u, r: R0 + (w.R - R0) * H.ease.out(u) }; };
-    me.sq = 0.6; H.X.sfx.whoosh();
-    H.add({ life: END + (CEL ? 1.4 : 1.0), x: x0, y: y0, pil: false, update(dt, f) {
-        if (f.t < WIND) { if (Math.random() < 1.2 * H.Q()) { const b = Math.random() * TAU, r = 1.6 + Math.random() * 0.6; H.P({ kind: 'ember', x: x0 + Math.cos(b) * r, y: y0 + Math.sin(b) * r, vx: -Math.cos(b) * 6, vy: -Math.sin(b) * 6, g: 0, life: 0.2, max: 0.2, size: 3, color: Math.random() < 0.5 ? P.yel : P.gold }); } K.aura(x0, y0, R0, dt, 14); return; }
-        for (const w of waves) { if (f.t < w.t0) continue; const { u, r } = rad(w, f.t);
-          if (u < 1) { for (const m of H.living()) { if (w.hits.has(m)) continue; const d = Math.hypot(m.x - x0, m.y - y0); if (d - m.r < r + 0.25 && d + m.r > w.prev - 0.4) { w.hits.add(m); H.X.hitMon(m, w.dmg, C.dmgO({ kb: 3, burn: 1 })); K.ignite(m.x, m.y, 0.6); } }
-            const kk = H.Q() * dt * (30 + r * 8); let n = Math.floor(kk) + (Math.random() < kk % 1 ? 1 : 0); while (n-- > 0) { const b = Math.random() * TAU, px = x0 + Math.cos(b) * r, py = y0 + Math.sin(b) * r; if (Math.random() < 0.65) H.P({ kind: 'ember', x: px, y: py - 0.3, vx: Math.cos(b) * 3.5, vy: Math.sin(b) * 2.5 - 1.5, g: -0.6, drag: 0.8, life: 0.6, max: 0.6, size: 3, color: Math.random() < 0.5 ? P.yel : P.org }); else H.P({ kind: 'spark', x: px, y: py - 0.4, vx: Math.cos(b) * 6, vy: Math.sin(b) * 4 - 3, g: 8, life: 0.4, max: 0.4, size: 1.8, color: P.wht }); } }
-          else if (!w.done) { w.done = true; for (let i = 0; i < 4; i++) { const b = i / 4 * TAU + w.i; K.smoke(x0 + Math.cos(b) * w.R, y0 + Math.sin(b) * w.R, 1, 0.3); } }
-          w.prev = r; }
-        if (CEL && !f.pil && f.t >= END) { f.pil = true; H.X.shake(5, 0.15); H.X.sfx.crash(); for (let i = 0; i < PIL; i += 2) { const b = i / PIL * TAU; K.sparks(x0 + Math.cos(b) * LW.R, y0 + Math.sin(b) * LW.R, 3, 5); } }
-        if (f.t > END && f.t < END + 1.0) for (let i = 0; i < 6; i++) { const b = i / 6 * TAU + f.t; K.aura(x0 + Math.cos(b) * LW.R * 0.95, y0 + Math.sin(b) * LW.R * 0.95, 0.3, dt, 2.5); } },
-      /* the rolling wall: one half (far or near) of every wave, the crest band, then the tongues sorted far to near */
-      wall(c, f, T, t, back) { const X = H.sx(x0), Y = H.sy(y0);
-        if (f.t < WIND + 0.12) { const u = cl(f.t / WIND), k = f.t > WIND ? 1 - (f.t - WIND) / 0.12 : 1, L = []; for (let i = 0; i < 10; i++) { const b = i / 10 * TAU + 0.3; if ((Math.sin(b) < 0) === back) L.push(b); } L.sort((p, q) => Math.sin(p) - Math.sin(q)); for (const b of L) K.flame(c, X + Math.cos(b) * R0 * T, Y + Math.sin(b) * R0 * T * H.GY, T * 0.26, T * (back ? 0.55 : 0.3) * u * (0.8 + 0.2 * Math.sin(t * 9 + b * 3)), t, b * 5, Math.cos(b) * T * 0.1, k, true); }
-        for (const w of waves) { if (f.t < w.t0) continue; const { u, r } = rad(w, f.t), k = u < 1 ? cl(u * 6) : cl(1 - (f.t - w.t0 - w.dur) / 0.25); if (k <= 0) continue;
-          const R = r * T, hh = T * w.hk * (1 - 0.3 * u), low = b => back ? 1 : cl((r - 0.9) / 0.8 + Math.abs(Math.cos(b)) * 0.9), pts = [];
-          // the sheet of the wall: stacked arcs from a hot yellow foot to dark red at its top, then the tongues on its crest
-          // (v349, on the GPU) the wall's sheet as burning fire: overlapping turbulent fire rolling along the half ring, hot at its foot
-          const GQ = K.gq(); if (GQ) { const nb = Math.max(10, Math.round(w.nf * 1.4)); for (let j = 0; j <= nb; j++) { const bb = (back ? Math.PI : 0) + (j + 0.5 * (w.i & 1)) / nb * Math.PI, lw = low(bb), px = X + Math.cos(bb) * R, py = Y + Math.sin(bb) * R * H.GY, rb = Math.max(2, hh * (0.26 + 0.08 * Math.sin(j * 2.3 + w.i)) * (0.55 + 0.45 * lw));
-              GQ.quad(3, px, py - rb * 0.7 * lw - hh * 0.04, rb, 0, 0, rb * 1.15, '#FFFFFF', 0.62 * k, 0.8, j * 0.77 + w.i * 4.1); } }
-          else { c.save(); c.lineCap = 'round'; const LAY = [[P.yel, 0.75, 'lighter'], [P.amb, 0.7, 'lighter'], [P.org, 0.75, 'source-over'], [P.red, 0.6, 'source-over'], [P.dred, 0.35, 'source-over']];
-          for (let i = 0; i < LAY.length; i++) { const [col, al, op] = LAY[LAY.length - 1 - i], lv = (LAY.length - 1 - i) / LAY.length; c.globalCompositeOperation = op; c.strokeStyle = H.rgba(col, al * k); c.lineWidth = Math.max(2, hh * 0.2); c.beginPath(); for (let j = 0; j <= 24; j++) { const bb = (back ? Math.PI : 0) + j / 24 * Math.PI, px = X + Math.cos(bb) * R, py = Y + Math.sin(bb) * R * H.GY - hh * 0.5 * lv * low(bb) - hh * 0.06; j ? c.lineTo(px, py) : c.moveTo(px, py); } c.stroke(); }
-          c.restore(); }
-          const L = []; for (let j = 0; j < w.nf; j++) { const b = j / w.nf * TAU + w.i * 0.37 + u * 0.4; if ((Math.sin(b) < 0) === back) L.push([b, j]); } L.sort((p, q) => Math.sin(p[0]) - Math.sin(q[0]));
-          for (const [b, j] of L) { const px = X + Math.cos(b) * R, py = Y + Math.sin(b) * R * H.GY - hh * 0.25 * low(b), fh = hh * low(b) * (0.8 + 0.3 * Math.sin(t * 7 + j * 1.9)); if (fh < 2) continue; K.flame(c, px, py, T * (0.3 + 0.08 * r), fh, t, j * 1.7 + w.i * 5, Math.cos(b) * T * 0.35, k * 0.95, true); } }
-        if (CEL && f.t > END && f.t < END + 0.6) { const u = (f.t - END) / 0.6, env = u < 0.2 ? H.ease.out(u / 0.2) : 1 - H.ease.in((u - 0.2) / 0.8), L = []; for (let i = 0; i < PIL; i++) { const b = i / PIL * TAU + 0.13; if ((Math.sin(b) < 0) === back) L.push([b, i]); } L.sort((p, q) => Math.sin(p[0]) - Math.sin(q[0]));
-          for (const [b, i] of L) K.flame(c, X + Math.cos(b) * LW.R * T, Y + Math.sin(b) * LW.R * T * H.GY, T * 0.42, T * 1.7 * env * (0.8 + 0.2 * Math.sin(i * 2.3)), t, 40 + i, Math.cos(b) * T * 0.2, cl(env * 1.5), true); } },
-      drawUnder(c, f, X, Y, T, t) { const k = Math.min(1, f.life / 0.5);
-        if (f.t < WIND + 0.1) K.floorLight(c, X, Y, T * 1.4, 0.45 * cl(f.t / WIND));
-        for (const w of waves) { if (f.t < w.t0) continue; const { u, r } = rad(w, f.t), R = r * T, wk = u < 1 ? cl(u * 6) : cl(1 - (f.t - w.t0 - w.dur) / 0.25);
-          if (wk > 0) { c.save(); c.translate(X, Y); c.scale(1, H.GY); c.beginPath(); c.arc(0, 0, R * 1.04, 0, TAU); c.arc(0, 0, Math.max(1, R * 0.35), 0, TAU, true);
-                        c.globalCompositeOperation = 'lighter'; const g2 = c.createRadialGradient(0, 0, R * 0.55, 0, 0, R * 1.04); g2.addColorStop(0, H.rgba(P.red, 0)); g2.addColorStop(0.75, H.rgba(P.red, 0.25 * wk)); g2.addColorStop(0.95, H.rgba(P.org, 0.6 * wk)); g2.addColorStop(1, H.rgba(P.yel, 0)); c.fillStyle = g2; c.fill(); c.restore();
-            if (K.gq()) K.gq().wave(X, Y, R * 1.02, 0.78, Math.min(1, wk * 1.1), w.i * 2.7 + 1, H.GY, 0.22 + 0.06 * (1 - u)); else K.shockRing(c, X, Y, R * 1.02, 0.85 * wk);   /* (v349: on the GPU a rolling wave of fire energy, not a solid ring) */ for (let i = 0; i < 8; i++) { const b = i / 8 * TAU + w.i; K.floorLight(c, X + Math.cos(b) * R, Y + Math.sin(b) * R * H.GY, T * 0.9, 0.3 * wk); } }
-          if (u >= 1) { const age = f.t - w.t0 - w.dur, heat = Math.max(0, 1 - age / 0.9); c.save(); c.globalAlpha = k * cl(age / 0.15 + 0.5); H.floorEllipse(c, X, Y, w.R * T * 0.93); if (heat > 0.02) { c.globalCompositeOperation = 'lighter'; c.setLineDash([T * 0.12, T * 0.22]); c.strokeStyle = H.rgba(P.org, 0.6 * heat); c.lineWidth = T * 0.07; c.stroke(); c.setLineDash([]); } c.restore(); } }
-        this.wall(c, f, T, t, true); },
-      draw(c, f, X, Y, T, t) { this.wall(c, f, T, t, false); } });
+    bind(h); const me = H.me, E = K.evo(C), DUR = E >= 7 ? 16 : E >= 4 ? 13 : 10, R = 1.95 + 0.06 * (E - 1), HB = 0.64, TH = 0.24, Z0 = 0.32, N = 48, NF = 22, NP = 14, PW = 3.2, CA = 0.12, CB = 0.32, TICK = 0.3, IN = 0.5, OUT = 0.5,
+      per = C.base * 0.42 * C.K * K.evoK(C), RED = '#FF2A3C', GY = H.GY || 0.55, V = [0, Math.sqrt(1 - GY * GY), GY], L0 = (() => { const l = Math.hypot(-0.5, 0.35, 0.8); return [-0.5 / l, 0.35 / l, 0.8 / l]; })();
+    const PR = []; for (let k = 0; k < NP; k++) { const pm = k / NP * TAU, cp = Math.cos(pm), sp = Math.sin(pm); PR.push([CA * Math.sign(cp) * Math.pow(Math.abs(cp), 2 / PW), CB * Math.sign(sp) * Math.pow(Math.abs(sp), 2 / PW)]); }   // (the cross-section's corners: [radial, height])
+    const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+    const rot = (v, ax, ay) => { const ca = Math.cos(ax), sa = Math.sin(ax), y1 = v[1] * ca - v[2] * sa, z1 = v[1] * sa + v[2] * ca, cb = Math.cos(ay), sb = Math.sin(ay); return [v[0] * cb + z1 * sb, y1, -v[0] * sb + z1 * cb]; };
+    // hot dark metal: a four-tone ramp by light, a specular glint, a faint banded reflection running round the band
+    const MET = [[12, 8, 12], [48, 30, 30], [112, 74, 56], [214, 170, 128]], SPC = [255, 236, 204];
+    const metal = (n, th) => { const d = Math.max(0, dot(n, L0)), r = [2 * dot(n, L0) * n[0] - L0[0], 2 * dot(n, L0) * n[1] - L0[1], 2 * dot(n, L0) * n[2] - L0[2]], s = Math.pow(Math.max(0, dot(r, V)), 28), env = Math.pow(0.5 + 0.5 * Math.sin(th * 4 + 1.3), 5) + 0.6 * Math.pow(0.5 + 0.5 * Math.sin(th * 9 - 0.7), 9);   /* (a polished band: the room's lights streaking across it) */
+      const lum = Math.min(0.999, 0.16 + 0.55 * d + 0.34 * env + 0.18 * Math.max(0, n[1])), q = lum * 3, i = Math.floor(q), f = q - i, a = MET[i], b = MET[i + 1]; return [0, 1, 2].map(k => Math.min(255, a[k] + (b[k] - a[k]) * f + SPC[k] * s * 0.95)); };
+    const css = (c, a) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a == null ? 1 : a})`, mixc = (a, b, k) => [0, 1, 2].map(i => a[i] + (b[i] - a[i]) * k);
+    let acc = 0; me.sq = 0.6; H.X.sfx.whoosh(); H.X.sfx.hum();
+    H.add({ life: DUR + OUT,
+      update(dt, f) { const live = f.t > IN * 0.6 && f.life > OUT; if (live) { acc += dt; while (acc >= TICK) { acc -= TICK; H.hitArea(me.x, me.y, R + 0.35, per, C.dmgO({ kb: 0.8, burn: 1 })); } }
+        if (f.life > OUT && Math.random() < dt * 14 * H.Q()) { const b = Math.random() * TAU, sp = 1.4; H.P({ kind: Math.random() < 0.7 ? 'ember' : 'spark', x: me.x + Math.cos(b) * R, y: me.y + Math.sin(b) * R - Z0 - 0.3, vx: -Math.sin(b) * 3 * sp + Math.cos(b) * 0.8, vy: Math.cos(b) * 3 * sp * 0.5 - 1.2, g: -0.8, drag: 1.2, life: 0.6, max: 0.6, size: 3, color: Math.random() < 0.35 ? '#FF4A5A' : Math.random() < 0.5 ? P.yel : P.org }); }
+        if (f.t < IN && f.t + dt >= IN * 0.6) { H.X.shake(4, 0.12); K.embers(me.x, me.y, 10, { v: 4 }); } },
+      // the frame of this draw: the ring's centre, scale, wobble and spin
+      frame(f, X, Y, T, t) { const ap = H.ease.back(cl(f.t / IN)), dis = cl(f.life / OUT), sc = (0.55 + 0.45 * ap) * (0.85 + 0.15 * dis);
+        return { X, Y, T: T * sc, a: Math.min(1, cl(f.t / (IN * 0.5))) * dis, rise: (1 - cl(f.t / IN)) * 0.5 + (1 - dis) * 0.25, ax: 0.15 * Math.sin(t * 0.9) + 0.05 * Math.sin(t * 2.3), ay: 0.11 * Math.cos(t * 0.7), phi: f.t * 2.1, hk: 0.75 + 0.25 * Math.sin(t * 7) * Math.sin(t * 3.1), pu: 0.78 + 0.22 * Math.sin(t * 6.5) + 0.08 * Math.sin(t * 13.7) }; },   // (pu: the blaze swelling and pulsing)
+      pt(F, th, r, hh) { const p = rot([r * Math.cos(th), r * Math.sin(th), Z0 - F.rise + hh], F.ax, F.ay); return [F.X + p[0] * F.T, F.Y + p[1] * F.T * GY - p[2] * F.T, p[1]]; },
+      // (v350) the band in the round: its cross-section a rounded rectangle (a superellipse, CA across, CB tall), cut into
+      // NP facets round it; every facet of every segment that faces you is shaded by its own normal (so its edges roll over
+      // into highlight and shadow), drawn segment by segment far to near; then the engraving on its outer face
+      band(c, F, t, back) { const segs = [], D = TAU / N;
+        for (let i = 0; i < N; i++) { const th0 = i * D, tm = th0 + D * 0.5, mid = this.pt(F, tm, R, 0); if ((mid[2] < 0) !== back) continue; segs.push({ th0, th1: th0 + D * 1.06, tm, d: mid[2] }); }
+        segs.sort((p, q) => p.d - q.d);
+        c.save(); c.globalAlpha = F.a; c.lineJoin = 'round'; const HOT = [255, 70, 26], WARM = [255, 130, 60];
+        for (const s of segs) { const ct = Math.cos(s.tm), st = Math.sin(s.tm), fac = [];
+          for (let k = 0; k < NP; k++) { const pm = (k + 0.5) / NP * TAU, cp = Math.cos(pm), sp = Math.sin(pm), nl = [Math.sign(cp) * Math.pow(Math.abs(cp), 2 - 2 / PW) / CA, Math.sign(sp) * Math.pow(Math.abs(sp), 2 - 2 / PW) / CB], ll = Math.hypot(nl[0], nl[1]) || 1;
+            const n = rot([ct * nl[0] / ll, st * nl[0] / ll, nl[1] / ll], F.ax, F.ay), vd = dot(n, V); if (vd <= 0) continue; fac.push({ k, n, vd, sp }); }
+          fac.sort((p, q) => p.vd - q.vd);
+          for (const fc of fac) { const a0 = PR[fc.k], a1 = PR[(fc.k + 1) % NP], p00 = this.pt(F, s.th0, R + a0[0], a0[1]), p01 = this.pt(F, s.th1, R + a0[0], a0[1]), p11 = this.pt(F, s.th1, R + a1[0], a1[1]), p10 = this.pt(F, s.th0, R + a1[0], a1[1]);
+            let col = metal(fc.n, s.tm); const inward = fc.n[0] * ct + fc.n[1] * st < -0.2;
+            if (fc.sp < -0.25) col = mixc(col, HOT, (0.25 + 0.4 * -fc.sp) * F.hk * F.pu);   // red-hot round its foot
+            if (inward) col = mixc(col, WARM, 0.28 * F.hk * F.pu);                          // the inner face lit by the fire within
+            if (fc.n[2] > 0.3) col = mixc(col, [255, 176, 96], 0.3 * fc.n[2] * F.pu);       // its crown lit by the blaze on it
+            c.fillStyle = css(col); c.strokeStyle = c.fillStyle; c.lineWidth = 0.6; c.beginPath(); c.moveTo(p00[0], p00[1]); c.lineTo(p01[0], p01[1]); c.lineTo(p11[0], p11[1]); c.lineTo(p10[0], p10[1]); c.closePath(); c.fill(); c.stroke(); } }
+        // the engraving on the outer face (on its curve): two etched borders, a meander and a rune in every other cell, cut dark and glowing with fire
+        { const NC = 16, DC = TAU / NC, hB = CB * 0.62, hM = CB * 0.34, dr = h0 => CA * Math.pow(Math.max(0, 1 - Math.pow(Math.abs(h0) / CB, PW)), 1 / PW) + 0.003;
+          const onVis = th => { const n = rot([Math.cos(th), Math.sin(th), 0], F.ax, F.ay); return dot(n, V) > 0.06 && ((this.pt(F, th, R, 0)[2] < 0) === back); };
+          const E = (th, hh) => this.pt(F, th, R + dr(hh), hh);
+          c.beginPath(); let any = false;
+          for (const hh of [hB, -hB]) { let st = false; for (let j = 0; j <= N * 2; j++) { const th = j / (N * 2) * TAU; if (!onVis(th)) { st = false; continue; } const p = E(th, hh); st ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]); st = true; any = true; } }
+          for (let k = 0; k < NC; k++) { const c0 = F.phi + k * DC; if (!onVis(c0 + DC * 0.06) || !onVis(c0 + DC * 0.5) || !onVis(c0 + DC * 0.94)) continue; any = true; const P_ = (du, dv) => E(c0 + du * DC, dv * hM);
+            if (k % 2) [[0.05, -1], [0.27, 1], [0.5, -1], [0.73, 1], [0.95, -1]].forEach((q, j) => { const p = P_(q[0], q[1]); j ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]); });
+            else { [[0.5, -1.2], [0.78, 0], [0.5, 1.2], [0.22, 0], [0.5, -1.2]].forEach((q, j) => { const p = P_(q[0], q[1]); j ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]); });
+              const cc = P_(0.5, 0), rr = Math.max(1, F.T * 0.035); c.moveTo(cc[0] + rr, cc[1]); c.arc(cc[0], cc[1], rr, 0, TAU); for (const sd of [-1, 1]) { const a = P_(0.5 + sd * 0.38, -0.75), b = P_(0.5 + sd * 0.38, 0.75), m1 = P_(0.5 + sd * 0.3, 0), m2 = P_(0.5 + sd * 0.46, 0); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.moveTo(m1[0], m1[1]); c.lineTo(m2[0], m2[1]); } }
+            const t0 = P_(0, -1.85), t1 = P_(0, -1.5), t2 = P_(0, 1.5), t3 = P_(0, 1.85); c.moveTo(t0[0], t0[1]); c.lineTo(t1[0], t1[1]); c.moveTo(t2[0], t2[1]); c.lineTo(t3[0], t3[1]); }
+          if (any) { c.lineCap = 'round'; c.strokeStyle = 'rgba(14,5,7,0.9)'; c.lineWidth = Math.max(1.4, F.T * 0.045); c.stroke();
+            c.globalCompositeOperation = 'lighter'; c.strokeStyle = `rgba(255,${(70 + 50 * F.hk * F.pu) | 0},40,${Math.min(1, 0.85 * F.hk * F.pu)})`; c.lineWidth = Math.max(0.9, F.T * 0.022); c.stroke(); c.strokeStyle = `rgba(255,224,160,${0.6 * F.hk * F.pu})`; c.lineWidth = Math.max(0.5, F.T * 0.008); c.stroke(); c.globalCompositeOperation = 'source-over'; } }
+        c.restore(); },
+      // blazing flames all round the top of the ring, swelling and pulsing together and leaning back against the spin; the
+      // red aetherial energy coiling round it
+      fire(c, F, t, back) { const Q = K.gq();
+        const fl = []; for (let k = 0; k < NF; k++) { const th = F.phi + k / NF * TAU + 0.11, p = this.pt(F, th, R, CB * 0.9); if ((p[2] < 0) !== back) continue; fl.push([p, th, k]); }
+        fl.sort((a, b) => a[0][2] - b[0][2]);
+        for (const [p, th, k] of fl) { const sw = 0.5 + 0.5 * Math.sin(t * 6.5 - k * 0.9), hh = F.T * (0.62 + 0.55 * F.pu * (0.6 + 0.4 * sw) + 0.14 * Math.sin(t * 17 + k * 2.3)), lean = Math.sin(th) * F.T * 0.45 + Math.cos(th) * F.T * 0.1;
+          if (Q) { Q.quad(3, p[0], p[1] - hh * 0.12, F.T * (0.24 + 0.08 * sw), 0, 0, F.T * (0.24 + 0.08 * sw), '#FFFFFF', 0.6 * F.a, 0.82 + 0.12 * F.pu, k * 0.83 + 2); }   // fire boiling along the rim at the flames' roots
+          K.flame(c, p[0], p[1] + F.T * 0.04, F.T * (0.34 + 0.06 * sw), hh * F.a, t, k * 1.7, lean, 0.95 * F.a, false); }
+        const streams = 4, M = 20;
+        for (let s = 0; s < streams; s++) { const pts = []; for (let j = 0; j <= M; j++) { const a = -F.phi * 1.35 + s * TAU / streams + j * 0.15, rr = R * (1.1 + 0.06 * Math.sin(t * 3 + s + j * 0.4)), hh = HB * (0.15 + 0.75 * Math.sin(a * 2 + t * 2.4 + s * 1.7)); pts.push(this.pt(F, a, rr, hh)); }
+          for (let j = 1; j <= M; j++) { const p0 = pts[j - 1], p1 = pts[j]; if ((((p0[2] + p1[2]) / 2) < 0) !== back) continue; const u = j / M, w = F.T * 0.11 * Math.sin(u * Math.PI), al = Math.min(1, F.a * (0.75 + 0.35 * Math.sin(t * 11 + j + s * 3)) * Math.sin(u * Math.PI) * 1.3);
+            if (Q) { const dx = p1[0] - p0[0], dy = p1[1] - p0[1]; Q.beam(p0[0] - dx * 0.125, p0[1] - dy * 0.125, p1[0] + dx * 0.125, p1[1] + dy * 0.125, w * 1.6, RED, al * 0.55); Q.beam(p0[0] - dx * 0.125, p0[1] - dy * 0.125, p1[0] + dx * 0.125, p1[1] + dy * 0.125, w * 0.5, '#FF8A96', al * 0.8); Q.beam(p0[0] - dx * 0.125, p0[1] - dy * 0.125, p1[0] + dx * 0.125, p1[1] + dy * 0.125, w * 0.16, '#FFE6EA', al * 0.8); }
+            else { c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.strokeStyle = H.rgba(RED, al * 0.7); c.lineWidth = Math.max(1, w * 1.4); c.beginPath(); c.moveTo(p0[0], p0[1]); c.lineTo(p1[0], p1[1]); c.stroke(); c.strokeStyle = H.rgba('#FFC0C8', al * 0.8); c.lineWidth = Math.max(0.6, w * 0.35); c.stroke(); c.restore(); } } } },
+      drawUnder(c, f, X, Y, T, t) { const F = this.frame(f, X, Y, T, t), Q = K.gq();
+        // light on the floor: fire orange under the ring, a red aetherial haze round it
+        K.floorLight(c, X, Y, F.T * R * 1.5, 0.5 * F.a * F.hk * F.pu); if (Q) { Q.glow(X, Y, F.T * R * 1.9, RED, 0.4 * F.a, GY); Q.glow(X, Y - F.T * Z0, F.T * R * 1.5, '#FF5A2A', 0.22 * F.a * F.hk, GY); Q.shimmer(X, Y - F.T * (Z0 + HB), F.T * R * 1.15, 0.35 * F.a, GY); } else K.floorLight(c, X, Y, F.T * R * 1.9, 0.22 * F.a, RED);
+        this.band(c, F, t, true); this.fire(c, F, t, true); },
+      draw(c, f, X, Y, T, t) { const F = this.frame(f, X, Y, T, t); this.band(c, F, t, false); this.fire(c, F, t, false);
+        if (K.gq()) { K.gq().glow(X, Y - F.T * Z0, F.T * R * 1.25, RED, 0.16 * F.a * F.hk); K.gq().glow(X, Y - F.T * (Z0 + 0.6), F.T * R * 1.3, '#FF7A2E', 0.2 * F.a * F.pu * F.pu, GY); } } });
   };
-
   /* ================= F-S03 Furnace Seed =================
      Lumpy coals are lobbed to the aim trailing smoke; each lands with a thud and cracks as its heat builds, the seams
      widening, thin flames curling from them, a heartbeat of light quickening, glowing cracks racing out over the floor to
