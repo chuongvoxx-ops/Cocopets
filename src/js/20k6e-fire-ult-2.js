@@ -260,6 +260,8 @@
   /* Apocalypse draws mostly from pictures made once (the iPhone budget): the ball's shaded body, flame tongues, rune circles,
      starbursts, cloud puffs and the vignette are rendered to small canvases on first use and blitted, scaled and turned */
   const SPR = {};
+  // (Apocalypse on the GPU: the painter Nidhogg uses (20k6h, NIDHOGG_MOVES.FGFX), where a real GPU draws it; window.__APOC_GL = 0 keeps the 2D picture)
+  const apocGL = () => { try { if (window.__APOC_GL === 0) return null; const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; return F && F.usable() ? F : null; } catch (e) { return null; } };
   function spr(key, w, h, fn) { let s = SPR[key]; if (!s) { s = document.createElement('canvas'); s.width = w; s.height = h; const g = s.getContext('2d'); fn(g, w, h); SPR[key] = s; } return s; }
   const tongueSpr = v => spr('tg' + v, 96, 140, g => K.flame(g, 48, 130, 30, 108, 0.37 + v * 0.71, 1.3 + v * 2.2, 0, 1, true));
   /* a flame tongue from the cached pictures: rooted at (x, y), pointing along ang, w wide, h tall */
@@ -330,6 +332,106 @@
     if (CEL) for (let i = 0; i < 3; i++) { const b = -Math.PI / 2 + i / 3 * TAU + 0.5; sats.push({ b, tx: x + Math.cos(b) * RX * 0.75, ty: y + Math.sin(b) * RX * 0.75, t0: BURST + 0.55 + i * 0.28, done: false }); }
     const launch = (n, spd, at, ox, oy, oz, ring2) => { for (let i = 0; i < H.n(n); i++) { const b = i / n * TAU + Math.random() * 0.4, v = spd * (0.75 + Math.random() * 0.5); rockets.push({ x: ox, y: oy, z: oz, vx: Math.cos(b) * v, vy: Math.sin(b) * v * 0.7, vz: 2.4 + Math.random() * 2.4 + (ring2 ? 1.2 : 0), t0: at, fuse: 0.55 + Math.random() * 0.4 + (ring2 ? 0.2 : 0), col: FWC[i % FWC.length], tr: [], live: false, done: false }); } };
     const fwD = DK * 3.4 / Math.max(1, H.n(NRK) + (CEL ? H.n(10) : 0)), mainD = DK * (CEL ? 9.0 : 11.0), satD = DK * 0.7;
+
+    /* ---- (v342) Apocalypse painted on the GPU (NIDHOGG_MOVES.FGFX, the painter the user chose for Nidhogg's blast and
+       mushroom cloud): the same moments from the same numbers as the 2D picture below, as turbulent fire, billowing
+       volumes cooling to smoke, glows, beams, rings and sparkles in a shader. The ball a crimson volume of fire with a
+       roiling lit surface, rim tongues and arcing prominences, cracking white as it grows unstable; the streams comets of
+       fire spiralling in; the blast a white flash, rays, shock fronts over burning, fractured ground, a dome of fire
+       mushrooming up and cooling into smoke; the fireworks coloured trails and starbursts of sparkles. The rune circles stay
+       crisp pictures (2D), the back half under the fire and the front half over it. The 2D picture stays for a software
+       rasteriser, no WebGL, or window.__APOC_GL = 0 ---- */
+    const GYq = () => H.GY || 0.55, LQ = () => typeof st !== 'undefined' && st && !!st.lowFx;
+    const qbez = (p0, p1, p2, n, out) => { for (let j = 0; j <= n; j++) { const u = j / n, a = (1 - u) * (1 - u), b = 2 * u * (1 - u), d = u * u; out[j] = [a * p0[0] + b * p1[0] + d * p2[0], a * p0[1] + b * p1[1] + d * p2[1]]; } return out; };
+    const QP = [], QS = [];
+    // a smooth line of light through screen points: gaussian beams, each run past its ends by an eighth so the fades of
+    // neighbours cross at the joint and sum to one (no dashes); w(u) and a(u) along it, u 0..1
+    function lineQ(Q, Pt, n, w, col, a) { for (let i = 0; i + 1 < n; i++) { const p0 = Pt[i], p1 = Pt[i + 1], dx = p1[0] - p0[0], dy = p1[1] - p0[1], e = 0.125, u = (i + 0.5) / (n - 1), al = typeof a === 'function' ? a(u) : a; if (al <= 0.01) continue;
+      Q.beam(p0[0] - dx * e, p0[1] - dy * e, p1[0] + dx * e, p1[1] + dy * e, typeof w === 'function' ? w(u) : w, col, al); } }
+    // the great fireball on the GPU: a crimson body of fire laid over, its lit turbulent surface added, rim tongues,
+    // prominences arcing off the limb, a hot limb, white cracks as it grows unstable, a white-gold heart
+    function ballQ(Q, x, y, r, t, inst, a, low) {
+      if (r < 2 || a <= 0.01) return;
+      // its light on the air round it, prominences arcing off the limb (loops of fire, behind the corona)
+      Q.glow(x, y, r * 2.8, CRIM_L, 0.5 * a); Q.glow(x, y, r * 1.7, P.org, (0.3 + 0.25 * inst) * a);
+      for (let i = 0; i < (low ? 3 : 5); i++) { const b = i / (low ? 3 : 5) * TAU + t * 0.3 + Math.sin(t * 0.7 + i) * 0.3, sp = 0.28 + 0.08 * Math.sin(t * 1.3 + i * 2), hgt = r * (1.3 + 0.18 * Math.sin(t * 2.1 + i * 1.7));
+        qbez([x + Math.cos(b - sp) * r * 0.97, y + Math.sin(b - sp) * r * 0.97], [x + Math.cos(b) * hgt, y + Math.sin(b) * hgt], [x + Math.cos(b + sp) * r * 0.97, y + Math.sin(b + sp) * r * 0.97], 8, QP);
+        lineQ(Q, QP, 9, u => r * 0.11 * (0.7 + 0.3 * Math.sin(u * Math.PI)), P.org, 0.45 * a); lineQ(Q, QP, 9, r * 0.03, P.yel, 0.55 * a); }
+      // the sphere itself (a turning globe of crimson plasma, molten veins, a hot limb) and the flames of its corona
+      Q.quad(12, x, y, r, 0, 0, r, CRIM, a, 0.8 + 0.3 * inst, 5.5, inst);
+      Q.quad(13, x, y, r * 1.7, 0, 0, r * 1.7, CRIM_L, a, 0.95 + 0.25 * inst, 2.3, inst);
+      // the heart showing through as it grows unstable
+      Q.glow(x - r * 0.08, y - r * 0.1, r * (0.6 + 0.4 * inst), P.gold, (0.08 + 0.3 * inst) * a); Q.glow(x - r * 0.08, y - r * 0.1, r * (0.3 + 0.25 * inst), '#FFFFFF', 0.4 * inst * inst * a);
+    }
+    // a satellite fireball (Celestial): the same, small
+    const satQ = (Q, sx2, sy2, rr, al) => { if (rr < 1 || al <= 0.01) return; Q.glow(sx2, sy2, rr * 2.6, P.org, 0.5 * al); Q.quad(12, sx2, sy2, rr, 0, 0, rr, CRIM, al, 0.85, 3.3, 0.3); Q.quad(13, sx2, sy2, rr * 1.7, 0, 0, rr * 1.7, CRIM_L, al, 1.0, 7.1, 0.3); Q.glow(sx2, sy2, rr * 0.5, '#FFFFFF', 0.35 * al); };
+    // a billow of the cloud, fire cooling into smoke (cool 0..1)
+    const puffQ = (Q, x2, y2, rr, sd, cool, a) => { if (rr < 2 || a < 0.01) return; const kq = cl((cool - 0.3) / 0.4); if (kq > 0.01) Q.smoke(x2, y2, rr, a * (0.35 + 0.65 * kq), sd, '#3A302C', 1 - kq); if (kq < 0.99) Q.billow(x2, y2, rr, 0.85 - 0.6 * cool, a * (1 - kq), sd); };
+    function underGL(FG, c, f, X, Y, T, t) {
+      const k = Math.min(1, f.life / 1.0), g = cl(f.t / GATHER), pre = f.t < BURST, post = f.t - BURST, GY = GYq();
+      if (pre) { const r = T * RB * H.ease.out(g); H.softShadow(c, X, Y, r * 1.2, 0.3 * g);
+        const Q = FG.begin(c, null); Q.glow(X, Y, r * 2.6 + T, CRIM_L, 0.45 + 0.4 * g, GY); Q.glow(X, Y, r * 1.4, P.amb, 0.45 * g, GY); Q.ground(X, Y, r * 1.5, 0.45 * g, 0.55 * g, 3, GY, 0.25); FG.flush(c);
+        runeB(c, X, Y, T * RX * 0.92 * H.ease.out(cl(f.t / 0.6)), T * RX * 0.92 * GY * H.ease.out(cl(f.t / 0.6)), t * 0.4, 0.9, 14 + 2 * Math.round(ev / 2) * 2, CRIM_L); runeB(c, X, Y, T * RX * 0.55 * g, T * RX * 0.55 * GY * g, -t * 0.7, 0.85, 10, P.org);
+        c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.7 * g; c.strokeStyle = H.rgba(P.yel, 0.7); c.lineWidth = 1.2; c.beginPath(); for (let i = 0; i < 6; i++) { const b = i / 6 * TAU + t * 0.4, b2 = b + TAU / 3; c.moveTo(X + Math.cos(b) * T * RX * 0.84, Y + Math.sin(b) * T * RX * 0.84 * GY); c.lineTo(X + Math.cos(b2) * T * RX * 0.84, Y + Math.sin(b2) * T * RX * 0.84 * GY); } c.stroke(); c.restore(); return; }
+      // the aftermath: the scorch (a mark, 2D), then on the GPU the burning, fractured ground, the glowing fissures, the shock fronts
+      const heat = Math.max(0, 1 - post / 1.5), u = cl(post / 0.35);
+      K.scorch(c, X, Y, T * RX * u, k * 0.95, heat, 4); for (const s2 of sats) if (s2.done) { const a2 = f.t - s2.t0; K.scorch(c, H.sx(s2.tx), H.sy(s2.ty), T * 1.6 * cl(a2 / 0.25), k * 0.9, Math.max(0, 1 - a2 / 1.5), s2.b); }
+      const Q = FG.begin(c, null), lit = Math.max(0, 1 - post / 1.2);
+      if (lit > 0) Q.glow(X, Y, T * RX * 1.2, P.amb, 0.85 * lit, GY);
+      if (post < 0.4) Q.glow(X, Y, T * RX * 1.1, '#FFFFFF', (1 - post / 0.4) * 0.5, GY);
+      Q.ground(X, Y, T * RX * 1.05 * u, 0.85 * Math.max(0, 1 - post / 3.0), k * 0.85 * Math.max(0, 1 - post / 3.2), 5.1, GY, Math.max(0, 1 - post / 2.4));
+      if (heat > 0) for (const cr of cracks) { for (let j = 0; j < cr.length; j++) QP[j] = [H.sx(x + cr[j][0] * u), H.sy(y + cr[j][1] * u)]; lineQ(Q, QP, cr.length, v => T * 0.12 * (1 - v * 0.6), P.org, 0.9 * heat * k); lineQ(Q, QP, cr.length, v => T * 0.04 * (1 - v * 0.6), P.yel, heat * k); }
+      for (const [d, sc, w] of [[0, 1.0, 1], [0.12, 0.8, 0.8], [0.3, 1.25, 0.6]]) { const q = cl((post - d) / 0.55); if (q > 0 && q < 1) { const rr = T * RX * sc * H.ease.out(q); Q.ring(X, Y, rr, d ? P.org : P.yel, Math.min(1, (1 - q) * w * 1.2), T * 0.24, GY); Q.ring(X, Y, rr * 0.97, '#FFFFFF', (1 - q) * w * 0.55, T * 0.06, GY); Q.shimmer(X, Y, rr * 1.06, (1 - q) * 0.4 * w, GY); } }
+      for (const s2 of sats) if (s2.done) { const a2 = f.t - s2.t0, q = cl(a2 / 0.45); if (q < 1) { Q.ring(H.sx(s2.tx), H.sy(s2.ty), T * 2 * H.ease.out(cl(a2 / 0.4)), P.yel, 1 - q, T * 0.18, GY); } Q.ground(H.sx(s2.tx), H.sy(s2.ty), T * 1.5, 0.7 * Math.max(0, 1 - a2 / 1.5), 0.8 * Math.max(0, 1 - a2 / 1.8), s2.b, GY, 0.6); }
+      for (const p of patches) Q.ground(H.sx(p.x), H.sy(p.y), T * 0.9, 0.7 * heat, 0.6 * heat, p.s * 9, GY, 0.4);
+      FG.flush(c);
+    }
+    function drawGL(FG, c, f, X, Y, T, t) {
+      const k = Math.min(1, f.life / 0.8), g = cl(f.t / GATHER), pre = f.t < BURST, post = f.t - BURST, BX = X, BY = Y - T * ZB, low = LQ();
+      // the light dims round the gathering ball (2D: a red-black vignette), then the flash
+      const dim = pre ? 0.42 * H.ease.io(cl(f.t / 1.2)) : 0.42 * Math.max(0, 1 - post / 0.25); if (dim > 0.01) { const VR = T * 9, W = c.canvas.width * 3; c.save(); c.globalAlpha = dim; c.drawImage(vigSpr(), BX - VR, BY - VR, VR * 2, VR * 2); c.fillStyle = 'rgb(20,0,4)'; c.fillRect(-W, -W, W * 3, W + BY - VR); c.fillRect(-W, BY + VR, W * 3, W * 3); c.fillRect(-W, BY - VR, W + BX - VR, VR * 2); c.fillRect(BX + VR, BY - VR, W * 3, VR * 2); c.restore(); }
+      const pb = near ? petBox(T) : null, hole = fn => { c.save(); if (near) petHole(c, T); fn(); c.restore(); };
+      const ar = pre ? (() => { const inst = cl((f.t - GATHER) / (BURST - GATHER)); return T * RB * (0.15 + 0.85 * H.ease.out(g)) * (1 + inst * 0.12) * 1.75 + T * 0.3; })() : 0;
+      // the back half of the air circle round the ball (a crisp picture, under the fire)
+      if (pre) hole(() => { c.beginPath(); c.rect(-1e5, -1e5, 2e5, 1e5 + BY); c.clip(); runeB(c, BX, BY, ar, ar * 0.32, -t * 1.1, 0.9 * g, 16, CRIM_L); });
+      const Q = FG.begin(c, pb ? [pb[0], pb[1], T * 0.62] : null);
+      if (pre) { const inst = cl((f.t - GATHER) / (BURST - GATHER)), pulse = 1 + 0.06 * Math.sin(t * (8 + inst * 30)) * (0.3 + inst), r = T * RB * (0.15 + 0.85 * H.ease.out(g)) * pulse * (1 + inst * 0.12), jx = inst * (Math.random() - 0.5) * T * 0.08, jy = inst * (Math.random() - 0.5) * T * 0.08;
+        // the energy streams spiralling in from all round: comets of fire, a white thread down each head
+        for (let i = 0; i < NST; i++) { const head = (t * 0.85 + i * 0.37) % 1, ph = i / NST * TAU, al = 0.85 * Math.min(1, head * 4); if (al < 0.02) continue;
+          for (let j = 0; j <= 10; j++) { const s3 = Math.max(0, head - 0.4 + 0.4 * (10 - j) / 10), rho = T * 4.2 * (1 - s3) + r * s3, b = ph + s3 * 2.4 + t * 0.3; QS[j] = [BX + Math.cos(b) * rho, BY + Math.sin(b) * rho * 0.62 + (1 - s3) * T * 1.6]; }
+          lineQ(Q, QS, 11, u => T * 0.2 * (1 - 0.5 * u), CRIM_L, u => 0.75 * al * (1 - u * u)); lineQ(Q, QS, 11, u => T * 0.1 * (1 - 0.5 * u), P.org, u => 0.9 * al * (1 - u)); if (!low) lineQ(Q, QS, 6, u => T * 0.04 * (1 - 0.6 * u), P.wht, u => al * (1 - u));
+          Q.glow(QS[0][0], QS[0][1], T * 0.5, P.org, 0.4 * al); Q.glow(QS[0][0], QS[0][1], T * 0.16, P.wht, 0.7 * al); }
+        const satAt = (s2, front) => { const b = s2.b + t * 1.4; if ((Math.sin(b) >= 0) !== front) return; satQ(Q, BX + Math.cos(b) * ar * 1.25, BY + Math.sin(b) * ar * 0.4 - T * 0.2, T * 0.32 * g, g); };
+        if (CEL) sats.forEach(s2 => satAt(s2, false));
+        ballQ(Q, BX + jx, BY + jy, r, t, inst, 1, low);
+        if (CEL) sats.forEach(s2 => satAt(s2, true));
+        Q.shimmer(BX, BY, r * 1.6, 0.3 * g, 1); if (inst > 0.75) Q.glow(BX, BY, r * 2.2, '#FFFFFF', (inst - 0.75) * 1.2);
+      } else {
+        // the blast: a white flash and light rays, a dome of fire mushrooming up and cooling into smoke, satellites flying out
+        const fl = Math.max(0, 1 - post / 0.3); if (fl > 0) { Q.glow(BX, BY, T * RX * 1.3, '#FFFFFF', 0.9 * fl); Q.glow(BX, BY, T * RX * 0.6, P.yel, fl); }
+        const ra = Math.max(0, 1 - post / 0.9); if (ra > 0) for (let i = 0; i < 8; i++) { const b = i / 8 * TAU + post * 0.4 + (i % 2) * 0.13, Lr = T * RX * (1.2 + 0.4 * (i % 3)) * H.ease.out(cl(post / 0.25)); Q.beam(BX, BY, BX + Math.cos(b) * Lr, BY + Math.sin(b) * Lr, T * (0.32 + 0.18 * (i % 2)), i % 3 ? P.amb : '#FFFFFF', 0.6 * ra); }
+        const du = cl(post / 1.6); if (du < 1) { const al = Math.pow(1 - du, 1.3), Rd = T * RX * 0.9 * H.ease.out(cl(post / 0.35)), hd = Rd * 0.85, rise = T * 3.2 * H.ease.io(cl((post - 0.25) / 1.3)), cool = cl((post - 0.5) / 1.0), cy = Y - rise;
+          Q.glow(X, cy - hd * 0.4, Rd * 1.6, P.org, 0.4 * al);
+          if (rise > 1) { const NSt = low ? 4 : 7; for (let i = 0; i < NSt; i++) { const v = i / (NSt - 1); puffQ(Q, X + Math.sin(t * 2 + i * 1.7) * T * 0.12, lerp(Y - Rd * 0.1, cy - hd * 0.2, v), Rd * (0.3 - 0.08 * v), i * 0.7 + 2, cool * (0.6 + 0.4 * v), al * 0.85); } }
+          const puffs = low ? 5 : 8; puffQ(Q, X, cy - hd * 0.45, Rd * 0.62, 0.5, cool * 0.8, al);
+          for (let i = 0; i < puffs; i++) { const b = Math.PI + i / (puffs - 1) * Math.PI, pr = Rd * (0.42 + 0.08 * Math.sin(i * 2.3)); puffQ(Q, X + Math.cos(b) * Rd * 0.65, cy - hd * 0.35 + Math.sin(b) * hd * 0.5 + Math.sin(t * 3 + i) * T * 0.05, pr, i * 1.3, cool * 0.9, al); }
+          const hc = (1 - du) * (1 - cool); if (hc > 0.01) { Q.fire(X, cy - hd * 0.4, Rd * 0.4, 1.15, hc, 8.3, 0.9); Q.glow(X, cy - hd * 0.4, Rd * 0.6 * (1 - du), '#FFFFFF', hc); } }
+        if (CEL) sats.forEach(s2 => { if (s2.done) return; const u = cl(post / (s2.t0 - BURST)); satQ(Q, lerp(BX, H.sx(s2.tx), u), lerp(BY, H.sy(s2.ty), u) - Math.sin(u * Math.PI) * T * 1.2, T * 0.38, 1); });
+        // burning patches left on the ground
+        const heat = Math.max(0, 1 - post / 2.8); for (const p of patches) { const u = cl((post - p.d) / 0.3); if (u <= 0 || heat <= 0) continue; const SX = H.sx(p.x), SY = H.sy(p.y), hh = T * (0.75 + 0.2 * Math.sin(t * 7 + p.s * 9)) * p.s * u * heat;
+          for (let j = 0; j < (low ? 1 : 2); j++) Q.tongue(SX + (j - 0.5) * T * 0.2 * p.s, SY, T * 0.18 * p.s, hh * (j ? 0.38 : 0.5), Math.sin(t * 5 + p.s * 9 + j) * 0.12, 0.92, 0.9 * Math.min(1, heat * 2), p.s * 10 + j); }
+      }
+      // rockets: a coloured trail with a white-hot thread, a hot head; their starbursts: a flash, rays of light, sparkles that twinkle as they droop
+      for (const r of rockets) { if (!r.live || r.done) continue; const n = r.tr.length; if (!n) continue; for (let j = 0; j < n; j++) { const q = r.tr[n - 1 - j]; QP[j] = [H.sx(q[0]), H.sy(q[1]) - q[2] * T]; }
+        if (n > 1) { lineQ(Q, QP, n, T * 0.1, r.col, u => 0.8 * (1 - u)); lineQ(Q, QP, n, T * 0.03, '#FFFFFF', u => 0.9 * (1 - u)); } Q.glow(QP[0][0], QP[0][1], T * 0.35, r.col, 0.9); Q.star(QP[0][0], QP[0][1], T * 0.22, 0.9); }
+      for (const b of bursts) { const a2 = f.t - b.t0; if (a2 > 1.3) continue; const SX = H.sx(b.x), SY = H.sy(b.y) - b.z * T, rad = T * b.R * (1 - Math.exp(-a2 * 5)), fa = Math.max(0, 1 - a2 / 1.3), droop = a2 * a2 * T * 0.6, tw = a2 > 0.45 ? (Math.sin(t * 40 + b.rot * 7) > 0 ? 1 : 0.55) : 1;
+        if (a2 < 0.18) Q.glow(SX, SY, T * 1.4, b.col, 1 - a2 / 0.18); else Q.glow(SX, SY + droop * 0.5, rad * 1.3, b.col, 0.3 * fa);
+        if (rad > 2) { const nb = low ? 8 : b.n, cy2 = SY + droop * 0.6; for (let i = 0; i < nb; i++) { const q = b.rot + i / nb * TAU, cq = Math.cos(q), sq2 = Math.sin(q) * 0.92; Q.beam(SX + cq * rad * 0.3, cy2 + sq2 * rad * 0.3, SX + cq * rad * 0.97, cy2 + sq2 * rad * 0.97, T * 0.08, b.col, fa * tw); Q.beam(SX + cq * rad * 0.45, cy2 + sq2 * rad * 0.45, SX + cq * rad * 0.9, cy2 + sq2 * rad * 0.9, T * 0.025, '#FFFFFF', 0.7 * fa * tw);
+          Q.star(SX + cq * rad, cy2 + sq2 * rad + droop * 0.3, T * (i % 3 ? 0.22 : 0.32), fa * tw, i % 3 ? b.col : '#FFFFFF'); Q.glow(SX + cq * rad, cy2 + sq2 * rad + droop * 0.3, T * 0.2, b.col, 0.5 * fa * tw); } } }
+      FG.flush(c);
+      // the front half of the air circle (over the fire)
+      if (pre) hole(() => { c.beginPath(); c.rect(-1e5, BY, 2e5, 1e5); c.clip(); runeB(c, BX, BY, ar, ar * 0.32, -t * 1.1, 0.95 * g, 16, CRIM_L); });
+    }
     H.add({ life: BURST + 3.2 + (CEL ? 0.6 : 0), x, y, flash: 0,
       update(dt, f) {
         // embers drawn in from all round while it gathers
@@ -343,6 +445,7 @@
         bursts.forEach(b => { if (f.t - b.t0 > 0.35 && f.t - b.t0 < 0.9 && Math.random() < 0.12 * H.Q()) { const q = Math.random() * TAU, rr = b.R * 0.9; H.P({ kind: 'spark', x: b.x + Math.cos(q) * rr, y: b.y - b.z + Math.sin(q) * rr, vx: 0, vy: 0.4, g: 1.2, life: 0.5, max: 0.5, size: 1.8, color: '#FFFFFF' }); } });
       },
       drawUnder(c, f, X, Y, T, t) {
+        { const FG = apocGL(); if (FG) { underGL(FG, c, f, X, Y, T, t); return; } }   // (on the GPU where it can be: below)
         const k = Math.min(1, f.life / 1.0), g = cl(f.t / GATHER), pre = f.t < BURST, post = f.t - BURST;
         // under the ball: the floor lit red-gold, a big soft shadow, the turning rune circles
         if (pre) { const r = T * RB * H.ease.out(g); K.floorLight(c, X, Y, r * 2.6 + T, 0.35 + 0.4 * g, CRIM_L); K.floorLight(c, X, Y, r * 1.4, 0.4 * g); H.softShadow(c, X, Y, r * 1.2, 0.3 * g);
@@ -357,6 +460,7 @@
           for (const p of patches) K.floorLight(c, H.sx(p.x), H.sy(p.y), T * 0.9, 0.4 * heat); }
       },
       draw(c, f, X, Y, T, t) {
+        { const FG = apocGL(); if (FG) { drawGL(FG, c, f, X, Y, T, t); return; } }
         const k = Math.min(1, f.life / 0.8), g = cl(f.t / GATHER), pre = f.t < BURST, post = f.t - BURST, BX = X, BY = Y - T * ZB;
         const satB = (sx2, sy2, rr, al) => { if (rr < 1) return; K.glow(c, sx2, sy2, rr * 2.6, P.org, 0.6 * al); c.save(); c.globalAlpha *= al; c.drawImage(ballSpr(), sx2 - rr * 1.07, sy2 - rr * 1.07, rr * 2.13, rr * 2.13); c.restore(); K.glow(c, sx2, sy2, rr * 0.8, '#FFFFFF', 0.6 * al); };
         // the light dims round the gathering ball (a red-black vignette), then the flash

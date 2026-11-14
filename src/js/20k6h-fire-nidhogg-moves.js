@@ -448,20 +448,45 @@ float n2(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); 
 float fbm(vec2 p){ float s = 0.0, a = 0.5; for (int i = 0; i < 5; i++) { s += a * n2(p); p = p * 2.03 + vec2(1.7, 9.2); a *= 0.5; } return s; }
 vec3 ramp(float k){ k = clamp(k, 0.0, 1.2); vec3 c = mix(vec3(0.0), vec3(0.62, 0.1, 0.03), smoothstep(0.0, 0.25, k)); c = mix(c, vec3(0.95, 0.32, 0.09), smoothstep(0.2, 0.45, k)); c = mix(c, vec3(1.0, 0.6, 0.2), smoothstep(0.42, 0.65, k)); c = mix(c, vec3(1.0, 0.86, 0.42), smoothstep(0.62, 0.85, k)); return mix(c, vec3(1.0, 0.98, 0.9), smoothstep(0.85, 1.1, k)); }
 float sq(float x){ return x * x; }
+float h3(vec3 p){ p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+float n3(vec3 x){ vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f); return mix(mix(mix(h3(i), h3(i + vec3(1.0, 0.0, 0.0)), f.x), mix(h3(i + vec3(0.0, 1.0, 0.0)), h3(i + vec3(1.0, 1.0, 0.0)), f.x), f.y), mix(mix(h3(i + vec3(0.0, 0.0, 1.0)), h3(i + vec3(1.0, 0.0, 1.0)), f.x), mix(h3(i + vec3(0.0, 1.0, 1.0)), h3(i + vec3(1.0, 1.0, 1.0)), f.x), f.y), f.z); }
+float fbm3(vec3 p){ return 0.5 * n3(p) + 0.27 * n3(p * 2.07 + 3.1) + 0.15 * n3(p * 4.13 + 7.7) + 0.08 * n3(p * 8.3 + 1.3); }
 void main(){ vec2 u = v_uv; float r = length(u), m = 0.0, edge = 1.0 - smoothstep(0.85, 1.0, r); vec3 col = v_c.rgb; float t = u_t + v_q.y * 7.3, pk = u_pet.z > 0.0 ? mix(0.12, 1.0, smoothstep(0.4, 1.4, length((v_px - u_pet.xy) * vec2(1.0, 1.1)) / u_pet.z)) : 1.0;   /* (the rider's face stays clear: light, body and smoke) */
-  pk *= (v_k > 1.5 && v_k < 2.5) || (v_k > 5.5 && v_k < 6.5) || v_k > 10.5 ? 1.0 - smoothstep(0.8, 1.0, abs(u.y)) : (v_k > 3.5 && v_k < 4.5) ? 1.0 - smoothstep(0.8, 1.0, abs(u.x)) : (v_k > 0.5 && v_k < 1.5) || (v_k > 7.5 && v_k < 8.5) ? 1.0 - smoothstep(0.92, 1.0, r) : 1.0 - smoothstep(0.72, 1.0, r);   /* (every picture fades to nothing well inside its own quad: no straight cut where noise or a halo reaches the quad's edge) */
-  if (v_k > 10.5) { // the body of a fire beam (solid, under its light): it keeps its colour over a pale floor
+  pk *= v_k > 11.5 ? 1.0 : (v_k > 1.5 && v_k < 2.5) || (v_k > 5.5 && v_k < 6.5) || v_k > 10.5 ? 1.0 - smoothstep(0.8, 1.0, abs(u.y)) : (v_k > 3.5 && v_k < 4.5) ? 1.0 - smoothstep(0.8, 1.0, abs(u.x)) : (v_k > 0.5 && v_k < 1.5) || (v_k > 7.5 && v_k < 8.5) ? 1.0 - smoothstep(0.92, 1.0, r) : 1.0 - smoothstep(0.72, 1.0, r);   /* (every picture fades to nothing well inside its own quad: no straight cut where noise or a halo reaches the quad's edge) */
+  if (v_k > 11.5 && v_k < 12.5) { // (v342, Apocalypse) a great sphere of fire (solid), seen as a turning globe: domain-warped
+    // turbulence over its surface (3D noise on the sphere, so nothing stretches), a crust of cooler crimson plasma lit from the
+    // upper left, hotter fire welling up through it, ridged molten veins that brighten and widen as it grows unstable
+    // (v_q.z), a limb glowing hot where the fire is seen edge-on; v_c its crust colour, v_q.x heat, v_q.y seed
+    float a = 1.0 - smoothstep(0.965, 1.0, r), inst = v_q.z; vec3 n = vec3(u, sqrt(max(0.0, 1.0 - r * r)));
+    float ang = t * 0.16 + v_q.y, ca = cos(ang), sa = sin(ang); vec3 p = vec3(n.x * ca + n.z * sa, n.y, -n.x * sa + n.z * ca);
+    vec3 w = p * 2.1 + vec3(0.0, t * 0.12, 0.0), q = vec3(fbm3(w + vec3(0.0, 0.0, t * 0.3)), fbm3(w + vec3(5.2, 1.3, -t * 0.25)), fbm3(w + vec3(2.7, 8.1, t * 0.2)));
+    float f = fbm3(p * 3.0 + q * 2.4 + vec3(0.0, -t * 0.35, 0.0)), g = fbm3(p * 7.0 + q * 1.2 + vec3(t * 0.5, 0.0, -t * 0.3));
+    float rg = 1.0 - abs(fbm3(p * 4.6 + q * 1.8 - vec3(t * 0.22)) * 2.0 - 1.0), veins = pow(rg, mix(11.0, 4.0, inst)) * (0.6 + 0.4 * g);
+    float lit = clamp(dot(n, vec3(-0.45, -0.55, 0.7)) * 1.15, 0.0, 1.0), fres = pow(1.0 - n.z, 2.2);
+    vec3 crust = col * mix(0.2, 0.85, lit) * (0.55 + 0.7 * f) * (0.85 + 0.3 * g);
+    float temp = v_q.x * (0.12 + 0.7 * f * f + 0.18 * g + 0.5 * veins) + 0.08 * lit, hk = smoothstep(0.5, 0.95, f * 0.95 + g * 0.2 + veins * 0.55 + inst * 0.2);
+    vec3 c = mix(crust, ramp(min(temp, 0.72)), hk * 0.8) + ramp(min(1.05, v_q.x * (0.85 + 0.25 * inst))) * veins * (0.3 + 0.7 * inst);   /* (mostly crimson crust; fire wells up in patches; the veins carry the heat) */
+    c += vec3(0.95, 0.3, 0.08) * fres * (0.35 + 0.3 * f) + vec3(1.0, 0.9, 0.72) * pow(lit, 26.0) * 0.18;   /* (the hot limb; a soft sheen) */
+    a *= v_c.a * pk; gl_FragColor = vec4(min(c, vec3(1.0)) * a, a); }
+  else if (v_k > 10.5 && v_k < 11.5) { // the body of a fire beam (solid, under its light): it keeps its colour over a pale floor
     float al = u.x * 0.5 + 0.5, f = fbm(vec2(al * 6.0 - t * v_q.z, u.y * 2.2 + v_q.y)), ay = abs(u.y) / (0.62 + 0.4 * f);
     float dns = (1.0 - smoothstep(0.45, 0.95, ay)) * smoothstep(0.0, 0.06, al) * (1.0 - smoothstep(0.9, 1.0, al)), temp = v_q.x * (1.2 - ay * 1.05) + (f - 0.5) * 0.4, a = dns * v_c.a * pk * smoothstep(0.1, 0.45, temp);
     gl_FragColor = vec4(ramp(min(temp, 0.78)) * 0.9 * a, a); }
-  else if (v_k > 9.5) { // the body of fire (the solid pass, under its light): the same turbulent ball, its colour laid over so it reads on a bright floor
+  else if (v_k > 9.5 && v_k < 10.5) { // the body of fire (the solid pass, under its light): the same turbulent ball, its colour laid over so it reads on a bright floor
     vec2 w = u + 0.22 * vec2(fbm(u * 2.0 + vec2(t * 0.7, -t * 1.6)) - 0.5, fbm(u * 2.0 + vec2(5.2, -t * 1.9)) - 0.5); float rr = length(w), f = fbm(w * 3.0 + vec2(0.0, -t * 2.2)), dns = 1.0 - smoothstep(0.4 + 0.35 * f, 0.95, rr);
     float temp = v_q.x * (1.15 - rr * 0.95) + (f - 0.5) * 0.55, a = dns * v_c.a * pk * smoothstep(0.1, 0.45, temp); gl_FragColor = vec4(ramp(min(temp, 0.8)) * 0.85 * a, a); }
-  else if (v_k > 8.5) { // smoke (the solid pass): billowing density, darker in its heart, lit a little from below
+  else if (v_k > 8.5 && v_k < 9.5) { // smoke (the solid pass): billowing density, darker in its heart, lit a little from below
     float f = fbm(u * 2.2 + vec2(v_q.y * 3.1, v_q.y - t * 0.35)), d = clamp((1.0 - r * r) * (0.55 + 0.9 * f) - 0.25, 0.0, 1.0) * edge; float a = d * v_c.a * pk;
     vec3 c = mix(col * 0.6, col, smoothstep(-0.5, 0.6, -u.y + f * 0.5)) + vec3(0.35, 0.12, 0.03) * v_q.x * smoothstep(0.0, 1.0, u.y + 0.3); gl_FragColor = vec4(c * a, a); }
   else { vec3 L = vec3(0.0);
-    if (v_k < 0.5) L = col * exp(-r * r * 4.2) * edge * 0.6;                                                              // a glow
+    if (v_k > 12.5) { // (v342) the corona of a great sphere of fire (quad 1.7 times its radius): flames licking out all round its limb,
+      // rising and flickering through 3D noise (no seam round it), hotter at their roots, longer as it grows unstable (v_q.z)
+      float rr = r * 1.7, h = rr - 1.0; vec2 dr = u / max(r, 0.001); float fl = fbm3(vec3(dr * 2.6, rr * 2.1 - t * 1.7) + v_q.y), fl2 = fbm3(vec3(dr * 6.5, rr * 4.8 - t * 3.1) + v_q.y * 2.0);
+      float reach = 0.08 + 0.5 * fl * fl * fl * 2.2 + 0.2 * v_q.z, dns = smoothstep(-0.05, 0.015, h) * (1.0 - smoothstep(0.0, reach, h)) * (0.45 + 0.75 * fl2);
+      float temp = v_q.x * (1.05 - clamp(h / max(reach, 0.04), 0.0, 1.0) * 0.75) * (0.7 + 0.45 * fl2);
+      L = ramp(temp) * dns + ramp(v_q.x * 0.75) * exp(-h * h * 900.0) * 0.55 + col * exp(-h * 5.0) * smoothstep(-0.02, 0.02, h) * 0.12;   /* (the flames; a thin hot rim on the limb; a faint haze) */
+      L *= 1.0 - smoothstep(1.45, 1.7, rr); }
+    else if (v_k < 0.5) L = col * exp(-r * r * 4.2) * edge * 0.6;                                                              // a glow
     else if (v_k < 1.5) { float d = max((v_q.x - r) / v_q.z, 0.0); L = mix(col, vec3(1.0), 0.6 * exp(-d * 12.0)) * (1.0 - smoothstep(v_q.x - 0.012, v_q.x + 0.01, r)) * (0.4 * exp(-d * 2.4) + 0.7 * exp(-d * 12.0)); }   // a ring
     else if (v_k < 2.5) L = col * exp(-u.y * u.y * 5.0) * (1.0 - smoothstep(0.6, 1.0, abs(u.x)));                       // a beam
     else if (v_k < 3.5) { // a ball of fire
@@ -496,7 +521,7 @@ void main(){ vec2 u = v_uv; float r = length(u), m = 0.0, edge = 1.0 - smoothste
   const Q = { lit: new Float32Array(12 * 6 * 600), nl: 0, smk: new Float32Array(12 * 6 * 200), ns: 0, a: 1, b: 0, c0: 0, d: 1, e: 0, f: 0, k: 1, t: 0, W: 0, Hh: 0, pet: [0, 0, 0], gpu: true,
     X(x, y) { return this.a * x + this.c0 * y + this.e; }, Y(x, y) { return this.b * x + this.d * y + this.f; },
     /* one quad: centre (screen px), half-axes (ux, uy), (vx, vy) in screen px */
-    quad(kind, x, y, ux, uy, vx, vy, col, al, q0, q1, q2) { if (!(al > 0.004)) return; const solid = kind >= 9; let A = solid ? this.smk : this.lit; const n = solid ? this.ns : this.nl;
+    quad(kind, x, y, ux, uy, vx, vy, col, al, q0, q1, q2) { if (!(al > 0.004)) return; const solid = kind >= 9 && kind <= 12; let A = solid ? this.smk : this.lit; const n = solid ? this.ns : this.nl;
       if ((n + 6) * 12 > A.length) { const q = new Float32Array(A.length * 2); q.set(A); A = q; if (solid) this.smk = q; else this.lit = q; }
       const cx = this.X(x, y), cy = this.Y(x, y), a = this.a, b = this.b, c = this.c0, d = this.d, Ux = a * ux + c * uy, Uy = b * ux + d * uy, Vx = a * vx + c * vy, Vy = b * vx + d * vy, C = rgbOf(col); let o = n * 12;
       for (let j = 0; j < 6; j++) { const su = QV[j][0], sv = QV[j][1]; A[o++] = cx + Ux * su + Vx * sv; A[o++] = cy + Uy * su + Vy * sv; A[o++] = su; A[o++] = sv; A[o++] = kind; A[o++] = C[0]; A[o++] = C[1]; A[o++] = C[2]; A[o++] = al > 1 ? 1 : al; A[o++] = q0 || 0; A[o++] = q1 || 0; A[o++] = q2 || 0; }
