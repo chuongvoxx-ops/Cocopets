@@ -504,7 +504,7 @@ void main(){ vec2 u = v_uv; float r = length(u), m = 0.0, edge = 1.0 - smoothste
       L = eramp(temp, col) * dns + eramp(v_q.x * 0.8, col) * lead * brk * 0.32 * (0.6 + 0.6 * f2) + col * exp(-sq(d / (th * 2.6))) * step(d, 0.0) * 0.14 * f; L *= 1.0 - smoothstep(1.18, 1.3, rr); }
     else if (v_k > 19.5) { // (v354) a beam of energy in the quad's colour (as a fire beam: uv.x along, uv.y across; v_q.z its scroll)
       float al = u.x * 0.5 + 0.5, f = fbm(vec2(al * 6.0 - t * v_q.z, u.y * 2.2 + v_q.y)), f2 = fbm(vec2(al * 13.0 - t * v_q.z * 1.6, u.y * 4.0 - 3.0)), ay = abs(u.y) / (0.62 + 0.4 * f);
-      float dns = (1.0 - smoothstep(0.5, 1.0, ay)) * smoothstep(0.0, 0.08, al) * (1.0 - smoothstep(0.88, 1.0, al)), temp = v_q.x * (1.2 - ay * 1.05) + (f2 - 0.5) * 0.5; L = eramp(temp, col) * dns * (0.55 + 0.6 * f) * (1.0 - smoothstep(0.85, 1.0, abs(u.y))); }
+      float dns = (1.0 - smoothstep(0.5, 1.0, ay)) * smoothstep(0.0, 0.22, al) * (1.0 - smoothstep(0.78, 1.0, al)), temp = v_q.x * (1.2 - ay * 1.05) + (f2 - 0.5) * 0.5; L = eramp(temp, col) * dns * (0.55 + 0.6 * f) * (1.0 - smoothstep(0.85, 1.0, abs(u.y))); }
     else if (v_k > 18.5) { // (v354) an orb of energy in the quad's colour: a turbulent, swirling ball, hottest in its heart (v_q.z swirl)
       float sw = v_q.z * t; vec2 rw = mat2(cos(sw), -sin(sw), sin(sw), cos(sw)) * u; vec2 w = rw + 0.24 * vec2(fbm(rw * 2.0 + vec2(t * 0.7, -t * 1.6) + v_q.y) - 0.5, fbm(rw * 2.0 + vec2(5.2, -t * 1.9) + v_q.y) - 0.5); float rr = length(w), f = fbm(w * 3.2 + vec2(v_q.y, -t * 2.2)), dns = 1.0 - smoothstep(0.42 + 0.36 * f, 0.98, rr);
       float temp = v_q.x * (1.15 - rr * 0.95) + (f - 0.5) * 0.55; L = eramp(temp, col) * dns * (0.5 + 0.6 * f) + col * exp(-r * r * 3.0) * 0.18 * edge; }
