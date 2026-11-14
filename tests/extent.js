@@ -12,6 +12,9 @@ const M = {
     ext: { pitch: [-0.6, 0.6], bank: [-0.8, 0.8], headYaw: [-1, 1], headPitch: [-0.6, 0.6], neckCurve: [-1, 1], tailSwing: [-1, 1], tailLift: [-1, 1], spread: [0, 1], fold: [0, 1], jaw: [0, 1], legs: [0, 1], downFlex: [-1, 1], flapAmp: [0, 1] } },
   /* Beast Machine's GPU model is posed by the session itself (20k9i's rig): measured in play, through every move and the
      finisher, once on a fresh clock and once with the game clock 6000 s on; M's worst was 3.61 (the fling) */
+  /* Genbu (I's GENBU_MODEL, reached through the core's __dbg): rigOf at xf 0, 0.5, 1, the roll tucked, no crumble, the
+     gait phase and the drill's spin run large */
+  genbu: { rig: true, get: "(P.ELEM_IMPL.earth.ult.genbu.__dbg || {}).MODEL", flag: '__GENBU_GL', exports: ['create', 'draw', 'rigOf', 'blankPose', 'anchorAt', 'SIZE', 'PARTS', 'COUNTS'], bound: 4.35 /* (worst 3.78 at the drill in drill form, + 15 %) */ },
   beastmachine: { ingame: true, el: 'thunder', gk: '_beast', flag: '__BEAST_GL', bound: 4.15, presses: ['dodge', 'jump', 'strong', 'strong2', 'ult'] },
 };
 (async () => {
@@ -37,6 +40,15 @@ const M = {
         if (!S.released) { S.left = 0; step(3); } return { worst: +worst.toFixed(2), by, n, on }; };
       return { gl: !!GL.on(), normal: run(0), big: run(6000) }; }, [key, C]); }
   for (const key of keys) { const C = M[key];
+    if (C.rig) { const r = await page.evaluate(C => { const P = window.__pp, MD = eval(C.get); if (!MD) return { missing: true }; const exp = C.exports.filter(k => MD[k] == null);
+        const p0 = MD.blankPose(), k0 = MD.anchorAt('seat', 0, 0, 0, 0, p0).z / MD.rigOf(p0).A.seat[2];
+        const run = big => { let worst = 0, at = null; for (const xf of [0, 0.5, 1]) for (const roll of [0, 1]) for (const ph of [0, 1.3, 2.9, 4.4]) for (const bank of [-0.4, 0, 0.4]) for (const pitch of [-0.3, 0, 0.3]) for (const crouch of [0, 1]) {
+          const P = Object.assign(MD.blankPose(), { xf, roll, crumble: 0, walk: ph + big, walkK: 1, drillSpin: ph * 3 + big, bank, pitch, crouch, drillGlow: 1, glow: 1 }), R = MD.rigOf(P);
+          for (const it of R.list) { const Pt = MD.PARTS[it.part]; if (!Pt || !Pt.c) continue; const c = [0, 1, 2].map(i => it.o[i] + it.R.x[i] * Pt.c[0] * it.s + it.R.y[i] * Pt.c[1] * it.s + it.R.z[i] * Pt.c[2] * it.s), d = Math.hypot(c[0], c[1], c[2]) * k0; if (d > worst) { worst = d; at = { part: it.part, xf, roll, ph, big }; } } } return { worst: +worst.toFixed(2), at }; };
+        return { exp, k0, normal: run(0), big: run(6000), bigger: run(60000) }; }, C);
+      if (r.missing) { ok(false, key + ': model not found'); continue; } const bound = C.bound || +(r.normal.worst * 1.15).toFixed(2);
+      ok(r.exp.length === 0, `${key}: the exports are there (rigOf among them)`, r.exp);
+      ok(r.normal.worst <= bound && r.big.worst <= bound && r.bigger.worst <= bound && Math.abs(r.big.worst - r.normal.worst) < 0.05 * r.normal.worst + 0.05, `${key}: every part within ${bound} tiles (worst + 15 %) in both forms, rolled or not, with the gait and drill phases at 6000 and 60000`, r); continue; }
     if (C.ingame) { const r = await ingame(key, C); if (r.missing) { ok(false, key + ': the GPU model is not reachable'); continue; }
       ok(r.gl && r.normal.n > 10 && r.big.n > 10, `${key}: the GPU model is on (forced) and posed through every move and the finisher`, { gl: r.gl, samples: [r.normal.n, r.big.n] });
       ok(r.normal.worst <= C.bound && r.big.worst <= C.bound, `${key}: every part within ${C.bound} tiles, on a fresh clock and 6000 s on`, r);

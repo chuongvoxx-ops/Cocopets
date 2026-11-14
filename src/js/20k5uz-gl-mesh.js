@@ -391,6 +391,7 @@ void main() {
         float ch = abs(abs(g.x) * 1.4 + g.y - 0.12); if (mk > 0.5 && max(abs(g.x), abs(g.y)) < 0.36 && ch < 0.035) cav += 0.9;
         float sc = abs(fract(L.x * 9.0 + L.y * 5.0 + w2 * 2.0) - 0.5); if (sc < 0.02 && hs(floor(L.xz * 6.0)) > 0.62) { alb *= 1.18; rough *= 0.8; } }   // (fine scratches)
       if (chipN > 0.0) alb = mix(alb, vec3(0.3, 0.12, 0.05), chipN);   // (chipped to the rust primer)
+      if (vA.x - 69.0 > 0.15) { alb = vec3(0.2, 0.12, 0.07) * (0.75 + 0.35 * w2); rough = 0.92; cav += 0.55; }   // (69.3: a carved groove of the shell's glyphs, dark with dust and old pigment)
       alb = mix(alb, vec3(0.74, 0.66, 0.52), up * up * 0.35 * (0.6 + 0.4 * w1)); }   // (dust settled on top)
     else if (id == 70) { metal = 0.0; F0 = vec3(0.05); rough = 0.48 + 0.18 * w2; coat = 0.12; alb = vec3(0.4, 0.13, 0.04) * (0.82 + 0.3 * w1);
       if (chipN > 0.0) { metal = chipN; alb = mix(alb, vec3(0.1, 0.095, 0.1), chipN); F0 = mix(F0, vec3(0.5, 0.48, 0.47), chipN); rough = mix(rough, 0.32, chipN); }
@@ -398,7 +399,8 @@ void main() {
     else if (id == 71) { alb = vec3(0.07, 0.068, 0.072); F0 = vec3(0.4, 0.39, 0.41); rough = 0.38 + 0.2 * w2; if (uLow < 0.5) cav += 0.3 * step(0.66, fract((L.x + L.z * 0.4) * 18.0)); em += vec3(0.28, 0.1, 0.01) * 0.25 * uGlow * smoothstep(0.1, -0.6, dot(n, uUP)); }
     else if (id == 72) { alb = vec3(0.32, 0.32, 0.34); F0 = vec3(0.94, 0.94, 0.96); rough = 0.09 + 0.06 * w3; }
     else { metal = 0.6; alb = vec3(0.045, 0.042, 0.04); F0 = vec3(0.28, 0.27, 0.27); rough = 0.62; float tr = abs(fract(L.x * 7.0) - 0.5); cav += smoothstep(0.12, 0.02, tr) * 0.8; alb = mix(alb, vec3(0.42, 0.33, 0.23), up * 0.3 * w1); }   // (track iron, caked with dirt)
-    cav += smoothstep(0.9, 0.99, edge) * 0.5; ao *= 1.0 - 0.18 * (1.0 - w1) * (1.0 - uLow); }
+    cav += smoothstep(0.9, 0.99, edge) * 0.5; ao *= 1.0 - 0.18 * (1.0 - w1) * (1.0 - uLow);
+    if (uClip.x > 0.5) { float bd = 1.0 - smoothstep(-0.05, 0.6 + 0.2 * w1, vW.z - uClip.y); if (bd > 0.0) { bd *= 0.88 + 0.12 * w2; alb = mix(alb, vec3(0.24, 0.165, 0.1) * (0.7 + 0.4 * w3), bd * 0.95); F0 = mix(F0, vec3(0.035), bd); rough = mix(rough, 0.97, bd); metal *= 1.0 - step(0.5, bd); coat *= 1.0 - bd; cav += bd * 0.7; ao *= 1.0 - 0.55 * bd; } } }   // (burrowing: caked in dirt and in shade toward the ground line, so the hull reads buried, not sliced)
   else if (id >= 38 && id <= 47) {   // ---- Nidhogg (M). uKind 0 a rigid part (detail from its own coordinates), 6 a swept tube (vA.y = along it in armour periods, vA.z = round it, 0 the top, 0.5 the belly), 7 a moving part with a true edge and occlusion; uGlow2 = the trace (Ultima: every seam white-hot)
     float su = edge, sv = ao, trc = clamp(uGlow2, 0.0, 1.0), gK = 0.35 + 0.9 * uGlow + 0.45 * trc, ndv0 = max(0.0, dot(n, uV)); vec3 fireC = vec3(1.0, 0.3, 0.05), hotC = vec3(1.6, 0.9, 0.42);
     if (uKind > 5.5 && uKind < 6.5) { edge = 0.0; ao = 0.72 + 0.28 * smoothstep(0.0, 0.32, abs(sv - 0.5)); }   // (a tube: its underside shaded)

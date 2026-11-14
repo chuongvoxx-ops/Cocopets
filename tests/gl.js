@@ -12,7 +12,7 @@ const path = require('path');
   let bad = 0; const ok = (c, m, x) => { console.log((c ? 'ok   ' : 'FAIL ') + m, x === undefined ? '' : JSON.stringify(x)); if (!c) bad++; };
   /* before any game script: force every GPU path, and record every shader compile and program link that fails, with its log */
   await page.addInitScript(brk => {
-    for (const f of ['__SUSANO_GL', '__FENRIR_GL', '__BELLA_GL', '__JAWS_GL', '__SM_GL', '__BM_GL', '__JAWS_FX_GL', '__NIDHOGG_GL', '__NG_GL', '__BEAST_GL', '__BM_GL', '__SC_GL', '__X_GL']) window[f] = 1;
+    for (const f of ['__SUSANO_GL', '__FENRIR_GL', '__BELLA_GL', '__JAWS_GL', '__SM_GL', '__BM_GL', '__JAWS_FX_GL', '__NIDHOGG_GL', '__NG_GL', '__BEAST_GL', '__BM_GL', '__SC_GL', '__GENBU_GL', '__X_GL']) window[f] = 1;
     const fails = window.__glFails = [], seen = window.__glSeen = { shaders: 0, programs: 0 };
     for (const C of [window.WebGLRenderingContext, window.WebGL2RenderingContext]) { if (!C) continue; const P = C.prototype, cs = P.compileShader, lp = P.linkProgram, ss = P.shaderSource;
       P.shaderSource = function (o, src) { o.__src = src; if (brk && /frostFx/.test(src) && /gl_FragColor/.test(src)) src = src.replace('gl_FragColor', 'gl_FragColor = ;'); return ss.call(this, o, src); };
@@ -26,12 +26,12 @@ const path = require('path');
   ok(!!glm && glm.up && !glm.stats.failed && !glm.stats.lost, 'GLM is up: its program compiled and linked', glm);
 
   /* each GPU model, cast in play: it reports gl, and GLM renders at least one frame for it */
-  const ULTS = [['nidhogg', 'fire', 'nidhogg', '_nidhogg'], ['beastmachine', 'thunder', 'beast', '_beast'], ['sportscar', 'light', null, '_sportscar'], ['susanoo', 'dark', 'susano', '_susanoo'], ['fenrir', 'ice', 'fenrir', '_fenrir'], ['belladonna', 'wind', 'belladonna', '_belladonna'], ['jaws', 'water', 'jaws', '_jaws']];
+  const ULTS = [['genbu', 'earth', 'genbu', '_genbu'], ['nidhogg', 'fire', 'nidhogg', '_nidhogg'], ['beastmachine', 'thunder', 'beast', '_beast'], ['sportscar', 'light', null, '_sportscar'], ['susanoo', 'dark', 'susano', '_susanoo'], ['fenrir', 'ice', 'fenrir', '_fenrir'], ['belladonna', 'wind', 'belladonna', '_belladonna'], ['jaws', 'water', 'jaws', '_jaws']];
   const ONLY = process.env.KEYS ? process.env.KEYS.split(',') : null;   /* KEYS=nidhogg,beastmachine: one run per model when all of them together are too slow under software GL */
   for (const [key, el, mk, gk] of ULTS.filter(u => !ONLY || ONLY.includes(u[0]))) {
     await page.evaluate(() => { const P = window.__pp; P.arc.paused = false; P.quickStart('GL'); P.st.unlockAll = true; P.st.energy = 100; P.st.dun.best = 30; P.st.dlv = 30; P.openMap(); P.dun.setMapTab('dungeon', true); P.dun.startDungeon(3, 11); });
     await page.waitForFunction(() => window.__pp.arc.state === 'ready', null, { timeout: 180000 });   /* (a heavy GPU model under software GL makes every load slow) */ await page.evaluate(() => window.__pp.beginPlay()); await page.waitForTimeout(1500);
-    const r = await page.evaluate(async ([key, el, mk, gk]) => { const P = window.__pp, D = P.arc.game._dbg, G = P.susano.__dbg.GLM, M = mk === 'beast' ? (P.ELEM_IMPL.thunder.ult.beastmachine.__dbg || {}).GL : mk ? P[mk] : null;
+    const r = await page.evaluate(async ([key, el, mk, gk]) => { const P = window.__pp, D = P.arc.game._dbg, G = P.susano.__dbg.GLM, M = mk === 'beast' ? (P.ELEM_IMPL.thunder.ult.beastmachine.__dbg || {}).GL : mk === 'genbu' ? ((P.ELEM_IMPL.earth.ult.genbu || {}).__dbg || {}).MODEL : mk ? P[mk] : null;
       if ((mk && !M) || !P.ELEM_LIST[el] || !P.ELEM_LIST[el]['ey_' + key]) return { missing: true };
       for (const m of D.mons) { m.hp = 1e9; m.dmg = 0; m.atkCd = 99; }
       D.setKit('ult', Object.assign(P.elemAbility(P.ELEM_LIST[el]['ey_' + key], 'ult', P.st), { star: 6, mult: 1.2, cost: 0, cd: 0, tier: 1, evo: 4 })); D.me.mp = 999; D.g.cdU = 0;
