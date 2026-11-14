@@ -122,6 +122,8 @@
       if (R1(i * 5.1) < 0.6) { const q = p[Math.floor(p.length / 2)], fb = b + (R1(i) < 0.5 ? 0.6 : -0.6); paths.push([q, [q[0] + Math.cos(fb) * rq * 0.2, q[1] + Math.sin(fb) * rq * 0.2], [q[0] + Math.cos(fb + 0.2) * rq * 0.36, q[1] + Math.sin(fb + 0.2) * rq * 0.36]]); } }
     for (const [col, lw] of [['rgba(210,64,26,0.3)', 4], ['rgba(255,122,46,0.45)', 2], ['rgba(255,216,102,0.6)', 0.8]]) { g.strokeStyle = col; g.lineWidth = lw; g.beginPath(); for (const p of paths) p.forEach((q, j) => j ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1])); g.stroke(); } }); }
   const tt0a = (o, f) => f.t < o.s || f.t > o.e;
+  // (Armageddon on the GPU: Nidhogg's painter (20k6h, NIDHOGG_MOVES.FGFX) where a real GPU draws it; window.__ARM_GL = 0 keeps the 2D picture)
+  const armGL = () => { try { if (window.__ARM_GL === 0) return null; const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; return F && F.usable() ? F : null; } catch (e) { return null; } };
 
   // F-U01 Armageddon: the sky darkens to embers and a vortex of fire opens above the battlefield; swirling beams of orange firelight with white-hot cores fall out of it and sweep across the floor, flame ribbons and tongues spiralling up round each one, twisting flame ribbons wrapped round the upper body of each core and a burning ring where it touches down, setting alight every monster it touches and leaving a trail of firelight behind, while embers drift up over the whole screen; each beam bursts in a last flare when it lifts
   // Evolution: 2 beams for 4 s at Hatchling, 4 for 5 s at Adept (the damage growing each stage with evoK and split over the beams); at Celestial it becomes Super Armageddon: 6 wider beams for 7 s under a greater double vortex, ending in a cataclysmic burst over the aim.
@@ -136,6 +138,82 @@
       beams.push({ i, s, e, x: x + Math.cos(b0) * r0, y: y + Math.sin(b0) * r0, vx: 0, vy: 0, tgt: null, re: 0, nt: s + 0.3, tr: [], trT: s, ph: R1(i * 5.1) * TAU, spin: i % 2 ? 1 : -1, sd: i * 13 + 5, dmg: 9.5 * Dm / NB / nT, land: false, flare: false }); }
     const W0 = beams[0].s + 0.3, W1 = D - 0.4, endT = Math.max(...beams.map(b => b.e));
     const warm = [() => aEmber(0), () => aEmber(1), () => aFoot(kq, bq), () => aVein(Math.round(RX * 40 / 4) * 4, ev)]; for (let i = 0; i < NBFa; i++) warm.push(() => aBeam(i, kq, bq)); for (let i = 0; i < NSFa; i++) warm.push(() => aSwirlF(i));
+    /* ---- (v343) Armageddon painted on the GPU (NIDHOGG_MOVES.FGFX, as Apocalypse): the same beams, steering and timing,
+       drawn as real fire. The sky's vortex and the swirl under each beam a shader of turbulent flame wound into spiral
+       arms round a hot eye; each beam a column of scrolling turbulent fire pouring down (its body laid over so it reads
+       on any floor), a white-hot core, flame ribbons twisting round it (bright in front, dim behind), embers whirling up
+       inside; the floor burning and cracked round the aim, a pool of firelight, a burning ring and a white splash where a
+       beam touches down, its firelight left along its path; a last flare and shock ring as each lifts; embers drifting
+       up over the whole screen. The 2D picture below stays for a software rasteriser, no WebGL, or window.__ARM_GL = 0 ---- */
+    const GY = () => H.GY || 0.55, LQ = () => typeof st !== 'undefined' && st && !!st.lowFx;
+    // a beam of light from (x0, y0) to (x1, y1), run past its ends by an eighth so a line of them has no dashes
+    const bm = (Q, x0, y0, x1, y1, w, col, al) => { if (al <= 0.01) return; const dx = x1 - x0, dy = y1 - y0; Q.beam(x0 - dx * 0.125, y0 - dy * 0.125, x1 + dx * 0.125, y1 + dy * 0.125, w, col, al); };
+    // a flame ribbon wound round a column: from s0 to s1 of the way down (start A, axis d, normal n), turns, radius rad(u);
+    // layers [colour, width, alpha]; bright where it passes in front, dim behind, thinning to a point where it turns
+    function helix(Q, A, d, n, s0, s1, turns, ph, rad, LAY, a, front) { const N = LQ() ? 20 : 36; let px = 0, py = 0, pc = 0;
+      for (let j = 0; j <= N; j++) { const s = s0 + (s1 - s0) * j / N, q = j / N * turns * TAU + ph, sq = Math.sin(q), cq = Math.cos(q), r2 = rad(j / N), x2 = A[0] + d[0] * s + n[0] * sq * r2, y2 = A[1] + d[1] * s + n[1] * sq * r2 - r2 * 0.25 * cq;
+        if (j) { const cm = (pc + cq) / 2; if ((cm > 0) === front) { const k2 = Math.min(1, Math.abs(cm) / 0.7), kk = k2 * k2 * (3 - 2 * k2), env = Math.sin(Math.PI * (j - 0.5) / N); for (const [col, w, al] of LAY) bm(Q, px, py, x2, y2, w * (0.3 + 0.7 * env) * (0.35 + 0.65 * kk), col, al * a * kk * (front ? 1 : 0.45)); } }
+        px = x2; py = y2; pc = cq; } }
+    function underGL(FG, c, f, X, Y, T) {
+      const fa = cl(Math.min(f.t / 0.6, (D + 0.9 - f.t) / 0.9)), S = scr(c), tt = f.t, m = T * 3, gy = GY();
+      c.save(); c.globalAlpha = (sup ? 0.3 : 0.24) * fa; c.fillStyle = 'rgb(44,12,6)'; c.fillRect(S.x0, S.y0, S.w, S.h); c.restore();   // (the smouldering dim, 2D)
+      const Q = FG.begin(c, null), gv = H.ease.out(cl(tt / 1.2));
+      // the floor round the aim burning and cracking open, breathing
+      Q.ground(X, Y, T * RX * 1.08 * (0.35 + 0.65 * gv), 0.8, fa * gv * (0.6 + 0.15 * Math.sin(tt * 4)), 4.2, gy, 1); Q.glow(X, Y, T * RX * 1.3, P.red, 0.3 * fa * gv, gy);
+      for (const b of beams) { if (tt < b.s) continue; const BX = H.sx(b.x), BY = H.sy(b.y), on = tt < b.e, a = cl((tt - b.s) / 0.35) * (on ? 1 : Math.max(0, 1 - (tt - b.e) / 0.45));
+        for (const p of b.tr) { const age = tt - p.t, k = Math.max(0, 1 - age / 1.3); if (k <= 0 || (p.n & 1)) continue; const qx = H.sx(p.x), qy = H.sy(p.y); if (qx < S.x0 - m || qx > S.x0 + S.w + m || qy < S.y0 - m || qy > S.y0 + S.h + m) continue; Q.glow(qx, qy, T * BR * 1.9 * (0.6 + 0.4 * k), P.org, 0.45 * k * kN, gy); if (k > 0.5) Q.ground(qx, qy, T * BR * 0.9, 0.6 * k, 0.4 * k * kN, p.sd, gy, 0.3); }
+        if (a <= 0.01 || BX < S.x0 - m || BX > S.x0 + S.w + m || BY < S.y0 - m || BY > S.y0 + S.h + m) continue;
+        const br = 1 + 0.067 * Math.sin(tt * 3 + b.ph), R0 = T * BR * br;
+        // the swirl of fire on the floor, the pool of firelight, the white splash, the burning ring with embers running round it
+        Q.quad(14, BX, BY, R0 * 1.6, 0, 0, R0 * 1.6 * gy, '#FFFFFF', 0.8 * kN * a, 0.9, b.ph, 0.42 * b.spin);
+        Q.glow(BX, BY, R0 * 2.1, P.red, 0.5 * kN * a, gy); Q.glow(BX, BY, R0 * 1.45, P.org, 0.45 * kN * a, gy); Q.glow(BX, BY, R0 * 0.7, P.wht, 0.55 * a, gy);
+        Q.ground(BX, BY, R0 * 1.15, 0.85, 0.6 * a * kN, b.sd, gy, 0.6);
+        Q.ring(BX, BY, R0 * 0.95, P.org, a * (0.9 + 0.1 * Math.sin(tt * 19 + b.ph)), R0 * 0.14, gy); Q.ring(BX, BY, R0 * 0.95, '#FFFFFF', 0.55 * a, R0 * 0.035, gy);
+        for (let i = 0; i < 4; i++) { const q = tt * 2 * b.spin + i * TAU / 4, ex = BX + Math.cos(q) * R0 * 0.95, ey = BY + Math.sin(q) * R0 * 0.95 * gy; Q.glow(ex, ey, T * 0.3, P.amb, 0.7 * a); Q.star(ex, ey, T * 0.16, 0.8 * a); } }
+      FG.flush(c);
+    }
+    function drawGL(FG, c, f, X, Y, T) {
+      const fa = cl(Math.min(f.t / 0.6, (D + 0.9 - f.t) / 0.9)), S = scr(c), tt = f.t, topY = S.y0 - T * 0.5, low = LQ();
+      const PX = H.sx(me.x), PY = H.sy(me.y) - T * 0.46, Q = FG.begin(c, [PX, PY, T * 0.62]);
+      // the vortex of fire in the sky the beams fall from (a greater, double one at Celestial)
+      const VX = X, VY = S.y0 + T * 0.6, vs = sup ? 1.3 : 1, vr = T * 6.5 * vs;
+      Q.glow(VX, VY, T * 7 * vs, P.red, 0.45 * fa, 0.55); Q.glow(VX, VY, T * 3 * vs, P.org, 0.3 * fa, 0.5);
+      Q.quad(14, VX, VY, vr, 0, 0, vr * 0.38, '#FFFFFF', fa, 0.95, 1.3, -0.15); Q.quad(14, VX, VY, vr * 0.6, 0, 0, vr * 0.6 * 0.38, '#FFFFFF', 0.75 * fa, 1.0, 4.1, 0.22);
+      if (sup) { Q.quad(14, VX, VY, vr * 1.45, 0, 0, vr * 1.45 * 0.38, '#FFFFFF', 0.55 * fa, 0.85, 7.7, -0.08); Q.glow(VX, VY, T * 1.6, P.yel, 0.45 * fa); }
+      for (const b of beams) { if (tt < b.s) continue; const on = tt < b.e, out = on ? 0 : cl((tt - b.e) / 0.45); if (out >= 1) continue;
+        const BX = H.sx(b.x), BY = H.sy(b.y), grow = H.ease.in(cl((tt - b.s) / 0.32)), a = (0.35 + 0.65 * cl((tt - b.s - 0.2) / 0.3)) * (1 - out) * (0.92 + 0.08 * Math.sin(tt * 23 + b.ph * 3));
+        const qa = b.ph + tt * 0.45 * b.spin, TY = topY; let TX = BX * 0.55 + VX * 0.45 + Math.cos(qa) * T * 1.6;
+        { const u = (PY - TY) / (BY - TY); if (u > 0 && u < 0.97) { const need = T * BR * 0.75 + T * 0.75, xu = TX + (BX - TX) * u, dd = PX - xu; if (Math.abs(dd) < need) { const xt = PX - (dd >= 0 ? 1 : -1) * need; TX = Math.max(TX - T * 9, Math.min(TX + T * 9, (xt - BX * u) / (1 - u))); } } }   // (it leans aside round the pet)
+        const w = T * BR * 1.4 * (on ? 1 : 1 - 0.7 * out) * (0.25 + 0.75 * cl((tt - b.s - 0.15) / 0.3)) * (1 + 0.07 * Math.sin(tt * 9 + b.ph) + 0.03 * Math.sin(tt * 21 + b.i));
+        if (Math.max(TX, BX) + w < S.x0 || Math.min(TX, BX) - w > S.x0 + S.w) continue;
+        const L = Math.hypot(BX - TX, BY - TY) || 1, d = [(BX - TX) / L, (BY - TY) / L], n = [-d[1], d[0]], Lg = L * grow, top0 = out * L, A = [TX, TY];
+        if (grow >= 1 && a > 0.05) Q.glow(BX, BY - T * 0.9, T * BR * 2.2, P.org, 0.4 * a * kN);
+        if (Lg - top0 > T) { const x0 = TX + d[0] * top0, y0 = TY + d[1] * top0, x1 = TX + d[0] * Lg * 1.04, y1 = TY + d[1] * Lg * 1.04, sp = 4.5 + b.i * 0.3;
+          const fl = [[P.red, w * 0.1, 0.55], [P.org, w * 0.055, 0.85], [P.yel, w * 0.022, 0.9]];
+          // (flames licking up and out as they wind round the column: real fire tongues; the far ones dim, behind it)
+          const licks = front => { const NL = low ? 5 : 9; for (let j = 0; j < NL; j++) { const u = ((tt * 0.35 + j / NL) % 1), q = j * 2.4 + u * 7 - tt * 4.2 * b.spin + b.ph, sq = Math.sin(q), cq = Math.cos(q); if ((cq > 0) !== front) continue;
+            const yy = top0 + (Lg - top0) * (0.15 + 0.6 * u), env = Math.sin(Math.PI * u), off = sq * w * 0.42, ex = TX + d[0] * yy + n[0] * off, ey = TY + d[1] * yy + n[1] * off - w * 0.08 * cq, sz = w * (0.6 + 0.15 * Math.sin(tt * 9 + j)) * env;
+            Q.tongue(ex, ey, sz * 0.32, sz * 0.55, Math.atan2(d[1], d[0]) + Math.PI / 2 + Math.PI + sq * 0.9, 0.9, a * env * (front ? 0.95 : 0.4), b.sd + j); } };
+          licks(false);
+          // the column: a broad glow, the body of the fire laid over, turbulent fire pouring down it, a white-hot core
+          for (let k = 0; k <= 3; k++) { const u = k / 3; Q.glow(lerp(x0, x1, u), lerp(y0, y1, u), w * 0.8, P.red, 0.18 * a); }
+          Q.firebody(x0, y0, x1, y1, w * 0.36, 0.7, 0.7 * a, b.sd * 0.37, sp);
+          // (the turbulent fire in stretches about two widths long, overlapping, so the flame keeps its grain down a long column)
+          { const NS = Math.max(2, Math.min(low ? 5 : 9, Math.round(Math.hypot(x1 - x0, y1 - y0) / (w * 1.6)))); for (let k = 0; k < NS; k++) { const u0 = Math.max(0, k / NS - 0.05), u1 = Math.min(1, (k + 1) / NS + 0.05);
+            Q.firebeam(lerp(x0, x1, u0), lerp(y0, y1, u0), lerp(x0, x1, u1), lerp(y0, y1, u1), w * 0.44, 0.8, 0.85 * a, b.sd * 0.53 + k * 0.71, sp); } }
+          Q.firebeam(x0, y0, x1, y1, w * 0.17, 1.0, 0.6 * a, b.sd * 0.91, sp * 1.5);
+          Q.beam(x0, y0, x1, y1, w * 0.06, P.yel, 0.65 * a); Q.beam(x0, y0, x1, y1, w * 0.022, '#FFFFFF', 0.9 * a);
+          licks(true);
+          // embers whirling up inside it
+          for (let j = 0; j < (low ? 3 : 6); j++) { const u = (tt * 0.6 + j / 6 + b.i * 0.13) % 1, yy = top0 + (Lg - top0) * (1 - u), q = u * 12 + j * 1.3 - tt * 3 * b.spin, xx = Math.sin(q) * w * 0.42, ex = TX + d[0] * yy + n[0] * xx, ey = TY + d[1] * yy + n[1] * xx; Q.glow(ex, ey, T * 0.28, j & 1 ? P.org : P.amb, 0.8 * a); Q.star(ex, ey, T * 0.12, 0.8 * a); } }
+        // its last flare as it lifts: a burst of light, a shock ring of fire over the floor
+        if (out > 0) { Q.glow(BX, BY - T * 0.8, T * 2.6 * (1 - out * 0.4), P.yel, 0.75 * (1 - out)); Q.fire(BX, BY - T * 0.5, T * 0.9 * (1 - out * 0.5), 1.0, 0.8 * (1 - out), b.sd); const rr = T * (BR + 2 * out); Q.ring(BX, BY, rr, P.org, 1 - out, T * 0.22, GY()); Q.ring(BX, BY, rr * 0.97, '#FFFFFF', 0.5 * (1 - out), T * 0.06, GY()); Q.shimmer(BX, BY, rr * 1.05, 0.35 * (1 - out), GY()); }
+      }
+      // embers drifting up over the whole screen, twinkling
+      if (fa > 0.01) for (let i = 0; i < (low ? NFL >> 1 : NFL); i++) { const F = FL[i], fx2 = S.x0 + ((F.x * S.w + 16 * Math.sin(tt * F.w * 1.7 + i) - tt * 6) % S.w + S.w) % S.w, fy2 = S.y0 + S.h - ((F.y * S.h + tt * F.sp) % S.h), al = fa * (0.55 + 0.45 * Math.sin(tt * (3 + F.w * 4) + i * 1.3));
+        Q.glow(fx2, fy2, F.sz * 1.6, F.v ? P.org : P.amb, al); if (F.sz > 5) Q.star(fx2, fy2, F.sz * 0.9, 0.6 * al, F.v ? P.amb : '#FFF6D8'); }
+      FG.flush(c);
+    }
     return H.add({ life: D + 0.9, x, y, wi: 0, pi: 0, nP: 0, fin: false,
       update(dt, f) {
         for (let q = 0; q < 4 && f.wi < warm.length; q++) warm[f.wi++]();
@@ -163,6 +241,7 @@
             if (Math.random() < 0.15 * H.Q()) K.smoke(b.x, b.y - 0.3, 1, 0.5); } }
       },
       drawUnder(c, f, X, Y, T) {
+        { const FG = armGL(); if (FG) { underGL(FG, c, f, X, Y, T); return; } }   // (on the GPU where it can be: below)
         const fa = cl(Math.min(f.t / 0.6, (D + 0.9 - f.t) / 0.9)), S = scr(c), tt = f.t, m = T * 3;
         // the light leaves the floor: a smouldering dim over the battlefield (so the firelight carries)
         c.save(); c.globalAlpha = (sup ? 0.3 : 0.24) * fa; c.fillStyle = 'rgb(44,12,6)'; c.fillRect(S.x0, S.y0, S.w, S.h); c.restore();
@@ -179,6 +258,7 @@
           c.translate(BX, BY); c.scale(sc, sc * H.GY); c.globalAlpha = a * (0.9 + 0.1 * Math.sin(tt * 19 + b.ph)); c.drawImage(FA, -128, -128); c.restore(); }
       },
       draw(c, f, X, Y, T) {
+        { const FG = armGL(); if (FG) { drawGL(FG, c, f, X, Y, T); return; } }
         const fa = cl(Math.min(f.t / 0.6, (D + 0.9 - f.t) / 0.9)), S = scr(c), tt = f.t, topY = S.y0 - T * 0.5, m = T * 3;
         const PX = H.sx(me.x), PY = H.sy(me.y) - T * 0.46;
         // the vortex of fire in the sky the beams fall from (a greater, double one at Celestial)
