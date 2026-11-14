@@ -21,7 +21,7 @@
   const ppx = c => { const m = c.getTransform(); return Math.max(0.5, Math.hypot(m.a, m.b)); };
   const SY = 0.55, CZ = 0.835;   // the view: world depth squashes by SY on screen, height by CZ
   /* how much a tall thing at screen (X0, Y0) may show: it thins to a ghost where it would stand in front of the pet */
-  function petGuard(X0, Y0, T, rad) { const mx = H.sx(H.me.x), my = H.sy(H.me.y) - T * 0.45, d = Math.hypot(X0 - mx, (Y0 - my) * 1.15) - (rad || 0); return Math.max(0.25, cl((d - T * 0.5) / (T * 0.8))); }
+  function petGuard(X0, Y0, T, rad) { return 1;   /* (v349: nothing fades round the pet) */ const mx = H.sx(H.me.x), my = H.sy(H.me.y) - T * 0.45, d = Math.hypot(X0 - mx, (Y0 - my) * 1.15) - (rad || 0); return Math.max(0.25, cl((d - T * 0.5) / (T * 0.8))); }
   const petH = T => { const me = H.me, g = H.g, SZ = Math.max(0.6, ((me.r || 0.3) - 0.2) / 0.1); return T * 1.02 * SZ * (g.pw && g.pw.giant ? 1.35 : 1) * (g.petK || 1); };
   function lit(f, key, x, y, r, dt, a) { const L = f._lt || (f._lt = {}); L[key] = (L[key] || 0) - dt; if (L[key] <= 0) { H.X.light(x, y, r, a || 0.26); L[key] = 0.1; } }
 

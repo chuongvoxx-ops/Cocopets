@@ -452,7 +452,7 @@ float h3(vec3 p){ p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * 
 float n3(vec3 x){ vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f); return mix(mix(mix(h3(i), h3(i + vec3(1.0, 0.0, 0.0)), f.x), mix(h3(i + vec3(0.0, 1.0, 0.0)), h3(i + vec3(1.0, 1.0, 0.0)), f.x), f.y), mix(mix(h3(i + vec3(0.0, 0.0, 1.0)), h3(i + vec3(1.0, 0.0, 1.0)), f.x), mix(h3(i + vec3(0.0, 1.0, 1.0)), h3(i + vec3(1.0, 1.0, 1.0)), f.x), f.y), f.z); }
 float fbm3(vec3 p){ return 0.5 * n3(p) + 0.27 * n3(p * 2.07 + 3.1) + 0.15 * n3(p * 4.13 + 7.7) + 0.08 * n3(p * 8.3 + 1.3); }
 void main(){ vec2 u = v_uv; float r = length(u), m = 0.0, edge = 1.0 - smoothstep(0.85, 1.0, r); vec3 col = v_c.rgb; float t = u_t + v_q.y * 7.3, pk = u_pet.z > 0.0 ? mix(0.12, 1.0, smoothstep(0.4, 1.4, length((v_px - u_pet.xy) * vec2(1.0, 1.1)) / u_pet.z)) : 1.0;   /* (the rider's face stays clear: light, body and smoke) */
-  pk *= v_k > 11.5 ? 1.0 : (v_k > 1.5 && v_k < 2.5) || (v_k > 5.5 && v_k < 6.5) || v_k > 10.5 ? 1.0 - smoothstep(0.8, 1.0, abs(u.y)) : (v_k > 3.5 && v_k < 4.5) ? 1.0 - smoothstep(0.8, 1.0, abs(u.x)) : (v_k > 0.5 && v_k < 1.5) || (v_k > 7.5 && v_k < 8.5) ? 1.0 - smoothstep(0.92, 1.0, r) : 1.0 - smoothstep(0.72, 1.0, r);   /* (every picture fades to nothing well inside its own quad: no straight cut where noise or a halo reaches the quad's edge) */
+  pk *= v_k > 11.5 ? 1.0 : (v_k > 1.5 && v_k < 2.5) || (v_k > 5.5 && v_k < 6.5) || v_k > 10.5 ? 1.0 - smoothstep(0.8, 1.0, abs(u.y)) : (v_k > 3.5 && v_k < 4.5) ? (1.0 - smoothstep(0.8, 1.0, abs(u.x))) * (1.0 - smoothstep(0.86, 1.0, u.y)) : (v_k > 0.5 && v_k < 1.5) || (v_k > 7.5 && v_k < 8.5) ? 1.0 - smoothstep(0.92, 1.0, r) : 1.0 - smoothstep(0.72, 1.0, r);   /* (every picture fades to nothing well inside its own quad: no straight cut where noise or a halo reaches the quad's edge) */
   if (v_k > 15.5 && v_k < 16.5) { // (v346, Thunderstorm) a storm cloud (solid): billowing lobes of night violet, darker beneath, a cool rim
     // of light along the top, lit from within by its lightning (v_q.x) in electric blue-white; v_c its colour, v_q.y seed
     float f = fbm(u * 1.9 + vec2(v_q.y, t * 0.07)), g = fbm(u * 4.4 + vec2(-t * 0.11, v_q.y * 2.3)), d = clamp((1.0 - dot(u, u)) * (0.35 + 1.25 * f * f) - 0.12, 0.0, 1.0);
@@ -486,7 +486,18 @@ void main(){ vec2 u = v_uv; float r = length(u), m = 0.0, edge = 1.0 - smoothste
     float f = fbm(u * 2.2 + vec2(v_q.y * 3.1, v_q.y - t * 0.35)), d = clamp((1.0 - r * r) * (0.55 + 0.9 * f) - 0.25, 0.0, 1.0) * edge; float a = d * v_c.a * pk;
     vec3 c = mix(col * 0.6, col, smoothstep(-0.5, 0.6, -u.y + f * 0.5)) + vec3(0.35, 0.12, 0.03) * v_q.x * smoothstep(0.0, 1.0, u.y + 0.3); gl_FragColor = vec4(c * a, a); }
   else { vec3 L = vec3(0.0);
-    if (v_k > 16.5) { // (v346, lightning) a ball of lightning (quad 1.35 times its radius): a sphere of electric plasma turning, filaments of
+    if (v_k > 17.5) { // (v349, Hearthburst, Cinder Wave) a rolling wave of fire energy on the floor (quad 1.3 times its radius, squashed
+      // to the floor): a ragged band of turbulent flame streaming outward, hottest at its leading edge, broken into flickering
+      // surges along its length, a faint warm wake inside; through 3D noise on the direction, so no seam (v_q.x heat, v_q.y seed,
+      // v_q.z the band's depth behind the front, in radii)
+      float rr = r * 1.3, d = rr - 1.0, th = max(v_q.z, 0.03); vec2 dr = u / max(r, 0.001);
+      float f = fbm3(vec3(dr * 3.4, rr * 3.2 - t * 2.8) + v_q.y), f2 = fbm3(vec3(dr * 8.0, rr * 7.5 - t * 4.6) + v_q.y * 1.7), sg = fbm3(vec3(dr * 2.3, t * 1.1) + v_q.y * 3.1);
+      float lead = exp(-sq(d / (th * 0.22))), reach = th * (0.18 + 1.1 * f * f), body = smoothstep(-th * (1.0 + 0.9 * f), -th * 0.1, d) * (1.0 - smoothstep(0.0, reach, d));
+      float brk = smoothstep(0.28, 0.68, sg), dns = body * (0.3 + 0.7 * brk) * (0.45 + 0.8 * f2);
+      float temp = v_q.x * (0.5 + 0.55 * lead * (0.6 + 0.4 * brk) + 0.4 * (f2 - 0.5) - 0.25 * clamp(-d / th, 0.0, 1.0));
+      L = ramp(temp) * dns + ramp(v_q.x * 0.8) * lead * brk * 0.32 * (0.6 + 0.6 * f2) + col * exp(-sq(d / (th * 2.6))) * step(d, 0.0) * 0.14 * f;
+      L *= 1.0 - smoothstep(1.18, 1.3, rr); }
+    else if (v_k > 16.5) { // (v346, lightning) a ball of lightning (quad 1.35 times its radius): a sphere of electric plasma turning, filaments of
       // light writhing over it (3D ridged noise), a white-hot heart, a thin bright rim and a halo; v_c its colour, v_q.x strength, v_q.y seed
       float rr = r * 1.35, ins = 1.0 - smoothstep(0.93, 1.0, rr); vec3 n = vec3(u * 1.35, sqrt(max(0.0, 1.0 - rr * rr))); float an = t * 0.9 + v_q.y, ca = cos(an), sa = sin(an); vec3 p = vec3(n.x * ca + n.z * sa, n.y, -n.x * sa + n.z * ca);
       float rg = 1.0 - abs(fbm3(p * 3.2 + vec3(0.0, t * 1.4, t * 0.6)) * 2.0 - 1.0), rg2 = 1.0 - abs(fbm3(p * 6.5 - vec3(t * 1.1, 0.0, 0.0)) * 2.0 - 1.0), fil = pow(rg, 9.0) + 0.5 * pow(rg2, 12.0);
@@ -512,9 +523,11 @@ void main(){ vec2 u = v_uv; float r = length(u), m = 0.0, edge = 1.0 - smoothste
       vec2 w = u + 0.22 * vec2(fbm(u * 2.0 + vec2(t * 0.7, -t * 1.6)) - 0.5, fbm(u * 2.0 + vec2(5.2, -t * 1.9)) - 0.5); float rr = length(w), f = fbm(w * 3.0 + vec2(0.0, -t * 2.2)), dns = 1.0 - smoothstep(0.45 + 0.35 * f, 0.98, rr);
       float temp = v_q.x * (1.15 - rr * 0.95) + (f - 0.5) * 0.55; L = ramp(min(temp, 0.74 + 0.4 * smoothstep(0.9, 1.2, v_q.x))) * dns * (0.5 + 0.55 * f); }   /* (white only in a very hot ball's heart) */
     else if (v_k < 4.5) { // a flame tongue: base at uv.y = 1, tip at -1
-      float h = (1.0 - u.y) * 0.5, wob = (fbm(vec2(h * 3.0 - t * 2.5, v_q.y)) - 0.5) * 0.5 * h, x = (u.x - wob) / max(0.05, (1.0 - pow(h, 1.6)) * (0.55 + 0.45 * sin(min(1.0, h * 3.0) * 1.57)));
-      float f = fbm(vec2(u.x * 2.0, h * 3.0 - t * 3.4) + v_q.y), dns = (1.0 - smoothstep(0.55, 1.0, abs(x))) * smoothstep(0.0, 0.08, h) * (1.0 - smoothstep(0.75 + 0.2 * f, 1.0, h));
-      float temp = v_q.x * (1.1 - h * 0.9 - abs(x) * 0.35) + (f - 0.5) * 0.45; L = ramp(temp) * dns * (0.6 + 0.6 * f); }
+      // (v349) the root is soft and rounded, not cut: the flame starts a little above the quad's foot and fades into it through
+      // noise, its sides lifting first, so no straight edge shows at its base
+      float h0 = (1.0 - u.y) * 0.5, h = h0 * 1.14 - 0.12, hp = max(h, 0.0), wob = (fbm(vec2(h * 3.0 - t * 2.5, v_q.y)) - 0.5) * 0.5 * hp, x = (u.x - wob) / max(0.05, (1.0 - pow(hp, 1.6)) * (0.5 + 0.5 * sin(min(1.0, hp * 3.0 + 0.25) * 1.57)));
+      float f = fbm(vec2(u.x * 2.0, h * 3.0 - t * 3.4) + v_q.y), root = smoothstep(-0.11, 0.1, h - 0.22 * x * x + (f - 0.5) * 0.09), dns = (1.0 - smoothstep(0.55, 1.0, abs(x))) * root * (1.0 - smoothstep(0.75 + 0.2 * f, 1.0, h));
+      float temp = v_q.x * (1.1 - hp * 0.9 - abs(x) * 0.35 - 0.3 * (1.0 - smoothstep(-0.04, 0.12, h))) + (f - 0.5) * 0.45;   /* (cooler, dimmer at the very root) */ L = ramp(temp) * dns * (0.6 + 0.6 * f); }
     else if (v_k < 5.5) { // burning ground: patchy glow and bright cracks (seen from the camera: squashed by the quad)
       float f = fbm(u * 3.0 + v_q.y), cr = 1.0 - smoothstep(0.0, 0.06, abs(fbm(u * 4.0 + v_q.y * 2.0) - 0.5)), rad = exp(-r * r * 2.6) * edge;
       float temp = v_q.x * (0.55 * rad + 0.35 * f * rad + 0.8 * cr * smoothstep(1.0, 0.2, r)); L = ramp(temp) * (0.5 + 0.5 * f) * rad + ramp(v_q.x * 0.9) * cr * smoothstep(1.0, 0.25, r) * 0.7 * v_q.z; }
@@ -556,6 +569,7 @@ void main(){ vec2 u = v_uv; float r = length(u), m = 0.0, edge = 1.0 - smoothste
     firebeam(x0, y0, x1, y1, w, heat, a, seed, scroll) { const dx = (x1 - x0) / 2, dy = (y1 - y0) / 2, L = Math.hypot(dx, dy); if (L < 0.5) return; this.quad(6, x0 + dx, y0 + dy, dx, dy, -dy / L * w, dx / L * w, '#FFFFFF', a, heat, seed || 0, scroll || 3); },
     firebody(x0, y0, x1, y1, w, heat, a, seed, scroll) { const dx = (x1 - x0) / 2, dy = (y1 - y0) / 2, L = Math.hypot(dx, dy); if (L < 0.5) return; this.quad(11, x0 + dx, y0 + dy, dx, dy, -dy / L * w, dx / L * w, '#FFFFFF', a, heat, seed || 0, scroll || 3); },   /* (a fire beam's body: laid over, so it reads on any floor) */
     star(x, y, s, a, col) { this.quad(7, x, y, s, 0, 0, s, col || '#FFF6D8', a); },
+    wave(x, y, r, heat, a, seed, sy, th) { if (r > 1 && a > 0.01) this.quad(18, x, y, r * 1.3, 0, 0, r * 1.3 * (sy || 1), '#FF5A1E', a, heat, seed || 0, th == null ? 0.18 : th); },   /* (v349) a rolling wave of fire energy, radius r at its front */
     shimmer(x, y, r, a, sy, col) { if (r > 0.5) this.quad(8, x, y, r, 0, 0, r * (sy || 1), col || '#FFA640', a); },
     smoke(x, y, r, a, seed, col, lit) { if (r > 0.5) this.quad(9, x, y, r, 0, 0, r, col || '#3A2E2A', a, lit || 0, seed || 0); },
     /* a comet trail of fire through screen points (head first), each stretch a fire-beam quad, tapering */

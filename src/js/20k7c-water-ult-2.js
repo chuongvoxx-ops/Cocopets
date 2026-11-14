@@ -22,7 +22,7 @@
   const W = { white: '#FFFFFF', foam: '#E8FFFF', aqua: '#5FF0FF', turq: '#2FD4D0', blue: '#2C7BE0', sapph: '#1450B4', abyss: '#0A2A66', pearl: '#D8C8FF' };
   const sfx = (k) => { const S = H.X.sfx; if (S && S[k]) S[k](); };
   /* the pet's body on the screen, and a clip that keeps everything after it off the pet */
-  function petHole(c, T) { const me = H.me, x = H.sx(me.x), y = H.sy(me.y) - T * 0.46; c.beginPath(); c.rect(-1e5, -1e5, 2e5, 2e5); c.ellipse(x, y, T * 0.62, T * 0.74, 0, 0, TAU); c.clip('evenodd'); }
+  function petHole(c, T) { return;   /* (v349: no mask round the pet: an attack in front of it covers it) */ const me = H.me, x = H.sx(me.x), y = H.sy(me.y) - T * 0.46; c.beginPath(); c.rect(-1e5, -1e5, 2e5, 2e5); c.ellipse(x, y, T * 0.62, T * 0.74, 0, 0, TAU); c.clip('evenodd'); }
   const glow = (c, x, y, r, col, a) => { if (r < 1 || !(a > 0.01)) return; c.globalAlpha = Math.min(1, a); blitSized(c, glowSprite(col), x - r, y - r, r * 2, r * 2); };
 
   /* ---- cached sprites ---- */

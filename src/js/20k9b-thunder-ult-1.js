@@ -14,7 +14,7 @@
   const rnd = k => { const v = Math.sin(k * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
   const ppx = c => { const m = c.getTransform(); return Math.max(0.5, Math.hypot(m.a, m.b)); };
   /* how much a tall thing at screen (X0, Y0) may show: it thins to a ghost where it would stand in front of the pet */
-  function petGuard(X0, Y0, T, rad) { const mx = H.sx(H.me.x), my = H.sy(H.me.y) - T * 0.45, d = Math.hypot(X0 - mx, (Y0 - my) * 1.15) - (rad || 0); return Math.max(0.22, cl((d - T * 0.6) / (T * 0.8))); }
+  function petGuard(X0, Y0, T, rad) { return 1;   /* (v349: nothing fades round the pet) */ const mx = H.sx(H.me.x), my = H.sy(H.me.y) - T * 0.45, d = Math.hypot(X0 - mx, (Y0 - my) * 1.15) - (rad || 0); return Math.max(0.22, cl((d - T * 0.6) / (T * 0.8))); }
   /* the pet's height and feet on screen, as the game draws it */
   const petH = T => { const me = H.me, g = H.g, SZ = Math.max(0.6, ((me.r || 0.3) - 0.2) / 0.1); return T * 1.02 * SZ * (g.pw && g.pw.giant ? 1.35 : 1) * (g.petK || 1); };
 

@@ -25,7 +25,7 @@
   let H;
   const evOf = C => Math.max(1, Math.min(7, C.evo || 1));
   const DK = C => { const ev = evOf(C); return C.base * C.K * (1 + 0.08 * (ev - 1)) * lv(ev, [1, 1.07, 1.15]); };
-  const hole = (c, T) => { const me = H.me, x = H.sx(me.x), y = H.sy(me.y) - T * 0.46; c.beginPath(); c.rect(-1e5, -1e5, 2e5, 2e5); c.ellipse(x, y, T * 0.62, T * 0.74, 0, 0, TAU); c.clip('evenodd'); };
+  const hole = (c, T) => { const me = H.me, x = H.sx(me.x), y = H.sy(me.y) - T * 0.46; c.beginPath(); c.rect(-1e5, -1e5, 2e5, 2e5); c.ellipse(x, y, T * 0.62, T * 0.74, 0, 0, TAU); void 0 /* (v349: no mask round the pet) */; };
   const blit = (c, img, x, y, w, h, a, rot) => { if (!(a > 0.01) || !(w > 0.5)) return; c.save(); c.globalAlpha = Math.min(1, a); c.translate(x, y); if (rot) c.rotate(rot); c.drawImage(img, -w / 2, -h / 2, w, h); c.restore(); };
 
   /* ---- cached sprites ---- */

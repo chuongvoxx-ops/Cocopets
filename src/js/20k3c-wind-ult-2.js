@@ -212,7 +212,7 @@
       draw(c, f, X, Y, T) {
         const t = f.t, A = sm(t / 0.45) * endK; if (A <= 0.01) return;
         const PX = H.sx(me.x), PY = H.sy(me.y) - T * 0.46, rx = R * T, near = Math.abs(PX - X) < rx * 1.15 + T && PY > Y - ZC * T - T && PY < Y + rx * GY + T * 1.2;
-        if (near) { c.save(); c.beginPath(); c.rect(-1e5, -1e5, 2e5, 2e5); c.ellipse(PX, PY, T * 0.62, T * 0.74, 0, 0, TAU); c.clip('evenodd'); }
+        if (near) { c.save(); c.beginPath(); c.rect(-1e5, -1e5, 2e5, 2e5); c.ellipse(PX, PY, T * 0.62, T * 0.74, 0, 0, TAU); void 0 /* (v349: no mask round the pet) */; }
         rings(c, X, Y, T, t, A * (near ? 0.75 : 1), 1); debris(c, X, Y, T, t, A, 1);
         if (near) c.restore();
       } });
@@ -222,7 +222,7 @@
       drawEnt(c) { const t = F.t, ex = exitU(t), A = sm((t - 0.5) / 0.5) * endK * (1 - sm((ex - 0.55) / 0.45)); if (A <= 0.01) return;
         const T = H.X.Tz(), X = H.sx(cx), Y = H.sy(cy), hgt = T * ZC * (sm((t - 0.5) / 0.5) * (1 + 0.8 * H.ease.in(ex))), w = T * (CEL ? 1.1 : 0.85) * (1 - 0.65 * ex) * (1 + 0.05 * Math.sin(t * 7));
         const PX = H.sx(me.x), PY = H.sy(me.y) - T * 0.46, near = Math.abs(PX - X) < w + T && PY > Y - hgt - T && PY < Y + T;
-        if (near) { c.beginPath(); c.rect(-1e5, -1e5, 2e5, 2e5); c.ellipse(PX, PY, T * 0.62, T * 0.74, 0, 0, TAU); c.clip('evenodd'); }
+        if (near) { c.beginPath(); c.rect(-1e5, -1e5, 2e5, 2e5); c.ellipse(PX, PY, T * 0.62, T * 0.74, 0, 0, TAU); void 0 /* (v349: no mask round the pet) */; }
         c.globalCompositeOperation = 'lighter'; const col = want('column');
         if (col) { c.globalAlpha = 0.95 * A; c.drawImage(col, X - w, Y - hgt, w * 2, hgt + T * 0.15); c.globalAlpha = (CEL ? 0.85 : 0.65) * A; c.drawImage(col, X - w * 0.4, Y - hgt * 1.05, w * 0.8, hgt * 1.05); }
         // a ripple reaching the core climbs the column (Celestial: the release brightens as it passes)

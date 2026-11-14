@@ -16,7 +16,7 @@ const FK = (() => {
      billowing balls with a corona, ribbons of scrolling flame), flushed in one pass at gpuEnd over what the move drew itself
      (scorch marks and crafted solids stay 2D). window[flag] = 0, __FIRE_GL = 0, a software rasteriser or no WebGL keep the 2D */
   let GQ = null, GF = null, GO = null;   // (GO: options; GO.ground: scorch marks burn on the GPU as glowing, cracked ground, v348)
-  function gpuBegin(c, flag, pet, o) { if (GQ) return null; GO = o || null; try { if (window[flag] === 0 || window.__FIRE_GL === 0) return null; const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; if (!F || !F.usable()) return null; GF = F; GQ = F.begin(c, pet || null); BM = c.getTransform(); return GQ; } catch (e) { GQ = null; return null; } }
+  function gpuBegin(c, flag, pet, o) { if (GQ) return null; GO = o || null; try { if (window[flag] === 0 || window.__FIRE_GL === 0) return null; const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; if (!F || !F.usable()) return null; GF = F; GQ = F.begin(c, null);   /* (v349: no mask round the pet; pet kept in the signature) */ BM = c.getTransform(); return GQ; } catch (e) { GQ = null; return null; } }
   // a point (x, y) in the context's current frame -> the frame the batch began in (a move may draw a flame under its own
   // translate/rotate, as flameAt does): its position and the extra rotation
   let BM = null;

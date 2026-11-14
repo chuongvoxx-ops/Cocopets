@@ -263,7 +263,7 @@
      Evolution: radius 3.0 at Hatchling to 4.5 at Celestial (times C.K), FK.evoN(C, 1, 3) waves sharing the damage; at
      Celestial the last wave throws up a crown of flame pillars at its rim. */
   /* a feathered band of light on the floor ellipse: layered soft strokes, wide and faint outside, narrow and hot inside */
-  function softBand(c, H, K, x, y, r, w, k) { if (k <= 0.01 || r < 1) return; const P = K.P; if (K.gq && K.gq()) { const Q = K.gq(), p = K.gpuXY(c, x, y); Q.ring(p[0], p[1], r, P.red, 0.5 * k, Math.max(2, w * 0.5), H.GY); Q.ring(p[0], p[1], r, P.org, 0.6 * k, Math.max(1.5, w * 0.28), H.GY); Q.ring(p[0], p[1], r, P.yel, 0.6 * k, Math.max(1, w * 0.12), H.GY); Q.ring(p[0], p[1], r, '#FFFFFF', 0.45 * k, Math.max(0.8, w * 0.04), H.GY); Q.shimmer(p[0], p[1], r * 1.05, 0.3 * k, H.GY); return; }   // (v348: on the GPU)
+  function softBand(c, H, K, x, y, r, w, k) { if (k <= 0.01 || r < 1) return; const P = K.P; if (K.gq && K.gq()) { const Q = K.gq(), p = K.gpuXY(c, x, y); Q.wave(p[0], p[1], r, 0.78, Math.min(1, k * 1.15), r * 0.013, H.GY, cl(w / r * 0.75, 0.08, 0.6)); Q.shimmer(p[0], p[1], r * 1.08, 0.3 * k, H.GY); return; }   // (v349: on the GPU a rolling wave of fire energy, not a ring)
     c.save(); c.globalCompositeOperation = 'lighter'; const L = [[1, P.red, 0.07], [0.72, P.red, 0.1], [0.5, P.org, 0.14], [0.32, P.amb, 0.2], [0.18, P.yel, 0.26], [0.08, P.wht, 0.3]];
     for (const [lw, col, al] of L) { c.strokeStyle = H.rgba(col, al * k); c.lineWidth = Math.max(1, w * lw); H.floorEllipse(c, x, y, r); c.stroke(); } c.restore(); }
   /* soft char on the floor: a feathered dark pool, no cracks */
@@ -277,7 +277,8 @@
       // the waves rolling out: soft glows under a row of flames
       for (let w = 0; w < NW; w++) { const tw = f.t - GATHER - w * WGAP; if (tw < 0) continue; const u = cl(tw / ROLL, 0, 1), k = 1 - cl((tw - ROLL) / 0.4, 0, 1); if (k <= 0) continue; const r = (R0 + (R - R0) * H.ease.out(u)) * T, h = T * (1.3 - 0.6 * u) * (1 - w * 0.12);
         for (let i = 0; i < nf; i++) { const b = i / nf * TAU + w * 0.4 + t * 0.25, sb = Math.sin(b); if ((sb < 0) !== back) continue; const x = mx + Math.cos(b) * r, y = my + sb * r * H.GY, near = Math.abs(Math.cos(b) * r) < T * 0.75, hh = (!back && near ? Math.min(h, Math.max(T * 0.2, sb * r * H.GY + T * 0.05)) : h) * (0.75 + 0.25 * Math.sin(t * 7 + i * 1.9)) * k;
-          K.glow(c, x, y - hh * 0.3, hh * 0.75, P.org, 0.3 * k); K.flame(c, x, y, T * 0.46 * (1 - 0.25 * u), hh, t, i * 1.3 + w, Math.cos(b) * T * 0.25, 0.8 * k * (1 - 0.25 * u)); } }
+          K.glow(c, x, y - hh * 0.3, hh * 0.75, P.org, 0.3 * k); K.flame(c, x, y, T * 0.46 * (1 - 0.25 * u), hh, t, i * 1.3 + w, Math.cos(b) * T * 0.25, 0.8 * k * (1 - 0.25 * u));
+          if (K.gq()) { const Q = K.gq(), rb = T * 0.34 * (1 - 0.3 * u) * (0.85 + 0.3 * Math.sin(i * 2.7 + w)); Q.quad(3, x, y - rb * 0.55, rb, 0, 0, rb, '#FFFFFF', 0.6 * k, 0.78, i * 0.91 + w * 3.3); if ((i + w) % 3 === 0) Q.smoke(x + Math.cos(b) * T * 0.2, y - hh * 1.05, T * 0.42, 0.07 * k * u, i * 1.3 + w, '#3A2A26', 0.35); } } }   // (v349: on the GPU a continuous burning wall: fire rolling at the tongues' roots, a little smoke over them)
       // the Celestial crown: pillars of flame at the rim
       if (fin) { const tf = f.t - END; if (tf > -0.05 && tf < 0.65) { const u = cl(tf / 0.65, 0, 1); for (let i = 0; i < 8; i++) { const b = i / 8 * TAU + 0.2, sb = Math.sin(b); if ((sb < 0) !== back) continue; const x = mx + Math.cos(b) * R * T, y = my + sb * R * T * H.GY, hh = T * 2.2 * Math.sin(Math.min(1, u * 1.8) * Math.PI * 0.55) * (1 - u * 0.5) + 1; K.glow(c, x, y - hh * 0.35, hh * 0.7, P.org, 0.4 * (1 - u)); K.flame(c, x, y, T * 0.5, hh, t, i * 2.9, 0, 0.9 * (1 - u * u)); } } } };
     H.add({ life: END + (fin ? 0.8 : 0.6),
@@ -294,7 +295,7 @@
         if (f.t > GATHER) softChar(c, H, mx, my, T * Math.min(R * 0.95, 1.4 + (f.t - GATHER) * 6), 0.8 * kAll);
         // each wave: a feathered band, the inside dimming behind it
         for (let w = 0; w < NW; w++) { const tw = f.t - GATHER - w * WGAP; if (tw < 0) continue; const u = cl(tw / ROLL, 0, 1), k = 1 - cl((tw - ROLL) / 0.4, 0, 1); if (k <= 0) continue; const r = (R0 + (R - R0) * H.ease.out(u)) * T;
-          c.save(); c.translate(mx, my); c.scale(1, H.GY); const g = c.createRadialGradient(0, 0, r * 0.4, 0, 0, r * 1.12); g.addColorStop(0, H.rgba(P.red, 0)); g.addColorStop(0.55, H.rgba(P.red, 0.12 * k)); g.addColorStop(0.82, H.rgba(P.org, 0.3 * k)); g.addColorStop(0.9, H.rgba(P.amb, 0.32 * k)); g.addColorStop(1, H.rgba(P.org, 0)); c.fillStyle = g; c.globalCompositeOperation = 'lighter'; c.beginPath(); c.arc(0, 0, r * 1.12, 0, TAU); c.fill(); c.restore();
+          c.save(); c.translate(mx, my); c.scale(1, H.GY); const g = c.createRadialGradient(0, 0, r * 0.4, 0, 0, r * 1.12); const gk = K.gq() ? 0.45 : 1; g.addColorStop(0, H.rgba(P.red, 0)); g.addColorStop(0.55, H.rgba(P.red, 0.12 * k * gk)); g.addColorStop(0.82, H.rgba(P.org, 0.3 * k * gk)); g.addColorStop(0.9, H.rgba(P.amb, 0.32 * k * gk)); g.addColorStop(1, H.rgba(P.org, 0)); c.fillStyle = g; c.globalCompositeOperation = 'lighter'; c.beginPath(); c.arc(0, 0, r * 1.12, 0, TAU); c.fill(); c.restore();
           softBand(c, H, K, mx, my, r, T * (1.1 - 0.4 * u), k * (1 - w * 0.2)); }
         if (fin && f.t > END - 0.05) { const u = cl((f.t - END) / 0.65, 0, 1); softBand(c, H, K, mx, my, T * R * (1 + 0.2 * u), T * 1.2, 1 - u); }
         flames(c, f, T, t, true); },

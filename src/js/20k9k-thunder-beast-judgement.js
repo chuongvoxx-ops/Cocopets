@@ -137,7 +137,7 @@
   function bolt3(c, pts, w, a, gold, n) { n = n || pts.length; if (n < 2 || !(a > 0.01)) return; c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.lineJoin = 'round'; strokePts(c, pts, n);
     c.globalAlpha = Math.min(1, 0.22 * a); c.strokeStyle = C.violet; c.lineWidth = w * 2.6; c.stroke(); c.globalAlpha = Math.min(1, 0.8 * a); c.strokeStyle = gold ? C.gold : C.cyan; c.lineWidth = w; c.stroke(); c.globalAlpha = Math.min(1, a); c.strokeStyle = C.white; c.lineWidth = Math.max(0.6, w * 0.38); c.stroke(); }
   /* clip the rest of a draw to everything except the pet's body */
-  function petHole(c, S) { c.beginPath(); c.rect(-1e5, -1e5, 2e5, 2e5); c.ellipse(S.PX, S.PY, S.PR * 0.68, S.PR * 0.8, 0, 0, TAU); c.clip('evenodd'); }
+  function petHole(c, S) { return;   /* (v349: no mask round the pet: an attack in front of it covers it) */ c.beginPath(); c.rect(-1e5, -1e5, 2e5, 2e5); c.ellipse(S.PX, S.PY, S.PR * 0.68, S.PR * 0.8, 0, 0, TAU); c.clip('evenodd'); }
 
   /* ================= the per-transformation system: one act + pooled particles + depth-sorted ents ================= */
   const POOL = [];

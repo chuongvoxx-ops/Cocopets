@@ -128,7 +128,7 @@
       draw(c, f, X, Y, T) {
         const t = f.t, fa = cl(Math.min(t / 0.25, (LIFE - t) / 0.7)), late = cl((t - (TB - 1)) / 1), sfa = cl(Math.min((t - 0.25) / 0.6, (TB + 0.35 - t) / 0.35));
         // the stars, kept off the pet
-        c.save(); const px = H.sx(me.x), py = H.sy(me.y) - T * 0.46; c.beginPath(); c.rect(-1e5, -1e5, 2e5, 2e5); c.ellipse(px, py, T * 0.62, T * 0.74, 0, 0, TAU); c.clip('evenodd');
+        c.save(); const px = H.sx(me.x), py = H.sy(me.y) - T * 0.46; c.beginPath(); c.rect(-1e5, -1e5, 2e5, 2e5); c.ellipse(px, py, T * 0.62, T * 0.74, 0, 0, TAU); void 0 /* (v349: no mask round the pet) */;
         c.globalCompositeOperation = 'lighter';
         if (links.length && sfa > 0.02) { c.strokeStyle = 'rgba(160,245,255,1)'; c.lineWidth = 1; for (const [i, j] of links) { const p = stars[i], q = stars[j], ap = cl(Math.min((t - 0.5 - p.s) / 0.5, (t - 0.5 - q.s) / 0.5)); if (ap <= 0) continue;
           c.globalAlpha = sfa * fa * ap * (0.18 + 0.12 * Math.sin(t * 1.3 + i)) * (1 + late); c.beginPath(); c.moveTo(H.sx(p.x), H.sy(p.y) - p.z * T); c.lineTo(H.sx(q.x), H.sy(q.y) - q.z * T); c.stroke(); } }
@@ -257,7 +257,7 @@
       },
       draw(c, f, X, Y, T) {
         // the front halves, lighter, kept off the pet
-        c.save(); const px = H.sx(me.x), py = H.sy(me.y) - T * 0.46; c.beginPath(); c.rect(-1e5, -1e5, 2e5, 2e5); c.ellipse(px, py, T * 0.62, T * 0.74, 0, 0, TAU); c.clip('evenodd');
+        c.save(); const px = H.sx(me.x), py = H.sy(me.y) - T * 0.46; c.beginPath(); c.rect(-1e5, -1e5, 2e5, 2e5); c.ellipse(px, py, T * 0.62, T * 0.74, 0, 0, TAU); void 0 /* (v349: no mask round the pet) */;
         for (const r of rib) drawRib(c, r, f, X, Y, T, true);
         // the water pouring down the centre during the collapse
         const t = f.t; if (t > DUR && t < TBU + 0.1) { const u = cl((t - DUR) / COL); H.glow(c, X, Y - T * HT * 0.5, T * (0.8 + u), AQ, 0.3 + 0.5 * u);

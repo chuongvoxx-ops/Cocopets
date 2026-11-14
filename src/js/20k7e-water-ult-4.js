@@ -25,7 +25,7 @@
   const cl = u => Math.max(0, Math.min(1, u));
   const R1 = s => { const v = Math.sin(s * 12.9898 + 78.233) * 43758.5453; return v - Math.floor(v); };
   const rgbaS = (h, a) => { const [r, g, b] = hexRGB(h); return `rgba(${r},${g},${b},${a})`; };
-  function petHole(c, T) { const me = H.me, x = H.sx(me.x), y = H.sy(me.y) - T * 0.46; c.beginPath(); c.rect(-1e5, -1e5, 2e5, 2e5); c.ellipse(x, y, T * 0.62, T * 0.74, 0, 0, TAU); c.clip('evenodd'); }
+  function petHole(c, T) { return;   /* (v349: no mask round the pet: an attack in front of it covers it) */ const me = H.me, x = H.sx(me.x), y = H.sy(me.y) - T * 0.46; c.beginPath(); c.rect(-1e5, -1e5, 2e5, 2e5); c.ellipse(x, y, T * 0.62, T * 0.74, 0, 0, TAU); c.clip('evenodd'); }
   const glow = (c, x, y, r, col, a) => K.glow(c, x, y, r, col, a);
   /* a thin ripple ring and a water ring with foam (floor or sky plane; squashed when drawn) */
   const rippleSpr = () => fxSprite('wu4rip', 64, 64, (g, w) => { const c0 = w / 2, gr = g.createRadialGradient(c0, c0, 0, c0, c0, c0);

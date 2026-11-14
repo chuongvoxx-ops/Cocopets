@@ -13,7 +13,7 @@
   /* the screen-space shape the pet occupies: an ellipse round its body */
   function petBox(T) { const me = H.me; return [H.sx(me.x), H.sy(me.y) - T * 0.46, T * 0.6, T * 0.7]; }
   /* clip the rest of this draw to everything except the pet's body, so nothing of the move ever covers the pet */
-  function petHole(c, T) { const [x, y, rx, ry] = petBox(T); c.beginPath(); c.rect(-1e5, -1e5, 2e5, 2e5); c.ellipse(x, y, rx, ry, 0, 0, TAU); c.clip('evenodd'); }
+  function petHole(c, T) { return;   /* (v349: no mask round the pet: an attack in front of it covers it) */ const [x, y, rx, ry] = petBox(T); c.beginPath(); c.rect(-1e5, -1e5, 2e5, 2e5); c.ellipse(x, y, rx, ry, 0, 0, TAU); c.clip('evenodd'); }
   /* screen -> world for particles (height folded into y, as the particles are drawn) */
   const wx = (SX, T) => H.me.x + (SX - H.sx(H.me.x)) / T, wy = (SY, T) => H.me.y + (SY - H.sy(H.me.y)) / T;
   /* the four-tone ramp of a lit facet: brightness 0..1 -> colour */
@@ -195,7 +195,7 @@
             bl.push({ bx, by, zt, al, sz, ang, b, dir, rr, fl, seed: j + tier * 3 }); } }
         f.pos = pos; bl.sort((p, q) => p.by - q.by);
         c.save(); c.globalAlpha = k; if (near) petHole(c, T); for (const B of bl) { H.softShadow(c, B.bx, B.by, T * 0.45, 0.16 * B.al); blade(c, B.bx, B.by - B.zt, B.sz, B.ang, t, B.al, B.seed, 0); } c.restore();
-        const pb = near ? petBox(T) : null, Q = FG.begin(c, pb ? [pb[0], pb[1], T * 0.62] : null);
+        const pb = near ? petBox(T) : null, Q = FG.begin(c, null);
         for (const B of bl) { const ca = Math.cos(B.ang), sn = Math.sin(B.ang), W = (lx, ly) => [B.bx + lx * ca - ly * sn, B.by - B.zt + lx * sn + ly * ca], r = B.sz, a = B.al * k;
           Q.glow(B.bx, B.by - B.zt - r * 0.12, r * 0.95, P.org, 0.35 * a); const tp = W(r * 0.62, -r * 0.1); Q.glow(tp[0], tp[1], r * 0.3, P.yel, 0.8 * a); Q.star(tp[0], tp[1], r * 0.14, 0.7 * a);
           if (!low || B.seed % 2 === 0) for (let i = 0; i < 2; i++) { const p0 = W(-r * 0.25 + i * r * 0.32, -r * 0.16); gFlame(Q, p0[0], p0[1], B.ang + Math.PI * 0.5 + 0.5 - i * 0.3, r * 0.26, r * (0.5 + 0.1 * Math.sin(t * 9 + i + B.seed)), 0.92, 0.85 * a, i * 2.1 + B.seed); }
@@ -270,7 +270,7 @@
       H.add({ life: 4.2, x, y, update(dt, f) { for (const p of pp) if (f.t > p.d && Math.random() < 0.6) K.aura(p.x, p.y, 0.4 * p.s, dt, 5, 0.2); },
         drawUnder(c, f, X, Y, T, t) { const k = Math.min(1, f.life / 1.2), FG = gfx('__IC_GL'), Q = FG ? FG.begin(c, null) : null; for (const p of pp) { const u = cl((f.t - p.d) / 0.3); if (u <= 0) continue; K.scorch(c, H.sx(p.x), H.sy(p.y), T * 0.75 * p.s * u, k * 0.9, 0.5 + 0.5 * k, p.s * 9); if (Q) { Q.glow(H.sx(p.x), H.sy(p.y), T * 1.2 * p.s, P.org, 0.45 * k, H.GY); Q.ground(H.sx(p.x), H.sy(p.y), T * 0.8 * p.s * u, 0.75 * k, 0.7 * k, p.s * 9, H.GY, 0.7); } else K.floorLight(c, H.sx(p.x), H.sy(p.y), T * 1.1 * p.s, 0.4 * k); } if (Q) FG.flush(c); },
         draw(c, f, X, Y, T, t) { const k = Math.min(1, f.life / 1.2), FG = gfx('__IC_GL');
-          if (FG) { const pb = Math.hypot(H.me.x - x, H.me.y - y) < RW + 2 ? petBox(T) : null, Q = FG.begin(c, pb ? [pb[0], pb[1], T * 0.62] : null); for (const p of pp) { const u = cl((f.t - p.d) / 0.3); if (u <= 0) continue; const SX = H.sx(p.x), SY = H.sy(p.y); for (let j = 0; j < (BURN > 8 ? 1 : 2); j++) gFlame(Q, SX + (j - 0.5) * T * 0.3 * p.s * (BURN > 8 ? 0 : 1), SY, -Math.PI / 2 + Math.sin(t * 5 + p.s * 9 + j) * 0.1, T * 0.4 * p.s, T * (0.85 + 0.25 * Math.sin(t * 7 + j + p.s * 5)) * p.s * u * k * (j ? 0.75 : 1), 0.92, 0.9 * k, j * 3 + p.s * 7); } FG.flush(c); return; }
+          if (FG) { const pb = Math.hypot(H.me.x - x, H.me.y - y) < RW + 2 ? petBox(T) : null, Q = FG.begin(c, null); for (const p of pp) { const u = cl((f.t - p.d) / 0.3); if (u <= 0) continue; const SX = H.sx(p.x), SY = H.sy(p.y); for (let j = 0; j < (BURN > 8 ? 1 : 2); j++) gFlame(Q, SX + (j - 0.5) * T * 0.3 * p.s * (BURN > 8 ? 0 : 1), SY, -Math.PI / 2 + Math.sin(t * 5 + p.s * 9 + j) * 0.1, T * 0.4 * p.s, T * (0.85 + 0.25 * Math.sin(t * 7 + j + p.s * 5)) * p.s * u * k * (j ? 0.75 : 1), 0.92, 0.9 * k, j * 3 + p.s * 7); } FG.flush(c); return; }
           if (Math.hypot(H.me.x - x, H.me.y - y) < RW + 2) petHole(c, T); const sorted = pp.slice().sort((a2, b2) => a2.y - b2.y); for (const p of sorted) { const u = cl((f.t - p.d) / 0.3); if (u <= 0) continue; const SX = H.sx(p.x), SY = H.sy(p.y); for (let j = 0; j < (BURN > 8 ? 1 : 2); j++) K.flame(c, SX + (j - 0.5) * T * 0.3 * p.s * (BURN > 8 ? 0 : 1), SY, T * 0.32 * p.s, T * (0.7 + 0.2 * Math.sin(t * 7 + j + p.s * 5)) * p.s * u * k * (j ? 0.75 : 1), t, j * 3 + p.s * 7, 0, 0.9 * k, true); } } }); });
     if (WAVE2) H.X.after(WAVE2, () => { H.hitRing(x, y, RW - 0.5, RW + 1.6, wave2D, C.dmgO({ kb: 4, burn: 1 })); H.X.ring(x, y, RW, RW + 1.6, 0.45, P.org, 0.5); for (let j = 0; j < H.n(16); j++) { const b = j / 16 * TAU; K.embers(x + Math.cos(b) * (RW + 1), y + Math.sin(b) * (RW + 1) * H.GY, 2); } H.X.shake(7, 0.15); H.X.sfx.crash(); });
   };
@@ -310,7 +310,7 @@
           if (Q) { if (q < 1) { Q.ring(X, Y, rr, i % 2 ? P.org : P.yel, 1 - q, T * 0.26, gy); Q.ring(X, Y, rr * 0.97, '#FFFFFF', 0.6 * (1 - q), T * 0.06, gy); Q.shimmer(X, Y, rr * 1.05, 0.4 * (1 - q), gy); } Q.ground(X, Y, T * cw.rr, 0.85 * Math.max(0, 1 - a2 / 1.1), 0.7 * Math.max(0, 1 - a2 / 1.4) / (1 + i * 0.3), 7 + i, gy, 0.9); } else K.shockRing(c, X, Y, rr, 1 - q); } });
         if (Q) FG.flush(c);
       },
-      draw(c, f, X, Y, T, t) { const k = Math.min(1, f.life / 0.6), form = H.ease.out(cl(f.t / 1.0)), FG = gfx('__FS_GL'), pb = near ? petBox(T) : null, QB = () => FG.begin(c, pb ? [pb[0], pb[1], T * 0.62] : null); c.globalAlpha = k; if (near && !FG) petHole(c, T);
+      draw(c, f, X, Y, T, t) { const k = Math.min(1, f.life / 0.6), form = H.ease.out(cl(f.t / 1.0)), FG = gfx('__FS_GL'), pb = near ? petBox(T) : null, QB = () => FG.begin(c, null); c.globalAlpha = k; if (near && !FG) petHole(c, T);
         // (v344: on the GPU the suns, their trails, the flames on the spikes, the glows and the spires; the crowns' bands and spikes stay crisp solids (2D).
         // Two passes so the back suns and flames sit behind the crowns' front halves)
         let Q = FG ? QB() : null;
@@ -491,7 +491,7 @@
       const ar = pre ? (() => { const inst = cl((f.t - GATHER) / (BURST - GATHER)); return T * RB * (0.15 + 0.85 * H.ease.out(g)) * (1 + inst * 0.12) * 1.75 + T * 0.3; })() : 0;
       // the back half of the air circle round the ball (a crisp picture, under the fire)
       if (pre) hole(() => { c.beginPath(); c.rect(-1e5, -1e5, 2e5, 1e5 + BY); c.clip(); runeB(c, BX, BY, ar, ar * 0.32, -t * 1.1, 0.9 * g, 16, CRIM_L); });
-      const Q = FG.begin(c, pb ? [pb[0], pb[1], T * 0.62] : null);
+      const Q = FG.begin(c, null);
       if (pre) { const inst = cl((f.t - GATHER) / (BURST - GATHER)), pulse = 1 + 0.06 * Math.sin(t * (8 + inst * 30)) * (0.3 + inst), r = T * RB * (0.15 + 0.85 * H.ease.out(g)) * pulse * (1 + inst * 0.12), jx = inst * (Math.random() - 0.5) * T * 0.08, jy = inst * (Math.random() - 0.5) * T * 0.08;
         // the energy streams spiralling in from all round: comets of fire, a white thread down each head
         for (let i = 0; i < NST; i++) { const head = (t * 0.85 + i * 0.37) % 1, ph = i / NST * TAU, al = 0.85 * Math.min(1, head * 4); if (al < 0.02) continue;
@@ -659,7 +659,7 @@
         f.drawTailsGL(Q, f, T, t, false); FG.flush(c);
       },
       drawGL(FG, c, f, X, Y, T, t) {
-        const k = Math.min(1, f.life / 0.6), pb = petBox(T), Q = FG.begin(c, [pb[0], pb[1], T * 0.62]); f.drawTailsGL(Q, f, T, t, true);
+        const k = Math.min(1, f.life / 0.6), pb = petBox(T), Q = FG.begin(c, null); f.drawTailsGL(Q, f, T, t, true);
         const [cx, cy, hx, hy] = pb, braid = f.t > BRAID ? cl((f.t - BRAID) / (LANCE - BRAID)) : 0, lance = f.t > LANCE ? cl((f.t - LANCE) / 0.25) : 0, after = f.t > LANCE + 0.3 ? cl((f.t - LANCE - 0.3) / 1.0) : 0;
         // the braid's gathering heart, then the lance: a spear of turbulent fire along the aim with a white-hot core, a fireball at its point
         if (braid > 0 && after < 1) { const ax = Math.cos(sa), ay = Math.sin(sa), bx = cx + ax * hx * 1.3, by = cy + ay * hy * 1.3, Lz = T * (1.2 + L * 0.85 * (0.25 + 0.75 * braid));

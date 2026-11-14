@@ -152,9 +152,12 @@
         for (const w of waves) { if (f.t < w.t0) continue; const { u, r } = rad(w, f.t), k = u < 1 ? cl(u * 6) : cl(1 - (f.t - w.t0 - w.dur) / 0.25); if (k <= 0) continue;
           const R = r * T, hh = T * w.hk * (1 - 0.3 * u), low = b => back ? 1 : cl((r - 0.9) / 0.8 + Math.abs(Math.cos(b)) * 0.9), pts = [];
           // the sheet of the wall: stacked arcs from a hot yellow foot to dark red at its top, then the tongues on its crest
-          c.save(); c.lineCap = 'round'; const LAY = [[P.yel, 0.75, 'lighter'], [P.amb, 0.7, 'lighter'], [P.org, 0.75, 'source-over'], [P.red, 0.6, 'source-over'], [P.dred, 0.35, 'source-over']];
+          // (v349, on the GPU) the wall's sheet as burning fire: overlapping turbulent fire rolling along the half ring, hot at its foot
+          const GQ = K.gq(); if (GQ) { const nb = Math.max(10, Math.round(w.nf * 1.4)); for (let j = 0; j <= nb; j++) { const bb = (back ? Math.PI : 0) + (j + 0.5 * (w.i & 1)) / nb * Math.PI, lw = low(bb), px = X + Math.cos(bb) * R, py = Y + Math.sin(bb) * R * H.GY, rb = Math.max(2, hh * (0.26 + 0.08 * Math.sin(j * 2.3 + w.i)) * (0.55 + 0.45 * lw));
+              GQ.quad(3, px, py - rb * 0.7 * lw - hh * 0.04, rb, 0, 0, rb * 1.15, '#FFFFFF', 0.62 * k, 0.8, j * 0.77 + w.i * 4.1); } }
+          else { c.save(); c.lineCap = 'round'; const LAY = [[P.yel, 0.75, 'lighter'], [P.amb, 0.7, 'lighter'], [P.org, 0.75, 'source-over'], [P.red, 0.6, 'source-over'], [P.dred, 0.35, 'source-over']];
           for (let i = 0; i < LAY.length; i++) { const [col, al, op] = LAY[LAY.length - 1 - i], lv = (LAY.length - 1 - i) / LAY.length; c.globalCompositeOperation = op; c.strokeStyle = H.rgba(col, al * k); c.lineWidth = Math.max(2, hh * 0.2); c.beginPath(); for (let j = 0; j <= 24; j++) { const bb = (back ? Math.PI : 0) + j / 24 * Math.PI, px = X + Math.cos(bb) * R, py = Y + Math.sin(bb) * R * H.GY - hh * 0.5 * lv * low(bb) - hh * 0.06; j ? c.lineTo(px, py) : c.moveTo(px, py); } c.stroke(); }
-          c.restore();
+          c.restore(); }
           const L = []; for (let j = 0; j < w.nf; j++) { const b = j / w.nf * TAU + w.i * 0.37 + u * 0.4; if ((Math.sin(b) < 0) === back) L.push([b, j]); } L.sort((p, q) => Math.sin(p[0]) - Math.sin(q[0]));
           for (const [b, j] of L) { const px = X + Math.cos(b) * R, py = Y + Math.sin(b) * R * H.GY - hh * 0.25 * low(b), fh = hh * low(b) * (0.8 + 0.3 * Math.sin(t * 7 + j * 1.9)); if (fh < 2) continue; K.flame(c, px, py, T * (0.3 + 0.08 * r), fh, t, j * 1.7 + w.i * 5, Math.cos(b) * T * 0.35, k * 0.95, true); } }
         if (CEL && f.t > END && f.t < END + 0.6) { const u = (f.t - END) / 0.6, env = u < 0.2 ? H.ease.out(u / 0.2) : 1 - H.ease.in((u - 0.2) / 0.8), L = []; for (let i = 0; i < PIL; i++) { const b = i / PIL * TAU + 0.13; if ((Math.sin(b) < 0) === back) L.push([b, i]); } L.sort((p, q) => Math.sin(p[0]) - Math.sin(q[0]));
@@ -164,7 +167,7 @@
         for (const w of waves) { if (f.t < w.t0) continue; const { u, r } = rad(w, f.t), R = r * T, wk = u < 1 ? cl(u * 6) : cl(1 - (f.t - w.t0 - w.dur) / 0.25);
           if (wk > 0) { c.save(); c.translate(X, Y); c.scale(1, H.GY); c.beginPath(); c.arc(0, 0, R * 1.04, 0, TAU); c.arc(0, 0, Math.max(1, R * 0.35), 0, TAU, true);
                         c.globalCompositeOperation = 'lighter'; const g2 = c.createRadialGradient(0, 0, R * 0.55, 0, 0, R * 1.04); g2.addColorStop(0, H.rgba(P.red, 0)); g2.addColorStop(0.75, H.rgba(P.red, 0.25 * wk)); g2.addColorStop(0.95, H.rgba(P.org, 0.6 * wk)); g2.addColorStop(1, H.rgba(P.yel, 0)); c.fillStyle = g2; c.fill(); c.restore();
-            K.shockRing(c, X, Y, R * 1.02, 0.85 * wk); for (let i = 0; i < 8; i++) { const b = i / 8 * TAU + w.i; K.floorLight(c, X + Math.cos(b) * R, Y + Math.sin(b) * R * H.GY, T * 0.9, 0.3 * wk); } }
+            if (K.gq()) K.gq().wave(X, Y, R * 1.02, 0.78, Math.min(1, wk * 1.1), w.i * 2.7 + 1, H.GY, 0.22 + 0.06 * (1 - u)); else K.shockRing(c, X, Y, R * 1.02, 0.85 * wk);   /* (v349: on the GPU a rolling wave of fire energy, not a solid ring) */ for (let i = 0; i < 8; i++) { const b = i / 8 * TAU + w.i; K.floorLight(c, X + Math.cos(b) * R, Y + Math.sin(b) * R * H.GY, T * 0.9, 0.3 * wk); } }
           if (u >= 1) { const age = f.t - w.t0 - w.dur, heat = Math.max(0, 1 - age / 0.9); c.save(); c.globalAlpha = k * cl(age / 0.15 + 0.5); H.floorEllipse(c, X, Y, w.R * T * 0.93); if (heat > 0.02) { c.globalCompositeOperation = 'lighter'; c.setLineDash([T * 0.12, T * 0.22]); c.strokeStyle = H.rgba(P.org, 0.6 * heat); c.lineWidth = T * 0.07; c.stroke(); c.setLineDash([]); } c.restore(); } }
         this.wall(c, f, T, t, true); },
       draw(c, f, X, Y, T, t) { this.wall(c, f, T, t, false); } });

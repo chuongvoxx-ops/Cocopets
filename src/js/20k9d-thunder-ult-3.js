@@ -22,7 +22,7 @@
   const pj = (p, T) => [H.sx(p[0]), H.sy(p[1]) - p[2] * T];
   /* the screen ellipse the pet occupies, and a clip that keeps a draw off it */
   function petBox(T) { const me = H.me; return [H.sx(me.x), H.sy(me.y) - T * 0.46, T * 0.6, T * 0.7]; }
-  function petHole(c, T) { const [x, y, rx, ry] = petBox(T); c.beginPath(); c.rect(-1e5, -1e5, 2e5, 2e5); c.ellipse(x, y, rx, ry, 0, 0, TAU); c.clip('evenodd'); }
+  function petHole(c, T) { return;   /* (v349: no mask round the pet: an attack in front of it covers it) */ const [x, y, rx, ry] = petBox(T); c.beginPath(); c.rect(-1e5, -1e5, 2e5, 2e5); c.ellipse(x, y, rx, ry, 0, 0, TAU); c.clip('evenodd'); }
   /* how much of a front item to show where it would pass over the pet (1 clear of it, down to 0.2 over its middle) */
   function petFade(X, Y, r, T) { const [px, py, rx, ry] = petBox(T), d = Math.hypot((X - px) / (rx + r), (Y - py) / (ry + r)); return d >= 1 ? 1 : 0.2 + 0.8 * d * d; }
   function poly(c, pts) { c.beginPath(); c.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) c.lineTo(pts[i][0], pts[i][1]); }

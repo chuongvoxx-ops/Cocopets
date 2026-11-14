@@ -17,7 +17,7 @@
   const eo = u => 1 - (1 - u) * (1 - u), eio = u => (u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2);
   const back = u => { const s = 1.4; u -= 1; return u * u * ((s + 1) * u + s) + 1; };
   /* how much a thing at screen (X0, Y0) may show: a ghost where it would stand over the pet */
-  function petGuard(X0, Y0, T, rad) { const mx = H.sx(H.me.x), my = H.sy(H.me.y) - T * 0.45, d = Math.hypot(X0 - mx, (Y0 - my) * 1.15) - (rad || 0); return Math.max(0.28, cl((d - T * 0.55) / (T * 0.8))); }
+  function petGuard(X0, Y0, T, rad) { return 1;   /* (v349: nothing fades round the pet) */ const mx = H.sx(H.me.x), my = H.sy(H.me.y) - T * 0.45, d = Math.hypot(X0 - mx, (Y0 - my) * 1.15) - (rad || 0); return Math.max(0.28, cl((d - T * 0.55) / (T * 0.8))); }
   /* a screen point back to the world (particles live in world units; height folds into y) */
   const toW = (X, Y, T) => [H.me.x + (X - H.sx(H.me.x)) / T, H.me.y + (Y - H.sy(H.me.y)) / T];
   /* a cheap jagged spark line: a cyan haze and a white core (two additive strokes) */

@@ -18,7 +18,7 @@ const TK = (() => {
      pass flushed at gpuEnd over whatever the move drew itself; window[flag] = 0, window.__THUNDER_GL = 0, a software
      rasteriser or no WebGL keep the 2D */
   let GQ = null, GF = null;
-  function gpuBegin(c, flag, pet) { if (GQ) return null; try { if (window[flag] === 0 || window.__THUNDER_GL === 0) return null; const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; if (!F || !F.usable()) return null; GF = F; GQ = F.begin(c, pet || null); return GQ; } catch (e) { GQ = null; return null; } }
+  function gpuBegin(c, flag, pet) { if (GQ) return null; try { if (window[flag] === 0 || window.__THUNDER_GL === 0) return null; const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; if (!F || !F.usable()) return null; GF = F; GQ = F.begin(c, null); /* (v349: no mask round the pet) */ return GQ; } catch (e) { GQ = null; return null; } }
   function gpuEnd(c) { if (!GQ) return; const F = GF; GQ = null; GF = null; try { F.flush(c); } catch (e) {} }
   // a line of light through points: gaussian beams run past their ends by an eighth (no dashes at the joints)
   function gpuLine(pts, w, col, a) { for (let i = 1; i < pts.length; i++) { const p0 = pts[i - 1], p1 = pts[i], dx = p1[0] - p0[0], dy = p1[1] - p0[1]; GQ.beam(p0[0] - dx * 0.125, p0[1] - dy * 0.125, p1[0] + dx * 0.125, p1[1] + dy * 0.125, w, col, a); } }

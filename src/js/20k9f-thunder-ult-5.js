@@ -23,7 +23,7 @@
   const bz = (a, b, c2, u) => { const v = 1 - u; return v * v * a + 2 * v * u * b + u * u * c2; };
   const wrap = d => { while (d > Math.PI) d -= TAU; while (d < -Math.PI) d += TAU; return d; };
   /* clip the rest of this draw to everything except the pet's body */
-  function petHole(c, T) { const me = H.me, x = H.sx(me.x), y = H.sy(me.y) - T * 0.46; c.beginPath(); c.rect(-1e5, -1e5, 2e5, 2e5); c.ellipse(x, y, T * 0.62, T * 0.72, 0, 0, TAU); c.clip('evenodd'); }
+  function petHole(c, T) { return;   /* (v349: no mask round the pet: an attack in front of it covers it) */ const me = H.me, x = H.sx(me.x), y = H.sy(me.y) - T * 0.46; c.beginPath(); c.rect(-1e5, -1e5, 2e5, 2e5); c.ellipse(x, y, T * 0.62, T * 0.72, 0, 0, TAU); c.clip('evenodd'); }
   /* how far along angle a from (x, y) the floor stays open, up to max tiles */
   function reach(x, y, a, max, r) { let L = 0.5; while (L < max && !H.X.blocked(x + Math.cos(a) * (L + 0.3), y + Math.sin(a) * (L + 0.3), r || 0.3, 0)) L += 0.25; return L; }
 

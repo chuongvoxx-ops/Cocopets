@@ -28,7 +28,7 @@
   const rgb = (h, a) => { const n = parseInt(h.slice(1), 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`; };
   /* the pet's body on screen: a draw clipped to everything except it never covers the pet */
   const petXY = T => [H.sx(H.me.x), H.sy(H.me.y) - T * 0.46];
-  function petHole(c, T) { const [x, y] = petXY(T); c.beginPath(); c.rect(-1e5, -1e5, 2e5, 2e5); c.ellipse(x, y, T * 0.62, T * 0.72, 0, 0, TAU); c.clip('evenodd'); }
+  function petHole(c, T) { return;   /* (v349: no mask round the pet: an attack in front of it covers it) */ const [x, y] = petXY(T); c.beginPath(); c.rect(-1e5, -1e5, 2e5, 2e5); c.ellipse(x, y, T * 0.62, T * 0.72, 0, 0, TAU); c.clip('evenodd'); }
   /* how much a tall thing fades where it passes over the pet: its axis from (x0, y0) to (x1, y1), w its half width */
   function petFade(x0, y0, x1, y1, w, T) { const [px, py] = petXY(T), dx = x1 - x0, dy = y1 - y0, L2 = dx * dx + dy * dy || 1, u = cl(((px - x0) * dx + (py - y0) * dy) / L2), d = Math.hypot(x0 + dx * u - px, y0 + dy * u - py);
     return 0.28 + 0.72 * sm((d - w - T * 0.25) / (T * 0.7)); }

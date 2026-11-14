@@ -18,7 +18,7 @@
   const gFl = (Q, x, y, ang, w, h, heat, a, seed) => { if (h > 1 && a > 0.01) Q.tongue(x, y, w * 0.5, h * 0.5, ang + Math.PI / 2, heat, a, seed); };
   function gLn(Q, Pt, n, w, col, a) { for (let i = 0; i + 1 < n; i++) { const p0 = Pt[i], p1 = Pt[i + 1], dx = p1[0] - p0[0], dy = p1[1] - p0[1], u = (i + 0.5) / (n - 1), al = typeof a === 'function' ? a(u) : a; if (al <= 0.01) continue; Q.beam(p0[0] - dx * 0.125, p0[1] - dy * 0.125, p1[0] + dx * 0.125, p1[1] + dy * 0.125, typeof w === 'function' ? w(u) : w, col, al); } }
   /* how much a tall thing at screen (X0, Y0) may show: it thins to a ghost where it would stand in front of the pet */
-  function petGuard(X0, Y0, T, rad) { const mx = H.sx(H.me.x), my = H.sy(H.me.y) - T * 0.45, d = Math.hypot(X0 - mx, (Y0 - my) * 1.15) - (rad || 0); return Math.max(0.28, cl((d - T * 0.6) / (T * 0.8))); }
+  function petGuard(X0, Y0, T, rad) { return 1;   /* (v349: nothing fades round the pet) */ const mx = H.sx(H.me.x), my = H.sy(H.me.y) - T * 0.45, d = Math.hypot(X0 - mx, (Y0 - my) * 1.15) - (rad || 0); return Math.max(0.28, cl((d - T * 0.6) / (T * 0.8))); }
   /* a single (crownless) shaded flame pointing along a screen angle */
   function sflame(c, x, y, ang, w, h, t, seed, a) { if (h < 2 || w < 1 || !(a > 0.01)) return; if (K && K.gq && K.gq()) { const Q = K.gq(), p = K.gpuXY(c, x, y), r = ang + Math.PI / 2 + p[2] + Math.atan2(Math.sin(t * 8 + seed) * w * 0.15, h); Q.glow(p[0] + Math.cos(ang + p[2]) * h * 0.35, p[1] + Math.sin(ang + p[2]) * h * 0.35, w * 1.1, P.org, 0.22 * a); Q.tongue(p[0], p[1], w * 0.62, h * 0.58, r, 0.8, 0.9 * a, seed); return; }   // (v347: on the GPU a cooler tongue, as many overlap)
     c.save(); c.translate(x, y); c.rotate(ang + Math.PI / 2); K.flame(c, 0, 0, w, h, t, seed, Math.sin(t * 8 + seed) * w * 0.15, a, true); c.restore(); }
@@ -73,7 +73,7 @@
      flicker frames, played back and forth), the ember dots and the glowing cracks; per frame it is only blits. */
   const R1 = s => { const v = Math.sin(s * 12.9898 + 78.233) * 43758.5453; return v - Math.floor(v); };
   /* a clip that keeps everything after it off the pet's body */
-  function petHole(c, T) { const me = H.me, x = H.sx(me.x), y = H.sy(me.y) - T * 0.46; c.beginPath(); c.rect(-1e5, -1e5, 2e5, 2e5); c.ellipse(x, y, T * 0.62, T * 0.74, 0, 0, TAU); c.clip('evenodd'); }
+  function petHole(c, T) { return;   /* (v349: no mask round the pet: an attack in front of it covers it) */ const me = H.me, x = H.sx(me.x), y = H.sy(me.y) - T * 0.46; c.beginPath(); c.rect(-1e5, -1e5, 2e5, 2e5); c.ellipse(x, y, T * 0.62, T * 0.74, 0, 0, TAU); c.clip('evenodd'); }
   /* the visible screen in the current drawing coordinates */
   function scr(c) { const m = c.getTransform(), a = m.a || 1, d = m.d || 1; return { x0: -m.e / a, y0: -m.f / d, w: c.canvas.width / a, h: c.canvas.height / d }; }
   const vfade = (g, w, h) => { g.globalCompositeOperation = 'destination-in'; const gv = g.createLinearGradient(0, 0, 0, h); gv.addColorStop(0, 'rgba(0,0,0,0)'); gv.addColorStop(0.15, 'rgba(0,0,0,0.25)'); gv.addColorStop(0.4, 'rgba(0,0,0,1)'); gv.addColorStop(1, 'rgba(0,0,0,1)'); g.fillStyle = gv; g.fillRect(0, 0, w, h); };
@@ -185,7 +185,7 @@
     }
     function drawGL(FG, c, f, X, Y, T) {
       const fa = cl(Math.min(f.t / 0.6, (D + 0.9 - f.t) / 0.9)), S = scr(c), tt = f.t, topY = S.y0 - T * 0.5, low = LQ();
-      const PX = H.sx(me.x), PY = H.sy(me.y) - T * 0.46, Q = FG.begin(c, [PX, PY, T * 0.62]);
+      const PX = H.sx(me.x), PY = H.sy(me.y) - T * 0.46, Q = FG.begin(c, null);
       // the vortex of fire in the sky the beams fall from (a greater, double one at Celestial)
       const VX = X, VY = S.y0 + T * 0.6, vs = sup ? 1.3 : 1, vr = T * 6.5 * vs;
       Q.glow(VX, VY, T * 7 * vs, P.red, 0.45 * fa, 0.55); Q.glow(VX, VY, T * 3 * vs, P.org, 0.3 * fa, 0.5);
@@ -600,7 +600,7 @@
         c.strokeStyle = H.rgba(P.org, 0.5 * heat); c.lineWidth = 2; H.floorEllipse(c, X, Y, R * T); c.stroke(); c.restore();
         if (f.t > BUD) K.scorch(c, X, Y, T * R * 0.75, k, Math.max(0.1, 1 - (f.t - BUD) / 1.3), 3);
         for (const s of seeds) if (f.t > BUD + 0.75) K.scorch(c, H.sx(s.x), H.sy(s.y), T * 1.1, 0.7 * k, Math.max(0.1, 1 - (f.t - BUD - 0.75) / 1.0), s.x); },
-      draw(c, f, X, Y, T, t) { const k = Math.min(1, f.life / 0.7), rise = H.ease.out(cl(f.t / 1.0)), open = H.ease.io(cl((f.t - 1.2) / 0.9)), bud = cl((f.t - 2.8) / 0.4), frag = cl((f.t - BUD) / 0.9), items = [], FG = gfxD('__CL_GL'), Q = FG ? FG.begin(c, [H.sx(H.me.x), H.sy(H.me.y) - T * 0.46, T * 0.62]) : null;   // (v345: the petals stay crisp molten solids, 2D; every flame and glow on the GPU)
+      draw(c, f, X, Y, T, t) { const k = Math.min(1, f.life / 0.7), rise = H.ease.out(cl(f.t / 1.0)), open = H.ease.io(cl((f.t - 1.2) / 0.9)), bud = cl((f.t - 2.8) / 0.4), frag = cl((f.t - BUD) / 0.9), items = [], FG = gfxD('__CL_GL'), Q = FG ? FG.begin(c, null) : null;   // (v345: the petals stay crisp molten solids, 2D; every flame and glow on the GPU)
         layers.forEach(([n, rr, hh, off, lean0], li) => { for (let i = 0; i < n; i++) { const b = i / n * TAU + off, lean = lean0 * open, px = X + Math.cos(b) * rr * R * T * (1 + lean * 0.35), py = Y + Math.sin(b) * rr * R * T * H.GY * (1 + lean * 0.35), dep = Math.sin(b);
           items.push({ y: py, draw: () => { const ph = T * hh * rise, w = T * (1.0 + 0.15 * (1 - li * 0.5)) * rise, tilt = Math.cos(b) * lean * 0.75, drop = frag * frag * T * 1.6, gd = petGuard(px, py - ph * 0.5, T), al = k * (1 - frag) * gd, heat = 0.4 + 0.6 * Math.max(open * 0.75, bud) * (0.75 + 0.25 * Math.sin(t * 7 + i + li));
             H.softShadow(c, px, py, w * 0.8, 0.2 * rise * (1 - frag)); petal(c, px + Math.cos(b) * frag * T * 0.6, py + drop, w, ph * (1 - frag * 0.3), tilt, 1 - lean * 0.3, dep < 0 ? open : open * 0.25, heat, t, i * 2.3 + li * 7, al);

@@ -260,7 +260,7 @@
   };
 
   /* how much a thing at screen (X0, Y0) may show: a ghost where it passes over the pet */
-  function petGuard(X0, Y0, T, rad) { const mx = H.sx(H.me.x), my = H.sy(H.me.y) - T * 0.45, d = Math.hypot(X0 - mx, (Y0 - my) * 1.15) - (rad || 0); return Math.max(0.25, cl((d - T * 0.5) / (T * 0.8))); }
+  function petGuard(X0, Y0, T, rad) { return 1;   /* (v349: nothing fades round the pet) */ const mx = H.sx(H.me.x), my = H.sy(H.me.y) - T * 0.45, d = Math.hypot(X0 - mx, (Y0 - my) * 1.15) - (rad || 0); return Math.max(0.25, cl((d - T * 0.5) / (T * 0.8))); }
 
   /* ================= 5. Glacial Onslaught ================= */
   U.glacialonslaught = (C, h) => { H = h; K = IK.bind(H); P = K.P; init();

@@ -14,7 +14,7 @@
   const { W, R1, cl, lerp, glow, strip, drawBub, spoutSpr, bandSpr, poolSpr, sheenSpr, bubLSpr, hlSpr } = globalThis.WU2K;
   let H, K;
   const sfx = k => { const s = H.X.sfx; if (s && s[k]) s[k](); };
-  function petHole(c, T) { const me = H.me, x = H.sx(me.x), y = H.sy(me.y) - T * 0.46; c.beginPath(); c.rect(-1e5, -1e5, 2e5, 2e5); c.ellipse(x, y, T * 0.62, T * 0.74, 0, 0, TAU); c.clip('evenodd'); }
+  function petHole(c, T) { return;   /* (v349: no mask round the pet: an attack in front of it covers it) */ const me = H.me, x = H.sx(me.x), y = H.sy(me.y) - T * 0.46; c.beginPath(); c.rect(-1e5, -1e5, 2e5, 2e5); c.ellipse(x, y, T * 0.62, T * 0.74, 0, 0, TAU); c.clip('evenodd'); }
   const lvK = ev => ev >= 7 ? 1.15 : ev >= 4 ? 1.07 : 1;
   const FK = C => C.K * K.evoK(C) * lvK(K.evo(C));
   const sum = a => a.reduce((p, q) => p + q, 0);

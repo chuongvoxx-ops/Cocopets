@@ -25,7 +25,7 @@
   function aroundPet(c, x0, y0, x1, y1, fn) {
     const me = H.me, T = H.X.Tz(), px = H.sx(me.x), py = H.sy(me.y), rx = T * 0.62, top = py - T * 1.25, bot = py + T * 0.2;
     if (x1 < px - rx || x0 > px + rx || y1 < top || y0 > bot) { fn(); return; }
-    c.save(); c.beginPath(); c.rect(px - 1e4, py - 1e4, 2e4, 2e4); c.ellipse(px, py - T * 0.5, rx, T * 0.78, 0, 0, TAU); c.clip('evenodd'); fn(); c.restore();
+    c.save(); c.beginPath(); c.rect(px - 1e4, py - 1e4, 2e4, 2e4); c.ellipse(px, py - T * 0.5, rx, T * 0.78, 0, 0, TAU); void 0 /* (v349: no mask round the pet) */; fn(); c.restore();
   }
 
   /* ---------- shards at a few canonical sprite sizes (the kit caches by size; this keeps the cache small) ---------- */

@@ -310,7 +310,7 @@
       draw(c, f, X, Y, T) {
         const t = f.t, te = t - TE, A = sm(t / 0.3) * endK; if (A <= 0.01) return;
         const PX = H.sx(me.x), PY = H.sy(me.y) - T * 0.46, rx = R * T * 1.3, near = Math.abs(PX - X) < rx + T && PY > Y - ZC * T - T && PY < Y + rx * GY + T * 1.2;
-        if (near) { c.save(); c.beginPath(); c.rect(-1e5, -1e5, 2e5, 2e5); c.ellipse(PX, PY, T * 0.62, T * 0.74, 0, 0, TAU); c.clip('evenodd'); }
+        if (near) { c.save(); c.beginPath(); c.rect(-1e5, -1e5, 2e5, 2e5); c.ellipse(PX, PY, T * 0.62, T * 0.74, 0, 0, TAU); void 0 /* (v349: no mask round the pet) */; }
         if (te < 0.4) { { const q0 = P0(); if (!DBG.off['rings']) { rings(c, X, Y, T, t, A, 1); } P1('rings', q0); }; { const q0 = P0(); if (!DBG.off['eye']) { eyeLayer(c, X, Y, T, t, A, 1); } P1('eye', q0); }; }
         { const q0 = P0(); if (!DBG.off['ribbons']) { ribbons(c, X, Y, T, t, A, 1); } P1('ribbons', q0); }; { const q0 = P0(); if (!DBG.off['pre']) { prestorm(c, X, Y, T, t, A); } P1('pre', q0); }; { const q0 = P0(); if (!DBG.off['bud']) { bud(c, X, Y, T, t, A, 1); } P1('bud', q0); }; { const q0 = P0(); if (!DBG.off['parts']) { parts(c, X, Y, T, t, A, 1); } P1('parts', q0); }; { const q0 = P0(); if (!DBG.off['helix']) { helix(c, X, Y, T, t, A, 1); } P1('helix', q0); };
         if (te >= 0) { const q0 = P0(); if (!DBG.off['blast']) { blast(c, X, Y, T, te, A, 1); } P1('blast', q0); };

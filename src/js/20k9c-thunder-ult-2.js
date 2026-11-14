@@ -24,7 +24,7 @@
   const CZ = 0.84;   // how much a height shows on screen for the wheels' true 3D (the floor's squash is H.GY)
   const mk = (w, h) => { const e = document.createElement('canvas'); e.width = w; e.height = h; return e; };
   /* the pet's body on screen; clip a draw to everything except it so nothing of a move covers the pet */
-  function petHole(c, T) { const me = H.me, x = H.sx(me.x), y = H.sy(me.y) - T * 0.46; c.beginPath(); c.rect(-1e5, -1e5, 2e5, 2e5); c.ellipse(x, y, T * 0.6, T * 0.7, 0, 0, TAU); c.clip('evenodd'); }
+  function petHole(c, T) { return;   /* (v349: no mask round the pet: an attack in front of it covers it) */ const me = H.me, x = H.sx(me.x), y = H.sy(me.y) - T * 0.46; c.beginPath(); c.rect(-1e5, -1e5, 2e5, 2e5); c.ellipse(x, y, T * 0.6, T * 0.7, 0, 0, TAU); c.clip('evenodd'); }
   const rgba = (h, a) => H.rgba(h, a);
 
   /* ---------------- cached sprites ---------------- */
