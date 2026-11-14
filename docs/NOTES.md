@@ -1058,3 +1058,4 @@ Every new boss painter (rift fiends, Tower bosses, minis that get their own art)
 - v331: Nidhogg Ultima camera: 50% less pull-back again (ULT_CAM_K 0.0875); it still pulls back, just closer.
 - v332: Nidhogg — wing membranes tucked into the flank (no slit between wing and body on the GPU model); Dive Bomb landing fire back to the flat painted version (3D dive layers off, DIVE3D); Flare cooldown 4 s → 2 s (baselines updated).
 - v333: Nidhogg Ultima camera closer to the dragon: ULT_CAM_K 0.0875 → 0.04375 (half the pull-back) and ULT_LEAN_K 0.5 (the view leans half as far toward the beam target).
+- v334: Nidhogg Ultima camera 1.6x closer than the flight zoom (ULT_IN 1.6, from the user's cropped screenshot); flight zoom unchanged (0.585).
