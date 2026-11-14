@@ -149,7 +149,7 @@
         if (f.t < IN && f.t + dt >= IN * 0.6) { H.X.shake(4, 0.12); K.embers(me.x, me.y, 10, { v: 4 }); } },
       // the frame of this draw: the ring's centre, scale, wobble and spin
       frame(f, X, Y, T, t) { const ap = H.ease.back(cl(f.t / IN)), dis = cl(f.life / OUT), sc = (0.55 + 0.45 * ap) * (0.85 + 0.15 * dis);
-        return { X, Y, T: T * sc, a: Math.min(1, cl(f.t / (IN * 0.5))) * dis, rise: (1 - cl(f.t / IN)) * 0.5 + (1 - dis) * 0.25, ax: 0.15 * Math.sin(t * 0.9) + 0.05 * Math.sin(t * 2.3), ay: 0.11 * Math.cos(t * 0.7), phi: f.t * 2.1, hk: 0.75 + 0.25 * Math.sin(t * 7) * Math.sin(t * 3.1), pu: 0.78 + 0.22 * Math.sin(t * 6.5) + 0.08 * Math.sin(t * 13.7) }; },   // (pu: the blaze swelling and pulsing)
+        return { X, Y, T: T * sc, a: Math.min(1, cl(f.t / (IN * 0.5))) * dis, rise: (1 - cl(f.t / IN)) * 0.5 + (1 - dis) * 0.25, ax: 0.15 * Math.sin(t * 0.9) + 0.05 * Math.sin(t * 2.3), ay: 0.11 * Math.cos(t * 0.7), phi: f.t * 4.4, hk: 0.75 + 0.25 * Math.sin(t * 7) * Math.sin(t * 3.1), pu: 0.78 + 0.22 * Math.sin(t * 6.5) + 0.08 * Math.sin(t * 13.7) }; },   // (pu: the blaze swelling and pulsing)
       pt(F, th, r, hh) { const p = rot([r * Math.cos(th), r * Math.sin(th), Z0 - F.rise + hh], F.ax, F.ay); return [F.X + p[0] * F.T, F.Y + p[1] * F.T * GY - p[2] * F.T, p[1]]; },
       // (v350) the band in the round: its cross-section a rounded rectangle (a superellipse, CA across, CB tall), cut into
       // NP facets round it; every facet of every segment that faces you is shaded by its own normal (so its edges roll over
@@ -168,20 +168,25 @@
             if (inward) col = mixc(col, WARM, 0.28 * F.hk * F.pu);                          // the inner face lit by the fire within
             if (fc.n[2] > 0.3) col = mixc(col, [255, 176, 96], 0.3 * fc.n[2] * F.pu);       // its crown lit by the blaze on it
             c.fillStyle = css(col); c.strokeStyle = c.fillStyle; c.lineWidth = 0.6; c.beginPath(); c.moveTo(p00[0], p00[1]); c.lineTo(p01[0], p01[1]); c.lineTo(p11[0], p11[1]); c.lineTo(p10[0], p10[1]); c.closePath(); c.fill(); c.stroke(); } }
+        // (v353) a motion blur: the spinning etching and crystals drawn again a little behind themselves, fainter
+        const BLUR = [[0.16, 0.18], [0.08, 0.36], [0, 1]];
+        for (const [PO, PA] of BLUR) { const PH = F.phi - PO; c.save(); c.globalAlpha = F.a * PA;
         // the engraving on the outer face (on its curve): two etched borders, a meander and a rune in every other cell, cut dark and glowing with fire
         { const NC = 16, DC = TAU / NC, hB = CB * 0.62, hM = CB * 0.34, dr = h0 => CA * Math.pow(Math.max(0, 1 - Math.pow(Math.abs(h0) / CB, PW)), 1 / PW) + 0.003;
           const onVis = th => { const n = rot([Math.cos(th), Math.sin(th), 0], F.ax, F.ay); return dot(n, V) > 0.06 && ((this.pt(F, th, R, 0)[2] < 0) === back); };
           const E = (th, hh) => this.pt(F, th, R + dr(hh), hh);
           c.beginPath(); let any = false;
           for (const hh of [hB, -hB]) { let st = false; for (let j = 0; j <= N * 2; j++) { const th = j / (N * 2) * TAU; if (!onVis(th)) { st = false; continue; } const p = E(th, hh); st ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]); st = true; any = true; } }
-          for (let k = 0; k < NC; k++) { const c0 = F.phi + k * DC; if (!onVis(c0 + DC * 0.06) || !onVis(c0 + DC * 0.5) || !onVis(c0 + DC * 0.94)) continue; any = true; const P_ = (du, dv) => E(c0 + du * DC, dv * hM);
+          for (let k = 0; k < NC; k++) { const c0 = PH + k * DC; if (!onVis(c0 + DC * 0.06) || !onVis(c0 + DC * 0.5) || !onVis(c0 + DC * 0.94)) continue; any = true; const P_ = (du, dv) => E(c0 + du * DC, dv * hM);
             if (k % 2) [[0.05, -1], [0.27, 1], [0.5, -1], [0.73, 1], [0.95, -1]].forEach((q, j) => { const p = P_(q[0], q[1]); j ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]); });
             else for (const sd of [-1, 1]) { const a = P_(0.5 + sd * 0.4, -0.9), b = P_(0.5 + sd * 0.4, 0.9), m1 = P_(0.5 + sd * 0.4, 0), m2 = P_(0.5 + sd * 0.47, 0); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.moveTo(m1[0], m1[1]); c.lineTo(m2[0], m2[1]); }   // (the gem's setting: a bracket each side)
             const t0 = P_(0, -1.85), t1 = P_(0, -1.5), t2 = P_(0, 1.5), t3 = P_(0, 1.85); c.moveTo(t0[0], t0[1]); c.lineTo(t1[0], t1[1]); c.moveTo(t2[0], t2[1]); c.lineTo(t3[0], t3[1]); }
           if (any) { c.lineCap = 'round'; c.strokeStyle = 'rgba(14,5,7,0.9)'; c.lineWidth = Math.max(1.4, F.T * 0.045); c.stroke();
             c.globalCompositeOperation = 'lighter'; c.strokeStyle = `rgba(255,${(70 + 50 * F.hk * F.pu) | 0},40,${Math.min(1, 0.85 * F.hk * F.pu)})`; c.lineWidth = Math.max(0.9, F.T * 0.022); c.stroke(); c.strokeStyle = `rgba(255,224,160,${0.6 * F.hk * F.pu})`; c.lineWidth = Math.max(0.5, F.T * 0.008); c.stroke(); c.globalCompositeOperation = 'source-over'; } }
+        c.restore(); }
+        for (const [PO, PA] of BLUR) { const PH = F.phi - PO; c.save(); c.globalAlpha = F.a * PA;
         // the crystals set round it: faceted bipyramids along the ring, pale gold to white, lit facet by facet, glowing from within
-        { const gems = []; for (let k = 0; k < NG; k++) { const th = F.phi + (k + 0.5) / NG * TAU * 1 + TAU / 32, cg = this.pt(F, th, R, 0); if ((cg[2] < 0) !== back) continue; gems.push({ th, d: cg[2], k }); }
+        { const gems = []; for (let k = 0; k < NG; k++) { const th = PH + (k + 0.5) / NG * TAU * 1 + TAU / 32, cg = this.pt(F, th, R, 0); if ((cg[2] < 0) !== back) continue; gems.push({ th, d: cg[2], k }); }
           gems.sort((p, q) => p.d - q.d);
           for (const G of gems) { const ct = Math.cos(G.th), st = Math.sin(G.th), Cw = [R * ct, R * st, 0], tg = [-st, ct, 0], nr = [ct, st, 0], tw = 0.75 + 0.25 * Math.sin(t * 5 + G.k * 1.9);
             const W = (a, b, cc) => [Cw[0] + tg[0] * a + nr[0] * b, Cw[1] + tg[1] * a + nr[1] * b, Cw[2] + cc];   // (along the ring, outward, up: unrotated tiles)
@@ -195,18 +200,21 @@
               const col = mixc(mixc([214, 150, 60], [255, 244, 212], 0.25 + 0.6 * d + 0.25 * inner * tw), [255, 255, 250], Math.min(1, sp * 1.2));
               c.fillStyle = css(col, 0.94); c.beginPath(); c.moveTo(fc.P[0][0], fc.P[0][1]); c.lineTo(fc.P[1][0], fc.P[1][1]); c.lineTo(fc.P[2][0], fc.P[2][1]); c.closePath(); c.fill(); c.strokeStyle = `rgba(255,252,236,${0.35 + 0.4 * d})`; c.lineWidth = 0.8; c.stroke(); }
             const pc = PJ(cen); K.glow(c, pc[0], pc[1], F.T * 0.5, '#FFE7A0', 0.28 * tw * F.pu); } }
+        c.restore(); }
         c.restore(); },
       // (v352) orange energy streaming round the ring like Armageddon's fire: turbulent fire beams chained round three circles
       // (wrapping the tube, a wider one above it, a tighter one below), scrolling the way it spins and swelling with the pulse;
       // the red aetherial energy coiling round it
       fire(c, F, t, back) { const Q = K.gq();
-        const LOOPS = [[R * 1.05, CB * 0.55, 0.2, 0.76, 0.5, 4.2, 1], [R * 1.16, CB * 1.35, 0.17, 0.7, 0.55, 5.6, 7], [R * 0.86, -CB * 0.3, 0.14, 0.66, 0.42, 3.4, 13]], NS = 30;
-        for (const [rr, hh0, ww, heat, al0, scr, sd] of LOOPS) { const pts = []; for (let j = 0; j <= NS; j++) { const th = j / NS * TAU + sd * 0.37, hh = hh0 + CB * 0.25 * Math.sin(th * 3 + t * 2.6 + sd); pts.push(this.pt(F, th, rr * (1 + 0.025 * Math.sin(th * 5 - t * 4 + sd)), hh)); }
+        const LOOPS = [[R * 1.05, CB * 0.55, 0.2, 0.76, 0.5, 6.5, 1, 1.0], [R * 1.16, CB * 1.35, 0.17, 0.7, 0.55, 8.0, 7, 1.18], [R * 0.86, -CB * 0.3, 0.14, 0.66, 0.42, 5.5, 13, 0.88]], NS = 30;
+        for (const [rr, hh0, ww, heat, al0, scr, sd, spn] of LOOPS) { const pts = []; for (let j = 0; j <= NS; j++) { const u = j / NS * TAU + sd * 0.37, th = u + F.phi * spn, hh = hh0 + CB * 0.25 * Math.sin(u * 3 + sd); pts.push(this.pt(F, th, rr * (1 + 0.025 * Math.sin(u * 5 + sd)), hh)); }   // (its shape rides round with the ring)
           for (let j = 1; j <= NS; j++) { const p0 = pts[j - 1], p1 = pts[j]; if ((((p0[2] + p1[2]) / 2) < 0) !== back) continue; const al = F.a * al0 * (0.6 + 0.4 * F.pu) * (0.8 + 0.2 * Math.sin(t * 9 + j * 1.3 + sd)), w = F.T * ww * (0.85 + 0.25 * F.pu);
-            if (Q) { const dx = p1[0] - p0[0], dy = p1[1] - p0[1]; Q.firebeam(p0[0] - dx * 0.2, p0[1] - dy * 0.2, p1[0] + dx * 0.2, p1[1] + dy * 0.2, w, heat * (0.9 + 0.15 * F.pu), al, sd * 0.61 + j * 0.37, scr); if (j % 3 === 0) Q.glow((p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2, w * 2.6, '#FF7A22', 0.22 * al); }
+            if (Q) { const dx = p1[0] - p0[0], dy = p1[1] - p0[1]; Q.firebeam(p0[0] - dx * 0.2, p0[1] - dy * 0.2, p1[0] + dx * 0.2, p1[1] + dy * 0.2, w, heat * (0.9 + 0.15 * F.pu), al, sd * 0.61 + j * 0.37, scr); Q.beam(p0[0] - dx * 0.4, p0[1] - dy * 0.4, p1[0] + dx * 0.4, p1[1] + dy * 0.4, w * 1.5, '#FF6A1A', 0.16 * al);   /* (and a smear of its light along the way it goes: motion blur) */ if (j % 3 === 0) Q.glow((p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2, w * 2.6, '#FF7A22', 0.22 * al); }
             else { c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.strokeStyle = H.rgba(P.org, 0.55 * al); c.lineWidth = Math.max(1.5, w * 1.2); c.beginPath(); c.moveTo(p0[0], p0[1]); c.lineTo(p1[0], p1[1]); c.stroke(); c.strokeStyle = H.rgba(P.yel, 0.6 * al); c.lineWidth = Math.max(1, w * 0.45); c.stroke(); c.restore(); } } }
+        // (v353) speed trails behind each crystal: arcs of gold light fading back along the ring
+        if (Q) for (let k = 0; k < NG; k++) { const th = F.phi + (k + 0.5) / NG * TAU + TAU / 32; let pv = null; for (let j = 0; j <= 7; j++) { const p = this.pt(F, th - j * 0.075, R + CA * 0.2, CB * 0.1); if (pv && (((p[2] + pv[2]) / 2) < 0) === back) { const u = j / 7, dx = p[0] - pv[0], dy = p[1] - pv[1]; Q.beam(pv[0] - dx * 0.125, pv[1] - dy * 0.125, p[0] + dx * 0.125, p[1] + dy * 0.125, F.T * 0.13 * (1 - u * 0.6), '#FFE7A0', 0.4 * F.a * (1 - u)); } pv = p; } }
         const streams = 4, M = 20;
-        for (let s = 0; s < streams; s++) { const pts = []; for (let j = 0; j <= M; j++) { const a = -F.phi * 1.35 + s * TAU / streams + j * 0.15, rr = R * (1.1 + 0.06 * Math.sin(t * 3 + s + j * 0.4)), hh = HB * (0.15 + 0.75 * Math.sin(a * 2 + t * 2.4 + s * 1.7)); pts.push(this.pt(F, a, rr, hh)); }
+        for (let s = 0; s < streams; s++) { const pts = []; for (let j = 0; j <= M; j++) { const a = F.phi * 1.25 + s * TAU / streams + j * 0.15, rr = R * (1.1 + 0.06 * Math.sin(t * 3 + s + j * 0.4)), hh = HB * (0.15 + 0.75 * Math.sin(a * 2 + t * 2.4 + s * 1.7)); pts.push(this.pt(F, a, rr, hh)); }
           for (let j = 1; j <= M; j++) { const p0 = pts[j - 1], p1 = pts[j]; if ((((p0[2] + p1[2]) / 2) < 0) !== back) continue; const u = j / M, w = F.T * 0.11 * Math.sin(u * Math.PI), al = Math.min(1, F.a * (0.75 + 0.35 * Math.sin(t * 11 + j + s * 3)) * Math.sin(u * Math.PI) * 1.3);
             if (Q) { const dx = p1[0] - p0[0], dy = p1[1] - p0[1]; Q.beam(p0[0] - dx * 0.125, p0[1] - dy * 0.125, p1[0] + dx * 0.125, p1[1] + dy * 0.125, w * 1.6, RED, al * 0.55); Q.beam(p0[0] - dx * 0.125, p0[1] - dy * 0.125, p1[0] + dx * 0.125, p1[1] + dy * 0.125, w * 0.5, '#FF8A96', al * 0.8); Q.beam(p0[0] - dx * 0.125, p0[1] - dy * 0.125, p1[0] + dx * 0.125, p1[1] + dy * 0.125, w * 0.16, '#FFE6EA', al * 0.8); }
             else { c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.strokeStyle = H.rgba(RED, al * 0.7); c.lineWidth = Math.max(1, w * 1.4); c.beginPath(); c.moveTo(p0[0], p0[1]); c.lineTo(p1[0], p1[1]); c.stroke(); c.strokeStyle = H.rgba('#FFC0C8', al * 0.8); c.lineWidth = Math.max(0.6, w * 0.35); c.stroke(); c.restore(); } } } },
