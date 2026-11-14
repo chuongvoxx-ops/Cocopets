@@ -254,7 +254,10 @@
         if (t < FIN + 0.4) { f._lt = (f._lt || 0) - dt; if (f._lt <= 0) { f._lt = 0.12; H.X.light(x, y - 1, R * (0.5 + 0.35 * cl(t / GATH)), 0.18); } }
         // Celestial: the storm unravels into threads of light falling from the clouds
         if (fin && t > FIN + 0.35 && t < END - 0.4 && f.threads.length < 70) { const k2 = 60 * dt; for (let i = 0; i < k2; i++) { const p = puffs[Math.floor(Math.random() * puffs.length)]; f.threads.push({ x: x + Math.cos(p.b) * p.r * (1 + f.open * 0.4) + (Math.random() - 0.5) * 0.8, y: y + Math.sin(p.b) * p.r * 0.75 * (1 + f.open * 0.4), z: p.z - 0.2, t0: t, v: 2.2 + Math.random() * 1.5, L: 0.4 + Math.random() * 0.5 }); } } },
-      drawUnder(c, f, X, Y, T) { const t = f.t, form = cl(t / GATH), kk = Math.min(1, f.life / 0.8);
+      // (v346) on the GPU where it can be: the kit's lightning, glows and rings as plasma (TK's GPU mode), the canopy volumetric storm clouds
+      drawUnder(c, f, X, Y, T) { K.gpuBegin(c, '__TS_GL', null); try { f.underImpl(c, f, X, Y, T); } finally { K.gpuEnd(c); } },
+      draw(c, f, X, Y, T) { const G = K.gpuBegin(c, '__TS_GL', [H.sx(me.x), H.sy(me.y) - T * 0.46, T * 0.62]); try { f.drawImpl(c, f, X, Y, T, G); } finally { K.gpuEnd(c); } },
+      underImpl(c, f, X, Y, T) { const t = f.t, form = cl(t / GATH), kk = Math.min(1, f.life / 0.8);
         K.floorLight(c, X, Y, T * R * 1.05, 0.16 * form * kk, P.violet);
         for (const s of strikes) { if (!s.pick || t < s.t0 - 0.32) continue; const SX = H.sx(s.x), SY = H.sy(s.y), u = t - s.t0;
           if (u < 0) { K.floorLight(c, SX, SY, T * 0.5, 0.4 * cl(1 + u / 0.32), P.cyan); continue; }
@@ -269,7 +272,7 @@
             if (u < 0.7) { K.shockRing(c, X, Y, RR * H.ease.out(u / 0.7), 1 - u / 0.7, t, fin ? 8 : 4); if (fin) K.shockRing(c, X, Y, RR * 0.65 * H.ease.out(cl(u / 0.5)), 0.8 * (1 - u / 0.7), t, 0); }
             if (u < 0.8) K.groundArcs(c, X, Y, RR * (0.5 + 0.5 * u), fin ? 10 : 6, t, 0.9 * (1 - u / 0.8), 0.3);
             if (fin && u < 1.0) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.16 * (1 - u); c.fillStyle = P.cyan; H.floorEllipse(c, X, Y, RR * 0.9 * H.ease.out(cl(u / 0.4))); c.fill(); c.restore(); } } } },
-      draw(c, f, X, Y, T) { const t = f.t, form = H.ease.out(cl(t / GATH)), fade = 1 - cl((t - FIN - (fin ? 0.6 : 0.25)) / (fin ? 0.9 : 0.75)), A = form * fade;
+      drawImpl(c, f, X, Y, T, G) { const t = f.t, form = H.ease.out(cl(t / GATH)), fade = 1 - cl((t - FIN - (fin ? 0.6 : 0.25)) / (fin ? 0.9 : 0.75)), A = form * fade;
         // tendrils rising, bolts descending to meet them, then the impact's crackle and its violet afterglow in the air
         for (const s of strikes) { if (!s.pick) continue; const u = t - s.t0; if (u < -0.32 || u > 0.7) continue; const SX = H.sx(s.x), SY = H.sy(s.y);
           if (u < 0.02) { const g = cl((u + 0.32) / 0.3), hh = T * (0.35 + 0.75 * H.ease.out(g)); K.arc(c, SX, SY, SX + (rnd(s.i) - 0.5) * T * 0.3, SY - hh, K.seed(t, s.i, 22), 1.0 + g * 0.5, 0.55 + 0.4 * g, { forks: 1, jit: T * 0.12 }); K.glow(c, SX, SY, T * 0.4, P.cyan, 0.5 * g); }
@@ -289,7 +292,8 @@
         if (A > 0.01) { const CY = Y - Z * T, open = f.open, list = puffs.map(p => { const rr = p.r * (1.25 - 0.25 * form) * (1 + open * (p.r ? 0.45 : 0)) + (p.r ? 0 : open * R * 0.9), px = X + Math.cos(p.b + (p.r ? 0 : 1.3)) * rr * T, py = Y + Math.sin(p.b + (p.r ? 0 : 1.3)) * rr * T * 0.62 - p.z * T; return { p, px, py }; }).sort((a, b) => a.py - b.py), im = puff();
           K.glow(c, X, CY + T * 0.2, T * R * 1.1, P.deep, 0.35 * A); K.glow(c, X, CY + T * 0.4, T * R * 0.7, P.violet, 0.18 * A * (1 + puffs.reduce((m, p) => Math.max(m, p.lit), 0)));
           for (const q of list) { const p = q.p, sz = T * 1.55 * p.s * (0.6 + 0.4 * form), gu = petGuard(q.px, q.py + sz * 0.2, T, sz * 0.4), a = A * gu * (p.r ? 1 : 1 - open);
-            c.save(); c.globalAlpha = 0.85 * a; c.drawImage(im, q.px - sz, q.py - sz * 0.65, sz * 2, sz * 1.3); c.restore();
+            if (G) { const L0 = p.lit + 0.12 + 0.08 * Math.sin(t * 3 + p.i * 1.7); G.quad(16, q.px, q.py, sz * 1.05, 0, 0, sz * 0.7, '#5B47B8', 0.95 * a, L0, p.i * 1.37); }
+            else { c.save(); c.globalAlpha = 0.85 * a; c.drawImage(im, q.px - sz, q.py - sz * 0.65, sz * 2, sz * 1.3); c.restore(); }
             const L = p.lit + 0.2 + 0.1 * Math.sin(t * 3 + p.i * 1.7); K.glow(c, q.px, q.py, sz * 0.95, P.violet, 0.6 * L * a); K.glow(c, q.px, q.py + sz * 0.25, sz * 0.6, P.blue, 0.3 * L * a); if (p.lit > 0.4) K.glow(c, q.px, q.py + sz * 0.1, sz * 0.5, P.ice, 0.5 * (p.lit - 0.3) * a); }
           const nc = fin ? 4 : 3; for (let i = 0; i < nc; i++) { const sd = K.seed(t, i, 7), p0 = list[Math.floor(rnd(sd) * list.length)], p1 = list.filter(q => q !== p0).sort((q, r) => Math.hypot(q.px - p0.px, q.py - p0.py) - Math.hypot(r.px - p0.px, r.py - p0.py))[Math.floor(rnd(sd + 5) * 2)]; if (!p1) continue; const gu = petGuard((p0.px + p1.px) / 2, (p0.py + p1.py) / 2, T, T); current(c, K.path(p0.px, p0.py, p1.px, p1.py, K.seed(t, i, 14), T * 0.25), 1.1, 0.7 * A * gu * (1 - open)); }
           if (open > 0.01) { const er = T * R * 0.55 * open; K.glow(c, X, CY, er * 1.6, P.blue, 0.6 * open * fade); K.glow(c, X, CY, er * 0.8, P.white, 0.85 * open * fade); c.save(); c.globalCompositeOperation = 'lighter'; c.lineWidth = 2; for (let i = 0; i < 3; i++) { c.globalAlpha = (0.6 - i * 0.15) * open * fade; c.strokeStyle = i ? P.cyan : P.white; c.beginPath(); c.ellipse(X, CY, er * (0.7 + i * 0.25), er * (0.7 + i * 0.25) * 0.45, 0, t * (1 + i) % TAU, t * (1 + i) % TAU + 4.6); c.stroke(); } c.restore(); }

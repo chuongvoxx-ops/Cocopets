@@ -453,7 +453,14 @@ float n3(vec3 x){ vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f); 
 float fbm3(vec3 p){ return 0.5 * n3(p) + 0.27 * n3(p * 2.07 + 3.1) + 0.15 * n3(p * 4.13 + 7.7) + 0.08 * n3(p * 8.3 + 1.3); }
 void main(){ vec2 u = v_uv; float r = length(u), m = 0.0, edge = 1.0 - smoothstep(0.85, 1.0, r); vec3 col = v_c.rgb; float t = u_t + v_q.y * 7.3, pk = u_pet.z > 0.0 ? mix(0.12, 1.0, smoothstep(0.4, 1.4, length((v_px - u_pet.xy) * vec2(1.0, 1.1)) / u_pet.z)) : 1.0;   /* (the rider's face stays clear: light, body and smoke) */
   pk *= v_k > 11.5 ? 1.0 : (v_k > 1.5 && v_k < 2.5) || (v_k > 5.5 && v_k < 6.5) || v_k > 10.5 ? 1.0 - smoothstep(0.8, 1.0, abs(u.y)) : (v_k > 3.5 && v_k < 4.5) ? 1.0 - smoothstep(0.8, 1.0, abs(u.x)) : (v_k > 0.5 && v_k < 1.5) || (v_k > 7.5 && v_k < 8.5) ? 1.0 - smoothstep(0.92, 1.0, r) : 1.0 - smoothstep(0.72, 1.0, r);   /* (every picture fades to nothing well inside its own quad: no straight cut where noise or a halo reaches the quad's edge) */
-  if (v_k > 11.5 && v_k < 12.5) { // (v342, Apocalypse) a great sphere of fire (solid), seen as a turning globe: domain-warped
+  if (v_k > 15.5 && v_k < 16.5) { // (v346, Thunderstorm) a storm cloud (solid): billowing lobes of night violet, darker beneath, a cool rim
+    // of light along the top, lit from within by its lightning (v_q.x) in electric blue-white; v_c its colour, v_q.y seed
+    float f = fbm(u * 1.7 + vec2(v_q.y, t * 0.07)), g = fbm(u * 4.2 + vec2(-t * 0.11, v_q.y * 2.3)), d = clamp((1.0 - dot(u, u)) * (0.55 + 0.95 * f) - 0.22, 0.0, 1.0);
+    d = smoothstep(0.0, 0.42, d) * (0.82 + 0.18 * g); float top = clamp(-u.y * 0.85 + (f - 0.5) * 0.9 + 0.1, 0.0, 1.0);
+    vec3 c = mix(vec3(0.05, 0.035, 0.13), col, 0.3 + 0.45 * top) * (0.55 + 0.6 * g) + vec3(0.62, 0.7, 1.0) * pow(top, 3.0) * 0.3;
+    c += vec3(0.5, 0.82, 1.0) * v_q.x * (0.35 + 0.9 * f * g) * exp(-dot(u, u) * 1.3);
+    float a = d * v_c.a * pk; gl_FragColor = vec4(min(c, vec3(1.0)) * a, a); }
+  else if (v_k > 11.5 && v_k < 12.5) { // (v342, Apocalypse) a great sphere of fire (solid), seen as a turning globe: domain-warped
     // turbulence over its surface (3D noise on the sphere, so nothing stretches), a crust of cooler crimson plasma lit from the
     // upper left, hotter fire welling up through it, ridged molten veins that brighten and widen as it grows unstable
     // (v_q.z), a limb glowing hot where the fire is seen edge-on; v_c its crust colour, v_q.x heat, v_q.y seed
@@ -479,7 +486,13 @@ void main(){ vec2 u = v_uv; float r = length(u), m = 0.0, edge = 1.0 - smoothste
     float f = fbm(u * 2.2 + vec2(v_q.y * 3.1, v_q.y - t * 0.35)), d = clamp((1.0 - r * r) * (0.55 + 0.9 * f) - 0.25, 0.0, 1.0) * edge; float a = d * v_c.a * pk;
     vec3 c = mix(col * 0.6, col, smoothstep(-0.5, 0.6, -u.y + f * 0.5)) + vec3(0.35, 0.12, 0.03) * v_q.x * smoothstep(0.0, 1.0, u.y + 0.3); gl_FragColor = vec4(c * a, a); }
   else { vec3 L = vec3(0.0);
-    if (v_k > 13.5) { // (v343, Armageddon) a vortex of fire: turbulent flame wound into log-spiral arms round a hot eye (v_q.x heat,
+    if (v_k > 16.5) { // (v346, lightning) a ball of lightning (quad 1.35 times its radius): a sphere of electric plasma turning, filaments of
+      // light writhing over it (3D ridged noise), a white-hot heart, a thin bright rim and a halo; v_c its colour, v_q.x strength, v_q.y seed
+      float rr = r * 1.35, ins = 1.0 - smoothstep(0.93, 1.0, rr); vec3 n = vec3(u * 1.35, sqrt(max(0.0, 1.0 - rr * rr))); float an = t * 0.9 + v_q.y, ca = cos(an), sa = sin(an); vec3 p = vec3(n.x * ca + n.z * sa, n.y, -n.x * sa + n.z * ca);
+      float rg = 1.0 - abs(fbm3(p * 3.2 + vec3(0.0, t * 1.4, t * 0.6)) * 2.0 - 1.0), rg2 = 1.0 - abs(fbm3(p * 6.5 - vec3(t * 1.1, 0.0, 0.0)) * 2.0 - 1.0), fil = pow(rg, 9.0) + 0.5 * pow(rg2, 12.0);
+      L = (col * (0.28 + 0.4 * n.z) + vec3(0.78, 0.92, 1.0) * fil * 1.3 + vec3(1.0) * exp(-rr * rr * 3.2) * 0.85) * ins * v_q.x + vec3(0.85, 0.95, 1.0) * exp(-sq((rr - 0.97) / 0.035)) * 0.6 * v_q.x + col * exp(-max(rr - 1.0, 0.0) * 7.0) * (1.0 - ins) * 0.35 * v_q.x;
+      L *= 1.0 - smoothstep(1.25, 1.35, rr); }
+    else if (v_k > 13.5) { // (v343, Armageddon) a vortex of fire: turbulent flame wound into log-spiral arms round a hot eye (v_q.x heat,
       // v_q.y seed, v_q.z turns: the way and speed it spins); no seam round it, fading out to its rim
       float rr = r, an = atan(u.y, u.x), sw = an + v_q.z * t + 2.4 * log(rr + 0.08), arms = 0.5 + 0.5 * cos(3.0 * sw);
       vec2 sp = vec2(cos(sw), sin(sw)) * (0.5 + rr * 2.6); float f = fbm(sp * 1.5 + vec2(v_q.y, -t * 0.6) + rr * 2.0), g = fbm(sp * 4.2 + vec2(t * 0.9, v_q.y * 1.7));
@@ -527,7 +540,7 @@ void main(){ vec2 u = v_uv; float r = length(u), m = 0.0, edge = 1.0 - smoothste
   const Q = { lit: new Float32Array(12 * 6 * 600), nl: 0, smk: new Float32Array(12 * 6 * 200), ns: 0, a: 1, b: 0, c0: 0, d: 1, e: 0, f: 0, k: 1, t: 0, W: 0, Hh: 0, pet: [0, 0, 0], gpu: true,
     X(x, y) { return this.a * x + this.c0 * y + this.e; }, Y(x, y) { return this.b * x + this.d * y + this.f; },
     /* one quad: centre (screen px), half-axes (ux, uy), (vx, vy) in screen px */
-    quad(kind, x, y, ux, uy, vx, vy, col, al, q0, q1, q2) { if (!(al > 0.004)) return; const solid = kind >= 9 && kind <= 12; let A = solid ? this.smk : this.lit; const n = solid ? this.ns : this.nl;
+    quad(kind, x, y, ux, uy, vx, vy, col, al, q0, q1, q2) { if (!(al > 0.004)) return; const solid = (kind >= 9 && kind <= 12) || kind === 16; let A = solid ? this.smk : this.lit; const n = solid ? this.ns : this.nl;
       if ((n + 6) * 12 > A.length) { const q = new Float32Array(A.length * 2); q.set(A); A = q; if (solid) this.smk = q; else this.lit = q; }
       const cx = this.X(x, y), cy = this.Y(x, y), a = this.a, b = this.b, c = this.c0, d = this.d, Ux = a * ux + c * uy, Uy = b * ux + d * uy, Vx = a * vx + c * vy, Vy = b * vx + d * vy, C = rgbOf(col); let o = n * 12;
       for (let j = 0; j < 6; j++) { const su = QV[j][0], sv = QV[j][1]; A[o++] = cx + Ux * su + Vx * sv; A[o++] = cy + Uy * su + Vy * sv; A[o++] = su; A[o++] = sv; A[o++] = kind; A[o++] = C[0]; A[o++] = C[1]; A[o++] = C[2]; A[o++] = al > 1 ? 1 : al; A[o++] = q0 || 0; A[o++] = q1 || 0; A[o++] = q2 || 0; }

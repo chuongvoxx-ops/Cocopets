@@ -13,14 +13,25 @@ const TK = (() => {
   const R1 = s => { const v = Math.sin(s * 12.9898 + 78.233) * 43758.5453; return v - Math.floor(v); };
   /* a seed that changes `hz` times a second (k separates the arcs of one effect) */
   const seed = (t, k, hz) => Math.floor(t * (hz || 20)) + (k || 0) * 101;
-  function glow(c, x, y, r, col, a) { if (r < 1 || !(a > 0.01)) return; c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = Math.min(1, a); blitSized(c, glowSprite(col || P.cyan), x - r, y - r, r * 2, r * 2); c.restore(); }
-  function floorLight(c, X, Y, r, a, col) { if (r < 1 || !(a > 0.01)) return; c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = Math.min(1, a); blitSized(c, glowSprite(col || P.blue), X - r, Y - r * H.GY, r * 2, r * 2 * H.GY); c.restore(); }
+  /* (v346) the GPU mode: between gpuBegin and gpuEnd every glow, light, bolt, arc, ribbon, orb, ring and scar this kit draws goes
+     to the GPU painter (20k6h's NIDHOGG_MOVES.FGFX) as layered plasma (a white-hot core, a cyan body, a violet bloom), in one
+     pass flushed at gpuEnd over whatever the move drew itself; window[flag] = 0, window.__THUNDER_GL = 0, a software
+     rasteriser or no WebGL keep the 2D */
+  let GQ = null, GF = null;
+  function gpuBegin(c, flag, pet) { if (GQ) return null; try { if (window[flag] === 0 || window.__THUNDER_GL === 0) return null; const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; if (!F || !F.usable()) return null; GF = F; GQ = F.begin(c, pet || null); return GQ; } catch (e) { GQ = null; return null; } }
+  function gpuEnd(c) { if (!GQ) return; const F = GF; GQ = null; GF = null; try { F.flush(c); } catch (e) {} }
+  // a line of light through points: gaussian beams run past their ends by an eighth (no dashes at the joints)
+  function gpuLine(pts, w, col, a) { for (let i = 1; i < pts.length; i++) { const p0 = pts[i - 1], p1 = pts[i], dx = p1[0] - p0[0], dy = p1[1] - p0[1]; GQ.beam(p0[0] - dx * 0.125, p0[1] - dy * 0.125, p1[0] + dx * 0.125, p1[1] + dy * 0.125, w, col, a); } }
+  function glow(c, x, y, r, col, a) { if (GQ) { if (r >= 1 && a > 0.01) GQ.glow(x, y, r * 1.1, col || P.cyan, Math.min(1, a * 1.4)); return; } if (r < 1 || !(a > 0.01)) return; c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = Math.min(1, a); blitSized(c, glowSprite(col || P.cyan), x - r, y - r, r * 2, r * 2); c.restore(); }
+  function floorLight(c, X, Y, r, a, col) { if (GQ) { if (r >= 1 && a > 0.01) GQ.glow(X, Y, r * 1.1, col || P.blue, Math.min(1, a * 1.4), H.GY); return; } if (r < 1 || !(a > 0.01)) return; c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = Math.min(1, a); blitSized(c, glowSprite(col || P.blue), X - r, Y - r * H.GY, r * 2, r * 2 * H.GY); c.restore(); }
   /* a jittered polyline from (x0, y0) to (x1, y1), screen px; jit the sideways reach; s the seed */
   function path(x0, y0, x1, y1, s, jit, segs) { const dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L, n = segs || Math.max(3, Math.min(18, Math.ceil(L / 11))), pts = [[x0, y0]];
     for (let i = 1; i < n; i++) { const u = i / n, o = (R1(s * 7.13 + i * 3.37) - 0.5) * 2 * jit * Math.sqrt(Math.sin(u * Math.PI)); pts.push([x0 + dx * u + nx * o, y0 + dy * u + ny * o]); } pts.push([x1, y1]); return pts; }
   function line(c, pts, w) { c.lineWidth = Math.max(0.4, w); c.beginPath(); c.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) c.lineTo(pts[i][0], pts[i][1]); c.stroke(); }
   /* one bolt along pts: a wide violet haze, a blue-cyan body, a white-hot core (additive); gold tints the body */
-  function bolt(c, pts, w, a, gold) { if (!pts || pts.length < 2 || !(a > 0.01)) return; c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.lineJoin = 'round';
+  function bolt(c, pts, w, a, gold) { if (!pts || pts.length < 2 || !(a > 0.01)) return;
+    if (GQ) { for (let i = 0; i < pts.length; i += 3) GQ.glow(pts[i][0], pts[i][1], w * 5, gold ? P.gold : P.blue, 0.4 * a);
+      gpuLine(pts, w * 1.9, P.violet, 0.3 * a); gpuLine(pts, w * 0.95, gold ? P.gold : P.blue, 0.6 * a); gpuLine(pts, w * 0.55, gold ? P.amber : P.cyan, 0.95 * a); gpuLine(pts, Math.max(0.5, w * 0.22), P.white, Math.min(1, 1.15 * a)); return; } c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.lineJoin = 'round';
     c.globalAlpha = 0.35 * a; for (let i = 0; i < pts.length; i += 3) blitSized(c, glowSprite(gold ? P.gold : P.blue), pts[i][0] - w * 5, pts[i][1] - w * 5, w * 10, w * 10);   // (bloom along the bolt)
     c.globalAlpha = 0.28 * a; c.strokeStyle = P.violet; line(c, pts, w * 3.2); c.globalAlpha = 0.55 * a; c.strokeStyle = gold ? P.gold : P.blue; line(c, pts, w * 1.7);
     c.globalAlpha = 0.9 * a; c.strokeStyle = gold ? P.amber : P.cyan; line(c, pts, w); c.globalAlpha = a; c.strokeStyle = P.white; line(c, pts, Math.max(0.6, w * 0.38)); c.restore(); }
@@ -31,20 +42,24 @@ const TK = (() => {
   /* a sky bolt down to a floor point, with a ground tendril rising to meet it */
   function skyBolt(c, X, Y, h, s, w, a, o) { const pts = arc(c, X + (R1(s) - 0.5) * h * 0.2, Y - h, X, Y, s, w, a, Object.assign({ forks: 4 }, o || {})); glow(c, X, Y, w * 6, P.cyan, 0.7 * a); floorLight(c, X, Y, w * 10, 0.6 * a); return pts; }
   /* a tapered plasma ribbon (trail): white at the head (last point), cyan through the centre, violet along the fringes */
-  function ribbon(c, pts, w, a, gold) { if (!pts || pts.length < 2 || !(a > 0.01)) return; c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.lineJoin = 'round'; const n = pts.length;
+  function ribbon(c, pts, w, a, gold) { if (!pts || pts.length < 2 || !(a > 0.01)) return;
+    if (GQ) { const n = pts.length; for (let i = 1; i < n; i++) { const u = i / (n - 1), ww = w * (0.15 + 0.85 * u), p0 = pts[i - 1], p1 = pts[i], dx = p1[0] - p0[0], dy = p1[1] - p0[1], s0 = [p0[0] - dx * 0.125, p0[1] - dy * 0.125], s1 = [p1[0] + dx * 0.125, p1[1] + dy * 0.125];
+      GQ.beam(s0[0], s0[1], s1[0], s1[1], ww * 1.2, P.violet, a * (0.25 + 0.5 * u) * 0.5); GQ.beam(s0[0], s0[1], s1[0], s1[1], ww * 0.6, gold ? P.gold : P.cyan, a * (0.3 + 0.7 * u)); GQ.beam(s0[0], s0[1], s1[0], s1[1], ww * 0.22, P.white, a * u); } return; } c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.lineJoin = 'round'; const n = pts.length;
     for (let i = 1; i < n; i++) { const u = i / (n - 1), ww = w * (0.15 + 0.85 * u); c.globalAlpha = a * (0.25 + 0.5 * u) * 0.5; c.strokeStyle = P.violet; c.lineWidth = ww * 2.2; c.beginPath(); c.moveTo(pts[i - 1][0], pts[i - 1][1]); c.lineTo(pts[i][0], pts[i][1]); c.stroke();
       c.globalAlpha = a * (0.3 + 0.7 * u); c.strokeStyle = gold ? P.gold : P.cyan; c.lineWidth = ww * 1.1; c.stroke(); c.globalAlpha = a * u; c.strokeStyle = P.white; c.lineWidth = ww * 0.4; c.stroke(); }
     c.restore(); }
   /* a shaded electric orb: a violet rim, cyan body, white heart, filaments turning round it */
-  function orb(c, x, y, r, t, s, a, gold) { if (r < 1 || !(a > 0.01)) return; glow(c, x, y, r * 3, gold ? P.gold : P.blue, 0.55 * a); c.save(); c.globalAlpha = a; const g = c.createRadialGradient(x - r * 0.3, y - r * 0.3, r * 0.05, x, y, r); g.addColorStop(0, P.white); g.addColorStop(0.35, P.ice); g.addColorStop(0.7, gold ? P.gold : P.cyan); g.addColorStop(1, rgba(P.deep, 0.85));
+  function orb(c, x, y, r, t, s, a, gold) { if (r < 1 || !(a > 0.01)) return; if (GQ) { GQ.glow(x, y, r * 3.2, gold ? P.gold : P.blue, 0.6 * a); GQ.quad(17, x, y, r * 1.35, 0, 0, r * 1.35, gold ? P.gold : P.cyan, 1, a, s || 0); return; } glow(c, x, y, r * 3, gold ? P.gold : P.blue, 0.55 * a); c.save(); c.globalAlpha = a; const g = c.createRadialGradient(x - r * 0.3, y - r * 0.3, r * 0.05, x, y, r); g.addColorStop(0, P.white); g.addColorStop(0.35, P.ice); g.addColorStop(0.7, gold ? P.gold : P.cyan); g.addColorStop(1, rgba(P.deep, 0.85));
     c.beginPath(); c.arc(x, y, r, 0, TAU); c.fillStyle = g; c.fill(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = rgba(P.white, 0.7); c.lineWidth = Math.max(0.8, r * 0.08); for (let i = 0; i < 3; i++) { const b = t * (2.5 + i * 1.3) + i * 2.1 + (s || 0); c.save(); c.translate(x, y); c.rotate(b); c.scale(1, 0.35 + 0.2 * i); c.beginPath(); c.arc(0, 0, r * (1.15 + i * 0.12), 0, TAU); c.restore(); c.stroke(); } c.restore(); }
   /* a ground shock ring: a soft blue band and a thin white edge; crawling arcs along it when arcs > 0 */
-  function shockRing(c, X, Y, r, a, t, arcs) { if (r < 1 || !(a > 0.01)) return; c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = a; c.strokeStyle = rgba(P.violet, 0.45); c.lineWidth = Math.max(2, r * 0.16); H.floorEllipse(c, X, Y, r * 0.92); c.stroke(); c.strokeStyle = rgba(P.cyan, 0.8); c.lineWidth = Math.max(1.5, r * 0.04); H.floorEllipse(c, X, Y, r); c.stroke(); c.restore();
+  function shockRing(c, X, Y, r, a, t, arcs) { if (r < 1 || !(a > 0.01)) return;
+    if (GQ) { GQ.ring(X, Y, r * 0.92, P.violet, 0.5 * a, Math.max(2, r * 0.16), H.GY); GQ.ring(X, Y, r, P.cyan, 0.9 * a, Math.max(1.5, r * 0.045), H.GY); GQ.ring(X, Y, r, P.white, 0.6 * a, Math.max(1, r * 0.015), H.GY); GQ.shimmer(X, Y, r * 1.04, 0.3 * a, H.GY, P.cyan);
+      for (let i = 0; i < (arcs || 0); i++) { const b0 = i / arcs * TAU + (t || 0) * 0.7, b1 = b0 + 0.5; arc(c, X + Math.cos(b0) * r, Y + Math.sin(b0) * r * H.GY, X + Math.cos(b1) * r, Y + Math.sin(b1) * r * H.GY, seed(t || 0, i), 1.6, a * 0.8, { forks: 0, jit: r * 0.08 }); } return; } c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = a; c.strokeStyle = rgba(P.violet, 0.45); c.lineWidth = Math.max(2, r * 0.16); H.floorEllipse(c, X, Y, r * 0.92); c.stroke(); c.strokeStyle = rgba(P.cyan, 0.8); c.lineWidth = Math.max(1.5, r * 0.04); H.floorEllipse(c, X, Y, r); c.stroke(); c.restore();
     for (let i = 0; i < (arcs || 0); i++) { const b0 = i / arcs * TAU + (t || 0) * 0.7, b1 = b0 + 0.5; arc(c, X + Math.cos(b0) * r, Y + Math.sin(b0) * r * H.GY, X + Math.cos(b1) * r, Y + Math.sin(b1) * r * H.GY, seed(t || 0, i), 1.6, a * 0.8, { forks: 0, jit: r * 0.08 }); } }
   /* ground arcs crawling out from (X, Y) over radius r */
   function groundArcs(c, X, Y, r, n, t, a, s) { for (let i = 0; i < n; i++) { const b = (s || 0) + i / n * TAU + R1(seed(t, i, 8)) * 0.6, rr = r * (0.6 + 0.4 * R1(i + (s || 0))); arc(c, X, Y, X + Math.cos(b) * rr, Y + Math.sin(b) * rr * H.GY, seed(t, i), 1.4, a, { forks: 1, jit: rr * 0.18 }); } }
   /* a faint violet impression left on the floor after a strike (fades; nothing dark) */
-  function scar(c, pts, a) { if (!pts || !(a > 0.01)) return; c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = a * 0.5; c.strokeStyle = P.violet; c.lineCap = 'round'; line(c, pts, 3); c.globalAlpha = a * 0.35; c.strokeStyle = P.ice; line(c, pts, 1); c.restore(); }
+  function scar(c, pts, a) { if (!pts || !(a > 0.01)) return; if (GQ) { gpuLine(pts, 2.2, P.violet, a * 0.55); gpuLine(pts, 0.8, P.ice, a * 0.45); return; } c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = a * 0.5; c.strokeStyle = P.violet; c.lineCap = 'round'; line(c, pts, 3); c.globalAlpha = a * 0.35; c.strokeStyle = P.ice; line(c, pts, 1); c.restore(); }
   /* particles (world units) */
   const sparks = (x, y, k, v, o) => H.burst(x, y, 'spark', k, Object.assign({ v: v || 6, up: 1.5, g: 6, life: 0.45, size: 2, color: [P.white, P.cyan, P.ice, P.violet] }, o || {}));
   const motes = (x, y, k, o) => H.burst(x, y, 'ember', k, Object.assign({ v: 1.8, up: 1.5, g: -0.6, life: 0.8, size: 3, color: [P.cyan, P.violet, P.ice, P.blue] }, o || {}));
@@ -57,6 +72,6 @@ const TK = (() => {
   const evoN = (C, a, b) => Math.round(a + (b - a) * (evo(C) - 1) / 6);
   const lv = (C, L) => { const e = evo(C); return e >= 7 ? L[2] : e >= 4 ? L[1] : L[0]; };
   const evoK = C => 1 + 0.08 * (evo(C) - 1);
-  const K = { P, TAU, R1, seed, glow, floorLight, path, line, bolt, arc, skyBolt, ribbon, orb, shockRing, groundArcs, scar, sparks, motes, goldSparks, aura, zapAt, evo, evoN, lv, evoK };
+  const K = { P, TAU, R1, seed, gpuBegin, gpuEnd, gq: () => GQ, glow, floorLight, path, line, bolt, arc, skyBolt, ribbon, orb, shockRing, groundArcs, scar, sparks, motes, goldSparks, aura, zapAt, evo, evoN, lv, evoK };
   return { bind: h => { H = h; return K; }, P };
 })();
