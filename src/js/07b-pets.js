@@ -85,7 +85,7 @@ function updateCompanions(dt) {
     const sx = 1 + c.sq * 0.7 - br * 0.5, sy = 1 - c.sq + br;
     const tilt = moving ? Math.sin(c.phase) * 4 : 0;
     c.el.style.transform = `translate3d(${(c.x - pb / 2).toFixed(1)}px, ${(c.y - pb).toFixed(1)}px, 0)`;
-    c.rig.style.transform = `translateY(${(-(c.lift + bob + lev)).toFixed(1)}px) rotate(${tilt.toFixed(2)}deg) scale(${(c.facing * s * sx).toFixed(3)}, ${(s * sy).toFixed(3)})`;
+    c.rig.style.transform = `translateY(${(-(c.lift + bob + lev)).toFixed(1)}px) rotate(${tilt.toFixed(2)}deg) scale(${((c.gl && c.gl.on ? 1 : c.facing) * s * sx).toFixed(3)}, ${(s * sy).toFixed(3)})`;   // (on the GPU it turns to face its way: c.yaw)
     c.el.style.zIndex = String(Math.round(c.y) + 1);
     if (c.circle) c.circle.style.transform = `scale(${s.toFixed(3)})`;
     c.shadow.style.transform = `scale(${(s * (1 - Math.min(0.45, (c.lift + lev) / (ps * 0.9)))).toFixed(3)})`;
@@ -101,7 +101,7 @@ function updateCompanions(dt) {
     // on the GPU: stepping, swinging its arms, wagging, turning a little the way it walks
     if (c.gl) {
       const a = moving ? Math.sin(c.phase * 2) : 0, b = moving ? Math.cos(c.phase * 2) : 0, sw2 = moving ? a * 26 : Math.sin(t * 2 + c.i) * 3;
-      c.tailPh += dt * (asleep ? 0 : c.happyT > 0 ? 15 : 5); c.yaw += ((moving ? 0.38 : 0) - c.yaw) * (1 - Math.exp(-dt * 5));
+      c.tailPh += dt * (asleep ? 0 : c.happyT > 0 ? 15 : 5); c.yaw += ((asleep ? 0 : c.facing * (moving ? 0.5 : 0.36)) - c.yaw) * (1 - Math.exp(-dt * 7));
       const P = { t: t + c.i, yaw: c.yaw, face: { eyes, mouth }, footL: [b * 2.2, -Math.max(0, a) * 8], footR: [b * 2.2, -Math.max(0, -a) * 8], armL: asleep ? 8 : c.happyT > 0 ? 26 + Math.sin(t * 14) * 12 : sw2, armR: asleep ? 8 : c.happyT > 0 ? 26 + Math.sin(t * 14) * 12 : -sw2,
         tail: Math.sin(c.tailPh) * (asleep ? 0 : c.happyT > 0 ? 16 : 6), wing: Math.sin(t * (c.lift > 4 ? 20 : 2.6) + c.i) * (c.lift > 4 ? 22 : 5), dirt: clamp((60 - (o.clean == null ? 60 : o.clean)) / 60, 0, 0.9), legPh: c.legPh, legAmp: asleep ? 4 : c.legAmp };
       glFrame(c.gl, of2(o), s, P);

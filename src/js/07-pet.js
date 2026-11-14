@@ -532,7 +532,9 @@ function renderPet(dt) {
   const air = pet.lift + bob + hov;
   const lift = air + pet.perch;
   petEl.style.transform = `translate3d(${(pet.x - pb / 2).toFixed(1)}px, ${(pet.y - pb).toFixed(1)}px, 0)`;
-  parts.rig.style.transform = `translateY(${(-lift).toFixed(1)}px) rotate(${tilt.toFixed(2)}deg) scale(${(pet.facing * s * sx).toFixed(3)}, ${(s * sy).toFixed(3)})`;
+  // (drawn on the GPU it turns round in 2.5D to face its way (GP.yaw, below) rather than being mirrored)
+  const fcg = parts.gl && parts.gl.on ? 1 : pet.facing;
+  parts.rig.style.transform = `translateY(${(-lift).toFixed(1)}px) rotate(${tilt.toFixed(2)}deg) scale(${(fcg * s * sx).toFixed(3)}, ${(s * sy).toFixed(3)})`;
   let z = pet.zOver || pet.perchZ || Math.round(pet.y) + 2;
   if (!pet.zOver && !pet.perchZ && pet.mode === 'sleep') { const bed = decor.find(d => d.def.act === 'sleep' && Math.abs(pet.x - d.x) < d.w * 0.5 && pet.y <= d.y + 2 && pet.y > d.y - d.h); if (bed) z = Math.round(bed.y) + 4; }
   petEl.style.zIndex = String(z);
@@ -600,11 +602,12 @@ function renderPet(dt) {
   setA(parts.svg, 'brows', 'data-brows', f.brows || 'none');
   setA(parts.svg, 'cheeks', 'data-cheeks', f.cheeks || 'normal');
   setA(parts.dirt, 'dirt', 'opacity', dirtLevel().toFixed(2));
-  // on the GPU: it turns a little toward what it looks at, and toward where it walks
+  // on the GPU: it turns round to face the way it faces (through facing you, never mirrored), further as it walks and
+  // toward what it looks at; asleep it settles facing you. (look is in its own facing: on screen it is look.x * facing)
   if (parts.gl) {
-    const yt = pet.mode === 'sleep' || st.asleep ? 0 : clamp(pet.look.x * 0.55, -0.45, 0.45);
-    pet.yaw += (yt - pet.yaw) * (1 - Math.exp(-dt * 5));
-    GP.yaw = pet.yaw; GP.look = [pet.look.x, pet.look.y]; GP.dirt = dirtLevel();
+    const yt = pet.mode === 'sleep' || st.asleep ? 0 : pet.facing * clamp((moving ? 0.5 : 0.36) + pet.look.x * 0.2, 0.12, 0.62);
+    pet.yaw += (yt - pet.yaw) * (1 - Math.exp(-dt * (pet.mode === 'spin' ? 16 : 7)));
+    GP.yaw = pet.yaw; GP.look = [pet.look.x * pet.facing, pet.look.y]; GP.dirt = dirtLevel();
     GP.face = t < pet.blinkEnd ? Object.assign({}, f, { eyes: 'closed' }) : f;
     glFrame(parts.gl, curForm(), s, GP);
   }

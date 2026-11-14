@@ -115,15 +115,18 @@ function drawPetRig(c, RG, S, h, o) {
   // below draw it as before when it cannot be drawn that way (no WebGL, its layers not made yet). A Legendary's wings
   // beat as in the room; its lights (o.glLights) and the aurora round it (o.aurora: the dungeons and the Rift) too
   if (typeof PetGL !== 'undefined' && S.form && !o.noGL) {
-    const fs = sd => { const a = ph + (sd < 0 ? Math.PI : 0); return [mv * Math.cos(a) * 1.8 * sd, -mv * Math.max(0, Math.sin(a)) * 5.2 + (P.hopFoot || 0)]; };
+    const dir = o.dir || 0, fs = sd => { const a = ph + (sd < 0 ? Math.PI : 0); return [mv * Math.cos(a) * 1.8 * sd * (dir || 1), -mv * Math.max(0, Math.sin(a)) * 5.2 + (P.hopFoot || 0)]; };
     // (a skill lifts the arms out and up: they grow from behind the body, so a lift toward it would hide them)
     const env = cast > 0 ? Math.max(0, Math.min(1, cast * 5, (1 - cast) * 3)) : 0, lift = env * (castUlt ? 112 : 62);
     const arm = sd => { const swg = mv ? Math.sin(ph + (sd < 0 ? 0 : Math.PI)) * 26 : Math.sin((P.t || 0) * 2.2) * 3; return swg * (1 - Math.min(1, Math.abs(lift) / 55)) + lift + (P.hopArm || 0) + (P.hopArmS ? P.hopArmS[sd > 0 ? 0 : 1] || 0 : 0); };
-    // (it turns a little the way it walks, easing round as it sets off and stops; a pose's own yaw wins)
-    let Y = PGL_YAW.get(S); if (!Y) { Y = { y: 0, t: P.t || 0 }; PGL_YAW.set(S, Y); } const ydt = clamp((P.t || 0) - Y.t, 0, 0.1); Y.t = P.t || 0; Y.y += ((mv ? 0.3 : 0) - Y.y) * (1 - Math.exp(-ydt * 6));
-    const GP = { t: P.t || 0, yaw: P.yaw ? P.yaw : Y.y, face: o.face || 'normal', footL: fs(1), footR: fs(-1), armL: arm(1), armR: arm(-1), wing: Math.sin(P.wingPh || 0) * (P.wingAmp || 8), tail: Math.sin((P.t || 0) * 2.4 + ph) * (mv ? 12 : 6),
+    // (o.dir: the way it faces, left -1 or right 1, drawn unflipped: it turns round in 2.5D to face that way, through
+    // facing you, rather than being mirrored; a little further as it walks. Without o.dir, a picture to be flipped by the
+    // caller, it turns a little the way it walks. A pose's own yaw wins, turned the way it faces)
+    const yT = dir ? dir * (mv ? 0.5 : 0.38) : mv ? 0.3 : 0;
+    let Y = PGL_YAW.get(S); if (!Y) { Y = { y: yT, t: P.t || 0 }; PGL_YAW.set(S, Y); } const ydt = clamp((P.t || 0) - Y.t, 0, 0.1); Y.t = P.t || 0; Y.y += (yT - Y.y) * (1 - Math.exp(-ydt * 7));
+    const GP = { t: P.t || 0, yaw: P.yaw ? P.yaw * (dir || 1) : Y.y, face: o.face || 'normal', footL: fs(1), footR: fs(-1), armL: arm(1), armR: arm(-1), wing: Math.sin(P.wingPh || 0) * (P.wingAmp || 8), tail: Math.sin((P.t || 0) * 2.4 + ph) * (mv ? 12 : 6),
       legPh: P.wingPh || 0, legAmp: P.wingAmp || 8 };
-    if (PetGL.draw(c, S.form, k, GP, { lite: true, lights: !!o.glLights, aurora: o.aurora || 0, mirror: !!o.flip })) return;
+    if (PetGL.draw(c, S.form, k, GP, { lite: true, lights: !!o.glLights, aurora: o.aurora || 0, mirror: !!o.flip && !dir })) return;
   }
   // wings: a Legendary's pairs beat as they do in the room (rise and close, sweep down and open; each a moment after
   // the main one); an ordinary pet's wings flutter
@@ -262,10 +265,12 @@ function drawPetSprite(c, x, y, h, o) {
   c.save();
   c.translate(x, y);
   if (o.rot) { c.translate(0, -h * 0.5); c.rotate(o.rot); c.translate(0, h * 0.5); }
-  c.scale((o.flip ? -1 : 1) * (o.sx || 1), o.sy || 1);
+  // (a pet drawn on the GPU turns to face its way in 2.5D (drawPetRig's o.dir), not mirrored)
+  const glTurn = !o.snap && o.rig && S && S.form && S.rig && S.rig.front && S.rig.front.normal && !o.noGL && typeof PetGL !== 'undefined' && PetGL.will(S.form, true);
+  c.scale((o.flip && !glTurn ? -1 : 1) * (o.sx || 1), o.sy || 1);
   if (o.alpha != null) c.globalAlpha = o.alpha;
   if (o.snap) { const N = o.snap, q = h / N.ph; c.drawImage(N.cv, N.sx, N.sy, N.sw, N.sh, N.x0 * q, N.y0 * q, N.w * q, N.h * q); }
-  else if (o.rig && S.rig && S.rig.front && S.rig.front.normal) drawPetRig(c, S.rig, S, h, o);
+  else if (o.rig && S.rig && S.rig.front && S.rig.front.normal) drawPetRig(c, S.rig, S, h, glTurn ? Object.assign({}, o, { dir: o.flip ? -1 : 1 }) : o);
   else if (s && s.img) {
     const [vx, vy, vw, vh] = s.vb, k = h / S.bodyTop, m = c.getTransform(), R = petRaster(s, k * Math.max(Math.hypot(m.a, m.b), Math.hypot(m.c, m.d), 0.5));
     c.drawImage(R ? R.cv : s.img, vx * k, vy * k, vw * k, vh * k);
