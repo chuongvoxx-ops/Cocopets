@@ -196,14 +196,15 @@
               c.fillStyle = css(col, 0.94); c.beginPath(); c.moveTo(fc.P[0][0], fc.P[0][1]); c.lineTo(fc.P[1][0], fc.P[1][1]); c.lineTo(fc.P[2][0], fc.P[2][1]); c.closePath(); c.fill(); c.strokeStyle = `rgba(255,252,236,${0.35 + 0.4 * d})`; c.lineWidth = 0.8; c.stroke(); }
             const pc = PJ(cen); K.glow(c, pc[0], pc[1], F.T * 0.5, '#FFE7A0', 0.28 * tw * F.pu); } }
         c.restore(); },
-      // blazing flames all round the top of the ring, swelling and pulsing together and leaning back against the spin; the
-      // red aetherial energy coiling round it
+      // (v352) orange energy streaming round the ring like Armageddon's fire: turbulent fire beams chained round three circles
+      // (wrapping the tube, a wider one above it, a tighter one below), scrolling the way it spins and swelling with the pulse;
+      // the red aetherial energy coiling round it
       fire(c, F, t, back) { const Q = K.gq();
-        const fl = []; for (let k = 0; k < NF; k++) { const th = F.phi + k / NF * TAU + 0.11, p = this.pt(F, th, R, CB * 0.9); if ((p[2] < 0) !== back) continue; fl.push([p, th, k]); }
-        fl.sort((a, b) => a[0][2] - b[0][2]);
-        for (const [p, th, k] of fl) { const sw = 0.5 + 0.5 * Math.sin(t * 6.5 - k * 0.9), hh = F.T * (0.62 + 0.55 * F.pu * (0.6 + 0.4 * sw) + 0.14 * Math.sin(t * 17 + k * 2.3)), lean = Math.sin(th) * F.T * 0.45 + Math.cos(th) * F.T * 0.1;
-          if (Q) { Q.quad(3, p[0], p[1] - hh * 0.12, F.T * (0.24 + 0.08 * sw), 0, 0, F.T * (0.24 + 0.08 * sw), '#FFFFFF', 0.6 * F.a, 0.82 + 0.12 * F.pu, k * 0.83 + 2); }   // fire boiling along the rim at the flames' roots
-          K.flame(c, p[0], p[1] + F.T * 0.04, F.T * (0.34 + 0.06 * sw), hh * F.a, t, k * 1.7, lean, 0.95 * F.a, false); }
+        const LOOPS = [[R * 1.05, CB * 0.55, 0.2, 0.76, 0.5, 4.2, 1], [R * 1.16, CB * 1.35, 0.17, 0.7, 0.55, 5.6, 7], [R * 0.86, -CB * 0.3, 0.14, 0.66, 0.42, 3.4, 13]], NS = 30;
+        for (const [rr, hh0, ww, heat, al0, scr, sd] of LOOPS) { const pts = []; for (let j = 0; j <= NS; j++) { const th = j / NS * TAU + sd * 0.37, hh = hh0 + CB * 0.25 * Math.sin(th * 3 + t * 2.6 + sd); pts.push(this.pt(F, th, rr * (1 + 0.025 * Math.sin(th * 5 - t * 4 + sd)), hh)); }
+          for (let j = 1; j <= NS; j++) { const p0 = pts[j - 1], p1 = pts[j]; if ((((p0[2] + p1[2]) / 2) < 0) !== back) continue; const al = F.a * al0 * (0.6 + 0.4 * F.pu) * (0.8 + 0.2 * Math.sin(t * 9 + j * 1.3 + sd)), w = F.T * ww * (0.85 + 0.25 * F.pu);
+            if (Q) { const dx = p1[0] - p0[0], dy = p1[1] - p0[1]; Q.firebeam(p0[0] - dx * 0.2, p0[1] - dy * 0.2, p1[0] + dx * 0.2, p1[1] + dy * 0.2, w, heat * (0.9 + 0.15 * F.pu), al, sd * 0.61 + j * 0.37, scr); if (j % 3 === 0) Q.glow((p0[0] + p1[0]) / 2, (p0[1] + p1[1]) / 2, w * 2.6, '#FF7A22', 0.22 * al); }
+            else { c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.strokeStyle = H.rgba(P.org, 0.55 * al); c.lineWidth = Math.max(1.5, w * 1.2); c.beginPath(); c.moveTo(p0[0], p0[1]); c.lineTo(p1[0], p1[1]); c.stroke(); c.strokeStyle = H.rgba(P.yel, 0.6 * al); c.lineWidth = Math.max(1, w * 0.45); c.stroke(); c.restore(); } } }
         const streams = 4, M = 20;
         for (let s = 0; s < streams; s++) { const pts = []; for (let j = 0; j <= M; j++) { const a = -F.phi * 1.35 + s * TAU / streams + j * 0.15, rr = R * (1.1 + 0.06 * Math.sin(t * 3 + s + j * 0.4)), hh = HB * (0.15 + 0.75 * Math.sin(a * 2 + t * 2.4 + s * 1.7)); pts.push(this.pt(F, a, rr, hh)); }
           for (let j = 1; j <= M; j++) { const p0 = pts[j - 1], p1 = pts[j]; if ((((p0[2] + p1[2]) / 2) < 0) !== back) continue; const u = j / M, w = F.T * 0.11 * Math.sin(u * Math.PI), al = Math.min(1, F.a * (0.75 + 0.35 * Math.sin(t * 11 + j + s * 3)) * Math.sin(u * Math.PI) * 1.3);
