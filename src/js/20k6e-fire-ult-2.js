@@ -119,6 +119,37 @@
   }
   /* a quadratic bezier sampled into n+1 points */
   const bez = (p0, p1, p2, n) => { const o = []; for (let i = 0; i <= n; i++) { const u = i / n, v = 1 - u; o.push([v * v * p0[0] + 2 * v * u * p1[0] + u * u * p2[0], v * v * p0[1] + 2 * v * u * p1[1] + u * u * p2[1]]); } return o; };
+  /* ---- (v344) the GPU kit for these showpieces: Nidhogg's painter (20k6h, NIDHOGG_MOVES.FGFX), as Apocalypse uses it, where
+     a real GPU draws it (window[flag] = 0 or window.__FIRE_GL = 0 keeps the 2D picture) ---- */
+  const gfx = flag => { try { if (window[flag] === 0 || window.__FIRE_GL === 0) return null; const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; return F && F.usable() ? F : null; } catch (e) { return null; } };
+  const gLow = () => typeof st !== 'undefined' && st && !!st.lowFx;
+  // a smooth line of light through screen points (gaussian beams run past their ends by an eighth: no dashes); w, a numbers or functions of u
+  function gLine(Q, Pt, n, w, col, a) { for (let i = 0; i + 1 < n; i++) { const p0 = Pt[i], p1 = Pt[i + 1], dx = p1[0] - p0[0], dy = p1[1] - p0[1], u = (i + 0.5) / (n - 1), al = typeof a === 'function' ? a(u) : a; if (al <= 0.01) continue;
+    Q.beam(p0[0] - dx * 0.125, p0[1] - dy * 0.125, p1[0] + dx * 0.125, p1[1] + dy * 0.125, typeof w === 'function' ? w(u) : w, col, al); } }
+  // a flame tongue rooted at (x, y) pointing along screen angle ang, w wide and h tall (flameAtS's twin)
+  const gFlame = (Q, x, y, ang, w, h, heat, a, seed) => { if (h > 1 && a > 0.01) Q.tongue(x, y, w * 0.5, h * 0.5, ang + Math.PI / 2, heat, a, seed); };
+  // a ball of fire (ball's twin): its light round it, a billowing body laid over, turbulent light, a corona of flames, a white heart
+  function gBall(Q, x, y, r, heat, a, seed) { if (r < 1 || a <= 0.01) return; Q.glow(x, y, r * 2.4, P.org, 0.45 * a); Q.billow(x, y, r * 1.05, heat * 0.8, a, seed); Q.quad(3, x, y, r, 0, 0, r, '#FFFFFF', 0.8 * a, heat, seed + 1);
+    Q.quad(13, x, y, r * 1.7, 0, 0, r * 1.7, P.org, 0.8 * a, heat * 0.95, seed + 2, 0.2); Q.glow(x - r * 0.1, y - r * 0.1, r * 0.5, '#FFFFFF', 0.6 * a); }
+  // a fox tail of flame along screen points (root first), w wide at its fullest (tail's twin): a soft outer glow, a body of
+  // billowing fire swelling through the middle (laid over, so it holds on a pale floor) with turbulent light, tufts of
+  // flame licking off both flanks toward the tip, a white-hot core running out to a blazing tip; hotter toward the tip
+  // a sun (sun's twin): a turning globe of molten plasma (the Apocalypse sphere, hotter and orange) with its corona of flames, a
+  // tilted mantle of tongues turning round it, rays of light, its glow
+  function gSun(Q, x, y, r, t, seed, a, tilt) { if (r < 1 || a <= 0.01) return; Q.glow(x, y, r * 3.4, P.amb, 0.38 * a); Q.glow(x, y, r * 1.8, P.org, 0.4 * a);
+    for (let i = 0; i < 6; i++) { const b = i / 6 * TAU + t * 0.7 + seed, L = r * (2.1 + 0.3 * Math.sin(t * 7 + i)); Q.beam(x + Math.cos(b) * r * 0.7, y + Math.sin(b) * r * 0.7, x + Math.cos(b) * L, y + Math.sin(b) * L, r * 0.16, P.yel, 0.5 * a); }
+    const n = gLow() ? 4 : 6; for (let i = 0; i < n; i++) { const b = i / n * TAU + t * 2.6 + seed, s2 = Math.sin(b), px = x + Math.cos(b) * r * 1.2, py = y + s2 * r * 1.2 * tilt; gFlame(Q, px, py, Math.atan2(s2 * tilt, Math.cos(b)) - 0.9, r * 0.5, r * (0.9 + 0.25 * Math.sin(t * 11 + i + seed)), 0.95, a * (s2 < 0 ? 0.35 : 0.9), i + seed); }
+    Q.quad(12, x, y, r, 0, 0, r, '#C8380E', a, 1.05, seed, 0.35); Q.quad(13, x, y, r * 1.7, 0, 0, r * 1.7, P.org, a, 1.05, seed + 2, 0.35); Q.glow(x - r * 0.1, y - r * 0.12, r * 0.55, '#FFFFFF', 0.35 * a); }
+  // a streak of fire along screen points, tail first (streak's twin): bands of light widening to the head, balls of fire along it, flames licking back
+  function gStreak(Q, pts, w, a, seed) { const n = pts.length; if (n < 2 || w < 0.5 || a <= 0.01) return; gLine(Q, pts, n, u => w * 0.6 * (0.25 + 0.75 * u), P.org, u => 0.8 * a * (0.3 + 0.7 * u)); gLine(Q, pts, n, u => w * 0.3 * (0.25 + 0.75 * u), P.yel, u => 0.85 * a * u); gLine(Q, pts, n, u => w * 0.1 * (0.25 + 0.75 * u), '#FFFFFF', u => 0.9 * a * u);
+    for (let i = 1; i < n; i += 2) { const u = i / (n - 1); Q.fire(pts[i][0], pts[i][1], w * 0.5 * (0.3 + 0.7 * u), 0.8 + 0.3 * u, 0.7 * a, seed + i); } const h = pts[n - 1], q = pts[n - 2], ang = Math.atan2(q[1] - h[1], q[0] - h[0]); for (let i = 0; i < 2; i++) gFlame(Q, h[0], h[1], ang + (i - 0.5) * 0.5, w * 0.7, w * 1.6, 0.95, 0.75 * a, seed + i * 3); }
+  function gTail(Q, pts, w, a, seed, t) { const n = pts.length - 1; if (n < 1 || w < 0.5 || a <= 0.01) return; const low = gLow();
+    for (let j = 0; j <= n; j++) { const u = j / n, p = pts[j], q = pts[Math.min(n, j + 1)], o = pts[Math.max(0, j - 1)], dx = q[0] - o[0], dy = q[1] - o[1], L = Math.hypot(dx, dy) || 1, tx = dx / L, ty = dy / L, nx = -ty, ny = tx, hw = w * 0.5 * tailW(u), heat = 0.62 + 0.42 * u;
+      if (j % 2 === 0) Q.glow(p[0], p[1], hw * 3.4 + w * 0.25, P.org, 0.28 * a);
+      Q.billow(p[0], p[1], hw * 1.55, heat, 0.95 * a, seed + j * 0.37); if (j % 2 === 1) Q.quad(3, p[0], p[1], hw * 1.35, 0, 0, hw * 1.35, '#FFFFFF', 0.6 * a, heat + 0.12, seed + j);
+      if (j < n && j % 2 === 0 && (!low || j % 4 === 0)) for (const sd of [-1, 1]) { const fl = 0.7 + 0.3 * Math.sin(t * (9 + j % 3) + j * 2.1 + seed + sd); gFlame(Q, p[0] + nx * hw * sd * 0.9, p[1] + ny * hw * sd * 0.9, Math.atan2(ny * sd * 0.45 + ty, nx * sd * 0.45 + tx), hw * 0.85, hw * 1.5 * fl, heat + 0.05, 0.55 * a, seed + j * 1.3 + sd); } }
+    gLine(Q, pts, n + 1, u => w * (0.03 + 0.1 * tailW(u)), P.yel, u => 0.75 * a * (0.4 + 0.6 * u)); gLine(Q, pts, n + 1, u => w * (0.012 + 0.035 * tailW(u)), '#FFFFFF', u => 0.9 * a * u);
+    const e = pts[n]; Q.glow(e[0], e[1], w * 0.6, P.yel, 0.8 * a); Q.glow(e[0], e[1], w * 0.25, '#FFFFFF', a); Q.fire(e[0], e[1], w * 0.28, 1.15, a, seed + 9); }
   const fireAt = (C, x, y, r, life, k) => H.fire(x, y, r, life, C.base * (k || 0.6), 'fire');
   /* a strike's impact on the floor: blast, shock ring, sparks, flakes, smoke */
   function impact(x, y, r, k) { K.blast(x, y, r, k); H.X.ring(x, y, 0.2, r * 1.1, 0.4, P.yel, 0.5); K.sparks(x, y, 10 * k, 7); K.flakes(x, y, Math.round(4 * k)); }
@@ -135,7 +166,57 @@
     H.add({ life: 4.9 + (WAVE2 ? 0.4 : 0), x, y, rot: 0, comp: 0, fl: fl0, pos: [],
       update(dt, f) { f.rot += dt * (1.8 + f.comp * 5); f.comp = f.t > 2.6 && f.t < 3.0 ? H.ease.in(cl((f.t - 2.6) / 0.4)) : f.t >= 3.0 && f.t < WAVE ? 1 : 0; flings.forEach((t0, i) => { if (f.t > t0) f.fl[i] = cl((f.t - t0) / 0.45); });
         if (f.t < WAVE) K.aura(x, y, 0.5, dt, 20, 1.5); for (const p of f.pos) if (Math.random() < 0.5) K.aura(p[0], p[1], 0.25, dt, 10, p[2]); },
+      // (v344) on the GPU: the column a tall roaring flame with a turbulent core, a crown of tongues, a spiral of fire and a fireball
+      // cap; the blades stay crisp molten solids (2D) with real fire licking off them and trailing them as they fly; the rune
+      // ring a burning channel; the fire wave a ring of flames running out over burning ground
+      underGL(FG, c, f, X, Y, T, t) { const k = H.fade(f, 0.4, 0.7), form = H.ease.out(cl(f.t / 0.7)), gy = H.GY;
+        if (f.t > WAVE) { const u = cl((f.t - WAVE) / 0.5), heat = Math.max(0, 1 - (f.t - WAVE) / 1.1); K.scorch(c, X, Y, T * RW * u, k * 0.85, heat, 3); }
+        const Q = FG.begin(c, null);
+        if (f.t < WAVE) { const hot = 0.55 + 0.45 * Math.max(0, ...ticks.map(t0 => 1 - Math.abs(f.t - t0) / 0.18)), kf = k * form;
+          Q.glow(X, Y, T * (R + 1.2), P.org, 0.35 * hot * kf, gy); Q.ring(X, Y, T * (R + 0.15), P.red, 0.55 * hot * kf, T * 0.8, gy); Q.ground(X, Y, T * (R + 0.9), 0.55 * hot, 0.35 * kf, 2.2, gy, 0.5);
+          for (const rr of [R - 0.6, R + 0.9]) { Q.ring(X, Y, T * rr, P.org, 0.8 * hot * kf, T * 0.08, gy); Q.ring(X, Y, T * rr, '#FFF2C8', 0.7 * hot * kf, T * 0.025, gy); }
+          for (let i = 0; i < 16; i++) { const b = i / 16 * TAU - f.rot * 0.5; Q.beam(X + Math.cos(b) * T * (R - 0.4), Y + Math.sin(b) * T * (R - 0.4) * gy, X + Math.cos(b + 0.12) * T * (R + 0.7), Y + Math.sin(b + 0.12) * T * (R + 0.7) * gy, T * 0.035, P.yel, 0.8 * hot * kf); }
+          Q.glow(X, Y, T * 1.6 * form, P.amb, 0.6 * k, gy); }
+        for (const p of f.pos) Q.glow(H.sx(p[0]), H.sy(p[1]), T * 0.9, P.org, 0.4 * k, gy);
+        if (f.t > WAVE) { const heat = Math.max(0, 1 - (f.t - WAVE) / 1.1), u = cl((f.t - WAVE) / 0.5); Q.ground(X, Y, T * RW * u, 0.85 * heat, 0.8 * k * heat, 3, gy, heat);
+          const sh = (t0, Rr) => { const q = cl((f.t - t0) / 0.5); if (q > 0 && q < 1) { const rr = T * Rr * H.ease.out(cl((f.t - t0) / 0.45)); Q.ring(X, Y, rr, P.org, 1 - q, T * 0.26, gy); Q.ring(X, Y, rr * 0.97, '#FFFFFF', 0.6 * (1 - q), T * 0.06, gy); Q.shimmer(X, Y, rr * 1.05, 0.4 * (1 - q), gy); } };
+          sh(WAVE, RW); if (WAVE2) sh(WAVE2, RW + 1.4); }
+        FG.flush(c); },
+      drawGL(FG, c, f, X, Y, T, t) {
+        const k = Math.min(1, f.life / 0.6), form = H.ease.out(cl(f.t / 0.7)), colA = f.t < WAVE ? 1 : 1 - cl((f.t - WAVE) / 0.35), low = gLow();
+        const ch = T * (2.6 + 0.12 * ev) * form * (1 - f.comp * 0.5), cw = T * (0.6 + f.comp * 0.35) * form;
+        // the blades (2D solids, sorted by depth), without their painted flames
+        const bl = [], pos = []; for (let tier = 0; tier < TIERS; tier++) { const z = (0.3 + tier * 1.0) * form, fl = f.fl[tier]; if (fl >= 1) continue; const rr = T * (R * form * (1 - f.comp * 0.55) + fl * (RW - R + 2 + tier * 0.6)), zz = z * (1 - fl) + fl * 0.25, dip = tier === 0 ? Math.max(0, ...ticks.map(t0 => 1 - Math.abs(f.t - t0) / 0.14)) * 0.25 : 0;
+          for (let j = 0; j < NB; j++) { const dir = tier % 2 ? -1 : 1, b = j / NB * TAU + f.rot * dir * (1 + tier * 0.2) + tier * 0.6, bx = X + Math.cos(b) * rr, by = Y + Math.sin(b) * rr * H.GY, zt = (zz - dip) * T, al = (1 - fl * 0.6) * (tier === 2 ? 0.95 : 1);
+            pos.push([x + Math.cos(b) * rr / T, y + Math.sin(b) * rr / T * H.GY, zz]); const sz = T * (1.4 - tier * 0.15) * (NB > 5 ? 0.82 : 1) * (1 - fl * 0.2), tang = b + Math.PI / 2 * dir, ang = Math.atan2(Math.sin(tang) * H.GY, Math.cos(tang)) + (dir < 0 ? Math.PI : 0) + (fl ? Math.PI * 0.5 * fl : 0);
+            bl.push({ bx, by, zt, al, sz, ang, b, dir, rr, fl, seed: j + tier * 3 }); } }
+        f.pos = pos; bl.sort((p, q) => p.by - q.by);
+        c.save(); c.globalAlpha = k; if (near) petHole(c, T); for (const B of bl) { H.softShadow(c, B.bx, B.by, T * 0.45, 0.16 * B.al); blade(c, B.bx, B.by - B.zt, B.sz, B.ang, t, B.al, B.seed, 0); } c.restore();
+        const pb = near ? petBox(T) : null, Q = FG.begin(c, pb ? [pb[0], pb[1], T * 0.62] : null);
+        for (const B of bl) { const ca = Math.cos(B.ang), sn = Math.sin(B.ang), W = (lx, ly) => [B.bx + lx * ca - ly * sn, B.by - B.zt + lx * sn + ly * ca], r = B.sz, a = B.al * k;
+          Q.glow(B.bx, B.by - B.zt - r * 0.12, r * 0.95, P.org, 0.35 * a); const tp = W(r * 0.62, -r * 0.1); Q.glow(tp[0], tp[1], r * 0.3, P.yel, 0.8 * a); Q.star(tp[0], tp[1], r * 0.14, 0.7 * a);
+          if (!low || B.seed % 2 === 0) for (let i = 0; i < 2; i++) { const p0 = W(-r * 0.25 + i * r * 0.32, -r * 0.16); gFlame(Q, p0[0], p0[1], B.ang + Math.PI * 0.5 + 0.5 - i * 0.3, r * 0.26, r * (0.5 + 0.1 * Math.sin(t * 9 + i + B.seed)), 0.92, 0.85 * a, i * 2.1 + B.seed); }
+          if (B.fl > 0) { const pts = []; for (let q = 5; q >= 0; q--) { const r2 = B.rr - q * T * 0.35, b2 = B.b - B.dir * q * 0.06; pts.push([X + Math.cos(b2) * r2, Y + Math.sin(b2) * r2 * H.GY - B.zt]); } gStreak(Q, pts, T * 0.45, a, B.seed); } }
+        if (colA > 0.01) { const a = k * colA, top = Y - ch;
+          Q.glow(X, Y - ch * 0.4, cw * 3.2, P.org, 0.3 * a); Q.glow(X, Y, cw * 2.2, P.amb, 0.4 * a, 0.5);
+          // the crown of tongues round its foot, the far ones dim
+          for (let i = 0; i < 6; i++) { const b = i / 6 * TAU + t * 0.8, s2 = Math.sin(b); gFlame(Q, X + Math.cos(b) * cw * 0.9, Y + s2 * cw * 0.35, -Math.PI / 2 + Math.cos(b) * 0.35, cw * 0.6, ch * 0.34 * (0.85 + 0.15 * Math.sin(t * 8 + i)), 0.92, a * (s2 < 0 ? 0.55 : 0.95), i * 2.2); }
+          // the column: its body laid over, turbulent fire rising up it, the great flame and two side tongues, a white-hot heart
+          Q.firebody(X, Y, X, top, cw * 0.55, 0.85, 0.85 * a, 1.3, 5);
+          const NS = low ? 2 : 3; for (let i = 0; i < NS; i++) { const u0 = Math.max(0, i / NS - 0.06), u1 = Math.min(1, (i + 1) / NS + 0.06); Q.firebeam(X, Y - ch * u0, X, Y - ch * u1, cw * 0.55, 0.78 + 0.15 * f.comp, 0.85 * a, 2.1 + i * 0.7, 5); }
+          gFlame(Q, X, Y + T * 0.05, -Math.PI / 2 + Math.sin(t * 3) * 0.06, cw * 2.0, ch * 1.08, 0.85 + 0.12 * f.comp, a, 1); gFlame(Q, X - cw * 0.3, Y - ch * 0.25, -Math.PI / 2 - 0.25, cw * 1.1, ch * 0.75, 0.95, 0.85 * a, 4); gFlame(Q, X + cw * 0.3, Y - ch * 0.3, -Math.PI / 2 + 0.25, cw * 1.0, ch * 0.7, 0.95, 0.85 * a, 7);
+          // a spiral of fire wound round it
+          for (let s3 = 0; s3 < 2; s3++) { const pts = []; for (let i = 0; i <= 18; i++) { const u = i / 18, b = u * TAU * 1.6 + t * 6 + s3 * Math.PI; pts.push([X + Math.cos(b) * cw * (0.75 - u * 0.3), Y - u * ch * 0.95 + Math.sin(b) * cw * 0.25]); } gLine(Q, pts, 19, u => T * 0.1 * (0.4 + 0.6 * Math.sin(u * Math.PI)), P.org, 0.7 * a); gLine(Q, pts, 19, u => T * 0.035 * (0.4 + 0.6 * Math.sin(u * Math.PI)), '#FFF2C8', 0.85 * a); }
+          Q.glow(X, Y - ch * 0.45, cw * (0.8 + f.comp * 0.4), P.yel, (0.35 + f.comp * 0.25) * a); Q.glow(X, Y - ch * 0.45, cw * (0.3 + f.comp * 0.25), '#FFFFFF', (0.35 + f.comp * 0.3) * a);
+          gBall(Q, X, Y - ch * 0.98, T * (0.28 + f.comp * 0.1) * form, 1.05, 0.95 * a, 2); Q.shimmer(X, Y - ch * 1.1, cw * 1.8, 0.35 * a, 1); }
+        // the fire wave: a ring of flames running out (and at Celestial a second, wider one)
+        const wave = (t0, Rw, n) => { if (f.t > t0 && f.t < t0 + 0.75) { const u = (f.t - t0) / 0.75, R2 = T * Rw * H.ease.out(u), hh = T * (1.1 - u * 0.6) * 1.3, al = (1 - u * 0.8) * k;
+          for (let i = 0; i < n; i++) { const b = i / n * TAU + t * 0.3; gFlame(Q, X + Math.cos(b) * R2, Y + Math.sin(b) * R2 * H.GY, -Math.PI / 2 + Math.cos(b) * 0.4, hh * 0.55, hh * (0.75 + 0.25 * Math.sin(b)) * (0.85 + 0.15 * Math.sin(t * 7 + i * 1.9)), 0.95, al, i * 1.3); }
+          Q.ring(X, Y, R2, P.org, al * 0.7, T * 0.3, H.GY); } };
+        wave(WAVE, RW, low ? 12 : 18); if (WAVE2) wave(WAVE2, RW + 1.4, low ? 14 : 22);
+        FG.flush(c); },
       drawUnder(c, f, X, Y, T, t) {
+        { const FG = gfx('__IC_GL'); if (FG) { f.underGL(FG, c, f, X, Y, T, t); return; } }
         const k = H.fade(f, 0.4, 0.7), form = H.ease.out(cl(f.t / 0.7));
         // the rune ring the low blades cut: a molten channel with ticks, glowing hotter as they strike
         if (f.t < WAVE) { const hot = 0.55 + 0.45 * Math.max(0, ...ticks.map(t0 => 1 - Math.abs(f.t - t0) / 0.18)); c.save(); c.globalAlpha = k * form;
@@ -150,6 +231,7 @@
           if (WAVE2 && f.t > WAVE2) K.shockRing(c, X, Y, T * (RW + 1.4) * H.ease.out(cl((f.t - WAVE2) / 0.45)), 1 - cl((f.t - WAVE2) / 0.5)); }
       },
       draw(c, f, X, Y, T, t) {
+        { const FG = gfx('__IC_GL'); if (FG) { f.drawGL(FG, c, f, X, Y, T, t); return; } }
         const k = Math.min(1, f.life / 0.6), form = H.ease.out(cl(f.t / 0.7)), colA = f.t < WAVE ? 1 : 1 - cl((f.t - WAVE) / 0.35); c.globalAlpha = k; if (near) petHole(c, T);
         const ch = T * (2.6 + 0.12 * ev) * form * (1 - f.comp * 0.5), cw = T * (0.6 + f.comp * 0.35) * form;
         // the blades, three tiers deep, sorted with the column by depth
@@ -183,8 +265,10 @@
     // the burnt ground left behind: fire patches that keep burning, each with lingering flames over a glowing scorch, fading out
     if (BURN) H.X.after(WAVE + 0.15, () => { const pp = []; for (let i = 0; i < BURN; i++) { const b = i / BURN * TAU + Math.random() * 0.5, r = (0.35 + 0.65 * Math.sqrt(Math.random())) * RW * 0.95; pp.push({ x: x + Math.cos(b) * r, y: y + Math.sin(b) * r, s: 0.7 + Math.random() * 0.5, d: Math.random() * 0.4 }); if (i % 2 === 0) fireAt(C, pp[i].x, pp[i].y, 0.9, 3.6, 0.35); }
       H.add({ life: 4.2, x, y, update(dt, f) { for (const p of pp) if (f.t > p.d && Math.random() < 0.6) K.aura(p.x, p.y, 0.4 * p.s, dt, 5, 0.2); },
-        drawUnder(c, f, X, Y, T, t) { const k = Math.min(1, f.life / 1.2); for (const p of pp) { const u = cl((f.t - p.d) / 0.3); if (u <= 0) continue; K.scorch(c, H.sx(p.x), H.sy(p.y), T * 0.75 * p.s * u, k * 0.9, 0.5 + 0.5 * k, p.s * 9); K.floorLight(c, H.sx(p.x), H.sy(p.y), T * 1.1 * p.s, 0.4 * k); } },
-        draw(c, f, X, Y, T, t) { const k = Math.min(1, f.life / 1.2); if (Math.hypot(H.me.x - x, H.me.y - y) < RW + 2) petHole(c, T); const sorted = pp.slice().sort((a2, b2) => a2.y - b2.y); for (const p of sorted) { const u = cl((f.t - p.d) / 0.3); if (u <= 0) continue; const SX = H.sx(p.x), SY = H.sy(p.y); for (let j = 0; j < (BURN > 8 ? 1 : 2); j++) K.flame(c, SX + (j - 0.5) * T * 0.3 * p.s * (BURN > 8 ? 0 : 1), SY, T * 0.32 * p.s, T * (0.7 + 0.2 * Math.sin(t * 7 + j + p.s * 5)) * p.s * u * k * (j ? 0.75 : 1), t, j * 3 + p.s * 7, 0, 0.9 * k, true); } } }); });
+        drawUnder(c, f, X, Y, T, t) { const k = Math.min(1, f.life / 1.2), FG = gfx('__IC_GL'), Q = FG ? FG.begin(c, null) : null; for (const p of pp) { const u = cl((f.t - p.d) / 0.3); if (u <= 0) continue; K.scorch(c, H.sx(p.x), H.sy(p.y), T * 0.75 * p.s * u, k * 0.9, 0.5 + 0.5 * k, p.s * 9); if (Q) { Q.glow(H.sx(p.x), H.sy(p.y), T * 1.2 * p.s, P.org, 0.45 * k, H.GY); Q.ground(H.sx(p.x), H.sy(p.y), T * 0.8 * p.s * u, 0.75 * k, 0.7 * k, p.s * 9, H.GY, 0.7); } else K.floorLight(c, H.sx(p.x), H.sy(p.y), T * 1.1 * p.s, 0.4 * k); } if (Q) FG.flush(c); },
+        draw(c, f, X, Y, T, t) { const k = Math.min(1, f.life / 1.2), FG = gfx('__IC_GL');
+          if (FG) { const pb = Math.hypot(H.me.x - x, H.me.y - y) < RW + 2 ? petBox(T) : null, Q = FG.begin(c, pb ? [pb[0], pb[1], T * 0.62] : null); for (const p of pp) { const u = cl((f.t - p.d) / 0.3); if (u <= 0) continue; const SX = H.sx(p.x), SY = H.sy(p.y); for (let j = 0; j < (BURN > 8 ? 1 : 2); j++) gFlame(Q, SX + (j - 0.5) * T * 0.3 * p.s * (BURN > 8 ? 0 : 1), SY, -Math.PI / 2 + Math.sin(t * 5 + p.s * 9 + j) * 0.1, T * 0.4 * p.s, T * (0.85 + 0.25 * Math.sin(t * 7 + j + p.s * 5)) * p.s * u * k * (j ? 0.75 : 1), 0.92, 0.9 * k, j * 3 + p.s * 7); } FG.flush(c); return; }
+          if (Math.hypot(H.me.x - x, H.me.y - y) < RW + 2) petHole(c, T); const sorted = pp.slice().sort((a2, b2) => a2.y - b2.y); for (const p of sorted) { const u = cl((f.t - p.d) / 0.3); if (u <= 0) continue; const SX = H.sx(p.x), SY = H.sy(p.y); for (let j = 0; j < (BURN > 8 ? 1 : 2); j++) K.flame(c, SX + (j - 0.5) * T * 0.3 * p.s * (BURN > 8 ? 0 : 1), SY, T * 0.32 * p.s, T * (0.7 + 0.2 * Math.sin(t * 7 + j + p.s * 5)) * p.s * u * k * (j ? 0.75 : 1), t, j * 3 + p.s * 7, 0, 0.9 * k, true); } } }); });
     if (WAVE2) H.X.after(WAVE2, () => { H.hitRing(x, y, RW - 0.5, RW + 1.6, wave2D, C.dmgO({ kb: 4, burn: 1 })); H.X.ring(x, y, RW, RW + 1.6, 0.45, P.org, 0.5); for (let j = 0; j < H.n(16); j++) { const b = j / 16 * TAU; K.embers(x + Math.cos(b) * (RW + 1), y + Math.sin(b) * (RW + 1) * H.GY, 2); } H.X.shake(7, 0.15); H.X.sfx.crash(); });
   };
 
@@ -213,13 +297,20 @@
       update(dt, f) { for (const s of suns) { if (s.gone) continue; if (f.t > s.t0 - 0.32) s.fall = cl((f.t - s.t0 + 0.32) / 0.32); if (f.t >= s.t0) { s.gone = true; s.hitT = f.t; } }
         for (const cw of crowns) { if (f.t > cw.t0) cw.z = Math.max(0, cw.hz * (1 - (f.t - cw.t0) / DROP)); if (f.t < cw.hitT) K.aura(x, y, cw.cr, dt, 12, cw.z); }
         for (const s of suns) if (!s.gone) { const cw = crowns[s.cw]; K.aura(x + Math.cos(s.b + f.t * cw.spin * 2) * cw.cr, y + Math.sin(s.b + f.t * cw.spin * 2) * cw.cr * 0.45, 0.3, dt, 6, cw.z + 0.5); } },
-      drawUnder(c, f, X, Y, T, t) { const k = Math.min(1, f.life / 0.7), form = H.ease.out(cl(f.t / 1.0));
+      drawUnder(c, f, X, Y, T, t) { const k = Math.min(1, f.life / 0.7), form = H.ease.out(cl(f.t / 1.0)), FG = gfx('__FS_GL'), Q = FG ? FG.begin(c, null) : null, gy = H.GY;   // (v344: on the GPU its light, the 2D its marks)
         // each crown's light from above, growing as it falls
-        for (const cw of crowns) if (f.t < cw.hitT) { K.floorLight(c, X, Y, T * cw.cr * 1.5 * form, 0.2 + 0.3 * (1 - cw.z / cw.hz)); c.save(); c.globalAlpha = 0.3 * form; c.strokeStyle = H.rgba(P.org, 0.7); c.setLineDash([T * 0.3, T * 0.2]); c.lineDashOffset = -t * T; c.lineWidth = 2; H.floorEllipse(c, X, Y, T * cw.cr); c.stroke(); c.restore(); }
-        for (const s of suns) { const SX = H.sx(s.tx), SY = H.sy(s.ty); if (s.gone) { const a2 = f.t - s.hitT; K.scorch(c, SX, SY, T * 1.3 * cl(a2 / 0.25), k * 0.85, Math.max(0, 1 - a2 / 1.6), s.b * 3); K.shockRing(c, SX, SY, T * 1.6 * H.ease.out(cl(a2 / 0.35)), 1 - cl(a2 / 0.4)); } else if (s.fall > 0) K.floorLight(c, SX, SY, T * (0.6 + s.fall), 0.6 * s.fall); }
-        crowns.forEach((cw, i) => { if (f.t > cw.hitT) { const a2 = f.t - cw.hitT; K.scorch(c, X, Y, T * cw.rr * cl(a2 / 0.4), k * 0.85 / (1 + i * 0.3), Math.max(0, 1 - a2 / 1.1), 7 + i); K.shockRing(c, X, Y, T * (cw.rr + 0.4) * H.ease.out(cl(a2 / 0.4)), 1 - cl(a2 / 0.5)); } });
+        for (const cw of crowns) if (f.t < cw.hitT) { if (Q) { Q.glow(X, Y, T * cw.cr * 1.5 * form, P.org, 0.3 + 0.35 * (1 - cw.z / cw.hz), gy); Q.glow(X, Y, T * cw.cr * 0.8 * form, P.amb, 0.25 * (1 - cw.z / cw.hz), gy); } else K.floorLight(c, X, Y, T * cw.cr * 1.5 * form, 0.2 + 0.3 * (1 - cw.z / cw.hz)); c.save(); c.globalAlpha = 0.3 * form; c.strokeStyle = H.rgba(P.org, 0.7); c.setLineDash([T * 0.3, T * 0.2]); c.lineDashOffset = -t * T; c.lineWidth = 2; H.floorEllipse(c, X, Y, T * cw.cr); c.stroke(); c.restore(); }
+        for (const s of suns) { const SX = H.sx(s.tx), SY = H.sy(s.ty); if (s.gone) { const a2 = f.t - s.hitT; K.scorch(c, SX, SY, T * 1.3 * cl(a2 / 0.25), k * 0.85, Math.max(0, 1 - a2 / 1.6), s.b * 3); const q = cl(a2 / 0.4), rr = T * 1.6 * H.ease.out(cl(a2 / 0.35));
+            if (Q) { if (q < 1) { Q.ring(SX, SY, rr, P.org, 1 - q, T * 0.2, gy); Q.ring(SX, SY, rr * 0.97, '#FFFFFF', 0.55 * (1 - q), T * 0.05, gy); Q.shimmer(SX, SY, rr * 1.05, 0.35 * (1 - q), gy); } Q.ground(SX, SY, T * 1.3, 0.85 * Math.max(0, 1 - a2 / 1.6), 0.8 * Math.max(0, 1 - a2 / 1.8), s.b * 3, gy, 0.8); } else K.shockRing(c, SX, SY, rr, 1 - q); }
+          else if (s.fall > 0) { if (Q) Q.glow(SX, SY, T * (0.6 + s.fall) * 1.2, P.amb, 0.7 * s.fall, gy); else K.floorLight(c, SX, SY, T * (0.6 + s.fall), 0.6 * s.fall); } }
+        crowns.forEach((cw, i) => { if (f.t > cw.hitT) { const a2 = f.t - cw.hitT; K.scorch(c, X, Y, T * cw.rr * cl(a2 / 0.4), k * 0.85 / (1 + i * 0.3), Math.max(0, 1 - a2 / 1.1), 7 + i); const q = cl(a2 / 0.5), rr = T * (cw.rr + 0.4) * H.ease.out(cl(a2 / 0.4));
+          if (Q) { if (q < 1) { Q.ring(X, Y, rr, i % 2 ? P.org : P.yel, 1 - q, T * 0.26, gy); Q.ring(X, Y, rr * 0.97, '#FFFFFF', 0.6 * (1 - q), T * 0.06, gy); Q.shimmer(X, Y, rr * 1.05, 0.4 * (1 - q), gy); } Q.ground(X, Y, T * cw.rr, 0.85 * Math.max(0, 1 - a2 / 1.1), 0.7 * Math.max(0, 1 - a2 / 1.4) / (1 + i * 0.3), 7 + i, gy, 0.9); } else K.shockRing(c, X, Y, rr, 1 - q); } });
+        if (Q) FG.flush(c);
       },
-      draw(c, f, X, Y, T, t) { const k = Math.min(1, f.life / 0.6), form = H.ease.out(cl(f.t / 1.0)); c.globalAlpha = k; if (near) petHole(c, T);
+      draw(c, f, X, Y, T, t) { const k = Math.min(1, f.life / 0.6), form = H.ease.out(cl(f.t / 1.0)), FG = gfx('__FS_GL'), pb = near ? petBox(T) : null, QB = () => FG.begin(c, pb ? [pb[0], pb[1], T * 0.62] : null); c.globalAlpha = k; if (near && !FG) petHole(c, T);
+        // (v344: on the GPU the suns, their trails, the flames on the spikes, the glows and the spires; the crowns' bands and spikes stay crisp solids (2D).
+        // Two passes so the back suns and flames sit behind the crowns' front halves)
+        let Q = FG ? QB() : null;
         const geo = cw => ({ cy: Y - T * cw.z, rx: T * cw.cr * form, ry: T * cw.cr * 0.45 * form, NS: Math.round((6 + N) * cw.cr / CR0) });
         // a crown: back half of the band and spikes first (or the front half)
         const band = (cw, back) => { const { cy, rx, ry, NS } = geo(cw); c.save(); c.lineCap = 'butt'; const a0 = back ? Math.PI : 0, a1 = back ? TAU : Math.PI;
@@ -233,18 +324,21 @@
             c.fillStyle = back ? P.crust : P.crustL; c.beginPath(); c.moveTo(bx - sw, by); c.lineTo(tx, ty); c.lineTo(bx + sw * 0.1 * Math.cos(b), by); c.closePath(); c.fill();
             c.fillStyle = back ? P.char : P.dred; c.beginPath(); c.moveTo(bx + sw * 0.1 * Math.cos(b), by); c.lineTo(tx, ty); c.lineTo(bx + sw, by); c.closePath(); c.fill();
             c.strokeStyle = H.line(); c.lineWidth = 1.2; c.beginPath(); c.moveTo(bx - sw, by); c.lineTo(tx, ty); c.lineTo(bx + sw, by); c.stroke();
-            c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = H.rgba(P.org, 0.8 * d); c.lineWidth = 1.5; c.beginPath(); c.moveTo(bx, by - shh * 0.1); c.lineTo(tx, ty + shh * 0.2); c.stroke(); c.restore(); K.glow(c, tx, ty, T * 0.22, P.yel, 0.7 * d);
-            if (i % (NCR > 1 ? 3 : 2) === 0) K.flame(c, bx, by - T * 0.05, T * 0.22, T * (0.45 + 0.1 * Math.sin(t * 8 + i)) * form, t, i * 1.7, 0, 0.85 * d, true); } };
+            c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = H.rgba(P.org, 0.8 * d); c.lineWidth = 1.5; c.beginPath(); c.moveTo(bx, by - shh * 0.1); c.lineTo(tx, ty + shh * 0.2); c.stroke(); c.restore();
+            if (Q) { Q.glow(tx, ty, T * 0.3, P.yel, 0.8 * d); Q.star(tx, ty, T * 0.12, 0.6 * d); if (i % (NCR > 1 ? 3 : 2) === 0) gFlame(Q, bx, by - T * 0.05, -Math.PI / 2 + Math.sin(t * 3 + i) * 0.08, T * 0.3, T * (0.6 + 0.12 * Math.sin(t * 8 + i)) * form, 0.95, 0.85 * d, i * 1.7); }
+            else { K.glow(c, tx, ty, T * 0.22, P.yel, 0.7 * d); if (i % (NCR > 1 ? 3 : 2) === 0) K.flame(c, bx, by - T * 0.05, T * 0.22, T * (0.45 + 0.1 * Math.sin(t * 8 + i)) * form, t, i * 1.7, 0, 0.85 * d, true); } } };
         const sunItems = []; suns.forEach((s, i) => { if (s.gone) return; const cw = crowns[s.cw], { cy, rx, ry } = geo(cw), u = H.ease.in(s.fall), b = s.b + f.t * cw.spin * 2, ox = X + Math.cos(b) * rx, oy = cy + Math.sin(b) * ry - T * 0.75 * form, SX = H.sx(s.tx), SY = H.sy(s.ty) - T * 0.3, px = lerp(ox, SX, u), py = lerp(oy, SY, u), grow = cl((f.t - 0.6 - i * 0.12) / 0.6), r = T * (0.3 + 0.16 * grow) * form;
-          sunItems.push({ cw: s.cw, back: Math.sin(b) < 0 && u === 0, d() { if (u > 0) { const pts = []; for (let j = 0; j <= 6; j++) { const q = Math.max(0, u - j * 0.07); pts.push([lerp(ox, SX, q), lerp(oy, SY, q)]); } pts.reverse(); streak(c, pts, r * 1.1, t, 0.9, q => 0.25 + 0.75 * q, i, 2); } sun(c, px, py, r, t, i * 1.3, 1, 0.45); } }); });
+          sunItems.push({ cw: s.cw, back: Math.sin(b) < 0 && u === 0, d() { if (u > 0) { const pts = []; for (let j = 0; j <= 6; j++) { const q = Math.max(0, u - j * 0.07); pts.push([lerp(ox, SX, q), lerp(oy, SY, q)]); } pts.reverse(); if (Q) gStreak(Q, pts, r * 1.1, 0.9 * k, i); else streak(c, pts, r * 1.1, t, 0.9, q => 0.25 + 0.75 * q, i, 2); } if (Q) gSun(Q, px, py, r, t, i * 1.3, k, 0.45); else sun(c, px, py, r, t, i * 1.3, 1, 0.45); } }); });
         // the nested crowns, back halves from the biggest in, then the front halves from the smallest out, so they nest
         const live = crowns.map((cw, i) => i).filter(i => f.t < crowns[i].hitT);
-        for (const i of live.slice().reverse()) { const cw = crowns[i], { cy, rx } = geo(cw), al = f.t > cw.t0 ? 1 : 0.6 + 0.4 * form; c.save(); c.globalAlpha = k * al; K.glow(c, X, cy, rx * 1.3, P.org, 0.3); band(cw, true); sunItems.filter(s => s.back && s.cw === i).forEach(s => s.d()); c.restore(); }
+        for (const i of live.slice().reverse()) { const cw = crowns[i], { cy, rx } = geo(cw), al = f.t > cw.t0 ? 1 : 0.6 + 0.4 * form; c.save(); c.globalAlpha = k * al; if (Q) Q.glow(X, cy, rx * 1.3, P.org, 0.35 * k * al, 0.5); else K.glow(c, X, cy, rx * 1.3, P.org, 0.3); band(cw, true); sunItems.filter(s => s.back && s.cw === i).forEach(s => s.d()); c.restore(); }
+        if (Q) { FG.flush(c); Q = QB(); }
         for (const i of live) { const cw = crowns[i], { cy, rx } = geo(cw), al = f.t > cw.t0 ? 1 : 0.6 + 0.4 * form; c.save(); c.globalAlpha = k * al; band(cw, false); c.restore();
-          if (f.t > cw.t0) { for (let j = 0; j < H.n(3); j++) { const b = Math.random() * TAU; H.P({ kind: 'spark', x: x + Math.cos(b) * cw.cr, y: y + Math.sin(b) * cw.cr * 0.45 - cw.z, vx: Math.cos(b) * 2, vy: 2 + Math.random() * 3, g: 8, life: 0.4, max: 0.4, size: 2.5, color: Math.random() < 0.5 ? P.yel : P.wht }); } shimmer(c, X, cy, rx, T * 1.2, t, 1); } }
+          if (f.t > cw.t0) { for (let j = 0; j < H.n(3); j++) { const b = Math.random() * TAU; H.P({ kind: 'spark', x: x + Math.cos(b) * cw.cr, y: y + Math.sin(b) * cw.cr * 0.45 - cw.z, vx: Math.cos(b) * 2, vy: 2 + Math.random() * 3, g: 8, life: 0.4, max: 0.4, size: 2.5, color: Math.random() < 0.5 ? P.yel : P.wht }); } if (Q) Q.shimmer(X, cy, rx, 0.4, 0.45); else shimmer(c, X, cy, rx, T * 1.2, t, 1); } }
         sunItems.filter(s => !s.back).forEach(s => s.d());
         // Celestial: the last crown breaks into burning spires round its landing
-        if (ev >= 7 && f.t > LAST && f.t < LAST + 1.2) { const u = cl((f.t - LAST) / 0.2), out = 1 - cl((f.t - LAST - 0.8) / 0.4); for (let i = 0; i < 10; i++) { const b = i / 10 * TAU, bx = X + Math.cos(b) * T * R * 0.95, by = Y + Math.sin(b) * T * R * 0.95 * H.GY; K.flame(c, bx, by, T * 0.4, T * 1.4 * u * out * (0.85 + 0.15 * Math.sin(t * 9 + i)), t, i * 2, 0, out, true); } }
+        if (ev >= 7 && f.t > LAST && f.t < LAST + 1.2) { const u = cl((f.t - LAST) / 0.2), out = 1 - cl((f.t - LAST - 0.8) / 0.4); for (let i = 0; i < 10; i++) { const b = i / 10 * TAU, bx = X + Math.cos(b) * T * R * 0.95, by = Y + Math.sin(b) * T * R * 0.95 * H.GY, hh = T * 1.4 * u * out * (0.85 + 0.15 * Math.sin(t * 9 + i)); if (Q) { gFlame(Q, bx, by, -Math.PI / 2 + Math.sin(t * 4 + i) * 0.08, T * 0.6, hh * 1.2, 1.0, out * k, i * 2); Q.glow(bx, by - hh * 0.4, T * 0.8, P.org, 0.35 * out); } else K.flame(c, bx, by, T * 0.4, hh, t, i * 2, 0, out, true); } }
+        if (Q) FG.flush(c);
       } });
     const sunD = DK * 1.7 * 6 / N, crownD = DK * (ev >= 7 ? 3.0 : 3.6) * (NCR === 1 ? 1 : 1.15 / NCR);
     suns.forEach((s, i) => { H.X.after(s.t0 - 0.35, () => H.warn(s.tx, s.ty, 1.4, 0.35, C.col)); H.X.after(s.t0, () => { H.hitArea(s.tx, s.ty, 1.45, sunD, C.dmgO({ kb: 3, burn: 1 })); impact(s.tx, s.ty, 1.4, 1.1); K.smoke(s.tx, s.ty, 3, 0.5); if (i % 2) fireAt(C, s.tx, s.ty, 1.0, 2.0, 0.5); H.X.sfx.crash(); }); });
@@ -544,7 +638,43 @@
         return { pts, inFront, w: T * (0.4 + 0.02 * ev) * (1 - after * 0.7) * (1 - braid * 0.12), a: 1 - after, braid, lance, after };
       },
       drawTails(c, f, T, t, front) { const k = Math.min(1, f.life / 0.6), tips = []; tails.forEach((tl, i) => { const P2 = f.pose(tl, i, T, t, f); tips.push(P2.pts[P2.pts.length - 1]); if (P2.inFront !== front) return; tail(c, P2.pts, P2.w, t, P2.a * k, tl.seed); const tip = P2.pts[P2.pts.length - 1]; if (tl.lash > 0 && tl.lash < 1) H.core(c, tip[0], tip[1], T * 0.22, P.yel, P.wht, 0.9); }); if (front) f.tips = tips; },
+      // (v344) on the GPU: the tails real fire; the halo, the sigil and the shock fronts light; the ember paths and the lance's track stay marks on the floor (2D)
+      drawTailsGL(Q, f, T, t, front) { const k = Math.min(1, f.life / 0.6), tips = []; tails.forEach((tl, i) => { const P2 = f.pose(tl, i, T, t, f); const tip = P2.pts[P2.pts.length - 1]; tips.push(tip); if (P2.inFront !== front) return; gTail(Q, P2.pts, P2.w, P2.a * k, tl.seed, t); if (tl.lash > 0 && tl.lash < 1) { Q.glow(tip[0], tip[1], T * 0.5, P.yel, 0.9); Q.glow(tip[0], tip[1], T * 0.2, '#FFFFFF', 1); } }); if (front) f.tips = tips; },
+      underGL(FG, c, f, X, Y, T, t) {
+        const k = Math.min(1, f.life / 0.8), mx = H.sx(me.x), my = H.sy(me.y), unf = cl(f.t / 0.6), [cx, cy, hx, hy] = petBox(T), gy = H.GY;
+        // the ember paths the lashes leave, curving out from the halo
+        for (const tl of tails) { if (tl.lash < 1) continue; const age = f.t - tl.t0 - 0.22, heat = Math.max(0, 1 - age / 1.8), SX = H.sx(tl.spot[0]), SY = H.sy(tl.spot[1]), r0 = [mx + Math.cos(tl.th) * T * 0.8, my + Math.sin(tl.th) * T * 0.8 * H.GY]; channel(c, bez(r0, [lerp(r0[0], SX, 0.5) + Math.cos(a + Math.PI / 2) * tl.s * T * 1.1, lerp(r0[1], SY, 0.5) + Math.sin(a + Math.PI / 2) * tl.s * T * 0.6], [SX, SY], 10), T * 0.12, heat, k * 0.8 * Math.min(1, 0.35 + heat), t); K.scorch(c, SX, SY, T * 1.1 * cl(age / 0.2), k * 0.85, heat, tl.seed); K.shockRing(c, SX, SY, T * 1.4 * H.ease.out(cl(age / 0.3)), 1 - cl(age / 0.35)); }
+        // the lance's burnt track
+        if (f.t > LANCE) { const u = cl((f.t - LANCE) / 0.3), heat = Math.max(0, 1 - (f.t - LANCE) / 1.3), pts = []; for (let j = 0; j <= 12; j++) { const d = 0.9 + (L - 0.9) * u * j / 12; pts.push([H.sx(me.x + Math.cos(a) * d), H.sy(me.y + Math.sin(a) * d)]); } channel(c, pts, T * 0.55, heat, k, t); }
+        const Q = FG.begin(c, null), ku = k * unf;
+        // the sigil on the floor under the pet: a pool of firelight, two rings, spokes turning
+        Q.glow(mx, my, T * 1.8, P.org, 0.55 * ku, gy); Q.ring(mx, my, T * 1.15, P.org, 0.7 * ku, T * 0.07, gy); Q.ring(mx, my, T * 0.95, P.yel, 0.8 * ku, T * 0.03, gy);
+        for (let i = 0; i < N; i++) { const b = -Math.PI / 2 + i / N * TAU + t * 0.4; Q.beam(mx + Math.cos(b) * T * 0.95, my + Math.sin(b) * T * 0.95 * gy, mx + Math.cos(b) * T * 1.3, my + Math.sin(b) * T * 1.3 * gy, T * 0.025, P.yel, 0.8 * ku); }
+        // the halo ring behind the pet, burning
+        if (f.t < LANCE + 1) { const ha = ku * (f.t > LANCE ? 1 - cl((f.t - LANCE) / 1) : 1), sq = hy / (hx * 1.04); Q.glow(cx, cy, T * 1.6, P.org, 0.5 * ha); Q.ring(cx, cy, hx * 1.04, P.org, 0.95 * ha, T * 0.14, sq); Q.ring(cx, cy, hx * 1.04, '#FFF2C8', 0.8 * ha, T * 0.035, sq); }
+        if (FIN && f.t > FIN) { const q = cl((f.t - FIN) / 0.5), rr = T * 3.4 * H.ease.out(cl((f.t - FIN) / 0.45)); if (q < 1) { Q.ring(mx, my, rr, P.org, 1 - q, T * 0.26, gy); Q.ring(mx, my, rr * 0.97, '#FFFFFF', 0.6 * (1 - q), T * 0.06, gy); Q.shimmer(mx, my, rr * 1.05, 0.4 * (1 - q), gy); Q.ground(mx, my, rr, 0.8, 0.6 * (1 - q), 3.3, gy, 0.6); } }
+        f.drawTailsGL(Q, f, T, t, false); FG.flush(c);
+      },
+      drawGL(FG, c, f, X, Y, T, t) {
+        const k = Math.min(1, f.life / 0.6), pb = petBox(T), Q = FG.begin(c, [pb[0], pb[1], T * 0.62]); f.drawTailsGL(Q, f, T, t, true);
+        const [cx, cy, hx, hy] = pb, braid = f.t > BRAID ? cl((f.t - BRAID) / (LANCE - BRAID)) : 0, lance = f.t > LANCE ? cl((f.t - LANCE) / 0.25) : 0, after = f.t > LANCE + 0.3 ? cl((f.t - LANCE - 0.3) / 1.0) : 0;
+        // the braid's gathering heart, then the lance: a spear of turbulent fire along the aim with a white-hot core, a fireball at its point
+        if (braid > 0 && after < 1) { const ax = Math.cos(sa), ay = Math.sin(sa), bx = cx + ax * hx * 1.3, by = cy + ay * hy * 1.3, Lz = T * (1.2 + L * 0.85 * (0.25 + 0.75 * braid));
+          gBall(Q, bx + ax * T * 0.2, by + ay * T * 0.2, T * (0.25 + 0.2 * braid) * (1 - after), 1.0, k * (1 - after), 5);
+          if (lance > 0 && after < 0.7) { const fa = (1 - cl(after / 0.7)) * k, ex = bx + ax * Lz, ey = by + ay * Lz, NS = Math.max(2, Math.min(7, Math.round(Lz / (T * 1.4))));
+            for (let i = 0; i <= 3; i++) Q.glow(lerp(bx, ex, i / 3), lerp(by, ey, i / 3), T * 1.2, P.org, 0.3 * fa);
+            Q.firebody(bx, by, ex, ey, T * 0.42 * fa, 0.85, 0.8 * fa, 2.3, 6);
+            for (let i = 0; i < NS; i++) { const u0 = Math.max(0, i / NS - 0.05), u1 = Math.min(1, (i + 1) / NS + 0.05); Q.firebeam(lerp(bx, ex, u0), lerp(by, ey, u0), lerp(bx, ex, u1), lerp(by, ey, u1), T * 0.6 * fa, 1.0, fa, 3.1 + i * 0.71, 6); }
+            Q.beam(bx, by, ex, ey, T * 0.16 * fa, P.yel, 0.8 * fa); Q.beam(bx, by, ex, ey, T * 0.06 * fa, '#FFFFFF', fa);
+            gBall(Q, ex, ey, T * 0.55 * fa * lance, 1.1, fa, 8); for (let i = 0; i < 4; i++) gFlame(Q, ex, ey, sa + Math.PI + (i - 1.5) * 0.35, T * 0.4 * fa, T * (1.2 + 0.3 * Math.sin(t * 11 + i)) * fa * lance, 0.95, fa, i * 2);
+            Q.shimmer(bx + ax * Lz * 0.6, by + ay * Lz * 0.6, T * 1.5, 0.4 * fa, 1); } }
+        // Celestial: the halo bursts outward as a ring of fire, flames standing round it
+        if (FIN && f.t > FIN && f.t < FIN + 0.7) { const u = (f.t - FIN) / 0.7, mx = H.sx(me.x), my = H.sy(me.y), R = T * 3.2 * H.ease.out(u), n = gLow() ? 10 : 16;
+          for (let i = 0; i < n; i++) { const b = i / n * TAU + t * 0.2; gFlame(Q, mx + Math.cos(b) * R, my + Math.sin(b) * R * H.GY, -Math.PI / 2 + Math.cos(b) * 0.45, T * 0.55 * (1 - u * 0.4), T * 1.5 * (1 - u * 0.5), 1.0, (1 - u * 0.85) * k, i * 1.7); } }
+        FG.flush(c);
+      },
       drawUnder(c, f, X, Y, T, t) {
+        { const FG = gfx('__NT_GL'); if (FG) { f.underGL(FG, c, f, X, Y, T, t); return; } }
         const k = Math.min(1, f.life / 0.8), mx = H.sx(me.x), my = H.sy(me.y), unf = cl(f.t / 0.6), [cx, cy, hx, hy] = petBox(T);
         // the sigil on the floor under the pet and the back light of the halo behind it
         c.save(); c.globalAlpha = k * unf; K.floorLight(c, mx, my, T * 1.8, 0.5); c.globalCompositeOperation = 'lighter'; c.strokeStyle = H.rgba(P.org, 0.6); c.lineWidth = 2.5; H.floorEllipse(c, mx, my, T * 1.15); c.stroke(); c.strokeStyle = H.rgba(P.yel, 0.7); c.lineWidth = 1.2; H.floorEllipse(c, mx, my, T * 0.95); c.stroke();
@@ -559,6 +689,7 @@
         f.drawTails(c, f, T, t, false);
       },
       draw(c, f, X, Y, T, t) {
+        { const FG = gfx('__NT_GL'); if (FG) { f.drawGL(FG, c, f, X, Y, T, t); return; } }
         const k = Math.min(1, f.life / 0.6); c.globalAlpha = k; petHole(c, T); f.drawTails(c, f, T, t, true);
         const [cx, cy, hx, hy] = petBox(T), braid = f.t > BRAID ? cl((f.t - BRAID) / (LANCE - BRAID)) : 0, lance = f.t > LANCE ? cl((f.t - LANCE) / 0.25) : 0, after = f.t > LANCE + 0.3 ? cl((f.t - LANCE - 0.3) / 1.0) : 0;
         // the braid's gathering heart in front of the halo, then the lance: a spear of flame along the aim
