@@ -29,7 +29,7 @@
   "core.bodyW": 0.8,
   "core.chargeK": 30,
   "core.cdFire": 1,
-  "core.cdFlare": 4,
+  "core.cdFlare": 2,
   "core.mvHold": 0.6,
   "core.summon": 3.4,
   "core.readyHold": 6,
@@ -132,7 +132,7 @@
   "strong2": {
    "dbgAll": "20 hits, first: [[\"m0\",0.5,0.72],[\"m1\",0.5,0.8],[\"m0\",0.5,0.8],[\"m4\",0.5,0.83]]",
    "uses": 2,
-   "again": 4,
+   "again": 2,
    "dk": [
     0.5
    ],

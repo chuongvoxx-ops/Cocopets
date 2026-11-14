@@ -309,13 +309,20 @@ const NIDHOGG_GL = (() => {
   /* the wing's upper-surface normal (the plane of the arm) */
   function wingN(Wg) { const n = vcross(vsub(Wg.elbow, Wg.root), vsub(Wg.wrist, Wg.root)), l = vlen(n); return l > 1e-5 ? vmul(n, -Wg.s / l) : [0, 0, 1]; }
   /* the membranes: one grid per wing, across the panels (wrist to the fingers' scalloped trailing edge, then the inner panel from the arm to the hip) and out from the arm to the edge */
+  /* a membrane point near the body pulled in under the torso's drawn surface (its shape, TORSO_Y and breath included) by w (0..1); the root-to-hip edge (w 1) lies 8% inside it */
+  function memTuck(p, R, w) {
+    const tk = TK * (1 + (R.breath || 0) * 0.6), lx = (p[0] - R.torso[0]) / tk, ly = (p[1] - R.torso[1]) / (tk * TORSO_Y), lz = (p[2] - R.torso[2]) / tk;
+    if (!(lx > RXA && lx < RXB)) return p; const rr = Math.hypot(ly, lz); if (rr < 1e-5) return p;
+    const rs = rTab(lx, Math.atan2(ly, lz)) * 0.92; if (rr <= rs) return p; const k = lerp(rr, rs, w) / rr;
+    return [p[0], R.torso[1] + ly * k * tk * TORSO_Y, R.torso[2] + lz * k * tk]; }
   function updMem(D, R, P) {
     const G = D.mem;
     R.wing.forEach((Wg, g) => { const F = Wg.fing, nW = wingN(Wg), TR = [0.27, 0.29, 0.31, 0.28], bil = 0.07 + 0.05 * (P.spread || 0) + 0.14 * (P.billow || 0);
       for (let i = 0; i <= MU; i++) { const uu = i / MU * 4, k = Math.min(3, Math.floor(uu)), t = uu - k, a = k < 3 ? F[k] : F[3], b = k < 3 ? F[k + 1] : Wg.hipA;
         const inner = k < 3 ? Wg.wrist : t < 0.5 ? vadd(Wg.wrist, vmul(vsub(Wg.elbow, Wg.wrist), t * 2)) : vadd(Wg.elbow, vmul(vsub(Wg.root, Wg.elbow), t * 2 - 1));
         const m = vadd(a, vmul(vsub(b, a), t)), outer = vadd(m, vmul(vsub(inner, m), TR[k] * Math.sin(Math.PI * t)));
-        for (let j = 0; j <= MV; j++) { const v = j / MV, p = vadd(vadd(inner, vmul(vsub(outer, inner), v)), vmul(nW, bil * Math.sin(Math.PI * v) * Math.sin(Math.PI * t) * (k < 3 ? 1 : 0.6))); setV(G, g * G.per + j * (MU + 1) + i, p, uu, v, M_MEM); } }
+        const tuck = k === 3 ? (u3 => u3 * u3 * (3 - 2 * u3))(cl((t - 0.55) / 0.45)) : 0;   // (v332, the user: "not fully connected to the body": the inner panel's body edge (root to hip) sank into the flank, no slit of floor between the membrane and the body)
+        for (let j = 0; j <= MV; j++) { const v = j / MV; let p = vadd(vadd(inner, vmul(vsub(outer, inner), v)), vmul(nW, bil * Math.sin(Math.PI * v) * Math.sin(Math.PI * t) * (k < 3 ? 1 : 0.6))); if (tuck > 0) p = memTuck(p, R, tuck); setV(G, g * G.per + j * (MU + 1) + i, p, uu, v, M_MEM); } }
       gridNormals(G, g, false); });
   }
   /* the kits: the wing arms, fingers, claws and hubs; the legs */

@@ -1056,3 +1056,4 @@ Every new boss painter (rift fiends, Tower bosses, minis that get their own art)
 - v329: Nidhogg: the Fireball burst and the Ultima blast and mushroom cloud back to the GPU-painted version (the user preferred it: blended smoke and fire); the fireball in flight, Flare, Dive Bomb, the Ultima ring, charge and beam stay in true 3D.
 - v330: Nidhogg Ultima camera: 30% less pull-back (ULT_CAM_K 0.25 to 0.175 of the authored zoom-out).
 - v331: Nidhogg Ultima camera: 50% less pull-back again (ULT_CAM_K 0.0875); it still pulls back, just closer.
+- v332: Nidhogg — wing membranes tucked into the flank (no slit between wing and body on the GPU model); Dive Bomb landing fire back to the flat painted version (3D dive layers off, DIVE3D); Flare cooldown 4 s → 2 s (baselines updated).

@@ -17,7 +17,7 @@
        flight; the rider rolls one flat turn with each spin (drawPetAt's rot, never a yaw).
        The next dive is accepted as soon as dive and recovery end (a press in the last TUNE.diveBuf s is kept). Aimed at
        nothing (open air, water, the void) it shows an invalid marker and keeps flying;
-     - Strong 1 / 2 are Fireballs / Flare (worker N2's 20k6h, NIDHOGG_MOVES; stubs here if absent): exact 1 s / 4 s
+     - Strong 1 / 2 are Fireballs / Flare (worker N2's 20k6h, NIDHOGG_MOVES; stubs here if absent): exact 1 s / 2 s
        cooldowns, once per activation, counted from the press;
      - the Ult button is the Ultima meter: it fills only from the damage the form deals through ctx.hit (Dive Bomb,
        Fireballs, Flare; after mitigation, no overkill); a press when full starts Ultima (worker N3's 20k6i), once per
@@ -40,6 +40,7 @@
   const MOD = () => (typeof NIDHOGG_MODEL !== 'undefined' ? NIDHOGG_MODEL : null);
 
   /* ================= the tuning (configurable) ================= */
+  const DIVE3D = false;   /* (v332, the user: the fire when the dragon lands back to the previous flat GPU-painted version; the 3D dive layers stay in the code, off) */
   const ULT_Z0 = 0.9, ULT_CAM_K = 0.0875;   /* (v331, the user: 50% less again; v330: 30% less) (v327, the user: "zoom back in by 50%" again: a quarter of the authored pull-back is kept; charge and beam about 0.54, blast about 0.53 at the 0.585 flight zoom) (ULT_Z0: the flight zoom the moves' and the Ultima's camera zooms were authored against) */
   /* (v325, the user: "camera pull back too far during ultima, zoom back in by half") the share of the Ultima's own zoom-out that is kept (framing only, not a gameplay number) */
   const TUNE = {
@@ -63,7 +64,7 @@
     turn: { max: 5.0, k: 7, acc: 26, blur: [1.6, 4.6] },
     grindR: 2.8, bodyL: 1.5, bodyW: 0.8,           // (round 4) tiles: the grind's smash radius; the flying body's smash oval (half length, half width)
     chargeK: 30,                                   // the meter fills at chargeK x DK of damage actually dealt
-    cdFire: 1, cdFlare: 4, mvHold: 0.6,            // s, exact, from the press of an activation; a press held while busy (round 3: Fireballs 1 s)
+    cdFire: 1, cdFlare: 2, mvHold: 0.6,            // s, exact, from the press of an activation; a press held while busy (round 3: Fireballs 1 s; v332: Flare 2 s)
     summon: 3.4, readyHold: 6,                     // s: the model's summon clip; (round 3) the longest it hovers on at its end, on a cold cache, until every heading is drawable
     ultCap: 14, ultWonCap: 14,        // s: the model's summon clip; a started Ultima is ended anyway after this
     outGlide: [0.35, 1.4], outSpd: 13, dismiss: 1.6,   // s min / max of the glide to the return point; tiles/s; the dismiss clip
@@ -572,7 +573,7 @@
     // (v327) Dive Bomb in true 3D on the GPU (NIDHOGG_MOVES.F3D; the flat marks above stay as its light on the floor): a
     // flaming trail along the dive path, then at the slam a dome of fire swelling out of the ground over a crater ring
     // of fire, cooling into smoke; under the actors, so the dragon and its rider sit in it
-    try { const F3 = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.F3D; if (F3 && F3.usable() && (S.dive || S.parts.some(p => p.kind === 9 && p.s > 2))) { const Q3 = F3.begin(c, H, T * ZK, d.x, d.y, null), K = Q3.K, D = S.dive;
+    try { const F3 = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.F3D; if (DIVE3D && F3 && F3.usable() && (S.dive || S.parts.some(p => p.kind === 9 && p.s > 2))) { const Q3 = F3.begin(c, H, T * ZK, d.x, d.y, null), K = Q3.K, D = S.dive;
       if (D && D.t > D.t1 && D.t < D.t2 + 0.08) { const Ph = TUNE.divePh, u0 = cl((D.t - D.t1) / Ph[1]), fade = D.t > D.t2 ? 1 - (D.t - D.t2) / 0.08 : sstep(0, 0.2, u0), PT = S.p3 || (S.p3 = []), n = Q3.low ? 6 : 10;
         for (let i = 0; i < n; i++) { const v = Math.max(0, u0 - i * 0.05), u = Math.pow(v, 1.8), q = PT[i] || (PT[i] = [0, 0, 0]); q[0] = lerp(D.x0, D.tx, u); q[1] = lerp(D.y0, D.ty, u); q[2] = lerp(D.z0 + 0.4, 0.3, Math.pow(v, 1.5)) + 0.5; }
         Q3.tube(PT, n, w => 0.7 * (1 - 0.8 * w), K.body, '#FF7A2E', 0.8 * fade, { heat: 0.95, seed: 3.1, af: w => 1 - w }); Q3.tube(PT, n, w => 0.95 * (1 - 0.75 * w), K.fire, '#FF7A2E', fade, { heat: 1.12, seed: 3.1, scroll: 4, af: w => 1 - w * w }); }
@@ -697,7 +698,7 @@
         c.beginPath(); c.moveTo(X0 - r * 0.5, Y0 - r * 0.35); c.lineTo(X0 + r * 0.5, Y0 + r * 0.35); c.moveTo(X0 + r * 0.5, Y0 - r * 0.35); c.lineTo(X0 - r * 0.5, Y0 + r * 0.35); c.stroke(); c.globalCompositeOperation = 'lighter'; }
       c.restore(); }
     // (v327) Dive Bomb's flaming trail and the slam's rising fireball over the actors (3D, the rider's face kept clear)
-    try { const F3 = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.F3D, D = S.dive, d = S.dragon; if (F3 && F3.usable() && (D || S.parts.some(p => p.kind === 9 && p.s > 2))) { const sp0 = S.seatS || [-1e9, -1e9], Q3 = F3.begin(c, H, T * ZK, d.x, d.y, [sp0[0], sp0[1] - T * 0.45, T * 0.95]), K = Q3.K;
+    try { const F3 = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.F3D, D = S.dive, d = S.dragon; if (DIVE3D && F3 && F3.usable() && (D || S.parts.some(p => p.kind === 9 && p.s > 2))) { const sp0 = S.seatS || [-1e9, -1e9], Q3 = F3.begin(c, H, T * ZK, d.x, d.y, [sp0[0], sp0[1] - T * 0.45, T * 0.95]), K = Q3.K;
       if (D && D.t > D.t1 && D.t < D.t2 + 0.1) { const Ph = TUNE.divePh, u0 = cl((D.t - D.t1) / Ph[1]), fade = D.t > D.t2 ? 1 - (D.t - D.t2) / 0.1 : sstep(0, 0.2, u0), PT = S.p3o || (S.p3o = []), n = Q3.low ? 6 : 10;
         for (let i = 0; i < n; i++) { const v = Math.max(0, u0 - 0.05 - i * 0.06), u = Math.pow(v, 1.8), q = PT[i] || (PT[i] = [0, 0, 0]); q[0] = lerp(D.x0, D.tx, u); q[1] = lerp(D.y0, D.ty, u); q[2] = lerp(D.z0 + 0.4, 0.3, Math.pow(v, 1.5)) + 0.9; }
         Q3.tube(PT, n, w => 0.6 * (1 - 0.8 * w), K.body, '#FF7A2E', 0.8 * fade, { heat: 0.95, seed: 3.1, af: w => 1 - w }); Q3.tube(PT, n, w => 0.85 * (1 - 0.75 * w), K.fire, '#FF7A2E', fade, { heat: 1.12, seed: 3.1, scroll: 4, af: w => 1 - w * w }); }
