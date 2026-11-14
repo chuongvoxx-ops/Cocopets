@@ -6,11 +6,11 @@
        roll, knocked aside), then it unfolds;
      - Jump (its own button above Dodge, and J) is a heavy hop that lands in an Earth stomp; both are always available;
      - Strong 1 is Rock You: it braces, crystals erupt under the target (phase 1), pause, then explode (phase 2);
-     - Strong 2 is Drill Cannon: the real drill bit flies out on a corkscrew route, drills along the ground, strikes, and
-       comes back to dock; nothing else is cast while it is away;
+     - Strong 2 is Drill Cannon: the bit is fired at the target, stays there drilling into the ground, then explodes, and
+       a new bit materialises on the carriage (only another Drill Cannon waits for it);
      - the Ult button is the Calamity gauge: it fills from the damage the mounted attacks really deal; a press when full
        recalls the bit if it is out, transforms the turtle into a drilling vehicle that the player steers over and under
-       the ground (Dodge = dive, Jump = rise), and ends in eight Earth drills bursting together; then the vehicle turns
+       the ground (one command: DRILL under, RISE up), and ends in eight Earth drills bursting together; then the vehicle turns
        back into the turtle, the pet steps down, and the turtle crumbles.
    One damage path (ctx.hit / hitArea / hitOval: after mitigation, no overkill, gauge, scenery smash). E's effects file
    (20k2m, GENBU_MOVES) only draws from the plans published on ctx; the lead's model (20k2kz, GENBU_MODEL: GPU, with its own 2D
@@ -35,17 +35,18 @@
 
   /* ================= the tuning (configurable; provisional values, see the brief) ================= */
   const TUNE = {
-    dur: [20, 25, 35], cd: 120, summon: 1.6, dmgK: 2, chargeK: 30,
+    dur: [20, 25, 35], cd: 120, summon: 2.6, dmgK: 6, chargeK: 30,   /* (v336, the user: "triple the damage of all Genbu attacks including ults": dmgK 2 -> 6 (every hit goes through hitCharge; the gauge's rate is unchanged); the summon drills up out of the ground, then the pet climbs on) */
     top: 6.5, accel: 9, coast: 7, overK: 6, steer: [2.2, 3.2], grip: 6, bumpK: 0.3, stride: 2.8,
     contact: 0.5, contactGate: 0.5, contactMin: 0.25, contactKb: 3.5,
     roll: 2.6, rollR: 2.2, rollKb: 6.5, rollPh: [0.12, 0.7, 0.25], rollV: 15, rollTurn: 3.5, rollCd: 1.1, rollInv: 0.3, rollBuf: 0.3,
     jump: 2.8, jumpR: 2.8, jumpKb: 7, jumpPh: [0.16, 0.8, 0.08], jumpH: 1.9, jumpD: 4.2, jumpMax: 6, jumpExt: 1.4, jumpBuf: 0.3, jumpInv: 0.3, jumpInvLock: 1.8,
     rock: { brace: 0.35, n: [5, 6, 7], spread: 3.0, crystalR: 1.1, rise: 0.08, erupt: 1.6, pause: 0.7, burst: 2.4, burstR: 3.4, range: 9, cd: 2.2, kb: 4 },
-    drill: { spin: 0.5, out: 0.9, range: 9, hitR: 0.9, tick: 0.3, ticks: 3, dmg: 0.9, impact: 3.2, impactR: 3.0, hold: 0.25, back: 0.8, dock: 0.25, recall: 0.45, cd: 2.6, kb: 5, coil: 0.65, turns: 2.5 },
-    cal: { xform: 1.6, dur: [8, 9, 10], top: 9, accel: 18, steer: 3.4, underZ: -1.05, leapZ: 1.4, leapT: 0.7, dive: 0.35, rise: 0.3, dmg: 1.2, gate: 0.4, emerge: 2.0, emergeR: 3.0, emergeGate: 0.6, kb: 5,
-      climax: { n: 8, sep: 2.2, reach: 8, rise: 0.6, spin: 1.3, erupt: 1.5, eruptR: 2.2, burst: 6.0, burstR: 3.2, hold: 0.7 }, revert: 1.0, cap: 30 },
+    drill: { spin: 0.45, out: 0.5, arc: 1.1, range: 9, drill: 1.2, tick: 0.3, ticks: 4, drillR: 1.7, dmg: 0.9, impact: 3.2, impactR: 3.0, mat: 0.6, cd: 2.6, kb: 5 },   /* (v336, the user: fired at the enemies, the bit stays there and drills, then explodes; a new drill materialises on Genbu) */
+    cal: { xform: 1.6, dur: [16, 18, 20], top: 9, accel: 18, steer: 3.4, underZ: -1.05, leapZ: 1.4, leapT: 0.7, dive: 0.35, rise: 0.3, dmg: 1.2, gate: 0.4, emerge: 2.0, emergeR: 3.0, emergeGate: 0.6, kb: 5,
+      climax: { n: 8, sep: 2.2, reach: 8, rise: 0.6, spin: 1.3, erupt: 1.5, eruptR: 2.2, burst: 6.0, burstR: 3.2, hold: 0.7 }, revert: 1.0, cap: 40 },   /* (v336, the user: Calamity 10 s -> 20 s: the drilling doubled at every tier) */
     out: { dismount: 0.3, crumble: 1.6 }, mvHold: 0.8,
   };
+  const SUMMON = { burst: 1.0, mount0: 1.9, mount1: 2.35 };   /* (v336: the drill breaks the surface at 1.0 s, it is the turtle again by 1.9 s, the pet hops on 1.9 to 2.35 s; walking from TUNE.summon) */
   /* the footprints (ground units): three circles along the axis; turtle and drill form */
   const FPT = { c: 0.85, e: 0.95, r: 0.62 }, FPD = { c: 0.72, e: 1.1, r: 0.5 }, BODY = { hl: 1.6, hw: 1.2 };
   /* the placeholder rig (tiles, body frame: x forward, y left, z up), turtle -> drill form; the GPU model's anchors win when present */
@@ -74,7 +75,8 @@
     g._genbu = S;
     { const M = MOD(); if (M) { try { S.inst = M.create(); S.P = S.inst.pose; } catch (e) { S.inst = null; } } }
     // its place: centred on the pet, turned or nudged until the whole shell fits
-    let best = null; for (let k2 = 0; k2 < 12 && !best; k2++) { const ang = a + (k2 % 2 ? 1 : -1) * Math.ceil(k2 / 2) * (Math.PI / 6); if (!poseBlocked(S, me.x, me.y, ang, 0, true)) best = { x: me.x, y: me.y, a: ang }; }
+    let best = null; for (const dd of [2.6, 2.0, 1.4]) for (let k2 = 0; k2 < 7 && !best; k2++) { const ang = a + (k2 % 2 ? 1 : -1) * Math.ceil(k2 / 2) * (Math.PI / 6), x = me.x + Math.cos(ang) * dd, y = me.y + Math.sin(ang) * dd; if (!poseBlocked(S, x, y, ang, 0, true) && !S.X.blocked(x, y, 0.4, 0)) best = { x, y, a: ang }; }   /* (v336: it surfaces in front of the pet, who then climbs on) */
+    for (let k2 = 0; k2 < 12 && !best; k2++) { const ang = a + (k2 % 2 ? 1 : -1) * Math.ceil(k2 / 2) * (Math.PI / 6); if (!poseBlocked(S, me.x, me.y, ang, 0, true)) best = { x: me.x, y: me.y, a: ang }; }
     if (!best) for (let r = 0.3; r < 2.8 && !best; r += 0.3) for (let i = 0; i < 12 && !best; i++) { const x = me.x + Math.cos(i / 12 * TAU) * r, y = me.y + Math.sin(i / 12 * TAU) * r; if (!poseBlocked(S, x, y, a, 0, true)) best = { x, y, a }; }
     if (best) { body.x = best.x; body.y = best.y; body.a = best.a; }
     body.prevX = body.x; body.prevY = body.y; body.prevA = body.a; S.ag = groundA(body.a);
@@ -84,7 +86,7 @@
       hitOval: (cx, cy, rx, ry, ang, dmg, o) => { let n = 0; const ex = o && o.exclude, ca = Math.cos(ang), sa = Math.sin(ang); for (const m of H.living()) { if (ex && (ex === m || (ex.has && ex.has(m)))) continue; const dx = m.x - cx, dy = m.y - cy, u = dx * ca + dy * sa, v = -dx * sa + dy * ca, mr = m.r || 0.4; if ((u / (rx + mr)) ** 2 + (v / (ry + mr)) ** 2 <= 1) { if (hitCharge(S, m, dmg, o) > 0) n++; } } return n; },
       mons: () => H.living(), target: () => target(S), canStand: (x, y) => canStand(S, x, y), nearestStand: (x, y) => nearestStand(S, x, y),
       anchor: n => anchor(S, n), scr: (x, y, z) => [H.sx(x), H.sy(y) - (z || 0) * ZK * X.Tz()], T: () => X.Tz(), seat: () => anchor(S, 'seat'),
-      alive: () => !S.released && !me.dead && !g.over, calm, low: lowFx, now: () => g.t };
+      alive: () => !S.released && !me.dead && !g.over, calm, low: lowFx, now: () => g.t, phase: () => S.phase, get summonT() { return S.phase === 'summon' ? S.t : null; }, SUMMON };
     S.veh = { get active() { return !S.released; }, drive: (mx, my, dt) => drive(S, mx, my, dt), dodge: (mx, my) => tryDodge(S, mx, my), jump: (mx, my) => tryJumpCmd(S, mx, my), strong: slot => tryMove(S, slot), ult: () => tryCalamity(S), drawBtns: (c, o) => drawBtns(S, c, o), onSwitch: () => finish(S, 'swap') };
     X.vehicle(S.veh);
     const F = S.fx = H.add({ key: 'genbu', life: 1e9, entY: body.y, update(dt) { step(S, dt); }, drawUnder(c) { drawUnder(S, c); }, drawEnt(c) { drawEnt(S, c); }, draw(c) { drawOver(S, c); }, onEnd() { if (!S.released) release(S); } });
@@ -143,7 +145,7 @@
     if (hit && b.under) S.stats.outsideBlocked++;
     return hit;
   }
-  function syncMe(S) { const me = S.me, b = S.body; if (S.dismounted) return; me.x = b.x; me.y = b.y; me.vx = b.vx; me.vy = b.vy; const c = Math.cos(b.a); if (Math.abs(c) > 0.25) me.face = c > 0 ? 1 : -1; me.z = 0; }
+  function syncMe(S) { const me = S.me, b = S.body; if (S.dismounted) return; if (S.phase === 'summon' && S.t < SUMMON.mount1) { me.x = S.petX0; me.y = S.petY0; me.vx = me.vy = 0; return; }   /* (the pet waits on the ground until it climbs on) */ me.x = b.x; me.y = b.y; me.vx = b.vx; me.vy = b.vy; const c = Math.cos(b.a); if (Math.abs(c) > 0.25) me.face = c > 0 ? 1 : -1; me.z = 0; }
   /* contact: the body's oval swept from its last pose to this one; one hit per pass per monster (walking: trample; Calamity: the drill) */
   function inBody(m, x, y, ab, hl, hw, pad) { const ag = groundA(ab), ca = Math.cos(ag), sa = Math.sin(ag), gx = m.x - x, gy = (m.y - y) / GY, lx = gx * ca + gy * sa, ly = -gx * sa + gy * ca, r = (m.r || 0.4) * 0.85 + pad; return (lx / (hl + r)) ** 2 + (ly / (hw + r)) ** 2 < 1; }
   function contact(S, dmgK, gateS, noCharge) {
@@ -170,10 +172,9 @@
   function smashArea(S, x, y, r) { if (!smashOn(S)) return 0; return S.vs.circle(x, y, r, smashCb(S), S.body.x, S.body.y); }
 
   /* ================= Shell Roll (Dodge) ================= */
-  function tryDodge(S, mx, my) { if (S.phase === 'calamity') { calDive(S); return; } tryRoll(S, mx, my); }
+  function tryDodge(S, mx, my) { if (S.phase === 'calamity') { calToggle(S); return; } tryRoll(S, mx, my); }
   function tryRoll(S, mx, my, queued) {
     const b = S.body; if (S.phase !== 'walk') return;
-    if (drillAway(S)) { if (!queued) refuse(S, 'Drill away'); return; }
     if (S.roll || S.jump || S.busy || b.locked || S.recover > 0 || S.cdRoll > 0) { if (!queued && !S.roll) S.rollQ = S.g.t; return; }
     const mag = Math.hypot(mx, my), dir = mag > 0.2 ? Math.atan2(my, mx) : (Math.hypot(b.vx, b.vy) > 0.5 ? Math.atan2(b.vy, b.vx) : b.a);
     S.roll = { ph: 0, t: 0, dir, hit: new Set(), path: [], spin: 0 }; S.ctx.roll = S.roll; S.rollQ = null; S.cdRoll = TUNE.rollCd; S.stats.roll++; S.g.movedOnce = true; S.g.dodges = (S.g.dodges || 0) + 1;
@@ -201,7 +202,7 @@
   function refuse(S, text) { const sfx = S.X.sfx || {}; if (sfx.wrong) sfx.wrong(); S.stats.refused++; S.X.text(S.me.x, S.me.y - 2.6, text, AMBER, 12, { life: 0.8, max: 0.8, vy: -0.6 }); }
 
   /* ================= Jump (its own control; Beast Machine's rules) ================= */
-  function tryJumpCmd(S, mx, my) { if (S.phase === 'calamity') { calRise(S); return; } tryJump(S, mx, my); }
+  function tryJumpCmd(S, mx, my) { if (S.phase === 'calamity') { calToggle(S); return; } tryJump(S, mx, my); }
   function planJump(S, dir, d0) {
     const b = S.body, C = [], OFF = [0, 0.2, -0.2, 0.4, -0.4, 0.6, -0.6];
     for (const off of OFF) { const a = wrap(dir + off), ca = Math.cos(a), sa = Math.sin(a); let lim = d0 + TUNE.jumpExt;
@@ -252,7 +253,7 @@
   function tryMove(S, slot, queued) {
     if (S.phase !== 'walk') { if (S.phase === 'calamity' && !queued) refuse(S, 'The drill is the weapon'); return; }
     const b = S.body, rock = slot !== 'strong2', cd = rock ? S.cdRock : S.cdDrill;
-    if (drillAway(S)) { if (!queued) refuse(S, 'Drill away'); return; }
+    if (!rock && drillAway(S)) { if (!queued) refuse(S, 'Drill reloading'); return; }
     if (S.busy || S.roll || S.jump || b.locked || S.recover > 0) { if (!queued) S.mvQ = { slot, t: S.g.t }; return; }
     if (cd > 0) { if (!queued && cd <= 0.5) S.mvQ = { slot, t: S.g.t }; return; }
     S.mvQ = null; if (rock) startRock(S); else startDrill(S);
@@ -279,36 +280,40 @@
       S.cdRock = tu.cd; if (S.busy === 'rock') S.busy = null; }
     if (R.burst && R.t >= R.burstT + 0.6) { R.done = true; S.rock = null; S.ctx.rockPlan = null; }
   }
-  /* Drill Cannon: the real bit leaves the carriage, corkscrews along the ground to the target (bounded, walls stop it), strikes, and comes back to dock */
+  /* Drill Cannon (v336): the bit spins up on the carriage, is fired at the target (an arc, landing nose-down; walls stop it),
+     stays there drilling into the ground (a grinding tick every 0.3 s round it), then explodes; a new bit materialises on the carriage */
   function startDrill(S) {
     const tu = TUNE.drill, D = S.drill, b = S.body, tg = target(S, tu.range), base = anchor(S, 'drillTip');
     let ex = tg.x, ey = tg.y; const dx = ex - base.x, dy = ey - base.y, L = Math.hypot(dx, dy) || 1, Lm = Math.min(L, tu.range); ex = base.x + dx / L * Lm; ey = base.y + dy / L * Lm;
     for (let s = 0.4; s <= Lm; s += 0.25) { const x = base.x + dx / L * s, y = base.y + dy / L * s; if (S.X.blocked(x, y, 0.2, 1)) { ex = base.x + dx / L * Math.max(0.5, s - 0.5); ey = base.y + dy / L * Math.max(0.5, s - 0.5); break; } }
-    Object.assign(D, { state: 'spin', t: 0, x: base.x, y: base.y, z: base.z, yaw: b.a, pitch: 0, x0: base.x, y0: base.y, z0: base.z, x1: ex, y1: ey, impact: null, trail: [] }); D.gate.clear(); D.hits.clear();
+    Object.assign(D, { state: 'spin', t: 0, x: base.x, y: base.y, z: base.z, yaw: b.a, pitch: 0, x0: base.x, y0: base.y, z0: base.z, x1: ex, y1: ey, impact: null, trail: [], nTick: 0 }); D.gate.clear(); D.hits.clear();
     S.busy = 'drill'; S.busyT = 0; S.stats.drill++;
     const sfx = S.X.sfx || {}; if (sfx.note) sfx.note(140, 0.5, 'sawtooth', 0.04, 420);
   }
+  function drillBoom(S) { const D = S.drill, tu = TUNE.drill;
+    D.impact = { x: D.x, y: D.y, t: S.g.t }; hitArea(S, D.x, D.y, tu.impactR, S.DK * tu.impact, { kb: tu.kb }); S.stats.drillImpact++; quakeFx(S, D.x, D.y, tu.impactR, 1.2); stoneFx(S, D.x, D.y, 1.3, true);
+    const sfx = S.X.sfx || {}; if (sfx.stomp) sfx.stomp(); if (sfx.note) sfx.note(60, 0.45, 'sawtooth', 0.07, 35); if (!calm()) S.X.shake(7, 0.22);
+    D.state = 'mat'; D.t = 0; D.trail.length = 0; if (S.busy === 'drill') S.busy = null; }
   function stepDrill(S, dt) {
-    const D = S.drill, tu = TUNE.drill; if (D.state === 'docked') return; D.t += dt; D.spin = (D.spin + dt * (D.state === 'spin' ? 30 * D.t / tu.spin : 40)) % TAU;
+    const D = S.drill, tu = TUNE.drill; if (D.state === 'docked') return; D.t += dt; D.spin = (D.spin + dt * (D.state === 'spin' ? 30 * D.t / tu.spin : 42)) % TAU;
     if (D.state === 'spin') { const tip = anchor(S, 'drillTip'); D.x = tip.x; D.y = tip.y; D.z = tip.z; D.yaw = Math.atan2(D.y1 - D.y, D.x1 - D.x); if (D.t >= tu.spin) { D.state = 'out'; D.t = 0; D.x0 = tip.x; D.y0 = tip.y; D.z0 = tip.z; S.busy = null; const sfx = S.X.sfx || {}; if (sfx.whoosh) sfx.whoosh(); } return; }
-    if (D.state === 'out') { const u = cl(D.t / tu.out), e = sstep(0, 1, u), px = lerp(D.x0, D.x1, e), py = lerp(D.y0, D.y1, e), dir = Math.atan2(D.y1 - D.y0, D.x1 - D.x0), side = Math.sin(u * TAU * tu.turns) * tu.coil * Math.sin(Math.PI * u);
-      const nx = px - Math.sin(dir) * side, ny = py + Math.cos(dir) * side, nz = lerp(D.z0, 0.3, sstep(0, 0.3, u)) + 0.15 * Math.sin(u * TAU * tu.turns);
-      D.yaw = Math.atan2(ny - D.y, nx - D.x) || dir; D.pitch = Math.atan2(nz - D.z, Math.hypot(nx - D.x, ny - D.y) || 1e-3); D.x = nx; D.y = ny; D.z = nz;
-      pushTrail(D, S.g.t);   /* (on the impact's own frame no route tick: the impact is the hit there, once) */
-      if (u > 0.04 && u < 1) for (const m of S.H.living()) { if (Math.hypot(m.x - D.x, m.y - D.y) > tu.hitR + (m.r || 0.4) * 0.85) continue; const last = D.gate.get(m) || -9, k = D.hits.get(m) || 0; if (S.g.t - last < tu.tick || k >= tu.ticks) continue;
-        D.gate.set(m, S.g.t); D.hits.set(m, k + 1); hitCharge(S, m, S.DK * tu.dmg, { kb: 1.2, noSmash: true }); S.stats.drillTicks++; stoneFx(S, m.x, m.y, 0.6, true); }
-      if (Math.random() < dt * (lowFx() ? 10 : 30)) dustAt(S, D.x, D.y, 0.8);
-      if (u >= 1) { D.state = 'impact'; D.t = 0; D.impact = { x: D.x, y: D.y, t: S.g.t }; hitArea(S, D.x, D.y, tu.impactR, S.DK * tu.impact, { kb: tu.kb }); S.stats.drillImpact++; quakeFx(S, D.x, D.y, tu.impactR, 1.1);
-        const sfx = S.X.sfx || {}; if (sfx.stomp) sfx.stomp(); if (!calm()) S.X.shake(6, 0.2); }
+    if (D.state === 'out') { const u = cl(D.t / tu.out), e = u * (2 - u), nx = lerp(D.x0, D.x1, e), ny = lerp(D.y0, D.y1, e), nz = lerp(D.z0, 0.2, u * u) + tu.arc * 4 * u * (1 - u);
+      D.yaw = Math.atan2(D.y1 - D.y0, D.x1 - D.x0); D.pitch = Math.atan2(nz - D.z, Math.hypot(nx - D.x, ny - D.y) || 1e-3); D.x = nx; D.y = ny; D.z = nz; pushTrail(D, S.g.t);
+      if (u >= 1) { D.state = 'drill'; D.t = 0; D.pitch = -0.75; D.z = 0.2; D.nTick = 0; quakeFx(S, D.x, D.y, 1.4, 0.6); stoneFx(S, D.x, D.y, 0.9, true); const sfx = S.X.sfx || {}; if (sfx.thud) sfx.thud(); if (!calm()) S.X.shake(3, 0.12); }
       return; }
-    if (D.state === 'impact') { if (D.t >= tu.hold) { D.state = 'back'; D.t = 0; D.x0 = D.x; D.y0 = D.y; D.z0 = D.z; D.backT = tu.back; } return; }
-    if (D.state === 'back' || D.state === 'recall') { const sock = anchor(S, 'drillTip'), u = cl(D.t / D.backT), e = sstep(0, 1, u), nx = lerp(D.x0, sock.x, e), ny = lerp(D.y0, sock.y, e), nz = lerp(D.z0, sock.z, e) + 1.4 * Math.sin(Math.PI * u);
-      D.yaw = Math.atan2(sock.y - ny, sock.x - nx) + Math.PI * (1 - sstep(0.6, 1, u)); D.pitch = 0; D.x = nx; D.y = ny; D.z = nz; pushTrail(D, S.g.t);
-      if (u >= 1) { D.state = 'dock'; D.t = 0; } return; }
-    if (D.state === 'dock') { const sock = anchor(S, 'drillTip'); D.x = sock.x; D.y = sock.y; D.z = sock.z; if (D.t >= tu.dock) { D.state = 'docked'; D.t = 0; D.trail.length = 0; S.cdDrill = tu.cd; S.stats.docks++; const sfx = S.X.sfx || {}; if (sfx.note) { sfx.note(330, 0.08, 'square', 0.05, 300); sfx.note(220, 0.12, 'square', 0.04, 200, 0.08); } } }
+    if (D.state === 'drill') {   // lodged nose-down, grinding: each monster round it once a tick, at most ticks times
+      D.z = 0.2 - 0.25 * cl(D.t / tu.drill); D.pitch = -0.75 - 0.15 * cl(D.t / tu.drill);
+      while (D.nTick < tu.ticks && D.t >= tu.tick * (D.nTick + 0.5)) { D.nTick++;
+        for (const m of S.H.living()) { if (Math.hypot(m.x - D.x, m.y - D.y) > tu.drillR + (m.r || 0.4) * 0.85) continue; const k = D.hits.get(m) || 0; if (k >= tu.ticks) continue; D.hits.set(m, k + 1); hitCharge(S, m, S.DK * tu.dmg, { kb: 0.6, noSmash: true }); S.stats.drillTicks++; stoneFx(S, m.x, m.y, 0.5, true); }
+        smashArea(S, D.x, D.y, tu.drillR * 0.7); }
+      if (Math.random() < dt * (lowFx() ? 12 : 36)) dustAt(S, D.x + (Math.random() - 0.5), D.y + (Math.random() - 0.5) * 0.7, 0.8);
+      if (D.t >= tu.drill) drillBoom(S); return; }
+    if (D.state === 'mat') { const sock = anchor(S, 'drillTip'); D.x = sock.x; D.y = sock.y; D.z = sock.z;   // the new bit materialising on the carriage
+      if (D.t >= tu.mat) { D.state = 'docked'; D.t = 0; S.cdDrill = tu.cd; S.stats.docks++; const sfx = S.X.sfx || {}; if (sfx.note) { sfx.note(523, 0.1, 'triangle', 0.05, 660); sfx.note(784, 0.16, 'triangle', 0.04, 990, 0.08); } } }
   }
   function pushTrail(D, t) { const T = D.trail; if (!T.length || Math.hypot(D.x - T[0][0], D.y - T[0][1]) > 0.25) { T.unshift([D.x, D.y, D.z, t]); if (T.length > 28) T.pop(); } }
-  function recallDrill(S) { const D = S.drill; if (D.state === 'docked' || D.state === 'dock' || D.state === 'recall') return; if (D.state === 'spin') { D.state = 'dock'; D.t = 0; return; } D.state = 'recall'; D.t = 0; D.x0 = D.x; D.y0 = D.y; D.z0 = D.z; D.backT = TUNE.drill.recall; S.stats.recalls++; if (S.busy === 'drill') S.busy = null; }
+  /* (Calamity, the timeout, a swap: the bit out there blows at once and the new one materialises; on the carriage it just stops) */
+  function recallDrill(S) { const D = S.drill; if (D.state === 'docked' || D.state === 'mat') return; if (D.state === 'spin') { D.state = 'docked'; D.t = 0; if (S.busy === 'drill') S.busy = null; return; } S.stats.recalls++; if (D.state === 'out') { D.x = D.x1; D.y = D.y1; } drillBoom(S); }
 
   /* ================= Calamity ================= */
   function tryCalamity(S) {
@@ -349,6 +354,8 @@
     if (moveBody(S, b.vx * dt, b.vy * dt)) { b.speed *= 0.4; b.vx *= 0.4; b.vy *= 0.4; }
   }
   function calDive(S) { const K = S.cal; if (!K || K.phase !== 'drill' || K.leap) return; if (!K.under) { K.under = true; K.wasUnder = true; S.stats.dives++; dustAt(S, S.body.x, S.body.y, 2.2); quakeFx(S, S.body.x, S.body.y, 1.6, 0.5); const sfx = S.X.sfx || {}; if (sfx.thud) sfx.thud(); } }
+  /* (v336, the user: one command, not two: above ground it drills under, underground it rises) */
+  function calToggle(S) { const K = S.cal; if (!K || K.phase !== 'drill' || K.leap) return; if (K.under) calRise(S); else calDive(S); }
   function calRise(S) { const K = S.cal; if (!K || K.phase !== 'drill' || K.leap) return; if (K.under) { K.under = false; S.stats.rises++; } else if (S.body.z > -0.05) { K.leap = { t: 0 }; S.stats.rises++; const sfx = S.X.sfx || {}; if (sfx.whoosh) sfx.whoosh(); } }
   /* breaking the surface (or landing a breach): stone slabs up, an Earth shockwave (Calamity's: no charge) */
   function emerge(S, k) { const b = S.body, K = S.cal, tu = TUNE.cal; K.emerge.push({ x: b.x, y: b.y, t: S.g.t }); if (K.emerge.length > 8) K.emerge.shift(); S.stats.emerge++;
@@ -405,7 +412,13 @@
     stepDrill(S, dt);
     if (calm()) S.absorb *= Math.max(0, 1 - dt * 9); else { S.absV += (-90 * S.absorb - 12 * S.absV) * dt; S.absorb = clamp(S.absorb + S.absV * dt, -0.2, 1.2); }
     const sp = Math.hypot(b.vx, b.vy), kt = S.jump || S.roll || b.z > 0.05 || S.phase !== 'walk' ? 0 : cl(sp / TUNE.top * 1.3); S.gk += (kt - S.gk) * Math.min(1, dt * 6); S.gph = (S.gph + (S.jump || S.roll ? 0 : sp * dt / TUNE.stride)) % 1;
-    if (S.phase === 'summon') { b.z = 0; if (S.t >= TUNE.summon) { S.phase = 'walk'; S.t = 0; b.locked = false; b.contact = true; S.left = S.dur; } else if (Math.random() < dt * (lowFx() ? 12 : 30)) dustAt(S, b.x + (Math.random() - 0.5) * 3, b.y + (Math.random() - 0.5) * 2.2, 1.4); syncMe(S); }
+    if (S.phase === 'summon') { b.z = 0; const t0 = S.t - dt, at = v => t0 < v && S.t >= v, SU = SUMMON;   /* (v336, the user: it drills up out of the ground, then the pet gets on) */
+      if (at(0.02)) { quakeFx(S, b.x, b.y, 2.0, 0.6); const sfx = X.sfx || {}; if (sfx.note) sfx.note(45, 1.0, 'sawtooth', 0.06, 70); }
+      if (S.t < SU.burst && Math.random() < dt * (lowFx() ? 10 : 28)) dustAt(S, b.x + (Math.random() - 0.5) * 2.4, b.y + (Math.random() - 0.5) * 1.8, 0.9);
+      if (at(SU.burst)) { quakeFx(S, b.x, b.y, 3.2, 1.3); for (let i = 0; i < (lowFx() ? 6 : 10); i++) { const a2 = i / (lowFx() ? 6 : 10) * TAU; slabAt(S, b.x + Math.cos(a2) * 1.5, b.y + Math.sin(a2) * 1.2, a2); } smashArea(S, b.x, b.y, 2.2); const sfx = X.sfx || {}; if (sfx.stomp) sfx.stomp(); if (!calm()) X.shake(7, 0.25); }
+      if (at(SU.mount1)) { const sfx = X.sfx || {}; if (sfx.jump) sfx.jump(); }
+      if (S.t >= TUNE.summon) { S.phase = 'walk'; S.t = 0; b.locked = false; b.contact = true; S.left = S.dur; syncMe(S); }
+      else if (S.t >= SU.mount1) syncMe(S); else { me.x = S.petX0; me.y = S.petY0; me.vx = me.vy = 0; me.inv = Math.max(me.inv || 0, 0.15); } }
     else if (S.phase === 'walk') {
       S.left -= dt; S.stats.walkT += dt;
       if (S.jump && S.left <= 0) S.jump.noHit = true;
@@ -428,14 +441,14 @@
   /* ================= the pose (channels for the lead's model; the placeholder reads a few) ================= */
   /* the lead's channels (20k2kz) plus a few of the core's own (bob, stomp, brace, neck, drillV: the placeholder reads them; the model ignores what it does not know) */
   function blankPose() { const M = MOD(); const o = M && M.blankPose ? (() => { try { return M.blankPose(); } catch (e) { return {}; } })() : {};
-    return Object.assign({ xf: 0, walk: 0, walkK: 0, crouch: 0, roll: 0, bank: 0, pitch: 0, drillSpin: 0, drillOff: null, drillYaw: 0, drillPitch: 0, drillGlow: 0, glow: 0.5, crumble: 0, ground: null, alpha: 1 }, o, { bob: 0, stomp: 0, brace: 0, neck: 0.7, drillV: 0, bitOut: 0 }); }
-  const PR = { xf: [0, 1, 0], walk: [-1e4, 1e4, 0], walkK: [0, 1, 0], crouch: [0, 1, 0], roll: [0, 1, 0], bank: [-1, 1, 0], pitch: [-1, 1, 0], drillSpin: [-1e4, 1e4, 0], drillYaw: [-1e4, 1e4, 0], drillPitch: [-1.6, 1.6, 0], drillGlow: [0, 1, 0], glow: [0, 1, 0.5], crumble: [0, 1, 0], alpha: [0, 1, 1],
+    return Object.assign({ xf: 0, walk: 0, walkK: 0, crouch: 0, roll: 0, bank: 0, pitch: 0, drillSpin: 0, drillOff: null, drillYaw: 0, drillPitch: 0, drillGlow: 0, drillMat: 1, glow: 0.5, crumble: 0, ground: null, alpha: 1 }, o, { bob: 0, stomp: 0, brace: 0, neck: 0.7, drillV: 0, bitOut: 0 }); }
+  const PR = { xf: [0, 1, 0], walk: [-1e4, 1e4, 0], walkK: [0, 1, 0], crouch: [0, 1, 0], roll: [0, 1, 0], bank: [-1, 1, 0], pitch: [-1, 1, 0], drillSpin: [-1e4, 1e4, 0], drillYaw: [-1e4, 1e4, 0], drillPitch: [-1.6, 1.6, 0], drillGlow: [0, 1, 0], drillMat: [0, 1, 1], glow: [0, 1, 0.5], crumble: [0, 1, 0], alpha: [0, 1, 1],
     bob: [-1, 1, 0], stomp: [-0.3, 1.2, 0], brace: [0, 1, 0], neck: [0, 1, 0.7], drillV: [0, 1, 0], bitOut: [0, 1, 0] };
   function animate(S, dt) {
     const P = S.P, b = S.body, t = S.g.t, D = S.drill, K = S.cal, R = S.roll, J = S.jump, ease = (k, v, r) => { P[k] += (v - P[k]) * Math.min(1, dt * r); };
     P.walk = (S.gph * TAU) % TAU; P.walkK = S.gk;
     // the summon: it rises out of the ground (the body's alpha and a drawn rise); the exit: cracks, buckling, then the crumble
-    if (S.phase === 'summon') { P.alpha = sstep(0, 0.6, S.t); S.rise = -1.2 * (1 - sstep(0.1, 1.2, S.t)); } else S.rise = 0;
+    if (S.phase === 'summon') { P.alpha = sstep(0.12, 0.35, S.t); S.rise = -2.3 * (1 - sstep(0.25, SUMMON.burst + 0.12, S.t)); } else S.rise = 0;
     /* the jump: a deliberate compression (pistons squeezing) before the launch, legs reaching in the air (nose up rising, down falling), the stomp squashing it on landing */
     const ju = J && J.air ? cl((J.t - J.c) / TUNE.jumpPh[1]) : 0, cr = J ? (J.t < J.c ? sstep(0, J.c, J.t) : 0) : 0;
     P.crouch = Math.max(cr, 0.85 * Math.max(0, S.absorb)); P.stomp = S.absorb;
@@ -454,7 +467,7 @@
     // the drill: idle turning, spun up for a cast, gone while away; the bit slides home as it docks
     const spinUp = D.state === 'spin' ? 0.3 + 0.7 * cl(D.t / TUNE.drill.spin) : K && (K.phase === 'drill' || K.phase === 'climax') ? 1 : K && K.phase === 'xform' ? K.xf : 0.08;
     ease('drillV', spinUp, 6); P.drillSpin = ((P.drillSpin || 0) + dt * (2 + 38 * P.drillV)) % TAU; ease('drillGlow', D.state === 'spin' || (K && K.phase !== 'revert' && K.phase !== 'crumble') ? 1 : 0.15, 5);
-    P.bitOut = D.state === 'docked' ? 0 : D.state === 'dock' ? 1 - cl(D.t / TUNE.drill.dock) : D.state === 'spin' ? 0 : 1;
+    P.bitOut = D.state === 'out' || D.state === 'drill' ? 1 : 0; P.drillMat = D.state === 'mat' ? cl(D.t / TUNE.drill.mat) : 1;
     /* the flying bit: the model's single drill, offset from its dock (model units, in the body's frame) */
     if (P.bitOut > 0.001 && S.inst) { const M = MOD(), dock = M.anchorAt ? M.anchorAt('dock', b.x, b.y, b.z, drawA(S), Object.assign({}, P, { drillOff: null }), { scale: b.scale || 1 }) : null;
       if (dock) { const A = drawA(S), ca = Math.cos(A), sa = Math.sin(A), wx = (D.x - dock.x) / (b.scale || 1), wy = (D.y - dock.y) / GY / (b.scale || 1), wz = (D.z - dock.z) / (b.scale || 1); P.drillOff = [wx * ca + wy * sa, -wx * sa + wy * ca, wz]; P.drillYaw = wrap(D.yaw - A); P.drillPitch = clamp(D.pitch, -1.5, 1.5); } }
@@ -464,6 +477,7 @@
     ease('glow', K && K.phase === 'climax' ? 1 : (S.charge >= 1 && !S.used ? 0.8 + 0.2 * Math.sin(t * 5) : 0.35 + 0.3 * S.charge), 4);
     if (S.phase === 'out') { const o = S.out, u = o.t; P.crumble = sstep(TUNE.out.dismount, TUNE.out.dismount + TUNE.out.crumble, u); P.glow = (0.5 + 0.5 * Math.sin(t * 40)) * (1 - P.crumble); P.alpha = 1 - sstep(TUNE.out.dismount + TUNE.out.crumble * 0.6, TUNE.out.dismount + TUNE.out.crumble, u); }
     else { P.crumble = 0; if (S.phase !== 'summon') P.alpha = 1; }
+    if (S.phase === 'summon') { const u = S.t, SU = SUMMON; P.xf = 1 - sstep(SU.burst + 0.25, SU.mount0, u); P.pitch = 0.55 * (1 - sstep(SU.burst - 0.05, SU.burst + 0.5, u)); P.drillV = 1 - 0.9 * sstep(SU.burst + 0.3, SU.mount0, u); P.drillGlow = 1 - 0.85 * sstep(SU.burst + 0.3, SU.mount0, u); P.ground = S.rise < -0.02 ? -S.rise : null; P.neck = 0.7 * sstep(SU.burst + 0.4, SU.mount0, u); }
     for (const key in PR) { const r = PR[key]; let v = P[key]; if (typeof v !== 'number' || !isFinite(v)) v = r[2]; P[key] = v < r[0] ? r[0] : v > r[1] ? r[1] : v; }
     P.walk %= TAU; P.drillSpin %= TAU; if (P.drillOff && !P.drillOff.every(isFinite)) P.drillOff = null; if (P.ground != null && !isFinite(P.ground)) P.ground = null;
   }
@@ -553,13 +567,15 @@
     callM(S, c, 'drawUnder');
   }
   function callM(S, c, k) { const MV = moves(); if (MV[k] && S.ctx) { c.save(); try { MV[k](S.ctx, c); } catch (e) { /* (theirs) */ } c.restore(); } }
-  function petAt(S, c, T) { if (S.dismounted) return; const p = anchor(S, 'seat'), H = S.H; S.H.X.drawPetAt(c, H.sx(p.x), H.sy(p.y) - p.z * ZK * T, { maxH: 1.1 }); }
+  function petAt(S, c, T) { if (S.dismounted) return; const H = S.H;
+    if (S.phase === 'summon' && S.t < SUMMON.mount1) { const u = cl((S.t - SUMMON.mount0) / (SUMMON.mount1 - SUMMON.mount0)), q = anchor(S, 'seat'), e = u * u * (3 - 2 * u), x = lerp(S.petX0, q.x, e), y = lerp(S.petY0, q.y, e), z = lerp(0, q.z, e) + 1.3 * 4 * u * (1 - u); S.H.X.drawPetAt(c, H.sx(x), H.sy(y) - z * ZK * T, { maxH: 1.1 }); return; }
+    const p = anchor(S, 'seat'); S.H.X.drawPetAt(c, H.sx(p.x), H.sy(p.y) - p.z * ZK * T, { maxH: 1.1 }); }
   function drawEnt(S, c) {
     const H = S.H, T = H.X.Tz(), b = S.body, P = S.P;
     if (S.released) { if (S.fade && S.relT < S.fade) { c.save(); c.globalAlpha = 1 - S.relT / S.fade; drawBody(S, c, T); c.restore(); } return; }
     if (b.vis > 0.01 && (P.alpha || 0) > 0.01) {
       const M = MOD(); let drew = false;
-      if (M && S.inst) { const o = { T, sx: H.sx, sy: H.sy, t: S.g.t, low: lowFx(), scale: b.scale || 1 }; try { if (M.drawShadow && !b.under) M.drawShadow(c, b.x, b.y, Math.max(0, b.z), drawA(S), P, o); M.draw(c, b.x, b.y, b.z + (S.rise || 0) + (P.bob || 0), drawA(S), P, o); drew = true; S.glDrawn = true; } catch (e) { if (typeof console !== 'undefined') console.warn('Genbu: model draw', e); } }
+      if (M && S.inst) { const o = { T, sx: H.sx, sy: H.sy, t: S.g.t, low: lowFx(), scale: b.scale || 1 }; try { if (M.drawShadow && !b.under && (S.rise || 0) > -0.6) M.drawShadow(c, b.x, b.y, Math.max(0, b.z), drawA(S), P, o); M.draw(c, b.x, b.y, b.z + (S.rise || 0) + (P.bob || 0), drawA(S), P, o); drew = true; S.glDrawn = true; } catch (e) { if (typeof console !== 'undefined') console.warn('Genbu: model draw', e); } }
       if (!drew) drawBody(S, c, T);
       petAt(S, c, T);
     } else petAt(S, c, T);
@@ -633,10 +649,10 @@
     const ring = (b, cd, cdMax, busy) => { if (busy) { c.save(); c.lineWidth = 3; c.strokeStyle = rgba(AMBER, 0.85); c.beginPath(); c.arc(b.x, b.y, b.r + 2, t * 7, t * 7 + 1.7); c.stroke(); c.restore(); } else if (cd > 0.05) { c.beginPath(); c.moveTo(b.x, b.y); c.arc(b.x, b.y, b.r, -Math.PI / 2, -Math.PI / 2 + TAU * Math.min(1, cd / cdMax)); c.closePath(); c.fillStyle = 'rgba(14,10,6,.55)'; c.fill(); GFX.textS(c, cd.toFixed(1), b.x, b.y, 13, '#FFFFFF'); } };
     const lab = (b, s, col, dx) => GFX.labelS(c, s, b.x + (dx || 0), b.y + b.r + 9, 8, 800, col || '#FFE2B0', 'rgba(0,0,0,.7)', 3);
     const away = drillAway(S);
-    { const b = B.s[0], rd = !cal && !idle && !away && S.cdRock <= 0.01 && !S.busy; face(b, 'rock', rd, (x, r) => { x.fillStyle = SAND; x.strokeStyle = ORANGE; x.lineWidth = 2; for (const [dx2, h] of [[-0.35, 0.55], [0, 0.8], [0.35, 0.5]]) { x.beginPath(); x.moveTo(r * (dx2 - 0.15), r * 0.4); x.lineTo(r * dx2, r * (0.4 - h)); x.lineTo(r * (dx2 + 0.15), r * 0.4); x.closePath(); x.fill(); x.stroke(); } }); ring(b, S.cdRock, TUNE.rock.cd, S.busy === 'rock'); lab(b, cal ? '—' : 'ROCK YOU'); }
+    { const b = B.s[0], rd = !cal && !idle && S.cdRock <= 0.01 && !S.busy; face(b, 'rock', rd, (x, r) => { x.fillStyle = SAND; x.strokeStyle = ORANGE; x.lineWidth = 2; for (const [dx2, h] of [[-0.35, 0.55], [0, 0.8], [0.35, 0.5]]) { x.beginPath(); x.moveTo(r * (dx2 - 0.15), r * 0.4); x.lineTo(r * dx2, r * (0.4 - h)); x.lineTo(r * (dx2 + 0.15), r * 0.4); x.closePath(); x.fill(); x.stroke(); } }); ring(b, S.cdRock, TUNE.rock.cd, S.busy === 'rock'); lab(b, cal ? '—' : 'ROCK YOU'); }
     { const b = B.s[1], rd = !cal && !idle && !away && S.cdDrill <= 0.01 && !S.busy; face(b, 'drill', rd, (x, r) => { x.fillStyle = '#B5582A'; x.beginPath(); x.moveTo(-r * 0.55, -r * 0.3); x.lineTo(r * 0.6, 0); x.lineTo(-r * 0.55, r * 0.3); x.closePath(); x.fill(); x.strokeStyle = '#F0C890'; x.lineWidth = 2; for (let i = 0; i < 3; i++) { x.beginPath(); x.moveTo(-r * 0.4 + i * r * 0.32, -r * 0.24 + i * r * 0.07); x.lineTo(-r * 0.25 + i * r * 0.32, r * 0.24 - i * r * 0.07); x.stroke(); } }); ring(b, S.cdDrill, TUNE.drill.cd, S.busy === 'drill' || away); lab(b, cal ? '—' : away ? 'DRILL AWAY' : 'DRILL CANNON', away ? '#FFB547' : null, -8); }
-    { const b = B.d, rd = cal ? !!(S.cal && S.cal.phase === 'drill' && !S.cal.under) : !idle && !away && S.cdRoll <= 0.01 && !S.roll; face(b, cal ? 'dive' : 'roll', rd, (x, r) => { if (cal) { x.strokeStyle = AMBER; x.lineWidth = 3.5; x.beginPath(); x.moveTo(0, -r * 0.5); x.lineTo(0, r * 0.45); x.moveTo(-r * 0.3, r * 0.15); x.lineTo(0, r * 0.45); x.lineTo(r * 0.3, r * 0.15); x.stroke(); } else { x.fillStyle = SAND; x.beginPath(); x.ellipse(0, r * 0.1, r * 0.6, r * 0.4, 0, Math.PI, TAU); x.fill(); x.strokeStyle = AMBER; x.lineWidth = 2.5; x.beginPath(); x.arc(0, 0, r * 0.72, 0.3, 2.2); x.stroke(); } }); if (!cal) ring(b, S.cdRoll, TUNE.rollCd, !!S.roll); lab(b, cal ? 'DIVE' : 'SHELL ROLL'); }
-    if (B.j) { const b = B.j, rd = cal ? !!(S.cal && S.cal.phase === 'drill') : !idle && !S.roll; face(b, cal ? 'rise' : 'jump', rd, (x, r) => { x.strokeStyle = AMBER; x.lineWidth = 3.5; x.beginPath(); x.moveTo(0, r * 0.5); x.lineTo(0, -r * 0.45); x.moveTo(-r * 0.3, -r * 0.15); x.lineTo(0, -r * 0.45); x.lineTo(r * 0.3, -r * 0.15); x.stroke(); }); if (S.jump) ring(b, 0, 1, true); lab(b, cal ? 'RISE' : 'JUMP'); }
+    { const b = B.d, rd = cal ? !!(S.cal && S.cal.phase === 'drill') : !idle && S.cdRoll <= 0.01 && !S.roll; const up = cal && S.cal && S.cal.under; face(b, cal ? (up ? 'rise' : 'dive') : 'roll', rd, (x, r) => { if (cal) { const sg = up ? -1 : 1; x.strokeStyle = AMBER; x.lineWidth = 3.5; x.beginPath(); x.moveTo(0, -r * 0.5 * sg); x.lineTo(0, r * 0.45 * sg); x.moveTo(-r * 0.3, r * 0.15 * sg); x.lineTo(0, r * 0.45 * sg); x.lineTo(r * 0.3, r * 0.15 * sg); x.stroke(); } else { x.fillStyle = SAND; x.beginPath(); x.ellipse(0, r * 0.1, r * 0.6, r * 0.4, 0, Math.PI, TAU); x.fill(); x.strokeStyle = AMBER; x.lineWidth = 2.5; x.beginPath(); x.arc(0, 0, r * 0.72, 0.3, 2.2); x.stroke(); } }); if (!cal) ring(b, S.cdRoll, TUNE.rollCd, !!S.roll); lab(b, cal ? (up ? 'RISE' : 'DRILL') : 'SHELL ROLL'); }
+    if (B.j && !cal) { const b = B.j, rd = !idle && !S.roll; face(b, 'jump', rd, (x, r) => { x.strokeStyle = AMBER; x.lineWidth = 3.5; x.beginPath(); x.moveTo(0, r * 0.5); x.lineTo(0, -r * 0.45); x.moveTo(-r * 0.3, -r * 0.15); x.lineTo(0, -r * 0.45); x.lineTo(r * 0.3, -r * 0.15); x.stroke(); }); if (S.jump) ring(b, 0, 1, true); lab(b, cal ? 'RISE' : 'JUMP'); }
     // the Calamity gauge: an amber ring round a drill emblem; the form's time outside it
     { const b = B.u, full = S.charge >= 1 && !S.used, k = S.used ? 1 : S.charge;
       if (full || cal) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.35 + 0.2 * Math.sin(t * 6); c.fillStyle = AMBER; c.beginPath(); c.arc(b.x, b.y, b.r * 1.35, 0, TAU); c.fill(); c.restore(); }

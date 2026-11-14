@@ -185,9 +185,14 @@ void main(){
    - Rock You: amber cracks spread to the target; each crystal is a sharp faceted prism (beige stone faces, burnt-orange
      seams, glowing fractures) with one or two smaller ones, thrust up through tipped slabs; the fractures brighten
      through the pause; the burst throws crystal fragments, stone and dust, with a wave and an amber blast.
-   - Drill Cannon: amber arcs round the bearing and dust from the vents on the spin-up; a furrow carved along the bit's
-     corkscrew (a dark trench between two lips of upheaved earth, clods and slabs thrown out, fading after); the impact;
-     an amber ribbon along the return; sparks at the dock.
+   - Summon (ctx.summonT, ctx.SUMMON): the ground cracks, bulges and glows over the drill coming up, with rumbling dust;
+     at the breach an eruption of earth (slabs and chunks thrown up, a column of dust, a shock ring, an amber blast); the
+     dust settles after.
+   - Drill Cannon (v336 flow: spin, out, drill, mat): amber arcs round the bearing and dust from the vents on the spin-up;
+     in flight an amber trail with two strands of air wound round the arc; lodged, a churning ring of earth, a swirl of
+     dust, clods, grit and sparks spiralling out, cracks that spread and pulse on each grinding tick, an amber glow and
+     column building toward the explosion; the blast with crystal fragments; then on the carriage amber motes converge
+     and a ring of light sweeps along the new bit, with a flash when it is whole.
    - Calamity: dust off the tracks in the transform; on the surface the drill throws earth and carves a furrow; under
      it, a heaving mound over the machine with a ridge of churned earth behind, cracks glowing over it, stones rolling
      off, an amber ring marking it; emergence throws slabs up in a wave and an amber blast. The climax: eight glowing
@@ -258,6 +263,13 @@ void main(){
   /* a shock wave: a feathered ring of dust rolling out, earth clods hopping outward with it */
   function waveAt(x, y, R, life, h, now, lo) { const L = LOW(), sd = Math.random() * 100; ev({ type: 'wave', x, y, t0: now, life, R, h, seed: sd, lo });
     const n = lo ? (L ? 3 : 7) : (L ? 8 : 16), v = R / life * 0.75; for (let i = 0; i < n; i++) { const a = i / n * TAU + rnd(-0.2, 0.2), [px, py] = at(x, y, a, R * 0.3); fling(0, px, py, 0.1, a, v * rnd(0.75, 1.05), rnd(1.5, 3.5) * (0.6 + h * 1.5), life * rnd(1.4, 1.9), rnd(0.07, 0.15), { col: Math.random() < 0.5 ? EARTH : EARTHD, drag: 0.6 }); } }
+  /* the summon's breach: an eruption of earth, chunks and slabs thrown up, a column of dust, a shock ring */
+  function breach(x, y, now) { const L = LOW(); blastAt(x, y, 2.3, now, { wR: 3.6, h: 0.45, life: 0.5, k: 0.9 });
+    ev({ type: 'slabs', x, y, t0: now, life: 2.0, rise: 0.12, list: mkSlabs(L ? 6 : 10, 1.7, 2.5, Math.random() * 50, 1.05) });
+    for (let i = 0; i < (L ? 6 : 12); i++) { const a = i / 12 * TAU + rnd(-0.2, 0.2), [px, py] = at(x, y, a, rnd(0.6, 1.3)); fling(3, px, py, 0.3, a, rnd(1.5, 3.5), rnd(6, 10), rnd(1.3, 1.8), rnd(0.38, 0.62), { col: Math.random() < 0.5 ? EARTH : SAND, wx: rnd(-6, 6), wy: rnd(-6, 6) }); }
+    for (let i = 0; i < (L ? 10 : 26); i++) { const a = rnd(0, TAU); fling(0, x + rnd(-0.6, 0.6), y + rnd(-0.4, 0.4), 0.4, a, rnd(1, 5), rnd(5, 10), rnd(1.1, 1.7), rnd(0.08, 0.24), { warm: Math.random() < 0.3 ? 0.6 : 0 }); }
+    for (let i = 0; i < (L ? 5 : 12); i++) { const a = rnd(0, TAU), [px, py] = at(x, y, a, rnd(0, 0.9)); fling(1, px, py, rnd(0.2, 1.4), a, rnd(0.2, 0.8), rnd(2, 4.5), rnd(1.6, 2.4), rnd(0.6, 1.0), { peak: 0.62, drag: 1.0, g: -0.1, warm: 0.5 }); }   // the dust column
+    for (let i = 0; i < (L ? 8 : 16); i++) fling(2, x, y, 0.5, rnd(0, TAU), rnd(3, 8), rnd(4, 8), rnd(0.35, 0.6), 0.03); }
   /* the Earth stomp: Jump's landing (and smaller versions elsewhere) */
   function stomp(x, y, R, now, k) { const L = LOW(), sd = Math.random() * 100; k = k || 1;
     ring(x, y, R * 1.08, 0.6, AMBER, now, 0.3); ring(x, y, R * 0.75, 0.8, SANDL, now, 0.16); glow(x, y, R * 1.05, 0.8, AMBER, 0.7, now); flash(x, y, 0.3, R * 0.5, 0.18, 0.4 * k, now);
@@ -272,18 +284,18 @@ void main(){
     ev({ type: 'blast', x, y, t0: now, life: o.life || 0.45, R, k: o.k || 1, sz: o.sz || 0.85 }); waveAt(x, y, o.wR || R * 1.2, o.wl || 0.65, o.h || 0.3, now, !!o.lo);
     ring(x, y, o.wR || R * 1.2, 0.6, AMBER, now, 0.22); ring(x, y, (o.wR || R * 1.2) * 0.65, 0.85, SANDL, now, 0.12); glow(x, y, R * 1.2, 0.9, AMBER, 0.65, now); flash(x, y, 0.6, R, 0.22, 0.55, now);
     if (o.cracks !== false) ev({ type: 'cracks', x, y, t0: now, life: 1.4, grow: 0.14, w: 0.06, heat: 1.05, lines: mkCracks(L ? 5 : 8, R * 1.05, sd, 0.85, 0.4) }); }
-  /* ---- trails: the Drill Cannon's furrow, Calamity's surface furrow and its underground ridge ---- */
+  /* ---- trails: Calamity's surface furrow and its underground ridge ---- */
   const mkTrail = (life, gap, cap) => ({ pts: [], life, gap, cap });
   function trailAdd(T, x, y, now) { const p = T.pts, l = p[p.length - 1]; if (l && Math.hypot(x - l.x, (y - l.y) / GY) < T.gap) return false; p.push({ x, y, t: now }); if (p.length > T.cap) p.shift(); return true; }
-  const TRD = mkTrail(1.7, 0.2, 60), TRC = mkTrail(1.5, 0.22, 60), WAKE = mkTrail(1.35, 0.22, 50);
+  const TRC = mkTrail(1.5, 0.22, 60), WAKE = mkTrail(1.35, 0.22, 50);
   /* ---- the session: everything is reset when a new Genbu appears ---- */
   let CTX = null, lastT = 0, seen = {};
-  function reset() { for (const p of P) POOL.push(p); P.length = 0; NK.fill(0); EV.length = 0; RINGS.length = 0; GLOWS.length = 0; FLASH.length = 0; TRD.pts.length = TRC.pts.length = WAKE.pts.length = 0; seen = { up: [], drUp: [] }; }
+  function reset() { for (const p of P) POOL.push(p); P.length = 0; NK.fill(0); EV.length = 0; RINGS.length = 0; GLOWS.length = 0; FLASH.length = 0; TRC.pts.length = WAKE.pts.length = 0; seen = { up: [], drUp: [] }; }
   function sync(ctx) { if (ctx !== CTX) { CTX = ctx; reset(); lastT = ctx && ctx.now ? ctx.now() : 0; } }
   const nowOf = ctx => (ctx.now ? ctx.now() : 0);
   GM.nParts = () => ({ n: P.length, kinds: NK.slice(), ev: EV.length });
   function expire(now) { for (const L of [EV, RINGS, GLOWS, FLASH]) for (let i = L.length - 1; i >= 0; i--) if (now - L[i].t0 > L[i].life) L.splice(i, 1);
-    for (const T of [TRD, TRC, WAKE]) while (T.pts.length && now - T.pts[0].t > T.life) T.pts.shift(); }
+    for (const T of [TRC, WAKE]) while (T.pts.length && now - T.pts[0].t > T.life) T.pts.shift(); }
   const rate = (dt, r) => { const n = dt * r; return Math.floor(n) + (Math.random() < n - Math.floor(n) ? 1 : 0); };
   /* ================= update: step the pieces; read the plans for new events ================= */
   GM.update = guard('update', (ctx, dt) => { if (!ctx || !(dt > 0)) return; sync(ctx); const now = nowOf(ctx); stepParts(dt); expire(now); lastT = now; spawn(ctx, dt, now); });
@@ -309,18 +321,34 @@ void main(){
     // ---- Drill Cannon
     const D = ctx.drill; if (D) { const ds = D.state;
       if (ds === 'spin') { const a = ctx.anchor ? ctx.anchor('drillBase') : null; if (a) for (let i = rate(dt, L ? 8 : 18); i > 0; i--) { const sd = Math.random() < 0.5 ? 1 : -1, aa = (b.a || 0) + sd * Math.PI / 2, [px, py] = at(a.x, a.y, aa, 0.55); fling(1, px, py, a.z - 0.1, aa + rnd(-0.4, 0.4), rnd(0.8, 2), rnd(0.6, 1.4), rnd(0.6, 0.9), rnd(0.18, 0.3), { peak: 0.55 }); } }
-      if (ds === 'out' && (D.z || 0) < 0.8) { const dir = Math.atan2(Math.sin(D.yaw || 0) / GY, Math.cos(D.yaw || 0)); trailAdd(TRD, D.x, D.y, now);
-        for (let i = rate(dt, (L ? 14 : 36) * RM); i > 0; i--) { const sd = Math.random() < 0.5 ? 1 : -1, a = dir + sd * rnd(1.1, 2.0); fling(0, D.x, D.y, 0.15, a, rnd(1.5, 4), rnd(2.5, 5.5), rnd(0.7, 1.1), rnd(0.06, 0.15), { col: Math.random() < 0.5 ? EARTH : SAND }); }
-        for (let i = rate(dt, L ? 6 : 14); i > 0; i--) { const a = dir + Math.PI + rnd(-1.5, 1.5); fling(1, D.x, D.y, 0.15, a, rnd(0.6, 1.6), rnd(0.2, 0.6), rnd(0.9, 1.3), rnd(0.32, 0.5)); }
-        if (now - (seen.slabT || 0) > (L ? 0.24 : 0.12)) { seen.slabT = now; const sd = Math.random() < 0.5 ? 1 : -1, a = dir + sd * rnd(1.2, 1.7), [px, py] = at(D.x, D.y, a, 0.3); fling(3, px, py, 0.1, a, rnd(1.2, 2.4), rnd(3.5, 5), rnd(1.0, 1.3), rnd(0.2, 0.3), { col: EARTH }); }
-        for (let i = rate(dt, L ? 5 : 12); i > 0; i--) { const a = rnd(0, TAU); fling(2, D.x, D.y, 0.2, a, rnd(3, 7), rnd(2, 5), rnd(0.2, 0.4), 0.03); } }
+      if (ds === 'out' && seen.ds === 'spin') { const a = ctx.anchor ? ctx.anchor('drillTip') : null; if (a) { for (let i = 0; i < (L ? 5 : 12); i++) fling(2, a.x, a.y, a.z, rnd(0, TAU), rnd(2, 5), rnd(0.5, 3), rnd(0.2, 0.35), 0.03); flash(a.x, a.y, a.z, 0.7, 0.16, 0.45, now); } }   // (fired)
+      if (ds === 'drill') { const x = D.x, y = D.y, k = cl(D.t / 1.2), sg = 1;
+        if (seen.ds !== 'drill') { seen.tick = 0; ring(x, y, 1.7, 0.45, AMBER, now, 0.18); glow(x, y, 1.6, 0.5, AMBER, 0.5, now); ev({ type: 'cracks', x, y, t0: now, life: 1.6, grow: 0.12, w: 0.055, heat: 0.95, lines: mkCracks(L ? 4 : 6, 0.9, x * 2.3 + y, 0.9, 0.3) });   // (it lands, nose-down)
+          for (let i = 0; i < (L ? 5 : 12); i++) { const a = rnd(0, TAU); fling(0, x, y, 0.2, a, rnd(1.5, 3.5), rnd(3, 6), rnd(0.8, 1.2), rnd(0.07, 0.16), { col: Math.random() < 0.5 ? EARTH : SAND }); }
+          for (let i = 0; i < (L ? 3 : 6); i++) { const a = i / 6 * TAU, [px, py] = at(x, y, a, 0.5); fling(1, px, py, 0.15, a, rnd(1.5, 2.5), 0.4, rnd(1.0, 1.4), rnd(0.38, 0.55)); } }
+        for (; seen.tick < (D.nTick || 0); seen.tick++) { const n = seen.tick + 1;   // each grinding tick: the cracks spread further and pulse, a burst of clods
+          ev({ type: 'cracks', x, y, t0: now, life: Math.max(0.3, 1.25 - D.t) + 0.35, grow: 0.1, w: 0.05 + 0.008 * n, heat: 0.95 + 0.07 * n, lines: mkCracks(L ? 3 : 5, 0.9 + 0.42 * n, x * 1.7 + y + n * 3.1, 0.9, 0.35) });
+          ring(x, y, 1.7, 0.32, GOLD, now, 0.14); flash(x, y, 0.3, 0.55 + 0.12 * n, 0.14, 0.32, now);
+          for (let i = 0; i < (L ? 3 : 7); i++) { const a = rnd(0, TAU); fling(0, x, y, 0.25, a, rnd(2, 4.5), rnd(3.5, 6.5), rnd(0.7, 1.1), rnd(0.06, 0.14), { col: Math.random() < 0.5 ? EARTH : EARTHD }); } }
+        for (let i = rate(dt, (L ? 14 : 38) * RM); i > 0; i--) { const a = rnd(0, TAU), [px, py] = at(x, y, a, rnd(0.45, 0.7)), tg = a + sg * Math.PI * 0.5 + rnd(-0.4, 0.2); fling(0, px, py, 0.1, tg, rnd(1.8, 4.2), rnd(2.5, 5.5), rnd(0.6, 1.0), rnd(0.05, 0.13), { col: Math.random() < 0.45 ? EARTHD : Math.random() < 0.6 ? EARTH : SAND }); }   // clods churned out, spiralling
+        for (let i = rate(dt, (L ? 12 : 34) * RM); i > 0; i--) { const a = rnd(0, TAU), [px, py] = at(x, y, a, rnd(0.2, 0.5)); fling(0, px, py, 0.15, a + 1.2, rnd(1, 3), rnd(3.5, 7), rnd(0.45, 0.75), rnd(0.022, 0.045), { col: Math.random() < 0.5 ? SAND : EARTH }); }   // grit
+        for (let i = rate(dt, (L ? 18 : 48) * RM); i > 0; i--) { const a = rnd(0, TAU); fling(2, x, y, 0.25, a + 1.4, rnd(3, 8), rnd(1.5, 5), rnd(0.18, 0.38), 0.03); }   // sparks off the bit
+        for (let i = rate(dt, L ? 3 : 7); i > 0; i--) { const a = rnd(0, TAU), [px, py] = at(x, y, a, rnd(0.6, 1.0)); fling(1, px, py, 0.12, a + 1.3, rnd(0.6, 1.4), rnd(0.2, 0.5), rnd(0.8, 1.2), rnd(0.32, 0.5), { warm: 0.4 * k }); } }
       if (D.impact && D.impact !== seen.imp) { seen.imp = D.impact; const x = D.impact.x, y = D.impact.y; blastAt(x, y, 2.6, now, { wR: 3.0, h: 0.34 });
         ev({ type: 'slabs', x, y, t0: now, life: 1.5, rise: 0.12, list: mkSlabs(L ? 4 : 7, 1.4, 2.1, Math.random() * 50, 0.8) });
+        for (let i = 0; i < (L ? 5 : 12); i++) { const a = rnd(0, TAU); fling(4, x, y, rnd(0.3, 1.2), a, rnd(3, 7.5), rnd(3.5, 8), rnd(1.0, 1.5), rnd(0.14, 0.27), { heat: 1, col: Math.random() < 0.55 ? ORANGEL : SAND }); }   // crystal fragments
         for (let i = 0; i < (L ? 7 : 16); i++) { const a = rnd(0, TAU); fling(0, x, y, 0.3, a, rnd(2, 6), rnd(4, 8), rnd(1.0, 1.5), rnd(0.08, 0.22), { warm: Math.random() < 0.3 ? 0.6 : 0 }); }
         for (let i = 0; i < (L ? 5 : 11); i++) { const a = i / 11 * TAU, [px, py] = at(x, y, a, 1); fling(1, px, py, 0.2, a, rnd(3.5, 6), rnd(0.3, 0.9), rnd(1.3, 1.9), rnd(0.5, 0.75), { warm: 0.4 }); }
         for (let i = 0; i < (L ? 5 : 12); i++) { const a = rnd(0, TAU); fling(2, x, y, 0.3, a, rnd(4, 9), rnd(3, 7), rnd(0.3, 0.6), 0.03); } }
-      if (ds === 'dock' && seen.ds !== 'dock') { const a = ctx.anchor ? ctx.anchor('dock') : null; if (a) { for (let i = 0; i < (L ? 5 : 10); i++) { const an = rnd(0, TAU); fling(2, a.x, a.y, a.z, an, rnd(2, 4), rnd(1, 3), rnd(0.25, 0.4), 0.025); } flash(a.x, a.y, a.z, 0.5, 0.18, 0.5, now); } }
+      if (ds === 'docked' && seen.ds === 'mat') { const a = ctx.anchor ? ctx.anchor('dock') : null; if (a) { for (let i = 0; i < (L ? 6 : 14); i++) fling(2, a.x, a.y, a.z, rnd(0, TAU), rnd(1.5, 4), rnd(1, 3.5), rnd(0.25, 0.45), 0.025); flash(a.x, a.y, a.z, 1.0, 0.25, 0.6, now); } }   // (the new bit is whole)
       seen.ds = ds; }
+    // ---- the summon: the ground cracks, bulges and glows over the drill coming up; it breaks the surface; the dust settles
+    const su = ctx.summonT, SU = ctx.SUMMON || { burst: 1.0 }; if (su != null) { const k = cl(su / SU.burst);
+      if (!seen.sum) { seen.sum = true; ev({ type: 'cracks', x: b.x, y: b.y, t0: now, life: SU.burst + 0.9, grow: SU.burst * 0.9, w: 0.07, heat: 1, lines: mkCracks(L ? 7 : 10, 2.5, b.x * 1.3 + b.y, 0.8, 0.9) }); }
+      if (su < SU.burst) { for (let i = rate(dt, (L ? 5 : 12) * RM); i > 0; i--) { const a = rnd(0, TAU), [px, py] = at(b.x, b.y, a, rnd(0.6, 2.2)); fling(1, px, py, 0.1, a, rnd(0.2, 0.8), rnd(0.2, 0.6), rnd(1.1, 1.6), rnd(0.35, 0.6), { peak: 0.5, warm: 0.3 * k }); }   // rumbling dust
+        for (let i = rate(dt, (L ? 8 : 22) * k * RM); i > 0; i--) { const a = rnd(0, TAU), [px, py] = at(b.x, b.y, a, rnd(0.3, 1.9)); fling(0, px, py, 0.12, a, rnd(0.2, 1.2), rnd(1, 2.8), rnd(0.45, 0.8), rnd(0.04, 0.1), { col: Math.random() < 0.5 ? EARTH : EARTHD }); } }   // stones jittering up
+      if (su >= SU.burst && !seen.breach) { seen.breach = true; breach(b.x, b.y, now); }
+      if (su > SU.burst + 0.15 && su < SU.burst + 1.0) for (let i = rate(dt, (L ? 3 : 8) * RM); i > 0; i--) { const a = rnd(0, TAU), [px, py] = at(b.x, b.y, a, rnd(1.2, 2.6)); fling(1, px, py, 0.1, a, rnd(0.3, 0.9), rnd(0.1, 0.3), rnd(1.8, 2.6), rnd(0.55, 0.9), { peak: 0.45, drag: 1.3, g: -0.12 }); } }   // settling dust
     // ---- Calamity
     const C = ctx.calamity; if (C !== seen.cal) { seen.cal = C; seen.drUp = []; seen.burst = false; seen.em = C && C.emerge && C.emerge.length ? C.emerge[C.emerge.length - 1] : null; seen.under = false; seen.lock = false; seen.marks = false; }
     if (C && !C.done) {
@@ -367,24 +395,30 @@ void main(){
     const R = ctx.roll; if (R) { const k = R.ph === 0 ? sm(R.t / 0.12) : R.ph === 1 ? 1 : 1 - sm(R.t / 0.25); Q.glow(sx(b.x), sy(b.y), T * 2.1, AMBER, 0.28 * k, GY); Q.ring(sx(b.x), sy(b.y), T * 1.62, GOLD, 0.35 * k, T * 0.16, GY); }
     const rp = ctx.rockPlan; if (rp) { const u = rp.burst ? 1 - cl((rp.t - rp.burstT) / 0.5) : sm(rp.t / Math.max(0.1, rp.tErupt)), pre = rp.burst ? 1 : sm((rp.t - rp.tErupt) / Math.max(0.1, rp.tBurst - rp.tErupt));
       Q.ring(sx(rp.cx), sy(rp.cy), T * 3.4, AMBER, (rp.burst ? 0 : 0.55) * u, T * 0.1, GY); Q.glow(sx(rp.cx), sy(rp.cy), T * 3.4, AMBER, (0.2 + 0.3 * pre) * u, GY); for (const k of rp.crystals) if (k.up) Q.glow(sx(k.x), sy(k.y), T * 1.0, GOLD, (0.35 + 0.35 * pre) * u, GY); }
-    const D = ctx.drill; if (D && (D.state === 'out' || D.state === 'impact') && (D.z || 0) < 1) Q.glow(sx(D.x), sy(D.y), T * 1.4, AMBER, 0.4, GY);
+    const D = ctx.drill; if (D && D.state === 'drill') { const k = cl(D.t / 1.2), nt = D.nTick || 0, pulse = nt > 0 ? Math.exp(-Math.max(0, D.t - 0.3 * (nt - 0.5)) * 9) : 0; Q.glow(sx(D.x), sy(D.y), T * (1.3 + 1.2 * k), AMBER, 0.35 + 0.35 * k + 0.25 * pulse, GY); Q.ground(sx(D.x), sy(D.y), T * 1.7, 0.45 + 0.5 * k, 0.5 + 0.3 * pulse, 2.3, GY, 1); }
+    const su = ctx.summonT, SU = ctx.SUMMON || { burst: 1.0 }; if (su != null && su < SU.burst + 0.3) { const k = sm(su / SU.burst), f = 1 - sm((su - SU.burst) / 0.3); Q.glow(sx(b.x), sy(b.y), T * 2.8, AMBER, (0.2 + 0.4 * k) * f, GY); Q.ground(sx(b.x), sy(b.y), T * 2.6, 0.35 + 0.55 * k, 0.55 * k * f, 4.1, GY, 1); }
     const C = ctx.calamity; if (C && !C.done) { if (b.under) { const pu = (now * 1.6) % 1; Q.glow(sx(b.x), sy(b.y), T * 1.9, AMBER, 0.42 + 0.1 * Math.sin(now * 9), GY); Q.ring(sx(b.x), sy(b.y), T * (1.2 + 1.2 * pu), AMBER, 0.6 * (1 - pu), T * 0.12, GY); }
       if (C.drills && C.drills.length) for (const d of C.drills) { const gk = d.glow || 0, bu = d.burst > 1 ? cl((d.burst - 1) / 0.7) : 0; if (bu >= 1) continue; Q.glow(sx(d.x), sy(d.y), T * (1.3 + 0.9 * (d.rise || 0)), AMBER, (0.35 + 0.45 * gk) * (1 - bu), GY); if (!(d.rise > 0)) { const pu = (now * 2 + d.i * 0.13) % 1; Q.ring(sx(d.x), sy(d.y), T * (0.6 + 0.8 * pu), GOLD, 0.6 * (1 - pu), T * 0.1, GY); } } }
     F.flush(c); });
   /* ================= the volumes (over the actors; the rider's face kept clear) ================= */
-  const PT = new Float32Array(3 * 80), PT2 = new Float32Array(3 * 80), RA = new Float32Array(80), AA = new Float32Array(80), RA2 = new Float32Array(80);
+  const PT = new Float32Array(3 * 80), PT2 = new Float32Array(3 * 80), HX = new Float32Array(3 * 80), RA = new Float32Array(80), AA = new Float32Array(80), RA2 = new Float32Array(80);
   GM.drawOver = guard('drawOver', (ctx, c) => { const G = g3(), F = fg(); if (!G || !F) return; sync(ctx);
     const now = nowOf(ctx); if (now - lastT > 1e-4) { const dt = Math.min(0.1, now - lastT); lastT = now; stepParts(dt); expire(now); }   // (after the release the core stops calling update: the dust still settles)
     const H = ctx.H, T = ctx.T ? ctx.T() : H.X.Tz(), Z = T * 0.695, b = ctx.body || { x: 0, y: 0, a: 0 }, Pz = ctx.pose || {}, cr = Pz.crumble || 0;
     const seat = ctx.anchor && cr < 0.01 ? ctx.anchor('seat') : null, me = H.me, pet = seat ? [H.sx(seat.x), H.sy(seat.y) - (seat.z + 0.45) * Z, T * 0.85] : me ? [H.sx(me.x), H.sy(me.y) - 0.6 * Z, T * 0.7] : null;
     const Q = G.begin(c, H, Z, b.x, b.y, pet), K = Q.K, L = Q.low;
     // the turtle's depth stand-in: what is behind the shell hides behind it
-    if (!b.under && (Pz.alpha == null ? 1 : Pz.alpha) > 0.5 && cr < 0.3 && !(ctx.calamity && ctx.calamity.done)) { const top = ctx.anchor ? ctx.anchor('shellTop') : null, z0 = b.z || 0, ht = top ? Math.max(0.6, top.z - z0) : 1.6, xf = Pz.xf || 0;
+    const suT = ctx.summonT, rising = suT != null && suT < ((ctx.SUMMON && ctx.SUMMON.burst) || 1) + 0.2;
+    if (!b.under && !rising && (Pz.alpha == null ? 1 : Pz.alpha) > 0.5 && cr < 0.3 && !(ctx.calamity && ctx.calamity.done)) { const top = ctx.anchor ? ctx.anchor('shellTop') : null, z0 = b.z || 0, ht = top ? Math.max(0.6, top.z - z0) : 1.6, xf = Pz.xf || 0;
       if (typeof window !== 'undefined' && window.__GB_OCC) Q.sphere(b.x, b.y, z0 + ht * 0.4, 1, K.core, AMBER, 0.6, { amp: 0, ex: 1.2, sz: ht * 0.45, ang: b.a || 0 }); else Q.occluder(b.x, b.y, z0 + ht * 0.38, 1.2 + 0.1 * xf, 0.88 - 0.15 * xf, ht * 0.46, b.a || 0); }
-    drawRoll(Q, ctx, now); drawRock(Q, ctx, now); drawDrill(Q, ctx, now); drawCal(Q, ctx, now); drawEvents(Q, now); drawParts(Q);
+    drawSummon(Q, ctx, now); drawRoll(Q, ctx, now); drawRock(Q, ctx, now); drawDrill(Q, ctx, now); drawCal(Q, ctx, now); drawEvents(Q, now); drawParts(Q);
     G.flush(c);
     // flashes over everything (feathered glows), brief
     if (FLASH.length) { const Qf = F.begin(c, pet), RM = ctx.calm && ctx.calm() ? 0.4 : 1; for (const f of FLASH) { const u = (now - f.t0) / f.life; if (u < 0 || u > 1) continue; Qf.glow(H.sx(f.x), H.sy(f.y) - f.z * Z, T * f.R * (0.8 + 0.6 * u), GOLD, f.a * (1 - u) * (1 - u) * RM, 1); } F.flush(c); } });
+  /* ---- the summon: the ground bulging, fissured and glowing over the drill before it breaks through ---- */
+  function drawSummon(Q, ctx, now) { const su = ctx.summonT, SU = ctx.SUMMON || { burst: 1.0 }; if (su == null || su > SU.burst + 0.08) return; const b = ctx.body, K = Q.K, L = Q.low, k = sm(su / SU.burst), fade = 1 - sm((su - SU.burst) / 0.08), hv = 0.05 * Math.sin(now * 13) * k;
+    const o = { sz: 0.42, ex: 1.2, ang: b.a || 0, amp: 0.42, seed: 4.4, flow: 2.2, heat: 0.8, warm: 0.55 * k, lod: L ? 12 : 18 }, z = -0.95 + 0.72 * k + hv;
+    Q.sphere(b.x, b.y, z, 1.5, K.stone, EARTH, fade, o); Q.sphere(b.x, b.y, z, 1.5, K.crystal, AMBER, fade * (0.25 + 0.75 * k), Object.assign({}, o, { heat: 0.55 + 0.6 * k })); }
   /* ---- Shell Roll: amber accents turning with the shell, a low ring of dust following it ---- */
   function drawRoll(Q, ctx, now) { const R = ctx.roll; if (!R) return; const b = ctx.body, K = Q.K, L = Q.low, k = R.ph === 0 ? sm(R.t / 0.12) : R.ph === 1 ? 1 : 1 - sm(R.t / 0.25), sp = R.spin || 0;
     for (let tier = 0; tier < 2; tier++) { const n = 5, rr = tier ? 1.05 : 1.5, z = tier ? 1.05 : 0.5, span = tier ? 0.55 : 0.75, ph0 = sp + tier * 0.6;
@@ -407,17 +441,41 @@ void main(){
       for (let j = 0; j < (L ? 1 : 2); j++) { const a = la + Math.PI * (0.7 + 0.6 * j) + 0.6 * (R1(sd + j * 5) - 0.5), [px, py] = at(c.x, c.y, a, r * 1.3), hh = h * (0.4 + 0.22 * R1(sd + j * 7)); draw(px, py, hh, r * 0.62, a, 0.45 + 0.3 * R1(sd + j * 3), i + 3 + j, -hh * 1.05 * (1 - eback(cl((age - 0.04 * (j + 1)) / 0.2)))); }
       // slabs of earth tipped up round its foot
       for (let j = 0; j < (L ? 2 : 3); j++) { const a = la + j / 3 * TAU + 0.9, [px, py] = at(c.x, c.y, a, 0.5 + 0.1 * R1(sd + j)), tl = (0.5 + 0.35 * R1(sd + j * 2)) * eout(u); Q.mesh(SLABS[(i + j) % 6], px, py, 0.02 + 0.07 * eout(u), 0.3, 0.24, 0.32, Q.rot(a, -tl, 0), K.stone, EARTH, al, { heat: 0.4, seed: sd + j }); } }); }
-  /* ---- the Drill Cannon: the bearing's arcs; the furrow; the return ribbon ---- */
+  /* ---- the Drill Cannon: the bearing's arcs; the flight; the grinding; the new bit materialising ---- */
   function drawDrill(Q, ctx, now) { const D = ctx.drill; if (!D) return; const K = Q.K, b = ctx.body;
     if (D.state === 'spin') { const a = ctx.anchor ? ctx.anchor('drillBase') : null, tip = ctx.anchor ? ctx.anchor('drillTip') : null; if (a && tip) { const k = sm(D.t / 0.35), ax = tip.x - a.x, ay = (tip.y - a.y) / GY, az = tip.z - a.z, al = Math.hypot(ax, ay, az) || 1, N = [ax / al, ay / al, az / al];
         let ex = -N[1], ey = N[0], ez = 0; const el = Math.hypot(ex, ey) || 1; ex /= el; ey /= el; const fx = N[1] * ez - N[2] * ey, fy = N[2] * ex - N[0] * ez, fz = N[0] * ey - N[1] * ex, spin = now * (8 + 22 * k);
         for (let ri = 0; ri < 2; ri++) { const R = ri ? 0.78 : 0.6, cx = a.x + ax * (0.12 + 0.12 * ri), cy = a.y + ay * GY * (0.12 + 0.12 * ri), cz = a.z + az * (0.12 + 0.12 * ri);
           for (let s = 0; s < 3; s++) { const a0 = spin * (ri ? -1 : 1) + s / 3 * TAU; for (let j = 0; j < 7; j++) { const th = a0 + (j / 6 - 0.5) * 1.2, ct = Math.cos(th), sn = Math.sin(th); PT[j * 3] = cx + (ex * ct + fx * sn) * R; PT[j * 3 + 1] = cy + (ey * ct + fy * sn) * R * GY; PT[j * 3 + 2] = cz + (ez * ct + fz * sn) * R; }
             Q.tube(PT, 7, () => 0.045, K.amber, AMBER, 0.95 * k, { m: 5, heat: 1.05, af: u => Math.sin(Math.PI * u) ** 1.5, seed: s + ri * 3 }); } } } }
-    drawFurrow(Q, TRD, now, 1); drawFurrow(Q, TRC, now, 0.8);
-    if ((D.state === 'out' || D.state === 'impact') && (D.z || 0) < 0.7) Q.sphere(D.x, D.y, 0.05, 0.6, K.dust, DUSTC, 0.55, { hemi: true, sz: 0.7, amp: 0.4, seed: 3.3, flow: 1.8, lod: 10 });
-    if ((D.state === 'back' || D.state === 'recall') && D.trail && D.trail.length > 2) { const Tr = D.trail, n = Math.min(Tr.length, 16); for (let i = 0; i < n; i++) { PT[i * 3] = Tr[i][0]; PT[i * 3 + 1] = Tr[i][1]; PT[i * 3 + 2] = Tr[i][2] + 0.1; }
-      Q.tube(PT, n, u => 0.09 * (1 - u), K.amber, AMBER, 0.6, { m: 5, heat: 0.95, af: u => sm(u * 4) * (1 - u), scroll: 3 }); } }
+    drawFurrow(Q, TRC, now, 0.8);
+    // in flight: an amber trail with two strands of air wound round its arc
+    if (D.state === 'out') { const Tr = D.trail || [], n = Math.min(Tr.length, 10) + 1; if (n >= 3) { PT[0] = D.x; PT[1] = D.y; PT[2] = D.z; for (let i = 1; i < n; i++) { PT[i * 3] = Tr[i - 1][0]; PT[i * 3 + 1] = Tr[i - 1][1]; PT[i * 3 + 2] = Tr[i - 1][2]; }
+        Q.tube(PT, n, u => 0.085 * (1 - 0.7 * u), K.amber, AMBER, 0.75, { m: 5, heat: 1.0, af: u => sm(u * 6) * (1 - u) ** 1.3, scroll: 4 });
+        const sub = 3, m = (n - 1) * sub + 1; for (let s2 = 0; s2 < 2; s2++) { for (let j = 0; j < m; j++) { const f = j / sub, i0 = Math.min(n - 2, Math.floor(f)), t = f - i0, ax = PT[i0 * 3], ay = PT[i0 * 3 + 1] / GY, az = PT[i0 * 3 + 2], bx = PT[i0 * 3 + 3], by = PT[i0 * 3 + 4] / GY, bz = PT[i0 * 3 + 5];
+            let tx = bx - ax, ty = by - ay, tz = bz - az; const tl = Math.hypot(tx, ty, tz) || 1; tx /= tl; ty /= tl; tz /= tl; let ex = -ty, ey = tx, ez = 0; const el = Math.hypot(ex, ey) || 1; ex /= el; ey /= el; const fx = ty * ez - tz * ey, fy = tz * ex - tx * ez, fz = tx * ey - ty * ex;
+            const u = j / (m - 1), th = s2 * Math.PI + j * 0.9 - now * 20, r = 0.26 * (0.35 + 0.65 * u) * (1 - 0.3 * u), ct = Math.cos(th), sn = Math.sin(th), px = ax + (bx - ax) * t, py = ay + (by - ay) * t, pz = az + (bz - az) * t;
+            HX[j * 3] = px + (ex * ct + fx * sn) * r; HX[j * 3 + 1] = (py + (ey * ct + fy * sn) * r) * GY; HX[j * 3 + 2] = pz + (ez * ct + fz * sn) * r; }
+          Q.tube(HX, m, u => 0.03 * (1 - 0.5 * u), K.amber, GOLD, 0.9, { m: 4, heat: 1.1, af: u => sm(u * 5) * (1 - u) }); } } }
+    // lodged nose-down, grinding: a churning ring of earth, a swirl of dust, an amber glow building toward the explosion
+    if (D.state === 'drill') { const x = D.x, y = D.y, k = cl(D.t / 1.2), sp = D.spin || 0, L = Q.low, nt = D.nTick || 0, pulse = nt > 0 ? Math.exp(-Math.max(0, D.t - 0.3 * (nt - 0.5)) * 9) : 0, n = L ? 14 : 22;
+      for (let i = 0; i <= n; i++) { const th = i / n * TAU, nz = 0.5 + 0.5 * Math.sin(th * 4 - sp * 0.6 + 1.3 * Math.sin(th * 3 + now * 6)), r = 0.62 + 0.1 * nz; PT[i * 3] = x + Math.cos(th) * r; PT[i * 3 + 1] = y + Math.sin(th) * r * GY; PT[i * 3 + 2] = -0.03 + 0.05 * nz; RA[i] = 0.12 + 0.08 * nz; AA[i] = 1; }
+      Q.tube(PT, n + 1, null, K.stone, EARTH, 1, { m: L ? 5 : 7, heat: 0.6, rA: RA, aA: AA, seed: 3.7, qlen: 8, warm: 0.35 * k + 0.4 * pulse });
+      Q.torus(x, y, 0.14, 1.0 + 0.15 * k, 0.26, [0, 0, 1], -sp * 0.25, K.dust, DUSTC, 0.5, { amp: 0.5, seed: 2.1, nu: L ? 16 : 24, nv: 5, warm: 0.4 * k });
+      Q.sphere(x, y, 0, 0.32 + 0.5 * k + 0.15 * pulse, K.amber, AMBER, 0.35 + 0.55 * k + 0.3 * pulse, { hemi: true, sz: 1.3, amp: 0.4, heat: 0.75 + 0.45 * k, seed: 6.6, flow: 2, lod: L ? 10 : 14 });
+      Q.sphere(x, y, 0.08, 0.1 + 0.18 * k, K.core, GOLD, k * k, { amp: 0, lod: 7 });
+      PT2[0] = x; PT2[1] = y; PT2[2] = 0.05; PT2[3] = x; PT2[4] = y; PT2[5] = 0.6 + 1.7 * k; Q.tube(PT2, 2, u => (0.07 + 0.1 * k) * (1 - u), K.amber, AMBER, 0.55 * k * k, { m: 6, heat: 0.95, af: u => 1 - u, scroll: 3 });
+      const nm = L ? 3 : 6; for (let j = 0; j < nm; j++) { const ph = (now * 1.1 + j / nm) % 1, a = j * 2.1 + now * 5 + ph * 4, r = 1.5 * (1 - ph) + 0.15; Q.sphere(x + Math.cos(a) * r, y + Math.sin(a) * r * GY, 0.15 + 0.9 * ph * ph, 0.05 + 0.04 * k, K.core, GOLD, k * Math.sin(Math.PI * ph), { amp: 0, lod: 5 }); } }
+    // a new bit materialising on the carriage: amber motes converging, a ring of light sweeping along it
+    if (D.state === 'mat') { const a = ctx.anchor ? ctx.anchor('drillBase') : null, tip = ctx.anchor ? ctx.anchor('drillTip') : null; if (a && tip) { const k = cl(D.t / 0.6), L = Q.low, ax = tip.x - a.x, ay = (tip.y - a.y) / GY, az = tip.z - a.z, al = Math.hypot(ax, ay, az) || 1, N = [ax / al, ay / al, az / al];
+        let ex = -N[1], ey = N[0], ez = 0; const el = Math.hypot(ex, ey) || 1; ex /= el; ey /= el; const fx = N[1] * ez - N[2] * ey, fy = N[2] * ex - N[0] * ez, fz = N[0] * ey - N[1] * ex;
+        const nm = L ? 8 : 16; for (let j = 0; j < nm; j++) { const p = cl(k * 1.5 - (j / nm) * 0.5), f = 0.1 + 0.8 * R1(j * 1.7), th = j * 2.4 + p * 6, r = 1.8 * (1 - eout(p)) + 0.04, ct = Math.cos(th), sn = Math.sin(th);
+          const px = a.x + ax * f + (ex * ct + fx * sn) * r, py = a.y + (ay * f + (ey * ct + fy * sn) * r) * GY, pz = a.z + az * f + (ez * ct + fz * sn) * r + 0.6 * (1 - p); const fa = Math.sin(Math.PI * Math.min(1, p * 1.05));
+          if (fa > 0.01) { Q.sphere(px, py, pz, 0.05, K.core, GOLD, fa, { amp: 0, lod: 5 }); Q.sphere(px, py, pz, 0.14, K.amber, AMBER, 0.6 * fa, { amp: 0.3, lod: 6, heat: 1, seed: j }); } }
+        const sw = eout(k), cx = a.x + ax * sw, cy = a.y + ay * GY * sw, cz = a.z + az * sw, Rr = 0.62 * (1 - 0.75 * sw) + 0.12;   // the sweeping ring, base to tip
+        Q.torus(cx, cy, cz, Rr, 0.035, N, now * 12, K.amber, GOLD, 0.95 * Math.sin(Math.PI * Math.min(1, k * 1.1)), { heat: 1.15, nu: L ? 20 : 30, nv: 5 });
+        Q.torus(a.x + ax * 0.15, a.y + ay * GY * 0.15, a.z + az * 0.15, 0.85 - 0.3 * k, 0.03, N, -now * 9, K.amber, AMBER, 0.7 * (1 - k * 0.5), { heat: 1.0, nu: L ? 20 : 30, nv: 5 });
+        Q.sphere(a.x + ax * 0.5, a.y + ay * GY * 0.5, a.z + az * 0.5, 0.35 + 0.35 * k, K.amber, AMBER, 0.45 * k, { amp: 0.35, lod: 10, heat: 0.95, seed: 1.9 }); } } }
   /* a furrow: a dark feathered trench between two lips of upheaved earth, a glow along its fresh end; it settles and fades */
   function drawFurrow(Q, Tr, now, k0) { const p = Tr.pts, n = Math.min(p.length, 60); if (n < 2) return; const K = Q.K;
     for (let side = -1; side <= 1; side += 2) { for (let i = 0; i < n; i++) { const q = p[p.length - n + i], i0 = Math.max(0, i - 1), i1 = Math.min(n - 1, i + 1), a = p[p.length - n + i0], c = p[p.length - n + i1], tx = c.x - a.x, ty = (c.y - a.y) / GY, tl = Math.hypot(tx, ty) || 1, u = cl((now - q.t) / Tr.life), w = 0.3 + 0.08 * Math.sin(i * 1.7);

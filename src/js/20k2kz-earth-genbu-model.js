@@ -459,7 +459,11 @@ const GENBU_MODEL = (() => {
         put('ramC', pa, M3(X, Y, vcross(X, Y)), 1, dal); put('ramR', pb, M3(vmul(X, -1), Y, vcross(vmul(X, -1), Y)), 1, dal); }
       const off = P.drillOff, home = !off, Rd = mm(Rc, mm(rotZ(P.drillYaw || 0), mm(rotY(-(P.drillPitch || 0)), rotX(P.drillSpin || 0))));
       const bp = home ? vadd(dkr, mv(Rc, [0.25, 0, 0])) : vadd(vadd(dkr, mv(Rc, [0.25, 0, 0])), off);
-      put('drill', bp, Rd, 1, 1, { glow2: cl(P.drillGlow || 0) }); A.drillBase = at(bp); A.drillTip = at(vadd(bp, mv(Rd, [DRILL_L + 0.14, 0, 0]))); A.drillHome = home ? 1 : 0; }
+      const mat = P.drillMat == null ? 1 : cl(P.drillMat), me = mat * mat * (3 - 2 * mat);   /* (v336: a new bit materialising on the carriage: it grows in from a third of its size and fades up, glowing) */
+      if (home) put('drill', bp, Rd, lerp(0.3, 1, me), me, { glow2: Math.max(cl(P.drillGlow || 0), 1 - me) });
+      else { const Rf = mm(rotZ(P.drillYaw || 0), mm(rotY(-(P.drillPitch || 0)), rotX(P.drillSpin || 0)));   /* (v336: a bit out in the field (lodged in the ground) is placed free of the body's sway: its offset from the dock and its own yaw and pitch only) */
+        list.push({ part: 'drill', o: vadd(at(dkr), vadd(mv(Rc, [0.25, 0, 0]), off)), R: Rf, s: 1, al: 1, glow2: cl(P.drillGlow || 0) }); }
+      A.drillBase = at(bp); A.drillTip = at(vadd(bp, mv(Rd, [DRILL_L + 0.14, 0, 0]))); A.drillHome = home ? 1 : 0; }
     // the cockpit: on the rear chassis pillar; upright in both forms
     { const o = vadd(SEAT0, [0, 0, 0]); put('cockpit', o, I3()); A.seat = at(vadd(o, [-0.06, 0, 0.22])); A.cockpit = at(o); }
     // the tail: out behind (turtle), folded up into the rear structure (drill, roll)
@@ -538,7 +542,7 @@ const GENBU_MODEL = (() => {
   }
   function anchor(name) { if (!LAST) return null; const p = LAST.R.A[name]; if (!p || !Array.isArray(p)) return null; return LAST.V.toW(p); }
   function anchorAt(name, x, y, z, a, P, o) { const R = rig(P), p = R.A[name]; if (!p || !Array.isArray(p)) return null; const sc = ((o && o.scale) || 1) * VIS, w = mv(rotZ(a), p); return { x: x + w[0] * sc, y: y + w[1] * GY * sc, z: z + w[2] * sc }; }
-  function blankPose() { return { xf: 0, walk: 0, walkK: 0, crouch: 0, roll: 0, bank: 0, pitch: 0, drillSpin: 0, drillOff: null, drillYaw: 0, drillPitch: 0, drillGlow: 0, jaw: 0, glow: 0.5, crumble: 0, ground: null, alpha: 1 }; }
+  function blankPose() { return { xf: 0, walk: 0, walkK: 0, crouch: 0, roll: 0, bank: 0, pitch: 0, drillSpin: 0, drillOff: null, drillYaw: 0, drillPitch: 0, drillGlow: 0, drillMat: 1, jaw: 0, glow: 0.5, crumble: 0, ground: null, alpha: 1 }; }
   function create() { const P = blankPose(); return { pose: P, draw: (c, x, y, z, a, P2, o) => draw(c, x, y, z, a, P2 || P, o), drawShadow: (c, x, y, z, a, P2, o) => drawShadow(c, x, y, z, a, P2 || P, o) }; }
   const COUNTS = { sections: 6, legs: 4, tracks: 4, neck: NLINK, drill: 1 };
   const SIZE = { len: (SA * 2 + 1.6) * VIS, lenDrill: (DOCK1[0] + DRILL_L + 0.14 + SA) * VIS, wid: (SB * 2 + 0.7) * VIS, h: (DOCK0[2] + DRILL_R) * VIS, hDrill: 1.9 * VIS, r: 2.6 * VIS, drillL: DRILL_L * VIS };
