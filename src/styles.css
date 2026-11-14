@@ -201,6 +201,11 @@ body.decorating .decor.selected::after{border-color:var(--coral);border-width:2.
    moved by the compositor (never painted again); the glow at night goes on each layer, not the whole */
 .pet-rig .pet-svg{position:relative}
 .pet-gl{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}.pet-rig.gl>.pet-svg{visibility:hidden}
+/* (a Legendary on the GPU: the canvas reaches well out round the rig for its wings, aura and lights, which it draws
+   itself, so their own layers hide) */
+.pet-gl.wide{left:-60%;top:-60%;width:220%;height:185%}
+.pet-rig.gl>.leg-l,.pet-rig.gl>.leg-wings,.pet-rig.gl>.leg-lights{visibility:hidden}
+.pet.glow .pet-rig.gl:has(.leg-l)>.pet-gl{filter:drop-shadow(0 0 10px var(--gem-glow,#9DB4E8))}
 .pet-rig:has(.leg-lights) .pet-svg{z-index:2}
 .leg-l{position:absolute;pointer-events:none}
 .leg-l>svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
@@ -1837,6 +1842,7 @@ body.decorating .anima-btn,body.in-mansion .anima-btn{display:none}
 .mc-tilt{position:absolute;inset:0;transform:scaleY(.34)}
 .mc-spin{position:absolute;inset:0;will-change:transform}
 .mc-spin svg{display:block;width:100%;height:100%}
+.mc-glow{inset:-15%;opacity:.8}
 .mc-a{animation:mc-spin 28s linear infinite}
 .mc-b{animation:mc-spin 16s linear infinite reverse}
 @keyframes mc-spin{to{transform:rotate(360deg)}}

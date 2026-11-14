@@ -18,7 +18,7 @@ function buildPet(force) {
   petKey = key;
   const lf = f.x && f.x.gold && f.stage >= 7 ? f.x.leg : null;
   petEl.innerHTML = `${lf ? magicCircleHTML(lf, f) : ''}<div class="pet-shadow"></div><div class="pet-rig">${petRigHTML(f, { dirt: dirtLevel() })}</div><div class="stink" hidden><i></i><i></i><i></i></div><div class="bubble" hidden></div>`;
-  const svg = $('.pet-rig svg', petEl);
+  const svg = $('.pet-rig>.pet-svg', petEl) || $('.pet-rig svg', petEl);   // (a Legendary's own layers come before its picture)
   const piv = el => el ? (el.getAttribute('data-pivot') || '0 0') : '0 0';
   parts = {
     svg, rig: $('.pet-rig', petEl), shadow: $('.pet-shadow', petEl), circle: $('.pet-circle', petEl), bubble: $('.bubble', petEl), stink: $('.stink', petEl),
@@ -30,7 +30,7 @@ function buildPet(force) {
   parts.eyeY = parts.blink ? +parts.blink.getAttribute('data-ey') || -66 : -66;
   parts.leg = legParts(parts.rig);
   if (parts.orbs) { const o = parts.orbs.getAttribute('data-orbit').split(' ').map(Number); parts.orbit = o; parts.orbEls = $$(':scope > g', parts.orbs); }
-  parts.gl = glRig(parts.rig, svg);
+  parts.gl = glRig(parts.rig, svg, f);
   parts.floaty = f.legs.t === 'float';
   // a six-star Legendary at Celestial floats in the air
   parts.levit = !!(f.x && f.x.gold && f.stage >= 7);
@@ -40,21 +40,27 @@ function buildPet(force) {
 }
 /* a pet in the room drawn on the GPU (PetGL, 2.5D): a canvas over its picture in the rig, laid out as the picture is
    (the rig's box, the picture's own frame); the picture is hidden while the canvas shows the pet, and shows again
-   whenever the pet cannot be drawn that way (no WebGL, its layers not made yet, a Legendary). The rig's transform
-   still lifts, tilts, squashes and turns it to face its way; the canvas is kept about as sharp as the pet is shown */
-function glRig(rig, svg) {
+   whenever the pet cannot be drawn that way (no WebGL, its layers not made yet). The rig's transform still lifts,
+   tilts, squashes and turns it to face its way; the canvas is kept about as sharp as the pet is shown. A Legendary's
+   canvas reaches well out round the rig (M: left, top, right, bottom, in rig widths) for its wings, aura and lights */
+function glRig(rig, svg, f) {
   if (typeof PetGL === 'undefined' || !rig || !svg || !PetGL.available()) return null;
   const vb = (svg.getAttribute('viewBox') || '').split(/[\s,]+/).map(Number); if (vb.length !== 4 || !(vb[2] > 0)) return null;
-  const cv = document.createElement('canvas'); cv.className = 'pet-gl'; cv.setAttribute('aria-hidden', 'true'); rig.appendChild(cv);
-  return { cv, g: cv.getContext('2d'), vb, rig, on: false, px: 0 };
+  const wide = !!(f && f.x && f.x.gold), M = wide ? [0.6, 0.6, 0.6, 0.25] : [0, 0, 0, 0];
+  const cv = document.createElement('canvas'); cv.className = 'pet-gl' + (wide ? ' wide' : ''); cv.setAttribute('aria-hidden', 'true'); rig.appendChild(cv);
+  return { cv, g: cv.getContext('2d'), vb, rig, on: false, px: 0, M, wide, fit: !wide };
 }
-function glFrame(R, f, s, P) {
+function glFrame(R, f, s, P, o) {
   if (!R || !R.g) return false;
-  const dpr = Math.min(3, window.devicePixelRatio || 1), q = clamp(Math.ceil(s * 10) / 10, 0.3, 1.6), px = Math.max(16, Math.round(pb * dpr * q));
-  if (R.px !== px) { R.px = px; R.cv.width = R.cv.height = px; }
-  const g = R.g, r = px / pb, [vx, vy, vw, vh] = R.vb, sc = Math.min(pb / vw, pb / vh), ox = (pb - vw * sc) / 2 - vx * sc, oy = (pb - vh * sc) / 2 - vy * sc;
-  g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, px, px); g.setTransform(r, 0, 0, r, ox * r, oy * r);
-  let ok = false; try { ok = PetGL.draw(g, f, sc, P, { frame: "room" }); } catch (e) { ok = false; if (!glFrame.warned) { glFrame.warned = 1; console.warn("PetGL", e && e.message); } }
+  // (a Legendary's: once its layers are made, the canvas is fitted to the frame its picture is drawn in, all of its wings' reach)
+  if (!R.fit) { const B = PetGL.box(f, false, 'room'); if (B) { R.fit = true; const [vx, vy, vw, vh] = R.vb, sc = Math.min(pb / vw, pb / vh), ox = (pb - vw * sc) / 2 - vx * sc, oy = (pb - vh * sc) / 2 - vy * sc, m = 4;
+    R.M = [Math.max(0, -(ox + B[0] * sc) + m) / pb, Math.max(0, -(oy + B[1] * sc) + m) / pb, Math.max(0, ox + (B[0] + B[2]) * sc - pb + m) / pb, Math.max(0, oy + (B[1] + B[3]) * sc - pb + m) / pb];
+    const q = v => (v * 100).toFixed(2) + '%', S2 = R.cv.style; S2.left = q(-R.M[0]); S2.top = q(-R.M[1]); S2.width = q(1 + R.M[0] + R.M[2]); S2.height = q(1 + R.M[1] + R.M[3]); R.px = 0; } }
+  const M = R.M, fw = 1 + M[0] + M[2], fh = 1 + M[1] + M[3], dpr = Math.min(3, window.devicePixelRatio || 1), q = clamp(Math.ceil(s * 10) / 10, 0.3, 1.6), px = Math.max(16, Math.round(pb * dpr * q));
+  if (R.px !== px) { R.px = px; R.cv.width = Math.round(px * fw); R.cv.height = Math.round(px * fh); }
+  const g = R.g, r = px / pb, [vx, vy, vw, vh] = R.vb, sc = Math.min(pb / vw, pb / vh), ox = (pb - vw * sc) / 2 - vx * sc + M[0] * pb, oy = (pb - vh * sc) / 2 - vy * sc + M[1] * pb;
+  g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, R.cv.width, R.cv.height); g.setTransform(r, 0, 0, r, ox * r, oy * r);
+  let ok = false; try { ok = PetGL.draw(g, f, sc, P, Object.assign({ frame: "room" }, o)); } catch (e) { ok = false; if (!glFrame.warned) { glFrame.warned = 1; console.warn("PetGL", e && e.message); } }
   if (ok !== R.on) { R.on = ok; R.rig.classList.toggle('gl', ok); }
   return ok;
 }
@@ -565,8 +571,8 @@ function renderPet(dt) {
   if (parts.leg) {
     // a Legendary's wings beat pair after pair, deeper in flight; its lights circle
     const flying = pet.hover > 2 || air - lev > 6, amp = flying ? 24 : moving ? 14 : parts.levit ? 11 : 8, spd = flying ? 17 : moving ? 9 : parts.levit ? 4 : 3.2;
-    pet.legPh = (pet.legPh || 0) + dt * spd;
-    legMove(parts.leg, t, pet.legPh, amp);
+    pet.legPh = (pet.legPh || 0) + dt * spd; GP.legPh = pet.legPh; GP.legAmp = amp;
+    if (!(parts.gl && parts.gl.on)) legMove(parts.leg, t, pet.legPh, amp);   // (on the GPU it beats them itself)
   }
   if (parts.armL) {
     // arms swing while walking, wave when happy, droop when sleeping

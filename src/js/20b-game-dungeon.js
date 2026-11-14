@@ -1990,7 +1990,7 @@ GAMES.dungeon = {
       if (me.dodge) rot = me.dodge.t / me.dodge.dur * 6.283 * (me.dodge.vx >= 0 ? 1 : -1);
       if (me.dead) rot = g.t * 4;
       const moving = (me.vx || me.vy) && !me.dead, L2 = petLook();
-      drawPetFull(c, X, Y0 + T * 0.18, h, { sprites: arc.sprites, form: PF, t: g.t, unit: T * SIZE, tile: T, float: !me.dead, el: party[cur].el, z, moving, walk: me.bob, flip: me.face < 0, face: L2.face, pose: L2.pose, sx: sxs, sy: sys, rot, rig: !me.dead, snap: petSnapF, body: !blink, pre: () => {
+      drawPetFull(c, X, Y0 + T * 0.18, h, { sprites: arc.sprites, form: PF, t: g.t, unit: T * SIZE, tile: T, float: !me.dead, el: party[cur].el, z, moving, walk: me.bob, flip: me.face < 0, face: L2.face, pose: L2.pose, sx: sxs, sy: sys, rot, rig: !me.dead, snap: petSnapF, body: !blink, aurora: true, pre: () => {
         if (g.phoenixT > 0) { c.save(); c.globalCompositeOperation = 'lighter'; const wg = Math.sin(g.t * 10) * 0.3, cy = Y0 - T * 0.45 - z, fadeP = Math.min(1, g.phoenixT * 2);
           const as = T * 1.7; c.globalAlpha = 0.55 * fadeP; blitSized(c, glowSprite('#FF9F43'), X - as, cy - as, as * 2, as * 2);
           [-1, 1].forEach(s => { for (let f = 0; f < 7; f++) { const u = f / 6, ang = -0.25 - u * 1.25 - wg * 0.35, len = T * (1.0 + 0.9 * Math.sin(0.3 + u * 2.6)), bx = X + s * T * 0.15, ex = bx + s * Math.cos(ang) * len * 1.25, ey = cy + Math.sin(ang) * len, L = hyp(ex - bx, ey - cy);

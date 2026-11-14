@@ -112,16 +112,18 @@ function drawPetRig(c, RG, S, h, o) {
   const lay = (F2, side) => { if (!F2) return; if (side < 0) { c.save(); c.scale(-1, 1); } c.drawImage(F2.cv, F2.x0 * k, F2.y0 * k, F2.w * k, F2.h * k); if (side < 0) c.restore(); };
   const D2R = Math.PI / 180, ph = P.walk || 0, mv = P.moving ? 1 : 0, cast = P.cast || 0, castUlt = !!P.ult;
   // on the GPU (PetGL, 2.5D): the same pose, the arms and plates growing from behind the body, a little turn; the parts
-  // below draw it as before when it cannot be drawn that way (no WebGL, its layers not made yet, a Legendary)
-  if (typeof PetGL !== 'undefined' && S.form && !RG.legW && !o.noGL) {
+  // below draw it as before when it cannot be drawn that way (no WebGL, its layers not made yet). A Legendary's wings
+  // beat as in the room; its lights (o.glLights) and the aurora round it (o.aurora: the dungeons and the Rift) too
+  if (typeof PetGL !== 'undefined' && S.form && !o.noGL) {
     const fs = sd => { const a = ph + (sd < 0 ? Math.PI : 0); return [mv * Math.cos(a) * 1.8 * sd, -mv * Math.max(0, Math.sin(a)) * 5.2 + (P.hopFoot || 0)]; };
     // (a skill lifts the arms out and up: they grow from behind the body, so a lift toward it would hide them)
     const env = cast > 0 ? Math.max(0, Math.min(1, cast * 5, (1 - cast) * 3)) : 0, lift = env * (castUlt ? 112 : 62);
     const arm = sd => { const swg = mv ? Math.sin(ph + (sd < 0 ? 0 : Math.PI)) * 26 : Math.sin((P.t || 0) * 2.2) * 3; return swg * (1 - Math.min(1, Math.abs(lift) / 55)) + lift + (P.hopArm || 0) + (P.hopArmS ? P.hopArmS[sd > 0 ? 0 : 1] || 0 : 0); };
     // (it turns a little the way it walks, easing round as it sets off and stops; a pose's own yaw wins)
     let Y = PGL_YAW.get(S); if (!Y) { Y = { y: 0, t: P.t || 0 }; PGL_YAW.set(S, Y); } const ydt = clamp((P.t || 0) - Y.t, 0, 0.1); Y.t = P.t || 0; Y.y += ((mv ? 0.3 : 0) - Y.y) * (1 - Math.exp(-ydt * 6));
-    const GP = { t: P.t || 0, yaw: P.yaw ? P.yaw : Y.y, face: o.face || 'normal', footL: fs(1), footR: fs(-1), armL: arm(1), armR: arm(-1), wing: Math.sin(P.wingPh || 0) * (P.wingAmp || 8), tail: Math.sin((P.t || 0) * 2.4 + ph) * (mv ? 12 : 6) };
-    if (PetGL.draw(c, S.form, k, GP, { lite: true })) return;
+    const GP = { t: P.t || 0, yaw: P.yaw ? P.yaw : Y.y, face: o.face || 'normal', footL: fs(1), footR: fs(-1), armL: arm(1), armR: arm(-1), wing: Math.sin(P.wingPh || 0) * (P.wingAmp || 8), tail: Math.sin((P.t || 0) * 2.4 + ph) * (mv ? 12 : 6),
+      legPh: P.wingPh || 0, legAmp: P.wingAmp || 8 };
+    if (PetGL.draw(c, S.form, k, GP, { lite: true, lights: !!o.glLights, aurora: !!o.aurora })) return;
   }
   // wings: a Legendary's pairs beat as they do in the room (rise and close, sweep down and open; each a moment after
   // the main one); an ordinary pet's wings flutter
@@ -282,7 +284,8 @@ const petFloatOf = (f, unit, t) => f && f.x && f.x.gold && f.stage >= 7 && f.x.l
    parts are made. X, Ybase: the ground point under its feet; h: its height. o:
    { sprites (loadSprites' pictures, .rig from loadRig when made), form (default sprites.form), t (seconds), face
      'normal'|'happy'|'hurt'|'blink', moving, walk (the step's phase), wingPh, wingAmp, flip, z (px up in a jump), sx, sy,
-     rot, el (its element key: the glow's colour; none without), unit (the ground unit the shadow and float are measured
+     rot, el (its element key: the glow's colour; none without), aurora (a six-star's aurora round it, on the GPU: the
+     dungeons and the Rift), unit (the ground unit the shadow and float are measured
      in, default h / 1.02), tile (the step bob's unit, default unit), float (default: a Celestial six-star's; false when it
      lies dead), circle/glow/shadow/lights (default on), rig (default true), snap (petSnap's copy), pose (overrides the
      one built here), pre(c, lay) (drawn after the ground layer and before the body: lay = { X, Y: the feet in the air,
@@ -294,6 +297,11 @@ function drawPetFull(c, X, Ybase, h, o) {
   if (LGc && o.circle !== false) {
     // (or its ring: smooth light, spiked metal or its element, turning faster; drawn from pictures made once)
     const RG2 = legRingOf(LGc, PF), sp2 = ringSpin(RG2.style, RG2.el), R2 = h * 1.25, m0 = c.getTransform(), px = R2 * 2 * Math.hypot(m0.a, m0.b), A = magicCircleCanvas(LGc.c, 'outer', px, RG2.style, RG2.el), B = magicCircleCanvas(LGc.c, 'inner', px, RG2.style, RG2.el);
+    // (its soft glow first, each layer blurred and a little larger, added onto the ground and breathing with it)
+    const GA = magicCircleGlow(LGc.c, 'outer', px, RG2.style, RG2.el), GB = magicCircleGlow(LGc.c, 'inner', px, RG2.style, RG2.el), G2 = R2 * 1.3;
+    if (GA && GB) { c.save(); c.translate(X, Ybase); c.scale(1, 0.34); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.75 + 0.25 * Math.sin(t * 1.96);
+      c.save(); c.rotate(t * 6.283 / 28 * sp2); c.drawImage(GA, -G2, -G2, G2 * 2, G2 * 2); c.restore();
+      c.rotate(-t * 6.283 / 16 * sp2); c.drawImage(GB, -G2, -G2, G2 * 2, G2 * 2); c.restore(); }
     if (A && B) { c.save(); c.translate(X, Ybase); c.scale(1, 0.34); c.globalAlpha = 0.86 + 0.14 * Math.sin(t * 1.96);
       c.save(); c.rotate(t * 6.283 / 28 * sp2); c.drawImage(A, -R2, -R2, R2 * 2, R2 * 2); c.restore();
       c.rotate(-t * 6.283 / 16 * sp2); c.drawImage(B, -R2, -R2, R2 * 2, R2 * 2); c.restore(); }
@@ -311,12 +319,14 @@ function drawPetFull(c, X, Ybase, h, o) {
   // a six-star's lights circle it: drawn behind the pet on the far side of their rings, after it on the near side (one
   // small picture for each, laid down unturned)
   const NLt = o.lights !== false && PF.x && PF.x.gold && PF.x.leg && PF.x.lights ? (PF.x.lights >= 4 ? 4 : 2) : 0, LGeo = NLt ? legLightGeo(PF) : null, kU = NLt ? h / ((PF.legs.len || 0) + 9 + PF.body.h) : 0;
-  const lights = fr => { if (!NLt) return; const m1 = c.getTransform(), sc1 = Math.hypot(m1.a, m1.b);
+  // (when the pet is drawn on the GPU its lights are drawn there, soft and trailing, between its wings and its body)
+  const glL = !!(NLt && o.rig !== false && !o.snap && S && S.form && S.rig && S.rig.front && S.rig.front.normal && typeof PetGL !== 'undefined' && PetGL.will(S.form, true));
+  const lights = fr => { if (!NLt || glL) return; const m1 = c.getTransform(), sc1 = Math.hypot(m1.a, m1.b);
     for (let i = 0; i < NLt; i++) { const ring = i >= 2 ? 1 : 0, [lx, ly, , front] = legLightAt(legLightPhase(i, t), LGeo.cy, LGeo.Rr, ring); if (front !== fr) continue;
       const rr = 15 * kU * (ring ? 0.78 : 1), im = legLightCanvas(PF.x.leg.c, rr * 2 * sc1); if (im) c.drawImage(im, X + (o.flip ? -lx : lx) * kU - rr, Y + ly * kU - rr, rr * 2, rr * 2); } };
   lights(false);
   const pose = o.pose || { walk, moving, t, cast: o.cast || 0, ult: !!o.ult, wingPh: o.wingPh || 0, wingAmp: o.wingAmp != null ? o.wingAmp : moving ? 14 : fl ? 11 : 8, wingSmooth: !!o.wingSmooth };
-  drawPetSprite(c, X, Y, h, { sprites: S, flip: !!o.flip, face: o.face || 'normal', sx, sy, rot: o.rot || 0, rig: o.rig !== false, pose, snap: o.snap, alpha: o.alpha });
+  drawPetSprite(c, X, Y, h, { sprites: S, flip: !!o.flip, face: o.face || 'normal', sx, sy, rot: o.rot || 0, rig: o.rig !== false, pose, snap: o.snap, alpha: o.alpha, glLights: glL, aurora: !!o.aurora });
   lights(true);
 }
 

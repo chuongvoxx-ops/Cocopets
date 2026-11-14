@@ -1055,6 +1055,23 @@ function magicCircleSVG(c, layer, style, el) {
 }
 /* the magic circle for a canvas (the Tower): each layer a picture, made once for each colour and size (a few kept) */
 const MC_IMG = new Map(), MC_CV = new Map();
+/* the magic circle's soft glow: the same circle blurred, for a canvas, laid under it ('lighter') so it shines on the floor */
+const MC_GLOW = new Map();
+// (the circle blurred, drawn with room round it, 30% wider, so the blur fades out before the picture's edge: lay it 1.3 times the circle)
+const magicCircleGlowSVG = (col, layer, style, el) => magicCircleSVG(col, layer, style, el).replace(/viewBox="([^"]+)"/, (m, v) => { const [x, y, w, h] = v.split(/[\s,]+/).map(Number); return `viewBox="${x - w * 0.15} ${y - h * 0.15} ${w * 1.3} ${h * 1.3}"`; })
+  .replace(/(<svg[^>]*>)/, '$1<defs><filter id="mcgB" x="-25%" y="-25%" width="150%" height="150%"><feGaussianBlur stdDeviation="7"/></filter></defs><g filter="url(#mcgB)">').replace(/<\/svg>\s*$/, '</g></svg>');
+function magicCircleGlow(col, layer, px, style, el) {
+  const q = Math.min(700, Math.max(32, Math.round(Math.pow(1.12, Math.round(Math.log(Math.max(32, px * 0.5)) / Math.log(1.12)))))), k = col + layer + (style || '') + (el || '') + '|' + q;
+  let E = MC_GLOW.get(k);
+  if (!E) {
+    E = { cv: null }; MC_GLOW.set(k, E);
+    const svg = magicCircleGlowSVG(col, layer, style, el).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" ');
+    const im = new Image(); im.onload = () => { const c = document.createElement('canvas'); c.width = c.height = q; c.getContext('2d').drawImage(im, 0, 0, q, q); E.cv = c; };
+    im.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+    if (MC_GLOW.size > 8) { const k0 = MC_GLOW.keys().next().value, o = MC_GLOW.get(k0); MC_GLOW.delete(k0); if (o.cv) o.cv.width = o.cv.height = 0; }
+  }
+  return E.cv;
+}
 function magicCircleCanvas(col, layer, px, style, el) {
   const ik = col + layer + (style || '') + (el || ''); let im = MC_IMG.get(ik);
   if (!im) { im = new Image(); im.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(magicCircleSVG(col, layer, style, el).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" ')); MC_IMG.set(ik, im); }
@@ -1084,7 +1101,9 @@ function legLightGeo(f) { let r = LL_GEO.get(f); if (!r) { const g = petGeom(f);
 // (L: the pet's Legendary colours and ring; f: its form, for its element)
 const legRingOf = (L, f) => ({ style: L.ring || 'circle', el: L.ring === 'element' && f ? e8Of(abilityElement(f.pal)) : '' });
 const magicCircleHTML = (L, f) => { const R = legRingOf(L, f), k = ringSpin(R.style, R.el), du = k === 1 ? '' : x => ` style="animation-duration:${r1(x / k)}s"`;
-  return `<div class="pet-circle${R.style === 'circle' ? '' : ' pet-ring'}"><div class="mc-tilt"><div class="mc-spin mc-a"${du ? du(28) : ''}>${magicCircleSVG(L.c, 'outer', R.style, R.el)}</div><div class="mc-spin mc-b"${du ? du(16) : ''}>${magicCircleSVG(L.c, 'inner', R.style, R.el)}</div></div></div>`; };
+  // (under each layer its soft glow, the same layer blurred and a little larger, added onto the floor and turning with it)
+  const G = (cls, ly, d) => `<div class="mc-spin mc-glow ${cls}"${du ? du(d) : ''}>${magicCircleGlowSVG(L.c, ly, R.style, R.el)}</div>`;
+  return `<div class="pet-circle${R.style === 'circle' ? '' : ' pet-ring'}"><div class="mc-tilt">${G('mc-a', 'outer', 28)}${G('mc-b', 'inner', 16)}<div class="mc-spin mc-a"${du ? du(28) : ''}>${magicCircleSVG(L.c, 'outer', R.style, R.el)}</div><div class="mc-spin mc-b"${du ? du(16) : ''}>${magicCircleSVG(L.c, 'inner', R.style, R.el)}</div></div></div>`; };
 // where a light is on its tilted ring at angle a, and which way it is moving (degrees)
 // (ring 1: Celestial's two more, swirling the other way round a smaller ring tilted against the first, a little higher)
 function legLightAt(a, cy, Rr, ring) {

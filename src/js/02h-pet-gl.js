@@ -30,6 +30,31 @@ void main() { vec4 c = texture2D(uT, vUV);
   if (uMask > 0.5) { vec2 e = uErode; c *= min(min(texture2D(uB, vBase + vec2(e.x, 0.0)).a, texture2D(uB, vBase - vec2(e.x, 0.0)).a), min(texture2D(uB, vBase + vec2(0.0, e.y)).a, texture2D(uB, vBase - vec2(0.0, e.y)).a)); }
   c.rgb = mix(c.rgb, vec3(0.17, 0.14, 0.2) * c.a, uDark); c.rgb += c.rgb * uGlow;
   gl_FragColor = c * uAlpha; }`;
+  /* a Legendary's aurora: ribbons of its element's light rising and drifting round it, each a strip along a wavy path
+     (built in the vertex shader from a few numbers), soft across, fading at its ends, shimmering with fine streaks
+     that run along it and a glow that climbs it; three shades of the colour mixed along it; each ribbon fades in,
+     drifts and fades out, then comes back somewhere else. Laid on with light added */
+  const VSA = `attribute vec2 aP;
+uniform vec4 uView, uR0, uR1, uR2; varying vec2 vUV;
+void main() { float u = aP.x, v = aP.y * 2.0 - 1.0;
+  float y = uR0.y - u * uR0.z, x = uR0.x + uR1.x * sin(u * uR1.y + uR1.z) + uR1.w * sin(u * uR2.x + uR2.y) + uR2.z * u * u;
+  float dx = uR1.x * uR1.y * cos(u * uR1.y + uR1.z) + uR1.w * uR2.x * cos(u * uR2.x + uR2.y) + 2.0 * uR2.z * u;
+  vec2 tg = normalize(vec2(dx, -uR0.z)), nr = vec2(-tg.y, tg.x); float w = uR0.w * (0.45 + 0.55 * sin(u * 3.14159));
+  vec2 p = vec2(x, y) + nr * v * w; vUV = vec2(u, v);
+  gl_Position = vec4((p.x - uView.x) * uView.z, -(p.y - uView.y) * uView.w, 0.0, 1.0); }`;
+  const FSA = `precision mediump float;
+uniform vec3 uC0, uC1, uC2; uniform vec3 uAT; uniform float uThr; varying vec2 vUV;
+void main() { float u = vUV.x, v = vUV.y, T = uAT.x, S = uAT.y;
+  // (a curtain: broad, with a brighter line down it; a thread: narrow, its light blurred soft across with no sharp edge)
+  float across = exp(-v * v * mix(1.8, 1.3, uThr)), thread = exp(-v * v * mix(14.0, 4.5, uThr)) * mix(0.45, 0.35, uThr);
+  float ends = smoothstep(0.0, 0.14, u) * (1.0 - smoothstep(0.5, 0.97, u));
+  float rays = 0.45 + 0.55 * pow(0.5 + 0.5 * sin(v * 8.0 + sin(u * 6.0 + T * 1.1 + S) * 2.4 + T * 0.7), 1.6);
+  float climb = 0.65 + 0.35 * sin(u * 10.0 - T * 2.2 + S * 3.0);
+  float a = (across * rays * climb + thread) * ends * uAT.z;
+  float m = 0.5 + 0.5 * sin(u * 3.6 + T * 0.6 + S), n = clamp(thread * 1.4 + 0.3 * sin(u * 5.0 - T * 0.9 + S * 2.0), 0.0, 1.0);
+  vec3 col = mix(mix(uC0, uC1, m), uC2, n * 0.7);
+  gl_FragColor = vec4(col * a, a * 0.8); }`;
+  let PA = null, UA = {}, aPA = -1, PR = null;
   function init() {
     if (gl) return true; if (failed) return false;
     try {
@@ -43,6 +68,9 @@ void main() { vec4 c = texture2D(uT, vUV);
       for (const k of ['uBox', 'uBase', 'uView', 'uBend', 'uP', 'uP2', 'uA0', 'uA1', 'uWrap', 'uYaw', 'uWhole', 'uT', 'uB', 'uWrapF', 'uAlpha', 'uDark', 'uMask', 'uGlow', 'uErode']) U[k] = gl.getUniformLocation(pr, k);
       gl.uniform1i(U.uT, 0); gl.uniform1i(U.uB, 1); gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); gl.disable(gl.DEPTH_TEST);
       G1 = grid(40); G2 = grid(3);
+      try { const pa = gl.createProgram(); gl.attachShader(pa, sh(gl.VERTEX_SHADER, VSA)); gl.attachShader(pa, sh(gl.FRAGMENT_SHADER, FSA)); gl.linkProgram(pa);
+        if (gl.getProgramParameter(pa, gl.LINK_STATUS)) { PA = pa; aPA = gl.getAttribLocation(pa, 'aP'); for (const k of ['uView', 'uR0', 'uR1', 'uR2', 'uC0', 'uC1', 'uC2', 'uAT', 'uThr']) UA[k] = gl.getUniformLocation(pa, k); } } catch (e) { PA = null; }
+      PR = pr;
       // (a lost context: every pet falls back to its picture, and its layers are made again when the context returns)
       cv.addEventListener('webglcontextlost', e => { e.preventDefault(); CACHE.clear(); gen++; }, false);
       cv.addEventListener('webglcontextrestored', () => { gl = null; failed = false; CACHE.clear(); gen++; init(); }, false);
@@ -80,7 +108,7 @@ void main() { vec4 c = texture2D(uT, vUV);
   const opts = (E, F) => Object.assign({ static: true, frame: E.frame === 'room' ? undefined : 'fit', lite: E.lite, rig: true, rig3: true, dirt: 1 }, F);
   // the layers as SVG, from the pet's normal face
   function cut(E) {
-    const f = E.form; petSVG(f, opts(E, FACES.normal)); const r = petSVG.rig, y3 = r && r.y3;
+    const f = E.form; petSVG(f, opts(E, FACES.normal)); const r = petSVG.rig, y3 = r && r.y3, SPL = petSVG.split;
     if (!y3) return null;
     // what lies behind the body, split where the tail lies: behind the tail (a mane, the aura), in front of it (ears, horns)
     let bPre = y3.back || '', bPost = '';
@@ -94,12 +122,36 @@ void main() { vec4 c = texture2D(uT, vUV);
       if (ones.length && ring.length === 3) { const one = ones[0].cloneNode(true); one.removeAttribute('transform'); orb = new XMLSerializer().serializeToString(one).replace(/ xmlns="[^"]*"/g, ''); orbit = { cy: ring[1], r: ring[2], n: ones.length }; } }
     const acy = +((auraGlow.match(/cy="([-\d.]+)"/) || [])[1] || (y3.top * 0.55));
     return { vb: r.vb, defs: r.defs, base, dirt: dirt.replace(/opacity="[\d.]+"/, 'opacity="1"'), back, backPost, auraGlow, auraRing, acy, halo, orb, orbit, tail: y3.tail, tp: y3.tp, yb: y3.yb, bw: y3.bw, top: y3.top,
-      arm: r.arm, armPv: r.armPv, paul: r.paul, paulPv: r.paulPv, foot: r.foot, footPv: r.footPv, wing: r.wing || null, wingPv: r.wingPv || null, feat: y3.feat };
+      arm: r.arm, armPv: r.armPv, paul: r.paul, paulPv: r.paulPv, foot: r.foot, footPv: r.footPv, wing: r.wing || null, wingPv: r.wingPv || null, feat: y3.feat, leg: legParts(SPL, f.x && f.x.leg && f.x.leg.c, elColour(f), f) };
+  }
+  /* a Legendary's own parts, handed back apart from its picture (petSVG.split): its pairs of wings, each beating a moment
+     after the one before and closing and opening as it beats; its golden aura (turning rays, a still glow, a pulse, a
+     ring); its lights circling it on tilted rings, behind it on the far side and in front on the near side. (They are
+     in the picture's own units; the rig's picture is scaled by sc) */
+  // the colour of the pet's element (its aurora's light), or its Legendary colour
+  function elColour(f) { try { return E8[e8Of(abilityElement(f.pal))].color; } catch (e) { return f.x && f.x.leg && f.x.leg.c || '#FFD447'; } }
+  // three shades of a colour, a little apart in hue: deep, itself, bright (0..1 rgb)
+  function elShades(c) { const rgb = h => [parseInt(h.slice(1, 3), 16) / 255, parseInt(h.slice(3, 5), 16) / 255, parseInt(h.slice(5, 7), 16) / 255];
+    try { const [h, s, l] = hex2hsl(c); return [rgb(hsl2hex(h - 16, Math.min(100, s + 10), l * 0.62)), rgb(c), rgb(hsl2hex(h + 14, s * 0.85, Math.min(94, l + 22)))]; } catch (e) { const q = rgb(c); return [q.map(v => v * 0.6), q, q.map(v => v * 0.5 + 0.5)]; } }
+  function legParts(SPL, col, elc, f) {
+    if (!SPL || !SPL.SP) return null;
+    // (they keep the page's line colour as a CSS variable, which a picture drawn on its own does not have: set it here)
+    const SP = SPL.SP, sc = SPL.sc || 1, sh3 = elShades(elc || col || '#FFD447'), ink = r => (r || '').replace(/var\(--pet-line\)/g, '#2B2433'), S = r => `<g transform="scale(${+sc.toFixed(4)})">${ink(r)}</g>`, out = { sc, aurora: sh3 };
+    if (SP.wings && SP.wings.length) { out.wings = SP.wings.map(w => ({ svg: S(`<g transform="translate(${w.x0} ${w.y0}) rotate(${w.rot})">${w.g}</g>`), pv: [w.x0 * sc, w.y0 * sc], lag: w.lag || 0, k: w.k == null ? 1 : w.k, th: 180 + (w.mid || 0) }));
+      out.flap = SP.flap || [8, 8]; out.beat = SP.beat || [1, 1, 1]; }
+    const A = SP.aura; if (A) out.aura = { cy: A.cy * sc, rot: S(A.rot), still: S(A.still), glow: S(A.glow), glowDef: ink(A.glowDef), ring: S(A.ring) };
+    // (a plain drawing, the Tower's, leaves its lights out: they are drawn here all the same when the caller asks)
+    const Lt = SP.lights || (f && f.x && f.x.lights && typeof legLightGeo === 'function' ? Object.assign({ n: f.x.lights >= 4 ? 4 : 2 }, legLightGeo(f)) : null); if (Lt) { const c = col || '#FFE7A0', wc = typeof mixHex === 'function' ? mixHex(c, '#FFFFFF', 0.55) : '#FFFFFF';
+      // (each light a soft glow with no edge: a white-hot heart melting through its colour into nothing)
+      out.lights = { cy: Lt.cy, Rr: Lt.Rr, n: Lt.n, soft: { def: `<radialGradient id="pglL"><stop offset="0" stop-color="#FFFFFF" stop-opacity="1"/><stop offset=".1" stop-color="#FFFFFF" stop-opacity=".95"/><stop offset=".22" stop-color="${wc}" stop-opacity=".75"/><stop offset=".42" stop-color="${c}" stop-opacity=".34"/><stop offset=".68" stop-color="${c}" stop-opacity=".1"/><stop offset="1" stop-color="${c}" stop-opacity="0"/></radialGradient>`, one: '<circle r="16" fill="url(#pglL)"/>' },
+        // (and a solid heart: a bright bead with a rim of its colour, its edge only just softened)
+        core: { def: `<radialGradient id="pglC"><stop offset="0" stop-color="#FFFFFF"/><stop offset=".55" stop-color="#FFFFFF"/><stop offset=".78" stop-color="${wc}"/><stop offset=".92" stop-color="${c}" stop-opacity=".9"/><stop offset="1" stop-color="${c}" stop-opacity="0"/></radialGradient>`, one: '<circle r="5.2" fill="url(#pglC)"/>' } }; }
+    return out;
   }
   // an SVG fragment drawn at d pixels per unit and cut to the pixels it paints: [canvas, its box in pet units]
-  function raster(vb0, defs, content, d) {
+  function raster(vb0, defs, content, d, wide) {
     // (over the picture's frame and well round it: wings, a mane or a halo reach past the frame, and the picture lets them)
-    const vb = [vb0[0] - vb0[2] * 0.5, vb0[1] - vb0[3] * 0.45, vb0[2] * 2, vb0[3] * 1.6];
+    const vb = wide ? [vb0[0] - vb0[2] * 1.4, vb0[1] - vb0[3] * 0.9, vb0[2] * 3.8, vb0[3] * 2.5] : [vb0[0] - vb0[2] * 0.5, vb0[1] - vb0[3] * 0.45, vb0[2] * 2, vb0[3] * 1.6];   // (wide: a Legendary's wings and aura reach far out and down)
     return new Promise(res => {
       if (!content) { res(null); return; }
       const W = Math.max(1, Math.min(2048, Math.round(vb[2] * d))), H = Math.max(1, Math.min(2048, Math.round(vb[3] * d))), im = new Image();
@@ -131,16 +183,24 @@ void main() { vec4 c = texture2D(uT, vUV);
   const halfClip = sd => `<clipPath id="pglh${sd < 0 ? 'L' : 'R'}"><rect x="${sd < 0 ? -999 : 0}" y="-999" width="999" height="1998"/></clipPath>`;
   async function build(E) {
     const C = cut(E); if (!C) throw new Error('no rig');
-    const d = E.d, defs = C.defs + halfClip(-1) + halfClip(1), R = s => raster(C.vb, defs, s, d);
+    const d = E.d, defs = C.defs + halfClip(-1) + halfClip(1) + '<filter id="pglB" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="5"/></filter>', R = s => raster(C.vb, defs, s, d);
     const parts = { base: C.base, dirt: C.dirt, back: C.back, backPost: C.backPost, auraGlow: C.auraGlow, auraRing: C.auraRing, halo: C.halo, orb: C.orb, tail: C.tail, arm: C.arm, armR: mirror(C.arm),
       paul: C.paul, paulR: mirror(C.paul), foot: C.foot, footR: mirror(C.foot), wing: C.wing, wingR: mirror(C.wing) };
-    const keys = Object.keys(parts), got = await Promise.all(keys.map(k => R(parts[k])));
+    const LG = C.leg;
+    if (LG) {
+      if (LG.wings) LG.wings.forEach((w, i) => { parts['lw' + i] = w.svg; parts['lwR' + i] = mirror(w.svg); });
+      if (LG.aura) { parts.laRot = LG.aura.rot; parts.laStill = LG.aura.still; parts.laRing = LG.aura.ring;
+        // (and a soft glow of each, the same picture blurred, laid under it so the crown of rays seems to shine)
+        parts.laRotG = `<g filter="url(#pglB)">${LG.aura.rot}</g>`; parts.laRingG = `<g filter="url(#pglB)">${LG.aura.ring}${LG.aura.still}</g>`; }
+    }
+    const keys = Object.keys(parts), got = await Promise.all(keys.map(k => /^l[wa]/.test(k) ? raster(C.vb, defs, parts[k], d, true) : R(parts[k])));
+    const lgx = LG ? await Promise.all([LG.aura ? raster(C.vb, C.defs + LG.aura.glowDef, LG.aura.glow, d, true) : null, LG.lights ? raster([-16, -16, 32, 32], LG.lights.soft.def, LG.lights.soft.one, d * 2) : null, LG.lights ? raster([-8, -8, 16, 16], LG.lights.core.def, LG.lights.core.one, d * 4) : null]) : [null, null, null];
     if (E.gen !== gen || !gl) throw new Error('stale');
-    const L = {}; keys.forEach((k, i) => { L[k] = tex(got[i]); });
+    const L = {}; keys.forEach((k, i) => { L[k] = tex(got[i]); }); L.laGlow = tex(lgx[0]); L.light = tex(lgx[1]); L.lightCore = tex(lgx[2]);
     if (!L.base) throw new Error('no body');
     // the frame each picture of it is made in: round everything it has, with room for a raised arm, a wing's beat, a turn
     let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; Object.values(L).forEach(l => { if (!l) return; const b = l.box; x0 = Math.min(x0, b[0]); y0 = Math.min(y0, b[1]); x1 = Math.max(x1, b[0] + b[2]); y1 = Math.max(y1, b[1] + b[3]); });
-    const mx = Math.max(Math.abs(x0), Math.abs(x1)) * 1.12 + 10, h0 = y1 - y0; E.fb = [-mx, y0 - h0 * 0.12 - 10, mx * 2, h0 * 1.12 + 16];
+    const pf = C.leg ? 1.3 : 1.12, mx = Math.max(Math.abs(x0), Math.abs(x1)) * pf + 10, h0 = y1 - y0; E.fb = [-mx, y0 - h0 * (pf - 1) - 10, mx * 2, h0 * (pf + 0.12) + 16];   // (a Legendary's wings swing further)
     E.C = C; E.L = L; E.feats = new Map(); E.featWant = new Set();
     E.feats.set(faceKey('normal'), tex(await raster(C.vb, C.defs, C.feat, d)));
     E.ready = true;
@@ -156,12 +216,13 @@ void main() { vec4 c = texture2D(uT, vUV);
 
   /* ---------- the cache: a pet's layers, kept while it is drawn ---------- */
   const CACHE = new Map(), DENS = [2, 3, 4.5, 7], COST = { ema: 0, n: 0, slow: false };
+  let legendOK = true;
   function dispose(E) { E.dead = true; if (!gl) return; const del = L => { if (L && L.t) gl.deleteTexture(L.t); };
     if (E.L) Object.values(E.L).forEach(del); if (E.feats) E.feats.forEach(del); E.L = null; E.feats = null; }
   // (a pet: its form's layers at about the sharpness it is drawn at; the least used are let go past a few)
   function entry(f, ppu, lite, frame) {
     if (!f || !init()) return null;
-    if (f.x && f.x.gold) return null;   // (a Legendary keeps its own drawing: its wings and lights have their own beat)
+    if (f.x && f.x.gold && !legendOK) return null;   // (PetGL.legends(false): a Legendary keeps its own drawing)
     let fr; const d = DENS.find(v => v >= ppu * 1.05) || DENS[DENS.length - 1], fk = f.__glk || JSON.stringify(f), key = fk + '|' + d + '|' + (lite ? 1 : 0) + '|' + (frame || ''), t = performance.now(); fr = frame || '';
     let E = CACHE.get(key);
     if (!E) {
@@ -223,6 +284,56 @@ void main() { vec4 c = texture2D(uT, vUV);
       lay(L.auraRing, { free: true, A: place(0, C.acy, 1, t * 0.35, 0, -(P.hop || 0) * 0.6), alpha: 0.85 }); }
     // behind the body, in the drawing's own order at every angle: behind the tail (a mane), the wings, the tail, in front of it (ears, horns)
     const zB = -0.38 * bw, card = 0.55 + 0.45 * Math.abs(cw), backA = place(0, 0, card, 0, zB * sw, 0), earBend = [0, C.top + 40, -(P.earR || 0) * D * 0.15, 90];
+    // a Legendary: its golden aura, its lights on the far side of their rings, its pairs of wings (behind all of it)
+    const LG = C.leg, LS = LG ? LG.sc : 1;
+    // the aurora's ribbons: the far ones now, the near ones (only out at its sides) over everything at the end
+    const aurora = near => { if (!LG || !LG.aurora || !PA || !o.aurora) return;   // (o.aurora: only where the caller asks for it, in the dungeons and the Rift)
+      const sh3 = LG.aurora, hgt = Math.max(60, -fb[1]), mx = fb[2] / 2;
+      gl.useProgram(PA); gl.uniform4f(UA.uView, fx + fw / 2, fy + fh / 2, 2 / fw, 2 / fh); gl.blendFunc(gl.ONE, gl.ONE);
+      gl.bindBuffer(gl.ARRAY_BUFFER, G1.vb); gl.enableVertexAttribArray(aPA); gl.vertexAttribPointer(aPA, 2, gl.FLOAT, false, 0, 0); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, G1.ib);
+      const hsh = x => { const v = Math.sin(x * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
+      for (let i = 0; i < 10; i++) { if ((i % 3 === 2) !== near) continue;
+        const per = 5.5 + hsh(i) * 3.5, q = (t + hsh(i + 9) * per) / per, cyc = Math.floor(q), ph = q - cyc, life = Math.pow(Math.sin(Math.PI * ph), 2), s0 = hsh(i * 13 + cyc * 7.3);
+        if (life < 0.01) continue;
+        const side = s0 < 0.5 ? -1 : 1, x0 = side * mx * (near ? 0.55 + 0.3 * hsh(s0 + 2) : 0.15 + 0.7 * hsh(s0 + 2)) + Math.sin(t * 0.3 + i) * 6;
+        const y0 = 14 - hgt * 0.12 * hsh(s0 + 3) - ph * hgt * 0.14, L = hgt * (0.7 + 0.35 * hsh(s0 + 4)), thr = hsh(s0 + 20) < 0.55, w = thr ? 4.5 + 4.5 * hsh(s0 + 5) : 16 + 16 * hsh(s0 + 5);   // (some fine threads of light, some broad curtains)
+        gl.uniform4f(UA.uR0, x0, y0, L, w); gl.uniform4f(UA.uR1, 5 + 10 * hsh(s0 + 6), 3.5 + 4.5 * hsh(s0 + 7), s0 * 9 - t * (0.9 + 0.6 * hsh(s0 + 8)), 2 + 4 * hsh(s0 + 10));
+        gl.uniform4f(UA.uR2, 5 + 4 * hsh(s0 + 11), s0 * 5 + t * 1.3, -side * (8 + 22 * hsh(s0 + 12)), 0);
+        const o = [sh3[0], sh3[1], sh3[2]], k3 = Math.floor(hsh(s0 + 14) * 3); gl.uniform3fv(UA.uC0, o[k3 % 3]); gl.uniform3fv(UA.uC1, o[(k3 + 1) % 3]); gl.uniform3fv(UA.uC2, o[2]);
+        gl.uniform1f(UA.uThr, thr ? 1 : 0); gl.uniform3f(UA.uAT, t, s0 * 10, life * (near ? 0.6 : 0.95) * (thr ? 0.75 : 1));
+        gl.drawElements(gl.TRIANGLES, G1.n, gl.UNSIGNED_SHORT, 0); }
+      gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); gl.useProgram(PR); };
+    if (LG && LG.aura) { const cy = LG.aura.cy, sp = t * 0.7, q = 1 + 0.04 * Math.sin(t * 2.1);
+      gl.blendFunc(gl.ONE, gl.ONE); const gq = 1.04 + 0.02 * Math.sin(t * 2.1), ga = 0.75 + 0.2 * Math.sin(t * 2.1);
+      lay(L.laRotG, { free: true, A: place(0, cy, gq, sp, 0, 0, gq), alpha: ga }); lay(L.laRingG, { free: true, A: place(0, cy, gq, 0, 0, 0, gq), alpha: ga * 0.8 }); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+      lay(L.laRot, { free: true, A: place(0, cy, 1, sp, 0, 0) }); lay(L.laStill, { free: true }); lay(L.laGlow, { free: true, A: place(0, cy, q, 0, 0, 0, q), alpha: 0.85 + 0.15 * Math.sin(t * 2.1) }); lay(L.laRing, { free: true, A: place(0, cy, 1, -sp, 0, 0) }); }
+    // its lights: glows added onto what is under them, each trailing a fading tail back along its orbit, so the path reads
+    // all the way round; on the far side they pass behind the body (in front of the wings), dimmer, on the near side in front
+    const lights = front => { if (!LG || !LG.lights || !L.light || (E.lite && !o.lights)) return;   // (o.lights: a plain drawing's caller draws them unless it asks for these)
+      const Lt = LG.lights; gl.blendFunc(gl.ONE, gl.ONE);
+      for (let i = 0; i < Lt.n; i++) { const ring = i >= 2 ? 1 : 0, a0 = legLightPhase(i, t), dir = ring ? -1 : 1;
+        for (let j = 6; j >= 0; j--) { const Q = legLightAt(a0 - dir * j * 0.11, Lt.cy, Lt.Rr, ring); if (Q[3] !== front) continue;
+          const dep = 0.82 + 0.18 * (Q[1] - Lt.cy) / (Lt.Rr * 0.32 + 1e-3) * (ring ? -1 : 1), q = 2.3 * LS * (ring ? 0.78 : 1) * (j ? 0.62 - j * 0.05 : 1) * clamp(dep, 0.75, 1.1);
+          lay(L.light, { free: true, A: place(0, 0, q, 0, Q[0] * LS, Q[1] * LS - (P.hop || 0), q), alpha: (j ? 0.32 * (1 - j / 7) : 1) * (front ? 1 : 0.7) });
+          if (!j && L.lightCore) { gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); lay(L.lightCore, { free: true, A: place(0, 0, q, 0, Q[0] * LS, Q[1] * LS - (P.hop || 0), q), alpha: front ? 1 : 0.85 }); gl.blendFunc(gl.ONE, gl.ONE); } } }
+      gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); };
+    if (LG && LG.wings) {
+      const B = LG.beat, up = LG.flap[0], down = LG.flap[1], amp0 = P.legAmp == null ? 8 : P.legAmp, fold = Math.min(B[2] > 1.2 ? 0.62 : 0.3, amp0 / 50 * B[2]), amp = amp0 * B[1], ph = (P.legPh == null ? t * 3.2 : P.legPh) * B[0];
+      const zW = -0.62 * bw, card2 = 0.5 + 0.5 * Math.abs(cw), mul = (a, b) => [a[0] * b[0] + a[1] * b[2], a[0] * b[1] + a[1] * b[3], a[2] * b[0] + a[3] * b[2], a[2] * b[1] + a[3] * b[3]], R = a => [Math.cos(a), -Math.sin(a), Math.sin(a), Math.cos(a)];
+      LG.wings.forEach((w, i) => {
+        // the beat: a quick downstroke and a slower lift (the wave leans), and the wing bending as it goes, its tip
+        // trailing behind its root (flex, against the way it moves) and trembling a little at the top of each stroke
+        // (the swing stays a smooth wave within the wings' reach, up and down: a fast flight beats wider, never stuck at
+        // the ends; a feathered or dragon wing barely closes as it beats, a butterfly's folds right up)
+        const x = ph - w.lag, wv = Math.sin(x + 0.3 * Math.sin(x)), dv = Math.cos(x + 0.3 * Math.sin(x)) * (1 + 0.3 * Math.cos(x));
+        const a = wv * Math.min(amp, wv >= 0 ? up : down) * w.k, kk = (0.5 + 0.5 * wv) * w.k, sp = 1 - fold * kk, su = 1 - fold * 0.25 * kk;
+        const flex = (clamp(-dv * amp * 0.3, -6, 6) + Math.sin(t * 23 + i * 1.7) * 1.2 * (1 - Math.abs(dv) * 0.6)) * w.k;
+        [[1, L['lw' + i]], [-1, L['lwR' + i]]].forEach(([sd, tx]) => { if (!tx) return;
+          const px = sd * w.pv[0], py = w.pv[1], th = w.th * sd * D, M = mul([card2, 0, 0, 1], mul(R(a * sd * D), mul(R(th), mul([su, 0, 0, sp], R(-th))))), dx = (px * cw + zW * sw) - px;
+          const b = tx.box, reach = Math.max(Math.hypot(b[0] - px, b[1] - py), Math.hypot(b[0] + b[2] - px, b[1] - py), Math.hypot(b[0] - px, b[1] + b[3] - py), Math.hypot(b[0] + b[2] - px, b[1] + b[3] - py));
+          lay(tx, { fine: true, bend: [px, py, flex * sd * D, reach], A: [[M[0], M[1], px + dx - (M[0] * px + M[1] * py)], [M[2], M[3], py - (M[2] * px + M[3] * py)]] }); }); });
+    }
+    aurora(false);
     lay(L.back, { fine: true, A: backA, bend: earBend });
     if (L.wing && C.wingPv) { const [wx, wy] = C.wingPv, zW = -0.62 * bw, card2 = 0.42 + 0.58 * Math.abs(cw), fl = (P.wing || 0) * D;
       const ws = [[1, L.wing, wx], [-1, L.wingR, -wx]]; if (sw > 0) ws.reverse();
@@ -237,6 +348,7 @@ void main() { vec4 c = texture2D(uT, vUV);
       sides.forEach(([sd, a2, tx]) => { if (!tx) return; const q = sh(sd, a2); lay(tx, { A: place(sd * ax0, ay0, q.nw, -sd * a2, q.out, q.up) }); });
       if (pv) sides.forEach(([sd, a2, , tx]) => { if (!tx) return; const q = sh(sd, a2); lay(tx, { A: place(sd * pv[0], pv[1], q.nw, -sd * a2 * 0.18, q.out, q.up * 0.6) }); });
     }
+    lights(false);
     // the body; what faces front slides round it with the turn and keeps inside its outline; the dirt on it
     lay(base, { fine: true });
     if (L.dirt && P.dirt > 0.01) lay(L.dirt, { fine: true, alpha: Math.min(1, P.dirt) });
@@ -247,6 +359,8 @@ void main() { vec4 c = texture2D(uT, vUV);
       fs.forEach(([sd, ft]) => { const x = -sd * lx, xs = x * cw + zF * sw; lay(sd < 0 ? L.footR : L.foot, { A: place(0, 0, 1, 0, xs - x + ft[0], ft[1]) }); }); }
     // orbs of light round its middle (behind it on the far side), the halo or crown bobbing over its head
     if (L.orb && C.orbit) { const O = C.orbit; for (let i = 0; i < O.n; i++) { const a = t * 1.2 + i * Math.PI * 2 / O.n; lay(L.orb, { free: true, A: place(0, 0, 1, 0, Math.cos(a + yaw) * O.r, O.cy + Math.sin(a) * O.r * 0.5 - (P.hop || 0)), alpha: Math.sin(a) < -0.2 ? 0.55 : 1 }); } }
+    lights(true);
+    aurora(true);
     if (L.halo) lay(L.halo, { A: place(0, 0, 1, 0.03 * Math.sin(t * 1.3), 0, -Math.sin(t * 1.9) * 2), glow: 0.15 + 0.15 * Math.max(0, Math.sin(t * 3.1)) });
     // laid into the caller's picture where the pet's picture went
     const tg = performance.now();
@@ -256,5 +370,10 @@ void main() { vec4 c = texture2D(uT, vUV);
     if (COST.n > 40 && COST.ema > 3.5 && !window.__forcePetGL) COST.slow = true;
     return true;
   }
-  return { cost: COST, draw, ready: f => { const E = f && init() ? entry(f, 2, false) : null; return !!E; }, available: () => init(), get cache() { return CACHE; } };
+  // (whether draw would draw this pet now, its layers made: a caller that draws a Legendary's lights itself otherwise)
+  const will = (f, lite, frame) => { if (!f || !gl || window.__noPetGL || COST.slow || (f.x && f.x.gold && !legendOK)) return false;
+    const fk = f.__glk || JSON.stringify(f), fr = frame || ''; for (const E2 of CACHE.values()) if (E2.ready && E2.fk === fk && E2.lite === !!lite && E2.frame === fr) return true; return false; };
+  // (the frame a pet's picture is drawn in, in its units, once its layers are made: [x, y, w, h])
+  const box = (f, lite, frame) => { if (!f || !gl) return null; const fk = f.__glk || JSON.stringify(f), fr = frame || ''; for (const E2 of CACHE.values()) if (E2.ready && E2.fk === fk && E2.lite === !!lite && E2.frame === fr) return E2.fb; return null; };
+  return { cost: COST, legends: on => { legendOK = !!on; }, will, box, draw, ready: f => { const E = f && init() ? entry(f, 2, false) : null; return !!E; }, available: () => init(), get cache() { return CACHE; } };
 })();
