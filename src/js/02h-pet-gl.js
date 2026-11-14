@@ -215,7 +215,7 @@ void main() { float u = vUV.x, v = vUV.y, T = uAT.x, S = uAT.y;
   }
 
   /* ---------- the cache: a pet's layers, kept while it is drawn ---------- */
-  const CACHE = new Map(), DENS = [2, 3, 4.5, 7], COST = { ema: 0, n: 0, slow: false };
+  const CACHE = new Map(), DENS = [2, 3, 4.5, 7], COST = { ema: 0, n: 0, slow: false, by: new Map() };
   let legendOK = true;
   function dispose(E) { E.dead = true; if (!gl) return; const del = L => { if (L && L.t) gl.deleteTexture(L.t); };
     if (E.L) Object.values(E.L).forEach(del); if (E.feats) E.feats.forEach(del); E.L = null; E.feats = null; }
@@ -272,6 +272,12 @@ void main() { float u = vUV.x, v = vUV.y, T = uAT.x, S = uAT.y;
     const fb = E.fb, hop = Math.max(0, P.hop || 0), fx = fb[0], fy = fb[1] - hop, fw = fb[2], fh = fb[3] + hop;
     let W = Math.ceil(fw * ppu), H = Math.ceil(fh * ppu); const big = Math.max(W, H); if (big > 1400) { W = Math.ceil(W * 1400 / big); H = Math.ceil(H * 1400 / big); }
     if (W < 2 || H < 2) return false;
+    // (what a frame costs is kept for each size of frame: a big one (a menu's, at a phone's full sharpness) that is slow to
+    // hand over is drawn a little softer, step by step, and only if it is still slow at half its sharpness does that size
+    // go back to the picture; the small ones, the Tower's and the town's, are left as they are)
+    const bk = Math.max(0, Math.round(Math.log2(W * H / 2e4))); let CB = COST.by.get(bk); if (!CB) { CB = { ema: 0, n: 0, q: 1, slow: false }; COST.by.set(bk, CB); }
+    E.slowLast = CB.slow && !window.__forcePetGL; if (E.slowLast) return false;
+    if (CB.q < 1) { W = Math.max(2, Math.ceil(W * CB.q)); H = Math.max(2, Math.ceil(H * CB.q)); }
     if (cv.width < W || cv.height < H) { cv.width = Math.max(cv.width, W); cv.height = Math.max(cv.height, H); }
     gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); gl.viewport(0, cv.height - H, W, H);   // (all of it cleared: a copy of part of it may take in a pixel round its edge)
     gl.uniform4f(U.uView, fx + fw / 2, fy + fh / 2, 2 / fw, 2 / fh);
@@ -368,14 +374,14 @@ void main() { float u = vUV.x, v = vUV.y, T = uAT.x, S = uAT.y;
     // laid into the caller's picture where the pet's picture went
     const tg = performance.now();
     c.drawImage(cv, 0, 0, W, H, fx * k, fy * k, fw * k, fh * k);
-    // (on a device where handing the frame over is slow, every pet goes back to its picture for the rest of the visit)
     const dt = performance.now() - tg; COST.ema = COST.n ? COST.ema * 0.92 + dt * 0.08 : dt; COST.n++;
-    if (COST.n > 40 && COST.ema > 3.5 && !window.__forcePetGL) COST.slow = true;
+    CB.ema = CB.n ? CB.ema * 0.9 + dt * 0.1 : dt; CB.n++;
+    if (CB.n > 30 && CB.ema > 3.5 && !window.__forcePetGL) { if (CB.q > 0.55) { CB.q *= 0.8; CB.n = 0; } else CB.slow = true; }
     return true;
   }
   // (whether draw would draw this pet now, its layers made: a caller that draws a Legendary's lights itself otherwise)
   const will = (f, lite, frame) => { if (!f || !gl || window.__noPetGL || COST.slow || (f.x && f.x.gold && !legendOK)) return false;
-    const fk = f.__glk || JSON.stringify(f), fr = frame || ''; for (const E2 of CACHE.values()) if (E2.ready && E2.fk === fk && E2.lite === !!lite && E2.frame === fr) return true; return false; };
+    const fk = f.__glk || JSON.stringify(f), fr = frame || ''; for (const E2 of CACHE.values()) if (E2.ready && E2.fk === fk && E2.lite === !!lite && E2.frame === fr && !E2.slowLast) return true; return false; };
   // (the frame a pet's picture is drawn in, in its units, once its layers are made: [x, y, w, h])
   const box = (f, lite, frame) => { if (!f || !gl) return null; const fk = f.__glk || JSON.stringify(f), fr = frame || ''; for (const E2 of CACHE.values()) if (E2.ready && E2.fk === fk && E2.lite === !!lite && E2.frame === fr) return E2.fb; return null; };
   return { cost: COST, legends: on => { legendOK = !!on; }, will, box, draw, ready: f => { const E = f && init() ? entry(f, 2, false) : null; return !!E; }, available: () => init(), get cache() { return CACHE; } };
