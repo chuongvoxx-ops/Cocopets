@@ -15,14 +15,14 @@ const FK = (() => {
      ribbon and shock ring this kit draws goes to the GPU painter (20k6h's NIDHOGG_MOVES.FGFX) as real fire (turbulent tongues,
      billowing balls with a corona, ribbons of scrolling flame), flushed in one pass at gpuEnd over what the move drew itself
      (scorch marks and crafted solids stay 2D). window[flag] = 0, __FIRE_GL = 0, a software rasteriser or no WebGL keep the 2D */
-  let GQ = null, GF = null;
-  function gpuBegin(c, flag, pet) { if (GQ) return null; try { if (window[flag] === 0 || window.__FIRE_GL === 0) return null; const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; if (!F || !F.usable()) return null; GF = F; GQ = F.begin(c, pet || null); BM = c.getTransform(); return GQ; } catch (e) { GQ = null; return null; } }
+  let GQ = null, GF = null, GO = null;   // (GO: options; GO.ground: scorch marks burn on the GPU as glowing, cracked ground, v348)
+  function gpuBegin(c, flag, pet, o) { if (GQ) return null; GO = o || null; try { if (window[flag] === 0 || window.__FIRE_GL === 0) return null; const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; if (!F || !F.usable()) return null; GF = F; GQ = F.begin(c, pet || null); BM = c.getTransform(); return GQ; } catch (e) { GQ = null; return null; } }
   // a point (x, y) in the context's current frame -> the frame the batch began in (a move may draw a flame under its own
   // translate/rotate, as flameAt does): its position and the extra rotation
   let BM = null;
-  function gpuXY(c, x, y) { const m = c.getTransform(); if (!BM || (m.a === BM.a && m.b === BM.b && m.c === BM.c && m.d === BM.d && m.e === BM.e && m.f === BM.f)) return [x, y, 0];
+  function gpuXY(c, x, y) { const m = c.getTransform(); if (!BM || (m.a === BM.a && m.b === BM.b && m.c === BM.c && m.d === BM.d && m.e === BM.e && m.f === BM.f)) return [x, y, 0, 1];
     const X = m.a * x + m.c * y + m.e, Y = m.b * x + m.d * y + m.f, det = BM.a * BM.d - BM.b * BM.c, dx = X - BM.e, dy = Y - BM.f;
-    return [(BM.d * dx - BM.c * dy) / det, (-BM.b * dx + BM.a * dy) / det, Math.atan2(m.b, m.a) - Math.atan2(BM.b, BM.a)]; }
+    return [(BM.d * dx - BM.c * dy) / det, (-BM.b * dx + BM.a * dy) / det, Math.atan2(m.b, m.a) - Math.atan2(BM.b, BM.a), Math.sqrt(Math.abs((m.a * m.d - m.b * m.c) / det)) || 1]; }   // (x, y, the extra rotation, the extra scale)
   function gpuEnd(c) { if (!GQ) return; const F = GF; GQ = null; GF = null; try { F.flush(c); } catch (e) {} }
   // a ribbon of fire through screen points (head last), w its width at full, taper(u) along it: a glow, a laid-over body,
   // turbulent fire in overlapping stretches, bands of light hotter to a white-hot core, balls of flame along it
@@ -31,7 +31,7 @@ const FK = (() => {
     for (let i = 1; i < n; i++) { const u = (i - 0.5) / (n - 1), ww = w * tp(u), p0 = pts[i - 1], p1 = pts[i], dx = p1[0] - p0[0], dy = p1[1] - p0[1], x0 = p0[0] - dx * 0.125, y0 = p0[1] - dy * 0.125, x1 = p1[0] + dx * 0.125, y1 = p1[1] + dy * 0.125;
       if (ww < 0.3) continue; GQ.beam(x0, y0, x1, y1, ww * 0.55, P.red, 0.7 * a); GQ.beam(x0, y0, x1, y1, ww * 0.34, P.org, 0.85 * a); GQ.beam(x0, y0, x1, y1, ww * 0.17, P.yel, 0.9 * a); GQ.beam(x0, y0, x1, y1, ww * 0.06, '#FFFFFF', a); }
     for (let i = 1; i < n; i += 2) { const u = i / (n - 1), r = w * 0.5 * tp(u); if (r > 1) GQ.fire(pts[i][0], pts[i][1], r, 0.85 + 0.2 * u, 0.75 * a, (seed || 0) + i * 0.7); } }
-  function glow(c, x, y, r, col, a) { if (GQ) { if (r >= 1 && a > 0.01) GQ.glow(x, y, r * 1.1, col || P.org, Math.min(1, a * 1.3)); return; } if (r < 1 || !(a > 0.01)) return; c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = Math.min(1, a); blitSized(c, glowSprite(col || P.org), x - r, y - r, r * 2, r * 2); c.restore(); }
+  function glow(c, x, y, r, col, a) { if (GQ) { if (r >= 1 && a > 0.01) { const p = gpuXY(c, x, y); GQ.glow(p[0], p[1], r * 1.1 * p[3], col || P.org, Math.min(1, a * 1.3)); } return; } if (r < 1 || !(a > 0.01)) return; c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = Math.min(1, a); blitSized(c, glowSprite(col || P.org), x - r, y - r, r * 2, r * 2); c.restore(); }
   /* light thrown on the floor: a squashed additive pool */
   function floorLight(c, X, Y, r, a, col) { if (GQ) { if (r >= 1 && a > 0.01) GQ.glow(X, Y, r * 1.1, col || P.org, Math.min(1, a * 1.3), H.GY); return; } if (r < 1 || !(a > 0.01)) return; c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = Math.min(1, a); blitSized(c, glowSprite(col || P.org), X - r, Y - r * H.GY, r * 2, r * 2 * H.GY); c.restore(); }
   /* the outline of a flame tongue standing at (x, y), w wide, h tall, its tip at (tx, ty) */
@@ -97,6 +97,7 @@ const FK = (() => {
     c.strokeStyle = rgba(P.yel, 0.55 * hk); c.lineWidth = Math.max(0.8, r * 0.015); c.stroke();
     for (let i = 0; i < 9; i++) { const b = i * 2.39 + s, rr = r * (0.35 + 0.5 * ((i * 0.37 + s * 0.1) % 1)), px = X + Math.cos(b) * rr, py = Y + Math.sin(b) * rr * H.GY; c.fillStyle = rgba(i % 2 ? P.org : P.yel, 0.85 * hk); c.beginPath(); c.ellipse(px, py, 1.5 + heat * 1.5, 1 + heat, 0, 0, TAU); c.fill(); }
     c.restore();
+    if (GQ && GO && GO.ground) { const p = gpuXY(c, X, Y); GQ.ground(p[0], p[1], r * 0.95 * p[3], 0.55 + 0.4 * Math.min(1, heat), 0.85 * hk, s, H.GY, 0.85); }   // (v348: the ground itself burning)
   }
   /* a shock ring on the floor: a wide soft orange band and a thin white-hot leading edge */
   function shockRing(c, X, Y, r, a) { if (r < 1 || !(a > 0.01)) return; if (GQ) { GQ.ring(X, Y, r * 0.93, P.org, 0.85 * a, Math.max(2, r * 0.2), H.GY); GQ.ring(X, Y, r, P.yel, a, Math.max(1.5, r * 0.05), H.GY); GQ.ring(X, Y, r * 1.01, '#FFFFFF', 0.6 * a, Math.max(1, r * 0.015), H.GY); GQ.shimmer(X, Y, r * 1.05, 0.35 * a, H.GY); return; } c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = a; c.strokeStyle = rgba(P.org, 0.45); c.lineWidth = Math.max(2, r * 0.18); H.floorEllipse(c, X, Y, r * 0.93); c.stroke(); c.strokeStyle = rgba(P.yel, 0.8); c.lineWidth = Math.max(1.5, r * 0.05); H.floorEllipse(c, X, Y, r); c.stroke(); c.strokeStyle = rgba(P.wht, 0.9); c.lineWidth = 1; H.floorEllipse(c, X, Y, r * 1.01); c.stroke(); c.restore(); }

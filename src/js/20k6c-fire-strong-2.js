@@ -17,6 +17,7 @@
     const rr = r * 0.6, rw = r * 0.22;
     // the disc inside the rim: a turning sheet of flame, white at the hub
     const gd = c.createRadialGradient(x - r * 0.1, y - r * 0.12, 0, x, y, rr); gd.addColorStop(0, P.wht); gd.addColorStop(0.4, P.yel); gd.addColorStop(0.75, P.amb); gd.addColorStop(1, P.org); c.fillStyle = gd; c.beginPath(); c.arc(x, y, rr, 0, TAU); c.fill();
+    if (K.gq && K.gq()) { const p = K.gpuXY(c, x, y); K.gq().quad(14, p[0], p[1], rr * 0.95, 0, 0, rr * 0.95, '#FFFFFF', 0.8 * a, 0.9, s, 0.5 * dir); }   // (v348: on the GPU the disc a turning vortex of fire)
     c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; for (let i = 0; i < 3; i++) { const b = rot * 1.4 + i * 2.1; c.strokeStyle = H.rgba(P.yel, 0.55); c.lineWidth = Math.max(1, r * 0.07); c.beginPath(); c.arc(x, y, rr * (0.45 + i * 0.15), b, b + 1.5 * dir, dir < 0); c.stroke(); } c.restore();
     c.strokeStyle = P.char; c.lineWidth = rw + 2; c.beginPath(); c.arc(x, y, rr, 0, TAU); c.stroke();
     const g = c.createLinearGradient(x - rr, y - rr, x + rr, y + rr); g.addColorStop(0, P.yel); g.addColorStop(0.35, P.org); g.addColorStop(1, P.dred);
@@ -262,7 +263,8 @@
      Evolution: radius 3.0 at Hatchling to 4.5 at Celestial (times C.K), FK.evoN(C, 1, 3) waves sharing the damage; at
      Celestial the last wave throws up a crown of flame pillars at its rim. */
   /* a feathered band of light on the floor ellipse: layered soft strokes, wide and faint outside, narrow and hot inside */
-  function softBand(c, H, K, x, y, r, w, k) { if (k <= 0.01 || r < 1) return; const P = K.P; c.save(); c.globalCompositeOperation = 'lighter'; const L = [[1, P.red, 0.07], [0.72, P.red, 0.1], [0.5, P.org, 0.14], [0.32, P.amb, 0.2], [0.18, P.yel, 0.26], [0.08, P.wht, 0.3]];
+  function softBand(c, H, K, x, y, r, w, k) { if (k <= 0.01 || r < 1) return; const P = K.P; if (K.gq && K.gq()) { const Q = K.gq(), p = K.gpuXY(c, x, y); Q.ring(p[0], p[1], r, P.red, 0.5 * k, Math.max(2, w * 0.5), H.GY); Q.ring(p[0], p[1], r, P.org, 0.6 * k, Math.max(1.5, w * 0.28), H.GY); Q.ring(p[0], p[1], r, P.yel, 0.6 * k, Math.max(1, w * 0.12), H.GY); Q.ring(p[0], p[1], r, '#FFFFFF', 0.45 * k, Math.max(0.8, w * 0.04), H.GY); Q.shimmer(p[0], p[1], r * 1.05, 0.3 * k, H.GY); return; }   // (v348: on the GPU)
+    c.save(); c.globalCompositeOperation = 'lighter'; const L = [[1, P.red, 0.07], [0.72, P.red, 0.1], [0.5, P.org, 0.14], [0.32, P.amb, 0.2], [0.18, P.yel, 0.26], [0.08, P.wht, 0.3]];
     for (const [lw, col, al] of L) { c.strokeStyle = H.rgba(col, al * k); c.lineWidth = Math.max(1, w * lw); H.floorEllipse(c, x, y, r); c.stroke(); } c.restore(); }
   /* soft char on the floor: a feathered dark pool, no cracks */
   function softChar(c, H, x, y, r, a) { if (r < 1 || a <= 0.01) return; c.save(); c.translate(x, y); c.scale(1, H.GY); c.globalCompositeOperation = 'lighter'; c.globalAlpha = Math.min(1, 0.25 * a); blitSized(c, glowSprite('#FF7A2E'), -r, -r, r * 2, r * 2); c.restore(); }   /* (a warm additive afterglow: no dark residue) */
@@ -332,4 +334,26 @@
           // the burst: a crown of flame standing on the spot, sinking as it cools
           if (age > 0 && age < 0.45) { const u = age / 0.45; K.flame(c, X, Y + T * 0.05, T * (s.big ? 0.8 : 0.5), T * (s.big ? 1.9 : 1.2) * Math.sin(Math.min(1, u * 3) * Math.PI * 0.5) * (1 - u) + 1, t, i * 2.2, 0, 1 - u * u); } } });
       H.X.after(s.t0, () => { H.hitArea(s.x, s.y, s.r, per * s.k, C.dmgO({ kb: s.big ? 4 : 2, burn: 1 })); K.blast(s.x, s.y, s.r, s.big ? 1.5 : lite ? 0.45 : 0.75); for (let j = 0; j < H.n(s.big ? 10 : lite ? 3 : 6); j++) { const b = j / 6 * TAU; H.P({ kind: 'star', x: s.x + Math.cos(b) * 0.2, y: s.y - 0.3 + Math.sin(b) * 0.15, vx: Math.cos(b) * 3, vy: Math.sin(b) * 2 - 2, g: 6, life: 0.45, max: 0.45, size: 4, color: j % 2 ? P.yel : P.wht }); } if (!lite || i % 3 === 0 || s.big) H.X.sfx.crash(); }); }); };
+})();
+/* (v348) the ten fire Strongs on the GPU, as the Ults are: each cast runs with a view of the move context (H) whose add()
+   wraps every effect's draw and drawUnder in the fire kit's GPU mode (FK.gpuBegin/gpuEnd), so the kit's glows, floor light,
+   flames, fireballs, ribbons and shock rings paint through Nidhogg's painter as real fire, scorch marks burn as glowing,
+   cracked ground, and the context's own energy cores and motion trails turn to fire cores and beams of light; the crafted
+   solids (koi, coal, whip plates, wheel, mandala, salamander, match heads) stay crisp 2D. window.__FST_GL = 0 (or
+   __FIRE_GL = 0) keeps the 2D picture; a software rasteriser or no WebGL keep it too */
+(() => {
+  const S = ELEM_IMPL.fire.strong, KEYS = ['emberkoi', 'cinderfan', 'furnaceseed', 'moltenlash', 'phoenixtalon', 'firewheel', 'mandala', 'salamander', 'hearthburst', 'matchstars'];
+  function gpuH(H) { const Hp = Object.create(H), K = FK.bind(H), P = K.P;
+    Hp.add = o => { for (const k of ['draw', 'drawUnder']) { const fn = o[k]; if (typeof fn !== 'function') continue; const under = k === 'drawUnder';
+        o[k] = function (c, f, X, Y, T, t) { const q = K.gpuBegin(c, '__FST_GL', under ? null : [H.sx(H.me.x), H.sy(H.me.y) - T * 0.46, T * 0.62], { ground: 1 }); try { return fn.call(this, c, f, X, Y, T, t); } finally { if (q) K.gpuEnd(c); } }; }
+      return H.add(o); };
+    // a glowing energy core -> a ball of white-hot fire with a halo
+    Hp.core = (c, x, y, r, col, hot, a) => { const Q = K.gq(); if (!Q) return H.core(c, x, y, r, col, hot, a); if (!(r > 0.5)) return; const A = a == null ? 1 : a, p = K.gpuXY(c, x, y), R = r * p[3];
+      Q.glow(p[0], p[1], R * 2.6, col || P.org, 0.45 * A); Q.quad(3, p[0], p[1], R * 1.1, 0, 0, R * 1.1, '#FFFFFF', 0.8 * A, 0.85, x * 0.013 + y * 0.007); Q.glow(p[0], p[1], R * 0.55, '#FFFFFF', 0.6 * A); };
+    // a motion trail -> overlapping beams, faint and wide to bright and thin toward the head
+    Hp.trail = (c, pts, w, col, core) => { const Q = K.gq(); if (!Q) return H.trail(c, pts, w, col, core); const n = pts.length; if (n < 2) return; const sp = pts.map(p => K.gpuXY(c, p[0], p[1]));
+      for (let i = 1; i < n; i++) { const u = i / (n - 1), p0 = sp[i - 1], p1 = sp[i], dx = p1[0] - p0[0], dy = p1[1] - p0[1], x0 = p0[0] - dx * 0.125, y0 = p0[1] - dy * 0.125, x1 = p1[0] + dx * 0.125, y1 = p1[1] + dy * 0.125, ww = w * (0.35 + 0.65 * u) * 0.5;
+        Q.beam(x0, y0, x1, y1, ww, col, 0.15 + 0.55 * u); if (core) Q.beam(x0, y0, x1, y1, ww * 0.35, core, 0.2 + 0.7 * u); } };
+    return Hp; }
+  for (const key of KEYS) { const I = S[key]; if (typeof I !== 'function' || I.__gl) continue; const W = (C, H) => I(C, gpuH(H)); W.__gl = 1; for (const k in I) W[k] = I[k]; S[key] = W; }
 })();
