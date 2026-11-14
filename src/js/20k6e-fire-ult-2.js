@@ -30,7 +30,8 @@
       c.fillStyle = ramp(lit(b + 0.45) - 0.12, R); c.beginPath(); c.moveTo(x, y); c.lineTo(tip[0], tip[1]); c.lineTo(Rr[0], Rr[1]); c.closePath(); c.fill();
       c.strokeStyle = H.rgba(P.wht, 0.55 * lit(b)); c.lineWidth = Math.max(0.8, r * 0.05); c.beginPath(); c.moveTo(x, y); c.lineTo(tip[0], tip[1]); c.stroke(); }
     c.strokeStyle = H.line(); c.lineWidth = Math.max(1, r * 0.07); c.beginPath(); for (let i = 0; i < n * 2; i++) { const b = rot + i / (n * 2) * TAU, rr = i % 2 ? ri : r; i ? c.lineTo(x + Math.cos(b) * rr, y + Math.sin(b) * rr * sq) : c.moveTo(x + Math.cos(b) * rr, y + Math.sin(b) * rr * sq); } c.closePath(); c.stroke();
-    H.core(c, x, y, ri * 0.9, P.yel, '#FFFFFF', 0.9 * (a == null ? 1 : a)); c.restore();
+    if (K && K.gq && K.gq()) { const Q = K.gq(), p = K.gpuXY(c, x, y), A = a == null ? 1 : a, rc = ri * 1.05; Q.quad(13, p[0], p[1], r * 1.5, 0, 0, r * 1.5 * sq, P.org, 0.4 * A, 1.0, x * 0.01 + 3, 0.2); Q.quad(3, p[0], p[1], rc, 0, 0, rc, '#FFFFFF', 0.85 * A, 1.0, rot * 0.3 + 5); Q.glow(p[0], p[1], rc * 0.7, '#FFFFFF', 0.7 * A); }   // (v347: a burning white-hot heart and a corona, on the GPU)
+    else H.core(c, x, y, ri * 0.9, P.yel, '#FFFFFF', 0.9 * (a == null ? 1 : a)); c.restore();
   }
   /* a flame blade: a faceted crescent (a dark crust back, a molten body lit on the near face, a white-hot cutting edge), an outline,
      flames licking off its back, a glow. At (X, Y), r px long, turned by rot (the edge faces rot - PI/2) */
@@ -98,7 +99,7 @@
     c.restore();
   }
   /* heat shimmer (rising wavy lines) */
-  function shimmer(c, X, Y, r, h, t, a) { if (a <= 0.01) return; c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.18 * a; c.strokeStyle = P.wht; c.lineWidth = 1.5; for (let i = 0; i < 3; i++) { const ox = (i - 1) * r * 0.5, ph = t * 5 + i * 2; c.beginPath(); for (let j = 0; j <= 6; j++) { const u = j / 6, px = X + ox + Math.sin(ph + u * 7) * r * 0.12, py = Y - u * h - ((t * 0.6 + i * 0.3) % 1) * h * 0.2; j ? c.lineTo(px, py) : c.moveTo(px, py); } c.stroke(); } c.restore(); }
+  function shimmer(c, X, Y, r, h, t, a) { if (a <= 0.01) return; if (K && K.gq && K.gq()) { const p = K.gpuXY(c, X, Y - h * 0.5); K.gq().shimmer(p[0], p[1], Math.max(r, h * 0.5), 0.6 * a); return; } c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.18 * a; c.strokeStyle = P.wht; c.lineWidth = 1.5; for (let i = 0; i < 3; i++) { const ox = (i - 1) * r * 0.5, ph = t * 5 + i * 2; c.beginPath(); for (let j = 0; j <= 6; j++) { const u = j / 6, px = X + ox + Math.sin(ph + u * 7) * r * 0.12, py = Y - u * h - ((t * 0.6 + i * 0.3) % 1) * h * 0.2; j ? c.lineTo(px, py) : c.moveTo(px, py); } c.stroke(); } c.restore(); }
   /* --- flame budget: these draw single FK flames (never the three-tongue crown), so a busy Celestial cast stays near ~40 --- */
   function flameAtS(c, x, y, ang, w, h, t, seed, a) { c.save(); c.translate(x, y); c.rotate(ang + Math.PI / 2); K.flame(c, 0, 0, w, h, t, seed, Math.sin(t * 8 + (seed || 0)) * w * 0.18, a, true); c.restore(); }
   /* a ring of single flames on a floor ellipse, the back ones first */
@@ -112,7 +113,9 @@
   }
   /* a streak of fire along screen points: layered bands, glow, and a few single flames licking off it */
   function streak(c, pts, w, t, a, taper, seed, nf) {
-    if (pts.length < 2 || w < 0.5 || a <= 0.01) return; c.save(); c.lineCap = 'round'; c.lineJoin = 'round'; for (let i = 0; i < pts.length; i += 3) K.glow(c, pts[i][0], pts[i][1], w * 1.8, P.org, 0.35 * a);
+    if (pts.length < 2 || w < 0.5 || a <= 0.01) return;
+    if (K && K.gq && K.gq()) { K.gpuRibbon(pts.map(p => K.gpuXY(c, p[0], p[1])), w * 1.2, Math.min(1, a), taper, seed); const m = nf == null ? 3 : nf; for (let k = 1; k <= m; k++) { const i = Math.round(k / (m + 1) * (pts.length - 1)), u = i / (pts.length - 1), kk = taper ? taper(u) : 1; K.flame(c, pts[i][0], pts[i][1] + w * 0.2 * kk, w * 0.8 * kk, w * (1.4 + 0.6 * Math.sin(t * 9 + i * 1.7 + seed)) * kk, t, i * 1.3 + seed, Math.sin(t * 5 + i) * w * 0.2, 0.85 * a, true); } return; }   // (v347, on the GPU: scrolling fire)
+    c.save(); c.lineCap = 'round'; c.lineJoin = 'round'; for (let i = 0; i < pts.length; i += 3) K.glow(c, pts[i][0], pts[i][1], w * 1.8, P.org, 0.35 * a);
     c.globalAlpha = a; H.ribbon(c, pts, w * 1.15, H.rgba(P.dred, 0.8), null, taper); H.ribbon(c, pts, w * 0.92, P.red, null, taper); H.ribbon(c, pts, w * 0.68, P.org, null, taper); c.globalCompositeOperation = 'lighter'; H.ribbon(c, pts, w * 0.4, H.rgba(P.yel, 0.9), null, taper); H.ribbon(c, pts, w * 0.14, P.wht, null, taper); c.globalCompositeOperation = 'source-over';
     const m = nf == null ? 3 : nf; for (let k = 1; k <= m; k++) { const i = Math.round(k / (m + 1) * (pts.length - 1)), u = i / (pts.length - 1), kk = taper ? taper(u) : 1; K.flame(c, pts[i][0], pts[i][1] + w * 0.2 * kk, w * 0.8 * kk, w * (1.4 + 0.6 * Math.sin(t * 9 + i * 1.7 + seed)) * kk, t, i * 1.3 + seed, Math.sin(t * 5 + i) * w * 0.2, 0.85 * a, true); }
     c.restore();
@@ -725,6 +728,7 @@
     if (burn > 0) { // the charred, glowing margin along the burning edge
       c.save(); H.poly(c, L.concat(R.slice().reverse())); c.clip(); c.strokeStyle = H.rgba(P.char, 0.95); c.lineWidth = Math.max(2, w * 0.12); H.poly(c, edge, false); c.stroke(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = H.rgba(P.org, 0.95); c.lineWidth = Math.max(1, w * 0.05); H.poly(c, edge.map(p => [p[0], p[1] + w * 0.07]), false); c.stroke(); c.restore(); }
     c.restore();
+    if (burn > 0 && burn < 0.97 && K && K.gq && K.gq()) { const Q = K.gq(), ep = edge.map(p => K.gpuXY(c, p[0], p[1] + w * 0.06)); for (let i = 1; i < ep.length; i++) { const p0 = ep[i - 1], p1 = ep[i], dx = p1[0] - p0[0], dy = p1[1] - p0[1]; Q.beam(p0[0] - dx * 0.125, p0[1] - dy * 0.125, p1[0] + dx * 0.125, p1[1] + dy * 0.125, Math.max(1.5, w * 0.07), P.org, 0.8); Q.beam(p0[0] - dx * 0.125, p0[1] - dy * 0.125, p1[0] + dx * 0.125, p1[1] + dy * 0.125, Math.max(0.8, w * 0.025), '#FFE7A0', 0.85); } }   // (v347)
     if (burn > 0) { if (burn < 0.97) for (let i = 0; i < 3; i++) { const p = edge[1 + i * 2]; K.flame(c, p[0], p[1] + w * 0.04, w * 0.26, hh * (0.22 + 0.06 * Math.sin(t * 12 + i + seed)) * (1 - burn * 0.5), t, i + seed, 0, 0.95, true); } }
     else { c.fillStyle = P.char; c.fillRect(-w / 2 - 3, -hh - 4, w + 6, 4); c.strokeStyle = H.line(); c.lineWidth = 1; c.strokeRect(-w / 2 - 3, -hh - 4, w + 6, 4); }
     c.restore();
@@ -743,13 +747,18 @@
       update(dt, f) { f.rot += dt * 0.7; f.fold = f.t > FOLD ? cl((f.t - FOLD) / 0.5) : 0; sheets.forEach((s, i) => { s.swp = cl((f.t - s.t0) / 0.3); s.burn = cl((f.t - 0.8 - i * 0.12) / 2.8); });
         if (f.t < BURST) { for (const s of sheets) { const b = s.b + f.rot; if (Math.random() < 0.6) K.aura(x + Math.cos(b) * R * (1 - f.fold), y + Math.sin(b) * R * H.GY * (1 - f.fold), 0.3, dt, 6, 1.4); } }
         for (const p of scraps) { p.vx *= 1 - dt * 1.3; p.vy = p.vy * (1 - dt * 1.3) + dt * 1.6; p.x += p.vx * dt; p.y += p.vy * dt; p.z = Math.max(0, p.z + p.vz * dt); p.vz -= dt * 1.0; p.r += p.vr * dt; p.life -= dt; if (Math.random() < 0.06 * H.Q()) H.P({ kind: 'ember', x: p.x, y: p.y - p.z, vx: 0, vy: -1, g: -1, life: 0.4, max: 0.4, size: 2.5, color: P.yel }); } },
-      drawUnder(c, f, X, Y, T, t) { const k = H.fade(f, 0.4, 0.7);
+      // (v347) on the GPU where it can be: the kit's flames, glows and rings as real fire (FK's GPU mode), the sweeps as ribbons of
+      // scrolling flame, a burning line along each banner's burning edge, the star's white-hot heart and corona, the burst as a
+      // rolling fireball over burning, cracked ground; the paper itself (facets, sigils, scraps) stays crisp (2D)
+      drawUnder(c, f, X, Y, T, t) { K.gpuBegin(c, '__PF_GL', null); try { f.underImpl(c, f, X, Y, T, t); } finally { K.gpuEnd(c); } },
+      draw(c, f, X, Y, T, t) { K.gpuBegin(c, '__PF_GL', [H.sx(H.me.x), H.sy(H.me.y) - T * 0.46, T * 0.62]); try { f.drawImpl(c, f, X, Y, T, t); } finally { K.gpuEnd(c); } },
+      underImpl(c, f, X, Y, T, t) { const k = H.fade(f, 0.4, 0.7);
         c.save(); c.globalAlpha = 0.6 * k * (1 - f.fold); K.floorLight(c, X, Y, T * (R + 0.6), 0.35); c.globalCompositeOperation = 'lighter'; c.strokeStyle = H.rgba(P.org, 0.7); c.lineWidth = 2; c.setLineDash([T * 0.25, T * 0.2]); c.lineDashOffset = f.rot * T * 2; H.floorEllipse(c, X, Y, T * R); c.stroke(); c.setLineDash([]); c.strokeStyle = H.rgba(P.yel, 0.5); c.lineWidth = 1.2; c.beginPath(); for (let i = 0; i < N; i++) { const b = i / N * TAU + f.rot * 0.5, b2 = (i + 1) / N * TAU + f.rot * 0.5; c.moveTo(X + Math.cos(b) * T * R, Y + Math.sin(b) * T * R * H.GY); c.lineTo(X + Math.cos(b2) * T * R * 0.55, Y + Math.sin(b2) * T * R * 0.55 * H.GY); } c.stroke(); c.restore();
         for (const s of sheets) { if (s.swp <= 0) continue; const a2 = f.t - s.t0 - 0.15; if (a2 > 0) { const b = s.b + f.rot * 0.8, bx = X + Math.cos(b) * T * R * 0.3, by = Y + Math.sin(b) * T * R * 0.3 * H.GY; K.scorch(c, bx, by, T * 0.8, k * 0.6, Math.max(0, 1 - a2 / 1.4), s.b * 5); } }
-        if (f.t > BURST) { const a2 = f.t - BURST; K.scorch(c, X, Y, T * R * 0.8 * cl(a2 / 0.3), k, Math.max(0, 1 - a2 / 1.3), 2); K.shockRing(c, X, Y, T * (R + 0.6) * H.ease.out(cl(a2 / 0.45)), 1 - cl(a2 / 0.5)); if (FIN && a2 > 0.45) K.shockRing(c, X, Y, T * (R + 1.8) * H.ease.out(cl((a2 - 0.45) / 0.45)), 1 - cl((a2 - 0.45) / 0.5)); }
+        if (f.t > BURST) { const a2 = f.t - BURST; K.scorch(c, X, Y, T * R * 0.8 * cl(a2 / 0.3), k, Math.max(0, 1 - a2 / 1.3), 2); if (K.gq()) { const ga = k * Math.max(0, 1 - a2 / 1.6); K.gq().glow(X, Y, T * R * 1.1, P.org, 0.5 * ga, H.GY); K.gq().ground(X, Y, T * R * 0.85 * H.ease.out(cl(a2 / 0.35)), 0.85 * ga, 0.85 * ga, 7, H.GY, 0.9); } K.shockRing(c, X, Y, T * (R + 0.6) * H.ease.out(cl(a2 / 0.45)), 1 - cl(a2 / 0.5)); if (FIN && a2 > 0.45) K.shockRing(c, X, Y, T * (R + 1.8) * H.ease.out(cl((a2 - 0.45) / 0.45)), 1 - cl((a2 - 0.45) / 0.5)); }
         for (const p of scraps) if (p.life > 0) K.floorLight(c, H.sx(p.x), H.sy(p.y), T * 0.35, 0.25 * cl(p.life));
       },
-      draw(c, f, X, Y, T, t) { const k = Math.min(1, f.life / 0.7), unf = H.ease.back(cl(f.t / 0.9)), burst = f.t > BURST ? cl((f.t - BURST) / 0.35) : 0; c.globalAlpha = k; if (near) petHole(c, T);
+      drawImpl(c, f, X, Y, T, t) { const k = Math.min(1, f.life / 0.7), unf = H.ease.back(cl(f.t / 0.9)), burst = f.t > BURST ? cl((f.t - BURST) / 0.35) : 0; c.globalAlpha = k; if (near) petHole(c, T);
         const items = []; sheets.forEach((s, i) => { if (burst > 0) return; const b = s.b + f.rot, swing = s.swp > 0 && s.swp < 1 ? Math.sin(s.swp * Math.PI) : 0, rr = T * R * Math.max(0, unf) * (1 - swing * 0.8) * (1 - f.fold), bx = X + Math.cos(b) * rr, by = Y + Math.sin(b) * rr * H.GY, z = T * (0.35 + 0.3 * Math.sin(t * 1.5 + i)) * (1 - f.fold) + f.fold * T * 1.4, hh = T * (1.7 + 0.05 * ev) * cl(unf) * (1 - f.fold * 0.5), w = T * 0.85 * cl(unf) * (1 - f.fold * 0.4), turn = Math.cos(b + t * 0.8);
           items.push({ y: by, d() { H.softShadow(c, bx, by, w * 0.7, 0.18 * (1 - f.fold)); K.floorLight(c, bx, by, w * 1.2, 0.3 * (1 - f.fold));
             if (swing > 0) { const pts = []; for (let j = 0; j <= 8; j++) { const u = j / 8, bb = b - u * 1.0, r2 = T * R * (1 - Math.sin(Math.max(0, s.swp - u * 0.2) * Math.PI) * 0.8); pts.push([X + Math.cos(bb) * r2, Y + Math.sin(bb) * r2 * H.GY - z - hh * 0.4]); } streak(c, pts.reverse(), hh * 0.24, t, 0.85 * swing, u => 0.3 + 0.7 * u, i, 3); }
@@ -757,6 +766,7 @@
         items.sort((p, q) => p.y - q.y).forEach(it => it.d());
         // the folded star: an origami star of lit and shaded paper facets, white-hot, which bursts
         if (f.fold > 0 && burst < 1) { const cy = Y - T * 1.6, s = T * (0.9 + 0.06 * ev) * H.ease.back(f.fold) * (1 + burst * 1.5), al = 1 - burst; K.glow(c, X, cy, s * 2.4, P.amb, 0.6 * al); facetStar(c, X, cy, s, s * 0.42, SP, t * 1.2, RAMP_HOT, al, 1); facetStar(c, X, cy, s * 0.55, s * 0.22, SP, -t * 1.8 + 0.3, [P.wht, P.wht, P.yel, P.amb], al * 0.9, 1); shimmer(c, X, cy - s, s * 1.5, T * 1.2, t, al); }
+        if (K.gq() && f.t > BURST && f.t < BURST + 0.9) { const a2 = (f.t - BURST) / 0.9, cy = Y - T * 1.6 + a2 * T * 0.6, rb = T * (0.9 + 0.06 * ev) * (1.2 + 2.2 * H.ease.out(a2)); K.fireball(c, X, cy, rb * 0.6, t, 11, k * (1 - a2) * 0.95); K.gq().smoke(X, cy - rb * 0.45, rb * 0.8, 0.18 * k * a2 * (1 - a2) * 4, 13); }   // (v347: the burst as a rolling fireball, on the GPU)
         // the scraps: curling quads of paper, a glowing burning edge, charring as they fall
         for (const p of scraps) { if (p.life <= 0) continue; const SX = H.sx(p.x), SY = H.sy(p.y) - p.z * T, al = cl(p.life / 0.6), char = cl(1 - p.life / p.max * 1.2), cw = Math.cos(p.r * 1.7); c.save(); c.globalAlpha = k * al; c.translate(SX, SY); c.rotate(p.r); c.scale(1, 0.25 + 0.75 * Math.abs(cw)); const sz = p.s * T;
           c.fillStyle = cw > 0 ? H.mix(P.amb, P.char, char) : H.mix(P.red, P.char, char); c.beginPath(); c.moveTo(-sz, -sz * 0.6); c.lineTo(sz * 0.8, -sz * 0.8); c.lineTo(sz, sz * 0.5); c.lineTo(-sz * 0.7, sz * 0.7); c.closePath(); c.fill(); c.strokeStyle = H.rgba(P.char, 0.8); c.lineWidth = 1; c.stroke(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = H.rgba(P.yel, 0.9 * (1 - char * 0.5)); c.lineWidth = 1.5; c.beginPath(); c.moveTo(sz * 0.8, -sz * 0.8); c.lineTo(sz, sz * 0.5); c.lineTo(-sz * 0.7, sz * 0.7); c.stroke(); c.restore(); if (p.fl) K.flame(c, SX, SY, sz * 0.9, sz * 2.2 * al, t, p.r, 0, al * 0.9, true); }
