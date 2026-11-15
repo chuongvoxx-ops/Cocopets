@@ -220,7 +220,7 @@ function sanitize(o) {
   // the rifts: which are sealed, the checkpoint in each, which gates' trials are done
   if (o.rift && typeof o.rift === 'object') { const r = o.rift, idOK = k => /^[a-z]{2,16}$/.test(k);
     ['seals', 'gates'].forEach(f => { if (r[f] && typeof r[f] === 'object') Object.keys(r[f]).slice(0, 20).forEach(k => { if (idOK(k) && r[f][k]) s.rift[f][k] = 1; }); });
-    if (r.prog && typeof r.prog === 'object') Object.keys(r.prog).slice(0, 20).forEach(k => { if (idOK(k)) s.rift.prog[k] = Math.floor(num(r.prog[k], 0, 0, 5)); });
+    if (r.prog && typeof r.prog === 'object') Object.keys(r.prog).slice(0, 20).forEach(k => { if (idOK(k)) s.rift.prog[k] = Math.floor(num(r.prog[k], 0, 0, 31)); });   // (QA v386: was capped at 5, from the old six-stage rifts: a checkpoint past stage 6 (Rift 0's 9 stages, the others' 14) fell back to stage 6 on every load)
     s.rift.rlyeh = r.rlyeh ? 1 : 0; }
   if (o.v === 4 && Array.isArray(o.others)) s.others = o.others.slice(0, MAX_PETS - 1).map(p => sanitizePet(p, 4)).filter(Boolean);
   const seen = new Set([s.uid]);

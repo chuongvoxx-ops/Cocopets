@@ -20,8 +20,8 @@ function defGate(id, g) { RIFT_GATES[id] = g; }
    lesser horrors). A boss stage is a Super Fiend-class fight */
 const RIFT_SECTIONS = [['fight', 'puzzle', 'fight', 'puzzle', 'boss'], ['fight', 'puzzle', 'fight', 'puzzle', 'boss'], ['fight', 'puzzle', 'fight', 'boss']];
 /* where stage i sits: { sec (1-based), n (its number among its kind in the section, 1-based) } */
-function riftStagePos(Rf, i) { let sec = 1, fights = 0, puzzles = 0; for (let k = 0; k <= i; k++) { const S = Rf.stages[k]; const dun = S.kind === 'fight' || S.trial; if (k === i) return { sec, n: S.kind === 'boss' ? sec : dun ? fights + 1 : puzzles + 1 }; if (S.kind === 'boss') { sec++; fights = 0; puzzles = 0; } else if (dun) fights++; else puzzles++; } return { sec, n: 1 }; }
-function riftStageLabel(Rf, i) { const S = Rf.stages[i], P = riftStagePos(Rf, i); return `Section ${P.sec} · ${S.kind === 'boss' ? 'Boss' : S.kind === 'fight' || S.trial ? 'Dungeon' : 'Puzzle'} ${P.n}`; }
+function riftStagePos(Rf, i) { let sec = 1, fights = 0, puzzles = 0; for (let k = 0; k <= i; k++) { const S = Rf.stages[k]; const dun = S.kind === 'fight' || (S.trial && !Rf.trialPuzzle); if (k === i) return { sec, n: S.kind === 'boss' ? sec : dun ? fights + 1 : puzzles + 1 }; if (S.kind === 'boss') { sec++; fights = 0; puzzles = 0; } else if (dun) fights++; else puzzles++; } return { sec, n: 1 }; }
+function riftStageLabel(Rf, i) { const S = Rf.stages[i], P = riftStagePos(Rf, i); return `Section ${P.sec} · ${S.kind === 'boss' ? 'Boss' : S.kind === 'fight' || (S.trial && !Rf.trialPuzzle) ? 'Dungeon' : 'Puzzle'} ${P.n}`; }
 /* riftSections(sections): sections = [{ fights: [name, name], minis: [bossId, ...], puzzles: [P, P], boss: fiendId, bossName, bossRoom, mobs, miniHp }]
    -> the fourteen stage entries. Section 3's two dungeons carry a rolled boon on the monsters and a rolled curse on the
    party (mod: 'boon' | 'curse', played by the Tower's floor rules) */
@@ -138,7 +138,7 @@ const DunRift = (() => {
       if (exit) riftGate(c, X.sx(exit.x), X.sy(exit.y), T, self.done, self.t, exit.label);
       if (mod.drawGround) mod.drawGround(c);
       if (amb.drawGround) amb.drawGround(c);
-      const hp = hintObj(); if (hp && !self.cine) pointer(c, hp.x, hp.y, hp === exit ? '#8FE0A6' : '#FFE37A', hp === exit ? 2.6 : (hp.h || 1.2) + 0.5);
+      const hp = hintObj(); if (hp && !self.cine) pointer(c, hp.x, hp.y, hp === exit ? '#8FE0A6' : '#FFE37A', hp === exit ? 3.9 : (hp.h || 1.2) + 0.5);   // (QA v386: the exit's arrow 2.6 -> 3.9 tiles up: at 2.6 it sat on the archway's label, "To F⬇ Flan")
       // the channel ring over an object being used
       for (const o of objs) if (o.ch > 0) { const Xs = X.sx(o.x), Ys = X.sy(o.y) - T * 0.9; c.save(); c.lineWidth = 4; c.strokeStyle = 'rgba(0,0,0,.4)'; c.beginPath(); c.arc(Xs, Ys, T * 0.3, 0, 6.283); c.stroke(); c.strokeStyle = '#FFFFFF'; c.beginPath(); c.arc(Xs, Ys, T * 0.3, -Math.PI / 2, -Math.PI / 2 + 6.283 * Math.min(1, o.ch / 0.75)); c.stroke(); c.restore(); }
     }

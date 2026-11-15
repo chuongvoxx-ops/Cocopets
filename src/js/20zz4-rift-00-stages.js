@@ -1,36 +1,45 @@
 /* ---------- Rift 0, the Blackfire Caldera: its three trial dungeons ----------
-   CAL_STAGES.HOLLOWS   The Ashen Hollows (stage 1): a sheltered basalt ledge looks out over lava streams and black fire
-                        crystals; a ramp descends through two compact chambers (lava runnels: touching one burns a little
-                        and puts you back on the last safe ground) into the cooler maintenance cavern. Its brood comes
-                        in order: two cinder slugs; a basalt crawler, then a lone ember wisp; then one of each together.
-                        The cavern's hatch opens when they are down. The Frozen Causeway: a lava channel blocks the far
-                        door; a frost reservoir (north) feeds a T-junction, elbows west and east of it, a straight south
-                        of each, a cooling basin south of each straight. Five pieces turn 90 degrees a use (random
-                        starting turns, the fixed solvable layout); frost flows visibly through every joined piece, a
-                        disconnected outlet only mists. Both basins flowing at once: the reservoir's valve lights; the
-                        pet releases the frost, and both halves of the obsidian bridge latch for good. No monsters in
-                        the cavern; after a while a hint traces the missing connection. Beyond: a frost shrine (heal,
-                        checkpoint) and the door to Fire Flan.
-   CAL_STAGES.FOUNDRY   The Runebound Foundry (stage 3): grated walkways over lava into an ancient forge (suspended
-                        rings, broken chains, pressure vessels, runic machinery). Two furnace imps; a runic sentinel
-                        alone; then an ordinary pack with the bomb lesson: a bomb larva lands, and hitting the grounded
-                        bomb while it is safe sends it flying into a monster (it never hurts the pet; this one is weak).
-                        The Three Rune Rings: three rings (left, middle, right) each cycle Eye, Chain, Crown; the
-                        inscription reads EYE, CHAIN, CROWN; lever A turns left+middle, B middle+right, C left+right, each
-                        joined to its two rings by drawn lines; nearing a lever lights its rings. A reset lever, and a
-                        lectern that shows the next move (breadth-first from the CURRENT state over the 27). Solved: the
-                        rings align into an iris, the pressure door opens, a bass heartbeat sounds from beyond.
-   CAL_STAGES.DESCENT   The Heartward Descent (stage 5): a vertical cathedral of basalt columns, hanging obsidian slabs,
-                        lava pouring down the walls and black crystals growing toward a throne. Two short causeways
-                        with vents (each glows and hisses before it erupts; the first shows itself once, harmlessly);
-                        an eruption throws you off the causeway: you land back on the last ledge, a little hurt. Broad
-                        cooling ledges between them hold two finite groups (two ashen knights; a knight and two crystal
-                        wisps); a slag barricade lifts from the next causeway when a ledge is clear. Last, the overlook:
-                        Ifrit seated far off in a cracked basalt ring, his chest a furnace that swells as he breathes.
+   CAL_STAGES.HOLLOWS   The Ashen Hollows: a sheltered basalt ledge looks out over lava streams and black fire crystals; a
+                        ramp descends through four hollows (lava runnels: touching one burns a little and puts you back
+                        on the last safe ground) into the cooler maintenance cavern. About forty brood rise in waves,
+                        hollow by hollow: cinder slugs alone, basalt crawlers alone, ember wisps alone, then all of them;
+                        a slag barricade lifts from each way on as its hollow clears (the last is the cavern's hatch).
+                        The Frozen Causeway: a lava channel blocks the far door; a frost reservoir (north) feeds a
+                        T-junction, elbows west and east of it, a straight south of each, a cooling basin south of each
+                        straight. Five pieces turn 90 degrees a use (random starting turns, the fixed solvable layout);
+                        frost flows visibly through every joined piece, a disconnected outlet only mists. Both basins
+                        flowing at once: the reservoir's valve lights; the pet releases the frost, and both halves of
+                        the obsidian bridge latch for good. No monsters in the cavern; after a while a hint traces the
+                        missing connection. Beyond: a frost shrine (heal, checkpoint) and the door to Fire Flan.
+   CAL_STAGES.FOUNDRY   The Runebound Foundry: grated walkways over lava through four halls of an ancient forge (suspended
+                        rings, broken chains, pressure vessels, runic machinery), each shut by a portcullis until its
+                        waves are down: about forty brood. Furnace imps alone; runic sentinels alone; the bomb lesson
+                        inside an ordinary pack (a bomb larva lands: hit the grounded bomb while it is safe and it flies
+                        into a monster; it never hurts the pet); then all of them. The Three Rune Rings: three rings
+                        (left, middle, right) each cycle Eye, Chain, Crown; the inscription reads EYE, CHAIN, CROWN; lever
+                        A turns left+middle, B middle+right, C left+right, each joined to its two rings by drawn lines;
+                        nearing a lever lights its rings. A reset lever, and a lectern that shows the next move
+                        (breadth-first from the CURRENT state over the 27). Solved: the rings align into an iris, the
+                        pressure door opens, a bass heartbeat sounds from beyond.
+   CAL_STAGES.DESCENT   The Heartward Descent: a vertical cathedral of basalt columns, hanging obsidian slabs, lava
+                        pouring down the walls and black crystals growing toward a throne. Three short causeways with
+                        vents (each glows and hisses before it erupts; the first shows itself once, harmlessly); an
+                        eruption throws you off the causeway: you land back on the last ledge, a little hurt. On the
+                        three broad cooling ledges between them about forty brood rise in waves (ashen knights, crystal
+                        wisps, the hollows' kin); a slag barricade lifts from the next causeway when a ledge is clear.
+                        Then THE EMBER COURT, the dodge trial: a round basalt platform ringed by six furnace idols on
+                        pillars in the lava. Each idol glows and winds up (an aim line, or a landing circle for a lob),
+                        then hurls a molten ball. Twelve DODGED throws pass it: rolled through with the dodge button
+                        (its i-frames) or side-stepped close by. A hit only chips (7%) and never counts; nothing resets
+                        the counter. Three slow teaching throws from the front (TAP DODGE!, the button pulsing), two
+                        idols alternating, a crossfire, a rolling ball, a lobbed ball, then quick volleys of three.
+                        Two hits in a row: the next throw comes slower, with the prompt again. At 12/12 the idols go
+                        dark and the gate opens on the overlook: Ifrit seated far off, and the frost shrine.
+   Between rooms of brood the pet gets a breath of cool air (a quarter of its health back). HP_K scales the brood's health.
    Every trial ends at its door with a frost shrine (stand at it: full health, the checkpoint) before the boss.
    (CAL, the core of 20zz5, loads after this file: every CAL use is inside make(), which only runs once a stage starts, and
    each one is guarded: a missing helper, brood type or biome falls back to this file's own drawing and the Tower's brood) */
-const CAL_STAGES = { HP_K: 1.7 };   // (HP_K: a balance knob on the trials' own brood health, for the lead's tuning pass)
+const CAL_STAGES = { HP_K: 1.5, DMG_K: { HOLLOWS: 0.55, FOUNDRY: 0.72, DESCENT: 0.88 } };   // (QA v386: DMG_K, the trials' brood blows by trial, ramping between the dungeons' 0.5 / 0.65 / 0.8 (they hit at full before))   // (HP_K: a balance knob on the trials' own brood health, for the lead's tuning pass)
 (() => {
   const TAU = Math.PI * 2;
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -150,21 +159,74 @@ const CAL_STAGES = { HP_K: 1.7 };   // (HP_K: a balance knob on the trials' own 
     D.tick = dt => { if (D.open) D.k = Math.min(1, D.k + dt * 0.7); };
     tiles.forEach(t => block(X, t.tx, t.ty)); return D; }
 
+  /* ---- a gate across a corridor between two rooms of brood: a barricade of cooling slag (style 'slag') or an iron
+     portcullis (style 'iron'), lifted once its room's waves are down ---- */
+  function gateArt(c, Xs, Ys, T, D, P, style, word, t) { const w = (D.x1 - D.x0) * T, L = Xs - w / 2; t = t || 0; if (D.k >= 1) return; c.save();
+    if (style === 'iron') { const hgt = T * 2.3, lift = D.k * T * 2.6; c.fillStyle = P.IRON_D; c.fillRect(L - T * 0.3, Ys - T * 3.0, T * 0.3, T * 3.0); c.fillRect(L + w, Ys - T * 3.0, T * 0.3, T * 3.0);
+      c.beginPath(); c.rect(L, Ys - T * 3.2, w, T * 3.2); c.clip(); const top = Ys - hgt - lift, bot = Ys - lift;
+      c.strokeStyle = P.INK; c.lineWidth = Math.max(4, T * 0.16); for (let i = 0; i <= Math.round(w / (T * 0.5)); i++) { const x = L + i * w / Math.round(w / (T * 0.5)); c.beginPath(); c.moveTo(x, top); c.lineTo(x, bot); c.stroke(); }
+      c.strokeStyle = P.IRON_HI; c.lineWidth = Math.max(2, T * 0.08); for (let i = 0; i <= Math.round(w / (T * 0.5)); i++) { const x = L + i * w / Math.round(w / (T * 0.5)); c.beginPath(); c.moveTo(x, top); c.lineTo(x, bot - T * 0.1); c.stroke(); }
+      for (const u of [0.2, 0.62]) { c.fillStyle = P.IRON; c.fillRect(L, top + hgt * u, w, T * 0.18); c.strokeStyle = P.INK; c.lineWidth = 1.5; c.strokeRect(L, top + hgt * u, w, T * 0.18); c.fillStyle = rgba(P.RUNE, 0.65 + 0.3 * Math.sin(t * 2)); for (let i = 0; i < 4; i++) c.fillRect(L + w * (0.15 + i * 0.22), top + hgt * u + T * 0.06, T * 0.12, T * 0.06); } }
+    else { const hgt = T * 1.6 * (1 - D.k); for (let i = 0; i < Math.ceil(w / (T * 0.7)); i++) { const x = L + (i + 0.5) * T * 0.7, r = T * (0.45 + 0.12 * Math.sin(i * 2.7)), y = Ys - r * 0.6 - (i % 2) * T * 0.25; ell(c, x, y, r, r * 0.8 * (hgt / (T * 1.6))); const sg = c.createRadialGradient(x - r * 0.3, y - r * 0.4, r * 0.1, x, y, r); sg.addColorStop(0, '#5A4A44'); sg.addColorStop(1, '#1A1210'); c.fillStyle = sg; c.fill(); c.strokeStyle = P.INK; c.lineWidth = 1.5; c.stroke();
+        c.strokeStyle = rgba(P.LAVA, 0.6 + 0.3 * Math.sin(t * 2 + i)); c.lineWidth = 1.2; c.beginPath(); c.moveTo(x - r * 0.5, y); c.lineTo(x, y - r * 0.3); c.lineTo(x + r * 0.4, y + r * 0.1); c.stroke(); } }
+    c.restore(); if (!D.open && word) label(c, word, Xs, Ys - T * (style === 'iron' ? 3.3 : 2.0), T * 0.2, '#FFD9B0'); }
+  const roomGate = (X, H, tiles, P, style, word) => tiles.length ? doorway(X, H, tiles, (c, Xs, Ys, T, D) => gateArt(c, Xs, Ys, T, D, P, style, word, X.g.t), { kind: 'calgate' }) : null;
+  /* ---- the wave director: rooms of brood in order. A room's first wave rises when the pet walks in, the next when the last
+     is down (a breath between), and its gate lifts when its last wave falls. rooms: [{ name, y0, y1 (world rows the pet
+     must be inside), spots: [{ x, y }], waves: [[type, ...]], gate (a doorway, lifted on clear), teach: ['banner sub' per
+     wave], special(type, p) (makes a non-brood entry, e.g. the tutorial bomb) }] ---- */
+  function director(X, P, rooms, o) { o = o || {}; const me = X.me, D = { rooms, i: 0, wave: -1, live: [], all: [], gapT: 0, done: !rooms.length, total: 0, waves: 0 };
+    for (const R of rooms) for (const w of R.waves) D.total += w.length;
+    function spawnWave(R, w) { const types = R.waves[w]; D.live = []; D.waves++; const pack = 940 + D.i * 10 + w;
+      types.forEach((ty, j) => { const p = R.spots[(j + w * 3) % R.spots.length], a = j * 2.4 + w, q = { x: p.x + Math.cos(a) * 0.6 * (j >= R.spots.length ? 1 : 0), y: p.y + Math.sin(a) * 0.6 * (j >= R.spots.length ? 1 : 0) };
+        const m = R.special && R.special(ty, q, pack) || spawnAt(X, ty, q, null, pack, true); if (!m) return; if (o.dmgK && !m.calTutorial) m.dmg *= o.dmgK; m.calRoom = D.i; D.live.push(m); D.all.push(m);
+        if (!m.calTutorial) { X.boom(m.x, m.y, 0.8, o.col || P.LAVA, P.ASH, { n: 8, shake: 1 }); for (let k = 0; k < 4; k++) X.part({ kind: 'ember', x: m.x + (Math.random() - 0.5) * 0.6, y: m.y - 0.1, vx: (Math.random() - 0.5) * 1.5, vy: -2 - Math.random() * 2, life: 0.6, max: 0.6, size: 4, color: P.LAVA_HI }); } });
+      const t = R.teach && R.teach[w]; X.banner(w === 0 ? R.name.toUpperCase() : `WAVE ${w + 1} OF ${R.waves.length}`, t || `${types.length} more rise from the rock`, o.col || P.LAVA_HI, 2.6, true); if (X.sfx.crash) X.sfx.crash(); }
+    D.room = () => rooms[D.i] || null;
+    D.left = () => { let n = alive(D.all).length; for (let i = D.i; i < rooms.length; i++) rooms[i].waves.forEach((w, k) => { if (i > D.i || k > D.wave) n += w.length; }); return n; };
+    D.killed = () => D.all.filter(m => m.dead).length;
+    D.tick = dt => { if (D.done) return; const R = rooms[D.i]; if (D.wave < 0) { if (me.y >= R.y0 && me.y <= R.y1 && !me.dead) { D.wave = 0; D.gapT = 0; spawnWave(R, 0); } return; }
+      // (a flier that drifts out over the lava or the drop, beyond the pet's reach, is drawn back over the room)
+      for (const m of D.live) { if (m.dead) continue; const tl = X.tileAt(Math.floor(m.x), Math.floor(m.y)); if (tl === T_GAP || tl === T_SOLID || m.y < R.y0 - 1.5 || m.y > R.y1 + 1.5) { m.offT = (m.offT || 0) + dt; if (m.offT > 1.0) { const c = R.spots[2], dx = c.x - m.x, dy = (R.y0 + R.y1) / 2 - m.y, d = Math.hypot(dx, dy) || 1; m.x += dx / d * 4.5 * dt; m.y += dy / d * 4.5 * dt; } /* (QA v386: 1.5 s, 3/s -> 1 s, 4.5/s: back over the floor within about 3 s) */ } else m.offT = 0; }
+      if (alive(D.live).length) return; D.gapT += dt; if (D.gapT < (o.gap || 1.4)) return; D.gapT = 0; D.wave++;
+      if (D.wave < R.waves.length) { spawnWave(R, D.wave); return; }
+      if (R.gate) R.gate.open1(); X.banner(`${R.name.toUpperCase()} IS CLEAR`, R.clear || 'The way on opens', P.FROST_HI, 2.2, true);
+      // (a breather between rooms: forty brood is a long fight for a level-1 pet)
+      if (!me.dead && o.heal !== 0) { const hp = X.ST().hp, n = hp * (o.heal || 0.25); if (me.hp < hp - 1) { X.heal(n, true); X.text(me.x, me.y - 1.5, `A breath of cool air: +${Math.round(Math.min(n, hp - me.hp))}`, P.FROST_HI, 14); X.ring(me.x, me.y, 0.2, 1.2, 0.35, P.FROST, 0.3); } } if (o.onRoom) o.onRoom(R, D.i); D.i++; D.wave = -1; if (D.i >= rooms.length) { D.done = true; if (o.onDone) o.onDone(); } };
+    D.goal = () => { const R = rooms[D.i]; if (!R) return ''; if (D.wave < 0) return `On to ${R.name} · ${D.left()} of the brood left`; return `${R.name} · wave ${Math.min(D.wave + 1, R.waves.length)}/${R.waves.length} · ${alive(D.live).length} here · ${D.left()} left`; };
+    D.hint = () => { const R = rooms[D.i]; if (!R) return null; if (D.wave < 0) { const p = R.spots[0]; return Math.hypot(p.x - me.x, p.y - me.y) > 6 ? { x: p.x, y: (R.y0 + R.y1) / 2, h: 1.2, label: R.name.toUpperCase() } : null; }
+      const m = alive(D.live).sort((a, b) => Math.hypot(a.x - me.x, a.y - me.y) - Math.hypot(b.x - me.x, b.y - me.y))[0]; return m && Math.hypot(m.x - me.x, m.y - me.y) > 8 ? { x: m.x, y: m.y, h: 1.3, label: 'THE BROOD' } : null; };
+    return D; }
+  /* the walls round the rooms dressed with the core's props: every so often, a wall tile beside open floor (never by a gate,
+     a door or a narrow corridor) takes the next prop of the cycle */
+  function dress(g, cycle, every, seed) { const H = g.length, W = g[0].length, isF = ch => ch !== '#' && ch !== '~' && !(ch >= '0' && ch <= '9'), bad = ch => (ch >= '0' && ch <= '9') || ch === 'h' || ch === 'E' || ch === 'D' || ch === 'S'; let n = 0;
+    for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) { if (g[y][x] !== '#') continue; let f = 0, b = false; for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) { const r = g[y + dy]; const ch = r && r[x + dx]; if (ch == null) continue; if (isF(ch)) f++; if (Math.abs(dx) <= 1 && Math.abs(dy) <= 1 && bad(ch)) b = true; }
+      const adj = isF(g[y - 1][x]) || isF(g[y + 1][x]) || isF(g[y][x - 1]) || isF(g[y][x + 1]); if (!adj || b || f < 9) continue; const hsh = ((x * 73856093) ^ (y * 19349663) ^ seed) >>> 0; if (hsh % every) continue; g[y][x] = cycle[n++ % cycle.length]; } }
+
   /* ======================= THE ASHEN HOLLOWS ======================= */
   /* rows from the top: the far landing (door, shrine) · the lava channel and the obsidian bridge · the maintenance cavern with
      the causeway's pieces · the hatch · chamber 2 · a corridor · chamber 1 (a lava runnel across it) · the ramp · the start
      ledge in a lava field with crystal islands */
-  const HO_W = 31, HO_H = 62, HO_CX = 15;
+  const HO_W = 31, HO_H = 98, HO_CX = 15;
+  // the four hollows (layout rows, top to bottom of each) and their brood's places; the gates between them
+  const HO_ROOMS = [{ name: 'The First Hollow', r0: 73, r1: 84, spots: [[10, 76], [20, 76], [15, 75], [9, 81], [21, 81]] },
+    { name: 'The Crawler Den', r0: 57, r1: 68, spots: [[9, 61], [21, 61], [15, 59], [10, 65], [20, 65], [15, 63]] },
+    { name: 'The Ember Gallery', r0: 41, r1: 52, spots: [[9, 44], [21, 44], [15, 43], [10, 49], [20, 49]] },
+    { name: 'The Great Hollow', r0: 23, r1: 36, spots: [[7, 26], [24, 26], [10, 25], [20, 25], [15, 24], [9, 32], [21, 32], [15, 30]] }];
   const HO_LAYOUT = (() => { const g = grid(HO_W, HO_H, '#'); const rect = (x0, y0, x1, y1, ch) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) g[y][x] = ch || '.'; };
     const oval = (cx, cy, rx, ry, ch) => { for (let y = 0; y < HO_H; y++) for (let x = 0; x < HO_W; x++) if (Math.pow((x + 0.5 - cx) / rx, 2) + Math.pow((y + 0.5 - cy) / ry, 2) < 1) g[y][x] = ch || '.'; };
     // the lava field round the start ledge (the panorama), with crystal islands
-    oval(15.5, 55, 15, 9, '~'); rect(1, 49, 29, 61, '~'); oval(15.5, 55.5, 7.6, 4.6); rect(13, 46, 17, 52);
-    g[60][15] = '.'; rect(12, 57, 18, 59); g[57][15] = 'S';
-    for (const [x, y] of [[3, 52], [26, 51], [22, 60], [8, 61]]) g[y][x] = 'C'; g[58][5] = 'G'; g[57][26] = 'G'; g[50][7] = 'Y'; g[48][23] = 'Y'; g[61][11] = 'G'; g[61][20] = 'C'; g[56][6] = 'Y'; g[54][25] = 'Y';
-    // chamber 1 and its runnel; the corridor; chamber 2 and its stream
-    oval(15.5, 41.5, 9.5, 5.6); for (let x = 6; x <= 25; x++) if (g[42][x] === '.') g[42][x] = 'r'; for (const x of [14, 15, 16]) g[42][x] = '.';
-    for (let y = 38; y <= 41; y++) if (g[y][24] === '.') g[y][24] = g[y][23] === '.' ? 'r' : g[y][24];
-    rect(13, 33, 17, 37); oval(15.5, 27.5, 12, 5.4); for (let x = 3; x <= 28; x++) if (g[27][x] === '.' && (x < 8 || x > 23)) g[27][x] = 'r';
+    oval(15.5, 92, 15, 9, '~'); rect(1, 86, 29, 97, '~'); oval(15.5, 92.5, 7.6, 4.6); rect(13, 83, 17, 89);
+    rect(12, 94, 18, 96); g[94][15] = 'S';
+    for (const [x, y] of [[3, 89], [26, 88], [22, 97], [8, 97]]) g[y][x] = 'C'; for (const [x, y] of [[5, 95], [26, 94], [11, 97]]) g[y][x] = 'G'; for (const [x, y] of [[7, 87], [23, 85], [6, 93], [25, 91]]) g[y][x] = 'Y';
+    // the four hollows, their runnels and streams, the corridors and gates between them
+    oval(15.5, 78.5, 9.5, 5.6); for (let x = 6; x <= 25; x++) if (g[79][x] === '.') g[79][x] = 'r'; for (const x of [14, 15, 16]) g[79][x] = '.'; for (let y = 75; y <= 78; y++) if (g[y][24] === '.' && g[y][23] === '.') g[y][24] = 'r';
+    rect(13, 68, 17, 73); for (const x of [14, 15, 16]) g[70][x] = '1'; g[70][13] = '#'; g[70][17] = '#';
+    oval(15.5, 62.5, 11, 5.6); for (let y = 60; y <= 65; y++) { if (g[y][6] === '.') g[y][6] = 'r'; if (g[y][25] === '.') g[y][25] = 'r'; }
+    rect(13, 52, 17, 57); for (const x of [14, 15, 16]) g[54][x] = '2'; g[54][13] = '#'; g[54][17] = '#';
+    oval(15.5, 46.5, 10.5, 5.8); for (let x = 3; x <= 28; x++) if (g[46][x] === '.' && (x < 8 || x > 23)) g[46][x] = 'r';
+    rect(13, 36, 17, 41); for (const x of [14, 15, 16]) g[38][x] = '3'; g[38][13] = '#'; g[38][17] = '#';
+    oval(15.5, 29.5, 13, 7); for (let x = 2; x <= 29; x++) if (g[29][x] === '.' && (x < 7 || x > 24)) g[29][x] = 'r';
     // the hatch, and the maintenance cavern
     rect(13, 20, 17, 22); for (const x of [14, 15, 16]) g[21][x] = 'h'; g[21][13] = '#'; g[21][17] = '#';
     rect(5, 7, 25, 19); for (const [x, y] of [[5, 7], [25, 7], [5, 19], [25, 19], [6, 19], [24, 19]]) g[y][x] = '#';
@@ -172,13 +234,10 @@ const CAL_STAGES = { HP_K: 1.7 };   // (HP_K: a balance knob on the trials' own 
     rect(1, 3, 29, 6, '~'); for (let y = 3; y <= 6; y++) for (let x = 12; x <= 17; x++) g[y][x] = 'b'; rect(9, 0, 21, 2); g[1][15] = 'E'; g[1][11] = 'F';
     // the causeway (reservoir, T, elbows, straights, basins), three tiles apart
     g[8][15] = 'Q'; g[11][15] = 'J'; g[11][12] = 'K'; g[11][18] = 'k'; g[14][12] = 'I'; g[14][18] = 'V'; g[17][12] = 'U'; g[17][18] = 'u';
-    // the brood's places
-    g[39][11] = 'a'; g[39][20] = 'a'; g[29][15] = 'c'; g[26][7] = 'w'; g[24][11] = 'n'; g[24][20] = 'n'; g[23][15] = 'n';
-    // crystals on the chambers' walls, frost machinery in the cavern
-    for (const [x, y] of [[6, 39], [25, 44], [3, 25], [27, 30], [9, 47], [21, 47]]) if (g[y][x] === '#') g[y][x] = 'C';
-    for (const [x, y] of [[6, 37], [24, 37], [4, 29], [26, 25], [12, 33], [18, 34]]) if (g[y][x] === '#') g[y][x] = 'O';
-    for (const [x, y] of [[8, 45], [22, 38], [5, 31], [26, 29]]) if (g[y][x] === '#') g[y][x] = 'Z';
+    // frost machinery in the cavern; black crystals, columns, glass and ash round the hollows
     for (const [x, y] of [[4, 15], [26, 15]]) g[y][x] = 'P'; g[10][4] = 'W'; g[10][26] = 'W'; g[19][9] = 'W'; g[19][21] = 'W';
+    for (let y = 22; y < 86; y++) for (let x = 0; x < HO_W; x++) if (g[y][x] === '#') g[y][x] = '#';
+    { const sub = g.slice(22, 86); dress(sub, ['C', 'O', 'Z', 'C', 'Y', 'O', 'G'], 5, 7); for (let i = 0; i < sub.length; i++) g[22 + i] = sub[i]; }
     return g.map(r => r.join('')); })();
   // the causeway's pieces: N E S W = 0 1 2 3; each piece's ports at turn 0 (a bit per side), turned clockwise by its rot
   const CW_BASE = { T: 0b1011, L: 0b0011, I: 0b0101 };
@@ -208,17 +267,17 @@ const CAL_STAGES = { HP_K: 1.7 };   // (HP_K: a balance knob on the trials' own 
     const lava = runnels(X, tilesOf(M, 'r'), P);
     const S = { intro: true, phase: 'combat', rot: cwScramble(), turns: 0, fill: [0, 0], primed: false, surge: 0, solid: 0, latched: false, done: false, cavT: 0, hint: false, hintShown: 0, mist: 0, flow: null, packs: 0, step2: 0, entered: false };
     S.flow = causewayFlow(S.rot);
-    // the brood, in order: slugs (start); a crawler, then a lone wisp; then one of each together
-    const P1 = [], P2 = [], P3 = [];
-    for (const p of tilesOf(M, 'a')) spawnAt(X, 'cinderslug', p, P1, 901, false);
-    const crawlerAt = mk.c[0], wispAt = mk.w[0];
-    function wave2() { S.step2 = 1; spawnAt(X, 'basaltcrawler', crawlerAt, P2, 902, false); }
-    function wisp2() { S.step2 = 2; const m = spawnAt(X, 'emberwisp', wispAt, P2, 903, true); X.ring(m.x, m.y, 0.2, 1.6, 0.4, P.LAVA_HI, 0.4); X.banner('AN EMBER WISP', 'One slow ember, then a long rest: strike while it recovers', P.LAVA_HI, 2.4, true); }
-    function wave3() { S.step2 = 3; const ts = ['cinderslug', 'basaltcrawler', 'emberwisp']; tilesOf(M, 'n').forEach((p, i) => { const m = spawnAt(X, ts[i % 3], p, P3, 904, true); X.boom(m.x, m.y, 0.9, P.LAVA, P.ASH, { n: 10, shake: 2 }); }); X.banner('THE HOLLOW STIRS', 'All three together now: crawlers first from behind, wisps between their embers', P.LAVA_HI, 2.6, true); }
-    wave2();
-    const brood = () => P1.concat(P2, P3);
-    // the hatch to the maintenance cavern (cool iron, a snowflake): open once the hollows are clear
+    // the brood, about forty, room by room: each kind alone first, then mixed (the hatch is the last room's gate)
     const hatch = doorway(X, H, tilesOf(M, 'h'), (c, Xs, Ys, T, D) => hatchArt(c, Xs, Ys, T, D), { kind: 'calhatch' });
+    const SL = 'cinderslug', CR = 'basaltcrawler', EW = 'emberwisp';
+    const WAVES = [[[SL, SL, SL], [SL, SL, SL, SL]], [[CR, CR], [CR, CR, SL, SL]], [[EW, EW, EW], [EW, EW, SL, SL, CR]], [[SL, SL, CR, EW, EW, CR], [SL, SL, SL, CR, EW, EW], [CR, CR, SL, SL, EW, EW, SL]]];
+    const TEACH = [['Cinder slugs: one rears and its mouth glows before a short fire spit. Step aside, then strike', 'More slugs: keep out of their spit cones'],
+      ['Basalt crawlers: plates on the front shrug off blows. Dodge the ram, strike the glowing rear', 'Crawlers and slugs together: crawlers first, from behind'],
+      ['Ember wisps: one slow ember each, then a long rest. Strike while they burn low', 'Wisps among the others: step off their shown lines'],
+      ['The whole brood together: crawlers from behind, wisps between their embers', 'They keep coming: slugs first, they are slow', 'The last of the hollows\' brood']];
+    const gates = ['1', '2', '3'].map(ch => roomGate(X, H, tilesOf(M, ch), P, 'slag', 'COOLING SLAG')).concat([hatch]);
+    const rooms = HO_ROOMS.map((R, i) => ({ name: R.name, y0: R.r0 + 1, y1: R.r1 + 1, spots: R.spots.map(([x, y]) => Wp(x, y)), waves: WAVES[i], teach: TEACH[i], gate: gates[i], clear: i === 3 ? 'The maintenance hatch grinds open: the cool cavern lies below' : 'The slag cracks and falls away: on to the next hollow' }));
+    const brood = director(X, P, rooms, { dmgK: CAL_STAGES.DMG_K.HOLLOWS, onDone() { FROST_CHIME(X); } });
     // the causeway: the reservoir, five pieces, two basins, the bridge halves
     const cell = id => mk[id][0];
     const pieces = CW_ORDER.map(id => { const p = cell(id), pc = { id, x: p.x, y: p.y, ang: (S.rot[id] || 0) * Math.PI / 2, flash: 0 };
@@ -244,18 +303,17 @@ const CAL_STAGES = { HP_K: 1.7 };   // (HP_K: a balance knob on the trials' own 
     const shrine = station(X, H, F0, P, 'Fire Flan');
     // the islands' crystal clusters, the cavern's frost machinery
     for (const p of tilesOf(M, 'P')) H.obj({ x: p.x, y: p.y + 0.45, kind: 'calfrostpipe', r: 0.1, h: 2, label: '', draw(c, Xs, Ys, T) { frostMachineArt(c, Xs, Ys, T, p.x < HO_CX); } });
-    X.after(1.0, () => { S.intro = false; X.banner('THE ASHEN HOLLOWS', 'Down from the ledge: through the hollows to the cooler cavern below', P.LAVA_HI, 3.2, true, true); });
+    X.after(1.0, () => { S.intro = false; X.banner('THE ASHEN HOLLOWS', 'Down from the ledge: through four hollows of brood to the cooler cavern below', P.LAVA_HI, 3.2, true, true); });
     const cavern = () => me.y < 21 && me.y > 7;
     const missing = () => { // the first piece along the routes that is turned wrong
       for (const id of CW_ORDER) if (!cwRight(S.rot, id)) return byId[id]; return null; };
     const routePts = side => { const ids = side ? ['Q', 'J', 'k', 'V', 'u'] : ['Q', 'J', 'K', 'I', 'U']; return ids.map(id => cell(id)); };
-    return { S, pieces, hatch, lava, shrine, P1, P2, P3, brood, causewayFlow, cwSolved, cwRight, missing, release, turn, CW_CELLS,
+    return { S, pieces, hatch, lava, shrine, brood, rooms, gates, causewayFlow, cwSolved, cwRight, missing, release, turn, CW_CELLS,
       cam() { const k = cavern() ? 0.45 : 0.2, fy = cavern() ? 10.5 : me.y - 3; return { x: me.x * (1 - k) + HO_CX * k + 0.5 * k, y: me.y * (1 - k) + fy * k, k: 0, zoom: 0.56 }; },
-      update(dt) { lava.tick(dt); hatch.tick(dt); shrine.tick(dt); for (const pc of pieces) { pc.flash = Math.max(0, pc.flash - dt); const want = (S.rot[pc.id] || 0) * Math.PI / 2; let d = want - pc.ang; while (d < -Math.PI) d += TAU; while (d > Math.PI) d -= TAU; pc.ang += d * Math.min(1, dt * 10); }
+      update(dt) { lava.tick(dt); shrine.tick(dt); for (const pc of pieces) { pc.flash = Math.max(0, pc.flash - dt); const want = (S.rot[pc.id] || 0) * Math.PI / 2; let d = want - pc.ang; while (d < -Math.PI) d += TAU; while (d > Math.PI) d -= TAU; pc.ang += d * Math.min(1, dt * 10); }
         S.mist += dt; if (S.intro) return;
         // the brood's order
-        if (S.step2 === 1 && !alive(P2).length) wisp2(); else if (S.step2 === 2 && !alive(P2).length) wave3();
-        if (S.step2 === 3 && !alive(brood()).length && !hatch.open) { hatch.open1(); X.banner('THE HOLLOWS ARE CLEAR', 'The maintenance hatch grinds open: the cool cavern lies below', P.FROST_HI, 2.6, true); FROST_CHIME(X); }
+        brood.tick(dt); for (const q of gates) if (q) q.tick(dt);
         if (!S.entered && hatch.open && me.y < 19.5) { S.entered = true; S.cavT = 0; X.banner('THE FROZEN CAUSEWAY', 'Turn the conduits so the reservoir\'s frost reaches BOTH basins at once', P.FROST_HI, 3.6, true, true); FROST_CHIME(X); }
         if (S.entered && !S.latched) { S.cavT += dt; if (!S.hint && S.cavT > HO_HINT_AFTER) { S.hint = true; S.hintShown = g.t; X.banner('A HINT', 'The traced line shows the piece that breaks the flow', P.FROST_HI, 2.4, true); } }
         // the basins fill while their branch flows, and drain when it stops
@@ -264,12 +322,12 @@ const CAL_STAGES = { HP_K: 1.7 };   // (HP_K: a balance knob on the trials' own 
         if (S.surge > 0 && !S.latched) { S.surge += dt / 1.3; if (S.surge >= 1) { S.solid = Math.min(1, S.solid + dt / 1.0); if (S.solid >= 1) latch(); } }
         if (S.latched) S.solid = 1; },
       goal() { if (S.latched) return 'To Fire Flan'; if (S.intro) return 'The Ashen Hollows';
-        if (!hatch.open) { const n = alive(brood()).length; return n ? `Clear the hollows · ${n} left` : 'Clear the hollows'; }
+        if (!hatch.open) return brood.goal();
         if (!S.entered) return 'Down to the maintenance cavern';
         if (S.surge > 0) return 'The frost surges: the bridge is setting';
         if (S.primed) return 'Both basins are cold · release the frost at the reservoir';
         const nb = S.flow.basins.filter(Boolean).length; return `Frost to both basins · ${nb}/2 flowing · stand at a conduit to turn it`; },
-      hint() { if (S.latched || S.intro) return null; if (!hatch.open) { const m = alive(brood())[0]; return m && Math.hypot(m.x - me.x, m.y - me.y) > 9 ? { x: m.x, y: m.y, h: 1.3, label: 'THE BROOD' } : null; }
+      hint() { if (S.latched || S.intro) return null; if (!hatch.open) return brood.hint();
         if (!S.entered) return { x: HO_CX + 0.5, y: 19.5, h: 1.2, label: 'THE CAVERN' };
         if (S.primed) return { x: R0.x, y: R0.y, h: 3.3, label: 'RELEASE' }; if (S.hint) { const pc = missing(); if (pc) return { x: pc.x, y: pc.y, h: 1.2, label: 'TURN THIS' }; } return null; },
       drawGround(c) { const T = X.Tz(), t = g.t, lw = lwOf(T), sp = p => [X.sx(p.x), X.sy(p.y)];
@@ -385,8 +443,8 @@ const CAL_STAGES = { HP_K: 1.7 };   // (HP_K: a balance knob on the trials' own 
       if (!lowFx()) { const u = (t * 0.4 + (west ? 0 : 0.5)) % 1; glow(c, Xs, top - u * T * 0.8, T * (0.4 + u * 0.5), '#E8F8FF', 0.35 * (1 - u)); }
       c.restore(); }
   }
-  CAL_STAGES.HOLLOWS = { name: 'The Ashen Hollows', goal: 'Through the hollows, then cool the causeway', how: 'From a sheltered ledge over the lava, down through two hollows: two cinder slugs first, then a basalt crawler (strike its glowing rear, not its plates) and a lone ember wisp, then one of each together. Lava runnels cross the floor: touching one burns a little and puts you back on safe ground. Below, the cool maintenance cavern: a lava channel blocks the door to Fire Flan. Stand at a conduit for a moment to turn it 90 degrees: the frost runs from the reservoir through a T-junction, two elbows and two straights to two cooling basins (a broken branch only mists). Fill BOTH basins at once, then stand at the reservoir to release the frost: both halves of the obsidian bridge set for good. A hint traces the missing connection after a while. A frost shrine beyond restores your pet.',
-    layout: HO_LAYOUT, legend: { E: {}, F: {}, b: { tile: T_GAP }, r: {}, h: {}, Q: {}, J: {}, K: {}, k: {}, I: {}, V: {}, U: {}, u: {}, a: {}, c: {}, w: {}, n: {}, P: { tile: T_SOLID },
+  CAL_STAGES.HOLLOWS = { name: 'The Ashen Hollows', goal: 'Through four hollows of brood, then cool the causeway', how: 'From a sheltered ledge over the lava, down through four hollows. In each the brood rises from the rock in waves, about forty in all: cinder slugs first (they rear and glow before a short spit), then basalt crawlers (strike the glowing rear, not the plates), then ember wisps (one slow ember, then a long rest), then all of them together. A barricade of cooling slag blocks each way on until its hollow is clear. Lava runnels cross the floor: touching one burns a little and puts you back on safe ground. Below, the cool maintenance cavern (no monsters): a lava channel blocks the door to Fire Flan. Stand at a conduit for a moment to turn it 90 degrees: the frost runs from the reservoir through a T-junction, two elbows and two straights to two cooling basins (a broken branch only mists). Fill BOTH basins at once, then stand at the reservoir to release the frost: both halves of the obsidian bridge set for good. A hint traces the missing connection after a while. A frost shrine beyond restores your pet.',
+    layout: HO_LAYOUT, legend: { E: {}, F: {}, b: { tile: T_GAP }, r: {}, h: {}, Q: {}, J: {}, K: {}, k: {}, I: {}, V: {}, U: {}, u: {}, 1: {}, 2: {}, 3: {}, P: { tile: T_SOLID },
       C: PROP('blackcrystal', 'obsidian'), G: PROP('bigcrystal', 'obsidian'), Y: PROP('glassspire', 'obsidian'), O: PROP('basaltcol', 'volrok'), Z: PROP('ashmound', 'volrok'), W: PROP('frostwell', 'iceblok') }, make: makeHollows,
     // (pure helpers for the tests: the causeway's flow, its scramble, what each piece needs)
     flow: causewayFlow, scramble: cwScramble, cells: CW_CELLS, portsOf };
@@ -403,26 +461,33 @@ const CAL_STAGES = { HP_K: 1.7 };   // (HP_K: a balance knob on the trials' own 
         gpu(c, Q => { for (const [p, Xs, Ys] of vis) if ((p.tx + p.ty) % 2 === 0) Q.ground(Xs + T * 0.5, Ys + T * 0.5, T * 0.9, 0.55, 0.45, p.tx * 0.31 + p.ty * 0.17, 0.7, 0.4); }); } }; }
 
   /* ======================= THE RUNEBOUND FOUNDRY ======================= */
-  const FO_W = 33, FO_H = 60, FO_CX = 16;
+  const FO_W = 33, FO_H = 96, FO_CX = 16;
+  // the four forge halls (layout rows) and their brood's places; each hall's gate is the walkway north of it
+  const FO_ROOMS = [{ name: 'The Bellows Hall', r0: 71, r1: 81, spots: [[10, 74], [22, 74], [16, 73], [9, 79], [23, 79]] },
+    { name: 'The Sentinel Hall', r0: 54, r1: 65, spots: [[10, 57], [22, 57], [16, 56], [9, 62], [23, 62], [16, 60]] },
+    { name: 'The Bomb Hall', r0: 37, r1: 48, spots: [[11, 40], [21, 40], [16, 39], [10, 45], [22, 45]] },
+    { name: 'The Great Forge', r0: 18, r1: 31, spots: [[8, 21], [24, 21], [12, 20], [20, 20], [16, 22], [8, 28], [24, 28], [16, 27]] }];
   const FO_LAYOUT = (() => { const g = grid(FO_W, FO_H, '#'); const rect = (x0, y0, x1, y1, ch) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) g[y][x] = ch || '.'; };
     // lava under everything between the halls (the forge's floor far below the walkways)
-    rect(1, 15, 31, 58, '~');
-    // the entry gallery (start), the walkways, the two forge halls
-    rect(9, 52, 23, 58); g[56][16] = 'S'; rect(14, 46, 18, 51, 'g');
-    rect(4, 35, 28, 45); for (const [x, y] of [[4, 35], [28, 35], [4, 45], [28, 45]]) g[y][x] = '~'; rect(14, 30, 18, 34, 'g');
-    rect(4, 18, 28, 29); for (const [x, y] of [[4, 18], [28, 18], [4, 29], [28, 29]]) g[y][x] = '~'; rect(14, 15, 18, 17, 'g');
+    rect(1, 15, 31, 95, '~');
+    // the entry gallery (start), then hall by hall north, each joined by a grated walkway with a portcullis
+    rect(9, 87, 23, 94); g[91][16] = 'S'; rect(14, 82, 18, 86, 'g');
+    const hall = (y0, y1, x0, x1) => { rect(x0, y0, x1, y1); for (const [x, y] of [[x0, y0], [x1, y0], [x0, y1], [x1, y1]]) g[y][x] = '~'; };
+    hall(71, 81, 4, 28); rect(14, 66, 18, 70, 'g'); for (let x = 14; x <= 18; x++) g[68][x] = '1';
+    hall(54, 65, 4, 28); rect(14, 49, 18, 53, 'g'); for (let x = 14; x <= 18; x++) g[51][x] = '2';
+    hall(37, 48, 4, 28); rect(14, 32, 18, 36, 'g'); for (let x = 14; x <= 18; x++) g[34][x] = '3';
+    hall(18, 31, 3, 29); rect(14, 15, 18, 17, 'g'); for (let x = 14; x <= 18; x++) g[16][x] = '4';
     // grated bays over lava inside the halls (the floor's own grates)
-    rect(7, 39, 10, 41, 'g'); rect(22, 39, 25, 41, 'g'); rect(8, 22, 11, 24, 'g'); rect(21, 22, 24, 24, 'g');
+    for (const [x0, y0] of [[7, 75], [22, 75], [7, 58], [22, 58], [7, 42], [22, 42], [7, 23], [22, 23], [11, 27], [18, 27]]) rect(x0, y0, x0 + 3, y0 + 2, 'g');
     // the ring hall, the pressure door (three rings on it), the landing beyond
     rect(4, 5, 28, 14); rect(12, 3, 20, 4, 'D'); rect(10, 0, 22, 2); g[1][16] = 'E'; g[1][12] = 'F';
     g[11][10] = 'A'; g[11][16] = 'B'; g[11][22] = 'C'; g[13][6] = 'Z'; g[13][26] = 'L';
-    // pressure vessels (solid), the brood's places
-    for (const [x, y] of [[6, 37], [26, 37], [6, 43], [26, 43], [6, 20], [26, 27]]) g[y][x] = 'V';
-    for (const [x, y] of [[3, 40], [29, 40], [3, 23], [29, 24]]) g[y][x] = 'K'; for (const [x, y] of [[8, 34], [24, 34], [9, 17], [23, 17], [11, 46], [21, 47]]) g[y][x] = 'H';
-    for (const [x, y] of [[3, 6], [29, 6], [3, 13], [29, 13]]) g[y][x] = 'R'; g[4][8] = 'K'; g[4][24] = 'K'; g[7][6] = 'V'; g[7][26] = 'V'; g[44][9] = 'N'; g[28][23] = 'N';
-    g[38][12] = 'a'; g[38][20] = 'a'; g[26][10] = 'c'; g[21][16] = 'n'; g[20][11] = 'n'; g[20][21] = 'n';
-    // the giant suspended rings and machinery in the lava beside the walkways
-    for (const [x, y] of [[10, 49], [22, 48], [10, 32], [22, 33]]) g[y][x] = 'O';
+    // the forge's furniture: pressure vessels in the halls, furnaces and chains over the lava, rings beside the walkways
+    for (const [x, y] of [[5, 72], [27, 80], [5, 55], [27, 55], [5, 64], [27, 64], [6, 38], [26, 47], [4, 19], [28, 19], [4, 30], [28, 30], [7, 6], [25, 6]]) g[y][x] = 'V';
+    for (const [x, y] of [[2, 76], [30, 60], [2, 43], [30, 40], [2, 24], [30, 25]]) g[y][x] = 'K'; g[4][8] = 'K'; g[4][24] = 'K';
+    for (const [x, y] of [[9, 68], [23, 69], [8, 51], [24, 50], [9, 34], [23, 35], [10, 84], [22, 85]]) g[y][x] = 'H';
+    for (const [x, y] of [[3, 6], [29, 6], [3, 13], [29, 13]]) g[y][x] = 'R'; for (const [x, y] of [[26, 76], [6, 61], [25, 44], [24, 29]]) g[y][x] = 'N';
+    for (const [x, y] of [[10, 84], [22, 83], [10, 67], [22, 67], [10, 50], [22, 52], [10, 33], [22, 33]]) if (g[y][x] === '~') g[y][x] = 'O';
     return g.map(r => r.join('')); })();
   const RUNE_NAMES = ['EYE', 'CHAIN', 'CROWN'], RR_TARGET = [0, 1, 2], RR_LEVERS = { A: [1, 1, 0], B: [0, 1, 1], C: [1, 0, 1] };
   /* the shortest way from a state to the inscription: breadth-first over the 27 states. -> [lever, ...] ([] when solved) */
@@ -478,15 +543,19 @@ const CAL_STAGES = { HP_K: 1.7 };   // (HP_K: a balance knob on the trials' own 
   function makeFoundry(X, self, H) {
     const M = X.M, me = X.me, g = X.g, mk = M.marks, P = pal(), E = mk.E[0];
     const S = { intro: true, rings: [0, 0, 0], ang: [0, 0, 0], pulls: 0, resets: 0, hints: 0, hintMove: null, hintState: null, solved: false, iris: 0, opened: false, beat: 0, beatT: 0, step: 0, lesson: false, near: null, flash: [0, 0, 0], lever: {} };
-    const gr = grates(X, tilesOf(M, 'g'), P);
-    // the brood: two furnace imps; a runic sentinel alone; then the ordinary pack with the bomb lesson
-    const P1 = [], P2 = [], P3 = []; for (const p of tilesOf(M, 'a')) spawnAt(X, 'furnaceimp', p, P1, 911, false);
-    spawnAt(X, 'runicsentinel', mk.c[0], P2, 912, false);
+    const gr = grates(X, tilesOf(M, 'g').concat(...['1', '2', '3', '4'].map(ch => tilesOf(M, ch))), P);
+    // the brood, about forty, hall by hall: imps; sentinels; the bomb lesson inside an ordinary pack; then all of them
     const bomb = bombLesson(X, P);
-    function wave3() { S.step = 1; const sp = tilesOf(M, 'n').sort((a, b) => a.x - b.x); spawnAt(X, 'furnaceimp', sp[0], P3, 913, true); spawnAt(X, 'runicsentinel', sp[2], P3, 913, true);
-      X.banner('A BOMB LARVA', 'It lands and flashes. While its ring is gold, hit it: the bomb flies back at your foes', P.RUNE_HI, 3, true);
-      X.after(1.4, () => { S.lesson = true; const m = bomb.spawn({ x: sp[1].x, y: sp[1].y - 1 }, 913); P3.push(m); }); }
-    const brood = () => P1.concat(P2, P3);
+    const IM = 'furnaceimp', SE = 'runicsentinel', LA = 'bomblarva';
+    const WAVES = [[[IM, IM, IM], [IM, IM, IM, IM]], [[SE, SE], [SE, SE, IM, IM]], [[IM, SE, 'tutor'], [LA, LA, IM, IM]], [[IM, IM, IM, SE, LA, SE], [IM, IM, IM, IM, SE, SE], [IM, IM, IM, SE, SE, LA, LA, IM]]];
+    const TEACH = [['Furnace imps: each winds back and lobs a slow ember at a shown circle, then hops away', 'More imps: step out of the circles, then chase them down'],
+      ['Runic sentinels: their shields shrug off blows from the front. After a shield bash the chest rune glows: strike then', 'Sentinels and imps together'],
+      ['An imp, a sentinel and a bomb larva: when the bomb lands, hit it while its ring is green and it flies back into a foe', 'Two bomb larvae: return them into the others'],
+      ['The whole forge wakes: imps, sentinels and bombs', 'Keep returning the bombs into the sentinels', 'The last of the forge\'s guardians']];
+    const gates = ['1', '2', '3', '4'].map(ch => roomGate(X, H, tilesOf(M, ch), P, 'iron', 'PORTCULLIS'));
+    const rooms = FO_ROOMS.map((R, i) => ({ name: R.name, y0: R.r0 + 1, y1: R.r1 + 1, spots: R.spots.map(([x, y]) => Wp(x, y)), waves: WAVES[i], teach: TEACH[i], gate: gates[i], clear: i === 3 ? 'The last portcullis rises: the hall of the pressure door' : 'The portcullis rises: on to the next hall',
+      special: (ty, q) => { if (ty !== 'tutor') return null; S.lesson = true; return bomb.spawn(q, 913); } }));
+    const brood = director(X, P, rooms, { dmgK: CAL_STAGES.DMG_K.FOUNDRY, col: P.RUNE_HI });
     // the pressure door, its three rings and inscription
     const door = doorway(X, H, tilesOf(M, 'D'), (c, Xs, Ys, T, D) => doorArt(c, Xs, Ys, T, D), { kind: 'calringdoor' });
     const ringX = i => (door.x0 + door.x1) / 2 + (i - 1) * 2.9, ringY = door.y1 - 2.1;   // (world: on the door's face)
@@ -510,7 +579,7 @@ const CAL_STAGES = { HP_K: 1.7 };   // (HP_K: a balance knob on the trials' own 
     for (const p of tilesOf(M, 'O')) H.obj({ x: p.x, y: p.y + 0.5, kind: 'calforgering', r: 0.1, h: 6, label: '', draw(c, Xs, Ys, T) { forgeRingArt(c, Xs, Ys, T, p.tx * 0.5 + p.ty * 0.13); } });
     X.after(1.0, () => { S.intro = false; X.banner('THE RUNEBOUND FOUNDRY', 'An ancient forge, older than the rift: cross its grated walkways to the sealed pressure door', P.RUNE_HI, 3.2, true, true); });
     const wantHint = () => S.hintMove && S.hintState === S.rings.join('') ? S.hintMove : null;
-    return { S, levers, door, bomb, shrine, P1, P2, P3, brood, ringsPlan, pull, reset, showNext, RR_LEVERS,
+    return { S, levers, door, bomb, shrine, brood, rooms, gates, ringsPlan, pull, reset, showNext, RR_LEVERS,
       cam() { const ring = me.y < 17; const k = ring ? 0.35 : 0.15, fy = ring ? 9 : me.y - 3; return { x: me.x * (1 - k) + (FO_CX + 0.5) * k, y: me.y * (1 - k) + fy * k, k: 0, zoom: 0.56 }; },
       update(dt) { door.tick(dt); shrine.tick(dt); bomb.tick(dt);
         for (const L of levers.concat([resetL])) { L.k = Math.max(0, L.k - dt * 1.6); L.flash = Math.max(0, L.flash - dt); }
@@ -520,17 +589,18 @@ const CAL_STAGES = { HP_K: 1.7 };   // (HP_K: a balance knob on the trials' own 
         if (S.solved && !S.opened) { S.iris = Math.min(1, S.iris + dt / 2.2); if (S.iris >= 1) open(); }
         if (S.opened) { S.beatT -= dt; if (S.beatT <= 0) { S.beatT = 1.35; S.beat = 1; if (X.sfx.note) { X.sfx.note(52, 0.22, 'sine', 0.55, 38); X.sfx.note(48, 0.2, 'sine', 0.4, 34, 0.24); } } S.beat = Math.max(0, S.beat - dt * 2.2); }
         if (S.intro) return;
-        if (S.step === 0 && !alive(P2).length) wave3();
-        if (S.solved && S.opened && !self.done && !alive(brood()).length && (bomb.st === 'done' || !bomb.m)) { self.done = true; H.setExit(E.x, E.y, 'To the Bomb King'); X.banner('THE FOUNDRY IS YOURS', 'The door stands open: the frost shrine beyond, then the Bomb King', P.RUNE_HI, 2.6, true); } },
-      goal() { if (self.done) return 'To the Bomb King'; if (S.intro) return 'The Runebound Foundry'; const n = alive(brood()).length;
+        brood.tick(dt); for (const q of gates) if (q) q.tick(dt);
+        if (S.solved && S.opened && !self.done && brood.done) { self.done = true; H.setExit(E.x, E.y, 'To the Bomb King'); X.banner('THE FOUNDRY IS YOURS', 'The door stands open: the frost shrine beyond, then the Bomb King', P.RUNE_HI, 2.6, true); } },
+      goal() { if (self.done) return 'To the Bomb King'; if (S.intro) return 'The Runebound Foundry';
         if (bomb.st === 'ground' && bomb.safe()) return `Return the bomb · hit it while its ring is ${bomb.own ? 'gold' : 'green'}`;
+        if (!brood.done) return brood.goal();
         if (S.solved && !S.opened) return 'The rings align…';
-        if (S.solved) return n ? `The door is open · defeat the last ${n}` : 'Through the door';
-        if (me.y < 17) { const h = wantHint(); return `Set the rings to EYE · CHAIN · CROWN${h ? ` · next: lever ${h}` : ''}${n ? ` · ${n} foes left` : ''}`; }
-        return n ? `Cross the foundry · ${n} foes left` : 'On to the pressure door'; },
+        if (S.solved) return 'Through the door';
+        const h = wantHint(); return `Set the rings to EYE · CHAIN · CROWN${h ? ` · next: lever ${h}` : ''}`; },
       hint() { if (self.done || S.intro) return null; if (bomb.st === 'ground' && bomb.safe() && bomb.m) return { x: bomb.m.x, y: bomb.m.y, h: 1.6, label: 'RETURN IT' };
+        if (!brood.done) return brood.hint();
         const h = wantHint(); if (h) { const L = S.lever[h]; return { x: L.x, y: L.y, h: 2.5, label: `LEVER ${h}` }; }
-        if (!S.solved && me.y > 17 && !alive(brood()).length) return { x: FO_CX + 1.5, y: 12, h: 1.2, label: 'THE DOOR' }; return null; },
+        if (!S.solved && me.y > 17) return { x: FO_CX + 1.5, y: 12, h: 1.2, label: 'THE DOOR' }; return null; },
       drawGround(c) { const T = X.Tz(), t = g.t, lw = lwOf(T); gr.drawGround(c); bomb.drawGround(c);
         // the physical lines: from each lever across the floor to the door's foot under each of its two rings (and up the door, drawn with it)
         for (const L of levers) { const v = RR_LEVERS[L.id], on = S.near === L.id || wantHint() === L.id, col = RR_COL[L.id];
@@ -610,41 +680,51 @@ const CAL_STAGES = { HP_K: 1.7 };   // (HP_K: a balance knob on the trials' own 
         c.setLineDash([T * 0.12, T * 0.3]); c.lineDashOffset = t * T * 0.2 + ph * 10; c.strokeStyle = rgba(P.RUNE, 0.7); c.lineWidth = Math.max(1.5, T * 0.06); ell(c, 0, 0, rx, ry); c.stroke(); c.restore(); }
       c.restore(); glow(c, Xs, cy, R * 1.1, P.RUNE, 0.12); }
   }
-  CAL_STAGES.FOUNDRY = { name: 'The Runebound Foundry', goal: 'Cross the forge and open the pressure door', how: 'Grated walkways cross the lava into an ancient forge. Two furnace imps throw slow embers and back off; a runic sentinel guards behind its shield until it attacks, then shows a glowing rune (strike that). Then a bomb larva: it lands with a ring round it. While the ring is gold, hit the grounded bomb with any attack and it flies back into a monster (it never hurts your pet); once it flashes red, get clear. The pressure door has three rings, each showing Eye, Chain or Crown; the inscription above reads EYE, CHAIN, CROWN. Lever A turns the left and middle rings one step, B the middle and right, C the left and right (stand beside a lever to pull it: its two rings light as you near it). The reset lever sets every ring back to Eye; the lectern shows the next move from wherever the rings are now. No penalty for wrong turns. Solved, the rings close into an iris and the door opens.',
-    layout: FO_LAYOUT, legend: { E: {}, F: {}, g: {}, D: {}, A: {}, B: {}, C: {}, Z: {}, L: {}, a: {}, c: {}, n: {}, O: { tile: T_GAP },
+  CAL_STAGES.FOUNDRY = { name: 'The Runebound Foundry', goal: 'Cross the forge and open the pressure door', how: 'Grated walkways cross the lava through four forge halls, each shut by a portcullis until its brood is down: about forty in all, in waves. Furnace imps throw slow embers at shown circles and back off; runic sentinels guard behind their shields until they attack, then show a glowing rune (strike that). In the third hall a bomb larva lands with a ring round it: while the ring is green, hit the grounded bomb with any attack and it flies back into a monster (it never hurts your pet); once it flashes red, get clear. Then every kind together. Beyond the last hall, the pressure door has three rings, each showing Eye, Chain or Crown; the inscription above reads EYE, CHAIN, CROWN. Lever A turns the left and middle rings one step, B the middle and right, C the left and right (stand beside a lever to pull it: its two rings light as you near it). The reset lever sets every ring back to Eye; the lectern shows the next move from wherever the rings are now. No penalty for wrong turns. Solved, the rings close into an iris and the door opens.',
+    layout: FO_LAYOUT, legend: { E: {}, F: {}, g: {}, D: {}, A: {}, B: {}, C: {}, Z: {}, L: {}, 1: {}, 2: {}, 3: {}, 4: {}, O: { tile: T_GAP },
       V: { tile: T_SOLID, get prop() { return DunWorld.PROPS.vessel ? 'vessel' : undefined; } }, K: PROP('forge', 'boiler'), H: PROP('chains', 'pipe'), R: PROP('metalring', 'gear'), N: PROP('anvil', 'drum') }, make: makeFoundry, plan: ringsPlan, levers: RR_LEVERS, target: RR_TARGET };
 
   /* ======================= THE HEARTWARD DESCENT ======================= */
-  /* rows from the top: the lava lake round Ifrit's throne · the overlook (door, shrine) · the approach · ledge 2 · causeway 2 ·
-     ledge 1 · causeway 1 · ledge 0 (start). The causeways cross the cathedral's drop; the ledges are broad and cool */
-  const DE_W = 31, DE_H = 72, DE_CX = 15;
-  const DE_LEDGES = [{ y0: 64, y1: 70, back: [15, 66] }, { y0: 42, y1: 51, back: [15, 49] }, { y0: 20, y1: 29, back: [15, 27] }];
-  const DE_LAYOUT = (() => { const g = grid(DE_W, DE_H, '#'); const rect = (x0, y0, x1, y1, ch) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) g[y][x] = ch || '.'; };
-    rect(1, 0, 29, 9, '~'); rect(3, 10, 27, 63, '~');
-    // the overlook and the approach; the ledges (their corners broken off into the drop); the causeways
-    rect(7, 10, 23, 14); g[11][15] = 'E'; g[12][10] = 'F'; rect(12, 15, 18, 19);
-    for (const L of DE_LEDGES) { rect(L.y0 === 64 ? 6 : 4, L.y0, L.y0 === 64 ? 24 : 26, L.y1); }
-    for (const [x, y] of [[4, 20], [26, 20], [4, 29], [26, 29], [4, 42], [26, 42], [4, 51], [26, 51], [6, 64], [24, 64], [6, 70], [24, 70]]) g[y][x] = '~';
-    rect(13, 52, 17, 63); rect(13, 30, 17, 41); g[68][15] = 'S';
-    // the vents (each lane: centre at its foot, then west, then east), the slag barricades, the groups
-    for (const [x, y] of [[15, 61], [14, 58], [16, 55], [15, 39], [14, 36], [16, 33]]) g[y][x] = 'v';
-    for (let x = 13; x <= 17; x++) g[41][x] = 'X'; for (let x = 12; x <= 18; x++) g[19][x] = 'Y';
-    g[45][10] = 'k'; g[45][20] = 'k'; g[23][15] = 'j'; g[22][8] = 'q'; g[22][22] = 'q';
-    // basalt columns on the ledges, black crystals growing toward the throne, hanging slabs over the drop
-    for (const [x, y] of [[5, 44], [25, 44], [5, 23], [25, 23], [7, 66], [23, 66], [8, 11], [22, 11]]) g[y][x] = 'H';
-    for (const [x, y] of [[6, 49], [24, 48], [6, 27], [24, 26], [8, 69], [22, 69], [13, 16], [17, 16]]) if (g[y][x] === '.') g[y][x] = 'C';
-    for (const [x, y] of [[8, 57], [22, 59], [9, 35], [21, 33], [7, 16], [23, 17]]) g[y][x] = 'O';
-    for (const [x, y] of [[3, 46], [27, 47], [3, 24], [27, 25], [5, 66], [25, 67]]) g[y][x] = 'L'; for (const [x, y] of [[5, 21], [25, 28]]) g[y][x] = 'G';
-    return g.map(r => r.join('')); })();
+  /* rows from the top: the lava lake round Ifrit's throne · the overlook (door, shrine) · the approach (its slag gate) ·
+     ledge 3 · causeway 3 · ledge 2 · causeway 2 · ledge 1 · causeway 1 · ledge 0 (start). The causeways cross the cathedral's
+     drop; on the three broad, cool ledges the brood rises in waves (about forty in all) */
+  const DE_W = 31, DE_H = 105, DE_CX = 15;
+  const DE_LEDGES = [{ y0: 97, y1: 103, back: [15, 99] }, { y0: 76, y1: 85, back: [15, 83] }, { y0: 56, y1: 65, back: [15, 63] }, { y0: 35, y1: 45, back: [15, 43] }];
+  const DE_LANES = [[86, 96], [66, 75], [46, 55]];
   const DE_VENT = { idle: 1.6, warn: 1.9, erupt: 0.8, cool: 0.9 }, DE_VENT_R = 1.3;
+  const DE_ROOMS = [{ name: 'The First Ledge', li: 1 }, { name: 'The Crystal Ledge', li: 2 }, { name: 'The High Ledge', li: 3 }];
+  /* THE EMBER COURT: a round basalt platform (layout centre 15.5, 23.5) over the lava below the overlook, ringed by six furnace
+     idols on pillars in the lava. They hurl molten balls; twelve DODGED throws (rolled through, or side-stepped close)
+     open the court. Hits only chip: they never count and never reset the counter */
+  const EC_C = [15.5, 23.5], EC_RX = 9, EC_RY = 6.5, EC_NEED = 12;
+  const EC_IDOLS = { NW: [8, 18], NE: [22, 18], W: [5, 23], E: [25, 23], SW: [8, 29], SE: [22, 29] };
+  const DE_LAYOUT = (() => { const g = grid(DE_W, DE_H, '#'); const rect = (x0, y0, x1, y1, ch) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) g[y][x] = ch || '.'; };
+    rect(1, 0, 29, 9, '~'); rect(3, 10, 27, 96, '~');
+    // the overlook; the court's north gate (its idols cool at twelve); the court; the gate up from the high ledge
+    rect(7, 10, 23, 14); g[11][15] = 'E'; g[12][10] = 'F'; rect(13, 15, 17, 17); for (let x = 13; x <= 17; x++) g[15][x] = 'Y';
+    for (let y = 16; y <= 31; y++) for (let x = 3; x <= 27; x++) if (Math.pow((x + 0.5 - EC_C[0]) / EC_RX, 2) + Math.pow((y + 0.5 - EC_C[1]) / EC_RY, 2) < 1) g[y][x] = '.';
+    for (const k in EC_IDOLS) { const [x, y] = EC_IDOLS[k]; g[y][x] = 'T'; }
+    rect(13, 30, 17, 34); for (let x = 13; x <= 17; x++) g[33][x] = 'W';
+    // the ledges (their corners broken off into the drop) and the causeways between them
+    for (const L of DE_LEDGES) { const x0 = L.y0 === 97 ? 6 : 4, x1 = L.y0 === 97 ? 24 : 26; rect(x0, L.y0, x1, L.y1); for (const [x, y] of [[x0, L.y0], [x1, L.y0], [x0, L.y1], [x1, L.y1]]) g[y][x] = '~'; }
+    for (const [a, b] of DE_LANES) rect(13, a, 17, b);
+    g[101][15] = 'S';
+    // the vents (each lane: centre at its foot, then west, then east), the slag barricades at the second and third lanes' feet
+    for (const [a, b] of DE_LANES) for (const [x, dy] of [[15, 2], [14, 5], [16, 8]]) g[b - dy][x] = 'v';
+    for (let x = 13; x <= 17; x++) { g[75][x] = 'X'; g[55][x] = 'U'; }
+    // basalt columns and black crystals on the ledges, hanging slabs over the drop, lavafalls in the walls
+    for (const L of DE_LEDGES) { const y0 = L.y0; if (y0 !== 97) { g[y0 + 2][5] = 'H'; g[y0 + 2][25] = 'H'; g[y0 + 7][6] = 'C'; g[y0 + 6][24] = 'C'; g[y0 + 4][2] = 'L'; g[y0 + 5][28] = 'L'; } }
+    g[99][7] = 'H'; g[99][23] = 'H'; g[102][8] = 'C'; g[102][22] = 'C';
+    for (const [a] of DE_LANES) { g[a + 4][8] = 'O'; g[a + 7][22] = 'O'; }
+    for (const [x, y] of [[6, 12], [24, 13], [5, 35], [25, 42], [3, 17], [27, 17], [3, 29], [27, 30]]) g[y][x] = 'G';
+    return g.map(r => r.join('')); })();
   function makeDescent(X, self, H) {
     const M = X.M, me = X.me, g = X.g, mk = M.marks, P = pal(), E = mk.E[0];
-    const S = { intro: true, ledge: 0, demo: 0, lane: [false, false], falls: 0, hits: 0, open: [false, false], awake: [false, false], done: false, breath: 0 };
+    const S = { intro: true, ledge: 0, demo: 0, falls: 0, hits: 0, done: false, breath: 0 };
     const ledgeOf = y => { for (let i = 0; i < DE_LEDGES.length; i++) { const L = DE_LEDGES[i]; if (y >= L.y0 + 1 && y <= L.y1 + 2) return i; } return -1; };
     const backOf = i => Wp(DE_LEDGES[i].back[0], DE_LEDGES[i].back[1]);
     // the vents: each runs idle -> warn (glow and hiss) -> erupt -> cool; a lane's vents roll from its foot to its head
-    const vents = tilesOf(M, 'v').sort((a, b) => b.y - a.y).map((p, i) => ({ i, x: p.x, y: p.y, lane: i < 3 ? 0 : 1, ph: 'idle', t: 0, off: (i % 3) * 1.45, hitDone: false, erupts: 0, live: false, demo: false }));
-    const ventT = DE_VENT.idle + DE_VENT.warn + DE_VENT.erupt + DE_VENT.cool;
+    const vents = tilesOf(M, 'v').sort((a, b) => b.y - a.y).map((p, i) => ({ i, x: p.x, y: p.y, lane: Math.floor(i / 3), ph: 'idle', t: 0, off: (i % 3) * 1.45, hitDone: false, erupts: 0, live: false, demo: false }));
     function ventTick(v, dt) { if (!v.live && !v.demo) { v.ph = 'idle'; return; } v.t += dt; const L = v.demo ? { idle: 0.6, warn: 2.4, erupt: 0.9, cool: 1 } : DE_VENT, a = L.idle, b = a + L.warn, c2 = b + L.erupt, d = c2 + L.cool;
       const ph0 = v.ph; v.ph = v.t < a ? 'idle' : v.t < b ? 'warn' : v.t < c2 ? 'erupt' : 'cool'; v.k = v.ph === 'warn' ? (v.t - a) / L.warn : v.ph === 'erupt' ? (v.t - b) / L.erupt : 0;
       if (v.ph === 'warn' && ph0 !== 'warn') { if (Math.hypot(me.x - v.x, me.y - v.y) < 11 && X.sfx.hiss) X.sfx.hiss(L.warn * 0.9, 0.12, 1800); X.warn({ x: v.x, y: v.y, r: DE_VENT_R, life: L.warn, max: L.warn, color: P.WARN }); }
@@ -653,48 +733,151 @@ const CAL_STAGES = { HP_K: 1.7 };   // (HP_K: a balance knob on the trials' own 
           if (C && typeof C.fall === 'function') { if (!me.dodge && !(me.inv > 0) && !me.dash) { X.boom(me.x, me.y, 1.0, P.LAVA, '#FFFFFF', { n: 10, shake: 4 }); X.text(me.x, me.y - 1.3, 'Thrown off the causeway!', P.WARN, 15); S.falls++; C.fall(X, { k: 0.1, text: 'Back on the ledge' }); me.inv = Math.max(me.inv || 0, 1.2); } }
           else if (X.hurtPet(X.ST().hp * 0.1, null, { vent: true })) fall(v); }
         for (const m of X.mons) if (!m.dead && !m.vented && Math.hypot(m.x - v.x, m.y - v.y) < DE_VENT_R + m.r * 0.5) { m.vented = true; X.hitMon(m, m.maxhp * 0.3, { flat: true, src: 'hazard' }); X.after(1, () => { m.vented = false; }); } }
-      if (v.t >= d) { v.t = 0; if (v.demo) { v.demo = false; S.demo = 2; X.banner('VENTS ERUPT', 'Each one glows and hisses first: cross when it is dark, or right behind its blast', P.LAVA_HI, 3, true); for (const q of vents) if (q.lane === 0) { q.live = true; q.t = -q.off; } } } }
+      if (v.t >= d) { v.t = 0; if (v.demo) { v.demo = false; S.demo = 2; X.banner('VENTS ERUPT', 'Each one glows and hisses first: cross when it is dark, or right behind its blast', P.LAVA_HI, 3, true); liveLane(0); } } }
+    const liveLane = n => { for (const q of vents) if (q.lane === n && !q.live) { q.live = true; q.t = -q.off * 0.9; } };
     // an eruption throws you off the causeway: you land back on the last ledge (its damage the penalty)
     function fall(v) { S.falls++; const b = backOf(S.ledge); X.text(me.x, me.y - 1.3, 'Thrown off the causeway!', P.WARN, 15); X.boom(me.x, me.y, 1.0, P.LAVA, '#FFFFFF', { n: 10, shake: 4 });
       me.x = b.x; me.y = b.y; me.vx = me.vy = 0; me.inv = Math.max(me.inv || 0, 1.2); X.ring(b.x, b.y, 0.2, 1.6, 0.4, P.ASH, 0.4); X.text(b.x, b.y - 1.3, 'Back on the ledge', '#FFFFFF', 13); }
-    // the barricades of cooling slag across the next causeway's foot, lifted when the ledge is clear
-    const bars = [doorway(X, H, tilesOf(M, 'X'), (c, Xs, Ys, T, D) => slagArt(c, Xs, Ys, T, D), { kind: 'calslag' }), doorway(X, H, tilesOf(M, 'Y'), (c, Xs, Ys, T, D) => slagArt(c, Xs, Ys, T, D), { kind: 'calslag' })];
-    // the two groups, asleep until you stand on their ledge
-    const G1 = [], G2 = []; for (const p of tilesOf(M, 'k')) spawnAt(X, 'ashenknight', p, G1, 921, false);
-    spawnAt(X, 'ashenknight', mk.j[0], G2, 922, false); for (const p of tilesOf(M, 'q')) spawnAt(X, 'crystalwisp', p, G2, 922, false);
-    const groups = [G1, G2];
+    // the brood, about forty, ledge by ledge: knights, crystal wisps, then all of them with the hollows' kin
+    const KN = 'ashenknight', CW = 'crystalwisp', SL = 'cinderslug', CR = 'basaltcrawler', EW = 'emberwisp', IM = 'furnaceimp';
+    const WAVES = [[[KN, KN], [KN, KN, CR, SL], [KN, SL, CR, SL, KN]], [[CW, CW, CW], [CW, CW, KN, KN], [CW, KN, EW, EW, SL, CR]], [[KN, KN, CW, CW, CR], [KN, KN, KN, CW, CW], [KN, KN, CW, CW, CR, IM]]];
+    const TEACH = [['Ashen knights: one slow three-blow combo each. Wait it out, then strike', 'Knights with the hollows\' kin', 'The last of the first ledge'],
+      ['Crystal wisps: each marks one line, then fires a beam along it. Step off the line, then strike', 'Wisps and knights together: watch the marked lines', 'Wisps, knights and embers'],
+      ['The high ledge: knights and wisps together', 'More knights: keep moving between their combos', 'The last guardians before the throne']];
+    const gates = ['X', 'U', 'W'].map(ch => roomGate(X, H, tilesOf(M, ch), P, 'slag', 'COOLING SLAG'));
+    const rooms = DE_ROOMS.map((R, i) => { const L = DE_LEDGES[R.li], y0 = L.y0; return { name: R.name, y0: L.y0 + 1, y1: L.y1 + 0.8, spots: [[8, y0 + 2], [22, y0 + 2], [15, y0 + 1], [8, y0 + 6], [22, y0 + 6], [15, y0 + 4]].map(([x, y]) => Wp(x, y)), waves: WAVES[i], teach: TEACH[i], gate: gates[i],
+      clear: i === 2 ? 'The slag gives way: the Ember Court lies above' : 'The slag gives way: the next causeway is open' }; });
+    const brood = director(X, P, rooms, { dmgK: CAL_STAGES.DMG_K.DESCENT, onRoom(R, i) { if (i < 2) liveLane(i + 1); } });
     const shrine = station(X, H, mk.F[0], P, 'Ifrit');
     // (columns, crystals and slabs: the core's props where it has them, else this file's own)
     const coreProps = !!DunWorld.PROPS.basaltcol;
     if (!coreProps) { for (const p of tilesOf(M, 'H')) H.obj({ x: p.x, y: p.y + 0.5, kind: 'calcolumn', r: 0.1, h: 3, label: '', draw(c, Xs, Ys, T) { columnArt(c, Xs, Ys, T, p.tx * 0.3 + p.ty * 0.7); } });
       for (const p of tilesOf(M, 'O')) H.obj({ x: p.x, y: p.y + 0.5, kind: 'calslab', r: 0.1, h: 4, label: '', draw(c, Xs, Ys, T) { slabArt(c, Xs, Ys, T, p.tx * 0.41 + p.ty * 0.07); } }); }
     for (const p of tilesOf(M, 'C')) { const ph = (p.tx * 0.37 + p.ty * 0.11) % 1, big = 1.4 + (DE_H - p.ty) / DE_H * 1.1; block(X, p.tx, p.ty); H.obj({ x: p.x, y: p.y + 0.4, kind: 'calcrystal', r: 0.1, h: 2, label: '', draw(c, Xs, Ys, T) { crystalArt(c, Xs, Ys, T * big, g.t, ph, P); } }); }
-    X.after(1.0, () => { S.intro = false; X.banner('THE HEARTWARD DESCENT', 'Down the cathedral of the volcano\'s heart: two causeways, two ledges, then the throne', P.LAVA_HI, 3.2, true, true); });
+    /* ---- THE EMBER COURT: dodge twelve throws ---- */
+    const ctr = Wp(EC_C[0] - 0.5, EC_C[1] - 0.5), ecIn = (x, y, pad) => Math.pow((x - ctr.x) / (EC_RX + (pad || 0)), 2) + Math.pow((y - ctr.y) / (EC_RY + (pad || 0)), 2) < 1;
+    const touchUI = (() => { try { return matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0; } catch (e) { return true; } })();
+    const C = { on: false, count: 0, t: 0, next: 2.2, winds: [], balls: [], hits: 0, voids: 0, far: 0, streak: 0, slow: false, prompt: 0, done: false, cool: 0, pop: 0, popWord: '', attacks: 0, log: [] };
+    S.court = C;
+    const idols = {}; for (const k in EC_IDOLS) { const [x, y] = EC_IDOLS[k], w = Wp(x, y); idols[k] = { id: k, x: w.x, y: w.y, wind: 0, flash: 0, cool: 0 };
+      H.obj({ x: w.x, y: w.y + 0.5, kind: 'calidol', r: 0.1, h: 3, label: '', draw(c, Xs, Ys, T) { idolArt(c, Xs, Ys, T, idols[k]); } }); }
+    const courtGate = doorway(X, H, tilesOf(M, 'Y'), (c, Xs, Ys, T, D) => { gateArt(c, Xs, Ys, T, D, P, 'slag', C.done ? '' : `DODGE ${EC_NEED} THROWS`, g.t); }, { kind: 'calcourtgate' });
+    const mouth = th => ({ x: th.x, y: th.y - 0.2 });
+    // a throw: the idol glows and winds up (its aim line or landing circle shown), then lets fly
+    function windUp(id, kind, o) { o = o || {}; const th = idols[id], slow = C.slow; C.slow = false; const w = { th, kind, t: 0, dur: (o.wind || 1.1) + (slow ? 0.6 : 0), speed: (o.speed || 6.5) * (slow ? 0.75 : 1), tx: me.x, ty: me.y, teach: !!o.teach || slow }; C.winds.push(w); C.attacks++;
+      if (w.teach) C.prompt = w.dur + 1.2; if (X.sfx.hiss) X.sfx.hiss(w.dur * 0.8, 0.08, 900); return w; }
+    function release(w) { const m = mouth(w.th); w.th.flash = 0.4; if (X.sfx.whoosh) X.sfx.whoosh();
+      if (w.kind === 'lob') { C.balls.push({ kind: 'lob', x0: m.x, y0: m.y, tx: w.tx, ty: w.ty, x: m.x, y: m.y, z: 2.3, t: 0, dur: 1.15, R: 1.15, res: null, minD: 9 }); return; }
+      const dx = w.tx - m.x, dy = w.ty - m.y, d = Math.hypot(dx, dy) || 1, r = w.kind === 'roll' ? 0.55 : 0.36;
+      C.balls.push({ kind: w.kind, x: m.x, y: m.y, vx: dx / d * w.speed, vy: dy / d * w.speed, r, z: w.kind === 'roll' ? 0 : 2.3, zs: w.kind === 'roll' ? 0 : 2.3, len: d + 9, went: 0, res: null, minD: 9, spin: 0 }); }
+    function counted(b, how) { if (b.res) return; b.res = 'dodge'; C.count = Math.min(EC_NEED, C.count + 1); C.streak = 0; C.pop = 1; C.popWord = how === 'roll' ? 'DODGE!' : 'CLOSE ONE!';
+      chime(X, 523 * Math.pow(2, C.count / 12), 0.7); X.ring(me.x, me.y, 0.3, 1.5, 0.3, P.FROST_HI, 0.35); X.text(me.x, me.y - 1.6, `${C.popWord} ${C.count}/${EC_NEED}`, '#FFF08C', 18); C.log.push(how);
+      if (C.count >= EC_NEED) finish(); }
+    function hitBy(b) { if (b.res) return; if (me.inv > 0 || me.dead) { b.res = 'void'; C.voids++; return; } b.res = 'hit'; const hp = X.ST().hp, d = Math.max(1, Math.min(hp * 0.07, me.hp - 1)); if (me.hp > 1) X.hurtPet(d, null, { court: true }); C.hits++; C.streak++; C.log.push('hit');
+      X.text(me.x, me.y - 1.6, 'Hit: that one does not count', P.WARN, 14); if (C.streak >= 2) { C.slow = true; C.streak = 0; X.banner(touchUI ? 'TAP DODGE!' : 'PRESS SHIFT TO DODGE!', 'Roll through a ball as it reaches you, or step aside just before it arrives', P.FROST_HI, 2.4, true); } }
+    function finish() { C.done = true; C.winds.length = 0; for (const b of C.balls) { X.boom(b.kind === 'lob' ? b.tx : b.x, b.kind === 'lob' ? b.ty : b.y, 0.8, P.FROST, '#FFFFFF', { n: 8, shake: 0 }); } C.balls.length = 0; for (const k in idols) idols[k].cool = 0.001;
+      X.flash(0.3, '#E8F8FF'); X.shake(5, 0.6); if (X.sfx.fanfare) X.sfx.fanfare(); FROST_CHIME(X); X.ring(ctr.x, ctr.y, 0.5, EC_RX, 0.9, P.FROST_HI, 0.5);
+      X.banner('TWELVE DODGED', 'The furnace idols gutter out and go dark: the way to the overlook is open', P.FROST_HI, 3.4, true, true);
+      X.after(1.2, () => { courtGate.open1(); self.done = true; H.setExit(E.x, E.y, 'To Ifrit\'s Throne'); }); }
+    // the order of throws by the count so far: three slow teaching throws from the front, two throwers alternating, a crossfire,
+    // a rolling ball, a lobbed ball, then quick volleys of three to finish
+    function schedule() { const n = C.count;
+      if (n < 3) { windUp('NE', 'ball', { wind: 1.5, speed: 4.6, teach: true }); C.next = 2.4; }
+      else if (n < 5) { windUp(C.attacks % 2 ? 'W' : 'E', 'ball', { wind: 1.1, speed: 6 }); C.next = 1.6; }
+      else if (n < 7) { windUp('W', 'ball', { wind: 1.2, speed: 6.2 }); X.after(0.4, () => { if (!C.done) windUp('E', 'ball', { wind: 1.2, speed: 6.2 }); }); C.next = 2.2; if (n === 5 && !C.saidX) { C.saidX = true; X.banner('CROSSFIRE', 'Two throwers at once: roll through one, step past the other', P.LAVA_HI, 2.2, true); } }
+      else if (n === 7) { windUp('SW', 'roll', { wind: 1.3, speed: 5 }); C.next = 2.0; if (!C.saidR) { C.saidR = true; X.banner('A ROLLING BALL', 'Low and wide: roll through it or get out of its lane', P.LAVA_HI, 2.2, true); } }
+      else if (n === 8) { windUp('NW', 'lob', { wind: 1.3 }); C.next = 2.2; if (!C.saidL) { C.saidL = true; X.banner('A LOBBED BALL', 'Leave the landing circle before it comes down', P.LAVA_HI, 2.2, true); } }
+      else { ['NE', 'E', 'SE'].forEach((id, i) => X.after(i * 0.9, () => { if (!C.done) windUp(id, 'ball', { wind: 0.9, speed: 7.2 }); })); C.next = 3.4; if (!C.saidV) { C.saidV = true; X.banner('THE FINAL VOLLEY', 'Three quick throws from the east: keep moving, roll at the last moment', P.LAVA_HI, 2.2, true); } } }
+    function courtTick(dt) { for (const k in idols) { const th = idols[k]; th.flash = Math.max(0, th.flash - dt); th.wind = 0; if (th.cool > 0) th.cool = Math.min(1, th.cool + dt / 2); }
+      C.pop = Math.max(0, C.pop - dt * 1.5); C.prompt = Math.max(0, C.prompt - dt);
+      if (!C.on) { if (brood.done && ecIn(me.x, me.y, -0.5)) { C.on = true; C.t = 0; X.banner('THE EMBER COURT', `Furnace idols ring the court. DODGE ${EC_NEED} of their throws: roll through them (${touchUI ? 'the DODGE button' : 'Shift'}) or step aside just in time. A hit only stings, and never counts`, P.FROST_HI, 4.2, true, true); FROST_CHIME(X); } return; }
+      if (C.done) return; C.t += dt;
+      for (const w of C.winds) { w.t += dt; w.th.wind = Math.max(w.th.wind, w.t / w.dur); if (w.t < w.dur - 0.3) { w.tx = me.x; w.ty = me.y; } if (w.t >= w.dur) { w.fired = true; release(w); } } C.winds = C.winds.filter(w => !w.fired);
+      for (const b of C.balls) { if (b.res && b.res !== 'dodge' && b.kind !== 'lob' && b.gone) continue;
+        if (b.kind === 'lob') { b.t += dt; const u = Math.min(1, b.t / b.dur); b.x = b.x0 + (b.tx - b.x0) * u; b.y = b.y0 + (b.ty - b.y0) * u; b.z = Math.sin(u * Math.PI) * 3.2 + (1 - u) * 2.3;
+          const dd = Math.hypot(me.x - b.tx, me.y - b.ty); b.minD = Math.min(b.minD, dd);
+          if (u >= 1 && !b.landed) { b.landed = true; b.gone = true; X.boom(b.tx, b.ty, b.R, P.LAVA, P.LAVA_HI, { n: 16, shake: 3 }); if (X.sfx.crash) X.sfx.crash();
+            if (dd < b.R + (me.r || 0.3) * 0.5) { if (me.dodge) counted(b, 'roll'); else hitBy(b); } else if (dd < b.R + 2.4) counted(b, 'step'); else { b.res = 'far'; C.far++; X.text(me.x, me.y - 1.4, 'Too far off: let it come close', '#FFD9B0', 13); } }
+          continue; }
+        b.x += b.vx * dt; b.y += b.vy * dt; b.went += Math.hypot(b.vx, b.vy) * dt; b.spin += dt * 9; if (b.zs) b.z = 0.7 + (b.zs - 0.7) * Math.max(0, 1 - b.went / 2.2);  /* (from the idol's raised fists down to a low, readable arc) */ const dd = Math.hypot(me.x - b.x, me.y - b.y); b.minD = Math.min(b.minD, dd);
+        if (!b.res && dd < b.r + (me.r || 0.3) * 0.8) { if (me.dodge) counted(b, 'roll'); else hitBy(b); }
+        if (!b.res && b.minD < 1.6 && dd > b.minD + 0.6) counted(b, 'step');   // (it has passed close by: a side-step)
+        if (b.went > b.len || !ecIn(b.x, b.y, 4)) { b.gone = true; if (!b.res) { if (b.minD < 1.6) counted(b, 'step'); else { b.res = 'far'; C.far++; X.text(me.x, me.y - 1.4, 'Too far off: let it come close', '#FFD9B0', 13); } } } }
+      C.balls = C.balls.filter(b => !b.gone || (b.kind === 'lob' && !b.landed));
+      C.next -= dt; if (C.next <= 0 && !C.winds.length && !C.balls.length) schedule(); }
+    /* a furnace idol: a squat basalt idol on a hexagonal pillar in the lava. Its chest is an arched furnace mouth behind an iron
+       grille; rune cuts and cracks score its plates. Winding up, its arms rise overhead and a molten ball gathers between its
+       fists while the furnace brightens; on the throw it rocks back, arms flung forward. Once the court is won it is dark,
+       cracked and steaming. (Its light, shimmer and steam are added in one GPU pass for all six: courtOver) */
+    function idolPose(th) { const k = C.done ? 0 : th.wind, rec = C.done ? 0 : th.flash / 0.4, lift = Math.max(k, rec * 0.6); return { k, rec, lift, dark: th.cool > 0 ? th.cool : 0 }; }
+    function idolGeom(Xs, Ys, T, th) { const s = T * 1.45, ps = idolPose(th), base = Ys - T * 0.95, back = ps.rec * T * 0.18; return { s, ps, base, cx: Xs, cy: base - back, mouth: [Xs, base - back - s * 0.78], ball: [Xs, base - back - s * (1.95 + 0.25 * ps.k)] }; }
+    function idolArt(c, Xs, Ys, T, th) { const lw = lwOf(T), t = g.t, G = idolGeom(Xs, Ys, T, th), { s, ps, base, cx, cy } = G, { k, rec, lift, dark } = ps, hot = C.done ? 0 : Math.max(k, rec), ph = th.id.charCodeAt(0) * 0.37 + th.id.length;
+      c.save();
+      // the pillar: a hexagonal basalt column standing out of the lava, its foot crusted and lit from below
+      c.fillStyle = 'rgba(0,0,0,.45)'; ell(c, Xs, Ys + T * 0.05, T * 0.85, T * 0.28); c.fill();
+      const pr = T * 0.72, pry = pr * 0.42, ptop = base, hexP = (a, y) => [Xs + Math.cos(a) * pr, y + Math.sin(a) * pry];
+      for (const [i, j, col] of [[3, 4, '#5A5153'], [4, 5, '#3B3335'], [5, 0, '#221C1E']]) { const a0 = Math.PI + (i - 3) * Math.PI / 3, a1 = Math.PI + (j - 3) * Math.PI / 3, A = hexP(a0, ptop), B = hexP(a1, ptop); poly(c, [A, B, [B[0], Ys], [A[0], Ys]]); c.closePath(); const gg = c.createLinearGradient(0, ptop, 0, Ys); gg.addColorStop(0, col); gg.addColorStop(1, '#120C0C'); c.fillStyle = gg; c.fill(); c.strokeStyle = P.INK; c.lineWidth = lw * 0.8; c.stroke(); }
+      c.strokeStyle = 'rgba(0,0,0,.45)'; c.lineWidth = Math.max(1, lw * 0.6); for (const u of [0.35, 0.7]) { const yy = ptop + (Ys - ptop) * u; c.beginPath(); c.moveTo(Xs - pr, yy); c.lineTo(Xs + pr, yy + T * 0.04); c.stroke(); }
+      const lg = c.createLinearGradient(0, Ys - T * 0.35, 0, Ys); lg.addColorStop(0, 'rgba(255,90,26,0)'); lg.addColorStop(1, rgba(P.LAVA, 0.55)); c.fillStyle = lg; c.fillRect(Xs - pr, Ys - T * 0.35, pr * 2, T * 0.35);
+      // the arms: shoulder to fist, hanging at rest, raised overhead in the wind-up, flung forward in the recoil
+      const arm = sd => { const sh = [cx + sd * s * 0.5, cy - s * 1.15], up = lift, fwd = rec * 0.6, el = [sh[0] + sd * s * (0.42 - 0.12 * up), sh[1] + s * (0.42 - 0.95 * up) - fwd * s * 0.2], fi = [sh[0] + sd * s * (0.34 - 0.36 * up) , sh[1] + s * (0.85 - 1.85 * up) + fwd * s * 0.35];
+        c.lineCap = 'round'; c.lineJoin = 'round'; c.strokeStyle = P.INK; c.lineWidth = s * 0.34 + lw * 2; c.beginPath(); c.moveTo(sh[0], sh[1]); c.lineTo(el[0], el[1]); c.lineTo(fi[0], fi[1]); c.stroke(); c.strokeStyle = sd < 0 ? '#4A4044' : '#2E2629'; c.lineWidth = s * 0.34; c.stroke();
+        c.strokeStyle = 'rgba(255,255,255,.08)'; c.lineWidth = s * 0.1; c.beginPath(); c.moveTo(sh[0] - s * 0.05, sh[1] - s * 0.05); c.lineTo(el[0] - s * 0.05, el[1] - s * 0.05); c.stroke();
+        poly(c, [[fi[0] - s * 0.2, fi[1] - s * 0.16], [fi[0] + s * 0.2, fi[1] - s * 0.18], [fi[0] + s * 0.22, fi[1] + s * 0.14], [fi[0] - s * 0.18, fi[1] + s * 0.18]]); c.closePath(); c.fillStyle = '#3A3034'; c.fill(); c.strokeStyle = P.INK; c.lineWidth = lw; c.stroke();
+        if (hot > 0.2) { c.strokeStyle = rgba(P.LAVA_HI, 0.7 * hot); c.lineWidth = Math.max(1, lw * 0.6); c.beginPath(); c.moveTo(fi[0] - s * 0.1, fi[1]); c.lineTo(fi[0] + s * 0.1, fi[1] - s * 0.04); c.stroke(); } };
+      arm(-1);
+      // the body: broad faceted basalt plates, lit on the left, a shadow to the right
+      const tor = [[cx - s * 0.62, cy], [cx - s * 0.7, cy - s * 0.95], [cx - s * 0.5, cy - s * 1.32], [cx + s * 0.5, cy - s * 1.32], [cx + s * 0.7, cy - s * 0.95], [cx + s * 0.62, cy]];
+      poly(c, tor); c.closePath(); const bg = c.createLinearGradient(cx - s * 0.7, 0, cx + s * 0.7, 0); bg.addColorStop(0, dark ? '#4A4246' : '#5E5256'); bg.addColorStop(0.45, dark ? '#302A2C' : '#3A3034'); bg.addColorStop(1, '#171214'); c.fillStyle = bg; c.fill(); c.strokeStyle = P.INK; c.lineWidth = lw; c.stroke();
+      c.strokeStyle = 'rgba(0,0,0,.4)'; c.lineWidth = Math.max(1, lw * 0.7); c.beginPath(); c.moveTo(cx - s * 0.66, cy - s * 0.5); c.lineTo(cx - s * 0.36, cy - s * 0.46); c.moveTo(cx + s * 0.36, cy - s * 0.48); c.lineTo(cx + s * 0.66, cy - s * 0.52); c.moveTo(cx - s * 0.5, cy - s * 1.32); c.lineTo(cx - s * 0.4, cy - s * 1.1); c.lineTo(cx + s * 0.42, cy - s * 1.1); c.lineTo(cx + s * 0.5, cy - s * 1.32); c.stroke();
+      // the rune cuts on its shoulders and belly: they smoulder with the furnace (cold once it is dark)
+      const runeCol = dark ? rgba('#8FB8D8', 0.35) : rgba(P.RUNE, 0.35 + 0.55 * hot + 0.1 * Math.sin(t * 2 + ph)); const CA = CALR();
+      [[-0.45, -1.2, 0], [0.45, -1.2, 3], [-0.42, -0.25, 5], [0.42, -0.25, 6]].forEach(([u, v, i]) => { if (CA && typeof CA.rune === 'function') CA.rune(c, cx + u * s, cy + v * s, s * 0.16, i, runeCol, Math.max(1, lw * 0.6)); else { c.strokeStyle = runeCol; c.lineWidth = Math.max(1, lw * 0.6); c.beginPath(); c.moveTo(cx + u * s - s * 0.07, cy + v * s - s * 0.07); c.lineTo(cx + u * s + s * 0.06, cy + v * s); c.lineTo(cx + u * s - s * 0.05, cy + v * s + s * 0.08); c.stroke(); } });
+      // cracks across the plates: hairlines of heat while it burns; wide and dark once it has gone out
+      c.strokeStyle = dark ? 'rgba(10,6,8,.85)' : rgba(P.LAVA, 0.25 + 0.5 * hot); c.lineWidth = Math.max(1, lw * (dark ? 1 : 0.5) * (1 + dark)); c.beginPath(); c.moveTo(cx - s * 0.2, cy - s * 1.3); c.lineTo(cx - s * 0.28, cy - s * 1.12); c.lineTo(cx - s * 0.18, cy - s * 1.02); c.moveTo(cx + s * 0.6, cy - s * 0.8); c.lineTo(cx + s * 0.44, cy - s * 0.66); c.lineTo(cx + s * 0.5, cy - s * 0.42); if (dark) { c.moveTo(cx - s * 0.55, cy - s * 0.1); c.lineTo(cx - s * 0.32, cy - s * 0.32); c.lineTo(cx - s * 0.38, cy - s * 0.55); } c.stroke();
+      // the furnace mouth: an arch in the chest, an iron grille, the fire behind it (white-hot at the throw)
+      const [mx, my] = G.mouth, mw = s * 0.34, mh = s * 0.42; c.beginPath(); c.moveTo(mx - mw, my + mh * 0.6); c.lineTo(mx - mw, my - mh * 0.15); c.quadraticCurveTo(mx - mw, my - mh, mx, my - mh); c.quadraticCurveTo(mx + mw, my - mh, mx + mw, my - mh * 0.15); c.lineTo(mx + mw, my + mh * 0.6); c.closePath();
+      const mg = c.createRadialGradient(mx, my + mh * 0.2, mw * 0.1, mx, my, mh * 1.1); if (dark) { mg.addColorStop(0, '#2A2226'); mg.addColorStop(1, '#0E0A0C'); } else { mg.addColorStop(0, hot > 0.6 ? '#FFFFFF' : '#FFF2C0'); mg.addColorStop(0.35 - 0.15 * hot, P.LAVA_HI); mg.addColorStop(0.8, P.LAVA); mg.addColorStop(1, P.LAVA_D); } c.fillStyle = mg; c.fill(); c.strokeStyle = P.INK; c.lineWidth = lw * 1.2; c.stroke();
+      if (!dark) { c.save(); c.clip(); for (let i = 0; i < 3; i++) { const fx = mx + (i - 1) * mw * 0.55, fh = mh * (0.5 + 0.35 * hot + 0.15 * Math.sin(t * 9 + i * 2 + ph)); c.fillStyle = rgba('#FFE9B0', 0.55 + 0.4 * hot); c.beginPath(); c.moveTo(fx - mw * 0.22, my + mh * 0.6); c.quadraticCurveTo(fx - mw * 0.1, my + mh * 0.6 - fh * 0.6, fx, my + mh * 0.6 - fh); c.quadraticCurveTo(fx + mw * 0.12, my + mh * 0.6 - fh * 0.6, fx + mw * 0.22, my + mh * 0.6); c.fill(); } c.restore(); }
+      c.strokeStyle = '#1A1214'; c.lineWidth = Math.max(1.5, s * 0.06); for (const u of [-0.5, 0, 0.5]) { c.beginPath(); c.moveTo(mx + u * mw, my - mh * 0.85 * (1 - Math.abs(u) * 0.3)); c.lineTo(mx + u * mw, my + mh * 0.6); c.stroke(); } c.beginPath(); c.moveTo(mx - mw, my + mh * 0.1); c.lineTo(mx + mw, my + mh * 0.1); c.stroke();
+      // the head: a low heavy brow sunk between the shoulders, two ember slits (cold once it has gone out)
+      const hy = cy - s * 1.32; poly(c, [[cx - s * 0.3, hy + s * 0.08], [cx - s * 0.26, hy - s * 0.3], [cx + s * 0.26, hy - s * 0.3], [cx + s * 0.3, hy + s * 0.08]]); c.closePath(); c.fillStyle = '#2E2629'; c.fill(); c.strokeStyle = P.INK; c.lineWidth = lw; c.stroke();
+      c.fillStyle = 'rgba(255,255,255,.1)'; c.fillRect(cx - s * 0.26, hy - s * 0.3, s * 0.52, s * 0.06);
+      c.fillStyle = dark ? '#3A3034' : rgba(hot > 0.3 ? '#FFF2C0' : P.LAVA_HI, 0.75 + 0.25 * hot); c.fillRect(cx - s * 0.2, hy - s * 0.16, s * 0.13, s * 0.05); c.fillRect(cx + s * 0.07, hy - s * 0.16, s * 0.13, s * 0.05);
+      arm(1);
+      // the molten ball it gathers between its raised fists
+      if (k > 0.15 && !C.done) { const [bx, by] = G.ball, br = s * (0.08 + 0.2 * k); const bgr = c.createRadialGradient(bx - br * 0.3, by - br * 0.3, br * 0.1, bx, by, br); bgr.addColorStop(0, '#FFF6D0'); bgr.addColorStop(0.5, P.LAVA_HI); bgr.addColorStop(1, P.LAVA); c.fillStyle = bgr; c.beginPath(); c.arc(bx, by, br, 0, TAU); c.fill(); c.strokeStyle = '#3A1408'; c.lineWidth = 1.2; c.stroke(); }
+      c.restore();
+      if (!fgx()) { if (!dark) { glow(c, mx, my, T * (0.9 + 1.2 * hot), P.LAVA, 0.25 + 0.6 * hot); if (k > 0.15) glow(c, G.ball[0], G.ball[1], T * (0.5 + 0.8 * k), P.LAVA_HI, 0.5 * k); }
+        else if (!lowFx()) for (let i = 0; i < 2; i++) { const u = ((t * 0.35 + i * 0.5 + ph) % 1); glow(c, mx + Math.sin(t + i * 3) * T * 0.2, my - s * 0.8 - u * T * 1.6, T * (0.35 + u * 0.5), '#E8E0DC', 0.35 * (1 - u)); } } }
+    /* the idols' light in one GPU pass: the furnace glow, the gathering ball's fire, heat shimmer in the wind-up, steam when dark */
+    function idolsGpu(Q, T) { const t = g.t; for (const id in idols) { const th = idols[id], Xs = X.sx(th.x), Ys = X.sy(th.y + 0.5); if (Ys < -T * 4 || Ys > X.H() + T * 4) continue; const G = idolGeom(Xs, Ys, T, th), { k, rec, dark } = G.ps, hot = C.done ? 0 : Math.max(k, rec), [mx, my] = G.mouth;
+        if (!dark) { Q.glow(mx, my, T * (1.0 + 1.3 * hot), P.LAVA, 0.35 + 0.55 * hot); Q.fire(mx, my + T * 0.05, T * (0.28 + 0.25 * hot), 0.7 + 0.4 * hot, 0.55 + 0.4 * hot, th.x); if (k > 0.15) { Q.fire(G.ball[0], G.ball[1], T * (0.2 + 0.45 * k), 1.0, 0.9, th.y); Q.glow(G.ball[0], G.ball[1], T * (0.6 + k), P.LAVA_HI, 0.5 * k); }
+          if (k > 0.3 && !lowFx()) Q.shimmer(mx, my - T * 1.4, T * (0.9 + 0.6 * k), 0.35 * k, 1.2); if (rec > 0.05) Q.glow(mx, my - T * 0.4, T * 2.2 * rec, '#FFE9B0', 0.5 * rec); }
+        else if (!lowFx()) for (let i = 0; i < 3; i++) { const u = ((t * 0.3 + i / 3 + th.x * 0.1) % 1); Q.smoke(mx + Math.sin(t * 0.8 + i * 2) * T * 0.25, my - T * 0.9 - u * T * 1.8, T * (0.35 + u * 0.55), 0.45 * (1 - u) * (0.6 + 0.4 * dark), th.x + i, '#BDB4AE', 0.3); } } }
+    X.after(1.0, () => { S.intro = false; X.banner('THE HEARTWARD DESCENT', 'Down the cathedral of the volcano\'s heart: three causeways, three ledges of brood, then the throne', P.LAVA_HI, 3.2, true, true); });
     // the falls of lava down the cathedral: from under each ledge into the drop
-    const FALLS = [[9.5, 52.5, 63.5], [22.5, 52.5, 63.5], [8.5, 30.5, 41.5], [23.5, 30.5, 41.5], [5.5, 10.5, 19.5], [25.5, 10.5, 19.5]];
-    return { S, vents, bars, groups, G1, G2, shrine, fall, ledgeOf,
-      cam() { const k = me.y < 19 ? 0.35 : 0, fy = me.y < 19 ? 9 : me.y; return { x: me.x * 0.75 + (DE_CX + 1.5) * 0.25, y: me.y * (1 - k) + fy * k - 1.5, k: 0, zoom: 0.54 }; },
-      update(dt) { shrine.tick(dt); for (const b of bars) b.tick(dt); S.breath += dt; const L = ledgeOf(me.y); if (L >= 0 && (L !== S.ledge || !S.ledgeSet)) { S.ledge = L; S.ledgeSet = true; const C = CALR(), b = backOf(L); if (C && typeof C.setLedge === 'function') C.setLedge(X, b.x, b.y); }
+    const FALLS = [[9.5, 87.5, 97.5], [22.5, 87.5, 97.5], [8.5, 67.5, 76.5], [23.5, 67.5, 76.5], [9.5, 47.5, 56.5], [22.5, 47.5, 56.5]];
+    return { S, vents, gates, brood, rooms, shrine, fall, ledgeOf, court: C, idols, courtGate, ecIn, schedule,
+      cam() { const top = me.y < 16.5, crt = !top && me.y < 33.5, k = top ? 0.35 : crt ? 0.55 : 0, fy = top ? 9 : crt ? ctr.y : me.y; return { x: me.x * (crt ? 0.45 : 0.75) + (DE_CX + 1.5) * (crt ? 0.55 : 0.25), y: me.y * (1 - k) + fy * k - (crt ? 0 : 1.5), k: 0, zoom: crt ? 0.46 : 0.54 }; },
+      update(dt) { shrine.tick(dt); for (const q of gates) if (q) q.tick(dt); S.breath += dt; const L = ledgeOf(me.y); if (L >= 0 && (L !== S.ledge || !S.ledgeSet)) { S.ledge = L; S.ledgeSet = true; const C = CALR(), b = backOf(L); if (C && typeof C.setLedge === 'function') C.setLedge(X, b.x, b.y); }
         for (const v of vents) ventTick(v, dt);
         if (S.intro) return;
         // the safe demonstration: the first vent shows itself once, before anything else, while you are still on the ledge
-        if (S.demo === 0 && (me.y < 67.5 || g.t > 4.5)) { S.demo = 1; const v = vents[0]; v.demo = true; v.t = 0; X.text(v.x, v.y - 1.6, 'Watch the vent…', P.LAVA_HI, 15); }
-        // the groups wake on their ledge (and stay still till then), one at a time
-        for (let i = 0; i < 2; i++) { const G = groups[i]; if (!S.awake[i]) { if (S.ledge === i + 1 && me.y < DE_LEDGES[i + 1].y1 + 1) { S.awake[i] = true; for (const m of G) if (!m.dead) m.aggro = true; X.banner(i ? 'A KNIGHT AND TWO CRYSTAL WISPS' : 'TWO ASHEN KNIGHTS', i ? 'The wisps fire one marked beam each: step off its line, then strike' : 'One slow combo each: wait it out, then strike', P.LAVA_HI, 2.6, true); } else for (const m of G) if (!m.dead) { m.aggro = false; m.vx = m.vy = 0; } }
-          else if (!S.open[i] && !alive(G).length) { S.open[i] = true; bars[i].open1(); if (i === 0) for (const v of vents) if (v.lane === 1) { v.live = true; v.t = -v.off * 0.8; } X.banner(i ? 'THE LAST LEDGE IS CLEAR' : 'THE LEDGE IS CLEAR', i ? 'The slag gives way: the overlook and the throne lie above' : 'The slag gives way: the second causeway is open', P.LAVA_HI, 2.4, true); } }
-        if (S.open[1] && !self.done) { self.done = true; H.setExit(E.x, E.y, 'To Ifrit\'s Throne'); } },
-      goal() { if (self.done) return me.y < 15 ? 'To Ifrit\'s throne · rest at the shrine first' : 'Up to the overlook'; if (S.intro) return 'The Heartward Descent';
-        const L = S.ledge; if (S.demo < 2) return 'Watch the vent: it glows and hisses, then erupts';
-        if (L === 0) return 'Cross the causeway: pass each vent while it is dark';
-        const i = L - 1, n = alive(groups[i]).length; if (n) return `Clear the ledge · ${n} left`; return 'Cross the next causeway: pass each vent while it is dark'; },
-      hint() { if (self.done || S.intro) return null; const L = S.ledge; if (L >= 1) { const G = alive(groups[L - 1]); if (G.length) { const m = G[0]; return Math.hypot(m.x - me.x, m.y - me.y) > 8 ? { x: m.x, y: m.y, h: 1.4, label: 'FOES' } : null; } } return null; },
+        if (S.demo === 0 && (me.y < 100.5 || g.t > 4.5)) { S.demo = 1; const v = vents[0]; v.demo = true; v.t = 0; X.text(v.x, v.y - 1.6, 'Watch the vent…', P.LAVA_HI, 15); }
+        brood.tick(dt); courtGate.tick(dt); courtTick(dt); },
+      goal() { if (self.done) return me.y < 15.5 ? 'To Ifrit\'s throne · rest at the shrine first' : 'Up to the overlook'; if (S.intro) return 'The Heartward Descent';
+        if (S.demo < 2) return 'Watch the vent: it glows and hisses, then erupts';
+        if (brood.done) return C.on ? `Dodged ${C.count}/${EC_NEED} · roll through the throws (${touchUI ? 'DODGE' : 'Shift'}) or step aside close` : 'Up to the Ember Court';
+        if (S.ledge === 0 || brood.wave < 0) return `Cross the causeway: pass each vent while it is dark · ${brood.left()} of the brood left`; return brood.goal(); },
+      hint() { if (self.done || S.intro) return null; if (brood.done) return C.on ? null : { x: ctr.x, y: ctr.y + 3, h: 1.2, label: 'THE EMBER COURT' }; return brood.hint(); },
       drawGround(c) { const T = X.Tz(), t = g.t, Wd = X.W(), Hh = X.H();
-        // the depths under the causeways: a dark shaft with a far red glow (reads as a drop, not as a floor)
         throneArt(c, T, t);
         for (const [x, y0, y1] of FALLS) lavafall(c, x, y0, y1, T, t);
         // the causeways' edges: cracked obsidian lips over the drop
-        for (const [y0, y1] of [[52, 63], [30, 41]]) { const x0 = X.sx(14), x1 = X.sx(19), Y0 = X.sy(y0 + 1), Y1 = X.sy(y1 + 2); if (Y1 < 0 || Y0 > Hh) continue; c.save(); c.fillStyle = 'rgba(10,6,8,.55)'; c.fillRect(x0 - T * 0.25, Y0, T * 0.25, Y1 - Y0); c.fillRect(x1, Y0, T * 0.25, Y1 - Y0); c.strokeStyle = rgba(P.LAVA, 0.45); c.lineWidth = 1.5; c.beginPath(); c.moveTo(x0 - T * 0.25, Y0); c.lineTo(x0 - T * 0.25, Y1); c.moveTo(x1 + T * 0.25, Y0); c.lineTo(x1 + T * 0.25, Y1); c.stroke(); c.restore(); }
+        for (const [y0, y1] of DE_LANES) { const x0 = X.sx(14), x1 = X.sx(19), Y0 = X.sy(y0 + 1), Y1 = X.sy(y1 + 2); if (Y1 < 0 || Y0 > Hh) continue; c.save(); c.fillStyle = 'rgba(10,6,8,.55)'; c.fillRect(x0 - T * 0.25, Y0, T * 0.25, Y1 - Y0); c.fillRect(x1, Y0, T * 0.25, Y1 - Y0); c.strokeStyle = rgba(P.LAVA, 0.45); c.lineWidth = 1.5; c.beginPath(); c.moveTo(x0 - T * 0.25, Y0); c.lineTo(x0 - T * 0.25, Y1); c.moveTo(x1 + T * 0.25, Y0); c.lineTo(x1 + T * 0.25, Y1); c.stroke(); c.restore(); }
         for (const v of vents) ventArt(c, v, T, t);
+        courtGround(c, T, t);
         gpu(c, Q => { for (const v of vents) { const Xs = X.sx(v.x), Ys = X.sy(v.y); if (Ys < -T * 6 || Ys > Hh + T * 2) continue; if (v.ph === 'warn') Q.ground(Xs, Ys, T * DE_VENT_R * (0.6 + 0.5 * v.k), 0.5 + 0.5 * v.k, 0.5 + 0.5 * v.k, v.i * 1.7, 0.55, 1); } }); },
       drawOver(c) { const T = X.Tz(), t = g.t, Hh = X.H();
         // the eruptions: columns of fire (GPU tongues and fire balls where it can; a 2D column otherwise), drawn over everything
@@ -703,7 +886,37 @@ const CAL_STAGES = { HP_K: 1.7 };   // (HP_K: a balance knob on the trials' own 
         if (!used) for (const v of er) { const Xs = X.sx(v.x), Ys = X.sy(v.y), u = v.k, hgt = T * (2.4 + 2.6 * Math.sin(Math.min(1, u * 1.6) * Math.PI / 2)) * (1 - Math.max(0, u - 0.7) / 0.3 * 0.6); c.save(); const gg = c.createLinearGradient(0, Ys - hgt, 0, Ys); gg.addColorStop(0, 'rgba(255,90,26,0)'); gg.addColorStop(0.3, 'rgba(255,140,40,.85)'); gg.addColorStop(1, 'rgba(255,240,190,.95)'); c.fillStyle = gg;
             c.beginPath(); c.moveTo(Xs - T * 0.7, Ys); for (let i = 0; i <= 8; i++) { const yy = Ys - hgt * i / 8, w = T * 0.7 * (1 - i / 9) * (0.85 + 0.25 * Math.sin(t * 20 + i * 1.7)); c.lineTo(Xs - w, yy); } for (let i = 8; i >= 0; i--) { const yy = Ys - hgt * i / 8, w = T * 0.7 * (1 - i / 9) * (0.85 + 0.25 * Math.sin(t * 17 + i * 2.1)); c.lineTo(Xs + w, yy); } c.closePath(); c.fill(); c.restore(); glow(c, Xs, Ys - hgt * 0.4, T * 2.2, P.LAVA, 0.6); }
         for (const v of vents) if (v.ph === 'warn') { const Xs = X.sx(v.x), Ys = X.sy(v.y); glow(c, Xs, Ys, T * (0.8 + v.k * 0.9), P.LAVA, 0.25 + 0.45 * v.k); if (Math.hypot(me.x - v.x, me.y - v.y) < 9) label(c, v.demo ? 'SAFE TO WATCH: IT GLOWS AND HISSES' : 'HISS', Xs, Ys - T * (1.2 + v.k * 0.5), T * 0.22, P.WARN); }
-        if (!lowFx()) for (const [x, y0, y1] of FALLS) { const Y0 = X.sy(y0), Y1 = X.sy(y1); if (Y1 < 0 || Y0 > Hh) continue; glow(c, X.sx(x), (Y0 + Y1) / 2, T * 2.2, P.LAVA, 0.12); } } };
+        if (!lowFx()) for (const [x, y0, y1] of FALLS) { const Y0 = X.sy(y0), Y1 = X.sy(y1); if (Y1 < 0 || Y0 > Hh) continue; glow(c, X.sx(x), (Y0 + Y1) / 2, T * 2.2, P.LAVA, 0.12); }
+        courtOver(c, T, t); } };
+    /* ---- the Ember Court's drawing ---- */
+    function courtGround(c, T, t) { if (!C.on && !brood.done) return; const Xc = X.sx(ctr.x), Yc = X.sy(ctr.y); if (Yc > X.H() + T * 8 || Yc < -T * 8) return;
+      c.save(); // a ring of rune-cut stones round the court's edge, cold once the idols are dark
+      c.strokeStyle = C.done ? rgba(P.FROST, 0.5) : rgba(P.LAVA, 0.35 + 0.15 * Math.sin(t * 2)); c.lineWidth = Math.max(2, T * 0.08); c.setLineDash([T * 0.5, T * 0.3]); ell(c, Xc, Yc, (EC_RX - 0.7) * T, (EC_RY - 0.7) * T); c.stroke(); c.setLineDash([]);
+      for (const w of C.winds) { const m = mouth(w.th), u = Math.min(1, w.t / w.dur), lock = w.t >= w.dur - 0.3;
+        if (w.kind === 'lob') { const Xs = X.sx(w.tx), Ys = X.sy(w.ty), R = 1.15 * T; c.fillStyle = rgba(P.WARN, 0.12 + 0.2 * u); ell(c, Xs, Ys, R, R * 0.75); c.fill(); c.strokeStyle = rgba(P.WARN, 0.6 + 0.35 * u); c.lineWidth = 2.5; c.stroke(); c.beginPath(); c.ellipse(Xs, Ys, R * u, R * 0.75 * u, 0, 0, TAU); c.stroke(); continue; }
+        const x0 = X.sx(m.x), y0 = X.sy(m.y), dx = w.tx - m.x, dy = w.ty - m.y, d = Math.hypot(dx, dy) || 1, L = d + 6, x1 = X.sx(m.x + dx / d * L), y1 = X.sy(m.y + dy / d * L), wd = (w.kind === 'roll' ? 1.1 : 0.72) * T;
+        c.strokeStyle = rgba(P.WARN, (lock ? 0.55 : 0.25) + 0.2 * u); c.lineWidth = wd * (0.35 + 0.65 * u); c.lineCap = 'round'; c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke();
+        c.setLineDash([T * 0.25, T * 0.2]); c.lineDashOffset = -t * T * 2; c.strokeStyle = rgba('#FFE0C0', 0.75); c.lineWidth = 2; c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke(); c.setLineDash([]); }
+      for (const b of C.balls) { const Xs = X.sx(b.kind === 'lob' ? b.tx : b.x), Ys = X.sy(b.kind === 'lob' ? b.ty : b.y);
+        if (b.kind === 'lob') { const u = Math.min(1, b.t / b.dur), R = b.R * T; c.fillStyle = rgba(P.WARN, 0.18 + 0.3 * u); ell(c, Xs, Ys, R, R * 0.75); c.fill(); c.strokeStyle = rgba(P.WARN, 0.9); c.lineWidth = 3; c.stroke(); c.fillStyle = 'rgba(0,0,0,.35)'; ell(c, Xs, Ys, R * 0.35 * (0.5 + u), R * 0.25 * (0.5 + u)); c.fill(); label(c, 'LANDING', Xs, Ys - R * 0.9, T * 0.2, P.WARN); }
+        else { c.fillStyle = 'rgba(0,0,0,.35)'; ell(c, Xs, Ys, b.r * T, b.r * T * 0.45); c.fill(); } }
+      c.restore(); }
+    function ballArt(c, Xs, Ys, R, spin, kind) { const g2 = c.createRadialGradient(Xs - R * 0.3, Ys - R * 0.35, R * 0.1, Xs, Ys, R); g2.addColorStop(0, '#FFF6D0'); g2.addColorStop(0.35, P.LAVA_HI); g2.addColorStop(0.8, P.LAVA); g2.addColorStop(1, P.LAVA_D); c.fillStyle = g2; c.beginPath(); c.arc(Xs, Ys, R, 0, TAU); c.fill(); c.strokeStyle = '#3A1408'; c.lineWidth = Math.max(1.5, R * 0.12); c.stroke();
+      // crust plates turning on it (a rolling ball wears more of them)
+      c.strokeStyle = 'rgba(40,16,10,.75)'; c.lineWidth = Math.max(1.2, R * 0.12); for (let i = 0; i < (kind === 'roll' ? 4 : 2); i++) { const a = spin + i * 1.7; c.beginPath(); c.arc(Xs, Ys, R * 0.7, a, a + 0.9); c.stroke(); } }
+    function courtOver(c, T, t) {
+      const used = gpu(c, Q => { idolsGpu(Q, T); for (const b of C.balls) { const Xs = X.sx(b.x), Ys = X.sy(b.y) - (b.z || 0) * T, R = (b.kind === 'roll' ? 0.55 : b.kind === 'lob' ? 0.45 : 0.36) * T; Q.fire(Xs, Ys, R * 1.6, 0.95, 0.75, b.spin || b.t || 0); Q.glow(Xs, Ys, R * 3, P.LAVA, 0.5); if (b.vx) { const k = 0.18; Q.firebeam(Xs - b.vx * k * T, Ys - b.vy * k * T, Xs, Ys, R * 0.9, 0.8, 0.6, b.spin || 0, 4); } } });
+      for (const b of C.balls) { const Xs = X.sx(b.x), Ys = X.sy(b.y) - (b.z || 0) * T, R = (b.kind === 'roll' ? 0.55 : b.kind === 'lob' ? 0.45 : 0.36) * T; if (!used && b.vx) { c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = rgba(P.LAVA, 0.5); c.lineWidth = R * 1.2; c.lineCap = 'round'; c.beginPath(); c.moveTo(Xs - b.vx * 0.12 * T, Ys - b.vy * 0.12 * T); c.lineTo(Xs, Ys); c.stroke(); c.restore(); } ballArt(c, Xs, Ys, R, b.spin || b.t * 6 || 0, b.kind); if (!used) glow(c, Xs, Ys, R * 2.6, P.LAVA, 0.45); }
+      // the prompt: TAP DODGE! over the pet (and the dodge button pulsing, on a touch screen) while a teaching throw winds up
+      const W = X.W(), Hh = X.H();
+      if (C.prompt > 0 && !C.done) { const k = 0.6 + 0.4 * Math.sin(t * 9); label(c, touchUI ? 'TAP DODGE!' : 'PRESS SHIFT: DODGE!', X.sx(me.x), X.sy(me.y) - T * 1.9, T * 0.32 * (1 + 0.08 * k), '#FFF08C');
+        if (touchUI) { const kit = (X.F.party && X.F.party[0] && X.F.party[0].kit && X.F.party[0].kit.kit) || {}, n3 = ['strong', 'strong2', 'strong3'].filter(q => kit[q]).length >= 3, bx = n3 ? W - 34 : W - 52, by = Hh - 52 - (n3 ? 154 : 138), br = n3 ? 26 : 27;
+          c.save(); c.strokeStyle = rgba('#FFF08C', 0.5 + 0.5 * k); c.lineWidth = 4; c.beginPath(); c.arc(bx, by, br + 6 + 6 * k, 0, TAU); c.stroke(); c.restore(); label(c, 'TAP!', bx, by - br - 16, 14, '#FFF08C'); } }
+      // the counter: DODGED n / 12, a pop on each, gold at the end
+      if (C.on) { const cx = W / 2, cy = 132, pop = C.pop, wd = 190; c.save(); c.fillStyle = 'rgba(14,8,10,.72)'; c.beginPath(); if (c.roundRect) c.roundRect(cx - wd / 2, cy - 26, wd, 48, 12); else c.rect(cx - wd / 2, cy - 26, wd, 48); c.fill(); c.strokeStyle = C.done ? '#FFF08C' : rgba(P.FROST, 0.8); c.lineWidth = 2; c.stroke();
+        for (let i = 0; i < EC_NEED; i++) { const px = cx - wd / 2 + 16 + i * (wd - 32) / (EC_NEED - 1), on = i < C.count; c.beginPath(); c.arc(px, cy + 15, 4.5, 0, TAU); c.fillStyle = on ? (C.done ? '#FFF08C' : P.FROST_HI) : 'rgba(255,255,255,.18)'; c.fill(); }
+        c.restore(); label(c, `DODGED ${C.count} / ${EC_NEED}`, cx, cy + 2 - pop * 2, 15 + pop * 5, C.done ? '#FFF08C' : '#FFFFFF');
+        if (pop > 0.05) label(c, C.popWord, cx, cy + 50 + (1 - pop) * 10, 18 + pop * 10, '#FFF08C'); } }
     /* ---- the descent's art ---- */
     function ventArt(c, v, T, t) { const Xs = X.sx(v.x), Ys = X.sy(v.y); if (Ys < -T * 3 || Ys > X.H() + T * 2) return; const lw = lwOf(T), k = v.ph === 'warn' ? v.k : v.ph === 'erupt' ? 1 : v.ph === 'cool' ? 0.4 : 0;
       c.save(); // a ring of cracked crust round a vent mouth; it glows up through the cracks as it builds
@@ -730,11 +943,6 @@ const CAL_STAGES = { HP_K: 1.7 };   // (HP_K: a balance knob on the trials' own 
       c.translate(Xs, cy); c.rotate(a); poly(c, [[-w / 2, -h / 2], [w / 2 - T * 0.2, -h / 2 - T * 0.1], [w / 2, h * 0.1], [w / 2 - T * 0.3, h / 2], [-w / 2 + T * 0.2, h / 2 + T * 0.05]]); c.closePath();
       const og = c.createLinearGradient(0, -h / 2, 0, h / 2); og.addColorStop(0, '#3A3044'); og.addColorStop(0.5, '#120E18'); og.addColorStop(1, '#5A1E10'); c.fillStyle = og; c.fill(); c.strokeStyle = '#05030A'; c.lineWidth = 2; c.stroke();
       c.strokeStyle = 'rgba(200,180,255,.35)'; c.lineWidth = 1.2; c.beginPath(); c.moveTo(-w * 0.4, -h * 0.3); c.lineTo(w * 0.2, -h * 0.4); c.stroke(); c.restore(); }
-    function slagArt(c, Xs, Ys, T, D) { const w = (D.x1 - D.x0) * T, L = Xs - w / 2, hgt = T * 1.6 * (1 - D.k), t = g.t; if (hgt < 1) return; c.save();
-      // a barricade of cooling slag: dark lumps, red seams, smoking
-      for (let i = 0; i < Math.ceil(w / (T * 0.7)); i++) { const x = L + (i + 0.5) * T * 0.7, r = T * (0.45 + 0.12 * Math.sin(i * 2.7)), y = Ys - r * 0.6 - (1 - D.k) * 0 - (i % 2) * T * 0.25; ell(c, x, y - (T * 1.6 - hgt) * -0.4, r, r * 0.8 * (hgt / (T * 1.6))); const sg = c.createRadialGradient(x - r * 0.3, y - r * 0.4, r * 0.1, x, y, r); sg.addColorStop(0, '#5A4A44'); sg.addColorStop(1, '#1A1210'); c.fillStyle = sg; c.fill(); c.strokeStyle = P.INK; c.lineWidth = 1.5; c.stroke();
-        c.strokeStyle = rgba(P.LAVA, 0.6 + 0.3 * Math.sin(t * 2 + i)); c.lineWidth = 1.2; c.beginPath(); c.moveTo(x - r * 0.5, y); c.lineTo(x, y - r * 0.3); c.lineTo(x + r * 0.4, y + r * 0.1); c.stroke(); }
-      c.restore(); if (!D.open) label(c, 'COOLING SLAG', Xs, Ys - T * 2.0, T * 0.2, '#FFD9B0'); }
     /* far off across the lava lake: Ifrit on his throne in a cracked ring of basalt (dark plates over a molten core, two
        rough obsidian horns with hot edges, clawed stone hands on the arms of the throne); his chest is a distant furnace
        that swells when he breathes */
@@ -767,8 +975,8 @@ const CAL_STAGES = { HP_K: 1.7 };   // (HP_K: a balance knob on the trials' own 
       c.restore();
       if (!lowFx()) gpu(c, Q => { Q.glow(chx, chy, s * (2.2 + br * 1.6), P.LAVA, 0.5 + 0.4 * br); Q.shimmer(cx, by - s * 5.5, s * 2.5, 0.25 + 0.2 * br, 1.1); }); }
   }
-  CAL_STAGES.DESCENT = { name: 'The Heartward Descent', goal: 'Down the cathedral to the throne', how: 'The forge gives way to a vertical cathedral of basalt columns, hanging obsidian slabs and lava pouring down the walls. Two short causeways cross the drop, each with vents: a vent glows and hisses for about two seconds before it erupts (the first one shows itself once, harmlessly). An eruption throws you off the causeway: you land back on the last ledge, a little hurt. Broad cool ledges lie between: two ashen knights on the first (one slow combo each), a knight and two crystal wisps on the second (each wisp fires one marked beam). A ledge\'s slag barricade gives way once it is clear. Last, the overlook: Ifrit seated far off on his throne. A frost shrine there restores your pet before you go in.',
-    layout: DE_LAYOUT, legend: { E: {}, F: {}, v: {}, X: {}, Y: {}, k: {}, j: {}, q: {}, C: {},
+  CAL_STAGES.DESCENT = { name: 'The Heartward Descent', goal: 'Down the cathedral, then dodge twelve throws', how: 'The forge gives way to a vertical cathedral of basalt columns, hanging obsidian slabs and lava pouring down the walls. Three short causeways cross the drop, each with vents: a vent glows and hisses for about two seconds before it erupts (the first one shows itself once, harmlessly). An eruption throws you off the causeway: you land back on the last ledge, a little hurt. On the three broad, cool ledges between them the brood rises in waves, about forty in all: ashen knights (one slow combo each), crystal wisps (one marked beam each), and the hollows\' kin. A ledge\'s slag barricade gives way once its waves are down. Then the Ember Court: six furnace idols round a basalt platform glow, wind up and hurl molten balls (an aim line, or a landing circle for a lobbed one). Dodge twelve of them: roll through a ball with the dodge button as it reaches you, or step aside so it passes close by. A hit only stings and never counts, and nothing resets your count. The idols go dark at twelve and the way opens to the overlook, where Ifrit sits far off on his throne. A frost shrine there restores your pet before you go in.',
+    layout: DE_LAYOUT, legend: { E: {}, F: {}, v: {}, X: {}, U: {}, W: {}, Y: {}, C: {}, T: { tile: T_SOLID },
       H: { tile: T_SOLID, get prop() { return DunWorld.PROPS.basaltcol ? 'basaltcol' : undefined; } }, O: { tile: T_GAP, get prop() { return DunWorld.PROPS.slabhang ? 'slabhang' : undefined; } }, L: PROP('lavafall', 'volrok'), G: PROP('bigcrystal', 'obsidian') }, make: makeDescent };
 
   try { if (typeof self !== 'undefined') self.__CAL_STAGES = CAL_STAGES; } catch (e) {}

@@ -353,10 +353,11 @@ CAL.bossMake = CAL.bossMake || {};
       for (const [px, py, pw] of pts) for (const ox of [-S, 0, S]) for (const oy of [-S, 0, S]) { const dd = (qx - px - ox) ** 2 + (qy - py - oy) ** 2; if (dd < d1) { d2 = d1; d1 = dd; w1 = pw; } else if (dd < d2) d2 = dd; }
       const e = Math.sqrt(d2) - Math.sqrt(d1), k = (y * S + x) * 4, n = (Math.sin(x * 0.9 + y * 0.31) + Math.sin(x * 0.27 - y * 0.83) + Math.sin(x * 1.7 - y * 1.3) * 0.5) * 0.4;
       if (mode === 'flow') { const f = Math.max(0, 1 - e / 6); d[k] = 255; d[k + 1] = 110 + 50 * f; d[k + 2] = 36 + 20 * f; d[k + 3] = Math.round(150 * f * f * (0.3 + 0.7 * w1)); continue; }
-      if (w1 > 0.88) { const f = Math.min(1, e / 16), g2 = 0.5 + 0.5 * Math.sin(x * 0.4 + y * 0.25 + n); d[k] = 255; d[k + 1] = 110 + 70 * g2 * (1 - f) - f * 40; d[k + 2] = 30 + 30 * g2 * (1 - f); d[k + 3] = 255; continue; }   // (a cell still molten)
-      if (e < 1.3) { const f = e / 1.3; d[k] = 255; d[k + 1] = 228 - f * 90; d[k + 2] = 140 - f * 100; }   // the white-hot seam
-      else if (e < 3.4) { const f = (e - 1.3) / 2.1; d[k] = 255 - f * 170; d[k + 1] = 132 - f * 112; d[k + 2] = 38 - f * 28; }   // its red lip
-      else { const f = Math.min(1, (e - 3.4) / 7), sp = (n > 0.55 ? 10 : 0); d[k] = 58 - f * 30 + n * 6 + sp; d[k + 1] = 26 - f * 14 + n * 3 + sp * 0.4; d[k + 2] = 20 - f * 10 + n * 3; }   // the cooled crust
+      const ice = mode === 'ice', riv = mode === 'river', mol = ice ? 0.96 : riv ? 0.68 : 0.88, sw = riv ? 1.8 : 1.3, lp = riv ? 4.2 : ice ? 2.8 : 3.4;
+      if (w1 > mol) { const f = Math.min(1, e / 16), g2 = 0.5 + 0.5 * Math.sin(x * 0.4 + y * 0.25 + n); d[k] = 255; d[k + 1] = 110 + 70 * g2 * (1 - f) - f * 40; d[k + 2] = 30 + 30 * g2 * (1 - f); d[k + 3] = 255; continue; }   // (a cell still molten)
+      if (e < sw) { const f = e / sw; d[k] = 255; d[k + 1] = 228 - f * 90; d[k + 2] = 140 - f * 100; }   // the white-hot seam
+      else if (e < lp) { const f = (e - sw) / (lp - sw); if (ice) { d[k] = 255 - f * 120; d[k + 1] = 132 + f * 50; d[k + 2] = 38 + f * 150; } else { d[k] = 255 - f * 170; d[k + 1] = 132 - f * 112; d[k + 2] = 38 - f * 28; } }   // its lip (red, or cooling to ice)
+      else { const f = Math.min(1, (e - lp) / 7), sp = (n > 0.55 ? 10 : 0); if (ice) { d[k] = 175 - f * 70 + n * 10 + sp; d[k + 1] = 198 - f * 60 + n * 8 + sp; d[k + 2] = 218 - f * 45 + n * 6 + sp; } else { const dk = riv ? 0.8 : 1; d[k] = (58 - f * 30 + n * 6 + sp) * dk; d[k + 1] = (26 - f * 14 + n * 3 + sp * 0.4) * dk; d[k + 2] = (20 - f * 10 + n * 3) * dk; } }   // the cooled crust (ice-sealed in the forge)
       d[k + 3] = 255; }
     c.putImageData(img, 0, 0); c0.save(); c0.imageSmoothingEnabled = true; c0.drawImage(cv, 0, 0, S, S); c0.restore(); }
   GAP_EXT.calderalava = { base: '#FF6A1F',
@@ -627,7 +628,7 @@ CAL.bossMake = CAL.bossMake || {};
   /* ======================= the brood ======================= */
   /* Level-1 tuning (base stats; a floor-1 rift stage scales health x2.52 and blows x1.3). Every attack is shown first and
      followed by a recovery the pet can punish; contact alone does the usual small bump. */
-  const BIO = ['ashen', 'foundry', 'heartward', 'calderapit'];
+  const BIO = ['ashen', 'foundry', 'heartward', 'calderapit', 'rimeforge', 'glassheart'];
   Object.assign(MON, {
     cinderslug: { name: 'Cinder slug', from: 999, hp: 30, spd: 0.85, r: 0.46, dmg: 7, xp: 6, coin: 0.5, color: '#3A2E2C', bio: BIO, kit: [], tip: 'A slow slug under plates of cooled crust, molten underneath. It rears and its mouth glows before one short fire spit (a cone in front of it): step aside, then hit it while it cools.' },
     basaltcrawler: { name: 'Basalt crawler', from: 999, hp: 46, spd: 1.15, r: 0.5, dmg: 8, xp: 8, coin: 0.6, color: '#3E3638', bio: BIO, kit: [], tip: 'Heavy basalt plates guard its front; its rear glows, molten and soft. Blows to the plates do little. It turns slowly: dodge its ram and strike the glowing back.' },
@@ -955,6 +956,262 @@ CAL.bossMake = CAL.bossMake || {};
     o.noText = false; return 1; }
   Object.assign(CAL, { larvaSetup, crawlerGuard, sentinelGuard });
 
+
+  /* ======================= the dungeons' own lands (v387) =======================
+     Dungeon 1, The Cinder Galleries: the ashen land as it is.
+     Dungeon 2, The Rimebound Forge (rimeforge): the foundry gone cold where the old frost wells leaked: the same iron and
+       basalt under rime and hoarfrost, frozen coolant pools, cooled lava sealed under ice with its cracks still glowing
+       beneath, frost crystals and wells as scenery, icicles on the chains, cold mist. Fire is still there, but the palette
+       leans white-blue against the orange.
+     Dungeon 3, The Glass Heart (glassheart): halls of black volcanic glass close to the heart: magma moving inside
+       translucent obsidian, geodes split open, a forest of black fire crystals, rivers of brighter lava in their channels. */
+  const PULSERS = {};
+  const ICE = '#DDF3FF', ICE_D = '#8FC2E2', RIME = 'rgba(235,248,255,';
+  /* ---- the rimebound forge ---- */
+  GAP_EXT.rimelava = { base: '#E86A2A',
+    paint(c, S, R) { crustTile(c, S, R, 30, 'ice'); for (let i = 0; i < 26; i++) { c.fillStyle = `rgba(240,250,255,${0.25 + R() * 0.4})`; c.beginPath(); c.arc(R() * S, R() * S, 0.5 + R() * 0.7, 0, TAU); c.fill(); } },
+    back(c, o) { const { pat, pattern, k, W, H, t, P, bigGlow } = o; pat(pattern('rimelava', k), 0.94, W / 2 + t * 1.4, H / 2 + t * 0.7);
+      c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = lowFx() ? 0.12 : 0.14 + 0.06 * Math.sin(t * 1.1); pat(pattern('calderaflow', k), 0.97, W / 2 - t * 3, H / 2 + t * 2);
+      if (!lowFx()) { c.globalAlpha = 0.08 + 0.03 * Math.sin(t * 0.5); bigGlow(c, P, '#BFE3FA', W * 0.3 - (o.wx * 0.03) % (W * 0.5), H * 0.1, W * 0.8); } c.restore(); } };
+  // a light frost lies over everything: rime feathers along the plates' seams, hoarfrost specks, in drifts
+  function rimeFloor(c, X, Y, T, h, h2, x, y, lw, gN, gS, gW, gE) { foundryFloor(c, X, Y, T, h, h2, x, y, lw, gN, gS, gW, gE);
+    const R = rnd(x * 4111 + y * 77213 + 5), frost = vnoise(x / 3.2, y / 3.2, 101);
+    c.save(); c.beginPath(); c.rect(X, Y, T, T); c.clip();
+    // frozen coolant and ice-sealed lava come in sheets that break along the old column joints (whole cells of the lattice)
+    const P = (vx, vy) => [X + (vx - x) * T, Y + (vy - y) * T];
+    for (const cl of hexCellsAt(x, y)) { const pl = vnoise(cl.cx / 4.5 + 20, cl.cy / 4.5, 107), sl = vnoise(cl.cx / 3.5, cl.cy / 3.5 + 40, 109); if (pl < 0.71 && sl < 0.73) continue; const p = cl.V.map(v => P(v[0], v[1])), cx = (p[0][0] + p[3][0]) / 2, cy = (p[1][1] + p[4][1]) / 2;
+      c.save(); poly(c, p); c.closePath(); c.clip();
+      if (pl >= 0.71) { /* frozen coolant: glassy blue-white, cracked, a cold sheen */ const g = c.createLinearGradient(cx - T, cy - T, cx + T, cy + T); g.addColorStop(0, '#E4F5FF'); g.addColorStop(0.5, '#A6D2EE'); g.addColorStop(1, '#78B2DA'); c.fillStyle = g; c.fillRect(cx - T, cy - T, T * 2, T * 2);
+        c.strokeStyle = 'rgba(255,255,255,.7)'; c.lineWidth = Math.max(0.8, T * 0.02); c.beginPath(); c.moveTo(cx - T * 0.3, cy - T * 0.2 + cl.h * T * 0.2); c.lineTo(cx + T * 0.05, cy); c.lineTo(cx + T * 0.32, cy + T * 0.25 - cl.h2 * T * 0.2); c.moveTo(cx + T * 0.05, cy); c.lineTo(cx, cy + T * 0.35); c.stroke();
+        c.fillStyle = 'rgba(255,255,255,.22)'; c.beginPath(); c.moveTo(cx - T * 0.45, cy + T * 0.2); c.lineTo(cx - T * 0.32, cy + T * 0.2); c.lineTo(cx + T * 0.05, cy - T * 0.45); c.lineTo(cx - T * 0.08, cy - T * 0.45); c.closePath(); c.fill(); }
+      else { /* cooled lava sealed under ice: its cracks still glowing beneath a milky crust */ c.fillStyle = '#2A1816'; c.fillRect(cx - T, cy - T, T * 2, T * 2); seam(c, [[cx - T * 0.45, cy - T * 0.1], [cx - T * 0.1, cy + T * 0.05], [cx + T * 0.15, cy - T * 0.15], [cx + T * 0.45, cy + T * 0.05]], Math.max(1, T * 0.035), 1); seam(c, [[cx - T * 0.1, cy + T * 0.05], [cx, cy + T * 0.4]], Math.max(0.8, T * 0.025), 0.8);
+        c.fillStyle = 'rgba(200,232,250,.34)'; c.fillRect(cx - T, cy - T, T * 2, T * 2); c.fillStyle = 'rgba(255,255,255,.18)'; ell(c, cx - T * 0.12, cy - T * 0.18, T * 0.28, T * 0.07, -0.4); c.fill(); }
+      c.restore(); poly(c, p); c.closePath(); c.strokeStyle = 'rgba(30,50,70,.55)'; c.lineWidth = Math.max(1, T * 0.035); c.stroke(); }
+    if (frost > 0.45) { const a = Math.min(1, (frost - 0.45) * 2.2); for (let i = 0; i < 10; i++) { c.fillStyle = `${RIME}${(0.35 + R() * 0.4) * a})`; const s = Math.max(1, T * (0.012 + R() * 0.02)); c.fillRect(X + R() * T, Y + R() * T, s, s); }
+      // feathers of rime growing in from the plate's edges
+      c.strokeStyle = `${RIME}${0.55 * a})`; c.lineWidth = Math.max(0.7, T * 0.016); c.beginPath(); for (let i = 0; i < 4; i++) { const ex = R() < 0.5, px = ex ? X + (R() < 0.5 ? 0 : T) : X + T * R(), py = ex ? Y + T * R() : Y + (R() < 0.5 ? 0 : T), ix = ex ? (px === X ? 1 : -1) : 0, iy = ex ? 0 : (py === Y ? 1 : -1), L = T * (0.12 + R() * 0.14); c.moveTo(px, py); c.lineTo(px + ix * L + iy * L * 0.2, py + iy * L + ix * L * 0.2); for (const u of [0.4, 0.7]) { const bx = px + ix * L * u, by = py + iy * L * u; c.moveTo(bx, by); c.lineTo(bx + (ix + iy) * L * 0.3 + iy * L * 0.2, by + (iy + ix) * L * 0.3 - ix * L * 0.2); } } c.stroke();
+      c.fillStyle = `${RIME}${0.12 * a})`; c.fillRect(X, Y, T, T); }
+    c.restore(); }
+  // the walls: iron-banded basalt rimed over, icicles hanging from the course above
+  function rimeWall(c, X, Y, T, H, h, x, lw, B) { ironWall(c, X, Y, T, H, h, x, lw, B); c.fillStyle = `${RIME}.55)`; c.fillRect(X, Y, T + 0.5, Math.max(1.5, H * 0.08)); const n = 3 + (x % 2); for (let i = 0; i < n; i++) { const px = X + T * (i + 0.3 + hh(x, i, 3) * 0.4) / n, L = H * (0.18 + hh(x, i, 7) * 0.32); c.beginPath(); c.moveTo(px - T * 0.04, Y + H * 0.06); c.lineTo(px + T * 0.04, Y + H * 0.06); c.lineTo(px, Y + H * 0.06 + L); c.closePath(); const g = c.createLinearGradient(0, Y, 0, Y + L); g.addColorStop(0, '#FFFFFF'); g.addColorStop(1, 'rgba(160,210,240,.6)'); c.fillStyle = g; c.fill(); } }
+  const icicles = (c, x0, x1, y, T, n, R, Lk) => { for (let i = 0; i < n; i++) { const px = lerp(x0, x1, (i + 0.5) / n) + (R() - 0.5) * T * 0.06, L = T * (0.12 + R() * 0.28) * (Lk || 1); c.beginPath(); c.moveTo(px - T * 0.035, y); c.lineTo(px + T * 0.035, y); c.lineTo(px, y + L); c.closePath(); const g = c.createLinearGradient(0, y, 0, y + L); g.addColorStop(0, '#FFFFFF'); g.addColorStop(1, 'rgba(150,205,240,.65)'); c.fillStyle = g; c.fill(); c.strokeStyle = 'rgba(43,36,51,.4)'; c.lineWidth = 0.8; c.stroke(); } };
+  const snowCap = (c, pts, lw) => { poly(c, pts); c.fillStyle = '#F2FAFF'; c.fill(); c.strokeStyle = 'rgba(43,36,51,.5)'; c.lineWidth = lw * 0.6; c.stroke(); };
+  /* frost crystals on a rimed basalt foot */
+  function frostcluster(c, T, v) { const lw = lw0(T); shadowEll(c, T, 0.95, 0.3); basalt(c, [[-T * 0.95, T * 0.05], [-T * 0.8, -T * 0.25], [-T * 0.2, -T * 0.32], [T * 0.5, -T * 0.28], [T * 0.95, -T * 0.1], [T * 0.9, T * 0.08]], lw);
+    snowCap(c, [[-T * 0.82, -T * 0.22], [-T * 0.2, -T * 0.34], [T * 0.5, -T * 0.3], [T * 0.9, -T * 0.12], [T * 0.6, -T * 0.16], [0, -T * 0.2]], lw);
+    frostCrystal(c, -T * 0.1, -T * 0.2, T * (1.9 + (v % 3) * 0.25), { v, k: 0.25, lw }); if (v % 2) frostCrystal(c, T * 0.62, -T * 0.12, T * 0.9, { v: v + 1, k: 0.2, lw }); }
+  GLOWS.frostcluster = v => [[-0.1, -1.1, 1.1, 'frost']];
+  /* broken chains, iced: rime on the links, icicles hanging off them */
+  function icechains(c, T, v) { PROPS.chains(c, T, v); const R = rnd(9 + v), set = v % 2 ? [[-0.4, 3.0], [0.35, 4.2]] : [[0, 3.6], [0.55, 2.4], [-0.5, 4.6]];
+    for (const [dx, len] of set) { const ey = -T * 6 + Math.floor(len / 0.3) * T * 0.3; c.fillStyle = `${RIME}.75)`; for (let i = 3; i < Math.floor(len / 0.3); i += 2) { ell(c, dx * T - T * 0.06, -T * 6 + i * T * 0.3 - T * 0.12, T * 0.05, T * 0.06); c.fill(); } icicles(c, dx * T - T * 0.12, dx * T + T * 0.12, ey + T * 0.18, T, 2, R, 1.4); } }
+  /* a pressure vessel coated in rime, icicles off its bands */
+  function rimevessel(c, T, v) { PROPS.vessel(c, T, v); const R = rnd(13 + v), w = T * 0.85, H = T * 2.9;
+    c.beginPath(); c.moveTo(-w, -H + w * 0.3); c.quadraticCurveTo(-w, -H - w * 0.55, 0, -H - w * 0.55); c.quadraticCurveTo(w, -H - w * 0.55, w, -H + w * 0.3); c.quadraticCurveTo(0, -H - w * 0.05, -w, -H + w * 0.3); c.closePath(); c.fillStyle = '#F2FAFF'; c.fill(); c.strokeStyle = 'rgba(43,36,51,.5)'; c.lineWidth = lw0(T) * 0.6; c.stroke();
+    c.save(); c.globalCompositeOperation = 'source-atop'; const g = c.createLinearGradient(-w, 0, w, 0); g.addColorStop(0, 'rgba(230,246,255,.35)'); g.addColorStop(0.5, 'rgba(230,246,255,.05)'); g.addColorStop(1, 'rgba(230,246,255,.25)'); c.fillStyle = g; c.fillRect(-w * 1.2, -H - w, w * 2.4, H + w); c.restore();
+    for (const yy of [0.75, 1.65, 2.45]) icicles(c, -w, w, -yy * T + T * 0.09, T, 5, R, 0.8); }
+  GLOWS.rimevessel = GLOWS.vessel;
+  /* a lavafall caught in ice: the molten stream still glows inside a sheath of milky ice */
+  function icefall(c, T, v) { PROPS.lavafall(c, T, v); const H = T * (6 + (v % 3) * 0.6), sx = (v % 2 ? -1 : 1) * T * 0.04, R = rnd(5 + v);
+    c.save(); c.beginPath(); c.moveTo(sx - T * 0.45, -H * 0.97); c.bezierCurveTo(sx - T * 0.6, -H * 0.5, sx - T * 0.85, -H * 0.3, sx - T * 0.95, -T * 0.2); c.lineTo(sx + T * 0.95, -T * 0.2); c.bezierCurveTo(sx + T * 0.85, -H * 0.3, sx + T * 0.6, -H * 0.5, sx + T * 0.45, -H * 0.97); c.closePath();
+    const g = c.createLinearGradient(sx - T, 0, sx + T, 0); g.addColorStop(0, 'rgba(200,232,250,.8)'); g.addColorStop(0.3, 'rgba(220,243,255,.42)'); g.addColorStop(0.5, 'rgba(235,248,255,.28)'); g.addColorStop(0.7, 'rgba(220,243,255,.42)'); g.addColorStop(1, 'rgba(170,215,240,.8)'); c.fillStyle = g; c.fill(); ink(c, lw0(T) * 0.8);
+    c.strokeStyle = 'rgba(255,255,255,.8)'; c.lineWidth = Math.max(1, T * 0.04); c.beginPath(); c.moveTo(sx - T * 0.38, -H * 0.9); c.bezierCurveTo(sx - T * 0.5, -H * 0.5, sx - T * 0.7, -H * 0.3, sx - T * 0.78, -T * 0.3); c.stroke(); c.restore();
+    ell(c, sx, -T * 0.18, T * 1.3, T * 0.42); c.fillStyle = 'rgba(210,238,252,.55)'; c.fill(); icicles(c, sx - T * 1.2, sx + T * 1.2, -H * 0.62, T, 4, R, 1.2); }
+  GLOWS.icefall = v => [[(v % 2 ? -1 : 1) * 0.04, -0.3, 1.1, 'lava'], [0, -2.2, 1.2, 'frost']];
+  /* ---- the glass heart ---- */
+  GAP_EXT.heartlava = { base: '#FF7A2A',
+    paint(c, S, R) { crustTile(c, S, R, 22, 'river'); },
+    back(c, o) { const { pat, pattern, k, W, H, t, P, bigGlow } = o; pat(pattern('heartlava', k), 0.94, W / 2 + t * 4.5, H / 2 + t * 2.2);
+      c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = lowFx() ? 0.25 : 0.3 + 0.12 * Math.sin(t * 1.6); pat(pattern('calderaflow', k), 0.97, W / 2 - t * 8, H / 2 + t * 4);
+      if (!lowFx()) { c.globalAlpha = 0.12 + 0.05 * Math.sin(t * 0.8); bigGlow(c, P, '#FF5A2A', W * 0.1 - (o.wx * 0.04) % (W * 0.5), H * 0.15, W * 0.8); } c.restore(); } };
+  // black glass everywhere: columns of obsidian, some translucent enough to show the magma moving beneath, crystal veins
+  function glassFloor(c, X, Y, T, h, h2, x, y, lw, gN, gS, gW, gE) { const R = rnd(x * 3001 + y * 70001 + 79);
+    c.save(); c.beginPath(); c.rect(X, Y, T, T); c.clip(); unTile(c, X, Y, T, h2); grain(c, X, Y, T, R, 5, 0.12);
+    hexFloor(c, X, Y, T, x, y, { seam: 0.025, joint: 'rgba(2,1,4,.75)', lip: 'rgba(200,180,255,.1)',
+      tone: cl => { cl.mag = vnoise(cl.cx / 3, cl.cy / 3, 121); cl.dim = vnoise(cl.cx / 5, cl.cy / 5, 127); return cl.mag > 0.6 ? '#1A0C0C' : cl.dim > 0.55 ? '#0C0A10' : '#16121A'; },
+      inner(c2, cl, p, T2) { const cx = (p[0][0] + p[3][0]) / 2, cy = (p[1][1] + p[4][1]) / 2; c2.save(); poly(c2, p); c2.closePath(); c2.clip();
+        if (cl.mag > 0.6) { /* magma beneath the glass: a dull red glow under a dark translucent skin, a bright vein in it */ const a = Math.min(1, (cl.mag - 0.6) * 4); const g = c2.createRadialGradient(cx + T2 * 0.1, cy + T2 * 0.1, 0, cx, cy, T2 * 0.75); g.addColorStop(0, `rgba(255,120,40,${0.55 * a})`); g.addColorStop(0.5, `rgba(200,50,20,${0.35 * a})`); g.addColorStop(1, 'rgba(60,10,8,0)'); c2.fillStyle = g; c2.fillRect(cx - T2, cy - T2, T2 * 2, T2 * 2);
+          c2.strokeStyle = `rgba(255,170,90,${0.4 * a})`; c2.lineWidth = Math.max(0.8, T2 * 0.025); c2.beginPath(); c2.moveTo(cx - T2 * 0.3, cy + T2 * 0.1); c2.quadraticCurveTo(cx, cy - T2 * 0.15 + cl.h * T2 * 0.2, cx + T2 * 0.3, cy + T2 * 0.05); c2.stroke(); }
+        const u = 0.35 + 0.3 * vnoise(cl.cx / 6, cl.cy / 6, 63), sg = c2.createLinearGradient(cx - T2 * 0.6, cy + T2 * 0.6, cx + T2 * 0.6, cy - T2 * 0.6); sg.addColorStop(Math.max(0, u - 0.2), 'rgba(190,165,245,0)'); sg.addColorStop(u, 'rgba(200,180,250,.16)'); sg.addColorStop(Math.min(1, u + 0.03), 'rgba(255,255,255,.08)'); sg.addColorStop(Math.min(1, u + 0.2), 'rgba(190,165,245,0)'); c2.fillStyle = sg; c2.fillRect(cx - T2, cy - T2, T2 * 2, T2 * 2);
+        c2.restore(); } });
+    const vein = vnoise(x / 2.2 + 3, y / 2.2, 131); if (vein > 0.7) { const cells = hexCellsAt(x, y); for (const cl of cells) { if (hh(cl.q, cl.r, 71) > 0.6) continue; const V = cl.V, k = Math.floor(cl.h * 6), A = V[k], B = V[(k + 1) % 6], a = [X + (A[0] - x) * T, Y + (A[1] - y) * T], b = [X + (B[0] - x) * T, Y + (B[1] - y) * T]; c.save(); c.lineCap = 'round'; c.globalCompositeOperation = 'lighter'; c.strokeStyle = 'rgba(140,60,200,.4)'; c.lineWidth = Math.max(2, T * 0.08); c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke(); c.strokeStyle = 'rgba(255,90,42,.9)'; c.lineWidth = Math.max(0.8, T * 0.025); c.stroke(); c.restore(); } }
+    edgeGlow(c, X, Y, T, gN, gS, gW, gE, 0.4);
+    c.restore(); }
+  // the walls: translucent obsidian, magma pockets moving inside it, a violet sheen down its facets
+  function glassWall(c, X, Y, T, H, h, x, lw, B) { const g = c.createLinearGradient(0, Y, 0, Y + H); g.addColorStop(0, '#1E1824'); g.addColorStop(0.4, '#120E16'); g.addColorStop(1, '#06040A'); c.fillStyle = g; c.fillRect(X, Y, T + 0.5, H);
+    if (hh(x, 1, 21) < 0.55) { const px = X + T * (0.2 + hh(x, 2, 23) * 0.6), py = Y + H * (0.35 + hh(x, 3, 29) * 0.4), r = T * (0.2 + hh(x, 4, 31) * 0.25); const mg = c.createRadialGradient(px, py, 0, px, py, r); mg.addColorStop(0, 'rgba(255,140,50,.7)'); mg.addColorStop(0.5, 'rgba(210,60,20,.4)'); mg.addColorStop(1, 'rgba(80,10,10,0)'); c.fillStyle = mg; c.fillRect(px - r, py - r, r * 2, r * 2); }
+    const w = T / 3; for (let i = 0; i < 3; i++) { c.fillStyle = ['rgba(180,150,240,.12)', 'rgba(0,0,0,0)', 'rgba(0,0,0,.3)'][i]; c.fillRect(X + i * w, Y, w, H); }
+    c.strokeStyle = 'rgba(230,215,255,.28)'; c.lineWidth = Math.max(0.8, T * 0.02); c.beginPath(); c.moveTo(X + T * 0.12, Y + H * 0.1); c.lineTo(X + T * 0.2, Y + H * 0.9); c.stroke(); }
+  /* a forest of black fire crystals: several clusters, tall ones at the back */
+  function crystalforest(c, T, v) { const lw = lw0(T); shadowEll(c, T, 1.7, 0.4); const R = rnd(41 + v);
+    const set = [[-0.9, -0.12, 3.4], [0.6, -0.1, 4.2], [-0.1, -0.05, 2.6], [1.25, 0.05, 1.9], [-1.4, 0.06, 1.6], [0.25, 0.12, 1.5]]; for (const [dx, dy, s] of set) crystalArt(c, dx * T, dy * T, T * s * (0.9 + R() * 0.2), { v: Math.floor(R() * 4), ph: R(), k: 0.35 + R() * 0.2, lw }); }
+  GLOWS.crystalforest = v => [[0.6, -2.0, 1.6, 'cry'], [-0.9, -1.6, 1.3, 'cry'], [-0.1, -1.0, 1.0, 'cry']];
+  /* a geode split open: a rough basalt shell, a ring of violet crystal teeth inside, a molten heart */
+  function geode(c, T, v) { const lw = lw0(T), R = rnd(51 + v), cx = 0, cy = -T * 0.75, rx = T * 1.1, ry = T * 0.85; shadowEll(c, T, 1.2, 0.4);
+    const outer = []; for (let i = 0; i < 14; i++) { const a = i / 14 * TAU, k = 1 + (R() - 0.5) * 0.12; outer.push([cx + Math.cos(a) * rx * k, cy + Math.sin(a) * ry * k]); } basalt(c, outer, lw, { hi: '#5E5658', mid: '#3A3234', lo: '#141012' });
+    // the cut face, the band of agate rings, the crystal teeth
+    ell(c, cx + T * 0.04, cy - T * 0.02, rx * 0.8, ry * 0.76); c.fillStyle = '#2A1E34'; c.fill(); ink(c, lw * 0.8);
+    for (let i = 0; i < 3; i++) { ell(c, cx + T * 0.04, cy - T * 0.02, rx * (0.78 - i * 0.07), ry * (0.74 - i * 0.07)); c.strokeStyle = ['#6E4E8E', '#3E2A52', '#8A68B0'][i]; c.lineWidth = Math.max(1, T * 0.04); c.stroke(); }
+    for (let i = 0; i < 16; i++) { const a = i / 16 * TAU + R() * 0.2, r0 = 0.56, px = cx + Math.cos(a) * rx * r0, py = cy + Math.sin(a) * ry * r0, tx = cx + Math.cos(a) * rx * 0.3, ty = cy + Math.sin(a) * ry * 0.3; poly(c, [[px - Math.sin(a) * T * 0.08, py + Math.cos(a) * T * 0.08], [lerp(px, tx, 0.6 + R() * 0.3), lerp(py, ty, 0.6 + R() * 0.3)], [px + Math.sin(a) * T * 0.08, py - Math.cos(a) * T * 0.08]]); c.closePath(); c.fillStyle = i % 2 ? '#5A3C80' : '#7E5CA8'; c.fill(); c.strokeStyle = 'rgba(20,10,30,.6)'; c.lineWidth = 0.8; c.stroke(); }
+    ell(c, cx + T * 0.04, cy, rx * 0.26, ry * 0.24); const mg = c.createRadialGradient(cx, cy - T * 0.05, 0, cx, cy, rx * 0.28); mg.addColorStop(0, '#FFF0B0'); mg.addColorStop(0.5, '#FF8A30'); mg.addColorStop(1, '#8A2008'); c.fillStyle = mg; c.fill(); ink(c, lw * 0.7); }
+  GLOWS.geode = v => [[0.04, -0.75, 0.9, 'lava']];
+  /* a monolith of translucent obsidian: magma swirling slowly inside the glass */
+  function magmaglass(c, T, v) { const lw = lw0(T), H = T * (3.6 + (v % 2) * 0.6), W = T * 0.8; shadowEll(c, T, 0.9, 0.4);
+    const pts = [[-W, 0], [-W * 1.05, -H * 0.55], [-W * 0.6, -H], [W * 0.5, -H * 0.94], [W, -H * 0.5], [W * 0.92, 0]]; poly(c, pts); c.closePath(); const g = c.createLinearGradient(-W, 0, W, 0); g.addColorStop(0, '#2A2236'); g.addColorStop(0.45, '#120E18'); g.addColorStop(1, '#06040A'); c.fillStyle = g; c.fill();
+    c.save(); c.clip(); for (let i = 0; i < 4; i++) { const py = -H * (0.2 + i * 0.2), px = Math.sin(i * 1.9 + v) * W * 0.35, r = T * (0.35 + (i % 2) * 0.15); const mg = c.createRadialGradient(px, py, 0, px, py, r); mg.addColorStop(0, 'rgba(255,150,60,.65)'); mg.addColorStop(0.5, 'rgba(220,60,20,.35)'); mg.addColorStop(1, 'rgba(90,10,10,0)'); c.fillStyle = mg; c.fillRect(px - r, py - r, r * 2, r * 2); }
+      c.strokeStyle = 'rgba(255,160,80,.35)'; c.lineWidth = Math.max(1, T * 0.04); c.beginPath(); c.moveTo(-W * 0.4, -H * 0.1); c.bezierCurveTo(W * 0.5, -H * 0.3, -W * 0.5, -H * 0.55, W * 0.3, -H * 0.85); c.stroke();
+      c.fillStyle = 'rgba(200,180,250,.14)'; c.beginPath(); c.moveTo(-W * 0.9, -H * 0.5); c.lineTo(-W * 0.55, -H * 0.95); c.lineTo(-W * 0.35, -H * 0.9); c.lineTo(-W * 0.7, -H * 0.4); c.closePath(); c.fill(); c.restore();
+    poly(c, pts); c.closePath(); ink(c, lw); c.strokeStyle = 'rgba(230,215,255,.55)'; c.lineWidth = Math.max(1, lw * 0.6); c.beginPath(); c.moveTo(-W * 0.95, -H * 0.5); c.lineTo(-W * 0.58, -H * 0.97); c.stroke(); }
+  GLOWS.magmaglass = v => [[0, -(3.6 + (v % 2) * 0.6) * 0.5, 1.2, 'lava']];
+  Object.assign(PROP_EXT, { frostcluster: [2.8, 3.4], icechains: [2.8, 6.6], rimevessel: [2.6, 4.2], icefall: [4.8, 8.0], crystalforest: [5.6, 6.2], geode: [3.0, 2.6], magmaglass: [2.4, 5.0] });
+  Object.assign(PROPS, { frostcluster, icechains, rimevessel, icefall, crystalforest, geode, magmaglass });
+  // (these two cast the crystals' pulses toward the heart as well)
+  BIOMES.rimeforge = land({ name: 'The Rimebound Forge', dark: 0.14, bg: '#101820', accent: ICE, light: '#BFE3FA', bridgeCol: IRON_HI, deco: FROST, bridgeFn: grateBridge, wallFn: rimeWall, gap: 'rimelava', ambient: 'snow',
+    floor: ['#3E3E46', '#40404A', '#3C3C44'], grout: '#1C1C22', hi: '#646672', top: '#2E3038', face: '#2C2E36', faceD: '#14161C', cliff: '#2C2C34', grade: 'rgba(150,200,240,.06)', fog: '#101820', darkRGB: '10,16,24',
+    props: ['frostcluster', 'frostwell', 'anvil', 'frostcluster'], floorFn: rimeFloor });
+  BIOMES.glassheart = land({ name: 'The Glass Heart', dark: 0.22, bg: '#120406', accent: FRACTURE_HI, light: FRACTURE, bridgeCol: BASALT_HI, deco: FRACTURE, wallFn: glassWall, gap: 'heartlava',
+    floor: ['#17131B', '#18141C', '#16121A'], grout: '#08060A', hi: '#3A3044', top: '#16121A', face: '#140F18', faceD: '#06040A', cliff: '#1A1420', grade: 'rgba(170,60,140,.06)', fog: '#120406', darkRGB: '18,4,6',
+    props: ['geode', 'blackcrystal', 'glassspire', 'geode'], floorFn: glassFloor });
+  const RIMS = { ashen: { tall: ['basaltcol', 'lavafall', 'blackcrystal', 'basaltcol', 'bigcrystal'], short: ['ashmound', 'glassspire', 'blackcrystal', 'frostwell'] },
+    rimeforge: { tall: ['icefall', 'icechains', 'rimevessel', 'frostcluster', 'icechains'], short: ['frostcluster', 'frostwell', 'anvil', 'frostcluster'] },
+    glassheart: { tall: ['crystalforest', 'magmaglass', 'lavafall', 'bigcrystal', 'magmaglass'], short: ['geode', 'glassspire', 'blackcrystal', 'geode'] } };
+  function calDress({ rm, i, G, RM, props, R, MW, walk, okFeature, first, id }) {
+    const L = RIMS[rm.biome]; if (!L) return; const cells = []; for (let y = rm.y; y < rm.y + rm.h; y++) for (let x = rm.x; x < rm.x + rm.w; x++) { const k = id(x, y); if (RM[k] === i && walk(k)) cells.push(k); }
+    if (cells.length < 20) return; const rim = cells.filter(k => { const x = k % MW, y = (k / MW) | 0; return okFeature(x, y, i) && [1, -1, MW, -MW].some(d => !walk(k + d) && !props.has(k + d)); });
+    const connected = () => { const open = cells.filter(k => walk(k)); if (!open.length) return true; const seen = new Set([open[0]]), q = [open[0]]; for (let h = 0; h < q.length; h++) for (const d of [1, -1, MW, -MW]) { const kk = q[h] + d; if (!seen.has(kk) && RM[kk] === i && walk(kk)) { seen.add(kk); q.push(kk); } } return seen.size >= open.length; };
+    const northOpen = k => !walk(k - MW) && !walk(k - 2 * MW) && !walk(k - MW - 1) && !walk(k - MW + 1);
+    let want = Math.max(2, Math.round(rim.length * (first ? 0.08 : 0.12))), tries = 0; const placed = [];
+    while (want > 0 && rim.length && tries++ < 200) { const j = Math.floor(R() * rim.length), k = rim[j]; rim.splice(j, 1); const x = k % MW, y = (k / MW) | 0, tall = northOpen(k);
+      if (placed.some(([px, py, pt]) => Math.abs(px - x) + Math.abs(py - y) < (tall && pt ? 5 : 3))) continue;
+      if (!tall && R() < 0.4) continue;
+      const was = G[k]; G[k] = T_SOLID; if (!connected()) { G[k] = was; continue; } const list = tall ? L.tall : L.short; props.set(k, list[Math.floor(R() * list.length)]); placed.push([x, y, tall]); want--; } }
+  BIOME_ORDER.push('rimeforge', 'glassheart'); DARK_COL.rimeforge = '10,16,24'; DARK_COL.glassheart = '18,4,6';
+  ROOM_SHAPES.rimeforge = ['rect', 'oval', 'rect', 'islands']; ROOM_SHAPES.glassheart = ['cave', 'oval', 'islands', 'oval']; BOSS_ARENA.rimeforge = BOSS_ARENA.glassheart = 'oval';
+  if (typeof DECALS !== 'undefined') { DECALS.rimeforge = [['calslag', 0.03], ['calsoot', 0.03], ['calash', 0.03]]; DECALS.glassheart = [['calvein', 0.06], ['calglass', 0.05], ['calcoal', 0.02]]; }
+  Object.assign(PULSERS, { crystalforest: 1.6, magmaglass: 0.8 });
+  BIOMES.rimeforge.dress = BIOMES.glassheart.dress = BIOMES.ashen.dress = calDress; BIOMES.ashen.props = ['blackcrystal', 'ashmound', 'glassspire', 'blackcrystal'];
+  Object.assign(CAL, { rimeFloor, glassFloor, rimeWall, glassWall });
+
+  /* ======================= three more of the brood, for the dungeons =======================
+     rimewisp   (the Rimebound Forge) an ember wisp caught in the leaking cold: a white-blue shell of frost-fire round a
+                still-red coal. It shows two lines in a narrow V, then throws two frost shards down them (each chills a
+                moment), then burns low.
+     shardling  (the Glass Heart) a small obsidian crawler with a back of crystal spines. It hunches (a fan of three lines),
+                flicks three glass shards along them, then sits still recovering.
+     geodeling  (the Glass Heart) a walking geode: shut, its rough shell takes a quarter of any blow. Every few seconds it
+                cracks (a ring shown round it) and bursts with a pulse of heat, then lies split open, its molten heart bare. */
+  Object.assign(MON, {
+    rimewisp: { name: 'Rime wisp', from: 999, hp: 22, spd: 1.6, r: 0.4, dmg: 8, xp: 7, coin: 0.5, color: '#CFEFFF', fly: true, bio: ['rimeforge'], kit: [], tip: 'An ember wisp caught in the forge\'s cold: frost-fire round a red coal. It shows two lines, then throws two frost shards down them (a hit chills you a moment), then burns low.' },
+    shardling: { name: 'Shardling', from: 999, hp: 22, spd: 1.9, r: 0.38, dmg: 7, xp: 6, coin: 0.5, color: '#1A1420', bio: ['glassheart'], kit: [], tip: 'A small obsidian crawler with crystal spines. It hunches and shows three lines, then flicks three glass shards along them, and sits a moment to recover.' },
+    geodeling: { name: 'Geodeling', from: 999, hp: 40, spd: 0.85, r: 0.5, dmg: 9, xp: 9, coin: 0.7, color: '#3A3234', bio: ['glassheart'], kit: [], tip: 'A walking geode. Shut, its shell turns most blows. It cracks open with a burst of heat round it (a ring is shown first: step out), then lies open a while: hit its molten heart then.' },
+  });
+  Object.assign(MP, {
+    rimewisp(c, r, ph, o) { const md = o.mode || '', ch = md === 'charge', sp = md === 'spent', k = ch ? 1.25 : sp ? 0.55 : 1, fl = Math.sin(ph * TAU * 2), lw = lwOf(r);
+      c.fillStyle = 'rgba(8,10,16,.22)'; ell(c, 0, r * 0.95, r * 0.55, r * 0.14); c.fill();
+      const flame = (s, tip, col, a) => { c.globalAlpha = a; c.beginPath(); c.moveTo(0, r * 0.45 * s); c.bezierCurveTo(-r * 0.62 * s, r * 0.35 * s, -r * 0.6 * s, -r * 0.3 * s, -r * 0.1 * s + fl * r * 0.05, -tip); c.bezierCurveTo(r * 0.12 * s, -r * 0.5 * s, r * 0.6 * s, -r * 0.2 * s, r * 0.5 * s, r * 0.2 * s); c.quadraticCurveTo(r * 0.35 * s, r * 0.5 * s, 0, r * 0.45 * s); c.closePath(); c.fillStyle = col; c.fill(); c.globalAlpha = 1; };
+      addGlow(c, 0, 0, r * 1.5 * k, '#9FD8FF', ch ? 0.7 : sp ? 0.2 : 0.45);
+      c.save(); c.translate(0, -r * 0.05); flame(k, r * (1.05 + 0.12 * fl) * k, '#5E9ED8', sp ? 0.55 : 0.85); flame(k * 0.78, r * (0.85 + 0.1 * fl) * k, '#A8DAFA', 0.95); flame(k * 0.55, r * (0.6 + 0.08 * fl) * k, '#E8F7FF', 1);
+      // rime crystals on its shell
+      c.strokeStyle = 'rgba(255,255,255,.8)'; c.lineWidth = Math.max(0.8, r * 0.04); for (const [x, y] of [[-0.35, -0.1], [0.32, 0.0], [-0.1, -0.55]]) { c.beginPath(); for (let i = 0; i < 3; i++) { const a = i / 3 * Math.PI; c.moveTo(x * r * k + Math.cos(a) * r * 0.08, y * r * k + Math.sin(a) * r * 0.08); c.lineTo(x * r * k - Math.cos(a) * r * 0.08, y * r * k - Math.sin(a) * r * 0.08); } c.stroke(); }
+      // the coal: still red at its heart
+      const coal = [[-r * 0.2, r * 0.16], [-r * 0.26, -r * 0.0], [-r * 0.14, -r * 0.13], [r * 0.02, -r * 0.18], [r * 0.16, -r * 0.1], [r * 0.23, r * 0.04], [r * 0.15, r * 0.19], [-r * 0.01, r * 0.24]]; poly(c, coal); c.closePath(); c.fillStyle = sp ? '#4A4A55' : '#2A1A16'; c.fill(); stroke(c, lw * 0.7);
+      c.save(); poly(c, coal); c.clip(); c.strokeStyle = sp ? 'rgba(255,120,50,.4)' : '#FF8A3D'; c.lineWidth = Math.max(0.8, r * 0.04); c.beginPath(); c.moveTo(-r * 0.18, r * 0.08); c.lineTo(-r * 0.03, r * 0.02); c.lineTo(r * 0.04, r * 0.12); c.moveTo(-r * 0.03, r * 0.02); c.lineTo(r * 0.1, -r * 0.08); c.stroke(); c.restore(); addGlow(c, 0, r * 0.02, r * 0.3, LAVA, sp ? 0.15 : 0.45);
+      c.restore();
+      for (let i = 0; i < 3; i++) { const u = (ph * 2 + i / 3) % 1; c.fillStyle = `rgba(230,246,255,${(1 - u) * (sp ? 0.4 : 0.85)})`; c.beginPath(); c.arc(Math.sin(i * 2.1 + u * 3) * r * 0.3, r * 0.4 + u * r * 0.6, r * 0.05 * (1 - u) + 0.6, 0, TAU); c.fill(); }
+      if (ch) { c.strokeStyle = 'rgba(230,246,255,.85)'; c.lineWidth = Math.max(1, r * 0.05); for (let i = 0; i < 6; i++) { const a = i / 6 * TAU + ph * TAU; c.beginPath(); c.moveTo(Math.cos(a) * r * 0.9, Math.sin(a) * r * 0.9 - r * 0.1); c.lineTo(Math.cos(a) * r * 1.15, Math.sin(a) * r * 1.15 - r * 0.1); c.stroke(); } } },
+    shardling(c, r, ph, o) { const lw = lwOf(r), md = o.mode || '', hunch = md === 'wind', flick = md === 'flick', rest = md === 'rest', run = Math.sin(ph * TAU * 2), up = hunch ? r * 0.12 : 0;
+      c.fillStyle = 'rgba(8,4,8,.34)'; ell(c, 0, r * 0.6, r * 1.0, r * 0.22); c.fill();
+      for (const [x, k, d] of [[-0.45, 1, 1], [0, -1, 1], [0.42, 1, 1], [-0.3, -1, 0], [0.15, 1, 0], [0.55, -1, 0]]) { const sw = run * k * r * 0.08 * (rest ? 0 : 1), fx = x * r + r * 0.25 + sw; limb(c, x * r, r * 0.15, x * r + r * 0.15 + sw * 0.5, r * 0.05, Math.max(1.5, r * 0.09), d ? '#1A141E' : '#2A2232'); limb(c, x * r + r * 0.15 + sw * 0.5, r * 0.05, fx, r * 0.56, Math.max(1.2, r * 0.07), d ? '#120E16' : '#221C28'); }
+      // the body: a low glossy obsidian carapace
+      c.save(); c.translate(0, -up); c.beginPath(); c.moveTo(-r * 0.9, r * 0.25); c.bezierCurveTo(-r * 0.9, -r * 0.3, -r * 0.3, -r * 0.48, r * 0.3, -r * 0.42); c.bezierCurveTo(r * 0.8, -r * 0.36, r * 1.0, -r * 0.05, r * 0.92, r * 0.22); c.quadraticCurveTo(0, r * 0.38, -r * 0.9, r * 0.25); c.closePath();
+      const g = c.createLinearGradient(0, -r * 0.5, 0, r * 0.3); g.addColorStop(0, '#6A5288'); g.addColorStop(0.45, '#2E2240'); g.addColorStop(1, '#100A16'); c.fillStyle = g; c.fill(); stroke(c, lw); c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = 'rgba(190,150,255,.35)'; c.lineWidth = Math.max(1, lw * 0.7); c.stroke(); c.restore();
+      c.strokeStyle = 'rgba(220,200,255,.55)'; c.lineWidth = Math.max(1, lw * 0.6); c.beginPath(); c.moveTo(-r * 0.6, -r * 0.18); c.quadraticCurveTo(-r * 0.1, -r * 0.42, r * 0.4, -r * 0.34); c.stroke();
+      // the spines: crystal shards along its back, glowing when it hunches
+      const spines = [[-0.6, 0.55, -0.5], [-0.3, 0.75, -0.25], [0.0, 0.85, 0.0], [0.3, 0.7, 0.25], [0.55, 0.45, 0.5]]; for (const [x, s, a] of spines) { if (flick && Math.abs(x) < 0.4) continue; c.save(); c.translate(x * r, -r * 0.32 - Math.abs(x) * -r * 0.05); c.rotate(a + (hunch ? a * 0.4 : 0)); const L = r * s * 0.85 * (hunch ? 1.15 : 1), w = r * 0.15; poly(c, [[-w, 0], [-w * 0.55, -L * 0.75], [0, -L], [0, 0]]); c.closePath(); c.fillStyle = '#6A4E92'; c.fill(); poly(c, [[0, 0], [0, -L], [w * 0.55, -L * 0.72], [w, 0]]); c.closePath(); c.fillStyle = '#22182E'; c.fill(); poly(c, [[-w, 0], [-w * 0.55, -L * 0.75], [0, -L], [w * 0.55, -L * 0.72], [w, 0]]); c.closePath(); stroke(c, lw * 0.7); c.strokeStyle = hunch ? '#FFC080' : 'rgba(255,90,42,.8)'; c.lineWidth = Math.max(0.8, r * 0.035); c.beginPath(); c.moveTo(w * 0.2, -L * 0.08); c.lineTo(-w * 0.15, -L * 0.45); c.lineTo(w * 0.1, -L * 0.75); c.stroke(); c.restore(); }
+      if (hunch) addGlow(c, 0, -r * 0.6, r * 0.8, FRACTURE, 0.5);
+      // the head: a wedge of glass with two ember pits
+      c.beginPath(); c.moveTo(r * 0.7, -r * 0.2); c.lineTo(r * 1.1, r * 0.02); c.lineTo(r * 0.75, r * 0.22); c.closePath(); c.fillStyle = '#241A30'; c.fill(); stroke(c, lw * 0.8); for (const [x, y] of [[0.86, -0.03], [0.94, 0.06]]) { c.fillStyle = rest ? '#8A3A20' : '#FF9A50'; c.beginPath(); c.arc(x * r, y * r, r * 0.035, 0, TAU); c.fill(); }
+      c.beginPath(); c.moveTo(-r * 0.85, r * 0.24); c.quadraticCurveTo(0, r * 0.36, r * 0.9, r * 0.2); rim(c, lw * 0.8, 0.45);
+      c.restore(); },
+    geodeling(c, r, ph, o) { const lw = lwOf(r), md = o.mode || '', open = md === 'open', crack = md === 'c1' || md === 'c2' || md === 'c3', ck = crack ? +md[1] / 3 : 0, burst = md === 'burst', step = Math.sin(ph * TAU * 2) * r * 0.06, gap = open ? r * 0.28 : burst ? r * 0.4 : ck * r * 0.06;
+      c.fillStyle = 'rgba(8,4,4,.36)'; ell(c, 0, r * 0.66, r * 0.95, r * 0.22); c.fill();
+      for (const sd of [-1, 1]) { const fx = sd * r * 0.32 + (open ? 0 : step * sd); limb(c, sd * r * 0.22, r * 0.3, fx, r * 0.62, Math.max(2, r * 0.15), '#2A2426'); c.fillStyle = '#1A1617'; ell(c, fx, r * 0.64, r * 0.12, r * 0.05); c.fill(); }
+      // the molten heart (seen through the crack, bare when open)
+      const hk = open || burst ? 1 : ck; if (hk > 0) { ell(c, 0, -r * 0.1, r * 0.42, r * 0.4); const mg = c.createRadialGradient(0, -r * 0.15, 0, 0, -r * 0.1, r * 0.42); mg.addColorStop(0, '#FFF2C0'); mg.addColorStop(0.45, '#FF8A30'); mg.addColorStop(1, '#8A2008'); c.fillStyle = mg; c.fill(); addGlow(c, 0, -r * 0.1, r * (0.7 + 0.6 * hk), LAVA, 0.35 + 0.45 * hk);
+        for (let i = 0; i < 10; i++) { const a = i / 10 * TAU, px = Math.cos(a) * r * 0.38, py = -r * 0.1 + Math.sin(a) * r * 0.36; poly(c, [[px, py], [px * 0.6, py * 0.6 - r * 0.04], [px * 0.95 + Math.sin(a) * r * 0.06, py * 0.95 - Math.cos(a) * r * 0.06]]); c.closePath(); c.fillStyle = i % 2 ? '#6E4E9A' : '#9A78C8'; c.fill(); } }
+      // the two halves of the shell: rough basalt outside, agate rim at the cut
+      for (const sd of [-1, 1]) { c.save(); c.translate(sd * gap, open ? r * 0.06 : 0); c.rotate(open ? sd * 0.35 : burst ? sd * 0.5 : sd * ck * 0.08);
+        c.beginPath(); c.moveTo(0, -r * 0.82); for (let i = 0; i <= 8; i++) { const a = -Math.PI / 2 + sd * i / 8 * Math.PI, k2 = 1 + Math.sin(i * 2.3 + sd) * 0.06; c.lineTo(sd * Math.abs(Math.cos(a)) * r * 0.78 * k2, -r * 0.1 + Math.sin(a) * r * 0.72 * k2); } c.lineTo(0, r * 0.62); for (let i = 0; i < 5; i++) c.lineTo(sd * (i % 2 ? r * 0.06 : 0), r * 0.62 - (i + 1) * r * 0.29); c.closePath();
+        const g = c.createLinearGradient(-r * 0.8, -r * 0.8, r * 0.8, r * 0.6); g.addColorStop(0, '#6E6466'); g.addColorStop(0.5, '#463E40'); g.addColorStop(1, '#1C1617'); c.fillStyle = g; c.fill(); stroke(c, lw);
+        c.fillStyle = 'rgba(0,0,0,.3)'; for (const [x, y] of [[0.4, -0.4], [0.55, 0.05], [0.3, 0.3]]) { c.beginPath(); c.arc(sd * x * r, y * r, r * 0.06, 0, TAU); c.fill(); } c.fillStyle = 'rgba(200,190,180,.2)'; ell(c, sd * r * 0.35, -r * 0.55, r * 0.18, r * 0.06, sd * 0.4); c.fill();
+        c.strokeStyle = '#8A68B0'; c.lineWidth = Math.max(1, r * 0.05); c.beginPath(); c.moveTo(0, -r * 0.82); for (let i = 0; i < 5; i++) c.lineTo(sd * (i % 2 ? r * 0.06 : 0), -r * 0.82 + (i + 1) * r * 0.29); c.stroke();
+        c.restore(); }
+      if (crack) { c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = `rgba(255,150,60,${0.5 + 0.5 * ck})`; c.lineWidth = Math.max(1, r * 0.06); c.beginPath(); c.moveTo(0, -r * 0.8); c.lineTo(r * 0.05, -r * 0.4); c.lineTo(-r * 0.04, 0); c.lineTo(r * 0.04, r * 0.5); c.stroke(); c.restore(); }
+      if (!open && !burst) { c.beginPath(); c.moveTo(-r * 0.6, r * 0.38); c.lineTo(-r * 0.08, r * 0.6); c.moveTo(r * 0.08, r * 0.6); c.lineTo(r * 0.6, r * 0.38); rim(c, lw * 0.8, 0.4); } },
+  });
+  Object.assign(EXT, { rimewisp: 2.0, shardling: 1.9, geodeling: 1.9 }); Object.assign(NF, { rimewisp: 6, shardling: 6, geodeling: 4 });
+  Object.assign(mon, {
+    rimewisp(m, A, X) {
+      if (m.wT > 0) { m.wT -= A.dt; m.mode = 'charge'; faceTo(m, m.fa); if (m.wT <= 0) { m.mode = 'spent'; m.spentT = 3.0; m.shots = (m.shots || 0) + 1; for (const da of [-0.2, 0.2]) X.eshot(m.x + Math.cos(m.fa) * 0.4, m.y - 0.3, m.fa + da, 4.6, { dmg: m.dmg, color: '#BFE3FA', core: '#FFFFFF', r: 0.22, style: 'orb', src: m, chill: 1.2, life: 3 }); snd(X, 'chime', 1175, 0.25); } return; }
+      if (m.spentT > 0) { m.spentT -= A.dt; m.mode = 'spent'; if (A.d > 3) A.steer(A.sp * 0.25); m.z = 0.2; return; }
+      m.mode = null; m.z = 0.45 + 0.12 * Math.sin(m.t * 2.3); keepRange(m, A, X, 3.2, 6.2); faceTo(m, A.a);
+      if (m.cd <= 0 && A.d < 7.5 && A.los()) { m.wT = 1.2; m.fa = A.a; m.cd = 4.6 + Math.random(); for (const da of [-0.2, 0.2]) X.warn({ shape: 'line', x: m.x, y: m.y, a: A.a + da, len: Math.min(9, A.d + 1.5), w: 0.6, life: 1.2, max: 1.2, src: m }); }
+    },
+    shardling(m, A, X) {
+      if (m.wT > 0) { m.wT -= A.dt; m.mode = 'wind'; faceTo(m, m.fa); if (m.wT <= 0) { m.mode = 'flick'; m.flickT = 0.25; m.shots = (m.shots || 0) + 1; for (const da of [-0.32, 0, 0.32]) X.eshot(m.x + Math.cos(m.fa) * 0.4, m.y - 0.25, m.fa + da, 5.4, { dmg: m.dmg * 0.8, color: '#B080E8', core: '#FFD0A0', r: 0.16, style: 'orb', src: m, life: 1.3 }); snd(X, 'crack'); } return; }
+      if (m.flickT > 0) { m.flickT -= A.dt; if (m.flickT <= 0) m.restT = 1.3; return; }
+      if (m.restT > 0) { m.restT -= A.dt; m.mode = 'rest'; return; }
+      m.mode = null; keepRange(m, A, X, 2.4, 4.8); faceTo(m, A.a);
+      if (m.cd <= 0 && A.d < 6 && A.los()) { m.wT = 0.9; m.fa = A.a; m.cd = 3.8 + Math.random() * 1.2; for (const da of [-0.32, 0, 0.32]) X.warn({ shape: 'line', x: m.x, y: m.y, a: A.a + da, len: 6.5, w: 0.45, life: 0.9, max: 0.9, src: m }); }
+    },
+    geodeling(m, A, X) { if (!m.guardFn) m.guardFn = geodeGuard;
+      if (m.wT > 0) { m.wT -= A.dt; const u = 1 - m.wT / 1.3; m.mode = 'c' + Math.max(1, Math.min(3, Math.ceil(u * 3))); if (m.wT <= 0) { m.mode = 'burst'; m.burstT = 0.3; m.bursts = (m.bursts || 0) + 1; if (Math.hypot(X.me.x - m.x, X.me.y - m.y) < 2.2 + X.me.r * 0.5 && !X.me.dodge) X.hurtPet(m.dmg * 1.4, m); X.ring(m.x, m.y, 0.3, 2.2, 0.35, LAVA, 0.4); for (let i = 0; i < 12; i++) { const a = i / 12 * TAU; X.part({ kind: 'ember', x: m.x, y: m.y - 0.3, vx: Math.cos(a) * 4, vy: Math.sin(a) * 4 - 1, life: 0.5, max: 0.5, size: 5, color: LAVA }); } snd(X, 'crash'); } return; }
+      if (m.burstT > 0) { m.burstT -= A.dt; if (m.burstT <= 0) { m.openT = 2.8; X.text(m.x, m.y - m.r - 1, 'Its heart is bare!', LAVA_HI, 13); } return; }
+      if (m.openT > 0) { m.openT -= A.dt; m.mode = 'open'; m.atkCd = 0.3; return; }
+      m.mode = null; if (A.d > 1.4) A.steer(A.sp); faceTo(m, A.a);
+      if (m.cd <= 0 && A.d < 2.6) { m.wT = 1.3; m.cd = 3.4 + Math.random(); X.warn({ x: m.x, y: m.y, r: 2.2, life: 1.3, max: 1.3, src: m, follow: m }); }
+    },
+  });
+  function geodeGuard(m, o) { const X = CUR && CUR.X; if (m.openT > 0 || m.mode === 'burst') return 1; if (X && !o.dot) say(X, m, 'Its shell turns the blow: wait for it to open', '#CFC6E0', 3.5); return 0.25; }
+  CAL.geodeGuard = geodeGuard;
+
+  /* ======================= the dungeons: their packs, the champion at the end ======================= */
+  const BROOD = ['cinderslug', 'basaltcrawler', 'emberwisp', 'furnaceimp', 'runicsentinel', 'bomblarva', 'ashenknight', 'crystalwisp', 'rimewisp', 'shardling', 'geodeling'];
+  /* a champion of the brood guards each dungeon's far room: a big one of its kind, named, crowned with a ring of light;
+     the floor is clear (and the way on open) once it falls with the rest */
+  function champion(X, spec) { const M = X.M; let far = M.start, best = -1; for (const r of M.rooms) { const cx = r.x + r.w / 2, cy = r.y + r.h / 2, d = Math.hypot(cx - M.start.x, cy - M.start.y); if (d > best) { best = d; far = X.freeSpot(cx, cy, 0.9) || { x: cx, y: cy }; } }
+    const m = X.spawnMon(spec.type, far.x, far.y, { rift: true, pack: 1777, room: -1 }); m.calChamp = spec.name; m.hp *= spec.hpK; m.maxhp = m.hp; m.r *= spec.rK || 1.45; m.dmg *= spec.dmgK || 1.2; m.spd *= 0.92; m.xp *= 6; if (X.g && X.g.total != null) X.g.total++;
+    return m; }
+  function champOver(c, X, m) { const T = X.Tz(), Xs = X.sx(m.x), Ys = X.sy(m.y) - m.r * T - T * 0.9 - (m.z || 0) * T; label(c, m.calChamp, Xs, Ys, Math.max(11, T * 0.3), '#FFE37A');
+    const w = Math.max(40, T * 1.8), f = clamp(m.hp / m.maxhp, 0, 1); c.fillStyle = 'rgba(0,0,0,.65)'; c.fillRect(Xs - w / 2, Ys + T * 0.12, w, 6); c.fillStyle = '#FF9F43'; c.fillRect(Xs - w / 2 + 1, Ys + T * 0.12 + 1, (w - 2) * f, 4); }
+  function champGround(c, X, m) { const T = X.Tz(), Xs = X.sx(m.x), Ys = X.sy(m.y), t = X.g.t, R = m.r * T * 1.5; c.save(); c.strokeStyle = 'rgba(255,227,122,.5)'; c.lineWidth = Math.max(2, T * 0.06); c.setLineDash([T * 0.25, T * 0.15]); c.lineDashOffset = -t * T * 0.5; ell(c, Xs, Ys + m.r * T * 0.7, R, R * 0.4); c.stroke(); c.setLineDash([]); c.restore(); glow(c, Xs, Ys + m.r * T * 0.5, R * 1.3, '#FFB347', 0.18); }
+  const DUNGEON = {
+    ashen: { dmgK: 0.38, calm: true, fight: 'The Cinder Galleries', mobs: ['cinderslug', 'basaltcrawler', 'emberwisp', 'cinderslug', 'furnaceimp', 'emberwisp', 'basaltcrawler', 'cinderslug'], champ: { type: 'basaltcrawler', name: 'Cragback, the Old Crawler', hpK: 4.5, dmgK: 0.9 } },
+    rimeforge: { dmgK: 0.65, fight: 'The Rimebound Forge', mobs: ['rimewisp', 'runicsentinel', 'furnaceimp', 'basaltcrawler', 'rimewisp', 'bomblarva', 'furnaceimp', 'emberwisp'], champ: { type: 'runicsentinel', name: 'The Rimeward Sentinel', hpK: 4.2 } },
+    glassheart: { dmgK: 0.8, fight: 'The Glass Heart', mobs: ['shardling', 'geodeling', 'crystalwisp', 'ashenknight', 'shardling', 'geodeling', 'crystalwisp', 'shardling'], champ: { type: 'ashenknight', name: 'The Glassblade Knight', hpK: 4.0 } },
+  };
+  /* each dungeon's extra (riftFight runs it): only the brood on the floor (no strays from the Tower's lists), the champion */
+  const dungeonExtra = key => (X, self, H) => { const D = DUNGEON[key], C = ctx(X); X.F.types = (X.F.types || []).filter(t => BROOD.includes(t)); if (!X.F.types.length) X.F.types = D.mobs.slice();
+    // (the dungeons' brood hit softer: about fifty of them stand between a starter and the puzzle. QA v386: by dungeon, 0.38 / 0.65 /
+    //  0.8 (was 0.7 for all), so the first dungeon, met at level 1, is the gentlest and the rift ramps up; the champion with them)
+    const DK = D.dmgK || 0.7, easeAll = () => { for (const m of X.mons.concat(X.g.reserve || [])) if (!m.calEased && !m.boss) { m.calEased = true; m.dmg *= DK; } };
+    // (QA v386: the first dungeon's first rooms hold no ranged brood: its wisps and imps near the start become cinder slugs: crawlers' rams are what hurt a careless starter most)
+    if (D.calm) { const M = X.M; for (const m of X.mons) { if (m.dead || m.boss || (m.type !== 'emberwisp' && m.type !== 'furnaceimp') || Math.hypot(m.x - M.start.x, m.y - M.start.y) > 18) continue;
+      const nt = 'cinderslug', A = MON[m.type], B = MON[nt]; if (!A || !B) continue; const k = (f, d) => (A[f] ? B[f] / A[f] : d);
+      m.hp *= k('hp', 1); m.maxhp = m.hp; m.dmg *= k('dmg', 1); m.spd *= k('spd', 1); m.r *= k('r', 1); m.xp *= k('xp', 1); m.color = B.color; m.type = nt; } }
+    easeAll();
+    const ch = champion(X, D.champ); ch.dmg *= DK / 0.7; ch.calEased = true; C.champ = ch; C.easeAll = easeAll;
+    // (QA v386: a flier drifting out over the lava or into a wall, beyond a starter's reach, is drawn back to the floor it left
+    //  within about three seconds)
+    const onFloor = (x, y) => { const M = X.M, tx = Math.floor(x), ty = Math.floor(y); if (tx < 0 || ty < 0 || tx >= M.MW || ty >= M.MH) return false; const t = M.G[ty * M.MW + tx]; return t !== T_GAP && t !== T_SOLID; };
+    const herd = dt => { for (const m of X.mons) { if (m.dead || m.boss || !(MON[m.type] && MON[m.type].fly)) continue; if (onFloor(m.x, m.y)) { m.calOff = 0; m.calLast = m.calLast || {}; m.calLast.x = m.x; m.calLast.y = m.y; continue; }
+      m.calOff = (m.calOff || 0) + dt; const L = m.calLast; if (m.calOff < 1.2 || !L) continue; const dx = L.x - m.x, dy = L.y - m.y, d = Math.hypot(dx, dy); if (d < 0.05) continue; const v = Math.min(d, 4.5 * dt); m.x += dx / d * v; m.y += dy / d * v; } };
+    // (QA v386: the props that crowd the way on are cleared: a tall crystal, spire or frost well a tile or two behind or in
+    //  front of the exit's archway was drawn right over it. The exit is where riftFight (20m) puts it: the farthest room)
+    { const M = X.M; let ex = null, best = -1; for (const r of M.rooms) { const cx = r.x + r.w / 2, cy = r.y + r.h / 2, d = Math.hypot(cx - M.start.x, cy - M.start.y); if (d > best) { best = d; ex = X.freeSpot(cx, cy, 0.8) || { x: cx, y: cy }; } }
+      if (ex) for (const p of X.props || []) if (!p.broken && Math.abs(p.x - ex.x) < 1.8 && p.y - ex.y > -2.6 && p.y - ex.y < 2.8) { p.broken = true; M.G[p.k] = T_FLOOR; } }   // (no retile: the floor's tiles are not cached yet when make runs)
+    let eT = 0; return { update(dt) { herd(dt); eT -= dt; if (eT <= 0) { eT = 1; easeAll(); } }, drawGround(c) { if (!ch.dead) champGround(c, X, ch); }, drawOver(c) { if (!ch.dead && Math.hypot(ch.x - X.me.x, ch.y - X.me.y) < 12) champOver(c, X, ch); } }; };
+  Object.assign(CAL, { BROOD, champion, DUNGEON });
+
   /* ======================= the arenas' painters (for the boss files) ======================= */
   /* the caldera's far walls, seen past the platform: smoke, ridge on ridge of basalt lit from below, enormous lavafalls
      pouring down them into a glowing sea, an eruption's light above. Screen px; painted once per state, soft */
@@ -1034,15 +1291,19 @@ CAL.bossMake = CAL.bossMake || {};
       if (mk.V) { const v = mk.V[0]; if (D.vents) vent(X, { x: v.x, y: v.y, r: 1.0, period: 4.2, warn: 1.6, erupt: 0.9 }); else lavaPool(X, { x: v.x - 3, y: v.y, r: 0.9 }); }
       return { update() { if (!self.done && H.monstersLeft() === 0) { self.done = true; H.setExit(E.x, E.y, 'The way on'); X.banner('THE WAY IS CLEAR', 'Rest at the frost spring, then go on', '#8FE0A6', 2.4, true); } }, goal: () => self.done ? 'The way on is open' : `${H.monstersLeft()} left · ${goal}` }; } }; }
   const Rf = defRift({
+    ease: 1, monCount: 0.6, liveCap: 34,   // (ease 1: no change in strength, but it holds the dungeons' elites to the Tower's own share, none at level 1; about fifty to a dungeon, thirty-four on the field at once)
+    typeShare: Object.assign(Object.fromEntries(Object.keys(MON).filter(t => !['cinderslug', 'basaltcrawler', 'emberwisp', 'furnaceimp', 'runicsentinel', 'bomblarva', 'ashenknight', 'crystalwisp', 'rimewisp', 'shardling', 'geodeling'].includes(t)).map(t => [t, 0])), { bomblarva: 0.1, runicsentinel: 0.14, geodeling: 0.22, basaltcrawler: 0.22, furnaceimp: 0.3, shardling: 0.32, emberwisp: 0.35, cinderslug: 0.4, rimewisp: 0.35, crystalwisp: 0.3, ashenknight: 0.25 }),   // (only the brood: no Tower strays in the dungeons)
     id: 'caldera', n: 0, name: 'The Blackfire Caldera', lvl: 1, sigil: 'Ember', biome: 'ashen', aff: ['fire', 'earth'], region: 'the volcano', gate: null,
     blurb: 'An active volcano, its caverns, its ancient runic forge and its burning caldera. Route the cold, return the bombs, take shelter from the fire, and quiet the living heart of the mountain.',
     mons: ['cinderslug', 'basaltcrawler', 'emberwisp', 'furnaceimp', 'runicsentinel', 'bomblarva', 'ashenknight', 'crystalwisp'], sealing: SEALING,
     stages: riftSections([
-      { biome: 'ashen', pattern: ['trial', 'boss'], trials: [ST.HOLLOWS || placeholder('ashen', 'The Ashen Hollows', 'Cross the hollows')], boss: 'calflan', bossName: 'Fire Flan', bossRoom: 'Fire Flan' },
-      { biome: 'foundry', pattern: ['trial', 'boss'], trials: [ST.FOUNDRY || placeholder('foundry', 'The Runebound Foundry', 'Cross the foundry')], boss: 'calbomb', bossName: 'Bomb King', bossRoom: 'Bomb King' },
-      { biome: 'heartward', pattern: ['trial', 'boss'], trials: [ST.DESCENT || placeholder('heartward', 'The Heartward Descent', 'Descend to the crucible')], boss: 'califrit', bossName: 'Ifrit, Heart of the Volcano', bossRoom: 'Ifrit, Heart of the Volcano' },
+      { biome: 'ashen', pattern: ['fight', 'trial', 'boss'], mods: [], fights: [DUNGEON.ashen.fight], mobs: DUNGEON.ashen.mobs, extra: dungeonExtra('ashen'), trials: [ST.HOLLOWS || placeholder('ashen', 'The Ashen Hollows', 'Cross the hollows')], boss: 'calflan', bossName: 'Fire Flan', bossRoom: 'Fire Flan' },
+      { biome: 'foundry', pattern: ['fight', 'trial', 'boss'], mods: [], fights: [DUNGEON.rimeforge.fight], mobs: DUNGEON.rimeforge.mobs, extra: dungeonExtra('rimeforge'), trials: [ST.FOUNDRY || placeholder('foundry', 'The Runebound Foundry', 'Cross the foundry')], boss: 'calbomb', bossName: 'Bomb King', bossRoom: 'Bomb King' },
+      { biome: 'heartward', pattern: ['fight', 'trial', 'boss'], mods: [], fights: [DUNGEON.glassheart.fight], mobs: DUNGEON.glassheart.mobs, extra: dungeonExtra('glassheart'), trials: [ST.DESCENT || placeholder('heartward', 'The Heartward Descent', 'Descend to the crucible')], boss: 'califrit', bossName: 'Ifrit, Heart of the Volcano', bossRoom: 'Ifrit, Heart of the Volcano' },
     ]),
   });
+  // (the dungeons' lands: the ashen as it is, the rimebound forge, the glass heart)
+  { const FB = ['ashen', 'rimeforge', 'glassheart']; let fi = 0; for (const S of Rf.stages) if (S.kind === 'fight') S.biome = FB[fi++] || S.biome; }
   for (const S of Rf.stages) if (S.kind === 'boss') { S.biome = 'calderapit'; S.make = (X, self, H) => (CAL.bossMake[S.boss] && CAL.bossMake[S.boss](X, self, H)) || {}; }
   /* the seal's reward: a beginner fire-themed bracelet (21b maps caldera → 'ember'; its look: CAL.emberAccSVG / CAL.emberAccDraw) */
   if (typeof ACC_SPECIAL !== 'undefined') ACC_SPECIAL.ember = { t: 'bracelet', name: 'Ember Charm', what: 'A sliver of black fire crystal, cooled and harmless, bound in rune-cut iron on a soot-dark band: the Ember Sigil of the Blackfire Caldera. It stays faintly warm.' };
@@ -1053,11 +1314,11 @@ CAL.bossMake = CAL.bossMake || {};
   CAL.emberAccDraw = (c, x, y, s) => { c.save(); c.strokeStyle = '#2B2433'; c.lineWidth = s * 0.44; c.beginPath(); c.ellipse(x, y, s * 0.72, s * 0.46, 0, 0, TAU); c.stroke(); c.strokeStyle = '#2A2426'; c.lineWidth = s * 0.28; c.stroke(); crystalArt(c, x, y + s * 0.42, s * 0.9, { v: 3, k: 0.6, lw: Math.max(1, s * 0.06) }); c.restore(); };
 
   /* ======================= every stage: lava, vents, bombs, embers, crystal pulses ======================= */
-  const PULSERS = { blackcrystal: 1, bigcrystal: 1.4, slabhang: 0.6 };
+  Object.assign(PULSERS, { blackcrystal: 1, bigcrystal: 1.4, slabhang: 0.6 });
   Rf.everyStage = (X, self, H) => { const C = ctx(X); C.X = X; CUR = C; C.calm = C.calm || 0; C.calmTo = C.calmTo || 0; C.flowT = C.flowT || 0;
     const fiend = !!X.F.fiend, T0 = () => X.Tz();
     // the props' live lights, and the crystals that pulse toward the heart
-    const glows = [], pulsers = []; for (const p of X.props || []) { const f = GLOWS[p.kind]; if (f) for (const [dx, dy, r, kind] of f(p.v | 0)) glows.push({ p, dx, dy, r, kind, ph: hh(p.k || 0, 1, 3) }); if (PULSERS[p.kind]) pulsers.push({ p, k: PULSERS[p.kind], t: 1 + hh(p.k || 0, 2, 5) * 4 }); }
+    const glows = [], pulsers = []; for (const p of X.props || []) { if (p.broken) continue; /* (QA: the props cleared from the exit) */ const f = GLOWS[p.kind]; if (f) for (const [dx, dy, r, kind] of f(p.v | 0)) glows.push({ p, dx, dy, r, kind, ph: hh(p.k || 0, 1, 3) }); if (PULSERS[p.kind]) pulsers.push({ p, k: PULSERS[p.kind], t: 1 + hh(p.k || 0, 2, 5) * 4 }); }
     for (const q of glows) q.pul = pulsers.find(z => z.p === q.p) || null;
     // the ground beside the lava gaps: a live flicker of lava light along their edges (every other tile)
     const edges = []; if (!fiend) { const { MW, MH, G } = X.M; for (let y = 1; y < MH - 1; y++) for (let x = 1; x < MW - 1; x++) { const t = G[y * MW + x]; if (t === T_GAP || t === T_SOLID) continue; for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) if (G[(y + dy) * MW + x + dx] === T_GAP && ((x + y) & 1)) { edges.push([x + 0.5 + dx * 0.5, y + 0.5 + dy * 0.5, hh(x, y, 13) * 6]); break; } } }
@@ -1071,8 +1332,9 @@ CAL.bossMake = CAL.bossMake || {};
         for (let i = C.larvae.length - 1; i >= 0; i--) if (C.larvae[i].dead) C.larvae.splice(i, 1);
         // embers drifting up through the air (decoration: fewer under "Fewer effects", fewer still once the heart is quiet)
         const want = Math.round((lowFx() ? 10 : 34) * (1 - 0.7 * C.calm)), cam = me, W = X.W() / T0(), Hh = X.H() / T0();
-        if (C.embers.length < want && Math.random() < dt * 12) C.embers.push({ x: cam.x + (Math.random() - 0.5) * W * 1.1, y: cam.y + Hh * (0.1 + Math.random() * 0.5), vx: (Math.random() - 0.5) * 0.4, vy: -(0.5 + Math.random() * 0.9), t: 0, life: 3 + Math.random() * 3, s: 0.6 + Math.random() * 0.9, ph: Math.random() * 6 });
-        for (const e of C.embers) { e.t += dt; e.x += (e.vx + Math.sin(e.t * 1.7 + e.ph) * 0.25) * dt; e.y += e.vy * dt; } for (let i = C.embers.length - 1; i >= 0; i--) if (C.embers[i].t > C.embers[i].life) C.embers.splice(i, 1);
+        // (P, perf: pooled; a spent ember's object is reused for the next, and the list is compacted in place)
+        if (C.embers.length < want && Math.random() < dt * 12) { const e = (C.emPool || (C.emPool = [])).pop() || {}; e.frost = X.F.biome === 'rimeforge' && Math.random() < 0.65; e.x = cam.x + (Math.random() - 0.5) * W * 1.1; e.y = cam.y + Hh * (0.1 + Math.random() * 0.5); e.vx = (Math.random() - 0.5) * 0.4; e.vy = -(0.5 + Math.random() * 0.9); e.t = 0; e.life = 3 + Math.random() * 3; e.s = 0.6 + Math.random() * 0.9; e.ph = Math.random() * 6; C.embers.push(e); }
+        { let n = 0; for (const e of C.embers) { e.t += dt; e.x += (e.vx + Math.sin(e.t * 1.7 + e.ph) * 0.25) * dt; e.y += e.vy * dt; if (e.t > e.life) { if (C.emPool && C.emPool.length < 48) C.emPool.push(e); } else C.embers[n++] = e; } C.embers.length = n; }
         // the crystals' pulses toward the heart
         if (!lowFx() && C.calm < 0.5) { const [hx, hy] = heartDir(X); for (const q of pulsers) { q.t -= dt; if (q.t > 0) continue; q.t = 3 + Math.random() * 4; const p = q.p; if (Math.abs(p.x - me.x) > 14 || Math.abs(p.y - me.y) > 16) continue; C.pulses.push({ x: p.x, y: p.y - 0.2, ux: hx, uy: hy, t: 0, life: 1.8, len: 2.5 + q.k * 1.5, k: q.k, src: q }); q.flash = 1; } }
         for (const q of pulsers) if (q.flash) q.flash = Math.max(0, q.flash - dt * 1.4);
@@ -1099,8 +1361,8 @@ CAL.bossMake = CAL.bossMake || {};
         for (const f of C.flights) { const Xs = X.sx(f.x), Ys = X.sy(f.y - f.z); if (G) { for (let i = 0; i < f.trail.length - 1; i++) { const a = f.trail[i], b = f.trail[i + 1], k = 1 - i / f.trail.length; G.Q.firebeam(X.sx(a[0]), X.sy(a[1]), X.sx(b[0]), X.sy(b[1]), T * 0.22 * k, 0.9, 0.8 * k, i * 0.7, 5); } } else { c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; for (let i = 0; i < f.trail.length - 1; i++) { const a = f.trail[i], b = f.trail[i + 1], k = 1 - i / f.trail.length; c.strokeStyle = rgba(i < 2 ? LAVA_HI : LAVA, 0.8 * k); c.lineWidth = T * 0.28 * k; c.beginPath(); c.moveTo(X.sx(a[0]), X.sy(a[1])); c.lineTo(X.sx(b[0]), X.sy(b[1])); c.stroke(); } c.restore(); }
           const s = DunArt.monSprite('bomblarva', 0.36 * T, (f.t * 3) % 1, '#4A464E', 'red2', false); c.save(); c.translate(Xs, Ys); c.rotate(f.t * 9); c.drawImage(s.cv, -s.half, -s.half, s.half * 2, s.half * 2); c.restore(); glow(c, Xs, Ys, T * 0.6, LAVA_HI, 0.5); }
         // embers drifting up
-        if (C.embers.length) { if (G) for (const e of C.embers) { const a = Math.sin(e.t / e.life * Math.PI); G.Q.glow(X.sx(e.x), X.sy(e.y), T * 0.09 * e.s, LAVA, a * 0.9); G.Q.glow(X.sx(e.x), X.sy(e.y), T * 0.03 * e.s, LAVA_HI, a); }
-          else { c.save(); c.globalCompositeOperation = 'lighter'; for (const e of C.embers) { const a = Math.sin(e.t / e.life * Math.PI); c.globalAlpha = a * 0.85; c.fillStyle = e.s > 1.1 ? LAVA_HI : LAVA; const Xs = X.sx(e.x), Ys = X.sy(e.y); if (Xs < -5 || Xs > W + 5 || Ys < -5 || Ys > Hh + 5) continue; c.beginPath(); c.arc(Xs, Ys, Math.max(0.8, T * 0.035 * e.s), 0, TAU); c.fill(); } c.restore(); } }
+        if (C.embers.length) { if (G) for (const e of C.embers) { const a = Math.sin(e.t / e.life * Math.PI); G.Q.glow(X.sx(e.x), X.sy(e.y), T * 0.09 * e.s, e.frost ? '#9FD8FF' : LAVA, a * 0.9); G.Q.glow(X.sx(e.x), X.sy(e.y), T * 0.03 * e.s, e.frost ? '#FFFFFF' : LAVA_HI, a); }
+          else { c.save(); c.globalCompositeOperation = 'lighter'; for (const e of C.embers) { const a = Math.sin(e.t / e.life * Math.PI); c.globalAlpha = a * 0.85; c.fillStyle = e.frost ? (e.s > 1.1 ? '#FFFFFF' : '#BFE3FA') : e.s > 1.1 ? LAVA_HI : LAVA; const Xs = X.sx(e.x), Ys = X.sy(e.y); if (Xs < -5 || Xs > W + 5 || Ys < -5 || Ys > Hh + 5) continue; c.beginPath(); c.arc(Xs, Ys, Math.max(0.8, T * 0.035 * e.s), 0, TAU); c.fill(); } c.restore(); } }
         gpuEnd(c, G);
         // the bombs' words: HIT IT! while they are safe, GET CLEAR! when they flash, the seconds left
         for (const m of X.mons) if (m.type === 'bomblarva' && !m.dead && m.cal) larvaOver(c, X, m);
@@ -1158,4 +1420,69 @@ CAL.bossMake = CAL.bossMake || {};
   /* the lava gap's flow slows once the heart is quiet: the backdrop reads the running context's flow time */
   { const B = GAP_EXT.calderalava, back0 = B.back; B.back = (c, o) => back0(c, CUR && CUR.flowT != null ? Object.assign({}, o, { t: CUR.flowT }) : o); }
   Object.assign(CAL, { SEALING, placeholder, Rf, PROP_LEGEND: PH_LEGEND });
+
+  /* ======================= (P) the loading screen's warm-up for every stage of the rift =======================
+     Rf.preload(P) is called by the dungeon's loading pass (20b preloadMore; P = { F, M, c, T, k, Tz, mons, reserve, S, gl,
+     monPx }) and returns small jobs the loading screen runs a few ms a frame before Start, so nothing below is made mid-play:
+       - the brood's pictures in every pose they take (CAL.MODES: wind-ups, strikes, rests, a bomb's safe/red flashes), at
+         the sizes this stage draws them (its monsters, those held back, the champion, the boss's minions, a returned bomb);
+       - the lava pools' pattern and the soft-glow sprites the props, embers and cues blit;
+       - the GPU painter (FGFX) used once on the real canvas with the kinds this rift paints;
+       - on a boss stage: GLM's program compiled and drawn once with every Rift 0 material (80..96), the stage's own boss
+         drawn once off-screen (meshes built, uploaded, shaded: the first frame of the fight has nothing left to make), and
+         the other two bosses' meshes built (CALFLAN / CALBOMB / CAL_IFRIT MODEL.glOn / warm). Without WebGL or on a
+         software rasteriser the GL steps are skipped and each boss's draw takes its own 2D fallback.
+     window.__CAL_WARM = 0 turns all of it off (tests compare). Budget: at most MON_CAP monster pictures, so the game's
+     monster cache (500, then emptied) keeps room for what the floor itself makes. */
+  CAL.MODES = { cinderslug: ['', 'w1', 'w2', 'w3', 'spit', 'rest'], basaltcrawler: ['', 'wind', 'ram', 'reel'], emberwisp: ['', 'charge', 'spent'], furnaceimp: ['', 'wind', 'throw', 'hop'],
+    runicsentinel: ['', 'wind', 'bash', 'open'], bomblarva: ['', 'fly', 'land', 'g0', 'g1', 'red', 'red2'], ashenknight: ['', 'wind', 's1', 'w2', 's2', 'rest'], crystalwisp: ['', 'aim', 'beam', 'spent'],
+    rimewisp: ['', 'charge', 'spent'], shardling: ['', 'wind', 'flick', 'rest'], geodeling: ['', 'c1', 'c2', 'c3', 'burst', 'open'], cinderling: ['', 'chip'] };
+  const MON_CAP = 220, MINIONS = { calflan: ['cinderling'], calbomb: ['bomblarva'], califrit: [] };
+  const warmGLM = () => { if (typeof GLM === 'undefined' || !GLM.ok()) return false;
+    const B = GLM.builder(1); for (let i = 0; i <= 16; i++) B.sph([(i % 6 - 2.5) * 0.45, Math.floor(i / 6) * 0.45 - 0.45, 0], 0.18, 80 + i, 6); const mesh = B.done(), f3 = (a, b, c2) => new Float32Array([a, b, c2]);
+    const it = (alpha, kind) => ({ mesh, R0: f3(1, 0, 0), R1: f3(0, 1, 0), R2: f3(0, 0, 1), T: f3(0, 0, 0), alpha, glow: 0.8, glow2: 0.3, spill: 0.3, kind, wear: 1, fx: 0 });
+    const S = { px: [1, 0, 0], py: [0, 0.72, -0.695], pd: [0, 0.6945, 0.7195], cl: [0.3, 0, -0.3, 0], v: [0, 0.6945, 0.7195], lk: [-0.5, 0.3, 0.82], ls: [-0.2, -0.38, 0.9], lr: [0.55, -0.72, 0.42], up: [0, 0, 1], low: lowFx(), t: 0 };
+    GLM.render(32, 32, S, [it(1, 1), it(0.5, 3)]); return true; };
+  /* each boss drawn once off-screen at the arena's centre (so the anchors it leaves behind are where the fight will put it) */
+  const BOSS_WARM = {
+    calflan: (c2, x, y, o) => { if (typeof CALFLAN === 'undefined') return; CALFLAN.MODEL.draw(c2, x, y, 0, 0, { eyeK: 1, heat: 1, phase: 1 }, o); },
+    calbomb: (c2, x, y, o) => { if (typeof CALBOMB === 'undefined') return; const D = FIEND_DEFS.calbomb || {}; CALBOMB.MODEL.draw(c2, x, y, (D.Z && D.Z.ZH) || 3.3, 0, CALBOMB.MODEL.blankPose(), Object.assign({ scale: D.SCALE || 2.3 }, o)); },
+    califrit: (c2, x, y, o) => { if (typeof CAL_IFRIT === 'undefined') return; const MD = CAL_IFRIT.MODEL; MD.draw(c2, x, y, MD.headOf ? MD.headOf(Math.PI / 2) : 0, MD.blankPose(), Object.assign({ shadow: false }, o)); } };
+  const BOSS_MESH = { calflan: () => typeof CALFLAN !== 'undefined' && CALFLAN.MODEL.glOn && CALFLAN.MODEL.glOn(), calbomb: () => typeof CALBOMB !== 'undefined' && CALBOMB.MODEL.warm && CALBOMB.MODEL.warm(),
+    califrit: () => typeof CAL_IFRIT !== 'undefined' && CAL_IFRIT.MODEL.warm && CAL_IFRIT.MODEL.warm() };
+  CAL.warmStats = { jobs: 0, mons: 0, ms: 0, boss: null, glm: false };
+  Rf.preload = P => { if (typeof window !== 'undefined' && window.__CAL_WARM === 0) return [];
+    const jobs = [], WS = CAL.warmStats = { jobs: 0, mons: 0, ms: 0, boss: null, gl: false, glm: false }, F = P.F, S = P.S || {}, boss = F.fiend ? F.fiend.id : null;
+    const job = f => jobs.push(() => { const t0 = performance.now(); try { f(); } catch (e) {} WS.ms += performance.now() - t0; WS.jobs++; });
+    // the brood: which types this stage can show, at which sizes
+    const want = new Map(), add = (t, rpx, color) => { if (!t || !MON[t] || !(rpx > 0)) return; const k = t + '|' + Math.round(rpx) + '|' + (color || MON[t].color); if (!want.has(k)) want.set(k, [t, rpx, color || MON[t].color]); };
+    for (const m of (P.mons || []).concat(P.reserve || [])) if (!m.dead && !m.boss && !m.fiend && CAL.MODES[m.type]) add(m.type, m.r * P.T * P.k, m.color);
+    const types = new Set(); for (const t of F.types || []) types.add(t);
+    for (const ch in S.legend || {}) { const L = S.legend[ch]; if (!L || !L.mons) continue; for (let pi = 0; pi < 4; pi++) { let ts = null; try { ts = typeof L.mons === 'function' ? L.mons(pi) : L.mons; } catch (e) {} for (const t of ts || []) types.add(t); if (typeof L.mons !== 'function') break; } }
+    if (boss) for (const t of MINIONS[boss] || []) types.add(t);
+    // (a trial raises its brood in waves later: the stage module's rooms list them; the foundry's lesson drops bombs)
+    { const mod = P.rift && P.rift.self && P.rift.self.mod; for (const R of (mod && Array.isArray(mod.rooms) && mod.rooms) || []) for (const w of (R && R.waves) || []) for (const t of w || []) if (typeof t === 'string') types.add(t); if (S.biome === 'foundry') types.add('bomblarva'); }
+    for (const t of types) if (CAL.MODES[t]) add(t, P.monPx(t));
+    let budget = MON_CAP;
+    for (const [t, rpx, color] of want.values()) { const nf = (DunArt.NF && DunArt.NF[t]) || 4, modes = CAL.MODES[t] || ['']; for (const md of modes) { if (budget < nf) break; budget -= nf; WS.mons += nf; job(() => { for (let f = 0; f < nf; f++) DunArt.monSprite(t, rpx, (f + 0.5) / nf, color, md, false); }); }
+      if (budget >= nf) { budget -= nf; WS.mons += nf; job(() => { for (let f = 0; f < nf; f++) DunArt.monSprite(t, rpx, (f + 0.5) / nf, color, '', true); }); } }
+    // a returned bomb in flight (drawn at the zoomed tile size, always in its red flash)
+    if (types.has('bomblarva')) job(() => { for (let f = 0; f < 6; f++) DunArt.monSprite('bomblarva', 0.36 * P.Tz(), (f + 0.5) / 6, '#4A464E', 'red2', false); });
+    // (the brood's pictures an earlier stage made at sizes or of kinds this one never draws are let go first, so a run
+    // through the rift holds one stage's worth of them, not all nine stages')
+    { const keep = new Set([...want.values()].map(([t, rpx]) => t + '|' + Math.max(4, Math.round(rpx)))); keep.add('bomblarva|' + Math.max(4, Math.round(0.36 * P.Tz())));
+      for (const m of (P.mons || []).concat(P.reserve || [])) keep.add(m.type + '|' + Math.max(4, Math.round(m.r * P.T * P.k)));
+      const MC = DunArt.monCache; if (MC) for (const key of [...MC.keys()]) { const i = key.indexOf('|'), t = key.slice(0, i); if (!CAL.MODES[t]) continue; const j = key.indexOf('|', i + 1); if (!keep.has(key.slice(0, j))) MC.delete(key); } }
+    // patterns and soft lights
+    job(() => { DunWorld.pattern('calderalava', 1); for (const col of [LAVA, LAVA_HI, FRACTURE, FRACTURE_HI, FROST, SAFE, WARN, EMBER, '#FF6A1F', '#9FD8FF', '#FFB347', '#FF5A14', '#FF9A2E', '#05030A']) if (typeof glowSprite === 'function') glowSprite(col); });
+    // the GPU painter once on the real canvas, with the kinds this rift paints (nothing visible: alpha ~0, behind the screen)
+    job(() => { const G = gpu(P.c, false); if (!G) return; const Q = G.Q, W = 64; Q.glow(W, W, 20, LAVA, 0.002); if (Q.eorb) Q.eorb(W, W, 10, FRACTURE, 0.8, 0.002, 1, 1); if (Q.fire) Q.fire(W, W, 10, 0.8, 0.002, 1); if (Q.tongue) Q.tongue(W, W, 8, 30, 0, 1, 0.002, 1); if (Q.firebeam) Q.firebeam(W, W, W + 20, W, 6, 0.9, 0.002, 1, 5); gpuEnd(P.c, G); });
+    // the bosses (the GPU parts only where GLM is real; the 2D fallback is drawn instead and warms its own pictures)
+    if (boss && BOSS_WARM[boss]) { WS.boss = boss;
+      job(() => { WS.gl = !!P.gl; if (WS.gl) WS.glm = warmGLM(); });   // (P.gl read here, in a job: it wakes GLM)
+      job(() => { const T = P.Tz(), m0 = P.c && P.c.getTransform ? P.c.getTransform() : null, dev = m0 ? Math.max(1, Math.hypot(m0.a, m0.b)) : 1, W = Math.ceil(T * 10), H = Math.ceil(T * 10), cv = document.createElement('canvas'); cv.width = Math.ceil(W * dev); cv.height = Math.ceil(H * dev);
+        const c2 = cv.getContext('2d'); c2.setTransform(dev, 0, 0, dev, 0, 0); const FC = P.M && P.M.FC, x = FC ? FC.x : 0, y = FC ? FC.y : 0;
+        BOSS_WARM[boss](c2, x, y, { T, sx: v => (v - x) * T + W / 2, sy: v => (v - y) * T + H * 0.75, t: 0 }); cv.width = cv.height = 1; });
+      for (const id of Object.keys(BOSS_MESH)) if (id !== boss) job(() => { if (WS.gl) BOSS_MESH[id](); }); }
+    return jobs; };
 })();

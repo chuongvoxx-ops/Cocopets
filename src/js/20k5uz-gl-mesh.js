@@ -405,10 +405,17 @@ void main() {
   else if (id >= 80 && id <= 84) {   // ---- Fire Flan (worker F, 20zz6): 80 the gel (translucent: uGlow heat, uGlow2 chill, uSpill brittle cracks, uKind its phase (4 = the spent puddle), uWear its radius for the thickness, uFx a hit: + bright, - muted by the armour), 81 the molten core, 82 trapped ash, 83 a rising bubble, 84 hard facets (84.0 obsidian, its edges cooling by uGlow; 84.3 a frost crystal: uGlow its cold light, uSpill its damage). uOcc[0] = the core (world centre, radius)
     vec3 hh = normalize(uLK + uV); float ndv = max(0.0, dot(n, uV)), nh = max(0.0, dot(n, hh)), ndl = dot(n, uLK), heat = uGlow, chill = clamp(uGlow2, 0.0, 1.0);
     vec3 HOT = vec3(1.75, 1.1, 0.45), ORG = vec3(1.3, 0.4, 0.05), RED = vec3(0.6, 0.07, 0.015);
-    if (id == 81) {   // the core: churning magma, a dark crust drifting over a white-hot heart
-      vec2 q = L.xy * 2.4 + vec2(L.z * 1.7, -L.z); float w = vn(q + vec2(uTime * 0.45, -uTime * 0.3)) * 0.62 + vn(q * 2.6 - vec2(uTime * 0.7, uTime * 0.2) + L.z * 3.0) * 0.38;
-      float lim = pow(ndv, 0.6), tt = clamp((0.15 + 0.95 * w) * (0.55 + 0.6 * lim) * (0.75 + 0.4 * heat), 0.0, 1.3);
-      vec3 c = tt < 0.38 ? mix(vec3(0.1, 0.012, 0.0), RED * 1.5, tt / 0.38) : tt < 0.72 ? mix(RED * 1.5, ORG, (tt - 0.38) / 0.34) : mix(ORG, HOT * 1.15, min(1.0, (tt - 0.72) / 0.4));
+    if (id == 81 && vA.x - 81.0 > 0.15) {   // 81.3, an eye: an ember slit in the gel (its own frame: y along the slit, z across it), hot white-yellow at the heart to orange-red at the rim; uGlow its fire (flaring in wind-ups), uGlow2 how cold and dull (brittle), flickering
+      // (cut to a pointed slit: thickest toward the outer end (y = +1), tapering to a point at both ends)
+      float wy = (1.0 - L.y * L.y) * (0.45 + 0.55 * (L.y * 0.5 + 0.5)); if (abs(L.z) > wy) discard;
+      float d = max(abs(L.z) / max(wy, 1e-3), abs(L.y)) * 0.85, cold = clamp(uGlow2, 0.0, 1.0), flk = 0.85 + 0.15 * sin(uTime * (17.0 + 9.0 * cold) + L.y * 3.0) * (0.6 + 0.4 * sin(uTime * 5.3));
+      vec3 hi = mix(vec3(2.1, 1.6, 0.7), vec3(0.62, 0.1, 0.06), cold), lo = mix(vec3(1.0, 0.1, 0.02), vec3(0.22, 0.02, 0.02), cold);
+      vec3 c = mix(lo, hi, smoothstep(0.92, 0.2, d)) * (0.45 + 0.75 * heat) * flk * mix(1.0, 0.12, smoothstep(0.72, 0.97, d));   // (a dark rim round the slit)
+      gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
+    if (id == 81) {   // the core: churning magma, a dark crust drifting over a white-hot heart, flickering (uGlow: its heat, which surges with its attacks)
+      vec2 q = L.xy * 2.4 + vec2(L.z * 1.7, -L.z); float w = vn(q + vec2(uTime * 0.55, -uTime * 0.35)) * 0.62 + vn(q * 2.6 - vec2(uTime * 0.8, uTime * 0.25) + L.z * 3.0) * 0.38;
+      float lim = pow(ndv, 0.55), flk = 0.88 + 0.12 * sin(uTime * 13.0 + L.x * 6.0) * vn(vec2(uTime * 4.0, L.y * 3.0)), tt = clamp((0.3 + 0.95 * w) * (0.6 + 0.6 * lim) * (0.85 + 0.45 * heat) * flk, 0.0, 1.5);
+      vec3 c = tt < 0.38 ? mix(vec3(0.16, 0.02, 0.0), RED * 1.6, tt / 0.38) : tt < 0.72 ? mix(RED * 1.6, ORG * 1.15, (tt - 0.38) / 0.34) : mix(ORG * 1.15, HOT * 1.35, min(1.0, (tt - 0.72) / 0.45));
       c += pow(nh, 50.0) * 0.5 * vec3(1.0, 0.9, 0.7);
       gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
     if (id == 82) {   // ash: charcoal flakes, a few edges still glowing
@@ -438,31 +445,43 @@ void main() {
       vec3 c = vec3(0.014, 0.011, 0.016) * (0.6 + 0.8 * max(0.0, ndl)) + vec3(0.8, 0.85, 1.0) * ev * (0.1 + F) * 0.6 + pow(max(0.0, dot(nn, hh)), 300.0) * 6.0 * max(0.0, ndl) + ec * F * uRim * 0.6;
       float hot = smoothstep(0.8, 1.0, edge) * uGlow * (0.6 + 0.4 * w); c += mix(RED, ORG, hot) * hot * 1.2;
       gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
-    // ---- the gel: only its front surface is shaded; the volume behind it is worked out from the thickness along the view
+    // ---- the gel: only its front surface is shaded; the volume behind it is worked out from the thickness along the view.
+    // vA.y (edge) carries, per vertex, how much a boiling lobe or a straining pseudopod swells the skin there
     if (dot(normalize(vN), uV) < -0.02) discard;
-    float puddle = step(3.5, uKind), p3 = step(2.5, uKind) * (1.0 - puddle);
+    float puddle = step(3.5, uKind), p3 = step(2.5, uKind) * (1.0 - puddle), lob = clamp(edge, 0.0, 1.0);
     vec3 vl = vec3(dot(uV, uM0) / max(1e-4, dot(uM0, uM0)), dot(uV, uM1) / max(1e-4, dot(uM1, uM1)), dot(uV, uM2) / max(1e-4, dot(uM2, uM2)));   // (the view direction in the gel's own frame)
     vec3 cc = uOcc[0].xyz; float cr = max(0.05, uOcc[0].w);
     float th = uWear * 2.0 * (0.12 + 0.88 * ndv);
     // where the view ray passes the core: how near (a window onto it), and how much gel lies in front of it
-    vec3 toC = cc - vW; float tc = dot(toC, -uV), dc = length(toC + uV * tc), win = smoothstep(cr * 1.9, cr * 0.35, dc) * step(0.0, tc) * 0.85;
-    float dS = max(0.0, length(vW - cc) - cr), sss = exp(-dS * 1.9) * (0.6 + 0.55 * heat);   // (the core's light reaching this part of the skin)
-    // the body: deep crimson where it is thick, amber where the core lights it from inside, paler where it thins at the edge
-    float wrap = max(0.0, ndl * 0.6 + 0.4), thin = pow(1.0 - ndv, 1.6);
-    vec3 deep = vec3(0.24, 0.018, 0.006), mid = vec3(0.72, 0.12, 0.018), amb = vec3(1.25, 0.42, 0.05);
-    float lk = clamp(sss, 0.0, 1.0);
-    vec3 body = (lk < 0.45 ? mix(deep, mid, lk / 0.45) : mix(mid, amb, (lk - 0.45) / 0.55)) * (0.45 + 0.7 * wrap) * (1.0 - 0.35 * thin) + ORG * lk * lk * 0.45;
-    float halo = exp(-dc * dc / (cr * cr * 6.0)) * step(0.0, tc) * (0.6 + 0.6 * heat);
-    body += mix(ORG, HOT, 0.3) * halo * 0.65;
-    float aB = (0.6 + 0.32 * ndv) * (1.0 - 0.3 * p3) * (1.0 - 0.55 * win * (1.0 - chill * 0.4));
-    if (puddle > 0.5) { body *= 0.35 + 0.65 * clamp(heat, 0.0, 1.2); aB = 0.82; }
-    // trapped ash: dark flecks at three depths, drifting with the gel
-    float ash = 0.0; for (int i = 0; i < 3; i++) { float dd = (0.2 + 0.28 * float(i)) * th; vec3 s = L - vl * dd; float a1 = vn(s.xy * 5.6 + s.z * 3.1 + float(i) * 7.3), a2 = vn(s.yz * 11.0 - s.x * 2.7 + float(i) * 3.1); ash += smoothstep(0.82, 0.9, a1 * 0.55 + a2 * 0.5) * (0.8 - 0.25 * float(i)); }
-    ash = min(1.0, ash) * (1.0 - win * 0.7) * (1.0 - puddle * 0.5);
-    // rising micro-bubbles, deeper in
-    float bub = 0.0; for (int i = 0; i < 2; i++) { vec3 s = (L - vl * (0.3 + 0.35 * float(i)) * th) * (5.0 + 2.0 * float(i)) + vec3(float(i) * 3.7, float(i) * 1.3, -uTime * (0.9 + 0.4 * float(i))); vec3 ci = floor(s), f = fract(s) - 0.5; float hb = hs(ci.xy + ci.z * 7.7);
-      if (hb > 0.82) { vec3 o2 = (vec3(hs(ci.xy + 1.3), hs(ci.yz + 2.1), hs(ci.zx + 3.7)) - 0.5) * 0.45; float d = length(f - o2), rb = 0.07 + 0.08 * hs(ci.xz); bub += smoothstep(rb, rb * 0.6, d) * smoothstep(rb * 0.3, rb * 0.75, d); } }
-    bub *= (1.0 - chill) * (1.0 + p3) * (1.0 - puddle);
+    vec3 toC = cc - vW; float tc = dot(toC, -uV), dc = length(toC + uV * tc), win = smoothstep(cr * 1.8, cr * 0.4, dc) * step(0.0, tc) * 0.8;
+    float dS = max(0.0, length(vW - cc) - cr), sss = exp(-dS * 1.85) * (0.5 + 0.5 * heat);   // (the core's light reaching this part of the skin)
+    float thin = pow(1.0 - ndv, 1.8), wrap = max(0.0, ndl * 0.55 + 0.45);
+    // the gel's own light: hot toward the core and where it thins at the edge (light shining through), deep crimson only
+    // where it is thick and far from the core; a ramp crimson > fire orange > amber > hot yellow
+    // its eyes (uOcc[1], uOcc[2]: their centres and sizes; uOcc[3].x their fire, .y how cold): a window in the jelly over each, and their bloom in it
+    float eyeH = 0.0, eyeS = 0.0; for (int e = 1; e <= 2; e++) { vec4 E = e == 1 ? uOcc[1] : uOcc[2]; if (E.w > 0.0) { vec3 tE = E.xyz - vW; float te = dot(tE, -uV), de2 = dot(tE + uV * te, tE + uV * te) / (E.w * E.w); eyeH += exp(-de2 / 2.4) * step(-0.25, te); eyeS += exp(-de2 / 7.0) * step(-0.25, te); } }
+    eyeS = clamp(eyeS - eyeH * 0.6, 0.0, 1.0) * clamp(uOcc[3].x, 0.0, 1.0);   // (a dark socket in the jelly round each eye, so the slits read)
+    vec3 eyeC = mix(vec3(1.9, 0.85, 0.22), vec3(0.42, 0.05, 0.035), clamp(uOcc[3].y, 0.0, 1.0)) * uOcc[3].x;
+    vec3 CRIM = vec3(0.32, 0.02, 0.01), FIRE = vec3(1.08, 0.22, 0.02), AMBR = vec3(1.45, 0.6, 0.08), YEL = vec3(1.8, 1.22, 0.45);
+    float lum = clamp(sss * 1.05 + thin * 0.34 * (0.6 + 0.4 * heat) + lob * 0.5, 0.0, 1.6) * (1.0 - 0.3 * chill);
+    vec3 body = lum < 0.4 ? mix(CRIM, FIRE, lum / 0.4) : lum < 0.85 ? mix(FIRE, AMBR, (lum - 0.4) / 0.45) : mix(AMBR, YEL, min(1.0, (lum - 0.85) / 0.75));
+    body *= 0.62 + 0.45 * wrap;
+    // veins of glow reaching from the core toward the surface (ridges in the direction away from the core), and its halo
+    vec3 dirC = normalize(vW - cc), vq = dirC * 2.4 + vec3(0.0, 0.0, -uTime * 0.22);
+    float vr = 1.0 - abs(vn(vq.xy + vq.z * 1.7) * 2.0 - 1.0), vr2 = 1.0 - abs(vn(vq.yz * 1.9 + vq.x + 3.1) * 2.0 - 1.0);
+    float vein = pow(vr, 16.0) * smoothstep(0.25, 0.75, vr2) * exp(-dS * 1.5) * (0.6 + 0.6 * heat) * (1.0 - chill) * (1.0 - puddle * 0.6);
+    float halo = exp(-dc * dc / (cr * cr * 5.0)) * step(0.0, tc) * (0.7 + 0.6 * heat);
+    float flk = 0.9 + 0.1 * sin(uTime * 11.0 + dS * 4.0) * (0.5 + vn(vec2(uTime * 3.0, dS * 2.0)));
+    body = (body + mix(AMBR, YEL, 0.5) * vein * 0.85 + mix(AMBR, YEL, 0.3) * halo * 0.75 + YEL * lob * 0.25 * heat) * flk * (1.0 - 0.8 * eyeS);
+    float aB = (0.58 + 0.34 * ndv) * (1.0 - 0.32 * p3) * (1.0 - 0.55 * win * (1.0 - chill * 0.4)) * (1.0 - 0.7 * min(1.0, eyeH));
+    if (puddle > 0.5) { body *= 0.3 + 0.7 * clamp(heat, 0.0, 1.2); aB = 0.82; }
+    // trapped ash: a few dark flecks at two depths, drifting with the gel
+    float ash = 0.0; for (int i = 0; i < 2; i++) { float dd = (0.22 + 0.32 * float(i)) * th; vec3 s = L - vl * dd; float a1 = vn(s.xy * 5.6 + s.z * 3.1 + float(i) * 7.3), a2 = vn(s.yz * 11.0 - s.x * 2.7 + float(i) * 3.1); ash += smoothstep(0.85, 0.92, a1 * 0.55 + a2 * 0.5) * (0.75 - 0.25 * float(i)); }
+    ash = min(1.0, ash) * (1.0 - win * 0.8) * (1.0 - puddle * 0.5);
+    // rising micro-bubbles, deeper in (thick in a boiling lobe)
+    float bub = 0.0; for (int i = 0; i < 2; i++) { vec3 s = (L - vl * (0.3 + 0.35 * float(i)) * th) * (5.0 + 2.0 * float(i)) + vec3(float(i) * 3.7, float(i) * 1.3, -uTime * (0.9 + 0.4 * float(i) + lob)); vec3 ci = floor(s), f = fract(s) - 0.5; float hb = hs(ci.xy + ci.z * 7.7);
+      if (hb > 0.82 - lob * 0.25) { vec3 o2 = (vec3(hs(ci.xy + 1.3), hs(ci.yz + 2.1), hs(ci.zx + 3.7)) - 0.5) * 0.45; float d = length(f - o2), rb = 0.07 + 0.08 * hs(ci.xz); bub += smoothstep(rb, rb * 0.6, d) * smoothstep(rb * 0.3, rb * 0.75, d); } }
+    bub *= (1.0 - chill) * (1.0 + p3 + lob) * (1.0 - puddle);
     // cracks: the chill's brittle shell (a network over the frost) and, in its last phase, hot fractures where the steam escapes
     // (the fracture network: the edges of a cellular pattern on the face the surface turns most toward, a coarse net and a fine one)
     vec3 an = abs(NL); vec2 cuv = (an.z >= an.x && an.z >= an.y ? L.xy : an.y >= an.x ? L.xz : L.yz) + vec2(vn(L.yz * 3.0), vn(L.zx * 3.0)) * 0.25;
@@ -472,23 +491,30 @@ void main() {
       if (q == 0) ev1 = sqrt(f2) - sqrt(f1); else ev2 = sqrt(f2) - sqrt(f1); }
     float crack = max(smoothstep(0.07 + 0.05 * uSpill, 0.0, ev1), smoothstep(0.05, 0.0, ev2) * smoothstep(0.2, 0.9, uSpill) * 0.8) * clamp((chill - 0.45) * 1.8 + uSpill, 0.0, 1.0);
     float frac3 = p3 * smoothstep(0.06, 0.0, ev1) * smoothstep(0.45, 0.7, vn(cuv * 1.3 + vec2(0.0, uTime * 0.12))) * (1.0 - chill);
-    // the surface: a wet mirror (the cavern's dark, a hot glint of the key), a hot rim of light caught at the edge
+    // the wet surface: the key light stretched into a long soft band over the dome (a strip of light reflected), small sharp
+    // glints, the cavern in the fresnel, a hot rim of light round the edge and a faint glow off the far inner wall
     vec3 r = 2.0 * ndv * n - uV; float ec; float ev = env(r, 0.05, ec); float F = 0.04 + 0.96 * pow(1.0 - ndv, 4.0);
-    vec3 spec = vec3(1.0, 0.92, 0.8) * (pow(nh, 300.0) * 12.0 + pow(nh, 36.0) * 0.18) * max(0.0, ndl) + vec3(1.0, 0.86, 0.75) * ev * F * 0.55 + ec * F * uRim * 0.9;
-    vec3 rim = vec3(1.25, 0.5, 0.12) * pow(1.0 - ndv, 3.0) * (0.3 + 0.5 * heat) * (1.0 - chill * 0.7);
+    vec3 sd = normalize(cross(uLS, uUP) + vec3(1e-4, 0.0, 0.0)), pn = normalize(cross(uLS, sd));
+    float pr = dot(r, pn), band = exp(-pr * pr / 0.012) * smoothstep(0.15, 0.55, dot(r, uLS)) * (0.55 + 0.45 * smoothstep(0.0, 0.6, ndl + 0.3));
+    float glint = pow(nh, 900.0) * 18.0 * max(0.0, ndl) + step(0.975, hs(floor(L.xy * 26.0) + floor(L.z * 26.0) * 3.1)) * pow(nh, 30.0) * 1.6;
+    vec3 spec = vec3(1.0, 0.94, 0.84) * (band * 0.85 + glint) + vec3(1.0, 0.86, 0.75) * ev * F * 0.6 + ec * F * uRim * 0.9;
+    vec3 rim = vec3(1.7, 0.78, 0.2) * pow(1.0 - ndv, 2.4) * (0.5 + 0.6 * heat) * (1.0 - chill * 0.7) + pow(1.0 - ndv, 3.0) * max(0.0, dot(n, uLR) + 0.3) * uRim * 0.5;
+    float inner = exp(-pow((dot(n, -uLS) - 0.45) / 0.22, 2.0)) * (0.3 + 0.7 * thin);   // (the light caught on the inside of the far wall)
+    rim += AMBR * inner * 0.22 * (1.0 - chill);
     // the chill's frost: pale and matte, sparkling, thinner over the core so it stays plain to see
     float fr0 = vn(L.xy * 11.0 + L.z * 5.0), frost = pow(chill, 1.4) * (0.5 + 0.45 * fr0) * (1.0 - 0.9 * win) * (1.0 - crack);
     vec3 frostC = mix(vec3(0.5, 0.64, 0.8), vec3(0.9, 0.95, 1.02), fr0) * (0.42 + 0.65 * wrap);
     float spark = chill * step(0.965, hs(floor(cuv * 34.0))) * pow(nh, 6.0) * 1.6;
     // put together, premultiplied
-    float aG = aB; vec3 col = body * aG * (1.0 - ash * 0.88); aG += (1.0 - aG) * ash * 0.6;
-    col += vec3(1.0, 0.72, 0.4) * bub * 0.8; aG = max(aG, bub * 0.6);
+    float aG = aB; vec3 col = body * aG * (1.0 - ash * 0.85); aG += (1.0 - aG) * ash * 0.55;
+    col += vec3(1.0, 0.75, 0.42) * bub * 0.85; aG = max(aG, bub * 0.6);
     col += rim + spec * (1.0 - frost * 0.6); aG = max(aG, F * 0.85);
     col = mix(col, frostC + spec * 0.4, frost * 0.85); aG = mix(aG, 0.92, frost * 0.85);
     col += mix(ORG, HOT, 0.5) * crack * (0.7 + 0.8 * sss) * (0.6 + 0.5 * heat); aG = max(aG, crack * 0.9);
-    col += HOT * frac3 * 1.4; aG = max(aG, frac3);
+    col += HOT * frac3 * 1.6; aG = max(aG, frac3);
     col += vec3(0.95, 0.98, 1.0) * spark;
     col += mix(ORG, HOT, 0.5) * halo * chill * 0.9;   // (chilled, its core shows plainly through the pale shell)
+    col += eyeC * eyeH * (1.0 - 0.4 * frost);   // (the eyes' glow, through the jelly and over the frost)
     if (uFx > 0.0) col += vec3(1.0, 0.75, 0.45) * uFx * 0.55; else if (uFx < 0.0) col *= 1.0 + uFx * 0.3;
     aG = max(aG, puddle * 0.75);
     gl_FragColor = vec4(vec3(tone(col.r), tone(col.g), tone(col.b)) * uAlpha, clamp(aG, 0.0, 1.0) * uAlpha); return; }

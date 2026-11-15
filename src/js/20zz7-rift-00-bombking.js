@@ -301,7 +301,7 @@ const CALBOMB_FIGHT = (() => {
   // its health as a level-1 starter feels it: the bars the engine gives a fiend of floor 1 are far more than a starter can
   // spend in two and a half minutes, so every blow is scaled (in dmgK) to make its whole health worth EFF_HP of the pet's
   // damage (the bars still drain as they should). A rift may set Rf.calBombHp to change it
-  const EFF_HP = 12000;
+  const EFF_HP = 23000;   // (QA v386: was 12000, for a level-1 pet; the pet arrives here at about level 8)
   const angTo = (a, b) => { let d = b - a; while (d > Math.PI) d -= TAU; while (d < -Math.PI) d += TAU; return d; };
   const toward = (v, want, dt, k) => v + (want - v) * Math.min(1, dt * k);
   const shelterList = C => SH_ANG.map((a, i) => ({ i, a, x: C.x + Math.cos(a) * SH_R, y: C.y + Math.sin(a) * SH_R, tx: -Math.sin(a), ty: Math.cos(a), nx: Math.cos(a), ny: Math.sin(a) }));
@@ -479,7 +479,9 @@ const CALBOMB_FIGHT = (() => {
   /* ---------- the stage's link ---------- */
   const coreG = (m, M) => ({ x: m.x, y: m.y - M.zc * ZK });   // the core's point on the ground plane (where it is drawn)
   function stat(M, k, n) { M.stat[k] = (M.stat[k] || 0) + (n == null ? 1 : n); }
-  function say(FX, M, key, s, sub, col, life) { const first = !M.seen[key]; M.seen[key] = true; FX.H.banner(s, first ? sub : '', col, first ? (life || 2.6) : 1.1, true); }
+  // (QA v386: each callout teaches once (a big banner with its line), is named once more as a small title (a small banner never
+  //  cuts a big one short), then stays quiet: the marks on the ground and the heartbeat carry it from there)
+  function say(FX, M, key, s, sub, col, life) { const n = (+M.seen[key] || 0) + 1; M.seen[key] = n; if (n > 2) return; FX.H.banner(s, n === 1 ? sub : '', col, n === 1 ? (life || 2.6) : 1.1, n === 1); }
   function heartbeat(FX, M) { const sf = FX.H.sfx; if (!sf || !sf.note) return; const r = M.hbRate, v = Math.min(0.5, 0.18 + 0.12 * r); sf.note(52 + r * 4, 0.16, 'sine', v, 38); sf.note(46 + r * 4, 0.14, 'sine', v * 0.7, 34, 0.17); }
 
   /* ---------- the acts ---------- */
@@ -582,7 +584,7 @@ const CALBOMB_FIGHT = (() => {
     if (M.ac && M.ac.k === 'charge' && M.ac.phase === 'count') { interrupt(FX, m, M, 'bomb'); return; }
     if (m.dead) return;
     M.ac = null; m.act = 'hover'; M.wait = 0.8; m.stunT = Math.max(m.stunT || 0, TM.stagger); M.stunKind = 'crack'; stat(M, 'staggers'); M.jolt = 1; M.beat = 1; M.zcTo = ZS + 0.3; M.openTo = 0.45; M.exposed = true;
-    const first = !M.seen.crack; M.seen.crack = true; FX.H.banner('SHELL CRACKED!', first ? 'Its own bomb cracked the shell: it staggers. Strike the core!' : '', GOLD, first ? 2.2 : 1.0, true); FX.H.sfx.crash(); }
+    const n = (+M.seen.crack || 0) + 1; M.seen.crack = n; if (n <= 2) FX.H.banner('SHELL CRACKED!', n === 1 ? 'Its own bomb cracked the shell: it staggers. Strike the core!' : '', GOLD, n === 1 ? 2.2 : 1.0, n === 1); FX.H.sfx.crash(); }   // (QA v386: as say())
 
   /* ---------- the bombs: falling, grounded (RETURN, then armed), returned in flight, bursting ---------- */
   function land(FX, M, b) { b.st = b.sup ? 'supplied' : 'safe'; b.ft = 0; FX.H.boom(b.x, b.y, 0.7, '#8A6A50', '#FFD0A0', { n: 8, shake: 3, smoke: 3 }); FX.H.sfx.thud();
@@ -784,6 +786,6 @@ const CALBOMB_FIGHT = (() => {
   def.make = make; def.MODEL = MODEL; def.SHELTERS = { list: shelterList, safeOf, safeSpot, nearestShelter, inRect, SH_ANG, SH_R, SH_HL, SH_HD, SAFE_A, SAFE_R0, SAFE_R1 }; def.TM = TM; def.DMG = DMG; def.SCALE = SCALE; def.Z = { ZH, ZV, ZR, ZS };
   return { def, make };
 })();
-RiftFiend.define({ id: 'calbomb', hpK: 1 / 6, dmgK: 0.3, name: 'Bomb King', title: 'Sovereign of the Runebound Foundry', color: '#2A2420', glow: '#FF7A2E', accent: '#FFD27A', biome: typeof BIOMES !== 'undefined' && BIOMES.calderapit ? 'calderapit' : 'volcano', r: 3.0, els: ['fire', 'earth'], phases: 3, cuts: [1, 0.7, 0.35] }, CALBOMB_FIGHT.def);
+RiftFiend.define({ id: 'calbomb', hpK: 1 / 6, dmgK: 0.48,   /* (QA v386: blows 0.3 -> 0.48: the pet arrives at about level 8, HP ~180) */ name: 'Bomb King', title: 'Sovereign of the Runebound Foundry', color: '#2A2420', glow: '#FF7A2E', accent: '#FFD27A', biome: typeof BIOMES !== 'undefined' && BIOMES.calderapit ? 'calderapit' : 'volcano', r: 3.0, els: ['fire', 'earth'], phases: 3, cuts: [1, 0.7, 0.35] }, CALBOMB_FIGHT.def);
 // (the core's stage hook: CAL.bossMake.calbomb builds the arena's module; guarded, since the core may load without it)
 if (typeof CAL !== 'undefined') { if (!CAL.bossMake) CAL.bossMake = {}; CAL.bossMake.calbomb = CALBOMB_FIGHT.make; }

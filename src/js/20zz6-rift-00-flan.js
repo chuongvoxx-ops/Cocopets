@@ -43,7 +43,7 @@ const CALFLAN = (() => {
   const WELL_A = [-Math.PI / 2, Math.PI / 6, Math.PI * 5 / 6];
   /* the tuning for a level-1 starter (the spec's ~2 minutes with the mechanics): the whole fight's health and the size of
      one plain blow, set by the stage whatever the rift's own scaling (Rf.ease, Rf.scale) does to its floor */
-  const TUNE = { hp: 1400, dmg: 15 };
+  const TUNE = { hp: 4800, dmg: 24 };   // (QA v386: was 1400 / 15, tuned for a level-1 pet; the nine-stage rift brings the pet here at about level 5 (HP ~150))
   const FIELD_T = 12, RECHARGE_T = 8, REGROW_T = 10, GRACE_T = 2, CHILL_T = 3, BRITTLE_T = 8, INTEG = 100, SMASH = 30, CHIP = 5;
   const wellGeo = (C, i) => { const a = WELL_A[i], c = Math.cos(a), s = Math.sin(a), pa = a + PLATE_DA;
     return { i, a, x: C.x + c * WELL_D, y: C.y + s * WELL_D, zx: C.x + c * ZONE_D, zy: C.y + s * ZONE_D, zr: ZONE_R, px: C.x + Math.cos(pa) * PLATE_D, py: C.y + Math.sin(pa) * PLATE_D }; };
@@ -61,41 +61,45 @@ const CALFLAN = (() => {
     const LW = vnrm([-0.5, 0.3, 0.82]), SBW = vnrm([-0.2, -0.38, 0.9]), RIMW = vnrm([0.55, -0.72, 0.42]);
     const RIMC = [1.25, 0.62, 0.32], AMBC = [1.0, 0.92, 0.9], RIMF = [0.6, 0.85, 1.35];
     /* ---- the gel: a sphere grid (NU round, NV pole to pole) rewritten in place every frame ---- */
-    const NU = 44, NV = 30;
-    function mkGel() {
+    // (P, perf: the grid's size is the gel's own: full 44 x 30 on the GPU, 32 x 22 under "Fewer effects", 32 x 20 for the 2D
+    // picture, which only needs the outline; deform and the normals read G.NU / G.NV)
+    const NU0 = 44, NV0 = 30;
+    function mkGel(NU = NU0, NV = NV0) {
       const nv = (NU + 1) * (NV + 1), pos = new Float32Array(nv * 3), nrm = new Float32Array(nv * 3), att = new Float32Array(nv * 3), idx = new Uint16Array(NU * NV * 6);
       const ST = new Float32Array(NV + 1), CT = new Float32Array(NV + 1), CP = new Float32Array(NU + 1), SP = new Float32Array(NU + 1);
       for (let j = 0; j <= NV; j++) { const th = j / NV * Math.PI; ST[j] = Math.sin(th); CT[j] = Math.cos(th); }
       for (let i = 0; i <= NU; i++) { const ph = i / NU * TAU; CP[i] = Math.cos(ph); SP[i] = Math.sin(ph); }
       for (let j = 0; j <= NV; j++) for (let i = 0; i <= NU; i++) { const k = (j * (NU + 1) + i) * 3; att[k] = 80; att[k + 1] = 0; att[k + 2] = 1 - j / NV; }
       let q = 0; for (let j = 0; j < NV; j++) for (let i = 0; i < NU; i++) { const a = j * (NU + 1) + i, b = a + 1, c = a + NU + 1, d = c + 1; idx[q++] = a; idx[q++] = c; idx[q++] = d; idx[q++] = a; idx[q++] = d; idx[q++] = b; }
-      return { pos, nrm, att, idx, nv, ntri: NU * NV * 2, gl: null, ST, CT, CP, SP };
+      return { pos, nrm, att, idx, nv, ntri: NU * NV * 2, gl: null, ST, CT, CP, SP, NU, NV };
     }
     // the lobes of the boiling phase: fixed directions round the body (angle round, angle down from the top)
     const LOBES = [[0.4, 1.15], [1.75, 1.3], [3.0, 1.1], [4.2, 1.35], [5.4, 1.2]];
     /* the shape: everything the pose asks of the gel, in the body's frame (x forward, y left, z up; the origin on the
        floor under its middle). Writes the positions, then the normals from the grid */
     function deform(G, P) {
-      const pos = G.pos, nrm = G.nrm, { ST, CT, CP, SP } = G, die = cl(P.die || 0), tall = cl(P.tall || 0);
-      const H = (P.H || 1.85) * (1 + 0.26 * tall) * (1 - die) + 0.24 * die, Rw = (P.Rw || 1.62) * (1 - 0.08 * tall) * (1 - die) + 1.75 * die, zc = 0.56 * (1 - die) + 0.08 * die;
+      const pos = G.pos, nrm = G.nrm, { ST, CT, CP, SP, NU, NV } = G, die = cl(P.die || 0), tall = cl(P.tall || 0);
+      const H = (P.H || 1.85) * (1 + 0.26 * tall) * (1 - die) + 0.24 * die, Rw = (P.Rw || 1.62) * (1 - 0.08 * tall) * (1 - die) + 1.75 * die, zc = 0.46 * (1 - die) + 0.08 * die;
       const E = P.wob || 0, wt = P.wt || 0, a2 = 0.02 + 0.07 * E, a3 = 0.013 + 0.05 * E, rip = 0.045 * E, lobes = P.lobes || 0, lt = P.lobeT || 0, sx = P.sx || 1, sz = P.sz || 1, lean = P.lean || 0, side = P.side || 0;
       const pods = (P.pods || []).filter(p => p && p.L > 0.01).map(p => ({ L: p.L, w2: p.w * p.w, D: [Math.cos(p.el) * Math.cos(p.a), Math.cos(p.el) * Math.sin(p.a), Math.sin(p.el)], z0: zc + 0.25 }));
       const LD = LOBES.map(([ph, th]) => [Math.sin(th) * Math.cos(ph), Math.sin(th) * Math.sin(ph), Math.cos(th)]), LA = LOBES.map((_, k) => lobes * (0.15 + 0.09 * Math.sin(lt * (2.1 + k * 0.37) + k * 1.9)));
       const shv = (P.shiver || 0) * 0.025;
       let zmax = 0;
       for (let j = 0; j <= NV; j++) {
-        // (a heavy drop: full shoulders and a softly flattened crown, the lower body sagging out over a flat foot)
-        const st = ST[j], ct = CT[j], th = j / NV * Math.PI, bump = Math.exp(-((th - 2.0) * (th - 2.0)) / 0.22);
-        const r0 = Rw * (ct >= 0 ? Math.pow(st, 0.82) : st) * (1 + 0.11 * bump), z0 = ct >= 0 ? zc + Math.pow(ct, 1.25) * (H - zc) : zc * (1 + ct);
+        // (a heavy flan of gel: a round dome, full shoulders, the lower body slumped wide over its foot with a belly bulging at the base)
+        const st = ST[j], ct = CT[j], th = j / NV * Math.PI, bump = Math.exp(-((th - 2.12) * (th - 2.12)) / 0.16), foot = Math.max(0, -ct - 0.55) * 0.22;
+        const r0 = Rw * (ct >= 0 ? Math.pow(st, 0.78) : st) * (1 + 0.15 * bump + foot), z0 = ct >= 0 ? zc + Math.pow(ct, 1.08) * (H - zc) : zc * Math.pow(1 + ct, 1.25);
         for (let i = 0; i <= NU; i++) {
           const k = (j * (NU + 1) + i) * 3, cp = CP[i], sp = SP[i], ph = i / NU * TAU;
           let dr = a2 * Math.sin(2 * ph + wt * 7.9 + 0.4) * st + a3 * Math.sin(3 * ph - wt * 12.3 + 1.1) * st * st + rip * Math.sin(5 * th - wt * 11) * st;
-          if (lobes > 0.01) { const ux = st * cp, uy = st * sp; for (let q = 0; q < 5; q++) { const D = LD[q], ca = ux * D[0] + uy * D[1] + ct * D[2]; dr += LA[q] * Math.exp((ca - 1) / 0.17); } }
+          let sw = 0; if (lobes > 0.01) { const ux = st * cp, uy = st * sp; for (let q = 0; q < 5; q++) { const D = LD[q], ca = ux * D[0] + uy * D[1] + ct * D[2], g = LA[q] * Math.exp((ca - 1) / 0.17); dr += g; sw += g; } }
           if (shv) dr += shv * Math.sin(ph * 7 + wt * 60 + j);
           if (die > 0.02) dr += die * (0.09 * Math.sin(3 * ph + 1.3) + 0.06 * Math.sin(5 * ph + 0.4) + 0.04 * Math.sin(8 * ph + 2.2)) * st;
           let x = r0 * cp, y = r0 * sp, z = z0;
           x += x * dr; y += y * dr; z += (z - zc) * dr;
-          for (const p of pods) { let ux = x, uy = y, uz = z - p.z0; const l = Math.hypot(ux, uy, uz) || 1; const ca = (ux * p.D[0] + uy * p.D[1] + uz * p.D[2]) / l, g = Math.exp((ca - 1) / p.w2); if (g > 0.002) { x += p.D[0] * p.L * g; y += p.D[1] * p.L * g; z += p.D[2] * p.L * g; } }
+          let pg = 0; for (const p of pods) { let ux = x, uy = y, uz = z - p.z0; const l = Math.hypot(ux, uy, uz) || 1; const ca = (ux * p.D[0] + uy * p.D[1] + uz * p.D[2]) / l, g = Math.exp((ca - 1) / p.w2); if (g > 0.002) { x += p.D[0] * p.L * g; y += p.D[1] * p.L * g; z += p.D[2] * p.L * g; pg = Math.max(pg, g * Math.min(1, p.L / 1.5)); } }
+          // (how much a boiling lobe or a straining pseudopod swells the skin here: the shader lights it from within)
+          const sv = Math.min(1, sw * 3.5 + pg * 0.8); if (G.att[k + 1] !== sv) { G.att[k + 1] = sv; G.attDirty = true; }
           if (z < 0) z = 0;
           const hk = z / H; x += lean * hk * hk; y += side * hk * hk;
           x *= sx; y *= sx; z *= sz; if (z > zmax) zmax = z;
@@ -119,12 +123,13 @@ const CALFLAN = (() => {
     let MESH = null;
     function build() {
       const q = lowFx() ? 0.6 : 1, out = {};
-      out.gel = mkGel();
+      out.gel = lowFx() ? mkGel(32, 22) : mkGel();
       { const B = GLM.builder(q); B.sph([0, 0, 0], 1, 81, 22); const c = B.done(), p = c.pos, nr = c.nrm;   // (a lumpy molten blob, not a ball)
         for (let i = 0; i < p.length; i += 3) { const x = p[i], y = p[i + 1], z = p[i + 2], k = 1 + 0.16 * Math.sin(x * 3.1 + y * 1.7) * Math.cos(z * 2.6 - x) + 0.08 * Math.sin(y * 5.3 + z * 4.1); p[i] = x * k; p[i + 1] = y * k * 0.92; p[i + 2] = z * k * 0.86; }
         for (let i = 0; i < nr.length; i += 3) { const l = Math.hypot(p[i], p[i + 1] / 0.85, p[i + 2] / 0.74) || 1; nr[i] = p[i] / l; nr[i + 1] = p[i + 1] / 0.85 / l; nr[i + 2] = p[i + 2] / 0.74 / l; }
         out.core = c; }
       out.bubble = GLM.builder(1).sph([0, 0, 0], 1, 83, 10).done();
+      out.eye = GLM.builder(1).ell([0, 0, 0], [1, 1, 1], 81.3, { seg: 18, rings: 10 }).done();
       // ash: flat charcoal flakes scattered through a unit ball (a few still glowing at the edge)
       { const B = GLM.builder(1), R = mulberry32(911); for (let n = 0; n < 46; n++) { let p; do { p = [R() * 2 - 1, R() * 2 - 1, R() * 2 - 1]; } while (Math.hypot(p[0], p[1], p[2]) > 1); const s = 0.035 + R() * 0.055, a = R() * TAU, b = R() * TAU, u = [Math.cos(a) * Math.cos(b), Math.sin(a) * Math.cos(b), Math.sin(b)], v = vnrm([u[1] * 0.3 - u[2], u[2] - u[0] * 0.3, u[0] - u[1]]), w = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
           const pts = []; const m5 = 5 + Math.floor(R() * 2); for (let k = 0; k < m5; k++) { const t = k / m5 * TAU, rr = s * (0.6 + R() * 0.6); pts.push(vadd(p, vadd(vmul(v, Math.cos(t) * rr), vmul(w, Math.sin(t) * rr * 0.7)))); } B.facet(pts, 82); }
@@ -171,8 +176,9 @@ const CALFLAN = (() => {
       const dt = I.t == null ? 0 : Math.max(0, Math.min(0.1, t - I.t)); I.t = t;
       deform(G, P);
       const die = cl(P.die || 0), tall = cl(P.tall || 0), H = G.H, zc = G.zc, Rw = G.Rw;
-      const co = P.core || [0, 0, 0], cz = zc + (H - zc) * (0.3 + 0.08 * tall) * (1 - die);
-      const core = warp(G, P, [co[0] * (1 - die), co[1] * (1 - die), Math.max(0.12, cz + co[2] * (1 - die))]), cr = (0.42 + 0.08 * tall) * (1 - 0.55 * die);
+      const co = P.core || [0, 0, 0], cz = zc + (H - zc) * (0.06 + 0.12 * tall) * (1 - die);
+      // (the core sits low in the front of its belly, under the eyes that look out of the upper dome)
+      const core = warp(G, P, [(co[0] * 0.5 + 0.48) * (1 - die), co[1] * (1 - die), Math.max(0.12, cz + co[2] * (1 - die))]), cr = (0.46 + 0.08 * tall) * (1 + 0.14 * (P.pulse || 0)) * (1 - 0.55 * die);
       // bubbles: born at the core, rising through the gel, gone at its top (none while it is chilled through)
       const frozen = (P.chill || 0) > 0.6 || die > 0.3;
       for (const b of I.bub) {
@@ -180,18 +186,33 @@ const CALFLAN = (() => {
         if (b.z > top || b.life <= 0) { if (frozen) { b.life = 0; b.z = 9; continue; } const a = I.R() * TAU, d = I.R() * 0.5 * Rw; b.x = co[0] + Math.cos(a) * d; b.y = co[1] + Math.sin(a) * d; b.z = Math.max(0.15, cz - 0.3 + I.R() * 0.4); b.r = 0.06 + I.R() * 0.11; b.v = 0.35 + I.R() * 0.45 + (tall ? 0.3 : 0); b.life = 1; }
         if (!frozen) { b.z += b.v * dt; b.x += Math.sin(t * 3 + b.ph) * 0.12 * dt; b.y += Math.cos(t * 2.3 + b.ph) * 0.1 * dt; }
       }
-      return { core, cr, cz };
+      return { core, cr, cz, eyes: eyeFrames(G, P) };
+    }
+    /* its eyes: two ember slits set just under the skin on the upper front of the dome, turned toward what it hunts
+       (P.look, round from its heading), slanted inward and down; P.eyeN narrows them (0 open .. 1 a thin slit) */
+    function eyeFrames(G, P) {
+      const die = cl(P.die || 0); if ((P.eyeK || 0) <= 0.01) return [];
+      const H = G.H, Rw = G.Rw, zc = G.zc, th = 0.4 + 0.5 * die, st = Math.sin(th), ct = Math.cos(th), out = [];
+      const r0 = Rw * Math.pow(st, 0.78) * 0.9, z0 = zc + Math.pow(ct, 1.08) * (H - zc) * 0.92, nar = cl(P.eyeN || 0), lk = clamp(P.look || 0, -1.3, 1.3);
+      for (const sd of [-1, 1]) { const ph = lk + sd * 0.52, x = r0 * Math.cos(ph), y = r0 * Math.sin(ph), p = warp(G, P, [x, y, Math.max(0.15, z0)]);
+        const n = vnrm([Math.cos(ph) * st * (H - zc), Math.sin(ph) * st * (H - zc), ct * Rw]), t0 = vnrm([-Math.sin(ph), Math.cos(ph), 0]), b0 = [n[1] * t0[2] - n[2] * t0[1], n[2] * t0[0] - n[0] * t0[2], n[0] * t0[1] - n[1] * t0[0]];
+        // (its long axis runs outward from the middle, the outer end raised: a slant that glowers)
+        const to = vmul(t0, sd), sl = 0.3, cs = Math.cos(sl), sn = Math.sin(sl), t = vadd(vmul(to, cs), vmul(b0, sn)), b = vadd(vmul(b0, cs), vmul(to, -sn));
+        out.push({ p, R: { x: n, y: t, z: b }, s: [0.06, 0.33 * (1 - 0.1 * nar), 0.16 * (1 - 0.6 * nar)] }); }
+      return out;
     }
     /* draw(c, x, y, z, heading, pose, o): o = { T, sx, sy, t }. The instance (o.I) keeps the bubbles */
     let LAST = null, LASTERR = null;
     function draw(c, x, y, z, a, P, o) {
       const t = o.t != null ? o.t : nowMs() / 1000, I = o.I || (o.I = inst()), al = P.alpha == null ? 1 : P.alpha; if (!(al > 0.01)) return;
-      const gl = glOn(), V = view(x, y, z + (P.lift || 0), a, o), G = MESH ? MESH.gel : (draw.G || (draw.G = mkGel()));
+      const gl = glOn(), V = view(x, y, z + (P.lift || 0), a, o), G = MESH ? MESH.gel : (draw.G || (draw.G = mkGel(32, 20)));
       const R = rig(I, P, G, t); LAST = { V, G, R, P };
       if (o.rigOnly) return;   // (advance the bubbles only)
       let ok = false;
       if (gl) { try { ok = glFlan(c, V, P, R, I, al, t); } catch (e) { glFail(); ok = false; LASTERR = e; } }
       if (!ok) drawFallback(c, V, P, R, I, al);
+      else eyes2D(c, V, P, R, V.k, 0.7);   // (the slits laid over the GL eyes too, so they read at the game's own zoom)
+      eyeBloom(c, V, P, R, o.T, t);
     }
     function glFlan(c, V, P, R, I, al, t) {
       const G = MESH.gel, Rh = V.Rh, pos = G.pos, die = cl(P.die || 0), heat = P.heat == null ? 1 : P.heat;
@@ -211,8 +232,10 @@ const CALFLAN = (() => {
       for (const s of sh) items.push(item(MESH.shard, mm(Rh, s.R), s.s, mv(Rh, s.p), { alpha: 1, glow: s.glow }));
       // then the bubbles, then the shell over all of it
       if (die < 0.5) for (const b of I.bub) if (b.life > 0 && b.z < 8) items.push(item(MESH.bubble, Rh, b.r, mv(Rh, warp(G, P, [b.x, b.y, b.z])), { alpha: 0.9, glow: heat }));
+      const eyeK = (P.eyeK || 0) * (1 - 0.6 * die), eyes = R.eyes || [], occ = [Rc[0], Rc[1], Rc[2], Math.max(0.05, R.cr), 0, 0, 0, 0, 0, 0, 0, 0, eyeK, P.eyeCold || 0, 0, 0];
+      eyes.forEach((e, i) => { const Wp = mv(Rh, e.p); items.push(item(MESH.eye, mm(Rh, e.R), e.s, Wp, { alpha: 1, glow: eyeK, glow2: P.eyeCold || 0 })); occ[4 + i * 4] = Wp[0]; occ[5 + i * 4] = Wp[1]; occ[6 + i * 4] = Wp[2]; occ[7 + i * 4] = 0.24; });
+      if (G.attDirty) { GLM.touch(G); G.attDirty = false; }
       items.push(Object.assign(item(G, Rh, 1, [0, 0, 0], common), { alpha: al > 0.995 ? 1 : al }));
-      const occ = [Rc[0], Rc[1], Rc[2], Math.max(0.05, R.cr)];
       return glPass(c, V, items, [x0, y0, x1, y1], occ);
     }
     // the obsidian left when it dies: shards thrown out over the first second, then lying still, cooling
@@ -227,29 +250,48 @@ const CALFLAN = (() => {
     /* the 2D picture (no WebGL): the shell's outline from its own vertices, filled with the gel's light */
     function drawFallback(c, V, P, R, I, al) {
       const G = MESH ? MESH.gel : draw.G, pos = G.pos, Rh = V.Rh, k = V.k, cs = V.toS(R.core), NB = 40, best = new Array(NB).fill(null);
-      for (let i = 0; i < pos.length; i += 3) { const p = [pos[i], pos[i + 1], pos[i + 2]], q = V.toS(p), dx = q[0] - cs[0], dy = q[1] - cs[1], d = dx * dx + dy * dy, b = Math.floor(((Math.atan2(dy, dx) / TAU) + 1) % 1 * NB); if (!best[b] || d > best[b][2]) best[b] = [q[0], q[1], d]; }
+      // (P, perf: projected in place, no arrays per vertex)
+      const Hx = Rh.x, Hy = Rh.y, Hz = Rh.z;
+      for (let i = 0; i < pos.length; i += 3) { const px = pos[i], py = pos[i + 1], pz = pos[i + 2], wx = Hx[0] * px + Hy[0] * py + Hz[0] * pz, wy = Hx[1] * px + Hy[1] * py + Hz[1] * pz, wz = Hx[2] * px + Hy[2] * py + Hz[2] * pz;
+        const qx = V.X0 + wx * k, qy = V.Y0 + (wy * GY - wz * ZK) * k, dx = qx - cs[0], dy = qy - cs[1], d = dx * dx + dy * dy, b = Math.floor(((Math.atan2(dy, dx) / TAU) + 1) % 1 * NB), e = best[b]; if (!e) best[b] = [qx, qy, d]; else if (d > e[2]) { e[0] = qx; e[1] = qy; e[2] = d; } }
       const pts = best.filter(Boolean); if (pts.length < 6) return;
       const chill = P.chill || 0, die = P.die || 0, heat = P.heat == null ? 1 : P.heat, rr = G.Rw * k;
       c.save(); c.globalAlpha = al;
       const path = () => { c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.closePath(); };
-      const gr = c.createRadialGradient(cs[0], cs[1], rr * 0.1, cs[0], cs[1] - rr * 0.1, rr * 1.5); gr.addColorStop(0, rgba('#FFB347', 0.92)); gr.addColorStop(0.35, rgba('#E2540E', 0.85)); gr.addColorStop(0.75, rgba('#8A1A06', 0.82)); gr.addColorStop(1, rgba('#3A0802', 0.85));
+      const gr = c.createRadialGradient(cs[0], cs[1], rr * 0.1, cs[0], cs[1] - rr * 0.1, rr * 1.5); gr.addColorStop(0, rgba('#FFD27A', 0.94)); gr.addColorStop(0.3, rgba('#FF8A1E', 0.88)); gr.addColorStop(0.68, rgba('#C8300A', 0.84)); gr.addColorStop(1, rgba('#6A0C04', 0.82));
       path(); c.fillStyle = gr; c.fill();
+      c.save(); path(); c.lineWidth = Math.max(2, rr * 0.08); c.strokeStyle = rgba('#FFB050', 0.55 * heat * (1 - chill)); c.stroke(); c.restore();
       c.save(); path(); c.clip();
-      const R2 = mulberry32(17); for (let i = 0; i < 18; i++) { const x = cs[0] + (R2() - 0.5) * rr * 1.8, y = cs[1] + (R2() - 0.5) * rr * 1.4; c.fillStyle = 'rgba(20,10,8,.55)'; c.beginPath(); c.ellipse(x, y, rr * 0.04, rr * 0.025, R2() * 3, 0, TAU); c.fill(); }
+      { const R4 = mulberry32(5); c.strokeStyle = rgba('#FFD27A', 0.35 * heat * (1 - chill)); c.lineWidth = Math.max(1, rr * 0.03); for (let i = 0; i < 7; i++) { let a = R4() * TAU, x = cs[0], y = cs[1]; c.beginPath(); c.moveTo(x, y); for (let j = 0; j < 4; j++) { a += (R4() - 0.5) * 0.9; x += Math.cos(a) * rr * 0.22; y += Math.sin(a) * rr * 0.16; c.lineTo(x, y); } c.stroke(); } }
+      const R2 = mulberry32(17); for (let i = 0; i < 9; i++) { const x = cs[0] + (R2() - 0.5) * rr * 1.8, y = cs[1] + (R2() - 0.5) * rr * 1.4; c.fillStyle = 'rgba(20,10,8,.55)'; c.beginPath(); c.ellipse(x, y, rr * 0.04, rr * 0.025, R2() * 3, 0, TAU); c.fill(); }
       for (const b of I.bub) if (b.life > 0 && b.z < 8) { const q = V.toS(b.p || [b.x, b.y, b.z]); c.strokeStyle = 'rgba(255,220,160,.6)'; c.lineWidth = 1; c.beginPath(); c.arc(q[0], q[1], Math.max(1, b.r * k), 0, TAU); c.stroke(); }
       if (chill > 0.02) { c.fillStyle = rgba('#D8ECFF', 0.55 * chill); c.fillRect(cs[0] - rr * 3, cs[1] - rr * 3, rr * 6, rr * 6); c.strokeStyle = rgba('#FFB060', 0.8 * chill); c.lineWidth = Math.max(1, k * 0.03); const R3 = mulberry32(99); for (let i = 0; i < 9; i++) { let x = cs[0] + (R3() - 0.5) * rr * 1.6, y = cs[1] + (R3() - 0.5) * rr * 1.2; c.beginPath(); c.moveTo(x, y); for (let j = 0; j < 4; j++) { x += (R3() - 0.5) * rr * 0.5; y += (R3() - 0.5) * rr * 0.5; c.lineTo(x, y); } c.stroke(); } }
       c.restore();
-      glowAt(c, cs[0], cs[1], rr * 0.55 * (1 - 0.5 * die), '#FFD27A', 0.55 * heat);
-      c.fillStyle = 'rgba(255,240,220,.35)'; c.beginPath(); c.ellipse(cs[0] - rr * 0.35, cs[1] - rr * 0.75, rr * 0.28, rr * 0.12, -0.4, 0, TAU); c.fill();
+      glowAt(c, cs[0], cs[1], rr * 0.75 * (1 - 0.5 * die), '#FFD27A', 0.7 * heat);
+      c.strokeStyle = 'rgba(255,245,230,.4)'; c.lineWidth = Math.max(2, rr * 0.07); c.lineCap = 'round'; c.beginPath(); c.ellipse(cs[0] - rr * 0.1, cs[1] - rr * 0.55, rr * 0.62, rr * 0.3, -0.15, Math.PI * 1.1, Math.PI * 1.55); c.stroke();
+      eyes2D(c, V, P, R, k);
       for (const s of shardList(P, G)) { const q = V.toS(s.p); c.fillStyle = '#0B0A0E'; c.beginPath(); c.moveTo(q[0] - s.s * k * 0.3, q[1]); c.lineTo(q[0], q[1] - s.s * k * 0.25); c.lineTo(q[0] + s.s * k * 0.35, q[1] + 2); c.closePath(); c.fill(); c.strokeStyle = rgba(LAVA, 0.8 * s.glow); c.lineWidth = 1.2; c.stroke(); }
       c.restore();
     }
+    /* the eyes in 2D: two slanted ember slits (the GL path draws them as meshes; both get eyeBloom over them) */
+    function eyes2D(c, V, P, R, k, al) { const K = (P.eyeK || 0) * (1 - 0.6 * cl(P.die || 0)) * (al == null ? 1 : al); if (K < 0.02) return; const cold = P.eyeCold || 0;
+      for (const e of R.eyes || []) { const q = V.toS(e.p), q2 = V.toS(vadd(e.p, vmul(e.R.y, e.s[1]))), q3 = V.toS(vadd(e.p, vmul(e.R.z, e.s[2]))), a = Math.atan2(q2[1] - q[1], q2[0] - q[0]), L = Math.hypot(q2[0] - q[0], q2[1] - q[1]) || k * 0.15;
+        // (its width is the slit's own cross-axis as seen, so an eye turned away from the camera narrows rather than standing up)
+        const ux = (q2[0] - q[0]) / L, uy = (q2[1] - q[1]) / L, W = Math.max(1, Math.abs(-(q3[0] - q[0]) * uy + (q3[1] - q[1]) * ux) * 0.9); if (L < W * 1.2) continue;
+        c.save(); c.translate(q[0], q[1]); c.rotate(a); const g = c.createRadialGradient(0, 0, 0, 0, 0, L); g.addColorStop(0, cold > 0.5 ? '#B02A1A' : '#FFF6C8'); g.addColorStop(0.45, cold > 0.5 ? '#6A1008' : '#FFB040'); g.addColorStop(1, cold > 0.5 ? '#300604' : '#D8320A');
+        c.globalAlpha = Math.min(1, K); c.beginPath(); c.moveTo(-L, 0); c.quadraticCurveTo(L * 0.25, -W * 2.0, L, -W * 0.15); c.quadraticCurveTo(L * 0.3, W * 1.7, -L, 0); c.closePath(); c.strokeStyle = 'rgba(40,4,0,.8)'; c.lineWidth = Math.max(1.2, W * 0.5); c.stroke(); c.fillStyle = g; c.fill(); c.restore(); } }
+    /* the eyes' bloom, over the picture: a soft halo round each */
+    function eyeBloom(c, V, P, R, T, t) { const K = (P.eyeK || 0) * (1 - 0.6 * cl(P.die || 0)); if (K < 0.02) return; const cold = P.eyeCold || 0, fl = 0.85 + 0.15 * Math.sin(t * (17 + 9 * cold));
+      for (const e of R.eyes || []) { const q = V.toS(e.p); glowAt(c, q[0], q[1], T * (0.38 + 0.18 * K), cold > 0.5 ? '#C0281A' : '#FF5A10', 0.45 * K * fl); glowAt(c, q[0], q[1], T * 0.13, cold > 0.5 ? '#FF6040' : '#FFE6A0', 0.45 * K * fl * (1 - 0.6 * cold)); } }
     /* the soft shadow on the ground and the warm light the core throws round it */
     function drawShadow(c, x, y, P, o) {
       const T = o.T, X = o.sx(x), Y = o.sy(y), die = P.die || 0, Rw = (P.Rw || 1.55) * (1 + 0.6 * die) * (P.sx || 1), lift = P.lift || 0;
-      c.save(); c.globalAlpha = 0.5 / (1 + lift * 0.6); blitSized(c, shadeSprite('#05030A'), X - Rw * T * 1.25, Y - Rw * T * 0.5, Rw * T * 2.5, Rw * T * 1.0); c.restore();
-      const heat = P.heat == null ? 1 : P.heat, chill = P.chill || 0;
-      glowAt(c, X, Y + T * 0.1, Rw * T * 1.9, '#FF6A1E', (0.32 + 0.12 * Math.sin((o.t || 0) * 2.3)) * heat * (1 - 0.6 * chill) * (1 - 0.5 * die));
+      const heat = P.heat == null ? 1 : P.heat, chill = P.chill || 0, t = o.t || 0, flk = 0.82 + 0.12 * Math.sin(t * 11.3) * Math.sin(t * 3.7) + 0.06 * Math.sin(t * 23.1);
+      // the warm pool its light throws on the floor (flickering with the core), then the shadow it sits in, tight where it touches
+      glowAt(c, X, Y + T * 0.15, Rw * T * 2.6, '#FF5A14', 0.26 * heat * flk * (1 - 0.7 * chill) * (1 - 0.4 * die));
+      glowAt(c, X, Y + T * 0.1, Rw * T * 1.7, '#FF9A2E', 0.22 * heat * flk * (1 - 0.7 * chill) * (1 - 0.5 * die));
+      c.save(); c.globalAlpha = 0.42 / (1 + lift * 0.6); blitSized(c, shadeSprite('#05030A'), X - Rw * T * 1.3, Y - Rw * T * 0.5, Rw * T * 2.6, Rw * T * 1.0);
+      c.globalAlpha = 0.7 / (1 + lift * 1.5); blitSized(c, shadeSprite('#05030A'), X - Rw * T * 1.02, Y - Rw * T * 0.3, Rw * T * 2.04, Rw * T * 0.66); c.restore();
       if (chill > 0.05) glowAt(c, X, Y + T * 0.1, Rw * T * 1.6, '#9FD8FF', 0.25 * chill);
     }
     /* a frost crystal cluster (GLM; a 2D picture without it). Pc: { grow 0..1, glow 0..1, dmg 0..1, broken, t } */
@@ -446,13 +488,13 @@ const CALFLAN = (() => {
     drawProp(c, FX, p, X, Y, T) { if (typeof DunWorld !== 'undefined' && DunWorld.PROPS && DunWorld.PROPS[p.kind] && p.kind !== 'column') { c.translate(X, Y); DunWorld.PROPS[p.kind](c, T * p.s, p.v); return; } if (p.kind === 'column') basaltColumn(c, X, Y, T * p.s, p.v); else blackCrystal(c, X, Y, T * p.s, p.v, FX.S ? FX.S.t : 0); },
     paintGround(c, A2) { paintPit(c, A2); },
     sky(c, W, H, t, cam, T) { if (typeof CAL !== 'undefined' && CAL.paintSky) CAL.paintSky(c, W, H, T); else paintCaldera(c, W, H, T); },
-    overlay(c, FX, t, T) { const M = FX.mem, A = (M && M.A) || arenaOf(FX); if (A) drawZones(c, FX, A, T, t); },
+    overlay(c, FX, t, T) { const M = FX.mem, A = (M && M.A) || arenaOf(FX); drawRim(c, FX, t, T); if (M && M.marks) drawMarks(c, FX, M, T, t); if (A) drawZones(c, FX, A, T, t); },
     init(FX) { const M = FX.mem, m = FX.m; m.noTouch = true; m.act = 'enter'; m.touchK = 0.8;
       const A = arenaOf(FX) || (CUR = makeArena(FX.C, FX.H.g, { fake: true })); M.A = A;
       if (FX.F && FX.F.calHp) m.dmg = TUNE.dmg;
-      Object.assign(M, { bt: 0, hd: Math.PI / 2, P: { hd: Math.PI / 2, sx: 1, sz: 1, lift: 0, H: 1.85, Rw: 1.62, wob: 0.6, wt: 0, lean: 0, side: 0, pods: [{ L: 0, a: 0, el: 0, w: 0.5 }, { L: 0, a: 0, el: 1.1, w: 0.32 }], lobes: 0, lobeT: 0, tall: 0, chill: 0, crack: 0, heat: 1, die: 0, cool: 0, alpha: 1, fx: 0, core: [0, 0, 0], shiver: 0, phase: 1 },
+      Object.assign(M, { bt: 0, hd: Math.PI / 2, P: { hd: Math.PI / 2, sx: 1, sz: 1, lift: 0, H: 1.85, Rw: 1.62, wob: 0.6, wt: 0, lean: 0, side: 0, pods: [{ L: 0, a: 0, el: 0, w: 0.5 }, { L: 0, a: 0, el: 1.1, w: 0.32 }], lobes: 0, lobeT: 0, tall: 0, chill: 0, crack: 0, heat: 1, die: 0, cool: 0, alpha: 1, fx: 0, core: [0, 0, 0], shiver: 0, phase: 1, look: 0, eyeK: 0, eyeN: 0.2, eyeCold: 0, pulse: 0 },
         I: MODEL.inst(), hop: 0, hopV: 0, swell: 0, crouch: 0, land: 0, chill: 0, outT: 9, brittle: false, brittleT: 0, graceT: 0, crack: 0, heat: 1, glowK: 0, mute: 0, armT: 0, flashK: 0, act: null, last: null, lastBrk: -99, lastBurst: -99, lastShed: -99, lastRush: -99, shedQ: 0,
-        cool: 2.6, seen: {}, end: null, coreV: [0, 0, 0], globs: [], waves: [], adds: [], ripples: 0, taught: 0, px: m.x, py: m.y, spd: 0,
+        cool: 2.6, seen: {}, end: null, coreV: [0, 0, 0], globs: [], waves: [], adds: [], drips: [], marks: [], dripT: 0.5, ripples: 0, taught: 0, px: m.x, py: m.y, spd: 0,
         stat: { slams: 0, spits: 0, breakers: 0, interrupts: 0, smashes: 0, sweeps: 0, bursts: 0, burstHits: 0, rushes: 0, sheds: 0, adds: 0, brittle: 0, brittleDmg: 0, armDmg: 0, fields: 0, hitsArm: 0, hitsBrit: 0, log: [] } });
       A.onField = w => { M.stat.fields++; M.stat.log.push(['field', +FX.S.t.toFixed(1), w.i, +Math.hypot(FX.m.x - w.zx, FX.m.y - w.zy).toFixed(1)]); if (!M.seen.field) { M.seen.field = 1; FX.H.banner('PROTECT THE CRYSTAL', 'The cold field slows and chills it. Keep it in the ring, and guard the crystal', FROST_HI, 2.8, true); } FX.H.ring(w.zx, w.zy, 0.3, w.zr, 0.6, FROST_HI, 0.5); if (FX.S.lv >= 2 && M.adds.filter(a => !a.dead).length < 2) M.shedQ = Math.max(M.shedQ, 1); if (FX.S.lv >= 3 && !M.brittle) { M.rushQ = 1; M.cool = Math.min(M.cool, 0.7); } if (A.firstAt == null) A.firstAt = FX.S.t; M.fieldAt = FX.S.t; };
       A.onBreak = (w, src) => { FX.H.boom(w.x, w.y, 1.6, FROST, '#FFFFFF', { n: 22, shake: 8, smoke: 2 }); FX.H.text(w.x, w.y - 3, 'CRYSTAL BROKEN', FROST_HI, 15); FX.H.sfx.crash(); if (FX.H.sfx.chime) FX.H.sfx.chime(330, 0.6); M.stat.log.push(['break', +FX.S.t.toFixed(1), src || '']); };
@@ -467,8 +509,8 @@ const CALFLAN = (() => {
     stunned(FX, m, dt) { const M = FX.mem; M.P.wob = Math.max(M.P.wob, 0.8); FX.parts(bodyParts(m, M)); },
     update(FX, dt) { upd(FX, dt); },
     dmgK(FX, m, o) { const M = FX.mem; if (!M || !M.stat) return 1; if (M.end) return 1;
-      if (M.brittle) { M.flashK = 1; M.P.wob = Math.min(1.6, M.P.wob + 0.25); M.stat.hitsBrit++; return FX.S.lv >= 3 ? 1.25 : 1; }
-      M.mute = 1; M.P.wob = Math.min(1.0, M.P.wob + 0.06); M.stat.hitsArm++;
+      if (M.brittle) { M.flashK = 1; M.P.wob = Math.min(1.6, M.P.wob + 0.25); jolt(M, 0.35); M.stat.hitsBrit++; return FX.S.lv >= 3 ? 1.25 : 1; }
+      M.mute = 1; M.P.wob = Math.min(1.0, M.P.wob + 0.06); jolt(M, 0.12); M.stat.hitsArm++;
       if (FX.S.t - M.armT > 1.6 && !(o && o.dot)) { M.armT = FX.S.t; FX.H.text(m.x, m.y - 3.2, 'Molten armour', '#C9B8A8', 12); }
       return 0.2; },
     onWeakHit(FX, key, dmg) { const M = FX.mem; if (key !== 'grip' || !M.act || !M.act.grip) return; const G = M.act.grip, t = FX.S.t; if (t - G.lastHit < 0.1) return; G.lastHit = t; G.hits++; G.flash = 1; FX.H.sparks(G.x, G.y, '#FFE9A8', 6, 4);
@@ -492,7 +534,9 @@ const CALFLAN = (() => {
   /* ---- the body's hit proxies, following the gel ---- */
   function bodyParts(m, M) { const P = M.P, s = P.sx || 1, h = (P.H || 1.85) * (P.sz || 1) * (1 + 0.24 * (P.tall || 0)); return [{ key: 'body', dx: 0, dy: -h * 0.4, r: 1.55 * s }]; }   // (one proxy: two overlapping ones let a single shot land twice)
   function keepIn(FX, m) { const q = FX.clampArena(m, 2.0); m.x = q.x; m.y = q.y; }
-  function say(FX, key, s, sub, col, dur) { const M = FX.mem, first = !M.seen[key]; M.seen[key] = (M.seen[key] || 0) + 1; FX.H.banner(s, sub, col || WARN_HI, first ? (dur || 2.6) : 1.1, true); }
+  // (QA v386: each callout teaches once (a big banner with its line), is named once more as a small title (a small banner never
+  //  cuts a big one short), then stays quiet: the marks on the ground and the sounds carry it from there)
+  function say(FX, key, s, sub, col, dur) { const M = FX.mem, n = (M.seen[key] || 0) + 1; M.seen[key] = n; if (n > 2) return; FX.H.banner(s, n === 1 ? sub : '', col || WARN_HI, n === 1 ? (dur || 2.6) : 1.1, n === 1); }
   function clearActs(FX, m, M) { const a = M.act; if (a) { for (const k of ['tele', 'tele2']) if (a[k]) a[k].t = 0; if (a.grip) FX.weak('grip', 0, 0, 0, 0, false); } M.act = null; m.act = 'prowl'; m.actT = 0; const P = M.P; P.pods[0].L = 0; P.pods[1].L = 0; }
   function endAct(FX, m, M, cool) { const a = M.act; if (a && a.grip) FX.weak('grip', 0, 0, 0, 0, false); M.last = a ? a.k : M.last; M.act = null; m.act = 'prowl'; m.actT = 0; M.cool = cool * (FX.S.lv >= 3 ? 0.8 : FX.S.lv >= 2 ? 0.9 : 1) * (M.brittle ? 1.6 : 1); }
   const lvOf = FX => FX.S.lv;
@@ -515,9 +559,12 @@ const CALFLAN = (() => {
   // hop: a squash, a heave forward, a landing that sets the gel shaking
   function hopMove(FX, m, M, dt, ux, uy, spd) {
     if (spd > 0.02) { M.hop += dt * (1.15 + spd * 0.25); const ph = M.hop % 1, f = Math.max(0, Math.sin(ph * TAU - 0.6)) * 2.1; FX.H.moveEnt ? FX.H.moveEnt(m, ux * spd * f * dt, uy * spd * f * dt, 1) : (m.x += ux * spd * f * dt, m.y += uy * spd * f * dt);
-      const was = M.hopPh || 0; M.hopPh = ph; if (ph < was) { M.P.wob = Math.min(1.2, M.P.wob + 0.35); M.land = 1; if (!lowFx() && Math.random() < 0.7) dust(FX, m.x, m.y + 0.6, 0.9, 2); } M.spd = spd; }
+      const was = M.hopPh || 0; M.hopPh = ph; if (ph < was) { M.P.wob = Math.min(1.3, M.P.wob + 0.4); M.land = 1; jolt(M, 0.9); mark(M, m.x, m.y + 0.2, 1.3, 'wet'); if (!lowFx() && Math.random() < 0.7) dust(FX, m.x, m.y + 0.6, 0.9, 2); } M.spd = spd; }
     else { M.spd = 0; }
   }
+  // a kick to the squash spring (a landing, a blow), and a mark left on the floor (a wet sheen from a hop, a scorch from a slam, a drip's spot)
+  function jolt(M, k) { M.sqv = (M.sqv || 0) - k; }
+  function mark(M, x, y, r, kind) { if (!M.marks) return; M.marks.push({ x, y, r, kind, t: 0, life: kind === 'scorch' ? 9 : kind === 'drip' ? 4 : 2.6, a: Math.random() * TAU }); if (M.marks.length > 26) M.marks.shift(); }
   function dust(FX, x, y, r, n) { for (let i = 0; i < n; i++) { const a = Math.random() * TAU, life = 0.6 + Math.random() * 0.5; FX.H.part({ kind: 'smoke', x: x + Math.cos(a) * r * 0.6, y: y + Math.sin(a) * r * 0.3, vx: Math.cos(a) * 1.2, vy: Math.sin(a) * 0.5 - 0.5, drag: 1.2, life, max: life, size: 0.55, color: 'rgba(40,32,30,' }); } }
   function embers(FX, x, y, n, col) { for (let i = 0; i < n; i++) { const a = Math.random() * TAU, v = 1 + Math.random() * 3, life = 0.5 + Math.random() * 0.6; FX.H.part({ kind: 'ember', x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v * 0.6 - 1.5, drag: 0.8, life, max: life, size: 3 + Math.random() * 2, color: col || (Math.random() < 0.5 ? LAVA : LAVA_HI) }); } }
   /* what next: a crystal under the cold draws it; otherwise the pet's distance picks the attack */
@@ -545,7 +592,7 @@ const CALFLAN = (() => {
   /* an interrupt point: a glowing node on the stretched gel; enough blows on it stop the attack */
   function grip(FX, a, x, y, on) { const G = a.grip || (a.grip = { hits: 0, need: 3, lastHit: -9, flash: 0, on: false, x, y }); G.x = x; G.y = y; G.on = on; FX.weak('grip', x, y, 0.6, 0.2, on); return G; }
   function interrupt(FX, m, M) { const a = M.act; if (!a) return; FX.weak('grip', 0, 0, 0, 0, false); if (a.tele) a.tele.t = 0; if (a.tele2) a.tele2.t = 0; M.stat.interrupts++; M.stat.log.push(['interrupt', a.k, +FX.S.t.toFixed(1)]);
-    FX.H.text(m.x, m.y - 3.4, 'Interrupted!', '#FFE9A8', 16); FX.H.sfx.thud(); FX.H.shake(6, 0.25); M.P.wob = 1.6; embers(FX, a.grip ? a.grip.x : m.x, a.grip ? a.grip.y : m.y, 10, '#FFE9A8');
+    FX.H.text(m.x, m.y - 3.4, 'Interrupted!', '#FFE9A8', 16); FX.H.sfx.thud(); FX.H.shake(6, 0.25); M.P.wob = 1.6; jolt(M, 1.6); embers(FX, a.grip ? a.grip.x : m.x, a.grip ? a.grip.y : m.y, 10, '#FFE9A8');
     if (a.k === 'breaker') M.lastBrk = FX.S.t; if (a.k === 'rush') M.lastRush = FX.S.t;
     M.act = { k: 'reel', u: 0, from: a.k }; m.act = 'reel'; m.actT = 0; }
   const ACT = {
@@ -558,7 +605,7 @@ const CALFLAN = (() => {
       M.swell = u < 1.25 ? smooth(u / 1.1) : 1 - smooth((u - 1.25) / 0.2);
       M.crouch = u > 1.15 && u < 1.4 ? Math.sin((u - 1.15) / 0.25 * Math.PI) : 0;
       if (u > 1.35 && u < WU) { const v = (u - 1.35) / (WU - 1.35); m.x = a.x0 + (a.tx - a.x0) * smooth(v); m.y = a.y0 + (a.ty - a.y0) * smooth(v); P.lift = Math.sin(v * Math.PI) * 1.7; P.sz = 1 + 0.18 * Math.sin(v * Math.PI); }
-      if (u >= WU && !a.landed) { a.landed = true; P.lift = 0; m.x = a.tx; m.y = a.ty; M.land = 1.4; P.wob = 1.6; if (a.tele) a.tele.t = 0;
+      if (u >= WU && !a.landed) { a.landed = true; P.lift = 0; m.x = a.tx; m.y = a.ty; M.land = 1.4; P.wob = 1.7; jolt(M, 2.6); mark(M, a.tx, a.ty, 2.3, 'scorch'); if (a.tele) a.tele.t = 0;
         FX.H.boom(a.tx, a.ty, 2.4, LAVA, LAVA_HI, { n: 20, shake: 12, smoke: 6 }); FX.H.ring(a.tx, a.ty, 0.3, 2.9, 0.4, LAVA_HI, 0.4); FX.H.sfx.thud(); FX.H.sfx.crash(); embers(FX, a.tx, a.ty, 14);
         const me = FX.me; if (Math.hypot(me.x - a.tx, me.y - a.ty) < 2.7 + me.r * 0.6 && !me.dodge) FX.hurt(m.dmg * 1.0); }
       if (u > WU + 0.8) endAct(FX, m, M, 2.2);
@@ -627,7 +674,7 @@ const CALFLAN = (() => {
         a.z = { kind: 'burst', x: m.x, y: m.y, gap: a.gap, gw: a.gw, u: 0, wu: WU, r: 0, hit: false, done: false }; M.waves.push(a.z);
         say(FX, 'burst', 'PRESSURE BURST', 'A ring of steam rolls out: stand in the bright SAFE gap', WARN_HI, 3.0); FX.H.sfx.hum(); if (FX.H.sfx.hiss) FX.H.sfx.hiss(2.4, 0.1, 1500); return; }
       a.u += dt; const z = a.z; z.x = m.x; z.y = m.y; z.u = a.u; M.swell = Math.min(1.3, a.u / WU * 1.3); M.glowK = a.u / WU;
-      if (a.u >= WU && !z.go) { z.go = true; z.r = 1.6; M.swell = 0; M.land = 1.6; M.P.wob = 1.6; FX.H.shake(10, 0.4); FX.H.sfx.crash(); if (FX.H.sfx.hiss) FX.H.sfx.hiss(0.9, 0.3, 2400); }
+      if (a.u >= WU && !z.go) { z.go = true; z.r = 1.6; M.swell = 0; M.land = 1.6; M.P.wob = 1.7; jolt(M, 2.4); FX.H.shake(10, 0.4); FX.H.sfx.crash(); if (FX.H.sfx.hiss) FX.H.sfx.hiss(0.9, 0.3, 2400); }
       if (a.u > WU + 2.4) endAct(FX, m, M, 2.2);
     },
     /* Crystal Rush (phase 3): a straight charge at the active crystal; its path marked early, its wind-up interruptible */
@@ -642,7 +689,7 @@ const CALFLAN = (() => {
         if (a.u >= WU) { a.go = true; a.u = 0; FX.weak('grip', 0, 0, 0, 0, false); a.grip.on = false; FX.H.sfx.crash(); } return; }
       const v = cl(a.u / 0.6), d = a.len * smooth(v); m.x = a.x0 + Math.cos(a.ang) * d; m.y = a.y0 + Math.sin(a.ang) * d; P.lean = 0.8 * Math.sin(Math.PI * v); P.lift = Math.sin(Math.PI * v) * 0.5;
       const me = FX.me; if (!a.hitPet && !me.dodge && Math.hypot(me.x - m.x, me.y - m.y) < 1.7 + me.r) { a.hitPet = true; FX.hurt(m.dmg * 0.9); }
-      if (v >= 1 && !a.hit) { a.hit = true; if (a.tele) a.tele.t = 0; P.lift = 0; M.land = 1.5; P.wob = 1.6; if (!w.broken && Math.hypot(w.x - m.x, w.y - m.y) < 3.4) { M.A.damage(w.i, SMASH, 'rush'); M.stat.smashes++; FX.H.boom(w.x, w.y, 1.5, LAVA, FROST_HI, { n: 16, shake: 10, smoke: 3 }); } FX.H.sfx.thud(); embers(FX, m.x, m.y, 12); }
+      if (v >= 1 && !a.hit) { a.hit = true; if (a.tele) a.tele.t = 0; P.lift = 0; M.land = 1.5; P.wob = 1.6; jolt(M, 2.2); mark(M, m.x, m.y, 1.9, 'scorch'); if (!w.broken && Math.hypot(w.x - m.x, w.y - m.y) < 3.4) { M.A.damage(w.i, SMASH, 'rush'); M.stat.smashes++; FX.H.boom(w.x, w.y, 1.5, LAVA, FROST_HI, { n: 16, shake: 10, smoke: 3 }); } FX.H.sfx.thud(); embers(FX, m.x, m.y, 12); }
       if (a.u > 1.5) { P.lean = 0; endAct(FX, m, M, 2.0); }
     },
   };
@@ -667,20 +714,32 @@ const CALFLAN = (() => {
     }
     // the pose
     M.hd = turnTo(M.hd, M.hdTo == null ? M.hd : M.hdTo, dt, M.act && (M.act.k === 'rush' || M.act.k === 'breaker') ? 3 : 1.6); P.hd = M.hd;
-    P.wt += dt * (M.brittle ? 0.35 : 1 - 0.5 * M.chill); P.wob = decay(P.wob, dt, M.brittle ? 2.4 : 0.9); if (P.wob < 0.12) P.wob = 0.12;
+    P.wt += dt * (M.brittle ? 0.35 : 1 - 0.5 * M.chill); P.wob = decay(P.wob, dt, M.brittle ? 2.4 : 0.55); if (P.wob < 0.14) P.wob = 0.14;
+    // the jelly's weight: a damped spring for its squash (kicked by landings and blows) and one for its lean (it lags, then sways back)
+    const stiff = M.brittle ? 160 : 58 + 40 * M.chill; M.sqv = (M.sqv || 0) + (-stiff * (M.sqz || 0) - (M.brittle ? 9 : 4.2) * (M.sqv || 0)) * dt; M.sqz = clamp((M.sqz || 0) + M.sqv * dt, -0.32, 0.32);
     M.land = decay(M.land, dt, 3.2); M.swell = decay(M.swell, dt, 1.2); M.crouch = decay(M.crouch, dt, 4);
     const hopPh = M.spd > 0.02 ? M.hopPh || 0 : 0, hopK = M.spd > 0.02 ? Math.min(1, M.spd) : 0, hz = hopK * Math.max(0, Math.sin(hopPh * TAU - 0.6));
     const breath = Math.sin(M.bt * 1.7) * 0.025 * (1 - M.chill * 0.8);
-    P.sz = 1 + breath + 0.16 * M.swell + 0.12 * hz - 0.24 * M.land - 0.18 * M.crouch - 0.1 * (M.crouchK || 0) - (hopK ? 0.1 * Math.max(0, -Math.sin(hopPh * TAU - 0.6)) : 0);
-    P.sx = 1 - breath * 0.5 + 0.1 * M.swell - 0.05 * hz + 0.16 * M.land + 0.09 * M.crouch + 0.06 * (M.crouchK || 0);
+    P.sz = 1 + breath + 0.16 * M.swell + 0.12 * hz - 0.24 * M.land - 0.18 * M.crouch - 0.1 * (M.crouchK || 0) - (hopK ? 0.1 * Math.max(0, -Math.sin(hopPh * TAU - 0.6)) : 0) + M.sqz;
+    P.sx = 1 - breath * 0.5 + 0.1 * M.swell - 0.05 * hz + 0.16 * M.land + 0.09 * M.crouch + 0.06 * (M.crouchK || 0) - 0.55 * M.sqz;
     if (!(M.act && (M.act.k === 'slam' || M.act.k === 'rush'))) P.lift = hz * 0.32;
-    if (!(M.act && M.act.k === 'rush')) P.lean = toward(P.lean, M.spd * 0.18, dt, 4);
+    if (!(M.act && M.act.k === 'rush')) { M.lnv = (M.lnv || 0) + ((M.spd * 0.22 - P.lean) * 38 - (M.lnv || 0) * 3.6) * dt; P.lean += M.lnv * dt; }
+    { const tw = angTo(M.phd == null ? M.hd : M.phd, M.hd) / Math.max(dt, 1e-3); M.phd = M.hd; M.sdv = (M.sdv || 0) + ((-clamp(tw, -2, 2) * 0.1 - P.side) * 34 - (M.sdv || 0) * 3.4) * dt; P.side += M.sdv * dt; }
     M.crouchK = decay(M.crouchK, dt, 2);
     P.lobes = toward(P.lobes, lv >= 2 ? 1 + (M.boil || 0) * 0.8 : 0, dt, 1.5); P.lobeT += dt * (1 + (M.boil || 0) * 3) * (1 - 0.8 * M.chill); M.boil = decay(M.boil, dt, 1);
     P.tall = toward(P.tall, lv >= 3 ? 1 : 0, dt, 1.2);
     P.chill = toward(P.chill, M.chill, dt, 6); P.crack = toward(P.crack, M.brittle ? 1 : 0, dt, 5);
     P.shiver = M.chill > 0.05 ? M.chill * (M.brittle ? 1 : 0.6) : (M.shiverK || 0); M.shiverK = decay(M.shiverK, dt, 1);
-    M.glowK = decay(M.glowK, dt, 2); if (!M.act || M.act.k !== 'spit') M.spitK = decay(M.spitK, dt, 4); P.heat = (lv >= 3 ? 1.25 : 1) * (1 - 0.25 * M.chill) + 0.6 * M.glowK + 0.15 * Math.sin(M.bt * 2.3);
+    // its eyes: on what it hunts; narrowed and flaring in a wind-up (most of all before Crystal Breaker and Pressure Burst),
+    // cold, dull and flickering when brittle, hotter in its last phase; they gutter out last when it dies
+    { const a = M.act, k = a && a.k, wind = !!a && ((k === 'slam' && a.u < 1.75) || (k === 'spit' && a.u < 1.0) || (k === 'breaker' && a.phase !== 'smash') || (k === 'sweep' && a.u < 2.1) || (k === 'burst' && !(a.z && a.z.go)) || (k === 'rush' && !a.go) || k === 'shed');
+      const big = wind && (k === 'breaker' || k === 'burst'), flare = big ? 1 : wind ? 0.6 : 0;
+      M.glowK = Math.max(M.glowK, flare * (0.55 + 0.25 * Math.sin(M.bt * 9)));
+      // (they follow the pet, leaning toward the camera so that they read from above: never turned edge-on to the view)
+      const me = FX.me, ap = Math.atan2(me.y - m.y, me.x - m.x), aim = Math.atan2(Math.sin(ap) + 0.9, Math.cos(ap)); P.look = toward(P.look, a && a.w && (k === 'breaker' || k === 'rush') ? clamp(angTo(M.hd, Math.atan2(Math.sin(M.hd) + 0.9, Math.cos(M.hd))), -1.3, 1.3) : clamp(angTo(M.hd, aim), -1.3, 1.3), dt, 5);
+      const kTo = m.act === 'enter' ? smooth(((FX.S.enterT || 0) - 1.4) / 0.8) : M.brittle ? 0.6 + 0.25 * Math.sin(M.bt * 23) * Math.sin(M.bt * 7.7) : (lv >= 3 ? 1.3 : 0.95) + flare * 0.9 + 0.08 * Math.sin(M.bt * 3.1);
+      P.eyeK = M.end ? P.eyeK : toward(P.eyeK, kTo, dt, 8); P.eyeN = toward(P.eyeN, M.brittle ? 0.3 : wind ? (big ? 0.9 : 0.7) : 0.25 + 0.15 * Math.max(0, Math.sin(M.bt * 0.6)), dt, 7); P.eyeCold = toward(P.eyeCold, M.brittle ? 1 : M.chill * 0.5, dt, 4); }
+    M.glowK = decay(M.glowK, dt, 2); if (!M.act || M.act.k !== 'spit') M.spitK = decay(M.spitK, dt, 4); P.heat = (lv >= 3 ? 1.45 : 1.05) * (1 - 0.25 * M.chill) + 0.6 * M.glowK + 0.12 * Math.sin(M.bt * 2.3); P.pulse = M.glowK;
     // the pods ease back when nothing holds them
     if (!M.act || !['breaker', 'sweep'].includes(M.act.k)) P.pods[0].L = decay(P.pods[0].L, dt, 4);
     if (!M.act || M.act.k !== 'spit') P.pods[1].L = decay(P.pods[1].L, dt, 4);
@@ -696,6 +755,11 @@ const CALFLAN = (() => {
       if (Math.random() < dt * (M.brittle ? 1 : 2.5)) embers(FX, m.x + FX.rnd(-1, 1), m.y - 1.5 - Math.random(), 1, M.brittle ? FROST_HI : null);
       if (M.brittle && Math.random() < dt * 4) FX.H.part({ kind: 'snow', x: m.x + FX.rnd(-1.4, 1.4), y: m.y - FX.rnd(0, 2), vx: FX.rnd(-0.4, 0.4), vy: 0.4, drag: 0.2, life: 1.2, max: 1.2, size: 2.5, color: FROST_HI });
     }
+    // molten drips: beads that run off its skin, fall and sizzle on the basalt (none while it is chilled, more in its last phase)
+    if (!M.end && m.act !== 'enter' && M.chill < 0.4 && !lowFx()) { M.dripT -= dt; if (M.dripT <= 0) { M.dripT = (lv >= 3 ? 0.35 : 0.65) + Math.random() * 0.5; const a = Math.random() * TAU, Rw = 1.5 * (P.sx || 1);
+        M.drips.push({ x: m.x + Math.cos(a) * Rw * 0.95, y: m.y + Math.sin(a) * Rw * 0.62, z: 0.35 + Math.random() * 0.9, vz: 0, r: 0.06 + Math.random() * 0.05 }); } }
+    for (let i = M.drips.length - 1; i >= 0; i--) { const d = M.drips[i]; d.vz -= 9.8 * dt; d.z += d.vz * dt; if (d.z <= 0) { M.drips.splice(i, 1); mark(M, d.x, d.y, 0.32, 'drip'); if (!lowFx()) FX.H.part({ kind: 'steam', x: d.x, y: d.y - 0.1, vx: 0, vy: -0.9, drag: 0.6, life: 0.7, max: 0.7, size: 4 }); if (FX.H.sfx.hiss && Math.random() < 0.25) FX.H.sfx.hiss(0.18, 0.04, 2400); } }
+    for (let i = M.marks.length - 1; i >= 0; i--) { const k = M.marks[i]; k.t += dt; if (k.t >= k.life) M.marks.splice(i, 1); }
     // the globs in flight, the hot patches they leave
     for (let i = M.globs.length - 1; i >= 0; i--) { const G = M.globs[i]; G.t += dt; if (G.t >= G.fl) { M.globs.splice(i, 1); if (G.tl) G.tl.t = 0; landGlob(FX, m, M, G); } }
     // the burst's waves
@@ -704,7 +768,7 @@ const CALFLAN = (() => {
         if (z.r > AR + 3) M.waves.splice(i, 1); } else if (!M.act || M.act.z !== z) M.waves.splice(i, 1); }
     M.adds = M.adds.filter(a => !a.dead);
     // death: the shell slumps into a glowing puddle and black glass, cooling
-    if (M.end) { const E = M.end; E.t += dt; P.die = smooth(E.t / 2.2); P.cool = smooth((E.t - 1.4) / 3.2); P.heat = 1.1 * (1 - 0.8 * P.cool); P.wob = Math.max(P.wob, 1.2 * (1 - P.die)); P.chill = toward(P.chill, 0, dt, 2); P.crack = toward(P.crack, 0, dt, 2); P.lobes = toward(P.lobes, 0, dt, 2); P.pods[0].L = 0; P.pods[1].L = 0; P.sx = 1; P.sz = 1; P.lift = 0;
+    if (M.end) { const E = M.end; E.t += dt; P.die = smooth(E.t / 2.2); P.eyeCold = toward(P.eyeCold, 0.4, dt, 1); P.eyeK = E.t < 2.4 ? 1.1 + 0.25 * Math.sin(E.t * 30) : Math.max(0, (1 - (E.t - 2.4) / 1.6) * (0.6 + 0.4 * Math.sin(E.t * 41) * Math.sin(E.t * 13))); P.cool = smooth((E.t - 1.4) / 3.2); P.heat = 1.1 * (1 - 0.8 * P.cool); P.wob = Math.max(P.wob, 1.2 * (1 - P.die)); P.chill = toward(P.chill, 0, dt, 2); P.crack = toward(P.crack, 0, dt, 2); P.lobes = toward(P.lobes, 0, dt, 2); P.pods[0].L = 0; P.pods[1].L = 0; P.sx = 1; P.sz = 1; P.lift = 0;
       if (E.t < 2.2 && Math.random() < dt * 12) embers(FX, m.x + FX.rnd(-2, 2), m.y + FX.rnd(-0.6, 0.8), 1); if (E.t > 1 && E.t < 4 && Math.random() < dt * 6) FX.H.part({ kind: 'steam', x: m.x + FX.rnd(-2.2, 2.2), y: m.y + FX.rnd(-0.5, 0.6), vx: 0, vy: -1.2, drag: 0.5, life: 1.2, max: 1.2, size: 7 }); }
   }
   function landGlob(FX, m, M, G) {
@@ -718,11 +782,37 @@ const CALFLAN = (() => {
     c.strokeStyle = rgba(WARN, 0.7); c.lineWidth = Math.max(1.5, T * 0.06); c.setLineDash([T * 0.2, T * 0.14]); c.beginPath(); c.ellipse(X, Y, r * 1.05, r * 0.88, 0, 0, TAU); c.stroke(); c.setLineDash([]);
     glowAt(c, X, Y, r * 1.6, LAVA, 0.35 * f); c.restore(); }
 
+  /* the floor's memory of it: a wet amber sheen where it hopped, a scorch with a cooling glowing edge where it slammed, spots where drips fell */
+  function drawMarks(c, FX, M, T, t) { if (!M.marks.length) return; c.save();
+    for (const k of M.marks) { const X = FX.sx(k.x), Y = FX.sy(k.y), r = k.r * T, f = Math.min(1, k.t / 0.15) * (1 - k.t / k.life), u = k.t / k.life;
+      if (k.kind === 'scorch') { c.globalAlpha = 0.55 * f; c.fillStyle = '#0A0605'; c.beginPath(); for (let i = 0; i < 12; i++) { const a = k.a + i / 12 * TAU, rr = r * (0.8 + 0.2 * Math.sin(i * 2.7 + k.a * 3)); c.lineTo(X + Math.cos(a) * rr, Y + Math.sin(a) * rr * 0.6); } c.closePath(); c.fill();
+        c.globalAlpha = f * (1 - u) * 0.9; c.strokeStyle = LAVA; c.lineWidth = Math.max(1, T * 0.05); c.stroke(); glowAt(c, X, Y, r * 0.9, '#FF5A14', 0.3 * f * (1 - u)); }
+      else if (k.kind === 'wet') { c.globalAlpha = 0.3 * f; const g = c.createRadialGradient(X, Y, 0, X, Y, r); g.addColorStop(0, 'rgba(255,150,60,.55)'); g.addColorStop(0.7, 'rgba(160,50,10,.35)'); g.addColorStop(1, 'rgba(60,20,8,0)'); c.fillStyle = g; c.beginPath(); c.ellipse(X, Y, r, r * 0.6, 0, 0, TAU); c.fill(); }
+      else { c.globalAlpha = 0.6 * f; c.fillStyle = '#140806'; c.beginPath(); c.ellipse(X, Y, r * 0.5, r * 0.3, 0, 0, TAU); c.fill(); glowAt(c, X, Y, r * 0.6, LAVA, 0.5 * f * (1 - u)); } }
+    c.restore(); }
+  /* round the pit (never over its floor): the lava moat breathing and flowing, the lavafalls pouring down the far walls */
+  const FALLS = [-2.6, -2.15, -1.78, -1.38, -0.98, -0.55];
+  function drawRim(c, FX, t, T) { const C = FX.C, X0 = FX.sx(C.x), Y0 = FX.sy(C.y), R = C.R * T, cv = c.canvas, m0 = c.getTransform(), W = cv.width / (m0.a || 1), H = cv.height / (m0.d || 1), sx0 = -m0.e / (m0.a || 1), sy0 = -m0.f / (m0.d || 1), calm = FX.mem && FX.mem.end ? 0.5 : 1;
+    if (X0 + R + T * 2 < sx0 || X0 - R - T * 2 > sx0 + W || Y0 + R + T * 2 < sy0 || Y0 - R - T * 2 > sy0 + H) return;
+    c.save(); c.beginPath(); c.rect(sx0 - 10, sy0 - 10, W + 20, H + 20); c.arc(X0, Y0, R - 2, 0, TAU, true); c.clip('evenodd'); c.globalCompositeOperation = 'lighter';
+    const pul = 0.5 + 0.5 * Math.sin(t * 1.3); c.strokeStyle = `rgba(255,110,30,${(0.14 + 0.1 * pul) * calm})`; c.lineWidth = T * 0.9; c.beginPath(); c.arc(X0, Y0, R + T * 0.8, 0, TAU); c.stroke();
+    if (!lowFx()) { c.lineWidth = Math.max(1, T * 0.08); for (let i = 0; i < 3; i++) { const a = t * 0.07 * (i + 1) * (i % 2 ? -1 : 1) + i * 2; c.strokeStyle = `rgba(255,200,90,${0.18 * calm})`; c.beginPath(); c.arc(X0, Y0, R + T * (0.5 + i * 0.35), a, a + 1.1); c.stroke(); } }
+    for (let i = 0; i < FALLS.length; i++) { const a = FALLS[i], bx = X0 + Math.cos(a) * (R + T * 1.2), by = Y0 + Math.sin(a) * (R + T * 1.2); const top = Math.min(sy0 - 10, by - T * 30), w = T * (0.5 + 0.22 * (i % 3)); if (bx < sx0 - w * 3 || bx > sx0 + W + w * 3 || by < sy0 - 20) continue;
+      for (const [kw, al, col] of [[1.8, 0.16, '255,70,15'], [1.0, 0.35, '255,120,30'], [0.4, 0.7, '255,215,140']]) { const g = c.createLinearGradient(0, top, 0, by); g.addColorStop(0, `rgba(${col},${al * 0.4 * calm})`); g.addColorStop(1, `rgba(${col},${al * calm})`); c.fillStyle = g; const ww = w * kw, sw = Math.sin(t * 1.4 + i * 2) * w * 0.1; c.fillRect(bx - ww / 2 + sw, top, ww, by - top); }
+      glowAt(c, bx, by, w * 4, '#FF6A1E', 0.4 * calm); }
+    c.restore(); }
+
   /* ---- the drawing of the flan itself: its shadow and light on the floor, the model, the interrupt point ---- */
   function drawFlan(c, FX, m, T, t) {
     const M = FX.mem; if (!M || !M.P) return; const P = M.P, o = M.drawO || (M.drawO = { T, sx: FX.sx, sy: FX.sy, t, I: M.I }); o.T = T; o.t = t; o.sx = FX.sx; o.sy = FX.sy;
     MODEL.drawShadow(c, m.x, m.y, P, o);
+    const drip = d => { const X = FX.sx(d.x), Y = FX.sy(d.y) - d.z * T * 0.7, r = Math.max(1.5, d.r * T); glowAt(c, X, Y, r * 3.2, LAVA, 0.4); c.fillStyle = '#FFB347'; c.beginPath(); c.ellipse(X, Y - r * 0.4, r * 0.7, r * 1.25, 0, 0, TAU); c.fill(); c.fillStyle = '#FFF2C0'; c.beginPath(); c.arc(X - r * 0.2, Y - r * 0.7, r * 0.3, 0, TAU); c.fill(); };
+    for (const d of M.drips || []) if (d.y < m.y) drip(d);
     MODEL.draw(c, m.x, m.y, 0, P.hd, P, o);
+    for (const d of M.drips || []) if (d.y >= m.y) drip(d);
+    // the heat shimmering over it: faint wavering streaks of warm air
+    if (!lowFx() && !(P.die > 0.5)) { const X = FX.sx(m.x), Y = FX.sy(m.y) - T * (1.6 + 0.5 * (P.tall || 0)) * (P.sz || 1), hk = (P.heat == null ? 1 : P.heat) * (1 - (P.chill || 0));
+      if (hk > 0.1) { c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; for (let i = 0; i < 5; i++) { const x0 = X + (i - 2) * T * 0.38, ph = t * 2.2 + i * 1.7; c.strokeStyle = `rgba(255,190,130,${0.03 * hk})`; c.lineWidth = T * 0.22; c.beginPath(); for (let k = 0; k <= 8; k++) { const y = Y - k * T * 0.24, x = x0 + Math.sin(ph + k * 0.9) * T * 0.12 * (1 + k * 0.08); k ? c.lineTo(x, y) : c.moveTo(x, y); } c.stroke(); } c.restore(); } }
     // the heat it gives off: a soft light over its core (cooler and paler when chilled)
     const L = MODEL.LAST; if (L && L.R) { const q = L.V.toS(L.R.core), heat = P.heat == null ? 1 : P.heat, ch = P.chill || 0;
       glowAt(c, q[0], q[1], T * (1.2 + 0.5 * (P.tall || 0)) * (1 - 0.4 * (P.die || 0)), ch > 0.5 ? '#FFC890' : '#FF8A2A', (0.22 + 0.08 * Math.sin(t * 2.7)) * heat * (1 - 0.35 * ch));
@@ -781,7 +871,7 @@ const CALFLAN = (() => {
   function paintPit(c, A2) {
     const R = A2.R, rnd = A2.rnd;
     // (the caldera's shared platform when the core has it; the wells' frost is ours, laid over it)
-    if (typeof CAL !== 'undefined' && CAL.paintPlatform) { CAL.paintPlatform(c, R, rnd, { seams: 0.6 }); paintFrostMarks(c, rnd); return; }
+    if (typeof CAL !== 'undefined' && CAL.paintPlatform) { paintMoat(c, R, rnd); CAL.paintPlatform(c, R, rnd, { seams: 0.95 }); paintFrostMarks(c, rnd); return; }
     // the basalt disc: the tops of countless hexagonal columns, cooled and fitted tight, soot in the joints
     let g = c.createRadialGradient(0, 0, R * 0.1, 0, 0, R + 1.6); g.addColorStop(0, '#34302F'); g.addColorStop(0.65, '#2A2628'); g.addColorStop(0.9, '#1C191B'); g.addColorStop(1, 'rgba(20,16,18,0)'); c.fillStyle = g; c.beginPath(); c.arc(0, 0, R + 1.6, 0, TAU); c.fill();
     const hx = 0.74, hy = hx * Math.sqrt(3) / 2;
@@ -805,6 +895,9 @@ const CALFLAN = (() => {
     c.strokeStyle = '#141113'; c.lineWidth = 0.7; c.beginPath(); c.arc(0, 0, R - 0.05, 0, TAU); c.stroke(); c.strokeStyle = '#4A4446'; c.lineWidth = 0.18; c.beginPath(); c.arc(0, 0, R - 0.25, 0, TAU); c.stroke();
     c.strokeStyle = 'rgba(255,100,30,.5)'; c.lineWidth = 0.7; c.beginPath(); c.arc(0, 0, R + 0.75, 0, TAU); c.stroke(); c.strokeStyle = 'rgba(255,220,140,.55)'; c.lineWidth = 0.14; c.stroke();
   }
+  // the lava round the pit: a molten moat with dark crust floating on it
+  function paintMoat(c, R, rnd) { const g = c.createRadialGradient(0, 0, R - 0.4, 0, 0, R + 1.6); g.addColorStop(0, '#FF8A2A'); g.addColorStop(0.35, '#E04A10'); g.addColorStop(0.75, '#7A1A06'); g.addColorStop(1, 'rgba(42,10,4,0)'); c.fillStyle = g; c.beginPath(); c.arc(0, 0, R + 1.6, 0, TAU); c.fill();
+    for (let i = 0; i < 60; i++) { const a = rnd() * TAU, d = R + 0.35 + rnd() * 1.0, s2 = 0.18 + rnd() * 0.4; c.fillStyle = `rgba(30,10,6,${0.45 + rnd() * 0.4})`; c.beginPath(); for (let k = 0; k < 5; k++) { const b = k / 5 * TAU + rnd() * 0.5, rr = s2 * (0.6 + rnd() * 0.5); const px = Math.cos(a) * d + Math.cos(b) * rr, py = Math.sin(a) * d + Math.sin(b) * rr; k ? c.lineTo(px, py) : c.moveTo(px, py); } c.closePath(); c.fill(); } }
   // the frost the wells breathe onto the floor: rime fanning out round each, and the cooling zone's engraved ring
   function paintFrostMarks(c, rnd) {
     for (let i = 0; i < 3; i++) { const w = wellGeo({ x: 0, y: 0 }, i);
