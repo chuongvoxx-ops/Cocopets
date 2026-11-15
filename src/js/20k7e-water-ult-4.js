@@ -237,15 +237,16 @@
   const NJF = 8;
   const bellFr = (v, fi) => fxSprite('wu4bell|' + v + '|' + fi, 128, 120, (g, w, h) => {
     const c = 0.5 - 0.5 * Math.cos(fi / NJF * TAU), cx = w / 2, by = h * 0.66, rx = w * 0.42 * (1 - 0.16 * c), ry = h * 0.5 * (1 + 0.12 * c), pinch = 0.12 * c;
-    const A = v ? ['rgba(190,170,255,', 'rgba(140,120,240,', '#E0D4FF'] : ['rgba(160,248,255,', 'rgba(63,214,224,', '#CFF6FF'];
+    const A = v ? ['rgba(120,170,255,', 'rgba(22,60,150,', '#CFE0FF'] : ['rgba(95,232,255,', 'rgba(22,80,150,', '#CFF6FF'];   // (v365: the starry dark water of Shiny Aqua Illusion)
     const dome = () => { g.beginPath(); g.moveTo(cx - rx, by); g.bezierCurveTo(cx - rx * 1.02, by - ry * 1.05, cx + rx * 1.02, by - ry * 1.05, cx + rx, by); const n = 8; for (let i = 0; i <= n; i++) { const u = i / n, xx = cx + rx - 2 * rx * u, yy = by + (i % 2 ? 5 : 1) * (1 + c) - Math.sin(u * Math.PI) * h * pinch; g.lineTo(xx + Math.sin(u * Math.PI * 2) * rx * pinch * 0.5, yy); } g.closePath(); };
-    const gr = g.createRadialGradient(cx - rx * 0.2, by - ry * 0.75, 2, cx, by - ry * 0.3, rx * 1.2); gr.addColorStop(0, A[0] + '0.75)'); gr.addColorStop(0.4, A[1] + '0.42)'); gr.addColorStop(0.85, 'rgba(26,79,176,0.3)'); gr.addColorStop(1, 'rgba(26,79,176,0.2)');
+    const gr = g.createRadialGradient(cx - rx * 0.2, by - ry * 0.75, 2, cx, by - ry * 0.3, rx * 1.2); gr.addColorStop(0, A[0] + '0.55)'); gr.addColorStop(0.3, A[1] + '0.7)'); gr.addColorStop(0.62, 'rgba(12,36,96,0.78)'); gr.addColorStop(0.88, 'rgba(7,18,58,0.72)'); gr.addColorStop(1, 'rgba(4,9,34,0.6)');
     dome(); g.fillStyle = gr; g.fill();
     g.save(); dome(); g.clip(); g.globalCompositeOperation = 'lighter';
     // the aurora band sweeping across the bell
-    for (const [col, off] of [['rgba(255,150,220,0.22)', 0], ['rgba(140,255,200,0.2)', 0.33], ['rgba(170,150,255,0.22)', 0.66]]) { const yy = by - ry * (0.25 + 0.6 * ((fi / NJF + off) % 1)); g.strokeStyle = col; g.lineWidth = 7; g.beginPath(); g.moveTo(cx - rx, yy + 6); g.quadraticCurveTo(cx, yy - 10, cx + rx, yy + 6); g.stroke(); }
+    for (let i = 0; i < 9; i++) { const sx2 = cx + (R1(i * 3.7 + v) - 0.5) * rx * 1.5, sy2 = by - ry * (0.15 + 0.7 * R1(i * 5.3 + v)), tw = 0.5 + 0.5 * Math.sin(fi / NJF * TAU + i * 1.7); g.fillStyle = `rgba(232,251,255,${(0.35 + 0.55 * tw).toFixed(2)})`; g.beginPath(); g.arc(sx2, sy2, 0.8 + 1.1 * R1(i * 9.1), 0, TAU); g.fill(); }   // (stars in the dark water)
+    for (const [col, off] of [['rgba(95,232,255,0.18)', 0], ['rgba(63,208,224,0.16)', 0.33], ['rgba(120,170,255,0.18)', 0.66]]) { const yy = by - ry * (0.25 + 0.6 * ((fi / NJF + off) % 1)); g.strokeStyle = col; g.lineWidth = 7; g.beginPath(); g.moveTo(cx - rx, yy + 6); g.quadraticCurveTo(cx, yy - 10, cx + rx, yy + 6); g.stroke(); }
     // the inner light: a four-lobed glowing core
-    g.globalAlpha = 0.85; for (let i = 0; i < 4; i++) { const b = i / 4 * TAU + 0.4, ox = Math.cos(b) * rx * 0.2, oy = Math.sin(b) * ry * 0.1; g.drawImage(glowSprite(v ? '#C8B8FF' : W.aqua), cx + ox - rx * 0.28, by - ry * 0.45 + oy - rx * 0.2, rx * 0.56, rx * 0.4); }
+    g.globalAlpha = 0.85; for (let i = 0; i < 4; i++) { const b = i / 4 * TAU + 0.4, ox = Math.cos(b) * rx * 0.2, oy = Math.sin(b) * ry * 0.1; g.drawImage(glowSprite(v ? '#7FA8FF' : W.aqua), cx + ox - rx * 0.28, by - ry * 0.45 + oy - rx * 0.2, rx * 0.56, rx * 0.4); }
     g.globalAlpha = 1; g.fillStyle = 'rgba(255,255,255,0.75)'; g.beginPath(); g.ellipse(cx - rx * 0.32, by - ry * 0.68, rx * 0.16, ry * 0.08, -0.5, 0, TAU); g.fill(); g.restore();
     dome(); g.lineJoin = 'round'; g.strokeStyle = A[0] + '0.9)'; g.lineWidth = 2.2; g.stroke(); g.strokeStyle = 'rgba(255,255,255,0.7)'; g.lineWidth = 0.9; g.stroke(); });
   U.jellyfish = (C, h) => {
@@ -275,7 +276,7 @@
           // bubbles and glowing motes rising from it
           if (Math.random() < (j.big ? 5 : 3) * dt * H.Q()) { const b = Math.random() * TAU; H.P({ kind: Math.random() < 0.5 ? 'bubble' : 'ember', x: j.x + Math.cos(b) * 0.4 * j.sc, y: j.y - j.z + Math.sin(b) * 0.2, vx: (Math.random() - 0.5) * 0.4, vy: -0.8 - Math.random() * 0.6, g: 0, drag: 0.4, life: 1, max: 1, size: 1.4 + Math.random() * 1.6, color: Math.random() < 0.5 ? W.pale : j.v ? '#C8B8FF' : W.aqua }); } }
       },
-      drawUnder(c, f, X, Y, T) { const tt = f.t; for (const j of J) { const a = cl((tt - j.t0) / 0.8) * (1 - cl((tt - D) / 1)); if (a <= 0.01) continue; const SX = H.sx(j.x), SY = H.sy(j.y), lk = cl(1 - (tt - j.lash) / 0.4); K.floorLight(c, SX, SY, T * 1.4 * j.sc * (1 + 0.4 * lk), (0.3 + 0.3 * lk) * a, j.v ? '#B8A8FF' : W.turq); } },
+      drawUnder(c, f, X, Y, T) { const tt = f.t; for (const j of J) { const a = cl((tt - j.t0) / 0.8) * (1 - cl((tt - D) / 1)); if (a <= 0.01) continue; const SX = H.sx(j.x), SY = H.sy(j.y), lk = cl(1 - (tt - j.lash) / 0.4); K.floorLight(c, SX, SY, T * 1.4 * j.sc * (1 + 0.4 * lk), (0.3 + 0.3 * lk) * a, j.v ? '#2A5FC8' : '#1A4FB0'); } },
       draw(c, f, X, Y, T) {
         const tt = f.t, PX = H.sx(me.x), PY = H.sy(me.y) - T * 0.46, order = J.slice().sort((p, q) => p.y - q.y);
         for (const j of order) { if (tt < j.t0) continue; const age = tt - j.t0, a = cl(age / 0.8) * (1 - cl((tt - D) / 1)); if (a <= 0.01) continue;
@@ -288,16 +289,16 @@
           for (let k = 0; k < NT; k++) { const ribbon = k < NT - 2, off = (k / (NT - 1) - 0.5) * S * 0.62, pts = []; const N = 8, segL = S * (ribbon ? 0.16 : 0.22);
             for (let i = 0; i <= N; i++) { const hp = hist[Math.min(hist.length - 1, Math.floor(i * 1.4))] || [j.x, j.y, j.z], lagX = (H.sx(hp[0]) - H.sx(j.x)), lagY = (H.sy(hp[1]) - H.sy(j.y)), u = i / N, sw = Math.sin(tt * 3 + i * 0.7 + k * 1.3) * S * 0.05 * u;
               let px2 = SX + off * (1 - 0.3 * u) + lagX * u + sw, py2 = SY + S * 0.06 + i * segL + lagY * u * 0.5; if (lk > 0) { px2 += (MX - px2) * lk * u * u * 0.7; py2 += (MY - py2) * lk * u * u * 0.5; } pts.push([px2, py2]); }
-            if (WK.on() && ribbon) WK.api.stream(c, pts.filter((p, i) => !(i & 1)), S * 0.035, a * 0.7, { taper: -0.6, flow: -3, seed: j.i * 3 + k, col: j.v ? '#7A6AE0' : '#2A9FD0', dens: 0.5, lite: 0.7 });   /* (v361: tentacles of flowing water) */
-            c.globalAlpha = a * (ribbon ? 0.55 : 0.4); c.strokeStyle = j.v ? 'rgba(150,130,240,0.7)' : 'rgba(63,214,224,0.7)'; c.lineWidth = Math.max(1, S * (ribbon ? 0.07 : 0.025)); c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.stroke();
+            if (WK.on() && ribbon) WK.api.stream(c, pts.filter((p, i) => !(i & 1)), S * 0.035, a * 0.7, { taper: -0.6, flow: -3, seed: j.i * 3 + k, col: j.v ? '#16306E' : '#123A8C', dens: 0.6, lite: 0.8 });   /* (v361: tentacles of flowing water) */
+            c.globalAlpha = a * (ribbon ? 0.55 : 0.4); c.strokeStyle = j.v ? 'rgba(40,80,190,0.75)' : 'rgba(22,80,150,0.8)'; c.lineWidth = Math.max(1, S * (ribbon ? 0.07 : 0.025)); c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.stroke();
             c.globalAlpha = a * 0.8; c.strokeStyle = 'rgba(230,250,255,0.8)'; c.lineWidth = 0.9; c.stroke();
             // little electric sparks along a lashing tentacle
             if (lk > 0.2 && k % 2 === 0) { const p = pts[N]; c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = lk; c.strokeStyle = '#FFFFFF'; c.lineWidth = 1.2; c.beginPath(); c.moveTo(p[0], p[1]); for (let q = 1; q <= 3; q++) c.lineTo(p[0] + (MX - p[0]) * q / 3 + (R1(q + tt * 37) - 0.5) * T * 0.3, p[1] + (MY - p[1]) * q / 3 + (R1(q * 3 + tt * 41) - 0.5) * T * 0.3); c.stroke(); glow(c, p[0], p[1], T * 0.35, W.aqua, lk * 0.7); c.restore(); } }
           // the bell, its glow and an aurora shimmer
-          c.globalAlpha = 1; glow(c, SX, SY - S * 0.18, S * 0.9, j.v ? '#B8A8FF' : W.aqua, (0.35 + 0.25 * lk + 0.1 * Math.sin(tt * 4 + j.i)) * a);
+          c.globalAlpha = 1; glow(c, SX, SY - S * 0.18, S * 0.9, j.v ? '#2A5FC8' : '#1A4FB0', (0.25 + 0.25 * lk + 0.08 * Math.sin(tt * 4 + j.i)) * a);
           c.save(); c.translate(SX, SY); c.rotate(tilt); c.globalAlpha = a; c.drawImage(bellFr(j.v, fi), -S / 2, -S * 0.66 * 120 / 128, S, S * 120 / 128); c.restore();
-          if (WK.on()) { const G = WK.api, p = G.xy(c, SX, SY - S * 0.3), Q = G.gq(), pu = 1 + 0.06 * Math.sin(pp * TAU); Q.quad(26, p[0], p[1], S * 0.44 * pu * p[3], 0, 0, S * 0.34 / pu * p[3], j.v ? '#B8A8FF' : W.aqua, a * 0.9, 0.9, j.i * 2.7, 1); Q.glow(p[0], p[1] + S * 0.05, S * 0.5, j.v ? '#B8A8FF' : W.turq, 0.25 * a); }   /* (v361: caustic light rippling through the bell, its rim glowing) */
-          glow(c, SX + Math.sin(tt * 1.3 + j.i) * S * 0.2, SY - S * 0.3, S * 0.4, (Math.floor(tt * 0.7 + j.i) & 1) ? '#FFB0E8' : '#9CFFD6', 0.18 * a);
+          if (WK.on()) { const G = WK.api, p = G.xy(c, SX, SY - S * 0.3), Q = G.gq(), pu = 1 + 0.06 * Math.sin(pp * TAU); Q.quad(26, p[0], p[1], S * 0.44 * pu * p[3], 0, 0, S * 0.34 / pu * p[3], j.v ? '#7FA8FF' : W.aqua, a * 0.55, 0.9, j.i * 2.7, 1); Q.glow(p[0], p[1] + S * 0.05, S * 0.5, '#123A8C', 0.25 * a); }   /* (v361: caustic light rippling through the bell, its rim glowing) */
+          glow(c, SX + Math.sin(tt * 1.3 + j.i) * S * 0.2, SY - S * 0.3, S * 0.4, (Math.floor(tt * 0.7 + j.i) & 1) ? '#5FE8FF' : '#9FC8FF', 0.18 * a);
           c.restore(); }
       } });
   };

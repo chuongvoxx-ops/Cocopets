@@ -27,6 +27,15 @@
     c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round';
     for (const [col, k, aa] of [[W.turq, 1, 0.32], [W.aqua, 0.5, 0.6], [W.white, 0.14, 0.55]]) { c.strokeStyle = col; for (let i = 1; i < pts.length; i++) { const u = i / (pts.length - 1), tw = sym ? 0.2 + 0.8 * Math.sin(Math.PI * u) : 0.15 + 0.85 * u; c.globalAlpha = Math.min(1, a * aa * (sym ? 1 : 0.4 + 0.6 * u)); c.lineWidth = Math.max(0.6, w * k * tw); c.beginPath(); c.moveTo(pts[i - 1][0], pts[i - 1][1]); c.lineTo(pts[i][0], pts[i][1]); c.stroke(); } }
     c.restore(); }
+  /* (v365) a thin trail of water energy through screen points (oldest first): a turbulent cyan energy thread with a bright
+     core, fading toward its tail, bubbles and droplets trailing behind it. False without the GPU */
+  function energyTrail(c, pts, T, a, sd, t) { if (!WK.on() || pts.length < 2 || !(a > 0.01)) return false; const G = WK.api, Q = G.gq(), n = pts.length, P = pts.map(p => G.xy(c, p[0], p[1]));
+    for (let i = 1; i < n; i++) { const u = i / (n - 1), p0 = P[i - 1], p1 = P[i], dx = p1[0] - p0[0], dy = p1[1] - p0[1], w = T * 0.075 * (0.3 + 0.7 * u);
+      Q.ebeam(p0[0] - dx * 0.3, p0[1] - dy * 0.3, p1[0] + dx * 0.3, p1[1] + dy * 0.3, w * 2.2, '#2E7BE6', 0.55, 0.45 * a * u, sd + i * 0.7, 10);
+      Q.ebeam(p0[0] - dx * 0.3, p0[1] - dy * 0.3, p1[0] + dx * 0.3, p1[1] + dy * 0.3, w, '#5FE8FF', 0.82, 0.9 * a * u, sd + i * 1.3, 16); }
+    for (let i = 0; i < n - 1; i += 3) { const u = i / (n - 1), p = pts[i]; G.bubbles(c, p[0], p[1] - T * 0.08 * (1 - u), T * (0.2 + 0.25 * (1 - u)), T * (0.2 + 0.3 * (1 - u)), 0.75 * a * (0.3 + 0.7 * u), { seed: sd + i * 1.7, rise: 1.2 }); }
+    for (let i = 0; i < 4; i++) { const v = (t * 1.4 + i * 0.25 + sd * 0.1) % 1, k = Math.min(n - 1, Math.floor((1 - v) * (n - 1))), p = pts[k]; G.sphere(c, p[0] + Math.sin(i * 2.3 + t * 3) * T * 0.12, p[1] - v * T * 0.4, T * 0.035, a * (1 - v), { col: '#2E9BE6', seed: i + sd, halo: 1.6, dens: 0.5 }); }
+    return true; }
   /* spray, droplets, a glint and the light of a splash (particles, world units) */
   function splashP(x, y, r, k) { H.burst(x, y - 0.3, 'spark', Math.round(8 * k), { v: 3 + 2 * r, up: 3, g: 9, life: 0.6, size: 2.3, color: [W.white, W.aqua, W.foam, W.turq] }); H.burst(x, y - 0.2, 'ember', Math.round(5 * k), { v: 2.5, up: 1.5, g: 4, life: 0.7, size: 2, color: [W.aqua, W.foam] }); H.glowAt(x, y - 0.3, r * 1.2, 0.35, W.aqua, 0.6); H.X.light(x, y, r * 2, 0.35); }
   /* a crown splash: a ring of water racing over the floor and spouts rising and falling round it (kept off the pet) */
@@ -104,7 +113,7 @@
             const dir = Math.atan2(Math.cos(b.th) * H.GY, -Math.sin(b.th)), bank = 0.55 + 0.45 * Math.abs(Math.cos(b.th));
             cres(c, X, Y - b.z * T - sz * 0.25, dir, sz * (0.5 + 0.5 * b.rise), (0.45 + 0.55 * b.rise) * bank, b.rise * (sn < 0 ? 0.8 : 1), Math.sin(t * 7 + b.i), cel ? (t * 0.8 + b.i * 0.17) % 1 : 0); continue; }
           if (under) continue;
-          const ra = b.st === 1 ? 0.8 : cl(1 - (t - b.t1) / RL); if (b.tr.length > 1 && ra > 0) rib(c, b.tr.map((p, q) => [H.sx(p[0]), H.sy(p[1]) - p[2] * T - sz * 0.25 + (b.st === 2 ? Math.sin(t * 3 + q * 0.4) * T * 0.07 : 0)]), T * 0.3, ra * fa, true);
+          const ra = b.st === 1 ? 0.8 : cl(1 - (t - b.t1) / RL); if (b.tr.length > 1 && ra > 0) { const tp = b.tr.map((p, q) => [H.sx(p[0]), H.sy(p[1]) - p[2] * T - sz * 0.25 + (b.st === 2 ? Math.sin(t * 3 + q * 0.4) * T * 0.07 : 0)]); if (!energyTrail(c, tp, T, ra * fa, b.i * 3.1, t)) rib(c, tp, T * 0.3, ra * fa, true); }
           const X = H.sx(b.x), Y = H.sy(b.y) - b.z * T - sz * 0.25, an = Math.atan2(Math.sin(b.ang) * 0.8, Math.cos(b.ang));
           if (b.st === 1) cres(c, X, Y, an, sz, 1, fa, Math.sin(t * 9 + b.i), cel ? (t * 1.5 + b.i * 0.2) % 1 : 0);
           else { const u = cl((t - b.t1) / 0.35); if (u < 1) { c.save(); c.translate(X, Y); c.scale(1 + 0.8 * u, 1); cres(c, 0, 0, an, sz, 1 - 0.7 * u, (1 - u) * fa, 0, 0); c.restore(); c.save(); c.globalCompositeOperation = 'lighter'; glow(c, X, Y, sz * (0.5 + 0.6 * u), W.foam, 0.35 * (1 - u) * fa); c.restore(); } }

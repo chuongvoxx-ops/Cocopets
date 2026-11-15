@@ -463,19 +463,19 @@
     H.X.banner('HEAVENFALL', '', C.col, 1.6); H.X.sfx.hum();
     /* where the waterfalls land: on the monsters near the aim; at Celestial an arc across the target area (each source
        drawn toward a monster near it), the middle rings highest */
-    const live = H.living().filter(m => Math.hypot(m.x - tx, m.y - ty) < 4.6 * C.K + m.r).sort((p, q) => Math.hypot(p.x - tx, p.y - ty) - Math.hypot(q.x - tx, q.y - ty)), used = new Set(), src = [];
-    for (let i = 0; i < N; i++) { let x, y, Z = Z0;
-      if (N >= 5) { const u = i - (N - 1) / 2, un = u / ((N - 1) / 2); x = tx + pa * u * 1.75 + ca * (0.6 * un * un - 0.3); y = ty + pb * u * 1.75 + sa * (0.6 * un * un - 0.3); Z = Z0 + 1.1 * (1 - un * un);
-        const m = live.filter(q => !used.has(q)).sort((p, q) => Math.hypot(p.x - x, p.y - y) - Math.hypot(q.x - x, q.y - y))[0]; if (m && Math.hypot(m.x - x, m.y - y) < 2.4) { used.add(m); x = x * 0.15 + m.x * 0.85; y = y * 0.15 + m.y * 0.85; } }
-      else if (live[i]) { x = live[i].x; y = live[i].y; } else { const b = a + i * TAU / N + 0.5; x = tx + Math.cos(b) * 1.5; y = ty + Math.sin(b) * 1.5; }
-      const dp = Math.hypot(x - me.x, y - me.y); if (dp < 1.7) { const k = 1.7 / Math.max(0.05, dp); x = me.x + (x - me.x) * k; y = me.y + (y - me.y) * k; }
+    const live = H.living().filter(m => Math.hypot(m.x - me.x, m.y - me.y) < 6 * C.K + m.r).sort((p, q) => Math.hypot(p.x - tx, p.y - ty) - Math.hypot(q.x - tx, q.y - ty)), used = new Set(), src = [];
+    /* (v365) the waterfalls stand in a wide circle round the pet, each drawn a little toward a monster near its place */
+    const CX = me.x, CY = me.y, RC = 2.7 + 0.35 * lvl;
+    for (let i = 0; i < N; i++) { let Z = Z0 + (N >= 5 ? 0.6 * (i % 2) : 0); const b = a + i * TAU / N; let x = CX + Math.cos(b) * RC, y = CY + Math.sin(b) * RC * 0.9; { const q = H.walk(x, y); x = q.x; y = q.y; }
+      const m = live.filter(q => !used.has(q)).sort((p, q) => Math.hypot(p.x - x, p.y - y) - Math.hypot(q.x - x, q.y - y))[0]; if (m && Math.hypot(m.x - x, m.y - y) < 1.8) { used.add(m); x = x * 0.4 + m.x * 0.6; y = y * 0.4 + m.y * 0.6; }
+      const dp = Math.hypot(x - me.x, y - me.y); if (dp < 2.0) { const k = 2.0 / Math.max(0.05, dp); x = me.x + (x - me.x) * k; y = me.y + (y - me.y) * k; }
       const tA = 0.2 + i * (lvl >= 3 ? 0.32 : 0.45), POUR = tA + 0.75; src.push({ i, x, y, Z, tA, OPEN: tA + 0.35, POUR, PE: POUR + DUR, nt: POUR + 0.12, n: 0, hit: false, gone: false, ph: R1(i * 4.3) * TAU }); }
     const END = src[N - 1].PE + 1.8;
     const warm = [() => hfRingSpr(), () => hfHoleSpr(), () => hfMask(), () => hfFoamSpr(0), () => hfFoamSpr(1), () => rippleSpr(), () => ringSpr(0), () => ringSpr(1), () => ringSpr(2), () => bodySpr(), () => colSpr()]; for (let i = 0; i < NHF; i++) warm.push(() => hfColFr(i)); for (let i = 0; i < NSF; i++) warm.push(() => rotF('sw', swirlSpr, 3, NSF, i));
     /* a source's state at time tt: ring scale, opening, column width factor and top/bottom (0 at the ring, 1 at the floor) */
     const ph = (s, tt) => { const form = H.ease.back(cl((tt - s.tA) / 0.45)), open = cl((tt - s.OPEN) / 0.4) * (1 - cl((tt - s.PE) / 0.3)), bot = H.ease.in(cl((tt - s.POUR) / 0.2)), narrow = 1 - 0.75 * cl((tt - s.PE) / 0.3), top = H.ease.in(cl((tt - s.PE - 0.15) / 0.32)), dis = cl((tt - s.PE - 0.35) / 0.45);
       return { form, open, bot, narrow, top, dis, pour: tt >= s.POUR && top < 1 }; };
-    H.add({ life: END, x: tx, y: ty, wi: 0,
+    H.add({ life: END, x: CX, y: CY, wi: 0,
       update(dt, f) {
         for (let q = 0; q < 3 && f.wi < warm.length; q++) warm[f.wi++]();
         for (const s of src) { const P = ph(s, f.t);
@@ -496,8 +496,8 @@
          water round a slow whirlpool. Without the GPU the old picture */
       drawUnder(c, f, X, Y, T) { if (!WK.on()) return f.drawUnder2d(c, f, X, Y, T); const G = WK.api, tt = f.t;
         if (lvl >= 3) { let k0 = 1; for (const s of src) k0 = Math.min(k0, cl((tt - s.POUR - 0.2) / 0.5)); const kf = k0 * (1 - cl((tt - (END - 1.4)) / 1.2)); if (kf > 0.01) {
-          G.stream(c, src.map(s => [H.sx(s.x), H.sy(s.y)]), T * 0.3, 0.75 * kf, { taper: 0, flow: 4, seed: 7.7, col: W.water, dens: 0.55, lite: 0.9 });
-          const cx = H.sx(tx), cy = H.sy(ty), Rr = T * (3.3 + 0.5 * Math.sin(tt * 1.3)) * Math.sqrt(C.K); G.whirl(c, cx, cy, Rr, 0.55 * kf, { spin: 0.5, seed: 3.3, col: W.water, heat: 0.6 }); G.pool(c, cx, cy, Rr * 1.1, 0.6 * kf, { seed: 1.1 }); } }
+          G.stream(c, src.concat([src[0]]).map(s => [H.sx(s.x), H.sy(s.y)]), T * 0.3, 0.75 * kf, { taper: 0, flow: 4, seed: 7.7, col: W.water, dens: 0.55, lite: 0.9 });
+          const cx = H.sx(CX), cy = H.sy(CY), Rr = T * (3.3 + 0.5 * Math.sin(tt * 1.3)) * Math.sqrt(C.K); G.whirl(c, cx, cy, Rr, 0.55 * kf, { spin: 0.5, seed: 3.3, col: W.water, heat: 0.6 }); G.pool(c, cx, cy, Rr * 1.1, 0.6 * kf, { seed: 1.1 }); } }
         for (const s of src) { const SX = H.sx(s.x), SY = H.sy(s.y), R0 = RW * T;
           if (tt > s.tA + 0.15 && tt < s.POUR + 0.2) for (let q = 0; q < 2; q++) { const u = ((tt - s.tA) * 1.4 + q / 2) % 1; G.ripple(c, SX, SY, R0 * (0.3 + 0.9 * u), 0.7 * (1 - u), { seed: s.i + q, th: 0.1 }); }
           const bk = cl((tt - s.POUR - 0.1) / 0.25) * (1 - cl((tt - s.PE - 0.4) / 0.3));
@@ -510,7 +510,7 @@
         if (lvl >= 3) { let k0 = 1; for (const s of src) k0 = Math.min(k0, cl((tt - s.POUR - 0.2) / 0.5)); const kf = k0 * (1 - cl((tt - (END - 1.4)) / 1.2)); if (kf > 0.01) {
           c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.lineJoin = 'round'; c.beginPath(); src.forEach((s, i) => i ? c.lineTo(H.sx(s.x), H.sy(s.y)) : c.moveTo(H.sx(s.x), H.sy(s.y)));
           c.globalAlpha = 0.35 * kf; c.strokeStyle = W.turq; c.lineWidth = T * 0.5; c.stroke(); c.globalAlpha = 0.6 * kf; c.strokeStyle = W.aqua; c.lineWidth = T * 0.14; c.stroke(); c.globalAlpha = 0.8 * kf; c.strokeStyle = W.white; c.lineWidth = 1.4; c.stroke();
-          const cx = H.sx(tx), cy = H.sy(ty), R = T * (3.3 + 0.5 * Math.sin(tt * 1.3)) * Math.sqrt(C.K); fl(c, cx, cy, R * 1.2, 0.3 * kf, W.water); c.globalAlpha = 0.5 * kf; c.drawImage(swirlAt(tt * 0.5), cx - R, cy - R * GY, R * 2, R * 2 * GY); c.globalAlpha = 0.45 * kf; c.drawImage(rp, cx - R * 1.1, cy - R * 1.1 * GY, R * 2.2, R * 2.2 * GY); c.restore(); } }
+          const cx = H.sx(CX), cy = H.sy(CY), R = T * (3.3 + 0.5 * Math.sin(tt * 1.3)) * Math.sqrt(C.K); fl(c, cx, cy, R * 1.2, 0.3 * kf, W.water); c.globalAlpha = 0.5 * kf; c.drawImage(swirlAt(tt * 0.5), cx - R, cy - R * GY, R * 2, R * 2 * GY); c.globalAlpha = 0.45 * kf; c.drawImage(rp, cx - R * 1.1, cy - R * 1.1 * GY, R * 2.2, R * 2.2 * GY); c.restore(); } }
         for (const s of src) { const P = ph(s, tt), SX = H.sx(s.x), SY = H.sy(s.y), R0 = RW * T;
           // small ripples mark the ground under a forming source
           if (tt > s.tA + 0.15 && tt < s.POUR + 0.2) { c.save(); c.globalCompositeOperation = 'lighter'; for (let q = 0; q < 2; q++) { const u = ((tt - s.tA) * 1.4 + q / 2) % 1, r = R0 * (0.3 + 0.9 * u); c.globalAlpha = 0.7 * (1 - u); c.drawImage(rp, SX - r, SY - r * GY, r * 2, r * 2 * GY); } c.restore(); }
