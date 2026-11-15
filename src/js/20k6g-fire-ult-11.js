@@ -41,6 +41,7 @@
 
   /* ================= the tuning (configurable) ================= */
   const DIVE3D = false;   /* (v332, the user: the fire when the dragon lands back to the previous flat GPU-painted version; the 3D dive layers stay in the code, off) */
+  const RIDE_K = 0.8;   /* (v378, the user: "when riding on Nidhogg zoom back by 20%"; the dragon's bake and the Ultima's framing keep TUNE.zoom) */
   const ULT_Z0 = 0.9, ULT_CAM_K = 0.04375, ULT_LEAN_K = 0.5, ULT_IN = 1.28;   /* (v335, the user: "pull camera back ... by 20%": 1.6 x 0.8) (v334, the user's screenshots: during the Ultima the camera about 1.6x closer than the flight zoom (a crop of the v333 view); flight unchanged) */   /* (v333, the user: "lessen that by half again, the camera should be a lot closer to the dragon": half the pull-back, and the view leans half as far from the dragon toward the beam's target) (v331, the user: 50% less again; v330: 30% less) (v327, the user: "zoom back in by 50%" again: a quarter of the authored pull-back is kept; charge and beam about 0.54, blast about 0.53 at the 0.585 flight zoom) (ULT_Z0: the flight zoom the moves' and the Ultima's camera zooms were authored against) */
   /* (v325, the user: "camera pull back too far during ultima, zoom back in by half") the share of the Ultima's own zoom-out that is kept (framing only, not a gameplay number) */
   const TUNE = {
@@ -227,7 +228,7 @@
       groundAt: (x, y) => groundAt(S, x, y), surfaceAt: (x, y) => surfaceAt(S, x, y), canStand: (x, y) => canStand(S, x, y), nearestLand: (x, y) => nearestLand(S, x, y, 8) || safeReturn(S),
       anchor: n => { const p = inst.anchor(n); return p ? { x: p.x, y: p.y, z: p.z } : { x: dragon.x, y: dragon.y, z: dragon.z }; },
       scr: (x, y, z) => [H.sx(x), H.sy(y) - (z || 0) * ZK * X.Tz()], T: () => X.Tz(),
-      camera: o => { if (!o) { S.cam = null; return; } if (o.shake) { if (!calm()) X.shake(Math.min(10, o.shake), Math.min(0.5, o.dur || 0.25)); } const c0 = S.cam || {}, rz = o.zoom != null ? o.zoom / ULT_Z0 : null, uz = rz == null ? null : TUNE.zoom * (S.phase === 'ultima' ? ULT_IN * (rz < 1 ? 1 + (rz - 1) * ULT_CAM_K : 1) : rz); S.cam = { zoom: uz != null ? Math.max(0.3, Math.min(1.1, uz)) : c0.zoom,   /* (every authored zoom is relative to the flight zoom it was made for (0.9); the Ultima keeps half its pull-back) */ x: o.x != null ? o.x : c0.x, y: o.y != null ? o.y : c0.y, k: o.k != null ? cl(o.k) * (S.phase === 'ultima' ? ULT_LEAN_K : 1) : c0.k }; },   /* (a framing point x, y with k = how far the view leans to it; zoom; a later call merges) */
+      camera: o => { if (!o) { S.cam = null; return; } if (o.shake) { if (!calm()) X.shake(Math.min(10, o.shake), Math.min(0.5, o.dur || 0.25)); } const c0 = S.cam || {}, rz = o.zoom != null ? o.zoom / ULT_Z0 : null, uz = rz == null ? null : TUNE.zoom * (S.phase === 'ultima' ? ULT_IN * (rz < 1 ? 1 + (rz - 1) * ULT_CAM_K : 1) : rz * RIDE_K); S.cam = { zoom: uz != null ? Math.max(0.3, Math.min(1.1, uz)) : c0.zoom,   /* (every authored zoom is relative to the flight zoom it was made for (0.9); the Ultima keeps half its pull-back) */ x: o.x != null ? o.x : c0.x, y: o.y != null ? o.y : c0.y, k: o.k != null ? cl(o.k) * (S.phase === 'ultima' ? ULT_LEAN_K : 1) : c0.k }; },   /* (a framing point x, y with k = how far the view leans to it; zoom; a later call merges) */
       safeReturn: () => { const p = safeReturn(S); S.retPt = p; return { x: p.x, y: p.y }; },
       done: () => actionDone(S), alive: () => !S.ended && !me.dead && !g.over && (S.phase === 'ultima' || (S.phase === 'fly' && !g.won)),
       calm, low: lowFx };
@@ -241,7 +242,7 @@
     const sfx = X.sfx || {}; if (sfx.note) { sfx.note(55, 1.2, 'sawtooth', 0.06, 80); sfx.note(110, 0.9, 'triangle', 0.05, 165, 0.2); } if (sfx.hiss) sfx.hiss(0.8, 0.08, 900);
     return S;
   }
-  function camFocus(S) { const d = S.dragon, c = S.cam; return { x: c && c.x != null ? c.x : d.x, y: c && c.y != null ? c.y : d.y, k: c && c.x != null ? (c.k != null ? c.k : 0.6) : 0, zoom: c && c.zoom ? c.zoom : S.phase === 'summon' ? lerp(1, TUNE.zoom, sstep(1.8, 3.0, S.t)) : S.phase === 'out' || S.phase === 'gone' ? 1 : TUNE.zoom }; }
+  function camFocus(S) { const d = S.dragon, c = S.cam; return { x: c && c.x != null ? c.x : d.x, y: c && c.y != null ? c.y : d.y, k: c && c.x != null ? (c.k != null ? c.k : 0.6) : 0, zoom: c && c.zoom ? c.zoom : S.phase === 'summon' ? lerp(1, TUNE.zoom * RIDE_K, sstep(1.8, 3.0, S.t)) : S.phase === 'out' || S.phase === 'gone' ? 1 : TUNE.zoom * RIDE_K }; }
 
   /* ---- targeting: an enemy near the stick's aim line, else the first ground along it; with no stick the nearest enemy ---- */
   function target(S) { const d = S.dragon, mag = Math.hypot(S.mx, S.my), M = S.H.living();
