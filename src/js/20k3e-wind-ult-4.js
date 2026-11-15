@@ -1,5 +1,6 @@
 /* ---------- Wind, reworked: 1000 Blades ----------
-   Great samurai swords rise in a fan above the pet, then come apart into a swarm of green flowers that cuts through the
+   Great samurai swords rise in a fan above the pet, then come apart into a swarm of green and pink flowers (v371: two in five
+   pink, as in Flower Hurricane) that cuts through the
    monsters. Replaces Thousand-Wing Migration (row in 20k1: key 'thousandblades', cost 95, cd 20, glyph 'crescent').
    Counts (held until their breakpoints): 10 / 30 / 60 swords at levels 1-3 / 4-6 / 7, ten flower fragments a sword, so
    exactly 100 / 300 / 600 flowers. Swarm time (continuous): 4 s at L1, 5 s at L4, 6 s at L7 (4 + (evo - 1) / 3).
@@ -137,8 +138,8 @@
     PO[0] = r; PO[1] = g; PO[2] = bl; PO[3] = cl(sd + 0.5) * 255; return true; }
 
   /* ================= the bake cache (sliced) ================= */
-  const SL = 2.05, NB = 32, NT = 4, NA = 8, NSP = 4, NSH = 16, NV = 6;
-  const FL_COL = [EMER, JADE, LEAF], TILTS = [0, 0.62, 1.0, 1.3];
+  const SL = 2.05, NB = 32, NT = 4, NA = 8, NSP = 4, NSH = 16, NV = 10;
+  const FL_COL = [EMER, JADE, LEAF, '#FF9FCB', '#E8609F'], TILTS = [0, 0.62, 1.0, 1.3];
   const BK = { S: 0, R: 0, sw: new Array(NB).fill(null), fl: new Array(NV).fill(null), sh: [], CS: 0, queue: [], job: null, ms: 0, maxSlice: 0, built: 0 };
   // a sword at screen angle bucket b, pixel by pixel; yields every few rows
   function* swordJob(b) {
@@ -178,13 +179,13 @@
       const lam = Math.max(0, n[0] * LT[0] + n[1] * LT[1] + n[2] * LT[2]), spec = Math.pow(Math.max(0, n[0] * HV[0] + n[1] * HV[1] + n[2] * HV[2]), 10);
       const base = back ? [col[0] * 0.75 + 60, col[1] * 0.75 + 64, col[2] * 0.75 + 60] : col, k = 0.62 + 0.6 * lam;
       g.beginPath(); h.P.forEach((p, j) => (j ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]))); for (const p of h.mid) g.lineTo(p[0], p[1]); g.closePath();
-      g.strokeStyle = 'rgba(8,60,42,0.6)'; g.lineWidth = Math.max(1, R * 0.11); g.stroke();   // (the thickness under the face, and the outline)
+      g.strokeStyle = col[0] > 200 ? 'rgba(110,24,66,0.6)' : 'rgba(8,60,42,0.6)'; g.lineWidth = Math.max(1, R * 0.11); g.stroke();   // (the thickness under the face, and the outline)
       const tip = h.P[h.P.length - 1], gr = g.createLinearGradient(0, 0, tip[0], tip[1]); gr.addColorStop(0, rgbS(base, k * 0.62)); gr.addColorStop(0.55, rgbS(base, k)); gr.addColorStop(1, rgbS(base, k * 1.12 + spec * 0.5));
       g.fillStyle = gr; g.fill();
-      g.beginPath(); h.P.forEach((p, j) => (j ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]))); g.strokeStyle = `rgba(231,255,246,${(0.18 + 0.8 * spec).toFixed(3)})`; g.lineWidth = Math.max(0.7, R * 0.09); g.stroke();   // the edge catching the light
+      g.beginPath(); h.P.forEach((p, j) => (j ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]))); g.strokeStyle = col[0] > 200 ? `rgba(255,236,246,${(0.18 + 0.8 * spec).toFixed(3)})` : `rgba(231,255,246,${(0.18 + 0.8 * spec).toFixed(3)})`; g.lineWidth = Math.max(0.7, R * 0.09); g.stroke();   // the edge catching the light
       g.beginPath(); g.moveTo(0, 0); g.lineTo(tip[0] * 0.8, tip[1] * 0.8); g.strokeStyle = rgbS(base, k * 0.55, 0.45); g.lineWidth = Math.max(0.5, R * 0.05); g.stroke(); }
     const c0 = rot(0, 0, 0.12 * R), rx = R * 0.17, ry = R * 0.17 * Math.max(0.25, Math.abs(ct));
-    g.save(); g.translate(c0[0], c0[1]); g.rotate(az); g.beginPath(); g.ellipse(0, 0, rx, ry, 0, 0, TAU); g.fillStyle = '#F2FFC8'; g.fill(); g.strokeStyle = 'rgba(30,110,70,0.7)'; g.lineWidth = Math.max(0.6, R * 0.06); g.stroke(); g.restore();
+    g.save(); g.translate(c0[0], c0[1]); g.rotate(az); g.beginPath(); g.ellipse(0, 0, rx, ry, 0, 0, TAU); g.fillStyle = col[0] > 200 ? '#FFE59A' : '#F2FFC8'; g.fill(); g.strokeStyle = col[0] > 200 ? 'rgba(170,90,40,0.7)' : 'rgba(30,110,70,0.7)'; g.lineWidth = Math.max(0.6, R * 0.06); g.stroke(); g.restore();
     g.restore(); }
   // steel shards (a peeled segment on its way to becoming a flower): 2 kinds (blade, grip) x 16 turns
   function* shardJob() {
@@ -260,14 +261,14 @@
     // the flowers (typed arrays): position, velocity, birth, look
     const FA = n => new Float32Array(n), fx = { x: FA(NF), y: FA(NF), z: FA(NF), vx: FA(NF), vy: FA(NF), vz: FA(NF), born: FA(NF).fill(-1), sb: new Uint8Array(NF), lag: FA(NF), orR: FA(NF), orP: FA(NF), orW: FA(NF), sz: FA(NF), tw: FA(NF), tp: FA(NF), spP: FA(NF), spW: FA(NF), gl: FA(NF), lat: FA(NF), dep: FA(NF), dd: FA(NF), var: new Uint8Array(NF), ang: FA(NF) };
     for (let i = 0; i < NF; i++) { fx.lag[i] = hsh(i, 4); fx.orR[i] = 0.25 + 0.75 * Math.sqrt(hsh(i, 5)); fx.orP[i] = hsh(i, 6) * TAU; fx.orW[i] = (3 + 4 * hsh(i, 7)) * (hsh(i, 8) < 0.5 ? -1 : 1); fx.sz[i] = (0.78 + 0.4 * hsh(i, 9)) * (tier === 3 ? 0.9 : tier === 2 ? 0.95 : 1);
-      fx.tw[i] = 3 + 5 * hsh(i, 10); fx.tp[i] = hsh(i, 11) * TAU; fx.spP[i] = hsh(i, 12); fx.spW[i] = (1 + 1.6 * hsh(i, 13)) * (hsh(i, 14) < 0.5 ? -1 : 1); fx.gl[i] = hsh(i, 15) * TAU; fx.lat[i] = (hsh(i, 16) - 0.5) * 2; fx.dep[i] = hsh(i, 17); fx.dd[i] = hsh(i, 18) * 0.25; fx.var[i] = (i * 7 + ((i / 10) | 0)) % NV; }
+      fx.tw[i] = 3 + 5 * hsh(i, 10); fx.tp[i] = hsh(i, 11) * TAU; fx.spP[i] = hsh(i, 12); fx.spW[i] = (1 + 1.6 * hsh(i, 13)) * (hsh(i, 14) < 0.5 ? -1 : 1); fx.gl[i] = hsh(i, 15) * TAU; fx.lat[i] = (hsh(i, 16) - 0.5) * 2; fx.dep[i] = hsh(i, 17); fx.dd[i] = hsh(i, 18) * 0.25; fx.var[i] = (i * 7 + ((i / 10) | 0)) % 5 < 2 ? 6 + (i * 3 + ((i / 10) | 0)) % 4 : (i * 7 + ((i / 10) | 0)) % 6;   /* (v371: two in five pink, as in Flower Hurricane) */ }
     let F = { key: 'thousandblades', life: END, ev, DK, NSW, NF, swords, fl: fx, plan: PL, K: C.K, cx: C.tx, cy: C.ty, c0x: C.tx, c0y: C.ty, dx: Math.cos(aimA), dy: Math.sin(aimA), aa: aimA, ox: me.x, oy: me.y,
       ax: me.x, ay: me.y, tD: PL.tD, born: 0, touch: new Map(), nextTick: TT + 0.5 + 0.5, passHit: new Set(), ticks: 0, hits: 0, passN: 0, dead: false, sfxM: -1, bkT: 0 };
     const o1 = [0, 0, 0], o2 = [0, 0, 0], tg = [0, 0, 0];
     H.X.banner('1000 BLADES', '', C.col, 1.4); H.X.sfx.hum();
     // what the cast needs first: the fan's angle buckets (the urgent ones), then the shards and the flowers
     const needS = [...new Set(swords.map(s => ((Math.round(s.th / TAU * NB) % NB) + NB) % NB))].map(b => ['s', b]);
-    const prime = Tpx => { setScale(Tpx); want([['h', 0], ...[0, 1, 2, 3, 4, 5].map(v => ['f', v])], true); want(needS, true); };
+    const prime = Tpx => { setScale(Tpx); want([['h', 0], ...[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(v => ['f', v])], true); want(needS, true); };
     if (typeof arc !== 'undefined') prime(H.X.Tz() * Math.min(2, arc.dpr || 1));
 
     // the target of flower i in phase P at swarm time tau (world) into tg
@@ -363,7 +364,7 @@
       },
       draw(c, f, X, Y, T) {
         const t = f.t, pxk = c.getTransform().a || 1, pb = petBox(T);
-        if (setScale(T * pxk)) { want([['h', 0], ...[0, 1, 2, 3, 4, 5].map(v => ['f', v])], true); want(needS, true); }
+        if (setScale(T * pxk)) { want([['h', 0], ...[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(v => ['f', v])], true); want(needS, true); }
         const endK = Math.min(1, f.life / 0.35);
         // the swords
         if (t > A0 && t < TT + PEEL + 0.25) { for (const s of ord) { if (t < s.tA) continue; swordPose(s, t, T); drawSword(c, s, t, T, pb, endK * (f.dead ? Math.min(1, f.life / 0.35) : 1)); } }

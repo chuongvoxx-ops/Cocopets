@@ -1,5 +1,5 @@
 /* ---------- Wind ultimate: Winds of Oblivion (replaces Horizon Severance) ----------
-   Row in 20k1: key 'oblivion', cost 100, cd 60, glyph 'feather'. An enemy debuff and dispel; it deals no damage itself.
+   Row in 20k1: key 'oblivion', cost 100, cd 60, glyph 'feather'. An enemy debuff and dispel; (v371) its mark also wears the monster down (damage over time, below).
    The cast: the pet draws a breath (a small squash) and exhales a pale emerald breeze; its streaks curl outward into one
    expanding halo that sweeps the floor from the pet (radius 5 / 6 / 7 x K at levels 1 / 4 / 7, interpolated: 5 + (evo - 1) / 3
    tiles, in 1.25 s, eased out). The halo: a feathered ring of light on the floor (light-only) with a slowly turning
@@ -55,6 +55,9 @@
   const rgbaS = (h, a) => { const [r, g, b] = hexRGB(h); return `rgba(${r},${g},${b},${a})`; };
   const evoOf = C => Math.max(1, Math.min(7, C.evo || 1));
   const durOf = ev => (ev <= 4 ? 10 + (ev - 1) * 4 / 3 : 14 + (ev - 4));
+  /* (v371) Windworn also takes damage over time: 0.5 x base x K x (1 + 0.08 (evo - 1)) every 1 s while marked (10 / 14 / 17
+     ticks over the mark; a refresh keeps the one clock, never a second one), on top of the -25% defence for non-bosses */
+  const DOT_IV = 1.0, DOT_K = 0.5;
   let H;
 
   /* ---- the bake queue: pictures painted a step at a time, never all at once ---- */
@@ -199,7 +202,7 @@
     function puff(x, y, z, n, col) { for (let i = 0; i < H.n(n); i++) { const a = Math.random() * TAU, v = 0.4 + Math.random() * 0.9; parts.push({ k: 0, x, y, z, vx: Math.cos(a) * v, vy: Math.sin(a) * v * 0.6, vz: 0.4 + Math.random() * 0.8, life: 0.5 + Math.random() * 0.5, max: 1, s: 0.08 + Math.random() * 0.08, col: col || MINT }); } }
     M = H.add({ life: 1e9, key: 'oblivionWorn', recs, anims, parts,
       mark(m, o) { const now = g.t, was = m.wornUntil > now; m.wornUntil = now + o.dur; if (!was || m.wornT0 == null) m.wornT0 = now; if (o.cel) m.noBuffUntil = now + 5;
-        let q = recs.get(m); if (!q) { q = { m, ph: Math.random() * TAU, pts: [], st: 0, ang: o.ang, fl: now }; recs.set(m, q); } q.ang = o.ang; q.fl = now;
+        let q = recs.get(m); if (!q) { q = { m, ph: Math.random() * TAU, pts: [], st: 0, ang: o.ang, fl: now }; recs.set(m, q); } q.ang = o.ang; q.fl = now; if (o.dot > 0) { q.dot = Math.max(q.dot || 0, o.dot); q.C = o.C; if (q.nt == null) q.nt = now + DOT_IV; }
         const z0 = (m.z || 0) + (m.liftZ || 0) + m.r;
         // the peel: thin currents curl off it and glowing fragments tear away on the wind
         for (let i = 0; i < H.n(m.boss ? 9 : 5); i++) { const a = o.ang + (Math.random() - 0.5) * 1.6, v = 1.6 + Math.random() * 2.2; parts.push({ k: 1, sh: Math.floor(Math.random() * 3), row: 0, x: m.x + (Math.random() - 0.5) * m.r, y: m.y + (Math.random() - 0.5) * m.r * 0.6, z: z0 * (0.4 + Math.random() * 0.9), vx: Math.cos(a) * v, vy: Math.sin(a) * v * 0.7, vz: 0.6 + Math.random() * 1.4, life: 0.55 + Math.random() * 0.4, max: 0.95, s: 0.1 + Math.random() * 0.07, rot: Math.random() * TAU, vr: (Math.random() - 0.5) * 12 }); }
@@ -212,6 +215,8 @@
         for (const [m, q] of recs) {
           if (m.dead || m.falling != null) { puff(m.x, m.y, (m.z || 0) + m.r * 1.6, 6); clearRec(m); recs.delete(m); continue; }
           if (!(m.wornUntil > now)) { clearRec(m); recs.delete(m); continue; }
+          // (v371) the wind wears it down: one hit every DOT_IV s of the game clock while it is Windworn
+          if (q.dot > 0 && q.C) while (now >= q.nt && m.wornUntil > q.nt - 1e-6 && !m.dead) { q.nt += DOT_IV; H.X.hitMon(m, q.dot, q.C.dmgO({ kb: 0 })); M.dotHits = (M.dotHits || 0) + 1; puff(m.x, m.y, (m.z || 0) + m.r * 1.2, 3); }
           q.st -= dt; if (q.st <= 0) { q.st = SAMP; q.pts.unshift({ x: m.x, y: m.y, z: (m.z || 0) + (m.liftZ || 0), age: 0 }); if (q.pts.length > NS) q.pts.length = NS; }
           for (const p of q.pts) p.age += dt;
           // the sigil crumbles in its last half second (motes off its rim), gone exactly at the end
@@ -307,7 +312,7 @@
     const feathers = []; for (let i = 0; i < NF; i++) feathers.push({ th: R1(i * 5.3) * TAU, dr: -0.15 - 0.95 * R1(i * 2.2), z: 0.15 + 1.7 * R1(i * 8.8), v: i & 1, ph: R1(i * 3.9) * TAU, sz: 0.5 + 0.3 * R1(i * 6.6), spin: (R1(i * 1.1) - 0.5) * 2.4, dz: 0.25 + 0.35 * R1(i * 4.8) });
     const streaks = []; for (let i = 0; i < NB; i++) streaks.push({ a: (face > 0 ? 0 : Math.PI) + (i / NB - 0.5) * 2.2 + (R1(i * 2.7) - 0.5) * 0.3, t0: BR - 0.12 + 0.03 * i % 0.2, sg: i % 2 ? 1 : -1, z: 0.35 + 0.5 * R1(i * 6.1) });
     const front = t => lerp(0.45, R, eout3((t - BR) / WT));
-    function markIn(rf, end) { for (const m of H.living()) { if (hit.has(m)) continue; const d = Math.hypot(m.x - cx, m.y - cy); if (d - m.r * 0.6 <= rf || (end && d <= R + m.r)) { hit.add(m); const got = MG.mark(m, { dur: DUR, cel: CEL, n: NDIS, ang: d > 0.05 ? Math.atan2(m.y - cy, m.x - cx) : Math.random() * TAU });
+    function markIn(rf, end) { for (const m of H.living()) { if (hit.has(m)) continue; const d = Math.hypot(m.x - cx, m.y - cy); if (d - m.r * 0.6 <= rf || (end && d <= R + m.r)) { hit.add(m); const got = MG.mark(m, { dur: DUR, cel: CEL, n: NDIS, dot: C.base * K * DOT_K * (1 + 0.08 * (ev - 1)), C, ang: d > 0.05 ? Math.atan2(m.y - cy, m.x - cx) : Math.random() * TAU });
       marked++; dispelled += got.length; if (got.length) { if (dispelled <= 4) H.X.after(0.3, () => H.X.sfx.twang && H.X.sfx.twang()); } if (marked <= 6 && H.X.sfx.chime) H.X.sfx.chime(1046 + 180 * (marked % 4), 0.3); } } }
     const F = H.add({ life: LIFE, x: cx, y: cy, key: 'oblivion', hit, stats: () => ({ marked, dispelled }), R, DUR,
       update(dt, f) { const t = f.t; bakeStep(3);

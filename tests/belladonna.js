@@ -111,7 +111,7 @@ const path = require('path');
       const tipD = L.filter(h => h.t >= t0 && (!fin || Math.abs(h.t - fin.t) >= 0.03)).map(h => +(h.raw / S.DK).toFixed(2)), finD = L.filter(h => fin && Math.abs(h.t - fin.t) < 0.03).map(h => +(h.raw / S.DK).toFixed(2));
       out.swoosh = { started: H.st(S, ['swooshes']) - sw0, hits: L.filter(h => h.t < t0).map(h => h.m), z: +(S.V.z || 0).toFixed(2), plan: pl ? { tips: AT.filter(e => e.kind === 'tip').length, finals: AT.filter(e => e.kind === 'final').length, fired: pl.fired, done: AT.every(e => e.done) } : null,
         slamDup: dup, finHits, inFin, tipDK: [...new Set(tipD)], finDK: [...new Set(finD)], slamCharge: +((S.charge - (out.chAt0 != null ? out.chAt0 : S.charge))).toFixed(4), slamStat: H.st(S, ['slamHits']) }; } ready();
-    // Wildflowers: one field; ticks on a fixed cadence; a recast refreshes (never two fields, never double ticks)
+    // Wildflowers: (v371) each cast its own field (up to five at once), each ticking on its own fixed cadence
     for (const q of P0) { q[1] = S.V.x + 2 + 0.5 * P0.indexOf(q); q[2] = S.V.y + (P0.indexOf(q) % 2 ? 0.6 : -0.6); } hold(P0); H.face(0); H.release();
     const n1 = H.log.length, c0 = S.charge; H.press('strong'); let maxF = 0; const tW = g.t; H.until(() => { hold(P0); maxF = Math.max(maxF, H.st(S, ['fields'])); return g.t - tW > 1.2; }, 3);
     const plan1 = S.ctx.wildPlan ? Object.assign({}, S.ctx.wildPlan) : null; if (S.cd) for (const k of ['s1', 'wild', 'wildflowers', 'strong']) if (k in S.cd) S.cd[k] = 0; H.step(0.35, () => hold(P0)); H.press('strong');   // the recast, mid-field
@@ -135,8 +135,8 @@ const path = require('path');
     ok(A.swoosh.slamDup === 0 && A.swoosh.finHits.length >= A.swoosh.inFin.length && A.swoosh.inFin.every(m => A.swoosh.finHits.includes(m)), 'each slam hits an enemy at most once; the final slam hits every enemy within its radius', { dup: A.swoosh.slamDup, final: A.swoosh.finHits, within: A.swoosh.inFin });
     ok(A.swoosh.tipDK.every(v => Math.abs(v - 0.8) < 0.05) && A.swoosh.finDK.every(v => Math.abs(v - 2.0) < 0.05) && A.swoosh.finDK.length === 1, 'slam damage: 0.8 DK a tentacle slam, 2.0 DK the final slam', { tips: A.swoosh.tipDK, final: A.swoosh.finDK });
     ok(A.swoosh.slamCharge > 0, 'the slams charge the gauge', A.swoosh.slamCharge);
-    ok(A.wild.maxFields <= 1 && A.wild.casts >= 2, 'Wildflowers: a recast refreshes the one field (never two)', A.wild);
-    ok(A.wild.ticksOnOne > 3 && A.wild.gapMin != null && A.wild.gapMin > 0.2 && A.wild.odd === 0, 'Wildflowers ticks on one fixed cadence through a recast (the clock is never reset; never a double tick)', A.wild);
+    ok(A.wild.maxFields === 2 && A.wild.casts >= 2, 'Wildflowers: a second cast drops a second field beside the first', A.wild);
+    ok(A.wild.ticksOnOne > 3 && A.wild.gapMin != null, 'Wildflowers ticks on its fixed cadence', A.wild);
     ok(A.wild.chargeUp, 'real damage charges the gauge', A.wild.charge);
     ok(A.ring.stateOut === 'outbound' || A.ring.stateOut === 'returning', 'Ring Blade throws the ring (outbound)', A.ring.stateOut);
     ok(A.ring.agree, 'the core and the moves agree on the ring state while it is away', { core: A.ring.core, moves: A.ring.stateOut });
@@ -152,9 +152,9 @@ const path = require('path');
     const run = spam => { H.until(() => { hold(P0); return H.ready(S) && !(S.ctx.wildPlan && S.ctx.wildPlan.fired < S.ctx.wildPlan.ticks && g.t < 99999 && S.wild); }, 8); H.step(0.5, () => hold(P0)); if (S.cd) S.cd.s1 = 0;
       const n0 = H.log.length, t0 = g.t; H.face(0); H.release(); H.press('strong'); const pt0 = S.ctx.wildPlan ? S.ctx.wildPlan.t0 : null; let casts = 1, t0s = new Set([pt0]);
       H.until(() => { hold(P0); if (spam && (S.cd ? S.cd.s1 <= 0 : true) && !S.busy && H.ready(S) && g.t - t0 < 5) { H.press('strong'); casts++; const p = S.ctx.wildPlan; if (p) t0s.add(p.t0); } return g.t - t0 >= 6; }, 7);
-      const L = H.log.slice(n0).filter(h => h.m === 'm0'); return { casts, dk: +(L.reduce((a, h) => a + h.raw, 0) / S.DK).toFixed(2), hits: L.length, t0s: t0s.size }; };
+      const L = H.log.slice(n0).filter(h => h.m === 'm0'); return { casts, dk: +(L.reduce((a, h) => a + h.raw, 0) / S.DK).toFixed(2), hits: L.length, t0s: t0s.size, maxF: (self.BELLADONNA_MOVES && self.BELLADONNA_MOVES.stats.maxFields) || 0 }; };
     return { once: run(false), spam: run(true) };`);
-  if (WR && !WR.err) ok(WR.spam.casts > 2 && WR.spam.dk >= WR.once.dk - 0.01 && WR.spam.t0s === 1, 'Wildflowers recast whenever ready never deals less than a single cast (one tick clock across the recasts)', WR); else ok(false, 'Wildflowers recast ran', WR);
+  if (WR && !WR.err) ok(WR.spam.casts > 2 && WR.spam.dk > WR.once.dk && WR.spam.t0s > 1 && WR.spam.maxF <= 5, 'Wildflowers cast whenever ready stacks fields (each its own clock, never more than five at once) and deals more than one cast', WR); else ok(false, 'Wildflowers recast ran', WR);
 
   // ---- 2. flight over gaps and offshore; the tracked safe return; expiry offshore ----
   const O = await R('offshore', LIB + `

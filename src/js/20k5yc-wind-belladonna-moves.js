@@ -1,7 +1,8 @@
 /* ---------- Belladonna (11th Wind ult): the moves and effects (E) ----------
    BELLADONNA_MOVES, called by A's core (20k5yb) with one `ctx` per cast (the contract is in docs/WIND-BELLADONNA-BRIEF.md,
    Notes). Every function is optional to the core and guarded here.
-   - BM.wildflowers(ctx): Strong 1. One bounded floral hurricane per caster (a recast refreshes it), ticking on the game clock.
+   - BM.wildflowers(ctx): Strong 1. A bounded floral hurricane at the aim, ticking on the game clock; (v371) up to five stand at once,
+     each its own (a sixth retires the oldest).
    - BM.ringBlade(ctx): Strong 2. The model's own ring and eight swords are thrown (pose ringAway 1; drawn here with
      BELLADONNA_MODEL.drawRing), sweep + end flourish share one registry (one activation an enemy), the return is harmless.
      BM.ringState(ctx) is 'overhead' | 'outbound' | 'returning'; BM.recallRing(ctx) hurries it home.
@@ -28,7 +29,7 @@
   const TUNE = BM.TUNE = {
     wildCd: 3.5, ringCd: 4,   /* (the core reads these: Wildflowers from the cast, Ring Blade from the catch) */
     /* Wildflowers: `cast` s of casting recovery; the field (radius r, its centre at most `reach` tiles away) ticks every `every` s for `dur` s, `dmg` x DK a tick (10 x 0.9 = 9) */
-    wild: { cast: 0.4, r: 3.0, reach: 5.5, dur: 3.0, every: 0.3, dmg: 0.9 },
+    wild: { cast: 0.4, r: 3.0, reach: 5.5, dur: 5.0, every: 0.3, dmg: 0.9, max: 5 },   /* (v371: up to `max` fields at once, each its own; a cast past that retires the oldest; 5 s each so five can stand together at the core's 1 s cooldown) */
     /* Ring Blade: `windup` s, out at `speed` tiles/s to at most `reach`; the sweep (radius r) and the end flourish (radius flourishR)
        are ONE activation of `dmg` x DK an enemy; `flourish` s at the end, `back` s to return (harmless), `recall` s when called home */
     ring: { windup: 0.3, speed: 15, reach: 8, r: 3.0, dmg: 10, flourishR: 4.2, flourish: 0.45, back: 0.6, recall: 0.25, low: 1.0 },
@@ -343,19 +344,18 @@ void main(){ if (u_pass > 0.5) { if (v_c.a < 0.5) discard; gl_FragColor = vec4(0
     // the casting recovery (its own little item, so a recast's recovery is its own too)
     add(ctx, { life: 5, abort() { done(); }, update(dt, it) { const u = cl((now(ctx) - tC) / tu.cast); clip(ctx, 'cast', u); if (u >= 1) { clip(ctx, 'rest'); it.life = 0; done(); } },
       paint(Q) { const p = anchor(ctx, 'center'), u = cl((now(ctx) - tC) / tu.cast); Q.glow(p.x, p.y, p.z, 1.5 + 2 * u, P.pink, 0.4 * (1 - u)); Q.halo(p.x, p.y, p.z, 3.2 * eout(u), 0.7 * (1 - u), P.blush, 0.5); } });
-    // one field a caster: a recast moves and restarts the one that stands
-    if (S.wild && S.wild.life > 0) { const F = S.wild; F.x = aim.x; F.y = aim.y; F.n = F.k + nT; F.ctx = ctx; F.moved = tC; ctx.wildPlan = F.plan(); ctx.field = F; return; }   /* (a recast moves the field and extends it to a full duration from now; its tick clock keeps running, so recasting never loses a tick) */
+    // (v371) up to tu.max fields at once, each with its own clock; one more retires the oldest (it stops ticking and fades)
+    S.wilds = (S.wilds || []).filter(q => q.life > 0 && !q.retired); while (S.wilds.length >= tu.max) { const q = S.wilds.shift(); q.retired = true; q.n = Math.min(q.n, q.k); }   /* (a recast moves the field and extends it to a full duration from now; its tick clock keeps running, so recasting never loses a tick) */
     // what the storm is made of: blossoms, petals and ribbons on their own orbits (radius as a share of r, height, speed)
     const NB = L ? 16 : 34, NP = L ? 10 : 22, NRB = L ? 5 : 9, fl = [], rb = [];
     for (let i = 0; i < NB + NP; i++) fl.push({ pet: i >= NB, r: 0.2 + 0.78 * Math.sqrt(R1(i * 3.1)), z: 0.35 + 0.95 * (i % 4) + 0.3 * R1(i * 5.3), ph: R1(i * 7.7) * TAU, w: 1.5 + 1.6 * R1(i * 2.9), s: 0.34 + 0.16 * R1(i * 9.1), col: PINKS[i % PINKS.length], vr: 2 + 4 * R1(i * 4.4) });
     for (let i = 0; i < NRB; i++) rb.push({ r: 0.36 + 0.64 * (i / (NRB - 1)), z: 0.2 + 2.4 * R1(i * 6.1 + 2), ph: i * 2.4, w: 2.6 - 1.2 * (i / NRB), span: 1.5 + 1.3 * R1(i * 3.3 + 1), wd: 0.5 + 0.35 * R1(i * 8.3), col: i % 3 === 2 ? P.blush : i % 3 ? P.mint : P.pale });
-    stats.fields = 1;
-    const F = S.wild = add(ctx, { life: 60, x: aim.x, y: aim.y, r: tu.r, t0: tC + tu.cast * 0.5, born: tC + tu.cast * 0.5, k: 0, n: nT, tick: 0,
-      plan() { return { x: this.x, y: this.y, r: tu.r, t0: this.t0, ticks: this.n, fired: this.k, tick: tu.every, every: tu.every, life: tu.dur, dmg: tu.dmg }; }, abort() { S.wild = null; stats.fields = 0; },
+    const F = add(ctx, { life: 60, x: aim.x, y: aim.y, r: tu.r, t0: tC + tu.cast * 0.5, born: tC + tu.cast * 0.5, k: 0, n: nT, tick: 0,
+      plan() { return { x: this.x, y: this.y, r: tu.r, t0: this.t0, ticks: this.n, fired: this.k, tick: tu.every, every: tu.every, life: tu.dur, dmg: tu.dmg }; }, abort() { S.wilds = (S.wilds || []).filter(q => q !== this); stats.fields = S.wilds.length; },
       update(dt, it) { const c2 = it.ctx, t = now(c2);
         while (it.k < it.n && t >= it.t0 + (it.k + 1) * tu.every) { it.k++; it.tick = 1; stats.wildTicks++; stats.wildHits += hitA(c2, it.x, it.y, tu.r, dkOf(c2) * tu.dmg, { once: {}, el: 'wind', src: 'strong', kb: 0 }); sfx(X, 'hiss', 0.25, 0.1, 1400); if (it.k % 2) sfx(X, 'note', 1320 + 220 * (it.k % 3), 0.12, 'sine', 0.035, 1760);
           emit(c2, 2, it.x, it.y, 0.6, 4, { r: tu.r * 0.6, v: 3, up: 2 }); }
-        it.tick = Math.max(0, it.tick - dt * 3.5); if (t >= it.t0 + it.n * tu.every + 0.5) { it.life = 0; S.wild = null; stats.fields = 0; if (c2.field === it) c2.field = null; } },
+        it.tick = Math.max(0, it.tick - dt * 3.5); if (t >= it.t0 + it.n * tu.every + 0.5) { it.life = 0; S.wilds = (S.wilds || []).filter(q => q !== it); stats.fields = S.wilds.filter(q => !q.retired).length; if (c2.field === it) c2.field = null; } },
       paint(Q, it) { const t = now(it.ctx), age = t - it.born, end = it.t0 + it.n * tu.every, A = sm(age / 0.35) * (1 - sm((t - end) / 0.5)); if (A <= 0.01) return; const x = it.x, y = it.y, R = tu.r, grow = 0.55 + 0.45 * eout(age / 0.4), tt = Q.t;
         // the bounded footprint on the floor (light only): its sharp rim is the damage radius
         Q.floorGlow(x, y, 0.02, R * 1.05, 0.2 * A, P.pink); Q.ring(x, y, 0.03, R * grow, (0.55 + 0.4 * it.tick) * A, P.mint, 0.5); Q.air(x, y, 0.04, R * grow, 0.5 * A, 2);
@@ -372,6 +372,7 @@ void main(){ if (u_pass > 0.5) { if (v_c.a < 0.5) discard; gl_FragColor = vec4(0
         // pollen motes drifting up, and soft shafts of light through the storm
         for (let i = 0; i < (L ? 8 : 20); i++) { const an = R1(i * 5.1) * TAU + tt * 0.4, rr = R * Math.sqrt(R1(i * 7.9)), hq = ((tt * (0.15 + 0.1 * R1(i)) + R1(i * 3.7)) % 1); Q.spark(x + Math.cos(an) * rr, y + Math.sin(an) * rr * GY, 0.2 + 3.6 * hq, 0.07, i % 3 ? P.gold : P.pale, A * Math.sin(hq * PI)); }
         for (let i = 0; i < (L ? 2 : 4); i++) { const an = i * 1.7 + tt * 0.15, rr = R * (0.2 + 0.5 * R1(i * 2.9)), sx = x + Math.cos(an) * rr, sy = y + Math.sin(an) * rr * GY; Q.beam(sx, sy, 0.05, sx + 0.4, sy, 5.5, 0.45, P.blush, 0.18 * A * (0.6 + 0.4 * Math.sin(tt * 1.3 + i))); } } });
+    F.ctx = ctx; S.wilds.push(F); S.wild = F; stats.fields = S.wilds.length; stats.maxFields = Math.max(stats.maxFields || 0, S.wilds.length);
     ctx.wildPlan = F.plan(); ctx.field = F; }
 
   /* ================= Ring Blade ================= */

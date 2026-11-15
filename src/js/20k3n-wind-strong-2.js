@@ -122,16 +122,20 @@
        area       2.6 tiles round the aim (the monsters there when the feathers land, 0.8 s after the cast)
        duration   6 / 8 / 10 s
        mark       defence -15% (every allied hit x1.15, bosses too); walking speed -20% (never a boss)
+       wear       (v371) 0.3 x base x K to the marked monster every 1 s while marked (6 / 8 / 10 ticks; a refresh keeps
+                  the one clock)
        expiry     1.8 x base x K to the marked monster (one hitMon, resolved before the mark is cleared)
      Recasting refreshes a mark's time (and stops a mark that had begun to peel): never a second mark, never a stacked cut, never
      a second pending burst. Cost 26, cooldown 6 s. */
-  const FFV = { def: 0.15, slow: 0.2, peel: 0.5, burst: 0.35 };
+  const FFV = { def: 0.15, slow: 0.2, peel: 0.5, burst: 0.35, iv: 1.0, dot: 0.3 };
   function ffMgr(H) { let M = H.fx.find(f => f.key === 'ffMgr' && f.life > 0); if (M) return M;
     const marks = new Map();
     M = H.add({ key: 'ffMgr', life: 1e6, marks,
       update(dt, f) { const now = H.g.t;
         for (const [m, k] of marks) {
-          if (k.st === 'on') { if (m.dead || H.mons.indexOf(m) < 0 || m.under || m.fobj) { clear(m, k); marks.delete(m); continue; } if (now >= k.until) { k.st = 'peel'; k.pt = now; } }
+          if (k.st === 'on') { if (m.dead || H.mons.indexOf(m) < 0 || m.under || m.fobj) { clear(m, k); marks.delete(m); continue; }
+            while (now >= k.nt && k.nt < k.until) { k.nt += FFV.iv; k.dbg.dots++; H.X.hitMon(m, k.dot, k.C.dmgO({ kb: 0 })); k.fl = now; }   /* (v371: damage over time, one hit a second of the game clock) */
+            if (now >= k.until) { k.st = 'peel'; k.pt = now; } }
           if (k.st === 'peel') { if (m.dead) { clear(m, k); marks.delete(m); continue; } if (now - k.pt >= FFV.peel) { k.st = 'burst'; k.bt = now; k.bx = m.x; k.by = m.y; k.bz = 0.4 + (m.r || 0.4) * 0.6; k.dbg.bursts++; H.X.hitMon(m, k.dmg, k.C.dmgO({ kb: 2 })); clear(m, k); H.X.sfx.pop ? H.X.sfx.pop() : H.X.sfx.whoosh && H.X.sfx.whoosh(); for (let j = 0; j < H.n(8); j++) { const b = j / 8 * TAU; U.wisp(H, k.bx, k.by - 0.4, Math.cos(b) * 5, Math.sin(b) * 3.5, 0.3); } } }
           if (k.st === 'burst' && now - k.bt > FFV.burst) marks.delete(m); }
         if (!marks.size) f.life = 0; },
@@ -150,13 +154,13 @@
             G.feather(c, fx - Math.cos(ang) * s * 0.5, fy - Math.sin(ang) * s * 0.5, ang, s, al, 0.7, { tint: '#DFFFF1', root: '#0F8F5F', glow: 1.3 }); } } } });
     function clear(m, k) { if (m.ffMark === k) { m.ffMark = null; m.ffDef = 0; m.ffSlow = 0; } }
     return M; }
-  S.featherfall = (C, h) => { const H = h, me = H.me, tier = tierOf(C), DUR = [6, 8, 10][tier], DMG = C.base * C.K * 1.8, RA = 2.6, FLY = 0.45, LAND = 0.35;
-    const [ax, ay] = aimPt(H, C, 8), x0 = me.x, y0 = me.y, dbg = { marked: 0, refreshed: 0, bursts: 0 }; me.sq = 0.7; H.X.sfx.hum && H.X.sfx.hum(); H.warn(ax, ay, RA, FLY + LAND, C.col);
+  S.featherfall = (C, h) => { const H = h, me = H.me, tier = tierOf(C), DUR = [6, 8, 10][tier], DMG = C.base * C.K * 1.8, DOT = C.base * C.K * FFV.dot, RA = 2.6, FLY = 0.45, LAND = 0.35;
+    const [ax, ay] = aimPt(H, C, 8), x0 = me.x, y0 = me.y, dbg = { marked: 0, refreshed: 0, bursts: 0, dots: 0 }; me.sq = 0.7; H.X.sfx.hum && H.X.sfx.hum(); H.warn(ax, ay, RA, FLY + LAND, C.col);
     let feathers = null, applied = false;
     function apply(t) { applied = true; const M = ffMgr(H), now = H.g.t;
       for (const m of H.living()) { if (!valid(m) || Math.hypot(m.x - ax, m.y - ay) > RA + (m.r || 0.4)) continue; let k = M.marks.get(m);
-        if (k && (k.st === 'on' || k.st === 'peel')) { k.until = now + DUR; k.st = 'on'; k.fl = now; k.dmg = Math.max(k.dmg, DMG); dbg.refreshed++; }   /* (refreshed: no stacking, no second burst) */
-        else { k = { st: 'on', until: now + DUR, fl: now, dmg: DMG, C, sd: Math.random() * 9, dbg, pt: 0, bt: 0 }; M.marks.set(m, k); dbg.marked++; }
+        if (k && (k.st === 'on' || k.st === 'peel')) { if (k.st === 'peel') k.nt = now + FFV.iv; k.until = now + DUR; k.st = 'on'; k.fl = now; k.dmg = Math.max(k.dmg, DMG); k.dot = Math.max(k.dot || 0, DOT); dbg.refreshed++; }   /* (refreshed: no stacking, no second burst) */
+        else { k = { st: 'on', until: now + DUR, fl: now, dmg: DMG, dot: DOT, nt: now + FFV.iv, C, sd: Math.random() * 9, dbg, pt: 0, bt: 0 }; M.marks.set(m, k); dbg.marked++; }
         m.ffMark = k; m.ffDef = FFV.def; m.ffSlow = (m.boss || m.still) ? 0 : FFV.slow; } }
     const F = H.add({ key: 'featherfall', life: FLY + LAND + 0.7, dbg,
       update(dt, f) { const t = f.t; if (t >= FLY && !feathers) { feathers = []; const tg = H.living().filter(m => valid(m) && Math.hypot(m.x - ax, m.y - ay) < RA + (m.r || 0.4));
@@ -181,10 +185,11 @@
      away.
        shield     12 / 16 / 20% of the pet's max HP, for 8 s (a ward: X.addWard; it takes damage before the pet does)
        speed      +15% movement while it holds (X.mvMod 'sanctuary')
-       end gust   pushes ordinary monsters within 3 tiles 1.8 tiles away (H.push: bosses stay put); no damage
+       end gust   (v371) strikes every monster within 3 tiles for 1.5 / 1.8 / 2.1 x base x K (one hitArea), then pushes the
+                  ordinary ones 1.8 tiles away (H.push: bosses stay put); not when the pet dies or is swapped out
      Recasting refreshes it (its pool back to the larger of what is left and a fresh one, its 8 s from now): never two shields
      from this skill. The party's other pets are off the field: the shield covers the pet in play. Cost 30, cooldown 12 s. */
-  S.sanctuary = (C, h) => { const H = h, me = H.me, g = H.g, tier = tierOf(C), PCT = [0.12, 0.16, 0.2][tier], DUR = 8, MV = 1.15, NF = 18, WRAP = 0.35, OPEN = 0.45;
+  S.sanctuary = (C, h) => { const H = h, me = H.me, g = H.g, tier = tierOf(C), PCT = [0.12, 0.16, 0.2][tier], BURST = C.base * C.K * [1.5, 1.8, 2.1][tier], DUR = 8, MV = 1.15, NF = 18, WRAP = 0.35, OPEN = 0.45;
     const maxHP = (H.X.ST && H.X.ST().hp) || me.maxhp || 100, AMT = PCT * maxHP;
     const old = H.fx.find(f => f.key === 'sanctuary' && f.st === 'on');
     if (old) { old.pool = Math.max(old.pool, AMT); old.cap = Math.max(old.cap, old.pool); old.until = g.t + DUR; old.fl = g.t; old.dbg.refresh++; H.X.sfx.hum && H.X.sfx.hum(); return old; }
@@ -201,7 +206,8 @@
       onEnd(f) { if (f.st === 'on') finish(f, 'gone'); for (const k of kids) k.life = 0; } });
     function finish(f, why) { if (f.st !== 'on') return; f.st = 'end'; f.endT = g.t; dbg.end = why; if (un) { un(); un = null; } if (H.X.mvMod) H.X.mvMod('sanctuary', null);
       for (const q of fs) if (q.gone < 0) { const b = q.b + f.rot * (q.up ? -1 : 1); q.gone = g.t; q.x = me.x + Math.cos(b) * 0.75; q.y = me.y + Math.sin(b) * 0.5; q.z = q.up ? 1.1 : 0.55; q.vx = Math.cos(b) * 5; q.vy = Math.sin(b) * 3.5; q.vz = 1 + Math.random(); }
-      if (why !== 'gone') { for (const m of H.near(me.x, me.y, 3)) { if (H.push(m, me.x, me.y, 1.8)) dbg.pushed++; } H.X.sfx.whoosh && H.X.sfx.whoosh(); for (let k = 0; k < H.n(18); k++) { const b = k / 18 * TAU; U.wisp(H, me.x + Math.cos(b) * 0.6, me.y + Math.sin(b) * 0.4 - 0.5, Math.cos(b) * 8, Math.sin(b) * 5, 0.5); } } }
+      if (why !== 'gone') { dbg.burst = H.hitArea(me.x, me.y, 3, BURST, C.dmgO({ kb: 3 })) || 0; H.X.shake(4, 0.12); H.X.sfx.thud && H.X.sfx.thud();   /* (v371: the burst strikes, then pushes) */
+        for (const m of H.near(me.x, me.y, 3)) { if (H.push(m, me.x, me.y, 1.8)) dbg.pushed++; } H.X.sfx.whoosh && H.X.sfx.whoosh(); for (let k = 0; k < H.n(18); k++) { const b = k / 18 * TAU; U.wisp(H, me.x + Math.cos(b) * 0.6, me.y + Math.sin(b) * 0.4 - 0.5, Math.cos(b) * 8, Math.sin(b) * 5, 0.5); } } }
     // the ward: it takes what it can of each hit while it holds
     const ward = (d, src) => { if (F.st !== 'on' || !(d > 0) || g.t >= F.until) return d; const s = Math.min(F.pool, d); F.pool -= s; dbg.absorbed += s; F.fl = g.t; H.X.sfx.note && H.X.sfx.note(990, 0.1, 'sine', 0.04, 760); return d - s; };
     un = H.X.addWard ? H.X.addWard(ward) : null; if (H.X.mvMod) H.X.mvMod('sanctuary', MV);

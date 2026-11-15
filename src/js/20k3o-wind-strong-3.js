@@ -142,7 +142,7 @@
        range      7 tiles; each lunge ends at a point made safe (walkPoint) and moves the pet through the game's collision
      The pet's stick is held while it dances (no input fights the lunges) and it is briefly untouchable as it lands. Cost 26,
      cooldown 4 s. */
-  S.swallow = (C, h) => { const H = h, me = H.me, tier = tierOf(C), NS = [3, 4, 6][tier], TOT = [2.4, 3.4, 4.4][tier], WF = [1.6, 1.6, 1.9][tier], WS = (NS - 1) + WF, PER = TOT * C.base * C.K / WS, OPEN = 0.3, DASH = 0.17, GAP = 0.07, FINS = 0.36, BIG = tier === 2 ? 1.4 : 1, RANGE = 7;
+  S.swallow = (C, h) => { const H = h, me = H.me, tier = tierOf(C), NS = [3, 4, 6][tier], TOT = [2.4, 3.4, 4.4][tier], WF = [1.6, 1.6, 1.9][tier], WS = (NS - 1) + WF, PER = TOT * C.base * C.K / WS, OPEN = 0.35, DASH = 0.22, GAP = 0.1, FINS = 0.36, BIG = tier === 2 ? 1.4 : 1, RANGE = 7;
     const P0 = petOf(H), dbg = { dashes: [], hits: 0, landed: false }, struck = new Set(), birds = [], slashes = [];
     let ph = 'open', k = -1, tK = 0, d = null, side = 1, circA = null, hold = null, fin = null;
     me.sq = 0.7; H.X.sfx.whoosh && H.X.sfx.whoosh();
@@ -178,18 +178,18 @@
         G.layer(c, () => {
           // the wings: three long blades of wind a side, fanned behind the pet; swept back in a dash, forward at the finish
           const sweep = ph === 'dash' ? 0.5 : ph === 'fin' ? -0.9 * Math.sin(cl((t - tK) / FINS) * Math.PI) : 0;
-          if (wa > 0.01) for (const s of [-1, 1]) for (let j = 0; j < 3; j++) { const base = -Math.PI / 2 + s * (0.55 + j * 0.42) + s * sweep * 0.6 - face * 0.25, L = T * (1.5 - j * 0.2) * eo(wa);
-            G.arc(c, X - face * T * 0.2 + Math.cos(base) * L * 0.45, Yc + Math.sin(base) * L * 0.45, L * 0.9, base + s * 0.4, wa * (0.95 - j * 0.15), { k: 0.35, beta: base - Math.PI / 2, mode: 1, span: 2.2, th: 0.32, col: '#0B7A55', lite: P.mintW, seed: s * 3 + j, dens: 0.9 }); }
-          if (wa > 0.01) G.glow(c, X - face * T * 0.2, Yc - T * 0.3, T * 1.4, P.jade, 0.25 * wa);
+          if (wa > 0.01) for (const s of [-1, 1]) for (let j = 0; j < 3; j++) { const base = -Math.PI / 2 + s * (0.55 + j * 0.42) + s * sweep * 0.6 - face * 0.25, L = T * (2.1 - j * 0.28) * eo(wa);
+            G.arc(c, X - face * T * 0.2 + Math.cos(base) * L * 0.45, Yc + Math.sin(base) * L * 0.45, L * 0.9, base + s * 0.4, wa * (1 - j * 0.12), { k: 0.38, beta: base - Math.PI / 2, mode: 1, span: 2.3, th: 0.4, col: '#075C40', lite: P.mintW, seed: s * 3 + j, dens: 1.6 }); }
+          if (wa > 0.01) { G.shade(c, X - face * T * 0.2, Yc - T * 0.5, T * 1.9, T * 1.3, 0.55 * wa, 2); G.glow(c, X - face * T * 0.2, Yc - T * 0.3, T * 1.6, P.jade, 0.35 * wa); }
           // the dash's path: a ribbon of wind
-          if (d && d.path.length > 1 && (ph === 'dash' || t - d.t0 < d.dur + 0.3)) { const fade = ph === 'dash' ? 1 : cl(1 - (t - d.t0 - d.dur) / 0.3), pts = d.path.slice().reverse().map(q => [H.sx(q[0]), H.sy(q[1]) - 0.5 * T]); G.rib(c, pts, T * 0.35, 0.8 * fade, { edge: 0, taper: 0.8, seed: d.k, flow: 8 }); }
-          for (const b of birds) { const u = (t - b.t0) / 0.55; if (u > 1) continue; G.glow(c, H.sx(b.x), H.sy(b.y) - T * 0.6, T * 1.0 * b.s, P.mint, 0.35 * (1 - u)); }
-          for (const q of slashes) { const u = (t - q.t0) / 0.32; if (u > 1) continue; const sx = H.sx(q.x), sy = H.sy(q.y) - q.z * T; G.arc(c, sx, sy, T * 0.95 * q.big, q.a + Math.PI / 2, 1 - u, { k: 0.3, beta: q.a, mode: 1, span: 2.4 * eo(u / 0.4), th: 0.3, col: '#0A7A52', lite: P.mintW, seed: q.t0 * 10 }); }
+          if (d && d.path.length > 1 && (ph === 'dash' || t - d.t0 < d.dur + 0.3)) { const fade = ph === 'dash' ? 1 : cl(1 - (t - d.t0 - d.dur) / 0.3), pts = d.path.slice().reverse().map(q => [H.sx(q[0]), H.sy(q[1]) - 0.5 * T]); G.rib(c, pts, T * 0.55, fade, { edge: 0, taper: 0.7, seed: d.k, flow: 8, col: '#075C40', dens: 1.6 }); G.rib(c, pts, T * 0.2, fade, { edge: 0, taper: 0.6, seed: d.k + 3, flow: 10, dens: 0 }); }
+          for (const b of birds) { const u = (t - b.t0) / 0.75; if (u > 1) continue; G.glow(c, H.sx(b.x), H.sy(b.y) - T * 0.6, T * 1.3 * b.s, P.mint, 0.45 * (1 - u)); }
+          for (const q of slashes) { const u = (t - q.t0) / 0.32; if (u > 1) continue; const sx = H.sx(q.x), sy = H.sy(q.y) - q.z * T; G.arc(c, sx, sy, T * 1.3 * q.big, q.a + Math.PI / 2, 1 - u, { k: 0.3, beta: q.a, mode: 1, span: 2.5 * eo(u / 0.4), th: 0.38, col: '#075C40', lite: P.mintW, seed: q.t0 * 10, dens: 1.6 }); }
           // the crossing slash: two crescents crossing, flying on
           if (ph === 'fin' || (ph === 'done' && fin && t - tK < 0.3)) { const u = ph === 'fin' ? cl((t - tK) / FINS) : 1, fd = ph === 'done' ? 1 - (t - tK) / 0.3 : 1, dist = 3.4 * BIG * eo(u), sx = H.sx(fin.x + Math.cos(fin.a) * dist), sy = H.sy(fin.y + Math.sin(fin.a) * dist) - 0.6 * T, sa = Math.atan2(Math.sin(fin.a), Math.cos(fin.a));
-            for (const s of [-1, 1]) G.arc(c, sx, sy, T * 1.25 * BIG, sa, fd, { k: 0.38, beta: sa + s * 0.7, mode: 1, span: 2.5, th: 0.4, col: '#0A7A52', lite: P.mintW, seed: s + 7, dens: 1.1 });
+            for (const s of [-1, 1]) G.arc(c, sx, sy, T * 1.6 * BIG, sa, fd, { k: 0.38, beta: sa + s * 0.7, mode: 1, span: 2.6, th: 0.45, col: '#075C40', lite: P.mintW, seed: s + 7, dens: 1.7 });
             G.glow(c, sx, sy, T * 1.3 * BIG, P.mint, 0.4 * fd); } });
         // the swallows: brief silhouettes of pale green light where the pet darted
-        for (const b of birds) { const u = (t - b.t0) / 0.55; if (u > 1) continue; G.swallow(c, H.sx(b.x) + Math.cos(b.a) * u * T * 0.8, H.sy(b.y) - T * 0.6 + Math.sin(b.a) * u * T * 0.5 - u * T * 0.3, Math.atan2(Math.sin(b.a), Math.cos(b.a)), T * 1.5 * b.s, 1 - u, Math.cos(u * 14)); } } });
+        for (const b of birds) { const u = (t - b.t0) / 0.75; if (u > 1) continue; G.swallow(c, H.sx(b.x) + Math.cos(b.a) * u * T * 0.8, H.sy(b.y) - T * 0.6 + Math.sin(b.a) * u * T * 0.5 - u * T * 0.3, Math.atan2(Math.sin(b.a), Math.cos(b.a)), T * 2.1 * b.s, Math.min(1, 1.3 * (1 - u)), Math.cos(u * 14)); } } });
     return F; };
 })();

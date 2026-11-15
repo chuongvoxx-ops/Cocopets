@@ -522,7 +522,7 @@ void main(){ vec2 u = v_uv; float r = length(u), m = 0.0, edge = 1.0 - smoothste
     // opacity fading toward the inner edge, streaked as the air races along it; v_q.x span + 10 x mode, v_q.y seed, v_q.z thickness
     vec4 B = wbl(u, v_q.x, v_q.z); float d = B.x, rr = r, md = floor(v_q.x / 10.0), along = md < 0.5 ? pow(clamp(1.0 - B.y, 0.0, 1.0), 1.3) : md < 1.5 ? 1.0 - smoothstep(0.7, 1.0, B.y) : 1.0;
     float outer = 1.0 - smoothstep(0.796, 0.806, rr), prof = pow(clamp(1.0 - d, 0.0, 1.0), 1.7) * step(0.0, d + 0.02), st = fbm(vec2(B.w * 3.0 - t * 2.5, d * 4.0 + v_q.y));
-    float a = 0.78 * prof * along * (0.6 + 0.55 * st) * outer * B.z * v_c.a; vec3 c = mix(col * 0.42, col, clamp(1.0 - d, 0.0, 1.0) * (0.7 + 0.3 * st)); gl_FragColor = vec4(c * a, a); }
+    float a = min(1.0, 1.05 * pow(clamp(1.0 - d, 0.0, 1.0), 0.9) * step(0.0, d + 0.02) * along * (0.72 + 0.4 * st)) * outer * B.z * v_c.a; vec3 c = mix(col * 0.55, col, clamp(1.0 - d, 0.0, 1.0) * (0.7 + 0.3 * st));   /* (v371: a firmer body, so a blade reads on a pale floor) */ gl_FragColor = vec4(c * a, a); }
   else if (v_k > 35.5 && v_k < 36.5) { // (v370, wind) shade under wind (solid), so it reads on a pale floor: a soft swirling disc (v_q.x 0)
     // or a funnel's body (v_q.x 1 + its foot's width), streaked; v_q.z its density
     float a = 0.0, sh = 0.0;
@@ -533,7 +533,7 @@ void main(){ vec2 u = v_uv; float r = length(u), m = 0.0, edge = 1.0 - smoothste
   else if (v_k > 38.5 && v_k < 39.5) { // (v370, wind) the body of a ribbon of wind (solid; uv.x along, uv.y across): v_q.x 0 both edges
     // bright, 1 the edge at +y; v_q.y seed, v_q.z its flow
     float e = v_q.x > 0.5 ? (u.y + 1.0) * 0.5 : abs(u.y), af = 1.0 - smoothstep(0.65, 1.0, abs(u.x)), st = fbm(vec2(u.x * 2.0 - t * v_q.z, u.y * 3.0 + v_q.y));
-    float a = pow(e, 1.6) * (1.0 - smoothstep(0.88, 0.97, e)) * af * (0.55 + 0.55 * st) * 0.6 * v_c.a; vec3 c = mix(col * 0.45, col, e); gl_FragColor = vec4(c * a, a); }
+    float a = min(1.0, pow(e, 1.1) * (1.0 - smoothstep(0.9, 0.98, e)) * af * (0.65 + 0.5 * st) * 0.95) * v_c.a; vec3 c = mix(col * 0.45, col, e); gl_FragColor = vec4(c * a, a); }
   else { vec3 L = vec3(0.0);
     if (v_k > 25.5) { // (v361, water light)
       if (v_k < 26.5) { // caustic light: v_q.z > 0.5 on a sphere of water (the web of light inside it, a specular glint, its rim

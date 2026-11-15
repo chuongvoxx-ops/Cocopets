@@ -262,7 +262,13 @@
       : [[0, 'rgba(22,165,123,0)'], [1 - w, 'rgba(22,165,123,0)'], [1 - 0.7 * w, 'rgba(22,165,123,0.22)'], [1 - 0.5 * w, 'rgba(160,240,205,0.7)'], [1 - 0.3 * w, 'rgba(22,165,123,0.22)'], [1, 'rgba(22,165,123,0)']];
     radial(g, 256, S); });
   const pickB = (t, r) => { const q = t / Math.max(1, r); let b = 0; for (let i = 1; i < RW.length; i++) if (Math.abs(RW[i] - q) < Math.abs(RW[b] - q)) b = i; return b; };
-  function ringF(c, kind, X, Y, r, t, a) { if (r < 2 || !(a > 0.01)) return; c.globalCompositeOperation = 'lighter'; c.globalAlpha = Math.min(1, a); c.drawImage(ringSpr(kind, pickB(t, r)), X - r, Y - r * GY, r * 2, r * 2 * GY); c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1; }
+  /* (v371) on a pale floor additive light alone washes out: each main shape is first laid down as a dark emerald copy of
+     itself (normal blend, about half strength), then lit over it, so it reads on any floor (on a dark one the backing
+     barely shows and only deepens it) */
+  const DKC = new WeakMap(), SHK = 0.5;
+  function darkOf(img) { let d = DKC.get(img); if (d) return d; d = mk(img.width, img.height); const g = d.getContext('2d'); g.drawImage(img, 0, 0); g.globalCompositeOperation = 'source-in'; g.fillStyle = '#08493A'; g.fillRect(0, 0, d.width, d.height); DKC.set(img, d); return d; }
+  function shadeImg(c, img, x, y, w, h, a) { if (!img || !(a > 0.01)) return; const op = c.globalCompositeOperation, al = c.globalAlpha; c.globalCompositeOperation = 'source-over'; c.globalAlpha = Math.min(1, a * SHK); c.drawImage(darkOf(img), x, y, w, h); c.globalCompositeOperation = op; c.globalAlpha = al; }
+  function ringF(c, kind, X, Y, r, t, a) { if (r < 2 || !(a > 0.01)) return; shadeImg(c, ringSpr(kind, pickB(t, r)), X - r, Y - r * GY, r * 2, r * 2 * GY, a); c.globalCompositeOperation = 'lighter'; c.globalAlpha = Math.min(1, a); c.drawImage(ringSpr(kind, pickB(t, r)), X - r, Y - r * GY, r * 2, r * 2 * GY); c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1; }
   function glowF(c, X, Y, r, col, a, gy) { if (r < 1 || !(a > 0.006)) return; c.globalCompositeOperation = 'lighter'; c.globalAlpha = Math.min(1, a); const ry = r * (gy || 1); c.drawImage(glowSprite(col), X - r, Y - ry, r * 2, ry * 2); c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1; }
   // the landing seal: two feathered rings, wind-curl ticks, a four-point star, a ring of small diamonds (outer, static)
   // and an inner ring of comma-shaped swirls (turning the other way)
@@ -666,7 +672,7 @@
     function drawCone(c, T) { if (P.ph !== 'dive' && P.ph !== 'plant') return; spearNow(T); const k = P.ph === 'dive' ? sm(P.u / 0.35) : 1 - sm(P.u * 2), q = J[P.j]; if (k < 0.01) return;
       const len = SP.Lp * (0.95 + 0.12 * q.j) * (q.fin ? 1.25 : 1), wd = T * (0.55 + 0.06 * q.j) * (q.fin ? 1.3 : 1);
       c.save(); c.translate(SP.tipX, Math.min(SP.tipY, SP.floorY)); c.rotate(SP.th + Math.PI); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.85 * k;
-      c.drawImage(coneSpr(), -wd / 2, -len, wd, len); if (tier >= 2) { c.globalAlpha = 0.45 * k; c.drawImage(coneSpr(), -wd * 0.35, -len * 1.15, wd * 0.7, len * 1.15); } c.restore(); }
+      shadeImg(c, coneSpr(), -wd / 2, -len, wd, len, 0.85 * k); c.drawImage(coneSpr(), -wd / 2, -len, wd, len); if (tier >= 2) { c.globalAlpha = 0.45 * k; c.drawImage(coneSpr(), -wd * 0.35, -len * 1.15, wd * 0.7, len * 1.15); } c.restore(); }
     function drawEnt(c, frontSide) {
       const T = H.X.Tz();
       if (!frontSide) { drawRibbon(c, false); return; }
@@ -687,7 +693,7 @@
       // the seal under the pet from the apex (where it will land), flaring at contact, then fading
       for (const q of J) { const t0 = q.L + q.A * 0.85, t1 = q.C + 0.5; if (t < t0 || t > t1 || !q.launched) continue; const u = (t - t0) / (q.C - t0), X = H.sx(q.fired ? q.cx : me.x + fxF * HAND_DIVE[0] * hT), Y = H.sy(q.fired ? q.cy : me.y) + 0.18 * T;
         const a = t < q.C ? sm(u / 0.4) * (0.6 + 0.4 * u) : 1 - sm((t - q.C) / 0.5), R = q.R * T * (t < q.C ? lerp(0.7, 1, sm(u)) : 1 + 0.15 * sm((t - q.C) / 0.5));
-        c.save(); c.translate(X, Y); c.scale(1, GY); c.globalCompositeOperation = 'lighter'; c.globalAlpha = Math.min(1, a * (0.75 + 0.1 * q.j)); c.rotate(t * 0.6 + q.j); c.drawImage(sealSpr(0), -R, -R, R * 2, R * 2); c.rotate(-t * 1.9); const r2 = R * 0.72; c.drawImage(sealSpr(1), -r2, -r2, r2 * 2, r2 * 2); c.restore();
+        c.save(); c.translate(X, Y); c.scale(1, GY); c.globalCompositeOperation = 'lighter'; c.globalAlpha = Math.min(1, a * (0.75 + 0.1 * q.j)); c.rotate(t * 0.6 + q.j); shadeImg(c, sealSpr(0), -R, -R, R * 2, R * 2, a); c.drawImage(sealSpr(0), -R, -R, R * 2, R * 2); c.rotate(-t * 1.9); const r2 = R * 0.72; c.drawImage(sealSpr(1), -r2, -r2, r2 * 2, r2 * 2); c.restore();
         glowF(c, X, Y, R * 0.7, EMER, 0.3 * a, GY); }
       // the impacts on the floor: the shockwave, the ripples, Adept's twin rings, Celestial's bloom
       for (const m of fx.imps) { const tau = t - m.t0, X = H.sx(m.x), Y = H.sy(m.y) + 0.18 * T, Rp = m.R * T, u = cl(tau / 0.42), fr = Rp * 1.12 * (1 - Math.pow(1 - u, 2.3)), a = 1 - sstep(0.25, 0.75, tau);
@@ -705,7 +711,7 @@
     }
     function drawBlades(c, m, tau, X, Y, T, near) { const Rp = m.R * T, img = bladeSpr(); c.save(); c.globalCompositeOperation = 'lighter';
       for (const b of m.blades) { const sn = Math.sin(b.a); if ((sn > 0) !== near) continue; const u = cl((tau - b.d) / 0.55); if (u <= 0 || u >= 1) continue; const r = Rp * (0.2 + 1.15 * b.k * (1 - Math.pow(1 - u, 2))), lift = T * 0.45 * sm(u) * (m.fin ? 1.3 : 1), x = X + Math.cos(b.a) * r, y = Y + sn * r * GY - lift, a = (1 - sm((u - 0.45) / 0.55)) * sm(u / 0.1) * (near ? nearPet(x, y, T) : 1);
-        if (a < 0.01) continue; const w = T * (0.7 + 0.12 * m.j) * b.s * (m.fin ? 1.35 : 1), hgt = w * 0.5 * (0.6 + 0.9 * sm(u)); c.globalAlpha = a; c.save(); c.translate(x, y); c.rotate(Math.atan2(sn * GY, Math.cos(b.a)) + Math.PI / 2); c.scale(1, 0.55 + 0.45 * sm(u)); c.drawImage(img, -w / 2, -hgt, w, hgt); c.restore(); }
+        if (a < 0.01) continue; const w = T * (0.7 + 0.12 * m.j) * b.s * (m.fin ? 1.35 : 1), hgt = w * 0.5 * (0.6 + 0.9 * sm(u)); c.globalAlpha = a; c.save(); c.translate(x, y); c.rotate(Math.atan2(sn * GY, Math.cos(b.a)) + Math.PI / 2); c.scale(1, 0.55 + 0.45 * sm(u)); shadeImg(c, img, -w / 2, -hgt, w, hgt, a); c.drawImage(img, -w / 2, -hgt, w, hgt); c.restore(); }
       c.restore(); }
     /* the final bloom: great curved petals of wind opening out of a bud round the landing point, two layered rings of
        them turning slowly the other way, lingering about a second as they unfurl */
@@ -715,7 +721,7 @@
         for (let i = 0; i < n; i++) { const a = (i + ly * 0.5) / n * TAU + tau * (ly ? -0.35 : 0.25), sn = Math.sin(a); if ((sn > 0) !== near) continue;
           const dx = Math.cos(a) * Math.sin(open), dy = sn * GY * Math.sin(open) - Math.cos(open), ang = Math.atan2(dx, -dy), r0 = m.R * T * 0.12, bx = X + Math.cos(a) * r0, by = Y + sn * r0 * GY;
           const k = Math.hypot(dx, dy), fw = 0.45 + 0.55 * Math.abs(Math.sin(a)) * 0.6 + 0.25, aa = al * (ly ? 0.4 : 0.62) * (near ? 0.55 * nearPet(bx + dx * Ln * 0.5, by + dy * Ln * 0.5, T) : 1);
-          c.globalAlpha = aa; c.save(); c.translate(bx, by); c.rotate(ang); c.drawImage(img, -Wn * fw / 2, -Ln * k, Wn * fw, Ln * k); c.restore(); } }
+          c.globalAlpha = aa; c.save(); c.translate(bx, by); c.rotate(ang); shadeImg(c, img, -Wn * fw / 2, -Ln * k, Wn * fw, Ln * k, aa); c.drawImage(img, -Wn * fw / 2, -Ln * k, Wn * fw, Ln * k); c.restore(); } }
       c.restore(); }
     function draw(c, f, X0, Y0, T) {
       const t = lastT, F2 = feet(T);
@@ -733,7 +739,7 @@
       for (const m of fx.imps) { const tau = t - m.t0, X = H.sx(m.x), Y = H.sy(m.y) + 0.18 * T, k = m.fin ? 1.4 : 1;
         const ck = Math.exp(-tau * 9); if (ck > 0.02) { c.save(); c.globalCompositeOperation = 'lighter'; const cr = T * (0.8 + 0.08 * m.j) * k * (0.75 + 0.5 * (1 - ck)); c.globalAlpha = 0.85 * ck; c.drawImage(coreSpr(), X - cr, Y - cr * 0.62, cr * 2, cr * 1.24); c.globalAlpha = (m.fin ? 0.3 : 0.6) * ck; const c2 = cr * 0.55; c.drawImage(coreSpr(), X - c2, Y - c2 * 0.62, c2 * 2, c2 * 1.24); c.restore(); glowF(c, X, Y - T * 0.1, T * 1.3 * k, MINT, 0.4 * ck); glowF(c, X, Y, cr * 1.5, EMER, 0.35 * ck, GY); }
         // the vertical wind spike (the final: a towering column)
-        { const sp = m.fin ? 0.3 : 0.16, hh = T * (m.fin ? 4.5 + 0.8 * tier : 1.7 + 0.35 * m.j) * (1 - Math.pow(1 - cl(tau / sp), 2)), ww = T * (m.fin ? 1.1 + 0.15 * tier : 0.45 + 0.04 * m.j) * (1 + 0.3 * sm(tau / 0.6)), ca = sm(tau / 0.04) * (1 - sstep(m.fin ? 0.5 : 0.18, m.fin ? 1.4 : 0.5, tau)); if (ca > 0.01 && hh > 2) { const cs = columnSpr(); c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = (m.fin ? 0.65 : 0.6) * ca; c.drawImage(cs, X - ww / 2, Y - hh, ww, hh); if (m.fin) { c.globalAlpha = 0.5 * ca; c.drawImage(cs, X - ww * 0.22, Y - hh * 1.12, ww * 0.44, hh * 1.12); } c.restore(); } }
+        { const sp = m.fin ? 0.3 : 0.16, hh = T * (m.fin ? 4.5 + 0.8 * tier : 1.7 + 0.35 * m.j) * (1 - Math.pow(1 - cl(tau / sp), 2)), ww = T * (m.fin ? 1.1 + 0.15 * tier : 0.45 + 0.04 * m.j) * (1 + 0.3 * sm(tau / 0.6)), ca = sm(tau / 0.04) * (1 - sstep(m.fin ? 0.5 : 0.18, m.fin ? 1.4 : 0.5, tau)); if (ca > 0.01 && hh > 2) { const cs = columnSpr(); c.save(); c.globalCompositeOperation = 'lighter'; shadeImg(c, cs, X - ww / 2, Y - hh, ww, hh, (m.fin ? 0.65 : 0.6) * ca); c.globalAlpha = (m.fin ? 0.65 : 0.6) * ca; c.drawImage(cs, X - ww / 2, Y - hh, ww, hh); if (m.fin) { c.globalAlpha = 0.5 * ca; c.drawImage(cs, X - ww * 0.22, Y - hh * 1.12, ww * 0.44, hh * 1.12); } c.restore(); } }
         drawBlades(c, m, tau, X, Y, T, true); if (m.fin) drawSheets(c, m, tau, X, Y, T, true);
         // the fountain: strands rising round the spear, then curling outward at the top
         c.save(); c.globalCompositeOperation = 'lighter'; const sp = streakSpr(), cu = curlSpr();
