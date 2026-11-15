@@ -497,11 +497,11 @@
       drawUnder(c, f, X, Y, T) { if (!WK.on()) return f.drawUnder2d(c, f, X, Y, T); const G = WK.api, tt = f.t;
         /* (v366: no channel joining the basins) */
         for (const s of src) { const SX = H.sx(s.x), SY = H.sy(s.y), R0 = RW * T;
-          if (tt > s.tA + 0.15 && tt < s.POUR + 0.2) for (let q = 0; q < 2; q++) { const u = ((tt - s.tA) * 1.4 + q / 2) % 1; G.ripple(c, SX, SY, R0 * (0.3 + 0.9 * u), 0.7 * (1 - u), { seed: s.i + q, th: 0.1 }); }
+          if (tt > s.tA + 0.15 && tt < s.POUR + 0.2) for (let q = 0; q < 2; q++) { const u = ((tt - s.tA) * 1.4 + q / 2) % 1; G.ripple(c, SX, SY, R0 * (0.3 + 0.9 * u), 0.7 * (1 - u), { col: '#4F7FD8', seed: s.i + q, th: 0.1 }); }
           const bk = cl((tt - s.POUR - 0.1) / 0.25) * (1 - cl((tt - s.PE - 0.4) / 0.3));
-          if (bk > 0.01) { const br = R0 * (1.25 + 0.06 * Math.sin(tt * 7 + s.ph)); G.pool(c, SX, SY, br * 1.8, bk, { seed: s.i * 1.9 }); G.bubbles(c, SX, SY - T * 0.15, br * 1.1, br * 0.5, 0.6 * bk, { seed: s.i * 2.7, rise: 1.4 }); G.whirl(c, SX, SY, br * 1.05, 0.6 * bk, { spin: 3, seed: s.i + 0.5, col: W.water, heat: 0.62 });
-            for (let q = 0; q < 3; q++) { const u = ((tt - s.POUR) * 0.8 + q / 3) % 1; G.ripple(c, SX, SY, R0 * (1.1 + 2.2 * u), 0.7 * bk * Math.pow(1 - u, 1.3), { seed: s.i + q, th: 0.09 }); } }
-          const pk = (tt - s.PE - 0.3) / 1.5; if (pk > 0 && pk < 1) { const r = R0 * (1.4 + 1.4 * H.ease.out(pk)), al = 1 - pk; G.pool(c, SX, SY, r, 0.7 * al, { seed: s.i * 2.3 }); G.ripple(c, SX, SY, r, 0.4 * al, { seed: s.i, th: 0.07 }); for (let q = 0; q < 4; q++) { const b = q * 1.7 + tt * 0.6 + s.ph; G.star(c, SX + Math.cos(b) * r * 0.6, SY + Math.sin(b) * r * 0.6 * H.GY, T * 0.35, al * (0.4 + 0.4 * Math.sin(tt * 5 + q))); } } } },
+          if (bk > 0.01) { const br = R0 * (1.25 + 0.06 * Math.sin(tt * 7 + s.ph)); G.pool(c, SX, SY, br * 1.8, bk, { col: '#3F7FD8', glow: '#0E2F7A', seed: s.i * 1.9 }); G.bubbles(c, SX, SY - T * 0.15, br * 1.1, br * 0.5, 0.6 * bk, { col: '#8FB0F0', seed: s.i * 2.7, rise: 1.4 }); G.whirl(c, SX, SY, br * 1.05, 0.6 * bk, { spin: 3, seed: s.i + 0.5, col: '#123A8C', heat: 0.62 });
+            for (let q = 0; q < 3; q++) { const u = ((tt - s.POUR) * 0.8 + q / 3) % 1; G.ripple(c, SX, SY, R0 * (1.1 + 2.2 * u), 0.7 * bk * Math.pow(1 - u, 1.3), { col: '#4F7FD8', seed: s.i + q, th: 0.09 }); } }
+          const pk = (tt - s.PE - 0.3) / 1.5; if (pk > 0 && pk < 1) { const r = R0 * (1.4 + 1.4 * H.ease.out(pk)), al = 1 - pk; G.pool(c, SX, SY, r, 0.7 * al, { col: '#3F7FD8', glow: '#0E2F7A', seed: s.i * 2.3 }); G.ripple(c, SX, SY, r, 0.4 * al, { col: '#4F7FD8', seed: s.i, th: 0.07 }); for (let q = 0; q < 4; q++) { const b = q * 1.7 + tt * 0.6 + s.ph; G.star(c, SX + Math.cos(b) * r * 0.6, SY + Math.sin(b) * r * 0.6 * H.GY, T * 0.35, al * (0.4 + 0.4 * Math.sin(tt * 5 + q))); } } } },
       drawUnder2d(c, f, X, Y, T) {
         const tt = f.t, GY = H.GY, rp = rippleSpr();
         // Celestial: the basins join into one luminous water pattern
@@ -520,26 +520,26 @@
       draw(c, f, X, Y, T) { if (!WK.on()) return f.draw2d(c, f, X, Y, T); const G = WK.api, Q = G.gq(), tt = f.t;
         for (const s of src.slice().sort((p, q) => p.y - q.y)) { const P = ph(s, tt); if (tt < s.tA || P.dis >= 1) continue; const SX = H.sx(s.x), SY = H.sy(s.y), RY = SY - s.Z * T, rr = RW * T * 1.55 * P.form * (1 + 0.15 * P.dis), ra = cl((tt - s.tA) / 0.25) * (1 - P.dis), w = RW * T * 0.95 * P.narrow * cl(P.open * 1.6);
           const ringP = (a0, a1) => { const out = []; for (let i = 0; i <= 8; i++) { const b = a0 + (a1 - a0) * i / 8; out.push([SX + Math.cos(b) * rr * 0.92, RY + Math.sin(b) * rr * 0.34, rr * (0.07 + 0.03 * Math.abs(Math.sin(b)))]); } return out; };
-          G.glow(c, SX, RY, rr * 1.2, W.aqua, 0.4 * ra, 0.4);
+          G.glow(c, SX, RY, rr * 1.2, '#2A5FC8', 0.4 * ra, 0.4);
           { const pu = 0.5 + 0.5 * Math.sin(tt * 5 + s.ph), cr = rr * (0.2 + 0.06 * pu) * (0.6 + 0.4 * P.form), Q2 = G.gq(), pc = G.xy(c, SX, RY - rr * 0.05);   /* (v366) a glowing, pulsing core of light atop the pillar */
-            G.glow(c, SX, RY, cr * 4.5, W.aqua, (0.35 + 0.25 * pu) * ra); G.glow(c, SX, RY, cr * 2.2, '#CFF6FF', (0.45 + 0.3 * pu) * ra);
-            Q2.eorb(pc[0], pc[1], cr * pc[3], '#5FD0FF', 0.75 + 0.2 * pu, ra, s.ph, 2.5); G.star(c, SX, RY, cr * (3.5 + 1.5 * pu), (0.6 + 0.4 * pu) * ra, '#FFFFFF');
-            G.ripple(c, SX, RY, cr * (2 + 3 * ((tt * 1.2 + s.ph) % 1)), 0.5 * ra * (1 - (tt * 1.2 + s.ph) % 1), { sy: 0.36, seed: s.i, th: 0.1 }); }
-          if (P.open > 0.01) { const hr = rr * 0.72 * P.open; Q.quad(24, SX, RY, hr, 0, 0, hr * 0.36, W.abyss, ra, 1, s.ph, 2); Q.caustic(SX, RY, hr * 0.95, W.aqua, 0.6 * ra, s.ph, 0.36); }
-          G.stream(c, ringP(Math.PI - 0.12, TAU + 0.12), rr * 0.09, 0.75 * ra, { taper: 0, flow: 5, seed: s.i * 3, col: W.water, dens: 0.6, lite: 0.7 });
+            G.glow(c, SX, RY, cr * 4.5, '#2A5FC8', (0.35 + 0.25 * pu) * ra); G.glow(c, SX, RY, cr * 2.2, '#7FA8E8', (0.45 + 0.3 * pu) * ra);
+            Q2.eorb(pc[0], pc[1], cr * pc[3], '#2F6FE0', 0.75 + 0.2 * pu, ra, s.ph, 2.5); G.star(c, SX, RY, cr * (3.5 + 1.5 * pu), (0.6 + 0.4 * pu) * ra, '#FFFFFF');
+            G.ripple(c, SX, RY, cr * (2 + 3 * ((tt * 1.2 + s.ph) % 1)), 0.5 * ra * (1 - (tt * 1.2 + s.ph) % 1), { col: '#4F7FD8', sy: 0.36, seed: s.i, th: 0.1 }); }
+          if (P.open > 0.01) { const hr = rr * 0.72 * P.open; Q.quad(24, SX, RY, hr, 0, 0, hr * 0.36, W.abyss, ra, 1, s.ph, 2); Q.caustic(SX, RY, hr * 0.95, '#2A5FC8', 0.6 * ra, s.ph, 0.36); }
+          G.stream(c, ringP(Math.PI - 0.12, TAU + 0.12), rr * 0.09, 0.75 * ra, { taper: 0, flow: 5, seed: s.i * 3, col: '#123A8C', dens: 0.6, lite: 0.7 });
           // the waterfall: feathered at the top (it pours softly out of the ring), a dense flowing core, two thinner sheets
           if (P.bot > 0 && P.top < 1 && w > T * 0.18) { const y0 = RY + (SY - RY) * P.top, y1 = RY + (SY - RY) * P.bot + T * 0.15, Hh = y1 - y0, wa = cl((w / (RW * T * 0.95) - 0.18) * 2); if (Hh > 2) {
-            const fall = (dx, ww, dens, lite, sd2, al) => { const n = Math.max(4, Math.min(11, Math.ceil(Hh / (w * 0.9)))), Pp = []; for (let j = 0; j <= n; j++) { const v = j / n, feather = P.top < 0.02 ? cl(v * Hh / (T * 0.9) + 0.12) : 1; Pp.push([SX + dx + Math.sin(v * 7 + tt * 4 + s.ph + sd2) * w * 0.04, y0 + Hh * v, ww * (0.25 + 0.75 * Math.sqrt(feather)) * (1 + 0.08 * v)]); } G.stream(c, Pp, ww, al * wa, { taper: 0, flow: 11, seed: s.i * 2.3 + sd2, col: W.water, dens, lite }); };
+            const fall = (dx, ww, dens, lite, sd2, al) => { const n = Math.max(4, Math.min(11, Math.ceil(Hh / (w * 0.9)))), Pp = []; for (let j = 0; j <= n; j++) { const v = j / n, feather = P.top < 0.02 ? cl(v * Hh / (T * 0.9) + 0.12) : 1; Pp.push([SX + dx + Math.sin(v * 7 + tt * 4 + s.ph + sd2) * w * 0.04, y0 + Hh * v, ww * (0.25 + 0.75 * Math.sqrt(feather)) * (1 + 0.08 * v)]); } G.stream(c, Pp, ww, al * wa, { taper: 0, flow: 11, seed: s.i * 2.3 + sd2, col: '#123A8C', dens, lite }); };
             fall(-w * 0.26, w * 0.2, 0.35, 0.6, 3, 0.7); fall(w * 0.26, w * 0.2, 0.35, 0.6, 6, 0.7); fall(0, w * 0.36, 0.75, 0.95, 0, 0.95);
-            if (P.top < 0.02) G.spray(c, SX, y0 + T * 0.15, w * 0.9, 0.45 * wa, { seed: s.i * 1.3 + Math.floor(tt * 3) * 0.17, spread: 0.5, sy: 0.5 });
-            for (let q = 0; q < 4; q++) { const u = (tt * 1.6 + q / 4 + s.ph) % 1, sd = q % 2 ? 1 : -1; G.sphere(c, SX + sd * w * (0.5 + 0.25 * u), y0 + Hh * u, T * 0.05, 0.7 * wa * Math.sin(u * Math.PI), { col: W.water, seed: q, halo: 1.5 }); }
-            G.shafts(c, SX, RY, SX, y1, rr * 1.5, 0.22 * wa, { seed: s.ph }); G.spray(c, SX, y0 + Hh * 0.55, w * 1.1, 0.25 * wa, { seed: s.i * 7 + Math.floor(tt * 3) * 0.19, spread: 0.8, sy: 1.6 });
-            G.spray(c, SX, y1 - T * 0.25, w * 1.5, 0.6 * wa, { seed: s.i * 3.1 + Math.floor(tt * 6) * 0.21, spread: (tt * 3) % 1, sy: 0.65 }); G.glow(c, SX, y1 - T * 0.2, w * 1.5, W.aqua, 0.35 * wa);
-            for (let q = 0; q < 5; q++) { const u = (tt * 2.2 + q / 5 + s.ph) % 1, b = q / 5 * TAU + s.ph; G.sphere(c, SX + Math.cos(b) * w * (0.4 + 0.9 * u), y1 - T * 0.2 - Math.sin(u * Math.PI) * T * 0.8, T * 0.045, 0.75 * wa * (1 - u), { col: W.water, seed: q + 5, halo: 1.5 }); } } }
+            if (P.top < 0.02) G.spray(c, SX, y0 + T * 0.15, w * 0.9, 0.45 * wa, { col: '#6F8FD0', seed: s.i * 1.3 + Math.floor(tt * 3) * 0.17, spread: 0.5, sy: 0.5 });
+            for (let q = 0; q < 4; q++) { const u = (tt * 1.6 + q / 4 + s.ph) % 1, sd = q % 2 ? 1 : -1; G.sphere(c, SX + sd * w * (0.5 + 0.25 * u), y0 + Hh * u, T * 0.05, 0.7 * wa * Math.sin(u * Math.PI), { col: '#1A4FB0', seed: q, halo: 1.5 }); }
+            G.shafts(c, SX, RY, SX, y1, rr * 1.5, 0.22 * wa, { col: '#4F7FD0', seed: s.ph }); G.spray(c, SX, y0 + Hh * 0.55, w * 1.1, 0.25 * wa, { col: '#6F8FD0', seed: s.i * 7 + Math.floor(tt * 3) * 0.19, spread: 0.8, sy: 1.6 });
+            G.spray(c, SX, y1 - T * 0.25, w * 1.5, 0.6 * wa, { col: '#6F8FD0', seed: s.i * 3.1 + Math.floor(tt * 6) * 0.21, spread: (tt * 3) % 1, sy: 0.65 }); G.glow(c, SX, y1 - T * 0.2, w * 1.5, '#2A5FC8', 0.35 * wa);
+            for (let q = 0; q < 5; q++) { const u = (tt * 2.2 + q / 5 + s.ph) % 1, b = q / 5 * TAU + s.ph; G.sphere(c, SX + Math.cos(b) * w * (0.4 + 0.9 * u), y1 - T * 0.2 - Math.sin(u * Math.PI) * T * 0.8, T * 0.045, 0.75 * wa * (1 - u), { col: '#1A4FB0', seed: q + 5, halo: 1.5 }); } } }
           // the near half of the ring, over the top of the fall; light racing round its rim
-          G.stream(c, ringP(-0.12, Math.PI + 0.12), rr * 0.1, ra, { taper: 0, flow: 5, seed: s.i * 3 + 1, col: W.water, dens: 0.85, lite: 1.0 });
+          G.stream(c, ringP(-0.12, Math.PI + 0.12), rr * 0.1, ra, { taper: 0, flow: 5, seed: s.i * 3 + 1, col: '#123A8C', dens: 0.85, lite: 1.0 });
           for (let q = 0; q < 3; q++) { const b = tt * 4.5 + q * TAU / 3 + s.ph; G.star(c, SX + Math.cos(b) * rr * 0.92, RY + Math.sin(b) * rr * 0.34, T * 0.5, 0.85 * ra); }
-          const bk = cl((tt - s.POUR - 0.1) / 0.25) * (1 - cl((tt - s.PE - 0.3) / 0.3)); if (bk > 0.01) G.spray(c, SX, SY - T * 0.1, RW * T * 1.3, 0.6 * bk, { seed: s.i + Math.floor(tt * 8) * 0.29, spread: 0.6, sy: 0.45 }); } },
+          const bk = cl((tt - s.POUR - 0.1) / 0.25) * (1 - cl((tt - s.PE - 0.3) / 0.3)); if (bk > 0.01) G.spray(c, SX, SY - T * 0.1, RW * T * 1.3, 0.6 * bk, { col: '#6F8FD0', seed: s.i + Math.floor(tt * 8) * 0.29, spread: 0.6, sy: 0.45 }); } },
       draw2d(c, f, X, Y, T) {
         const tt = f.t, GY = H.GY, PX = H.sx(me.x), PY = H.sy(me.y) - T * 0.46, hole = hfHoleSpr(), ring = hfRingSpr(), fi = Math.floor(tt * 20) % NHF;
         const order = src.slice().sort((p, q) => p.y - q.y);
