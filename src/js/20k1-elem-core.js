@@ -51,16 +51,16 @@ const ELEM_MOVES = {
     ['titan', 'Titan', 'fist', 100, 40, 'Summons a colossal moss-grown stone golem that fights beside you with punches, backhands and ground slams (5 s, 8 s at Adept, 12 s at Celestial), then ends with Worldbreaker: a two-fisted slam that sends an earthquake across the floor.'],
     ['genbu', 'Genbu', 'shield', 100, 120, 'Genbu, a gigantic mechanical turtle with a drill on its back, drills up out of the ground and your pet climbs on to ride it for 20 s (25 s at Adept, 35 s at Celestial): Dodge is Shell Roll, Jump an Earth stomp, the Strongs Rock You (erupting crystals) and Drill Cannon (the drill is fired at the enemies, drills into the ground there and explodes, and a new one materialises); the Ult fills from the damage it deals and unleashes Calamity: for up to 20 s it becomes a drilling vehicle you steer, one button to drill under the ground and rise, then eight Earth drills burst together.'] ] },
   wind: { strong: [
-    ['silkstream', 'Silkstream Cutter', 'crescent', 24, 2.4, 'Two ribbons of air braid together and unfurl into a crescent that pierces a line of monsters.'],
-    ['courier', 'Spiral Courier', 'wave', 24, 2.6, 'A corkscrew gust curves to the target and delivers several quick hits on arrival.'],
-    ['updraft', 'Updraft Crown', 'spin', 26, 3, 'A ring of gusts erupts under the aim, curving inward like a crown, and lifts the monsters caught in it.'],
-    ['shears', 'Crosswind Shears', 'twin', 26, 2.8, 'Two currents sweep diagonally across the aim; where they cross, a pressure burst.'],
-    ['pearl', 'Vacuum Pearl', 'orb', 26, 3.2, 'A compressed sphere of air drifts forward, pulling monsters along, then pops into a pressure ring.'],
-    ['galestair', 'Gale Stair', 'dash', 24, 2.6, 'Three gust platforms rise along the aim, each striking a wider area than the last.'],
-    ['featherstorm', 'Featherstorm Fan', 'fan', 24, 2.4, 'A fan of feather-shaped air blades, the outer ones curving inward.'],
-    ['zephyr', 'Returning Zephyr', 'boom', 26, 2.8, 'A ring of wind flies out and curves back to you: a broad sweep going, a narrow strong cut returning.'],
-    ['needle', 'Pressure Needle', 'lance', 26, 2.6, 'Air compresses to a point before you and fires as a piercing lance; dust ripples follow its route.'],
-    ['tailwind', 'Tailwind Sweep', 'spin', 24, 2.8, 'Spin: a low crescent sweeps round you and out, and a tailwind quickens your steps for a moment.'] ],
+    ['gust', 'Gust of Wind', 'orb', 24, 2.6, 'Fires a compact orb of compressed air that bursts into an enormous sphere of turbulent wind at its target: 1 orb, 2 at Adept, 3 at Celestial, each burst bigger as you evolve.'],
+    ['flumes', 'Flumes', 'feather', 22, 2.4, 'A fan of magical feathers shoots out one after another, curving onto the monsters, each breaking into a quick burst of compressed wind: 3 feathers, 4 at Adept, 6 at Celestial.'],
+    ['windblades', 'Blades of Wind', 'spin', 32, 15, 'A tilted silver ring with four swords turns round your pet as it moves, cutting the monsters it passes, for 20 s (25 s at Adept, 30 s at Celestial). Recasting refreshes it.'],
+    ['boomerang', 'Boomerang of the Gale', 'boom', 24, 2.8, 'Throws a huge jade crescent boomerang through the monsters; it returns to wherever you are, striking harder on the way back: 1, 2 at Adept, 3 at Celestial.'],
+    ['seedburst', 'Dandelion Detonation', 'flower', 26, 3.2, 'Blows dandelion seeds that drift onto the monsters, arm for 2 s and burst in a chain of compressed air: 3 seeds, 5 at Adept, 7 at Celestial.'],
+    ['featherfall', 'Featherfall Curse', 'feather', 26, 6, 'A plume bursts over the aim and spectral feathers mark the monsters: 15% less defence and 20% slower (bosses keep their speed) for 6 s (8 s at Adept, 10 s at Celestial), then the marks burst in wind.'],
+    ['garuda', 'Claws of Garuda', 'fist', 28, 6, 'Two enormous emerald energy claws form round your pet and tear through the monsters in a combo: 3 hits, 4 at Adept, 6 at Celestial ending in a huge emerald X.'],
+    ['swallow', 'Swallow Dance', 'dash', 26, 4, 'Wings of emerald wind unfold and your pet darts between the monsters in curved lunges, ending in a crossing slash: 3 strikes, 4 at Adept, 6 at Celestial.'],
+    ['sanctuary', 'Wings of Sanctuary', 'shield', 30, 12, 'Feathered wings of wind wrap your pet in a shield of 12% of its max HP (16% at Adept, 20% at Celestial) for 8 s, with 15% more speed; it ends in a gust that pushes the monsters away.'],
+    ['cyclone', 'Coconut Cyclone', 'vortex', 30, 6, 'A great tropical cyclone full of coconuts and palm leaves rises at the aim, grinding the monsters inside it for 4 s, then collapses in a final burst of wind.'] ],
   ult: [
     ['zephyrblessing', "Zephyr's Blessing", 'leaf', 100, 60, 'Your pet spreads wings of emerald wind and blesses the party: faster moves and attacks, 20% less damage, no slows and a Windguard that blocks a hit, for 25 s (30 s at Adept, 35 s at Celestial). Each hit taken shoots a ring of sharp wind feathers at the monsters around.'],
     ['thousandblades', '1000 Blades', 'crescent', 95, 20, 'A fan of great samurai swords rises and shatters into a swarm of green flowers that cuts through the monsters: 10 swords, 30 at Adept, 60 at Celestial.'],
@@ -215,7 +215,9 @@ const ELEM_MOVES = {
 };
 const ELEM_LIST = {}; for (const e in ELEM_MOVES) { ELEM_LIST[e] = {}; for (const s of ['strong', 'ult']) ELEM_MOVES[e][s].forEach((row, i) => { ELEM_LIST[e][(s === 'ult' ? 'ey_' : 'ex_') + row[0]] = { el: e, slot: s, key: row[0], i, name: row[1], glyph: row[2], cost: row[3], cd: row[4], desc: row[5], lv: (s === 'ult' ? ELEM_ULT_LV : ELEM_STRONG_LV)[i] }; }); }
 const elemId = (el, key) => `e:${el}:${key}`;
-const elemParse = id => { if (typeof id !== 'string' || id.slice(0, 2) !== 'e:') return null; const [, el, key] = id.split(':'); const M = ELEM_LIST[el]; if (!M) return null; return M['ex_' + key] || M['ey_' + key] || null; };
+/* (v370) moves replaced in place: an old key reads as the move now in its row, so a pet that had it equipped keeps the slot */
+const ELEM_ALIAS = { wind: { silkstream: 'gust', courier: 'flumes', updraft: 'windblades', shears: 'boomerang', pearl: 'seedburst', galestair: 'featherfall', featherstorm: 'garuda', zephyr: 'swallow', needle: 'sanctuary', tailwind: 'cyclone' } };
+const elemParse = id => { if (typeof id !== 'string' || id.slice(0, 2) !== 'e:') return null; let [, el, key] = id.split(':'); const M = ELEM_LIST[el]; if (!M) return null; const al = ELEM_ALIAS[el]; if (al && al[key] && !M['ex_' + key]) key = al[key]; return M['ex_' + key] || M['ey_' + key] || null; };
 const petStars = p => starsOf(rarityOf(formOf(p)));
 /* may this pet learn this move: its own element, its level, and (an Ultimate) its stars */
 function elemLock(mv, p) {

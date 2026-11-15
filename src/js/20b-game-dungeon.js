@@ -366,6 +366,8 @@ GAMES.dungeon = {
       // Dark's Witch's Brand (20k5u): m.brandDef (0.15-0.25, set and cleared by the brand) cuts defence: x(1 + def) from every
       // allied hit, bosses included; it multiplies with Windworn above (its own detonation is resolved before it is cleared)
       if (m.brandDef > 0 && !flat) dmg *= 1 + m.brandDef;
+      // (v370) Wind's Featherfall Curse (20k3n): m.ffDef (0.15, set and cleared by the mark) cuts defence the same way; one mark, never stacked
+      if (m.ffDef > 0 && !flat) dmg *= 1 + m.ffDef;
       const D = MON[m.type];
       if (D && D.armor && !o.dot) dmg *= 1 - D.armor;
       if (m.guardFn && !o.dot && !o.viaProxy) { const k = m.guardFn(m, o); if (k < 1) { dmg *= k; if (k <= 0.2 && Math.random() < 0.35) text(m.x, m.y - m.r - 0.3, 'Guarded!', '#CFE2FF', 12); } }   // (a rift boss's shield side, a shell, a burrow)
@@ -1056,7 +1058,7 @@ GAMES.dungeon = {
       let losC = null;
       m.flank = (m.flank || 0) + dt * 0.25;
       const A = {
-        dt: dt * slow * frostAura, dx, dy, d, a: Math.atan2(dy, dx), ux: dx / d, uy: dy / d, sp: m.spd * mud * (g.bloodT > 0 ? 1.3 : 1) * (worn ? 0.875 : 1) * (m.brandSlow > 0 ? 1 - m.brandSlow : 1),   /* (Witch's Brand, 20k5u: walking speed only; bosses returned above, so they keep their scripted movement) */
+        dt: dt * slow * frostAura, dx, dy, d, a: Math.atan2(dy, dx), ux: dx / d, uy: dy / d, sp: m.spd * mud * (g.bloodT > 0 ? 1.3 : 1) * (worn ? 0.875 : 1) * (m.brandSlow > 0 ? 1 - m.brandSlow : 1) * (m.ffSlow > 0 ? 1 - m.ffSlow : 1),   /* (and Featherfall Curse, 20k3n: 0.2, never a boss) */   /* (Witch's Brand, 20k5u: walking speed only; bosses returned above, so they keep their scripted movement) */
         los: () => (losC == null ? (losC = m.mv === 2 || los(m.x, m.y, me.x, me.y)) : losC),
         steer: (spd) => {
           let tx = me.x, ty = me.y;

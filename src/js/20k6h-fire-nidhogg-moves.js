@@ -453,6 +453,11 @@ float h3(vec3 p){ p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * 
 float n3(vec3 x){ vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f); return mix(mix(mix(h3(i), h3(i + vec3(1.0, 0.0, 0.0)), f.x), mix(h3(i + vec3(0.0, 1.0, 0.0)), h3(i + vec3(1.0, 1.0, 0.0)), f.x), f.y), mix(mix(h3(i + vec3(0.0, 0.0, 1.0)), h3(i + vec3(1.0, 0.0, 1.0)), f.x), mix(h3(i + vec3(0.0, 1.0, 1.0)), h3(i + vec3(1.0, 1.0, 1.0)), f.x), f.y), f.z); }
 float fbm3(vec3 p){ return 0.5 * n3(p) + 0.27 * n3(p * 2.07 + 3.1) + 0.15 * n3(p * 4.13 + 7.7) + 0.08 * n3(p * 8.3 + 1.3); }
 float caus(vec2 p, float t){ vec2 i = p; float c = 1.0; for (int n = 0; n < 4; n++) { float tt = t * (1.0 - 3.5 / float(n + 1)); i = p + vec2(cos(tt - i.x) + sin(tt + i.y), sin(tt - i.y) + cos(tt + i.x)); c += 1.0 / length(vec2(p.x / (sin(i.x + tt) / 0.005), p.y / (cos(i.y + tt) / 0.005))); } c /= 4.0; c = 1.17 - pow(c, 1.4); return clamp(pow(abs(c), 8.0), 0.0, 1.6); }   /* (v361) the web of light that water throws (after the classic tileable caustic) */
+vec4 wbl(vec2 u, float q0, float th0){ float md = floor(q0 / 10.0), span = max(0.05, q0 - md * 10.0), rr = length(u), an = atan(u.y, u.x), v = 0.0, tk = th0, m = 1.0;   /* (v370, wind) a blade of wind: an arc of radius 0.8 in its quad (mode 0 a trail, its head at angle 0 and its tail round toward -v; 1 a crescent tapering both ways; 2 a whole ring): x across (0 its sharp outer edge .. 1 its inner), y along (0 the head .. 1 the tail), z inside, w arc length */
+  if (md < 0.5) { float s = mod(-an + 0.03, 6.2831853) - 0.03; v = s / span; tk = th0 * (1.0 - 0.78 * clamp(v, 0.0, 1.0)) * smoothstep(-0.03 / span, 0.05, v); m = step(v, 1.0); }
+  else if (md < 1.5) { v = an / (span * 0.5); tk = th0 * pow(clamp(1.0 - v * v, 0.0, 1.0), 0.6); v = abs(v); m = step(v, 1.0); }
+  return vec4((0.8 - rr) / max(tk, 0.004), v, m, an * rr); }
+vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05 * (0.3 + h) + sin(t * 0.9) * 0.03 * h, mix(br, 0.92, pow(h, 1.25)) * (0.94 + 0.06 * sin(h * 9.0 - t * 3.0))); }   /* (v370, wind) a funnel's centre and half-width at height h (0 its foot .. 1 its top) */
 void main(){ vec2 u = v_uv; float r = length(u), m = 0.0, edge = 1.0 - smoothstep(0.85, 1.0, r); vec3 col = v_c.rgb; float t = u_t + v_q.y * 7.3, pk = u_pet.z > 0.0 ? mix(0.12, 1.0, smoothstep(0.4, 1.4, length((v_px - u_pet.xy) * vec2(1.0, 1.1)) / u_pet.z)) : 1.0;   /* (the rider's face stays clear: light, body and smoke) */
   pk *= v_k > 11.5 ? 1.0 : (v_k > 1.5 && v_k < 2.5) || (v_k > 5.5 && v_k < 6.5) || v_k > 10.5 ? 1.0 - smoothstep(0.8, 1.0, abs(u.y)) : (v_k > 3.5 && v_k < 4.5) ? (1.0 - smoothstep(0.8, 1.0, abs(u.x))) * (1.0 - smoothstep(0.86, 1.0, u.y)) : (v_k > 0.5 && v_k < 1.5) || (v_k > 7.5 && v_k < 8.5) ? 1.0 - smoothstep(0.92, 1.0, r) : 1.0 - smoothstep(0.72, 1.0, r);   /* (every picture fades to nothing well inside its own quad: no straight cut where noise or a halo reaches the quad's edge) */
   if (v_k > 15.5 && v_k < 16.5) { // (v346, Thunderstorm) a storm cloud (solid): billowing lobes of night violet, darker beneath, a cool rim
@@ -513,6 +518,22 @@ void main(){ vec2 u = v_uv; float r = length(u), m = 0.0, edge = 1.0 - smoothste
     c += vec3(0.85, 1.0, 1.0) * exp(-sq((u.y + 0.36 + (f - 0.5) * 0.35) / 0.13)) * (0.5 + 0.5 * st) * 0.55 + vec3(0.5, 0.9, 1.0) * rim * 0.28 + vec3(0.9, 1.0, 1.0) * smoothstep(0.62, 0.8, st) * rim * 0.5;
     c = mix(c, vec3(0.92, 0.98, 1.0), foam * 0.6);
     float a = min(1.0, dns * max(mix(0.5, 0.75, rim), foam * 0.8) * v_q.x) * v_c.a * pk; gl_FragColor = vec4(min(c, vec3(1.0)) * a, a); }
+  else if (v_k > 32.5 && v_k < 33.5) { // (v370, wind) the body of a blade of wind (solid): deep emerald toward its sharp outer edge, its
+    // opacity fading toward the inner edge, streaked as the air races along it; v_q.x span + 10 x mode, v_q.y seed, v_q.z thickness
+    vec4 B = wbl(u, v_q.x, v_q.z); float d = B.x, rr = r, md = floor(v_q.x / 10.0), along = md < 0.5 ? pow(clamp(1.0 - B.y, 0.0, 1.0), 1.3) : md < 1.5 ? 1.0 - smoothstep(0.7, 1.0, B.y) : 1.0;
+    float outer = 1.0 - smoothstep(0.796, 0.806, rr), prof = pow(clamp(1.0 - d, 0.0, 1.0), 1.7) * step(0.0, d + 0.02), st = fbm(vec2(B.w * 3.0 - t * 2.5, d * 4.0 + v_q.y));
+    float a = 0.78 * prof * along * (0.6 + 0.55 * st) * outer * B.z * v_c.a; vec3 c = mix(col * 0.42, col, clamp(1.0 - d, 0.0, 1.0) * (0.7 + 0.3 * st)); gl_FragColor = vec4(c * a, a); }
+  else if (v_k > 35.5 && v_k < 36.5) { // (v370, wind) shade under wind (solid), so it reads on a pale floor: a soft swirling disc (v_q.x 0)
+    // or a funnel's body (v_q.x 1 + its foot's width), streaked; v_q.z its density
+    float a = 0.0, sh = 0.0;
+    if (v_q.x < 0.5) { float f = fbm(vec2(atan(u.y, u.x) * 2.0 + t * 0.6, r * 3.0 - t * 0.4) + v_q.y); a = (1.0 - smoothstep(0.25 + 0.2 * f, 1.0, r)) * (0.55 + 0.45 * f); sh = f; }
+    else { float h = (1.0 - u.y) * 0.5; vec2 fw = wfun(h, v_q.x - 1.0, t); float x = (u.x - fw.x) / fw.y, f = fbm(vec2(asin(clamp(x, -1.0, 1.0)) * 2.0 + h * 5.0 - t * 2.5, h * 4.0) + v_q.y);
+      a = (1.0 - smoothstep(0.5, 1.0, abs(x))) * smoothstep(0.0, 0.1, h) * (1.0 - smoothstep(0.72 + 0.15 * f, 0.98, h)) * (0.45 + 0.55 * f); sh = f; }
+    a *= v_q.z * v_c.a; vec3 c = mix(col * 0.5, col, sh); gl_FragColor = vec4(c * a, a); }
+  else if (v_k > 38.5 && v_k < 39.5) { // (v370, wind) the body of a ribbon of wind (solid; uv.x along, uv.y across): v_q.x 0 both edges
+    // bright, 1 the edge at +y; v_q.y seed, v_q.z its flow
+    float e = v_q.x > 0.5 ? (u.y + 1.0) * 0.5 : abs(u.y), af = 1.0 - smoothstep(0.65, 1.0, abs(u.x)), st = fbm(vec2(u.x * 2.0 - t * v_q.z, u.y * 3.0 + v_q.y));
+    float a = pow(e, 1.6) * (1.0 - smoothstep(0.88, 0.97, e)) * af * (0.55 + 0.55 * st) * 0.6 * v_c.a; vec3 c = mix(col * 0.45, col, e); gl_FragColor = vec4(c * a, a); }
   else { vec3 L = vec3(0.0);
     if (v_k > 25.5) { // (v361, water light)
       if (v_k < 26.5) { // caustic light: v_q.z > 0.5 on a sphere of water (the web of light inside it, a specular glint, its rim
@@ -536,6 +557,40 @@ void main(){ vec2 u = v_uv; float r = length(u), m = 0.0, edge = 1.0 - smoothste
         float rr = r * 1.3, th = max(0.03, v_q.z), d = rr - 1.0, nn = fbm(vec2(atan(u.y, u.x) * 2.5 + v_q.y, rr * 3.0 - t * 0.6)), crest = exp(-sq((d + (nn - 0.5) * 0.05) / (th * 0.6))) * 0.8, tr = 0.0;
         for (int k = 1; k < 4; k++) { float fk = float(k); tr += exp(-sq((d + fk * th * 1.25 + (nn - 0.5) * 0.06) / (th * 0.45))) * (0.45 / fk); }
         L = (mix(col, vec3(1.0), 0.45) * (crest + tr) + col * step(rr, 1.0) * exp(-sq(d / (th * 4.0))) * 0.15 + vec3(1.0) * smoothstep(0.68, 0.88, nn) * crest * 0.8) * v_q.x * (1.0 - smoothstep(1.12, 1.28, rr)); }
+      else if (v_k > 32.5) { // (v370, wind light)
+        if (v_k < 34.5) { // a blade of wind's light: a sharp luminous line along its outer edge, a soft halo outside it, the light fading
+          // inward, bright streaks racing along it, glints; as kind 33
+          vec4 B = wbl(u, v_q.x, v_q.z); float d = B.x, rr = r, md = floor(v_q.x / 10.0), along = md < 0.5 ? pow(clamp(1.0 - B.y, 0.0, 1.0), 1.1) : md < 1.5 ? 1.0 - smoothstep(0.75, 1.0, B.y) : 1.0;
+          float inb = step(0.0, d + 0.01) * step(d, 1.0), prof = clamp(1.0 - d, 0.0, 1.0), edgeL = exp(-sq((rr - 0.794) / 0.0085)) * step(rr, 0.81) * smoothstep(-0.2, 0.15, 1.0 - d), halo = exp(-max(rr - 0.8, 0.0) * 45.0) * step(0.8, rr) * 0.3;
+          float s1 = smoothstep(0.55, 0.85, fbm(vec2(B.w * 4.0 - t * 3.5, d * 7.0 + v_q.y))) * prof * inb, s2 = fbm(vec2(B.w * 1.5 - t * 1.2, d * 2.0 - v_q.y));
+          vec2 gc = vec2(B.w * 9.0 - t * 2.0, d * 2.5), gi = floor(gc), gf = fract(gc) - 0.5; float gl = step(0.78, h1(gi + v_q.y)) * exp(-dot(gf, gf) * 70.0) * prof * inb;
+          L = (mix(col, vec3(1.0), 0.4) * pow(prof, 1.5) * inb * (0.5 + 0.5 * s2) + vec3(0.9, 1.0, 0.96) * edgeL * 1.15 + mix(col, vec3(1.0), 0.65) * s1 * 0.55 + col * halo + vec3(1.0) * gl * 0.9) * along * B.z; }
+        else if (v_k < 35.5) { // a sphere of turbulent air (quad 1.15 times its radius): translucent at its heart, ribbons of wind crossing
+          // round it on three turning axes (the far side's fainter), a bright pressure front at its limb, wisps; v_q.x its core's light,
+          // v_q.y seed, v_q.z spin
+          vec2 w = u * 1.15; float rr = length(w), z = sqrt(max(0.0, 1.0 - rr * rr)), ins = 1.0 - smoothstep(0.975, 1.0, rr), tt = t * v_q.z, bands = 0.0, stk = 0.0; vec3 pf = vec3(w, z), pb = vec3(w, -z);
+          for (int k = 0; k < 3; k++) { float fk = float(k), th = 1.15 + fk * 0.42, ph = tt * (0.8 + fk * 0.35) * (k == 1 ? -1.0 : 1.0) + fk * 2.1 + v_q.y * 3.0;
+            vec3 ax = normalize(vec3(cos(ph) * sin(th), sin(ph) * sin(th) * 0.8, cos(th))), e1 = normalize(cross(ax, vec3(0.31, 0.0, 0.95))), e2 = cross(ax, e1);
+            for (int s = 0; s < 2; s++) { vec3 p = s == 0 ? pf : pb; float wt = s == 0 ? 1.0 : 0.38, dd = dot(p, ax), psi = atan(dot(p, e2), dot(p, e1)), seg = smoothstep(-0.35, 0.6, sin(psi + tt * 3.0 * (1.0 + fk * 0.3) + fk * 2.0)), bw = 0.1 + 0.035 * fk;
+              float b = exp(-sq(dd / bw)) * seg, eb = exp(-sq((dd - bw * 0.85) / (bw * 0.22))) * seg; bands += (b * 0.45 + eb * 0.85) * wt; stk += smoothstep(0.58, 0.88, fbm(vec2(psi * 3.0 - tt * 5.0, dd * 12.0 + fk * 3.0))) * b * wt; } }
+          float tb = fbm3(vec3(w * 2.6, tt * 0.6 + v_q.y)), wisp = smoothstep(0.55, 0.78, tb) * 0.35 * ins * (0.4 + 0.6 * (1.0 - z)), front = exp(-sq((rr - 0.985) / 0.022)) + exp(-sq((rr - 0.93) / 0.07)) * 0.28, halo = exp(-max(rr - 1.0, 0.0) * 22.0) * step(1.0, rr) * 0.3;
+          float fres = pow(1.0 - z, 2.2) * ins, core = v_q.x * (exp(-rr * rr * 24.0) * 1.2 + exp(-rr * rr * 5.0) * 0.3);
+          L = (col * fres * 0.42 + mix(col, vec3(1.0), 0.45) * bands * ins * 1.25 + mix(col, vec3(1.0), 0.55) * stk * ins * 0.7 + mix(col, vec3(1.0), 0.3) * wisp + mix(col, vec3(1.0), 0.62) * front * 0.95 + col * halo + vec3(1.0, 1.0, 0.98) * core) * (1.0 - smoothstep(1.07, 1.15, rr)); }
+        else if (v_k < 37.5) { // a funnel of wind (uv.y 1 its foot .. -1 its top; v_q.x its foot's width, v_q.y seed, v_q.z spin): three layers
+          // of ribbons wound round it at different speeds, gaps between them, the far side fainter, sharp bright crests, white pressure
+          // streaks, its silhouette denser, specks of debris carried round, its top fraying away
+          float h = (1.0 - u.y) * 0.5; vec2 fw = wfun(h, v_q.x, t); float x = (u.x - fw.x) / fw.y, ax = abs(x), cx = clamp(x, -0.999, 0.999), th = asin(cx), z = sqrt(1.0 - cx * cx), tt = t * v_q.z;
+          float env = smoothstep(0.0, 0.07, h) * (1.0 - smoothstep(0.78, 1.0, h + (fbm(vec2(u.x * 3.0, t * 0.7 + v_q.y)) - 0.5) * 0.3)) * (1.0 - smoothstep(0.9, 1.04, ax)), acc = 0.0, wh = 0.0;
+          for (int k = 0; k < 3; k++) { float fk = float(k), n = 2.0 + fk, sp = (2.2 + fk * 1.3) * (1.0 + 0.6 * (1.0 - h)), tw = 1.5 + fk * 0.55;
+            for (int s = 0; s < 2; s++) { float phh = s == 0 ? th : 3.14159 - th, wt = s == 0 ? (0.45 + 0.55 * z) : 0.32 * (0.5 + 0.5 * z), p = phh * n + h * tw * 6.2832 - tt * sp + fk * 1.7 + v_q.y, sn = sin(p);
+              float band = smoothstep(0.25, 0.85, sn), edge = exp(-sq((sn - 0.93) / 0.055)), st = smoothstep(0.5, 0.85, fbm(vec2(p * 1.3, h * 10.0 - tt * 1.5 + fk * 4.0)));
+              acc += (band * 0.32 + edge * 0.6) * wt * (1.0 - fk * 0.18); wh += st * band * wt; } }
+          float limb = exp(-sq((1.0 - ax) / 0.12)) * 0.4; vec2 dc = vec2(th * 3.0 + tt * 1.5, h * 16.0 - tt * 1.2), di = floor(dc), df = fract(dc) - 0.5; float sp2 = step(0.86, h1(di + v_q.y)) * exp(-dot(df, df) * 80.0) * z;
+          L = (mix(col, vec3(0.55, 0.95, 0.95), 0.35 * h) * acc + vec3(0.92, 1.0, 0.97) * wh * 0.65 + mix(col, vec3(1.0), 0.5) * limb + vec3(1.0, 0.95, 0.8) * sp2 * 0.8) * env; }
+        else { // a ribbon of wind's light (uv.x along, uv.y across; as kind 39): a sharp luminous edge line, the light fading inward,
+          // bright streaks racing along it
+          float e = v_q.x > 0.5 ? (u.y + 1.0) * 0.5 : abs(u.y), af = 1.0 - smoothstep(0.65, 1.0, abs(u.x)), st = fbm(vec2(u.x * 2.0 - t * v_q.z, u.y * 3.0 + v_q.y)), cut = 1.0 - smoothstep(0.93, 1.0, e);
+          L = (mix(col, vec3(1.0), 0.35) * pow(e, 2.0) * cut * 0.45 + vec3(0.92, 1.0, 0.97) * exp(-sq((e - 0.9) / 0.05)) * 0.95 + mix(col, vec3(1.0), 0.6) * smoothstep(0.55, 0.85, st) * cut * e * 0.7) * af; } }
       else if (v_k > 31.5 && v_k < 32.5) { // (v368) a ring of flowing water-light (an annulus at uv radius 0.8 in a tilted ellipse
         // quad), smooth-edged, its streaks and glints racing round it with its spin; v_q.x = side (0 the far half, 1 the near, 2
         // all) + thickness (fraction), v_q.z spin
@@ -649,7 +704,7 @@ void main(){ vec2 u = v_uv; float r = length(u), m = 0.0, edge = 1.0 - smoothste
   const Q = { lit: new Float32Array(12 * 6 * 600), nl: 0, smk: new Float32Array(12 * 6 * 200), ns: 0, a: 1, b: 0, c0: 0, d: 1, e: 0, f: 0, k: 1, t: 0, W: 0, Hh: 0, pet: [0, 0, 0], gpu: true,
     X(x, y) { return this.a * x + this.c0 * y + this.e; }, Y(x, y) { return this.b * x + this.d * y + this.f; },
     /* one quad: centre (screen px), half-axes (ux, uy), (vx, vy) in screen px */
-    quad(kind, x, y, ux, uy, vx, vy, col, al, q0, q1, q2) { if (!(al > 0.004)) return; const solid = (kind >= 9 && kind <= 12) || kind === 16 || kind === 24 || kind === 25; let A = solid ? this.smk : this.lit; const n = solid ? this.ns : this.nl;
+    quad(kind, x, y, ux, uy, vx, vy, col, al, q0, q1, q2) { if (!(al > 0.004)) return; const solid = (kind >= 9 && kind <= 12) || kind === 16 || kind === 24 || kind === 25 || kind === 33 || kind === 36 || kind === 39; let A = solid ? this.smk : this.lit; const n = solid ? this.ns : this.nl;
       if ((n + 6) * 12 > A.length) { const q = new Float32Array(A.length * 2); q.set(A); A = q; if (solid) this.smk = q; else this.lit = q; }
       const cx = this.X(x, y), cy = this.Y(x, y), a = this.a, b = this.b, c = this.c0, d = this.d, Ux = a * ux + c * uy, Uy = b * ux + d * uy, Vx = a * vx + c * vy, Vy = b * vx + d * vy, C = rgbOf(col); let o = n * 12;
       for (let j = 0; j < 6; j++) { const su = QV[j][0], sv = QV[j][1]; A[o++] = cx + Ux * su + Vx * sv; A[o++] = cy + Uy * su + Vy * sv; A[o++] = su; A[o++] = sv; A[o++] = kind; A[o++] = C[0]; A[o++] = C[1]; A[o++] = C[2]; A[o++] = al > 1 ? 1 : al; A[o++] = q0 || 0; A[o++] = q1 || 0; A[o++] = q2 || 0; }
@@ -679,6 +734,14 @@ void main(){ vec2 u = v_uv; float r = length(u), m = 0.0, edge = 1.0 - smoothste
     caustic(x, y, r, col, a, seed, sy) { if (r > 0.5) this.quad(26, x, y, r, 0, 0, r * (sy || 1), col, a, 1, seed || 0, 0); },
     spray(x, y, r, col, a, seed, spread, sy) { if (r > 0.5) this.quad(27, x, y, r, 0, 0, r * (sy || 1), col || '#CFF6FF', a, 1, seed || 0, spread || 0); },
     wring(x, y, rx, ry, rot, col, a, side, th, seed, spin) { if (rx > 1 && a > 0.01) { const c = Math.cos(rot || 0), sn = Math.sin(rot || 0), k = 1 / 0.8; this.quad(32, x, y, c * rx * k, sn * rx * k, -sn * ry * k, c * ry * k, col, a, (side == null ? 2 : side) + Math.min(0.49, Math.max(0.02, th || 0.06)), seed || 0, spin || 1); } },
+    /* (v370) wind: a blade of wind (an arc of radius |U| along U and V, its head toward U: mode 0 a trail, 1 a crescent, 2 a ring; th
+       its thickness, a fraction of the radius; body laid over, light added), a sphere of turbulent air, shade under wind (a disc, or
+       a funnel's body), a funnel of wind (foot at (x, y), top half-width rw, height h), a ribbon of wind (edge 0 both, 1 one) */
+    wblade(x, y, ux, uy, vx, vy, col, lite, a, span, mode, th, seed, dens) { const k = 1.25, q = Math.min(6.28, Math.max(0.05, span)) + 10 * (mode || 0); if (dens !== 0) this.quad(33, x, y, ux * k, uy * k, vx * k, vy * k, col, a * (dens == null ? 1 : dens), q, seed || 0, th || 0.3); this.quad(34, x, y, ux * k, uy * k, vx * k, vy * k, lite || col, a, q, seed || 0, th || 0.3); },
+    gust(x, y, r, col, a, core, seed, spin) { if (r > 0.5) this.quad(35, x, y, r * 1.15, 0, 0, r * 1.15, col, a, core || 0, seed || 0, spin == null ? 1 : spin); },
+    wshade(x, y, rx, ry, col, a, seed, dens) { if (rx > 0.5) this.quad(36, x, y, rx, 0, 0, ry || rx, col, a, 0, seed || 0, dens == null ? 0.5 : dens); },
+    funnel(x, y, rw, h, col, a, base, seed, spin, dens) { if (rw > 0.5 && h > 0.5) { const b = base == null ? 0.2 : base; if (dens !== 0) this.quad(36, x, y - h / 2, rw * 1.08, 0, 0, h / 2, col, a, 1 + b, seed || 0, dens == null ? 0.45 : dens); this.quad(37, x, y - h / 2, rw * 1.08, 0, 0, h / 2, col, a, b, seed || 0, spin == null ? 1 : spin); } },
+    wrib(x0, y0, x1, y1, w, col, lite, a, edge, seed, flow, dens) { const dx = (x1 - x0) / 2, dy = (y1 - y0) / 2, L = Math.hypot(dx, dy); if (L < 0.5) return; const vx = -dy / L * w, vy = dx / L * w; if (dens !== 0) this.quad(39, x0 + dx, y0 + dy, dx, dy, vx, vy, col, a * (dens == null ? 1 : dens), edge || 0, seed || 0, flow == null ? 3 : flow); this.quad(38, x0 + dx, y0 + dy, dx, dy, vx, vy, lite || col, a, edge || 0, seed || 0, flow == null ? 3 : flow); },
     bubbles(x, y, rx, ry, col, a, seed, rise) { if (rx > 0.5) this.quad(30, x, y, rx, 0, 0, ry || rx, col || '#9FE8FF', a, 1, seed || 0, rise == null ? 1 : rise); },
     shafts(x0, y0, x1, y1, w, col, a, seed) { const dx = (x1 - x0) / 2, dy = (y1 - y0) / 2, L = Math.hypot(dx, dy); if (L < 0.5) return; this.quad(31, x0 + dx, y0 + dy, -dy / L * w, dx / L * w, dx, dy, col || '#8FE3F0', a, 1, seed || 0, 0); },   /* (uv.y runs from (x0, y0) to (x1, y1)) */
     ripple(x, y, r, col, a, seed, sy, th) { if (r > 1 && a > 0.01) this.quad(28, x, y, r * 1.3, 0, 0, r * 1.3 * (sy || 1), col, a, 1, seed || 0, th == null ? 0.12 : th); },
