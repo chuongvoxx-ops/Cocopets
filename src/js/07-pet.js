@@ -56,7 +56,7 @@ function glFrame(R, f, s, P, o) {
   if (!R.fit) { const B = PetGL.box(f, false, 'room'); if (B) { R.fit = true; const [vx, vy, vw, vh] = R.vb, sc = Math.min(pb / vw, pb / vh), ox = (pb - vw * sc) / 2 - vx * sc, oy = (pb - vh * sc) / 2 - vy * sc, m = 4;
     R.M = [Math.max(0, -(ox + B[0] * sc) + m) / pb, Math.max(0, -(oy + B[1] * sc) + m) / pb, Math.max(0, ox + (B[0] + B[2]) * sc - pb + m) / pb, Math.max(0, oy + (B[1] + B[3]) * sc - pb + m) / pb];
     const q = v => (v * 100).toFixed(2) + '%', S2 = R.cv.style; S2.left = q(-R.M[0]); S2.top = q(-R.M[1]); S2.width = q(1 + R.M[0] + R.M[2]); S2.height = q(1 + R.M[1] + R.M[3]); R.px = 0; } }
-  const M = R.M, fw = 1 + M[0] + M[2], fh = 1 + M[1] + M[3], dpr = Math.min(3, window.devicePixelRatio || 1), q = clamp(Math.ceil(s * 10) / 10, 0.3, 1.6), px = Math.max(16, Math.round(pb * dpr * q));
+  const M = R.M, fw = 1 + M[0] + M[2], fh = 1 + M[1] + M[3], dpr = Math.min(3, window.devicePixelRatio || 1), q = clamp(Math.ceil(s * 10) / 10, 0.3, 1.6), px = Math.max(16, Math.min(Math.round(pb * dpr * q), Math.floor(1400 / Math.max(fw, fh))));   /* (v381: the canvas kept under 1400 px a side, one piece for the compositor) */
   if (R.px !== px) { R.px = px; R.cv.width = Math.round(px * fw); R.cv.height = Math.round(px * fh); }
   const g = R.g, r = px / pb, [vx, vy, vw, vh] = R.vb, sc = Math.min(pb / vw, pb / vh), ox = (pb - vw * sc) / 2 - vx * sc + M[0] * pb, oy = (pb - vh * sc) / 2 - vy * sc + M[1] * pb;
   g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, R.cv.width, R.cv.height); g.setTransform(r, 0, 0, r, ox * r, oy * r);

@@ -205,7 +205,10 @@ body.decorating .decor.selected::after{border-color:var(--coral);border-width:2.
    itself, so their own layers hide) */
 .pet-gl.wide{left:-60%;top:-60%;width:220%;height:185%}
 .pet-rig.gl>.leg-l,.pet-rig.gl>.leg-wings,.pet-rig.gl>.leg-lights{visibility:hidden}
-.pet.glow .pet-rig.gl:has(.leg-l)>.pet-gl{filter:drop-shadow(0 0 10px var(--gem-glow,#9DB4E8))}
+/* (v381) the night glow behind a pet drawn on the GPU as a soft light of its own, not a drop-shadow filter over its canvas: the iPhone drew
+   that filter in tiles over the canvas, a thin dark line coming and going down the pet where they met */
+.pet.glow .pet-rig.gl{filter:none}.pet.glow .pet-rig.gl::before{content:'';position:absolute;left:-12%;top:-10%;width:124%;height:116%;pointer-events:none;background:radial-gradient(closest-side,var(--gem-glow,#9DB4E8),transparent);opacity:.32}
+.pet.glow .pet-rig.gl:has(.leg-l)::before{left:-35%;top:-35%;width:170%;height:150%}
 .pet-rig:has(.leg-lights) .pet-svg{z-index:2}
 .leg-l{position:absolute;pointer-events:none}
 .leg-l>svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
