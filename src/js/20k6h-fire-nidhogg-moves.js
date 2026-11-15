@@ -537,6 +537,17 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
     // bright, 1 the edge at +y; v_q.y seed, v_q.z its flow
     float e = v_q.x > 0.5 ? (u.y + 1.0) * 0.5 : abs(u.y), af = 1.0 - smoothstep(0.65, 1.0, abs(u.x)), st = fbm(vec2(u.x * 2.0 - t * v_q.z, u.y * 3.0 + v_q.y));
     float a = min(1.0, pow(e, 1.1) * (1.0 - smoothstep(0.9, 0.98, e)) * af * (0.65 + 0.5 * st) * 0.95) * v_c.a; vec3 c = mix(col * 0.45, col, e); gl_FragColor = vec4(c * a, a); }
+  else if (v_k > 39.5 && v_k < 40.5) { // (v376, Sun Wheel) a blade of the sun (solid): a golden crescent bulging toward +x, its horns at
+    // (-0.06, +-0.92); a dark bronze rim so it reads on a pale floor, gold deepening to amber toward its inner edge, a white-hot
+    // sharpened outer edge, engraved rays and a gleam running along it. v_q.x the gleam's place along it (-1..1), v_q.y seed, v_q.z heat
+    float d1 = 0.92 - r, d2 = length(u - vec2(-0.36, 0.0)) - 0.97, s = min(d1, d2), an = atan(u.y, u.x), w = clamp(d1 / max(d1 + max(d2, 0.0), 0.001), 0.0, 1.0);
+    float a = smoothstep(-0.006, 0.012, s), ray = smoothstep(0.6, 0.97, abs(sin(an * 10.0 + v_q.y))) * smoothstep(0.05, 0.09, d1) * smoothstep(0.02, 0.05, d2);
+    vec3 deep = col * vec3(0.62, 0.4, 0.14), c = mix(min(col * 1.12 + 0.06, vec3(1.0)), deep * 1.5, smoothstep(0.1, 0.95, w));
+    c = mix(c, deep, ray * 0.4) * (0.9 + 0.1 * fbm(vec2(an * 6.0, r * 8.0) + v_q.y));
+    float gl = exp(-sq((u.y - v_q.x) / 0.2)) * (1.0 - w * 0.7), edge = 1.0 - smoothstep(0.035, 0.085, d1);
+    c = mix(c, vec3(1.0, 0.98, 0.86), clamp(gl * 0.75 + edge * (0.55 + 0.45 * v_q.z), 0.0, 1.0));
+    c = mix(c, vec3(0.3, 0.16, 0.03), (1.0 - smoothstep(0.016, 0.034, d1)) * 0.85 + (1.0 - smoothstep(0.02, 0.05, d2)) * 0.95 * step(d2, d1));   /* (the rim: a hair along the sharp edge, firmer along the inner) */
+    a *= v_c.a; gl_FragColor = vec4(min(c, vec3(1.0)) * a, a); }
 /*</W>*/  else { vec3 L = vec3(0.0);
     if (v_k > 25.5) { // (v361, water light)
       if (v_k < 26.5) { // caustic light: v_q.z > 0.5 on a sphere of water (the web of light inside it, a specular glint, its rim
@@ -714,7 +725,7 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
   const Q = { lit: new Float32Array(12 * 6 * 600), nl: 0, smk: new Float32Array(12 * 6 * 200), ns: 0, wlit: new Float32Array(12 * 6 * 200), nwl: 0, wsmk: new Float32Array(12 * 6 * 100), nws: 0, get windOK() { return !!PRW; }, a: 1, b: 0, c0: 0, d: 1, e: 0, f: 0, k: 1, t: 0, W: 0, Hh: 0, pet: [0, 0, 0], gpu: true,
     X(x, y) { return this.a * x + this.c0 * y + this.e; }, Y(x, y) { return this.b * x + this.d * y + this.f; },
     /* one quad: centre (screen px), half-axes (ux, uy), (vx, vy) in screen px */
-    quad(kind, x, y, ux, uy, vx, vy, col, al, q0, q1, q2) { if (!(al > 0.004)) return; const solid = (kind >= 9 && kind <= 12) || kind === 16 || kind === 24 || kind === 25 || kind === 33 || kind === 36 || kind === 39, wd = kind >= 33 && kind <= 39;
+    quad(kind, x, y, ux, uy, vx, vy, col, al, q0, q1, q2) { if (!(al > 0.004)) return; const solid = (kind >= 9 && kind <= 12) || kind === 16 || kind === 24 || kind === 25 || kind === 33 || kind === 36 || kind === 39 || kind === 40, wd = kind >= 33 && kind <= 40;
       const ka = wd ? (solid ? 'wsmk' : 'wlit') : (solid ? 'smk' : 'lit'), kn = wd ? (solid ? 'nws' : 'nwl') : (solid ? 'ns' : 'nl'); let A = this[ka]; const n = this[kn];
       if ((n + 6) * 12 > A.length) { const q = new Float32Array(A.length * 2); q.set(A); A = q; this[ka] = q; }
       const cx = this.X(x, y), cy = this.Y(x, y), a = this.a, b = this.b, c = this.c0, d = this.d, Ux = a * ux + c * uy, Uy = b * ux + d * uy, Vx = a * vx + c * vy, Vy = b * vx + d * vy, C = rgbOf(col); let o = n * 12;

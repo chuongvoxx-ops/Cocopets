@@ -9,7 +9,7 @@ const homeEl = $('#home'), homeTopEl = $('#homeTop'), homeDockEl = $('#homeDock'
 const insetProbe = $('#insetProbe'), selTools = $('#selTools');
 
 /* ---------- layout ---------- */
-const ROOM_ZOOM = 1.5;
+const ROOM_ZOOM = 1.5 / 1.15;   // (v376: the room's pets and furniture 15% larger, the camera closer)
 let W = 0, H = 0, ps = 110, pb = 138, stageRect = { left: 0, top: 0 };
 let wallH = 280, hudB = 120, dockT = 700;
 const B = { x0: 0, x1: 0, y0: 0, y1: 0 };   // where the pet's feet can go

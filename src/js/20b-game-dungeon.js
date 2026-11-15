@@ -35,7 +35,7 @@ GAMES.dungeon = {
     const cam = { x: me.x, y: me.y, sm: 0, st: 0 };
     let RULES = null;   // the floor's rule (20l): keys, curses, boons; made once the helpers below exist
     let TS = 40;
-    const layout = () => { TS = clamp(Math.round(Math.min(api.W / 9.6, api.H / 12.5)), 28, 64); };
+    const layout = () => { TS = Math.round(clamp(Math.min(api.W / 9.6, api.H / 12.5), 28, 64) * 1.15); };   /* (v376: the camera 15% closer) */
     layout();
     let AN = null;   // the summoned Animas (20g)
     let RX = null;   // elemental marks and reactions (20j)

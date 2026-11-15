@@ -288,7 +288,7 @@ function hubLayout() {
   hub.W = Math.max(200, Math.round(r.width)); hub.H = Math.max(200, Math.round(r.height)); hub.dpr = dpr;
   if (hubCv.width !== Math.round(hub.W * dpr) || hubCv.height !== Math.round(hub.H * dpr)) { hubCv.width = Math.round(hub.W * dpr); hubCv.height = Math.round(hub.H * dpr); }
   hubCv.style.width = hub.W + 'px'; hubCv.style.height = hub.H + 'px';
-  hub.k = clamp(1 + (hub.W - 390) / 600, 1, 1.3);
+  hub.k = clamp(1 + (hub.W - 390) / 600, 1, 1.3) * 1.15;   /* (v376: the camera 15% closer) */
   const dr = dockEl.getBoundingClientRect(); hub.bot = dr.height ? Math.round(dr.top - r.top) : hub.H - 80;
   hubUi.style.bottom = (hub.H - hub.bot + 170) + 'px';
   { const R = hubMiniRect(); document.body.style.setProperty('--hub-mm-bottom', (R.y + R.h) + 'px'); }   // (the anima orb moves below the mini-map while in town)
