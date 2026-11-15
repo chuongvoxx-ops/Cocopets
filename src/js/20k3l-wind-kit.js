@@ -17,6 +17,8 @@ const WDK = (() => {
   const rgba = (h, a) => H.rgba(h, Math.max(0, Math.min(1, a)));
   function begin(c) { try { if (window.__WIND_GL === 0) return null; } catch (e) {} return K.gpuBegin(c, '__WIND_GL'); }
   const end = c => K.gpuEnd(c), gq = () => (K ? K.gq() : null), xy = (c, x, y) => K.gpuXY(c, x, y);
+  /* (v375) Wind's own kinds draw only where their program built (FGFX windOK); else these primitives fall back to 2D */
+  const wq = () => { const q = gq(); return q && q.windOK ? q : null; };
   /* paint: fn() queues GPU work and returns; the queue is flushed here so whatever the caller draws next in 2D lies over it */
   function layer(c, fn) { const q = begin(c); try { fn(!!q); } finally { if (q) end(c); } }
   /* ---- blades of wind ----
@@ -26,7 +28,7 @@ const WDK = (() => {
      (thickness: a fraction of R), col (the body), lite (the light), dens (the body's weight; 0 none), seed */
   function arc(c, x, y, R, phi, a, o) { if (!(R > 1) || !(a > 0.01)) return; o = o || {}; const k = o.k == null ? H.GY : o.k, b = o.beta || 0, dir = o.dir || 1, cb = Math.cos(b), sb = Math.sin(b), cp = Math.cos(phi), sp = Math.sin(phi);
     const e1 = [cb, sb], e2 = [-sb * k, cb * k], ux = R * (cp * e1[0] + sp * e2[0]), uy = R * (cp * e1[1] + sp * e2[1]), vx = dir * R * (-sp * e1[0] + cp * e2[0]), vy = dir * R * (-sp * e1[1] + cp * e2[1]);
-    const Q = gq(), span = o.span == null ? 2.2 : o.span, mode = o.mode || 0, th = o.th == null ? 0.25 : o.th;
+    const Q = wq(), span = o.span == null ? 2.2 : o.span, mode = o.mode || 0, th = o.th == null ? 0.25 : o.th;
     if (Q) { const p = xy(c, x, y), s = p[3]; Q.wblade(p[0], p[1], ux * s, uy * s, vx * s, vy * s, hx(o.col, P.deep), hx(o.lite, P.mint), Math.min(1, a), span, mode, th, o.seed || 0, o.dens); return; }
     // (2D) the same arc as a stroke: a faint body and a bright outer line
     c.save(); c.translate(x, y); c.rotate(b); c.scale(1, k); c.lineCap = 'round'; c.globalCompositeOperation = 'lighter';
@@ -36,18 +38,18 @@ const WDK = (() => {
   /* a sharp pressure ring (on the floor by default) */
   const ring = (c, x, y, R, a, o) => arc(c, x, y, R, 0, a, Object.assign({ mode: 2, span: TAU, th: 0.16 }, o));
   /* ---- a sphere of turbulent air (radius r, px): o.core the light at its heart, o.spin, o.seed, o.shade (the deep tint under it) */
-  function gust(c, x, y, r, a, o) { if (!(r > 1) || !(a > 0.01)) return; o = o || {}; const Q = gq();
+  function gust(c, x, y, r, a, o) { if (!(r > 1) || !(a > 0.01)) return; o = o || {}; const Q = wq();
     if (Q) { const p = xy(c, x, y), R = r * p[3]; if (o.shade) Q.wshade(p[0], p[1], R * 0.75, R * 0.75, P.deep, a * Math.min(0.3, o.shade), o.seed || 0, 0.35);   /* (v372: only a faint tint, never a dark blot over the fight) */ Q.gust(p[0], p[1], R, hx(o.col, P.jade), a, Math.min(0.5, o.core || 0), o.seed || 0, o.spin == null ? 1 : o.spin); Q.glow(p[0], p[1], R * 1.3, hx(o.col, P.jade), 0.14 * a); return; }
     c.save(); c.globalCompositeOperation = 'lighter'; const g2 = c.createRadialGradient(x, y, r * 0.2, x, y, r); g2.addColorStop(0, rgba(P.mintW, 0.25 * a + 0.5 * (o.core || 0) * a)); g2.addColorStop(0.75, rgba(P.jade, 0.15 * a)); g2.addColorStop(0.95, rgba(P.mintW, 0.7 * a)); g2.addColorStop(1, rgba(P.mint, 0));
     c.fillStyle = g2; c.beginPath(); c.arc(x, y, r, 0, TAU); c.fill(); c.restore(); }
   /* ---- a funnel of wind: foot at (x, y), top half-width rw, height h (px); o.base its foot's width (a fraction), o.spin, o.seed */
-  function funnel(c, x, y, rw, h, a, o) { if (!(rw > 1) || !(a > 0.01)) return; o = o || {}; const Q = gq(), base = o.base == null ? 0.2 : o.base;
+  function funnel(c, x, y, rw, h, a, o) { if (!(rw > 1) || !(a > 0.01)) return; o = o || {}; const Q = wq(), base = o.base == null ? 0.2 : o.base;
     if (Q) { const p = xy(c, x, y), s = p[3]; Q.funnel(p[0], p[1], rw * s, h * s, hx(o.col, P.jade), a, base, o.seed || 0, o.spin == null ? 1 : o.spin, o.dens); return; }
     c.save(); c.globalCompositeOperation = 'lighter'; c.lineWidth = Math.max(1, rw * 0.05); for (let j = 0; j < 7; j++) { const v = j / 6, w = rw * (base + (0.92 - base) * Math.pow(v, 1.25)); c.strokeStyle = rgba(j % 2 ? P.mint : P.jade, 0.5 * a); c.beginPath(); c.ellipse(x, y - h * v, w, w * 0.3, 0, 0, TAU); c.stroke(); } c.restore(); }
   /* ---- a ribbon of wind through screen points pts ([x, y] or [x, y, w]), half-width w, from its head pts[0]; o: edge (0 both
      edges bright, 1 the left of travel), taper (0..1: how far it thins toward its tail), fade (its light dims toward the tail),
      col, lite, dens, seed, flow */
-  function rib(c, pts, w, a, o) { const n = pts.length; if (n < 2 || !(a > 0.01)) return; o = o || {}; const Q = gq(), tp = o.taper == null ? 0.6 : o.taper;
+  function rib(c, pts, w, a, o) { const n = pts.length; if (n < 2 || !(a > 0.01)) return; o = o || {}; const Q = wq(), tp = o.taper == null ? 0.6 : o.taper;
     if (Q) { const PP = pts.map(q => xy(c, q[0], q[1]));
       for (let i = 1; i < n; i++) { const u = i / (n - 1), p0 = PP[i - 1], p1 = PP[i], dx = p1[0] - p0[0], dy = p1[1] - p0[1], ww = (pts[i][2] != null ? pts[i][2] : w) * p1[3] * (1 - tp * u), aa = a * (o.fade ? 1 - 0.85 * u : 1);
         if (ww > 0.3) Q.wrib(p0[0] - dx * 0.35, p0[1] - dy * 0.35, p1[0] + dx * 0.35, p1[1] + dy * 0.35, ww, hx(o.col, P.deep), hx(o.lite, P.mint), aa, o.edge || 0, (o.seed || 0) + i * 0.37, o.flow == null ? 3 : o.flow, o.dens); }
@@ -56,7 +58,7 @@ const WDK = (() => {
   /* ---- light: a glow, a sparkle, a soft shade, a swirl on the floor, a puff of churned air, a ripple of pressure on the floor */
   function glow(c, x, y, r, col, a, sy) { if (!(r > 0.5) || !(a > 0.01)) return; const Q = gq(); if (Q) { const p = xy(c, x, y); Q.glow(p[0], p[1], r * p[3], hx(col, P.jade), Math.min(1, a), sy || 1); return; } c.save(); c.translate(x, y); c.scale(1, sy || 1); H.glow(c, 0, 0, r, hx(col, P.jade), Math.min(1, a)); c.restore(); }
   function star(c, x, y, s, a, col) { if (!(a > 0.01)) return; const Q = gq(); if (Q) { const p = xy(c, x, y); Q.glow(p[0], p[1], s * 0.5 * p[3], col || P.mintW, 0.6 * a); Q.star(p[0], p[1], s * 0.7 * p[3], 0.6 * a, col || '#FFFFFF'); return; } H.glow(c, x, y, s * 0.6, col || P.mintW, 0.6 * a); }
-  function shade(c, x, y, rx, ry, a, seed) { const Q = gq(); if (!Q || !(rx > 1) || !(a > 0.01)) return; const p = xy(c, x, y); Q.wshade(p[0], p[1], rx * p[3], (ry || rx) * p[3], P.deep, a, seed || 0, 0.5); }
+  function shade(c, x, y, rx, ry, a, seed) { const Q = wq(); if (!Q || !(rx > 1) || !(a > 0.01)) return; const p = xy(c, x, y); Q.wshade(p[0], p[1], rx * p[3], (ry || rx) * p[3], P.deep, a, seed || 0, 0.5); }
   function swirl(c, x, y, r, a, o) { if (!(r > 1) || !(a > 0.01)) return; o = o || {}; const Q = gq(), sy = o.sy == null ? H.GY : o.sy;
     if (Q) { const p = xy(c, x, y); Q.wshade(p[0], p[1], r * p[3], r * sy * p[3], P.deep, a * 0.45, o.seed || 0, 0.5); Q.evortex(p[0], p[1], r * p[3], hx(o.col, P.jade), o.heat == null ? 0.62 : o.heat, a, o.seed || 0, o.spin || 1.5, sy); return; }
     c.save(); c.translate(x, y); c.scale(1, sy); c.globalCompositeOperation = 'lighter'; c.strokeStyle = rgba(P.mint, 0.4 * a); c.lineWidth = Math.max(1, r * 0.05); for (let i = 0; i < 3; i++) { c.beginPath(); c.arc(0, 0, r * (0.4 + i * 0.25), i * 2, i * 2 + 2.6); c.stroke(); } c.restore(); }

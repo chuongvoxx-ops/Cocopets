@@ -19,7 +19,8 @@ const LOAD_PICS = (() => {
   const got = {}, held = {}, web = (() => { try { return /github\.io$/.test(location.hostname); } catch (e) { return false; } })();
   /* resolves the URL that loaded (the image decoded and held), or null */
   function load(k) { if (got[k]) return got[k];
-    const cands = web ? ['loading/' + k + '.jpg', BLOB[k]] : [BLOB[k], 'loading/' + k + '.jpg'];
+    const D = typeof LOAD_PICS_DATA !== 'undefined' ? LOAD_PICS_DATA : null;   /* (v375: the Claude build carries them inside the page) */
+    const cands = D && D[k] ? [D[k]] : web ? ['loading/' + k + '.jpg', BLOB[k]] : [BLOB[k], 'loading/' + k + '.jpg'];
     got[k] = (async () => { for (const u of cands) { if (!u) continue; const ok = await new Promise(r => { const im = new Image(); im.decoding = 'async'; const to = setTimeout(() => r(false), 6000); im.onload = () => { clearTimeout(to); held[k] = im; (im.decode ? im.decode().catch(() => {}) : Promise.resolve()).then(() => r(true)); }; im.onerror = () => { clearTimeout(to); r(false); }; im.src = u; }); if (ok) return held[k].src; } got[k] = null; return null; })();
     return got[k]; }
   return { load, BLOB };
@@ -38,7 +39,9 @@ const StageLoad = (() => {
     (document.getElementById('arcade') || document.body).appendChild(el); pic = el.querySelector('.sl-pic'); bar = el.querySelector('.sl-bar i'); tip = el.querySelector('.sl-tip'); ttl = el.querySelector('.sl-ttl'); sub = el.querySelector('.sl-sub'); lbl = el.querySelector('.sl-lbl'); return el; }
   /* shown at once; resolves when the picture is decoded (or failed) */
   function show(mode, S, w, s, title, subtitle) { build(); token++; t0 = now(); const k = pick(mode, S, w, s);
-    el.classList.remove('out', 'noimg'); el.hidden = false; ttl.textContent = title || ''; sub.textContent = subtitle || ''; tip.textContent = TIPS[(Math.random() * TIPS.length) | 0]; set(0.04, 'Loading');
+    el.classList.remove('out', 'noimg'); el.hidden = false; ttl.textContent = title || ''; sub.textContent = subtitle || ''; tip.textContent = TIPS[(Math.random() * TIPS.length) | 0];
+    /* (v375) if this device cannot run the GPU effects, say so here (and why), so it can be reported */
+    try { const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; if (F) { const on = F.usable(), I = F.info(); if (!on && I.why) tip.textContent = 'Effects are in simple mode on this device: ' + String(I.why).slice(0, 140); else if (on && !I.wind && I.whyW) tip.textContent = 'Wind effects are in simple mode on this device: ' + String(I.whyW).slice(0, 140); } } catch (e) {} set(0.04, 'Loading');
     pic.style.backgroundImage = ''; pic.classList.remove('in'); el.dataset.pic = k;
     return LOAD_PICS.load(k).then(u => { if (u) { pic.style.backgroundImage = `url("${u}")`; void pic.offsetWidth; pic.classList.add('in'); return true; } el.classList.add('noimg'); return false; }); }
   function set(u, what) { if (!el) return; bar.style.transform = `scaleX(${Math.max(0, Math.min(1, u)).toFixed(3)})`; if (what) lbl.textContent = what; }
@@ -48,7 +51,7 @@ const StageLoad = (() => {
     set(0.62, 'Preparing effects');
     try { const NM = self.NIDHOGG_MOVES, F = NM && NM.FGFX; if (F && F.usable()) { const cv = document.createElement('canvas'); cv.width = 64; cv.height = 64; const c = cv.getContext('2d'), Q = F.begin(c, null);
         if (Q && Q.quad) { for (let k = 0; k <= 39; k++) Q.quad(k, 32, 32, 8, 0, 0, 8, '#88CCAA', 0.01, 0.5, 0.5, 0.5); F.flush(c); } }
-      if (NM && NM.F3D && NM.F3D.usable) NM.F3D.usable(); } catch (e) {}
+      } catch (e) {}
     await frame();
     // every move in the party's kits that prepares itself ahead (the Ultimates already began as the stage was made)
     set(0.72, 'Preparing moves');
@@ -112,7 +115,7 @@ const BootLoad = (() => {
       // the GPU painters
       try { const NM = self.NIDHOGG_MOVES, F = NM && NM.FGFX; if (F && F.usable()) { const cv = document.createElement('canvas'); cv.width = 64; cv.height = 64; const c = cv.getContext('2d'), Q = F.begin(c, null);
           if (Q && Q.quad) { for (let k = 0; k <= 39; k++) Q.quad(k, 32, 32, 8, 0, 0, 8, '#88CCAA', 0.01, 0.5, 0.5, 0.5); F.flush(c); } }
-        if (NM && NM.F3D && NM.F3D.usable) NM.F3D.usable(); } catch (e) {}
+        } catch (e) {}
       set(0.5, 'Preparing moves'); await frame();
       // the moves that prepare themselves ahead
       try { const T = () => tileT(); for (const p of party) { const K = petKit(p), kit = K && K.kit; if (!kit) continue;

@@ -437,7 +437,10 @@ const NM = (self.NIDHOGG_MOVES = self.NIDHOGG_MOVES || {});
    2D; a lost context falls back to 2D (rebuilt when restored). Draw calls, quads and the light / smoke split are in stats. */
 (() => {
   const NM = self.NIDHOGG_MOVES;
-  let cv = null, gl = null, PR = null, bq = null, ok = null, soft = false, info = '', why = '';
+  let cv = null, gl = null, PR = null, PRW = null, bq = null, ok = null, soft = false, info = '', why = '', whyW = '';
+  /* (v375) two programs: the main one without Wind's kinds (33..39), and the whole shader for Wind's quads. If a device cannot
+     build the larger one, only Wind's quads go without (the wind kit then draws them in 2D) and everything else stays on the GPU */
+  const FSM = () => FS.replace(/\/\*<W>\*\/[\s\S]*?\/\*<\/W>\*\//g, '');
   const stats = { draws: 0, quads: 0, smoke: 0, W: 0, H: 0, frames: 0, maxDraws: 0, maxQuads: 0, maxSmoke: 0 };
   const HDR = '#ifdef GL_FRAGMENT_PRECISION_HIGH\nprecision highp float;\n#else\nprecision mediump float;\n#endif\n';
   const VS = `attribute vec2 a_p, a_uv; attribute float a_k; attribute vec4 a_c; attribute vec3 a_q; uniform vec2 u_res; varying vec2 v_uv, v_px; varying float v_k; varying vec4 v_c; varying vec3 v_q;
@@ -453,12 +456,12 @@ float h3(vec3 p){ p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * 
 float n3(vec3 x){ vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f); return mix(mix(mix(h3(i), h3(i + vec3(1.0, 0.0, 0.0)), f.x), mix(h3(i + vec3(0.0, 1.0, 0.0)), h3(i + vec3(1.0, 1.0, 0.0)), f.x), f.y), mix(mix(h3(i + vec3(0.0, 0.0, 1.0)), h3(i + vec3(1.0, 0.0, 1.0)), f.x), mix(h3(i + vec3(0.0, 1.0, 1.0)), h3(i + vec3(1.0, 1.0, 1.0)), f.x), f.y), f.z); }
 float fbm3(vec3 p){ return 0.5 * n3(p) + 0.27 * n3(p * 2.07 + 3.1) + 0.15 * n3(p * 4.13 + 7.7) + 0.08 * n3(p * 8.3 + 1.3); }
 float caus(vec2 p, float t){ vec2 i = p; float c = 1.0; for (int n = 0; n < 4; n++) { float tt = t * (1.0 - 3.5 / float(n + 1)); i = p + vec2(cos(tt - i.x) + sin(tt + i.y), sin(tt - i.y) + cos(tt + i.x)); c += 1.0 / length(vec2(p.x / (sin(i.x + tt) / 0.005), p.y / (cos(i.y + tt) / 0.005))); } c /= 4.0; c = 1.17 - pow(c, 1.4); return clamp(pow(abs(c), 8.0), 0.0, 1.6); }   /* (v361) the web of light that water throws (after the classic tileable caustic) */
-vec4 wbl(vec2 u, float q0, float th0){ float md = floor(q0 / 10.0), span = max(0.05, q0 - md * 10.0), rr = length(u), an = atan(u.y, u.x), v = 0.0, tk = th0, m = 1.0;   /* (v370, wind) a blade of wind: an arc of radius 0.8 in its quad (mode 0 a trail, its head at angle 0 and its tail round toward -v; 1 a crescent tapering both ways; 2 a whole ring): x across (0 its sharp outer edge .. 1 its inner), y along (0 the head .. 1 the tail), z inside, w arc length */
+/*<W>*/vec4 wbl(vec2 u, float q0, float th0){ float md = floor(q0 / 10.0), span = max(0.05, q0 - md * 10.0), rr = length(u), an = atan(u.y, u.x), v = 0.0, tk = th0, m = 1.0;   /* (v370, wind) a blade of wind: an arc of radius 0.8 in its quad (mode 0 a trail, its head at angle 0 and its tail round toward -v; 1 a crescent tapering both ways; 2 a whole ring): x across (0 its sharp outer edge .. 1 its inner), y along (0 the head .. 1 the tail), z inside, w arc length */
   if (md < 0.5) { float s = mod(-an + 0.03, 6.2831853) - 0.03; v = s / span; tk = th0 * (1.0 - 0.78 * clamp(v, 0.0, 1.0)) * smoothstep(-0.03 / span, 0.05, v); m = step(v, 1.0); }
   else if (md < 1.5) { v = an / (span * 0.5); tk = th0 * pow(clamp(1.0 - v * v, 0.0, 1.0), 0.6); v = abs(v); m = step(v, 1.0); }
   return vec4((0.8 - rr) / max(tk, 0.004), v, m, an * rr); }
 vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05 * (0.3 + h) + sin(t * 0.9) * 0.03 * h, mix(br, 0.92, pow(h, 1.25)) * (0.94 + 0.06 * sin(h * 9.0 - t * 3.0))); }   /* (v370, wind) a funnel's centre and half-width at height h (0 its foot .. 1 its top) */
-void main(){ vec2 u = v_uv; float r = length(u), m = 0.0, edge = 1.0 - smoothstep(0.85, 1.0, r); vec3 col = v_c.rgb; float t = u_t + v_q.y * 7.3, pk = u_pet.z > 0.0 ? mix(0.12, 1.0, smoothstep(0.4, 1.4, length((v_px - u_pet.xy) * vec2(1.0, 1.1)) / u_pet.z)) : 1.0;   /* (the rider's face stays clear: light, body and smoke) */
+/*</W>*/void main(){ vec2 u = v_uv; float r = length(u), m = 0.0, edge = 1.0 - smoothstep(0.85, 1.0, r); vec3 col = v_c.rgb; float t = u_t + v_q.y * 7.3, pk = u_pet.z > 0.0 ? mix(0.12, 1.0, smoothstep(0.4, 1.4, length((v_px - u_pet.xy) * vec2(1.0, 1.1)) / u_pet.z)) : 1.0;   /* (the rider's face stays clear: light, body and smoke) */
   pk *= v_k > 11.5 ? 1.0 : (v_k > 1.5 && v_k < 2.5) || (v_k > 5.5 && v_k < 6.5) || v_k > 10.5 ? 1.0 - smoothstep(0.8, 1.0, abs(u.y)) : (v_k > 3.5 && v_k < 4.5) ? (1.0 - smoothstep(0.8, 1.0, abs(u.x))) * (1.0 - smoothstep(0.86, 1.0, u.y)) : (v_k > 0.5 && v_k < 1.5) || (v_k > 7.5 && v_k < 8.5) ? 1.0 - smoothstep(0.92, 1.0, r) : 1.0 - smoothstep(0.72, 1.0, r);   /* (every picture fades to nothing well inside its own quad: no straight cut where noise or a halo reaches the quad's edge) */
   if (v_k > 15.5 && v_k < 16.5) { // (v346, Thunderstorm) a storm cloud (solid): billowing lobes of night violet, darker beneath, a cool rim
     // of light along the top, lit from within by its lightning (v_q.x) in electric blue-white; v_c its colour, v_q.y seed
@@ -518,7 +521,7 @@ void main(){ vec2 u = v_uv; float r = length(u), m = 0.0, edge = 1.0 - smoothste
     c += vec3(0.85, 1.0, 1.0) * exp(-sq((u.y + 0.36 + (f - 0.5) * 0.35) / 0.13)) * (0.5 + 0.5 * st) * 0.55 + vec3(0.5, 0.9, 1.0) * rim * 0.28 + vec3(0.9, 1.0, 1.0) * smoothstep(0.62, 0.8, st) * rim * 0.5;
     c = mix(c, vec3(0.92, 0.98, 1.0), foam * 0.6);
     float a = min(1.0, dns * max(mix(0.5, 0.75, rim), foam * 0.8) * v_q.x) * v_c.a * pk; gl_FragColor = vec4(min(c, vec3(1.0)) * a, a); }
-  else if (v_k > 32.5 && v_k < 33.5) { // (v370, wind) the body of a blade of wind (solid): deep emerald toward its sharp outer edge, its
+/*<W>*/  else if (v_k > 32.5 && v_k < 33.5) { // (v370, wind) the body of a blade of wind (solid): deep emerald toward its sharp outer edge, its
     // opacity fading toward the inner edge, streaked as the air races along it; v_q.x span + 10 x mode, v_q.y seed, v_q.z thickness
     vec4 B = wbl(u, v_q.x, v_q.z); float d = B.x, rr = r, md = floor(v_q.x / 10.0), along = md < 0.5 ? pow(clamp(1.0 - B.y, 0.0, 1.0), 1.3) : md < 1.5 ? 1.0 - smoothstep(0.7, 1.0, B.y) : 1.0;
     float outer = 1.0 - smoothstep(0.796, 0.806, rr), prof = pow(clamp(1.0 - d, 0.0, 1.0), 1.7) * step(0.0, d + 0.02), st = fbm(vec2(B.w * 3.0 - t * 2.5, d * 4.0 + v_q.y));
@@ -534,7 +537,7 @@ void main(){ vec2 u = v_uv; float r = length(u), m = 0.0, edge = 1.0 - smoothste
     // bright, 1 the edge at +y; v_q.y seed, v_q.z its flow
     float e = v_q.x > 0.5 ? (u.y + 1.0) * 0.5 : abs(u.y), af = 1.0 - smoothstep(0.65, 1.0, abs(u.x)), st = fbm(vec2(u.x * 2.0 - t * v_q.z, u.y * 3.0 + v_q.y));
     float a = min(1.0, pow(e, 1.1) * (1.0 - smoothstep(0.9, 0.98, e)) * af * (0.65 + 0.5 * st) * 0.95) * v_c.a; vec3 c = mix(col * 0.45, col, e); gl_FragColor = vec4(c * a, a); }
-  else { vec3 L = vec3(0.0);
+/*</W>*/  else { vec3 L = vec3(0.0);
     if (v_k > 25.5) { // (v361, water light)
       if (v_k < 26.5) { // caustic light: v_q.z > 0.5 on a sphere of water (the web of light inside it, a specular glint, its rim
         // glowing), else on the floor (a pool of rippling light fading out); v_q.x strength, v_q.y seed
@@ -557,7 +560,7 @@ void main(){ vec2 u = v_uv; float r = length(u), m = 0.0, edge = 1.0 - smoothste
         float rr = r * 1.3, th = max(0.03, v_q.z), d = rr - 1.0, nn = fbm(vec2(atan(u.y, u.x) * 2.5 + v_q.y, rr * 3.0 - t * 0.6)), crest = exp(-sq((d + (nn - 0.5) * 0.05) / (th * 0.6))) * 0.8, tr = 0.0;
         for (int k = 1; k < 4; k++) { float fk = float(k); tr += exp(-sq((d + fk * th * 1.25 + (nn - 0.5) * 0.06) / (th * 0.45))) * (0.45 / fk); }
         L = (mix(col, vec3(1.0), 0.45) * (crest + tr) + col * step(rr, 1.0) * exp(-sq(d / (th * 4.0))) * 0.15 + vec3(1.0) * smoothstep(0.68, 0.88, nn) * crest * 0.8) * v_q.x * (1.0 - smoothstep(1.12, 1.28, rr)); }
-      else if (v_k > 32.5) { // (v370, wind light)
+/*<W>*/      else if (v_k > 32.5) { // (v370, wind light)
         if (v_k < 34.5) { // a blade of wind's light: a sharp luminous line along its outer edge, a soft halo outside it, the light fading
           // inward, bright streaks racing along it, glints; as kind 33
           vec4 B = wbl(u, v_q.x, v_q.z); float d = B.x, rr = r, md = floor(v_q.x / 10.0), along = md < 0.5 ? pow(clamp(1.0 - B.y, 0.0, 1.0), 1.1) : md < 1.5 ? 1.0 - smoothstep(0.75, 1.0, B.y) : 1.0;
@@ -591,7 +594,7 @@ void main(){ vec2 u = v_uv; float r = length(u), m = 0.0, edge = 1.0 - smoothste
           // bright streaks racing along it
           float e = v_q.x > 0.5 ? (u.y + 1.0) * 0.5 : abs(u.y), af = 1.0 - smoothstep(0.65, 1.0, abs(u.x)), st = fbm(vec2(u.x * 2.0 - t * v_q.z, u.y * 3.0 + v_q.y)), cut = 1.0 - smoothstep(0.93, 1.0, e);
           L = (mix(col, vec3(1.0), 0.35) * pow(e, 2.0) * cut * 0.45 + vec3(0.92, 1.0, 0.97) * exp(-sq((e - 0.9) / 0.05)) * 0.95 + mix(col, vec3(1.0), 0.6) * smoothstep(0.55, 0.85, st) * cut * e * 0.7) * af; } }
-      else if (v_k > 31.5 && v_k < 32.5) { // (v368) a ring of flowing water-light (an annulus at uv radius 0.8 in a tilted ellipse
+/*</W>*/      else if (v_k > 31.5 && v_k < 32.5) { // (v368) a ring of flowing water-light (an annulus at uv radius 0.8 in a tilted ellipse
         // quad), smooth-edged, its streaks and glints racing round it with its spin; v_q.x = side (0 the far half, 1 the near, 2
         // all) + thickness (fraction), v_q.z spin
         float side = floor(v_q.x), th = max(0.02, fract(v_q.x)), d = (r - 0.8) / th, prof = exp(-d * d * 2.2), an = atan(u.y, u.x), sp = an + t * v_q.z;
@@ -692,23 +695,31 @@ void main(){ vec2 u = v_uv; float r = length(u), m = 0.0, edge = 1.0 - smoothste
   function prog(vs, fs, attrs) { const sh = (ty, src) => { const q = gl.createShader(ty); gl.shaderSource(q, src); gl.compileShader(q); if (!gl.getShaderParameter(q, gl.COMPILE_STATUS)) throw new Error('shader: ' + gl.getShaderInfoLog(q)); return q; };
     const p = gl.createProgram(); gl.attachShader(p, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs)); attrs.forEach((a, i) => gl.bindAttribLocation(p, i, a)); gl.linkProgram(p); if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error('link: ' + gl.getProgramInfoLog(p));
     const U = {}, n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS); for (let i = 0; i < n; i++) { const q = gl.getActiveUniform(p, i); U[q.name] = gl.getUniformLocation(p, q.name); } return { p, U }; }
-  function build() { if (!cv) { cv = document.createElement('canvas'); cv.width = cv.height = 4; cv.addEventListener('webglcontextlost', e => { e.preventDefault(); ok = false; why = 'context lost'; }); cv.addEventListener('webglcontextrestored', () => { ok = null; PR = null; }); }
+  function build() { if (!cv) { cv = document.createElement('canvas'); cv.width = cv.height = 4; cv.addEventListener('webglcontextlost', e => { e.preventDefault(); ok = false; why = 'context lost'; lostAt = performance.now(); }); cv.addEventListener('webglcontextrestored', () => { ok = null; PR = null; PRW = null; }); }
     const o = { alpha: true, premultipliedAlpha: true, antialias: false, depth: false, stencil: false }; gl = gl || cv.getContext('webgl2', o) || cv.getContext('webgl', o); if (!gl) { why = 'no WebGL'; return false; }
     try { const di = gl.getExtension('WEBGL_debug_renderer_info'); info = String(di ? gl.getParameter(di.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)); } catch (e) { info = '?'; } soft = /swiftshader|llvmpipe|software|softpipe/i.test(info);
-    PR = prog(VS, FS, ['a_p', 'a_uv', 'a_k', 'a_c', 'a_q']); bq = gl.createBuffer(); return true; }
-  function usable() { let f = null; try { f = typeof window !== 'undefined' ? window.__NG_GL : null; } catch (e) {} if (f === 0 || ok === false) return false; if (ok === null) { try { ok = build(); } catch (e) { ok = false; why = String(e && e.message || e); try { console.warn('Nidhogg GFX: ' + why); } catch (e2) {} } } return !!ok && (!soft || f === 1); }
+    PR = prog(VS, FSM(), ['a_p', 'a_uv', 'a_k', 'a_c', 'a_q']); bq = gl.createBuffer();
+    try { PRW = prog(VS, FS, ['a_p', 'a_uv', 'a_k', 'a_c', 'a_q']); whyW = ''; } catch (e) { PRW = null; whyW = String(e && e.message || e).slice(0, 300); try { console.warn('Nidhogg GFX (wind): ' + whyW); } catch (e2) {} }
+    return true; }
+  /* (v375) a lost context (a phone may drop one when many pages or pictures want the GPU) is made again a moment later on a
+     fresh canvas, rather than leaving every effect in 2D for the rest of the session; a failed frame only after three in a row */
+  let lostAt = 0, fails = 0;
+  function usable() { let f = null; try { f = typeof window !== 'undefined' ? window.__NG_GL : null; } catch (e) {} if (f === 0) return false;
+    if (ok === false && why === 'context lost' && performance.now() - lostAt > 1500) { cv = null; gl = null; PR = null; PRW = null; ok = null; why = ''; }
+    if (ok === false) return false; if (ok === null) { try { ok = build(); } catch (e) { ok = false; why = String(e && e.message || e); try { console.warn('Nidhogg GFX: ' + why); } catch (e2) {} } } return !!ok && (!soft || f === 1); }
   const LOWQ = () => typeof st !== 'undefined' && st && !!st.lowFx;
   /* the batch: light quads and smoke quads, 12 floats a vertex */
   const RGB = new Map(), rgbOf = h => { let v = RGB.get(h); if (!v) { const q = hexRGB(h || '#FF7A2E'); v = [q[0] / 255, q[1] / 255, q[2] / 255]; RGB.set(h, v); } return v; };
   const QV = [[-1, -1], [1, -1], [-1, 1], [-1, 1], [1, -1], [1, 1]];
-  const Q = { lit: new Float32Array(12 * 6 * 600), nl: 0, smk: new Float32Array(12 * 6 * 200), ns: 0, a: 1, b: 0, c0: 0, d: 1, e: 0, f: 0, k: 1, t: 0, W: 0, Hh: 0, pet: [0, 0, 0], gpu: true,
+  const Q = { lit: new Float32Array(12 * 6 * 600), nl: 0, smk: new Float32Array(12 * 6 * 200), ns: 0, wlit: new Float32Array(12 * 6 * 200), nwl: 0, wsmk: new Float32Array(12 * 6 * 100), nws: 0, get windOK() { return !!PRW; }, a: 1, b: 0, c0: 0, d: 1, e: 0, f: 0, k: 1, t: 0, W: 0, Hh: 0, pet: [0, 0, 0], gpu: true,
     X(x, y) { return this.a * x + this.c0 * y + this.e; }, Y(x, y) { return this.b * x + this.d * y + this.f; },
     /* one quad: centre (screen px), half-axes (ux, uy), (vx, vy) in screen px */
-    quad(kind, x, y, ux, uy, vx, vy, col, al, q0, q1, q2) { if (!(al > 0.004)) return; const solid = (kind >= 9 && kind <= 12) || kind === 16 || kind === 24 || kind === 25 || kind === 33 || kind === 36 || kind === 39; let A = solid ? this.smk : this.lit; const n = solid ? this.ns : this.nl;
-      if ((n + 6) * 12 > A.length) { const q = new Float32Array(A.length * 2); q.set(A); A = q; if (solid) this.smk = q; else this.lit = q; }
+    quad(kind, x, y, ux, uy, vx, vy, col, al, q0, q1, q2) { if (!(al > 0.004)) return; const solid = (kind >= 9 && kind <= 12) || kind === 16 || kind === 24 || kind === 25 || kind === 33 || kind === 36 || kind === 39, wd = kind >= 33 && kind <= 39;
+      const ka = wd ? (solid ? 'wsmk' : 'wlit') : (solid ? 'smk' : 'lit'), kn = wd ? (solid ? 'nws' : 'nwl') : (solid ? 'ns' : 'nl'); let A = this[ka]; const n = this[kn];
+      if ((n + 6) * 12 > A.length) { const q = new Float32Array(A.length * 2); q.set(A); A = q; this[ka] = q; }
       const cx = this.X(x, y), cy = this.Y(x, y), a = this.a, b = this.b, c = this.c0, d = this.d, Ux = a * ux + c * uy, Uy = b * ux + d * uy, Vx = a * vx + c * vy, Vy = b * vx + d * vy, C = rgbOf(col); let o = n * 12;
       for (let j = 0; j < 6; j++) { const su = QV[j][0], sv = QV[j][1]; A[o++] = cx + Ux * su + Vx * sv; A[o++] = cy + Uy * su + Vy * sv; A[o++] = su; A[o++] = sv; A[o++] = kind; A[o++] = C[0]; A[o++] = C[1]; A[o++] = C[2]; A[o++] = al > 1 ? 1 : al; A[o++] = q0 || 0; A[o++] = q1 || 0; A[o++] = q2 || 0; }
-      if (solid) this.ns += 6; else this.nl += 6; },
+      this[kn] += 6; },
     rq(kind, x, y, w, h, rot, col, al, q0, q1, q2) { const c = Math.cos(rot || 0), s = Math.sin(rot || 0); this.quad(kind, x, y, c * w, s * w, -s * h, c * h, col, al, q0, q1, q2); },
     glow(x, y, r, col, a, sy) { if (r > 0.5) this.quad(0, x, y, r, 0, 0, r * (sy || 1), col, a); },
     ring(x, y, r, col, a, w, sy) { if (r > 0.5) this.quad(1, x, y, r * 1.04, 0, 0, r * 1.04 * (sy || 1), col, a, 0.96, 0, Math.max(0.02, (w || r * 0.1) / r * 0.6)); },
@@ -752,19 +763,22 @@ void main(){ vec2 u = v_uv; float r = length(u), m = 0.0, edge = 1.0 - smoothste
       this.firebeam(x0 - ex, y0 - ey, x1 + ex, y1 + ey, w * (1 - 0.75 * k), heat * (1 - 0.6 * k), a * (1 - k * k), (seed || 0) + i * 0.37, 4); } } };
   /* begin a pass on the game canvas c (its transform is the camera); pet: [screen x, y, radius] to keep clear, or null */
   function begin(c, pet) { const B = c.getTransform(), cv0 = c.canvas, L = LOWQ(), k0 = Math.min(L ? 0.42 : 0.7, 1500 / Math.max(cv0.width, cv0.height));   /* (v364: a finer GPU layer: 1500 px on the long side, was 1200) */ Q.W = Math.max(8, Math.round(cv0.width * k0)); Q.Hh = Math.max(8, Math.round(cv0.height * k0)); const kx = Q.W / cv0.width;
-    Q.a = B.a * kx; Q.b = B.b * kx; Q.c0 = B.c * kx; Q.d = B.d * kx; Q.e = B.e * kx; Q.f = B.f * kx; Q.k = (Math.sqrt(Math.abs(B.a * B.d - B.b * B.c)) || 1) * kx; Q.nl = Q.ns = 0; Q.t = (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000 % 1000;
+    Q.a = B.a * kx; Q.b = B.b * kx; Q.c0 = B.c * kx; Q.d = B.d * kx; Q.e = B.e * kx; Q.f = B.f * kx; Q.k = (Math.sqrt(Math.abs(B.a * B.d - B.b * B.c)) || 1) * kx; Q.nl = Q.ns = Q.nwl = Q.nws = 0; Q.t = (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000 % 1000;
     if (pet) { Q.pet[0] = Q.X(pet[0], pet[1]); Q.pet[1] = Q.Y(pet[0], pet[1]); Q.pet[2] = pet[2] * Q.k; } else Q.pet[2] = 0; return Q; }
-  function flush(c) { if (!Q.nl && !Q.ns) return; if (!usable()) return; try { const W = Q.W, Hh = Q.Hh; if (cv.width !== W || cv.height !== Hh) { cv.width = W; cv.height = Hh; }   /* (v326: one layer at a time, the whole canvas copied each time: no source rectangles at all, so no browser can crop or misplace a half) */
+  function flush(c) { if (!Q.nl && !Q.ns && !Q.nwl && !Q.nws) return; if (!usable()) return; try { const W = Q.W, Hh = Q.Hh; if (cv.width !== W || cv.height !== Hh) { cv.width = W; cv.height = Hh; }   /* (v326: one layer at a time, the whole canvas copied each time: no source rectangles at all, so no browser can crop or misplace a half) */
       gl.viewport(0, 0, W, Hh); gl.clearColor(0, 0, 0, 0); gl.enable(gl.BLEND); gl.useProgram(PR.p); gl.uniform2f(PR.U.u_res, W, Hh); gl.uniform1f(PR.U.u_t, Q.t); gl.uniform3f(PR.U.u_pet, Q.pet[0], Q.pet[1], Q.pet[2]); gl.bindBuffer(gl.ARRAY_BUFFER, bq);
       const attr = (i, n, off) => { gl.enableVertexAttribArray(i); gl.vertexAttribPointer(i, n, gl.FLOAT, false, 48, off * 4); }; let draws = 0;
-      const pass = (A, n) => { gl.bufferData(gl.ARRAY_BUFFER, A.subarray(0, n * 12), gl.DYNAMIC_DRAW); attr(0, 2, 0); attr(1, 2, 2); attr(2, 1, 4); attr(3, 4, 5); attr(4, 3, 9); gl.drawArrays(gl.TRIANGLES, 0, n); draws++; };
+      const use = P => { gl.useProgram(P.p); gl.uniform2f(P.U.u_res, W, Hh); gl.uniform1f(P.U.u_t, Q.t); gl.uniform3f(P.U.u_pet, Q.pet[0], Q.pet[1], Q.pet[2]); };
+      const pass0 = (A, n) => { gl.bufferData(gl.ARRAY_BUFFER, A.subarray(0, n * 12), gl.DYNAMIC_DRAW); attr(0, 2, 0); attr(1, 2, 2); attr(2, 1, 4); attr(3, 4, 5); attr(4, 3, 9); gl.drawArrays(gl.TRIANGLES, 0, n); draws++; };
+      const pass = (A, n, AW, nw) => { if (n) { use(PR); pass0(A, n); } if (nw && PRW) { use(PRW); pass0(AW, nw); } };   /* (v375: the main program's quads, then Wind's with its own) */
       const cv0 = c.canvas; c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1;
-      if (Q.ns) { gl.clear(gl.COLOR_BUFFER_BIT); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); pass(Q.smk, Q.ns); c.globalCompositeOperation = 'source-over'; c.drawImage(cv, 0, 0, cv0.width, cv0.height); }   // the left half: smoke, solid
-      if (Q.nl) { gl.clear(gl.COLOR_BUFFER_BIT); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_COLOR); pass(Q.lit, Q.nl); c.globalCompositeOperation = 'lighter'; c.drawImage(cv, 0, 0, cv0.width, cv0.height); }    // the right half: light, screened (stacked fire saturates softly, never clips to a white slab)
+      if (Q.ns || Q.nws) { gl.clear(gl.COLOR_BUFFER_BIT); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); pass(Q.smk, Q.ns, Q.wsmk, Q.nws); c.globalCompositeOperation = 'source-over'; c.drawImage(cv, 0, 0, cv0.width, cv0.height); }   // the left half: smoke, solid
+      if (Q.nl || Q.nwl) { gl.clear(gl.COLOR_BUFFER_BIT); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_COLOR); pass(Q.lit, Q.nl, Q.wlit, Q.nwl); c.globalCompositeOperation = 'lighter'; c.drawImage(cv, 0, 0, cv0.width, cv0.height); }    // the right half: light, screened (stacked fire saturates softly, never clips to a white slab)
       stats.draws = draws; stats.quads = Q.nl / 6; stats.smoke = Q.ns / 6; stats.W = W; stats.H = Hh; stats.frames++; stats.maxDraws = Math.max(stats.maxDraws, draws); stats.maxQuads = Math.max(stats.maxQuads, Q.nl / 6); stats.maxSmoke = Math.max(stats.maxSmoke, Q.ns / 6);
       c.restore();
-    } catch (e) { ok = false; why = String(e && e.message || e); } }
+      fails = 0;
+    } catch (e) { why = String(e && e.message || e); if (++fails >= 3 || (gl && gl.isContextLost && gl.isContextLost())) { ok = false; if (gl && gl.isContextLost && gl.isContextLost()) { why = 'context lost'; lostAt = performance.now(); } } } }
   /* (tests) pixels that break rgb <= a, right after a flush */
   function check() { if (!gl) return null; const W = cv.width, Hh = cv.height, px = new Uint8Array(W * Hh * 4); gl.readPixels(0, 0, W, Hh, gl.RGBA, gl.UNSIGNED_BYTE, px); let bad = 0, lit = 0; for (let i = 0; i < px.length; i += 4) { const a = px[i + 3]; if (a) lit++; if (px[i] > a + 1 || px[i + 1] > a + 1 || px[i + 2] > a + 1) bad++; } return { bad, lit }; }
-  NM.FGFX = { usable, begin, flush, check, stats, info: () => ({ ok, soft, renderer: info, why }) };
+  NM.FGFX = { usable, begin, flush, check, stats, windOK: () => !!PRW, info: () => ({ ok, soft, renderer: info, why, wind: !!PRW, whyW }) };
 })();

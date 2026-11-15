@@ -26,6 +26,18 @@ HOOK = ("window.__pp = { get PetGL() { return typeof PetGL !== 'undefined' ? Pet
 
 def build(test, web=False):
     parts = [rd('head.html'), '<style>\n', rd('styles.css'), '</style>\n\n', rd('body.html'), '<script>\n(() => {\n\'use strict\';\n']
+    # (v375) the Claude build carries the loading screens' pictures inside it: a page there cannot load files beside it
+    if not test and not web:
+        import base64
+        ld = os.path.join(os.path.dirname(HERE), 'assets', 'loading')
+        if os.path.isdir(ld):
+            pics = {}
+            for n in sorted(os.listdir(ld)):
+                if n.endswith('.jpg'):
+                    with open(os.path.join(ld, n), 'rb') as f:
+                        pics[n[:-4]] = 'data:image/jpeg;base64,' + base64.b64encode(f.read()).decode('ascii')
+            import json
+            parts.append('/* ===== the loading pictures (Claude build) ===== */\nconst LOAD_PICS_DATA = ' + json.dumps(pics) + ';\n')
     # (the songs are left out of every build now: the website plays them from files beside the page, and the Claude
     #  build carries none at all, to stay well under the artifact size limit; an empty MUSIC_DATA keeps the player quiet)
     js = sorted(f for f in os.listdir(os.path.join(HERE, 'js')) if f.endswith('.js') and f != '05a-music-data.js')
@@ -42,6 +54,25 @@ def build(test, web=False):
     if not test:
         assert '__pp' not in html, 'test hook leaked into production build'
     return html
+
+def minify(html):
+    """(v375) the Claude build's script with its comments and spacing taken out (esbuild, when this machine has it; names and
+    syntax untouched): about a third smaller, so the page loads faster and stays well inside the artifact size limit"""
+    import subprocess, tempfile
+    tool = os.environ.get('ESBUILD_JS', '/opt/npm-tools/node_modules/esbuild')
+    if not os.path.isdir(tool):
+        return html
+    a = html.index('<script>\n') + len('<script>\n'); b = html.rindex('</script>')
+    with tempfile.TemporaryDirectory() as d:
+        src = os.path.join(d, 'in.js'); out = os.path.join(d, 'out.js')
+        with open(src, 'w', encoding='utf-8') as f: f.write(html[a:b])
+        js = "const e=require(%r),fs=require('fs');fs.writeFileSync(%r,e.transformSync(fs.readFileSync(%r,'utf8'),{minifyWhitespace:true,legalComments:'none',target:'esnext',charset:'utf8'}).code)" % (tool, out, src)
+        try:
+            subprocess.run(['node', '-e', js], check=True, timeout=180)
+        except Exception as e:
+            print('minify skipped:', e); return html
+        with open(out, encoding='utf-8') as f: code = f.read()
+    return html[:a] + code + html[b:]
 
 def build_web(dist):
     """The website build (GitHub Pages): no built-in songs; the full-quality songs are copied beside the page."""
@@ -80,10 +111,10 @@ if __name__ == '__main__':
     if '--test-only' in sys.argv:   # (only a test build, to a file of your own: --test-only NAME.html, for work beside other builds)
         name = sys.argv[sys.argv.index('--test-only') + 1]
         with open(os.path.join(OUT, name), 'w', encoding='utf-8') as f:
-            f.write(build(True))
+            f.write(minify(build(True)) if '--min' in sys.argv else build(True))
         print('%s written' % name)
         sys.exit(0)
-    prod = build(False)
+    prod = minify(build(False))
     with open(os.path.join(OUT, 'pocket-pet.html'), 'w', encoding='utf-8') as f:
         f.write(prod)
     with open(os.path.join(OUT, 'test.html'), 'w', encoding='utf-8') as f:
