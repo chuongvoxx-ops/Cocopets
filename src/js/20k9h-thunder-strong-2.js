@@ -85,7 +85,32 @@
           if (Math.random() < dt * 30 * H.Q()) { const b = Math.random() * TAU; K.sparks(x + Math.cos(b) * rp, y + Math.sin(b) * rp, 1, 3, { up: 2, life: 0.4 }); } }
         if (o.lotus && f.t > OUT && f.t < OUT + 0.4 && Math.random() < dt * 25 * H.Q()) { const b = Math.random() * TAU, r = Math.random() * R * 0.5; K.goldSparks(x + Math.cos(b) * r, y + Math.sin(b) * r, 1, 3); }
       },
-      drawUnder(c, f, X, Y, T) { if (f.t < 0) return;
+      /* (v362) remade on the GPU: the seed a ball of lightning in a swirl of energy, a ring of energy closing in on the
+         floor as it charges; the network grows as veins of plasma (violet sheath, turbulent cyan body, white thread) with a
+         spark racing at each growing tip; the pulse is a rolling wave of energy with a bead of white-hot plasma running out
+         along every branch; nodes flare as it passes; the network goes dark from the tips inward, leaving faint violet
+         embers; Celestial's lotus is petals of golden energy. Without the GPU the old picture */
+      drawUnder(c, f, X, Y, T) { if (f.t < 0) return; const Q = K.gq(); if (!Q) return f.drawUnder2d(c, f, X, Y, T);
+        const t = f.t, rp = t >= PULSE ? R * 1.03 * H.ease.out(cl((t - PULSE) / PD, 0, 1)) : -1, S2 = q => [X + q[0] * T, Y + q[1] * T], build = cl(t / T_B, 0, 1), fadeAll = cl((END - t) / 0.5, 0, 1), hz = t < OUT ? 10 : 4;
+        K.floorLight(c, X, Y, T * (0.8 + 1.4 * build), 0.45 * build * fadeAll * br, gold ? P.gold : P.blue);
+        if (t < PULSE) Q.ewave(X, Y, T * (1.7 - 1.1 * build), gold ? '#FFB84A' : '#5FA8FF', 0.8, 0.5 * build, sd, 1, 0.14);
+        if (t > T_B) K.floorLight(c, X, Y, T * R * 1.15, 0.3 * cl((t - T_B) / 0.4, 0, 1) * cl((OUT + 0.4 - t) / 0.5, 0, 1), P.violet);
+        const outA = l => cl(1 - (t - (OUT + 0.05 + (MAXLV - l) * 0.06)) / 0.22, 0, 1), WL = [0.075, 0.055, 0.042, 0.038, 0.042];
+        for (const s of segs) { const g = cl((t - s.g0) / (s.g1 - s.g0), 0, 1); if (g <= 0) continue; const ge = H.ease.out(g), A = S2(s.a), B0 = S2(s.b), B = [lerp(A[0], B0[0], ge), lerp(A[1], B0[1], ge)], Lp = Math.hypot(B[0] - A[0], B[1] - A[1]); if (Lp < 2) continue;
+          s.pts = K.path(A[0], A[1], B[0], B[1], K.seed(t, s.k, hz) + sd, Math.min(T * 0.12, Lp * (s.link ? 0.07 : 0.11)), Math.max(3, Math.ceil(Lp / 14))); s.grown = g; const oa = outA(s.lv);
+          if (oa > 0) { K.plasmaPts(c, s.pts, T * WL[s.lv] * (0.85 + 0.2 * br), 0.9 * oa * br, { seed: s.k * 1.3, gold: gold && s.lv >= 3, sheath: 0.8 }); if (g < 1) Q.star(B[0], B[1], T * 0.32, 0.9 * oa, '#FFFFFF'); }
+          else if (t < END) { const fa = 0.5 * fadeAll * cl((t - OUT) / 0.2, 0, 1); if (fa > 0.01) for (let i = 1; i < s.pts.length; i++) Q.beam(s.pts[i - 1][0], s.pts[i - 1][1], s.pts[i][0], s.pts[i][1], T * 0.05, P.violet, fa); } }
+        for (const s of segs) { if (s.link || !(s.grown >= 1) || !s.pts) continue; const p = s.pts[s.pts.length - 1], hot = rp >= 0 ? cl(1 - Math.abs(rp - s.r1) / 0.6, 0, 1) : 0, oa = outA(s.lv); if (oa <= 0) continue;
+          Q.glow(p[0], p[1], T * 0.35 * (1 + hot), gold && s.r1 > R * 0.9 ? P.gold : P.cyan, (0.3 + 0.4 * hot) * oa); Q.star(p[0], p[1], T * (0.16 + 0.35 * hot), (0.45 + 0.55 * hot) * oa, '#FFFFFF'); if (hot > 0.3) Q.eorb(p[0], p[1], T * 0.12 * (1 + hot), gold ? '#FFC24A' : '#6FC8FF', 0.95, hot * oa, s.k, 3); }
+        if (rp >= 0 && t < OUT + 0.12) { const pa = cl((OUT + 0.12 - t) / 0.2, 0, 1);
+          for (const s of segs) { if (!s.pts || s.link) continue; const lo = Math.min(s.r0, s.r1), hi = Math.max(s.r0, s.r1); if (rp < lo - 0.05 || rp > hi + 0.05 || hi - lo < 0.05) continue; const u = cl((rp - s.r0) / (s.r1 - s.r0), 0, 1), i = Math.min(s.pts.length - 1, Math.round(u * (s.pts.length - 1))), p = s.pts[i];
+            Q.eorb(p[0], p[1], T * 0.15, gold ? '#FFC24A' : '#8FDCFF', 1.0, pa * br, s.k, 4); Q.star(p[0], p[1], T * 0.5, pa, '#FFFFFF'); const i0 = Math.max(0, i - 2); if (i > i0) K.plasmaPts(c, s.pts.slice(i0, i + 1), T * 0.08, pa, { heat: 1.0, seed: s.k, gold }); }
+          Q.ewave(X, Y, rp * T, gold ? '#FFB84A' : '#5FA8FF', 0.9, 0.7 * pa, sd + 1, 1, 0.12); K.floorLight(c, X, Y, rp * T * 1.1, 0.3 * pa, gold ? P.gold : P.cyan);
+          if (o.arcs) for (let i = 0; i < o.arcs; i++) { const b0 = i / o.arcs * TAU + t * 3, b1 = b0 + 0.45; K.arc(c, X + Math.cos(b0) * rp * T, Y + Math.sin(b0) * rp * T, X + Math.cos(b1) * rp * T, Y + Math.sin(b1) * rp * T, K.seed(t, i + 40), 1.2, 0.75 * pa, { forks: 0, jit: T * 0.2, gold }); } }
+        if (o.lotus && t > PULSE + 0.05) { const u = cl((t - PULSE - 0.05) / 0.45, 0, 1), la = cl((END - t) / 0.6, 0, 1) * Math.min(1, u * 3), rr = T * R * 0.55 * H.ease.out(u);
+          if (la > 0.01 && rr > 2) { for (let pass = 0; pass < 2; pass++) { const np = 8, rot = t * 0.4 + pass * TAU / 16, R2 = rr * (pass ? 0.62 : 1); for (let i = 0; i < np; i++) { const b = rot + i / np * TAU; for (const sg of [-1, 1]) { const pts = [], cx2 = X + Math.cos(b + sg * 0.32) * R2 * 0.75, cy2 = Y + Math.sin(b + sg * 0.32) * R2 * 0.75, tx2 = X + Math.cos(b) * R2, ty2 = Y + Math.sin(b) * R2; for (let k = 0; k <= 4; k++) { const v = k / 4, q = 1 - v; pts.push([q * q * X + 2 * q * v * cx2 + v * v * tx2, q * q * Y + 2 * q * v * cy2 + v * v * ty2]); } K.plasmaPts(c, pts, T * 0.04, 0.8 * la, { gold: true, sheath: 0.5, seed: i + pass * 9 + sg }); } } }
+            Q.glow(X, Y, rr * 0.7, P.gold, 0.45 * la); } } },
+      drawUnder2d(c, f, X, Y, T) { if (f.t < 0) return;
         const t = f.t, hz = t < OUT ? 8 : 4, rp = t >= PULSE ? R * 1.03 * H.ease.out(cl((t - PULSE) / PD, 0, 1)) : -1, S2 = (o) => [X + o[0] * T, Y + o[1] * T];
         const build = cl(t / T_B, 0, 1), fadeAll = cl((END - t) / 0.5, 0, 1);
         // the floor: light pooled under the seed, the network's glow while it lives, and the pulse ring
@@ -114,7 +139,14 @@
             c.globalAlpha = 0.16 * la; c.fillStyle = P.gold; c.fill(); c.globalAlpha = 0.35 * la; c.strokeStyle = P.amber; c.lineWidth = 4; c.stroke(); c.globalAlpha = 0.85 * la; c.strokeStyle = pass ? P.white : P.gold; c.lineWidth = 1.4; c.stroke(); }
           c.restore(); K.glow(c, X, Y, rr * 0.6, P.gold, 0.5 * la); }
       },
-      draw(c, f, X, Y, T) {
+      draw(c, f, X, Y, T) { const Q = K.gq(); if (!Q) return f.draw2d(c, f, X, Y, T); const t = f.t; if (t < 0 || t > PULSE + 0.18) return;
+        const build = H.ease.out(cl(t / T_B, 0, 1)), dive = cl((t - PULSE + 0.08) / 0.12, 0, 1), z = T * 0.42 * (1 - dive), r = T * (0.07 + 0.11 * build + 0.04 * Math.min(1, t / PULSE)) * (1 - 0.6 * dive) * (0.85 + 0.2 * br), a = Math.min(1, t / 0.08) * (1 - cl((t - PULSE) / 0.18, 0, 1));
+        Q.evortex(X, Y - z, r * 4, gold ? '#FFB84A' : '#4F8CFF', 0.7, 0.55 * a, sd, -3, 1); K.orb(c, X, Y - z, r, t, 1, a, gold); Q.glow(X, Y - z, r * (4 + 2 * Math.sin(t * 30)), gold ? P.gold : P.cyan, 0.3 * a * br);
+        if (t < PULSE) for (let i = 0; i < 6; i++) { const b = i / 6 * TAU + t * 2.5, rr = r * (5 - 3 * ((t * 2 + i / 6) % 1)), x0 = X + Math.cos(b) * rr, y0 = Y - z + Math.sin(b) * rr * 0.7; Q.etongue(x0, y0, r * 0.5, r * 1.6, Math.atan2(X - x0, -(Y - z - y0)), i % 2 ? P.violet : P.cyan, 0.75, 0.6 * a * build, i + sd); }
+        if (t > 0.1 && t < PULSE) for (let i = 0; i < 3; i++) { const b = t * 5 + i * TAU / 3; K.arc(c, X, Y - z, X + Math.cos(b) * T * 0.55, Y - z * 0.4 + Math.sin(b) * T * 0.3, K.seed(t, i + 60), 1.0, 0.65 * a, { forks: 0, jit: T * 0.12, gold }); }
+        if (!o.first && t < 0.15) Q.glow(X, Y - z, T * 1.4 * (1 - t / 0.15), P.white, 0.5 * br);
+        if (t >= PULSE - 0.05) { const k = 1 - cl((t - PULSE) / 0.2, 0, 1); Q.star(X, Y, T * (1.6 + 0.6 * br) * k, k, '#FFFFFF'); Q.eorb(X, Y, T * 0.35 * k, gold ? '#FFC24A' : '#8FDCFF', 1.0, k, sd, 4); } },
+      draw2d(c, f, X, Y, T) {
         // the charged seed hovering over the aim (the first burst): it grows with the buildup, filaments turning round it,
         // then dives into the floor; a later burst re-kindles it as a quick flare that drops straight in
         const t = f.t; if (t < 0 || t > PULSE + 0.18) return; const build = H.ease.out(cl(t / T_B, 0, 1)), dive = cl((t - PULSE + 0.08) / 0.12, 0, 1), z = T * 0.42 * (1 - dive), r = T * (0.07 + 0.11 * build + 0.04 * Math.min(1, t / PULSE)) * (1 - 0.6 * dive) * (0.85 + 0.2 * br), a = Math.min(1, t / 0.08) * (1 - cl((t - PULSE) / 0.18, 0, 1));
@@ -220,10 +252,37 @@
     const share = NE === 1 ? { strike: 0.7, dash: 0.4, land: 0.3, echo: 1.3, giant: 1.3 } : { strike: F * 0.25 / NE, dash: F * 0.1 / NE, land: F * 0.05 / NE, echo: F * 0.6 * 0.6 / (NE - 1), giant: F * 0.6 * 0.4 };
     if (NE === 1) for (const k in share) share[k] *= C.base * C.K * K.evoK(C);
     const strikeFx = (x0, y0, ang, SL, big) => { const dx = Math.cos(ang), dy = Math.sin(ang); H.add({ life: 0.3, x: x0, y: y0, draw(c, f, X, Y, T2) { const k = Math.min(1, f.t / 0.04) * cl(f.life / 0.2, 0, 1), ex = H.sx(x0 + dx * SL), ey = H.sy(y0 + dy * SL) - T2 * 0.45;
+      if (K.gq()) { const n = 6, pts = []; for (let i = 0; i <= n; i++) pts.push([lerp(X, ex, i / n), lerp(Y - T2 * 0.5, ey, i / n)]); K.plasmaPts(c, pts, T2 * (big ? 0.17 : 0.12), k, { taper: 0.6, fade: 1, gold, seed: x0 }); K.arc(c, X, Y - T2 * 0.5, ex, ey, K.seed(f.t, 3, 24), big ? 2.4 : 1.8, 0.8 * k, { forks: big ? 3 : 1, jit: T2 * 0.3, gold }); K.flareStar(c, ex, ey, T2 * (big ? 0.7 : 0.45), k, ang, gold); return; }   /* (v362: a lance of plasma, a bolt along it, a star where it strikes) */
       K.arc(c, X, Y - T2 * 0.5, ex, ey, K.seed(f.t, 3, 24), big ? 3.2 : 2.4, k, { forks: big ? 3 : 1, jit: T2 * 0.3, gold }); K.glow(c, ex, ey, T2 * (big ? 0.9 : 0.6), gold ? P.gold : P.cyan, 0.7 * k); node(c, K, ex, ey, T2 * 0.08, k, gold); } }); };
     const F2 = H.add({ life: END_CHAIN + 0.25 + NE * 0.11 + 0.15 + 1.3, x: me.x, y: me.y,
       update(dt, f) { for (const E of echoes) { if (f.t < E.det) { K.aura(E.x, E.y - 0.55 * E.sc, 0.35 * E.sc, dt, E.main ? 14 : 5, 0); if (E.main && f.t - E.t0 > 0.12 && Math.random() < dt * 10) converge(H, K, E.x, E.y, 1.3 * E.sc, 2, 0.3, 0.5); } } },
-      drawUnder(c, f, X0, Y0, T2) { const t = f.t;
+      /* (v362) remade on the GPU: no picture of the pet, so nothing boxed round it. Each echo is the pet in energy (a turbulent
+         heart in an aura of light licking out of it, a faint column of light) charging over a ring of energy on the floor with
+         a dial of stars filling round it and arcs crawling over it; it detonates into a burst of plasma, a pillar of light,
+         a rolling shock wave and ground bolts that leave violet embers. Without the GPU the old picture */
+      drawUnder(c, f, X0, Y0, T2) { const Q = K.gq(); if (!Q) return f.drawUnder2d(c, f, X0, Y0, T2); const t = f.t;
+        for (const E of echoes) { const X = H.sx(E.x), Y = H.sy(E.y), ch = cl((t - E.t0) / (E.det - E.t0), 0, 1), dt2 = t - E.det, gE = E.gold, rr = T2 * 0.7 * E.sc;
+          if (dt2 < 0) { K.floorLight(c, X, Y, T2 * (0.7 + 0.6 * ch) * E.sc, 0.3 + 0.3 * ch, gE ? P.gold : P.blue); Q.ewave(X, Y, rr * (1.2 - 0.3 * ch), gE ? '#FFB84A' : '#5FA8FF', 0.8, 0.45 + 0.3 * ch, E.k * 3.1, H.GY, 0.16);
+            if (E.main) { const nt = 12, lit = ch * nt; for (let i = 0; i < nt; i++) { const b = i / nt * TAU + t * 1.5, on = i < lit, px = X + Math.cos(b) * rr * 1.22, py = Y + Math.sin(b) * rr * H.GY * 1.22; Q.star(px, py, T2 * (on ? 0.28 : 0.14), on ? 0.95 : 0.3, gE ? P.gold : '#E8FBFF'); if (on) Q.glow(px, py, T2 * 0.2, gE ? P.gold : P.cyan, 0.4); } }
+            continue; }
+          const u = cl(dt2 / 0.3, 0, 1), ra = 1 - u;
+          K.shockRing(c, X, Y, T2 * E.r * H.ease.out(u), 0.95 * ra, t, E.main ? 4 : 0); K.floorLight(c, X, Y, T2 * E.r * 1.2, 0.55 * ra + 0.12, gE ? P.gold : P.violet);
+          if (!E.scars) { E.scars = []; const n = E.main ? K.lv(C, [6, 8, 12]) : 4; for (let i = 0; i < n; i++) { const b = i / n * TAU + Math.random() * 0.5, L2 = E.r * T2 * (0.75 + 0.25 * Math.random()); E.scars.push(K.path(0, 0, Math.cos(b) * L2, Math.sin(b) * L2 * H.GY * 1.6, Math.random() * 99 + i, L2 * 0.18, 7)); } }
+          const live = dt2 < 0.24, kk = live ? 0.35 + 0.65 * H.ease.out(u * 1.3) : 1, pts = E.scars.map(p => p.map(q => [X + q[0] * kk, Y + q[1] * kk]));
+          if (live) for (let i = 0; i < pts.length; i++) { const p = pts[i]; K.plasmaPts(c, K.path(p[0][0], p[0][1], p[p.length - 1][0], p[p.length - 1][1], K.seed(t, i + 80), T2 * 0.22, 6), T2 * 0.06 * Math.min(1.3, E.sc), 1, { gold: gE, seed: i, taper: -0.6 }); }
+          else { const fa = cl(1 - (dt2 - 0.24) / 0.7, 0, 1); if (fa > 0.01) for (const p of pts) for (let i = 1; i < p.length; i++) Q.beam(p[i - 1][0], p[i - 1][1], p[i][0], p[i][1], T2 * 0.05, P.violet, 0.45 * fa); } } },
+      draw(c, f, X0, Y0, T2) { const Q = K.gq(); if (!Q) return f.draw2d(c, f, X0, Y0, T2); const t = f.t, ph = T2 * 0.95;
+        for (const E of echoes) { const X = H.sx(E.x), Y = H.sy(E.y), dt2 = t - E.det, app = cl((t - E.t0) / 0.12, 0, 1), ch = cl((t - E.t0) / (E.det - E.t0), 0, 1), gE = E.gold; if (dt2 > 0.35) continue;
+          if (dt2 <= 0) { const h = ph * E.sc; K.echoBody(c, X, Y, h, app * (0.75 + 0.25 * Math.sin(t * 40)), t, E.k * 4.7, { gold: gE, charge: ch });
+            const na = Math.round(lerp(1, E.main ? 4 : 2, ch)), cy = Y - h * 0.5; for (let i = 0; i < na; i++) { const b0 = K.R1(K.seed(t, i + 20 + E.k * 9, 12)) * TAU, b1 = b0 + 0.6 + K.R1(K.seed(t, i + 30 + E.k * 9, 12)) * 0.8; K.arc(c, X + Math.cos(b0) * h * 0.42, cy + Math.sin(b0) * h * 0.5, X + Math.cos(b1) * h * 0.42, cy + Math.sin(b1) * h * 0.5, K.seed(t, i + 40 + E.k * 9, 20), 1.0, 0.8 * app, { forks: 0, jit: T2 * 0.12, gold: gE }); }
+            continue; }
+          // the detonation: the echo bursts into plasma, a pillar of light, a star
+          const k = 1 - cl(dt2 / 0.35, 0, 1), e = H.ease.out(cl(dt2 / 0.25, 0, 1)), h = ph * E.sc, cy = Y - h * 0.5;
+          Q.eorb(X, cy, h * (0.32 + 0.45 * e), gE ? '#FFB84A' : '#5F9CFF', 0.75 * k + 0.1, 0.85 * k, E.k * 2.3, 4); Q.star(X, cy, T2 * 2.2 * E.sc * k, k, '#FFFFFF'); Q.glow(X, cy, T2 * 1.8 * E.sc, gE ? P.gold : P.cyan, 0.55 * k);
+          Q.ebeam(X, Y + T2 * 0.1, X, cy - T2 * 2.4 * Math.min(1.4, E.sc), T2 * 0.3 * E.sc * k, gE ? '#FFC24A' : '#6FC8FF', 0.9, 0.8 * k, E.k, 12); }
+        const G = echoes.find(E => E.gold); if (G) { for (let i = 0; i < 8; i++) { const d0 = t - (G.det + 0.03 + i * 0.025); if (d0 < 0 || d0 > 0.22) continue; const b = i / 8 * TAU + 0.3, px = H.sx(G.x + Math.cos(b) * G.r * 0.78), py = H.sy(G.y + Math.sin(b) * G.r * 0.78); K.skyBolt(c, px, py, T2 * 3.2, K.seed(t, i + 90), 2.0, 1 - d0 / 0.22, { gold: true }); }
+          const d1 = t - (G.det + 0.25); if (d1 > 0 && d1 < 0.3) { const k = 1 - d1 / 0.3, qx = H.sx(me.x), qy = H.sy(me.y) - T2 * 0.5; echoes.forEach((E, i) => K.plasmaPts(c, K.path(H.sx(E.x), H.sy(E.y) - T2 * 0.45 * Math.min(1.3, E.sc), qx, qy, K.seed(t, i + 70), T2 * 0.25), T2 * 0.05, k, { gold: true, seed: i })); } } },
+      drawUnder2d(c, f, X0, Y0, T2) { const t = f.t;
         for (const E of echoes) { const X = H.sx(E.x), Y = H.sy(E.y), ch = cl((t - E.t0) / (E.det - E.t0), 0, 1), dt2 = t - E.det, gE = E.gold;
           if (dt2 < 0) { K.floorLight(c, X, Y, T2 * (0.7 + 0.6 * ch) * E.sc, 0.35 + 0.3 * ch, P.blue);
             // a turning ring of charge under the echo, ticks round it like a dial filling
@@ -239,7 +298,7 @@
           if (live) multiBolt(c, K, pts.map((p, i) => K.path(p[0][0], p[0][1], p[p.length - 1][0], p[p.length - 1][1], K.seed(t, i + 80), T2 * 0.25, 7)), 2.2 * Math.min(1.3, E.sc), 1, gE); else multiScar(c, K, pts, cl(1 - (dt2 - 0.24) / 0.7, 0, 1), 2.4 * Math.min(1.3, E.sc));
         }
       },
-      draw(c, f, X0, Y0, T2) { const t = f.t;
+      draw2d(c, f, X0, Y0, T2) { const t = f.t;
         for (const E of echoes) { const X = H.sx(E.x), Y = H.sy(E.y), dt2 = t - E.det, app = cl((t - E.t0) / 0.12, 0, 1), ch = cl((t - E.t0) / (E.det - E.t0), 0, 1), sc = E.sc * (1 + 0.04 * Math.sin(t * 40) * ch), gE = E.gold;
           if (dt2 > 0.3) continue;
           const sw = dt2 > 0 ? 1 + 0.7 * H.ease.out(cl(dt2 / 0.25, 0, 1)) : 1, ka = dt2 > 0 ? 1 - cl(dt2 / 0.25, 0, 1) : app, w = ES.w * sc * sw, h = ES.h * sc * sw, x0 = X - ES.ox * sc * sw, y0 = Y - ES.oy * sc * sw;
@@ -407,7 +466,22 @@
         for (const s of shots) { if (s.done) continue; s.u = Math.min(1, s.u + dt / s.dur); const px = lerp(s.x0, s.x1, s.u), py = lerp(s.y0, s.y1, s.u); s.hist.push([px, py, lerp(s.z0, 0.35, s.u)]); if (s.hist.length > 7) s.hist.shift();
           if (s.u >= 1) { s.done = 1; s.t1 = f.t; s.hit(); } }
       },
-      drawUnder(c, f, X0, Y0, T) { const t = f.t;
+      /* (v362) remade on the GPU: each needle a slender lance of plasma (a white-hot core in turbulent cyan energy, a star
+         at its point) hovering on a thread of rippling energy tied to the pet, beads of charge running out along it; it snaps
+         the thread and flies as a streak of plasma that becomes a jagged bolt along its route, a star where it strikes; the
+         last opens a star of plasma bolts over a rolling wave of energy, gold at Celestial. Without the GPU the old picture */
+      drawUnder(c, f, X0, Y0, T) { const Q = K.gq(); if (!Q) return f.drawUnder2d(c, f, X0, Y0, T); const t = f.t;
+        for (const s of shots) if (s.done && s.scar) { const fa = cl(1 - (t - s.t1) / 0.6, 0, 1); if (fa > 0.01) { const pts = s.scar.map(p => [H.sx(p[0]), H.sy(p[1])]); for (let i = 1; i < pts.length; i++) Q.beam(pts[i - 1][0], pts[i - 1][1], pts[i][0], pts[i][1], T * 0.05, P.violet, 0.5 * fa); } }
+        if (star.t >= 0) { const d = t - star.t, X = H.sx(star.x), Y = H.sy(star.y), u = cl(d / 0.18, 0, 1), fa = cl(1 - (d - 0.25) / 0.6, 0, 1);
+          K.floorLight(c, X, Y, T * 2.2, 0.55 * fa, gold ? P.gold : P.cyan);
+          if (!star.rays) { star.rays = []; for (let i = 0; i < NR; i++) { const b = i / NR * TAU + a, L2 = T * (i % 2 ? 1.05 : 1.55) * (gold ? (i % 2 ? 1.25 : 1.5) : 1); star.rays.push({ b, L2, s: Math.random() * 99 }); } }
+          for (const r of star.rays) { const L2 = r.L2 * H.ease.out(u), x1 = X + Math.cos(r.b) * L2, y1 = Y + Math.sin(r.b) * L2 * 0.8, pts = K.path(X, Y, x1, y1, d < 0.25 ? K.seed(t, r.s, 20) : r.s, L2 * 0.12, 6), g2 = gold && r.L2 > T * 1.6;
+            if (d < 0.28) { const k = 1 - cl((d - 0.18) / 0.1, 0, 1); K.plasmaPts(c, pts, T * (g2 ? 0.085 : 0.065), k, { taper: -0.7, gold: g2, seed: r.s }); Q.star(x1, y1, T * 0.5, k, '#FFFFFF'); const p = pts[Math.floor(pts.length / 2)], b2 = r.b + 0.6; K.plasmaPts(c, K.path(p[0], p[1], p[0] + Math.cos(b2) * L2 * 0.3, p[1] + Math.sin(b2) * L2 * 0.24, r.s + 5, 4, 3), T * 0.035, k, { sheath: 0.5, seed: r.s + 1 }); }
+            else if (fa > 0.01) for (let i = 1; i < pts.length; i++) Q.beam(pts[i - 1][0], pts[i - 1][1], pts[i][0], pts[i][1], T * 0.055, gold ? P.amber : P.violet, 0.5 * fa); }
+          const wu = cl(d / 0.4, 0, 1); if (wu < 1) Q.ewave(X, Y, T * (0.3 + (e >= 4 ? 1.9 : 1.3) * H.ease.out(wu)), gold ? '#FFB84A' : '#5FA8FF', 0.88, 0.8 * (1 - wu), a, 1, 0.14);
+          if (d < 0.3) { const k = 1 - d / 0.3; Q.eorb(X, Y - T * 0.15, T * (0.35 + 0.4 * u), gold ? '#FFC24A' : '#7FC8FF', 1.0, k, a, 4); Q.star(X, Y - T * 0.15, T * 2.4 * k, k, '#FFFFFF'); }
+          if (gold && fa > 0.01) { const rr = T * 1.2 * H.ease.out(u), pts = []; for (let i = 0; i <= 16; i++) { const b = i / 16 * TAU + a + d * 0.6, r2 = i % 2 ? rr * 0.45 : rr; pts.push([X + Math.cos(b) * r2, Y + Math.sin(b) * r2 * 0.8]); } K.plasmaPts(c, pts, T * 0.035, 0.85 * fa, { gold: true, sheath: 0.5, seed: 9 }); } } },
+      drawUnder2d(c, f, X0, Y0, T) { const t = f.t;
         // what the shots leave on the floor: violet lines along their routes
         for (const s of shots) if (s.done && s.scar) multiScar(c, K, [s.scar.map(p => [H.sx(p[0]), H.sy(p[1])])], cl(1 - (t - s.t1) / 0.6, 0, 1), 2);
         if (star.t >= 0) { const d = t - star.t, X = H.sx(star.x), Y = H.sy(star.y), u = cl(d / 0.18, 0, 1), fa = cl(1 - (d - 0.25) / 0.6, 0, 1);
@@ -421,7 +495,23 @@
           if (gold) { c.save(); c.globalCompositeOperation = 'lighter'; const rr = T * 1.2 * H.ease.out(u); c.beginPath(); for (let i = 0; i <= 16; i++) { const b = i / 16 * TAU + a + d * 0.6, r2 = i % 2 ? rr * 0.45 : rr; i ? c.lineTo(X + Math.cos(b) * r2, Y + Math.sin(b) * r2 * 0.8) : c.moveTo(X + Math.cos(b) * r2, Y + Math.sin(b) * r2 * 0.8); }
             c.globalAlpha = 0.14 * fa; c.fillStyle = P.gold; c.fill(); c.globalAlpha = 0.8 * fa; c.strokeStyle = P.gold; c.lineWidth = 1.5; c.stroke(); c.restore(); } }
       },
-      draw(c, f, X0, Y0, T) { const t = f.t, pX = H.sx(me.x), pY = H.sy(me.y) - T * 0.55, threads = [], snaps = [];
+      draw(c, f, X0, Y0, T) { const Q = K.gq(); if (!Q) return f.draw2d(c, f, X0, Y0, T); const t = f.t, pX = H.sx(me.x), pY = H.sy(me.y) - T * 0.55;
+        for (const n2 of nd) { const ap = cl((t - n2.app) / 0.2, 0, 1); if (ap <= 0) continue; const w = wpos(n2), nx = H.sx(w[0]), ny = H.sy(w[1]) - n2.z * T + Math.sin(t * 6 + n2.o * 4) * 2;
+          const sinceF = n2.fired >= 0 ? t - n2.fired : -1; if (sinceF > 0.16) continue; const g2 = gold && n2.big;
+          const dx = nx - pX, dy = ny - pY, d = Math.hypot(dx, dy) || 1, sx2 = pX + dx / d * T * 0.38, sy2 = pY + dy / d * T * 0.38;
+          if (sinceF < 0) { const pts = [], m = 8; for (let i = 0; i <= m; i++) { const u = i / m * ap, wv = Math.sin(u * Math.PI) * Math.sin(t * 9 + i * 0.9 + n2.o * 3) * T * 0.07; pts.push([lerp(sx2, nx, u) - dy / d * wv, lerp(sy2, ny, u) + dx / d * wv]); }
+            K.plasmaPts(c, pts, T * 0.03, 0.6 * ap, { sheath: 0.4, core: 0.5, seed: n2.o * 5, col: '#6FB8FF' });
+            if (t > 0.2) for (let q = 0; q < 2; q++) { const bu = (((t * 1.8 + n2.o + q * 0.5) % 1) + 1) % 1, bp = pts[Math.min(m, Math.round(bu * m))]; Q.star(bp[0], bp[1], T * 0.22, 0.8 * ap, g2 ? P.gold : '#E8FBFF'); Q.glow(bp[0], bp[1], T * 0.18, P.cyan, 0.35 * ap); } }
+          else K.arc(c, sx2, sy2, nx, ny, K.seed(t, n2.o * 7 + 3, 30), 1.8, 1 - sinceF / 0.16, { forks: 1, jit: T * 0.3, gold });
+          // the needle: a slender lance of plasma aimed where it will fire, shrinking into its shot as it goes
+          const aim = n2.aim != null ? n2.aim : Math.atan2(dir[1], dir[0]), ka = sinceF < 0 ? ap : 1 - sinceF / 0.16, big = g2 ? 2.0 : n2.big ? 1.15 : 1, Ln = T * 0.8 * big * (0.4 + 0.6 * ap), ux = Math.cos(aim), uy = Math.sin(aim);
+          K.plasmaPts(c, [[nx - ux * Ln * 0.5, ny - uy * Ln * 0.5], [nx, ny], [nx + ux * Ln * 0.5, ny + uy * Ln * 0.5]], T * 0.09 * big, ka, { taper: 0.6, gold: g2, seed: n2.o * 3, heat: 0.95 });
+          Q.star(nx + ux * Ln * 0.5, ny + uy * Ln * 0.5, T * 0.45 * big, ka, '#FFFFFF'); Q.glow(nx, ny, T * 0.55 * big, g2 ? P.gold : P.cyan, 0.4 * ka);
+          K.floorLight(c, H.sx(w[0]), H.sy(w[1]), T * 0.5, 0.25 * ka, g2 ? P.gold : P.blue); }
+        for (const s of shots) { const big = s.big;
+          if (!s.done) { const pts = s.hist.map(p => [H.sx(p[0]), H.sy(p[1]) - p[2] * T]); K.plasmaPts(c, pts, T * (big ? 0.15 : 0.1), 1, { taper: 0.9, fade: 1, gold: s.gold, seed: s.k }); const hd = pts[pts.length - 1]; if (hd) { Q.eorb(hd[0], hd[1], T * (big ? 0.2 : 0.13), s.gold ? '#FFC24A' : '#8FDCFF', 1.0, 1, s.k, 4); Q.star(hd[0], hd[1], T * (big ? 0.9 : 0.55), 1, '#FFFFFF'); } }
+          const ds = s.done ? t - s.t1 : -1; if (s.done && ds < 0.2) { const k = 1 - ds / 0.2, x0 = H.sx(s.x0), y0 = H.sy(s.y0) - s.z0 * T, x1 = H.sx(s.x1), y1 = H.sy(s.y1) - T * 0.35; K.arc(c, x0, y0, x1, y1, K.seed(t, s.k + 50), big ? 2.4 : 1.6, k, { forks: big ? 3 : 1, gold: s.gold }); K.flareStar(c, x1, y1, T * (big ? 0.8 : 0.45), k, a + s.k, s.gold); } } },
+      draw2d(c, f, X0, Y0, T) { const t = f.t, pX = H.sx(me.x), pY = H.sy(me.y) - T * 0.55, threads = [], snaps = [];
         for (const n2 of nd) { const ap = cl((t - n2.app) / 0.2, 0, 1); if (ap <= 0) continue; const w = wpos(n2), nx = H.sx(w[0]), ny = H.sy(w[1]) - n2.z * T;
           const sinceF = n2.fired >= 0 ? t - n2.fired : -1; if (sinceF > 0.16) continue;
           // the thread: from the pet's edge to the needle, a gentle wave (it grows out with the needle)

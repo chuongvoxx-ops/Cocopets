@@ -145,6 +145,9 @@
     for (let i = 0; i <= n; i++) { const u = i / n, x = len * u, sn = Math.sin(Math.PI * u), ye = bul * Math.pow(sn, 0.9), W = w * Math.pow(sn, 0.7) * (1.15 - 0.4 * u); E.push([x, ye]); Bk.push([x, ye - W]); In.push([x, ye - W * 0.42]);
       Fr.push([x, ye - W - w * (0.2 + 0.55 * K.R1(seed + i * 1.73 + fs * 0.37)) * sn]); V.push([x, ye - W * 0.55 + (i && i < n ? (K.R1(seed * 3 + i + fs) - 0.5) * W * 0.35 : 0)]); }
     c.save(); c.translate(A[0], A[1]); c.rotate(Math.atan2(dy, dx)); c.scale(1, sg); c.lineCap = 'round'; c.lineJoin = 'round';
+    if (outline && K.gq()) { const Q = K.gq(); c.restore(); c.save(); c.translate(A[0], A[1]); c.rotate(Math.atan2(dy, dx)); c.scale(1, sg);   /* (v362: the fading remnant is soft light on the GPU: a feathered glow of gold energy along the edge, a faint cyan one behind, no crisp lines) */
+      const Ep = [], Bp = []; for (let i = 0; i <= n; i += 3) { Ep.push(E[i]); Bp.push(Bk[i]); } K.plasmaPts(c, Ep, Math.max(1.5, w * 0.22), 0.55 * a, { gold: true, core: 0, sheath: 0.6, heat: 0.6, seed: seed, taper: 0 }); K.plasmaPts(c, Bp, Math.max(1.2, w * 0.18), 0.3 * a, { core: 0, sheath: 0.5, heat: 0.5, seed: seed + 3 });
+      const m = K.mapPts([E[Math.round(n / 2)]])[0]; Q.glow(m[0], m[1], len * 0.6, P.gold, 0.18 * a); c.restore(); return; }
     if (outline) { c.globalCompositeOperation = 'lighter'; strokePts(c, E, Math.max(1, w * 0.12), P.gold, 0.85 * a); strokePts(c, Bk, Math.max(0.8, w * 0.07), P.cyan, 0.6 * a); strokePts(c, E, 0.7, P.white, 0.6 * a); c.restore(); return; }
     c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.5 * a; c.fillStyle = P.violet; poly(c, Bk.concat(Fr.slice().reverse())); c.fill();
     c.globalCompositeOperation = 'source-over'; c.globalAlpha = 0.42 * a; c.fillStyle = P.cyan; poly(c, E.concat(Bk.slice().reverse())); c.fill();
@@ -263,10 +266,12 @@
         for (let j = 1; j < NF; j++) { const pts = []; for (let i = 0; i <= 8; i++) { const tt = lerp(w0, w1, i / 8), g2 = feather(sh.s, j, tt, sh.an); pts.push(pj(g2.tip, T)); } lay.push(pts); }
         c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.lineJoin = 'round'; const fa = k * (1 - sp) * (sh.full ? hang : 1);
         if (sp < 1) { c.globalAlpha = 0.09 * fa * pw; c.fillStyle = P.blue; poly(c, inP.concat(tipP.slice().reverse())); c.fill(); c.globalAlpha = 0.16 * fa * pw; c.fillStyle = P.cyan; poly(c, midP.concat(tipP.slice().reverse())); c.fill();
-          strokePts(c, tipP, 4 * pw, P.gold, 0.4 * fa); strokePts(c, tipP, 1.5, P.white, 0.85 * fa); strokePts(c, inP, 1.5, P.violet, 0.35 * fa); }
-        for (const pts of lay) { strokePts(c, pts, 2.5, P.blue, 0.25 * k * hang); strokePts(c, pts, 1, P.ice, 0.6 * k * hang); }
+          if (K.gq()) { const sub = q => q.filter((p, i) => !(i & 1) || i === q.length - 1); K.plasmaPts(c, sub(tipP), T * 0.07 * pw, 0.7 * fa, { gold: true, core: 0.35, sheath: 0.6, heat: 0.75, seed: sh.s * 3 }); K.plasmaPts(c, sub(inP), T * 0.05, 0.3 * fa, { core: 0, sheath: 0, heat: 0.5, seed: sh.s * 5, col: '#7A5CFF' }); }   /* (v362: soft light on the GPU, no crisp lines) */
+          else { strokePts(c, tipP, 4 * pw, P.gold, 0.4 * fa); strokePts(c, tipP, 1.5, P.white, 0.85 * fa); strokePts(c, inP, 1.5, P.violet, 0.35 * fa); } }
+        for (const pts of lay) { if (K.gq()) { K.plasmaPts(c, pts.filter((p, i) => !(i & 1)), T * 0.035, 0.45 * k * hang, { core: 0.2, sheath: 0, heat: 0.65, seed: pts.length }); continue; } strokePts(c, pts, 2.5, P.blue, 0.25 * k * hang); strokePts(c, pts, 1, P.ice, 0.6 * k * hang); }
         /* separating into fine electrical strands */
         if (sp > 0) { const ns = 4, sd = K.seed(t, sh.s + 5, 14); for (let q = 0; q < ns; q++) { const v = 0.2 + 0.8 * q / (ns - 1), pts = []; for (let i = 0; i <= n; i++) { const A = inP[i], B = tipP[i], j2 = (K.R1(sd + q * 13 + i * 1.9) - 0.5) * T * 0.1 * sp; pts.push([lerp(A[0], B[0], v) + j2, lerp(A[1], B[1], v) + j2 + sp * T * 0.3 * (1 - v) + Math.sin(i * 0.8 + q * 1.7 + t * 6) * T * 0.05 * sp]); }
+            if (K.gq()) { K.plasmaPts(c, pts.filter((p, i) => !(i % 3) || i === pts.length - 1), T * 0.03, 0.6 * k * hang * (1 - 0.5 * sp), { core: 0.25, sheath: 0, heat: 0.7, seed: q * 7 + sh.s, col: q % 2 ? '#5FD8FF' : '#8A6CFF' }); continue; }
             c.setLineDash([T * (0.55 - 0.3 * sp), T * 0.35 * sp]); c.lineDashOffset = -t * T * (1 + q * 0.4); strokePts(c, pts, 1.2, q % 2 ? P.cyan : P.violet, 0.75 * k * hang); strokePts(c, pts, 0.6, P.white, 0.55 * k * hang); } c.setLineDash([]); }
         c.restore(); },
       draw(c, f, X, Y, T, t) { const k = Math.min(1, f.life / 0.5);

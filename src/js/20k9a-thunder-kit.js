@@ -79,6 +79,32 @@ const TK = (() => {
   const evoN = (C, a, b) => Math.round(a + (b - a) * (evo(C) - 1) / 6);
   const lv = (C, L) => { const e = evo(C); return e >= 7 ? L[2] : e >= 4 ? L[1] : L[0]; };
   const evoK = C => 1 + 0.08 * (evo(C) - 1);
-  const K = { P, TAU, R1, seed, gpuBegin, gpuEnd, gq: () => GQ, gpuXY, glow, floorLight, path, line, bolt, arc, skyBolt, ribbon, orb, shockRing, groundArcs, scar, sparks, motes, goldSparks, aura, zapAt, evo, evoN, lv, evoK };
+  /* (v362) energy on the GPU for the remade moves (each returns false when the GPU mode is off, so the caller can draw 2D):
+     plasmaPts: a line of plasma through screen points (a violet sheath, a turbulent blue-cyan body, a white thread);
+     energyAura: an aura of electric energy round a body (licks of energy flickering out round it, a glow; no solid shape);
+     echoBody: an echo of the pet made of energy (a turbulent heart, the aura, a faint column of light);
+     flareStar: a contact flare (a star of light, a hot core, four rays of energy) */
+  function plasmaPts(c, pts, w, a, o) { if (!GQ || !pts || pts.length < 2 || !(a > 0.01) || !(w > 0.2)) return false; o = o || {}; pts = mapPts(pts); const n = pts.length, gold = o.gold, tp = o.taper || 0, sd = o.seed || 0;
+    for (let i = 1; i < n; i++) { const u = i / (n - 1), k = 1 - tp + tp * u, p0 = pts[i - 1], p1 = pts[i], dx = p1[0] - p0[0], dy = p1[1] - p0[1], x0 = p0[0] - dx * 0.3, y0 = p0[1] - dy * 0.3, x1 = p1[0] + dx * 0.3, y1 = p1[1] + dy * 0.3, aa = a * (o.fade ? 0.15 + 0.85 * u : 1);
+      if (o.sheath !== 0) GQ.ebeam(x0, y0, x1, y1, w * 2.1 * k, gold ? '#C9842A' : '#6A4CFF', 0.5, 0.42 * aa * (o.sheath || 1), sd + i * 0.9, 10);
+      GQ.ebeam(x0, y0, x1, y1, w * k, gold ? '#FFC24A' : (o.col || '#4FA8FF'), o.heat == null ? 0.88 : o.heat, 0.85 * aa, sd + i * 1.7 + 3, o.scroll || 16);
+      if (o.core !== 0) GQ.beam(p0[0] - dx * 0.12, p0[1] - dy * 0.12, p1[0] + dx * 0.12, p1[1] + dy * 0.12, Math.max(0.6, w * 0.15 * k), '#FFFFFF', aa * (o.core || 0.85)); }
+    return true; }
+  function energyAura(c, X, Y, h, a, t, sd, o) { if (!GQ || !(a > 0.01) || !(h > 2)) return false; o = o || {}; const p = gpuXY(X, Y), hh = h * p[2], cx = p[0], cy = p[1] - hh * 0.48, rx = hh * 0.44, ry = hh * 0.52, fs = Math.floor(t * 15), gold = o.gold, n = o.n || 11, kk = o.k || 1;
+    GQ.glow(cx, cy, hh * 1.1 * kk, gold ? P.gold : P.blue, 0.16 * a); GQ.ring(cx, cy, hh * 0.5 * kk, gold ? P.gold : P.cyan, 0.3 * a, hh * 0.12, 1.05);
+    for (let i = 0; i < n; i++) { const b = i / n * TAU + (sd || 0) * 0.37 + t * 0.7 * (o.spin || 1), nx = Math.cos(b), ny = Math.sin(b), dx = nx * 0.85 + (o.dir ? o.dir[0] * 1.4 : 0), dy = ny * 0.45 - 0.85 + (o.dir ? o.dir[1] * 1.4 : 0), L = hh * (0.24 + 0.3 * R1(sd * 3.1 + i * 7.1 + fs)) * kk, col = i % 3 === 0 ? (gold ? P.amber : P.violet) : gold ? P.gold : (i % 3 === 1 ? P.cyan : P.blue);
+      GQ.etongue(cx + nx * rx, cy + ny * ry, L * 0.34, L, Math.atan2(dx, -dy), col, 0.62 + 0.15 * R1(i + fs), a * (0.35 + 0.35 * R1(i * 1.9 + fs * 1.3)), (sd || 0) + i * 2.3 + fs * 0.11); }
+    return true; }
+  function echoBody(c, X, Y, h, a, t, sd, o) { if (!GQ || !(a > 0.01) || !(h > 2)) return false; o = o || {}; const p = gpuXY(X, Y), hh = h * p[2], cx = p[0], cy = p[1] - hh * 0.48, gold = o.gold, ch = o.charge || 0;
+    GQ.ebeam(cx, p[1], cx, cy - hh * 0.75, hh * 0.22, gold ? '#C9842A' : '#4A6CFF', 0.45, 0.22 * a, (sd || 0) + 1, 6);
+    GQ.eorb(cx, cy, hh * (0.32 + 0.08 * ch), gold ? '#FFB84A' : '#4F8CFF', 0.55 + 0.3 * ch, 0.75 * a, (sd || 0) + 3, 2.5);
+    energyAura(c, X, Y, h, a * 0.9, t, sd, { n: 13, gold, k: 1 + 0.25 * ch });
+    GQ.star(cx, cy, hh * (0.35 + 0.25 * ch), (0.35 + 0.4 * ch) * a, gold ? '#FFF1C8' : '#E8FBFF');
+    return true; }
+  function flareStar(c, X, Y, r, a, rot, gold) { if (!GQ || !(a > 0.01)) return false; const p = gpuXY(X, Y), R = r * p[2];
+    GQ.glow(p[0], p[1], R * 2.2, gold ? P.gold : P.blue, 0.5 * a); GQ.eorb(p[0], p[1], R * 0.5, gold ? '#FFC24A' : '#5FB4FF', 0.98, a, rot * 3, 3); GQ.star(p[0], p[1], R * 1.9, a, '#FFFFFF');
+    for (let i = 0; i < 4; i++) { const b = rot + i * Math.PI / 2, L = R * (i % 2 ? 1.0 : 1.7); GQ.ebeam(p[0], p[1], p[0] + Math.cos(b) * L, p[1] + Math.sin(b) * L, R * 0.13, gold ? '#FFC24A' : '#6FC8FF', 0.95, 0.85 * a, i + rot, 18); }
+    return true; }
+  const K = { P, TAU, R1, seed, gpuBegin, gpuEnd, gq: () => GQ, gpuXY, mapPts, plasmaPts, energyAura, echoBody, flareStar, glow, floorLight, path, line, bolt, arc, skyBolt, ribbon, orb, shockRing, groundArcs, scar, sparks, motes, goldSparks, aura, zapAt, evo, evoN, lv, evoK };
   return { bind: h => { H = h; return K; }, P };
 })();

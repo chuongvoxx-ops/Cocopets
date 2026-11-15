@@ -124,7 +124,48 @@
         if (f.conv >= 0 && t - f.conv > 0.5 && f.land < 0) land(f);
         if (f.endT >= 0 && t - f.endT > LIFE_END) f.life = 0;
         for (const fl of f.flares) if (t - fl.t0 < 0.5 && !fl.lit) { fl.lit = 1; H.X.light(fl.x, fl.y, fl.big ? 3.2 : 1.8, fl.big ? 0.35 : 0.2); } },
-      drawUnder(c, f, X, Y, T) { const t = f.t, PX = H.sx(me.x), PY = H.sy(me.y) + T * 0.18;
+      /* (v362) Lightning Flash remade on the GPU: no picture of the pet at all, only energy round it. In the crouch an aura of
+         electric energy gathers round the pet (licks of light flickering out of it, nothing solid) while a ring of energy
+         closes in over the floor and arcs crawl to its feet; each dash leaves a ribbon of plasma (a violet sheath, a turbulent
+         cyan body, a white thread) wound with two filaments from Adept; at each turn an echo of the pet made of energy (a
+         turbulent heart in an aura of light) flickers out; contact flares are stars of light with rays of energy; the pet
+         streams energy behind it as it dashes and the aura ebbs away when it lands. Without the GPU the old picture */
+      drawUnder(c, f, X, Y, T) { const Q = K.gq(); if (!Q) return f.drawUnder2d(c, f, X, Y, T); const t = f.t, PX = H.sx(me.x), PY = H.sy(me.y) + T * 0.18;
+        if (f.ph === 'crouch' || (f.k === 0 && f.ph === 'turn')) { const u = cl(t / CH); Q.ewave(PX, PY, T * (2.4 - 1.6 * u), '#5FA8FF', 0.82, 0.55 * u, 2.1, H.GY, 0.14); K.floorLight(c, PX, PY, T * (0.6 + 1.3 * u), 0.5 * u, P.blue); K.floorLight(c, PX, PY, T * 0.5, 0.6 * u, P.cyan); K.groundArcs(c, PX, PY, T * (1.6 - 0.9 * u), 3, t, 0.5 * u, 1.3); }
+        for (const tr of f.trails) { const age = tr.done < 0 ? 0 : t - tr.done, life = tr.spear ? TF + 0.6 : TF + 0.5; let a = tr.done < 0 ? 1 : cl(1 - age / life); if (f.conv >= 0) a *= 1 - cl((t - f.conv) / 0.8) * 0.6; if (a <= 0.01) continue;
+          const A = [H.sx(tr.x0), H.sy(tr.y0)], B = [H.sx(tr.x1), H.sy(tr.y1)]; K.scar(c, [A, B], a * (fin ? 0.8 : 0.6)); Q.glow((A[0] + B[0]) / 2, (A[1] + B[1]) / 2, Math.hypot(B[0] - A[0], B[1] - A[1]) * 0.45, P.violet, 0.12 * a, 0.35); }
+        for (const fl of f.flares) { const u = (t - fl.t0) / (fl.big ? 0.7 : 0.45); if (u < 0 || u > 1) continue; const FX = H.sx(fl.x), FY = H.sy(fl.y); K.shockRing(c, FX, FY, T * (fl.big ? 0.5 + 2.2 * H.ease.out(u) : 0.3 + 1.0 * H.ease.out(u)), 1 - u, t, fl.big ? 5 : 0); K.floorLight(c, FX, FY, T * (fl.big ? 2.6 : 1.3), 0.55 * (1 - u), P.blue); }
+        if (f.land >= 0) { const u = cl((t - f.land) / 0.9); K.floorLight(c, PX, PY, T * (1 + 1.6 * u), 0.55 * (1 - u), P.cyan); if (u < 0.6) K.shockRing(c, PX, PY, T * (0.4 + 1.8 * H.ease.out(u / 0.6)), 1 - u / 0.6, t, 4); } },
+      draw(c, f, X, Y, T) { const Q = K.gq(); if (!Q) return f.draw2d(c, f, X, Y, T); const t = f.t, ph = petH(T), PX = H.sx(me.x), PY = H.sy(me.y) + T * 0.18, zh = T * ZH;
+        // the trails: plasma ribbons, tapered to the tail; filaments wound round them from Adept; the spear's head of gold light
+        for (const tr of f.trails) { const age = tr.done < 0 ? 0 : t - tr.done; let a = tr.done < 0 ? 1 : cl(1 - age / TF);
+          if (fin && tr.done >= 0 && !tr.spear) { a = cl(1 - age / 0.4); const sa = f.conv < 0 ? cl(age / 0.25) * (0.55 + 0.25 * Math.sin(t * 7 + tr.i * 1.3)) : 0;
+            if (sa > 0.01) { const A0 = [H.sx(tr.x0), H.sy(tr.y0) - zh], A1 = [H.sx(tr.x1), H.sy(tr.y1) - zh], pv = (t * 1.6 + tr.i * 0.37) % 1; Q.ebeam(A0[0], A0[1], A1[0], A1[1], T * 0.07, '#6A4CFF', 0.6, 0.45 * sa, tr.i, 8); Q.beam(A0[0], A0[1], A1[0], A1[1], 1.2, P.cyan, 0.7 * sa); Q.star(lerp(A0[0], A1[0], pv), lerp(A0[1], A1[1], pv), T * 0.35, 0.8 * sa, P.ice); } }
+          if (f.conv >= 0 && tr.done >= 0 && !tr.spear) a = 0; if (a <= 0.01) continue;
+          const ax0 = H.sx(tr.x0), ay0 = H.sy(tr.y0) - zh, bx0 = H.sx(tr.x1), by0 = H.sy(tr.y1) - zh, L = Math.hypot(bx0 - ax0, by0 - ay0), w = T * (tr.spear ? 0.26 : 0.17) * (tr.done < 0 ? 1 : 0.7 + 0.3 * a);
+          if (L > 2) { const n = Math.max(2, Math.min(10, Math.ceil(L / (w * 2.2)))), pts = []; for (let i = 0; i <= n; i++) pts.push([lerp(ax0, bx0, i / n), lerp(ay0, by0, i / n)]); K.plasmaPts(c, pts, w, a, { taper: 0.85, fade: 1, seed: tr.i * 3.1, gold: tr.spear });
+            Q.glow(bx0, by0, w * 3.5, tr.spear ? P.gold : P.cyan, 0.45 * a);
+            if (fil) { const ux = (bx0 - ax0) / L, uy = (by0 - ay0) / L, nx = -uy, ny = ux, m = Math.max(6, Math.min(20, Math.round(L / 10))), tw = Math.max(2, L / (w * 2.6)); for (let s2 = 0; s2 < 2; s2++) { const fp = []; for (let i = 0; i <= m; i++) { const u = i / m, phs = u * tw * Math.PI - t * 14 + s2 * Math.PI, A = w * 1.3 * (0.25 + 0.75 * u); fp.push([ax0 + (bx0 - ax0) * u + nx * Math.cos(phs) * A, ay0 + (by0 - ay0) * u + ny * Math.cos(phs) * A - Math.sin(phs) * A * 0.5]); } K.plasmaPts(c, fp, T * 0.035, 0.8 * a, { sheath: 0.5, seed: s2 * 7 + tr.i, col: s2 ? '#9A7CFF' : '#7FD8FF', fade: 1 }); } }
+            if (tr.spear) { const ux = (bx0 - ax0) / L, uy = (by0 - ay0) / L; Q.etongue(bx0 - ux * T * 0.2, by0 - uy * T * 0.2, T * 0.3, T * 1.05, Math.atan2(ux, -uy), P.gold, 1.0, a, 4.4); Q.glow(bx0 + ux * T * 0.4, by0 + uy * T * 0.4, T * 1.4, P.gold, 0.5 * a); } }
+          if (tr.done < 0) { const sd = K.seed(t, tr.i, 24); K.arc(c, bx0, by0, lerp(ax0, bx0, 0.55 + rnd(sd) * 0.3) + (rnd(sd + 1) - 0.5) * T * 0.6, lerp(ay0, by0, 0.6) + (rnd(sd + 2) - 0.5) * T * 0.5, sd, 1.1, 0.75, { forks: 1 }); } }
+        // Celestial: the pieces of every trail race back into the pet
+        if (f.conv >= 0) { const v0 = (t - f.conv) / 0.5, hx = PX, hy = PY - ph * 0.5;
+          for (const tr of f.trails) { if (tr.spear || tr.done < 0) continue; const A0 = [H.sx(tr.x0), H.sy(tr.y0) - zh], A1 = [H.sx(tr.x1), H.sy(tr.y1) - zh];
+            for (let j = 0; j < 3; j++) { const v = cl(v0 * 1.3 - j * 0.1 - (tr.i % 4) * 0.05); if (v >= 1) continue; const e = H.ease.in(v), mx = lerp(A0[0], A1[0], (j + 0.5) / 3), my = lerp(A0[1], A1[1], (j + 0.5) / 3), hx2 = (A1[0] - A0[0]) / 6 * (1 - e), hy2 = (A1[1] - A0[1]) / 6 * (1 - e), cx = lerp(mx, hx, e), cy = lerp(my, hy, e);
+              K.plasmaPts(c, [[cx - hx2, cy - hy2], [cx + hx2, cy + hy2]], T * 0.1 * (1 - e * 0.5), 0.8 - v * 0.3, { taper: 0.8, seed: j + tr.i }); } } }
+        // the echoes at the turns: the pet in energy, flickering out
+        for (const gh of f.ghosts) { const u = (t - gh.t0) / gh.life; if (u < 0 || u >= 1) continue; const GX = H.sx(gh.x), GY = H.sy(gh.y) + T * 0.18, a = (u < 0.3 ? 1 : (1 - u) / 0.7) * (0.8 + 0.2 * Math.sin(t * 40 + gh.x * 9));
+          K.echoBody(c, GX, GY, ph * (1 + 0.08 * (1 - u)), a * 0.85, t, gh.i * 5.3, { charge: 1 - u }); if (u < 0.6) crackle(c, GX, GY - ph * 0.5, ph * 0.4, ph * 0.5, 2, t, a * 0.7, gh.i * 7); }
+        // the pet itself, the pet's own picture untouched: an aura of energy round it (gathering in the crouch, streaming
+        // behind it through the dashes, ebbing after it lands)
+        let aa = 0, kk = 1; const cu = cl(t / CH);
+        if (f.ph === 'crouch') { aa = 0.25 + 0.75 * cu; kk = 0.7 + 0.5 * cu; } else if (f.endT < 0) { aa = 0.9; kk = 1.15; } else { const u = cl((t - f.endT) / (LIFE_END - 0.1)); aa = (1 - u) * (f.land >= 0 && t - f.land < 0.25 ? 1.3 : 0.9); kk = 1 + 0.4 * (1 - u); }
+        if (aa > 0.01) { const d = f.endT < 0 && f.ph !== 'crouch' && f.dash ? f.dash : null; K.energyAura(c, PX, PY, ph, Math.min(1, aa), t, 1.7, { k: kk, dir: d ? [-Math.cos(d.a) * 0.9, -Math.sin(d.a) * 0.6] : null, n: d ? 13 : 11 });
+          if (f.ph === 'crouch') crackle(c, PX, PY - ph * 0.45, ph * 0.42, ph * 0.5, 1 + Math.round(cu * 3), t, 0.35 + 0.5 * cu, 3);
+          else if (d) { const ux = Math.cos(d.a), uy = Math.sin(d.a); K.plasmaPts(c, [[PX - ux * T * 1.3, PY - ph * 0.5 - uy * T * 0.8], [PX, PY - ph * 0.5]], T * 0.2, 0.7, { taper: 1, fade: 1, seed: d.k }); } }
+        // the contact flares
+        for (const fl of f.flares) { const u = (t - fl.t0) / (fl.big ? 0.55 : 0.3); if (u < 0 || u > 1) continue; const e = H.ease.out(u); K.flareStar(c, H.sx(fl.x), H.sy(fl.y) - T * 0.4, T * (fl.big ? 1.0 + 1.3 * e : 0.5 + 0.55 * e), (1 - u) * (fl.big ? 1 : 0.75), fl.rot + u * 0.6, fl.big); } },
+      drawUnder2d(c, f, X, Y, T) { const t = f.t, PX = H.sx(me.x), PY = H.sy(me.y) + T * 0.18;
         if (f.ph === 'crouch' || (f.k === 0 && f.ph === 'turn')) { const u = cl(t / CH); K.floorLight(c, PX, PY, T * (0.6 + 1.3 * u), 0.55 * u, P.blue); K.floorLight(c, PX, PY, T * 0.5, 0.6 * u, P.cyan); K.groundArcs(c, PX, PY, T * (1.6 - 0.9 * u), 3, t, 0.55 * u, 1.3); }
         // the floor holds a fading violet impression of every dash (at Celestial a luminous star, lit again as it closes)
         for (const tr of f.trails) { const age = tr.done < 0 ? 0 : t - tr.done, life = tr.spear ? TF + 0.6 : TF + 0.5; let a = tr.done < 0 ? 1 : cl(1 - age / life); if (f.conv >= 0) a *= 1 - cl((t - f.conv) / 0.8) * 0.6; if (a <= 0.01) continue;
@@ -132,7 +173,7 @@
           if (fin) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.35 * a; c.strokeStyle = P.cyan; c.lineWidth = 1.2; c.beginPath(); c.moveTo(A[0], A[1]); c.lineTo(B[0], B[1]); c.stroke(); c.restore(); } }
         for (const fl of f.flares) { const u = (t - fl.t0) / (fl.big ? 0.7 : 0.45); if (u < 0 || u > 1) continue; const FX = H.sx(fl.x), FY = H.sy(fl.y); K.shockRing(c, FX, FY, T * (fl.big ? 0.5 + 2.2 * H.ease.out(u) : 0.3 + 1.0 * H.ease.out(u)), 1 - u, t, fl.big ? 5 : 0); K.floorLight(c, FX, FY, T * (fl.big ? 2.6 : 1.3), 0.6 * (1 - u), P.blue); }
         if (f.land >= 0) { const u = cl((t - f.land) / 0.9); K.floorLight(c, PX, PY, T * (1 + 1.6 * u), 0.6 * (1 - u), P.cyan); if (u < 0.6) K.shockRing(c, PX, PY, T * (0.4 + 1.8 * H.ease.out(u / 0.6)), 1 - u / 0.6, t, 4); } },
-      draw(c, f, X, Y, T) { const t = f.t, ph = petH(T), PX = H.sx(me.x), PY = H.sy(me.y) + T * 0.18, sq = me.sq || 0, flip = me.face < 0, zh = T * ZH;
+      draw2d(c, f, X, Y, T) { const t = f.t, ph = petH(T), PX = H.sx(me.x), PY = H.sy(me.y) + T * 0.18, sq = me.sq || 0, flip = me.face < 0, zh = T * ZH;
         // the trails: tapered plasma, two filaments round each from Adept, the spear's head
         for (const tr of f.trails) { const age = tr.done < 0 ? 0 : t - tr.done; let a = tr.done < 0 ? 1 : cl(1 - age / TF);
           if (fin && tr.done >= 0 && !tr.spear) { a = cl(1 - age / 0.4);   // (the ribbon thins to a fine strand: together they draw the star)

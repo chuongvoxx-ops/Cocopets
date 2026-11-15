@@ -90,6 +90,30 @@
     const f = [cx, cy, 0], a = [-cy, cx, 0], sL = Math.sin(lam), cL = Math.cos(lam), v = [a[0] * sL, a[1] * sL, cL];
     return { f, a, v, n: [f[1] * v[2], -f[0] * v[2], f[0] * v[1] - f[1] * v[0]] };
   }
+  /* (v362) one wheel on the GPU, its hub at screen (X, Y) */
+  function wheelGPU(c, Q, w, X, Y, T, t) {
+    const F = frame(w.vh, w.lam), R = w.r, RT = R * T, a = w.a; if (RT < 1 || a < 0.02) return; const pu = pv(F.f, T), pw = pv(F.v, T), gold = w.style === 3, sc = w.sc;
+    const at = (th, rr) => [X + (pu[0] * Math.cos(th) + pw[0] * Math.sin(th)) * R * rr, Y + (pu[1] * Math.cos(th) + pw[1] * Math.sin(th)) * R * rr];
+    Q.glow(X, Y, RT * 2.3, P.violet, 0.22 * a); Q.glow(X, Y, RT * 1.35, P.blue, 0.2 * a);
+    // the rim: a rolling ring of plasma (its energy scrolls round with the spin)
+    const NS = 14; for (let i = 0; i < NS; i++) { const th0 = i / NS * TAU + w.phi, th1 = (i + 1) / NS * TAU + w.phi, p0 = at(th0, 1), p1 = at(th1, 1), dx = p1[0] - p0[0], dy = p1[1] - p0[1], fr = Math.cos(th0 - w.phi + i / NS * 0) ;
+      Q.ebeam(p0[0] - dx * 0.3, p0[1] - dy * 0.3, p1[0] + dx * 0.3, p1[1] + dy * 0.3, RT * 0.24, '#6A4CFF', 0.5, 0.32 * a, w.i * 5 + i, 8);
+      Q.ebeam(p0[0] - dx * 0.3, p0[1] - dy * 0.3, p1[0] + dx * 0.3, p1[1] + dy * 0.3, RT * 0.15, '#3F98FF', 0.82, a, w.i * 7 + i * 1.3, 22);
+      Q.beam(p0[0] - dx * 0.12, p0[1] - dy * 0.12, p1[0] + dx * 0.12, p1[1] + dy * 0.12, Math.max(0.8, RT * 0.02), '#FFFFFF', 0.65 * a); void fr; }
+    if (gold) for (let i = 0; i < 7; i++) { const th0 = -0.9 + i * 0.26, p0 = at(th0, 1.03), p1 = at(th0 + 0.3, 1.03); Q.ebeam(p0[0], p0[1], p1[0], p1[1], RT * 0.09, '#FFC24A', 0.95, 0.85 * a, i + w.i, 20); }
+    // the spokes: curved blades of energy, two fading echoes behind each (it rolls with phi falling)
+    const ns = [4, 6, 8][w.style - 1], cv = w.style >= 2 ? 0.42 : 0.22, bend = w.bi === 4 ? 0.5 : w.bi === 3 ? 0.3 : w.bi === 0 ? -0.15 : 0;
+    for (let j = w.style === 3 ? 1 : 2; j >= 0; j--) { const ja = (j ? (j === 1 ? 0.38 : 0.16) : 1) * a * sc; if (ja < 0.02) continue;
+      for (let k = 0; k < ns; k++) { const th = w.phi + j * 0.17 + k / ns * TAU, pts = [at(th, 0.2), at(th + cv * 0.5 + bend * 0.5, 0.55), at(th + cv + bend, 0.94)];
+        K.plasmaPts(c, pts, RT * (w.style === 3 && k % 2 ? 0.05 : 0.065), ja, { sheath: j ? 0 : 0.5, core: j ? 0 : 0.8, seed: k * 2.1 + w.i, gold: gold && k % 2 === 0 }); } }
+    // a counter-turning ring of sparks inside (Adept on)
+    if (w.style >= 2) { const n2 = w.style === 3 ? 8 : 6; for (let k = 0; k < n2; k++) { const p = at(-w.phi * 1.4 + t * 3 + k / n2 * TAU, w.style === 3 ? 0.66 : 0.6); Q.star(p[0], p[1], RT * 0.22, 0.85 * a * sc, gold && k % 2 ? P.gold : '#E8FBFF'); Q.glow(p[0], p[1], RT * 0.2, P.cyan, 0.4 * a * sc); } }
+    // the hub: a ball of lightning
+    const rc = RT * 0.3 * (0.6 + 0.4 * sc + 0.06 * Math.sin(t * 17 + w.i)); Q.glow(X, Y, rc * 2.8, P.cyan, 0.45 * a); Q.quad(17, X, Y, rc * 1.35, 0, 0, rc * 1.35, gold && w.i % 2 === 0 ? P.gold : P.cyan, 1, a, w.i * 1.7); Q.glow(X, Y, rc * 0.8, P.white, 0.6 * a);
+    // an arc leaping across it, and the star where it meets the floor
+    if (K.R1(K.seed(t, w.i, 14)) > 0.45) { const b0 = K.R1(K.seed(t, w.i + 30, 14)) * TAU, p0 = at(b0, 0.95), p1 = at(b0 + 1.6 + K.R1(K.seed(t, w.i + 60, 14)) * 1.5, 0.95); K.arc(c, p0[0], p0[1], p1[0], p1[1], K.seed(t, w.i + 90, 20), 1.1, 0.8 * a, { forks: 0, jit: RT * 0.25, gold }); }
+    if (w.roll > 0.05) { const bx = X - pw[0] * R, by = Y - pw[1] * R; Q.star(bx, by, RT * 0.9, 0.8 * a * w.roll, '#FFFFFF'); Q.glow(bx, by, RT * 1.2, P.cyan, 0.35 * a * w.roll); }
+  }
   /* one wheel, its hub at screen (X, Y): r world radius, phi spin, sc spokes' presence, a alpha */
   function drawWheel(c, w, X, Y, T, t) {
     const F = frame(w.vh, w.lam), R = w.r, RT = R * T, a = w.a; if (RT < 1 || a < 0.02) return;
@@ -189,7 +213,24 @@
           w.state = 'gone'; w.a = 0;
         }
       },
-      drawUnder(c, f, X0, Y0, T) {
+      /* (v362) remade on the GPU: each wheel a rolling ring of plasma (a violet sheath, a turbulent cyan body, a white-hot
+         thread) round a ball of lightning, its spokes curved blades of energy with two fading echoes behind them (motion
+         blur), a counter-turning ring of sparks inside from Adept, a gold leading edge at Celestial, arcs leaping across it,
+         a star where it meets the floor; twin tracks of plasma fade behind; it collapses into a turning disc of energy.
+         Without the GPU the old picture */
+      drawUnder(c, f, X0, Y0, T) { const Q = K.gq(); if (!Q) return f.drawUnder2d(c, f, X0, Y0, T); const t = f.t;
+        for (const w of W) {
+          if (w.state === 'build') { if (w.ur > 0.2) K.floorLight(c, H.sx(w.x), H.sy(w.y), R * T * 1.6, 0.35 * w.ur, P.blue); continue; }
+          const tr = w.trk; if (tr.length > 1) for (const sd of [-1, 1]) { for (let i = 3; i < tr.length; i += 3) { const p0 = tr[i - 3], p1 = tr[i], al = cl(1 - (t - p1[3]) / 1.1) * 0.7; if (al < 0.02) continue; const o0 = [-Math.sin(p0[2]) * R * 0.32 * sd, Math.cos(p0[2]) * R * 0.32 * sd], o1 = [-Math.sin(p1[2]) * R * 0.32 * sd, Math.cos(p1[2]) * R * 0.32 * sd];
+            Q.ebeam(H.sx(p0[0] + o0[0]), H.sy(p0[1] + o0[1]), H.sx(p1[0] + o1[0]), H.sy(p1[1] + o1[1]), T * 0.06, '#6A4CFF', 0.6, al, w.i * 3 + i, 6); } }
+          if (w.a > 0.02) K.floorLight(c, H.sx(w.x), H.sy(w.y), R * T * (w.state === 'col' ? 2.6 : 1.8), 0.4 * w.a, P.cyan);
+          if (w.state === 'col' && w.a > 0.02) { const X = H.sx(w.x), Y = H.sy(w.y) - w.z * T * CZ, rr = w.r * T; Q.evortex(X, Y, rr * 1.1, w.style === 3 ? '#FFB84A' : '#4FA8FF', 0.85, w.a, w.i, 4, H.GY); Q.ring(X, Y, rr, P.cyan, 0.6 * w.a, rr * 0.12, H.GY); } } },
+      draw(c, f, X0, Y0, T) { const Q = K.gq(); if (!Q) return f.draw2d(c, f, X0, Y0, T); const t = f.t;
+        for (const w of W) { if (!(w.a > 0.02) || w.state === 'gone' || (w.state === 'col' && w.a < 0.3)) continue;
+          if (w.state === 'build' && w.ur < 0.05) { const X = H.sx(w.x), Y = H.sy(w.y) - w.z * T; Q.glow(X, Y, T * 0.45, P.cyan, 0.6 * w.a); Q.star(X, Y, T * 0.35, w.a, P.white); continue; }
+          const F = frame(w.vh, w.lam), sh = w.state === 'roll' ? pv([F.a[0] * Math.sin(w.lam) * w.r, F.a[1] * Math.sin(w.lam) * w.r, 0], T) : [0, 0];
+          wheelGPU(c, Q, w, H.sx(w.x) + sh[0], H.sy(w.y) - w.z * T * CZ + sh[1], T, t); } },
+      drawUnder2d(c, f, X0, Y0, T) {
         const t = f.t;   /* (the runner passes the game's clock; this move runs on its own) */
         c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.lineJoin = 'round';
         for (const w of W) {
@@ -207,7 +248,7 @@
         }
         c.restore();
       },
-      draw(c, f, X0, Y0, T) {
+      draw2d(c, f, X0, Y0, T) {
         const t = f.t;   /* (the runner passes the game's clock; this move runs on its own) */
         petHole(c, T);
         // nearer wheels last
