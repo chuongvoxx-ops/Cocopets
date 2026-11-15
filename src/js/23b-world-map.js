@@ -72,7 +72,8 @@ const WorldMap = (() => {
     const sil = left.concat(right), path = pts => { c.beginPath(); pts.forEach(([a, b], i) => i ? c.lineTo(a, b) : c.moveTo(a, b)); };
     c.save();
     // its shadow on the ground
-    c0.save(); c0.fillStyle = 'rgba(30,40,25,.2)'; c0.beginPath(); c0.ellipse(x + 9 * s, y - 2 * s, w1 * 1.05, 5 * s, 0, 0, TAU); c0.fill(); c0.restore();
+    c0.save(); { const ax = x + 3 * s, ay = y - 3 * s, ar = w1 * 1.45, g = c0.createRadialGradient(ax, ay, 1, ax, ay, ar); g.addColorStop(0, shade(base, 0.9).replace('rgb', 'rgba').replace(')', ',.5)')); g.addColorStop(0.55, shade(base, 1.0).replace('rgb', 'rgba').replace(')', ',.22)')); g.addColorStop(1, shade(base, 1.0).replace('rgb', 'rgba').replace(')', ',0)')); c0.translate(0, ay); c0.scale(1, 0.34); c0.translate(0, -ay); c0.fillStyle = g; c0.beginPath(); c0.arc(ax, ay, ar, 0, TAU); c0.fill(); } c0.restore();
+    c0.save(); { const ax = x + 9 * s, ay = y - 2 * s, ar = w1 * 1.1, g = c0.createRadialGradient(ax, ay, 1, ax, ay, ar); g.addColorStop(0, 'rgba(30,30,40,.24)'); g.addColorStop(1, 'rgba(30,30,40,0)'); c0.translate(0, ay); c0.scale(1, 0.2); c0.translate(0, -ay); c0.fillStyle = g; c0.beginPath(); c0.arc(ax, ay, ar, 0, TAU); c0.fill(); } c0.restore();
     path(sil); c.closePath(); c.fillStyle = base; c.fill(); c.save(); path(sil); c.closePath(); c.clip();
     // the lit faces and the shaded ones
     const lit = left.concat(ridge.slice(1).reverse()); path(lit); c.closePath(); { const g = c.createLinearGradient(x - w0, pky, pkx + 4 * s, y); g.addColorStop(0, shade(base, 1.38)); g.addColorStop(0.55, shade(base, 1.12)); g.addColorStop(1, shade(base, 0.92)); c.fillStyle = g; c.fill(); }
@@ -99,7 +100,7 @@ const WorldMap = (() => {
     c.strokeStyle = 'rgba(40,28,24,.5)'; c.lineWidth = 0.8; path(ridge.slice(0, 3)); c.stroke(); path(ridge2.slice(0, 2)); c.stroke();
     c.strokeStyle = 'rgba(255,252,236,.55)'; c.lineWidth = 0.8; c.save(); c.translate(1.1, 1.1); path(left.slice(1)); c.stroke(); c.restore();
     c.restore();
-    c.globalCompositeOperation = 'destination-in'; { const g = c.createLinearGradient(0, y - H * 0.22, 0, y + 1); g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = g; c.fillRect(bx0, by0, bw, bh); }
+    c.globalCompositeOperation = 'destination-in'; { const g = c.createLinearGradient(0, y - H * 0.34, 0, y + 1); g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(0.5, 'rgba(0,0,0,.8)'); g.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = g; c.fillRect(bx0, by0, bw, bh); }
     c0.drawImage(oc, bx0, by0, bw, bh); }
   function house(c, x, y, s, wall, roof) { c.fillStyle = 'rgba(0,0,0,.2)'; c.beginPath(); c.ellipse(x + 2 * s, y + 4 * s, 10 * s, 3 * s, 0, 0, TAU); c.fill(); c.fillStyle = wall; c.fillRect(x - 7 * s, y - 6 * s, 14 * s, 10 * s); c.fillStyle = shade(wall, 0.75); c.fillRect(x + 7 * s, y - 6 * s, 3 * s, 10 * s); c.fillStyle = roof; c.beginPath(); c.moveTo(x - 9 * s, y - 6 * s); c.lineTo(x, y - 14 * s); c.lineTo(x + 9 * s, y - 6 * s); c.closePath(); c.fill(); c.fillStyle = shade(roof, 0.75); c.beginPath(); c.moveTo(x, y - 14 * s); c.lineTo(x + 9 * s, y - 6 * s); c.lineTo(x + 12 * s, y - 7 * s); c.lineTo(x + 3 * s, y - 15 * s); c.closePath(); c.fill(); c.fillStyle = '#4A3A2A'; c.fillRect(x - 1.5 * s, y - 1 * s, 3 * s, 5 * s); c.fillStyle = '#FFE9A8'; c.fillRect(x - 5.5 * s, y - 4 * s, 2.5 * s, 2.5 * s); c.fillRect(x + 3 * s, y - 4 * s, 2.5 * s, 2.5 * s); c.strokeStyle = L; c.lineWidth = 0.9; c.strokeRect(x - 7 * s, y - 6 * s, 14 * s, 10 * s); c.beginPath(); c.moveTo(x - 9 * s, y - 6 * s); c.lineTo(x, y - 14 * s); c.lineTo(x + 9 * s, y - 6 * s); c.stroke(); }
   function boat(c, x, y, flip) { c.save(); c.translate(x, y); if (flip) c.scale(-1, 1); c.fillStyle = '#7A5230'; c.beginPath(); c.moveTo(-12, 0); c.quadraticCurveTo(0, 7, 12, 0); c.lineTo(10, -3.5); c.lineTo(-11, -3.5); c.closePath(); c.fill(); c.strokeStyle = L; c.lineWidth = 1; c.stroke(); c.fillStyle = '#5E4630'; c.fillRect(-0.8, -19, 1.6, 15.5); c.fillStyle = '#FFF6E6'; c.beginPath(); c.moveTo(0, -19); c.lineTo(10, -6); c.lineTo(0, -6); c.closePath(); c.fill(); c.stroke(); c.fillStyle = '#D9483B'; c.beginPath(); c.moveTo(0, -19); c.lineTo(5, -17); c.lineTo(0, -15); c.fill(); c.restore(); }
@@ -127,6 +128,8 @@ const WorldMap = (() => {
   const ISH = (c, x, y, rx, ry, a) => { c.fillStyle = `rgba(25,18,36,${a || 0.28})`; c.beginPath(); c.ellipse(x, y, rx, ry, 0, 0, TAU); c.fill(); };
   const ICYL = (c, x0, x1, base) => ILG(c, x0, 0, x1, 0, [[0, shade(base, 1.4)], [0.28, shade(base, 1.1)], [0.68, shade(base, 0.72)], [1, shade(base, 0.48)]]);
   const IHL = (c, x0, y0, x1, y1, a) => { c.strokeStyle = `rgba(255,252,238,${a || 0.55})`; c.lineWidth = 1; c.lineCap = 'round'; c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke(); };
+  /* (v383) ground under a landmark feathered out into the map: a radial fade of its colour, no inked rim */
+  const IGND = (c, x, y, rx, ry, col, a) => { c.save(); c.translate(x, y); c.scale(1, ry / rx); const g = c.createRadialGradient(0, 0, rx * 0.15, 0, 0, rx); const rgb = shade(col, 1).replace('rgb(', '').replace(')', ''); g.addColorStop(0, `rgba(${rgb},${a == null ? 1 : a})`); g.addColorStop(0.62, `rgba(${rgb},${(a == null ? 1 : a) * 0.85})`); g.addColorStop(1, `rgba(${rgb},0)`); c.fillStyle = g; c.beginPath(); c.arc(0, 0, rx, 0, TAU); c.fill(); c.restore(); };
   const ICONS = {
     // the Drowned Belfry: a leaning stone bell tower sunk to its knees in a tidal pool, a bronze bell in its open top, a roof gone green
     belfry(c, x, y) { c.save(); c.translate(x, y);
@@ -151,7 +154,7 @@ const WorldMap = (() => {
       c.restore(); },
     // the Garden of Unborn Stars: a great star lily, glowing, over a bed of buds
     garden(c, x, y) { c.save(); c.translate(x, y); glowAt(c, 0, -30, 46, '#F2D8A1', 0.55); ISH(c, 2, 4, 30, 7);
-      c.fillStyle = IRG(c, -4, -2, 2, 0, 2, 30, [[0, '#4A2A5A'], [1, '#2A1636']]); c.beginPath(); c.ellipse(0, 2, 30, 8, 0, 0, TAU); c.fill(); IINK(c, 1);
+      IGND(c, 0, 2, 38, 11, '#3A1E48', 0.95);
       [[-20, -1], [-11, 3], [14, 2], [22, -1], [4, 4]].forEach(([bx, by], i) => { glowAt(c, bx, by - 3, 7, i % 2 ? '#FF9BD2' : '#BFE6FF', 0.6); c.fillStyle = IRG(c, bx - 1, by - 4, 0.3, bx, by - 3, 3, [[0, '#FFFFFF'], [1, i % 2 ? '#D86AA8' : '#7FB8E8']]); c.beginPath(); c.ellipse(bx, by - 3, 2.4, 3.2, 0, 0, TAU); c.fill(); });
       // the stem and its leaves
       c.fillStyle = ILG(c, -3, 0, 3, 0, [[0, '#7FC9A8'], [0.5, '#3E8A70'], [1, '#1E5444']]); c.beginPath(); c.moveTo(-3, 2); c.quadraticCurveTo(-5, -18, -1.5, -30); c.lineTo(1.5, -30); c.quadraticCurveTo(1, -16, 3, 2); c.closePath(); c.fill(); IINK(c, 1.1);
@@ -165,7 +168,7 @@ const WorldMap = (() => {
       [[-26, 1], [24, 0]].forEach(([tx, ty]) => tree(c, tx, ty, 1.2, '#2F183A')); c.restore(); },
     // the Mouth Beneath the Dunes: a sand crater, its throat falling into dark, stone teeth round its lip
     dunes(c, x, y) { c.save(); c.translate(x, y); ISH(c, 4, 6, 46, 12, 0.22);
-      c.fillStyle = IRG(c, -12, -6, 4, 0, 0, 44, [[0, '#F2D296'], [0.55, '#D9AE68'], [1, '#B08446']]); c.beginPath(); c.ellipse(0, 0, 42, 15, 0, 0, TAU); c.fill(); IINK(c, 1.2);
+      IGND(c, 0, 0, 54, 19, '#D9AE68', 1); IGND(c, -6, -2, 30, 10, '#F2D296', 0.6);
       c.strokeStyle = 'rgba(140,96,40,.45)'; c.lineWidth = 0.8; for (let i = 0; i < 9; i++) { const a = i / 9 * TAU + 0.2; c.beginPath(); c.moveTo(Math.cos(a) * 38, Math.sin(a) * 13.5); c.quadraticCurveTo(Math.cos(a + 0.15) * 32, Math.sin(a + 0.15) * 11, Math.cos(a + 0.05) * 25, Math.sin(a + 0.05) * 8.5); c.stroke(); }
       c.fillStyle = IRG(c, 3, 2, 0, 2, 1, 24, [[0, '#050308'], [0.55, '#1C1424'], [0.85, '#4A3428'], [1, '#8A6236']]); c.beginPath(); c.ellipse(1, 0, 24, 8.5, 0, 0, TAU); c.fill(); IINK(c, 1.1);
       c.fillStyle = 'rgba(240,210,150,.55)'; c.beginPath(); c.ellipse(1, 0, 24, 8.5, 0, Math.PI * 1.05, Math.PI * 1.95); c.ellipse(1, 1.8, 20, 6.5, 0, Math.PI * 1.95, Math.PI * 1.05, true); c.fill();
@@ -176,7 +179,7 @@ const WorldMap = (() => {
         c.fillStyle = ILG(c, bx - 3.5, by - hgt, bx + 3.5, by, [[0, '#FFF6E2'], [0.45, '#E2D2AC'], [1, '#9A8662']]); IP(c, [[bx - 3.5, by + 2], [bx - 0.5, by - hgt], [bx + 3.5, by + 2]]); c.fill(); IINK(c, 1); IHL(c, bx - 2, by, bx - 0.6, by - hgt + 2, 0.5); }
       c.restore(); },
     // the Sepulchre of Borrowed Hours: a pillared tomb on steps, a great hourglass on its roof
-    sepulchre(c, x, y) { c.save(); c.translate(x, y); ISH(c, 6, 6, 36, 8);
+    sepulchre(c, x, y) { c.save(); c.translate(x, y); IGND(c, 0, 5, 44, 12, '#9A90AC', 0.55); ISH(c, 6, 6, 36, 8);
       [[30, 6, 4], [26, 2, 4], [22, -2, 4]].forEach(([w, yy, h]) => { c.fillStyle = ILG(c, 0, yy - h, 0, yy, [[0, '#E2DCEA'], [1, '#9A90AC']]); c.fillRect(-w, yy - h, w * 2, h); c.fillStyle = '#7A7090'; c.fillRect(w - 3, yy - h, 3, h); c.strokeStyle = L; c.lineWidth = 1; c.strokeRect(-w, yy - h, w * 2, h); });
       c.fillStyle = ILG(c, -20, 0, 20, 0, [[0, '#C9C1D6'], [1, '#8A809C']]); c.fillRect(-20, -26, 40, 20); c.fillStyle = '#2A2238'; c.beginPath(); c.moveTo(-5, -6); c.lineTo(-5, -16); c.arc(0, -16, 5, Math.PI, 0); c.lineTo(5, -6); c.closePath(); c.fill(); IINK(c, 0.9); glowAt(c, 0, -12, 8, '#F2D8A1', 0.35);
       [-17, -10, 10, 17].forEach(px => { c.fillStyle = ICYL(c, px - 2.6, px + 2.6, '#D8D0E4'); c.fillRect(px - 2.6, -26, 5.2, 20); c.strokeStyle = L; c.lineWidth = 0.9; c.strokeRect(px - 2.6, -26, 5.2, 20); c.fillStyle = '#EDE8F4'; c.fillRect(px - 3.5, -28, 7, 2.2); c.fillRect(px - 3.5, -7.5, 7, 1.8); });
@@ -197,7 +200,7 @@ const WorldMap = (() => {
       c.restore(); },
     // the Yuggoth Engine: a fallen saucer of dark metal half buried in a crater, its dome lit, its lights blue, steam rising
     yuggoth(c, x, y) { c.save(); c.translate(x, y); ISH(c, 4, 9, 48, 12, 0.25);
-      c.fillStyle = IRG(c, -14, 2, 4, 0, 6, 46, [[0, '#8A8078'], [0.6, '#5A5250'], [1, '#3A3432']]); c.beginPath(); c.ellipse(0, 6, 46, 14, 0, 0, TAU); c.fill(); IINK(c, 1.2);
+      IGND(c, 0, 6, 58, 17, '#5A5250', 0.95); IGND(c, -8, 3, 30, 9, '#8A8078', 0.55);
       [[-34, 4, 5], [-24, 12, 4], [30, 10, 5], [38, 2, 3.5], [10, 15, 4]].forEach(([a, b, r]) => { c.fillStyle = ILG(c, a - r, b - r, a + r, b + r, [[0, '#B0A69C'], [1, '#4A4240']]); c.beginPath(); c.ellipse(a, b, r, r * 0.7, 0, 0, TAU); c.fill(); IINK(c, 0.8); });
       c.save(); c.rotate(-0.32);
       c.fillStyle = IRG(c, -2, -26, 1, 0, -22, 14, [[0, '#FFFFFF'], [0.35, '#BFE6FF'], [1, '#3E6E98']]); c.beginPath(); c.ellipse(0, -18, 13, 12, 0, Math.PI, 0); c.fill(); IINK(c, 1.1); c.strokeStyle = 'rgba(255,255,255,.8)'; c.lineWidth = 1.2; c.beginPath(); c.arc(-3, -21, 7, Math.PI * 1.1, Math.PI * 1.45); c.stroke();
@@ -218,7 +221,7 @@ const WorldMap = (() => {
       c.fillStyle = 'rgba(90,64,30,.8)'; c.font = 'italic 700 7px Georgia, serif'; [['a', -14, -30], ['ω', 12, -34], ['ψ', -8, -44], ['§', 16, -24]].forEach(([t, a, b]) => c.fillText(t, a, b));
       c.restore(); },
     // the Hollow Moon: a stone moon fallen into a cradle of rock, cratered and lit from the top left, a hollow of night and stars in its face
-    moon(c, x, y) { c.save(); c.translate(x, y); glowAt(c, 0, -24, 48, '#DCEFFF', 0.45); ISH(c, 6, 4, 30, 7);
+    moon(c, x, y) { c.save(); c.translate(x, y); glowAt(c, 0, -24, 48, '#DCEFFF', 0.45); IGND(c, 0, 4, 40, 11, '#6E6488', 0.6); ISH(c, 6, 4, 30, 7);
       [[-22, 2, 9], [20, 3, 8], [-10, 5, 6], [10, 6, 6]].forEach(([a, b, r]) => { c.fillStyle = ILG(c, a - r, b - r, a + r, b + r, [[0, '#A89CB8'], [1, '#4E4462']]); c.beginPath(); c.ellipse(a, b, r, r * 0.6, 0, 0, TAU); c.fill(); IINK(c, 0.9); });
       c.fillStyle = IRG(c, -10, -34, 3, 0, -22, 28, [[0, '#FFFFFF'], [0.45, '#E2DEEE'], [0.8, '#A8A0C0'], [1, '#6E6688']]); c.beginPath(); c.arc(0, -22, 26, 0, TAU); c.fill(); IINK(c, 1.3);
       [[-12, -32, 5.5], [10, -10, 4], [-14, -12, 3], [12, -36, 2.5], [-2, -42, 2.2]].forEach(([a, b, r]) => { c.fillStyle = IRG(c, a + r * 0.3, b + r * 0.3, 0.2, a, b, r, [[0, '#B4ACC8'], [1, '#8E86A6']]); c.beginPath(); c.arc(a, b, r, 0, TAU); c.fill(); c.strokeStyle = 'rgba(255,255,255,.65)'; c.lineWidth = 0.8; c.beginPath(); c.arc(a, b, r, 0.1 * Math.PI, 0.9 * Math.PI); c.stroke(); c.strokeStyle = 'rgba(70,60,96,.5)'; c.beginPath(); c.arc(a, b, r, 1.1 * Math.PI, 1.9 * Math.PI); c.stroke(); });
@@ -226,7 +229,7 @@ const WorldMap = (() => {
       c.fillStyle = '#FFFFFF'; [[2, -24, 1.2], [8, -16, 1], [1, -14, 0.8], [7, -27, 0.7], [10, -21, 0.6]].forEach(([a, b, r]) => { c.beginPath(); c.arc(a, b, r, 0, TAU); c.fill(); }); glowAt(c, 5, -20, 8, '#B983F5', 0.4);
       c.restore(); },
     // the Basilica of the Veiled Eye: a nave and two bell towers of pale stone, a rose window that is an eye, veiled
-    basilica(c, x, y) { c.save(); c.translate(x, y); ISH(c, 6, 6, 40, 8);
+    basilica(c, x, y) { c.save(); c.translate(x, y); IGND(c, 0, 5, 46, 12, '#A6A096', 0.5); ISH(c, 6, 6, 40, 8);
       IP(c, [[-18, 4], [-18, -18], [18, -18], [18, 4]]); c.fillStyle = ILG(c, -18, 0, 18, 0, [[0, '#D8D2C4'], [1, '#9A948A']]); c.fill(); IINK(c, 1.2);
       IP(c, [[18, 4], [18, -18], [28, -22], [28, 0]]); c.fillStyle = ILG(c, 18, 0, 28, 0, [[0, '#7A746C'], [1, '#55504A']]); c.fill(); IINK(c, 1);
       IP(c, [[-20, -18], [0, -36], [20, -18]]); c.fillStyle = ILG(c, -20, -36, 20, -18, [[0, '#E8E2D4'], [1, '#A6A096']]); c.fill(); IINK(c, 1.2); IP(c, [[20, -18], [0, -36], [10, -40], [30, -22]]); c.fillStyle = '#6E6860'; c.fill(); IINK(c, 1);
@@ -237,13 +240,13 @@ const WorldMap = (() => {
       c.restore(); },
     // the Sea of Fallen Colours: a deep pool ringed with dark rock, shards of colour fallen into it, glowing
     colours(c, x, y) { c.save(); c.translate(x, y); ISH(c, 4, 6, 44, 11);
-      c.fillStyle = ILG(c, 0, -14, 0, 16, [[0, '#6A6278'], [1, '#2A2436']]); c.beginPath(); c.ellipse(0, 1, 42, 16, 0, 0, TAU); c.fill(); IINK(c, 1.2);
+      IGND(c, 0, 1, 52, 19, '#4A4258', 0.95);
       c.fillStyle = IRG(c, 4, 2, 2, 0, 0, 36, [[0, '#2A3A8A'], [0.6, '#1B1F4A'], [1, '#0C0E26']]); c.beginPath(); c.ellipse(0, 0, 36, 12.5, 0, 0, TAU); c.fill(); c.strokeStyle = 'rgba(160,190,255,.4)'; c.lineWidth = 1; c.beginPath(); c.ellipse(0, 0, 33, 11, 0, Math.PI * 1.1, Math.PI * 1.75); c.stroke();
       ['#FF6F59', '#FFE37A', '#7FD3F2', '#FF9BD2', '#8FE0A6', '#B983F5'].forEach((col, i) => { const a = i / 6 * TAU + 0.4, px = Math.cos(a) * 21, py = Math.sin(a) * 6.5; glowAt(c, px, py, 11, col, 0.75); c.fillStyle = ILG(c, px - 4, py - 7, px + 4, py + 2, [[0, '#FFFFFF'], [0.4, col], [1, shade(col, 0.55)]]); IP(c, [[px - 3, py + 1], [px - 1, py - 7 - (i % 2) * 2], [px + 3, py - 2], [px + 2, py + 2]]); c.fill(); IINK(c, 0.8); c.fillStyle = 'rgba(255,255,255,.4)'; c.beginPath(); c.ellipse(px, py + 2.5, 4, 1.2, 0, 0, TAU); c.fill(); });
       [[-36, -6], [-28, 10], [34, -8], [30, 9], [0, 13], [-6, -13]].forEach(([a, b], i) => { c.fillStyle = ILG(c, a - 4, b - 4, a + 4, b + 3, [[0, '#9A90AA'], [1, '#3A3446']]); c.beginPath(); c.ellipse(a, b, 4 + (i % 2), 2.6, 0, 0, TAU); c.fill(); IINK(c, 0.7); });
       c.restore(); },
     // the Choir Before Creation: organ-pipe spires of pale stone banded with gold, light at their mouths, rising from one plinth
-    choir(c, x, y) { c.save(); c.translate(x, y); ISH(c, 6, 6, 30, 7);
+    choir(c, x, y) { c.save(); c.translate(x, y); IGND(c, 0, 3, 38, 11, '#A8A090', 0.55); ISH(c, 6, 6, 30, 7);
       c.fillStyle = ILG(c, 0, -4, 0, 6, [[0, '#E2DAC8'], [1, '#8E8A80']]); c.beginPath(); c.ellipse(0, 2, 26, 7, 0, 0, TAU); c.fill(); IINK(c, 1.1);
       [[-14, 34, 4.5], [14, 40, 4.5], [-7, 52, 5.2], [7, 58, 5.2], [0, 72, 6]].forEach(([px, h, w]) => { const top = -h; c.fillStyle = ICYL(c, px - w, px + w, '#E6DCC8'); c.fillRect(px - w, top, w * 2, h + 2); c.strokeStyle = L; c.lineWidth = 1.1; c.strokeRect(px - w, top, w * 2, h + 2);
         c.fillStyle = '#2A2433'; c.beginPath(); c.moveTo(px - w * 0.6, top + 12); c.lineTo(px, top + 7); c.lineTo(px + w * 0.6, top + 12); c.closePath(); c.fill(); glowAt(c, px, top + 10, 6, '#FFE37A', 0.6);
@@ -252,7 +255,7 @@ const WorldMap = (() => {
       glowAt(c, 0, -76, 16, '#FFE37A', 0.85); c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = 'rgba(255,230,140,.6)'; c.lineWidth = 1; for (let i = 0; i < 3; i++) { c.beginPath(); c.arc(0, -76, 6 + i * 4, Math.PI * 1.15, Math.PI * 1.85); c.stroke(); } c.restore();
       c.restore(); },
     // the Threshold of All Doors: a ring of standing doors on a round stone dais, each door open on a light of its own
-    threshold(c, x, y) { c.save(); c.translate(x, y); ISH(c, 6, 9, 50, 12);
+    threshold(c, x, y) { c.save(); c.translate(x, y); IGND(c, 0, 8, 62, 20, '#2E3058', 0.7); ISH(c, 6, 9, 50, 12);
       c.fillStyle = ILG(c, 0, -12, 0, 20, [[0, '#4A4C78'], [1, '#1E2040']]); c.beginPath(); c.ellipse(0, 6, 48, 16, 0, 0, TAU); c.fill(); IINK(c, 1.2); c.fillStyle = ILG(c, 0, -10, 0, 14, [[0, '#6A6C9E'], [1, '#2E3058']]); c.beginPath(); c.ellipse(0, 3, 44, 13.5, 0, 0, TAU); c.fill(); IINK(c, 0.9);
       c.strokeStyle = 'rgba(200,210,255,.45)'; c.lineWidth = 0.8; c.beginPath(); c.ellipse(0, 3, 22, 6.5, 0, 0, TAU); c.stroke(); glowAt(c, 0, 2, 18, '#BFE6FF', 0.4);
       const doors = []; for (let i = 0; i < 6; i++) { const a = i / 6 * TAU + 0.26; doors.push([Math.cos(a) * 33, Math.sin(a) * 9.5, a]); } doors.sort((p, q) => p[1] - q[1]);
@@ -289,7 +292,14 @@ const WorldMap = (() => {
     const cloud = (cx, cy, w, k) => { c.save(); c.globalAlpha = k; [[-0.6, 0.2, 0.42], [-0.2, -0.15, 0.55], [0.25, -0.05, 0.5], [0.62, 0.22, 0.38]].forEach(([dx, dy, r]) => { const X = cx + dx * w, Y = cy + dy * w * 0.5, rr2 = r * w * 0.55, g = c.createRadialGradient(X - rr2 * 0.3, Y - rr2 * 0.4, rr2 * 0.1, X, Y, rr2); g.addColorStop(0, '#FFFFFF'); g.addColorStop(0.7, '#EEE8FA'); g.addColorStop(1, 'rgba(206,196,236,0)'); c.fillStyle = g; c.beginPath(); c.arc(X, Y, rr2, 0, TAU); c.fill(); }); c.fillStyle = 'rgba(150,135,200,.35)'; c.beginPath(); c.ellipse(cx, cy + w * 0.14, w * 0.75, w * 0.1, 0, 0, TAU); c.fill(); c.restore(); };
     // its light over the land
     { const g = c.createRadialGradient(Tx, Ty - 70, 6, Tx, Ty - 70, 120); g.addColorStop(0, 'rgba(185,131,245,.45)'); g.addColorStop(1, 'rgba(185,131,245,0)'); c.fillStyle = g; c.fillRect(Tx - 120, Ty - 190, 240, 240); }
-    // the crag: faces lit from the top left
+    // the crag: faces lit from the top left; (v383) drawn on a canvas of its own and faded at its foot over a soft apron of
+    // scree and shade, so it rises out of the land rather than sitting on it
+    { const g = c.createRadialGradient(Tx + 4, Ty + 8, 4, Tx + 4, Ty + 8, 66); g.addColorStop(0, 'rgba(70,58,96,.55)'); g.addColorStop(0.45, 'rgba(90,80,110,.3)'); g.addColorStop(1, 'rgba(90,80,110,0)'); c.save(); c.translate(0, Ty + 8); c.scale(1, 0.32); c.translate(0, -(Ty + 8)); c.fillStyle = g; c.beginPath(); c.arc(Tx + 4, Ty + 8, 66, 0, TAU); c.fill(); c.restore(); }
+    { const g = c.createRadialGradient(Tx + 8, Ty + 10, 2, Tx + 8, Ty + 10, 50); g.addColorStop(0, 'rgba(25,20,40,.34)'); g.addColorStop(1, 'rgba(25,20,40,0)'); c.save(); c.translate(0, Ty + 10); c.scale(1, 0.22); c.translate(0, -(Ty + 10)); c.fillStyle = g; c.beginPath(); c.arc(Tx + 8, Ty + 10, 50, 0, TAU); c.fill(); c.restore(); }
+    for (let i = 0; i < 22; i++) { const a = R() * TAU, r = 44 + R() * 16, px = Tx + 2 + Math.cos(a) * r, py = Ty + 9 + Math.sin(a) * r * 0.28; c.fillStyle = shade('#6E6290', 0.65 + R() * 0.55); c.globalAlpha = 0.5 + R() * 0.4; c.beginPath(); c.ellipse(px, py, 1.2 + R() * 1.8, 0.8 + R() * 0.9, 0, 0, TAU); c.fill(); } c.globalAlpha = 1;
+    const c0T = c, ocT = document.createElement('canvas'), kzT = Math.max(1, Math.hypot(c.getTransform().a, c.getTransform().b)); ocT.width = Math.ceil(110 * kzT); ocT.height = Math.ceil(40 * kzT);
+    { const c = ocT.getContext('2d'); c.setTransform(kzT, 0, 0, kzT, -(Tx - 55) * kzT, -(Ty - 24) * kzT);
+    c.save();
     c.save(); c.fillStyle = 'rgba(25,20,40,.3)'; c.beginPath(); c.ellipse(Tx + 8, Ty + 13, 52, 8, 0, 0, TAU); c.fill();
     const crag = [[Tx - 48, Ty + 12], [Tx - 40, Ty - 4], [Tx - 28, Ty - 16], [Tx - 14, Ty - 10], [Tx - 2, Ty - 20], [Tx + 14, Ty - 14], [Tx + 30, Ty - 18], [Tx + 40, Ty - 4], [Tx + 50, Ty + 12]];
     const faces = [[[Tx - 48, Ty + 12], [Tx - 40, Ty - 4], [Tx - 28, Ty - 16], [Tx - 22, Ty + 2], [Tx - 30, Ty + 12]], [[Tx - 28, Ty - 16], [Tx - 14, Ty - 10], [Tx - 8, Ty + 4], [Tx - 22, Ty + 2]], [[Tx - 14, Ty - 10], [Tx - 2, Ty - 20], [Tx + 4, Ty + 2], [Tx - 8, Ty + 4]], [[Tx - 2, Ty - 20], [Tx + 14, Ty - 14], [Tx + 18, Ty + 4], [Tx + 4, Ty + 2]], [[Tx + 14, Ty - 14], [Tx + 30, Ty - 18], [Tx + 32, Ty + 6], [Tx + 18, Ty + 4]], [[Tx + 30, Ty - 18], [Tx + 40, Ty - 4], [Tx + 50, Ty + 12], [Tx + 32, Ty + 12], [Tx + 32, Ty + 6]], [[Tx - 30, Ty + 12], [Tx - 22, Ty + 2], [Tx - 8, Ty + 4], [Tx + 4, Ty + 2], [Tx + 18, Ty + 4], [Tx + 32, Ty + 6], [Tx + 32, Ty + 12]]];
@@ -299,6 +309,8 @@ const WorldMap = (() => {
     [[Tx - 34, Ty - 8], [Tx - 20, Ty - 12], [Tx + 36, Ty - 8], [Tx + 8, Ty - 15]].forEach(([a, b]) => { c.fillStyle = '#6E9A58'; c.beginPath(); c.ellipse(a, b, 4, 1.8, -0.2, 0, TAU); c.fill(); c.fillStyle = '#9CC27A'; c.beginPath(); c.ellipse(a - 1, b - 0.6, 2.2, 0.9, -0.2, 0, TAU); c.fill(); });
     for (let i = 0; i < 12; i++) { const a = Tx - 44 + R() * 92, b = Ty + 8 + R() * 5; c.fillStyle = shade('#6E6290', 0.7 + R() * 0.6); c.beginPath(); c.ellipse(a, b, 1.6 + R() * 1.6, 1 + R(), 0, 0, TAU); c.fill(); }
     c.strokeStyle = L; c.lineWidth = 1.2; c.beginPath(); crag.forEach(([a, b], k) => k ? c.lineTo(a, b) : c.moveTo(a, b)); c.stroke(); c.restore();
+    c.globalCompositeOperation = 'destination-in'; { const g = c.createLinearGradient(0, Ty - 4, 0, Ty + 14); g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(0.55, 'rgba(0,0,0,.75)'); g.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = g; c.fillRect(Tx - 55, Ty - 24, 110, 40); }
+    c0T.drawImage(ocT, Tx - 55, Ty - 24, 110, 40); }
     helix(false);
     cloud(Tx + 26, Ty - 64, 40, 0.75);
     // the shaft: a stone cylinder shaded round, its courses, ribs and glowing windows
