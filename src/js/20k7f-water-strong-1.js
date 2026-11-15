@@ -11,7 +11,7 @@
    pieces. Built on the shared water sprites of 20k7c (WU2K). */
 (() => {
   const S = ELEM_IMPL.water.strong, TAU = Math.PI * 2; delete S.crescentsurf; delete ELEM_IMPL.water.ult.crescenttide;
-  const { W, R1, cl, lerp, glow, strip, drawBub, spoutSpr, bandSpr, poolSpr, sheenSpr, bubLSpr, hlSpr } = globalThis.WU2K;
+  const { W, R1, cl, lerp, glow, strip, drawBub, WFLOOR, spoutSpr, bandSpr, poolSpr, sheenSpr, bubLSpr, hlSpr } = globalThis.WU2K;
   let H, K;
   const sfx = k => { const s = H.X.sfx; if (s && s[k]) s[k](); };
   function petHole(c, T) { return;   /* (v349: no mask round the pet: an attack in front of it covers it) */ const me = H.me, x = H.sx(me.x), y = H.sy(me.y) - T * 0.46; c.beginPath(); c.rect(-1e5, -1e5, 2e5, 2e5); c.ellipse(x, y, T * 0.62, T * 0.74, 0, 0, TAU); c.clip('evenodd'); }
@@ -20,14 +20,18 @@
   const sum = a => a.reduce((p, q) => p + q, 0);
   /* a tapered ribbon of water through screen points: thin at the start, thick at the end (sym: thick in the middle) */
   const chaikin = P => { const o = [P[0]]; for (let i = 0; i < P.length - 1; i++) { const p = P[i], q = P[i + 1]; o.push([p[0] * 0.75 + q[0] * 0.25, p[1] * 0.75 + q[1] * 0.25], [p[0] * 0.25 + q[0] * 0.75, p[1] * 0.25 + q[1] * 0.75]); } o.push(P[P.length - 1]); return o; };
-  function rib(c, pts, w, a, sym) { if (pts.length < 2 || !(a > 0.01)) return; if (pts.length < 24) pts = chaikin(pts); c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round';
+  function rib(c, pts, w, a, sym) { if (pts.length < 2 || !(a > 0.01)) return; if (pts.length < 24) pts = chaikin(pts);
+    if (WK.on()) { const G = WK.api, n = pts.length, P = pts.map((p, i) => { const u = i / (n - 1), tw = sym ? 0.2 + 0.8 * Math.sin(Math.PI * u) : 0.15 + 0.85 * u; return [p[0], p[1], Math.max(0.6, w * 0.62 * tw)]; }), sd = (pts[0][0] * 0.07 + pts[0][1] * 0.03) % 30;
+      const Pd = []; for (let i = 0; i < n; i += 2) Pd.push(P[i]); if (Pd[Pd.length - 1] !== P[n - 1]) Pd.push(P[n - 1]);   /* (v361: a ribbon of flowing water on the GPU) */
+      G.stream(c, Pd, w * 0.5, Math.min(1, a), { taper: 0, flow: 5, seed: sd, col: W.blue, dens: 0.9, lite: 0.7 }); G.glow(c, Pd[Pd.length >> 1][0], Pd[Pd.length >> 1][1], w * 2.5, W.turq, 0.18 * a); return; }
+    c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round';
     for (const [col, k, aa] of [[W.turq, 1, 0.32], [W.aqua, 0.5, 0.6], [W.white, 0.14, 0.55]]) { c.strokeStyle = col; for (let i = 1; i < pts.length; i++) { const u = i / (pts.length - 1), tw = sym ? 0.2 + 0.8 * Math.sin(Math.PI * u) : 0.15 + 0.85 * u; c.globalAlpha = Math.min(1, a * aa * (sym ? 1 : 0.4 + 0.6 * u)); c.lineWidth = Math.max(0.6, w * k * tw); c.beginPath(); c.moveTo(pts[i - 1][0], pts[i - 1][1]); c.lineTo(pts[i][0], pts[i][1]); c.stroke(); } }
     c.restore(); }
   /* spray, droplets, a glint and the light of a splash (particles, world units) */
   function splashP(x, y, r, k) { H.burst(x, y - 0.3, 'spark', Math.round(8 * k), { v: 3 + 2 * r, up: 3, g: 9, life: 0.6, size: 2.3, color: [W.white, W.aqua, W.foam, W.turq] }); H.burst(x, y - 0.2, 'ember', Math.round(5 * k), { v: 2.5, up: 1.5, g: 4, life: 0.7, size: 2, color: [W.aqua, W.foam] }); H.glowAt(x, y - 0.3, r * 1.2, 0.35, W.aqua, 0.6); H.X.light(x, y, r * 2, 0.35); }
   /* a crown splash: a ring of water racing over the floor and spouts rising and falling round it (kept off the pet) */
   function crownFx(x, y, r, n, hh, dl) { H.add({ life: 0.75 + (dl || 0),
-    drawUnder(c, f, X0, Y0, T) { const u = (f.t - (dl || 0)) / 0.7; if (u < 0 || u > 1) return; const X = H.sx(x), Y = H.sy(y), rr = T * r * (0.4 + 1.1 * H.ease.out(u)); c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = (1 - u) * 0.9; c.drawImage(bandSpr(), X - rr, Y - rr * H.GY, rr * 2, rr * 2 * H.GY); c.restore(); },
+    drawUnder(c, f, X0, Y0, T) { const u = (f.t - (dl || 0)) / 0.7; if (u < 0 || u > 1) return; const X = H.sx(x), Y = H.sy(y), rr = T * r * (0.4 + 1.1 * H.ease.out(u)); c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = (1 - u) * 0.9; WFLOOR(c, 'band', X, Y, rr); c.restore(); },
     draw(c, f, X0, Y0, T) { const v = (f.t - (dl || 0)) / 0.6; if (v < 0 || v > 1) return; const X = H.sx(x), Y = H.sy(y), hq = T * hh * Math.sin(Math.PI * Math.min(1, v * 1.15)); c.save(); petHole(c, T);
       for (let i = 0; i < n; i++) { const th = i / n * TAU + R1(i + x) * 0.3, rr = r * (0.6 + 0.5 * v), x0 = X + Math.cos(th) * rr * T, y0 = Y + Math.sin(th) * rr * T * H.GY, h2 = hq * (0.6 + 0.6 * R1(i * 3 + y)), ln = T * (0.15 + 0.5 * v) * r;
         strip(c, spoutSpr(), 16, 124, 118, x0, y0, x0 + Math.cos(th) * ln, y0 + Math.sin(th) * ln * H.GY - h2, T * 0.26 * Math.max(0.7, Math.min(1.6, r)), (1 - v * v) * (Math.sin(th) < 0 ? 0.75 : 1)); }
@@ -50,6 +54,8 @@
   function cres(c, X, Y, ang, sz, sy, a, flex, pearl) { if (!(a > 0.01)) return; const s = sz / 88, spr = cresSpr();
     c.save(); c.translate(X, Y); c.rotate(ang); c.globalAlpha = Math.min(1, a * 0.4); c.save(); c.translate(-sz * 0.12, 0); c.scale(s * (0.85 + 0.12 * flex), s * sy * 0.96); c.drawImage(spr, -110, -64); c.restore();
     c.scale(s, s * sy); c.globalAlpha = Math.min(1, a); c.drawImage(spr, -110, -64);
+    if (WK.on()) { const G = WK.api, P = []; for (let i = 0; i <= 10; i++) { const u = i / 10, q = 1 - u, lx = q * q * -16 + 2 * q * u * 56 + u * u * -16, ly = q * q * -44 + u * u * 44; P.push([lx, ly, 3 + 8 * Math.sin(Math.PI * (0.1 + 0.8 * u))]); }   /* (v361: its leading rim a curve of flowing water, its sheet glowing, on the GPU) */
+      G.stream(c, P, 8, Math.min(1, a), { taper: 0, flow: 6, seed: ang * 3, col: W.blue, dens: 0.85, lite: 1.1 }); G.glow(c, 20, 0, 70, W.aqua, 0.28 * a); }
     if (pearl) { c.globalCompositeOperation = 'lighter'; const u = pearl, q = 1 - u, px = q * q * 78 + 2 * q * u * 150 + u * u * 78 - 94, py = q * q * 4 + 2 * q * u * 48 + u * u * 92 - 48; c.globalAlpha = 0.8 * a; c.drawImage(glowSprite(W.pearl), px - 14, py - 14, 28, 28); c.drawImage(glowSprite(W.white), px - 6, py - 6, 12, 12); }
     c.restore(); }
   S.crescenttide = (C, h) => {
@@ -109,14 +115,14 @@
           else { const u = (t - T2) / (T3 - T2), b = a0 + u * TAU * side; if (u >= 1) { f.done = true; f.life = 0.35; const r = 1.5 * Math.sqrt(sz); H.hitArea(tx, ty, r, dm * 0.8, C.dmgO({ kb: 3 })); splashP(tx, ty, r, sz); crownFx(tx, ty, 1.1 * sz, 10 + 3 * k, 0.8 * sz); if (last && NF === 3) crownFx(tx, ty, 2.0, 18, 1.4, 0.12); sfx('crash'); H.X.shake(3 + 2 * k, 0.14); return; }
             hx = tx + Math.cos(b) * 0.7 * sz; hy = ty + Math.sin(b) * 0.5 * sz; z = 0.6 + Math.sin(u * Math.PI) * 0.3; }
           f.hx = hx; f.hy = hy; f.hz = z; f.pts.push([hx, hy, z]); if (f.pts.length > 16) f.pts.shift(); },
-        drawUnder(c, f, X0, Y0, T) { if (f.t < dl || !f.pts.length) return; const a = f.done ? f.life / 0.35 : 1, X = H.sx(f.hx), Y = H.sy(f.hy), r = T * 0.9 * sz; c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.35 * a; c.drawImage(poolSpr(), X - r, Y - r * H.GY, r * 2, r * 2 * H.GY); c.restore(); },
+        drawUnder(c, f, X0, Y0, T) { if (f.t < dl || !f.pts.length) return; const a = f.done ? f.life / 0.35 : 1, X = H.sx(f.hx), Y = H.sy(f.hy), r = T * 0.9 * sz; if (WK.api.pool(c, X, Y, r * 1.1, 0.7 * a, { seed: dl * 7 })) return; c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.35 * a; WFLOOR(c, 'pool', X, Y, r); c.restore(); },
         draw(c, f, X0, Y0, T) { if (f.t < dl || f.pts.length < 2) return; const a = f.done ? f.life / 0.35 : cl((f.t - dl) / 0.12), P = f.pts.map(p => [H.sx(p[0]), H.sy(p[1]) - p[2] * T]), n = P.length;
           c.save(); petHole(c, T);
           // the body: a tapered ribbon, a tail fin fanning from its end, a bright head with an eye glint, bubbles in its wake
           rib(c, P, T * 0.42 * sz, a, false);
           const tl = P[0], tn = P[Math.min(2, n - 1)], ta = Math.atan2(tl[1] - tn[1], tl[0] - tn[0]), fl = T * 0.45 * sz, wv = Math.sin(f.t * 18) * 0.25;
           c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; for (const sd of [-1, 1]) { const b = ta + sd * 0.6 + wv; for (const [col, lw, aa] of [[W.turq, T * 0.16 * sz, 0.35], [W.aqua, T * 0.06 * sz, 0.8]]) { c.globalAlpha = aa * a; c.strokeStyle = col; c.lineWidth = lw; c.beginPath(); c.moveTo(tl[0], tl[1]); c.quadraticCurveTo(tl[0] + Math.cos(b - sd * 0.4) * fl * 0.6, tl[1] + Math.sin(b - sd * 0.4) * fl * 0.6, tl[0] + Math.cos(b) * fl, tl[1] + Math.sin(b) * fl); c.stroke(); } }
-          const hd = P[n - 1]; glow(c, hd[0], hd[1], T * 0.5 * sz, W.aqua, 0.5 * a); glow(c, hd[0], hd[1], T * 0.18 * sz, W.white, 0.9 * a); c.restore();
+          const hd = P[n - 1]; WK.api.sphere(c, hd[0], hd[1], T * 0.2 * sz, a, { col: W.blue, seed: dl * 5, turn: 3, halo: 2.5 }); glow(c, hd[0], hd[1], T * 0.5 * sz, W.aqua, 0.5 * a); glow(c, hd[0], hd[1], T * 0.18 * sz, W.white, 0.9 * a); c.restore();
           for (let q = 1; q < n - 2; q += 3) drawBub(c, P[q][0] + Math.sin(q + f.t * 6) * T * 0.15, P[q][1] - T * 0.12 * (n - q) * 0.15, T * (0.06 + 0.03 * (q % 2)) * sz, 0.8 * a * q / n);
           c.restore(); } });
     }
@@ -141,11 +147,13 @@
             for (const r of f.ripples) r.t += dt; f.ripples = f.ripples.filter(r => r.t < 0.5);
             if (Math.random() < 0.6 * H.Q()) H.P({ kind: Math.random() < 0.5 ? 'spark' : 'ember', x: f.x - dir[0] * R, y: f.y - dir[1] * R * 0.5 - 0.1, vx: -dir[0], vy: -0.8, g: 2, life: 0.5, max: 0.5, size: 2, color: Math.random() < 0.5 ? W.aqua : W.foam }); }
           else if (f.ph === 1 && t - f.t0 > 0.3) { f.ph = 2; f.life = 0.3; const r = 1.7 * (1 + 0.15 * k); H.hitArea(f.x, f.y, r, C.base * 1.4 * f0 * wk, C.dmgO({ kb: 3 })); splashP(f.x, f.y, r, 1 + 0.4 * k); crownFx(f.x, f.y, 1.1 + 0.25 * k, 10 + 3 * k, 0.9 + 0.3 * k); if (last && NO === 3) crownFx(f.x, f.y, 2.2, 18, 1.5, 0.12); sfx('crash'); H.X.shake(3 + 2 * k, 0.14); } },
-        drawUnder(c, f, X0, Y0, T) { const t = f.t - dl; if (t < 0 || f.ph === 2) return; const X = H.sx(f.x), Y = H.sy(f.y), r = T * R * 1.4, a = cl(t / 0.15); c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.45 * a; c.drawImage(poolSpr(), X - r, Y - r * H.GY, r * 2, r * 2 * H.GY);
-          c.translate(X, Y); c.scale(1, H.GY); c.rotate(f.roll * 0.3); c.globalAlpha = 0.4 * a; c.drawImage(sheenSpr(), -r * 0.8, -r * 0.8, r * 1.6, r * 1.6); c.restore(); },
+        drawUnder(c, f, X0, Y0, T) { const t = f.t - dl; if (t < 0 || f.ph === 2) return; const X = H.sx(f.x), Y = H.sy(f.y), r = T * R * 1.4, a = cl(t / 0.15); if (WK.api.pool(c, X, Y, r, 0.85 * a, { seed: k * 3 + f.roll * 0.1 })) return; c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.45 * a; WFLOOR(c, 'pool', X, Y, r);
+          c.translate(X, Y); c.scale(1, H.GY); c.rotate(f.roll * 0.3); c.globalAlpha = 0.4 * a; WFLOOR(c, 'shee', 0, 0, r * 0.8, 1); c.restore(); },
         draw(c, f, X0, Y0, T) { const t = f.t - dl; if (t < 0) return; const fa = f.ph === 2 ? f.life / 0.3 : cl(t / 0.15), u = f.ph >= 1 ? cl((t - f.t0) / 0.3) : 0, r = T * R * (0.6 + 0.4 * cl(t / 0.2));
           if (f.ph === 2) return; const X = H.sx(f.x), wob = 0.04 * Math.sin(t * 9), rx = r * (1 - 0.3 * u + wob), ry = r * (1 + 0.75 * u - wob), cy = H.sy(f.y) - ry;
           c.save(); petHole(c, T); c.globalCompositeOperation = 'lighter'; glow(c, X, cy, r * 1.6, W.turq, 0.3 * fa); c.globalCompositeOperation = 'source-over';
+          if (WK.on()) { const G = WK.api, p = G.xy(c, X, cy), Q = G.gq(); Q.glow(p[0], p[1], r * 1.9 * p[3], W.aqua, 0.3 * fa); Q.quad(24, p[0], p[1], rx * p[3], 0, 0, ry * p[3], W.blue, fa, 0.85, k * 3.1, (dir[0] >= 0 ? 1 : -1) * 2.5); Q.quad(26, p[0], p[1], rx * p[3], 0, 0, ry * p[3], W.aqua, fa, 1.0, k * 3.1, 1);   /* (v361: a rolling sphere of water on the GPU) */
+            c.translate(X, cy); c.scale(rx / r, ry / r); c.globalCompositeOperation = 'lighter'; c.strokeStyle = W.foam; c.lineWidth = Math.max(1, r * 0.06); for (const rp of f.ripples) { const v = rp.t / 0.5; c.globalAlpha = 0.6 * (1 - v) * fa; c.beginPath(); c.arc(cl(rp.x) * r * 0.4, cl(rp.y) * r * 0.4, r * (0.15 + 0.7 * v), 0, TAU); c.stroke(); } c.restore(); return; }
           c.translate(X, cy); c.scale(rx / r, ry / r); c.globalAlpha = 0.95 * fa; c.drawImage(orbSpr(), -r, -r, r * 2, r * 2); c.drawImage(bubLSpr(), -r, -r, r * 2, r * 2);
           // rotating bands of reflected light, and ripples where it touched a monster
           c.globalCompositeOperation = 'lighter'; const sg = dir[0] >= 0 ? 1 : -1; for (let i = 0; i < 2; i++) { c.save(); c.rotate(f.roll * sg + i * 2.6); c.globalAlpha = 0.6 * fa; c.drawImage(hlSpr(), -r, -r, r * 2, r * 2); c.restore(); }
@@ -178,10 +186,12 @@
         // the hanging sheet: forming, a reflection sweeping across it; it breaks at each volley and reforms (bigger) for the next
         let sa = 0; for (let k = 0; k < NV; k++) { const s = k ? VT[k - 1] + 0.05 : 0, e = VT[k]; if (t >= s && t < e + 0.08) sa = Math.max(sa, Math.min(cl((t - s) / 0.15), 1 - cl((t - e) / 0.08))); }
         const kk = Math.min(f.nv, NV - 1), X = H.sx(sx0), Y = H.sy(sy0) - T * 0.15, w = T * (1.7 + 0.45 * kk), hh = T * (0.85 + 0.15 * kk);
+        if (sa > 0.01 && WK.on()) { const G = WK.api, p = G.xy(c, X, Y - hh * 0.5), Q = G.gq(); Q.quad(26, p[0], p[1], w * 0.55 * p[3], 0, 0, hh * 0.55 * p[3], W.aqua, sa * 0.9, 1, 1.7, 0); for (let i = 0; i < 3; i++) G.stream(c, [[X - w * 0.5, Y - hh * (0.9 - 0.4 * i)], [X, Y - hh * (0.95 - 0.4 * i) + Math.sin(t * 6 + i) * T * 0.06], [X + w * 0.5, Y - hh * (0.9 - 0.4 * i)]], T * 0.08, sa * (i === 0 ? 0.9 : 0.5), { taper: 0, flow: 3, seed: i * 2, col: W.blue }); }   /* (v361: caustic light and flowing bands in the hanging sheet) */
         if (sa > 0.01) { c.save(); c.globalAlpha = 0.85 * sa; c.drawImage(sheetSpr(), X - w / 2, Y - hh, w, hh * (0.6 + 0.4 * sa)); c.globalCompositeOperation = 'lighter'; const gx = X - w / 2 + ((t * 2.2) % 1) * w; c.globalAlpha = 0.6 * sa; blitSized(c, glowSprite(W.foam), gx - T * 0.25, Y - hh, T * 0.5, hh); c.restore(); }
         // the needles: bright streaks with droplet heads
         c.globalCompositeOperation = 'lighter'; c.lineCap = 'round';
         for (const d of f.nd) { if (d.done) continue; const hx = H.sx(d.x), hy = H.sy(d.y) - T * 0.4, L = Math.min(T * 1.4, d.v * T * 0.06), ex = hx - Math.cos(d.b) * L, ey = hy - Math.sin(d.b) * L, sc = 1 + 0.15 * d.k;
+          if (WK.on()) { const G = WK.api; G.jet(c, ex - (hx - ex) * 0.3, ey - (hy - ey) * 0.3, hx, hy, T * 0.07 * sc, 1, { flow: 9, seed: d.b * 5, col: W.blue, lite: 1.2 }); G.sphere(c, hx, hy, T * 0.07 * sc, 1, { col: W.blue, seed: d.b * 3, halo: 3 }); G.star(c, hx, hy, T * 0.22 * sc, 0.7); continue; }   /* (v361: needles of water on the GPU) */
           for (const [col, lw, aa] of [[W.turq, T * 0.13 * sc, 0.35], [W.aqua, T * 0.055 * sc, 0.85], [W.white, T * 0.022 * sc, 1]]) { c.globalAlpha = aa; c.strokeStyle = col; c.lineWidth = lw; c.beginPath(); c.moveTo(ex, ey); c.lineTo(hx, hy); c.stroke(); }
           glow(c, hx, hy, T * 0.18 * sc, W.foam, 0.9); }
         c.restore(); } });
@@ -204,10 +214,11 @@
         if (f.t < DUR && Math.random() < 5 * dt * H.Q()) { const b = Math.random() * TAU, rr = R * (0.5 + 0.5 * Math.random()); H.P({ kind: 'spark', x: x + Math.cos(b) * rr, y: y + Math.sin(b) * rr * 0.6, vx: -Math.sin(b) * 3 - Math.cos(b) * 1.5, vy: Math.cos(b) * 2 - Math.sin(b) - 0.6, g: 1, drag: 0.6, life: 0.5, max: 0.5, size: 1.8, color: Math.random() < 0.5 ? W.white : W.aqua }); }
       },
       drawUnder(c, f, X0, Y0, T) { const t = f.t, X = H.sx(x), Y = H.sy(y), fa = cl(Math.min(t / 0.25, (LIFE - t) / 0.5)), gr = H.ease.out(cl(t / 0.3)), rr = T * R * gr * (t > CT[NC - 1] ? 1 + 0.2 * cl((t - CT[NC - 1]) / 0.5) : 1);
+        if (WK.on()) { const G = WK.api; G.whirl(c, X, Y, rr * 1.05, 0.95 * fa, { spin: 3.2, seed: 1.3, col: W.blue, heat: 0.7 }); if (NC >= 2) G.whirl(c, X, Y, rr * 0.6, 0.5 * fa, { spin: -2.2, seed: 4.1, col: W.aqua, heat: 0.6 }); G.ripple(c, X, Y, rr * 0.98, 0.6 * fa, { seed: t, th: 0.06 }); G.glow(c, X, Y, rr * 1.2, W.blue, 0.25 * fa, H.GY); }   /* (v361: the whirlpool turning on the GPU) */
         c.save(); c.translate(X, Y); c.scale(1, H.GY);
-        c.save(); c.rotate(-t * 3.2); c.globalAlpha = 0.9 * fa; c.drawImage(swirlSpr(), -rr, -rr, rr * 2, rr * 2); c.restore();
+        if (!WK.on()) { c.save(); c.rotate(-t * 3.2); c.globalAlpha = 0.9 * fa; c.drawImage(swirlSpr(), -rr, -rr, rr * 2, rr * 2); c.restore(); }
         c.globalCompositeOperation = 'lighter'; if (NC >= 2) { c.save(); c.rotate(t * 2.2); c.globalAlpha = 0.45 * fa; c.drawImage(swirlSpr(), -rr * 0.6, -rr * 0.6, rr * 1.2, rr * 1.2); c.restore(); }
-        c.save(); c.rotate(t * 0.6); c.globalAlpha = 0.4 * fa; c.drawImage(sheenSpr(), -rr, -rr, rr * 2, rr * 2); c.restore();
+        c.save(); c.rotate(t * 0.6); c.globalAlpha = 0.4 * fa; WFLOOR(c, 'shee', 0, 0, rr, 1); c.restore();
         // a foaming rim turning round it
         c.lineCap = 'round'; for (let q = 0; q < 6; q++) { const a0 = -t * 2.4 + q * TAU / 6; c.globalAlpha = 0.7 * fa; c.strokeStyle = W.foam; c.lineWidth = T * 0.06; c.beginPath(); c.arc(0, 0, rr * 0.97, a0, a0 + 0.55); c.stroke(); c.globalAlpha = 0.4 * fa; c.strokeStyle = W.aqua; c.lineWidth = T * 0.16; c.stroke(); }
         c.restore(); },

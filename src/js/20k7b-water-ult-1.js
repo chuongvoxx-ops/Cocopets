@@ -201,6 +201,7 @@
           c.restore();
           if (a <= 0.01 || BX < S.x0 - m || BX > S.x0 + S.w + m || BY < S.y0 - m || BY > S.y0 + S.h + m) continue;
           const br = 1 + 0.067 * Math.sin(tt * 3 + b.ph), sc = T * BR * 2.1 * br / 128, rot = tt * 2.6 * b.spin + b.ph, R0 = T * BR * br, rs = R0 * 1.5;
+          if (WK.on()) { const G = WK.api; G.pool(c, BX, BY, R0 * 2.1, 0.55 * a, { seed: b.i * 2.7 + tt * 0.1, glow: 0 }); G.whirl(c, BX, BY, rs * 1.05, 0.4 * a * kN, { spin: 2.6 * b.spin, seed: b.i * 1.9, col: W.sapph, heat: 0.55 }); G.spray(c, BX, BY - R0 * 0.35, R0 * 1.1, 0.3 * a, { seed: b.i * 4.1 + Math.floor(tt * 3) * 0.37, spread: (tt * 3) % 1, sy: 0.7 }); }   /* (v361: caustic light, the swirling foot and its spray on the GPU) */
           c.save(); c.globalCompositeOperation = 'lighter';
           // circulating currents (Adept and up: a counter-rotating inner current)
           c.globalAlpha = 0.65 * kN * a; c.drawImage(swirlAt(rot), BX - rs, BY - rs * H.GY, rs * 2, rs * 2 * H.GY);
@@ -224,7 +225,8 @@
         // the whirlpool in the sky the columns fall from
         const VX = X, VY = S.y0 + T * 0.6;
         K.glow(c, VX, VY, T * 7, W.sapph, 0.45 * fa); K.glow(c, VX, VY, T * 3, W.turq, 0.18 * fa);
-        c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.55 * fa; const vr = T * 6.5; c.drawImage(swirlAt(-tt * 0.9), VX - vr, VY - vr * 0.38, vr * 2, vr * 2 * 0.38); c.globalAlpha = 0.35 * fa; c.drawImage(swirlAt(tt * 0.7), VX - vr * 0.6, VY - vr * 0.6 * 0.38, vr * 1.2, vr * 1.2 * 0.38); c.restore();
+        if (WK.on()) { const G = WK.api; G.whirl(c, VX, VY, T * 6.5, 0.85 * fa, { sy: 0.38, spin: -0.9, seed: 2.2, col: W.sapph, heat: 0.7 }); G.whirl(c, VX, VY, T * 3.6, 0.5 * fa, { sy: 0.38, spin: 1.4, seed: 5.1, col: W.water, heat: 0.65 }); }   /* (v361: the whirlpool in the sky on the GPU) */
+        c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.55 * fa * (WK.on() ? 0.4 : 1); const vr = T * 6.5; c.drawImage(swirlAt(-tt * 0.9), VX - vr, VY - vr * 0.38, vr * 2, vr * 2 * 0.38); c.globalAlpha = 0.35 * fa; c.drawImage(swirlAt(tt * 0.7), VX - vr * 0.6, VY - vr * 0.6 * 0.38, vr * 1.2, vr * 1.2 * 0.38); c.restore();
         for (const b of beams) { if (tt < b.s) continue; const on = tt < b.e, out = on ? 0 : cl((tt - b.e) / 0.45);
           const BX = H.sx(b.x), BY = H.sy(b.y), grow = H.ease.in(cl((tt - b.s) / 0.32)), a = (0.35 + 0.65 * cl((tt - b.s - 0.2) / 0.3)) * (1 - out);
           if (out < 1) { const qa = b.ph + tt * 0.45 * b.spin, TY = topY; let TX = BX * 0.55 + VX * 0.45 + Math.cos(qa) * T * 1.6;
@@ -236,7 +238,8 @@
               // the water column: one of 32 cached flow frames (mirrored for the other turning sense), and its glow
               const ph = ((tt * 7 / TAU) % 1) * NBF;
               if (Lg - top0 > 1) { c.save(); c.scale(b.spin, 1); c.globalAlpha = a; c.drawImage(beamFrame(Math.floor(ph) % NBF, kq, bq, lvl), -w * 0.55, top0, w * 1.1, Lg - top0); c.restore();
-                c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.32 * a * (0.5 + 0.5 * kN); c.drawImage(colSpr(), -w * 0.3, top0, w * 0.6, Lg - top0); }
+                c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.32 * a * (0.5 + 0.5 * kN); c.drawImage(colSpr(), -w * 0.3, top0, w * 0.6, Lg - top0);
+                if (WK.on()) { const G = WK.api, n = Math.max(3, Math.min(10, Math.ceil((Lg - top0) / (w * 1.4)))), P = []; for (let j = 0; j <= n; j++) { const v = j / n; P.push([Math.sin(v * 9 - tt * 6 * b.spin + b.ph) * w * 0.06, top0 + (Lg - top0) * v, w * (0.42 + 0.06 * Math.sin(v * 13 + tt * 5))]); } G.stream(c, P, w * 0.45, a * 0.8, { taper: 0, flow: 9, seed: b.i * 3.3, col: W.sapph, dens: 0.55, lite: 0.55 }); } }   /* (v361: flowing water through the column, on the GPU) */
               c.restore();
               // small bubbles rising inside it
               if (Lg > T) { const mr = T * 0.14, ca = Math.cos(ang), sa = Math.sin(ang); c.save(); c.globalAlpha = 0.85 * a; for (let j = 0; j < 6; j++) { const u = 1 - (tt * 0.45 + j / 6 + b.i * 0.13) % 1, yy = top0 + (Lg - top0) * u, q = u * 12 + j * 1.3 - tt * 3 * b.spin, xx = Math.sin(q) * w * 0.35, rr = mr * (0.7 + 0.6 * R1(j + b.i)); if (yy > Lg) continue; c.drawImage(bub, TX + xx * ca - yy * sa - rr, TY + xx * sa + yy * ca - rr, rr * 2, rr * 2); } c.restore(); } } }
@@ -262,6 +265,7 @@
   /* a water ribbon along screen points (head first): a translucent sapphire band, a turquoise current down its middle and
      a foam thread, tapering to its tail */
   function wribbon(c, pts, w, a) { const n = pts.length; if (n < 3 || !(a > 0.02)) return; const Lf = [], Rt = [];
+    if (WK.on()) { const P = []; for (let i = 0; i < n; i += 2) P.push([pts[i][0], pts[i][1], Math.max(0.8, w * 0.75 * Math.pow(1 - i / (n - 1), 0.7) * (0.55 + 0.45 * Math.min(1, i / 2)))]); WK.api.stream(c, P, w, a, { taper: 0, flow: 5, seed: pts[0][0] * 0.01, col: W.water, lite: 0.8 }); return; }   /* (v361: a ribbon of flowing water on the GPU) */
     for (let i = 0; i < n; i++) { const q = pts[Math.min(n - 1, i + 1)], o = pts[Math.max(0, i - 1)]; let dx = q[0] - o[0], dy = q[1] - o[1]; const d = Math.hypot(dx, dy) || 1; dx /= d; dy /= d; const k = w * Math.pow(1 - i / (n - 1), 0.7) * (0.55 + 0.45 * Math.min(1, i / 2)); Lf.push([pts[i][0] - dy * k, pts[i][1] + dx * k]); Rt.push([pts[i][0] + dy * k, pts[i][1] - dx * k]); }
     c.save(); c.globalAlpha = a; c.beginPath(); Lf.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); for (let i = n - 1; i >= 0; i--) c.lineTo(Rt[i][0], Rt[i][1]); c.closePath(); c.fillStyle = rgbaS(W.sapph, 0.42); c.fill(); c.strokeStyle = rgbaS(W.aqua, 0.5); c.lineWidth = 1.2; c.stroke();
     c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.lineJoin = 'round'; c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.strokeStyle = rgbaS(W.turq, 0.5); c.lineWidth = Math.max(1, w * 0.6); c.stroke(); c.strokeStyle = rgbaS(W.foam, 0.8); c.lineWidth = Math.max(0.8, w * 0.16); c.stroke(); c.restore(); }
@@ -375,7 +379,7 @@
           ring(0);
           // the sphere: body (compressed on contact, wobbling as it forms), turning currents, spiralling bubbles, gliding highlights
           const sx = (1 + wob - 0.18 * sq) * form, sy = (1 - wob + 0.1 * sq) * form, r = RS;
-          c.save(); c.translate(SX, SY); c.scale(sx, sy); c.drawImage(body, -r * 1.067, -r * 1.067, r * 2.133, r * 2.133);
+          c.save(); c.translate(SX, SY); c.scale(sx, sy); if (WK.on()) { const G = WK.api, p = G.xy(c, 0, 0), Q = G.gq(); Q.quad(24, p[0], p[1], r * sx * p[3] / Math.sqrt(Math.abs(sx * sy)), 0, 0, r * sy * p[3] / Math.sqrt(Math.abs(sx * sy)), s.shade, 1, 0.9, s.ph, s.cs1 * (1.2 + 2 * chg)); Q.quad(26, p[0], p[1], r * sx * p[3] / Math.sqrt(Math.abs(sx * sy)), 0, 0, r * sy * p[3] / Math.sqrt(Math.abs(sx * sy)), W.aqua, 1, 0.8, s.ph, 1); G.mid(c); } else c.drawImage(body, -r * 1.067, -r * 1.067, r * 2.133, r * 2.133);   /* (v361: a sphere of living water on the GPU, its core and currents shining through) */
           c.globalCompositeOperation = 'lighter'; const spd = 1.2 + 2.5 * chg + 1.5 * fin; c.globalAlpha = 0.75; c.drawImage(rotAt('dc', dbsCur, 3, t * spd * s.cs1 + s.ph), -r * 0.9, -r * 0.9, r * 1.8, r * 1.8);
           if (lvl >= 3) { c.globalAlpha = 0.7; c.drawImage(rotAt('dc2', dbsCur2, 2, t * spd * s.cs2), -r * 0.55, -r * 0.55, r * 1.1, r * 1.1); }
           c.globalAlpha = s.sh2; c.drawImage(glowSprite(s.shade), -r, -r, r * 2, r * 2);
@@ -460,6 +464,7 @@
           // the foaming basin and the rings it sends out
           const bk = cl((tt - s.POUR - 0.1) / 0.25) * (1 - cl((tt - s.PE - 0.4) / 0.3));
           if (bk > 0.01) { const br = R0 * (1.25 + 0.06 * Math.sin(tt * 7 + s.ph)); c.save(); c.globalCompositeOperation = 'lighter'; fl(c, SX, SY, br * 2.2, 0.45 * bk, W.water); fl(c, SX, SY, br * 1.2, 0.4 * bk, W.aqua); c.globalAlpha = 0.6 * bk; c.drawImage(swirlAt(tt * 3 + s.ph), SX - br, SY - br * GY, br * 2, br * 2 * GY); c.restore();
+            if (WK.on()) { const G = WK.api; G.pool(c, SX, SY, br * 1.6, 0.9 * bk, { seed: s.i * 1.9 }); for (let q = 0; q < 2; q++) { const u = ((tt - s.POUR) * 0.8 + q / 2) % 1; G.ripple(c, SX, SY, R0 * (1.1 + 2.2 * u), 0.6 * bk * Math.pow(1 - u, 1.3), { seed: s.i + q, th: 0.1 }); } }   /* (v361: the basin's caustic light and ripples on the GPU) */
             c.save(); c.globalAlpha = 0.8 * bk; c.drawImage(ringSpr(s.i % 3), SX - br, SY - br * GY, br * 2, br * 2 * GY);
             for (let q = 0; q < 3; q++) { const u = ((tt - s.POUR) * 0.8 + q / 3) % 1, r = R0 * (1.1 + 2.2 * u); c.globalAlpha = 0.65 * bk * Math.pow(1 - u, 1.3); c.drawImage(ringSpr((s.i + q + 1) % 3), SX - r, SY - r * GY, r * 2, r * 2 * GY); } c.restore(); }
           // the basin spreads into a shallow glistening puddle and fades (light only)
@@ -475,7 +480,8 @@
           if (P.open > 0.01) { const hr = rr * 0.72 * P.open; c.save(); c.globalAlpha = ra; c.drawImage(hole, SX - hr, RY - hr * 0.36, hr * 2, hr * 0.72); c.restore(); }
           c.save(); c.globalCompositeOperation = 'lighter'; const gq = T * 0.32; for (let q = 0; q < 3; q++) { const b = tt * 4.5 + q * TAU / 3 + s.ph; c.globalAlpha = 0.85 * ra; c.drawImage(glowSprite(W.white), SX + Math.cos(b) * rr * 0.72 - gq, RY + Math.sin(b) * rr * 0.26 - gq, gq * 2, gq * 2); } c.restore();
           // the waterfall: from inside the ring down into the basin; it narrows at the end and the last water falls through
-          if (P.bot > 0 && P.top < 1 && w > T * 0.18) { const y0 = RY + (SY - RY) * P.top, y1 = RY + (SY - RY) * P.bot + T * 0.15; if (y1 - y0 > 2) { c.save(); c.globalAlpha = 0.95 * cl((w / (RW * T * 0.95) - 0.18) * 2); c.drawImage(hfColFr(fi), SX - w / 2, y0, w, y1 - y0); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.3; c.drawImage(colSpr(), SX - w * 0.35, y0, w * 0.7, y1 - y0); c.restore(); } }
+          if (P.bot > 0 && P.top < 1 && w > T * 0.18) { const y0 = RY + (SY - RY) * P.top, y1 = RY + (SY - RY) * P.bot + T * 0.15; if (y1 - y0 > 2) { c.save(); c.globalAlpha = 0.95 * cl((w / (RW * T * 0.95) - 0.18) * 2); c.drawImage(hfColFr(fi), SX - w / 2, y0, w, y1 - y0); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.3; c.drawImage(colSpr(), SX - w * 0.35, y0, w * 0.7, y1 - y0); c.restore();
+            if (WK.on()) { const G = WK.api, n = Math.max(3, Math.min(10, Math.ceil((y1 - y0) / (w * 1.2)))), Pp = []; for (let j = 0; j <= n; j++) { const v = j / n; Pp.push([SX + Math.sin(v * 7 + tt * 4 + s.ph) * w * 0.04, y0 + (y1 - y0) * v, w * (0.42 + 0.05 * v)]); } G.stream(c, Pp, w * 0.45, 0.85, { taper: 0, flow: 10, seed: s.i * 2.3, col: W.water, dens: 0.5, lite: 0.9 }); G.spray(c, SX, y1 - T * 0.2, w * 1.4, 0.75, { seed: s.i * 3.1 + Math.floor(tt * 4) * 0.21, spread: (tt * 4) % 1, sy: 0.6 }); } } }   /* (v361: falling water on the GPU, foaming where it lands) */
           // the ring itself, over the top of the stream
           c.save(); c.globalAlpha = ra; c.drawImage(ring, SX - rr, RY - rr * 0.4375, rr * 2, rr * 0.875); c.restore();
           // foam churning in the basin
