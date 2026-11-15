@@ -452,3 +452,25 @@
       shots.push(s); H.X.sfx.whoosh(); }));
   };
 })();
+/* (v359) the ten lightning Strongs and the Ults (Thunderstorm and Ragnarok have their own, Beast Machine apart) on the GPU, as
+   fire and ice: each cast runs with a view of the move context (H) whose add() wraps every effect's draw and drawUnder in the
+   lightning kit's GPU mode (TK.gpuBegin/gpuEnd), so the kit's bolts (a white-hot core in layered light inside a turbulent
+   plasma sheath), ribbons, orbs (balls of lightning), shock rings (a rolling wave of electric energy) and glows paint as real
+   plasma; the context's energy cores become balls of lightning, its rays turbulent electric beams, its trails beams of
+   plasma; crafted solids stay crisp 2D. window.__TST_GL = 0 (or __THUNDER_GL = 0) keeps the 2D picture */
+(() => {
+  const S = ELEM_IMPL.thunder.strong, U = ELEM_IMPL.thunder.ult;
+  const SK = ['forkedfang', 'stormbead', 'voltscythe', 'thunderpin', 'railflash', 'staticblossom', 'arcboomerang', 'sparkstep', 'capacitor', 'stormthread'], UK = ['flash', 'widepressure', 'supreme', 'glory', 'heavensbow', 'lotus', 'butterfly', 'worldsplitter'];
+  const hx = c => (typeof c === 'string' && c[0] === '#' ? c : null);
+  function gpuH(H) { const Hp = Object.create(H), K = TK.bind(H);
+    Hp.add = o => { for (const k of ['draw', 'drawUnder']) { const fn = o[k]; if (typeof fn !== 'function') continue;
+        o[k] = function (c, f, X, Y, T, t) { const q = K.gpuBegin(c, '__TST_GL'); try { return fn.call(this, c, f, X, Y, T, t); } finally { if (q) K.gpuEnd(c); } }; }
+      return H.add(o); };
+    Hp.core = (c, x, y, r, col, hot, a) => { const Q = K.gq(); if (!Q) return H.core(c, x, y, r, col, hot, a); if (!(r > 0.5)) return; const A = a == null ? 1 : a, p = K.gpuXY(x, y), R = r * p[2], gold = col === K.P.gold || col === K.P.amber; Q.glow(p[0], p[1], R * 3, gold ? K.P.gold : K.P.blue, 0.5 * A); Q.quad(17, p[0], p[1], R * 1.4, 0, 0, R * 1.4, gold ? K.P.gold : K.P.cyan, 1, A, x * 0.013 + y * 0.007); };
+    Hp.ray = (c, x, y, a, len, w, col, alpha) => { const Q = K.gq(); if (!Q) return H.ray(c, x, y, a, len, w, col, alpha); const p0 = K.gpuXY(x, y), p1 = K.gpuXY(x + Math.cos(a) * len, y + Math.sin(a) * len), W = w * 0.6 * p0[2], L = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]), n = Math.max(1, Math.min(12, Math.ceil(L / (W * 2.4)))), dx = (p1[0] - p0[0]) / n, dy = (p1[1] - p0[1]) / n, A = alpha == null ? 0.8 : alpha;
+      for (let i = 0; i < n; i++) Q.ebeam(p0[0] + dx * (i - 0.2), p0[1] + dy * (i - 0.2), p0[0] + dx * (i + 1.2), p0[1] + dy * (i + 1.2), W, hx(col) || '#5FA8FF', 0.9, A, x * 0.01 + i, 14); Q.beam(p0[0], p0[1], p1[0], p1[1], W * 0.25, '#FFFFFF', 0.8 * A); };
+    Hp.trail = (c, pts, w, col, core) => { const Q = K.gq(); if (!Q) return H.trail(c, pts, w, col, core); const n = pts.length; if (n < 2) return; for (let i = 1; i < n; i++) { const u = i / (n - 1), p0 = K.gpuXY(pts[i - 1][0], pts[i - 1][1]), p1 = K.gpuXY(pts[i][0], pts[i][1]), dx = p1[0] - p0[0], dy = p1[1] - p0[1]; Q.ebeam(p0[0] - dx * 0.2, p0[1] - dy * 0.2, p1[0] + dx * 0.2, p1[1] + dy * 0.2, w * (0.35 + 0.65 * u) * 0.55, hx(col) || '#5FA8FF', 0.9, 0.2 + 0.6 * u, i * 0.7, 12); Q.beam(p0[0], p0[1], p1[0], p1[1], w * 0.12 * u, '#FFFFFF', 0.6 * u); } };
+    return Hp; }
+  const wrap = (T, keys) => { for (const key of keys) { const I = T[key]; if (typeof I !== 'function' || I.__gl) continue; const W = (C, H) => I(C, gpuH(H)); W.__gl = 1; for (const k in I) W[k] = I[k]; T[key] = W; } };
+  wrap(S, SK); wrap(U, UK);
+})();
