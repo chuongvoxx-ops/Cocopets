@@ -495,9 +495,7 @@
          swirl of foam and ripples racing out; then a glistening puddle. Celestial's basins join in a luminous channel of
          water round a slow whirlpool. Without the GPU the old picture */
       drawUnder(c, f, X, Y, T) { if (!WK.on()) return f.drawUnder2d(c, f, X, Y, T); const G = WK.api, tt = f.t;
-        if (lvl >= 3) { let k0 = 1; for (const s of src) k0 = Math.min(k0, cl((tt - s.POUR - 0.2) / 0.5)); const kf = k0 * (1 - cl((tt - (END - 1.4)) / 1.2)); if (kf > 0.01) {
-          G.stream(c, src.concat([src[0]]).map(s => [H.sx(s.x), H.sy(s.y)]), T * 0.3, 0.75 * kf, { taper: 0, flow: 4, seed: 7.7, col: W.water, dens: 0.55, lite: 0.9 });
-          const cx = H.sx(CX), cy = H.sy(CY), Rr = T * (3.3 + 0.5 * Math.sin(tt * 1.3)) * Math.sqrt(C.K); G.whirl(c, cx, cy, Rr, 0.55 * kf, { spin: 0.5, seed: 3.3, col: W.water, heat: 0.6 }); G.pool(c, cx, cy, Rr * 1.1, 0.6 * kf, { seed: 1.1 }); } }
+        /* (v366: no channel joining the basins) */
         for (const s of src) { const SX = H.sx(s.x), SY = H.sy(s.y), R0 = RW * T;
           if (tt > s.tA + 0.15 && tt < s.POUR + 0.2) for (let q = 0; q < 2; q++) { const u = ((tt - s.tA) * 1.4 + q / 2) % 1; G.ripple(c, SX, SY, R0 * (0.3 + 0.9 * u), 0.7 * (1 - u), { seed: s.i + q, th: 0.1 }); }
           const bk = cl((tt - s.POUR - 0.1) / 0.25) * (1 - cl((tt - s.PE - 0.4) / 0.3));
@@ -507,10 +505,6 @@
       drawUnder2d(c, f, X, Y, T) {
         const tt = f.t, GY = H.GY, rp = rippleSpr();
         // Celestial: the basins join into one luminous water pattern
-        if (lvl >= 3) { let k0 = 1; for (const s of src) k0 = Math.min(k0, cl((tt - s.POUR - 0.2) / 0.5)); const kf = k0 * (1 - cl((tt - (END - 1.4)) / 1.2)); if (kf > 0.01) {
-          c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.lineJoin = 'round'; c.beginPath(); src.forEach((s, i) => i ? c.lineTo(H.sx(s.x), H.sy(s.y)) : c.moveTo(H.sx(s.x), H.sy(s.y)));
-          c.globalAlpha = 0.35 * kf; c.strokeStyle = W.turq; c.lineWidth = T * 0.5; c.stroke(); c.globalAlpha = 0.6 * kf; c.strokeStyle = W.aqua; c.lineWidth = T * 0.14; c.stroke(); c.globalAlpha = 0.8 * kf; c.strokeStyle = W.white; c.lineWidth = 1.4; c.stroke();
-          const cx = H.sx(CX), cy = H.sy(CY), R = T * (3.3 + 0.5 * Math.sin(tt * 1.3)) * Math.sqrt(C.K); fl(c, cx, cy, R * 1.2, 0.3 * kf, W.water); c.globalAlpha = 0.5 * kf; c.drawImage(swirlAt(tt * 0.5), cx - R, cy - R * GY, R * 2, R * 2 * GY); c.globalAlpha = 0.45 * kf; c.drawImage(rp, cx - R * 1.1, cy - R * 1.1 * GY, R * 2.2, R * 2.2 * GY); c.restore(); } }
         for (const s of src) { const P = ph(s, tt), SX = H.sx(s.x), SY = H.sy(s.y), R0 = RW * T;
           // small ripples mark the ground under a forming source
           if (tt > s.tA + 0.15 && tt < s.POUR + 0.2) { c.save(); c.globalCompositeOperation = 'lighter'; for (let q = 0; q < 2; q++) { const u = ((tt - s.tA) * 1.4 + q / 2) % 1, r = R0 * (0.3 + 0.9 * u); c.globalAlpha = 0.7 * (1 - u); c.drawImage(rp, SX - r, SY - r * GY, r * 2, r * 2 * GY); } c.restore(); }
@@ -527,6 +521,10 @@
         for (const s of src.slice().sort((p, q) => p.y - q.y)) { const P = ph(s, tt); if (tt < s.tA || P.dis >= 1) continue; const SX = H.sx(s.x), SY = H.sy(s.y), RY = SY - s.Z * T, rr = RW * T * 1.55 * P.form * (1 + 0.15 * P.dis), ra = cl((tt - s.tA) / 0.25) * (1 - P.dis), w = RW * T * 0.95 * P.narrow * cl(P.open * 1.6);
           const ringP = (a0, a1) => { const out = []; for (let i = 0; i <= 8; i++) { const b = a0 + (a1 - a0) * i / 8; out.push([SX + Math.cos(b) * rr * 0.92, RY + Math.sin(b) * rr * 0.34, rr * (0.07 + 0.03 * Math.abs(Math.sin(b)))]); } return out; };
           G.glow(c, SX, RY, rr * 1.2, W.aqua, 0.4 * ra, 0.4);
+          { const pu = 0.5 + 0.5 * Math.sin(tt * 5 + s.ph), cr = rr * (0.2 + 0.06 * pu) * (0.6 + 0.4 * P.form), Q2 = G.gq(), pc = G.xy(c, SX, RY - rr * 0.05);   /* (v366) a glowing, pulsing core of light atop the pillar */
+            G.glow(c, SX, RY, cr * 4.5, W.aqua, (0.35 + 0.25 * pu) * ra); G.glow(c, SX, RY, cr * 2.2, '#CFF6FF', (0.45 + 0.3 * pu) * ra);
+            Q2.eorb(pc[0], pc[1], cr * pc[3], '#5FD0FF', 0.75 + 0.2 * pu, ra, s.ph, 2.5); G.star(c, SX, RY, cr * (3.5 + 1.5 * pu), (0.6 + 0.4 * pu) * ra, '#FFFFFF');
+            G.ripple(c, SX, RY, cr * (2 + 3 * ((tt * 1.2 + s.ph) % 1)), 0.5 * ra * (1 - (tt * 1.2 + s.ph) % 1), { sy: 0.36, seed: s.i, th: 0.1 }); }
           if (P.open > 0.01) { const hr = rr * 0.72 * P.open; Q.quad(24, SX, RY, hr, 0, 0, hr * 0.36, W.abyss, ra, 1, s.ph, 2); Q.caustic(SX, RY, hr * 0.95, W.aqua, 0.6 * ra, s.ph, 0.36); }
           G.stream(c, ringP(Math.PI - 0.12, TAU + 0.12), rr * 0.09, 0.75 * ra, { taper: 0, flow: 5, seed: s.i * 3, col: W.water, dens: 0.6, lite: 0.7 });
           // the waterfall: feathered at the top (it pours softly out of the ring), a dense flowing core, two thinner sheets
