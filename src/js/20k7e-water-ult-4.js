@@ -148,6 +148,7 @@
           // the explosion's floor: a thick advancing water ring and a second one behind it, glistening light
           if (t.big) { const gk = cl(age / t.ex), fk = (age - 0.08) / 1.5; c.save(); c.globalCompositeOperation = 'lighter';
             // water and light flooding out over the floor from the point of impact: a spreading sheen with flowing streaks
+            if (fk > 0 && fk < 1 && WK.on()) { const RR = t.R * T * (0.4 + 1.5 * H.ease.out(fk)), al = Math.sin(Math.min(1, fk * 3) * Math.PI / 2) * (1 - fk), G = WK.api; G.pool(c, SX, SY, RR * 1.05, 1.0 * al, { seed: t.sd }); G.ripple(c, SX, SY, RR, 0.8 * al, { seed: t.sd + 1, th: 0.08 }); if (fk < 0.5) G.spray(c, SX, SY - T * 0.8, T * t.R * (0.8 + 1.6 * fk), 0.8 * (1 - fk * 2), { seed: t.sd * 2, spread: fk * 2 }); }   /* (v361: the water explosion flooding out on the GPU) */
             if (fk > 0 && fk < 1) { const RR = t.R * T * (0.4 + 1.5 * H.ease.out(fk)), al = Math.sin(Math.min(1, fk * 3) * Math.PI / 2) * (1 - fk); K.floorLight(c, SX, SY, RR * 1.15, 0.7 * al, W.turq); K.floorLight(c, SX, SY, RR * 0.6, 0.6 * al, W.aqua); c.globalAlpha = 0.7 * al; c.drawImage(rp, SX - RR, SY - RR * GY, RR * 2, RR * 2 * GY);
               c.lineCap = 'round'; c.strokeStyle = W.pale; c.lineWidth = 1.6; for (let q = 0; q < 16; q++) { const b = q / 16 * TAU + t.sd, u = (fk * 1.6 + R1(q * 3.1)) % 1, r0 = RR * (0.2 + 0.75 * u), r1 = r0 + RR * 0.14; c.globalAlpha = al * Math.sin(u * Math.PI) * 0.8; c.beginPath(); c.moveTo(SX + Math.cos(b) * r0, SY + Math.sin(b) * r0 * GY); c.lineTo(SX + Math.cos(b + 0.05) * r1, SY + Math.sin(b + 0.05) * r1 * GY); c.stroke(); } }
             // the gathering light at the prongs, growing and intensifying until it bursts
@@ -182,7 +183,7 @@
             for (let q = 0; q < n; q++) { const b = q / n * TAU + t.sd, cb = Math.cos(b), sb = Math.sin(b), bx = SX + cb * RR * 0.7, by = SY + sb * RR * 0.7 * GY, ex = SX + cb * RR * 1.35, ey = SY + sb * RR * 1.35 * GY - hh * (0.35 + 0.2 * R1(q + t.sd)), mx = SX + cb * RR, my = SY + sb * RR * GY - hh * (1 + 0.25 * R1(q * 3 + t.sd)), al = (1 - u) * (sb > 0 ? 0.9 : 0.6);
               c.globalAlpha = al; c.strokeStyle = rgbaS(W.turq, 0.38); c.lineWidth = T * (t.big ? 0.5 : 0.3) * (1 - 0.5 * u); c.beginPath(); c.moveTo(bx, by); c.quadraticCurveTo(mx, my, ex, ey); c.stroke(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = rgbaS(W.aqua, 0.55); c.lineWidth = T * 0.1; c.stroke(); c.strokeStyle = rgbaS(W.white, 0.85); c.lineWidth = 1.5; c.stroke(); c.globalCompositeOperation = 'source-over'; } c.restore(); }
           // the jets bursting from the cracks
-          for (const j of t.jets) { const u = (tt - j.t0) / 0.55; if (u <= 0 || u >= 1) continue; const JX = H.sx(j.x), JY = H.sy(j.y), hh = j.h * T * Math.sin(u * Math.PI), jw = T * 0.32 * (1 - 0.4 * u); if (hh < 2) continue; c.save(); c.globalAlpha = 0.9 * (1 - u * 0.5); c.drawImage(jet, JX - jw / 2, JY - hh, jw, hh); c.restore(); }
+          for (const j of t.jets) { const u = (tt - j.t0) / 0.55; if (u <= 0 || u >= 1) continue; const JX = H.sx(j.x), JY = H.sy(j.y), hh = j.h * T * Math.sin(u * Math.PI), jw = T * 0.32 * (1 - 0.4 * u); if (hh < 2) continue; if (WK.on()) { const G = WK.api; G.jet(c, JX, JY, JX, JY - hh, jw * 0.4, 0.9 * (1 - u * 0.5), { flow: 9, seed: j.x * 3, col: W.water }); G.spray(c, JX, JY - hh, jw * 1.3, 0.7 * (1 - u), { seed: j.y * 2, spread: u }); continue; } c.save(); c.globalAlpha = 0.9 * (1 - u * 0.5); c.drawImage(jet, JX - jw / 2, JY - hh, jw, hh); c.restore(); }
           c.restore(); }
       } });
   };
@@ -244,6 +245,7 @@
           for (let k = 0; k < NT; k++) { const ribbon = k < NT - 2, off = (k / (NT - 1) - 0.5) * S * 0.62, pts = []; const N = 8, segL = S * (ribbon ? 0.16 : 0.22);
             for (let i = 0; i <= N; i++) { const hp = hist[Math.min(hist.length - 1, Math.floor(i * 1.4))] || [j.x, j.y, j.z], lagX = (H.sx(hp[0]) - H.sx(j.x)), lagY = (H.sy(hp[1]) - H.sy(j.y)), u = i / N, sw = Math.sin(tt * 3 + i * 0.7 + k * 1.3) * S * 0.05 * u;
               let px2 = SX + off * (1 - 0.3 * u) + lagX * u + sw, py2 = SY + S * 0.06 + i * segL + lagY * u * 0.5; if (lk > 0) { px2 += (MX - px2) * lk * u * u * 0.7; py2 += (MY - py2) * lk * u * u * 0.5; } pts.push([px2, py2]); }
+            if (WK.on() && ribbon) WK.api.stream(c, pts.filter((p, i) => !(i & 1)), S * 0.035, a * 0.7, { taper: -0.6, flow: -3, seed: j.i * 3 + k, col: j.v ? '#7A6AE0' : '#2A9FD0', dens: 0.5, lite: 0.7 });   /* (v361: tentacles of flowing water) */
             c.globalAlpha = a * (ribbon ? 0.55 : 0.4); c.strokeStyle = j.v ? 'rgba(150,130,240,0.7)' : 'rgba(63,214,224,0.7)'; c.lineWidth = Math.max(1, S * (ribbon ? 0.07 : 0.025)); c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.stroke();
             c.globalAlpha = a * 0.8; c.strokeStyle = 'rgba(230,250,255,0.8)'; c.lineWidth = 0.9; c.stroke();
             // little electric sparks along a lashing tentacle
@@ -251,6 +253,7 @@
           // the bell, its glow and an aurora shimmer
           c.globalAlpha = 1; glow(c, SX, SY - S * 0.18, S * 0.9, j.v ? '#B8A8FF' : W.aqua, (0.35 + 0.25 * lk + 0.1 * Math.sin(tt * 4 + j.i)) * a);
           c.save(); c.translate(SX, SY); c.rotate(tilt); c.globalAlpha = a; c.drawImage(bellFr(j.v, fi), -S / 2, -S * 0.66 * 120 / 128, S, S * 120 / 128); c.restore();
+          if (WK.on()) { const G = WK.api, p = G.xy(c, SX, SY - S * 0.3), Q = G.gq(), pu = 1 + 0.06 * Math.sin(pp * TAU); Q.quad(26, p[0], p[1], S * 0.44 * pu * p[3], 0, 0, S * 0.34 / pu * p[3], j.v ? '#B8A8FF' : W.aqua, a * 0.9, 0.9, j.i * 2.7, 1); Q.glow(p[0], p[1] + S * 0.05, S * 0.5, j.v ? '#B8A8FF' : W.turq, 0.25 * a); }   /* (v361: caustic light rippling through the bell, its rim glowing) */
           glow(c, SX + Math.sin(tt * 1.3 + j.i) * S * 0.2, SY - S * 0.3, S * 0.4, (Math.floor(tt * 0.7 + j.i) & 1) ? '#FFB0E8' : '#9CFFD6', 0.18 * a);
           c.restore(); }
       } });

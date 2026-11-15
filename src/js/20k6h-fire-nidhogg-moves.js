@@ -452,6 +452,7 @@ vec3 eramp(float k, vec3 c){ k = clamp(k, 0.0, 1.2); vec3 r = mix(vec3(0.0), c *
 float h3(vec3 p){ p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
 float n3(vec3 x){ vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f); return mix(mix(mix(h3(i), h3(i + vec3(1.0, 0.0, 0.0)), f.x), mix(h3(i + vec3(0.0, 1.0, 0.0)), h3(i + vec3(1.0, 1.0, 0.0)), f.x), f.y), mix(mix(h3(i + vec3(0.0, 0.0, 1.0)), h3(i + vec3(1.0, 0.0, 1.0)), f.x), mix(h3(i + vec3(0.0, 1.0, 1.0)), h3(i + vec3(1.0, 1.0, 1.0)), f.x), f.y), f.z); }
 float fbm3(vec3 p){ return 0.5 * n3(p) + 0.27 * n3(p * 2.07 + 3.1) + 0.15 * n3(p * 4.13 + 7.7) + 0.08 * n3(p * 8.3 + 1.3); }
+float caus(vec2 p, float t){ vec2 i = p; float c = 1.0; for (int n = 0; n < 4; n++) { float tt = t * (1.0 - 3.5 / float(n + 1)); i = p + vec2(cos(tt - i.x) + sin(tt + i.y), sin(tt - i.y) + cos(tt + i.x)); c += 1.0 / length(vec2(p.x / (sin(i.x + tt) / 0.005), p.y / (cos(i.y + tt) / 0.005))); } c /= 4.0; c = 1.17 - pow(c, 1.4); return clamp(pow(abs(c), 8.0), 0.0, 1.6); }   /* (v361) the web of light that water throws (after the classic tileable caustic) */
 void main(){ vec2 u = v_uv; float r = length(u), m = 0.0, edge = 1.0 - smoothstep(0.85, 1.0, r); vec3 col = v_c.rgb; float t = u_t + v_q.y * 7.3, pk = u_pet.z > 0.0 ? mix(0.12, 1.0, smoothstep(0.4, 1.4, length((v_px - u_pet.xy) * vec2(1.0, 1.1)) / u_pet.z)) : 1.0;   /* (the rider's face stays clear: light, body and smoke) */
   pk *= v_k > 11.5 ? 1.0 : (v_k > 1.5 && v_k < 2.5) || (v_k > 5.5 && v_k < 6.5) || v_k > 10.5 ? 1.0 - smoothstep(0.8, 1.0, abs(u.y)) : (v_k > 3.5 && v_k < 4.5) ? (1.0 - smoothstep(0.8, 1.0, abs(u.x))) * (1.0 - smoothstep(0.86, 1.0, u.y)) : (v_k > 0.5 && v_k < 1.5) || (v_k > 7.5 && v_k < 8.5) ? 1.0 - smoothstep(0.92, 1.0, r) : 1.0 - smoothstep(0.72, 1.0, r);   /* (every picture fades to nothing well inside its own quad: no straight cut where noise or a halo reaches the quad's edge) */
   if (v_k > 15.5 && v_k < 16.5) { // (v346, Thunderstorm) a storm cloud (solid): billowing lobes of night violet, darker beneath, a cool rim
@@ -486,8 +487,53 @@ void main(){ vec2 u = v_uv; float r = length(u), m = 0.0, edge = 1.0 - smoothste
   else if (v_k > 8.5 && v_k < 9.5) { // smoke (the solid pass): billowing density, darker in its heart, lit a little from below
     float f = fbm(u * 2.2 + vec2(v_q.y * 3.1, v_q.y - t * 0.35)), d = clamp((1.0 - r * r) * (0.55 + 0.9 * f) - 0.25, 0.0, 1.0) * edge; float a = d * v_c.a * pk;
     vec3 c = mix(col * 0.6, col, smoothstep(-0.5, 0.6, -u.y + f * 0.5)) + vec3(0.35, 0.12, 0.03) * v_q.x * smoothstep(0.0, 1.0, u.y + 0.3); gl_FragColor = vec4(c * a, a); }
+  else if (v_k > 23.5 && v_k < 24.5) { // (v361, water) a sphere of water (solid): a turning globe of translucent water, deep
+    // sapphire low in it and in its heart, its colour above, currents banding round it, clearer water swirling through, a bright
+    // rim of reflected light all round its limb (fresnel: clear in the middle, denser at the edge); feathered limb. v_c its
+    // colour, v_q.x density, v_q.y seed, v_q.z the turn of its currents
+    float a = 1.0 - smoothstep(0.88, 1.0, r); vec3 n = vec3(u, sqrt(max(0.0, 1.0 - r * r)));
+    float ang = t * 0.3 * v_q.z + v_q.y, ca = cos(ang), sa = sin(ang); vec3 p = vec3(n.x * ca + n.z * sa, n.y, -n.x * sa + n.z * ca);
+    float f = fbm3(p * 2.2 + vec3(0.0, t * 0.15, v_q.y)), g = fbm3(p * 5.0 + vec3(t * 0.3, -t * 0.2, 0.0) + f * 1.5), bands = 0.5 + 0.5 * sin((p.y + f * 0.9) * 9.0 + t * 1.3 * v_q.z);
+    float lit = clamp(dot(n, vec3(-0.5, -0.62, 0.6)) * 1.1, 0.0, 1.0), fres = pow(1.0 - n.z, 2.0);
+    vec3 deep = col * vec3(0.16, 0.26, 0.48), sh = mix(col, vec3(0.55, 0.98, 1.0), 0.55);
+    vec3 c = mix(deep, col, smoothstep(-0.25, 0.95, -u.y * 0.55 + lit * 0.75 + (f - 0.5) * 0.8)); c = mix(c, sh, bands * smoothstep(0.35, 0.8, g) * 0.5);
+    c += vec3(0.6, 0.95, 1.0) * fres * 0.55;
+    a *= mix(0.4, 0.94, fres) * (0.85 + 0.15 * f) * mix(0.7, 1.0, v_q.x) * v_c.a * pk; gl_FragColor = vec4(min(c, vec3(1.0)) * a, a); }
+  else if (v_k > 24.5 && v_k < 25.5) { // (v361, water) a stream of water (solid; uv.x along, uv.y across): a translucent tube of
+    // flowing water with wavering edges, darker and denser at its sides, clearer down its middle, flow streaks of paler water
+    // racing along it, a glossy highlight along its upper side; both ends feathered. v_q.x density, v_q.y seed, v_q.z flow speed
+    float al = u.x * 0.5 + 0.5, f = fbm(vec2(al * 5.0 - t * v_q.z * 0.6, u.y * 1.6 + v_q.y)), ay = abs(u.y + (f - 0.5) * 0.28) / (0.76 + 0.24 * f);
+    float dns = (1.0 - smoothstep(0.6, 1.0, ay)) * smoothstep(0.0, 0.22, al) * (1.0 - smoothstep(0.78, 1.0, al)), tube = sqrt(max(0.0, 1.0 - ay * ay));
+    float st = fbm(vec2(al * 14.0 - t * v_q.z * 1.4, u.y * 3.0 + v_q.y * 2.0)), streak = smoothstep(0.52, 0.8, st), rim = smoothstep(0.5, 0.95, ay);
+    vec3 c = mix(col * vec3(0.22, 0.32, 0.58), mix(col, vec3(0.3, 0.85, 0.95), 0.35), tube); c = mix(c, mix(col, vec3(0.55, 1.0, 1.0), 0.65), streak * 0.6);
+    c += vec3(0.8, 1.0, 1.0) * exp(-sq((u.y + 0.4) / 0.12)) * (0.45 + 0.55 * st) * 0.55 + vec3(0.5, 0.9, 1.0) * rim * 0.3 + vec3(0.9, 1.0, 1.0) * smoothstep(0.62, 0.8, st) * rim * 0.5;
+    float a = dns * mix(0.42, 0.9, rim) * v_q.x * v_c.a * pk; gl_FragColor = vec4(min(c, vec3(1.0)) * a, a); }
   else { vec3 L = vec3(0.0);
-    if (v_k > 22.5) { // (v356) a vortex of energy in the quad's colour (as kind 14: log-spiral arms round a bright eye; v_q.z its turn)
+    if (v_k > 25.5) { // (v361, water light)
+      if (v_k < 26.5) { // caustic light: v_q.z > 0.5 on a sphere of water (the web of light inside it, a specular glint, its rim
+        // glowing), else on the floor (a pool of rippling light fading out); v_q.x strength, v_q.y seed
+        if (v_q.z > 0.5) { vec3 n = vec3(u, sqrt(max(0.0, 1.0 - r * r))); float cs = caus(n.xy / (0.55 + n.z) * 5.5 + vec2(v_q.y * 3.0 - 250.0), t * 0.5);
+          float lit = clamp(dot(n, vec3(-0.5, -0.62, 0.6)) * 1.1, 0.0, 1.0), sd = clamp(dot(n, vec3(-0.45, -0.56, 0.69)), 0.0, 1.0), spec = pow(sd, 160.0) + 0.25 * pow(sd, 24.0), spec2 = pow(clamp(dot(n, vec3(0.42, 0.5, 0.76)), 0.0, 1.0), 60.0);
+          L = (mix(col, vec3(1.0), 0.55) * cs * 1.0 * (0.35 + 0.65 * smoothstep(1.0, 0.25, r)) + col * exp(-r * r * 3.0) * 0.22) * (1.0 - smoothstep(0.86, 0.99, r)) + vec3(1.0) * (spec * 1.3 + spec2 * 0.35) * (1.0 - smoothstep(0.9, 0.99, r));
+          L += mix(col, vec3(0.8, 1.0, 1.0), 0.4) * exp(-sq((r - 0.95) / 0.07)) * 0.55; L *= v_q.x; }
+        else { float fall = exp(-r * r * 2.2) * (1.0 - smoothstep(0.7, 1.0, r)), cs = caus(u * vec2(7.5, 7.5) + vec2(v_q.y * 3.0 - 250.0), t * 0.45);
+          L = (mix(col, vec3(1.0), 0.4) * cs * 1.1 + col * 0.12) * fall * v_q.x; } }
+      else if (v_k < 27.5) { // foam and spray: a churning white cloud breaking into droplets as it spreads (v_q.z 0..1)
+        vec2 w = u + 0.3 * vec2(fbm(u * 2.0 + v_q.y) - 0.5, fbm(u * 2.0 + v_q.y + 4.0) - 0.5); float rr = length(w), an = atan(w.y, w.x), f = fbm(w * 3.2 + vec2(v_q.y, -t * 0.7)), g = fbm(vec2(an * 4.0 + v_q.y, rr * 5.0 - t * 1.5));
+        float dns = exp(-rr * rr * (2.2 + 1.5 * v_q.z)) * smoothstep(0.32 + 0.25 * v_q.z, 0.78, f) * (1.0 - 0.6 * v_q.z * exp(-rr * rr * 6.0));
+        vec2 cg = vec2(an * 7.0 + v_q.y, rr * 9.0 - t * 2.5 - v_q.z * 4.0), ci = floor(cg), cf = fract(cg) - 0.5 - (vec2(h1(ci + 3.1), h1(ci + 7.7)) - 0.5) * 0.5, df = cf * vec2(1.0, 1.6) / max(0.25, rr * 1.2);
+        float drops = step(0.72, h1(ci)) * (1.0 - smoothstep(0.06, 0.16, length(cf * vec2(rr * 4.0 + 0.6, 1.0)))) * smoothstep(0.15, 0.4, rr) * (1.0 - smoothstep(0.7, 0.95, rr));
+        L = (mix(col, vec3(1.0), 0.6) * dns * 0.75 + vec3(0.9, 1.0, 1.0) * drops * (0.4 + 0.6 * g) * 0.75) * v_q.x * (1.0 - smoothstep(0.75, 1.0, r)); }
+      else if (v_k < 28.5) { // a ripple spreading on the water or the floor (quad 1.3 times its radius): a bright wavering crest,
+        // smaller wavelets behind it, glints where the crest catches the light; v_q.x strength, v_q.z thickness
+        float rr = r * 1.3, th = max(0.03, v_q.z), d = rr - 1.0, nn = fbm(vec2(atan(u.y, u.x) * 2.5 + v_q.y, rr * 3.0 - t * 0.6)), crest = exp(-sq((d + (nn - 0.5) * 0.05) / (th * 0.35))), tr = 0.0;
+        for (int k = 1; k < 4; k++) { float fk = float(k); tr += exp(-sq((d + fk * th * 1.15 + (nn - 0.5) * 0.06) / (th * 0.25))) * (0.55 / fk); }
+        L = (mix(col, vec3(1.0), 0.45) * (crest + tr) + col * step(rr, 1.0) * exp(-sq(d / (th * 4.0))) * 0.15 + vec3(1.0) * smoothstep(0.68, 0.88, nn) * crest * 0.8) * v_q.x * (1.0 - smoothstep(1.12, 1.28, rr)); }
+      else { // the light on a stream of water (uv.x along): caustic glimmer, a glossy highlight with racing glints, a soft inner glow
+        float al = u.x * 0.5 + 0.5, ay = abs(u.y), cs = caus(vec2(al * 3.2 - t * 0.2 * v_q.z, u.y * 0.8) * 6.28 + vec2(v_q.y * 3.0 - 250.0), t * 0.6);
+        float env = (1.0 - smoothstep(0.5, 0.95, ay)) * smoothstep(0.0, 0.22, al) * (1.0 - smoothstep(0.78, 1.0, al)), sp = smoothstep(0.72, 0.95, n2(vec2(al * 30.0 - t * v_q.z * 2.0, u.y * 6.0 + v_q.y)));
+        L = (mix(col, vec3(0.7, 1.0, 1.0), 0.45) * cs * 0.4 + mix(col, vec3(1.0), 0.6) * exp(-sq((u.y + 0.4) / 0.09)) * (0.25 + 0.75 * sp) * 0.55 + col * exp(-u.y * u.y * 3.0) * 0.12 + mix(col, vec3(0.7, 1.0, 1.0), 0.5) * exp(-sq((ay - 0.78) / 0.1)) * 0.3) * env * v_q.x; } }
+    else if (v_k > 22.5) { // (v356) a vortex of energy in the quad's colour (as kind 14: log-spiral arms round a bright eye; v_q.z its turn)
       float rr = r, an = atan(u.y, u.x), sw = an + v_q.z * t + 2.4 * log(rr + 0.08), arms = 0.5 + 0.5 * cos(3.0 * sw);
       vec2 sp = vec2(cos(sw), sin(sw)) * (0.5 + rr * 2.6); float f = fbm(sp * 1.5 + vec2(v_q.y, -t * 0.6) + rr * 2.0), g = fbm(sp * 4.2 + vec2(t * 0.9, v_q.y * 1.7));
       float dns = (pow(arms, 1.5) * (0.5 + 0.75 * f) + 0.22 * f) * (1.0 - smoothstep(0.5, 1.0, rr)), temp = v_q.x * (1.12 - rr * 0.95) * (0.5 + 0.65 * f) + 0.3 * exp(-rr * rr * 30.0);
@@ -575,7 +621,7 @@ void main(){ vec2 u = v_uv; float r = length(u), m = 0.0, edge = 1.0 - smoothste
   const Q = { lit: new Float32Array(12 * 6 * 600), nl: 0, smk: new Float32Array(12 * 6 * 200), ns: 0, a: 1, b: 0, c0: 0, d: 1, e: 0, f: 0, k: 1, t: 0, W: 0, Hh: 0, pet: [0, 0, 0], gpu: true,
     X(x, y) { return this.a * x + this.c0 * y + this.e; }, Y(x, y) { return this.b * x + this.d * y + this.f; },
     /* one quad: centre (screen px), half-axes (ux, uy), (vx, vy) in screen px */
-    quad(kind, x, y, ux, uy, vx, vy, col, al, q0, q1, q2) { if (!(al > 0.004)) return; const solid = (kind >= 9 && kind <= 12) || kind === 16; let A = solid ? this.smk : this.lit; const n = solid ? this.ns : this.nl;
+    quad(kind, x, y, ux, uy, vx, vy, col, al, q0, q1, q2) { if (!(al > 0.004)) return; const solid = (kind >= 9 && kind <= 12) || kind === 16 || kind === 24 || kind === 25; let A = solid ? this.smk : this.lit; const n = solid ? this.ns : this.nl;
       if ((n + 6) * 12 > A.length) { const q = new Float32Array(A.length * 2); q.set(A); A = q; if (solid) this.smk = q; else this.lit = q; }
       const cx = this.X(x, y), cy = this.Y(x, y), a = this.a, b = this.b, c = this.c0, d = this.d, Ux = a * ux + c * uy, Uy = b * ux + d * uy, Vx = a * vx + c * vy, Vy = b * vx + d * vy, C = rgbOf(col); let o = n * 12;
       for (let j = 0; j < 6; j++) { const su = QV[j][0], sv = QV[j][1]; A[o++] = cx + Ux * su + Vx * sv; A[o++] = cy + Uy * su + Vy * sv; A[o++] = su; A[o++] = sv; A[o++] = kind; A[o++] = C[0]; A[o++] = C[1]; A[o++] = C[2]; A[o++] = al > 1 ? 1 : al; A[o++] = q0 || 0; A[o++] = q1 || 0; A[o++] = q2 || 0; }
@@ -598,6 +644,13 @@ void main(){ vec2 u = v_uv; float r = length(u), m = 0.0, edge = 1.0 - smoothste
     ewave(x, y, r, col, heat, a, seed, sy, th) { if (r > 1 && a > 0.01) this.quad(21, x, y, r * 1.3, 0, 0, r * 1.3 * (sy || 1), col, a, heat, seed || 0, th == null ? 0.18 : th); },
     evortex(x, y, r, col, heat, a, seed, spin, sy) { if (r > 0.5) this.quad(23, x, y, r, 0, 0, r * (sy || 1), col, a, heat, seed || 0, spin || 1); },
     etongue(x, y, w, h, rot, col, heat, a, seed) { if (h > 0.5) { const c = Math.cos(rot || 0), s = Math.sin(rot || 0); this.quad(22, x + s * h, y - c * h, c * w, s * w, -s * h, c * h, col, a, heat, seed || 0); } },
+    /* (v361) water: a sphere of water (body laid over, caustics, glints and rim light added), a stream (body + its light), caustic
+       light on the floor, foam and spray, a spreading ripple */
+    wsphere(x, y, r, col, a, seed, turn, dens, lite) { if (r > 0.5) { this.quad(24, x, y, r, 0, 0, r, col, a, dens == null ? 0.8 : dens, seed || 0, turn == null ? 1 : turn); this.quad(26, x, y, r, 0, 0, r, col, a, lite == null ? 0.9 : lite, seed || 0, 1); } },
+    wstream(x0, y0, x1, y1, w, col, a, seed, flow, dens, lite) { const dx = (x1 - x0) / 2, dy = (y1 - y0) / 2, L = Math.hypot(dx, dy); if (L < 0.5) return; const vx = -dy / L * w, vy = dx / L * w; this.quad(25, x0 + dx, y0 + dy, dx, dy, vx, vy, col, a, dens == null ? 0.85 : dens, seed || 0, flow == null ? 3 : flow); this.quad(29, x0 + dx, y0 + dy, dx, dy, vx, vy, col, a, lite == null ? 0.7 : lite, seed || 0, flow == null ? 3 : flow); },
+    caustic(x, y, r, col, a, seed, sy) { if (r > 0.5) this.quad(26, x, y, r, 0, 0, r * (sy || 1), col, a, 1, seed || 0, 0); },
+    spray(x, y, r, col, a, seed, spread, sy) { if (r > 0.5) this.quad(27, x, y, r, 0, 0, r * (sy || 1), col || '#CFF6FF', a, 1, seed || 0, spread || 0); },
+    ripple(x, y, r, col, a, seed, sy, th) { if (r > 1 && a > 0.01) this.quad(28, x, y, r * 1.3, 0, 0, r * 1.3 * (sy || 1), col, a, 1, seed || 0, th == null ? 0.12 : th); },
     shimmer(x, y, r, a, sy, col) { if (r > 0.5) this.quad(8, x, y, r, 0, 0, r * (sy || 1), col || '#FFA640', a); },
     smoke(x, y, r, a, seed, col, lit) { if (r > 0.5) this.quad(9, x, y, r, 0, 0, r, col || '#3A2E2A', a, lit || 0, seed || 0); },
     /* a comet trail of fire through screen points (head first), each stretch a fire-beam quad, tapering */

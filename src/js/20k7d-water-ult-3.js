@@ -96,6 +96,7 @@
         if (Rp < 2) return;
         // the dark water
         c.save(); c.globalAlpha = fa; c.drawImage(poolSpr(), X - Rp * 1.04, Y - Rp * 1.04 * GY, Rp * 2.08, Rp * 2.08 * GY); c.restore();
+        if (WK.on()) { const G = WK.api; G.pool(c, X, Y, Rp * 1.02, 0.55 * fa, { seed: 4.4, col: '#6FA8FF', glow: 0 }); for (let q = 0; q < 2; q++) { const u = (t * 0.35 + q / 2) % 1; G.ripple(c, X, Y, Rp * (0.3 + 0.75 * u), 0.35 * fa * (1 - u), { seed: q * 2.2, th: 0.08 }); } }   /* (v361: caustic light rippling over the starry water, on the GPU) */
         // moving reflections: two feathered discs of streaks turning slowly opposite ways (no tiles, no clip, no edges)
         c.save(); c.globalCompositeOperation = 'lighter';
         const sh = sheenSpr();
@@ -208,6 +209,9 @@
       spine(r, f, X, Y, T); const fa = cl(Math.min(f.t / 0.3, (r.lt + 0.85 - f.t) / 0.3));
       if (fa <= 0.01) return;
       const hv = (f.t * 0.45 + r.b / TAU) % 1;   // a highlight flowing up the band
+      if (WK.on()) { const G = WK.api; let run = [];   /* (v361: flowing water along the band, on the GPU) */
+        const go = () => { if (run.length > 1) G.stream(c, run, T * 0.2, fa * (front ? 0.85 : 0.5), { taper: 0, flow: 6, seed: r.b * 3, col: '#1F5FC8', dens: front ? 0.55 : 0.4, lite: front ? 0.8 : 0.45 }); run = []; };
+        for (let k = 0; k <= SEG; k += 2) { const p = pts[k]; if (!p || !p.vis || p.fr !== front) { go(); continue; } run.push([p.x, p.y - p.h - p.w * 0.5, p.w * 0.55]); } go(); }
       for (let k = 0; k < SEG; k++) { const p = pts[k], q = pts[k + 1]; if (!q.vis || p.fr !== front) continue; const u = k / SEG;
         const sh = 0.7 + 0.3 * Math.abs(p.a);   // the band turning edge-on at the sides reads denser
         const top0 = p.y - p.h - p.w, top1 = q.y - q.h - q.w, mid0 = p.y - p.h - p.w * 0.55, mid1 = q.y - q.h - q.w * 0.55;
@@ -245,6 +249,7 @@
         const t = f.t, fa = cl(Math.min(t / 0.4, (LIFE - t) / 0.8)), Rp = R * T * (0.4 + 0.6 * H.ease.out(cl(t / 0.5))), GY = H.GY;
         // the deep water and its darkening centre (deepens over the cast, gone by the end)
         const dk = fa * (0.55 + 0.45 * cl(t / DUR)) * (f.bt ? Math.max(0, 1 - (t - f.bt) / 0.5) : 1);
+        if (WK.on()) { const G = WK.api; G.whirl(c, X, Y, Rp * 1.12, 0.9 * fa, { spin: 2.4, seed: 3.7, col: '#1F5FC8', heat: 0.68 }); G.pool(c, X, Y, Rp * 1.2, 0.5 * fa, { seed: 1.3, glow: 0 }); }   /* (v361: the whirlpool turning on the GPU) */
         c.save(); c.globalAlpha = dk; c.drawImage(deepSpr(), X - Rp * 1.15, Y - Rp * 1.15 * GY, Rp * 2.3, Rp * 2.3 * GY);
         // the current: two feathered spiral discs turning, the inner one faster
         c.globalCompositeOperation = 'lighter';
