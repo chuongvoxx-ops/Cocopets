@@ -29,7 +29,7 @@ GAMES.dungeon = {
     const god = !!(st && st.dun && st.dun.god);
     let ST = party[0].ST;
     let SIZE = dunPetSize(P, formOf(P)), OY = 0.25 * SIZE;
-    const PET_K = 1.15;   // (v376b) the pet drawn 15% larger than its tile-based size (Giant keeps its x1.35 on top), the camera unchanged
+    const PET_K = 1.15 * 0.9;   // (v376b) the pet drawn larger than its tile-based size (Giant keeps its x1.35 on top), the camera unchanged; (v379) 10% smaller again
     const me = { x: M.start.x, y: M.start.y, r: 0.2 + 0.1 * SIZE, hp: ST.hp, mp: ST.mp, ax: 0, ay: -1, face: 1, inv: 0, hurtT: 9, dash: null, spin: null, leap: null, beam: null, dead: false, bob: 0, lvFx: 0, z: 0, vx: 0, vy: 0, dodge: null, chill: 0, push: null, tilt: 0, sq: 0, wx: M.start.x, wy: M.start.y };
     const g = { t: 0, frostbite: 0, ts: 1, hitStop: 0, slowT: 0, won: false, over: false, coins: 0, kills: 0, xp: 0, lvls: 0, combo: 0, comboT: 0, comboBest: 0, total: 0, normalT: 0.4, cdS: 0, cdS2: 0, cdS3: 0, cdU: 0, warpT: 0, stopT: 0, shieldT: 0, phoenixT: 0, flash: 0, flashC: '#FFFFFF', hurtV: 0, zoom: 1, zoomP: 1, zoomT: 0, intro: 2.4, boss: null, bossIntro: 0, lastHit: 0, ultReady: false, shownTips: {}, dodgeCd: 0, dodges: 0, perfects: 0, counterT: 0, buff: {}, guardHP: 0, guardMax: 1, dmgTaken: 0, gems: [], accs: [], gremlin: null, elapsed: 0, hpShow: 1, movedOnce: false, seenNew: {},
       taps: 0, tapBuf: 0, tapAim: null, tapFx: 0, pw: {}, pwT: 0, swordA: 0, eventT: 18 + Math.random() * 10, eventN: 0, bloodT: 0, bossWake: 0, cleared: false, stonesGot: 0, lastTapT: -9, food: {} };

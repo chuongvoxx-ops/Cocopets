@@ -60,18 +60,23 @@ const STAR6_STRONG = {
 const STAR6_ULT = {
   goldenage: { name: 'Golden Age', glyph: 'nova', cost: 100, cd: 20, desc: 'Light floods the room: you heal, every monster nearby turns to gold, and three seconds later they shatter.' },
   seraph: { name: 'Seraph Wings', glyph: 'feather', cost: 95, cd: 18, desc: 'Six wings of light sweep round you again and again while a golden shield guards you.' },
-  sunthrone: { name: 'Throne of the Sun', glyph: 'flame', cost: 95, cd: 18, desc: 'A small sun rises over you and burns monsters with golden rays, three at a time.' },
+  sunthrone: { name: 'Throne of the Sun', glyph: 'flame', cost: 95, cd: 18, desc: 'A small star of your element rises over you and strikes three monsters at a time: fire, frost, water, lightning or light.' },
   crownfall: { name: 'Crown of Stars', glyph: 'stars', cost: 100, cd: 20, desc: 'Thirty golden stars rain on the monsters around you, then a golden nova ends it.' },
 };
 const STAR_POOLS = { 4: { strong: STAR4_STRONG, ult: STAR4_ULT }, 5: { strong: STAR5_STRONG, ult: STAR5_ULT }, 6: { strong: STAR6_STRONG, ult: STAR6_ULT } };
 const GOLD_C = '#FFD447', GOLD_W = '#FFF6C8';
+/* (v379) Throne of the Sun's element variants */
+const ST_VAR = { fire: { col: '#FF5A1E', core: '#FFD27A' }, ice: { col: '#9FE4FF', core: '#E8FBFF' }, water: { col: '#2B78D0', core: '#CFF6FF' }, thunder: { col: '#FFD447', core: '#FFF6C8' }, light: { col: '#FF7AC8', core: '#FFE6F4' } };
 /* a five- or six-star pet's signature moves come from its own element's twenty (each pet its own pair, by its seed),
    and grow with every evolution. A six-star golden Legendary keeps a rare chance at a golden move instead. */
 const STAR6_GOLD_CHANCE = 0.08;
+const STAR_NO_SUN = new Set(['earth', 'wind', 'dark']);
 function starKit(stars, seed, e8) {
   const P = STAR_POOLS[stars]; if (!P) return null;
   const R = mulberry32(((seed || 1) ^ 0x5A5A57) >>> 0), sk = Object.keys(P.strong), uk = Object.keys(P.ult);
   const gold = { strong: sk[Math.floor(R() * sk.length)], ult: uk[Math.floor(R() * uk.length)] };
+  /* (v379) Throne of the Sun comes in fire, ice, water, lightning and light; an earth, wind or dark pet draws another golden Ult */
+  if (gold.ult === 'sunthrone' && e8 && STAR_NO_SUN.has(e8)) { const alt = uk.filter(k => k !== 'sunthrone'); gold.ult = alt[Math.floor(R() * alt.length)]; }
   if (stars < 5 || !e8 || typeof ELEM_MOVES === 'undefined' || !ELEM_MOVES[e8]) return gold;
   const R2 = mulberry32(((seed || 1) ^ 0x3E1E57) >>> 0), M = ELEM_MOVES[e8];
   const s = { key: M.strong[Math.floor(R2() * M.strong.length)][0], e8 }, u = { key: M.ult[Math.floor(R2() * M.ult.length)][0], e8 };
@@ -309,8 +314,70 @@ const DunStar = (() => {
               for (let i = 0; i < 12; i++) { const u = ((f.t * 0.9 + i / 12) % 1), b = f.t * 4 - u * 2.4 + (i % 6) / 6 * TAU, rr = T * (4.6 + u * 1.2); Q.etongue(PX + Math.cos(b) * rr, PY + Math.sin(b) * rr * SY - u * T * 1.2, T * 0.06, T * 0.22, b + u * 3, hue(i), 0.9, 0.6 * k * (1 - u), i * 3.7 + 90); } },
             draw2d(c, f, Xs, Ys, T) { const k = Math.min(1, f.t * 4, f.life * 3); c.save(); c.translate(X.sx(me.x), X.sy(me.y) - T * 0.5); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.85 * k; for (let i = 0; i < 6; i++) { const b = f.t * 4 + i / 6 * TAU; c.save(); c.scale(1, 0.75); c.rotate(b); const g2 = c.createLinearGradient(0, 0, T * 4.6, 0); g2.addColorStop(0, 'rgba(255,246,200,.0)'); g2.addColorStop(0.35, 'rgba(255,212,71,.75)'); g2.addColorStop(1, 'rgba(255,246,200,.05)'); c.fillStyle = g2; c.beginPath(); c.moveTo(T * 0.5, 0); c.quadraticCurveTo(T * 2.4, -T * 1.2, T * 4.6, -T * 0.25); c.quadraticCurveTo(T * 2.6, T * 0.1, T * 0.5, 0); c.fill(); c.restore(); } c.restore(); } });
           X.flash(0.35, GOLD_W); X.ring(me.x, me.y, 0.3, 4.6, 0.5, GOLD_C, 0.4); X.sfx.sparkle(); break; }
-        case 'sunthrone': add({ kind: 'sunthrone', life: up ? 10 : 8, tk: 0.2, update(dt, f) { f.tk -= dt; if (f.tk > 0) return; f.tk = 0.33; const tg = sortNear(me.x, me.y).filter(m => Math.hypot(m.x - me.x, m.y - me.y) < 9).slice(0, 3); tg.forEach(m => { X.zap(me.x, me.y - 2.2, m.x, m.y - 0.3, GOLD_C, 3); X.hitMon(m, base * 0.9 * K, dmgO({ el: 'fire', burn: 1 })); }); if (tg.length) X.light(me.x, me.y - 2, 6, 0.25); },
-            draw(c, f, Xs, Ys, T, t) { const k = Math.min(1, f.t * 3, f.life * 2), x = X.sx(me.x), y = X.sy(me.y) - T * 2.6; c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.8 * k; blitSized(c, glowSprite(GOLD_C), x - T * 1.8, y - T * 1.8, T * 3.6, T * 3.6); c.translate(x, y); c.rotate(t * 1.4); c.fillStyle = GOLD_C; for (let i = 0; i < 10; i++) { c.rotate(TAU / 10); c.beginPath(); c.moveTo(T * 0.4, -T * 0.09); c.lineTo(T * 0.95, 0); c.lineTo(T * 0.4, T * 0.09); c.fill(); } c.globalAlpha = k; c.fillStyle = GOLD_W; c.beginPath(); c.arc(0, 0, T * 0.42, 0, TAU); c.fill(); c.restore(); } }); X.flash(0.3, GOLD_W); X.sfx.hum(); break;
+        case 'sunthrone': { /* (v379) Throne of the Sun, rebuilt on the GPU in the pet's element: a small star rises over the pet and
+            strikes the three nearest monsters (within 9 tiles) every 0.33 s for 8 s (10 upgraded), base x 0.9 a strike. Fire: an
+            orange-red fireball crowned with flames, beams of red fire (and burning); ice: a pale blue star in a frost of crystal
+            spikes, shedding crystals, beams of frost (and chilling); water: a deep blue globe of water ringed by a turning
+            current, jets of water (knocking back); lightning: the golden sun as before, bolts of lightning; light: a pink prism
+            star in turning halos, pink lasers. Earth, wind and dark pets are not given it (starKit). Without the GPU, the old
+            sun in the element's colours, its strikes as lines of light */
+          const V = ST_VAR[typeof e8Of === 'function' ? e8Of(el) : 'thunder'] ? e8Of(el) : 'thunder', SP = ST_VAR[V], LIFT = 2.2;
+          const hitO = V === 'fire' ? { el: 'fire', burn: 1 } : V === 'ice' ? { chill: 1 } : V === 'water' ? { kb: 2 } : {};
+          add({ kind: 'sunthrone', life: up ? 10 : 8, tk: 0.35, V, beams: [], sd: Math.random() * 9,
+            update(dt, f) { for (let i = f.beams.length - 1; i >= 0; i--) { const b = f.beams[i]; b.t += dt; if (!b.m.dead) { b.x = b.m.x; b.y = b.m.y; } if (b.t >= b.max) f.beams.splice(i, 1); }
+              f.tk -= dt; if (f.tk > 0 || f.life < 0.3) return; f.tk = 0.33;
+              const tg = sortNear(me.x, me.y).filter(m => Math.hypot(m.x - me.x, m.y - me.y) < 9).slice(0, 3);
+              tg.forEach(m => { f.beams.push({ m, x: m.x, y: m.y, t: 0, max: V === 'water' ? 0.32 : V === 'light' ? 0.24 : 0.28, sd: Math.random() * 20 }); X.hitMon(m, base * 0.9 * K, dmgO(hitO));
+                if (V === 'thunder') X.zap(me.x, me.y - LIFT, m.x, m.y - 0.3, SP.col, 3);
+                for (let q = 0; q < 4; q++) { const b = Math.random() * TAU, v = 2 + Math.random() * 3;
+                  X.part(V === 'fire' ? { kind: 'ember', x: m.x, y: m.y - 0.3, vx: Math.cos(b) * v, vy: -2 - Math.random() * 3, life: 0.5, max: 0.5, size: 5, color: q % 2 ? '#FF5A1E' : '#FFD27A' }
+                    : V === 'ice' ? { kind: 'shard', x: m.x, y: m.y - 0.4, vx: Math.cos(b) * v, vy: -3 - Math.random() * 3, g: 12, life: 0.5, max: 0.5, size: 3, rot: q, vr: 9, color: q % 2 ? '#E8FBFF' : '#9FE4FF' }
+                    : V === 'water' ? { kind: 'bubble', x: m.x, y: m.y - 0.4, vx: Math.cos(b) * v * 0.6, vy: -2 - Math.random() * 2, life: 0.5, max: 0.5, size: 3 + Math.random() * 3, color: '#CFF6FF' }
+                    : { kind: 'spark', x: m.x, y: m.y - 0.3, vx: Math.cos(b) * v, vy: Math.sin(b) * v, life: 0.3, max: 0.3, size: 2, color: V === 'light' ? '#FFB3E0' : SP.col }); } });
+              if (tg.length) X.light(me.x, me.y - 2, 6, 0.25); },
+            draw(c, f, Xs, Ys, T, t) { const Q = GQ(); if (!Q) return f.draw2d(c, T, t);
+              const k = Math.min(1, f.t * 2.5, f.life * 2), rise = 1 - Math.pow(1 - Math.min(1, f.t / 0.5), 3), PX = X.sx(me.x), GY = X.sy(me.y), OX = PX, OY = GY - T * (0.6 + 2.0 * rise), R = T * 0.62 * (0.4 + 0.6 * rise), sd = f.sd;
+              Q.glow(PX, GY, T * 3.2, SP.col, 0.28 * k, 0.5); Q.beam(PX, GY - T * 0.6, OX, OY + R * 0.6, T * 0.06, SP.col, 0.25 * k);
+              const ends = f.beams.map(b => { const u = b.t / b.max; return { b, u, a: Math.pow(1 - u, 0.7) * k, x: X.sx(b.x), y: X.sy(b.y) - T * 0.3 }; });
+              const chain = (x1, y1, w, fn) => { const L = Math.hypot(x1 - OX, y1 - OY); if (L < 2) return; const n = Math.max(1, Math.min(12, Math.ceil(L / (w * 2.2)))), dx = (x1 - OX) / n, dy = (y1 - OY) / n; for (let i = 0; i < n; i++) fn(OX + dx * i - dx * 0.25, OY + dy * i - dy * 0.25, OX + dx * (i + 1) + dx * 0.25, OY + dy * (i + 1) + dy * 0.25, i, n); };
+              if (V === 'fire') {
+                Q.glow(OX, OY, R * 3.4, '#FF3A12', 0.3 * k); Q.smoke(OX, OY, R * 1.2, 0.55 * k, sd, '#7A1404');
+                for (const e of ends) { const w = T * 0.34; chain(e.x, e.y, w, (a0, b0, a1, b1, i) => { Q.firebody(a0, b0, a1, b1, w * 0.8, 0.55, 0.75 * e.a, e.b.sd + i * 0.7, 9); Q.firebeam(a0, b0, a1, b1, w * 1.15, 0.72, e.a, e.b.sd + i * 0.7, 9); }); Q.fire(e.x, e.y, T * (0.5 + 0.5 * e.u), 0.7, e.a, e.b.sd); Q.glow(e.x, e.y, T * 1.2, '#FF3A12', 0.35 * e.a); }
+                for (let j = 0; j < 12; j++) { const an = j / 12 * TAU + t * 0.9, L = R * (0.75 + 0.45 * Math.sin(t * 9 + j * 2.1)); Q.tongue(OX + Math.cos(an) * R * 0.7, OY + Math.sin(an) * R * 0.7, R * 0.32, L, an + Math.PI / 2, 0.62, 0.95 * k, sd + j * 1.3); }
+                Q.fire(OX, OY, R * 1.25, 0.72, k, sd); Q.eorb(OX, OY, R * 0.6, '#FF7A2E', 0.85, 0.75 * k, sd, 2);
+              } else if (V === 'ice') {
+                Q.smoke(OX, OY, R * 1.25, 0.75 * k, sd, '#1E5E93'); Q.glow(OX, OY, R * 3.4, '#7FD3F2', 0.3 * k);
+                for (const e of ends) { const w = T * 0.26; chain(e.x, e.y, w, (a0, b0, a1, b1, i) => { Q.ebeam(a0, b0, a1, b1, w, '#5FC3EE', 0.6, 0.95 * e.a, e.b.sd + i, 10); }); Q.beam(OX, OY, e.x, e.y, T * 0.04, '#E8FBFF', 0.45 * e.a);
+                  for (let q = 1; q <= 4; q++) { const u2 = q / 5, cx = OX + (e.x - OX) * u2, cy = OY + (e.y - OY) * u2; Q.star(cx, cy, T * 0.22, 0.8 * e.a, '#E8FBFF'); }
+                  Q.ewave(e.x, e.y + T * 0.3, T * (0.4 + 1.1 * e.u), '#9FE4FF', 0.8, 0.6 * e.a, e.b.sd, 0.55, 0.16); for (let q = 0; q < 5; q++) { const an = q / 5 * TAU + e.b.sd, L = T * (0.35 + 0.6 * e.u); Q.ebeam(e.x, e.y, e.x + Math.cos(an) * L, e.y + Math.sin(an) * L * 0.8, T * 0.07, '#E8FBFF', 0.9, 0.85 * e.a, q, 4); } }
+                for (let j = 0; j < 12; j++) { const an = j / 12 * TAU + t * 0.35, big = j % 2 === 0, L = R * (big ? 2.0 + 0.15 * Math.sin(t * 3 + j) : 1.3), x0 = OX + Math.cos(an) * R * 0.45, y0 = OY + Math.sin(an) * R * 0.45, x1 = OX + Math.cos(an) * L, y1 = OY + Math.sin(an) * L;
+                  Q.ebeam(x0, y0, x1, y1, R * (big ? 0.24 : 0.14), '#5FC3EE', 0.55, 0.95 * k, sd + j, 3); Q.beam(x0, y0, x1, y1, R * 0.035, '#E8FBFF', 0.5 * k); if (big) Q.star(x1, y1, R * 0.3, 0.6 * k, '#E8FBFF'); }
+                for (let j = 0; j < 10; j++) { const u = (t * 0.7 + j / 10) % 1, an = j * 2.39 + sd, rr = R * (1.2 + 3.2 * u), cx = OX + Math.cos(an) * rr, cy = OY + Math.sin(an) * rr * 0.85 + u * T * 0.6, sp = t * 4 + j, L = T * 0.16;
+                  Q.ebeam(cx - Math.cos(sp) * L, cy - Math.sin(sp) * L, cx + Math.cos(sp) * L, cy + Math.sin(sp) * L, T * 0.06, '#E8FBFF', 0.9, 0.85 * k * (1 - u), j, 2); }
+                Q.eorb(OX, OY, R * 0.95, '#6FCBF2', 0.6, 0.9 * k, sd, 2); Q.star(OX, OY, R * 0.9, 0.5 * k, '#E8FBFF');
+              } else if (V === 'water') {
+                Q.glow(OX, OY, R * 3.2, '#2F7FD8', 0.35 * k);
+                for (const e of ends) { const w = T * 0.3, sw = 1 - e.u * 0.5; chain(e.x, e.y, w, (a0, b0, a1, b1, i) => { Q.wstream(a0, b0, a1, b1, w * sw, '#2B78D0', e.a, e.b.sd + i * 0.37, 7, 0.9, 0.85); }); Q.spray(e.x, e.y, T * (0.7 + 0.6 * e.u), '#CFF6FF', e.a, e.b.sd, 1); Q.ripple(e.x, e.y + T * 0.3, T * (0.5 + 1.3 * e.u), '#9FD8FF', 0.7 * e.a, e.b.sd, 0.5); }
+                Q.wring(OX, OY, R * 1.75, R * 0.55, -0.3, '#4FA8F0', 0.85 * k, 0, 0.12, sd, 1.4);
+                Q.wsphere(OX, OY, R * 1.15, '#1F5FA8', k, sd, 1.3, 0.95, 0.95);
+                Q.wring(OX, OY, R * 1.75, R * 0.55, -0.3, '#4FA8F0', 0.85 * k, 1, 0.12, sd, 1.4);
+              } else if (V === 'light') {
+                Q.glow(OX, OY, R * 3.4, '#FF5FB8', 0.28 * k); Q.smoke(OX, OY, R * 1.1, 0.65 * k, sd, '#8E1F5E');
+                for (const e of ends) { const fl = 0.8 + 0.2 * Math.sin(t * 70 + e.b.sd), w = T * 0.2 * fl * (1 - e.u * 0.5); Q.ebeam(OX, OY, e.x, e.y, w * 1.2, '#FF3FA8', 0.7, e.a, e.b.sd, 16); Q.beam(OX, OY, e.x, e.y, w * 0.25, '#FFE6F4', 0.7 * e.a); Q.glow(e.x, e.y, T * 1.1, '#FF3FA8', 0.4 * e.a); Q.star(e.x, e.y, T * 0.6 * (1 - e.u * 0.5), 0.7 * e.a, '#FFE6F4'); Q.glow(OX, OY, R * 1.6, '#FF5FB8', 0.25 * e.a); }
+                for (let j = 0; j < 8; j++) { const an = j / 8 * TAU - t * 0.6, L = R * (1.7 + 0.25 * Math.sin(t * 5 + j)); Q.beam(OX + Math.cos(an) * R * 0.5, OY + Math.sin(an) * R * 0.5, OX + Math.cos(an) * L, OY + Math.sin(an) * L, R * 0.07, j % 2 ? '#FFB3E0' : '#FF5FB8', 0.7 * k); }
+                Q.ring(OX, OY, R * 1.5, '#FF5FB8', 0.85 * k, R * 0.09, 0.35); Q.ring(OX, OY, R * 1.25, '#FFB3E0', 0.7 * k, R * 0.05, 0.35 + 0.15 * Math.sin(t * 2));
+                Q.eorb(OX, OY, R * 0.9, '#FF4FAE', 0.72, 0.95 * k, sd, 3); Q.star(OX, OY, R * 0.9, 0.55 * k, '#FFE6F4');
+              } else {
+                Q.glow(OX, OY, R * 3.4, '#FFD447', 0.45 * k);
+                for (const e of ends) { Q.glow(e.x, e.y, T * 1.1, '#FFD447', 0.5 * e.a); Q.star(e.x, e.y, T * 0.7, 0.8 * e.a, '#FFFFFF'); }
+                for (let j = 0; j < 10; j++) { const an = j / 10 * TAU + t * 1.4, L = R * (1.35 + 0.15 * Math.sin(t * 11 + j)); Q.etongue(OX + Math.cos(an) * R * 0.6, OY + Math.sin(an) * R * 0.6, R * 0.2, L * 0.5, an + Math.PI / 2, '#FFD447', 0.95, 0.9 * k, sd + j); }
+                for (let j = 0; j < 3; j++) { const ph = Math.floor(t * 14 + j * 3.7), an = ph * 2.4 + j * 2.1, r0 = R * 0.9, r1 = R * 1.9; let px = OX + Math.cos(an) * r0, py = OY + Math.sin(an) * r0; for (let q = 1; q <= 3; q++) { const rr = r0 + (r1 - r0) * q / 3, aa = an + Math.sin(ph * 7.3 + q * 4.1) * 0.35, nx = OX + Math.cos(aa) * rr, ny = OY + Math.sin(aa) * rr; Q.ebeam(px, py, nx, ny, R * 0.08, '#FFF0A0', 1.0, 0.8 * k, ph + q, 6); px = nx; py = ny; } }
+                Q.eorb(OX, OY, R * 0.8, '#FFD447', 1.0, 0.95 * k, sd, 2); Q.star(OX, OY, R * 1.3, 0.8 * k, '#FFFFFF');
+              } },
+            draw2d(c, T, t) { const f = this, k = Math.min(1, f.t * 3, f.life * 2), x = X.sx(me.x), y = X.sy(me.y) - T * 2.6; c.save(); c.globalCompositeOperation = 'lighter';
+              if (V !== 'thunder') { c.strokeStyle = SP.col; c.lineCap = 'round'; for (const b of f.beams) { const a = Math.pow(1 - b.t / b.max, 0.7) * k; c.globalAlpha = a; c.lineWidth = T * 0.2; c.beginPath(); c.moveTo(x, y); c.lineTo(X.sx(b.x), X.sy(b.y) - T * 0.3); c.stroke(); c.strokeStyle = '#FFFFFF'; c.lineWidth = T * 0.06; c.stroke(); c.strokeStyle = SP.col; } }
+              c.globalAlpha = 0.8 * k; blitSized(c, glowSprite(SP.col), x - T * 1.8, y - T * 1.8, T * 3.6, T * 3.6); c.translate(x, y); c.rotate(t * 1.4); c.fillStyle = SP.col; for (let i = 0; i < 10; i++) { c.rotate(TAU / 10); c.beginPath(); c.moveTo(T * 0.4, -T * 0.09); c.lineTo(T * 0.95, 0); c.lineTo(T * 0.4, T * 0.09); c.fill(); } c.globalAlpha = k; c.fillStyle = SP.core; c.beginPath(); c.arc(0, 0, T * 0.42, 0, TAU); c.fill(); c.restore(); } });
+          X.flash(0.25, SP.core); X.sfx.hum(); break; }
         case 'crownfall': { const n = up ? 42 : 30; for (let i = 0; i < n; i++) X.after(i * 0.07, () => { const tg = near(me.x, me.y, 10), m = tg.length ? tg[Math.floor(Math.random() * tg.length)] : null, x = m ? m.x + (Math.random() - 0.5) : me.x + (Math.random() - 0.5) * 10, y = m ? m.y + (Math.random() - 0.5) : me.y + (Math.random() - 0.5) * 8; warn(x, y, 1.3, 0.5, GOLD_C, () => { X.part({ kind: 'star', x, y: y - 0.3, vx: 0, vy: 0, life: 0.3, max: 0.3, size: 14, color: GOLD_C }); X.boom(x, y, 1.3, GOLD_C, '#FFFFFF', { n: 10, shake: 3, smoke: 1 }); X.hitArea(x, y, 1.3, base * 1.35 * K, dmgO()); }); for (let k = 0; k < 3; k++) X.part({ kind: 'star', x: x + 2 - k * 0.6, y: y - 5 + k * 1.5, vx: -4, vy: 10, life: 0.5, max: 0.5, size: 6, color: GOLD_W }); });
           X.after(n * 0.07 + 0.6, () => { X.hitArea(me.x, me.y, 8, base * 3.2 * K, dmgO({ kb: 5, stun: 1 })); X.boom(me.x, me.y, 5, GOLD_C, '#FFFFFF', { n: 50, shake: 16, smoke: 4 }); for (let i = 0; i < 3; i++) X.ring(me.x, me.y, 0.3, 8 + i * 1.5, 0.7 + i * 0.1, i ? GOLD_C : '#FFFFFF', 0.5); X.flash(0.8, GOLD_W); X.hitstop(0.1); X.sfx.crash(); }); X.sfx.sparkle(); break; }
         case 'prime': X.supernova(up ? 15 : 12); add({ kind: 'sun', life: up ? 8 : 6, hits: new Map(), update(dt, f) { const b = f.t * 2.2, x = me.x + Math.cos(b) * 2.6, y = me.y + Math.sin(b) * 2.0; f.x = x; f.y = y; for (const m of near(x, y, 1.1)) { const l = f.hits.get(m); if (l != null && f.t - l < 0.3) continue; f.hits.set(m, f.t); X.hitMon(m, base * 1.2 * K, dmgO({ el: 'fire', burn: 1 })); } if (Math.random() < 0.6) X.part({ kind: 'ember', x, y, vx: (Math.random() - 0.5) * 3, vy: -2, life: 0.5, max: 0.5, size: 5, color: '#FFE37A' }); }, draw(c, f, Xs, Ys, T, t) { if (f.x == null) return; const x = X.sx(f.x), y = X.sy(f.y) - T * 0.5, r = T * 0.9; c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.8; blitSized(c, glowSprite('#FF9F43'), x - r * 2.4, y - r * 2.4, r * 4.8, r * 4.8); c.globalCompositeOperation = 'source-over'; const gr = c.createRadialGradient(x - r * 0.3, y - r * 0.3, 0, x, y, r); gr.addColorStop(0, '#FFFFFF'); gr.addColorStop(0.5, '#FFE37A'); gr.addColorStop(1, '#FF6A1E'); c.fillStyle = gr; c.beginPath(); c.arc(x, y, r * (1 + 0.06 * Math.sin(t * 9)), 0, TAU); c.fill(); c.restore(); } }); break;
