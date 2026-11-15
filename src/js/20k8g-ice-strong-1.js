@@ -369,6 +369,11 @@
             H.X.shake(2.5 + b.sc * 1.5, 0.1); if (b.sc > 1.5) { H.X.flash(0.1, P.frost); H.X.hitstop(0.04); H.X.sfx.crash(); } else H.X.sfx.crack(); }); } } },
       fans: [],
       drawUnder(c, f, X, Y, T, t) {
+        // (v360) on the GPU the tracks are thin threads of cold light, ethereally soft: a faint wide glow, a thin bright line in it, fading behind, no edges
+        if (K.gq()) { const Q = K.gq(); for (const b of blades) { const n = b.pts.length; if (n < 2) continue; const S2 = b.pts.map(q => { const p = K.gpuXY(c, H.sx(q[0]), H.sy(q[1])); return [p[0], p[1], cl(1 - (f.t - q[2] - 0.35) / 0.55)]; });
+            for (let i = 1; i < n; i++) { const p0 = S2[i - 1], q = S2[i], al = Math.min(p0[2], q[2]) * Math.min(1, i / 3); if (al <= 0.01) continue; const dx = q[0] - p0[0], dy = q[1] - p0[1];
+              Q.beam(p0[0] - dx * 0.2, p0[1] - dy * 0.2, q[0] + dx * 0.2, q[1] + dy * 0.2, T * 0.16 * b.sc, '#5FC8F0', 0.22 * al); Q.ebeam(p0[0] - dx * 0.3, p0[1] - dy * 0.3, q[0] + dx * 0.3, q[1] + dy * 0.3, T * 0.045 * b.sc, '#9FEAFF', 0.9, 0.7 * al, b.i * 9 + i * 0.6, 6); Q.beam(p0[0] - dx * 0.15, p0[1] - dy * 0.15, q[0] + dx * 0.15, q[1] + dy * 0.15, T * 0.012 * b.sc + 0.5, '#FFFFFF', 0.6 * al); if (i % 4 === 0) Q.star(q[0], q[1], T * 0.12, 0.6 * al, '#FFFFFF'); } } }
+        else {
         // the frosted tracks: a narrow clear groove between two powdered white edges, lit from below, fading behind
         c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.lineJoin = 'round';
         for (const b of blades) { const n = b.pts.length; if (n < 2) continue; const S2 = b.pts.map(q => [H.sx(q[0]), H.sy(q[1]), cl(1 - (f.t - q[2] - 0.35) / 0.5)]);
@@ -377,7 +382,7 @@
           c.lineCap = 'round'; for (let i = 1; i < n; i++) { const p0 = S2[i - 1], q = S2[i], al = q[2]; if (al <= 0) continue; const ax = p0[0], ay = p0[1], bx = q[0], by = q[1], ang = Math.atan2(by - ay, bx - ax), nx = -Math.sin(ang) * T * 0.15 * b.sc, ny = Math.cos(ang) * T * 0.15 * b.sc * 0.7;
             c.globalAlpha = 0.85 * al; c.strokeStyle = P.frost; c.lineWidth = Math.max(1.2, T * 0.035); c.beginPath(); c.moveTo(ax + nx, ay + ny); c.lineTo(bx + nx, by + ny); c.moveTo(ax - nx, ay - ny); c.lineTo(bx - nx, by - ny); c.stroke();
             if (i % 3 === 0) { c.globalAlpha = 0.55 * al; c.strokeStyle = P.cyan; c.lineWidth = 1; c.beginPath(); c.moveTo(bx + nx, by + ny); c.lineTo(bx + nx * 2.2 + Math.cos(ang) * T * 0.15, by + ny * 2.2 + Math.sin(ang) * T * 0.1); c.moveTo(bx - nx, by - ny); c.lineTo(bx - nx * 2.2 + Math.cos(ang) * T * 0.15, by - ny * 2.2 + Math.sin(ang) * T * 0.1); c.stroke(); } } }
-        c.restore();
+        c.restore(); }
         for (const b of blades) if (b.x != null && !(b.done && f.t - b.end > 0.3)) K.floorLight(c, H.sx(b.x), H.sy(b.y), T * 0.9 * b.sc, 0.55, P.cyan);
         floorRings(c, f.rings, f.t, T, t); },
       draw(c, f, X, Y, T, t) { const spr = bladeSprite();
