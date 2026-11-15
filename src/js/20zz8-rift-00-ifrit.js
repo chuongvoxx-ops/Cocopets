@@ -294,8 +294,14 @@ const CAL_IFRIT = (() => {
      nod (rad), shout (the head thrown back, the arms wide: a roar), recoil (and recoilS, the side struck), heat (the
      core's light: 0.5 idle, 1 bright), flare (the horns), bfL / bfR (the blackfire in each side's armour), frac (the
      outer armour breaking away: 0 whole, 1 gone), cracks (glowing cracks across the outer plates before they go),
-     dead (0 .. 1 cooling to a dark statue), alpha */
-  const CH = ['sit', 'crouch', 'kneel', 'plant', 'lean', 'twist', 'liftL', 'liftR', 'slamL', 'slamR', 'fistL', 'fistR', 'cleaveW', 'cleaveS', 'breath', 'jaw', 'inhale', 'open', 'gaitK', 'look', 'nod', 'shout', 'recoil', 'heat', 'flare', 'bfL', 'bfR', 'frac', 'cracks', 'dead'];
+     dead (0 .. 1 cooling to a dark statue), alpha.
+     The motion (v387): aim (rad, the torso turned ahead of the hips toward what he means to strike), tilt (rad, the head
+     cocked as he studies the pet), arch (the back bowed, the head thrown up: Hellfire's roar), drop (the hips sinking as
+     a foot takes his weight), shift (-1..1, the weight over the right / left foot), swing (-1..1, the arms' swing with the
+     stride), menace (0..1: the idle's shoulder roll and claw flex), claw (0..1 the claws curled), drag (the right hand
+     trailing along the floor: the third act's prowl), cleaveR (the cleave's arm drawn back in after its follow-through),
+     fL / fR ([x, y, lift, yaw] each foot in the body frame, planted on the floor by the fight's stepping) */
+  const CH = ['sit', 'crouch', 'kneel', 'plant', 'lean', 'twist', 'liftL', 'liftR', 'slamL', 'slamR', 'fistL', 'fistR', 'cleaveW', 'cleaveS', 'breath', 'jaw', 'inhale', 'open', 'gaitK', 'look', 'nod', 'shout', 'recoil', 'heat', 'flare', 'bfL', 'bfR', 'frac', 'cracks', 'dead', 'aim', 'tilt', 'arch', 'drop', 'shift', 'swing', 'menace', 'claw', 'drag', 'cleaveR', 'sway'];
   function blankPose() { const P = { alpha: 1, gait: 0, slamX: 2.9, slamY: 0, recoilS: 1 }; for (const k of CH) P[k] = 0; P.heat = 0.6; return P; }
   /* debris: where each outer plate flies as the armour breaks (body frame, per tile of its own): out, up, a tumble */
   const FLY = { pecL: [[1.6, -1.2, 1.4], [0.6, 1.0, 0.3]], pecR: [[1.6, 1.2, 1.2], [-0.5, 1.0, -0.4]], abs: [[1.8, 0.2, 0.6], [0.3, 1.2, 0.2]], paulOL: [[-0.2, -1.9, 1.6], [1.1, 0.2, 0.6]], paulOR: [[0.2, 1.9, 1.8], [-1.0, 0.3, -0.5]], spikesB: [[-1.7, 0.3, 1.5], [0.4, 1.0, 0.2]] };
@@ -304,16 +310,20 @@ const CAL_IFRIT = (() => {
     const I = (name, part, R, o, ex) => { const it = { name, part, R, o, s: 1, al: 1, glow: 0, glow2: 0, spill: 0, kind: 0 }; if (ex) Object.assign(it, ex); inst.push(it); return it; };
     const br = Math.sin(t * 1.25) * live, br2 = Math.sin(t * 0.61 + 1) * live;
     const sit = ease(P.sit || 0), kn = ease(P.kneel || 0), pl = ease(P.plant || 0), cr = P.crouch || 0, sl = Math.max(P.slamL || 0, P.slamR || 0), lift = Math.max(P.liftL || 0, P.liftR || 0), sh = ease(P.shout || 0), rc = (P.recoil || 0) * (P.recoilS || 1);
-    const gk = (P.gaitK || 0) * (1 - sit) * (1 - kn) * (1 - pl), gph = (P.gait || 0) * TAU;
+    const gk = (P.gaitK || 0) * (1 - sit) * (1 - kn) * (1 - pl), planted = !!P.fL, gph = (P.gait || 0) * TAU;
+    // (planted feet: the stride's swing and weight come from the stepping; else, for the art poses, a stride of its own)
+    const swing = planted ? (P.swing || 0) : Math.sin(gph) * gk, shift = planted ? (P.shift || 0) : 0, drop = P.drop || 0, arch = P.arch || 0, men = (P.menace || 0) * live;
     /* the pelvis and the torso */
-    let hz = HZ - 0.34 * cr - 0.3 * sl - 0.05 * Math.abs(Math.sin(gph)) * gk * 2 + 0.06 * lift;
+    // (a far blow: the whole body lunges after the fist, the hips thrown forward, the torso bowed over it, so the knuckles meet the marked spot)
+    const reachK = sl * cl(((P.slamX == null ? 2.9 : P.slamX) - 1.4) / 2.0);
+    let hz = HZ - 0.34 * cr - 0.3 * sl - 0.28 * reachK - (planted ? 0.15 * drop : 0.05 * Math.abs(Math.sin(gph)) * gk * 2) + 0.16 * lift;
     hz = lerp(hz, 1.62, sit); hz = lerp(hz, 1.5, kn); hz = lerp(hz, 1.85, pl);
-    const P0 = [lerp(0, -0.32, sit) + 0.18 * pl - 0.1 * kn + 0.04 * Math.sin(gph * 2) * gk, 0.05 * Math.sin(gph) * gk, hz + 0.03 * br];
-    const tw = (P.twist || 0) + 0.12 * Math.sin(gph) * gk - 0.18 * rc;
-    const pitch = (P.lean || 0) + 0.7 * pl + 0.42 * kn - 0.14 * sit + 0.03 * br + 0.42 * sl - 0.12 * lift - 0.32 * sh + 0.1 * (P.breath || 0) + 0.06 * gk - 0.12 * Math.abs(rc) + 0.06 * (P.cleaveS > 0 ? Math.sin(P.cleaveS * Math.PI) : 0);
-    const roll = 0.05 * Math.sin(gph) * gk + 0.08 * rc + 0.1 * kn;
-    const Rp = rotZ(tw * 0.35), Rt = mm(rotZ(tw), mm(rotX(roll), rotY(pitch)));
-    const ts = 1 + 0.03 * (P.inhale || 0) + 0.008 * br;
+    const sway = P.sway || 0, P0 = [lerp(0, -0.32, sit) + 0.18 * pl - 0.1 * kn + 1.2 * reachK - 0.25 * lift + (planted ? 0 : 0.04 * Math.sin(gph * 2) * gk), (planted ? 0.13 * shift : 0.05 * Math.sin(gph) * gk) + 0.14 * sway, hz + 0.02 * br - 0.04 * Math.abs(sway)];
+    const tw = (P.twist || 0) + (P.aim || 0) + 0.1 * swing - 0.18 * rc;
+    const pitch = (P.lean || 0) + 0.7 * pl + 0.42 * kn - 0.14 * sit + 0.025 * br + 0.42 * sl + 0.5 * reachK - 0.16 * lift - 0.32 * sh + 0.1 * (P.breath || 0) + 0.06 * gk - 0.12 * Math.abs(rc) + 0.06 * (P.cleaveS > 0 ? Math.sin(P.cleaveS * Math.PI) : 0) - 0.4 * arch + 0.04 * drop;
+    const roll = 0.05 * swing + 0.07 * shift + 0.06 * sway + 0.08 * rc + 0.1 * kn;
+    const Rp = rotZ((P.twist || 0) * 0.35 + (P.aim || 0) * 0.3 + 0.06 * swing), Rt = mm(rotZ(tw), mm(rotX(roll), rotY(pitch)));
+    const ts = 1 + 0.045 * (P.inhale || 0) + 0.006 * br;
     const toT = p => vadd(P0, mv(Rt, vmul(p, ts)));
     const heat = Math.max(0, (P.heat == null ? 0.6 : P.heat)) * live, core = heat * (1 + 0.55 * (P.inhale || 0) + 0.35 * (P.open || 0)) * (1 + 0.06 * br);
     const bfL = cl(P.bfL || 0) * live, bfR = cl(P.bfR || 0) * live, bfM = (bfL + bfR) / 2, cracks = cl(P.cracks || 0), frac = cl(P.frac || 0), flare = cl(P.flare || 0) * live;
@@ -329,8 +339,8 @@ const CAL_IFRIT = (() => {
     I('pelvis', 'pelvis', Rp, vsub(P0, [0, 0, 0.02]), Object.assign({}, plateEx(0)));
     A.core = toT([0.7, 0, 1.6]); A.chest = toT([0.85, 0, 1.7]); A.pelvis = P0;
     /* the head */
-    const N = toT(NECK), Hh = toT(HEAD), look = P.look || 0, nod = (P.nod || 0) - pitch * 0.62 - sh * 0.55 + 0.22 * (P.breath || 0) - 0.08 * (P.inhale || 0) + 0.04 * br2 + 0.25 * kn * dead;
-    const Rh = mm(Rt, mm(rotZ(look), rotY(nod)));
+    const N = toT(NECK), Hh = toT(HEAD), look = P.look || 0, nod = (P.nod || 0) - pitch * 0.62 - sh * 0.55 + 0.22 * (P.breath || 0) - 0.08 * (P.inhale || 0) + 0.03 * br2 + 0.25 * kn * dead - 0.3 * arch;
+    const Rh = mm(Rt, mm(rotZ(look), mm(rotX(P.tilt || 0), rotY(nod))));
     I('head', 'head', Rh, Hh, { s: HS, glow: heat * (1 + 0.3 * (P.breath || 0)), glow2: flare, spill: bfM, fx: dead, kind: 2 });
     const jaw = cl((P.jaw || 0) + 0.08 * Math.max(0, br) * live), Rj = mm(Rh, rotY(jaw * 0.5)), Jo = vadd(Hh, mv(Rh, vmul([0.06, 0, -0.14], HS)));
     I('jaw', 'jaw', Rj, Jo, { s: HS, glow: heat * (1 + 0.8 * jaw), fx: dead });
@@ -338,20 +348,21 @@ const CAL_IFRIT = (() => {
     for (const s of [-1, 1]) { A[s < 0 ? 'eyeL' : 'eyeR'] = vadd(Hh, mv(Rh, vmul([0.5, s * 0.17, 0.1], HS))); A[s < 0 ? 'hornL' : 'hornR'] = vadd(Hh, mv(Rh, vmul([0.24, s * 0.86, 2.0], HS))); }
     A.neck = N;
     /* the arms */
-    for (const s of [-1, 1]) { const sn = s < 0 ? 'L' : 'R', S = toT(SH(s));
-      // where the hand goes: blended from the poses, in the body frame (x forward)
-      let h = [0.5 + 0.08 * br2, s * 1.58, 1.82 + 0.06 * br + 0.18 * gk * Math.sin(gph + (s > 0 ? 0 : Math.PI))];
-      h[0] += 0.4 * gk * Math.sin(gph + (s > 0 ? 0 : Math.PI));
+    for (const s of [-1, 1]) { const sn = s < 0 ? 'L' : 'R', roll2 = men * Math.sin(t * 0.85 + (s > 0 ? 0 : 2.2)), S = toT(vadd(SH(s), [0.13 * roll2, 0, 0.13 * roll2 + 0.05 * men + 0.1 * (P.inhale || 0)]));
+      // where the hand goes: blended from the poses, in the body frame (x forward); the arms swing against the stride
+      const sw = s * swing;
+      let h = [0.5 + 0.06 * br2 + 0.42 * sw * gk + 0.08 * roll2, s * 1.58, 1.82 + 0.05 * br + 0.12 * Math.abs(sw) * gk];
+      if (s > 0) h = vlerp(h, [1.05, 1.62, 0.25], cl(P.drag || 0));
       h = vlerp(h, [1.15, s * 1.3, 3.0], cl(P.breath || 0));
       h = vlerp(h, [0.5, s * 1.55, 2.05], sit);
       h = vlerp(h, [0.55, s * 2.5, 4.6], sh);
       h = vlerp(h, s < 0 ? [1.5, -1.15, 0.26] : [1.0, 0.7, 1.75], kn);
       h = vlerp(h, [2.3, s * 0.95, 0.24], pl);
       const lf = ease(s < 0 ? P.liftL || 0 : P.liftR || 0), sm = ease(s < 0 ? P.slamL || 0 : P.slamR || 0);
-      h = vlerp(h, [-0.1, s * 1.0, 7.8], lf);
+      h = vlerp(h, [0.35, s * 1.55, 7.5], lf);
       h = vlerp(h, [P.slamX == null ? 2.9 : P.slamX, (P.slamY || 0) + s * 0.25, 0.42], sm);
       if (s > 0 && (P.cleaveW > 0 || P.cleaveS > 0)) { const w = ease(P.cleaveW || 0), u = cl(P.cleaveS || 0), a = lerp(-1.95, 1.65, ease(u)), sw = [Math.cos(a) * 2.9, Math.sin(a) * 2.9, 1.3 + 0.4 * Math.sin(u * Math.PI)];
-        h = vlerp(h, [-0.25, -0.9, 4.2], w * (1 - sstep(0, 0.15, u))); if (u > 0) h = vlerp(h, sw, sstep(0, 0.12, u) * (1 - sstep(0.92, 1, u) * 0.3)); }
+        h = vlerp(h, [-0.55, -1.75, 4.6], w * (1 - sstep(0, 0.15, u)) * (1 - cl(P.cleaveR || 0))); if (u > 0) h = vlerp(h, sw, sstep(0, 0.12, u) * (1 - sstep(0.92, 1, u) * 0.3) * (1 - ease(cl(P.cleaveR || 0)))); }
       // claws spread when the hand is open; the fist for the slam
       const fist = cl((s < 0 ? P.fistL : P.fistR) || 0);
       const pole = vadd([-0.7, s * 1.0, -0.25], [0, 0, lf * 0.6]), J = ik2(S, h, LU, LF, mv(Rt, pole)); const E = J.E, W = J.W;
@@ -359,7 +370,8 @@ const CAL_IFRIT = (() => {
       I('uarm' + sn, 'uarm', frameXZ(ud, vadd(out, [0, 0, 0.4])), S, { glow: heat, spill: s < 0 ? bfL : bfR, fx: dead });
       I('farm' + sn, 'farm', frameXZ(fd, vadd(mv(Rt, [-0.5, s, 0.25]), [0, 0, 0.1])), E, { glow: heat, spill: s < 0 ? bfL : bfR, fx: dead });
       const hz2 = sm > 0.5 ? vadd(mv(Rt, [0.6, 0, 0.6]), [0, 0, 0]) : vadd(out, [0, 0, 0.35 + 0.5 * pl]);
-      I('hand' + sn, fist > 0.5 ? 'fist' : 'hand', frameXZ(fd, hz2), W, { glow: heat, spill: s < 0 ? bfL : bfR, fx: dead });
+      const flex = (cl(P.claw || 0) * 0.6 + men * 0.32 * Math.sin(t * 1.6 + s * 1.3)) * (fist > 0.5 ? 0 : 1);   // (the claws curl and flex: the hand bent at the wrist)
+      I('hand' + sn, fist > 0.5 ? 'fist' : 'hand', mm(frameXZ(fd, hz2), rotY(flex)), W, { glow: heat, spill: s < 0 ? bfL : bfR, fx: dead });
       A['hand' + sn] = vadd(W, vmul(vnrm(fd), 0.5)); A['wrist' + sn] = W; A['elbow' + sn] = E; A['sh' + sn] = S;
       // the shoulder: the inner shell turns a little with the arm, the outer slab rides on it
       const Rs = Rt;
@@ -369,14 +381,16 @@ const CAL_IFRIT = (() => {
     }
     /* the legs */
     for (const s of [-1, 1]) { const sn = s < 0 ? 'L' : 'R', Hp = vadd(P0, mv(Rp, HIP(s))), g = gph + (s > 0 ? Math.PI : 0);
-      let f = [0.12 + 0.6 * gk * Math.sin(g), s * (0.84 + 0.14 * cr), 0.3 + 0.32 * gk * Math.max(0, Math.cos(g))];
+      const PF = s < 0 ? P.fL : P.fR;
+      let f = PF ? [PF[0], PF[1], 0.3 + PF[2]] : [0.12 + 0.6 * gk * Math.sin(g), s * (0.84 + 0.14 * cr), 0.3 + 0.32 * gk * Math.max(0, Math.cos(g))];
       f = vlerp(f, [1.15, s * 0.85, 0.3], sit);
       f = vlerp(f, s < 0 ? [-1.2, -0.7, 0.32] : [0.9, 0.86, 0.3], kn);
       f = vlerp(f, [-0.45, s * 1.1, 0.3], pl);
       const J = ik2(Hp, f, LT, LSH, [1, s * 0.25, 0.1]), K = J.E, An = J.W;
       I('thigh' + sn, 'thigh', frameXZ(vsub(K, Hp), [1, 0, 0.3]), Hp, { glow: heat, spill: s < 0 ? bfL : bfR, fx: dead });
       I('shin' + sn, 'shin', frameXZ(vsub(An, K), [1, 0, 0.2]), K, { glow: heat, spill: s < 0 ? bfL : bfR, fx: dead });
-      I('foot' + sn, 'foot', rotZ(s * 0.14), An, { glow: heat, fx: dead });
+      const fy = PF ? lerp(PF[3] || 0, s * 0.14, Math.max(sit, kn, pl)) : s * 0.14, fp = PF ? 0.6 * Math.min(0.35, PF[2]) : 0;   // (a lifted foot's toes hang a little)
+      I('foot' + sn, 'foot', mm(rotZ(fy), rotY(fp)), An, { glow: heat, fx: dead });
       A['foot' + sn] = An; A['knee' + sn] = K; }
     A.top = vadd(Hh, mv(Rh, [0.4, 0, 1.3]));
     return { inst, A, P0, Rt, heat, core };
@@ -489,7 +503,7 @@ const CAL_IFRIT = (() => {
      key names the state that changes it. Returns false when it drew nothing (the caller paints its 2D picture) */
   const PROPC = new Map();
   function drawProp(c, part, x, y, a, o) {
-    o = o || {}; const T = o.T, m0 = c.getTransform ? c.getTransform() : null, dev = m0 ? Math.max(0.25, Math.hypot(m0.a, m0.b)) : 1, key = `${part}|${o.key || ''}|${Math.round(T * dev * 4)}|${o.scale || 1}`;
+    o = o || {}; const T = o.T, m0 = c.getTransform ? c.getTransform() : null, dev = m0 ? Math.max(0.25, Math.hypot(m0.a, m0.b)) : 1, key = `${part}|${o.key || ''}|${Math.round(T * dev * 4)}|${o.scale || 1}|${(+a || 0).toFixed(2)}`;   // (the angle too: the two crystal growths face different ways)
     const it = { part, R: I3(), o: [0, 0, 0], s: 1, al: 1, glow: o.glow || 0, glow2: o.glow2 || 0, spill: 0, kind: o.kind || 0, fx: o.fx || 0 };
     let P = PROPC.get(key);
     if (!P) { if (!glOn()) { const V = mkView(x, y, 0, a, o); drawFallback(c, V, [it], 1); return true; }
@@ -525,7 +539,7 @@ const CAL_IFRIT = (() => {
   /* ================= the fight ================= */
   const WARN = '#FF5A1E', HOT = '#FFB347', FROST = '#BFEFFF', FROST_HI = '#F2FCFF', BF = '#9B4DFF', BF_HI = '#E2B8FF';
   const CYC = { 1: ['fist', 'breath', 'fault', 'fist', 'fault', 'breath'], 2: ['cleave', 'fist', 'rocks', 'breath', 'cleave', 'fault', 'rocks', 'fist'], 3: ['fist', 'cleave', 'breath', 'rocks', 'fault', 'cleave', 'fist', 'rocks'] };
-  const TUNE = { hp: 8000, dmg: 11, crystHp: 0.024, hellEvery: 24, hellFirst: 3.5, hellCharge: 8, kneel: 6, missK: 0.5, stagger: 1.8 };
+  const TUNE = { hp: 16500, dmg: 18,   /* (QA v386: was 8000 / 11, for a level-1 pet; the pet arrives here at about level 10, HP ~200) */ crystHp: 0.024, hellEvery: 24, hellFirst: 3.5, hellCharge: 8, kneel: 6, missK: 0.5, stagger: 1.8 };
   const sf = (FX, k, ...a) => { const s = FX.H && FX.H.sfx; if (s && s[k]) try { s[k](...a); } catch (e) { /* no sound */ } };
   const toward = (v, w, dt, k) => (v || 0) + (w - (v || 0)) * Math.min(1, dt * k);
   const angTo = (a, b) => { let d = b - a; while (d > Math.PI) d -= TAU; while (d < -Math.PI) d += TAU; return d; };
@@ -581,7 +595,7 @@ const CAL_IFRIT = (() => {
         crys: ARENA.crystals(C).map(c => ({ i: c.i, x: c.x, y: c.y, alive: false, dormant: true, broken: false, glow: 0.25, obj: null, pulse: 0 })), wells: null, refuge: null, fx: [], rocks: [], calm: 0, climb: 0, warnK: 0, statue: null, fracT: -1, lastStep: 0,
         stat: { fist: 0, fistHit: 0, breath: 0, breathHit: 0, fault: 0, faultHit: 0, cleave: 0, cleaveHit: 0, rocks: 0, rockHit: 0, hell: 0, hellSafe: 0, hellHit: 0, kneel: 0, cryst: 0, exposed: 0, phase2At: null, phase3At: null, t0: null } });
       M.stat.t0 = FX.S.t; wellsOf(FX); },
-    phase(FX, p, lv) { const M = FX.mem, m = FX.m; endAct(FX, m, true); M.P.recoil = 1;
+    phase(FX, p, lv) { const M = FX.mem, m = FX.m; endAct(FX, m, true); M.phT = 0; M.flinch = 1;
       if (lv === 2) { M.stat.phase2At = FX.S.t; say(FX, 'p2', 'CROWN OF BLACKFIRE', 'His horns flare; two crystal growths feed his armour. Break them!', BF_HI, 3.2);
         M.crys.forEach(cr => { cr.dormant = false; cr.alive = true; cr.obj = FX.obj({ kind: 'cryst', x: cr.x, y: cr.y - 0.7, r: 1.25, hp: m.maxhp * TUNE.crystHp, key: 'cryst' + cr.i, onHit: o => { o.flash = 0.12; sf(FX, 'tick'); }, onKill: () => crystalBroken(FX, cr) }); });
         sf(FX, 'hum'); M.pick = 0; }
@@ -609,13 +623,21 @@ const CAL_IFRIT = (() => {
       // he is walked round, not through: the pet eased out from under his feet
       const me = FX.me; if (!me.dead && m.act !== 'enter') { const dx = me.x - m.x, dy = me.y - m.y, d = Math.hypot(dx, dy), r0 = 2.1; if (d < r0 && d > 1e-4) FX.push(dx / d * (r0 - d) * 0.6, dy / d * (r0 - d) * 0.6); }
       // embers off his seams, more as he heats
+      // the motion: the phase moment's clock, the stepping (the feet held still while he sits, kneels or plants his hands), a
+      // knuckle-crack now and then while he studies the pet
+      if (M.phT != null) M.phT += dt;
+      { const P = M.P, lock = m.act === 'enter' || (m.act === 'rise' && m.actT < 3.3) || (P.sit || 0) > 0.2 || (P.kneel || 0) > 0.3 || (P.plant || 0) > 0.3; locoTick(FX, m, dt, lock); }
+      M.crackT = Math.max(0, (M.crackT || 0) - dt);
+      if (!M.A && !(m.stunT > 0) && m.act === 'fight' && !M.stalk) { M.nextCrack = (M.nextCrack == null ? 5 : M.nextCrack) - dt; if (M.nextCrack <= 0) { M.nextCrack = 6 + Math.random() * 6; M.crackT = 0.7; FX.H.after(0.25, () => { sf(FX, 'tick'); const h = anc(FX, m, 'handR'); if (h) FX.H.sparks(h.x, h.y - h.z * ZK, '#FFB347', 5, 2); }); } }
+      // embers off his shoulders and spikes, and a few off his seams, more as he heats
+      if (!lowFx() && m.act !== 'enter' && Math.random() < dt * (2 + 3 * (M.P.heat || 0))) { const v = anc(FX, m, Math.random() < 0.5 ? 'ventL' : 'ventR'); FX.H.part({ kind: 'ember', x: v.x + FX.rnd(-0.6, 0.6), y: v.y - v.z * ZK, vx: FX.rnd(-0.3, 0.3), vy: FX.rnd(-1.8, -0.8), life: 1.5, max: 1.5, size: 1.6 + Math.random() * 1.4, color: Math.random() < 0.7 ? '#FF8A2A' : '#FFD27A' }); }
       if (!lowFx() && m.act !== 'enter' && Math.random() < dt * (2 + 4 * (M.P.heat || 0))) { const a = FX.rnd(-1.4, 1.4); FX.H.part({ kind: 'ember', x: m.x + Math.cos(a) * 1.2, y: m.y - FX.rnd(1.5, 3.6), vx: FX.rnd(-0.3, 0.3), vy: FX.rnd(-1.6, -0.6), life: 1.4, max: 1.4, size: 2 + Math.random() * 1.5, color: Math.random() < 0.7 ? '#FF8A2A' : '#FFD27A' }); }
       M.climb = toward(M.climb, M.A && M.A.kind === 'hellfire' && M.A.phase === 'charge' ? cl(M.A.t / TUNE.hellCharge) : 0, dt, 1.5);
       easePose(FX, m, dt); },
-    dmgK(FX, m, o) { const M = FX.mem; M.P.recoil = Math.max(M.P.recoil || 0, 0.35); M.P.recoilS = FX.me.x < m.x ? 1 : -1;
+    dmgK(FX, m, o) { const M = FX.mem; flinch(FX, m, 0.05);
       let k = M.p3 ? 0.5 : FX.S.lv === 2 ? 0.6 : 0.45; if (m.stunT > 0 && M.stunKind === 'kneel') k = 0.9; else if (m.stunT > 0) k = 0.55;
       return k * drK(FX) * stackK(FX, o); },
-    onWeakHit(FX) { const M = FX.mem; M.P.recoil = 1; M.stat.exposed++; stackK(FX, null); },
+    onWeakHit(FX) { const M = FX.mem; flinch(FX, FX.m, 0.14); M.stat.exposed++; stackK(FX, null); },
     draw(c, FX, m, X, Y, T, t) { c.globalAlpha = 1; Y += (m.z || 0) * T * 4; paintBoss(c, FX, m, X, Y, T, t); },
     drawFx(c, FX, T, t) { drawFx(c, FX, T, t); },
   };
@@ -626,7 +648,7 @@ const CAL_IFRIT = (() => {
   function drK(FX) { const M = FX.mem; if (FX.S.lv !== 2) return 1; return 1 - Math.min(0.4, 0.2 * crystalsLive(M)); }
   function crystalBroken(FX, cr) { const M = FX.mem, m = FX.m; if (!cr.alive) return; cr.alive = false; cr.broken = true; M.stat.cryst++;
     burst(FX, cr.x, cr.y - 1.4, BF, 22); FX.H.boom(cr.x, cr.y - 0.6, 1.6, BF_HI, '#FFFFFF', { n: 18, shake: 9, smoke: 4 }); sf(FX, 'crash');
-    if (m && !m.dead && FX.S.lv === 2) { m.stunT = Math.max(m.stunT || 0, TUNE.stagger); M.stunKind = 'stagger'; M.P.recoil = 1; M.P.recoilS = cr.x < m.x ? 1 : -1;
+    if (m && !m.dead && FX.S.lv === 2) { m.stunT = Math.max(m.stunT || 0, TUNE.stagger); M.stunKind = 'stagger'; M.flinch = 1; M.recoilS = cr.x < m.x ? 1 : -1; FX.H.after(0.45, () => { if (!m.dead) { sf(FX, 'thud'); for (let i = 0; i < 6; i++) FX.H.part({ kind: 'smoke', x: m.x + FX.rnd(-1.4, 1.4), y: m.y + FX.rnd(-0.3, 0.4), vx: FX.rnd(-1, 1), vy: -0.3, life: 1, max: 1, size: 0.8, color: '#5A4A44' }); } });
       FX.H.text(m.x, m.y - 5.6, `Tether cut! Armour −20% (${Math.round((1 - drK(FX)) * 100)}% left)`, BF_HI, 14);
       if (crystalsLive(M) === 0) say(FX, 'crysAll', 'THE CROWN IS BROKEN', 'No growth feeds his armour now', BF_HI, 2.2); } }
   function burst(FX, x, y, col, n) { for (let i = 0; i < n; i++) { const a = Math.random() * TAU, v = 2 + Math.random() * 5; FX.H.part({ kind: 'shard', x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 2, g: 9, life: 0.9, max: 0.9, size: 3 + Math.random() * 3, rot: Math.random() * 6, color: Math.random() < 0.5 ? col : '#1A0E26' }); } }
@@ -640,21 +662,65 @@ const CAL_IFRIT = (() => {
     if (k > 0 && m.act !== 'enter' && m.act !== 'rise') { const p = vis(anc(FX, m, 'core'), m); FX.weak('chest', p.x, p.y, kneel ? 1.9 : 1.55, k * drK(FX), true); M.weakK = k; }
     else { FX.weak('chest', 0, 0, 0, 0, false); M.weakK = 0; } }
   /* ---- moving: a heavy walk, the heading eased; the gait drives the stride and each footfall shakes the floor ---- */
-  function walk(FX, m, tx, ty, spd, dt) { const M = FX.mem, x0 = m.x, y0 = m.y; FX.moveTo(m, tx, ty, spd, dt, { noFace: true }); FX.clampArena(m, 2.6);
-    const d = Math.hypot(m.x - x0, m.y - y0); M.gait = (M.gait || 0) + d / (2.6 * VIS); M.spd = d / Math.max(dt, 1e-4);
-    if (d > 1e-4) M.th = turnTo(M.th, Math.atan2(m.y - y0, m.x - x0), dt * 2.0); }
-  function face(FX, m, tx, ty, dt, k) { const M = FX.mem; M.th = turnTo(M.th, Math.atan2(ty - m.y, tx - m.x), dt * (k || 1.8)); }
-  function footfalls(FX, m, M) { const ph = (M.gait || 0) * 2, st = Math.floor(ph); if (st !== M.lastStep) { M.lastStep = st; if ((M.spd || 0) > 0.3) { FX.H.shake(3, 0.12); sf(FX, 'thud'); if (!lowFx()) for (let i = 0; i < 3; i++) FX.H.part({ kind: 'smoke', x: m.x + FX.rnd(-1, 1), y: m.y + FX.rnd(-0.3, 0.3), vx: FX.rnd(-0.6, 0.6), vy: -0.3, life: 0.8, max: 0.8, size: 0.7, color: '#5A4A44' }); } } }
+  /* ---- moving like a colossus (v387): heavy to start and heavy to stop; the hips turn slowly behind the torso and the
+     head (aim, look); the feet are planted on the floor and stepped one at a time (a step when a foot falls too far from
+     where it should stand, so he shuffles round when he turns), the body surging while a foot swings; each footfall a
+     thud, a puff of ash, the hips sinking onto it and the faintest tremor ---- */
+  const STEP = { thr: 0.5, D: 0.78, D3: 0.6, lift: 0.5 };
+  function homeOf(m, th, s, fwd) { const a = MODEL.headOf(th), p0 = 0.12 + (fwd || 0), p1 = s * 0.86, c = Math.cos(a), sn = Math.sin(a); return { x: m.x + (p0 * c - p1 * sn) * VIS, y: m.y + (p0 * sn + p1 * c) * GY * VIS }; }
+  function locoInit(FX, m) { const M = FX.mem, L = M.loco = { vx: 0, vy: 0, want: null, aim: M.th, feet: {}, lastPlant: -9, drop: 0, n: 0, lastSide: 'R' };
+    for (const s2 of [-1, 1]) { const h = homeOf(m, M.th, s2); L.feet[s2 < 0 ? 'L' : 'R'] = { s: s2, x: h.x, y: h.y, yaw: M.th, t: -1, fx: h.x, fy: h.y, fyaw: M.th }; } return L; }
+  const locoOf = (FX, m) => FX.mem.loco || locoInit(FX, m);
+  function walk(FX, m, tx, ty, spd) { const L = locoOf(FX, m); L.want = { tx, ty, spd: spd * 1.15 }; L.aim = Math.atan2(ty - m.y, tx - m.x); }
+  function face(FX, m, tx, ty) { locoOf(FX, m).aim = Math.atan2(ty - m.y, tx - m.x); }
+  function aimAt(FX, m, a) { locoOf(FX, m).aim = a; }
+  function footfalls() { /* (the footfalls come from the steps: locoTick) */ }
+  function locoTick(FX, m, dt, lock) {
+    const M = FX.mem, L = locoOf(FX, m), t = FX.g.t, D = M.p3 ? STEP.D3 : STEP.D;
+    const w = L.want; L.want = null; let dvx = 0, dvy = 0;
+    if (w && !lock) { const dx = w.tx - m.x, dy = w.ty - m.y, d = Math.hypot(dx, dy); if (d > 0.2) { const s2 = w.spd * Math.min(1, d / 1.2); dvx = dx / d * s2; dvy = dy / d * s2; } }
+    const go = dvx || dvy; L.vx = toward(L.vx, dvx, dt, go ? 1.5 : 2.6); L.vy = toward(L.vy, dvy, dt, go ? 1.5 : 2.6);
+    const stp = L.feet.L.t >= 0 ? L.feet.L : L.feet.R.t >= 0 ? L.feet.R : null, su = stp ? cl(stp.t / D) : 0, surge = stp ? 0.5 + 1.0 * Math.sin(Math.PI * su) : 0.5;
+    if (!lock) { const x0 = m.x, y0 = m.y; FX.H.moveEnt(m, L.vx * surge * dt, L.vy * surge * dt, 1); FX.clampArena(m, 2.6); M.spd = Math.hypot(m.x - x0, m.y - y0) / Math.max(dt, 1e-4); }
+    else { L.vx = L.vy = 0; M.spd = 0; }
+    // the hips: toward where he walks while he walks (a little toward his aim), else toward his aim; slowly
+    const v = Math.hypot(L.vx, L.vy), mvA = Math.atan2(L.vy, L.vx), want = v > 0.35 ? mvA + Math.max(-0.45, Math.min(0.45, angTo(mvA, L.aim))) : L.aim;
+    if (!lock) M.th = turnTo(M.th, want, dt * (M.p3 ? 1.3 : 1.0) * Math.min(1, 0.3 + Math.abs(angTo(M.th, want)) * 1.3));
+    L.drop = Math.max(0, L.drop - dt * 3.2);
+    if (lock) { for (const k of ['L', 'R']) { const f = L.feet[k], h = homeOf(m, M.th, f.s); f.x = h.x; f.y = h.y; f.yaw = M.th; f.t = -1; } return L; }
+    const lead = Math.min(0.75, v * D * 0.5 / VIS);
+    for (const k of ['L', 'R']) { const f = L.feet[k], h = homeOf(m, M.th, f.s); if (Math.hypot(f.x - h.x, f.y - h.y) > 2.4) { f.x = f.fx = h.x; f.y = f.fy = h.y; f.yaw = M.th; f.t = -1; } }   // (a foot left far behind, were he ever moved at once, is brought home rather than stretched)
+    for (const k of ['L', 'R']) { const f = L.feet[k]; if (f.t < 0) continue; f.t += dt; const u = cl(f.t / D), h = homeOf(m, M.th, f.s, lead), e = ease(u);
+      f.x = f.fx + (h.x - f.fx) * e; f.y = f.fy + (h.y - f.fy) * e; f.yaw = f.fyaw + angTo(f.fyaw, M.th) * e;
+      if (u >= 1) { f.t = -1; f.x = h.x; f.y = h.y; f.yaw = M.th; L.lastPlant = t; L.drop = 1; L.n++; footfall(FX, m, f); } }
+    if (L.feet.L.t < 0 && L.feet.R.t < 0 && t - L.lastPlant > 0.06) {
+      let best = null, be = 0;
+      for (const k of ['L', 'R']) { const f = L.feet[k], h = homeOf(m, M.th, f.s, lead), e = Math.hypot(f.x - h.x, f.y - h.y) + Math.abs(angTo(f.yaw, M.th)) * 0.9 - (k === L.lastSide ? 0.08 : 0); if (e > be) { be = e; best = f; } }
+      if (best && be > STEP.thr) { best.t = 0; best.fx = best.x; best.fy = best.y; best.fyaw = best.yaw; L.lastSide = best.s < 0 ? 'L' : 'R'; } }
+    return L; }
+  function footfall(FX, m, f) { const M = FX.mem, heavy = Math.min(1, 0.35 + (M.spd || 0) / 2.2); sf(FX, 'thud');
+    if (lowFx()) return; FX.H.shake(1 + 1.2 * heavy, 0.09);
+    for (let i = 0; i < 4; i++) { const a = Math.random() * TAU; FX.H.part({ kind: 'smoke', x: f.x + Math.cos(a) * 0.55, y: f.y + Math.sin(a) * 0.28, vx: Math.cos(a) * 0.9, vy: Math.sin(a) * 0.4 - 0.25, life: 0.9, max: 0.9, size: 0.5 + Math.random() * 0.45, color: Math.random() < 0.5 ? '#5A4A44' : '#7A6A62' }); }
+    if (Math.random() < 0.6) FX.H.part({ kind: 'ember', x: f.x + FX.rnd(-0.3, 0.3), y: f.y - 0.1, vx: FX.rnd(-0.4, 0.4), vy: -1.2, life: 0.6, max: 0.6, size: 2, color: '#FF8A2A' }); }
+  /* the stepping's picture for the rig: each foot in the body frame (lifted mid-step), the weight shift, the arm swing */
+  function locoPose(FX, m, M, P) { const L = M.loco; if (!L) return; const a = MODEL.headOf(M.th), D = M.p3 ? STEP.D3 : STEP.D; let shift = 0, swing = 0;
+    for (const k of ['L', 'R']) { const f = L.feet[k], b = toBody(f.x, f.y, m.x, m.y, a), u = f.t >= 0 ? cl(f.t / D) : 0, lift = f.t >= 0 ? Math.sin(Math.PI * u) * STEP.lift * (M.p3 ? 0.8 : 1) : 0;
+      (P['f' + k] || (P['f' + k] = [0, 0, 0, 0])).splice(0, 4, b[0], b[1], lift, angTo(M.th, f.yaw) * 0.8);
+      if (f.t >= 0) { const k2 = Math.sin(Math.PI * u); shift += (f.s < 0 ? 1 : -1) * k2; swing += (f.s < 0 ? 1 : -1) * k2; } }
+    P.shift = toward(P.shift, shift, 1 / 60, 8); P.swing = toward(P.swing, swing, 1 / 60, 8); P.drop = toward(P.drop, L.drop, 1 / 60, 14); }
   /* ---- the rise from the throne ---- */
   function riseTick(FX, m, dt) { const M = FX.mem, C = FX.C;
     if (m.actT < 1.4) return;   // (he breathes first: the light swells; see poseOf)
-    if (m.actT < 2.4) { if (!M.rose) { M.rose = true; sf(FX, 'crack'); FX.H.shake(10, 0.6); for (let i = 0; i < 12; i++) FX.H.part({ kind: 'smoke', x: m.x + FX.rnd(-2, 2), y: m.y + FX.rnd(-0.5, 0.5), vx: FX.rnd(-1, 1), vy: -0.6, life: 1.4, max: 1.4, size: 1.2, color: '#4A3C36' }); } return; }
-    walk(FX, m, C.x, C.y - 8.5, 1.6, dt); footfalls(FX, m, FX.mem);
-    if (Math.hypot(m.x - C.x, m.y - (C.y - 8.5)) < 0.2 || m.actT > 7) { m.act = 'fight'; M.idleT = 0.6; say(FX, 'p1', 'BASALT TYRANT', 'Dodge the marked blows; strike his chest when it opens', HOT, 2.6); } }
+    if (m.actT < 3.3) { if (!M.rose) { M.rose = true; sf(FX, 'crack'); FX.H.shake(lowFx() ? 4 : 9, 1.2); }
+      // dust and grit falling off him and the throne as he heaves himself up
+      if (!lowFx() && Math.random() < dt * 22) FX.H.part({ kind: 'smoke', x: m.x + FX.rnd(-2.2, 2.2), y: m.y - FX.rnd(2.5, 6), vx: FX.rnd(-0.2, 0.2), vy: 1.6 + Math.random(), life: 1.6, max: 1.6, size: 0.6 + Math.random() * 0.6, color: Math.random() < 0.5 ? '#4A3C36' : '#6A5A52' });
+      if (m.actT > 2.6 && !M.roared) { M.roared = true; sf(FX, 'hum'); FX.H.shake(lowFx() ? 3 : 7, 0.8); } return; }
+    walk(FX, m, C.x, C.y - 8.5, 1.4, dt);
+    if (Math.hypot(m.x - C.x, m.y - (C.y - 8.5)) < 0.4 || m.actT > 9) { m.act = 'fight'; M.idleT = 0.6; say(FX, 'p1', 'BASALT TYRANT', 'Dodge the marked blows; strike his chest when it opens', HOT, 2.6); } }
   /* ---- between blows: he closes in, faces the pet, then picks the next one ---- */
   function idleTick(FX, m, dt) { const M = FX.mem, me = FX.me, lv = FX.S.lv, d = Math.hypot(me.x - m.x, me.y - m.y);
-    face(FX, m, me.x, me.y, dt, 1.6);
-    if (d > 5.2) { walk(FX, m, me.x, me.y, lv >= 3 ? 2.0 : 1.7, dt); footfalls(FX, m, M); } else M.spd = 0;
+    face(FX, m, me.x, me.y);
+    M.stalk = d > 5.6 || (M.stalk && d > 4.7); if (M.stalk) walk(FX, m, me.x, me.y, lv >= 3 ? 2.0 : 1.7);
     M.idleT -= dt * sp(FX); if (M.idleT > 0) return;
     if (M.p3 && M.hfT <= 0 && !FX.S.tele.length) { begin(FX, m, 'hellfire'); return; }
     const cyc = CYC[Math.min(3, lv)]; const kind = cyc[M.pick % cyc.length]; M.pick++; begin(FX, m, kind); }
@@ -682,7 +748,7 @@ const CAL_IFRIT = (() => {
     if (!A.tele) { A.a = Math.atan2(me.y - m.y, me.x - m.x); const o = mouthFloor(FX, m, A.a); A.tele = FX.tele({ shape: 'cone', x: o.x, y: o.y, a: A.a, len: BR_LEN, spread: BR_SP, t: track + lock, dmg: m.dmg * 0.9, label: '', fn: s => breathFire(FX, m, A, s) }); sf(FX, 'hum'); }
     const s = A.tele;
     if (A.phase === 'wind') { if (A.t < track) { A.a = turnTo(A.a, Math.atan2(me.y - m.y, me.x - m.x), dt * 0.85); } else if (!A.locked) { A.locked = true; s.label = 'LOCKED'; sf(FX, 'tick'); }
-      M.th = turnTo(M.th, A.a, dt * 4); const o = mouthFloor(FX, m, A.a); s.x = o.x; s.y = o.y; s.a = A.a;
+      aimAt(FX, m, A.a); const o = mouthFloor(FX, m, A.a); s.x = o.x; s.y = o.y; s.a = A.a;
       if (A.t >= track + lock) { A.phase = 'fire'; A.t = 0; } return false; }
     if (A.phase === 'fire') { if (A.t >= 1.1) { A.phase = 'rec'; A.t = 0; A.exposed = true; } return false; }
     if (A.phase === 'rec') { if (A.t >= 2.3 / Math.sqrt(k)) { A.phase = 'back'; A.t = 0; A.exposed = false; } return false; }
@@ -705,7 +771,7 @@ const CAL_IFRIT = (() => {
   function cleaveTick(FX, m, A, dt) { const M = FX.mem, me = FX.me, k = sp(FX);
     if (!A.tele) { const d = Math.hypot(me.x - m.x, me.y - m.y); if (d > 5.6 && A.t < 3) { walk(FX, m, me.x, me.y, 2.0, dt); footfalls(FX, m, M); face(FX, m, me.x, me.y, dt); return false; }
       A.t = 0; A.W = 2.0 / k; A.a = Math.atan2(me.y - m.y, me.x - m.x); A.tele = FX.tele({ shape: 'cone', x: m.x, y: m.y, a: A.a, len: CV_LEN, spread: CV_SP, t: A.W + 0.2, dmg: m.dmg * 1.1, label: '', fn: s => { if (FX.inShape(s, FX.me.x, FX.me.y, FX.me.r)) M.stat.cleaveHit++; sf(FX, 'whoosh'); FX.H.shake(9, 0.3); } }); sf(FX, 'hum'); }
-    M.th = turnTo(M.th, A.a, dt * 3);
+    aimAt(FX, m, A.a);
     if (A.phase === 'wind') { if (A.t >= A.W) { A.phase = 'sweep'; A.t = 0; M.fx.push({ kind: 'arc', x: m.x, y: m.y, a: A.a, t: 0, life: 0.8 }); } return false; }
     if (A.phase === 'sweep') { if (A.t >= 0.5) { A.phase = 'back'; A.t = 0; } return false; }
     return A.t >= 1.5 / Math.sqrt(k); }
@@ -730,7 +796,7 @@ const CAL_IFRIT = (() => {
     if (A.phase === 'wall') { const v = 11.5; A.y += v * dt;
       if (!A.hit && !me.dead && Math.abs(me.y - A.y) < 1.15 + me.r) { if (sheltered(FX, me.x, me.y)) { if (!A.safe) { A.safe = true; M.stat.hellSafe++; FX.H.text(me.x, me.y - 1.6, 'Sheltered!', FROST_HI, 15); sf(FX, 'chime', 1046, 0.6); } }
         else { A.hit = true; M.stat.hellHit++; const s2 = ST(FX), mx = s2 ? s2.hp : 100; let d = mx * TUNE.missK; if (me.hp >= mx * 0.97) d = Math.min(d, me.hp - 1); FX.H.hurtPet(d, m, { hellfire: true }); FX.H.text(me.x, me.y - 1.8, 'Caught by Hellfire!', WARN, 15); } }
-      if (A.y > C.y + AR + 2) { A.phase = 'over'; A.t = 0; wake(FX, false, true); M.stat.kneel++; m.stunT = TUNE.kneel; M.stunKind = 'kneel'; M.P.recoil = 1; FX.H.text(m.x, m.y - 5, 'Overheated! His core is open', HOT, 16); sf(FX, 'hum'); return true; }
+      if (A.y > C.y + AR + 2) { A.phase = 'over'; A.t = 0; wake(FX, false, true); M.stat.kneel++; m.stunT = TUNE.kneel; M.stunKind = 'kneel'; M.flinch = 1; FX.H.after(0.6, () => { if (!m.dead) { sf(FX, 'thud'); if (!lowFx()) FX.H.shake(5, 0.3); } }); FX.H.text(m.x, m.y - 5, 'Overheated! His core is open', HOT, 16); sf(FX, 'hum'); return true; }
       return false; }
     return true; }
   /* ---- the frost wells ---- */
@@ -745,40 +811,79 @@ const CAL_IFRIT = (() => {
   /* ---- the fall: the core dims, he settles into a dark statue, the lava calms, the crystals go dark ---- */
   function deadTick(FX, m, dt) { const M = FX.mem;
     if (M.deadT == null) { M.deadT = 0; M.A = null; FX.weak('chest', 0, 0, 0, 0, false); FX.noParts(); for (const w of wellsOf(FX)) { w.awake = false; w.on = false; } for (const cr of M.crys) { if (cr.alive) { cr.alive = false; cr.broken = true; } } M.rocks.length = 0;
-      M.statue = { kind: 'statue', x: m.x, y: m.y + 0.31 }; FX.S.props.push(M.statue); M.P.recoil = 1; FX.H.text(m.x, m.y - 5, 'The core dims...', HOT, 15); }
+      M.statue = { kind: 'statue', x: m.x, y: m.y + 0.31 }; FX.S.props.push(M.statue); M.flinch = 1; FX.H.text(m.x, m.y - 5, 'The core dims...', HOT, 15); }
     M.deadT += dt; M.calm = toward(M.calm, 1, dt, 0.8); for (const w of wellsOf(FX)) { w.k = toward(w.k, 0, dt, 3); w.onK = toward(w.onK, 0, dt, 3); } for (const cr of M.crys) cr.glow = toward(cr.glow, 0, dt, 1.2);
     if (Math.random() < dt * 4 * (1 - cl(M.deadT / 4))) steam(FX, m); }
   /* ---- the pose: each act's wanted pose, eased ---- */
-  const RATE = { sit: 1.4, crouch: 5, kneel: 2.5, plant: 3, lean: 4, twist: 4, liftL: 4, liftR: 4, slamL: 9, slamR: 9, fistL: 8, fistR: 8, cleaveW: 4, cleaveS: 14, breath: 4, jaw: 7, inhale: 2.4, open: 4, gaitK: 4, look: 4, nod: 3, shout: 3.5, recoil: 6, heat: 2, flare: 2.5, bfL: 2, bfR: 2, frac: 99, cracks: 2, dead: 1.3 };
-  function poseOf(FX, m, M) { const W = blankPose(), A = M.A, lv = FX.S.lv, me = FX.me; W.heat = lv >= 3 ? 1.35 : lv === 2 ? 0.9 : 0.7; W.flare = lv === 2 ? 1 : lv >= 3 ? 0.6 : 0;
-    const crys = M.crys || []; W.bfL = lv === 2 && crys[0] && crys[0].alive ? 1 : 0; W.bfR = lv === 2 && crys[1] && crys[1].alive ? 1 : 0;
-    W.frac = M.fracT >= 0 ? cl((M.fracT - 0.25) / 1.3) : 0; W.cracks = M.fracT >= 0 ? cl(M.fracT * 4) : (lv === 2 ? 0.0 : 0); if (M.fracT >= 0 && M.fracT < 0.3) W.shout = 1;
+  const RATE = { sway: 2, aim: 3, tilt: 2, arch: 2.5, menace: 1.5, claw: 4, drag: 2.5, cleaveR: 6, sit: 1.4, crouch: 5, kneel: 2.5, plant: 3, lean: 4, twist: 4, liftL: 4, liftR: 4, slamL: 9, slamR: 9, fistL: 8, fistR: 8, cleaveW: 4, cleaveS: 14, breath: 4, jaw: 7, inhale: 2.4, open: 4, gaitK: 4, look: 4, nod: 3, shout: 3.5, recoil: 6, heat: 2, flare: 2.5, bfL: 2, bfR: 2, frac: 99, cracks: 2, dead: 1.3 };
+  function poseOf(FX, m, M) { const W = blankPose(), A = M.A, lv = FX.S.lv, me = FX.me, L = M.loco, t = M.bt || 0, k = sp(FX); W._snap = {};
+    const snap = (key, v) => { W[key] = v; W._snap[key] = true; };
+    W.heat = lv >= 3 ? 1.35 : lv === 2 ? 0.9 : 0.7; W.flare = lv === 2 ? 1 : lv >= 3 ? 0.6 : 0;
+    const crys = M.crys || []; if (lv === 2) for (const cr of crys) if (cr.alive) W[crySide(m, M, cr) > 0 ? 'bfR' : 'bfL'] = 1;
+    W.frac = M.fracT >= 0 ? cl((M.fracT - 0.25) / 1.3) : 0; W.cracks = M.fracT >= 0 ? cl(M.fracT * 4) : 0;
     W.gaitK = cl((M.spd || 0) / 1.7); W.gait = M.gait || 0;
-    if (m.act === 'enter' || m.act === 'rise') { const e = m.act === 'enter' ? 0 : m.actT; W.sit = e < 2.0 ? 1 : 0; W.heat = m.act === 'enter' ? 0.15 + 0.08 * Math.sin(M.bt * 1.3) : e < 1.4 ? 0.15 + 0.9 * sstep(0.1, 1.2, e) : 0.75; W.inhale = m.act === 'rise' && e < 2.2 ? sstep(0.1, 1.1, e) : 0; W.nod = m.act === 'enter' ? 0.25 : -0.1; if (m.act === 'rise' && e > 1.9 && e < 3.0) W.shout = 0.6; return W; }
-    if (m.dead) { W.kneel = 1; W.dead = cl((M.deadT || 0) / 3.2); W.heat = 0.9 * (1 - cl((M.deadT || 0) / 2.5)); W.frac = M.P.frac; W.flare = 0; return W; }
-    if (m.stunT > 0 && M.stunKind === 'kneel') { W.kneel = 1; W.heat = 2.0; W.open = 0.7; W.nod = 0.3; W.inhale = 0.5 + 0.5 * Math.sin(M.bt * 4); W.gaitK = 0; return W; }
-    if (m.stunT > 0) { W.recoil = 1; W.crouch = 0.6; W.open = 0.5; W.gaitK = 0; return W; }
-    // the head turns toward the pet a little
-    W.look = cl(angTo(M.th, Math.atan2(me.y - m.y, me.x - m.x)) * 0.5 + 0.5) * 1.0 - 0.5;
-    if (!A) return W;
-    const s = A.side || 1, sn = s < 0 ? 'L' : 'R';
-    if (A.kind === 'fist') { if (A.phase === 'wind' && A.tele) { const u = A.t / A.W; W['lift' + sn] = u < 0.82 ? 1 : 0; W['slam' + sn] = u >= 0.82 ? 1 : 0; W['fist' + sn] = 1; W.inhale = 0.6; W.lean = -0.05; if (u >= 0.82) { const b = toBody(A.at.x, A.at.y, m.x, m.y, MODEL.headOf(M.th), 1); W.slamX = clamp2(b[0], 1.6, 3.6); W.slamY = clamp2(b[1], -1.4, 1.4); } }
-      else if (A.phase === 'rec') { W['slam' + sn] = 1; W['fist' + sn] = 1; W.open = 1; W.heat += 0.25; const b = toBody(A.at.x, A.at.y, m.x, m.y, MODEL.headOf(M.th), 1); W.slamX = clamp2(b[0], 1.6, 3.6); W.slamY = clamp2(b[1], -1.4, 1.4); W.inhale = 0.5 + 0.5 * Math.sin(M.bt * 3); }
-      else if (A.phase === 'back') { W.open = 0.3; } }
-    else if (A.kind === 'breath') { if (A.phase === 'wind') { W.inhale = 1; W.breath = 0.55; W.heat += 0.55; W.jaw = 0.25; } else if (A.phase === 'fire') { W.breath = 1; W.jaw = 1; W.heat += 0.6; } else if (A.phase === 'rec') { W.open = 1; W.inhale = 0.5 + 0.5 * Math.sin(M.bt * 5); W.jaw = 0.4; W.nod = 0.15; W.crouch = 0.3; } }
-    else if (A.kind === 'fault') { if (A.phase === 'wind') { const u = A.t / (1.05 / sp(FX)); W.liftR = u < 0.6 ? 0.55 : 0; W.slamR = u >= 0.6 ? 1 : 0; W.slamX = 1.9; W.slamY = 0.6; W.crouch = 0.5; } else if (A.phase === 'run') { W.slamR = A.t < 0.6 ? 1 : 0; W.slamX = 1.9; W.slamY = 0.6; W.crouch = 0.4; } }
-    else if (A.kind === 'cleave') { if (A.phase === 'wind' && A.tele) { W.cleaveW = 1; W.twist = 0.45; W.heat += 0.3; } else if (A.phase === 'sweep') { W.cleaveS = cl(A.t / 0.42); W.twist = lerp(0.45, -0.5, cl(A.t / 0.42)); } else if (A.phase === 'back') { W.twist = -0.2; } }
-    else if (A.kind === 'rocks') { if (A.phase === 'wind') { W.shout = 1; W.jaw = 1; W.heat += 0.3; } else W.shout = sstep(0.6, 0, A.t) * 1; }
-    else if (A.kind === 'hellfire') { if (A.phase === 'charge') { W.plant = 1; W.heat = 1.4 + 0.7 * cl(A.t / TUNE.hellCharge); W.inhale = 1; W.flare = 1; W.jaw = 0.5; } else if (A.phase === 'wall') { W.plant = 1; W.shout = 0.3; W.heat = 2.2; W.jaw = 1; } }
+    // the torso turned ahead of the hips toward his aim; the head ahead of both, locked on the pet
+    if (L) { W.aim = clamp2(angTo(M.th, L.aim), -0.55, 0.55); W.look = clamp2(angTo(M.th + W.aim, Math.atan2(me.y - m.y, me.x - m.x)), -0.6, 0.6); }
+    // the breath: slow and deep, the chest swelling and the core and seams brightening on the inhale
+    const inh = 0.5 + 0.5 * Math.sin(t * TAU / 4.6); W.inhale = 0.32 * inh; W.heat += 0.16 * inh;
+    W.recoil = Math.min(0.6, (M.flinch || 0) * 0.75); W.recoilS = M.recoilS || 1;
+    // the third act: hunched and predatory, a hand trailing along the floor as he prowls
+    if (lv >= 3) { W.lean = 0.16; W.crouch = 0.2; W.drag = 0.7 * W.gaitK; W.claw = 0.5; }
+    if (m.act === 'enter') { W.sit = 1; snap('sit', 1); W.heat = 0.15 + 0.08 * Math.sin(t * 1.3); W.nod = 0.25; W.inhale = 0.15 * inh; W.look = 0; W.aim = 0; return W; }
+    if (m.act === 'rise') { const e = m.actT, up = cl((e - 1.4) / 1.5);
+      snap('sit', 1 - ease(up)); W.heat = e < 1.4 ? 0.15 + 0.9 * sstep(0.1, 1.2, e) : 0.8; W.inhale = e < 2.6 ? sstep(0.1, 1.1, e) * (1 - 0.5 * up) : 0.3 * inh;
+      W.nod = -0.12 * (1 - up); W.arch = 0.22 * sstep(0.2, 1.2, e) * (1 - up); W.lean = 0.42 * Math.sin(Math.PI * up); W.claw = 0.6 * up;
+      if (e > 2.7 && e < 3.6) { W.shout = 0.85; W.jaw = 1; W.arch = 0.25; } return W; }
+    if (m.dead) { W.kneel = 1; W.dead = cl((M.deadT || 0) / 3.2); W.heat = 0.9 * (1 - cl((M.deadT || 0) / 2.5)); W.frac = M.P.frac; W.flare = 0; W.aim = 0; W.look = 0; W.inhale = 0; return W; }
+    // a new phase: he staggers under it, then roars
+    if (M.phT != null && M.phT < 2.25) { const pt = M.phT; if (pt < 0.6) { W.recoil = 1; W.crouch = 0.55; W.kneel = 0.3 * Math.sin(Math.PI * pt / 0.6); W.lean = -0.08; }
+      else { W.shout = 1; W.jaw = 1; W.arch = 0.32; W.heat += 0.6; W.flare = 1; W.crouch = 0.12; W.claw = 1; } return W; }
+    if (m.stunT > 0 && M.stunKind === 'kneel') { W.kneel = 1; W.heat = 2.0; W.open = 0.7; W.nod = 0.3; W.inhale = 0.5 + 0.5 * Math.sin(t * 4); W.gaitK = 0; W.claw = 0.6; W.lean = 0.05; return W; }
+    if (m.stunT > 0 && M.stunKind === 'stagger') { W.recoil = 1; W.kneel = 0.5; W.crouch = 0.3; W.open = 0.5; W.gaitK = 0; return W; }
+    if (m.stunT > 0) { W.recoil = 0.75; W.crouch = 0.28; W.gaitK = 0; W.claw = 0.5; W.inhale = 0.3 + 0.3 * Math.sin(t * 3); W.shout = 0.2; return W; }   // (held by the pet's stun: braced and straining against it, not dropping to a knee)
+    if (!A) { // the idle's menace: shoulders rolling, claws flexing, the head cocked as he studies the pet; a knuckle-crack now and then
+      const still = 1 - W.gaitK * 0.7; W.menace = still; W.tilt = 0.26 * Math.sin(t * 0.45) * still; W.sway = 0.65 * Math.sin(t * TAU / 6.5) * still; W.twist = 0.1 * Math.sin(t * TAU / 5.3 + 1) * still; W.lean += 0.06 * Math.sin(t * TAU / 4.6) * still; W.claw = Math.max(W.claw, 0.3 + 0.25 * Math.sin(t * 1.1)); if (M.crackT > 0) W.fistR = 1; return W; }
+    const side = A.side || 1, sn = side < 0 ? 'L' : 'R';
+    if (A.kind === 'fist') {
+      if (A.phase === 'wind' && A.tele) { const Wd = A.W, up = ease(cl(A.t / (0.55 * Wd))), s1 = cl((A.t - 0.8 * Wd) / (0.2 * Wd)), b = toBody(A.at.x, A.at.y, m.x, m.y, MODEL.headOf(M.th), 1);
+        // he gathers (a dip), rises up onto the blow and hangs there, weight thrown back; then all of it comes down
+        snap('lift' + sn, up * (1 - s1)); snap('slam' + sn, s1 * s1); W['fist' + sn] = 1;
+        W.crouch = 0.28 * (1 - up) * cl(A.t / 0.2) + 0.4 * s1; W.lean = -0.22 * up * (1 - s1) + 0.12 * s1; W.inhale = up; W.heat += 0.4 * up; W.twist = side * (-0.18 * up * (1 - s1) + 0.2 * s1);
+        if (up > 0.95 && s1 <= 0) W.tilt = 0.025 * Math.sin(t * 31);
+        snap('slamX', clamp2(b[0], 1.6, 3.6)); snap('slamY', clamp2(b[1], -1.8, 1.8)); }
+      else if (A.phase === 'rec') { const b = toBody(A.at.x, A.at.y, m.x, m.y, MODEL.headOf(M.th), 1); snap('slam' + sn, 1); W['fist' + sn] = 1; W.open = 1; W.heat += 0.25; snap('slamX', clamp2(b[0], 1.6, 3.6)); snap('slamY', clamp2(b[1], -1.8, 1.8));
+        W.crouch = 0.3 + 0.35 * Math.exp(-A.t * 4); W.lean = 0.1; W.twist = side * 0.2; W.inhale = 0.5 + 0.5 * Math.sin(t * 3); W.claw = 0.8; }
+      else if (A.phase === 'back') { const u = ease(cl(A.t / 0.5)); snap('slam' + sn, 1 - u); W['fist' + sn] = u < 0.6 ? 1 : 0; W.crouch = 0.3 * (1 - u); W.open = 0.4 * (1 - u); W.twist = side * 0.2 * (1 - u); } }
+    else if (A.kind === 'breath') { const track = 1.55 / k, lock = 0.75 / k;
+      if (A.phase === 'wind') { if (A.t < track) { const r = ease(cl(A.t / 0.9)); W.lean = -0.24 * r; W.shout = 0.35 * r; W.inhale = 1; W.open = 0.35 * r; W.heat += 0.65 * r; W.jaw = 0.15 * r; W.claw = 0.7; }
+        else { const q = cl((A.t - track) / lock); W.lean = -0.24 + 0.36 * q * q; W.shout = 0.35 * (1 - q); W.inhale = 1; W.open = 0.35; W.heat += 0.65; W.jaw = 0.25 + 0.3 * q; W.breath = 0.45 * q; W.claw = 0.7; } }
+      else if (A.phase === 'fire') { W.breath = 1; W.jaw = 1; W.lean = 0.24; W.crouch = 0.22; W.heat += 0.75; W.open = 0.3; W.claw = 0.9; }
+      else if (A.phase === 'rec') { W.open = 1; W.inhale = 0.5 + 0.5 * Math.sin(t * 5); W.jaw = 0.4; W.nod = 0.18; W.crouch = 0.3; W.lean = 0.12; } }
+    else if (A.kind === 'fault') { const Wd = 1.05 / k;
+      if (A.phase === 'wind') { const u = A.t / Wd; if (u < 0.55) { const r = ease(u / 0.55); W.liftR = 0.55 * r; W.crouch = 0.4 * r; W.twist = 0.3 * r; W.lean = -0.08; W.claw = 1; }
+        else { const v = ease((u - 0.55) / 0.45); snap('slamR', v); W.liftR = 0.55 * (1 - v); snap('slamX', 2.7 - 0.3 * v); snap('slamY', 0.7); W.crouch = 0.45; W.lean = 0.3 * v; W.twist = 0.3 - 0.4 * v; W.claw = 1; } }
+      else if (A.phase === 'run') { const r = ease(cl(A.t / 0.55)), rel = ease(cl((A.t - 0.6) / 0.5)); snap('slamR', 1 - rel); snap('slamX', 2.4 - 1.3 * r); snap('slamY', 0.7); W.crouch = 0.45 - 0.25 * r; W.lean = 0.3 * (1 - rel); W.twist = -0.1; W.claw = 1; } }
+    else if (A.kind === 'cleave') {
+      if (A.phase === 'wind' && A.tele) { const c = ease(cl(A.t / (0.75 * A.W))); snap('cleaveW', c); W.twist = 0.7 * c; W.lean = -0.12 * c; W.crouch = 0.28 * c; W.heat += 0.35 * c; if (A.t > 0.75 * A.W) W.tilt = 0.02 * Math.sin(t * 29); }
+      else if (A.phase === 'sweep') { const q = cl(A.t / 0.32), e = q < 0.5 ? 2 * q * q : 1 - 2 * (1 - q) * (1 - q); snap('cleaveW', 1); snap('cleaveS', e); snap('twist', 0.7 - 1.35 * e); W.lean = 0.22 * e; W.crouch = 0.28; }
+      else if (A.phase === 'back') { const r = cl(A.t / (1.5 / Math.sqrt(k))); snap('cleaveW', 1); snap('cleaveS', 1); snap('cleaveR', ease(cl((A.t - 0.25) / 0.85))); snap('twist', -0.65 * (1 - ease(r))); W.lean = 0.2 * (1 - r); W.crouch = 0.28 * (1 - r); } }
+    else if (A.kind === 'rocks') { if (A.phase === 'wind') { const r = ease(cl(A.t / 0.6)); W.shout = r; W.jaw = r; W.arch = 0.4 * r; W.heat += 0.35; W.claw = 1; } else { const r = 1 - ease(cl(A.t / 0.9)); W.shout = r; W.jaw = r; W.arch = 0.4 * r; } }
+    else if (A.kind === 'hellfire') {
+      if (A.phase === 'charge') { const e = cl(A.t / TUNE.hellCharge), hv = Math.sin(t * 2.6); W.plant = 1; W.arch = 0.25 + 0.35 * ease(cl((A.t - 0.8) / 2.5)); W.shout = 0.6 + 0.2 * hv; W.jaw = 0.75 + 0.25 * hv; W.inhale = 0.5 + 0.5 * Math.sin(t * TAU / 1.3); W.heat = 1.4 + 0.8 * e; W.flare = 1; W.aim = 0; }
+      else if (A.phase === 'wall') { W.plant = 1; W.shout = 1; W.arch = 0.7; W.jaw = 1; W.heat = 2.2; W.aim = 0; } }
     return W; }
   const clamp2 = (v, a, b) => v < a ? a : v > b ? b : v;
-  function easePose(FX, m, dt) { const M = FX.mem, W = poseOf(FX, m, M), P = M.P;
-    for (const k in RATE) { const w = W[k] == null ? 0 : W[k]; P[k] = toward(P[k], w, dt, RATE[k]); }
-    P.slamX = toward(P.slamX, W.slamX, dt, 8); P.slamY = toward(P.slamY, W.slamY, dt, 8); P.gait = W.gait; P.recoilS = M.P.recoilS || 1;
-    M.P.recoil = Math.max(0, (M.P.recoil || 0) - dt * 2.5);
+  /* which side of him a growth stands on (its tether goes to that shoulder, and that side's armour carries its fire) */
+  function crySide(m, M, cr) { return toBody(cr.x, cr.y, m.x, m.y, MODEL.headOf(M.th))[1] > 0 ? 1 : -1; }
+  function flinch(FX, m, k) { const M = FX.mem; if (!(M.flinch > 0.08)) M.recoilS = FX.me.x < m.x ? 1 : -1; M.flinch = Math.min(1, (M.flinch || 0) + k); }
+  function easePose(FX, m, dt) { const M = FX.mem, W = poseOf(FX, m, M), P = M.P, sn = W._snap || {};
+    for (const k in RATE) { const w = W[k] == null ? 0 : W[k]; P[k] = sn[k] ? w : toward(P[k], w, dt, RATE[k]); }
+    P.slamX = sn.slamX ? W.slamX : toward(P.slamX, W.slamX, dt, 8); P.slamY = sn.slamY ? W.slamY : toward(P.slamY, W.slamY, dt, 8); P.gait = W.gait; P.recoilS = W.recoilS || P.recoilS || 1;
+    if (!(W.cleaveS > 0) && P.cleaveR > 0.85) { P.cleaveS = 0; P.cleaveR = 0; P.cleaveW = 0; }   // (the cleave's arm is home: its sweep put away without running back)
+    M.flinch = Math.max(0, (M.flinch || 0) - dt * 1.3);
+    locoPose(FX, m, M, P);
     for (let i = M.fx.length - 1; i >= 0; i--) { const f = M.fx[i]; f.t += dt; if (f.t >= f.life) M.fx.splice(i, 1); }
     for (let i = M.rocks.length - 1; i >= 0; i--) { const r = M.rocks[i]; r.t += dt; if (r.done || r.t > r.T + 0.2) M.rocks.splice(i, 1); } }
-
   /* ================= the painting ================= */
   const rgba = (h, a) => { const n = parseInt(h.slice(1), 16); return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${Math.max(0, Math.min(1, a))})`; };
   const gl2 = (c, x, y, r, col, a) => { if (!(r > 0) || !(a > 0.003)) return; if (typeof glowSprite === 'function' && typeof blitSized === 'function') { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = Math.min(1, a); blitSized(c, glowSprite(col), x - r, y - r, r * 2, r * 2); c.restore(); } else { c.save(); c.globalCompositeOperation = 'lighter'; const g = c.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, rgba(col, a)); g.addColorStop(1, rgba(col, 0)); c.fillStyle = g; c.fillRect(x - r, y - r, r * 2, r * 2); c.restore(); } };
@@ -888,6 +993,7 @@ const CAL_IFRIT = (() => {
     const fwd = Math.sin(a) > -0.2 ? 1 : 0.25;
     if (core) { gl2(c, core[0], core[1], T * (1.4 + 1.6 * open + 0.8 * inh) * Math.min(1.6, heat), '#FF6A1E', (0.22 + 0.35 * open + 0.25 * inh) * Math.min(1.4, heat) * fwd); gl2(c, core[0], core[1], T * (0.6 + 0.6 * open), '#FFD9A0', (0.1 + 0.4 * open + 0.2 * inh) * Math.min(1.2, heat) * fwd); }
     for (const n of ['eyeL', 'eyeR']) { const e = at(n); if (e) gl2(c, e[0], e[1], T * 0.45, '#FFB347', 0.5 * Math.min(1.3, heat) * fwd); }
+    for (const sn of ['L', 'R']) { const lf = Math.max(P['lift' + sn] || 0, sn === 'R' ? (P.cleaveW || 0) * (1 - (P.cleaveR || 0)) : 0), sm = P['slam' + sn] || 0; if (lf > 0.2 || sm > 0.5) { const h = at('hand' + sn); if (h) { gl2(c, h[0], h[1], T * (0.9 + 0.6 * lf), '#FF6A1E', 0.35 * Math.max(lf, sm * 0.6)); gl2(c, h[0], h[1], T * 0.45, '#FFD9A0', 0.3 * lf); } } }
     const mo = at('mouth'); if (mo && (P.jaw || 0) > 0.2) gl2(c, mo[0], mo[1], T * (0.6 + 0.8 * P.jaw), '#FF8A2A', 0.5 * P.jaw * Math.min(1.3, heat));
     if ((P.flare || 0) > 0.05) for (const n of ['hornL', 'hornR']) { const h = at(n); if (h) { gl2(c, h[0], h[1], T * (0.5 + 0.5 * P.flare), '#FF5A1E', 0.45 * P.flare); gl2(c, h[0], h[1], T * 0.25, '#FFE2B0', 0.5 * P.flare); } }
     if ((P.bfL || 0) + (P.bfR || 0) > 0.05) { const s1 = at('shL'), s2 = at('shR'); if (s1) gl2(c, s1[0], s1[1], T * 1.4, BF, 0.22 * (P.bfL || 0)); if (s2) gl2(c, s2[0], s2[1], T * 1.4, BF, 0.22 * (P.bfR || 0)); } }
@@ -897,7 +1003,7 @@ const CAL_IFRIT = (() => {
     try {
       const a = MODEL.headOf(M.th), at = n => { const q = MODEL.anchorAt(n, m.x, m.y, a, M.P, 1, M.bt || 0); return q ? [FX.sx(q.x), FX.sy(q.y) - q.z * ZK * T] : null; };
       // the tethers: black fire from each living growth's crown into his armour, pulses running to him
-      if (FX.S.lv === 2 && !m.dead) for (const cr of M.crys) { if (!cr.alive) continue; const x0 = FX.sx(cr.x), y0 = FX.sy(cr.y) - T * 2.6, tgt = at(cr.i ? 'shR' : 'shL') || [FX.sx(m.x), FX.sy(m.y) - T * 3], x1 = tgt[0], y1 = tgt[1];
+      if (FX.S.lv === 2 && !m.dead) for (const cr of M.crys) { if (!cr.alive) continue; const x0 = FX.sx(cr.x), y0 = FX.sy(cr.y) - T * 2.6, tgt = at(crySide(m, M, cr) > 0 ? 'shR' : 'shL') || [FX.sx(m.x), FX.sy(m.y) - T * 3], x1 = tgt[0], y1 = tgt[1];
         const mx = (x0 + x1) / 2, my = Math.min(y0, y1) - T * 1.6, P2 = u => [(1 - u) * (1 - u) * x0 + 2 * (1 - u) * u * mx + u * u * x1, (1 - u) * (1 - u) * y0 + 2 * (1 - u) * u * my + u * u * y1];
         if (Q) { let p = P2(0); for (let i = 1; i <= 10; i++) { const q = P2(i / 10); Q.ebeam(p[0], p[1], q[0], q[1], T * 0.32, '#8A3CFF', 0.8, 0.9, i * 0.7 + cr.i * 5, 4); Q.ebeam(p[0], p[1], q[0], q[1], T * 0.1, '#FF6A2A', 0.9, 0.55, i * 0.7, 5); p = q; } }
         else { c.save(); c.lineCap = 'round'; for (const [w, col] of [[T * 0.42, 'rgba(20,6,30,.65)'], [T * 0.24, 'rgba(140,60,255,.7)'], [T * 0.08, 'rgba(255,140,80,.9)']]) { c.strokeStyle = col; c.lineWidth = w; c.beginPath(); c.moveTo(x0, y0); c.quadraticCurveTo(mx, my, x1, y1); c.stroke(); } c.restore(); }
@@ -905,7 +1011,7 @@ const CAL_IFRIT = (() => {
         gl2(c, x0, y0, T * 1.0, BF, 0.5); }
       // the gout: a cone of fire rolling out of his mouth
       for (const f of M.fx) { const u = f.t / f.life;
-        if (f.kind === 'gout') { const env = Math.min(1, f.t / 0.15) * (1 - sstep(0.75, 1, u)); for (let i = 0; i < 16; i++) { const k = ((i / 16 + f.t * 1.8) % 1), d = k * BR_LEN, w = 0.3 + d * Math.tan(BR_SP) * 0.85, x = FX.sx(f.x + Math.cos(f.a) * d), y = FX.sy(f.y + Math.sin(f.a) * d) - T * (0.5 + 0.8 * (1 - k));
+        if (f.kind === 'gout') { const env = Math.min(1, f.t / 0.15) * (1 - sstep(0.75, 1, u)), mo = at('mouth'); for (let i = 0; i < 16; i++) { const k = ((i / 16 + f.t * 1.8) % 1), d = k * BR_LEN, w = 0.3 + d * Math.tan(BR_SP) * 0.85, fx2 = FX.sx(f.x + Math.cos(f.a) * d), fy2 = FX.sy(f.y + Math.sin(f.a) * d) - T * 0.5, j = sstep(0, 0.55, k), x = mo ? lerp(mo[0], fx2, j) : fx2, y = mo ? lerp(mo[1], fy2, j) : fy2;   // (out of his mouth, down onto the floor and along it)
             if (Q) Q.fire(x, y, w * T, 0.25 + k * 0.6, env * 0.85, i * 1.3); else { gl2(c, x, y, w * T * 1.2, '#FF6A1E', 0.55 * env); gl2(c, x, y, w * T * 0.5, '#FFE2B0', 0.5 * env * (1 - k)); } } }
         else if (f.kind === 'erupt') { const env = Math.sin(Math.min(1, u * 1.4) * Math.PI); for (let d = 0.4; d < f.len; d += 0.9) { const x = FX.sx(f.x + Math.cos(f.a) * d), y = FX.sy(f.y + Math.sin(f.a) * d), h = T * (2.2 + 1.2 * Math.sin(d * 3.1 + f.t * 9)) * env;
             if (Q) { Q.tongue(x, y, T * 0.55, h, 0, 0.3, env, d); Q.glow(x, y, T * 1.2, '#FF5A1E', 0.4 * env, 0.5); } else { c.save(); c.globalCompositeOperation = 'lighter'; const g = c.createLinearGradient(x, y, x, y - h); g.addColorStop(0, `rgba(255,200,120,${0.9 * env})`); g.addColorStop(0.5, `rgba(255,90,20,${0.6 * env})`); g.addColorStop(1, 'rgba(255,40,0,0)'); c.fillStyle = g; c.beginPath(); c.moveTo(x - T * 0.45, y); c.quadraticCurveTo(x - T * 0.2, y - h * 0.5, x, y - h); c.quadraticCurveTo(x + T * 0.2, y - h * 0.5, x + T * 0.45, y); c.fill(); c.restore(); } } }

@@ -508,7 +508,9 @@ const DunArt = (() => {
       try { (MP[type] || MP.blob)(c, r, fi / nf, { color, mode }); } catch (e) { console.error(e); }
       s = { cv, half };
     }
-    if (monCache.size > 500) monCache.clear();
+    // (v387, P: a full cache lets go of its oldest quarter, not all of it: emptying it made every monster on screen
+    // re-paint in the same frame, a hitch mid-fight once a loading screen had filled it ahead)
+    if (monCache.size > 500) { let n = 125; for (const k of monCache.keys()) { monCache.delete(k); if (--n <= 0) break; } }
     monCache.set(key, s);
     return s;
   }

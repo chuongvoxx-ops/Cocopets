@@ -696,7 +696,31 @@ GAMES.dungeon = {
         jobs.push(() => { const back = swap(m), gi = g.pw.giant; try { g.pw.giant = 1; c.save(); drawPet(c); c.restore(); } catch (e) {} g.pw.giant = gi; back(); }); }
       const seen = new Set(); for (const m of mons) { if (m.dead || m.boss) continue; const rpx = m.r * TS * SK(), key = m.type + '|' + Math.round(rpx) + '|' + m.color; if (seen.has(key)) continue; seen.add(key);
         const nf = (DunArt.NF && DunArt.NF[m.type]) || 4; for (let f = 0; f < nf; f++) for (const fl of [false, true]) jobs.push(() => { try { DunArt.monSprite(m.type, rpx, (f + 0.5) / nf, m.color, typeof m.mode === 'string' ? m.mode : '', fl); } catch (e) {} }); }
+      preloadMore(c, jobs, seen);
       return jobs; }
+    /* (v387, Rift 0 loading pass) the rest of what a floor's first minute would otherwise make mid-play, as more of the
+       same small jobs: the monsters held back by the live cap (g.reserve); every prop and pot picture on the floor; the
+       gap's backdrop and its patterns at the screen's sharpness; the ground chunks of the view and the ring round it (the
+       ring is otherwise painted one chunk a frame as play starts); then the rift's own warm-up hooks, each of which may
+       return more jobs: Rf.preload(P), the stage's S.preload(P) and the fiend def's preload(P), with
+       P = { F, M, c, T (tile px), k (sprite sharpness), Tz, mons, reserve, rift, S, Rf, monPx(type, elite), gl }
+       (gl, read only when needed since it wakes the 3D painter (GLM): false with no WebGL or on a software rasteriser). A hook must never
+       break the 2D fallback: it is called in a try, and its jobs too */
+    function preloadMore(c, jobs, seen) { if (typeof window !== 'undefined' && window.__PRELOAD_MORE === 0) return;   // (tests: the pass before v387)
+      for (const m of g.reserve || []) { if (m.dead || m.boss) continue; const rpx = m.r * TS * SK(), key = m.type + '|' + Math.round(rpx) + '|' + m.color; if (seen.has(key)) continue; seen.add(key);
+        const nf = (DunArt.NF && DunArt.NF[m.type]) || 4; for (let f = 0; f < nf; f++) for (const fl of [false, true]) jobs.push(() => { try { DunArt.monSprite(m.type, rpx, (f + 0.5) / nf, m.color, '', fl); } catch (e) {} }); }
+      const pk = new Set(); for (const p of propList) { const key = p.kind + '|' + p.v + '|' + p.biome; if (pk.has(key)) continue; pk.add(key); jobs.push(() => { try { DunWorld.propSprite(p.kind, TS, SK(), p.v, p.biome); } catch (e) {} }); }
+      for (const p of pots) { const kind = p.kind === 'pot' && BIOMES[p.biome] && BIOMES[p.biome].out ? 'urn' : p.kind === 'pot' && (p.v % 3 === 0) ? 'crate' : p.kind === 'barrel' ? 'xbarrel' : p.kind, bi = p.biome || F.biome, key = 'pot|' + kind + '|' + bi; if (pk.has(key)) continue; pk.add(key); jobs.push(() => { try { DunWorld.propSprite(kind, TS, SK(), 0, bi); } catch (e) {} }); }
+      if (!F.fiend && PB.gap) { let gap = false; for (let i = 0; i < MW * MH && !gap; i++) gap = G[i] === T_GAP; if (gap) jobs.push(() => { try { c.save(); DunWorld.backdrop(c, PB.gap, api.W, api.H, cam.x, cam.y, Tz(), g.t); c.restore(); } catch (e) {} }); }
+      if (!F.fiend) { const T = Tz(), x0 = Math.floor(cam.x - api.W / 2 / T) - 1, x1 = Math.ceil(cam.x + api.W / 2 / T) + 1, y0 = Math.floor(cam.y - api.H / 2 / T) - 2, y1 = Math.ceil(cam.y + api.H / 2 / T) + 2;
+        const cx0 = Math.max(0, Math.floor(x0 / CH)) - 1, cx1 = Math.min(Math.floor((MW - 1) / CH), Math.floor(x1 / CH)) + 1, cy0 = Math.max(0, Math.floor(y0 / CH)) - 1, cy1 = Math.min(Math.floor((MH - 1) / CH), Math.floor(y1 / CH)) + 1;
+        for (let cy = cy0; cy <= cy1; cy++) for (let cx = cx0; cx <= cx1; cx++) if (cx >= 0 && cy >= 0 && cx * CH < MW && cy * CH < MH) jobs.push(() => { if (chunks.size < CHUNK_MAX - 2) try { getChunk(cx, cy, true); } catch (e) {} }); }
+      try { const Rf = F.rift && RIFT_BY_ID[F.rift.id], S = Rf && (F.rift.gate ? RIFT_GATES[F.rift.id] : Rf.stages[F.rift.stage]), FDd = F.fiend && typeof FIEND_DEFS !== 'undefined' ? FIEND_DEFS[F.fiend.id] : null;
+        // (gl is asked only by a hook that needs it: reading it wakes GLM, a WebGL context and its program; __GLM_WARM: 0 never, 1 even on a software rasteriser, for tests)
+        const P = { F, M, c, T: TS, k: SK(), Tz, mons, reserve: g.reserve || [], rift: RIFT, S, Rf, monPx: (t, el) => (MON[t] ? MON[t].r * (el ? 1.35 : 1) * TS * SK() : 0),
+          get gl() { if (typeof GLM === 'undefined' || (typeof window !== 'undefined' && window.__GLM_WARM === 0)) return false; try { return GLM.ok() && (!GLM.soft || window.__GLM_WARM === 1); } catch (e) { return false; } } };
+        for (const h of [Rf && Rf.preload, S && S.preload, FDd && FDd.preload]) { if (typeof h !== 'function') continue; let more = null; try { more = h(P); } catch (e) {} if (Array.isArray(more)) for (const j of more) if (typeof j === 'function') jobs.push(() => { try { j(); } catch (e) {} }); } } catch (e) {}
+    }
     function switchNext() { if (party.length < 2) return; for (let k = 1; k < party.length; k++) { const i = (cur + k) % party.length; if (!party[i].down) { if (switchTo(i)) return; else break; } } if (g.swapCd > 0) text(me.x, me.y - 1.2, 'Not yet', '#CFE2FF', 12); }
     /* the party re-dressed mid-run (the Team sheet, opened from the HUD's Team button): every pet's abilities, accessories
        and level read again; a pet taken out leaves, a pet put in joins at full strength; each keeps its share of health
@@ -2592,8 +2616,9 @@ GAMES.dungeon = {
       if (nav.goal && !nav.mon && !me.dead) { const X = sx(nav.goal.x), Y = sy(nav.goal.y), k2 = 0.55 + 0.25 * Math.sin(g.t * 8), s = TS * (0.5 + 0.12 * Math.sin(g.t * 8)); c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = k2; blitSized(c, shockSprite(EL(KIT.normal.el).color), X - s, Y - s * 0.5, s * 2, s); c.restore(); }
       if (!touchUI && g.t < 6 && !g.movedOnce) { c.globalAlpha = 0.35 + 0.2 * Math.sin(g.t * 4); c.beginPath(); c.arc(78, HB() - 52, 46, 0, 6.283); c.lineWidth = 2.5; c.strokeStyle = '#FFFFFF'; c.setLineDash([6, 6]); c.stroke(); c.setLineDash([]); c.globalAlpha = 0.8; c.font = `800 11px ${arcFont}`; c.fillStyle = '#FFFFFF'; c.textAlign = 'center'; c.fillText(touchUI ? 'Drag to move' : 'Arrow keys', 78, H - 82); if (!touchUI) { c.font = `800 9px ${arcFont}`; c.fillText('or WASD · Shift dodges', 78, H - 68); } c.globalAlpha = 1; }
       // until you've tapped a few times: a pulsing finger over the nearest monster
-      if (g.taps < 4 && g.intro <= 0 && !me.dead && !g.won && F.k % ACT_LEN === 0) {
-        const t = nearestMon(me.x, me.y, 9); const X = t ? sx(t.x) : W / 2 + 90, Y = t ? sy(t.y) - t.r * Tz() - 10 : H / 2 - 60, pulse = 0.5 + 0.5 * Math.sin(g.t * 5);
+      const tapT = g.taps < 4 && g.intro <= 0 && !me.dead && !g.won && F.k % ACT_LEN === 0 && !F.fiend && (ST.L || 1) < 5 ? nearestMon(me.x, me.y, 9) : null;   // (QA v386: not for a pet of level 5 or more, never on a fiend's stage, never over a boss)
+      if (tapT && !tapT.boss && !tapT.fiend) {   // (only with a monster to point at: never over an empty puzzle room)
+        const t = tapT; const X = t ? sx(t.x) : W / 2 + 90, Y = t ? sy(t.y) - t.r * Tz() - 10 : H / 2 - 60, pulse = 0.5 + 0.5 * Math.sin(g.t * 5);
         c.save(); c.globalAlpha = 0.75 + 0.25 * pulse; c.strokeStyle = '#FFFFFF'; c.lineWidth = 3; c.beginPath(); c.arc(X, Y + 26, 18 + pulse * 10, 0, 6.283); c.stroke();
         c.translate(X, Y - pulse * 6); c.fillStyle = '#FFE3C2'; c.strokeStyle = GFX.line; c.lineWidth = 2.2;
         c.beginPath(); GFX.rr(c, -6, -2, 12, 30, 6); c.fill(); c.stroke(); c.beginPath(); GFX.rr(c, -15, 12, 30, 20, 9); c.fill(); c.stroke();

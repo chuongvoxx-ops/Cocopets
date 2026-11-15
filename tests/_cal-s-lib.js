@@ -16,6 +16,9 @@ async function openCal(opts) {
       P.RIFTS.push(R); P.RIFT_BY_ID.caldera = R; }
     const R = P.RIFT_BY_ID.caldera; return { temp, stages: R.stages.map(s => s.kind + (s.trial ? '*' : '') + ':' + s.name + ':' + s.biome) }; });
   T.calInfo = info;
+  // the index of a trial in the rift's stages, by its name (the core may put generated dungeons before each trial)
+  T.trial = key => page.evaluate(k => { const N = { HOLLOWS: 'The Ashen Hollows', FOUNDRY: 'The Runebound Foundry', DESCENT: 'The Heartward Descent' }[k]; return window.__pp.RIFT_BY_ID.caldera.stages.findIndex(s => s.trial && s.name === N); }, key);
+  T.startTrial = async key => T.start('caldera', await T.trial(key));
   // game-time waits (health kept full): __w(secs, each, until)
   T.setupW = () => page.evaluate(() => { window.__w = async (secs, each, until, keepHp) => { const D = window.__pp.arc.game._dbg, g0 = D.g.t; let f = 0; while (D.g.t - g0 < secs && !(until && until())) { await new Promise(r => requestAnimationFrame(r)); f++; if (D.me && !D.me.dead && keepHp !== false) { D.me.hp = D.ST.hp; D.me.mp = 999; } if (each) each(); } return f; };
     window.__use = async (kind, i, off) => { const D = window.__pp.arc.game._dbg, o = D.RIFT.objs.filter(q => q.kind === kind)[i || 0]; o.used = false; o.ch = 0; let used = false; const u0 = o.use; o.use = q => { used = true; u0(q); }; off = off || [0.1, 0.2];

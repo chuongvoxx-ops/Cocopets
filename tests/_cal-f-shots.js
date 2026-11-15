@@ -13,7 +13,7 @@ const only = process.env.ONLY ? process.env.ONLY.split(',') : null, want = n => 
   await ev(`D.g.zoomP = arg; D.g.zoomT = 1e9; D.g.taps = 99; D.banners.length = 0; window.__calDbg = window.__pp.FIEND_DEFS.calflan.dbgStart;`, Z);
   // freeze the pet near the flan, out of harm, and keep the flan's health where a phase wants it
   const pose = (name, body, secs) => ev(`const keep = arg[1]; ${body}; S(arg[0], t => { me.hp = D.ST.hp; me.mp = 999; D.banners.length = 0; if (window.__keep) window.__keep(t); }); await frame(); await frame(); return { act: b.act, chill: +M.chill.toFixed(2), brittle: M.brittle, phase: FX.S.phase };`, [secs || 0.6, 0]);
-  const snap = async (name, body, secs) => { if (!want(name)) return; const r = await pose(name, body, secs); console.log(name, JSON.stringify(r)); await shot('pose-' + name); };
+  const snap = async (name, body, secs) => { if (!want(name)) return; const r = await pose(name, body, secs); console.log(name, JSON.stringify(r)); await shot('pose-' + name + (process.env.SUFFIX || '')); };
   const near = `window.__keep = () => { hold(b.x + 1.5, b.y + 4.2); b.x = window.__bx; b.y = window.__by; }; window.__bx = b.x; window.__by = b.y;`;
   await ev(`window.__bx = D.FD.S.C.x; window.__by = D.FD.S.C.y - 0.5; b.x = window.__bx; b.y = window.__by; M.cool = 99;`);
   await snap('01-idle', `${near} M.cool = 99;`, 1.2);

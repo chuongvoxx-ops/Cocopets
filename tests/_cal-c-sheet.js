@@ -14,9 +14,9 @@ const on = k => !want.length || want.includes(k);
     await page.setViewportSize({ width: W, height: H }); await page.screenshot({ path: path.resolve(__dirname, `../shots/cal-${name}.png`), clip: { x: 0, y: 0, width: W, height: H } }); console.log('shot', name); };
   const bg = (c, W, H) => { const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#3C3536'); g.addColorStop(1, '#2A2425'); c.fillStyle = g; c.fillRect(0, 0, W, H); };
   if (on('brood')) {
-    const POSES = { cinderslug: ['', 'w1', 'w3', 'spit', 'rest'], basaltcrawler: ['', 'wind', 'ram', 'reel'], emberwisp: ['', 'charge', 'spent'], furnaceimp: ['', 'wind', 'throw', 'hop'], runicsentinel: ['', 'wind', 'bash', 'open'], bomblarva: ['fly', 'g0', 'g1', 'red', 'red2'], ashenknight: ['', 'wind', 's1', 's2', 'rest'], crystalwisp: ['', 'aim', 'beam', 'spent'] };
+    const POSES = { cinderslug: ['', 'w1', 'w3', 'spit', 'rest'], basaltcrawler: ['', 'wind', 'ram', 'reel'], emberwisp: ['', 'charge', 'spent'], furnaceimp: ['', 'wind', 'throw', 'hop'], runicsentinel: ['', 'wind', 'bash', 'open'], bomblarva: ['fly', 'g0', 'g1', 'red', 'red2'], ashenknight: ['', 'wind', 's1', 's2', 'rest'], crystalwisp: ['', 'aim', 'beam', 'spent'], rimewisp: ['', 'charge', 'spent'], shardling: ['', 'wind', 'flick', 'rest'], geodeling: ['', 'c2', 'burst', 'open'] };
     const types = Object.keys(POSES);
-    for (let half = 0; half < 2; half++) await sheet('brood-' + (half + 1), 760, 4 * 170 + 10, (c, W, H, P, CAL, arg) => { const bgc = c.createLinearGradient(0, 0, 0, H); bgc.addColorStop(0, '#3C3536'); bgc.addColorStop(1, '#2A2425'); c.fillStyle = bgc; c.fillRect(0, 0, W, H);
+    for (let half = 0; half < 3; half++) await sheet('brood-' + (half + 1), 760, 4 * 170 + 10, (c, W, H, P, CAL, arg) => { const bgc = c.createLinearGradient(0, 0, 0, H); bgc.addColorStop(0, '#3C3536'); bgc.addColorStop(1, '#2A2425'); c.fillStyle = bgc; c.fillRect(0, 0, W, H);
       arg.types.forEach((t, row) => { arg.poses[t].forEach((md, i) => { const s = P.DunArt.monSprite(t, 46, 0.15 + i * 0.07, P.MON[t].color, md, false), x = 80 + i * 150, y = 90 + row * 170; c.drawImage(s.cv, x - s.half, y - s.half, s.half * 2, s.half * 2); c.fillStyle = '#FFF'; c.font = '700 12px sans-serif'; c.textAlign = 'center'; c.fillText(t + (md ? ' · ' + md : ''), x, y + 76); }); }); },
       { types: types.slice(half * 4, half * 4 + 4), poses: POSES });
   }
@@ -24,6 +24,11 @@ const on = k => !want.length || want.includes(k);
     await sheet('props', 900, 760, (c, W, H, P) => { const bgc = c.createLinearGradient(0, 0, 0, H); bgc.addColorStop(0, '#3C3536'); bgc.addColorStop(1, '#2A2425'); c.fillStyle = bgc; c.fillRect(0, 0, W, H);
       const kinds = [['blackcrystal', 0], ['blackcrystal', 2], ['bigcrystal', 0], ['basaltcol', 0], ['basaltcol', 2], ['frostwell', 0], ['lavafall', 0], ['glassspire', 1], ['ashmound', 0], ['forge', 0], ['vessel', 0], ['chains', 0], ['metalring', 0], ['anvil', 0], ['slabhang', 0]];
       kinds.forEach(([k, v], i) => { const T = 34, s = P.DunWorld.propSprite(k, T, 1, v, 'ashen'), x = 90 + (i % 5) * 180, y = 230 + Math.floor(i / 5) * 250; c.drawImage(s.cv, x - s.ax, y - s.ay); c.fillStyle = '#FFF'; c.font = '700 12px sans-serif'; c.textAlign = 'center'; c.fillText(k + ' ' + v, x, y + 20); }); });
+  }
+  if (on('props')) {
+    await sheet('props-2', 900, 520, (c, W, H, P) => { const bgc = c.createLinearGradient(0, 0, 0, H); bgc.addColorStop(0, '#3C3536'); bgc.addColorStop(1, '#2A2425'); c.fillStyle = bgc; c.fillRect(0, 0, W, H);
+      const kinds = [['frostcluster', 1], ['icechains', 0], ['rimevessel', 0], ['icefall', 0], ['crystalforest', 0], ['geode', 0], ['magmaglass', 1], ['frostcluster', 2]];
+      kinds.forEach(([k, v], i) => { const T = 30, s = P.DunWorld.propSprite(k, T, 1, v, 'ashen'), x = 100 + (i % 4) * 230, y = 230 + Math.floor(i / 4) * 260; c.drawImage(s.cv, x - s.ax, y - s.ay); c.fillStyle = '#FFF'; c.font = '700 12px sans-serif'; c.textAlign = 'center'; c.fillText(k + ' ' + v, x, y + 20); }); });
   }
   if (on('art')) {
     await sheet('art', 900, 700, (c, W, H, P, CAL) => { const bgc = c.createLinearGradient(0, 0, 0, H); bgc.addColorStop(0, '#3C3536'); bgc.addColorStop(1, '#2A2425'); c.fillStyle = bgc; c.fillRect(0, 0, W, H); const T = 40;
