@@ -4,7 +4,7 @@
    2 a grey 'saturation' wash that takes the edge off the colours, as old prints do;
    3 a faint brown 'screen' that lifts the blacks, so nothing is ever quite black;
    4 film grain: tiles of noise, re-rolled and jumped about every few frames;
-   5 dust, hairs and the odd scratch down the frame, on a small canvas repainted a dozen times a second;
+   5 dust and hairs (v380: no scratches down the frame), on a small canvas repainted a dozen times a second;
    and a slight flicker of the light. Settings: "Old film look" (st.retro, on unless turned off). */
 const retro = (() => {
   const BLUR = 0.48, CA = 0.10;   /* the blur in px; the chromatic aberration's strength (0..1: 1 is a 2% split at the edges) */
@@ -36,7 +36,7 @@ const retro = (() => {
     grain = layer(`background-image:url(${tiles[0]});background-size:128px 128px;mix-blend-mode:overlay;opacity:.15;`);
     dust = document.createElement('canvas'); dust.className = 'retroFx'; dust.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:2147483001;opacity:.75;'; document.body.appendChild(dust); LAYERS.push(dust); dc = dust.getContext('2d');
   }
-  // dust and scratches, at half the screen's size
+  // dust and hairs, at half the screen's size
   function paintDust() {
     const W = Math.ceil(innerWidth / 2), H = Math.ceil(innerHeight / 2);
     if (dust.width !== W || dust.height !== H) { dust.width = W; dust.height = H; }
@@ -48,9 +48,7 @@ const retro = (() => {
       if (Math.random() < 0.3) { dc.strokeStyle = dc.fillStyle; dc.lineWidth = 0.6; dc.beginPath(); dc.moveTo(x, y); dc.quadraticCurveTo(x + (Math.random() - 0.5) * 14, y + (Math.random() - 0.5) * 10, x + (Math.random() - 0.5) * 18, y + (Math.random() - 0.5) * 14); dc.stroke(); }
       else { dc.beginPath(); dc.ellipse(x, y, r, r * (0.6 + Math.random() * 0.6), Math.random() * 3, 0, 6.283); dc.fill(); }
     }
-    // a scratch running down the frame now and then, holding for a few frames and wandering a little
-    if (!scratch && Math.random() < 0.04) scratch = { x: Math.random() * W, life: 3 + Math.floor(Math.random() * 6), light: Math.random() < 0.6 };
-    if (scratch) { scratch.x += (Math.random() - 0.5) * 2; dc.strokeStyle = scratch.light ? 'rgba(255,248,230,.35)' : 'rgba(34,22,12,.35)'; dc.lineWidth = 0.7; dc.beginPath(); dc.moveTo(scratch.x, 0); dc.lineTo(scratch.x + (Math.random() - 0.5) * 3, H); dc.stroke(); if (--scratch.life <= 0) scratch = null; }
+    /* (v380) no more scratches down the frame: a faint line fading in and out over the pet read as a glitch */
   }
   function frame() {
     const want = typeof st === 'undefined' || !st || st.retro !== false;
