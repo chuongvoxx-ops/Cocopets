@@ -188,6 +188,8 @@ function startGame(fresh) {
   } else if (awayMs > 3 * 36e5 && !st.asleep) setTimeout(() => { if (running && canCommand()) greet(); }, 500);
   // the session opens in Cocopets Town (24a), unless the save left the player indoors
   if (typeof hubBoot === 'function') hubBoot(!!fresh);
+  // (v373) a returning player: the start-up loading screen prepares what every stage needs (12b)
+  if (!fresh && typeof BootLoad !== 'undefined') BootLoad.run();
 }
 function adoptState(s) {
   loadedSavedAt = s.savedAt;

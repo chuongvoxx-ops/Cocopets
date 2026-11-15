@@ -9,12 +9,12 @@
        models), started now so their bakes run behind the picture,
      - one full frame of the stage drawn behind it (its floor, props and monsters' pictures cached),
      - a moment of idle time for those bakes to finish.
-   It stays at least MIN s (so the picture is seen), at most what the work takes, then fades to the stage's ready card.
+   It stays at least MIN s (so the picture is seen; v373: 1.1 s, the start-up loading below having done most of the work), at most what the work takes, then fades to the stage's ready card.
    The pictures are files beside the page (loading/*.jpg: the website copies them from assets/loading; the Claude build
    publishes them with the page); if one cannot be loaded the screen shows a soft gradient instead. */
 const StageLoad = (() => {
   const POOL = ['meadow', 'belfry', 'dunes', 'yuggoth', 'garden', 'castle'], BY_RIFT = { belfry: 'belfry', dunes: 'dunes', yuggoth: 'yuggoth', garden: 'garden' };
-  const MIN = 1.6, FADE = 0.4, BASE = 'loading/';
+  const MIN = 1.1, FADE = 0.4, BASE = 'loading/';   /* (v373: shorter now that the start-up loading prepares most of it) */
   const TIPS = ['Roll through a warning zone to take no damage from it.', 'Hits earn MP: keep attacking to charge your Strong and Ult.', 'Tap a party portrait to switch pets mid-fight.',
     'Elements react: try Fire after Ice, or Thunder on wet monsters.', 'Bosses resist slows and pushes, but not defence cuts.', 'Wind moves knock monsters around: herd them together.', 'A full combo meter pays out extra rewards.'];
   let el = null, bar = null, pic = null, tip = null, ttl = null, sub = null, lbl = null, t0 = 0, token = 0;
@@ -54,4 +54,62 @@ const StageLoad = (() => {
     set(1, 'Ready'); await frame(); }
   function hide(fast) { if (!el || el.hidden) return; token++; const my = token; if (fast) { el.hidden = true; return; } el.classList.add('out'); setTimeout(() => { if (my === token) el.hidden = true; }, FADE * 1000); }
   return { show, set, warm, hide, pick, POOL, get el() { return el; } };
+})();
+
+/* ---------- (v373) the loading screen as the game starts up ----------
+   For a returning player (a save was found), before the town is handed over: the title picture, a progress bar, a tip,
+   while the things every stage needs are made once for the whole session (they are all kept, so each stage's own loading
+   screen then has little left to do):
+     - every stage picture (decoded and held),
+     - the party's sprites and rigs (petImage and loadRig keep them),
+     - the GPU painters compiled and drawn once with every kind of quad,
+     - every elemental Strong and Ultimate in the party's kits that prepares itself ahead (their .warm, at the Tower's
+       tile size for this screen),
+     - the monsters of the next Tower floor's lands and of the rifts now open, drawn frame by frame into DunArt's cache at
+       the size the Tower will draw them (a few ms a frame, within a time budget).
+   At least MIN s, at most what the work takes (the monster pictures stop at their budget; the rest are drawn as met). A
+   new player (the egg) and the test harness (navigator.webdriver, unless window.__BOOT_LOAD) go straight in. */
+const BootLoad = (() => {
+  const MIN = 1.2, MON_BUDGET = 3.0, FRAME_MS = 9;
+  let done = false, el = null, bar = null, lbl = null;
+  const now = () => performance.now() / 1000, frame = () => new Promise(r => requestAnimationFrame(() => r())), held = [];
+  function set(u, what) { if (!el) return; bar.style.transform = `scaleX(${Math.max(0, Math.min(1, u)).toFixed(3)})`; if (what) lbl.textContent = what; }
+  function overlay() { el = document.createElement('div'); el.className = 'stage-load boot-load';
+    el.innerHTML = '<div class="sl-pic"></div><div class="sl-shade"></div><div class="sl-foot"><div class="sl-bar"><i></i></div><small class="sl-lbl">Loading</small><p class="sl-tip"></p></div>';
+    document.body.appendChild(el); bar = el.querySelector('.sl-bar i'); lbl = el.querySelector('.sl-lbl'); el.querySelector('.sl-tip').textContent = 'Getting every stage ready for you';
+    const pic = el.querySelector('.sl-pic'), im = new Image(); im.onload = () => { pic.style.backgroundImage = `url("${im.src}")`; pic.classList.add('in'); }; im.onerror = () => el.classList.add('noimg'); im.src = 'loading/meadow.jpg'; held.push(im); }
+  /* the Tower's tile size on this screen (20b layout: min(W / 9.6, H / 12.5), 28..64) and its pixel scale */
+  const tileT = () => Math.max(28, Math.min(64, Math.round(Math.min(innerWidth / 9.6, innerHeight / 12.5)))), pxK = () => Math.min(2, Math.max(1, devicePixelRatio || 1));
+  async function run() { if (done) return; done = true;
+    try { if (navigator.webdriver && !window.__BOOT_LOAD) return; } catch (e) {}
+    if (typeof st === 'undefined' || !st) return;
+    overlay(); const t0 = now(); set(0.03, 'Loading');
+    try {
+      // the stage pictures
+      await Promise.all(StageLoad.POOL.map(k => new Promise(r => { const im = new Image(); im.onload = im.onerror = () => r(); im.src = 'loading/' + k + '.jpg'; held.push(im); if (im.decode) im.decode().then(r, r); setTimeout(r, 3000); })));
+      set(0.15, 'Loading your pets');
+      // the party's sprites and rigs
+      const party = typeof partyPets === 'function' ? partyPets() : [st];
+      for (const p of party) { try { const f = formOf(p); await loadSprites(f); await loadRig(f); } catch (e) {} }
+      set(0.35, 'Preparing effects'); await frame();
+      // the GPU painters
+      try { const NM = self.NIDHOGG_MOVES, F = NM && NM.FGFX; if (F && F.usable()) { const cv = document.createElement('canvas'); cv.width = 64; cv.height = 64; const c = cv.getContext('2d'), Q = F.begin(c, null);
+          if (Q && Q.quad) { for (let k = 0; k <= 39; k++) Q.quad(k, 32, 32, 8, 0, 0, 8, '#88CCAA', 0.01, 0.5, 0.5, 0.5); F.flush(c); } }
+        if (NM && NM.F3D && NM.F3D.usable) NM.F3D.usable(); } catch (e) {}
+      set(0.5, 'Preparing moves'); await frame();
+      // the moves that prepare themselves ahead
+      try { const T = () => tileT(); for (const p of party) { const K = petKit(p), kit = K && K.kit; if (!kit) continue;
+          for (const sl of Object.keys(kit)) { const a = kit[sl]; if (!a || !a.e8 || !ELEM_IMPL[a.e8]) continue; const key = String(a.key || '').slice(3), I = (sl === 'ult' ? ELEM_IMPL[a.e8].ult : ELEM_IMPL[a.e8].strong)[key]; if (I && I.warm) try { I.warm({ evo: a.evo || 1, T }); } catch (e) {} } } } catch (e) {}
+      set(0.6, 'Drawing the monsters'); await frame();
+      // the monsters of the lands ahead
+      try { const lands = new Set(); const n = Math.max(1, Math.min(typeof TOWER_TOP !== 'undefined' ? TOWER_TOP : 120, (st.dun && st.dun.best || 0) + 1)), F = floorDef(n); [F.biome, F.sec, F.ter].forEach(b => b && lands.add(b));
+        if (typeof RIFT_PLAN !== 'undefined') for (const r of RIFT_PLAN) { try { if (!r.final && riftOpen(r.id) && !riftSealed(r.id)) lands.add(r.id); } catch (e) {} }
+        const types = Object.keys(MON).filter(t => MON[t] && (MON[t].bio || []).some(b => lands.has(b))), jobs = [], rk = tileT() * pxK();
+        for (const t of types) { const D = MON[t], nf = (DunArt.NF && DunArt.NF[t]) || 4; for (let i = 0; i < nf; i++) for (const el2 of [false, true]) jobs.push(() => DunArt.monSprite(t, D.r * (el2 ? 1.35 : 1) * rk, (i + 0.5) / nf, D.color, '', false)); }
+        const tm = now(); let j = 0; while (j < jobs.length && now() - tm < MON_BUDGET) { const f0 = performance.now(); while (j < jobs.length && performance.now() - f0 < FRAME_MS) { try { jobs[j](); } catch (e) {} j++; } set(0.6 + 0.35 * j / jobs.length); await frame(); } } catch (e) {}
+      try { if (document.fonts && document.fonts.ready) await Promise.race([document.fonts.ready, new Promise(r => setTimeout(r, 800))]); } catch (e) {}
+      while (now() - t0 < MIN) { await frame(); }
+    } catch (e) {}
+    set(1, 'Ready'); await frame(); el.classList.add('out'); setTimeout(() => { el.remove(); }, 450); }
+  return { run, get el() { return el; } };
 })();
