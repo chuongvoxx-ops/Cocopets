@@ -8,7 +8,9 @@ let bad = 0; const ok = (c, m, x) => { console.log((c ? 'ok   ' : 'FAIL ') + m, 
     return { open: Object.fromEntries(['belfry', 'garden', 'basilica', 'colours', 'choir'].map(id => [id, P.riftOpen(id)])) }; }, [best, seals, prog]);
   // (floor openness, through the Tower tab's own rule)
   const open = n => p.evaluate(n => window.__pp.dunFloorOpen(n), n);
-  let r = await S(0, []); ok(await open(1) && !(await open(2)) && !r.open.belfry, 'a new player: floor 1 open, floor 2 not yet, Rift 1 shut', r.open);
+  let r = await S(0, []); ok(await p.evaluate(() => window.__pp.riftOpen('caldera')), 'Rift 0 (the Blackfire Caldera) is open from the start');
+  r = await S(0, ['caldera']); ok(!r.open.belfry, 'sealing Rift 0 does not open Rift 1', r.open);
+  r = await S(0, []); ok(await open(1) && !(await open(2)) && !r.open.belfry, 'a new player: floor 1 open, floor 2 not yet, Rift 1 shut', r.open);
   r = await S(9, []); ok(await open(10) && !r.open.belfry, 'floors up to 10 open one by one; Rift 1 still shut before floor 10 is beaten', r.open);
   r = await S(10, []); ok(r.open.belfry && !(await open(11)), 'floor 10 beaten: Rift 1 opens, floor 11 stays shut', { r1: r.open.belfry, f11: await open(11) });
   r = await S(10, ['belfry']); ok(await open(11) && !(await open(21)) && !r.open.garden, 'Rift 1 sealed: floors 11-20 open (one by one), Rift 2 shut till floor 20', { f11: await open(11), garden: r.open.garden });
@@ -24,7 +26,7 @@ let bad = 0; const ok = (c, m, x) => { console.log((c ? 'ok   ' : 'FAIL ') + m, 
   r = await S(45, []); ok(await open(45) && await open(46) === false && await open(30), 'an old save past the new limits keeps its floors up to its best', { f30: await open(30), f45: await open(45), f46: await open(46) });
   // the Rifts list: Tower blocks between the rifts, in order
   await S(12, ['belfry']); await p.evaluate(() => { const P = window.__pp; P.openMap(); P.dun.setMapTab('rift', true); }); await p.waitForTimeout(300);
-  const L = await p.evaluate(() => [...document.querySelectorAll('#riftInner .rf-grid > .rf-card')].slice(0, 5).map(e => e.querySelector('b').textContent + ' | ' + e.querySelector('small').textContent));
-  ok(/Tower floors 1–10 \| Cleared/.test(L[0]) && /Drowned Belfry/.test(L[1]) && /Tower floors 11–20 \| Open · 2\/10/.test(L[2]) && /Garden/.test(L[3]) && /Tower floors 21–30 \| Locked/.test(L[4]), 'the list: Tower 1-10, Rift 1, Tower 11-20, Rift 2, Tower 21-30', L);
+  const L = await p.evaluate(() => [...document.querySelectorAll('#riftInner .rf-grid > .rf-card')].slice(0, 6).map(e => e.querySelector('b').textContent + ' | ' + e.querySelector('small').textContent));
+  ok(/Blackfire Caldera \| Lv 1/.test(L[0]) && /Tower floors 1–10 \| Cleared/.test(L[1]) && /Drowned Belfry/.test(L[2]) && /Tower floors 11–20 \| Open · 2\/10/.test(L[3]) && /Garden/.test(L[4]) && /Tower floors 21–30 \| Locked/.test(L[5]), 'the list: Rift 0 (the Caldera) first, then Tower 1-10, Rift 1, Tower 11-20, Rift 2, Tower 21-30', L);
   await p.click('[data-rift="tower"][data-n="1"]'); await p.waitForTimeout(300); const tab = await p.evaluate(() => window.__pp.dun.tab); ok(tab === 'dungeon', 'tapping a Tower block opens the Tower', tab);
   ok(!errs.length, 'no page errors', errs.slice(0, 3)); console.log(bad ? 'FAILED ' + bad : 'all passed'); await b.close(); process.exit(bad ? 1 : 0); })();

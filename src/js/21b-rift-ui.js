@@ -14,21 +14,25 @@ const RIFT_PLAN = [
   { id: 'choir', n: 11, name: 'The Choir Before Creation', lvl: 95, region: 'The primordial heights', sigil: 'Rhythm', gate: { anima: 'leo', name: 'The Crown Chase', what: 'Cooperative tag', mins: '3–5' }, icon: 'spire' },
   { id: 'threshold', n: 12, name: 'The Threshold of All Doors', lvl: 100, region: 'The final threshold', sigil: 'Key', gate: { anima: 'aries', name: "The Ram's Switchyard", what: 'Route a moving astral cart', mins: '3–5' }, icon: 'doors' },
   { id: 'rlyeh', n: 13, name: "R'lyeh Above the World", lvl: 100, region: 'The sky wound', sigil: null, gate: null, icon: 'city', final: true },
+  /* (v386) Rift 0, the introductory rift: open from the start, its seal kept apart from the twelve (no constellation gate, no
+     Tower floors behind it, Rift 1 keeps its own rule). Kept last in the list so the twelve keep their places (RIFT_PLAN[n]) */
+  { id: 'caldera', n: 0, zero: true, name: 'The Blackfire Caldera', lvl: 1, region: 'The volcano', sigil: 'Ember', gate: null, icon: 'caldera' },
 ];
+const RIFT_MAIN = RIFT_PLAN.filter(r => !r.zero);
 const riftState = () => (st.rift || (st.rift = { seals: {}, prog: {}, gates: {}, rlyeh: 0 }));
-const riftSealed = id => !!riftState().seals[id], sealCount = () => RIFT_PLAN.filter(r => !r.final && riftSealed(r.id)).length;
+const riftSealed = id => !!riftState().seals[id], sealCount = () => RIFT_PLAN.filter(r => !r.final && !r.zero && riftSealed(r.id)).length;
 const riftBuilt = id => !!RIFT_BY_ID[id];
 /* the path through the game: the Tower's first ten floors are open from the start; beating floor 10n (its Super Fiend)
    opens Rift n; sealing Rift n opens floors 10n+1 to 10n+10. A rift not built yet is stepped over (the floors after it
    open on the last built one's seal). Nothing already reached is ever closed again: a sealed rift, a rift with a
    checkpoint in it, a floor at or below the best. R'lyeh when all twelve seals are set */
-function towerCap() { let cap = 10; for (const r of RIFT_PLAN) { if (r.final || cap >= TOWER_TOP) break; if (!riftBuilt(r.id) || riftSealed(r.id)) cap += 10; else break; } return Math.min(TOWER_TOP, cap); }
-function riftOpen(id) { const r = RIFT_PLAN.find(q => q.id === id); if (!r) return false; if (r.final) return sealCount() >= 12; if (st.unlockAll || riftSealed(id) || (riftState().prog[id] || 0) > 0) return true; return (st.dun.best || 0) >= r.n * 10; }
+function towerCap() { let cap = 10; for (const r of RIFT_MAIN) { if (r.final || cap >= TOWER_TOP) break; if (!riftBuilt(r.id) || riftSealed(r.id)) cap += 10; else break; } return Math.min(TOWER_TOP, cap); }
+function riftOpen(id) { const r = RIFT_PLAN.find(q => q.id === id); if (!r) return false; if (r.final) return sealCount() >= 12; if (r.zero) return true; if (st.unlockAll || riftSealed(id) || (riftState().prog[id] || 0) > 0) return true; return (st.dun.best || 0) >= r.n * 10; }
 // why a rift, or a floor, is shut, in a line
 function riftLockText(r) { return r.final ? `Revealed when all twelve seals are set (${sealCount()}/12).` : `Beat the boss of Tower floor ${r.n * 10} to open it.`; }
-function floorLockText(n) { if (n > TOWER_TOP) return `The Tower ends at floor ${TOWER_TOP}.`; if (n > (st.dun.best || 0) + 1) return `Clear floor ${n - 1} first.`; const b = Math.ceil(n / 10) - 1; let r = RIFT_PLAN.find(q => q.n === b); while (r && !riftBuilt(r.id) && r.n > 1) r = RIFT_PLAN.find(q => q.n === r.n - 1); return r ? `Seal Rift ${r.n}, ${r.name}, to open floors ${b * 10 + 1} to ${b * 10 + 10}.` : `Clear floor ${n - 1} first.`; }
+function floorLockText(n) { if (n > TOWER_TOP) return `The Tower ends at floor ${TOWER_TOP}.`; if (n > (st.dun.best || 0) + 1) return `Clear floor ${n - 1} first.`; const b = Math.ceil(n / 10) - 1; let r = RIFT_MAIN.find(q => q.n === b); while (r && !riftBuilt(r.id) && r.n > 1) r = RIFT_PLAN.find(q => q.n === r.n - 1); return r ? `Seal Rift ${r.n}, ${r.name}, to open floors ${b * 10 + 1} to ${b * 10 + 10}.` : `Clear floor ${n - 1} first.`; }
 const gateOpen = id => riftSealed(id) || !!st.unlockAll, gateDone = id => !!riftState().gates[id];
-let riftSel = 'belfry';
+let riftSel = 'belfry';   /* (v386: the caldera is shown first while it is unsealed: renderRift picks it) */
 const riftScroll = $('#riftScroll'), riftInner = $('#riftInner');
 /* the landmark silhouettes */
 function riftIconSVG(icon, sealed, big) {
@@ -46,6 +50,7 @@ function riftIconSVG(icon, sealed, big) {
     pool: `<ellipse cx="30" cy="36" rx="22" ry="9" fill="${c}" stroke="#2B2433" stroke-width="2.5"/><path d="M22 28l2-8 2 8M36 30l2-10 2 10" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round"/>`,
     spire: `<path d="M24 48l6-36 6 36z" fill="${c}" stroke="#2B2433" stroke-width="2.5" stroke-linejoin="round"/><path d="M26 40h8M27 32h6M28 24h4" stroke="${k}" stroke-width="2"/>`,
     doors: `${[0, 1, 2].map(i => `<rect x="${10 + i * 15}" y="18" width="10" height="28" rx="5" fill="${c}" stroke="#2B2433" stroke-width="2.5"/>`).join('')}`,
+    caldera: `<path d="M6 50l14-26h20l14 26z" fill="#3A2A30" stroke="#2B2433" stroke-width="2.5" stroke-linejoin="round"/><path d="M20 24q10 6 20 0" fill="none" stroke="#FF6A1E" stroke-width="3"/><path d="M27 30l3 14 3-14" fill="#FF8A3D" stroke="#2B2433" stroke-width="1.5"/><path d="M14 44l4-9 3 9z M42 44l3-8 4 8z" fill="${c}" stroke="#2B2433" stroke-width="1.6"/>`,
     city: `<path d="M8 48l8-22 6 10 8-28 8 30 6-12 8 22z" fill="#1C3A2E" stroke="#2B2433" stroke-width="2.5" stroke-linejoin="round"/><circle cx="30" cy="14" r="4" fill="#7FFFD4"/>`,
   }[icon] || '';
   return `<svg viewBox="0 0 60 60" width="${big ? 60 : 44}" height="${big ? 60 : 44}" aria-hidden="true">${body}</svg>`;
@@ -53,10 +58,11 @@ function riftIconSVG(icon, sealed, big) {
 function renderRift() {
   if (!mapOpen || !st) return;
   const RS = riftState(), seals = sealCount();
+  if (!renderRift.picked) { renderRift.picked = true; if (!riftSealed('caldera')) riftSel = 'caldera'; }
   const sel = RIFT_PLAN.find(r => r.id === riftSel) || RIFT_PLAN[0], open = riftOpen(sel.id), sealed = riftSealed(sel.id), prog = RS.prog[sel.id] || 0, built = riftBuilt(sel.id);
   const Rf = RIFT_BY_ID[sel.id], stageName = Rf ? Rf.stages[Math.min(prog, Rf.stages.length - 1)].name : '';
   const hero = `<div class="ar-card rf-hero" style="--acc:${sealed ? '#D9B35F' : '#B983F5'}"><div class="rf-top">${riftIconSVG(sel.icon, sealed, true)}<div><p class="eyebrow">Rift ${sel.n} · ${esc(sel.region)} · level ${sel.lvl}</p><h2>${esc(sel.name)}</h2>
-    <p class="note">${sealed ? `Sealed · the ${sel.sigil} Sigil is yours` : open ? (built ? (prog ? `Checkpoint: stage ${prog + 1} of ${(RIFT_BY_ID[sel.id] || { stages: [] }).stages.length} · ${esc(stageName)}` : `${(RIFT_BY_ID[sel.id] || { stages: [] }).stages.length} stages in three sections: dungeons full of brood with a Rift-touched Cocopet for a mini boss, puzzles and games between them, and a Super Fiend-class boss closing each section. Some dungeons deal a hand of boons and curses. The third boss seals the rift.`) : 'This rift is not built yet: the expansion is arriving in stages.') : riftLockText(sel)}</p></div></div>
+    <p class="note">${sealed ? `Sealed · the ${sel.sigil} Sigil is yours` : open ? (built ? (prog ? `Checkpoint: stage ${prog + 1} of ${(RIFT_BY_ID[sel.id] || { stages: [] }).stages.length} · ${esc(stageName)}` : sel.zero && RIFT_BY_ID[sel.id] ? `${esc(RIFT_BY_ID[sel.id].blurb || '')} Three areas, two puzzles and three bosses: Fire Flan, the Bomb King and Ifrit, who seals the rift.` : `${(RIFT_BY_ID[sel.id] || { stages: [] }).stages.length} stages in three sections: dungeons full of brood with a Rift-touched Cocopet for a mini boss, puzzles and games between them, and a Super Fiend-class boss closing each section. Some dungeons deal a hand of boons and curses. The third boss seals the rift.`) : 'This rift is not built yet: the expansion is arriving in stages.') : riftLockText(sel)}</p></div></div>
     ${Rf ? `<div class="rf-stages">${Rf.stages.map((S2, i) => `<span class="rf-st${i < prog || sealed ? ' done' : i === prog && !sealed ? ' now' : ''}${S2.kind === 'boss' ? ' boss' : ''}" title="${esc(S2.name)}">${S2.kind === 'boss' ? ICON.sword : ICON.door}</span>`).join('')}</div>` : ''}
     <div class="ar-row">${open && built ? `<button class="btn primary" type="button" data-rift="enter">${ICON.play}${sealed ? 'Enter again' : prog ? 'Continue' : 'Enter'}</button>` : ''}${sealed && Rf ? `<button class="btn" type="button" data-rift="restart">Start over</button>` : ''}</div></div>`;
   // (the Tower, ten floors at a time, between the rifts, in the order they are played)
@@ -65,7 +71,7 @@ function renderRift() {
     return `<button class="rf-card rf-tower${done ? ' sealed' : o ? '' : ' locked'}" type="button" data-rift="tower" data-n="${b}">${TOWER_ICO}<b>Tower floors ${lo}–${hi}</b><small>${done ? 'Cleared' : o ? `Open · ${n}/10 cleared` : 'Locked'}</small></button>`; };
   const list = RIFT_PLAN.map(r => { const o = riftOpen(r.id), s = riftSealed(r.id), hidden = r.final && !o;
     return `<button class="rf-card${r.id === riftSel ? ' sel' : ''}${s ? ' sealed' : o ? '' : ' locked'}" type="button" data-rift="sel" data-id="${r.id}">${hidden ? `<span class="rf-ico">?</span>` : riftIconSVG(r.icon, s)}<b>${hidden ? '???' : esc(r.name)}</b><small>${hidden ? 'The sky wound' : `Lv ${r.lvl} · ${s ? 'Sealed' : o ? (riftBuilt(r.id) ? 'Open' : 'Not yet built') : 'Locked'}`}</small></button>`; }), path = [];
-  list.forEach((card, i) => { const r = RIFT_PLAN[i]; if (!r.final && r.n <= 12) path.push(towerCard(r.n - 1)); path.push(card); });
+  const zi = RIFT_PLAN.findIndex(r => r.zero); if (zi >= 0) path.push(list[zi]); list.forEach((card, i) => { const r = RIFT_PLAN[i]; if (r.zero) return; if (!r.final && r.n <= 12) path.push(towerCard(r.n - 1)); path.push(card); });
   const gates = RIFT_PLAN.filter(r => r.gate).map(r => { const A = ANIMAS[r.gate.anima], o = gateOpen(r.id), d = gateDone(r.id), built = !!RIFT_GATES[r.id];
     return `<div class="rf-gate${d ? ' done' : o ? ' open' : ''}"><span class="rg-ring" style="--gc:${A ? A.color : '#FFE37A'}"><i></i></span><div><b>${esc(r.gate.name)}</b><small>${esc(A ? A.sign + ' · ' + A.name : r.gate.anima)} · ${esc(r.gate.what)} · ${r.gate.mins} min</small><small>${d ? 'Anima unlocked' : o ? (built ? 'Trial available' : 'Trial not yet built') : `Clear ${esc(r.name)}`}</small></div>${o && !d && built ? `<button class="btn small primary" type="button" data-rift="gate" data-id="${r.id}">Trial</button>` : d && built ? `<button class="btn small" type="button" data-rift="gate" data-id="${r.id}">Replay</button>` : ''}</div>`; }).join('');
   riftInner.innerHTML = `${hero}<p class="tray-sub">Your path · the Tower and the twelve rifts · ${seals}/12 sealed</p><div class="rf-grid">${path.join('')}</div><p class="tray-sub">Anima gates · ${RIFT_PLAN.filter(r => r.gate && gateDone(r.id)).length}/12 unlocked</p><div class="rf-gates">${gates}</div>
@@ -114,9 +120,11 @@ function riftFinish(win, msg, data) {
     if (!riftSealed(R.id)) RS.prog[R.id] = Math.min(Rf.stages.length - 1, R.stage + 1);
     if (last) {
       if (!riftSealed(R.id)) { sealedNow = true; RS.seals[R.id] = 1; RS.prog[R.id] = 0; st.crystals = (st.crystals || 0) + 300; st.pearls = (st.pearls || 0) + 30; lines.push([ICON.crystal, '+300 crystals for the seal']); lines.push([ICON.pearl, '+30 pearls']);
-        const SPECIAL = { colours: 'orbit', basilica: 'veil', choir: 'bell' }[R.id], acc = SPECIAL ? rollAccessory(Math.round(Rf.lvl / 2), { bonus: 30, min: 4, t: ACC_SPECIAL[SPECIAL].t }) : rollAccessory(Math.round(Rf.lvl / 2), { bonus: 20, min: 2 }); if (SPECIAL) acc.sp = SPECIAL; acc.n = `${Rf.sigil} ${acc.n || ''}`.trim(); const got = accBank([acc]); got.kept.forEach(a => lines.push([accSVG(a), a.sp ? `${ACC_R[a.r].name} ${accName(a)}: ${ACC_SPECIAL[a.sp].what}` : `A ${Rf.sigil}-themed accessory: ${ACC_R[a.r].name} ${accName(a)}`]));
-        lines.push([ICON.trophy, `The ${Rf.sigil} Sigil joins the lattice (${sealCount()}/12)`]); lines.push([ICON.door, `${RIFT_PLAN.find(r => r.id === R.id).gate.name} is open: a trial for the ${ANIMAS[RIFT_PLAN.find(r => r.id === R.id).gate.anima].name}`]);
-        const nx = RIFT_PLAN[Rf.n]; if (nx) lines.push([ICON.map, `${nx.name} is open on the map`]); if (sealCount() >= 12) { RS.rlyeh = 1; lines.push([ICON.star, "R'lyeh rises above the world"]); } }
+        const SPECIAL = { colours: 'orbit', basilica: 'veil', choir: 'bell', caldera: 'ember' }[R.id], acc = SPECIAL ? rollAccessory(Math.round(Rf.lvl / 2), { bonus: 30, min: 4, t: ACC_SPECIAL[SPECIAL].t }) : rollAccessory(Math.round(Rf.lvl / 2), { bonus: 20, min: 2 }); if (SPECIAL) acc.sp = SPECIAL; acc.n = `${Rf.sigil} ${acc.n || ''}`.trim(); const got = accBank([acc]); got.kept.forEach(a => lines.push([accSVG(a), a.sp ? `${ACC_R[a.r].name} ${accName(a)}: ${ACC_SPECIAL[a.sp].what}` : `A ${Rf.sigil}-themed accessory: ${ACC_R[a.r].name} ${accName(a)}`]));
+        const PL = RIFT_PLAN.find(r => r.id === R.id);
+        if (PL.zero) lines.push([ICON.trophy, `The ${Rf.sigil} Sigil is yours: the caldera is sealed`]);
+        else { lines.push([ICON.trophy, `The ${Rf.sigil} Sigil joins the lattice (${sealCount()}/12)`]); lines.push([ICON.door, `${PL.gate.name} is open: a trial for the ${ANIMAS[PL.gate.anima].name}`]); }
+        const nx = PL.zero ? null : RIFT_PLAN[Rf.n]; if (PL.zero) lines.push([ICON.map, riftOpen('belfry') ? 'The Drowned Belfry is open on the map' : 'The Drowned Belfry opens once Tower floor 10 is beaten']); if (nx) lines.push([ICON.map, `${nx.name} is open on the map`]); if (sealCount() >= 12) { RS.rlyeh = 1; lines.push([ICON.star, "R'lyeh rises above the world"]); } }
       else { st.crystals = (st.crystals || 0) + 60; lines.push([ICON.crystal, '+60 crystals (the rift is already sealed)']); }
     }
     const team = partyPets(); team.forEach(p => addBondTo(p, Math.round(bondLevelOf(p) / 6))); lines.push([ICON.heart, '+1/6 bond level for the party']);

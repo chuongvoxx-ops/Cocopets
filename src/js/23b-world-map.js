@@ -16,13 +16,13 @@ const WorldMap = (() => {
   /* ---- where everything is ---- */
   const PLACES = {
     town: { x: 400, y: 825, name: 'Pocket Town' }, tower: { x: 868, y: 540, name: 'Tower of Oblivion' }, great: { x: 600, y: 62, name: 'The Great Rift' },
-    rifts: { belfry: { x: 176, y: 748 }, garden: { x: 520, y: 1040 }, dunes: { x: 850, y: 1000 }, sepulchre: { x: 985, y: 760 }, aurora: { x: 262, y: 330 }, yuggoth: { x: 900, y: 300 }, library: { x: 250, y: 1000 }, moon: { x: 1080, y: 1180 }, basilica: { x: 700, y: 420 }, colours: { x: 1050, y: 170 }, choir: { x: 560, y: 230 }, threshold: { x: 480, y: 92 }, rlyeh: { x: 600, y: 28 } },
+    rifts: { caldera: { x: 820, y: 190 }, belfry: { x: 176, y: 748 }, garden: { x: 520, y: 1040 }, dunes: { x: 850, y: 1000 }, sepulchre: { x: 985, y: 760 }, aurora: { x: 262, y: 330 }, yuggoth: { x: 900, y: 300 }, library: { x: 250, y: 1000 }, moon: { x: 1080, y: 1180 }, basilica: { x: 700, y: 420 }, colours: { x: 1050, y: 170 }, choir: { x: 560, y: 230 }, threshold: { x: 480, y: 92 }, rlyeh: { x: 600, y: 28 } },
     gates: { belfry: { x: 244, y: 800 }, garden: { x: 604, y: 1112 }, dunes: { x: 924, y: 1080 }, sepulchre: { x: 1004, y: 846 }, aurora: { x: 336, y: 404 }, yuggoth: { x: 964, y: 382 }, library: { x: 326, y: 1066 }, moon: { x: 1014, y: 1262 }, basilica: { x: 768, y: 486 }, colours: { x: 1100, y: 98 }, choir: { x: 646, y: 294 }, threshold: { x: 394, y: 126 } },
     extras: [
       { name: 'Harborlight', x: 300, y: 610, kind: 'port', note: 'a fishing port on the bay' }, { name: 'Fernway', x: 570, y: 900, kind: 'village', note: 'a village in the hollow' }, { name: 'Cinderpass', x: 740, y: 300, kind: 'pass', note: 'the high road north' },
       { name: 'Mirrorlake', x: 760, y: 695, kind: 'lakeName', note: 'a still lake that shows the stars by day' }, { name: 'Saltreach', x: 170, y: 840, kind: 'hamlet', note: 'a hamlet on the salt flats' }, { name: 'The Old Lighthouse', x: 70, y: 330, kind: 'lighthouse', note: 'dark these hundred years' },
       { name: 'Starfall Quarry', x: 905, y: 885, kind: 'quarry', note: 'where the stones fell' }, { name: 'Whistling Cliffs', x: 1000, y: 540, kind: 'cliffs', note: 'the wind sings here' }, { name: "Hermit's Bridge", x: 640, y: 760, kind: 'bridge', note: 'a crossing of the Silverrun' },
-      { name: 'Dusk Orchard', x: 450, y: 1180, kind: 'orchard', note: 'plum trees and bees' }, { name: 'Thornmere', x: 330, y: 1190, kind: 'marsh', note: 'reeds and will-o-wisps' }, { name: 'Ember Wastes', x: 820, y: 185, kind: 'volcano', note: 'the sleeping volcano' },
+      { name: 'Dusk Orchard', x: 450, y: 1180, kind: 'orchard', note: 'plum trees and bees' }, { name: 'Thornmere', x: 330, y: 1190, kind: 'marsh', note: 'reeds and will-o-wisps' },
       { name: 'Greywatch', x: 690, y: 1160, kind: 'tower', note: 'an old watchtower' }, { name: 'Coral Shallows', x: 980, y: 1340, kind: 'reef', note: 'bright water' },
     ],
   };
@@ -265,6 +265,28 @@ const WorldMap = (() => {
         const col = LIT[Math.round((a / TAU) * 6) % 6]; glowAt(c, px, py - 10, 9, col, 0.6); c.fillStyle = ILG(c, px, py - h + 3, px, py, [[0, '#FFFFFF'], [0.5, col], [1, shade(col, 0.6)]]); c.beginPath(); c.moveTo(px - w + 2.2, py); c.lineTo(px - w + 2.2, py - h + 6); c.quadraticCurveTo(px - w + 2.2, py - h + 2.5, px, py - h + 2); c.quadraticCurveTo(px + w - 2.2, py - h + 2.5, px + w - 2.2, py - h + 6); c.lineTo(px + w - 2.2, py); c.closePath(); c.fill();
         c.fillStyle = 'rgba(40,30,60,.55)'; IP(c, [[px + w - 2.2, py], [px + w - 2.2, py - h + 6], [px + w + 3, py - h + 4], [px + w + 3, py - 1]]); c.fill(); IINK(c, 0.6); c.fillStyle = '#C7943E'; c.beginPath(); c.arc(px + w + 1.8, py - 11, 0.8, 0, TAU); c.fill(); });
       c.restore(); },
+    // (v386) the Blackfire Caldera: a broken volcanic cone of black basalt, its crater a lake of molten light, lava running
+    // down its flanks in glowing seams, dark fire crystals breaking from its sides, smoke and embers over it
+    caldera(c, x, y) { c.save(); c.translate(x, y); glowAt(c, 0, -30, 70, '#FF6A1E', 0.4); ISH(c, 6, 6, 52, 12, 0.3);
+      IGND(c, 0, 4, 66, 20, '#3A2C2A', 0.85);
+      const cone = [[-50, 6], [-36, -12], [-24, -30], [-15, -40], [15, -40], [24, -31], [37, -12], [52, 6]];
+      IP(c, cone); c.fillStyle = ILG(c, -50, -40, 52, 6, [[0, '#6E5E5A'], [0.35, '#4A3C3A'], [0.7, '#2C2224'], [1, '#18121A']]); c.fill(); IINK(c, 1.3);
+      IP(c, [[0, -38], [15, -40], [24, -31], [37, -12], [52, 6], [10, 6]]); c.fillStyle = 'rgba(14,8,14,.38)'; c.fill();
+      c.strokeStyle = 'rgba(20,12,16,.5)'; c.lineWidth = 0.8; for (let i = 0; i < 8; i++) { const a = -40 + i * 11; c.beginPath(); c.moveTo(a * 0.4, -36); c.quadraticCurveTo(a * 0.7, -16, a, 4); c.stroke(); }
+      // lava down the flanks
+      c.save(); c.globalCompositeOperation = 'lighter'; [[-8, -36, -18, 2], [10, -36, 22, 0], [-2, -36, 4, 4]].forEach(([a, b, d, e], i) => { for (let k = 0; k < 2; k++) { c.strokeStyle = k ? 'rgba(255,214,120,.9)' : 'rgba(255,90,20,.6)'; c.lineWidth = k ? 1.1 : 3.4; c.beginPath(); c.moveTo(a, b); c.bezierCurveTo(a + (i - 1) * 4, b + 12, d - (i - 1) * 3, e - 14, d, e); c.stroke(); } }); c.restore();
+      // the crater: a lip of lit rock round a lake of molten light
+      c.fillStyle = ILG(c, -16, -46, 16, -36, [[0, '#8A7470'], [1, '#3A2C2E']]); c.beginPath(); c.ellipse(0, -40, 17, 6, 0, 0, TAU); c.fill(); IINK(c, 1.1);
+      c.fillStyle = IRG(c, -2, -41, 1, 0, -40, 13, [[0, '#FFF2B0'], [0.35, '#FFB040'], [0.75, '#E8481A'], [1, '#7A1A0C']]); c.beginPath(); c.ellipse(0, -40, 13, 4.2, 0, 0, TAU); c.fill();
+      c.strokeStyle = 'rgba(60,14,8,.6)'; c.lineWidth = 0.7; for (let i = 0; i < 4; i++) { c.beginPath(); c.moveTo(-10 + i * 6, -41); c.lineTo(-7 + i * 6, -39); c.stroke(); }
+      glowAt(c, 0, -42, 26, '#FF7A2E', 0.7);
+      // dark fire crystals on its flanks: glossy black, red fractures
+      [[-34, -6, 1], [30, -4, -1], [-22, 2, 1]].forEach(([px, py, sd], i) => { const h = 14 + i * 3; c.fillStyle = ILG(c, px - 3, py - h, px + 4, py, [[0, '#5A3A6E'], [0.5, '#22162E'], [1, '#0C0812']]); IP(c, [[px - 4, py], [px - 1 + sd * 2, py - h], [px + 4, py]]); c.fill(); IINK(c, 0.9); c.strokeStyle = 'rgba(255,90,30,.85)'; c.lineWidth = 0.8; c.beginPath(); c.moveTo(px - 0.5, py - 2); c.lineTo(px + sd, py - h * 0.6); c.stroke(); glowAt(c, px, py - h * 0.4, 7, '#FF4A1E', 0.4);
+        const q = px + sd * 6; c.fillStyle = ILG(c, q - 2, py - h * 0.6, q + 3, py, [[0, '#4A2E5E'], [1, '#0C0812']]); IP(c, [[q - 2.5, py + 1], [q + sd * 2, py - h * 0.6], [q + 2.5, py + 1]]); c.fill(); IINK(c, 0.8); });
+      // smoke and embers
+      c.save(); c.globalAlpha = 0.55; [[-4, -58, 9], [6, -70, 12], [-2, -84, 14]].forEach(([a, b, r]) => { c.fillStyle = IRG(c, a - 2, b - 3, 1, a, b, r, [[0, 'rgba(90,80,86,.9)'], [1, 'rgba(60,54,60,0)']]); c.beginPath(); c.arc(a, b, r, 0, TAU); c.fill(); }); c.restore();
+      c.fillStyle = '#FFC860'; [[-10, -54], [8, -60], [3, -66], [-6, -72], [12, -50]].forEach(([a, b]) => { c.beginPath(); c.arc(a, b, 0.9, 0, TAU); c.fill(); });
+      c.restore(); },
     // R'lyeh: a drowned city risen, black-green spires leaning, wet with light, its windows lit sea green
     rlyeh(c, x, y) { c.save(); c.translate(x, y); glowAt(c, 0, -14, 66, '#5FE8C8', 0.32); c.fillStyle = 'rgba(30,80,70,.55)'; c.beginPath(); c.ellipse(0, 2, 46, 10, 0, 0, TAU); c.fill();
       [[-32, 0, 12, 30, -0.1], [-15, 0, 15, 50, 0.05], [3, 0, 11, 38, -0.08], [17, 0, 13, 28, 0.12], [30, 0, 9, 20, -0.15]].forEach(([px, py, w, h, lean]) => { const tx = px + w * 0.35 + lean * h;
@@ -480,6 +502,7 @@ const WorldMap = (() => {
     PLACES.extras.forEach(e => { extraIcon(c, e); });
     // the twelve rifts and their landmarks, their gates
     ORDER.forEach(id => { const p = RP[id], pl = RIFT_PLAN.find(r => r.id === id), sealed = recover(id), isOpen = open(id); if (!sealed) riftCurl(c, p.x, p.y, false); ICONS[id](c, p.x, p.y); if (sealed) riftCurl(c, p.x, p.y, true, pl.sigil + ' Sigil'); if (!isOpen && !sealed) { c.save(); c.globalAlpha = 0.5; c.fillStyle = '#2A1F44'; c.beginPath(); c.arc(p.x + 30, p.y - 48, 9, 0, TAU); c.fill(); c.globalAlpha = 1; c.strokeStyle = '#EFE6D6'; c.lineWidth = 1.2; rr(c, p.x + 26, p.y - 50, 8, 7, 1.5); c.stroke(); c.beginPath(); c.arc(p.x + 30, p.y - 50, 3, Math.PI, TAU); c.stroke(); c.restore(); } });
+    { const p = RP.caldera, sealed = recover('caldera'); if (!sealed) riftCurl(c, p.x, p.y - 8, false); ICONS.caldera(c, p.x, p.y); if (sealed) riftCurl(c, p.x, p.y - 8, true, 'Ember Sigil'); }
     ORDER.forEach(id => { const g = PLACES.gates[id], pl = RIFT_PLAN.find(r => r.id === id), state = data.gates && data.gates[id] ? 'done' : recover(id) ? 'open' : 'locked'; gateIcon(c, g.x, g.y, state, pl.gate.anima); });
     // the Great Rift: a thin violet wound over the centre of the chart; R'lyeh above it once the twelve seals are set
     { const p = PLACES.great; glowAt(c, p.x, p.y, 120, VIOLET, 0.35); c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = '#E8C8FF'; c.lineWidth = 4; c.lineCap = 'round'; c.beginPath(); c.moveTo(p.x - 90, p.y + 4); c.quadraticCurveTo(p.x - 30, p.y - 10, p.x, p.y); c.quadraticCurveTo(p.x + 40, p.y + 10, p.x + 90, p.y - 4); c.stroke(); c.strokeStyle = VIOLET; c.lineWidth = 12; c.globalAlpha = 0.35; c.stroke(); c.restore();
@@ -489,6 +512,7 @@ const WorldMap = (() => {
     // labels: seas and regions in italic, places on plaques
     label(c, 60, 1000, 'Rose Sea', { size: 24, color: '#1F4F4A', halo: 'rgba(200,235,225,.6)', rot: -1.2 }); label(c, 180, 520, 'Harbor Bay', { size: 15, color: '#1F4F4A', halo: 'rgba(200,235,225,.6)', rot: -0.5 }); label(c, 1140, 760, 'Endless Ocean', { size: 22, color: '#1F4F4A', halo: 'rgba(200,235,225,.6)', rot: 1.3 }); label(c, 600, 1440, 'The Tides of Time', { size: 22, color: '#1F4F4A', halo: 'rgba(200,235,225,.6)' }); label(c, 980, 1440, 'The Stellar Sea', { size: 18, color: '#1F4F4A', halo: 'rgba(200,235,225,.6)' });
     [['Greenhollow', 480, 700], ['Mossgrove', 700, 860], ['Skyreach Peaks', 560, 380], ['The Polar Range', 280, 200], ['The Sunscorch', 920, 940], ['The Temporal Ruins', 980, 665], ['The Dream Archive', 240, 940], ['The Petrified Sanctuary', 730, 365], ['The Lunar Isles', 1080, 1100], ['The Crash Steppe', 900, 230], ['The Primordial Heights', 560, 160], ['The Final Threshold', 480, 40], ['Southern Marsh', 320, 1240], ['The Drowned Coast', 170, 690]].forEach(([t, x, y]) => label(c, x, y, t, { size: 15, w: 600, color: '#2E3A28', spacing: 1 }));
+    { const p = RP.caldera; plaque(c, p.x, p.y + 26, 'The Blackfire Caldera', { size: 14, bg: recover('caldera') ? 'rgba(90,70,20,.92)' : 'rgba(46,40,52,.92)', color: recover('caldera') ? '#FFE9A8' : '#FFF8E8' }); plaque(c, p.x, p.y + 46, recover('caldera') ? 'Sealed' : 'Rift 0 · Lv 1', { size: 10, bg: 'rgba(0,0,0,.35)', border: 'rgba(0,0,0,0)', color: '#FFF8E8' }); }
     ORDER.forEach(id => { const p = RP[id], pl = RIFT_PLAN.find(r => r.id === id); plaque(c, p.x, p.y + 26, pl.name, { size: 14, bg: recover(id) ? 'rgba(90,70,20,.92)' : open(id) ? 'rgba(46,40,52,.92)' : 'rgba(40,36,46,.75)', color: recover(id) ? '#FFE9A8' : open(id) ? '#FFF8E8' : '#B9B2CC' }); plaque(c, p.x, p.y + 46, recover(id) ? 'Sealed' : open(id) ? `Rift ${pl.n} · Lv ${pl.lvl}` : `Seal rift ${pl.n - 1} first`, { size: 10, bg: 'rgba(0,0,0,.35)', border: 'rgba(0,0,0,0)', color: '#FFF8E8' }); });
     ORDER.forEach(id => { const g = PLACES.gates[id], pl = RIFT_PLAN.find(r => r.id === id), done = data.gates && data.gates[id], av = recover(id); plaque(c, g.x, g.y + 22, pl.gate.name, { size: 11, bg: done ? 'rgba(90,70,20,.92)' : av ? 'rgba(60,40,90,.92)' : 'rgba(40,36,46,.75)', color: done ? '#FFE9A8' : '#FFF8E8' }); plaque(c, g.x, g.y + 40, done ? 'Anima unlocked' : av ? 'Trial available' : `Clear ${pl.name.replace(/^The /, '')}`, { size: 9, bg: 'rgba(0,0,0,.35)', border: 'rgba(0,0,0,0)', color: '#FFF8E8' }); });
     PLACES.extras.forEach(e => plaque(c, e.x, e.y + 20, e.name, { size: 11, bg: 'rgba(245,236,210,.9)', color: L, border: 'rgba(58,42,30,.5)' }));
