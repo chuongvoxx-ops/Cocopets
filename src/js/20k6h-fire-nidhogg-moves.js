@@ -491,31 +491,36 @@ void main(){ vec2 u = v_uv; float r = length(u), m = 0.0, edge = 1.0 - smoothste
     // sapphire low in it and in its heart, its colour above, currents banding round it, clearer water swirling through, a bright
     // rim of reflected light all round its limb (fresnel: clear in the middle, denser at the edge); feathered limb. v_c its
     // colour, v_q.x density, v_q.y seed, v_q.z the turn of its currents
-    float a = 1.0 - smoothstep(0.88, 1.0, r); vec3 n = vec3(u, sqrt(max(0.0, 1.0 - r * r)));
+    float a = 1.0 - smoothstep(0.86, 1.0, r); vec3 n = vec3(u, sqrt(max(0.0, 1.0 - r * r)));   /* (v364: a defined limb, just feathered) */
     float ang = t * 0.3 * v_q.z + v_q.y, ca = cos(ang), sa = sin(ang); vec3 p = vec3(n.x * ca + n.z * sa, n.y, -n.x * sa + n.z * ca);
     float f = fbm3(p * 2.2 + vec3(0.0, t * 0.15, v_q.y)), g = fbm3(p * 5.0 + vec3(t * 0.3, -t * 0.2, 0.0) + f * 1.5), bands = 0.5 + 0.5 * sin((p.y + f * 0.9) * 9.0 + t * 1.3 * v_q.z);
     float lit = clamp(dot(n, vec3(-0.5, -0.62, 0.6)) * 1.1, 0.0, 1.0), fres = pow(1.0 - n.z, 2.0);
     vec3 deep = col * vec3(0.16, 0.26, 0.48), sh = mix(col, vec3(0.55, 0.98, 1.0), 0.55);
     vec3 c = mix(deep, col, smoothstep(-0.25, 0.95, -u.y * 0.55 + lit * 0.75 + (f - 0.5) * 0.8)); c = mix(c, sh, bands * smoothstep(0.35, 0.8, g) * 0.5);
     c += vec3(0.6, 0.95, 1.0) * fres * 0.55;
-    a *= mix(0.4, 0.94, fres) * (0.85 + 0.15 * f) * mix(0.7, 1.0, v_q.x) * v_c.a * pk; gl_FragColor = vec4(min(c, vec3(1.0)) * a, a); }
+    a *= mix(0.42, 0.95, fres) * (0.85 + 0.15 * f) * mix(0.7, 1.0, v_q.x) * v_c.a * pk; gl_FragColor = vec4(min(c, vec3(1.0)) * a, a); }
   else if (v_k > 24.5 && v_k < 25.5) { // (v361, water) a stream of water (solid; uv.x along, uv.y across): a translucent tube of
     // flowing water with wavering edges, darker and denser at its sides, clearer down its middle, flow streaks of paler water
     // racing along it, a glossy highlight along its upper side; both ends feathered. v_q.x density, v_q.y seed, v_q.z flow speed
-    float al = u.x * 0.5 + 0.5, f = fbm(vec2(al * 5.0 - t * v_q.z * 0.6, u.y * 1.6 + v_q.y)), ay = abs(u.y + (f - 0.5) * 0.28) / (0.76 + 0.24 * f);
-    float dns = (1.0 - smoothstep(0.6, 1.0, ay)) * smoothstep(0.0, 0.22, al) * (1.0 - smoothstep(0.78, 1.0, al)), tube = sqrt(max(0.0, 1.0 - ay * ay));
+    float al = u.x * 0.5 + 0.5, f = fbm(vec2(al * 4.0 - t * v_q.z * 0.6, u.y * 1.3 + v_q.y + t * 0.4)), ay = abs(u.y + (f - 0.5) * 0.55) / (0.58 + 0.55 * f);   /* (v364: edges billowing and flowing) */
+    float dns = pow(1.0 - smoothstep(0.15, 1.0, ay), 1.4) * smoothstep(0.0, 0.24, al) * (1.0 - smoothstep(0.76, 1.0, al)), tube = sqrt(max(0.0, 1.0 - ay * ay));   /* (v364: the body thins softly to nothing at its sides: no edge) */
     float st = fbm(vec2(al * 14.0 - t * v_q.z * 1.4, u.y * 3.0 + v_q.y * 2.0)), streak = smoothstep(0.52, 0.8, st), rim = smoothstep(0.5, 0.95, ay);
-    vec3 c = mix(col * vec3(0.22, 0.32, 0.58), mix(col, vec3(0.3, 0.85, 0.95), 0.35), tube); c = mix(c, mix(col, vec3(0.55, 1.0, 1.0), 0.65), streak * 0.6);
-    c += vec3(0.8, 1.0, 1.0) * exp(-sq((u.y + 0.4) / 0.12)) * (0.45 + 0.55 * st) * 0.55 + vec3(0.5, 0.9, 1.0) * rim * 0.3 + vec3(0.9, 1.0, 1.0) * smoothstep(0.62, 0.8, st) * rim * 0.5;
-    float a = dns * mix(0.42, 0.9, rim) * v_q.x * v_c.a * pk; gl_FragColor = vec4(min(c, vec3(1.0)) * a, a); }
+    // (v364) finer detail: a refraction web of light and shade running through the body, foam flecks boiling along both edges,
+    // a crisper glossy highlight
+    float rw = caus(vec2(al * 2.6 - t * v_q.z * 0.12, u.y * 0.9 + v_q.y) * 6.28 + vec2(-250.0), t * 0.7), fl = n2(vec2(al * 34.0 - t * v_q.z * 3.0, u.y * 9.0 + v_q.y * 5.0)), foam = smoothstep(0.62, 0.86, fl) * smoothstep(0.55, 0.92, ay) * (1.0 - smoothstep(0.92, 1.0, ay));
+    vec3 c = mix(col * vec3(0.18, 0.28, 0.55), mix(col, vec3(0.3, 0.85, 0.95), 0.35), tube); c = mix(c, mix(col, vec3(0.55, 1.0, 1.0), 0.65), streak * 0.6);
+    c = mix(c, c * 0.55, smoothstep(0.35, 0.8, fbm(vec2(al * 9.0 - t * v_q.z, u.y * 4.0 - v_q.y))) * tube * 0.45) + mix(col, vec3(0.8, 1.0, 1.0), 0.6) * min(rw, 1.0) * 0.32 * tube;
+    c += vec3(0.85, 1.0, 1.0) * exp(-sq((u.y + 0.36 + (f - 0.5) * 0.35) / 0.13)) * (0.5 + 0.5 * st) * 0.55 + vec3(0.5, 0.9, 1.0) * rim * 0.28 + vec3(0.9, 1.0, 1.0) * smoothstep(0.62, 0.8, st) * rim * 0.5;
+    c = mix(c, vec3(0.92, 0.98, 1.0), foam * 0.6);
+    float a = dns * max(mix(0.5, 0.75, rim), foam * 0.8) * v_q.x * v_c.a * pk; gl_FragColor = vec4(min(c, vec3(1.0)) * a, a); }
   else { vec3 L = vec3(0.0);
     if (v_k > 25.5) { // (v361, water light)
       if (v_k < 26.5) { // caustic light: v_q.z > 0.5 on a sphere of water (the web of light inside it, a specular glint, its rim
         // glowing), else on the floor (a pool of rippling light fading out); v_q.x strength, v_q.y seed
         if (v_q.z > 0.5) { vec3 n = vec3(u, sqrt(max(0.0, 1.0 - r * r))); float cs = caus(n.xy / (0.55 + n.z) * 5.5 + vec2(v_q.y * 3.0 - 250.0), t * 0.5);
           float lit = clamp(dot(n, vec3(-0.5, -0.62, 0.6)) * 1.1, 0.0, 1.0), sd = clamp(dot(n, vec3(-0.45, -0.56, 0.69)), 0.0, 1.0), spec = pow(sd, 160.0) + 0.25 * pow(sd, 24.0), spec2 = pow(clamp(dot(n, vec3(0.42, 0.5, 0.76)), 0.0, 1.0), 60.0);
-          L = (mix(col, vec3(1.0), 0.55) * cs * 1.0 * (0.35 + 0.65 * smoothstep(1.0, 0.25, r)) + col * exp(-r * r * 3.0) * 0.22) * (1.0 - smoothstep(0.86, 0.99, r)) + vec3(1.0) * (spec * 1.3 + spec2 * 0.35) * (1.0 - smoothstep(0.9, 0.99, r));
-          L += mix(col, vec3(0.8, 1.0, 1.0), 0.4) * exp(-sq((r - 0.95) / 0.07)) * 0.55; L *= v_q.x; }
+          L = (mix(col, vec3(1.0), 0.55) * cs * 1.0 * (0.35 + 0.65 * smoothstep(1.0, 0.25, r)) + col * exp(-r * r * 3.0) * 0.22) * (1.0 - smoothstep(0.82, 0.99, r)) + vec3(1.0) * (spec * 1.2 + spec2 * 0.35) * (1.0 - smoothstep(0.88, 0.99, r));
+          L += mix(col, vec3(0.8, 1.0, 1.0), 0.45) * exp(-sq((r - 0.93) / 0.07)) * 0.6; L *= v_q.x; }
         else { float fall = exp(-r * r * 2.2) * (1.0 - smoothstep(0.7, 1.0, r)), cs = caus(u * vec2(7.5, 7.5) + vec2(v_q.y * 3.0 - 250.0), t * 0.45);
           L = (mix(col, vec3(1.0), 0.4) * cs * 1.1 + col * 0.12) * fall * v_q.x; } }
       else if (v_k < 27.5) { // foam and spray: a churning white cloud breaking into droplets as it spreads (v_q.z 0..1)
@@ -523,16 +528,31 @@ void main(){ vec2 u = v_uv; float r = length(u), m = 0.0, edge = 1.0 - smoothste
         float dns = exp(-rr * rr * (2.2 + 1.5 * v_q.z)) * smoothstep(0.32 + 0.25 * v_q.z, 0.78, f) * (1.0 - 0.6 * v_q.z * exp(-rr * rr * 6.0));
         vec2 cg = vec2(an * 7.0 + v_q.y, rr * 9.0 - t * 2.5 - v_q.z * 4.0), ci = floor(cg), cf = fract(cg) - 0.5 - (vec2(h1(ci + 3.1), h1(ci + 7.7)) - 0.5) * 0.5, df = cf * vec2(1.0, 1.6) / max(0.25, rr * 1.2);
         float drops = step(0.72, h1(ci)) * (1.0 - smoothstep(0.06, 0.16, length(cf * vec2(rr * 4.0 + 0.6, 1.0)))) * smoothstep(0.15, 0.4, rr) * (1.0 - smoothstep(0.7, 0.95, rr));
-        L = (mix(col, vec3(1.0), 0.6) * dns * 0.75 + vec3(0.9, 1.0, 1.0) * drops * (0.4 + 0.6 * g) * 0.75) * v_q.x * (1.0 - smoothstep(0.75, 1.0, r)); }
+        vec2 bc = w * 6.0 + vec2(v_q.y * 3.0, t * 0.8), bi = floor(bc), bf = fract(bc) - 0.5 - (vec2(h1(bi + 2.2), h1(bi + 6.6)) - 0.5) * 0.4; float br = 0.12 + 0.18 * h1(bi + 4.4), bd = length(bf), bub = step(0.6, h1(bi + 8.8)) * (exp(-sq((bd - br) / 0.035)) * 0.8 + exp(-dot(bf + br * 0.45, bf + br * 0.45) * 900.0)) * exp(-rr * rr * 2.5);
+        float cell = 1.0 - smoothstep(0.0, 0.5, abs(fbm(w * 7.0 + v_q.y * 2.0) - 0.5) * 3.0);
+        L = (mix(col, vec3(1.0), 0.6) * dns * (0.6 + 0.35 * cell) + vec3(0.92, 1.0, 1.0) * drops * (0.6 + 0.6 * g) + vec3(0.85, 1.0, 1.0) * bub * 0.7) * v_q.x * (1.0 - smoothstep(0.75, 1.0, r)); }
       else if (v_k < 28.5) { // a ripple spreading on the water or the floor (quad 1.3 times its radius): a bright wavering crest,
         // smaller wavelets behind it, glints where the crest catches the light; v_q.x strength, v_q.z thickness
-        float rr = r * 1.3, th = max(0.03, v_q.z), d = rr - 1.0, nn = fbm(vec2(atan(u.y, u.x) * 2.5 + v_q.y, rr * 3.0 - t * 0.6)), crest = exp(-sq((d + (nn - 0.5) * 0.05) / (th * 0.35))), tr = 0.0;
-        for (int k = 1; k < 4; k++) { float fk = float(k); tr += exp(-sq((d + fk * th * 1.15 + (nn - 0.5) * 0.06) / (th * 0.25))) * (0.55 / fk); }
+        float rr = r * 1.3, th = max(0.03, v_q.z), d = rr - 1.0, nn = fbm(vec2(atan(u.y, u.x) * 2.5 + v_q.y, rr * 3.0 - t * 0.6)), crest = exp(-sq((d + (nn - 0.5) * 0.05) / (th * 0.6))) * 0.8, tr = 0.0;
+        for (int k = 1; k < 4; k++) { float fk = float(k); tr += exp(-sq((d + fk * th * 1.25 + (nn - 0.5) * 0.06) / (th * 0.45))) * (0.45 / fk); }
         L = (mix(col, vec3(1.0), 0.45) * (crest + tr) + col * step(rr, 1.0) * exp(-sq(d / (th * 4.0))) * 0.15 + vec3(1.0) * smoothstep(0.68, 0.88, nn) * crest * 0.8) * v_q.x * (1.0 - smoothstep(1.12, 1.28, rr)); }
+      else if (v_k > 29.5 && v_k < 30.5) { // (v364) a cloud of bubbles rising (v_q.z its rise speed): each a thin bright ring with
+        // a pearly sheen and a specular dot, wobbling up, fading at the cloud's edge
+        float ev = (1.0 - smoothstep(0.55, 1.0, r)), Lb = 0.0; vec3 cb = vec3(0.0);
+        for (int k = 0; k < 2; k++) { float fk = float(k), sc2 = 5.0 + fk * 3.0; vec2 bc = u * sc2 + vec2(v_q.y * 7.0 + fk * 3.3 + sin(t * 2.0 + u.y * 4.0 + fk) * 0.15, t * v_q.z * (1.0 + fk * 0.5)), bi = floor(bc), bf = fract(bc) - 0.5 - (vec2(h1(bi + 1.7 + fk), h1(bi + 3.9 + fk)) - 0.5) * 0.45;
+          float rad = 0.1 + 0.2 * h1(bi + 7.3 + fk), d = length(bf), on = step(0.55, h1(bi + 5.1 + fk)), ring = exp(-sq((d - rad) / (0.05 + rad * 0.2))) * 0.8, dot2 = exp(-dot(bf + vec2(rad * 0.4, rad * 0.45), bf + vec2(rad * 0.4, rad * 0.45)) * 1400.0), fillb = (1.0 - smoothstep(rad * 0.7, rad, d)) * 0.08;
+          float hue = h1(bi + 9.7 + fk); cb += on * (mix(col, vec3(1.0, 0.85, 0.98), 0.25 * hue) * (ring * 0.75 + fillb) + vec3(1.0) * dot2 * 0.9); }
+        L = cb * ev * v_q.x; }
+      else if (v_k > 30.5 && v_k < 31.5) { // (v364) shafts of light falling through water (uv.y along, -1 top .. 1 bottom): soft
+        // rays swaying slowly, brightest at the top, fading out below and at the sides
+        float y01 = u.y * 0.5 + 0.5, rays = 0.0; for (int k = 0; k < 4; k++) { float fk = float(k); rays += pow(0.5 + 0.5 * sin(u.x * (6.0 + fk * 4.3) + y01 * (0.8 + fk * 0.5) + t * (0.35 + fk * 0.17) + v_q.y * (1.0 + fk)), 6.0) * (0.6 - fk * 0.1); }
+        float env = (1.0 - smoothstep(0.55, 1.0, abs(u.x))) * smoothstep(0.0, 0.18, y01) * (1.0 - smoothstep(0.35, 1.0, y01)) * (0.55 + 0.45 * fbm(vec2(u.x * 3.0 + t * 0.2, y01 * 2.0 + v_q.y)));
+        L = mix(col, vec3(0.85, 1.0, 1.0), 0.35) * rays * env * v_q.x; }
       else { // the light on a stream of water (uv.x along): caustic glimmer, a glossy highlight with racing glints, a soft inner glow
         float al = u.x * 0.5 + 0.5, ay = abs(u.y), cs = caus(vec2(al * 3.2 - t * 0.2 * v_q.z, u.y * 0.8) * 6.28 + vec2(v_q.y * 3.0 - 250.0), t * 0.6);
-        float env = (1.0 - smoothstep(0.5, 0.95, ay)) * smoothstep(0.0, 0.22, al) * (1.0 - smoothstep(0.78, 1.0, al)), sp = smoothstep(0.72, 0.95, n2(vec2(al * 30.0 - t * v_q.z * 2.0, u.y * 6.0 + v_q.y)));
-        L = (mix(col, vec3(0.7, 1.0, 1.0), 0.45) * cs * 0.4 + mix(col, vec3(1.0), 0.6) * exp(-sq((u.y + 0.4) / 0.09)) * (0.25 + 0.75 * sp) * 0.55 + col * exp(-u.y * u.y * 3.0) * 0.12 + mix(col, vec3(0.7, 1.0, 1.0), 0.5) * exp(-sq((ay - 0.78) / 0.1)) * 0.3) * env * v_q.x; } }
+        float env = (1.0 - smoothstep(0.2, 1.0, ay)) * smoothstep(0.0, 0.24, al) * (1.0 - smoothstep(0.76, 1.0, al)), sp = smoothstep(0.72, 0.95, n2(vec2(al * 30.0 - t * v_q.z * 2.0, u.y * 6.0 + v_q.y)));
+        vec2 gc = vec2(al * 10.0 - t * v_q.z * 0.9, u.y * 2.5 + v_q.y), gi = floor(gc), gf = fract(gc) - 0.5 - (vec2(h1(gi + 1.3), h1(gi + 5.9)) - 0.5) * 0.6; float tw = 0.5 + 0.5 * sin(t * 9.0 + h1(gi) * 40.0), gl = step(0.78, h1(gi + 9.1)) * tw * (exp(-dot(gf, gf) * 260.0) + 0.5 * exp(-gf.x * gf.x * 900.0) * exp(-gf.y * gf.y * 60.0) + 0.5 * exp(-gf.y * gf.y * 900.0) * exp(-gf.x * gf.x * 60.0));
+        L = (mix(col, vec3(0.7, 1.0, 1.0), 0.45) * cs * 0.4 + mix(col, vec3(1.0), 0.6) * exp(-sq((u.y + 0.35) / 0.14)) * (0.25 + 0.75 * sp) * 0.5 + col * exp(-u.y * u.y * 3.0) * 0.12 + mix(col, vec3(0.7, 1.0, 1.0), 0.5) * exp(-sq((ay - 0.6) / 0.2)) * 0.22 + vec3(1.0) * gl * 0.9) * env * v_q.x; } }
     else if (v_k > 22.5) { // (v356) a vortex of energy in the quad's colour (as kind 14: log-spiral arms round a bright eye; v_q.z its turn)
       float rr = r, an = atan(u.y, u.x), sw = an + v_q.z * t + 2.4 * log(rr + 0.08), arms = 0.5 + 0.5 * cos(3.0 * sw);
       vec2 sp = vec2(cos(sw), sin(sw)) * (0.5 + rr * 2.6); float f = fbm(sp * 1.5 + vec2(v_q.y, -t * 0.6) + rr * 2.0), g = fbm(sp * 4.2 + vec2(t * 0.9, v_q.y * 1.7));
@@ -650,6 +670,8 @@ void main(){ vec2 u = v_uv; float r = length(u), m = 0.0, edge = 1.0 - smoothste
     wstream(x0, y0, x1, y1, w, col, a, seed, flow, dens, lite) { const dx = (x1 - x0) / 2, dy = (y1 - y0) / 2, L = Math.hypot(dx, dy); if (L < 0.5) return; const vx = -dy / L * w, vy = dx / L * w; this.quad(25, x0 + dx, y0 + dy, dx, dy, vx, vy, col, a, dens == null ? 0.85 : dens, seed || 0, flow == null ? 3 : flow); this.quad(29, x0 + dx, y0 + dy, dx, dy, vx, vy, col, a, lite == null ? 0.7 : lite, seed || 0, flow == null ? 3 : flow); },
     caustic(x, y, r, col, a, seed, sy) { if (r > 0.5) this.quad(26, x, y, r, 0, 0, r * (sy || 1), col, a, 1, seed || 0, 0); },
     spray(x, y, r, col, a, seed, spread, sy) { if (r > 0.5) this.quad(27, x, y, r, 0, 0, r * (sy || 1), col || '#CFF6FF', a, 1, seed || 0, spread || 0); },
+    bubbles(x, y, rx, ry, col, a, seed, rise) { if (rx > 0.5) this.quad(30, x, y, rx, 0, 0, ry || rx, col || '#9FE8FF', a, 1, seed || 0, rise == null ? 1 : rise); },
+    shafts(x0, y0, x1, y1, w, col, a, seed) { const dx = (x1 - x0) / 2, dy = (y1 - y0) / 2, L = Math.hypot(dx, dy); if (L < 0.5) return; this.quad(31, x0 + dx, y0 + dy, -dy / L * w, dx / L * w, dx, dy, col || '#8FE3F0', a, 1, seed || 0, 0); },   /* (uv.y runs from (x0, y0) to (x1, y1)) */
     ripple(x, y, r, col, a, seed, sy, th) { if (r > 1 && a > 0.01) this.quad(28, x, y, r * 1.3, 0, 0, r * 1.3 * (sy || 1), col, a, 1, seed || 0, th == null ? 0.12 : th); },
     shimmer(x, y, r, a, sy, col) { if (r > 0.5) this.quad(8, x, y, r, 0, 0, r * (sy || 1), col || '#FFA640', a); },
     smoke(x, y, r, a, seed, col, lit) { if (r > 0.5) this.quad(9, x, y, r, 0, 0, r, col || '#3A2E2A', a, lit || 0, seed || 0); },
@@ -657,7 +679,7 @@ void main(){ vec2 u = v_uv; float r = length(u), m = 0.0, edge = 1.0 - smoothste
     trail(P, n, w, heat, a, seed) { for (let i = 0; i < n - 1; i++) { const k = i / (n - 1), x0 = P[i][0], y0 = P[i][1], x1 = P[i + 1][0], y1 = P[i + 1][1], dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy) || 1, ex = dx / L * w * 0.4, ey = dy / L * w * 0.4;
       this.firebeam(x0 - ex, y0 - ey, x1 + ex, y1 + ey, w * (1 - 0.75 * k), heat * (1 - 0.6 * k), a * (1 - k * k), (seed || 0) + i * 0.37, 4); } } };
   /* begin a pass on the game canvas c (its transform is the camera); pet: [screen x, y, radius] to keep clear, or null */
-  function begin(c, pet) { const B = c.getTransform(), cv0 = c.canvas, L = LOWQ(), k0 = Math.min(L ? 0.42 : 0.6, 1200 / Math.max(cv0.width, cv0.height)); Q.W = Math.max(8, Math.round(cv0.width * k0)); Q.Hh = Math.max(8, Math.round(cv0.height * k0)); const kx = Q.W / cv0.width;
+  function begin(c, pet) { const B = c.getTransform(), cv0 = c.canvas, L = LOWQ(), k0 = Math.min(L ? 0.42 : 0.7, 1500 / Math.max(cv0.width, cv0.height));   /* (v364: a finer GPU layer: 1500 px on the long side, was 1200) */ Q.W = Math.max(8, Math.round(cv0.width * k0)); Q.Hh = Math.max(8, Math.round(cv0.height * k0)); const kx = Q.W / cv0.width;
     Q.a = B.a * kx; Q.b = B.b * kx; Q.c0 = B.c * kx; Q.d = B.d * kx; Q.e = B.e * kx; Q.f = B.f * kx; Q.k = (Math.sqrt(Math.abs(B.a * B.d - B.b * B.c)) || 1) * kx; Q.nl = Q.ns = 0; Q.t = (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000 % 1000;
     if (pet) { Q.pet[0] = Q.X(pet[0], pet[1]); Q.pet[1] = Q.Y(pet[0], pet[1]); Q.pet[2] = pet[2] * Q.k; } else Q.pet[2] = 0; return Q; }
   function flush(c) { if (!Q.nl && !Q.ns) return; if (!usable()) return; try { const W = Q.W, Hh = Q.Hh; if (cv.width !== W || cv.height !== Hh) { cv.width = W; cv.height = Hh; }   /* (v326: one layer at a time, the whole canvas copied each time: no source rectangles at all, so no browser can crop or misplace a half) */

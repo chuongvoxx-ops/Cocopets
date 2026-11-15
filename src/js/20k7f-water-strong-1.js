@@ -66,6 +66,8 @@
     for (let i = 0; i < 3; i++) { const u = 0.25 + 0.25 * i, q = 1 - u, lx = q * q * -16 + 2 * q * u * 58 + u * u * -16, ly = q * q * -44 + u * u * 44; G.spray(c, lx + 4, ly, 13, 0.45 * A, { seed: sd + i * 3.1 + Math.floor(tt * 5) * 0.31, spread: 0.45 }); }
     for (let i = 0; i < 2; i++) { const u = (tt * 0.9 + i * 0.5 + sd * 0.1) % 1, q = 1 - u, lx = q * q * -16 + 2 * q * u * 56 + u * u * -16, ly = q * q * -44 + u * u * 44; G.star(c, lx + 2, ly, 16 * Math.sin(Math.PI * u), 0.8 * A); }
     if (pearl) { const u = pearl, q = 1 - u, lx = q * q * -16 + 2 * q * u * 56 + u * u * -16, ly = q * q * -44 + u * u * 44; G.sphere(c, lx, ly, 8, A, { col: W.blue, seed: sd, turn: 3, halo: 2.4 }); }
+    G.bubbles(c, 12, 0, 26, 36, 0.6 * A, { seed: sd, rise: 1.6 });   /* (v364: bubbles caught in the body, droplets flung off the crest) */
+    for (let i = 0; i < 5; i++) { const u = 0.1 + 0.2 * i, q = 1 - u, v = (tt * 1.8 + i * 0.37 + sd) % 1, lx = q * q * -16 + 2 * q * u * 58 + u * u * -16 + 10 + v * 26, ly = q * q * -44 + u * u * 44 + (u - 0.5) * v * 30; G.sphere(c, lx, ly, 2.6 * (1 - 0.5 * v), A * (1 - v), { col: W.blue, seed: i + sd, halo: 1.6, dens: 0.6 }); }
     c.restore(); }
   function cres2d(c, X, Y, ang, sz, sy, a, flex, pearl) { if (!(a > 0.01)) return; const s = sz / 88, spr = cresSpr();
     c.save(); c.translate(X, Y); c.rotate(ang); c.globalAlpha = Math.min(1, a * 0.4); c.save(); c.translate(-sz * 0.12, 0); c.scale(s * (0.85 + 0.12 * flex), s * sy * 0.96); c.drawImage(spr, -110, -64); c.restore();
@@ -209,13 +211,14 @@
           for (let i = 0; i < NB; i++) { const yy = top + h2 * (0.12 + 0.8 * i / (NB - 1)), P = []; for (let j = 0; j <= 6; j++) { const u = j / 6; P.push([X - w * 0.5 + w * u, yy + Math.sin(t * 5 + i * 1.3 + u * 6) * T * 0.05, h2 * 0.11 * (0.55 + 0.45 * Math.sin(Math.PI * u))]); } G.stream(c, P, h2 * 0.1, sa * (i ? 0.7 : 1), { taper: 0, flow: i % 2 ? -2.5 : 2.5, seed: i * 2.7, col: W.blue, dens: i ? 0.45 : 0.85, lite: i ? 0.6 : 1.0 }); }
           const cp = G.xy(c, X, top + h2 * 0.5); Q.quad(26, cp[0], cp[1], w * 0.52 * cp[3], 0, 0, h2 * 0.5 * cp[3], W.aqua, 0.75 * sa, 1, 1.7, 0);
           for (let j = 0; j < 6; j++) { const u = (j + 0.5) / 6, sw = (t * 1.3 + j * 0.37) % 1; G.sphere(c, X - w * 0.5 + w * u, top + h2 + T * 0.05 + sw * T * 0.12, T * (0.035 + 0.04 * sw), sa, { col: W.blue, seed: j, halo: 2 }); }
-          G.glow(c, X - w / 2 + ((t * 2.2) % 1) * w, top + h2 * 0.5, h2 * 0.6, W.foam, 0.35 * sa); G.glow(c, X, top + h2 * 0.5, w * 0.6, W.turq, 0.18 * sa); }
+          G.glow(c, X - w / 2 + ((t * 2.2) % 1) * w, top + h2 * 0.5, h2 * 0.6, W.foam, 0.35 * sa); G.glow(c, X, top + h2 * 0.5, w * 0.6, W.turq, 0.18 * sa);
+          G.bubbles(c, X, top + h2 * 0.5, w * 0.46, h2 * 0.46, 0.65 * sa, { seed: kk * 2.1, rise: 1.2 }); G.shafts(c, X, top - h2 * 0.6, X, FY, w * 0.6, 0.22 * sa, { seed: 1.7 }); }
         if (brk >= 0) for (let i = 0; i < 4; i++) G.spray(c, X - w * 0.4 + w * 0.8 * i / 3, Y - hh * 0.5, T * 0.55, 0.7 * (1 - brk), { seed: i * 3 + kk, spread: 0.3 + 0.7 * brk });
         for (const d of f.nd) { const hx = H.sx(d.x), hy = H.sy(d.y) - T * 0.4, sc = 1 + 0.15 * d.k;
           if (d.done) { const u = (t - d.te) / 0.3; if (u >= 0 && u < 1) { G.spray(c, hx, hy, T * 0.35 * sc, 0.7 * (1 - u), { seed: d.b * 9, spread: u }); G.ripple(c, hx, H.sy(d.y), T * (0.15 + 0.5 * u), 0.6 * (1 - u), { seed: d.b, th: 0.1 }); } continue; }
           const L = Math.min(T * 1.4, d.v * T * 0.06), ex = hx - Math.cos(d.b) * L, ey = hy - Math.sin(d.b) * L;
           G.stream(c, [[ex, ey, T * 0.015 * sc], [(ex + hx) / 2, (ey + hy) / 2, T * 0.045 * sc], [hx, hy, T * 0.065 * sc]], T * 0.05 * sc, 1, { taper: 0, flow: 10, seed: d.b * 5, col: W.blue, lite: 1.0 });
-          G.sphere(c, hx, hy, T * 0.075 * sc, 1, { col: W.blue, seed: d.b * 3, halo: 2.6, turn: 4 }); G.star(c, hx, hy, T * 0.25 * sc, 0.65);
+          G.sphere(c, hx, hy, T * 0.075 * sc, 1, { col: W.blue, seed: d.b * 3, halo: 2.6, turn: 4 }); G.star(c, hx, hy, T * 0.25 * sc, 0.65); G.spray(c, ex, ey, T * 0.22 * sc, 0.3, { seed: d.b * 7, spread: 0.6 });
           for (let q = 1; q <= 2; q++) G.sphere(c, ex - Math.cos(d.b) * L * 0.25 * q + Math.sin(d.b) * T * 0.05 * (q - 1.5), ey - Math.sin(d.b) * L * 0.25 * q, T * 0.03 * sc / q, 0.7, { col: W.blue, seed: q + d.b, halo: 1.5 }); } },
       draw2d(c, f, X0, Y0, T) { const t = f.t; c.save(); petHole(c, T);
         // the hanging sheet: forming, a reflection sweeping across it; it breaks at each volley and reforms (bigger) for the next

@@ -38,15 +38,18 @@ const WK = (() => {
   function ripple(c, x, y, r, a, o) { const Q = gq(); if (!Q || !(r > 1) || !(a > 0.01)) return false; o = o || {}; const p = xy(c, x, y); Q.ripple(p[0], p[1], r * p[3], hx(o.col, W.aqua), a, o.seed || 0, o.sy == null ? H.GY : o.sy, o.th); return true; }
   /* a glow, a sparkle */
   function glow(c, x, y, r, col, a, sy) { const Q = gq(); if (!Q || !(r > 0.5) || !(a > 0.01)) return false; const p = xy(c, x, y); Q.glow(p[0], p[1], r * p[3], hx(col, W.aqua), Math.min(1, a), sy || 1); return true; }
-  function star(c, x, y, s, a, col) { const Q = gq(); if (!Q || !(a > 0.01)) return false; const p = xy(c, x, y); Q.star(p[0], p[1], s * p[3], a, col || '#FFFFFF'); return true; }
+  function star(c, x, y, s, a, col) { const Q = gq(); if (!Q || !(a > 0.01)) return false; const p = xy(c, x, y); Q.glow(p[0], p[1], s * 0.45 * p[3], col || '#E8FBFF', 0.7 * a); Q.star(p[0], p[1], s * 0.6 * p[3], 0.45 * a, col || '#FFFFFF'); return true; }   /* (v364: a soft glint, not a sharp cross) */
   /* a ring of light (a halo, a rim) */
-  function ring(c, x, y, r, col, a, w, sy) { const Q = gq(); if (!Q || !(r > 0.5) || !(a > 0.01)) return false; const p = xy(c, x, y); Q.ring(p[0], p[1], r * p[3], hx(col, W.aqua), a, (w || r * 0.1) * p[3], sy || 1); return true; }
+  function ring(c, x, y, r, col, a, w, sy) { const Q = gq(); if (!Q || !(r > 0.5) || !(a > 0.01)) return false; const p = xy(c, x, y); Q.ripple(p[0], p[1], r * p[3], hx(col, W.aqua), a, (x * 0.01) % 9, sy || 1, Math.max(0.06, (w || r * 0.1) / r)); return true; }   /* (v364: a soft ripple of light, not a hard ring) */
   /* a whirl of water seen from above (the energy vortex in water colours, turning with spin) */
   function whirl(c, x, y, r, a, o) { const Q = gq(); if (!Q || !(r > 0.5) || !(a > 0.01)) return false; o = o || {}; const p = xy(c, x, y), sy = o.sy == null ? H.GY : o.sy; Q.evortex(p[0], p[1], r * p[3], hx(o.col, W.water), o.heat == null ? 0.72 : o.heat, a, o.seed || 0, o.spin || 1, sy); Q.caustic(p[0], p[1], r * 0.9 * p[3], W.aqua, 0.55 * a, (o.seed || 0) + 3, sy); return true; }
   /* a water ribbon (a curling band of water) through world-screen points, as a stream with a bright edge */
   const ribbon = (c, pts, w, a, o) => stream(c, pts, w, a, Object.assign({ taper: 0.7, flow: 4 }, o));
+  /* (v364) a cloud of bubbles rising (rx, ry its extent), and shafts of light falling through water from (x0, y0) to (x1, y1) */
+  function bubbles(c, x, y, rx, ry, a, o) { const Q = gq(); if (!Q || !(rx > 1) || !(a > 0.01)) return false; o = o || {}; const p = xy(c, x, y); Q.bubbles(p[0], p[1], rx * p[3], (ry || rx) * p[3], hx(o.col, W.pale), a, o.seed || 0, o.rise == null ? 1 : o.rise); return true; }
+  function shafts(c, x0, y0, x1, y1, w, a, o) { const Q = gq(); if (!Q || !(a > 0.01)) return false; o = o || {}; const p0 = xy(c, x0, y0), p1 = xy(c, x1, y1); Q.shafts(p0[0], p0[1], p1[0], p1[1], w * p0[3], hx(o.col, W.pale), a, o.seed || 0); return true; }
   const bind = h => { H = h; K = IK.bind(h); return WKB; };
-  const WKB = { W, gpuBegin, gpuEnd, gq, xy, mid, sphere, stream, jet, pool, spray, ripple, glow, star, ring, whirl, ribbon, TAU };
+  const WKB = { W, gpuBegin, gpuEnd, gq, xy, mid, sphere, stream, jet, pool, spray, ripple, glow, star, ring, whirl, ribbon, bubbles, shafts, TAU };
   /* (for shared helpers that draw outside a bound cast: the kit as last bound, and whether its GPU mode is on) */
   return { bind, W, on: () => !!(K && K.gq()), gy: () => (H && H.GY) || 0.55, get api() { return WKB; } };
 })();
