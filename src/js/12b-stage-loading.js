@@ -12,9 +12,21 @@
    It stays at least MIN s (so the picture is seen; v373: 1.1 s, the start-up loading below having done most of the work), at most what the work takes, then fades to the stage's ready card.
    The pictures are files beside the page (loading/*.jpg: the website copies them from assets/loading; the Claude build
    publishes them with the page); if one cannot be loaded the screen shows a soft gradient instead. */
+/* (v374) where the pictures are: beside the page on the website (loading/*.jpg), in the artifact's asset store in Claude
+   (a page there cannot reach files beside it by a relative path); each is tried in turn and the first that loads is kept */
+const LOAD_PICS = (() => {
+  const BLOB = { meadow: '/_blob/223d2709282b2e7281fee8ac1bb2ad5d', belfry: '/_blob/7ee9ed5b07d7e5d6896117fdced7f7ce', dunes: '/_blob/56669318cb275f3621537511742ccbb5', yuggoth: '/_blob/07fd556e2efb38f1542322498dbb5cf0', garden: '/_blob/fd54a61c57e0daab7f8f7abfc882cf15', castle: '/_blob/f537597d2700136ad860dc97c59f2bca' };
+  const got = {}, held = {}, web = (() => { try { return /github\.io$/.test(location.hostname); } catch (e) { return false; } })();
+  /* resolves the URL that loaded (the image decoded and held), or null */
+  function load(k) { if (got[k]) return got[k];
+    const cands = web ? ['loading/' + k + '.jpg', BLOB[k]] : [BLOB[k], 'loading/' + k + '.jpg'];
+    got[k] = (async () => { for (const u of cands) { if (!u) continue; const ok = await new Promise(r => { const im = new Image(); im.decoding = 'async'; const to = setTimeout(() => r(false), 6000); im.onload = () => { clearTimeout(to); held[k] = im; (im.decode ? im.decode().catch(() => {}) : Promise.resolve()).then(() => r(true)); }; im.onerror = () => { clearTimeout(to); r(false); }; im.src = u; }); if (ok) return held[k].src; } got[k] = null; return null; })();
+    return got[k]; }
+  return { load, BLOB };
+})();
 const StageLoad = (() => {
   const POOL = ['meadow', 'belfry', 'dunes', 'yuggoth', 'garden', 'castle'], BY_RIFT = { belfry: 'belfry', dunes: 'dunes', yuggoth: 'yuggoth', garden: 'garden' };
-  const MIN = 1.1, FADE = 0.4, BASE = 'loading/';   /* (v373: shorter now that the start-up loading prepares most of it) */
+  const MIN = 1.1, CAP = 10, FADE = 0.4, BASE = 'loading/';   /* (v373: shorter now that the start-up loading prepares most of it) */
   const TIPS = ['Roll through a warning zone to take no damage from it.', 'Hits earn MP: keep attacking to charge your Strong and Ult.', 'Tap a party portrait to switch pets mid-fight.',
     'Elements react: try Fire after Ice, or Thunder on wet monsters.', 'Bosses resist slows and pushes, but not defence cuts.', 'Wind moves knock monsters around: herd them together.', 'A full combo meter pays out extra rewards.'];
   let el = null, bar = null, pic = null, tip = null, ttl = null, sub = null, lbl = null, t0 = 0, token = 0;
@@ -27,9 +39,8 @@ const StageLoad = (() => {
   /* shown at once; resolves when the picture is decoded (or failed) */
   function show(mode, S, w, s, title, subtitle) { build(); token++; t0 = now(); const k = pick(mode, S, w, s);
     el.classList.remove('out', 'noimg'); el.hidden = false; ttl.textContent = title || ''; sub.textContent = subtitle || ''; tip.textContent = TIPS[(Math.random() * TIPS.length) | 0]; set(0.04, 'Loading');
-    pic.style.backgroundImage = ''; const im = new Image(); im.decoding = 'async';
-    const ready = new Promise(r => { im.onload = () => { pic.style.backgroundImage = `url("${im.src}")`; pic.classList.add('in'); r(true); }; im.onerror = () => { el.classList.add('noimg'); r(false); }; setTimeout(() => r(false), 2500); });
-    pic.classList.remove('in'); im.src = BASE + k + '.jpg'; el.dataset.pic = k; return ready; }
+    pic.style.backgroundImage = ''; pic.classList.remove('in'); el.dataset.pic = k;
+    return LOAD_PICS.load(k).then(u => { if (u) { pic.style.backgroundImage = `url("${u}")`; void pic.offsetWidth; pic.classList.add('in'); return true; } el.classList.add('noimg'); return false; }); }
   function set(u, what) { if (!el) return; bar.style.transform = `scaleX(${Math.max(0, Math.min(1, u)).toFixed(3)})`; if (what) lbl.textContent = what; }
   /* the work done behind the picture */
   async function warm(S, game, ctx) {
@@ -49,6 +60,12 @@ const StageLoad = (() => {
     set(0.82, 'Building the stage');
     try { if (game && game.draw && ctx) { ctx.save(); game.draw(ctx); ctx.restore(); } } catch (e) {}
     await frame();
+    // (v374) every party pet drawn as the fight draws it, every monster on the floor in every frame: the game's own list of
+    // jobs, a few ms a frame, all of it unless the whole screen would pass CAP s
+    try { const jobs = game && game.preloadJobs ? game.preloadJobs(ctx) : []; let j = 0; set(0.84, 'Getting your team ready');
+      while (j < jobs.length && now() - t0 < CAP) { const f0 = performance.now(); while (j < jobs.length && performance.now() - f0 < 10) { try { jobs[j](); } catch (e) {} j++; } set(0.84 + 0.12 * j / jobs.length); await frame(); } } catch (e) {}
+    // the first frames of the stage, drawn behind the picture (what was just made, now used once)
+    try { if (game && game.draw && ctx) for (let k = 0; k < 3; k++) { ctx.save(); game.draw(ctx); ctx.restore(); await frame(); } } catch (e) {}
     // idle time for the bakes started above, and the picture shown at least MIN s
     const my = token; let u = 0.86; while (now() - t0 < MIN && my === token) { u = Math.min(0.98, u + 0.02); set(u, 'Almost ready'); await frame(); }
     set(1, 'Ready'); await frame(); }
@@ -77,7 +94,7 @@ const BootLoad = (() => {
   function overlay() { el = document.createElement('div'); el.className = 'stage-load boot-load';
     el.innerHTML = '<div class="sl-pic"></div><div class="sl-shade"></div><div class="sl-foot"><div class="sl-bar"><i></i></div><small class="sl-lbl">Loading</small><p class="sl-tip"></p></div>';
     document.body.appendChild(el); bar = el.querySelector('.sl-bar i'); lbl = el.querySelector('.sl-lbl'); el.querySelector('.sl-tip').textContent = 'Getting every stage ready for you';
-    const pic = el.querySelector('.sl-pic'), im = new Image(); im.onload = () => { pic.style.backgroundImage = `url("${im.src}")`; pic.classList.add('in'); }; im.onerror = () => el.classList.add('noimg'); im.src = 'loading/meadow.jpg'; held.push(im); }
+    const pic = el.querySelector('.sl-pic'); LOAD_PICS.load('meadow').then(u => { if (u) { pic.style.backgroundImage = `url("${u}")`; void pic.offsetWidth; pic.classList.add('in'); } else el.classList.add('noimg'); }); }
   /* the Tower's tile size on this screen (20b layout: min(W / 9.6, H / 12.5), 28..64) and its pixel scale */
   const tileT = () => Math.max(28, Math.min(64, Math.round(Math.min(innerWidth / 9.6, innerHeight / 12.5)))), pxK = () => Math.min(2, Math.max(1, devicePixelRatio || 1));
   async function run() { if (done) return; done = true;
@@ -86,7 +103,7 @@ const BootLoad = (() => {
     overlay(); const t0 = now(); set(0.03, 'Loading');
     try {
       // the stage pictures
-      await Promise.all(StageLoad.POOL.map(k => new Promise(r => { const im = new Image(); im.onload = im.onerror = () => r(); im.src = 'loading/' + k + '.jpg'; held.push(im); if (im.decode) im.decode().then(r, r); setTimeout(r, 3000); })));
+      await Promise.all(StageLoad.POOL.map(k => LOAD_PICS.load(k)));
       set(0.15, 'Loading your pets');
       // the party's sprites and rigs
       const party = typeof partyPets === 'function' ? partyPets() : [st];

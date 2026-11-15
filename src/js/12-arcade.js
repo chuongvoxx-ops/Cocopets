@@ -605,9 +605,9 @@ async function launchArc(W, S, w, s, mode, title, sub) {
   arcFont = (getComputedStyle(document.body).getPropertyValue('--f-display') || 'sans-serif').trim();
   const ldPic = StageLoad.show(mode, S, w, s, title, sub);   /* (v372: the loading screen, until the stage is ready to play) */
   arc.sprites = await loadSprites(); StageLoad.set(0.25, 'Loading your pets');
-  if (mode === 'dungeon') { try { arc.sprites.rig = await loadRig(); } catch (e) { arc.sprites.rig = null; } } StageLoad.set(0.38);
+  if (mode === 'dungeon') { try { arc.sprites.rig = await loadRig(); } catch (e) { arc.sprites.rig = null; } } StageLoad.set(0.38, 'Loading your team');
   arc.partySprites = null;
-  if (mode === 'dungeon' && S.party && S.party.length > 1) arc.partySprites = await Promise.all(S.party.map(async m => { if (m.p === st && arc.sprites) return arc.sprites; const sp = await loadSprites(formOf(m.p)); sp.rig = null; loadRig(formOf(m.p)).then(r => { sp.rig = r; }, () => {}); return sp; }));   // (the others' parts are made while the floor is played: until then a switched-in pet is drawn whole)
+  if (mode === 'dungeon' && S.party && S.party.length > 1) arc.partySprites = await Promise.all(S.party.map(async m => { if (m.p === st && arc.sprites) return arc.sprites; const sp = await loadSprites(formOf(m.p)); try { sp.rig = await loadRig(formOf(m.p)); } catch (e) { sp.rig = null; } return sp; }));   /* (v374: every member's rig made behind the loading screen, not after the floor starts) */   // (the others' parts are made while the floor is played: until then a switched-in pet is drawn whole)
   if (!arc.open) { StageLoad.hide(true); return; }
   StageLoad.set(0.48, 'Building the stage'); await new Promise(r => requestAnimationFrame(() => r()));
   arc.api = makeApi(W, S);

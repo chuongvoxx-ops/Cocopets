@@ -633,6 +633,23 @@ GAMES.dungeon = {
       if (RX) RX.onSwitch(m);
       return true;
     }
+    /* (v374) the stage's loading screen asks for this: each party pet drawn as the fight will draw it (its rig parts, faces,
+       wings, poses, magic circle and glows at this floor's size, both facings, idle, walking, casting), and every monster on
+       the floor in every frame of its picture (and its hit flash) at the size it is drawn, so neither a first switch nor a
+       first glimpse of a monster has anything left to make. A list of small jobs; StageLoad runs them a few ms a frame */
+    function preloadJobs(c) { const jobs = [];
+      // as if that pet were on the field (every value a switch sets, put back after): the pet itself and the HUD it shows
+      // (its kit's buttons, badges and glows are pictures made at first sight)
+      const swap = m => { const was = { cur, P, PI, AB, KIT, TW, ST, SSL, SIZE, OY, sp: arc.sprites, r: me.r, vx: me.vx, vy: me.vy, face: me.face, castT: me.castT, castM: me.castM, castUlt: me.castUlt, hurtT: me.hurtT, bob: me.bob, inv: me.inv };
+        cur = party.indexOf(m); P = m.p; PI = m.kit; AB = PI.AB; KIT = PI.kit; TW = AB.twist; ST = m.ST; SSL = ['strong', 'strong2', 'strong3'].filter(k => KIT[k]); SIZE = dunPetSize(P, formOf(P)); OY = 0.25 * SIZE; arc.sprites = m.sprites; me.r = 0.2 + 0.1 * SIZE; me.inv = 0;
+        return () => { cur = was.cur; P = was.P; PI = was.PI; AB = was.AB; KIT = was.KIT; TW = was.TW; ST = was.ST; SSL = was.SSL; SIZE = was.SIZE; OY = was.OY; arc.sprites = was.sp; me.r = was.r; me.vx = was.vx; me.vy = was.vy; me.face = was.face; me.castT = was.castT; me.castM = was.castM; me.castUlt = was.castUlt; me.hurtT = was.hurtT; me.bob = was.bob; me.inv = was.inv; }; };
+      for (let i = 0; i < party.length; i++) { const m = party[i]; if (!m.sprites) continue;
+        for (const [mv, flip, hurt, cast, ult] of [[0, 1, 0, 0, 0], [0, -1, 0, 0, 0], [1, 1, 0, 0, 0], [1, -1, 0, 0, 0], [0, 1, 1, 0, 0], [0, 1, 0, 0.5, 0], [0, -1, 0, 0.6, 1]]) for (const tt of [0, 0.37, 0.81])
+          jobs.push(() => { const back = swap(m), t0 = g.t; try { me.vx = mv ? 1 : 0; me.vy = 0; me.face = flip; me.hurtT = hurt ? 0.1 : 9; me.castT = cast ? cast : 0; me.castM = 1; me.castUlt = !!ult; me.bob = tt * 9; g.t = t0 + tt; c.save(); drawPet(c); c.restore(); } catch (e) {} g.t = t0; back(); });
+        jobs.push(() => { const back = swap(m); try { c.save(); drawHUD(c); c.restore(); } catch (e) {} back(); }); }
+      const seen = new Set(); for (const m of mons) { if (m.dead || m.boss) continue; const rpx = m.r * TS * SK(), key = m.type + '|' + Math.round(rpx) + '|' + m.color; if (seen.has(key)) continue; seen.add(key);
+        const nf = (DunArt.NF && DunArt.NF[m.type]) || 4; for (let f = 0; f < nf; f++) for (const fl of [false, true]) jobs.push(() => { try { DunArt.monSprite(m.type, rpx, (f + 0.5) / nf, m.color, typeof m.mode === 'string' ? m.mode : '', fl); } catch (e) {} }); }
+      return jobs; }
     function switchNext() { if (party.length < 2) return; for (let k = 1; k < party.length; k++) { const i = (cur + k) % party.length; if (!party[i].down) { if (switchTo(i)) return; else break; } } if (g.swapCd > 0) text(me.x, me.y - 1.2, 'Not yet', '#CFE2FF', 12); }
     /* the party re-dressed mid-run (the Team sheet, opened from the HUD's Team button): every pet's abilities, accessories
        and level read again; a pet taken out leaves, a pet put in joins at full strength; each keeps its share of health
@@ -2724,6 +2741,7 @@ GAMES.dungeon = {
       if (tryFire(g.tapAim)) { g.tapBuf = 0; g.tapAim = null; }
     }
     return {
+      preloadJobs,   /* (v374: the loading screen's work: StageLoad.warm) */
       _dbg: { get cam() { return cam; }, get RULES() { return RULES; }, get RIFT() { return RIFT; }, RU, lesserBoss, makeBoss, SKIP, stick, steerTo: (x, y) => { goTo(null, x, y); const d = navDir(1 / 60); nav.goal = null; return d; }, g, me, mons, M, get ST() { return ST; }, KIT, AB, useStrong, useUlt, dodge, hitMon, shots, eshots, zones, parts, helpers, F, pots, picks, shrines, hazards, traps, stones, SIZE, chunks, walkAt, blocked, X, wakeBoss, takeStone, fireEvent, tapAt, toWorld, nav, holds, goTo, banners, get AN() { return AN; }, get FD() { return FD; }, get RX() { return RX; }, get STAR() { return STAR; }, get ELEM() { return ELEM; }, get RES() { return RES; }, propList, get KITR() { return KIT; }, setKit: (slot, a) => { KIT[slot] = a; }, get VEH() { return VEH; }, vehBtns, party, cur: () => cur, switchTo, hurtPet, btnSw, setBoss: id => { if (BOSS_BY_ID[id]) { BOSS_KIND = BOSS_BY_ID[id]; F.bossName = BOSS_KIND.name; } } },
       resize() { layout(); if (stick.id != null) { stick.ox = stick.x; stick.oy = stick.y; } },   /* (a resize, a browser bar sliding say, no longer drops a held stick: its base re-centres under the thumb) */
       /* a meal from the pantry while paused: heals the played pet and feeds it Tower experience */
