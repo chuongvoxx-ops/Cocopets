@@ -603,14 +603,19 @@ async function launchArc(W, S, w, s, mode, title, sub) {
   setControls(W.key);
   arcLayout();
   arcFont = (getComputedStyle(document.body).getPropertyValue('--f-display') || 'sans-serif').trim();
-  arc.sprites = await loadSprites();
-  if (mode === 'dungeon') { try { arc.sprites.rig = await loadRig(); } catch (e) { arc.sprites.rig = null; } }
+  const ldPic = StageLoad.show(mode, S, w, s, title, sub);   /* (v372: the loading screen, until the stage is ready to play) */
+  arc.sprites = await loadSprites(); StageLoad.set(0.25, 'Loading your pets');
+  if (mode === 'dungeon') { try { arc.sprites.rig = await loadRig(); } catch (e) { arc.sprites.rig = null; } } StageLoad.set(0.38);
   arc.partySprites = null;
   if (mode === 'dungeon' && S.party && S.party.length > 1) arc.partySprites = await Promise.all(S.party.map(async m => { if (m.p === st && arc.sprites) return arc.sprites; const sp = await loadSprites(formOf(m.p)); sp.rig = null; loadRig(formOf(m.p)).then(r => { sp.rig = r; }, () => {}); return sp; }));   // (the others' parts are made while the floor is played: until then a switched-in pet is drawn whole)
-  if (!arc.open) return;
+  if (!arc.open) { StageLoad.hide(true); return; }
+  StageLoad.set(0.48, 'Building the stage'); await new Promise(r => requestAnimationFrame(() => r()));
   arc.api = makeApi(W, S);
   try { arc.game = GAMES[W.key].create(arc.api); }
-  catch (err) { console.error(err); closeArcade(); toast('That stage failed to load'); return; }
+  catch (err) { console.error(err); StageLoad.hide(true); closeArcade(); toast('That stage failed to load'); return; }
+  StageLoad.set(0.58); await StageLoad.warm(S, arc.game, arcCtx); await ldPic;
+  if (!arc.open) { StageLoad.hide(true); return; }
+  StageLoad.hide();
   arc.state = 'ready';
   if (mode === 'dungeon') arcReady.innerHTML = S.rift ? (S.rift.gate ? gateReadyHTML(S) : riftReadyHTML(S)) : dunReadyHTML(S);
   else {
@@ -716,6 +721,7 @@ function confetti(n) {
   for (let i = 0; i < n; i++) arc.fx.push({ kind: 'dot', x: Math.random() * arc.W, y: -10 - Math.random() * 80, vx: rand(-40, 40), vy: 90 + Math.random() * 120, life: 1.6 + Math.random() * 0.8, max: 2.4, color: ARC_GEMS[i % ARC_GEMS.length], r: 2.5 + Math.random() * 3, star: i % 3 === 0 ? 1 : 0 });
 }
 function closeArcade(quiet) {
+  if (typeof StageLoad !== 'undefined') StageLoad.hide(true);
   $$('.rift-match', arcEl).forEach(e => e.remove());
   arc.open = false; arc.state = 'off'; arc.paused = false;
   cancelAnimationFrame(arc.raf);

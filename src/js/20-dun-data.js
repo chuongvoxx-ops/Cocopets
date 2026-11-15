@@ -375,6 +375,15 @@ function pillarBeamSprite(color) {
     g.putImageData(im, 0, 0);
   });
 }
+/* (v372) a comet's tail: full at its head (x = 0), narrowing and fading smoothly to nothing at its far end */
+function tailSprite(color) {
+  return fxSprite('tail|' + color, 160, 48, (g, w, h) => {
+    const [r, gg, b] = hexRGB(color), im = g.createImageData(w, h), d = im.data;
+    for (let x = 0; x < w; x++) { const u = (x + 0.5) / w, along = Math.min(1, u / 0.05) * Math.pow(1 - u, 1.7), wd = 1 - 0.75 * u;
+      for (let y = 0; y < h; y++) { const v = (y + 0.5 - h / 2) / (h / 2) / wd, across = Math.max(0, (Math.exp(-v * v * 4.2) - Math.exp(-4.2)) / (1 - Math.exp(-4.2))), i = (y * w + x) * 4; d[i] = r; d[i + 1] = gg; d[i + 2] = b; d[i + 3] = Math.round(255 * Math.min(1, across * along)); } }
+    g.putImageData(im, 0, 0);
+  });
+}
 function beamSprite(color) {
   return fxSprite('beam|' + color, 128, 48, (g, w, h) => {
     const [r, gg, b] = hexRGB(color), im = g.createImageData(w, h), d = im.data;

@@ -12,3 +12,4 @@ _o*.txt
 node_modules/
 .DS_Store
 bat2/
+/loading/

@@ -110,7 +110,7 @@
             G.glow(c, X, Y - G0.hh * T * 0.3, G0.rw * T * 0.9, P.jade, 0.18 * a);
             for (let j = 0; j < 6; j++) { const v = 0.1 + j * 0.14, rr = G0.rw * T * (0.13 + 0.79 * Math.pow(v, 1.25)) * 1.02, cx = X + Math.sin(v * 4 - t * 1.7) * 0.05 * (0.3 + v) * G0.rw * T;   /* (sharp-edged ribbons wound round it at different speeds) */
               G.arc(c, cx, Y - v * G0.hh * T, rr, t * G0.spin * (3.2 + j * 0.7) + j * 1.9, 0.75 * a, { k: 0.3, mode: 0, span: 2.2 + 0.3 * (j % 3), th: 0.16, seed: j * 1.3, dens: 0.45 }); } }
-          if (fin && fu < 0.5) { const e = eo(fu / 0.4); G.gust(c, X, Y - T * RH * 0.5, T * RH * 1.25 * e, 1 - fu / 0.5, { core: Math.max(0, 1 - fu / 0.15), spin: 3, seed: 7, shade: 0.3 }); } });
+          if (fin && fu < 0.5) { const e = eo(fu / 0.4); G.gust(c, X, Y - T * RH * 0.5, T * RH * 1.25 * e, 1 - fu / 0.5, { core: 0.4 * Math.max(0, 1 - fu / 0.15), spin: 3, seed: 7, shade: 0 }); } });
         drawDeb(true); } });
     return F; };
 

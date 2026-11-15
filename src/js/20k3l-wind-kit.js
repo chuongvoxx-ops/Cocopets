@@ -37,7 +37,7 @@ const WDK = (() => {
   const ring = (c, x, y, R, a, o) => arc(c, x, y, R, 0, a, Object.assign({ mode: 2, span: TAU, th: 0.16 }, o));
   /* ---- a sphere of turbulent air (radius r, px): o.core the light at its heart, o.spin, o.seed, o.shade (the deep tint under it) */
   function gust(c, x, y, r, a, o) { if (!(r > 1) || !(a > 0.01)) return; o = o || {}; const Q = gq();
-    if (Q) { const p = xy(c, x, y), R = r * p[3]; if (o.shade !== 0) Q.wshade(p[0], p[1], R * 1.05, R * 1.05, P.deep, a * (o.shade == null ? 0.6 : o.shade), o.seed || 0, 0.55); Q.gust(p[0], p[1], R, hx(o.col, P.jade), a, o.core || 0, o.seed || 0, o.spin == null ? 1 : o.spin); Q.glow(p[0], p[1], R * 1.5, hx(o.col, P.jade), 0.2 * a); return; }
+    if (Q) { const p = xy(c, x, y), R = r * p[3]; if (o.shade) Q.wshade(p[0], p[1], R * 0.75, R * 0.75, P.deep, a * Math.min(0.3, o.shade), o.seed || 0, 0.35);   /* (v372: only a faint tint, never a dark blot over the fight) */ Q.gust(p[0], p[1], R, hx(o.col, P.jade), a, Math.min(0.5, o.core || 0), o.seed || 0, o.spin == null ? 1 : o.spin); Q.glow(p[0], p[1], R * 1.3, hx(o.col, P.jade), 0.14 * a); return; }
     c.save(); c.globalCompositeOperation = 'lighter'; const g2 = c.createRadialGradient(x, y, r * 0.2, x, y, r); g2.addColorStop(0, rgba(P.mintW, 0.25 * a + 0.5 * (o.core || 0) * a)); g2.addColorStop(0.75, rgba(P.jade, 0.15 * a)); g2.addColorStop(0.95, rgba(P.mintW, 0.7 * a)); g2.addColorStop(1, rgba(P.mint, 0));
     c.fillStyle = g2; c.beginPath(); c.arc(x, y, r, 0, TAU); c.fill(); c.restore(); }
   /* ---- a funnel of wind: foot at (x, y), top half-width rw, height h (px); o.base its foot's width (a fraction), o.spin, o.seed */

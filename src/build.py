@@ -63,6 +63,12 @@ def build_web(dist):
     if os.path.isdir(src):
         for n in os.listdir(src):
             shutil.copy(os.path.join(src, n), os.path.join(dist, 'music', n))
+    # (v372) the loading screens' pictures, beside the page (loading/*.jpg)
+    lsrc = os.path.join(os.path.dirname(HERE), 'assets', 'loading')
+    if os.path.isdir(lsrc):
+        os.makedirs(os.path.join(dist, 'loading'), exist_ok=True)
+        for n in os.listdir(lsrc):
+            shutil.copy(os.path.join(lsrc, n), os.path.join(dist, 'loading', n))
     open(os.path.join(dist, '.nojekyll'), 'w').close()
 
 if __name__ == '__main__':

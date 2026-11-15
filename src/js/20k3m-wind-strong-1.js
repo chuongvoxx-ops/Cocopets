@@ -75,18 +75,18 @@
           // the gathering sphere at the mouth (for the next orb)
           for (const o of orbs) { if (o.ph !== 'wait') continue; const u = cl(1 - (o.L - t) / 0.3); if (u <= 0) continue; const r = T * 0.3 * eo(u);
             for (let j = 0; j < 3; j++) G.arc(c, MX, MY, T * (1.0 - 0.6 * u) , t * 9 + j * 2.1, 0.8 * u, { k: 0.45 + 0.2 * j, beta: j * 1.1 + t * 2, mode: 1, span: 2.0, th: 0.18, seed: j });   /* (ribbons tightening round it) */
-            G.gust(c, MX, MY, r, u, { core: 1, spin: 3, seed: o.sd, shade: 0.3 }); break; }
+            G.gust(c, MX, MY, r, u, { core: 1, spin: 3, seed: o.sd, shade: 0 }); break; }
           // the orbs in flight: a narrow spiralling trail, the orb, two bands turning round it on their own axes
           for (const o of orbs) { if (o.ph !== 'fly') continue; const X = H.sx(o.x), Y = H.sy(o.y) - o.z * T, r = T * 0.3;
             if (o.tr.length > 2) { for (const s of [0, Math.PI]) { const pts = o.tr.map((q, j) => { const th = t * 18 + j * 0.9 + s, rr = T * 0.14 * (1 - j / o.tr.length * 0.4); return [H.sx(q[0]) + Math.cos(th) * rr * 0.4, H.sy(q[1]) - q[2] * T + Math.sin(th) * rr]; }); pts[0] = [X, Y]; G.rib(c, pts, T * 0.07, 0.85, { edge: 0, taper: 0.9, fade: 1, seed: o.sd + s, flow: 6 }); } }
-            G.gust(c, X, Y, r, 1, { core: 1, spin: 3.5, seed: o.sd, shade: 0.35 }); G.glow(c, X, Y, r * 2.4, P.jade, 0.35);
+            G.gust(c, X, Y, r, 1, { core: 1, spin: 3.5, seed: o.sd, shade: 0 }); G.glow(c, X, Y, r * 2, P.jade, 0.25);
             G.ring(c, X, Y, r * 1.45, 0.9, { k: 0.3, beta: t * 6 + o.sd, th: 0.16, seed: o.sd }); G.ring(c, X, Y, r * 1.3, 0.8, { k: 0.55, beta: -t * 4.5 + 1.2, th: 0.16, seed: o.sd + 2 }); }
           // the bursts: the sphere expanding with its front, then loosening into ribbons
           for (const o of orbs) { if (o.ph !== 'burst') continue; const u = (t - o.bt) / BT, X = H.sx(o.bx), Yf = H.sy(o.by), e = eo(u / 0.26), lo = sm((u - 0.22) / 0.78), rS = R * T * (0.12 + 0.88 * e) * (1 + 0.1 * lo), Y = Yf - rS * 0.42, a = 1 - lo * lo;
-            G.gust(c, X, Y, rS, a, { core: Math.max(0, 1 - u / 0.2), spin: 2.6 - 1.4 * lo, seed: o.sd, shade: 0.5 * (1 - lo) });
+            G.gust(c, X, Y, rS, a * 0.85, { core: 0.5 * Math.max(0, 1 - u / 0.15), spin: 2.6 - 1.4 * lo, seed: o.sd, shade: 0 });
             for (let j = 0; j < 7; j++) { const s = R1(o.sd + j), ro = rS * (0.92 + 0.35 * lo * (0.6 + s)), ph = j * 0.9 + t * (5 - 2.5 * lo) * (j % 2 ? 1 : -1);
               G.arc(c, X, Y, ro, ph, (0.85 - 0.25 * j / 7) * (1 - lo) * Math.min(1, u * 8), { k: 0.18 + 0.6 * s, beta: j * 0.83 + o.sd, dir: j % 2 ? 1 : -1, span: 1.4 + lo * 1.2, th: 0.07 + 0.05 * s, seed: o.sd + j }); }
-            if (u < 0.3) { G.glow(c, X, Y, rS * 1.2, P.mint, 0.5 * (1 - u / 0.3)); G.star(c, X, Y, T * 1.4, 1 - u / 0.3); } } });
+            if (u < 0.2) { G.glow(c, X, Y, rS * 0.6, P.mint, 0.25 * (1 - u / 0.2)); G.star(c, X, Y, T * 0.8, 0.6 * (1 - u / 0.2)); } } });   /* (v372: a brief, small flash, not a blinding one) */
         // the solid shadows of the orbs in flight
         for (const o of orbs) if (o.ph === 'fly') H.softShadow(c, H.sx(o.x), H.sy(o.y), T * 0.3, 0.18); } });
     return F; };
@@ -133,7 +133,7 @@
               G.ring(c, X, Y, T * RB * (0.25 + 0.75 * e), a, { k: 0.8, beta: o.sd, th: 0.13 * (1.2 - e), seed: o.sd, col: P.deep, lite: P.mintW });   /* (the sharp pressure ring, upright) */
               G.ring(c, X, Yf, T * RB * (0.3 + 0.75 * e), 0.8 * a, { th: 0.1, seed: o.sd + 1 });   /* (its reach on the floor) */
               for (let j = 0; j < 4; j++) { const s = R1(o.sd * 3 + j); G.arc(c, X, Y, T * (0.45 + 0.4 * s) * (0.6 + 0.6 * e), j * 1.6 + t * 16 * (j % 2 ? 1 : -1), a, { k: 0.25 + 0.5 * s, beta: j * 0.8 + o.sd, dir: j % 2 ? 1 : -1, span: 1.6, th: 0.1, seed: o.sd + j }); }   /* (short slicing ribbons) */
-              if (u < 0.35) { G.glow(c, X, Y, T * 0.9, P.mint, 0.6 * (1 - u / 0.35)); G.star(c, X, Y, T * 0.9, 1 - u / 0.35); } } } });
+              if (u < 0.25) { G.glow(c, X, Y, T * 0.7, P.mint, 0.35 * (1 - u / 0.25)); G.star(c, X, Y, T * 0.7, 0.7 * (1 - u / 0.25)); } } } });
         // the feathers (cel-shaded), and the fragments of the burst ones
         for (const o of fs) {
           if (o.ph === 'wait') { const u = cl((t - o.L + 0.3) / 0.22); if (u <= 0) continue; const X = H.sx(o.x), Y = H.sy(o.y) - o.z * T, b = Math.atan2(o.y - me.y, o.x - me.x) * 0.6 - Math.PI / 2 * 0.4 + (o.off * 0.5);
@@ -248,7 +248,7 @@
               G.glow(c, X, Y, T * (0.35 + 0.35 * u), P.jade, 0.35 + 0.4 * u * pul); G.glow(c, X, Y, T * 0.14, P.mintW, 0.6 + 0.4 * u);
               G.ring(c, X, Y, T * (1.0 - 0.6 * eo(u)), 0.35 + 0.65 * u, { k: 0.5, beta: s.sd, th: 0.14, seed: s.sd, col: '#075C40', dens: 1.6 });   /* (a thin ring of wind gathering round it) */
               if (u > 0.7) for (let j = 0; j < 3; j++) G.arc(c, X, Y, T * 0.5, t * 22 + j * 2.09, (u - 0.7) / 0.3, { k: 0.55, mode: 1, span: 1.2, th: 0.38, seed: s.sd + j, col: '#075C40', dens: 1.6 }); }   /* (its filaments opening into tiny spinning blades) */
-            if (s.ph === 'burst') { const u = (t - s.bt) / BT; if (u > 1) continue; const Yb = H.sy(s.by) - s.bz * T; G.ring(c, X, Yb, T * RB * 0.9 * eo(u / 0.5), 1 - sm(u), { k: 0.8, beta: s.sd, th: 0.16, col: '#075C40', lite: P.mintW, seed: s.sd, dens: 1.7 }); if (u < 0.3) { G.glow(c, X, Yb, T * 1.1, P.mint, 0.6 * (1 - u / 0.3)); G.star(c, X, Yb, T * 1.1, 1 - u / 0.3); } } } });
+            if (s.ph === 'burst') { const u = (t - s.bt) / BT; if (u > 1) continue; const Yb = H.sy(s.by) - s.bz * T; G.ring(c, X, Yb, T * RB * 0.9 * eo(u / 0.5), 1 - sm(u), { k: 0.8, beta: s.sd, th: 0.16, col: '#075C40', lite: P.mintW, seed: s.sd, dens: 1.7 }); if (u < 0.25) { G.glow(c, X, Yb, T * 0.8, P.mint, 0.35 * (1 - u / 0.25)); G.star(c, X, Yb, T * 0.8, 0.7 * (1 - u / 0.25)); } } } });
         // the dandelion (a stem and a globe of filaments, shedding its seeds) and the seeds themselves
         if (blow && du > 0) { c.save(); c.globalAlpha = du; c.strokeStyle = '#3E9A62'; c.lineWidth = Math.max(1, T * 0.05); c.beginPath(); c.moveTo(DX - face * T * 0.2, DY + T * 0.55); c.quadraticCurveTo(DX - face * T * 0.05, DY + T * 0.2, DX, DY); c.stroke(); c.restore();
           const left = ss.filter(s => s.ph === 'wait').length; for (let i = 0; i < 12; i++) { if (i >= 5 + left * 1.2) break; const b = i / 12 * TAU + t * 0.5; G.seed(c, DX + Math.cos(b) * T * 0.1, DY + Math.sin(b) * T * 0.1, T * 0.42, du, 1, b + Math.PI / 2); } }

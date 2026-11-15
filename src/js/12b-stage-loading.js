@@ -1,0 +1,57 @@
+/* ---------- (v372) the loading screen before every stage ----------
+   A full-screen picture (one per stage: a rift shows its own land, every other stage one of the six in turn) with the
+   stage's name, a progress bar and a tip, shown from the moment a stage is chosen until it is ready to play. While it
+   shows, the stage is built and everything its first seconds need is prepared ahead (StageLoad.warm):
+     - the pet's sprites and rigs (launchArc's own loads),
+     - the GPU painter every elemental move paints through (20k6h FGFX) and the 3D one: their programs compiled and one
+       frame drawn with every kind of quad, so the first cast never stalls on a shader,
+     - every elemental Strong and Ultimate in the party's kits that prepares itself ahead (their .warm: sprite atlases,
+       models), started now so their bakes run behind the picture,
+     - one full frame of the stage drawn behind it (its floor, props and monsters' pictures cached),
+     - a moment of idle time for those bakes to finish.
+   It stays at least MIN s (so the picture is seen), at most what the work takes, then fades to the stage's ready card.
+   The pictures are files beside the page (loading/*.jpg: the website copies them from assets/loading; the Claude build
+   publishes them with the page); if one cannot be loaded the screen shows a soft gradient instead. */
+const StageLoad = (() => {
+  const POOL = ['meadow', 'belfry', 'dunes', 'yuggoth', 'garden', 'castle'], BY_RIFT = { belfry: 'belfry', dunes: 'dunes', yuggoth: 'yuggoth', garden: 'garden' };
+  const MIN = 1.6, FADE = 0.4, BASE = 'loading/';
+  const TIPS = ['Roll through a warning zone to take no damage from it.', 'Hits earn MP: keep attacking to charge your Strong and Ult.', 'Tap a party portrait to switch pets mid-fight.',
+    'Elements react: try Fire after Ice, or Thunder on wet monsters.', 'Bosses resist slows and pushes, but not defence cuts.', 'Wind moves knock monsters around: herd them together.', 'A full combo meter pays out extra rewards.'];
+  let el = null, bar = null, pic = null, tip = null, ttl = null, sub = null, lbl = null, t0 = 0, token = 0;
+  const now = () => performance.now() / 1000, frame = () => new Promise(r => requestAnimationFrame(() => r()));
+  function pick(mode, S, w, s) { const rid = S && S.rift && S.rift.id; if (rid && BY_RIFT[rid]) return BY_RIFT[rid];
+    const n = mode === 'dungeon' ? (S && (S.n || s)) || s || 1 : (w || 1) * 7 + (s || 1); return POOL[(Math.abs(n | 0) + (rid ? 3 : 0)) % POOL.length]; }
+  function build() { if (el) return el; el = document.createElement('div'); el.className = 'stage-load'; el.hidden = true;
+    el.innerHTML = '<div class="sl-pic"></div><div class="sl-shade"></div><div class="sl-foot"><b class="sl-ttl"></b><span class="sl-sub"></span><div class="sl-bar"><i></i></div><small class="sl-lbl">Loading</small><p class="sl-tip"></p></div>';
+    (document.getElementById('arcade') || document.body).appendChild(el); pic = el.querySelector('.sl-pic'); bar = el.querySelector('.sl-bar i'); tip = el.querySelector('.sl-tip'); ttl = el.querySelector('.sl-ttl'); sub = el.querySelector('.sl-sub'); lbl = el.querySelector('.sl-lbl'); return el; }
+  /* shown at once; resolves when the picture is decoded (or failed) */
+  function show(mode, S, w, s, title, subtitle) { build(); token++; t0 = now(); const k = pick(mode, S, w, s);
+    el.classList.remove('out', 'noimg'); el.hidden = false; ttl.textContent = title || ''; sub.textContent = subtitle || ''; tip.textContent = TIPS[(Math.random() * TIPS.length) | 0]; set(0.04, 'Loading');
+    pic.style.backgroundImage = ''; const im = new Image(); im.decoding = 'async';
+    const ready = new Promise(r => { im.onload = () => { pic.style.backgroundImage = `url("${im.src}")`; pic.classList.add('in'); r(true); }; im.onerror = () => { el.classList.add('noimg'); r(false); }; setTimeout(() => r(false), 2500); });
+    pic.classList.remove('in'); im.src = BASE + k + '.jpg'; el.dataset.pic = k; return ready; }
+  function set(u, what) { if (!el) return; bar.style.transform = `scaleX(${Math.max(0, Math.min(1, u)).toFixed(3)})`; if (what) lbl.textContent = what; }
+  /* the work done behind the picture */
+  async function warm(S, game, ctx) {
+    // the GPU painters: compiled, and one frame drawn with every kind of quad
+    set(0.62, 'Preparing effects');
+    try { const NM = self.NIDHOGG_MOVES, F = NM && NM.FGFX; if (F && F.usable()) { const cv = document.createElement('canvas'); cv.width = 64; cv.height = 64; const c = cv.getContext('2d'), Q = F.begin(c, null);
+        if (Q && Q.quad) { for (let k = 0; k <= 39; k++) Q.quad(k, 32, 32, 8, 0, 0, 8, '#88CCAA', 0.01, 0.5, 0.5, 0.5); F.flush(c); } }
+      if (NM && NM.F3D && NM.F3D.usable) NM.F3D.usable(); } catch (e) {}
+    await frame();
+    // every move in the party's kits that prepares itself ahead (the Ultimates already began as the stage was made)
+    set(0.72, 'Preparing moves');
+    try { const T = () => (game && game.Tz ? game.Tz() : 48), party = (S && S.party) || [];
+      for (const m of party) { const K = m.kit && m.kit.kit; if (!K) continue;
+        for (const sl of Object.keys(K)) { const a = K[sl]; if (!a || !a.e8 || sl === 'ult') continue; const E = typeof ELEM_IMPL !== 'undefined' && ELEM_IMPL[a.e8], key = String(a.key || '').slice(3), I = E && E.strong && E.strong[key]; if (I && I.warm) try { I.warm({ evo: a.evo || 1, T }); } catch (e) {} } } } catch (e) {}
+    await frame();
+    // one whole frame of the stage, drawn behind the picture: its floor and the pictures of what is on it cached
+    set(0.82, 'Building the stage');
+    try { if (game && game.draw && ctx) { ctx.save(); game.draw(ctx); ctx.restore(); } } catch (e) {}
+    await frame();
+    // idle time for the bakes started above, and the picture shown at least MIN s
+    const my = token; let u = 0.86; while (now() - t0 < MIN && my === token) { u = Math.min(0.98, u + 0.02); set(u, 'Almost ready'); await frame(); }
+    set(1, 'Ready'); await frame(); }
+  function hide(fast) { if (!el || el.hidden) return; token++; const my = token; if (fast) { el.hidden = true; return; } el.classList.add('out'); setTimeout(() => { if (my === token) el.hidden = true; }, FADE * 1000); }
+  return { show, set, warm, hide, pick, POOL, get el() { return el; } };
+})();
