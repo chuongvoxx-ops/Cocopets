@@ -142,7 +142,18 @@
       const path = (sd, u) => { const w = Math.sin(u * Math.PI) * OFF * sd, d = u * L; return [ox + ca * d + px * w, oy + sa * d + py * w]; };
       H.add({ life: TR + 0.8,
         update(dt, f) { const u = cl(f.t / TR); if (u < 1 && Math.random() < 1.4 * H.Q()) for (const sd of [-1, 1]) { const p = path(sd, u); H.P({ kind: Math.random() < 0.6 ? 'spark' : 'bubble', x: p[0], y: p[1] - 0.15, vx: -px * sd * 2 + ca * 2, vy: -1.5 - Math.random() * 2, g: 8, life: 0.35, max: 0.35, size: 2 + Math.random() * 1.5, color: Math.random() < 0.5 ? WH : PALE }); } },
-        drawUnder(c, f, X, Y, T) { const u = cl(f.t / TR), k = Math.min(1, f.life / 0.35); c.lineCap = 'round'; c.lineJoin = 'round';
+        /* (v362) rebuilt on the GPU from scratch: each undertow a surging current of water racing along its curve (a deep
+           translucent body, foam lines boiling along both its edges, caustic light and spreading wake ripples on the floor, a
+           cresting head of water throwing spray); where the two meet they burst upward into a column of water that opens into
+           a crown of falling arcs and pearls, over ripples racing out from its foot. Without the GPU the old picture */
+        drawUnder(c, f, X, Y, T) { const g = G(); if (!g) return f.drawUnder2d(c, f, X, Y, T); const u = cl(f.t / TR), k = Math.min(1, f.life / 0.35), NQ = 16;
+          for (const sd of [-1, 1]) { const pts = []; for (let i = 0; i <= NQ; i++) { const p = path(sd, i / NQ * u); pts.push([H.sx(p[0]), H.sy(p[1])]); }
+            for (let i = 2; i <= NQ; i += 4) { const age = (u - i / NQ * u) * TR, ra = cl(1 - age / 0.7); if (ra <= 0.02) continue; g.pool(c, pts[i][0], pts[i][1], T * 0.6 * s, 0.4 * k * ra, { seed: i + sd * 7, glow: 0 }); g.ripple(c, pts[i][0], pts[i][1], T * (0.3 + 0.9 * (1 - ra)) * s, 0.5 * k * ra, { seed: i * 1.7 + sd, th: 0.1 }); }
+            const P = [], Lf = [], Rt = []; for (let i = 0; i <= NQ; i += 2) { const p = pts[i], q = pts[Math.min(NQ, i + 1)], o = pts[Math.max(0, i - 1)], dx = q[0] - o[0], dy = q[1] - o[1], d = Math.hypot(dx, dy) || 1, ww = T * 0.26 * s * (0.35 + 0.65 * i / NQ); P.push([p[0], p[1], ww]); Lf.push([p[0] - dy / d * ww * 0.85, p[1] + dx / d * ww * 0.85, T * 0.035]); Rt.push([p[0] + dy / d * ww * 0.85, p[1] - dx / d * ww * 0.85, T * 0.035]); }
+            g.stream(c, P, T * 0.26 * s, k, { taper: 0, flow: 8, seed: sd * 3, col: '#2C7BE0', dens: 0.85, lite: 0.85 });
+            g.stream(c, Lf, T * 0.035, 0.75 * k, { taper: 0, flow: 10, seed: sd * 5 + 1, col: '#CFF6FF', dens: 0.35, lite: 1.1 }); g.stream(c, Rt, T * 0.035, 0.75 * k, { taper: 0, flow: 10, seed: sd * 5 + 2, col: '#CFF6FF', dens: 0.35, lite: 1.1 });
+            if (u < 1) { const hd = pts[NQ]; g.sphere(c, hd[0], hd[1] - T * 0.12 * s, T * 0.24 * s, 0.9, { col: '#2C7BE0', seed: sd, turn: 4, halo: 2.2 }); g.spray(c, hd[0], hd[1] - T * 0.2 * s, T * 0.55 * s, 0.7, { seed: sd + Math.floor(f.t * 12) * 0.37, spread: 0.25 }); g.glow(c, hd[0], hd[1], T * 0.7 * s, AQ, 0.4); } } },
+        drawUnder2d(c, f, X, Y, T) { const u = cl(f.t / TR), k = Math.min(1, f.life / 0.35); c.lineCap = 'round'; c.lineJoin = 'round';
           for (const sd of [-1, 1]) { const pts = []; for (let i = 0; i <= 18; i++) { const p = path(sd, i / 18 * u); pts.push([H.sx(p[0]), H.sy(p[1])]); }
             const g = G(); if (g) { const P = []; for (let i = 0; i < pts.length; i += 2) P.push(pts[i]); if (P[P.length - 1] !== pts[pts.length - 1]) P.push(pts[pts.length - 1]); g.stream(c, P, T * 0.24 * s, k, { taper: 0.6, flow: 6, seed: sd * 3, col: '#2C7BE0', lite: 0.9 }); if (u < 1) { const hd = pts[pts.length - 1]; g.spray(c, hd[0], hd[1] - T * 0.1, T * 0.45 * s, 0.7, { seed: sd + f.t * 3, spread: 0.2 }); H.glow(c, hd[0], hd[1], T * 0.6 * s, AQ, 0.5); } continue; }
             const line = () => { c.beginPath(); pts.forEach((p, i) => (i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]))); };
@@ -151,7 +162,14 @@
             c.setLineDash([T * 0.35, T * 0.55]); c.lineDashOffset = -f.t * T * 9; c.strokeStyle = 'rgba(255,255,255,0.75)'; c.lineWidth = 1.8; c.stroke(); c.setLineDash([]);
             if (u < 1) { const hd = pts[pts.length - 1]; H.glow(c, hd[0], hd[1], T * 0.6 * s, AQ, 0.5); H.glow(c, hd[0], hd[1], T * 0.25 * s, WH, 0.5); }
             c.globalCompositeOperation = 'source-over'; } },
-        draw(c, f, X, Y, T) { if (f.t < TR) return; const v = (f.t - TR) / 0.8, up = v < 0.3 ? H.ease.out(v / 0.3) : Math.max(0, 1 - (v - 0.3) / 0.6), hh = T * 2.4 * s * up, MX = H.sx(mx), MY = H.sy(my), w = T * (0.7 + 0.4 * v) * s;
+        draw(c, f, X, Y, T) { const g = G(); if (!g) return f.draw2d(c, f, X, Y, T); if (f.t < TR) return; const v = (f.t - TR) / 0.8, up = v < 0.3 ? H.ease.out(v / 0.3) : Math.max(0, 1 - (v - 0.3) / 0.6), hh = T * 2.4 * s * up, MX = H.sx(mx), MY = H.sy(my), w = T * (0.7 + 0.4 * v) * s, fa = Math.min(1, up * 2);
+          g.pool(c, MX, MY, w * 1.7, 0.7 * fa, { seed: 4.1 }); for (let q = 0; q < 3; q++) { const r = ((v * 1.4 + q / 3) % 1); g.ripple(c, MX, MY, w * (0.4 + 1.6 * r), 0.6 * fa * (1 - r), { seed: q * 2.3, th: 0.09 }); }
+          if (hh < 2) return; const top = MY - hh;
+          g.stream(c, [[MX, MY + T * 0.1, w * 0.5], [MX + Math.sin(f.t * 9) * w * 0.05, MY - hh * 0.5, w * 0.36], [MX, top, w * 0.26]], w * 0.4, fa, { taper: 0, flow: 9, seed: 5.5, col: '#2C7BE0', dens: 0.8, lite: 0.95 });
+          for (let i = 0; i < 7; i++) { const q = i / 7 * TAU + 0.3, cx2 = Math.cos(q), open = cl(v * 2.2), P = [[MX, top, w * 0.12], [MX + cx2 * w * 0.9 * open, top - w * 0.35 * open, w * 0.09], [MX + cx2 * w * 1.6 * open, top + w * 0.5 * open, w * 0.04]]; if (open > 0.05) g.stream(c, P, w * 0.08, 0.8 * up, { taper: 0, flow: 7, seed: i * 1.9, col: '#2C7BE0', dens: 0.6, lite: 1.0 });
+            const dv = cl((v - 0.25) / 0.6); if (dv > 0 && dv < 1) g.sphere(c, MX + cx2 * w * (1.6 + 0.3 * dv), top + w * 0.5 + dv * dv * T * 1.6, T * 0.06 * s, 0.85 * (1 - dv), { col: '#2C7BE0', seed: i, halo: 2 }); }
+          g.spray(c, MX, top, w * 1.3, 0.75 * up, { seed: Math.floor(f.t * 10) * 0.41, spread: v }); g.glow(c, MX, top, w * 1.2, AQ, 0.4 * up); g.glow(c, MX, MY - hh * 0.5, w * 1.4, TQ, 0.18 * up); },
+        draw2d(c, f, X, Y, T) { if (f.t < TR) return; const v = (f.t - TR) / 0.8, up = v < 0.3 ? H.ease.out(v / 0.3) : Math.max(0, 1 - (v - 0.3) / 0.6), hh = T * 2.4 * s * up, MX = H.sx(mx), MY = H.sy(my), w = T * (0.7 + 0.4 * v) * s;
           if (hh < 2) return; c.save(); hole(c, T); const cs = colSpr(), off = Math.floor((f.t * 300) % 128);
           const g = G(); if (g) { g.jet(c, MX, MY + T * 0.1, MX, MY - hh, w * 0.42, Math.min(1, up * 2), { flow: 8, seed: 5.5, col: '#2C7BE0' }); g.spray(c, MX, MY - hh, w * 1.1, 0.8 * up, { seed: f.t * 2, spread: v }); g.ripple(c, MX, MY, w * (0.8 + v), 0.6 * up, { seed: 3.3 }); }
           else { c.globalAlpha = 0.85 * Math.min(1, up * 2); c.drawImage(cs, 0, 128 - off, 64, 128, MX - w / 2, MY - hh, w, hh); }

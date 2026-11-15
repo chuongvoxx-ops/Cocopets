@@ -51,11 +51,25 @@
     g.beginPath(); outer(); g.strokeStyle = 'rgba(80,225,215,0.9)'; g.lineWidth = 6; g.stroke(); g.strokeStyle = 'rgba(160,255,235,0.95)'; g.lineWidth = 3; g.stroke(); g.strokeStyle = 'rgba(255,255,255,0.9)'; g.lineWidth = 1.2; g.stroke();
     g.fillStyle = 'rgba(255,255,255,0.85)'; for (let k = 0; k < 16; k++) { const u = 0.1 + 0.8 * k / 15, q = 1 - u, x = q * q * 78 + 2 * q * u * 150 + u * u * 78 + 2 + R1(k) * 3, y = q * q * 4 + 2 * q * u * 48 + u * u * 92; g.beginPath(); g.arc(x, y, 0.8 + 1.6 * R1(k * 3.1), 0, TAU); g.fill(); } });
   /* one crescent at screen (X, Y), facing ang (its rim leading), size px; flex: the trailing sheet's sway */
-  function cres(c, X, Y, ang, sz, sy, a, flex, pearl) { if (!(a > 0.01)) return; const s = sz / 88, spr = cresSpr();
+  /* (v362) a crescent of water built on the GPU from scratch: a rolling crest of flowing water (thick and bright at its
+     leading edge, thinning through translucent water to its inner curve), a thin trailing sheet swaying behind it, foam
+     breaking along the crest with glints racing round it, a glow; Celestial's pearl a sphere of water riding the crest */
+  function cres(c, X, Y, ang, sz, sy, a, flex, pearl) { if (!(a > 0.01)) return; if (!WK.on()) return cres2d(c, X, Y, ang, sz, sy, a, flex, pearl);
+    const G = WK.api, s = sz / 88, A = Math.min(1, a), tt = (performance.now() / 1000) % 1000, sd = (ang * 3.7) % 20;
+    const curve = (cx, w0, n) => { const P = []; for (let i = 0; i <= n; i++) { const u = i / n, q = 1 - u, lx = q * q * -16 + 2 * q * u * cx + u * u * -16, ly = q * q * -44 + u * u * 44; P.push([lx, ly, w0 * (0.15 + 0.85 * Math.pow(Math.sin(Math.PI * u), 0.8))]); } return P; };
+    c.save(); c.translate(X, Y); c.rotate(ang); c.scale(s, s * sy);
+    G.glow(c, 16, 0, 78, W.aqua, 0.22 * A);
+    G.stream(c, curve(-22 - 14 * flex, 5, 6), 5, 0.45 * A, { taper: 0, flow: 3, seed: sd + 9, col: W.blue, dens: 0.3, lite: 0.6 });
+    G.stream(c, curve(18, 7, 6), 7, 0.6 * A, { taper: 0, flow: 4, seed: sd + 5, col: W.sapph || '#1450B4', dens: 0.4, lite: 0.5 });
+    G.stream(c, curve(36, 9, 7), 9, 0.8 * A, { taper: 0, flow: 5, seed: sd + 2, col: W.blue, dens: 0.55, lite: 0.7 });
+    G.stream(c, curve(54, 9, 8), 9, A, { taper: 0, flow: 7, seed: sd, col: W.blue, dens: 0.9, lite: 1.0 });
+    for (let i = 0; i < 3; i++) { const u = 0.25 + 0.25 * i, q = 1 - u, lx = q * q * -16 + 2 * q * u * 58 + u * u * -16, ly = q * q * -44 + u * u * 44; G.spray(c, lx + 4, ly, 13, 0.45 * A, { seed: sd + i * 3.1 + Math.floor(tt * 5) * 0.31, spread: 0.45 }); }
+    for (let i = 0; i < 2; i++) { const u = (tt * 0.9 + i * 0.5 + sd * 0.1) % 1, q = 1 - u, lx = q * q * -16 + 2 * q * u * 56 + u * u * -16, ly = q * q * -44 + u * u * 44; G.star(c, lx + 2, ly, 16 * Math.sin(Math.PI * u), 0.8 * A); }
+    if (pearl) { const u = pearl, q = 1 - u, lx = q * q * -16 + 2 * q * u * 56 + u * u * -16, ly = q * q * -44 + u * u * 44; G.sphere(c, lx, ly, 8, A, { col: W.blue, seed: sd, turn: 3, halo: 2.4 }); }
+    c.restore(); }
+  function cres2d(c, X, Y, ang, sz, sy, a, flex, pearl) { if (!(a > 0.01)) return; const s = sz / 88, spr = cresSpr();
     c.save(); c.translate(X, Y); c.rotate(ang); c.globalAlpha = Math.min(1, a * 0.4); c.save(); c.translate(-sz * 0.12, 0); c.scale(s * (0.85 + 0.12 * flex), s * sy * 0.96); c.drawImage(spr, -110, -64); c.restore();
     c.scale(s, s * sy); c.globalAlpha = Math.min(1, a); c.drawImage(spr, -110, -64);
-    if (WK.on()) { const G = WK.api, P = []; for (let i = 0; i <= 10; i++) { const u = i / 10, q = 1 - u, lx = q * q * -16 + 2 * q * u * 56 + u * u * -16, ly = q * q * -44 + u * u * 44; P.push([lx, ly, 3 + 8 * Math.sin(Math.PI * (0.1 + 0.8 * u))]); }   /* (v361: its leading rim a curve of flowing water, its sheet glowing, on the GPU) */
-      G.stream(c, P, 8, Math.min(1, a), { taper: 0, flow: 6, seed: ang * 3, col: W.blue, dens: 0.85, lite: 1.1 }); G.glow(c, 20, 0, 70, W.aqua, 0.28 * a); }
     if (pearl) { c.globalCompositeOperation = 'lighter'; const u = pearl, q = 1 - u, px = q * q * 78 + 2 * q * u * 150 + u * u * 78 - 94, py = q * q * 4 + 2 * q * u * 48 + u * u * 92 - 48; c.globalAlpha = 0.8 * a; c.drawImage(glowSprite(W.pearl), px - 14, py - 14, 28, 28); c.drawImage(glowSprite(W.white), px - 6, py - 6, 12, 12); }
     c.restore(); }
   S.crescenttide = (C, h) => {
@@ -182,7 +196,28 @@
           if (age > 0.55 || H.X.blocked(d.x, d.y, 0.1, 0)) { d.done = true; d.te = f.t; if (Math.random() < H.Q()) H.burst(d.x, d.y, 'spark', 3, { v: 2, up: 1.5, g: 6, life: 0.35, size: 1.6, color: [W.white, W.aqua] }); continue; }
           for (const m of H.living()) { if (d.hit.has(m) || Math.hypot(m.x - d.x, m.y - d.y) > 0.3 + m.r) continue; d.hit.add(m); H.X.hitMon(m, d.dm, C.dmgO({})); H.glowAt(m.x, m.y - 0.4, 0.5, 0.25, W.foam, 0.8); if (d.hit.size === 1) crownFx(m.x, m.y, 0.4 + 0.08 * d.k, 6, 0.45); if (d.hit.size > 1) { d.done = true; d.te = f.t; break; } } }
       },
-      draw(c, f, X0, Y0, T) { const t = f.t; c.save(); petHole(c, T);
+      /* (v362) rebuilt on the GPU from scratch: the sheet is a hanging curtain of water woven from rippling bands that flow
+         across it, a thicker lip along its top, caustic light through it, drops swelling along its lower edge, a light
+         sweeping over it and caustic light under it on the floor; it bursts into spray at each volley and reforms. Each
+         needle is a slender jet of water with a pearl of water at its point, a glint and droplets trailing it; where one
+         strikes, a burst of spray and a ripple. Without the GPU the old picture */
+      draw(c, f, X0, Y0, T) { if (!WK.on()) return f.draw2d(c, f, X0, Y0, T); const G = WK.api, Q = G.gq(), t = f.t;
+        let sa = 0, brk = -1; for (let k = 0; k < NV; k++) { const s0 = k ? VT[k - 1] + 0.05 : 0, e = VT[k]; if (t >= s0 && t < e + 0.08) sa = Math.max(sa, Math.min(cl((t - s0) / 0.15), 1 - cl((t - e) / 0.08))); if (t >= e && t < e + 0.3) brk = (t - e) / 0.3; }
+        const kk = Math.min(f.nv, NV - 1), X = H.sx(sx0), Y = H.sy(sy0) - T * 0.15, w = T * (1.7 + 0.45 * kk), hh = T * (0.85 + 0.15 * kk), FY = H.sy(sy0);
+        if (sa > 0.01) { G.pool(c, X, FY, w * 0.62, 0.55 * sa, { seed: 2.2 });
+          const h2 = hh * (0.6 + 0.4 * sa), top = Y - hh, NB = 5;
+          for (let i = 0; i < NB; i++) { const yy = top + h2 * (0.12 + 0.8 * i / (NB - 1)), P = []; for (let j = 0; j <= 6; j++) { const u = j / 6; P.push([X - w * 0.5 + w * u, yy + Math.sin(t * 5 + i * 1.3 + u * 6) * T * 0.05, h2 * 0.11 * (0.55 + 0.45 * Math.sin(Math.PI * u))]); } G.stream(c, P, h2 * 0.1, sa * (i ? 0.7 : 1), { taper: 0, flow: i % 2 ? -2.5 : 2.5, seed: i * 2.7, col: W.blue, dens: i ? 0.45 : 0.85, lite: i ? 0.6 : 1.0 }); }
+          const cp = G.xy(c, X, top + h2 * 0.5); Q.quad(26, cp[0], cp[1], w * 0.52 * cp[3], 0, 0, h2 * 0.5 * cp[3], W.aqua, 0.75 * sa, 1, 1.7, 0);
+          for (let j = 0; j < 6; j++) { const u = (j + 0.5) / 6, sw = (t * 1.3 + j * 0.37) % 1; G.sphere(c, X - w * 0.5 + w * u, top + h2 + T * 0.05 + sw * T * 0.12, T * (0.035 + 0.04 * sw), sa, { col: W.blue, seed: j, halo: 2 }); }
+          G.glow(c, X - w / 2 + ((t * 2.2) % 1) * w, top + h2 * 0.5, h2 * 0.6, W.foam, 0.35 * sa); G.glow(c, X, top + h2 * 0.5, w * 0.6, W.turq, 0.18 * sa); }
+        if (brk >= 0) for (let i = 0; i < 4; i++) G.spray(c, X - w * 0.4 + w * 0.8 * i / 3, Y - hh * 0.5, T * 0.55, 0.7 * (1 - brk), { seed: i * 3 + kk, spread: 0.3 + 0.7 * brk });
+        for (const d of f.nd) { const hx = H.sx(d.x), hy = H.sy(d.y) - T * 0.4, sc = 1 + 0.15 * d.k;
+          if (d.done) { const u = (t - d.te) / 0.3; if (u >= 0 && u < 1) { G.spray(c, hx, hy, T * 0.35 * sc, 0.7 * (1 - u), { seed: d.b * 9, spread: u }); G.ripple(c, hx, H.sy(d.y), T * (0.15 + 0.5 * u), 0.6 * (1 - u), { seed: d.b, th: 0.1 }); } continue; }
+          const L = Math.min(T * 1.4, d.v * T * 0.06), ex = hx - Math.cos(d.b) * L, ey = hy - Math.sin(d.b) * L;
+          G.stream(c, [[ex, ey, T * 0.015 * sc], [(ex + hx) / 2, (ey + hy) / 2, T * 0.045 * sc], [hx, hy, T * 0.065 * sc]], T * 0.05 * sc, 1, { taper: 0, flow: 10, seed: d.b * 5, col: W.blue, lite: 1.0 });
+          G.sphere(c, hx, hy, T * 0.075 * sc, 1, { col: W.blue, seed: d.b * 3, halo: 2.6, turn: 4 }); G.star(c, hx, hy, T * 0.25 * sc, 0.65);
+          for (let q = 1; q <= 2; q++) G.sphere(c, ex - Math.cos(d.b) * L * 0.25 * q + Math.sin(d.b) * T * 0.05 * (q - 1.5), ey - Math.sin(d.b) * L * 0.25 * q, T * 0.03 * sc / q, 0.7, { col: W.blue, seed: q + d.b, halo: 1.5 }); } },
+      draw2d(c, f, X0, Y0, T) { const t = f.t; c.save(); petHole(c, T);
         // the hanging sheet: forming, a reflection sweeping across it; it breaks at each volley and reforms (bigger) for the next
         let sa = 0; for (let k = 0; k < NV; k++) { const s = k ? VT[k - 1] + 0.05 : 0, e = VT[k]; if (t >= s && t < e + 0.08) sa = Math.max(sa, Math.min(cl((t - s) / 0.15), 1 - cl((t - e) / 0.08))); }
         const kk = Math.min(f.nv, NV - 1), X = H.sx(sx0), Y = H.sy(sy0) - T * 0.15, w = T * (1.7 + 0.45 * kk), hh = T * (0.85 + 0.15 * kk);

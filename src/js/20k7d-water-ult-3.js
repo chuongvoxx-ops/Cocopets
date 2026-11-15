@@ -205,6 +205,13 @@
         p.x = X + Math.cos(a) * rr * T; p.y = Y + Math.sin(a) * rr * T * H.GY; p.h = h * T; p.fr = Math.sin(a) > 0; p.vis = u <= grow;
         p.w = T * BW * (1.15 - 0.45 * u) * (1 - r.lean * 0.5); p.a = Math.cos(a); }
     };
+    /* (v362) a ribbon on the GPU: a band of flowing water winding up the tower (a dense sapphire lower edge, a thinner
+       luminous upper edge, the back half dimmer), a glint flowing up it, drops shedding from it */
+    const ribG = (c, G, r, f, X, Y, T, front) => { spine(r, f, X, Y, T); const fa = cl(Math.min(f.t / 0.3, (r.lt + 0.85 - f.t) / 0.3)); if (fa <= 0.01) return;
+      const hv = (f.t * 0.45 + r.b / TAU) % 1; let lo = [], hi = [];
+      const go = () => { if (lo.length > 1) { G.stream(c, lo, T * 0.15, fa * (front ? 0.95 : 0.55), { taper: 0, flow: 7 * r.tw, seed: r.b * 3, col: '#1A4FB0', dens: front ? 0.75 : 0.5, lite: front ? 0.7 : 0.35 }); G.stream(c, hi, T * 0.1, fa * (front ? 0.9 : 0.45), { taper: 0, flow: 9 * r.tw, seed: r.b * 3 + 5, col: '#2E9BE6', dens: front ? 0.45 : 0.3, lite: front ? 1.1 : 0.5 }); } lo = []; hi = []; };
+      for (let k = 0; k <= SEG; k += 2) { const p = pts[k]; if (!p || !p.vis || p.fr !== front) { go(); continue; } const u = k / SEG, fo = cl(u / 0.15 + 0.15); lo.push([p.x, p.y - p.h - p.w * 0.28, p.w * 0.32 * fo]); hi.push([p.x, p.y - p.h - p.w * 0.78, p.w * 0.22 * fo]);
+        if (front && Math.abs(u - hv) < 0.06) G.star(c, p.x, p.y - p.h - p.w * 0.6, T * 0.45, fa * (1 - Math.abs(u - hv) / 0.06)); } go(); };
     const drawRib = (c, r, f, X, Y, T, front) => {
       spine(r, f, X, Y, T); const fa = cl(Math.min(f.t / 0.3, (r.lt + 0.85 - f.t) / 0.3));
       if (fa <= 0.01) return;
@@ -245,7 +252,25 @@
           H.X.boom(x, y, 1.8, AQ, WH, { n: 26, shake: 9 }); H.X.ring(x, y, 0.3, R * 1.3, 0.5, AQ, 0.22); H.X.hitstop && H.X.hitstop(0.05);
           H.burst(x, y - 0.3, 'bubble', 16, { v: 7, up: 3, g: 10, life: 0.8, size: 4, color: ['#CFF6FF', AQ, WH] }); H.burst(x, y, 'spark', 18, { v: 9, flat: true, life: 0.5, size: 2.6, color: [AQ, WH] }); }
       },
-      drawUnder(c, f, X, Y, T) {
+      /* (v362) rebuilt on the GPU from scratch: a whirlpool of deep water turning on the floor (counter-turning currents, a
+         dark heart deepening, caustic light), the tower of flowing water bands winding up out of it, bubbles rising in its
+         hollow, a crown of spray at its top; it collapses inward, the water pouring down its centre, and bursts into a
+         pressure wave of water: spray, a ring of water racing out, ripples. Without the GPU the old picture */
+      drawUnder(c, f, X, Y, T) { if (!WK.on()) return f.drawUnder2d(c, f, X, Y, T); const G = WK.api, Q = G.gq(), t = f.t, fa = cl(Math.min(t / 0.4, (LIFE - t) / 0.8)), Rp = R * T * (0.4 + 0.6 * H.ease.out(cl(t / 0.5))), GY = H.GY;
+        const dk = fa * (0.55 + 0.45 * cl(t / DUR)) * (f.bt ? Math.max(0, 1 - (t - f.bt) / 0.5) : 1);
+        G.pool(c, X, Y, Rp * 1.25, 0.7 * fa, { seed: 1.3 }); G.whirl(c, X, Y, Rp * 1.12, 0.9 * fa, { spin: 2.4, seed: 3.7, col: '#1A4FB0', heat: 0.66 }); G.whirl(c, X, Y, Rp * 0.65, 0.6 * fa * (f.bt ? 0.5 : 1), { spin: -3.6, seed: 6.1, col: '#2E9BE6', heat: 0.6 });
+        Q.quad(24, X, Y, Rp * 0.42, 0, 0, Rp * 0.42 * GY, '#081E52', dk, 1, 2.2, 3);
+        for (let q = 0; q < 2; q++) { const u = (t * 0.5 + q / 2) % 1; G.ripple(c, X, Y, Rp * (1.25 - 0.8 * u), 0.4 * fa * Math.sin(u * Math.PI), { seed: q * 3.3, th: 0.08 }); }
+        if (f.bt) { const u = cl((t - f.bt) / 0.85), d = Rp * (0.4 + 2.2 * H.ease.out(u)); G.ripple(c, X, Y, d, (1 - u) * 0.9, { seed: 9.1, th: 0.1 }); G.ripple(c, X, Y, d * 0.7, (1 - u) * 0.6, { seed: 4.4, th: 0.08 }); G.pool(c, X, Y, d, 0.6 * (1 - u), { seed: 2.6 }); G.glow(c, X, Y - T * 0.3, T * 2.2 * (1 - u * 0.5), AQ, (1 - u) * 0.6); }
+        for (const r of rib) ribG(c, G, r, f, X, Y, T, false); },
+      draw(c, f, X, Y, T) { if (!WK.on()) return f.draw2d(c, f, X, Y, T); const G = WK.api, t = f.t, fa = cl(Math.min(t / 0.4, (LIFE - t) / 0.8));
+        for (let k = 0; k < 7; k++) { const u = ((t * 0.55 + k / 7) % 1), b = k * 2.3 + t * 2, rr = RT * 0.55 * T * (0.4 + 0.6 * Math.sin(k * 1.7 + t)); if (t < DUR) G.sphere(c, X + Math.cos(b) * rr, Y + Math.sin(b) * rr * H.GY - u * HT * T, T * (0.05 + 0.04 * (k % 3)), 0.8 * fa * Math.sin(u * Math.PI), { col: '#2E9BE6', seed: k, halo: 1.6 }); }
+        for (const r of rib) ribG(c, G, r, f, X, Y, T, true);
+        if (t > 1.0 && t < DUR) { const g2 = cl((t - 1.0) / 0.5) * (1 - cl((t - DUR + 0.3) / 0.3)); G.spray(c, X, Y - HT * T, RT * T * 1.3, 0.55 * g2, { seed: Math.floor(t * 4) * 0.3, spread: 0.4, sy: 0.6 }); }
+        if (t > DUR && t < TBU + 0.1) { const u = cl((t - DUR) / COL); G.jet(c, X, Y - T * HT * (1 - 0.3 * u), X, Y, T * (0.18 + 0.32 * u), 0.9, { flow: 12, seed: 2.7, col: '#2E9BE6' }); G.glow(c, X, Y - T * HT * 0.5, T * (0.8 + u), AQ, 0.25 + 0.4 * u);
+          for (let k = 0; k < 5; k++) { const v = ((t * 2.2 + k / 5) % 1); G.sphere(c, X + Math.sin(k * 2.1) * T * 0.3, Y - T * HT * 0.9 * (1 - v), T * 0.07, 0.8 * u * Math.sin(v * Math.PI), { col: '#2E9BE6', seed: k, halo: 2 }); } }
+        if (f.bt && t - f.bt < 0.5) { const u = (t - f.bt) / 0.5; G.spray(c, X, Y - T * 0.4, R * T * (0.5 + 0.9 * u), 0.9 * (1 - u), { seed: 5.5, spread: u }); G.sphere(c, X, Y - T * 0.5, T * (0.6 + 1.2 * u), 0.7 * (1 - u), { col: '#2E9BE6', seed: 1.1, turn: 5, dens: 0.6 }); } },
+      drawUnder2d(c, f, X, Y, T) {
         const t = f.t, fa = cl(Math.min(t / 0.4, (LIFE - t) / 0.8)), Rp = R * T * (0.4 + 0.6 * H.ease.out(cl(t / 0.5))), GY = H.GY;
         // the deep water and its darkening centre (deepens over the cast, gone by the end)
         const dk = fa * (0.55 + 0.45 * cl(t / DUR)) * (f.bt ? Math.max(0, 1 - (t - f.bt) / 0.5) : 1);
@@ -260,7 +285,7 @@
         // the back halves of the ribbons (behind the monsters)
         c.save(); for (const r of rib) drawRib(c, r, f, X, Y, T, false); c.restore();
       },
-      draw(c, f, X, Y, T) {
+      draw2d(c, f, X, Y, T) {
         // the front halves, lighter, kept off the pet
         c.save(); const px = H.sx(me.x), py = H.sy(me.y) - T * 0.46; c.beginPath(); c.rect(-1e5, -1e5, 2e5, 2e5); c.ellipse(px, py, T * 0.62, T * 0.74, 0, 0, TAU); void 0 /* (v349: no mask round the pet) */;
         for (const r of rib) drawRib(c, r, f, X, Y, T, true);

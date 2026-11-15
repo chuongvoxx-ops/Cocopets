@@ -93,6 +93,24 @@
     return [dk, lt]; }
 
   /* ================= Neptune's Trident ================= */
+  /* (v362) the trident built on the GPU from scratch, of flowing water and light: a shaft of water running down to a curved
+     crosspiece, three barbed prongs, white currents racing down it, caustic light, glowing points; parts above cutTop (still
+     in the sky) or below cutBot (in the ground) are left out, and it dissolves from the tips up (dis). Returns false without
+     the GPU */
+  function triG(c, x, y, L, ang, a, cutTop, cutBot, dis, sd) { if (!WK.on()) return false; if (!(a > 0.01) || L < 4) return true; const G = WK.api, s = L / TH, ca = Math.cos(ang), sa = Math.sin(ang), tt = performance.now() / 1000 % 1000;
+    const at = (lx, ly) => { const dx = (lx - 48) * s, dy = (ly - 396) * s; return [x + dx * ca - dy * sa, y + dx * sa + dy * ca]; }, y1c = Math.min(cutBot == null ? 1e9 : cutBot, dis > 0 ? y - L * dis : 1e9), y0c = cutTop == null ? -1e9 : cutTop;
+    const part = (pts, w, o) => { let run = []; const go = () => { if (run.length > 1) G.stream(c, run, w, a, o); run = []; }; for (const q of pts) { const p = at(q[0], q[1]); if (p[1] < y0c || p[1] > y1c) { go(); continue; } run.push([p[0], p[1], q[2] * s * 1.75]); } go(); };
+    const line = (x0, y0, x1, y1, n, w0, w1) => { const P = []; for (let i = 0; i <= n; i++) { const u = i / n; P.push([x0 + (x1 - x0) * u, y0 + (y1 - y0) * u, w0 + (w1 - w0) * u]); } return P; };
+    const yu = xx => 250 + 0.024 * (xx - 48) * (xx - 48) + 9;
+    const W1 = { taper: 0, flow: 9, seed: sd, col: '#2E9BE6', dens: 0.95, lite: 1.15 };
+    part(line(48, 6, 48, 256, 9, 5, 7.5), 7 * s, W1);
+    { const P = []; for (let xx = 9; xx <= 87; xx += 9.75) P.push([xx, yu(xx), 8.5 - 2.5 * Math.abs(xx - 48) / 39]); part(P, 8 * s, Object.assign({}, W1, { flow: 4, seed: sd + 3 })); }
+    part(line(48, 256, 48, 396, 6, 8, 1.2), 8 * s, Object.assign({}, W1, { seed: sd + 5 }));
+    part(line(13, yu(13), 16, 372, 5, 7, 1), 7 * s, Object.assign({}, W1, { seed: sd + 7 })); part(line(83, yu(83), 80, 372, 5, 7, 1), 7 * s, Object.assign({}, W1, { seed: sd + 9 }));
+    for (const [bx, by, sg] of [[48, 345, 1], [48, 345, -1], [15, 336, 1], [15, 336, -1], [81, 336, 1], [81, 336, -1]]) part(line(bx, by, bx + sg * 13, by - 22, 2, 4, 1), 4 * s, Object.assign({}, W1, { flow: 3, seed: sd + bx * 0.1 + sg, dens: 0.7 }));
+    for (let k = 0; k < 4; k++) { const u = (tt * 0.9 + k / 4) % 1, p = at(48 + Math.sin(u * 20 + k) * 2, 20 + u * 360); if (p[1] > y0c && p[1] < y1c) G.star(c, p[0], p[1], L * 0.06, 0.8 * a * Math.sin(u * Math.PI)); }
+    for (const ly of [60, 160, 260, 340]) { const m = at(48, ly), Q = G.gq(), pq = G.xy(c, m[0], m[1]); if (m[1] > y0c && m[1] < y1c) Q.glow(pq[0], pq[1], L * 0.2 * pq[3], W.aqua, 0.3 * a); }
+    return true; }
   U.neptunetrident = (C, h) => {
     H = h; K = IK.bind(H);
     const me = H.me, ev = K.evo(C), lvl = ev >= 7 ? 3 : ev >= 4 ? 2 : 1, NSM = K.lv(C, [0, 4, 10]), T0 = H.X.Tz();
@@ -158,7 +176,30 @@
           // the lingering pool of light round the embedded trident
           if (age > 0.3 && endK > 0.01) { c.save(); c.globalCompositeOperation = 'lighter'; K.floorLight(c, SX, SY, t.R * T * (t.big ? 1.3 : 0.9), 0.3 * endK, W.water); c.globalAlpha = 0.35 * endK; const r = t.R * T * (0.6 + 0.3 * ((tt * 0.8) % 1)); c.drawImage(rp, SX - r, SY - r * GY, r * 2, r * 2 * GY); c.restore(); } }
       },
-      draw(c, f, X, Y, T) {
+      /* (v362) rebuilt on the GPU from scratch: a whirl of water opens in the sky and the trident of water and light slides
+         out of it, hangs with water dripping from its points, then plunges trailing streams of water through a cone of mist;
+         a blue-white light gathers at its prongs with rays of water, and the impact erupts in towering curving sheets of
+         water, spray and pearls, jets bursting from the cracks; at the end it dissolves into light from the tips up. Without
+         the GPU the old picture */
+      draw(c, f, X, Y, T) { if (!WK.on()) return f.draw2d(c, f, X, Y, T); const G = WK.api, Q = G.gq(), tt = f.t, GY = H.GY;
+        for (const t of tris.slice().sort((p, q) => p.y - q.y)) { if (tt < t.t0 - 0.5) continue; const SX = H.sx(t.x), SY = H.sy(t.y), RY = SY - t.Z * T, L = t.L * T, z = tipZ(t, tt), TY = SY - z * T, TX = SX - Math.sin(t.ang) * z * T * 0.3;
+          const sk = cl((tt - (t.t0 - 0.5)) / 0.5) * (1 - cl((tt - t.pre - 0.3) / 0.6)); if (sk > 0.01) { const Rr = (t.big ? 3.2 : 1.2) * T; G.whirl(c, SX, RY, Rr, 0.7 * sk, { sy: 0.3, spin: 1.8, seed: t.sd, col: W.sapph, heat: 0.62 }); for (let q = 0; q < 3; q++) { const u = ((tt * 0.6 + q / 3) % 1); G.ripple(c, SX, RY, Rr * (0.35 + 0.75 * u), sk * (1 - u) * 0.8, { sy: 0.3, seed: q + t.sd, th: 0.1 }); } G.glow(c, SX, RY, Rr * 1.3, W.sapph, 0.4 * sk, 0.4); }
+          if (tt < t.t0) continue; const dis = cl((tt - t.dis0) / 0.9); if (dis >= 1) continue;
+          if (tt > t.pre && tt < t.imp + 0.15) { const k = cl((tt - t.pre) / (t.imp - t.pre)), fo = 1 - cl((tt - t.imp) / 0.15); G.spray(c, TX, TY - L * 0.35, L * 0.22, 0.5 * k * fo, { seed: t.sd + Math.floor(tt * 10) * 0.3, spread: 0.5, sy: 1.8 });
+            for (let q = 0; q < 4; q++) { const ox = (q - 1.5) * L * 0.07, top = TY - L * (0.95 + 0.9 * k), P = []; for (let j = 0; j <= 5; j++) { const u = j / 5, yy = TY - L * 0.62 + (top - (TY - L * 0.62)) * u; P.push([TX + ox + Math.sin(u * 7 - tt * 18 + q) * L * 0.025 * u, yy, L * 0.022 * (1 - 0.7 * u)]); } G.stream(c, P, L * 0.02, 0.7 * k * fo, { taper: 0, flow: -10, seed: q + t.sd, col: W.water, dens: 0.55 }); } }
+          const cutTop = tt < t.hang + 0.3 ? RY : null, cutBot = t.hit ? SY + T * 0.08 : null;
+          triG(c, TX, TY, L, t.ang, 1, cutTop, cutBot, dis, t.sd);
+          if (cutTop != null) G.spray(c, SX, RY, L * 0.12, 0.6, { seed: t.sd + Math.floor(tt * 6) * 0.2, spread: 0.4, sy: 0.4 });
+          if (dis > 0) { const yd = TY - L * dis; G.spray(c, TX, yd, L * 0.1, 0.7 * (1 - dis), { seed: t.sd + dis * 9, spread: dis }); }
+          const pk = tt < t.pre ? 0.4 : tt < t.imp ? 0.4 + 0.6 * cl((tt - t.pre) / (t.imp - t.pre)) : Math.max(0, 1 - (tt - t.imp) / 0.3); if (pk > 0.02 && dis <= 0) for (let k = 0; k < 3; k++) { const p = tipAt(TX, TY, L, t.ang, k); if (cutTop != null && p[1] < cutTop) continue; const r = L * (k ? 0.05 : 0.07) * (1 + pk); G.sphere(c, p[0], p[1], r * 0.45, pk, { col: W.water, seed: k + t.sd, halo: 2.6 }); G.star(c, p[0], p[1], r * 2, pk); }
+          if (t.big && t.hit) { const age0 = tt - t.imp, gk = cl(age0 / t.ex), gl = age0 < t.ex ? gk * gk : Math.max(0, 1 - (age0 - t.ex) / 0.3); if (gl > 0.01) { const r = T * (0.5 + 1.5 * gk), cy = SY - T * 0.2; Q.eorb(G.xy(c, SX, cy)[0], G.xy(c, SX, cy)[1], r * 0.7, '#3F9CFF', 0.6 + 0.4 * gk, gl, t.sd, 3); G.star(c, SX, cy, r * 2.2, gl); G.glow(c, SX, cy, r * 2.4, W.water, 0.6 * gl);
+              for (let q = 0; q < 12; q++) { const b = q / 12 * TAU + tt * 0.8, L2 = r * (1.6 + 1.4 * R1(q * 2.7 + t.sd)) * (0.5 + 0.5 * gk); G.stream(c, [[SX + Math.cos(b) * r * 0.3, cy + Math.sin(b) * r * 0.21, T * 0.06], [SX + Math.cos(b) * L2, cy + Math.sin(b) * L2 * 0.7, T * 0.01]], T * 0.05, gl * (0.5 + 0.4 * R1(q)), { taper: 0, flow: 12, seed: q, col: W.water, lite: 1.1 }); } } }
+          const age = tt - t.imp - (t.ex || 0) - 0.25, sdur = t.big ? 1.2 : 0.8; if (t.hit && age > 0 && age < sdur) { const u = age / sdur, n = t.big ? 12 : 7, RR = t.R * T * (0.5 + 1.0 * H.ease.out(u)), hh = (t.big ? 3.4 : 1.6) * T * Math.sin(Math.min(1, u * 1.4) * Math.PI) * (1 - 0.3 * u);
+            for (let q = 0; q < n; q++) { const b = q / n * TAU + t.sd, cb = Math.cos(b), sb = Math.sin(b), bx = SX + cb * RR * 0.7, by = SY + sb * RR * 0.7 * GY, ex = SX + cb * RR * 1.35, ey = SY + sb * RR * 1.35 * GY - hh * (0.35 + 0.2 * R1(q + t.sd)), mx = SX + cb * RR, my = SY + sb * RR * GY - hh * (1 + 0.25 * R1(q * 3 + t.sd)), al = (1 - u) * (sb > 0 ? 0.95 : 0.6), w0 = T * (t.big ? 0.24 : 0.15) * (1 - 0.5 * u);
+              const P = []; for (let j = 0; j <= 5; j++) { const v = j / 5, w1 = 1 - v; P.push([w1 * w1 * bx + 2 * w1 * v * mx + v * v * ex, w1 * w1 * by + 2 * w1 * v * my + v * v * ey, w0 * (1 - 0.6 * v)]); } G.stream(c, P, w0, al, { taper: 0, flow: 8, seed: q + t.sd, col: W.water, dens: 0.7, lite: 0.95 }); G.spray(c, ex, ey, T * (t.big ? 0.5 : 0.3), al * 0.7, { seed: q * 1.3 + t.sd, spread: u }); }
+            if (u < 0.6) G.spray(c, SX, SY - hh * 0.4, t.R * T * (0.5 + 0.6 * u), 0.8 * (1 - u / 0.6), { seed: t.sd * 2, spread: u / 0.6 }); }
+          for (const j of t.jets) { const u = (tt - j.t0) / 0.55; if (u <= 0 || u >= 1) continue; const JX = H.sx(j.x), JY = H.sy(j.y), hh = j.h * T * Math.sin(u * Math.PI), jw = T * 0.32 * (1 - 0.4 * u); if (hh < 2) continue; G.stream(c, [[JX, JY, jw * 0.45], [JX, JY - hh * 0.5, jw * 0.35], [JX, JY - hh, jw * 0.2]], jw * 0.4, 0.9 * (1 - u * 0.5), { taper: 0, flow: -10, seed: j.x * 3, col: W.water }); G.spray(c, JX, JY - hh, jw * 1.4, 0.75 * (1 - u), { seed: j.y * 2, spread: u }); } } },
+      draw2d(c, f, X, Y, T) {
         const tt = f.t, GY = H.GY, PX = H.sx(me.x), PY = H.sy(me.y) - T * 0.46, fi = Math.floor(tt * 14) % NCU, rp = rippleSpr(), jet = jetSpr(), gw = glowSprite(W.white);
         const list = tris.slice().sort((p, q) => p.y - q.y);
         for (const t of list) { if (tt < t.t0 - 0.5) continue; const SX = H.sx(t.x), SY = H.sy(t.y), RY = SY - t.Z * T, L = t.L * T, z = tipZ(t, tt), TY = SY - z * T, TX = SX - Math.sin(t.ang) * z * T * 0.3;
