@@ -20,10 +20,11 @@
   const sum = a => a.reduce((p, q) => p + q, 0);
   /* a tapered ribbon of water through screen points: thin at the start, thick at the end (sym: thick in the middle) */
   const chaikin = P => { const o = [P[0]]; for (let i = 0; i < P.length - 1; i++) { const p = P[i], q = P[i + 1]; o.push([p[0] * 0.75 + q[0] * 0.25, p[1] * 0.75 + q[1] * 0.25], [p[0] * 0.25 + q[0] * 0.75, p[1] * 0.25 + q[1] * 0.75]); } o.push(P[P.length - 1]); return o; };
+  let RIBCOL = null;   /* (v369: a move may darken the ribbons it draws) */
   function rib(c, pts, w, a, sym) { if (pts.length < 2 || !(a > 0.01)) return; if (pts.length < 24) pts = chaikin(pts);
     if (WK.on()) { const G = WK.api, n = pts.length, P = pts.map((p, i) => { const u = i / (n - 1), tw = sym ? 0.2 + 0.8 * Math.sin(Math.PI * u) : 0.15 + 0.85 * u; return [p[0], p[1], Math.max(0.6, w * 0.62 * tw)]; }), sd = (pts[0][0] * 0.07 + pts[0][1] * 0.03) % 30;
       const Pd = []; for (let i = 0; i < n; i += 2) Pd.push(P[i]); if (Pd[Pd.length - 1] !== P[n - 1]) Pd.push(P[n - 1]);   /* (v361: a ribbon of flowing water on the GPU) */
-      G.stream(c, Pd, w * 0.5, Math.min(1, a), { taper: 0, flow: 5, seed: sd, col: W.blue, dens: 0.9, lite: 0.7 }); G.glow(c, Pd[Pd.length >> 1][0], Pd[Pd.length >> 1][1], w * 2.5, W.turq, 0.18 * a); return; }
+      G.stream(c, Pd, w * 0.5, Math.min(1, a), { taper: 0, flow: 5, seed: sd, col: RIBCOL || W.blue, dens: 0.9, lite: 0.7 }); G.glow(c, Pd[Pd.length >> 1][0], Pd[Pd.length >> 1][1], w * 2.5, W.turq, 0.18 * a); return; }
     c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round';
     for (const [col, k, aa] of [[W.turq, 1, 0.32], [W.aqua, 0.5, 0.6], [W.white, 0.14, 0.55]]) { c.strokeStyle = col; for (let i = 1; i < pts.length; i++) { const u = i / (pts.length - 1), tw = sym ? 0.2 + 0.8 * Math.sin(Math.PI * u) : 0.15 + 0.85 * u; c.globalAlpha = Math.min(1, a * aa * (sym ? 1 : 0.4 + 0.6 * u)); c.lineWidth = Math.max(0.6, w * k * tw); c.beginPath(); c.moveTo(pts[i - 1][0], pts[i - 1][1]); c.lineTo(pts[i][0], pts[i][1]); c.stroke(); } }
     c.restore(); }
@@ -37,14 +38,14 @@
     for (let i = 0; i < 4; i++) { const v = (t * 1.4 + i * 0.25 + sd * 0.1) % 1, k = Math.min(n - 1, Math.floor((1 - v) * (n - 1))), p = pts[k]; G.sphere(c, p[0] + Math.sin(i * 2.3 + t * 3) * T * 0.12, p[1] - v * T * 0.4, T * 0.035, a * (1 - v), { col: '#2E9BE6', seed: i + sd, halo: 1.6, dens: 0.5 }); }
     return true; }
   /* spray, droplets, a glint and the light of a splash (particles, world units) */
-  function splashP(x, y, r, k) { H.burst(x, y - 0.3, 'spark', Math.round(8 * k), { v: 3 + 2 * r, up: 3, g: 9, life: 0.6, size: 2.3, color: [W.white, W.aqua, W.foam, W.turq] }); H.burst(x, y - 0.2, 'ember', Math.round(5 * k), { v: 2.5, up: 1.5, g: 4, life: 0.7, size: 2, color: [W.aqua, W.foam] }); H.glowAt(x, y - 0.3, r * 1.2, 0.35, W.aqua, 0.6); H.X.light(x, y, r * 2, 0.35); }
+  function splashP(x, y, r, k, dark) { H.burst(x, y - 0.3, 'spark', Math.round(8 * k), { v: 3 + 2 * r, up: 3, g: 9, life: 0.6, size: 2.3, color: dark ? ['#9FB8F0', '#3F6FC8', '#2A5FC8', '#123A8C'] : [W.white, W.aqua, W.foam, W.turq] }); H.burst(x, y - 0.2, 'ember', Math.round(5 * k), { v: 2.5, up: 1.5, g: 4, life: 0.7, size: 2, color: dark ? ['#3F6FC8', '#6F8FD0'] : [W.aqua, W.foam] }); H.glowAt(x, y - 0.3, r * 1.2, 0.35, dark ? '#1F4FB8' : W.aqua, 0.6); H.X.light(x, y, r * 2, 0.35); }
   /* a crown splash: a ring of water racing over the floor and spouts rising and falling round it (kept off the pet) */
-  function crownFx(x, y, r, n, hh, dl) { H.add({ life: 0.75 + (dl || 0),
-    drawUnder(c, f, X0, Y0, T) { const u = (f.t - (dl || 0)) / 0.7; if (u < 0 || u > 1) return; const X = H.sx(x), Y = H.sy(y), rr = T * r * (0.4 + 1.1 * H.ease.out(u)); c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = (1 - u) * 0.9; WFLOOR(c, 'band', X, Y, rr); c.restore(); },
-    draw(c, f, X0, Y0, T) { const v = (f.t - (dl || 0)) / 0.6; if (v < 0 || v > 1) return; const X = H.sx(x), Y = H.sy(y), hq = T * hh * Math.sin(Math.PI * Math.min(1, v * 1.15)); c.save(); petHole(c, T);
+  function crownFx(x, y, r, n, hh, dl, dark) { H.add({ life: 0.75 + (dl || 0),
+    drawUnder(c, f, X0, Y0, T) { WK.tint = dark || null; try { const u = (f.t - (dl || 0)) / 0.7; if (u < 0 || u > 1) return; const X = H.sx(x), Y = H.sy(y), rr = T * r * (0.4 + 1.1 * H.ease.out(u)); c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = (1 - u) * 0.9; WFLOOR(c, 'band', X, Y, rr); c.restore(); } finally { WK.tint = null; } },
+    draw(c, f, X0, Y0, T) { WK.tint = dark || null; try { const v = (f.t - (dl || 0)) / 0.6; if (v < 0 || v > 1) return; const X = H.sx(x), Y = H.sy(y), hq = T * hh * Math.sin(Math.PI * Math.min(1, v * 1.15)); c.save(); petHole(c, T);
       for (let i = 0; i < n; i++) { const th = i / n * TAU + R1(i + x) * 0.3, rr = r * (0.6 + 0.5 * v), x0 = X + Math.cos(th) * rr * T, y0 = Y + Math.sin(th) * rr * T * H.GY, h2 = hq * (0.6 + 0.6 * R1(i * 3 + y)), ln = T * (0.15 + 0.5 * v) * r;
         strip(c, spoutSpr(), 16, 124, 118, x0, y0, x0 + Math.cos(th) * ln, y0 + Math.sin(th) * ln * H.GY - h2, T * 0.26 * Math.max(0.7, Math.min(1.6, r)), (1 - v * v) * (Math.sin(th) < 0 ? 0.75 : 1)); }
-      c.restore(); } }); }
+      c.restore(); } finally { WK.tint = null; } } }); }
 
   /* ================= Crescent Tide ================= */
   const cresSpr = () => fxSprite('wu2cres', 224, 128, g => {
@@ -257,11 +258,15 @@
     H.add({ life: LIFE, tk: 0.1, nc: 0, x, y,
       update(dt, f) {
         if (f.t < DUR) { for (const m of H.near(x, y, R)) { H.pull(m, x, y, 1.1 * dt); H.slow(m, 0.3); } f.tk -= dt; if (f.tk <= 0) { f.tk = 0.3; H.hitRing(x, y, 0, R, C.base * 0.35 * f0, C.dmgO({ dot: true, dotC: W.aqua })); } }
-        while (f.nc < NC && f.t >= CT[f.nc]) { const k = f.nc++, r = R + 0.3 + 0.35 * k; H.hitArea(x, y, r, C.base * 1.3 * f0 * wts[k] / ws, C.dmgO({ kb: 4 })); splashP(x, y, r * 0.6, 1.2 + 0.5 * k); crownFx(x, y, r * 0.55, 12 + 4 * k, 1.0 + 0.45 * k); sfx('crash'); H.X.shake(4 + 2 * k, 0.16); }
-        if (f.t < DUR && Math.random() < 5 * dt * H.Q()) { const b = Math.random() * TAU, rr = R * (0.5 + 0.5 * Math.random()); H.P({ kind: 'spark', x: x + Math.cos(b) * rr, y: y + Math.sin(b) * rr * 0.6, vx: -Math.sin(b) * 3 - Math.cos(b) * 1.5, vy: Math.cos(b) * 2 - Math.sin(b) - 0.6, g: 1, drag: 0.6, life: 0.5, max: 0.5, size: 1.8, color: Math.random() < 0.5 ? W.white : W.aqua }); }
+        while (f.nc < NC && f.t >= CT[f.nc]) { const k = f.nc++, r = R + 0.3 + 0.35 * k; H.hitArea(x, y, r, C.base * 1.3 * f0 * wts[k] / ws, C.dmgO({ kb: 4 })); splashP(x, y, r * 0.6, 1.2 + 0.5 * k, 1); crownFx(x, y, r * 0.55, 12 + 4 * k, 1.0 + 0.45 * k, 0, '#123A8C'); sfx('crash'); H.X.shake(4 + 2 * k, 0.16); }
+        if (f.t < DUR && Math.random() < 5 * dt * H.Q()) { const b = Math.random() * TAU, rr = R * (0.5 + 0.5 * Math.random()); H.P({ kind: 'spark', x: x + Math.cos(b) * rr, y: y + Math.sin(b) * rr * 0.6, vx: -Math.sin(b) * 3 - Math.cos(b) * 1.5, vy: Math.cos(b) * 2 - Math.sin(b) - 0.6, g: 1, drag: 0.6, life: 0.5, max: 0.5, size: 1.8, color: Math.random() < 0.5 ? '#9FB8F0' : '#3F6FC8' }); }
       },
       drawUnder(c, f, X0, Y0, T) { const t = f.t, X = H.sx(x), Y = H.sy(y), fa = cl(Math.min(t / 0.25, (LIFE - t) / 0.5)), gr = H.ease.out(cl(t / 0.3)), rr = T * R * gr * (t > CT[NC - 1] ? 1 + 0.2 * cl((t - CT[NC - 1]) / 0.5) : 1);
-        if (WK.on()) { const G = WK.api; G.whirl(c, X, Y, rr * 1.05, 0.95 * fa, { spin: 3.2, seed: 1.3, col: W.blue, heat: 0.7 }); if (NC >= 2) G.whirl(c, X, Y, rr * 0.6, 0.5 * fa, { spin: -2.2, seed: 4.1, col: W.aqua, heat: 0.6 }); G.ripple(c, X, Y, rr * 0.98, 0.6 * fa, { seed: t, th: 0.06 }); G.glow(c, X, Y, rr * 1.2, W.blue, 0.25 * fa, H.GY); }   /* (v361: the whirlpool turning on the GPU) */
+        if (WK.on()) { const G = WK.api, Q = G.gq(); Q.quad(24, X, Y, rr * 1.02, 0, 0, rr * 1.02 * H.GY, '#081E52', 0.85 * fa, 1, 2.2, 2);   /* (v369) the whirlpool in dark navy water: a deep body, two counter-turning currents, soft foam churning round its rim */
+          G.whirl(c, X, Y, rr * 1.05, 0.9 * fa, { spin: 3.2, seed: 1.3, col: '#0E2F7A', heat: 0.6 }); if (NC >= 2) G.whirl(c, X, Y, rr * 0.6, 0.5 * fa, { spin: -2.2, seed: 4.1, col: '#1A4FB0', heat: 0.56 });
+          G.pool(c, X, Y, rr, 0.35 * fa, { col: '#2A5FC8', glow: 0, seed: 3.3 }); G.ripple(c, X, Y, rr * 0.98, 0.5 * fa, { col: '#3F6FC8', seed: t, th: 0.06 }); G.glow(c, X, Y, rr * 1.2, '#0E2F7A', 0.3 * fa, H.GY);
+          for (let q = 0; q < 8; q++) { const b = -t * 2.4 + q * TAU / 8; G.spray(c, X + Math.cos(b) * rr * 0.97, Y + Math.sin(b) * rr * 0.97 * H.GY, T * 0.4, 0.4 * fa, { col: '#5F7FD0', seed: q * 1.7 + Math.floor(t * 6) * 0.2, spread: 0.5, sy: 0.6 }); }
+          return; }
         c.save(); c.translate(X, Y); c.scale(1, H.GY);
         if (!WK.on()) { c.save(); c.rotate(-t * 3.2); c.globalAlpha = 0.9 * fa; c.drawImage(swirlSpr(), -rr, -rr, rr * 2, rr * 2); c.restore(); }
         c.globalCompositeOperation = 'lighter'; if (NC >= 2) { c.save(); c.rotate(t * 2.2); c.globalAlpha = 0.45 * fa; c.drawImage(swirlSpr(), -rr * 0.6, -rr * 0.6, rr * 1.2, rr * 1.2); c.restore(); }
@@ -275,9 +280,10 @@
         for (let i = 0; i < H.n(10); i++) { const P0 = 1 + 0.6 * R1(i), u = ((t + R1(i * 3) * P0) % P0) / P0, b = R1(i * 7) * TAU - t * 3, rr = T * R * 0.6 * (1 - u); drawBub(c, X + Math.cos(b) * rr, Y + Math.sin(b) * rr * H.GY - u * T * 0.9, T * (0.06 + 0.06 * R1(i * 5)), fa * Math.sin(Math.PI * u) * (t < CT[NC - 1] ? 1 : 0.4)); }
         // the column: rising before each collapse (each higher and wider), twisted ribbons round it
         for (let k = 0; k < NC; k++) { const s = CT[k] - 0.4, u = (t - s) / 0.4; if (u < 0 || u > 1.15) continue; const up = u <= 1 ? H.ease.in(u) : 1 - (u - 1) / 0.15, hc = T * (1.5 + 0.6 * k) * up, wc = T * (0.75 + 0.2 * k);
-          if (hc < 2) continue; c.save(); c.globalCompositeOperation = 'lighter'; glow(c, X, Y - hc * 0.5, wc * 1.6, W.turq, 0.4 * up); c.restore();
-          strip(c, spoutSpr(), 16, 124, 118, X, Y + T * 0.1, X, Y - hc, wc, 0.95 * Math.min(1, up * 1.5));
-          for (let q = 0; q < 2 + k; q++) { const pts = []; for (let j = 0; j <= 14; j++) { const v = j / 14, b = v * 7 + t * 9 + q * TAU / (2 + k); pts.push([X + Math.cos(b) * wc * 0.55 * (1 - 0.3 * v), Y - hc * v + Math.sin(b) * wc * 0.15]); } rib(c, pts, T * 0.12, 0.8 * up, true); } }
+          if (hc < 2) continue; c.save(); c.globalCompositeOperation = 'lighter'; glow(c, X, Y - hc * 0.5, wc * 1.6, WK.on() ? '#1A4FB0' : W.turq, 0.4 * up); c.restore();
+          if (WK.on()) { const G = WK.api, ka = 0.95 * Math.min(1, up * 1.5); G.stream(c, [[X, Y + T * 0.1, wc * 0.34], [X + Math.sin(t * 9) * wc * 0.04, Y - hc * 0.5, wc * 0.26], [X, Y - hc, wc * 0.18]], wc * 0.3, ka, { taper: 0, flow: -9, seed: 6.6 + k, col: '#123A8C', dens: 1.3, lite: 0.8 }); G.spray(c, X, Y - hc, wc * 0.8, 0.6 * ka, { col: '#5F7FD0', seed: k + Math.floor(t * 8) * 0.3, spread: 0.4 }); G.bubbles(c, X, Y - hc * 0.5, wc * 0.3, hc * 0.45, 0.6 * ka, { col: '#8FA8E8', seed: k, rise: 2.4 }); }   /* (v369: a column of dark navy water) */
+          else strip(c, spoutSpr(), 16, 124, 118, X, Y + T * 0.1, X, Y - hc, wc, 0.95 * Math.min(1, up * 1.5));
+          for (let q = 0; q < 2 + k; q++) { const pts = []; for (let j = 0; j <= 14; j++) { const v = j / 14, b = v * 7 + t * 9 + q * TAU / (2 + k); pts.push([X + Math.cos(b) * wc * 0.55 * (1 - 0.3 * v), Y - hc * v + Math.sin(b) * wc * 0.15]); } RIBCOL = '#123A8C'; rib(c, pts, T * 0.12, 0.8 * up, true); RIBCOL = null; } }
         c.restore(); } });
   };
 })();

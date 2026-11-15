@@ -51,5 +51,5 @@ const WK = (() => {
   const bind = h => { H = h; K = IK.bind(h); return WKB; };
   const WKB = { W, gpuBegin, gpuEnd, gq, xy, mid, sphere, stream, jet, pool, spray, ripple, glow, star, ring, whirl, ribbon, bubbles, shafts, TAU };
   /* (for shared helpers that draw outside a bound cast: the kit as last bound, and whether its GPU mode is on) */
-  return { bind, W, on: () => !!(K && K.gq()), gy: () => (H && H.GY) || 0.55, get api() { return WKB; } };
+  return { bind, W, tint: null, on: () => !!(K && K.gq()), gy: () => (H && H.GY) || 0.55, get api() { return WKB; } };
 })();
