@@ -512,7 +512,7 @@ void main(){ vec2 u = v_uv; float r = length(u), m = 0.0, edge = 1.0 - smoothste
     c = mix(c, c * 0.55, smoothstep(0.35, 0.8, fbm(vec2(al * 9.0 - t * v_q.z, u.y * 4.0 - v_q.y))) * tube * 0.45) + mix(col, vec3(0.8, 1.0, 1.0), 0.6) * min(rw, 1.0) * 0.32 * tube;
     c += vec3(0.85, 1.0, 1.0) * exp(-sq((u.y + 0.36 + (f - 0.5) * 0.35) / 0.13)) * (0.5 + 0.5 * st) * 0.55 + vec3(0.5, 0.9, 1.0) * rim * 0.28 + vec3(0.9, 1.0, 1.0) * smoothstep(0.62, 0.8, st) * rim * 0.5;
     c = mix(c, vec3(0.92, 0.98, 1.0), foam * 0.6);
-    float a = dns * max(mix(0.5, 0.75, rim), foam * 0.8) * v_q.x * v_c.a * pk; gl_FragColor = vec4(min(c, vec3(1.0)) * a, a); }
+    float a = min(1.0, dns * max(mix(0.5, 0.75, rim), foam * 0.8) * v_q.x) * v_c.a * pk; gl_FragColor = vec4(min(c, vec3(1.0)) * a, a); }
   else { vec3 L = vec3(0.0);
     if (v_k > 25.5) { // (v361, water light)
       if (v_k < 26.5) { // caustic light: v_q.z > 0.5 on a sphere of water (the web of light inside it, a specular glint, its rim
@@ -536,6 +536,14 @@ void main(){ vec2 u = v_uv; float r = length(u), m = 0.0, edge = 1.0 - smoothste
         float rr = r * 1.3, th = max(0.03, v_q.z), d = rr - 1.0, nn = fbm(vec2(atan(u.y, u.x) * 2.5 + v_q.y, rr * 3.0 - t * 0.6)), crest = exp(-sq((d + (nn - 0.5) * 0.05) / (th * 0.6))) * 0.8, tr = 0.0;
         for (int k = 1; k < 4; k++) { float fk = float(k); tr += exp(-sq((d + fk * th * 1.25 + (nn - 0.5) * 0.06) / (th * 0.45))) * (0.45 / fk); }
         L = (mix(col, vec3(1.0), 0.45) * (crest + tr) + col * step(rr, 1.0) * exp(-sq(d / (th * 4.0))) * 0.15 + vec3(1.0) * smoothstep(0.68, 0.88, nn) * crest * 0.8) * v_q.x * (1.0 - smoothstep(1.12, 1.28, rr)); }
+      else if (v_k > 31.5 && v_k < 32.5) { // (v368) a ring of flowing water-light (an annulus at uv radius 0.8 in a tilted ellipse
+        // quad), smooth-edged, its streaks and glints racing round it with its spin; v_q.x = side (0 the far half, 1 the near, 2
+        // all) + thickness (fraction), v_q.z spin
+        float side = floor(v_q.x), th = max(0.02, fract(v_q.x)), d = (r - 0.8) / th, prof = exp(-d * d * 2.2), an = atan(u.y, u.x), sp = an + t * v_q.z;
+        float half2 = side > 1.5 ? 1.0 : side > 0.5 ? smoothstep(-0.12, 0.12, u.y) : 1.0 - smoothstep(-0.12, 0.12, u.y);
+        float fl = fbm(vec2(sp * 2.0 + v_q.y, d * 0.6 + 3.0)), fl2 = fbm(vec2(sp * 5.0 - v_q.y, d * 1.2)), cs = 0.5 + 0.5 * sin(sp * 6.0 + fl * 4.0);
+        vec2 gc = vec2(sp * 6.0 / 3.14159, d * 0.5), gi = floor(gc), gf = fract(gc) - 0.5; float gl = step(0.7, h1(gi + v_q.y)) * exp(-dot(gf, gf) * 60.0) * (0.5 + 0.5 * sin(t * 7.0 + h1(gi) * 30.0));
+        L = (mix(col, vec3(0.75, 1.0, 1.0), 0.25 + 0.35 * cs * fl) * prof * (0.55 + 0.6 * fl2) + vec3(1.0) * exp(-d * d * 9.0) * 0.35 * (0.6 + 0.4 * cs) + vec3(1.0) * gl * prof * 1.2) * half2 * (1.0 - smoothstep(0.92, 1.0, r)); }
       else if (v_k > 29.5 && v_k < 30.5) { // (v364) a cloud of bubbles rising (v_q.z its rise speed): each a thin bright ring with
         // a pearly sheen and a specular dot, wobbling up, fading at the cloud's edge
         float ev = (1.0 - smoothstep(0.55, 1.0, r)), Lb = 0.0; vec3 cb = vec3(0.0);
@@ -670,6 +678,7 @@ void main(){ vec2 u = v_uv; float r = length(u), m = 0.0, edge = 1.0 - smoothste
     wstream(x0, y0, x1, y1, w, col, a, seed, flow, dens, lite) { const dx = (x1 - x0) / 2, dy = (y1 - y0) / 2, L = Math.hypot(dx, dy); if (L < 0.5) return; const vx = -dy / L * w, vy = dx / L * w; this.quad(25, x0 + dx, y0 + dy, dx, dy, vx, vy, col, a, dens == null ? 0.85 : dens, seed || 0, flow == null ? 3 : flow); this.quad(29, x0 + dx, y0 + dy, dx, dy, vx, vy, col, a, lite == null ? 0.7 : lite, seed || 0, flow == null ? 3 : flow); },
     caustic(x, y, r, col, a, seed, sy) { if (r > 0.5) this.quad(26, x, y, r, 0, 0, r * (sy || 1), col, a, 1, seed || 0, 0); },
     spray(x, y, r, col, a, seed, spread, sy) { if (r > 0.5) this.quad(27, x, y, r, 0, 0, r * (sy || 1), col || '#CFF6FF', a, 1, seed || 0, spread || 0); },
+    wring(x, y, rx, ry, rot, col, a, side, th, seed, spin) { if (rx > 1 && a > 0.01) { const c = Math.cos(rot || 0), sn = Math.sin(rot || 0), k = 1 / 0.8; this.quad(32, x, y, c * rx * k, sn * rx * k, -sn * ry * k, c * ry * k, col, a, (side == null ? 2 : side) + Math.min(0.49, Math.max(0.02, th || 0.06)), seed || 0, spin || 1); } },
     bubbles(x, y, rx, ry, col, a, seed, rise) { if (rx > 0.5) this.quad(30, x, y, rx, 0, 0, ry || rx, col || '#9FE8FF', a, 1, seed || 0, rise == null ? 1 : rise); },
     shafts(x0, y0, x1, y1, w, col, a, seed) { const dx = (x1 - x0) / 2, dy = (y1 - y0) / 2, L = Math.hypot(dx, dy); if (L < 0.5) return; this.quad(31, x0 + dx, y0 + dy, -dy / L * w, dx / L * w, dx, dy, col || '#8FE3F0', a, 1, seed || 0, 0); },   /* (uv.y runs from (x0, y0) to (x1, y1)) */
     ripple(x, y, r, col, a, seed, sy, th) { if (r > 1 && a > 0.01) this.quad(28, x, y, r * 1.3, 0, 0, r * 1.3 * (sy || 1), col, a, 1, seed || 0, th == null ? 0.12 : th); },

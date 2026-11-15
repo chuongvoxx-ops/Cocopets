@@ -378,13 +378,22 @@
           // the ring of flowing water: far half (behind the sphere)
           const ai = Math.max(0, Math.min(3, Math.round((s.ar * (0.3 + 0.7 * rk) - 0.18) / 0.107))), ar = RAB[ai], rx = RS * 1.75 * (0.6 + 0.4 * rk) * (1 + 0.35 * fl2) * form * 0.82, ra = rk * (1 - 0.3 * fl2), ct = Math.cos(s.tilt), st2 = Math.sin(s.tilt);
           const ringPts = (a0, a1, rr) => { const P = []; for (let i = 0; i <= 9; i++) { const b = a0 + (a1 - a0) * i / 9, lx = Math.cos(b) * rr, ly = Math.sin(b) * rr * ar; P.push([SX + lx * ct - ly * st2, SY + lx * st2 + ly * ct, RS * 0.11 * (0.7 + 0.3 * Math.abs(Math.sin(b)))]); } return P; };
-          const ringHalfG = (front) => { if (ra <= 0.01) return; const a0 = front ? 0 : Math.PI; G.stream(c, ringPts(a0 - 0.15, a0 + Math.PI + 0.15, rx), RS * 0.11, Math.min(1, ra * (front ? 1 : 0.7) * (1 + 0.4 * chg)), { taper: 0, flow: 6 * Math.sign(s.rsp || 1) * (front ? 1 : -1), seed: s.i * 3 + (front ? 1 : 0), col: W.water, dens: front ? 0.8 : 0.55, lite: front ? 1 : 0.6 });
+          const ringHalfG = (front) => { if (ra <= 0.01) return; const spin = 2.2 * Math.sign(s.rsp || 1) * (1 + chg + fin), ka = Math.min(1, ra * (front ? 1 : 0.65) * (1 + 0.4 * chg));   /* (v368) smooth rings of flowing water-light, spinning: a wide soft halo band, the ring, a fine bright inner ring turning the other way */
+            Q.wring(SX, SY, rx * 1.02, rx * ar * 1.02, s.tilt, '#123A8C', 0.3 * ka, front ? 1 : 0, 0.24, s.i * 3, spin * 0.6);
+            Q.wring(SX, SY, rx, rx * ar, s.tilt, '#2E7BE6', 0.85 * ka, front ? 1 : 0, 0.09, s.i * 3 + 1, spin);
+            Q.wring(SX, SY, rx * 0.86, rx * ar * 0.86, s.tilt, '#6FD8F0', 0.55 * ka, front ? 1 : 0, 0.05, s.i * 3 + 2, -spin * 1.4);
             if (lvl >= 2) for (let rr = 0; rr < (lvl >= 3 ? 2 : 1); rr++) { const R2 = rx * (1.28 + 0.14 * rr), d = rr ? -1 : 1; for (let q = 0; q < 10; q++) { const b = q / 10 * TAU + t * s.drs * d + s.ph, sb = Math.sin(b); if ((sb > 0) !== !!front) continue; const lx = Math.cos(b) * R2, ly = sb * R2 * ar; G.sphere(c, SX + lx * ct - ly * st2, SY + lx * st2 + ly * ct, T * 0.06, ra * 0.9, { col: W.water, seed: q, halo: 2 }); } } };
-          G.glow(c, SX, SY, RS * (2.3 + 0.15 * Math.sin(t * 2.1 + s.ph)) * form, W.aqua, (0.22 + 0.2 * Math.max(chg, fin)) * cl(form));
+          G.glow(c, SX, SY, RS * (2.3 + 0.15 * Math.sin(t * 2.1 + s.ph)) * form, '#1F5FC8', (0.15 + 0.15 * Math.max(chg, fin)) * cl(form));
           ringHalfG(false);
           // the sphere: living water round a shining heart
           const sx = (1 + wob - 0.18 * sq) * form, sy = (1 - wob + 0.1 * sq) * form, kq = 1 / Math.sqrt(Math.abs(sx * sy)) || 1, r = RS;
-          Q.quad(24, SX, SY, r * sx * kq, 0, 0, r * sy * kq, col, 1, 0.85, s.ph, s.cs1 * (1.2 + 2.5 * chg + 1.5 * fin));
+          // (v368) an ethereal aura swirling round it: a wide breathing glow, a vortex of energy turning about it, wisps of light
+          // licking out as they circle, motes orbiting in its halo
+          { const br2 = 0.5 + 0.5 * Math.sin(t * 2.3 + s.ph); G.glow(c, SX, SY, r * (2.6 + 0.4 * br2), '#123A8C', (0.25 + 0.12 * br2) * form); Q.evortex(SX, SY, r * 1.7, '#1F5FC8', 0.48 + 0.12 * chg, 0.4 * form, s.ph, s.cs1 * (1.5 + 2 * chg), 1);
+            for (let q = 0; q < 8; q++) { const b = q / 8 * TAU + t * (1.6 + 1.5 * chg) * (s.cs1 > 0 ? 1 : -1) + s.ph, wx = SX + Math.cos(b) * r * 1.05, wy = SY + Math.sin(b) * r * 1.05, tg = b + (s.cs1 > 0 ? Math.PI / 2 : -Math.PI / 2), dx = Math.cos(tg) * 0.6 + Math.cos(b) * 0.8, dy = Math.sin(tg) * 0.6 + Math.sin(b) * 0.8;
+              Q.etongue(wx, wy, r * 0.16, r * (0.45 + 0.25 * Math.sin(t * 4 + q * 1.7)), Math.atan2(dx, -dy), q % 2 ? '#5FE8FF' : '#3F7FE0', 0.55, 0.3 * form, s.ph + q); }
+            for (let q = 0; q < 10; q++) { const b = q / 10 * TAU - t * 0.9 * (s.cs1 > 0 ? 1 : -1) + s.ph * 2, rr2 = r * (1.4 + 0.25 * Math.sin(q * 2.1 + t)); G.star(c, SX + Math.cos(b) * rr2, SY + Math.sin(b) * rr2 * 0.8, T * 0.28, 0.6 * form * (0.5 + 0.5 * Math.sin(t * 5 + q))); } }
+          Q.quad(24, SX, SY, r * sx * kq, 0, 0, r * sy * kq, col, 1, 0.85, s.ph, s.cs1 * (3.5 + 3 * chg + 2 * fin));   /* (v368: turning visibly) */
           Q.evortex(SX, SY, r * 0.8 * sx * kq, W.turq, 0.55 + 0.2 * chg, 0.45, s.ph, s.cs1 * (2 + 3 * chg), sy / sx);
           Q.quad(26, SX, SY, r * sx * kq, 0, 0, r * sy * kq, W.aqua, 1, 0.85, s.ph, 1); G.bubbles(c, SX, SY, r * 0.72 * sx * kq, r * 0.72 * sy * kq, 0.7, { seed: s.ph * 3, rise: 0.7 + chg }); G.shafts(c, SX, SY - RS * 2.6, SX, SY + RS * 0.6, RS * 1.3, 0.2 * form, { seed: s.ph });
           { const pu = 0.5 + 0.5 * Math.sin(t * 3.2 + s.ph), cr = r * (0.3 + 0.08 * pu + 0.2 * Math.max(chg, fin)); Q.eorb(SX, SY, cr, '#2F8CFF', 0.55 + 0.2 * pu, 0.75, s.ph, 2); Q.star(SX, SY, cr * 2.4, 0.4 + 0.3 * pu, '#CFF6FF'); Q.glow(SX, SY, cr * 1.4, '#9FE8FF', 0.3 + 0.2 * pu); }
