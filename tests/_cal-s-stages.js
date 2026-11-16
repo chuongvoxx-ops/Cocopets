@@ -59,9 +59,9 @@ let fails = 0; const ok = (c, s, x) => { console.log((c ? 'ok   ' : 'FAIL ') + s
   r = await turnTo(['J', 'K', 'I']); ok(r.basins[0] && !r.primed, 'hollows: one branch alone never primes', r);
   r = await turnTo(['k', 'V']); await T.runG(1.4); r = await M(() => { const m = window.__pp.arc.game._dbg.RIFT.self.mod; return { basins: m.S.flow.basins, primed: m.S.primed }; });
   ok(r.basins[0] && r.basins[1] && r.primed, 'hollows: both branches at once prime the reservoir', r);
-  r = await M(async () => { const D = window.__pp.arc.game._dbg, mod = D.RIFT.self.mod; const u = await window.__use('calreservoir', 0, [1.3, 0]); await window.__w(4, () => { D.me.x = 16.5; D.me.y = 12; }, () => mod.S.latched); const mw = D.M.MW;
-    return { used: u, latched: mod.S.latched, bridge: D.M.marks.b.every(p => D.M.G[p.ty * mw + p.tx] === 5), exit: !!D.RIFT.exit }; });
-  ok(r.used && r.latched && r.bridge && r.exit, 'hollows: the pet releases the frost; the bridge sets for good; the door to Fire Flan opens', r);
+  r = await M(async () => { const D = window.__pp.arc.game._dbg, mod = D.RIFT.self.mod; const t0 = D.g.t; await window.__w(2, () => { D.me.x = 17.8 + Math.sin(D.g.t * 20) * 0.25; D.me.y = 9.7; D.me.vx = 2.5; }, () => mod.S.surge > 0); const u = mod.S.surge > 0, took = +(D.g.t - t0).toFixed(2); await window.__w(4, () => { D.me.x = 16.5; D.me.y = 12; }, () => mod.S.latched); const mw = D.M.MW;
+    return { used: u, took, latched: mod.S.latched, bridge: D.M.marks.b.every(p => D.M.G[p.ty * mw + p.tx] === 5), exit: !!D.RIFT.exit }; });
+  ok(r.used && r.took < 0.8 && r.latched && r.bridge && r.exit, 'hollows: walking onto the valve wheel (moving, not standing still) releases the frost at once; the bridge sets for good; the door to Fire Flan opens', r);
   await T.runG(0.6); await shot('hollows-latched');
   await M(() => window.__w(2.4, () => { const D = window.__pp.arc.game._dbg; D.me.x = 16.5; D.me.y = 12; })); r = await zoom(); ok(r > 0.95, 'hollows: solved, the camera eases back in', r);
   await exitStage(); r = await T.rs(); ok(r.prog.caldera === idx.H + 1, 'hollows: the door ends the stage (checkpoint: Fire Flan next)', r.prog);
@@ -70,6 +70,8 @@ let fails = 0; const ok = (c, s, x) => { console.log((c ? 'ok   ' : 'FAIL ') + s
     while (!mod.S.primed && guard++ < 25) { const h = mod.hint(); if (!h) break; const i = mod.pieces.findIndex(p => Math.abs(p.x - h.x) < 0.01 && Math.abs(p.y - h.y) < 0.01); if (i < 0) break; steps.push(mod.pieces[i].id); await window.__use('calconduit', i, [0.05, 0.1]); await window.__w(0.15, () => { D.me.x = 16.5; D.me.y = 19; }); }
     await window.__w(1.8, () => { D.me.x = 16.5; D.me.y = 19; }, () => mod.S.primed); return { hint: mod.S.hint, steps, primed: mod.S.primed }; });
   ok(r.hint && r.steps.length >= 3 && r.primed, 'hollows: after the delay, following the traced hint alone primes the reservoir', r);
+  r = await M(async () => { const G = window.__pp.arc.game, D = G._dbg, mod = D.RIFT.self.mod; D.me.x = 16.5; D.me.y = 14.5; await window.__w(0.4, () => { D.me.x = 16.5; D.me.y = 14.5; }); const [x, y] = mod.valveScreen(); const primed = mod.S.primed; G.down(x, y, 99); G.up(x, y, 99); await window.__w(0.2); return { primed, surge: mod.S.surge > 0 }; });
+  ok(r.primed && r.surge, 'hollows: primed, a tap on the valve releases the frost (pet five tiles away)', r);
 
   }
   if (ONLY.includes('F')) {
@@ -153,7 +155,7 @@ let fails = 0; const ok = (c, s, x) => { console.log((c ? 'ok   ' : 'FAIL ') + s
   await shot('court-dodge');
   // the first, teaching throw: slow, from the front, TAP DODGE!
   r = await M(async () => { const D = window.__pp.arc.game._dbg, C = D.RIFT.self.mod.court; await window.__court(4, 'stand', () => C.winds.length > 0 && C.winds[0].t > 0.6); const w = C.winds[0]; return { teach: w && w.teach, from: w && w.th.id, prompt: C.prompt > 0, dur: w && w.dur, speed: w && w.speed }; });
-  ok(r.teach && r.from === 'NE' && r.prompt && r.dur >= 1.4 && r.speed < 5, 'court: the first throw is a slow teaching throw from the front, with the TAP DODGE prompt', r);
+  ok(r.teach && r.from === 'NE' && r.prompt && r.dur >= 1.2 && r.speed < 9, 'court: the first throw is the slower teaching throw from the front, with the TAP DODGE prompt', r);
   await shot('court-teach');
   r = await M(async () => { const D = window.__pp.arc.game._dbg, C = D.RIFT.self.mod.court, hp0 = D.me.hp; const o = await window.__court(5, 'stand', () => C.hits > 0, false); return Object.assign(o, { lost: +(hp0 - D.me.hp).toFixed(1), max: D.ST.hp }); });
   ok(r.hits === 1 && r.count === 0 && r.lost > 0 && r.lost <= r.max * 0.08, 'court: a throw that hits only chips (≤8%) and does not count', r);
@@ -161,12 +163,12 @@ let fails = 0; const ok = (c, s, x) => { console.log((c ? 'ok   ' : 'FAIL ') + s
   ok(r.count === 1 && r.log.includes('roll'), 'court: rolling through a throw with the DODGE key counts it', r);
   r = await M(async () => { const C = window.__pp.arc.game._dbg.RIFT.self.mod.court; return window.__court(6, 'step', () => C.count >= 2); });
   ok(r.count === 2 && r.log.includes('step'), 'court: side-stepping a throw at close range counts it too', r);
-  r = await M(async () => { const C = window.__pp.arc.game._dbg.RIFT.self.mod.court; window.__force(2); await window.__court(4, 'stand', () => C.winds.length >= 2); return { ids: C.winds.map(w => w.th.id), n: C.winds.length }; });
-  ok(r.n >= 2 && r.ids.includes('W') && r.ids.includes('E'), 'court: at two, a crossfire from both sides at once', r);
+  r = await M(async () => { const C = window.__pp.arc.game._dbg.RIFT.self.mod.court; window.__force(2); await window.__court(4, 'stand', () => C.winds.length >= 2); return { ids: C.winds.map(w => w.th.id), n: C.winds.length, speed: C.winds.map(w => w.speed), wind: C.winds.map(w => w.dur) }; });
+  ok(r.n >= 2 && r.ids.includes('W') && r.ids.includes('E') && r.speed.every(v => v >= 10) && r.wind.every(d => d <= 0.9), 'court: at two, a fast crossfire from both sides at once (balls 10+ tiles/s, wind-ups under 0.9 s)', r);
   await shot('court-crossfire');
-  r = await M(async () => { const C = window.__pp.arc.game._dbg.RIFT.self.mod.court; await window.__court(5, 'roll', () => !C.winds.length && !C.balls.length); window.__force(4); await window.__court(4, 'stand', () => C.balls.some(b => b.kind === 'lob' && b.t > 0.5)); return { k: C.balls.map(b => b.kind), count: C.count }; });
+  r = await M(async () => { const mod = window.__pp.arc.game._dbg.RIFT.self.mod, C = mod.court; window.__force(4); C.next = 99; mod.schedule(); const k = C.winds.map(w => w.kind); await window.__court(3, 'stand', () => C.balls.some(b => b.kind === 'lob' && b.t > 0.3)); return { k, flying: C.balls.map(b => b.kind), count: C.count }; });   // (the throws are fast now: the schedule is checked directly, not waited for)
   ok(r.k.includes('lob'), 'court: at four, a lobbed ball with its landing circle', r);
-  r = await M(async () => { const C = window.__pp.arc.game._dbg.RIFT.self.mod.court; await window.__court(5, 'roll', () => !C.balls.length && !C.winds.length); window.__force(5); const o = await window.__court(12, 'roll', () => C.phase !== 'dodge'); return Object.assign(o, { attacks: C.attacks }); });
+  r = await M(async () => { const C = window.__pp.arc.game._dbg.RIFT.self.mod.court; window.__force(5); const o = await window.__court(12, 'roll', () => C.phase !== 'dodge'); return Object.assign(o, { attacks: C.attacks }); });
   ok(r.count === 6 && r.phase === 'wake', 'court: the dodges count to six (the last a short volley), then the idols wake', r);
   // the waking: they crack, the first two leap down and stomp onto the court
   r = await M(async () => { const D = window.__pp.arc.game._dbg, mod = D.RIFT.self.mod, C = mod.court; await window.__w(1.3); return Object.values(mod.idols).map(i => i.st).join(); });

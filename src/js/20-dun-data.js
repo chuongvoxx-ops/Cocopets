@@ -376,6 +376,17 @@ function pillarBeamSprite(color) {
     g.putImageData(im, 0, 0);
   });
 }
+/* (v389 E) the Ult cast's column of light (2D): gaussian across, rising out of its foot almost at once (the bloom at its
+   foot covers the start), thinning and dissolving into the sky over its upper 60%. Drawn stretched along the column */
+function castBeamSprite(color) {
+  return fxSprite('cbeam|' + color, 160, 48, (g, w, h) => {
+    const [r, gg, b] = hexRGB(color), im = g.createImageData(w, h), d = im.data, ss = t => t * t * (3 - 2 * t);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const u = (x + 0.5) / w, e = Math.max(0, Math.min(1, (u - 0.4) / 0.6)), s = 1 - ss(e), v = (y + 0.5 - h / 2) / (h / 2) / (1 - 0.35 * e), across = Math.max(0, (Math.exp(-v * v * 4.2) - Math.exp(-4.2)) / (1 - Math.exp(-4.2)));
+      const a = across * ss(Math.min(1, u / 0.06)) * s * s, i = (y * w + x) * 4; d[i] = r; d[i + 1] = gg; d[i + 2] = b; d[i + 3] = Math.round(255 * Math.min(1, a)); }
+    g.putImageData(im, 0, 0);
+  });
+}
 /* (v372) a comet's tail: full at its head (x = 0), narrowing and fading smoothly to nothing at its far end */
 function tailSprite(color) {
   return fxSprite('tail|' + color, 160, 48, (g, w, h) => {
