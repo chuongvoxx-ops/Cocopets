@@ -191,7 +191,7 @@ const SEP = { INK: '#2B2433', STONE: '#202836', STONE_HI: '#36425A', SILVER: '#A
       G.obj = H.obj({ x: p.x, y: p.y + 0.75, kind: 'hourglassuse', r: 0.8, h: 0.6, label: () => (G.st === 'idle' ? 'Shatter the hourglass: it stops time around it' : ''), use() { if (G.st !== 'idle') return; G.st = 'count'; S.n++;
           X.banner('THE HOURGLASS CRACKS', 'Three seconds: get out of the circle!', GOLD_HI, 1.8, true); X.sfx.crack ? X.sfx.crack() : X.sfx.crash();
           X.warn({ x: p.x, y: p.y, r: HG_R, life: 3, max: 3, color: GOLD_HI, fn: () => {
-            G.st = 'done'; p.broken = true; X.setTile(tx, ty, T_FLOOR); X.retile();
+            G.st = 'done'; p.broken = true; X.setTile(tx, ty, T_FLOOR); X.retile(); if (typeof BREAK_FX !== 'undefined') BREAK_FX.prop(X, p, { mat: 'glass', shake: 0 });   // v388 D: the hourglass shatters
             X.boom(p.x, p.y - 0.5, HG_R * 0.8, GOLD_HI, '#FFFFFF', { n: 40, shake: 12 }); X.flash(0.4, '#FFF4D0'); X.sfx.fanfare();
             X.zone({ kind: 'timefield', x: p.x, y: p.y, r: HG_R, life: 20, max: 20, own: 'none' });
             let n = 0; for (const m of X.mons) if (!m.dead && Math.hypot(m.x - p.x, m.y - p.y) < HG_R + m.r) { if (!m.boss || m.lesser) { m.freeze = Math.max(m.freeze || 0, m.lesser ? 8 : 20); n++; } X.hitMon(m, m.maxhp * (m.lesser ? 0.06 : 0.3), { flat: true }); }

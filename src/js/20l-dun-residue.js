@@ -34,9 +34,12 @@ const DunResidue = (() => {
       p.broken = true; byTile.delete(p.k);
       M.G[p.k] = X.T_FLOOR;
       const c = col(p.el);
+      // v388 D: the shared destruction effect (20b2): the prop's own picture cracks and shatters, sized and by material
+      if (!(typeof BREAK_FX !== 'undefined' && BREAK_FX.prop(X, p, { quiet }))) {
       for (let i = 0; i < 12; i++) { const a = Math.random() * TAU, v = 2 + Math.random() * 3.5; X.part({ kind: 'shard', x: p.x, y: p.y - 0.4, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 2, g: 9, life: 0.75, max: 0.75, size: 4 + Math.random() * 4, rot: Math.random() * 6, vr: (Math.random() - 0.5) * 14, color: i % 3 ? c : '#FFFFFF' }); }
       X.boom(p.x, p.y - 0.2, 0.9, c, '#FFFFFF', { n: quiet ? 5 : 8, shake: quiet ? 0 : 3, smoke: p.el === 'fire' || p.el === 'shadow' ? 4 : 1 });
       if (!quiet) X.sfx.crash();
+      }
       if (Math.random() < 0.35) X.drop('coin', p.x, p.y);
       zones.push({ x: p.x, y: p.y - 0.3, el: p.el, r: 1.45, life: 16, max: 16, t: Math.random() * 6, tk: 0, seed: Math.random() * 99 });
       if (!quiet) X.text(p.x, p.y - 1.2, RESIDUE_NAME[p.el] || 'Residue', c, 12, { life: 0.9, max: 0.9 });

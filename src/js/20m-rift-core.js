@@ -145,18 +145,22 @@ const DunRift = (() => {
     function drawObj(c, o) { const T = X.Tz(), Xs = X.sx(o.x), Ys = X.sy(o.y); if (o.draw) o.draw(c, Xs, Ys, T, o);
       if (o.label && Math.hypot(me.x - o.x, me.y - o.y) < 4) { c.save(); c.font = `800 ${Math.round(T * 0.24)}px ${arcFont}`; c.textAlign = 'center'; c.lineWidth = 3; c.strokeStyle = 'rgba(0,0,0,.55)'; c.fillStyle = '#FFFFFF'; const s = typeof o.label === 'function' ? o.label(o) : o.label; c.strokeText(s, Xs, Ys - T * (o.h || 1.1)); c.fillText(s, Xs, Ys - T * (o.h || 1.1)); c.restore(); } }
     function drawOver(c) { if (mod.drawOver) mod.drawOver(c); if (amb.drawOver) amb.drawOver(c); const hp = hintObj(); if (hp && !self.cine && !me.dead) edgeArrow(c, hp.x, hp.y, hp === exit ? '#8FE0A6' : '#FFE37A', hp === exit ? exit.label : (typeof hp.label === 'function' ? hp.label(hp) : hp.label) || ''); if (self.cine && mod.drawCine) mod.drawCine(c, self.cine); }
-    const goal = () => (mod.goal ? mod.goal() : self.goalText) + (self.done ? ' · go on' : '');
+    const goal = () => { const g = mod.goal ? mod.goal() : self.goalText; return g + (self.done && !/^Cleared!/.test(g || '') ? ' · go on' : ''); };   // (v388: no ' · go on' after a goal that already says where to go)
     function onBossDeath(m) { return mod.onBossDeath ? mod.onBossDeath(m) : false; }
     function startCine(kind) { self.cine = { kind, t: 0, step: 0 }; }
-    return { self, objs, update, drawGround, drawObj, drawOver, goal, finish, onBossDeath, startCine, hintObj, tap: (x, y) => !!(mod.tap && mod.tap(x, y)), cam: () => (mod.cam ? mod.cam() : null), hud: () => (mod.hud ? mod.hud() : null), act: () => !!(mod.act && mod.act()), ents: () => objs.map(o => [o.y + (o.dy || 0), o]), get exit() { return exit; }, get done() { return self.done; } };
+    // (v388 R: cineCam, the sealing's own camera, asked first by 20b's camPick while it plays; hideHud, the HUD set aside then)
+    return { self, objs, update, drawGround, drawObj, drawOver, goal, finish, onBossDeath, startCine, hintObj, tap: (x, y) => !!(mod.tap && mod.tap(x, y)), cam: () => (mod.cam ? mod.cam() : null), cineCam: () => (self.cine && mod.cineCam ? mod.cineCam(self.cine) : null), hideHud: () => !!(mod.hideHud && mod.hideHud()), hud: () => (mod.hud ? mod.hud() : null), act: () => !!(mod.act && mod.act()), ents: () => objs.map(o => [o.y + (o.dy || 0), o]), get exit() { return exit; }, get done() { return self.done; } };
   }
   return { create };
 })();
 
 /* ---- the sealing, shared by every rift: the last boss falls, the stage's monsters die, the pet walks to the wound in
    the air, its markings shine, a thread of light joins it to its handler, and the rift's sigil closes the tear.
-   riftSealing(X, self, mod, { fall, sub, sigil, name, color, glow, wound }) installs onBossDeath, cine and drawCine */
+   riftSealing(X, self, mod, { fall, sub, sigil, name, color, glow, wound }) installs onBossDeath, cine and drawCine
+   (v388 R: the sealing is now the party's combined ult, 20m4-rift-seal-fx.js; what follows is kept only as its fallback
+   should that file be missing, or with window.__SEAL_OLD = 1) */
 function riftSealing(X, self, mod, o) {
+  try { if (typeof RiftSealFX !== 'undefined' && !(typeof window !== 'undefined' && window.__SEAL_OLD === 1)) return RiftSealFX.install(X, self, mod, o); } catch (e) { try { console.warn('seal fx: ' + (e && e.message)); } catch (e2) {} }   // v388 R
   const TAU = Math.PI * 2, me = X.me, col = o.color || '#61D9D2', gold = '#FFE37A', wound = o.wound || { x: X.M.MW / 2, y: 3.5 };
   const hexA = (h, a) => { const n = parseInt(String(h).slice(1, 7), 16) || 0; return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${Math.max(0, Math.min(1, a))})`; };
   mod.onBossDeath = m => { X.g.won = true; X.g.slowT = 1.2; X.flash(0.9, '#FFFFFF'); X.banner(o.fall, o.sub || '', gold, 2.6, true); X.sfx.fanfare();

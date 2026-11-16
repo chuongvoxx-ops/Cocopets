@@ -16,6 +16,7 @@ let fails = 0; const ok = (c, s, x) => { console.log((c ? 'ok   ' : 'FAIL ') + s
   console.log('rift:', JSON.stringify(T.calInfo));
   const idx = { H: await T.trial('HOLLOWS'), F: await T.trial('FOUNDRY'), D: await T.trial('DESCENT') }; console.log('trials at', JSON.stringify(idx));
   let r;
+  const zoom = () => M(() => +window.__pp.arc.game._dbg.g.zoom.toFixed(3));   // (the camera: the dungeons' close zoom (1) everywhere but while a puzzle is being solved)
 
   /* ======================= pure checks ======================= */
   r = await M(() => { const CS = self.__CAL_STAGES, H = CS.HOLLOWS; const sol = { J: 0, K: 1, k: 2, I: 0, V: 0 }; const f = H.flow(sol);
@@ -36,6 +37,7 @@ let fails = 0; const ok = (c, s, x) => { console.log((c ? 'ok   ' : 'FAIL ') + s
   ok(r.pieces === 5 && r.bridge && r.hatch && r.gates.every(Boolean) && !r.exit && r.runnels > 10 && !r.startLava, 'hollows: four hollows behind slag gates, the hatch shut, the causeway\'s bridge lava', r);
   ok(r.total >= 36 && r.total <= 44 && r.live === 0, 'hollows: about forty brood, rising room by room (none out at the start)', { total: r.total, live: r.live });
   await shot('hollows-start');
+  r = await zoom(); ok(r > 0.95, 'hollows: the hollows are seen at the dungeons\' close zoom', r);
   r = await M(async () => { const D = window.__pp.arc.game._dbg, mod = D.RIFT.self.mod, me = D.me, p = D.M.marks.r[3]; me.x = p.x; me.y = p.y + 2.2; await window.__w(0.3); const hp0 = me.hp, b0 = mod.lava.burns;
     await window.__w(0.4, () => { if (mod.lava.burns === b0) { me.x = p.x; me.y = p.y; } }, null, false); return { hp0, hp: me.hp, burns: mod.lava.burns - b0, onLava: mod.lava.set.has(Math.floor(me.y) * D.M.MW + Math.floor(me.x)), max: D.ST.hp }; });
   ok(r.burns === 1 && r.hp < r.hp0 && r.hp0 - r.hp <= r.max * 0.12 && !r.onLava, 'hollows: a runnel burns a little and puts the pet back on safe ground', r);
@@ -50,6 +52,7 @@ let fails = 0; const ok = (c, s, x) => { console.log((c ? 'ok   ' : 'FAIL ') + s
   r = await M(async () => { const D = window.__pp.arc.game._dbg, mod = D.RIFT.self.mod; D.me.x = 16.5; D.me.y = 19; await window.__w(0.6); const f = mod.S.flow; return { hatch: mod.hatch.open, entered: mod.S.entered, basins: f.basins, mist: f.mist.length, live: D.mons.filter(m => !m.dead).length, goal: document.getElementById('arcGoal').textContent }; });
   ok(r.hatch && r.entered && !(r.basins[0] && r.basins[1]) && r.mist > 0 && r.live === 0 && /Frost to both basins/.test(r.goal), 'hollows: the hatch opens on the cavern; the causeway starts scrambled, misting; no monsters', r);
   await T.runG(0.5); await shot('hollows-causeway');
+  r = await zoom(); ok(r < 0.62, 'hollows: solving the causeway, the camera eases out over the whole puzzle', r);
   const turnTo = ids => M(async ids => { const D = window.__pp.arc.game._dbg, mod = D.RIFT.self.mod, CS = self.__CAL_STAGES.HOLLOWS;
     for (const id of ids) { const i = mod.pieces.findIndex(p => p.id === id); let n = 0; while (CS.portsOf(CS.cells[id].kind, mod.S.rot[id]) !== CS.cells[id].need && n < 4) { const u = await window.__use('calconduit', i, [0.05, 0.1]); await window.__w(0.15, () => { D.me.x = mod.pieces[i].x + 2.6; D.me.y = mod.pieces[i].y + 1.5; }); if (u) n++; else break; } }
     await window.__w(1.6, () => { D.me.x = 16.5; D.me.y = 19; }); return { basins: mod.S.flow.basins, primed: mod.S.primed }; }, ids);
@@ -60,6 +63,7 @@ let fails = 0; const ok = (c, s, x) => { console.log((c ? 'ok   ' : 'FAIL ') + s
     return { used: u, latched: mod.S.latched, bridge: D.M.marks.b.every(p => D.M.G[p.ty * mw + p.tx] === 5), exit: !!D.RIFT.exit }; });
   ok(r.used && r.latched && r.bridge && r.exit, 'hollows: the pet releases the frost; the bridge sets for good; the door to Fire Flan opens', r);
   await T.runG(0.6); await shot('hollows-latched');
+  await M(() => window.__w(2.4, () => { const D = window.__pp.arc.game._dbg; D.me.x = 16.5; D.me.y = 12; })); r = await zoom(); ok(r > 0.95, 'hollows: solved, the camera eases back in', r);
   await exitStage(); r = await T.rs(); ok(r.prog.caldera === idx.H + 1, 'hollows: the door ends the stage (checkpoint: Fire Flan next)', r.prog);
   await start('HOLLOWS'); await T.runG(1.4); await M(() => window.__clear());
   r = await M(async () => { const D = window.__pp.arc.game._dbg, mod = D.RIFT.self.mod; await window.__w(1.4); D.me.x = 16.5; D.me.y = 19; await window.__w(0.8); mod.S.cavT = 41; await window.__w(0.4); const steps = []; let guard = 0;
@@ -74,6 +78,7 @@ let fails = 0; const ok = (c, s, x) => { console.log((c ? 'ok   ' : 'FAIL ') + s
   r = await M(() => { const D = window.__pp.arc.game._dbg, mod = D.RIFT.self.mod, mw = D.M.MW; return { door: D.M.marks.D.every(p => D.M.G[p.ty * mw + p.tx] === 0), gates: ['1', '2', '3', '4'].map(ch => D.M.marks[ch].every(p => D.M.G[p.ty * mw + p.tx] === 0)), rings: mod.S.rings, total: mod.brood.total, levers: D.RIFT.objs.filter(o => o.kind === 'callever').length }; });
   ok(r.door && r.gates.every(Boolean) && r.rings.join() === '0,0,0' && r.levers === 3 && r.total >= 36 && r.total <= 44, 'foundry: four halls behind portcullises (the last guards the ring hall), about forty brood, the door shut', r);
   await shot('foundry-start');
+  r = await zoom(); ok(r > 0.95, 'foundry: the halls are seen at the dungeons\' close zoom', r);
   r = await M(() => window.__clear(2)); ok(r.i === 2 && r.waves[0].split('+').every(t => t === 'furnaceimp') && r.waves[2].split('+').every(t => t === 'runicsentinel'), 'foundry: imps alone, then sentinels alone', r.waves);
   // the bomb hall: the lesson inside an ordinary pack
   r = await M(async () => { const D = window.__pp.arc.game._dbg, mod = D.RIFT.self.mod, B = mod.brood, R = B.room(); D.me.x = R.spots[2].x; D.me.y = (R.y0 + R.y1) / 2; await window.__w(0.5); const types = B.live.map(m => m.calType || m.type).sort().join();
@@ -91,7 +96,7 @@ let fails = 0; const ok = (c, s, x) => { console.log((c ? 'ok   ' : 'FAIL ') + s
   await T.runG(1.4);
   r = await M(() => { const D = window.__pp.arc.game._dbg; return D.M.marks['4'].every(p => D.M.G[p.ty * D.M.MW + p.tx] === 1); }); ok(r, 'foundry: the last portcullis rises on the ring hall');
   const pull = id => M(async id => { const D = window.__pp.arc.game._dbg, mod = D.RIFT.self.mod, i = mod.levers.findIndex(l => l.id === id); const u = await window.__use('callever', i, [0.1, 0.9]); await window.__w(0.2, () => { D.me.x = 17.5; D.me.y = 15; }); return { u, rings: mod.S.rings.slice(), solved: mod.S.solved }; }, id);
-  r = await pull('A'); ok(r.rings.join() === '1,1,0', 'foundry: A: Chain, Chain, Eye', r); r = await pull('C'); ok(r.rings.join() === '2,1,1', 'foundry: C: Crown, Chain, Chain', r);
+  r = await pull('A'); ok(r.rings.join() === '1,1,0', 'foundry: A: Chain, Chain, Eye', r); r = await zoom(); ok(r < 0.6, 'foundry: in the ring hall, unsolved, the camera is out over the door, rings and levers', r); r = await pull('C'); ok(r.rings.join() === '2,1,1', 'foundry: C: Crown, Chain, Chain', r);
   r = await M(async () => { const D = window.__pp.arc.game._dbg, mod = D.RIFT.self.mod; await window.__use('calreset', 0, [0.1, 0.9]); await window.__w(0.2, () => { D.me.x = 17.5; D.me.y = 15; }); return mod.S.rings.slice(); }); ok(r.join() === '0,0,0', 'foundry: reset sets every ring to EYE', r);
   for (const l of ['B', 'B', 'A', 'C', 'B', 'A', 'A']) await pull(l);
   r = await M(async () => { const D = window.__pp.arc.game._dbg, mod = D.RIFT.self.mod, F = self.__CAL_STAGES.FOUNDRY, s0 = mod.S.rings.slice(), plan = F.plan(s0), moves = []; let guard = 0;
@@ -100,6 +105,8 @@ let fails = 0; const ok = (c, s, x) => { console.log((c ? 'ok   ' : 'FAIL ') + s
     await window.__w(4, null, () => !!D.RIFT.exit); return { s0, plan, moves, solved: mod.S.solved, opened: mod.S.opened, exit: !!D.RIFT.exit, beat: mod.S.beatT > 0 }; });
   ok(r.solved && r.moves.length === r.plan.length && r.opened && r.exit && r.beat, 'foundry: from a scramble, "show next move" solves it in the fewest moves; the iris, the door, the heartbeat, the way on', r);
   await shot('foundry-open');
+  r = await M(async () => { const D = window.__pp.arc.game._dbg, mod = D.RIFT.self.mod; await window.__w(2.6, () => { D.me.x = 17.5; D.me.y = 9; }); return { zoom: +D.g.zoom.toFixed(3), shrine: D.RIFT.objs.some(o => (o.kind === 'calspring' || o.kind === 'calshrine') && o.y > 6.5), exitIn: Math.abs(D.RIFT.exit.y - (mod.door.y1 + 0.25)) < 0.01 }; });
+  ok(r.zoom > 0.95 && r.shrine && r.exitIn, 'foundry: open, the camera back in; the frost shrine stands in the ring hall; the exit sits at the dark doorway\'s threshold', r);
   await exitStage(); r = await T.rs(); ok(r.prog.caldera === idx.F + 1, 'foundry: the door ends the stage (Bomb King next)', r.prog);
 
   }
@@ -111,6 +118,7 @@ let fails = 0; const ok = (c, s, x) => { console.log((c ? 'ok   ' : 'FAIL ') + s
     return { sawWarn, sawErupt, demo: mod.S.demo, lost: hp0 - D.me.hp, live: mod.vents.filter(q => q.live).map(q => q.lane), total: mod.brood.total, gates: ['X', 'U', 'W'].map(ch => D.M.marks[ch].every(p => D.M.G[p.ty * D.M.MW + p.tx] === 0)) }; });
   ok(r.sawWarn && r.sawErupt && r.demo === 2 && r.lost === 0 && r.live.join() === '0,0,0', 'descent: the first vent shows itself harmlessly, then the first causeway runs', r);
   ok(r.total >= 36 && r.total <= 44 && r.gates.every(Boolean), 'descent: about forty brood on three ledges; three slag gates shut', r);
+  r = await zoom(); ok(r > 0.95, 'descent: the ledges and causeways are seen at the dungeons\' close zoom', r);
   await shot('descent-demo');
   r = await M(async () => { const D = window.__pp.arc.game._dbg, mod = D.RIFT.self.mod, v = mod.vents[1]; D.me.hp = D.ST.hp; const hp0 = D.me.hp; let at = null;
     await window.__w(8, () => { if (!at && mod.S.falls === 0) { D.me.x = v.x; D.me.y = v.y; D.me.inv = 0; } }, () => mod.S.falls > 0 && (at = at || 1), false); await window.__w(0.1, null, null, false);
@@ -122,10 +130,12 @@ let fails = 0; const ok = (c, s, x) => { console.log((c ? 'ok   ' : 'FAIL ') + s
   r = await M(() => window.__clear(1)); r = await M(async () => { const D = window.__pp.arc.game._dbg, mod = D.RIFT.self.mod; await window.__w(1.6); return { x: D.M.marks.X.every(p => D.M.G[p.ty * D.M.MW + p.tx] === 1), lane2: mod.vents.filter(v => v.lane === 1 && v.live).length, lane3: mod.vents.filter(v => v.lane === 2 && v.live).length }; });
   ok(r.x && r.lane2 === 3 && r.lane3 === 0, 'descent: the first ledge clear, its slag gives way and the second causeway wakes', r);
   r = await M(() => window.__clear()); ok(r.done && r.killed === r.total && r.waves.some(w => w.split('+').every(t => t === 'crystalwisp')), 'descent: all three ledges cleared (crystal wisps taught alone)', { killed: r.killed, total: r.total, waves: r.waves });
-  // the Ember Court: twelve dodged throws open the way to the overlook
-  r = await M(async () => { const D = window.__pp.arc.game._dbg, mod = D.RIFT.self.mod; await window.__w(1.6); const w = D.M.marks.W.every(p => D.M.G[p.ty * D.M.MW + p.tx] === 1); const c = mod.ecIn ? null : 0;
-    D.me.x = 16.5; D.me.y = 27.5; await window.__w(0.6); const C = mod.court; return { w, on: C.on, exit: !!D.RIFT.exit, live: D.mons.filter(m => !m.dead).length, idols: Object.keys(mod.idols).length, y: D.M.marks.Y.every(p => D.M.G[p.ty * D.M.MW + p.tx] === 0), goal: document.getElementById('arcGoal').textContent }; });
-  ok(r.w && r.on && !r.exit && r.live === 0 && r.idols === 6 && r.y && /Dodged 0\/12/.test(r.goal), 'descent: the last slag gives way on the Ember Court: six furnace idols, no monsters, the gate shut, "Dodged 0/12"', r);
+  // the Ember Court: six dodged throws; then the idols wake and are shattered by luring their charges into each other
+  const freeze = async n => { if (!process.env.SHOTS) return; await M(() => { window.__pp.arc.paused = true; }); await T.shotP(n); await M(() => { window.__pp.arc.paused = false; }); };
+  r = await M(async () => { const D = window.__pp.arc.game._dbg, mod = D.RIFT.self.mod; await window.__w(1.6); const w = D.M.marks.W.every(p => D.M.G[p.ty * D.M.MW + p.tx] === 1);
+    D.me.x = 16.5; D.me.y = 27.5; await window.__w(1.4); const C = mod.court; return { w, on: C.on, phase: C.phase, exit: !!D.RIFT.exit, live: D.mons.filter(m => !m.dead).length, idols: Object.keys(mod.idols).length, y: D.M.marks.Y.every(p => D.M.G[p.ty * D.M.MW + p.tx] === 0), goal: document.getElementById('arcGoal').textContent, zoom: +D.g.zoom.toFixed(2) }; });
+  ok(r.w && r.on && r.phase === 'dodge' && !r.exit && r.live === 0 && r.idols === 6 && r.y && /Dodged 0\/6/.test(r.goal), 'court: the last slag gives way on the Ember Court: six furnace idols, no monsters, the gate shut, "Dodged 0/6"', r);
+  ok(r.zoom < 0.56, 'court: for the throws the camera eases out over the whole court', r.zoom);
   await M(() => { // __court(secs, mode, until): 'roll' presses DODGE (the real key) as a ball reaches the pet; 'stand' does nothing; 'step' side-steps at the last moment
     window.__force = n => { const C = window.__pp.arc.game._dbg.RIFT.self.mod.court; C.winds.length = 0; C.balls.length = 0; C.count = n; C.next = 0.01; };
     window.__court = async (secs, mode, until, keepHp) => { const P = window.__pp, G = P.arc.game, D = G._dbg, mod = D.RIFT.self.mod, C = mod.court, me = D.me; const home = { x: 16.5, y: 25.5 };
@@ -133,34 +143,65 @@ let fails = 0; const ok = (c, s, x) => { console.log((c ? 'ok   ' : 'FAIL ') + s
         for (const b of C.balls) { if (b.res) continue; const dd = Math.hypot(me.x - (b.kind === 'lob' ? b.tx : b.x), me.y - (b.kind === 'lob' ? b.ty : b.y));
           if (mode === 'roll' && !me.dodge && (b.kind === 'lob' ? b.dur - b.t < 0.12 && dd < b.R : dd < b.r + 0.9)) G.key('dodge', true);
           if (mode === 'step' && b.kind !== 'lob' && dd < 1.4) { const v = Math.hypot(b.vx, b.vy) || 1; me.x += -b.vy / v * 0.25; me.y += b.vx / v * 0.25; }
-          if (mode === 'step' && b.kind === 'lob' && dd < b.R + 0.3) { me.x += (me.x - b.tx) / (dd || 1) * 0.2; me.y += (me.y - b.ty) / (dd || 1) * 0.2; } } }, until, keepHp); return { count: C.count, hits: C.hits, voids: C.voids, far: C.far, log: C.log.slice(), done: C.done, winds: C.winds.length, balls: C.balls.length }; }; });
+          if (mode === 'step' && b.kind === 'lob' && dd < b.R + 0.3) { me.x += (me.x - b.tx) / (dd || 1) * 0.2; me.y += (me.y - b.ty) / (dd || 1) * 0.2; } } }, until, keepHp); return { count: C.count, hits: C.hits, voids: C.voids, far: C.far, log: C.log.slice(), phase: C.phase, winds: C.winds.length, balls: C.balls.length }; };
+    // __fight(secs, mode, until): 'lure' stands between the two awake idols and rolls as a charge reaches the pet; 'stand' does nothing
+    window.__fight = async (secs, mode, until, keepHp) => { const P = window.__pp, G = P.arc.game, D = G._dbg, mod = D.RIFT.self.mod, C = mod.court, me = D.me;
+      await window.__w(secs, () => { const A = mod.awake(), busy = A.some(t => t.st === 'charge' || t.st === 'wind');
+        if (mode === 'lure') { if (A.length === 2 && !busy) { const mx = (A[0].x + A[1].x) / 2, my = (A[0].y + A[1].y) / 2; me.x += (mx - me.x) * 0.15; me.y += (my - me.y) * 0.15; }
+          for (const t of A) if (t.st === 'charge' && !t.passed && !me.dodge && Math.hypot(me.x - t.x, me.y - t.y) < 1.7) G.key('dodge', true); } }, until, keepHp);
+      return { phase: C.phase, crashes: C.crashes, shattered: C.shattered, perfects: C.perfects, chargeHits: C.chargeHits, charges: C.charges, pair: C.pair, done: C.done }; }; });
+  await shot('court-dodge');
   // the first, teaching throw: slow, from the front, TAP DODGE!
   r = await M(async () => { const D = window.__pp.arc.game._dbg, C = D.RIFT.self.mod.court; await window.__court(4, 'stand', () => C.winds.length > 0 && C.winds[0].t > 0.6); const w = C.winds[0]; return { teach: w && w.teach, from: w && w.th.id, prompt: C.prompt > 0, dur: w && w.dur, speed: w && w.speed }; });
-  ok(r.teach && r.from === 'NE' && r.prompt && r.dur >= 1.4 && r.speed < 5, 'descent: the first throw is a slow teaching throw from the front, with the TAP DODGE prompt', r);
+  ok(r.teach && r.from === 'NE' && r.prompt && r.dur >= 1.4 && r.speed < 5, 'court: the first throw is a slow teaching throw from the front, with the TAP DODGE prompt', r);
   await shot('court-teach');
   r = await M(async () => { const D = window.__pp.arc.game._dbg, C = D.RIFT.self.mod.court, hp0 = D.me.hp; const o = await window.__court(5, 'stand', () => C.hits > 0, false); return Object.assign(o, { lost: +(hp0 - D.me.hp).toFixed(1), max: D.ST.hp }); });
-  ok(r.hits === 1 && r.count === 0 && r.lost > 0 && r.lost <= r.max * 0.08, 'descent: a throw that hits only chips (≤8%) and does not count', r);
+  ok(r.hits === 1 && r.count === 0 && r.lost > 0 && r.lost <= r.max * 0.08, 'court: a throw that hits only chips (≤8%) and does not count', r);
   r = await M(async () => { const C = window.__pp.arc.game._dbg.RIFT.self.mod.court; return window.__court(6, 'roll', () => C.count >= 1); });
-  ok(r.count === 1 && r.log.includes('roll'), 'descent: rolling through a throw with the DODGE key counts it', r);
+  ok(r.count === 1 && r.log.includes('roll'), 'court: rolling through a throw with the DODGE key counts it', r);
   r = await M(async () => { const C = window.__pp.arc.game._dbg.RIFT.self.mod.court; return window.__court(6, 'step', () => C.count >= 2); });
-  ok(r.count === 2 && r.log.includes('step'), 'descent: side-stepping a throw at close range counts it too', r);
-  r = await M(async () => { const C = window.__pp.arc.game._dbg.RIFT.self.mod.court, h0 = C.hits; const o = await window.__court(6, 'stand', () => C.hits > h0); return o; });
-  ok(r.count === 2 && r.hits >= 2, 'descent: a later hit never resets the counter', r);
-  // the escalation: crossfire, the rolling ball, the lobbed ball, the final volley
-  r = await M(async () => { const C = window.__pp.arc.game._dbg.RIFT.self.mod.court; window.__force(5); await window.__court(4, 'stand', () => C.winds.length >= 2); return { ids: C.winds.map(w => w.th.id), n: C.winds.length }; });
-  ok(r.n >= 2 && r.ids.includes('W') && r.ids.includes('E'), 'descent: at five, a crossfire from both sides at once', r);
+  ok(r.count === 2 && r.log.includes('step'), 'court: side-stepping a throw at close range counts it too', r);
+  r = await M(async () => { const C = window.__pp.arc.game._dbg.RIFT.self.mod.court; window.__force(2); await window.__court(4, 'stand', () => C.winds.length >= 2); return { ids: C.winds.map(w => w.th.id), n: C.winds.length }; });
+  ok(r.n >= 2 && r.ids.includes('W') && r.ids.includes('E'), 'court: at two, a crossfire from both sides at once', r);
   await shot('court-crossfire');
-  r = await M(async () => { const C = window.__pp.arc.game._dbg.RIFT.self.mod.court; await window.__court(5, 'roll', () => !C.winds.length && !C.balls.length); window.__force(7); await window.__court(3, 'roll', () => C.winds.length > 0); const k1 = C.winds.map(w => w.kind);
-    await window.__court(6, 'roll', () => !C.winds.length && !C.balls.length); window.__force(8); await window.__court(4, 'stand', () => C.balls.some(b => b.kind === 'lob' && b.t > 0.5)); const k2 = C.balls.map(b => b.kind); return { k1, k2 }; });
-  ok(r.k1.includes('roll') && r.k2.includes('lob'), 'descent: then a rolling ball, then a lobbed ball with its landing circle', r);
-  await shot('court-lob');
-  r = await M(async () => { const C = window.__pp.arc.game._dbg.RIFT.self.mod.court; await window.__court(5, 'roll', () => !C.balls.length && !C.winds.length); window.__force(9); await window.__court(3, 'roll', () => C.winds.length + C.balls.length >= 2); return { ids: C.winds.map(w => w.th.id), balls: C.balls.length, count: C.count }; });
-  ok(r.ids.length + r.balls >= 2, 'descent: from nine, the final volley of three quick throws', r);
-  await shot('court-volley');
-  r = await M(async () => { const D = window.__pp.arc.game._dbg, mod = D.RIFT.self.mod, C = mod.court; const o = await window.__court(40, 'roll', () => C.done); await window.__w(2, null, () => !!D.RIFT.exit);
-    return Object.assign(o, { exit: !!D.RIFT.exit, gate: D.M.marks.Y.every(p => D.M.G[p.ty * D.M.MW + p.tx] === 1), cool: Object.values(mod.idols).every(i => i.cool > 0), goal: document.getElementById('arcGoal').textContent }); });
-  ok(r.done && r.count === 12 && r.exit && r.gate && r.cool, 'descent: twelve dodged: the idols go dark, the gate and the way to Ifrit open', r);
-  await M(() => { const D = window.__pp.arc.game._dbg; D.me.x = 16.5; D.me.y = 22; }); await T.runG(1.2); await shot('court-done');
+  r = await M(async () => { const C = window.__pp.arc.game._dbg.RIFT.self.mod.court; await window.__court(5, 'roll', () => !C.winds.length && !C.balls.length); window.__force(4); await window.__court(4, 'stand', () => C.balls.some(b => b.kind === 'lob' && b.t > 0.5)); return { k: C.balls.map(b => b.kind), count: C.count }; });
+  ok(r.k.includes('lob'), 'court: at four, a lobbed ball with its landing circle', r);
+  r = await M(async () => { const C = window.__pp.arc.game._dbg.RIFT.self.mod.court; await window.__court(5, 'roll', () => !C.balls.length && !C.winds.length); window.__force(5); const o = await window.__court(12, 'roll', () => C.phase !== 'dodge'); return Object.assign(o, { attacks: C.attacks }); });
+  ok(r.count === 6 && r.phase === 'wake', 'court: the dodges count to six (the last a short volley), then the idols wake', r);
+  // the waking: they crack, the first two leap down and stomp onto the court
+  r = await M(async () => { const D = window.__pp.arc.game._dbg, mod = D.RIFT.self.mod, C = mod.court; await window.__w(1.3); return Object.values(mod.idols).map(i => i.st).join(); });
+  ok(r.split(',').every(s => s === 'crack'), 'court: all six crack', r);
+  await freeze('court-wake');
+  r = await M(async () => { const D = window.__pp.arc.game._dbg, mod = D.RIFT.self.mod, C = mod.court; await window.__w(1.3); const leap = Object.values(mod.idols).filter(i => i.st === 'leap').map(i => i.id + ':' + i.z.toFixed(1)); return { leap }; });
+  ok(r.leap.length === 2, 'court: the first two leap from their pillars', r);
+  await freeze('court-leap');
+  r = await M(async () => { const D = window.__pp.arc.game._dbg, mod = D.RIFT.self.mod, C = mod.court; await window.__w(5, null, () => C.phase === 'fight'); await window.__w(1.4, () => { D.me.x = 16.5; D.me.y = 27.5; }, () => C.charges > 0);
+    return { phase: C.phase, awake: mod.awake().map(i => i.id).sort().join(), inCourt: mod.awake().every(i => mod.ecIn(i.x, i.y)), mons: D.mons.filter(m => !m.dead && m.calIdol).length, pillar: Object.values(mod.idols).filter(i => i.st === 'crack').length, goal: document.getElementById('arcGoal').textContent, zoom: +D.g.zoom.toFixed(2) }; });
+  ok(r.phase === 'fight' && r.awake === 'E,W' && r.inCourt && r.mons === 2 && r.pillar === 4 && /0\/6 shattered/.test(r.goal), 'court: W and E stomp down onto the court and hunt; four wait cracked on their pillars', r);
+  ok(r.zoom >= 0.58 && r.zoom <= 0.72, 'court: in the fight, a middle zoom (the charge lanes readable)', r.zoom);
+  // blows alone barely scratch them
+  r = await M(async () => { const D = window.__pp.arc.game._dbg, mod = D.RIFT.self.mod, th = mod.idols.W; for (let i = 0; i < 80; i++) D.hitMon(th.m, 99999, {}); await window.__w(0.2); return { hp: th.hp, cracks: th.cracks, st: th.st, mon: !!th.m && !th.m.dead }; });
+  ok(r.hp >= 90 && r.cracks === 0 && r.st !== 'dead' && r.mon, 'court: eighty huge blows only scratch an idol (stone at 90% or more, uncracked)', r);
+  // a charge that hits the pet only chips; the first winds up slowly with the prompt
+  r = await M(async () => { const D = window.__pp.arc.game._dbg, mod = D.RIFT.self.mod, C = mod.court; await window.__fight(6, 'none', () => C.charges > 0); const w = mod.awake().find(t => t.st === 'wind'); const o = { dur: w && w.dur, prompt: C.prompt > 0, word: C.promptWord }; await window.__w(1.0, () => {}, () => w && w.lockd); return o; });
+  ok(r.dur >= 1.7 && r.prompt && /LAST MOMENT/.test(r.word), 'court: the first charge winds up slowly (~1.8 s), "DODGE AT THE LAST MOMENT!"', r);
+  await freeze('court-lane');
+  r = await M(async () => { const D = window.__pp.arc.game._dbg, mod = D.RIFT.self.mod, C = mod.court, hp0 = D.me.hp; const h0 = C.chargeHits; C.noLure = true; await window.__fight(8, 'stand', () => C.chargeHits > h0, false); await window.__w(0.1, null, null, false); C.noLure = false; return { hits: C.chargeHits - h0, lost: +(hp0 - D.me.hp).toFixed(1), max: D.ST.hp, dead: D.me.dead }; });
+  ok(r.hits === 1 && r.lost > 0 && r.lost <= r.max * 0.085 && !r.dead, 'court: a charge that hits the pet only chips (≤8%)', r);
+  // the lure: between them, a late dodge: the charge carries on into the other idol, and both crack
+  r = await M(async () => { const D = window.__pp.arc.game._dbg, mod = D.RIFT.self.mod, C = mod.court; await window.__fight(25, 'lure', () => C.crashes > 0); const i = mod.idols; return { crashes: C.crashes, perfects: C.perfects, W: [i.W.cracks, i.W.hp], E: [i.E.cracks, i.E.hp] }; });
+  ok(r.crashes === 1 && r.perfects >= 1 && r.W[0] === 1 && r.E[0] === 1 && r.W[1] <= 50 && r.E[1] <= 50, 'court: dodged at the last moment (PERFECT DODGE), the charge smashes into the other idol: both crack', r);
+  await freeze('court-crash');
+  r = await M(async () => { const D = window.__pp.arc.game._dbg, mod = D.RIFT.self.mod, C = mod.court; await window.__fight(30, 'lure', () => C.shattered > 0); await window.__w(0.25); return { shattered: C.shattered, W: mod.idols.W.st, E: mod.idols.E.st, mons: D.mons.filter(m => !m.dead && m.calIdol).length }; });
+  ok(r.shattered === 2 && r.W === 'dead' && r.E === 'dead' && r.mons === 0, 'court: a second crash shatters both', r);
+  await freeze('court-shatter');
+  r = await M(async () => { const D = window.__pp.arc.game._dbg, mod = D.RIFT.self.mod, C = mod.court; await window.__fight(8, 'lure', () => C.pair === 1 && mod.awake().length === 2); return { pair: C.pair, awake: mod.awake().map(i => i.id).sort().join() }; });
+  ok(r.pair === 1 && r.awake === 'NW,SE', 'court: then NW and SE wake', r);
+  r = await M(async () => { const D = window.__pp.arc.game._dbg, mod = D.RIFT.self.mod, C = mod.court; let together = false; const o = await window.__fight(90, 'lure', () => { if (C.pair === 2 && mod.awake().filter(t => t.st === 'wind').length === 2) together = true; return C.done; }); await window.__w(2, null, () => !!D.RIFT.exit);
+    return Object.assign(o, { together, exit: !!D.RIFT.exit, gate: D.M.marks.Y.every(p => D.M.G[p.ty * D.M.MW + p.tx] === 1), mons: D.mons.filter(m => !m.dead && m.calIdol).length, goal: document.getElementById('arcGoal').textContent }); });
+  ok(r.done && r.shattered === 6 && r.together && r.exit && r.gate && r.mons === 0, 'court: the last two charge together; all six shattered: the gate and the way to Ifrit open', r);
+  await M(() => window.__w(2.4, () => { const D = window.__pp.arc.game._dbg; D.me.x = 16.5; D.me.y = 22; })); r = await zoom(); ok(r > 0.95, 'court: fallen, the camera eases back in', r);
+  await shot('court-done');
   await M(() => { const D = window.__pp.arc.game._dbg; D.me.x = 16.5; D.me.y = 14; }); await T.runG(1.0); await shot('descent-overlook');
   await exitStage(); r = await T.rs(); ok(r.prog.caldera === idx.D + 1, 'descent: the door ends the stage (Ifrit next)', r.prog);
 

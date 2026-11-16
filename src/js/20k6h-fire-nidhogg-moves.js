@@ -452,6 +452,9 @@ float fbm(vec2 p){ float s = 0.0, a = 0.5; for (int i = 0; i < 5; i++) { s += a 
 vec3 ramp(float k){ k = clamp(k, 0.0, 1.2); vec3 c = mix(vec3(0.0), vec3(0.62, 0.1, 0.03), smoothstep(0.0, 0.25, k)); c = mix(c, vec3(0.95, 0.32, 0.09), smoothstep(0.2, 0.45, k)); c = mix(c, vec3(1.0, 0.6, 0.2), smoothstep(0.42, 0.65, k)); c = mix(c, vec3(1.0, 0.86, 0.42), smoothstep(0.62, 0.85, k)); return mix(c, vec3(1.0, 0.98, 0.9), smoothstep(0.85, 1.1, k)); }
 float sq(float x){ return x * x; }
 vec3 eramp(float k, vec3 c){ k = clamp(k, 0.0, 1.2); vec3 r = mix(vec3(0.0), c * 0.3, smoothstep(0.0, 0.22, k)); r = mix(r, c, smoothstep(0.18, 0.55, k)); r = mix(r, mix(c, vec3(1.0), 0.55), smoothstep(0.55, 0.85, k)); return mix(r, vec3(1.0), smoothstep(0.85, 1.1, k)); }   /* (v354) the fire ramp in any colour: dark, the colour, pale, white-hot */
+float fth(float k){ float d = k - floor(k + 0.5); return d > 0.02 ? 0.2 + (d - 0.05) * 1.5 : 0.0; }   /* (v388 E) a beam's far-end feather (0: an inner link): how much of its length it thins and fades over */
+float fte(float al, float fe){ return fe > 0.0 ? clamp((al - 1.0 + fe) / fe, 0.0, 1.0) : 0.0; }   /* (v388 E) 0..1 through that feather */
+float ftk(float e){ float s = 1.0 - smoothstep(0.0, 1.0, e); return s * sqrt(s); }   /* (v388 E) the fade through it: no edge, a long soft tail */
 float h3(vec3 p){ p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
 float n3(vec3 x){ vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f); return mix(mix(mix(h3(i), h3(i + vec3(1.0, 0.0, 0.0)), f.x), mix(h3(i + vec3(0.0, 1.0, 0.0)), h3(i + vec3(1.0, 1.0, 0.0)), f.x), f.y), mix(mix(h3(i + vec3(0.0, 0.0, 1.0)), h3(i + vec3(1.0, 0.0, 1.0)), f.x), mix(h3(i + vec3(0.0, 1.0, 1.0)), h3(i + vec3(1.0, 1.0, 1.0)), f.x), f.y), f.z); }
 float fbm3(vec3 p){ return 0.5 * n3(p) + 0.27 * n3(p * 2.07 + 3.1) + 0.15 * n3(p * 4.13 + 7.7) + 0.08 * n3(p * 8.3 + 1.3); }
@@ -486,8 +489,8 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
     c += vec3(0.95, 0.3, 0.08) * fres * (0.35 + 0.3 * f) + vec3(1.0, 0.9, 0.72) * pow(lit, 26.0) * 0.18;   /* (the hot limb; a soft sheen) */
     a *= v_c.a * pk; gl_FragColor = vec4(min(c, vec3(1.0)) * a, a); }
   else if (v_k > 10.5 && v_k < 11.5) { // the body of a fire beam (solid, under its light): it keeps its colour over a pale floor
-    float al = u.x * 0.5 + 0.5, f = fbm(vec2(al * 6.0 - t * v_q.z, u.y * 2.2 + v_q.y)), ay = abs(u.y) / (0.62 + 0.4 * f);
-    float dns = (1.0 - smoothstep(0.45, 0.95, ay)) * smoothstep(0.0, 0.06, al) * (1.0 - smoothstep(0.9, 1.0, al)), temp = v_q.x * (1.2 - ay * 1.05) + (f - 0.5) * 0.4, a = dns * v_c.a * pk * smoothstep(0.1, 0.45, temp);
+    float al = u.x * 0.5 + 0.5, fe = fth(v_k), ee = fte(al, fe), f = fbm(vec2(al * 6.0 - t * v_q.z, u.y * 2.2 + v_q.y)), ay = abs(u.y) / (0.62 + 0.4 * f) / (1.0 - 0.6 * ee);   /* (v388 E: a far end feathers out) */
+    float dns = (1.0 - smoothstep(0.45, 0.95, ay)) * smoothstep(0.0, 0.06, al) * (fe > 0.0 ? ftk(ee) : 1.0 - smoothstep(0.9, 1.0, al)), temp = (v_q.x * (1.2 - ay * 1.05) + (f - 0.5) * 0.4) * (1.0 - 0.3 * ee), a = dns * v_c.a * pk * smoothstep(0.1, 0.45, temp);
     gl_FragColor = vec4(ramp(min(temp, 0.78)) * 0.9 * a, a); }
   else if (v_k > 9.5 && v_k < 10.5) { // the body of fire (the solid pass, under its light): the same turbulent ball, its colour laid over so it reads on a bright floor
     vec2 w = u + 0.22 * vec2(fbm(u * 2.0 + vec2(t * 0.7, -t * 1.6)) - 0.5, fbm(u * 2.0 + vec2(5.2, -t * 1.9)) - 0.5); float rr = length(w), f = fbm(w * 3.0 + vec2(0.0, -t * 2.2)), dns = 1.0 - smoothstep(0.4 + 0.35 * f, 0.95, rr);
@@ -646,8 +649,8 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
       float brk = smoothstep(0.28, 0.68, sg), dns = body * (0.3 + 0.7 * brk) * (0.45 + 0.8 * f2), temp = v_q.x * (0.5 + 0.55 * lead * (0.6 + 0.4 * brk) + 0.4 * (f2 - 0.5) - 0.25 * clamp(-d / th, 0.0, 1.0));
       L = eramp(temp, col) * dns + eramp(v_q.x * 0.8, col) * lead * brk * 0.32 * (0.6 + 0.6 * f2) + col * exp(-sq(d / (th * 2.6))) * step(d, 0.0) * 0.14 * f; L *= 1.0 - smoothstep(1.18, 1.3, rr); }
     else if (v_k > 19.5) { // (v354) a beam of energy in the quad's colour (as a fire beam: uv.x along, uv.y across; v_q.z its scroll)
-      float al = u.x * 0.5 + 0.5, f = fbm(vec2(al * 6.0 - t * v_q.z, u.y * 2.2 + v_q.y)), f2 = fbm(vec2(al * 13.0 - t * v_q.z * 1.6, u.y * 4.0 - 3.0)), ay = abs(u.y) / (0.62 + 0.4 * f);
-      float dns = (1.0 - smoothstep(0.5, 1.0, ay)) * smoothstep(0.0, 0.22, al) * (1.0 - smoothstep(0.78, 1.0, al)), temp = v_q.x * (1.2 - ay * 1.05) + (f2 - 0.5) * 0.5; L = eramp(temp, col) * dns * (0.55 + 0.6 * f) * (1.0 - smoothstep(0.85, 1.0, abs(u.y))); }
+      float al = u.x * 0.5 + 0.5, fe = fth(v_k), ee = fte(al, fe), f = fbm(vec2(al * 6.0 - t * v_q.z, u.y * 2.2 + v_q.y)), f2 = fbm(vec2(al * 13.0 - t * v_q.z * 1.6, u.y * 4.0 - 3.0)), ay = abs(u.y) / (0.62 + 0.4 * f) / (1.0 - 0.6 * ee);   /* (v388 E: a far end feathers out) */
+      float dns = (1.0 - smoothstep(0.5, 1.0, ay)) * smoothstep(0.0, 0.22, al) * (fe > 0.0 ? ftk(ee) : 1.0 - smoothstep(0.78, 1.0, al)), temp = (v_q.x * (1.2 - ay * 1.05) + (f2 - 0.5) * 0.5) * (1.0 - 0.35 * ee); L = eramp(temp, col) * dns * (0.55 + 0.6 * f) * (1.0 - smoothstep(0.85, 1.0, abs(u.y))); }
     else if (v_k > 18.5) { // (v354) an orb of energy in the quad's colour: a turbulent, swirling ball, hottest in its heart (v_q.z swirl)
       float sw = v_q.z * t; vec2 rw = mat2(cos(sw), -sin(sw), sin(sw), cos(sw)) * u; vec2 w = rw + 0.24 * vec2(fbm(rw * 2.0 + vec2(t * 0.7, -t * 1.6) + v_q.y) - 0.5, fbm(rw * 2.0 + vec2(5.2, -t * 1.9) + v_q.y) - 0.5); float rr = length(w), f = fbm(w * 3.2 + vec2(v_q.y, -t * 2.2)), dns = 1.0 - smoothstep(0.42 + 0.36 * f, 0.98, rr);
       float temp = v_q.x * (1.15 - rr * 0.95) + (f - 0.5) * 0.55; L = eramp(temp, col) * dns * (0.5 + 0.6 * f) + col * exp(-r * r * 3.0) * 0.18 * edge; }
@@ -683,7 +686,7 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
       L *= 1.0 - smoothstep(1.45, 1.7, rr); }
     else if (v_k < 0.5) L = col * exp(-r * r * 4.2) * edge * 0.6;                                                              // a glow
     else if (v_k < 1.5) { float d = max((v_q.x - r) / v_q.z, 0.0); L = mix(col, vec3(1.0), 0.6 * exp(-d * 12.0)) * (1.0 - smoothstep(v_q.x - 0.012, v_q.x + 0.01, r)) * (0.4 * exp(-d * 2.4) + 0.7 * exp(-d * 12.0)); }   // a ring
-    else if (v_k < 2.5) L = col * exp(-u.y * u.y * 5.0) * (1.0 - smoothstep(0.6, 1.0, abs(u.x)));                       // a beam
+    else if (v_k < 2.5) { float fe = fth(v_k), ee = fte(u.x * 0.5 + 0.5, fe), wy = u.y / (1.0 - 0.6 * ee); L = col * exp(-wy * wy * 5.0) * (fe > 0.0 ? (1.0 - smoothstep(0.6, 1.0, -u.x)) * ftk(ee) : 1.0 - smoothstep(0.6, 1.0, abs(u.x))); }   // a beam (v388 E: its far end feathers out when it ends a line)
     else if (v_k < 3.5) { // a ball of fire
       vec2 w = u + 0.22 * vec2(fbm(u * 2.0 + vec2(t * 0.7, -t * 1.6)) - 0.5, fbm(u * 2.0 + vec2(5.2, -t * 1.9)) - 0.5); float rr = length(w), f = fbm(w * 3.0 + vec2(0.0, -t * 2.2)), dns = 1.0 - smoothstep(0.45 + 0.35 * f, 0.98, rr);
       float temp = v_q.x * (1.15 - rr * 0.95) + (f - 0.5) * 0.55; L = ramp(min(temp, 0.74 + 0.4 * smoothstep(0.9, 1.2, v_q.x))) * dns * (0.5 + 0.55 * f); }   /* (white only in a very hot ball's heart) */
@@ -697,8 +700,8 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
       float f = fbm(u * 3.0 + v_q.y), cr = 1.0 - smoothstep(0.0, 0.06, abs(fbm(u * 4.0 + v_q.y * 2.0) - 0.5)), rad = exp(-r * r * 2.6) * edge;
       float temp = v_q.x * (0.55 * rad + 0.35 * f * rad + 0.8 * cr * smoothstep(1.0, 0.2, r)); L = ramp(temp) * (0.5 + 0.5 * f) * rad + ramp(v_q.x * 0.9) * cr * smoothstep(1.0, 0.25, r) * 0.7 * v_q.z; }
     else if (v_k < 6.5) { // a fire beam: uv.x along (-1 mouth .. 1 end), uv.y across
-      float al = u.x * 0.5 + 0.5, f = fbm(vec2(al * 6.0 - t * v_q.z, u.y * 2.2 + v_q.y)), f2 = fbm(vec2(al * 13.0 - t * v_q.z * 1.6, u.y * 4.0 - 3.0)), ay = abs(u.y) / (0.62 + 0.4 * f);
-      float dns = (1.0 - smoothstep(0.5, 1.0, ay)) * smoothstep(0.0, 0.05, al) * (1.0 - smoothstep(0.92, 1.0, al)), temp = v_q.x * (1.2 - ay * 1.05) + (f2 - 0.5) * 0.5; L = ramp(temp) * dns * (0.55 + 0.6 * f); }
+      float al = u.x * 0.5 + 0.5, fe = fth(v_k), ee = fte(al, fe), f = fbm(vec2(al * 6.0 - t * v_q.z, u.y * 2.2 + v_q.y)), f2 = fbm(vec2(al * 13.0 - t * v_q.z * 1.6, u.y * 4.0 - 3.0)), ay = abs(u.y) / (0.62 + 0.4 * f) / (1.0 - 0.6 * ee);   /* (v388 E: a far end feathers out) */
+      float dns = (1.0 - smoothstep(0.5, 1.0, ay)) * smoothstep(0.0, 0.05, al) * (fe > 0.0 ? ftk(ee) : 1.0 - smoothstep(0.92, 1.0, al)), temp = (v_q.x * (1.2 - ay * 1.05) + (f2 - 0.5) * 0.5) * (1.0 - 0.35 * ee); L = ramp(temp) * dns * (0.55 + 0.6 * f); }
     else if (v_k < 7.5) { vec2 a = abs(u); L = col * (exp(-a.x * 2.5) * exp(-a.y * 30.0) + exp(-a.y * 2.5) * exp(-a.x * 30.0)) * edge; }   // a sparkle
     else { float n = fbm(vec2(atan(u.y, u.x) * 3.0, r * 6.0 - t * 2.0)); L = col * (exp(-sq((r - 0.82) / 0.07)) + 0.6 * exp(-sq((r - 0.68) / 0.05))) * (0.4 + 0.8 * n) * edge; }   // heat shimmer
     L *= pk;
@@ -776,7 +779,25 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
   function begin(c, pet) { const B = c.getTransform(), cv0 = c.canvas, L = LOWQ(), k0 = Math.min(L ? 0.42 : 0.7, 1500 / Math.max(cv0.width, cv0.height));   /* (v364: a finer GPU layer: 1500 px on the long side, was 1200) */ Q.W = Math.max(8, Math.round(cv0.width * k0)); Q.Hh = Math.max(8, Math.round(cv0.height * k0)); const kx = Q.W / cv0.width;
     Q.a = B.a * kx; Q.b = B.b * kx; Q.c0 = B.c * kx; Q.d = B.d * kx; Q.e = B.e * kx; Q.f = B.f * kx; Q.k = (Math.sqrt(Math.abs(B.a * B.d - B.b * B.c)) || 1) * kx; Q.nl = Q.ns = Q.nwl = Q.nws = 0; Q.t = (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000 % 1000;
     if (pet) { Q.pet[0] = Q.X(pet[0], pet[1]); Q.pet[1] = Q.Y(pet[0], pet[1]); Q.pet[2] = pet[2] * Q.k; } else Q.pet[2] = 0; return Q; }
-  function flush(c) { if (!Q.nl && !Q.ns && !Q.nwl && !Q.nws) return; if (!usable()) return; try { const W = Q.W, Hh = Q.Hh; if (cv.width !== W || cv.height !== Hh) { cv.width = W; cv.height = Hh; }   /* (v326: one layer at a time, the whole canvas copied each time: no source rectangles at all, so no browser can crop or misplace a half) */
+  /* (v388 E: every beam's far end feathers out) beams (kinds 2, 6, 11, 20) are laid as chains of overlapping stretches
+     whose ends fade over only their last tenth or fifth (so the links sum to one where they overlap); the last stretch of a
+     chain, or a lone stretch, therefore stopped in a short, blunt cut (the ult's column of light, eye beams, fire columns).
+     Before drawing, each beam quad with no stretch of its own kind carrying on from its far end is marked in the fraction of
+     its kind (kind + 0.05..0.45): the shader then thins and fades it to nothing over a stretch of about 1.7 of its widths
+     (at least a fifth of it, at most seven tenths), whatever its length, zoom or the screen. Inner links are untouched */
+  let FE = new Float32Array(10 * 1024);
+  function featherEnds(A, nv) { const nq = nv / 6; let m = 0;
+    for (let q = 0; q < nq; q++) { const o = q * 72, k = A[o + 4]; if (k !== 2 && k !== 6 && k !== 11 && k !== 20) continue;
+      if ((m + 1) * 10 > FE.length) { const z = new Float32Array(FE.length * 2); z.set(FE); FE = z; }
+      const x0 = A[o], y0 = A[o + 1], x1 = A[o + 12], y1 = A[o + 13], x5 = A[o + 60], y5 = A[o + 61], ux = (x1 - x0) / 2, uy = (y1 - y0) / 2, hl = Math.hypot(ux, uy) || 1e-6, cx = (x0 + x5) / 2, cy = (y0 + y5) / 2, p = m * 10;
+      FE[p] = o; FE[p + 1] = k; FE[p + 2] = cx - ux; FE[p + 3] = cy - uy; FE[p + 4] = cx + ux; FE[p + 5] = cy + uy; FE[p + 6] = ux / hl; FE[p + 7] = uy / hl; FE[p + 8] = hl; FE[p + 9] = Math.hypot(x5 - x1, y5 - y1) / 2; m++; }
+    for (let i = 0; i < m; i++) { const p = i * 10, k = FE[p + 1], ex = FE[p + 4], ey = FE[p + 5], dx = FE[p + 6], dy = FE[p + 7], hl = FE[p + 8], hw = FE[p + 9], tol = Math.max(hl * 0.95, hw * 1.2); let linked = false;
+      for (let j = Math.max(0, i - 48), j1 = Math.min(m, i + 49); j < j1 && !linked; j++) { if (j === i) continue; const r = j * 10; if (FE[r + 1] !== k || FE[r + 8] < hl * 0.3 || FE[r + 8] > hl * 3.3) continue;
+        const qx = ex - FE[r + 2], qy = ey - FE[r + 3]; if (qx * qx + qy * qy > tol * tol || dx * FE[r + 6] + dy * FE[r + 7] < 0.2 || qx * dx + qy * dy < -0.35 * hl) continue; linked = true; }
+      if (linked) continue;
+      const fe = Math.max(0.2, Math.min(0.7, 1.7 * hw / (2 * hl))), kk = k + 0.05 + (fe - 0.2) / 1.5, o = FE[p];
+      for (let v = 0; v < 6; v++) A[o + v * 12 + 4] = kk; } }
+  function flush(c) { if (!Q.nl && !Q.ns && !Q.nwl && !Q.nws) return; if (!usable()) return; try { const W = Q.W, Hh = Q.Hh; featherEnds(Q.lit, Q.nl); featherEnds(Q.smk, Q.ns);   /* (v388 E) */ if (cv.width !== W || cv.height !== Hh) { cv.width = W; cv.height = Hh; }   /* (v326: one layer at a time, the whole canvas copied each time: no source rectangles at all, so no browser can crop or misplace a half) */
       gl.viewport(0, 0, W, Hh); gl.clearColor(0, 0, 0, 0); gl.enable(gl.BLEND); gl.useProgram(PR.p); gl.uniform2f(PR.U.u_res, W, Hh); gl.uniform1f(PR.U.u_t, Q.t); gl.uniform3f(PR.U.u_pet, Q.pet[0], Q.pet[1], Q.pet[2]); gl.bindBuffer(gl.ARRAY_BUFFER, bq);
       const attr = (i, n, off) => { gl.enableVertexAttribArray(i); gl.vertexAttribPointer(i, n, gl.FLOAT, false, 48, off * 4); }; let draws = 0;
       const use = P => { gl.useProgram(P.p); gl.uniform2f(P.U.u_res, W, Hh); gl.uniform1f(P.U.u_t, Q.t); gl.uniform3f(P.U.u_pet, Q.pet[0], Q.pet[1], Q.pet[2]); };

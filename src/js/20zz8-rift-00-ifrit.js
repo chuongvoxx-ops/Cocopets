@@ -539,7 +539,7 @@ const CAL_IFRIT = (() => {
   /* ================= the fight ================= */
   const WARN = '#FF5A1E', HOT = '#FFB347', FROST = '#BFEFFF', FROST_HI = '#F2FCFF', BF = '#9B4DFF', BF_HI = '#E2B8FF';
   const CYC = { 1: ['fist', 'breath', 'fault', 'fist', 'fault', 'breath'], 2: ['cleave', 'fist', 'rocks', 'breath', 'cleave', 'fault', 'rocks', 'fist'], 3: ['fist', 'cleave', 'breath', 'rocks', 'fault', 'cleave', 'fist', 'rocks'] };
-  const TUNE = { hp: 16500, dmg: 18,   /* (QA v386: was 8000 / 11, for a level-1 pet; the pet arrives here at about level 10, HP ~200) */ crystHp: 0.024, hellEvery: 24, hellFirst: 3.5, hellCharge: 8, kneel: 6, missK: 0.5, stagger: 1.8 };
+  const TUNE = { hp: 33000, dmg: 18,   /* (v388: health doubled at the user's request; crystHp halved so the crystals stay as tough) */   /* (QA v386: was 8000 / 11, for a level-1 pet; the pet arrives here at about level 10, HP ~200) */ crystHp: 0.012, hellEvery: 24, hellFirst: 3.5, hellCharge: 8, kneel: 6, missK: 0.5, stagger: 1.8 };
   const sf = (FX, k, ...a) => { const s = FX.H && FX.H.sfx; if (s && s[k]) try { s[k](...a); } catch (e) { /* no sound */ } };
   const toward = (v, w, dt, k) => (v || 0) + (w - (v || 0)) * Math.min(1, dt * k);
   const angTo = (a, b) => { let d = b - a; while (d > Math.PI) d -= TAU; while (d < -Math.PI) d += TAU; return d; };

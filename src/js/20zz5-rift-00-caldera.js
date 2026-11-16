@@ -363,10 +363,25 @@ CAL.bossMake = CAL.bossMake || {};
   GAP_EXT.calderalava = { base: '#FF6A1F',
     paint(c, S, R) { crustTile(c, S, R, 34, 'crust');
       for (let i = 0; i < 18; i++) { const x = R() * S, y = R() * S; c.fillStyle = `rgba(255,${200 + Math.floor(R() * 55)},140,${0.25 + R() * 0.4})`; c.beginPath(); c.arc(x, y, 0.6 + R() * 0.8, 0, TAU); c.fill(); } },
-    back(c, o) { const { pat, pattern, k, W, H, t, P, bigGlow } = o; pat(pattern('calderalava', k), 0.94, W / 2 + t * 2.4, H / 2 + t * 1.2);
-      c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = lowFx() ? 0.2 : 0.22 + 0.1 * Math.sin(t * 1.3); pat(pattern('calderaflow', k), 0.97, W / 2 - t * 5, H / 2 + t * 3);
-      if (!lowFx()) { c.globalAlpha = 0.1 + 0.05 * Math.sin(t * 0.7); bigGlow(c, P, '#FF7A2A', W * 0.15 - (o.wx * 0.04) % (W * 0.5), H * 0.2, W * 0.7); } c.restore(); } };
+    back(c, o) { const { pat, pattern, k, W, H, t, P, bigGlow } = o; const far = FAR.here && !FAR.off; pat(pattern(far ? 'calderalavafar' : 'calderalava', k), far ? FAR.par : 0.94, W / 2 + t * 2.4, H / 2 + t * 1.2);
+      c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = lowFx() ? 0.2 : 0.22 + 0.1 * Math.sin(t * 1.3); pat(pattern(far ? 'calderaflowfar' : 'calderaflow', k), far ? FAR.par + 0.03 : 0.97, W / 2 - t * 5, H / 2 + t * 3);
+      if (!lowFx()) { c.globalAlpha = 0.1 + 0.05 * Math.sin(t * 0.7); bigGlow(c, P, '#FF7A2A', W * 0.15 - (o.wx * 0.04) % (W * 0.5), H * 0.2, W * 0.7); } c.restore(); farHaze(c, o, 'rgba(46,14,8,.16)'); } };
   GAP_EXT.calderaflow = { base: '#000000', paint(c, S, R) { crustTile(c, S, R, 9, 'flow'); }, back(c, o) { o.grad('#200805', '#0A0302'); } };
+  /* (v388, the user: blur the lava below the ledges so it reads as far away.) The Ashen Hollows' lava (the user: there only) gets a '<kind>far' twin:
+     the same tile, softened once when it is made (a box blur run three times, wrapping at the edges so the pattern still
+     tiles), so it costs nothing per frame and works on every browser (no ctx.filter, which iPhone Safari lacks). The
+     backdrop draws the far twin a little slower than the camera (parallax) under a faint haze; the ledges, their lit
+     cliff faces and the walkable lava pools on the floor stay sharp, which is what sells the depth. */
+  const FAR = { r: 2, passes: 3, par: 0.8, here: false };   // (the user: only in the Ashen Hollows; here is set per stage by everyStage)
+  function wrapBlur(cv, S, r, passes) { const c = cv.getContext('2d'), img = c.getImageData(0, 0, S, S), a = img.data, b = new Float32Array(a.length), n = 2 * r + 1;
+    const run = (src, dst, horiz) => { for (let j = 0; j < S; j++) for (let ch = 0; ch < 4; ch++) { let s = 0; const at = i => { i = ((i % S) + S) % S; return (horiz ? j * S + i : i * S + j) * 4 + ch; };
+      for (let i = -r; i <= r; i++) s += src[at(i)]; for (let i = 0; i < S; i++) { dst[at(i)] = s / n; s += src[at(i + r + 1)] - src[at(i - r)]; } } };
+    const f = Float32Array.from(a); for (let p = 0; p < passes; p++) { run(f, b, true); run(b, f, false); }
+    for (let i = 0; i < a.length; i++) a[i] = f[i]; c.putImageData(img, 0, 0); }
+  function farGap(kind) { const src = GAP_EXT[kind]; GAP_EXT[kind + 'far'] = { base: src.base, back: src.back,
+    paint(c, S, R) { const cv = document.createElement('canvas'); cv.width = cv.height = S; src.paint(cv.getContext('2d'), S, R); wrapBlur(cv, S, FAR.r, FAR.passes); c.save(); c.imageSmoothingEnabled = true; c.drawImage(cv, 0, 0, S, S); c.restore(); } }; }
+  const farHaze = (c, o, col) => { if (FAR.off || !FAR.here) return; c.save(); c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1; c.fillStyle = col; c.fillRect(0, 0, o.W, o.H); c.restore(); };
+  farGap('calderalava'); farGap('calderaflow'); CAL.FAR = FAR;   // (tests: CAL.FAR.off shows the old sharp lava)
   /* ---- the floors ---- */
   const edgeGlow = (c, X, Y, T, gN, gS, gW, gE, a) => { if (!(gN || gS || gW || gE)) return; c.save(); c.globalCompositeOperation = 'lighter';
     const side = (x0, y0, x1, y1, w, h) => { const g = c.createLinearGradient(x0, y0, x1, y1); g.addColorStop(0, `rgba(255,110,40,${a})`); g.addColorStop(0.5, `rgba(255,80,30,${a * 0.3})`); g.addColorStop(1, 'rgba(255,80,30,0)'); c.fillStyle = g; c.fillRect(Math.min(x0, x1), Math.min(y0, y1), w, h); };
@@ -1190,12 +1205,71 @@ CAL.bossMake = CAL.bossMake || {};
     glassheart: { dmgK: 0.8, fight: 'The Glass Heart', mobs: ['shardling', 'geodeling', 'crystalwisp', 'ashenknight', 'shardling', 'geodeling', 'crystalwisp', 'shardling'], champ: { type: 'ashenknight', name: 'The Glassblade Knight', hpK: 4.0 } },
   };
   /* each dungeon's extra (riftFight runs it): only the brood on the floor (no strays from the Tower's lists), the champion */
+  /* (v388, the user: "double the amount of enemies in each dungeon") a second set of packs on top of the floor's own: about
+     fifty more brood in packs of five or six, spread through the rooms (never the first, never within ten tiles of the
+     start), each pack a main kind and a second from the dungeon's list, at most one heavy one (sentinel, larva, geodeling)
+     to a pack. The floor's live cap (Rf.liveCap) holds the far ones back until the pet comes near, so the field stays as
+     full as before, only for twice as long */
+  const HEAVY = ['runicsentinel', 'bomblarva', 'geodeling'];
+  function morePacks(X, D, want) { const M = X.M, R = Math.random, S0 = M.start, pick = () => D.mobs[Math.floor(R() * D.mobs.length)];
+    const rooms = M.rooms.map((r, i) => ({ r, i })).filter(({ r, i }) => i > 0 && Math.hypot(r.x + r.w / 2 - S0.x, r.y + r.h / 2 - S0.y) > 8 && r.w > 3 && r.h > 3); if (!rooms.length) return 0;
+    let made = 0, tries = 0, pk = 0;
+    while (made < want && tries++ < 300) { const { r, i } = rooms[Math.floor(R() * rooms.length)], c0 = X.freeSpot(r.x + 1 + R() * (r.w - 2), r.y + 1 + R() * (r.h - 2), 0.6); if (!c0 || Math.hypot(c0.x - S0.x, c0.y - S0.y) < 10) continue;
+      const n = Math.min(want - made, 5 + (R() < 0.5 ? 1 : 0)), main = pick(); let alt = pick(), heavy = 0; pk++;
+      for (let j = 0; j < n; j++) { let t = j % 3 === 2 ? alt : main; if (HEAVY.includes(t) && heavy++) t = D.mobs.find(q => !HEAVY.includes(q)) || t; const a = j / n * TAU, q = X.freeSpot(c0.x + Math.cos(a) * 1.3, c0.y + Math.sin(a) * 1.3, 0.4) || c0;
+        X.spawnMon(t, q.x, q.y, { rift: true, pack: 1400 + pk, room: i, flank: a }); if (X.g && X.g.total != null) X.g.total++; made++; } }
+    return made; }
+  /* (v388, the user: "even if all enemies are killed and the door is open, more enemies can still pour out of a rift")
+     once a dungeon is clear and its door open, three small tears open in the air of rooms already cleared: cracks of
+     black fire, ember light seeping from their edges. Each brightens for a second (a ring on the floor below it, a hiss),
+     then lets out two or three of the brood, every seven seconds or so, no more than eight alive from them at once. They
+     never open near the door, never let anything out on top of the pet (a tear waits while the pet stands close), and
+     stop when the pet takes the exit. Their kills give the usual experience and drops: stay and farm, or leave */
+  const TEAR_CAP = 8;
+  function openTears(X, C, D, key) { const M = X.M, me = X.me, ex = X.rift && X.rift.exit, R = Math.random, out = [];
+    const cand = M.rooms.map(r => ({ x: r.x + r.w / 2, y: r.y + r.h / 2 })).filter(p => !ex || Math.hypot(p.x - ex.x, p.y - ex.y) > 8).sort(() => R() - 0.5);
+    for (const p of cand) { if (out.length >= 3) break; const q = X.freeSpot(p.x + (R() - 0.5) * 3, p.y + (R() - 0.5) * 3, 0.8); if (!q || Math.hypot(q.x - me.x, q.y - me.y) < 5 || (ex && Math.hypot(q.x - ex.x, q.y - ex.y) < 7) || out.some(o => Math.hypot(o.x - q.x, o.y - q.y) < 6)) continue;
+      out.push({ x: q.x, y: q.y, t: 0, open: 0, next: 2 + out.length * 2.3 + R() * 1.5, warn: 0, seed: R() * 50, n: 0, shards: [0, 1, 2, 3].map(i => ({ a: i / 4 * TAU + R(), r: 0.5 + R() * 0.3, s: 0.12 + R() * 0.08, z: R() })) }); }
+    C.tears = out; C.tearMons = []; return out; }
+  function tearTick(X, C, D, dt) { const me = X.me; C.tearMons = C.tearMons.filter(m => !m.dead); const live = C.tearMons.length;
+    for (const tr of C.tears) { tr.t += dt; tr.open = Math.min(1, tr.open + dt * 0.8);
+      if (tr.warn > 0) { tr.warn -= dt; if (tr.warn <= 0) { const dPet = Math.hypot(me.x - tr.x, me.y - tr.y), room = TEAR_CAP - C.tearMons.length;
+          if (dPet < 2.6 || room <= 0) { tr.next = 1.5; continue; }   // (never onto the pet: it waits while the pet stands close; and the cap)
+          const n = Math.min(room, 2 + (Math.random() < 0.5 ? 1 : 0)), away = Math.atan2(tr.y - me.y, tr.x - me.x); tr.n++;
+          for (let j = 0; j < n; j++) { const a = away + (j - (n - 1) / 2) * 0.9, q = X.freeSpot(tr.x + Math.cos(a) * 0.9, tr.y + Math.sin(a) * 0.9, 0.4) || { x: tr.x, y: tr.y }; const t = D.mobs[Math.floor(Math.random() * D.mobs.length)], m = X.spawnMon(HEAVY.includes(t) ? D.mobs[0] : t, q.x, q.y, { rift: true, pack: 1900 + tr.n, aggro: true });
+            m.aggro = true; m.calTear = true; m.dmg *= D.dmgK || 0.7; m.calEased = true; m.cd = 1.2 + Math.random(); C.tearMons.push(m); C.tearSpawned = (C.tearSpawned || 0) + 1;
+            X.ring(q.x, q.y, 0.2, 1.0, 0.3, FRACTURE, 0.25); }
+          X.boom(tr.x, tr.y - 0.9, 0.9, FRACTURE, FRACTURE_HI, { n: 10, shake: 2 }); snd(X, 'crack'); tr.flash = 0.5; tr.next = 6.5 + Math.random() * 3; } }
+      else if (live < TEAR_CAP) { tr.next -= dt; if (tr.next <= 0) { tr.warn = 1.0; snd(X, 'hiss', 0.8, 0.14, 650); } }
+      if (tr.flash) tr.flash = Math.max(0, tr.flash - dt); } }
+  /* a tear in the air: a jagged split of black fire hanging over the floor, ember light seeping from its edges, splinters of
+     black crystal circling it; brighter (and a warning ring under it) for the second before it lets something out */
+  function tearGround(c, X, tr) { const T = X.Tz(), Xs = X.sx(tr.x), Ys = X.sy(tr.y), w = tr.warn > 0 ? 1 - tr.warn : 0; glow(c, Xs, Ys, T * 1.6 * tr.open, LAVA, 0.22 + 0.25 * w);
+    c.save(); c.fillStyle = 'rgba(10,4,8,.35)'; ell(c, Xs, Ys + T * 0.05, T * 0.7 * tr.open, T * 0.22 * tr.open); c.fill();
+    if (tr.warn > 0) { c.strokeStyle = 'rgba(20,6,6,.6)'; c.lineWidth = Math.max(3, T * 0.12); c.beginPath(); c.arc(Xs, Ys, T * 1.2, 0, TAU); c.stroke(); c.strokeStyle = WARN; c.lineWidth = Math.max(2, T * 0.07); c.beginPath(); c.arc(Xs, Ys, T * 1.2, -Math.PI / 2, -Math.PI / 2 + TAU * w); c.stroke(); }
+    c.restore(); }
+  const TEAR_PTS = [[0, -1], [0.16, -0.72], [-0.08, -0.5], [0.2, -0.22], [-0.04, 0.04], [0.14, 0.32], [0, 0.6], [0.06, 0.82], [0, 1]];
+  function tearOver(c, X, tr, G) { const T = X.Tz(), t = X.g.t, w = tr.warn > 0 ? 1 - tr.warn : 0, k = (0.55 + 0.15 * Math.sin(t * 3 + tr.seed) + 0.9 * w + (tr.flash || 0)) * tr.open, Xs = X.sx(tr.x), Yc = X.sy(tr.y) - T * 1.35, h = T * 1.2 * tr.open, wd = T * (0.3 + 0.14 * w) * tr.open;
+    if (h < 2) return;
+    const L = TEAR_PTS.map(([u, v], i) => [Xs + (u - 0.11 * Math.sin(v * Math.PI)) * h * 0.9 - wd * Math.sin((v + 1) / 2 * Math.PI), Yc + v * h]), Rr = TEAR_PTS.map(([u, v]) => [Xs + u * h * 0.9 + wd * Math.sin((v + 1) / 2 * Math.PI), Yc + v * h]);
+    // the split itself: the dark of the rift between two ragged lips
+    c.save(); poly(c, L.concat(Rr.slice().reverse())); c.closePath(); const g = c.createLinearGradient(Xs - wd, 0, Xs + wd, 0); g.addColorStop(0, '#2A0E12'); g.addColorStop(0.5, '#06030A'); g.addColorStop(1, '#2A0E12'); c.fillStyle = g; c.fill();
+    c.save(); c.clip(); c.globalCompositeOperation = 'lighter'; const ig = c.createRadialGradient(Xs, Yc, 0, Xs, Yc, h); ig.addColorStop(0, rgba('#B060FF', 0.25 * k)); ig.addColorStop(1, 'rgba(176,96,255,0)'); c.fillStyle = ig; c.fillRect(Xs - h, Yc - h, h * 2, h * 2); c.restore();
+    // its burning lips
+    if (G) { for (const S of [L, Rr]) for (let i = 0; i < S.length - 1; i++) G.Q.ebeam(S[i][0], S[i][1], S[i + 1][0], S[i + 1][1], T * (0.07 + 0.05 * w), FRACTURE, 0.85, Math.min(1, 0.55 * k), tr.seed + i, 4); G.Q.glow(Xs, Yc, h * 1.1, LAVA, 0.3 * k); if (!lowFx()) G.Q.fire(Xs, Yc - h * 0.9, T * 0.18 * tr.open, 0.8, 0.5 * k, tr.seed); }
+    else { c.globalCompositeOperation = 'lighter'; c.lineJoin = 'round'; for (const [lw2, col, a] of [[T * 0.16, FRACTURE, 0.35], [T * 0.07, LAVA_HI, 0.7], [T * 0.025, '#FFF2C8', 0.8]]) { c.strokeStyle = rgba(col, Math.min(1, a * k)); c.lineWidth = lw2; for (const S of [L, Rr]) { poly(c, S); c.stroke(); } } c.globalCompositeOperation = 'source-over'; glow(c, Xs, Yc, h * 1.2, LAVA, 0.3 * k); }
+    c.restore();
+    // splinters of black crystal circling it, and embers seeping out
+    for (const sh of tr.shards) { const a = sh.a + t * (0.6 + sh.z * 0.5), x = Xs + Math.cos(a) * h * sh.r * 1.4, y = Yc + Math.sin(a) * h * sh.r * 0.5 + Math.sin(t * 2 + sh.z * 6) * T * 0.08, s = T * sh.s; c.save(); c.translate(x, y); c.rotate(a * 2); poly(c, [[-s * 0.5, 0], [0, -s], [s * 0.5, 0], [0, s * 0.6]]); c.closePath(); c.fillStyle = '#1E1428'; c.fill(); c.strokeStyle = rgba(FRACTURE, 0.7); c.lineWidth = 1; c.stroke(); c.restore(); }
+    if (!lowFx() && Math.random() < 0.25) X.part({ kind: 'ember', x: tr.x + (Math.random() - 0.5) * 0.4, y: tr.y - 1.2 + (Math.random() - 0.5) * 1.4, vx: (Math.random() - 0.5) * 1.2, vy: -1 - Math.random() * 1.5, life: 0.7, max: 0.7, size: 3 + Math.random() * 3, color: Math.random() < 0.5 ? LAVA : FRACTURE }); }
+  CAL.tearOver = tearOver;
   const dungeonExtra = key => (X, self, H) => { const D = DUNGEON[key], C = ctx(X); X.F.types = (X.F.types || []).filter(t => BROOD.includes(t)); if (!X.F.types.length) X.F.types = D.mobs.slice();
+    C.extraPacks = morePacks(X, D, D.more == null ? 52 : D.more);
     // (the dungeons' brood hit softer: about fifty of them stand between a starter and the puzzle. QA v386: by dungeon, 0.38 / 0.65 /
     //  0.8 (was 0.7 for all), so the first dungeon, met at level 1, is the gentlest and the rift ramps up; the champion with them)
     const DK = D.dmgK || 0.7, easeAll = () => { for (const m of X.mons.concat(X.g.reserve || [])) if (!m.calEased && !m.boss) { m.calEased = true; m.dmg *= DK; } };
     // (QA v386: the first dungeon's first rooms hold no ranged brood: its wisps and imps near the start become cinder slugs: crawlers' rams are what hurt a careless starter most)
-    if (D.calm) { const M = X.M; for (const m of X.mons) { if (m.dead || m.boss || (m.type !== 'emberwisp' && m.type !== 'furnaceimp') || Math.hypot(m.x - M.start.x, m.y - M.start.y) > 18) continue;
+    if (D.calm) { const M = X.M; for (const m of X.mons) { if (m.dead || m.boss || (m.pack >= 1400 && m.pack < 1900) || (m.type !== 'emberwisp' && m.type !== 'furnaceimp') || Math.hypot(m.x - M.start.x, m.y - M.start.y) > 18) continue;
       const nt = 'cinderslug', A = MON[m.type], B = MON[nt]; if (!A || !B) continue; const k = (f, d) => (A[f] ? B[f] / A[f] : d);
       m.hp *= k('hp', 1); m.maxhp = m.hp; m.dmg *= k('dmg', 1); m.spd *= k('spd', 1); m.r *= k('r', 1); m.xp *= k('xp', 1); m.color = B.color; m.type = nt; } }
     easeAll();
@@ -1209,7 +1283,14 @@ CAL.bossMake = CAL.bossMake || {};
     //  front of the exit's archway was drawn right over it. The exit is where riftFight (20m) puts it: the farthest room)
     { const M = X.M; let ex = null, best = -1; for (const r of M.rooms) { const cx = r.x + r.w / 2, cy = r.y + r.h / 2, d = Math.hypot(cx - M.start.x, cy - M.start.y); if (d > best) { best = d; ex = X.freeSpot(cx, cy, 0.8) || { x: cx, y: cy }; } }
       if (ex) for (const p of X.props || []) if (!p.broken && Math.abs(p.x - ex.x) < 1.8 && p.y - ex.y > -2.6 && p.y - ex.y < 2.8) { p.broken = true; M.G[p.k] = T_FLOOR; } }   // (no retile: the floor's tiles are not cached yet when make runs)
-    let eT = 0; return { update(dt) { herd(dt); eT -= dt; if (eT <= 0) { eT = 1; easeAll(); } }, drawGround(c) { if (!ch.dead) champGround(c, X, ch); }, drawOver(c) { if (!ch.dead && Math.hypot(ch.x - X.me.x, ch.y - X.me.y) < 12) champOver(c, X, ch); } }; };
+    let eT = 0, bled = false; C.tears = [];
+    return { update(dt) { herd(dt); eT -= dt; if (eT <= 0) { eT = 1; easeAll(); }
+        // the dungeon is clear and its door open: the rift still bleeds
+        if (self.done && !bled && !X.g.won) { bled = true; openTears(X, C, D, key); const mod = self.mod; if (mod && mod.goal) { const g0 = mod.goal; mod.goal = () => self.done ? 'Cleared! The rift still bleeds: leave by the door or keep fighting' : g0(); }
+          X.after(2.8, () => { if (!X.g.won) X.banner('THE RIFT STILL BLEEDS', 'Leave by the door, or stay and fight what pours out', FRACTURE_HI, 2.6, true); }); }
+        if (bled && !X.g.won) tearTick(X, C, D, dt); },
+      drawGround(c) { if (!ch.dead) champGround(c, X, ch); for (const tr of C.tears) tearGround(c, X, tr); },
+      drawOver(c) { if (!ch.dead && Math.hypot(ch.x - X.me.x, ch.y - X.me.y) < 12) champOver(c, X, ch); if (C.tears.length && !X.g.won) { const G = gpu(c, false); for (const tr of C.tears) { const Xs = X.sx(tr.x), Ys = X.sy(tr.y); if (Xs > -X.Tz() * 3 && Xs < X.W() + X.Tz() * 3 && Ys > -X.Tz() * 4 && Ys < X.H() + X.Tz() * 3) tearOver(c, X, tr, G); } gpuEnd(c, G); } } }; };
   Object.assign(CAL, { BROOD, champion, DUNGEON });
 
   /* ======================= the arenas' painters (for the boss files) ======================= */
@@ -1315,7 +1396,7 @@ CAL.bossMake = CAL.bossMake || {};
 
   /* ======================= every stage: lava, vents, bombs, embers, crystal pulses ======================= */
   Object.assign(PULSERS, { blackcrystal: 1, bigcrystal: 1.4, slabhang: 0.6 });
-  Rf.everyStage = (X, self, H) => { const C = ctx(X); C.X = X; CUR = C; C.calm = C.calm || 0; C.calmTo = C.calmTo || 0; C.flowT = C.flowT || 0;
+  Rf.everyStage = (X, self, H) => { const C = ctx(X); C.X = X; CUR = C; FAR.here = !!(self.S && self.S.name === 'The Ashen Hollows'); C.calm = C.calm || 0; C.calmTo = C.calmTo || 0; C.flowT = C.flowT || 0;
     const fiend = !!X.F.fiend, T0 = () => X.Tz();
     // the props' live lights, and the crystals that pulse toward the heart
     const glows = [], pulsers = []; for (const p of X.props || []) { if (p.broken) continue; /* (QA: the props cleared from the exit) */ const f = GLOWS[p.kind]; if (f) for (const [dx, dy, r, kind] of f(p.v | 0)) glows.push({ p, dx, dy, r, kind, ph: hh(p.k || 0, 1, 3) }); if (PULSERS[p.kind]) pulsers.push({ p, k: PULSERS[p.kind], t: 1 + hh(p.k || 0, 2, 5) * 4 }); }
@@ -1474,7 +1555,7 @@ CAL.bossMake = CAL.bossMake || {};
       for (const m of (P.mons || []).concat(P.reserve || [])) keep.add(m.type + '|' + Math.max(4, Math.round(m.r * P.T * P.k)));
       const MC = DunArt.monCache; if (MC) for (const key of [...MC.keys()]) { const i = key.indexOf('|'), t = key.slice(0, i); if (!CAL.MODES[t]) continue; const j = key.indexOf('|', i + 1); if (!keep.has(key.slice(0, j))) MC.delete(key); } }
     // patterns and soft lights
-    job(() => { DunWorld.pattern('calderalava', 1); for (const col of [LAVA, LAVA_HI, FRACTURE, FRACTURE_HI, FROST, SAFE, WARN, EMBER, '#FF6A1F', '#9FD8FF', '#FFB347', '#FF5A14', '#FF9A2E', '#05030A']) if (typeof glowSprite === 'function') glowSprite(col); });
+    job(() => { DunWorld.pattern('calderalava', 1); const k = P.k >= 1.5 ? P.k : 1; for (const kd of ['calderalavafar', 'calderaflowfar']) DunWorld.pattern(kd, k); for (const col of [LAVA, LAVA_HI, FRACTURE, FRACTURE_HI, FROST, SAFE, WARN, EMBER, '#FF6A1F', '#9FD8FF', '#FFB347', '#FF5A14', '#FF9A2E', '#05030A']) if (typeof glowSprite === 'function') glowSprite(col); });
     // the GPU painter once on the real canvas, with the kinds this rift paints (nothing visible: alpha ~0, behind the screen)
     job(() => { const G = gpu(P.c, false); if (!G) return; const Q = G.Q, W = 64; Q.glow(W, W, 20, LAVA, 0.002); if (Q.eorb) Q.eorb(W, W, 10, FRACTURE, 0.8, 0.002, 1, 1); if (Q.fire) Q.fire(W, W, 10, 0.8, 0.002, 1); if (Q.tongue) Q.tongue(W, W, 8, 30, 0, 1, 0.002, 1); if (Q.firebeam) Q.firebeam(W, W, W + 20, W, 6, 0.9, 0.002, 1, 5); gpuEnd(P.c, G); });
     // the bosses (the GPU parts only where GLM is real; the 2D fallback is drawn instead and warms its own pictures)

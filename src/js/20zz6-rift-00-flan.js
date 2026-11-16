@@ -43,7 +43,7 @@ const CALFLAN = (() => {
   const WELL_A = [-Math.PI / 2, Math.PI / 6, Math.PI * 5 / 6];
   /* the tuning for a level-1 starter (the spec's ~2 minutes with the mechanics): the whole fight's health and the size of
      one plain blow, set by the stage whatever the rift's own scaling (Rf.ease, Rf.scale) does to its floor */
-  const TUNE = { hp: 4800, dmg: 24 };   // (QA v386: was 1400 / 15, tuned for a level-1 pet; the nine-stage rift brings the pet here at about level 5 (HP ~150))
+  const TUNE = { hp: 9600, dmg: 24 };   // (v388: health doubled at the user's request)   // (QA v386: was 1400 / 15, tuned for a level-1 pet; the nine-stage rift brings the pet here at about level 5 (HP ~150))
   const FIELD_T = 12, RECHARGE_T = 8, REGROW_T = 10, GRACE_T = 2, CHILL_T = 3, BRITTLE_T = 8, INTEG = 100, SMASH = 30, CHIP = 5;
   const wellGeo = (C, i) => { const a = WELL_A[i], c = Math.cos(a), s = Math.sin(a), pa = a + PLATE_DA;
     return { i, a, x: C.x + c * WELL_D, y: C.y + s * WELL_D, zx: C.x + c * ZONE_D, zy: C.y + s * ZONE_D, zr: ZONE_R, px: C.x + Math.cos(pa) * PLATE_D, py: C.y + Math.sin(pa) * PLATE_D }; };

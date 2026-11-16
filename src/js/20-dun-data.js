@@ -366,9 +366,10 @@ function pillarBeamSprite(color) {
   return fxSprite('pbeam|' + color, 128, 48, (g, w, h) => {
     const [r, gg, b] = hexRGB(color), im = g.createImageData(w, h), d = im.data, ss = t => t * t * (3 - 2 * t);
     for (let y = 0; y < h; y++) {
-      const v = (y + 0.5 - h / 2) / (h / 2), across = Math.max(0, (Math.exp(-v * v * 4.2) - Math.exp(-4.2)) / (1 - Math.exp(-4.2)));
       for (let x = 0; x < w; x++) {
-        const u = (x + 0.5) / w, along = ss(Math.min(1, u / 0.34)) * ss(Math.min(1, (1 - u) / 0.3)), a = across * along;
+        /* (v388 E) its top half dissolves: it thins and fades to nothing along a long soft tail (was a 30% fade) */
+        const u = (x + 0.5) / w, e = Math.max(0, Math.min(1, (u - 0.5) / 0.5)), s = 1 - ss(e), v = (y + 0.5 - h / 2) / (h / 2) / (1 - 0.4 * e), across = Math.max(0, (Math.exp(-v * v * 4.2) - Math.exp(-4.2)) / (1 - Math.exp(-4.2)));
+        const along = ss(Math.min(1, u / 0.34)) * s * Math.sqrt(s), a = across * along;
         const i = (y * w + x) * 4; d[i] = r; d[i + 1] = gg; d[i + 2] = b; d[i + 3] = Math.round(255 * Math.min(1, a));
       }
     }
@@ -388,9 +389,11 @@ function beamSprite(color) {
   return fxSprite('beam|' + color, 128, 48, (g, w, h) => {
     const [r, gg, b] = hexRGB(color), im = g.createImageData(w, h), d = im.data;
     for (let y = 0; y < h; y++) {
-      const v = (y + 0.5 - h / 2) / (h / 2), across = Math.max(0, (Math.exp(-v * v * 4.2) - Math.exp(-4.2)) / (1 - Math.exp(-4.2)));   // (exactly nothing at its sides)
       for (let x = 0; x < w; x++) {
-        const u = (x + 0.5) / w, along = Math.min(1, u / 0.07) * Math.min(1, (1 - u) / 0.13), a = across * along * along * (3 - 2 * along);
+        /* (v388 E) its tip feathers out: over its last 30% it thins a little and fades along a long soft tail (it ended in
+           a smoothstep over its last 13%, which read as a cut on any wide or short beam) */
+        const u = (x + 0.5) / w, e = Math.max(0, Math.min(1, (u - 0.7) / 0.3)), s = 1 - e * e * (3 - 2 * e), v = (y + 0.5 - h / 2) / (h / 2) / (1 - 0.3 * e), across = Math.max(0, (Math.exp(-v * v * 4.2) - Math.exp(-4.2)) / (1 - Math.exp(-4.2)));   // (exactly nothing at its sides)
+        const st = Math.min(1, u / 0.07), a = across * st * st * (3 - 2 * st) * s * Math.sqrt(s);
         const i = (y * w + x) * 4; d[i] = r; d[i + 1] = gg; d[i + 2] = b; d[i + 3] = Math.round(255 * Math.min(1, a));
       }
     }
