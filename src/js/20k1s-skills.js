@@ -130,6 +130,6 @@ function migrateSkills(s, o) {
   });
   s.skillsV = SKILLS_V;
 }
-/* (test hook: build.py exposes this as __pp.skillsK) */
+/* (test hook: build.py exposes this as the test page's skillsK) */
 const SKILLS_K = { petSkills, rollSkills, skillPool, skillParse, skillWhyNot, skillTier, skillAbility, skillGroups, cleanSkills, isSkillId, devSkillsOn, migrateSkills, ELEM_SIX, get SKILLS_V() { return SKILLS_V; },
-  fuseSkillsFor, fuseSkillChoices, fuseAllSkills, fuseAllAb, get fuseAllSel() { return fuseAllSel; }, renderCards, get cardsSlot() { return cardsSlot; } };   // (v391 K, build.py: __pp.skillsK)
+  fuseSkillsFor, fuseSkillChoices, fuseAllSkills, fuseAllAb, get fuseAllSel() { return fuseAllSel; }, renderCards, get cardsSlot() { return cardsSlot; } };   // (v391 K, build.py: the test page.skillsK)
