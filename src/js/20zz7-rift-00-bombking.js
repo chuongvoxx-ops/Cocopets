@@ -301,7 +301,7 @@ const CALBOMB_FIGHT = (() => {
   // its health as a level-1 starter feels it: the bars the engine gives a fiend of floor 1 are far more than a starter can
   // spend in two and a half minutes, so every blow is scaled (in dmgK) to make its whole health worth EFF_HP of the pet's
   // damage (the bars still drain as they should). A rift may set Rf.calBombHp to change it
-  const EFF_HP = 23000;   // (QA v386: was 12000, for a level-1 pet; the pet arrives here at about level 8)
+  const EFF_HP = 46000;   // (v388: doubled at the user's request)   // (QA v386: was 12000, for a level-1 pet; the pet arrives here at about level 8)
   const angTo = (a, b) => { let d = b - a; while (d > Math.PI) d -= TAU; while (d < -Math.PI) d += TAU; return d; };
   const toward = (v, want, dt, k) => v + (want - v) * Math.min(1, dt * k);
   const shelterList = C => SH_ANG.map((a, i) => ({ i, a, x: C.x + Math.cos(a) * SH_R, y: C.y + Math.sin(a) * SH_R, tx: -Math.sin(a), ty: Math.cos(a), nx: Math.cos(a), ny: Math.sin(a) }));

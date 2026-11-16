@@ -539,7 +539,7 @@ const CAL_IFRIT = (() => {
   /* ================= the fight ================= */
   const WARN = '#FF5A1E', HOT = '#FFB347', FROST = '#BFEFFF', FROST_HI = '#F2FCFF', BF = '#9B4DFF', BF_HI = '#E2B8FF';
   const CYC = { 1: ['fist', 'breath', 'fault', 'fist', 'fault', 'breath'], 2: ['cleave', 'fist', 'rocks', 'breath', 'cleave', 'fault', 'rocks', 'fist'], 3: ['fist', 'cleave', 'breath', 'rocks', 'fault', 'cleave', 'fist', 'rocks'] };
-  const TUNE = { hp: 16500, dmg: 18,   /* (QA v386: was 8000 / 11, for a level-1 pet; the pet arrives here at about level 10, HP ~200) */ crystHp: 0.024, hellEvery: 24, hellFirst: 3.5, hellCharge: 8, kneel: 6, missK: 0.5, stagger: 1.8 };
+  const TUNE = { hp: 33000, dmg: 18,   /* (v388: health doubled at the user's request; crystHp halved so the crystals stay as tough) */   /* (QA v386: was 8000 / 11, for a level-1 pet; the pet arrives here at about level 10, HP ~200) */ crystHp: 0.012, hellEvery: 24, hellFirst: 3.5, hellCharge: 8, kneel: 6, missK: 0.5, stagger: 1.8 };
   const sf = (FX, k, ...a) => { const s = FX.H && FX.H.sfx; if (s && s[k]) try { s[k](...a); } catch (e) { /* no sound */ } };
   const toward = (v, w, dt, k) => (v || 0) + (w - (v || 0)) * Math.min(1, dt * k);
   const angTo = (a, b) => { let d = b - a; while (d > Math.PI) d -= TAU; while (d < -Math.PI) d += TAU; return d; };
@@ -646,7 +646,7 @@ const CAL_IFRIT = (() => {
   function stackK(FX, o) { const M = FX.mem, t = FX.g.t; if (M.hitT !== t) { M.hitT = t; M.hitN = 0; } M.hitN++; return M.hitN > 1 && o && o.viaProxy ? 0.3 : 1; }
   /* the crystals' share of protection: 20% each while they live, 40% at most */
   function drK(FX) { const M = FX.mem; if (FX.S.lv !== 2) return 1; return 1 - Math.min(0.4, 0.2 * crystalsLive(M)); }
-  function crystalBroken(FX, cr) { const M = FX.mem, m = FX.m; if (!cr.alive) return; cr.alive = false; cr.broken = true; M.stat.cryst++;
+  function crystalBroken(FX, cr) { const M = FX.mem, m = FX.m; if (!cr.alive) return; cr.alive = false; cr.broken = true; M.stat.cryst++; if (typeof BREAK_FX !== 'undefined') try { BREAK_FX.burst(null, cr.x, cr.y, { kind: 'bigcrystal', mat: 'blackfire', size: 2.5 }); } catch (e) { /* (v388: the shared break effect) */ }
     burst(FX, cr.x, cr.y - 1.4, BF, 22); FX.H.boom(cr.x, cr.y - 0.6, 1.6, BF_HI, '#FFFFFF', { n: 18, shake: 9, smoke: 4 }); sf(FX, 'crash');
     if (m && !m.dead && FX.S.lv === 2) { m.stunT = Math.max(m.stunT || 0, TUNE.stagger); M.stunKind = 'stagger'; M.flinch = 1; M.recoilS = cr.x < m.x ? 1 : -1; FX.H.after(0.45, () => { if (!m.dead) { sf(FX, 'thud'); for (let i = 0; i < 6; i++) FX.H.part({ kind: 'smoke', x: m.x + FX.rnd(-1.4, 1.4), y: m.y + FX.rnd(-0.3, 0.4), vx: FX.rnd(-1, 1), vy: -0.3, life: 1, max: 1, size: 0.8, color: '#5A4A44' }); } });
       FX.H.text(m.x, m.y - 5.6, `Tether cut! Armour −20% (${Math.round((1 - drK(FX)) * 100)}% left)`, BF_HI, 14);

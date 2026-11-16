@@ -27,14 +27,17 @@
                         eruption throws you off the causeway: you land back on the last ledge, a little hurt. On the
                         three broad cooling ledges between them about forty brood rise in waves (ashen knights, crystal
                         wisps, the hollows' kin); a slag barricade lifts from the next causeway when a ledge is clear.
-                        Then THE EMBER COURT, the dodge trial: a round basalt platform ringed by six furnace idols on
-                        pillars in the lava. Each idol glows and winds up (an aim line, or a landing circle for a lob),
-                        then hurls a molten ball. Twelve DODGED throws pass it: rolled through with the dodge button
-                        (its i-frames) or side-stepped close by. A hit only chips (7%) and never counts; nothing resets
-                        the counter. Three slow teaching throws from the front (TAP DODGE!, the button pulsing), two
-                        idols alternating, a crossfire, a rolling ball, a lobbed ball, then quick volleys of three.
-                        Two hits in a row: the next throw comes slower, with the prompt again. At 12/12 the idols go
-                        dark and the gate opens on the overlook: Ifrit seated far off, and the frost shrine.
+                        Then THE EMBER COURT: a round basalt platform ringed by six furnace idols on pillars in the lava.
+                        First they throw: each idol glows and winds up (an aim line, or a landing circle for a lob), then
+                        hurls a molten ball. Six DODGED throws (rolled through with the dodge button, or side-stepped close):
+                        two slow teaching throws from the front (TAP DODGE!), a crossfire, a lob, a short volley. At six the
+                        idols wake: they crack free of their pillars and stomp down onto the court two at a time (W and E,
+                        then NW and SE, then NE and SW). Each winds up a charge at the pet (a red-orange lane, about a
+                        second, locked 0.35 s before it goes); dodge as it reaches you (PERFECT DODGE!) or step aside, and
+                        it carries on; if another idol is behind you it smashes into it: CRASH!, both crack. Two crashes
+                        shatter an idol. Blows barely scratch them (never past a crack). The last two charge together. A
+                        charge that hits only chips (8%), never the last point of health. All six shattered: the gate
+                        opens on the overlook: Ifrit seated far off, and the frost shrine.
    Between rooms of brood the pet gets a breath of cool air (a quarter of its health back). HP_K scales the brood's health.
    Every trial ends at its door with a frost shrine (stand at it: full health, the checkpoint) before the boss.
    (CAL, the core of 20zz5, loads after this file: every CAL use is inside make(), which only runs once a stage starts, and
@@ -153,11 +156,29 @@ const CAL_STAGES = { HP_K: 1.5, DMG_K: { HOLLOWS: 0.55, FOUNDRY: 0.72, DESCENT: 
   }
 
   /* ---- a heavy door across a run of tiles: shut, it blocks them; open1() sinks it into the floor ---- */
-  function doorway(X, H, tiles, art, o) { o = o || {}; const x0 = Math.min(...tiles.map(t => t.tx)), x1 = Math.max(...tiles.map(t => t.tx)) + 1, y0 = Math.min(...tiles.map(t => t.ty)), y1 = Math.max(...tiles.map(t => t.ty)) + 1, D = { k: 0, open: false, tiles, x0, x1, y0, y1 };
+  /* (v388: the door glitch. open1 used to call X.retile(), which throws away every painted ground chunk; the engine repaints
+     at most three a frame, so for several frames whole squares of the floor were missing round an opening door. A shut door's
+     tiles are solid under a blank prop, which the ground painter already draws as plain floor, so nothing on the ground changes
+     when they open: no repaint is needed. The door's own art carries the opening (o.dur seconds, eased), with dust and sparks) */
+  function doorway(X, H, tiles, art, o) { o = o || {}; const x0 = Math.min(...tiles.map(t => t.tx)), x1 = Math.max(...tiles.map(t => t.tx)) + 1, y0 = Math.min(...tiles.map(t => t.ty)), y1 = Math.max(...tiles.map(t => t.ty)) + 1, D = { k: 0, u: 0, open: false, tiles, x0, x1, y0, y1 };
     D.obj = H.obj({ x: (x0 + x1) / 2, y: y1 + 0.02, kind: o.kind || 'caldoor', r: 0.1, h: 3, label: '', draw(c, Xs, Ys, T) { art(c, Xs, Ys, T, D); } });
-    D.open1 = () => { if (D.open) return; D.open = true; tiles.forEach(t => unblock(X, t.tx, t.ty, o.tile)); X.retile(); X.shake(4, 0.4); if (X.sfx.crash) X.sfx.crash(); };
-    D.tick = dt => { if (D.open) D.k = Math.min(1, D.k + dt * 0.7); };
+    D.open1 = () => { if (D.open) return; D.open = true; tiles.forEach(t => unblock(X, t.tx, t.ty, o.tile)); X.shake(lowFx() ? 1.5 : 3, 0.35); if (X.sfx.crash) X.sfx.crash(); if (o.onOpen) o.onOpen(D); };
+    D.tick = dt => { if (!D.open || D.u >= 1) return; D.u = Math.min(1, D.u + dt / (o.dur || 1.4)); D.k = D.u * D.u * (3 - 2 * D.u); if (o.fx && !lowFx()) o.fx(D, dt); };
     tiles.forEach(t => block(X, t.tx, t.ty)); return D; }
+  /* the camera. Fights and walking keep the dungeons' own close zoom (1); while the pet is actually solving a puzzle (in its
+     area, unsolved) it eases out to a frame of the whole puzzle, and back in when it leaves or the puzzle is done. The engine
+     eases the zoom itself (about 0.7 s); the pull toward the frame (k) is eased here over the same time, so nothing snaps.
+     want: null (close) or { zoom, x, y, k } */
+  function camRig() { const R = { k: 0, x: 0, y: 0, zoom: 1, want: null };
+    R.tick = (dt, want) => { R.want = want; if (want) { R.x = want.x; R.y = want.y; } const tk = want ? want.k : 0, step = dt / 0.7; R.k = tk > R.k ? Math.min(tk, R.k + step) : Math.max(tk, R.k - step); R.zoom = want ? want.zoom : 1; };
+    R.cam = () => ({ x: R.x, y: R.y, k: R.k * R.k * (3 - 2 * R.k), zoom: R.zoom }); return R; }
+  /* small arrows at the screen's edge toward puzzle pieces that are off it: [{ x, y, col, label, warn }] (the core draws the
+     one hint arrow; these are the rest, smaller) */
+  function edgeMarks(X, c, list) { const W = X.W(), Hh = X.H(), cx = W / 2, cy = Hh / 2 - 20, t = X.g.t;
+    for (const q of list) { const Xs = X.sx(q.x), Ys = X.sy(q.y); if (Xs > 24 && Xs < W - 24 && Ys > 110 && Ys < Hh - 170) continue;
+      const dx = Xs - cx, dy = Ys - cy, a = Math.atan2(dy, dx), bx = W / 2 - 26, by = Hh / 2 - 150, k = Math.min(Math.abs(bx / (dx || 1e-6)), Math.abs(by / (dy || 1e-6))), ex = cx + dx * k, ey = cy + dy * k, pul = q.warn ? 1 + 0.18 * Math.sin(t * 14) : 1;
+      c.save(); c.translate(ex, ey); c.globalAlpha = 0.92; c.fillStyle = q.col; c.strokeStyle = '#1A1218'; c.lineWidth = 2; c.beginPath(); c.arc(0, 0, 11 * pul, 0, TAU); c.fill(); c.stroke(); c.rotate(a); c.fillStyle = '#1A1218'; c.beginPath(); c.moveTo(7, 0); c.lineTo(-3, -5.5); c.lineTo(-3, 5.5); c.closePath(); c.fill(); c.restore();
+      if (q.label) label(c, q.label, ex, ey + (ey > Hh / 2 ? -17 : 25), 8.5, q.warn ? '#FFD0B0' : '#FFFFFF'); } }
 
   /* ---- a gate across a corridor between two rooms of brood: a barricade of cooling slag (style 'slag') or an iron
      portcullis (style 'iron'), lifted once its room's waves are down ---- */
@@ -170,7 +191,11 @@ const CAL_STAGES = { HP_K: 1.5, DMG_K: { HOLLOWS: 0.55, FOUNDRY: 0.72, DESCENT: 
     else { const hgt = T * 1.6 * (1 - D.k); for (let i = 0; i < Math.ceil(w / (T * 0.7)); i++) { const x = L + (i + 0.5) * T * 0.7, r = T * (0.45 + 0.12 * Math.sin(i * 2.7)), y = Ys - r * 0.6 - (i % 2) * T * 0.25; ell(c, x, y, r, r * 0.8 * (hgt / (T * 1.6))); const sg = c.createRadialGradient(x - r * 0.3, y - r * 0.4, r * 0.1, x, y, r); sg.addColorStop(0, '#5A4A44'); sg.addColorStop(1, '#1A1210'); c.fillStyle = sg; c.fill(); c.strokeStyle = P.INK; c.lineWidth = 1.5; c.stroke();
         c.strokeStyle = rgba(P.LAVA, 0.6 + 0.3 * Math.sin(t * 2 + i)); c.lineWidth = 1.2; c.beginPath(); c.moveTo(x - r * 0.5, y); c.lineTo(x, y - r * 0.3); c.lineTo(x + r * 0.4, y + r * 0.1); c.stroke(); } }
     c.restore(); if (!D.open && word) label(c, word, Xs, Ys - T * (style === 'iron' ? 3.3 : 2.0), T * 0.2, '#FFD9B0'); }
-  const roomGate = (X, H, tiles, P, style, word) => tiles.length ? doorway(X, H, tiles, (c, Xs, Ys, T, D) => gateArt(c, Xs, Ys, T, D, P, style, word, X.g.t), { kind: 'calgate' }) : null;
+  /* while a gate opens: slag hisses and drips embers as it melts down; a portcullis throws sparks from its grooves as it rises */
+  function gateFx(X, P, style) { return (D, dt) => { const n = Math.random() < dt * (style === 'iron' ? 10 : 16) ? 1 : 0; if (!n || D.u > 0.92) return; const x = D.x0 + Math.random() * (D.x1 - D.x0), y = D.y1 - 0.1;
+      if (style === 'iron') { const sd = Math.random() < 0.5 ? D.x0 : D.x1; X.part({ kind: 'spark', x: sd, y: y - 1.2 - D.k * 1.6, vx: (sd === D.x0 ? 1 : -1) * (0.5 + Math.random()), vy: -1 - Math.random() * 1.5, life: 0.4, max: 0.4, size: 3, color: P.RUNE_HI }); }
+      else { X.part({ kind: 'ember', x, y: y - 0.3, vx: (Math.random() - 0.5) * 0.8, vy: -1.2 - Math.random() * 1.4, life: 0.6, max: 0.6, size: 4, color: P.LAVA_HI }); if (Math.random() < 0.4) X.part({ kind: 'smoke', x, y: y - 0.4, vx: 0, vy: -0.6, life: 0.9, max: 0.9, size: 0.5, color: '#6A5E58' }); } }; }
+  const roomGate = (X, H, tiles, P, style, word) => tiles.length ? doorway(X, H, tiles, (c, Xs, Ys, T, D) => gateArt(c, Xs, Ys, T, D, P, style, word, X.g.t), { kind: 'calgate', dur: style === 'iron' ? 1.5 : 1.3, fx: gateFx(X, P, style), onOpen() { if (style !== 'iron' && X.sfx.hiss) X.sfx.hiss(0.9, 0.1, 1200); } }) : null;
   /* ---- the wave director: rooms of brood in order. A room's first wave rises when the pet walks in, the next when the last
      is down (a breath between), and its gate lifts when its last wave falls. rooms: [{ name, y0, y1 (world rows the pet
      must be inside), spots: [{ x, y }], waves: [[type, ...]], gate (a doorway, lifted on clear), teach: ['banner sub' per
@@ -268,7 +293,7 @@ const CAL_STAGES = { HP_K: 1.5, DMG_K: { HOLLOWS: 0.55, FOUNDRY: 0.72, DESCENT: 
     const S = { intro: true, phase: 'combat', rot: cwScramble(), turns: 0, fill: [0, 0], primed: false, surge: 0, solid: 0, latched: false, done: false, cavT: 0, hint: false, hintShown: 0, mist: 0, flow: null, packs: 0, step2: 0, entered: false };
     S.flow = causewayFlow(S.rot);
     // the brood, about forty, room by room: each kind alone first, then mixed (the hatch is the last room's gate)
-    const hatch = doorway(X, H, tilesOf(M, 'h'), (c, Xs, Ys, T, D) => hatchArt(c, Xs, Ys, T, D), { kind: 'calhatch' });
+    const hatch = doorway(X, H, tilesOf(M, 'h'), (c, Xs, Ys, T, D) => hatchArt(c, Xs, Ys, T, D), { kind: 'calhatch', dur: 1.6, fx(D, dt) { if (Math.random() < dt * 14) X.part({ kind: 'spark', x: D.x0 + Math.random() * (D.x1 - D.x0), y: D.y1 - 0.1, vx: (Math.random() - 0.5) * 2, vy: -1.5 - Math.random(), life: 0.35, max: 0.35, size: 3, color: P.FROST_HI }); } });
     const SL = 'cinderslug', CR = 'basaltcrawler', EW = 'emberwisp';
     const WAVES = [[[SL, SL, SL], [SL, SL, SL, SL]], [[CR, CR], [CR, CR, SL, SL]], [[EW, EW, EW], [EW, EW, SL, SL, CR]], [[SL, SL, CR, EW, EW, CR], [SL, SL, SL, CR, EW, EW], [CR, CR, SL, SL, EW, EW, SL]]];
     const TEACH = [['Cinder slugs: one rears and its mouth glows before a short fire spit. Step aside, then strike', 'More slugs: keep out of their spit cones'],
@@ -298,7 +323,7 @@ const CAL_STAGES = { HP_K: 1.5, DMG_K: { HOLLOWS: 0.55, FOUNDRY: 0.72, DESCENT: 
       draw(c, Xs, Ys, T) { reservoirArt(c, Xs, Ys, T); }, use() { const cq = closestUse(); if (cq && cq.id !== 'Q') return; if (!S.primed || S.surge > 0 || S.latched) { if (!S.latched && S.entered) X.text(R0.x, R0.y - 2.6, 'Both basins must flow first', P.FROST_HI, 13); return; } release(); } });
     function release() { S.surge = 0.001; me.sq = 1; X.ring(R0.x, R0.y, 0.3, 3.2, 0.6, P.FROST_HI, 0.55); X.flash(0.2, '#E8F8FF'); FROST_CHIME(X); if (X.sfx.whoosh) X.sfx.whoosh();
       X.text(me.x, me.y - 1.5, 'Frost released!', P.FROST_HI, 16); for (let i = 0; i < 12; i++) X.part({ kind: 'glow', x: R0.x + (Math.random() - 0.5) * 1.6, y: R0.y - 0.5 - Math.random(), vx: (Math.random() - 0.5) * 2, vy: -1.5 - Math.random() * 2, life: 0.8, max: 0.8, size: 6, color: P.FROST_HI }); }
-    function latch() { if (S.latched) return; S.latched = true; S.done = true; self.done = true; bridgeT.forEach(t => X.setTile(t.tx, t.ty, T_BRIDGE)); X.retile(); X.shake(5, 0.5); if (X.sfx.crash) X.sfx.crash();
+    function latch() { if (S.latched) return; S.latched = true; S.done = true; self.done = true; bridgeT.forEach(t => X.setTile(t.tx, t.ty, T_BRIDGE)); /* (no X.retile(): it blanks the ground chunks for frames; the set obsidian is drawn by bridgeArt) */ X.shake(lowFx() ? 2 : 5, 0.5); if (X.sfx.crash) X.sfx.crash();
       H.setExit(E.x, E.y, 'To Fire Flan'); X.banner('THE FROZEN CAUSEWAY HOLDS', 'Both halves of the obsidian bridge have set for good: Fire Flan\'s chamber lies beyond', P.FROST_HI, 3.2, true, true); if (X.sfx.fanfare) X.sfx.fanfare(); }
     const shrine = station(X, H, F0, P, 'Fire Flan');
     // the islands' crystal clusters, the cavern's frost machinery
@@ -308,9 +333,13 @@ const CAL_STAGES = { HP_K: 1.5, DMG_K: { HOLLOWS: 0.55, FOUNDRY: 0.72, DESCENT: 
     const missing = () => { // the first piece along the routes that is turned wrong
       for (const id of CW_ORDER) if (!cwRight(S.rot, id)) return byId[id]; return null; };
     const routePts = side => { const ids = side ? ['Q', 'J', 'k', 'V', 'u'] : ['Q', 'J', 'K', 'I', 'U']; return ids.map(id => cell(id)); };
-    return { S, pieces, hatch, lava, shrine, brood, rooms, gates, causewayFlow, cwSolved, cwRight, missing, release, turn, CW_CELLS,
-      cam() { const k = cavern() ? 0.45 : 0.2, fy = cavern() ? 10.5 : me.y - 3; return { x: me.x * (1 - k) + HO_CX * k + 0.5 * k, y: me.y * (1 - k) + fy * k, k: 0, zoom: 0.56 }; },
-      update(dt) { lava.tick(dt); shrine.tick(dt); for (const pc of pieces) { pc.flash = Math.max(0, pc.flash - dt); const want = (S.rot[pc.id] || 0) * Math.PI / 2; let d = want - pc.ang; while (d < -Math.PI) d += TAU; while (d > Math.PI) d -= TAU; pc.ang += d * Math.min(1, dt * 10); }
+    // the camera: close through the hollows; in the cavern, while the causeway is unsolved (and a moment after the bridge
+    // sets), out to the reservoir, the pieces, both basins and the bridge
+    const rig = camRig();
+    const camWant = () => S.entered && cavern() && !(S.latched && S.latchT > 1.2) ? { zoom: 0.56, x: HO_CX + 1.5, y: 12.6, k: 0.55 } : null;
+    return { S, pieces, rig, camWant, hatch, lava, shrine, brood, rooms, gates, causewayFlow, cwSolved, cwRight, missing, release, turn, CW_CELLS,
+      cam: rig.cam,
+      update(dt) { lava.tick(dt); shrine.tick(dt); if (S.latched) S.latchT = (S.latchT || 0) + dt; rig.tick(dt, camWant()); for (const pc of pieces) { pc.flash = Math.max(0, pc.flash - dt); const want = (S.rot[pc.id] || 0) * Math.PI / 2; let d = want - pc.ang; while (d < -Math.PI) d += TAU; while (d > Math.PI) d -= TAU; pc.ang += d * Math.min(1, dt * 10); }
         S.mist += dt; if (S.intro) return;
         // the brood's order
         brood.tick(dt); for (const q of gates) if (q) q.tick(dt);
@@ -354,7 +383,8 @@ const CAL_STAGES = { HP_K: 1.5, DMG_K: { HOLLOWS: 0.55, FOUNDRY: 0.72, DESCENT: 
         if (!S.latched) for (const q of S.flow.mist) { const A = cell(q.id), ox = A.x + DIR[q.d][0] * (q.open ? 1.0 : 2.0), oy = A.y + DIR[q.d][1] * (q.open ? 1.0 : 2.0), Xs = X.sx(ox), Ys = X.sy(oy); c.save(); for (let i = 0; i < 4; i++) { const u = ((S.mist * 0.7 + i / 4) % 1), r = T * (0.25 + u * 0.7), px = Xs + DIR[q.d][0] * u * T * 0.9 + Math.sin(i * 2 + t) * T * 0.1, py = Ys + DIR[q.d][1] * u * T * 0.9 - u * T * 0.6; const gg = c.createRadialGradient(px, py, 0, px, py, r); gg.addColorStop(0, `rgba(235,248,255,${0.55 * (1 - u)})`); gg.addColorStop(1, 'rgba(235,248,255,0)'); c.fillStyle = gg; c.beginPath(); c.arc(px, py, r, 0, TAU); c.fill(); } c.restore(); if (S.entered && Math.hypot(me.x - ox, me.y - oy) < 5) label(c, 'MIST', Xs, Ys - T * 0.9, T * 0.2, P.FROST_HI); }
         // the frost's own light, over the cavern's dark
         if (S.entered || S.latched) { for (const id of S.flow.fed) { const p = cell(id); glow(c, X.sx(p.x), X.sy(p.y), T * 1.4, P.FROST, 0.22); } for (let i = 0; i < 2; i++) if (S.fill[i] > 0.05) { const b = i ? BE : BW; glow(c, X.sx(b.x), X.sy(b.y), T * 1.6, P.FROST, 0.3 * S.fill[i]); } }
-        if (S.surge > 0 && S.surge < 1.6) glow(c, X.sx(R0.x), X.sy(R0.y) - T, T * 4 * (1 - Math.abs(S.surge - 0.5)), '#E8F8FF', 0.5); },
+        if (S.surge > 0 && S.surge < 1.6) glow(c, X.sx(R0.x), X.sy(R0.y) - T, T * 4 * (1 - Math.abs(S.surge - 0.5)), '#E8F8FF', 0.5);
+        if (S.entered && !S.latched) edgeMarks(X, c, [{ x: R0.x, y: R0.y - 1, col: P.FROST_HI, label: S.primed ? 'RELEASE' : 'RESERVOIR', warn: S.primed }, { x: BW.x, y: BW.y, col: S.fill[0] >= 1 ? P.FROST_HI : '#8FA2B0', label: 'BASIN' }, { x: BE.x, y: BE.y, col: S.fill[1] >= 1 ? P.FROST_HI : '#8FA2B0', label: 'BASIN' }].concat(pieces.filter(pc => !cwRight(S.rot, pc.id) && S.hint).map(pc => ({ x: pc.x, y: pc.y, col: '#FFF08C', label: 'TURN' })))); },
     };
     /* ---- the causeway's art ---- */
     // a stone conduit: a dark grated channel with a cut-stone lip (the frost runs in it)
@@ -480,7 +510,8 @@ const CAL_STAGES = { HP_K: 1.5, DMG_K: { HOLLOWS: 0.55, FOUNDRY: 0.72, DESCENT: 
     // grated bays over lava inside the halls (the floor's own grates)
     for (const [x0, y0] of [[7, 75], [22, 75], [7, 58], [22, 58], [7, 42], [22, 42], [7, 23], [22, 23], [11, 27], [18, 27]]) rect(x0, y0, x0 + 3, y0 + 2, 'g');
     // the ring hall, the pressure door (three rings on it), the landing beyond
-    rect(4, 5, 28, 14); rect(12, 3, 20, 4, 'D'); rect(10, 0, 22, 2); g[1][16] = 'E'; g[1][12] = 'F';
+    // (the frost shrine stands in the ring hall, beside the door: beyond it the dark passage, the exit just inside)
+    rect(4, 5, 28, 14); rect(12, 3, 20, 4, 'D'); rect(10, 0, 22, 2); g[1][16] = 'E'; g[9][6] = 'F';
     g[11][10] = 'A'; g[11][16] = 'B'; g[11][22] = 'C'; g[13][6] = 'Z'; g[13][26] = 'L';
     // the forge's furniture: pressure vessels in the halls, furnaces and chains over the lava, rings beside the walkways
     for (const [x, y] of [[5, 72], [27, 80], [5, 55], [27, 55], [5, 64], [27, 64], [6, 38], [26, 47], [4, 19], [28, 19], [4, 30], [28, 30], [7, 6], [25, 6]]) g[y][x] = 'V';
@@ -557,7 +588,7 @@ const CAL_STAGES = { HP_K: 1.5, DMG_K: { HOLLOWS: 0.55, FOUNDRY: 0.72, DESCENT: 
       special: (ty, q) => { if (ty !== 'tutor') return null; S.lesson = true; return bomb.spawn(q, 913); } }));
     const brood = director(X, P, rooms, { dmgK: CAL_STAGES.DMG_K.FOUNDRY, col: P.RUNE_HI });
     // the pressure door, its three rings and inscription
-    const door = doorway(X, H, tilesOf(M, 'D'), (c, Xs, Ys, T, D) => doorArt(c, Xs, Ys, T, D), { kind: 'calringdoor' });
+    const door = doorway(X, H, tilesOf(M, 'D'), (c, Xs, Ys, T, D) => doorArt(c, Xs, Ys, T, D), { kind: 'calringdoor', dur: 2.2 });
     const ringX = i => (door.x0 + door.x1) / 2 + (i - 1) * 2.9, ringY = door.y1 - 2.1;   // (world: on the door's face)
     const levers = ['A', 'B', 'C'].map((id, i) => { const p = mk[id][0], L = { id, x: p.x, y: p.y, k: 0, flash: 0 };
       L.obj = H.obj({ x: p.x, y: p.y, kind: 'callever', r: 0.75, h: 2.4, label: () => S.solved ? '' : `LEVER ${id}: ${RR_LEVERS[id].map((v, j) => v ? ['LEFT', 'MIDDLE', 'RIGHT'][j] : '').filter(Boolean).join(' + ')}`, draw(c, Xs, Ys, T) { leverArt(c, Xs, Ys, T, L); }, use() { pull(id); } }); S.lever[id] = L; return L; });
@@ -579,9 +610,13 @@ const CAL_STAGES = { HP_K: 1.5, DMG_K: { HOLLOWS: 0.55, FOUNDRY: 0.72, DESCENT: 
     for (const p of tilesOf(M, 'O')) H.obj({ x: p.x, y: p.y + 0.5, kind: 'calforgering', r: 0.1, h: 6, label: '', draw(c, Xs, Ys, T) { forgeRingArt(c, Xs, Ys, T, p.tx * 0.5 + p.ty * 0.13); } });
     X.after(1.0, () => { S.intro = false; X.banner('THE RUNEBOUND FOUNDRY', 'An ancient forge, older than the rift: cross its grated walkways to the sealed pressure door', P.RUNE_HI, 3.2, true, true); });
     const wantHint = () => S.hintMove && S.hintState === S.rings.join('') ? S.hintMove : null;
-    return { S, levers, door, bomb, shrine, brood, rooms, gates, ringsPlan, pull, reset, showNext, RR_LEVERS,
-      cam() { const ring = me.y < 17; const k = ring ? 0.35 : 0.15, fy = ring ? 9 : me.y - 3; return { x: me.x * (1 - k) + (FO_CX + 0.5) * k, y: me.y * (1 - k) + fy * k, k: 0, zoom: 0.56 }; },
-      update(dt) { door.tick(dt); shrine.tick(dt); bomb.tick(dt);
+    // the camera: close in the halls; in the ring hall, while the rings are unsolved (and until the door has opened), out to
+    // the door, its rings, the three levers and their lines
+    const rig = camRig(); S.openT = 0;
+    const camWant = () => brood.done && me.y < 16.8 && !(S.opened && S.openT > 1.6) ? { zoom: 0.52, x: FO_CX + 1.5, y: 8.6, k: 0.6 } : null;
+    return { S, levers, rig, camWant, door, bomb, shrine, brood, rooms, gates, ringsPlan, pull, reset, showNext, RR_LEVERS,
+      cam: rig.cam,
+      update(dt) { door.tick(dt); shrine.tick(dt); bomb.tick(dt); if (S.opened) S.openT += dt; rig.tick(dt, camWant());
         for (const L of levers.concat([resetL])) { L.k = Math.max(0, L.k - dt * 1.6); L.flash = Math.max(0, L.flash - dt); }
         for (let i = 0; i < 3; i++) { S.flash[i] = Math.max(0, S.flash[i] - dt); const want = S.rings[i] * TAU / 3; let d = want - S.ang[i]; while (d < -Math.PI) d += TAU; while (d > Math.PI) d -= TAU; S.ang[i] += d * Math.min(1, dt * 7); }
         // nearing a lever lights the two rings it turns
@@ -590,7 +625,7 @@ const CAL_STAGES = { HP_K: 1.5, DMG_K: { HOLLOWS: 0.55, FOUNDRY: 0.72, DESCENT: 
         if (S.opened) { S.beatT -= dt; if (S.beatT <= 0) { S.beatT = 1.35; S.beat = 1; if (X.sfx.note) { X.sfx.note(52, 0.22, 'sine', 0.55, 38); X.sfx.note(48, 0.2, 'sine', 0.4, 34, 0.24); } } S.beat = Math.max(0, S.beat - dt * 2.2); }
         if (S.intro) return;
         brood.tick(dt); for (const q of gates) if (q) q.tick(dt);
-        if (S.solved && S.opened && !self.done && brood.done) { self.done = true; H.setExit(E.x, E.y, 'To the Bomb King'); X.banner('THE FOUNDRY IS YOURS', 'The door stands open: the frost shrine beyond, then the Bomb King', P.RUNE_HI, 2.6, true); } },
+        if (S.solved && S.opened && !self.done && brood.done) { self.done = true; H.setExit((door.x0 + door.x1) / 2, door.y1 + 0.25, 'To the Bomb King');   /* (at the threshold: the engine walks the pet in) */ X.banner('THE FOUNDRY IS YOURS', 'The door stands open: the frost shrine beyond, then the Bomb King', P.RUNE_HI, 2.6, true); } },
       goal() { if (self.done) return 'To the Bomb King'; if (S.intro) return 'The Runebound Foundry';
         if (bomb.st === 'ground' && bomb.safe()) return `Return the bomb · hit it while its ring is ${bomb.own ? 'gold' : 'green'}`;
         if (!brood.done) return brood.goal();
@@ -601,7 +636,7 @@ const CAL_STAGES = { HP_K: 1.5, DMG_K: { HOLLOWS: 0.55, FOUNDRY: 0.72, DESCENT: 
         if (!brood.done) return brood.hint();
         const h = wantHint(); if (h) { const L = S.lever[h]; return { x: L.x, y: L.y, h: 2.5, label: `LEVER ${h}` }; }
         if (!S.solved && me.y > 17) return { x: FO_CX + 1.5, y: 12, h: 1.2, label: 'THE DOOR' }; return null; },
-      drawGround(c) { const T = X.Tz(), t = g.t, lw = lwOf(T); gr.drawGround(c); bomb.drawGround(c);
+      drawGround(c) { const T = X.Tz(), t = g.t, lw = lwOf(T); gr.drawGround(c); bomb.drawGround(c); passageArt(c, T);
         // the physical lines: from each lever across the floor to the door's foot under each of its two rings (and up the door, drawn with it)
         for (const L of levers) { const v = RR_LEVERS[L.id], on = S.near === L.id || wantHint() === L.id, col = RR_COL[L.id];
           for (let i = 0; i < 3; i++) if (v[i]) { const li = ['A', 'B', 'C'].indexOf(L.id), off = (li - 1) * 0.28, x1 = ringX(i) + off, y1 = door.y1 + 0.3, yr = L.y - 1.4 - li * 0.6, pts = [[X.sx(L.x + off), X.sy(L.y - 0.3)], [X.sx(L.x + off), X.sy(yr)], [X.sx(x1), X.sy(yr)], [X.sx(x1), X.sy(y1)]];
@@ -610,7 +645,8 @@ const CAL_STAGES = { HP_K: 1.5, DMG_K: { HOLLOWS: 0.55, FOUNDRY: 0.72, DESCENT: 
       drawOver(c) { const T = X.Tz(), t = g.t;
         // the forge's rune light and the lava's glow, over the dark
         if (!lowFx()) for (const L of levers) if (S.near === L.id || wantHint() === L.id) glow(c, X.sx(L.x), X.sy(L.y) - T * 1.2, T * 1.4, RR_COL[L.id], 0.35);
-        if (S.opened) { const k = S.beat; glow(c, X.sx(E.x), X.sy(E.y) - T, T * (3 + k * 1.5), P.LAVA, 0.25 + 0.35 * k); } } };
+        if (S.opened) { const k = S.beat; glow(c, X.sx(door.x0 + (door.x1 - door.x0) / 2), X.sy(door.y1) + T * 0.1, T * (1.2 + k * 0.5), P.LAVA_D, 0.12 + 0.18 * k); }   // (only a low red pulse on the sill: the passage stays dark)
+        if (camWant() && !S.solved) edgeMarks(X, c, levers.map(L => ({ x: L.x, y: L.y - 1, col: RR_COL[L.id], label: 'LEVER ' + L.id, warn: wantHint() === L.id })).concat([{ x: resetL.x, y: resetL.y - 1, col: '#B8AEA8', label: 'RESET' }, { x: lp.x, y: lp.y - 1, col: P.RUNE_HI, label: 'NEXT MOVE?' }])); } };
     /* ---- the foundry's art ---- */
     function leverArt(c, Xs, Ys, T, L) { const lw = lwOf(T), col = L.id === 'R' ? P.ASH : RR_COL[L.id], on = S.near === L.id || wantHint() === L.id; c.save(); c.fillStyle = 'rgba(0,0,0,.4)'; ell(c, Xs, Ys + T * 0.05, T * 0.75, T * 0.25); c.fill();
       // the iron housing, its rune plate (the letter and which rings), the arm
@@ -638,14 +674,28 @@ const CAL_STAGES = { HP_K: 1.5, DMG_K: { HOLLOWS: 0.55, FOUNDRY: 0.72, DESCENT: 
       if (hi) { c.strokeStyle = col; c.lineWidth = Math.max(3, R * 0.08); c.beginPath(); c.arc(x, y, R * 1.08, 0, TAU); c.stroke(); }
       c.restore(); glow(c, x, y, R * 1.2, cur === RR_TARGET[i] ? P.RUNE : P.LAVA, 0.2 + 0.4 * k + (hi ? 0.2 : 0));
       label(c, RUNE_NAMES[cur], x, y + R + R * 0.38, R * 0.22, cur === RR_TARGET[i] ? P.RUNE_HI : '#E8D6C0'); }
+    /* the open door's dark passage (on the ground layer, under the pet): the dark deepens away from the sill, the passage's
+       walls recede, the faint red of the heartbeat far inside; a shadow spills onto the floor in front (it also keeps the
+       exit's own gate light, under it, from showing: the doorway reads dark, not lit) */
+    function passageArt(c, T) { const open = door.k; if (!door.open || open <= 0) return; const Xs = X.sx(door.obj.x), Ys = X.sy(door.obj.y), w = (door.x1 - door.x0) * T, L = Xs - w / 2, H0 = T * 4.6, top = Ys - H0; if (Ys < -T || top > X.H() + T) return;
+      c.save(); const sg = c.createRadialGradient(Xs, Ys + T * 0.2, T * 0.3, Xs, Ys + T * 0.2, w * 0.62); sg.addColorStop(0, `rgba(6,3,3,${0.9 * open})`); sg.addColorStop(0.55, `rgba(6,3,3,${0.6 * open})`); sg.addColorStop(1, 'rgba(6,3,3,0)'); c.fillStyle = sg; ell(c, Xs, Ys + T * 0.2, w * 0.62, T * 1.3); c.fill();
+      // (an opaque dark: the exit's gate, under it, never shows through), then the passage floor just inside, faint and fading
+      const dg = c.createLinearGradient(0, Ys, 0, top); dg.addColorStop(0, '#120B09'); dg.addColorStop(0.3, '#080404'); dg.addColorStop(1, '#030101'); c.fillStyle = dg; c.fillRect(L, top, w, H0);
+      const fg = c.createLinearGradient(0, Ys, 0, Ys - H0 * 0.4); fg.addColorStop(0, `rgba(70,52,46,${0.55 * open})`); fg.addColorStop(1, 'rgba(70,52,46,0)'); c.fillStyle = fg; poly(c, [[L, Ys], [L + w, Ys], [L + w * 0.8, Ys - H0 * 0.4], [L + w * 0.2, Ys - H0 * 0.4]]); c.closePath(); c.fill();
+      c.strokeStyle = `rgba(20,12,10,${0.6 * open})`; c.lineWidth = 1.2; for (let i = 1; i < 4; i++) { const y = Ys - H0 * 0.4 * (1 - Math.pow(1 - i / 4, 1.6)), k = (Ys - y) / (H0 * 0.4) * 0.2; c.beginPath(); c.moveTo(L + w * k, y); c.lineTo(L + w * (1 - k), y); c.stroke(); }
+      c.fillStyle = `rgba(30,22,20,${0.75 * open})`; for (const sd of [-1, 1]) { const ox = sd < 0 ? L : L + w; poly(c, [[ox, Ys], [ox + sd * -w * 0.2, top + H0 * 0.38], [ox + sd * -w * 0.2, top], [ox, top]]); c.closePath(); c.fill(); }
+      c.strokeStyle = `rgba(90,60,50,${0.35 * open})`; c.lineWidth = 1.2; for (const sd of [-1, 1]) { const ox = sd < 0 ? L : L + w; c.beginPath(); c.moveTo(ox, Ys); c.lineTo(ox + sd * -w * 0.2, top + H0 * 0.38); c.stroke(); }
+      c.restore(); glow(c, Xs, top + H0 * 0.2, w * (0.16 + 0.05 * S.beat), P.LAVA_D, (0.2 + 0.3 * S.beat) * open); }
     function doorArt(c, Xs, Ys, T, D) { const lw = lwOf(T), t = g.t, w = (D.x1 - D.x0) * T, L = Xs - w / 2, H0 = T * 4.6, top = Ys - H0, open = D.k;
       c.save();
       // the frame: basalt jambs and a lintel carved with the inscription
       c.fillStyle = P.BASALT_D; c.fillRect(L - T * 0.9, top - T * 1.2, T * 0.9, H0 + T * 1.2); c.fillRect(L + w, top - T * 1.2, T * 0.9, H0 + T * 1.2); c.strokeStyle = P.INK; c.lineWidth = lw; c.strokeRect(L - T * 0.9, top - T * 1.2, T * 0.9, H0 + T * 1.2); c.strokeRect(L + w, top - T * 1.2, T * 0.9, H0 + T * 1.2);
       c.fillStyle = P.BASALT_HI; c.fillRect(L - T * 0.9, top - T * 1.25, w + T * 1.8, T * 1.05); c.strokeRect(L - T * 0.9, top - T * 1.25, w + T * 1.8, T * 1.05);
       for (let i = 0; i < 3; i++) { const gx = Xs + (i - 1) * T * 2.4; glyph(c, gx - T * 0.45, top - T * 0.72, T * 0.26, RR_TARGET[i], P.RUNE_HI, Math.max(1.5, T * 0.05)); label(c, RUNE_NAMES[RR_TARGET[i]], gx + T * 0.4, top - T * 0.62, T * 0.2, P.RUNE_HI); if (i < 2) label(c, '—', gx + T * 1.2, top - T * 0.62, T * 0.2, P.RUNE_HI); }
-      // beyond the door: the dark, a heartbeat's glow
-      c.fillStyle = '#0B0605'; c.fillRect(L, top, w, H0); if (open > 0) { const gg = c.createRadialGradient(Xs, Ys - H0 * 0.4, 0, Xs, Ys - H0 * 0.4, w * 0.6); gg.addColorStop(0, rgba(P.LAVA, 0.5 + 0.4 * S.beat)); gg.addColorStop(1, rgba(P.LAVA_D, 0)); c.fillStyle = gg; c.fillRect(L, top, w, H0); }
+      // beyond the door: shut, flat black. Once it opens, the dark passage is drawn on the ground instead (passageArt), under the
+      // pet, so the engine's own walk-in (the pet walked in, silhouetted and erased from the feet up) plays over it and nothing
+      // of this file darkens the pet a second time
+      if (open <= 0) { c.fillStyle = '#0B0605'; c.fillRect(L, top, w, H0); }
       // the two door leaves, sliding apart
       for (const sd of [-1, 1]) { const lw2 = w / 2 * (1 - open * 0.92), x0 = sd < 0 ? L : Xs + w / 2 * open * 0.92; if (lw2 < 1) continue; const ig = c.createLinearGradient(x0, 0, x0 + lw2, 0); ig.addColorStop(0, sd < 0 ? P.IRON_HI : P.IRON); ig.addColorStop(1, sd < 0 ? P.IRON : P.IRON_D); c.fillStyle = ig; c.fillRect(x0, top, lw2, H0); c.strokeStyle = P.INK; c.lineWidth = lw; c.strokeRect(x0, top, lw2, H0);
         c.fillStyle = 'rgba(0,0,0,.3)'; for (let r = 1; r < 5; r++) c.fillRect(x0, top + H0 * r / 5, lw2, 2); c.fillStyle = P.IRON_HI; for (let r = 0; r < 6; r++) for (let q = 0; q < 2; q++) { c.beginPath(); c.arc(x0 + lw2 * (0.15 + q * 0.7), top + H0 * (0.08 + r * 0.17), Math.max(1.2, T * 0.04), 0, TAU); c.fill(); }
@@ -659,7 +709,7 @@ const CAL_STAGES = { HP_K: 1.5, DMG_K: { HOLLOWS: 0.55, FOUNDRY: 0.72, DESCENT: 
       else if (open < 1) { const u = S.iris, e = u * u * (3 - 2 * u), RR = R * (1 + e * 0.9); c.save(); c.globalAlpha = 1 - open; for (let i = 0; i < 3; i++) { const x = Xs + (i - 1) * T * 2.9 * (1 - e); ringArt(c, x, cy, RR * (1 - i * 0.12 * e), i, lw, null); }
         // the iris: rings of glyph light closing round a molten pupil
         c.globalCompositeOperation = 'lighter'; for (let k = 0; k < 6; k++) { const a = k / 6 * TAU + t * 0.6; c.strokeStyle = rgba(P.RUNE_HI, 0.5 * e); c.lineWidth = Math.max(2, T * 0.06); c.beginPath(); c.arc(Xs, cy, RR * (0.35 + k * 0.1), a, a + 2.2); c.stroke(); } c.restore(); glow(c, Xs, cy, RR * 1.5 * e, P.LAVA_HI, 0.6 * e * (1 - open)); }
-      if (!D.open && !S.solved) label(c, 'THE PRESSURE DOOR', Xs, top - T * 1.55, T * 0.24, P.RUNE_HI); }
+      if (!D.open && !S.solved) label(c, 'THE PRESSURE DOOR', Xs, top - T * 1.55, T * 0.24, P.RUNE_HI); else if (D.open && self.done) label(c, 'TO THE BOMB KING', Xs, top - T * 1.55, T * 0.24, '#8FE0A6'); }   // (the one caption: the exit gate's own label is under the dark passage)
     function vesselArt(c, Xs, Ys, T, ph) { const lw = lwOf(T), t = g.t, w = T * 1.3, h = T * 2.0, top = Ys - h; c.save(); c.fillStyle = 'rgba(0,0,0,.4)'; ell(c, Xs, Ys, w * 0.6, T * 0.25); c.fill();
       // a riveted pressure vessel: a domed iron tank, engraved runes glowing faintly, a gauge, a hissing valve
       c.beginPath(); c.moveTo(Xs - w / 2, Ys - T * 0.1); c.lineTo(Xs - w / 2, top + w * 0.3); c.quadraticCurveTo(Xs - w / 2, top - w * 0.15, Xs, top - w * 0.2); c.quadraticCurveTo(Xs + w / 2, top - w * 0.15, Xs + w / 2, top + w * 0.3); c.lineTo(Xs + w / 2, Ys - T * 0.1); c.closePath();
@@ -694,10 +744,21 @@ const CAL_STAGES = { HP_K: 1.5, DMG_K: { HOLLOWS: 0.55, FOUNDRY: 0.72, DESCENT: 
   const DE_VENT = { idle: 1.6, warn: 1.9, erupt: 0.8, cool: 0.9 }, DE_VENT_R = 1.3;
   const DE_ROOMS = [{ name: 'The First Ledge', li: 1 }, { name: 'The Crystal Ledge', li: 2 }, { name: 'The High Ledge', li: 3 }];
   /* THE EMBER COURT: a round basalt platform (layout centre 15.5, 23.5) over the lava below the overlook, ringed by six furnace
-     idols on pillars in the lava. They hurl molten balls; twelve DODGED throws (rolled through, or side-stepped close)
-     open the court. Hits only chip: they never count and never reset the counter */
-  const EC_C = [15.5, 23.5], EC_RX = 9, EC_RY = 6.5, EC_NEED = 12;
+     idols on pillars in the lava. First they hurl molten balls: six DODGED throws (rolled through, or side-stepped close).
+     Then they wake, crack free and stomp down onto the platform, two at a time, and charge the pet: dodge at the last moment and
+     the charge carries on into another idol (both crack; two crashes shatter one). Blows barely scratch them. Hits only chip */
+  const EC_C = [15.5, 23.5], EC_RX = 9, EC_RY = 6.5, EC_NEED = 6;
   const EC_IDOLS = { NW: [8, 18], NE: [22, 18], W: [5, 23], E: [25, 23], SW: [8, 29], SE: [22, 29] };
+  const EC_PAIRS = [['W', 'E'], ['NW', 'SE'], ['NE', 'SW']];   // (the order they wake in: each pair faces each other across the court)
+  const EC_CHIP = 0.08, EC_SLAM = 0.06, EC_HP = 100, EC_SCRATCH = [90, 40];   // (a blow scratches; it never takes an idol below these)
+  /* the shatter: a big burst of basalt debris, embers and smoke, a shockwave. THE SEAM: another worker's shared destruction
+     helper replaces this one assignment (or CAL_STAGES.shatterFx = theirs); it is called once per idol, as
+     shatterFx(X, { x, y, h, r, col, hot, kind: 'idol', debris }) where debris is the stage's own list of flying chunks */
+  CAL_STAGES.shatterFx = function (X, o) { const lf = lowFx(), n = lf ? 8 : 22;
+    for (let i = 0; i < n; i++) { const a = Math.random() * TAU, sp = 2 + Math.random() * 5; o.debris.push({ x: o.x + Math.cos(a) * 0.3, y: o.y + Math.sin(a) * 0.2, z: 0.4 + Math.random() * o.h, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.6, vz: 2 + Math.random() * 5, rot: Math.random() * TAU, vr: (Math.random() - 0.5) * 14, s: 0.12 + Math.random() * 0.22, life: 1.4 + Math.random() * 0.6, hot: Math.random() < 0.45 }); }
+    X.boom(o.x, o.y - 0.4, 2.2, o.col, o.hot || '#FFE9B0', { n: lf ? 10 : 30, shake: 0 }); X.ring(o.x, o.y, 0.3, 3.6, 0.55, '#FFE0C0', 0.6);
+    if (!lf) for (let i = 0; i < 8; i++) X.part({ kind: 'smoke', x: o.x + (Math.random() - 0.5) * 1.4, y: o.y - 0.3 - Math.random(), vx: (Math.random() - 0.5), vy: -0.8 - Math.random(), life: 1.4, max: 1.4, size: 0.8 + Math.random() * 0.5, color: '#4A403C' });
+    X.shake(lf ? 3 : 10, 0.6); if (!lf) X.flash(0.22, '#FFE0C0'); if (X.sfx.crash) X.sfx.crash(); if (X.sfx.thud) X.sfx.thud(); };
   const DE_LAYOUT = (() => { const g = grid(DE_W, DE_H, '#'); const rect = (x0, y0, x1, y1, ch) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) g[y][x] = ch || '.'; };
     rect(1, 0, 29, 9, '~'); rect(3, 10, 27, 96, '~');
     // the overlook; the court's north gate (its idols cool at twelve); the court; the gate up from the high ledge
@@ -754,44 +815,39 @@ const CAL_STAGES = { HP_K: 1.5, DMG_K: { HOLLOWS: 0.55, FOUNDRY: 0.72, DESCENT: 
     if (!coreProps) { for (const p of tilesOf(M, 'H')) H.obj({ x: p.x, y: p.y + 0.5, kind: 'calcolumn', r: 0.1, h: 3, label: '', draw(c, Xs, Ys, T) { columnArt(c, Xs, Ys, T, p.tx * 0.3 + p.ty * 0.7); } });
       for (const p of tilesOf(M, 'O')) H.obj({ x: p.x, y: p.y + 0.5, kind: 'calslab', r: 0.1, h: 4, label: '', draw(c, Xs, Ys, T) { slabArt(c, Xs, Ys, T, p.tx * 0.41 + p.ty * 0.07); } }); }
     for (const p of tilesOf(M, 'C')) { const ph = (p.tx * 0.37 + p.ty * 0.11) % 1, big = 1.4 + (DE_H - p.ty) / DE_H * 1.1; block(X, p.tx, p.ty); H.obj({ x: p.x, y: p.y + 0.4, kind: 'calcrystal', r: 0.1, h: 2, label: '', draw(c, Xs, Ys, T) { crystalArt(c, Xs, Ys, T * big, g.t, ph, P); } }); }
-    /* ---- THE EMBER COURT: dodge twelve throws ---- */
+    /* ---- THE EMBER COURT: six dodged throws; then the idols wake, and are shattered by luring them into each other ---- */
     const ctr = Wp(EC_C[0] - 0.5, EC_C[1] - 0.5), ecIn = (x, y, pad) => Math.pow((x - ctr.x) / (EC_RX + (pad || 0)), 2) + Math.pow((y - ctr.y) / (EC_RY + (pad || 0)), 2) < 1;
     const touchUI = (() => { try { return matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0; } catch (e) { return true; } })();
-    const C = { on: false, count: 0, t: 0, next: 2.2, winds: [], balls: [], hits: 0, voids: 0, far: 0, streak: 0, slow: false, prompt: 0, done: false, cool: 0, pop: 0, popWord: '', attacks: 0, log: [] };
+    const C = { on: false, phase: 'idle', count: 0, t: 0, next: 2.2, winds: [], balls: [], hits: 0, voids: 0, far: 0, streak: 0, slow: false, prompt: 0, promptWord: '', done: false, cool: 0, pop: 0, popWord: '', attacks: 0, log: [],
+      wt: 0, pair: -1, shattered: 0, crashes: 0, perfects: 0, chargeHits: 0, charges: 0, atkCd: 0, turn: 0, debris: [], scratches: 0, joinT: 0, doneT: 0, hitRow: 0, closes: 0 };
     S.court = C;
-    const idols = {}; for (const k in EC_IDOLS) { const [x, y] = EC_IDOLS[k], w = Wp(x, y); idols[k] = { id: k, x: w.x, y: w.y, wind: 0, flash: 0, cool: 0 };
-      H.obj({ x: w.x, y: w.y + 0.5, kind: 'calidol', r: 0.1, h: 3, label: '', draw(c, Xs, Ys, T) { idolArt(c, Xs, Ys, T, idols[k]); } }); }
-    const courtGate = doorway(X, H, tilesOf(M, 'Y'), (c, Xs, Ys, T, D) => { gateArt(c, Xs, Ys, T, D, P, 'slag', C.done ? '' : `DODGE ${EC_NEED} THROWS`, g.t); }, { kind: 'calcourtgate' });
+    const onFloor = th => th.st === 'leap' || th.st === 'hunt' || th.st === 'wind' || th.st === 'charge' || th.st === 'stun';
+    const idols = {}; for (const k in EC_IDOLS) { const [x, y] = EC_IDOLS[k], w = Wp(x, y), th = { id: k, x: w.x, y: w.y, px: w.x, py: w.y, wind: 0, flash: 0, cool: 0, st: 'pillar', t: 0, dur: 1, cracks: 0, hp: EC_HP, z: 0, ax: 0, ay: 1, m: null, stun: 0, scr: 0, lockd: false, lure: null, travel: 0, maxT: 0, spd: 0, minD: 99, passed: false };
+      idols[k] = th; H.obj({ x: w.x, y: w.y + 0.5, kind: 'calidol', r: 0.1, h: 3, label: '', draw(c, Xs, Ys, T) { idolArt(c, Xs, Ys, T, th); } });
+      th.body = H.obj({ x: w.x, y: w.y + 0.5, kind: 'calidolbody', r: 0.1, h: 3, label: '', draw(c, Xs, Ys, T) { if (onFloor(th)) idolFloorArt(c, Xs, Ys, T, th); } }); }
+    const all = () => Object.values(idols), awake = () => all().filter(th => th.st === 'hunt' || th.st === 'wind' || th.st === 'charge' || th.st === 'stun'), busy = () => all().some(th => th.st === 'wind' || th.st === 'charge');
+    const courtGate = doorway(X, H, tilesOf(M, 'Y'), (c, Xs, Ys, T, D) => { gateArt(c, Xs, Ys, T, D, P, 'slag', C.done ? '' : C.phase === 'wake' || C.phase === 'fight' ? 'SHATTER THE IDOLS' : `DODGE ${EC_NEED} THROWS`, g.t); }, { kind: 'calcourtgate', dur: 1.3, fx: gateFx(X, P, 'slag') });
     const mouth = th => ({ x: th.x, y: th.y - 0.2 });
-    // a throw: the idol glows and winds up (its aim line or landing circle shown), then lets fly
+    /* -- part one: the throws. The idol glows and winds up (its aim line or landing circle shown), then lets fly -- */
     function windUp(id, kind, o) { o = o || {}; const th = idols[id], slow = C.slow; C.slow = false; const w = { th, kind, t: 0, dur: (o.wind || 1.1) + (slow ? 0.6 : 0), speed: (o.speed || 6.5) * (slow ? 0.75 : 1), tx: me.x, ty: me.y, teach: !!o.teach || slow }; C.winds.push(w); C.attacks++;
-      if (w.teach) C.prompt = w.dur + 1.2; if (X.sfx.hiss) X.sfx.hiss(w.dur * 0.8, 0.08, 900); return w; }
+      if (w.teach) { C.prompt = w.dur + 1.2; C.promptWord = ''; } if (X.sfx.hiss) X.sfx.hiss(w.dur * 0.8, 0.08, 900); return w; }
     function release(w) { const m = mouth(w.th); w.th.flash = 0.4; if (X.sfx.whoosh) X.sfx.whoosh();
       if (w.kind === 'lob') { C.balls.push({ kind: 'lob', x0: m.x, y0: m.y, tx: w.tx, ty: w.ty, x: m.x, y: m.y, z: 2.3, t: 0, dur: 1.15, R: 1.15, res: null, minD: 9 }); return; }
       const dx = w.tx - m.x, dy = w.ty - m.y, d = Math.hypot(dx, dy) || 1, r = w.kind === 'roll' ? 0.55 : 0.36;
       C.balls.push({ kind: w.kind, x: m.x, y: m.y, vx: dx / d * w.speed, vy: dy / d * w.speed, r, z: w.kind === 'roll' ? 0 : 2.3, zs: w.kind === 'roll' ? 0 : 2.3, len: d + 9, went: 0, res: null, minD: 9, spin: 0 }); }
-    function counted(b, how) { if (b.res) return; b.res = 'dodge'; C.count = Math.min(EC_NEED, C.count + 1); C.streak = 0; C.pop = 1; C.popWord = how === 'roll' ? 'DODGE!' : 'CLOSE ONE!';
-      chime(X, 523 * Math.pow(2, C.count / 12), 0.7); X.ring(me.x, me.y, 0.3, 1.5, 0.3, P.FROST_HI, 0.35); X.text(me.x, me.y - 1.6, `${C.popWord} ${C.count}/${EC_NEED}`, '#FFF08C', 18); C.log.push(how);
-      if (C.count >= EC_NEED) finish(); }
+    function counted(b, how) { if (b.res) return; b.res = 'dodge'; if (C.phase !== 'dodge') return; C.count = Math.min(EC_NEED, C.count + 1); C.streak = 0; C.pop = 1; C.popWord = how === 'roll' ? 'DODGE!' : 'CLOSE ONE!';
+      chime(X, 523 * Math.pow(2, C.count / EC_NEED), 0.7); X.ring(me.x, me.y, 0.3, 1.5, 0.3, P.FROST_HI, 0.35); X.text(me.x, me.y - 1.6, `${C.popWord} ${C.count}/${EC_NEED}`, '#FFF08C', 18); C.log.push(how);
+      if (C.count >= EC_NEED) dodgesDone(); }
     function hitBy(b) { if (b.res) return; if (me.inv > 0 || me.dead) { b.res = 'void'; C.voids++; return; } b.res = 'hit'; const hp = X.ST().hp, d = Math.max(1, Math.min(hp * 0.07, me.hp - 1)); if (me.hp > 1) X.hurtPet(d, null, { court: true }); C.hits++; C.streak++; C.log.push('hit');
       X.text(me.x, me.y - 1.6, 'Hit: that one does not count', P.WARN, 14); if (C.streak >= 2) { C.slow = true; C.streak = 0; X.banner(touchUI ? 'TAP DODGE!' : 'PRESS SHIFT TO DODGE!', 'Roll through a ball as it reaches you, or step aside just before it arrives', P.FROST_HI, 2.4, true); } }
-    function finish() { C.done = true; C.winds.length = 0; for (const b of C.balls) { X.boom(b.kind === 'lob' ? b.tx : b.x, b.kind === 'lob' ? b.ty : b.y, 0.8, P.FROST, '#FFFFFF', { n: 8, shake: 0 }); } C.balls.length = 0; for (const k in idols) idols[k].cool = 0.001;
-      X.flash(0.3, '#E8F8FF'); X.shake(5, 0.6); if (X.sfx.fanfare) X.sfx.fanfare(); FROST_CHIME(X); X.ring(ctr.x, ctr.y, 0.5, EC_RX, 0.9, P.FROST_HI, 0.5);
-      X.banner('TWELVE DODGED', 'The furnace idols gutter out and go dark: the way to the overlook is open', P.FROST_HI, 3.4, true, true);
-      X.after(1.2, () => { courtGate.open1(); self.done = true; H.setExit(E.x, E.y, 'To Ifrit\'s Throne'); }); }
-    // the order of throws by the count so far: three slow teaching throws from the front, two throwers alternating, a crossfire,
-    // a rolling ball, a lobbed ball, then quick volleys of three to finish
+    // the order of throws: two slow teaching throws from the front, a crossfire, a lobbed ball, then a short volley
     function schedule() { const n = C.count;
-      if (n < 3) { windUp('NE', 'ball', { wind: 1.5, speed: 4.6, teach: true }); C.next = 2.4; }
-      else if (n < 5) { windUp(C.attacks % 2 ? 'W' : 'E', 'ball', { wind: 1.1, speed: 6 }); C.next = 1.6; }
-      else if (n < 7) { windUp('W', 'ball', { wind: 1.2, speed: 6.2 }); X.after(0.4, () => { if (!C.done) windUp('E', 'ball', { wind: 1.2, speed: 6.2 }); }); C.next = 2.2; if (n === 5 && !C.saidX) { C.saidX = true; X.banner('CROSSFIRE', 'Two throwers at once: roll through one, step past the other', P.LAVA_HI, 2.2, true); } }
-      else if (n === 7) { windUp('SW', 'roll', { wind: 1.3, speed: 5 }); C.next = 2.0; if (!C.saidR) { C.saidR = true; X.banner('A ROLLING BALL', 'Low and wide: roll through it or get out of its lane', P.LAVA_HI, 2.2, true); } }
-      else if (n === 8) { windUp('NW', 'lob', { wind: 1.3 }); C.next = 2.2; if (!C.saidL) { C.saidL = true; X.banner('A LOBBED BALL', 'Leave the landing circle before it comes down', P.LAVA_HI, 2.2, true); } }
-      else { ['NE', 'E', 'SE'].forEach((id, i) => X.after(i * 0.9, () => { if (!C.done) windUp(id, 'ball', { wind: 0.9, speed: 7.2 }); })); C.next = 3.4; if (!C.saidV) { C.saidV = true; X.banner('THE FINAL VOLLEY', 'Three quick throws from the east: keep moving, roll at the last moment', P.LAVA_HI, 2.2, true); } } }
-    function courtTick(dt) { for (const k in idols) { const th = idols[k]; th.flash = Math.max(0, th.flash - dt); th.wind = 0; if (th.cool > 0) th.cool = Math.min(1, th.cool + dt / 2); }
-      C.pop = Math.max(0, C.pop - dt * 1.5); C.prompt = Math.max(0, C.prompt - dt);
-      if (!C.on) { if (brood.done && ecIn(me.x, me.y, -0.5)) { C.on = true; C.t = 0; X.banner('THE EMBER COURT', `Furnace idols ring the court. DODGE ${EC_NEED} of their throws: roll through them (${touchUI ? 'the DODGE button' : 'Shift'}) or step aside just in time. A hit only stings, and never counts`, P.FROST_HI, 4.2, true, true); FROST_CHIME(X); } return; }
-      if (C.done) return; C.t += dt;
+      if (n < 2) { windUp('NE', 'ball', { wind: 1.5, speed: 4.6, teach: true }); C.next = 2.4; }
+      else if (n === 2) { windUp('W', 'ball', { wind: 1.3, speed: 5.6 }); X.after(0.45, () => { if (C.phase === 'dodge') windUp('E', 'ball', { wind: 1.3, speed: 5.6 }); }); C.next = 2.2; if (!C.saidX) { C.saidX = true; X.banner('CROSSFIRE', 'Two throwers at once: roll through one, step past the other', P.LAVA_HI, 2.2, true); } }
+      else if (n === 3) { windUp('SE', 'ball', { wind: 1.1, speed: 6 }); C.next = 1.8; }
+      else if (n === 4) { windUp('NW', 'lob', { wind: 1.3 }); C.next = 2.2; if (!C.saidL) { C.saidL = true; X.banner('A LOBBED BALL', 'Leave the landing circle before it comes down', P.LAVA_HI, 2.2, true); } }
+      else { ['NE', 'E'].forEach((id, i) => X.after(i * 0.85, () => { if (C.phase === 'dodge') windUp(id, 'ball', { wind: 0.95, speed: 6.8 }); })); C.next = 2.8; if (!C.saidV) { C.saidV = true; X.banner('THE LAST VOLLEY', 'Two quick throws: keep moving, roll at the last moment', P.LAVA_HI, 2.2, true); } } }
+    function dodgeTick(dt) {
       for (const w of C.winds) { w.t += dt; w.th.wind = Math.max(w.th.wind, w.t / w.dur); if (w.t < w.dur - 0.3) { w.tx = me.x; w.ty = me.y; } if (w.t >= w.dur) { w.fired = true; release(w); } } C.winds = C.winds.filter(w => !w.fired);
       for (const b of C.balls) { if (b.res && b.res !== 'dodge' && b.kind !== 'lob' && b.gone) continue;
         if (b.kind === 'lob') { b.t += dt; const u = Math.min(1, b.t / b.dur); b.x = b.x0 + (b.tx - b.x0) * u; b.y = b.y0 + (b.ty - b.y0) * u; b.z = Math.sin(u * Math.PI) * 3.2 + (1 - u) * 2.3;
@@ -804,23 +860,133 @@ const CAL_STAGES = { HP_K: 1.5, DMG_K: { HOLLOWS: 0.55, FOUNDRY: 0.72, DESCENT: 
         if (!b.res && b.minD < 1.6 && dd > b.minD + 0.6) counted(b, 'step');   // (it has passed close by: a side-step)
         if (b.went > b.len || !ecIn(b.x, b.y, 4)) { b.gone = true; if (!b.res) { if (b.minD < 1.6) counted(b, 'step'); else { b.res = 'far'; C.far++; X.text(me.x, me.y - 1.4, 'Too far off: let it come close', '#FFD9B0', 13); } } } }
       C.balls = C.balls.filter(b => !b.gone || (b.kind === 'lob' && !b.landed));
-      C.next -= dt; if (C.next <= 0 && !C.winds.length && !C.balls.length) schedule(); }
+      if (C.phase !== 'dodge') return; C.next -= dt; if (C.next <= 0 && !C.winds.length && !C.balls.length) schedule(); }
+    /* -- the waking: at six the throwing stops; the idols crack, and the first two leap down onto the court -- */
+    function dodgesDone() { C.phase = 'wake'; C.wt = 0; C.winds.length = 0; for (const b of C.balls) X.boom(b.kind === 'lob' ? b.tx : b.x, b.kind === 'lob' ? b.ty : b.y, 0.8, P.LAVA, P.LAVA_HI, { n: 8, shake: 0 }); C.balls.length = 0; C.prompt = 0;
+      if (X.sfx.fanfare) X.sfx.fanfare(); X.banner('SIX DODGED!', 'The furnace idols fall silent… then their stone begins to crack', P.FROST_HI, 2.0, true); }
+    function chips(x, y, n, z) { if (lowFx()) n = Math.ceil(n / 2); for (let i = 0; i < n; i++) { const a = Math.random() * TAU, sp = 1 + Math.random() * 2.5; C.debris.push({ x, y, z: (z || 1) + Math.random(), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.6, vz: 2 + Math.random() * 3, rot: Math.random() * TAU, vr: (Math.random() - 0.5) * 10, s: 0.08 + Math.random() * 0.12, life: 1.0, hot: Math.random() < 0.4 }); } }
+    function wakeTick(dt) { const w0 = C.wt; C.wt += dt; const at = s => w0 < s && C.wt >= s;
+      if (at(1.0)) { X.banner('THE IDOLS AWAKEN', 'They crack free of their pillars', P.LAVA_HI, 1.15, true, true);   // (short: the leap that follows is behind where it sits) X.shake(lowFx() ? 2 : 7, 0.8); if (X.sfx.crack) X.sfx.crack(); if (X.sfx.crash) X.sfx.crash();
+        for (const th of all()) { th.st = 'crack'; th.flash = 0.5; chips(th.x, th.y, 4, 1.5); } }
+      if (at(2.25)) wakePair(0);
+      if (C.wt >= 3.75) { C.phase = 'fight'; C.atkCd = 0.6; X.banner('LURE THEM INTO EACH OTHER', 'Dodge at the last moment: let them smash into each other!', P.FROST_HI, 3.4, true, true); } }
+    function wakePair(i) { C.pair = i; for (const id of EC_PAIRS[i]) { const th = idols[id], dx = ctr.x - th.px, dy = ctr.y - th.py, d = Math.hypot(dx, dy) || 1; th.st = 'leap'; th.t = 0; th.lx = th.px + dx / d * 2.8; th.ly = th.py + dy / d * 2.8; th.x = th.px; th.y = th.py; th.cracks = 0; th.hp = EC_HP; chips(th.x, th.y, 5, 1.2); }
+      if (X.sfx.whoosh) X.sfx.whoosh(); if (i === 1) X.banner('TWO MORE WAKE', 'The same trick: stand between them, dodge late', P.LAVA_HI, 2.4, true); if (i === 2) X.banner('THE LAST TWO', 'They charge together: dodge as they come and let them crash', P.LAVA_HI, 2.8, true, true); }
+    function newMon(th) { const m = X.spawnMon(MT('runicsentinel'), th.x, th.y, { pack: 990, rift: true, aggro: false }); m.fobj = true; m.forward = 1; m.calIdol = th.id; m.calType = 'furnaceidol'; m.r = 0.85; m.onHit = (mm, dmg) => scratch(th, dmg); th.m = m; return m; }
+    // (it lands: a stomp, a shockwave, the pet shoved aside but not hurt; from now on it is a target, a monster the engine
+    //  never moves or draws (fobj, its blows forwarded to scratch()))
+    function land(th) { th.st = 'hunt'; th.z = 0; th.x = th.lx; th.y = th.ly; th.t = 0; th.stun = 0.5;
+      X.boom(th.x, th.y, 1.6, P.ASH, P.LAVA_HI, { n: lowFx() ? 6 : 16, shake: 0 }); X.ring(th.x, th.y, 0.3, 2.6, 0.45, '#E8D0C0', 0.5); X.shake(lowFx() ? 2 : 7, 0.4); if (X.sfx.thud) X.sfx.thud(); if (X.sfx.crash) X.sfx.crash(); chips(th.x, th.y, 6, 0.3);
+      const d = Math.hypot(me.x - th.x, me.y - th.y); if (d < 1.8 && d > 0.01) { const q = { x: th.x + (me.x - th.x) / d * 1.9, y: th.y + (me.y - th.y) / d * 1.9 }; if (ecIn(q.x, q.y, -0.6)) { me.x = q.x; me.y = q.y; } }
+      newMon(th); }
+    // a blow barely scratches the stone, and never cracks it
+    function scratch(th, dmg) { if (!onFloor(th) || th.st === 'leap') return; const fl = EC_SCRATCH[Math.min(1, th.cracks)]; th.hp = Math.max(fl, th.hp - 1.5); th.scr = 0.15; C.scratches++;
+      if (g.t - (C.scrT || -9) > 2.2) { C.scrT = g.t; X.text(th.x, th.y - 2.7, th.hp <= fl ? 'Not even a dent!' : 'Barely a scratch!', '#E8D6C0', 13); }
+      if (C.scratches >= 10 && !C.saidScratch && C.crashes === 0) { C.saidScratch = true; X.banner('STONE SHRUGS OFF BLOWS', 'Lure one\'s charge into another: stand between them and dodge at the last moment', P.FROST_HI, 3, true); } }
+    /* -- part two: the charges. One idol at a time winds up (a red-orange lane shown for about a second, aimed at the pet,
+       locked 0.35 s before it goes), then charges along it and carries on to the court's edge. An idol lying roughly behind the
+       pet pulls the locked aim onto itself (the lure). Dodge as it reaches you and it smashes into the one behind -- */
+    function aimAt(th, x, y) { const dx = x - th.x, dy = y - th.y, d = Math.hypot(dx, dy) || 1; th.ax = dx / d; th.ay = dy / d; }
+    function rayLen(x, y, dx, dy) { const a = EC_RX - 1.0, b = EC_RY - 1.0, px = (x - ctr.x) / a, py = (y - ctr.y) / b, qx = dx / a, qy = dy / b, A2 = qx * qx + qy * qy, B2 = 2 * (px * qx + py * qy), C2 = px * px + py * py - 1, D2 = B2 * B2 - 4 * A2 * C2; return D2 < 0 ? 0 : Math.max(0, (-B2 + Math.sqrt(D2)) / (2 * A2)); }
+    function lockAim(th) { aimAt(th, me.x, me.y); const dp = Math.hypot(me.x - th.x, me.y - th.y); let best = null, ba = 0.42;
+      if (!C.noLure) for (const o of awake()) { if (o === th) continue; const dx = o.x - th.x, dy = o.y - th.y, d = Math.hypot(dx, dy); if (d < dp - 0.3) continue; const ang = Math.acos(clamp((dx * th.ax + dy * th.ay) / (d || 1), -1, 1)); if (ang < ba) { ba = ang; best = o; } }
+      if (best) aimAt(th, best.x, best.y); th.lure = best ? best.id : null; th.lockd = true; th.travel = 0; th.maxT = rayLen(th.x, th.y, th.ax, th.ay); if (X.sfx.blip) X.sfx.blip(); }
+    function startCharge(th, o) { const first = C.charges === 0, slow = first || C.hitRow >= 2; C.charges++; th.st = 'wind'; th.t = -(o.delay || 0); th.dur = slow ? 1.8 : o.together ? 1.35 : 1.1; th.spd = first ? 7 : slow ? 8 : o.together ? 9.5 : 10.5; th.passed = false; th.minD = 99; th.lockd = false; th.lure = null; th.teach = slow; aimAt(th, me.x, me.y);
+      if (slow) { C.prompt = th.dur + 1.0; C.promptWord = first ? 'DODGE AT THE LAST MOMENT!' : 'WAIT FOR IT… THEN DODGE!'; C.hitRow = 0; }
+      if (first) X.banner('IT WINDS UP A CHARGE', 'Dodge at the last moment: let them smash into each other!', P.LAVA_HI, 2.6, true);
+      if (X.sfx.hiss) X.sfx.hiss(th.dur * 0.8, 0.1, 700); }
+    function shove(th, dx, dy) { const x = th.x + dx, y = th.y + dy; if (ecIn(x, y, -1.0)) { th.x = x; th.y = y; } }
+    function perfect(th) { C.perfects++; C.hitRow = 0; C.pop = 1; C.popWord = 'PERFECT DODGE!'; X.text(me.x, me.y - 1.8, 'PERFECT DODGE!', '#FFF08C', 20); chime(X, 988, 0.6); X.after(0.07, () => chime(X, 1319, 0.45)); X.ring(me.x, me.y, 0.3, 1.8, 0.35, '#FFF08C', 0.5); }
+    function hitPet(th) { C.chargeHits++; C.hitRow++; const hp = X.ST().hp, d = Math.max(1, Math.min(hp * EC_CHIP, me.hp - 1)); if (me.hp > 1) X.hurtPet(d, null, { court: true });
+      const sd = Math.sign(th.ax * (me.y - th.y) - th.ay * (me.x - th.x)) || 1, q = { x: me.x - th.ay * sd * 1.3, y: me.y + th.ax * sd * 1.3 }; if (ecIn(q.x, q.y, -0.6)) { me.x = q.x; me.y = q.y; } me.inv = Math.max(me.inv || 0, 0.8);
+      X.text(me.x, me.y - 1.6, 'Hit! Dodge just as it reaches you', P.WARN, 14); }
+    function crash(A, B) { C.crashes++; const mx = (A.x + B.x) / 2, my = (A.y + B.y) / 2, dx = B.x - A.x, dy = B.y - A.y, d = Math.hypot(dx, dy) || 1;
+      for (const th of [A, B]) { th.cracks++; th.hp = th.cracks >= 2 ? 0 : Math.min(th.hp, 50); th.st = 'stun'; th.stun = 1.7; th.t = 0; th.flash = 0.5; th.lockd = false; }
+      shove(B, dx / d * 1.1, dy / d * 1.1); shove(A, -dx / d * 0.5, -dy / d * 0.5);
+      X.text(mx, my - 2.5, 'CRASH!', '#FFB070', 26); C.pop = 1; C.popWord = 'CRASH!';
+      X.boom(mx, my - 0.6, 1.6, P.LAVA, '#FFE9B0', { n: lowFx() ? 8 : 22, shake: 0 }); X.ring(mx, my, 0.3, 3.2, 0.5, '#FFE0C0', 0.65); chips(mx, my, 10, 1.2);
+      X.shake(lowFx() ? 3 : 10, 0.5); if (!lowFx()) X.flash(0.14, '#FFE0C0'); if (X.sfx.crash) X.sfx.crash(); if (X.sfx.thud) X.sfx.thud();
+      C.atkCd = 1.6; for (const th of [A, B]) if (th.cracks >= 2) X.after(0.4, () => shatter(th)); }
+    function shatter(th) { if (th.st === 'dead') return; th.st = 'dead'; C.shattered++; if (th.m && !th.m.dead) X.killMon(th.m, false); th.m = null;
+      // (THE SEAM: the shared destruction effect (BREAK_FX, 20b2) where the build has it, the idol's own picture cut into its
+      //  pieces; else this file's own burst, CAL_STAGES.shatterFx)
+      let shared = false; try { if (typeof BREAK_FX !== 'undefined' && BREAK_FX && typeof BREAK_FX.burst === 'function') { shared = !!BREAK_FX.burst(X, th.x, th.y + 0.5, { kind: 'furnaceidol', mat: 'basalt', hot: '#FF6A1F', size: 2.8, w: 2.4, h: 3.4, key: 'calidol', paint(c, Pp) { const G = idolGeom(0, 0, Pp, th, 0); bodyArt(c, G, Pp, th); crackArt(c, G, Pp, 1); } }); } } catch (e) { shared = false; }
+      if (!shared) CAL_STAGES.shatterFx(X, { x: th.x, y: th.y, h: 2.2, r: 1, col: P.LAVA, hot: '#FFE9B0', kind: 'idol', debris: C.debris }); else chips(th.x, th.y, 6, 1.2);
+      X.text(th.x, th.y - 2.8, 'SHATTERED!', '#FFF08C', 22);
+      if (C.shattered >= 6) { X.after(1.0, courtDone); return; }
+      if (C.pair < 2 && EC_PAIRS[C.pair].every(id => idols[id].st === 'dead')) C.joinT = 2.0; }
+    function courtDone() { if (C.done) return; C.done = true; C.phase = 'done'; C.doneT = 0; C.prompt = 0;
+      X.banner('THE EMBER COURT FALLS', 'Six idols shattered: the gate to the overlook opens', P.FROST_HI, 3.4, true, true); if (X.sfx.fanfare) X.sfx.fanfare(); FROST_CHIME(X);
+      const hp = X.ST().hp; if (!me.dead && me.hp < hp) { X.heal(hp * 0.3, true); X.text(me.x, me.y - 1.6, 'A breath of cool air', P.FROST_HI, 14); X.ring(me.x, me.y, 0.2, 1.2, 0.35, P.FROST, 0.3); }
+      X.after(0.8, () => { courtGate.open1(); self.done = true; H.setExit(E.x, E.y, 'To Ifrit\'s Throne'); }); }
+    function fightTick(dt) {
+      if (C.joinT > 0) { C.joinT -= dt; if (C.joinT <= 0 && C.pair < 2) wakePair(C.pair + 1); }
+      for (const th of all()) { th.scr = Math.max(0, th.scr - dt);
+        if (th.st === 'leap') { th.t += dt; const u = Math.min(1, th.t / 0.8), e = u * (2 - u); th.x = th.px + (th.lx - th.px) * e; th.y = th.py + (th.ly - th.py) * e; th.z = Math.sin(u * Math.PI) * 2.4 + (1 - u) * 0.95; if (u >= 1) land(th); continue; }
+        if (th.stun > 0) { th.stun -= dt; if (th.stun <= 0 && th.st === 'stun') th.st = 'hunt'; }
+        if (th.st === 'hunt' && th.stun <= 0 && !busy()) { const dx = me.x - th.x, dy = me.y - th.y, d = Math.hypot(dx, dy) || 1, want = 4.0; if (Math.abs(d - want) > 0.4) { const v = (d > want ? 1.1 : -0.7) * dt, nx = th.x + dx / d * v, ny = th.y + dy / d * v; if (ecIn(nx, ny, -1.0)) { th.x = nx; th.y = ny; } } }
+        else if (th.st === 'wind') { th.t += dt; if (th.t >= 0) { if (!th.lockd) { aimAt(th, me.x, me.y); if (th.t >= th.dur - 0.35) lockAim(th); } th.wind = clamp(th.t / th.dur, 0, 1); if (th.t >= th.dur) { th.st = 'charge'; th.t = 0; th.wind = 0; if (X.sfx.whoosh) X.sfx.whoosh(); } } }
+        else if (th.st === 'charge') chargeTick(th, dt); }
+      const A = awake();
+      // (they keep apart while walking: only a charge cracks them)
+      for (let i = 0; i < A.length; i++) for (let j = i + 1; j < A.length; j++) { const a = A[i], b = A[j]; if (a.st === 'charge' || b.st === 'charge' || a.st === 'wind' || b.st === 'wind') continue; const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 0.01; if (d < 2.2) { const p = (2.2 - d) * 0.5 * Math.min(1, dt * 6); a.x -= dx / d * p; a.y -= dy / d * p; b.x += dx / d * p; b.y += dy / d * p; } }
+      // the next charge: one at a time with a breath between (the last pair together)
+      if (C.phase === 'fight' && !busy() && C.joinT <= 0 && A.length) { C.atkCd -= dt; if (C.atkCd <= 0) { const ready = A.filter(th => th.st === 'hunt' && th.stun <= 0);
+          if (C.pair === 2 && A.length === 2) { if (ready.length === 2) { ready.forEach((th, i) => startCharge(th, { together: true, delay: i * 0.15 })); C.atkCd = 1.2; } }
+          else if (ready.length) { const pick = ready[C.turn++ % ready.length]; startCharge(pick, {}); C.atkCd = 1.2; } } } }
+    function chargeTick(th, dt) { const st = th.spd * dt; th.x += th.ax * st; th.y += th.ay * st; th.travel += st;
+      if (!lowFx() && Math.random() < dt * 24) X.part({ kind: 'smoke', x: th.x - th.ax * 0.6, y: th.y + 0.3, vx: -th.ax, vy: -0.4, life: 0.6, max: 0.6, size: 0.45, color: '#5A4E48' });
+      const dx = me.x - th.x, dy = me.y - th.y, d = Math.hypot(dx, dy); th.minD = Math.min(th.minD, d);
+      if (!th.passed && d < 1.05 && !me.dead) { th.passed = true; if (me.dodge) perfect(th); else if (!(me.inv > 0)) hitPet(th); }
+      if (!th.passed && dx * th.ax + dy * th.ay < -0.6) { th.passed = true; if (th.minD < 2.0) { C.closes++; X.text(me.x, me.y - 1.6, 'CLOSE ONE!', '#FFE9B0', 15); } }
+      for (const o of awake()) { if (o === th) continue; if (Math.hypot(o.x - th.x, o.y - th.y) < 1.55) { crash(th, o); return; } }
+      if (th.travel >= th.maxT) { th.st = 'stun'; th.stun = 0.9; th.t = 0; X.boom(th.x + th.ax * 0.6, th.y + th.ay * 0.6, 0.9, P.ASH, P.ASH, { n: 8, shake: 2 }); if (X.sfx.thud) X.sfx.thud(); } }
+    function courtTick(dt) { for (const th of all()) { th.flash = Math.max(0, th.flash - dt); if (C.phase === 'dodge' || C.phase === 'idle') th.wind = 0; if (th.cool > 0) th.cool = Math.min(1, th.cool + dt / 2); }
+      C.pop = Math.max(0, C.pop - dt * 1.5); C.prompt = Math.max(0, C.prompt - dt);
+      for (const q of C.debris) { q.life -= dt; q.x += q.vx * dt; q.y += q.vy * dt; q.vz -= 16 * dt; q.z += q.vz * dt; q.rot += q.vr * dt; if (q.z < 0) { q.z = 0; q.vz *= -0.3; q.vx *= 0.5; q.vy *= 0.5; q.vr *= 0.5; } } if (C.debris.length) C.debris = C.debris.filter(q => q.life > 0);
+      if (!C.on) { if (brood.done && ecIn(me.x, me.y, -0.5)) { C.on = true; C.phase = 'dodge'; C.t = 0; X.banner('THE EMBER COURT', `Furnace idols ring the court. DODGE ${EC_NEED} of their throws: roll through them (${touchUI ? 'the DODGE button' : 'Shift'}) or step aside just in time. A hit only stings, and never counts`, P.FROST_HI, 4.2, true, true); FROST_CHIME(X); } return; }
+      if (C.done) { C.doneT += dt; return; } C.t += dt;
+      if (C.phase === 'dodge' || C.balls.length) dodgeTick(dt);
+      if (C.phase === 'wake') wakeTick(dt);
+      if (C.phase === 'wake' || C.phase === 'fight') fightTick(dt);
+      // (the idols' targets follow their bodies; one lost to some odd blow is quietly made again)
+      for (const th of all()) { if (onFloor(th) && th.st !== 'leap') { if (!th.m || th.m.dead) newMon(th); th.m.x = th.x; th.m.y = th.y; th.m.vx = th.m.vy = 0; } th.body.x = th.x; th.body.y = th.y + 0.5; } }
     /* a furnace idol: a squat basalt idol on a hexagonal pillar in the lava. Its chest is an arched furnace mouth behind an iron
-       grille; rune cuts and cracks score its plates. Winding up, its arms rise overhead and a molten ball gathers between its
-       fists while the furnace brightens; on the throw it rocks back, arms flung forward. Once the court is won it is dark,
-       cracked and steaming. (Its light, shimmer and steam are added in one GPU pass for all six: courtOver) */
-    function idolPose(th) { const k = C.done ? 0 : th.wind, rec = C.done ? 0 : th.flash / 0.4, lift = Math.max(k, rec * 0.6); return { k, rec, lift, dark: th.cool > 0 ? th.cool : 0 }; }
-    function idolGeom(Xs, Ys, T, th) { const s = T * 1.45, ps = idolPose(th), base = Ys - T * 0.95, back = ps.rec * T * 0.18; return { s, ps, base, cx: Xs, cy: base - back, mouth: [Xs, base - back - s * 0.78], ball: [Xs, base - back - s * (1.95 + 0.25 * ps.k)] }; }
-    function idolArt(c, Xs, Ys, T, th) { const lw = lwOf(T), t = g.t, G = idolGeom(Xs, Ys, T, th), { s, ps, base, cx, cy } = G, { k, rec, lift, dark } = ps, hot = C.done ? 0 : Math.max(k, rec), ph = th.id.charCodeAt(0) * 0.37 + th.id.length;
-      c.save();
-      // the pillar: a hexagonal basalt column standing out of the lava, its foot crusted and lit from below
+       grille; rune cuts and cracks score its plates. Winding up a throw, its arms rise overhead and a molten ball gathers between
+       its fists; on the throw it rocks back, arms flung forward. Awake, it cracks free and walks the court; winding a charge it
+       lifts its arms and its furnace roars; charging it leans in; a crash leaves bright fissures; two shatter it. (Its light,
+       shimmer and steam are added in one GPU pass for all six: courtOver) */
+    function idolPose(th) { if (C.phase === 'dodge' || C.phase === 'idle') { const k = th.wind, rec = th.flash / 0.4; return { k, rec, lift: Math.max(k, rec * 0.6), dark: th.cool > 0 ? th.cool : 0, hot: Math.max(k, rec) }; }
+      const k = th.st === 'wind' ? th.wind : 0, rec = th.st === 'charge' ? 0.8 : clamp(th.flash / 0.5, 0, 1), lift = th.st === 'crack' ? 0.12 + 0.08 * Math.sin(g.t * 11 + th.px) : th.st === 'stun' ? 0 : th.st === 'leap' ? 0.7 : Math.max(k, rec * 0.6);
+      const hot = th.st === 'charge' ? 1 : th.st === 'wind' ? 0.3 + 0.7 * k : th.st === 'stun' ? 0.12 : th.st === 'crack' ? 0.45 + 0.3 * Math.sin(g.t * 7 + th.py) : 0.35; return { k: th.st === 'wind' ? k : 0, rec, lift, dark: 0, hot }; }
+    function idolGeom(Xs, Ys, T, th, lift) { const s = T * 1.45, ps = idolPose(th), base = Ys - (lift == null ? T * 0.95 : lift), back = Math.min(1, ps.rec) * T * 0.18; return { s, ps, base, cx: Xs, cy: base - back, mouth: [Xs, base - back - s * 0.78], ball: [Xs, base - back - s * (1.95 + 0.25 * ps.k)] }; }
+    const geomOf = (th, T) => idolGeom(X.sx(th.x), X.sy(th.y + 0.5), T, th, onFloor(th) ? th.z * T : T * 0.95);
+    function pillarArt(c, Xs, Ys, T, th, broken) { const lw = lwOf(T), pr = T * 0.72, pry = pr * 0.42, ptop = Ys - T * (broken ? 0.55 : 0.95), hexP = (a, y) => [Xs + Math.cos(a) * pr, y + Math.sin(a) * pry];
       c.fillStyle = 'rgba(0,0,0,.45)'; ell(c, Xs, Ys + T * 0.05, T * 0.85, T * 0.28); c.fill();
-      const pr = T * 0.72, pry = pr * 0.42, ptop = base, hexP = (a, y) => [Xs + Math.cos(a) * pr, y + Math.sin(a) * pry];
       for (const [i, j, col] of [[3, 4, '#5A5153'], [4, 5, '#3B3335'], [5, 0, '#221C1E']]) { const a0 = Math.PI + (i - 3) * Math.PI / 3, a1 = Math.PI + (j - 3) * Math.PI / 3, A = hexP(a0, ptop), B = hexP(a1, ptop); poly(c, [A, B, [B[0], Ys], [A[0], Ys]]); c.closePath(); const gg = c.createLinearGradient(0, ptop, 0, Ys); gg.addColorStop(0, col); gg.addColorStop(1, '#120C0C'); c.fillStyle = gg; c.fill(); c.strokeStyle = P.INK; c.lineWidth = lw * 0.8; c.stroke(); }
       c.strokeStyle = 'rgba(0,0,0,.45)'; c.lineWidth = Math.max(1, lw * 0.6); for (const u of [0.35, 0.7]) { const yy = ptop + (Ys - ptop) * u; c.beginPath(); c.moveTo(Xs - pr, yy); c.lineTo(Xs + pr, yy + T * 0.04); c.stroke(); }
       const lg = c.createLinearGradient(0, Ys - T * 0.35, 0, Ys); lg.addColorStop(0, 'rgba(255,90,26,0)'); lg.addColorStop(1, rgba(P.LAVA, 0.55)); c.fillStyle = lg; c.fillRect(Xs - pr, Ys - T * 0.35, pr * 2, T * 0.35);
+      if (broken) { // the stump it tore itself from: a jagged top, still hot in its cracks
+        poly(c, [[Xs - pr, ptop], [Xs - pr * 0.6, ptop - T * 0.22], [Xs - pr * 0.2, ptop - T * 0.05], [Xs + pr * 0.15, ptop - T * 0.28], [Xs + pr * 0.55, ptop - T * 0.08], [Xs + pr, ptop], [Xs + pr * 0.5, ptop + pry * 0.6], [Xs - pr * 0.5, ptop + pry * 0.6]]); c.closePath(); c.fillStyle = '#2A2224'; c.fill(); c.strokeStyle = P.INK; c.lineWidth = lw * 0.8; c.stroke();
+        c.strokeStyle = rgba(P.LAVA, 0.7); c.lineWidth = Math.max(1, lw * 0.6); c.beginPath(); c.moveTo(Xs - pr * 0.4, ptop + pry * 0.2); c.lineTo(Xs, ptop - T * 0.02); c.lineTo(Xs + pr * 0.3, ptop + pry * 0.3); c.stroke(); } }
+    function idolArt(c, Xs, Ys, T, th) { const off = onFloor(th) || th.st === 'dead'; c.save(); pillarArt(c, Xs, Ys, T, th, off); c.restore(); if (off) return;
+      const G = idolGeom(Xs + (th.st === 'crack' ? Math.sin(g.t * 47 + th.px) * T * 0.03 : 0), Ys, T, th, T * 0.95); bodyArt(c, G, T, th); if (th.st === 'crack') crackArt(c, G, T, 0.5 + 0.5 * Math.sin(g.t * 6 + th.py)); }
+    function idolFloorArt(c, Xs, Ys, T, th) { const G = idolGeom(Xs, Ys, T, th, th.z * T), lw = lwOf(T), t = g.t;
+      c.save(); c.fillStyle = 'rgba(0,0,0,.42)'; ell(c, Xs, Ys, T * (0.9 - Math.min(0.4, th.z * 0.15)), T * 0.3); c.fill(); c.restore();
+      c.save(); if (th.st === 'charge') { c.translate(Xs, Ys); c.rotate(clamp(th.ax, -1, 1) * 0.22); c.translate(-Xs, -Ys); }
+      bodyArt(c, G, T, th); if (th.cracks > 0) crackArt(c, G, T, 1); c.restore();
+      if (th.scr > 0) glow(c, G.cx, G.cy - G.s * 0.7, T * 1.1, '#FFFFFF', th.scr * 2);
+      if (th.st === 'stun') for (let i = 0; i < 3; i++) { const a = t * 5 + i * 2.09; c.fillStyle = '#FFE9B0'; c.beginPath(); c.arc(G.cx + Math.cos(a) * G.s * 0.45, G.cy - G.s * 1.75 + Math.sin(a) * G.s * 0.12, Math.max(2, T * 0.07), 0, TAU); c.fill(); }
+      // its stone's integrity (a blow only scratches it) and its two crack pips
+      if (th.st !== 'leap') { const bw = T * 1.2, by = G.cy - G.s * 2.05, bx = Xs - bw / 2; c.save(); c.fillStyle = 'rgba(10,6,8,.75)'; c.fillRect(bx - 2, by - 2, bw + 4, 8); c.fillStyle = th.cracks ? '#FF8A3A' : '#D8C8B8'; c.fillRect(bx, by, bw * th.hp / EC_HP, 4);
+        for (let i = 0; i < 2; i++) { const px = Xs + (i - 0.5) * T * 0.42, py = by - T * 0.24; c.beginPath(); c.moveTo(px, py - T * 0.11); c.lineTo(px + T * 0.09, py); c.lineTo(px, py + T * 0.11); c.lineTo(px - T * 0.09, py); c.closePath(); c.fillStyle = i < th.cracks ? '#FFB070' : 'rgba(255,255,255,.2)'; c.fill(); c.strokeStyle = 'rgba(0,0,0,.7)'; c.lineWidth = 1.2; c.stroke(); } c.restore(); } }
+    // the fissures a crash leaves: wide, bright, smoking
+    function crackArt(c, G, T, k) { const { s, cx, cy } = G; c.save(); c.lineCap = 'round'; c.lineJoin = 'round'; const path = () => { c.beginPath(); c.moveTo(cx - s * 0.55, cy - s * 1.25); c.lineTo(cx - s * 0.2, cy - s * 0.9); c.lineTo(cx - s * 0.32, cy - s * 0.55); c.lineTo(cx + s * 0.05, cy - s * 0.3); c.lineTo(cx - s * 0.1, cy - s * 0.02); c.moveTo(cx + s * 0.62, cy - s * 1.0); c.lineTo(cx + s * 0.3, cy - s * 0.8); c.lineTo(cx + s * 0.42, cy - s * 0.5); };
+      path(); c.strokeStyle = '#1A0E0C'; c.lineWidth = Math.max(2.5, s * 0.09); c.stroke(); path(); c.strokeStyle = rgba(P.LAVA_HI, 0.55 + 0.4 * k); c.lineWidth = Math.max(1.2, s * 0.04); c.stroke(); c.restore(); }
+    function bodyArt(c, G, T, th) { const lw = lwOf(T), t = g.t, { s, ps, cx, cy } = G, { k, rec, lift, dark } = ps, hot = C.done ? 0 : ps.hot, ph = th.id.charCodeAt(0) * 0.37 + th.id.length;
+      c.save();
       // the arms: shoulder to fist, hanging at rest, raised overhead in the wind-up, flung forward in the recoil
-      const arm = sd => { const sh = [cx + sd * s * 0.5, cy - s * 1.15], up = lift, fwd = rec * 0.6, el = [sh[0] + sd * s * (0.42 - 0.12 * up), sh[1] + s * (0.42 - 0.95 * up) - fwd * s * 0.2], fi = [sh[0] + sd * s * (0.34 - 0.36 * up) , sh[1] + s * (0.85 - 1.85 * up) + fwd * s * 0.35];
+      const arm = sd => { const sh = [cx + sd * s * 0.5, cy - s * 1.15], up = lift, fwd = Math.min(1, rec) * 0.6, el = [sh[0] + sd * s * (0.42 - 0.12 * up), sh[1] + s * (0.42 - 0.95 * up) - fwd * s * 0.2], fi = [sh[0] + sd * s * (0.34 - 0.36 * up), sh[1] + s * (0.85 - 1.85 * up) + fwd * s * 0.35];
         c.lineCap = 'round'; c.lineJoin = 'round'; c.strokeStyle = P.INK; c.lineWidth = s * 0.34 + lw * 2; c.beginPath(); c.moveTo(sh[0], sh[1]); c.lineTo(el[0], el[1]); c.lineTo(fi[0], fi[1]); c.stroke(); c.strokeStyle = sd < 0 ? '#4A4044' : '#2E2629'; c.lineWidth = s * 0.34; c.stroke();
         c.strokeStyle = 'rgba(255,255,255,.08)'; c.lineWidth = s * 0.1; c.beginPath(); c.moveTo(sh[0] - s * 0.05, sh[1] - s * 0.05); c.lineTo(el[0] - s * 0.05, el[1] - s * 0.05); c.stroke();
         poly(c, [[fi[0] - s * 0.2, fi[1] - s * 0.16], [fi[0] + s * 0.2, fi[1] - s * 0.18], [fi[0] + s * 0.22, fi[1] + s * 0.14], [fi[0] - s * 0.18, fi[1] + s * 0.18]]); c.closePath(); c.fillStyle = '#3A3034'; c.fill(); c.strokeStyle = P.INK; c.lineWidth = lw; c.stroke();
@@ -833,34 +999,42 @@ const CAL_STAGES = { HP_K: 1.5, DMG_K: { HOLLOWS: 0.55, FOUNDRY: 0.72, DESCENT: 
       // the rune cuts on its shoulders and belly: they smoulder with the furnace (cold once it is dark)
       const runeCol = dark ? rgba('#8FB8D8', 0.35) : rgba(P.RUNE, 0.35 + 0.55 * hot + 0.1 * Math.sin(t * 2 + ph)); const CA = CALR();
       [[-0.45, -1.2, 0], [0.45, -1.2, 3], [-0.42, -0.25, 5], [0.42, -0.25, 6]].forEach(([u, v, i]) => { if (CA && typeof CA.rune === 'function') CA.rune(c, cx + u * s, cy + v * s, s * 0.16, i, runeCol, Math.max(1, lw * 0.6)); else { c.strokeStyle = runeCol; c.lineWidth = Math.max(1, lw * 0.6); c.beginPath(); c.moveTo(cx + u * s - s * 0.07, cy + v * s - s * 0.07); c.lineTo(cx + u * s + s * 0.06, cy + v * s); c.lineTo(cx + u * s - s * 0.05, cy + v * s + s * 0.08); c.stroke(); } });
-      // cracks across the plates: hairlines of heat while it burns; wide and dark once it has gone out
-      c.strokeStyle = dark ? 'rgba(10,6,8,.85)' : rgba(P.LAVA, 0.25 + 0.5 * hot); c.lineWidth = Math.max(1, lw * (dark ? 1 : 0.5) * (1 + dark)); c.beginPath(); c.moveTo(cx - s * 0.2, cy - s * 1.3); c.lineTo(cx - s * 0.28, cy - s * 1.12); c.lineTo(cx - s * 0.18, cy - s * 1.02); c.moveTo(cx + s * 0.6, cy - s * 0.8); c.lineTo(cx + s * 0.44, cy - s * 0.66); c.lineTo(cx + s * 0.5, cy - s * 0.42); if (dark) { c.moveTo(cx - s * 0.55, cy - s * 0.1); c.lineTo(cx - s * 0.32, cy - s * 0.32); c.lineTo(cx - s * 0.38, cy - s * 0.55); } c.stroke();
-      // the furnace mouth: an arch in the chest, an iron grille, the fire behind it (white-hot at the throw)
+      // hairline cracks across the plates: heat while it burns; wide and dark once it has gone out
+      c.strokeStyle = dark ? 'rgba(10,6,8,.85)' : rgba(P.LAVA, 0.25 + 0.5 * hot); c.lineWidth = Math.max(1, lw * (dark ? 1 : 0.5) * (1 + dark)); c.beginPath(); c.moveTo(cx - s * 0.2, cy - s * 1.3); c.lineTo(cx - s * 0.28, cy - s * 1.12); c.lineTo(cx - s * 0.18, cy - s * 1.02); c.moveTo(cx + s * 0.6, cy - s * 0.8); c.lineTo(cx + s * 0.44, cy - s * 0.66); c.lineTo(cx + s * 0.5, cy - s * 0.42); c.stroke();
+      // the furnace mouth: an arch in the chest, an iron grille, the fire behind it (white-hot at the throw or the charge)
       const [mx, my] = G.mouth, mw = s * 0.34, mh = s * 0.42; c.beginPath(); c.moveTo(mx - mw, my + mh * 0.6); c.lineTo(mx - mw, my - mh * 0.15); c.quadraticCurveTo(mx - mw, my - mh, mx, my - mh); c.quadraticCurveTo(mx + mw, my - mh, mx + mw, my - mh * 0.15); c.lineTo(mx + mw, my + mh * 0.6); c.closePath();
-      const mg = c.createRadialGradient(mx, my + mh * 0.2, mw * 0.1, mx, my, mh * 1.1); if (dark) { mg.addColorStop(0, '#2A2226'); mg.addColorStop(1, '#0E0A0C'); } else { mg.addColorStop(0, hot > 0.6 ? '#FFFFFF' : '#FFF2C0'); mg.addColorStop(0.35 - 0.15 * hot, P.LAVA_HI); mg.addColorStop(0.8, P.LAVA); mg.addColorStop(1, P.LAVA_D); } c.fillStyle = mg; c.fill(); c.strokeStyle = P.INK; c.lineWidth = lw * 1.2; c.stroke();
-      if (!dark) { c.save(); c.clip(); for (let i = 0; i < 3; i++) { const fx = mx + (i - 1) * mw * 0.55, fh = mh * (0.5 + 0.35 * hot + 0.15 * Math.sin(t * 9 + i * 2 + ph)); c.fillStyle = rgba('#FFE9B0', 0.55 + 0.4 * hot); c.beginPath(); c.moveTo(fx - mw * 0.22, my + mh * 0.6); c.quadraticCurveTo(fx - mw * 0.1, my + mh * 0.6 - fh * 0.6, fx, my + mh * 0.6 - fh); c.quadraticCurveTo(fx + mw * 0.12, my + mh * 0.6 - fh * 0.6, fx + mw * 0.22, my + mh * 0.6); c.fill(); } c.restore(); }
+      const mg = c.createRadialGradient(mx, my + mh * 0.2, mw * 0.1, mx, my, mh * 1.1); if (dark) { mg.addColorStop(0, '#2A2226'); mg.addColorStop(1, '#0E0A0C'); } else { mg.addColorStop(0, hot > 0.6 ? '#FFFFFF' : '#FFF2C0'); mg.addColorStop(0.35 - 0.15 * Math.min(1, hot), P.LAVA_HI); mg.addColorStop(0.8, P.LAVA); mg.addColorStop(1, P.LAVA_D); } c.fillStyle = mg; c.fill(); c.strokeStyle = P.INK; c.lineWidth = lw * 1.2; c.stroke();
+      if (!dark) { c.save(); c.clip(); for (let i = 0; i < 3; i++) { const fx = mx + (i - 1) * mw * 0.55, fh = mh * (0.5 + 0.35 * hot + 0.15 * Math.sin(t * 9 + i * 2 + ph)); c.fillStyle = rgba('#FFE9B0', 0.55 + 0.4 * Math.min(1, hot)); c.beginPath(); c.moveTo(fx - mw * 0.22, my + mh * 0.6); c.quadraticCurveTo(fx - mw * 0.1, my + mh * 0.6 - fh * 0.6, fx, my + mh * 0.6 - fh); c.quadraticCurveTo(fx + mw * 0.12, my + mh * 0.6 - fh * 0.6, fx + mw * 0.22, my + mh * 0.6); c.fill(); } c.restore(); }
       c.strokeStyle = '#1A1214'; c.lineWidth = Math.max(1.5, s * 0.06); for (const u of [-0.5, 0, 0.5]) { c.beginPath(); c.moveTo(mx + u * mw, my - mh * 0.85 * (1 - Math.abs(u) * 0.3)); c.lineTo(mx + u * mw, my + mh * 0.6); c.stroke(); } c.beginPath(); c.moveTo(mx - mw, my + mh * 0.1); c.lineTo(mx + mw, my + mh * 0.1); c.stroke();
       // the head: a low heavy brow sunk between the shoulders, two ember slits (cold once it has gone out)
       const hy = cy - s * 1.32; poly(c, [[cx - s * 0.3, hy + s * 0.08], [cx - s * 0.26, hy - s * 0.3], [cx + s * 0.26, hy - s * 0.3], [cx + s * 0.3, hy + s * 0.08]]); c.closePath(); c.fillStyle = '#2E2629'; c.fill(); c.strokeStyle = P.INK; c.lineWidth = lw; c.stroke();
       c.fillStyle = 'rgba(255,255,255,.1)'; c.fillRect(cx - s * 0.26, hy - s * 0.3, s * 0.52, s * 0.06);
-      c.fillStyle = dark ? '#3A3034' : rgba(hot > 0.3 ? '#FFF2C0' : P.LAVA_HI, 0.75 + 0.25 * hot); c.fillRect(cx - s * 0.2, hy - s * 0.16, s * 0.13, s * 0.05); c.fillRect(cx + s * 0.07, hy - s * 0.16, s * 0.13, s * 0.05);
+      c.fillStyle = dark ? '#3A3034' : rgba(hot > 0.3 ? '#FFF2C0' : P.LAVA_HI, 0.75 + 0.25 * Math.min(1, hot)); c.fillRect(cx - s * 0.2, hy - s * 0.16, s * 0.13, s * 0.05); c.fillRect(cx + s * 0.07, hy - s * 0.16, s * 0.13, s * 0.05);
       arm(1);
-      // the molten ball it gathers between its raised fists
-      if (k > 0.15 && !C.done) { const [bx, by] = G.ball, br = s * (0.08 + 0.2 * k); const bgr = c.createRadialGradient(bx - br * 0.3, by - br * 0.3, br * 0.1, bx, by, br); bgr.addColorStop(0, '#FFF6D0'); bgr.addColorStop(0.5, P.LAVA_HI); bgr.addColorStop(1, P.LAVA); c.fillStyle = bgr; c.beginPath(); c.arc(bx, by, br, 0, TAU); c.fill(); c.strokeStyle = '#3A1408'; c.lineWidth = 1.2; c.stroke(); }
+      // the molten ball it gathers between its raised fists (the throws only)
+      if (k > 0.15 && !C.done && (C.phase === 'dodge' || C.phase === 'idle')) { const [bx, by] = G.ball, br = s * (0.08 + 0.2 * k); const bgr = c.createRadialGradient(bx - br * 0.3, by - br * 0.3, br * 0.1, bx, by, br); bgr.addColorStop(0, '#FFF6D0'); bgr.addColorStop(0.5, P.LAVA_HI); bgr.addColorStop(1, P.LAVA); c.fillStyle = bgr; c.beginPath(); c.arc(bx, by, br, 0, TAU); c.fill(); c.strokeStyle = '#3A1408'; c.lineWidth = 1.2; c.stroke(); }
       c.restore();
-      if (!fgx()) { if (!dark) { glow(c, mx, my, T * (0.9 + 1.2 * hot), P.LAVA, 0.25 + 0.6 * hot); if (k > 0.15) glow(c, G.ball[0], G.ball[1], T * (0.5 + 0.8 * k), P.LAVA_HI, 0.5 * k); }
+      if (!fgx()) { if (!dark) { glow(c, mx, my, T * (0.9 + 1.2 * Math.min(1, hot)), P.LAVA, 0.25 + 0.6 * Math.min(1, hot)); if (k > 0.15 && C.phase === 'dodge') glow(c, G.ball[0], G.ball[1], T * (0.5 + 0.8 * k), P.LAVA_HI, 0.5 * k); }
         else if (!lowFx()) for (let i = 0; i < 2; i++) { const u = ((t * 0.35 + i * 0.5 + ph) % 1); glow(c, mx + Math.sin(t + i * 3) * T * 0.2, my - s * 0.8 - u * T * 1.6, T * (0.35 + u * 0.5), '#E8E0DC', 0.35 * (1 - u)); } } }
     /* the idols' light in one GPU pass: the furnace glow, the gathering ball's fire, heat shimmer in the wind-up, steam when dark */
-    function idolsGpu(Q, T) { const t = g.t; for (const id in idols) { const th = idols[id], Xs = X.sx(th.x), Ys = X.sy(th.y + 0.5); if (Ys < -T * 4 || Ys > X.H() + T * 4) continue; const G = idolGeom(Xs, Ys, T, th), { k, rec, dark } = G.ps, hot = C.done ? 0 : Math.max(k, rec), [mx, my] = G.mouth;
-        if (!dark) { Q.glow(mx, my, T * (1.0 + 1.3 * hot), P.LAVA, 0.35 + 0.55 * hot); Q.fire(mx, my + T * 0.05, T * (0.28 + 0.25 * hot), 0.7 + 0.4 * hot, 0.55 + 0.4 * hot, th.x); if (k > 0.15) { Q.fire(G.ball[0], G.ball[1], T * (0.2 + 0.45 * k), 1.0, 0.9, th.y); Q.glow(G.ball[0], G.ball[1], T * (0.6 + k), P.LAVA_HI, 0.5 * k); }
-          if (k > 0.3 && !lowFx()) Q.shimmer(mx, my - T * 1.4, T * (0.9 + 0.6 * k), 0.35 * k, 1.2); if (rec > 0.05) Q.glow(mx, my - T * 0.4, T * 2.2 * rec, '#FFE9B0', 0.5 * rec); }
-        else if (!lowFx()) for (let i = 0; i < 3; i++) { const u = ((t * 0.3 + i / 3 + th.x * 0.1) % 1); Q.smoke(mx + Math.sin(t * 0.8 + i * 2) * T * 0.25, my - T * 0.9 - u * T * 1.8, T * (0.35 + u * 0.55), 0.45 * (1 - u) * (0.6 + 0.4 * dark), th.x + i, '#BDB4AE', 0.3); } } }
+    function idolsGpu(Q, T) { const t = g.t; for (const th of all()) { if (th.st === 'dead') continue; const G = geomOf(th, T), { k, rec, dark } = G.ps, hot = C.done ? 0 : Math.min(1, G.ps.hot), [mx, my] = G.mouth; if (my < -T * 4 || my > X.H() + T * 4) continue;
+        if (!dark) { Q.glow(mx, my, T * (1.0 + 1.3 * hot), P.LAVA, 0.35 + 0.55 * hot); Q.fire(mx, my + T * 0.05, T * (0.28 + 0.25 * hot), 0.7 + 0.4 * hot, 0.55 + 0.4 * hot, th.px); if (k > 0.15 && C.phase === 'dodge') { Q.fire(G.ball[0], G.ball[1], T * (0.2 + 0.45 * k), 1.0, 0.9, th.py); Q.glow(G.ball[0], G.ball[1], T * (0.6 + k), P.LAVA_HI, 0.5 * k); }
+          if (k > 0.3 && !lowFx()) Q.shimmer(mx, my - T * 1.4, T * (0.9 + 0.6 * k), 0.35 * k, 1.2); if (rec > 0.05 && th.st !== 'charge') Q.glow(mx, my - T * 0.4, T * 2.2 * Math.min(1, rec), '#FFE9B0', 0.5 * Math.min(1, rec));
+          if (th.cracks > 0 && !lowFx()) Q.smoke(mx, my - T * 1.2, T * 0.6, 0.3, th.px, '#8A7E78', 0.3); }
+        else if (!lowFx()) for (let i = 0; i < 3; i++) { const u = ((t * 0.3 + i / 3 + th.px * 0.1) % 1); Q.smoke(mx + Math.sin(t * 0.8 + i * 2) * T * 0.25, my - T * 0.9 - u * T * 1.8, T * (0.35 + u * 0.55), 0.45 * (1 - u) * (0.6 + 0.4 * dark), th.px + i, '#BDB4AE', 0.3); } } }
+    // the camera: close on the approach; out over the whole court for the throws; for the waking, wider still, on all six; in the fight a
+    // middle zoom that follows the pet with a light pull to the court's centre (the charge lanes stay readable), a little wider
+    // for the last pair; close again once the court has fallen
+    const rig = camRig();
+    const camWant = () => { if (!C.on || (C.done && C.doneT > 1.4)) return null; if (C.phase === 'dodge') return { zoom: 0.46, x: ctr.x, y: ctr.y, k: 0.6 }; if (C.phase === 'wake') return { zoom: 0.4, x: ctr.x, y: ctr.y - 0.5, k: 1 }; return { zoom: C.pair >= 2 ? 0.58 : 0.64, x: ctr.x, y: ctr.y, k: 0.3 }; };
+    // (where to stand: between the two awake idols, on the line from one to the other, until the first crash has shown it)
+    const lureSpot = () => { const A = awake(); if (A.length !== 2 || C.crashes > 0 || C.phase !== 'fight') return null; return { x: (A[0].x + A[1].x) / 2, y: (A[0].y + A[1].y) / 2 }; };
     X.after(1.0, () => { S.intro = false; X.banner('THE HEARTWARD DESCENT', 'Down the cathedral of the volcano\'s heart: three causeways, three ledges of brood, then the throne', P.LAVA_HI, 3.2, true, true); });
     // the falls of lava down the cathedral: from under each ledge into the drop
     const FALLS = [[9.5, 87.5, 97.5], [22.5, 87.5, 97.5], [8.5, 67.5, 76.5], [23.5, 67.5, 76.5], [9.5, 47.5, 56.5], [22.5, 47.5, 56.5]];
-    return { S, vents, gates, brood, rooms, shrine, fall, ledgeOf, court: C, idols, courtGate, ecIn, schedule,
-      cam() { const top = me.y < 16.5, crt = !top && me.y < 33.5, k = top ? 0.35 : crt ? 0.55 : 0, fy = top ? 9 : crt ? ctr.y : me.y; return { x: me.x * (crt ? 0.45 : 0.75) + (DE_CX + 1.5) * (crt ? 0.55 : 0.25), y: me.y * (1 - k) + fy * k - (crt ? 0 : 1.5), k: 0, zoom: crt ? 0.46 : 0.54 }; },
-      update(dt) { shrine.tick(dt); for (const q of gates) if (q) q.tick(dt); S.breath += dt; const L = ledgeOf(me.y); if (L >= 0 && (L !== S.ledge || !S.ledgeSet)) { S.ledge = L; S.ledgeSet = true; const C = CALR(), b = backOf(L); if (C && typeof C.setLedge === 'function') C.setLedge(X, b.x, b.y); }
+    return { S, vents, gates, brood, rooms, shrine, fall, ledgeOf, court: C, idols, courtGate, ecIn, schedule, wakePair, startCharge, crash, shatter, scratch, awake, lureSpot, rig, camWant, EC_PAIRS,
+      cam: rig.cam,
+      update(dt) { rig.tick(dt, camWant()); shrine.tick(dt); for (const q of gates) if (q) q.tick(dt); S.breath += dt; const L = ledgeOf(me.y); if (L >= 0 && (L !== S.ledge || !S.ledgeSet)) { S.ledge = L; S.ledgeSet = true; const C = CALR(), b = backOf(L); if (C && typeof C.setLedge === 'function') C.setLedge(X, b.x, b.y); }
         for (const v of vents) ventTick(v, dt);
         if (S.intro) return;
         // the safe demonstration: the first vent shows itself once, before anything else, while you are still on the ledge
@@ -868,9 +1042,9 @@ const CAL_STAGES = { HP_K: 1.5, DMG_K: { HOLLOWS: 0.55, FOUNDRY: 0.72, DESCENT: 
         brood.tick(dt); courtGate.tick(dt); courtTick(dt); },
       goal() { if (self.done) return me.y < 15.5 ? 'To Ifrit\'s throne · rest at the shrine first' : 'Up to the overlook'; if (S.intro) return 'The Heartward Descent';
         if (S.demo < 2) return 'Watch the vent: it glows and hisses, then erupts';
-        if (brood.done) return C.on ? `Dodged ${C.count}/${EC_NEED} · roll through the throws (${touchUI ? 'DODGE' : 'Shift'}) or step aside close` : 'Up to the Ember Court';
+        if (brood.done) { if (!C.on) return 'Up to the Ember Court'; if (C.phase === 'dodge') return `Dodged ${C.count}/${EC_NEED} · roll through the throws (${touchUI ? 'DODGE' : 'Shift'}) or step aside close`; if (C.phase === 'wake') return 'The idols awaken!'; return `Lure their charges into each other, dodge late · ${C.shattered}/6 shattered`; }
         if (S.ledge === 0 || brood.wave < 0) return `Cross the causeway: pass each vent while it is dark · ${brood.left()} of the brood left`; return brood.goal(); },
-      hint() { if (self.done || S.intro) return null; if (brood.done) return C.on ? null : { x: ctr.x, y: ctr.y + 3, h: 1.2, label: 'THE EMBER COURT' }; return brood.hint(); },
+      hint() { if (self.done || S.intro) return null; if (brood.done) { if (!C.on) return { x: ctr.x, y: ctr.y + 3, h: 1.2, label: 'THE EMBER COURT' }; const q = lureSpot(); return q && Math.hypot(me.x - q.x, me.y - q.y) > 1.6 ? { x: q.x, y: q.y, h: 0.4, label: 'STAND BETWEEN THEM' } : null; } return brood.hint(); },
       drawGround(c) { const T = X.Tz(), t = g.t, Wd = X.W(), Hh = X.H();
         throneArt(c, T, t);
         for (const [x, y0, y1] of FALLS) lavafall(c, x, y0, y1, T, t);
@@ -900,6 +1074,15 @@ const CAL_STAGES = { HP_K: 1.5, DMG_K: { HOLLOWS: 0.55, FOUNDRY: 0.72, DESCENT: 
       for (const b of C.balls) { const Xs = X.sx(b.kind === 'lob' ? b.tx : b.x), Ys = X.sy(b.kind === 'lob' ? b.ty : b.y);
         if (b.kind === 'lob') { const u = Math.min(1, b.t / b.dur), R = b.R * T; c.fillStyle = rgba(P.WARN, 0.18 + 0.3 * u); ell(c, Xs, Ys, R, R * 0.75); c.fill(); c.strokeStyle = rgba(P.WARN, 0.9); c.lineWidth = 3; c.stroke(); c.fillStyle = 'rgba(0,0,0,.35)'; ell(c, Xs, Ys, R * 0.35 * (0.5 + u), R * 0.25 * (0.5 + u)); c.fill(); label(c, 'LANDING', Xs, Ys - R * 0.9, T * 0.2, P.WARN); }
         else { c.fillStyle = 'rgba(0,0,0,.35)'; ell(c, Xs, Ys, b.r * T, b.r * T * 0.45); c.fill(); } }
+      // a charge's lane: red-orange, as wide as the idol, from its feet to the court's edge; it brightens and its chevrons race
+      // once the aim locks; the idol it will hit (the lure) is ringed
+      for (const th of all()) { if (th.st !== 'wind' || th.t < 0) continue; const u = clamp(th.t / th.dur, 0, 1), L = th.lockd ? th.maxT : rayLen(th.x, th.y, th.ax, th.ay), x0 = X.sx(th.x), y0 = X.sy(th.y + 0.2), x1 = X.sx(th.x + th.ax * L), y1 = X.sy(th.y + 0.2 + th.ay * L), wd = T * 1.5;
+        c.lineCap = 'butt'; c.strokeStyle = rgba(th.lockd ? '#FF5A2A' : P.WARN, (th.lockd ? 0.5 : 0.18) + 0.25 * u); c.lineWidth = wd * (0.45 + 0.55 * u); c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke();
+        c.strokeStyle = rgba('#FF8A3A', 0.8); c.lineWidth = 2; for (const sd of [-1, 1]) { const ox = -th.ay * sd * wd * (0.45 + 0.55 * u) / 2, oy = th.ax * sd * wd * (0.45 + 0.55 * u) / 2; c.beginPath(); c.moveTo(x0 + ox, y0 + oy); c.lineTo(x1 + ox, y1 + oy); c.stroke(); }
+        const n = Math.floor(L / 1.1), sp = th.lockd ? 5 : 1.6; c.fillStyle = rgba('#FFE0C0', th.lockd ? 0.9 : 0.55); for (let i = 0; i < n; i++) { const f = ((i + t * sp) % n) / n, px = x0 + (x1 - x0) * f, py = y0 + (y1 - y0) * f, a = Math.atan2(y1 - y0, x1 - x0), h = T * 0.32; c.save(); c.translate(px, py); c.rotate(a); c.beginPath(); c.moveTo(h * 0.6, 0); c.lineTo(-h * 0.4, -h * 0.55); c.lineTo(-h * 0.1, 0); c.lineTo(-h * 0.4, h * 0.55); c.closePath(); c.fill(); c.restore(); }
+        if (th.lockd && th.lure && idols[th.lure]) { const o = idols[th.lure], k = 0.6 + 0.4 * Math.sin(t * 14); c.strokeStyle = rgba('#FFF08C', 0.6 + 0.4 * k); c.lineWidth = 3; ell(c, X.sx(o.x), X.sy(o.y + 0.5), T * 1.05, T * 0.42); c.stroke(); } }
+      // where to stand, until the first crash has shown the trick: a soft ring between the two idols
+      { const q = lureSpot(); if (q) { const k = 0.5 + 0.5 * Math.sin(t * 4); c.strokeStyle = rgba('#FFF08C', 0.35 + 0.35 * k); c.lineWidth = 2.5; c.setLineDash([T * 0.2, T * 0.15]); ell(c, X.sx(q.x), X.sy(q.y), T * 0.8, T * 0.35); c.stroke(); c.setLineDash([]); } }
       c.restore(); }
     function ballArt(c, Xs, Ys, R, spin, kind) { const g2 = c.createRadialGradient(Xs - R * 0.3, Ys - R * 0.35, R * 0.1, Xs, Ys, R); g2.addColorStop(0, '#FFF6D0'); g2.addColorStop(0.35, P.LAVA_HI); g2.addColorStop(0.8, P.LAVA); g2.addColorStop(1, P.LAVA_D); c.fillStyle = g2; c.beginPath(); c.arc(Xs, Ys, R, 0, TAU); c.fill(); c.strokeStyle = '#3A1408'; c.lineWidth = Math.max(1.5, R * 0.12); c.stroke();
       // crust plates turning on it (a rolling ball wears more of them)
@@ -909,13 +1092,20 @@ const CAL_STAGES = { HP_K: 1.5, DMG_K: { HOLLOWS: 0.55, FOUNDRY: 0.72, DESCENT: 
       for (const b of C.balls) { const Xs = X.sx(b.x), Ys = X.sy(b.y) - (b.z || 0) * T, R = (b.kind === 'roll' ? 0.55 : b.kind === 'lob' ? 0.45 : 0.36) * T; if (!used && b.vx) { c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = rgba(P.LAVA, 0.5); c.lineWidth = R * 1.2; c.lineCap = 'round'; c.beginPath(); c.moveTo(Xs - b.vx * 0.12 * T, Ys - b.vy * 0.12 * T); c.lineTo(Xs, Ys); c.stroke(); c.restore(); } ballArt(c, Xs, Ys, R, b.spin || b.t * 6 || 0, b.kind); if (!used) glow(c, Xs, Ys, R * 2.6, P.LAVA, 0.45); }
       // the prompt: TAP DODGE! over the pet (and the dodge button pulsing, on a touch screen) while a teaching throw winds up
       const W = X.W(), Hh = X.H();
-      if (C.prompt > 0 && !C.done) { const k = 0.6 + 0.4 * Math.sin(t * 9); label(c, touchUI ? 'TAP DODGE!' : 'PRESS SHIFT: DODGE!', X.sx(me.x), X.sy(me.y) - T * 1.9, T * 0.32 * (1 + 0.08 * k), '#FFF08C');
+      // (in the fight: the teaching charges say when; "DODGE NOW!" as the charge is about to reach the pet)
+      const soon = all().some(th => th.st === 'charge' && th.teach && !th.passed && (Math.hypot(me.x - th.x, me.y - th.y) - 1.05) / th.spd < 0.45);
+      if ((C.prompt > 0 || soon) && !C.done) { const k = 0.6 + 0.4 * Math.sin(t * 9), word = soon ? (touchUI ? 'DODGE NOW!' : 'SHIFT NOW!') : C.promptWord || (touchUI ? 'TAP DODGE!' : 'PRESS SHIFT: DODGE!'); label(c, word, X.sx(me.x), X.sy(me.y) - T * 1.9, T * 0.32 * (1 + 0.08 * k) * (soon ? 1.25 : 1), soon ? '#FFFFFF' : '#FFF08C');
         if (touchUI) { const kit = (X.F.party && X.F.party[0] && X.F.party[0].kit && X.F.party[0].kit.kit) || {}, n3 = ['strong', 'strong2', 'strong3'].filter(q => kit[q]).length >= 3, bx = n3 ? W - 34 : W - 52, by = Hh - 52 - (n3 ? 154 : 138), br = n3 ? 26 : 27;
           c.save(); c.strokeStyle = rgba('#FFF08C', 0.5 + 0.5 * k); c.lineWidth = 4; c.beginPath(); c.arc(bx, by, br + 6 + 6 * k, 0, TAU); c.stroke(); c.restore(); label(c, 'TAP!', bx, by - br - 16, 14, '#FFF08C'); } }
-      // the counter: DODGED n / 12, a pop on each, gold at the end
-      if (C.on) { const cx = W / 2, cy = 132, pop = C.pop, wd = 190; c.save(); c.fillStyle = 'rgba(14,8,10,.72)'; c.beginPath(); if (c.roundRect) c.roundRect(cx - wd / 2, cy - 26, wd, 48, 12); else c.rect(cx - wd / 2, cy - 26, wd, 48); c.fill(); c.strokeStyle = C.done ? '#FFF08C' : rgba(P.FROST, 0.8); c.lineWidth = 2; c.stroke();
-        for (let i = 0; i < EC_NEED; i++) { const px = cx - wd / 2 + 16 + i * (wd - 32) / (EC_NEED - 1), on = i < C.count; c.beginPath(); c.arc(px, cy + 15, 4.5, 0, TAU); c.fillStyle = on ? (C.done ? '#FFF08C' : P.FROST_HI) : 'rgba(255,255,255,.18)'; c.fill(); }
-        c.restore(); label(c, `DODGED ${C.count} / ${EC_NEED}`, cx, cy + 2 - pop * 2, 15 + pop * 5, C.done ? '#FFF08C' : '#FFFFFF');
+      // the flying debris of cracks, crashes and shatters: chunks of basalt, some still glowing
+      if (C.debris.length) { c.save(); for (const q of C.debris) { const Xs = X.sx(q.x), Ys = X.sy(q.y) - q.z * T, r = q.s * T, a = clamp(q.life / 0.4, 0, 1); c.globalAlpha = a; c.save(); c.translate(Xs, Ys); c.rotate(q.rot); poly(c, [[-r, -r * 0.4], [-r * 0.2, -r * 0.9], [r * 0.9, -r * 0.3], [r * 0.6, r * 0.7], [-r * 0.7, r * 0.6]]); c.closePath(); c.fillStyle = '#3A3034'; c.fill(); c.strokeStyle = q.hot ? rgba(P.LAVA_HI, 0.9) : '#120C0E'; c.lineWidth = q.hot ? 1.6 : 1.2; c.stroke(); c.restore(); if (q.hot && !lowFx()) glow(c, Xs, Ys, r * 2.4, P.LAVA, 0.35 * a); } c.restore(); }
+      // the awake idols off the screen: an arrow each, red while one winds up a charge
+      if (C.phase === 'dodge') edgeMarks(X, c, C.winds.map(w => ({ x: w.th.x, y: w.th.y, col: '#FF5A2A', label: 'THROW!', warn: true })));
+      if (C.phase === 'fight') edgeMarks(X, c, awake().map(th => ({ x: th.x, y: th.y, col: th.st === 'wind' || th.st === 'charge' ? '#FF5A2A' : '#C9A88E', label: th.st === 'wind' || th.st === 'charge' ? 'CHARGE!' : 'IDOL', warn: th.st === 'wind' })));
+      // the counter: DODGED n / 6 while they throw, then SHATTERED n / 6; a pop on each, gold at the end
+      if (C.on) { const cx = W / 2, cy = 132, pop = C.pop, wd = 190, two = C.phase !== 'dodge', n = two ? C.shattered : C.count; c.save(); c.fillStyle = 'rgba(14,8,10,.72)'; c.beginPath(); if (c.roundRect) c.roundRect(cx - wd / 2, cy - 26, wd, 48, 12); else c.rect(cx - wd / 2, cy - 26, wd, 48); c.fill(); c.strokeStyle = C.done ? '#FFF08C' : two ? rgba(P.LAVA, 0.8) : rgba(P.FROST, 0.8); c.lineWidth = 2; c.stroke();
+        for (let i = 0; i < 6; i++) { const px = cx - wd / 2 + 22 + i * (wd - 44) / 5, on = i < n; c.beginPath(); c.arc(px, cy + 15, 5, 0, TAU); c.fillStyle = on ? (C.done ? '#FFF08C' : two ? '#FFB070' : P.FROST_HI) : 'rgba(255,255,255,.18)'; c.fill(); }
+        c.restore(); label(c, two ? `SHATTERED ${n} / 6` : `DODGED ${n} / ${EC_NEED}`, cx, cy + 2 - pop * 2, 15 + pop * 5, C.done ? '#FFF08C' : '#FFFFFF');
         if (pop > 0.05) label(c, C.popWord, cx, cy + 50 + (1 - pop) * 10, 18 + pop * 10, '#FFF08C'); } }
     /* ---- the descent's art ---- */
     function ventArt(c, v, T, t) { const Xs = X.sx(v.x), Ys = X.sy(v.y); if (Ys < -T * 3 || Ys > X.H() + T * 2) return; const lw = lwOf(T), k = v.ph === 'warn' ? v.k : v.ph === 'erupt' ? 1 : v.ph === 'cool' ? 0.4 : 0;
@@ -975,7 +1165,7 @@ const CAL_STAGES = { HP_K: 1.5, DMG_K: { HOLLOWS: 0.55, FOUNDRY: 0.72, DESCENT: 
       c.restore();
       if (!lowFx()) gpu(c, Q => { Q.glow(chx, chy, s * (2.2 + br * 1.6), P.LAVA, 0.5 + 0.4 * br); Q.shimmer(cx, by - s * 5.5, s * 2.5, 0.25 + 0.2 * br, 1.1); }); }
   }
-  CAL_STAGES.DESCENT = { name: 'The Heartward Descent', goal: 'Down the cathedral, then dodge twelve throws', how: 'The forge gives way to a vertical cathedral of basalt columns, hanging obsidian slabs and lava pouring down the walls. Three short causeways cross the drop, each with vents: a vent glows and hisses for about two seconds before it erupts (the first one shows itself once, harmlessly). An eruption throws you off the causeway: you land back on the last ledge, a little hurt. On the three broad, cool ledges between them the brood rises in waves, about forty in all: ashen knights (one slow combo each), crystal wisps (one marked beam each), and the hollows\' kin. A ledge\'s slag barricade gives way once its waves are down. Then the Ember Court: six furnace idols round a basalt platform glow, wind up and hurl molten balls (an aim line, or a landing circle for a lobbed one). Dodge twelve of them: roll through a ball with the dodge button as it reaches you, or step aside so it passes close by. A hit only stings and never counts, and nothing resets your count. The idols go dark at twelve and the way opens to the overlook, where Ifrit sits far off on his throne. A frost shrine there restores your pet before you go in.',
+  CAL_STAGES.DESCENT = { name: 'The Heartward Descent', goal: 'Down the cathedral, then the Ember Court', how: 'The forge gives way to a vertical cathedral of basalt columns, hanging obsidian slabs and lava pouring down the walls. Three short causeways cross the drop, each with vents: a vent glows and hisses for about two seconds before it erupts (the first one shows itself once, harmlessly). An eruption throws you off the causeway: you land back on the last ledge, a little hurt. On the three broad, cool ledges between them the brood rises in waves, about forty in all: ashen knights (one slow combo each), crystal wisps (one marked beam each), and the hollows\' kin. A ledge\'s slag barricade gives way once its waves are down. Then the Ember Court: six furnace idols round a basalt platform glow, wind up and hurl molten balls (an aim line, or a landing circle for a lobbed one). Dodge six of them: roll through a ball with the dodge button as it reaches you, or step aside so it passes close by. A hit only stings and never counts. Then the idols wake and stomp down onto the court, two at a time, and charge you along a shown red lane. Your blows barely scratch them: stand between two of them and dodge at the last moment, and the charge carries on into the other idol. Two crashes shatter an idol; the last two charge together. When all six are rubble the way opens to the overlook, where Ifrit sits far off on his throne. A frost shrine there restores your pet before you go in.',
     layout: DE_LAYOUT, legend: { E: {}, F: {}, v: {}, X: {}, U: {}, W: {}, Y: {}, C: {}, T: { tile: T_SOLID },
       H: { tile: T_SOLID, get prop() { return DunWorld.PROPS.basaltcol ? 'basaltcol' : undefined; } }, O: { tile: T_GAP, get prop() { return DunWorld.PROPS.slabhang ? 'slabhang' : undefined; } }, L: PROP('lavafall', 'volrok'), G: PROP('bigcrystal', 'obsidian') }, make: makeDescent };
 

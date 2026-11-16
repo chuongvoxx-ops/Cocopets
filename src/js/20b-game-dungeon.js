@@ -508,8 +508,9 @@ GAMES.dungeon = {
       if (p.hp > 0) { sparks(p.x, p.y, '#E7B46C', 5, 4); api.sfx.thud(); return; }
       p.broken = true;
       const col = p.kind === 'chest' ? '#C48A52' : p.kind === 'barrel' ? '#D9483B' : p.kind === 'crate' ? '#C49A66' : '#B7836B';
-      for (let i = 0; i < 10; i++) { const a = Math.random() * 6.283, v = 2 + Math.random() * 3; part({ kind: 'shard', x: p.x, y: p.y - 0.2, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 1.5, g: 8, life: 0.7, max: 0.7, size: 4 + Math.random() * 3, rot: Math.random() * 6, vr: (Math.random() - 0.5) * 14, color: col }); }
-      api.sfx.crash();
+      const bfx = typeof BREAK_FX !== 'undefined' && BREAK_FX.burst(null, p.x, p.y + 0.3, { kind: p.kind === 'pot' && BIOMES[p.biome] && BIOMES[p.biome].out ? 'urn' : p.kind === 'pot' && (p.v % 3 === 0) ? 'crate' : p.kind === 'barrel' ? 'xbarrel' : p.kind, biome: p.biome || F.biome, rubble: p.kind === 'barrel' ? 'scorch' : undefined, sound: !p.quietFx });   // v388 D: it shatters (sherds, splinters), the loot pops as before
+      if (!bfx) for (let i = 0; i < 10; i++) { const a = Math.random() * 6.283, v = 2 + Math.random() * 3; part({ kind: 'shard', x: p.x, y: p.y - 0.2, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 1.5, g: 8, life: 0.7, max: 0.7, size: 4 + Math.random() * 3, rot: Math.random() * 6, vr: (Math.random() - 0.5) * 14, color: col }); }
+      if (!bfx) api.sfx.crash();
       if (p.kind === 'barrel') { after(0.05, () => { boom(p.x, p.y, 2.2, '#FF7A3D', '#FFE37A', { n: 24, shake: 9, smoke: 6 }); flash(0.15, '#FFB066'); for (const m of mons) if (!m.dead && hyp(m.x - p.x, m.y - p.y) < 2.2 + m.r) hitMon(m, ST.atk * 4, { el: 'fire', burn: true, kb: 5, src: 'strong' }); hitPots(p.x, p.y, 2.2); zones.push({ kind: 'fire', x: p.x, y: p.y, r: 1.3, life: 2.5, max: 2.5, dps: ST.atk * 0.5, tick: 0, own: 'pet', el: 'fire' }); }); return; }
       const n = p.kind === 'chest' ? 5 + Math.floor(Math.random() * 3) : Math.random() < 0.65 ? 1 + Math.floor(Math.random() * 2) : 0;
       for (let i = 0; i < n; i++) drop('coin', p.x, p.y);
@@ -622,7 +623,7 @@ GAMES.dungeon = {
     function switchTo(i, forced) {
       if (i === cur && !forced) return false; const m = party[i]; if (!m || m.down || g.over) return false;
       if (!forced && RULES && RULES.blocks('noswitch')) { text(me.x, me.y - 1.2, 'Cursed: bound', '#E07BF0', 12); api.sfx.wrong(); return false; }
-      if (!forced && (g.swapCd > 0 || me.dodge || me.dash || me.leap || me.beam || me.swIn || (AN && AN.S.cine))) return false;
+      if (!forced && (g.swapCd > 0 || me.dodge || me.dash || me.leap || me.beam || me.swIn || g.exitIn || (AN && AN.S.cine))) return false;   /* (v388 E: g.exitIn, no swap while walking into the exit) */
       if (vehOn() && VEH.onSwitch) VEH.onSwitch();   /* (Sports Car: the driver leaves the car first; its cooldown starts, then is saved below) */
       const old = party[cur], oldS = SIZE; old.hp = me.hp; old.mp = me.mp; old.cd = { cdS: g.cdS, cdS2: g.cdS2, cdS3: g.cdS3, cdU: g.cdU };
       cur = i; P = m.p; PI = m.kit; AB = PI.AB; KIT = PI.kit; TW = AB.twist; ST = m.ST; SSL = ['strong', 'strong2', 'strong3'].filter(k => KIT[k]); SIZE = dunPetSize(P, formOf(P)); OY = 0.25 * SIZE;
@@ -1087,13 +1088,14 @@ GAMES.dungeon = {
            (only if still unused: once), then is broken (no longer drawn, walked onto or shown on the minimap). Floor keys
            are not pots or shrines and are never touched */
         pots: () => pots, smashPot: p => { if (!p || p.broken) return false; let n = 0; while (!p.broken && n++ < 6) breakPot(p); return true; },
-        shrines: () => shrines, smashShrine: s => { if (!s || s.broken) return false; if (!s.used && !me.dead) useShrine(s); s.used = true; s.broken = true; return true; } },
+        shrines: () => shrines, smashShrine: s => { if (!s || s.broken) return false; if (!s.used && !me.dead) useShrine(s); s.used = true; s.broken = true; if (typeof BREAK_FX !== 'undefined') BREAK_FX.burst(null, s.x, s.y + 0.3, { kind: 'spent', biome: F.biome, mat: 'stone', quiet: true });   /* v388 D */ return true; } },
       drawPetAt: (c, X2, Y2, o) => { o = o || {}; const T = Tz(), k = (o.maxH && SIZE > o.maxH ? o.maxH / SIZE : 1) * PET_K, h = T * 1.02 * SIZE * k, L2 = petLook();
         drawPetFull(c, X2, Y2, h, { sprites: arc.sprites, form: formOf(P), t: g.t, unit: T * SIZE * k, tile: T, float: false, el: party[cur].el, z: 0, moving: false, walk: 0, flip: o.flip != null ? !!o.flip : me.face < 0, face: o.face || L2.face, pose: Object.assign({}, L2.pose, { moving: false, walk: 0 }), sx: o.sx || 1, sy: o.sy || 1, rot: o.rot || 0 /* (Sports Car's drift: the Dodge's flat roll) */, rig: !me.dead, shadow: false, glow: false, circle: false, alpha: o.alpha }); } });
     RES = DunResidue.create({ me, g, mons, props: propList, M, T_FLOOR, EL, e8Of, REACT_NAME: (a, b) => (REACTIONS[pairKey(a, b)] || {}).name, ST: () => ST, hitMon, part, boom, ring, sparks, text, light, drop, sfx: api.sfx, sx, sy, Tz: () => Tz() });
+    if (typeof BREAK_FX !== 'undefined') BREAK_FX.bind({ me, g, sx, sy, Tz: () => Tz(), TS: () => TS, SK: () => SK(), W: () => api.W, H: () => api.H, tile: tileAt, shake, hitstop, light, sfx: api.sfx });   // v388 D: the shared destruction effect (20b2)
     RX = DunReact.create({ me, g, mons, eshots, ST: () => ST, AB: () => AB, hitMon, text, part, boom, zap, bolt: (x, y, color) => bolts.push({ pts: skyBolt(x, y), life: 0.3, max: 0.3, color, w: 5 }), sparks, ring, light, drop, heal, banner, sfx: api.sfx, sx, sy, Tz: () => Tz() });
     RULES = F.band ? DunRules.create({ F, M, me, g, mons, R, spawnMon, lesserBoss, walkPoint, freeSpot, after, banner, flash, text, ring, part, sparks, boom, shake, drop, heal, gainMP, ST: () => ST, sfx: api.sfx, sx, sy, Tz: () => Tz() }) : null;
-    RIFT = F.rift ? DunRift.create({ F, M, me, g, mons, R, shots, spawnMon, lesserBoss, freeSpot, walkPoint, blocked, los, after, banner, flash, text, ring, part, sparks, boom, shake, light, drop, heal, gainMP, hurtPet, hitMon, hitArea, warn: warnZone, zone: z => zones.push(z), eshot, lob, ringWave, slam, pull: X.pull, push: X.push, beamFx: X.beamFx, ST: () => ST, sfx: api.sfx, sx, sy, Tz: () => Tz(), W: () => api.W, H: () => api.H,
+    RIFT = F.rift ? DunRift.create({ F, M, me, g, mons, R, shots, party: () => party, partyCur: () => cur, petK: () => PET_K /* v388 R: the sealing draws the whole party */, spawnMon, lesserBoss, freeSpot, walkPoint, blocked, los, after, banner, flash, text, ring, part, sparks, boom, shake, light, drop, heal, gainMP, hurtPet, hitMon, hitArea, warn: warnZone, zone: z => zones.push(z), eshot, lob, ringWave, slam, pull: X.pull, push: X.push, beamFx: X.beamFx, ST: () => ST, sfx: api.sfx, sx, sy, Tz: () => Tz(), W: () => api.W, H: () => api.H,
       retile: () => { chunks.clear(); flowT = 0; miniNew.length = 0; expV++; }, winStage, unstick, splash: X.splash, slash: X.slash, say: X.say, inCone, inLine, moveEnt, bolt: X.bolt, get rift() { return RIFT; }, finishWin: () => finishWin(), props: propList, setTile: (x, y, t) => { G[y * MW + x] = t; }, tileAt: (x, y) => G[y * MW + x], killMon, get boss() { return g.boss; } }) : null;
     if (RULES && RULES.blocks('nosummon') && AN) { AN.ready = () => false; AN.summon = () => { text(me.x, me.y - 1.1, 'Cursed: no summons', '#E07BF0', 13); api.sfx.wrong(); }; }
     const FD = F.fiend ? DunFiend.create({ F, M, me, g, mons, eshots, ST: () => ST, AB: () => AB, e8Of, zone: z => zones.push(z), sfx: api.sfx, spawnMon, walkPoint, moveEnt, blocked, los, hurtPet, wipeParty, hitMon, eshot, banner, flash, shake, boom, ring, sparks, part, text, light, drop, heal, gainMP, after, zap,
@@ -1214,7 +1216,18 @@ GAMES.dungeon = {
     }
     function finishWin() { if (g.over) return; g.over = true; collectAll(); api.finish(true, result(true)); }
     // a rift section done: the way on taken
-    function winStage() { if (g.won) return; g.won = true; g.slowT = 0.8; flash(0.5, '#FFFFFF'); banner(F.rift && F.rift.gate ? 'TRIAL COMPLETE' : 'SECTION CLEAR', F.rift ? F.rift.name : '', '#8FE0A6', 2.4, true); api.sfx.fanfare(); heal(ST.hp * 0.2, true); gainMP(20); after(2.2, () => finishWin()); }
+    function winStage() { if (g.won) return; g.won = true; g.slowT = 0.8; const ex = RIFT && RIFT.exit, walk = ex && !me.dead && hyp(me.x - ex.x, me.y - ex.y) < 3; if (walk) exitWalk(ex); /* v388 E: the walk into the door */ flash(walk ? 0.18 : 0.5, '#FFFFFF'); banner(F.rift && F.rift.gate ? 'TRIAL COMPLETE' : 'SECTION CLEAR', F.rift ? F.rift.name : '', '#8FE0A6', 2.4, true); api.sfx.fanfare(); heal(ST.hp * 0.2, true); gainMP(20); after(2.2, () => finishWin()); }
+    /* (v388 E: the pet walks into the doorway) taking an exit, the pet no longer pops out of sight: it keeps walking into the
+       door's mouth for about 0.8 s (the clock's real time: the win's slow-motion does not drag it), darkening into a
+       silhouette and fading from the feet up as the doorway's dark swallows it (drawPetSwallowed). The win itself is
+       unchanged (g.won at once, so every input is locked and nothing can hurt the pet; the end panel at the same 2.2 s) */
+    function exitWalk(ex) { const d = hyp(ex.x - me.x, ex.y - 0.85 - me.y); me.dodge = me.dash = me.leap = me.push = me.spin = me.beam = null; me.inv = 0; me.z = 0;
+      g.exitIn = { t: 0, dur: clamp(d / 2.4, 0.65, 0.9), x0: me.x, y0: me.y, tx: ex.x, ty: ex.y - 0.85, ex }; }
+    function exitWalkTick(dt) { const E = g.exitIn; if (!E || me.dead) return; E.t += dt; const u = clamp(E.t / E.dur, 0, 1), k = u * u * (3 - 2 * u) * 0.35 + u * 0.65, nx = E.x0 + (E.tx - E.x0) * k, ny = E.y0 + (E.ty - E.y0) * k;
+      if (u < 1) { const vx = nx - me.x, vy = ny - me.y, vv = hyp(vx, vy); if (vv > 1e-4) { me.ax = vx / vv; me.ay = vy / vv; if (Math.abs(vx) > vv * 0.3) me.face = vx > 0 ? 1 : -1; } me.vx = vx / Math.max(dt, 1e-3); me.vy = vy / Math.max(dt, 1e-3); me.bob += dt * 12; me.wph = (me.wph || 0) + dt * 9; }
+      else { me.vx = me.vy = 0; } me.x = nx; me.y = ny; me.inv = 0; }
+    /* how far the pet is into the dark: 0 at the door's foot .. 1 gone */
+    const exitK = () => (g.exitIn ? clamp(g.exitIn.t / g.exitIn.dur, 0, 1) : 0);
     // a won floor sweeps up whatever is still lying on it, accessories too
     function collectAll() { for (const p of picks) { if (p.got) continue; if (p.kind === 'coin') g.coins += Math.round(p.v * (g.buff.fortune > 0 ? 2 : 1) * (1 + accK('gold'))); if (p.kind === 'gem') g.gems.push(p.gem); if (p.kind === 'food') gotFood(p.food); if (p.kind === 'acc') g.accs.push(p.acc); } picks.length = 0; }
     function gotFood(k) { st.pantry[k] = Math.min(999, (st.pantry[k] || 0) + 1); g.food[k] = (g.food[k] || 0) + 1; }
@@ -1497,7 +1510,7 @@ GAMES.dungeon = {
         if (g.stormK > 0.5 && !me.dead && !g.won) { g.stormHurtT = (g.stormHurtT || 0) - dt; if (g.stormHurtT <= 0) { g.stormHurtT = 1; const d = Math.min(me.hp - 1, Math.max(1, Math.round(ST.hp * 0.006))); if (d > 0) { me.hp -= d; text(me.x + (Math.random() - 0.5) * 0.6, me.y - 1.1, `-${d}`, '#E8B36A', 10); } } } }
       if (FD) FD.update(dt);
       if (F.liveCap) liveCapTick(dt);
-      if (RX) RX.update(dt); if (STAR) STAR.update(dt); if (ELEM) ELEM.update(dt); if (RES) RES.update(dt); if (g.eclipseT > 0) g.eclipseT -= dt;
+      if (RX) RX.update(dt); if (STAR) STAR.update(dt); if (ELEM) ELEM.update(dt); if (RES) RES.update(dt); if (typeof BREAK_FX !== 'undefined') BREAK_FX.update(dt); /* v388 D */ if (g.eclipseT > 0) g.eclipseT -= dt;
       const cdK = (g.buff.arcane > 0 ? 1.6 : 1) * (RULES ? RULES.cdK() : 1) / (1 - Math.min(0.5, accK('cdr')));
       const cdA = cdK * zephK('as');   /* (Zephyr's attack speed: the Strongs only, never the Ultimate) */
       g.cdS = Math.max(0, g.cdS - dt * cdA); g.cdS2 = Math.max(0, g.cdS2 - dt * cdA); g.cdS3 = Math.max(0, g.cdS3 - dt * cdA); g.cdU = Math.max(0, g.cdU - dt * cdK);
@@ -1557,6 +1570,7 @@ GAMES.dungeon = {
         { const mvW = !!(mx || my); me.wph = (me.wph || 0) + dt * (mvW ? 9 : 3.4); }
         if (mx || my) { const mm = hyp(mx, my); me.ax = mx / mm; me.ay = my / mm; me.bob += dt * 12; if (Math.random() < dt * 6) part({ kind: 'smoke', x: me.x - mx * 0.2, y: me.y + 0.12, vx: -mx * 0.6, vy: -0.3, life: 0.4, max: 0.4, size: 0.1 + 0.06 * SIZE, color: PB.out ? 'rgba(220,230,210,' : 'rgba(200,190,230,' }); }
       }
+      if (g.exitIn) exitWalkTick(dtReal);   /* (v388 E: the walk into the doorway, on the real clock) */
       if (g.navFrom && nav.goal) { const moved = hyp(me.x - g.navFrom[0], me.y - g.navFrom[1]); if (moved < spd * dt * 0.15) { nav.stuck += dt; if (nav.stuck > 0.45) { nav.goal = null; nav.mon = null; } } else nav.stuck = 0; }
       if (nav.mark > 0) nav.mark -= dtReal;
       me.tilt += (clamp(me.vx * 0.04, -0.18, 0.18) * (me.dodge ? 0 : 1) - me.tilt) * Math.min(1, dt * 10);
@@ -1759,6 +1773,7 @@ GAMES.dungeon = {
        zoom-only focus. Before, a Super Fiend floor's hook (always present, mostly null) or any rift's camera hid the ridden
        form's framing entirely, so on those floors the airship sat high on the screen. */
     function camPick() { const v = vehOn() && VEH.cam ? VEH.cam() : null, own = v && v.k > 0;
+      { const rc = RIFT && RIFT.cineCam ? RIFT.cineCam() : null; if (rc) return rc; }   /* (v388 R: a rift's sealing frames itself, over a fiend's own framing) */
       if (FD && FD.camFocus) { const f = FD.camFocus(); return f || (own ? Object.assign({}, v, { zoom: Math.min(v.zoom || 1, 0.78) }) : null); }   /* (a fiend arena keeps its wider view) */
       if (RIFT && RIFT.cam) return own ? v : RIFT.cam();
       return v; }
@@ -2042,6 +2057,7 @@ GAMES.dungeon = {
     }
     /* orbiting blades, chainsaws and guard orbs from power stones, and the frost aura */
     function drawPowers(c) {
+      if (g.exitIn && exitK() > 0.35) return;   /* (v388 E: they go into the dark with the pet) */
       const P = g.pw, T = Tz(), X = sx(me.x), Y = sy(me.y - OY);
       if (P.frost) { const Rr = (3 + P.frost * 0.5) * T, X0 = sx(me.x), Y0 = sy(me.y), pul = 0.5 + 0.5 * Math.sin(g.t * 2.2);
         // (a soft breath of cold, no edge to it: a mist that thins away to nothing, brighter near the pet, a faint frosted
@@ -2062,6 +2078,28 @@ GAMES.dungeon = {
       return { face: me.dead ? 'hurt' : me.hurtT < 0.4 ? 'hurt' : (g.won || me.lvFx > 0 || g.counterT > 0) ? 'happy' : 'normal',
         pose: { walk: me.bob, moving, t: g.t, cast: me.castT > 0 ? 1 - me.castT / (me.castM || 1) : 0, ult: !!me.castUlt, wingPh: me.wph || 0, wingAmp: moving ? 14 : fl ? 11 : 8, hopArm: me.hopArm || 0, hopFoot: me.hopFoot || 0, hopArmS: me.hopArmS || null, yaw: me.yaw || 0 } };   /* (hopArmS: each arm's own swing [rig arm 1, arm 2], Earth's Rocky, 20k2k) */   /* (hopArm / hopFoot: Earth's Shockwave Trampoline, 20k2b; yaw: a turn about the pet's upright axis drawn in 3D by drawPetRig, Earth's Geode Arsenal 20k2d) */
     }
+    /* (v388 E) the pet walking into an exit: drawn into a small picture of its own, darkened toward a silhouette (feet first)
+       and erased from the feet up along a soft edge, then laid down; a soft dark pool in the door's mouth over it. Nothing is
+       drawn of it once it has gone */
+    let swCv = null;
+    const sm01 = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+    function drawExitDark(c) { const E = g.exitIn; if (!E) return; const T = Tz(), u = exitK(), al = 0.6 * sm01(0, 0.45, u) * (1 - sm01(0, 0.8, E.t - E.dur)); if (al < 0.01) return;
+      const X = sx(E.ex.x), Y = sy(E.ex.y - 0.85) - T * 0.45, rx = T * 0.95, ry = T * 1.25; c.save(); c.translate(X, Y); c.scale(1, ry / rx); const gr = c.createRadialGradient(0, 0, 0, 0, 0, rx); gr.addColorStop(0, `rgba(5,3,9,${al})`); gr.addColorStop(0.55, `rgba(5,3,9,${al * 0.6})`); gr.addColorStop(1, 'rgba(5,3,9,0)'); c.fillStyle = gr; c.beginPath(); c.arc(0, 0, rx, 0, 6.283); c.fill(); c.restore(); }
+    function drawPetSwallowed(c) { const u = exitK(); if (u >= 1) { drawExitDark(c); return; }
+      const T = Tz(), X = sx(me.x), Y0 = sy(me.y), h = T * 1.02 * SIZE * PET_K * (g.pw.giant ? 1.35 : 1) * (g.petK || 1), m = c.getTransform(), ka = Math.abs(m.a) || 1, kd = Math.abs(m.d) || 1;
+      const x0 = X - h * 1.9, y0 = Y0 - h * 2.7, dx0 = Math.floor(m.a * x0 + m.c * y0 + m.e), dy0 = Math.floor(m.b * x0 + m.d * y0 + m.f), W2 = Math.ceil(h * 3.8 * ka) + 2, H2 = Math.ceil(h * 3.5 * kd) + 2;
+      if (!swCv) swCv = document.createElement('canvas'); if (swCv.width < W2 || swCv.height < H2) { swCv.width = Math.max(swCv.width, W2); swCv.height = Math.max(swCv.height, H2); }
+      const o = swCv.getContext('2d'); o.setTransform(1, 0, 0, 1, 0, 0); o.globalAlpha = 1; o.globalCompositeOperation = 'source-over'; o.clearRect(0, 0, W2 + 2, H2 + 2);
+      o.setTransform(m.a, m.b, m.c, m.d, m.e - dx0, m.f - dy0); o.save(); try { drawPet(o); } catch (e) {} o.restore(); o.setTransform(1, 0, 0, 1, 0, 0);
+      const fy = (Y0 + T * 0.18 - y0) * kd, hy = (Y0 - h * 1.25 - y0) * kd, span = Math.max(4, fy - hy), dk = sm01(0, 0.7, u);
+      // the dark takes it, feet first: a near-black silhouette by the time it is half in
+      o.globalCompositeOperation = 'source-atop'; const gd = o.createLinearGradient(0, fy, 0, hy - span * 0.4); gd.addColorStop(0, `rgba(6,4,10,${0.96 * dk})`); gd.addColorStop(1, `rgba(6,4,10,${0.72 * dk})`); o.fillStyle = gd; o.fillRect(0, 0, W2, H2);
+      // and it is gone from the feet up, along a soft edge
+      const fu = sm01(0.25, 1, u), line = fy - fu * span * 1.4, band = span * 0.45;
+      if (fu > 0) { o.globalCompositeOperation = 'destination-out'; const ge = o.createLinearGradient(0, line - band, 0, line + band); ge.addColorStop(0, 'rgba(0,0,0,0)'); ge.addColorStop(1, 'rgba(0,0,0,1)'); o.fillStyle = ge; o.fillRect(0, line - band, W2, H2); }
+      o.globalCompositeOperation = 'source-over';
+      c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1 - sm01(0.7, 1, u); c.drawImage(swCv, 0, 0, W2, H2, dx0, dy0, W2, H2); c.restore();
+      drawExitDark(c); }
     let petSnapF = null;   // this frame's picture of the pet, while copies of it are out
     function drawPet(c) {
       /* (hook for Dark's Dracula, 20k5o: me.petAlt is an elemental effect that draws the pet as something else; the pet is
@@ -2116,6 +2154,11 @@ GAMES.dungeon = {
        than the last, so it thins and fades to nothing instead of ending in a cut */
     function dqTail(x0, y0, x1, y1, w, col, heat, a, seed, scroll) { const L = hyp(x1 - x0, y1 - y0); if (L < 1 || !DQ) return; const n = Math.max(3, Math.min(12, Math.ceil(L / (w * 1.6)))), dx = (x1 - x0) / n, dy = (y1 - y0) / n;
       for (let i = 0; i < n; i++) { const u = (i + 0.5) / n, k = Math.pow(1 - u, 1.2), ax = x0 + dx * i - dx * 0.3, ay = y0 + dy * i - dy * 0.3, bx = x0 + dx * (i + 1) + dx * 0.3, by = y0 + dy * (i + 1) + dy * 0.3; DQ.ebeam(ax, ay, bx, by, w * (0.25 + 0.75 * k), col, heat * (0.6 + 0.4 * k), a * k * k, seed + i * 0.71, scroll); } }
+    /* (v388 E) a column that dissolves toward its far end: full strength from (x0, y0), then over the last fk of its length
+       it thins and fades to nothing (with the painter's own end feather on its last stretch), so a sky beam never ends in a
+       cut, at any zoom or screen size */
+    function dqFade(x0, y0, x1, y1, w, col, heat, a, seed, scroll, fk) { const L = hyp(x1 - x0, y1 - y0); if (L < 1 || !DQ) return; const n = Math.max(8, Math.min(24, Math.ceil(L / (w * 0.9)))), dx = (x1 - x0) / n, dy = (y1 - y0) / n;
+      for (let i = 0; i < n; i++) { const u = (i + 0.5) / n, e = clamp((u - (1 - fk)) / fk, 0, 1), s = 1 - e * e * (3 - 2 * e), k = s * Math.sqrt(s); if (k < 0.01) continue; const ax = x0 + dx * i - dx * 0.25, ay = y0 + dy * i - dy * 0.25, bx = x0 + dx * (i + 1) + dx * 0.25, by = y0 + dy * (i + 1) + dy * 0.25; DQ.ebeam(ax, ay, bx, by, w * (1 - 0.5 * e), col, heat * (1 - 0.55 * e), a * k, seed + i * 0.71, scroll); } }
     const DQ_TRAIL = new Set(['needle', 'laser', 'dart', 'bolt', 'spark', 'zap', 'comet', 'fireball', 'crescent', 'lance5', 'spear', 'diamond', 'crystal', undefined, 'default', 'star', 'boom']);
     function drawShots(c) {
       const T = Tz();
@@ -2270,7 +2313,7 @@ GAMES.dungeon = {
             c.globalAlpha = a; c.save(); c.translate(X, Y); c.rotate(p.a); c.strokeStyle = p.color; c.lineWidth = 7 * a + 2; c.beginPath(); c.arc(0, 0, p.r * T * 0.85, p.flip ? 0.9 : -0.9, p.flip ? -0.9 : 0.9, !!p.flip); c.stroke(); c.strokeStyle = '#FFFFFF'; c.lineWidth = 3 * a; c.stroke(); c.restore(); break; }
           case 'beamfx': { const w = T * (p.w ? p.w * 0.45 : 0.5) * (0.4 + a * 0.6), col = p.color && p.color[0] === '#' ? p.color : '#FFFFFF'; if (DQ) { const ca = Math.cos(p.a), sa = Math.sin(p.a), L = p.r * T + w * 0.5, sd = (p.sd = p.sd || Math.random() * 50); dqChain(X, Y, X + ca * L, Y + sa * L, w * 1.1, col, 1.0, a * 0.9, sd, 10, false); DQ.beam(X, Y, X + ca * L, Y + sa * L, w * 0.3, '#FFFFFF', a * 0.8); DQ.eorb(X + ca * L, Y + sa * L, w * 1.4, col, 0.95, a * 0.7, sd + 3, 2); break; }   /* (v354) */
             c.globalAlpha = a; c.save(); c.translate(X, Y); c.rotate(p.a); blitSized(c, beamSprite(col), -w * 0.4, -w * 1.6, p.r * T + w, w * 3.2); blitSized(c, beamSprite('#FFFFFF'), -w * 0.2, -w * 0.45, p.r * T + w * 0.5, w * 0.9); c.restore(); break; }
-          case 'pillar': { const w = p.size * T * (0.6 + (1 - a) * 0.4), col = p.color && p.color[0] === '#' ? p.color : '#FFE37A'; if (DQ) { const sd = (p.sd = p.sd || Math.random() * 50); dqChain(X, Y + w * 0.45, X, Y - T * 7.5, w * 0.95, col, 1.0, a * 0.9, sd, -8, false); DQ.beam(X, Y - w * 0.1, X, Y - T * 7.2, w * 0.3, '#FFFFFF', a * 0.7); DQ.eorb(X, Y - w * 0.15, w * 1.1, col, 0.95, a * 0.7, sd + 5, 2);   /* (v358: its foot melts into a ball of light: no cut edge) */ DQ.ewave(X, Y, w * 1.6, col, 0.9, a * 0.8, sd + 2, 0.55, 0.35); DQ.glow(X, Y, w * 2.2, col, a * 0.5, 0.6); break; }   /* (v354: a falling column of light, a wave of it where it lands) */ c.globalAlpha = a; c.save(); c.translate(X, Y + w * 0.3); c.rotate(-Math.PI / 2); blitSized(c, pillarBeamSprite(col), -w * 0.9, -w * 1.1, T * 8, w * 2.2); blitSized(c, pillarBeamSprite('#FFFFFF'), -w * 0.8, -w * 0.38, T * 7, w * 0.76);   /* (the foot melts into the floor glow: no hard line) */ c.restore(); blitSized(c, glowSprite(col), X - w * 2, Y - w * 1.2, w * 4, w * 2.4); break; }
+          case 'pillar': { const w = p.size * T * (0.6 + (1 - a) * 0.4), col = p.color && p.color[0] === '#' ? p.color : '#FFE37A'; if (DQ) { const sd = (p.sd = p.sd || Math.random() * 50); dqFade(X, Y + w * 0.45, X, Y - T * 9.5, w * 0.95, col, 1.0, a * 0.9, sd, -8, 0.6); DQ.beam(X, Y - w * 0.1, X, Y - T * 2.6, w * 0.3, '#FFFFFF', a * 0.7); DQ.beam(X, Y - T * 2.3, X, Y - T * 4.6, w * 0.24, '#FFFFFF', a * 0.35);   /* (v388 E: it dissolves over its top half, the white core well inside it: no cut top at any zoom; was a full-strength chain to 7.5 tiles, cut wherever the camera was wider) */ DQ.eorb(X, Y - w * 0.15, w * 1.1, col, 0.95, a * 0.7, sd + 5, 2);   /* (v358: its foot melts into a ball of light: no cut edge) */ DQ.ewave(X, Y, w * 1.6, col, 0.9, a * 0.8, sd + 2, 0.55, 0.35); DQ.glow(X, Y, w * 2.2, col, a * 0.5, 0.6); break; }   /* (v354: a falling column of light, a wave of it where it lands) */ c.globalAlpha = a; c.save(); c.translate(X, Y + w * 0.3); c.rotate(-Math.PI / 2); blitSized(c, pillarBeamSprite(col), -w * 0.9, -w * 1.1, T * 9, w * 2.2); blitSized(c, pillarBeamSprite('#FFFFFF'), -w * 0.8, -w * 0.38, T * 6.5, w * 0.76);   /* (v388 E: longer, its top half dissolving) */   /* (the foot melts into the floor glow: no hard line) */ c.restore(); blitSized(c, glowSprite(col), X - w * 2, Y - w * 1.2, w * 4, w * 2.4); break; }
           case 'flare': { const s2 = p.size * T * (0.6 + (1 - a) * 0.6); c.globalAlpha = a; blitSized(c, flareSprite(p.color), X - s2, Y - s2, s2 * 2, s2 * 2); if (DQ && p.color && p.color[0] === '#') DQ.eorb(X, Y, s2 * 0.5, p.color, 1.0, a * 0.85, (p.sd = p.sd || Math.random() * 50), 2); else blitSized(c, glowSprite(p.color), X - s2 * 0.5, Y - s2 * 0.5, s2, s2); break; }
           case 'meteorfall': { const u = 1 - a, mx2 = X + (1 - u) * T * 3, my2 = Y - (1 - u) * T * 7, sz = Math.max(0.6, p.size); if (DQ) { const sd = (p.sd = p.sd || Math.random() * 50), dl = Math.hypot(3, 7), ux = 3 / dl, uy = -7 / dl; dqTail(mx2 + ux * T * 0.6, my2 + uy * T * 0.6, mx2 + ux * T * 4.2, my2 + uy * T * 4.2, T * 0.26 * sz, '#FF6A2A', 0.8, 0.7, sd, 9); dqTail(mx2, my2, mx2 + ux * T * 2.2, my2 + uy * T * 2.2, T * 0.3 * sz, '#FF9A4D', 0.95, 0.85, sd + 3, 9);   /* (v372: tails that thin and fade out) */   /* (v358: soft-ended, tapering: no cut tail) */ DQ.billow(mx2, my2, T * sz * 0.4, 1.0, 0.9, sd); DQ.fire(mx2, my2, T * sz * 0.36, 1.05, 0.9, sd + 1); DQ.quad(13, mx2, my2, T * sz * 0.62, 0, 0, T * sz * 0.62, '#FF7A2E', 0.7, 1.0, sd + 2, 0.3); DQ.glow(mx2, my2, T * (0.9 + sz * 0.5), '#FF9F43', 0.5); break; }   /* (v354: a ball of fire with a corona, a trail of fire) */ c.globalAlpha = 0.95; c.save(); c.translate(mx2, my2); c.rotate(Math.atan2(-7, 3)); blitSized(c, tailSprite('#FF7A3D'), -T * 0.25, -T * 0.55 * sz, T * 3.8, T * 1.1 * sz); blitSized(c, tailSprite('#FFE37A'), -T * 0.15, -T * 0.2 * sz, T * 2.4, T * 0.4 * sz); c.restore(); const s2 = T * (0.8 + sz * 0.5); blitSized(c, glowSprite('#FF9F43'), mx2 - s2, my2 - s2, s2 * 2, s2 * 2); const s3 = T * sz * 0.42; blitSized(c, glowSprite('#FFFFFF'), mx2 - s3, my2 - s3, s3 * 2, s3 * 2); break; }
           case 'smoke': { const s2 = p.size * T * (1.6 - a * 0.6) * 1.2; c.globalAlpha = a * a * 0.3; blitSized(c, puffSprite(p.color), X - s2, Y - s2, s2 * 2, s2 * 2); break; }
@@ -2617,7 +2660,7 @@ GAMES.dungeon = {
       if (!touchUI && g.t < 6 && !g.movedOnce) { c.globalAlpha = 0.35 + 0.2 * Math.sin(g.t * 4); c.beginPath(); c.arc(78, HB() - 52, 46, 0, 6.283); c.lineWidth = 2.5; c.strokeStyle = '#FFFFFF'; c.setLineDash([6, 6]); c.stroke(); c.setLineDash([]); c.globalAlpha = 0.8; c.font = `800 11px ${arcFont}`; c.fillStyle = '#FFFFFF'; c.textAlign = 'center'; c.fillText(touchUI ? 'Drag to move' : 'Arrow keys', 78, H - 82); if (!touchUI) { c.font = `800 9px ${arcFont}`; c.fillText('or WASD · Shift dodges', 78, H - 68); } c.globalAlpha = 1; }
       // until you've tapped a few times: a pulsing finger over the nearest monster
       const tapT = g.taps < 4 && g.intro <= 0 && !me.dead && !g.won && F.k % ACT_LEN === 0 && !F.fiend && (ST.L || 1) < 5 ? nearestMon(me.x, me.y, 9) : null;   // (QA v386: not for a pet of level 5 or more, never on a fiend's stage, never over a boss)
-      if (tapT && !tapT.boss && !tapT.fiend) {   // (only with a monster to point at: never over an empty puzzle room)
+      if (tapT && !tapT.boss && !tapT.fiend && !tapT.fobj) {   // (only with a monster to point at: never over an empty puzzle room; v388: never over the court's idols, which blows barely scratch)
         const t = tapT; const X = t ? sx(t.x) : W / 2 + 90, Y = t ? sy(t.y) - t.r * Tz() - 10 : H / 2 - 60, pulse = 0.5 + 0.5 * Math.sin(g.t * 5);
         c.save(); c.globalAlpha = 0.75 + 0.25 * pulse; c.strokeStyle = '#FFFFFF'; c.lineWidth = 3; c.beginPath(); c.arc(X, Y + 26, 18 + pulse * 10, 0, 6.283); c.stroke();
         c.translate(X, Y - pulse * 6); c.fillStyle = '#FFE3C2'; c.strokeStyle = GFX.line; c.lineWidth = 2.2;
@@ -2669,6 +2712,7 @@ GAMES.dungeon = {
       drawZones(c, false);
       if (FD) FD.drawGround(c);
       if (RX) RX.drawGround(c); if (RES) RES.drawGround(c);
+      if (typeof BREAK_FX !== 'undefined') BREAK_FX.drawGround(c);   // v388 D: rubble, settled pieces, shadows
       // hazards and traps on the screen (a saw's track and a fence's span reach out from its anchor)
       { const T = Tz(), on = (x, y, m) => { const X = sx(x), Y = sy(y); return X > -m && X < W + m && Y > -m && Y < H + m; };
         const span = t => { const xs = [t.x, t.x0, t.x1].filter(v => v != null), ys = [t.y, t.y0, t.y1].filter(v => v != null), m = T * 2, X0 = sx(Math.min(...xs)), X1 = sx(Math.max(...xs)), Y0 = sy(Math.min(...ys)), Y1 = sy(Math.max(...ys)); return X1 > -m && X0 < W + m && Y1 > -m && Y0 < H + m; };
@@ -2710,7 +2754,7 @@ GAMES.dungeon = {
         else if (kind === 2) drawPot(c, e);
         else if (kind === 3) drawShrine(c, e);
         else if (kind === 4) drawMon(c, e);
-        else if (kind === 5) drawPet(c);
+        else if (kind === 5) { if (!g.exitIn) drawPet(c); }   /* (v388 E: walking into an exit it is drawn after them all, below) */
         else if (kind === 7) drawStone(c, e);
         else if (kind === 8) AN.drawAnima(c, e);
         else if (kind === 9) FD.drawProp(c, e);
@@ -2720,6 +2764,8 @@ GAMES.dungeon = {
         else { c.save(); c.globalAlpha = 0.6; blitSized(c, glowSprite(e.color), sx(e.x) - TS * 0.8, sy(e.y) - TS * 1.2, TS * 1.6, TS * 1.6); const br = Math.sin(g.t * 2.4 + e.s) * 0.025; api.pet(c, sx(e.x), sy(e.y) + TS * 0.18, TS * 0.9 * SIZE, petSnapF ? { flip: me.face < 0, snap: petSnapF, sx: 1 + br, sy: 1 - br } : { flip: me.face < 0, face: 'happy' }); c.restore(); }
       }
       petSnapF = null;
+      if (g.exitIn) drawPetSwallowed(c);   /* (v388 E) over whatever stands at the door (a stage's own door art, beside its exit), going dark in it */
+      if (typeof BREAK_FX !== 'undefined') BREAK_FX.drawWorld(c);   // v388 D: a breaking object's pre-crack and its flying pieces
       if (PF) PF('ents');
       drawPowers(c);
       if (FD) FD.drawFx(c);
@@ -2769,6 +2815,7 @@ GAMES.dungeon = {
       });
       if (PF) PF('beams');
       drawParts(c, true); if (PF) PF('partsAdd');
+      if (typeof BREAK_FX !== 'undefined') BREAK_FX.drawFx(c, DQ);   // v388 D: its light, dust and sparks on the GPU pass (2D when DQ is null)
       for (const Dg of dragons) {
         const T = Tz(), tr = Dg.trail; if (tr.length < 2) continue;
         if (DQ) { const fire = Dg.col === '#FF9F43' || Dg.col === '#FF7A3D' || Dg.col === '#FF6B3D', hc = hx6(Dg.col), sd = (Dg.sd = Dg.sd || Math.random() * 50); for (let i = tr.length - 1; i > 0; i--) { const u = 1 - i / tr.length, X0 = sx(tr[i][0]), Y0 = sy(tr[i][1]), X1 = sx(tr[i - 1][0]), Y1 = sy(tr[i - 1][1]), dx = X1 - X0, dy = Y1 - Y0, w = T * (0.12 + 0.42 * u); if (fire) DQ.firebeam(X0 - dx * 0.3, Y0 - dy * 0.3, X1 + dx * 0.3, Y1 + dy * 0.3, w, 0.7 + 0.35 * u, 0.85, sd + i * 0.37, 8); else DQ.ebeam(X0 - dx * 0.3, Y0 - dy * 0.3, X1 + dx * 0.3, Y1 + dy * 0.3, w, hc, 0.7 + 0.35 * u, 0.85, sd + i * 0.37, 8); } DQ.eorb(sx(tr[0][0]), sy(tr[0][1]), T * 0.75, hc, 1.0, 0.8, sd, 3); }   /* (v354: the spirit's body a stream of energy) */
@@ -2789,7 +2836,7 @@ GAMES.dungeon = {
       drawAmbient(c); if (PF) PF('ambient');
       drawLasers(c);
       drawZones(c, true); if (PF) PF('zones');
-      if (me.lvFx > 0) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = me.lvFx / 1.6; const X = sx(me.x), Y = sy(me.y); c.translate(X, Y + TS * 0.2); c.rotate(-Math.PI / 2); blitSized(c, beamSprite('#FFE37A'), 0, -TS * 0.6 * SIZE, TS * 4.4, TS * 1.2 * SIZE); blitSized(c, beamSprite('#FFFFFF'), 0, -TS * 0.18 * SIZE, TS * 3.4, TS * 0.36 * SIZE); c.restore(); }
+      if (me.lvFx > 0) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = me.lvFx / 1.6; const X = sx(me.x), Y = sy(me.y); c.translate(X, Y + TS * 0.2); c.rotate(-Math.PI / 2); blitSized(c, pillarBeamSprite('#FFE37A'), -TS * 0.3, -TS * 0.6 * SIZE, TS * 5.6, TS * 1.2 * SIZE); blitSized(c, pillarBeamSprite('#FFFFFF'), -TS * 0.2, -TS * 0.18 * SIZE, TS * 4.2, TS * 0.36 * SIZE); c.restore(); }   /* (v388 E: the level-up column melts into the floor and dissolves upward, no cut top) */
       for (const t of texts) { const a = clamp(t.life / t.max * 1.6, 0, 1), sc = t.crit ? 1 + Math.max(0, t.life - t.max + 0.15) * 4 : 1; c.save(); c.globalAlpha = a; c.translate(sx(t.x), sy(t.y)); c.scale(sc, sc);
         // a number still climbing (hits landing on it) is written as it is; once it has held for a few frames it is a picture
         if (t._s !== t.s || t._z !== t.size) { t._s = t.s; t._z = t.size; t._n = 0; } (++t._n > 3 ? GFX.textS : GFX.text)(c, t.crit ? t.s + '!' : t.s, 0, 0, t.size, t.color); c.restore(); }
@@ -2801,7 +2848,7 @@ GAMES.dungeon = {
       if (g.flash > 0) { const PX = sx(me.x), PY = sy(me.y - 0.4), a2 = Math.min(0.85, g.flash), gr = c.createRadialGradient(PX, PY, 0, PX, PY, Math.max(W, H) * 0.85); gr.addColorStop(0, hexA(g.flashC, a2)); gr.addColorStop(0.4, hexA(g.flashC, a2 * 0.6)); gr.addColorStop(1, hexA(g.flashC, a2 * 0.2)); c.fillStyle = gr; c.fillRect(0, 0, W, H); }
       if (AN) AN.drawCine(c, W, H);
       if (PF) PF('fx');
-      drawHUD(c); if (PF) PF('hud');
+      if (!(RIFT && RIFT.hideHud && RIFT.hideHud())) drawHUD(c); if (PF) PF('hud');   /* (v388 R: the sealing plays without the HUD) */
       if (RIFT) RIFT.drawOver(c);
       drawBanners(c); if (PF) PF('banners');
     }

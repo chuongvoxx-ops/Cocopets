@@ -36,6 +36,10 @@ const { openCal } = require('./_cal-s-lib');
         if (!B.done) { if (B.wave >= 0 && fight(30)) return; if (fight(2.5)) return; if (ventWait()) return; return roomGo(); }
         const Cc = mod.court; if (!Cc.done) { // the Ember Court: stand near the middle; side-step a lobbed ball's circle; roll through a ball as it arrives
           if (!Cc.on) return steer(16.5, 26, 0.5);
+          if (Cc.phase === 'wake' || Cc.phase === 'fight') { // the idols: stand between the two awake ones; roll as a charge reaches the pet
+            const Aw = mod.awake(); for (const t of Aw) if (t.st === 'charge' && !t.passed && !me.dodge && Math.hypot(me.x - t.x, me.y - t.y) < 1.7) { stop(); G.key('dodge', true); return; }
+            if (Aw.some(t => t.st === 'charge' || (t.st === 'wind' && t.lockd))) return stop();
+            if (Aw.length === 2) return steer((Aw[0].x + Aw[1].x) / 2, (Aw[0].y + Aw[1].y) / 2, 0.35); return stop(); }
           for (const b of Cc.balls) { if (b.res) continue; if (b.kind === 'lob') { const dd = Math.hypot(me.x - b.tx, me.y - b.ty); if (dd < b.R + 0.6) { const a = Math.atan2(me.y - b.ty, me.x - b.tx); return steer(b.tx + Math.cos(a) * (b.R + 1.2), b.ty + Math.sin(a) * (b.R + 1.2), 0.1); } continue; }
             const dd = Math.hypot(me.x - b.x, me.y - b.y); if (dd < b.r + 1.0 && !me.dodge) { const v = Math.hypot(b.vx, b.vy) || 1; if (D.stick.id !== 88) G.down(hx, hy, 88); G.move(hx - b.vy / v * 44, hy + b.vx / v * 44, 88); G.key('dodge', true); return; } }
           return steer(16.5, 25.5, 1.2); }
@@ -43,11 +47,11 @@ const { openCal } = require('./_cal-s-lib');
       const t0 = g.t; let win = -1; const marks = {}, mark = (k, c) => { if (c && marks[k] == null) marks[k] = +(g.t - t0).toFixed(1); };
       const ms = () => { const S = mod.S; mark('brood', mod.brood.done); if (stage === 'HOLLOWS') { mark('primed', S.primed); mark('latched', S.latched); }
         if (stage === 'FOUNDRY') { mark('bomb', mod.bomb.returned > 0); mark('solved', S.solved); }
-        if (stage === 'DESCENT') { mark('demo', S.demo === 2); mark('court', S.court.on); mark('dodged12', S.court.done); }
+        if (stage === 'DESCENT') { mark('demo', S.demo === 2); mark('court', S.court.on); mark('dodged6', S.court.phase !== 'dodge' && S.court.on); mark('shattered6', S.court.done); }
         mark('done', D.RIFT.done); };
       for (let i = 0; i < 60 * (+window.__maxT || 900) && A.state === 'play'; i++) { bot(); run(1 / 60); ms(); if (window.__trace && i % 60 === 0 && D.RIFT.done) window.__trace.push([+(g.t - t0).toFixed(0), +me.x.toFixed(1), +me.y.toFixed(1), D.stick.id, +(me.vx || 0).toFixed(1), +(me.vy || 0).toFixed(1)]); if (me.hp > 0) minHp = Math.min(minHp, me.hp / D.ST.hp); if (me.hp < D.ST.hp * 0.15) { kos++; me.hp = D.ST.hp; } if (g.won && win < 0) { win = g.t - t0; break; } if (i % 600 === 0) await new Promise(r => setTimeout(r, 0)); }
       stop(); G.update = run; const C = D.RIFT.self.amb && D.RIFT.self.amb.C;
-      return { stage, secs: +(win > 0 ? win : g.t - t0).toFixed(1), pos: [+me.x.toFixed(1), +me.y.toFixed(1)], trace: (window.__trace || []).slice(0, 12), won: win > 0, minHp: +minHp.toFixed(2), rescued: kos, kills: g.kills, marks, ult: !!(D.KIT && D.KIT.ult), level: D.ST.L, falls: mod.S.falls, court: mod.S.court && { hits: mod.S.court.hits, attacks: mod.S.court.attacks, voids: mod.S.court.voids, far: mod.S.court.far }, brood: mod.brood.total, killedBrood: mod.brood.killed(), stat: C && C.stat, goal: document.getElementById('arcGoal').textContent }; }, stage);
+      return { stage, secs: +(win > 0 ? win : g.t - t0).toFixed(1), pos: [+me.x.toFixed(1), +me.y.toFixed(1)], trace: (window.__trace || []).slice(0, 12), won: win > 0, minHp: +minHp.toFixed(2), rescued: kos, kills: g.kills, marks, ult: !!(D.KIT && D.KIT.ult), level: D.ST.L, falls: mod.S.falls, court: mod.S.court && { hits: mod.S.court.hits, attacks: mod.S.court.attacks, voids: mod.S.court.voids, far: mod.S.court.far, charges: mod.S.court.charges, crashes: mod.S.court.crashes, perfects: mod.S.court.perfects, chargeHits: mod.S.court.chargeHits }, brood: mod.brood.total, killedBrood: mod.brood.killed(), stat: C && C.stat, goal: document.getElementById('arcGoal').textContent }; }, stage);
     console.log(JSON.stringify(r)); out[stage] = r;
   }
   console.log('errors', errors.slice(0, 3)); await T.browser.close();

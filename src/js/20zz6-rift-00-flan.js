@@ -43,7 +43,7 @@ const CALFLAN = (() => {
   const WELL_A = [-Math.PI / 2, Math.PI / 6, Math.PI * 5 / 6];
   /* the tuning for a level-1 starter (the spec's ~2 minutes with the mechanics): the whole fight's health and the size of
      one plain blow, set by the stage whatever the rift's own scaling (Rf.ease, Rf.scale) does to its floor */
-  const TUNE = { hp: 4800, dmg: 24 };   // (QA v386: was 1400 / 15, tuned for a level-1 pet; the nine-stage rift brings the pet here at about level 5 (HP ~150))
+  const TUNE = { hp: 9600, dmg: 24 };   // (v388: health doubled at the user's request)   // (QA v386: was 1400 / 15, tuned for a level-1 pet; the nine-stage rift brings the pet here at about level 5 (HP ~150))
   const FIELD_T = 12, RECHARGE_T = 8, REGROW_T = 10, GRACE_T = 2, CHILL_T = 3, BRITTLE_T = 8, INTEG = 100, SMASH = 30, CHIP = 5;
   const wellGeo = (C, i) => { const a = WELL_A[i], c = Math.cos(a), s = Math.sin(a), pa = a + PLATE_DA;
     return { i, a, x: C.x + c * WELL_D, y: C.y + s * WELL_D, zx: C.x + c * ZONE_D, zy: C.y + s * ZONE_D, zr: ZONE_R, px: C.x + Math.cos(pa) * PLATE_D, py: C.y + Math.sin(pa) * PLATE_D }; };
@@ -343,7 +343,7 @@ const CALFLAN = (() => {
       canUse(i) { const w = wells[i]; return !!w && !w.broken && !A.field && A.cool <= 0; },
       activate(i) { if (!A.canUse(i)) return false; const w = wells[i]; A.field = { i, t: 0, dur: FIELD_T }; A.fields++; w.chime = 1; w.flash = 1; if (A.onField) A.onField(w); return true; },
       endField(why) { const F = A.field; if (!F) return; A.field = null; A.cool = RECHARGE_T; A.lastEnd = why || 'time'; if (A.onEnd) A.onEnd(wells[F.i], A.lastEnd); },
-      damage(i, amt, src) { const w = wells[i]; if (!w || w.broken) return false; w.integ = Math.max(0, w.integ - amt); w.hit = 1; w.shake = 1; if (w.integ <= 0) { w.broken = true; w.regrowT = REGROW_T; w.grow = 0; if (A.field && A.field.i === i) A.endField('broken'); if (A.onBreak) A.onBreak(w, src); } return true; },
+      damage(i, amt, src) { const w = wells[i]; if (!w || w.broken) return false; w.integ = Math.max(0, w.integ - amt); w.hit = 1; w.shake = 1; if (w.integ <= 0) { w.broken = true; w.regrowT = REGROW_T; w.grow = 0; if (typeof BREAK_FX !== 'undefined') try { BREAK_FX.burst(null, w.x, w.y, { kind: 'frostwell', mat: 'ice', mix: 'stone', size: 1.8, rubble: false }); } catch (e) { /* (v388: the shared break effect) */ } if (A.field && A.field.i === i) A.endField('broken'); if (A.onBreak) A.onBreak(w, src); } return true; },
       inZone(x, y, pad) { for (const w of wells) if (Math.hypot(x - w.zx, y - w.zy) < w.zr + (pad || 0)) return w.i; return -1; },
       restore() { A.field = null; A.cool = 0; for (const w of wells) { w.integ = INTEG; w.broken = false; w.regrowT = 0; w.grow = 1; w.flash = 1; } },
       tick(dt) { const gt = A.g ? A.g.t : A.t + dt; if (A.tickT === gt) return; A.tickT = gt; A.t += dt;
