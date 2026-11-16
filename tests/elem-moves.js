@@ -20,18 +20,18 @@ const path = require('path');
     const p = P.st, el = P.petElement(p), M = P.ELEM_LIST[el], keys = Object.keys(M), s0 = M[keys.find(k => k[1] === 'x')], u0 = M[keys.find(k => k[1] === 'y')];
     const other = Object.keys(P.ELEM_LIST).find(e => e !== el), oth = P.ELEM_LIST[other][Object.keys(P.ELEM_LIST[other])[0]];
     p.dlv = 1; const lockS0 = P.elemLock(s0, p), lockLast = P.elemLock(Object.values(M).filter(m => m.slot === 'strong')[9], p), lockOther = P.elemLock(oth, p), lockUlt = P.elemLock(u0, p);
-    p.deck = { normal: null, strong: P.elemId(el, s0.key), strong2: P.elemId(other, oth.key), ult: P.elemId(el, u0.key) }; const st0 = p.stage; p.stage = 4; const kit = P.dun.petKit(p).kit; p.stage = st0;
+    p.deck = { normal: null, strong: P.elemId(el, s0.key), strong2: P.elemId(other, oth.key), ult: P.elemId(el, u0.key) }; const deckIds = [p.deck.strong, p.deck.strong2, p.deck.ult], st0 = p.stage; p.stage = 4; const kit = P.dun.petKit(p).kit; P.st.devMoves = true; const kitDev = P.dun.petKit(p).kit; P.st.devMoves = false; p.stage = st0;   // (v391 K: players' decks drop elemental moves; the dev setting equips any)
     P.st.devMoves = true; const lockDev = P.elemLock(Object.values(M).filter(m => m.slot === 'strong')[9], p); P.st.devMoves = false;
     const counts = {}; for (const e in P.ELEM_MOVES) counts[e] = [P.ELEM_MOVES[e].strong.length, P.ELEM_MOVES[e].ult.length];
     const dupKeys = []; for (const e in P.ELEM_MOVES) { const k = P.ELEM_MOVES[e].strong.concat(P.ELEM_MOVES[e].ult).map(r => r[0]); k.forEach((x, n) => { if (k.indexOf(x) !== n) dupKeys.push(e + ':' + x); }); }
     const impl = {}; for (const e in P.ELEM_IMPL) impl[e] = [Object.keys(P.ELEM_IMPL[e].strong).length, Object.keys(P.ELEM_IMPL[e].ult).length];
     p.deck = { normal: null, strong: null, strong2: null, ult: null };
     P.openMap(); P.dun.setMapTab('dungeon', true);
-    return { dupKeys, el, stars: P.starsOf(P.rarityOf(p.forms[p.stage - 1] || p.forms[p.forms.length - 1])), lockS0, lockLast, lockOther, lockUlt, lockDev, kitStrong: kit.strong.key, kitStrong2: kit.strong2 ? kit.strong2.key : null, kitUlt: kit.ult.key, counts, impl };
+    return { dupKeys, el, stars: P.starsOf(P.rarityOf(p.forms[p.stage - 1] || p.forms[p.forms.length - 1])), lockS0, lockLast, lockOther, lockUlt, lockDev, kitStrong: kit.strong.key, kitStrong2: kit.strong2 ? kit.strong2.key : null, kitUlt: kit.ult.key, deckIds, kitIds: [kit.strong.id, kit.strong2 && kit.strong2.id, kit.ult.id], kitDevFlag: [kit.strong.dev, kit.strong2 && kit.strong2.dev, kit.ult.dev], devIds: [kitDev.strong.id, kitDev.strong2 && kitDev.strong2.id, kitDev.ult.id], counts, impl };
   });
   ok(info.lockS0 === '' && info.lockLast === 'level' && info.lockOther === 'element' && info.lockDev === '', 'locks: first Strong open at level 1, the tenth needs a level, another element\'s refused, the dev switch lifts levels', info);
   ok(info.stars >= 5 ? info.lockUlt === '' : info.lockUlt === 'stars', `an Ultimate needs five stars (this pet has ${info.stars})`, info.lockUlt);
-  ok(info.kitStrong.slice(0, 3) === 'ex_' && info.kitStrong2 !== null && info.kitStrong2.slice(0, 3) !== 'ex_' && (info.stars >= 5 ? info.kitUlt.slice(0, 3) === 'ey_' : info.kitUlt.slice(0, 3) !== 'ey_'), 'the kit takes a learned move and drops one the pet may not use', { s: info.kitStrong, s2: info.kitStrong2, u: info.kitUlt });
+  ok(info.kitDevFlag.every(f => !f) && info.kitIds[1] !== info.deckIds[1] && info.devIds.every((id, i) => id === info.deckIds[i]), '(v391 K) a player\'s kit ignores elemental moves in the deck (its own skills stay); with "Unlock all skills (dev)" it takes any', { deck: info.deckIds, kit: info.kitIds, dev: info.devIds });
   ok(info.dupKeys.length === 0, 'no Strong and Ultimate of one element share a key (a shared key makes the Ultimate unpickable)', info.dupKeys);
   ok(Object.values(info.counts).every(c => c[0] === 10 && c[1] >= 10) && Object.keys(info.counts).length === 8, 'eight elements, ten Strongs and ten or more Ultimates each (Dark has an 11th)', info.counts);
   console.log('implemented', JSON.stringify(info.impl));

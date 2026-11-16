@@ -26,10 +26,11 @@ function openTeam(uid) {
   if (!teamUid || !(teamUid === st.uid || st.others.some(o => o.uid === teamUid))) teamUid = st.uid;
   openSheet('team', ''); renderTeam();
 }
+/* (v391 K: a slot holding the pet's own skill says so: "Own skill", its element or star pool; a developer's pick says that) */
 const teamSlotHTML = (sl, a) => {
   if (!a) return `<button class="dslot locked" type="button" aria-disabled="true"><span class="ds-art ds-lock">${ICON.lock || '?'}</span><span class="ds-copy"><small>${SLOT_INFO[sl].name}</small><b>Locked</b><em>Evolve to ${SLOT_INFO[sl].unlock} to unlock</em></span></button>`;
   const E = ELEMENTS[a.el] || ELEMENTS.spark;
-  return `<button class="dslot" type="button" data-go="team-slot" data-slot="${sl}" aria-label="${SLOT_INFO[sl].name}: ${esc(a.name)}. Change"><span class="ds-art" style="--ec:${E.color};--ed:${E.dark}">${glyphSVG(a.glyph)}</span><span class="ds-copy"><small>${SLOT_INFO[sl].name}</small><b>${esc(a.name)}</b><em>${a.own ? (a.star ? `${a.star}★ signature` : 'Own ability') : `${CARD_R[a.r].name} card · Lv ${a.lv}`}${a.cost ? ` · ${a.cost} MP` : ' · tap to fire'}</em></span><span class="ds-go">${ICON.next || ''}</span></button>`;
+  return `<button class="dslot" type="button" data-go="team-slot" data-slot="${sl}" aria-label="${SLOT_INFO[sl].name}: ${esc(a.name)}. Change"><span class="ds-art" style="--ec:${E.color};--ed:${E.dark}">${glyphSVG(a.glyph)}</span><span class="ds-copy"><small>${SLOT_INFO[sl].name}</small><b>${esc(a.name)}</b><em>${a.own ? (a.dev ? 'Developer pick' : a.skill ? `Own skill${a.e8 ? ` · ${E8[a.e8].name}` : a.star ? ` · ${a.star}★ move` : ''}` : a.star ? `${a.star}★ signature` : 'Own ability') : `${CARD_R[a.r].name} card · Lv ${a.lv}`}${a.cost ? ` · ${a.cost} MP` : ' · tap to fire'}</em></span><span class="ds-go">${ICON.next || ''}</span></button>`;
 };
 function renderTeam() {
   if (sheetKind !== 'team' || !st) return;
