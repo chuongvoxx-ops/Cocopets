@@ -1,11 +1,10 @@
 /* ---------- Dark, new: Dead Scream ----------
-   v391 U4: rebuilt on the GPU. The skull is a real 3D model (DEADSCREAM_SKULL, 20k5k2: weathered bone with micro detail,
-   deep orbits burning with violet soul fire, cracks that leak light and spread as the end nears, a hinged jaw that drops
-   on every scream, a broken obsidian crown); it forms from gathering smoke, hovers and shivers, shakes harder toward
-   the end and bursts into bone shards and violet ash. Round it, through the shared FGFX painter: a smoky aura, violet
-   light spilling on the floor, every scream's soft shock rings, sinking shells and a cone of rippling air (a real
-   screen-space distortion), ghostly wisps streaming to the monsters, dark particles, fear and stun marks. The gameplay
-   is unchanged. Where the GPU cannot draw, the original 2D picture below is drawn, as it was (under2D / draw2D).
+   v391 U4: rebuilt on the GPU, drawn exactly as the 2D picture below. The skull is a real 3D model (DEADSCREAM_SKULL,
+   20k5k2: its shape, a hinged jaw that drops on every scream, a broken obsidian crown) shaded with the 2D's own obsidian
+   ramp, rims and socket light, its fissures the 2D's own crack paths laid onto its face; every effect is the 2D's, in its
+   colours, sizes, timing and layering, drawn soft by the shared FGFX painter (the 2D's sprites as exact gradients, its
+   strokes as soft gaussian strokes). The gameplay is unchanged. Where the GPU cannot draw, the original 2D picture below
+   is drawn, as it was (under2D / draw2D).
    The original notes:
    A huge vibrating skull hovers over the pet and screams pulses of dark energy into the monsters round it.
    Formation (1.1 s, before the window): a knot of dark smoke gathers over the pet; a violet contour sketches the dome,
@@ -222,198 +221,171 @@
       for (let i = 0; i < n && P.length; i++) { const q = P[Math.floor(Math.random() * P.length)], p = wp(f, q[0], q[1] + (q[2] ? 0.03 : 0)); frags.push({ x: p[0], y: p[1], z: p[2], vx: q[0] * (0.5 + Math.random()) * UT * 0.8, vy: (Math.random() - 0.5) * 0.4, vz: 0.6 + Math.random() * 1.4, t: -Math.random() * 0.5 * (1 - (q[1] + 1.4) / 2.8), life: 1.0 + Math.random() * 0.8, rot: Math.random() * TAU, vr: (Math.random() - 0.5) * 6, s: (0.04 + Math.random() * 0.06) * Math.sqrt(HS / 2) }); }
       for (let i = 0; i < H.n(12 + ev); i++) { const p = wp(f, (Math.random() - 0.5) * 1.8, (Math.random() - 0.4) * 2.2); puffs.push({ x: p[0], y: p[1], z: p[2], vx: (Math.random() - 0.5) * 0.8, vy: 0, vz: 0.5 + Math.random() * 0.7, t: -Math.random() * 0.35, life: 1.2 + Math.random() * 0.6, s: 0.45 + Math.random() * 0.4 + 0.04 * ev, d: i % 3 ? 1 : 0 }); }
     }
-    /* ================= v391 U4: the GPU picture =================
-       The skull is DEADSCREAM_SKULL (20k5k2: a 3D model on GLM); everything round it goes through the shared FGFX painter
-       (20k6h): a pass on the floor (drawUnder) and two in the air (behind the skull, over it), plus a screen-space ripple
-       read from the canvas itself (the scream's rings and the cone of disturbed air under the mouth; off with Fewer
-       effects). Light is soft gaussian glow and beams laid as overlapping chains whose fades sum to one (no ends, no cut
-       edges); the solid parts (smoke, the dark ring, shadow) are FGFX smoke so they read on a pale floor. The gameplay
-       above (pulses, sparks, fear, stun, the finisher) is untouched: this only draws it. Where the GPU cannot draw (no
-       WebGL, a lost context, a software rasteriser without the test flags, window.__DS_GL = 0), the original 2D
-       picture (under2D / draw2D, below, unchanged) is drawn instead, frame by frame. */
-    let RS = (seed * 2654435761) >>> 0 || 1; const rnd = () => { RS ^= RS << 13; RS >>>= 0; RS ^= RS >>> 17; RS ^= RS << 5; RS >>>= 0; return RS / 4294967296; };   // (the picture's own random numbers: the game's stream stays the same on both paths)
+    /* ================= v391 U4: the GPU picture, drawn exactly as the 2D one =================
+       Every element of the 2D picture below (under2D / draw2D) in the same order, with the same colours, sizes, timing and
+       layering, rebuilt soft on the GPU: the 2D's own sprites (the scream band, the light band, the wide wave, the darkened
+       air, the smoke, the mouth's hollow, the round glow, the beam) are drawn by the shared FGFX painter (20k6h) as exact
+       copies of their gradients (kinds 71 laid over / 72 light); its strokes (the scream crescents, the sparks, the contour,
+       the fissures) as soft gaussian strokes, chained so their ends fade together. The skull is the 3D model
+       (DEADSCREAM_SKULL, 20k5k2) shaded with the 2D's own obsidian ramp, rim and socket light (GLM ids 130..134), laid down
+       at the 2D's opacity; its fissures are the 2D's own crack paths (the same random walks, by level) laid onto the 3D face;
+       it crumbles as the 2D's does, into the 2D's dark fragments (here GLM shards). The gameplay above is untouched. Where
+       the GPU cannot draw (no WebGL, a lost context, a software rasteriser without the test flags, window.__DS_GL = 0),
+       the original 2D picture is drawn instead, frame by frame. */
     const SKL = () => DEADSCREAM_SKULL;
-    const lowQ = () => typeof st !== 'undefined' && st && !!st.lowFx;
     const FGX = () => { try { return self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; } catch (e) { return null; } };
-    const VIO = '#7C3AED', VIOD = '#4C1D95', VIOL = '#B794FF', PALE = '#EBDDFF', SMK = '#1A0C2A';
-    function gpuMode(t) { let fl = null; try { fl = window.__DS_GL; } catch (e) {} if (fl === 0) return false; const FG = FGX(); if (!FG || !FG.usable() || !SKL().ok()) return false; SKL().prepare(t < 0.45 ? 5 : 8); return true; }   // (the model builds a few ms a frame; until it is ready the skull stays hidden in its smoke)
-    let GP = null; const GS = { lt: null, lp: -1, parts: [], shards: [], burst: null, wisp: 0, chip: 0, emb: 0 };
-    for (let i = 0; i < 260; i++) GS.parts.push({ on: false });
-    function emit(o) { for (const p of GS.parts) if (!p.on) { Object.assign(p, { on: true, t: 0, vx: 0, vy: 0, vz: 0, drag: 1.2, g: 0 }, o); return p; } return null; }
-    // the pose and every number the GPU passes share, once a frame
+    let RS = (seed * 2654435761) >>> 0 || 1; const rnd = () => { RS ^= RS << 13; RS >>>= 0; RS ^= RS >>> 17; RS ^= RS << 5; RS >>>= 0; return RS / 4294967296; };   // (the picture's own random numbers: the game's stream stays the same on both paths)
+    function gpuMode(t) { let fl = null; try { fl = window.__DS_GL; } catch (e) {} if (fl === 0) return false; const FG = FGX(); if (!FG || !FG.usable() || !SKL().ok()) return false; SKL().prepare(t < 0.45 ? 5 : 8); return true; }   // (the model builds a few ms a frame)
+    const GS = { lt: null, frags: [], fragOn: false, cr: null };
+    // the 2D's sprites on the GPU: laid over (qs) or added (ql); p the picture (20k6h u4g): 1 band, 2 wide, 3 air, 4 dark smoke, 5 smoke, 6 mouth, 11 light band, 12 glow
+    const qs = (Q, p, x, y, rx, ry, a, col) => { if (rx >= 0.5 && a > 0.004) Q.quad(71, x, y, rx, 0, 0, ry, col || '#FFFFFF', Math.min(1, a), p); };
+    const ql = (Q, p, x, y, rx, ry, a, col) => { if (rx >= 0.5 && a > 0.004) Q.quad(72, x, y, rx, 0, 0, ry, col || '#FFFFFF', Math.min(1, a), p); };
+    const qglow = (Q, x, y, r, col, a) => ql(Q, 12, x, y, r, r, a, col);   // (glow(): the round glow sprite, added)
+    const qfloor = (Q, p, X, Y, r, a, add, col) => (add ? ql : qs)(Q, p, X, Y, r, r * H.GY, a, col);   // (floorSpr)
+    // a sprite turned with the skull (the mouth's pictures): centre (x, y), half sizes rx, ry, turned by an
+    const qrot = (Q, kind, p, x, y, rx, ry, an, col, a) => { if (rx >= 0.5 && a > 0.004) { const c0 = Math.cos(an), s0 = Math.sin(an); Q.quad(kind, x, y, c0 * rx, s0 * rx, -s0 * ry, c0 * ry, col || '#FFFFFF', Math.min(1, a), p); } };
+    // a soft stroke from (x0, y0) to (x1, y1), width w (as a canvas line of that width), each end overlapping the next by an eighth
+    function stroke(Q, x0, y0, x1, y1, w, col, a, solid) { const dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy); if (L < 0.3 || !(a > 0.004)) return; const ex = dx * 0.125, ey = dy * 0.125, hw = Math.max(0.35, w * 0.62);
+      if (solid) { const ux = (dx + 2 * ex) / 2, uy = (dy + 2 * ey) / 2; Q.quad(71, (x0 + x1) / 2, (y0 + y1) / 2, ux, uy, -dy / L * hw, dx / L * hw, col, Math.min(1, a), 7); }
+      else Q.beam(x0 - ex, y0 - ey, x1 + ex, y1 + ey, hw, col, Math.min(1, a)); }
+    // the 2D's crescent (a halo segment): an arc of radius r (y squashed by sq) from a0 to a1 round (cx, cy) turned by rot, w thick at its middle, tapering to points
+    function crescentQ(Q, cx, cy, rot, r, sq, a0, a1, w, col, a, solid) { if (!(a > 0.004) || r < 1) return; const cr = Math.cos(rot), sr = Math.sin(rot), n = Math.max(6, Math.min(24, Math.ceil(Math.abs(a1 - a0) * r / Math.max(2, w * 0.9))));
+      const P = b => { const x = Math.cos(b) * r, y = Math.sin(b) * r * sq; return [cx + x * cr - y * sr, cy + x * sr + y * cr]; };
+      let p0 = P(a0); for (let i = 0; i < n; i++) { const p1 = P(a0 + (a1 - a0) * (i + 1) / n), f = Math.pow(Math.sin((i + 0.5) / n * Math.PI), 0.7); stroke(Q, p0[0], p0[1], p1[0], p1[1], w * f, col, a, solid); p0 = p1; } }
+    // softPath (the contour of the formation): glow stamps along a path, fading in and out at its ends -> one soft stroke, as bright
+    function spath(Q, pts, w, col, a) { if (pts.length < 2 || !(a > 0.01)) return; let L = 0; const cum = [0]; for (let i = 1; i < pts.length; i++) { L += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); cum.push(L); } if (L < 1) return;
+      for (let i = 0; i < pts.length - 1; i++) { const um = (cum[i] + cum[i + 1]) / 2 / L, env = Math.max(0, Math.min(1, um / 0.15, (1 - um) / 0.15)); stroke(Q, pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1], w * 1.3, col, a * 2 * env); } }
+    // the ray (H.ray: the beam sprite from (x, y) along angle an, len long, w wide)
+    function rayQ(Q, x, y, an, len, w, col, a) { const c0 = Math.cos(an), s0 = Math.sin(an), hl = (len + w) / 2, al = (len + 0.2 * w) / 2; Q.quad(72, x + c0 * al, y + s0 * al, c0 * hl, s0 * hl, -s0 * w * 1.6, c0 * w * 1.6, col, Math.min(1, a), 13); }
+    // the 2D's crack paths (the same random walks, by level) laid onto the 3D face, once
+    function cracks3() { if (GS.cr) return GS.cr; const lv = ev, cr = makeCracks(lv >= 7 ? 9 : lv >= 4 ? 8 : 6, lv >= 7 ? 2 : lv >= 4 ? 1 : 0, 31 + lv * 7), out = [];
+      const lay = pl => { let run = []; for (const p of pl) { const q = SKL().onFront(p[0], p[1]); if (q) run.push(q); else { if (run.length > 1) out.push(run); run = []; } } if (run.length > 1) out.push(run); };
+      for (const c of cr) { const n0 = out.length; lay(c.pts); const main = out.length > n0 ? out[n0] : null; for (const b of c.br) lay(b); if (main) main.ph = c.ph, main.main = 1; }
+      return (GS.cr = out); }
+    // the pose and every number the passes share, as draw2D works them out, once a frame
+    let GP = null;
     function gpose(c, f, X, Y, T) {
       const t = f.t; if (GP && GP.t === t && GP.T === T && GP.X === X && GP.Y === Y) return GP;
-      const SC = scr(c), P = pulseAt(t), u = HS * T / 2.6, chin = 1.42 * u, top = 1.32 * u, hzW = (T * 1.75 + chin) / T, room = (Y - (SC.y0 + T * 2.6) - top) / T; f.HZ = Math.max(hzW, Math.min(hzW + 0.5, room));
-      const close = sm((t - TE) / 0.25), drw = sm((t - TE - 0.05) / 0.4), dis = died ? cl((t - TD) / 0.9) : 0, EW = Math.min(3, W * 0.3);
-      const jolt = P.post * (P.d >= 0 && P.d < 0.3 ? 1 : 0), endK = sm((t - (TE - EW)) / EW) * (1 - dis), surge = t > TE ? sm((t - TE) / (TB - TE)) : 0;
-      const shiv = T * 0.018 * (1 + 2 * jolt + 1.6 * endK + 3 * surge);
-      const tilt = 0.06 * Math.sin(t * 0.55 + seed) + 0.025 * Math.sin(t * 1.7) + 0.012 * Math.sin(t * 23) * (1 + jolt) + (0.02 * endK + 0.05 * surge) * Math.sin(t * 37);
+      const SC = scr(c), PX = H.sx(me.x), PY = H.sy(me.y) - T * 0.5, P = pulseAt(t), u = HS * T / 2.6;
+      const chin = 1.42 * u, top = 1.32 * u, hzW = (T * 1.75 + chin) / T, room = (Y - (SC.y0 + T * 2.6) - top) / T; f.HZ = Math.max(hzW, Math.min(hzW + 0.5, room));
+      const close = sm((t - TE) / 0.25), draw = sm((t - TE - 0.05) / 0.4), form = sm((t - 0.55) / 0.5), fill = sm((t - 0.62) / 0.45), dis = t >= TD ? cl((t - TD) / 0.9) : 0, alive = 1 - dis;
+      const jolt = P.post * (P.d >= 0 && P.d < 0.3 ? 1 : 0), shiv = T * 0.018 * (1 + 2 * jolt + 1.5 * close * (1 - dis));
+      const tilt = 0.06 * Math.sin(t * 0.55 + seed) + 0.025 * Math.sin(t * 1.7) + 0.012 * Math.sin(t * 23) * (1 + jolt);
       const SX = X + (Math.sin(t * 47) + Math.sin(t * 31.7)) * shiv * 0.5, SY = Y - f.HZ * T + Math.sin(t * 1.3) * T * 0.05 + (Math.sin(t * 41) + Math.sin(t * 29.3)) * shiv * 0.4 - jolt * u * 0.05;
-      const form = sm((t - 0.45) / 0.6), scl = (0.86 + 0.14 * form) * (1 + 0.045 * jolt - 0.02 * P.pre) * (1 + 0.04 * close + 0.05 * surge);
-      const open = (1 - close) * P.open * (t >= FORM ? 1 : 0), gk = (t < TE ? 0.25 + 0.75 * Math.max(P.pre, P.post) : 0.55 + 1.1 * surge) * (1 - dis);
-      if (GS.rt == null && SKL().ready) GS.rt = t; const f0 = Math.max(0.42, GS.rt == null ? 1e9 : GS.rt), spill = fin && !died ? 1 : Math.max(1 - sm((t - f0) / 0.62), dis), fire = sm((t - 0.85) / 0.3) * (t < TE ? 1 : 1 - 0.7 * drw) * (1 - dis);
-      const crack = Math.min(1, 0.3 + 0.5 * Math.pow(cl((t - FORM) / W), 1.6) + 0.15 * endK + 0.35 * surge), k = u * scl;
-      const pose = { yaw: 0.16 * Math.sin(t * 0.41 + seed) + 0.05 * Math.sin(t * 1.3) + 0.03 * endK * Math.sin(t * 29), pitch: -0.1 + 0.16 * open + 0.03 * Math.sin(t * 0.9) - 0.06 * P.pre, roll: tilt, jaw: open * (0.85 + 0.15 * jolt), glow: 0.3 + gk, crack, spill, fire, t };
-      const Fr = SKL().frame(pose), at = (p, jaw) => SKL().toScreen(p, jaw, SX, SY, k, pose, Fr);
-      GP = { t, T, X, Y, u, k, SX, SY, P, jolt, open, gk, close, drw, dis, endK, surge, pose, fire, crack, A: 1 - spill, AIR: cl(f.life / 0.5), Fr, at,
-        eyes: [at([-0.33, 0.6, -0.19]), at([0.33, 0.6, -0.19])], mouth: (() => { const a = at([0, 0.62, -0.92]), b = at([0, 0.58, -1.0], true); return [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]; })(), throat: (() => { const a = at([0, 0.3, -0.93]), b = at([0, 0.3, -1.04], true); return [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]; })() };
+      const scl = (0.86 + 0.14 * form) * (1 + 0.045 * jolt - 0.02 * P.pre) * (1 + 0.04 * close), open = (1 - close) * P.open * (t >= FORM ? 1 : 0), gk = (t < TE ? 0.25 + 0.75 * Math.max(P.pre, P.post) : (1 - draw)) * (1 - dis);
+      const hpf = 0.3 + 0.7 * sstep(0.1 * T, 1.0 * T, (PY - SY) - chin * 0.9), k = u * scl, fa = fill * alive * hpf, A0 = Math.max(form * 0.9, fill) * alive * hpf;
+      const di = dis > 0 ? Math.min(5, Math.floor(dis * 6.99) - 1) : -1, th = di >= 0 ? Math.min(6, dis * 6.99) / 7 : 0, disA = di >= 5 ? 1 - cl((dis - 0.86) / 0.14) : 1;   // (the crumble: the 2D's six frames as one threshold)
+      const pose = { yaw: 0.07 * Math.sin(t * 0.41 + seed), pitch: 0, roll: tilt, jaw: open, glow: (0.22 + 0.6 * gk) * (1 - 0.6 * draw), crack: 0, spill: th, fire: 1, kind: CEL ? 2 : 0, imgA: fa * disA, t };
+      const Fr = SKL().frame(pose), at = (p, jaw) => SKL().toScreen(p, jaw, SX, SY, k, pose, Fr), co = Math.cos(tilt), si = Math.sin(tilt);
+      const tr = (ux, uy) => { const x = ux * k, y = uy * k; return [SX + x * co - y * si, SY + x * si + y * co]; };   // (the 2D's skull units on the screen)
+      GP = { t, T, X, Y, u, k, SX, SY, P, PX, PY, jolt, open, gk, close, draw, form, fill, dis, alive, tilt, scl, hpf, fa, A0, disA, pose, Fr, at, tr, AIR: cl(f.life / 0.5) };
       return GP; }
-    // a soft ring of light round (x, y) (floor squash sy): overlapping gaussian beams whose end fades sum to one
-    function lring(Q, x, y, r, sy, w, col, a) { if (!(a > 0.004) || r < 2) return; const n = Math.max(16, Math.min(56, Math.round(TAU * r / Math.max(4, w * 1.4))));
-      for (let i = 0; i < n; i++) { const b0 = i / n * TAU, b1 = (i + 1) / n * TAU, x0 = x + Math.cos(b0) * r, y0 = y + Math.sin(b0) * r * sy, x1 = x + Math.cos(b1) * r, y1 = y + Math.sin(b1) * r * sy, ex = (x1 - x0) * 0.125, ey = (y1 - y0) * 0.125, bm = (b0 + b1) / 2, ww = w * Math.sqrt(Math.cos(bm) ** 2 * sy * sy + Math.sin(bm) ** 2 * (0.35 + 0.65 * sy));
-        Q.beam(x0 - ex, y0 - ey, x1 + ex, y1 + ey, ww, col, a); } }
-    // a ring of dark smoke on the floor (the scream's body: it reads on a pale floor)
-    function sring(Q, x, y, r, sy, s, col, a, sd) { if (!(a > 0.01) || r < 2) return; const n = H.n(Math.max(10, Math.min(26, Math.round(TAU * r / Math.max(6, s * 1.3)))));
-      for (let i = 0; i < n; i++) { const b = (i + 0.5 * (sd % 1)) / n * TAU; Q.quad(9, x + Math.cos(b) * r, y + Math.sin(b) * r * sy, s, 0, 0, s * (0.5 + 0.5 * sy), col, a, 0, sd + i * 0.37); } }
-    // a soft chain of beams through screen points (a wisp): width and strength by place along it (0 tail .. 1 head)
-    function chain(Q, pts, w, col, a, wf) { for (let i = 0; i < pts.length - 1; i++) { const p = pts[i], q = pts[i + 1], v = (i + 1) / (pts.length - 1), ex = (q[0] - p[0]) * 0.125, ey = (q[1] - p[1]) * 0.125; if (Math.abs(q[0] - p[0]) + Math.abs(q[1] - p[1]) < 0.5) continue; Q.beam(p[0] - ex, p[1] - ey, q[0] + ex, q[1] + ey, w * (wf ? wf(v) : 1), col, a * v); } }
-    /* ---- the screen-space ripple: what is already drawn, read back and laid over itself displaced ---- */
-    let WA = null, WB = null;
-    const wcv = (cv, w, h) => { if (!cv) { cv = document.createElement('canvas'); } if (cv.width < w || cv.height < h) { cv.width = Math.max(cv.width, w); cv.height = Math.max(cv.height, h); } return cv; };
-    const annSpr = () => fxSprite('dskann', 256, 256, g => { const gr = g.createRadialGradient(128, 128, 0, 128, 128, 128); [[0, 'rgba(0,0,0,0)'], [0.62, 'rgba(0,0,0,0)'], [0.8, 'rgba(0,0,0,0.75)'], [0.87, 'rgba(0,0,0,1)'], [0.93, 'rgba(0,0,0,0.6)'], [1, 'rgba(0,0,0,0)']].forEach(s => gr.addColorStop(s[0], s[1])); g.fillStyle = gr; g.fillRect(0, 0, 256, 256); });
-    const coneSpr = () => fxSprite('dskcone', 64, 128, g => { const im = g.createImageData(64, 128), d = im.data; for (let y = 0; y < 128; y++) for (let x = 0; x < 64; x++) { const v = y / 127, hw = 0.12 + 0.88 * v, ax = Math.abs((x - 31.5) / 32) / hw, a = (1 - sstep(0.35, 1, ax)) * sstep(0, 0.25, v) * (1 - sstep(0.75, 1, v)); d[(y * 64 + x) * 4 + 3] = Math.round(255 * a); } g.putImageData(im, 0, 0); });
-    function warpRing(c, cx, cy, r, sy, amp, a) {
-      if (!(a > 0.02) || r < 8 || lowQ()) return; const m = c.getTransform(), kx = m.a, ky = m.d, X0 = kx * cx + m.e, Y0 = ky * cy + m.f, RX = r * kx * 1.15, RY = r * sy * ky * 1.15, cw = c.canvas.width, ch = c.canvas.height;
-      const x0 = Math.max(0, Math.floor(X0 - RX)), y0 = Math.max(0, Math.floor(Y0 - RY)), x1 = Math.min(cw, Math.ceil(X0 + RX)), y1 = Math.min(ch, Math.ceil(Y0 + RY)), w = x1 - x0, h = y1 - y0; if (w < 8 || h < 8 || w * h > 4e6) return;
-      WA = wcv(WA, w, h); const g = WA.getContext('2d'), s = 1 + amp; g.save(); g.globalCompositeOperation = 'copy'; g.globalAlpha = 1;
-      // (the region, magnified about the ring's centre: what lies under the ring is pushed outward)
-      const sx0 = X0 + (x0 - X0) / s, sy0 = Y0 + (y0 - Y0) / s; g.drawImage(c.canvas, sx0, sy0, w / s, h / s, 0, 0, w, h);
-      g.globalCompositeOperation = 'destination-in'; g.globalAlpha = Math.min(1, a); g.drawImage(annSpr(), X0 - RX - x0, Y0 - RY - y0, RX * 2, RY * 2); g.restore();
-      c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1; c.drawImage(WA, 0, 0, w, h, x0, y0, w, h); c.restore(); }
-    function warpCone(c, mx, my, fx, fy, hw, amp, a, t) {
-      if (!(a > 0.02) || lowQ()) return; const m = c.getTransform(), kx = m.a, ky = m.d, cw = c.canvas.width, ch = c.canvas.height, X0 = kx * mx + m.e, Y0 = ky * my + m.f, Y1 = ky * fy + m.f, HW = hw * kx;
-      const x0 = Math.max(0, Math.floor(X0 - HW)), x1 = Math.min(cw, Math.ceil(X0 + HW)), y0 = Math.max(0, Math.floor(Y0)), y1 = Math.min(ch, Math.ceil(Y1)), w = x1 - x0, h = y1 - y0; if (w < 8 || h < 8) return;
-      WB = wcv(WB, w, h); const g = WB.getContext('2d'), n = Math.min(56, Math.max(8, Math.round(h / 4))), sh = h / n, A = amp * kx; g.save(); g.globalCompositeOperation = 'copy'; g.drawImage(c.canvas, x0, y0, w, h, 0, 0, w, h); g.globalCompositeOperation = 'source-over';
-      for (let i = 0; i < n; i++) { const v = (i + 0.5) / n, dx = A * Math.sin(v * 17 - t * 26) * v; g.drawImage(c.canvas, x0, y0 + i * sh, w, sh + 1, dx, i * sh, w, sh + 1); }
-      g.globalCompositeOperation = 'destination-in'; g.globalAlpha = Math.min(1, a); g.drawImage(coneSpr(), X0 - HW - x0, Y0 - y0, HW * 2, Y1 - Y0); g.restore();
-      c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.drawImage(WB, 0, 0, w, h, x0, y0, w, h); c.restore(); }
-    // the fear mark: a small pale skull, softly lit violet (baked once)
-    const fearSpr = () => fxSprite('dskfear', 64, 64, g => { g.save(); g.translate(32, 31); g.shadowColor = 'rgba(139,92,246,0.95)'; g.shadowBlur = 9; g.fillStyle = 'rgba(234,224,255,0.93)';
-      g.beginPath(); g.ellipse(0, -3, 12.5, 12, 0, 0, TAU); g.fill(); g.beginPath(); g.moveTo(-8.5, 4); g.quadraticCurveTo(-8, 15, 0, 15.5); g.quadraticCurveTo(8, 15, 8.5, 4); g.closePath(); g.fill(); g.shadowBlur = 0;
-      g.fillStyle = '#1A0B2E'; g.beginPath(); g.ellipse(-4.9, -1.5, 3.7, 4.3, 0.35, 0, TAU); g.fill(); g.beginPath(); g.ellipse(4.9, -1.5, 3.7, 4.3, -0.35, 0, TAU); g.fill(); g.beginPath(); g.moveTo(0, 3.5); g.lineTo(-1.7, 7.2); g.lineTo(1.7, 7.2); g.closePath(); g.fill();
-      g.fillStyle = 'rgba(26,11,46,0.75)'; for (let i = -2; i <= 2; i++) g.fillRect(i * 2.7 - 0.6, 9.6, 1.2, 4.6); g.fillStyle = '#C9A2FF'; g.beginPath(); g.arc(-4.6, -1, 1.25, 0, TAU); g.fill(); g.beginPath(); g.arc(4.6, -1, 1.25, 0, TAU); g.fill(); g.restore(); });
-    // rotation (columns) about a unit axis
-    const axRot = (a, ang) => { const c0 = Math.cos(ang), s0 = Math.sin(ang), t0 = 1 - c0, [x, y, z] = a; return [[t0 * x * x + c0, t0 * x * y + s0 * z, t0 * x * z - s0 * y], [t0 * x * y - s0 * z, t0 * y * y + c0, t0 * y * z + s0 * x], [t0 * x * z + s0 * y, t0 * y * z - s0 * x, t0 * z * z + c0]]; };
-    const mm3 = (A, B) => B.map(v => [A[0][0] * v[0] + A[1][0] * v[1] + A[2][0] * v[2], A[0][1] * v[0] + A[1][1] * v[1] + A[2][1] * v[2], A[0][2] * v[0] + A[1][2] * v[1] + A[2][2] * v[2]]);
-    const mv3 = (A, v) => [A[0][0] * v[0] + A[1][0] * v[1] + A[2][0] * v[2], A[0][1] * v[0] + A[1][1] * v[1] + A[2][1] * v[2], A[0][2] * v[0] + A[1][2] * v[1] + A[2][2] * v[2]];
-    // a screen point to the world (x, y on the floor below it at the skull's ground point, z its height in tiles)
-    const toW = (sx, sy, T) => { const gx = H.sx(hx), gy = H.sy(hy); return { x: hx + (sx - gx) / T, y: hy + 0.02, z: Math.max(0.05, (gy - sy) / T) }; };
-    // the burst: the skull breaks into bone shards (GLM) and violet ash; or, the pet down, it dissolves
-    function burst(g, T, dying) {
-      const pts = SKL().pts || [], n = dying ? H.n(8) : H.n(CEL ? 38 : ADE ? 32 : 26), Fr = g.Fr, gx = H.sx(hx), gy = H.sy(hy);
-      GS.burst = { x: hx, y: hy, hz: (gy - g.SY) / T, ku: g.k / T, t0: g.t, dying };
-      for (let i = 0; i < n && pts.length; i++) { const q = pts[(i * 37 + 11) % pts.length], jaw = q[6], p = jaw ? mv3(Fr.Rj, q).map((v, j) => v + Fr.Tj[j]) : mv3(Fr.Rs, q), nn = jaw ? mv3(Fr.Rj, [q[3], q[4], q[5]]) : mv3(Fr.Rs, [q[3], q[4], q[5]]), sp = dying ? 0.4 + rnd() * 0.5 : 0.9 + rnd() * 1.6;
-        const ax = [rnd() - 0.5, rnd() - 0.5, rnd() - 0.5], al = Math.hypot(ax[0], ax[1], ax[2]) || 1;
-        GS.shards.push({ m: i % 6, p, v: [nn[0] * sp + p[0] * 0.8, nn[1] * sp + p[1] * 0.5, nn[2] * sp + (dying ? 0.6 : 1.3) + rnd()], ax: ax.map(v => v / al), ang: 0, va: (rnd() - 0.5) * 14, R0: axRot([0, 0, 1], rnd() * TAU), s: (1.6 + rnd() * 1.4) * (dying ? 0.6 : 1), t: -rnd() * 0.06, life: 1.0 + rnd() * 0.7, glow: 1 }); }   // (big, heavy pieces of the vault and jaw)
-      const nA = H.n(dying ? 30 : CEL ? 70 : 55); for (let i = 0; i < nA; i++) { const b = rnd() * TAU, rr = rnd(), w0 = toW(g.SX + Math.cos(b) * g.k * rr, g.SY + Math.sin(b) * g.k * rr * 1.2 - g.k * 0.1, T), v = dying ? 0.4 : 1.2 + rnd() * 2.6;
-        emit({ kind: i % 3 ? 'ash' : 'sp', x: w0.x, y: w0.y, z: w0.z, vx: Math.cos(b) * v, vy: Math.sin(b) * v * 0.4, vz: (dying ? 0.6 : 0.4) + rnd() * 1.2, drag: 1.6, life: 1.0 + rnd() * 1.1, s: 0.8 + rnd() * 0.8, sd: rnd() * 9, g: -0.25 }); }
-    }
-    function simulate(g, T, dt) {
-      const t = g.t, lo = lowQ();
-      for (const p of GS.parts) { if (!p.on) continue; p.t += dt; if (p.t >= p.life) { p.on = false; continue; } const dr = Math.exp(-p.drag * dt); p.vx *= dr; p.vy *= dr; p.vz = p.vz * dr - (p.g || 0) * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z = Math.max(0.03, p.z + p.vz * dt); }
-      for (let i = GS.shards.length - 1; i >= 0; i--) { const s = GS.shards[i]; s.t += dt; if (s.t < 0) continue; if (s.t >= s.life) { GS.shards.splice(i, 1); continue; } const dr = Math.exp(-0.9 * dt); s.v[0] *= dr; s.v[1] *= dr; s.v[2] = s.v[2] * dr - 3.4 * dt; for (let j = 0; j < 3; j++) s.p[j] += s.v[j] * dt; s.ang += s.va * dt;
-        const fl = -GS.burst.hz / GS.burst.ku; if (s.p[2] < fl) { s.p[2] = fl; s.v[2] = Math.abs(s.v[2]) * 0.3; s.va *= 0.6; } }
-      if (g.A < 0.02 || t < 0.8) return;
-      // the soul fire breathes wisps up out of the orbits; chips and embers fall from the cracks as the end nears
-      GS.wisp += dt * (lo ? 2.5 : 6) * g.fire * (0.6 + g.gk); while (GS.wisp > 1) { GS.wisp -= 1; const e = g.eyes[rnd() < 0.5 ? 0 : 1], w0 = toW(e[0], e[1], T); emit({ kind: 'ws', x: w0.x + (rnd() - 0.5) * 0.1, y: w0.y, z: w0.z, vx: (rnd() - 0.5) * 0.3, vz: 0.7 + rnd() * 0.6, drag: 0.6, life: 0.7 + rnd() * 0.5, s: 0.7 + rnd() * 0.6, sd: rnd() * 9 }); }
-      GS.chip += dt * (lo ? 4 : 12) * (g.endK + g.surge); while (GS.chip > 1) { GS.chip -= 1; const b = rnd() * TAU, w0 = toW(g.SX + Math.cos(b) * g.k * 0.7, g.SY - g.k * (0.2 + rnd() * 0.8), T); emit({ kind: rnd() < 0.55 ? 'sp' : 'dk', x: w0.x, y: w0.y, z: w0.z, vx: (rnd() - 0.5) * 0.8, vz: -0.2 - rnd() * 0.6, g: 2.5, drag: 0.8, life: 0.5 + rnd() * 0.5, s: 0.6 + rnd() * 0.4, sd: rnd() * 9 }); }
-    }
-    function newPulse(g, T) {
-      const m0 = toW(g.mouth[0], g.mouth[1], T), n = H.n(ADE ? 18 : 13);
-      for (let i = 0; i < n; i++) { const b = i / n * TAU + rnd() * 0.5, v = 2.2 + rnd() * 2.6; emit({ kind: i % 5 < 3 ? 'dk' : 'sp', x: m0.x, y: m0.y, z: m0.z, vx: Math.cos(b) * v, vy: Math.sin(b) * v * 0.6, vz: -0.6 + rnd() * 0.9, drag: 1.5, g: 0.6, life: 0.55 + rnd() * 0.45, s: 0.8 + rnd() * 0.6, sd: rnd() * 9 }); }
-      for (const e of g.eyes) for (let j = 0; j < 2; j++) { const w0 = toW(e[0], e[1], T); emit({ kind: 'ws', x: w0.x, y: w0.y, z: w0.z, vx: (rnd() - 0.5) * 1.4, vz: 1 + rnd() * 0.8, drag: 1, life: 0.6 + rnd() * 0.4, s: 1.1, sd: rnd() * 9 }); }
-    }
-    function drawParts(Q, T, AIR) {
-      for (const p of GS.parts) { if (!p.on || p.t < 0) continue; const q = p.t / p.life, a = Math.sin(Math.min(1, q * 4) * Math.PI / 2) * (1 - q) * AIR, x = H.sx(p.x), y = H.sy(p.y) - p.z * T, s = p.s || 1;
-        if (p.kind === 'dk') { Q.smoke(x, y, T * 0.13 * s * (1 + q), a * 0.75, p.sd, SMK); Q.glow(x, y, T * 0.2 * s, VIO, a * 0.18); }
-        else if (p.kind === 'sp') { Q.glow(x, y, T * 0.15 * s, '#9B5CFF', a * 0.5); Q.star(x, y, T * 0.06 * s, a * 0.85, PALE); }
-        else if (p.kind === 'ws') { Q.glow(x, y, T * 0.24 * s * (0.6 + q), VIO, a * 0.32); Q.glow(x, y, T * 0.08 * s, PALE, a * 0.45); }
-        else { Q.smoke(x, y, T * 0.075 * s, a * 0.7, p.sd, '#2A1E36'); if ((p.sd * 10 | 0) % 3 === 0) Q.star(x, y, T * 0.045 * s, a * 0.7, '#C9A2FF'); } } }
+    /* ---- the floor (under2D) ---- */
     function gpuUnder(c, f, X, Y, T) {
-      const t = f.t, FG = FGX(), g = gpose(c, f, X, Y, T), P = g.P, on = sm((t - 0.3) / 0.8) * (1 - sm((t - TD) / 0.6)), RP = R * T, gy = H.GY, Q = FG.begin(c, null);
-      const gk2 = 0.5 + 0.5 * Math.max(P.pre, P.post);
-      // the skull's soft shadow, the area's light and its rim, the violet light spilling down under the skull
-      Q.quad(9, X, Y + T * 0.05, T * 1.25, 0, 0, T * 1.25 * gy, '#0E0618', 0.32 * g.A * g.AIR, 0, seed);
-      if (on > 0.01) { Q.glow(X, Y, RP * 1.12, '#6D28A8', on * (0.15 + 0.12 * gk2), gy); lring(Q, X, Y, RP, gy, T * 0.34, '#5B21B6', on * (0.16 + 0.12 * gk2)); lring(Q, X, Y, RP * 1.005, gy, T * 0.08, VIOL, on * (0.1 + 0.12 * gk2)); if (CEL) lring(Q, X, Y, RP * 0.62, gy, T * 0.16, VIO, on * 0.1 * gk2); }
-      Q.glow(X, Y, T * 1.9, '#9B5CFF', (0.18 + 0.3 * g.gk) * g.fire * g.A, gy); Q.glow(X, Y, T * 0.9, '#D4B8FF', (0.08 + 0.22 * g.gk * g.open) * g.A, gy);
-      // the formation: light drawn inward over the floor
-      if (t < FORM + 0.2) for (let i = 0; i < 3; i++) { const q = (t * 1.3 + i / 3) % 1; lring(Q, X, Y, RP * (1.05 - 0.85 * q), gy, T * 0.22, VIO, 0.4 * Math.sin(q * Math.PI) * cl(t / 0.3) * (1 - sm((t - FORM) / 0.2))); }
-      // each scream: a ring of dark smoke racing out over the floor, soft light on it and a pale crest; ripples from beneath (two at Adept); Celestial: a thick low wave
+      const t = f.t, FG = FGX(), g = gpose(c, f, X, Y, T), P = g.P, on = sm((t - 0.3) / 0.8) * (1 - sm((t - TD) / 0.6)), RP = R * T;
+      // (the aura first, in its own pass: the 2D lays the scream's dark band over it)
+      let Q = FG.begin(c, null);
+      if (on > 0.01) { const gk = 0.5 + 0.5 * Math.max(P.pre, P.post); qfloor(Q, 12, X, Y, RP * 1.1, on * (0.1 + 0.1 * gk), true, ENERGY); qfloor(Q, 11, X, Y, RP * 1.03, on * (0.16 + 0.14 * gk), true); if (CEL) qfloor(Q, 11, X, Y, RP * 0.62, on * 0.1 * gk, true); }
+      if (t < FORM + 0.2) for (let i = 0; i < 3; i++) { const q = (t * 1.3 + i / 3) % 1, rr = RP * (1.05 - 0.85 * q); qfloor(Q, 11, X, Y, rr, 0.35 * Math.sin(q * Math.PI) * cl(t / 0.3) * (1 - sm((t - FORM) / 0.2)), true); }
+      FG.flush(c);
+      Q = FG.begin(c, null);
       for (let kk = Math.max(0, lastPulse - 2); kk <= lastPulse; kk++) { const d = t - (P0 + kk * PER); if (d < 0 || d > 1.0) continue;
         const q = cl(d / 0.62); if (q < 1) { const rr = RP * (0.3 + 0.82 * H.ease.out(q)), a = (1 - q) * sstep(0, 0.12, q);
-          sring(Q, X, Y, rr, gy, T * (0.36 + 0.3 * q), SMK, a * (CEL ? 0.6 : 0.48), kk * 1.7 + seed);
-          lring(Q, X, Y, rr, gy, T * (0.42 + 0.3 * q), '#6D28D9', a * 0.42); lring(Q, X, Y, rr * 1.01, gy, T * 0.1, PALE, a * 0.5);
-          if (CEL) for (let j = 1; j < 4; j++) lring(Q, X, Y - j * T * 0.12 * (1 - q * 0.5), rr * (1 - j * 0.03), gy, T * (0.3 - j * 0.05), VIOD, a * (0.3 - j * 0.06)); }
-        for (let j = 0; j < (ADE ? 2 : 1); j++) { const q2 = cl((d - j * 0.16) / 0.75); if (q2 <= 0 || q2 >= 1) continue; lring(Q, X, Y, RP * 0.75 * H.ease.out(q2) + 3, gy, T * 0.14, VIOL, (1 - q2) * 0.4 * sstep(0, 0.1, q2)); } }
-      // the finisher on the floor: a flash, a violet-black shockwave, rings of light after it
-      if (fin && !died) { const p = t - TB, RR = RF * T; Q.glow(X, Y, RR, '#D0AEFF', 0.5 * Math.max(0, 1 - p / 0.35), gy); Q.glow(X, Y, RR * 1.3, '#6D28A8', 0.4 * Math.max(0, 1 - p / 0.7), gy);
-        const waves = CEL ? [[0, 1.05, 1], [0.08, 1.25, 0.7], [0.2, 1.5, 0.5]] : ADE ? [[0, 1.05, 1], [0.1, 1.25, 0.7]] : [[0, 1.0, 1], [0.12, 1.15, 0.6]];
-        waves.forEach(([d, sc, w], j) => { const q = cl((p - d) / 0.7); if (q <= 0 || q >= 1) return; const rr = RR * sc * H.ease.out(q) + 4, a = (1 - q) * w * sstep(0, 0.08, q); if (!j) sring(Q, X, Y, rr, gy, T * (0.45 + 0.4 * q), SMK, a * 0.6, seed + 5); lring(Q, X, Y, rr, gy, T * (0.5 + 0.3 * q), '#6D28D9', a * 0.45); lring(Q, X, Y, rr, gy, T * 0.12, PALE, a * 0.5); }); }
+          if (CEL) for (let j = 0; j < 4; j++) { const hz = j * T * 0.12 * (1 - q * 0.5); qs(Q, 2, X, Y - hz, rr, rr * H.GY, a * (0.55 - j * 0.11)); }
+          qfloor(Q, 1, X, Y, rr, a * (CEL ? 0.85 : 0.7));
+          qfloor(Q, 11, X, Y - (CEL ? T * 0.36 * (1 - q * 0.5) : 0), rr * 0.995, a * (CEL ? 0.55 : 0.4), true); }
+        for (let j = 0; j < (ADE ? 2 : 1); j++) { const q2 = cl((d - j * 0.16) / 0.75); if (q2 <= 0 || q2 >= 1) continue; qfloor(Q, 11, X, Y, RP * 0.75 * H.ease.out(q2) + 3, (1 - q2) * 0.5 * sstep(0, 0.1, q2), true); } }
+      if (fin && !died) { const p = t - TB, RR = RF * T; qfloor(Q, 12, X, Y, RR * 1.0, 0.5 * Math.max(0, 1 - p / 0.35), true, ACC); qfloor(Q, 12, X, Y, RR * 1.3, 0.35 * Math.max(0, 1 - p / 0.7), true, ENERGY);
+        const waves = CEL ? [[0, 1.05, 1, 0], [0.08, 1.25, 0.7, 1], [0.2, 1.5, 0.5, 1]] : ADE ? [[0, 1.05, 1, 0], [0.1, 1.25, 0.7, 1]] : [[0, 1.0, 1, 0], [0.12, 1.15, 0.6, 1]];
+        for (const [d, sc, w, Lt] of waves) { const q = cl((p - d) / 0.7); if (q > 0 && q < 1) qfloor(Q, Lt ? 11 : 1, X, Y, RR * sc * H.ease.out(q) + 4, (1 - q) * w * sstep(0, 0.08, q), !!Lt); } }
       FG.flush(c);
     }
+    /* ---- the air (draw2D) ---- */
     function gpuDraw(c, f, X, Y, T) {
-      const t = f.t, FG = FGX(), g = gpose(c, f, X, Y, T), A = g.A, AIR = g.AIR, gy = H.GY, k = g.k, RP = R * T, PX = H.sx(me.x), PY = H.sy(me.y) - T * 0.5;
+      const t = f.t, FG = FGX(), g = gpose(c, f, X, Y, T), P = g.P, u = g.u, k = g.k, PX = g.PX, PY = g.PY, A0 = g.A0, gk = g.gk;
       const dt = GS.lt == null ? 0 : Math.max(0, Math.min(0.1, t - GS.lt)); GS.lt = t;
-      if (lastPulse !== GS.lp && lastPulse >= 0 && !fin) { GS.lp = lastPulse; if (A > 0.3) newPulse(g, T); }
-      if ((fin || died) && !GS.burst) burst(g, T, died);
-      simulate(g, T, dt);
-      // the ripple of the scream through the air and over the floor (read back from what is drawn; before anything of ours)
-      for (let kk = Math.max(0, lastPulse - 1); kk <= lastPulse; kk++) { const d = t - (P0 + kk * PER); if (d < 0 || d > 0.7 || t > TE + 0.1) continue; const q = cl(d / 0.62), rr = RP * (0.3 + 0.82 * H.ease.out(q));
-        warpRing(c, X, Y, rr, gy, 0.045 * (1 - q), (1 - q) * sstep(0, 0.1, q) * 0.9);
-        if (d < 0.42) warpCone(c, g.mouth[0], g.mouth[1], X, Y + T * 0.3, RP * 0.55, T * 0.05, Math.sin(cl(d / 0.42) * Math.PI) * 0.85 * A, t); }
-      if (fin && !died) { const p = t - TB, q = cl(p / 0.7); if (q < 1) warpRing(c, X, Y, RF * T * 1.05 * H.ease.out(q) + 4, gy, 0.06 * (1 - q), (1 - q) * sstep(0, 0.06, q)); }
-      // ---- behind the skull: its dark aura, smoke round it, the formation's knot, the mouth's hollow
+      // the crumble's fragments (the 2D's disintegrate(): from points on the skull, rising, tumbling), once the skull goes
+      if (t >= TD && !GS.fragOn && SKL().pts) { GS.fragOn = true; const Pp = SKL().pts, n = H.n(CEL ? 90 : ADE ? 70 : 50);
+        for (let i = 0; i < n; i++) { const q = Pp[Math.floor(rnd() * Pp.length)], ux = q[0], uy = -q[2] + (q[6] ? 0.03 : 0), w0 = wp(f, ux, uy);
+          GS.frags.push({ x: w0[0], y: w0[1], z: w0[2], vx: ux * (0.5 + rnd()) * UT * 0.8, vy: (rnd() - 0.5) * 0.4, vz: 0.6 + rnd() * 1.4, t: -rnd() * 0.5 * (1 - (uy + 1.4) / 2.8), life: 1.0 + rnd() * 0.8, rot: rnd() * TAU, vr: (rnd() - 0.5) * 6, s: (0.04 + rnd() * 0.06) * Math.sqrt(HS / 2), m: i % 6, ax: [rnd() - 0.5, rnd() - 0.5, rnd() - 0.5] }); } }
+      for (let i = GS.frags.length - 1; i >= 0; i--) { const q = GS.frags[i]; q.t += dt; if (q.t < 0) continue; q.x += q.vx * dt; q.y += q.vy * dt; q.z += q.vz * dt; q.vz += 0.4 * dt; q.rot += q.vr * dt; if (q.t >= q.life) GS.frags.splice(i, 1); }
+      // ---- behind the skull: the smoke knot, the drifting shadow, the darkened air, the bloom, the scream's crescents and the halos, the mouth's hollow and its light
       let Q = FG.begin(c, null);
-      if (A > 0.01 || t < FORM + 0.3) { const fa = Math.max(A, sm(t / 0.6) * (1 - A)) * AIR;
-        Q.glow(g.SX, g.SY + k * 0.15, k * 2.4, '#3B1166', 0.42 * fa); Q.glow(g.SX, g.SY, k * 1.45, '#6D28A8', (0.1 + 0.16 * g.gk) * A * AIR);
-        const N = H.n(10); for (let i = 0; i < N; i++) { const cyc = (t * 0.2 + i / N + R1(seed + i) * 0.3) % 1, ang = i * 2.39996 + seed + t * 0.28 * (i % 2 ? 1 : -1), rr = k * (1.0 + 0.4 * cyc);
-          Q.smoke(g.SX + Math.cos(ang) * rr * 1.05, g.SY + k * 0.05 + Math.sin(ang) * rr * 0.95 - cyc * k * 0.35, k * (0.5 + 0.4 * cyc), Math.sin(cyc * Math.PI) * 0.55 * fa, i * 1.7 + seed, SMK); } }
-      for (const q of knot) { const a = Math.sin(cl(q.t / q.life) * Math.PI) * (1 - A * 0.85), r = T * q.s * (0.9 + 0.6 * q.t) * 1.25, qx = g.SX + Math.cos(q.b) * q.r * g.u * 0.8, qy = g.SY - g.u * 0.15 + Math.sin(q.b) * q.r * g.u * 0.5 + q.z * g.u * 0.3; Q.smoke(qx, qy, r, a * 0.85, q.b * 3.1, '#170A26'); Q.glow(qx, qy, r * 0.8, VIOD, a * 0.12); }
-      if (t < FORM + 0.4) Q.glow(g.SX, g.SY, g.u * 1.3, VIO, 0.4 * Math.sin(cl(t / (FORM + 0.4)) * Math.PI));
-      for (const p of puffs) { if (p.t < 0) continue; const q = p.t / p.life, px = H.sx(p.x), py = H.sy(p.y) - p.z * T, r = T * p.s * (0.6 + 0.8 * q) * 0.9; Q.smoke(px, py, r, Math.sin(Math.min(1, q * 3) * Math.PI / 2) * (1 - q) * 0.5 * pfAt(px, py, T, PX, PY), p.x * 3.7, p.d ? '#1C0E2C' : '#4A3A60'); }
-      if (g.open > 0.03 && A > 0.01) { Q.smoke(g.throat[0], g.throat[1], k * 0.36 * (0.5 + g.open), 0.95 * g.open * A, seed, '#06030B'); Q.glow(g.throat[0], g.throat[1], k * 0.42, '#7B33D6', 0.55 * g.open * g.gk * A); }
+      for (const q of knot) { const a = Math.sin(cl(q.t / q.life) * Math.PI) * (1 - g.fill * 0.85), r = T * q.s * (0.8 + 0.5 * q.t), qx = g.SX + Math.cos(q.b) * q.r * u * 0.8, qy = g.SY - u * 0.15 + Math.sin(q.b) * q.r * u * 0.5 + q.z * u * 0.3; qs(Q, 4, qx, qy, r, r, a * 0.9); }
+      for (const p of puffs) { if (p.t < 0) continue; const q = p.t / p.life, px = H.sx(p.x), py = H.sy(p.y) - p.z * T, r = T * p.s * (0.6 + 0.8 * q); qs(Q, p.d ? 4 : 5, px, py, r, r, Math.sin(Math.min(1, q * 3) * Math.PI / 2) * (1 - q) * 0.8 * pfAt(px, py, T, PX, PY)); }
+      if (A0 > 0.01 || t < FORM + 0.3) {
+        qs(Q, 3, g.SX, g.SY - u * 0.05, u * 1.9, u * 1.8, (0.25 + 0.6 * g.fill) * g.alive * g.hpf);
+        qglow(Q, g.SX, g.SY + u * 0.2, u * (1.6 + 0.3 * gk), ENERGY, (0.08 + 0.18 * gk) * A0);
+        const hcY = g.SY - u * 0.18, sq = 0.96, ha = A0 * sm((t - 0.75) / 0.6), rot = g.tilt * 0.5;
+        const vib = i => u * (0.014 + 0.05 * g.jolt + 0.016 * P.pre) * (Math.sin(t * 53 + i * 2.1) + 0.6 * Math.sin(t * 37.3 + i * 4.7)), push = 1 + 0.07 * g.jolt - 0.03 * P.pre;
+        if (ha > 0.01) {
+          for (let pk = Math.max(0, lastPulse - 1); pk <= lastPulse; pk++) { const d = t - (P0 + pk * PER); if (d < 0 || d > 0.55 || t > TE + 0.1) continue;
+            for (let e = 0; e < (CEL ? 2 : 1); e++) { const q = cl((d - e * 0.09) / 0.46); if (q <= 0 || q >= 1) continue; const es = 1.05 + (CEL ? 1.0 : 0.85) * H.ease.out(q), ea = ha * Math.pow(1 - q, 1.4) * sstep(0, 0.12, q) * (e ? 0.6 : 1);
+              for (const rg of BR) { const ro = t * rg.sp + (pk % 2 ? 0.2 : -0.2) * q; let i = 0; for (const sg of rg.segs) { i++; const rr = rg.r * u * es + vib(i * 3 + pk), ww = rg.w * u * (1 + 0.8 * q);
+                crescentQ(Q, g.SX, hcY, rot, rr, sq, sg[0] + ro, sg[1] + ro, ww * 3.4, ENERGY, ea * 0.3); crescentQ(Q, g.SX, hcY, rot, rr, sq, sg[0] + ro + 0.03, sg[1] + ro - 0.03, ww, EDGE, ea * 0.85); } }
+              if (HAL) for (const hs of halo) { const a0 = hs.a + t * hs.sp, rr = hs.r * u * (es * 0.92 + 0.08) + vib(hs.a * 9), ww = hs.w * u * 0.45 * (1 + 0.5 * q);
+                crescentQ(Q, g.SX, hcY, rot, rr, sq, a0 - 0.04, a0 + hs.span + 0.04, ww * 3, ENERGY, ea * 0.28); crescentQ(Q, g.SX, hcY, rot, rr + ww * 0.3, sq, a0 + 0.04, a0 + hs.span - 0.04, Math.max(0.8, ww * 0.4), EDGE, ea * 0.8); } } }
+          let vi = 0; for (const rg of rings) { const ro = t * rg.sp; for (const sg of rg.segs) { const rR = rg.r * u * push + vib(vi++);
+            crescentQ(Q, g.SX, hcY, rot, rR, sq, sg[0] + ro, sg[1] + ro, rg.w * u * 3.2, ENERGY, ha * (0.24 + 0.16 * gk)); crescentQ(Q, g.SX, hcY, rot, rR, sq, sg[0] + ro, sg[1] + ro, rg.w * u, EDGE, ha * (0.7 + 0.3 * gk)); crescentQ(Q, g.SX, hcY, rot, rR, sq, sg[0] + ro + 0.04, sg[1] + ro - 0.04, Math.max(0.8, rg.w * u * 0.3), ACC, ha * 0.7 * (0.5 + 0.5 * gk)); } }
+          for (const hs of halo) { const a0 = hs.a + t * hs.sp, a1 = a0 + hs.span, rr = hs.r * u * push + vib(vi++ + 7) * 0.7, ww = hs.w * u;
+            crescentQ(Q, g.SX, hcY, rot, rr, sq, a0 - 0.06, a1 + 0.06, ww * 2.4, ENERGY, ha * (0.12 + 0.12 * gk)); crescentQ(Q, g.SX, hcY, rot, rr, sq, a0, a1, ww, BODY, ha * 0.95, true); crescentQ(Q, g.SX, hcY, rot, rr - ww * 0.14, sq, a0 + 0.03, a1 - 0.03, ww * 0.5, PLUM, ha * 0.8, true);
+            crescentQ(Q, g.SX, hcY, rot, rr + ww * 0.36, sq, a0 + 0.02, a1 - 0.02, Math.max(1, ww * 0.16), EDGE, ha * (0.6 + 0.4 * gk)); crescentQ(Q, g.SX, hcY, rot, rr - ww * 0.3, sq, a0 + 0.1, a1 - 0.1, Math.max(0.7, ww * 0.07), ACC, ha * 0.35 * (0.5 + gk)); } }
+        if (g.fa > 0.01 && SKL().ready) { const o = g.open, mc = g.tr(0, 0.9 + 0.12 * o), ec = g.tr(0, 0.97 + 0.12 * o), ac = g.tr(0, 0.98 + 0.12 * o);
+          qrot(Q, 71, 6, mc[0], mc[1], 0.42 * k, (0.07 + 0.16 * o) * k, g.tilt, null, g.fa * Math.min(1, 0.6 + o));
+          qrot(Q, 72, 12, ec[0], ec[1], 0.36 * k, (0.07 + 0.12 * o) * k, g.tilt, EDGE, Math.min(1, g.fa * (0.25 + 0.75 * gk) * (0.5 + 0.5 * o)));
+          qrot(Q, 72, 12, ac[0], ac[1], 0.2 * k, 0.06 * k, g.tilt, ACC, Math.min(1, g.fa * gk * 0.8 * o)); } }
       FG.flush(c);
-      // ---- the skull, and the burst's shards
-      if (A > 0.004) SKL().draw(c, g.SX, g.SY, k, g.pose);
-      if (GS.shards.length && GS.burst) { const B = GS.burst, bx = H.sx(B.x), by = H.sy(B.y) - B.hz * T, bk = B.ku * T, L = [];
-        for (const s of GS.shards) { if (s.t < 0) continue; const q = s.t / s.life; L.push({ m: s.m, R: mm3(axRot(s.ax, s.ang), s.R0), p: s.p, s: s.s, spill: sm((q - 0.55) / 0.45), glow: Math.max(0, 1 - q * 1.6) * 1.2 }); }
-        SKL().drawShards(c, bx, by, bk, L, t); }
-      // ---- over it: the soul fire, the cracks' bloom, the mouth's light, the scream, the wisps, the marks
+      // ---- the skull (the 3D model in the 2D's shading, at the 2D's opacity)
+      if (g.fa > 0.01 && g.pose.imgA > 0.004) SKL().draw(c, g.SX, g.SY, k, g.pose);
+      // ---- over it: the crack light, the sockets' glow, the formation's contour, the shells from the mouth, the sparks, the fragments' glow, the finisher, the ash
       Q = FG.begin(c, null);
-      if (A > 0.01) { const fa = g.fire * A * AIR, pr = 1 - 0.7 * g.drw, gk = g.gk;
-        // (the soul fire: a small hot heart deep in each orbit, a soft violet breath round it and a wisp of flame licking up out of it; the orbit itself stays dark)
-        g.eyes.forEach((e, i) => { const fl = 0.85 + 0.15 * Math.sin(t * 13 + i * 2.1) * Math.sin(t * 7.3 + i); Q.glow(e[0], e[1] - k * 0.04, k * 0.62 * pr, '#4C1D95', 0.14 * fa * (0.5 + 0.7 * gk)); Q.glow(e[0], e[1], k * 0.13 * pr, '#9B5CFF', 0.22 * fa * (0.4 + 0.7 * gk) * fl); Q.glow(e[0], e[1] + k * 0.01, k * 0.075 * pr, '#F5EDFF', 0.62 * fa * (0.5 + 0.7 * gk) * fl);
-          Q.etongue(e[0], e[1] + k * 0.02, k * 0.07 * pr, k * (0.2 + 0.26 * gk) * pr, -g.pose.roll, '#8B4DFF', 0.55 + 0.35 * gk, 0.3 * fa, seed + i * 3.3); });
-        Q.glow(g.SX, g.SY - k * 0.5, k * 1.15, '#7A3CD0', 0.055 * g.crack * (0.5 + gk) * A);
-        if (g.open > 0.03) { Q.glow(g.mouth[0], g.mouth[1], k * 0.6 * (0.4 + g.open), '#8E4BFF', 0.42 * g.open * gk * A); Q.glow(g.mouth[0], g.mouth[1], k * 0.2, PALE, 0.42 * g.open * gk * A); } }
-      // the scream in the air: soft shells thrown from the mouth, widening and sinking toward the floor, a faint cone of light under them
-      for (let kk = Math.max(0, lastPulse - 1); kk <= lastPulse; kk++) { const d = t - (P0 + kk * PER); if (d < 0 || d > 0.5 || t > TE) continue; const q = d / 0.5, a = (1 - q) * sstep(0, 0.15, q) * A * AIR;
-        for (let e = 0; e < (CEL ? 3 : 2); e++) { const qe = cl(q - e * 0.14); if (qe <= 0) continue; const rr = k * (0.35 + 2.3 * H.ease.out(qe)), my = g.mouth[1] + (0.2 + 1.3 * qe) * k; lring(Q, g.mouth[0], my, rr, 0.34, k * (0.18 + 0.12 * qe), '#7C3AED', a * (0.5 - e * 0.13)); lring(Q, g.mouth[0], my, rr, 0.34, k * 0.05, PALE, a * (0.42 - e * 0.1)); }
-        if (d < 0.35) { const ca = Math.sin(cl(d / 0.35) * Math.PI) * A * AIR; for (let j = -2; j <= 2; j++) { const ex = X + j * RP * 0.32, ey = Y + T * 0.1; Q.beam(g.mouth[0], g.mouth[1], ex, ey, k * 0.42, VIOD, ca * 0.12); } } }
-      // the sparks: aimed ones as ghostly wisps streaming to their monster, a bright head; free ones as dark motes
-      for (const s of sparks) { if (s.t < 0) continue; const hx2 = H.sx(s.x), hy2 = H.sy(s.y) - s.z * T, fade = (s.free ? 1 - sstep(s.life - 0.15, s.life, s.t) : s.done ? 1 - cl((s.t - s.end) / 0.12) : 1) * AIR;
-        s.wt = s.wt || []; if (s.wtT !== t) { s.wtT = t; s.wt.push([hx2, hy2]); if (s.wt.length > (s.free ? 5 : 10)) s.wt.shift(); }
-        const pts = s.wt.map((p, i) => { const n = s.wt.length, v = i / Math.max(1, n - 1), o = Math.sin(i * 1.4 + t * 19 + s.ph) * T * 0.07 * (1 - v); return [p[0] + o, p[1] + o * 0.5]; });
-        if (s.free) { chain(Q, pts, T * 0.12, VIOD, fade * 0.5, v => 0.3 + 0.7 * v); Q.smoke(hx2, hy2, T * 0.1, 0.55 * fade, s.ph, SMK); Q.glow(hx2, hy2, T * 0.16, VIO, 0.35 * fade); continue; }
-        chain(Q, pts, T * 0.4, '#4C1D95', fade * 0.26, v => 0.2 + 0.8 * v); chain(Q, pts, T * 0.13, '#9B5CFF', fade * 0.3, v => 0.2 + 0.8 * v); chain(Q, pts, T * 0.045, '#E9D5FF', fade * 0.28, v => v);   // (a ghostly wisp: a wide dim veil, a violet body, a thin pale thread)
-        Q.glow(hx2, hy2, T * 0.36, '#7C3AED', 0.38 * fade); Q.glow(hx2, hy2, T * 0.1, '#F5EDFF', 0.42 * fade); }
-      // ash (Celestial), the particles, the shards' glow
-      for (const a of ash) { const ax = H.sx(a.x), ay = H.sy(a.y) - a.z * T, al = Math.sin(cl(a.t / a.life) * Math.PI) * 0.65 * pfAt(ax, ay, T, PX, PY); Q.smoke(ax, ay, Math.max(1.5, a.s * T * 1.6), al, a.r, '#2E2440'); }
-      drawParts(Q, T, AIR);
-      if (GS.burst && GS.shards.length) { const B = GS.burst, bx = H.sx(B.x), by = H.sy(B.y) - B.hz * T, bk = B.ku * T; for (const s of GS.shards) { if (s.t < 0) continue; const q = s.t / s.life, sx2 = bx + s.p[0] * bk, sy2 = by + (s.p[1] * 0.27 - s.p[2] * 0.96) * bk; Q.glow(sx2, sy2, bk * 0.32 * s.s, VIO, 0.3 * (1 - q)); } }
-      // the finisher in the air: a hot core, soft violet rays, a ring rushing out round the pet
-      if (fin && !died) { const p = t - TB, bx = H.sx(me.x), by = H.sy(me.y) - T * 0.6, fl = Math.max(0, 1 - p / 0.3), B = GS.burst, sx0 = B ? H.sx(B.x) : bx, sy0 = B ? H.sy(B.y) - B.hz * T : by - T * 2;
-        if (fl > 0) { Q.glow(bx, by, RF * T * (0.5 + 0.4 * H.ease.out(cl(p / 0.12))), '#D0AEFF', 0.42 * fl); Q.glow(bx, by, RF * T * 0.9, '#6D28A8', 0.38 * fl); Q.glow(sx0, sy0, g.u * 2.2, PALE, 0.6 * fl); Q.glow(sx0, sy0, g.u * 3.4, VIO, 0.45 * fl); }
-        const ra = Math.max(0, 1 - p / 0.45); if (ra > 0) { const NR = 8 + ev; for (let i = 0; i < NR; i++) { const b = i / NR * TAU + R1(seed + i * 3) * 0.5, Lr = RF * T * (0.5 + 0.4 * R1(seed + i * 5)) * H.ease.out(cl(p / 0.22)), r0 = T * 0.6; chain(Q, [[bx + Math.cos(b) * r0, by + Math.sin(b) * r0 * 0.6], [bx + Math.cos(b) * (r0 + Lr * 0.5), by + Math.sin(b) * (r0 + Lr * 0.5) * 0.6], [bx + Math.cos(b) * (r0 + Lr), by + Math.sin(b) * (r0 + Lr) * 0.6]], T * (0.3 + 0.25 * R1(seed + i)), i % 3 ? '#9B5CFF' : PALE, 0.5 * ra, v => 1.2 - 0.7 * v); } }
-        const q = cl(p / 0.55); if (q < 1) { const rr = RF * T * 1.1 * H.ease.out(q); lring(Q, bx, by, rr, 0.42, T * (0.5 + 0.4 * q), '#6D28D9', (1 - q) * 0.5 * sstep(0, 0.1, q)); lring(Q, bx, by, rr, 0.42, T * 0.12, PALE, (1 - q) * 0.5); } }
-      // fear and stun on the monsters: a soft violet light over the head (the pale skull mark is laid after), motes circling a stunned one
-      const marks = []; if (t < LIFE) for (const m of H.living()) { const fe = m.fearT > 0 ? Math.min(1, m.fearT / 0.3) : 0, stn = m.stun > 0 && Math.hypot(m.x - me.x, m.y - me.y) < R + m.r + 1 && t < TB + 0.8 ? Math.min(1, m.stun / 0.12) : 0; if (fe < 0.01 && stn < 0.01) continue;
-        const mx = H.sx(m.x), my = H.sy(m.y) - ((m.z || 0) + (m.liftZ || 0)) * T - m.r * T * 1.25, a = AIR;
-        if (stn > 0) for (let i = 0; i < 3; i++) { const b = t * 5.5 + i * TAU / 3 + m.x, ox = Math.cos(b) * m.r * T * 0.9, oy = Math.sin(b) * m.r * T * 0.28; Q.glow(mx + ox, my + oy, T * 0.16, '#8B5CF6', 0.45 * stn * a); Q.star(mx + ox, my + oy, T * 0.07, 0.8 * stn * a, PALE); }
-        if (fe > 0) { const hy3 = my - T * 0.42 + Math.sin(t * 4 + m.x) * T * 0.05, hx3 = mx + Math.sin(t * 31 + m.y * 7) * T * 0.02; Q.glow(hx3, hy3, T * 0.5, '#6D28A8', 0.4 * fe * a); marks.push([hx3, hy3, fe * a]); } }
+      if (g.fa > 0.01 && SKL().ready) { const disA = g.disA, fa = g.fa, Rs = g.Fr.Rs, CWv = SKL().CW, mvp = v => [Rs[0][0] * v[0] + Rs[1][0] * v[1] + Rs[2][0] * v[2], Rs[0][1] * v[0] + Rs[1][1] * v[1] + Rs[2][1] * v[2], Rs[0][2] * v[0] + Rs[1][2] * v[1] + Rs[2][2] * v[2]];
+        const ck = Math.min(1, fa * disA * ((ADE ? 0.35 : 0.25) + 0.55 * gk + 0.3 * (1 - g.fill) * g.form)), paths = cracks3().map(pl => { const s = pl.map(q => { const n = mvp([q[3], q[4], q[5]]), v = n[0] * CWv[0] + n[1] * CWv[1] + n[2] * CWv[2]; return v > 0.05 ? g.at(q) : null; }); s.src = pl; return s; });
+        // (the fissures: the 2D's engraved cut and its faint lit lip, then its light in four layers: violet, violet, edge, a pale core)
+        const seg = (fn) => { for (const s of paths) for (let i = 1; i < s.length; i++) if (s[i] && s[i - 1]) fn(s[i - 1], s[i]); };
+        const dy = Math.max(0.5, 0.012 * k); seg((p0, p1) => stroke(Q, p0[0], p0[1] + dy, p1[0], p1[1] + dy, Math.max(0.6, 0.014 * k), '#9682BE', fa * disA * 0.22, true));
+        seg((p0, p1) => stroke(Q, p0[0], p0[1], p1[0], p1[1], Math.max(0.7, 0.02 * k), '#06040A', fa * disA * 0.85, true));
+        for (const [col, al, lw] of [[ENERGY, 0.32, 0.075], [ENERGY, 0.5, 0.04], [EDGE, 0.85, 0.018], ['#DEC8FF', 0.8, 0.007]]) seg((p0, p1) => stroke(Q, p0[0], p0[1], p1[0], p1[1], Math.max(0.6, lw * k), col, ck * al));
+        if (ADE && g.dis < 0.3) { const nb = CEL ? 3 : 1; for (const s of paths) { if (!s.src.main) continue; const n = s.length; for (let b = 0; b < nb; b++) { const uu = (t * (CEL ? 0.55 : 0.35) + s.src.ph + b / nb) % 1, fp = uu * (n - 1), i0 = Math.floor(fp), e = fp - i0, p0 = s[i0], p1 = s[Math.min(n - 1, i0 + 1)]; if (!p0 || !p1) continue; const bx = lerp(p0[0], p1[0], e), by = lerp(p0[1], p1[1], e), ba = Math.sin(uu * Math.PI);
+          qglow(Q, bx, by, 0.07 * k, EDGE, fa * ba * (CEL ? 0.75 : 0.5) * (0.6 + 0.4 * gk)); if (CEL) qglow(Q, bx, by, 0.03 * k, ACC, fa * ba * 0.6); } } }
+        // (the sockets' glow, drawing inward at the end)
+        for (const sx0 of [-0.37, 0.37]) { const pr = 1 - 0.75 * g.draw, e = g.at([sx0 * 0.95, 0.72, -0.17]); qrot(Q, 72, 12, e[0], e[1], 0.17 * k * pr, 0.15 * k * pr, 0, EDGE, fa * disA * (0.06 + 0.34 * gk + 0.6 * g.draw * (1 - g.draw) * 2)); qrot(Q, 72, 12, e[0], e[1] + 0.02 * k, 0.05 * k * pr, 0.045 * k * pr, 0, ACC, fa * disA * (0.1 + 0.45 * gk * gk + 0.5 * g.draw)); } }
+      if (A0 > 0.01 || t < FORM + 0.3) {
+        // the contour that sketches the skull while it forms (the dome, then the cheekbones and sockets, then the jaw)
+        if (t < FORM + 0.25) { const fo = 1 - sm((t - 0.85) / 0.35), skk = (a, b2) => sm((t - a) / (b2 - a)), tr = g.tr, hpf = g.hpf;
+          const arc = (cx, cy, rx, ry, a0, a1, uu) => { const pts = [], n = 28; for (let i = 0; i <= n; i++) { const b = lerp(a0, lerp(a0, a1, uu), i / n); pts.push(tr(cx + Math.cos(b) * rx, cy + Math.sin(b) * ry)); } return pts; };
+          const lines = [], u1 = skk(0.2, 0.55), u2 = skk(0.4, 0.75), u3 = skk(0.55, 0.88);
+          if (u1 > 0) { lines.push(arc(0, -0.3, 1.0, 0.95, -Math.PI / 2, -Math.PI / 2 - 2.1, u1)); lines.push(arc(0, -0.3, 1.0, 0.95, -Math.PI / 2, -Math.PI / 2 + 2.1, u1)); }
+          if (u2 > 0) { for (const sx0 of [-1, 1]) { lines.push(arc(sx0 * 0.37, 0.21, 0.27, 0.24, -Math.PI / 2, -Math.PI / 2 + sx0 * TAU, u2)); lines.push(arc(sx0 * 0.5, 0.45, 0.28, 0.22, sx0 > 0 ? -0.5 : Math.PI + 0.5, sx0 > 0 ? 1.6 : Math.PI - 1.6, u2)); } lines.push(arc(0, 0.5, 0.1, 0.14, -Math.PI / 2, Math.PI * 1.5, u2)); }
+          if (u3 > 0) { const jaw = [[-0.66, 0.6], [-0.62, 0.92], [-0.48, 1.16], [-0.24, 1.3], [0, 1.33], [0.24, 1.3], [0.48, 1.16], [0.62, 0.92], [0.66, 0.6]], n = Math.max(2, Math.round(jaw.length * u3)), mid = 4, lo = Math.max(0, mid - Math.ceil(n / 2)), hi = Math.min(jaw.length - 1, mid + Math.ceil(n / 2)); lines.push(jaw.slice(lo, hi + 1).map(p => tr(p[0], p[1] + g.open * 0.24))); }
+          for (const pl of lines) { spath(Q, pl, Math.max(3, u * 0.16), ENERGY, 0.22 * fo * hpf); spath(Q, pl, Math.max(1.6, u * 0.055), EDGE, 0.5 * fo * hpf); spath(Q, pl, Math.max(1, u * 0.022), ACC, 0.55 * fo * hpf); }
+          qglow(Q, g.SX, g.SY, u * 1.2, ENERGY, 0.35 * Math.sin(cl(t / FORM) * Math.PI) * hpf); }
+        // the scream in the air: shells of dark energy thrown from the mouth
+        for (let kk = Math.max(0, lastPulse - 1); kk <= lastPulse; kk++) { const d = t - (P0 + kk * PER); if (d < 0 || d > 0.45 || t > TE) continue; const q = d / 0.45, mx = g.SX, my = g.SY + (1.15 + 0.5 * q) * u * g.scl, rr = u * (0.45 + 1.7 * H.ease.out(q)), a = (1 - q) * sstep(0, 0.15, q) * A0;
+          qs(Q, 1, mx, my, rr, rr * 0.32, a * 0.4); ql(Q, 11, mx, my, rr * 0.92, rr * 0.3, a * 0.35); } }
+      // the sparks: thin jagged streaks, a hot head (the 2D's, soft)
+      const AIR = g.AIR;
+      for (const s of sparks) { if (s.t < 0 || s.tr.length < 2) continue; const fade = s.free ? 1 - sstep(s.life - 0.15, s.life, s.t) : s.done ? 1 - cl((s.t - s.end) / 0.12) : 1;
+        const pts = s.tr.map((p, i) => { const j = (i && i < s.tr.length - 1) ? (R1(s.ph + i * 3.1 + Math.floor(t * 30)) - 0.5) * T * 0.18 : 0; return [H.sx(p[0]) + j, H.sy(p[1]) - p[2] * T + j * 0.6]; });
+        pts.push([H.sx(s.x), H.sy(s.y) - s.z * T]); const hx2 = pts[pts.length - 1][0], hy2 = pts[pts.length - 1][1], pf = pfAt(hx2, hy2, T, PX, PY) * fade * AIR;
+        for (let i = 1; i < pts.length; i++) { const v = i / (pts.length - 1); stroke(Q, pts[i - 1][0], pts[i - 1][1], pts[i][0], pts[i][1], Math.max(1.5, T * 0.07 * v), ENERGY, pf * 0.22 * v); stroke(Q, pts[i - 1][0], pts[i - 1][1], pts[i][0], pts[i][1], Math.max(0.8, T * 0.03 * v), v > 0.6 ? ACC : EDGE, pf * 0.9 * v); }
+        qglow(Q, hx2, hy2, T * 0.16, EDGE, pf * 0.8); qglow(Q, hx2, hy2, T * 0.06, ACC, pf); }
+      // the fragments' glow (the fragments themselves: GLM, after this pass)
+      const FL = []; for (const q of GS.frags) { if (q.t < 0) continue; const qx = H.sx(q.x), qy = H.sy(q.y) - q.z * T, a = (1 - sm((q.t - q.life * 0.5) / (q.life * 0.5))) * pfAt(qx, qy, T, PX, PY), sz = q.s * T; if (a < 0.02) continue; qglow(Q, qx, qy, sz * 1.4, EDGE, a * 0.35); FL.push([q, qx, qy, a, sz]); }
+      // the finisher in the air: a hot core, violet rays, a dark ring rushing out round the pet
+      if (fin && !died) { const p = t - TB, bx = H.sx(me.x), by = H.sy(me.y) - T * 0.6, fl = Math.max(0, 1 - p / 0.3);
+        if (fl > 0) { qglow(Q, bx, by, RF * T * (0.5 + 0.4 * H.ease.out(cl(p / 0.12))), ACC, 0.45 * fl); qglow(Q, bx, by, RF * T * 0.9, ENERGY, 0.4 * fl); }
+        const ra = Math.max(0, 1 - p / 0.45); if (ra > 0) { const NR = 8 + ev; for (let i = 0; i < NR; i++) { const b = i / NR * TAU + R1(seed + i * 3) * 0.5, Lr = RF * T * (0.5 + 0.4 * R1(seed + i * 5)) * H.ease.out(cl(p / 0.22)), r0 = T * 0.7; rayQ(Q, bx + Math.cos(b) * r0, by + Math.sin(b) * r0 * 0.6, b, Lr, T * (0.2 + 0.2 * R1(seed + i)), i % 3 ? EDGE : ACC, 0.45 * ra); } }
+        const q = cl(p / 0.55); if (q < 1) { const rr = RF * T * 1.1 * H.ease.out(q), ry = rr * 0.42; qs(Q, 1, bx, by, rr, ry, (1 - q) * 0.7 * sstep(0, 0.1, q)); ql(Q, 11, bx, by, rr * 0.9, ry * 0.9, (1 - q) * 0.5); } }
+      // ash (Celestial): fine flakes drifting
+      for (const a of ash) { const ax = H.sx(a.x), ay = H.sy(a.y) - a.z * T, al = Math.sin(cl(a.t / a.life) * Math.PI) * 0.7 * pfAt(ax, ay, T, PX, PY), s = Math.max(1, a.s * T), h2 = Math.max(0.8, s * 0.6 * Math.abs(Math.cos(a.r))); qrot(Q, 71, 7, ax, ay, s * 0.6, h2 * 0.6, 0, a.r % 2 > 1 ? '#5A4870' : '#2E2440', al); }
       FG.flush(c);
-      if (marks.length) { const sp = fearSpr(); c.save(); for (const [mx, my, a] of marks) { const s = T * 0.62; c.globalAlpha = Math.min(1, a * 0.92); c.drawImage(sp, mx - s / 2, my - s / 2, s, s); } c.restore(); }
-      f.dbg = { gpu: true, pulses: next, shards: GS.shards.length, parts: GS.parts.filter(p => p.on).length, skull: SKL().stats() };
+      // the fragments: small dark shards of the skull (the 2D's dark body), tumbling as they rise
+      if (FL.length) { const B = SKL(), kf = T, L = []; for (const [q, qx, qy, a, sz] of FL) { const ax = q.ax, al = Math.hypot(ax[0], ax[1], ax[2]) || 1, ang = q.rot, c0 = Math.cos(ang), s0 = Math.sin(ang), n = [ax[0] / al, ax[1] / al, ax[2] / al], t0 = 1 - c0;
+          const Rm = [[t0 * n[0] * n[0] + c0, t0 * n[0] * n[1] + s0 * n[2], t0 * n[0] * n[2] - s0 * n[1]], [t0 * n[0] * n[1] - s0 * n[2], t0 * n[1] * n[1] + c0, t0 * n[1] * n[2] + s0 * n[0]], [t0 * n[0] * n[2] + s0 * n[1], t0 * n[1] * n[2] - s0 * n[0], t0 * n[2] * n[2] + c0]];
+          L.push({ m: q.m, R: Rm, p: [(qx - X) / kf, 0, -(qy - Y) / kf / B.EYW[2] * -1], s: sz * 1.7 / (0.24 * kf), spill: 0, glow: 0, a }); }
+        B.drawShards(c, X, Y, kf, L, t); }
+      f.dbg = { gpu: true, pulses: next, shards: GS.frags.length, cracks: GS.cr ? GS.cr.length : 0, skull: SKL().stats() };
     }
     const F = H.add({ life: LIFE, x: me.x, y: me.y, HZ: 0,
       update(dt, f) {

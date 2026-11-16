@@ -35,6 +35,7 @@ const path = require('path');
           if (id !== sk2[s].id) out.bad.push(['not deterministic', tier, id]);
           if (!K.skillPool(tier, el, s).includes(id)) out.bad.push(['not in pool', tier, el, s, id]);
           if (tier <= 4 && elem) out.bad.push(['elemental at ' + tier, id]);
+          { const tg = K.skillElems(id); if (tg && !tg.includes(el)) out.bad.push(['v392 tagged move on another element', el, id]); }
           if (tier === 5 && (!elem || six || id.split(':')[1] !== el)) out.bad.push(['bad 5★', el, id]);
           if (tier === 6 && (!elem || !six || id.split(':')[1] !== el)) out.bad.push(['bad 6★', el, id]);
           if (id === 'y6:sunthrone' && ['earth', 'wind', 'dark'].includes(el)) out.sunBad.push(el);
@@ -55,10 +56,29 @@ const path = require('path');
   ok(pools.split, 'each element: 5★ list = its moves minus the 6★ list; the two never overlap');
   ok(pools.n >= 900 && [3, 4, 5, 6].every(t => pools.counts[t] >= 100), 'rolled many pets of every tier', pools.counts);
   ok(!pools.bad.length, 'every roll is deterministic and from the right pool: nothing elemental at 1–4★, 6★ moves never at 5★, 6★ only from its list', pools.bad.slice(0, 6));
-  ok(!pools.sunBad.length && pools.lowPool[0] === 33 && !pools.lowPool[2] && pools.lowPool[3], '1–4★ pool: innate + STAR4/5/6 (Throne of the Sun not for earth, wind, dark)', pools.lowPool);
+  ok(!pools.sunBad.length && pools.lowPool[0] === 24 && !pools.lowPool[2] && pools.lowPool[3], '1–4★ pool: innate + STAR4/5/6 minus other elements\' tagged moves (fire: 24 Strongs; Throne of the Sun not for earth, wind, dark)', pools.lowPool);
   ok(pools.lowKinds.innate > 5 && pools.lowKinds.s4 > 5 && pools.lowKinds.s5 > 5 && pools.lowKinds.golden >= 4, 'low-tier rolls cover the innate kit, the 4★, 5★ and golden 6★ moves', pools.lowKinds);
   ok(pools.seen[5] > 40 && pools.seen[6] > 20, 'five- and six-stars roll many different moves', pools.seen);
   ok(!pools.kitBad.length, 'the Tower kit uses the rolled skills (petSkills -> innateAbility -> petKit)', pools.kitBad.slice(0, 3));
+
+  /* ---- 1b. (v392 K) element-tagged moves: never rolled for another element ---- */
+  const tags = await page.evaluate(() => {
+    const P = window.__pp, K = P.skillsK, out = { poolBad: [], rollBad: [], byEl: {}, tagHits: {}, n: 0 };
+    // every pool of every element and slot holds no move tagged for another element, and keeps its own
+    for (const e of P.E8_ORDER) for (const s of ['strong', 'ult']) for (const t of [3, 4]) { const pool = K.skillPool(t, e, s); pool.forEach(id => { const tg = K.skillElems(id); if (tg && !tg.includes(e)) out.poolBad.push([e, id]); }); }
+    out.fireHasInferno = K.skillPool(4, 'fire', 'ult').includes('y4:inferno'); out.waterInferno = K.skillPool(4, 'water', 'ult').includes('y4:inferno'); out.waterTidal = K.skillPool(3, 'water', 'ult').includes('y4:tidal');
+    // many pets, many seeds: rolls
+    let seed = 4242; const R = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+    for (let i = 0; i < 300; i++) { const p = P.newPetFields('E' + i, P.summonGenome(i % 2 ? 4 : 3, R)), el = P.petElement(p);
+      for (let j = 0; j < 6; j++) { p.dna = Object.assign({}, p.dna, { seed: 1 + Math.floor(R() * 2e9) }); const sk = P.skillsK.rollSkills(p); out.n++; out.byEl[el] = (out.byEl[el] || 0) + 1;
+        for (const s of ['strong', 'ult']) { const tg = K.skillElems(sk[s].id); if (tg) { out.tagHits[sk[s].id] = (out.tagHits[sk[s].id] || new Set()).add(el); if (!tg.includes(el)) out.rollBad.push([el, sk[s].id]); } } } }
+    for (const k in out.tagHits) out.tagHits[k] = [...out.tagHits[k]].join('/');
+    out.why = K.skillWhyNot('y4:inferno', 4, 'water', 'ult'); out.whyOK = K.skillWhyNot('y4:inferno', 4, 'fire', 'ult');
+    return out;
+  });
+  ok(!tags.poolBad.length && tags.fireHasInferno && !tags.waterInferno && tags.waterTidal, 'v392: no 1–4★ pool holds a move tagged for another element (Inferno Ring: fire\'s, not water\'s)', tags.poolBad.slice(0, 4));
+  ok(tags.n >= 1800 && !tags.rollBad.length && Object.keys(tags.byEl).length === 8 && Object.keys(tags.tagHits).length > 10, 'v392: across 1800 low-tier rolls of all 8 elements, a tagged move only ever rolls for its own element', { byEl: tags.byEl, rolled: tags.tagHits, bad: tags.rollBad.slice(0, 4) });
+  ok(tags.why === 'Fire move: the child is Water' && tags.whyOK === '', 'v392: fusion\'s reason for a tagged move: "Fire move: the child is Water"', tags.why);
 
   /* ---- 2. the one-time migration ---- */
   const mig = await page.evaluate(() => {
@@ -81,9 +101,26 @@ const path = require('path');
     const s3 = P.sanitize(o3), s4 = P.sanitize(JSON.parse(JSON.stringify(Object.assign({}, s3, { room: undefined }))));
     return { v1: s1.skillsV, same: JSON.stringify(ids(s1)) === JSON.stringify(ids(s2)), rolledOK, decks, kept: s3.skills.strong, kept2: s4.skills.strong, v3: s3.skillsV, n: pets(s1).length, lowPet };
   });
-  ok(mig.v1 === 1 && mig.same && mig.rolledOK && mig.n === 6, 'migration: every pet of an old save is re-rolled by its seed, the same every time, and marked done (skillsV 1)', { v: mig.v1, same: mig.same, rolled: mig.rolledOK });
+  ok(mig.v1 === 2 && mig.same && mig.rolledOK && mig.n === 6, 'migration: every pet of an old save is re-rolled by its seed, the same every time, and marked done (skillsV 2)', { v: mig.v1, same: mig.same, rolled: mig.rolledOK });
   ok(mig.decks.lead.strong === 'chain' && !mig.decks.lead.ult && mig.decks.o2.ult === 'megabeam' && !mig.decks.o2.strong && !(mig.decks.ov && (mig.decks.ov.strong || mig.decks.ov.ult)), 'migration: ability cards stay equipped; elemental moves and old fusion Strong/Ult overrides are taken out', mig.decks);
-  ok(mig.kept.id === 'x6:midas' && mig.kept.of === 'Zed' && mig.kept2.id === 'x6:midas' && mig.v3 === 1, 'migration runs once: a saved (fusion-given) skill is kept on later loads', [mig.kept, mig.kept2]);
+  // (v392 K) a v1 save: only the slots whose move is wrong for the pet's element are rolled again (by the seed); valid moves stay
+  const mig2 = await page.evaluate(() => {
+    const P = window.__pp, K = P.skillsK, st = P.st; let seed = 77; const R = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+    let wat = null, fir = null; for (let i = 0; i < 2000 && !(wat && fir); i++) { const p = P.newPetFields('M' + i, P.summonGenome(i % 2 ? 4 : 3, R)), e = P.petElement(p); if (e === 'water' && !wat) wat = p; if (e === 'fire' && !fir) fir = p; }
+    wat.name = 'Wat'; fir.name = 'Fir';
+    wat.skills = { strong: { id: 's:rush', src: 'roll' }, ult: { id: 'y4:inferno', src: 'roll' } };            // a water pet with Inferno Ring: wrong
+    fir.skills = { strong: { id: 'x4:glacier', src: 'parent', of: 'Q' }, ult: { id: 'y4:inferno', src: 'roll' } };   // fire with Glacier Wall (ice): wrong; Inferno: fine
+    st.others = [wat, fir]; st.skills = { strong: { id: 'x6:midas', src: 'roll' }, ult: { id: 'y6:crownfall', src: 'parent', of: 'Z' } };   // open moves: kept
+    const o = P.serialize(); o.skillsV = 1;
+    const a = P.sanitize(JSON.parse(JSON.stringify(o))), b = P.sanitize(JSON.parse(JSON.stringify(o)));
+    const W = a.others.find(p => p.name === 'Wat'), F = a.others.find(p => p.name === 'Fir'), W2 = b.others.find(p => p.name === 'Wat'), F2 = b.others.find(p => p.name === 'Fir');
+    const inPool = p => ['strong', 'ult'].every(s => K.skillPool(K.skillTier(p), P.petElement(p), s).includes(p.skills[s].id));
+    return { v: a.skillsV, W: W.skills, F: F.skills, lead: a.skills, same: JSON.stringify([W.skills, F.skills]) === JSON.stringify([W2.skills, F2.skills]), wRoll: K.rollSkills(W).ult.id, fRoll: K.rollSkills(F).strong.id, okW: inPool(W), okF: inPool(F) };
+  });
+  ok(mig2.v === 2 && mig2.W.strong.id === 's:rush' && mig2.W.ult.id !== 'y4:inferno' && mig2.W.ult.id === mig2.wRoll && mig2.okW, 'v1 -> v2: a water pet\'s Inferno Ring is rolled again (by its seed); its valid Strong stays', mig2.W);
+  ok(mig2.F.ult.id === 'y4:inferno' && mig2.F.strong.id !== 'x4:glacier' && mig2.F.strong.id === mig2.fRoll && mig2.okF && mig2.lead.strong.id === 'x6:midas' && mig2.lead.ult.id === 'y6:crownfall' && mig2.lead.ult.of === 'Z', 'v1 -> v2: a fire pet keeps Inferno Ring, loses Glacier Wall; open moves and fusion gifts are kept', { F: mig2.F, lead: mig2.lead });
+  ok(mig2.same, 'v1 -> v2 is deterministic');
+  ok(mig.kept.id === 'x6:midas' && mig.kept.of === 'Zed' && mig.kept2.id === 'x6:midas' && mig.v3 === 2, 'migration runs once: a saved (fusion-given) skill is kept on later loads', [mig.kept, mig.kept2]);
 
   /* ---- 3. the menu: no elemental learn or equip for players; the dev setting equips anything on anyone ---- */
   const devUI = await page.evaluate(() => { const P = window.__pp; P.openDev(); const b = document.querySelector('[data-go="dev-moves"]'), r = { label: document.getElementById('devMvLbl').textContent, note: b.parentElement.innerText.slice(0, 60), aria: b.getAttribute('aria-checked'), def: !!P.st.devMoves }; b.click(); r.after = !!P.st.devMoves; const o = P.serialize(); r.saved = o.devMoves === true && !!P.sanitize(o).devMoves; b.click(); r.back = !!P.st.devMoves; P.closeSheet(); return r; });

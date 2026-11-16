@@ -11,6 +11,8 @@ const path = require('path'), fs = require('fs');
   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, hasTouch: true });
   const errors = []; page.on('pageerror', e => errors.push(e.message + ' @ ' + (e.stack || '').split('\n').slice(1, 3).join(' ')));
   page.on('console', m => { if ((m.type() === 'error' || m.type() === 'warning') && /Dead Scream|GLM|GFX|shader/i.test(m.text())) errors.push('console: ' + m.text().slice(0, 400)); });
+  // (SEED=n: the page's Math.random seeded from the start, so two runs (the 2D and the GPU picture of one build) see the same pet, map and game)
+  if (process.env.SEED) await page.addInitScript(sd => { let x = sd >>> 0 || 1; Math.random = () => { x = (x * 1664525 + 1013904223) >>> 0; return x / 4294967296; }; }, +process.env.SEED);
   await page.addInitScript(g => { window.__NG_GL = g ? 1 : 0; window.__DS_GL = g ? 1 : 0; window.__DS_GLHQ = 1; }, GPU);
   await page.goto('file://' + path.resolve(__dirname, '..', process.env.HTML || 'test.html'));
   await page.waitForFunction(() => window.__pp, null, { timeout: 180000 }); await page.waitForTimeout(300);
@@ -29,7 +31,8 @@ const path = require('path'), fs = require('fs');
     for (let k = 0; k < 120 && D.ELEM.fx.length <= nfx; k++) G.update(1 / 60); window.__F = D.ELEM.fx[nfx]; return { ok: !!window.__F, R }; }, [EVO]);
   if (!setup.ok) { console.log('FAIL no effect'); process.exit(1); }
   const Wn = [7, 8.5, 10, 12, 14.5, 17, 20][EVO - 1], TE = 1.1 + Wn, TB = TE + 0.5, P0 = 1.4;
-  const moments = [['form', 0.75], ['risen', 1.3], ['scream', P0 + 0.5 * 3 + 0.06], ['wave', P0 + 0.5 * 4 + 0.22], ['late', TE - 0.62], ['jawshut', TE + 0.3], ['burst', TB + 0.08], ['shards', TB + 0.42], ['ash', TB + 1.1]];
+  let moments = [['form', 0.75], ['risen', 1.3], ['scream', P0 + 0.5 * 3 + 0.06], ['wave', P0 + 0.5 * 4 + 0.22], ['late', TE - 0.62], ['jawshut', TE + 0.3], ['burst', TB + 0.08], ['shards', TB + 0.42], ['ash', TB + 1.1]];
+  if (process.env.MOMENTS) { const keep = process.env.MOMENTS.split(','); for (let i = moments.length - 1; i >= 0; i--) if (!keep.includes(moments[i][0])) moments.splice(i, 1); }
   for (const [name, at] of moments) {
     const r = await page.evaluate(async at => { const P = window.__pp, G = P.arc.game, D = G._dbg, F = window.__F; let n = 0;
       window.__DS_GLQ = 0.06;   /* (the frames on the way drawn with the skull tiny: a software rasteriser is slow; the last one at full size) */

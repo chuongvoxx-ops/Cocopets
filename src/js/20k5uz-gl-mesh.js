@@ -942,58 +942,33 @@ void main() {
     gl_FragColor = vec4(vec3(tone(col.r), tone(col.g), tone(col.b)) * uAlpha * alK, uAlpha * alK); return; }
   /*</FE-DEMON-MAT>*/
   /*<DS-SKULL-MAT ids 130..134 (v391 U4: 20k5k2-dark-deadscream-skull.js)>*/
-  else if (id >= 130 && id <= 134) {   // ---- Dead Scream's skull (v391 U4): 130 weathered bone (vA.x - 130 = 0.3 x the depth in an orbit or the nose, vA.y how thin the bone is, vA.z occlusion), 131 a broken shard of bone (vA.y its facet's edge), 133 a tooth (133.3 the lower row), 134 obsidian (vA.y facet edge, vA.z 1 - along it). uGlow the scream's light, uGlow2 how far the cracks have spread, uSpill dissolved (0 whole .. 1 gone, a burning violet edge), uWear the soul fire (1 .. 0 out)
-    vec3 q = L, vio = vec3(0.6, 0.22, 1.0), hot = vec3(0.95, 0.78, 1.0); float tt = uTime, g0 = clamp(uGlow, 0.0, 2.0), sub = vA.x - float(id), fire = clamp(uWear, 0.0, 1.0);
-    float n1 = (vn(q.xy * 3.0) + vn(q.yz * 3.0 + 3.7) + vn(q.zx * 3.0 + 7.1)) / 3.0, n2 = (vn(q.xy * 9.0 + 1.3) + vn(q.yz * 9.0 + 5.1) + vn(q.zx * 9.0 + 2.2)) / 3.0, n3 = (vn(q.xy * 27.0) + vn(q.yz * 27.0 + 1.9) + vn(q.zx * 27.0 + 4.4)) / 3.0;
-    float de = 0.72 * n1 + 0.28 * n2 - (uSpill * 1.12 - 0.06), alK = 1.0, emb = 0.0;   // (the dissolve: noise below the threshold is gone, a hot violet edge just above it, the edge itself faded)
-    if (uSpill > 0.001) { if (de < 0.0) discard; alK = smoothstep(0.0, 0.03, de); emb = 1.0 - smoothstep(0.02, 0.11, de); }
-    vec3 nm = normalize(NL); if (uLow < 0.5 && id != 134) nm = normalize(nm + (vec3(vn(q.yz * 31.0), vn(q.zx * 31.0 + 3.0), vn(q.xy * 31.0 + 7.0)) - 0.5) * 0.16 + (vec3(n2, n3, n1) - 0.5) * 0.08);   // (pores, pits and weathering)
-    vec3 nw = normalize(uM0 * nm.x + uM1 * nm.y + uM2 * nm.z); if (dot(nw, n) < 0.0) nw = -nw;
-    float ndl = dot(nw, uLK), ndv = max(0.0, dot(nw, uV)), hm = 0.5 + 0.5 * dot(nw, uUP); vec3 hh = normalize(uLK + uV); float nh = max(0.0, dot(nw, hh));
-    // the cracks: a warped cell network over the vault and face, spreading from the crown down as uGlow2 rises; a dark cut, violet light leaking out of it
-    float crk = 0.0, crH = 0.0;
-    if (id == 130 || id == 133) { vec3 cq = q - vec3(0.0, -0.16, 0.3); vec2 su = vec2(atan(cq.x, cq.y) * 1.25, cq.z * 1.1), w = su * 2.7 + (vec2(vn(su * 4.0), vn(su * 4.0 + 5.2)) - 0.5) * 0.8, ci = floor(w), cf = fract(w); float f1 = 9.0, f2 = 9.0;
-      for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) { vec2 gg = vec2(float(i), float(j)), r = gg + vec2(hs(ci + gg), hs(ci + gg + 17.3)) - cf; float d = dot(r, r); if (d < f1) { f2 = f1; f1 = d; } else if (d < f2) f2 = d; }
-      float ce = sqrt(f2) - sqrt(f1) + (vn(w * 9.0) - 0.5) * 0.03, spread = uGlow2 * 1.8 - length(su - vec2(0.0, 0.95)) * 0.8 + (vn(su * 2.3 + 9.0) - 0.5) * 0.6;
-      float cov = smoothstep(0.0, 0.25, spread) * smoothstep(0.46, 0.6, vn(su * 1.7 + 4.0) * 0.7 + vn(w * 0.9 + 2.0) * 0.3 + 0.14 * uGlow2), cw = 0.5 + 0.7 * vn(w * 2.3 + 7.0);   // (a broken network: whole runs of it missing, each run its own width)
-      crk = (1.0 - smoothstep(0.02 * cw, 0.065 * cw, ce)) * cov; crH = (1.0 - smoothstep(0.05, 0.28, ce)) * cov; }
-    vec3 col; float a3 = ao;
-    if (id == 134) {   // obsidian: black glass, the studio sky in it, a sharp glint, violet light along its facet edges and up toward the tip
-      float ec; vec3 r = 2.0 * dot(nw, uV) * nw - uV; float ev = env(r, 0.06, ec), fr = 0.05 + 0.95 * pow(1.0 - ndv, 5.0);
-      col = vec3(0.012, 0.008, 0.02) * (0.4 + max(0.0, ndl)) + (0.1 + 0.9 * fr) * (ev * vec3(0.5, 0.45, 0.62) + ec * uRim * 0.6) + pow(nh, 260.0) * vec3(2.2, 2.0, 2.6) * step(0.0, ndl);
-      col += vio * (smoothstep(0.8, 1.0, edge) * 0.22 + pow(1.0 - ao, 4.0) * 0.3) * (0.35 + 0.7 * g0) + vio * smoothstep(0.62, 0.9, vn(q.xz * 13.0 + q.y * 5.0)) * 0.06 * (0.5 + g0);
-      a3 = 1.0; }
-    else {
-      vec3 alb = mix(vec3(0.42, 0.4, 0.4), vec3(0.7, 0.63, 0.5), smoothstep(0.3, 0.72, n1)) * (0.8 + 0.32 * n2) * (0.86 + 0.14 * smoothstep(0.2, 0.6, n3));   // ash grey to old ivory, mottled, pitted
-      float stn = smoothstep(0.5, 0.85, vn(vec2(q.x * 8.0 + n1 * 2.0, q.z * 1.1 + q.y * 2.5))); alb = mix(alb, vec3(0.2, 0.13, 0.16), stn * 0.32);   // (stains run down it)
-      float rough = 0.62, spK = 0.14;
-      if (id == 133) { float lo = step(0.15, sub), root = lo > 0.5 ? smoothstep(-1.0, -1.05, q.z) : smoothstep(-0.88, -0.82, q.z); alb = mix(vec3(0.68, 0.62, 0.47) * (0.86 + 0.25 * n2), vec3(0.22, 0.15, 0.13), root * 0.75); rough = 0.35; spK = 0.32; }
-      if (id == 130) { float sz = smoothstep(0.42, 0.62, q.z), su1 = 1.0 - smoothstep(0.004, 0.014, abs(q.y - 0.04 + 0.025 * abs(fract(q.x * 9.0) - 0.5) * 4.0 - 0.05 * q.z)), sa = (1.0 - smoothstep(0.004, 0.014, abs(q.x + 0.02 * (abs(fract(q.y * 10.0) - 0.5) * 4.0 - 1.0)))) * step(q.y, 0.0);
-        alb *= 1.0 - 0.55 * max(su1, sa) * sz; }   // (the coronal and sagittal sutures, zigzag, over the top)
-      if (id == 131) alb = mix(alb, vec3(0.5, 0.45, 0.42), 0.15 + 0.3 * (1.0 - edge));   // (a shard: weathered bone outside, the broken faces paler and porous)
-      alb = mix(vec3(0.07, 0.045, 0.08), alb, smoothstep(0.2, 0.85, ao));   // (grime in the hollows)
-      float wrap = max(0.0, (ndl + 0.3) / 1.3); vec3 amb = mix(vec3(0.08, 0.05, 0.11), vec3(0.34, 0.33, 0.38), hm) * uAmb;
-      vec3 under = vio * max(0.0, -dot(nw, uUP) + 0.15) * (0.22 + 0.3 * g0);   // (the violet light of the aura below and the mouth)
-      float spec = pow(nh, mix(70.0, 18.0, rough)) * spK * smoothstep(-0.05, 0.25, ndl);
-      col = alb * (wrap * wrap * vec3(1.55, 1.45, 1.36) * (0.45 + 0.55 * ao) + amb * ao * ao + under * ao) + spec * vec3(0.95, 0.92, 1.05) * ao;
-      col += pow(1.0 - ndv, 2.8) * max(0.0, dot(nw, uLR) + 0.35) * uRim * 0.42 * ao;
-      col += vio * edge * (0.14 + 0.34 * g0) * (0.35 + 0.65 * pow(1.0 - ndv, 1.4)) * (id == 130 ? 1.0 - smoothstep(0.0, 0.06, sub) : 0.0);   // (thin bone lit through, violet; not round the hollows' rims)
-      // near the orbits the bone catches the soul fire; near the mouth, the scream's light
-      vec2 so = vec2(abs(q.x) - 0.33, q.z + 0.14); float sglow = exp(-dot(so, so) * 14.0) * smoothstep(0.2, 0.75, q.y), mo = exp(-(q.x * q.x * 6.0 + (q.z + 0.98) * (q.z + 0.98) * 22.0)) * smoothstep(0.1, 0.6, q.y);
-      col += vio * (sglow * 0.28 * fire * (0.5 + g0) + mo * 0.5 * g0) * (0.4 + 0.6 * ao);
-      if (id == 130 && sub > 0.005) {   // an orbit's or the nose's wall: a carved hollow, dark; the orbits' backs burn with the soul fire
-        float cav = clamp(sub / 0.3, 0.0, 1.0), isN = (1.0 - smoothstep(0.1, 0.2, abs(q.x))) * (1.0 - smoothstep(-0.3, -0.24, q.z));
-        col *= mix(1.0, 0.035, smoothstep(0.0, 0.3, cav));
-        float fl = vn(vec2(q.x * 9.0, q.z * 8.0 - tt * 3.4)) * 0.6 + vn(vec2(q.x * 21.0 + 3.0, q.z * 17.0 - tt * 6.1)) * 0.4, fk = smoothstep(0.55, 1.0, cav) * (1.0 - isN * 0.9);
-        vec2 sa = vec2(abs(q.x) - 0.33, (q.z + 0.2) * 0.62 - 0.03 * sin(q.x * 31.0 + tt * 7.0)); float core = exp(-dot(sa, sa) * 70.0) * 0.55, cr2 = exp(-dot(sa, sa) * 260.0);   // (the fire burns low at the back of the orbit, a flickering flame-shaped heart; the walls round it stay dark)
-        col += (vio * 0.55 * core + mix(vio, hot, 0.4) * cr2 * 0.5) * fk * (0.35 + 0.9 * fl) * fire * (0.6 + 0.9 * g0) + vio * smoothstep(0.1, 0.4, cav) * (1.0 - cav) * max(0.0, dot(nw, uUP)) * 0.12 * fire * (0.5 + g0); }   // (and its light caught on the lower inner walls)
-      col *= 1.0 - 0.75 * crk;
-      col += (mix(vio, hot, crk * 0.6) * crk * 1.7 + vio * crH * 0.28) * (0.55 + 0.85 * g0) * (0.8 + 0.2 * sin(tt * 5.0 + q.z * 9.0 + q.x * 4.0));
-      if (id == 131) col += mix(vio, hot, 0.4) * smoothstep(0.55, 1.0, edge) * (0.5 + 0.8 * g0);   // (a shard's broken edges glow)
-    }
-    col = mix(col, hot * 1.4, emb * 0.85) + vio * emb * 0.4;
-    col = min(vec3(tone(col.r), tone(col.g), tone(col.b)), vec3(1.0));
-    float aOut = uAlpha * alK; gl_FragColor = vec4(col * aOut, aOut); return; }
+  else if (id >= 130 && id <= 134) {   // ---- Dead Scream's skull (v391 U4), shaded exactly as its 2D picture (20k5k buildSkull): its five-step obsidian ramp (near black to a cold lilac grey) in soft cel bands from a light at the upper left, a tight obsidian highlight broken by noise and a broad sheen, a violet bounce rim from below right and a cold one top left, the holes sunk to void with a restrained violet depth, a soft ink edge; the socket and nose light added by uGlow; uSpill the crumble's threshold. 130 bone (vA.x - 130 = 0.3 x the depth in a hole), 131 a fragment, 133 a tooth, 134 obsidian (the crown); uKind 2 at Celestial (the layered holes), 1 a fragment in flight
+    vec3 q = L; float sub = vA.x - float(id), CEL = step(1.5, uKind);
+    vec3 EX = normalize(cross(uV, uUP)), EY = cross(uV, EX);   // (the screen's right and down)
+    vec3 nm = normalize(uM0 * NL.x + uM1 * NL.y + uM2 * NL.z); if (dot(nm, n) < 0.0) nm = -nm;
+    float nx = dot(nm, EX), ny = dot(nm, EY), nzv = max(0.0, dot(nm, uV));
+    vec3 Ls = normalize(EX * -0.5 + EY * -0.62 + uV * 0.6), Hs = normalize(Ls + uV); float ndl = max(0.0, dot(nm, Ls)), ndh = max(0.0, dot(nm, Hs));
+    vec2 p2 = vec2(q.x, -q.z);   // (the 2D picture's own units: x right, y down from the brow)
+    float n1 = vn(p2 * 7.0 + vec2(3.0, 0.0)), n2 = vn(p2 * 23.0 + vec2(0.0, 7.0));
+    float cav = id == 130 ? clamp(sub / 0.3, 0.0, 1.0) : 0.0, hm = pow(smoothstep(0.0, 0.55, cav), 0.8), hq = 1.0 - smoothstep(0.0, 0.4, hm), ao2 = id == 131 || id == 134 ? 1.0 : max(0.22, mix(0.35, 1.0, ao)), TM = id == 133 ? 1.0 : 0.0;
+    float bands = 0.25 * smoothstep(0.08, 0.22, ndl) + 0.35 * smoothstep(0.38, 0.52, ndl) + 0.4 * smoothstep(0.7, 0.82, ndl);
+    float bb = clamp(0.08 + 0.9 * ((0.62 * bands + 0.38 * ndl) * (0.82 + 0.3 * n1) * ao2 + 0.22 * TM * (0.4 + ndl)), 0.0, 1.0) * 4.0;
+    vec3 RA = vec3(8.0, 5.0, 15.0), RB = vec3(22.0, 11.0, 40.0), RC = vec3(43.0, 18.0, 66.0), RD = vec3(80.0, 64.0, 100.0), RE = vec3(138.0, 124.0, 158.0);
+    vec3 col = bb < 1.0 ? mix(RA, RB, bb) : bb < 2.0 ? mix(RB, RC, bb - 1.0) : bb < 3.0 ? mix(RC, RD, bb - 2.0) : mix(RD, RE, bb - 3.0);
+    float n4 = ndh * ndh * ndh * ndh, spec = pow(ndh, 34.0) * (0.45 + 0.55 * n2) * ao2 * hq * (id == 134 ? 1.8 : 1.0), sheen = n4 * ndh * ndh * 0.1 * ao2;
+    col += vec3(210.0, 194.0, 255.0) * spec + vec3(120.0, 100.0, 170.0) * sheen;
+    float fr = pow(1.0 - nzv, 2.2) * (0.25 + 0.75 * hq), rim = fr * clamp(0.25 + ny * 0.9 + nx * 0.35, 0.0, 1.0) * (0.6 + 0.4 * ao2) * 0.75, cold = fr * clamp(-ny * 0.8 - nx * 0.5, 0.0, 1.0) * 0.25;
+    col += vec3(140.0, 70.0, 230.0) * rim + vec3(120.0, 110.0, 150.0) * cold;
+    if (hm > 0.0) { float k = hm * 0.92; if (CEL > 0.5) k *= 0.82 + 0.18 * cos(hm * 9.4248); col = mix(col, RA, k); col += vec3(109.0, 40.0, 168.0) * pow(hm, 3.0) * (CEL > 0.5 ? 0.3 : 0.22); }
+    col *= 0.28 + 0.72 * smoothstep(0.0, 0.28, nzv);   // (the soft ink edge, so it reads on a bright floor)
+    col /= 255.0;
+    if (id == 134) col += vec3(0.647, 0.361, 1.0) * smoothstep(0.75, 1.0, edge) * 0.22 * (0.4 + 0.6 * clamp(uGlow, 0.0, 1.0));   // (the crown's facet edges catch the violet)
+    if (id == 131) col = mix(vec3(0.0941, 0.0431, 0.1804) * (0.75 + 0.6 * ndl), col, 0.25);   // (a fragment: the 2D's dark body)
+    if (cav > 0.02) { float isN = (1.0 - smoothstep(0.1, 0.2, abs(q.x))) * (1.0 - smoothstep(-0.3, -0.24, q.z)), sk = cav * (1.0 - 0.4 * isN), lc0 = pow(sk, 1.6), lc1 = pow(sk, 3.0), lc2 = pow(sk, 6.0);   // (the socket and nose light: deep violet to lavender toward the back)
+      col += min(vec3(1.0), (vec3(109.0, 40.0, 168.0) * lc0 * 0.7 + vec3(165.0, 92.0, 255.0) * lc1 * 0.5 + vec3(208.0, 174.0, 255.0) * lc2 * 0.6) / 255.0) * clamp(lc0 * 1.2, 0.0, 1.0) * uGlow; }
+    float aK = 1.0;
+    if (uSpill > 0.001) { float nzd = vn(p2 * 3.9 + vec2(7.0, 0.0)) * 0.62 + vn(p2 * 12.2) * 0.18 + clamp((1.47 + q.z) / 2.85, 0.0, 1.0) * 0.2, e2 = nzd - uSpill * 1.05; if (e2 < 0.0) discard; float k2 = smoothstep(0.0, 0.07, e2); col += vec3(0.745, 0.392, 1.0) * (1.0 - k2); aK = smoothstep(0.0, 0.02, e2) * 0.7 + 0.3 * k2; }   // (the crumble, as the 2D's: a violet ember line at its edge)
+    col = min(col, vec3(1.0)); float aOut = uAlpha * aK; gl_FragColor = vec4(col * aOut, aOut); return; }
   /*</DS-SKULL-MAT>*/
   /*<DOOM-MAT ids 135..139 (v391 U2: 20k5f-dark-ult-5.js)>*/
   else if (id >= 135 && id <= 139) {   // ---- Doomsday's meteor (v391 U2): 135 the core (craggy obsidian: near-black volcanic glass, conchoidal ripples, sharp glints on the facets, a network of violet-hot fissures; vA.y a facet ridge, vA.z how proud the surface stands: 0 deep in a crevice .. 1 a peak), 136 a broken chunk of it (the same, its fissures cooling with uFx). uGlow the fissures' heat, uGlow2 the impact's white-hot flare, uSpill the ground's violet light from below, uWear a per-part seed

@@ -2,7 +2,7 @@
    The causeway runs north out of the sea into a round limestone vestibule (ivory walls over a black tidal stain, thick
    brass ribs, turquoise light through the cracks, a ring of shallow water round a dry dais, an oculus of moonlight). Three
    broad sealed gates stand in its walls, each with a carved direction, a big emblem and an objective plaque:
-     WEST  the shield        The Last Beacon      keep the crystal intact for 30 s against waves of 60 reef gnawers
+     WEST  the shield        The Last Beacon      keep the crystal intact for 30 s against waves of 120 reef gnawers (v392 B2)
      EAST  crossed fangs     The Sunken Muster    50 ordinary monsters (5 groups of 10), then Varkul, the Chainbound
      NORTH the spiral        The Hundredfold Roll 100 bell rollers destroyed only by their own collisions; move and roll
    On the dais three empty sockets stand round a recessed seam, brass channels running in to it; "Crystals returned: n/3".
@@ -50,7 +50,7 @@ var BELFRY_HALL = (() => {
   const BR = {
     E: { k: 'E', dir: 'EAST', name: 'The Sunken Muster', crystal: 'Fang Crystal', emblem: 'fangs', col: '#FF6F61', hi: '#FFD3CC', deep: '#A8302A', plaque: ['THE SUNKEN MUSTER', 'Defeat 50 monsters,', 'then the mini boss'] },
     W: { k: 'W', dir: 'WEST', name: 'The Last Beacon', crystal: 'Ward Crystal', emblem: 'shield', col: '#7FEFC0', hi: '#DFFFF0', deep: '#2E9C78', plaque: ['THE LAST BEACON', 'Keep the crystal intact', 'for 30 seconds'] },
-    N: { k: 'N', dir: 'NORTH', name: 'The Hundredfold Roll', crystal: 'Spiral Crystal', emblem: 'spiral', col: '#AEE2FF', hi: '#F2FBFF', deep: '#3E86C8', plaque: ['THE HUNDREDFOLD ROLL', 'Make 100 rollers collide:', 'move and roll only'] },
+    N: { k: 'N', dir: 'NORTH', name: 'The Hundredfold Roll', crystal: 'Spiral Crystal', emblem: 'spiral', col: '#AEE2FF', hi: '#F2FBFF', deep: '#3E86C8', plaque: ['THE HUNDREDFOLD ROLL', 'Make 100 rollers collide,', 'then defeat two foes'] },
   };
   const KEYS = ['W', 'E', 'N'];
 
@@ -357,7 +357,7 @@ var BELFRY_HALL = (() => {
   const rollerPaint = (c, Pp) => { const r = Pp * 0.4, y = -r; const g = c.createRadialGradient(-r * 0.35, y - r * 0.4, r * 0.1, 0, y, r); g.addColorStop(0, '#3D58A8'); g.addColorStop(0.55, '#1A2A62'); g.addColorStop(1, '#0A1230'); c.fillStyle = g; c.beginPath(); c.arc(0, y, r, 0, TAU); c.fill(); c.strokeStyle = '#D2AE5E'; c.lineWidth = r * 0.22; c.beginPath(); c.ellipse(0, y, r, r * 0.3, 0, 0, Math.PI); c.stroke(); c.fillStyle = '#DFFFFF'; ell(c, 0, y - r * 0.3, r * 0.3, r * 0.06); c.fill(); };
 
   /* ---- the balance knobs (the lead's tuning pass; tests read them) ---- */
-  const TUNE = { CRAWL_K: 1.15, LEECH_K: 0.9, CRAWL_DMG: 0.55, LEECH_DMG: 0.5, GNAW_K: 0.55, GNAW_DMG: 0.3, BITE: 3.0, INTEG: 100, WIND: 1.0, REC: 0.75, ROLL_DMG: 0.12, VARKUL_K: 105, VARKUL_KHARROX: 0.25 };
+  const TUNE = { CRAWL_K: 1.15, LEECH_K: 0.9, CRAWL_DMG: 0.55, LEECH_DMG: 0.5, GNAW_K: 0.5, GNAW_DMG: 0.3, BITE: 3.0, INTEG: 110,   /* v392 B2: 120 a wave: the queue refills each strike place at once and the crowd soaks shots, so a little more integrity and softer gnawers (clumps fall to area hits); still six strike places */ WIND: 1.0, REC: 0.75, ROLL_DMG: 0.12, VARKUL_K: 105, VARKUL_KHARROX: 0.25 };
   /* a small panel at the top of the screen (screen px) */
   function panel(c, x, y, w, h, col) { c.save(); c.fillStyle = 'rgba(6,18,26,.78)'; c.beginPath(); c.roundRect ? c.roundRect(x - w / 2, y, w, h, 10) : c.rect(x - w / 2, y, w, h); c.fill(); c.strokeStyle = rgba(col, 0.7); c.lineWidth = 1.5; c.stroke(); c.restore(); }
   function bar(c, x, y, w, h, k, c0, c1) { c.save(); c.fillStyle = 'rgba(0,0,0,.5)'; c.fillRect(x - 1, y - 1, w + 2, h + 2); const g = c.createLinearGradient(x, 0, x + w, 0); g.addColorStop(0, c0); g.addColorStop(1, c1); c.fillStyle = g; c.fillRect(x, y, w * clamp(k, 0, 1), h); c.fillStyle = 'rgba(255,255,255,.25)'; c.fillRect(x, y, w * clamp(k, 0, 1), h * 0.4); c.restore(); }
@@ -479,7 +479,7 @@ var BELFRY_HALL = (() => {
   /* ======================= WEST · THE LAST BEACON =======================
      A round chapel, ribbed windows on the dark sea, a pale mint crystal floating over a low brass pedestal in the middle,
      its shield of light on the floor. Three broad approaches (west, north, south), each outlined by a shallow trench.
-     One thirty-second timer; sixty reef gnawers a wave, twenty from each approach; a whole new wave the moment the last is
+     One thirty-second timer; 120 reef gnawers a wave, forty from each approach (v392 B2: was 60); a whole new wave the moment the last is
      cleared. Six strike places round the pedestal: the rest queue. Each bite has its own time; a bite at or before the
      deadline is resolved before the deadline is; at thirty seconds with integrity left the gnawers dissolve into foam */
   function trialWest(X, H, S, K) {
@@ -487,7 +487,7 @@ var BELFRY_HALL = (() => {
     const APP = [{ k: 'W', name: 'WEST', sp: { x0: 6.7, x1: 11.6, y0: 52.7, y1: 56.3 }, mouth: { x: C.x - C.r + 0.9, y: C.y }, dir: [1, 0] },
       { k: 'N', name: 'NORTH', sp: { x0: 22.7, x1: 26.3, y0: 35.7, y1: 41.6 }, mouth: { x: C.x, y: C.y - C.r + 0.9 }, dir: [0, 1] },
       { k: 'S', name: 'SOUTH', sp: { x0: 22.7, x1: 26.3, y0: 67.4, y1: 73.3 }, mouth: { x: C.x, y: C.y + C.r - 0.9 }, dir: [0, -1] }];
-    const NSLOT = 6, SLOT_R = 1.25, QR = 2.9, DUR = 30;
+    const NSLOT = 6, SLOT_R = 1.25, QR = 2.9, DUR = 30, W_PER = 40;   // v392 B2: 40 per approach, still six strike places
     const T = { B: 'W', state: 'idle', integ: TUNE.INTEG, wave: 0, deadline: 0, all: [], slots: new Array(NSLOT).fill(null), ev: [], crack: 0, bites: 0, hitFx: 0, waveN: [], crystalAt: { x: CR.x, y: CR.y + 0.05 }, crystalH: 2.9, foam: [], log: [] };
     const W = { live: false, cx: CR.x, cy: CR.y, QR, ai, claim, slotPos };
     const silent = m => { if (!m.dead) { m.dead = true; m.hp = 0; } };
@@ -509,12 +509,12 @@ var BELFRY_HALL = (() => {
       if (s.s === 'wind') { m.mode = 'block'; if (hitNow) { s.s = 'rec'; s.t = -0.4; X2.text(m.x, m.y - 0.75, 'Interrupted!', '#FFFFFF', 11); return; } if (e > 0.95) { s.s = 'slot'; return; } if (s.t >= TUNE.WIND) { bite(m, s.t0 + TUNE.WIND); s.s = 'rec'; s.t = 0; X2.slash(m.x + dx / d * 0.5, m.y + dy / d * 0.5, Math.atan2(dy, dx), 0.6, BR.W.col); } return; }
       if (s.s === 'rec') { m.mode = ''; if (s.t >= TUNE.REC) { if (e < 0.5) { s.s = 'wind'; s.t = 0; s.t0 = X2.g.t; } else s.s = 'slot'; } } }
     function spawnWave() { T.wave++; const pack = 975 + T.wave; let n = 0; const ns = [];
-      for (const a of APP) { const cols = a.k === 'W' ? 5 : 4, rows = 20 / cols; let k = 0;
-        for (let i = 0; i < 20; i++) { const cx = i % cols, ry = Math.floor(i / cols), x = lerp(a.sp.x0, a.sp.x1, (cx + 0.5) / cols) + (Math.random() - 0.5) * 0.25, y = lerp(a.sp.y0, a.sp.y1, (ry + 0.5) / rows) + (Math.random() - 0.5) * 0.25;
+      for (const a of APP) { const cols = a.k === 'W' ? 8 : 5, rows = W_PER / cols; let k = 0;   // v392 B2: forty from each approach (a wave of 120)
+        for (let i = 0; i < W_PER; i++) { const cx = i % cols, ry = Math.floor(i / cols), x = lerp(a.sp.x0, a.sp.x1, (cx + 0.5) / cols) + (Math.random() - 0.5) * 0.25, y = lerp(a.sp.y0, a.sp.y1, (ry + 0.5) / rows) + (Math.random() - 0.5) * 0.25;
           const m = X.spawnMon('reefgnawer', x, y, { pack, rift: true, aggro: true }); m.aggro = true; m.app = APP.indexOf(a); m.wave = T.wave; m.maxhp = m.hp = K.atk() * TUNE.GNAW_K; m.dmg *= TUNE.GNAW_DMG; m.spd *= 0.92 + Math.random() * 0.3; m.gn = null; T.all.push(m); n++; k++; }
         ns.push(k); X.splash(a.mouth.x - a.dir[0] * 1.5, a.mouth.y - a.dir[1] * 1.5, 1.6); }
       T.waveN.push(n); T.log.push({ wave: T.wave, n, per: ns });
-      X.banner(T.wave === 1 ? 'DEFEND THE BEACON' : `WAVE ${T.wave}`, T.wave === 1 ? 'Sixty reef gnawers, twenty from each approach' : 'The last wave is cleared: sixty more pour in', BR.W.col, 1.8, T.wave === 1); if (X.sfx.crash) X.sfx.crash(); }
+      X.banner(T.wave === 1 ? 'DEFEND THE BEACON' : `WAVE ${T.wave}`, T.wave === 1 ? 'A hundred and twenty reef gnawers, forty from each approach' : 'The last wave is cleared: a hundred and twenty more pour in', BR.W.col, 1.8, T.wave === 1); if (X.sfx.crash) X.sfx.crash(); }
     T.start = () => { T.state = 'run'; T.deadline = g.t + DUR; T.integ = TUNE.INTEG; WEST = W; W.live = true; spawnWave(); };
     const waveAlive = () => { let n = 0; for (const m of T.all) if (!m.dead && m.wave === T.wave) n++; return n; };
     T.update = dt => { if (T.state !== 'run') return;
@@ -605,7 +605,7 @@ var BELFRY_HALL = (() => {
     function unlock() { if (!T.locked) return; T.locked = false; g.trialLock = false; g.rollOnly = false; if (T.prevDK === undefined) delete g.dodgeK; else g.dodgeK = T.prevDK; }
     T.lock = lock; T.unlock = unlock;
     T.reset = () => { unlock(); T.rol = HOME.map((p, i) => ({ i, x: p.x, y: p.y, s: 'idle', t: 0, alive: true, dx: 0, dy: 0, spinT: 0, P: null, mate: null, hit: false, f: (i * 3) % 8, side: i % 2 ? 1 : -1, want: 5.6 + (i % 5) * 0.55, trav: 0 }));
-      T.left = T.rol.length; T.state = 'idle'; T.first = true; T.bursts.length = 0; T.ringK = 0; T.pairs = 0; T.hits = 0; T.walls = 0; T.maxCommit = 0; };
+      T.left = T.rol.length; T.state = 'idle'; T.first = true; T.bursts.length = 0; T.ringK = 0; T.pairs = 0; T.hits = 0; T.walls = 0; T.maxCommit = 0; duelClear(); };
     T.restoreWon = () => { T.state = 'won'; T.left = 0; for (const r of T.rol) r.alive = false; T.ringK = 1; };
     T.onCue = () => { lock(); X.banner('THE HUNDREDFOLD ROLL', 'Movement and dodge roll only. Bait the rollers into each other.', BR.N.hi, 3.6, true, true); };
     T.start = () => { T.state = 'run'; lock(); for (const r of T.rol) if (r.alive) { r.s = 'pursue'; r.t = Math.random() * 0.5; } };
@@ -646,7 +646,53 @@ var BELFRY_HALL = (() => {
         const cr = hyp(r.x - C.x, r.y - C.y); if (cr > RA) { r.x = C.x + (r.x - C.x) / cr * (RA - 0.1); r.y = C.y + (r.y - C.y) / cr * (RA - 0.1); r.s = 'stun'; r.t = 0; T.walls++; X.sparks(r.x, r.y - 0.3, '#D2AE5E', 6, 4); if (X.sfx.thud) X.sfx.thud(); return; }
         if (!r.hit && !me.dead && hyp(r.x - me.x, r.y - me.y) < RR + (me.r || 0.35)) { r.hit = true; const ok = X.hurtPet(X.ST().hp * TUNE.ROLL_DMG, null); if (ok) { T.hits++; X.push(Math.atan2(me.y - r.y, me.x - r.x), 0.9); } }
         const o = near(r, q => hyp(q.x - r.x, q.y - r.y) < RR * 2); if (o) { destroy(r, o); return; } } }
+    /* ---- v392 B2: THE DUEL. When the hundred are gone the lock lifts and two corrupted Cocopets (EVIL_MINI, 20zz9: GPU via
+       PetGL at twice a pet's size) come out of the dark arch, the second a few seconds after the first: a drowned-sea one
+       (water) and an abyss one (dark). They are fought normally; only when both fall does the Spiral Crystal appear. A
+       knockout resets the whole branch (the hall's koHook: the trial is still 'run'); every exit clears them ---- */
+    const DUEL = [
+      { name: 'Mirelune the Sunken Tide', short: 'Mirelune', el: 'water', seed: 523, at: { x: C.x - 4.5, y: 11.5 }, delay: 0.6, sub: 'A Cocopet the drowned sea has taken rises from the cistern',
+        palette: { tint: '#0F3A50', tintK: 0.82, pal: { sec: '#61D9D2', cheek: '#0C2C3E' }, col: '#61D9D2', glow: '#A8FFF6', core: '#E8FFFC' } },
+      { name: 'Gloamrill the Abyss-Eyed', short: 'Gloamrill', el: 'dark', seed: 911, at: { x: C.x + 4.5, y: 11.5 }, delay: 3.4, sub: 'And from the arch behind it, one the abyss has soured',
+        palette: { tint: '#160E2A', tintK: 0.86, pal: { sec: '#9B7CFF', cheek: '#1C1234' }, col: '#9B7CFF', glow: '#CDBBFF', core: '#F4EEFF' } }];
+    const DUEL_TUNE = { lvl: 10, hpK: 0.7, dmgK: 0.75 };   // v392 B2: 0.6 -> 0.7 once they flank (they no longer stack under one area hit)   // (as a pair for level 10: about 60-80 s with attacks and skills)
+    T.DUEL = DUEL; T.DUEL_TUNE = DUEL_TUNE;
+    function duelLayer() { const amb = X.rift && X.rift.self && X.rift.self.amb, C2 = amb && amb.C; const E = typeof EVIL_MINI !== 'undefined' ? EVIL_MINI : null; if (!E) return null;
+      if (C2) { if (!C2.layer && E.layer) C2.layer = E.layer(X); return null; }   // (the rift's every-stage layer runs it)
+      if (!T.ownLayer && E.layer) T.ownLayer = E.layer(X); return T.ownLayer; }
+    function duelStart() { unlock(); T.duel = { t: 0, ms: [null, null], gen: (T.gen = (T.gen || 0) + 1), fallen: 0 }; T.ringK = 0;
+      X.flash(0.4, '#FFFFFF'); X.banner('ENEMIES REMAINING: 0', 'Your skills return. Something stirs in the dark arch…', BR.N.col, 3, true, true); if (X.sfx.hum) X.sfx.hum(); duelLayer(); }
+    function duelSpawn(i) { const d = DUEL[i], E = typeof EVIL_MINI !== 'undefined' ? EVIL_MINI : null, D = T.duel, gen = D.gen; if (!E) { D.ms[i] = { dead: true }; return; }
+      let m = null; try { m = E.spawn(X, { x: d.at.x, y: d.at.y, home: { x: C.x, y: C.y - 4 }, name: d.name, short: d.short, el: d.el, seed: d.seed, palette: d.palette, sub: d.sub, lvl: DUEL_TUNE.lvl, hpK: DUEL_TUNE.hpK, dmgK: DUEL_TUNE.dmgK, wakeR: 60, leash: 60,
+        onFall: () => { if (T.duel && T.duel.gen === gen) T.duel.fallen++; } }); } catch (e) { m = null; }
+      if (!m) { D.ms[i] = { dead: true }; return; } m.belDuel = gen; D.ms[i] = m; X.boom(d.at.x, d.at.y, 1.8, d.palette.col, '#FFFFFF', { n: 22, shake: 6 }); X.ring(d.at.x, d.at.y, 0.3, 3.5, 0.6, d.palette.col, 0.35); }
+    function duelTick(dt) { const D = T.duel; D.t += dt; if (T.locked) unlock();
+      for (let i = 0; i < DUEL.length; i++) if (!D.ms[i] && D.t >= DUEL[i].delay) duelSpawn(i);
+      if (T.ownLayer) T.ownLayer.update(dt);
+      duelSpace(D, dt);
+      if (D.ms.every(q => q && q.dead)) { D.downT = (D.downT || 0) + dt; if (D.downT > 1.6 && T.state !== 'won') { T.state = 'won'; T.ringK = 0.001; X.banner('THE DARK ARCH IS CLEAR', `${DUEL.map(d => d.short).join(' and ')} have fallen: the Spiral Crystal appears. Collect it`, BR.N.col, 3.4, true, true); X.ring(CR.x, CR.y, 0.3, 4, 0.7, BR.N.col, 0.4); } } }
+    /* v392 B2: the pair never fuse into one: a soft push apart to at least the sum of their radii (plus a margin), and they
+       work the pet from opposite sides. Every 6 s the roles swap: the presser fights as its module drives it; the flanker,
+       while it is only moving, circles to the far side of the pet and holds at range (its own walk is overruled by a
+       stronger pull to that point), and it holds its next attack while the presser's is in the air, so they alternate and
+       their shots come from different angles. Steering only (moveEnt, m.cd): the mini-boss module itself is untouched */
+    function duelSpace(D, dt) { const ms = D.ms.filter(q => q && q.x && !q.dead && !q.under); if (!ms.length) return;
+      D.roleT = (D.roleT || 0) + dt; if (D.roleT > 6) { D.roleT = 0; D.swap = !D.swap; }
+      if (ms.length === 2) { const [a, b] = ms, dx = b.x - a.x, dy = b.y - a.y, d = hyp(dx, dy) || 0.01, need = a.r + b.r + 0.6;
+        if (d < need) { const push = Math.min(need - d, 6 * dt) / 2, ux = d > 0.02 ? dx / d : 1, uy = d > 0.02 ? dy / d : 0; X.moveEnt(a, -ux * push, -uy * push); X.moveEnt(b, ux * push, uy * push); }
+        const P2 = D.swap ? b : a, Fl = D.swap ? a : b; D.presser = P2; D.flanker = Fl;
+        if (Fl.aggro && Fl.act === 'move' && !me.dead) { const pa = Math.atan2(P2.y - me.y, P2.x - me.x), ta = pa + Math.PI, R0 = 4.6, tx = me.x + Math.cos(ta) * R0, ty = me.y + Math.sin(ta) * R0, ex = tx - Fl.x, ey = ty - Fl.y, e = hyp(ex, ey);
+          if (e > 0.3) { const fa = Math.atan2(Fl.y - me.y, Fl.x - me.x), side = angN(ta - fa) > 0 ? 1 : -1, v = Math.min(e, 4.2 * dt), ox = ex / e * 0.75 + -Math.sin(fa) * side * 0.6, oy = ey / e * 0.75 + Math.cos(fa) * side * 0.6, ol = hyp(ox, oy) || 1; X.moveEnt(Fl, ox / ol * v, oy / ol * v); }   // (round the pet, not through it)
+          Fl.face = me.x >= Fl.x ? 1 : -1;
+          if (P2.act !== 'move' && Fl.cd < 0.5) Fl.cd = 0.5; } } }
+    const angN = a => { while (a > Math.PI) a -= TAU; while (a < -Math.PI) a += TAU; return a; };
+    // (every exit: the pair are taken off the field and out of the mini-boss layer's records, without a fall)
+    function duelClear() { const D = T.duel; T.duel = null; if (!D) return; const E = typeof EVIL_MINI !== 'undefined' ? EVIL_MINI : null, G = E && E.guards ? E.guards(X) : null;
+      for (const m of D.ms) { if (!m || !m.x) continue; if (G) for (let i = G.length - 1; i >= 0; i--) if (G[i].m === m) G.splice(i, 1); const k = X.mons.indexOf(m); if (k >= 0) X.mons.splice(k, 1); m.dead = true; m.hp = 0; } }
+    function duelHud(c, W2) { const y = 100, w = Math.min(260, W2 - 30), D = T.duel; panel(c, W2 / 2, y, w, 66, BR.N.col); label(c, `Defeat ${DUEL[0].short} and ${DUEL[1].short}`, W2 / 2, y + 16, 15, '#FFFFFF', { w: 900, lw: 4 });
+      DUEL.forEach((d, i) => { const m = D.ms[i], yy = y + 30 + i * 17, k = !m ? 1 : m.dead ? 0 : clamp(m.hp / m.maxhp, 0, 1); label(c, d.short + (!m ? ' · coming' : m.dead ? ' · down' : ''), W2 / 2 - w / 2 + 14, yy + 3, 9.5, d.palette.glow, { align: 'left', w: 800 }); bar(c, W2 / 2 - w / 2 + 92, yy, w - 106, 6, k, d.palette.col, d.palette.glow); }); }
     T.update = dt => { const t0 = typeof performance !== 'undefined' ? performance.now() : 0;
+      if (T.duel) { duelTick(dt); return; }   // v392 B2
       buildGrid(); T.dirT -= dt; if (T.dirT <= 0) { T.dirT = 0.2; director(); }
       for (const r of T.rol) { if (!r.alive) continue; r.t += dt;
         if (r.s === 'pursue') pursue(r, dt);
@@ -654,15 +700,15 @@ var BELFRY_HALL = (() => {
         else if (r.s === 'roll') roll(r, dt);
         else if (r.s === 'stun') { if (r.t > 1.1) { r.s = 'pursue'; r.t = 0; } } }
       for (let i = T.bursts.length - 1; i >= 0; i--) { T.bursts[i].t += dt; if (T.bursts[i].t > 0.6) T.bursts.splice(i, 1); }
-      if (T.left <= 0) { T.state = 'won'; unlock(); T.ringK = 0.001; X.banner('ENEMIES REMAINING: 0', 'All one hundred destroyed each other. Your skills return: collect the Spiral Crystal', BR.N.col, 3.4, true, true); }
+      if (T.left <= 0 && !T.duel) duelStart();   // v392 B2: the hundred are gone: skills return and two corrupted Cocopets come
       if (t0) { T.cost = T.cost * 0.95 + (performance.now() - t0) * 0.05; T.n++; } };
     T.tickWon = dt => { if (T.ringK > 0 && T.ringK < 1) T.ringK = Math.min(1, T.ringK + dt / 1.2); };
-    T.goal = () => `Enemies remaining: ${T.left} · movement and dodge roll only`;
-    T.hint = () => null;
-    T.cam = () => ({ x: me.x, y: me.y, k: 0, zoom: 0.72 });
-    T.hud = (c, W2, Hh) => { const y = 100, w = Math.min(240, W2 - 30); panel(c, W2 / 2, y, w, 50, BR.N.col); label(c, `Enemies remaining: ${T.left}`, W2 / 2, y + 18, 18, '#FFFFFF', { w: 900, lw: 4 });
+    T.goal = () => T.duel ? `Defeat ${DUEL.map(d => d.short).join(' and ')}` : `Enemies remaining: ${T.left} · movement and dodge roll only`;
+    T.hint = () => { if (!T.duel) return null; let b = null, bd = 9; for (const q of T.duel.ms) if (q && !q.dead) { const d = hyp(q.x - me.x, q.y - me.y); if (d > bd) { bd = d; b = q; } } return b && !T.duel.ms.some(q => q && !q.dead && hyp(q.x - me.x, q.y - me.y) < 9) ? { x: b.x, y: b.y, h: 2.6, label: (b.bname || '').toUpperCase() } : null; };
+    T.cam = () => T.duel ? { x: me.x, y: me.y, k: 0, zoom: 0.84 } : { x: me.x, y: me.y, k: 0, zoom: 0.72 };
+    T.hud = (c, W2, Hh) => { if (T.duel) { duelHud(c, W2); return; } const y = 100, w = Math.min(240, W2 - 30); panel(c, W2 / 2, y, w, 50, BR.N.col); label(c, `Enemies remaining: ${T.left}`, W2 / 2, y + 18, 18, '#FFFFFF', { w: 900, lw: 4 });
       label(c, 'MOVEMENT AND DODGE ROLL ONLY', W2 / 2, y + 38, 10, BR.N.hi, { w: 900 }); };
-    T.ground = (c, L, active) => { if (!onScreen(X, C.x, C.y, C.r + 2)) return; const T2 = X.Tz(), t = X.g.t, cx = X.sx(C.x), cy = X.sy(C.y);
+    T.ground = (c, L, active) => { if (T.ownLayer) T.ownLayer.drawGround(c);   /* v392 B2: the duel's mini-boss layer when the rift has none */ if (!onScreen(X, C.x, C.y, C.r + 2)) return; const T2 = X.Tz(), t = X.g.t, cx = X.sx(C.x), cy = X.sy(C.y);
       c.save();
       // smooth slate, the shallow water round its edge, three broad brass rings
       const fg = c.createRadialGradient(cx - T2 * 3, cy - T2 * 4, T2 * 2, cx, cy, C.r * T2); fg.addColorStop(0, '#3E505C'); fg.addColorStop(0.7, P.SLATE); fg.addColorStop(1, '#1E2A32'); c.fillStyle = fg; c.beginPath(); c.arc(cx, cy, (C.r - 0.2) * T2, 0, TAU); c.fill();
@@ -691,7 +737,7 @@ var BELFRY_HALL = (() => {
       const aw = T2 * 2.2, ah = T2 * 3.4, ay = Ys + T2 * 0.6; c.save(); const ag = c.createLinearGradient(0, ay - ah, 0, ay); ag.addColorStop(0, '#03070C'); ag.addColorStop(1, '#0B1820'); c.fillStyle = ag; c.beginPath(); c.moveTo(Xs - aw, ay); c.lineTo(Xs - aw, ay - ah * 0.62); c.quadraticCurveTo(Xs - aw, ay - ah, Xs, ay - ah * 1.05); c.quadraticCurveTo(Xs + aw, ay - ah, Xs + aw, ay - ah * 0.62); c.lineTo(Xs + aw, ay); c.closePath(); c.fill();
       c.strokeStyle = P.LIME_D; c.lineWidth = T2 * 0.42; c.stroke(); c.strokeStyle = P.LIME; c.lineWidth = T2 * 0.26; c.stroke(); c.restore();
       if (gone) return; const cy = Ys - T2 * 1.5 + Math.sin(t * 1.5) * T2 * 0.06, ring = T.ringK, rr = T2 * 0.95;
-      crystalArt(c, 'N', Xs, cy, T2 * 0.95, t, { k: T.state === 'won' ? 1 : 0.7 }); crystalLight(K.LL, 'N', Xs, cy, T2 * 0.95, can ? 1.1 : 0.7, t);
+      if (T.state === 'won') { crystalArt(c, 'N', Xs, cy, T2 * 0.95, t, { k: 1 }); crystalLight(K.LL, 'N', Xs, cy, T2 * 0.95, can ? 1.1 : 0.7, t); }   // v392 B2: the Spiral Crystal appears only once both mini bosses fall
       // the turning blue-white ring round it (it opens once the hundred are gone)
       c.save(); c.translate(Xs, cy); c.rotate(t * 0.9); c.strokeStyle = 'rgba(4,10,20,.55)'; c.lineWidth = T2 * 0.18; const gap = ring * Math.PI * 0.9; c.beginPath(); c.ellipse(0, 0, rr, rr * 0.45, 0, gap / 2, TAU - gap / 2); c.stroke(); c.strokeStyle = '#DDF4FF'; c.lineWidth = T2 * 0.1; c.stroke(); c.restore();
       K.LL.q(Q => { Q.ring(Xs, cy, rr * 1.05, BR.N.col, 0.5 * (1 - ring * 0.6), T2 * 0.18, 0.45); Q.glow(Xs, cy, T2 * 2.4, BR.N.col, 0.22); if (can) Q.ring(Xs, Ys, T2 * (1.1 + 0.3 * Math.sin(t * 3)), BR.N.col, 0.5, T2 * 0.12, 0.4); }); };
@@ -892,7 +938,7 @@ var BELFRY_HALL = (() => {
   /* ======================= the stage spec ======================= */
   const NAME = 'The Hall of Three Tides';
   const stage = { name: NAME, hall: true, goal: 'Win three crystals from the east, west and north trials, in any order, and return them to the altar',
-    how: 'A round vestibule with three sealed gates. Stand at a gate to choose its trial: the others stay sealed until it is done. EAST, The Sunken Muster: defeat fifty monsters in five groups of ten, then Varkul, the Chainbound. WEST, The Last Beacon: keep the crystal intact for thirty seconds against waves of sixty reef gnawers. NORTH, The Hundredfold Roll: one hundred bell rollers that can only be destroyed by rolling into each other; you may only move and dodge roll. Collect each crystal, carry it back in its Resonance bubble and place it in its socket. Three crystals raise the doorway to Kharrox.',
+    how: 'A round vestibule with three sealed gates. Stand at a gate to choose its trial: the others stay sealed until it is done. EAST, The Sunken Muster: defeat fifty monsters in five groups of ten, then Varkul, the Chainbound. WEST, The Last Beacon: keep the crystal intact for thirty seconds against waves of a hundred and twenty reef gnawers. NORTH, The Hundredfold Roll: one hundred bell rollers that can only be destroyed by rolling into each other; you may only move and dodge roll. Then your skills return and two corrupted Cocopets come out of the dark: defeat both for the crystal. Collect each crystal, carry it back in its Resonance bubble and place it in its socket. Three crystals raise the doorway to Kharrox.',
     layout: LAYOUT, legend: { 1: {}, 2: {}, 3: {}, P: PROP('belpillar', 'pillar'), K: PROP('brokenpillar', 'pillar') }, lights: [], make,
     biome: 'belfry', guard: 'hall', causeway: { x0: 50, x1: 55, y0: 65, y1: 81 }, vista: { x: 52.5, y: 8 } };   // (B1's every-stage layer: the causeway's waves, the far vista; the section's guardian at the risen door)
   /* a rift that marks a placeholder stage ({ hallSlot: true }, or this name) gets this stage filled in (its kind, trial and

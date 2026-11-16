@@ -22,7 +22,7 @@ function starterItems() {
 const PET_KEYS = ['uid', 'name', 'dna', 'forms', 'rarity', 'hatchedAt', 'food', 'joy', 'energy', 'clean', 'asleep', 'ageH', 'stage', 'xp',
   'streak', 'bestStreak', 'lastFedDay', 'meals', 'pats', 'kicks', 'pops', 'catches', 'digs', 'baths', 'seeks', 'tricks', 'digWait', 'evoResets', 'paid', 'dlv', 'dxp', 'deck', 'fusedFrom', 'gen', 'abOv', 'acc', 'skills'];   // (v391 K: skills, the pet's own Strong and Ult, 20k1s-skills.js)
 /* v391 K: the skills rules' version. A save from before it is re-rolled once under the new rules (migrateSkills) */
-const SKILLS_V = 1;
+const SKILLS_V = 2;   // (v392 K: 2, the element tags; a v1 save re-rolls only the slots whose move is now wrong for its pet's element)
 const MAX_PETS = 50, MAX_ROOMS = 9;
 const petUid = () => 'p' + Math.random().toString(36).slice(2, 9);
 /* genome = { dna: {seed, personality, size}, form } from makeGenome() */
@@ -77,7 +77,7 @@ function newState(name, genome) {
     v: 4, hid: 'h' + t.toString(36), savedAt: t, lightsOff: false, gems: {}, coins: 300, pearls: 10, crystals: 0, fusionStones: 0, fuseRolls: 0, lastGiftDay: null, animas: { have: {}, eq: null, res: null, seen: {} },
     house: { rooms: [newRoom('living', 1), newRoom('shop', 2)], cur: 0, n: 2, name: '', paint: 'cream', roof: 'terracotta' }, inv: {}, themes: ['meadow'], pantry: {}, others: [],
     map: { stars: {}, best: {}, plays: 0, milestones: {} },
-    cards: {}, accs: [], dun: { best: 0, runs: 0, kills: 0, boxes: 0, pity: 0, god: false, tab: 'world', seen: {}, grades: {} }, rift: { seals: {}, prog: {}, gates: {}, rlyeh: 0, ver: { belfry: 2 }, bel: {} },   // (v391 B1: ver, a rift's stage-layout version (the Belfry rebuilt: 2); bel, the Belfry's small checkpoint numbers)
+    cards: {}, accs: [], dun: { best: 0, runs: 0, kills: 0, boxes: 0, pity: 0, god: false, tab: 'world', seen: {}, grades: {} }, rift: { seals: {}, prog: {}, gates: {}, rlyeh: 0, ver: { belfry: 3 }, bel: {} },   // v392 B1: the Belfry's layout 3 (seven stages)   // (v391 B1: ver, a rift's stage-layout version (the Belfry rebuilt: 2); bel, the Belfry's small checkpoint numbers)
     sound: true, retro: true, fast: false, tips: {}, dev: false, unlockAll: false,
     skillsV: SKILLS_V,   // v391 K: a new game starts under the skills rules (no re-roll on its first load)
     welcome: 0, freeTen: 0, login: { m: '', n: 0, last: '', seen: '' },

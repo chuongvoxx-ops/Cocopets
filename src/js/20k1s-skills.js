@@ -5,7 +5,8 @@
    The pools (skillPool):
      1★–4★  every move that is not elemental: the innate kit (STRONGS / SPECIALS, 02c-ability.js) and the star pools
             STAR4, STAR5 and STAR6 (the golden moves; 20k-dun-star.js). Throne of the Sun is never given to an earth,
-            wind or dark pet (STAR_NO_SUN). Card-only moves are not in any pool.
+            wind or dark pet (STAR_NO_SUN). Card-only moves are not in any pool. (v392 K) A move tagged for an element
+            in SKILL_ELEM (Inferno Ring: fire...) is only in that element's pets' pool; untagged moves are in everyone's.
      5★     the pet's own element's moves that are NOT on its six-star list (ELEM_MOVES minus ELEM_SIX, 20k1-elem-core.js)
      6★     the pet's own element's six-star list, ELEM_SIX (exclusive to six-stars)
    A pet's tier is its star rank, starsOf(p.rarity): fixed at birth (or by fusion), as shown on its card.
@@ -17,6 +18,33 @@
    "Unlock all skills (dev)" (st.devMoves, in Developer tools) brings back a free pick: any pet may equip any move of any
    pool from the Ability cards screen. Off by default; the pet's own skills come back the moment it is off. */
 const SKILL_SLOTS = ['strong', 'ult'];
+/* (v392 K) THE ELEMENT TAGS of the 1–4★ pool: a move that is visibly one element's (its colours, what it leaves behind,
+   the element its hits carry) is rolled only by pets of that element (petElement: wind fire ice water thunder earth
+   light dark). An array tags it for several. A move not listed here stays open to every element. Keys are the move's
+   key in STAR4/5/6 (20k-dun-star.js), or a full id ('s:<key>' / 'u:<key>') for the innate kit. The innate kit (Element
+   Bomb, Gale Slash, Nova Blast...) takes the pet's own element, so none of it is tagged. Throne of the Sun keeps its own
+   rule (STAR_NO_SUN). Edit freely: a pet keeps the move it has; only new rolls (and fusion's offers) follow the table. */
+const SKILL_ELEM = {
+  // fire: flame colours, burning ground, fire hits
+  inferno: 'fire', breath: 'fire', rebirth: 'fire', prime: 'fire', sunspear: 'fire', meteorfist: 'fire',
+  cometlance: ['fire', 'ice'],   // (its burning trail is a frost trail on an ice pet)
+  // water: waves, bubbles, tentacles from the deep
+  tidal: 'water', kraken: 'water',
+  // ice: ice walls, petals and prisons that freeze
+  glacier: 'ice', lotus: 'ice', prison: 'ice',
+  // thunder: lightning bolts and chains
+  javelin: 'thunder', thunderclap: 'thunder', arcstorm: 'thunder', ragnarok: 'thunder',
+  // dark: shadow slashes, the void, the scythe, the eclipse
+  rend: 'dark', rift: 'dark', harvest: 'dark', eclipse: 'dark',
+  // light: holy pillars, prism beams, starlight chains
+  pillars: 'light', divine: 'light', prismcannon: 'light', chains: 'light',
+  // wind / earth: the World Tree (leaf hits, which read as wind; roots and earth)
+  worldtree: ['wind', 'earth'],
+};
+/* the elements a move is tagged for (null: open to all) */
+function skillElems(id) { const m = skillParse(id); if (!m || m.kind === 'elem') return null; const t = SKILL_ELEM[m.id] || (m.kind === 'star' ? SKILL_ELEM[m.key] : null); return t ? [].concat(t) : null; }
+const skillElemOK = (id, e8) => { const t = skillElems(id); return !t || t.includes(e8); };
+for (const k in SKILL_ELEM) { const ok = /:/.test(k) ? skillParse(k) : [4, 5, 6].some(t => STAR_POOLS[t].strong[k] || STAR_POOLS[t].ult[k]); if (!ok || [].concat(SKILL_ELEM[k]).some(e => !E8[e])) console.warn('SKILL_ELEM: bad entry ' + k); }
 const SKILL_STAR_TIERS = [4, 5, 6];
 const devSkillsOn = () => !!(typeof st !== 'undefined' && st && st.devMoves);
 const skillTier = p => { if (!p) return 3; const r = typeof p.rarity === 'number' ? p.rarity : rarityOf(formOf(p)); return starsOf(r); };
@@ -40,6 +68,7 @@ function skillPool(tier, e8, slot) {
   if (tier <= 4) {
     out = Object.keys(slot === 'strong' ? STRONGS : SPECIALS).filter(x => (slot === 'strong' ? INNATE_STRONG : INNATE_ULT)[x]).map(x => (slot === 'strong' ? 's:' : 'u:') + x);
     SKILL_STAR_TIERS.forEach(t => Object.keys(STAR_POOLS[t][slot]).forEach(x => { if (slot === 'ult' && x === 'sunthrone' && STAR_NO_SUN.has(e8)) return; out.push((slot === 'strong' ? 'x' : 'y') + t + ':' + x); }));
+    out = out.filter(id => skillElemOK(id, e8));   // (v392 K: an element's own moves only for that element, SKILL_ELEM)
   } else {
     const six = (ELEM_SIX[e8] && ELEM_SIX[e8][slot]) || [], all = ((ELEM_MOVES[e8] || {})[slot] || []).map(r => r[0]);
     out = (tier >= 6 ? six.filter(x => all.includes(x)) : all.filter(x => !six.includes(x))).map(x => elemId(e8, x));
@@ -52,6 +81,7 @@ function skillWhyNot(id, tier, e8, slot) {
   const m = skillParse(id); if (!m) return 'unknown move';
   if (m.slot !== slot) return slot === 'ult' ? 'not an Ultimate' : 'not a Strong attack';
   if (skillInPool(m.id, tier, e8, slot)) return '';
+  const tg = skillElems(m.id); if (tier <= 4 && tg && !tg.includes(e8)) return `${tg.map(x => E8[x].name).join('/')} move: the child is ${E8[e8].name}`;   // (v392 K)
   if (tier <= 4) return m.kind === 'elem' ? `not available at ${tier}★` : m.key === 'sunthrone' ? `not for ${E8[e8].name} pets` : `not available at ${tier}★`;
   if (m.kind !== 'elem') return `not available at ${tier}★`;
   if (m.el !== e8) return `${E8[m.el].name} move: the child is ${E8[e8].name}`;
@@ -122,14 +152,17 @@ function skillsBoxHTML(p, AB, o) {
 /* the saved-game step (04-state.js sanitize): once (st.skillsV), every pet is rolled again under these rules and
    loses any elemental move it had equipped (its ability cards stay); after that, saved skills are kept */
 function migrateSkills(s, o) {
-  const pets = [s].concat(s.others || []), first = !(o && o.skillsV >= SKILLS_V);
+  const pets = [s].concat(s.others || []), from = (o && o.skillsV) || 0, first = from < 1;
   pets.forEach(p => {
     const saved = first ? null : cleanSkills(p.skills);   // (sanitizePet carried each pet's saved skills over)
     p.skills = saved || rollSkills(p);
+    // (v392 K) a v1 save: a slot whose move is no longer in the pet's pool (an element's move on another element's pet,
+    // SKILL_ELEM) is rolled again, by the seed; every valid move is kept
+    if (saved && from < 2) { const t = skillTier(p), el = petElement(p), r = rollSkills(p); SKILL_SLOTS.forEach(sl => { if (!skillInPool(p.skills[sl].id, t, el, sl)) p.skills[sl] = r[sl]; }); }
     if (first) { if (p.abOv) { delete p.abOv.strong; delete p.abOv.ult; if (!Object.keys(p.abOv).length) p.abOv = null; } if (p.deck) SLOTS.forEach(k => { if (p.deck[k] && !CARDS[p.deck[k]]) p.deck[k] = null; }); }
   });
   s.skillsV = SKILLS_V;
 }
 /* (test hook: build.py exposes this as the test page's skillsK) */
-const SKILLS_K = { petSkills, rollSkills, skillPool, skillParse, skillWhyNot, skillTier, skillAbility, skillGroups, cleanSkills, isSkillId, devSkillsOn, migrateSkills, ELEM_SIX, get SKILLS_V() { return SKILLS_V; },
+const SKILLS_K = { SKILL_ELEM, skillElems, petSkills, rollSkills, skillPool, skillParse, skillWhyNot, skillTier, skillAbility, skillGroups, cleanSkills, isSkillId, devSkillsOn, migrateSkills, ELEM_SIX, get SKILLS_V() { return SKILLS_V; },
   fuseSkillsFor, fuseSkillChoices, fuseAllSkills, fuseAllAb, get fuseAllSel() { return fuseAllSel; }, renderCards, get cardsSlot() { return cardsSlot; } };   // (v391 K, build.py: the test page.skillsK)

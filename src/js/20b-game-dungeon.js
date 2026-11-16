@@ -2182,17 +2182,21 @@ GAMES.dungeon = {
     function castColumn(c, p, X, Y, T, a) { const col = hx6(p.color, '#FFE37A'), soft = mixHex(col, '#FFFFFF', 0.35), pale = mixHex(col, '#FFFFFF', 0.68), life = 1 - a, tt = g.t + (p.sd = p.sd || Math.random() * 50);
       const k = Math.min(1, life / 0.1) * Math.pow(a, 0.75) * 0.85, W = p.size * T * (1.2 + 0.3 * life), top = T * 12.5, foot = Y + T * 0.05;
       if (k < 0.01) return;
-      if (DQ) { const N = 16, fk = 0.6, xs = v => X + Math.sin(v * 2.4 + tt * 1.3) * T * 0.12 * v, ys = v => foot - top * v;
-        for (let i = 0; i < N; i++) { const v0 = i / N, v1 = (i + 1) / N, xa = xs(v0), ya = ys(v0), xb = xs(v1), yb = ys(v1), ex = (xb - xa) * 0.125, ey = (yb - ya) * 0.125, u = (i + 0.5) / N, e = clamp((u - (1 - fk)) / fk, 0, 1), f = (1 - e * e * (3 - 2 * e)) ** 2, wk = 1 - 0.35 * e;
-          if (f < 0.005) continue;
-          DQ.beam(xa - ex, ya - ey, xb + ex, yb + ey, W * 5.4 * wk, col, 0.75 * k * f); DQ.beam(xa - ex, ya - ey, xb + ex, yb + ey, W * 2.9 * wk, soft, 0.95 * k * f); DQ.beam(xa - ex, ya - ey, xb + ex, yb + ey, W * 0.65 * wk, pale, 0.6 * k * f); }
+      if (DQ) { const N = 18, fk = 0.6, xs = v => X + Math.sin(v * 2.4 + tt * 1.3) * T * 0.12 * v, ys = v => foot - top * v;
+        /* (v392 Z) its foot feathered: the chain starts DN below the foot, its strength rising smoothly from nothing there to full UP
+           above it (each link's ramp interpolated along it, rbeam), so the halo (wider than the screen) never ends in a hard
+           horizontal line under the pet; was a cut 0.1 tile tall right at its feet */
+        const DN = T * 1.2, UP = T * 2.2, vS = -DN / top, gf = v => { const h = clamp((v * top + DN) / (DN + UP), 0, 1); return h * h * (3 - 2 * h); };
+        for (let i = 0; i < N; i++) { const v0 = vS + (1 - vS) * i / N, v1 = vS + (1 - vS) * (i + 1) / N, dv = (v1 - v0) * 0.125, xa = xs(v0), ya = ys(v0), xb = xs(v1), yb = ys(v1), ex = (xb - xa) * 0.125, ey = (yb - ya) * 0.125, u = Math.max(0, (v0 + v1) / 2), e = clamp((u - (1 - fk)) / fk, 0, 1), f = (1 - e * e * (3 - 2 * e)) ** 2, wk = 1 - 0.35 * e, g0 = gf(v0 - dv), g1 = gf(v1 + dv);
+          if (f < 0.005 || g1 < 0.004) continue;
+          DQ.rbeam(xa - ex, ya - ey, xb + ex, yb + ey, W * 5.4 * wk, col, 0.75 * k * f, g0, g1); DQ.rbeam(xa - ex, ya - ey, xb + ex, yb + ey, W * 2.9 * wk, soft, 0.95 * k * f, g0, g1); DQ.rbeam(xa - ex, ya - ey, xb + ex, yb + ey, W * 0.65 * wk, pale, 0.6 * k * f, g0, g1); }
         DQ.glow(X, Y - T * 0.45, W * 3, col, 0.32 * k); DQ.glow(X, Y - T * 0.4, W * 1.5, soft, 0.3 * k); DQ.glow(X, Y, W * 3.4, col, 0.24 * k, 0.45);
         if (!(typeof st !== 'undefined' && st && st.lowFx)) for (let m = 0; m < 6; m++) { const v = (tt * 0.4 + m / 6) % 1, mx = X + Math.sin(m * 2.3 + tt * 0.9) * W * 0.5 + Math.sin(v * 2.4 + tt * 1.3) * T * 0.12 * v; DQ.star(mx, foot - top * 0.7 * v, T * 0.14, Math.sin(Math.PI * v) * 0.5 * k, pale); }
         return; }
       c.save(); c.globalCompositeOperation = 'lighter'; c.save(); c.translate(X, foot); c.rotate(-Math.PI / 2);
-      c.globalAlpha = 0.75 * k; blitSized(c, castBeamSprite(col), -T * 0.1, -W * 4.95, top, W * 9.9);   /* (v389b: the sprite's gaussian over its height matches the GPU layers' widths: height = 1.83 x their half-width) */
-      c.globalAlpha = 0.95 * k; blitSized(c, castBeamSprite(soft), -T * 0.1, -W * 2.65, top * 0.95, W * 5.3);
-      c.globalAlpha = 0.6 * k; blitSized(c, castBeamSprite(pale), -T * 0.1, -W * 0.6, top * 0.85, W * 1.2); c.restore();
+      c.globalAlpha = 0.75 * k; blitSized(c, castBeamSprite(col), -T * 1.2, -W * 4.95, top + T * 1.1, W * 9.9);   /* (v389b: the sprite's gaussian over its height matches the GPU layers' widths: height = 1.83 x their half-width) */
+      c.globalAlpha = 0.95 * k; blitSized(c, castBeamSprite(soft), -T * 1.2, -W * 2.65, top * 0.95 + T * 1.1, W * 5.3);   /* (v392 Z: each starts 1.2 tiles under the foot, its sprite fading in over ~3.4 tiles: no hard line under the pet) */
+      c.globalAlpha = 0.6 * k; blitSized(c, castBeamSprite(pale), -T * 1.2, -W * 0.6, top * 0.85 + T * 1.1, W * 1.2); c.restore();
       c.globalAlpha = 0.34 * k; blitSized(c, glowSprite(col), X - W * 3, Y - T * 0.45 - W * 3, W * 6, W * 6); c.globalAlpha = 0.3 * k; blitSized(c, glowSprite(soft), X - W * 1.5, Y - T * 0.4 - W * 1.5, W * 3, W * 3); c.globalAlpha = 0.24 * k; blitSized(c, glowSprite(col), X - W * 3.4, Y - W * 1.55, W * 6.8, W * 3.1); c.restore(); }
     const DQ_TRAIL = new Set(['needle', 'laser', 'dart', 'bolt', 'spark', 'zap', 'comet', 'fireball', 'crescent', 'lance5', 'spear', 'diamond', 'crystal', undefined, 'default', 'star', 'boom']);
     function drawShots(c) {
@@ -2767,7 +2771,10 @@ GAMES.dungeon = {
       const ents = [];
       const vx0 = cam.x - W / 2 / Tz() - 2, vx1 = cam.x + W / 2 / Tz() + 2, vy0 = cam.y - H / 2 / Tz() - 1, vy1 = cam.y + H / 2 / Tz() + 3;
       const vis = (x, y) => x > vx0 && x < vx1 && y > vy0 && y < vy1;
-      for (const p of propList) if (!p.broken && vis(p.x, p.y) && (explored[p.k] || explored[Math.min(MH - 1, Math.floor(p.y) + 1) * MW + Math.floor(p.x)])) ents.push([p.y, 1, p]);
+      /* (v392, the user: props popped in and out at the screen's edges) a prop is kept while any of its picture can be on the
+         screen: tall ones (hanging chains, columns, falls) stand far above their foot, so the test reaches well below and around */
+      const visP = (x, y) => x > vx0 - 3 && x < vx1 + 3 && y > vy0 - 1 && y < vy1 + 9;
+      for (const p of propList) if (!p.broken && visP(p.x, p.y) && (explored[p.k] || explored[Math.min(MH - 1, Math.floor(p.y) + 1) * MW + Math.floor(p.x)])) ents.push([p.y, 1, p]);
       for (const p of pots) if (!p.broken && vis(p.x, p.y) && isExp(p.x, p.y)) ents.push([p.y + 0.3, 2, p]);
       for (const s of shrines) if (!s.broken && vis(s.x, s.y) && isExp(s.x, s.y)) ents.push([s.y + 0.3, 3, s]);   /* (!broken: smashed by a vehicle, 20k0v) */
       for (const m of mons) if (!m.dead && vis(m.x, m.y) && (isExp(m.x, m.y) || (m.boss && m.act !== 'sleep'))) ents.push([m.y + (m.boss ? 0.3 : 0), 4, m]);
