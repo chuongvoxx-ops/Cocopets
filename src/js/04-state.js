@@ -74,7 +74,7 @@ function newState(name, genome) {
     v: 4, hid: 'h' + t.toString(36), savedAt: t, lightsOff: false, gems: {}, coins: 300, pearls: 10, crystals: 0, fusionStones: 0, fuseRolls: 0, lastGiftDay: null, animas: { have: {}, eq: null, res: null, seen: {} },
     house: { rooms: [newRoom('living', 1), newRoom('shop', 2)], cur: 0, n: 2, name: '', paint: 'cream', roof: 'terracotta' }, inv: {}, themes: ['meadow'], pantry: {}, others: [],
     map: { stars: {}, best: {}, plays: 0, milestones: {} },
-    cards: {}, accs: [], dun: { best: 0, runs: 0, kills: 0, boxes: 0, pity: 0, god: false, tab: 'world', seen: {}, grades: {} }, rift: { seals: {}, prog: {}, gates: {}, rlyeh: 0 },
+    cards: {}, accs: [], dun: { best: 0, runs: 0, kills: 0, boxes: 0, pity: 0, god: false, tab: 'world', seen: {}, grades: {} }, rift: { seals: {}, prog: {}, gates: {}, rlyeh: 0, ver: { belfry: 2 }, bel: {} },   // (v391 B1: ver, a rift's stage-layout version (the Belfry rebuilt: 2); bel, the Belfry's small checkpoint numbers)
     sound: true, retro: true, fast: false, tips: {}, dev: false, unlockAll: false,
     welcome: 0, freeTen: 0, login: { m: '', n: 0, last: '', seen: '' },
     hub: newHub(),
@@ -221,7 +221,14 @@ function sanitize(o) {
   if (o.rift && typeof o.rift === 'object') { const r = o.rift, idOK = k => /^[a-z]{2,16}$/.test(k);
     ['seals', 'gates'].forEach(f => { if (r[f] && typeof r[f] === 'object') Object.keys(r[f]).slice(0, 20).forEach(k => { if (idOK(k) && r[f][k]) s.rift[f][k] = 1; }); });
     if (r.prog && typeof r.prog === 'object') Object.keys(r.prog).slice(0, 20).forEach(k => { if (idOK(k)) s.rift.prog[k] = Math.floor(num(r.prog[k], 0, 0, 31)); });   // (QA v386: was capped at 5, from the old six-stage rifts: a checkpoint past stage 6 (Rift 0's 9 stages, the others' 14) fell back to stage 6 on every load)
-    s.rift.rlyeh = r.rlyeh ? 1 : 0; }
+    s.rift.rlyeh = r.rlyeh ? 1 : 0;
+    // v391 B2: the Belfry's Hall of Three Tides, per rift: the active gate, the crystals earned, carried and deposited (letters E W N), the door raised
+    if (r.hall && typeof r.hall === 'object') { s.rift.hall = {}; const L = v => String(v || '').replace(/[^EWN]/g, '').slice(0, 3); Object.keys(r.hall).slice(0, 4).forEach(k => { const h = r.hall[k]; if (idOK(k) && h && typeof h === 'object') s.rift.hall[k] = { sel: L(h.sel).slice(0, 1), earn: L(h.earn), carry: L(h.carry).slice(0, 1), dep: L(h.dep), door: h.door ? 1 : 0 }; }); }
+    // v391 B1: the stage-layout versions, and the Belfry's small checkpoint numbers (integers only)
+    s.rift.ver = {}; if (r.ver && typeof r.ver === 'object') Object.keys(r.ver).slice(0, 20).forEach(k => { if (idOK(k)) s.rift.ver[k] = Math.floor(num(r.ver[k], 0, 0, 99)); });
+    s.rift.bel = {}; if (r.bel && typeof r.bel === 'object') Object.keys(r.bel).slice(0, 48).forEach(k => { if (/^[a-z0-9_]{1,24}$/.test(k)) { const v = Math.floor(num(r.bel[k], 0, 0, 9999)); if (v) s.rift.bel[k] = v; } }); }
+  // v391 B1: the Drowned Belfry was rebuilt (six stages for fourteen): an old save's checkpoint moves to the nearest safe new stage, once
+  if (typeof BEL !== 'undefined' && BEL.migrate) try { BEL.migrate(s, o); } catch (e) {}
   if (o.v === 4 && Array.isArray(o.others)) s.others = o.others.slice(0, MAX_PETS - 1).map(p => sanitizePet(p, 4)).filter(Boolean);
   const seen = new Set([s.uid]);
   s.others.forEach(p => { if (seen.has(p.uid)) p.uid = petUid(); seen.add(p.uid); });

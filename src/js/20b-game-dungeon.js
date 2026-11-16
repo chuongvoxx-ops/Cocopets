@@ -590,6 +590,7 @@ GAMES.dungeon = {
       sparks(me.x, me.y - OY, '#FF8FB1', 8, 5);
       shake(6, 0.22); api.sfx.squeak(); buzz(30);
       if (!g.shownTips.dodge && g.dmgTaken > ST.hp * 0.25) { g.shownTips.dodge = true; banner('Tip: DODGE!', touchUI ? 'Tap the dodge button to roll through attacks' : 'Press Shift to roll through attacks', '#7FD3F2', 2.2); }
+      if (me.hp <= 0 && g.koHook && g.koHook()) { me.hp = Math.max(1, me.hp); return true; }   /* v391 B2: a stage that turns a knockout into its own retry (the Belfry's crystal trials) */
       if (me.hp <= 0) {
         me.hp = 0; party[cur].down = true; party[cur].hp = 0; const next = party.findIndex(m => !m.down);
         if (next >= 0) { me.dead = true; g.slowT = 0.8; flash(0.4, '#FF5C5C'); banner(`${PI.name.toUpperCase()} IS DOWN`, `${party[next].p.name} steps in`, '#FF5C5C', 1.8, true); for (let i = 0; i < 20; i++) sparks(me.x, me.y, '#FF8FB1', 1, 6); after(0.9, () => { if (g.over) return; me.dead = false; switchTo(next, 'ko'); }); return true; }
@@ -623,6 +624,7 @@ GAMES.dungeon = {
     function switchTo(i, forced) {
       if (i === cur && !forced) return false; const m = party[i]; if (!m || m.down || g.over) return false;
       if (!forced && RULES && RULES.blocks('noswitch')) { text(me.x, me.y - 1.2, 'Cursed: bound', '#E07BF0', 12); api.sfx.wrong(); return false; }
+      if (!forced && g.trialLock) { lockSay(); return false; }   /* v391 B2: no party switching in a move-and-roll trial */
       if (!forced && (g.swapCd > 0 || me.dodge || me.dash || me.leap || me.beam || me.swIn || g.exitIn || (AN && AN.S.cine))) return false;   /* (v388 E: g.exitIn, no swap while walking into the exit) */
       if (vehOn() && VEH.onSwitch) VEH.onSwitch();   /* (Sports Car: the driver leaves the car first; its cooldown starts, then is saved below) */
       const old = party[cur], oldS = SIZE; old.hp = me.hp; old.mp = me.mp; old.cd = { cdS: g.cdS, cdS2: g.cdS2, cdS3: g.cdS3, cdU: g.cdU };
@@ -802,8 +804,13 @@ GAMES.dungeon = {
     /* (hook for Dark's Susano O, 20k5w) keyed movement-speed modifiers: X.mvMod(key, k) sets one, X.mvMod(key, null) removes
        only that one; the stat system's speed is multiplied by all of them */
     const mvModK = () => { let k = 1; if (g.mvMods) for (const q in g.mvMods) k *= g.mvMods[q]; return k; };
+    /* v391 B2: g.trialLock (set by a rift trial, the Belfry's Hundredfold Roll): attacks, skills, Ultimates, switching and
+       summons refuse, the dodge roll stays (its cooldown is the trial's g.dodgeK); the trial clears it on every exit, and a
+       new floor starts without it */
+    function lockSay() { if (g.lockSaid > g.t - 0.8) return; g.lockSaid = g.t; text(me.x, me.y - 1.2, 'Movement and dodge roll only', '#BFE6FF', 12); api.sfx.wrong(); }
     /* one normal attack toward A, if the pet is ready for it */
     function tryFire(A) {
+      if (g.trialLock) return false;   /* v391 B2: a trial that allows only movement and the dodge roll (the Belfry's Hundredfold Roll) */
       if (me.dead || g.won || g.intro > 1.9 || g.bossIntro > 0.6 || me.dodge || me.dash || me.leap || me.swIn || g.normalT > 0) return false;
       if (vehOn()) { if (VEH.basic && VEH.basic(A)) { g.normalT = normalRate(); return true; } return false; }   /* (Sports Car: no ordinary attacks while driving; Susano O's robot (20k5w, VEH.basic) swings its sword instead, at the normal-attack cadence) */
       const melee = KIT.normal.key === 'shadowclaw';
@@ -887,6 +894,7 @@ GAMES.dungeon = {
     function useStrong(slot) {
       /* (Sports Car: the Strong buttons are Shooting Star and Love Sensation while driving; a skill curse still holds) */
       if (vehOn()) { if (me.dead || g.won) return; if (RULES && RULES.blocks('noskill')) { text(me.x, me.y - 1.1, 'Cursed: no skills', '#E07BF0', 13); api.sfx.wrong(); return; } VEH.strong(slot || 'strong'); return; }
+      if (g.trialLock) { lockSay(); return; }   /* v391 B2 */
       slot = slot && KIT[slot] ? slot : 'strong';
       const ab = KIT[slot];
       if (me.dead || g.won || g.intro > 1.9 || g.bossIntro > 0.6 || me.swIn) return;
@@ -930,6 +938,7 @@ GAMES.dungeon = {
     let beamUlt = null, petalT = 0, blizT = 0, supernova = 0, swarmQ = 0, novaR = 11, STAR = null, ELEM = null, RES = null;
     const dragons = [];
     function useUlt() {
+      if (g.trialLock) { lockSay(); return; }   /* v391 B2 */
       const ab = KIT.ult;
       if (me.dead || g.won || g.intro > 1.9 || g.bossIntro > 0.6 || me.swIn) return;
       if (vehOn()) { VEH.ult(); return; }   /* (Sports Car: the Ult button is the Supernova meter while driving; never a recast) */
@@ -1502,6 +1511,7 @@ GAMES.dungeon = {
       if (AN) AN.update(dt, dtReal);
       if (RULES) RULES.update(dt);
       if (RIFT) RIFT.update(dt);
+      if (g.trialLock && AN && AN.S && AN.S.list) for (const a of AN.S.list) if (a.st !== 'leave') { a.st = 'leave'; a.lv = 0; }   /* v391 B2: summoned companions withdraw from a move-and-roll trial */
       // a sandstorm blows in waves (fourteen seconds of storm, twelve of calm): while it blows, the sand wears the pet's HP
       // slowly away (never below 1)
       if (PB.storm === 'sand' && !F.fiend) { g.stormC = (g.stormC || 0) + dt; const cyc = g.stormC % 26, on = cyc < 14 && g.intro <= 0;
@@ -2061,6 +2071,7 @@ GAMES.dungeon = {
     /* orbiting blades, chainsaws and guard orbs from power stones, and the frost aura */
     function drawPowers(c) {
       if (g.exitIn && exitK() > 0.35) return;   /* (v388 E: they go into the dark with the pet) */
+      if (g.trialLock) return;   /* v391 B2: damage auras are set aside in a move-and-roll trial */
       const P = g.pw, T = Tz(), X = sx(me.x), Y = sy(me.y - OY);
       if (P.frost) { const Rr = (3 + P.frost * 0.5) * T, X0 = sx(me.x), Y0 = sy(me.y), pul = 0.5 + 0.5 * Math.sin(g.t * 2.2);
         // (a soft breath of cold, no edge to it: a mist that thins away to nothing, brighter near the pet, a faint frosted
@@ -2649,16 +2660,18 @@ GAMES.dungeon = {
       };
       if (vehOn() && VEH.drawBtns) VEH.drawBtns(c, { B: vehBtns(), blitC, hudPic, glowPic, touchUI });   /* (Sports Car: Shooting Star, Love Sensation, the Supernova meter, Drift) */
       else {
+      if (g.trialLock) { for (const b of btnSs().concat([uB])) { c.save(); c.globalAlpha = 0.45; c.beginPath(); c.arc(b.x, b.y, b.r, 0, 6.283); c.fillStyle = 'rgba(30,24,56,.85)'; c.fill(); c.lineWidth = 2; c.strokeStyle = 'rgba(255,255,255,.3)'; c.stroke(); c.globalAlpha = 0.8; c.fillStyle = '#BFE6FF'; c.fillRect(b.x - b.r * 0.22, b.y - b.r * 0.05, b.r * 0.44, b.r * 0.36); c.strokeStyle = '#BFE6FF'; c.lineWidth = Math.max(2, b.r * 0.09); c.beginPath(); c.arc(b.x, b.y - b.r * 0.08, b.r * 0.16, Math.PI, 0); c.stroke(); c.restore(); } }   /* v391 B2: locked in a move-and-roll trial */
+      else {
       btnSs().forEach((b, i) => { const ab = KIT[b.k], cd = g[CDK[b.k]]; drawBtn(b, ab, cd, ab.cd, me.mp >= ab.cost && cd <= 0, false, SSL.length > 1 ? i + 1 : 0); });
-      drawBtn(uB, KIT.ult, g.cdU, KIT.ult.cd, me.mp >= KIT.ult.cost && g.cdU <= 0, true);
+      drawBtn(uB, KIT.ult, g.cdU, KIT.ult.cd, me.mp >= KIT.ult.cost && g.cdU <= 0, true); }
       { const ready = g.dodgeCd <= 0 && !me.dodge;
         blitC(c, hudPic(`dodge|${ready}|${dB.r}`, dB.r * 2 + 8, dB.r * 2 + 8, (x, w, h) => { const cx = w / 2, cy = h / 2; x.beginPath(); x.arc(cx, cy, dB.r, 0, 6.283); x.fillStyle = ready ? 'rgba(127,211,242,.9)' : 'rgba(30,24,56,.85)'; x.fill(); x.lineWidth = 3; x.strokeStyle = ready ? '#FFFFFF' : 'rgba(255,255,255,.3)'; x.stroke();
           x.save(); x.translate(cx, cy); x.strokeStyle = ready ? '#1F4E6B' : 'rgba(255,255,255,.5)'; x.lineWidth = 3; x.lineCap = 'round'; x.beginPath(); x.arc(0, 0, dB.r * 0.45, -2.6, 1.2); x.stroke(); x.beginPath(); x.moveTo(dB.r * 0.16, dB.r * 0.52); x.lineTo(dB.r * 0.16 + 6, dB.r * 0.52 - 1); x.lineTo(dB.r * 0.16 + 2, dB.r * 0.52 - 6); x.stroke(); x.restore(); }), dB.x, dB.y);
         if (g.dodgeCd > 0.05) { c.beginPath(); c.moveTo(dB.x, dB.y); c.arc(dB.x, dB.y, dB.r, -Math.PI / 2, -Math.PI / 2 + 6.283 * Math.min(1, g.dodgeCd / (0.85 * (g.dodgeK || 1)))); c.closePath(); c.fillStyle = 'rgba(0,0,0,.45)'; c.fill(); }
         GFX.labelS(c, 'DODGE', dB.x, dB.y + dB.r + 9, 9, 800, '#CFEFFF', 'rgba(0,0,0,.7)', 3); }
       }
-      if (party.length > 1) { const b = btnSw(), nxt = party[(cur + [1, 2, 3].find(k => !party[(cur + k) % party.length].down && (cur + k) % party.length !== cur) || 0) % party.length], EE = E8[nxt.el], ready = g.swapCd <= 0; c.save(); c.beginPath(); c.arc(b.x, b.y, b.r, 0, 6.283); c.fillStyle = ready ? 'rgba(30,24,56,.9)' : 'rgba(30,24,56,.6)'; c.fill(); c.lineWidth = 3; c.strokeStyle = ready ? EE.color : 'rgba(255,255,255,.3)'; c.stroke(); const s0 = arc.sprites; arc.sprites = nxt.sprites; c.globalAlpha = ready ? 1 : 0.5; api.pet(c, b.x, b.y + b.r * 0.55, b.r * 1.15, {}); arc.sprites = s0; c.globalAlpha = 1; c.strokeStyle = '#FFFFFF'; c.lineWidth = 2.5; c.lineCap = 'round'; c.beginPath(); c.arc(b.x, b.y, b.r + 5, -2.4, -0.9); c.stroke(); c.beginPath(); c.moveTo(b.x + Math.cos(-0.9) * (b.r + 5) - 5, b.y + Math.sin(-0.9) * (b.r + 5) - 1); c.lineTo(b.x + Math.cos(-0.9) * (b.r + 5) + 1, b.y + Math.sin(-0.9) * (b.r + 5)); c.lineTo(b.x + Math.cos(-0.9) * (b.r + 5) - 1, b.y + Math.sin(-0.9) * (b.r + 5) - 6); c.stroke(); if (g.swapCd > 0.05) { c.beginPath(); c.moveTo(b.x, b.y); c.arc(b.x, b.y, b.r, -Math.PI / 2, -Math.PI / 2 + 6.283 * g.swapCd / 1.1); c.closePath(); c.fillStyle = 'rgba(0,0,0,.5)'; c.fill(); } c.font = `800 9px ${arcFont}`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineWidth = 3; c.strokeStyle = 'rgba(0,0,0,.7)'; c.strokeText('SWITCH', b.x, b.y + b.r + 10); c.fillStyle = '#FFFFFF'; c.fillText('SWITCH', b.x, b.y + b.r + 10); c.restore(); }
-      else if (!vehOn()) { const nx = SSL.length > 1 ? W - 218 : W - 128, ny = SSL.length > 1 ? HB() - 10 : HB() - 96, E = EL(KIT.normal.el), ready = g.normalT <= 0.01; c.globalAlpha = 0.9;   /* (no tap-attack hint while driving: there are none) */
+      if (party.length > 1 && !g.trialLock) { const b = btnSw(), nxt = party[(cur + [1, 2, 3].find(k => !party[(cur + k) % party.length].down && (cur + k) % party.length !== cur) || 0) % party.length], EE = E8[nxt.el], ready = g.swapCd <= 0; c.save(); c.beginPath(); c.arc(b.x, b.y, b.r, 0, 6.283); c.fillStyle = ready ? 'rgba(30,24,56,.9)' : 'rgba(30,24,56,.6)'; c.fill(); c.lineWidth = 3; c.strokeStyle = ready ? EE.color : 'rgba(255,255,255,.3)'; c.stroke(); const s0 = arc.sprites; arc.sprites = nxt.sprites; c.globalAlpha = ready ? 1 : 0.5; api.pet(c, b.x, b.y + b.r * 0.55, b.r * 1.15, {}); arc.sprites = s0; c.globalAlpha = 1; c.strokeStyle = '#FFFFFF'; c.lineWidth = 2.5; c.lineCap = 'round'; c.beginPath(); c.arc(b.x, b.y, b.r + 5, -2.4, -0.9); c.stroke(); c.beginPath(); c.moveTo(b.x + Math.cos(-0.9) * (b.r + 5) - 5, b.y + Math.sin(-0.9) * (b.r + 5) - 1); c.lineTo(b.x + Math.cos(-0.9) * (b.r + 5) + 1, b.y + Math.sin(-0.9) * (b.r + 5)); c.lineTo(b.x + Math.cos(-0.9) * (b.r + 5) - 1, b.y + Math.sin(-0.9) * (b.r + 5) - 6); c.stroke(); if (g.swapCd > 0.05) { c.beginPath(); c.moveTo(b.x, b.y); c.arc(b.x, b.y, b.r, -Math.PI / 2, -Math.PI / 2 + 6.283 * g.swapCd / 1.1); c.closePath(); c.fillStyle = 'rgba(0,0,0,.5)'; c.fill(); } c.font = `800 9px ${arcFont}`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineWidth = 3; c.strokeStyle = 'rgba(0,0,0,.7)'; c.strokeText('SWITCH', b.x, b.y + b.r + 10); c.fillStyle = '#FFFFFF'; c.fillText('SWITCH', b.x, b.y + b.r + 10); c.restore(); }
+      else if (!vehOn() && !g.trialLock) { const nx = SSL.length > 1 ? W - 218 : W - 128, ny = SSL.length > 1 ? HB() - 10 : HB() - 96, E = EL(KIT.normal.el), ready = g.normalT <= 0.01; c.globalAlpha = 0.9;   /* (no tap-attack hint while driving: there are none) */
         blitC(c, hudPic(`tapBtn|${KIT.normal.glyph}|${E.color}|${ready}`, 34, 34, (x, w, h) => { const cx = w / 2, cy = h / 2; x.beginPath(); x.arc(cx, cy, 13, 0, 6.283); x.fillStyle = ready ? hexA(E.color, 0.75) : 'rgba(30,24,56,.85)'; x.fill(); x.lineWidth = 2; x.strokeStyle = ready ? '#FFFFFF' : E.color; x.stroke(); drawGlyph(x, KIT.normal.glyph, cx, cy, 15, 0.9); }), nx, ny);
         GFX.labelS(c, touchUI ? 'TAP' : 'SPACE', nx, ny + 20, 7, 800, '#FFFFFF', null, 0); c.globalAlpha = 1; }
       }
@@ -2908,7 +2921,7 @@ GAMES.dungeon = {
         if (AN && AN.S.cine) return;
         const RHd = RIFT && RIFT.hud ? RIFT.hud() : null;   // (a rift stage with its own single button: only that, and the stick)
         if (RHd && onBtn(btnU(), x, y)) { RIFT.act(); return; }
-        if (!RHd && AN && PI.anima && AN.onBtn(x, y)) return;
+        if (!RHd && AN && PI.anima && !g.trialLock && AN.onBtn(x, y)) return;   /* v391 B2: no summons while g.trialLock */
         if (teamOk()) { const tb = btnTeam(); if (hyp(x - tb.x, y - tb.y) < tb.r + 8) { openRunTeam(); return; } }
         if (RIFT && RIFT.tap(x, y)) return;   // (a rift stage that takes the whole screen's taps: the Sandstorm Flight)
         if (!RHd && party.length > 1) { if (x < 60 && y < 62) { switchNext(); return; } const b = btnSw(); if (hyp(x - b.x, y - b.y) < b.r + 8) { switchNext(); return; } if (y > 56 && y < 84 && x > 50 && x < 60 + party.length * 48) { const k = Math.floor((x - 52) / 48); let idx = -1, seen = 0; for (let i = 0; i < party.length; i++) { if (i === cur) continue; if (seen === k) { idx = i; break; } seen++; } if (idx >= 0) { if (!switchTo(idx)) text(me.x, me.y - 1.2, party[idx].down ? 'Knocked out' : 'Not yet', '#CFE2FF', 12); return; } } }
