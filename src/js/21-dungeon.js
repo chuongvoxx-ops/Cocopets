@@ -402,24 +402,27 @@ function renderCards() {
   if (sheetKind !== 'cards' || !st) return;
   const P = cardsPet();
   if (!slotOpen(cardsSlot, P.stage)) cardsSlot = 'normal';
-  const K = petKit(P), deck = cleanDeck(P.deck, P), curId = deck[cardsSlot], curMv = elemParse(curId), cur = curMv ? curId : curId && st.cards[curId] ? curId : null;
+  const K = petKit(P), deck = cleanDeck(P.deck, P), curId = deck[cardsSlot], curMv = isSkillId(curId), cur = curMv ? curId : curId && st.cards[curId] ? curId : null;
   const own = innateAbility(cardsSlot, K.AB, P), elsewhere = id => SLOTS.find(s => s !== cardsSlot && deck[s] === id);
   const ids = CARD_IDS.filter(id => CARDS[id].slot === slotType(cardsSlot)).sort((a, b) => R_ORDER.indexOf(CARDS[a].r) - R_ORDER.indexOf(CARDS[b].r));
-  // the pet's elemental moves for this slot (every pet may learn its element's Strongs; only five- and six-stars its Ultimates)
-  const e8 = petElement(P), moves = elemMovesFor(P, slotType(cardsSlot)), moveAb = mv => { const lock = elemLock(mv, P); return Object.assign(elemAbility(mv, cardsSlot, P), lock ? { locked: true, lock } : {}); };
-  const abOf = id => id === 'own' ? own : elemParse(id) ? moveAb(elemParse(id)) : st.cards[id] ? cardAbility(id, st.cards[id]) : Object.assign(cardAbility(id, 1), { locked: true });
+  // (v391 K) pets don't learn moves: a pet's own Strong and Ult are its skills (20k1s-skills.js), shown read-only. Only
+  // the developer setting ("Unlock all skills (dev)") lists every move of every pool here, to equip on any pet
+  const dev = devSkillsOn(), moveAb = id => skillAbility(id, cardsSlot, P, K.AB, { dev: true });
+  if (cardsSel && isSkillId(cardsSel) && !dev) cardsSel = null;
+  const abOf = id => id === 'own' ? own : isSkillId(id) ? moveAb(id) : st.cards[id] ? cardAbility(id, st.cards[id]) : Object.assign(cardAbility(id, 1), { locked: true });
   const sel = abOf(cardsSel || cur || 'own');
-  const selId = sel.elem ? sel.id : sel.own ? 'own' : sel.card, equipped = selId === 'own' ? !cur : cur === selId;
+  const selId = cardsSel || cur || 'own', equipped = selId === 'own' ? !cur : cur === selId;
   const pw = Math.round(sel.mult * 100);
-  const lockText = sel.lock === 'stars' ? `An elemental Ultimate: only five- and six-star pets can learn one.` : sel.lock === 'level' ? `${esc(P.name)} learns it at Dungeon level ${sel.lv} (now ${P.dlv || 1}).` : sel.locked ? `A ${CARD_R[sel.r].name.toLowerCase()} card. Find it in gift boxes or boss chests.` : '';
-  const detail = `<div class="cd-detail">${abilityCardHTML(sel, { big: true, locked: sel.locked && !sel.elem })}<div class="cd-copy"><p class="eyebrow">${sel.elem ? `${E8[e8].name} move${sel.slot === 'ult' || slotType(sel.slot) === 'ult' ? ' · Ultimate' : ''}` : SLOT_INFO[cardsSlot].name}</p><h3>${sel.locked && !sel.elem ? 'Not found yet' : esc(sel.name)}</h3><p>${sel.locked && !sel.elem ? esc(lockText) : esc(sel.desc)}</p>
-    ${sel.locked && !sel.elem ? '' : `<p class="cd-nums mono">${sel.cost ? `${sel.cost} MP · ${sel.cd.toFixed(1)}s cooldown · ` : 'Tap to fire · free · '}power ${pw}%${sel.own ? '' : ` · Lv ${sel.lv}/${CARD_MAX_LV}`}</p>`}
-    ${sel.elem && sel.locked ? `<p class="note">${ICON.lock || '🔒'} ${esc(lockText)}</p>` : sel.locked ? '' : equipped ? `<span class="cd-eq">${ICON.star}Equipped</span>` : `<button class="btn primary" type="button" data-go="card-eq" data-id="${selId}">Equip${selId !== 'own' && elsewhere(selId) ? ` (moves from ${SLOT_INFO[elsewhere(selId)].short})` : ''}</button>`}</div></div>`;
+  const lockText = sel.locked ? `A ${CARD_R[sel.r].name.toLowerCase()} card. Find it in gift boxes or boss chests.` : '';
+  const detail = `<div class="cd-detail">${abilityCardHTML(sel, { big: true, locked: sel.locked })}<div class="cd-copy"><p class="eyebrow">${sel.dev ? 'Developer pick · ' : selId === 'own' && sel.skill ? 'Own skill · ' : ''}${sel.e8 ? `${E8[sel.e8].name} move${slotType(sel.slot) === 'ult' ? ' · Ultimate' : ''}` : SLOT_INFO[cardsSlot].name}</p><h3>${sel.locked ? 'Not found yet' : esc(sel.name)}</h3><p>${sel.locked ? esc(lockText) : esc(sel.desc)}</p>
+    ${sel.locked ? '' : `<p class="cd-nums mono">${sel.cost ? `${sel.cost} MP · ${sel.cd.toFixed(1)}s cooldown · ` : 'Tap to fire · free · '}power ${pw}%${sel.own ? '' : ` · Lv ${sel.lv}/${CARD_MAX_LV}`}</p>`}
+    ${sel.locked ? '' : equipped ? `<span class="cd-eq">${ICON.star}Equipped</span>` : `<button class="btn primary" type="button" data-go="card-eq" data-id="${selId}">${selId === 'own' ? 'Use own skill' : 'Equip'}${selId !== 'own' && elsewhere(selId) ? ` (moves from ${SLOT_INFO[elsewhere(selId)].short})` : ''}</button>`}</div></div>`;
   const grid = [`<button class="cbtn" type="button" data-go="card-pick" data-id="own"${selId === 'own' ? ' aria-current="true"' : ''}>${abilityCardHTML(own, { equipped: !cur })}</button>`]
     .concat(ids.map(id => { const has = st.cards[id], a = has ? cardAbility(id, has) : cardAbility(id, 1); return `<button class="cbtn" type="button" data-go="card-pick" data-id="${id}"${selId === id ? ' aria-current="true"' : ''}>${abilityCardHTML(a, { locked: !has, equipped: cur === id })}</button>`; })).join('');
-  const known = moves.filter(mv => !elemLock(mv, P)).length;
-  const egrid = moves.map(mv => { const a = moveAb(mv); return `<button class="cbtn${a.locked ? ' elocked' : ''}" type="button" data-go="card-pick" data-id="${a.id}"${selId === a.id ? ' aria-current="true"' : ''}>${abilityCardHTML(a, { equipped: cur === a.id })}${a.locked ? `<span class="elock">${a.lock === 'stars' ? '★5' : `Lv ${mv.lv}`}</span>` : ''}</button>`; }).join('');
-  const emoves = `<p class="eyebrow cd-sub">${E8[e8].name} moves · ${known}/${moves.length} learned</p><p class="note">${slotType(cardsSlot) === 'ult' ? `${E8[e8].name} Ultimates. Only five- and six-star pets learn them; each unlocks at a Dungeon level.` : `${E8[e8].name} Strong attacks. Every ${E8[e8].name} pet learns them, one by one, as its Dungeon level rises.`}</p><div class="cgrid">${egrid}</div>`;
+  // (v391 K) the pet's own skills, read-only; and, for the developer only, every move of every pool
+  const ownEl = petElement(P), tierP = skillTier(P);
+  const dgrid = !dev || slotType(cardsSlot) === 'normal' ? '' : `<div class="dev-skillpick"><p class="eyebrow cd-sub">Developer · every ${slotType(cardsSlot) === 'ult' ? 'Ultimate' : 'Strong attack'}</p><p class="note">"Unlock all skills (dev)" is on: tap any move to equip it on ${esc(P.name)}, whatever its stars or element. Players never see this.</p>${skillGroups(slotType(cardsSlot)).map(G => `<details class="sk-grp"${(G.el ? G.el === ownEl && ((tierP >= 6) === G.name.endsWith('6★')) : tierP <= 4 && G.name.startsWith('Innate')) ? ' open' : ''}><summary>${esc(G.name)} <small>${G.ids.length}</small></summary><div class="cgrid">${G.ids.map(id => { const a = moveAb(id); return `<button class="cbtn" type="button" data-go="card-pick" data-id="${id}"${selId === id ? ' aria-current="true"' : ''}>${abilityCardHTML(a, { equipped: cur === id })}</button>`; }).join('')}</div></details>`).join('')}</div>`;
+  const emoves = skillsBoxHTML(P, K.AB, { dev }) + dgrid;
   const owned = Object.keys(st.cards).length;
   sheetEl.innerHTML = `<div class="sheet-grab" aria-hidden="true"></div><button class="icon-btn sheet-close" type="button" data-sheet-close aria-label="Close">${ICON.close}</button>
     ${cardsFrom === 'team' ? `<button class="btn small team-back" type="button" data-go="team">${ICON.back || ''}Team</button>` : ''}
@@ -437,9 +440,9 @@ function equipCard(id) {
   if (!st) return;
   const P = cardsPet();
   P.deck = cleanDeck(P.deck, P);
-  const mv = elemParse(id);
+  const mv = isSkillId(id);   // (v391 K: a skill move is equipped only by the developer setting)
   if (id === 'own') P.deck[cardsSlot] = null;
-  else if ((mv ? !elemLock(mv, P) : !!st.cards[id]) && deckFits(id, cardsSlot, P) && slotOpen(cardsSlot, P.stage)) { const prev = P.deck[cardsSlot]; SLOTS.forEach(s => { if (s !== cardsSlot && P.deck[s] === id) P.deck[s] = prev && deckFits(prev, s, P) ? prev : null; }); P.deck[cardsSlot] = id; }
+  else if ((mv ? devSkillsOn() : !!st.cards[id]) && deckFits(id, cardsSlot, P) && slotOpen(cardsSlot, P.stage)) { const prev = P.deck[cardsSlot]; SLOTS.forEach(s => { if (s !== cardsSlot && P.deck[s] === id) P.deck[s] = prev && deckFits(prev, s, P) ? prev : null; }); P.deck[cardsSlot] = id; }
   else return;
   cardsSel = id;
   sfx.sparkle(); saveSoon();

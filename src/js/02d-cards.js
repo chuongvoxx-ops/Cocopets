@@ -100,6 +100,8 @@ function innateAbility(slot, AB, p) {
   const E = ELEMENTS[AB.el], grow = 1 + 0.05 * ((p.stage || 1) - 1);
   if (slot === 'strong2' || slot === 'strong3') { const k = extraStrongs(AB, p)[slot === 'strong2' ? 0 : 1], S = INNATE_STRONG[k]; return { slot, own: true, key: 's_' + k, name: k === 'spikes' ? espikeName(AB.el) : `${E.name} ${STRONGS[k].name}`, glyph: S.glyph, el: AB.el, mult: grow, cost: S.cost, cd: S.cd, desc: k === 'spikes' ? espikeDesc(AB.el) : STRONGS[k].desc }; }
   if (slot === 'normal') return { slot, own: true, key: 'n_' + AB.shot, name: AB.name, glyph: NORMAL_GLYPH[AB.shot] || 'orb', el: AB.el, mult: grow, cost: 0, cd: 0, desc: AB.shotDesc.replace('the sky', 'the room').replace('the edges', 'the walls').replace('the ship', 'you') };
+  // v391 K: a pet's own Strong and Ult are its skills (petSkills, 20k1s-skills.js): rolled at birth, or given by fusion
+  if ((slot === 'strong' || slot === 'ult') && p && p.dna) { const a = ownSkillAbility(slot, AB, p); if (a) return a; }
   const sig = T => { const mv = ELEM_LIST[T.e8] && ELEM_LIST[T.e8][(slot === 'ult' ? 'ey_' : 'ex_') + T.key]; return mv ? Object.assign(elemAbility(mv, slot, p), { sig: true }) : null; };
   if (slot === 'strong' && AB.starStrong && AB.starStrong.e8) { const a = sig(AB.starStrong); if (a) return a; }
   if (slot === 'ult' && AB.starUlt && AB.starUlt.e8) { const a = sig(AB.starUlt); if (a) return a; }
@@ -118,7 +120,8 @@ function cardAbility(id, lv) {
 function deckFits(id, s, p) {
   if (typeof id !== 'string') return false;
   if (CARDS[id]) return CARDS[id].slot === slotType(s);
-  const mv = elemParse(id); return !!mv && mv.slot === slotType(s) && (!p || !elemLock(mv, p));
+  // v391 K: a skill move (elemental, star or innate) goes in a deck only by the developer setting, on any pet
+  const m = skillParse(id); return !!m && m.slot === slotType(s) && (!p || devSkillsOn());
 }
 function cleanDeck(d, p) {
   const out = {}, used = new Set();
@@ -136,8 +139,8 @@ function tierStrong(a) { return Object.assign({}, a, { tier: 2, name: a.name + '
 function petKit(p) {
   const AB = applyAbOv(petAbility(formOf(p), p.dna.seed), p), deck = cleanDeck(p.deck, p), kit = {};
   kitSlots(p).forEach(s => {
-    const id = deck[s], mv = elemParse(id);
-    let a = mv ? elemAbility(mv, s, p) : id && st && st.cards && st.cards[id] ? cardAbility(id, st.cards[id]) : innateAbility(s, AB, p);
+    const id = deck[s], mv = isSkillId(id);   // (v391 K: a developer's pick)
+    let a = mv ? skillAbility(id, s, p, AB, { dev: true }) : id && st && st.cards && st.cards[id] ? cardAbility(id, st.cards[id]) : innateAbility(s, AB, p);
     if (id && a.slot !== s) a = Object.assign({}, a, { slot: s });
     // two Strong slots never hold the same attack
     if (s !== 'strong' && slotType(s) === 'strong' && kitSlots(p).some(o => o !== s && slotType(o) === 'strong' && kit[o] && kit[o].key === a.key)) a = innateAbility(s, AB, p);

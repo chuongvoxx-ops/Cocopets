@@ -20,7 +20,9 @@ function starterItems() {
    The active pet's fields sit at the top of st (as in earlier versions); the other pets wait in st.others.
    st.room always points at the room you are in: st.house.rooms[st.house.cur]. */
 const PET_KEYS = ['uid', 'name', 'dna', 'forms', 'rarity', 'hatchedAt', 'food', 'joy', 'energy', 'clean', 'asleep', 'ageH', 'stage', 'xp',
-  'streak', 'bestStreak', 'lastFedDay', 'meals', 'pats', 'kicks', 'pops', 'catches', 'digs', 'baths', 'seeks', 'tricks', 'digWait', 'evoResets', 'paid', 'dlv', 'dxp', 'deck', 'fusedFrom', 'gen', 'abOv', 'acc'];
+  'streak', 'bestStreak', 'lastFedDay', 'meals', 'pats', 'kicks', 'pops', 'catches', 'digs', 'baths', 'seeks', 'tricks', 'digWait', 'evoResets', 'paid', 'dlv', 'dxp', 'deck', 'fusedFrom', 'gen', 'abOv', 'acc', 'skills'];   // (v391 K: skills, the pet's own Strong and Ult, 20k1s-skills.js)
+/* v391 K: the skills rules' version. A save from before it is re-rolled once under the new rules (migrateSkills) */
+const SKILLS_V = 1;
 const MAX_PETS = 50, MAX_ROOMS = 9;
 const petUid = () => 'p' + Math.random().toString(36).slice(2, 9);
 /* genome = { dna: {seed, personality, size}, form } from makeGenome() */
@@ -32,6 +34,7 @@ function newPetFields(name, genome) {
     tricks: {}, digWait: 0, evoResets: 0, paid: {},
     dlv: 1, dxp: 0, deck: { normal: null, strong: null, ult: null },   // Dungeon level, its experience, and equipped ability cards
     acc: { ring: null, bracelet: null, necklace: null },   // the accessories it wears (ids into the house's bag, st.accs)
+    skills: null,   // v391 K: { strong: {id, src, of?}, ult: {...} }; null until saved (petSkills rolls it from the seed)
     fusedFrom: null, gen: 0, abOv: null,   // abilities inherited from fusion parents: { normal: {shot}, strong: {key, tier}, ult: {key, tier} }   // parents' names and generation when the pet came from a fusion
   };
 }
@@ -76,6 +79,7 @@ function newState(name, genome) {
     map: { stars: {}, best: {}, plays: 0, milestones: {} },
     cards: {}, accs: [], dun: { best: 0, runs: 0, kills: 0, boxes: 0, pity: 0, god: false, tab: 'world', seen: {}, grades: {} }, rift: { seals: {}, prog: {}, gates: {}, rlyeh: 0, ver: { belfry: 2 }, bel: {} },   // (v391 B1: ver, a rift's stage-layout version (the Belfry rebuilt: 2); bel, the Belfry's small checkpoint numbers)
     sound: true, retro: true, fast: false, tips: {}, dev: false, unlockAll: false,
+    skillsV: SKILLS_V,   // v391 K: a new game starts under the skills rules (no re-roll on its first load)
     welcome: 0, freeTen: 0, login: { m: '', n: 0, last: '', seen: '' },
     hub: newHub(),
   });
@@ -146,6 +150,7 @@ function sanitizePet(o, v) {
   if (o.abOv && typeof o.abOv === 'object') { const ov = {}; ['normal', 'strong', 'ult'].forEach(k => { const v = o.abOv[k]; if (v && typeof v === 'object' && (typeof v.key === 'string' || typeof v.shot === 'string')) ov[k] = { key: typeof v.key === 'string' ? v.key.slice(0, 24) : undefined, shot: typeof v.shot === 'string' ? v.shot.slice(0, 16) : undefined, tier: Math.round(num(v.tier, 3, 3, 6)) }; }); p.abOv = Object.keys(ov).length ? ov : null; }
   if (Array.isArray(o.fusedFrom) && o.fusedFrom.length === 2 && o.fusedFrom.every(n => typeof n === 'string')) p.fusedFrom = o.fusedFrom.map(n => n.replace(/[<>]/g, '').slice(0, 14));
   p.gen = Math.floor(num(o.gen, 0, 0, 99));
+  p.skills = typeof cleanSkills === 'function' ? cleanSkills(o.skills) : null;   // v391 K (migrateSkills, in sanitize, fills or re-rolls)
   return p;
 }
 function cleanItems(list) {
@@ -232,7 +237,9 @@ function sanitize(o) {
   if (o.v === 4 && Array.isArray(o.others)) s.others = o.others.slice(0, MAX_PETS - 1).map(p => sanitizePet(p, 4)).filter(Boolean);
   const seen = new Set([s.uid]);
   s.others.forEach(p => { if (seen.has(p.uid)) p.uid = petUid(); seen.add(p.uid); });
-  [s].concat(s.others).forEach(p => SLOTS.forEach(k => { if (p.deck[k] && !s.cards[p.deck[k]]) p.deck[k] = null; }));   // only cards the house owns
+  [s].concat(s.others).forEach(p => SLOTS.forEach(k => { if (p.deck[k] && !s.cards[p.deck[k]] && !(typeof isSkillId === 'function' && isSkillId(p.deck[k]))) p.deck[k] = null; }));   // only cards the house owns (v391 K: and the developer's skill picks, which cleanDeck ignores while the setting is off)
+  // v391 K: pets' skills: re-rolled once for a save from before the new rules (and elemental moves taken out of decks), else kept
+  s.skillsV = SKILLS_V; if (typeof migrateSkills === 'function') migrateSkills(s, o);
   s.accs = cleanAccs(o.accs); linkAccs(s);   // the accessory bag, and only pieces from it worn, each by one pet
   // the party: up to three pets beside the one you play, each one you still have, none twice
   if (Array.isArray(o.party)) { const ok = new Set(s.others.map(p => p.uid)), seen2 = new Set(); s.party = o.party.filter(u => typeof u === 'string' && ok.has(u) && u !== s.uid && !seen2.has(u) && seen2.add(u)).slice(0, 3); }

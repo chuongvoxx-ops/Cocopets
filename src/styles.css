@@ -1984,3 +1984,29 @@ body.in-map .outside-btn,body.in-mansion .outside-btn,body.home-mode .outside-bt
 .stage-load .sl-lbl{font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.75}
 .stage-load .sl-tip{margin:2px 0 0;max-width:34ch;font-size:12.5px;opacity:.9;text-shadow:0 1px 0 #2B2433}
 .stage-load.boot-load{position:fixed;z-index:10000}
+/* v391 K: a pet's own skills (read-only), the developer's every-skill pick, and the fusion skill step */
+.sk-box{margin-top:14px;padding:12px;border:2px solid var(--line);border-radius:18px;background:var(--paper);box-shadow:0 3px 0 var(--line)}
+.sk-box .eyebrow{margin:0 0 6px}
+.sk-box .note{margin:8px 0 0}
+.sk-own{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1.5px dashed color-mix(in srgb,var(--line) 30%,transparent)}
+.sk-own:first-of-type{border-top:0}
+.sk-own .fab-art{flex:none;width:40px;height:40px}
+.sk-own .fab-art svg{width:24px;height:24px}
+.sk-own-copy{display:flex;flex-direction:column;gap:1px;min-width:0}
+.sk-own-copy small{font-size:10.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.sk-own-copy b{font-size:15px;line-height:1.2}
+.sk-own-copy span{font-size:12.5px;line-height:1.35}
+.sk-own-copy em{font-style:normal;font-size:11px;color:var(--muted)}
+.dev-skillpick{margin-top:14px;padding:10px;border:2.5px dashed #E0752D;border-radius:18px;background:color-mix(in srgb,#FFB15A 12%,var(--paper))}
+.dev-skillpick .eyebrow{color:#C2410C;margin-top:0}
+.sk-grp{margin-top:8px;border-top:1.5px solid color-mix(in srgb,var(--line) 25%,transparent);padding-top:6px}
+.sk-grp summary{cursor:pointer;font-weight:800;font-size:13px;padding:4px 0}
+.sk-grp summary small{font:700 11px/1 var(--f-mono,monospace);color:var(--muted);margin-left:4px}
+.sk-grp .cgrid{margin-top:8px}
+.setting.dev-skills>div>span::after{content:"DEV";margin-left:6px;font:800 9.5px/1 var(--f-mono,monospace);color:#fff;background:#E0752D;border-radius:6px;padding:2px 5px;vertical-align:2px}
+.fab-opt.off{opacity:.5;cursor:not-allowed;box-shadow:none;border-style:dashed}
+.fab-opt.off .fab-art{filter:grayscale(.85)}
+.fab-why{font-style:normal;font-size:9.5px;font-weight:800;line-height:1.15;color:#B42318}
+.fab-why.ok{color:var(--muted);font-weight:700}
+.fab-roll .fab-art svg{width:20px;height:20px}
+.sk-fnote{margin-top:6px}

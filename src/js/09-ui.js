@@ -276,7 +276,7 @@ sheetWrap.addEventListener('click', e => {
     else if (k === 'acc-scrap') accScrap(go.dataset.u);
     else if (k === 'acc-scrap-low') accScrapLow();
     else if (k === 'cards-tab') { cardsSlot = go.dataset.slot; cardsSel = null; renderCards(); }
-    else if (k === 'card-pick') { const id = go.dataset.id, mv = elemParse(id); if (id === 'own' || (mv ? !elemLock(mv, cardsPet()) : st.cards[id])) equipCard(id); else { cardsSel = id; renderCards(); sfx.boop(); } }
+    else if (k === 'card-pick') { const id = go.dataset.id, mv = isSkillId(id); if (id === 'own' || (mv ? devSkillsOn() : st.cards[id])) equipCard(id);   /* (v391 K: skill moves only by the developer setting) */ else { cardsSel = id; renderCards(); sfx.boop(); } }
     else if (k === 'card-eq') equipCard(go.dataset.id);
     else if (k === 'gift') openGiftShop();
     else if (k === 'gift-buy') confirmGiftBuy();
@@ -302,6 +302,7 @@ sheetWrap.addEventListener('click', e => {
     else if (k === 'fuse-pick') fusePick(go.dataset.slot, +go.dataset.i);
     else if (k === 'fuse-roll') fuseRoll();
     else if (k === 'fuse-ab') fuseAbPick(go.dataset.slot, go.dataset.src);
+    else if (k === 'fuse-all-ab') fuseAllAb(+go.dataset.g, go.dataset.slot, go.dataset.id);   // v391 K: merge all, the child's skills
     else if (k === 'fuse-pair') fusePair(+go.dataset.g);
     else if (k === 'fuse-all') fuseAll(+go.dataset.g);
     else if (k === 'fuse-all-go') fuseAll(+go.dataset.g, true);

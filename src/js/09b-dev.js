@@ -47,7 +47,7 @@ function renderDev() {
       <button class="btn small" type="button" data-go="dev-food">+3 of each farm food</button>
       <button class="btn small" type="button" data-go="dev-egg"${petCount() >= MAX_PETS ? ' disabled' : ''}>${ICON.egg}Free egg</button>
     </div>
-    <div class="setting"><div><span id="devMvLbl">Every elemental move learned</span><p class="note">To try the elemental Strongs and Ultimates: the level locks are lifted (the five-star rule on Ultimates stays).</p></div><button class="switch" type="button" role="switch" data-go="dev-moves" aria-checked="${!!st.devMoves}" aria-labelledby="devMvLbl"></button></div>
+    <div class="setting dev-skills"><div><span id="devMvLbl">Unlock all skills (dev)</span><p class="note"><b>Developer only.</b> Any pet can equip any Strong or Ultimate from every pool (the 1–4★ pool, every element's 5★ and 6★ lists) on its Ability cards screen, to test them. Players never get this: their pets keep the skills they were born with. Turn it off and every pet's own skills come back.</p></div><button class="switch" type="button" role="switch" data-go="dev-moves" aria-checked="${!!st.devMoves}" aria-labelledby="devMvLbl"></button></div>
     <div class="setting"><div><span id="dev6Lbl">Every egg a six-star</span><p class="note">To try the six-star Legendaries: every summoned or hatched egg is one (100%).</p></div><button class="switch" type="button" role="switch" data-go="dev-six" aria-checked="${!!st.dev6}" aria-labelledby="dev6Lbl"></button></div>
     <h3 class="sec">Tower of Oblivion</h3>
     <div class="setting"><div><span id="godLbl">Tower god mode</span><p class="note">Your pet can't be hurt in the Tower.</p></div><button class="switch" type="button" role="switch" data-go="dev-god" aria-checked="${!!st.dun.god}" aria-labelledby="godLbl"></button></div>
@@ -109,7 +109,7 @@ function devAction(k, btn) {
     case 'ripen': { let n = 0; st.house.rooms.forEach(r => (r.plots || []).forEach(p => { if (p.crop) { p.g = CROPS[p.crop].hours; n++; } })); refreshPlots(); saveSoon(); toast(n ? `${n} crop${n > 1 ? 's' : ''} ready to harvest` : hasRoom(st.house, 'farm') ? 'Nothing is planted yet. Tap a farm plot to plant a seed.' : 'No farm yet. Build one from the House button.'); return; }
     case 'food': Object.keys(CROPS).forEach(k => { st.pantry[k] = (st.pantry[k] || 0) + 3; }); saveSoon(); toast('+3 of each farm food in the pantry'); return;
     case 'egg': startAdopt('dev'); return;
-    case 'moves': st.devMoves = !st.devMoves; btn.setAttribute('aria-checked', String(st.devMoves)); saveSoon(); toast(st.devMoves ? 'Every elemental move is learned' : 'Elemental moves unlock by level again'); return;
+    case 'moves': st.devMoves = !st.devMoves; btn.setAttribute('aria-checked', String(st.devMoves)); saveSoon(); toast(st.devMoves ? 'Developer: every skill can be equipped on any pet' : 'Skills are back to each pet\'s own'); if (typeof renderDungeon === 'function') try { renderDungeon(); } catch (e) {} return;   // (v391 K)
     case 'six': st.dev6 = !st.dev6; btn.setAttribute('aria-checked', String(st.dev6)); saveSoon(); toast(st.dev6 ? 'Every egg is now a six-star Legendary' : 'Eggs roll their usual odds again'); return;
     case 'god': st.dun.god = !st.dun.god; btn.setAttribute('aria-checked', String(st.dun.god)); saveSoon(); toast(st.dun.god ? 'God mode on: nothing can hurt your pet in the Tower' : 'God mode off'); return;
     case 'tower': st.dun.best = TOWER_TOP - 1; st.unlockAll = true; saveSoon(); toast('Every floor is open, energy is free'); renderDungeon(); return;

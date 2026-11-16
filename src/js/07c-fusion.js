@@ -79,6 +79,35 @@ function fuseOptions(a, b, child) {
   return out;
 }
 const fuseOvFrom = ab => ab.slot === 'normal' ? { shot: ab.key.slice(2) } : { key: ab.key, tier: ab.star || 3 };
+/* ---- v391 K: the child's skills. For each of Strong and Ult: a parent's move, offered only when it is in the child's own
+   pool (its star tier and element, 20k1s-skills.js), or "Roll a random one" from that pool. The roll happens when the
+   fusion really does (Math.random), never in the preview, and is final. If the child rises a rank at that moment, a
+   parent's move its new rank cannot have is rolled from the new pool instead. pick[slot]: 'a' / 'b' (the first / second
+   parent), a move id (merge all: any parent's), or 'r' ---- */
+function fuseSkillsFor(parents, c, pick, rng) {
+  const tier = skillTier(c), e8 = petElement(c), R = rng || mulberry32((Math.imul(((c.dna && c.dna.seed) || 7) | 0, 2654435761 | 0) ^ 0xF5E11) >>> 0), out = {};
+  SKILL_SLOTS.forEach(s => {
+    const want = pick && pick[s], src = want === 'a' ? parents[0] : want === 'b' ? parents[1] : null;
+    const id = src ? petSkills(src)[s].id : want && want !== 'r' && isSkillId(want) ? skillParse(want).id : null;
+    const from = src || (id && parents.find(p => petSkills(p)[s].id === id));
+    if (id && from && skillInPool(id, tier, e8, s)) out[s] = { id, src: 'parent', of: from.name };
+    else out[s] = { id: rollSkillId(tier, e8, s, R), src: 'fuse-roll' };
+  });
+  return out;
+}
+/* the choices for one slot: every parent's move (once each), with whether the child may have it, then the roll */
+function fuseSkillChoices(parents, child, slot) {
+  const tier = skillTier(child), e8 = petElement(child), seen = new Set(), out = [];
+  parents.forEach((p, i) => { const id = petSkills(p)[slot].id; if (parents.length > 2 && seen.has(id)) return; seen.add(id); out.push({ k: parents.length > 2 ? id : 'ab'[i], id, who: p.name, ab: skillAbility(id, slot, p), why: skillWhyNot(id, tier, e8, slot) }); });
+  return { tier, e8, list: out, pool: skillPool(tier, e8, slot).length };
+}
+const fuseSkillDefault = C => { const ok = C.list.find(x => !x.why); return ok ? ok.k : 'r'; };
+function fuseSkillRowHTML(C, slot, cur, go) {
+  const btn = x => { const E = ELEMENTS[x.ab.el] || ELEMENTS.spark; return `<button class="fab-opt${cur === x.k ? ' on' : ''}${x.why ? ' off' : ''}" type="button" ${go(x.k)} aria-pressed="${cur === x.k}"${x.why ? ' aria-disabled="true" disabled' : ''}><span class="fab-art" style="--ec:${E.color}">${glyphSVG(x.ab.glyph)}</span><b>${esc(x.ab.name)}</b><small>${esc(x.who)}${x.ab.e8 ? ` · ${E8[x.ab.e8].name}` : x.ab.star ? ` · ${x.ab.star}★ move` : ''}</small>${x.why ? `<em class="fab-why">${esc(x.why)}</em>` : ''}</button>`; };
+  const roll = `<button class="fab-opt fab-roll${cur === 'r' ? ' on' : ''}" type="button" ${go('r')} aria-pressed="${cur === 'r'}"><span class="fab-art" style="--ec:#FFD447">${ICON.dice}</span><b>Roll a random one</b><small>${C.tier <= 4 ? '1–4★ pool' : `${E8[C.e8].name} ${C.tier}★ list`} · ${C.pool} moves</small><em class="fab-why ok">decided when you fuse</em></button>`;
+  return `<div class="fab-row${C.list.length > 2 ? ' many' : ''}"><span class="fab-slot">${SLOT_INFO[slot].short}</span>${C.list.map(btn).join('')}${roll}</div>`;
+}
+const fuseSkillNote = (child, n) => { const t = skillTier(child), el = E8[petElement(child)].name; return `<p class="note sk-fnote">The child will be a <b>${t}★ ${el}</b> pet, so it can only have a move from the ${t <= 4 ? '<b>1–4★ pool</b> (no elemental moves)' : `<b>${el} ${t}★ list</b>`}. A parent's move outside that pool is greyed out. "Roll a random one" picks from that pool when you fuse: the result is final.${n ? ` If the child rises a rank, a move its new rank can't have is rolled from the new pool.` : ''}</p>`; };
 /* star rank by fusion: the child takes its parents' rank (the higher, when they differ). Two or more of the same rank
    may rise one rank: three-stars 20% (+5% for each pet past two, up to 50%), four-stars 25% (+5% each, up to 50%),
    five-stars 5% (+1% each) to a six-star golden Legendary. Rolled only when the fusion really happens (up), never in a
@@ -92,7 +121,7 @@ function fuseUpChance(stars, n) {
 }
 const fuseRank = (a, b) => Math.max(starsOf(a.rarity), starsOf(b.rarity));
 const fuseCanRise = (a, b) => starsOf(a.rarity) === starsOf(b.rarity) && starsOf(a.rarity) < 6;
-function fuseChild(a, b, seed, pick, up) {
+function fuseChild(a, b, seed, pick, up, rng) {   // (v391 K: rng, the skill roll's dice: Math.random when the fusion really happens)
   const R = mulberry32(seed >>> 0 || 7);
   const forms = fuseLines(a, b, R), f0 = forms[0];
   const dna = { v: 3, seed: f0.seed, personality: R() < 0.5 ? a.dna.personality : b.dna.personality, size: r1(clamp((a.dna.size + b.dna.size) / 2, 0.9, 1.1)) };
@@ -111,7 +140,8 @@ function fuseChild(a, b, seed, pick, up) {
   for (let n = 2; n <= c.stage; n++) c.paid[n] = true;
   c.fusedFrom = [a.name, b.name]; c.gen = Math.max(a.gen || 0, b.gen || 0) + 1;
   c.food = 85; c.joy = 90; c.energy = 95; c.clean = 100;
-  if (pick) { const opts = fuseOptions(a, b, c), ov = {}; FUSE_SLOTS.forEach(slot => { const src = pick[slot]; if (src && src !== 'c' && opts[slot][src]) ov[slot] = fuseOvFrom(opts[slot][src]); }); c.abOv = Object.keys(ov).length ? ov : null; }
+  if (pick) { const opts = fuseOptions(a, b, c), ov = {}; ['normal'].forEach(slot => { const src = pick[slot]; if (src && src !== 'c' && opts[slot][src]) ov[slot] = fuseOvFrom(opts[slot][src]); }); c.abOv = Object.keys(ov).length ? ov : null; }   // (v391 K: only the Normal attack this way)
+  c.skills = fuseSkillsFor([a, b], c, pick, rng);   // v391 K: the Strong and Ult: a parent's (if the child's pool allows it) or a roll
   return c;
 }
 
@@ -172,9 +202,11 @@ function renderFusion() {
   const a = fusePetAt(fuseSel.a), b = fusePetAt(fuseSel.b);
   if (!fuseSel.pick) fuseSel.pick = {};
   const opts = fuseOptions(a, b, fuseChild(a, b, fuseSel.seed));
-  FUSE_SLOTS.forEach(slot => { if (!fuseSel.pick[slot]) { const o = opts[slot], t = k => o[k].star || 3; fuseSel.pick[slot] = t('a') > Math.max(t('b'), t('c')) ? 'a' : t('b') > Math.max(t('a'), t('c')) ? 'b' : 'c'; } });
+  ['normal'].forEach(slot => { if (!fuseSel.pick[slot]) { const o = opts[slot], t = k => o[k].star || 3; fuseSel.pick[slot] = t('a') > Math.max(t('b'), t('c')) ? 'a' : t('b') > Math.max(t('a'), t('c')) ? 'b' : 'c'; } });
+  // v391 K: the Strong and Ult: a parent's move the child's pool allows, or a roll (a pick the new mix no longer allows falls back)
+  const pre = fuseChild(a, b, fuseSel.seed), skC = {}; SKILL_SLOTS.forEach(slot => { const C = skC[slot] = fuseSkillChoices([a, b], pre, slot), x = C.list.find(y => y.k === fuseSel.pick[slot]); if (!(fuseSel.pick[slot] === 'r' || (x && !x.why))) fuseSel.pick[slot] = fuseSkillDefault(C); });
   const child = fuseChild(a, b, fuseSel.seed, fuseSel.pick), cf = child.forms[child.forms.length - 1];
-  const abRow = slot => { const o = opts[slot]; return `<div class="fab-row"><span class="fab-slot">${SLOT_INFO[slot].short || SLOT_INFO[slot].name}</span>${[['a', a.name], ['b', b.name], ['c', 'New roll']].map(([k, who]) => { const ab = o[k], E = ELEMENTS[ab.el] || ELEMENTS.spark; return `<button class="fab-opt${fuseSel.pick[slot] === k ? ' on' : ''}" type="button" data-go="fuse-ab" data-slot="${slot}" data-src="${k}" aria-pressed="${fuseSel.pick[slot] === k}"><span class="fab-art" style="--ec:${E.color}">${glyphSVG(ab.glyph)}</span><b>${esc(ab.name)}</b><small>${esc(who)}${ab.star ? ` · ${ab.star}★` : ''}</small></button>`; }).join('')}</div>`; };
+  const abRow = slot => { if (slot !== 'normal') return fuseSkillRowHTML(skC[slot], slot, fuseSel.pick[slot], k => `data-go="fuse-ab" data-slot="${slot}" data-src="${k}"`); /* (v391 K) */ const o = opts[slot]; return `<div class="fab-row"><span class="fab-slot">${SLOT_INFO[slot].short || SLOT_INFO[slot].name}</span>${[['a', a.name], ['b', b.name], ['c', 'New roll']].map(([k, who]) => { const ab = o[k], E = ELEMENTS[ab.el] || ELEMENTS.spark; return `<button class="fab-opt${fuseSel.pick[slot] === k ? ' on' : ''}" type="button" data-go="fuse-ab" data-slot="${slot}" data-src="${k}" aria-pressed="${fuseSel.pick[slot] === k}"><span class="fab-art" style="--ec:${E.color}">${glyphSVG(ab.glyph)}</span><b>${esc(ab.name)}</b><small>${esc(who)}${ab.star ? ` · ${ab.star}★` : ''}</small></button>`; }).join('')}</div>`; };
   const tile = (slot, cur) => pocketGridHTML(allPets(), { cls: 'scroll', cur: (p, i) => i === cur, disabled: (p, i) => i === (slot === 'a' ? fuseSel.b : fuseSel.a), attr: (p, i) => `data-go="fuse-pick" data-slot="${slot}" data-i="${i}"${i === cur ? ' aria-current="true"' : ''}` });
   const stones = st.fusionStones || 0;
   const traits = traitList(cf).slice(0, 8).map(t => `<span class="trait" style="--rc:${RARITY[t.r].c}"><i></i>${esc(t.label)}</span>`).join('');
@@ -192,8 +224,9 @@ function renderFusion() {
     ${fuseGoldNote(a, b, 2)}
     <div class="evo-actions"><button class="btn small" type="button" data-go="fuse-roll">${ICON.dice}Different mix</button></div>
     <h3 class="sec">Inherit abilities</h3>
-    <p class="note">Choose which Normal attack, Strong attack and Ultimate the child keeps: either parent's own, or a fresh roll of its own. Star-rank signatures carry over.</p>
-    <div class="fab">${FUSE_SLOTS.map(abRow).join('')}</div>
+    <p class="note">Choose which Normal attack the child keeps (either parent's, or its own new roll), and its Strong attack and Ultimate: a parent's move, or a random roll.</p>
+    ${fuseSkillNote(pre, fuseCanRise(a, b))}
+    <div class="fab" data-k="fuse-skills">${FUSE_SLOTS.map(abRow).join('')}</div>
     ${sameKindHTML()}
     <h3 class="sec">First parent</h3>${tile('a', fuseSel.a)}
     <h3 class="sec">Second parent</h3>${tile('b', fuseSel.b)}
@@ -214,7 +247,8 @@ function fuseGoldNote(a, b, n) {
 }
 const bornGold = (a, b, child) => child.rarity >= 5 && starsOf(a.rarity) < 6 && starsOf(b.rarity) < 6;
 const roseLine = (a, b, child) => bornGold(a, b, child) ? '<li><b>Born a six-star Legendary!</b></li>' : child.rose ? `<li><b>Rose to ${starsOf(child.rarity)}★!</b></li>` : '';
-function fuseAbPick(slot, src) { if (!FUSE_SLOTS.includes(slot) || !['a', 'b', 'c'].includes(src)) return; fuseSel.pick = fuseSel.pick || {}; fuseSel.pick[slot] = src; sfx.boop(); renderFusion(); }
+function fuseAbPick(slot, src) { if (!FUSE_SLOTS.includes(slot) || !(slot === 'normal' ? ['a', 'b', 'c'] : ['a', 'b', 'r']).includes(src)) return;   // (v391 K: Strong / Ult: a, b or the roll)
+  if (slot !== 'normal') { const a = fusePetAt(fuseSel.a), b = fusePetAt(fuseSel.b), x = fuseSkillChoices([a, b], fuseChild(a, b, fuseSel.seed), slot).list.find(y => y.k === src); if (src !== 'r' && (!x || x.why)) { sfx.wrong(); if (x) toast(`${x.ab.name}: ${x.why}`); return; } } fuseSel.pick = fuseSel.pick || {}; fuseSel.pick[slot] = src; sfx.boop(); renderFusion(); }
 function fusePick(slot, i) {
   if (slot === 'a') { if (i === fuseSel.b) return; fuseSel.a = i; } else { if (i === fuseSel.a) return; fuseSel.b = i; }
   fuseSel.pick = null;
@@ -229,7 +263,7 @@ function fusePets() {
   const ia = fuseSel.a, ib = fuseSel.b;
   if (ia === ib || !fusePetAt(ia) || !fusePetAt(ib)) return;
   const a = ia < 0 ? packPet() : st.others[ia], b = ib < 0 ? packPet() : st.others[ib];
-  const child = fuseChild(a, b, fuseSel.seed, fuseSel.pick, fuseCanRise(a, b) && Math.random() < fuseUpChance(starsOf(a.rarity), 2)), cf = child.forms[child.forms.length - 1];
+  const child = fuseChild(a, b, fuseSel.seed, fuseSel.pick, fuseCanRise(a, b) && Math.random() < fuseUpChance(starsOf(a.rarity), 2), Math.random), cf = child.forms[child.forms.length - 1];   // (v391 K: the skill roll, if chosen, is made now)
   fusing = true; closeSheet();
   if (act) endActivity(true);
   if (ball) removeBall();
@@ -244,7 +278,7 @@ function fusePets() {
     $('#evoTitle').textContent = `Meet ${child.name}!`;
     $('#evoText').textContent = `${/^[AEIOU]/.test(speciesName(cf)) ? 'An' : 'A'} ${speciesName(cf)} · Stage ${child.stage} of 7 · Level ${child.dlv}`;
     const perk = $('#evoPerk');
-    perk.innerHTML = `<ul class="changes"><li>Born from ${esc(a.name)} and ${esc(b.name)}</li>${roseLine(a, b, child)}<li>${esc(RARITY[child.rarity].name)} · generation ${child.gen}</li><li>${esc(cf.pal.name)} coat, ${esc(tname('eyes', cf.eyes.t).toLowerCase())}, ${esc(tname('tail', cf.tail.t).toLowerCase())}</li></ul><span>You can rename ${esc(child.name)} on the pet card.</span>`;
+    perk.innerHTML = `<ul class="changes"><li>Born from ${esc(a.name)} and ${esc(b.name)}</li>${roseLine(a, b, child)}<li>${esc(RARITY[child.rarity].name)} · generation ${child.gen}</li>${fuseSkillLines(child)}<li>${esc(cf.pal.name)} coat, ${esc(tname('eyes', cf.eyes.t).toLowerCase())}, ${esc(tname('tail', cf.tail.t).toLowerCase())}</li></ul><span>You can rename ${esc(child.name)} on the pet card.</span>`;
     perk.hidden = false;
     $('#evoDone').hidden = false;
     unperch(); pet.use = null; pet.goal = null; pet.lift = 0; pet.liftV = 0;
@@ -276,23 +310,45 @@ function fusePair(gi) {
   sfx.boop(); renderFusion();
   setTimeout(() => { try { $('.fuse-stage', sheetEl).scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) {} }, 50);
 }
+/* v391 K: the merged child's line, the same chain fuseAll makes (up: the rise roll, given to the last fusion) */
+const fuseBestPick = (a, b) => { const opts = fuseOptions(a, b, fuseChild(a, b, 1)), pick = {}; FUSE_SLOTS.forEach(slot => { const o = opts[slot], t = k => o[k].star || 3; pick[slot] = t('a') >= t('b') ? 'a' : 'b'; }); return pick; };
+function fuseAllChain(list, up, rng) { let child = list[0]; for (let k = 1; k < list.length; k++) { const b = list[k], seed = (child.dna.seed * 31 + b.dna.seed * 17 + k) >>> 0; child = fuseChild(child, b, seed, fuseBestPick(child, b), up && k === list.length - 1, rng); } return child; }
+/* v391 K: the Strong and Ult chosen for a merge: any parent's move (if the child's pool allows it) or the roll */
+let fuseAllSel = null;
+function fuseAllSkills(gi) {
+  const g = sameKindGroups()[gi]; if (!g) return null;
+  const list = g.pets.slice().sort(byPower).map(x => x.p), key = list.map(p => p.uid).join(','), pre = fuseAllChain(list, false), C = {};
+  if (!fuseAllSel || fuseAllSel.key !== key) fuseAllSel = { key };
+  SKILL_SLOTS.forEach(s => { C[s] = fuseSkillChoices(list, pre, s); const x = C[s].list.find(y => y.k === fuseAllSel[s]); if (!(fuseAllSel[s] === 'r' || (x && !x.why))) fuseAllSel[s] = fuseSkillDefault(C[s]); });
+  return { list, pre, C };
+}
+function fuseAllAb(gi, slot, id) {
+  const F = fuseAllSkills(gi); if (!F || !SKILL_SLOTS.includes(slot)) return;
+  const x = F.C[slot].list.find(y => y.k === id); if (id !== 'r' && (!x || x.why)) { sfx.wrong(); return; }
+  fuseAllSel[slot] = id; sfx.boop(); fuseAll(gi);
+}
+const fuseSkillLines = c => SKILL_SLOTS.map(s => { const S = c.skills && c.skills[s], a = S && skillAbility(S.id, s, c); return a ? `<li>${s === 'ult' ? 'Ultimate' : 'Strong'}: <b>${esc(a.name)}</b> (${S.src === 'parent' ? `from ${esc(S.of || 'a parent')}` : 'rolled'})</li>` : ''; }).join('');
 /* merge a whole group: fuse the two strongest, then fold each remaining pet into the child, best abilities kept */
 function fuseAll(gi, go) {
   const g = sameKindGroups()[gi]; if (!g || fusing || evolving) return;
   const need = fuseStonesFor(g.pets.length);
   if ((st.fusionStones || 0) < need) { toast(`Merging ${g.pets.length} pets needs ${need} Fusion Stones. You have ${st.fusionStones || 0}.`); openCrystalShop(need * FUSION_COST); return; }
+  const SK = fuseAllSkills(gi);   // (v391 K)
   if (!go) { openSheet('fusion', `<p class="eyebrow">Merge all</p><h2 class="title" id="sheetTitle">Merge ${g.pets.length} ${E8[g.el].name} ${g.stars}★ pets?</h2>
     <div class="sk-pets big">${g.pets.map(({ p }) => `<span class="sk-art" title="${esc(p.name)}">${petSVG(formOf(p), { frame: 'fit' })}</span>`).join('')}</div>
     ${fuseGoldNote(g.pets[0].p, g.pets[1].p, g.pets.length)}
-    <p class="note">They fuse one after another into a single pet that keeps the best Normal, Strong and Ultimate among them, the highest stage and level. This uses <b>${need}</b> Fusion Stone${need > 1 ? 's' : ''} (you have ${st.fusionStones}). The others say goodbye.</p>
+    <h3 class="sec">The child's skills</h3>
+    ${fuseSkillNote(SK.pre, g.stars < 6)}
+    <div class="fab" data-k="fuse-all-skills">${SKILL_SLOTS.map(s => fuseSkillRowHTML(SK.C[s], s, fuseAllSel[s], k => `data-go="fuse-all-ab" data-g="${gi}" data-slot="${s}" data-id="${k}"`)).join('')}</div>
+    <p class="note">They fuse one after another into a single pet that keeps the best Normal attack among them, the Strong and Ultimate chosen above, the highest stage and level. This uses <b>${need}</b> Fusion Stone${need > 1 ? 's' : ''} (you have ${st.fusionStones}). The others say goodbye.</p>
     <div class="evo-actions"><button class="btn primary" type="button" data-go="fuse-all-go" data-g="${gi}">${ICON.fusion}Merge them</button><button class="btn" type="button" data-go="fusion">Back</button></div>`); return; }
   const list = g.pets.slice().sort(byPower).map(x => x.p), leadIn = list.includes(st);
   const uids = new Set(list.map(p => p.uid));
   let child = list[0];
-  const bestPick = (a, b) => { const opts = fuseOptions(a, b, fuseChild(a, b, 1)), pick = {}; FUSE_SLOTS.forEach(slot => { const o = opts[slot], t = k => o[k].star || 3; pick[slot] = t('a') >= t('b') ? 'a' : 'b'; }); return pick; };
   // one roll for the whole group, its chance set by how many merge, given to the last fusion of the chain
   const up = g.stars < 6 && Math.random() < fuseUpChance(g.stars, list.length);
-  for (let k = 1; k < list.length; k++) { const b = list[k], seed = (child.dna.seed * 31 + b.dna.seed * 17 + k) >>> 0; child = fuseChild(child, b, seed, bestPick(child, b), up && k === list.length - 1); }
+  child = fuseAllChain(list, up);
+  child.skills = fuseSkillsFor(list, child, { strong: fuseAllSel.strong, ult: fuseAllSel.ult }, Math.random);   // v391 K: the chosen (or rolled) Strong and Ult
   const gold0 = list.some(p => starsOf(p.rarity) >= 6);
   st.fusionStones -= need;
   fusing = true; closeSheet(); if (act) endActivity(true); if (ball) removeBall();
@@ -306,7 +362,7 @@ function fuseAll(gi, go) {
     st.asleep = false;
     $('#evoTitle').textContent = `Meet ${child.name}!`;
     $('#evoText').textContent = `Born from ${list.length} pets · ${speciesName(cf)} · Stage ${child.stage} of 7 · Level ${child.dlv}`;
-    const perk = $('#evoPerk'); perk.innerHTML = `<ul class="changes"><li>${list.map(p => esc(p.name)).join(', ')} became one</li>${child.rose ? (starsOf(child.rarity) >= 6 && !gold0 ? '<li><b>Born a six-star Legendary!</b></li>' : `<li><b>Rose to ${starsOf(child.rarity)}★!</b></li>`) : ''}<li>${esc(RARITY[child.rarity].name)} · generation ${child.gen}</li><li>Keeps the best Normal, Strong and Ultimate of the group</li></ul>`; perk.hidden = false;
+    const perk = $('#evoPerk'); perk.innerHTML = `<ul class="changes"><li>${list.map(p => esc(p.name)).join(', ')} became one</li>${child.rose ? (starsOf(child.rarity) >= 6 && !gold0 ? '<li><b>Born a six-star Legendary!</b></li>' : `<li><b>Rose to ${starsOf(child.rarity)}★!</b></li>`) : ''}<li>${esc(RARITY[child.rarity].name)} · generation ${child.gen}</li><li>Keeps the best Normal attack of the group</li>${fuseSkillLines(child)}</ul>`; perk.hidden = false;
     $('#evoDone').hidden = false;
     unperch(); pet.use = null; pet.goal = null; pet.lift = 0; pet.liftV = 0; pet.stageS = petScaleTarget();
     buildPet(true); renderDecor(); buildCompanions(); updateHud(); updateRoomBar(); levelSeen = 0; fusing = false;

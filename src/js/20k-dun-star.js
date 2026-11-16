@@ -69,7 +69,7 @@ const GOLD_C = '#FFD447', GOLD_W = '#FFF6C8';
 const ST_VAR = { fire: { col: '#FF5A1E', core: '#FFD27A' }, ice: { col: '#9FE4FF', core: '#E8FBFF' }, water: { col: '#2B78D0', core: '#CFF6FF' }, thunder: { col: '#FFD447', core: '#FFF6C8' }, light: { col: '#FF7AC8', core: '#FFE6F4' } };
 /* a five- or six-star pet's signature moves come from its own element's twenty (each pet its own pair, by its seed),
    and grow with every evolution. A six-star golden Legendary keeps a rare chance at a golden move instead. */
-const STAR6_GOLD_CHANCE = 0.08;
+const STAR6_GOLD_CHANCE = 0;   // (v391 K: gone; the golden moves are in the 1–4★ pool now, 20k1s-skills.js)
 const STAR_NO_SUN = new Set(['earth', 'wind', 'dark']);
 function starKit(stars, seed, e8) {
   const P = STAR_POOLS[stars]; if (!P) return null;
@@ -78,10 +78,13 @@ function starKit(stars, seed, e8) {
   /* (v379) Throne of the Sun comes in fire, ice, water, lightning and light; an earth, wind or dark pet draws another golden Ult */
   if (gold.ult === 'sunthrone' && e8 && STAR_NO_SUN.has(e8)) { const alt = uk.filter(k => k !== 'sunthrone'); gold.ult = alt[Math.floor(R() * alt.length)]; }
   if (stars < 5 || !e8 || typeof ELEM_MOVES === 'undefined' || !ELEM_MOVES[e8]) return gold;
-  const R2 = mulberry32(((seed || 1) ^ 0x3E1E57) >>> 0), M = ELEM_MOVES[e8];
-  const s = { key: M.strong[Math.floor(R2() * M.strong.length)][0], e8 }, u = { key: M.ult[Math.floor(R2() * M.ult.length)][0], e8 };
-  const gs = stars >= 6 && R2() < STAR6_GOLD_CHANCE, gu = stars >= 6 && R2() < STAR6_GOLD_CHANCE;
-  return { strong: gs ? gold.strong : s.key, ult: gu ? gold.ult : u.key, sE8: gs ? null : e8, uE8: gu ? null : e8 };
+  /* (v391 K) no longer what a pet fights with: a pet's Strong and Ult are its skills (petSkills, 20k1s-skills.js), from
+     the pools there. Kept for old callers, it now follows those pools: a five-star draws from its element's five-star
+     list, a six-star from its six-star list (ELEM_SIX), and the six-star's 8% golden chance is gone (the golden moves
+     belong to the 1–4★ pool now) */
+  const R2 = mulberry32(((seed || 1) ^ 0x3E1E57) >>> 0), ps = skillPool(stars, e8, 'strong'), pu = skillPool(stars, e8, 'ult');
+  const key = id => id ? id.split(':')[2] : null;
+  return { strong: key(ps[Math.floor(R2() * ps.length)]), ult: key(pu[Math.floor(R2() * pu.length)]), sE8: e8, uE8: e8 };
 }
 const DunStar = (() => {
   const TAU = Math.PI * 2;

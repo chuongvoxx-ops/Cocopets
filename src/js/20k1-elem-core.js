@@ -2,6 +2,9 @@
    the frame; clamp the radii instead) */
 if (typeof CanvasRenderingContext2D !== 'undefined' && !CanvasRenderingContext2D.prototype._ellSafe) { const E0 = CanvasRenderingContext2D.prototype.ellipse; CanvasRenderingContext2D.prototype.ellipse = function (x, y, rx, ry, ...rest) { return E0.call(this, x, y, rx > 0 ? rx : 0, ry > 0 ? ry : 0, ...rest); }; CanvasRenderingContext2D.prototype._ellSafe = true; }
 /* ---------- Elemental moves: ten Strong attacks and ten Ultimates for each of the eight elements ----------
+   (v391 K: pets no longer learn these. A five-star pet is born with one Strong and one Ult of its element, a six-star
+   with one from its element's six-star list, ELEM_SIX below; fusion is the only way to change them. 20k1s-skills.js
+   has the rules. The level unlocks and the equip-from-the-cards-screen below are now only the developer setting's.)
    Every pet belongs to one of the eight elements (its coat decides; petElement). It can learn that element's moves:
    the Strongs unlock as its Dungeon level rises (ELEM_STRONG_LV), the Ultimates likewise (ELEM_ULT_LV) but only a
    five- or six-star pet may ever learn, equip or cast one. A learned move is equipped into a Strong slot or the Ult slot
@@ -214,6 +217,21 @@ const ELEM_MOVES = {
     ['beastmachine', 'Beast Machine', 'fist', 100, 120, 'Your pet hammers together a hulking bronze-and-gold mechanical beast in a cloud of smoke and rides it for 20 s (25 s at Adept, 35 s at Celestial): Dodge becomes a heavy Jump with a lightning shockwave, the Strongs become Homing Missiles (10 / 15 / 20) and Heaven\'s Wrath (1 / 2 / 3 ground-pounding strikes), and damage fills a Judgement Day meter for a leap, impalement, lightning-sphere storm and final burst. Cooldown starts when you leave the machine.']] },
 };
 const ELEM_LIST = {}; for (const e in ELEM_MOVES) { ELEM_LIST[e] = {}; for (const s of ['strong', 'ult']) ELEM_MOVES[e][s].forEach((row, i) => { ELEM_LIST[e][(s === 'ult' ? 'ey_' : 'ex_') + row[0]] = { el: e, slot: s, key: row[0], i, name: row[1], glyph: row[2], cost: row[3], cd: row[4], desc: row[5], lv: (s === 'ult' ? ELEM_ULT_LV : ELEM_STRONG_LV)[i] }; }); }
+/* (v391 K) THE SIX-STAR LISTS: each element's Strongs and Ultimates that only a six-star pet can be born with (or inherit
+   by fusion). They are left out of the five-star lists: a five-star pet's pool is every move of its element NOT listed
+   here. Ids are the first column of ELEM_MOVES above. Edit freely: a pet already rolled keeps the move it has (p.skills);
+   only new rolls follow the edited lists. (20k1s-skills.js has the pools and the roll.) */
+const ELEM_SIX = {
+  fire: { strong: ['mandala', 'cinderfan', 'furnaceseed'], ult: ['nidhogg', 'apocalypse', 'armageddon'] },
+  water: { strong: ['whirlpool', 'pearlburst', 'waterwheel'], ult: ['jaws', 'mayhem', 'aquaillusion'] },
+  ice: { strong: ['absolutewinter', 'rimecoil', 'snowfall'], ult: ['iceage', 'fenrir', 'catastrophe'] },
+  thunder: { strong: ['sparkstep', 'staticblossom', 'stormthread'], ult: ['beastmachine', 'ragnarok', 'thunderstorm'] },   // (Ragnarok here is Thunder's Ult, not the 5★ star-pool Ragnarok)
+  wind: { strong: ['cyclone', 'seedburst', 'windblades'], ult: ['belladonna', 'pandemonium', 'terribletornado'] },
+  earth: { strong: ['rebuttal', 'quarry', 'rosary'], ult: ['genbu', 'coronation', 'rocky'] },
+  light: { strong: ['lovebombs', 'sweetheartstamp', 'loveshock'], ult: ['sportscar', 'sunflare', 'salvation'] },
+  dark: { strong: ['demonblade', 'dracula', 'eclipsemantle'], ult: ['susanoo', 'dayofthedead', 'annihilation', 'finaleclipse'] },
+};
+for (const e in ELEM_SIX) for (const s of ['strong', 'ult']) ELEM_SIX[e][s].forEach(k => { if (!ELEM_LIST[e] || !ELEM_LIST[e][(s === 'ult' ? 'ey_' : 'ex_') + k]) console.warn('ELEM_SIX: no ' + e + ' ' + s + ' "' + k + '"'); });
 const elemId = (el, key) => `e:${el}:${key}`;
 /* (v370) moves replaced in place: an old key reads as the move now in its row, so a pet that had it equipped keeps the slot */
 const ELEM_ALIAS = { wind: { silkstream: 'gust', courier: 'flumes', updraft: 'windblades', shears: 'boomerang', pearl: 'seedburst', galestair: 'featherfall', featherstorm: 'garuda', zephyr: 'swallow', needle: 'sanctuary', tailwind: 'cyclone' } };
