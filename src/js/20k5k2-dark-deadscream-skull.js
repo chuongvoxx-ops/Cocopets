@@ -134,6 +134,11 @@ const DEADSCREAM_SKULL = (() => {
   }
   // a broken crown: obsidian shards grown out of the vault (back ones taller), each from just under the surface
   const CROWN = [[0.0, 0.66, 0.34, 0.07], [0.55, 0.68, 0.46, 0.08], [-0.55, 0.7, 0.44, 0.08], [1.2, 0.6, 0.62, 0.095], [-1.2, 0.58, 0.64, 0.095], [1.95, 0.55, 0.56, 0.085], [-1.95, 0.57, 0.54, 0.085], [2.75, 0.62, 0.4, 0.07], [-2.75, 0.62, 0.42, 0.07]];
+  /* (v391 U4) a point of the 2D picture (its units: x right, y down from the brow) on the 3D skull's face: the first bone met
+     looking straight in from the front, and its normal; null where that falls in a hole (an orbit, the nose) or misses */
+  function onFront(ux, uy) { const x = ux, z = -uy; let y = 1.5, hit = false; for (let i = 0; i < 90; i++) { const d = sdCran(x, y, z); if (d < 0.0015) { hit = true; break; } y -= Math.max(0.003, d * 0.85); if (y < -0.4) break; }
+    if (!hit || sdOrb(Math.abs(x), y, z) < 0.04 || sdNas(x, y, z) < 0.04) return null; const e = 0.004, d0 = sdCran(x, y, z), gx = sdCran(x + e, y, z) - d0, gy = sdCran(x, y + e, z) - d0, gz = sdCran(x, y, z + e) - d0, gl = Math.hypot(gx, gy, gz) || 1;
+    return [x, y + 0.004, z, gx / gl, gy / gl, gz / gl]; }
   function surfAt(dx, dy, dz) { const c = [0, -0.16, 0.3]; let t = 2.2; for (let i = 0; i < 80; i++) { const d = sdCran(c[0] + dx * t, c[1] + dy * t, c[2] + dz * t); if (d < 0.002) break; t -= Math.max(0.004, d * 0.8); if (t < 0) break; } return [c[0] + dx * t, c[1] + dy * t, c[2] + dz * t]; }
   function crown(B) {
     CROWN.forEach(([az, el, len, r], i) => { const dx = Math.sin(az) * Math.cos(el), dy = Math.cos(az) * Math.cos(el), dz = Math.sin(el), s = surfAt(dx, dy, dz), out = [dx * 0.45, dy * 0.45, 0.9], ol = Math.hypot(out[0], out[1], out[2]);
@@ -191,13 +196,13 @@ const DEADSCREAM_SKULL = (() => {
   const GI = [], GJ = [];
   const item = (n, mesh, R, T, P, s) => { const g = GI[n] || (GI[n] = { R0: new Float32Array(3), R1: new Float32Array(3), R2: new Float32Array(3), T: new Float32Array(3) }); s = s || 1; g.mesh = mesh;
     for (let i = 0; i < 3; i++) { g.R0[i] = R[0][i] * s; g.R1[i] = R[1][i] * s; g.R2[i] = R[2][i] * s; g.T[i] = T ? T[i] : 0; } g.alpha = P.alpha == null ? 1 : P.alpha; g.glow = P.glow || 0; g.glow2 = P.crack || 0; g.spill = P.spill || 0; g.wear = P.fire == null ? 1 : P.fire; g.kind = P.kind || 0; g.fx = 0; return g; };
-  function pass(c, x, y, k, items, bb, t) {
+  function pass(c, x, y, k, items, bb, t, imgA) {   // (imgA: the picture laid down at that opacity, as the 2D lays its sprite)
     const m = c.getTransform ? c.getTransform() : null, soft = GLM.soft && !flag('__DS_GLHQ'), dev = (m ? Math.max(0.25, Math.hypot(m.a, m.b)) : 1) * (soft ? 0.5 : 1) * (+flag('__DS_GLQ') || 1);   // (__DS_GLQ: a test's render scale)
     const bx0 = bb[0], by0 = bb[1], bw = bb[2] - bb[0], bh = bb[3] - bb[1]; if (!(bw > 1 && bh > 1)) return true;
     let W = Math.ceil(bw * dev), H = Math.ceil(bh * dev); const sc = Math.min(1, 1100 / Math.max(W, H)); W = Math.max(2, Math.ceil(W * sc)); H = Math.max(2, Math.ceil(H * sc));
     const S = { px: EXW, py: EYW, pd: CW, cl: [2 * k / bw, 2 * (x - bx0) / bw - 1, -2 * k / bh, 1 - 2 * (y - by0) / bh], v: CW, lk: LK, ls: LS, lr: LR, up: UP, low: lowFx(), rim: RIM, amb: AMB, t: t == null ? nowMs() / 1000 % 1000 : t };
     const t0 = nowMs(), cvs = GLM.render(W, H, S, items); if (!cvs) return false;
-    c.drawImage(cvs, 0, 0, W, H, bx0, by0, bw, bh); GLMS = GLMS * 0.9 + (nowMs() - t0) * 0.1; GLN++; return true;
+    const ga = c.globalAlpha; if (imgA != null) c.globalAlpha = ga * Math.max(0, Math.min(1, imgA)); c.drawImage(cvs, 0, 0, W, H, bx0, by0, bw, bh); c.globalAlpha = ga; GLMS = GLMS * 0.9 + (nowMs() - t0) * 0.1; GLN++; return true;
   }
   /* draw the skull at (x, y) (its brow line), k px a unit, in pose P: { yaw, pitch, roll, jaw 0..1, glow, crack, spill,
      fire, alpha, t }. False when the GPU cannot (the caller draws its 2D picture) */
@@ -209,7 +214,7 @@ const DEADSCREAM_SKULL = (() => {
       if (P.crown !== false) items.push(item(n++, MESH.crown, Fr.Rs, null, P));
       let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
       BOXC.forEach((b, j) => { for (let q = 0; q < 8; q++) { const s = toScreen([q & 1 ? b[3] : b[0], q & 2 ? b[4] : b[1], q & 4 ? b[5] : b[2]], j === 1, x, y, k, P, Fr); x0 = Math.min(x0, s[0]); x1 = Math.max(x1, s[0]); y0 = Math.min(y0, s[1]); y1 = Math.max(y1, s[1]); } });
-      const pad = k * 0.04; return pass(c, x, y, k, items, [x0 - pad, y0 - pad, x1 + pad, y1 + pad], P.t);
+      const pad = k * 0.04; return pass(c, x, y, k, items, [x0 - pad, y0 - pad, x1 + pad, y1 + pad], P.t, P.imgA);
     } catch (e) { glFail(); if (typeof console !== 'undefined') console.warn('Dead Scream skull: GL draw', e); return false; }
   }
   /* the burst's shards: list of { m (0..5), R (3 columns), p ([x, y, z] in skull units about the skull's centre), s
@@ -217,11 +222,11 @@ const DEADSCREAM_SKULL = (() => {
   function drawShards(c, x, y, k, list, t) {
     if (!ok() || !MESH || !list.length) return !!MESH && ok();
     try { const items = GJ; items.length = 0; let n = 0, x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
-      for (const s of list) { if (s.spill >= 1) continue; const g = item(n++, MESH.shards[s.m % MESH.shards.length], s.R, s.p, { glow: s.glow, crack: 0, spill: s.spill, fire: 0, kind: 1 }, s.s); items.push(g);
+      for (const s of list) { if (s.spill >= 1) continue; const g = item(n++, MESH.shards[s.m % MESH.shards.length], s.R, s.p, { glow: s.glow, crack: 0, spill: s.spill, fire: 0, kind: 1, alpha: s.a == null ? 1 : s.a }, s.s); items.push(g);
         const sx = x + (s.p[0] * EXW[0] + s.p[1] * EXW[1] + s.p[2] * EXW[2]) * k, sy = y + (s.p[0] * EYW[0] + s.p[1] * EYW[1] + s.p[2] * EYW[2]) * k, rr = 0.2 * s.s * k + 2; x0 = Math.min(x0, sx - rr); x1 = Math.max(x1, sx + rr); y0 = Math.min(y0, sy - rr); y1 = Math.max(y1, sy + rr); }
       if (!items.length) return true; return pass(c, x, y, k, items, [x0, y0, x1, y1], t);
     } catch (e) { glFail(); return false; }
   }
   const stats = () => ({ ready: !!MESH, buildMs: Math.round(BUILD_MS), wallMs: MESH ? 0 : Math.round(nowMs() - BUILD_T0), glMs: +GLMS.toFixed(2), draws: GLN, tris: MESH ? ['cran', 'jaw', 'uteeth', 'lteeth', 'crown'].reduce((a, q) => a + MESH[q].ntri, 0) : 0, verts: MESH ? MESH.cran.nv + MESH.jaw.nv : 0, nogl: NOGL });
-  return { get MESH() { return MESH; }, prepare, ok, draw, drawShards, toScreen, frame, rot, stats, get pts() { return MESH ? MESH.pts : null; }, get ready() { return !!MESH; }, JAW_OPEN, sdCran, sdJaw };
+  return { get MESH() { return MESH; }, onFront, CW, EXW, EYW, prepare, ok, draw, drawShards, toScreen, frame, rot, stats, get pts() { return MESH ? MESH.pts : null; }, get ready() { return !!MESH; }, JAW_OPEN, sdCran, sdJaw };
 })();

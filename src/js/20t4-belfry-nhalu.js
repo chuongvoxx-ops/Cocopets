@@ -310,6 +310,7 @@ const BEL_NHALU = (() => {
   }
   /* the nave's columns (square, ivory blocks with dark teal seams, the bottom third stained black) and the north wall */
   function drawColumn(c, X, Y, T, p) { const w = T * 0.62, h = T * (3.3 + (p.v % 2) * 0.4), stain = h * 0.34;
+    if (typeof window !== 'undefined' && window.BELPROPS && window.BELPROPS.draw(c, 'navecol', p.v % 4, X, Y, T)) { c.fillStyle = 'rgba(140,220,230,.18)'; c.beginPath(); c.ellipse(X, Y, w * 1.25, w * 0.4, 0, 0, TAU); c.fill(); return; }   // v392 PR: a repainted drum column (20n9); the old 2D only where that is off
     let g = c.createLinearGradient(X - w, 0, X + w, 0); g.addColorStop(0, '#E8E6D6'); g.addColorStop(0.55, '#C8CCBC'); g.addColorStop(1, '#8E9282'); c.fillStyle = g; c.fillRect(X - w, Y - h, w * 2, h);
     g = c.createLinearGradient(0, Y, 0, Y - stain); g.addColorStop(0, 'rgba(10,16,18,.92)'); g.addColorStop(0.7, 'rgba(10,16,18,.55)'); g.addColorStop(1, 'rgba(10,16,18,0)'); c.fillStyle = g; c.fillRect(X - w, Y - stain, w * 2, stain);
     c.strokeStyle = 'rgba(20,70,72,.55)'; c.lineWidth = Math.max(1, T * 0.04); for (let k = 1; k < 5; k++) { const y = Y - h * k / 5; c.beginPath(); c.moveTo(X - w, y); c.lineTo(X + w, y); c.stroke(); }
@@ -317,6 +318,7 @@ const BEL_NHALU = (() => {
     if (p.v % 3 === 0) { c.strokeStyle = 'rgba(97,217,210,.75)'; c.lineWidth = Math.max(1, T * 0.035); c.beginPath(); c.moveTo(X - w * 0.3, Y - h * 0.8); c.lineTo(X + w * 0.1, Y - h * 0.7); c.lineTo(X - w * 0.05, Y - h * 0.58); c.stroke(); glowAt(c, X, Y - h * 0.7, T * 0.6, TEAL, 0.25); }
     c.fillStyle = 'rgba(140,220,230,.18)'; c.beginPath(); c.ellipse(X, Y, w * 1.25, w * 0.4, 0, 0, TAU); c.fill(); }
   function drawNorthWall(c, X, Y, T, p) { const w = T * p.w / 2, h = T * 3.6;
+    { const BP = typeof window !== 'undefined' && window.BELPROPS; if (BP && BP.has('wallseg')) { let ok = true; c.save(); c.beginPath(); c.rect(X - w, Y - h - T * 0.6, w * 2, h + T * 1.2); c.clip(); for (let x = X - w; x < X + w && ok; x += T * 4.8) ok = BP.draw(c, 'wallseg', 0, x, Y, T); c.restore(); if (ok) { glowAt(c, X - w * 0.15, Y - h * 0.75, T * 1.2, TEAL, 0.3); return; } } }   // v392 PR: the wall repainted in bays (20n9)
     const g = c.createLinearGradient(0, Y - h, 0, Y); g.addColorStop(0, '#DCDACA'); g.addColorStop(0.62, '#B2B6A6'); g.addColorStop(0.64, '#1A2226'); g.addColorStop(1, '#0A1014'); c.fillStyle = g; c.fillRect(X - w, Y - h, w * 2, h);
     c.strokeStyle = 'rgba(20,70,72,.6)'; c.lineWidth = Math.max(1, T * 0.04); for (let k = 1; k < 4; k++) { const y = Y - h + h * 0.62 * k / 4; c.beginPath(); c.moveTo(X - w, y); c.lineTo(X + w, y); c.stroke(); }
     for (let x = X - w + T * 1.9; x < X + w; x += T * 2.4) { c.beginPath(); c.moveTo(x, Y - h); c.lineTo(x, Y - h * 0.38); c.stroke(); }
@@ -325,7 +327,7 @@ const BEL_NHALU = (() => {
     c.fillStyle = '#F0EEE0'; c.fillRect(X - w, Y - h - T * 0.2, w * 2, T * 0.22); }
   /* a sluice wheel on its plinth: brass spokes, a stone housing; exposed it glows; locked by a leech it is violet */
   function drawWheel(c, FX, p, X, Y, T, t) { const W2 = FX && FX.mem && FX.mem.wheels ? FX.mem.wheels[p.i] : null, ex = W2 && W2.exposed, lk = W2 && W2.locked, spin = W2 ? W2.spin : 0, r = T * 0.78;
-    c.fillStyle = '#5E6458'; c.fillRect(X - r * 0.9, Y - r * 1.9, r * 1.8, r * 1.5); c.fillStyle = '#878D7E'; c.fillRect(X - r * 0.9, Y - r * 1.95, r * 1.8, r * 0.18);
+    if (!(typeof window !== 'undefined' && window.BELPROPS && window.BELPROPS.draw(c, 'housing', 0, X, Y - r * 0.32, T))) { c.fillStyle = '#5E6458'; c.fillRect(X - r * 0.9, Y - r * 1.9, r * 1.8, r * 1.5); c.fillStyle = '#878D7E'; c.fillRect(X - r * 0.9, Y - r * 1.95, r * 1.8, r * 0.18); }   // v392 PR: a repainted stone housing
     if (ex) glowAt(c, X, Y - r * 1.25, r * (2.6 + 0.4 * Math.sin(t * 5)), lk ? LEECH : TEAL, lk ? 0.4 : 0.55);
     c.save(); c.translate(X, Y - r * 1.25); c.scale(1, 0.92); c.rotate(spin);
     c.strokeStyle = '#3A2E14'; c.lineWidth = Math.max(2, r * 0.22); c.beginPath(); c.arc(0, 0, r, 0, TAU); c.stroke(); c.strokeStyle = ex ? '#E0C27A' : '#957943'; c.lineWidth = Math.max(1.5, r * 0.15); c.stroke();
@@ -335,10 +337,12 @@ const BEL_NHALU = (() => {
     if (ex) { label(c, lk ? 'LEECHED' : 'DRAIN', X, Y - r * 2.6, T * 0.36, lk ? LEECH : '#DFFBF8'); const ch = W2.ch || 0; if (ch > 0) { c.save(); c.lineWidth = 4; c.strokeStyle = 'rgba(0,0,0,.45)'; c.beginPath(); c.arc(X, Y - r * 1.25, r * 1.3, 0, TAU); c.stroke(); c.strokeStyle = '#FFFFFF'; c.beginPath(); c.arc(X, Y - r * 1.25, r * 1.3, -Math.PI / 2, -Math.PI / 2 + TAU * Math.min(1, ch / TM.chan)); c.stroke(); c.restore(); } } }
 
   /* ---------- the breakables: sea-glass growths on the kerbs and brass lanterns on the strips (BREAK_FX) ---------- */
-  function paintGlass(c, P) { const cols = ['#BFF4EC', '#8FDCD4', '#DFFFF8']; for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + (i - 2) * 0.32, h = P * (0.55 + 0.35 * hash(i + 4)), w = P * 0.13, bx = (i - 2) * P * 0.12;
+  function paintGlass(c, P) { if (typeof window !== 'undefined' && window.BELPROPS && window.BELPROPS.draw(c, 'seaglass', 0, 0, 0, P)) return;   // v392 PR: repainted (20n9), the shards cut from it
+    const cols = ['#BFF4EC', '#8FDCD4', '#DFFFF8']; for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + (i - 2) * 0.32, h = P * (0.55 + 0.35 * hash(i + 4)), w = P * 0.13, bx = (i - 2) * P * 0.12;
       c.save(); c.translate(bx, 0); c.rotate(a + Math.PI / 2); c.fillStyle = cols[i % 3]; c.strokeStyle = 'rgba(20,80,90,.8)'; c.lineWidth = Math.max(1, P * 0.025); c.beginPath(); c.moveTo(-w, 0); c.lineTo(-w * 0.7, -h * 0.8); c.lineTo(0, -h); c.lineTo(w * 0.7, -h * 0.8); c.lineTo(w, 0); c.closePath(); c.fill(); c.stroke();
       c.fillStyle = 'rgba(255,255,255,.55)'; c.beginPath(); c.moveTo(-w * 0.4, -h * 0.1); c.lineTo(-w * 0.3, -h * 0.7); c.lineTo(0, -h * 0.85); c.closePath(); c.fill(); c.restore(); } }
-  function paintLamp(c, P) { c.fillStyle = '#4A3A1E'; c.fillRect(-P * 0.05, -P * 1.1, P * 0.1, P * 1.1); c.fillStyle = '#957943'; c.fillRect(-P * 0.2, -P * 1.4, P * 0.4, P * 0.36); c.fillStyle = '#BFF4EC'; c.fillRect(-P * 0.14, -P * 1.36, P * 0.28, P * 0.28); c.fillStyle = '#957943'; c.beginPath(); c.moveTo(-P * 0.24, -P * 1.4); c.lineTo(0, -P * 1.58); c.lineTo(P * 0.24, -P * 1.4); c.closePath(); c.fill(); c.fillStyle = '#6E5A34'; c.fillRect(-P * 0.22, -P * 0.06, P * 0.44, P * 0.08); }
+  function paintLamp(c, P) { if (typeof window !== 'undefined' && window.BELPROPS && window.BELPROPS.draw(c, 'lamppost', 0, P * 0.18, 0, P, { s: 0.42 })) return;   // v392 PR: repainted (20n9)
+    c.fillStyle = '#4A3A1E'; c.fillRect(-P * 0.05, -P * 1.1, P * 0.1, P * 1.1); c.fillStyle = '#957943'; c.fillRect(-P * 0.2, -P * 1.4, P * 0.4, P * 0.36); c.fillStyle = '#BFF4EC'; c.fillRect(-P * 0.14, -P * 1.36, P * 0.28, P * 0.28); c.fillStyle = '#957943'; c.beginPath(); c.moveTo(-P * 0.24, -P * 1.4); c.lineTo(0, -P * 1.58); c.lineTo(P * 0.24, -P * 1.4); c.closePath(); c.fill(); c.fillStyle = '#6E5A34'; c.fillRect(-P * 0.22, -P * 0.06, P * 0.44, P * 0.08); }
   function paintBulb(c, P) { const r = P * 0.36, y = -P * 0.5, g = c.createRadialGradient(-r * 0.3, y - r * 0.3, r * 0.1, 0, y, r); g.addColorStop(0, '#FFF2C8'); g.addColorStop(0.5, '#FFB040'); g.addColorStop(1, '#7A3A08'); c.fillStyle = g; c.beginPath(); c.arc(0, y, r, 0, TAU); c.fill(); c.strokeStyle = 'rgba(40,20,10,.8)'; c.lineWidth = Math.max(1, P * 0.03); c.stroke(); c.fillStyle = 'rgba(255,255,255,.7)'; c.beginPath(); c.ellipse(-r * 0.35, y - r * 0.4, r * 0.25, r * 0.13, -0.5, 0, TAU); c.fill(); }
   const BREAKS = [{ kind: 'belglass', x: -10.0, y: -5.2 }, { kind: 'belglass', x: 10.0, y: -5.2 }, { kind: 'belglass', x: -10.0, y: 2.6 }, { kind: 'belglass', x: 10.0, y: 2.6 }, { kind: 'bellamp', x: -3.5, y: -8.2 }, { kind: 'bellamp', x: 3.5, y: -8.2 }];
   function breakObj(FX, o) { const M = FX.mem; if (M && M.end) return; const glass = o.kind === 'belglass'; if (M && M.stat) M.stat.broken++;

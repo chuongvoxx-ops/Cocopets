@@ -33,11 +33,12 @@ const ok = (name, pass, info) => { results.push([name, pass]); console.log(`${pa
   const winFast = async B => page.evaluate(async B => { const D = window.__pp.arc.game._dbg, M = D.RIFT.self.mod, T = M.trials[B];
     if (B === 'E') { for (let k = 0; k < 400 && T.bossState !== 'fight'; k++) { for (const m of T.list) if (!m.dead) D.hitMon(m, 1e9, { flat: true }); window.__pp.arc.game.update(1 / 30); } for (let k = 0; k < 300 && T.state !== 'won'; k++) { if (T.V && !T.V.m.dead && T.V.V.act !== 'emerge') D.hitMon(T.V.m, 1e9, { flat: true }); window.__pp.arc.game.update(1 / 30); } }
     if (B === 'W') { T.deadline = D.g.t + 0.05; for (let k = 0; k < 60 && T.state !== 'won'; k++) window.__pp.arc.game.update(1 / 30); }
-    if (B === 'N') { for (let k = 0; k < 200 && T.state !== 'won'; k++) { const live = T.rol.filter(r => r.alive); for (let i = 0; i + 1 < live.length; i += 2) { const a = live[i], b = live[i + 1]; b.x = a.x + 0.5; b.y = a.y; a.s = 'roll'; a.dx = 1; a.dy = 0; } window.__pp.arc.game.update(1 / 30); } }
+    if (B === 'N') { for (let k = 0; k < 900 && T.state !== 'won'; k++) { if (T.duel) { for (const m of T.duel.ms) if (m && !m.dead && m.x) { m.aggro = true; if (m.act === 'sleep') m.act = 'move'; D.hitMon(m, 1e12, { flat: true }); } window.__pp.arc.game.update(1 / 30); continue; } const live = T.rol.filter(r => r.alive); for (let i = 0; i + 1 < live.length; i += 2) { const a = live[i], b = live[i + 1]; b.x = a.x + 0.5; b.y = a.y; a.s = 'roll'; a.dx = 1; a.dy = 0; } window.__pp.arc.game.update(1 / 30); } }
     return T.state; }, B);
   const collectBack = async B => { await page.evaluate(B => { const D = window.__pp.arc.game._dbg, o = D.RIFT.objs.find(o => o.kind === 'belcrystal' && o.B === B); D.me.x = o.x + 0.3; D.me.y = o.y + 0.6; o.used = false; o.ch = 0; }, B); await runG(1.0); await use('belsocket', B); };
 
-  if (on('smoke')) { await fresh(); await start(); await runG(2); const h = await hall(); ok('smoke: the hall opens', !!h && h.PS.dep === '', h); await shot('hall'); }
+  if (on('bosses')) { for (const id of ['belkharrox', 'belnhalu', 'beluldroth']) { const i = await page.evaluate(id => window.__pp.RIFT_BY_ID.belfry.stages.findIndex(S => S.boss === id), id); const e0 = errors.length; await T.start('belfry', i); await runG(3); const k = await page.evaluate(() => { const D = window.__pp.arc.game._dbg; return { fiend: !!D.F.fiend, name: D.F.name, stage: D.F.rift.stage }; }); ok(`load: ${id} (stage ${i})`, errors.length === e0 && k.stage === i, k); } }
+  if (on('smoke')) { console.log('hall stage index', idx); await fresh(); await start(); await runG(2); const h = await hall(); ok('smoke: the hall opens', !!h && h.PS.dep === '', h); await shot('hall'); }
   if (on('orders')) {
     const perms = ['EWN', 'ENW', 'WEN', 'WNE', 'NEW', 'NWE'];
     for (const ord of perms) { await fresh(); await start(); let good = true; const log = [];
@@ -71,7 +72,7 @@ const ok = (name, pass, info) => { results.push([name, pass]); console.log(`${pa
     const r = await page.evaluate(async () => { const D = window.__pp.arc.game._dbg, T = D.RIFT.self.mod.trials.W; await new Promise(r => setTimeout(r, 50)); const w1 = T.log[0]; const left0 = T.deadline - D.g.t;
       for (const m of T.all) if (!m.dead) D.hitMon(m, 1e9, { flat: true }); for (let k = 0; k < 20; k++) window.__pp.arc.game.update(1 / 30); const w2 = T.log[1];
       return { w1, w2, left0: +left0.toFixed(1), leftAfter: +(T.deadline - D.g.t).toFixed(1), wave: T.wave }; });
-    ok('west: 60 per wave (20 per approach), a new full wave on clear, the one timer never reset', r.w1 && r.w1.n === 60 && r.w1.per.every(n => n === 20) && r.w2 && r.w2.n === 60 && r.wave === 2 && r.leftAfter <= r.left0 && r.left0 <= 30.01, r);
+    ok('west: 120 per wave (40 per approach), a new full wave on clear, the one timer never reset', r.w1 && r.w1.n === 120 && r.w1.per.every(n => n === 40) && r.w2 && r.w2.n === 120 && r.wave === 2 && r.leftAfter <= r.left0 && r.left0 <= 30.01, r);
     // the strike places: at most six attacking, with wind-ups
     const q = await page.evaluate(async () => { const D = window.__pp.arc.game._dbg, T = D.RIFT.self.mod.trials.W; let maxWind = 0, maxSlot = 0; const t0 = D.g.t; while (D.g.t - t0 < 7 && T.state === 'run') { window.__pp.arc.game.update(1 / 30); D.me.x = 33; D.me.y = 54.5; D.me.hp = D.ST.hp; const att = T.all.filter(m => !m.dead && m.gn && (m.gn.s === 'wind' || m.gn.s === 'rec' || m.gn.s === 'slot')); maxSlot = Math.max(maxSlot, att.length); maxWind = Math.max(maxWind, T.all.filter(m => !m.dead && m.gn && m.gn.s === 'wind').length); if (maxWind >= 4 && window.__SH) break; } return { maxWind, maxSlot, integ: T.integ, bites: T.bites }; });
     ok('west: at most six attackers at the pedestal, each with a visible wind-up', q.maxSlot <= 6 && q.maxWind >= 1, q);
@@ -108,21 +109,40 @@ const ok = (name, pass, info) => { results.push([name, pass]); console.log(`${pa
     ok('north: a tap attack does nothing while locked', lk.shots <= 0 && lk.lock, lk);
     // the bot: dodge-roll away from every launch (the rollers must destroy each other)
     const bot = await page.evaluate(async () => { const D = window.__pp.arc.game._dbg, T = D.RIFT.self.mod.trials.N, C = { x: 52.5, y: 22.5 }; const t0 = D.g.t; let rolls = 0, minLeft = 100, odd = false, prev = 100, under = false;
-      while (D.g.t - t0 < 150 && T.state === 'run') { window.__pp.arc.game.update(1 / 30); D.me.hp = D.ST.hp;
+      while (D.g.t - t0 < 150 && T.state === 'run' && !T.duel) { window.__pp.arc.game.update(1 / 30); D.me.hp = D.ST.hp;
         // drift toward the cistern's middle, and roll sideways out of any line about to launch
         const spin = T.rol.filter(r => r.alive && r.s === 'spin' && r.spinT - r.t < 0.35); const k = D.keys || window.__pp.arc.api && window.__pp.arc.api.keys;
         const dx = C.x - D.me.x, dy = C.y - D.me.y, d = Math.hypot(dx, dy); if (d > 3) { D.me.x += dx / d * 0.05; D.me.y += dy / d * 0.05; }
         if (spin.length && !D.me.dodge && D.g.dodgeCd <= 0) { const r = spin[0], px = -r.dy, py = r.dx; D.me.dodge = { t: 0, dur: 0.3, vx: px * 12.5, vy: py * 12.5, perf: false }; D.me.inv = Math.max(D.me.inv, 0.06); D.g.dodgeCd = 0.85 * (D.g.dodgeK || 1); rolls++; }
         if (T.left % 2) odd = true; if (T.left < 0) under = true; minLeft = Math.min(minLeft, T.left); }
       return { state: T.state, left: T.left, rolls, pairs: T.pairs, petHits: T.hits, walls: T.walls, maxCommit: T.maxCommit, secs: +(D.g.t - t0).toFixed(1), odd, under, cost: +T.cost.toFixed(2), lock: D.g.trialLock, dodgeK: D.g.dodgeK }; });
-    ok('north: all 100 eliminated only by collisions, in pairs, never odd or below zero', bot.state === 'won' && bot.left === 0 && !bot.odd && !bot.under, bot);
+    ok('north: all 100 eliminated only by collisions, in pairs, never odd or below zero', bot.left === 0 && !bot.odd && !bot.under, bot);
     ok('north: 8-12 committed rolls at a time at most', bot.maxCommit <= 12 && bot.maxCommit >= 6, { maxCommit: bot.maxCommit });
-    ok('north: abilities restored on success', bot.lock === false && (bot.dodgeK === undefined || bot.dodgeK === 1), { lock: bot.lock, dodgeK: bot.dodgeK });
+    ok('north: abilities restored when the hundred are gone', bot.lock === false && (bot.dodgeK === undefined || bot.dodgeK === 1), { lock: bot.lock, dodgeK: bot.dodgeK });
+    // v392: then two mini bosses, staggered; the crystal only once both fall. A level-10 bot with attacks and skills fights them
+    const duel = await page.evaluate(async () => { const D = window.__pp.arc.game._dbg, M = D.RIFT.self.mod, T = M.trials.N, G = window.__pp.arc.game, out = { goal: M.goal() };
+      for (let k = 0; k < 150; k++) G.update(1 / 30); const ms = T.duel ? T.duel.ms.filter(m => m && m.x) : []; out.spawned = ms.length; out.names = ms.map(m => m.bname); out.stateBefore = T.state; out.goal2 = M.goal(); out.hp = ms.map(m => Math.round(m.maxhp)); out.stagger = T.DUEL.map(d => d.delay);
+      const t0 = D.g.t; let crystalEarly = false;
+      const seps = [], angs = [];
+      while (D.g.t - t0 < 200 && T.state !== 'won') { G.update(1 / 30); D.me.hp = D.ST.hp; D.me.mp = 999; const live = ms.filter(m => !m.dead);
+        if (ms.length === 2 && live.length === 2 && D.g.t - t0 > 3) { const [p, q] = ms; seps.push(Math.hypot(p.x - q.x, p.y - q.y) / (p.r + q.r)); let da = Math.abs(Math.atan2(p.y - D.me.y, p.x - D.me.x) - Math.atan2(q.y - D.me.y, q.x - D.me.x)) % 6.283; if (da > Math.PI) da = 6.283 - da; angs.push(da * 57.3); } if (!live.length) { continue; } if (T.state === 'won' && live.length) crystalEarly = true;
+        const m = live.sort((a, b) => Math.hypot(a.x - D.me.x, a.y - D.me.y) - Math.hypot(b.x - D.me.x, b.y - D.me.y))[0], dx = m.x - D.me.x, dy = m.y - D.me.y, d = Math.hypot(dx, dy); if (d > 3.2) { D.me.x += dx / d * 0.14; D.me.y += dy / d * 0.14; }
+        const a = Math.atan2(dy, dx); D.me.face = dx >= 0 ? 1 : -1; D.g.tapBuf = 0.3; D.g.taps = 9; D.g.tapAim = { x: Math.cos(a), y: Math.sin(a), a, t: m }; if (D.g.cdS <= 0) D.useStrong('strong'); if (D.g.cdU <= 0) D.useUlt(); }
+      const med = v => { const w = v.slice().sort((x, y) => x - y); return w.length ? +w[w.length >> 1].toFixed(2) : null; }; out.sepMedian = med(seps); out.sepUnder1 = +(seps.filter(v => v < 1).length / Math.max(1, seps.length)).toFixed(3); out.angMedian = med(angs);
+      out.secs = +(D.g.t - t0).toFixed(1); out.state = T.state; out.allDead = ms.every(m => m.dead); out.crystalEarly = crystalEarly; out.lock = D.g.trialLock; out.atk = Math.round(D.ST.atk); return out; });
+    ok('north: after the hundred, two mini bosses appear (staggered), objective "Defeat A and B"', duel.spawned === 2 && duel.stateBefore === 'run' && /^Defeat \S+ and \S+/.test(duel.goal2) && duel.stagger[1] > duel.stagger[0], duel);
+    ok('north: the Spiral Crystal appears only after both fall; abilities usable; a pair fight of ~60-80 s at level 10 (bot: faster)', duel.state === 'won' && duel.allDead && !duel.crystalEarly && !duel.lock && duel.secs > 25 && duel.secs < 120, { secs: duel.secs, hp: duel.hp, atk: duel.atk });
+    ok('north: the pair keep apart (at least the sum of their radii) and work the pet from different sides', duel.sepMedian >= 1.3 && duel.sepUnder1 < 0.08 && duel.angMedian > 90, { sepMedian: duel.sepMedian, overlapShare: duel.sepUnder1, angleMedian: duel.angMedian });
+    await runG(0.5); const hw = await hall(); ok('north: the branch is won', hw.PS.earn.includes('N'), hw.PS);
     // restoration on the other exits: failure (knockout), leaving, reload
     await collectBack('N');
-    for (const how of ['ko', 'leave', 'reload']) { await fresh(); await start(); await use('belgate', 'N'); await goTo(52.5, 36); await runG(3.6); const a = await hall();
+    for (const how of ['ko', 'koduel', 'leave', 'reload']) { await fresh(); await start(); await use('belgate', 'N'); await goTo(52.5, 36); await runG(3.6); const a = await hall();
       if (how === 'ko') await page.evaluate(() => { const D = window.__pp.arc.game._dbg; D.me.inv = 0; D.me.dodge = null; D.hurtPet ? D.hurtPet(1e9) : (D.me.hp = 0); });
       if (how === 'ko') await page.evaluate(() => { const D = window.__pp.arc.game._dbg; if (D.me.hp > 0 && D.RIFT.self.mod) { D.g.koHook && (D.me.hp = 0, D.g.koHook()); } });
+      let dm = null; if (how === 'koduel') dm = await page.evaluate(() => { const D = window.__pp.arc.game._dbg, T = D.RIFT.self.mod.trials.N, G = window.__pp.arc.game; for (let k = 0; k < 400 && !T.duel; k++) { const live = T.rol.filter(r => r.alive); for (let i = 0; i + 1 < live.length; i += 2) { const p = live[i], q = live[i + 1]; q.x = p.x + 0.5; q.y = p.y; p.s = 'roll'; p.dx = 1; p.dy = 0; } G.update(1 / 30); }
+        for (let k = 0; k < 150; k++) { G.update(1 / 30); D.me.hp = D.ST.hp; } const n = T.duel ? T.duel.ms.filter(m => m && m.x && !m.dead).length : 0, lockMid = D.g.trialLock; D.me.inv = 0; D.me.dodge = null; D.hurtPet(1e9); for (let k = 0; k < 10; k++) G.update(1 / 30);
+        return { minis: n, lockMid, after: D.mons.filter(m => !m.dead && m.bk && m.bk.id === 'evilmini').length, duel: !!T.duel }; });
+      if (dm) ok('north: a knockout in the duel resets the branch and clears both mini bosses', dm.minis === 2 && !dm.lockMid && dm.after === 0 && !dm.duel, dm);
       if (how === 'leave') { await goTo(52.5, 50); }
       if (how === 'reload') { await start(); }
       await runG(0.5); const b = await hall();
@@ -148,7 +168,7 @@ const ok = (name, pass, info) => { results.push([name, pass]); console.log(`${pa
   if (on('door')) { await fresh(); await page.evaluate(() => { const RS = window.__pp.riftState(); RS.hall = RS.hall || {}; RS.hall.belfry = { sel: 'N', earn: 'EWN', carry: 'N', dep: 'EW', door: 0 }; }); await start();
     await page.evaluate(() => { const D = window.__pp.arc.game._dbg, s = D.RIFT.objs.find(o => o.kind === 'belsocket' && o.B === 'N'); D.me.x = s.x; D.me.y = s.y + 0.5; }); await use('belsocket', 'N');
     const seq = await page.evaluate(async () => { const D = window.__pp.arc.game._dbg, M = D.RIFT.self.mod, S = M.S, out = []; let moved = null; const t0 = D.g.t; while (D.g.t - t0 < 9) { window.__pp.arc.game.update(1 / 30); out.push([+S.door.rise.toFixed(2), +S.door.part.toFixed(2)]); const f = { x0: 49.8, x1: 55.2, y0: 53.65, y1: 55.65 }; if (S.door.rise > 0 && D.me.x > f.x0 && D.me.x < f.x1 && D.me.y > f.y0 && D.me.y < f.y1) moved = 'inside'; if (window.__DOORSHOT && S.door.rise > 0.5 && S.door.rise < 0.8) { window.__DOORSHOT = 0; break; } } return { rise: S.door.rise, part: S.door.part, open: S.door.open, exit: !!D.RIFT.exit, moved, prog: window.__pp.riftState().prog.belfry, cine: D.g.cineT }; });
-    ok('door: three deposits raise the doorway, the pet is moved clear, the way opens and the checkpoint moves on', seq.rise === 1 && seq.part === 1 && seq.exit && !seq.moved && seq.prog >= 1 && !seq.cine, seq);
+    ok('door: three deposits raise the doorway, the pet is moved clear, the way opens and the checkpoint moves on', seq.rise === 1 && seq.part === 1 && seq.exit && !seq.moved && seq.prog >= idx + 1 && !seq.cine, seq);
   }
   if (on('shots')) {
     await page.setViewportSize({ width: 390, height: 844 });
@@ -177,6 +197,15 @@ const ok = (name, pass, info) => { results.push([name, pass]); console.log(`${pa
     await page.evaluate(async () => { const D = window.__pp.arc.game._dbg, S = D.RIFT.self.mod.S; const t0 = D.g.t; while (D.g.t - t0 < 9 && !(S.door.rise > 0.55)) window.__pp.arc.game.update(1 / 30); }); await snap('door-rising');
     await page.evaluate(async () => { const D = window.__pp.arc.game._dbg, S = D.RIFT.self.mod.S; const t0 = D.g.t; while (D.g.t - t0 < 9 && !(S.door.open >= 1)) window.__pp.arc.game.update(1 / 30); }); await runG(0.3); await snap('door-open');
   }
+  if (on('v392')) {   // v392 shots: the west at 120 a wave, the north's two mini bosses after the hundred, the crystal after they fall
+    const snap = async n => { await page.waitForTimeout(6000); await page.screenshot({ path: path.resolve(__dirname, `../shots/bel-b2-v392-${n}.png`) }); };
+    await fresh(); await start(); await use('belgate', 'W'); await enter('W'); await runG(6, { heal: true, stay: [27, 55], attack: true }); await snap('west-120');
+    const nW = await page.evaluate(() => window.__pp.arc.game._dbg.RIFT.self.mod.trials.W.all.filter(m => !m.dead).length); console.log('west alive on screen shot', nW);
+    await fresh(); await start(); await use('belgate', 'N'); await goTo(52.5, 36); await runG(3.6);
+    await page.evaluate(() => { const D = window.__pp.arc.game._dbg, T = D.RIFT.self.mod.trials.N, G = window.__pp.arc.game; for (let k = 0; k < 400 && !T.duel; k++) { const live = T.rol.filter(r => r.alive); for (let i = 0; i + 1 < live.length; i += 2) { const p = live[i], q = live[i + 1]; q.x = p.x + 0.5; q.y = p.y; p.s = 'roll'; p.dx = 1; p.dy = 0; } G.update(1 / 30); } for (let k = 0; k < 160; k++) { G.update(1 / 30); D.me.hp = D.ST.hp; } D.me.x = 52.5; D.me.y = 19; });
+    await runG(4.5, { heal: true, stay: [52.5, 17], attack: true }); await snap('north-duel');
+    await page.evaluate(() => { const D = window.__pp.arc.game._dbg, T = D.RIFT.self.mod.trials.N, G = window.__pp.arc.game; for (let k = 0; k < 400 && T.state !== 'won'; k++) { for (const m of T.duel.ms) if (m && m.x && !m.dead) { m.aggro = true; D.hitMon(m, 1e12, { flat: true }); } G.update(1 / 30); } for (let k = 0; k < 60; k++) G.update(1 / 30); D.me.x = 52.5; D.me.y = 8.5; });
+    await snap('north-crystal'); ok('v392 shots taken', true); }
   if (on('perf')) {   // phone size (390 x 844): the logic's cost per step and the drawing's per frame, with 100 rollers and 60 gnawers out
     const meas = () => page.evaluate(async () => { const D = window.__pp.arc.game._dbg, G = window.__pp.arc.game; const w0 = performance.now(); for (let i = 0; i < 60; i++) { G.update(1 / 60); D.me.hp = D.ST.hp; } const upd = (performance.now() - w0) / 60;
       for (let i = 0; i < 2; i++) await new Promise(r => requestAnimationFrame(r)); D.g.prof = {}; const f0 = performance.now(); for (let i = 0; i < 6; i++) await new Promise(r => requestAnimationFrame(r)); const P = D.g.prof; D.g.prof = null; const o = {}; for (const k of ['world', 'ents', 'parts', 'fx', 'hud']) o[k] = +((P[k] || 0) / 6).toFixed(1); return { updateMs: +upd.toFixed(2), frameMs: +((performance.now() - f0) / 6).toFixed(0), draw: o, mons: D.mons.filter(m => !m.dead).length }; });
@@ -184,7 +213,7 @@ const ok = (name, pass, info) => { results.push([name, pass]); console.log(`${pa
     const n = await meas(); const nT = await page.evaluate(() => +window.__pp.arc.game._dbg.RIFT.self.mod.trials.N.cost.toFixed(3));
     await fresh(); await start(); await use('belgate', 'W'); await enter('W'); await runG(3, { heal: true, stay: [27, 54.5] }); const w = await meas();
     await fresh(); await start(); await goTo(52.5, 56); await runG(0.3); const h = await meas();
-    console.log('perf (headless swiftshader, shared CPU: relative numbers) · hall', JSON.stringify(h), '· north 100 rollers', JSON.stringify(n), 'trial logic ms', nT, '· west 60 gnawers', JSON.stringify(w));
+    console.log('perf (headless swiftshader, shared CPU: relative numbers) · hall', JSON.stringify(h), '· north 100 rollers', JSON.stringify(n), 'trial logic ms', nT, '· west 120 gnawers', JSON.stringify(w));
     ok('perf: measured at phone size', true); }
   console.log(`\n${results.filter(r => r[1]).length}/${results.length} passed · page errors: ${errors.length}`); if (errors.length) console.log(errors.slice(0, 8).join('\n'));
   await T.browser.close(); process.exit(errors.length || results.some(r => !r[1]) ? 1 : 0);

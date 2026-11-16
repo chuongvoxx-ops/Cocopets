@@ -585,6 +585,10 @@ if (typeof window !== 'undefined') window.BEL = BEL;
     else if (R.kind === 'rect') { const x0 = X.sx(R.x0), y0 = X.sy(R.y0), x1 = X.sx(R.x1), y1 = X.sy(R.y1), rr = Math.min((R.r || 0.4) * T, (x1 - x0) / 2, (y1 - y0) / 2); c.moveTo(x0 + rr, y0); c.arcTo(x1, y0, x1, y1, rr); c.arcTo(x1, y1, x0, y1, rr); c.arcTo(x0, y1, x0, y0, rr); c.arcTo(x0, y0, x1, y0, rr); c.closePath(); }
     else if (R.kind === 'tiles') { const W = X.W(), Hh = X.H(); for (const t of R.tiles) { const Xs = X.sx(t.tx), Ys = X.sy(t.ty); if (Xs < -T * 2 || Xs > W + T || Ys < -T * 2 || Ys > Hh + T) continue; const has = (dx, dy) => R.set.has((t.ty + dy) * R.MW + t.tx + dx), rr = T * 0.42, r1 = !has(0, -1) && !has(-1, 0) ? rr : 0, r2 = !has(0, -1) && !has(1, 0) ? rr : 0, r3 = !has(0, 1) && !has(1, 0) ? rr : 0, r4 = !has(0, 1) && !has(-1, 0) ? rr : 0, e = 0.5;
       c.moveTo(Xs + r1 - (r1 ? 0 : e), Ys - e); c.lineTo(Xs + T - r2 + (r2 ? 0 : e), Ys - e); if (r2) c.quadraticCurveTo(Xs + T, Ys, Xs + T, Ys + r2); c.lineTo(Xs + T + e, Ys + T - r3 + (r3 ? 0 : e)); if (r3) c.quadraticCurveTo(Xs + T, Ys + T, Xs + T - r3, Ys + T); c.lineTo(Xs + r4 - (r4 ? 0 : e), Ys + T + e); if (r4) c.quadraticCurveTo(Xs, Ys + T, Xs, Ys + T - r4); c.lineTo(Xs - e, Ys + r1); if (r1) c.quadraticCurveTo(Xs, Ys, Xs + r1, Ys); c.closePath(); } } }
+  /* v392 B1: the outer edge of a tile region (the sides with no water beside them), for its line of foam */
+  function regionEdge(c, X, R) { const T = X.Tz(), W = X.W(), Hh = X.H(); for (const t of R.tiles) { const Xs = X.sx(t.tx), Ys = X.sy(t.ty); if (Xs < -T * 2 || Xs > W + T || Ys < -T * 2 || Ys > Hh + T) continue; const has = (dx, dy) => R.set.has((t.ty + dy) * R.MW + t.tx + dx), rr = T * 0.42, n = !has(0, -1), so = !has(0, 1), w = !has(-1, 0), e = !has(1, 0);
+      if (n) { c.moveTo(Xs + (w ? rr : 0), Ys); c.lineTo(Xs + T - (e ? rr : 0), Ys); } if (so) { c.moveTo(Xs + (w ? rr : 0), Ys + T); c.lineTo(Xs + T - (e ? rr : 0), Ys + T); } if (w) { c.moveTo(Xs, Ys + (n ? rr : 0)); c.lineTo(Xs, Ys + T - (so ? rr : 0)); } if (e) { c.moveTo(Xs + T, Ys + (n ? rr : 0)); c.lineTo(Xs + T, Ys + T - (so ? rr : 0)); }
+      if (n && w) { c.moveTo(Xs, Ys + rr); c.quadraticCurveTo(Xs, Ys, Xs + rr, Ys); } if (n && e) { c.moveTo(Xs + T - rr, Ys); c.quadraticCurveTo(Xs + T, Ys, Xs + T, Ys + rr); } if (so && e) { c.moveTo(Xs + T, Ys + T - rr); c.quadraticCurveTo(Xs + T, Ys + T, Xs + T - rr, Ys + T); } if (so && w) { c.moveTo(Xs + rr, Ys + T); c.quadraticCurveTo(Xs, Ys + T, Xs, Ys + T - rr); } } }
   function inRegion(R, x, y) { if (R.kind === 'ring') { const d = Math.hypot(x - R.x, y - R.y); return d >= R.r0 && d <= R.r1; } if (R.kind === 'pool') return Math.hypot(x - R.x, y - R.y) <= R.r; if (R.kind === 'rect') return x >= R.x0 && x <= R.x1 && y >= R.y0 && y <= R.y1; if (R.kind === 'tiles') return R.set.has(Math.floor(y) * R.MW + Math.floor(x)); return false; }
   BEL.shallow = (X, R) => { const C = ctx(X); R = Object.assign({ kind: 'pool' }, R); if (R.kind === 'tiles') { R.MW = X.M.MW; R.set = new Set(R.tiles.map(t => t.ty * R.MW + t.tx)); } C.shallow.push(R); return R; };
   BEL.unshallow = (X, R) => { const C = ctx(X), i = C.shallow.indexOf(R); if (i >= 0) C.shallow.splice(i, 1); };
@@ -595,11 +599,11 @@ if (typeof window !== 'undefined') window.BEL = BEL;
     c.fillStyle = 'rgba(30,118,142,.34)'; c.fill(); c.clip();
     // a deeper tint toward the middle of broad water; the caustics sliding; a soft shine
     const p = DunWorld.pattern('belcaustic', 1), sc = T * 2.2 / 128; try { p.setTransform(new DOMMatrix([sc, 0, 0, sc, X.sx(0) + t * T * 0.22, X.sy(0) + t * T * 0.09])); } catch (e) {}
-    c.globalCompositeOperation = 'lighter'; c.globalAlpha = lowFx() ? 0.35 : 0.55; c.fillStyle = p; c.fillRect(0, 0, X.W(), X.H());
-    if (!lowFx()) { try { p.setTransform(new DOMMatrix([sc * 1.3, 0, 0, sc * 1.3, X.sx(0) - t * T * 0.15, X.sy(0) + t * T * 0.05])); } catch (e) {} c.globalAlpha = 0.3; c.fillRect(0, 0, X.W(), X.H()); }
+    c.globalCompositeOperation = 'lighter'; c.globalAlpha = lowFx() ? 0.25 : 0.36; c.fillStyle = p; c.fillRect(0, 0, X.W(), X.H());
+    if (!lowFx()) { try { p.setTransform(new DOMMatrix([sc * 1.3, 0, 0, sc * 1.3, X.sx(0) - t * T * 0.15, X.sy(0) + t * T * 0.05])); } catch (e) {} c.globalAlpha = 0.2; c.fillRect(0, 0, X.W(), X.H()); }
     c.restore();
     // its edge: a soft line of foam (so walkable water reads as water, apart from the opaque sea)
-    c.save(); c.beginPath(); for (const R of C.shallow) if (!R.off) regionPath(c, X, R); c.strokeStyle = 'rgba(226,247,242,.5)'; c.lineWidth = Math.max(1.2, T * 0.045); c.stroke(); c.strokeStyle = 'rgba(14,60,74,.35)'; c.lineWidth = Math.max(2, T * 0.1); c.globalCompositeOperation = 'destination-over'; c.stroke(); c.restore();
+    c.save(); c.beginPath(); for (const R of C.shallow) if (!R.off) (R.kind === 'tiles' ? regionEdge : regionPath)(c, X, R); c.strokeStyle = 'rgba(226,247,242,.5)';   /* v392 B1: a tile region's foam runs along its outer edge only (not round every tile) */ c.lineWidth = Math.max(1.2, T * 0.045); c.stroke(); c.strokeStyle = 'rgba(14,60,74,.35)'; c.lineWidth = Math.max(2, T * 0.1); c.globalCompositeOperation = 'destination-over'; c.stroke(); c.restore();
     // the pet's wake
     for (const r of C.ripples) { const u = r.t / r.life; c.strokeStyle = `rgba(226,247,242,${(0.55 * (1 - u)).toFixed(3)})`; c.lineWidth = Math.max(1, T * 0.035); ell(c, X.sx(r.x), X.sy(r.y), T * (0.25 + u * 0.9), T * (0.1 + u * 0.36)); c.stroke(); } }
   /* ---- the causeway's three low waves: crests sliding across it from the sea (a shove and a splash, never damage) ---- */
@@ -939,29 +943,94 @@ if (typeof window !== 'undefined') window.BEL = BEL;
     get how() { return fiendHere(id) ? undefined : `${title} (a stand-in fight until the 3D boss is in): defeat it.`; },
     make(X, self, H) { if (fiendHere(id)) { const f = BEL.bossMake[id] || (FIEND_DEFS[id] && FIEND_DEFS[id].bossMake); return (f && f(X, self, H)) || {}; } return fallbackBoss(X, self, H, oldId, seal, title); } }; }
 
+  /* ======================= v392 B1: SECTION 1's FIRST STAGE: THE DROWNED LOWER CHURCH (a regular dungeon) =======================
+     The user (v392): "Put a regular dungeon there first though, where you have to kill 150 enemies and the giant evil cocopets
+     before the gate trial." The causeway (three low waves) runs north out of the sea into the flooded lower church: the
+     narthex, the long lower nave with its columns standing in shallow water, two side chapels, and the drowned choir at the
+     north end, where the gate to the Hall of Three Tides waits. Exactly 150 of the brood in thirty packs of four to six (each
+     a mix: crawlers up front, leeches spitting from the back, a lantern healing them), every pack with a leader (EVIL_MINI.leader,
+     as the Caldera's dungeons), and a giant corrupted Cocopet at the gate (EVIL_MINI.spawn, the doubled body, PetGL on the
+     GPU): Gloomfin the Abyssal. The gate is sealed until all 150 are dead AND Gloomfin falls. Far packs wait off the field
+     (the engine's live cap, 36 at once) and walk back in as the field thins. Tuned for the rift's level 10 (the brood at 0.8
+     health and 0.75 blows here; the leaders at a quarter of Gloomfin's health, a third of its blows: thirty of them).
+     The lands: the causeway's worn slabs (belcause), the narthex and nave's dark wet flagstones (belnave), the chapels and
+     choir's pale limestone (belfry): each seamless, the walls ivory over the black tide, dressed with breakable props. */
+  GUARDS.church = { name: 'Gloomfin the Abyssal', short: 'Gloomfin', el: 'water', seed: 317, sub: 'A giant Cocopet of the abyss bars the gate to the Hall of Three Tides', palette: { tint: '#0B1C26', tintK: 0.9, pal: { sec: '#7CF2C8', cheek: '#08202A' }, col: '#5FE0B8', glow: '#2FB890', core: '#E6FFF6' }, hint: { tail: 'fish', ears: 'fin', horns: 'ram' }, hpK: 1 };
+  const CHURCH_N = 150, CHURCH_SIZES = [5, 6, 4, 5, 5, 6, 4, 5, 5, 6, 4, 5, 5, 6, 4, 5, 5, 6, 4, 5, 5, 6, 4, 5, 5, 6, 4, 5, 5, 5];   // (thirty packs, 150 in all)
+  const CHURCH = (() => { const W = 57, Hh = 100, g = grid(W, Hh, '~');
+    const hall = (x0, y0, x1, y1) => { rect(g, x0, y0, x1, y1, '#'); rect(g, x0 + 1, y0 + 1, x1 - 1, y1 - 1, '.'); };
+    hall(14, 2, 42, 26); hall(8, 24, 48, 58); hall(14, 57, 42, 76); hall(1, 32, 9, 49); hall(47, 32, 55, 49);
+    rect(g, 24, 24, 32, 27, '.'); rect(g, 24, 56, 32, 59, '.'); rect(g, 8, 37, 10, 43, '.'); rect(g, 46, 37, 48, 43, '.'); rect(g, 25, 75, 31, 97, '.');
+    for (let y = 63; y <= 67; y++) { put(g, 14, y, '~'); put(g, 42, y, '~'); }   // (the narthex's broken side walls, the sea beyond)
+    // the flooded floors (walkable shallow water): most of the nave, a pool in the narthex
+    rect(g, 13, 29, 43, 53, 'w'); rect(g, 19, 63, 37, 71, 'w');
+    // columns standing in the water (some broken), benches become floating slabs, upward falls, ribs, lamps, coral
+    for (const x of [16, 22, 34, 40]) for (const y of [31, 38, 45, 52]) put(g, x, y, (x + y) % 3 ? 'C' : 'U');
+    for (const [x, y, ch] of [[19, 64, 'Y'], [37, 70, 'Y'], [28, 41, 'F'], [9, 26, 'I'], [47, 26, 'I'], [8, 55, 'N'], [48, 55, 'N'], [14, 10, 'N'], [42, 10, 'N'], [3, 34, 'Z'], [53, 47, 'Z'], [2, 46, 'O'], [54, 34, 'Q'], [16, 4, 'P'], [40, 4, 'P'], [20, 21, 'Y'], [36, 21, 'Y'], [24, 78, 'J'], [32, 83, 'J'], [24, 88, 'J'], [32, 93, 'J'], [11, 80, 'C'], [45, 86, 'C'], [6, 64, 'Z']]) put(g, x, y, ch);
+    put(g, 28, 95, 'S'); put(g, 28, 4, 'E'); put(g, 28, 9, 'G');
+    return rows(g); })();
+  // the pack centres (layout tiles), by hall: narthex 5, nave 13, the chapels 3 each, the choir 6
+  const CHURCH_PACKS = [[20, 61], [36, 61], [28, 66], [18, 72], [38, 72],
+    [12, 28], [28, 28], [44, 28], [19, 34], [37, 34], [12, 41], [28, 36], [44, 41], [19, 48], [37, 48], [12, 54], [28, 50], [44, 54],
+    [4, 36], [6, 41], [4, 46], [52, 36], [50, 41], [52, 46],
+    [19, 6], [37, 6], [18, 14], [38, 14], [22, 20], [34, 20]];
+  // each pack's mix by size: crawlers up front, leeches behind, a lantern healing them (one in packs of five or more)
+  const PACK_MIX = { 4: ['crawler', 'crawler', 'leech', 'crawler'], 5: ['crawler', 'crawler', 'leech', 'reeflantern', 'crawler'], 6: ['crawler', 'crawler', 'leech', 'reeflantern', 'crawler', 'leech'] };
+  function makeChurch(X, self, H) {
+    const M = X.M, mk = M.marks, me = X.me, C = ctx(X), E0 = mk.E[0], G0 = mk.G[0];
+    // the lands: the causeway's slabs, the narthex and nave's wet flagstones, the chapels and choir's limestone (the tiles are
+    // not painted yet when make runs, so no retile)
+    { const bi = id => Math.max(0, BIOME_ORDER.indexOf(id)), cause = bi('belcause'), nave = bi('belnave'); for (let y = 0; y < M.MH; y++) for (let x = 0; x < M.MW; x++) { const ly = y - 1, lx = x - 1, k = y * M.MW + x; if (ly >= 76) M.BI[k] = cause; else if (ly >= 24 && ly <= 76 && lx >= 10 && lx <= 46) M.BI[k] = nave; } }
+    X.F.liveCap = 36;   // (only this stage: the hall's trials keep their own exact populations)
+    const brood = [];
+    CHURCH_PACKS.forEach(([lx, ly], i) => { const n = CHURCH_SIZES[i], p = Wp(lx, ly), mix = PACK_MIX[n];
+      for (let j = 0; j < n; j++) { const a = j / n * TAU + i, q = X.freeSpot(p.x + Math.cos(a) * 1.2, p.y + Math.sin(a) * 1.2, 0.4) || X.freeSpot(p.x, p.y, 0.4) || p; const m = BEL.spawn(X, mix[j], q.x, q.y, { pack: 10 + i, hpK: 0.8, dmgK: 0.75, count: false }); if (m) { m.belChurch = 1 + i; m.room = 0; brood.push(m); } } });
+    X.g.total = brood.length;
+    // the giant at the gate
+    const mini = placeGuard(X, 'church', G0.x, G0.y, { x: E0.x, y: E0.y });
+    // a leader to every pack (a quarter of Gloomfin's health, a third of its blows: thirty of them stand in the way)
+    const E = EM(); let leaders = [];
+    if (E && mini) { const of = { maxhp: Math.round((mini.maxhp || 7200) * 0.5), hp: 0, dmg: (mini.dmg || 17) * 0.66 }; try { leaders = E.packLeaders ? E.packLeaders(X, mini, q => !!q.belChurch, { hpOf: of, dmgOf: of }) : []; } catch (e) { leaders = []; }
+      if (!leaders.length && E.leader) for (let i = 0; i < CHURCH_PACKS.length; i++) { const q = brood.find(m => m.belChurch === i + 1 && m.type === 'crawler'); if (q) leaders.push(E.leader(X, q, { hpOf: of, dmgOf: of })); } }
+    H.setExit(E0.x, E0.y, 'The Hall of Three Tides');
+    X.after(2.2, () => X.banner('THE DROWNED LOWER CHURCH', `Clear all ${CHURCH_N} of the brood and ${GUARDS.church.short} at the gate`, TURQ, 3, true, true));
+    const left = () => H.monstersLeft();
+    let said = false;
+    return { brood, leaders, mini, N: CHURCH_N,
+      update() { const n = left(); if (!said && n === 0 && !guardDown(X)) { said = true; X.banner('THE BROOD IS GONE', `${GUARDS.church.short} still holds the gate`, '#C9FFF8', 2.4, true); }
+        if (!self.done && n === 0 && guardDown(X)) { self.done = true; X.banner('THE GATE OPENS', 'On to the Hall of Three Tides', SAFE, 2.6, true); X.flash(0.25, '#FFFFFF'); snd(X, 'fanfare'); } },
+      hint() { if (self.done) return null; const n = left(); if (n === 0) return mini && !mini.dead ? mini : null; let best = null, bd = 1e9; for (const m of X.mons) { if (m.dead || m.boss || !m.belChurch) continue; const d = Math.hypot(m.x - me.x, m.y - me.y); if (d < bd) { bd = d; best = m; } } return bd > 8 ? best : null; },
+      goal() { const n = left(); if (self.done) return 'The gate is open · on to the Hall of Three Tides'; return n > 0 ? `${n} of ${CHURCH_N} brood left${mini && !mini.dead ? ` · ${GUARDS.church.short} at the gate` : ''}` : `Defeat ${GUARDS.church.short} to open the gate`; } };
+  }
+  const CHURCH_STAGE = { name: 'The Drowned Lower Church', biome: 'belfry', kind: 'puzzle', trial: true, guard: 'church', vista: { x: 29, y: -22 }, causeway: { x0: 26, x1: 33, y0: 77, y1: 99 },
+    goal: `Clear the drowned lower church: all ${CHURCH_N} of the brood and the giant at the gate`, how: `The causeway leads into the flooded lower church. ${CHURCH_N} of the brood wait in packs, each led by a pack leader; a giant corrupted Cocopet guards the gate to the Hall of Three Tides. The gate opens when every monster and the giant have fallen.`,
+    layout: CHURCH, legend: Object.assign({}, PROP_LEGEND, { E: {}, G: {}, w: {} }), make: makeChurch };
+  BEL.CHURCH = CHURCH_STAGE;
+
   /* ======================= the rift ======================= */
   const SEALING = { fall: 'THE SEA DRAINS AWAY', sub: 'The bell sounds once, and warm sunlight enters the nave', sigil: 'THE TIDE SIGIL', name: 'The Drowned Belfry', color: '#61D9D2', glow: '#C9FFF8',
     onFall() { const C = CUR; if (C) C.calmTo = 1; try { if (C && C.X && C.X.sfx && C.X.sfx.chime) { C.X.sfx.chime(196, 1.4); C.X.after(0.05, () => C.X.sfx.chime(392, 0.8)); } } catch (e) {} BEL.clearCp('hall'); } };
-  const STAGES = [HALL,
+  const STAGES = [CHURCH_STAGE,   // v392 B1: the regular dungeon first, then the hall
+    HALL,
     bossStage('belkharrox', 'The Baptism Chamber', 'Kharrox the Bellback', 'belbapt', 'kharrox', false),
     Object.assign(CLAPPERS, { kind: 'puzzle' }),
     bossStage('belnhalu', 'The Submerged Nave', 'Nhalu the Lantern Eel', 'belnave', 'nhalu', false),
     Object.assign(TIDE, { kind: 'puzzle' }),
     bossStage('beluldroth', 'The Bell Platform', 'Uldroth the Drowned Herald', 'belplat', 'uldroth', true)];
   const Rf = defRift({
-    id: 'belfry', n: 1, name: 'The Drowned Belfry', lvl: 10, sigil: 'Tide', biome: 'belfry', aff: ['water', 'dark'], region: 'the coast', layoutVer: 2,
-    blurb: 'A coastal bell tower sunk halfway into an alien sea. Win three crystals in the Hall of Three Tides, balance the clapper counterweights, outrun the rising tide, and silence the Drowned Herald.',
-    stageNote: 'Six stages: the Hall of Three Tides (three crystal trials), Kharrox the Bellback, the Clapper Counterweights, Nhalu the Lantern Eel, the Rising Tide Walk, and Uldroth the Drowned Herald, who seals the rift. Corrupted Cocopets guard each section\'s way out.',
+    id: 'belfry', n: 1, name: 'The Drowned Belfry', lvl: 10, sigil: 'Tide', biome: 'belfry', aff: ['water', 'dark'], region: 'the coast', layoutVer: 3,   // v392 B1: seven stages (the lower church first)
+    blurb: 'A coastal bell tower sunk halfway into an alien sea. Fight through the drowned lower church, win three crystals in the Hall of Three Tides, balance the clapper counterweights, outrun the rising tide, and silence the Drowned Herald.',
+    stageNote: 'Seven stages: the Drowned Lower Church (a dungeon of 150 brood and a giant corrupted Cocopet), the Hall of Three Tides (three crystal trials), Kharrox the Bellback, the Clapper Counterweights, Nhalu the Lantern Eel, the Rising Tide Walk, and Uldroth the Drowned Herald, who seals the rift. Corrupted Cocopets guard each section\'s way out.',
     gate: { anima: 'cancer', name: 'The Oracle Shell' }, mons: ['crawler', 'leech', 'reeflantern'], sealing: SEALING,
     scale: 0.5,   // (half the health and blows the brood was first built with)
     stages: STAGES });
   function Rf0() { return Rf; }
-  BEL.Rf = Rf; BEL.STAGES = { HALL, CLAPPERS, TIDE, HALL_PH };
+  BEL.Rf = Rf; BEL.STAGES = { CHURCH: CHURCH_STAGE, HALL, CLAPPERS, TIDE, HALL_PH };
 
   /* ======================= every stage: the sea, the shallows, the waves, the lights, the fish, the guardians ======================= */
   BEL.fishSeen = false;
   Rf.everyStage = (X, self, H) => { const C = ctx(X), S = self.S || {}, M = X.M, fiend = !!X.F.fiend; CUR = C; C.X = X; C.self = self; C.calm = C.calm || 0; C.calmTo = C.calmTo || 0;
-    if (X.F.rift && X.F.rift.stage === 0) BEL.fishSeen = false;   // (a run starts at the hall: the fish may pass again)
+    if (X.F.rift && X.F.rift.stage === 0) BEL.fishSeen = false;   // (a run starts at the first stage: the fish may pass again)
     C.vista = S.vista || { x: M.MW / 2, y: -12 };
     if (M.marks && M.marks.w && M.marks.w.length) BEL.shallow(X, { kind: 'tiles', tiles: M.marks.w.map(p => ({ tx: p.tx, ty: p.ty })) });
     { let cw = S.causeway || null; if (!cw && M.marks && M.marks.K && M.marks.K.length) { let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; for (const p of M.marks.K) { x0 = Math.min(x0, p.tx); y0 = Math.min(y0, p.ty); x1 = Math.max(x1, p.tx + 1); y1 = Math.max(y1, p.ty + 1); } cw = { x0, x1, y0, y1 }; } if (cw && !C.waves.length) BEL.waves(X, cw); }
@@ -1029,12 +1098,20 @@ if (typeof window !== 'undefined') window.BEL = BEL;
      10 F 11 MOSAIC 12 F 13 Ulvora. Its checkpoint goes to the nearest safe new stage: an unfinished opening (0) starts at the
      hall; past the old opening dungeon but before its first boss (1-4) at Kharrox; the old second section (5-8) at the
      Clapper Counterweights, its boss (9) at Nhalu; the old third section (10-12) at the Rising Tide Walk, its boss (13) at
-     Uldroth. A sealed Belfry stays sealed (its seal, gate and Cancer Anima are untouched). Done once: st.rift.ver.belfry = 2 */
+     Uldroth. A sealed Belfry stays sealed (its seal, gate and Cancer Anima are untouched). Done once: st.rift.ver.belfry = 2.
+     v392 B1: the six-stage layout (v390-v391, ver 2: 0 hall 1 Kharrox 2 clappers 3 Nhalu 4 tide 5 Uldroth) gains the Drowned
+     Lower Church in front: a checkpoint past the hall moves up one (keeping the player's progress); a save still in the hall
+     with crystals won (st.rift.hall.belfry) keeps its place in the hall (1); one that had not begun starts at the church (0).
+     The fourteen-stage saves map as above, then the same way. A sealed Belfry stays sealed. Now st.rift.ver.belfry = 3 */
   BEL.mapOld = p => (p <= 0 ? 0 : p <= 4 ? 1 : p <= 8 ? 2 : p === 9 ? 3 : p <= 12 ? 4 : 5);
+  BEL.VER = 3;
   BEL.migrate = (s, o) => { const r = s && s.rift; if (!r) return; if (!r.ver || typeof r.ver !== 'object') r.ver = {}; if (!r.bel || typeof r.bel !== 'object') r.bel = {};
-    const was = o && o.rift && o.rift.ver && +o.rift.ver.belfry || 0; if (was >= 2) { r.ver.belfry = 2; return; }
-    if (r.prog && r.prog.belfry != null) r.prog.belfry = r.seals && r.seals.belfry ? 0 : Math.min(STAGES.length - 1, BEL.mapOld(r.prog.belfry | 0));
-    r.bel = {}; r.ver.belfry = 2; };
+    const was = o && o.rift && o.rift.ver && +o.rift.ver.belfry || 0; if (was >= 3) { r.ver.belfry = 3; return; }
+    if (r.prog && r.prog.belfry != null) { let p = r.prog.belfry | 0; if (was < 2) { p = BEL.mapOld(p); r.bel = {}; }
+      const h = r.hall && r.hall.belfry, inHall = !!(h && (h.dep || h.earn || h.carry || h.sel || h.door));
+      r.prog.belfry = r.seals && r.seals.belfry ? 0 : Math.min(STAGES.length - 1, p > 0 ? p + 1 : inHall ? 1 : 0); }
+    else if (was === 2 && r.hall && r.hall.belfry && !(r.seals && r.seals.belfry)) { const h = r.hall.belfry; if (h.dep || h.earn || h.carry || h.sel || h.door) { r.prog = r.prog || {}; r.prog.belfry = 1; } }
+    if (was < 2) r.bel = {}; r.ver.belfry = 3; };
   if (typeof window !== 'undefined') window.belfryMigrate = BEL.migrate;
 
   /* ======================= the loading screen's warm-up (as the Caldera's): the brood in every pose, the patterns, the tower ======================= */

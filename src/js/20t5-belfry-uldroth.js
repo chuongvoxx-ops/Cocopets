@@ -537,7 +537,8 @@ const BEL_ULDROTH = (() => {
     if (l) { l.hp = l.maxhp = hp; l.belValve = true; l.aggro = true; l.still = true; FX.H.ring(x, y, 0.2, 1.2, 0.4, '#B6A2F0', 0.25); }
     return l; }
   /* ---- the breakable sea-glass lanterns on the rim (BREAK_FX: coral and glass) ---- */
-  function urnPaint(c, P) { const s = P; c.fillStyle = 'rgba(0,0,0,.3)'; c.beginPath(); c.ellipse(0, 0, s * 0.5, s * 0.18, 0, 0, TAU); c.fill();
+  function urnPaint(c, P) { const s = P; if (typeof window !== 'undefined' && window.BELPROPS && window.BELPROPS.draw(c, 'glassurn', 0, 0, 0, P)) return;   // v392 PR: a repainted sea-glass urn (20n9); the old 2D only where that is off
+    c.fillStyle = 'rgba(0,0,0,.3)'; c.beginPath(); c.ellipse(0, 0, s * 0.5, s * 0.18, 0, 0, TAU); c.fill();
     c.fillStyle = '#5E6E6A'; c.beginPath(); c.moveTo(-s * 0.32, 0); c.lineTo(-s * 0.22, -s * 0.5); c.lineTo(s * 0.22, -s * 0.5); c.lineTo(s * 0.32, 0); c.closePath(); c.fill();
     const g = c.createLinearGradient(-s * 0.3, 0, s * 0.3, 0); g.addColorStop(0, '#2F6F6A'); g.addColorStop(0.5, '#7FE3D6'); g.addColorStop(1, '#2A5C58'); c.fillStyle = g; c.beginPath(); c.ellipse(0, -s * 0.95, s * 0.3, s * 0.48, 0, 0, TAU); c.fill();
     c.strokeStyle = '#957943'; c.lineWidth = s * 0.06; for (const y of [-0.62, -0.95, -1.28]) { c.beginPath(); c.ellipse(0, s * y, s * 0.3 * Math.sqrt(1 - ((y + 0.95) / 0.48) ** 2), s * 0.06, 0, 0, TAU); c.stroke(); }

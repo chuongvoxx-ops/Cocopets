@@ -379,11 +379,11 @@ function pillarBeamSprite(color) {
 /* (v389 E) the Ult cast's column of light (2D): gaussian across, rising out of its foot almost at once (the bloom at its
    foot covers the start), thinning and dissolving into the sky over its upper 60%. Drawn stretched along the column */
 function castBeamSprite(color) {
-  return fxSprite('cbeam|' + color, 160, 48, (g, w, h) => {
+  return fxSprite('cbeam3|' + color, 160, 48, (g, w, h) => {   /* (v392 Z: its foot fades in over its first 25%, ~3.4 tiles from 1.2 under the pet's feet; was 6%, a line) */
     const [r, gg, b] = hexRGB(color), im = g.createImageData(w, h), d = im.data, ss = t => t * t * (3 - 2 * t);
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
       const u = (x + 0.5) / w, e = Math.max(0, Math.min(1, (u - 0.4) / 0.6)), s = 1 - ss(e), v = (y + 0.5 - h / 2) / (h / 2) / (1 - 0.35 * e), across = Math.max(0, (Math.exp(-v * v * 4.2) - Math.exp(-4.2)) / (1 - Math.exp(-4.2)));
-      const a = across * ss(Math.min(1, u / 0.06)) * s * s, i = (y * w + x) * 4; d[i] = r; d[i + 1] = gg; d[i + 2] = b; d[i + 3] = Math.round(255 * Math.min(1, a)); }
+      const a = across * ss(Math.min(1, u / 0.25)) * s * s, i = (y * w + x) * 4; d[i] = r; d[i + 1] = gg; d[i + 2] = b; d[i + 3] = Math.round(255 * Math.min(1, a)); }
     g.putImageData(im, 0, 0);
   });
 }
@@ -485,7 +485,12 @@ function flareSprite(color) {
   return fxSprite('flare|' + color, 128, 128, (g, w) => {
     const [r, gg, b] = hexRGB(color);
     g.globalCompositeOperation = 'lighter';
-    const streak = (ang, len, th, a) => { g.save(); g.translate(64, 64); g.rotate(ang); const gr = g.createLinearGradient(-len, 0, len, 0); gr.addColorStop(0, `rgba(${r},${gg},${b},0)`); gr.addColorStop(0.5, `rgba(255,255,255,${a})`); gr.addColorStop(1, `rgba(${r},${gg},${b},0)`); g.fillStyle = gr; g.beginPath(); g.ellipse(0, 0, len, th, 0, 0, Math.PI * 2); g.fill(); g.restore(); };
+    /* (v392 Z) each streak soft across as well as along (a gaussian, thinning toward its tips like the old ellipse): the cast's
+       flare is drawn up to ~16 tiles wide, and its streak, a flat-edged ellipse, read as a hard band across the screen */
+    const streak = (ang, len, th, a) => { const tw = 128, tv = 24, tc = document.createElement('canvas'); tc.width = tw; tc.height = tv; const tg = tc.getContext('2d'), im = tg.createImageData(tw, tv), d = im.data, e3 = Math.exp(-3);
+      for (let x = 0; x < tw; x++) { const u = Math.abs((x + 0.5) / tw * 2 - 1), al = 1 - u, wd = Math.max(0.12, Math.sqrt(1 - u * u)), cr = 255 + (r - 255) * u, cg = 255 + (gg - 255) * u, cb = 255 + (b - 255) * u;
+        for (let y = 0; y < tv; y++) { const v = ((y + 0.5) / tv * 2 - 1) / wd, k = Math.max(0, (Math.exp(-v * v * 3) - e3) / (1 - e3)), i = (y * tw + x) * 4; d[i] = cr; d[i + 1] = cg; d[i + 2] = cb; d[i + 3] = Math.round(255 * Math.min(1, a * al * k)); } }
+      tg.putImageData(im, 0, 0); g.save(); g.translate(64, 64); g.rotate(ang); g.drawImage(tc, -len, -th * 2, len * 2, th * 4); g.restore(); };
     streak(0, 63, 3.2, 0.95); streak(Math.PI / 2, 40, 2.4, 0.7); streak(Math.PI / 4, 26, 1.6, 0.45); streak(-Math.PI / 4, 26, 1.6, 0.45);
     const gr = g.createRadialGradient(64, 64, 0, 64, 64, 30); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.25, `rgba(${r},${gg},${b},0.8)`); gr.addColorStop(1, `rgba(${r},${gg},${b},0)`);
     g.fillStyle = gr; g.fillRect(0, 0, w, w);

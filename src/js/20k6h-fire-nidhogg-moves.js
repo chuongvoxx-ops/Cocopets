@@ -459,6 +459,16 @@ float h3(vec3 p){ p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * 
 float n3(vec3 x){ vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f); return mix(mix(mix(h3(i), h3(i + vec3(1.0, 0.0, 0.0)), f.x), mix(h3(i + vec3(0.0, 1.0, 0.0)), h3(i + vec3(1.0, 1.0, 0.0)), f.x), f.y), mix(mix(h3(i + vec3(0.0, 0.0, 1.0)), h3(i + vec3(1.0, 0.0, 1.0)), f.x), mix(h3(i + vec3(0.0, 1.0, 1.0)), h3(i + vec3(1.0, 1.0, 1.0)), f.x), f.y), f.z); }
 float fbm3(vec3 p){ return 0.5 * n3(p) + 0.27 * n3(p * 2.07 + 3.1) + 0.15 * n3(p * 4.13 + 7.7) + 0.08 * n3(p * 8.3 + 1.3); }
 float caus(vec2 p, float t){ vec2 i = p; float c = 1.0; for (int n = 0; n < 4; n++) { float tt = t * (1.0 - 3.5 / float(n + 1)); i = p + vec2(cos(tt - i.x) + sin(tt + i.y), sin(tt - i.y) + cos(tt + i.x)); c += 1.0 / length(vec2(p.x / (sin(i.x + tt) / 0.005), p.y / (cos(i.y + tt) / 0.005))); } c /= 4.0; c = 1.17 - pow(c, 1.4); return clamp(pow(abs(c), 8.0), 0.0, 1.6); }   /* (v361) the web of light that water throws (after the classic tileable caustic) */
+vec4 u4s(vec4 c, float r, float x0, float x1, vec4 c1){ return mix(c, c1, clamp((r - x0) / (x1 - x0), 0.0, 1.0)); }   /* (v391 U4) */
+vec4 u4g(float p, float r){ vec4 c;   /* (v391 U4) Dead Scream's 2D sprites (20k5k) as exact gradients: 1 the scream band, 2 the wide wave, 3 the darkened air, 4 dark smoke, 5 pale smoke, 6 the mouth's hollow, 11 the light band; colour and alpha, not premultiplied */
+  if (p < 1.5) { c = vec4(0.0941, 0.0431, 0.1804, 0.0); c = u4s(c, r, 0.5, 0.68, vec4(0.0549, 0.0275, 0.102, 0.32)); c = u4s(c, r, 0.68, 0.82, vec4(0.1686, 0.0431, 0.2706, 0.62)); c = u4s(c, r, 0.82, 0.9, vec4(0.4275, 0.1569, 0.6588, 0.7)); c = u4s(c, r, 0.9, 0.945, vec4(0.6471, 0.3608, 1.0, 0.8)); c = u4s(c, r, 0.945, 0.975, vec4(0.8157, 0.6824, 1.0, 0.35)); c = u4s(c, r, 0.975, 1.0, vec4(0.8157, 0.6824, 1.0, 0.0)); }
+  else if (p < 2.5) { c = vec4(0.0941, 0.0431, 0.1804, 0.0); c = u4s(c, r, 0.42, 0.66, vec4(0.0706, 0.0353, 0.1333, 0.42)); c = u4s(c, r, 0.66, 0.84, vec4(0.1686, 0.0431, 0.2706, 0.62)); c = u4s(c, r, 0.84, 0.93, vec4(0.2745, 0.1569, 0.4314, 0.45)); c = u4s(c, r, 0.93, 1.0, vec4(0.2745, 0.1569, 0.4314, 0.0)); }
+  else if (p < 3.5) { c = vec4(0.0314, 0.0196, 0.0588, 0.6); c = u4s(c, r, 0.0, 0.45, vec4(0.0549, 0.0314, 0.102, 0.34)); c = u4s(c, r, 0.45, 0.75, vec4(0.0941, 0.0431, 0.1804, 0.1)); c = u4s(c, r, 0.75, 1.0, vec4(0.0941, 0.0431, 0.1804, 0.0)); }
+  else if (p < 4.5) { c = vec4(0.0549, 0.0275, 0.102, 0.7); c = u4s(c, r, 0.0, 0.45, vec4(0.1686, 0.0431, 0.2706, 0.38)); c = u4s(c, r, 0.45, 0.8, vec4(0.2745, 0.1882, 0.3216, 0.08)); c = u4s(c, r, 0.8, 1.0, vec4(0.2745, 0.1882, 0.3216, 0.0)); }
+  else if (p < 5.5) { c = vec4(0.3843, 0.2745, 0.502, 0.42); c = u4s(c, r, 0.0, 0.45, vec4(0.2745, 0.1882, 0.3216, 0.24)); c = u4s(c, r, 0.45, 1.0, vec4(0.1686, 0.0431, 0.2706, 0.0)); }
+  else if (p < 6.5) { c = vec4(0.0314, 0.0196, 0.0588, 0.96); c = u4s(c, r, 0.0, 0.6, vec4(0.0392, 0.0235, 0.0784, 0.88)); c = u4s(c, r, 0.6, 0.85, vec4(0.0941, 0.0431, 0.1804, 0.4)); c = u4s(c, r, 0.85, 1.0, vec4(0.0941, 0.0431, 0.1804, 0.0)); }
+  else if (p < 11.5) { c = vec4(0.4275, 0.1569, 0.6588, 0.0); c = u4s(c, r, 0.66, 0.84, vec4(0.4275, 0.1569, 0.6588, 0.28)); c = u4s(c, r, 0.84, 0.93, vec4(0.6471, 0.3608, 1.0, 0.7)); c = u4s(c, r, 0.93, 0.965, vec4(0.8157, 0.6824, 1.0, 0.75)); c = u4s(c, r, 0.965, 1.0, vec4(0.8157, 0.6824, 1.0, 0.0)); }
+  else c = vec4(0.0); return c; }
 /*<W>*/vec4 wbl(vec2 u, float q0, float th0){ float md = floor(q0 / 10.0), span = max(0.05, q0 - md * 10.0), rr = length(u), an = atan(u.y, u.x), v = 0.0, tk = th0, m = 1.0;   /* (v370, wind) a blade of wind: an arc of radius 0.8 in its quad (mode 0 a trail, its head at angle 0 and its tail round toward -v; 1 a crescent tapering both ways; 2 a whole ring): x across (0 its sharp outer edge .. 1 its inner), y along (0 the head .. 1 the tail), z inside, w arc length */
   if (md < 0.5) { float s = mod(-an + 0.03, 6.2831853) - 0.03; v = s / span; tk = th0 * (1.0 - 0.78 * clamp(v, 0.0, 1.0)) * smoothstep(-0.03 / span, 0.05, v); m = step(v, 1.0); }
   else if (md < 1.5) { v = an / (span * 0.5); tk = th0 * pow(clamp(1.0 - v * v, 0.0, 1.0), 0.6); v = abs(v); m = step(v, 1.0); }
@@ -466,7 +476,18 @@ float caus(vec2 p, float t){ vec2 i = p; float c = 1.0; for (int n = 0; n < 4; n
 vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05 * (0.3 + h) + sin(t * 0.9) * 0.03 * h, mix(br, 0.92, pow(h, 1.25)) * (0.94 + 0.06 * sin(h * 9.0 - t * 3.0))); }   /* (v370, wind) a funnel's centre and half-width at height h (0 its foot .. 1 its top) */
 /*</W>*/void main(){ vec2 u = v_uv; float r = length(u), m = 0.0, edge = 1.0 - smoothstep(0.85, 1.0, r); vec3 col = v_c.rgb; float t = u_t + v_q.y * 7.3, pk = u_pet.z > 0.0 ? mix(0.12, 1.0, smoothstep(0.4, 1.4, length((v_px - u_pet.xy) * vec2(1.0, 1.1)) / u_pet.z)) : 1.0;   /* (the rider's face stays clear: light, body and smoke) */
   pk *= v_k > 11.5 ? 1.0 : (v_k > 1.5 && v_k < 2.5) || (v_k > 5.5 && v_k < 6.5) || v_k > 10.5 ? 1.0 - smoothstep(0.8, 1.0, abs(u.y)) : (v_k > 3.5 && v_k < 4.5) ? (1.0 - smoothstep(0.8, 1.0, abs(u.x))) * (1.0 - smoothstep(0.86, 1.0, u.y)) : (v_k > 0.5 && v_k < 1.5) || (v_k > 7.5 && v_k < 8.5) ? 1.0 - smoothstep(0.92, 1.0, r) : 1.0 - smoothstep(0.72, 1.0, r);   /* (every picture fades to nothing well inside its own quad: no straight cut where noise or a halo reaches the quad's edge) */
-  if (v_k > 15.5 && v_k < 16.5) { // (v346, Thunderstorm) a storm cloud (solid): billowing lobes of night violet, darker beneath, a cool rim
+  if (v_k > 70.5 && v_k < 72.5) { // (v391 U4, Dead Scream) its 2D pictures drawn exactly, soft, on the GPU: 71 laid over (solid), 72 light. v_q.x
+    // the picture: 1..6 and 11 the sprites' own gradients (u4g), 7 a soft stroke in v_c (uv.x along, its ends fading; uv.y across,
+    // gaussian), 12 the game's round glow sprite in v_c (glowSprite), 13 its beam sprite in v_c (beamSprite: uv.x -1 the root .. 1 the tip)
+    float p = v_q.x; vec4 g;
+    if (p > 12.5) { float uu = u.x * 0.5 + 0.5, e = clamp((uu - 0.7) / 0.3, 0.0, 1.0), s = 1.0 - e * e * (3.0 - 2.0 * e), v = u.y / (1.0 - 0.3 * e), st = min(1.0, uu / 0.07); g = vec4(col, max(0.0, (exp(-v * v * 4.2) - 0.015) / 0.985) * st * st * (3.0 - 2.0 * st) * s * sqrt(s) * step(0.0, uu)); }
+    else if (p > 11.5) { g = vec4(col, 1.0); g = u4s(g, r, 0.0, 0.22, vec4(col, 0.62)); g = u4s(g, r, 0.22, 0.55, vec4(col, 0.18)); g = u4s(g, r, 0.55, 1.0, vec4(col, 0.0)); }
+    else if (p > 6.5 && p < 7.5) g = vec4(col, exp(-u.y * u.y * 5.0) * (1.0 - smoothstep(0.6, 1.0, abs(u.x))));
+    else g = u4g(p, r);
+    float a = g.a * v_c.a;
+    if (v_k < 71.5) gl_FragColor = vec4(g.rgb * a, a);
+    else { vec3 L = min(g.rgb * a, vec3(1.0)); gl_FragColor = vec4(L, max(max(L.r, L.g), L.b)); } }
+  else if (v_k > 15.5 && v_k < 16.5) { // (v346, Thunderstorm) a storm cloud (solid): billowing lobes of night violet, darker beneath, a cool rim
     // of light along the top, lit from within by its lightning (v_q.x) in electric blue-white; v_c its colour, v_q.y seed
     float f = fbm(u * 1.9 + vec2(v_q.y, t * 0.07)), g = fbm(u * 4.4 + vec2(-t * 0.11, v_q.y * 2.3)), d = clamp((1.0 - dot(u, u)) * (0.35 + 1.25 * f * f) - 0.12, 0.0, 1.0);
     float rim = smoothstep(0.02, 0.16, d) * (1.0 - smoothstep(0.16, 0.5, d)); d = smoothstep(0.0, 0.42, d) * (0.8 + 0.2 * g); float top = clamp(-u.y * 0.85 + (f - 0.5) * 1.1 + 0.1, 0.0, 1.0), cav = smoothstep(0.35, 0.75, g);
@@ -686,7 +707,7 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
       L *= 1.0 - smoothstep(1.45, 1.7, rr); }
     else if (v_k < 0.5) L = col * exp(-r * r * 4.2) * edge * 0.6;                                                              // a glow
     else if (v_k < 1.5) { float d = max((v_q.x - r) / v_q.z, 0.0); L = mix(col, vec3(1.0), 0.6 * exp(-d * 12.0)) * (1.0 - smoothstep(v_q.x - 0.012, v_q.x + 0.01, r)) * (0.4 * exp(-d * 2.4) + 0.7 * exp(-d * 12.0)); }   // a ring
-    else if (v_k < 2.5) { float fe = fth(v_k), ee = fte(u.x * 0.5 + 0.5, fe), wy = u.y / (1.0 - 0.6 * ee); L = col * exp(-wy * wy * 5.0) * (fe > 0.0 ? (1.0 - smoothstep(0.6, 1.0, -u.x)) * ftk(ee) : 1.0 - smoothstep(0.6, 1.0, abs(u.x))); }   // a beam (v388 E: its far end feathers out when it ends a line)
+    else if (v_k < 2.5) { float fe = fth(v_k), ee = fte(u.x * 0.5 + 0.5, fe), wy = u.y / (1.0 - 0.6 * ee); L = col * exp(-wy * wy * 5.0) * (fe > 0.0 ? (1.0 - smoothstep(0.6, 1.0, -u.x)) * ftk(ee) : 1.0 - smoothstep(0.6, 1.0, abs(u.x))) * (v_q.z > 0.5 ? mix(v_q.x, v_q.y, u.x * 0.5 + 0.5) : 1.0); }   // (v392 Z: v_q.z 1, its strength runs from v_q.x at its start to v_q.y at its end: a chain fades in smoothly, no cut) a beam (v388 E: its far end feathers out when it ends aline)
     else if (v_k < 3.5) { // a ball of fire
       vec2 w = u + 0.22 * vec2(fbm(u * 2.0 + vec2(t * 0.7, -t * 1.6)) - 0.5, fbm(u * 2.0 + vec2(5.2, -t * 1.9)) - 0.5); float rr = length(w), f = fbm(w * 3.0 + vec2(0.0, -t * 2.2)), dns = 1.0 - smoothstep(0.45 + 0.35 * f, 0.98, rr);
       float temp = v_q.x * (1.15 - rr * 0.95) + (f - 0.5) * 0.55; L = ramp(min(temp, 0.74 + 0.4 * smoothstep(0.9, 1.2, v_q.x))) * dns * (0.5 + 0.55 * f); }   /* (white only in a very hot ball's heart) */
@@ -728,7 +749,7 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
   const Q = { lit: new Float32Array(12 * 6 * 600), nl: 0, smk: new Float32Array(12 * 6 * 200), ns: 0, wlit: new Float32Array(12 * 6 * 200), nwl: 0, wsmk: new Float32Array(12 * 6 * 100), nws: 0, get windOK() { return !!PRW; }, a: 1, b: 0, c0: 0, d: 1, e: 0, f: 0, k: 1, t: 0, W: 0, Hh: 0, pet: [0, 0, 0], gpu: true,
     X(x, y) { return this.a * x + this.c0 * y + this.e; }, Y(x, y) { return this.b * x + this.d * y + this.f; },
     /* one quad: centre (screen px), half-axes (ux, uy), (vx, vy) in screen px */
-    quad(kind, x, y, ux, uy, vx, vy, col, al, q0, q1, q2) { if (!(al > 0.004)) return; const solid = (kind >= 9 && kind <= 12) || kind === 16 || kind === 24 || kind === 25 || kind === 33 || kind === 36 || kind === 39 || kind === 40, wd = kind >= 33 && kind <= 40;
+    quad(kind, x, y, ux, uy, vx, vy, col, al, q0, q1, q2) { if (!(al > 0.004)) return; const solid = (kind >= 9 && kind <= 12) || kind === 16 || kind === 24 || kind === 25 || kind === 33 || kind === 36 || kind === 39 || kind === 40 || kind === 71 /* v391 U4 */, wd = kind >= 33 && kind <= 40;
       const ka = wd ? (solid ? 'wsmk' : 'wlit') : (solid ? 'smk' : 'lit'), kn = wd ? (solid ? 'nws' : 'nwl') : (solid ? 'ns' : 'nl'); let A = this[ka]; const n = this[kn];
       if ((n + 6) * 12 > A.length) { const q = new Float32Array(A.length * 2); q.set(A); A = q; this[ka] = q; }
       const cx = this.X(x, y), cy = this.Y(x, y), a = this.a, b = this.b, c = this.c0, d = this.d, Ux = a * ux + c * uy, Uy = b * ux + d * uy, Vx = a * vx + c * vy, Vy = b * vx + d * vy, C = rgbOf(col); let o = n * 12;
@@ -738,6 +759,9 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
     glow(x, y, r, col, a, sy) { if (r > 0.5) this.quad(0, x, y, r, 0, 0, r * (sy || 1), col, a); },
     ring(x, y, r, col, a, w, sy) { if (r > 0.5) this.quad(1, x, y, r * 1.04, 0, 0, r * 1.04 * (sy || 1), col, a, 0.96, 0, Math.max(0.02, (w || r * 0.1) / r * 0.6)); },
     beam(x0, y0, x1, y1, w, col, a) { const dx = (x1 - x0) / 2, dy = (y1 - y0) / 2, L = Math.hypot(dx, dy); if (L < 0.5) return; this.quad(2, x0 + dx, y0 + dy, dx, dy, -dy / L * w, dx / L * w, col, a); },
+    /* (v392 Z) a beam whose strength runs smoothly from a0 at (x0, y0) to a1 at (x1, y1) (times a): links of a chain given the
+       same ramp at their shared ends fade in or out along it with no step, so a wide column's foot can feather out */
+    rbeam(x0, y0, x1, y1, w, col, a, a0, a1) { const dx = (x1 - x0) / 2, dy = (y1 - y0) / 2, L = Math.hypot(dx, dy); if (L < 0.5 || !(a * Math.max(a0, a1) > 0.004)) return; this.quad(2, x0 + dx, y0 + dy, dx, dy, -dy / L * w, dx / L * w, col, a, a0, a1, 1); },
     fire(x, y, r, heat, a, seed, sy) { if (r > 0.5) { this.quad(10, x, y, r, 0, 0, r * (sy || 1), '#FFFFFF', a * 0.6, heat, seed || 0); this.quad(3, x, y, r, 0, 0, r * (sy || 1), '#FFFFFF', a * 0.8, heat, seed || 0); } },   /* (its body laid over, its light added) */
     billow(x, y, r, heat, a, seed, sy) { if (r > 0.5) { this.quad(10, x, y, r, 0, 0, r * (sy || 1), '#FFFFFF', a, heat, seed || 0); this.quad(3, x, y, r * 0.9, 0, 0, r * 0.9 * (sy || 1), '#FFFFFF', a * 0.3, heat * 0.9, seed || 0); } },   /* (a rolling volume of flame: mostly body, a little light; stacked by the dozen it stays orange) */
     tongue(x, y, w, h, rot, heat, a, seed) { if (h > 0.5) { const c = Math.cos(rot || 0), s = Math.sin(rot || 0); this.quad(4, x + s * h, y - c * h, c * w, s * w, -s * h, c * h, '#FFFFFF', a, heat, seed || 0); } },   /* (base at (x, y), rot 0 up) */

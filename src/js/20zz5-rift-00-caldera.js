@@ -1323,7 +1323,8 @@ CAL.bossMake = CAL.bossMake || {};
     let eT = 0, bled = false; C.tears = [];
     // v389 S: the Glass Heart's fifteen fire vents, spread through its rooms (worker S's vent field, 20zz4: CAL.vent vents with
     // staggered timings, only those near the pet running, the first one shown harmlessly). This hunk only places and ticks them
-    const VF = key === 'glassheart' && typeof CAL_STAGES !== 'undefined' && typeof CAL_STAGES.dungeonVents === 'function' ? CAL_STAGES.dungeonVents(X, 15) : null; C.ventField = VF;
+    /* (v392, the user: more traps in the first dungeon too) the Cinder Galleries get fifteen as well */
+    const VF = (key === 'glassheart' || key === 'ashen') && typeof CAL_STAGES !== 'undefined' && typeof CAL_STAGES.dungeonVents === 'function' ? CAL_STAGES.dungeonVents(X, 15) : null; C.ventField = VF;
     return { update(dt) { herd(dt); if (VF) VF.tick(dt); eT -= dt; if (eT <= 0) { eT = 1; easeAll(); }
         // the dungeon is clear and its door open: the rift still bleeds
         if (self.done && !bled && !X.g.won) { bled = true; openTears(X, C, D, key); const mod = self.mod; if (mod && mod.goal) { const g0 = mod.goal; mod.goal = () => self.done ? 'Cleared! The rift still bleeds: leave by the door or keep fighting' : g0(); }
@@ -1509,8 +1510,11 @@ CAL.bossMake = CAL.bossMake || {};
   function ventArt(c, X, v) { const T = X.Tz(), Xs = X.sx(v.x), Ys = X.sy(v.y), R = v.r * T, t = X.g.t; c.save();
     ell(c, Xs, Ys, R * 0.75, R * 0.42); c.fillStyle = '#120A0A'; c.fill(); ink(c, Math.max(1.2, T * 0.04), 0.9); c.strokeStyle = '#4A4042'; c.lineWidth = Math.max(2, T * 0.1); ell(c, Xs, Ys, R * 0.82, R * 0.48); c.stroke();
     const st2 = v.st, u = st2 === 'warn' ? v.t / v.warn : 0;
-    ell(c, Xs, Ys, R * 0.55, R * 0.28); c.fillStyle = st2 === 'erupt' ? '#FFE6A0' : st2 === 'warn' ? rgba(LAVA, 0.4 + 0.6 * u) : 'rgba(255,90,30,.35)'; c.fill();
-    if (st2 === 'warn') { c.fillStyle = rgba(WARN, 0.12 + 0.2 * u); c.beginPath(); c.arc(Xs, Ys, R, 0, TAU); c.fill(); c.strokeStyle = 'rgba(20,6,6,.6)'; c.lineWidth = Math.max(3, T * 0.12); c.stroke(); c.strokeStyle = WARN; c.lineWidth = Math.max(2, T * 0.07); c.beginPath(); c.arc(Xs, Ys, R, -Math.PI / 2, -Math.PI / 2 + TAU * u); c.stroke(); glow(c, Xs, Ys, R * 1.4, LAVA, 0.3 + 0.4 * u);
+    /* (v392, the user: no red area or countdown ring on the vents: the mouth only glows orange, then red, then bursts;
+       learning the beat is the player's part) */
+    const wc = st2 === 'warn' ? (u < 0.55 ? mixHex('#FF9A2A', '#FF5A1E', u / 0.55) : mixHex('#FF5A1E', '#FF1E14', (u - 0.55) / 0.45)) : null, pulse = st2 === 'warn' ? 0.75 + 0.25 * Math.sin(t * (6 + 18 * u)) : 1;
+    ell(c, Xs, Ys, R * 0.55, R * 0.28); c.fillStyle = st2 === 'erupt' ? '#FFE6A0' : st2 === 'warn' ? rgba(wc, (0.45 + 0.55 * u) * pulse) : 'rgba(255,90,30,.35)'; c.fill();
+    if (st2 === 'warn') { glow(c, Xs, Ys, R * (0.9 + 0.6 * u), wc, (0.25 + 0.5 * u) * pulse);
       c.strokeStyle = 'rgba(200,190,180,.5)'; c.lineWidth = Math.max(1, T * 0.03); for (let i = 0; i < 3; i++) { const w = Math.sin(t * 14 + i * 2) * R * 0.1; c.beginPath(); c.moveTo(Xs + (i - 1) * R * 0.3, Ys - R * 0.1); c.quadraticCurveTo(Xs + (i - 1) * R * 0.3 + w, Ys - R * 0.6, Xs + (i - 1) * R * 0.35 - w, Ys - R * (0.9 + u * 0.4)); c.stroke(); } }
     if (st2 === 'erupt') { const k = 1 - v.t / v.erupt, G = gpu(c, false); if (G) { for (let i = 0; i < 3; i++) G.Q.tongue(Xs + (i - 1) * R * 0.25, Ys, R * 0.45, T * (2.2 + i % 2) * (0.6 + 0.4 * k), (i - 1) * 0.12, 1.0, 0.9 * k + 0.1, i * 3.1 + v.n); G.Q.glow(Xs, Ys - T, R * 2.2, LAVA, 0.6 * k); gpuEnd(c, G); }
       else { const g = c.createLinearGradient(0, Ys, 0, Ys - T * 2.8); g.addColorStop(0, 'rgba(255,240,180,.95)'); g.addColorStop(0.4, 'rgba(255,140,50,.8)'); g.addColorStop(1, 'rgba(255,80,30,0)'); c.fillStyle = g; c.beginPath(); c.moveTo(Xs - R * 0.6, Ys); c.quadraticCurveTo(Xs - R * 0.9, Ys - T * 1.4, Xs - R * 0.2 + Math.sin(t * 20) * R * 0.1, Ys - T * 2.8 * (0.6 + 0.4 * k)); c.quadraticCurveTo(Xs + R * 0.9, Ys - T * 1.4, Xs + R * 0.6, Ys); c.closePath(); c.fill(); glow(c, Xs, Ys - T, R * 2.2, LAVA, 0.6 * k); } }
