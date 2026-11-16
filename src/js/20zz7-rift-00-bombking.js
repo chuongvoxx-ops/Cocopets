@@ -296,12 +296,12 @@ const CALBOMB_FIGHT = (() => {
   const SAFE_A = Math.atan2(SH_HL * 0.92, SH_R), SAFE_R0 = SH_R + SH_HD + 0.2, SAFE_R1 = SH_R + 4.4;
   // the fight's timings (seconds) and measures (tiles)
   const TM = { volleyWind: 1.9, volleyLock: 1.0, volleyV: 6.0, volleyR: 0.42, spread: 0.6, orbitWind: 2.3, orbitV: 3.0, orbitW: 0.9, orbitGap: 0.62, vent: [5.2, 5.0, 4.6], ventShort: 3.6,
-    fall: 1.1, fuse: 6, safe: 3, larvaR: 2.3, fly: 0.6, stagger: 4, longStagger: 7, charge: 7, hover: [1.7, 1.35, 1.15], coreNeed: 0.025 };
+    fall: 1.1, fuse: 6, safe: 3, larvaR: 2.3, fly: 0.6, stagger: 4, longStagger: 7, charge: 7, hover: [1.7, 1.35, 1.15], coreNeed: 0.025 * 46000 / 161000 };   // (v389: the core window asks what it did in v388, in the pet's damage)
   const DMG = { ball: 0.95, orbit: 1.15, larva: 1.1, blast: 3.6, blastCap: 0.55 };
   // its health as a level-1 starter feels it: the bars the engine gives a fiend of floor 1 are far more than a starter can
   // spend in two and a half minutes, so every blow is scaled (in dmgK) to make its whole health worth EFF_HP of the pet's
   // damage (the bars still drain as they should). A rift may set Rf.calBombHp to change it
-  const EFF_HP = 46000;   // (v388: doubled at the user's request)   // (QA v386: was 12000, for a level-1 pet; the pet arrives here at about level 8)
+  const EFF_HP = 161000;   // (v389: 7 bars, each as big as v388's 2: x3.5; the user)   // (v388: doubled at the user's request)   // (QA v386: was 12000, for a level-1 pet; the pet arrives here at about level 8)
   const angTo = (a, b) => { let d = b - a; while (d > Math.PI) d -= TAU; while (d < -Math.PI) d += TAU; return d; };
   const toward = (v, want, dt, k) => v + (want - v) * Math.min(1, dt * k);
   const shelterList = C => SH_ANG.map((a, i) => ({ i, a, x: C.x + Math.cos(a) * SH_R, y: C.y + Math.sin(a) * SH_R, tx: -Math.sin(a), ty: Math.cos(a), nx: Math.cos(a), ny: Math.sin(a) }));
@@ -786,6 +786,6 @@ const CALBOMB_FIGHT = (() => {
   def.make = make; def.MODEL = MODEL; def.SHELTERS = { list: shelterList, safeOf, safeSpot, nearestShelter, inRect, SH_ANG, SH_R, SH_HL, SH_HD, SAFE_A, SAFE_R0, SAFE_R1 }; def.TM = TM; def.DMG = DMG; def.SCALE = SCALE; def.Z = { ZH, ZV, ZR, ZS };
   return { def, make };
 })();
-RiftFiend.define({ id: 'calbomb', hpK: 1 / 6, dmgK: 0.48,   /* (QA v386: blows 0.3 -> 0.48: the pet arrives at about level 8, HP ~180) */ name: 'Bomb King', title: 'Sovereign of the Runebound Foundry', color: '#2A2420', glow: '#FF7A2E', accent: '#FFD27A', biome: typeof BIOMES !== 'undefined' && BIOMES.calderapit ? 'calderapit' : 'volcano', r: 3.0, els: ['fire', 'earth'], phases: 3, cuts: [1, 0.7, 0.35] }, CALBOMB_FIGHT.def);
+RiftFiend.define({ id: 'calbomb', get hpK() { return typeof CAL_BOSS_HPK === 'function' ? CAL_BOSS_HPK('calbomb', 7, 1 / 6) : 1 / 6; }, dmgK: 0.48,   /* (QA v386: blows 0.3 -> 0.48: the pet arrives at about level 8, HP ~180) */ name: 'Bomb King', title: 'Sovereign of the Runebound Foundry', color: '#2A2420', glow: '#FF7A2E', accent: '#FFD27A', biome: typeof BIOMES !== 'undefined' && BIOMES.calderapit ? 'calderapit' : 'volcano', r: 3.0, els: ['fire', 'earth'], phases: 3, cuts: [1, 0.7, 0.35] }, CALBOMB_FIGHT.def);
 // (the core's stage hook: CAL.bossMake.calbomb builds the arena's module; guarded, since the core may load without it)
 if (typeof CAL !== 'undefined') { if (!CAL.bossMake) CAL.bossMake = {}; CAL.bossMake.calbomb = CALBOMB_FIGHT.make; }

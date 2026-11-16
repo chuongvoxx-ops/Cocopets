@@ -123,6 +123,40 @@ const CAL_STAGES = { HP_K: 1.5, DMG_K: { HOLLOWS: 0.55, FOUNDRY: 0.72, DESCENT: 
         X.banner('CHECKPOINT', `Your pet is restored. ${boss} waits beyond the door`, P.FROST_HI, 2.6, true); } });
     S.tick = dt => { S.k = Math.max(0, S.k - dt * 0.6); }; return S; }
 
+  /* ---- (v389 S) fire vents everywhere: fifteen trap vents in each trial (most where the brood is fought) and fifteen in the
+     Glass Heart dungeon (20zz5's dungeonExtra calls CAL_STAGES.dungeonVents). They are the core's own vents (CAL.vent: the
+     crusted mouth with radial cracks that glows and hisses, then a tall jet of flame; a hit is 8% and a shove, a dodge roll
+     passes through), with staggered periods and phases so they never fire together. Only those near the pet run (within 13
+     tiles; a far one finishes its cycle and parks), so no hiss or shake comes from off the screen. The first one met shows
+     itself once, harmlessly ("SAFE TO WATCH"), with a banner ---- */
+  function ventField(X, pts, o) { o = o || {}; const C = CALR(); if (!C || typeof C.vent !== 'function' || !pts.length) return { vents: [], tick() {} };
+    const me = X.me, dmg = Math.max(1, Math.round(X.ST().hp * 0.08)), F = { vents: [], taught: !o.teach, demo: null, said: false };
+    pts.forEach((p, i) => { const h = ((i * 2654435761) >>> 0) / 4294967296, period = 4.6 + h * 2.2, v = C.vent(X, { x: p.x, y: p.y, r: 1.0, period, warn: 1.6, erupt: 0.9, dmg, phase: (i * 0.618 % 1) * period }); v.calS = true; v.on = false; F.vents.push(v); });
+    F.tick = dt => { if (me.dead) return; for (const v of F.vents) v.on = Math.hypot(me.x - v.x, me.y - v.y) < 13;
+      if (!F.taught) { if (!F.demo) { let b = null, bd = 7.5; for (const v of F.vents) { const d = Math.hypot(me.x - v.x, me.y - v.y); if (d < bd && d > 2.2) { bd = d; b = v; } } if (b) { F.demo = b; b.demo = true; b.st = 'idle'; b.t = Math.max(0, b.period - b.warn - 0.6); b.n0 = b.n; } }
+        else { const v = F.demo; if (v.st === 'warn' && !F.said) { F.said = true; X.banner('FIRE VENTS', 'Each one glows and hisses before it erupts: step off it, or roll through the blast', P_LAVA_HI, 3, true); X.text(v.x, v.y - 1.8, 'Watch the vent…', P_LAVA_HI, 15); }
+          if (v.n > v.n0 && v.st === 'idle') { v.demo = false; F.taught = true; } } } };
+    return F; }
+  const P_LAVA_HI = '#FFC25A';
+  /* where a trial's vents go: plain floor (the tile and its eight neighbours all '.'), in the given layout rows, `n` per region,
+     at least 3.5 tiles apart, never within the given keep-out circles (spawn, doors, shrines, respawn spots). Deterministic */
+  function pickVents(layout, regions, avoid) { const out = [], ok = (x, y) => { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const r = layout[y + dy]; if (!r || r[x + dx] !== '.') return false; } return true; };
+    for (const R of regions) { const cand = []; for (let y = R.y0; y <= R.y1; y++) for (let x = R.x0 || 1; x <= (R.x1 || layout[0].length - 2); x++) if (ok(x, y)) cand.push([x, y, ((x * 73856093) ^ (y * 19349663)) >>> 0]);
+      // (spread out: each next is the candidate farthest (up to 5.5 tiles; then the first in a fixed scrambled order) from those placed)
+      cand.sort((a, b) => a[2] - b[2]); const pool = cand.map(([x, y]) => Wp(x, y)).filter(w => !avoid.some(([ax, ay, ar]) => Math.hypot(w.x - ax, w.y - ay) < ar));
+      for (let n = 0; n < R.n && pool.length; n++) { let bi = -1, bd = -1; for (let i = 0; i < pool.length; i++) { const w = pool[i], d0 = out.length ? Math.min(...out.map(q => Math.hypot(q.x - w.x, q.y - w.y))) : 99, d = Math.min(d0, 5.5); if (d0 >= 3.5 && d > bd) { bd = d; bi = i; } } if (bi < 0) break; out.push(pool.splice(bi, 1)[0]); } }
+    return out; }
+  /* the Glass Heart's vents: spread through the generated dungeon's rooms, round-robin, on plain floor away from the start,
+     the exit's room centre and every prop */
+  CAL_STAGES.dungeonVents = function (X, n) { try { const M = X.M, MW = M.MW, G = M.G, out = [], props = X.props || [], st = M.start;
+      let ex = null, best = -1; for (const r of M.rooms) { const cx = r.x + r.w / 2, cy = r.y + r.h / 2, d = Math.hypot(cx - st.x, cy - st.y); if (d > best) { best = d; ex = { x: cx, y: cy }; } }
+      const floor = (x, y) => { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const k = (y + dy) * MW + x + dx; if (G[k] !== T_FLOOR || M.props.has(k)) return false; } return true; };
+      const lists = M.rooms.map(r => { const c = []; for (let y = r.y + 1; y < r.y + r.h - 1; y++) for (let x = r.x + 1; x < r.x + r.w - 1; x++) if (floor(x, y)) c.push([x + 0.5, y + 0.5, ((x * 73856093) ^ (y * 19349663)) >>> 0]); c.sort((a, b) => a[2] - b[2]); return c; });
+      const good = (x, y) => Math.hypot(x - st.x, y - st.y) > 4.5 && (!ex || Math.hypot(x - ex.x, y - ex.y) > 3.5) && !props.some(p => Math.abs(p.x - x) < 1.6 && Math.abs(p.y - y) < 1.8) && !out.some(q => Math.hypot(q.x - x, q.y - y) < 4);
+      for (let pass = 0; pass < 6 && out.length < n; pass++) for (const c of lists) { if (out.length >= n) break; const i = c.findIndex(([x, y]) => good(x, y)); if (i >= 0) { const [x, y] = c.splice(i, 1)[0]; out.push({ x, y }); } }
+      return ventField(X, out, { teach: true }); } catch (e) { return { vents: [], tick() {} }; } };
+  CAL_STAGES.ventField = ventField;
+
   /* ---- lava runnels: narrow molten streams on the floor (walkable tiles drawn as lava). Touching one: a modest burn and back
      to the last safe ground (never death). The core's own rule is used where it has one (CAL.lavaContact(X, back)) ---- */
   function runnels(X, tiles, P) { const me = X.me, set = new Set(tiles.map(t => t.ty * X.M.MW + t.tx)); let safe = { x: me.x, y: me.y }, hurtT = 0, burns = 0;
@@ -303,6 +337,9 @@ const CAL_STAGES = { HP_K: 1.5, DMG_K: { HOLLOWS: 0.55, FOUNDRY: 0.72, DESCENT: 
     const gates = ['1', '2', '3'].map(ch => roomGate(X, H, tilesOf(M, ch), P, 'slag', 'COOLING SLAG')).concat([hatch]);
     const rooms = HO_ROOMS.map((R, i) => ({ name: R.name, y0: R.r0 + 1, y1: R.r1 + 1, spots: R.spots.map(([x, y]) => Wp(x, y)), waves: WAVES[i], teach: TEACH[i], gate: gates[i], clear: i === 3 ? 'The maintenance hatch grinds open: the cool cavern lies below' : 'The slag cracks and falls away: on to the next hollow' }));
     const brood = director(X, P, rooms, { dmgK: CAL_STAGES.DMG_K.HOLLOWS, onDone() { FROST_CHIME(X); } });
+    // (v389) fifteen fire vents: four, four, three and three in the hollows, one on the start ledge (none in the cavern)
+    const traps = ventField(X, pickVents(HO_LAYOUT, [{ y0: 88, y1: 97, n: 1 }, { y0: 73, y1: 84, n: 4 }, { y0: 57, y1: 68, n: 4 }, { y0: 41, y1: 52, n: 3 }, { y0: 23, y1: 36, n: 3 }],
+      [[HO_CX + 1.5, 95.5, 3.5], [16.5, 71.5, 3], [16.5, 55.5, 3], [16.5, 39.5, 3], [16.5, 22.5, 3.5], [16.5, 86, 2.5]]), { teach: true });
     // the causeway: the reservoir, five pieces, two basins, the bridge halves
     const cell = id => mk[id][0];
     const pieces = CW_ORDER.map(id => { const p = cell(id), pc = { id, x: p.x, y: p.y, ang: (S.rot[id] || 0) * Math.PI / 2, flash: 0 };
@@ -314,14 +351,20 @@ const CAL_STAGES = { HP_K: 1.5, DMG_K: { HOLLOWS: 0.55, FOUNDRY: 0.72, DESCENT: 
     // the conduits from each basin round the cavern's side to its half of the bridge (world points)
     const PIPE = [[{ x: BW.x - 1, y: BW.y }, { x: 8.5, y: BW.y }, { x: 8.5, y: by1 + 0.7 }, { x: bx0 + 0.9, y: by1 + 0.7 }, { x: bx0 + 0.9, y: by1 - 0.2 }],
       [{ x: BE.x + 1, y: BE.y }, { x: 22.5, y: BE.y }, { x: 22.5, y: by1 + 0.7 }, { x: bx1 - 0.9, y: by1 + 0.7 }, { x: bx1 - 0.9, y: by1 - 0.2 }]];
-    const closestUse = () => { let b = null, bd = 1e9; for (const q of pieces.concat([{ id: 'Q', x: R0.x, y: R0.y }])) { const d = Math.hypot(me.x - q.x, me.y - q.y); if (d < bd) { bd = d; b = q; } } return b; };
+    /* (v389: "the RELEASE valve is not responsive sometimes". Three causes: the valve's wheel is drawn 1.3 tiles east of the
+       well, outside its 1.0-tile use radius, so standing at the wheel did nothing; standing south of the well, the T-junction
+       three tiles below was as close, so the closest-use rule picked it and the valve's use returned silently; and using it
+       needed the pet to stand quite still for 0.75 s. Now, once primed: the valve (well or wheel) always wins the closest-use
+       pick within 2.4 tiles, walking onto it releases after 0.3 s (moving or not), and tapping the well or the wheel releases) */
+    const WHEEL = { x: R0.x + 1.3, y: R0.y + 0.2 }, valveD = () => Math.min(Math.hypot(me.x - R0.x, me.y - R0.y), Math.hypot(me.x - WHEEL.x, me.y - WHEEL.y));
+    const closestUse = () => { if (S.primed && valveD() < 2.4) return { id: 'Q', x: R0.x, y: R0.y }; let b = null, bd = 1e9; for (const q of pieces.concat([{ id: 'Q', x: R0.x, y: R0.y }])) { const d = Math.hypot(me.x - q.x, me.y - q.y); if (d < bd) { bd = d; b = q; } } return b; };
     function turn(pc) { if (S.latched || S.surge > 0 || closestUse() !== pc) return; S.rot[pc.id] = ((S.rot[pc.id] || 0) + 1) % 4; S.turns++; pc.flash = 0.4; S.flow = causewayFlow(S.rot);
       if (X.sfx.thud) X.sfx.thud(); if (X.sfx.hiss) X.sfx.hiss(0.15, 0.06, 2400);
       if (S.flow.fed.has(pc.id)) chime(X, 1046 + 120 * S.flow.fed.size, 0.25); }
     // the valve: lit when both basins have filled; the pet releases the frost
-    const valve = H.obj({ x: R0.x, y: R0.y, kind: 'calreservoir', r: 1.0, h: 3.2, label: () => S.latched ? '' : S.primed ? 'RELEASE THE FROST' : S.entered ? 'FROST RESERVOIR' : '',
+    const valve = H.obj({ x: R0.x, y: R0.y, kind: 'calreservoir', r: 1.5, h: 3.2, label: () => S.latched ? '' : S.primed ? 'RELEASE THE FROST' : S.entered ? 'FROST RESERVOIR' : '',
       draw(c, Xs, Ys, T) { reservoirArt(c, Xs, Ys, T); }, use() { const cq = closestUse(); if (cq && cq.id !== 'Q') return; if (!S.primed || S.surge > 0 || S.latched) { if (!S.latched && S.entered) X.text(R0.x, R0.y - 2.6, 'Both basins must flow first', P.FROST_HI, 13); return; } release(); } });
-    function release() { S.surge = 0.001; me.sq = 1; X.ring(R0.x, R0.y, 0.3, 3.2, 0.6, P.FROST_HI, 0.55); X.flash(0.2, '#E8F8FF'); FROST_CHIME(X); if (X.sfx.whoosh) X.sfx.whoosh();
+    function release() { if (S.surge > 0 || S.latched) return; S.surge = 0.001; S.valveT = 0; me.sq = 1; X.ring(R0.x, R0.y, 0.3, 3.2, 0.6, P.FROST_HI, 0.55); X.flash(0.2, '#E8F8FF'); FROST_CHIME(X); if (X.sfx.whoosh) X.sfx.whoosh();
       X.text(me.x, me.y - 1.5, 'Frost released!', P.FROST_HI, 16); for (let i = 0; i < 12; i++) X.part({ kind: 'glow', x: R0.x + (Math.random() - 0.5) * 1.6, y: R0.y - 0.5 - Math.random(), vx: (Math.random() - 0.5) * 2, vy: -1.5 - Math.random() * 2, life: 0.8, max: 0.8, size: 6, color: P.FROST_HI }); }
     function latch() { if (S.latched) return; S.latched = true; S.done = true; self.done = true; bridgeT.forEach(t => X.setTile(t.tx, t.ty, T_BRIDGE)); /* (no X.retile(): it blanks the ground chunks for frames; the set obsidian is drawn by bridgeArt) */ X.shake(lowFx() ? 2 : 5, 0.5); if (X.sfx.crash) X.sfx.crash();
       H.setExit(E.x, E.y, 'To Fire Flan'); X.banner('THE FROZEN CAUSEWAY HOLDS', 'Both halves of the obsidian bridge have set for good: Fire Flan\'s chamber lies beyond', P.FROST_HI, 3.2, true, true); if (X.sfx.fanfare) X.sfx.fanfare(); }
@@ -337,9 +380,12 @@ const CAL_STAGES = { HP_K: 1.5, DMG_K: { HOLLOWS: 0.55, FOUNDRY: 0.72, DESCENT: 
     // sets), out to the reservoir, the pieces, both basins and the bridge
     const rig = camRig();
     const camWant = () => S.entered && cavern() && !(S.latched && S.latchT > 1.2) ? { zoom: 0.56, x: HO_CX + 1.5, y: 12.6, k: 0.55 } : null;
-    return { S, pieces, rig, camWant, hatch, lava, shrine, brood, rooms, gates, causewayFlow, cwSolved, cwRight, missing, release, turn, CW_CELLS,
+    return { S, pieces, rig, camWant, traps, hatch, lava, shrine, brood, rooms, gates, causewayFlow, cwSolved, cwRight, missing, release, turn, CW_CELLS,
       cam: rig.cam,
-      update(dt) { lava.tick(dt); shrine.tick(dt); if (S.latched) S.latchT = (S.latchT || 0) + dt; rig.tick(dt, camWant()); for (const pc of pieces) { pc.flash = Math.max(0, pc.flash - dt); const want = (S.rot[pc.id] || 0) * Math.PI / 2; let d = want - pc.ang; while (d < -Math.PI) d += TAU; while (d > Math.PI) d -= TAU; pc.ang += d * Math.min(1, dt * 10); }
+      // (a tap on the well or its wheel while primed releases the frost, from anywhere on the screen near the pet)
+      valveScreen: () => [X.sx(WHEEL.x), X.sy(R0.y - 1.0)],
+      tap(x, y) { if (!S.primed || S.surge > 0 || S.latched || me.dead || Math.hypot(me.x - R0.x, me.y - R0.y) > 7) return false; const T = X.Tz(); for (const q of [{ x: R0.x, y: R0.y - 0.8 }, { x: WHEEL.x, y: R0.y - 1.0 }]) if (Math.hypot(x - X.sx(q.x), y - X.sy(q.y)) < T * 1.3) { release(); return true; } return false; },
+      update(dt) { lava.tick(dt); shrine.tick(dt); traps.tick(dt); if (S.latched) S.latchT = (S.latchT || 0) + dt; rig.tick(dt, camWant()); for (const pc of pieces) { pc.flash = Math.max(0, pc.flash - dt); const want = (S.rot[pc.id] || 0) * Math.PI / 2; let d = want - pc.ang; while (d < -Math.PI) d += TAU; while (d > Math.PI) d -= TAU; pc.ang += d * Math.min(1, dt * 10); }
         S.mist += dt; if (S.intro) return;
         // the brood's order
         brood.tick(dt); for (const q of gates) if (q) q.tick(dt);
@@ -348,6 +394,7 @@ const CAL_STAGES = { HP_K: 1.5, DMG_K: { HOLLOWS: 0.55, FOUNDRY: 0.72, DESCENT: 
         // the basins fill while their branch flows, and drain when it stops
         const f = S.flow; for (let i = 0; i < 2; i++) S.fill[i] = clamp(S.fill[i] + (f.basins[i] ? dt / 1.2 : -dt / 2.5), 0, 1);
         const prim = S.fill[0] >= 1 && S.fill[1] >= 1 && f.basins[0] && f.basins[1]; if (prim && !S.primed && !S.latched) { S.primed = true; FROST_CHIME(X); X.banner('BOTH BASINS ARE COLD', 'Now release the frost at the reservoir', P.FROST_HI, 2.4, true); } else if (!prim && S.surge <= 0) S.primed = false;
+        if (S.primed && S.surge <= 0 && !S.latched && !me.dead && valveD() < 1.7) { S.valveT = (S.valveT || 0) + dt; if (S.valveT >= 0.3) { S.valveT = 0; release(); } } else S.valveT = 0;
         if (S.surge > 0 && !S.latched) { S.surge += dt / 1.3; if (S.surge >= 1) { S.solid = Math.min(1, S.solid + dt / 1.0); if (S.solid >= 1) latch(); } }
         if (S.latched) S.solid = 1; },
       goal() { if (S.latched) return 'To Fire Flan'; if (S.intro) return 'The Ashen Hollows';
@@ -587,6 +634,9 @@ const CAL_STAGES = { HP_K: 1.5, DMG_K: { HOLLOWS: 0.55, FOUNDRY: 0.72, DESCENT: 
     const rooms = FO_ROOMS.map((R, i) => ({ name: R.name, y0: R.r0 + 1, y1: R.r1 + 1, spots: R.spots.map(([x, y]) => Wp(x, y)), waves: WAVES[i], teach: TEACH[i], gate: gates[i], clear: i === 3 ? 'The last portcullis rises: the hall of the pressure door' : 'The portcullis rises: on to the next hall',
       special: (ty, q) => { if (ty !== 'tutor') return null; S.lesson = true; return bomb.spawn(q, 913); } }));
     const brood = director(X, P, rooms, { dmgK: CAL_STAGES.DMG_K.FOUNDRY, col: P.RUNE_HI });
+    // (v389) fifteen fire vents: four, four, three and three in the halls, one in the entry gallery (none in the ring hall)
+    const traps = ventField(X, pickVents(FO_LAYOUT, [{ y0: 87, y1: 94, n: 1 }, { y0: 71, y1: 81, n: 4 }, { y0: 54, y1: 65, n: 4 }, { y0: 37, y1: 48, n: 3 }, { y0: 18, y1: 31, n: 3 }],
+      [[FO_CX + 1.5, 92.5, 3.5], [17.5, 87, 2.5]]), { teach: true });
     // the pressure door, its three rings and inscription
     const door = doorway(X, H, tilesOf(M, 'D'), (c, Xs, Ys, T, D) => doorArt(c, Xs, Ys, T, D), { kind: 'calringdoor', dur: 2.2 });
     const ringX = i => (door.x0 + door.x1) / 2 + (i - 1) * 2.9, ringY = door.y1 - 2.1;   // (world: on the door's face)
@@ -614,9 +664,9 @@ const CAL_STAGES = { HP_K: 1.5, DMG_K: { HOLLOWS: 0.55, FOUNDRY: 0.72, DESCENT: 
     // the door, its rings, the three levers and their lines
     const rig = camRig(); S.openT = 0;
     const camWant = () => brood.done && me.y < 16.8 && !(S.opened && S.openT > 1.6) ? { zoom: 0.52, x: FO_CX + 1.5, y: 8.6, k: 0.6 } : null;
-    return { S, levers, rig, camWant, door, bomb, shrine, brood, rooms, gates, ringsPlan, pull, reset, showNext, RR_LEVERS,
+    return { S, levers, rig, camWant, traps, door, bomb, shrine, brood, rooms, gates, ringsPlan, pull, reset, showNext, RR_LEVERS,
       cam: rig.cam,
-      update(dt) { door.tick(dt); shrine.tick(dt); bomb.tick(dt); if (S.opened) S.openT += dt; rig.tick(dt, camWant());
+      update(dt) { door.tick(dt); shrine.tick(dt); bomb.tick(dt); traps.tick(dt); if (S.opened) S.openT += dt; rig.tick(dt, camWant());
         for (const L of levers.concat([resetL])) { L.k = Math.max(0, L.k - dt * 1.6); L.flash = Math.max(0, L.flash - dt); }
         for (let i = 0; i < 3; i++) { S.flash[i] = Math.max(0, S.flash[i] - dt); const want = S.rings[i] * TAU / 3; let d = want - S.ang[i]; while (d < -Math.PI) d += TAU; while (d > Math.PI) d -= TAU; S.ang[i] += d * Math.min(1, dt * 7); }
         // nearing a lever lights the two rings it turns
@@ -809,6 +859,10 @@ const CAL_STAGES = { HP_K: 1.5, DMG_K: { HOLLOWS: 0.55, FOUNDRY: 0.72, DESCENT: 
     const rooms = DE_ROOMS.map((R, i) => { const L = DE_LEDGES[R.li], y0 = L.y0; return { name: R.name, y0: L.y0 + 1, y1: L.y1 + 0.8, spots: [[8, y0 + 2], [22, y0 + 2], [15, y0 + 1], [8, y0 + 6], [22, y0 + 6], [15, y0 + 4]].map(([x, y]) => Wp(x, y)), waves: WAVES[i], teach: TEACH[i], gate: gates[i],
       clear: i === 2 ? 'The slag gives way: the Ember Court lies above' : 'The slag gives way: the next causeway is open' }; });
     const brood = director(X, P, rooms, { dmgK: CAL_STAGES.DMG_K.DESCENT, onRoom(R, i) { if (i < 2) liveLane(i + 1); } });
+    // (v389) fifteen fire vents on the ledges: three on the start ledge, four on each ledge of brood (never on the causeways,
+    //  where the lane vents are, nor at a ledge's respawn spot or a lane's ends; none in the Ember Court)
+    const traps = ventField(X, pickVents(DE_LAYOUT, [{ y0: 97, y1: 103, n: 3 }, { y0: 76, y1: 85, n: 4 }, { y0: 56, y1: 65, n: 4 }, { y0: 35, y1: 45, n: 4 }],
+      [[16.5, 102.5, 3.5]].concat(DE_LEDGES.map(L => [L.back[0] + 1.5, L.back[1] + 1.5, 2.6]), DE_LANES.flatMap(([a, b]) => [[16.5, a + 1.5, 2.6], [16.5, b + 1.5, 2.6]]), [[16.5, 34.5, 3]])), { teach: false });
     const shrine = station(X, H, mk.F[0], P, 'Ifrit');
     // (columns, crystals and slabs: the core's props where it has them, else this file's own)
     const coreProps = !!DunWorld.PROPS.basaltcol;
@@ -829,10 +883,10 @@ const CAL_STAGES = { HP_K: 1.5, DMG_K: { HOLLOWS: 0.55, FOUNDRY: 0.72, DESCENT: 
     const courtGate = doorway(X, H, tilesOf(M, 'Y'), (c, Xs, Ys, T, D) => { gateArt(c, Xs, Ys, T, D, P, 'slag', C.done ? '' : C.phase === 'wake' || C.phase === 'fight' ? 'SHATTER THE IDOLS' : `DODGE ${EC_NEED} THROWS`, g.t); }, { kind: 'calcourtgate', dur: 1.3, fx: gateFx(X, P, 'slag') });
     const mouth = th => ({ x: th.x, y: th.y - 0.2 });
     /* -- part one: the throws. The idol glows and winds up (its aim line or landing circle shown), then lets fly -- */
-    function windUp(id, kind, o) { o = o || {}; const th = idols[id], slow = C.slow; C.slow = false; const w = { th, kind, t: 0, dur: (o.wind || 1.1) + (slow ? 0.6 : 0), speed: (o.speed || 6.5) * (slow ? 0.75 : 1), tx: me.x, ty: me.y, teach: !!o.teach || slow }; C.winds.push(w); C.attacks++;
+    function windUp(id, kind, o) { o = o || {}; const th = idols[id], slow = C.slow; C.slow = false; const w = { th, kind, t: 0, dur: (o.wind || 1.1) + (slow ? 0.6 : 0), speed: (o.speed || 6.5) * (slow ? 0.75 : 1), tx: me.x, ty: me.y, teach: !!o.teach || slow, lob: (o.lob || 1.15) * (slow ? 1.3 : 1) }; C.winds.push(w); C.attacks++;
       if (w.teach) { C.prompt = w.dur + 1.2; C.promptWord = ''; } if (X.sfx.hiss) X.sfx.hiss(w.dur * 0.8, 0.08, 900); return w; }
     function release(w) { const m = mouth(w.th); w.th.flash = 0.4; if (X.sfx.whoosh) X.sfx.whoosh();
-      if (w.kind === 'lob') { C.balls.push({ kind: 'lob', x0: m.x, y0: m.y, tx: w.tx, ty: w.ty, x: m.x, y: m.y, z: 2.3, t: 0, dur: 1.15, R: 1.15, res: null, minD: 9 }); return; }
+      if (w.kind === 'lob') { C.balls.push({ kind: 'lob', x0: m.x, y0: m.y, tx: w.tx, ty: w.ty, x: m.x, y: m.y, z: 2.3, t: 0, dur: w.lob, R: 1.15, res: null, minD: 9 }); return; }
       const dx = w.tx - m.x, dy = w.ty - m.y, d = Math.hypot(dx, dy) || 1, r = w.kind === 'roll' ? 0.55 : 0.36;
       C.balls.push({ kind: w.kind, x: m.x, y: m.y, vx: dx / d * w.speed, vy: dy / d * w.speed, r, z: w.kind === 'roll' ? 0 : 2.3, zs: w.kind === 'roll' ? 0 : 2.3, len: d + 9, went: 0, res: null, minD: 9, spin: 0 }); }
     function counted(b, how) { if (b.res) return; b.res = 'dodge'; if (C.phase !== 'dodge') return; C.count = Math.min(EC_NEED, C.count + 1); C.streak = 0; C.pop = 1; C.popWord = how === 'roll' ? 'DODGE!' : 'CLOSE ONE!';
@@ -842,11 +896,13 @@ const CAL_STAGES = { HP_K: 1.5, DMG_K: { HOLLOWS: 0.55, FOUNDRY: 0.72, DESCENT: 
       X.text(me.x, me.y - 1.6, 'Hit: that one does not count', P.WARN, 14); if (C.streak >= 2) { C.slow = true; C.streak = 0; X.banner(touchUI ? 'TAP DODGE!' : 'PRESS SHIFT TO DODGE!', 'Roll through a ball as it reaches you, or step aside just before it arrives', P.FROST_HI, 2.4, true); } }
     // the order of throws: two slow teaching throws from the front, a crossfire, a lobbed ball, then a short volley
     function schedule() { const n = C.count;
-      if (n < 2) { windUp('NE', 'ball', { wind: 1.5, speed: 4.6, teach: true }); C.next = 2.4; }
-      else if (n === 2) { windUp('W', 'ball', { wind: 1.3, speed: 5.6 }); X.after(0.45, () => { if (C.phase === 'dodge') windUp('E', 'ball', { wind: 1.3, speed: 5.6 }); }); C.next = 2.2; if (!C.saidX) { C.saidX = true; X.banner('CROSSFIRE', 'Two throwers at once: roll through one, step past the other', P.LAVA_HI, 2.2, true); } }
-      else if (n === 3) { windUp('SE', 'ball', { wind: 1.1, speed: 6 }); C.next = 1.8; }
-      else if (n === 4) { windUp('NW', 'lob', { wind: 1.3 }); C.next = 2.2; if (!C.saidL) { C.saidL = true; X.banner('A LOBBED BALL', 'Leave the landing circle before it comes down', P.LAVA_HI, 2.2, true); } }
-      else { ['NE', 'E'].forEach((id, i) => X.after(i * 0.85, () => { if (C.phase === 'dodge') windUp(id, 'ball', { wind: 0.95, speed: 6.8 }); })); C.next = 2.8; if (!C.saidV) { C.saidV = true; X.banner('THE LAST VOLLEY', 'Two quick throws: keep moving, roll at the last moment', P.LAVA_HI, 2.2, true); } } }
+      // (v389: "the golems should fire much faster": about twice the ball speed and a shorter wind-up than v388 (4.6-6.8 tiles/s,
+      //  0.95-1.5 s); the tell stays: the idol raises its arms, the ball gathers, the aim line shows and locks 0.3 s before the throw)
+      if (n < 2) { windUp('NE', 'ball', { wind: 1.25, speed: 7.5, teach: true }); C.next = 2.0; }
+      else if (n === 2) { windUp('W', 'ball', { wind: 0.85, speed: 10.5 }); X.after(0.35, () => { if (C.phase === 'dodge') windUp('E', 'ball', { wind: 0.85, speed: 10.5 }); }); C.next = 1.6; if (!C.saidX) { C.saidX = true; X.banner('CROSSFIRE', 'Two throwers at once: roll through one, step past the other', P.LAVA_HI, 2.2, true); } }
+      else if (n === 3) { windUp('SE', 'ball', { wind: 0.8, speed: 11 }); C.next = 1.3; }
+      else if (n === 4) { windUp('NW', 'lob', { wind: 0.95, lob: 0.8 }); C.next = 1.6; if (!C.saidL) { C.saidL = true; X.banner('A LOBBED BALL', 'Leave the landing circle before it comes down', P.LAVA_HI, 2.2, true); } }
+      else { ['NE', 'E'].forEach((id, i) => X.after(i * 0.6, () => { if (C.phase === 'dodge') windUp(id, 'ball', { wind: 0.7, speed: 12 }); })); C.next = 2.2; if (!C.saidV) { C.saidV = true; X.banner('THE LAST VOLLEY', 'Two quick throws: keep moving, roll at the last moment', P.LAVA_HI, 2.2, true); } } }
     function dodgeTick(dt) {
       for (const w of C.winds) { w.t += dt; w.th.wind = Math.max(w.th.wind, w.t / w.dur); if (w.t < w.dur - 0.3) { w.tx = me.x; w.ty = me.y; } if (w.t >= w.dur) { w.fired = true; release(w); } } C.winds = C.winds.filter(w => !w.fired);
       for (const b of C.balls) { if (b.res && b.res !== 'dodge' && b.kind !== 'lob' && b.gone) continue;
@@ -1032,9 +1088,9 @@ const CAL_STAGES = { HP_K: 1.5, DMG_K: { HOLLOWS: 0.55, FOUNDRY: 0.72, DESCENT: 
     X.after(1.0, () => { S.intro = false; X.banner('THE HEARTWARD DESCENT', 'Down the cathedral of the volcano\'s heart: three causeways, three ledges of brood, then the throne', P.LAVA_HI, 3.2, true, true); });
     // the falls of lava down the cathedral: from under each ledge into the drop
     const FALLS = [[9.5, 87.5, 97.5], [22.5, 87.5, 97.5], [8.5, 67.5, 76.5], [23.5, 67.5, 76.5], [9.5, 47.5, 56.5], [22.5, 47.5, 56.5]];
-    return { S, vents, gates, brood, rooms, shrine, fall, ledgeOf, court: C, idols, courtGate, ecIn, schedule, wakePair, startCharge, crash, shatter, scratch, awake, lureSpot, rig, camWant, EC_PAIRS,
+    return { S, vents, traps, gates, brood, rooms, shrine, fall, ledgeOf, court: C, idols, courtGate, ecIn, schedule, wakePair, startCharge, crash, shatter, scratch, awake, lureSpot, rig, camWant, EC_PAIRS,
       cam: rig.cam,
-      update(dt) { rig.tick(dt, camWant()); shrine.tick(dt); for (const q of gates) if (q) q.tick(dt); S.breath += dt; const L = ledgeOf(me.y); if (L >= 0 && (L !== S.ledge || !S.ledgeSet)) { S.ledge = L; S.ledgeSet = true; const C = CALR(), b = backOf(L); if (C && typeof C.setLedge === 'function') C.setLedge(X, b.x, b.y); }
+      update(dt) { rig.tick(dt, camWant()); shrine.tick(dt); traps.tick(dt); for (const q of gates) if (q) q.tick(dt); S.breath += dt; const L = ledgeOf(me.y); if (L >= 0 && (L !== S.ledge || !S.ledgeSet)) { S.ledge = L; S.ledgeSet = true; const C = CALR(), b = backOf(L); if (C && typeof C.setLedge === 'function') C.setLedge(X, b.x, b.y); }
         for (const v of vents) ventTick(v, dt);
         if (S.intro) return;
         // the safe demonstration: the first vent shows itself once, before anything else, while you are still on the ledge

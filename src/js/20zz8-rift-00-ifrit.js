@@ -539,7 +539,7 @@ const CAL_IFRIT = (() => {
   /* ================= the fight ================= */
   const WARN = '#FF5A1E', HOT = '#FFB347', FROST = '#BFEFFF', FROST_HI = '#F2FCFF', BF = '#9B4DFF', BF_HI = '#E2B8FF';
   const CYC = { 1: ['fist', 'breath', 'fault', 'fist', 'fault', 'breath'], 2: ['cleave', 'fist', 'rocks', 'breath', 'cleave', 'fault', 'rocks', 'fist'], 3: ['fist', 'cleave', 'breath', 'rocks', 'fault', 'cleave', 'fist', 'rocks'] };
-  const TUNE = { hp: 33000, dmg: 18,   /* (v388: health doubled at the user's request; crystHp halved so the crystals stay as tough) */   /* (QA v386: was 8000 / 11, for a level-1 pet; the pet arrives here at about level 10, HP ~200) */ crystHp: 0.012, hellEvery: 24, hellFirst: 3.5, hellCharge: 8, kneel: 6, missK: 0.5, stagger: 1.8 };
+  const TUNE = { hp: 74250, dmg: 18,   /* (v389: 9 bars, each as big as v388's 4: x2.25; the user; crystHp scaled to match) */   /* (v388: health doubled at the user's request; crystHp halved so the crystals stay as tough) */   /* (QA v386: was 8000 / 11, for a level-1 pet; the pet arrives here at about level 10, HP ~200) */ crystHp: 0.012 * 33000 / 74250, hellEvery: 24, hellFirst: 3.5, hellCharge: 8, kneel: 6, missK: 0.5, stagger: 1.8 };
   const sf = (FX, k, ...a) => { const s = FX.H && FX.H.sfx; if (s && s[k]) try { s[k](...a); } catch (e) { /* no sound */ } };
   const toward = (v, w, dt, k) => (v || 0) + (w - (v || 0)) * Math.min(1, dt * k);
   const angTo = (a, b) => { let d = b - a; while (d > Math.PI) d -= TAU; while (d < -Math.PI) d += TAU; return d; };
@@ -1123,7 +1123,7 @@ const CAL_IFRIT = (() => {
    whatever ease the rift gives its monsters: his bars and his blows are worked out, when his stage starts, from the floor
    that stage plays as (riftDef) and the rift's ease and scale. (The rift does need an ease for its bars to mean anything at
    level 1: at ease 1 a bar of a floor-7 fiend is some 23,000 health, and he keeps one of them.) */
-const CAL_IFRIT_BARS = 4;
+const CAL_IFRIT_BARS = 9;   // (v389: the user)
 const CAL_IFRIT_K = kind => { try { const T = CAL_IFRIT.TUNE, Rf = RIFT_BY_ID.caldera, E = ((Rf && Rf.ease) || 1) * ((Rf && Rf.scale) || 1);
   let n = 7; if (Rf && Rf.stages) { const i = Rf.stages.findIndex(s => s.boss === 'califrit'); if (i >= 0) n = Math.max(1, (Rf.lvl || 1) + (riftStagePos(Rf, i).sec - 1) * 3); }
   const F = floorDef(n);

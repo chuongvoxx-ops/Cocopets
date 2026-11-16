@@ -14,11 +14,11 @@ let bad = 0; const ok = (c, m, x) => { console.log((c ? 'ok   ' : 'FAIL ') + m, 
   ok(!!(await T.wake()), 'it wakes');
   r = await ev(`S(0.5, () => { me.hp = D.ST.hp; }); await frame(); await frame(); const DB = window.__pp.FIEND_DEFS.calflan.__dbg; return { hp: Math.round(b.maxhp), dmg: +b.dmg.toFixed(1), petHp: D.ST.hp, atk: D.ST.atk, glm: DB.GLM && DB.GLM.stats, model: DB.MODEL.stats };`);
   console.log('  ', JSON.stringify(r));
-  ok(r.hp === DB_HP(r) && r.dmg === 24, 'its tuning: 9600 health in all, blows of 24', r);
+  ok(r.hp === DB_HP(r) && r.dmg === 24, 'its tuning: 19200 health in all, blows of 24', r);
   ok(r.glm && !r.glm.failed && r.model.gl && !r.model.err, 'GLM compiles and the model draws on the GPU', r.model);
   await shot('smoke-1-awake');
   const er = errors.filter(e => !/ERR_(TUNNEL|FILE_NOT|NAME)/.test(e)); console.log('errors:', er.slice(0, 8));
   ok(er.length === 0, 'no page errors', er.length);
   await T.browser.close(); process.exit(bad ? 1 : 0);
-  function DB_HP() { return 9600; }
+  function DB_HP() { return 19200; }
 })().catch(e => { console.error(e); process.exit(1); });

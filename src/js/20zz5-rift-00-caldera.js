@@ -400,65 +400,90 @@ CAL.bossMake = CAL.bossMake || {};
   const hexJit = (vx, vy, s) => { const kx = Math.round(vx * 40), ky = Math.round(vy * 40); return [(hh(kx, ky, 3 + s) - 0.5) * HS * 0.34, (hh(kx, ky, 9 + s) - 0.5) * HS * 0.34]; };
   function hexCellsAt(x, y) { const out = [], r0 = Math.floor((y - 1) / (1.5 * HS)), r1 = Math.ceil((y + 2) / (1.5 * HS)); for (let r = r0; r <= r1; r++) { const off = r & 1 ? HW / 2 : 0, c0 = Math.floor((x - 1 - off) / HW), c1 = Math.ceil((x + 2 - off) / HW); for (let q = c0; q <= c1; q++) { const cx = q * HW + off, cy = r * 1.5 * HS; if (cx < x - HW || cx > x + 1 + HW || cy < y - HS * 1.2 || cy > y + 1 + HS * 1.2) continue;
     const V = []; for (let k = 0; k < 6; k++) { const a = Math.PI / 6 + k * Math.PI / 3, vx = cx + Math.cos(a) * HS, vy = cy + Math.sin(a) * HS, j = hexJit(vx, vy, 0); V.push([vx + j[0], vy + j[1]]); } out.push({ cx, cy, q, r, h: hh(q, r, 41), h2: hh(q, r, 57), V }); } } return out; }
-  /* paint a tile's share of the lattice. o.tone(cell) -> fill or null; o.inner(c, cell, P, T) extra paint in the cell;
-     o.seam: share of joints that glow; o.joint: joint colour */
+  /* paint a tile's share of the lattice. o.tone(cell) -> fill or null (or a list of fills, v389 F); o.inner(c, cell, P, T) extra paint in the cell;
+     o.seam: share of joints that glow (or a function of the joint's middle in world tiles, v389 F); o.joint: joint colour
+     (v389 F, the user: the floor showed its tiles. Everything that varies here is a property of a cell or a joint, never of
+     the tile painting it, so a cell cut by a tile edge is the same on both sides) */
   function hexFloor(c, X, Y, T, x, y, o) { const cells = hexCellsAt(x, y), P = (vx, vy) => [X + (vx - x) * T, Y + (vy - y) * T];
-    for (const cl of cells) { const pts = cl.V.map(v => P(v[0], v[1])); cl.pts = pts; const f = o.tone(cl); if (f) { poly(c, pts); c.closePath(); c.fillStyle = f; c.fill(); } if (o.inner) o.inner(c, cl, pts, T); }
+    for (const cl of cells) { const pts = cl.V.map(v => P(v[0], v[1])); cl.pts = pts; const f = o.tone(cl); if (f) { poly(c, pts); c.closePath(); if (typeof f === 'string') { c.fillStyle = f; c.fill(); } else for (const ff of f) if (ff) { c.fillStyle = ff; c.fill(); } } if (o.inner) o.inner(c, cl, pts, T); }
     c.lineJoin = 'round'; c.lineCap = 'round';
     c.strokeStyle = o.joint || 'rgba(6,4,5,.62)'; c.lineWidth = Math.max(1, T * 0.045); c.beginPath(); for (const cl of cells) { const p = cl.pts; for (let k = 0; k < 6; k++) { const a = p[k], b = p[(k + 1) % 6]; c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); } } c.stroke();
     // the lit lip of each column top (its upper-left edges)
     c.strokeStyle = o.lip || 'rgba(255,240,230,.09)'; c.lineWidth = Math.max(0.7, T * 0.018); c.beginPath(); for (const cl of cells) { const p = cl.pts; for (const k of [3, 4]) { const a = p[k], b = p[(k + 1) % 6], mx = (cl.pts[0][0] + cl.pts[3][0]) / 2, my = (cl.pts[1][1] + cl.pts[4][1]) / 2, ux = (mx - (a[0] + b[0]) / 2), uy = (my - (a[1] + b[1]) / 2), L = Math.hypot(ux, uy) || 1, d = T * 0.035; c.moveTo(a[0] + ux / L * d, a[1] + uy / L * d); c.lineTo(b[0] + ux / L * d, b[1] + uy / L * d); } } c.stroke();
     // a few joints still glowing: cooled crust with seams of lava in it
-    if (o.seam) { const segs = []; for (const cl of cells) for (let k = 0; k < 6; k++) { const A = cl.V[k], B = cl.V[(k + 1) % 6], key = hh(Math.round((A[0] + B[0]) * 20), Math.round((A[1] + B[1]) * 20), 77); if (key < o.seam) segs.push([P(A[0], A[1]), P(B[0], B[1])]); }
-      if (segs.length) for (const [a, b] of segs) seam(c, [a, b], Math.max(0.8, T * 0.028), o.seamA || 0.85); } }
+    if (o.seam) { const segs = [], sf = typeof o.seam === 'function' ? o.seam : null; for (const cl of cells) for (let k = 0; k < 6; k++) { const A = cl.V[k], B = cl.V[(k + 1) % 6], key = hh(Math.round((A[0] + B[0]) * 20), Math.round((A[1] + B[1]) * 20), 77); if (key < (sf ? sf((A[0] + B[0]) / 2, (A[1] + B[1]) / 2) : o.seam)) segs.push([P(A[0], A[1]), P(B[0], B[1])]); }
+      if (segs.length) for (const [a, b] of segs) seam(c, [a, b], Math.max(0.8, T * 0.028), o.seamA || 0.85); } return cells; }
   const hexTone = (cl, dark, lite) => cl.h < 0.33 ? `rgba(0,0,0,${dark * (0.5 + cl.h2)})` : cl.h > 0.7 ? `rgba(255,240,230,${lite * (0.5 + cl.h2)})` : null;
   // a soft, large-scale value noise (for regions that span many tiles)
   const vnoise = (x, y, s) => { const gx = Math.floor(x), gy = Math.floor(y), fx = x - gx, fy = y - gy, u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy), a = hh(gx, gy, s), b = hh(gx + 1, gy, s), c2 = hh(gx, gy + 1, s), d = hh(gx + 1, gy + 1, s); return lerp(lerp(a, b, u), lerp(c2, d, u), v); };
-  // (the engine lights every tile top-left to bottom-right; on a continuous mosaic that shows as squares: lay the inverse over it)
-  function unTile(c, X, Y, T, h2) { const g = c.createLinearGradient(X, Y, X + T, Y + T); g.addColorStop(0, 'rgba(0,0,0,.085)'); g.addColorStop(0.5, 'rgba(0,0,0,0)'); g.addColorStop(1, `rgba(255,255,255,${(0.07 + h2 * 0.05).toFixed(3)})`); c.fillStyle = g; c.fillRect(X, Y, T, T); }
+  /* (v389 F, the user: "make floor tiles more seamless, I can see the separating tiles". The engine paints every ground tile
+     its own shade (one of the land's three floor colours, picked per tile) and lights it top-left to bottom-right with a
+     strength that varies per tile; the old unTile() laid a rough inverse over that, which left a faint checkerboard, and the
+     soot, ash and frost were washed over whole tiles by noise read at the tile, so they came in squares too. Now each floor
+     starts from one flat colour for the whole land (this covers the engine's per-tile shade and light exactly), and every
+     wash belongs to a column (hex cell), a joint or an iron plate laid out in world space, never to a tile.) */
+  const calBase = (c, X, Y, T, col) => { c.fillStyle = col; c.fillRect(X, Y, T, T); };
+  // (grain: a few specks per tile at fixed density, seeded by the tile's place; they are too small and even to show the grid)
   function grain(c, X, Y, T, R, n, a) { for (let i = 0; i < n; i++) { c.fillStyle = i % 3 ? `rgba(0,0,0,${a})` : `rgba(200,190,180,${a * 0.6})`; const s = Math.max(1, T * (0.012 + R() * 0.018)); c.fillRect(X + R() * T, Y + R() * T, s, s); } }
-  function ashFloor(c, X, Y, T, h, h2, x, y, lw, gN, gS, gW, gE) { const R = rnd(x * 7919 + y * 104729 + 61), soot = vnoise(x / 4.5, y / 4.5, 11), ash = vnoise(x / 3.5 + 9, y / 3.5, 23);
-    c.save(); c.beginPath(); c.rect(X, Y, T, T); c.clip(); unTile(c, X, Y, T, h2);
+  const cellC = p => [(p[0][0] + p[3][0]) / 2, (p[1][1] + p[4][1]) / 2];
+  function ashFloor(c, X, Y, T, h, h2, x, y, lw, gN, gS, gW, gE, base) { const R = rnd(x * 7919 + y * 104729 + 61);
+    c.save(); c.beginPath(); c.rect(X, Y, T, T); c.clip(); calBase(c, X, Y, T, base || '#3D3637');
     grain(c, X, Y, T, R, 8, 0.14);
-    hexFloor(c, X, Y, T, x, y, { tone: cl => hexTone(cl, 0.16, 0.06), seam: 0.035 + 0.05 * (1 - ash),
-      inner(c2, cl, p, T2) { if (cl.h2 > 0.92) { const cx = (p[0][0] + p[3][0]) / 2, cy = (p[1][1] + p[4][1]) / 2; c2.fillStyle = '#0C0A10'; poly(c2, [[cx - T2 * 0.12, cy + T2 * 0.05], [cx - T2 * 0.02, cy - T2 * 0.1], [cx + T2 * 0.12, cy - T2 * 0.02], [cx + T2 * 0.05, cy + T2 * 0.09]]); c2.closePath(); c2.fill(); c2.fillStyle = 'rgba(200,180,255,.45)'; c2.fillRect(cx - T2 * 0.04, cy - T2 * 0.06, T2 * 0.07, Math.max(1, T2 * 0.02)); } } });
-    // soot drifts and ash, in broad soft regions
-    if (soot > 0.58) { c.fillStyle = `rgba(6,4,4,${(soot - 0.58) * 1.1})`; c.fillRect(X, Y, T, T); }
-    if (ash > 0.62) { c.fillStyle = `rgba(175,165,155,${(ash - 0.62) * 0.8})`; c.fillRect(X, Y, T, T); if (h > 0.6) { c.fillStyle = 'rgba(225,215,205,.16)'; ell(c, X + T * (0.3 + h2 * 0.4), Y + T * (0.4 + h * 0.3), T * 0.3, T * 0.08, h - 0.5); c.fill(); } }
+    // soot drifts and ash, in broad soft regions: read at each column's centre and laid on the whole column
+    hexFloor(c, X, Y, T, x, y, { seam: (mx, my) => 0.035 + 0.05 * (1 - vnoise(mx / 3.5 + 9, my / 3.5, 23)),
+      tone: cl => { const soot = vnoise(cl.cx / 4.5, cl.cy / 4.5, 11); cl.ash = vnoise(cl.cx / 3.5 + 9, cl.cy / 3.5, 23);
+        return [hexTone(cl, 0.16, 0.06), soot > 0.58 ? `rgba(6,4,4,${((soot - 0.58) * 1.1).toFixed(3)})` : null, cl.ash > 0.62 ? `rgba(175,165,155,${((cl.ash - 0.62) * 0.8).toFixed(3)})` : null]; },
+      inner(c2, cl, p, T2) { const [cx, cy] = cellC(p);
+        if (cl.h2 > 0.92) { c2.fillStyle = '#0C0A10'; poly(c2, [[cx - T2 * 0.12, cy + T2 * 0.05], [cx - T2 * 0.02, cy - T2 * 0.1], [cx + T2 * 0.12, cy - T2 * 0.02], [cx + T2 * 0.05, cy + T2 * 0.09]]); c2.closePath(); c2.fill(); c2.fillStyle = 'rgba(200,180,255,.45)'; c2.fillRect(cx - T2 * 0.04, cy - T2 * 0.06, T2 * 0.07, Math.max(1, T2 * 0.02)); }
+        else if (cl.ash > 0.62 && cl.h > 0.6) { c2.fillStyle = 'rgba(225,215,205,.16)'; ell(c2, cx + T2 * (cl.h2 - 0.5) * 0.3, cy + T2 * (cl.h - 0.8) * 0.4, T2 * 0.3, T2 * 0.08, cl.h - 0.5); c2.fill(); } } });
     edgeGlow(c, X, Y, T, gN, gS, gW, gE, 0.3);
     c.restore(); }
   const rivet = (c, x, y, r) => { c.fillStyle = '#16141A'; c.beginPath(); c.arc(x + r * 0.2, y + r * 0.25, r, 0, TAU); c.fill(); c.fillStyle = '#5E5A62'; c.beginPath(); c.arc(x, y, r, 0, TAU); c.fill(); c.fillStyle = 'rgba(255,255,255,.4)'; c.beginPath(); c.arc(x - r * 0.3, y - r * 0.3, r * 0.4, 0, TAU); c.fill(); };
-  function foundryFloor(c, X, Y, T, h, h2, x, y, lw, gN, gS, gW, gE) { const R = rnd(x * 6151 + y * 92821 + 67), kind = Math.floor(hh(x, y, 79) * 12), basaltK = vnoise(x / 5, y / 5, 31), heat = vnoise(x / 3, y / 3, 37);
-    c.save(); c.beginPath(); c.rect(X, Y, T, T); c.clip();
+  /* (v389 F) the foundry's iron plates are laid in world space, not one per tile: 2 x 2 blocks (every other row of blocks
+     set over by a tile, like brickwork), each block one big plate, two long ones or four squares. A plate's light, heat
+     stain, wear and rivets belong to the plate, so a tile is just a window onto it. A block is all plate or all old basalt. */
+  function plateAt(x, y) { const by = Math.floor(y / 2), sh = by & 1, bx = Math.floor((x + sh) / 2), x0 = bx * 2 - sh, y0 = by * 2, hb = hh(bx, by, 83);
+    let px = x0, py = y0, pw = 2, ph = 2;
+    if (hb >= 0.4) { if (hb < 0.64) { ph = 1; py = y; } else if (hb < 0.86) { pw = 1; px = x; } else { pw = ph = 1; px = x; py = y; } }
+    const mx = px + pw / 2, my = py + ph / 2;
+    return { x0, y0, px, py, pw, ph, basalt: vnoise((x0 + 1) / 5, (y0 + 1) / 5, 31) > 0.64, kind: Math.floor(hh(px, py, 79) * 12), heat: vnoise(mx / 3, my / 3, 37), soot: vnoise(mx / 4, my / 4, 43), h: hh(px, py, 89) }; }
+  function foundryFloor(c, X, Y, T, h, h2, x, y, lw, gN, gS, gW, gE, base) { const R = rnd(x * 6151 + y * 92821 + 67), pl = plateAt(x, y);
+    c.save(); c.beginPath(); c.rect(X, Y, T, T); c.clip(); calBase(c, X, Y, T, base || '#3A373C');
     grain(c, X, Y, T, R, 6, 0.16);
-    if (basaltK > 0.64) { /* old rune-cut basalt showing through the floor: the forge is older than the rift */ unTile(c, X, Y, T, h2); c.fillStyle = 'rgba(48,40,40,.55)'; c.fillRect(X, Y, T, T); hexFloor(c, X, Y, T, x, y, { tone: cl => hexTone(cl, 0.14, 0.05), seam: 0.03 });
-      if (kind < 3) { rune(c, X + T * 0.5 + 1, Y + T * 0.5 + 1, T * 0.46, Math.floor(R() * 8), 'rgba(0,0,0,.55)', Math.max(1, T * 0.05)); rune(c, X + T * 0.5, Y + T * 0.5, T * 0.46, Math.floor(hh(x, y, 5) * 8), 'rgba(255,179,71,.3)', Math.max(0.8, T * 0.03)); } }
-    else if (kind <= 1) { /* a grate over the lava: dark slots, molten light below */ c.fillStyle = '#121014'; c.fillRect(X + T * 0.1, Y + T * 0.1, T * 0.8, T * 0.8); for (let i = 0; i < 4; i++) { const xx = X + T * (0.16 + i * 0.18); const g = c.createLinearGradient(0, Y + T * 0.14, 0, Y + T * 0.86); g.addColorStop(0, 'rgba(255,90,30,.25)'); g.addColorStop(0.6, 'rgba(255,140,50,.7)'); g.addColorStop(1, 'rgba(255,90,30,.35)'); c.fillStyle = g; c.fillRect(xx + T * 0.02, Y + T * 0.14, T * 0.1, T * 0.72); }
-      c.strokeStyle = '#4A464E'; c.lineWidth = Math.max(1, T * 0.04); c.strokeRect(X + T * 0.1, Y + T * 0.1, T * 0.8, T * 0.8); c.fillStyle = 'rgba(255,255,255,.12)'; c.fillRect(X + T * 0.1, Y + T * 0.1, T * 0.8, Math.max(1, T * 0.02)); }
-    else { /* a riveted iron plate, worn and heat-stained */ const g = c.createLinearGradient(X, Y, X + T, Y + T); g.addColorStop(0, 'rgba(255,255,255,.06)'); g.addColorStop(1, 'rgba(0,0,0,.16)'); c.fillStyle = g; c.fillRect(X, Y, T, T);
-      if (heat > 0.6) { const g2 = c.createRadialGradient(X + T * 0.5, Y + T * 0.5, 0, X + T * 0.5, Y + T * 0.5, T * 0.8); g2.addColorStop(0, `rgba(120,70,150,${(heat - 0.6) * 0.7})`); g2.addColorStop(0.6, `rgba(60,90,150,${(heat - 0.6) * 0.4})`); g2.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = g2; c.fillRect(X, Y, T, T); }   // (temper colours)
-      if (kind === 4) { c.fillStyle = 'rgba(110,58,34,.3)'; ell(c, X + T * (0.3 + R() * 0.4), Y + T * 0.6, T * 0.3, T * 0.12, 0.4); c.fill(); }
-      if (kind === 6) { c.strokeStyle = 'rgba(0,0,0,.4)'; c.lineWidth = Math.max(1, T * 0.025); c.beginPath(); c.moveTo(X + T * 0.2, Y + T * 0.15); c.lineTo(X + T * 0.4, Y + T * 0.45); c.lineTo(X + T * 0.35, Y + T * 0.8); c.stroke(); }
-      if (kind === 7 && heat < 0.5) { rune(c, X + T * 0.5, Y + T * 0.5, T * 0.4, x + y, 'rgba(0,0,0,.35)', Math.max(1, T * 0.04)); }
-      for (const [u, v] of [[0.12, 0.12], [0.88, 0.12], [0.12, 0.88], [0.88, 0.88]]) rivet(c, X + T * u, Y + T * v, Math.max(0.8, T * 0.035));
-      c.fillStyle = 'rgba(0,0,0,.45)'; c.fillRect(X, Y + T - Math.max(1, T * 0.04), T, Math.max(1, T * 0.04)); c.fillRect(X + T - Math.max(1, T * 0.04), Y, Math.max(1, T * 0.04), T); c.fillStyle = 'rgba(255,255,255,.1)'; c.fillRect(X, Y, T, Math.max(1, T * 0.025)); c.fillRect(X, Y, Math.max(1, T * 0.025), T); }
-    const soot = vnoise(x / 4, y / 4, 43); if (soot > 0.6) { c.fillStyle = `rgba(6,4,4,${(soot - 0.6) * 1.0})`; c.fillRect(X, Y, T, T); }
+    const PX = X + (pl.px - x) * T, PY = Y + (pl.py - y) * T, PW = pl.pw * T, PH = pl.ph * T, pcx = PX + PW / 2, pcy = PY + PH / 2, kind = pl.kind, heat = pl.heat;
+    if (pl.basalt) { /* old rune-cut basalt showing through the floor: the forge is older than the rift */ c.fillStyle = 'rgba(48,40,40,.55)'; c.fillRect(X, Y, T, T);
+      hexFloor(c, X, Y, T, x, y, { seam: 0.03, tone: cl => { const soot = vnoise(cl.cx / 4, cl.cy / 4, 43); return [hexTone(cl, 0.14, 0.05), soot > 0.6 ? `rgba(6,4,4,${(soot - 0.6).toFixed(3)})` : null]; },
+        // a rune cut in a column top (only one wholly inside this block of basalt, so no plate cuts it)
+        inner(c2, cl, p, T2) { if (hh(cl.q, cl.r, 5) > 0.2 || cl.cx < pl.x0 + 0.3 || cl.cx > pl.x0 + 1.7 || cl.cy < pl.y0 + 0.3 || cl.cy > pl.y0 + 1.7) return; const [cx, cy] = cellC(p), ri = Math.floor(hh(cl.q, cl.r, 7) * 8);
+          rune(c2, cx + 1, cy + 1, T2 * 0.46, ri, 'rgba(0,0,0,.55)', Math.max(1, T2 * 0.05)); rune(c2, cx, cy, T2 * 0.46, ri, 'rgba(255,179,71,.3)', Math.max(0.8, T2 * 0.03)); } }); }
+    else if (kind <= 2 && pl.pw * pl.ph <= 2) { /* a grate over the lava: dark slots, molten light below */ const n = 4 * pl.pw, st = (PW - T * 0.4) / (n - 1); c.fillStyle = '#121014'; c.fillRect(PX + T * 0.1, PY + T * 0.1, PW - T * 0.2, PH - T * 0.2);
+      const g = c.createLinearGradient(0, PY + T * 0.14, 0, PY + PH - T * 0.14); g.addColorStop(0, 'rgba(255,90,30,.25)'); g.addColorStop(0.6, 'rgba(255,140,50,.7)'); g.addColorStop(1, 'rgba(255,90,30,.35)'); c.fillStyle = g; for (let i = 0; i < n; i++) c.fillRect(PX + T * 0.18 + i * st, PY + T * 0.14, T * 0.1, PH - T * 0.28);
+      c.strokeStyle = '#4A464E'; c.lineWidth = Math.max(1, T * 0.04); c.strokeRect(PX + T * 0.1, PY + T * 0.1, PW - T * 0.2, PH - T * 0.2); c.fillStyle = 'rgba(255,255,255,.12)'; c.fillRect(PX + T * 0.1, PY + T * 0.1, PW - T * 0.2, Math.max(1, T * 0.02)); }
+    else { /* a riveted iron plate, worn and heat-stained */ const m = Math.min(PW, PH);
+      c.fillStyle = pl.h < 0.5 ? `rgba(0,0,0,${((0.5 - pl.h) * 0.12).toFixed(3)})` : `rgba(255,255,255,${((pl.h - 0.5) * 0.06).toFixed(3)})`; c.fillRect(X, Y, T, T);   // (each plate a shade of its own)
+      const g = c.createLinearGradient(PX, PY, PX + PW, PY + PH); g.addColorStop(0, 'rgba(255,255,255,.06)'); g.addColorStop(1, 'rgba(0,0,0,.16)'); c.fillStyle = g; c.fillRect(X, Y, T, T);
+      if (heat > 0.6) { const g2 = c.createRadialGradient(pcx, pcy, 0, pcx, pcy, Math.max(PW, PH) * 0.8); g2.addColorStop(0, `rgba(120,70,150,${(heat - 0.6) * 0.7})`); g2.addColorStop(0.6, `rgba(60,90,150,${(heat - 0.6) * 0.4})`); g2.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = g2; c.fillRect(X, Y, T, T); }   // (temper colours)
+      if (kind === 4) { c.fillStyle = 'rgba(110,58,34,.3)'; ell(c, PX + PW * (0.3 + hh(pl.px, pl.py, 91) * 0.4), PY + PH * 0.6, m * 0.3 + (PW - m) * 0.2, m * 0.12, 0.4); c.fill(); }
+      if (kind === 6) { c.strokeStyle = 'rgba(0,0,0,.4)'; c.lineWidth = Math.max(1, T * 0.025); c.beginPath(); c.moveTo(PX + PW * 0.2, PY + PH * 0.15); c.lineTo(PX + PW * 0.4, PY + PH * 0.45); c.lineTo(PX + PW * 0.35, PY + PH * 0.8); c.stroke(); }
+      if (kind === 7 && heat < 0.5) { rune(c, pcx, pcy, m * 0.4, pl.px + pl.py, 'rgba(0,0,0,.35)', Math.max(1, T * 0.04)); }
+      const ri = T * 0.12; for (const [u, v] of [[PX + ri, PY + ri], [PX + PW - ri, PY + ri], [PX + ri, PY + PH - ri], [PX + PW - ri, PY + PH - ri]]) if (u > X - T * 0.1 && u < X + T * 1.1 && v > Y - T * 0.1 && v < Y + T * 1.1) rivet(c, u, v, Math.max(0.8, T * 0.035));
+      const gw = Math.max(1, T * 0.04), hw = Math.max(1, T * 0.025); c.fillStyle = 'rgba(0,0,0,.45)'; c.fillRect(PX, PY + PH - gw, PW, gw); c.fillRect(PX + PW - gw, PY, gw, PH); c.fillStyle = 'rgba(255,255,255,.1)'; c.fillRect(PX, PY, PW, hw); c.fillRect(PX, PY, hw, PH);
+      if (pl.soot > 0.6) { c.fillStyle = `rgba(6,4,4,${(pl.soot - 0.6).toFixed(3)})`; c.fillRect(X, Y, T, T); } }
     edgeGlow(c, X, Y, T, gN, gS, gW, gE, 0.32);
-    c.restore(); }
+    c.restore(); return pl; }
   function heartFloor(c, X, Y, T, h, h2, x, y, lw, gN, gS, gW, gE) { const R = rnd(x * 5003 + y * 90001 + 73);
-    c.save(); c.beginPath(); c.rect(X, Y, T, T); c.clip(); unTile(c, X, Y, T, h2);
+    c.save(); c.beginPath(); c.rect(X, Y, T, T); c.clip(); calBase(c, X, Y, T, '#2B2529');
     grain(c, X, Y, T, R, 6, 0.14);
-    // black glass pools over basalt columns, in broad regions; violet-red crystal veins along some joints
-    hexFloor(c, X, Y, T, x, y, { seam: 0.03, joint: 'rgba(4,2,6,.7)',
-      tone: cl => { const g = vnoise(cl.cx / 4.2, cl.cy / 4.2, 61); cl.glass = g > 0.56; return cl.glass ? '#0E0B13' : hexTone(cl, 0.18, 0.05); },
+    // black glass pools over basalt columns, in broad regions; violet-red crystal veins along some joints; ash on some columns
+    const hcs = hexFloor(c, X, Y, T, x, y, { seam: 0.03, joint: 'rgba(4,2,6,.7)',
+      tone: cl => { const g = vnoise(cl.cx / 4.2, cl.cy / 4.2, 61), ash = vnoise(cl.cx / 3.5, cl.cy / 3.5, 71); cl.glass = g > 0.56; return [cl.glass ? '#0E0B13' : hexTone(cl, 0.18, 0.05), ash > 0.66 ? `rgba(160,150,140,${((ash - 0.66) * 0.7).toFixed(3)})` : null]; },
       inner(c2, cl, p, T2) { if (!cl.glass) return; const cx = (p[0][0] + p[3][0]) / 2, cy = (p[1][1] + p[4][1]) / 2; c2.save(); poly(c2, p); c2.closePath(); c2.clip(); const g = c2.createLinearGradient(cx - T2 * 0.6, cy + T2 * 0.6, cx + T2 * 0.6, cy - T2 * 0.6); const u = 0.35 + 0.3 * vnoise(cl.cx / 6, cl.cy / 6, 63); g.addColorStop(Math.max(0, u - 0.25), 'rgba(170,140,230,0)'); g.addColorStop(u, 'rgba(190,165,245,.13)'); g.addColorStop(Math.min(1, u + 0.04), 'rgba(255,255,255,.06)'); g.addColorStop(Math.min(1, u + 0.2), 'rgba(170,140,230,0)'); c2.fillStyle = g; c2.fillRect(cx - T2, cy - T2, T2 * 2, T2 * 2);
         const rg = c2.createRadialGradient(cx, cy + T2 * 0.2, 0, cx, cy, T2 * 0.7); rg.addColorStop(0, 'rgba(255,90,42,.08)'); rg.addColorStop(1, 'rgba(255,90,42,0)'); c2.fillStyle = rg; c2.fillRect(cx - T2, cy - T2, T2 * 2, T2 * 2); c2.restore(); } });
     // a crystal vein running toward the heart: violet light on the joints, a red-orange fracture in it
-    const vein = vnoise(x / 2.5 + 3, y / 2.5, 67); if (vein > 0.72) { const cells = hexCellsAt(x, y); for (const cl of cells) { if (hh(cl.q, cl.r, 71) > 0.5) continue; const V = cl.V, k = Math.floor(cl.h * 6), A = V[k], B = V[(k + 1) % 6], a = [X + (A[0] - x) * T, Y + (A[1] - y) * T], b = [X + (B[0] - x) * T, Y + (B[1] - y) * T]; c.save(); c.lineCap = 'round'; c.globalCompositeOperation = 'lighter'; c.strokeStyle = 'rgba(140,60,200,.35)'; c.lineWidth = Math.max(2, T * 0.07); c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke(); c.strokeStyle = 'rgba(255,90,42,.85)'; c.lineWidth = Math.max(0.8, T * 0.022); c.stroke(); c.restore(); } }
-    const ash = vnoise(x / 3.5, y / 3.5, 71); if (ash > 0.66) { c.fillStyle = `rgba(160,150,140,${(ash - 0.66) * 0.7})`; c.fillRect(X, Y, T, T); }
+    { const cells = hcs; for (const cl of cells) { if (hh(cl.q, cl.r, 71) > 0.5 || vnoise(cl.cx / 2.5 + 3, cl.cy / 2.5, 67) <= 0.72) continue; /* (v389 F: the vein's reach read at the column, not the tile, so a vein is never cut at a tile edge) */ const V = cl.V, k =Math.floor(cl.h * 6), A = V[k], B = V[(k + 1) % 6], a = [X + (A[0] - x) * T, Y + (A[1] - y) * T], b = [X + (B[0] - x) * T, Y + (B[1] - y) * T]; c.save(); c.lineCap = 'round'; c.globalCompositeOperation = 'lighter'; c.strokeStyle = 'rgba(140,60,200,.35)'; c.lineWidth = Math.max(2, T * 0.07); c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke(); c.strokeStyle = 'rgba(255,90,42,.85)'; c.lineWidth = Math.max(0.8, T * 0.022); c.stroke(); c.restore(); } }
     edgeGlow(c, X, Y, T, gN, gS, gW, gE, 0.34);
     c.restore(); }
-  function pitFloor(c, X, Y, T, h, h2, x, y, lw, gN, gS, gW, gE) { ashFloor(c, X, Y, T, h, h2, x, y, lw, gN, gS, gW, gE); }
+  function pitFloor(c, X, Y, T, h, h2, x, y, lw, gN, gS, gW, gE) { ashFloor(c, X, Y, T, h, h2, x, y, lw, gN, gS, gW, gE, '#3B3335'); }
   /* ---- the walls (where the ground is rock, not a ledge over lava): basalt columns, rib-banded ironwork, black glass ---- */
   function columnWall(c, X, Y, T, H, h, x, lw, B) { const g = c.createLinearGradient(0, Y, 0, Y + H); g.addColorStop(0, shadeC(B.face, -0.25)); g.addColorStop(0.4, B.face); g.addColorStop(1, B.faceD); c.fillStyle = g; c.fillRect(X, Y, T + 0.5, H);
     // the column facets: three upright strips (lit, mid, shade), staggered joints
@@ -993,9 +1018,13 @@ CAL.bossMake = CAL.bossMake || {};
       c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = lowFx() ? 0.12 : 0.14 + 0.06 * Math.sin(t * 1.1); pat(pattern('calderaflow', k), 0.97, W / 2 - t * 3, H / 2 + t * 2);
       if (!lowFx()) { c.globalAlpha = 0.08 + 0.03 * Math.sin(t * 0.5); bigGlow(c, P, '#BFE3FA', W * 0.3 - (o.wx * 0.03) % (W * 0.5), H * 0.1, W * 0.8); } c.restore(); } };
   // a light frost lies over everything: rime feathers along the plates' seams, hoarfrost specks, in drifts
-  function rimeFloor(c, X, Y, T, h, h2, x, y, lw, gN, gS, gW, gE) { foundryFloor(c, X, Y, T, h, h2, x, y, lw, gN, gS, gW, gE);
-    const R = rnd(x * 4111 + y * 77213 + 5), frost = vnoise(x / 3.2, y / 3.2, 101);
+  // (v389 F: how thick the frost lies is read where it lies: at each speck, at each plate, at each basalt column; never once
+  // per tile, which washed it on in squares)
+  const frostAt = (wx, wy) => Math.min(1, Math.max(0, (vnoise(wx / 3.2, wy / 3.2, 101) - 0.45) * 2.2));
+  function rimeFloor(c, X, Y, T, h, h2, x, y, lw, gN, gS, gW, gE) { const pt = foundryFloor(c, X, Y, T, h, h2, x, y, lw, gN, gS, gW, gE, '#3E3E46');
+    const R = rnd(x * 4111 + y * 77213 + 5);
     c.save(); c.beginPath(); c.rect(X, Y, T, T); c.clip();
+    if (pt.basalt) for (const cl of hexCellsAt(x, y)) { const a = frostAt(cl.cx, cl.cy); if (a <= 0) continue; poly(c, cl.V.map(v => [X + (v[0] - x) * T, Y + (v[1] - y) * T])); c.closePath(); c.fillStyle = `${RIME}${(0.12 * a).toFixed(3)})`; c.fill(); }
     // frozen coolant and ice-sealed lava come in sheets that break along the old column joints (whole cells of the lattice)
     const P = (vx, vy) => [X + (vx - x) * T, Y + (vy - y) * T];
     for (const cl of hexCellsAt(x, y)) { const pl = vnoise(cl.cx / 4.5 + 20, cl.cy / 4.5, 107), sl = vnoise(cl.cx / 3.5, cl.cy / 3.5 + 40, 109); if (pl < 0.71 && sl < 0.73) continue; const p = cl.V.map(v => P(v[0], v[1])), cx = (p[0][0] + p[3][0]) / 2, cy = (p[1][1] + p[4][1]) / 2;
@@ -1006,10 +1035,12 @@ CAL.bossMake = CAL.bossMake || {};
       else { /* cooled lava sealed under ice: its cracks still glowing beneath a milky crust */ c.fillStyle = '#2A1816'; c.fillRect(cx - T, cy - T, T * 2, T * 2); seam(c, [[cx - T * 0.45, cy - T * 0.1], [cx - T * 0.1, cy + T * 0.05], [cx + T * 0.15, cy - T * 0.15], [cx + T * 0.45, cy + T * 0.05]], Math.max(1, T * 0.035), 1); seam(c, [[cx - T * 0.1, cy + T * 0.05], [cx, cy + T * 0.4]], Math.max(0.8, T * 0.025), 0.8);
         c.fillStyle = 'rgba(200,232,250,.34)'; c.fillRect(cx - T, cy - T, T * 2, T * 2); c.fillStyle = 'rgba(255,255,255,.18)'; ell(c, cx - T * 0.12, cy - T * 0.18, T * 0.28, T * 0.07, -0.4); c.fill(); }
       c.restore(); poly(c, p); c.closePath(); c.strokeStyle = 'rgba(30,50,70,.55)'; c.lineWidth = Math.max(1, T * 0.035); c.stroke(); }
-    if (frost > 0.45) { const a = Math.min(1, (frost - 0.45) * 2.2); for (let i = 0; i < 10; i++) { c.fillStyle = `${RIME}${(0.35 + R() * 0.4) * a})`; const s = Math.max(1, T * (0.012 + R() * 0.02)); c.fillRect(X + R() * T, Y + R() * T, s, s); }
-      // feathers of rime growing in from the plate's edges
-      c.strokeStyle = `${RIME}${0.55 * a})`; c.lineWidth = Math.max(0.7, T * 0.016); c.beginPath(); for (let i = 0; i < 4; i++) { const ex = R() < 0.5, px = ex ? X + (R() < 0.5 ? 0 : T) : X + T * R(), py = ex ? Y + T * R() : Y + (R() < 0.5 ? 0 : T), ix = ex ? (px === X ? 1 : -1) : 0, iy = ex ? 0 : (py === Y ? 1 : -1), L = T * (0.12 + R() * 0.14); c.moveTo(px, py); c.lineTo(px + ix * L + iy * L * 0.2, py + iy * L + ix * L * 0.2); for (const u of [0.4, 0.7]) { const bx = px + ix * L * u, by = py + iy * L * u; c.moveTo(bx, by); c.lineTo(bx + (ix + iy) * L * 0.3 + iy * L * 0.2, by + (iy + ix) * L * 0.3 - ix * L * 0.2); } } c.stroke();
-      c.fillStyle = `${RIME}${0.12 * a})`; c.fillRect(X, Y, T, T); }
+    for (let i = 0; i < 10; i++) { const al = R(), s = Math.max(1, T * (0.012 + R() * 0.02)), u = R(), v = R(), a = frostAt(x + u, y + v); if (a <= 0) continue; c.fillStyle = `${RIME}${((0.35 + al * 0.4) * a).toFixed(3)})`; c.fillRect(X + u * T, Y + v * T, s, s); }
+    const a = pt.basalt ? 0 : frostAt(pt.px + pt.pw / 2, pt.py + pt.ph / 2);
+    if (a > 0) { // feathers of rime growing in from the plate's edges (the sides of this tile that are the plate's own)
+      const sides = []; if (x === pt.px) sides.push(0); if (x === pt.px + pt.pw - 1) sides.push(1); if (y === pt.py) sides.push(2); if (y === pt.py + pt.ph - 1) sides.push(3);
+      c.strokeStyle = `${RIME}${(0.55 * a).toFixed(3)})`; c.lineWidth = Math.max(0.7, T * 0.016); c.beginPath(); if (sides.length) for (let i = 0; i < 4; i++) { const sd = sides[Math.floor(R() * sides.length)], ex = sd < 2, px = ex ? X + (sd ? T : 0) : X + T * R(), py = ex ? Y + T * R() : Y + (sd === 3 ? T : 0), ix = ex ? (sd ? -1 : 1) : 0, iy = ex ? 0 : (sd === 2 ? 1 : -1), L = T * (0.12 + R() * 0.14); c.moveTo(px, py); c.lineTo(px + ix * L + iy * L * 0.2, py + iy * L + ix * L * 0.2); for (const u of [0.4, 0.7]) { const bx = px + ix * L * u, by = py + iy * L * u; c.moveTo(bx, by); c.lineTo(bx + (ix + iy) * L * 0.3 + iy * L * 0.2, by + (iy + ix) * L * 0.3 - ix * L * 0.2); } } c.stroke();
+      c.fillStyle = `${RIME}${(0.12 * a).toFixed(3)})`; c.fillRect(X, Y, T, T); }
     c.restore(); }
   // the walls: iron-banded basalt rimed over, icicles hanging from the course above
   function rimeWall(c, X, Y, T, H, h, x, lw, B) { ironWall(c, X, Y, T, H, h, x, lw, B); c.fillStyle = `${RIME}.55)`; c.fillRect(X, Y, T + 0.5, Math.max(1.5, H * 0.08)); const n = 3 + (x % 2); for (let i = 0; i < n; i++) { const px = X + T * (i + 0.3 + hh(x, i, 3) * 0.4) / n, L = H * (0.18 + hh(x, i, 7) * 0.32); c.beginPath(); c.moveTo(px - T * 0.04, Y + H * 0.06); c.lineTo(px + T * 0.04, Y + H * 0.06); c.lineTo(px, Y + H * 0.06 + L); c.closePath(); const g = c.createLinearGradient(0, Y, 0, Y + L); g.addColorStop(0, '#FFFFFF'); g.addColorStop(1, 'rgba(160,210,240,.6)'); c.fillStyle = g; c.fill(); } }
@@ -1044,15 +1075,15 @@ CAL.bossMake = CAL.bossMake || {};
       if (!lowFx()) { c.globalAlpha = 0.12 + 0.05 * Math.sin(t * 0.8); bigGlow(c, P, '#FF5A2A', W * 0.1 - (o.wx * 0.04) % (W * 0.5), H * 0.15, W * 0.8); } c.restore(); } };
   // black glass everywhere: columns of obsidian, some translucent enough to show the magma moving beneath, crystal veins
   function glassFloor(c, X, Y, T, h, h2, x, y, lw, gN, gS, gW, gE) { const R = rnd(x * 3001 + y * 70001 + 79);
-    c.save(); c.beginPath(); c.rect(X, Y, T, T); c.clip(); unTile(c, X, Y, T, h2); grain(c, X, Y, T, R, 5, 0.12);
-    hexFloor(c, X, Y, T, x, y, { seam: 0.025, joint: 'rgba(2,1,4,.75)', lip: 'rgba(200,180,255,.1)',
+    c.save(); c.beginPath(); c.rect(X, Y, T, T); c.clip(); calBase(c, X, Y, T, '#17131B'); grain(c, X, Y, T, R, 5, 0.12);   // (v389 F: one flat ground, not the engine's per-tile shade)
+    const hcs = hexFloor(c, X, Y, T, x, y, { seam: 0.025, joint: 'rgba(2,1,4,.75)', lip: 'rgba(200,180,255,.1)',
       tone: cl => { cl.mag = vnoise(cl.cx / 3, cl.cy / 3, 121); cl.dim = vnoise(cl.cx / 5, cl.cy / 5, 127); return cl.mag > 0.6 ? '#1A0C0C' : cl.dim > 0.55 ? '#0C0A10' : '#16121A'; },
       inner(c2, cl, p, T2) { const cx = (p[0][0] + p[3][0]) / 2, cy = (p[1][1] + p[4][1]) / 2; c2.save(); poly(c2, p); c2.closePath(); c2.clip();
         if (cl.mag > 0.6) { /* magma beneath the glass: a dull red glow under a dark translucent skin, a bright vein in it */ const a = Math.min(1, (cl.mag - 0.6) * 4); const g = c2.createRadialGradient(cx + T2 * 0.1, cy + T2 * 0.1, 0, cx, cy, T2 * 0.75); g.addColorStop(0, `rgba(255,120,40,${0.55 * a})`); g.addColorStop(0.5, `rgba(200,50,20,${0.35 * a})`); g.addColorStop(1, 'rgba(60,10,8,0)'); c2.fillStyle = g; c2.fillRect(cx - T2, cy - T2, T2 * 2, T2 * 2);
           c2.strokeStyle = `rgba(255,170,90,${0.4 * a})`; c2.lineWidth = Math.max(0.8, T2 * 0.025); c2.beginPath(); c2.moveTo(cx - T2 * 0.3, cy + T2 * 0.1); c2.quadraticCurveTo(cx, cy - T2 * 0.15 + cl.h * T2 * 0.2, cx + T2 * 0.3, cy + T2 * 0.05); c2.stroke(); }
         const u = 0.35 + 0.3 * vnoise(cl.cx / 6, cl.cy / 6, 63), sg = c2.createLinearGradient(cx - T2 * 0.6, cy + T2 * 0.6, cx + T2 * 0.6, cy - T2 * 0.6); sg.addColorStop(Math.max(0, u - 0.2), 'rgba(190,165,245,0)'); sg.addColorStop(u, 'rgba(200,180,250,.16)'); sg.addColorStop(Math.min(1, u + 0.03), 'rgba(255,255,255,.08)'); sg.addColorStop(Math.min(1, u + 0.2), 'rgba(190,165,245,0)'); c2.fillStyle = sg; c2.fillRect(cx - T2, cy - T2, T2 * 2, T2 * 2);
         c2.restore(); } });
-    const vein = vnoise(x / 2.2 + 3, y / 2.2, 131); if (vein > 0.7) { const cells = hexCellsAt(x, y); for (const cl of cells) { if (hh(cl.q, cl.r, 71) > 0.6) continue; const V = cl.V, k = Math.floor(cl.h * 6), A = V[k], B = V[(k + 1) % 6], a = [X + (A[0] - x) * T, Y + (A[1] - y) * T], b = [X + (B[0] - x) * T, Y + (B[1] - y) * T]; c.save(); c.lineCap = 'round'; c.globalCompositeOperation = 'lighter'; c.strokeStyle = 'rgba(140,60,200,.4)'; c.lineWidth = Math.max(2, T * 0.08); c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke(); c.strokeStyle = 'rgba(255,90,42,.9)'; c.lineWidth = Math.max(0.8, T * 0.025); c.stroke(); c.restore(); } }
+    { const cells = hcs; for (const cl of cells) { if (hh(cl.q, cl.r, 71) > 0.6 || vnoise(cl.cx / 2.2 + 3, cl.cy / 2.2, 131) <= 0.7) continue; /* (v389 F: read at the column, so no vein stops at a tile edge) */ const V = cl.V, k =Math.floor(cl.h * 6), A = V[k], B = V[(k + 1) % 6], a = [X + (A[0] - x) * T, Y + (A[1] - y) * T], b = [X + (B[0] - x) * T, Y + (B[1] - y) * T]; c.save(); c.lineCap = 'round'; c.globalCompositeOperation = 'lighter'; c.strokeStyle = 'rgba(140,60,200,.4)'; c.lineWidth = Math.max(2, T * 0.08); c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke(); c.strokeStyle = 'rgba(255,90,42,.9)'; c.lineWidth = Math.max(0.8, T * 0.025); c.stroke(); c.restore(); } }
     edgeGlow(c, X, Y, T, gN, gS, gW, gE, 0.4);
     c.restore(); }
   // the walls: translucent obsidian, magma pockets moving inside it, a violet sheen down its facets
@@ -1288,7 +1319,10 @@ CAL.bossMake = CAL.bossMake || {};
     { const M = X.M; let ex = null, best = -1; for (const r of M.rooms) { const cx = r.x + r.w / 2, cy = r.y + r.h / 2, d = Math.hypot(cx - M.start.x, cy - M.start.y); if (d > best) { best = d; ex = X.freeSpot(cx, cy, 0.8) || { x: cx, y: cy }; } }
       if (ex) for (const p of X.props || []) if (!p.broken && Math.abs(p.x - ex.x) < 1.8 && p.y - ex.y > -2.6 && p.y - ex.y < 2.8) { p.broken = true; M.G[p.k] = T_FLOOR; } }   // (no retile: the floor's tiles are not cached yet when make runs)
     let eT = 0, bled = false; C.tears = [];
-    return { update(dt) { herd(dt); eT -= dt; if (eT <= 0) { eT = 1; easeAll(); }
+    // v389 S: the Glass Heart's fifteen fire vents, spread through its rooms (worker S's vent field, 20zz4: CAL.vent vents with
+    // staggered timings, only those near the pet running, the first one shown harmlessly). This hunk only places and ticks them
+    const VF = key === 'glassheart' && typeof CAL_STAGES !== 'undefined' && typeof CAL_STAGES.dungeonVents === 'function' ? CAL_STAGES.dungeonVents(X, 15) : null; C.ventField = VF;
+    return { update(dt) { herd(dt); if (VF) VF.tick(dt); eT -= dt; if (eT <= 0) { eT = 1; easeAll(); }
         // the dungeon is clear and its door open: the rift still bleeds
         if (self.done && !bled && !X.g.won) { bled = true; openTears(X, C, D, key); const mod = self.mod; if (mod && mod.goal) { const g0 = mod.goal; mod.goal = () => self.done ? 'Cleared! The rift still bleeds: leave by the door or keep fighting' : g0(); }
           X.after(2.8, () => { if (!X.g.won) X.banner('THE RIFT STILL BLEEDS', 'Leave by the door, or stay and fight what pours out', FRACTURE_HI, 2.6, true); }); }

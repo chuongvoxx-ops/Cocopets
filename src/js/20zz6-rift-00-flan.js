@@ -43,7 +43,7 @@ const CALFLAN = (() => {
   const WELL_A = [-Math.PI / 2, Math.PI / 6, Math.PI * 5 / 6];
   /* the tuning for a level-1 starter (the spec's ~2 minutes with the mechanics): the whole fight's health and the size of
      one plain blow, set by the stage whatever the rift's own scaling (Rf.ease, Rf.scale) does to its floor */
-  const TUNE = { hp: 9600, dmg: 24 };   // (v388: health doubled at the user's request)   // (QA v386: was 1400 / 15, tuned for a level-1 pet; the nine-stage rift brings the pet here at about level 5 (HP ~150))
+  const TUNE = { hp: 19200, dmg: 24 };   // (v389: 6 bars, each as big as v388's 3; the user)   // (v388: health doubled at the user's request)   // (QA v386: was 1400 / 15, tuned for a level-1 pet; the nine-stage rift brings the pet here at about level 5 (HP ~150))
   const FIELD_T = 12, RECHARGE_T = 8, REGROW_T = 10, GRACE_T = 2, CHILL_T = 3, BRITTLE_T = 8, INTEG = 100, SMASH = 30, CHIP = 5;
   const wellGeo = (C, i) => { const a = WELL_A[i], c = Math.cos(a), s = Math.sin(a), pa = a + PLATE_DA;
     return { i, a, x: C.x + c * WELL_D, y: C.y + s * WELL_D, zx: C.x + c * ZONE_D, zy: C.y + s * ZONE_D, zr: ZONE_R, px: C.x + Math.cos(pa) * PLATE_D, py: C.y + Math.sin(pa) * PLATE_D }; };
@@ -973,5 +973,10 @@ const CALFLAN = (() => {
 
   return { def, bossMake, MODEL, makeArena, wellGeo, TUNE, CONST: { AR, WELL_D, ZONE_D, ZONE_R, PLATE_D, FIELD_T, RECHARGE_T, REGROW_T, GRACE_T, CHILL_T, BRITTLE_T, INTEG, SMASH, CHIP }, get cur() { return CUR; } };
 })();
-RiftFiend.define({ id: 'calflan', name: 'Fire Flan', title: 'The Molten Mantle', color: '#C2380A', glow: '#FF9A2E', accent: '#FFE9A8', biome: (typeof BIOMES !== 'undefined' && BIOMES.calderapit) ? 'calderapit' : 'volcano', r: 1.7, els: ['fire'], phases: 3, cuts: [1, 0.7, 0.35], hpK: 0.25, dmgK: 0.75 }, CALFLAN.def);
+/* (v389) a Caldera boss's health in a set number of bars (the user: Flan 6, Bomb King 7, Ifrit 9): hpK so the bars the rift
+   gives this boss's stage (riftFiend: round((round(n/5) + 2 + more) * hpK)) come out at exactly that many */
+function CAL_BOSS_HPK(id, bars, dflt) { try { const Rf = RIFT_BY_ID.caldera; let n = 7; if (Rf && Rf.stages) { const i = Rf.stages.findIndex(s => s.boss === id); if (i >= 0) n = Math.max(1, (Rf.lvl || 1) + (riftStagePos(Rf, i).sec - 1) * 3); }
+  const lo = n < 50 ? Math.min(1, Math.max(0, (n - 10) / 30)) : -1, hk = n >= 50 ? Math.min(1, (n - 50) / Math.max(10, TOWER_TOP - 50)) : -1, more = hk >= 0 ? Math.round(30 + 20 * hk) : Math.round(10 + 15 * lo);
+  return (bars + 0.2) / (Math.round(n / 5) + 2 + more); } catch (e) { return dflt; } }
+RiftFiend.define({ id: 'calflan', name: 'Fire Flan', title: 'The Molten Mantle', color: '#C2380A', glow: '#FF9A2E', accent: '#FFE9A8', biome: (typeof BIOMES !== 'undefined' && BIOMES.calderapit) ? 'calderapit' : 'volcano', r: 1.7, els: ['fire'], phases: 3, cuts: [1, 0.7, 0.35], get hpK() { return CAL_BOSS_HPK('calflan', 6, 0.25); }, dmgK: 0.75 }, CALFLAN.def);
 if (typeof CAL !== 'undefined') { CAL.bossMake = CAL.bossMake || {}; CAL.bossMake.calflan = CALFLAN.bossMake; }
