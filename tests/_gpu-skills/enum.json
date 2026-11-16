@@ -1,0 +1,970 @@
+{
+ "elem": {
+  "earth": [
+   {
+    "key": "faultline",
+    "name": "Faultline Fang",
+    "i": 0,
+    "lv": 1,
+    "impl": true,
+    "src": "(C, h) => { H = h; const me = H.me, a = C.a, len = 7, x0 = me.x, y0 = me.y, N = 8;\n    H.X.sfx.thud(); me.sq = 0.6; thud(C, x0, y0, 1, 0.5);\n    const f = H.add({ life: 1.6, x: x0, y: y0, teeth: [], drawUnder(c, f, X, Y, T) { const u = Math.min(1, f.t / 0.4); seam(c, X, Y, a, len, u, T, Math.min(1, f.life / 0.5)); } });\n    for (let i = 0; i < N; i++) H.X.after(0.08 + i * 0.07, () => { const d = 0"
+   },
+   {
+    "key": "rosary",
+    "name": "Boulder Rosary",
+    "i": 1,
+    "lv": 1,
+    "impl": true,
+    "src": "(C, h) => { H = h; const me = H.me, N = 5, F = H.add({ life: 3.2, stones: [], draw(c, f, X, Y, T) { const mx = H.sx(me.x), my = H.sy(me.y) - T * 0.7; for (const s of f.stones) { if (s.gone) continue; const x = s.flying ? H.sx(s.x) : mx + Math.cos(s.a) * T * 1.25, y = s.flying ? H.sy(s.y) - T * 0.6 : my + Math.sin(s.a) * T * 0.55; if (!s.flying) { c.globalAlpha = 0.35; c.strokeStyle = SAND; c.lineW"
+   },
+   {
+    "key": "amber",
+    "name": "Amber Breaker",
+    "i": 2,
+    "lv": 3,
+    "impl": true,
+    "src": "(C, h) => { H = h; const me = H.me, a = C.a, R = 2.7;\n    H.add({ life: 0.6, draw(c, f, X, Y, T) { const u = f.t < 0.22 ? H.ease.out(f.t / 0.22) : 1, th = f.t > 0.22 ? Math.min(1, (f.t - 0.22) / 0.1) : 0, k = Math.min(1, f.life / 0.2); c.save(); c.translate(H.sx(me.x), H.sy(me.y) - T * 0.3); c.scale(1, H.GY); c.rotate(a); c.translate(T * (0.5 + th * 0.8), 0); c.globalAlpha = k;\n        const L = T"
+   },
+   {
+    "key": "quarry",
+    "name": "Quarry Wheel",
+    "i": 3,
+    "lv": 6,
+    "impl": true,
+    "src": "(C, h) => { H = h; const me = H.me, a = C.a, dir = [Math.cos(a), Math.sin(a)];\n    H.add({ life: 1.75, x: me.x + dir[0] * 0.8, y: me.y + dir[1] * 0.8, rot: 0, hits: new Map(), gone: false,\n      update(dt, f) { if (f.t < 0.25 || f.gone) return; const v = 7.5 * dt; const nx = f.x + dir[0] * v, ny = f.y + dir[1] * v; if (H.X.blocked(nx, ny, 0.4, 0) || f.t > 1.45) { if (!f.gone) { f.gone = true; f.li"
+   },
+   {
+    "key": "geode",
+    "name": "Geode Burst",
+    "i": 4,
+    "lv": 10,
+    "impl": true,
+    "src": "(C, h) => { H = h; const x = C.tx, y = C.ty, R = 2.4; H.warn(x, y, R, 0.85, C.col);\n    H.add({ life: 1.5, x, y, draw(c, f, X, Y, T) { const up = H.ease.out(Math.min(1, f.t / 0.3)), trem = f.t > 0.3 && f.t < 0.85 ? Math.sin(f.t * 60) * T * 0.04 * ((f.t - 0.3) / 0.55) : 0, split = f.t > 0.85, k = Math.min(1, f.life / 0.4); H.shadow(c, X, Y, T * 0.8 * up, 0.25);\n        c.save(); c.translate(X + tre"
+   },
+   {
+    "key": "talons",
+    "name": "Terracotta Talons",
+    "i": 5,
+    "lv": 15,
+    "impl": true,
+    "src": "(C, h) => { H = h; const me = H.me, a = C.a, cx = me.x + Math.cos(a) * 1.4, cy = me.y + Math.sin(a) * 1.4, R = 2.3;\n    [[1, 0], [-1, 0.16], [1, 0.34]].forEach(([s, d], i) => H.X.after(d, () => { const last = i === 2;\n      H.add({ life: 0.5, x: cx, y: cy, draw(c, f, X, Y, T) { const u = H.ease.io(Math.min(1, f.t / 0.3)), b = a + s * (-1 + 2 * u) * 0.95, k = Math.min(1, f.life / 0.2); c.save(); c."
+   },
+   {
+    "key": "sandglass",
+    "name": "Sandglass Snare",
+    "i": 6,
+    "lv": 20,
+    "impl": true,
+    "src": "(C, h) => { H = h; const x = C.tx, y = C.ty, R = 2.3, DUR = 2.4; H.X.sfx.hum();\n    H.add({ life: DUR + 0.5, x, y, tk: 0, drawUnder(c, f, X, Y, T) { const k = H.fade(f, 0.3, 0.4); c.globalAlpha = 0.5 * k; c.strokeStyle = SAND; c.lineWidth = 2.5; H.floorEllipse(c, X, Y, R * T); c.stroke(); c.fillStyle = H.rgba(SAND, 0.16); c.fill(); if (f.t > 0.5 && f.t < DUR) for (let i = 0; i < 3; i++) { c.save()"
+   },
+   {
+    "key": "basalt",
+    "name": "Basalt Knuckle",
+    "i": 7,
+    "lv": 30,
+    "impl": true,
+    "src": "(C, h) => { H = h; const me = H.me, a = C.a, side = Math.sin(a) >= 0 ? -1 : 1, px = Math.cos(a + Math.PI / 2) * side, py = Math.sin(a + Math.PI / 2) * side, L = 3.4;\n    const F = H.add({ life: 1.1, draw(c, f, X, Y, T) { const u = H.ease.out(Math.min(1, f.t / 0.3)), p = f.t > 0.35 ? H.ease.out(Math.min(1, (f.t - 0.35) / 0.1)) : 0, br = f.t > 0.5 ? Math.min(1, (f.t - 0.5) / 0.3) : 0, k = Math.min(1"
+   },
+   {
+    "key": "cairn",
+    "name": "Skipping Cairn",
+    "i": 8,
+    "lv": 40,
+    "impl": true,
+    "src": "(C, h) => { H = h; const me = H.me, dx = C.tx - me.x, dy = C.ty - me.y, d = Math.max(2.5, Math.hypot(dx, dy)), a = Math.atan2(dy, dx), L = Math.min(d, 7.5), HOP = 0.3;\n    H.add({ life: HOP * 3 + 0.35, x: me.x, y: me.y, z: 0, hop: 0, done: false, update(dt, f) { if (f.done) return; const u = f.t / (HOP * 3); if (u >= 1) { f.done = true; f.life = 0.3; for (let i = 0; i < H.n(10); i++) { const b = a"
+   },
+   {
+    "key": "rebuttal",
+    "name": "Mountain's Rebuttal",
+    "i": 9,
+    "lv": 50,
+    "impl": true,
+    "src": "(C, h) => { H = h; const me = H.me, g = H.g, a = C.a, N = 7, R = 1.5; g.guardHP = Math.max(g.guardHP || 0, H.X.ST().hp * 0.28); g.guardMax = Math.max(g.guardMax || 1, H.X.ST().hp * 0.28); H.X.sfx.thud(); me.sq = 0.6;\n    H.add({ life: 1.35, draw(c, f, X, Y, T) { const up = H.ease.out(Math.min(1, f.t / 0.25)), br = f.t > 0.65 ? Math.min(1, (f.t - 0.65) / 0.3) : 0, slam = f.t > 0.95 ? Math.min(1, (f"
+   }
+  ],
+  "wind": [
+   {
+    "key": "gust",
+    "name": "Gust of Wind",
+    "i": 0,
+    "lv": 1,
+    "impl": true,
+    "src": "(C, h) => { const H = h, me = H.me, tier = tierOf(C), N = [1, 2, 3][tier], R = 2.0 * [1, 1.2, 1.4][tier] * C.K, DMG = C.base * C.K * [2.2, 1.7, 1.45][tier], SPD = 11, RANGE = 9, GAP = [0, 0.24, 0.2][tier], L0 = 0.3, BT = 0.8;\n    const [ax, ay] = aimPt(H, C, RANGE), tg = pick(H, N, ax, ay, RANGE, 3.5), orbs = [];\n    for (let i = 0; i < N; i++) { const m = tg[i] || null, dx = m ? m.x : ax, dy = m "
+   },
+   {
+    "key": "flumes",
+    "name": "Flumes",
+    "i": 1,
+    "lv": 1,
+    "impl": true,
+    "src": "(C, h) => { const H = h, me = H.me, tier = tierOf(C), N = [3, 4, 6][tier], DMG = C.base * C.K * 0.8, RB = 1.1, SPD = 15, RANGE = 9, BT = 0.42;\n    const [ax, ay] = aimPt(H, C, RANGE), tg = pick(H, N, ax, ay, RANGE, 3), aim = Math.atan2(ay - me.y, ax - me.x), dbg = { bursts: 0, hits: 0 };\n    const fs = []; for (let i = 0; i < N; i++) { const g = tier === 2 ? (i < 3 ? 0 : 1) : 0, j = tier === 2 ? i"
+   },
+   {
+    "key": "windblades",
+    "name": "Blades of Wind",
+    "i": 2,
+    "lv": 3,
+    "impl": true,
+    "src": "(C, h) => { const H = h, me = H.me, g = H.g, tier = tierOf(C), ev = Math.max(1, Math.min(7, Math.round(C.evo || 1))), DUR = [20, 25, 30][tier], DMG = C.base * C.K * 0.35 * (1 + 0.08 * (ev - 1)), IV = 0.55, OM = 3.4, NS = 4, RR = 1.05, LS = 1.5, FORM = 0.5, ENDT = 0.9;\n    const old = H.fx.find(f => f.key === 'windblades' && f.st === 'on');\n    if (old) { old.until = g.t + DUR; old.dur = DUR; old.f"
+   },
+   {
+    "key": "boomerang",
+    "name": "Boomerang of the Gale",
+    "i": 3,
+    "lv": 6,
+    "impl": true,
+    "src": "(C, h) => { const H = h, me = H.me, tier = tierOf(C), N = [1, 2, 3][tier], DO = C.base * C.K * [0.9, 0.75, 0.62][tier], DB = C.base * C.K * [1.5, 1.25, 1.05][tier], RB = 1.0, OUT = 0.55, DIST = 6;\n    const [ax, ay] = aimPt(H, C, 9), aim = Math.atan2(ay - me.y, ax - me.x), offs = [[0], [-0.38, 0.38], [-0.62, 0, 0.62]][tier], dbg = { out: 0, back: 0 };\n    const bs = offs.map((o, i) => ({ i, L: 0.2"
+   },
+   {
+    "key": "seedburst",
+    "name": "Dandelion Detonation",
+    "i": 4,
+    "lv": 10,
+    "impl": true,
+    "src": "(C, h) => { const H = h, me = H.me, tier = tierOf(C), N = [3, 5, 7][tier], DMG = C.base * C.K * [1.3, 1.0, 0.8][tier], RB = 1.3, ARM = 2.0, BLOW = 0.5, BT = 0.5;\n    const [ax, ay] = aimPt(H, C, 9), dbg = { bursts: 0, hits: 0, dropped: 0 };\n    // targets: separate monsters (nearest the aim first), then the spare seeds to the biggest of them\n    const L = H.living().filter(m => valid(m) && Math.hy"
+   },
+   {
+    "key": "featherfall",
+    "name": "Featherfall Curse",
+    "i": 5,
+    "lv": 15,
+    "impl": true,
+    "src": "(C, h) => { const H = h, me = H.me, tier = tierOf(C), DUR = [6, 8, 10][tier], DMG = C.base * C.K * 1.8, DOT = C.base * C.K * FFV.dot, RA = 2.6, FLY = 0.45, LAND = 0.35;\n    const [ax, ay] = aimPt(H, C, 8), x0 = me.x, y0 = me.y, dbg = { marked: 0, refreshed: 0, bursts: 0, dots: 0 }; me.sq = 0.7; H.X.sfx.hum && H.X.sfx.hum(); H.warn(ax, ay, RA, FLY + LAND, C.col);\n    let feathers = null, applied = "
+   },
+   {
+    "key": "garuda",
+    "name": "Claws of Garuda",
+    "i": 6,
+    "lv": 20,
+    "impl": true,
+    "src": "(C, h) => { const H = h, me = H.me, g = H.g, tier = tierOf(C), ORDER = GCOMBO[tier], NS = ORDER.length, TOT = [2.4, 3.5, 4.6][tier], WF = [1.6, 1.7, 1.9][tier], WS = (NS - 1) + WF, PER = TOT * C.base * C.K / WS, SUM = 0.5, ENDD = 0.45, RANGE = 7;\n    const P0 = petOf(H), dbg = { swings: [], hits: 0, cancelled: false, retargets: 0 };\n    let ph = 'summon', k = -1, tK = 0, fa = isFinite(C.tx) ? Math"
+   },
+   {
+    "key": "swallow",
+    "name": "Swallow Dance",
+    "i": 7,
+    "lv": 30,
+    "impl": true,
+    "src": "(C, h) => { const H = h, me = H.me, tier = tierOf(C), NS = [3, 4, 6][tier], TOT = [2.4, 3.4, 4.4][tier], WF = [1.6, 1.6, 1.9][tier], WS = (NS - 1) + WF, PER = TOT * C.base * C.K / WS, OPEN = 0.35, DASH = 0.22, GAP = 0.1, FINS = 0.36, BIG = tier === 2 ? 1.4 : 1, RANGE = 7;\n    const P0 = petOf(H), dbg = { dashes: [], hits: 0, landed: false }, struck = new Set(), birds = [], slashes = [], ghosts = ["
+   },
+   {
+    "key": "sanctuary",
+    "name": "Wings of Sanctuary",
+    "i": 8,
+    "lv": 40,
+    "impl": true,
+    "src": "(C, h) => { const H = h, me = H.me, g = H.g, tier = tierOf(C), PCT = [0.12, 0.16, 0.2][tier], BURST = C.base * C.K * [1.5, 1.8, 2.1][tier], DUR = 8, MV = 1.15, NF = 18, WRAP = 0.35, OPEN = 0.45;\n    const maxHP = (H.X.ST && H.X.ST().hp) || me.maxhp || 100, AMT = PCT * maxHP;\n    const old = H.fx.find(f => f.key === 'sanctuary' && f.st === 'on');\n    if (old) { old.pool = Math.max(old.pool, AMT); o"
+   },
+   {
+    "key": "cyclone",
+    "name": "Coconut Cyclone",
+    "i": 9,
+    "lv": 50,
+    "impl": true,
+    "src": "(C, h) => { const H = h, me = H.me, ev = Math.max(1, Math.min(7, Math.round(C.evo || 1))), EK = 1 + 0.08 * (ev - 1), RH = 2.0 * C.K, DT = C.base * C.K * 0.28 * EK, DF = C.base * C.K * 1.4 * EK, FORM = 0.6, DUR = 4.0, IVL = 0.4, COL = 0.6, FADE = 0.75, HH = 4.6, RW = 1.9 * C.K;\n    const [x, y] = aimPt(H, C, 8), dbg = { ticks: 0, fin: 0, hits: 0 }; H.warn(x, y, RH, FORM, C.col); me.sq = 0.65; H.X.s"
+   }
+  ],
+  "light": [
+   {
+    "key": "honeyheart",
+    "name": "Honey Sugar Heart Attack",
+    "i": 0,
+    "lv": 1,
+    "impl": true,
+    "src": "(C, H) => {\n    const K = globalThis.LU1; K.setH(H);\n    const me = H.me, ev = evoOf(C), NH = ev >= 7 ? 3 : ev >= 4 ? 2 : 1, a0 = C.a;\n    const HT = 0.9, HSZ = 1.6 * HT * (1 + 0.05 * (ev - 1));          // heart height in tiles: 1.6H, growing moderately\n    const MAXR = 7.5 * Math.max(1, C.K * 0.9), R0 = 1.75 * (1 + 0.04 * (ev - 1));\n    const TOT = C.base * 2.5 * C.K * evoK(C), SH = NH === 1 ? ["
+   },
+   {
+    "key": "luvchain",
+    "name": "Luv Me Luv Me Chain",
+    "i": 1,
+    "lv": 1,
+    "impl": true,
+    "src": "(C, H) => {\n    const K = globalThis.LU1; K.setH(H);\n    const me = H.me, ev = evoOf(C), tier = ev >= 7 ? 3 : ev >= 4 ? 2 : 1, rk = (ev - 1) / 6, a0 = C.a;\n    // reach: 2H / 2.6H / 3.3H (H = 0.9 tile), x1.2 for the arena; continuous between\n    const HT = 0.9, REACH = (ev <= 4 ? lerp(2, 2.6, (ev - 1) / 3) : lerp(2.6, 3.3, (ev - 4) / 3)) * HT * 1.2;\n    const SP0 = 0.2, NL = Math.ceil(REACH / SP0)"
+   },
+   {
+    "key": "lovemirrors",
+    "name": "Love Mirrors",
+    "i": 2,
+    "lv": 3,
+    "impl": true,
+    "src": "(C, h) => {\n    H = h; const K = globalThis.LU1; K.setH(H);\n    const me = H.me, ev = evoOf(C), tier = ev >= 7 ? 3 : ev >= 4 ? 2 : 1, N = tier === 3 ? 7 : tier === 2 ? 5 : 3;\n    const evoK = 1 + 0.08 * (ev - 1), TOT = C.base * C.K * evoK * 2.8, x = C.tx, y = C.ty, R = (2.2 + 0.1 * (ev - 1)) * C.K;\n    const HT = (1.4 + 0.03 * (ev - 1)) * (tier === 3 ? 1.06 : 1), WT = HT * 0.62, LW = 0.45, RS = (1"
+   },
+   {
+    "key": "lanternfall",
+    "name": "Lantern Fall",
+    "i": 3,
+    "lv": 6,
+    "impl": true,
+    "src": "(C, h) => {\n    H = h; const K = globalThis.LU1; K.setH(H);\n    const me = H.me, ev = evoOf(C), tier = ev >= 7 ? 3 : ev >= 4 ? 2 : 1, N = tier === 3 ? 7 : tier === 2 ? 5 : 3;\n    const evoK = 1 + 0.08 * (ev - 1), TOT = C.base * C.K * evoK * 2.6, RF = (1.0 + 0.03 * (ev - 1)) * C.K, SZ = (1 + 0.035 * (ev - 1)) * Math.sqrt(C.K);\n    const x0 = C.tx, y0 = C.ty, GP = N >= 7 ? 0.14 : N >= 5 ? 0.16 : 0.1"
+   },
+   {
+    "key": "loveshock",
+    "name": "Love Shock",
+    "i": 4,
+    "lv": 10,
+    "impl": true,
+    "src": "(C, H) => {\n    const K = globalThis.LU1; K.setH(H);\n    const me = H.me, X = H.X, ev = evoOf(C), L = tierOf(ev), N = [3, 5, 6][L], u7 = (ev - 1) / 6;\n    // configurable: bounce window, hop speed, the alone-loop time, the per-sphere per-target repeat delay, search reach\n    const BOUNCE = 3, HOP_V = 10.5, LOOP = 0.32, REHIT = 0.3, REACH = 6.5, REL = 0.58, LAUNCH_R = 9;\n    const tot = C.base * 2."
+   },
+   {
+    "key": "lovebombs",
+    "name": "Love Bombs",
+    "i": 5,
+    "lv": 15,
+    "impl": true,
+    "src": "(C, H) => {\n    const K = globalThis.LU1; K.setH(H);\n    const me = H.me, X = H.X, ev = evoOf(C), L = tierOf(ev), u7 = (ev - 1) / 6;\n    const R = 1.6 * (1 + 0.4 * u7), DMG = C.base * 1.35 * C.K * evoK(ev), HB = 0.78 + 0.14 * u7;   // radius x1.0..1.4, each bomb one AoE hit; bomb height (tiles)\n    const MAXD = 7.5, B = K.bits(), aim = C.a, ca = Math.cos(aim), sa = Math.sin(aim);\n    // two ground"
+   },
+   {
+    "key": "eternallight",
+    "name": "Eternal Light",
+    "i": 6,
+    "lv": 20,
+    "impl": true,
+    "src": "(C, H) => {\n    const K = globalThis.LU1; K.setH(H);\n    const me = H.me, ev = evoOf(C), tier = ev >= 7 ? 3 : ev >= 4 ? 2 : 1, q = (ev - 1) / 6, GY = H.GY;\n    const N = [3, 3, 3, 5, 5, 5, 7][ev - 1], R = 2.5 + 0.9 * q, cx = C.tx, cy = C.ty;\n    const PREP = 0.42, SWEEP = tier === 3 ? 1.55 : tier === 2 ? 1.0 + 0.05 * (ev - 4) : 0.85 + 0.05 * (ev - 1), STAG = tier === 3 ? 0.08 : 0.15 - 0.005 * (ev "
+   },
+   {
+    "key": "sweetheartstamp",
+    "name": "Sweetheart Stamp",
+    "i": 7,
+    "lv": 30,
+    "impl": true,
+    "src": "(C, H) => {\n    const K = globalThis.LU1; K.setH(H);\n    const me = H.me, ev = evoOf(C), tier = ev >= 7 ? 3 : ev >= 4 ? 2 : 1, q = (ev - 1) / 6, GY = H.GY;\n    const NP = tier, WT = 1.75 + 0.25 * q, R = 1.65 + 0.35 * q;   // seal width (tiles), press radius\n    const tot = C.base * 2.6 * C.K * evoK(ev), COEF = NP === 1 ? [1] : NP === 2 ? [0.44, 0.56] : [0.27, 0.31, 0.42];\n    // contact times: for"
+   },
+   {
+    "key": "ribbonrendezvous",
+    "name": "Ribbon Rendezvous",
+    "i": 8,
+    "lv": 40,
+    "impl": true,
+    "src": "(C, h) => {\n    H = h; const K = globalThis.LU1; K.setH(H); const me = H.me, ev = evoOf(C), tier = ev >= 7 ? 3 : ev >= 4 ? 2 : 1, NB = tier;\n    const DK = C.base * C.K * (1 + 0.08 * (ev - 1)), HIT = DK * 1.0, BURST = DK * 1.5 * [1, 0.8, 0.7][tier - 1], RB = 1.25 + 0.05 * (ev - 1);\n    const ROOT = 0.75 + (ev - 1) / 12, STG = tier === 3 ? 0.16 : 0.2, TL0 = 0.26, TR = 0.4, TW = 0.26, TB = 0.2, SB ="
+   },
+   {
+    "key": "sugarrush",
+    "name": "Sugar Rush",
+    "i": 9,
+    "lv": 50,
+    "impl": true,
+    "src": "(C, h) => {\n    H = h; const K = globalThis.LU1; K.setH(H); const me = H.me, ev = evoOf(C), tier = ev >= 7 ? 3 : ev >= 4 ? 2 : 1, NP = tier, rich = (ev - 1) / 6;\n    const DK = C.base * C.K * (1 + 0.08 * (ev - 1)), DPASS = DK * [2.5, 1.4, 1.0][tier - 1], TF = 0.34, TT = 0.13, TS = 0.14, TRL = 0.3 + 0.05 * tier, RIB = 0.42 + 0.1 * tier + 0.05 * rich;\n    const B = K.bits(), hist = [], slices = [];\n"
+   }
+  ],
+  "dark": [
+   {
+    "key": "inkfang",
+    "name": "Inkfang",
+    "i": 0,
+    "lv": 1,
+    "impl": true,
+    "src": "(C, h) => {\n    H = h; const me = H.me, a = C.a, x0 = me.x, y0 = me.y, evo = evoOf(C), n = evo >= 7 ? 3 : evo >= 4 ? 2 : 1, evoK = 1 + 0.08 * (evo - 1);\n    const share = n === 1 ? 1 : n === 2 ? 0.62 : 0.46, dmg = C.base * 2.3 * C.K * evoK * share, size = 1 + 0.06 * (n - 1);\n    const offs = n === 1 ? [0] : n === 2 ? [-0.24, 0.24] : [0, -0.34, 0.34];\n    H.X.sfx.whoosh(); me.sq = 0.7;\n    const fa"
+   },
+   {
+    "key": "eclipsedisc",
+    "name": "Eclipse Disc",
+    "i": 1,
+    "lv": 1,
+    "impl": true,
+    "src": "(C, h) => { const H = h, me = H.me, a = C.a, dir = [Math.cos(a), Math.sin(a)], V = 7, ev = evoOf(C), EK = evoK(C), GY = H.GY;\n    const RW = 0.75 * (1.25 + 0.0083 * (ev - 1)), HITR = 1.0, BR = 1.45 + 0.05 * (ev - 1);   // disc radius (tiles), its hit radius, the burst's\n    const sgn = Math.cos(a) >= 0 ? 1 : -1, CON = 0.36;   // (the contraction lasts CON s)\n    bake(2); H.X.sfx.whoosh(); me.sq = "
+   },
+   {
+    "key": "deathspursuit",
+    "name": "Death's Pursuit",
+    "i": 2,
+    "lv": 3,
+    "impl": true,
+    "src": "(C, h) => {\n    H = h; const HH = h, me = HH.me, ev = evoOf(C), K = C.K || 1, tier = ev >= 7 ? 2 : ev >= 4 ? 1 : 0, N = CFG.counts[tier];\n    const DK = C.base * K * (1 + CFG.evoK * (ev - 1)), dmg = CFG.per[tier] * DK, cel = ev >= 7;\n    const dpr = typeof devicePixelRatio === 'number' ? devicePixelRatio : 1, RES = Math.min(2, Math.max(1, dpr));\n    setScale(HH.X.Tz() * RES * U_T); plan(0); bakeSt"
+   },
+   {
+    "key": "shadowseam",
+    "name": "Shadow Seam",
+    "i": 3,
+    "lv": 6,
+    "impl": true,
+    "src": "(C, h) => {\n    H = h; const me = H.me, a = C.a, ca = Math.cos(a), sa = Math.sin(a), evo = evoOf(C), tier = evo >= 7 ? 2 : evo >= 4 ? 1 : 0, n = CFG.counts[tier], cel = tier === 2;\n    const DK = C.base * C.K * (1 + CFG.evoK * (evo - 1)), wts = []; for (let i = 0; i < n; i++) wts.push(cel && i === n - 1 ? CFG.finalW : 1);\n    const wsum = wts.reduce((p, q) => p + q, 0), dmgs = wts.map(w => DK * CF"
+   },
+   {
+    "key": "nightneedle",
+    "name": "Nightneedle Cluster",
+    "i": 4,
+    "lv": 10,
+    "impl": true,
+    "src": "(C, h) => { H = h; const me = H.me, a = C.a, evo = Math.max(1, Math.min(7, Math.round(C.evo || 1))), N = COUNTS[evo - 1], DK = C.base * C.K, per = DK * 2.94 * (1 + 0.08 * (evo - 1)) / N, LS = 1 + 0.03 * (evo - 1), adept = evo >= 4, cel = evo >= 7;\n    const ns = [], half = Math.ceil(N / 2), span = 1.0 / Math.max(1, half - 1), LAUNCH = 0.4, WIN = 0.32 + 0.012 * N, fanW = 0.5 + 0.022 * N;\n    for (l"
+   },
+   {
+    "key": "nightbloom",
+    "name": "Night Bloom",
+    "i": 5,
+    "lv": 15,
+    "impl": true,
+    "src": "(C, h) => {\n    H = h; const me = H.me, X = H.X, evo = evoOf(C), sfx = X.sfx || {}, note = (...a) => sfx.note && sfx.note(...a), chime = (...a) => sfx.chime && sfx.chime(...a), hiss = (...a) => sfx.hiss && sfx.hiss(...a);\n    const DK = C.base * C.K * (1 + TUNE.evoK * (evo - 1)), nSat = evo >= 7 ? 4 : evo >= 4 ? 2 : 0;\n    const solidish = (x, y) => X.blocked(x, y, 0.05, 1), walkable = (x, y) => !"
+   },
+   {
+    "key": "eclipsemantle",
+    "name": "Eclipse Mantle",
+    "i": 6,
+    "lv": 20,
+    "impl": true,
+    "src": "(C, H) => {\n    const me = H.me, g = H.g, ev = evoOf(C), tier = tierOf(ev), frac = EM.frac[tier], dur = EM.dur[tier], now = g.t;\n    ensureBakes(H, [tier >= 2 ? 'moon2' : 'moon0', 'cres']);\n    const P0 = H.X.pet ? H.X.pet() : null;\n    const selfLive = me.spirit ? () => spiritLive(me) : () => !me.dead && (!P0 || !H.X.pet || H.X.pet() === P0);\n    const selfHP = me.spirit ? me.hpMax : (H.X.ST ? H."
+   },
+   {
+    "key": "witchsbrand",
+    "name": "Witch's Brand",
+    "i": 7,
+    "lv": 30,
+    "impl": true,
+    "src": "(C, H) => {\n    H_last = H; const me = H.me, g = H.g, ev = evoOf(C), tier = tierOf(ev), K = C.K || 1, now = g.t;\n    ensureBakes(H, ['tex', 'sealO' + tier, 'sealM' + Math.min(1, tier), 'sealI', 'brand', 'brandCore', 'ground']);\n    const R = WB.R[tier], dx = C.tx - me.x, dy = C.ty - me.y, d = Math.hypot(dx, dy) || 1, dd = Math.min(WB.reach, d);\n    let cx = me.x + dx / d * dd, cy = me.y + dy / d *"
+   },
+   {
+    "key": "dracula",
+    "name": "Dracula",
+    "i": 8,
+    "lv": 40,
+    "impl": true,
+    "src": "(C, h) => {\n    H = h; const me = H.me, g = H.g, ev = evoOf(C), K = C.K || 1, evoK = 1 + 0.1 * (ev - 1), DK = C.base * K * evoK;\n    const N = ev >= 7 ? 4 : ev >= 4 ? 3 : 2, TOT = (2.5 + 0.25 * (N - 2)) * DK, WS = (N - 1) + 1.5;\n    const petHT = () => { const SZ = Math.max(0.6, ((me.r || 0.3) - 0.2) / 0.1); return 1.02 * SZ * (g.pw && g.pw.giant ? 1.35 : 1) * (g.petK || 1); };\n    const bs = Math"
+   },
+   {
+    "key": "demonblade",
+    "name": "Demon Blade",
+    "i": 9,
+    "lv": 50,
+    "impl": true,
+    "src": "(C, h) => {\n    H = h; const me = H.me, g = H.g, ev = evoOf(C), K = C.K || 1, evoK = 1 + 0.1 * (ev - 1), DK = C.base * K * evoK;\n    const NS = ev >= 7 ? 7 : ev >= 4 ? 5 : 3, ORDER = COMBO[NS], TOTK = NS === 7 ? 5.0 : NS === 5 ? 3.8 : 2.6, WF = NS === 7 ? 1.8 : NS === 5 ? 1.7 : 1.6, WS = (NS - 1) + WF, tier = ev >= 7 ? 1 : 0;\n    const hT = (() => { const SZ = Math.max(0.6, ((me.r || 0.3) - 0.2) /"
+   }
+  ],
+  "fire": [
+   {
+    "key": "emberkoi",
+    "name": "Ember Koi",
+    "i": 0,
+    "lv": 1,
+    "impl": true,
+    "src": "(C, H) => I(C, gpuH(H))"
+   },
+   {
+    "key": "cinderfan",
+    "name": "Ring of Fire",
+    "i": 1,
+    "lv": 1,
+    "impl": true,
+    "src": "(C, H) => I(C, gpuH(H))"
+   },
+   {
+    "key": "furnaceseed",
+    "name": "Furnace Seed",
+    "i": 2,
+    "lv": 3,
+    "impl": true,
+    "src": "(C, H) => I(C, gpuH(H))"
+   },
+   {
+    "key": "moltenlash",
+    "name": "Molten Lash",
+    "i": 3,
+    "lv": 6,
+    "impl": true,
+    "src": "(C, H) => I(C, gpuH(H))"
+   },
+   {
+    "key": "phoenixtalon",
+    "name": "Phoenix Talon",
+    "i": 4,
+    "lv": 10,
+    "impl": true,
+    "src": "(C, H) => I(C, gpuH(H))"
+   },
+   {
+    "key": "firewheel",
+    "name": "Firewheel Skip",
+    "i": 5,
+    "lv": 15,
+    "impl": true,
+    "src": "(C, H) => I(C, gpuH(H))"
+   },
+   {
+    "key": "mandala",
+    "name": "Burning Mandala",
+    "i": 6,
+    "lv": 20,
+    "impl": true,
+    "src": "(C, H) => I(C, gpuH(H))"
+   },
+   {
+    "key": "salamander",
+    "name": "Salamander Rush",
+    "i": 7,
+    "lv": 30,
+    "impl": true,
+    "src": "(C, H) => I(C, gpuH(H))"
+   },
+   {
+    "key": "hearthburst",
+    "name": "Hearthburst",
+    "i": 8,
+    "lv": 40,
+    "impl": true,
+    "src": "(C, H) => I(C, gpuH(H))"
+   },
+   {
+    "key": "matchstars",
+    "name": "Falling Matchstars",
+    "i": 9,
+    "lv": 50,
+    "impl": true,
+    "src": "(C, H) => I(C, gpuH(H))"
+   }
+  ],
+  "water": [
+   {
+    "key": "ribbonfin",
+    "name": "Ribbonfin",
+    "i": 0,
+    "lv": 1,
+    "impl": true,
+    "src": "(C, H) => I(C, gpuH(H))"
+   },
+   {
+    "key": "tideglass",
+    "name": "Tideglass Orb",
+    "i": 1,
+    "lv": 1,
+    "impl": true,
+    "src": "(C, H) => I(C, gpuH(H))"
+   },
+   {
+    "key": "crescenttide",
+    "name": "Crescent Tide",
+    "i": 2,
+    "lv": 3,
+    "impl": true,
+    "src": "(C, H) => I(C, gpuH(H))"
+   },
+   {
+    "key": "rainneedle",
+    "name": "Rainneedle Fan",
+    "i": 3,
+    "lv": 6,
+    "impl": true,
+    "src": "(C, H) => I(C, gpuH(H))"
+   },
+   {
+    "key": "whirlpool",
+    "name": "Whirlpool Step",
+    "i": 4,
+    "lv": 10,
+    "impl": true,
+    "src": "(C, H) => I(C, gpuH(H))"
+   },
+   {
+    "key": "bubblesnare",
+    "name": "Bubble Spray",
+    "i": 5,
+    "lv": 15,
+    "impl": true,
+    "src": "(C, H) => I(C, gpuH(H))"
+   },
+   {
+    "key": "waterwheel",
+    "name": "Waterwheel Strike",
+    "i": 6,
+    "lv": 20,
+    "impl": true,
+    "src": "(C, H) => I(C, gpuH(H))"
+   },
+   {
+    "key": "twinundertow",
+    "name": "Twin Undertow",
+    "i": 7,
+    "lv": 30,
+    "impl": true,
+    "src": "(C, H) => I(C, gpuH(H))"
+   },
+   {
+    "key": "pearlburst",
+    "name": "Pearlburst Volley",
+    "i": 8,
+    "lv": 40,
+    "impl": true,
+    "src": "(C, H) => I(C, gpuH(H))"
+   },
+   {
+    "key": "basin",
+    "name": "Falling Basin",
+    "i": 9,
+    "lv": 50,
+    "impl": true,
+    "src": "(C, H) => I(C, gpuH(H))"
+   }
+  ],
+  "ice": [
+   {
+    "key": "antler",
+    "name": "Crystal Antler",
+    "i": 0,
+    "lv": 1,
+    "impl": true,
+    "src": "(C, H) => I(C, gpuH(H))"
+   },
+   {
+    "key": "skate",
+    "name": "Glacier Skate",
+    "i": 1,
+    "lv": 1,
+    "impl": true,
+    "src": "(C, H) => I(C, gpuH(H))"
+   },
+   {
+    "key": "snowbell",
+    "name": "Snowglass Bell",
+    "i": 2,
+    "lv": 3,
+    "impl": true,
+    "src": "(C, H) => I(C, gpuH(H))"
+   },
+   {
+    "key": "frostloom",
+    "name": "Frostneedle Loom",
+    "i": 3,
+    "lv": 6,
+    "impl": true,
+    "src": "(C, H) => I(C, gpuH(H))"
+   },
+   {
+    "key": "snowfall",
+    "name": "Thousand-Wing Snowfall",
+    "i": 4,
+    "lv": 10,
+    "impl": true,
+    "src": "(C, H) => I(C, gpuH(H))"
+   },
+   {
+    "key": "rimecoil",
+    "name": "Rimecoil",
+    "i": 5,
+    "lv": 15,
+    "impl": true,
+    "src": "(C, H) => I(C, gpuH(H))"
+   },
+   {
+    "key": "pendulum",
+    "name": "Icicle Pendulum",
+    "i": 6,
+    "lv": 20,
+    "impl": true,
+    "src": "(C, H) => I(C, gpuH(H))"
+   },
+   {
+    "key": "dominoes",
+    "name": "Polar Dominoes",
+    "i": 7,
+    "lv": 30,
+    "impl": true,
+    "src": "(C, H) => I(C, gpuH(H))"
+   },
+   {
+    "key": "hoarfrost",
+    "name": "Hoarfrost Halo",
+    "i": 8,
+    "lv": 40,
+    "impl": true,
+    "src": "(C, H) => I(C, gpuH(H))"
+   },
+   {
+    "key": "absolutewinter",
+    "name": "Heart of Absolute Winter",
+    "i": 9,
+    "lv": 50,
+    "impl": true,
+    "src": "(C, H) => I(C, gpuH(H))"
+   }
+  ],
+  "thunder": [
+   {
+    "key": "forkedfang",
+    "name": "Forked Fang",
+    "i": 0,
+    "lv": 1,
+    "impl": true,
+    "src": "(C, H) => I(C, gpuH(H))"
+   },
+   {
+    "key": "stormbead",
+    "name": "Stormbead Chain",
+    "i": 1,
+    "lv": 1,
+    "impl": true,
+    "src": "(C, H) => I(C, gpuH(H))"
+   },
+   {
+    "key": "voltscythe",
+    "name": "Volt Scythe",
+    "i": 2,
+    "lv": 3,
+    "impl": true,
+    "src": "(C, H) => I(C, gpuH(H))"
+   },
+   {
+    "key": "thunderpin",
+    "name": "Thunderpin",
+    "i": 3,
+    "lv": 6,
+    "impl": true,
+    "src": "(C, H) => I(C, gpuH(H))"
+   },
+   {
+    "key": "railflash",
+    "name": "Railflash",
+    "i": 4,
+    "lv": 10,
+    "impl": true,
+    "src": "(C, H) => I(C, gpuH(H))"
+   },
+   {
+    "key": "staticblossom",
+    "name": "Static Blossom",
+    "i": 5,
+    "lv": 15,
+    "impl": true,
+    "src": "(C, H) => I(C, gpuH(H))"
+   },
+   {
+    "key": "arcboomerang",
+    "name": "Arc Boomerang",
+    "i": 6,
+    "lv": 20,
+    "impl": true,
+    "src": "(C, H) => I(C, gpuH(H))"
+   },
+   {
+    "key": "sparkstep",
+    "name": "Sparkstep Echo",
+    "i": 7,
+    "lv": 30,
+    "impl": true,
+    "src": "(C, H) => I(C, gpuH(H))"
+   },
+   {
+    "key": "capacitor",
+    "name": "Capacitor Crush",
+    "i": 8,
+    "lv": 40,
+    "impl": true,
+    "src": "(C, H) => I(C, gpuH(H))"
+   },
+   {
+    "key": "stormthread",
+    "name": "Stormthread Volley",
+    "i": 9,
+    "lv": 50,
+    "impl": true,
+    "src": "(C, H) => I(C, gpuH(H))"
+   }
+  ]
+ },
+ "star4": {
+  "strong": [
+   {
+    "key": "cometlance",
+    "name": "Comet Lance"
+   },
+   {
+    "key": "serpents",
+    "name": "Twin Serpents"
+   },
+   {
+    "key": "stomp",
+    "name": "Shockwave Stomp"
+   },
+   {
+    "key": "waltz",
+    "name": "Blade Waltz"
+   },
+   {
+    "key": "gravwell",
+    "name": "Gravity Well"
+   },
+   {
+    "key": "javelin",
+    "name": "Thunder Javelin"
+   },
+   {
+    "key": "glacier",
+    "name": "Glacier Wall"
+   },
+   {
+    "key": "hook",
+    "name": "Chain Hook"
+   },
+   {
+    "key": "mirrorvolley",
+    "name": "Mirror Volley"
+   },
+   {
+    "key": "phantom",
+    "name": "Phantom Step"
+   }
+  ],
+  "ult": [
+   {
+    "key": "starfall",
+    "name": "Starfall"
+   },
+   {
+    "key": "wolves",
+    "name": "Spirit Wolves"
+   },
+   {
+    "key": "pillars",
+    "name": "Judgement Pillars"
+   },
+   {
+    "key": "tidal",
+    "name": "Tidal Wave"
+   },
+   {
+    "key": "cyclone",
+    "name": "Cyclone Dance"
+   },
+   {
+    "key": "prison",
+    "name": "Frost Prison"
+   },
+   {
+    "key": "inferno",
+    "name": "Inferno Ring"
+   },
+   {
+    "key": "arcstorm",
+    "name": "Arc Storm"
+   },
+   {
+    "key": "aegis",
+    "name": "Aegis Burst"
+   },
+   {
+    "key": "breath",
+    "name": "Dragon Breath"
+   }
+  ]
+ },
+ "cards": [
+  {
+   "id": "firedart",
+   "slot": "normal",
+   "name": "Fire Darts",
+   "el": "fire",
+   "r": "common"
+  },
+  {
+   "id": "icicle",
+   "slot": "normal",
+   "name": "Icicle Needles",
+   "el": "frost",
+   "r": "common"
+  },
+  {
+   "id": "leafblade",
+   "slot": "normal",
+   "name": "Leaf Blades",
+   "el": "leaf",
+   "r": "common"
+  },
+  {
+   "id": "sparkzap",
+   "slot": "normal",
+   "name": "Spark Zap",
+   "el": "spark",
+   "r": "rare"
+  },
+  {
+   "id": "bubblebomb",
+   "slot": "normal",
+   "name": "Bubble Bombs",
+   "el": "bubble",
+   "r": "rare"
+  },
+  {
+   "id": "shadowclaw",
+   "slot": "normal",
+   "name": "Shadow Claws",
+   "el": "shadow",
+   "r": "rare"
+  },
+  {
+   "id": "prismlaser",
+   "slot": "normal",
+   "name": "Prism Lasers",
+   "el": "prism",
+   "r": "epic"
+  },
+  {
+   "id": "starboom",
+   "slot": "normal",
+   "name": "Star Boomerangs",
+   "el": "gold",
+   "r": "epic"
+  },
+  {
+   "id": "comet",
+   "slot": "normal",
+   "name": "Comet Cannon",
+   "el": "cosmic",
+   "r": "legend"
+  },
+  {
+   "id": "fireball",
+   "slot": "strong",
+   "name": "Fireball",
+   "el": "fire",
+   "r": "common"
+  },
+  {
+   "id": "pounce",
+   "slot": "strong",
+   "name": "Pounce",
+   "el": "gold",
+   "r": "common"
+  },
+  {
+   "id": "whirl",
+   "slot": "strong",
+   "name": "Whirlwind",
+   "el": "bubble",
+   "r": "common"
+  },
+  {
+   "id": "frostnova",
+   "slot": "strong",
+   "name": "Frost Nova",
+   "el": "frost",
+   "r": "rare"
+  },
+  {
+   "id": "chain",
+   "slot": "strong",
+   "name": "Chain Lightning",
+   "el": "spark",
+   "r": "rare"
+  },
+  {
+   "id": "thorns",
+   "slot": "strong",
+   "name": "Thorn Line",
+   "el": "leaf",
+   "r": "rare"
+  },
+  {
+   "id": "meteor",
+   "slot": "strong",
+   "name": "Meteor Drop",
+   "el": "fire",
+   "r": "epic"
+  },
+  {
+   "id": "blackhole",
+   "slot": "strong",
+   "name": "Black Hole",
+   "el": "cosmic",
+   "r": "epic"
+  },
+  {
+   "id": "thunder",
+   "slot": "strong",
+   "name": "Thunder God",
+   "el": "spark",
+   "r": "legend"
+  },
+  {
+   "id": "megabeam",
+   "slot": "ult",
+   "name": "Mega Beam",
+   "el": "gold",
+   "r": "common"
+  },
+  {
+   "id": "starswarm",
+   "slot": "ult",
+   "name": "Star Swarm",
+   "el": "spark",
+   "r": "common"
+  },
+  {
+   "id": "blossom",
+   "slot": "ult",
+   "name": "Blossom Storm",
+   "el": "leaf",
+   "r": "common"
+  },
+  {
+   "id": "meteorstorm",
+   "slot": "ult",
+   "name": "Meteor Storm",
+   "el": "fire",
+   "r": "rare"
+  },
+  {
+   "id": "clones",
+   "slot": "ult",
+   "name": "Shadow Army",
+   "el": "shadow",
+   "r": "rare"
+  },
+  {
+   "id": "blizzard",
+   "slot": "ult",
+   "name": "Blizzard",
+   "el": "frost",
+   "r": "rare"
+  },
+  {
+   "id": "timestop",
+   "slot": "ult",
+   "name": "Time Stop",
+   "el": "cosmic",
+   "r": "epic"
+  },
+  {
+   "id": "dragon",
+   "slot": "ult",
+   "name": "Dragon Spirit",
+   "el": "fire",
+   "r": "epic"
+  },
+  {
+   "id": "supernova",
+   "slot": "ult",
+   "name": "Supernova",
+   "el": "prism",
+   "r": "legend"
+  },
+  {
+   "id": "phoenix",
+   "slot": "ult",
+   "name": "Phoenix Form",
+   "el": "fire",
+   "r": "legend"
+  }
+ ],
+ "dbg": [
+  [
+   "earth",
+   "wind",
+   "light",
+   "dark",
+   "fire",
+   "water",
+   "ice",
+   "thunder"
+  ],
+  "object",
+  "object"
+ ],
+ "elemUltCounts": {
+  "earth": 11,
+  "wind": 11,
+  "light": 11,
+  "dark": 12,
+  "fire": 11,
+  "water": 11,
+  "ice": 11,
+  "thunder": 11
+ },
+ "glm": 0,
+ "fg": true
+}

@@ -1274,6 +1274,7 @@ CAL.bossMake = CAL.bossMake || {};
           for (let j = 0; j < n; j++) { const a = away + (j - (n - 1) / 2) * 0.9, q = X.freeSpot(tr.x + Math.cos(a) * 0.9, tr.y + Math.sin(a) * 0.9, 0.4) || { x: tr.x, y: tr.y }; const t = D.mobs[Math.floor(Math.random() * D.mobs.length)], m = X.spawnMon(HEAVY.includes(t) ? D.mobs[0] : t, q.x, q.y, { rift: true, pack: 1900 + tr.n, aggro: true });
             m.aggro = true; m.calTear = true; m.dmg *= D.dmgK || 0.7; m.calEased = true; m.cd = 1.2 + Math.random(); C.tearMons.push(m); C.tearSpawned = (C.tearSpawned || 0) + 1;
             X.ring(q.x, q.y, 0.2, 1.0, 0.3, FRACTURE, 0.25); }
+          if (CAL.tearLeader) CAL.tearLeader(X, C, D, tr, C.tearMons.slice(-n));   // v390 M: every other pour of a tear comes with a pack leader (20zz9)
           X.boom(tr.x, tr.y - 0.9, 0.9, FRACTURE, FRACTURE_HI, { n: 10, shake: 2 }); snd(X, 'crack'); tr.flash = 0.5; tr.next = 6.5 + Math.random() * 3; } }
       else if (live < TEAR_CAP) { tr.next -= dt; if (tr.next <= 0) { tr.warn = 1.0; snd(X, 'hiss', 0.8, 0.14, 650); } }
       if (tr.flash) tr.flash = Math.max(0, tr.flash - dt); } }
@@ -1308,7 +1309,8 @@ CAL.bossMake = CAL.bossMake || {};
       const nt = 'cinderslug', A = MON[m.type], B = MON[nt]; if (!A || !B) continue; const k = (f, d) => (A[f] ? B[f] / A[f] : d);
       m.hp *= k('hp', 1); m.maxhp = m.hp; m.dmg *= k('dmg', 1); m.spd *= k('spd', 1); m.r *= k('r', 1); m.xp *= k('xp', 1); m.color = B.color; m.type = nt; } }
     easeAll();
-    const ch = champion(X, D.champ); ch.dmg *= DK / 0.7; ch.calEased = true; C.champ = ch; C.easeAll = easeAll;
+    // v390 M: the corrupted Cocopet at the gate (20zz9, CAL.guardians) replaces the champion: one guardian in the far room, not two
+    const ch = (CAL.guardians && CAL.guardians(X, self, H, key, C)) || champion(X, D.champ); if (!ch.calMini) { ch.dmg *= DK / 0.7; ch.calEased = true; } C.champ = ch; C.easeAll = easeAll;
     // (QA v386: a flier drifting out over the lava or into a wall, beyond a starter's reach, is drawn back to the floor it left
     //  within about three seconds)
     const onFloor = (x, y) => { const M = X.M, tx = Math.floor(x), ty = Math.floor(y); if (tx < 0 || ty < 0 || tx >= M.MW || ty >= M.MH) return false; const t = M.G[ty * M.MW + tx]; return t !== T_GAP && t !== T_SOLID; };
@@ -1327,8 +1329,8 @@ CAL.bossMake = CAL.bossMake || {};
         if (self.done && !bled && !X.g.won) { bled = true; openTears(X, C, D, key); const mod = self.mod; if (mod && mod.goal) { const g0 = mod.goal; mod.goal = () => self.done ? 'Cleared! The rift still bleeds: leave by the door or keep fighting' : g0(); }
           X.after(2.8, () => { if (!X.g.won) X.banner('THE RIFT STILL BLEEDS', 'Leave by the door, or stay and fight what pours out', FRACTURE_HI, 2.6, true); }); }
         if (bled && !X.g.won) tearTick(X, C, D, dt); },
-      drawGround(c) { if (!ch.dead) champGround(c, X, ch); for (const tr of C.tears) tearGround(c, X, tr); },
-      drawOver(c) { if (!ch.dead && Math.hypot(ch.x - X.me.x, ch.y - X.me.y) < 12) champOver(c, X, ch); if (C.tears.length && !X.g.won) { const G = gpu(c, false); for (const tr of C.tears) { const Xs = X.sx(tr.x), Ys = X.sy(tr.y); if (Xs > -X.Tz() * 3 && Xs < X.W() + X.Tz() * 3 && Ys > -X.Tz() * 4 && Ys < X.H() + X.Tz() * 3) tearOver(c, X, tr, G); } gpuEnd(c, G); } } }; };
+      drawGround(c) { if (!ch.dead && !ch.calMini) champGround(c, X, ch); for (const tr of C.tears) tearGround(c, X, tr); },
+      drawOver(c) { if (!ch.dead && !ch.calMini && Math.hypot(ch.x - X.me.x, ch.y - X.me.y) < 12) champOver(c, X, ch); if (C.tears.length && !X.g.won) { const G = gpu(c, false); for (const tr of C.tears) { const Xs = X.sx(tr.x), Ys = X.sy(tr.y); if (Xs > -X.Tz() * 3 && Xs < X.W() + X.Tz() * 3 && Ys > -X.Tz() * 4 && Ys < X.H() + X.Tz() * 3) tearOver(c, X, tr, G); } gpuEnd(c, G); } } }; };
   Object.assign(CAL, { BROOD, champion, DUNGEON });
 
   /* ======================= the arenas' painters (for the boss files) ======================= */
