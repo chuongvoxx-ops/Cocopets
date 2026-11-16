@@ -2180,7 +2180,8 @@ GAMES.dungeon = {
        fades, a bloom where it meets the pet and a few motes drifting up it. About twice the old column's width, its peak
        lower so it reads soft, never blown out. 2D: the same three layers from one dissolving sprite (castBeamSprite) */
     function castColumn(c, p, X, Y, T, a) { const col = hx6(p.color, '#FFE37A'), soft = mixHex(col, '#FFFFFF', 0.35), pale = mixHex(col, '#FFFFFF', 0.68), life = 1 - a, tt = g.t + (p.sd = p.sd || Math.random() * 50);
-      const k = Math.min(1, life / 0.1) * Math.pow(a, 0.75) * 0.85, W = p.size * T * (1.2 + 0.3 * life), top = T * 12.5, foot = Y + T * 0.05;
+      /* (v393, the user: too wide and too bright) about half the width and ~40% less light than v389b; the core keeps its share */
+      const k = Math.min(1, life / 0.1) * Math.pow(a, 0.75) * 0.5, W = p.size * T * (1.2 + 0.3 * life) * 0.5, top = T * 12.5, foot = Y + T * 0.05;
       if (k < 0.01) return;
       if (DQ) { const N = 18, fk = 0.6, xs = v => X + Math.sin(v * 2.4 + tt * 1.3) * T * 0.12 * v, ys = v => foot - top * v;
         /* (v392 Z) its foot feathered: the chain starts DN below the foot, its strength rising smoothly from nothing there to full UP
