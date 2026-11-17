@@ -1123,3 +1123,4 @@ Every new boss painter (rift fiends, Tower bosses, minis that get their own art)
 - v396: Belfry D1's door also needs every brood cleared (valves, then Gloomfin, then the rest of the brood; the goal and hint say so).
 - v397: the Belfry hall's east gate (the Sunken Muster) is 100 monsters, five groups of twenty, before Varkul.
 - v398: Clapper Counterweights load fix (stale stages released), north gate crystal in a cage, shrines and ability drops redrawn on the GPU, Belfry boss attack effects rebuilt, evil-Cocopet and crowd performance with loading-screen preload.
+- v399: Kharrox attack effects finished on the GPU, and his stage released when a new one starts.

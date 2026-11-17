@@ -799,7 +799,10 @@ const BELK = (() => {
   function drawGroundFx(c, FX, t, T) { const M = FX.mem, m = FX.m; if (!M || !M.ok || !m || !M.fx) return; const hz = FX.S.hz, ws = hz.find(z => z.kind === 'belkSweepWarn'), wt = hz.find(z => z.kind === 'belkTollWarn'), rings = hz.filter(z => z.kind === 'belkRing'), gfx = M.fx.filter(f => GROUND[f.kind]);
     if (!ws && !wt && !rings.length && !gfx.length) return;
     const layer = (n, K) => { if (ws) sweepGround(c, FX, ws, T, t, K, n); if (wt) tollGround(c, FX, wt, T, t, K, n); for (const z of rings) ringGround(c, FX, z, T, t, K, n); };
-    c.save(); c.lineJoin = 'round'; c.lineCap = 'round'; layer(0, null); c.restore();
+    c.save(); c.lineJoin = 'round'; c.lineCap = 'round'; layer(0, null);
+    for (const f of gfx) if (f.kind === 'sweep') { const sp = TM.swSpread, u = cl(f.t / f.life), k0 = ease(Math.min(1, u * 1.6)), e = 1 - u, aa = f.a + sp - 2 * sp * k0, X = FX.sx(f.x), Y = FX.sy(f.y), R = T * 3.7, n = 8, st = (f.a + sp - aa) / n;   // (the swept ground's body under its light: steps of a soft warm shade, darkest at the head)
+      if (k0 > 0.03) for (let i = 0; i < n; i++) for (const [w, al] of [[T * 2.2, 0.06], [T * 1.3, 0.1]]) { c.beginPath(); c.arc(X, Y, R, aa + st * i, aa + st * (i + 1.02)); c.lineCap = 'butt'; c.strokeStyle = `rgba(70,22,10,${(al * e * (1 - i / n)).toFixed(3)})`; c.lineWidth = w; c.stroke(); } }
+    c.restore();
     const F = fg(), Q = F ? F.begin(c, null) : null, K = kit(c, Q, T);
     try { layer(1, K); for (const f of gfx) groundOne(FX, f, T, t, K); } finally { if (Q) F.flush(c); }
     c.save(); layer(2, null); c.restore(); }
@@ -900,9 +903,10 @@ const BELK = (() => {
         if (!lf) for (let i = 0; i < 4; i++) { const a = t * (2.6 + 0.7 * i) + i * 1.6, rr = T * (0.65 + 0.28 * i) * (1.2 - 0.3 * cg); K.star(p[0] + Math.cos(a) * rr, p[1] + Math.sin(a) * rr * 0.6, T * 0.3 * (0.4 + cg), 0.55 * cg * (0.55 + 0.45 * Math.sin(t * 9 + i * 2)), '#FFE2CC'); } }
       // the claw's ribbon of motion: three layers (a wide soft white, turquoise, a thin hot core), fading with age, every link
       // ramped to its neighbours so the chain has no beads or steps
-      const tr = M.trail; if (tr && tr.length > 1) { const pt = q => [FX.sx(q.x), FX.sy(q.y) - q.z * ZK * T], fo = q => { const a = cl((M.bt - q.t) / 0.5); return 1 - a * a; }, st = tr.length > 12 ? 2 : 1;
+      const tr = M.trail; if (tr && tr.length > 1) { const pt = q => [FX.sx(q.x), FX.sy(q.y) - q.z * ZK * T], fo = q => { const a = cl((M.bt - q.t) / 0.52); return 1 - a * a * a; }, st = tr.length > 12 ? 2 : 1;
+        ribbonUnder(c, tr.filter(q => fo(q) > 0.02).map(pt), T);   // (a soft deep-teal body under its light: added light alone is lost on the pale stone)
         for (let i = st; i < tr.length; i += st) { const q0 = tr[i - st], q1 = tr[i], a0 = fo(q0), a1 = fo(q1); if (a0 + a1 < 0.02) continue; const [x0, y0] = pt(q0), [x1, y1] = pt(q1);
-          K.beam(x0, y0, x1, y1, T * 1.25, '#FFFFFF', 0.16, a0 * a0, a1 * a1); K.beam(x0, y0, x1, y1, T * 0.6, TQ_HI, 0.42, a0, a1); K.beam(x0, y0, x1, y1, T * 0.18, '#FFFFFF', 0.85, a0, a1); } }
+          K.beam(x0, y0, x1, y1, T * 1.8, TQ, 0.42, a0 * a0, a1 * a1); K.beam(x0, y0, x1, y1, T * 0.95, TQ_HI, 0.6, a0, a1); K.beam(x0, y0, x1, y1, T * 0.3, '#FFFFFF', 0.95, a0, a1); } }
       // the bell's resonance while it gathers its toll (and while it calls its brood): soft rings round its bands, its light swelling
       const A = M.A, tg = cl(P.tollGlow || 0) * live; if (tg > 0.1 && !m.dead) { const b = at('bell'), k = 0.5 + 0.5 * Math.sin(t * 22);
         for (let i = 0; i < 3; i++) { const q = at('band' + i), rx = (roOf(BANDS[i]) + 0.12) * T * (1.25 + 0.08 * k), ry = rx * 0.42; K.wring(q[0], q[1], rx, ry, TQ_HI, 0.4 * tg * (0.7 + 0.3 * k), 1, 0.07, i * 2.1, 2); if (!lf) K.wring(q[0], q[1], rx * 1.15, ry * 1.15, TQ, 0.22 * tg, 0, 0.05, i * 3.7, -1.5); }
@@ -921,6 +925,12 @@ const BELK = (() => {
       if (inSweep(FX, A, me.x, me.y, me.r)) arrowTo(c, FX, me, safeSpot(FX, m, A), T, 'BEHIND THE SMALL CLAW'); }
     if (A && A.kind === 'toll' && A.phase === 'wind') { const b = at('bellTop'); countdown(c, b[0], b[1] - T * 1.5, T, TM.tollWind - A.t, TM.tollWind, TQ_HI);
       if (!inGap(A, me.x, me.y)) arrowTo(c, FX, me, gapSpot(FX, A, me), T, 'TO THE OPENING'); } }
+  /* (v398 B3) the ribbon's body: one smooth path through the claw's points, stroked soft and layered, fading toward its old end */
+  function ribbonUnder(c, P, T) { if (P.length < 2) return; const A = P[0], B = P[P.length - 1]; if (Math.hypot(B[0] - A[0], B[1] - A[1]) < 2) return;
+    c.save(); c.lineCap = 'round'; c.lineJoin = 'round';
+    for (const [w, al] of [[T * 1.9, 0.12], [T * 1.2, 0.2], [T * 0.6, 0.3]]) { const g = c.createLinearGradient(A[0], A[1], B[0], B[1]); g.addColorStop(0, 'rgba(8,52,62,0)'); g.addColorStop(0.55, `rgba(8,52,62,${(al * 0.6).toFixed(3)})`); g.addColorStop(1, `rgba(8,52,62,${al})`);
+      c.beginPath(); c.moveTo(A[0], A[1]); for (let i = 1; i < P.length - 1; i++) c.quadraticCurveTo(P[i][0], P[i][1], (P[i][0] + P[i + 1][0]) / 2, (P[i][1] + P[i + 1][1]) / 2); c.lineTo(B[0], B[1]); c.strokeStyle = g; c.lineWidth = w; c.stroke(); }
+    c.restore(); }
   /* one passing effect's part above the floor */
   function upperOne(c, FX, m, f, T, t, K, at) { const u = cl(f.t / f.life), env = Math.sin(Math.PI * Math.min(1, u * 1.2)), lf = K.lf, X = FX.sx(f.x == null ? m.x : f.x), Y = FX.sy(f.y == null ? m.y : f.y);
     if (f.kind === 'reso') { const b = at('bell'), n = f.big ? 3 : 2; for (let i = 0; i < n; i++) { const uu = cl(u * 1.2 - i * 0.18); if (uu <= 0) continue; const rx = T * (1.6 + uu * (2.4 + i * 1.2)); K.wring(b[0], b[1], rx, rx * 0.42, TQ_HI, 0.5 * (1 - uu), 2, 0.06, i * 1.3 + 0.4, 1.5); } K.glow(b[0], b[1], T * 2.2, TQ, 0.22 * (1 - u)); }
@@ -942,7 +952,7 @@ const BELK = (() => {
       for (let i = 0; i < (lf ? 1 : 3); i++) { const uu = (f.t * 0.9 + i / 3) % 1, rx = T * (1.6 + uu * 4); K.wring(b[0], b[1] - H * 0.3 * uu, rx, rx * 0.4, TQ_HI, 0.45 * al * (1 - uu), 2, 0.05, i * 1.9, 1.5); }
       K.shimmer(b[0], b[1] - T, T * 3, 0.25 * al, 1.2); }
     else if (f.kind === 'geyser') { const up = sstep(0, 0.25, f.t), dn = 1 - sstep(f.life * 0.55, f.life, f.t), h = T * (2.6 + 1.6 * up) * (0.4 + 0.6 * up), al = up * dn;
-      K.stream(X, Y, X, Y - h, T * 0.7 * (0.6 + 0.4 * dn), 0.75 * al, f.seed); K.spray(X, Y - h, T * 1.3, 0.7 * al, f.seed + 1, null, 0.9); K.spray(X, Y - T * 0.1, T * 1.1, 0.55 * al, f.seed + 2, null, 0.6);
+      K.stream(X, Y, X, Y - h, T * 0.7 * (0.6 + 0.4 * dn), 0.75 * al, f.seed); K.beam(X, Y, X, Y - h * 1.05, T * 0.55, '#E8FFFA', 0.6 * al, 1, 0.15); K.glow(X, Y - T * 0.3, T * 1.9, TQ_HI, 0.35 * al);   // (its white heart, so it reads over the water) K.spray(X, Y - h, T * 1.3, 0.7 * al, f.seed + 1, null, 0.9); K.spray(X, Y - T * 0.1, T * 1.1, 0.55 * al, f.seed + 2, null, 0.6);
       K.bubbles(X, Y - h * 0.5, T * 0.9, h * 0.55, 0.45 * al, f.seed, 1.6); K.glow(X, Y - h * 0.4, T * 1.6, TQ, 0.2 * al); }
     else if (f.kind === 'dying') { const b = at('bell'), g = sstep(0, 1, u), fl = 0.75 + 0.25 * Math.sin(t * 31);
       for (let i = 0; i < (lf ? 4 : 8); i++) { const a = i / 8 * TAU + 0.3 + 0.15 * Math.sin(t * 2 + i), L = T * (1.4 + 3.4 * g) * (0.7 + 0.3 * hh(i, 8)); K.beam(b[0], b[1], b[0] + Math.cos(a) * L, b[1] + Math.sin(a) * L * 0.7, T * (0.22 + 0.25 * g), TQ_HI, 0.55 * g * fl, 1, 0); }
