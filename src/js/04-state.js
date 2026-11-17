@@ -77,7 +77,7 @@ function newState(name, genome) {
     v: 4, hid: 'h' + t.toString(36), savedAt: t, lightsOff: false, gems: {}, coins: 300, pearls: 10, crystals: 0, fusionStones: 0, fuseRolls: 0, lastGiftDay: null, animas: { have: {}, eq: null, res: null, seen: {} },
     house: { rooms: [newRoom('living', 1), newRoom('shop', 2)], cur: 0, n: 2, name: '', paint: 'cream', roof: 'terracotta' }, inv: {}, themes: ['meadow'], pantry: {}, others: [],
     map: { stars: {}, best: {}, plays: 0, milestones: {} },
-    cards: {}, accs: [], dun: { best: 0, runs: 0, kills: 0, boxes: 0, pity: 0, god: false, tab: 'world', seen: {}, grades: {} }, rift: { seals: {}, prog: {}, gates: {}, rlyeh: 0, ver: { belfry: 3 }, bel: {} },   // v392 B1: the Belfry's layout 3 (seven stages)   // (v391 B1: ver, a rift's stage-layout version (the Belfry rebuilt: 2); bel, the Belfry's small checkpoint numbers)
+    cards: {}, accs: [], dun: { best: 0, runs: 0, kills: 0, boxes: 0, pity: 0, god: false, tab: 'world', seen: {}, grades: {} }, rift: { seals: {}, prog: {}, gates: {}, rlyeh: 0, ver: { belfry: 4 }, bel: {} },   // v394 B1: the Belfry's layout 4 (eight stages, three dungeons)   // (v391 B1: ver, a rift's stage-layout version (the Belfry rebuilt: 2); bel, the Belfry's small checkpoint numbers)
     sound: true, retro: true, fast: false, tips: {}, dev: false, unlockAll: false,
     skillsV: SKILLS_V,   // v391 K: a new game starts under the skills rules (no re-roll on its first load)
     welcome: 0, freeTen: 0, login: { m: '', n: 0, last: '', seen: '' },

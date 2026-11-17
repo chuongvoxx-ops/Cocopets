@@ -635,7 +635,7 @@ if (typeof window !== 'undefined') window.BEL = BEL;
     c.translate(0, -T * 0.82); if (o.on) glow(c, 0, 0, T * 1.1, TURQ, 0.4 + 0.15 * Math.sin((o.t || 0) * 3)); c.rotate(a); c.strokeStyle = LN; c.lineWidth = r * 0.34; c.beginPath(); c.arc(0, 0, r, 0, TAU); c.stroke(); c.strokeStyle = o.on ? BRASS_HI : BRASS; c.lineWidth = r * 0.2; c.stroke();
     for (let i = 0; i < 4; i++) { c.beginPath(); c.moveTo(0, 0); c.lineTo(Math.cos(i * Math.PI / 2) * r, Math.sin(i * Math.PI / 2) * r); c.strokeStyle = LN; c.lineWidth = r * 0.26; c.stroke(); c.strokeStyle = o.on ? BRASS_HI : BRASS; c.lineWidth = r * 0.13; c.stroke(); }
     c.fillStyle = o.on ? TURQ : BRASS; c.beginPath(); c.arc(0, 0, r * 0.24, 0, TAU); c.fill(); c.strokeStyle = LN; c.lineWidth = 1.2; c.stroke(); c.restore();
-    if (o.locked && !o.on) { c.save(); c.strokeStyle = 'rgba(255,77,109,.85)'; c.lineWidth = Math.max(2, T * 0.06); c.beginPath(); c.arc(Xs, Ys - T * 0.82, r * 1.35, 0, TAU); c.stroke(); c.restore(); } void lw; }
+    if (o.locked && !o.on) { c.save(); c.strokeStyle = o.lockCol || 'rgba(255,77,109,.85)';   /* v394 B1: o.lockCol */ c.lineWidth = Math.max(2, T * 0.06); c.beginPath(); c.arc(Xs, Ys - T * 0.82, r * 1.35, 0, TAU); c.stroke(); c.restore(); } void lw; }
   BEL.wheelArt = wheelArt;
   /* ---- the section guardians: evil Cocopets of the sea and the abyss (worker M's EVIL_MINI, 20zz9) ---- */
   const GUARDS = {
@@ -647,11 +647,12 @@ if (typeof window !== 'undefined') window.BEL = BEL;
   const EM = () => { try { return (typeof self !== 'undefined' && self.EVIL_MINI) || null; } catch (e) { return null; } };
   /* set the section's guardian at (x, y) guarding gate { x, y }; its layer runs from everyStage. Falls back to the engine's
      own Rift-touched lesser boss when worker M's module is not there */
-  function placeGuard(X, key, x, y, gate) { const C = ctx(X), d = GUARDS[key]; if (!d || C.guard) return C.guard ? C.guard.m : null; let m = null; const E = EM();
+  function placeGuard(X, key, x, y, gate, o) {   /* v394 B1: o.hpMin (a dungeon's guardian never weaker than its pack leaders) */ const C = ctx(X), d = GUARDS[key]; if (!d || C.guard) return C.guard ? C.guard.m : null; let m = null; const E = EM();
     if (E && E.spawn) { try { const lvl = (X.F && X.F.n) || 10, hp = E.hpFor ? E.hpFor(lvl) : null, dmg = E.dmgFor ? E.dmgFor(lvl) : null;
         m = E.spawn(X, { x, y, home: { x, y }, gate, el: d.el, seed: d.seed, palette: d.palette, hint: d.hint, name: d.name, short: d.short, sub: d.sub, lvl, hp: hp ? Math.round(hp * d.hpK) : undefined, dmg: dmg || undefined, wakeR: 8.5, leash: 15 });
         if (m && !C.layer && E.layer) C.layer = E.layer(X); } catch (e) { try { console.warn('bel guard', e); } catch (e2) {} m = null; } }
     if (!m) { const B2 = BOSSES.find(b => b.id === 'kharrox'); m = X.lesserBoss(x, y, 0.35, '', B2); if (m && typeof RiftEvil !== 'undefined') { const Ev = RiftEvil.make(d.seed * 7919 >>> 0, null); m.evil = Ev; m.glow = d.palette.col; } if (m) { m.bname = d.name; m.aggro = false; } }
+    if (m && o && o.hpMin > m.maxhp) { m.maxhp = m.hp = Math.round(o.hpMin); }
     if (m) { m.belGuard = key; C.guard = { m, key, def: d, gate, home: { x, y } }; }
     return m; }
   BEL.placeGuard = placeGuard;
@@ -943,89 +944,159 @@ if (typeof window !== 'undefined') window.BEL = BEL;
     get how() { return fiendHere(id) ? undefined : `${title} (a stand-in fight until the 3D boss is in): defeat it.`; },
     make(X, self, H) { if (fiendHere(id)) { const f = BEL.bossMake[id] || (FIEND_DEFS[id] && FIEND_DEFS[id].bossMake); return (f && f(X, self, H)) || {}; } return fallbackBoss(X, self, H, oldId, seal, title); } }; }
 
-  /* ======================= v392 B1: SECTION 1's FIRST STAGE: THE DROWNED LOWER CHURCH (a regular dungeon) =======================
-     The user (v392): "Put a regular dungeon there first though, where you have to kill 150 enemies and the giant evil cocopets
-     before the gate trial." The causeway (three low waves) runs north out of the sea into the flooded lower church: the
-     narthex, the long lower nave with its columns standing in shallow water, two side chapels, and the drowned choir at the
-     north end, where the gate to the Hall of Three Tides waits. Exactly 150 of the brood in thirty packs of four to six (each
-     a mix: crawlers up front, leeches spitting from the back, a lantern healing them), every pack with a leader (EVIL_MINI.leader,
-     as the Caldera's dungeons), and a giant corrupted Cocopet at the gate (EVIL_MINI.spawn, the doubled body, PetGL on the
-     GPU): Gloomfin the Abyssal. The gate is sealed until all 150 are dead AND Gloomfin falls. Far packs wait off the field
-     (the engine's live cap, 36 at once) and walk back in as the field thins. Tuned for the rift's level 10 (the brood at 0.8
-     health and 0.75 blows here; the leaders at a quarter of Gloomfin's health, a third of its blows: thirty of them).
-     The lands: the causeway's worn slabs (belcause), the narthex and nave's dark wet flagstones (belnave), the chapels and
-     choir's pale limestone (belfry): each seamless, the walls ivory over the black tide, dressed with breakable props. */
+  /* the Drowned Lower Church's guardian (v392 B1; v394 B1: dungeon 1's) */
   GUARDS.church = { name: 'Gloomfin the Abyssal', short: 'Gloomfin', el: 'water', seed: 317, sub: 'A giant Cocopet of the abyss bars the gate to the Hall of Three Tides', palette: { tint: '#0B1C26', tintK: 0.9, pal: { sec: '#7CF2C8', cheek: '#08202A' }, col: '#5FE0B8', glow: '#2FB890', core: '#E6FFF6' }, hint: { tail: 'fish', ears: 'fin', horns: 'ram' }, hpK: 1 };
-  const CHURCH_N = 150, CHURCH_SIZES = [5, 6, 4, 5, 5, 6, 4, 5, 5, 6, 4, 5, 5, 6, 4, 5, 5, 6, 4, 5, 5, 6, 4, 5, 5, 6, 4, 5, 5, 5];   // (thirty packs, 150 in all)
-  const CHURCH = (() => { const W = 57, Hh = 100, g = grid(W, Hh, '~');
-    const hall = (x0, y0, x1, y1) => { rect(g, x0, y0, x1, y1, '#'); rect(g, x0 + 1, y0 + 1, x1 - 1, y1 - 1, '.'); };
-    hall(14, 2, 42, 26); hall(8, 24, 48, 58); hall(14, 57, 42, 76); hall(1, 32, 9, 49); hall(47, 32, 55, 49);
-    rect(g, 24, 24, 32, 27, '.'); rect(g, 24, 56, 32, 59, '.'); rect(g, 8, 37, 10, 43, '.'); rect(g, 46, 37, 48, 43, '.'); rect(g, 25, 75, 31, 97, '.');
-    for (let y = 63; y <= 67; y++) { put(g, 14, y, '~'); put(g, 42, y, '~'); }   // (the narthex's broken side walls, the sea beyond)
-    // the flooded floors (walkable shallow water): most of the nave, a pool in the narthex
-    rect(g, 13, 29, 43, 53, 'w'); rect(g, 19, 63, 37, 71, 'w');
-    // columns standing in the water (some broken), benches become floating slabs, upward falls, ribs, lamps, coral
-    for (const x of [16, 22, 34, 40]) for (const y of [31, 38, 45, 52]) put(g, x, y, (x + y) % 3 ? 'C' : 'U');
-    for (const [x, y, ch] of [[19, 64, 'Y'], [37, 70, 'Y'], [28, 41, 'F'], [9, 26, 'I'], [47, 26, 'I'], [8, 55, 'N'], [48, 55, 'N'], [14, 10, 'N'], [42, 10, 'N'], [3, 34, 'Z'], [53, 47, 'Z'], [2, 46, 'O'], [54, 34, 'Q'], [16, 4, 'P'], [40, 4, 'P'], [20, 21, 'Y'], [36, 21, 'Y'], [24, 78, 'J'], [32, 83, 'J'], [24, 88, 'J'], [32, 93, 'J'], [11, 80, 'C'], [45, 86, 'C'], [6, 64, 'Z']]) put(g, x, y, ch);
-    put(g, 28, 95, 'S'); put(g, 28, 4, 'E'); put(g, 28, 9, 'G');
-    return rows(g); })();
-  // the pack centres (layout tiles), by hall: narthex 5, nave 13, the chapels 3 each, the choir 6
-  const CHURCH_PACKS = [[20, 61], [36, 61], [28, 66], [18, 72], [38, 72],
-    [12, 28], [28, 28], [44, 28], [19, 34], [37, 34], [12, 41], [28, 36], [44, 41], [19, 48], [37, 48], [12, 54], [28, 50], [44, 54],
-    [4, 36], [6, 41], [4, 46], [52, 36], [50, 41], [52, 46],
-    [19, 6], [37, 6], [18, 14], [38, 14], [22, 20], [34, 20]];
-  // each pack's mix by size: crawlers up front, leeches behind, a lantern healing them (one in packs of five or more)
-  const PACK_MIX = { 4: ['crawler', 'crawler', 'leech', 'crawler'], 5: ['crawler', 'crawler', 'leech', 'reeflantern', 'crawler'], 6: ['crawler', 'crawler', 'leech', 'reeflantern', 'crawler', 'leech'] };
-  function makeChurch(X, self, H) {
-    const M = X.M, mk = M.marks, me = X.me, C = ctx(X), E0 = mk.E[0], G0 = mk.G[0];
-    // the lands: the causeway's slabs, the narthex and nave's wet flagstones, the chapels and choir's limestone (the tiles are
-    // not painted yet when make runs, so no retile)
-    { const bi = id => Math.max(0, BIOME_ORDER.indexOf(id)), cause = bi('belcause'), nave = bi('belnave'); for (let y = 0; y < M.MH; y++) for (let x = 0; x < M.MW; x++) { const ly = y - 1, lx = x - 1, k = y * M.MW + x; if (ly >= 76) M.BI[k] = cause; else if (ly >= 24 && ly <= 76 && lx >= 10 && lx <= 46) M.BI[k] = nave; } }
-    X.F.liveCap = 36;   // (only this stage: the hall's trials keep their own exact populations)
-    const brood = [];
-    CHURCH_PACKS.forEach(([lx, ly], i) => { const n = CHURCH_SIZES[i], p = Wp(lx, ly), mix = PACK_MIX[n];
-      for (let j = 0; j < n; j++) { const a = j / n * TAU + i, q = X.freeSpot(p.x + Math.cos(a) * 1.2, p.y + Math.sin(a) * 1.2, 0.4) || X.freeSpot(p.x, p.y, 0.4) || p; const m = BEL.spawn(X, mix[j], q.x, q.y, { pack: 10 + i, hpK: 0.8, dmgK: 0.75, count: false }); if (m) { m.belChurch = 1 + i; m.room = 0; brood.push(m); } } });
-    X.g.total = brood.length;
-    // the giant at the gate
-    const mini = placeGuard(X, 'church', G0.x, G0.y, { x: E0.x, y: E0.y });
-    // a leader to every pack (a quarter of Gloomfin's health, a third of its blows: thirty of them stand in the way)
-    const E = EM(); let leaders = [];
-    if (E && mini) { const of = { maxhp: Math.round((mini.maxhp || 7200) * 0.5), hp: 0, dmg: (mini.dmg || 17) * 0.66 }; try { leaders = E.packLeaders ? E.packLeaders(X, mini, q => !!q.belChurch, { hpOf: of, dmgOf: of }) : []; } catch (e) { leaders = []; }
-      if (!leaders.length && E.leader) for (let i = 0; i < CHURCH_PACKS.length; i++) { const q = brood.find(m => m.belChurch === i + 1 && m.type === 'crawler'); if (q) leaders.push(E.leader(X, q, { hpOf: of, dmgOf: of })); } }
-    H.setExit(E0.x, E0.y, 'The Hall of Three Tides');
-    X.after(2.2, () => X.banner('THE DROWNED LOWER CHURCH', `Clear all ${CHURCH_N} of the brood and ${GUARDS.church.short} at the gate`, TURQ, 3, true, true));
-    const left = () => H.monstersLeft();
-    let said = false;
-    return { brood, leaders, mini, N: CHURCH_N,
-      update() { const n = left(); if (!said && n === 0 && !guardDown(X)) { said = true; X.banner('THE BROOD IS GONE', `${GUARDS.church.short} still holds the gate`, '#C9FFF8', 2.4, true); }
-        if (!self.done && n === 0 && guardDown(X)) { self.done = true; X.banner('THE GATE OPENS', 'On to the Hall of Three Tides', SAFE, 2.6, true); X.flash(0.25, '#FFFFFF'); snd(X, 'fanfare'); } },
-      hint() { if (self.done) return null; const n = left(); if (n === 0) return mini && !mini.dead ? mini : null; let best = null, bd = 1e9; for (const m of X.mons) { if (m.dead || m.boss || !m.belChurch) continue; const d = Math.hypot(m.x - me.x, m.y - me.y); if (d < bd) { bd = d; best = m; } } return bd > 8 ? best : null; },
-      goal() { const n = left(); if (self.done) return 'The gate is open · on to the Hall of Three Tides'; return n > 0 ? `${n} of ${CHURCH_N} brood left${mini && !mini.dead ? ` · ${GUARDS.church.short} at the gate` : ''}` : `Defeat ${GUARDS.church.short} to open the gate`; } };
-  }
-  const CHURCH_STAGE = { name: 'The Drowned Lower Church', biome: 'belfry', kind: 'puzzle', trial: true, guard: 'church', vista: { x: 29, y: -22 }, causeway: { x0: 26, x1: 33, y0: 77, y1: 99 },
-    goal: `Clear the drowned lower church: all ${CHURCH_N} of the brood and the giant at the gate`, how: `The causeway leads into the flooded lower church. ${CHURCH_N} of the brood wait in packs, each led by a pack leader; a giant corrupted Cocopet guards the gate to the Hall of Three Tides. The gate opens when every monster and the giant have fallen.`,
-    layout: CHURCH, legend: Object.assign({}, PROP_LEGEND, { E: {}, G: {}, w: {} }), make: makeChurch };
-  BEL.CHURCH = CHURCH_STAGE;
+  /* ======================= v394 B1: THE THREE DUNGEONS (the Caldera's standard set-up) =======================
+     The user (v394): "the first dungeon got to have the standard set up like blackfire caldera, where you have to fight 150
+     enemies to proceed, I do like the turning the valve thing though so work it into that ... dungeon 1 > 3 gates trial >
+     boss 1 > dungeon 2 > another trial/puzzle > boss 2 > dungeon 3 > boss 3. The dungeons will visually look different from
+     one another ... add more traps and gradually increase the amount of enemies (150, 180, 200)".
+     Each dungeon is a rolled floor of rooms and corridors (the engine's genFloor, as the Caldera's dungeons, through
+     riftFight): its own land and props, the brood topped up or trimmed to EXACTLY its count (packs of the rolled floor plus
+     packs of four to six), one leader to every pack (EVIL_MINI.packLeaders), a live cap of 36 (the far packs wait off the field
+     and walk back in as it thins), a corrupted Cocopet at the exit gate (EVIL_MINI.spawn, the doubled body, PetGL), and the
+     gate sealed until every one of the brood AND the guardian has fallen. The ramp (the rift's level 10, a little harder
+     each time): D1 150 brood (0.8 health, 0.75 blows), D2 180 (0.9, 0.82), D3 200 (1.0, 0.9); guardians at 1.0 / 1.15 / 1.3 of
+     EVIL_MINI's level-10 numbers; leaders at a quarter of their guardian's health. Traps (worker B2's BEL_TRAPS): 15, 22, 30.
+     THE VALVE HALLS (the Rising Tide Walk's valves, worked in; the Tide Walk stage is retired): 2, 3 and 4 rooms per dungeon
+     stand flooded and tidal. Every so often the sea surges into such a hall: its water rises (the shallows deepen, turquoise
+     lines climb its walls; no red rings, no countdown), then a crest sweeps across it and carries the pet back toward the
+     hall's mouth with a little damage (a dodge roll rides it). Each has a brass refuge valve near its mouth, a bell leech
+     clinging to it. Pull the leech off and stand at the valve (a short Resonance turn): the hall drains, its surges stop for
+     good, the brood in it is left beached (stunned a few seconds) and the drained floor gives up what the sea held (health and
+     coins). Optional, but it makes the hall safe and turns its brood into easy prey.
+     The lands (worker PR may repaint them, or set BEL.THEMES.dN.land): D1 the Drowned Lower Church (belnave: dark wet
+     flagstones, columns in shallow water), D2 the Bell Foundry Undercroft (belfoundry: iron and bronze, moulds, chains, pipes,
+     a molten glow against the cold sea), D3 the Storm Galleries (belstorm: the tower's exterior walks and galleries in a storm,
+     broken balustrades and arches, the sea far below). */
+  GUARDS.foundry = { name: 'Clangrot the Undertoll', short: 'Clangrot', el: 'dark', seed: 433, sub: 'A Cocopet the deep has cast in bronze guards the foundry gate', palette: { tint: '#1C1418', tintK: 0.86, pal: { sec: '#E0A050', cheek: '#2A1810' }, col: '#D89A48', glow: '#9A5A20', core: '#FFE6B8' }, hint: { horns: 'ram', armor: true, tail: 'spade' }, hpK: 1.15 };
+  GUARDS.storm = { name: 'Squallmaw the Stormdrowned', short: 'Squallmaw', el: 'water', seed: 571, sub: 'A storm-drowned Cocopet holds the stair to the bell platform', palette: { tint: '#162030', tintK: 0.86, pal: { sec: '#BFE0FF', cheek: '#101A2A' }, col: '#9FC8FF', glow: '#5A8CE0', core: '#F2FAFF' }, hint: { wings: 'bat', tail: 'fish', horns: 'ram' }, hpK: 1.3 };
+  /* the placeholder lands of D2 and D3 (repainted in place by the themes worker when its file loads) */
+  if (!BIOMES.belfoundry) { LANDS.belfoundry = { name: 'The Bell Foundry Undercroft', base: '#4A4A4E', tones: ['#525256', '#48484C', '#3F3F44', '#58585C', '#4C4A4C'], seam: '#1A1A1E', seamW: 0.06, bw: 1.6, bh: 1.2, jit: 0.25, split: 0.12, stain: 0.6, wet: 0.35, algae: 0.08, specks: 6, cracks: 0.5, sheen: 'rgba(255,170,90,', edgeWet: 0.9, rust: 0.6 };
+    BIOMES.belfoundry = land('belfoundry', { dark: 0.24, bg: '#0E0C10', top: '#22201E', face: '#6E6458', faceD: '#2A2420', accent: '#E0A050', light: '#FFB066', props: ['belmould', 'belfoundmould', 'belpipe', 'belhung', 'belbell', 'belfoundhalf', 'belrib', 'bellamp'] }); }
+  if (!BIOMES.belstorm) { LANDS.belstorm = { name: 'The Storm Galleries', base: '#A9AEA6', tones: ['#B2B6AE', '#A6ABA3', '#9CA299', '#B8BBB3'], seam: '#2A3A44', seamW: 0.05, bw: 2.5, bh: 1.4, jit: 0.3, split: 0.2, stain: 0.55, wet: 0.95, algae: 0.12, specks: 4, cracks: 0.6, sheen: 'rgba(190,220,255,', edgeWet: 1.5 };
+    BIOMES.belstorm = land('belstorm', { dark: 0.2, bg: '#0A1420', out: true, accent: '#9FC8FF', light: '#CFE4FF', props: ['belrail', 'belarchl', 'belarchr', 'belpillar', 'belstump', 'belcolumn', 'bellamp'] }); }
+  for (const id of ['belfoundry', 'belstorm']) { if (!BIOME_ORDER.includes(id)) BIOME_ORDER.push(id); if (typeof DARK_COL !== 'undefined') DARK_COL[id] = id === 'belfoundry' ? '12,8,6' : '6,14,24'; if (typeof ROOM_SHAPES !== 'undefined') ROOM_SHAPES[id] = id === 'belfoundry' ? ['rect', 'rect', 'oval'] : ['oval', 'rect', 'oval']; if (typeof BOSS_ARENA !== 'undefined') BOSS_ARENA[id] = 'oval'; }
+  if (BIOMES.belnave && !BIOMES.belnave.__d1) { BIOMES.belnave.props = ['belcolumn', 'belstump', 'belbench', 'belfall', 'belcoral', 'bellamp', 'belpillar']; BIOMES.belnave.__d1 = 1; }
+  const DUNS = {
+    d1: { key: 'd1', name: 'The Drowned Lower Church', land: 'belnave', n: 150, guard: 'church', valves: 2, traps: 15, hpK: 0.8, dmgK: 0.75, leadK: 0.25, period: 15, vista: { x: 32, y: -20 } },
+    d2: { key: 'd2', name: 'The Bell Foundry Undercroft', land: 'belfoundry', n: 180, guard: 'foundry', valves: 3, traps: 22, hpK: 0.9, dmgK: 0.82, leadK: 0.25, period: 13, vista: { x: 32, y: 84 } },
+    d3: { key: 'd3', name: 'The Storm Galleries', land: 'belstorm', n: 200, guard: 'storm', valves: 4, traps: 30, hpK: 1.0, dmgK: 0.9, leadK: 0.25, period: 11.5, vista: { x: 32, y: -24 } } };
+  BEL.DUNS = DUNS;
+  const BROOD_T = ['crawler', 'leech', 'reeflantern'], MOBS = ['crawler', 'crawler', 'reeflantern', 'crawler', 'leech', 'crawler'];
+  const themeOf = key => { try { const Th = BEL.THEMES && BEL.THEMES[key]; return Th || null; } catch (e) { return null; } };
+  const landOf = key => { const Th = themeOf(key); return Th && Th.land && BIOMES[Th.land] ? Th.land : DUNS[key].land; };
+  const trapsAPI = () => { try { return (typeof self !== 'undefined' && self.BEL_TRAPS) || (typeof window !== 'undefined' && window.BEL_TRAPS) || null; } catch (e) { return null; } };
+  const DCTX = new WeakMap(); BEL.dungeonCtx = X => DCTX.get(X.g || X) || null;
+  /* the riftFight extra of a dungeon: the exact brood, the leaders, the live cap, the guardian at the gate, the valve halls, the traps */
+  const dunExtra = key => (X, self, H) => { const D = DUNS[key], C = ctx(X), M = X.M, me = X.me, S0 = M.start, R = Math.random;
+    const DS = { key, D, rooms: M.rooms, valveHalls: [], traps: null, trimmed: 0, added: 0, rolled: 0 }; DCTX.set(X.g || X, DS); C.dun = DS;
+    X.F.events = false; M.gremlin = null; X.F.liveCap = 36;   // (no floor events or loot gremlin: the count stays exact; the cap holds the far packs)
+    // (the exit: where riftFight put it, the farthest room's middle)
+    let ex = M.bossAt || M.start, best = -1; for (const r of M.rooms) { const cx = r.x + r.w / 2, cy = r.y + r.h / 2, d = Math.hypot(cx - S0.x, cy - S0.y); if (d > best) { best = d; ex = X.freeSpot(cx, cy, 0.8) || { x: cx, y: cy }; } }
+    const exRoom = M.rooms.reduce((a, r) => (Math.hypot(r.x + r.w / 2 - S0.x, r.y + r.h / 2 - S0.y) > Math.hypot(a.x + a.w / 2 - S0.x, a.y + a.h / 2 - S0.y) ? r : a), M.rooms[0]);
+    // the brood: only the brood (anything else the floor rolled goes), trimmed or topped up to exactly D.n
+    const all = () => X.mons.concat(X.g.reserve || []);
+    const isB = m => !m.dead && !m.boss && !m.fobj && !m.optional;
+    for (const m of all().filter(isB)) if (!BROOD_T.includes(m.type)) { const L = X.mons.includes(m) ? X.mons : X.g.reserve, i = L.indexOf(m); if (i >= 0) L.splice(i, 1); }
+    DS.rolled = all().filter(isB).length;
+    let have = DS.rolled;
+    if (have > D.n) { const packs = new Map(); for (const m of all().filter(isB)) { if (!packs.has(m.pack)) packs.set(m.pack, []); packs.get(m.pack).push(m); }
+      while (have > D.n) { let big = null; for (const [, l] of packs) if (!big || l.length > big.length) big = l; const m = big.sort((a, b) => Math.hypot(b.x - S0.x, b.y - S0.y) - Math.hypot(a.x - S0.x, a.y - S0.y)).pop(); const L = X.mons.includes(m) ? X.mons : X.g.reserve, i = L.indexOf(m); if (i >= 0) L.splice(i, 1); have--; DS.trimmed++; } }
+    const rooms = M.rooms.map((r, i) => ({ r, i })).filter(({ r }) => r.w > 3 && r.h > 3 && Math.hypot(r.x + r.w / 2 - S0.x, r.y + r.h / 2 - S0.y) > 8);
+    let pk = 0, tries = 0;
+    while (have < D.n && rooms.length && tries++ < 600) { const { r, i } = rooms[Math.floor(R() * rooms.length)], c0 = X.freeSpot(r.x + 1 + R() * (r.w - 2), r.y + 1 + R() * (r.h - 2), 0.6); if (!c0 || Math.hypot(c0.x - S0.x, c0.y - S0.y) < 9 || Math.hypot(c0.x - ex.x, c0.y - ex.y) < 4) continue;
+      const rem = D.n - have; let n = 4 + Math.floor(R() * 3); if (rem <= 7) n = rem; else if (rem - n < 4) n = rem - 4; pk++;   // (packs of four to six; the last one may be seven, never one to three)
+      const mix = n >= 6 ? ['crawler', 'crawler', 'leech', 'reeflantern', 'crawler', 'leech'] : n === 5 ? ['crawler', 'crawler', 'leech', 'reeflantern', 'crawler'] : ['crawler', 'crawler', 'leech', 'crawler', 'crawler', 'reeflantern', 'crawler'];
+      for (let j = 0; j < n; j++) { const a = j / n * TAU, q = X.freeSpot(c0.x + Math.cos(a) * 1.3, c0.y + Math.sin(a) * 1.3, 0.4) || c0; const m = X.spawnMon(mix[j % mix.length], q.x, q.y, { rift: true, pack: 200 + pk, room: i, flank: a }); if (m) { have++; DS.added++; } } }
+    // the dungeon's numbers (a little harder each time), every one of the brood marked as this dungeon's
+    for (const m of all().filter(isB)) { m.belDun = key; if (!m.belEased) { m.belEased = true; m.maxhp = Math.max(1, Math.round(m.maxhp * D.hpK)); m.hp = m.maxhp; m.dmg *= D.dmgK; } }
+    X.g.total = all().filter(isB).length;
+    // the guardian at the gate, then a leader to every pack
+    // (the leaders and the guardian are measured against this floor's own brood: a leader three of its crawlers, the guardian
+    // two and a half leaders, never below EVIL_MINI's own numbers for the level; a leader strikes a little harder than its pack)
+    const cr = all().filter(m => isB(m) && m.type === 'crawler' && !m.elite).map(m => m.maxhp).sort((a, b) => a - b), B = cr[cr.length >> 1] || 1000, Bd = (all().find(m => isB(m) && m.type === 'crawler' && !m.elite) || { dmg: 10 }).dmg;
+    const E = EM(), base = (E && E.hpFor ? E.hpFor((X.F && X.F.n) || 10) : 7200) * (GUARDS[D.guard].hpK || 1), leadHp = Math.round(Math.max(base * D.leadK, B * 3));
+    const post = postNear(X, ex), mini = placeGuard(X, D.guard, post.x, post.y, { x: ex.x, y: ex.y }, { hpMin: Math.max(base, leadHp * 2) }); C.guardGeneric = true;
+    DS.leaders = []; if (E && E.packLeaders && mini) { try { DS.leaders = E.packLeaders(X, mini, q => q.belDun === key, { hp: leadHp, dmg: Bd * 1.15 }) || []; } catch (e) { DS.leaders = []; } }
+    DS.mini = mini; DS.exit = ex;
+    // the valve halls: flooded, tidal rooms, each with a refuge valve at its mouth and a leech clinging to it
+    const vh = rooms.filter(({ r }) => r !== exRoom && r.w >= 5 && r.h >= 5).sort((a, b) => Math.hypot(a.r.x + a.r.w / 2 - S0.x, a.r.y + a.r.h / 2 - S0.y) - Math.hypot(b.r.x + b.r.w / 2 - S0.x, b.r.y + b.r.h / 2 - S0.y));
+    const pickN = Math.min(D.valves, vh.length), chosen = []; for (let k = 0; k < pickN; k++) chosen.push(vh[Math.floor((k + 0.5) * vh.length / pickN)]);
+    chosen.forEach(({ r, i }, k) => { const tiles = []; for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) { const kk = y * M.MW + x; if (M.G[kk] === T_FLOOR && !M.props.has(kk)) tiles.push({ tx: x, ty: y }); } if (tiles.length < 12) return;
+      const region = BEL.shallow(X, { kind: 'tiles', tiles }), cx = r.x + r.w / 2, cy = r.y + r.h / 2;
+      // its mouth: the floor tile of the room nearest the start, beside a wall; the valve stands there
+      let vt = null, vd = 1e9; for (const t of tiles) { const wallBy = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => M.G[(t.ty + dy) * M.MW + t.tx + dx] === T_SOLID); if (!wallBy) continue; const d = Math.hypot(t.tx + 0.5 - S0.x, t.ty + 0.5 - S0.y); if (d < vd) { vd = d; vt = t; } } if (!vt) vt = tiles[0];
+      const mouth = { x: vt.tx + 0.5, y: vt.ty + 0.5 }, away = Math.atan2(cy - mouth.y, cx - mouth.x);
+      const VH = { k, room: r, ri: i, region, tiles, mouth, cx, cy, away, drained: false, level: 0, phase: 'calm', t: R() * D.period * 0.6, crest: -1, hit: false, sweeps: 0, beachT: 0 };
+      const lp = X.freeSpot(mouth.x + Math.cos(away) * 0.6, mouth.y + Math.sin(away) * 0.6, 0.4) || mouth, lch = BEL.spawn(X, 'leech', lp.x, lp.y, { pack: 380 + k, count: false });   // (pack 380+: never held off the field by the live cap)
+      if (lch) { lch.holds = true; lch.x = lp.x; lch.y = lp.y; lch.belValve = k; lch.belDun = key; lch.maxhp = Math.round(lch.maxhp * D.hpK); lch.hp = lch.maxhp; VH.leech = lch; }
+      VH.valve = H.obj({ x: mouth.x, y: mouth.y, kind: 'valve', valveHall: k, spin: 0, on: false, t: 0, r: 0.9, h: 1.9, locked: true, lockCol: 'rgba(182,162,240,.8)',
+        label: o => (o.on ? 'The hall is drained' : VH.leech && !VH.leech.dead ? 'Refuge valve: a leech holds it' : 'Refuge valve: turn it to drain the hall'),
+        draw(c, Xs, Ys, T, o) { wheelArt(c, Xs, Ys, T, o); },
+        use(o) { if (o.on) return; if (VH.leech && !VH.leech.dead) { X.text(o.x, o.y - 2.1, 'A leech clings to the valve!', '#B6A2F0', 13); snd(X, 'wrong'); return; } drain(VH); } });
+      DS.valveHalls.push(VH); });
+    // a valve leech belongs to the floor's count: the dungeon's number stays exact (one of a full pack's leeches gives way to it)
+    for (const VH of DS.valveHalls) { if (!VH.leech) continue; const extra = all().filter(m => isB(m) && m.belDun === key && m.type === 'leech' && !m.calLeader && m.belValve == null && m !== VH.leech).pop() || all().filter(m => isB(m) && m.belDun === key && !m.calLeader && m.belValve == null && m !== VH.leech).pop(); if (extra) { const L = X.mons.includes(extra) ? X.mons : X.g.reserve, i = L.indexOf(extra); if (i >= 0) L.splice(i, 1); } }
+    X.g.total = all().filter(isB).length;
+    function drain(VH) { const o = VH.valve; o.on = true; o.spin += Math.PI; VH.drained = true; VH.drainT = 0; VH.phase = 'drain'; DS.drained = (DS.drained || 0) + 1;
+      X.banner('THE HALL DRAINS', 'The refuge holds: no more surges here, and the brood is left beached', '#C9FFF8', 2.4, true); snd(X, 'fanfare'); X.ring(o.x, o.y, 0.3, 4, 0.7, TURQ, 0.35); X.flash(0.12, TURQ_HI);
+      const r = VH.room; for (const m of X.mons) if (!m.dead && !m.boss && m.x >= r.x && m.x <= r.x + r.w && m.y >= r.y && m.y <= r.y + r.h) { m.stun = Math.max(m.stun || 0, 3.5); m.belBeached = 3.5; X.text(m.x, m.y - m.r - 0.6, 'Beached!', '#C9FFF8', 11); }
+      for (let i = 0; i < 4; i++) X.after(0.4 + i * 0.25, () => { const a = R() * TAU, d = 1 + R() * 2, p = X.freeSpot(VH.cx + Math.cos(a) * d, VH.cy + Math.sin(a) * d, 0.4); if (p) X.drop(i % 2 ? 'coin' : 'hp', p.x, p.y); }); }
+    // the traps (worker B2's set), ramped by dungeon, kept off the start, the gate, the guardian's post, the valves and the doors
+    try { const TR = trapsAPI(); if (TR && TR.place) { const avoid = [{ x: S0.x, y: S0.y, r: 6 }, { x: ex.x, y: ex.y, r: 5 }, { x: post.x, y: post.y, r: 6 }].concat(DS.valveHalls.map(V => ({ x: V.mouth.x, y: V.mouth.y, r: 3 }))); DS.traps = TR.place(X, H, { count: D.traps, kinds: null, avoid, dungeon: key, minGap: D.traps > 25 ? 2.8 : D.traps > 18 ? 3.2 : 3.5 }) || null; } } catch (e) { try { console.warn('bel traps', e); } catch (e2) {} }
+    // the surges: a tidal hall's water rises (the shallows deepen, turquoise lines climb its walls), then a crest sweeps across it
+    function tick(dt) { for (const VH of DS.valveHalls) { const r = VH.room; VH.valve.t += dt; VH.valve.locked = !!(VH.leech && !VH.leech.dead);
+        if (VH.drained) { VH.drainT += dt; VH.level = Math.max(0, VH.level - dt * 0.6); if (VH.drainT > 2.2 && !VH.region.off) VH.region.off = true; continue; }
+        const near = Math.hypot(me.x - VH.cx, me.y - VH.cy) < Math.max(r.w, r.h) * 0.5 + 12; VH.t += dt * (near ? 1 : 0.4); const P = D.period, u = VH.t % P;
+        // calm (most of the cycle), then the rise (3.5 s), the crest (0.9 s), the fall
+        if (u < P - 5.2) { VH.phase = 'calm'; VH.level = Math.max(0, VH.level - dt); VH.crest = -1; VH.hit = false; }
+        else if (u < P - 1.7) { VH.phase = 'rise'; VH.level = Math.min(1, (u - (P - 5.2)) / 3.5); if (VH.level > 0.5 && !VH.said && near) { VH.said = true; X.text(VH.cx, VH.cy - 1.5, 'The sea is coming in…', '#C9FFF8', 13); snd(X, 'hum'); } }
+        else if (u < P - 0.8) { VH.phase = 'crest'; VH.crest = (u - (P - 1.7)) / 0.9; VH.level = 1;
+          // the crest crosses the hall from its far side to its mouth; the pet in the hall, not rolling, is carried back
+          const inRoom = me.x >= r.x && me.x <= r.x + r.w && me.y >= r.y && me.y <= r.y + r.h; if (!VH.hit && inRoom && !me.dead && !me.dodge && near) { const fx = VH.cx + Math.cos(VH.away) * (r.w / 2) * (1 - 2 * VH.crest), fy = VH.cy + Math.sin(VH.away) * (r.h / 2) * (1 - 2 * VH.crest), along = (me.x - fx) * Math.cos(VH.away) + (me.y - fy) * Math.sin(VH.away);
+            if (Math.abs(along) < 0.9) { VH.hit = true; VH.sweeps++; C.stat.swept++; X.hurtPet(X.ST().hp * 0.06, null); me.push = { vx: -Math.cos(VH.away) * 6, vy: -Math.sin(VH.away) * 6, t: 0.35 }; X.splash(me.x, me.y, 1.6); X.text(me.x, me.y - 1.4, 'Swept by the surge!', '#C9FFF8', 14); snd(X, 'whoosh'); } } }
+        else { VH.phase = 'fall'; VH.level = Math.max(0, 1 - (u - (P - 0.8)) / 0.8); VH.said = false; if (VH.crest >= 0 && near) { X.shake(3, 0.25); } VH.crest = -1; } } }
+    function ground(c) { const T = X.Tz(), W = X.W(), Hh = X.H(), t = C.t;
+      for (const VH of DS.valveHalls) { const r = VH.room, x0 = X.sx(r.x), y0 = X.sy(r.y), x1 = X.sx(r.x + r.w), y1 = X.sy(r.y + r.h); if (x1 < -T || y1 < -T || x0 > W + T || y0 > Hh + T) continue; const lv = VH.level;
+        if (lv > 0.01) { c.save(); c.beginPath(); regionPath(c, X, VH.region); c.clip(); c.fillStyle = `rgba(24,96,124,${(0.28 * lv).toFixed(3)})`; c.fillRect(x0, y0, x1 - x0, y1 - y0);
+          if (VH.phase === 'crest' && VH.crest >= 0) { const fx = X.sx(VH.cx + Math.cos(VH.away) * (r.w / 2) * (1 - 2 * VH.crest)), fy = X.sy(VH.cy + Math.sin(VH.away) * (r.h / 2) * (1 - 2 * VH.crest)), nx = -Math.sin(VH.away), ny = Math.cos(VH.away), L = Math.max(x1 - x0, y1 - y0);
+            c.strokeStyle = 'rgba(245,255,253,.95)'; c.lineWidth = Math.max(3, T * 0.14); c.lineCap = 'round'; c.beginPath(); for (let i = -10; i <= 10; i++) { const s = i / 10 * L, wob = Math.sin(i * 1.3 + t * 9) * T * 0.1; const px = fx + nx * s - Math.cos(VH.away) * wob, py = fy + ny * s - Math.sin(VH.away) * wob; i > -10 ? c.lineTo(px, py) : c.moveTo(px, py); } c.stroke(); }
+          c.restore(); }
+        // the turquoise lines climbing the hall's walls as the sea rises (the tell: no red, no countdown)
+        if ((VH.phase === 'rise' || VH.phase === 'crest') && lv > 0.02) { const yk = lerp(y1, y0, lv), G = gpu(c, false); for (const xx of [x0 + T * 0.1, x1 - T * 0.1]) { if (G) G.Q.beam(xx, y1, xx, yk, T * 0.16, TURQ, 0.75); c.save(); c.strokeStyle = 'rgba(97,217,210,.9)'; c.lineWidth = Math.max(2, T * 0.07); c.setLineDash([T * 0.3, T * 0.18]); c.lineDashOffset = t * T * 2; c.beginPath(); c.moveTo(xx, y1); c.lineTo(xx, yk); c.stroke(); c.restore(); } gpuEnd(c, G); } } }
+    return { DS, update: tick, drawGround: ground }; };
+  /* a dungeon stage (riftFight runs it: kind 'fight'; its land read at run time from the themes, else the placeholder) */
+  function dunStage(key) { const D = DUNS[key]; return { kind: 'fight', dun: key, get biome() { return landOf(key); }, name: D.name, mini: null, mobs: MOBS, guard: D.guard, vista: D.vista, extra: dunExtra(key),
+    goal: `Clear the dungeon: all ${D.n} of the brood and ${GUARDS[D.guard].short} at the gate`,
+    how: `A dungeon of rooms and corridors: ${D.n} of the brood in packs, each with a pack leader, and ${GUARDS[D.guard].name} at the gate. Some halls stand flooded and tidal: the sea surges through them (the water rises and turquoise lines climb the walls). Pull the leech off a hall's refuge valve and stand at it to drain the hall: its surges stop and its brood is left beached.` }; }
+  const DUN1 = dunStage('d1'), DUN2 = dunStage('d2'), DUN3 = dunStage('d3');
+  BEL.dunStage = dunStage;
+
 
   /* ======================= the rift ======================= */
   const SEALING = { fall: 'THE SEA DRAINS AWAY', sub: 'The bell sounds once, and warm sunlight enters the nave', sigil: 'THE TIDE SIGIL', name: 'The Drowned Belfry', color: '#61D9D2', glow: '#C9FFF8',
     onFall() { const C = CUR; if (C) C.calmTo = 1; try { if (C && C.X && C.X.sfx && C.X.sfx.chime) { C.X.sfx.chime(196, 1.4); C.X.after(0.05, () => C.X.sfx.chime(392, 0.8)); } } catch (e) {} BEL.clearCp('hall'); } };
-  const STAGES = [CHURCH_STAGE,   // v392 B1: the regular dungeon first, then the hall
+  const STAGES = [   // v394 B1: dungeon 1 > the three-gate trial > boss 1 > dungeon 2 > the clapper puzzle > boss 2 > dungeon 3 > boss 3
+    DUN1,
     HALL,
     bossStage('belkharrox', 'The Baptism Chamber', 'Kharrox the Bellback', 'belbapt', 'kharrox', false),
+    DUN2,
     Object.assign(CLAPPERS, { kind: 'puzzle' }),
     bossStage('belnhalu', 'The Submerged Nave', 'Nhalu the Lantern Eel', 'belnave', 'nhalu', false),
-    Object.assign(TIDE, { kind: 'puzzle' }),
+    DUN3,
     bossStage('beluldroth', 'The Bell Platform', 'Uldroth the Drowned Herald', 'belplat', 'uldroth', true)];
   const Rf = defRift({
-    id: 'belfry', n: 1, name: 'The Drowned Belfry', lvl: 10, sigil: 'Tide', biome: 'belfry', aff: ['water', 'dark'], region: 'the coast', layoutVer: 3,   // v392 B1: seven stages (the lower church first)
-    blurb: 'A coastal bell tower sunk halfway into an alien sea. Fight through the drowned lower church, win three crystals in the Hall of Three Tides, balance the clapper counterweights, outrun the rising tide, and silence the Drowned Herald.',
-    stageNote: 'Seven stages: the Drowned Lower Church (a dungeon of 150 brood and a giant corrupted Cocopet), the Hall of Three Tides (three crystal trials), Kharrox the Bellback, the Clapper Counterweights, Nhalu the Lantern Eel, the Rising Tide Walk, and Uldroth the Drowned Herald, who seals the rift. Corrupted Cocopets guard each section\'s way out.',
+    id: 'belfry', n: 1, name: 'The Drowned Belfry', lvl: 10, sigil: 'Tide', biome: 'belfry', aff: ['water', 'dark'], region: 'the coast', layoutVer: 4,   // v394 B1: eight stages (three dungeons)
+    blurb: 'A coastal bell tower sunk halfway into an alien sea. Fight down through three drowned dungeons, each held by a corrupted Cocopet, win three crystals in the Hall of Three Tides, balance the clapper counterweights, and silence the Drowned Herald.',
+    stageNote: 'Eight stages: the Drowned Lower Church (a dungeon of 150 brood), the Hall of Three Tides (three gate trials), Kharrox the Bellback, the Bell Foundry Undercroft (a dungeon of 180), the Clapper Counterweights, Nhalu the Lantern Eel, the Storm Galleries (a dungeon of 200), and Uldroth the Drowned Herald, who seals the rift. A corrupted Cocopet guards each dungeon\'s gate; turn a flooded hall\'s valve to drain it.',
     gate: { anima: 'cancer', name: 'The Oracle Shell' }, mons: ['crawler', 'leech', 'reeflantern'], sealing: SEALING,
     scale: 0.5,   // (half the health and blows the brood was first built with)
+    ease: 1, monCount: 0.55,   // v394 B1: the dungeons' rolled floors thinned (each is trimmed or topped up to its exact count), elites at the Tower's own share
+    typeShare: Object.fromEntries(Object.keys(MON).filter(t => !BROOD_T.includes(t)).map(t => [t, 0])),   // v394 B1: only the brood rolls in the dungeons
     stages: STAGES });
   function Rf0() { return Rf; }
-  BEL.Rf = Rf; BEL.STAGES = { CHURCH: CHURCH_STAGE, HALL, CLAPPERS, TIDE, HALL_PH };
+  BEL.Rf = Rf; BEL.STAGES = { DUN1, DUN2, DUN3, HALL, CLAPPERS, TIDE, HALL_PH };   // v394 B1 (TIDE: the retired Rising Tide Walk, kept for its parts)
 
   /* ======================= every stage: the sea, the shallows, the waves, the lights, the fish, the guardians ======================= */
   BEL.fishSeen = false;
@@ -1038,6 +1109,14 @@ if (typeof window !== 'undefined') window.BEL = BEL;
     const glows = []; for (const p of X.props || []) { const f = GLOWS[p.kind]; if (f) for (const [dx, dy, r, kind] of f(p.v | 0)) glows.push({ p, dx, dy, r, kind, ph: hh(p.k || 0, 1, 3) * TAU }); }
     C.motes = C.motes || []; let wakeT = 0, gDelay = -1;
     const genericGuard = () => !!(S.guard && !S.noGuard && !C.guard);
+    /* v394 B1: a dungeon (riftFight runs it): the gate opens only when every one of its brood AND its guardian has fallen;
+       the goal counts the brood of this dungeon; the hint leads to the nearest far one, then to the guardian */
+    if (S.dun && C.dun && self.mod && !self.mod.__dun) { const DS = C.dun, D = DS.D, GD = GUARDS[D.guard], xm = self.mod.xm || {}, md = self.mod; md.__dun = 1; let said = false;
+      md.update = dt => { if (xm.update) xm.update(dt); const n = H.monstersLeft();
+        if (!said && n === 0 && !guardDown(X)) { said = true; X.banner('THE BROOD IS GONE', `${GD.short} still holds the gate`, '#C9FFF8', 2.4, true); }
+        if (!self.done && n === 0 && guardDown(X)) { self.done = true; X.banner('THE GATE OPENS', 'The way on is clear: follow the arrow', SAFE, 2.6, true); X.flash(0.25, '#FFFFFF'); snd(X, 'fanfare'); } };
+      md.goal = () => { const n = H.monstersLeft(); if (self.done) return 'The gate is open · the way on'; return n > 0 ? `${n} of ${D.n} brood left${DS.mini && !DS.mini.dead ? ` · ${GD.short} at the gate` : ''}` : `Defeat ${GD.short} to open the gate`; };
+      md.hint = () => { if (self.done) return null; const me = X.me, n = H.monstersLeft(); if (n === 0) return DS.mini && !DS.mini.dead ? DS.mini : null; let best = null, bd = 1e9; for (const m of X.mons) { if (m.dead || m.boss || m.optional || m.belDun !== D.key) continue; const d = Math.hypot(m.x - me.x, m.y - me.y); if (d < bd) { bd = d; best = m; } } return bd > 8 ? best : null; }; }
     return { C, BEL, glows,
       update(dt) { CUR = C; C.X = X; C.t += dt; C.calm += (C.calmTo - C.calm) * Math.min(1, dt * 0.5); const me = X.me;
         // the pet's wake in shallow water
@@ -1052,7 +1131,7 @@ if (typeof window !== 'undefined') window.BEL = BEL;
         for (const e of C.motes) { e.t += dt; e.x += (e.vx + Math.sin(e.t * 1.3 + e.ph) * 0.2) * dt; e.y += e.vy * dt; } C.motes = C.motes.filter(e => e.t < e.life);
         // the section's guardian for a stage that does not place its own (the hall): beside its exit once it is done
         const ex = H.exit && H.exit(); if (genericGuard() && self.done && ex && !fiend) { if (gDelay < 0) gDelay = 1.4; gDelay -= dt; if (gDelay <= 0) { const p = (self.mod && self.mod.guardPost && self.mod.guardPost()) || postNear(X, ex); const m = placeGuard(X, S.guard, p.x, p.y, { x: ex.x, y: ex.y }); if (m) { C.guardGeneric = true; C.exitR = ex.r; X.banner(GUARDS[S.guard].name.toUpperCase(), GUARDS[S.guard].sub, GUARDS[S.guard].palette.col, 2.6, true); } } }
-        if (C.guardGeneric && ex) { if (!guardDown(X)) { if (ex.r > 0) C.exitR = ex.r; ex.r = -1; const d = Math.hypot(me.x - ex.x, me.y - ex.y); if (d < 1.4 && !me.dead) { const a = Math.atan2(me.y - ex.y, me.x - ex.x); me.x = ex.x + Math.cos(a) * 1.45; me.y = ex.y + Math.sin(a) * 1.45; } } else if (ex.r < 0) { ex.r = C.exitR || 1.1; X.banner('THE WAY IS CLEAR', `${GUARDS[S.guard].short} falls: the door is yours`, SAFE, 2.2, true); } }
+        if (C.guardGeneric && ex) { if (!guardDown(X)) { if (ex.r > 0) C.exitR = ex.r; ex.r = -1; const d = Math.hypot(me.x - ex.x, me.y - ex.y); if (d < 1.4 && !me.dead) { const a = Math.atan2(me.y - ex.y, me.x - ex.x); me.x = ex.x + Math.cos(a) * 1.45; me.y = ex.y + Math.sin(a) * 1.45; } } else if (ex.r < 0) { ex.r = C.exitR || 1.1; if (!S.dun) X.banner('THE WAY IS CLEAR', `${GUARDS[S.guard].short} falls: the door is yours`, SAFE, 2.2, true); } }
         if (C.layer) C.layer.update(dt); },
       drawGround(c) { const T = X.Tz(), W = X.W(), Hh = X.H(), t = C.t;
         drawShallow(c, X, C);
@@ -1104,14 +1183,24 @@ if (typeof window !== 'undefined') window.BEL = BEL;
      with crystals won (st.rift.hall.belfry) keeps its place in the hall (1); one that had not begun starts at the church (0).
      The fourteen-stage saves map as above, then the same way. A sealed Belfry stays sealed. Now st.rift.ver.belfry = 3 */
   BEL.mapOld = p => (p <= 0 ? 0 : p <= 4 ? 1 : p <= 8 ? 2 : p === 9 ? 3 : p <= 12 ? 4 : 5);
-  BEL.VER = 3;
+  /* v394 B1: the seven-stage layout (v392-v393, ver 3: 0 church 1 hall 2 Kharrox 3 clappers 4 Nhalu 5 tide 6 Uldroth) becomes
+     eight (0 D1 1 hall 2 Kharrox 3 D2 4 clappers 5 Nhalu 6 D3 7 Uldroth): the church is dungeon 1, a checkpoint at the
+     clappers starts dungeon 2 (3), Nhalu stays Nhalu (5), the retired Rising Tide Walk becomes dungeon 3 (6), Uldroth stays
+     Uldroth (7). Older saves map to the seven-stage layout as above first. A sealed Belfry stays sealed (its seal, gate and
+     Cancer Anima untouched). The retired tide stage's checkpoints go. Now st.rift.ver.belfry = 4 */
+  BEL.map3 = p => [0, 1, 2, 3, 5, 6, 7][Math.max(0, Math.min(6, p | 0))];
+  BEL.VER = 4;
   BEL.migrate = (s, o) => { const r = s && s.rift; if (!r) return; if (!r.ver || typeof r.ver !== 'object') r.ver = {}; if (!r.bel || typeof r.bel !== 'object') r.bel = {};
-    const was = o && o.rift && o.rift.ver && +o.rift.ver.belfry || 0; if (was >= 3) { r.ver.belfry = 3; return; }
-    if (r.prog && r.prog.belfry != null) { let p = r.prog.belfry | 0; if (was < 2) { p = BEL.mapOld(p); r.bel = {}; }
-      const h = r.hall && r.hall.belfry, inHall = !!(h && (h.dep || h.earn || h.carry || h.sel || h.door));
-      r.prog.belfry = r.seals && r.seals.belfry ? 0 : Math.min(STAGES.length - 1, p > 0 ? p + 1 : inHall ? 1 : 0); }
-    else if (was === 2 && r.hall && r.hall.belfry && !(r.seals && r.seals.belfry)) { const h = r.hall.belfry; if (h.dep || h.earn || h.carry || h.sel || h.door) { r.prog = r.prog || {}; r.prog.belfry = 1; } }
-    if (was < 2) r.bel = {}; r.ver.belfry = 3; };
+    const was = o && o.rift && o.rift.ver && +o.rift.ver.belfry || 0; if (was >= 4) { r.ver.belfry = 4; return; }
+    const sealed = !!(r.seals && r.seals.belfry);
+    if (r.prog && r.prog.belfry != null) { let p = r.prog.belfry | 0;
+      if (was < 3) { if (was < 2) { p = BEL.mapOld(p); r.bel = {}; }
+        const h = r.hall && r.hall.belfry, inHall = !!(h && (h.dep || h.earn || h.carry || h.sel || h.door));
+        p = Math.min(6, p > 0 ? p + 1 : inHall ? 1 : 0); }
+      r.prog.belfry = sealed ? 0 : BEL.map3(p); }
+    else if (was === 2 && r.hall && r.hall.belfry && !sealed) { const h = r.hall.belfry; if (h.dep || h.earn || h.carry || h.sel || h.door) { r.prog = r.prog || {}; r.prog.belfry = 1; } }
+    if (was < 2) r.bel = {}; for (const k of Object.keys(r.bel)) if (k.indexOf('tide') === 0) delete r.bel[k];
+    r.ver.belfry = 4; };
   if (typeof window !== 'undefined') window.belfryMigrate = BEL.migrate;
 
   /* ======================= the loading screen's warm-up (as the Caldera's): the brood in every pose, the patterns, the tower ======================= */
