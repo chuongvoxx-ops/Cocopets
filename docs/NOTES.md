@@ -1127,3 +1127,4 @@ Every new boss painter (rift fiends, Tower bosses, minis that get their own art)
 - v400: Belfry bosses (Kharrox, Nhalu, Uldroth, Gloomfin, Clangrot, Squallmaw): double health, attacks hit 5x as hard.
 - v401: rift boss fights: camera 60% closer.
 - v402: Sunflare redrawn on the GPU (heart, corona, shaft, floor), the 2D picture kept as the fallback.
+- v403: Love Bombs redrawn on the GPU (first of the Light and Dark 5-star and 6-star set), 2D kept as the fallback.

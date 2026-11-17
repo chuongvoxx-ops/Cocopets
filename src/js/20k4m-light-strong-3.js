@@ -25,6 +25,8 @@
   const sfx = (H, k) => { const s = H.X.sfx; if (s && s[k]) s[k](); };
   const backOut = u => { u = cl(u); const s = 1.7; u -= 1; return u * u * ((s + 1) * u + s) + 1; };
 
+  /* (v403) the GPU picture: the shared painter (20k6h FGFX) when it is usable; else the 2D picture, as it was */
+  const gfx = () => { try { const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; return F && F.usable() ? F : null; } catch (e) { return null; } };
   /* ---- cached sprites ---- */
   // a wing feather: root at (6, 34), tip at (186, 22); deep pink root -> candy -> blossom -> pearl tip, every end feathered
   const FW = 192, FH = 56;
@@ -241,6 +243,20 @@
       },
       drawUnder(c, f, X0, Y0, T) {
         const t = f.t;
+        { const FG = gfx(); if (FG) { /* (v403) the floor on the GPU: the heart footprint, the bomb's shadow and its moving light, then the
+             blast's rolling wave of pink energy, its rings, its pool of light and (Celestial) a flower of heart prints */
+          for (const b of bombs) if (b.st !== 'boom') { const k = cl(1 - b.z / 4); H.softShadow(c, H.sx(b.x), H.sy(b.y), T * HB * 0.45 * (0.6 + 0.4 * k), 0.22 * k); }
+          const Q = FG.begin(c, null), GY = 0.55;
+          for (const b of bombs) { const X = H.sx(b.tx), Y = H.sy(b.ty);
+            if (b.st !== 'boom' || t - b.det < 0.2) { const u = b.st === 'fly' ? cl((t - b.ft) / b.dur) : b.st === 'form' ? 0 : 1, a = cl(t / 0.25) * (b.st === 'boom' ? 1 - (t - b.det) / 0.2 : 1), sz = T * (0.75 + 0.2 * u + 0.05 * Math.sin(t * 10)) * 0.62;
+              Q.quad(44, X, Y, sz, 0, 0, sz * GY, PINK, a * (0.5 + 0.5 * u), 0.05, 1.1, 0.25 + 0.35 * u); Q.glow(X, Y, T * 0.8, PINK, a * 0.3 * (0.4 + u), GY); Q.ring(X, Y, T * R * (1 - 0.25 * u), BLOS, a * 0.25 * u, T * 0.05, GY); }
+            if (b.st !== 'boom') { const k = cl(1 - b.z / 4); Q.glow(H.sx(b.x), H.sy(b.y), T * HB * 1.1 * k, PINK, 0.4, GY); }
+            else { const e = t - b.det, u = cl(e / 0.5);
+              if (u < 1) { const rr = T * R * (0.25 + 0.95 * H.ease.out(u)); Q.ewave(X, Y, rr, ROSE, 0.95, (1 - u) * 0.9, b.i * 3.1 + 1, GY, 0.2); Q.ring(X, Y, rr, PEARL, (1 - u) * 0.9, T * 0.12, GY); Q.glow(X, Y, T * R * 1.2, PINK, (1 - u) * 0.55, GY); Q.caustic(X, Y, T * R * 1.05, CANDY, (1 - u) * 0.5, b.i + 2, GY); }
+              if (L >= 1) { const v = cl((e - 0.07) / 0.55); if (v > 0 && v < 1) { const rr = T * R * (0.3 + 1.05 * H.ease.out(v)); Q.ring(X, Y, rr, BLOS, (1 - v) * 0.85, T * 0.06, GY); Q.ripple(X, Y, rr * 0.8, CANDY, (1 - v) * 0.5, b.i + 5, GY, 0.1); } }
+              if (L === 2) { const v = cl((e - 0.05) / 0.9); if (v > 0 && v < 1) for (let q = 0; q < 6; q++) { const a = q / 6 * TAU + b.i * 0.5, rr = T * R * (0.25 + 0.4 * H.ease.out(v)), sz = T * 0.34 * (0.6 + 0.6 * v); Q.quad(44, X + Math.cos(a) * rr, Y + Math.sin(a) * rr * GY, sz, 0, 0, sz * GY, PINK, (1 - v) * 0.85, 0.06, 1.1, 0.3); } }
+              const sc = cl(e / 1.2); if (sc < 1) Q.glow(X, Y, T * R * 0.6, DEEP, (1 - sc) * 0.25, GY); } }
+          FG.flush(c); return; } }
         for (const b of bombs) { const X = H.sx(b.tx), Y = H.sy(b.ty);
           // the heart footprint marking the landing spot, brightening as the bomb arrives
           if (b.st !== 'boom' || t - b.det < 0.2) { const u = b.st === 'fly' ? cl((t - b.ft) / b.dur) : b.st === 'form' ? 0 : 1, a = cl(t / 0.25) * (b.st === 'boom' ? 1 - (t - b.det) / 0.2 : 1), sz = T * (0.75 + 0.2 * u + 0.05 * Math.sin(t * 10));
@@ -256,6 +272,39 @@
       },
       draw(c, f, X0, Y0, T) {
         const t = f.t;
+        { const FG = gfx(); if (FG) { /* (v403) the bombs and their blasts on the GPU: each a glossy shaded heart (the Sunflare heart, kind 41)
+             turning and leaning as it tumbles, its seam, fuse and charm in light, a ribbon of light behind it; the blast a white-hot
+             flash inside a swirling ball of pink energy, the shell breaking up into motes, arcs of light peeling away, a burst of sparkles */
+          const Q = FG.begin(c, null);
+          for (const b of bombs) {
+            if (b.st === 'boom') { const e = t - b.det, X = H.sx(b.tx), Y = H.sy(b.ty) - T * 0.42, hy = T * HB / 1.62;
+              if (e < 0.34) { const u = e / 0.34, k = 1 + 0.9 * H.ease.out(u); Q.quad(41, X, Y - T * 0.2 * u, hy * k, 0, 0, hy * k, '#FFFFFF', 1 - u * u, Math.round(cl(0.15 + u * 0.85) * 100) + 0.9, b.i * 2.3 + 1, 1 + L); Q.beam(X, Y - hy * 0.6 * k, X, Y + hy * 0.8 * k, T * 0.08 * (1 - u), PEARL, (1 - u) * 0.9); }
+              const fu = e / 0.2; if (fu < 1) { Q.glow(X, Y, T * R * (0.35 + 0.4 * fu), PEARL, (1 - fu) * 0.95); Q.glow(X, Y, T * 0.5 * (1 + fu), '#FFFFFF', (1 - fu)); Q.star(X, Y, T * R * (0.5 + 0.6 * fu), (1 - fu) * 0.9, PEARL); }
+              const du = e / 0.6; if (du < 1) { const rr = T * R * (0.5 + 0.55 * H.ease.out(du)); Q.eorb(X, Y + T * 0.05, rr, ROSE, 1.05 - 0.5 * du, (1 - du * du) * 0.95, b.i * 5.7 + 2, 1.2); Q.glow(X, Y + T * 0.1, rr * 1.3, ROSE, (1 - du) * 0.45); Q.quad(44, X, Y - T * 0.1 * du, rr * 1.15, 0, 0, rr * 1.15, PINK, (1 - du) * 0.7, 0.04, 1.1, 0.2); }
+              const gu = e / 0.4; if (gu < 1 && b.frags) for (const q of b.frags) { const rr = T * R * (0.25 + 0.75 * H.ease.out(gu)) * q.v, cx = X + Math.cos(q.a) * rr, cy = Y + Math.sin(q.a) * rr * 0.6 - T * q.up * gu, ln = q.len * (1 - gu * 0.7), ax = cx - Math.cos(q.a) * T * 0.3, ay = cy - Math.sin(q.a) * T * 0.18, pt = j => { const b2 = q.a - ln + 2 * ln * j / 6; return [ax + Math.cos(b2) * T * 0.3, ay + Math.sin(b2) * T * 0.3]; };
+                for (let j = 0; j < 5; j++) { const p0 = pt(j), p1 = pt(j + 2); Q.beam(p0[0], p0[1], p1[0], p1[1], T * 0.07 * (1 - gu * 0.6), PINK, 0.6 * (1 - gu)); Q.beam(p0[0], p0[1], p1[0], p1[1], T * 0.025, PEARL, 0.9 * (1 - gu)); } }
+              const su = e / 0.7; if (su < 1) for (let q = 0; q < 8 + 3 * L; q++) { const a = R1(q * 3.3 + b.i) * TAU, rr = T * R * (0.2 + 0.9 * H.ease.out(su)) * (0.5 + 0.6 * R1(q * 1.7 + b.i)); Q.star(X + Math.cos(a) * rr, Y + Math.sin(a) * rr * 0.65 - T * 0.5 * su * R1(q + 2), T * (0.14 + 0.18 * R1(q * 5.1)), (1 - su) * (0.6 + 0.4 * Math.sin(t * 20 + q)), q % 3 ? PEARL : BLOS); }
+              continue; }
+            if (!b.tr.length) continue;
+            const a = b.st === 'form' ? cl((t - b.i * 0.06) / 0.25) : 1, grow = b.st === 'form' ? backOut((t - b.i * 0.06) / 0.3) : 1, X = H.sx(b.x), Y = H.sy(b.y) - b.z * T;
+            if (a < 0.02) continue;
+            if (b.st === 'fly' && b.tr.length > 2) { const P = b.tr.map(p => [H.sx(p[0]), H.sy(p[1]) - p[2] * T]), n = P.length; for (let j = 0; j < n - 1; j++) { const k0 = j / (n - 1), p0 = P[j], p1 = P[Math.min(n - 1, j + 2)]; Q.beam(p0[0], p0[1], p1[0], p1[1], T * 0.2 * (0.25 + 0.75 * k0), ROSE, 0.35 * k0); Q.beam(p0[0], p0[1], p1[0], p1[1], T * 0.07 * (0.25 + 0.75 * k0), PEARL, 0.6 * k0); } }
+            const ft = b.st === 'fly' ? t - b.ft : 0, spin = b.ph + (b.st === 'form' ? 0.25 * Math.sin(t * 3) : ft * 3.4), lean = b.st === 'form' ? 0.1 * b.s : 0.55 * Math.sin(ft * 4.2 + b.ph) * (b.st === 'land' ? 0 : 1);
+            const hp = T * HB * Math.max(0.05, grow), lu = b.st === 'land' ? (t - b.land) / 0.12 : 0, sqx = b.st === 'land' ? 1 + 0.2 * Math.sin(Math.PI * lu) : 1, sqy = b.st === 'land' ? 1 - 0.25 * Math.sin(Math.PI * lu) : 1;
+            const cs = Math.cos(spin), sn = Math.sin(spin), ws = Math.max(0.1, Math.abs(cs)), hy = hp / 1.62, cl2 = Math.cos(lean), sl = Math.sin(lean), Yc = Y + hp * 0.5 * (1 - sqy), dep = hy * 0.3, nr = (cs >= 0 ? 1 : -1) * dep / 2 * sn;
+            const hq = (ox, w, z, q0) => Q.quad(41, X + ox * cl2 * sqx, Yc + ox * sl * sqy, cl2 * hy * w * sqx, sl * hy * w * sqy, -sl * hy * sqx, cl2 * hy * sqy, '#FFFFFF', a, q0, b.i * 2.3 + 1, z);
+            Q.glow(X, Yc, hp * 1.1, PINK, a * (0.3 + 0.1 * Math.sin(t * 11)));
+            for (let q = 0; q <= 5; q++) hq(lerp(-nr, nr, q / 5), ws, -1, 0);
+            hq(nr, ws, 1 + L, b.st === 'land' ? 0.9 * lu : 0.25 + 0.15 * Math.sin(t * 11));
+            // the rose-gold seam, the nested heart of light inside (from Adept), the fuse of little lights and its heart charm
+            const P2 = (x, y) => [X + (x * cl2 - y * sl) * sqx, Yc + (x * sl + y * cl2) * sqy], vis = Math.max(0, (Math.abs(cs) - 0.25) / 0.75);
+            if (vis > 0) { const s0 = P2(nr, -hp * 0.25), s1 = P2(nr + hp * 0.03 * sn, hp * 0.12), s2 = P2(nr, hp * 0.47); Q.beam(s0[0], s0[1], s1[0], s1[1], hp * 0.035, RGOLD, a * vis * 0.9); Q.beam(s1[0], s1[1], s2[0], s2[1], hp * 0.035, RGOLD, a * vis * 0.9);
+              if (L >= 1) for (let q = 0; q < (L === 2 ? 2 : 1); q++) { const sz = hy * (0.62 - q * 0.22), o = P2(nr, hp * 0.04); Q.quad(44, o[0], o[1], cl2 * sz * ws * sqx, sl * sz * ws * sqy, -sl * sz * sqx, cl2 * sz * sqy, PEARL, a * (0.5 - q * 0.12) * Math.abs(cs), 0.05, 1.1, 0); } }
+            const vx = b.tr.length > 1 ? b.tr[b.tr.length - 1][0] - b.tr[b.tr.length - 2][0] : 0, vz = b.tr.length > 1 ? b.tr[b.tr.length - 1][2] - b.tr[b.tr.length - 2][2] : 0, lag = [-vx * T * 3, vz * T * 3];
+            let pp = null; for (let k = 0; k <= 5; k++) { const u = k / 5, p = P2(Math.sin(u * 2.2 + t * 3) * hp * 0.05 + lag[0] * u * u, -hp * 0.27 - u * hp * 0.4 + lag[1] * u * u); if (pp) Q.beam(pp[0], pp[1], p[0], p[1], hp * 0.03, BLOS, a * 0.7); if (k > 0 && k < 5) Q.glow(p[0], p[1], hp * 0.1, k % 2 ? PEARL : CANDY, a * (0.6 + 0.4 * Math.sin(t * 16 + k * 2)));
+              if (k === 5) { const ch = hp * 0.16; Q.quad(41, p[0], p[1], ch, 0, 0, ch, '#FFFFFF', a, 0.5, 3, 1); Q.glow(p[0], p[1], ch * 1.6, PEARL, 0.5 * a * (0.7 + 0.3 * Math.sin(t * 9))); Q.star(p[0], p[1], ch * 1.8, a * (0.5 + 0.5 * Math.sin(t * 13)), PEARL); } pp = p; }
+          }
+          FG.flush(c); B.draw(c, T); return; } }
         for (const b of bombs) {
           if (b.st === 'boom') { const e = t - b.det, X = H.sx(b.tx), Y = H.sy(b.ty) - T * 0.42;
             // the shell splits along its seam: two halves peel apart and fade
