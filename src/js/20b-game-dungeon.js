@@ -1498,7 +1498,7 @@ GAMES.dungeon = {
       g.flash = Math.max(0, g.flash - dtReal * 2.2); g.hurtV = Math.max(0, g.hurtV - dtReal * 1.4);
       if (g.zoomT > 0) { g.zoomT -= dtReal; if (g.zoomT <= 0) g.zoomP = 1; }
       // the camera pulls back a little while a boss is up
-      { const bossUp = g.boss && !g.boss.dead && g.boss.act !== 'sleep', fz = camPick() /* (Fire's Nidhogg, 20k6g: its flight zoom and Ultima framing) */, want = (fz && fz.zoom ? fz.zoom : FD ? (bossUp ? 0.66 : 0.78) : bossUp ? 0.86 : 1) * g.zoomP; g.zoom += (want - g.zoom) * Math.min(1, dtReal * 3); if (Math.abs(g.zoom - want) < 0.002) g.zoom = want; }
+      { const bossUp = g.boss && !g.boss.dead && g.boss.act !== 'sleep', fz = camPick() /* (Fire's Nidhogg, 20k6g: its flight zoom and Ultima framing) */, want = (fz && fz.zoom ? fz.zoom : FD ? (bossUp ? 0.66 : 0.78) : bossUp ? 0.86 : 1) * g.zoomP * (F.rift && F.rift.kind === 'boss' ? 1.6 : 1) /* (v401: rift boss fights 60% closer, the user 2026-11-17) */; g.zoom += (want - g.zoom) * Math.min(1, dtReal * 3); if (Math.abs(g.zoom - want) < 0.002) g.zoom = want; }
       if (g.hitStop > 0) { g.hitStop -= dtReal; return; }
       g.ts = g.slowT > 0 ? 0.3 : 1; if (g.slowT > 0) g.slowT -= dtReal;
       const dt = dtReal * g.ts; curDt = dt;

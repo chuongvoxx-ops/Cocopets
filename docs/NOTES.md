@@ -1125,3 +1125,4 @@ Every new boss painter (rift fiends, Tower bosses, minis that get their own art)
 - v398: Clapper Counterweights load fix (stale stages released), north gate crystal in a cage, shrines and ability drops redrawn on the GPU, Belfry boss attack effects rebuilt, evil-Cocopet and crowd performance with loading-screen preload.
 - v399: Kharrox attack effects finished on the GPU, and his stage released when a new one starts.
 - v400: Belfry bosses (Kharrox, Nhalu, Uldroth, Gloomfin, Clangrot, Squallmaw): double health, attacks hit 5x as hard.
+- v401: rift boss fights: camera 60% closer.
