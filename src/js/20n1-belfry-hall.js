@@ -49,7 +49,7 @@ var BELFRY_HALL = (() => {
   /* ======================= the palette and the three branches ======================= */
   const P = { SEA: '#123C52', SEA_D: '#0A2432', LIME: '#C8CCBC', LIME_HI: '#E4E7D9', LIME_D: '#8E948A', BRASS: '#957943', BRASS_HI: '#D9B66A', BRASS_D: '#5E4A26', TURQ: '#61D9D2', TURQ_HI: '#C8FFF8', STAIN: '#1B2226', INK: '#0E1A20', WATER: '#2F7F95', WATER_HI: '#8FE3F0', SLATE: '#2C3A44', SLATE_HI: '#4A5C68', CORAL: '#FF6F61', WARN: '#FF5A4D', NAVY: '#18264A' };
   const BR = {
-    E: { k: 'E', dir: 'EAST', name: 'The Sunken Muster', crystal: 'Fang Crystal', emblem: 'fangs', col: '#FF6F61', hi: '#FFD3CC', deep: '#A8302A', plaque: ['THE SUNKEN MUSTER', 'Defeat 50 monsters,', 'then the mini boss'] },
+    E: { k: 'E', dir: 'EAST', name: 'The Sunken Muster', crystal: 'Fang Crystal', emblem: 'fangs', col: '#FF6F61', hi: '#FFD3CC', deep: '#A8302A', plaque: ['THE SUNKEN MUSTER', 'Defeat 100 monsters,', 'then the mini boss'] },
     W: { k: 'W', dir: 'WEST', name: 'The Last Beacon', crystal: 'Ward Crystal', emblem: 'shield', col: '#7FEFC0', hi: '#DFFFF0', deep: '#2E9C78', plaque: ['THE LAST BEACON', 'Keep the crystal intact', 'for 30 seconds'] },
     N: { k: 'N', dir: 'NORTH', name: 'The Hundredfold Roll', crystal: 'Spiral Crystal', emblem: 'spiral', col: '#AEE2FF', hi: '#F2FBFF', deep: '#3E86C8', plaque: ['THE HUNDREDFOLD ROLL', 'Make 100 rollers collide,', 'then defeat two foes'] },
   };
@@ -397,14 +397,16 @@ var BELFRY_HALL = (() => {
     if (DRS) T.dress = DRS.tick;   // v392 PR: shots through the dressing (the hall's update calls it)
     const silent = m => { if (!m.dead) { m.dead = true; m.hp = 0; } };
     T.reset = () => { for (const m of T.list) silent(m); T.list = []; if (T.V) { T.V.remove(); T.V = null; } T.group = 0; T.gapT = 0; T.kills = 0; T.bossState = 'pending'; T.ringT = 0; T.cage = 1; T.downT = 0; T.state = 'idle'; BELLS.forEach(b => { b.sw = 0; }); };
-    T.restoreWon = () => { T.state = 'won'; T.cage = 0; T.kills = 50; T.bossState = 'down'; };
+    /* (v397, the user: double the east gate's monsters) 100 in five groups of twenty: sixteen crawlers and four leeches */
+    const MUSTER_N = 100, GROUP_C = 16, GROUP_L = 4;
+    T.restoreWon = () => { T.state = 'won'; T.cage = 0; T.kills = MUSTER_N; T.bossState = 'down'; };
     function spawnOne(type, p, pack) { const q = X.freeSpot(p.x, p.y, 0.45) || p; const m = X.spawnMon(MON[type] ? type : 'blob', q.x, q.y, { pack, rift: true, aggro: true }); m.aggro = true; m.muster = true; X.g.total = (X.g.total || 0) + 1; T.list.push(m); return m; }
     function spawnGroup() { T.group++; const pack = 960 + T.group, rnd = Math.random;
-      for (let i = 0; i < 8; i++) { const mo = MOUTH[(i + T.group) % 4], top = mo.y < 55, p = { x: mo.x + (rnd() - 0.5) * 2.6, y: mo.y + (top ? 1.3 : -1.3) + (rnd() - 0.5) * 0.9 };
+      for (let i = 0; i < GROUP_C; i++) { const mo = MOUTH[(i + T.group) % 4], top = mo.y < 55, p = { x: mo.x + (rnd() - 0.5) * 2.6, y: mo.y + (top ? 1.3 : -1.3) + (rnd() - 0.5) * 0.9 };
         const m = spawnOne('crawler', p, pack); m.maxhp = m.hp = atkOf() * TUNE.CRAWL_K; m.dmg *= TUNE.CRAWL_DMG; m.cd = 0.6 + rnd() * 1.2; }
-      for (let j = 0; j < 2; j++) { const p = LEECH[(T.group * 2 + j) % LEECH.length], m = spawnOne('leech', p, pack); m.maxhp = m.hp = atkOf() * TUNE.LEECH_K; m.dmg *= TUNE.LEECH_DMG; m.cd = 1.2 + rnd(); }
+      for (let j = 0; j < GROUP_L; j++) { const p = LEECH[(T.group * GROUP_L + j) % LEECH.length], m = spawnOne('leech', p, pack); m.maxhp = m.hp = atkOf() * TUNE.LEECH_K; m.dmg *= TUNE.LEECH_DMG; m.cd = 1.2 + rnd(); }
       for (const mo of MOUTH) { X.splash(mo.x, mo.y + (mo.y < 55 ? 0.8 : -0.8), 1.2); }
-      X.banner(T.group === 1 ? 'THE SUNKEN MUSTER' : `GROUP ${T.group} OF 5`, T.group === 1 ? 'Ten crawl out of the drains: eight brine crawlers, two bell leeches' : `${T.kills}/50 down · ten more from the drains`, BR.E.col, 2, T.group === 1); }
+      X.banner(T.group === 1 ? 'THE SUNKEN MUSTER' : `GROUP ${T.group} OF 5`, T.group === 1 ? 'Twenty crawl out of the drains: sixteen brine crawlers, four bell leeches' : `${T.kills}/${MUSTER_N} down · twenty more from the drains`, BR.E.col, 2, T.group === 1); }
     const atkOf = () => K.atk();
     T.start = () => { T.state = 'run'; spawnGroup(); };
     function varkulHp() { let base = atkOf() * TUNE.VARKUL_K;
@@ -413,14 +415,14 @@ var BELFRY_HALL = (() => {
       try { const Rf = RIFT_BY_ID[X.F.rift.id], KT = typeof BELK !== 'undefined' && BELK && BELK.TUNE, eh = (Rf && Rf.belkHp) || (KT && KT.effHp); if (eh > 0) base = eh * TUNE.VARKUL_KHARROX; } catch (e) {}
       return base; }
     function ringBell() { T.bossState = 'ring'; T.ringT = 0; const b = BELLS[0]; b.sw = 1; bellNote(X, 1); X.shake(lowFx() ? 2 : 6, 0.6); X.ring(b.x, b.y + 1, 0.4, 7, 0.9, '#FFD27A', 0.35); X.flash(0.3, '#FFE9B0');
-      X.banner('A CRACKED BELL TOLLS', 'Fifty fallen. Varkul, the Chainbound, is released', BR.E.col, 3, true, true); }
+      X.banner('A CRACKED BELL TOLLS', 'A hundred fallen. Varkul, the Chainbound, is released', BR.E.col, 3, true, true); }
     function release() { T.bossState = 'fight'; const V = typeof BELFRY_VARKUL !== 'undefined' ? BELFRY_VARKUL : null;
       if (V) T.V = V.spawn(X, H, VG.x, VG.y + 2.6, { hp: varkulHp(), from: { x: VG.x, y: VG.y - 1.5 } });
       else { T.bossState = 'down'; } }
     T.update = dt => {
-      let alive = 0; for (const m of T.list) if (!m.dead) alive++; T.kills = Math.min(50, T.list.length - alive);
+      let alive = 0; for (const m of T.list) if (!m.dead) alive++; T.kills = Math.min(MUSTER_N, T.list.length - alive);
       if (T.group < 5) { if (alive === 0) { T.gapT += dt; if (T.gapT > 0.45) { T.gapT = 0; spawnGroup(); } } }
-      else if (alive === 0 && T.bossState === 'pending' && T.kills >= 50) ringBell();
+      else if (alive === 0 && T.bossState === 'pending' && T.kills >= MUSTER_N) ringBell();
       if (T.bossState === 'ring') { T.ringT += dt; if (T.ringT > 1.9) release(); }
       if (T.V && T.V.tick) T.V.tick(dt);
       if (T.bossState === 'fight' && T.V && T.V.m.dead) { T.bossState = 'down'; T.downT = 0; }
@@ -431,11 +433,11 @@ var BELFRY_HALL = (() => {
       if (typeof BREAK_FX !== 'undefined') try { BREAK_FX.burst(X, CR.x, CR.y + 0.5, { paint: (BPZ() && BPZ().painter([['cage', 'b'], ['cage', 'f']])) || cagePaint, key: BPZ() ? 'belcage2' : 'belcage', w: 2.4, h: 3.0, mat: BPZ() ? 'coral' : 'glass',   /* v392 PR: the repainted cage's own picture */ size: 2.6, cols: ['#FF8A7A', '#B0362C', '#FFE0D8'], hot: '#FF6F61', rubble: false }); } catch (e) {}
       X.ring(CR.x, CR.y, 0.3, 4, 0.6, BR.E.col, 0.35); X.banner('THE CORAL CAGE SHATTERS', 'The Fang Crystal is free: collect it', BR.E.col, 2.8, true, true); }
     const cagePaint = (c, Pp) => { for (let i = 0; i < 9; i++) { const a = i / 9 * TAU, x = Math.cos(a) * Pp * 0.95, y = Math.sin(a) * Pp * 0.35; c.fillStyle = i % 2 ? '#FF8A7A' : '#FFC2B6'; c.fillRect(x - Pp * 0.06, y - Pp * 2.6, Pp * 0.12, Pp * 2.6); } c.strokeStyle = '#FF6F61'; c.lineWidth = Pp * 0.1; c.beginPath(); c.ellipse(0, -Pp * 2.6, Pp * 0.95, Pp * 0.35, 0, 0, TAU); c.stroke(); };
-    T.goal = () => `Monsters defeated: ${T.kills}/50 · ${T.bossState === 'pending' ? 'Mini-boss pending' : T.bossState === 'ring' ? 'The bell tolls…' : T.V && !T.V.m.dead ? `Varkul, the Chainbound ${Math.max(0, Math.ceil(T.V.m.hp / T.V.m.maxhp * 100))}%` : 'Varkul is down'}`;
+    T.goal = () => `Monsters defeated: ${T.kills}/${MUSTER_N} · ${T.bossState === 'pending' ? 'Mini-boss pending' : T.bossState === 'ring' ? 'The bell tolls…' : T.V && !T.V.m.dead ? `Varkul, the Chainbound ${Math.max(0, Math.ceil(T.V.m.hp / T.V.m.maxhp * 100))}%` : 'Varkul is down'}`;
     T.hint = () => { if (T.V && !T.V.m.dead) return hyp(T.V.m.x - me.x, T.V.m.y - me.y) > 9 ? { x: T.V.m.x, y: T.V.m.y, h: 2.4, label: 'VARKUL' } : null; let b = null, bd = 9; for (const m of T.list) if (!m.dead) { const d = hyp(m.x - me.x, m.y - me.y); if (d < bd || !b) { if (d >= 8) { bd = d; b = m; } else return null; } } return b ? { x: b.x, y: b.y, h: 1.3, label: 'THE MUSTER' } : null; };
     T.cam = () => ({ x: me.x, y: me.y, k: 0, zoom: 0.86 });
     T.hud = (c, W, Hh) => { const y = 104, w = Math.min(250, W - 30); panel(c, W / 2, y, w, 58, BR.E.col);
-      label(c, `Monsters defeated: ${T.kills}/50`, W / 2, y + 16, 15, '#FFFFFF', { w: 900 }); bar(c, W / 2 - w / 2 + 14, y + 27, w - 28, 5, T.kills / 50, '#FF8A7A', '#FFD3CC');
+      label(c, `Monsters defeated: ${T.kills}/${MUSTER_N}`, W / 2, y + 16, 15, '#FFFFFF', { w: 900 }); bar(c, W / 2 - w / 2 + 14, y + 27, w - 28, 5, T.kills / MUSTER_N, '#FF8A7A', '#FFD3CC');
       const V = T.V && T.V.m; if (V && !V.dead) { label(c, 'Varkul, the Chainbound', W / 2, y + 43, 12, BR.E.hi, { w: 800 }); bar(c, W / 2 - w / 2 + 14, y + 51, w - 28, 4, V.hp / V.maxhp, '#FF5A4D', '#FFB08A'); }
       else label(c, T.bossState === 'pending' ? 'Mini-boss pending' : T.bossState === 'ring' ? 'The bell tolls…' : 'Varkul is down', W / 2, y + 45, 12, '#C9D6DA', { w: 800 }); };
     /* ---- the foundry's floor and walls ---- */
