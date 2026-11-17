@@ -274,7 +274,7 @@ function riftFight(X, self, H) {
   H.setExit(far.x, far.y, 'The way on');
   // (a dungeon may have something of its own in it: Rf.stages[i].extra(X, self, H) -> { update, drawGround, drawOver })
   const SX = Rf.stages[F.rift.stage], xm = SX && SX.extra ? SX.extra(X, self, H) || {} : {};
-  X.after(2.2, () => X.banner(F.rift.name.toUpperCase(), `Clear every monster${mini ? ` and ${mini.bname}` : ''}`, (BIOMES[F.biome] || BIOMES[Rf.biome]).accent || '#FFE37A', 2.6, true, true));
+  X.after(2.2, () => X.banner(F.rift.name.toUpperCase(), (SX && SX.introSub) || `Clear every monster${mini ? ` and ${mini.bname}` : ''}`,   /* v395 B1: a stage's own opening line (SX.introSub) */ (BIOMES[F.biome] || BIOMES[Rf.biome]).accent || '#FFE37A', 2.6, true, true));
   return {
     drawGround: c => { if (xm.drawGround) xm.drawGround(c); }, drawOver: c => { if (xm.drawOver) xm.drawOver(c); }, xm,
     update(dt) { if (xm.update) xm.update(dt); if (!self.done && H.monstersLeft() === 0 && (!mini || mini.dead)) { self.done = true; X.banner('THE FLOOR IS CLEAR', 'The door opens: follow the green arrow', '#8FE0A6', 2.4, true); X.flash(0.3, '#FFFFFF'); X.sfx.fanfare(); } },

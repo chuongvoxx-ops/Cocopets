@@ -1,13 +1,14 @@
 // v391 B1, v394 B1: the rebuilt Drowned Belfry: every stage loads with no page errors; the three dungeons (exactly 150 / 180 /
 // 200 brood, one leader to every pack, the live cap, a guardian gating each exit, ramped traps, their valve halls); the
 // Clapper Counterweights solve; the sealing records the Tide Sigil and its necklace once; old saves map onto the eight stages.
-// usage: HTML=test-bel4.html node tests/_bel-b1-smoke.js   env: SHOTS=1, ONLY=load,dun,valve,clap,hall,seal,mig  DUNS=1,2,3
+// usage: HTML=test-bel4.html node tests/_bel-b1-smoke.js   env: SHOTS=1, ONLY=load,dun,gate,valve,clap,hall,seal,mig  DUNS=1,2,3
 process.env.HTML = process.env.HTML || 'test.html';
 const { open } = require('./_rift-lib');
 let fails = 0; const ok = (c, s, x) => { console.log((c ? 'ok   ' : 'FAIL ') + s + (x !== undefined ? ' ' + JSON.stringify(x) : '')); if (!c) fails++; };
-const ONLY = (process.env.ONLY || 'load,dun,valve,clap,hall,seal,mig').split(',');
+const ONLY = (process.env.ONLY || 'load,dun,gate,valve,clap,hall,seal,mig').split(',');   // (v395 B1: gate, D1's flooded gate hall)
 (async () => {
   const T = await open({ lvl: 14 }); const { page, errors, start, run, rs } = T;
+  if (process.env.GPU === '1') await page.evaluate(() => { window.__NG_GL = 1; });   // (v395 B1: shots with the GPU painter on swiftshader)
   const info = await page.evaluate(() => { const R = window.__pp.RIFT_BY_ID.belfry; return { n: R.stages.length, kinds: R.stages.map(s => s.kind).join(','), names: R.stages.map(s => s.name).join(' | '), bosses: R.stages.map(s => s.boss || '').join(','), fiends: ['belkharrox', 'belnhalu', 'beluldroth'].map(id => !!window.__pp.FIEND_DEFS[id]) }; });
   console.log('stages', JSON.stringify(info));
   const K = info.kinds.split(',');
@@ -25,10 +26,12 @@ const ONLY = (process.env.ONLY || 'load,dun,valve,clap,hall,seal,mig').split(','
     console.log(' ', s, JSON.stringify(r)); ok(errors.length === e0, `stage ${s} loads and runs with no page errors`, errors.slice(e0, e0 + 2)); }
   // v394 B1: the three dungeons (riftFight floors): exact brood, one leader per pack, the live cap, the guardian gating the exit,
   // the valve halls, the ramped traps (worker B2's BEL_TRAPS), each its own land
-  const DUNS = [{ s: 0, key: 'd1', n: 150, guard: 'Gloomfin the Abyssal', short: 'Gloomfin', valves: 2, traps: 15, land: 'belnave' }, { s: 3, key: 'd2', n: 180, guard: 'Clangrot the Undertoll', short: 'Clangrot', valves: 3, traps: 22, land: 'belfoundry' }, { s: 6, key: 'd3', n: 200, guard: 'Squallmaw the Stormdrowned', short: 'Squallmaw', valves: 4, traps: 30, land: 'belstorm' }];
+  const DUNS = [{ s: 0, key: 'd1', n: 150, guard: 'Gloomfin the Abyssal', short: 'Gloomfin', valves: 3, traps: 15, land: 'belnave', gate: true }, { s: 3, key: 'd2', n: 180, guard: 'Clangrot the Undertoll', short: 'Clangrot', valves: 3, traps: 22, land: 'belfoundry' }, { s: 6, key: 'd3', n: 200, guard: 'Squallmaw the Stormdrowned', short: 'Squallmaw', valves: 4, traps: 30, land: 'belstorm' }];
   const ramp = [];
   if (ONLY.includes('dun')) for (const W of DUNS.filter((W, i) => (process.env.DUNS || '1,2,3').split(',').includes(String(i + 1)))) {
     await start('belfry', W.s); await gt(1.2);
+    const seen = await page.evaluate(async () => { const G = window.__pp.arc.game._dbg, out = new Set(), t0 = G.g.t, w0 = performance.now(); while (G.g.t - t0 < 1.6 && performance.now() - w0 < 60000) { await new Promise(q => requestAnimationFrame(q)); (G.banners || []).forEach(b => out.add(b.s + ' / ' + b.sub)); } return [...out]; });
+    ok(!seen.some(b => /Clear every monster/.test(b)) && (W.gate || seen.some(b => b.includes(W.guard))), `${W.key}: the opening banner names its objective`, seen);
     let r = await page.evaluate(key => { const G = window.__pp.arc.game._dbg, DS = window.BEL.dungeonCtx({ g: G.g }), all = G.mons.concat(G.g.reserve || []).filter(m => !m.dead && !m.boss && !m.optional), mine = all.filter(m => m.belDun === key), packs = new Map();
       for (const m of mine) { if (m.belValve != null) continue; if (!packs.has(m.pack)) packs.set(m.pack, []); packs.get(m.pack).push(m); }
       const lead = [...packs.values()].map(l => l.filter(m => m.calLeader).length), mini = G.mons.find(m => m.belGuard && !m.dead), BT = window.BEL_TRAPS || (self.BEL_TRAPS);
@@ -46,8 +49,9 @@ const ONLY = (process.env.ONLY || 'load,dun,valve,clap,hall,seal,mig').split(','
     ok(r.mini && r.mini.name === W.guard && r.mini.r >= 1.1 && !r.done && r.exitR < 0, `${W.key}: ${W.guard} guards the sealed exit`, { mini: r.mini, exitR: r.exitR });
     ok(r.valves === W.valves && r.vObjs === W.valves && r.leeches === W.valves, `${W.key}: ${W.valves} valve halls, each valve held by a leech`, { valves: r.valves, objs: r.vObjs, leeches: r.leeches });
     ok(r.traps === null || r.traps === W.traps, `${W.key}: ${W.traps} traps placed`, { traps: r.traps, kinds: r.trapKinds });
-    ok(new RegExp(`^${W.n} of ${W.n} brood left · ${W.short} at the gate`).test(r.goal) && r.events === false && !r.gremlin, `${W.key}: the goal counts the brood and names the guardian; no events or gremlin`, r.goal);
+    ok((W.gate ? /^Drain the gate hall: turn the 3 valves \(0\/3\) · 150 brood left/ : new RegExp(`^${W.n} of ${W.n} brood left · ${W.short} at the gate`)).test(r.goal) && r.events === false && !r.gremlin, `${W.key}: the goal counts the brood and names the guardian; no events or gremlin`, r.goal);
     if (process.env.SHOTS) await page.screenshot({ path: `shots/bel-v394-${W.key}-start.png` });
+    if (W.gate) continue;   // (v395 B1: D1's door waits on its gate valves and guardian: the 'gate' section)
     // every one of the brood down: the gate stays sealed while the guardian stands
     await page.evaluate(async () => { const G = window.__pp.arc.game._dbg; for (let k = 0; k < 4; k++) { const res = G.g.reserve || []; G.mons.push(...res.splice(0)); for (const m of G.mons) if (!m.dead && !m.boss) { m.guardFn = null; G.hitMon(m, 1e9, { flat: true }); } await new Promise(r => setTimeout(r, 200)); } });
     await gt(1); r = await D(() => { const G = window.__pp.arc.game._dbg; return { left: G.mons.filter(m => !m.dead && !m.boss && !m.optional).length + (G.g.reserve || []).length, done: G.RIFT.done, goal: document.getElementById('arcGoal').textContent, exitR: G.RIFT.exit.r }; });
@@ -56,15 +60,53 @@ const ONLY = (process.env.ONLY || 'load,dun,valve,clap,hall,seal,mig').split(','
     await exitNow(); r = await rs(); ok(r.prog.belfry === W.s + 1, `${W.key}: checkpoint: stage ${W.s + 2}`, r.prog);
   }
   if (ramp.length === 3) ok(ramp[0].hpCrawler < ramp[1].hpCrawler && ramp[1].hpCrawler < ramp[2].hpCrawler && ramp[0].mini.hp < ramp[1].mini.hp && ramp[1].mini.hp < ramp[2].mini.hp && ramp[0].traps <= ramp[1].traps && ramp[1].traps <= ramp[2].traps, 'the ramp: the brood, the guardians and the traps grow from dungeon to dungeon', ramp.map(r => ({ hp: r.hpCrawler, dmg: r.dmgCrawler, g: r.mini && r.mini.hp, traps: r.traps })));
-  if (ONLY.includes('valve')) {   // v394 B1: a valve hall surges (the water rises, then a crest carries the pet back), its leech holds the valve, turning it drains the hall for good
-    await start('belfry', 0); await gt(1);
+  if (ONLY.includes('gate')) {   // v395 B1: D1's flooded gate hall: three gate valves (each held by a leech) drain it; the guardian then wakes; its fall opens the door
+    await start('belfry', 0); await gt(1.2);
+    const GHs = f => page.evaluate(f => { const G = window.__pp.arc.game._dbg, DS = window.BEL.dungeonCtx({ g: G.g }), GH = DS.gate; return new Function('G', 'DS', 'GH', f)(G, DS, GH); }, f);
+    const edge = () => GHs(`const FL = G.M.G[Math.floor(G.me.y) * G.M.MW + Math.floor(G.me.x)]; let best = null, bd = 1e9; for (let y = Math.floor(GH.y0) - 3; y <= GH.y1 + 3; y++) for (let x = Math.floor(GH.x0) - 3; x <= GH.x1 + 3; x++) { const px = x + 0.5, py = y + 0.5; if (px > GH.x0 - 1 && px < GH.x1 + 1 && py > GH.y0 - 1 && py < GH.y1 + 1) continue; if (G.M.G[y * G.M.MW + x] !== FL) continue; const d = Math.hypot(px - GH.cx, py - GH.cy); if (d < bd) { bd = d; best = { x: px, y: py }; } } G.me.x = best.x; G.me.y = best.y; G.me.vx = G.me.vy = 0; GH.last = { x: best.x, y: best.y }; return best;`);
+    let r = await GHs(`const rooms = new Set(DS.valveHalls.map(V => V.room)); return { gate: !!GH, level: GH.level, turned: GH.turned, need: GH.need, valves: DS.valveHalls.length, rooms: rooms.size, notGate: !rooms.has(GH.room), hold: !!(DS.mini && DS.mini.calMini && DS.mini.calMini.hold), surge: DS.valveHalls.some(V => !V.region.off), goal: document.getElementById('arcGoal').textContent, banner: (G.banners || []).map(b => b.s).join('|'), brood: G.mons.filter(m => !m.dead && !m.boss && m.x > GH.x0 && m.x < GH.x1 && m.y > GH.y0 && m.y < GH.y1).length };`);
+    console.log('  gate', JSON.stringify(r));
+    ok(r.gate && r.level > 0.95 && r.need === 3 && r.valves === 3 && r.rooms === 3 && r.notGate && r.hold && !r.surge && r.brood === 0, 'D1: the gate hall stands flooded, the guardian asleep under it; three gate valves in three other rooms; no surge halls; no brood in the gate hall', r);
+    ok(/^Drain the gate hall: turn the 3 valves \(0\/3\) · 150 brood left/.test(r.goal), 'D1: the goal is the valves (0/3), the brood shown as info', r.goal);
+    { const seen = await page.evaluate(async () => { const G = window.__pp.arc.game._dbg, out = new Set(), t0 = G.g.t, w0 = performance.now(); while (G.g.t - t0 < 2.5 && performance.now() - w0 < 60000) { await new Promise(q => requestAnimationFrame(q)); (G.banners || []).forEach(b => out.add(b.s + ' / ' + b.sub)); } return [...out]; });
+      ok(seen.some(b => /Drain the gate hall: turn 3 valves/.test(b)) && !seen.some(b => /Clear every monster/.test(b)), 'the opening banner: drain the gate hall', seen); }
+    // the deep water cannot be crossed, nor the guardian harmed through it
+    await edge(); await gt(0.3); if (process.env.SHOTS) { await gt(1.5); await page.screenshot({ path: 'shots/bel-v395-d1-gate-flooded.png' }); }
+    r = await GHs(`G.me.x = GH.cx; G.me.y = GH.cy; return 0;`); await gt(0.4);
+    r = await GHs(`return { x: G.me.x, y: G.me.y, inside: G.me.x > GH.x0 && G.me.x < GH.x1 && G.me.y > GH.y0 && G.me.y < GH.y1 };`); ok(!r.inside, 'the deep water turns the pet back (it cannot wade into the gate hall)', r);
+    ok(!(await killGuard()), 'the guardian cannot be harmed under the water');
+    const exitR0 = await D(() => window.__pp.arc.game._dbg.RIFT.exit.r); ok(exitR0 < 0, 'the door is shut', exitR0);
+    // each valve needs its leech dead; each turn lowers the water a step
+    const lv = [];
+    for (let i = 0; i < 3; i++) {
+      await use('valve', i); r = await GHs(`return { turned: GH.turned, on: DS.valveHalls[${i}].valve.on, leech: !!(DS.valveHalls[${i}].leech && !DS.valveHalls[${i}].leech.dead) };`);
+      ok(r.leech && !r.on && r.turned === i, `valve ${i + 1}: the leech holds it, it will not turn`, r);
+      await GHs(`G.hitMon(DS.valveHalls[${i}].leech, 1e9, { flat: true }); return 0;`); await gt(0.3);
+      if (i === 0 && process.env.SHOTS) { await near('valve', 0); await page.evaluate(() => { for (const m of window.__pp.arc.game._dbg.mons) if (!m.belGuard) m.aggro = false; }); await gt(0.5); await page.screenshot({ path: 'shots/bel-v395-d1-valve-turn.png' }); await gt(0.6); await page.evaluate(() => { window.__pp.arc.game._dbg.me.x += 3; }); await gt(0.1); }
+      else await use('valve', i);
+      await gt(1.6); r = await GHs(`return { turned: GH.turned, level: +GH.level.toFixed(2), open: GH.open, goal: document.getElementById('arcGoal').textContent };`); lv.push(r.level);
+      ok(r.turned === i + 1 && (i === 2 || (r.level < 1 - (i + 1) / 3 + 0.15 && !r.open)) && (i === 2 || new RegExp(`\\(${i + 1}/3\\)`).test(r.goal)), `valve ${i + 1}: the leech dead, the valve turns and the water drops a step (${i + 1}/3)`, r);
+    }
+    await gt(3); r = await GHs(`const m = DS.mini; return { open: GH.open, level: GH.level, hold: !!(m.calMini && m.calMini.hold), dead: m.dead, left: G.mons.filter(q => !q.dead && !q.boss && !q.optional).length + (G.g.reserve || []).length, goal: document.getElementById('arcGoal').textContent, done: G.RIFT.done };`);
+    ok(r.open && r.level < 0.05 && !r.hold && !r.dead && !r.done && /^Defeat Gloomfin to open the door/.test(r.goal), 'at 3/3 the gate hall drains and Gloomfin is freed', r);
+    await GHs(`const m = DS.mini; G.me.x = m.x; G.me.y = m.y + 4; G.me.vx = G.me.vy = 0; return 0;`); await gt(2.5);
+    r = await GHs(`const m = DS.mini; return { aggro: !!m.aggro, inside: G.me.x > GH.x0 && G.me.x < GH.x1 && G.me.y > GH.y0 && G.me.y < GH.y1 };`); ok(r.aggro && r.inside, 'the pet walks into the drained hall and Gloomfin wakes and fights', r);
+    if (process.env.SHOTS) await page.screenshot({ path: 'shots/bel-v395-d1-gate-drained.png' });
+    ok(await killGuard(), 'Gloomfin falls'); await gt(2.6);
+    r = await D(() => { const G = window.__pp.arc.game._dbg; return { done: G.RIFT.done, exitR: G.RIFT.exit.r, left: G.mons.filter(q => !q.dead && !q.boss && !q.optional).length + (G.g.reserve || []).length, goal: document.getElementById('arcGoal').textContent }; });
+    ok(r.done && r.exitR > 0 && r.left > 100, 'the door opens on the guardian\'s fall, with the brood still alive', r);
+    if (process.env.SHOTS) { await page.evaluate(() => { const G = window.__pp.arc.game._dbg, e = G.RIFT.exit; G.me.x = e.x; G.me.y = e.y + 2.6; }); await gt(1.2); await page.screenshot({ path: 'shots/bel-v395-d1-door-open.png' }); }
+    await exitNow(); r = await rs(); ok(r.prog.belfry === 1, 'D1 cleared: checkpoint: the Hall of Three Tides', r.prog);
+  }
+  if (ONLY.includes('valve')) {   // v394 B1 (v395 B1: in D2; D1's valves are the gate's): a valve hall surges (the water rises, then a crest carries the pet back), its leech holds the valve, turning it drains the hall for good
+    await start('belfry', 3); await gt(1);
     const VH = (i, f) => page.evaluate(([i, f]) => { const G = window.__pp.arc.game._dbg, DS = window.BEL.dungeonCtx({ g: G.g }), V = DS.valveHalls[i]; return new Function('G', 'DS', 'V', f)(G, DS, V); }, [i, f]);
     let r = await VH(0, `const r = V.room; return { tiles: V.tiles.length, w: r.w, h: r.h, locked: V.valve.locked, leech: !!(V.leech && !V.leech.dead), level: V.level, period: DS.D.period, inShallow: window.BEL.inShallow({ g: G.g }, V.cx, V.cy) };`);
     ok(r.tiles >= 12 && r.locked && r.leech, 'a valve hall: flooded floor, its refuge valve held by a leech', r);
     // the rise: the water climbs (no red, no countdown: the shallows deepen, turquoise lines on the walls)
     await VH(0, `const P = DS.D.period; V.t = P - 4.6; G.me.x = V.cx; G.me.y = V.cy; G.me.vx = G.me.vy = 0; for (const m of G.mons) if (!m.boss && !m.dead && m.belValve == null && Math.hypot(m.x - V.cx, m.y - V.cy) < 9) { m.guardFn = null; G.hitMon(m, 1e9, { flat: true }); }`);
     await gt(1.6); r = await VH(0, 'return { phase: V.phase, level: V.level };'); ok(r.phase === 'rise' && r.level > 0.2, 'the sea rises in the hall', r);
-    if (process.env.SHOTS) await page.screenshot({ path: 'shots/bel-v394-d1-valve-rise.png' });
+    if (process.env.SHOTS) await page.screenshot({ path: 'shots/bel-v394-d2-valve-rise.png' });
     // the crest: the pet standing in the hall is carried back toward its mouth
     r = await page.evaluate(async () => { const G = window.__pp.arc.game._dbg, V = window.BEL.dungeonCtx({ g: G.g }).valveHalls[0], P = window.BEL.dungeonCtx({ g: G.g }).D.period; V.t = P - 1.8; G.me.x = V.cx; G.me.y = V.cy; G.me.vx = G.me.vy = 0; G.me.dodge = 0; const t0 = G.g.t, w0 = performance.now(), s0 = V.sweeps; let seenCrest = false;
       while (G.g.t - t0 < 2.5 && performance.now() - w0 < 60000 && V.sweeps === s0) { await new Promise(q => requestAnimationFrame(q)); if (V.phase === 'crest') seenCrest = true; G.me.x = V.cx; G.me.y = V.cy; } return { sweeps: V.sweeps - s0, crest: seenCrest }; });
@@ -74,7 +116,7 @@ const ONLY = (process.env.ONLY || 'load,dun,valve,clap,hall,seal,mig').split(','
     await VH(0, 'G.hitMon(V.leech, 1e9, { flat: true }); const m = G.spawnMon ? null : null; window.__vm = (G.mons.find(q => !q.dead && !q.boss && q.x > V.room.x && q.x < V.room.x + V.room.w && q.y > V.room.y && q.y < V.room.y + V.room.h) || null); return 0;'); await gt(0.4);
     await use('valve', 0); await gt(0.2); r = await VH(0, 'return { drained: V.drained, on: V.valve.on, phase: V.phase, n: DS.drained, beached: G.mons.filter(m => m.belBeached).length };');
     ok(r.drained && r.on && r.n === 1, 'turning the valve drains the hall', r);
-    if (process.env.SHOTS) await page.screenshot({ path: 'shots/bel-v394-d1-valve-drain.png' });
+    if (process.env.SHOTS) await page.screenshot({ path: 'shots/bel-v394-d2-valve-drain.png' });
     r = await page.evaluate(async () => { const G = window.__pp.arc.game._dbg, V = window.BEL.dungeonCtx({ g: G.g }).valveHalls[0], P = window.BEL.dungeonCtx({ g: G.g }).D.period; const t0 = G.g.t; while (G.g.t - t0 < 2.6) await new Promise(q => requestAnimationFrame(q)); V.t = P - 1.8; const s0 = V.sweeps; G.me.x = V.cx; G.me.y = V.cy; const t1 = G.g.t; while (G.g.t - t1 < 2) { await new Promise(q => requestAnimationFrame(q)); G.me.x = V.cx; G.me.y = V.cy; } return { sweeps: V.sweeps - s0, off: !!V.region.off, level: V.level }; });
     ok(r.sweeps === 0 && r.off && r.level < 0.05, 'a drained hall: dry, and no more surges', r);
   }
