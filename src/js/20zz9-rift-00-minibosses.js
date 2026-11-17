@@ -125,7 +125,7 @@ const CAL_MINI = (() => {
      wrapper picks a seed per dungeon and nudges it: the element's parts (flame tail and fists; a crystal tail and wings;
      crystal horns and armour), its coat tinted toward the dungeon (ember-ash, slate, obsidian-violet), the element's
      accent, red eyes. 20m3 is not touched. Its species is the game's own name for the form (speciesName) */
-  const FORMS = {};
+  const FORMS = {}, LOOKS = {};
   function buildForm(d) {
     const R0 = d.form ? { form: d.form } : RiftEvil.form(d.seed), f = JSON.parse(JSON.stringify(R0.form)), h = d.hint || {}, X = f.x || (f.x = {});
     if (h.tail) f.tail = Object.assign({}, f.tail, { t: h.tail }); if (h.arms) f.arms = Object.assign({}, f.arms, { t: h.arms }); if (h.ears) f.ears = Object.assign({}, f.ears, { t: h.ears }); if (h.fur) f.body.fur = h.fur;
@@ -135,12 +135,19 @@ const CAL_MINI = (() => {
     f.eyes = Object.assign({}, f.eyes, { iris2: RED_EYE });
     return { form: f, species: speciesName(f) };
   }
+  // v398 M: one look, one record: the same seed, hints and coat (a Belfry duel's pair, a guardian met again) share its form, its
+  // pictures and its GPU layers, which are made once; and the form carries its own GPU key (__glk), so PetGL finds its layers
+  // without writing the whole form out as text every frame (it did: JSON.stringify per draw)
+  const lookKey = d => JSON.stringify([d.seed, d.form ? 'f' + (d.form.seed || 0) : 0, d.hint || 0, d.tint || 0, d.tintK || 0, d.pal || 0]);
   function evilOf(d) {
     if (FORMS[d.key]) return FORMS[d.key];
+    const lk = lookKey(d); if (LOOKS[lk]) return (FORMS[d.key] = LOOKS[lk]);
     const B = buildForm(d), E = { form: B.form, species: B.species, acc: d.glow, name: d.name, sprites: null, ready: false, cracks: cracksFor(d.seed), bodyTop: (B.form.legs.len || 0) + 9 + B.form.body.h };
+    try { Object.defineProperty(E.form, '__glk', { value: 'evilmini|' + lk, enumerable: false, configurable: true }); } catch (e) {}
     try { loadSprites(E.form, { brows: 'angry' }).then(sp => { E.sprites = sp; return makeRig(E.form, { brows: 'angry' }).then(rg => { sp.rig = rg; E.ready = true; }, () => { E.ready = true; }); }, () => {}); } catch (e) {}
-    try { if (typeof PetGL !== 'undefined') PetGL.ready(E.form); } catch (e) {}   // (its GPU layers, made in the background)
-    return (FORMS[d.key] = E);
+    // (v398 M: no PetGL.ready here: it made a second, unused set of layers (not 'lite') at its own sharpness; the loading
+    // screen's warm-up (warm, below) draws it once at the sharpness and with the faces the fight will use)
+    return (FORMS[d.key] = LOOKS[lk] = E);
   }
   /* cracks of molten light across its body, kept to its middle (below the face, inside every silhouette): random walks in
      body units (x: -0.2..0.2 of its height, y: -0.5..-0.1 above its feet), a few branching */
@@ -264,16 +271,37 @@ const CAL_MINI = (() => {
     return { t, yaw, face: m.flash > 0 ? { eyes: 'dizzy', mouth: 'o', brows: 'angry' } : (cast > 0.5 || swell > 0.5) ? { eyes: 'normal', mouth: 'open', brows: 'angry' } : { eyes: 'normal', mouth: 'smile', brows: 'angry' },
       footL: fs(1), footR: fs(-1), armL: arm(1), armR: arm(-1), wing: Math.sin(m.ewing || 0) * (moving ? 20 : idle ? 9 + 12 * swell : 14), tail: Math.sin(t * 2.4 + ph) * (moving ? 12 : 7), legPh: m.ewing || 0, legAmp: moving ? 16 : 8,
       lean: (idle ? 0.05 : 0.03 + 0.08 * cast) * 1, sy: 1, sx: 1 }; }
+  /* v398 M (the user, on an iPhone: "massive drop in performance whenever face with evil cocopet mini boss and large numbers
+     of monsters... make it still look the same"). What a frame of it cost, and what it costs now:
+       - its body: PetGL's frame went into a canvas 2.3 times its height on a side (a square of ~670 px at a phone's
+         sharpness), then a second canvas as big for its cracks (cleared, stroked, cut to the body, laid down), and a third copy
+         of the body every frame (the stand-in for PetGL's slow frames). Now: two canvases of its own, each only as big as
+         PetGL's own frame of it, used in turn (the last one is the stand-in, nothing copied), and the cracks stroked straight
+         onto the body ('source-atop': only where the body is, as the mask did);
+       - its corruption on the GPU: two batches of Nidhogg's painter of its own (each laid over the whole screen twice: smoke,
+         then light). Now they ride in the layer's two batches that were there anyway (the leaders' rings under the
+         monsters, the crowns' gems over them): the aura and the smoke at its feet with the rings, its eyes, cracks' light,
+         tells and streaks with the gems (drawn just after it). Inline as before only where no layer runs;
+       - the dark pool under it: a gradient made every frame, now a picture made once per size;
+       - names, tags and crowns (text and paths every frame, for every leader in view): pictures made once, laid down. */
+  const poolPic = (w, h2, sc) => { const key = 'pool|' + Math.round(w * sc) + '|' + Math.round(h2 * sc); let o = PICS.get(key); if (o) return o;
+    const W = Math.max(2, Math.ceil(w * sc)), H = Math.max(2, Math.ceil(h2 * sc)), cv2 = document.createElement('canvas'); cv2.width = W; cv2.height = H; const x = cv2.getContext('2d'), hh = w * 0.5 * sc;
+    const pg = x.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, hh); pg.addColorStop(0, 'rgba(12,4,14,.62)'); pg.addColorStop(0.7, 'rgba(12,4,14,.25)'); pg.addColorStop(1, 'rgba(12,4,14,0)'); x.fillStyle = pg; x.beginPath(); x.ellipse(W / 2, H / 2, W / 2, H / 2, 0, 0, TAU); x.fill();
+    return pic(key, cv2); };
+  const PICS = new Map(); function pic(key, o) { PICS.set(key, o); if (PICS.size > 160) PICS.delete(PICS.keys().next().value); return o; }
+  // the look of it this frame (what the layer's batches draw from): its place, size, pose and glow
+  function miniLook(m, S, t, me) { const stun = m.stunT > 0 && m.act === 'stunned', idle = !m.aggro || !!S.hold, swell = idle ? Math.max(0, Math.sin(t * 1.4 + 0.5)) ** 6 : 0, tell = S.tell ? 0.6 + 0.4 * Math.sin(t * 18) : 0;
+    return { stun, idle, swell, tell, k: clamp(0.55 + 0.45 * swell + 0.5 * (m.ecast || 0) + tell + (1 - m.hp / m.maxhp) * 0.3, 0, 1.6) }; }
   function drawMini(c, m, Xs, Ys, r, t, me) {
-    const S = m.calMini, E = m.evil, SP = E.sprites, h = r * 2.5, foot = Ys + r * 0.75, stun = m.stunT > 0 && m.act === 'stunned', d = S.def;
-    const vx = m._px != null ? (m.x - m._px) * 60 : 0, vy = m._py != null ? (m.y - m._py) * 60 : 0; m._px = m.x; m._py = m.y; const moving = Math.hypot(vx, vy) > 0.2 && !stun && m.act !== 'pounce';
+    const S = m.calMini, E = m.evil, h = r * 2.5, foot = Ys + r * 0.75, d = S.def;
+    const vx = m._px != null ? (m.x - m._px) * 60 : 0, vy = m._py != null ? (m.y - m._py) * 60 : 0; m._px = m.x; m._py = m.y; const L0 = miniLook(m, S, t, me), stun = L0.stun, moving = Math.hypot(vx, vy) > 0.2 && !stun && m.act !== 'pounce';
     m.ewalk = (m.ewalk || 0) + (moving ? 0.16 : 0.03); m.ewing = (m.ewing || 0) + (moving ? 0.22 : 0.08);
     if (Math.abs(vx) > 0.15) m.eface = vx < 0 ? -1 : 1; else if (m.aggro && me) m.eface = me.x < m.x ? -1 : 1; else if (m.eface == null) m.eface = S.faceHome || 1;
     m.calYaw = lerp(m.calYaw || 0, moving ? 0.42 : m.aggro && me ? clamp(0.3 + (me.y - m.y) * 0.06, -0.1, 0.5) : 0.32 + 0.16 * Math.sin(t * 0.55), 0.08);
     const act = m.act || '', striking = m.aggro && !stun && act !== 'move' && act !== 'home';
     m.ecast = striking ? Math.min(1, (m.ecast || 0) + 0.06) : Math.max(0, (m.ecast || 0) - 0.08);
     // (idle at its post: every few seconds its fire swells and its eyes flare: a growl)
-    const idle = !m.aggro || !!S.hold, swell = idle ? Math.max(0, Math.sin(t * 1.4 + 0.5)) ** 6 : 0, tell = S.tell ? 0.6 + 0.4 * Math.sin(t * 18) : 0, k = clamp(0.55 + 0.45 * swell + 0.5 * (m.ecast || 0) + tell + (1 - m.hp / m.maxhp) * 0.3, 0, 1.6);
+    const { idle, swell, tell, k } = miniLook(m, S, t, me);
     const seed = (d.seed % 17) + 1;
     // the body first, into a canvas of its own: breathing, a step, a squash when struck, a crouch in a tell
     const breathe = Math.sin(t * (idle ? 1.6 : 2.4)) * (idle ? 0.04 : 0.03), step = moving ? Math.sin(m.ewalk * 2) * 0.05 : 0, hitSq = m.flash > 0 ? 0.08 : 0, crouch = S.tell && act === 'pounce' && m.actT < 0.55 ? 0.12 : 0;
@@ -281,47 +309,65 @@ const CAL_MINI = (() => {
     if (m.ecast > 0) { syk *= 1 + 0.06 * m.ecast; sxk *= 1 - 0.03 * m.ecast; }
     const bob = moving ? Math.abs(Math.sin(m.ewalk)) * r * 0.08 : 0, fy = foot - bob;
     let sc = 1; try { const tf = c.getTransform(); sc = clamp(Math.hypot(tf.a, tf.b), 1, 2); } catch (e) {}
-    const sz = Math.ceil(h * 2.3), oy = sz * 0.86;
-    const [B, b] = cv('body', Math.ceil(sz * sc), Math.ceil(sz * sc)); b.scale(sc, sc); b.translate(sz / 2, oy); if (rot) { b.translate(0, -h * 0.5); b.rotate(rot); b.translate(0, h * 0.5); } b.scale((m.eface < 0 ? -1 : 1) * sxk, syk);
-    let gl = false; if (typeof PetGL !== 'undefined' && !window.__calMini2D) { try { gl = PetGL.draw(b, E.form, h / E.bodyTop, poseOf(m, S, t, moving, idle, swell, tell), { lite: true }); } catch (e) { gl = false; } }
-    S.gl = gl; if (!gl) S.glMiss = (S.glMiss || 0) + 1; else S.glHit = (S.glHit || 0) + 1;
-    // (PetGL builds a new face or sharpness in the background and draws nothing for those few frames: its last GPU frame
-    // stands in rather than the 2D sprite flickering in)
-    if (gl) { const o = S.lastCv || (S.lastCv = document.createElement('canvas')); if (o.width !== B.width || o.height !== B.height) { o.width = B.width; o.height = B.height; } const ox2 = o.getContext('2d'); ox2.clearRect(0, 0, o.width, o.height); ox2.drawImage(B, 0, 0); S.lastGLt = t; }
-    else if (S.lastCv && S.lastCv.width === B.width && S.lastGLt != null && Math.abs(t - S.lastGLt) < 2) { b.setTransform(1, 0, 0, 1, 0, 0); b.drawImage(S.lastCv, 0, 0); gl = true; S.glHeld = (S.glHeld || 0) + 1; }
+    // (its canvas: PetGL's own frame of it (room for a raised arm, a beat of the wings, a turn), with a little more for the
+    // squash and the tilt; a square 2.3 times its height until PetGL has told its frame)
+    const kk = h / E.bodyTop; let fb = null; try { fb = typeof PetGL !== 'undefined' ? PetGL.box(E.form, true) : null; } catch (e) { fb = null; }
+    const cw = fb ? Math.ceil(Math.max(Math.abs(fb[0]), Math.abs(fb[0] + fb[2])) * kk * 2 * 1.16 + 4) : Math.ceil(h * 2.3), up = fb ? Math.ceil(-fb[1] * kk * 1.16 + 4) : Math.ceil(h * 2.3 * 0.86), dn = fb ? Math.ceil(Math.max(0, fb[1] + fb[3]) * kk * 1.16 + h * 0.08 + 4) : Math.ceil(h * 2.3 * 0.14);
+    const ch = up + dn, Wd = Math.ceil(cw * sc), Hd = Math.ceil(ch * sc);
+    if (!S.cvs) S.cvs = [document.createElement('canvas'), document.createElement('canvas')];
+    const B = S.prevG && S.prevG.cv === S.cvs[0] ? S.cvs[1] : S.cvs[0];   // (never the last good frame: it stands in on a miss)
+    if (B.width !== Wd || B.height !== Hd) { B.width = Wd; B.height = Hd; } const b = B.getContext('2d'); b.setTransform(1, 0, 0, 1, 0, 0); b.globalAlpha = 1; b.globalCompositeOperation = 'source-over'; b.clearRect(0, 0, Wd, Hd);
+    b.scale(sc, sc); b.translate(cw / 2, up); if (rot) { b.translate(0, -h * 0.5); b.rotate(rot); b.translate(0, h * 0.5); } b.scale((m.eface < 0 ? -1 : 1) * sxk, syk);
+    // (v398 M: on a device that is already struggling (frames slower than ~45 a second, measured here), its body is posed
+    // every other frame and the last pose is laid down, moved with it, between: its motion stays, at half the cost)
+    const nowMs = performance.now(); if (S.ftPrev != null) { const dtm = Math.min(100, nowMs - S.ftPrev); S.ftEma = S.ftEma == null ? dtm : S.ftEma + (dtm - S.ftEma) * 0.1; } S.ftPrev = nowMs;
+    const halve = S.ftEma > 22 && !window.__calMiniFull && S.prevG && S.lastGLt != null && Math.abs(t - S.lastGLt) < 0.2 && S.prevG.cw === cw && S.prevG.ch === ch && !(m.flash > 0) && (S.halfFlip = !S.halfFlip);
+    let gl = false; if (!halve && typeof PetGL !== 'undefined' && !window.__calMini2D) { try { gl = PetGL.draw(b, E.form, kk, poseOf(m, S, t, moving, idle, swell, tell), { lite: true }); } catch (e) { gl = false; } }
+    S.gl = gl || !!halve; if (halve) S.glHalf = (S.glHalf || 0) + 1; else if (!gl) S.glMiss = (S.glMiss || 0) + 1; else S.glHit = (S.glHit || 0) + 1;
+    const ox = Xs - cw / 2, oyy = fy - up, fl = m.eface < 0 ? -1 : 1;
+    let held = null;
+    // (PetGL builds a new face or sharpness in the background and draws nothing for those few frames: its last GPU frame,
+    // the other canvas, stands in rather than the 2D sprite flickering in)
+    if (halve) { held = S.prevG; gl = true; }
+    else if (!gl && S.prevG && S.prevG.cv !== B && S.lastGLt != null && Math.abs(t - S.lastGLt) < 2) { held = S.prevG; gl = true; S.glHeld = (S.glHeld || 0) + 1; }
     // (no GPU: the Rift-touched as the game draws it)
-    if (!gl) { S.lastFrame = null; S.gpuFx = false; return S.d0 ? S.d0(c, m, Xs, Ys, r, t, me) : false; }
-    // the dark pool under it (it carries it on a light floor), then behind it the black-fire aura
-    c.save(); const pg = c.createRadialGradient(Xs, foot, 0, Xs, foot, h * 0.62); pg.addColorStop(0, 'rgba(12,4,14,.62)'); pg.addColorStop(0.7, 'rgba(12,4,14,.25)'); pg.addColorStop(1, 'rgba(12,4,14,0)'); c.fillStyle = pg; c.beginPath(); c.ellipse(Xs, foot, h * 0.62, h * 0.2, 0, 0, TAU); c.fill(); c.restore();
-    let G = gpu(c); S.gpuFx = !!G;
-    if (G) { gpuAura(G.Q, Xs, foot, h, t, k, d, seed); gpuEnd(c, G); }
-    // a dark ash wash rising over its lower body, and its tell's colour or the white of a blow
-    b.setTransform(1, 0, 0, 1, 0, 0); b.globalCompositeOperation = 'source-atop'; const ag = b.createLinearGradient(0, B.height * 0.86, 0, B.height * 0.45); ag.addColorStop(0, 'rgba(10,4,12,.5)'); ag.addColorStop(1, 'rgba(10,4,12,0)'); b.fillStyle = ag; b.fillRect(0, 0, B.width, B.height);
-    if (tell > 0 || m.flash > 0) { b.fillStyle = m.flash > 0 ? 'rgba(255,255,255,.28)' : rgba(d.col, 0.2 * tell); b.fillRect(0, 0, B.width, B.height); }
-    const ox = Xs - sz / 2, oyy = fy - oy; c.drawImage(B, ox, oyy, sz, sz);
-    S.lastFrame = { cv: B, sc, sz, oy, h };
-    // in front: its cracks (drawn crisp, cut to its silhouette), then their light, its eyes, the attack's light
-    const fl = m.eface < 0 ? -1 : 1, P = (u, v) => [Xs + u * h * fl * sxk, fy + v * h * syk], ey = fy - h * 0.6 * syk, eg = h * 0.11;
-    const [K, kx] = cv('crack', B.width, B.height); kx.scale(sc, sc); kx.translate(sz / 2, oy); if (rot) { kx.translate(0, -h * 0.5); kx.rotate(rot); kx.translate(0, h * 0.5); } kx.scale(fl * sxk, syk); kx.lineCap = 'round'; kx.lineJoin = 'round';
+    if (!gl) { S.lastFrame = null; S.gpuFx = false; S.look = null; return S.d0 ? S.d0(c, m, Xs, Ys, r, t, me) : false; }
+    // the dark pool under it (it carries it on a light floor)
+    // (with a layer running, the layer has laid it already, under the aura as before)
+    const R = RUN(S.X), viaLayer = R.layerT != null && Math.abs(R.layerT - t) < 0.25 && !window.__calMiniInlineFx && S.pooled === R.layerT;
+    if (!viaLayer) { const P2 = poolPic(h * 1.24, h * 0.4, sc); c.drawImage(P2, Xs - h * 0.62, foot - h * 0.2, h * 1.24, h * 0.4); }
+    // the look the layer's batches draw from (its aura behind it, its eyes and the rest in front)
+    S.look = { x: m.x, y: m.y, z: m.z || 0, r: m.r, t, k, swell, tell, sxk, syk, fl, bob, seed, ecast: m.ecast || 0 };
+    let G = viaLayer ? null : gpu(c); S.gpuFx = viaLayer ? !!R.layerFx : !!G; S.fxInline = !viaLayer;
+    if (G) { gpuAura(G.Q, Xs, foot, h, t, k, d, seed); feetSmoke(G.Q, Xs, foot, h, t, seed); gpuEnd(c, G); }
+    if (held) { c.drawImage(held.cv, held.ox + (Xs - held.xs), held.oyy + (fy - held.fy), held.cw, held.ch); S.lastFrame = held.frame; if (!viaLayer) { const G2 = gpu(c); if (G2) { frontFx(G2.Q, S, E, Xs, fy, foot, h, t); gpuEnd(c, G2); } } return true; }
+    // a dark ash wash rising over its lower body, its tell's colour or the white of a blow, and its cracks: all on the body
+    // only ('source-atop')
+    b.setTransform(1, 0, 0, 1, 0, 0); b.globalCompositeOperation = 'source-atop'; const ag = b.createLinearGradient(0, up * sc, 0, (up - h * 0.943) * sc); ag.addColorStop(0, 'rgba(10,4,12,.5)'); ag.addColorStop(1, 'rgba(10,4,12,0)'); b.fillStyle = ag; b.fillRect(0, 0, Wd, Hd);
+    if (tell > 0 || m.flash > 0) { b.fillStyle = m.flash > 0 ? 'rgba(255,255,255,.28)' : rgba(d.col, 0.2 * tell); b.fillRect(0, 0, Wd, Hd); }
+    b.scale(sc, sc); b.translate(cw / 2, up); if (rot) { b.translate(0, -h * 0.5); b.rotate(rot); b.translate(0, h * 0.5); } b.scale(fl * sxk, syk); b.lineCap = 'round'; b.lineJoin = 'round';
     const glowK = clamp(0.45 + 0.4 * k, 0, 1);
-    for (const [lw, col, a] of [[0.04, FRACTURE, 0.5], [0.018, LAVA_HI, 0.95], [0.008, '#FFF4D8', 0.9]]) { kx.strokeStyle = col; kx.lineWidth = Math.max(0.8, h * lw); for (const q of E.cracks) { kx.globalAlpha = a * glowK * (0.7 + 0.3 * Math.sin(t * 2.2 + q.ph)) * q.w; kx.beginPath(); q.pts.forEach((p, i) => i ? kx.lineTo(p[0] * h, p[1] * h) : kx.moveTo(p[0] * h, p[1] * h)); kx.stroke(); } }
-    kx.setTransform(1, 0, 0, 1, 0, 0); kx.globalAlpha = 1; kx.globalCompositeOperation = 'destination-in'; kx.drawImage(B, 0, 0);
-    c.drawImage(K, ox, oyy, sz, sz);
-    G = gpu(c);
-    if (G) { const Q = G.Q, ck = clamp(0.5 + 0.45 * k, 0, 1.2);
-      // the cracks' molten light, the eyes, a tell's charge and ring, a lunge's streak, smoke curling off its feet
-      for (const q of E.cracks) { const a = ck * (0.65 + 0.35 * Math.sin(t * 2.2 + q.ph)) * q.w; for (let i = 0; i < q.pts.length; i += 2) { const p0 = P(q.pts[i][0], q.pts[i][1]); Q.glow(p0[0], p0[1], h * 0.07, FRACTURE, 0.5 * a); } }
-      Q.glow(Xs, fy - h * 0.3, h * 0.3, FRACTURE, 0.14 * ck);
-      const ek = clamp(0.5 + 0.2 * Math.sin(t * 4) + 0.4 * (m.ecast || 0) + 0.6 * swell + tell, 0, 1.3);
-      for (const sd of [-1, 1]) { Q.glow(Xs + sd * eg * fl + fl * h * 0.03, ey, h * 0.09, RED_EYE, 0.9 * ek); Q.star(Xs + sd * eg * fl + fl * h * 0.03, ey, h * 0.05 * (0.8 + 0.4 * ek), 0.8 * ek, '#FFD0C8'); }
-      Q.glow(Xs + fl * h * 0.03, ey, h * 0.26, RED_EYE, 0.22 * ek, 0.5);
-      if (tell > 0) { Q.ring(Xs, foot, h * (0.55 + 0.1 * Math.sin(t * 9)), d.col, 0.6 * tell, h * 0.05, 0.34); Q.glow(Xs, fy - h * 0.45, h * 0.5, d.col, 0.3 * tell); }
-      if (S.trailPts && S.trailPts.length > 1) for (let i = 0; i < S.trailPts.length - 1; i++) { const a0 = S.trailPts[i], a1 = S.trailPts[i + 1], u = i / S.trailPts.length; Q.ebeam(X0(a0), Y0(a0), X0(a1), Y0(a1), h * 0.22 * u, d.col, 0.8, 0.55 * u, seed + i, 3); }
-      for (let i = 0; i < 2; i++) { const ph = (t * 0.9 + i * 0.5) % 1; Q.smoke(Xs + (i ? 1 : -1) * h * 0.18, foot - h * (0.1 + 0.4 * ph), h * 0.1 * (1 + ph), 0.4 * (1 - ph), seed + 9 + i, '#140A1C', 0); }
-      gpuEnd(c, G); }
+    for (const [lw, col, a] of [[0.04, FRACTURE, 0.5], [0.018, LAVA_HI, 0.95], [0.008, '#FFF4D8', 0.9]]) { b.strokeStyle = col; b.lineWidth = Math.max(0.8, h * lw); for (const q of E.cracks) { b.globalAlpha = a * glowK * (0.7 + 0.3 * Math.sin(t * 2.2 + q.ph)) * q.w; b.beginPath(); q.pts.forEach((p, i) => i ? b.lineTo(p[0] * h, p[1] * h) : b.moveTo(p[0] * h, p[1] * h)); b.stroke(); } }
+    b.globalAlpha = 1; b.globalCompositeOperation = 'source-over';
+    c.drawImage(B, ox, oyy, cw, ch);
+    S.lastFrame = { cv: B, sc, sz: cw, cw, ch, oy: up, h };
+    S.prevG = { cv: B, ox, oyy, xs: Xs, fy, cw, ch, frame: S.lastFrame }; S.lastGLt = t;
+    // in front: (inline only where no layer runs) the cracks' light, its eyes, a tell's charge and ring, a lunge's streak
+    G = viaLayer ? null : gpu(c);
+    if (G) { frontFx(G.Q, S, E, Xs, fy, foot, h, t); gpuEnd(c, G); }
     return true;
-    function X0(p) { return S.X.sx(p.x); } function Y0(p) { return S.X.sy(p.y) - h * 0.35; }
   }
+  function feetSmoke(Q, Xs, foot, h, t, seed) { for (let i = 0; i < 2; i++) { const ph = (t * 0.9 + i * 0.5) % 1; Q.smoke(Xs + (i ? 1 : -1) * h * 0.18, foot - h * (0.1 + 0.4 * ph), h * 0.1 * (1 + ph), 0.4 * (1 - ph), seed + 9 + i, '#140A1C', 0); } }
+  function frontFx(Q, S, E, Xs, fy, foot, h, t) { const L = S.look, d = S.def, fl = L.fl, sxk = L.sxk, syk = L.syk, k = L.k, swell = L.swell, tell = L.tell, seed = L.seed, ck = clamp(0.5 + 0.45 * k, 0, 1.2), ey = fy - h * 0.6 * syk, eg = h * 0.11, P = (u, v) => [Xs + u * h * fl * sxk, fy + v * h * syk];
+    for (const q of E.cracks) { const a = ck * (0.65 + 0.35 * Math.sin(t * 2.2 + q.ph)) * q.w; for (let i = 0; i < q.pts.length; i += 2) { const p0 = P(q.pts[i][0], q.pts[i][1]); Q.glow(p0[0], p0[1], h * 0.07, FRACTURE, 0.5 * a); } }
+    Q.glow(Xs, fy - h * 0.3, h * 0.3, FRACTURE, 0.14 * ck);
+    const ek = clamp(0.5 + 0.2 * Math.sin(t * 4) + 0.4 * L.ecast + 0.6 * swell + tell, 0, 1.3);
+    for (const sd of [-1, 1]) { Q.glow(Xs + sd * eg * fl + fl * h * 0.03, ey, h * 0.09, RED_EYE, 0.9 * ek); Q.star(Xs + sd * eg * fl + fl * h * 0.03, ey, h * 0.05 * (0.8 + 0.4 * ek), 0.8 * ek, '#FFD0C8'); }
+    Q.glow(Xs + fl * h * 0.03, ey, h * 0.26, RED_EYE, 0.22 * ek, 0.5);
+    if (tell > 0) { Q.ring(Xs, foot, h * (0.55 + 0.1 * Math.sin(t * 9)), d.col, 0.6 * tell, h * 0.05, 0.34); Q.glow(Xs, fy - h * 0.45, h * 0.5, d.col, 0.3 * tell); }
+    if (S.trailPts && S.trailPts.length > 1) { const X0 = p => S.X.sx(p.x), Y0 = p => S.X.sy(p.y) - h * 0.35; for (let i = 0; i < S.trailPts.length - 1; i++) { const a0 = S.trailPts[i], a1 = S.trailPts[i + 1], u = i / S.trailPts.length; Q.ebeam(X0(a0), Y0(a0), X0(a1), Y0(a1), h * 0.22 * u, d.col, 0.8, 0.55 * u, seed + i, 3); } } }
+  // where the layer draws it from: its screen place from its look (this frame's for the front, the last one's for the aura)
+  function lookAt(X, S) { const L = S.look; if (!L) return null; const T = X.Tz(), r = L.r * T, h = r * 2.5, Xs = X.sx(L.x), Ys = X.sy(L.y) - L.z * T, foot = Ys + r * 0.75; return { Xs, foot, fy: foot - L.bob, h }; }
   if (typeof RiftEvil !== 'undefined' && !RiftEvil.__calMini) { const d0 = RiftEvil.draw; RiftEvil.draw = function (c, m) { if (m && m.calMini) { m.calMini.d0 = m.calMini.d0 || ((...a) => { const s = m.calMini; m.calMini = null; try { return d0(...a); } finally { m.calMini = s; } }); try { return drawMini.apply(null, arguments); } catch (e) { try { console.warn('cal mini draw', e); } catch (e2) {} return false; } } return d0.apply(this, arguments); }; RiftEvil.__calMini = 1; }
 
   /* ======================= the floor: setting the guardian at its gate, the leaders in the packs ======================= */
@@ -370,6 +416,9 @@ const CAL_MINI = (() => {
     const G = arm(X, m, d, { gate: o.gate || null, home: o.home || { x: m.x, y: m.y }, onFall: o.onFall, sub: o.sub, wakeR: o.wakeR, leash: o.leash }); return m; }
 
   /* ======================= per frame: its fall, the seal on the gate, the plates, the leaders' marks ======================= */
+  // (the monsters held back, as a set: made once a frame for both of the layer's passes)
+  function resOf(X, R) { const rs = X.g.reserve; if (!rs || !rs.length) return null; if (R.resT !== X.g.t || R.resN !== rs.length) { R.resT = X.g.t; R.resN = rs.length; R.res = new Set(rs); } return R.res; }
+  const gpuOK = () => { try { if (window.__CAL_GL === 0) return false; const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; return !!(F && F.usable()); } catch (e) { return false; } };
   function layer(X) {
     const me = X.me, R = RUN(X), sealed = G => G.self ? !G.self.done : !G.m.dead;
     const upd = (G, dt) => { const m = G.m;
@@ -396,8 +445,13 @@ const CAL_MINI = (() => {
         for (const G of R.guards) if (G.exit && (sealed(G) || G.fall && G.fall.t < 1.6)) sealArt(c, X.sx(G.exit.x), X.sy(G.exit.y), T, t, G);
         // the leaders' rings and auras: a dark ring under (2D, for a light floor); on the GPU a ring of ember light, embers on
         // the floor and dark smoke curling off them; else a dashed gold ring and a glow
-        const res = X.g.reserve && X.g.reserve.length ? new Set(X.g.reserve) : null, vis = R.leaders.filter(L => !L.dead && !(res && res.has(L)) && Math.abs(X.sx(L.x) - W / 2) < W / 2 + T * 2 && Math.abs(X.sy(L.y) - Hh / 2) < Hh / 2 + T * 3);
-        const Gq = vis.length ? gpu(c) : null; R.leaderGpu = !!Gq;
+        const res = resOf(X, R), vis = R.leaders.filter(L => !L.dead && !(res && res.has(L)) && Math.abs(X.sx(L.x) - W / 2) < W / 2 + T * 2 && Math.abs(X.sy(L.y) - Hh / 2) < Hh / 2 + T * 3);
+        // (v398 M: the guardians' aura and the smoke at their feet ride in this batch too, from their last look)
+        const gv = []; for (const G of R.guards) { const m = G.m, S = m && m.calMini; if (!S || m.dead || !S.look || Math.abs(S.look.t - t) > 0.25) continue; const A = lookAt(X, S); if (A && A.Xs > -A.h * 1.5 && A.Xs < W + A.h * 1.5 && A.foot > -A.h && A.foot < Hh + A.h * 1.5) gv.push([S, A]); }
+        R.layerT = t;
+        const Gq = vis.length || gv.length ? gpu(c) : null; R.leaderGpu = !!Gq; R.layerFx = !!(Gq || gpuOK());
+        if (Gq) { const sc = scOf(c); for (const [S, A] of gv) { const L = S.look, h = A.h, P2 = poolPic(h * 1.24, h * 0.4, sc); c.drawImage(P2, A.Xs - h * 0.62, A.foot - h * 0.2, h * 1.24, h * 0.4); S.pooled = t;   // (its dark pool first: the aura's light lies on it, as when it was drawn inline)
+          gpuAura(Gq.Q, A.Xs, A.foot, A.h, t, L.k, S.def, L.seed); feetSmoke(Gq.Q, A.Xs, A.foot, A.h, t, L.seed); } }
         for (const L of vis) { const Xs = X.sx(L.x), gy = X.sy(L.y) + L.r * T * 0.72, R = L.r * T * 1.35; c.save();
           c.strokeStyle = 'rgba(20,8,14,.55)'; c.lineWidth = Math.max(3, T * 0.11); c.beginPath(); c.ellipse(Xs, gy, R, R * 0.36, 0, 0, TAU); c.stroke();
           if (Gq) { const Q = Gq.Q, sd = L.leaderSeed; Q.ring(Xs, gy, R, '#FFB347', 0.8, Math.max(2, T * 0.07), 0.36); Q.ground(Xs, gy, R * 0.9, 0.55, 0.45, sd, 0.36, 0.7); Q.glow(Xs, gy - R * 0.4, R * 1.2, '#FF8A3D', 0.2 + 0.08 * Math.sin(t * 4 + sd), 0.6);
@@ -406,8 +460,9 @@ const CAL_MINI = (() => {
           c.restore(); }
         gpuEnd(c, Gq);
       },
-      drawOver(c) { const T = X.Tz(), t = X.g.t, W = X.W(), Hh = X.H(), res = X.g.reserve && X.g.reserve.length ? new Set(X.g.reserve) : null;
-        const Gq = gpu(c), Q = Gq ? Gq.Q : null;   // (one GPU batch for the crowns' gems, the rays and the fall)
+      drawOver(c) { const T = X.Tz(), t = X.g.t, W = X.W(), Hh = X.H(), res = resOf(X, R);
+        const Gq = gpu(c), Q = Gq ? Gq.Q : null;   // (one GPU batch for the crowns' gems, the rays, the fall and (v398 M) the guardians' front light)
+        if (Q) for (const G of R.guards) { const m = G.m, S = m && m.calMini; if (!S || m.dead || !S.look || S.look.t !== t || !S.gl || S.fxInline) continue; const A = lookAt(X, S); if (A) frontFx(Q, S, m.evil, A.Xs, A.fy, A.foot, A.h, t); }
         // the leaders: a crown, the tag and a bar
         for (const L of R.leaders) { if (L.dead || (res && res.has(L))) continue; const Xs = X.sx(L.x), Yg = X.sy(L.y), z = (L.z || 0) * T, r = L.r * T; if (Xs < -T * 2 || Xs > W + T * 2 || Yg < -T * 3 || Yg > Hh + T * 2) continue; if (Math.hypot(L.x - me.x, L.y - me.y) > 13) continue;
           const top = Yg - z - r * 1.25; crown(c, Xs, top - T * 0.08, Math.max(9, T * 0.32), t + L.leaderSeed, Q);
@@ -433,15 +488,24 @@ const CAL_MINI = (() => {
       c.save(); c.lineCap = 'round'; for (const [lw, col, a] of [[w * 1.25, '#140A1E', 0.75]]) { c.globalAlpha = a * k; c.strokeStyle = col; c.lineWidth = lw; c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke(); } c.restore(); }
   }
   const countLeft = X => X.mons.filter(q => !q.dead && !q.boss && !q.optional).length + ((X.g.reserve && X.g.reserve.length) || 0);
-  function tag(c, s, x, y, size, col) { c.save(); c.font = `900 ${size}px ${arcFont}`; c.textAlign = 'center'; c.textBaseline = 'alphabetic'; c.lineJoin = 'round'; c.lineWidth = 3.2; c.strokeStyle = 'rgba(14,6,10,.85)'; c.strokeText(s, x, y); c.fillStyle = col; c.fillText(s, x, y); c.restore(); }
+  // (v398 M: a tag is a picture made once per text, size, colour and sharpness, then laid down: no text drawn per frame)
+  function tagPic(s, size, col, sc) { const key = 'tag|' + s + '|' + size + '|' + col + '|' + sc; let o = PICS.get(key); if (o) return o;
+    const cv2 = document.createElement('canvas'), x = cv2.getContext('2d'), font = `900 ${size}px ${arcFont}`; x.font = font; const w = Math.ceil(x.measureText(s).width + 8), hgt = Math.ceil(size * 1.5 + 6), base = Math.ceil(size * 1.1 + 3);
+    cv2.width = Math.ceil(w * sc); cv2.height = Math.ceil(hgt * sc); x.scale(sc, sc); x.font = font; x.textAlign = 'center'; x.textBaseline = 'alphabetic'; x.lineJoin = 'round'; x.lineWidth = 3.2; x.strokeStyle = 'rgba(14,6,10,.85)'; x.strokeText(s, w / 2, base); x.fillStyle = col; x.fillText(s, w / 2, base);
+    return pic(key, { cv: cv2, w, h: hgt, base }); }
+  const scOf = c => { try { const tf = c.getTransform(); return Math.round(clamp(Math.hypot(tf.a, tf.b), 1, 3) * 4) / 4; } catch (e) { return 1; } };
+  function tag(c, s, x, y, size, col) { const P2 = tagPic(s, size, col, scOf(c)); c.drawImage(P2.cv, x - P2.w / 2, y - P2.base, P2.w, P2.h); }
   /* a crown of black iron, three points, an ember gem in the middle one */
-  function crown(c, x, y, s, t, Q) { c.save(); c.translate(x, y); const w = s * 0.95, hgt = s * 0.62;
+  // (v398 M: its iron and gem a picture made once per size; the gem's glow still lives on the GPU)
+  function crownPic(s, sc) { const key = 'crown|' + Math.round(s * 4) + '|' + sc; let o = PICS.get(key); if (o) return o; const W = Math.ceil(s * 1.3), H = Math.ceil(s * 0.9), cv2 = document.createElement('canvas'); cv2.width = Math.ceil(W * sc); cv2.height = Math.ceil(H * sc); const x = cv2.getContext('2d'); x.scale(sc, sc); x.translate(W / 2, H - s * 0.12); crownArt(x, s); return pic(key, { cv: cv2, W, H, ax: W / 2, ay: H - s * 0.12 }); }
+  function crown(c, x, y, s, t, Q) { const P2 = crownPic(s, scOf(c)); c.drawImage(P2.cv, x - P2.ax, y - P2.ay, P2.W, P2.H); const hgt = s * 0.62, gy = -hgt * 0.42;
+    if (Q) { Q.glow(x, y + gy, s * 0.55, '#FF8A3D', 0.55 + 0.25 * Math.sin(t * 5)); Q.star(x, y + gy, s * 0.32, 0.7 + 0.3 * Math.sin(t * 7), '#FFE2A8'); Q.etongue(x, y - hgt, s * 0.14, s * 0.45, 0, '#FF6A1F', 0.7, 0.5, 7); } }
+  function crownArt(c, s) { const w = s * 0.95, hgt = s * 0.62;
     c.beginPath(); c.moveTo(-w / 2, 0); c.lineTo(-w / 2, -hgt * 0.55); c.lineTo(-w * 0.27, -hgt * 0.2); c.lineTo(0, -hgt); c.lineTo(w * 0.27, -hgt * 0.2); c.lineTo(w / 2, -hgt * 0.55); c.lineTo(w / 2, 0); c.closePath();
     const g = c.createLinearGradient(0, -hgt, 0, 0); g.addColorStop(0, '#6E6A70'); g.addColorStop(1, '#2A2628'); c.fillStyle = g; c.fill(); c.strokeStyle = '#120C10'; c.lineWidth = Math.max(1.4, s * 0.1); c.lineJoin = 'round'; c.stroke();
     c.strokeStyle = '#FFC24A'; c.lineWidth = Math.max(1, s * 0.06); c.beginPath(); c.moveTo(-w / 2 + 1, -1.5); c.lineTo(w / 2 - 1, -1.5); c.stroke();
     const gy = -hgt * 0.42, gr = s * 0.13; c.beginPath(); c.moveTo(0, gy - gr * 1.3); c.lineTo(gr, gy); c.lineTo(0, gy + gr * 1.3); c.lineTo(-gr, gy); c.closePath(); c.fillStyle = '#FF5A2A'; c.fill(); c.strokeStyle = '#2A0A06'; c.lineWidth = 1; c.stroke();
-    if (Q) { const tf = c.getTransform(), dpr = Math.hypot(tf.a, tf.b) || 1, ix = x, iy = y + gy; void dpr; Q.glow(ix, iy, s * 0.55, '#FF8A3D', 0.55 + 0.25 * Math.sin(t * 5)); Q.star(ix, iy, s * 0.32, 0.7 + 0.3 * Math.sin(t * 7), '#FFE2A8'); Q.etongue(ix, y - hgt, s * 0.14, s * 0.45, 0, '#FF6A1F', 0.7, 0.5, t * 0 + 7); }
-    c.restore(); }
+  }
   /* the guardian's plate: its name, a bar in its element's colours with a lagging white, the phase marks */
   function plate(c, Xs, y, T, m, G) { const d = G.def, w = Math.max(96, T * 2.8), bh = Math.max(6, T * 0.14), f = clamp(m.hp / m.maxhp, 0, 1); if (G.show == null) G.show = f; G.show += (f - G.show) * 0.05; if (G.show < f) G.show = f;
     tag(c, d.name, Xs, y - bh - 5, Math.max(11, Math.round(T * 0.28)), '#FFD9C8');
@@ -490,17 +554,65 @@ const CAL_MINI = (() => {
       const [W2, w2] = cv('fall', F.cv.width, F.cv.height); w2.drawImage(F.cv, 0, 0); w2.globalCompositeOperation = 'source-atop'; w2.fillStyle = `rgba(255,${Math.round(220 + 35 * u)},${Math.round(190 + 65 * u)},${(u * 0.85).toFixed(3)})`; w2.fillRect(0, 0, W2.width, W2.height);
       c.save(); c.globalAlpha = 1 - u * 0.15; c.drawImage(W2, x0, y0, F.sz, F.sz); c.restore(); } }
 
+  /* ======================= v398 M: the loading screen's warm-up =======================
+     So that nothing of a guardian or a leader is made for the first time mid-fight, the stage's loading pass (20b
+     preloadMore: Rf.preload) is handed these small jobs (each a few ms; the loader spreads them over its frames):
+       - each guardian's GPU body: PetGL drawn at the sharpness the fight draws it, once with each face it shows (its
+         snarl, its roar in a tell, its daze when struck): the layer cut and every face's picture are made now, in the
+         background between the loader's frames, then drawn again to be sure they are in;
+       - Nidhogg's painter: a dummy draw of every kind of quad the guardians and leaders use, so its shaders are compiled
+         and its buffers sized;
+       - the pictures of the layer: the pool under a guardian, the crowns, the tags and names, at their sizes;
+       - each brood kind on the floor (on the field and held back) in every pose its own behaviour sets (m.mode, read from
+         the behaviour itself), at the sizes it is drawn (its own, and a leader's): the engine warms only the pose a monster
+         is in when the floor loads, and every new pose was a paint mid-fight.
+     EVIL_MINI.warm(P, specs) -> jobs (specs: spawn options of guardians that appear later, e.g. a duel's pair). */
+  const MODES = new Map();
+  function modesOf(type) { if (MODES.has(type)) return MODES.get(type); const out = new Set(); try { const f = DunAI.mon[type]; if (f) { const src = String(f); let mm; const re = /\.mode\s*=\s*'([^']+)'/g; while ((mm = re.exec(src))) out.add(mm[1]); const re2 = /\.mode\s*=\s*'([a-z]+)'\s*\+/g; while ((mm = re2.exec(src))) for (let i = 1; i <= 3; i++) out.add(mm[1] + i); } } catch (e) {} const L = [...out].slice(0, 8); MODES.set(type, L); return L; }
+  const POSES = [{ eyes: 'normal', mouth: 'smile', brows: 'angry' }, { eyes: 'normal', mouth: 'open', brows: 'angry' }, { eyes: 'dizzy', mouth: 'o', brows: 'angry' }];
+  function warmBody(E, h, sc) { if (typeof PetGL === 'undefined' || window.__calMini2D || window.__noPetGL) return [];
+    const cv2 = document.createElement('canvas'), kk = h / E.bodyTop, side = Math.ceil(h * 2.4 * sc); cv2.width = side; cv2.height = side;
+    const one = face => () => { const x = cv2.getContext('2d'); x.setTransform(sc, 0, 0, sc, side / 2, side * 0.85); try { PetGL.draw(x, E.form, kk, { t: 0, yaw: 0.3, face, footL: [0, 0], footR: [0, 0], armL: 0, armR: 0, wing: 0, tail: 0 }, { lite: true }); } catch (e) {} x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, side, side); };
+    const jobs = []; for (let round = 0; round < 3; round++) for (const f of POSES) jobs.push(one(f));   // (rounds: the layers come in between the loader's frames)
+    return jobs; }
+  function warmFx() { return [() => { if (!gpuOK()) return; const cv2 = document.createElement('canvas'); cv2.width = cv2.height = 96; const x = cv2.getContext('2d'), G = gpu(x); if (!G) return; const Q = G.Q;
+    Q.smoke(30, 40, 12, 0.5, 1, '#120818', 0); Q.etongue(40, 60, 4, 12, 0, '#8A3AFF', 0.7, 0.6, 2); Q.glow(50, 50, 14, '#FF5A2A', 0.4, 0.5); Q.ground(48, 70, 16, 0.6, 0.4, 3, 0.32, 0.8); Q.star(40, 30, 6, 0.8, '#FFD0C8'); Q.ring(48, 48, 20, '#FFB347', 0.6, 3, 0.36); Q.ebeam(10, 10, 80, 80, 6, '#B784FF', 0.9, 0.6, 3, 6); Q.ewave(48, 48, 20, '#9FDFFF', 0.8, 0.5, 5, 0.42, 0.2);
+    gpuEnd(x, G); }]; }
+  function warmPics(T, sc, guards) { const jobs = [() => { tagPic('PACK LEADER', Math.max(9, Math.round(T * 0.22)), '#FFD27A', sc); crownPic(Math.max(9, T * 0.32), sc); }];
+    for (const g of guards) jobs.push(() => { const d = g.def, h = g.r * T * 2.5; poolPic(h * 1.24, h * 0.4, sc); tagPic(d.name, Math.max(11, Math.round(T * 0.28)), '#FFD9C8', sc); tagPic(`Defeat ${d.short} to open the gate`, Math.max(11, Math.round(T * 0.3)), '#FFD9C8', sc); });
+    return jobs; }
+  function warmBrood(P, list) { if (!P || typeof DunArt === 'undefined') return []; const jobs = [], seen = new Set(), k = P.k || 1, TS0 = P.T || 40;
+    for (const q of list) { if (!q || q.dead || q.boss || !MON[q.type]) continue; const rpx = q.r * TS0 * k, key = q.type + '|' + Math.round(rpx) + '|' + q.color; if (seen.has(key)) continue; seen.add(key);
+      const nf = (DunArt.NF && DunArt.NF[q.type]) || 4; for (const md of modesOf(q.type)) for (let f = 0; f < nf; f++) jobs.push(() => { try { DunArt.monSprite(q.type, rpx, (f + 0.5) / nf, q.color, md, false); } catch (e) {} }); }
+    return jobs; }
+  function warm(P, specs) { if (!P || (typeof window !== 'undefined' && window.__MINI_WARM === 0)) return []; const jobs = [], T = P.Tz ? P.Tz() : (P.T || 40), sc = Math.min(2, P.k || 1), guards = [];
+    for (const m of (P.mons || [])) if (m && m.calMini && !m.dead && m.evil) guards.push({ E: m.evil, r: m.r, def: m.calMini.def });
+    for (const o of specs || []) { try { const d = specOf(o); guards.push({ E: evilOf(d), r: d.r, def: d }); } catch (e) {} }
+    const anyLeader = (P.mons || []).some(m => m && m.calLeader) || (P.reserve || []).some(m => m && m.calLeader);
+    if (!guards.length && !anyLeader) return [];
+    // (each guardian's first face started at once, as the loading pass asks: its layers build in the background while the
+    // rest of the pass runs)
+    for (const g of guards) { const wb = warmBody(g.E, g.r * T * 2.5, sc); if (wb.length) { try { wb[0](); } catch (e) {} } jobs.push(...wb.slice(1)); }
+    jobs.push(...warmFx(), ...warmPics(T, sc, guards), ...warmBrood(P, (P.mons || []).concat(P.reserve || [])));
+    // (and the faces again, last: by now their layers have had the loader's frames to come in)
+    for (const g of guards) jobs.push(...warmBody(g.E, g.r * T * 2.5, sc).slice(0, 3));
+    return jobs; }
+  // (every rift's loading pass asks it: it finds the guardians and leaders on the floor, or does nothing)
+  { const hook = Rf => { if (!Rf || Rf.__miniWarm) return; Rf.__miniWarm = 1; const o = Rf.preload; Rf.preload = P => { let a = []; try { a = (o ? o(P) : null) || []; } catch (e) { a = []; } let b = []; try { b = warm(P); } catch (e) { b = []; } return a.concat(b); }; };
+    try { for (const Rf of RIFTS) hook(Rf); } catch (e) {} }
+
   /* ======================= wiring ======================= */
   CAL.guardians = guardians; CAL.tearLeader = tearLeader; CAL.MINI = DEF;
   // (each dungeon's mini boss, made by riftFight (20m) from S.mini, and the guardians' layer on top of 20zz5's extra; the
   // goal says what the gate waits for)
   { const Rf = RIFT_BY_ID.caldera, keys = ['ashen', 'rimeforge', 'glassheart']; let fi = 0;
+    if (Rf) Rf.miniEvil = id => (BY_ID[id] ? evilOf(BY_ID[id]) : null);   // v398 M: riftFight (20m) takes the guardian's own look instead of making a random one
     if (Rf) for (const S of Rf.stages) { if (S.kind !== 'fight') continue; const key = keys[fi++], d = DEF[key]; if (!d) continue; S.mini = d.id; S.calKey = key;
       const ex0 = S.extra; S.extra = (X, self, H) => { const xm = ex0 ? ex0(X, self, H) || {} : {}; const C = CAL.ctx ? CAL.ctx(X) : null; if (!C || !C.guard) return xm; const gm = layer(X), G = C.guard; let wrapped = false;
         return { update(dt) { if (xm.update) xm.update(dt); gm.update(dt);
             if (!wrapped && self.mod && self.mod.goal) { wrapped = true; const g0 = self.mod.goal; self.mod.goal = () => { if (self.done || G.m.dead) return g0(); const left = countLeft(X); return left > 0 ? `${left} left · Defeat ${G.def.short} to open the gate` : `Defeat ${G.def.short} to open the gate`; }; } },
           drawGround(c) { if (xm.drawGround) xm.drawGround(c); gm.drawGround(c); }, drawOver(c) { if (xm.drawOver) xm.drawOver(c); gm.drawOver(c); } }; }; } }
-  return { DEF, PRESET, spawn, leader, packLeaders, layer, guards: X => RUN(X).guards, leaders: X => RUN(X).leaders, hpFor, dmgFor, evilOf, specOf, drawMini, guardians, tearLeader };
+  return { DEF, PRESET, spawn, leader, packLeaders, layer, guards: X => RUN(X).guards, leaders: X => RUN(X).leaders, hpFor, dmgFor, evilOf, specOf, drawMini, guardians, tearLeader, warm, modesOf };
 })();
 const EVIL_MINI = CAL_MINI;
 if (typeof self !== 'undefined') self.EVIL_MINI = EVIL_MINI;   // (tests, and other rifts' files that load before this one, at run time)

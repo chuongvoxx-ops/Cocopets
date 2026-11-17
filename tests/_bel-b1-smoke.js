@@ -1,11 +1,11 @@
 // v391 B1, v394 B1: the rebuilt Drowned Belfry: every stage loads with no page errors; the three dungeons (exactly 150 / 180 /
 // 200 brood, one leader to every pack, the live cap, a guardian gating each exit, ramped traps, their valve halls); the
 // Clapper Counterweights solve; the sealing records the Tide Sigil and its necklace once; old saves map onto the eight stages.
-// usage: HTML=test-bel4.html node tests/_bel-b1-smoke.js   env: SHOTS=1, ONLY=load,dun,gate,valve,clap,hall,seal,mig  DUNS=1,2,3
+// usage: HTML=test-bel4.html node tests/_bel-b1-smoke.js   env: SHOTS=1, ONLY=load,dun,gate,valve,clap,clapflow,hall,seal,mig  DUNS=1,2,3
 process.env.HTML = process.env.HTML || 'test.html';
 const { open } = require('./_rift-lib');
 let fails = 0; const ok = (c, s, x) => { console.log((c ? 'ok   ' : 'FAIL ') + s + (x !== undefined ? ' ' + JSON.stringify(x) : '')); if (!c) fails++; };
-const ONLY = (process.env.ONLY || 'load,dun,gate,valve,clap,hall,seal,mig').split(',');   // (v395 B1: gate, D1's flooded gate hall)
+const ONLY = (process.env.ONLY || 'load,dun,gate,valve,clap,clapflow,hall,seal,mig').split(',');   // (v398 B1: clapflow)   // (v395 B1: gate, D1's flooded gate hall)
 (async () => {
   const T = await open({ lvl: 14 }); const { page, errors, start, run, rs } = T;
   if (process.env.GPU === '1') await page.evaluate(() => { window.__NG_GL = 1; });   // (v395 B1: shots with the GPU painter on swiftshader)
@@ -141,6 +141,34 @@ const ONLY = (process.env.ONLY || 'load,dun,gate,valve,clap,hall,seal,mig').spli
     await killBrood(); await gt(0.6); r = await D(() => { const G = window.__pp.arc.game._dbg; return { lift: G.RIFT.self.mod.R.liftOpen, done: G.RIFT.done, goal: document.getElementById('arcGoal').textContent }; }); ok(r.lift && !r.done, 'the pair beaten: the lift unlocks, its guardian still bars it', r);
     ok(await killGuard(), 'the guardian falls'); await gt(2.5); r = await D(() => window.__pp.arc.game._dbg.RIFT.done); ok(r, 'the lift is open');
     await exitNow(); r = await rs(); ok(r.prog.belfry === 5, 'checkpoint: Nhalu (stage 6)', r.prog);
+  }
+  if (ONLY.includes('clapflow')) {   // v398 B1: into the Clapper Counterweights the two ways a player does, with the GPU painter on:
+    // continuing from its checkpoint (the rift card's Enter), and walking out of D2's exit (the end card's Next); the dead stages
+    // before it are let go (the iPhone report: "Clapper Counterweights section won't load": every dungeon's trap field kept
+    // its whole stage alive, two of them by the clappers)
+    if (process.env.CLAPGPU !== '0') await page.evaluate(() => { window.__NG_GL = 1; });   // (CLAPGPU=0: the 2D path)
+    const cdp = await page.context().newCDPSession(page);
+    const ready = async () => { await page.waitForFunction(() => window.__pp.arc.state === 'ready', null, { timeout: 300000 }); await page.evaluate(() => document.getElementById('arcReady').click()); await page.waitForFunction(() => window.__pp.arc.state === 'play', null, { timeout: 30000 }); await gt(1.5); };
+    const clapOK = () => page.evaluate(() => { const G = window.__pp.arc.game._dbg; return { stage: G.F.rift.stage, name: G.F.rift.name, claps: G.RIFT.objs.filter(o => o.kind === 'clapper').length, pans: G.RIFT.objs.filter(o => o.kind === 'pan').length, guard: !!G.mons.find(m => m.belGuard === 'cistern'), goal: document.getElementById('arcGoal').textContent, t: +G.g.t.toFixed(1) }; });
+    // 1. from its checkpoint, through the rift card
+    let e0 = errors.length;
+    await page.evaluate(() => { const P = window.__pp; if (P.arc.open) P.closeArcade(true); P.st.energy = 100; P.riftState().prog.belfry = 4; P.openMap(); P.dun.setMapTab('rift', true); document.querySelector('[data-rift="sel"][data-id="belfry"]').click(); document.querySelector('[data-rift="enter"]').click(); });
+    await ready(); let r = await clapOK(); console.log('  clap (checkpoint)', JSON.stringify(r));
+    ok(r.stage === 4 && r.claps === 3 && r.pans === 2 && r.guard && /West 0\/3/.test(r.goal) && r.t > 1 && errors.length === e0, `the clappers load from their checkpoint (rift card${process.env.CLAPGPU !== '0' ? ', GPU on' : ''}) and run`, { r, errs: errors.slice(e0, e0 + 2) });
+    // 2. from D2's exit: clear D2, walk out, Next
+    e0 = errors.length; await start('belfry', 3); await gt(1);
+    const d2 = await page.evaluate(() => { (window.__refs = []).push(new WeakRef(window.__pp.arc.game._dbg.g)); return 1; }); void d2;
+    await page.evaluate(async () => { const G = window.__pp.arc.game._dbg; for (let k = 0; k < 4; k++) { const res = G.g.reserve || []; G.mons.push(...res.splice(0)); for (const m of G.mons) if (!m.dead) { m.guardFn = null; G.hitMon(m, 1e12, { flat: true }); } await new Promise(q => setTimeout(q, 250)); } });
+    const dn = await page.evaluate(async () => { const G = window.__pp.arc.game._dbg, t0 = G.g.t, w0 = performance.now(); while (!G.RIFT.done && G.g.t - t0 < 20 && performance.now() - w0 < 240000) { await new Promise(q => requestAnimationFrame(q)); for (const m of G.mons) if (!m.dead && !m.boss) G.hitMon(m, 1e12, { flat: true }); } return { done: G.RIFT.done, left: G.mons.filter(m => !m.dead).map(m => m.type || m.bname).slice(0, 5) }; });
+    ok(dn.done, 'D2 cleared: its gate open', dn);
+    await page.evaluate(() => { const G = window.__pp.arc.game._dbg, e = G.RIFT.exit; G.me.x = e.x; G.me.y = e.y; }); await page.waitForFunction(() => window.__pp.arc.state === 'end', null, { timeout: 900000 });   // (a loaded test machine draws a GPU frame in seconds) await page.waitForTimeout(1500);
+    await page.waitForFunction(() => !!document.querySelector('#arcPanel button[data-arc="next"]'), null, { timeout: 30000 });
+    await page.evaluate(() => document.querySelector('#arcPanel button[data-arc="next"]').click());
+    await ready(); r = await clapOK(); console.log('  clap (from D2)', JSON.stringify(r));
+    ok(r.stage === 4 && r.claps === 3 && r.pans === 2 && r.guard && /West 0\/3/.test(r.goal) && r.t > 1 && errors.length === e0, `the clappers load from D2's exit (end card Next${process.env.CLAPGPU !== '0' ? ', GPU on' : ''}) and run`, { r, errs: errors.slice(e0, e0 + 2) });
+    for (let i = 0; i < 3; i++) { await cdp.send('HeapProfiler.collectGarbage'); await page.waitForTimeout(300); }
+    r = await page.evaluate(() => { const TR = self.BEL_TRAPS || window.BEL_TRAPS, G = window.__pp.arc.game._dbg; return { d2: window.__refs[0].deref() ? 'alive' : 'freed', stale: TR ? TR.fields().filter(f => f.X.g !== G.g).length : 0 }; });
+    ok(r.d2 === 'freed' && r.stale === 0, 'D2 is let go once the clappers are made (no trap field holds a dead stage)', r);
   }
   if (ONLY.includes('hall')) {
     await start('belfry', 1); const ph = await D(() => window.__pp.RIFT_BY_ID.belfry.stages[1].placeholder);

@@ -37,23 +37,28 @@ var BELPROPS = (() => {
   const M = { r: 0.5, g: 0.5, b: 0.5, mt: 0, fr: 0.04, fg: 0.04, fb: 0.04, rg: 0.6, ao: 1, cc: 0, er: 0, eg: 0, eb: 0, sh: 1 };
   const M0 = () => { M.mt = 0; M.fr = M.fg = M.fb = 0.04; M.rg = 0.6; M.ao = 1; M.cc = 0; M.er = M.eg = M.eb = 0; M.sh = 1; };
   const OUT = [0, 0, 0];
+  /* v398 PR: the light's colours: the Belfry's (a turquoise sea's bounce and rim, purple sky) or a neutral one (a warm white key,
+     grey sky, white rim) for pieces used in every land (the shrines and power stones, 20n9c); a DEF with light: 'neutral' is painted in it */
+  const LIGHTS = { bel: { a0: [0.08, 0.25, 0.27], a1: [0.2, 0, 0.11], e0: [0.04, 0.15, 0.18], e1: [0.42, 0.4, 0.55], k: [1.08, 1.12, 1.24], rim: [0.12, 0.48, 0.46], bo: [0.03, 0.16, 0.15] },
+    neutral: { a0: [0.2, 0.19, 0.2], a1: [0.08, 0.08, 0.12], e0: [0.12, 0.11, 0.12], e1: [0.46, 0.46, 0.52], k: [1.22, 1.14, 1.02], rim: [0.34, 0.34, 0.38], bo: [0.07, 0.06, 0.05] } };
+  let LT = LIGHTS.bel;
   const tone = v => { v = v > 0 ? v : 0; v = v * (1 + v / 7) / (1 + v) * 1.32; return 255 * Math.pow(v > 1 ? 1 : v, 0.92); };
   function shade(nx, ny, nz) {
     const ndl = nx * LK[0] + ny * LK[1] + nz * LK[2], dif = (ndl > 0 ? ndl : 0) * M.sh, ao = M.ao, hm = 0.5 + 0.5 * nz, ak = 0.3 + 0.7 * ao;
-    const amr = (0.08 + 0.2 * hm) * ak, amg = (0.25 + 0.0 * hm) * ak, amb = (0.27 + 0.11 * hm) * ak;
+    const A0 = LT.a0, A1 = LT.a1, amr = (A0[0] + A1[0] * hm) * ak, amg = (A0[1] + A1[1] * hm) * ak, amb = (A0[2] + A1[2] * hm) * ak;   // v398 PR: the light's colours from LT (the Belfry's own by default)
     let ndv = ny * V[1] + nz * V[2]; if (ndv < 0) ndv = 0; const fk = Math.pow(1 - ndv, 5);
     let ndh = nx * HK[0] + ny * HK[1] + nz * HK[2]; if (ndh < 0) ndh = 0; const shin = Math.min(700, 2 / (M.rg * M.rg + 0.004)), sp = Math.pow(ndh, shin) * (shin + 2) / 8 * dif * 0.8;
     const rx = 2 * ndv * nx, ry = 2 * ndv * ny - V[1], rz = 2 * ndv * nz - V[2], sky = ss(-0.3, 0.45, rz), rl = rx * LK[0] + ry * LK[1] + rz * LK[2];
     const moon = rl > 0 ? Math.pow(rl, 2 + 60 / (1 + M.rg * 14)) * 1.5 / (1 + M.rg * 4) : 0;
-    const er = lerp(0.04, 0.42, sky) + moon, eg = lerp(0.15, 0.4, sky) + moon, eb = lerp(0.18, 0.55, sky) + moon * 1.05;
+    const E0 = LT.e0, E1 = LT.e1, er = lerp(E0[0], E1[0], sky) + moon, eg = lerp(E0[1], E1[1], sky) + moon, eb = lerp(E0[2], E1[2], sky) + moon * 1.05;
     const mt = M.mt, dm = 1 - mt, fr = M.fr + (1 - M.fr) * fk * (1 - M.rg * 0.7), fg = M.fg + (1 - M.fg) * fk * (1 - M.rg * 0.7), fb = M.fb + (1 - M.fb) * fk * (1 - M.rg * 0.7);
-    const kr = 1.08, kg = 1.12, kb = 1.24, eo = (0.35 + 0.65 * ao) / (1 + M.rg * 1.6);
+    const kr = LT.k[0], kg = LT.k[1], kb = LT.k[2], eo = (0.35 + 0.65 * ao) / (1 + M.rg * 1.6);
     let r = M.r * dm * (dif * kr + amr) + M.fr * mt * (dif * kr * 0.42 + amr * 0.45) + fr * (er * eo * (mt * 0.9 + dm * 0.35) + sp * kr * 1.2);
     let g = M.g * dm * (dif * kg + amg) + M.fg * mt * (dif * kg * 0.42 + amg * 0.45) + fg * (eg * eo * (mt * 0.9 + dm * 0.35) + sp * kg * 1.2);
     let b = M.b * dm * (dif * kb + amb) + M.fb * mt * (dif * kb * 0.42 + amb * 0.45) + fb * (eb * eo * (mt * 0.9 + dm * 0.35) + sp * kb * 1.2);
     if (M.cc > 0) { const c2 = M.cc * (Math.pow(ndh, 220) * 3.2 * dif + (0.04 + fk) * 0.55 * ao), c3 = M.cc * (0.04 + fk) * 0.5 * ao; r += c2 + c3 * er; g += c2 + c3 * eg; b += c2 * 1.05 + c3 * eb; }
     const rim = Math.pow(1 - ndv, 2.4) * Math.max(0, nx * RIMD[0] + ny * RIMD[1] + nz * RIMD[2] + 0.25) * ao * 0.5, bo = (nz < 0 ? -nz : 0) * ao;
-    r += rim * 0.12 + bo * 0.03 + M.er; g += rim * 0.48 + bo * 0.16 + M.eg; b += rim * 0.46 + bo * 0.15 + M.eb;
+    const RC = LT.rim, BC = LT.bo; r += rim * RC[0] + bo * BC[0] + M.er; g += rim * RC[1] + bo * BC[1] + M.eg; b += rim * RC[2] + bo * BC[2] + M.eb;
     OUT[0] = tone(r); OUT[1] = tone(g); OUT[2] = tone(b);
   }
   /* ======================= the painting surface ======================= */
@@ -556,9 +561,76 @@ var BELPROPS = (() => {
     navecol: { box: v => [-1.0, -4.6, 1.0, 0.4], paint(S, v) { paintColumn(S, 0, 3.3 + (v % 2) * 0.4, v, { broken: false, banded: false, r: 0.46 }); } },
   });
 
+  /* ---- v398 B2: the north gate's crystal (the user: "make the crystal appear in a cage instead, like the east gate"): a
+     blue-white spiral cage (ten porcelain bars twisting over half a turn and closing in a dome, blue veins spiralling up them,
+     a finial; 'b' the back half, 'f' the front), its own plinth (cool limestone, a blue enamel band with the spiral, brass
+     rims, a wet foot), and the archway behind it repainted in 2.5D (lit voussoirs and a keystone, jambs in blocks with
+     imposts, the reveals and the soffit giving it depth, a recess fading softly into a cool light, a wet threshold) ---- */
+  function porcelain(u, v, ao, sd, vein) { const w = vn(u * 6 + sd, v * 6), f = vn(u * 23, v * 23 + sd); M.r = 0.9 * (0.92 + 0.1 * w); M.g = 0.95 * (0.92 + 0.1 * w); M.b = 1.0 * (0.94 + 0.08 * w); M.rg = 0.26; M.cc = 0.75; M.er = 0.07; M.eg = 0.1; M.eb = 0.15;
+    if (vein > 0) { M.r = lerp(M.r, 0.22, vein); M.g = lerp(M.g, 0.5, vein); M.b = lerp(M.b, 0.95, vein); M.er = lerp(M.er, 0.06, vein); M.eg = lerp(M.eg, 0.2, vein); M.eb = lerp(M.eb, 0.45, vein); } if (f > 0.82) M.ao *= 0.9; }
+  const NCAGE = { n: 10, rx: 1.0, ry: 0.36, hh: 2.45, dome: 0.62, tw: 1.1 };
+  function ncagePt(i, k) { const C = NCAGE, a = i / C.n * TAU + 0.15 + C.tw * k, q = ss(0.8, 1, k), z = k < 0.8 ? C.hh * k / 0.8 : C.hh + C.dome * Math.sin((k - 0.8) / 0.2 * Math.PI / 2), r = k < 0.8 ? C.rx : C.rx * Math.cos((k - 0.8) / 0.2 * Math.PI / 2) * 0.97 + 0.03 * (1 - q);
+    return [Math.cos(a) * r, Math.sin(a) * r * C.ry / C.rx - z, Math.sin(a)]; }
+  function paintSpiralCage(S, half) { const C = NCAGE, F = half === 'f', N = 40;
+    const vein = (kk, i, s) => ss(0.34, 0.47, Math.abs(((kk * 6 + i * 0.37 + s * 0.06) % 1) - 0.5)) * 0.85;
+    for (let i = 0; i < C.n; i++) { let run = [], k0 = 0; const flushRun = () => { if (run.length > 1) { const ka = k0, kb = k0 + (run.length - 1) / N; tube(S, run, 0.068 - 0.024 * ka, 0.068 - 0.024 * kb, (t, s, ao) => { const kk = lerp(ka, kb, t); porcelain(t * 3 + i, s, ao, i, vein(kk, i, s)); if (!F) M.ao *= 0.72; }); S.unlock(); } run = []; };
+      for (let j = 0; j <= N; j++) { const k = j / N, p = ncagePt(i, k), front = p[2] > 0; if (front === F) { if (!run.length) { k0 = Math.max(0, (j - 1) / N); if (j > 0) { const q = ncagePt(i, (j - 1) / N); run.push([q[0], q[1]]); } else k0 = 0; } run.push([p[0], p[1]]); } else if (run.length) { run.push([p[0], p[1]]); flushRun(); } }
+      flushRun(); }
+    for (const [z, r0] of [[0, 0.085], [C.hh, 0.06], [C.hh * 0.48, 0.04]]) { const pts = []; for (let k = 0; k <= 28; k++) { const a = (F ? 0 : Math.PI) + k / 28 * Math.PI; pts.push([Math.cos(a) * C.rx, Math.sin(a) * C.ry - z]); }
+      tube(S, pts, r0, r0, (t, s, ao) => { porcelain(t * 5, s + z, ao, 3 + z, z === 0 ? ss(0.2, 0.0, Math.abs(s)) * 0.7 : 0.15); if (!F) M.ao *= 0.72; }); S.unlock(); }
+    if (F) { const top = -(C.hh + C.dome); ball(S, 0, top - 0.04, 0.13, 0.12, (dx, dy, ao) => porcelain(dx, dy, ao, 7, ss(0.25, 0.05, Math.abs(dx * 0.8 + dy * 0.6 - 0.1)) * 0.8)); S.unlock();
+      tube(S, [[0, top - 0.14], [0.01, top - 0.3], [0, top - 0.42]], 0.035, 0.012, (t, s, ao) => porcelain(t, s, ao, 9, 0.6)); S.unlock(); ball(S, 0, top - 0.44, 0.045, 0.045, (dx, dy, ao) => porcelain(dx, dy, ao, 2, 0.3)); S.unlock(); } }
+  function paintPlinthN(S) { const sd = 5.3, H = 0.74, R = 0.4; contact(S, 0, 0.04, 0.95, 0.3, 0.6); waterRing(S, 1.15, 0.55);
+    rbox(S, 0, 0.02, R * 1.6, R * 1.4, 0, 0.13, 0.04, (f, u, v2, ao) => lime(u, v2, ao, sd, 0, 0.12, { tone: 0.95 })); S.unlock();
+    const prof = h => h < 0.05 ? R * 1.35 : h < 0.16 ? R * (1.35 - 0.35 * ss(0.05, 0.16, h)) + 0.035 * Math.sin((h - 0.05) / 0.11 * Math.PI) : h < H - 0.2 ? R * (1 - 0.05 * (h - 0.16)) : h < H - 0.1 ? R * (0.95 + 0.4 * ss(H - 0.2, H - 0.1, h)) : R * 1.4;
+    rev(S, 0, -0.12, prof, 0, H, { mat: (u, h, ao) => { const band = h > 0.3 && h < 0.44, rim = Math.abs(h - 0.3) < 0.022 || Math.abs(h - 0.44) < 0.022 || h > H - 0.035;
+        if (rim) brass(u, h, ao, sd, ss(0.5, 1, Math.cos(u * 6)) * 0.5); else if (band) { M.r = 0.1; M.g = 0.26; M.b = 0.6; M.rg = 0.22; M.cc = 0.85; M.eb = 0.05; } else { lime(u, h, ao, sd, 0, h + 0.3, { tone: 0.92 }); M.b *= 1.06; } },
+      top: true, capMat: (x, h, ao, i, ph, x2, ey) => { const rr = Math.hypot(x / (R * 1.4), ey); lime(x, ey, 1, sd, 0, 1, { tone: 1.02 }); if (rr > 0.82 && rr < 0.9) brass(x, ey, 1, sd, 0.4); } });
+    S.unlock(); relief(S.c, 'spiral', 0, -0.12 - 0.37, 0.085, BCOL.N, 0.45); }
+  function paintNArch(S) { const c = S.c, aw = 2.1, by = 0.7, zs = 2.45, ry = 1.3, ring = 0.55, hw = 0.32, cy = by - zs, R = R1(398);
+    const opening = () => { c.beginPath(); c.moveTo(-aw, by); c.lineTo(-aw, cy); c.ellipse(0, cy, aw, ry, 0, Math.PI, TAU); c.lineTo(aw, by); c.closePath(); };
+    contact(S, 0, by + 0.08, aw + hw * 2 + 0.4, 0.5, 0.5);
+    // the recess: a soft fall from the light at its foot into the dark under the arch, the back wall's courses faint in it, a wet floor
+    c.save(); opening(); c.clip(); const H0 = by - cy + ry;
+    let g = c.createLinearGradient(0, cy - ry, 0, by); g.addColorStop(0, '#0A1822'); g.addColorStop(0.45, '#12293A'); g.addColorStop(0.8, '#1C3E4C'); g.addColorStop(1, '#2A5A64'); c.fillStyle = g; c.fillRect(-aw, cy - ry, aw * 2, H0);
+    g = c.createRadialGradient(0, by - 1.2, 0.1, 0, by - 1.2, aw * 1.3); g.addColorStop(0, 'rgba(160,210,255,.32)'); g.addColorStop(0.55, 'rgba(110,170,230,.12)'); g.addColorStop(1, 'rgba(110,170,230,0)'); c.fillStyle = g; c.fillRect(-aw, cy - ry, aw * 2, H0);
+    c.lineWidth = 0.022; for (let k = 0; k < 7; k++) { const y = by - 0.5 - k * 0.42, a = 0.11 * (1 - k / 8); c.strokeStyle = `rgba(150,200,215,${a})`; c.beginPath(); c.moveTo(-aw, y); c.lineTo(aw, y); c.stroke(); for (let j = -3; j <= 3; j++) { const x = j * 0.62 + (k % 2) * 0.31; c.beginPath(); c.moveTo(x, y); c.lineTo(x, y + 0.42); c.stroke(); } }
+    g = c.createLinearGradient(0, by - 0.6, 0, by); g.addColorStop(0, 'rgba(70,120,130,0)'); g.addColorStop(1, 'rgba(100,160,170,.5)'); c.fillStyle = g; c.fillRect(-aw, by - 0.6, aw * 2, 0.6);
+    c.fillStyle = 'rgba(205,240,255,.14)'; c.beginPath(); c.ellipse(0.1, by - 0.2, aw * 0.6, 0.07, 0, 0, TAU); c.fill();
+    // the reveals (the right one faces the moon: lit; the left in shadow) and the soffit under the ring, all feathered
+    g = c.createLinearGradient(-aw, 0, -aw + 0.42, 0); g.addColorStop(0, 'rgba(4,10,16,.72)'); g.addColorStop(1, 'rgba(4,10,16,0)'); c.fillStyle = g; c.fillRect(-aw, cy - ry, 0.42, H0);
+    g = c.createLinearGradient(aw, 0, aw - 0.34, 0); g.addColorStop(0, 'rgba(176,184,170,.7)'); g.addColorStop(1, 'rgba(176,184,170,0)'); c.fillStyle = g; c.fillRect(aw - 0.34, cy, 0.34, by - cy);
+    c.beginPath(); c.ellipse(0, cy, aw, ry, 0, Math.PI, TAU); c.ellipse(0, cy + 0.3, aw, ry, 0, TAU, Math.PI, true); c.closePath(); g = c.createLinearGradient(0, cy - ry, 0, cy + 0.3); g.addColorStop(0, 'rgba(84,94,90,.95)'); g.addColorStop(0.6, 'rgba(52,62,62,.7)'); g.addColorStop(1, 'rgba(30,40,44,0)'); c.fillStyle = g; c.fill(); c.save(); c.clip(); grain(c, 0.4); c.restore();
+    c.restore();
+    // the jambs: three courses of limestone each side, wet and stained at the foot, an impost with a brass band at the springing
+    for (const sd of [-1, 1]) { const x = sd * (aw + hw); for (let i = 0; i < 3; i++) { const z0 = i * zs / 3, z1 = z0 + zs / 3 - 0.03; rbox(S, x + (hs(i, sd + 5) - 0.5) * 0.02, by, hw, 0.34, z0, z1, 0.04, (f, u, v2, ao) => lime(u + i * 1.7 + sd, v2, ao, i * 2 + sd + 4, 0.75, f === 't' ? z1 : v2, { tone: 0.9 + 0.12 * hs(i, sd + 3) }), { floorAO: i ? 0.4 : 1 }); S.unlock(); }
+      rbox(S, x - sd * 0.04, by, hw + 0.1, 0.38, zs - 0.02, zs + 0.17, 0.04, (f, u, v2, ao) => { lime(u, v2, ao, sd + 9, 0, 2, { tone: 1.04 }); if (f === 'f' && Math.abs(v2 - (zs + 0.07)) < 0.035) brass(u, v2, ao, sd, 0.4); }, { floorAO: 0 }); S.unlock(); }
+    // the voussoirs: thirteen wedges round the ring, each its own tone, lit toward the moon, bevelled, the keystone carved with the spiral
+    const n = 13, cy2 = cy - 0.17, rx0 = aw, ry0 = ry + 0.02; for (let i = 0; i < n; i++) { const a0 = Math.PI + i / n * Math.PI + 0.008, a1 = Math.PI + (i + 1) / n * Math.PI - 0.008, key = i === 6, rO = ring + (key ? 0.2 : 0) + (hs(i, 2) - 0.5) * 0.04, lt = 0.5 + 0.5 * Math.cos((a0 + a1) / 2 + 2.4), tn = 0.9 + 0.14 * hs(i, 11);
+      const inner = [], outer = []; for (let k = 0; k <= 6; k++) { const a = lerp(a0, a1, k / 6); inner.push([Math.cos(a) * rx0, cy2 + Math.sin(a) * ry0]); outer.push([Math.cos(a) * (rx0 + rO), cy2 + Math.sin(a) * (ry0 + rO * 0.92)]); }
+      c.beginPath(); inner.forEach((p, k) => k ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); for (let k = outer.length - 1; k >= 0; k--) c.lineTo(outer[k][0], outer[k][1]); c.closePath();
+      g = c.createLinearGradient(outer[3][0], outer[3][1], inner[3][0], inner[3][1]); g.addColorStop(0, `rgb(${Math.round((196 + 46 * lt) * tn)},${Math.round((200 + 44 * lt) * tn)},${Math.round((184 + 40 * lt) * tn)})`); g.addColorStop(0.7, `rgb(${Math.round((158 + 40 * lt) * tn)},${Math.round((164 + 40 * lt) * tn)},${Math.round((150 + 36 * lt) * tn)})`); g.addColorStop(1, `rgb(${Math.round((112 + 30 * lt) * tn)},${Math.round((120 + 30 * lt) * tn)},${Math.round((112 + 28 * lt) * tn)})`); c.fillStyle = g; c.fill();
+      c.save(); c.clip(); grain(c, 0.6); if (hs(i, 7) > 0.55) { c.strokeStyle = 'rgba(40,90,70,.4)'; c.lineWidth = 0.03; const m = inner[2 + (i % 3)]; c.beginPath(); c.moveTo(m[0], m[1]); c.quadraticCurveTo(m[0] + 0.04, m[1] + 0.12, m[0] - 0.01, m[1] + 0.3); c.stroke(); } c.restore();
+      c.strokeStyle = 'rgba(30,58,60,.85)'; c.lineWidth = 0.032; c.stroke();
+      c.strokeStyle = `rgba(255,255,246,${0.3 + 0.35 * lt})`; c.lineWidth = 0.022; c.beginPath(); outer.forEach((p, k) => k ? c.lineTo(p[0], p[1] + 0.02) : c.moveTo(p[0], p[1] + 0.02)); c.stroke();
+      c.strokeStyle = 'rgba(12,24,28,.5)'; c.lineWidth = 0.03; c.beginPath(); inner.forEach((p, k) => k ? c.lineTo(p[0], p[1] - 0.015) : c.moveTo(p[0], p[1] - 0.015)); c.stroke();
+      if (key) relief(c, 'spiral', (inner[3][0] + outer[3][0]) / 2, (inner[3][1] + outer[3][1]) / 2 - 0.02, 0.17, BCOL.N, 0.35); }
+    // the threshold: a worn step across the opening, wet; the puddle in front, drips and weed on the jambs' feet, glints
+    rbox(S, 0, by + 0.32, aw + 0.12, 0.3, 0, 0.12, 0.04, (f, u, v2, ao) => lime(u * 1.3, v2, ao, 13, 0, 0.05, { tone: 1.0, fresh: true }), { floorAO: 0.6 }); S.unlock();
+    c.save(); c.translate(0, by + 0.5); waterRing(S, 2.2, 0.6); c.restore();
+    c.save(); c.lineCap = 'round'; for (const sd of [-1, 1]) for (let i = 0; i < 4; i++) { const x = sd * (aw + hw) + (R() - 0.5) * hw * 1.4, y0 = by - zs * (0.3 + R() * 0.6), len = 0.3 + R() * 0.6; c.strokeStyle = 'rgba(20,40,46,.32)'; c.lineWidth = 0.03; c.beginPath(); c.moveTo(x, y0); c.lineTo(x + (R() - 0.5) * 0.04, y0 + len); c.stroke(); c.strokeStyle = 'rgba(220,250,250,.22)'; c.lineWidth = 0.012; c.beginPath(); c.moveTo(x + 0.012, y0); c.lineTo(x + 0.012, y0 + len * 0.7); c.stroke(); }
+      c.strokeStyle = 'rgba(30,78,56,.75)'; c.lineWidth = 0.035; for (let i = 0; i < 10; i++) { const sd = i % 2 ? 1 : -1, x = sd * (aw + hw) + (R() - 0.5) * hw * 1.8; c.beginPath(); c.moveTo(x, by - 0.02); c.quadraticCurveTo(x + 0.04, by - 0.12, x - 0.02, by - 0.18 - R() * 0.16); c.stroke(); } c.restore();
+    glint(c, -aw - hw * 0.4, by - 0.08, 0.16, 0.55); glint(c, aw + hw * 0.5, by - 0.12, 0.12, 0.45); glint(c, 0.6, by + 0.42, 0.14, 0.5);
+    ink(S, [14, 26, 30], 0.45); }
+  Object.assign(DEF, {
+    ncage: { box: () => [-1.35, -3.65, 1.35, 0.55], paint(S, v) { paintSpiralCage(S, v); } },
+    nplinth: { box: () => [-1.3, -1.05, 1.3, 0.55], paint(S) { paintPlinthN(S); ink(S, [14, 26, 30], 0.5); } },
+    narch: { box: () => [-3.15, -4.35, 3.15, 1.35], paint(S) { paintNArch(S); } },
+  });
+
   /* ======================= the cache and the drawing ======================= */
   const SPR = new Map(); let budT = 0, budMs = 0; const STATS = { painted: 0, paintMs: 0, draws: 0, fallbacks: 0 };
-  function paint(name, v, P) { const D = DEF[name]; const b = D.box(v), t0 = now(); const S = surface(b[0], b[1], b[2], b[3], P); try { D.paint(S, v); S.unlock(); } catch (e) { if (typeof console !== 'undefined') console.warn('BELPROPS', name, e); return null; }
+  function paint(name, v, P) { const D = DEF[name]; const b = D.box(v), t0 = now(); const S = surface(b[0], b[1], b[2], b[3], P); LT = LIGHTS[D.light] || LIGHTS.bel; try { D.paint(S, v); S.unlock(); } catch (e) { LT = LIGHTS.bel; if (typeof console !== 'undefined') console.warn('BELPROPS', name, e); return null; } LT = LIGHTS.bel;   /* v398 PR: (its light) */
     const cv = mkc(S.w, S.h); cv.getContext('2d').drawImage(S.cv, 0, 0); const ms = now() - t0; STATS.painted++; STATS.paintMs += ms; budMs += ms; return { cv, ax: S.ax, ay: S.ay, P }; }
   function sprite(name, v, P, force) { if (!DEF[name] || !(P > 2)) return null; const key = name + '|' + v + '|' + P; let s = SPR.get(key); if (s) return s;
     const t = now(); if (t - budT > 30) { budT = t; budMs = 0; } if (!force && budMs > 14) return null;   // (a painting budget: what does not fit waits a frame)
@@ -726,12 +798,14 @@ var BELPROPS = (() => {
      floor's sharpness, as small jobs */
   const WARM = [['dais', 0], ['rib', 0], ['crystal', 'E'], ['crystal', 'W'], ['crystal', 'N'], ['pedestal', 0], ['plinth', 0], ['pit', 0], ['drain', 0], ['drainS', 0], ['cage', 'b'], ['cage', 'f'], ['hungbell', 'c'], ['alcove', 0], ['plaque', 0], ['pylon', 0], ['gpillar', 0], ['leaf', 0], ['lintel', 0], ['doorframe', 0], ['doorslab', 0], ['platform', '5.4x7.3'], ['navecol', 0], ['navecol', 1], ['wallseg', 0], ['housing', 0], ['glassurn', 0], ['urn', 0], ['bellfrag', 0], ['bellfrag', 1], ['seaglass', 0], ['lamppost', 0]]
     .concat(...['E', 'W', 'N'].map(B => [['socket', B + '00'], ['socket', B + '41'], ['medal', B + '0'], ['medal', B + '1'], ['medal', B + '2']]));
+  WARM.push(['ncage', 'b'], ['ncage', 'f'], ['nplinth', 0], ['narch', 0]);   // v398 B2: the north gate's cage, plinth and archway
   const ARENA = { belkharrox: ['urn', 'bellfrag', 'lamppost'], belnhalu: ['navecol', 'wallseg', 'housing', 'seaglass', 'lamppost'], beluldroth: ['glassurn'] };
   function warm(P) { if (off() || !P || !(P.T > 0)) return []; BASE = Math.round(P.T * (P.k || 1)); const S2 = P.S || {}, hall = /Hall of Three Tides/.test(S2.name || ''), ar = ARENA[S2.boss] || null;   // (only what the stage being loaded draws)
     return WARM.filter(([n]) => ar ? ar.includes(n) : hall && !['navecol', 'wallseg', 'housing', 'seaglass', 'glassurn', 'urn', 'bellfrag', 'lamppost'].includes(n)).map(([n, v]) => () => { try { sprite(n, v, BASE, true); } catch (e) {} }); }
   function hookWarm() { try { const Rf = typeof RIFT_BY_ID !== 'undefined' && RIFT_BY_ID.belfry; if (!Rf || Rf.__belp) return; const old = Rf.preload; Rf.preload = function (P) { let a = []; try { a = old ? old.apply(this, arguments) || [] : []; } catch (e) {} return a.concat(warm(P)); }; Rf.__belp = 1; } catch (e) {} }
   hookWarm();
-  const API = { draw, fit, dress, painter, warm, sprite: (n, v, P) => sprite(n, v, P, true), has: n => !!DEF[n] && !off(), install, OLD, DEF, get stats() { return Object.assign({ sprites: SPR.size }, STATS); }, relief, crystalFacets, BCOL };
+  const API = { draw, fit, dress, painter, warm, sprite: (n, v, P) => sprite(n, v, P, true), has: n => !!DEF[n] && !off(), install, OLD, DEF, get stats() { return Object.assign({ sprites: SPR.size }, STATS); }, relief, crystalFacets, BCOL,
+    kit: { surface, shade, put, M, M0, rev, rbox, tube, ball, vn, fbm, R1, ss, clamp, lerp, K, contact, ink, grain, glint, iron, brass, lime, wetstone, bronze, LIGHTS } };   // v398 PR: the painter's kit, for 20n9c's shrines and power stones
   if (typeof window !== 'undefined') window.BELPROPS = API;
   return API;
 })();

@@ -382,6 +382,7 @@ const BEL_NHALU = (() => {
       spine(FX, m, M, 0); },
     phase(FX, p) { const M = FX.mem, m = FX.m; M.stat.phaseAt.push([p, +FX.S.t.toFixed(1)]);
       if (!M.beach) clearActs(FX, m, M); M.cyc = 0; M.wait = 1.0;
+      if (p === 2) M.p2 = { t: 0 };   // (v398 B4: the 50% moment: the lanterns flare in turn, the charge runs down its body, the nave flashes)
       if (p === 2) FX.H.banner('TWIN THUNDER', 'Two lanes charge in turn: leave the first, then step into its spent water', AMBER_HI, 3.2, true); },
     ai(FX, m, dt) { const M = FX.mem; if (!M.ok || M.end) return; m.actT += dt; m.noTouch = true;
       if (!M.ac) { idle(FX, m, M, dt); return; }
@@ -443,6 +444,18 @@ const BEL_NHALU = (() => {
   const W2T = (C, x, y) => ({ x, y: y / GY });   // a world floor point -> the swim plane (true lengths)
   function goTo(M, C, wx, wy, spd) { M.tgt = W2T(C, wx, wy); M.spdTo = spd || 2.4; M.arrived = false; }
 
+  /* ---------- (v398 B4) the effects' own state: short-lived pieces in world space (splashes, steam, sparks, blooms, rings),
+     ticked with the fight and drawn by the GPU layer; purely visual (no gameplay reads them). Capped, thinner under lowFx ---------- */
+  function fxAdd(M, o) { if (!M.fxp) M.fxp = []; const cap = lowFx() ? 36 : 140; if (M.fxp.length >= cap) M.fxp.shift(); o.t = 0; o.sd = o.sd != null ? o.sd : Math.random() * 50; M.fxp.push(o); return o; }
+  function fxTick(M, dt) { const P = M.fxp; if (!P) return; for (let i = P.length - 1; i >= 0; i--) { const q = P[i]; q.t += dt; if (q.vx) q.x += q.vx * dt; if (q.vy) q.y += q.vy * dt; if (q.vz) q.z = (q.z || 0) + q.vz * dt; if (q.t >= q.life) P.splice(i, 1); } }
+  const splash = (M, x, y, k, o) => fxAdd(M, Object.assign({ k: 'splash', x, y, life: 0.75, s: k || 1 }, o || {}));
+  const steamAt = (M, x, y, k) => { if (!lowFx()) fxAdd(M, { k: 'steam', x, y, z: 0.2, vz: 0.55 + Math.random() * 0.3, vx: (Math.random() - 0.5) * 0.3, life: 2.2 + Math.random() * 0.8, s: k || 1 }); };
+  const bloomAt = (M, x, y, z, r, col, a, life) => fxAdd(M, { k: 'bloom', x, y, z: z || 0, r, col, a, life: life || 0.3 });
+  const ringAt = (M, x, y, r, col, a, life) => fxAdd(M, { k: 'ring', x, y, r, col, a, life: life || 0.6 });
+  // a hitstop: the world held for a few hundredths of a second on the heaviest blows (the dungeon's own g.hitStop)
+  const hitstop = (FX, s) => { const g = FX.g; if (!g || !(s > 0)) return; g.hitStop = Math.max(g.hitStop || 0, lowFx() ? s * 0.5 : s); };
+  const shakeK = (FX, a, d) => FX.H.shake(lowFx() ? a * 0.45 : a, d);
+
   /* ---------- the acts ---------- */
   function kNow(M) { if (M.beach) return TUNE.kBeach; if (M.ac && (M.ac.k === 'hunt' || M.ac.k === 'hunt2')) return TUNE.kRear; if (M.rest) return TUNE.kRest; return TUNE.kSwim; }
   /* one blow over the long body (a burst taking in several of its hit proxies at once) counts about once: in a frame, the
@@ -472,7 +485,7 @@ const BEL_NHALU = (() => {
     else if (A.k === 'drain') drainStep(FX, m, M, A, dt);
     else endAct(FX, m, M); }
   /* Lantern Hunt: it slows in its lane and rears, the bulb flares, its symbol thrown onto the charged lane */
-  function arm(FX, M, L, b, T) { const lane = M.lanes[L]; lane.armed = { t: 0, T, bulb: b, sym: M.bulbs[b].sym }; M.bulbs[b].gTo = 2.2; M.stat.armed++; const n = M.lanes.filter(q => q.armed).length; M.stat.maxArmed = Math.max(M.stat.maxArmed, n); sf(FX, 'chime', 660 + 110 * b, 0.4); }
+  function arm(FX, M, L, b, T) { const lane = M.lanes[L]; lane.armed = { t: 0, T, bulb: b, sym: M.bulbs[b].sym }; M.bulbs[b].gTo = 2.2; M.bulbs[b].flare = 0.8;   /* (v398 B4: its flare) */ M.stat.armed++; const n = M.lanes.filter(q => q.armed).length; M.stat.maxArmed = Math.max(M.stat.maxArmed, n); sf(FX, 'chime', 660 + 110 * b, 0.4); }
   function huntStep(FX, m, M, A, dt) { const C = FX.C, me = FX.me;
     M.rearTo = 0.55; M.pitchTo = -0.28; M.spdTo = 0.7;
     if (!M.tgt || M.arrived) { const y = m.y + (Math.random() < 0.5 ? -3 : 3); goTo(M, C, laneX(C, laneOf(C, m.x)), Math.max(C.y - NY + 3, Math.min(C.y + NY - 4, y)), 0.7); }
@@ -481,8 +494,13 @@ const BEL_NHALU = (() => {
   /* the discharge: Thunderwater along a whole lane (one strike, its light lingering a moment) */
   function discharge(FX, M, L) { const C = FX.C, me = FX.me, lane = M.lanes[L], a = lane.armed; lane.armed = null; lane.fx = TM.disFx; lane.arcT = 0; M.stat.discharges++; M.stat.lanesHit[L]++;
     if (a) M.bulbs[a.bulb].gTo = 0.62;
-    if (lane.wet > 0.3 && inLane(C, L, me.x, me.y, me.r) && !me.dead) { if (FX.hurt(TUNE.dmg * TUNE.thunder)) { M.stat.disHit++; FX.H.text(me.x, me.y - 1.4, 'Thunderwater!', VOLT_HI, 15); } }
-    FX.H.shake(lowFx() ? 3 : 7, 0.25); sf(FX, 'crash'); sf(FX, 'hiss', 0.5, 0.25, 2400);
+    let hit = false; if (lane.wet > 0.3 && inLane(C, L, me.x, me.y, me.r) && !me.dead) { if (FX.hurt(TUNE.dmg * TUNE.thunder)) { hit = true; M.stat.disHit++; FX.H.text(me.x, me.y - 1.4, 'Thunderwater!', VOLT_HI, 15); } }
+    // (v398 B4) the strike's weight: a held beat and a hard shake when it catches the pet, a lighter one when it misses; a
+    // short bloom over the lane, spray thrown up its length and steam rising off it afterwards (the GPU layer draws them)
+    lane.flash = 0.24; lane.steamT = 0.25; lane.steamN = lowFx() ? 0 : 7; lane.seed = Math.random() * 40;
+    if (hit) { hitstop(FX, 0.07); shakeK(FX, 9, 0.3); FX.H.flash(0.1, VOLT); } else shakeK(FX, 4.5, 0.22);
+    for (let i = 0, n = lowFx() ? 3 : 7; i < n; i++) splash(M, laneX(C, L) + FX.rnd(-LWW * 0.85, LWW * 0.85), C.y - NY + 1 + (NY * 2 - 2) * (i + Math.random()) / n, 0.8 + Math.random() * 0.5, { col: VOLT, life: 0.6 + Math.random() * 0.3 });
+    sf(FX, 'crash'); sf(FX, 'hiss', 0.5, 0.25, 2400);
     if (!lowFx()) for (let i = 0; i < 16; i++) FX.H.part({ kind: 'spark', x: laneX(C, L) + FX.rnd(-LWW, LWW), y: C.y + FX.rnd(-NY + 0.5, NY - 0.5), vx: FX.rnd(-2, 2), vy: FX.rnd(-3.5, -1), g: 6, drag: 0.5, life: 0.5, max: 0.5, size: 2.5, color: Math.random() < 0.5 ? VOLT_HI : VOLT }); }
   /* Drain-and-Bite: it swims into its lane and lies along it; the lane is marked, a wheel exposed; it snaps at a pet near
      its head; drained in time it beaches, else the sluice seals and it bites down the lane */
@@ -506,8 +524,9 @@ const BEL_NHALU = (() => {
   function biteStep(FX, m, M, A, dt) { const B = A.bite, me = FX.me, hd = headW(m, M, 0.9); B.t += dt; B.x = hd.x; B.y = hd.y;
     if (B.t < TM.biteLock && !B.big) { const want = Math.atan2(me.y - hd.y, me.x - hd.x); B.a += Math.max(-dt * 1.5, Math.min(dt * 1.5, angTo(B.a, want))); }
     M.jawTo = B.t < TM.bite ? 0.35 + 0.5 * cl(B.t / TM.bite) : 1;
-    if (B.t >= TM.bite && !B.hit) { B.hit = true; M.lungeA = Math.atan2(Math.sin(B.a) / GY, Math.cos(B.a)); M.lungeL = Math.min(B.len, 4.2); M.lungeTo = 1; sf(FX, 'crash'); FX.H.shake(8, 0.25);
-      const s = { shape: 'line', x: B.x, y: B.y, a: B.a, len: B.len, w: B.w }; if (FX.inShape(s, me.x, me.y, me.r) && !me.dead) { if (FX.hurt(TUNE.dmg * TUNE.bite * (B.big ? 1.2 : 1))) { M.stat.biteHit++; FX.H.text(me.x, me.y - 1.4, 'Bitten!', WARN, 15); } }
+    if (B.t >= TM.bite && !B.hit) { B.hit = true; M.lungeA = Math.atan2(Math.sin(B.a) / GY, Math.cos(B.a)); M.lungeL = Math.min(B.len, 4.2); M.lungeTo = 1; sf(FX, 'crash'); shakeK(FX, 7, 0.25);
+      const s = { shape: 'line', x: B.x, y: B.y, a: B.a, len: B.len, w: B.w }; if (FX.inShape(s, me.x, me.y, me.r) && !me.dead) { if (FX.hurt(TUNE.dmg * TUNE.bite * (B.big ? 1.2 : 1))) { M.stat.biteHit++; FX.H.text(me.x, me.y - 1.4, 'Bitten!', WARN, 15); hitstop(FX, 0.06); } }
+      { const L2 = Math.min(B.len, 4.2); splash(M, B.x + Math.cos(B.a) * L2, B.y + Math.sin(B.a) * L2, 1.3); splash(M, B.x + Math.cos(B.a) * L2 * 0.5, B.y + Math.sin(B.a) * L2 * 0.5, 0.8); ringAt(M, B.x + Math.cos(B.a) * L2, B.y + Math.sin(B.a) * L2, 2.2, '#CFF6FF', 0.5, 0.7); }   // (v398 B4: the jaw's splash)
       // its lunge breaks what stands in the line
       for (const o of M.breaks || []) if (!o.dead && FX.inShape(s, o.x, o.y, o.r)) { o.dead = true; breakObj(FX, o); }
       for (let i = 0; i < 10 && !lowFx(); i++) FX.H.part({ kind: 'smoke', x: B.x + Math.cos(B.a) * 3 + FX.rnd(-1, 1), y: B.y + Math.sin(B.a) * 3, vx: FX.rnd(-1.5, 1.5), vy: FX.rnd(-2.5, -0.8), drag: 0.8, life: 0.8, max: 0.8, size: 0.55, color: 'rgba(200,240,250,' }); }
@@ -517,7 +536,8 @@ const BEL_NHALU = (() => {
     if (W2.locked) { FX.H.text(W2.x, W2.y - 2, 'A leech holds the wheel!', LEECH, 13); sf(FX, 'wrong'); return false; }
     const lane = M.lanes[A.L]; lane.wetTo = 0; W2.spinV = 9; W2.exposed = false; W2.drainedBy = true; M.stat.drained++; A.bite = null; M.lunge = 0; M.lungeTo = 0;
     A.step = 2; M.beach = { t: 0, L: A.L, wheel: W2.i }; m.stunT = TM.beach + 0.6; M.stat.beached++; M.jawTo = 0.6;
-    FX.H.banner('BEACHED!', 'The lane drains away: strike while it gasps on the stones', '#BFF8F2', 2.2, true); sf(FX, 'hiss', 1.2, 0.35, 400); sf(FX, 'thud'); FX.H.shake(9, 0.4);
+    FX.H.banner('BEACHED!', 'The lane drains away: strike while it gasps on the stones', '#BFF8F2', 2.2, true); sf(FX, 'hiss', 1.2, 0.35, 400); sf(FX, 'thud'); shakeK(FX, 7, 0.4);
+    lane.vortex = 0.001; hitstop(FX, 0.08); M.thrash = 1;   // (v398 B4: the sluice's whirlpool opens; the eel's first heave)
     return true; }
   /* leeches: two crawl out of the grooves toward the exposed wheel; one that reaches it relocks it */
   function spawnLeeches(FX, M, W2) { const C = FX.C;
@@ -554,8 +574,20 @@ const BEL_NHALU = (() => {
     // the beach: the stun holds it on the stones; a leech's relock refills the lane early; then the water returns
     if (M.beach) { const B = M.beach; B.t += dt; M.stat.beachT += dt; M.dry = toward(M.dry, 1, dt, 0.5);
       if (M.wheels[B.wheel].locked && !B.refill) { B.refill = true; m.stunT = Math.min(m.stunT, TM.refillGrace); M.stat.refill++; FX.H.text(m.x, m.y - 2, 'The lane refills!', LEECH, 14); }
-      if (!(m.stunT > 0)) { M.lanes[B.L].wetTo = 1; M.beach = null; if (M.ac && M.ac.k === 'drain') { M.ac.step = 4; M.ac.t = 0; } FX.H.text(m.x, m.y - 2, 'The water returns', '#BFF8F2', 13); sf(FX, 'hiss', 0.9, 0.25, 500); } }
+      if (!(m.stunT > 0)) { M.lanes[B.L].wetTo = 1; M.lanes[B.L].inflow = 1.3; M.beach = null; if (M.ac && M.ac.k === 'drain') { M.ac.step = 4; M.ac.t = 0; } FX.H.text(m.x, m.y - 2, 'The water returns', '#BFF8F2', 13); sf(FX, 'hiss', 0.9, 0.25, 500); } }
     else M.dry = toward(M.dry, 0, dt, 0.8);
+    // (v398 B4) beached it heaves: a thrash every half second or so throws spray off its flanks and slaps the tail (visual:
+    // the roll and the tail's swing only, its body, and so what can be struck, stays where it lies)
+    if (M.beach && !M.end) { M.thrashT = (M.thrashT || 0) - dt; if (M.thrashT <= 0) { M.thrashT = 0.42 + Math.random() * 0.4; M.thrash = 1; M.thrashS = Math.random() < 0.5 ? -1 : 1;
+        const s = Math.random() < 0.4 ? BODY_L - 0.2 : Math.random() * BODY_L, p = spW(m, M, s); splash(M, p.x + FX.rnd(-0.5, 0.5), p.y + FX.rnd(-0.3, 0.3), 0.7 + Math.random() * 0.6, { col: '#CFF6FF', dry: true }); if (Math.random() < 0.5) sf(FX, 'thud'); } }
+    M.thrash = Math.max(0, (M.thrash || 0) - dt * 2.6);
+    for (const L of M.lanes) { if (L.flash > 0) L.flash = Math.max(0, L.flash - dt); if (L.vortex > 0) { L.vortex += dt; if (L.wetTo > 0.5 && L.wet > 0.6) L.vortex = 0; } if (L.inflow > 0) L.inflow = Math.max(0, L.inflow - dt);
+      if (L.steamN > 0) { L.steamT -= dt; if (L.steamT <= 0) { L.steamT = 0.08 + Math.random() * 0.12; L.steamN--; steamAt(M, laneX(C, L.i) + FX.rnd(-LWW * 0.8, LWW * 0.8), C.y + FX.rnd(-NY + 1, NY - 1), 1 + Math.random() * 0.6); } } }
+    for (const b of M.bulbs) if (b.flare > 0) b.flare = Math.max(0, b.flare - dt);
+    if (M.p2) { M.p2.t += dt; const P2 = M.p2, tt = P2.t; for (let i = 0; i < 3; i++) if (!P2['b' + i] && tt >= 0.25 + i * 0.32) { P2['b' + i] = 1; M.bulbs[i].flare = 0.9; M.bulbs[i].g = Math.max(M.bulbs[i].g, 2.3); sf(FX, 'chime', 660 + 110 * i, 0.35); }
+      if (!P2.bang && tt >= 1.25) { P2.bang = 1; shakeK(FX, 10, 0.45); hitstop(FX, 0.08); FX.H.flash(0.14, VOLT); sf(FX, 'crash'); }
+      if (tt > 2.6) M.p2 = null; }
+    fxTick(M, dt);
     // the lanes: telegraphs counting down, discharges, the water's level
     let armedN = 0; for (const L of M.lanes) { L.wet = toward(L.wet, L.wetTo, dt, L.wetTo < L.wet ? 1.6 : 1.0); if (L.fx > 0) L.fx = Math.max(0, L.fx - dt);
       if (L.armed && !M.end) { armedN++; L.armed.t += dt; if (L.armed.t >= L.armed.T) discharge(FX, M, L.i); } }
@@ -565,7 +597,7 @@ const BEL_NHALU = (() => {
     // the pose eases toward what the acts ask
     const beached = !!M.beach, endK = M.end ? 1 : 0;
     M.rear = toward(M.rear, beached ? 0 : M.rearTo || 0, dt, 2.2); M.pitch = toward(M.pitch, beached ? 0.32 : M.end ? M.pitch : (M.rest && !M.ac ? 0.2 : M.pitchTo || 0.05), dt, 3); M.jaw = toward(M.jaw, beached ? 0.35 + 0.35 * Math.max(0, Math.sin(t * 2.6)) : M.jawTo || 0, dt, 6);
-    M.lunge = toward(M.lunge, M.lungeTo || 0, dt, (M.lungeTo || 0) > M.lunge ? 14 : 3); M.roll = toward(M.roll, beached ? 0.55 : endK * 0.7, dt, 1.5); M.amp = toward(M.amp, beached ? 0.12 : M.end ? 0.05 : M.rest ? 0.2 : 0.32, dt, 1.5);
+    M.lunge = toward(M.lunge, M.lungeTo || 0, dt, (M.lungeTo || 0) > M.lunge ? 14 : 3); M.roll = toward(M.roll, beached ? 0.55 + 0.32 * (M.thrash || 0) * (M.thrashS || 1) : endK * 0.7, dt, beached ? 6 : 1.5); M.amp = toward(M.amp, beached ? 0.12 : M.end ? 0.05 : M.rest ? 0.2 : 0.32, dt, 1.5);
     M.chg = toward(M.chg, M.lanes.some(L => L.armed) ? 0.5 : M.lanes.some(L => L.fx > 0.3) ? 1 : 0, dt, 4); M.fin += dt * (2 + M.spd * 2.5);
     for (const b of M.bulbs) { if (!M.ac && !M.lanes.some(L => L.armed)) b.gTo = beached ? 0.18 : 0.62 + 0.08 * Math.sin(t * 1.3 + b.sym); b.g = toward(b.g, M.end ? b.g : b.gTo, dt, b.gTo > b.g ? 6 : 2.5); }
     if (!M.end) { const want = Math.atan2(me.y - m.y, me.x - m.x) - M.hd; M.yaw = toward(M.yaw, beached ? Math.sin(t * 1.4) * 0.25 : Math.max(-0.5, Math.min(0.5, angTo(0, want))) * 0.5, dt, 2); }
@@ -584,18 +616,21 @@ const BEL_NHALU = (() => {
     E.lift = E.t < 2.15 ? ease(E.t / 0.9) : lerp(1, -0.15, ease((E.t - 2.15) / 0.6));
     M.pitch = E.t < 2.15 ? toward(M.pitch, -0.5, dt, 3) : toward(M.pitch, 0.35, dt, 6); M.jawTo = E.t < 2.15 ? 1 : 0.2; M.chg = E.t < 2.2 ? 1.3 : toward(M.chg, 0, dt, 2);
     for (let i = 0; i < 3; i++) { const b = M.bulbs[i]; if (!b.burst) b.g = toward(b.g, 2.5, dt, 3); const at = 1.0 + i * 0.4; if (!b.burst && E.t >= at) { b.burst = true; E.burst++;
-        const a = MODEL.anchor('bulbs', i) || { x: m.x, y: m.y, z: 1.2 }; burstBulb(FX, a); } }
-    if (E.t >= 2.7 && !E.crash) { E.crash = true; sf(FX, 'crash'); sf(FX, 'thud'); FX.H.shake(lowFx() ? 6 : 16, 0.6); const hd = spW(m, M, 0.5);
+        const a = MODEL.anchor('bulbs', i) || { x: m.x, y: m.y, z: 1.2 }; burstBulb(FX, a); bloomAt(M, a.x, a.y, a.z, 3.2, AMBER, 0.9, 0.45); ringAt(M, a.x, a.y, 3.4, AMBER, 0.6, 0.7); hitstop(FX, 0.05); } }
+    if (E.t >= 2.7 && !E.crash) { E.crash = true; sf(FX, 'crash'); sf(FX, 'thud'); FX.H.shake(lowFx() ? 6 : 16, 0.6); hitstop(FX, 0.1); const hd = spW(m, M, 0.5);
+      for (let s = 0; s <= BODY_L; s += lowFx() ? 2 : 0.9) { const p = spW(m, M, s); splash(M, p.x, p.y, 1.1 + Math.random() * 0.5, { col: '#CFF6FF', life: 0.9 }); } ringAt(M, hd.x, hd.y, 7, '#CFF6FF', 0.55, 1.4); E.steamT = 0.4;   // (v398 B4: the crash's sheet of spray, the nave's ring)
       FX.H.ring(hd.x, hd.y, 0.4, 5, 0.8, '#CFF6FF', 0.45); for (let i = 0; i < (lowFx() ? 8 : 26); i++) { const a = Math.random() * TAU, v = 2 + Math.random() * 5; FX.H.part({ kind: 'smoke', x: hd.x + Math.cos(a) * 0.8, y: hd.y + Math.sin(a) * 0.5, vx: Math.cos(a) * v * 0.6, vy: -2 - Math.random() * 3, drag: 0.9, life: 1.1, max: 1.1, size: 0.6 + Math.random() * 0.5, color: 'rgba(220,245,250,' }); } }
+    if (E.crash && E.t < 6 && !lowFx()) { E.steamT -= dt; if (E.steamT <= 0) { E.steamT = 0.18 + Math.random() * 0.2; const p = spW(m, M, Math.random() * BODY_L); steamAt(M, p.x + FX.rnd(-0.4, 0.4), p.y, 0.9 + Math.random() * 0.5); } }   // (v398 B4: steam off the spent body)
     M.dead = sstep(2.6, 4.6, E.t); for (const L of M.lanes) L.wetTo = 1; }
-  function burstBulb(FX, a) { const x = a.x, y = a.y; sf(FX, 'crash'); FX.H.flash(0.18, AMBER); FX.H.shake(lowFx() ? 3 : 9, 0.25);
+  function burstBulb(FX, a) { const x = a.x, y = a.y; sf(FX, 'crash'); FX.H.flash(0.18, AMBER); shakeK(FX, 8, 0.25);
     if (typeof BREAK_FX !== 'undefined') try { BREAK_FX.burst(null, x, y, { paint: (c, P) => { c.save(); c.translate(0, -a.z * ZK * P + P * 0.5); paintBulb(c, P); c.restore(); }, key: 'nhalu-bulb-' + Math.round(a.z * 4), w: 1.0, h: 1.0 + a.z * ZK, mat: 'glass', hot: AMBER, size: 1.6, from: { x, y: y + 1.5 } }); } catch (e) { /* (the shared break effect) */ }
     FX.H.sparks(x, y - a.z * ZK, AMBER_HI, lowFx() ? 8 : 22, 7); FX.H.ring(x, y - a.z * ZK, 0.2, 2.2, 0.4, AMBER, 0.5); }
 
   /* ---------- the camera: the pet, the eel's head and body, the wheel in play ---------- */
   function camFocus(FX, m) { const M = FX.mem, me = FX.me, H = FX.H; if (!M || !M.ok) return null; if (typeof window !== 'undefined' && window.__NHALU_CAM) return window.__NHALU_CAM;   // (tests: a held view)
     if (m.act === 'enter') return { x: m.x, y: m.y - 0.5, k: 0.8, zoom: 0.46 };
-    if (M.end) return M.end.t < 6 ? { x: m.x, y: m.y + 1, k: 0.8, zoom: 0.48 } : null;
+    if (M.end) { const e = M.end.t; return e < 6 ? { x: m.x, y: m.y + (e < 2.4 ? 0.2 : 1), k: 0.85, zoom: e < 2.4 ? 0.48 + 0.08 * ease(e / 1.2) : 0.5 } : null; }   // (v398 B4: closer while it rears and its lanterns burst)
+    if (M.p2 && M.p2.t < 2.0) { const mid = spW(m, M, 1.8); return { x: mid.x, y: mid.gy - 0.4, k: 0.85, zoom: 0.55 }; }   // (v398 B4: the 50% moment, framed on it)
     const hd = spW(m, M, 0), mid = spW(m, M, BODY_L * 0.5), pts = [[me.x, me.y], [hd.x, hd.gy - 0.8], [mid.x, mid.gy]];
     for (const W2 of M.wheels) if (W2.exposed) pts.push([W2.x, W2.y - 1.4]);
     if (M.lanes.some(L => L.armed)) pts.push([me.x + (me.x < FX.C.x ? 4 : -4), me.y]);
@@ -606,7 +641,7 @@ const BEL_NHALU = (() => {
 
   /* ---------- drawing ---------- */
   function poseOf(M) { const P = M.sp; return { pts: P.pts, rolls: P.rolls, yaw: M.yaw, pitch: M.pitch, jaw: M.jaw, bulb: M.bulbs.map(b => b.g), sym: M.bulbs.map(b => b.sym), burst: M.bulbs.map(b => b.burst), chg: M.chg, dry: M.dry, dead: M.dead, fin: M.fin,
-      tailYaw: Math.sin(M.wph - BODY_L * 1.45) * 0.35 * (M.end ? 0.2 : 1), clip: M.beach || M.end && M.end.t > 2.3 ? null : WATER_Z, alpha: 1 }; }
+      tailYaw: Math.sin(M.wph - BODY_L * 1.45) * 0.35 * (M.end ? 0.2 : 1) + (M.beach ? 0.55 * (M.thrash || 0) * (M.thrashS || 1) : 0), clip: M.beach || M.end && M.end.t > 2.3 ? null : WATER_Z, alpha: 1 }; }
   function drawEel(c, FX, m, T, t) { const M = FX.mem; if (!M || !M.ok || !M.sp) return; const R = MODEL.draw(c, m.x, m.y, poseOf(M), { T, sx: FX.sx, sy: FX.sy, t });
     M.bulbScr = R && R.A.bulbs ? R.A.bulbs.map(p => { const V = LAST.V; return V.toS(p); }) : null;
     if (!R || !R.drawn) drawOld2D(c, FX, m, M, T, t); }
@@ -674,32 +709,97 @@ const BEL_NHALU = (() => {
     for (const k of [0.55, 0.8]) { const x = L * k, s = w * 0.32; c.strokeStyle = 'rgba(30,6,6,.8)'; c.lineWidth = Math.max(3, T * 0.15); c.beginPath(); c.moveTo(x - s, -s); c.lineTo(x, 0); c.lineTo(x - s, s); c.stroke(); c.strokeStyle = '#FFD0C8'; c.lineWidth = Math.max(1.5, T * 0.07); c.stroke(); }
     c.restore(); label(c, String(Math.max(1, Math.ceil(TM.bite - B.t))), X + Math.cos(B.a) * B.len * T * 0.35, Y + Math.sin(B.a) * B.len * T * 0.35, T * 0.7, '#FFFFFF', 'rgba(80,10,0,.9)'); }
 
-  /* ---------- the GPU layer: the charge in the water, the lantern's projection, Thunderwater (soft: caustic light, soft
-     blooms and plain light beams for its arcs, never the turbulent kinds); a 2D picture of the same where it is not ---------- */
+  /* ---------- (v398 B4) the GPU layer, rebuilt to the model's standard: everything soft and layered, through the shared
+     FGFX painter (light added, smoke and steam laid over), never the turbulent beam kinds:
+       Lantern Hunt  the bulb flares (bloom, a sparkle, a ring of light); its symbol is laid on the lane as light (soft blooms
+                     along its outline, caustic light inside) under a shaft of lantern light from the bulb; the lane's water
+                     charges (caustics thickening, a blue sheen) as the count runs out.
+       Thunderwater  a bloom flash over the lane; branching arcs crawling over the water (each a wide faint halo, a glow and a
+                     thin white core, forks thinner), the caustics blazing, spray thrown up its length, sparks twinkling at the
+                     arcs' ends, ripples, then steam rising off it.
+       Drain-and-Bite  a whirlpool at the sluice (spiral arms, a spinning water ring, a dark eye, bubbles) as the water's edge
+                     falls back with foam along it; beached, the eel thrashes in splashes; the refill floods back with a foam
+                     front; the bite lands in spray.
+       50%           the lanterns flare in turn, the charge crawls down its back, then a pulse runs through all three lanes.
+       The fall      the charge crackles over it as it rears, each lantern bursts in an amber bloom and a ring, it crashes in a
+                     sheet of spray with a ring across the nave, steam rises off the spent body.
+     Where the painter is not, a 2D picture of the same (sprites and gradients). lowFx: fewer arcs, no forks, no steam. ---------- */
   const fg = () => { try { if (typeof window !== 'undefined' && window.__NHALU_FX === 0) return null; const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; return F && F.usable() ? F : null; } catch (e) { return null; } };
+  /* a branching arc from (x0, y0) to (x1, y1) (screen px): a trunk by midpoint displacement, a few forks off it -> polylines */
+  function arcTree(x0, y0, x1, y1, amp, forks, R) { const out = [], trunk = [[x0, y0], [x1, y1]];
+    for (let lv = 0; lv < 2; lv++) { for (let i = trunk.length - 1; i > 0; i--) { const a = trunk[i - 1], b = trunk[i], dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1, o = (R() - 0.5) * amp * Math.pow(0.55, lv); trunk.splice(i, 0, [(a[0] + b[0]) / 2 - dy / l * o, (a[1] + b[1]) / 2 + dx / l * o]); } }
+    out.push({ pts: trunk, w: 1 });
+    for (let f = 0; f < forks; f++) { const i = 2 + Math.floor(R() * (trunk.length - 4)), a = trunk[i], b = trunk[i + 1], an = Math.atan2(b[1] - a[1], b[0] - a[0]) + (R() < 0.5 ? -1 : 1) * (0.5 + R() * 0.5), L = Math.hypot(x1 - x0, y1 - y0) * (0.15 + R() * 0.15), pts = [a];
+      for (let k = 1; k <= 3; k++) { const p = pts[k - 1]; pts.push([p[0] + Math.cos(an + (R() - 0.5) * 0.8) * L / 3, p[1] + Math.sin(an + (R() - 0.5) * 0.8) * L / 3]); } out.push({ pts, w: 0.55 }); }
+    return out; }
+  const rngOf = sd => { let x = Math.floor(sd * 9973) % 2147483647 || 7; return () => (x = x * 16807 % 2147483647) / 2147483647; };
+  // one arc drawn in layers: a wide faint halo, a soft glow, a thin white core (Q: the painter; else the 2D picture)
+  function drawArc(c, Q, A, T, a, lf) { for (const br of A) { const P = br.pts, w = br.w;
+      if (Q) { for (let k = 0; k < P.length - 1; k++) { const [ax, ay] = P[k], [bx, by] = P[k + 1], ex = (bx - ax) * 0.28, ey = (by - ay) * 0.28, x0 = ax - (k ? ex : 0), y0 = ay - (k ? ey : 0), x1 = bx + (k < P.length - 2 ? ex : 0), y1 = by + (k < P.length - 2 ? ey : 0);   // (each link overlapping the next: the painter fades a light beam's ends, so links laid end to end would bead)
+          if (!lf) Q.beam(x0, y0, x1, y1, T * 0.7 * w, VOLT, 0.22 * a); Q.beam(x0, y0, x1, y1, T * 0.26 * w, '#BFEFFF', 0.5 * a); Q.beam(x0, y0, x1, y1, T * 0.09 * w, '#FFFFFF', 0.95 * a); if (!lf && (k & 1)) Q.glow(bx, by, T * 0.6 * w, VOLT, 0.18 * a); }
+        const e = P[P.length - 1]; Q.glow(e[0], e[1], T * 0.55 * w, VOLT, 0.3 * a); if (!lf && w === 1) Q.star(e[0], e[1], T * 0.35, 0.6 * a, VOLT_HI); }
+      else { c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.lineJoin = 'round'; for (const [lw, col] of [[T * 0.4 * w, `rgba(120,210,255,${0.18 * a})`], [T * 0.14 * w, `rgba(190,240,255,${0.45 * a})`], [Math.max(1, T * 0.05 * w), `rgba(255,255,255,${0.85 * a})`]]) { c.strokeStyle = col; c.lineWidth = lw; c.beginPath(); P.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.stroke(); } c.restore(); } } }
+  // the lane's symbol laid on the water as light: soft blooms along its outline, caustic light inside it
+  function symbolLight(Q, kind, x, y, s, a, t) { const pts = []; const N = 18;
+    if (kind === 1) for (let i = 0; i < N; i++) { const an = i / N * TAU; pts.push([x + Math.cos(an) * s * 0.82, y + Math.sin(an) * s * 0.82]); }
+    else { const V = kind === 2 ? [0, 1, 2].map(i => { const an = -Math.PI / 2 + i / 3 * TAU; return [x + Math.cos(an) * s, y + Math.sin(an) * s * 1.02 + s * 0.12]; }) : [[x, y - s], [x + s * 0.78, y], [x, y + s], [x - s * 0.78, y]];
+      for (let i = 0; i < V.length; i++) { const A2 = V[i], B2 = V[(i + 1) % V.length], n = Math.round(N / V.length); for (let k = 0; k < n; k++) pts.push([lerp(A2[0], B2[0], k / n), lerp(A2[1], B2[1], k / n)]); } }
+    for (let i = 0; i < pts.length; i++) { const fl = 0.8 + 0.2 * Math.sin(t * 7 + i * 1.3); Q.glow(pts[i][0], pts[i][1], s * 0.3, AMBER, 0.32 * a * fl); Q.glow(pts[i][0], pts[i][1], s * 0.12, AMBER_HI, 0.5 * a * fl); }
+    Q.caustic(x, y, s * 0.95, AMBER, 0.4 * a, kind * 3.1, 1); Q.glow(x, y, s * 1.9, AMBER, 0.14 * a); }
   function drawFx(c, FX, T, t) { const M = FX.mem, m = FX.m; if (!M || !M.ok || !m) return;
     if (m.dead && M.end) drawEel(c, FX, m, T, t);   // (the engine drops a dead monster from its list: the fallen eel is drawn here)
-    const C = FX.C, lf = lowFx(), F = fg(), Q = F ? F.begin(c, null) : null;
+    const C = FX.C, lf = lowFx(), F = fg(), Q = F ? F.begin(c, null) : null, sx = FX.sx, sy = FX.sy;
+    const glow2 = (x, y, r, col, a, sq) => { if (Q) Q.glow(x, y, r, col, a, sq); else glowAt(c, x, y, r, col, a); };
     try {
-      for (const L of M.lanes) { const xc = FX.sx(laneX(C, L.i)), hw = LWW * T, y0 = FX.sy(C.y - NY), y1 = FX.sy(C.y + NY), n = lf ? 3 : 6, seg = (y1 - y0) / n;
-        if (L.armed) { const u = cl(L.armed.t / L.armed.T), fl = 0.75 + 0.25 * Math.sin(t * 23 + L.seed) * Math.sin(t * 9.1), a = (0.1 + 0.32 * u) * fl;
-          if (Q) { for (let k = 0; k < n; k++) Q.caustic(xc, y0 + seg * (k + 0.5), hw * 1.05, '#7FD8FF', a, L.seed + k, (seg * 0.62) / hw); Q.glow(xc, FX.sy(FX.me.y), hw * 1.4, AMBER, 0.12 + 0.2 * u, 0.6); }
-          else { c.save(); c.globalCompositeOperation = 'lighter'; const g = c.createLinearGradient(xc - hw, 0, xc + hw, 0); g.addColorStop(0, `rgba(120,210,255,0)`); g.addColorStop(0.5, `rgba(120,210,255,${a * 0.5})`); g.addColorStop(1, 'rgba(120,210,255,0)'); c.fillStyle = g; c.fillRect(xc - hw, y0, hw * 2, y1 - y0); c.restore(); }
-          // the lantern throws its light onto the lane: a soft beam from the lit bulb to the symbol
-          const bs = M.bulbScr && M.bulbScr[L.armed.bulb]; if (bs) { const ty = Math.max(y0 + T * 2, Math.min(y1 - T * 2, FX.sy(FX.me.y))); if (Q) { Q.beam(bs[0], bs[1], xc, ty, T * 0.35, AMBER, 0.18 + 0.22 * u); Q.glow(bs[0], bs[1], T * 1.1, AMBER_HI, 0.4 + 0.3 * u); } else { c.save(); c.globalCompositeOperation = 'lighter'; const g = c.createLinearGradient(bs[0], bs[1], xc, ty); g.addColorStop(0, 'rgba(255,200,87,.45)'); g.addColorStop(1, 'rgba(255,200,87,0)'); c.strokeStyle = g; c.lineWidth = T * 0.5; c.beginPath(); c.moveTo(bs[0], bs[1]); c.lineTo(xc, ty); c.stroke(); c.restore(); glowAt(c, bs[0], bs[1], T * 1.1, AMBER, 0.5); } } }
-        if (L.fx > 0) { const f = L.fx / TM.disFx, ff = f * f;
-          L.arcT -= 1 / 60; if (L.arcT <= 0 || !L.arcs.length) { L.arcT = 0.075; L.arcs = []; const na = lf ? 3 : 7; for (let i = 0; i < na; i++) { const yy = y0 + Math.random() * (y1 - y0), pts = []; let x = xc - hw * 0.95, y = yy; pts.push([x, y]); for (let k = 1; k <= 4; k++) { x = xc - hw * 0.95 + hw * 1.9 * k / 4; y = yy + (Math.random() - 0.5) * T * 0.9; pts.push([x, y]); } L.arcs.push(pts); } }
-          if (Q) { for (let k = 0; k < n; k++) { Q.caustic(xc, y0 + seg * (k + 0.5), hw * 1.15, VOLT_HI, 0.85 * f, L.seed + k * 3 + t, (seg * 0.62) / hw); Q.glow(xc, y0 + seg * (k + 0.5), hw * 1.5, VOLT, 0.45 * ff, (seg * 0.7) / (hw * 1.5)); }
-            for (const pts of L.arcs) for (let k = 0; k < pts.length - 1; k++) { const [x0, y0] = pts[k], [x1, y1] = pts[k + 1]; Q.beam(x0, y0, x1, y1, T * 0.42, VOLT, 0.28 * f); Q.beam(x0, y0, x1, y1, T * 0.1, VOLT_HI, 0.5 * f); Q.glow(x1, y1, T * 0.5, VOLT, 0.25 * f); }   // (each arc a soft halo round a thin core: never a hard bead chain)
-            if (!lf) for (let k = 0; k < 3; k++) Q.ripple(xc + (hash(L.seed + k) - 0.5) * hw, y0 + (y1 - y0) * hash(L.seed * 3 + k), T * (1 + 2.5 * (1 - f)), VOLT, 0.5 * f, k, GY); }
-          else { c.save(); c.globalCompositeOperation = 'lighter'; const g = c.createLinearGradient(xc - hw, 0, xc + hw, 0); g.addColorStop(0, 'rgba(160,230,255,0)'); g.addColorStop(0.5, `rgba(200,245,255,${0.55 * f})`); g.addColorStop(1, 'rgba(160,230,255,0)'); c.fillStyle = g; c.fillRect(xc - hw, y0, hw * 2, y1 - y0);
-            c.lineCap = 'round'; c.lineJoin = 'round'; for (const pts of L.arcs) { c.strokeStyle = `rgba(160,230,255,${0.35 * f})`; c.lineWidth = T * 0.3; c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.stroke(); c.strokeStyle = `rgba(240,252,255,${0.9 * f})`; c.lineWidth = Math.max(1, T * 0.07); c.stroke(); } c.restore(); } } }
-      // the lanterns' own light: a warm bloom round each bulb, swelling as one is lit
-      if (M.bulbScr) for (let i = 0; i < 3; i++) { const b = M.bulbs[i], p = M.bulbScr[i]; if (!p || b.burst) continue; const g = Math.min(2.5, b.g), r = T * (0.55 + 0.45 * g), a = 0.12 + 0.22 * Math.min(2, g); if (Q) { Q.glow(p[0], p[1], r, AMBER, a); if (g > 1) Q.glow(p[0], p[1], r * 0.45, AMBER_HI, 0.25 * (g - 1)); } else glowAt(c, p[0], p[1], r, AMBER, a); }
-      // the beached eel gasping: spray off its flanks; the drained lane's last water swirling into the sluice
-      if (M.beach && Q && !lf) { const W2 = M.wheels[M.beach.wheel]; Q.ripple(FX.sx(laneX(C, M.beach.L)), FX.sy(C.y + NY - 0.8), T * (1 + (t * 1.5 % 2)), '#CFF6FF', 0.35, 1, GY); void W2; }
-      if (Q && !m.dead && !lf && M.sp && !M.beach) { const s = (t * 1.3) % BODY_L, p = spW(m, M, s); Q.ripple(FX.sx(p.x), FX.sy(p.y), T * (0.8 + (t * 2.1 % 1.6)), '#CFF6FF', 0.18, s, GY); }
-    } finally { if (Q) F.flush(c); } }
+      for (const L of M.lanes) { const xc = sx(laneX(C, L.i)), hw = LWW * T, y0 = sy(C.y - NY), y1 = sy(C.y + NY), n = lf ? 3 : 6, seg = (y1 - y0) / n, sqz = (seg * 0.62) / hw;
+        // ---- Lantern Hunt: the lane charging, the lantern's shaft of light, the symbol laid on the water as light ----
+        if (L.armed) { const u = cl(L.armed.t / L.armed.T), fl = 0.8 + 0.2 * Math.sin(t * 19 + L.seed) * Math.sin(t * 7.3), a = (0.12 + 0.4 * u) * fl, ty = Math.max(y0 + T * 2, Math.min(y1 - T * 2, sy(FX.me.y))), sym = L.armed.sym, ss = T * 1.35;
+          if (Q) { for (let k = 0; k < n; k++) { Q.caustic(xc, y0 + seg * (k + 0.5), hw * 1.05, '#7FD8FF', a * 1.25, L.seed + k, sqz); if (u > 0.45 && !lf) Q.glow(xc, y0 + seg * (k + 0.5), hw * 1.2, VOLT, 0.16 * (u - 0.45) / 0.55 * fl, sqz); }
+            // the charge gathering on the surface: pinpricks of light winking on the water, more and brighter as the count runs out
+            { const R = rngOf(Math.floor(t * 12) + L.i * 31), nt = Math.round((lf ? 3 : 9) * (0.3 + u)); for (let k = 0; k < nt; k++) { const px = xc + (R() - 0.5) * hw * 1.8, py = y0 + R() * (y1 - y0), tw = R(); Q.star(px, py, T * (0.18 + 0.22 * u) * (0.6 + tw), (0.35 + 0.5 * u) * tw, VOLT_HI); if (u > 0.6 && tw > 0.7 && !lf) Q.glow(px, py, T * 0.5, VOLT, 0.25 * u); } }
+            symbolLight(Q, sym, xc, ty, ss, 0.55 + 0.45 * u, t); for (const yy of [lerp(y0, y1, 0.22), lerp(y0, y1, 0.78)]) if (Math.abs(yy - ty) > T * 3) symbolLight(Q, sym, xc, yy, T, 0.4 + 0.4 * u, t + 2); }
+          else { c.save(); c.globalCompositeOperation = 'lighter'; const g = c.createLinearGradient(xc - hw, 0, xc + hw, 0); g.addColorStop(0, 'rgba(120,210,255,0)'); g.addColorStop(0.5, `rgba(120,210,255,${a * 0.5})`); g.addColorStop(1, 'rgba(120,210,255,0)'); c.fillStyle = g; c.fillRect(xc - hw, y0, hw * 2, y1 - y0); c.restore(); glowAt(c, xc, ty, ss * 2, AMBER, 0.3 + 0.3 * u); }
+          const bs = M.bulbScr && M.bulbScr[L.armed.bulb]; if (bs) { if (Q) { Q.shafts(bs[0], bs[1], xc, ty, T * (0.9 + 0.5 * u), AMBER, 0.22 + 0.25 * u, L.seed); Q.glow(bs[0], bs[1], T * 1.2, AMBER_HI, 0.35 + 0.3 * u); }
+            else { c.save(); c.globalCompositeOperation = 'lighter'; const g = c.createLinearGradient(bs[0], bs[1], xc, ty); g.addColorStop(0, 'rgba(255,200,87,.45)'); g.addColorStop(1, 'rgba(255,200,87,0)'); c.strokeStyle = g; c.lineWidth = T * 0.6; c.lineCap = 'round'; c.beginPath(); c.moveTo(bs[0], bs[1]); c.lineTo(xc, ty); c.stroke(); c.restore(); } } }
+        // ---- Thunderwater ----
+        if (L.fx > 0) { const f = L.fx / TM.disFx, e = 1 - f, ff = f * f, fl = 0.75 + 0.25 * Math.sin(t * 31 + L.seed);
+          if (L.flash > 0) { const k = L.flash / 0.24, kk = k * k; glow2(xc, (y0 + y1) / 2, hw * 2.6, VOLT, 0.9 * kk, (y1 - y0) / (hw * 4.6)); glow2(xc, (y0 + y1) / 2, hw * 1.5, VOLT_HI, kk, (y1 - y0) / (hw * 2.6)); for (let j = 0; j < 4; j++) glow2(xc, lerp(y0, y1, (j + 0.5) / 4), hw * 1.3, '#FFFFFF', 0.45 * kk); }
+          if (Q) { for (let k = 0; k < n; k++) { Q.caustic(xc, y0 + seg * (k + 0.5), hw * 1.15, VOLT_HI, (0.9 * f + 0.25 * ff) * fl, L.seed + k * 3 + t * 0.5, sqz); Q.glow(xc, y0 + seg * (k + 0.5), hw * 1.4, VOLT, 0.38 * ff, sqz * 1.1); } }
+          else { c.save(); c.globalCompositeOperation = 'lighter'; const g = c.createLinearGradient(xc - hw, 0, xc + hw, 0); g.addColorStop(0, 'rgba(160,230,255,0)'); g.addColorStop(0.5, `rgba(200,245,255,${0.55 * f})`); g.addColorStop(1, 'rgba(160,230,255,0)'); c.fillStyle = g; c.fillRect(xc - hw, y0, hw * 2, y1 - y0); c.restore(); }
+          // the arcs: re-struck every 70 ms while the charge lasts, crawling across the water from kerb to kerb
+          if (e < 0.75) { L.arcT = (L.arcT || 0) - 1 / 60; if (L.arcT <= 0 || !L.arcs || !L.arcs.length) { L.arcT = 0.07; L.arcs = []; const R = rngOf(t * 13.7 + L.seed), na = lf ? 3 : 6;
+              for (let i = 0; i < na; i++) { const yy = y0 + (y1 - y0) * (i + R()) / na, dy = (R() - 0.5) * T * 1.6; L.arcs.push(arcTree(xc - hw * 0.95, yy, xc + hw * 0.95, yy + dy, T * 1.1, lf ? 0 : 2, R)); } }
+            const aa = (1 - e / 0.75) * fl; for (const A of L.arcs) drawArc(c, Q, A, T, aa, lf); }
+          if (Q && !lf) for (let k = 0; k < 4; k++) Q.ripple(xc + (hash(L.seed + k) - 0.5) * hw * 1.4, y0 + (y1 - y0) * hash(L.seed * 3 + k), T * (0.8 + 2.8 * e), VOLT, 0.45 * f, k, GY, 0.1); }
+        // ---- the drain: a whirlpool at the sluice, the water's edge falling back in foam; the refill flooding in ----
+        if (L.vortex > 0 && L.wet > 0.02) { const vx = xc, vy = sy(C.y + NY - 1.3), k = Math.min(1, L.vortex / 0.4) * Math.min(1, L.wet * 3), R2 = hw * 0.9;
+          if (Q) { Q.wshade(vx, vy, R2 * 0.55, R2 * 0.55 * GY, '#06202A', 0.55 * k, 3, 0.7); Q.evortex(vx, vy, R2, '#7FE8F0', 0.55, 0.55 * k, 2.2, -3, GY); Q.wring(vx, vy, R2 * 0.95, R2 * 0.95 * GY, 0, '#CFF6FF', 0.6 * k, 2, 0.08, 1, -2.4); Q.wring(vx, vy, R2 * 0.6, R2 * 0.6 * GY, 0, '#9FE8FF', 0.45 * k, 2, 0.1, 2, -3.5); if (!lf) Q.bubbles(vx, vy - R2 * 0.2, R2 * 0.7, R2 * 0.5, '#CFF6FF', 0.5 * k, 4, 0.6); }
+          else { glowAt(c, vx, vy, R2, '#7FE8F0', 0.35 * k); c.save(); c.strokeStyle = `rgba(220,250,255,${0.5 * k})`; c.lineWidth = Math.max(1, T * 0.06); for (let j = 0; j < 3; j++) { c.beginPath(); c.ellipse(vx, vy, R2 * (0.3 + 0.25 * j), R2 * (0.3 + 0.25 * j) * GY, 0, t * (3 - j) + j, t * (3 - j) + j + 3.6); c.stroke(); } c.restore(); }
+          // the falling edge of the water (it drains toward the sluice in the south): foam along it
+          const top = lerp(y1, y0, Math.min(1, L.wet * 1.05)); if (Q && L.wet < 0.97) for (let j = 0; j < (lf ? 2 : 4); j++) Q.spray(xc + (j / ((lf ? 2 : 4) - 1) - 0.5) * hw * 1.6, top, hw * 0.45, '#E2F7F2', 0.45 * k, j + L.seed, 0.4, GY); }
+        if (L.inflow > 0) { const k = L.inflow / 1.3, top = lerp(y1, y0, Math.min(1, L.wet * 1.05)); if (Q && L.wet < 0.97) for (let j = 0; j < (lf ? 2 : 4); j++) Q.spray(xc + (j / ((lf ? 2 : 4) - 1) - 0.5) * hw * 1.6, top, hw * 0.5, '#E2F7F2', 0.55 * k, j + 9, 0.6, GY); } }
+      // ---- the lanterns' own light: a warm bloom round each bulb, swelling as one is lit; a flare as it lights ----
+      if (M.bulbScr) for (let i = 0; i < 3; i++) { const b = M.bulbs[i], p = M.bulbScr[i]; if (!p || b.burst) continue; const g = Math.min(2.5, b.g), r = T * (0.55 + 0.45 * g), a = 0.12 + 0.22 * Math.min(2, g);
+        glow2(p[0], p[1], r, AMBER, a); if (g > 1) glow2(p[0], p[1], r * 0.45, AMBER_HI, 0.25 * (g - 1));
+        if (b.flare > 0) { const k = b.flare / 0.9, e2 = 1 - k; glow2(p[0], p[1], T * (1.6 + 1.6 * e2), AMBER, 0.45 * k); if (Q) { Q.star(p[0], p[1], T * (0.9 + 0.6 * k), 0.9 * k, AMBER_HI); Q.ring(p[0], p[1], T * (0.6 + 2.6 * e2), AMBER, 0.5 * k, T * 0.2, 1); } } }
+      // ---- the charge crawling over its body: while lanes are charged, in the 50% moment, as it rears to die ----
+      const crawl = M.p2 && M.p2.t < 2.2 ? Math.sin(Math.PI * Math.min(1, M.p2.t / 2.2)) : M.end && M.end.t < 2.4 ? 1 - sstep(1.9, 2.4, M.end.t) : M.lanes.some(q => q.armed) ? 0.35 : 0;
+      if (crawl > 0.02 && M.sp && (m.dead ? M.end : true)) { const R = rngOf(Math.floor(t * 14) + 3), na = lf ? 2 : 4;
+        for (let i = 0; i < na; i++) { const s0 = R() * (BODY_L - 1.6), s1 = s0 + 0.9 + R() * 0.8, p0 = spW(m, M, s0), p1 = spW(m, M, s1), X0 = sx(p0.x), Y0 = sy(p0.gy) - RAD(s0) * ZSQ * ZK * T * 0.9, X1 = sx(p1.x), Y1 = sy(p1.gy) - RAD(s1) * ZSQ * ZK * T * 0.9;
+          drawArc(c, Q, arcTree(X0, Y0, X1, Y1, T * 0.45, lf ? 0 : 1, R), T * 0.75, crawl * (0.6 + 0.4 * R()), lf); } }
+      // ---- the 50% moment: a pulse running through all three lanes in turn ----
+      if (M.p2 && M.p2.t > 1.15) { const e = M.p2.t - 1.15; for (const L of M.lanes) { const k = Math.max(0, 1 - Math.abs(e - L.i * 0.18 - 0.2) / 0.45); if (k <= 0) continue; const xc = sx(laneX(C, L.i)), hw = LWW * T, y0 = sy(C.y - NY), y1 = sy(C.y + NY);
+          glow2(xc, (y0 + y1) / 2, hw * 1.8, VOLT, 0.35 * k, (y1 - y0) / (hw * 3.6)); if (Q) for (let j = 0; j < (lf ? 2 : 4); j++) Q.caustic(xc, lerp(y0, y1, (j + 0.5) / (lf ? 2 : 4)), hw * 1.1, VOLT_HI, 0.6 * k, j * 2.3 + L.i, ((y1 - y0) / (lf ? 2 : 4) * 0.62) / hw); } }
+      // ---- the pieces: splashes, steam, blooms, rings ----
+      if (M.fxp) for (const q of M.fxp) { const u = q.t / q.life, X = sx(q.x), Y = sy(q.y) - (q.z || 0) * ZK * T;
+        if (q.k === 'splash') { const r = T * q.s * (0.9 + 1.3 * Math.sqrt(u)), a = Math.min(1, Math.sin(Math.PI * Math.min(1, u * 1.4)) * 1.3) * (1 - u * 0.7);
+          if (Q) { Q.spray(X, Y - r * 0.35 * (1 - u), r, q.col || '#CFF6FF', 0.85 * a, q.sd, Math.min(1, u * 1.3), 0.85); if (!lf) Q.ripple(X, Y, T * q.s * (0.6 + 2.2 * u), q.col || '#CFF6FF', 0.45 * (1 - u), q.sd, GY, 0.12); if (q.col === VOLT && u < 0.4) Q.star(X, Y - r * 0.3, T * 0.4, 0.8 * (1 - u / 0.4), VOLT_HI); }
+          else glowAt(c, X, Y - r * 0.2, r, '#DFF8FF', 0.35 * a); }
+        else if (q.k === 'steam') { const a = Math.min(1, u * 4) * (1 - u) * 0.62, r = T * q.s * (0.6 + 1.3 * u); if (Q) Q.smoke(X, Y, r, a, q.sd, '#D8E6EA', 0.7); else glowAt(c, X, Y, r, '#C8D8DC', a * 0.5); }
+        else if (q.k === 'bloom') { const a = q.a * (1 - u) * (1 - u); glow2(X, Y, T * q.r * (0.6 + 0.6 * u), q.col, a); if (u < 0.3) glow2(X, Y, T * q.r * 0.3, '#FFFFFF', a * 0.6); }
+        else if (q.k === 'ring') { const e = 1 - Math.pow(1 - u, 2.2), a = q.a * (1 - u); if (Q) { Q.ewave(X, Y, T * q.r * (0.2 + 0.8 * e), q.col, 0.6, a, q.sd, GY, 0.14); if (!lf) Q.ripple(X, Y, T * q.r * (0.15 + 0.85 * e), q.col, a * 0.6, q.sd, GY, 0.1); } else glowAt(c, X, Y, T * q.r * e, q.col, a * 0.3); } }
+      if (Q && !m.dead && !lf && M.sp && !M.beach) { const s = (t * 1.3) % BODY_L, p = spW(m, M, s); Q.ripple(sx(p.x), sy(p.y), T * (0.8 + (t * 2.1 % 1.6)), '#CFF6FF', 0.18, s, GY); }
+    } finally { if (Q) { M.fxStat = { q: Math.round((Q.nl + Q.ns) / 6), f: ((M.fxStat && M.fxStat.f) || 0) + 1 }; F.flush(c); } } }   // (v398 B4: what it laid down, for the tests)
 
   /* ---------- the stage: the rift's boss stage make() (the module hint points at the wheel in play) ---------- */
   function make(X, self, H) { { const F = X.F; if (F && F.fiend && F.fiend.id === 'belnhalu') F.fiend.bars = TUNE.bars; }

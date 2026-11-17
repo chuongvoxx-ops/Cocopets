@@ -491,13 +491,13 @@ const DunArt = (() => {
   const EXT = { bat: 2.3, harpy: 2.2, eye: 1.9, totem: 2.1, cherub: 1.9, imp: 1.8, knight: 1.6, golem: 1.7, crab: 1.9, toad: 1.6, frost: 1.6, blob: 1.6, gremlin: 1.6, roller: 1.5, bomb: 1.9, spore: 1.5, splitter: 1.4, jelly: 1.4, wisp: 1.4, nest: 1.4, skull: 1.5,
     scorpion: 1.9, cactus: 1.7, penguin: 1.5, magmite: 1.5, goat: 1.7, drone: 1.9, bot: 1.6, gearbug: 1.6, spiderling: 1.7, wolf: 1.8, bee: 1.6, tulip: 1.6, goblin: 1.8, kitten: 1.7 };
   const NF = { bat: 6, harpy: 6, cherub: 6, imp: 4, eye: 4, wisp: 6, toad: 4, drone: 6, bee: 6, penguin: 4, wolf: 4, goat: 4, gearbug: 6 };
-  const monCache = new Map();
+  const monCache = new Map(); let monHits = 0;
   /* one frame of a monster at body radius rpx (device pixels). Returns {cv, half} */
   function monSprite(type, rpx, ph, color, mode, flash) {
     const nf = NF[type] || 4, fi = Math.floor(((ph % 1) + 1) % 1 * nf), r = Math.max(4, Math.round(rpx));
     const key = type + '|' + r + '|' + fi + '|' + color + '|' + (mode || '') + (flash ? '|f' : '');
     let s = monCache.get(key);
-    if (s) return s;
+    if (s) { monHits++; monCache.delete(key); monCache.set(key, s); return s; }   // v398 M: kept in the order last used (a hot picture is never the one let go; a Map re-insert is cheap)
     if (flash) {
       const base = monSprite(type, rpx, ph, color, mode, false), cv = mk(base.cv.width, base.cv.height), c = cv.getContext('2d');
       c.drawImage(base.cv, 0, 0); c.globalCompositeOperation = 'source-atop'; c.fillStyle = 'rgba(255,255,255,.82)'; c.fillRect(0, 0, cv.width, cv.height);
@@ -510,7 +510,7 @@ const DunArt = (() => {
     }
     // (v387, P: a full cache lets go of its oldest quarter, not all of it: emptying it made every monster on screen
     // re-paint in the same frame, a hitch mid-fight once a loading screen had filled it ahead)
-    if (monCache.size > 500) { let n = 125; for (const k of monCache.keys()) { monCache.delete(k); if (--n <= 0) break; } }
+    if (monCache.size > 760) { let n = 140; for (const k of monCache.keys()) { monCache.delete(k); if (--n <= 0) break; } }   // v398 M: 500 -> 760: a crowd of 36 brood with their leaders, elites, poses and hit flashes overflowed 500 and repainted mid-fight
     monCache.set(key, s);
     return s;
   }

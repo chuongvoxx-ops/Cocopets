@@ -239,13 +239,13 @@ const BELK = (() => {
         h = vlerp(h, [1.3, -1.35, -0.6], slam); h = vlerp(h, [1.6, 1.25, -0.72], dead); }
       else { h = [1.2, -0.68, -0.28 + 0.03 * br]; h = vlerp(h, [0.5, -1.05, 0.0], cl(P.guard || 0)); h = vlerp(h, [1.0, -0.6, -0.42], cr); h = vlerp(h, [1.25, -0.95, -0.74], dead); }
       const hw = toB(h), J = ik2(S, hw, ARM.LU * k, ARM.LF * k, mv(Rb, [-0.3, side * 0.8, -0.6])), E = J.E, W = J.W, ud = vsub(E, S), fd = vsub(W, E), up0 = mv(Rb, [0, 0, 1]);
-      const sn = big ? 'L' : 'R';
+      const sn = big ? 'L' : 'R', cgl = big ? cl((P.clawGlow || 0) / 1.4) * 1.4 * live : 0;   // (v398 B3: the great claw's light)
       I('ua' + sn, 'uarm', frameXZ(ud, up0), S, { s: k, wear: big ? 0.55 : 0.65 });
-      I('fa' + sn, 'farm', frameXZ(fd, up0), E, { s: k, wear: big ? 0.58 : 0.68 });
+      I('fa' + sn, 'farm', frameXZ(fd, up0), E, { s: k, wear: big ? 0.58 : 0.68, glow2: cgl * 0.45 });
       const up = vadd(up0, mv(Rb, [-1.4 * (big ? lift : 0), 0, 0])), Rp = mm(frameXZ(fd, up), rotY(0.18 - (big ? 0.4 * lift : 0)));
-      I('pa' + sn, 'palm', Rp, W, { s: k * PALM, wear: big ? 0.6 : 0.7 });
+      I('pa' + sn, 'palm', Rp, W, { s: k * PALM, wear: big ? 0.6 : 0.7, glow2: cgl });
       const open = cl(big ? P.openL || 0 : P.openR || 0) * (1 - dead * 0.7), Rd = mm(Rp, rotY(0.04 - 0.8 * open)), Do = vadd(W, mv(Rp, vmul([0.95, 0, 0.2], k * PALM)));
-      I('da' + sn, 'dact', Rd, Do, { s: k * PALM, wear: big ? 0.63 : 0.73 });
+      I('da' + sn, 'dact', Rd, Do, { s: k * PALM, wear: big ? 0.63 : 0.73, glow2: cgl });
       A['claw' + sn] = vadd(W, mv(Rp, vmul([1.4, 0, 0], k * PALM))); A['wrist' + sn] = W; A['elbow' + sn] = E; }
     return { inst, A, P0, Rb, Bb, Rbl };
   }
@@ -348,6 +348,10 @@ const BELK = (() => {
       [0.3, 2.62, 4.42].forEach((a, i) => out.push({ kind: 'bellfrag', v: i, x: C.x + Math.cos(a) * 10.7, y: C.y + Math.sin(a) * 10.7, wet: 0 }));
       return out; } };
   let STAGE = null;
+  /* (v398 B3) leaving the stage drops this file's pointers into it (STAGE holds the game, its fiend state and memory; LAST the
+     last drawn rig and view), so a dead stage can be collected. The GLM meshes, shader, shadow and prop caches (MESH, PARTB,
+     SHC, BLOB, PROPC) and the GL scratch pools (GLI, GLJ) hold no stage objects and stay for the next fight */
+  try { if (typeof BEL !== 'undefined' && BEL && Array.isArray(BEL.onRelease)) BEL.onRelease.push(() => { STAGE = null; LAST = null; }); } catch (e) { /* (no Belfry hook: nothing to register) */ }
   const modOf = FX => (STAGE && FX && STAGE.g === FX.g ? STAGE.mod : null);
 
   /* ================= the fight ================= */
@@ -387,7 +391,7 @@ const BELK = (() => {
       { name: 'recovering: the eye out of the crack', mem: { P: { slam: 1, sweep: 1, eyeOut: 1, eyeGlow: 1.4, twist: -0.3 } } },
       { name: 'fallen: the bell broken', mem: { P: { dead: 1, shatter: 3, eyeGlow: 0 } } }],
     init(FX) { const M = FX.mem, m = FX.m, C = FX.C, L0 = ARENA.lair(C); m.x = L0.x; m.y = L0.y; m.noTouch = true; m.touchK = 0;
-      Object.assign(M, { ok: 1, bt: 0, th: Math.PI / 2, P: Object.assign(blankPose(), { eyeGlow: 0.15, wet: 1 }), A: null, idleT: 0, pick: 0, seen: {}, fx: [], end: null, bell: { r: 0, vr: 0, p: 0, vp: 0, y: 0, vy: 0 }, brood: false, adds: [], deco: [], hitT: -1, hitN: 0, lastHp: m.hp, flinch: 0, spd: 0,
+      Object.assign(M, { ok: 1, bt: 0, th: Math.PI / 2, P: Object.assign(blankPose(), { eyeGlow: 0.15, wet: 1 }), A: null, idleT: 0, pick: 0, seen: {}, fx: [], drops: [], trail: [], end: null, bell: { r: 0, vr: 0, p: 0, vp: 0, y: 0, vy: 0 }, brood: false, adds: [], deco: [], hitT: -1, hitN: 0, lastHp: m.hp, flinch: 0, spd: 0,
         stat: { sweeps: 0, sweepHit: 0, sweepSafe: 0, sweepOut: 0, tolls: 0, rings: 0, ringHit: 0, ringGap: 0, adds: 0, decoBroken: 0, exposed: 0, eyeHits: 0, phase2At: null, t0: FX.S.t, dmg: {} } });
       const Rf = riftOf(); M.effHp = (Rf && Rf.belkHp) || TUNE.effHp; M.amp = m.maxhp / M.effHp;
       locoInit(FX, m);
@@ -473,22 +477,30 @@ const BELK = (() => {
   function sweepTick(FX, m, A, dt) { const M = FX.mem, me = FX.me, ph = FX.S.phase;
     if (A.phase === 'close') { const d = Math.hypot(me.x - m.x, me.y - m.y); face(FX, m, me.x, me.y); if (d > TM.swReach && A.t < 2.6) { walk(FX, m, me.x, me.y, TM.walk * 1.1, TM.swReach - 1.0); return false; }
       A.phase = 'wind'; A.t = 0; A.a = Math.atan2(me.y - m.y, me.x - m.x); M.stat.sweeps++;
-      A.tele = FX.tele({ shape: 'cone', x: m.x, y: m.y, a: A.a, len: TM.swLen, spread: TM.swSpread, t: TM.swWind + 0.16, dmg: m.dmg * TUNE.sweepK, col: WARN, label: '', fn: s => sweepStrike(FX, m, A, s) });
-      A.warn = FX.hz({ belk: 'warn', kind: 'belkSweepWarn', shape: 'fn', test: () => false, x: m.x, y: m.y, life: TM.swWind + TM.swStrike + 0.2, A, draw: (c, z, F2, T, t) => drawSweepWarn(c, FX, z, T, t) });
+      // (v398 B3) the blow is resolved here exactly as the engine resolves a marked one (the same cone, moment, and 0.45 s grace
+      // between blows), so the warning on the floor is this file's soft light alone, with no hard-edged engine shape over it
+      const tele = A.tele = { shape: 'cone', x: m.x, y: m.y, a: A.a, len: TM.swLen, spread: TM.swSpread, t: TM.swWind + 0.16, age: 0, dmg: m.dmg * TUNE.sweepK, done: false };
+      A.warn = FX.hz({ belk: 'warn', kind: 'belkSweepWarn', shape: 'fn', test: () => false, x: m.x, y: m.y, life: TM.swWind + TM.swStrike + 0.2, A, draw() { /* (painted with the floor's light: drawGroundFx) */ },
+        update(dt2, z) { tele.age += dt2; if (tele.done || tele.age < tele.t) return; tele.done = true; const me2 = FX.me, S = FX.S; if (FX.inShape(tele, me2.x, me2.y, me2.r) && S.t - (S.lastTeleHit || -9) > 0.45) { if (FX.hurt(tele.dmg)) S.lastTeleHit = S.t; } sweepStrike(FX, m, A, tele); } });
       say(FX, 'sweep', 'BELL SWEEP', 'The great claw rises: get BEHIND THE SMALL CLAW', WARN_HI, 2.6); sf(FX, 'hum'); }
     if (A.phase === 'wind') { const tr = TM.swTrack * (ph >= 2 ? 0.85 : 1);
       if (A.t < tr) A.a = turnTo(A.a, Math.atan2(me.y - m.y, me.x - m.x), dt * 1.25); else if (!A.locked) { A.locked = true; sf(FX, 'tick'); }
       aimAt(FX, m, A.a); A.tele.a = A.a; A.tele.x = m.x; A.tele.y = m.y; A.warn.x = m.x; A.warn.y = m.y;
       const s = Math.ceil(TM.swWind - A.t); if (s !== A.lastS && s > 0) { A.lastS = s; if (A.t > 0.1) sf(FX, 'tick'); }
       if (A.t >= TM.swWind) { A.phase = 'strike'; A.t = 0; sf(FX, 'whoosh'); } return false; }
-    if (A.phase === 'strike') { if (A.t >= TM.swStrike) { A.phase = 'rec'; A.t = 0; A.exposed = true; M.stat.exposed++; } return false; }
+    if (A.phase === 'strike') { if (A.t >= TM.swStrike) { A.phase = 'rec'; A.t = 0; A.exposed = true; M.stat.exposed++; slamFx(FX, m); } return false; }
     if (A.phase === 'rec') { if (A.t >= TM.swRec) { A.phase = 'back'; A.t = 0; A.exposed = false; } return false; }
     return A.t >= TM.swBack; }
+  /* (v398 B3) the claw driven down at the end of its sweep: a splash ring, spray, dust and broken stone, a short hitstop */
+  function slamFx(FX, m) { const M = FX.mem, p = anc(FX, m, 'clawL'), lf = lowFx(); M.fx.push({ kind: 'slam', x: p.x, y: p.y, t: 0, life: 1.2, seed: Math.random() * 50, wet: Math.hypot(p.x - FX.C.x, p.y - FX.C.y) > DRY_R });
+    FX.H.shake(lf ? 3 : 8, 0.3); hitstop(FX, 0.05); sf(FX, 'thud');
+    for (let i = 0; i < (lf ? 4 : 10); i++) { const a = Math.random() * TAU, v = 2 + Math.random() * 4; FX.H.part({ kind: 'shard', x: p.x, y: p.y - 0.2, vx: Math.cos(a) * v, vy: Math.sin(a) * v * 0.6 - 3, g: 12, life: 0.9, max: 0.9, size: 2.5 + Math.random() * 3, rot: Math.random() * 6, color: Math.random() < 0.5 ? '#C9CDBD' : '#8E9890' }); } }
+  const hitstop = (FX, s) => { const g = FX.g; if (g) g.hitStop = Math.max(g.hitStop || 0, lowFx() ? s * 0.6 : s); };   // (v398 B3)
   function sweepStrike(FX, m, A, s) { const M = FX.mem, me = FX.me, hit = FX.inShape(s, me.x, me.y, me.r);
     if (hit) M.stat.sweepHit++; else if (inSafe(FX, A, m, me.x, me.y)) M.stat.sweepSafe++; else M.stat.sweepOut++;
     if (!hit && !M.seen.sweepOk && inSafe(FX, A, m, me.x, me.y)) { M.seen.sweepOk = 1; FX.H.text(me.x, me.y - 1.5, 'Behind the small claw!', SAFE, 14); }
     if (hit) FX.H.text(me.x, me.y - 1.5, 'Swept!', WARN_HI, 15);
-    FX.H.shake(lowFx() ? 5 : 11, 0.35); sf(FX, 'crash'); M.bell.vy -= 1.2; M.P.jolt = 1;
+    FX.H.shake(lowFx() ? 4 : 7, 0.25); if (hit) hitstop(FX, 0.07); sf(FX, 'crash'); M.bell.vy -= 1.2; M.P.jolt = 1;   // (v398 B3: the shake shared with the slam that follows; a hitstop when it lands)
     M.fx.push({ kind: 'sweep', x: m.x, y: m.y, a: s.a, t: 0, life: 0.75, seed: Math.random() * 50 });
     for (const o of M.deco) if (!o.dead && FX.inShape(s, o.x, o.y, 0.3)) breakDeco(FX, o, { x: m.x, y: m.y }); }
   /* ---- TOLLING SHELL: crouched, the bands shiver and light (2.8 s, the ring and its opening shown), then the ring rolls out ---- */
@@ -496,17 +508,19 @@ const BELK = (() => {
   function gapSpot(FX, A, me) { const d = clamp2(Math.hypot(me.x - A.x, me.y - A.y), 3.2, 7); return FX.clampArena({ x: A.x + Math.cos(A.ga) * d, y: A.y + Math.sin(A.ga) * d }, 1.2); }
   function tollTick(FX, m, A, dt) { const M = FX.mem, me = FX.me;
     if (A.phase === 'wind') { if (!A.warn) { const pa = Math.atan2(me.y - m.y, me.x - m.x), side = Math.random() < 0.5 ? -1 : 1; A.ga = pa + side * (0.55 + Math.random() * 0.5); A.x = m.x; A.y = m.y; M.stat.tolls++;
-        A.warn = FX.hz({ belk: 'warn', kind: 'belkTollWarn', shape: 'fn', test: () => false, x: m.x, y: m.y, life: TM.tollWind + 0.2, A, draw: (c, z, F2, T, t) => drawTollWarn(c, FX, z, T, t) });
+        A.warn = FX.hz({ belk: 'warn', kind: 'belkTollWarn', shape: 'fn', test: () => false, x: m.x, y: m.y, life: TM.tollWind + 0.2, A, draw() { /* (v398 B3: painted with the floor's light) */ } });
         say(FX, 'toll', 'TOLLING SHELL', 'Its bands ring: a wave rolls out. Walk through the OPENING', TQ_HI, 2.8); sf(FX, 'hum'); }
       face(FX, m, me.x, me.y); A.x = m.x; A.y = m.y; A.warn.x = m.x; A.warn.y = m.y;
-      if ((A.chT = (A.chT || 0) - dt) <= 0) { A.chT = 0.55 - 0.32 * (A.t / TM.tollWind); sf(FX, 'chime', 660 + 440 * A.t / TM.tollWind, 0.1); M.fx.push({ kind: 'reso', t: 0, life: 0.9 }); }
+      if ((A.chT = (A.chT || 0) - dt) <= 0) { A.chT = 0.55 - 0.32 * (A.t / TM.tollWind); sf(FX, 'chime', 660 + 440 * A.t / TM.tollWind, 0.1); M.fx.push({ kind: 'reso', x: m.x, y: m.y, t: 0, life: 0.9 }); }
+      if (!lowFx() || Math.random() < 0.4) lift(M, m.x, m.y, Math.random() < dt * (6 + 14 * A.t / TM.tollWind) ? 1 : 0, 1.8, 4.6, 1.1 + A.t / TM.tollWind);   // (v398 B3: the floor's water lifting as the bell rings)
       const s = Math.ceil(TM.tollWind - A.t); if (s !== A.lastS && s > 0) { A.lastS = s; if (A.t > 0.1) sf(FX, 'tick'); }
       if (A.t >= TM.tollWind) { A.phase = 'ring'; A.t = 0; release(FX, m, A); } return false; }
     if (A.phase === 'ring') { if (A.t >= 0.6) { A.phase = 'rec'; A.t = 0; A.exposed = true; M.stat.exposed++; } return false; }
     if (A.phase === 'rec') { if (A.t >= TM.tollRec) { A.phase = 'back'; A.t = 0; A.exposed = false; } return false; }
     return A.t >= TM.tollBack; }
   function release(FX, m, A) { const M = FX.mem, x = A.x, y = A.y, ga = A.ga, dmg = m.dmg * TUNE.ringK; M.stat.rings++;
-    sf(FX, 'crash'); sf(FX, 'chime', 392, 0.5); sf(FX, 'chime', 196, 0.4); FX.H.shake(lowFx() ? 5 : 10, 0.45); M.P.jolt = 1; M.bell.vp -= 0.8;
+    sf(FX, 'crash'); sf(FX, 'chime', 392, 0.5); sf(FX, 'chime', 196, 0.4); FX.H.shake(lowFx() ? 4 : 9, 0.45); hitstop(FX, 0.05); M.P.jolt = 1; M.bell.vp -= 0.8;   // (v398 B3: a hitstop)
+    lift(M, x, y, lowFx() ? 8 : 22, 1.6, 4.2, 2.2);
     M.fx.push({ kind: 'toll', x, y, t: 0, life: 1.2 });
     FX.hz({ belk: 'ring', kind: 'belkRing', shape: 'fn', test: () => false, x, y, r: TM.ringR0, ga, life: (AR * 2 + 1 - TM.ringR0) / TM.ringV, hit: false, gapSeen: false,
       update(dt, z) { z.r += TM.ringV * dt; const me = FX.me, d = Math.hypot(me.x - x, me.y - y), a = Math.atan2(me.y - y, me.x - x);
@@ -514,13 +528,20 @@ const BELK = (() => {
           else if (FX.hurt(dmg)) { z.hit = true; M.stat.ringHit++; FX.H.text(me.x, me.y - 1.5, 'Tolled!', WARN_HI, 15); } }
         for (const o of M.deco) if (!o.dead && Math.abs(Math.hypot(o.x - x, o.y - y) - z.r) < TM.ringW * 0.7 && Math.abs(angTo(ga, Math.atan2(o.y - y, o.x - x))) >= TM.gap) breakDeco(FX, o, { x, y });
         const C = FX.C; if (Math.hypot(C.x - x, C.y - y) + AR < z.r) z.life = 0; },
-      draw(c, z, F2, T, t) { drawRing(c, FX, z, T, t); } }); }
+      draw() { /* (v398 B3: painted with the floor's light: drawGroundFx) */ } }); }
+  /* (v398 B3) droplets lifted off the floor by the bell's ring: n of them between r0 and r1 tiles round (x, y), rising at about v */
+  function lift(M, x, y, n, r0, r1, v) { for (let i = 0; i < n && M.drops.length < 40; i++) { const a = Math.random() * TAU, r = r0 + Math.random() * (r1 - r0); M.drops.push({ x: x + Math.cos(a) * r, y: y + Math.sin(a) * r, z: 0, vz: v * (0.5 + Math.random() * 0.7), t: 0, life: 0.8 + Math.random() * 0.6 }); } }
   /* ---- at half health: two brine crawlers come up out of the water, then the ring comes again ---- */
   function broodTick(FX, m, A, dt) { const M = FX.mem, me = FX.me, C = FX.C;
-    if (!A.said) { A.said = true; say(FX, 'brood', 'THE BROOD ANSWERS', 'Two brine crawlers come up out of the water, and the bell rings again', TQ_HI, 3.0); sf(FX, 'hum'); M.fx.push({ kind: 'reso', t: 0, life: 1.3, big: 1 }); }
+    if (!A.said) { A.said = true; say(FX, 'brood', 'THE BROOD ANSWERS', 'Two brine crawlers come up out of the water, and the bell rings again', TQ_HI, 3.0); sf(FX, 'hum'); M.fx.push({ kind: 'reso', x: m.x, y: m.y, t: 0, life: 1.3, big: 1 });
+      // (v398 B3) where they will come up (as before: either side of the pet, out in the water), and the summons: a column of the
+      // bell's light, the water heaving at both places
+      const base = Math.atan2(me.y - C.y, me.x - C.x); A.pts = [-1, 1].map(s => { const a = base + s * 0.85; return { x: C.x + Math.cos(a) * (DRY_R + 1.0), y: C.y + Math.sin(a) * (DRY_R + 1.0) }; });
+      M.fx.push({ kind: 'summon', x: m.x, y: m.y, t: 0, life: TM.broodT, seed: 3 }); FX.H.shake(lowFx() ? 2 : 4, 0.6); }
     face(FX, m, me.x, me.y);
-    if (!A.spawned && A.t > 0.8) { A.spawned = true; const base = Math.atan2(me.y - C.y, me.x - C.x), type = typeof MON !== 'undefined' && MON.crawler ? 'crawler' : null;
-      for (const s of [-1, 1]) { const a = base + s * 0.85, x = C.x + Math.cos(a) * (DRY_R + 1.0), y = C.y + Math.sin(a) * (DRY_R + 1.0);
+    if (!A.geysers && A.t > 0.15) { A.geysers = true; for (const q of A.pts) M.fx.push({ kind: 'geyser', x: q.x, y: q.y, t: 0, life: 1.9, seed: Math.random() * 50 }); sf(FX, 'bubble'); }
+    if (!A.spawned && A.t > 0.8) { A.spawned = true; const type = typeof MON !== 'undefined' && MON.crawler ? 'crawler' : null; FX.H.shake(lowFx() ? 3 : 6, 0.35); hitstop(FX, 0.04);
+      for (const q of A.pts) { const x = q.x, y = q.y;
         M.fx.push({ kind: 'splash', x, y, t: 0, life: 1.0, s: 1.3, seed: Math.random() * 50 }); if (!type) continue;
         const c2 = FX.minion(type, x, y, { belkAdd: true }); if (c2) { c2.dmg = Math.min(c2.dmg, m.dmg * 0.5); c2.maxhp = c2.hp = Math.min(c2.maxhp || c2.hp, TUNE.addHp); M.adds.push(c2);   /* (a small add wave: blows a half of Kharrox's, a few seconds' work each) */ M.stat.adds++; FX.H.text(x, y - 1.1, 'Brine crawler!', TQ_HI, 13); } }
       sf(FX, 'whoosh'); sf(FX, 'bubble'); }
@@ -528,20 +549,20 @@ const BELK = (() => {
     return false; }
 
   /* ---- every frame: the body's motion and pose, the shell's lag, what can be struck, the fall ---- */
-  const RATE = { crouch: 4, lift: 3.2, slam: 7, openL: 6, openR: 9, guard: 4, toll: 5, tollGlow: 3, eyeOut: 4, eyeLook: 5, eyeGlow: 2.5, twist: 4, pitch: 4, roll: 6, dead: 1.4 };
-  function poseOf(FX, m, M) { const W = { crouch: 0, lift: 0, sweep: 0, slam: 0, openL: 0.15, openR: 0.1, guard: 0, toll: 0, tollGlow: 0.05, eyeOut: 0, eyeLook: 0, eyeGlow: 0.85, twist: 0, pitch: 0, roll: 0, dead: 0 }, A = M.A, t = M.bt, me = FX.me;
+  const RATE = { clawGlow: 5, crouch: 4, lift: 3.2, slam: 7, openL: 6, openR: 9, guard: 4, toll: 5, tollGlow: 3, eyeOut: 4, eyeLook: 5, eyeGlow: 2.5, twist: 4, pitch: 4, roll: 6, dead: 1.4 };
+  function poseOf(FX, m, M) { const W = { clawGlow: 0, crouch: 0, lift: 0, sweep: 0, slam: 0, openL: 0.15, openR: 0.1, guard: 0, toll: 0, tollGlow: 0.05, eyeOut: 0, eyeLook: 0, eyeGlow: 0.85, twist: 0, pitch: 0, roll: 0, dead: 0 }, A = M.A, t = M.bt, me = FX.me;
     W.openL = 0.15 + 0.14 * Math.max(0, Math.sin(t * 0.9)); W.openR = Math.sin(t * 2.3 + 1) > 0.86 ? 0.75 : 0.1;   // (the big claw opens and closes slowly; the small one snaps)
     W.eyeLook = clamp2(angTo(headOf(M.th), headOf(Math.atan2(me.y - m.y, me.x - m.x))), -1.2, 1.2);
     if (FX.S.phase >= 2) W.eyeGlow = 1.15;
     if (A && A.kind === 'sweep') { const ph = A.phase;
-      if (ph === 'wind') { const u = cl(A.t / 0.8); W.lift = u; W.openL = 0.95; W.guard = 1; W.twist = -0.12 * u; W.pitch = -0.06 * u; W.roll = 0.05 * u; W.eyeGlow = 1.2; }
-      else if (ph === 'strike') { W.sweep = cl(A.t / TM.swStrike); W.lift = 1 - cl(A.t / 0.1); W.openL = 0.75; W.guard = 1; W.twist = lerp(0.25, -0.3, ease(W.sweep)); W.pitch = 0.05; }
+      if (ph === 'wind') { const u = cl(A.t / 0.8); W.lift = u; W.openL = 0.95; W.guard = 1; W.twist = -0.12 * u; W.pitch = -0.06 * u; W.roll = 0.05 * u; W.eyeGlow = 1.2; W.clawGlow = 0.35 + 0.95 * cl(A.t / TM.swWind); }
+      else if (ph === 'strike') { W.clawGlow = 1.4; W.sweep = cl(A.t / TM.swStrike); W.lift = 1 - cl(A.t / 0.1); W.openL = 0.75; W.guard = 1; W.twist = lerp(0.25, -0.3, ease(W.sweep)); W.pitch = 0.05; }
       else if (ph === 'rec') { W.slam = 1; W.sweep = 1; W.openL = 0.3; W.guard = 0.5; W.twist = -0.3; W.pitch = 0.09; W.eyeOut = 1; W.eyeGlow = 1.45; } }
     if (A && A.kind === 'toll') { const ph = A.phase;
       if (ph === 'wind') { const u = cl(A.t / TM.tollWind); W.crouch = Math.min(1, A.t / 0.6); W.toll = 0.3 + 0.7 * u; W.tollGlow = 0.25 + 1.2 * u; W.openL = 0.05; W.openR = 0.05; W.eyeGlow = 1.0 + 0.5 * u; W.pitch = -0.04; }
       else if (ph === 'ring') { W.crouch = 1 - cl(A.t / 0.5) * 0.4; W.toll = 1; W.tollGlow = 1.9; W.pitch = 0.08; }
       else if (ph === 'rec') { const u = cl(A.t / TM.tollRec); W.crouch = 0.4; W.toll = 0.5 * (1 - u); W.tollGlow = 0.9 * (1 - u); W.eyeOut = 1; W.eyeGlow = 1.35; } }
-    if (A && A.kind === 'brood') { W.crouch = 0.3; W.lift = 0.55; W.openL = 1; W.openR = 1; W.toll = 0.6; W.tollGlow = 1.3; W.pitch = -0.12; W.eyeGlow = 1.5; }
+    if (A && A.kind === 'brood') { W.clawGlow = 0.5; W.crouch = 0.3; W.lift = 0.55; W.openL = 1; W.openR = 1; W.toll = 0.6; W.tollGlow = 1.3; W.pitch = -0.12; W.eyeGlow = 1.5; }
     if (m.act === 'rise' || m.act === 'enter') W.eyeGlow = 0.2 + 0.7 * cl(m.actT / 3);
     const L = M.loco; if (L && L.stepping >= 0) { const k2 = Math.sin(Math.PI * cl(L.st / TM.step)); W.roll += (L.stepping ? -1 : 1) * 0.075 * k2; W.pitch += 0.025 * k2; }   // (the rocking gait: the weight rolls onto the planted tripod)
     if (M.flinch > 0) W.pitch -= 0.06 * M.flinch;
@@ -561,10 +582,14 @@ const BELK = (() => {
     P.wet = 0.8 + 0.2 * Math.sin(M.bt * 0.3); }
   function update(FX, dt) { const M = FX.mem, m = FX.m; if (!m || !M.ok) return; M.bt += dt; const me = FX.me;
     for (let i = M.fx.length - 1; i >= 0; i--) { const f = M.fx[i]; f.t += dt; if (f.t >= f.life) M.fx.splice(i, 1); }
+    for (let i = M.drops.length - 1; i >= 0; i--) { const d = M.drops[i]; d.t += dt; d.z += d.vz * dt; d.vz -= 0.6 * dt; if (d.t >= d.life) M.drops.splice(i, 1); }   // (v398 B3)
+    while (M.trail.length && M.bt - M.trail[0].t > 0.52) M.trail.shift();
     if (M.end) { deadTick(FX, m, dt); easePose(FX, m, dt); M.R = null; return; }
     if (m.dead) return;
     locoTick(FX, m, dt, m.act === 'enter');
     easePose(FX, m, dt); M.R = null;
+    { const A = M.A; if (A && A.kind === 'sweep' && (A.phase === 'strike' || (A.phase === 'rec' && A.t < 0.06))) { const p = anc(FX, m, 'clawL'); M.trail.push({ x: p.x, y: p.y, z: p.z, t: M.bt });   // (v398 B3: the claw's path, for its ribbon; sparks off its edge)
+        if (!lowFx() || Math.random() < 0.35) FX.H.part({ kind: 'spark', x: p.x + FX.rnd(-0.3, 0.3), y: p.y - p.z * ZK, vx: FX.rnd(-2, 2), vy: FX.rnd(-3, -1), g: 9, drag: 0.4, life: 0.45, max: 0.45, size: 2.2, color: Math.random() < 0.5 ? '#FFF2DC' : '#BFFCF4' }); } }
     { const d = (M.lastHp == null ? m.hp : M.lastHp) - m.hp; M.lastHp = m.hp; if (d > 0) { const key = M.A && M.A.exposed ? 'open' : 'closed'; M.stat.dmg[key] = Math.round((M.stat.dmg[key] || 0) + d); } }
     if (m.act !== 'enter') {
       const bell = vis(anc(FX, m, 'bell')), cw = vis(anc(FX, m, 'clawL')), bd = vis(anc(FX, m, 'body'));
@@ -579,13 +604,13 @@ const BELK = (() => {
     for (let i = M.adds.length - 1; i >= 0; i--) if (M.adds[i].dead) M.adds.splice(i, 1); }
   /* ---- the fall: it shudders, its bands scream, the bell breaks along its seams and the shards are thrown down; the body settles ---- */
   function deadTick(FX, m, dt) { const M = FX.mem, E = M.end; E.t += dt;
-    if (E.t < 1.25) { M.P.jolt = 1; if (Math.random() < dt * 14) sf(FX, 'tick'); }
+    if (E.t < 1.25) { M.P.jolt = 1; if (Math.random() < dt * 14) sf(FX, 'tick'); if (!E.dying) { E.dying = true; M.fx.push({ kind: 'dying', x: m.x, y: m.y, t: 0, life: 1.4, seed: 5 }); } if (!lowFx() && Math.random() < dt * 7) FX.H.shake(1.6, 0.1); }   // (v398 B3: the light breaking out of its seams, a rumble)
     if (E.t >= 1.25 && !E.broke) { E.broke = true; shatter(FX, m); }
     if (E.broke) { M.P.shatter = E.t - 1.25; for (const S of SHARDS) { const land = 1.25 + S.delay + 0.8; if (!E['l' + S.k] && E.t >= land) { E['l' + S.k] = 1; sf(FX, 'thud'); if (!lowFx()) FX.H.shake(2.5, 0.1); const p = anchorOf({ A: { p: [Math.cos(S.a) * (1.2 + S.d), Math.sin(S.a) * (1.2 + S.d), 0] } }, 'p', m.x, m.y, headOf(M.th)); if (p) M.fx.push({ kind: Math.hypot(p.x - FX.C.x, p.y - FX.C.y) > DRY_R ? 'splash' : 'dust', x: p.x, y: p.y, t: 0, life: 0.8, s: 0.8, seed: S.k * 7 }); } } }
     if (Math.random() < dt * 4 * (1 - cl(E.t / 5)) && !lowFx()) { const p = vis(anc(FX, m, 'body')); FX.H.part({ kind: 'smoke', x: p.x + FX.rnd(-1.4, 1.4), y: p.y + FX.rnd(-0.4, 0.4), vx: FX.rnd(-0.3, 0.3), vy: -0.8, life: 1.4, max: 1.4, size: 0.9, color: '#9FC8C8' }); } }
   function shatter(FX, m) { const M = FX.mem, me = FX.me, b = anc(FX, m, 'bellBase');
     if (typeof BREAK_FX !== 'undefined') try { BREAK_FX.burst(null, b.x, b.y + 0.05, { mat: 'iron', cols: ['#9A7440', '#4A3420', '#D8B070'], hot: TQ, size: 4.2, w: 3.4, h: 3.6, paint: (c2, P2) => bellPaint2D(c2, P2), key: 'belk-bell', from: { x: me.x, y: me.y }, mix: 'stone' }); } catch (e) { /* (the shared break effect) */ }
-    M.fx.push({ kind: 'shatter', t: 0, life: 2.6 }); FX.H.flash(0.35, TQ_HI); FX.H.shake(lowFx() ? 6 : 16, 0.7); sf(FX, 'crash'); sf(FX, 'chime', 523, 0.6); FX.H.after(0.25, () => sf(FX, 'chime', 392, 0.45)); FX.H.after(0.55, () => sf(FX, 'chime', 262, 0.35));
+    M.fx.push({ kind: 'shatter', x: b.x, y: b.y, t: 0, life: 2.6, seed: 9 }); FX.H.flash(0.35, TQ_HI); FX.H.shake(lowFx() ? 6 : 15, 0.7); hitstop(FX, 0.12); lift(M, b.x, b.y, lowFx() ? 10 : 30, 0.8, 5, 3.2);   // (v398 B3: a hitstop, the water thrown up) sf(FX, 'crash'); sf(FX, 'chime', 523, 0.6); FX.H.after(0.25, () => sf(FX, 'chime', 392, 0.45)); FX.H.after(0.55, () => sf(FX, 'chime', 262, 0.35));
     FX.H.text(m.x, m.y - 4.2, 'The bell breaks!', TQ_HI, 16); }
   /* dressing broken by a blow, the sweep or the ring: BREAK_FX with its own picture */
   function breakDeco(FX, o, from) { if (o.broken) return; o.broken = true; o.dead = true; const M = FX.mem, d = o.deco; if (M && M.stat) M.stat.decoBroken++;
@@ -596,11 +621,12 @@ const BELK = (() => {
   /* ---------- the camera: the pet, the crab, and the safe ground during a warning, together ---------- */
   function camFocus(FX, m) { const M = FX.mem, me = FX.me, H = FX.H; if (!M || !M.ok) return null;
     if (typeof window !== 'undefined' && window.__BELK_CAM) return { x: m.x + (window.__BELK_CAMX || 0), y: m.y - 1.8 + (window.__BELK_CAMY || 0), k: 1, zoom: window.__BELK_CAM };   // (tests: a close look)
-    if (m.dead || M.end) return { x: m.x, y: m.y - 1.6, k: 0.75, zoom: 0.55 };
+    if (m.dead || M.end) { const u = M.end ? sstep(0, 1.3, M.end.t) - 0.5 * sstep(1.4, 3.2, M.end.t) : 0; return { x: m.x, y: m.y - 1.6, k: 0.75 + 0.15 * u, zoom: 0.55 + 0.17 * u }; }   // (v398 B3: in close as it breaks, easing back as the shards land)
     if (m.act === 'enter' || m.act === 'rise') return { x: lerp(me.x, m.x, 0.6), y: lerp(me.y, m.y, 0.6) - 1.5, k: 0.8, zoom: 0.44 };
     const pts = [[me.x, me.y], [m.x - 2.6, m.y - 3.4], [m.x + 2.6, m.y + 1.2]], A = M.A;
     if (A && A.kind === 'sweep' && A.phase === 'wind') { const s = safeSpot(FX, m, A); pts.push([s.x, s.y]); }
     if (A && A.kind === 'toll' && A.phase === 'wind' && A.ga != null) { const s = gapSpot(FX, A, me); pts.push([s.x, s.y]); }
+    if (A && A.kind === 'brood' && A.pts) for (const q of A.pts) pts.push([q.x, q.y]);   // (v398 B3: the summons, framed)
     let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; for (const [x, y] of pts) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
     const W = H.W ? H.W() : 390, Hh = H.H ? H.H() : 844, TS = FX.Tz() / Math.max(0.05, (H.g && H.g.zoom) || 0.6);
     const zoom = Math.max(0.45, Math.min(0.72, (W - 40) / (TS * (x1 - x0 + 2.5)), (Hh - 320) / (TS * (y1 - y0 + 2.5))));
@@ -694,7 +720,8 @@ const BELK = (() => {
     for (let i = 0; i < (lf ? 3 : 7); i++) { const a0 = i / 7 * TAU + t * (0.05 + 0.015 * i) * (i % 2 ? 1 : -1), rr = (DRY_R + 0.95 + (i % 3) * 0.7) * T; c.strokeStyle = `rgba(150,235,230,${(0.07 + 0.05 * Math.sin(t * 0.8 + i)).toFixed(3)})`; c.lineWidth = T * 0.16; c.beginPath(); c.arc(X0, Y0, rr, a0, a0 + 0.8); c.stroke(); }
     if (!lf) for (let i = 0; i < 16; i++) { const a = hh(i, 61) * TAU + t * 0.02, rr = (DRY_R + 0.7 + hh(i, 63) * 2.4) * T, k = Math.max(0, Math.sin(t * (1.3 + hh(i, 65)) + i * 2.1)); if (k > 0.75) gl2(c, X0 + Math.cos(a) * rr, Y0 + Math.sin(a) * rr, T * 0.35, '#DFFFFA', (k - 0.75) * 2); }
     c.strokeStyle = `rgba(97,217,210,${(0.12 + 0.08 * Math.sin(t * 1.2)).toFixed(3)})`; c.lineWidth = T * 0.12; c.beginPath(); c.arc(X0, Y0, (DRY_R + 0.2) * T, 0, TAU); c.stroke();
-    c.restore(); }
+    c.restore();
+    drawGroundFx(c, FX, t, T); }   // (v398 B3: the floor's light of the attacks, under everything standing)
   /* ---- the props: a pillar (the GPU picture, kept; or its 2D picture), its lamp's light; the fallen crab ---- */
   function drawPropArt(c, FX, p, X, Y, T, t) { const M = FX.mem || {};
     if (p.kind === 'corpse') { if (FX.m) paintBoss(c, FX, FX.m, FX.sx(FX.m.x), FX.sy(FX.m.y), T, t); return; }
@@ -742,40 +769,104 @@ const BELK = (() => {
     c.fillStyle = '#0B1216'; c.beginPath(); c.ellipse(0, y1, r1 * 0.9, r1 * GY * 0.55 * 0.9, 0, 0, TAU); c.fill(); c.strokeStyle = '#D7B072'; c.lineWidth = P * 0.06; c.beginPath(); c.ellipse(0, y1, r1, r1 * GY * 0.55, 0, 0, TAU); c.stroke();
     c.strokeStyle = '#0A0806'; c.lineWidth = P * 0.08; c.beginPath(); c.moveTo(-r1 * 0.3, y1); c.lineTo(-r1 * 0.22, lerp(y1, y0, 0.3)); c.lineTo(-r1 * 0.3, lerp(y1, y0, 0.55)); c.lineTo(-r1 * 0.2, lerp(y1, y0, 0.72)); c.stroke(); }
 
-  /* ---- the warnings on the floor ---- */
-  function drawSweepWarn(c, FX, z, T, t) { const A = z.A; if (!A || (A.phase !== 'wind' && A.phase !== 'strike') || !FX.m || FX.m.dead) return;
-    const X = FX.sx(z.x), Y = FX.sy(z.y), L = TM.swLen * T, a0 = A.a - TM.swSpread, a1 = A.a + TM.swSpread, u = A.phase === 'wind' ? cl(A.t / TM.swWind) : 1, r0 = T * 1.5, pulse = 0.5 + 0.5 * Math.sin(t * (6 + 10 * u));
-    c.save(); c.lineJoin = 'round'; c.lineCap = 'round';
-    fanPath(c, X, Y, r0, L, a0, a1); c.fillStyle = `rgba(60,14,8,${(0.16 + 0.1 * u).toFixed(3)})`; c.fill();
-    fanPath(c, X, Y, r0, L, a1 - 2 * TM.swSpread * u, a1); c.fillStyle = hexA(WARN, 0.12 + 0.2 * u); c.fill();   // (filling from the big claw's side, the way it will sweep)
-    fanPath(c, X, Y, r0, L, a0, a1); c.strokeStyle = 'rgba(30,8,4,.75)'; c.lineWidth = T * 0.28; c.stroke(); c.strokeStyle = hexA(WARN_HI, 0.75 + 0.25 * pulse * u); c.lineWidth = T * 0.12; c.stroke(); c.strokeStyle = hexA(WARN, 0.9); c.lineWidth = T * 0.05; c.stroke();
-    for (let i = 0; i < 7; i++) { const f = (i / 7 + t * 0.45) % 1, a = a1 - f * 2 * TM.swSpread, rr = L * 0.84; chevron(c, X + Math.cos(a) * rr, Y + Math.sin(a) * rr, T * 0.34, a - Math.PI / 2, hexA(WARN_HI, 0.55 + 0.4 * u)); }
-    clawGlyph(c, X + Math.cos(A.a) * T * 4.1, Y + Math.sin(A.a) * T * 4.1, T * 0.66, WARN_HI, A.a);
-    // SAFE: the ground behind the small claw
-    const sa = safeAng(A), w = 0.62, s0 = 2.3 * T, s1 = 6.6 * T, sk = 0.6 + 0.4 * Math.sin(t * 6);
-    fanPath(c, X, Y, s0, s1, sa - w, sa + w); c.fillStyle = hexA(SAFE_M, 0.14 + 0.08 * sk); c.fill(); c.setLineDash([T * 0.36, T * 0.22]); c.strokeStyle = 'rgba(4,30,22,.7)'; c.lineWidth = T * 0.16; c.stroke(); c.strokeStyle = hexA(SAFE, 0.6 + 0.35 * sk); c.lineWidth = T * 0.07; c.stroke(); c.setLineDash([]);
+  /* ==== (v398 B3) the effects at the model's fidelity: everything on the shared FGFX painter (soft, layered, no hard edges),
+     in two passes a frame: the FLOOR'S LIGHT (drawn from the arena's overlay, under everything standing: the warnings, the
+     ring, splash rings and ripples) and the UPPER pass (drawFx: the claw's light and ribbon, the bell's resonance, spray,
+     droplets, the summons, the fall). Each pass: soft dark under-layers first (so the light reads on the pale stone), one GPU
+     pass of light, the symbols and words last. Without the GPU painter each piece has a plain 2D stand-in. ==== */
+  function kit(c, Q, T) { const lf = lowFx();
+    const K = { Q, lf,
+      glow(x, y, r, col, a, sy) { if (!(a > 0.004) || !(r > 0.5)) return; if (Q) Q.glow(x, y, r, col, a, sy); else gl2(c, x, y, r, col, a * 0.6); },
+      ring(x, y, r, col, a, w, sy) { if (!(a > 0.004) || !(r > 0.5)) return; if (Q) Q.ring(x, y, r, col, a, w, sy); else { c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = hexA(col, a * 0.6); c.lineWidth = Math.max(1, w); c.beginPath(); c.ellipse(x, y, r, r * (sy || 1), 0, 0, TAU); c.stroke(); c.restore(); } },
+      beam(x0, y0, x1, y1, w, col, a, a0, a1) { if (!(a > 0.004)) return; a0 = a0 == null ? 1 : a0; a1 = a1 == null ? 1 : a1; if (Q) Q.rbeam(x0, y0, x1, y1, w, col, a, a0, a1); else { const g = c.createLinearGradient(x0, y0, x1, y1); g.addColorStop(0, hexA(col, a * a0 * 0.55)); g.addColorStop(1, hexA(col, a * a1 * 0.55)); c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = g; c.lineWidth = w * 1.4; c.lineCap = 'round'; c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke(); c.restore(); } },
+      ebeam(x0, y0, x1, y1, w, col, heat, a, seed) { if (!(a > 0.004)) return; if (Q) Q.ebeam(x0, y0, x1, y1, w, col, heat, a, seed, 3); else K.beam(x0, y0, x1, y1, w * 0.8, col, a); },
+      spray(x, y, r, a, seed, col, spread) { if (!(a > 0.004)) return; if (Q) Q.spray(x, y, r, col || '#DFFBFF', a, seed, spread == null ? 0.5 : spread, 0.8); else gl2(c, x, y - r * 0.3, r, col || '#DFFBFF', a * 0.45); },
+      ripple(x, y, r, col, a, seed, sy, th) { if (!(a > 0.004)) return; if (Q) Q.ripple(x, y, r, col, a, seed, sy, th); else K.ring(x, y, r, col, a * 0.6, Math.max(1, T * 0.06), sy); },
+      wring(x, y, rx, ry, col, a, side, th, seed, spin) { if (!(a > 0.004) || !(rx > 1)) return; if (Q) Q.wring(x, y, rx, ry, 0, col, a, side, th, seed, spin); else { c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = hexA(col, a * 0.55); c.lineWidth = Math.max(1, rx * (th || 0.06)); c.beginPath(); c.ellipse(x, y, rx * 0.8, ry * 0.8, 0, side === 0 ? Math.PI : 0, side === 1 ? Math.PI : TAU); c.stroke(); c.restore(); } },
+      star(x, y, s, a, col) { if (!(a > 0.004)) return; if (Q) Q.star(x, y, s, a, col); else gl2(c, x, y, s * 0.6, col || '#FFF6D8', a * 0.7); },
+      smoke(x, y, r, a, seed, col) { if (!(a > 0.004)) return; if (Q) Q.smoke(x, y, r, a, seed, col || '#B8BCA8', 0.5); else gl2(c, x, y, r, col || '#B8BCA8', a * 0.3); },
+      bubbles(x, y, rx, ry, a, seed, rise) { if (Q && !lf && a > 0.004) Q.bubbles(x, y, rx, ry, '#9FE8FF', a, seed, rise); },
+      shimmer(x, y, r, a, sy) { if (Q && !lf && a > 0.004) Q.shimmer(x, y, r, a, sy, '#BFFCF4'); },
+      stream(x0, y0, x1, y1, w, a, seed) { if (!(a > 0.004)) return; if (Q) Q.wstream(x0, y0, x1, y1, w, '#7FD8E0', a, seed, 3); else K.beam(x0, y0, x1, y1, w, '#BFF4F0', a * 0.8); } };
+    return K; }
+  // a soft line: the same path stroked wide and faint, then narrower and stronger (an edge with no hard step)
+  function softPath(c, path, layers) { for (const [w, col] of layers) { path(); c.lineWidth = Math.max(1, w); c.strokeStyle = col; c.stroke(); } }
+  // links of light round an arc (screen centre X, Y, radius R, angles b0..b1); a link whose middle lies outside the arena is left out
+  function arcLinks(K, FX, z, R, b0, b1, n, fn) { const X = FX.sx(z.x), Y = FX.sy(z.y), T = FX.Tz(), C = FX.C, st = (b1 - b0) / n;
+    for (let i = 0; i < n; i++) { const p0 = b0 + st * (i - 0.13), p1 = b0 + st * (i + 1.13), pm = b0 + st * (i + 0.5);   // (each link overlapping its neighbours by the fifth its ends fade over: the chain sums to one, no beads) if (Math.hypot(z.x + Math.cos(pm) * R / T - C.x, z.y + Math.sin(pm) * R / T - C.y) > AR + 0.7) continue;
+      fn(X + Math.cos(p0) * R, Y + Math.sin(p0) * R, X + Math.cos(p1) * R, Y + Math.sin(p1) * R, i); } }
+  const GROUND = { sweep: 1, slam: 1, toll: 1, splash: 1, geyser: 1, shatter: 1, reso: 1 };
+  function drawGroundFx(c, FX, t, T) { const M = FX.mem, m = FX.m; if (!M || !M.ok || !m || !M.fx) return; const hz = FX.S.hz, ws = hz.find(z => z.kind === 'belkSweepWarn'), wt = hz.find(z => z.kind === 'belkTollWarn'), rings = hz.filter(z => z.kind === 'belkRing'), gfx = M.fx.filter(f => GROUND[f.kind]);
+    if (!ws && !wt && !rings.length && !gfx.length) return;
+    const layer = (n, K) => { if (ws) sweepGround(c, FX, ws, T, t, K, n); if (wt) tollGround(c, FX, wt, T, t, K, n); for (const z of rings) ringGround(c, FX, z, T, t, K, n); };
+    c.save(); c.lineJoin = 'round'; c.lineCap = 'round'; layer(0, null); c.restore();
+    const F = fg(), Q = F ? F.begin(c, null) : null, K = kit(c, Q, T);
+    try { layer(1, K); for (const f of gfx) groundOne(FX, f, T, t, K); } finally { if (Q) F.flush(c); }
+    c.save(); layer(2, null); c.restore(); }
+  /* Bell Sweep's warning: the cone a soft warm wash deepening as the count runs out and filling from the big claw's side, its
+     rim and edges glowing links of light, a glow running ahead across it the way the claw will go; the SAFE ground behind the
+     small claw a soft mint lane; then the claw, the chevrons and the shield */
+  function sweepGround(c, FX, z, T, t, K, layer) { const A = z.A; if (!A || (A.phase !== 'wind' && A.phase !== 'strike') || !FX.m || FX.m.dead) return;
+    const X = FX.sx(z.x), Y = FX.sy(z.y), L = TM.swLen * T, sp = TM.swSpread, a0 = A.a - sp, a1 = A.a + sp, u = A.phase === 'wind' ? cl(A.t / TM.swWind) : 1, r0 = T * 1.5, pulse = 0.5 + 0.5 * Math.sin(t * (6 + 10 * u)), sa = safeAng(A), w = 0.62, s0 = 2.3 * T, s1 = 6.6 * T, af = a1 - 2 * sp * u;
+    if (layer === 0) {
+      let g = c.createRadialGradient(X, Y, r0 * 0.5, X, Y, L * 1.06); g.addColorStop(0, 'rgba(60,14,8,0)'); g.addColorStop(0.3, `rgba(60,14,8,${(0.24 + 0.1 * u).toFixed(3)})`); g.addColorStop(0.88, `rgba(60,14,8,${(0.34 + 0.12 * u).toFixed(3)})`); g.addColorStop(1, 'rgba(60,14,8,0)');
+      fanPath(c, X, Y, r0 * 0.5, L * 1.06, a0, a1); c.fillStyle = g; c.fill();
+      g = c.createRadialGradient(X, Y, r0, X, Y, L); g.addColorStop(0, hexA(WARN, 0)); g.addColorStop(0.2, hexA(WARN, 0.1 + 0.1 * u)); g.addColorStop(0.55, hexA(WARN, 0.2 + 0.18 * u)); g.addColorStop(0.95, hexA(WARN, 0.26 + 0.22 * u)); g.addColorStop(1, hexA(WARN, 0));
+      fanPath(c, X, Y, r0, L, af, a1); c.fillStyle = g; c.fill();
+      softPath(c, () => fanPath(c, X, Y, r0, L, a0, a1), [[T * 0.75, 'rgba(30,8,4,.06)'], [T * 0.45, 'rgba(30,8,4,.1)'], [T * 0.24, 'rgba(30,8,4,.16)']]);
+      g = c.createRadialGradient(X, Y, s0 * 0.8, X, Y, s1 * 1.05); g.addColorStop(0, hexA(SAFE_M, 0)); g.addColorStop(0.35, hexA(SAFE_M, 0.2)); g.addColorStop(0.85, hexA(SAFE_M, 0.22)); g.addColorStop(1, hexA(SAFE_M, 0));
+      fanPath(c, X, Y, s0 * 0.8, s1 * 1.05, sa - w, sa + w); c.fillStyle = g; c.fill();
+      softPath(c, () => fanPath(c, X, Y, s0, s1, sa - w, sa + w), [[T * 0.5, 'rgba(4,30,22,.06)'], [T * 0.26, 'rgba(4,30,22,.12)']]); return; }
+    if (layer === 1) { const n = K.lf ? 10 : 18, al = 0.5 + 0.4 * u * (0.7 + 0.3 * pulse);
+      arcLinks(K, FX, z, L, a0, a1, n, (x0, y0, x1, y1, i) => { K.beam(x0, y0, x1, y1, T * 0.5, WARN, al * 0.35); K.ebeam(x0, y0, x1, y1, T * 0.16, WARN_HI, 0.75, al, i * 0.7 + 3); });
+      for (const b of [a0, a1]) { K.beam(X + Math.cos(b) * r0, Y + Math.sin(b) * r0, X + Math.cos(b) * L, Y + Math.sin(b) * L, T * 0.45, WARN, 0.3 * al, 0.15, 1); K.beam(X + Math.cos(b) * r0, Y + Math.sin(b) * r0, X + Math.cos(b) * L, Y + Math.sin(b) * L, T * 0.14, WARN_HI, al, 0.2, 1); }
+      K.beam(X + Math.cos(af) * r0, Y + Math.sin(af) * r0, X + Math.cos(af) * L, Y + Math.sin(af) * L, T * 0.7, WARN, 0.3 + 0.3 * u, 0.1, 0.9);   // (the front: where the sweep has reached in its count)
+      arcLinks(K, FX, z, s1, sa - w, sa + w, K.lf ? 5 : 9, (x0, y0, x1, y1) => { K.beam(x0, y0, x1, y1, T * 0.42, SAFE_M, 0.3); K.beam(x0, y0, x1, y1, T * 0.15, SAFE, 0.7 + 0.25 * pulse); });
+      for (const b of [sa - w, sa + w]) { const x0 = X + Math.cos(b) * s0, y0 = Y + Math.sin(b) * s0, x1 = X + Math.cos(b) * s1, y1 = Y + Math.sin(b) * s1; K.beam(x0, y0, x1, y1, T * 0.42, SAFE_M, 0.3, 0.3, 1); K.beam(x0, y0, x1, y1, T * 0.15, SAFE, 0.8, 0.3, 1); }
+      K.glow(X + Math.cos(sa) * T * 4.3, Y + Math.sin(sa) * T * 4.3, T * 2.4, SAFE_M, 0.22 + 0.1 * pulse); return; }
+    for (let i = 0; i < 5; i++) { const f = (i / 5 + t * 0.45) % 1, a = a1 - f * 2 * sp, rr = L * 0.84; chevron(c, X + Math.cos(a) * rr, Y + Math.sin(a) * rr, T * 0.32, a - Math.PI / 2, hexA(WARN_HI, (0.45 + 0.4 * u) * Math.sin(Math.PI * f))); }
+    clawGlyph(c, X + Math.cos(A.a) * T * 4.1, Y + Math.sin(A.a) * T * 4.1, T * 0.62, WARN_HI, A.a);
     const sx = X + Math.cos(sa) * T * 4.3, sy = Y + Math.sin(sa) * T * 4.3, ss = T * 0.6; shieldPath(c, sx, sy, ss); c.fillStyle = hexA(SAFE_D, 0.85); c.fill(); c.lineWidth = Math.max(1.5, T * 0.07); c.strokeStyle = SAFE; c.stroke();
-    c.strokeStyle = SAFE; c.lineWidth = Math.max(1.5, T * 0.08); c.beginPath(); c.moveTo(sx - ss * 0.35, sy); c.lineTo(sx - ss * 0.05, sy + ss * 0.3); c.lineTo(sx + ss * 0.4, sy - ss * 0.3); c.stroke();
-    label(c, 'SAFE', sx, sy + ss * 1.6, T * 0.44, SAFE);
-    c.restore(); }
-  function drawTollWarn(c, FX, z, T, t) { const A = z.A; if (!A || A.phase !== 'wind' || A.ga == null || !FX.m || FX.m.dead) return; const C = FX.C;
-    const X = FX.sx(z.x), Y = FX.sy(z.y), u = cl(A.t / TM.tollWind), r0 = TM.ringR0 * T, rMax = (Math.hypot(z.x - C.x, z.y - C.y) + AR) * T, g0 = A.ga - TM.gap, g1 = A.ga + TM.gap, pulse = 0.5 + 0.5 * Math.sin(t * (5 + 10 * u));
-    c.save(); c.beginPath(); c.arc(FX.sx(C.x), FX.sy(C.y), (AR + 0.3) * T, 0, TAU); c.clip(); c.lineCap = 'round';
-    for (let i = 0; i < 4; i++) { const rr = r0 + ((i / 4 + t * 0.35) % 1) * (Math.min(rMax, 16 * T) - r0), f = 1 - (rr - r0) / (16 * T); c.beginPath(); c.arc(X, Y, rr, g1, g0 + TAU); c.strokeStyle = `rgba(30,8,4,${(0.35 * f).toFixed(3)})`; c.lineWidth = T * 0.24; c.stroke(); c.strokeStyle = hexA(WARN, (0.25 + 0.45 * u) * f); c.lineWidth = T * 0.1; c.stroke(); }
-    c.beginPath(); c.arc(X, Y, r0 + T * 0.3, g1, g0 + TAU); c.strokeStyle = 'rgba(30,8,4,.8)'; c.lineWidth = T * 0.3; c.stroke(); c.strokeStyle = hexA(WARN_HI, 0.7 + 0.3 * pulse * u); c.lineWidth = T * 0.13; c.stroke();
-    // the opening: a mint lane out from the bell, its edges dashed, chevrons running out along it, OPEN
-    fanPath(c, X, Y, r0, rMax, g0, g1); c.fillStyle = hexA(SAFE_M, 0.13 + 0.1 * u); c.fill(); c.setLineDash([T * 0.36, T * 0.22]); c.strokeStyle = 'rgba(4,30,22,.7)'; c.lineWidth = T * 0.16; c.stroke(); c.strokeStyle = hexA(SAFE, 0.6 + 0.35 * pulse); c.lineWidth = T * 0.07; c.stroke(); c.setLineDash([]);
-    for (let i = 0; i < 5; i++) { const f = (i / 5 + t * 0.5) % 1, rr = r0 + T * 1.2 + f * T * 7.5; chevron(c, X + Math.cos(A.ga) * rr, Y + Math.sin(A.ga) * rr, T * 0.34, A.ga, hexA(SAFE, 0.5 + 0.45 * (1 - f))); }
+    c.strokeStyle = SAFE; c.lineWidth = Math.max(1.5, T * 0.08); c.lineCap = 'round'; c.beginPath(); c.moveTo(sx - ss * 0.35, sy); c.lineTo(sx - ss * 0.05, sy + ss * 0.3); c.lineTo(sx + ss * 0.4, sy - ss * 0.3); c.stroke();
+    label(c, 'SAFE', sx, sy + ss * 1.6, T * 0.44, SAFE); }
+  /* Tolling Shell's warning: the coming ring rippling out as soft light (the water stirring, refraction-like rings), the bell's
+     inner ring bright, the OPENING a mint lane of light out of it; then OPEN, chevrons and the bell */
+  function tollGround(c, FX, z, T, t, K, layer) { const A = z.A; if (!A || A.phase !== 'wind' || A.ga == null || !FX.m || FX.m.dead) return; const C = FX.C;
+    const X = FX.sx(z.x), Y = FX.sy(z.y), u = cl(A.t / TM.tollWind), r0 = TM.ringR0 * T, rMax = Math.min((Math.hypot(z.x - C.x, z.y - C.y) + AR) * T, 16 * T), g0 = A.ga - TM.gap, g1 = A.ga + TM.gap, pulse = 0.5 + 0.5 * Math.sin(t * (5 + 10 * u));
+    if (layer === 0) { softPath(c, () => { c.beginPath(); c.arc(X, Y, r0 + T * 0.3, g1, g0 + TAU); }, [[T * 0.7, 'rgba(30,8,4,.06)'], [T * 0.4, 'rgba(30,8,4,.1)'], [T * 0.22, 'rgba(30,8,4,.16)']]);
+      const g = c.createRadialGradient(X, Y, r0 * 0.8, X, Y, rMax); g.addColorStop(0, hexA(SAFE_M, 0)); g.addColorStop(0.12, hexA(SAFE_M, 0.1 + 0.08 * u)); g.addColorStop(0.7, hexA(SAFE_M, 0.1 + 0.06 * u)); g.addColorStop(1, hexA(SAFE_M, 0)); fanPath(c, X, Y, r0 * 0.8, rMax, g0, g1); c.fillStyle = g; c.fill(); return; }
+    if (layer === 1) { const n = K.lf ? 14 : 26;
+      for (let i = 0; i < (K.lf ? 2 : 3); i++) { const f = (i / 3 + t * 0.35) % 1, rr = r0 + f * (rMax - r0), fa = Math.sin(Math.PI * f) * (0.25 + 0.4 * u); arcLinks(K, FX, z, rr, g1 + 0.04, g0 + TAU - 0.04, n, (x0, y0, x1, y1) => K.beam(x0, y0, x1, y1, T * 0.22, WARN, fa)); }
+      arcLinks(K, FX, z, r0 + T * 0.3, g1 + 0.04, g0 + TAU - 0.04, n, (x0, y0, x1, y1, i) => { K.beam(x0, y0, x1, y1, T * 0.5, WARN, 0.25 + 0.25 * u); K.ebeam(x0, y0, x1, y1, T * 0.15, WARN_HI, 0.8, 0.6 + 0.35 * u * pulse, i * 0.9); });
+      for (let i = 0; i < (K.lf ? 1 : 3); i++) { const f = (i / 3 + t * 0.5) % 1; K.ripple(X, Y, T * (1.6 + f * 3.4), '#DFFFFA', 0.3 * Math.sin(Math.PI * f) * (0.4 + 0.6 * u), i * 2.3, 1, 0.08); }   // (the water stirring round the bell: a refraction-like wavering)
+      const ex = X + Math.cos(A.ga) * rMax, ey = Y + Math.sin(A.ga) * rMax, bx = X + Math.cos(A.ga) * r0, by = Y + Math.sin(A.ga) * r0;
+      K.beam(bx, by, ex, ey, Math.max(T * 0.6, (rMax * 0.5) * Math.sin(TM.gap) * 0.9), SAFE_M, 0.22 + 0.12 * pulse, 0.9, 0.05); K.beam(bx, by, ex, ey, T * 0.2, SAFE, 0.55 + 0.3 * pulse, 1, 0.1);
+      for (const b of [g0, g1]) K.beam(X + Math.cos(b) * r0, Y + Math.sin(b) * r0, X + Math.cos(b) * rMax, Y + Math.sin(b) * rMax, T * 0.12, SAFE, 0.45, 0.9, 0.05);
+      K.glow(bx, by, T * 1.4, SAFE_M, 0.35 + 0.2 * pulse); return; }
+    for (let i = 0; i < 4; i++) { const f = (i / 4 + t * 0.5) % 1, rr = r0 + T * 1.2 + f * T * 7.5; chevron(c, X + Math.cos(A.ga) * rr, Y + Math.sin(A.ga) * rr, T * 0.34, A.ga, hexA(SAFE, (0.5 + 0.45 * (1 - f)) * Math.sin(Math.PI * Math.min(1, f * 1.3)))); }
     label(c, 'OPEN', X + Math.cos(A.ga) * T * 5.2, Y + Math.sin(A.ga) * T * 5.2, T * 0.5, SAFE);
-    bellGlyph(c, X + Math.cos(A.ga + Math.PI) * T * 3.4, Y + Math.sin(A.ga + Math.PI) * T * 3.4, T * 0.55, '#FFE9B8');
-    c.restore(); }
-  function drawRing(c, FX, z, T, t) { const C = FX.C, X = FX.sx(z.x), Y = FX.sy(z.y), r = z.r * T, w = TM.ringW * T, a0 = z.ga + TM.gap, a1 = z.ga - TM.gap + TAU; if (r < 2) return;
-    c.save(); c.beginPath(); c.arc(FX.sx(C.x), FX.sy(C.y), (AR + 0.6) * T, 0, TAU); c.clip(); c.lineCap = 'butt';
-    c.beginPath(); c.arc(X, Y, r, a0, a1); c.strokeStyle = 'rgba(6,20,26,.55)'; c.lineWidth = w * 1.5; c.stroke();
-    c.strokeStyle = 'rgba(255,120,80,.55)'; c.lineWidth = w; c.stroke(); c.strokeStyle = 'rgba(210,255,250,.9)'; c.lineWidth = w * 0.32; c.stroke(); c.strokeStyle = 'rgba(255,255,255,.7)'; c.lineWidth = Math.max(1, w * 0.1); c.beginPath(); c.arc(X, Y, r + w * 0.38, a0, a1); c.stroke();
-    for (const sg of [-1, 1]) { const a = z.ga + sg * TM.gap, x = X + Math.cos(a) * r, y = Y + Math.sin(a) * r; c.fillStyle = 'rgba(4,30,22,.8)'; c.beginPath(); c.arc(x, y, w * 0.38, 0, TAU); c.fill(); c.fillStyle = SAFE; c.beginPath(); c.arc(x, y, w * 0.27, 0, TAU); c.fill(); }
-    label(c, 'OPEN', X + Math.cos(z.ga) * r, Y + Math.sin(z.ga) * r, T * 0.42, SAFE);
-    c.restore(); }
+    bellGlyph(c, X + Math.cos(A.ga + Math.PI) * T * 3.4, Y + Math.sin(A.ga + Math.PI) * T * 3.4, T * 0.55, '#FFE9B8'); }
+  /* the ring itself: a soft dark band under it, then layered light: a warm halo, a turquoise-white crest of energy, a bright
+     leading edge; the opening glowing mint, a lane of light through it; its ends soft (no cut) */
+  function ringGround(c, FX, z, T, t, K, layer) { const X = FX.sx(z.x), Y = FX.sy(z.y), r = z.r * T, w = TM.ringW * T; if (r < 2) return; const e = Math.min(0.2, (w * 0.5) / r), b0 = z.ga + TM.gap + e, b1 = z.ga - TM.gap + TAU - e;
+    if (layer === 0) { const C = FX.C; c.save(); c.beginPath(); c.arc(FX.sx(C.x), FX.sy(C.y), (AR + 0.6) * T, 0, TAU); c.clip(); softPath(c, () => { c.beginPath(); c.arc(X, Y, r, b0, b1); }, [[w * 2.4, 'rgba(40,10,6,.07)'], [w * 1.6, 'rgba(40,10,6,.12)'], [w * 1.0, 'rgba(40,10,6,.2)']]); c.restore(); return; }
+    if (layer === 1) { const n = Math.max(10, Math.min(K.lf ? 26 : 48, Math.round((b1 - b0) * r / (T * 0.9))));
+      arcLinks(K, FX, z, r, b0, b1, n, (x0, y0, x1, y1, i) => { K.beam(x0, y0, x1, y1, w * 0.95, WARN, 0.5); K.ebeam(x0, y0, x1, y1, w * 0.36, TQ_HI, 0.85, 0.85, i * 0.6 + z.r, 3); });
+      if (!K.lf) arcLinks(K, FX, z, r + w * 0.38, b0, b1, Math.round(n * 0.6), (x0, y0, x1, y1) => K.beam(x0, y0, x1, y1, w * 0.1, '#FFFFFF', 0.6));
+      // the opening: mint light at its two ends, a lane of light out through it
+      const pul = 0.75 + 0.25 * Math.sin(t * 8); for (const sg of [-1, 1]) { const a = z.ga + sg * TM.gap, x = X + Math.cos(a) * r, y = Y + Math.sin(a) * r; K.glow(x, y, w * 1.7, SAFE_M, 0.8 * pul); K.glow(x, y, w * 0.5, '#FFFFFF', 0.6); }
+      const ia = z.ga, ri = Math.max(0, r - w * 2.2), ro = r + w * 2.2; K.beam(X + Math.cos(ia) * ri, Y + Math.sin(ia) * ri, X + Math.cos(ia) * r, Y + Math.sin(ia) * r, r * Math.sin(TM.gap) * 0.85, SAFE_M, 0.3 * pul, 0, 1); K.beam(X + Math.cos(ia) * r, Y + Math.sin(ia) * r, X + Math.cos(ia) * ro, Y + Math.sin(ia) * ro, r * Math.sin(TM.gap) * 0.85, SAFE_M, 0.3 * pul, 1, 0); return; }
+    label(c, 'OPEN', X + Math.cos(z.ga) * r, Y + Math.sin(z.ga) * r, T * 0.42, SAFE); }
+  /* the floor's part of a passing effect */
+  function groundOne(FX, f, T, t, K) { const u = cl(f.t / f.life), X = FX.sx(f.x == null ? FX.m.x : f.x), Y = FX.sy(f.y == null ? FX.m.y : f.y);
+    if (f.kind === 'sweep') { const sp = TM.swSpread, k0 = ease(Math.min(1, u * 1.6)), e = 1 - u, n = K.lf ? 6 : 12, aa = f.a + sp - 2 * sp * k0;   // (the swept ground: a streak of light along the claw's path, brightest at its head)
+      if (k0 > 0.03) arcLinks(K, FX, f, T * 3.7, aa, f.a + sp, n, (x0, y0, x1, y1, i) => { const a0 = 1 - i / n, a1 = 1 - (i + 1) / n; K.beam(x0, y0, x1, y1, T * 1.2, WARN, 0.32 * e, a0, a1); K.beam(x0, y0, x1, y1, T * 0.4, '#FFF2E0', 0.6 * e, a0, a1); }); }
+    else if (f.kind === 'slam') { for (let i = 0; i < (K.lf ? 2 : 3); i++) { const uu = cl(u * 1.4 - i * 0.12); K.ring(X, Y, T * (0.5 + uu * (2.6 + i)), i ? TQ_HI : '#FFFFFF', 0.6 * (1 - uu), T * (0.35 - i * 0.08), 1); } K.ripple(X, Y, T * (0.8 + u * 3.4), '#E8FFFA', 0.55 * (1 - u), f.seed, 1, 0.1); K.glow(X, Y, T * 2.2 * (1 - u * 0.5), '#FFF2E0', 0.4 * (1 - u)); if (f.wet) K.wring(X, Y, T * (1 + u * 2.6), T * (1 + u * 2.6), TQ_HI, 0.5 * (1 - u), 2, 0.08, f.seed, 1); }
+    else if (f.kind === 'toll') { for (let i = 0; i < (K.lf ? 2 : 4); i++) { const uu = cl(u * 1.3 - i * 0.1); K.ring(X, Y, T * (1.5 + uu * (3 + i)), i % 2 ? TQ : '#E8FFFA', 0.38 * (1 - uu), T * (0.42 - i * 0.07), 1); } K.ripple(X, Y, T * (2 + u * 6), '#DFFFFA', 0.45 * (1 - u), 4.4, 1, 0.12); K.wring(X, Y, T * (2.2 + u * 4), T * (2.2 + u * 4), TQ, 0.4 * (1 - u), 2, 0.05, 2.2, 1.4); }
+    else if (f.kind === 'reso') { K.ripple(X, Y, T * (1.8 + u * 2.4), '#DFFFFA', 0.28 * (1 - u) * (f.big ? 1.6 : 1), f.t * 3, 1, 0.08); }
+    else if (f.kind === 'splash') { const s = f.s || 1; K.ripple(X, Y, T * s * (0.4 + u * 1.9), '#BFF4F0', 0.55 * (1 - u), f.seed, 0.6, 0.1); }
+    else if (f.kind === 'geyser') { for (let i = 0; i < 2; i++) { const uu = cl(u * 1.2 - i * 0.2); K.ripple(X, Y, T * (0.6 + uu * 2.6), '#DFFFFA', 0.6 * (1 - uu), f.seed + i, 0.6, 0.12); } K.wring(X, Y, T * 1.4, T * 0.84, TQ_HI, 0.5 * Math.sin(Math.PI * u), 2, 0.1, f.seed, 2); }
+    else if (f.kind === 'shatter') { for (let i = 0; i < (K.lf ? 2 : 4); i++) { const uu = cl(u * 1.15 - i * 0.14); K.ring(X, Y, T * (1 + uu * (6 + i * 2)), i % 2 ? TQ : '#E8FFFA', 0.6 * (1 - uu), T * 0.32, 1); } K.ripple(X, Y, T * (1.5 + u * 8), '#DFFFFA', 0.5 * (1 - u), 9.9, 1, 0.14); } }
 
   /* ---- the boss: the model, then its lights laid over (the eye, the bands' light, the photophores) ---- */
   function demoMem(FX, m) { const M = FX.mem || (FX.mem = {}); if (!M.ok) { M.P = Object.assign(blankPose(), M.P || {}); if (M.th == null) M.th = Math.PI / 2 + 0.3; M.bt = M.bt || 2.0; M.fx = M.fx || []; M.demo = 1; } return M; }
@@ -796,34 +887,72 @@ const BELK = (() => {
     const e = at('eye'), eg = (P.eyeGlow || 0) * live; if (e && eg > 0.02) { gl2(c, e[0], e[1], T * (0.55 + 0.35 * eg), TQ, 0.35 * Math.min(1.5, eg)); gl2(c, e[0], e[1], T * 0.2, '#E8FFFA', 0.4 * Math.min(1.2, eg)); }
     const tg = (P.tollGlow || 0) * live; if (tg > 0.08 && !lowFx()) for (let b = 0; b < 3; b++) { const q = at('band' + b); if (q) gl2(c, q[0], q[1], T * (1.5 + 0.35 * b), TQ, 0.1 * tg); } }
 
-  /* ---- the effects over everything: the sweep's spray and shock, the toll's resonance, the ring over the water, splashes,
-     the shattering; the countdowns and the arrows to safety ---- */
-  function drawFx(c, FX, T, t) { const M = FX.mem, m = FX.m; if (!M || !M.ok || !m) return; const lf = lowFx(), F = fg(), Q = F ? F.begin(c, null) : null, me = FX.me, C = FX.C;
+  /* ---- (v398 B3) the effects over everything: the great claw's light and its ribbon of motion, the bell's resonance (soft
+     rings round its bands, a shimmer), droplets lifting off the floor, the sweep's spray and sparks, the slam's burst, the
+     summoning (a column of light out of the bell, geysers where the crawlers rise), the fall (rays out of the bell, then the
+     shattering); then the countdowns and the arrows to safety ---- */
+  function drawFx(c, FX, T, t) { const M = FX.mem, m = FX.m; if (!M || !M.ok || !m) return; const F = fg(), Q = F ? F.begin(c, null) : null, K = kit(c, Q, T), lf = K.lf, me = FX.me, P = M.P || {};
     try {
-      const a = headOf(M.th), R = M.R, at = n => { const q = R ? anchorOf(R, n, m.x, m.y, a) : null; return q ? [FX.sx(q.x), FX.sy(q.y) - q.z * ZK * T] : [FX.sx(m.x), FX.sy(m.y) - 1.6 * ZK * T]; };
-      const ring = (x, y, r, col, al, w, sy) => { if (Q) Q.ring(x, y, r, col, al, w, sy); else { c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = hexA(col, al * 0.8); c.lineWidth = w; c.beginPath(); c.ellipse(x, y, r, r * (sy || 1), 0, 0, TAU); c.stroke(); c.restore(); } };
-      const spray = (x, y, r, al, seed) => { if (Q) { Q.spray(x, y, r, '#DFFBFF', al, seed, 0.5, 0.8); } else { gl2(c, x, y - r * 0.4, r, '#DFFBFF', al * 0.5); } };
-      const glow = (x, y, r, col, al, sy) => { if (Q) Q.glow(x, y, r, col, al, sy); else gl2(c, x, y, r, col, al * 0.6); };
-      for (const f of M.fx) { const u = cl(f.t / f.life), env = Math.sin(Math.PI * Math.min(1, u * 1.2));
-        if (f.kind === 'reso') { const b = at('bell'), n = f.big ? 3 : 2; for (let i = 0; i < n; i++) { const uu = cl(u * 1.2 - i * 0.18); if (uu <= 0) continue; ring(b[0], b[1], T * (1.6 + uu * (2.6 + i * 1.3)), TQ_HI, 0.55 * (1 - uu), T * 0.22, 0.42); } glow(b[0], b[1], T * 2.2, TQ, 0.25 * (1 - u)); }
-        else if (f.kind === 'toll') { const X = FX.sx(f.x), Y = FX.sy(f.y), b = at('bell'); glow(b[0], b[1], T * 3.2 * (1 - u * 0.4), TQ_HI, 0.65 * (1 - u)); for (let i = 0; i < 3; i++) { const uu = cl(u * 1.3 - i * 0.12); ring(X, Y, T * (1.5 + uu * (5 + i * 1.5)), i ? TQ : '#E8FFFA', 0.7 * (1 - uu), T * (0.4 - i * 0.08), 1); } if (Q && !lf) Q.bubbles(X, Y - T * 0.6, T * 2.2, T * 1.2, '#9FE8FF', 0.5 * (1 - u), 3.3, 1); }
-        else if (f.kind === 'sweep') { const X = FX.sx(f.x), Y = FX.sy(f.y), aa = f.a + TM.swSpread - 2 * TM.swSpread * ease(Math.min(1, u * 1.6)); for (let i = 0; i < (lf ? 3 : 6); i++) { const k = i / 6, b = f.a + TM.swSpread - 2 * TM.swSpread * Math.min(1, u * 1.6) * (1 - k * 0.25), rr = T * (3.4 + 1.6 * hh(i, f.seed)), x = X + Math.cos(b) * rr, y = Y + Math.sin(b) * rr; spray(x, y, T * (0.8 + 0.4 * k), 0.7 * env * (1 - k * 0.5), f.seed + i); }
-          ring(X + Math.cos(aa) * T * 3.6, Y + Math.sin(aa) * T * 3.6, T * (0.6 + u * 2.2), '#FFF2E0', 0.6 * (1 - u), T * 0.25, 1);
-          if (u > 0.55) { const e = (u - 0.55) / 0.45, sx = X + Math.cos(f.a - TM.swSpread) * T * 3.2, sy = Y + Math.sin(f.a - TM.swSpread) * T * 3.2; ring(sx, sy, T * (0.5 + e * 3), '#FFFFFF', 0.7 * (1 - e), T * 0.3, 1); glow(sx, sy, T * 1.6, '#FFE2CC', 0.5 * (1 - e)); } }
-        else if (f.kind === 'splash') { const X = FX.sx(f.x), Y = FX.sy(f.y), s = f.s || 1; spray(X, Y, T * s * (0.6 + u * 0.8), 0.75 * (1 - u), f.seed); if (Q) Q.ripple(X, Y, T * s * (0.4 + u * 1.8), '#BFF4F0', 0.55 * (1 - u), f.seed, 0.5); else ring(X, Y, T * s * (0.4 + u * 1.8), '#BFF4F0', 0.4 * (1 - u), T * 0.08, 0.5); }
-        else if (f.kind === 'dust') { const X = FX.sx(f.x), Y = FX.sy(f.y); if (Q) Q.smoke(X, Y - T * 0.2, T * (0.6 + u), 0.4 * (1 - u), f.seed, '#B8BCA8', 0.6); else gl2(c, X, Y, T * (0.6 + u), '#B8BCA8', 0.25 * (1 - u)); }
-        else if (f.kind === 'shatter') { const b = at('bellBase'); glow(b[0], b[1] - T * 0.6, T * (3 + 2 * u), TQ_HI, 0.7 * (1 - u)); for (let i = 0; i < 4; i++) { const uu = cl(u * 1.15 - i * 0.14); ring(FX.sx(m.x), FX.sy(m.y), T * (1 + uu * (6 + i * 2)), i % 2 ? TQ : '#E8FFFA', 0.65 * (1 - uu), T * 0.3, 1); } if (Q && !lf) Q.bubbles(b[0], b[1] - T, T * 2.5, T * 1.8, '#9FE8FF', 0.6 * (1 - u), 7.7, 1.4); } }
-      // the live ring: a soft shock along it on the floor, spray where it runs over the water
-      for (const z of FX.S.hz) { if (z.kind !== 'belkRing') continue; const X = FX.sx(z.x), Y = FX.sy(z.y), n = lf ? 14 : 30;
+      const at = n => { const q = anc(FX, m, n); return [FX.sx(q.x), FX.sy(q.y) - q.z * ZK * T]; }, live = 1 - cl(P.dead || 0);
+      // the great claw's tell: light gathering round it, a few motes circling it
+      const cg = cl((P.clawGlow || 0) / 1.4) * live; if (cg > 0.04 && !m.dead) { const p = at('clawL'), pu = 0.85 + 0.15 * Math.sin(t * 14);
+        K.glow(p[0], p[1], T * (1.1 + 1.5 * cg), WARN, 0.4 * cg * pu, 0.8); K.glow(p[0], p[1], T * (0.45 + 0.45 * cg), '#FFF2E0', 0.42 * cg * pu);
+        if (!lf) for (let i = 0; i < 4; i++) { const a = t * (2.6 + 0.7 * i) + i * 1.6, rr = T * (0.65 + 0.28 * i) * (1.2 - 0.3 * cg); K.star(p[0] + Math.cos(a) * rr, p[1] + Math.sin(a) * rr * 0.6, T * 0.3 * (0.4 + cg), 0.55 * cg * (0.55 + 0.45 * Math.sin(t * 9 + i * 2)), '#FFE2CC'); } }
+      // the claw's ribbon of motion: three layers (a wide soft white, turquoise, a thin hot core), fading with age, every link
+      // ramped to its neighbours so the chain has no beads or steps
+      const tr = M.trail; if (tr && tr.length > 1) { const pt = q => [FX.sx(q.x), FX.sy(q.y) - q.z * ZK * T], fo = q => { const a = cl((M.bt - q.t) / 0.5); return 1 - a * a; }, st = tr.length > 12 ? 2 : 1;
+        for (let i = st; i < tr.length; i += st) { const q0 = tr[i - st], q1 = tr[i], a0 = fo(q0), a1 = fo(q1); if (a0 + a1 < 0.02) continue; const [x0, y0] = pt(q0), [x1, y1] = pt(q1);
+          K.beam(x0, y0, x1, y1, T * 1.25, '#FFFFFF', 0.16, a0 * a0, a1 * a1); K.beam(x0, y0, x1, y1, T * 0.6, TQ_HI, 0.42, a0, a1); K.beam(x0, y0, x1, y1, T * 0.18, '#FFFFFF', 0.85, a0, a1); } }
+      // the bell's resonance while it gathers its toll (and while it calls its brood): soft rings round its bands, its light swelling
+      const A = M.A, tg = cl(P.tollGlow || 0) * live; if (tg > 0.1 && !m.dead) { const b = at('bell'), k = 0.5 + 0.5 * Math.sin(t * 22);
+        for (let i = 0; i < 3; i++) { const q = at('band' + i), rx = (roOf(BANDS[i]) + 0.12) * T * (1.25 + 0.08 * k), ry = rx * 0.42; K.wring(q[0], q[1], rx, ry, TQ_HI, 0.4 * tg * (0.7 + 0.3 * k), 1, 0.07, i * 2.1, 2); if (!lf) K.wring(q[0], q[1], rx * 1.15, ry * 1.15, TQ, 0.22 * tg, 0, 0.05, i * 3.7, -1.5); }
+        K.glow(b[0], b[1], T * (2.4 + 0.4 * k), TQ, 0.16 * tg); K.shimmer(b[0], b[1], T * 2.6, 0.22 * tg, 0.8); }
+      // droplets lifting off the floor (the toll's pull, the fall)
+      for (const d of M.drops) { const u = d.t / d.life, al = Math.sin(Math.PI * cl(u)) * 0.8, x = FX.sx(d.x), y = FX.sy(d.y) - d.z * ZK * T; K.glow(x, y, T * 0.28, '#BFF4F0', al * 0.55); if (!lf) K.star(x, y, T * 0.16, al, '#F0FFFC'); }
+      for (const f of M.fx) upperOne(c, FX, m, f, T, t, K, at);
+      // the live ring's water: spray thrown up where it runs over the water, its crest catching the light on the stone
+      for (const z of FX.S.hz) { if (z.kind !== 'belkRing') continue; const X = FX.sx(z.x), Y = FX.sy(z.y), n = lf ? 12 : 26, C = FX.C;
         for (let i = 0; i < n; i++) { const aa = z.ga + TM.gap + (i + 0.5) / n * (TAU - 2 * TM.gap), wx = z.x + Math.cos(aa) * z.r, wy = z.y + Math.sin(aa) * z.r, dC = Math.hypot(wx - C.x, wy - C.y); if (dC > AR + 0.6) continue;
-          const x = X + Math.cos(aa) * z.r * T, y = Y + Math.sin(aa) * z.r * T; if (dC > DRY_R + 0.2) spray(x, y, T * 0.85, 0.65, i * 1.7 + z.r); else if (i % 2 === 0) glow(x, y, T * 0.9, TQ_HI, 0.22); } }
-      // the countdowns over the warnings, and the arrow to safety when the pet is in harm's way
-      const A = M.A;
-      if (A && A.kind === 'sweep' && A.phase === 'wind') { const cx = FX.sx(m.x + Math.cos(A.a) * 2.6), cy = FX.sy(m.y + Math.sin(A.a) * 2.6) - T * 2.6; countdown(c, cx, cy, T, TM.swWind - A.t, TM.swWind, WARN_HI);
-        if (inSweep(FX, A, me.x, me.y, me.r)) arrowTo(c, FX, me, safeSpot(FX, m, A), T, 'BEHIND THE SMALL CLAW'); }
-      if (A && A.kind === 'toll' && A.phase === 'wind') { const b = at('bellTop'); countdown(c, b[0], b[1] - T * 1.5, T, TM.tollWind - A.t, TM.tollWind, TQ_HI);
-        if (!inGap(A, me.x, me.y)) arrowTo(c, FX, me, gapSpot(FX, A, me), T, 'TO THE OPENING'); }
-    } finally { if (Q) F.flush(c); } }
+          const x = X + Math.cos(aa) * z.r * T, y = Y + Math.sin(aa) * z.r * T; if (dC > DRY_R + 0.2) K.spray(x, y, T * 0.85, 0.6, i * 1.7 + z.r); else if (i % 2 === 0) K.glow(x, y - T * 0.2, T * 0.8, TQ_HI, 0.18); } }
+    } finally { if (Q) F.flush(c); }
+    // the countdowns over the warnings, and the arrow to safety when the pet is in harm's way
+    const A = M.A, at = n => { const q = anc(FX, m, n); return [FX.sx(q.x), FX.sy(q.y) - q.z * ZK * T]; };
+    if (A && A.kind === 'sweep' && A.phase === 'wind') { const cx = FX.sx(m.x + Math.cos(A.a) * 2.6), cy = FX.sy(m.y + Math.sin(A.a) * 2.6) - T * 2.6; countdown(c, cx, cy, T, TM.swWind - A.t, TM.swWind, WARN_HI);
+      if (inSweep(FX, A, me.x, me.y, me.r)) arrowTo(c, FX, me, safeSpot(FX, m, A), T, 'BEHIND THE SMALL CLAW'); }
+    if (A && A.kind === 'toll' && A.phase === 'wind') { const b = at('bellTop'); countdown(c, b[0], b[1] - T * 1.5, T, TM.tollWind - A.t, TM.tollWind, TQ_HI);
+      if (!inGap(A, me.x, me.y)) arrowTo(c, FX, me, gapSpot(FX, A, me), T, 'TO THE OPENING'); } }
+  /* one passing effect's part above the floor */
+  function upperOne(c, FX, m, f, T, t, K, at) { const u = cl(f.t / f.life), env = Math.sin(Math.PI * Math.min(1, u * 1.2)), lf = K.lf, X = FX.sx(f.x == null ? m.x : f.x), Y = FX.sy(f.y == null ? m.y : f.y);
+    if (f.kind === 'reso') { const b = at('bell'), n = f.big ? 3 : 2; for (let i = 0; i < n; i++) { const uu = cl(u * 1.2 - i * 0.18); if (uu <= 0) continue; const rx = T * (1.6 + uu * (2.4 + i * 1.2)); K.wring(b[0], b[1], rx, rx * 0.42, TQ_HI, 0.5 * (1 - uu), 2, 0.06, i * 1.3 + 0.4, 1.5); } K.glow(b[0], b[1], T * 2.2, TQ, 0.22 * (1 - u)); }
+    else if (f.kind === 'toll') { const b = at('bell'); K.glow(b[0], b[1], T * 3.4 * (1 - u * 0.4), TQ_HI, 0.6 * (1 - u)); K.glow(b[0], b[1], T * 1.2, '#FFFFFF', 0.5 * (1 - u) * (1 - u));
+      for (let i = 0; i < (lf ? 1 : 3); i++) { const uu = cl(u * 1.4 - i * 0.15), rx = T * (1.8 + uu * (3 + i)); K.wring(b[0], b[1], rx, rx * 0.42, i ? TQ : '#E8FFFA', 0.6 * (1 - uu), 2, 0.07, i * 2.9, 2); }
+      K.shimmer(b[0], b[1] + T * 0.5, T * 3.2 * (0.6 + u), 0.35 * (1 - u), 0.6); K.bubbles(X, Y - T * 0.6, T * 2.4, T * 1.3, 0.5 * (1 - u), 3.3, 1.2); }
+    else if (f.kind === 'sweep') { const sp = TM.swSpread, k0 = Math.min(1, u * 1.6), aa = f.a + sp - 2 * sp * ease(k0);
+      for (let i = 0; i < (lf ? 3 : 7); i++) { const k = i / 7, b = f.a + sp - 2 * sp * k0 * (1 - k * 0.25), rr = T * (3.3 + 1.8 * hh(i, f.seed)), x = X + Math.cos(b) * rr, y = Y + Math.sin(b) * rr; K.spray(x, y - T * 0.15, T * (0.85 + 0.45 * k), 0.7 * env * (1 - k * 0.5), f.seed + i, null, 0.65); }
+      if (!lf) for (let i = 0; i < 8; i++) { const b = aa + (hh(i, f.seed + 1) - 0.5) * 0.5, rr = T * (3 + 2.4 * hh(f.seed, i)), lift = T * (0.4 + 1.6 * hh(i, 3)) * env; K.star(X + Math.cos(b) * rr, Y + Math.sin(b) * rr - lift, T * 0.28, 0.8 * env * (1 - u), i % 2 ? '#FFF2DC' : '#BFFCF4'); }
+      K.glow(X + Math.cos(aa) * T * 3.6, Y + Math.sin(aa) * T * 3.6, T * (1.2 + u * 1.4), '#FFF2E0', 0.35 * (1 - u)); }
+    else if (f.kind === 'slam') { const e = 1 - u; K.glow(X, Y - T * 0.3, T * (1.6 + u * 1.2), '#FFFFFF', 0.55 * e * e); K.glow(X, Y - T * 0.2, T * 2.6, WARN, 0.22 * e);
+      for (let i = 0; i < (lf ? 2 : 5); i++) { const a = -Math.PI / 2 + (hh(i, f.seed) - 0.5) * 2.2; K.spray(X + Math.cos(a) * T * 0.6 * u, Y - T * (0.3 + 1.3 * u) * hh(i, 5), T * (0.8 + 0.6 * u), (f.wet ? 0.75 : 0.45) * e, f.seed + i * 3, f.wet ? null : '#E8E6D8', 0.8); }
+      K.smoke(X, Y - T * (0.3 + 0.6 * u), T * (0.8 + 1.1 * u), 0.35 * e, f.seed, f.wet ? '#C8E6E4' : '#B8BCA8'); }
+    else if (f.kind === 'splash') { const s = f.s || 1; K.spray(X, Y, T * s * (0.65 + u * 0.8), 0.75 * (1 - u), f.seed); }
+    else if (f.kind === 'dust') { K.smoke(X, Y - T * 0.2, T * (0.6 + u), 0.4 * (1 - u), f.seed); }
+    else if (f.kind === 'summon') { const b = at('bellTop'), up = sstep(0, 0.35, f.t), dn = 1 - sstep(f.life - 0.6, f.life, f.t), al = up * dn, H = T * (6 + 3 * up);
+      K.beam(b[0], b[1], b[0], b[1] - H, T * (1.3 + 0.4 * Math.sin(t * 9)), TQ, 0.4 * al, 0.9, 0); K.beam(b[0], b[1], b[0], b[1] - H * 0.8, T * 0.45, '#F0FFFC', 0.7 * al, 1, 0);
+      K.glow(b[0], b[1], T * 2.6, TQ_HI, 0.35 * al);
+      for (let i = 0; i < (lf ? 1 : 3); i++) { const uu = (f.t * 0.9 + i / 3) % 1, rx = T * (1.6 + uu * 4); K.wring(b[0], b[1] - H * 0.3 * uu, rx, rx * 0.4, TQ_HI, 0.45 * al * (1 - uu), 2, 0.05, i * 1.9, 1.5); }
+      K.shimmer(b[0], b[1] - T, T * 3, 0.25 * al, 1.2); }
+    else if (f.kind === 'geyser') { const up = sstep(0, 0.25, f.t), dn = 1 - sstep(f.life * 0.55, f.life, f.t), h = T * (2.6 + 1.6 * up) * (0.4 + 0.6 * up), al = up * dn;
+      K.stream(X, Y, X, Y - h, T * 0.7 * (0.6 + 0.4 * dn), 0.75 * al, f.seed); K.spray(X, Y - h, T * 1.3, 0.7 * al, f.seed + 1, null, 0.9); K.spray(X, Y - T * 0.1, T * 1.1, 0.55 * al, f.seed + 2, null, 0.6);
+      K.bubbles(X, Y - h * 0.5, T * 0.9, h * 0.55, 0.45 * al, f.seed, 1.6); K.glow(X, Y - h * 0.4, T * 1.6, TQ, 0.2 * al); }
+    else if (f.kind === 'dying') { const b = at('bell'), g = sstep(0, 1, u), fl = 0.75 + 0.25 * Math.sin(t * 31);
+      for (let i = 0; i < (lf ? 4 : 8); i++) { const a = i / 8 * TAU + 0.3 + 0.15 * Math.sin(t * 2 + i), L = T * (1.4 + 3.4 * g) * (0.7 + 0.3 * hh(i, 8)); K.beam(b[0], b[1], b[0] + Math.cos(a) * L, b[1] + Math.sin(a) * L * 0.7, T * (0.22 + 0.25 * g), TQ_HI, 0.55 * g * fl, 1, 0); }
+      K.glow(b[0], b[1], T * (1.6 + 2.2 * g), TQ_HI, 0.5 * g); K.glow(b[0], b[1], T * 0.7, '#FFFFFF', 0.6 * g * fl); K.shimmer(b[0], b[1], T * 3.4, 0.35 * g, 0.8); }
+    else if (f.kind === 'shatter') { const b = at('bellBase'), e = 1 - u, by = b[1] - T * 0.8;
+      K.glow(b[0], by, T * (3 + 3 * u), TQ_HI, 0.75 * e); K.glow(b[0], by, T * 1.4, '#FFFFFF', 0.8 * e * e * e);
+      for (let i = 0; i < (lf ? 5 : 12); i++) { const a = i / 12 * TAU + hh(i, 4) * 0.4, L = T * (2 + 7 * sstep(0, 0.45, u)) * (0.6 + 0.4 * hh(i, 6)); K.beam(b[0], by, b[0] + Math.cos(a) * L, by + Math.sin(a) * L * 0.65, T * 0.3 * (0.5 + e), i % 2 ? TQ_HI : '#FFFFFF', 0.6 * e, 1, 0); }
+      for (let i = 0; i < (lf ? 1 : 3); i++) { const uu = cl(u * 1.5 - i * 0.12), rx = T * (2 + uu * (5 + 2 * i)); K.wring(b[0], by, rx, rx * 0.45, i % 2 ? TQ : '#E8FFFA', 0.55 * (1 - uu), 2, 0.06, i * 2.3 + 1, 2); }
+      const cu = sstep(0, 0.2, f.t) * (1 - sstep(0.5, 1.6, f.t)); K.stream(b[0], b[1], b[0], b[1] - T * 5 * cu, T * 1.1, 0.6 * cu, 9.1); K.spray(b[0], b[1] - T * 5 * cu, T * 2, 0.65 * cu, 9.3, null, 1);
+      K.bubbles(b[0], b[1] - T, T * 2.6, T * 2, 0.6 * e, 7.7, 1.4); K.smoke(b[0], b[1] - T * (0.5 + u), T * (1.5 + 2 * u), 0.35 * e, 9.9, '#C8E6E4'); } }
   function arrowTo(c, FX, me, p, T, txt) { const px = FX.sx(me.x), py = FX.sy(me.y) - T * 1.9, a = Math.atan2(p.y - me.y, p.x - me.x);
     c.save(); c.translate(px, py); c.rotate(a); c.fillStyle = hexA(SAFE, 0.92); c.strokeStyle = 'rgba(0,30,20,.85)'; c.lineWidth = 2; c.beginPath(); c.moveTo(T * 0.6, 0); c.lineTo(-T * 0.1, -T * 0.34); c.lineTo(-T * 0.1, -T * 0.13); c.lineTo(-T * 0.48, -T * 0.13); c.lineTo(-T * 0.48, T * 0.13); c.lineTo(-T * 0.1, T * 0.13); c.lineTo(-T * 0.1, T * 0.34); c.closePath(); c.fill(); c.stroke(); c.restore();
     label(c, txt, px, py - T * 0.62, T * 0.3, SAFE); }

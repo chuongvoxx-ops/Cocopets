@@ -496,7 +496,7 @@ GAMES.dungeon = {
       const P = POWERS[s.kind], lv = (g.pw[s.kind] || 0) + 1;
       g.pw[s.kind] = Math.min(3, lv); g.stonesGot++;
       banner(P.name.toUpperCase() + (lv > 1 ? ` LV ${Math.min(3, lv)}` : ''), P.desc, P.color, 2.0, true);
-      flash(0.3, P.color); shake(5, 0.25); api.sfx.fanfare();
+      flash(0.3, P.color); shake(5, 0.25); api.sfx.fanfare(); if (self.RELICS) RELICS.burst(s.x, s.y, P.color, 0);   /* v398 PR */
       ring(me.x, me.y, 0.3, 3, 0.6, P.color, 0.3); ring(me.x, me.y, 0.2, 2, 0.45, '#FFFFFF', 0.2);
       for (let i = 0; i < 26; i++) { const a = Math.random() * 6.283, v = 2 + Math.random() * 5; part({ kind: 'spark', x: me.x, y: me.y - OY, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 0.6, max: 0.6, size: 3, color: i % 2 ? P.color : '#FFFFFF', drag: 2 }); }
       light(me.x, me.y, 6, 0.6);
@@ -1248,7 +1248,7 @@ GAMES.dungeon = {
       g.buff[s.kind] = S.t;
       if (s.kind === 'guardian') { g.guardMax = ST.hp * 0.4; g.guardHP = g.guardMax; }
       banner(`${S.name.toUpperCase()} SHRINE`, S.desc, S.color, 1.8, true);
-      boom(s.x, s.y - 0.5, 2, S.color, '#FFFFFF', { n: 24, shake: 5 }); flash(0.25, S.color);
+      boom(s.x, s.y - 0.5, 2, S.color, '#FFFFFF', { n: 24, shake: 5 }); flash(0.25, S.color); if (self.RELICS) RELICS.burst(s.x, s.y, S.color, 1);   /* v398 PR */
       for (let i = 0; i < 24; i++) part({ kind: 'ember', x: s.x + (Math.random() - 0.5), y: s.y - Math.random() * 1.2, vx: (Math.random() - 0.5) * 1.5, vy: -3 - Math.random() * 3, life: 1, max: 1, size: 3 + Math.random() * 3, color: S.color });
       api.sfx.fanfare();
     }
@@ -1932,6 +1932,7 @@ GAMES.dungeon = {
     function drawShrine(c, s) {
       const T = Tz(), S = SHRINES[s.kind], sk = SK(), sp = DunWorld.propSprite(s.used ? 'spent' : 'shrine', TS, sk, 0, F.biome, s.used ? '' : S.color), k2 = g.zoom / sk;
       const X = sx(s.x), Y = sy(s.y + 0.3);
+      if (self.RELICS && RELICS.shrine(c, s, X, Y, T, hyp(me.x - s.x, me.y - s.y), S)) return;   /* v398 PR: the painted shrine (20n9c); below, the 2D one */
       c.drawImage(sp.cv, snX(X - sp.ax * k2), snY(Y - sp.ay * k2), sp.cv.width * k2, sp.cv.height * k2);
       if (!s.used) {
         const bob = Math.sin(s.t * 2.5) * T * 0.08, gy = Y - T * 1.95 + bob;
@@ -2002,6 +2003,7 @@ GAMES.dungeon = {
     function drawStone(c, s) {
       if (!isExp(s.x, s.y)) return;
       const T = Tz(), X = sx(s.x), Y = sy(s.y), P = POWERS[s.kind], bob = Math.sin(s.t * 2.6) * T * 0.08, r = T * 0.3;
+      if (self.RELICS && RELICS.stone(c, s, X, Y, T, hyp(me.x - s.x, me.y - s.y), P)) return;   /* v398 PR: the painted power stone (20n9c); below, the 2D one */
       c.fillStyle = 'rgba(0,0,0,.3)'; c.beginPath(); c.ellipse(X, Y + T * 0.12, r * 0.9, r * 0.35, 0, 0, 6.283); c.fill();
       c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.6 + 0.25 * Math.sin(s.t * 5); const gs = T * 0.8; blitSized(c, glowSprite(P.color), X - gs, Y - T * 0.35 + bob - gs, gs * 2, gs * 2); c.restore();
       c.save(); c.translate(X, Y - T * 0.38 + bob); c.rotate(Math.sin(s.t * 1.3) * 0.2);
@@ -2810,6 +2812,7 @@ GAMES.dungeon = {
         else { c.save(); c.globalAlpha = 0.6; blitSized(c, glowSprite(e.color), sx(e.x) - TS * 0.8, sy(e.y) - TS * 1.2, TS * 1.6, TS * 1.6); const br = Math.sin(g.t * 2.4 + e.s) * 0.025; api.pet(c, sx(e.x), sy(e.y) + TS * 0.18, TS * 0.9 * SIZE, petSnapF ? { flip: me.face < 0, snap: petSnapF, sx: 1 + br, sy: 1 - br } : { flip: me.face < 0, face: 'happy' }); c.restore(); }
       }
       petSnapF = null;
+      if (self.RELICS) RELICS.over(c, sx, sy, Tz(), g.t);   /* v398 PR: the shrines' and power stones' light in one GPU pass, their bursts */
       if (g.exitIn) drawPetSwallowed(c);   /* (v388 E) over whatever stands at the door (a stage's own door art, beside its exit), going dark in it */
       if (typeof BREAK_FX !== 'undefined') BREAK_FX.drawWorld(c);   // v388 D: a breaking object's pre-crack and its flying pieces
       if (PF) PF('ents');

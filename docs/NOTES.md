@@ -1122,3 +1122,4 @@ Every new boss painter (rift fiends, Tower bosses, minis that get their own art)
 - v395: Belfry D1 is gated by 3 valves: the gate hall (Gloomfin and the door) starts flooded; each valve, held by a bell leech, drains it a third; at 3/3 Gloomfin wakes and its fall opens the door (brood need not all die); Belfry dungeon banners name the real goal (riftFight introSub).
 - v396: Belfry D1's door also needs every brood cleared (valves, then Gloomfin, then the rest of the brood; the goal and hint say so).
 - v397: the Belfry hall's east gate (the Sunken Muster) is 100 monsters, five groups of twenty, before Varkul.
+- v398: Clapper Counterweights load fix (stale stages released), north gate crystal in a cage, shrines and ability drops redrawn on the GPU, Belfry boss attack effects rebuilt, evil-Cocopet and crowd performance with loading-screen preload.
