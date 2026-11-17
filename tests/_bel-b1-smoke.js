@@ -88,13 +88,16 @@ const ONLY = (process.env.ONLY || 'load,dun,gate,valve,clap,hall,seal,mig').spli
       ok(r.turned === i + 1 && (i === 2 || (r.level < 1 - (i + 1) / 3 + 0.15 && !r.open)) && (i === 2 || new RegExp(`\\(${i + 1}/3\\)`).test(r.goal)), `valve ${i + 1}: the leech dead, the valve turns and the water drops a step (${i + 1}/3)`, r);
     }
     await gt(3); r = await GHs(`const m = DS.mini; return { open: GH.open, level: GH.level, hold: !!(m.calMini && m.calMini.hold), dead: m.dead, left: G.mons.filter(q => !q.dead && !q.boss && !q.optional).length + (G.g.reserve || []).length, goal: document.getElementById('arcGoal').textContent, done: G.RIFT.done };`);
-    ok(r.open && r.level < 0.05 && !r.hold && !r.dead && !r.done && /^Defeat Gloomfin to open the door/.test(r.goal), 'at 3/3 the gate hall drains and Gloomfin is freed', r);
+    ok(r.open && r.level < 0.05 && !r.hold && !r.dead && !r.done && /^Defeat Gloomfin/.test(r.goal), 'at 3/3 the gate hall drains and Gloomfin is freed', r);
     await GHs(`const m = DS.mini; G.me.x = m.x; G.me.y = m.y + 4; G.me.vx = G.me.vy = 0; return 0;`); await gt(2.5);
     r = await GHs(`const m = DS.mini; return { aggro: !!m.aggro, inside: G.me.x > GH.x0 && G.me.x < GH.x1 && G.me.y > GH.y0 && G.me.y < GH.y1 };`); ok(r.aggro && r.inside, 'the pet walks into the drained hall and Gloomfin wakes and fights', r);
     if (process.env.SHOTS) await page.screenshot({ path: 'shots/bel-v395-d1-gate-drained.png' });
     ok(await killGuard(), 'Gloomfin falls'); await gt(2.6);
     r = await D(() => { const G = window.__pp.arc.game._dbg; return { done: G.RIFT.done, exitR: G.RIFT.exit.r, left: G.mons.filter(q => !q.dead && !q.boss && !q.optional).length + (G.g.reserve || []).length, goal: document.getElementById('arcGoal').textContent }; });
-    ok(r.done && r.exitR > 0 && r.left > 100, 'the door opens on the guardian\'s fall, with the brood still alive', r);
+    ok(!r.done && r.left > 100 && /^Clear the brood/.test(r.goal), 'v396: with Gloomfin down but brood alive, the door stays shut', r);
+    await D(() => { const G = window.__pp.arc.game._dbg; for (const q of G.mons) if (!q.dead && !q.boss && !q.optional) { q.hp = 0; q.dead = true; } if (G.g.reserve) G.g.reserve.length = 0; }); await gt(2.6);
+    r = await D(() => { const G = window.__pp.arc.game._dbg; return { done: G.RIFT.done, exitR: G.RIFT.exit.r, left: G.mons.filter(q => !q.dead && !q.boss && !q.optional).length + (G.g.reserve || []).length, goal: document.getElementById('arcGoal').textContent }; });
+    ok(r.done && r.exitR > 0 && r.left === 0, 'v396: the brood cleared too, the door opens', r);
     if (process.env.SHOTS) { await page.evaluate(() => { const G = window.__pp.arc.game._dbg, e = G.RIFT.exit; G.me.x = e.x; G.me.y = e.y + 2.6; }); await gt(1.2); await page.screenshot({ path: 'shots/bel-v395-d1-door-open.png' }); }
     await exitNow(); r = await rs(); ok(r.prog.belfry === 1, 'D1 cleared: checkpoint: the Hall of Three Tides', r.prog);
   }
