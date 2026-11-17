@@ -688,6 +688,7 @@ void main() {
       float spot = smoothstep(0.68, 0.82, vn(L.xy * 16.0 + L.z * 7.0 + sd)); a = mix(a, vec3(0.62, 0.42, 0.3), spot * 0.45);
       a = mix(a, vec3(0.42, 0.33, 0.27), smoothstep(0.4, 1.0, edge) * 0.65);
       a *= 0.72 + 0.28 * smoothstep(-0.6, 0.4, hm);
+      emi += vec3(1.0, 0.86, 0.72) * clamp(uGlow2, 0.0, 2.0) * (0.1 + 0.65 * pow(1.0 - ndv0, 2.0) + 0.3 * smoothstep(0.4, 1.0, edge));   // (v398 B3: uGlow2, the great claw's tell: light gathering at its rim)
       if (sk == 2) { float tk = smoothstep(0.75, 0.2, ao); a = mix(a, vec3(0.07, 0.05, 0.055), tk); rg = mix(rg, 0.18, tk); cc = max(cc, 0.8 * tk); occ = 1.0; } }
     else if (id == 102) {   // the wet dark-blue underside: granular, glossy, a few photophores; the eye stalk ringed
       a = vec3(0.025, 0.05, 0.12) * (0.7 + 0.5 * w1); rg = 0.32 - 0.16 * wet; F0c = vec3(0.05); cc = 0.7 + 0.6 * wet;

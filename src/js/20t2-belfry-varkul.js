@@ -219,13 +219,63 @@ var BELFRY_VARKUL = (() => {
         if (a === 'sweepW') { const s = (SWEEP.wind - V.t).toFixed(1), fx = Xs + Math.cos(V.hd + 0.9 * Math.sign(-V.gapA || 1)) * (R0 + R1) / 2, fy = Ys + Math.sin(V.hd + 0.9 * Math.sign(-V.gapA || 1)) * (R0 + R1) / 2; c.font = `900 ${Math.round(T * 0.5)}px ${fnt}`; c.lineWidth = 4; c.strokeStyle = 'rgba(30,14,4,.8)'; c.strokeText(s, fx, fy); c.fillStyle = '#FFFFFF'; c.fillText(s, fx, fy); }
         else { const sa = V.hd + V.swing; c.strokeStyle = '#FFFFFF'; c.lineWidth = T * 0.16; c.beginPath(); c.moveTo(Xs + Math.cos(sa) * R0, Ys + Math.sin(sa) * R0); c.lineTo(Xs + Math.cos(sa) * R1, Ys + Math.sin(sa) * R1); c.stroke(); }
         c.restore(); } }
-    /* the brine jet over everything (GPU: a coral-lit stream of water and spray; 2D: soft sprites) */
-    function late(c, L) { if (V.gone || m.dead || V.act !== 'breath') return; const T = X.Tz(), mo = MODEL.anchor('mouth'); const x0 = mo ? X.sx(mo.x) : X.sx(m.x), y0 = mo ? X.sy(mo.y) - mo.z * ZK * T : X.sy(m.y) - T; const u = cl(V.jetT / 0.25) * (1 - cl((V.jetT - BREATH.jet + 0.2) / 0.2)), R = BREATH.len * T * (0.4 + 0.6 * cl(V.jetT / 0.3));
-      for (const da of [-0.32, -0.16, 0, 0.16, 0.32]) { const a = V.lockA + da, x1 = x0 + Math.cos(a) * R, y1 = y0 + Math.sin(a) * R * GY + T * 0.6; L.q(Q => { Q.wstream(x0, y0, x1, y1, T * (0.35 + Math.abs(da) * 0.4), BRINE, 0.55 * u, da * 9 + 1, 6, 0.6, 0.9); Q.spray(x1, y1, T * 0.9, '#E8FFFC', 0.45 * u, da * 7, 1, 0.6); }, c2 => { c2.globalCompositeOperation = 'lighter'; c2.globalAlpha = 0.4 * u; c2.strokeStyle = BRINE; c2.lineWidth = T * 0.4; c2.lineCap = 'round'; c2.beginPath(); c2.moveTo(x0, y0); c2.lineTo(x1, y1); c2.stroke(); }); }
-      L.q(Q => Q.glow(x0, y0, T * 1.1, CORAL, 0.6 * u)); }
-    function tick(dt) { obj.x = m.x; obj.y = m.y + 0.31; if (m.dead && !V.gone) { if (!V.died) { V.died = true; V.act = 'down'; X.banner('VARKUL FALLS', 'The chain goes slack; the coral cage flickers', CORAL, 2.4, true); } V.dead = Math.min(1, V.dead + dt / 1.6); if (V.dead >= 1) V.gone = true; } }
+    /* v398 B2 (the user: the attacks should match the model): the attacks' water in soft layers on the GPU (FGFX), soft sprites
+       in 2D. Brine Breath: water gathering at the jaws in the wind-up; then a foaming cone (a bank of mist rolling out along it,
+       five layered streams, a bright core, foam boiling at their heads, droplets flung down its length, ripples and caustics
+       where it lands). Clapper Sweep: the chained clapper's motion trail (a fading ribbon along its arc), a sheet of water and
+       sparks thrown off the arc, and a splash where it stops. Drawing only: the telegraphs, timings and damage are unchanged */
+    const FX = { splash: null, lastAct: '', sparkT: 0 };
+    const hsh = i => { const v = Math.sin(i * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
+    function soft(c, x, y, r, col, a, sy) { if (!(a > 0.01) || !(r > 0.5)) return; c.save(); c.globalCompositeOperation = 'lighter'; const g = c.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, hexA(col, Math.min(1, a))); g.addColorStop(0.5, hexA(col, Math.min(1, a) * 0.4)); g.addColorStop(1, hexA(col, 0)); c.fillStyle = g; c.translate(x, y); c.scale(1, sy || 1); c.translate(-x, -y); c.beginPath(); c.arc(x, y, r, 0, TAU); c.fill(); c.restore(); }
+    // the jaws in the world (x, y on the floor, z up, tiles) and a point along the breath at d tiles, a radians off its line, dropping to the floor at its end
+    function mouthW() { const mo = MODEL.anchor('mouth'); return mo ? { x: mo.x, y: mo.y, z: mo.z } : { x: m.x + Math.cos(V.hd) * 1.3, y: m.y + Math.sin(V.hd) * 1.3, z: 1.0 }; }
+    function along(mw, a, d, T) { const k = cl(d / BREATH.len), x = mw.x + Math.cos(a) * d, y = mw.y + Math.sin(a) * d, z = mw.z * (1 - k) * (1 - k * 0.3); return [X.sx(x), X.sy(y) - z * ZK * T]; }
+    // the clapper's head at swing angle s (body frame): about three tiles out, a little above the floor
+    const clapW = s => ({ x: m.x + Math.cos(V.hd + s) * 3.0, y: m.y + Math.sin(V.hd + s) * 3.0 });
+    function late(c, L) { if (V.gone || m.dead) return; const T = X.Tz(), t = X.g.t, a = V.act, lo = lowFx();
+      if (a === 'breathW') { const u = cl(V.t / BREATH.wind), mw = mouthW(), x0 = X.sx(mw.x), y0 = X.sy(mw.y) - mw.z * ZK * T;
+        L.q(Q => { Q.glow(x0, y0, T * (0.5 + 0.9 * u), CORAL, 0.18 + 0.4 * u); Q.wsphere(x0, y0, T * (0.12 + 0.32 * u), BRINE, 0.35 + 0.4 * u, 2.3, 2 + 3 * u, 0.7, 0.9);
+          for (let i = 0; i < (lo ? 5 : 9); i++) { const ph = (t * (0.9 + 0.8 * u) + i / 9) % 1, aa = V.lockA + (hsh(i) - 0.5) * 2.2, rr = T * 2.4 * (1 - ph); Q.glow(x0 + Math.cos(aa) * rr, y0 + Math.sin(aa) * rr * GY - T * 0.3 * (1 - ph), T * (0.08 + 0.06 * ph), '#E8FFFC', 0.7 * ph * u); }
+          if (u > 0.5) Q.spray(x0, y0, T * 0.55 * u, '#E8FFFC', 0.35 * (u - 0.5) * 2, 4.1, 0.5, 1); },
+          c2 => { soft(c2, x0, y0, T * (0.5 + 0.8 * u), CORAL, 0.2 + 0.35 * u); soft(c2, x0, y0, T * (0.2 + 0.25 * u), BRINE, 0.5 * u); }); return; }
+      if (a === 'breath') { const mw = mouthW(), x0 = X.sx(mw.x), y0 = X.sy(mw.y) - mw.z * ZK * T, e = cl(V.jetT / 0.18) * (1 - cl((V.jetT - BREATH.jet + 0.25) / 0.25)), reach = BREATH.len * (0.3 + 0.7 * ease(V.jetT / 0.32)), A = V.lockA, hw = BREATH.half;
+        const tip = along(mw, A, reach, T), fl = V.jetT;
+        L.q(Q => {
+          // the mist bank: pale billows rolling out along the cone, wider and thinner the further they go
+          for (let i = 0; i < (lo ? 4 : 7); i++) { const k = (i + 0.5) / 7, d = reach * k, w = Math.tan(hw) * d, p = along(mw, A + Math.sin(i * 2.3 + fl * 2) * hw * 0.3, d, T); Q.smoke(p[0], p[1] - T * 0.15, T * (0.55 + w * 0.85), 0.2 * e * (1 - k * 0.35), i * 1.7 + fl * 0.6, '#D8F4F4', 0); }
+          // the layered streams: two wide soft outer sheets, three inner jets, a bright core
+          for (const [da, wk, al] of [[-0.62, 0.7, 0.32], [0.62, 0.7, 0.32], [-0.3, 0.5, 0.5], [0.3, 0.5, 0.5], [0, 0.42, 0.7]]) { const q = along(mw, A + da * hw, reach * (1 - Math.abs(da) * 0.18), T); Q.wstream(x0, y0, q[0], q[1], T * (0.28 + wk * 0.5 * reach / BREATH.len), BRINE, al * e, da * 9 + 1, 7, 0.75, 1.0); }
+          Q.rbeam(x0, y0, tip[0], tip[1], T * 0.22, '#F2FFFE', 0.55 * e, 1, 0.2);
+          // foam boiling at the heads, droplets flung along it, the floor where it lands
+          for (const da of [-0.55, -0.2, 0.2, 0.55]) { const q = along(mw, A + da * hw, reach * (1 - Math.abs(da) * 0.18), T); Q.spray(q[0], q[1], T * (0.7 + 0.5 * Math.abs(da)), '#F0FFFE', 0.55 * e, da * 7 + 2, 1, 0.75); }
+          Q.spray(tip[0], tip[1], T * 1.25, '#FFFFFF', 0.6 * e, 5.2, 1, 0.7); Q.bubbles(tip[0], tip[1] - T * 0.2, T * 1.1, T * 0.6, '#BFF4F0', 0.4 * e, 3.3, 1.4);
+          for (let i = 0; i < (lo ? 10 : 22); i++) { const ph = (fl * (1.6 + hsh(i) * 0.8) + hsh(i + 9)) % 1, da = (hsh(i + 3) - 0.5) * 2 * hw * 0.95, p = along(mw, A + da, reach * ph, T); Q.glow(p[0], p[1] - T * 0.25 * Math.sin(ph * Math.PI), T * (0.07 + 0.07 * hsh(i + 5)), '#F4FFFF', 0.85 * e * (1 - ph * 0.6)); }
+          for (let i = 0; i < 3; i++) { const p = along(mw, A + (i - 1) * hw * 0.5, reach * (0.7 + 0.12 * i), T); Q.ripple(p[0], p[1] + T * 0.1, T * (0.6 + ((fl * 1.4 + i * 0.33) % 1) * 1.2), '#CFF6F4', 0.45 * e, i + 2, GY, 0.12); }
+          Q.caustic(tip[0], tip[1], T * 1.6, BRINE, 0.3 * e, 6.1, GY);
+          Q.glow(x0, y0, T * 1.2, CORAL, 0.55 * e); Q.glow(tip[0], tip[1], T * 1.8, BRINE, 0.25 * e, GY); },
+          c2 => { for (let i = 0; i < 6; i++) { const k = (i + 0.5) / 6, p = along(mw, A, reach * k, T); soft(c2, p[0], p[1], T * (0.45 + Math.tan(hw) * reach * k * 0.8), BRINE, 0.32 * e * (1 - k * 0.3), 0.75); }
+            for (const da of [-0.5, 0, 0.5]) { const q = along(mw, A + da * hw, reach, T); soft(c2, q[0], q[1], T * 0.8, '#F2FFFE', 0.4 * e, 0.7); } soft(c2, x0, y0, T * 1.0, CORAL, 0.45 * e); }); return; }
+      if (a === 'sweep' || (a === 'rec' && FX.splash && t - FX.splash.t < 0.7)) {
+        if (a === 'sweep') { const s = V.swing, u = cl(V.t / SWEEP.swing), sp = Math.sin(u * Math.PI);
+          // the motion trail: the arc the clapper has swept through in the last ~0.6 rad, fading behind it
+          const arcP = (ss, rr) => [X.sx(m.x + Math.cos(V.hd + ss) * rr), X.sy(m.y + Math.sin(V.hd + ss) * rr) - T * 0.45];
+          const back = Math.min(0.75, s - SWEEP.from), N = lo ? 5 : 9, pts = []; for (let i = 0; i <= N; i++) pts.push(s - back * i / N);
+          const hd = clapW(s), hx = X.sx(hd.x), hy = X.sy(hd.y) - T * 0.45;
+          L.q(Q => { for (let i = 0; i < N; i++) { const p0 = arcP(pts[i], 3.0), p1 = arcP(pts[i + 1], 3.0), k = i / N; Q.wstream(p0[0], p0[1], p1[0], p1[1], T * (0.55 - 0.3 * k), BRINE, 0.5 * (1 - k) * sp + 0.15 * (1 - k), i * 1.3 + 2, 6, 0.7, 0.9); Q.rbeam(p0[0], p0[1], p1[0], p1[1], T * 0.5 * (1 - 0.5 * k), '#FFE0A0', 0.32 * sp, 1 - k, 1 - (i + 1) / N); }
+              // the sheet of water thrown off the arc (outer edge) and sparks off the brass
+              for (let i = 0; i < N; i += 2) { const p = arcP(pts[i], 3.9 + 0.25 * hsh(i)); Q.spray(p[0], p[1] - T * 0.1, T * (0.55 + 0.25 * i / N), '#E8FFFC', 0.5 * sp * (1 - i / N), i + 1.7, 1, 0.75); }
+              Q.glow(hx, hy, T * 1.1, '#FFD27A', 0.45 * sp); Q.star(hx, hy, T * (0.6 + 0.4 * sp), 0.55 * sp, '#FFF4D0'); },
+            c2 => { for (let i = 0; i < N; i++) { const p = arcP(pts[i], 3.0); soft(c2, p[0], p[1], T * (0.5 - 0.25 * i / N), BRINE, 0.35 * (1 - i / N)); } soft(c2, hx, hy, T * 0.8, '#FFD27A', 0.45 * sp); }); }
+        const S2 = FX.splash; if (S2) { const k = cl((t - S2.t) / 0.7), x = X.sx(S2.x), y = X.sy(S2.y);
+          L.q(Q => { Q.ripple(x, y, T * (0.6 + 2.6 * k), '#CFF6F4', 0.7 * (1 - k), 7.7, GY, 0.14); Q.ripple(x, y, T * (0.3 + 1.6 * k), '#FFFFFF', 0.5 * (1 - k), 2.9, GY, 0.1); Q.spray(x, y - T * (0.3 + 0.6 * k), T * (0.8 + 1.4 * k), '#F2FFFE', 0.8 * (1 - k), 8.3, 1, 1); if (k < 0.45) Q.wsphere(x, y - T * 0.4, T * (0.3 + 0.5 * k), BRINE, 0.5 * (1 - k / 0.45), 4.4, 3, 0.6, 1); Q.caustic(x, y, T * 1.8, BRINE, 0.35 * (1 - k), 1.9, GY); },
+            c2 => { soft(c2, x, y - T * 0.3, T * (0.7 + 1.4 * k), '#E8FFFC', 0.55 * (1 - k), 0.7); }); } } }
+    function tick(dt) { obj.x = m.x; obj.y = m.y + 0.31;
+      // v398 B2: the sweep's sparks and water flung off the brass, and the splash where it stops (pictures only)
+      if (!m.dead) { if (V.act === 'sweep' && V.swing != null) { FX.sparkT -= dt; if (FX.sparkT <= 0) { FX.sparkT = lowFx() ? 0.12 : 0.06; const p = clapW(V.swing); X.sparks(p.x, p.y - 0.3, '#FFD27A', lowFx() ? 2 : 4, 5); if (Math.random() < 0.3 && X.splash) X.splash(p.x, p.y, 0.5); } }
+        if (FX.lastAct === 'sweep' && V.act === 'rec') { const p = clapW(SWEEP.to); FX.splash = { x: p.x, y: p.y, t: X.g.t }; if (X.splash) X.splash(p.x, p.y, 1.4); X.sparks(p.x, p.y - 0.2, '#FFE9B0', lowFx() ? 5 : 10, 7); }
+        FX.lastAct = V.act; } if (m.dead && !V.gone) { if (!V.died) { V.died = true; V.act = 'down'; X.banner('VARKUL FALLS', 'The chain goes slack; the coral cage flickers', CORAL, 2.4, true); } V.dead = Math.min(1, V.dead + dt / 1.6); if (V.dead >= 1) V.gone = true; } }
     function remove() { if (!m.dead) { m.dead = true; m.hp = 0; } V.gone = true; }
-    return { m, V, tick, ground, late, remove, obj };
+    return { m, V, tick, ground, late, remove, obj, FX };   // (v398 B2: FX for the tests' pictures)
   }
   return { spawn, MODEL, ROSTER, BREATH, SWEEP };
 })();

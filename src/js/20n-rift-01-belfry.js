@@ -989,6 +989,14 @@ if (typeof window !== 'undefined') window.BEL = BEL;
   const landOf = key => { const Th = themeOf(key); return Th && Th.land && BIOMES[Th.land] ? Th.land : DUNS[key].land; };
   const trapsAPI = () => { try { return (typeof self !== 'undefined' && self.BEL_TRAPS) || (typeof window !== 'undefined' && window.BEL_TRAPS) || null; } catch (e) { return null; } };
   const DCTX = new WeakMap(); BEL.dungeonCtx = X => DCTX.get(X.g || X) || null;
+  /* v398 B1: the user (iPhone, v397): "Clapper Counterweights section won't load". Every dungeon's trap field (BEL_TRAPS'
+     FIELDS) kept its whole stage alive after the stage ended: its X, so the dead game's map, monsters and floor-chunk canvases.
+     By the Clapper Counterweights (after D1 and D2) two dead dungeons were held, and on a phone (WebKit's canvas memory cap, a
+     3x screen) the next stage could not get its canvases. Now, whenever a new stage is made, the fields of earlier stages are
+     stopped and let go (and this file's own pointer to the last stage's context) */
+  BEL.onRelease = [];   // (other Belfry files may add a function here to drop their own pointer to the last stage)
+  BEL.releaseStale = () => { try { const TR = trapsAPI(); if (TR && TR.clear) TR.clear(); } catch (e) {} CUR = null; for (const f of BEL.onRelease) try { f(); } catch (e) {} };
+  try { const GD0 = typeof GAMES !== 'undefined' && GAMES.dungeon; if (GD0 && GD0.create && !GD0.__belRel) { const c0 = GD0.create; GD0.__belRel = 1; GD0.create = function () { BEL.releaseStale(); return c0.apply(this, arguments); }; } } catch (e) {}
   /* the riftFight extra of a dungeon: the exact brood, the leaders, the live cap, the guardian at the gate, the valve halls, the traps */
   const dunExtra = key => (X, self, H) => { const D = DUNS[key], C = ctx(X), M = X.M, me = X.me, S0 = M.start, R = Math.random;
     const DS = { key, D, rooms: M.rooms, valveHalls: [], traps: null, trimmed: 0, added: 0, rolled: 0 }; DCTX.set(X.g || X, DS); C.dun = DS;

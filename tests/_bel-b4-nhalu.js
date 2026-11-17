@@ -1,4 +1,4 @@
-// Nhalu the Lantern Eel (Belfry boss 2, worker B4). Parts (env PART=gpu|2d|mech|fight, default all):
+// Nhalu the Lantern Eel (Belfry boss 2, worker B4). Parts (env PART=gpu|2d|mech|fx|fight, default all):
 //   gpu   the fight loads with the eel drawn on the GPU (GLM, materials 105..109) and the FGFX layer; 7 bars, its health
 //   2d    the same with WebGL off for it (the existing 2D Nhalu, DunBoss 'nhalu', drawn with the same fight)
 //   mech  Lantern Hunt and Thunderwater (a pet left in the marked lane is struck, one that moves lane is not); the wheel
@@ -91,6 +91,40 @@ async function partMech() {
   await T.browser.close();
 }
 
+// (v398 B4) the effects on the GPU (the FGFX painter; the eel itself in 2D here, a GLM frame being minutes on swiftshader):
+// each attack and phase moment paints its layers, all through the painter, and lowFx thins them
+async function partFx() {
+  const T = await openBel({ gl: false }); const { ev, errors } = T;
+  await T.start();
+  await ev(`const go = clock(6); while (go() && b.act === 'enter') { await frame(); me.hp = D.ST.hp; }`);
+  // (the fight runs in the fast path; the painter is switched on for a few frames at each moment, and what Nhalu's own layer
+  // laid down in them is read back: M.fxStat.q, its quads in the frame)
+  const r = await ev(`const NM = self.NIDHOGG_MOVES, holdT = async secs => { const go = clock(secs); while (go()) { await frame(); me.hp = D.ST.hp; } };
+    const probe = async () => { window.__NHALU_FX = 1; window.__NG_GL = 1; let mx = 0; for (let i = 0; i < 2; i++) { await frame(); me.hp = D.ST.hp; mx = Math.max(mx, M.fxStat ? M.fxStat.q : 0); } window.__NHALU_FX = 0; window.__NG_GL = 0; return mx; };
+    window.__NHALU_FX = 0; window.__NG_GL = 0;
+    const out = { usable: !!(NM && NM.FGFX && NM.FGFX.usable && (window.__NG_GL = 1, NM.FGFX.usable())) }; window.__NG_GL = 0;
+    put(L.laneX(C, 2), C.y + 6); await holdT(0.4); out.idle = await probe();
+    put(L.laneX(C, 0), C.y + 5); DEF.force(FX, 'hunt', { lane: 0 }); await holdT(1.6); out.hunt = await probe();
+    put(L.laneX(C, 2), C.y + 5); let go = clock(2); while (go() && !(M.lanes[0].fx > 0)) { await frame(); me.hp = D.ST.hp; } await holdT(0.12); out.arcs = (M.lanes[0].arcs || []).length; out.thunder = await probe(); out.splash = (M.fxp || []).filter(o => o.k === 'splash').length;
+    await holdT(1.2); out.steam = (M.fxp || []).filter(o => o.k === 'steam').length; out.steamQ = await probe();
+    DEF.force(FX, 'drain', { lane: 1 }); go = clock(16); while (go() && !M.wheels[1].exposed && !M.wheels[0].exposed) { await frame(); me.hp = D.ST.hp; put(C.x + 7, C.y + 8); }
+    const wi = M.wheels[0].exposed ? 0 : 1; DEF.useWheel(FX, wi); await holdT(0.6); out.vortex = +(M.lanes[1].vortex || 0).toFixed(2); out.drain = await probe();
+    let thr = 0; go = clock(2); while (go()) { await frame(); me.hp = D.ST.hp; thr = Math.max(thr, (M.fxp || []).filter(o => o.k === 'splash' && o.dry).length); } out.thrash = thr;
+    go = clock(9); while (go() && M.beach) { await frame(); me.hp = D.ST.hp; }
+    b.hp = b.maxhp * 0.48; go = clock(3); while (go() && !M.p2) { await frame(); me.hp = D.ST.hp; } await holdT(1.3); out.p2 = M.p2 ? +M.p2.t.toFixed(2) : 0; out.p2q = await probe();
+    await holdT(2); window.__pp.st.lowFx = true; put(L.laneX(C, 0), C.y + 5); DEF.force(FX, 'hunt', { lane: 2 }); go = clock(3.5); while (go() && !(M.lanes[2].fx > 0)) { await frame(); me.hp = D.ST.hp; } await holdT(0.12); out.lowThunder = await probe(); window.__pp.st.lowFx = false;
+    return out;`);
+  console.log('fx', JSON.stringify(r));
+  ok(r.usable, 'the FGFX painter is live');
+  ok(r.hunt > r.idle + 60, 'Lantern Hunt: the charged lane, the shaft of lantern light and the symbol laid on the water as light', [r.idle, r.hunt]);
+  ok(r.thunder > r.idle + 150 && r.arcs >= 4 && r.splash >= 4 && r.steam >= 2 && r.steamQ > r.idle, 'Thunderwater: branching arcs, caustics, spray and then steam', r);
+  ok(r.vortex > 0.3 && r.drain > r.idle && r.thrash >= 1, 'the drain: a whirlpool at the sluice, and the beached eel thrashes in splashes', r);
+  ok(r.p2 > 1.0 && r.p2q > r.idle + 40, 'the 50% moment plays (lanterns in turn, the charge down its back, the pulse through the lanes)', [r.p2, r.p2q]);
+  ok(r.lowThunder > 0 && r.lowThunder < r.thunder, 'lowFx thins it', [r.lowThunder, r.thunder]);
+  ok(errors.length === 0, 'fx: no page errors', errors.slice(0, 4));
+  await T.browser.close();
+}
+
 async function partFight() {
   const T = await openBel({ gl: false }); const { ev, errors } = T;
   await T.start();
@@ -138,6 +172,7 @@ async function partFight() {
   if (want('gpu')) await partLoad(true);
   if (want('2d')) await partLoad(false);
   if (want('mech')) await partMech();
+  if (want('fx')) await partFx();
   if (want('fight')) await partFight();
   console.log(fails ? `${fails} FAILED` : 'all ok'); process.exit(fails ? 1 : 0);
 })().catch(e => { console.log('FAIL (exception)', e && e.message); process.exit(1); });

@@ -601,7 +601,7 @@ var BELFRY_HALL = (() => {
 
   /* ======================= NORTH · THE HUNDREDFOLD ROLL =======================
      A round cistern, smooth slate, shallow water round its edge, three broad brass rings for orientation; pillars stand
-     outside the floor; a dark arch at the far side holds the Spiral Crystal in a turning blue-white ring. One hundred bell
+     outside the floor; an archway at the far side holds the Spiral Crystal's blue-white spiral cage on its plinth (v398 B2). One hundred bell
      rollers, well spaced. The pet may only move and roll (g.trialLock). A roller uncurls and pursues to a stand-off ring,
      then, when the director pairs it with another from a different side, spins in place for 2.5 s showing its committed
      line, curls and rolls fast along it, never turning. The pair's spins are timed so both reach the pet's spot together:
@@ -609,10 +609,17 @@ var BELFRY_HALL = (() => {
      once; one that strikes the pet hurts it and rolls on; one that strikes the wall is stunned and pursues again. About
      ten committed at a time; an escape gap of at least 100 degrees is always left; the last pair is matched with no
      other conditions, so it always meets. Pooled actors, a spatial grid, one cached sprite set */
+  /* v392 B2: the north's two corrupted Cocopets (v398 B2: at the module's top, so the stage's loading pass can warm them too) */
+  const NDUEL = [
+    { name: 'Mirelune the Sunken Tide', short: 'Mirelune', el: 'water', seed: 523, at: { x: C.x - 4.5, y: 11.5 }, delay: 0.6, sub: 'A Cocopet the drowned sea has taken rises from the cistern',
+      palette: { tint: '#0F3A50', tintK: 0.82, pal: { sec: '#61D9D2', cheek: '#0C2C3E' }, col: '#61D9D2', glow: '#A8FFF6', core: '#E8FFFC' } },
+    { name: 'Gloamrill the Abyss-Eyed', short: 'Gloamrill', el: 'dark', seed: 911, at: { x: C.x + 4.5, y: 11.5 }, delay: 3.4, sub: 'And from the arch behind it, one the abyss has soured',
+      palette: { tint: '#160E2A', tintK: 0.86, pal: { sec: '#9B7CFF', cheek: '#1C1234' }, col: '#9B7CFF', glow: '#CDBBFF', core: '#F4EEFF' } }];
+  const NDUEL_TUNE = { lvl: 10, hpK: 0.7, dmgK: 0.75 };   // v392 B2: 0.6 -> 0.7 once they flank (they no longer stack under one area hit)   // (as a pair for level 10: about 60-80 s with attacks and skills)
   function trialNorth(X, H, S, K) {
     const C = GEO.N, me = X.me, g = X.g, RR = 0.42, RA = C.r - 0.75, SPIN = 2.5, VROLL = 8.5, VPUR = 1.55, CAP = 10, N0 = 100;
     const CR = { x: C.x, y: 4.6 };
-    const T = { B: 'N', state: 'idle', rol: [], left: N0, locked: false, prevDK: undefined, dirT: 0, first: true, crystalAt: CR, crystalH: 2.6, ringK: 0, bursts: [], pairs: 0, hits: 0, walls: 0, maxCommit: 0, cost: 0, n: 0 };
+    const T = { B: 'N', state: 'idle', rol: [], left: N0, locked: false, prevDK: undefined, dirT: 0, first: true, crystalAt: CR, crystalH: 2.6, ringK: 0, bursts: [], pairs: 0, hits: 0, walls: 0, maxCommit: 0, cost: 0, n: 0, cage: 1, form: 0 };   // v398 B2: cage, form (the crystal gathering in it, 0..1)
     // their places: one hundred, at least ~2 tiles apart, none at the way in or by the arch (deterministic)
     const HOME = (() => { for (let minD = 2.2; minD > 1.2; minD -= 0.15) { const rnd = R1(9137), out = []; for (let k = 0; k < 30000 && out.length < N0; k++) { const a = rnd() * TAU, r = Math.sqrt(lerp(9, (RA - 0.7) ** 2, rnd())), x = C.x + Math.cos(a) * r, y = C.y + Math.sin(a) * r;
           if (hyp(x - C.x, y - (C.y + C.r - 1)) < 5) continue; if (hyp(x - CR.x, y - CR.y) < 4) continue; let ok = true; for (const p of out) if (hyp(p.x - x, p.y - y) < minD) { ok = false; break; } if (ok) out.push({ x, y }); }
@@ -626,8 +633,8 @@ var BELFRY_HALL = (() => {
     function unlock() { if (!T.locked) return; T.locked = false; g.trialLock = false; g.rollOnly = false; if (T.prevDK === undefined) delete g.dodgeK; else g.dodgeK = T.prevDK; }
     T.lock = lock; T.unlock = unlock;
     T.reset = () => { unlock(); T.rol = HOME.map((p, i) => ({ i, x: p.x, y: p.y, s: 'idle', t: 0, alive: true, dx: 0, dy: 0, spinT: 0, P: null, mate: null, hit: false, f: (i * 3) % 8, side: i % 2 ? 1 : -1, want: 5.6 + (i % 5) * 0.55, trav: 0 }));
-      T.left = T.rol.length; T.state = 'idle'; T.first = true; T.bursts.length = 0; T.ringK = 0; T.pairs = 0; T.hits = 0; T.walls = 0; T.maxCommit = 0; duelClear(); };
-    T.restoreWon = () => { T.state = 'won'; T.left = 0; for (const r of T.rol) r.alive = false; T.ringK = 1; };
+      T.left = T.rol.length; T.state = 'idle'; T.first = true; T.bursts.length = 0; T.ringK = 0; T.pairs = 0; T.hits = 0; T.walls = 0; T.maxCommit = 0; T.cage = 1; T.form = 0; duelClear(); };
+    T.restoreWon = () => { T.state = 'won'; T.left = 0; for (const r of T.rol) r.alive = false; T.ringK = 1; T.cage = 0; T.form = 1; };
     T.onCue = () => { lock(); X.banner('THE HUNDREDFOLD ROLL', 'Movement and dodge roll only. Bait the rollers into each other.', BR.N.hi, 3.6, true, true); };
     T.start = () => { T.state = 'run'; lock(); for (const r of T.rol) if (r.alive) { r.s = 'pursue'; r.t = Math.random() * 0.5; } };
     const angDiff = (a, b) => { let d = Math.abs(a - b) % TAU; return d > Math.PI ? TAU - d : d; };
@@ -671,12 +678,7 @@ var BELFRY_HALL = (() => {
        PetGL at twice a pet's size) come out of the dark arch, the second a few seconds after the first: a drowned-sea one
        (water) and an abyss one (dark). They are fought normally; only when both fall does the Spiral Crystal appear. A
        knockout resets the whole branch (the hall's koHook: the trial is still 'run'); every exit clears them ---- */
-    const DUEL = [
-      { name: 'Mirelune the Sunken Tide', short: 'Mirelune', el: 'water', seed: 523, at: { x: C.x - 4.5, y: 11.5 }, delay: 0.6, sub: 'A Cocopet the drowned sea has taken rises from the cistern',
-        palette: { tint: '#0F3A50', tintK: 0.82, pal: { sec: '#61D9D2', cheek: '#0C2C3E' }, col: '#61D9D2', glow: '#A8FFF6', core: '#E8FFFC' } },
-      { name: 'Gloamrill the Abyss-Eyed', short: 'Gloamrill', el: 'dark', seed: 911, at: { x: C.x + 4.5, y: 11.5 }, delay: 3.4, sub: 'And from the arch behind it, one the abyss has soured',
-        palette: { tint: '#160E2A', tintK: 0.86, pal: { sec: '#9B7CFF', cheek: '#1C1234' }, col: '#9B7CFF', glow: '#CDBBFF', core: '#F4EEFF' } }];
-    const DUEL_TUNE = { lvl: 10, hpK: 0.7, dmgK: 0.75 };   // v392 B2: 0.6 -> 0.7 once they flank (they no longer stack under one area hit)   // (as a pair for level 10: about 60-80 s with attacks and skills)
+    const DUEL = NDUEL, DUEL_TUNE = NDUEL_TUNE;
     T.DUEL = DUEL; T.DUEL_TUNE = DUEL_TUNE;
     function duelLayer() { const amb = X.rift && X.rift.self && X.rift.self.amb, C2 = amb && amb.C; const E = typeof EVIL_MINI !== 'undefined' ? EVIL_MINI : null; if (!E) return null;
       if (C2) { if (!C2.layer && E.layer) C2.layer = E.layer(X); return null; }   // (the rift's every-stage layer runs it)
@@ -691,7 +693,20 @@ var BELFRY_HALL = (() => {
       for (let i = 0; i < DUEL.length; i++) if (!D.ms[i] && D.t >= DUEL[i].delay) duelSpawn(i);
       if (T.ownLayer) T.ownLayer.update(dt);
       duelSpace(D, dt);
-      if (D.ms.every(q => q && q.dead)) { D.downT = (D.downT || 0) + dt; if (D.downT > 1.6 && T.state !== 'won') { T.state = 'won'; T.ringK = 0.001; X.banner('THE DARK ARCH IS CLEAR', `${DUEL.map(d => d.short).join(' and ')} have fallen: the Spiral Crystal appears. Collect it`, BR.N.col, 3.4, true, true); X.ring(CR.x, CR.y, 0.3, 4, 0.7, BR.N.col, 0.4); } } }
+      /* v398 B2: both fallen: the Spiral Crystal gathers inside the spiral cage, then the cage shatters (BREAK_FX, as the east's) and only then is it won */
+      if (D.ms.every(q => q && q.dead)) { D.downT = (D.downT || 0) + dt;
+        if (D.downT > 1.6 && !T.form) { T.form = 0.001; X.banner('THE SPIRAL CRYSTAL FORMS', `${DUEL.map(d => d.short).join(' and ')} have fallen: light gathers in the spiral cage`, BR.N.col, 2.4, true, true); X.ring(CR.x, CR.y, 0.3, 3, 0.6, BR.N.col, 0.4); if (X.sfx.hum) X.sfx.hum(); }
+        if (T.form > 0) T.form = Math.min(1, T.form + dt / 1.1);
+        if (D.downT > 3.0 && T.state !== 'won') breakCageN(); } }
+    function breakCageN() { T.cage = 0; T.form = 1; T.state = 'won'; T.ringK = 1;
+      if (typeof BREAK_FX !== 'undefined') try { BREAK_FX.burst(X, CR.x, CR.y + 0.5, { paint: (BPZ() && BPZ().painter([['ncage', 'b'], ['ncage', 'f']])) || cagePaintN, key: BPZ() ? 'belncage' : 'belncage0', w: 2.6, h: 3.4, mat: 'glass', size: 2.6, cols: ['#DDF4FF', '#3E86C8', '#FFFFFF'], hot: '#AEE2FF', rubble: false }); } catch (e) {}
+      X.ring(CR.x, CR.y, 0.3, 4, 0.6, BR.N.col, 0.4); X.flash(0.25, '#E8F6FF'); X.banner('THE SPIRAL CAGE SHATTERS', 'The Spiral Crystal is free: collect it', BR.N.col, 2.8, true, true); }
+    // (the cage's shape, shared by the 2D picture and BREAK_FX's shards where the repainted props are off: ten bars twisting into a dome)
+    const NC = { n: 10, rx: 1.0, ry: 0.36, hh: 2.45, dome: 0.62, tw: 1.1 };
+    const ncPt = (i, k) => { const a = i / NC.n * TAU + 0.15 + NC.tw * k, z = k < 0.8 ? NC.hh * k / 0.8 : NC.hh + NC.dome * Math.sin((k - 0.8) / 0.2 * Math.PI / 2), r = k < 0.8 ? NC.rx : NC.rx * Math.cos((k - 0.8) / 0.2 * Math.PI / 2); return [Math.cos(a) * r, Math.sin(a) * r * NC.ry / NC.rx - z, Math.sin(a)]; };
+    function cagePaintN(c, Pp, back) { c.save(); c.lineCap = 'round'; c.lineJoin = 'round';
+      for (let i = 0; i < NC.n; i++) { c.strokeStyle = i % 2 ? '#DDF4FF' : '#9FD0FF'; c.lineWidth = Pp * 0.1; c.beginPath(); for (let j = 0; j <= 20; j++) { const p = ncPt(i, j / 20); j ? c.lineTo(p[0] * Pp, p[1] * Pp) : c.moveTo(p[0] * Pp, p[1] * Pp); } c.stroke(); }
+      c.strokeStyle = '#EAF7FF'; c.lineWidth = Pp * 0.12; for (const z of [0, NC.hh]) { c.beginPath(); c.ellipse(0, -z * Pp, NC.rx * Pp, NC.ry * Pp, 0, 0, TAU); c.stroke(); } c.restore(); }
     /* v392 B2: the pair never fuse into one: a soft push apart to at least the sum of their radii (plus a margin), and they
        work the pet from opposite sides. Every 6 s the roles swap: the presser fights as its module drives it; the flanker,
        while it is only moving, circles to the far side of the pet and holds at range (its own walk is overruled by a
@@ -753,15 +768,22 @@ var BELFRY_HALL = (() => {
     const oA = H.obj({ x: 0, y: 0, kind: 'belrollA', r: 0, label: '', draw(c) { drawRollers(c, false); } }), oB = H.obj({ x: 0, y: 0, kind: 'belrollB', r: 0, label: '', draw(c) { drawRollers(c, true); } });
     T.frame = () => { oA.dy = me.y - 0.001; oB.dy = me.y + 0.02; };   // (sorted just behind and just in front of the pet)
     T.late = (c, L) => { if (!T.bursts.length) return; const T2 = X.Tz(); for (const b of T.bursts) { const u = b.t / 0.6, Xs = X.sx(b.x), Ys = X.sy(b.y) - T2 * 0.35; L.q(Q => { Q.glow(Xs, Ys, T2 * (1 + 1.6 * u), '#7FD8FF', 0.75 * (1 - u)); Q.star(Xs, Ys, T2 * (0.9 + 0.6 * u), 0.9 * (1 - u), '#E8FCFF'); Q.ring(Xs, Ys, T2 * (0.4 + 2 * u), '#BFEFFF', 0.6 * (1 - u), T2 * 0.12); }, c2 => glow(c2, Xs, Ys, T2 * (1 + 1.4 * u), '#7FD8FF', 0.7 * (1 - u))); } };
-    T.drawCrystal = (c, Xs, Ys, T2, can) => { const t = X.g.t, gone = K.has(K.PS().carry, 'N') || K.has(K.PS().dep, 'N');
-      // the dark arch the crystal hangs in
-      const aw = T2 * 2.2, ah = T2 * 3.4, ay = Ys + T2 * 0.6; c.save(); if (BPZ() && BPZ().draw(c, 'alcove', 0, Xs, Ys, T2)) c.globalAlpha = 0;   /* v392 PR: the repainted arch (voussoirs, jambs, the keystone's spiral) */ const ag = c.createLinearGradient(0, ay - ah, 0, ay); ag.addColorStop(0, '#03070C'); ag.addColorStop(1, '#0B1820'); c.fillStyle = ag; c.beginPath(); c.moveTo(Xs - aw, ay); c.lineTo(Xs - aw, ay - ah * 0.62); c.quadraticCurveTo(Xs - aw, ay - ah, Xs, ay - ah * 1.05); c.quadraticCurveTo(Xs + aw, ay - ah, Xs + aw, ay - ah * 0.62); c.lineTo(Xs + aw, ay); c.closePath(); c.fill();
+    T.drawCrystal = (c, Xs, Ys, T2, can) => { const t = X.g.t, gone = K.has(K.PS().carry, 'N') || K.has(K.PS().dep, 'N'), BPc = BPZ();
+      // v398 B2 (the user: "make the crystal appear in a cage instead, like the east gate"): the archway behind, repainted in 2.5D (20n9 'narch'); else the old 2D arch
+      const aw = T2 * 2.2, ah = T2 * 3.4, ay = Ys + T2 * 0.6; c.save(); if (BPc && BPc.draw(c, 'narch', 0, Xs, Ys, T2)) c.globalAlpha = 0; const ag = c.createLinearGradient(0, ay - ah, 0, ay); ag.addColorStop(0, '#081620'); ag.addColorStop(1, '#1C3E4C'); c.fillStyle = ag; c.beginPath(); c.moveTo(Xs - aw, ay); c.lineTo(Xs - aw, ay - ah * 0.62); c.quadraticCurveTo(Xs - aw, ay - ah, Xs, ay - ah * 1.05); c.quadraticCurveTo(Xs + aw, ay - ah, Xs + aw, ay - ah * 0.62); c.lineTo(Xs + aw, ay); c.closePath(); c.fill();
       c.strokeStyle = P.LIME_D; c.lineWidth = T2 * 0.42; c.stroke(); c.strokeStyle = P.LIME; c.lineWidth = T2 * 0.26; c.stroke(); c.restore();
-      if (gone) return; const cy = Ys - T2 * 1.5 + Math.sin(t * 1.5) * T2 * 0.06, ring = T.ringK, rr = T2 * 0.95;
-      if (T.state === 'won') { crystalArt(c, 'N', Xs, cy, T2 * 0.95, t, { k: 1 }); crystalLight(K.LL, 'N', Xs, cy, T2 * 0.95, can ? 1.1 : 0.7, t); }   // v392 B2: the Spiral Crystal appears only once both mini bosses fall
-      // the turning blue-white ring round it (it opens once the hundred are gone)
-      c.save(); c.translate(Xs, cy); c.rotate(t * 0.9); c.strokeStyle = 'rgba(4,10,20,.55)'; c.lineWidth = T2 * 0.18; const gap = ring * Math.PI * 0.9; c.beginPath(); c.ellipse(0, 0, rr, rr * 0.45, 0, gap / 2, TAU - gap / 2); c.stroke(); c.strokeStyle = '#DDF4FF'; c.lineWidth = T2 * 0.1; c.stroke(); c.restore();
-      K.LL.q(Q => { Q.ring(Xs, cy, rr * 1.05, BR.N.col, 0.5 * (1 - ring * 0.6), T2 * 0.18, 0.45); Q.glow(Xs, cy, T2 * 2.4, BR.N.col, 0.22); if (can) Q.ring(Xs, Ys, T2 * (1.1 + 0.3 * Math.sin(t * 3)), BR.N.col, 0.5, T2 * 0.12, 0.4); }); };
+      K.LL.q(Q => Q.glow(Xs, Ys - T2 * 1.2, T2 * 2.4, BR.N.col, T.cage > 0 ? 0.16 : 0.1, 1.1));
+      if (gone) return;
+      // the cage's back half, the plinth, the crystal gathering inside, the front half (as the east's coral cage)
+      const cg = T.cage > 0 && !!(BPc && BPc.draw(c, 'ncage', 'b', Xs, Ys, T2));
+      c.save(); if (!(BPc && BPc.draw(c, 'nplinth', 0, Xs, Ys, T2))) { c.fillStyle = '#C9D3D6'; c.fillRect(Xs - T2 * 0.5, Ys - T2 * 0.45, T2, T2 * 0.45); c.fillStyle = '#2E5E9C'; c.fillRect(Xs - T2 * 0.5, Ys - T2 * 0.3, T2, T2 * 0.1); c.strokeStyle = '#6E7A80'; c.lineWidth = 1.5; c.strokeRect(Xs - T2 * 0.5, Ys - T2 * 0.45, T2, T2 * 0.45); ell(c, Xs, Ys - T2 * 0.45, T2 * 0.5, T2 * 0.16); c.fillStyle = '#E6ECEE'; c.fill(); c.stroke(); } c.restore();
+      const fk = T.state === 'won' ? 1 : T.form || 0, cy = Ys - T2 * 1.3 + Math.sin(t * 1.5) * T2 * 0.06;
+      if (fk > 0) { c.save(); c.globalAlpha *= Math.min(1, fk * 1.4); crystalArt(c, 'N', Xs, cy, T2 * 0.95 * (0.55 + 0.45 * ease(fk)), t, { k: fk }); c.restore(); crystalLight(K.LL, 'N', Xs, cy, T2 * 0.95, (can ? 1.1 : 0.7) * fk, t);
+        if (fk < 1) K.LL.q(Q => { Q.star(Xs, cy, T2 * (0.5 + 1.4 * (1 - fk)), 0.85 * Math.sin(fk * Math.PI), '#F2FBFF'); Q.glow(Xs, cy, T2 * 1.6, BR.N.col, 0.5 * (1 - fk)); }, c2 => glow(c2, Xs, cy, T2 * 1.4, BR.N.col, 0.45 * (1 - fk))); }
+      else K.LL.q(Q => { Q.evortex(Xs, cy, T2 * 0.62, BR.N.col, 0.55, 0.32, 3.1, 1.2); Q.glow(Xs, cy, T2 * 0.8, '#F2FBFF', 0.12 + 0.06 * Math.sin(t * 2.2)); }, c2 => glow(c2, Xs, cy, T2 * 0.8, BR.N.col, 0.2));   // (empty: a slow swirl of light waits in it)
+      if (T.cage > 0) { const hh = T2 * NC.hh; if (cg) BPc.draw(c, 'ncage', 'f', Xs, Ys, T2); else { c.save(); c.translate(Xs, Ys); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.75; cagePaintN(c, T2); c.restore(); }
+        K.LL.q(Q => { for (let i = 0; i < NC.n; i++) { const p0 = ncPt(i, 0.15), p1 = ncPt(i, 0.7); Q.beam(Xs + p0[0] * T2, Ys + p0[1] * T2, Xs + p1[0] * T2, Ys + p1[1] * T2, T2 * 0.16, BR.N.col, p0[2] > 0 ? 0.3 : 0.16); } Q.glow(Xs, Ys - hh * 0.5, T2 * 2.2, BR.N.col, 0.24, 1.4); Q.ring(Xs, Ys - hh, T2 * NC.rx * 1.05, '#F2FBFF', 0.32, T2 * 0.1, 0.36); }, c2 => glow(c2, Xs, Ys - hh * 0.5, T2 * 2, BR.N.col, 0.26, 1.4)); }
+      else if (can) K.LL.q(Q => Q.ring(Xs, Ys, T2 * (1.1 + 0.3 * Math.sin(t * 3)), BR.N.col, 0.5, T2 * 0.12, 0.4)); };
     T.reset();
     return T;
   }
@@ -965,7 +987,11 @@ var BELFRY_HALL = (() => {
   const stage = { name: NAME, hall: true, goal: 'Win three crystals from the east, west and north trials, in any order, and return them to the altar',
     how: 'A round vestibule with three sealed gates. Stand at a gate to choose its trial: the others stay sealed until it is done. EAST, The Sunken Muster: defeat fifty monsters in five groups of ten, then Varkul, the Chainbound. WEST, The Last Beacon: keep the crystal intact for thirty seconds against waves of a hundred and twenty reef gnawers. NORTH, The Hundredfold Roll: one hundred bell rollers that can only be destroyed by rolling into each other; you may only move and dodge roll. Then your skills return and two corrupted Cocopets come out of the dark: defeat both for the crystal. Collect each crystal, carry it back in its Resonance bubble and place it in its socket. Three crystals raise the doorway to Kharrox.',
     layout: LAYOUT, legend: { 1: {}, 2: {}, 3: {}, P: PROP('belpillar', 'pillar'), K: PROP('belstump', 'brokenpillar') }   /* (v392 PR: the Belfry's own repainted pillar and broken column) */, lights: [], make,
-    biome: 'belfry', guard: 'hall', causeway: { x0: 50, x1: 55, y0: 65, y1: 81 }, vista: { x: 52.5, y: 8 } };   // (B1's every-stage layer: the causeway's waves, the far vista; the section's guardian at the risen door)
+    biome: 'belfry', guard: 'hall', causeway: { x0: 50, x1: 55, y0: 65, y1: 81 }, vista: { x: 52.5, y: 8 } };
+  /* v398 B2: the loading pass (20b preloadMore: S.preload) warms the north duel's pair, who appear only mid-trial: their PetGL bodies
+     and faces, through EVIL_MINI.warm (20zz9, v398 M) with the same options the duel spawns them with */
+  stage.preload = P => { try { const E = typeof EVIL_MINI !== 'undefined' ? EVIL_MINI : null; if (!E || typeof E.warm !== 'function') return [];
+      return E.warm(P, NDUEL.map(d => ({ x: d.at.x, y: d.at.y, name: d.name, short: d.short, el: d.el, seed: d.seed, palette: d.palette, sub: d.sub, lvl: NDUEL_TUNE.lvl, hpK: NDUEL_TUNE.hpK, dmgK: NDUEL_TUNE.dmgK }))) || []; } catch (e) { return []; } };   // (B1's every-stage layer: the causeway's waves, the far vista; the section's guardian at the risen door)
   /* a rift that marks a placeholder stage ({ hallSlot: true }, or this name) gets this stage filled in (its kind, trial and
      biome flags kept) */
   function install(Rf) { if (!Rf || !Rf.stages) return -1; const i = Rf.stages.findIndex(s => s && (s.hallSlot || s.hall || s.name === NAME)); if (i < 0) return -1; const s0 = Rf.stages[i], keep = { kind: s0.kind, trial: s0.trial, biome: s0.biome }; Object.assign(s0, stage); for (const k in keep) if (keep[k] !== undefined) s0[k] = keep[k]; if (!s0.kind) s0.kind = 'puzzle'; return i; }

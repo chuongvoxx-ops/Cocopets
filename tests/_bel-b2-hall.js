@@ -38,7 +38,12 @@ const ok = (name, pass, info) => { results.push([name, pass]); console.log(`${pa
   const collectBack = async B => { await page.evaluate(B => { const D = window.__pp.arc.game._dbg, o = D.RIFT.objs.find(o => o.kind === 'belcrystal' && o.B === B); D.me.x = o.x + 0.3; D.me.y = o.y + 0.6; o.used = false; o.ch = 0; }, B); await runG(1.0); await use('belsocket', B); };
 
   if (on('bosses')) { for (const id of ['belkharrox', 'belnhalu', 'beluldroth']) { const i = await page.evaluate(id => window.__pp.RIFT_BY_ID.belfry.stages.findIndex(S => S.boss === id), id); const e0 = errors.length; await T.start('belfry', i); await runG(3); const k = await page.evaluate(() => { const D = window.__pp.arc.game._dbg; return { fiend: !!D.F.fiend, name: D.F.name, stage: D.F.rift.stage }; }); ok(`load: ${id} (stage ${i})`, errors.length === e0 && k.stage === i, k); } }
-  if (on('smoke')) { console.log('hall stage index', idx); await fresh(); await start(); await runG(2); const h = await hall(); ok('smoke: the hall opens', !!h && h.PS.dep === '', h); await shot('hall'); }
+  if (on('smoke')) { console.log('hall stage index', idx); await fresh(); await start(); await runG(2); const h = await hall(); ok('smoke: the hall opens', !!h && h.PS.dep === '', h); await shot('hall');
+    // v398 B2: the loading pass warms the north duel's pair (EVIL_MINI.warm through the stage's preload)
+    const pw = await page.evaluate(i => { const S = window.__pp.RIFT_BY_ID.belfry.stages[i], D = window.__pp.arc.game._dbg; if (typeof S.preload !== 'function') return { hook: false }; let calls = 0; const E = self.EVIL_MINI || window.EVIL_MINI, w0 = E && E.warm; let specs = null; if (w0) E.warm = (P, sp) => { calls++; specs = sp; return w0(P, sp); };
+      let jobs = []; try { jobs = S.preload({ T: D.cam && D.cam.T || 40, k: 1, Tz: () => 40, mons: [], reserve: [], c: document.createElement('canvas').getContext('2d') }) || []; } finally { if (w0) E.warm = w0; } let bad = 0; const t0 = performance.now(); for (const j of jobs) { try { j(); } catch (e) { bad++; } }
+      return { hook: true, calls, names: (specs || []).map(q => q.short), jobs: jobs.length, bad, ms: Math.round(performance.now() - t0) }; }, idx);
+    ok('smoke (v398): the hall stage preload warms Mirelune and Gloamrill through EVIL_MINI.warm', pw.hook && pw.calls === 1 && pw.names.join() === 'Mirelune,Gloamrill' && pw.jobs > 0 && !pw.bad, pw); }
   if (on('orders')) {
     const perms = ['EWN', 'ENW', 'WEN', 'WNE', 'NEW', 'NWE'];
     for (const ord of perms) { await fresh(); await start(); let good = true; const log = [];
@@ -206,6 +211,32 @@ const ok = (name, pass, info) => { results.push([name, pass]); console.log(`${pa
     await runG(4.5, { heal: true, stay: [52.5, 17], attack: true }); await snap('north-duel');
     await page.evaluate(() => { const D = window.__pp.arc.game._dbg, T = D.RIFT.self.mod.trials.N, G = window.__pp.arc.game; for (let k = 0; k < 400 && T.state !== 'won'; k++) { for (const m of T.duel.ms) if (m && m.x && !m.dead) { m.aggro = true; D.hitMon(m, 1e12, { flat: true }); } G.update(1 / 30); } for (let k = 0; k < 60; k++) G.update(1 / 30); D.me.x = 52.5; D.me.y = 8.5; });
     await snap('north-crystal'); ok('v392 shots taken', true); }
+  if (on('v398')) {   // v398 B2 shots: the north's spiral cage before its archway (empty, the crystal forming, shattering, free); Varkul's breath and sweep (GPU)
+    const SC = process.env.SCRATCH || path.resolve(__dirname, '../shots');
+    const snap = async (n, gpu, wait) => { await page.evaluate(g => { window.__NG_GL = g ? 1 : 0; window.__VARKUL_GL = g ? 1 : 0; }, !!gpu); await page.waitForTimeout(wait || (gpu ? 45000 : 6000)); await page.screenshot({ path: path.resolve(__dirname, `../shots/bel-v398-${n}.png`), timeout: 1200000 }); };
+    const hold = js => page.evaluate(js => { clearInterval(window.__HOLD); window.__HOLD = js ? setInterval(() => { try { (0, eval)(js); } catch (e) {} }, 4) : 0; }, js);
+    if (!process.env.VONLY) { await fresh(); await start(); await use('belgate', 'N'); await goTo(52.5, 36); await runG(3.6);
+    await page.evaluate(() => { const D = window.__pp.arc.game._dbg, T = D.RIFT.self.mod.trials.N, G = window.__pp.arc.game; for (let k = 0; k < 400 && !T.duel; k++) { const live = T.rol.filter(r => r.alive); for (let i = 0; i + 1 < live.length; i += 2) { const p = live[i], q = live[i + 1]; q.x = p.x + 0.5; q.y = p.y; p.s = 'roll'; p.dx = 1; p.dy = 0; } G.update(1 / 30); } for (let k = 0; k < 160; k++) { G.update(1 / 30); D.me.hp = D.ST.hp; } });
+    // the empty cage (the pair still up, moved aside for the picture)
+    await hold("(() => { const D = window.__pp.arc.game._dbg, T = D.RIFT.self.mod.trials.N; D.me.x = 52.5; D.me.y = 9.2; D.me.hp = D.ST.hp; for (const [i, m] of (T.duel ? T.duel.ms : []).entries()) if (m && m.x && !m.dead) { m.x = 46 + i * 13; m.y = 15; m.cd = 9; } })()");
+    await snap('north-cage');
+    await hold(null); await page.evaluate(() => { const D = window.__pp.arc.game._dbg, T = D.RIFT.self.mod.trials.N, G = window.__pp.arc.game; for (let k = 0; k < 400 && !(T.form > 0); k++) { for (const m of T.duel.ms) if (m && m.x && !m.dead) { m.aggro = true; D.hitMon(m, 1e12, { flat: true }); } G.update(1 / 30); } });
+    await hold("(() => { const D = window.__pp.arc.game._dbg, T = D.RIFT.self.mod.trials.N; if (T.duel) T.duel.downT = 2.3; T.form = 0.62; D.me.x = 52.5; D.me.y = 9.2; })()");
+    await snap('north-forming');
+    await hold(null); await page.evaluate(() => { const D = window.__pp.arc.game._dbg, T = D.RIFT.self.mod.trials.N, G = window.__pp.arc.game; for (let k = 0; k < 120 && T.state !== 'won'; k++) G.update(1 / 30); G.update(1 / 30); G.update(1 / 30); });
+    await snap('north-shatter', false, 300);
+    await page.evaluate(() => { const G = window.__pp.arc.game; for (let k = 0; k < 90; k++) G.update(1 / 30); const D = G._dbg; D.me.x = 52.5; D.me.y = 9.2; });
+    await snap('north-free');
+    await snap('north-free-gpu', true); }
+    // Varkul: held mid-breath and mid-sweep, the GPU model and the GPU water
+    await fresh(); await start(); await use('belgate', 'E'); await enter('E');
+    await page.evaluate(async () => { const D = window.__pp.arc.game._dbg, T = D.RIFT.self.mod.trials.E; for (let k = 0; k < 600 && T.bossState !== 'fight'; k++) { for (const m of T.list) if (!m.dead) D.hitMon(m, 1e9, { flat: true }); window.__pp.arc.game.update(1 / 30); } for (let k = 0; k < 90; k++) { window.__pp.arc.game.update(1 / 30); D.me.hp = D.ST.hp; } });
+    for (const [n, act, tt] of [['varkul-breath-windup', 'breathW', 1.3], ['varkul-breath', 'breath', 0.45], ['varkul-sweep', 'sweep', 0.42], ['varkul-sweep-splash', 'rec', 0.12]]) {
+      await page.evaluate(([act, tt]) => { const D = window.__pp.arc.game._dbg, T = D.RIFT.self.mod.trials.E, V = T.V.V, m = T.V.m; V.hd = Math.PI * 0.5; V.lockA = V.hd; V.gapA = 1.1; V.next = act === 'rec' ? 'breath' : V.next;
+        if (act === 'rec') { V.act = 'sweep'; V.t = 0.9; window.__pp.arc.game.update(1 / 30); V.act = 'rec'; V.t = 0; } window.__HT = [act, tt]; D.me.x = m.x + 0.4; D.me.y = m.y - 2.4; }, [act, tt]);
+      await hold("(() => { const D = window.__pp.arc.game._dbg, T = D.RIFT.self.mod.trials.E, V = T.V && T.V.V, [act, tt] = window.__HT; if (!V) return; V.act = act; V.t = tt; V.jetT = tt; V.hitDone = true; if (act === 'sweep') V.swing = -1.85 + 3.7 * (tt / 0.95) * (tt / 0.95) * (3 - 2 * tt / 0.95); if (act === 'rec' && T.V.FX) { const q = T.V.FX; if (!q.splash) q.splash = { x: T.V.m.x + Math.cos(V.hd + 1.85) * 3, y: T.V.m.y + Math.sin(V.hd + 1.85) * 3, t: 0 }; q.splash.t = D.g.t - 0.18; } D.me.hp = D.ST.hp; D.me.inv = 9; const m = T.V.m; D.me.x = m.x + 0.4; D.me.y = m.y - 2.4; })()");
+      await snap(n, true); }
+    await hold(null); ok('v398 shots taken', true); }
   if (on('perf')) {   // phone size (390 x 844): the logic's cost per step and the drawing's per frame, with 100 rollers and 60 gnawers out
     const meas = () => page.evaluate(async () => { const D = window.__pp.arc.game._dbg, G = window.__pp.arc.game; const w0 = performance.now(); for (let i = 0; i < 60; i++) { G.update(1 / 60); D.me.hp = D.ST.hp; } const upd = (performance.now() - w0) / 60;
       for (let i = 0; i < 2; i++) await new Promise(r => requestAnimationFrame(r)); D.g.prof = {}; const f0 = performance.now(); for (let i = 0; i < 6; i++) await new Promise(r => requestAnimationFrame(r)); const P = D.g.prof; D.g.prof = null; const o = {}; for (const k of ['world', 'ents', 'parts', 'fx', 'hud']) o[k] = +((P[k] || 0) / 6).toFixed(1); return { updateMs: +upd.toFixed(2), frameMs: +((performance.now() - f0) / 6).toFixed(0), draw: o, mons: D.mons.filter(m => !m.dead).length }; });
