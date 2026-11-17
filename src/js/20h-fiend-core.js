@@ -482,6 +482,7 @@ const DunFiend = (() => {
       if (S.started) return; S.started = true;
       const hp = barHP * bars, m = { type: 'boss', fiend: FD.id, boss: FD.id, bk: { id: FD.id, name: FD.name, spd: 2, ai: 'fiend' }, mini: false, bname: FD.name, x: M.bossAt.x, y: M.bossAt.y, r: FD.r, hp, maxhp: hp, spd: 2,
         dmg: 15 * F.dmgMul * 1.25 * 1.1 * (1 + 0.2 * F.loop) * (FD.lvK || 1) * (FD.dmgK || 1), xp: 200 + 30 * F.n, color: FD.color, glow: FD.glow, aggro: true, act: 'enter', actT: 0, phase: 1, cd: 2.2, z: 0, t: 0, flash: 0, burn: 0, burnD: 0, venom: 0, venomT: 0, chill: 0, freeze: 0, stun: 0, kbx: 0, kby: 0, atkCd: 0, mv: 1, hitSq: 0, face: 1, still: true, ax: 0, ay: 1, vx: 0, vy: 0, a: Math.PI / 2 };
+      if (FD.belHard) m.belHard = FD.belHard;   /* (v400) */
       S.m = m; FX.m = m; H.mons.push(m); g.boss = m; g.bossIntro = 3.4; g.bossShow = null; S.enterT = 0;
       H.banner('SUPER FIEND', `${FD.name} · ${FD.title}`, FD.glow, 3, true, true); H.flash(0.4, FD.glow); H.shake(14, 0.8); H.sfx.hum();
       if (D.init) D.init(FX);

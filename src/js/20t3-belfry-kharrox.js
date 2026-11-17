@@ -362,7 +362,7 @@ const BELK = (() => {
   /* (the tuning: Kharrox is set in absolute terms for the rift's recommended level, 10: six bars (BEL_BOSS_K, the 6/7/9
      convention), blows of about TUNE.dmg, and every blow on it scaled (dmgK) so its whole health is worth effHp of the pet's
      own damage, which sets the fight's length (about 90 s for a level-10 pet using its skills); a rift may set Rf.belkHp) */
-  const TUNE = { bars: 6, dmg: 15, effHp: 21000, addHp: 1000,   /* (v391: measured, a level-10 bot with skills deals ~270 of its damage a second here) */ sweepK: 1.45, ringK: 1.15, closedK: 0.85, openK: 1.25, eyeK: 1.7, stunK: 1.1 };
+  const TUNE = { bars: 6, dmg: 15, effHp: 21000 * 2, addHp: 1000,   /* (v391: measured, a level-10 bot with skills deals ~270 of its damage a second here) */ sweepK: 1.45, ringK: 1.15, closedK: 0.85, openK: 1.25, eyeK: 1.7, stunK: 1.1 };
   const CYC = { 1: ['sweep', 'toll', 'sweep', 'toll'], 2: ['sweep', 'toll', 'sweep', 'sweep', 'toll'] };
   const sf = (FX, k, ...a) => { const s = FX.H && FX.H.sfx; if (s && s[k]) try { s[k](...a); } catch (e) { /* no sound */ } };
   const say = (FX, key, s, sub, col, dur) => { const M = FX.mem, n = (+M.seen[key] || 0) + 1; M.seen[key] = n; if (n > 2) return; FX.H.banner(s, n === 1 ? sub || '' : '', col || TQ_HI, n === 1 ? (dur || 2.6) : 1.1, n === 1); };
@@ -990,6 +990,6 @@ function BEL_BOSS_K(id, kind) { try { const T = BELK.TUNE; let Rf = RIFT_BY_ID.b
   if (kind === 'hp') { const lo = n < 50 ? Math.min(1, Math.max(0, (n - 10) / 30)) : -1, hk = n >= 50 ? Math.min(1, (n - 50) / Math.max(10, TOWER_TOP - 50)) : -1, more = hk >= 0 ? Math.round(30 + 20 * hk) : Math.round(10 + 15 * lo); return (T.bars + 0.2) / (Math.round(n / 5) + 2 + more); }
   const F = floorDef(n), hit = n < 50 ? 1.3 : 1.5, lvK = 1 + (n / 10 - 1) * 0.06; return T.dmg / (15 * F.dmgMul * E * 1.25 * 1.1 * lvK * hit); } catch (e) { return kind === 'hp' ? 0.4 : 0.5; } }
 /* the roster */
-(() => { const entry = { id: 'belkharrox', name: 'Kharrox', title: 'The Bellback', color: '#2A3A44', glow: '#61D9D2', accent: '#E8C68A', biome: typeof BIOMES === 'undefined' ? 'swamp' : BIOMES.belbapt ? 'belbapt' : BIOMES.belfry ? 'belfry' : 'swamp', r: 2.4, els: ['water', 'dark'], phases: 2, cuts: [1, 0.5],
+(() => { const entry = { id: 'belkharrox', name: 'Kharrox', title: 'The Bellback', color: '#2A3A44', glow: '#61D9D2', accent: '#E8C68A', biome: typeof BIOMES === 'undefined' ? 'swamp' : BIOMES.belbapt ? 'belbapt' : BIOMES.belfry ? 'belfry' : 'swamp', r: 2.4, els: ['water', 'dark'], phases: 2, cuts: [1, 0.5], belHard: 5,
     get hpK() { return BEL_BOSS_K('belkharrox', 'hp'); }, get dmgK() { return BEL_BOSS_K('belkharrox', 'dmg'); } };
   RiftFiend.define(entry, BELK.def); BELK.def.stageMake = BELK.make; BELK.def.bossMake = BELK.make;   /* (the Belfry's bossStage() looks for bossMake) */ BELK.def.BELK = BELK; })();

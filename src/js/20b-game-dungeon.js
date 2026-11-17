@@ -576,6 +576,7 @@ GAMES.dungeon = {
       if (me.dodge) { if (me.dodge.t < 0.24 && !(o && o.dot)) perfectDodge(); return false; }
       if (me.inv > 0 || me.dash || g.shieldT > 0 || g.phoenixT > 0 || (me.spin && me.spin.guard) || me.leap) { if (g.shieldT > 0) ring(me.x, me.y, 0.6, 1.1, 0.2, '#7FD3F2', 0.1); return false; }
       if (RX) d *= RX.petHurtK();
+      if (src && typeof src === 'object' && src.belHard) d *= src.belHard;   /* (v400: the Belfry's bosses hit 5x as hard, the user 2026-11-17) */
       { const wm = src && typeof src === 'object' && src.maxhp != null ? src : wornBy; if (wm && wm.wornUntil > g.t) d *= 0.75; }   /* (Winds of Oblivion, 20k3k: a Windworn monster hits 25% softer, bosses too) */
       d *= 1 - Math.min(0.6, accK('def'));
       if (RULES) d *= 1 - RULES.defK();

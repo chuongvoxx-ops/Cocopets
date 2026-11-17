@@ -235,7 +235,7 @@ const BEL_NHALU = (() => {
   const LX = [-7, 0, 7], LWW = 2.9, HW = 3.5;   // the lanes' centres, the water's half width, the danger's half width (over half of each strip)
   const WHEELS = [[-8.9, 9.6], [8.9, 9.6]];
   const WATER_Z = 0.21;
-  const TUNE = { bars: 7, effHp: 12500, leechHits: 5, leechDmg: 0.45, dmg: 24, thunder: 1.9, bite: 1.5, kSwim: 0.5, kRest: 0.72, kRear: 0.6, kBeach: 1.55 };
+  const TUNE = { bars: 7, effHp: 12500 * 2, leechHits: 5, leechDmg: 0.45, dmg: 24, thunder: 1.9, bite: 1.5, kSwim: 0.5, kRest: 0.72, kRear: 0.6, kBeach: 1.55 };
   const TM = { hunt: 2.75, gap: 1.5, disFx: 1.15, rest: [1.4, 1.1], swimT: 2.6, drainWait: [9.5, 10.5], beach: 8, recover: 1.3, bite: 2.5, biteLock: 1.0, biteEvery: 3.4, biteReach: 6.0, snap: 2.6, refillGrace: 1.4, leechSpd: 0.85, wheelR: 0.95, chan: 0.75 };
   const CYC = { 1: ['hunt', 'drain', 'hunt', 'hunt', 'drain'], 2: ['hunt2', 'drain', 'hunt2', 'hunt', 'drain'] };
   const AMBER = '#FFC857', AMBER_HI = '#FFE6A8', VOLT = '#9FE8FF', VOLT_HI = '#E6F8FF', TEAL = '#61D9D2', WARN = '#FF6A5A', LEECH = '#B6A2F0', INK = '#0A1420';
@@ -823,7 +823,7 @@ function BEL_BOSS_HPK(id, bars, dflt) { try { let n = 13; const Rf = typeof RIFT
   const lo = n < 50 ? Math.min(1, Math.max(0, (n - 10) / 30)) : -1, hk = n >= 50 ? Math.min(1, (n - 50) / Math.max(10, TOWER_TOP - 50)) : -1, more = hk >= 0 ? Math.round(30 + 20 * hk) : Math.round(10 + 15 * lo);
   return (bars + 0.2) / (Math.round(n / 5) + 2 + more); } catch (e) { return dflt; } }
 /* (registered as RiftFiend.define does: this file loads before 20t, so it writes the roster itself) */
-RIFT_FIENDS.belnhalu = { id: 'belnhalu', name: 'Nhalu', title: 'The Lantern Eel', color: '#1E1A4A', glow: '#FFC857', accent: '#9FE8FF', biome: typeof BIOMES !== 'undefined' && BIOMES.belnave ? 'belnave' : typeof BIOMES !== 'undefined' && BIOMES.belfry ? 'belfry' : 'swamp', r: 1.0, els: ['water', 'dark'], phases: 2, cuts: [1, 0.5],
+RIFT_FIENDS.belnhalu = { id: 'belnhalu', name: 'Nhalu', title: 'The Lantern Eel', color: '#1E1A4A', glow: '#FFC857', accent: '#9FE8FF', biome: typeof BIOMES !== 'undefined' && BIOMES.belnave ? 'belnave' : typeof BIOMES !== 'undefined' && BIOMES.belfry ? 'belfry' : 'swamp', r: 1.0, els: ['water', 'dark'], phases: 2, cuts: [1, 0.5], belHard: 5,
   get hpK() { return BEL_BOSS_HPK('belnhalu', 7, 0.42); }, dmgK: 1 };
 FIEND_DEFS.belnhalu = BEL_NHALU.def;
 FIEND_DEFS.belnhalu.stageMake = BEL_NHALU.make; FIEND_DEFS.belnhalu.bossMake = BEL_NHALU.make; FIEND_DEFS.belnhalu.NHALU = BEL_NHALU;

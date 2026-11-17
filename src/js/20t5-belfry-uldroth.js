@@ -385,7 +385,7 @@ const BEL_ULDROTH = (() => {
   /* ================= the fight ================= */
   const TQ = '#61D9D2', TQ_HI = '#C9FFF8', WARN = '#FF4D6D', SAFE = '#8FE0A6', GOLD = '#FFE37A', FOAM = '#E2F7F2', DEEP = '#123C52';
   const CYC = { 1: ['jaw', 'undertow'], 2: ['jaw', 'undertow', 'jaw'], 3: ['wave', 'jaw', 'wave', 'undertow'] };
-  const TUNE = { hp: 28000, dmg: 21, bars: 9,   /* (hp: measured with level-10 bots (fresh random pets) at 85-145 dps: a median of about 4 minutes, 3 to 6 by the pet, with the bell, the surges and the waves) */
+  const TUNE = { hp: 28000 * 2, dmg: 21, bars: 9,   /* (hp: measured with level-10 bots (fresh random pets) at 85-145 dps: a median of about 4 minutes, 3 to 6 by the pet, with the bell, the surges and the waves) */
     jawTrack: 1.55, jawLock: 1.1, jawLen: 13.5, jawSp: 0.36, jawRec: 1.9,
     pullT: 2.8, pullR: 6.2, pullV0: 0.6, pullV1: 2.9, gasp: 2.5,
     bellEvery: 30, bellFirst: 3.5, bellCall: 5, bellRise: 7, bellHold: 2.6, bellEbb: 3.4, floodZ: 1.35, floodK: 0.42,
@@ -1060,7 +1060,7 @@ const BEL_ULDROTH_K = kind => { try { const T = BEL_ULDROTH.TUNE, Rf = RIFT_BY_I
   let n = 16; if (Rf && Rf.stages) { const i = Rf.stages.findIndex(s => s.boss === 'beluldroth'); if (i >= 0) n = Math.max(1, (Rf.lvl || 1) + (riftStagePos(Rf, i).sec - 1) * 3); }
   if (kind === 'hp') { const lo = n < 50 ? Math.min(1, Math.max(0, (n - 10) / 30)) : -1, hk = n >= 50 ? Math.min(1, (n - 50) / Math.max(10, TOWER_TOP - 50)) : -1, more = hk >= 0 ? Math.round(30 + 20 * hk) : Math.round(10 + 15 * lo); return (T.bars + 0.2) / (Math.round(n / 5) + 2 + more); }
   const F = floorDef(n), hit = n < 50 ? 1.3 : 1.5, lvK = 1 + (n / 10 - 1) * 0.06; return T.dmg / (15 * F.dmgMul * E * 1.25 * 1.1 * lvK * hit); } catch (e) { return 1; } };
-RiftFiend.define({ id: 'beluldroth', name: 'Uldroth', title: 'the Drowned Herald', color: '#2E4740', glow: '#61D9D2', accent: '#C9FFF8', biome: typeof BIOMES !== 'undefined' && BIOMES.belplat ? 'belplat' : typeof BIOMES !== 'undefined' && BIOMES.belfry ? 'belfry' : 'swamp', r: 2.4, els: ['water', 'dark'], phases: 3, cuts: [1, 0.7, 0.35],
+RiftFiend.define({ id: 'beluldroth', name: 'Uldroth', title: 'the Drowned Herald', color: '#2E4740', glow: '#61D9D2', accent: '#C9FFF8', biome: typeof BIOMES !== 'undefined' && BIOMES.belplat ? 'belplat' : typeof BIOMES !== 'undefined' && BIOMES.belfry ? 'belfry' : 'swamp', r: 2.4, els: ['water', 'dark'], phases: 3, cuts: [1, 0.7, 0.35], belHard: 5,
   get hpK() { return BEL_ULDROTH_K('hp'); }, get dmgK() { return BEL_ULDROTH_K('dmg'); } }, BEL_ULDROTH.def);
 FIEND_DEFS.beluldroth.ULDROTH = BEL_ULDROTH;
 if (typeof BEL !== 'undefined') { BEL.bossMake = BEL.bossMake || {}; BEL.bossMake.beluldroth = BEL_ULDROTH.make; BEL.uldroth = BEL_ULDROTH; }

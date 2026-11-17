@@ -653,6 +653,7 @@ if (typeof window !== 'undefined') window.BEL = BEL;
         if (m && !C.layer && E.layer) C.layer = E.layer(X); } catch (e) { try { console.warn('bel guard', e); } catch (e2) {} m = null; } }
     if (!m) { const B2 = BOSSES.find(b => b.id === 'kharrox'); m = X.lesserBoss(x, y, 0.35, '', B2); if (m && typeof RiftEvil !== 'undefined') { const Ev = RiftEvil.make(d.seed * 7919 >>> 0, null); m.evil = Ev; m.glow = d.palette.col; } if (m) { m.bname = d.name; m.aggro = false; } }
     if (m && o && o.hpMin > m.maxhp) { m.maxhp = m.hp = Math.round(o.hpMin); }
+    if (m && (key === 'church' || key === 'foundry' || key === 'storm')) { m.maxhp = m.hp = Math.round(m.maxhp * 2); m.belHard = 5; }   /* (v400: Gloomfin, Clangrot, Squallmaw: double health, 5x blows, the user 2026-11-17) */
     if (m) { m.belGuard = key; C.guard = { m, key, def: d, gate, home: { x, y } }; }
     return m; }
   BEL.placeGuard = placeGuard;
