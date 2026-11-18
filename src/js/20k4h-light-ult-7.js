@@ -11,7 +11,9 @@
    points, and the source then separates into smaller stars that rise and fade.
    Damage: each wave hits each monster once, when its star-shaped front (the radius times the star's angular profile)
    reaches it; the waves share about 15 x base (1: all; 2: 44/56 %; 3: 27/31/42 %). Floor art is additive light or
-   translucent and drawn under everything; the floating stars dim near the pet. */
+   translucent and drawn under everything; the floating stars dim near the pet.
+   (v404 LT) On the GPU too when the shared painter (20k6h) is usable: the same star, charge, waves and hits, the star a shaded candy
+   star (kind 47), outlines and waves stars of light (kind 50); the 2D picture stays as it was for a device without the painter. */
 (() => {
   const U = ELEM_IMPL.light.ult, TAU = Math.PI * 2; delete U.heavenriver;
   const ROSE = '#FF5CCB', CANDY = '#FF8FDB', MAG = '#E83EAC', BLUSH = '#FFD4EE', PEARL = '#FFF4FC', DEEP = '#8F2D73';
@@ -21,6 +23,7 @@
   const sstep = (a, b, x) => { const u = cl((x - a) / (b - a)); return u * u * (3 - 2 * u); };
   const R1 = s => { const v = Math.sin(s * 12.9898 + 78.233) * 43758.5453; return v - Math.floor(v); };
   const rgbaS = (h, a) => { const [r, g, b] = hexRGB(h); return `rgba(${r},${g},${b},${a})`; };
+  const gfx = () => { try { const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; return F && F.usable() ? F : null; } catch (e) { return null; } };   // (v404 LT) the shared painter when usable
   const gl = (c, col, x, y, r, a, sq) => { if (!(a > 0.005) || r < 1) return; c.globalAlpha = Math.min(1, a); blitSized(c, glowSprite(col), x - r, y - r * (sq || 1), r * 2, r * 2 * (sq || 1)); };
 
   /* the star's polar profile: 1 at a point (angle 0, 72 deg, ...), RI at a notch; straight sides the tips
@@ -128,6 +131,33 @@
       },
       drawUnder(c, f, X, Y, T) {
         const t = f.t, GY = H.GY, rot = rotAt(t), [con, pop] = pulse(t);
+        { const FG = gfx(); if (FG) { /* (v404 LT) on the GPU: the outline tracing itself, the star (a shaded candy star, kind 47, over its side band)
+             with its halo, pearl heart, sheen and points lighting in turn, Celestial's three nested outlines, the star-shaped waves of light
+             (kind 50: a pearl leading edge, a rose band, a translucent body) and the final wave's trails behind its points */
+          const Q = FG.begin(c, null), cr = Math.cos(rot), sr = Math.sin(rot), sq = (kind, x, y, hw, ro, col, al, q0, q1, q2) => { const c2 = Math.cos(ro), s2 = Math.sin(ro); Q.quad(kind, x, y, c2 * hw, s2 * hw * GY, -s2 * hw, c2 * hw * GY, col, al, q0, q1, q2); };
+          const trU = sstep(0, TR, t), trA = 1 - sstep(FL1 - 0.15, FL1 + 0.35, t);
+          if (trA > 0.01) { sq(50, X, Y, RS * T / 0.8, rot, CANDY, trA, 0, trU < 1 ? trU : 1, 0.03); if (trU < 1) { const a2 = trU * TAU, rp = RS * T * prof(a2), hx = X + Math.cos(a2 + rot) * rp, hy = Y + Math.sin(a2 + rot) * rp * GY; Q.glow(hx, hy, T * 0.7, ROSE, 0.7 * trA); Q.glow(hx, hy, T * 0.25, PEARL, 0.9 * trA); Q.star(hx, hy, T * 0.5, 0.8 * trA, PEARL); } }
+          const fillA = sstep(FL0, FL1, t), outA = CEL ? sstep(RISE0 - 0.1, RISE0 + 0.45, t) : sstep(LAST + 0.25, END + 0.3, t), a = fillA * (1 - outA);
+          if (a > 0.01) { const lift = T * 0.16 * sstep(FL0 + 0.15, FL1 + 0.1, t), sc = 1 - 0.1 * con + 0.06 * pop, Rp = RS * T * sc, half = Rp / 0.9;
+            let lit = 0; for (let k = 0; k < 5; k++) lit += tipB(k, t); lit /= 5;
+            for (let k = 0; k < 3; k++) sq(47, X, Y - lift * k / 3, half, rot, '#FFFFFF', a * 0.6, 0, rot, -1);
+            sq(47, X, Y - lift, half, rot, '#FFFFFF', a * 0.97, lit + 0.6 * pop, rot, 1);
+            Q.glow(X, Y - lift, Rp * 1.45, ROSE, a * (0.2 + 0.12 * lit + 0.2 * pop), GY); Q.glow(X, Y - lift, Rp * 0.5 * (1 - 0.25 * con), BLUSH, a * (0.3 + 0.3 * lit + 0.4 * pop), GY); Q.glow(X, Y - lift, Rp * 0.2 * (1 - 0.3 * con + 0.5 * pop), '#FFFFFF', a * (0.4 + 0.3 * lit + 0.5 * pop), GY);
+            const sb = t * 0.9; Q.glow(X + Math.cos(sb) * Rp * 0.42, Y - lift + Math.sin(sb) * Rp * 0.42 * GY, Rp * 0.32, BLUSH, a * 0.2, GY);
+            for (let k = 0; k < 5; k++) { const b = rot + k * ARM, tb = tipB(k, t), px = X + Math.cos(b) * Rp * 0.8, py = Y - lift + Math.sin(b) * Rp * 0.8 * GY; Q.glow(px, py, T * (0.45 + 0.45 * tb), ROSE, a * (0.2 + 0.5 * tb), 0.75); if (tb > 0.02) { Q.glow(px, py, T * 0.2 * (0.6 + 0.4 * tb), PEARL, a * 0.75 * tb, 0.75); Q.star(px, py, T * 0.35 * tb, a * 0.8 * tb, PEARL); } }
+            sq(50, X, Y - lift, Rp * 0.985 / 0.8, rot, ROSE, a * (0.4 + 0.3 * lit), 0, 1, 0.012); }
+          if (CEL) { const oa = sstep(FL0 + 0.1, FL1 + 0.3, t) * (1 - sstep(LAST + 0.05, LAST + 0.6, t));
+            if (oa > 0.01) { let nx = null; for (const r0 of rel) if (r0 >= t - 0.02) { nx = r0; break; } const mis = nx != null ? sstep(0.04, 0.42, nx - t) : sstep(0, 0.5, t - LAST);
+              for (let k = 0; k < 3; k++) { const Rk = RS * T * (1.24 + 0.22 * k), rk = rot + mis * 1.05 * Math.sin(t * (1.3 + 0.4 * k) * (k % 2 ? -1 : 1) + k * 1.9), al = oa * (0.55 + 0.45 * (1 - mis));
+                sq(50, X, Y, Rk / 0.8, rk, CANDY, al * 0.8, 0, 1, 0.016);
+                for (let j = 0; j < 5; j++) { const b = rk + j * ARM; Q.glow(X + Math.cos(b) * Rk, Y + Math.sin(b) * Rk * GY, T * 0.18, PEARL, al * (0.35 + 0.5 * (1 - mis)), 0.8); } } } }
+          for (const w of waves) { if (!w.on) continue; const u = (t - w.t0) / w.dur; if (u > 1.05) continue; const s2 = front(w, t) * T; if (s2 < 2) continue;
+            const wa = (1 - sstep(0.6, 1.05, u)) * sstep(0, 0.06, u);
+            if (u < 0.3) Q.glow(X, Y, RS * T * 1.3, PEARL, (1 - u / 0.3) * 0.5, GY);
+            sq(50, X, Y, s2 / 0.8, w.rot, ROSE, wa * (w.fin ? 1 : 0.92), 1, 1, 0.022);
+            if (w.fin) { sq(50, X, Y, s2 * 0.82 / 0.8, w.rot, ROSE, wa * 0.5, 1, 1, 0.022); const tl = Math.min(s2 * 0.85, T * 3.6), tw = T * 0.75;
+              for (let k = 0; k < 5; k++) { const b = w.rot + k * ARM, cb = Math.cos(b), sb2 = Math.sin(b) * GY, x0 = X + cb * (s2 - tl), y0 = Y + sb2 * (s2 - tl), x1 = X + cb * s2, y1 = Y + sb2 * s2; Q.rbeam(x0, y0, x1, y1, tw * 0.5, ROSE, wa * 0.95, 0, 1); Q.rbeam(x0 + (x1 - x0) * 0.5, y0 + (y1 - y0) * 0.5, x1, y1, tw * 0.15, PEARL, wa, 0, 1); } } }
+          FG.flush(c); return; } }
         c.save(); c.lineCap = 'round'; c.lineJoin = 'round';
         /* ---- the outline tracing itself round, from the point at the top ---- */
         const trU = sstep(0, TR, t), trA = 1 - sstep(FL1 - 0.15, FL1 + 0.35, t);
@@ -175,6 +205,15 @@
       draw(c, f, X, Y, T) {
         const t = f.t, GY = H.GY, pX = H.sx(H.me.x), pY = H.sy(H.me.y) - T * 0.46, near = (px, py) => 1 - 0.75 * (1 - sstep(T * 0.5, T * 1.4, Math.hypot(px - pX, (py - pY) * 1.2)));
         const lift = T * 0.16 * sstep(FL0 + 0.15, FL1 + 0.1, t);
+        { const FG = gfx(); if (FG) { /* (v404 LT) the tiny stars spiralling in (stars of light, kind 50) and Celestial's rising stars (candy stars,
+             kind 47) on the GPU */
+          const Q = FG.begin(c, null), spA = sstep(FL0, FL1, t) * (1 - sstep(LAST - 0.1, LAST + 0.15, t));
+          if (spA > 0.01) for (let i = 0; i < NSP; i++) { const per = 1.1 + 0.4 * R1(i * 1.7), u = (t / per + R1(i * 3.7)) % 1, r = RS * (1.9 - 1.75 * u) * T, ang = R1(i * 5.1) * TAU + 2.6 * u + t * 0.3, hg = T * (0.12 + 0.9 * (1 - u) * R1(i * 2.3)) + lift;
+            const px = X + Math.cos(ang) * r, py = Y + Math.sin(ang) * r * GY - hg, al = spA * Math.pow(Math.sin(Math.PI * u), 0.7) * near(px, py); if (al < 0.02) continue; const sz = T * (0.26 + 0.14 * R1(i * 8.3)) * (1 - 0.4 * u), col = i % 3 === 0 ? BLUSH : i % 3 === 1 ? CANDY : ROSE;
+            Q.glow(px, py, sz * 0.7, col, al * 0.5); Q.quad(50, px, py, sz * 0.55, 0, 0, sz * 0.55, col, al, 0.6, t * 2 + i, 0); }
+          if (CEL) for (const o of rs) { const k = (t - o.t0) / 1.4; if (k <= 0 || k >= 1) continue; const e = H.ease.out(k), px = X + (o.x + o.dx * e) * T, py = Y + o.y * T * GY - lift - T * (0.2 + o.up * e), al = sstep(0, 0.08, k) * (1 - sstep(0.45, 1, k)) * near(px, py), sz = T * o.sz * (1 - 0.45 * k);
+            if (al < 0.02) continue; Q.glow(px, py, sz * 1.3, ROSE, al * 0.45); const ro = o.sp * k - Math.PI / 2, hw = sz * 0.62; Q.quad(47, px, py, Math.cos(ro) * hw, Math.sin(ro) * hw, -Math.sin(ro) * hw, Math.cos(ro) * hw, '#FFFFFF', al, 0.3, ro, 1); Q.glow(px, py, sz * 0.3, PEARL, al * 0.6); }
+          FG.flush(c); return; } }
         c.save(); c.globalCompositeOperation = 'lighter';
         /* tiny stars spiralling inward over the charging star */
         const spA = sstep(FL0, FL1, t) * (1 - sstep(LAST - 0.1, LAST + 0.15, t));

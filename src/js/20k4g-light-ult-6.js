@@ -8,7 +8,9 @@
    sweeps (3 at evo 3), 4 on layered figure-eights at Adept (5 at evo 6), and at Celestial 6 as three coordinated pairs
    on wide figure-eights crossing at three heights, finishing as three oversized bows that loosen into floating strings
    and stars. Leading edges brighten on contact, scattering stars and broken love hearts. Damage: per ribbon/monster
-   repeat interval 0.4 s, at most 7 hits per monster (about 15 x base for one inside the dance throughout). */
+   repeat interval 0.4 s, at most 7 hits per monster (about 15 x base for one inside the dance throughout).
+   (v404 LT) With the shared GPU painter (20k6h) usable: the satin stays these exact 2D strips; the floor light, strings, halos, leading
+   edges, knots and particles are drawn on the GPU behind and over them. */
 (() => {
   const U = ELEM_IMPL.light.ult, TAU = Math.PI * 2; delete U.verdict;
   const ROSE = '#FF5CCB', CANDY = '#FF8FDB', MAG = '#E83EAC', BLUSH = '#FFD4EE', PEARL = '#FFF4FC', DEEP = '#8F2D73', LAV = '#D5C4FF';
@@ -147,6 +149,7 @@
       drawUnder(c, f, X, Y, T, t) {
         t = f.t; const fa = sm(t / 0.6) * (1 - sm((t - TE) / 0.7));
         if (fa < 0.02) return;
+        { const K = globalThis.LU1, FG = K.gfx(); if (FG) { const Q = FG.begin(c, null); for (const rb of rbs) { const L = rb.h, n = Math.min(MB, L.length); for (let k = 0; k < n; k += 6) { const p = L[L.length - 1 - k]; if (p.z > 1.3) continue; Q.glow(H.sx(p.x), H.sy(p.y), T * 1.1, ROSE, 0.3 * fa * (1 - p.z / 1.3) * (1 - k / n), H.GY); } } FG.flush(c); return; } }   // (v404 LT) the pink light on the floor under the ribbons
         c.save(); c.globalCompositeOperation = 'lighter'; const gs = glowSprite(ROSE);
         for (const rb of rbs) { const L = rb.h, n = Math.min(MB, L.length); for (let k = 0; k < n; k += 6) { const p = L[L.length - 1 - k]; if (p.z > 1.3) continue; const a = 0.22 * fa * (1 - p.z / 1.3) * (1 - k / n), r = T * 1.1; c.globalAlpha = a; c.drawImage(gs, H.sx(p.x) - r, H.sy(p.y) - r * H.GY, r * 2, r * 2 * H.GY); } }
         c.restore();
@@ -156,7 +159,10 @@
         const P3 = (p, o) => { o.X = H.sx(p.x); o.Y = H.sy(p.y) - p.z * T; o.D = p.y * T * 0.7; return o; };
         const bowU = tier === 3 ? sm((t - TE) / 0.6) : 0, loose = tier === 3 ? sm((t - TL) / 1.0) : 0, endF = tier === 3 ? 1 : 1 - sm((t - TE) / 0.8);
         const order = rbs.map(rb => { const L = rb.h; return { rb, d: L.length ? L[L.length - 1].y : 0 }; }).sort((p, q) => p.d - q.d);
-        const tmp = {};
+        const tmp = {}, K = globalThis.LU1, FG = K.gfx();
+        /* (v404 LT) with the GPU: the satin bodies stay the exact 2D strips; behind them (one GPU pass) the light strings tracing the path and
+           each strip's halo, over them (a second pass) the leading edges' light, the knot lights and the hearts, stars and broken hearts */
+        const G1 = FG ? FG.begin(c, null) : null, later = [];
         for (const { rb } of order) {
           // gather the strip's points (head first)
           let pts = rb.snap && tier === 3 ? rb.snap : body(rb); const n = pts.length; if (n < 4) continue;
@@ -174,6 +180,13 @@
             S.AL[k] = 1 - sm((u - 0.55) / 0.45);
             if (k % 3 === 0) pd = Math.min(pd, Math.hypot(tmp.X - PX, tmp.Y - PY)); }
           const form = sm((t - rb.t0) / 0.35), pf = 0.6 + 0.4 * cl((pd - 0.3 * T) / (0.9 * T)), ra = form * pf * aF;
+          if (G1) { const L = rb.h, nl = rb.snap ? 0 : L.length, sa = form * pf * (tier === 3 ? 1 - sm((t - TE) / 0.5) : 1 - sm((t - TE - 0.3) / 0.75));
+            if (nl > 6 && sa > 0.02) for (let j = 0; j < 2; j++) { const sp = []; for (let k = 0; k < nl; k += 2) { const p = L[nl - 1 - k], u = k / (MS - 1); sp.push([H.sx(p.x) + Math.sin(u * 6 + t * 2.4 + j * 2.1 + rb.i) * T * 0.12 * (0.3 + u), H.sy(p.y) - (p.z + (j ? 0.32 : -0.32) * WT * (1 - u) + u * 0.35) * T]); }
+              sp.reverse(); K.gStrip(G1, sp, 4.5, ROSE, v => 0.3 * sa * v); K.gStrip(G1, sp, 1.4, j ? (tier >= 2 ? LAV : CANDY) : BLUSH, v => 0.9 * sa * v); }
+            if (loose > 0) { const la = (1 - sm((t - TL - 0.35) / 0.65)) * pf, sp = []; for (let k = 0; k < n; k++) sp.push([S.X[k], S.Y[k]]); K.gStrip(G1, sp, 5, ROSE, () => 0.4 * la); K.gStrip(G1, sp, 1.4, PEARL, () => 0.9 * la); }
+            for (let k = 2; k < n; k += 4) { const r = (S.HW[k] * 2.2 + T * 0.3), a = 0.24 * ra * S.AL[k]; if (a > 0.02) G1.glow(S.X[k], S.Y[k], r, ROSE, a); }
+            later.push({ rb, S, n, ra });
+            continue; }
           // fine light strings tracing the longer path behind (and, at the finish, the loosened strip itself)
           c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.lineJoin = 'round';
           const L = rb.h, nl = rb.snap ? 0 : L.length, sa = form * pf * (tier === 3 ? 1 - sm((t - TE) / 0.5) : 1 - sm((t - TE - 0.3) / 0.75));
@@ -189,6 +202,12 @@
           // the leading edge: a pearl glow at the head, brighter on contact
           if (ra > 0.02 && !(tier === 3 && bowU > 0.5 && loose > 0.3)) { const hx = S.X[1], hy = S.Y[1]; blitC(c, glowSprite(ROSE), hx, hy, T * (1.6 + 1.2 * rb.flash), T * (1.6 + 1.2 * rb.flash), 0.5 * ra, true); blitC(c, glowSprite(PEARL), hx, hy, T * (0.7 + 0.6 * rb.flash), T * (0.7 + 0.6 * rb.flash), (0.6 + 0.4 * rb.flash) * ra, true); }
         }
+        if (G1) { FG.flush(c);
+          for (const o of later) if (o.ra > 0.02) strip(c, o.S, o.n, o.ra, o.rb.flash, t, o.rb.i * 1.7, T);
+          const Q = FG.begin(c, null);
+          for (const o of later) { const { rb, S, ra } = o; if (ra > 0.02 && !(tier === 3 && bowU > 0.5 && loose > 0.3)) { const hx = S.X[1], hy = S.Y[1]; Q.glow(hx, hy, T * (0.8 + 0.6 * rb.flash), ROSE, 0.55 * ra); Q.glow(hx, hy, T * (0.35 + 0.3 * rb.flash), PEARL, (0.6 + 0.4 * rb.flash) * ra); if (rb.flash > 0.05) Q.star(hx, hy, T * (0.5 + 0.6 * rb.flash), rb.flash * ra, PEARL); } }
+          if (tier === 3 && bowU > 0.3) for (let pr = 0; pr < 3; pr++) { const Kb = bowK(pr), a = sm((t - TE - 0.35) / 0.3) * (1 - sm((t - TL) / 0.6)), kx = H.sx(Kb.x), ky = H.sy(Kb.y) - Kb.z * T; Q.glow(kx, ky, T * 1.2, ROSE, 0.55 * a); Q.glow(kx, ky, T * 0.5, PEARL, 0.9 * a); Q.quad(41, kx, ky, T * 0.2, 0, 0, T * 0.2, '#FFFFFF', a, 0.4, pr, 1); }
+          K.setH(H); K.gBits(Q, B, T); FG.flush(c); return; }
         // Celestial: a pearl knot light at each bow's centre
         if (tier === 3 && bowU > 0.3) for (let pr = 0; pr < 3; pr++) { const K = bowK(pr), a = sm((t - TE - 0.35) / 0.3) * (1 - sm((t - TL) / 0.6)), kx = H.sx(K.x), ky = H.sy(K.y) - K.z * T; blitC(c, glowSprite(ROSE), kx, ky, T * 2.4, T * 2.4, 0.5 * a, true); blitC(c, glowSprite(PEARL), kx, ky, T * 1.0, T * 1.0, 0.9 * a, true); }
         B.draw(c, T);

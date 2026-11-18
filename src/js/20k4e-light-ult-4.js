@@ -16,7 +16,9 @@
    ring, a burst of five-pointed stars, and from every third one little hearts floating up. Meteors favour the monsters
    (round-robin), counts and area grow with evo; Celestial adds a field of suspended star glints, overlapping waves and
    a final rapid sweep across the area that leaves the floor shimmering. Damage per monster is capped at about the house
-   total (a lone boss is not hit by every meteor at full value). All heavy shapes are cached sprites. */
+   total (a lone boss is not hit by every meteor at full value). All heavy shapes are cached sprites.
+   (v404 LT) Meteor Shower on the GPU too when the shared painter (20k6h) is usable (same meteors, timing and hits): pearl drops in pink
+   glass (kind 46) on tapered trails of light, floor pools that ripple, stars of light (kind 50); the 2D picture stays without it. */
 (() => {
   const U = ELEM_IMPL.light.ult, TAU = Math.PI * 2; delete U.guilloche; delete U.mirrors;
   const ROSE = '#FF5CCB', CANDY = '#FF8FDB', MAG = '#E83EAC', BLUSH = '#FFD4EE', PEARL = '#FFF4FC', DEEP = '#8F2D73', LAV = '#D5C4FF';
@@ -28,6 +30,7 @@
   const sstep = (a, b, x) => { const u = cl((x - a) / (b - a)); return u * u * (3 - 2 * u); };
   const evoOf = C => Math.max(1, Math.min(7, Math.round(C.evo || 1)));
   function heartPath(g, cx, cy, s) { g.beginPath(); for (let i = 0; i <= 72; i++) { const t = i / 72 * TAU, x = 16 * Math.pow(Math.sin(t), 3), y = -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t)); if (i) g.lineTo(cx + x * s, cy + y * s); else g.moveTo(cx + x * s, cy + y * s); } g.closePath(); }
+  const gfx = () => { try { const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; return F && F.usable() ? F : null; } catch (e) { return null; } };   // (v404 LT) the shared painter when usable
   const gl = (c, col, x, y, r, a, sq) => { if (!(a > 0.005) || r < 1) return; c.globalAlpha = Math.min(1, a); blitSized(c, glowSprite(col), x - r, y - r * (sq || 1), r * 2, r * 2 * (sq || 1)); };
   const mixA = (a, b, u) => [lerp(a[0], b[0], u), lerp(a[1], b[1], u), lerp(a[2], b[2], u)];
 
@@ -233,7 +236,16 @@
         bitsStep(B, dt);
       },
       drawUnder(c, f, X, Y, T) {
-        const t = f.t, kF = petK(T, 0.6); c.save(); c.globalCompositeOperation = 'lighter';
+        const t = f.t, kF = petK(T, 0.6);
+        { const FG = gfx(); if (FG) { /* (v404 LT) the floor on the GPU: the rose sheen over the area with a slow shimmer, each impact's pool of
+             light flashing then lingering as a rippling shimmer, its ring of light running out */
+          const Q = FG.begin(c, null), GY = H.GY, on = sstep(0.2, F0 + 0.4, t) * (1 - sstep(LAST, END, t)); Q.glow(X, Y, AR * T * 1.15, ROSE, on * 0.2, GY); Q.caustic(X, Y, AR * T * 1.05, ROSE, on * 0.12, 5.1, GY);
+          for (const e of IMP) { const u = (t - e.t) / POOL, ex = H.sx(e.x), ey = H.sy(e.y), k = kF(ex, ey); if (u >= 1 || k < 0.02) continue;
+            const fl = 1 - sstep(0, 0.35 / POOL, u), sh = (1 - u) * (1 - u) * (0.45 + 0.15 * Math.sin(t * 13 + e.x * 7)), pr = T * e.w * (0.55 + 0.35 * sstep(0, 0.3 / POOL, u)), pa = Math.min(1, fl * 0.9 + sh * 0.5) * k;
+            Q.glow(ex, ey, pr, ROSE, pa * 0.55, GY); Q.glow(ex, ey, pr * 0.45, BLUSH, pa * 0.4, GY); Q.glow(ex, ey, pr * 0.25, PEARL, pa * 0.5 * fl, GY); Q.caustic(ex, ey, pr * 1.1, CANDY, sh * 0.7 * k, e.x * 3.3, GY);
+            const ru = (t - e.t) / 0.4; if (ru < 1) { const rr = T * e.w * (0.25 + 0.9 * H.ease.out(ru)); Q.ring(ex, ey, rr * 0.9, ROSE, Math.min(1, (1 - ru) * 1.6) * k, rr * 0.3, GY); Q.ring(ex, ey, rr * 0.88, CANDY, (1 - ru) * k, rr * 0.12, GY); Q.ring(ex, ey, rr * 0.87, PEARL, (1 - ru) * k, rr * 0.05, GY); } }
+          FG.flush(c); return; } }
+        c.save(); c.globalCompositeOperation = 'lighter';
         // a faint rose sheen over the target area while the shower lasts
         const on = sstep(0.2, F0 + 0.4, t) * (1 - sstep(LAST, END, t)); gl(c, ROSE, X, Y, AR * T * 1.15, on * 0.14, H.GY);
         for (const e of IMP) { const u = (t - e.t) / POOL, ex = H.sx(e.x), ey = H.sy(e.y), k = kF(ex, ey); if (u >= 1 || k < 0.02) continue;
@@ -247,6 +259,22 @@
       },
       draw(c, f, X, Y, T) {
         const t = f.t; if (!(T > 0) || !tailSpr()) return; const kF = petK(T, 0.55);
+        { const FG = gfx(); if (FG) { /* (v404 LT) on the GPU: the suspended star glints (stars of light, kind 50), the waiting lights, each meteor a
+             pearl drop in pink glass (kind 46) at the head of a long tapered trail of light, the impact flashes, the hearts (kind 41) and stars */
+          const Q = FG.begin(c, null);
+          for (const s2 of GLT) { const a0 = sstep(0.3, 1.2, t) * (1 - sstep(END - 1, END, t)) * (0.45 + 0.55 * Math.abs(Math.sin(t * s2.sp + s2.ph))); if (a0 < 0.03) continue; const x = H.sx(s2.x), y = H.sy(s2.y) - s2.z * T, r = s2.s * T * 1.4, k = a0 * kF(x, y);
+            Q.glow(x, y, r * 0.9, s2.col, 0.4 * k); Q.quad(50, x, y, r * 0.75, 0, 0, r * 0.75, s2.col, k, 0.6, t * 0.8 + s2.ph, 0); }
+          for (const q of M) { if (q.done || t < q.app) continue; const gx = H.sx(q.x), gy = H.sy(q.y), sx0 = gx - q.sl * q.h0 * T, sy0 = gy - q.h0 * T;
+            if (t < q.t0) { const a0 = sstep(q.app, q.app + 0.35, t), sw = 1 + 0.5 * sstep(q.t0 - 0.25, q.t0, t), tw = 0.7 + 0.3 * Math.sin(t * 9 + q.h0 * 3); Q.glow(sx0, sy0, T * 0.32 * q.w * sw, ROSE, a0 * 0.6 * tw); Q.glow(sx0, sy0, T * 0.12 * q.w * sw, PEARL, a0 * 0.9 * tw); Q.star(sx0, sy0, T * 0.22 * q.w * sw, a0 * 0.7 * tw, PEARL); continue; }
+            const u = cl((t - q.t0) / q.fd), e = Math.pow(u, 1.5), hx = lerp(sx0, gx, e), hy = lerp(sy0, gy, e), dx = gx - sx0, dy = gy - sy0, dl = Math.hypot(dx, dy) || 1, ux = dx / dl, uy = dy / dl;
+            const tl = q.tl * T * (0.25 + 0.75 * sstep(0, 0.45, u)), tw = T * 0.36 * q.w, k = kF(hx, hy);
+            Q.rbeam(hx - ux * tl * 1.05, hy - uy * tl * 1.05, hx, hy, tw * 1.2, ROSE, 0.5 * k, 0, 1); Q.rbeam(hx - ux * tl, hy - uy * tl, hx - ux * tw * 0.2, hy - uy * tw * 0.2, tw * 0.5, CANDY, 0.9 * k, 0, 1); Q.rbeam(hx - ux * tl * 0.6, hy - uy * tl * 0.6, hx - ux * tw * 0.3, hy - uy * tw * 0.3, tw * 0.16, PEARL, k, 0, 1);
+            Q.glow(hx, hy, T * 0.5 * q.w, ROSE, 0.7 * k); Q.glow(hx, hy, T * 0.26 * q.w, BLUSH, 0.5 * k); const cr = T * 0.2 * q.w; Q.quad(46, hx, hy, cr, 0, 0, cr, CANDY, k, 0.6, q.h0, 1); }
+          for (const e of IMP) { const u = (t - e.t) / 0.22; if (u >= 1) continue; const ex = H.sx(e.x), ey = H.sy(e.y) - T * 0.12, k = kF(ex, ey); Q.glow(ex, ey, T * 0.55 * e.w * (0.6 + 0.4 * u), PEARL, (1 - u) * 0.85 * k); Q.star(ex, ey, T * 0.6 * e.w, (1 - u) * 0.8 * k, PEARL); }
+          for (const b of B) { const u = b.t / b.life, al = Math.min(1, u * 6) * (1 - u) * (1 - u * 0.3); if (al < 0.02) continue; const bx = H.sx(b.x), by = H.sy(b.y) - b.z * T, r = b.s * T * (b.kind === 'h' ? 1.6 : 1.3), k = al * kF(bx, by); if (k < 0.02) continue;
+            if (b.kind === 'h') { const ws = 0.25 + 0.75 * Math.abs(Math.cos(t * b.sp + b.ph)), hy2 = r * 0.62; Q.glow(bx, by, r * 0.9, b.col, k * 0.25); Q.quad(41, bx + r * 0.16 * Math.sin(t * b.sp + b.ph), by, hy2 * ws, 0, 0, hy2, '#FFFFFF', k, 0, 2.1, -1); Q.quad(41, bx, by, hy2 * ws, 0, 0, hy2, '#FFFFFF', k, 0.15, 1.3, 1); }
+            else { Q.glow(bx, by, r * 0.8, b.col, k * 0.5); Q.quad(50, bx, by, r * 0.8, 0, 0, r * 0.8, b.col, k, 0.6, t * 1.5 + b.ph, 0); } }
+          FG.flush(c); return; } }
         c.save(); c.globalCompositeOperation = 'lighter';
         // Celestial (and Adept, fewer): suspended star glints over the field
         for (const s of GLT) { const a0 = sstep(0.3, 1.2, t) * (1 - sstep(END - 1, END, t)) * (0.45 + 0.55 * Math.abs(Math.sin(t * s.sp + s.ph))); if (a0 < 0.03) continue; const x = H.sx(s.x), y = H.sy(s.y) - s.z * T, r = s.s * T * 1.4;

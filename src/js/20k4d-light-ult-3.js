@@ -10,7 +10,10 @@
    Every 0.25 s every monster inside the beam takes Light damage (about 15 x base for one that stays inside throughout);
    each one hit gives a small contact flash and particles streaming outward. Width and route length grow with evo; the
    column fades where it passes over the pet; at the end it narrows to a line, pulls up into the sky and fades. Every
-   heavy shape is a cached sprite (column profiles, current tiles, rim, pool, mark, little hearts and stars). */
+   heavy shape is a cached sprite (column profiles, current tiles, rim, pool, mark, little hearts and stars).
+   (v404 LT) On the GPU too when the shared painter (20k6h) is usable: the same route, phases and timing, the column one continuous
+   column of light (kind 51) with scrolling currents, the floor, rim and little hearts (kind 41) and stars (kind 50); the 2D picture
+   stays as it was for a device without the painter. */
 (() => {
   const U = ELEM_IMPL.light.ult, TAU = Math.PI * 2; delete U.seraphic;
   const ROSE = '#FF5CCB', CANDY = '#FF8FDB', MAG = '#E83EAC', BLUSH = '#FFD4EE', PEARL = '#FFF4FC', DEEP = '#8F2D73', LAV = '#D5C4FF';
@@ -22,6 +25,7 @@
   const sstep = (a, b, x) => { const u = cl((x - a) / (b - a)); return u * u * (3 - 2 * u); };
   function heartPath(g, cx, cy, s) { g.beginPath(); for (let i = 0; i <= 72; i++) { const t = i / 72 * TAU, x = 16 * Math.pow(Math.sin(t), 3), y = -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t)); if (i) g.lineTo(cx + x * s, cy + y * s); else g.moveTo(cx + x * s, cy + y * s); } g.closePath(); }
   function scr(c) { const m = c.getTransform(), a = m.a || 1, d = m.d || 1; return { x0: -m.e / a, y0: -m.f / d, w: c.canvas.width / a, h: c.canvas.height / d }; }
+  const gfx = () => { try { const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; return F && F.usable() ? F : null; } catch (e) { return null; } };   // (v404 LT) the shared painter when usable
   const gl = (c, col, x, y, r, a, sq) => { if (!(a > 0.005) || r < 1) return; c.globalAlpha = Math.min(1, a); blitSized(c, glowSprite(col), x - r, y - r * (sq || 1), r * 2, r * 2 * (sq || 1)); };
 
   /* ---- the column's cross-sections (uniform down its length, stretched to any height): 0 halo, 1 body, 2 core ---- */
@@ -143,6 +147,17 @@
       drawUnder(c, f, X, Y, T) {
         const t = f.t, pX = H.sx(me.x), pY = H.sy(me.y);
         const nearK = (px, py) => 1 - 0.6 * (1 - sstep(T * 0.5, T * 1.3, Math.hypot(px - pX, (py - pY) * 1.4)));
+        { const FG = gfx(); if (FG) { /* (v404 LT) the floor on the GPU: the mark (a bright band, fine rings, a ring of little hearts of light
+             turning), the trail's fading pools with a shimmer, the lit pool round the contact point */
+          const Q = FG.begin(c, null), GY = H.GY, K = globalThis.LU1;
+          if (t < W0 + 0.3) { const u = cl(t / M0), rm = R * T * 1.1 * (0.35 + 0.65 * H.ease.out(u)), a = Math.min(1, u * 2.5) * (1 - sstep(W0 - 0.1, W0 + 0.3, t)) * nearK(X, Y);
+            Q.glow(X, Y, rm * 1.3, ROSE, a * 0.4, GY); Q.ring(X, Y, rm * 0.91, ROSE, a, rm * 0.12, GY); Q.ring(X, Y, rm * 0.905, PEARL, a, rm * 0.03, GY); Q.ring(X, Y, rm * 0.7, BLUSH, 0.6 * a, rm * 0.015, GY); Q.ring(X, Y, rm * 0.5, BLUSH, 0.5 * a, rm * 0.015, GY); Q.glow(X, Y, rm * 0.5, PEARL, 0.35 * a, GY);
+            for (let i = 0; i < 12; i++) { const b = i / 12 * TAU + t * 0.6, hx = X + Math.cos(b) * rm * 0.6, hy = Y + Math.sin(b) * rm * 0.6 * GY, z = rm * 0.075; Q.quad(48, hx, hy, Math.cos(b + Math.PI / 2) * z, Math.sin(b + Math.PI / 2) * z * GY, -Math.sin(b + Math.PI / 2) * z, Math.cos(b + Math.PI / 2) * z * GY, BLUSH, 0.9 * a, 0.05, 1, 0); } }
+          for (const e of f.tr) { const u = (t - e.t) / TRL; if (u >= 1) continue; const ex = H.sx(e.x), ey = H.sy(e.y), a = (1 - u) * (1 - u) * nearK(ex, ey), r = R * T * (0.95 - 0.4 * u); Q.glow(ex, ey, r, ROSE, a * 0.36, GY); Q.glow(ex, ey, r * 0.5, BLUSH, a * 0.25, GY); }
+          const on = t < L0 ? 0 : t < W0 ? sstep(L0, W0, t) : t < G1 ? 1 : 1 - sstep(G1, G1 + FOLD * 0.7, t);
+          if (on > 0.01) { const r = R * T * (1.05 + 0.05 * f.pu), k = nearK(X, Y); Q.glow(X, Y, r * (L === 3 ? 2.6 : 1.7), ROSE, on * k * (L === 3 ? 0.45 : 0.32), GY); if (L === 3) Q.glow(X, Y, r * 1.7, BLUSH, on * k * 0.25, GY);
+            Q.glow(X, Y, r, PEARL, on * k * (0.45 + 0.15 * f.pu), GY); Q.caustic(X, Y, r * 1.05, CANDY, on * k * (0.4 + 0.2 * f.pu), 2.9, GY); }
+          FG.flush(c); return; } }
         c.save(); c.globalCompositeOperation = 'lighter';
         // the mark (it stays under the beam as the beam first lands, then fades)
         if (t < W0 + 0.3) { const u = cl(t / M0), rm = R * T * 1.1 * (0.35 + 0.65 * H.ease.out(u)), a = Math.min(1, u * 2.5) * (1 - sstep(W0 - 0.1, W0 + 0.3, t)) * nearK(X, Y);
@@ -171,6 +186,26 @@
         else if (t >= G1) { const u = cl((t - G1) / FOLD); bw = lerp(full, thin, H.ease.in(sstep(0, 0.55, u))); yb = lerp(Y, top, H.ease.in(sstep(0.4, 1, u))); a = 1 - sstep(0.6, 1, u); }
         const pX = H.sx(me.x), pY = H.sy(me.y) - T * 0.46;
         const nearK = (px, py) => 1 - 0.65 * (1 - sstep(T * 0.5, T * 1.3, Math.hypot(px - pX, (py - pY) * 1.3)));
+        { const FG = gfx(); if (FG) { /* (v404 LT) the column on the GPU: one continuous column of light (kind 51: a rose body with a brighter limb,
+             a pearl middle, currents scrolling down it, one to three layers by level, fine strands), a broad breathing halo, its foot feathered;
+             the brilliant rim at the contact point with glints running round it; the little hearts (kind 41) and stars rising from the trail */
+          const Q = FG.begin(c, [pX, pY, T * 0.85]), GY = H.GY;   // (the pet's face kept clear by the painter's soft hole, not by dimming the whole column)
+          if (bw > 0 && yb > top + 1 && a > 0.01) {
+            const DIM = 1, FB = Math.min(T * 1.6, (yb - top) * 0.3), yE = yb + FB * 0.3, len = yE - top;
+            const fk = Math.floor(t * 14), FL = 0.86 + 0.07 * Math.sin(t * 23) + 0.05 * Math.sin(t * 37 + 1.3) + (R1(fk * 3.7 + 1) > 0.8 ? 0.16 * R1(fk * 1.9) : 0), af = a * FL * DIM, bwF = bw * (1 + 0.018 * Math.sin(t * 31)), wk = bw / full, fe = Math.min(1, FB / (0.18 * len));
+            const col = (w, colr, al, cur, fe2) => { if (w < 0.5 || !(al > 0.004)) return; Q.quad(51, X, top + len / 2, w, 0, 0, len / 2, colr, al, cur, len / 2 / w, fe2); };
+            Q.beam(X, top, X, yE - FB * 0.5, bwF * (L === 3 ? 1.3 : 1.15), ROSE, af * (0.25 + 0.1 * Math.sin(t * 5.5)) * wk);
+            col(bwF * 0.62, ROSE, af * Math.min(1, 0.95 + 0.1 * f.pu), wk > 0.35 ? L : 1, fe); col(bwF * 0.36, CANDY, af * (L === 3 ? 0.6 : 0.45), 2, fe); Q.beam(X, top, X, yE - FB * 0.6, Math.max(2, bwF * 0.14), PEARL, af * 0.8 * sstep(0.15, 0.6, wk));
+            if (bw < full * 0.3) Q.beam(X, top, X, yE, Math.max(2, bw * 0.5), PEARL, af);
+            if (yb >= Y - 1) { const r = Math.max(bw * 0.58, thin * 2), k = nearK(X, Y) * a;
+              Q.ring(X, Y, r * 0.875, ROSE, k * 0.9, r * 0.15, GY); Q.ring(X, Y, r * 0.875, PEARL, k, r * 0.04, GY); if (L === 3) { Q.ring(X, Y, r * 1.27, ROSE, k * 0.45, r * 0.2, GY); Q.ripple(X, Y, r * 1.2, CANDY, k * 0.4, 1.3, GY, 0.12); }
+              const NG = 2 + L; for (let i = 0; i < NG; i++) { const b = t * (1.8 + 0.3 * (i % 2)) * (i % 2 ? -1 : 1) + i / NG * TAU, gx = X + Math.cos(b) * r * 0.86, gy = Y + Math.sin(b) * r * 0.86 * GY; Q.glow(gx, gy, T * 0.28, PEARL, k * 0.75); Q.star(gx, gy, T * 0.3, k * 0.7, PEARL); }
+              Q.glow(X, Y - T * 0.05, bw * 0.3, PEARL, k * (0.3 + 0.2 * f.pu), GY); } }
+          else if (t < M0) Q.glow(X, Y, R * T * 0.4 * cl(t / M0), PEARL, 0.5 * cl(t / M0) * nearK(X, Y), GY);
+          for (const b of B) { const u = b.t / b.life, al = Math.min(1, u * 6) * (1 - u) * (1 - u * 0.3); if (al < 0.02) continue; const bx = H.sx(b.x), by = H.sy(b.y) - b.z * T, r = b.s * T * (b.kind === 'h' ? 1.6 : 1.3), k = al * nearK(bx, by); if (k < 0.02) continue;
+            if (b.kind === 'h') { const cs = Math.cos(t * b.sp + b.ph), ws = 0.25 + 0.75 * Math.abs(cs), hy = r * 0.62; Q.glow(bx, by, r * 0.9, b.col, k * 0.25); Q.quad(41, bx + r * 0.16 * Math.sin(t * b.sp + b.ph), by, hy * ws, 0, 0, hy, '#FFFFFF', k, 0, 2.1, -1); Q.quad(41, bx, by, hy * ws, 0, 0, hy, '#FFFFFF', k, 0.15, 1.3, 1); }
+            else { Q.glow(bx, by, r * 0.8, b.col, k * 0.5); Q.quad(50, bx, by, r * 0.8, 0, 0, r * 0.8, b.col, k, 0.6, t * 1.5 + b.ph, 0); } }
+          FG.flush(c); return; } }
         c.save(); c.globalCompositeOperation = 'lighter';
         if (bw > 0 && yb > top + 1 && a > 0.01) {
           // the pet's cut-out: how much of a slice at height y to keep for a layer centred on the beam, w wide

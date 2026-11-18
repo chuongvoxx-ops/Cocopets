@@ -11,7 +11,9 @@
    Duration 10 s at level 1, 15 s at Adept (4), 20 s at Celestial (7), even steps between; at normal expiry the ward
    dissolves into floating hearts. Adept: a second inner ring with star glints, more bands, a double ripple.
    Celestial: three luminous bands turn round the dome at different tilts, and absorbed impacts send delicate waves of
-   hearts and star glints across its surface. No damage to monsters. */
+   hearts and star glints across its surface. No damage to monsters.
+   (v404 LT) On the GPU too when the shared painter (20k6h) is usable: the same circle, heart, bands, ripples and timing in light (LU1's
+   helpers in 20k4b: hearts of light kinds 44 and 48, strips of light); the 2D picture stays as it was for a device without the painter. */
 (() => {
   const U = ELEM_IMPL.light.ult, TAU = Math.PI * 2;
   delete U.unsettingsun;
@@ -54,7 +56,7 @@
 
   /* ================= Love Sanctuary ================= */
   U.lovesanctuary = (C, h) => {
-    H = h; const me = H.me, X0 = H.X, ev = evoOf(C), tier = ev >= 7 ? 3 : ev >= 4 ? 2 : 1;
+    H = h; const me = H.me, X0 = H.X, ev = evoOf(C), tier = ev >= 7 ? 3 : ev >= 4 ? 2 : 1; globalThis.LU1.setH(h);   // (v404 LT: LU1's GPU helpers draw in this game)
     const DUR = 10 + (ev - 1) * 10 / 6, OUT = 1.2, BRK = 0.9;               // 10 s / 15 s at Adept / 20 s at Celestial
     const POOLK = 1.5 + (ev - 1) * 2.5 / 6, ST = X0.ST ? X0.ST() : { hp: 100 }; // the shield pool: 1.5 x .. 4 x the pet's max HP
     const R = 2.5 + 0.1 * (ev - 1), FORM = 0.9;                            // the ward's radius (tiles), its drawing-on time
@@ -100,6 +102,33 @@
       drawUnder(c, f, X, Y, T, t) {
         t = f.t; const fa = fadeOf(t), Rr = R * T, ry = Rr * H.GY, uL = sm(t / FORM), uF = sm((t - 0.35) / 0.6), k = 0.45 + 0.55 * qs;
         const low = qs < 0.25 ? 0.85 + 0.15 * Math.sin(t * 13) : 1, bu = state === 'broken' ? cl((t - endT) / 0.5) : 0;
+        { const K = globalThis.LU1, FG = K.gfx(); if (FG) { /* (v404 LT) the magic circle on the GPU: the pink disc with a slow shimmer, the edge
+             drawing itself round (its strength the pool left), the sheen and the light bands as strips of light along the rim, the inner rings,
+             glints and little hearts, the beating heart of light at its centre (kinds 44, 48), the heart ripples of absorbed hits */
+          const Q = FG.begin(c, null), GY = H.GY, arc = (rx, ry2, a0, len, N) => { const P = []; for (let i = 0; i <= N; i++) { const b = a0 + len * i / N; P.push([X + Math.cos(b) * rx, Y + Math.sin(b) * ry2]); } return P; }, env2 = v => Math.sin(Math.PI * v);
+          Q.glow(X, Y, Rr * 1.02, ROSE, 0.32 * uF * fa, GY); Q.glow(X, Y, Rr * 0.6, BLUSH, 0.12 * uF * fa, GY); Q.caustic(X, Y, Rr * 0.98, ROSE, 0.2 * uF * fa * (0.6 + 0.4 * k), 6.1, GY);
+          const a0 = Math.PI / 2, sweep = TAU * uL, EP = arc(Rr, ry, a0, sweep, Math.max(4, Math.round(64 * uL))), ef = v => uL < 1 ? sm(v / 0.04) : 1;
+          K.gStrip(Q, EP, T * (0.14 + 0.2 * k), ROSE, v => 0.45 * fa * low * (0.55 + 0.45 * k) * ef(v)); K.gStrip(Q, EP, T * (0.035 + 0.06 * k), CANDY, v => 0.95 * fa * low * ef(v)); K.gStrip(Q, EP, Math.max(1, T * 0.02), PEARL, v => 0.8 * fa * low * ef(v));
+          if (uL < 1) { const hx = X + Math.cos(a0 + sweep) * Rr, hy = Y + Math.sin(a0 + sweep) * ry; Q.glow(hx, hy, T * 0.5, PEARL, fa); Q.star(hx, hy, T * 0.45, fa, PEARL); }
+          K.gStrip(Q, arc(Rr, ry, t * 0.9, 1.1, 14), T * (0.05 + 0.04 * k), PEARL, v => 0.7 * uL * fa * k * env2(v));
+          const ui = sm((t - 0.3) / 0.6);
+          for (const [rr, col, al, tt] of [[0.86, BLUSH, 0.6, 1], [0.72, CANDY, 0.5, 2]]) { if (tier < tt || ui <= 0.01) continue; const P = arc(Rr * rr, ry * rr, a0, TAU * ui, 56); K.gStrip(Q, P, T * 0.1, ROSE, () => 0.22 * ui * fa); K.gStrip(Q, P, T * 0.025, col, () => al * ui * fa); }
+          const NG = [8, 10, 12][tier - 1]; for (let q = 0; q < NG; q++) { const b = q / NG * TAU - t * 0.18, gx = X + Math.cos(b) * Rr * 0.86, gy = Y + Math.sin(b) * ry * 0.86, tw = 0.6 + 0.4 * Math.sin(t * 2.4 + q * 1.7);
+            if (q % 2 === 0 && tier >= 2) { Q.glow(gx, gy, T * 0.2, BLUSH, 0.5 * tw * ui * fa); Q.quad(50, gx, gy, T * 0.14, 0, 0, T * 0.14, q % 4 ? BLUSH : CANDY, tw * ui * fa, 0.6, b, 0); } else { Q.glow(gx, gy, T * 0.13, PEARL, 0.75 * tw * ui * fa); Q.star(gx, gy, T * 0.18, 0.6 * tw * ui * fa, PEARL); } }
+          if (tier === 3) for (let q = 0; q < 4; q++) { const b = q / 4 * TAU + t * 0.12 + Math.PI / 4, hy2 = T * 0.12; Q.quad(41, X + Math.cos(b) * Rr * 0.72, Y + Math.sin(b) * ry * 0.72, hy2, 0, 0, hy2, '#FFFFFF', 0.85 * ui * fa, 0.2, q, 1); }
+          const s = Rr * 0.6, cy = Y - s * 0.2 * GY, v = (t % 1.3) / 1.3, beat = Math.pow(Math.max(0, 1 - v * 4), 2) + 0.5 * Math.pow(Math.max(0, 1 - Math.abs(v - 0.3) * 6), 2), ps = 1 + 0.035 * beat, hw = s * 1.88 * ps, hc = cy + s * 0.295 * GY * ps, hu = sm((t - 0.15) / 0.75);
+          if (uF > 0) K.gFillHeart(Q, X, hc, hw * 1.02, GY, ROSE, (0.6 + 0.25 * beat) * uF * fa, 0.75, 0.006, 10);
+          Q.glow(X, cy + s * 0.15 * GY, s * (0.55 + 0.12 * beat), PEARL, (0.18 + 0.3 * beat) * uF * fa, GY);
+          if (hu > 0) { K.gFloorHeart(Q, X, hc, hw, GY, CANDY, fa * (0.85 + 0.15 * beat), hu < 1 ? hu : 1.1, 0.016, 0.12); K.gFloorHeart(Q, X, hc, hw, GY, PEARL, 0.7 * fa, hu < 1 ? hu : 1.1, 0.005, 0); if (hu < 1) for (const p2 of K.gHeads(X, hc, hw, GY, hu)) Q.glow(p2[0], p2[1], T * 0.35, PEARL, 0.9 * fa); }
+          for (const st of streaks) { const base = st.a0 + t * st.w; let off = 0, boost = 0; for (const hh of hits) { const e = env(t - hh.t); if (e <= 0) continue; off += wrapA(hh.ai - base) * 0.85 * e; boost += e; }
+            const ac = base + off, ln = st.len * (1 + 0.5 * Math.min(1, boost)), al = (0.55 + 0.45 * Math.min(1, boost)) * uL * fa, P = arc(Rr * 0.94, ry * 0.94, ac - ln / 2, ln, 14);
+            K.gStrip(Q, P, T * 0.16, ROSE, v2 => 0.4 * al * env2(v2)); K.gStrip(Q, P, T * (0.05 + 0.03 * Math.min(1, boost)), st.col, v2 => al * env2(v2)); K.gStrip(Q, arc(Rr * 0.94, ry * 0.94, ac - ln * 0.3, ln * 0.6, 8), Math.max(1, T * 0.02), PEARL, v2 => al * env2(v2)); }
+          for (const hh of hits) { for (let w2 = 0; w2 < (tier >= 2 ? 2 : 1); w2++) { const u = cl((t - hh.t - w2 * 0.14) / 0.95); if (u <= 0 || u >= 1) continue; const hs = T * (0.35 + R * 1.15 * H.ease.out(u)), a = (1 - u) * (1 - u) * fa * (w2 ? 0.55 : 1) * (1 - sm((hs - Rr * 0.7) / (Rr * 0.4))), hx = H.sx(hh.x), hy = H.sy(hh.y) - hs * 0.2 * GY;
+              if (a < 0.01) continue; K.gFloorHeart(Q, hx, hy + hs * 0.295 * GY, hs * 1.88, GY, w2 ? BLUSH : CANDY, a, 1.1, 0.02, 0.2); if (!w2) Q.glow(hx, hy + hs * 0.15 * GY, hs * 0.8, CANDY, 0.35 * a, GY); } }
+          for (const hh of hits) { const e = env(t - hh.t); if (e <= 0) continue; const P = arc(Rr, ry, hh.ai - 0.7, 1.4, 12); K.gStrip(Q, P, T * 0.2, ROSE, v2 => 0.5 * e * fa * env2(v2)); K.gStrip(Q, P, T * 0.05, PEARL, v2 => 0.95 * e * fa * env2(v2)); Q.glow(X + Math.cos(hh.ai) * Rr, Y + Math.sin(hh.ai) * ry, T * 0.6, CANDY, 0.55 * e * fa); }
+          if (state === 'broken') { const rr = 1 + 0.25 * H.ease.out(bu), a = (1 - bu) * (1 - bu); Q.ring(X, Y, Rr * rr, ROSE, 0.7 * a, T * 0.3, GY); Q.ring(X, Y, Rr * rr * 0.99, PEARL, 0.9 * a, T * 0.04, GY); }
+          if (bands.length) gBands(Q, X, Y, T, t, fa, false);
+          FG.flush(c); return; } }
         c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'butt';
         // the transparent pink disc and the dome's body (under the pet, so they never cover it)
         c.globalAlpha = 0.75 * uF * fa; c.drawImage(discSpr(), X - Rr * 1.04, Y - ry * 1.04, Rr * 2.08, ry * 2.08);
@@ -141,6 +170,7 @@
       draw(c, f, X, Y, T, t) {
         t = f.t; const fa = fadeOf(t), Rr = R * T, Hd = Rr * COSE, k = 0.45 + 0.55 * qs, uD = sm((t - 0.5) / 0.6);
         // the dome's edge: a thin translucent arc over the ward, faded where the pet stands so it never covers it
+        { const K = globalThis.LU1, FG = K.gfx(); if (FG) { const Q = FG.begin(c, null); if (bands.length) gBands(Q, X, Y, T, t, fa, true); K.gBits(Q, B, T); FG.flush(c); return; } }   // (v404 LT)
         if (bands.length) drawBands(c, X, Y, T, t, fa, true);
         B.draw(c, T);
       } });
@@ -148,6 +178,17 @@
     function fadeOf(t) { return sm(t / 0.25) * (state === 'end' ? 1 - sm((t - endT) / OUT) : state === 'broken' ? 1 - sm((t - endT) / (BRK * 0.55)) : 1); }
     // 0 near the pet's body on screen, 1 away from it (the dome's edge and the bands fade round the pet instead of covering it)
     function petMask(T) { const px = H.sx(me.x), py = H.sy(me.y) - T * 0.55; return (x, y) => cl((Math.hypot(x - px, (y - py) * 0.85) - T * 0.7) / (T * 0.6)); }
+    /* (v404 LT) the same bands on the GPU: each visible run a strip of light (rose glow, its colour, a pearl glint sliding along it) */
+    function gBands(Q, X, Y, T, t, fa, front) {
+      const K = globalThis.LU1, zc = R * 0.32, ub = sm((t - 0.6) / 0.8), N = 48, mask = front ? petMask(T) : null; if (ub <= 0) return;
+      let flare = 0; for (const hh of hits) flare = Math.max(flare, env(t - hh.t));
+      for (const bd of bands) { const ps = bd.p0 + t * bd.w, ct = Math.cos(bd.tilt), stl = Math.sin(bd.tilt), cp = Math.cos(ps), sp = Math.sin(ps), rr = R * bd.r;
+        const P = b => { const lx = rr * Math.cos(b), ly = rr * Math.sin(b) * ct, lz = rr * Math.sin(b) * stl, x = lx * cp - ly * sp, y = lx * sp + ly * cp, z = zc + lz; return [X + x * T, Y + y * T * H.GY - z * T * COSE, y, z]; };
+        let run = [], ra = [], rg = [];
+        const flush = () => { if (run.length > 1) { const n = run.length - 1, A = v => ra[Math.min(n, Math.round(v * n))], G = v => rg[Math.min(n, Math.round(v * n))]; K.gStrip(Q, run, T * 0.14, ROSE, v => 0.2 * A(v)); K.gStrip(Q, run, T * 0.04, bd.col, v => 0.7 * A(v)); K.gStrip(Q, run, T * 0.018, PEARL, v => (0.2 + 0.7 * G(v)) * A(v)); } run = []; ra = []; rg = []; };
+        for (let i = 0; i <= N; i++) { const q = P(i / N * TAU); if ((q[2] > 0) !== front) { flush(); continue; } const a = ub * fa * sm(q[3] / (R * 0.22)) * (front ? 1 : 0.55) * (mask ? mask(q[0], q[1]) : 1) * (1 + 0.6 * flare); run.push([q[0], q[1]]); ra.push(Math.min(1, a)); rg.push(Math.max(0, Math.cos(i / N * TAU * 2 - t * 1.6 + bd.p0)) ** 4); }
+        flush(); }
+    }
     // Celestial: three luminous bands turning round the dome at different tilts (back halves under the pet, front over it)
     function drawBands(c, X, Y, T, t, fa, front) {
       const Rr = R * T, zc = R * 0.32, ub = sm((t - 0.6) / 0.8), N = 48, mask = front ? petMask(T) : null; if (ub <= 0) return;
