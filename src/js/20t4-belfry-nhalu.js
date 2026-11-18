@@ -248,6 +248,7 @@ const BEL_NHALU = (() => {
   const inLane = (C, i, x, y, r) => Math.abs(x - laneX(C, i)) < HW + (r || 0) * 0.5 && y > C.y - NY - 0.5 && y < C.y + NY + 0.5;
   const inNave = (C, x, y, pad) => Math.abs(x - C.x) < NX - (pad || 0) && Math.abs(y - C.y) < NY - (pad || 0);
   let CUR = null;   // (the stage module made for this fight, found by its game)
+  try { if (typeof BEL !== 'undefined' && BEL && Array.isArray(BEL.onRelease)) BEL.onRelease.push(() => { LAST = null; CUR = null; }); } catch (e) {}   // v404 IF: the dead stage let go when a new stage is made
 
   /* ---------- the painter's helpers ---------- */
   const glowAt = (c, x, y, r, col, a) => { if (!(r > 0) || !(a > 0.004) || typeof glowSprite !== 'function') return; c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = Math.min(1, a); blitSized(c, glowSprite(col), x - r, y - r, r * 2, r * 2); c.restore(); };

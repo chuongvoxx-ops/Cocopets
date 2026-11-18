@@ -380,6 +380,7 @@ const BEL_ULDROTH = (() => {
     lair: C => ({ x: C.x, y: C.y - 5.5 }),
     sea: C => ({ x: C.x + Math.cos(-Math.PI / 2 - 0.62) * (AR + 2.2), y: C.y + Math.sin(-Math.PI / 2 - 0.62) * (AR + 2.2) }) };
   let STAGE = null;
+  try { if (typeof BEL !== 'undefined' && BEL && Array.isArray(BEL.onRelease)) BEL.onRelease.push(() => { LAST = null; STAGE = null; }); } catch (e) {}   // v404 IF: the dead stage let go when a new stage is made
   const modOf = FX => (STAGE && FX && STAGE.g === FX.g ? STAGE.mod : null);
 
   /* ================= the fight ================= */

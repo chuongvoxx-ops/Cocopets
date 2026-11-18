@@ -2927,7 +2927,13 @@ GAMES.dungeon = {
         text(me.x, me.y - 1.3, info.lvAdd ? `${info.name} · +${up} pet levels!` : `${info.name} · +${fx} XP${up ? ' · LEVEL UP!' : ''}`, '#9BD178', 14); api.sfx.yum(); sparks(me.x, me.y - 0.5, '#9BD178', 10, 4);
         return true;
       },
-      destroy() { if (AN) AN.stop(); }, reparty,
+      destroy() { if (AN) AN.stop();
+        // v404 IF: (the user, iPhone: the Ifrit fight "doesn't load") the closed stage's canvases are given back now, not when the
+        // collector next runs: WebKit caps a page's canvas memory, and the next stage (Ifrit's, last in Rift 0) wants it at once
+        try { const free = v => { const cv = v && v.cv ? v.cv : v; if (cv && cv.width != null && cv.getContext) cv.width = cv.height = 1; };
+          chunks.forEach(free); chunks.clear(); HOLES.forEach(free); HOLES.clear(); holePx = 0;
+          [vig, vigFull, redFull, redHalf, feverFull, stormHaze, lc].forEach(free); vig = vigFull = redFull = redHalf = feverFull = stormHaze = null;
+          if (FD && FD.release) FD.release(); if (DunWorld.dropProps) DunWorld.dropProps(); } catch (e) {} }, reparty,
       start() { g.intro = 2.4; api.sfx.hum(); },
       down(x, y, id) {
         if (AN && AN.S.cine) return;

@@ -270,6 +270,9 @@ CAL.bossMake = CAL.bossMake || {};
 
   /* ======================= the running context: lava, vents, bombs, ledges ======================= */
   const CTX = new WeakMap(); let CUR = null;
+  // v404 IF: (the user, iPhone: Ifrit's stage would not load) CUR kept the last stage's context, and with it that dead stage's
+  // game, map and canvases, alive into the next stage: let go whenever a new stage is made (BEL.releaseStale, 20n)
+  try { if (typeof BEL !== 'undefined' && BEL && Array.isArray(BEL.onRelease)) BEL.onRelease.push(() => { CUR = null; }); } catch (e) {}
   function ctx(X) { const key = X.g || X; let C = CTX.get(key); if (!C) { C = { X, t: 0, lava: [], vents: [], flights: [], larvae: [], safe: [], safeT: 0, ledge: null, burnT: 0, embers: [], pulses: [], stat: { lavaTouches: 0, falls: 0, returns: 0, bombHits: 0, vents: 0 } }; CTX.set(key, C); } if (X.Tz) C.X = X; CUR = C; return C; }
   /* ---- the lava rule ---- */
   function lavaPool(X, o) { const C = ctx(X), p = Object.assign({ kind: 'pool', r: 1.2, seed: Math.floor(Math.random() * 1e6) }, o); C.lava.push(p); return p; }
