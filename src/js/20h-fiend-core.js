@@ -409,7 +409,9 @@ const DunFiend = (() => {
     c.restore();
   }
   // a new fight lets the last one's pictures go
-  function dropLayers() { LAYERS.forEach(L => { L.cv.width = L.cv.height = 0; if (L.back) L.back.width = L.back.height = 0; }); LAYERS.clear(); Q.ev = 1; Q.busyT = 0; }
+  function dropLayers() { LAYERS.forEach(L => { L.cv.width = L.cv.height = 0; if (L.back) L.back.width = L.back.height = 0; }); LAYERS.clear(); Q.ev = 1; Q.busyT = 0;
+    // v404 IF: the creature stages' layers (stage, stageKept) too: they were kept from fight to fight, a few screen-sized canvases each
+    for (const k of Object.keys(layers)) { const ly = layers[k]; for (const n of ['a', 'b', 'f', 'sp', 'bb']) if (ly[n]) ly[n].width = ly[n].height = 0; delete layers[k]; } }
   const KIT = { TAU, rgba, mixC, sh, tex, patt, body, ellP, blobP, tube, tubePts, seg, ik, eyeR, glow, shade, teeth, angTo, lerpA, stage, ell3, surf3, tufts, Q, qq, pace, dome, devK, blit1, viewBox, layer, dropLayers, fightT, LAYERS, stretch };
 
   /* ---------- the engine ---------- */
@@ -552,8 +554,15 @@ const DunFiend = (() => {
        last one is stretched). The sky is a backdrop: painted small and soft once for each state of the fight (its stage, a
        dawn, a change of world) and then held still, so it costs one copy a frame */
     function arenaPaint(P) {
-      const R = C.R + 1.5, size = Math.ceil(R * 2 * P), cv = document.createElement('canvas'); cv.width = cv.height = size;
-      const c = cv.getContext('2d'); c.translate(size / 2, size / 2); c.scale(P, P);   // world units, centred on the arena
+      const P0 = P, R = C.R + 1.5; if (S.arenaCv) { S.arenaCv.width = S.arenaCv.height = 1; S.arenaCv = null; }   // (v404 IF: the old picture given back before the new one is asked for)
+      let size = Math.ceil(R * 2 * P), cv = document.createElement('canvas'); cv.width = cv.height = size;
+      let c = cv.getContext('2d');
+      // v404 IF: (iPhone) WebKit refuses a canvas once the page's canvas memory is spent (getContext gives null): the ground is
+      // then painted at half the sharpness, and a quarter, rather than the stage failing to draw at all
+      for (let i = 0; !c && i < 2; i++) { P /= 2; size = Math.ceil(R * 2 * P); cv.width = cv.height = 1; cv = document.createElement('canvas'); cv.width = cv.height = size; c = cv.getContext('2d'); }
+      if (!c) { cv.width = cv.height = 1; S.arenaCv = null; S.arenaP = 0; S.arenaFail = (S.arenaFail || 0) + 1; return; }
+      if (P < P0) S.arenaCap = P;   // (held there for the rest of the fight: no repainting at a size the device refuses)
+      c.translate(size / 2, size / 2); c.scale(P, P);   // world units, centred on the arena
       D.paintGround(c, { R: C.R, rnd: mulberry32(FD.id.length * 977 + 13), K: KIT, FX, lv: S.lv });
       if (S.arenaCv) S.arenaCv.width = 0;
       S.arenaCv = cv; S.arenaP = P; S.arenaKey = D.groundKey ? D.groundKey(FX) : '';
@@ -566,12 +575,17 @@ const DunFiend = (() => {
         if (S.skyKey !== key) {
           const ks = q ? 0.4 : 0.28, sw = Math.ceil(W * ks), shh = Math.ceil(H2 * ks); let sc = S.skyCv; if (!sc) sc = S.skyCv = document.createElement('canvas');
           if (sc.width !== sw || sc.height !== shh) { sc.width = sw; sc.height = shh; }
-          const c2 = sc.getContext('2d'); c2.setTransform(ks, 0, 0, ks, 0, 0); c2.globalAlpha = 1; c2.globalCompositeOperation = 'source-over'; c2.fillStyle = '#05030A'; c2.fillRect(0, 0, W, H2);
-          D.sky(c2, W, H2, SKY_T, { x: C.x, y: C.y }, T, FX); c2.setTransform(1, 0, 0, 1, 0, 0);
+          const c2 = sc.getContext('2d');
           let sf = S.skyFull; if (!sf) sf = S.skyFull = document.createElement('canvas'); if (sf.width !== cw || sf.height !== ch) { sf.width = cw; sf.height = ch; }
-          const g2 = sf.getContext('2d'); g2.setTransform(1, 0, 0, 1, 0, 0); g2.drawImage(sc, 0, 0, sw, shh, 0, 0, cw, ch);
-          S.skyKey = key;
+          const g2 = sf.getContext('2d');
+          if (c2 && g2) {   // (v404 IF: a canvas the device refused, getContext null on an iPhone out of canvas memory: no sky this frame, not an error)
+            c2.setTransform(ks, 0, 0, ks, 0, 0); c2.globalAlpha = 1; c2.globalCompositeOperation = 'source-over'; c2.fillStyle = '#05030A'; c2.fillRect(0, 0, W, H2);
+            D.sky(c2, W, H2, SKY_T, { x: C.x, y: C.y }, T, FX); c2.setTransform(1, 0, 0, 1, 0, 0);
+            g2.setTransform(1, 0, 0, 1, 0, 0); g2.drawImage(sc, 0, 0, sw, shh, 0, 0, cw, ch);
+            S.skyKey = key;
+          }
         }
+        if (S.skyKey !== key) { c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.fillStyle = '#05030A'; c.fillRect(0, 0, c.canvas.width, c.canvas.height); c.restore(); } else {
         // (where the arena's platform is a solid disc, D.floorDisc, it hides the sky: only the rows of the screen it does not
         // span from side to side are copied, which in the fight is most often a strip at the top and one at the bottom)
         const sk = S.skyFull, m0 = c.getTransform(); c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.imageSmoothingEnabled = false;
@@ -581,16 +595,17 @@ const DunFiend = (() => {
           if (Rd > mx + 2) { const hy = Math.sqrt(Rd * Rd - mx * mx) - 2; rows = [[0, Math.min(sk.height, Math.ceil(Yc - hy))], [Math.max(0, Math.floor(Yc + hy)), sk.height]]; }
         }
         if (!rows) c.drawImage(sk, 0, 0); else rows.forEach(([y0, y1]) => { if (y1 > y0) c.drawImage(sk, 0, y0, sk.width, y1 - y0, 0, y0, sk.width, y1 - y0); });
-        c.restore();
+        c.restore(); }
       } else { c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.fillStyle = '#05030A'; c.fillRect(0, 0, c.canvas.width, c.canvas.height); c.restore(); }
       // the ground at the zoom the fight holds: a new one that has held for a moment is painted afresh; a ground that
       // changes with the fight (its stage's light, say: D.groundKey) is painted afresh when it does
-      const want = Math.min(T * k, 64);
-      if (!S.arenaCv || (D.groundKey && S.arenaKey !== D.groundKey(FX))) arenaPaint(S.arenaCv ? S.arenaP : want);
+      const want = Math.min(T * k, 64, S.arenaCap || 64);   // (v404 IF: arenaCap, the sharpness the device last allowed)
+      const tn = performance.now();   // (v404 IF: a ground the device refused is asked for again at most every 2 s)
+      if ((!S.arenaCv || (D.groundKey && S.arenaKey !== D.groundKey(FX))) && !(S.arenaFailT && tn - S.arenaFailT < 2000)) { arenaPaint(S.arenaCv ? S.arenaP : want); S.arenaFailT = S.arenaCv ? 0 : tn; }
       if (Math.abs(want - (S.holdP || 0)) > want * 0.003) { S.holdP = want; S.holdT = t; }
-      else if (Math.abs(S.arenaP - want) > want * 0.003 && (t - S.holdT > 0.6 || t < S.holdT)) arenaPaint(want);
+      else if (S.arenaCv && Math.abs(S.arenaP - want) > want * 0.003 && (t - S.holdT > 0.6 || t < S.holdT)) arenaPaint(want);
       const R = C.R + 1.5;
-      blit1(c, S.arenaCv, FX.sx(C.x - R), FX.sy(C.y - R), S.arenaP / T);
+      if (S.arenaCv) blit1(c, S.arenaCv, FX.sx(C.x - R), FX.sy(C.y - R), S.arenaP / T);
       if (D.overlay) { c.save(); D.overlay(c, FX, t, T); c.restore(); }
     }
     /* ground layer: hazards and telegraphs, under everything that stands */
@@ -698,7 +713,12 @@ const DunFiend = (() => {
     const camFocus = () => (D.camFocus && S.m ? D.camFocus(FX, S.m) : null);
     // a fiend may refuse a killing blow until its last mechanic is answered (it keeps the health it sets)
     const holdOn = m => !!(D.holdOn && D.holdOn(FX, m));
-    return { S, FX, start, update, updBoss, updObj, dmgIn, onHit, objHit, objDied, drawArena, drawGround, drawFx, drawBoss, drawObj, drawProp, drawHud, goal, barHP, ending, camFocus, holdOn };
+    // v404 IF: (the user, iPhone: the Ifrit fight did not load) the fight's big pictures (the painted arena, up to 2112 px square at a
+    // 3x screen; the sky and its screen-sized copy) and the kept layers are given back the moment the stage closes (the dungeon's
+    // destroy), not whenever the collector next runs: WebKit caps a page's canvas memory, and the next stage needs it at once.
+    // (Drawing again after this repaints them.)
+    function release() { for (const n of ['arenaCv', 'skyCv', 'skyFull']) { const cv = S[n]; if (cv) cv.width = cv.height = 1; S[n] = null; } S.skyKey = null; S.arenaP = 0; try { dropLayers(); } catch (e) {} }
+    return { S, FX, start, update, updBoss, updObj, dmgIn, onHit, objHit, objDied, drawArena, drawGround, drawFx, drawBoss, drawObj, drawProp, drawHud, goal, barHP, ending, camFocus, holdOn, release };
   }
   return { create, KIT };
 })();

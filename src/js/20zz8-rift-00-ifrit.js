@@ -474,14 +474,15 @@ const CAL_IFRIT = (() => {
   /* the soft ground shadow: blobs under the parts, painted small and laid down at once */
   let SHC = null, BLOB = null;
   function drawShadow(c, V, list, al) {
-    if (!BLOB) { BLOB = document.createElement('canvas'); BLOB.width = BLOB.height = 64; const g = BLOB.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(0,0,0,1)'); gr.addColorStop(0.45, 'rgba(0,0,0,.7)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); }
+    if (!BLOB) { const B = document.createElement('canvas'); B.width = B.height = 64; const g = B.getContext('2d'); if (!g) return; BLOB = B; const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(0,0,0,1)'); gr.addColorStop(0.45, 'rgba(0,0,0,.7)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); }
     let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; const proj = [];
     for (const it of list) { if (it.part === 'jaw' || it.part === 'abs' || it.part.startsWith('pec')) continue; const [bc, br] = bounds(it.part), p = vadd(it.o, mv(it.R, vmul(bc, it.s || 1))), g = V.toS([p[0], p[1], 0]), h = Math.max(0, p[2]), rr = br * 0.55 * V.k * (1 + h * 0.08), w = (it.al == null ? 1 : it.al) / (1 + h * 0.18);
       x0 = Math.min(x0, g[0] - rr); x1 = Math.max(x1, g[0] + rr + h * 0.2 * V.k); y0 = Math.min(y0, g[1] - rr); y1 = Math.max(y1, g[1] + rr); proj.push([g[0] + h * 0.14 * V.k, g[1] + h * 0.04 * V.k, rr, w]); }
     if (!proj.length) return;
     const sc = 0.25, W = Math.max(8, Math.ceil((x1 - x0) * sc) + 4), H = Math.max(8, Math.ceil((y1 - y0) * sc) + 4);
     if (!SHC || SHC.width < W || SHC.height < H) { SHC = document.createElement('canvas'); SHC.width = Math.max(W, SHC ? SHC.width : 0); SHC.height = Math.max(H, SHC ? SHC.height : 0); }
-    const g = SHC.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, SHC.width, SHC.height);
+    const g = SHC.getContext('2d'); if (!g) { SHC = null; return; }   // (v404 IF: a canvas an iPhone out of canvas memory refuses: no shadow, not an error)
+    g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, SHC.width, SHC.height);
     for (const [px, py, rr, w] of proj) { const r2 = rr * sc; g.globalAlpha = Math.min(1, 0.42 * w); g.drawImage(BLOB, (px - x0) * sc + 2 - r2, (py - y0) * sc + 2 - r2 * GY, r2 * 2, r2 * 2 * GY); }
     c.save(); c.globalAlpha = al * 0.6; c.imageSmoothingEnabled = true; c.drawImage(SHC, 0, 0, W, H, x0 - 2 / sc, y0 - 2 / sc, W / sc, H / sc); c.restore();
   }
@@ -533,6 +534,10 @@ const CAL_IFRIT = (() => {
     REFUGE: 2.7 };
   /* the stage's module (when the rift's boss stage makes this arena) is found through the game it runs in */
   let STAGE = null;
+  // v404 IF: (the user, iPhone: "the Ifrit fight doesn't load") module pointers that outlive a stage (STAGE: the stage and its game;
+  // LAST: the last draw's view; PROPC / SHC: the props' pictures and the shadow canvas, made at the last zoom) are let go when a
+  // new stage is made (BEL.releaseStale, 20n), so a finished Ifrit fight keeps nothing alive into the next stage
+  try { if (typeof BEL !== 'undefined' && BEL && Array.isArray(BEL.onRelease)) BEL.onRelease.push(() => { STAGE = null; LAST = null; for (const P of PROPC.values()) if (P && P.cv) P.cv.width = P.cv.height = 1; PROPC.clear(); if (SHC) SHC.width = SHC.height = 1; SHC = null; }); } catch (e) {}
   const modOf = FX => (STAGE && FX && STAGE.g === FX.g ? STAGE.mod : null);
   const rxOf = FX => (STAGE && FX && STAGE.g === FX.g ? STAGE.X : null);
 

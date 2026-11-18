@@ -57,11 +57,24 @@ const ok = (name, pass, info) => { results.push([name, pass]); console.log(`${pa
       ok(`order ${ord.split('').join(' > ')}`, good, log.join('; ') || 'three deposited, the door is open'); }
   }
   if (on('east')) { await fresh(); await start(); await use('belgate', 'E'); await enter('E');
+    // v404 BF: the muster rushes the pet: standing still at the way in (no attacks), the crawlers reach it and the leeches leave their walls
+    const rush = await page.evaluate(async () => { const D = window.__pp.arc.game._dbg, T = D.RIFT.self.mod.trials.E, at = () => T.list.filter(m => !m.dead), d = m => Math.hypot(m.x - D.me.x, m.y - D.me.y);
+      const L0 = new Map(); let t = 0; const snap = {};
+      for (let k = 0; k < 30 * 9; k++) { D.me.x = 70; D.me.y = 54.5; D.me.vx = D.me.vy = 0; D.me.hp = D.ST.hp; D.me.inv = 1; window.__pp.arc.game.update(1 / 30); t += 1 / 30; for (const m of at()) if (m.type === 'leech' && !L0.has(m)) L0.set(m, d(m));
+        if (Math.abs(t - 6) < 0.02) snap.near6 = at().filter(m => d(m) < 5).length; }
+      const al = at(); return { alive: al.length, aggro: al.filter(m => m.aggro).length, near6: snap.near6, near9: al.filter(m => m.type === 'crawler' && d(m) < 3.5).length, crawlers: al.filter(m => m.type === 'crawler').length, leechIn: [...L0].filter(([m, d0]) => !m.dead && d(m) < d0 - 4).length, leeches: L0.size, groups: T.group }; });
+    ok('east (v404): every muster monster rushes the pet (crawlers on it within 9 s, leeches off their walls)', rush.alive === 20 && rush.aggro === 20 && rush.near6 >= 8 && rush.near9 >= rush.crawlers - 2 && rush.leechIn >= 3 && rush.groups === 1, rush);
+    // the groups pour in while the last still fights: kill slowly (one every 0.3 s) and watch two groups on the field at once
+    const pourIn = await page.evaluate(async () => { const D = window.__pp.arc.game._dbg, T = D.RIFT.self.mod.trials.E; let maxAlive = 0, overlap = 0, k = 0;
+      while (T.group < 3 && k++ < 30 * 40) { const al = T.list.filter(m => !m.dead); maxAlive = Math.max(maxAlive, al.length); if (new Set(al.map(m => m.pack)).size > 1) overlap++; if (k % 9 === 0 && al[0]) D.hitMon(al[0], 1e9, { flat: true }); D.me.hp = D.ST.hp; window.__pp.arc.game.update(1 / 30); }
+      return { group: T.group, maxAlive, overlapS: +(overlap / 30).toFixed(1) }; });
+    ok('east (v404): the next group pours in before the last is cleared, under the live cap of 36', pourIn.group >= 3 && pourIn.overlapS > 1 && pourIn.maxAlive <= 36, pourIn);
     // the muster: fight by killing whatever is alive; count groups and kills, Varkul excluded
-    const r = await page.evaluate(async () => { const D = window.__pp.arc.game._dbg, T = D.RIFT.self.mod.trials.E, seen = []; let maxAlive = 0;
-      for (let k = 0; k < 3000 && T.bossState === 'pending'; k++) { const alive = T.list.filter(m => !m.dead); maxAlive = Math.max(maxAlive, alive.length); if (!seen[T.group]) seen[T.group] = { crawler: T.list.slice((T.group - 1) * 20).filter(m => m.type === 'crawler').length, leech: T.list.slice((T.group - 1) * 20).filter(m => m.type === 'leech').length }; const m = alive[0]; if (m) D.hitMon(m, 1e9, { flat: true }); D.me.hp = D.ST.hp; window.__pp.arc.game.update(1 / 30); }
-      return { kills: T.kills, spawned: T.list.length, groups: T.group, perGroup: seen.filter(Boolean), maxAlive, boss: T.bossState, varkulInList: T.list.some(m => m.varkul) }; });
-    ok('east (v397): exactly 100 ordinary monsters in 5 groups of 20 (16 crawlers + 4 leeches)', r.kills === 100 && r.spawned === 100 && r.groups === 5 && r.perGroup.every(g => g.crawler === 16 && g.leech === 4) && r.maxAlive <= 20 && !r.varkulInList, r);
+    const r = await page.evaluate(async () => { const D = window.__pp.arc.game._dbg, T = D.RIFT.self.mod.trials.E; let maxAlive = 0;
+      for (let k = 0; k < 3000 && T.bossState === 'pending'; k++) { const alive = T.list.filter(m => !m.dead); maxAlive = Math.max(maxAlive, alive.length); const m = alive[0]; if (m) D.hitMon(m, 1e9, { flat: true }); D.me.hp = D.ST.hp; window.__pp.arc.game.update(1 / 30); }
+      const per = {}; for (const m of T.list) { const q = per[m.pack] || (per[m.pack] = { crawler: 0, leech: 0 }); q[m.type] = (q[m.type] || 0) + 1; }   // (v404 BF: a group is its pack; they trickle in, so count at the end)
+      return { kills: T.kills, spawned: T.list.length, groups: T.group, perGroup: Object.values(per), maxAlive, boss: T.bossState, varkulInList: T.list.some(m => m.varkul) }; });
+    ok('east (v397/v404): exactly 100 ordinary monsters in 5 groups of 20 (16 crawlers + 4 leeches), at most 36 at once', r.kills === 100 && r.spawned === 100 && r.groups === 5 && r.perGroup.length === 5 && r.perGroup.every(g => g.crawler === 16 && g.leech === 4) && r.maxAlive <= 36 && !r.varkulInList, r);
     await runG(3.2, { heal: true }); const v = await page.evaluate(() => { const D = window.__pp.arc.game._dbg, T = D.RIFT.self.mod.trials.E; return T.V ? { name: T.V.m.bname, hp: Math.round(T.V.m.maxhp), act: T.V.V.act, inMuster: T.list.includes(T.V.m), kills: T.kills } : null; });
     ok('east: the bell rings and Varkul is released, not counted in the 100', !!v && v.name === 'Varkul, the Chainbound' && !v.inMuster && v.kills === 100, v);
     // his moves: breath and sweep, with recovery windows between them
@@ -244,7 +257,11 @@ const ok = (name, pass, info) => { results.push([name, pass]); console.log(`${pa
     const n = await meas(); const nT = await page.evaluate(() => +window.__pp.arc.game._dbg.RIFT.self.mod.trials.N.cost.toFixed(3));
     await fresh(); await start(); await use('belgate', 'W'); await enter('W'); await runG(3, { heal: true, stay: [27, 54.5] }); const w = await meas();
     await fresh(); await start(); await goTo(52.5, 56); await runG(0.3); const h = await meas();
-    console.log('perf (headless swiftshader, shared CPU: relative numbers) · hall', JSON.stringify(h), '· north 100 rollers', JSON.stringify(n), 'trial logic ms', nT, '· west 120 gnawers', JSON.stringify(w));
+    // v404 BF: the east muster with its field full (the groups pouring in, up to the cap of 36), all of it round the pet
+    await fresh(); await start(); await use('belgate', 'E'); await enter('E');
+    const eN = await page.evaluate(async () => { const D = window.__pp.arc.game._dbg, T = D.RIFT.self.mod.trials.E; let k = 0; for (; k < 30 * 30; k++) { const al = T.list.filter(m => !m.dead); if (T.group >= 2 && al.length >= 30 && k > 300) break; if (k % 9 === 0 && al.length > 16 && T.group < 2) D.hitMon(al[0], 1e9, { flat: true }); D.me.x = 70; D.me.y = 54.5; D.me.vx = D.me.vy = 0; D.me.hp = D.ST.hp; D.me.inv = 1; window.__pp.arc.game.update(1 / 30); } return T.list.filter(m => !m.dead).length; });
+    const e = await meas();
+    console.log('perf (headless swiftshader, shared CPU: relative numbers) · hall', JSON.stringify(h), '· north 100 rollers', JSON.stringify(n), 'trial logic ms', nT, '· west 120 gnawers', JSON.stringify(w), '· east muster', eN, 'alive', JSON.stringify(e));
     ok('perf: measured at phone size', true); }
   console.log(`\n${results.filter(r => r[1]).length}/${results.length} passed · page errors: ${errors.length}`); if (errors.length) console.log(errors.slice(0, 8).join('\n'));
   await T.browser.close(); process.exit(errors.length || results.some(r => !r[1]) ? 1 : 0);

@@ -1498,7 +1498,7 @@ GAMES.dungeon = {
       g.flash = Math.max(0, g.flash - dtReal * 2.2); g.hurtV = Math.max(0, g.hurtV - dtReal * 1.4);
       if (g.zoomT > 0) { g.zoomT -= dtReal; if (g.zoomT <= 0) g.zoomP = 1; }
       // the camera pulls back a little while a boss is up
-      { const bossUp = g.boss && !g.boss.dead && g.boss.act !== 'sleep', fz = camPick() /* (Fire's Nidhogg, 20k6g: its flight zoom and Ultima framing) */, want = (fz && fz.zoom ? fz.zoom : FD ? (bossUp ? 0.66 : 0.78) : bossUp ? 0.86 : 1) * g.zoomP * (F.rift && F.rift.kind === 'boss' ? 1.2 : 1) /* (v401: rift boss fights closer, 1.6; v404: eased back 25% to 1.2, the user 2026-11-19) */; g.zoom += (want - g.zoom) * Math.min(1, dtReal * 3); if (Math.abs(g.zoom - want) < 0.002) g.zoom = want; }
+      { const bossUp = g.boss && !g.boss.dead && g.boss.act !== 'sleep', fz = camPick() /* (Fire's Nidhogg, 20k6g: its flight zoom and Ultima framing) */, want = (fz && fz.zoom ? fz.zoom : FD ? (bossUp ? 0.66 : 0.78) : bossUp ? 0.86 : 1) * g.zoomP * (g.camK = F.rift && F.rift.kind === 'boss' ? 1.2 : 1) /* (v401: rift boss fights closer, 1.6; v404: eased back 25% to 1.2, the user 2026-11-19) */ /* (v404 BF: kept as g.camK, so a boss's framing can still fit its warnings on screen) */; g.zoom += (want - g.zoom) * Math.min(1, dtReal * 3); if (Math.abs(g.zoom - want) < 0.002) g.zoom = want; }
       if (g.hitStop > 0) { g.hitStop -= dtReal; return; }
       g.ts = g.slowT > 0 ? 0.3 : 1; if (g.slowT > 0) g.slowT -= dtReal;
       const dt = dtReal * g.ts; curDt = dt;
@@ -2253,6 +2253,7 @@ GAMES.dungeon = {
       const T = Tz();
       for (const b of eshots) {
         const X = sx(b.x), Y = sy(b.y) - (b.z || 0) * T, r = Math.max(4, b.r * T), col = b.mine ? '#8FE3F0' : b.color;
+        if (b.paint && DQ && !b.mine && b.paint(DQ, X, Y, r, T, b)) continue;   // v404 EM: a shot that paints itself on the GPU pass (the evil Cocopets' volleys, 20zz9)
         if (b.lob) { c.fillStyle = 'rgba(0,0,0,.3)'; c.beginPath(); c.ellipse(X, sy(b.y), r, r * 0.4, 0, 0, 6.283); c.fill(); }
         blitSized(c, glowSprite(col), X - r * 3, Y - r * 3, r * 6, r * 6);
         c.save(); c.translate(X, Y);
@@ -2282,6 +2283,7 @@ GAMES.dungeon = {
         if (z.kind === 'warn') {
           if (enemyPass) continue;   // every warning is painted on the ground, under the pets and monsters, and kept faint
           if (z.own === 'pet') continue;   // (the pet's own attacks show no target marker: warnings are for dodging, and nobody dodges their own blow)
+          if (z.drawn && z.drawn()) continue;   // v404 EM: its maker paints it (glow on the GPU: the evil Cocopets' tells, 20zz9)
           const col = z.color || '#FF4D6D', pulse = 0.25 + 0.2 * Math.sin(g.t * 20);
           c.save(); c.globalAlpha = z.own === 'enemy' ? 0.4 : 0.6;
           if (z.shape === 'line') { c.translate(X, Y); c.rotate(z.a); c.fillStyle = hexA(col, 0.14 + u * 0.22); c.fillRect(0, -z.w * T / 2, z.len * T, z.w * T); c.strokeStyle = hexA(col, 0.6 + pulse); c.lineWidth = 2; c.setLineDash([8, 6]); c.strokeRect(0, -z.w * T / 2, z.len * T, z.w * T); c.setLineDash([]); c.fillStyle = hexA(col, 0.38); c.fillRect(0, -z.w * T / 2, z.len * T * u, z.w * T); for (let i = 1; i < 4; i++) { const ax = ((i / 4 + g.t * 0.8) % 1) * z.len * T; c.fillStyle = hexA('#FFFFFF', 0.35); c.beginPath(); c.moveTo(ax + 6, 0); c.lineTo(ax - 4, -z.w * T * 0.25); c.lineTo(ax - 4, z.w * T * 0.25); c.fill(); } }
@@ -2837,7 +2839,14 @@ GAMES.dungeon = {
       c.lineJoin = 'round'; c.lineCap = 'round';
       // lightning: a soft glow along the bolt (one ray from end to end, no banded edges), its crackling line crisp inside it
       for (const b of bolts) { const a = b.life / b.max, p0 = b.pts[0], p1 = b.pts[b.pts.length - 1]; if (!p0) continue;
-        if (DQ) { const bc = hx6(b.color, '#BFE6FF'); for (let i = 1; i < b.pts.length; i++) { const q0 = b.pts[i - 1], q1 = b.pts[i], X0 = sx(q0[0]), Y0 = sy(q0[1]), X1 = sx(q1[0]), Y1 = sy(q1[1]), dx = X1 - X0, dy = Y1 - Y0; DQ.beam(X0 - dx * 0.12, Y0 - dy * 0.12, X1 + dx * 0.12, Y1 + dy * 0.12, b.w * 2.6, bc, a * 0.6); DQ.beam(X0 - dx * 0.12, Y0 - dy * 0.12, X1 + dx * 0.12, Y1 + dy * 0.12, b.w * 0.7, '#FFFFFF', a * 0.75); } DQ.glow(sx(p1[0]), sy(p1[1]), b.w * 6, bc, a * 0.6); }   /* (v354: on the GPU a glowing channel round the crisp bolt) */
+        /* v404 EM (the user: "the beams look like they're cropped"): on the GPU the whole bolt is light, in three layers (a wide
+           haze, a coloured body, a white-hot thread) of overlapping links, and a bolt from the sky fades in out of the air over
+           its first third (it began in a blunt cut, the crisp 2D line drawn over it ending hard at both ends); the 2D lines are
+           only where the GPU is not */
+        if (DQ) { const bc = hx6(b.color, '#BFE6FF'), n = b.pts.length, sky = n > 2 && p1[1] - p0[1] > 5, rmp = i => { if (!sky) return 1; const v = Math.min(1, i / ((n - 1) * 0.34)); return v * v * (3 - 2 * v); };
+          for (let i = 1; i < n; i++) { const q0 = b.pts[i - 1], q1 = b.pts[i], X0 = sx(q0[0]), Y0 = sy(q0[1]), X1 = sx(q1[0]), Y1 = sy(q1[1]), dx = (X1 - X0) * 0.125, dy = (Y1 - Y0) * 0.125, e0 = rmp(i - 1), e1 = rmp(i);
+            DQ.rbeam(X0 - dx, Y0 - dy, X1 + dx, Y1 + dy, b.w * 3.4, bc, a * 0.34, e0, e1); DQ.rbeam(X0 - dx, Y0 - dy, X1 + dx, Y1 + dy, b.w * 1.3, bc, a * 0.85, e0, e1); DQ.rbeam(X0 - dx, Y0 - dy, X1 + dx, Y1 + dy, b.w * 0.45, '#FFFFFF', a * 0.95, e0, e1); }
+          DQ.glow(sx(p1[0]), sy(p1[1]), b.w * 6, bc, a * 0.6); DQ.star(sx(p1[0]), sy(p1[1]), b.w * 3, a * 0.75, '#FFFFFF'); continue; }
         c.globalAlpha = 1; softRay(c, sx(p0[0]), sy(p0[1]), sx(p1[0]), sy(p1[1]), b.w * 7, b.color, a * 0.55);
         c.beginPath(); b.pts.forEach(([x, y], i) => i ? c.lineTo(sx(x), sy(y)) : c.moveTo(sx(x), sy(y))); c.strokeStyle = b.color; c.lineCap = 'round'; c.lineJoin = 'round'; c.globalAlpha = a * 0.3; c.lineWidth = b.w * 2; c.stroke(); c.globalAlpha = a; c.lineWidth = b.w; c.stroke(); c.strokeStyle = '#FFFFFF'; c.lineWidth = b.w * 0.4; c.stroke(); }
       c.globalAlpha = 1;
@@ -2927,7 +2936,13 @@ GAMES.dungeon = {
         text(me.x, me.y - 1.3, info.lvAdd ? `${info.name} · +${up} pet levels!` : `${info.name} · +${fx} XP${up ? ' · LEVEL UP!' : ''}`, '#9BD178', 14); api.sfx.yum(); sparks(me.x, me.y - 0.5, '#9BD178', 10, 4);
         return true;
       },
-      destroy() { if (AN) AN.stop(); }, reparty,
+      destroy() { if (AN) AN.stop();
+        // v404 IF: (the user, iPhone: the Ifrit fight "doesn't load") the closed stage's canvases are given back now, not when the
+        // collector next runs: WebKit caps a page's canvas memory, and the next stage (Ifrit's, last in Rift 0) wants it at once
+        try { const free = v => { const cv = v && v.cv ? v.cv : v; if (cv && cv.width != null && cv.getContext) cv.width = cv.height = 1; };
+          chunks.forEach(free); chunks.clear(); HOLES.forEach(free); HOLES.clear(); holePx = 0;
+          [vig, vigFull, redFull, redHalf, feverFull, stormHaze, lc].forEach(free); vig = vigFull = redFull = redHalf = feverFull = stormHaze = null;
+          if (FD && FD.release) FD.release(); if (DunWorld.dropProps) DunWorld.dropProps(); } catch (e) {} }, reparty,
       start() { g.intro = 2.4; api.sfx.hum(); },
       down(x, y, id) {
         if (AN && AN.S.cine) return;

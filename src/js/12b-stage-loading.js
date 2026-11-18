@@ -21,7 +21,7 @@ const LOAD_PICS = (() => {
   function load(k) { if (got[k]) return got[k];
     const D = typeof LOAD_PICS_DATA !== 'undefined' ? LOAD_PICS_DATA : null;   /* (v375: the Claude build carries them inside the page) */
     const cands = D && D[k] ? [D[k]] : web ? ['loading/' + k + '.jpg', BLOB[k]] : [BLOB[k], 'loading/' + k + '.jpg'];
-    got[k] = (async () => { for (const u of cands) { if (!u) continue; const ok = await new Promise(r => { const im = new Image(); im.decoding = 'async'; const to = setTimeout(() => r(false), 6000); im.onload = () => { clearTimeout(to); held[k] = im; (im.decode ? im.decode().catch(() => {}) : Promise.resolve()).then(() => r(true)); }; im.onerror = () => { clearTimeout(to); r(false); }; im.src = u; }); if (ok) return held[k].src; } got[k] = null; return null; })();
+    got[k] = (async () => { for (const u of cands) { if (!u) continue; const ok = await new Promise(r => { const im = new Image(); im.decoding = 'async'; const to = setTimeout(() => r(false), 6000); im.onload = () => { clearTimeout(to); held[k] = im; (im.decode ? Promise.race([im.decode().catch(() => {}), new Promise(q => setTimeout(q, 2500))]) : Promise.resolve()).then(() => r(true)); };   /* (v404 IF: a decode that never settles, as WebKit's can under memory pressure, no longer holds the loading screen) */ im.onerror = () => { clearTimeout(to); r(false); }; im.src = u; }); if (ok) return held[k].src; } got[k] = null; return null; })();
     return got[k]; }
   return { load, BLOB };
 })();

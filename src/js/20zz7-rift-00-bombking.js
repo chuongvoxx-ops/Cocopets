@@ -187,6 +187,7 @@ const CALBOMB = (() => {
       return { T, sc, k, Rh, toS, toW, depth, x, y, z, a };
     }
     let LAST = null, NOGL = false, GLFAIL = 0, GLRETRY = 0, GLMS = 0, GLN = 0, GLBOX = null, GLLAST = 0; const GLI = [], GLJ = [];
+    try { if (typeof BEL !== 'undefined' && BEL && Array.isArray(BEL.onRelease)) BEL.onRelease.push(() => { LAST = null; }); } catch (e) {}   // v404 IF: (the last draw's view) let go when a new stage is made
     const glFail = () => { const t = nowMs(); if (t - GLLAST > 20000) GLFAIL = 0; GLLAST = t; GLFAIL++; if (GLFAIL >= 3) NOGL = true; else GLRETRY = t + 1500; };
     const glOn = () => { if (NOGL || (GLRETRY && nowMs() < GLRETRY) || typeof GLM === 'undefined' || !GLM.ok()) return false; if (GLM.soft && !(typeof window !== 'undefined' && window.__CALBOMB_GL)) return false;
       if (!MESH) { try { const t0 = nowMs(); MESH = buildMeshes(); MESH_MS = nowMs() - t0; } catch (e) { NOGL = true; if (typeof console !== 'undefined') console.warn('Bomb King: meshes', e); return false; } } return true; };
@@ -312,6 +313,9 @@ const CALBOMB_FIGHT = (() => {
   const shelterTiles = (C, s) => { const out = []; for (let ty = Math.floor(s.y) - 3; ty <= Math.floor(s.y) + 3; ty++) for (let tx = Math.floor(s.x) - 3; tx <= Math.floor(s.x) + 3; tx++) if (inRect(s, tx + 0.5, ty + 0.5, 0.08)) out.push([tx, ty]); return out; };
   // (the stage module made for this fight, found by its game)
   let CUR = null;
+  // v404 IF: (the user, iPhone: Ifrit's stage would not load) CUR held the Bomb King's dead stage (its fiend, its 2112 px painted
+  // arena, its floor) alive through the rest of the rift: let go whenever a new stage is made (BEL.releaseStale, 20n)
+  try { if (typeof BEL !== 'undefined' && BEL && Array.isArray(BEL.onRelease)) BEL.onRelease.push(() => { CUR = null; }); } catch (e) {}
 
   /* ---------- the painter's helpers ---------- */
   const glowAt = (c, x, y, r, col, a) => { if (!(r > 0) || !(a > 0.004) || typeof glowSprite !== 'function') return; c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = Math.min(1, a); blitSized(c, glowSprite(col), x - r, y - r, r * 2, r * 2); c.restore(); };

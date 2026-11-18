@@ -751,7 +751,61 @@ const BEL_ULDROTH = (() => {
     else if (s.shape === 'cone') { c.moveTo(X, Y); c.arc(X, Y, s.len * T, s.a - s.spread, s.a + s.spread); c.closePath(); }
     else if (s.art === 'wave') { const X0 = FX.sx(C.x), Y0 = FX.sy(C.y), R = C.R * T; if (s.side > 0) { c.moveTo(X0, Y0 - R); c.arc(X0, Y0, R, -Math.PI / 2, Math.PI / 2); } else { c.moveTo(X0, Y0 + R); c.arc(X0, Y0, R, Math.PI / 2, Math.PI * 1.5); } c.closePath();
       for (const q of islandsOf(FX)) if (q.up > 0.5 && (q.x - C.x) * s.side > -ISL_R) { c.moveTo(FX.sx(q.x) + (ISL_R - 0.25) * T, FX.sy(q.y)); c.arc(FX.sx(q.x), FX.sy(q.y), (ISL_R - 0.25) * T, 0, TAU, true); } } }
+  /* v404 BF: the telegraphs on the GPU painter, glow-only and feathered (the user: no crisp 2D outlines, no countdown digits):
+     the marked ground a soft dark wash (shade blobs, no cut edges), its boundary feathered light in links that overlap (no
+     beads), the strike filling from its source as light, the symbol a string of soft blooms; the Undertow's pull chevrons of
+     light; the flood's warning a soft ring round the platform, the refuge island a mint ring of light (a slow light running
+     round it until it has risen). The words (LOCKED, FLOOD) stay; no numbers. Without the painter, the 2D art as before. */
+  const GLYPH = { jaw: r => [0, 1].map(k => { const y0 = k ? 0.45 : -0.35, y1 = k ? -0.05 : 0.15, P = [[-0.8, y0]]; for (let i = 0; i < 4; i++) P.push([-0.8 + (i + 0.5) * 0.4, y1], [-0.8 + (i + 1) * 0.4, y0]); return P; }),
+    pull: () => [Array.from({ length: 41 }, (_, i) => { const u = i / 40, a = u * TAU * 1.6, rr = 0.85 * (1 - u * 0.85); return [Math.cos(a) * rr, Math.sin(a) * rr]; })],
+    wave: () => [-0.3, 0.15].map(dy => Array.from({ length: 17 }, (_, i) => { const u = i / 16; return [-0.85 + u * 1.7, dy + Math.sin(u * TAU * 1.5) * 0.18]; })),
+    bell: () => [[[-0.25, -0.6], [-0.27, -0.25], [-0.36, 0.06], [-0.65, 0.42], [0, 0.42], [0.65, 0.42], [0.36, 0.06], [0.27, -0.25], [0.25, -0.6], [-0.25, -0.6]]],
+    safe: () => [[[0, -0.75], [0.62, -0.42], [0.5, 0.3], [0, 0.75], [-0.5, 0.3], [-0.62, -0.42], [0, -0.75]], [[-0.28, 0], [-0.05, 0.25], [0.32, -0.2]]] };
+  function glyphGL(Q, kind, x, y, r, col, al) { const G = GLYPH[kind]; if (!G) return; Q.glow(x, y, r * 1.3, col, 0.14 * al);
+    for (const L of G(r)) for (let i = 1; i < L.length; i++) { const [ax, ay] = L[i - 1], [bx, by] = L[i], n = Math.max(1, Math.ceil(Math.hypot(bx - ax, by - ay) * r / (r * 0.12))); for (let k = (i === 1 ? 0 : 1); k <= n; k++) { const u = k / n, px = x + (ax + (bx - ax) * u) * r, py = y + (ay + (by - ay) * u) * r; Q.glow(px, py, r * 0.22, col, 0.3 * al); Q.glow(px, py, r * 0.09, '#FFFFFF', 0.32 * al); } } }
+  // links of light along a circle's arc (b0..b1), each overlapping its neighbours (no beads)
+  function arcGL(Q, X, Y, R, b0, b1, w, col, al, n) { n = n || Math.max(6, Math.round(Math.abs(b1 - b0) * R / (w * 2.2 + 6))); const st = (b1 - b0) / n; for (let i = 0; i < n; i++) { const p0 = b0 + st * (i - 0.15), p1 = b0 + st * (i + 1.15); Q.beam(X + Math.cos(p0) * R, Y + Math.sin(p0) * R, X + Math.cos(p1) * R, Y + Math.sin(p1) * R, w, col, al); } }
+  function groundArtGL(c, FX, T, t, F) { const M = FX.mem, C = FX.C, A = M.A, words = [];
+    // under the light, a soft dark edge (the same path stroked wide and faint, then narrower: no hard step), so the light reads on the pale stone
+    const under = (path, k) => { c.save(); c.lineJoin = 'round'; c.lineCap = 'round'; for (const [w, al] of [[T * 1.1, 0.06], [T * 0.65, 0.09], [T * 0.32, 0.13]]) { path(); c.lineWidth = Math.max(1, w); c.strokeStyle = `rgba(24,4,12,${(al * k).toFixed(3)})`; c.stroke(); } c.restore(); };
+    for (const s of FX.S.tele) if (s.art && !s.done && (s.shape === 'cone' || s.shape === 'circle' || s.art === 'wave')) under(() => boldPath(c, FX, s, T), 1);
+    if (A && A.kind === 'undertow' && A.phase === 'pull' && FX.m) { const m = FX.m, X = FX.sx(m.x), Y = FX.sy(m.y), u = cl(A.t / TUNE.pullT);
+      for (let ring = 0; ring < 3; ring++) { const rr = ((TUNE.pullR + 7) - ((t * (1.5 + 3 * u) + ring * 2.3) % 7)) * T; for (let i = 0; i < 14; i++) { const a = i / 14 * TAU + ring * 0.2, x = X + Math.cos(a) * rr, y = Y + Math.sin(a) * rr, ca = Math.cos(a + Math.PI), sa = Math.sin(a + Math.PI), s2 = T * 0.25;
+        under(() => { c.beginPath(); c.moveTo(x - ca * s2 * 0.9 + sa * s2, y - sa * s2 * 0.9 - ca * s2); c.lineTo(x, y); c.lineTo(x - ca * s2 * 0.9 - sa * s2, y - sa * s2 * 0.9 + ca * s2); }, 0.8); } } }
+    if (A && A.kind === 'bell' && A.i != null && (A.phase === 'call' || A.phase === 'rise')) under(() => { c.beginPath(); c.arc(FX.sx(C.x), FX.sy(C.y), C.R * T - T, 0, TAU); }, cl(A.t / 0.6 + (A.phase === 'rise' ? 1 : 0)));
+    const Q = F.begin(c, null);
+    try {
+      for (const s of FX.S.tele) { if (!s.art || s.done) continue; const u = cl(s.age / s.t), pul = 0.5 + 0.5 * Math.sin(t * (8 + 10 * u)), col = s.col || WARN, X = FX.sx(s.x), Y = FX.sy(s.y);
+        if (s.shape === 'cone') { const L = s.len * T, a0 = s.a - s.spread, a1 = s.a + s.spread, nr = 4;
+          for (let i = 0; i < nr; i++) { const r = L * (i + 0.6) / nr, na = Math.max(1, Math.ceil(2 * s.spread * r / (L / nr))); for (let j = 0; j < na; j++) { const a = a0 + (j + 0.5) / na * 2 * s.spread, rr = Math.max(L / nr, 2 * s.spread * r / na) * 0.85; Q.wshade(X + Math.cos(a) * r, Y + Math.sin(a) * r, rr, rr, '#1E0610', 0.22 + 0.12 * u, i * 5 + j, 1);
+            if (r < L * u + L / nr * 0.5) Q.glow(X + Math.cos(a) * r, Y + Math.sin(a) * r, rr, col, 0.08 + 0.1 * u); } }   // (the wash, and the strike filling from his jaws)
+          for (const b of [a0, a1]) { Q.rbeam(X + Math.cos(b) * T * 0.6, Y + Math.sin(b) * T * 0.6, X + Math.cos(b) * L, Y + Math.sin(b) * L, T * 0.8, col, (0.2 + 0.15 * u) * (0.7 + 0.3 * pul), 0.2, 1); Q.rbeam(X + Math.cos(b) * T * 0.6, Y + Math.sin(b) * T * 0.6, X + Math.cos(b) * L, Y + Math.sin(b) * L, T * 0.2, col, 0.6 + 0.35 * pul, 0.2, 1); }
+          arcGL(Q, X, Y, L, a0, a1, T * 0.8, col, (0.2 + 0.15 * u) * (0.7 + 0.3 * pul)); arcGL(Q, X, Y, L, a0, a1, T * 0.2, col, 0.6 + 0.35 * pul); }
+        else if (s.shape === 'circle') { const R = s.r * T; Q.wshade(X, Y, R * 0.95, R * 0.95, '#1E0610', 0.22 + 0.12 * u, 3, 1); Q.ring(X, Y, R, col, (0.25 + 0.2 * u) * (0.7 + 0.3 * pul), T * 0.7, 1); Q.ring(X, Y, R, col, 0.55 + 0.35 * pul, T * 0.18, 1); if (u < 0.97) Q.ring(X, Y, R * (1 - u), TQ_HI, 0.4 + 0.3 * pul, T * 0.2, 1); }
+        else if (s.art === 'wave') { const X0 = FX.sx(C.x), Y0 = FX.sy(C.y), R = C.R * T, sd = s.side, b0 = sd > 0 ? -Math.PI / 2 : Math.PI / 2, b1 = b0 + Math.PI, isl = islandsOf(FX).filter(q => q.up > 0.5);
+          for (let i = 0; i < 4; i++) { const r = R * (i + 0.5) / 4, na = Math.max(1, Math.ceil(Math.PI * r / (R / 4))); for (let j = 0; j < na; j++) { const a = b0 + (j + 0.5) / na * Math.PI, wx = C.x + Math.cos(a) * r / T, wy = C.y + Math.sin(a) * r / T; if (isl.some(q => Math.hypot(q.x - wx, q.y - wy) < ISL_R + 0.6)) continue; const rr = Math.max(R / 4, Math.PI * r / na) * 0.85; Q.wshade(X0 + Math.cos(a) * r, Y0 + Math.sin(a) * r, rr, rr, '#1E0610', 0.18 + 0.12 * u, i * 9 + j, 1); } }
+          arcGL(Q, X0, Y0, R - T * 0.3, b0, b1, T * 0.9, col, (0.2 + 0.15 * u) * (0.7 + 0.3 * pul)); arcGL(Q, X0, Y0, R - T * 0.3, b0, b1, T * 0.22, col, 0.55 + 0.35 * pul);
+          Q.rbeam(X0, Y0 - R, X0, Y0 + R, T * 0.9, col, (0.2 + 0.15 * u) * (0.7 + 0.3 * pul), 0.4, 0.4); Q.rbeam(X0, Y0 - R, X0, Y0 + R, T * 0.22, col, 0.55 + 0.35 * pul, 0.5, 0.5);
+          const xf = X0 + sd * R * (1 - u); Q.rbeam(xf, Y0 - R * 0.85, xf, Y0 + R * 0.85, T * 1.2, TQ, 0.12 + 0.2 * u, 0.2, 0.2); }   // (the coming water's line, running in from the open edge as the count runs out)
+        let sx, sy; if (s.shape === 'cone') { sx = FX.sx(s.x + Math.cos(s.a) * s.len * 0.55); sy = FX.sy(s.y + Math.sin(s.a) * s.len * 0.55); } else if (s.art === 'wave') { sx = FX.sx(C.x + s.side * C.R * 0.55); sy = FX.sy(C.y + 2); } else { sx = FX.sx(s.x); sy = FX.sy(s.y) + s.r * T * 0.55; }
+        const r = Math.max(14, T * 0.85); glyphGL(Q, s.art, sx, sy, r, s.locked ? '#FFFFFF' : col, 1.2 + 0.3 * pul); if (s.locked) words.push(['LOCKED', sx, sy - r * 1.7, r * 0.55, '#FFD0D8']); }
+      // the Undertow's pull: chevrons of light flowing inward on rings round him
+      if (A && A.kind === 'undertow' && A.phase === 'pull' && FX.m) { const m = FX.m, X = FX.sx(m.x), Y = FX.sy(m.y), u = cl(A.t / TUNE.pullT), al = 0.5 + 0.4 * u;
+        for (let ring = 0; ring < 3; ring++) { const rr = ((TUNE.pullR + 7) - ((t * (1.5 + 3 * u) + ring * 2.3) % 7)) * T; for (let i = 0; i < 14; i++) { const a = i / 14 * TAU + ring * 0.2, x = X + Math.cos(a) * rr, y = Y + Math.sin(a) * rr, ca = Math.cos(a + Math.PI), sa = Math.sin(a + Math.PI), s2 = T * 0.25;
+          for (const sg of [-1, 1]) { const bx = x - ca * s2 * 0.9 - sa * sg * s2, by = y - sa * s2 * 0.9 + ca * sg * s2; Q.beam(bx, by, x + ca * s2 * 0.12, y + sa * s2 * 0.12, T * 0.36, TQ_HI, 0.3 * al); Q.beam(bx, by, x + ca * s2 * 0.12, y + sa * s2 * 0.12, T * 0.12, TQ_HI, 0.85 * al); } Q.glow(x, y, T * 0.22, TQ_HI, 0.35 * al); } } }
+      // the flood's warning: a soft ring of warning round the platform, the platform shaded, the refuge island bright
+      if (A && A.kind === 'bell' && A.i != null && (A.phase === 'call' || A.phase === 'rise')) { const s = islandsOf(FX)[A.i], X0 = FX.sx(C.x), Y0 = FX.sy(C.y), R = C.R * T, left = A.phase === 'call' ? TUNE.bellCall - A.t + TUNE.bellRise : TUNE.bellRise - A.t, k = cl(A.t / 0.6 + (A.phase === 'rise' ? 1 : 0)), pul = 0.5 + 0.5 * Math.sin(t * (5 + 8 * (1 - left / 12)));
+        for (let i = 0; i < 3; i++) { const r = R * (i + 0.5) / 3, na = Math.max(1, Math.round(TAU * r / (R / 3))); for (let j = 0; j < na; j++) { const a = (j + 0.5) / na * TAU, wx = C.x + Math.cos(a) * r / T, wy = C.y + Math.sin(a) * r / T; if (Math.hypot(s.x - wx, s.y - wy) < ISL_R + 1) continue; const rr = Math.max(R / 3, TAU * r / na) * 0.8; Q.wshade(X0 + Math.cos(a) * r, Y0 + Math.sin(a) * r, rr, rr, '#0A1E28', (0.1 + 0.08 * pul) * k, i * 11 + j, 1); } }
+        Q.ring(X0, Y0, R - T, WARN, (0.25 + 0.2 * pul) * k, T * 0.8, 1); Q.ring(X0, Y0, R - T, WARN, (0.5 + 0.35 * pul) * k, T * 0.2, 1);
+        const sx = X0, sy = Y0 + T * 2.6, r = Math.max(16, T * 1.0); Q.glow(sx, sy, r * 1.6, TQ, 0.22); glyphGL(Q, 'bell', sx, sy, r, TQ_HI, 1.6); words.push(['FLOOD', sx, sy - r * 1.75, r * 0.5, TQ_HI]); }
+      // an announced island: its refuge ring of light (a light running round it until it has risen)
+      for (const s of islandsOf(FX)) { if (s.mark < 0.03) continue; const X = FX.sx(s.x), Y = FX.sy(s.y) - (0.12 + s.up * (ISL_UP - 0.12)) * ZK * T, R = ISL_R * T + T * 0.25, k = s.mark, pl = 0.7 + 0.3 * Math.sin(t * 5);
+        Q.ring(X, Y, R, SAFE, 0.3 * k * pl, T * 0.8, 1); Q.ring(X, Y, R, SAFE, (s.up < 0.85 ? 0.45 : 0.75) * k * pl, T * 0.2, 1);
+        if (s.up < 0.85) { const a = t * 2.4; for (let i = 0; i < 3; i++) { const b = a - i * 0.22; Q.glow(X + Math.cos(b) * R, Y + Math.sin(b) * R, T * (0.55 - i * 0.12), SAFE, 0.5 * k * (1 - i * 0.3)); } } }
+    } finally { F.flush(c); }
+    for (const [s2, x, y, z, col] of words) textAt(c, s2, x, y, z, col); }
   function drawGroundArt(c, FX, T, t) { const M = FX.mem; if (!M || !M.ok) return; const C = FX.C;
+    { const F = fg(); if (F) { groundArtGL(c, FX, T, t, F); return; } }   // v404 BF: glow-only on the GPU; the 2D below where the painter is not
     for (const s of FX.S.tele) { if (!s.art || s.done) continue; const u = cl(s.age / s.t), left = Math.max(0, s.t - s.age), pul = 0.5 + 0.5 * Math.sin(t * (8 + 10 * u)), col = s.col || WARN;
       c.save(); boldPath(c, FX, s, T); c.fillStyle = `rgba(30,6,14,${0.14 + 0.12 * u})`; c.fill('evenodd');
       c.lineJoin = 'round'; c.lineWidth = Math.max(3, T * 0.2); c.strokeStyle = 'rgba(8,10,16,.75)'; c.stroke(); c.lineWidth = Math.max(1.5, T * 0.09); c.strokeStyle = rgba(col, 0.75 + 0.25 * pul); c.stroke();
@@ -824,7 +878,10 @@ const BEL_ULDROTH = (() => {
       // behind a wave: the backwash spreading over the stone it has crossed
       for (const w of M.waves) { const env = Math.min(1, w.t * 3) * (w.d < 0.5 ? cl((w.d + 0.6) / 1.1) : 1), d0 = Math.max(0, w.d); if (env < 0.02) continue;
         for (let j = 0; j < (lf ? 2 : 4); j++) { const dd = d0 + 1.2 + j * 2.6; if (dd > C.R - 0.5) break; const half = Math.sqrt(Math.max(0, C.R * C.R - dd * dd)); for (let i = -1; i <= 1; i++) { const x = FX.sx(C.x + w.side * dd), y = FX.sy(C.y + i * half * 0.55) - wz; Q.caustic(x, y, T * 2.2, TQ, 0.35 * env * (1 - j * 0.2), j * 3 + i + 70, GYs); } }
-        const dd = d0 + 0.6, half = Math.sqrt(Math.max(0, C.R * C.R - dd * dd)); if (half > 0.5) Q.wstream(FX.sx(C.x + w.side * dd), FX.sy(C.y - half) - wz, FX.sx(C.x + w.side * dd), FX.sy(C.y + half) - wz, T * 0.9, WBODY, 0.35 * env, 77, 2, 0.6, 1.0); }
+        // v404 BF: the sheet behind the front, in short sinuous links (one straight full-height stream read as a lit bar)
+        const dd = d0 + 0.6, half = Math.sqrt(Math.max(0, C.R * C.R - dd * dd)); if (half > 0.5) { const nn = Math.max(2, Math.ceil(half * 2 / 1.6)); let pv = null;
+          for (let i = 0; i <= nn; i++) { const yy = C.y - half + half * 2 * i / nn, xx = C.x + w.side * (dd + Math.sin(yy * 0.31 + t * 0.9 + w.side * 1.7) * 0.75 + Math.sin(yy * 0.9 + t * 2.4) * 0.3), p = [FX.sx(xx), FX.sy(yy) - wz];
+            if (pv) { const ex = (p[0] - pv[0]) * 0.18, ey = (p[1] - pv[1]) * 0.18; Q.wstream(pv[0] - ex, pv[1] - ey, p[0] + ex, p[1] + ey, T * 0.9, WBODY, 0.3 * env, 77 + i, 2, 0.6, 0.4); } pv = p; } } }
       // the drain: the last of the water sliding off the platform to its rim
       if (m.dead && M.deadT != null && M.deadT < 4.5 && !lf) { const k = sstep(0, 0.4, M.deadT) * (1 - sstep(2.6, 4.2, M.deadT)); for (let i = 0; i < 3; i++) { const v = (M.deadT * 0.35 + i / 3) % 1; Q.ripple(X0, Y0, R * (0.3 + 0.7 * v), FOAM, 0.25 * k * Math.sin(v * Math.PI), 80 + i, 1, 0.03); } }
     } finally { F.flush(c); } }
@@ -892,17 +949,23 @@ const BEL_ULDROTH = (() => {
         const S2 = (dx, yw, z) => P3(xw + dx, yw, z + Math.max(0, lvl));
         // (layers from behind to the front: the sheet of water following it, its dark mass, the body, the face, the curling lip;
         // every layer sinuous along the front, so it reads as a rolling wave and never as a bar)
-        const wig = (yw, k) => Math.sin(yw * 0.9 + t * 2.4 + k) * 0.32 + Math.sin(yw * 2.3 - t * 3.1 + k * 2) * 0.12;
+        // v404 BF (the user: the bright crest front read as a white bar, not water): the front swings in long slow curves as well
+        // as the small ripples; the crest and the face carry much less added light (wstream's lite), the lip's foam is broken
+        // into clumps (each spray's strength from a slow noise, a third of them off) and fainter; a dark trough runs just
+        // ahead of the face, so the wave reads as a mass of teal water with white only where it breaks
+        const wig = (yw, k) => Math.sin(yw * 0.9 + t * 2.4 + k) * 0.32 + Math.sin(yw * 2.3 - t * 3.1 + k * 2) * 0.12 + Math.sin(yw * 0.31 + t * 0.9 + w.side * 1.7) * 0.75;
         const band = (dx, zk, wk, col, al, flow, dens, lite, sd, wigK) => { for (let i = 0; i < n; i++) { const p0 = pts[i], p1 = pts[i + 1], ek = (p0.edge + p1.edge) / 2, a0 = S2(w.side * dx + wig(p0.yw, sd) * wigK, p0.yw, p0.hh * zk), a1 = S2(w.side * dx + wig(p1.yw, sd) * wigK, p1.yw, p1.hh * zk);
           Q.wstream(a0[0], a0[1], a1[0], a1[1], T * wk * ek, col, al * env, sd + i * 0.7, flow, dens, lite); } };
-        band(2.3, 0.05, 2.0, WBODY, 0.3, 2, 0.55, 0.8, 1, 0.5);
-        for (let i = 0; i <= n; i += (lf ? 2 : 1)) { const p = pts[i], q = S2(w.side * 1.3 + wig(p.yw, 5) * 0.6, p.yw, p.hh * 0.25); Q.smoke(q[0], q[1], T * 1.7 * p.edge, 0.6 * env, i + 180, WDEEP, 0.3); }   // (the water's dark mass)
-        band(0.75, 0.35, 1.5, WDEEP, 0.85, 2, 1.0, 0.5, 9, 0.8);
-        band(0.25, 0.62, 0.95, WBODY, 0.85, 3, 0.85, 1.0, 17, 1.0);
-        band(-0.2, 0.92, 0.5, WCREST, 0.6, 6, 0.6, 1.0, 23, 1.15);
-        for (let i = 0; i <= n; i++) { const p = pts[i]; if (!lf || i % 2 === 0) { const q = S2(-w.side * 0.3 + wig(p.yw, 23) * 1.15, p.yw, p.hh * 0.98); Q.spray(q[0], q[1], T * 0.95 * p.edge, FOAM, 0.36 * env, i + 200 + Math.floor(t * 8) * 0.17, 0.45, 0.8); }
-          if (i % 2 === 0) { const q = S2(-w.side * 0.6 + wig(p.yw, 3) * 0.8, p.yw, 0.05); Q.spray(q[0], q[1], T * 1.1 * p.edge, FOAM, 0.28 * env, i + 260 + Math.floor(t * 8) * 0.13, 0.7, 0.5); }
-          if (!lf && i % 3 === 0) { const q = S2(w.side * 0.2, p.yw, p.hh * 1.35); Q.smoke(q[0], q[1], T * 1.4, 0.18 * env, i + 300, MIST, 0.7); } } }
+        const clump = (i, k) => { const v = Math.sin(i * 1.93 + k + t * 1.3) * 0.5 + Math.sin(i * 0.71 - t * 0.8 + k * 2) * 0.5; return v < -0.25 ? 0 : 0.35 + 0.65 * cl((v + 0.25) / 1.25); };
+        band(2.3, 0.05, 2.0, WBODY, 0.3, 2, 0.55, 0.45, 1, 0.9);
+        for (let i = 0; i <= n; i += (lf ? 2 : 1)) { const p = pts[i], q = S2(w.side * 1.3 + wig(p.yw, 5) * 0.9, p.yw, p.hh * 0.25); Q.smoke(q[0], q[1], T * 1.7 * p.edge, 0.66 * env, i + 180, WDEEP, 0.25); }   // (the water's dark mass)
+        for (let i = 0; i <= n; i += 2) { const p = pts[i], q = S2(-w.side * 0.85 + wig(p.yw, 31) * 1.0, p.yw, 0.02); Q.smoke(q[0], q[1], T * 1.25 * p.edge, 0.3 * env, i + 330, '#0E3A48', 0.15); }   // (the trough ahead of the face)
+        band(0.75, 0.35, 1.5, WDEEP, 0.85, 2, 1.0, 0.35, 9, 1.0);
+        band(0.25, 0.62, 0.95, WBODY, 0.85, 3, 0.9, 0.45, 17, 1.0);
+        band(-0.2, 0.92, 0.5, '#5CBFC2', 0.42, 6, 0.6, 0.35, 23, 1.15);
+        for (let i = 0; i <= n; i++) { const p = pts[i], ck = clump(i, w.side); if ((!lf || i % 2 === 0) && ck > 0) { const q = S2(-w.side * 0.3 + wig(p.yw, 23) * 1.15, p.yw, p.hh * 0.98); Q.spray(q[0], q[1], T * (0.7 + 0.45 * ck) * p.edge, FOAM, 0.2 * ck * env, i + 200 + Math.floor(t * 8) * 0.17, 0.55, 0.8); }
+          if (i % 2 === 0 && clump(i, 4.1) > 0) { const q = S2(-w.side * 0.6 + wig(p.yw, 3) * 1.0, p.yw, 0.05); Q.spray(q[0], q[1], T * 1.1 * p.edge, FOAM, 0.16 * clump(i, 4.1) * env, i + 260 + Math.floor(t * 8) * 0.13, 0.75, 0.5); }
+          if (!lf && i % 3 === 0) { const q = S2(w.side * 0.2, p.yw, p.hh * 1.35); Q.smoke(q[0], q[1], T * 1.4, 0.14 * env, i + 300, MIST, 0.6); } } }
       /* ---- the drain: the last of the sea pouring off the rim into the falling water, spray at its foot, mist ---- */
       if (m.dead && M.deadT != null && M.deadT < 5 && lvl < -0.25) { const k = sstep(0.1, 0.5, M.deadT) * (1 - sstep(3.2, 4.8, M.deadT)), n = lf ? 5 : 9;
         for (let i = 0; i < n; i++) { const th = Math.PI * (0.08 + 0.84 * i / (n - 1)), rx = C.x + Math.cos(th) * C.R, ry = C.y + Math.sin(th) * C.R, top = P3(rx, ry, 0.05), bot = P3(rx, ry, lvl), w = T * (0.3 + 0.2 * hs1(i + 7));

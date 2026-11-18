@@ -629,7 +629,7 @@ const BELK = (() => {
     if (A && A.kind === 'brood' && A.pts) for (const q of A.pts) pts.push([q.x, q.y]);   // (v398 B3: the summons, framed)
     let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; for (const [x, y] of pts) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
     const W = H.W ? H.W() : 390, Hh = H.H ? H.H() : 844, TS = FX.Tz() / Math.max(0.05, (H.g && H.g.zoom) || 0.6);
-    const zoom = Math.max(0.45, Math.min(0.72, (W - 40) / (TS * (x1 - x0 + 2.5)), (Hh - 320) / (TS * (y1 - y0 + 2.5))));
+    const ck = (H.g && H.g.camK) || 1, zoom = Math.max(0.45 / ck, Math.min(0.72, (W - 40) / (TS * (x1 - x0 + 2.5) * ck), (Hh - 320) / (TS * (y1 - y0 + 2.5) * ck)));   // (v404 BF: the engine multiplies a rift boss's zoom by g.camK (1.2): the fit is divided by it, so the framed warnings stay on screen; closer only where they fit)
     return { x: (x0 + x1) / 2, y: (y0 + y1) / 2 + 30 / (TS * zoom), k: 1, zoom }; }
 
   /* ================= the painting ================= */
@@ -653,6 +653,25 @@ const BELK = (() => {
     c.strokeStyle = col; c.lineWidth = T * 0.12; c.beginPath(); c.arc(x, y, T * 0.95, -Math.PI / 2, -Math.PI / 2 + TAU * (1 - u)); c.stroke(); c.restore();
     label(c, String(s), x, y + T * 0.04, sz, '#FFFFFF'); }
   function fanPath(c, X, Y, r0, r1, a0, a1) { c.beginPath(); c.arc(X, Y, r1, a0, a1); c.arc(X, Y, r0, a1, a0, true); c.closePath(); }
+  /* v404 BF: the warnings' pieces as light on the GPU painter (glow-only, feathered; the user: no crisp 2D lines, no countdowns):
+     a fan of soft blobs on a polar grid (dark shade or light: no straight cut sides), a chevron of light (arms overlapping past
+     the tip, a glow over it), and a glyph's outline as a string of soft blooms (each closer than its radius: no beads) */
+  function softFan(Q, X, Y, r0, r1, a0, a1, col, al, dark, T) { if (!(al > 0.004) || r1 - r0 < 2) return; const nr = Math.max(2, Math.round((r1 - r0) / (T * 1.3))), dr = (r1 - r0) / nr;
+    for (let i = 0; i < nr; i++) { const r = r0 + dr * (i + 0.5), na = Math.max(1, Math.ceil(Math.abs(a1 - a0) * r / dr)), da = (a1 - a0) / na;
+      for (let j = 0; j < na; j++) { const a = a0 + da * (j + 0.5), x = X + Math.cos(a) * r, y = Y + Math.sin(a) * r, rr = Math.max(dr, Math.abs(da) * r) * 0.9, ek = Math.min(1, (j + 0.5) / 1.2, (na - j - 0.5) / 1.2);   // (the outer blobs a touch fainter: the sides fade)
+        if (dark) Q.wshade(x, y, rr, rr, col, al * (0.6 + 0.4 * ek), i * 7 + j, 1); else Q.glow(x, y, rr, col, al * (0.55 + 0.45 * ek)); } } }
+  function veeLight(Q, x, y, a, s, col, al, w) { if (!(al > 0.004)) return; const ca = Math.cos(a), sa = Math.sin(a); for (const sg of [-1, 1]) { const bx = x - ca * s - sa * sg * s * 0.95, by = y - sa * s + ca * sg * s * 0.95, ex = (x - bx) * 0.14, ey = (y - by) * 0.14; Q.beam(bx, by, x + ex, y + ey, w * 2.6, col, al * 0.3); Q.beam(bx, by, x + ex, y + ey, w, col, al); } Q.glow(x, y, w * 2, col, al * 0.4); }
+  // a glyph's path (in units of s: ['M', x, y], ['Q', cx, cy, x, y], ['L', x, y], ['Z']) sampled every step px, turned by rot about (x, y)
+  function glyphPts(cmds, x, y, s, rot, step) { const out = [], cr = Math.cos(rot || 0), sr = Math.sin(rot || 0), P = (u, v) => [x + (u * cr - v * sr) * s, y + (u * sr + v * cr) * s]; let cx = 0, cy = 0, mx = 0, my = 0;
+    const seg = (fn, len) => { const n = Math.max(1, Math.ceil(len * s / step)); for (let i = 1; i <= n; i++) out.push(fn(i / n)); };
+    for (const q of cmds) { if (q[0] === 'M') { cx = mx = q[1]; cy = my = q[2]; out.push(P(cx, cy)); }
+      else if (q[0] === 'L' || q[0] === 'Z') { const tx = q[0] === 'Z' ? mx : q[1], ty = q[0] === 'Z' ? my : q[2], x0 = cx, y0 = cy; seg(u => P(x0 + (tx - x0) * u, y0 + (ty - y0) * u), Math.hypot(tx - x0, ty - y0)); cx = tx; cy = ty; }
+      else { const [, qx, qy, tx, ty] = q, x0 = cx, y0 = cy; seg(u => { const v = 1 - u; return P(v * v * x0 + 2 * v * u * qx + u * u * tx, v * v * y0 + 2 * v * u * qy + u * u * ty); }, Math.hypot(qx - x0, qy - y0) + Math.hypot(tx - qx, ty - qy)); cx = tx; cy = ty; } }
+    return out; }
+  function glyphLight(Q, pts, s, col, al, core) { for (const [x, y] of pts) { Q.glow(x, y, s * 0.26, col, al * 0.3); Q.glow(x, y, s * 0.1, core || '#FFFFFF', al * 0.35); } }
+  const CLAW_G = [['M', -0.95, 0.35], ['Q', -0.2, 0.6, 0.3, 0.18], ['Q', 1.0, -0.12, 0.9, -0.85], ['Q', 0.55, -0.38, 0.1, -0.3], ['Q', 0.5, -0.72, 0.06, -1.0], ['Q', -0.55, -0.55, -0.6, -0.05], ['Q', -0.85, 0, -0.95, 0.35]];
+  const BELL_G = [['M', -0.8, -0.65], ['Q', -0.55, 0.15, -0.32, 0.6], ['L', 0.32, 0.6], ['Q', 0.55, 0.15, 0.8, -0.65], ['Q', 0, -0.85, -0.8, -0.65]];
+  const SHIELD_G = [['M', 0, -1], ['Q', 0.85, -0.85, 0.8, -0.2], ['Q', 0.65, 0.6, 0, 1], ['Q', -0.65, 0.6, -0.8, -0.2], ['Q', -0.85, -0.85, 0, -1]], CHECK_G = [['M', -0.35, 0], ['L', -0.05, 0.3], ['L', 0.4, -0.3]];
 
   /* ---- the floor (painted once per zoom, world units centred on the arena): water ring, kerb, limestone courses, the font ---- */
   function paintFloor(c, A2) { const R = A2.R, rnd = A2.rnd, D = DRY_R;
@@ -810,7 +829,12 @@ const BELK = (() => {
      rim and edges glowing links of light, a glow running ahead across it the way the claw will go; the SAFE ground behind the
      small claw a soft mint lane; then the claw, the chevrons and the shield */
   function sweepGround(c, FX, z, T, t, K, layer) { const A = z.A; if (!A || (A.phase !== 'wind' && A.phase !== 'strike') || !FX.m || FX.m.dead) return;
-    const X = FX.sx(z.x), Y = FX.sy(z.y), L = TM.swLen * T, sp = TM.swSpread, a0 = A.a - sp, a1 = A.a + sp, u = A.phase === 'wind' ? cl(A.t / TM.swWind) : 1, r0 = T * 1.5, pulse = 0.5 + 0.5 * Math.sin(t * (6 + 10 * u)), sa = safeAng(A), w = 0.62, s0 = 2.3 * T, s1 = 6.6 * T, af = a1 - 2 * sp * u;
+    const X = FX.sx(z.x), Y = FX.sy(z.y), L = TM.swLen * T, sp = TM.swSpread, a0 = A.a - sp, a1 = A.a + sp, u = A.phase === 'wind' ? cl(A.t / TM.swWind) : 1, r0 = T * 1.5, pulse = 0.5 + 0.5 * Math.sin(t * (6 + 10 * u)), sa = safeAng(A), w = 0.62, s0 = 2.3 * T, s1 = 6.6 * T, af = a1 - 2 * sp * u, G = !!fg();
+    if (layer === 0 && G) { const sx2 = X + Math.cos(sa) * T * 4.3, sy2 = Y + Math.sin(sa) * T * 4.3; softPath(c, () => shieldPath(c, sx2, sy2, T * 0.6), [[T * 0.6, 'rgba(4,30,22,.08)'], [T * 0.34, 'rgba(4,30,22,.14)'], [T * 0.16, 'rgba(4,30,22,.2)']]); return; }   // v404 BF: on the GPU the washes are soft fans in the light pass (no straight cut sides); a soft dark edge under the shield's light
+    if (layer === 1 && K.Q) { const Q = K.Q; softFan(Q, X, Y, r0 * 0.5, L * 1.04, a0, a1, '#3C0E08', 0.24 + 0.1 * u, true, T); softFan(Q, X, Y, r0, L, af, a1, '#C2401E', 0.26 + 0.22 * u, true, T); softFan(Q, X, Y, r0, L, af, a1, WARN, 0.06 + 0.08 * u, false, T);   /* (the filling wash laid as a shade of red: added light alone turns white on the pale stone) */ softFan(Q, X, Y, s0 * 0.85, s1, sa - w, sa + w, SAFE_M, 0.13, false, T);
+      for (let i = 0; i < 5; i++) { const f = (i / 5 + t * 0.45) % 1, a = a1 - f * 2 * sp, rr = L * 0.84; veeLight(Q, X + Math.cos(a) * rr, Y + Math.sin(a) * rr, a - Math.PI / 2, T * 0.3, WARN_HI, (0.45 + 0.4 * u) * Math.sin(Math.PI * f), T * 0.1); }
+      glyphLight(Q, glyphPts(CLAW_G, X + Math.cos(A.a) * T * 4.1, Y + Math.sin(A.a) * T * 4.1, T * 0.62, A.a, T * 0.09), T * 0.62, WARN, 1.3 + 0.3 * pulse, WARN_HI);
+      const sx2 = X + Math.cos(sa) * T * 4.3, sy2 = Y + Math.sin(sa) * T * 4.3, ss = T * 0.6; Q.glow(sx2, sy2, ss * 1.4, SAFE_M, 0.3 + 0.1 * pulse); glyphLight(Q, glyphPts(SHIELD_G, sx2, sy2, ss, 0, T * 0.09), ss, SAFE_M, 1.4, SAFE); glyphLight(Q, glyphPts(CHECK_G, sx2, sy2, ss, 0, T * 0.07), ss * 0.8, SAFE_M, 1.5, SAFE); }
     if (layer === 0) {
       let g = c.createRadialGradient(X, Y, r0 * 0.5, X, Y, L * 1.06); g.addColorStop(0, 'rgba(60,14,8,0)'); g.addColorStop(0.3, `rgba(60,14,8,${(0.24 + 0.1 * u).toFixed(3)})`); g.addColorStop(0.88, `rgba(60,14,8,${(0.34 + 0.12 * u).toFixed(3)})`); g.addColorStop(1, 'rgba(60,14,8,0)');
       fanPath(c, X, Y, r0 * 0.5, L * 1.06, a0, a1); c.fillStyle = g; c.fill();
@@ -827,15 +851,20 @@ const BELK = (() => {
       arcLinks(K, FX, z, s1, sa - w, sa + w, K.lf ? 5 : 9, (x0, y0, x1, y1) => { K.beam(x0, y0, x1, y1, T * 0.42, SAFE_M, 0.3); K.beam(x0, y0, x1, y1, T * 0.15, SAFE, 0.7 + 0.25 * pulse); });
       for (const b of [sa - w, sa + w]) { const x0 = X + Math.cos(b) * s0, y0 = Y + Math.sin(b) * s0, x1 = X + Math.cos(b) * s1, y1 = Y + Math.sin(b) * s1; K.beam(x0, y0, x1, y1, T * 0.42, SAFE_M, 0.3, 0.3, 1); K.beam(x0, y0, x1, y1, T * 0.15, SAFE, 0.8, 0.3, 1); }
       K.glow(X + Math.cos(sa) * T * 4.3, Y + Math.sin(sa) * T * 4.3, T * 2.4, SAFE_M, 0.22 + 0.1 * pulse); return; }
-    for (let i = 0; i < 5; i++) { const f = (i / 5 + t * 0.45) % 1, a = a1 - f * 2 * sp, rr = L * 0.84; chevron(c, X + Math.cos(a) * rr, Y + Math.sin(a) * rr, T * 0.32, a - Math.PI / 2, hexA(WARN_HI, (0.45 + 0.4 * u) * Math.sin(Math.PI * f))); }
-    clawGlyph(c, X + Math.cos(A.a) * T * 4.1, Y + Math.sin(A.a) * T * 4.1, T * 0.62, WARN_HI, A.a);
-    const sx = X + Math.cos(sa) * T * 4.3, sy = Y + Math.sin(sa) * T * 4.3, ss = T * 0.6; shieldPath(c, sx, sy, ss); c.fillStyle = hexA(SAFE_D, 0.85); c.fill(); c.lineWidth = Math.max(1.5, T * 0.07); c.strokeStyle = SAFE; c.stroke();
-    c.strokeStyle = SAFE; c.lineWidth = Math.max(1.5, T * 0.08); c.lineCap = 'round'; c.beginPath(); c.moveTo(sx - ss * 0.35, sy); c.lineTo(sx - ss * 0.05, sy + ss * 0.3); c.lineTo(sx + ss * 0.4, sy - ss * 0.3); c.stroke();
+    const sx = X + Math.cos(sa) * T * 4.3, sy = Y + Math.sin(sa) * T * 4.3, ss = T * 0.6;
+    if (!G) { for (let i = 0; i < 5; i++) { const f = (i / 5 + t * 0.45) % 1, a = a1 - f * 2 * sp, rr = L * 0.84; chevron(c, X + Math.cos(a) * rr, Y + Math.sin(a) * rr, T * 0.32, a - Math.PI / 2, hexA(WARN_HI, (0.45 + 0.4 * u) * Math.sin(Math.PI * f))); }
+      clawGlyph(c, X + Math.cos(A.a) * T * 4.1, Y + Math.sin(A.a) * T * 4.1, T * 0.62, WARN_HI, A.a);
+      shieldPath(c, sx, sy, ss); c.fillStyle = hexA(SAFE_D, 0.85); c.fill(); c.lineWidth = Math.max(1.5, T * 0.07); c.strokeStyle = SAFE; c.stroke();
+      c.strokeStyle = SAFE; c.lineWidth = Math.max(1.5, T * 0.08); c.lineCap = 'round'; c.beginPath(); c.moveTo(sx - ss * 0.35, sy); c.lineTo(sx - ss * 0.05, sy + ss * 0.3); c.lineTo(sx + ss * 0.4, sy - ss * 0.3); c.stroke(); }   // (v404 BF: on the GPU these are light, layer 1)
     label(c, 'SAFE', sx, sy + ss * 1.6, T * 0.44, SAFE); }
   /* Tolling Shell's warning: the coming ring rippling out as soft light (the water stirring, refraction-like rings), the bell's
      inner ring bright, the OPENING a mint lane of light out of it; then OPEN, chevrons and the bell */
   function tollGround(c, FX, z, T, t, K, layer) { const A = z.A; if (!A || A.phase !== 'wind' || A.ga == null || !FX.m || FX.m.dead) return; const C = FX.C;
-    const X = FX.sx(z.x), Y = FX.sy(z.y), u = cl(A.t / TM.tollWind), r0 = TM.ringR0 * T, rMax = Math.min((Math.hypot(z.x - C.x, z.y - C.y) + AR) * T, 16 * T), g0 = A.ga - TM.gap, g1 = A.ga + TM.gap, pulse = 0.5 + 0.5 * Math.sin(t * (5 + 10 * u));
+    const X = FX.sx(z.x), Y = FX.sy(z.y), u = cl(A.t / TM.tollWind), r0 = TM.ringR0 * T, rMax = Math.min((Math.hypot(z.x - C.x, z.y - C.y) + AR) * T, 16 * T), g0 = A.ga - TM.gap, g1 = A.ga + TM.gap, pulse = 0.5 + 0.5 * Math.sin(t * (5 + 10 * u)), G = !!fg();
+    if (layer === 1 && K.Q) { const Q = K.Q; softFan(Q, X, Y, r0 * 0.8, rMax, g0, g1, SAFE_M, 0.05 + 0.04 * u, false, T);   // v404 BF: the opening's mint lane, soft (its fan was cut straight)
+      for (let i = 0; i < 4; i++) { const f = (i / 4 + t * 0.5) % 1, rr = r0 + T * 1.2 + f * T * 7.5; veeLight(Q, X + Math.cos(A.ga) * rr, Y + Math.sin(A.ga) * rr, A.ga, T * 0.32, SAFE, (0.5 + 0.45 * (1 - f)) * Math.sin(Math.PI * Math.min(1, f * 1.3)), T * 0.1); }
+      const bx2 = X + Math.cos(A.ga + Math.PI) * T * 3.4, by2 = Y + Math.sin(A.ga + Math.PI) * T * 3.4; Q.glow(bx2, by2, T * 0.9, TQ, 0.15 + 0.1 * pulse); glyphLight(Q, glyphPts(BELL_G, bx2, by2, T * 0.55, 0, T * 0.08), T * 0.55, '#FFD9A0', 1.4, '#FFF4DC'); }
+    if (layer === 0 && G) { softPath(c, () => { c.beginPath(); c.arc(X, Y, r0 + T * 0.3, g1, g0 + TAU); }, [[T * 0.7, 'rgba(30,8,4,.06)'], [T * 0.4, 'rgba(30,8,4,.1)'], [T * 0.22, 'rgba(30,8,4,.16)']]); return; }
     if (layer === 0) { softPath(c, () => { c.beginPath(); c.arc(X, Y, r0 + T * 0.3, g1, g0 + TAU); }, [[T * 0.7, 'rgba(30,8,4,.06)'], [T * 0.4, 'rgba(30,8,4,.1)'], [T * 0.22, 'rgba(30,8,4,.16)']]);
       const g = c.createRadialGradient(X, Y, r0 * 0.8, X, Y, rMax); g.addColorStop(0, hexA(SAFE_M, 0)); g.addColorStop(0.12, hexA(SAFE_M, 0.1 + 0.08 * u)); g.addColorStop(0.7, hexA(SAFE_M, 0.1 + 0.06 * u)); g.addColorStop(1, hexA(SAFE_M, 0)); fanPath(c, X, Y, r0 * 0.8, rMax, g0, g1); c.fillStyle = g; c.fill(); return; }
     if (layer === 1) { const n = K.lf ? 14 : 26;
@@ -846,9 +875,9 @@ const BELK = (() => {
       K.beam(bx, by, ex, ey, Math.max(T * 0.6, (rMax * 0.5) * Math.sin(TM.gap) * 0.9), SAFE_M, 0.22 + 0.12 * pulse, 0.9, 0.05); K.beam(bx, by, ex, ey, T * 0.2, SAFE, 0.55 + 0.3 * pulse, 1, 0.1);
       for (const b of [g0, g1]) K.beam(X + Math.cos(b) * r0, Y + Math.sin(b) * r0, X + Math.cos(b) * rMax, Y + Math.sin(b) * rMax, T * 0.12, SAFE, 0.45, 0.9, 0.05);
       K.glow(bx, by, T * 1.4, SAFE_M, 0.35 + 0.2 * pulse); return; }
-    for (let i = 0; i < 4; i++) { const f = (i / 4 + t * 0.5) % 1, rr = r0 + T * 1.2 + f * T * 7.5; chevron(c, X + Math.cos(A.ga) * rr, Y + Math.sin(A.ga) * rr, T * 0.34, A.ga, hexA(SAFE, (0.5 + 0.45 * (1 - f)) * Math.sin(Math.PI * Math.min(1, f * 1.3)))); }
+    if (!G) for (let i = 0; i < 4; i++) { const f = (i / 4 + t * 0.5) % 1, rr = r0 + T * 1.2 + f * T * 7.5; chevron(c, X + Math.cos(A.ga) * rr, Y + Math.sin(A.ga) * rr, T * 0.34, A.ga, hexA(SAFE, (0.5 + 0.45 * (1 - f)) * Math.sin(Math.PI * Math.min(1, f * 1.3)))); }
     label(c, 'OPEN', X + Math.cos(A.ga) * T * 5.2, Y + Math.sin(A.ga) * T * 5.2, T * 0.5, SAFE);
-    bellGlyph(c, X + Math.cos(A.ga + Math.PI) * T * 3.4, Y + Math.sin(A.ga + Math.PI) * T * 3.4, T * 0.55, '#FFE9B8'); }
+    if (!G) bellGlyph(c, X + Math.cos(A.ga + Math.PI) * T * 3.4, Y + Math.sin(A.ga + Math.PI) * T * 3.4, T * 0.55, '#FFE9B8'); }   // (v404 BF: on the GPU the chevrons and the bell are light, layer 1)
   /* the ring itself: a soft dark band under it, then layered light: a warm halo, a turquoise-white crest of energy, a bright
      leading edge; the opening glowing mint, a lane of light through it; its ends soft (no cut) */
   function ringGround(c, FX, z, T, t, K, layer) { const X = FX.sx(z.x), Y = FX.sy(z.y), r = z.r * T, w = TM.ringW * T; if (r < 2) return; const e = Math.min(0.2, (w * 0.5) / r), b0 = z.ga + TM.gap + e, b1 = z.ga - TM.gap + TAU - e;
@@ -921,9 +950,9 @@ const BELK = (() => {
     } finally { if (Q) F.flush(c); }
     // the countdowns over the warnings, and the arrow to safety when the pet is in harm's way
     const A = M.A, at = n => { const q = anc(FX, m, n); return [FX.sx(q.x), FX.sy(q.y) - q.z * ZK * T]; };
-    if (A && A.kind === 'sweep' && A.phase === 'wind') { const cx = FX.sx(m.x + Math.cos(A.a) * 2.6), cy = FX.sy(m.y + Math.sin(A.a) * 2.6) - T * 2.6; countdown(c, cx, cy, T, TM.swWind - A.t, TM.swWind, WARN_HI);
+    if (A && A.kind === 'sweep' && A.phase === 'wind') { const cx = FX.sx(m.x + Math.cos(A.a) * 2.6), cy = FX.sy(m.y + Math.sin(A.a) * 2.6) - T * 2.6; if (!F) countdown(c, cx, cy, T, TM.swWind - A.t, TM.swWind, WARN_HI);   // (v404 BF: no countdown on the GPU: the wash filling the cone and the claw's light carry the time)
       if (inSweep(FX, A, me.x, me.y, me.r)) arrowTo(c, FX, me, safeSpot(FX, m, A), T, 'BEHIND THE SMALL CLAW'); }
-    if (A && A.kind === 'toll' && A.phase === 'wind') { const b = at('bellTop'); countdown(c, b[0], b[1] - T * 1.5, T, TM.tollWind - A.t, TM.tollWind, TQ_HI);
+    if (A && A.kind === 'toll' && A.phase === 'wind') { const b = at('bellTop'); if (!F) countdown(c, b[0], b[1] - T * 1.5, T, TM.tollWind - A.t, TM.tollWind, TQ_HI);   // (v404 BF: likewise; the bell's swelling light and the rings carry it)
       if (!inGap(A, me.x, me.y)) arrowTo(c, FX, me, gapSpot(FX, A, me), T, 'TO THE OPENING'); } }
   /* (v398 B3) the ribbon's body: one smooth path through the claw's points, stroked soft and layered, fading toward its old end */
   function ribbonUnder(c, P, T) { if (P.length < 2) return; const A = P[0], B = P[P.length - 1]; if (Math.hypot(B[0] - A[0], B[1] - A[1]) < 2) return;
