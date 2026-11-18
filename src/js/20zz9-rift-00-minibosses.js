@@ -431,10 +431,16 @@ const CAL_MINI = (() => {
     // a lunge's streak (v404 EM: one ribbon of overlapping links, its strength ramped from tail to head: no beads)
     if (S.trailPts && S.trailPts.length > 1) streakPaint(Q, S.trailPts.map(p => [S.X.sx(p.x), S.X.sy(p.y) - h * 0.35]), h, d.col, seed); }
   function streakPaint(Q, P, h, col, seed) { const n = P.length;
-      for (let i = 0; i < n - 1; i++) { const [x0, y0] = P[i], [x1, y1] = P[i + 1], dx = x1 - x0, dy = y1 - y0; if (dx * dx + dy * dy < 0.25) continue; const u0 = i / (n - 1), u1 = (i + 1) / (n - 1), e = 0.125, f = 0.16;
-        Q.rbeam(x0 - dx * e, y0 - dy * e, x1 + dx * e, y1 + dy * e, h * 0.3 * (0.35 + 0.65 * u1), col, 0.5, u0, u1);
-        Q.ebeam(x0 - dx * f, y0 - dy * f, x1 + dx * f, y1 + dy * f, h * 0.18 * (0.3 + 0.7 * u1), col, 0.8, 0.5 * u1, seed + i * 0.37, 3);
-        Q.rbeam(x0 - dx * e, y0 - dy * e, x1 + dx * e, y1 + dy * e, h * 0.06 * (0.4 + 0.6 * u1), '#FFFFFF', 0.6, u0 * u0, u1 * u1); } }
+      // (v408: the head's links are short but wide, so a link's own end feather (over a part of its length) read as a straight cut
+      // across the glow; each layer now runs past both ends of its link by at least most of its own width, so every end fades over
+      // its width and neighbouring links blend; the head ends in a soft round glow. The user 2026-11-19)
+      const run = (x0, y0, x1, y1, w, k, fn) => { const dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy), ux = dx / L, uy = dy / L, ex = Math.max(L * k, w * 0.85); fn(x0 - ux * ex, y0 - uy * ex, x1 + ux * ex, y1 + uy * ex); };
+      for (let i = 0; i < n - 1; i++) { const [x0, y0] = P[i], [x1, y1] = P[i + 1], dx = x1 - x0, dy = y1 - y0; if (dx * dx + dy * dy < 0.25) continue; const u0 = i / (n - 1), u1 = (i + 1) / (n - 1);
+        const w1 = h * 0.3 * (0.35 + 0.65 * u1), w2 = h * 0.18 * (0.3 + 0.7 * u1), w3 = h * 0.06 * (0.4 + 0.6 * u1);
+        run(x0, y0, x1, y1, w1, 0.125, (a, b, c, d) => Q.rbeam(a, b, c, d, w1, col, 0.5, u0, u1));
+        run(x0, y0, x1, y1, w2, 0.16, (a, b, c, d) => Q.ebeam(a, b, c, d, w2, col, 0.8, 0.5 * u1, seed + i * 0.37, 3));
+        run(x0, y0, x1, y1, w3, 0.125, (a, b, c, d) => Q.rbeam(a, b, c, d, w3, '#FFFFFF', 0.6, u0 * u0, u1 * u1)); }
+      if (n > 1) { const [x1, y1] = P[n - 1]; Q.glow(x1, y1, h * 0.3, col, 0.3); Q.glow(x1, y1, h * 0.1, '#FFFFFF', 0.3); } }
   // where the layer draws it from: its screen place from its look (this frame's for the front, the last one's for the aura)
   function lookAt(X, S) { const L = S.look; if (!L) return null; const T = X.Tz(), r = L.r * T, h = r * 2.5, Xs = X.sx(L.x), Ys = X.sy(L.y) - L.z * T, foot = Ys + r * 0.75; return { Xs, foot, fy: foot - L.bob, h }; }
   if (typeof RiftEvil !== 'undefined' && !RiftEvil.__calMini) { const d0 = RiftEvil.draw; RiftEvil.draw = function (c, m) { if (m && m.calMini) { m.calMini.d0 = m.calMini.d0 || ((...a) => { const s = m.calMini; m.calMini = null; try { return d0(...a); } finally { m.calMini = s; } }); try { return drawMini.apply(null, arguments); } catch (e) { try { console.warn('cal mini draw', e); } catch (e2) {} return false; } } return d0.apply(this, arguments); }; RiftEvil.__calMini = 1; }
