@@ -183,6 +183,17 @@
           const ds = (t - CLOSE - 0.15 - l.i * 0.03) / 0.55; if (ds > 0 && ds < 1 && Math.random() < dt * 22 * H.Q()) B.add(l.x + (Math.random() - 0.5) * 0.4, l.y + 0.05, l.z + lerp(-0.45, 0.35, ds) * SZ * (l.big ? 1.25 : 1), { vx: (Math.random() - 0.5) * 0.8, vz: 0.4 + Math.random() * 0.8, g: -0.3, drag: 1, life: 0.7, s: 0.06 + Math.random() * 0.05, kind: Math.random() < 0.5 ? 'h' : 's', col: Math.random() < 0.5 ? PEARL : BLUSH });
         } },
       drawUnder(c, f, X, Y, T) { const t = f.t, kf = Math.min(1, f.life / 0.5);
+        { const FG = K.gfx(); if (FG) { /* (v404 LT) the floor on the GPU: each footprint's heart of light, the strike's heart ripple, pool,
+             ring and (Celestial) the petals of hearts round the centre */
+          const Q = FG.begin(c, null), GY = H.GY, fh = (x, y, R, col, a, rot) => { const q = R * 2 / 1.678, cr = Math.cos(rot || 0), sr = Math.sin(rot || 0); Q.quad(44, x, y, cr * q, sr * q * GY, -sr * q, cr * q * GY, col, a, 0.03, 1.1, 0); };
+          for (const l of Ls) { const X2 = H.sx(l.x), Y2 = H.sy(l.y), ap = sm((t - 0.12 - l.i * 0.04) / 0.35) * (1 - sm((t - l.hitT - 0.05) / 0.25)); if (ap <= 0.01) continue;
+            const pulse = 0.85 + 0.15 * Math.sin(t * 7 + l.ph); Q.glow(X2, Y2, l.r * T * 1.1, ROSE, 0.3 * ap * kf, GY); fh(X2, Y2, l.r * T * 0.9 * pulse, ROSE, 0.6 * ap * kf);
+            if (t > l.to - 0.15) K.gFillHeart(Q, X2, Y2, l.r * T * 1.8, GY, ROSE, 0.7 * ap * sm((t - l.to + 0.15) / 0.15), 0.8, 0.012, 0); }
+          for (const r of rips) { if (r.t < 0) continue; const u = r.t / r.life, X2 = H.sx(r.x), Y2 = H.sy(r.y);
+            if (!r.k) { Q.glow(X2, Y2, r.r * T * 1.4, ROSE, 0.55 * (1 - u), GY); fh(X2, Y2, r.r * T * (0.7 + 0.7 * H.ease.out(u)), ROSE, 0.95 * (1 - u)); fh(X2, Y2, r.r * T * (0.7 + 0.7 * H.ease.out(u)) * 0.985, PEARL, 0.6 * (1 - u)); K.gFillHeart(Q, X2, Y2, r.r * T * (1 + 0.6 * u), GY, BLUSH, 0.8 * (1 - u), 0.9, 0.01, 0);
+              Q.ring(X2, Y2, r.r * T * (0.4 + 1.0 * H.ease.out(u)), BLUSH, 0.6 * (1 - u), T * 0.05, GY); Q.caustic(X2, Y2, r.r * T * 1.1, ROSE, 0.35 * (1 - u), r.x, GY); }
+            else { const d = r.r * T * (0.5 + 1.3 * H.ease.out(u)), px = X2 + Math.cos(r.a) * d, py = Y2 + Math.sin(r.a) * d * GY; fh(px, py, r.r * T * 0.55 * (0.7 + 0.5 * u), CANDY, 0.9 * (1 - u), r.a - Math.PI / 2); } }
+          FG.flush(c); return; } }
         // a soft heart ring marks each footprint until its strike
         for (const l of Ls) { const X2 = H.sx(l.x), Y2 = H.sy(l.y), ap = sm((t - 0.12 - l.i * 0.04) / 0.35) * (1 - sm((t - l.hitT - 0.05) / 0.25)); if (ap <= 0.01) continue;
           const pulse = 0.85 + 0.15 * Math.sin(t * 7 + l.ph); floorGlow(c, K, X2, Y2, l.r * T * 1.1, ROSE, 0.22 * ap * kf); floorHeart(c, K, X2, Y2, l.r * T * 0.9 * pulse, 0.4 * ap * kf);
@@ -202,18 +213,45 @@
           c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.65 * fo; c.strokeStyle = ROSE; c.lineWidth = 3; c.beginPath(); c.ellipse(p.X, cy, rr, rr * 0.75, 0, b0, b1); c.stroke(); c.strokeStyle = PEARL; c.lineWidth = 1.1; c.stroke(); c.restore();
           for (let q = 0; q < 3; q++) { const b = b1 - q * 0.5; if (b < b0) continue; K.blitC(c, K.smallSpr(q ? BLUSH : PEARL), p.X + Math.cos(b) * rr, cy + Math.sin(b) * rr * 0.75, T * (0.24 - q * 0.05), T * (0.24 - q * 0.05), fo * (1 - q * 0.25), q > 0); } }
         // columns (behind their lanterns), then the lanterns from the back row forward
-        for (const l of Ls) { const p = pos[l.i], tc = t - l.to - POUR; if (tc < 0 || tc > 0.62) continue; const X2 = H.sx(l.x), Yg = H.sy(l.y), Yt = p.Y + p.h * 0.36, W = l.r * T * 1.25;
-          const dim = (px > X2 - W && px < X2 + W && py > Yt) ? 0.45 + 0.55 * sm(Math.abs(px - X2) / W) : 1, a = (1 - sm((tc - 0.28) / 0.34)) * dim;
-          column(c, X2, Yt, Yg, W, a, cl(tc / 0.07), sm((tc - 0.03) / 0.12), t + l.ph, tier);
-          K.blitC(c, glowSprite(PEARL), X2, Yg, W * 1.2, W * 1.2 * H.GY, 0.35 * a * cl(tc / 0.08), true); K.glowC(c, X2, Yg - T * 0.1, W * 0.8, ROSE, 0.3 * a); }
-        Ls.slice().sort((p, q) => p.y - q.y || p.z - q.z).forEach(l => { const p = pos[l.i]; if (p.asm <= 0) return;
+        const lanterns = () => Ls.slice().sort((p, q) => p.y - q.y || p.z - q.z).forEach(l => { const p = pos[l.i]; if (p.asm <= 0) return;
           const e = H.ease.back(p.asm), sc = 0.55 + 0.45 * e, open = t < CLOSE ? H.ease.out(cl((t - l.to) / 0.1)) : lerp(1, 0.4, sm((t - CLOSE) / 0.2)), dis = cl((t - CLOSE - 0.15 - l.i * 0.03) / 0.55);
           const glow = t < l.to ? 0.3 + 0.7 * sm((t - 0.3) / (l.to - 0.3)) : t < CLOSE ? 1 : 1 - 0.5 * sm((t - CLOSE) / 0.3), lit = t > l.hitT ? Math.exp(-(t - l.hitT) * 5) : 0;
           const sway = 0.6 * (1 - sm(p.asm)) * Math.sin(t * 10 + l.ph) + 0.1 * Math.sin(t * 2.3 + l.ph) + (t > l.to ? 0.3 * Math.exp(-(t - l.to) * 4) * Math.sin((t - l.to) * 13) : 0);
+          p.sc = sc; p.gl = Math.min(1, glow + lit * 0.5) * (1 - dis); p.open = open;
           c.save(); c.translate(p.X, p.Y); c.scale(sc, sc);
           K.glowC(c, 0, 0, p.w * 1.3, ROSE, 0.16 * glow * (1 - dis));
           lantern(c, K, p.w, p.h, { spin: Math.PI / 2 + 0.35 * t + l.ph, open, glow: Math.min(1, glow + lit * 0.5), a: sm(p.asm * 1.6), dis, tier, sway, lit, t: t + l.ph });
           c.restore(); });
+        { const FG = K.gfx(); if (FG) { /* (v404 LT) on the GPU: the garlands, the assembling circles, the columns of light (kind 51) with their
+             spiral strands; then the lanterns themselves (their panels, bars and ornaments as drawn in 2D); then the light pouring out of
+             each open lantern, its heart of light, and the hearts and stars */
+          let Q = FG.begin(c, null);
+          if (tier === 3) { const ga = sm((t - 0.5) / 0.3) * (1 - sm((t - CLOSE) / 0.4)); if (ga > 0.01) for (let i = 0; i < 6; i++) { const p = pos[i], q = pos[(i + 1) % 6], ax = p.X, ay = p.Y - p.h * 0.68, bx = q.X, by = q.Y - q.h * 0.68, mx = (ax + bx) / 2, my = (ay + by) / 2 + T * 0.35, P = [];
+            for (let s2 = 0; s2 <= 12; s2++) { const u = s2 / 12; P.push([(1 - u) * (1 - u) * ax + 2 * u * (1 - u) * mx + u * u * bx, (1 - u) * (1 - u) * ay + 2 * u * (1 - u) * my + u * u * by]); }
+            K.gStrip(Q, P, 2.4, RGD, () => ga * 0.7); K.gStrip(Q, P, 1.1, RG, () => ga);
+            for (let s2 = 3; s2 < 12; s2 += 3) { const g2 = P[s2], tw = ga * (0.6 + 0.4 * Math.sin(t * 6 + i + s2)); Q.glow(g2[0], g2[1], T * 0.18, BLUSH, 0.5 * tw); Q.quad(50, g2[0], g2[1], T * 0.13, 0, 0, T * 0.13, s2 % 2 ? BLUSH : CANDY, tw, 0.6, t + i, 0); } } }
+          for (const l of Ls) { const p = pos[l.i], u0 = cl((t - l.i * 0.04) / 0.36), fo = 1 - sm((t - 0.3 - l.i * 0.04) / 0.35); if (u0 <= 0 || fo <= 0.01) continue; const rr = p.w * 0.85, b0 = -Math.PI / 2, b1 = b0 + u0 * TAU, P = [];
+            for (let q = 0; q <= 24; q++) { const b = b0 + (b1 - b0) * q / 24; P.push([p.X + Math.cos(b) * rr, p.Y + Math.sin(b) * rr * 0.75]); }
+            K.gStrip(Q, P, 3.2, ROSE, u => 0.7 * fo * sm(u / 0.3)); K.gStrip(Q, P, 1.1, PEARL, u => fo * sm(u / 0.3));
+            for (let q = 0; q < 3; q++) { const b = b1 - q * 0.5; if (b < b0) continue; const hx = p.X + Math.cos(b) * rr, hy = p.Y + Math.sin(b) * rr * 0.75, z = T * (0.24 - q * 0.05) * 0.62; Q.glow(hx, hy, z * 1.4, ROSE, 0.5 * fo); Q.quad(q ? 48 : 41, hx, hy, z, 0, 0, z, q ? BLUSH : '#FFFFFF', fo * (1 - q * 0.25), q ? 0.05 : 0.2, q ? 1 : 1.7, q ? 0 : 1); } }
+          for (const l of Ls) { const p = pos[l.i], tc = t - l.to - POUR; if (tc < 0 || tc > 0.62) continue; const X2 = H.sx(l.x), Yg = H.sy(l.y), Yt = p.Y + p.h * 0.36, W = l.r * T * 1.25;
+            const dim = (px > X2 - W && px < X2 + W && py > Yt) ? 0.45 + 0.55 * sm(Math.abs(px - X2) / W) : 1, a = (1 - sm((tc - 0.28) / 0.34)) * dim, pour = cl(tc / 0.07), wid = sm((tc - 0.03) / 0.12), Yf = lerp(Yt, Yg, pour), Lc = (Yf - Yt) * 1.1;
+            if (Lc > 2) { const bw = W * (0.3 + 0.7 * wid); Q.beam(X2, Yt, X2, Yt + Lc, W * 1.0, ROSE, 0.35 * a * wid); Q.quad(51, X2, Yt + Lc / 2, bw * 0.78, 0, 0, Lc / 2, ROSE, 0.95 * a, tier >= 2 ? 3 : 2, l.ph, 1);
+              const NS = tier >= 2 ? 3 : 2; for (let s2 = 0; s2 < NS; s2++) { const P = [], AL = []; for (let j = 0; j <= 20; j++) { const v = j / 20, f0 = (v * 3 - (t + l.ph) * 2.5) * TAU + s2 * TAU / NS; P.push([X2 + Math.sin(f0) * bw * 0.46, Yt + v * Lc * 0.92]); AL.push(Math.sin(Math.PI * v) * (0.25 + 0.75 * (0.5 + 0.5 * Math.cos(f0)))); }
+                const ka = u => a * wid * AL[Math.min(20, Math.round(u * 20))]; K.gStrip(Q, P, Math.max(1, W * 0.07), s2 === 2 && tier >= 3 ? LAV : ROSE, u => 0.5 * ka(u)); K.gStrip(Q, P, Math.max(0.6, W * 0.022), PEARL, u => 0.95 * ka(u)); } }
+            Q.glow(X2, Yg, W * 0.7, PEARL, 0.4 * a * cl(tc / 0.08), H.GY); Q.glow(X2, Yg - T * 0.1, W * 0.8, ROSE, 0.35 * a); Q.caustic(X2, Yg, W * 0.75, ROSE, 0.35 * a * wid, l.ph, H.GY); }
+          FG.flush(c);
+          lanterns();
+          Q = FG.begin(c, null);
+          for (const l of Ls) { const p = pos[l.i]; if (!(p.asm > 0) || !(p.gl > 0.02)) continue; const sc = p.sc || 1, w = p.w * sc, g = p.gl;
+            Q.glow(p.X, p.Y, w * 0.8, ROSE, 0.3 * g); Q.quad(48, p.X, p.Y - w * 0.02, w * 0.3, 0, 0, w * 0.3, CANDY, 0.6 * g, 0.03, 0.9, 0); Q.glow(p.X, p.Y, w * 0.25, PEARL, 0.35 * g);
+            if (p.open > 0.05 && t < CLOSE + 0.3) Q.glow(p.X, p.Y + p.h * sc * 0.28, w * (0.5 + 0.3 * p.open), PEARL, 0.45 * p.open * g); }
+          K.gBits(Q, B, T); FG.flush(c); return; } }
+        for (const l of Ls) { const p = pos[l.i], tc = t - l.to - POUR; if (tc < 0 || tc > 0.62) continue; const X2 = H.sx(l.x), Yg = H.sy(l.y), Yt = p.Y + p.h * 0.36, W = l.r * T * 1.25;
+          const dim = (px > X2 - W && px < X2 + W && py > Yt) ? 0.45 + 0.55 * sm(Math.abs(px - X2) / W) : 1, a = (1 - sm((tc - 0.28) / 0.34)) * dim;
+          column(c, X2, Yt, Yg, W, a, cl(tc / 0.07), sm((tc - 0.03) / 0.12), t + l.ph, tier);
+          K.blitC(c, glowSprite(PEARL), X2, Yg, W * 1.2, W * 1.2 * H.GY, 0.35 * a * cl(tc / 0.08), true); K.glowC(c, X2, Yg - T * 0.1, W * 0.8, ROSE, 0.3 * a); }
+        lanterns();
         B.draw(c, T); } });
   };
 
@@ -252,6 +290,13 @@
             shafts.push({ m, x: ix, y: iy }); H.hitArea(ix, iy, RS, TOT * 0.55 / N, C.dmgO({ kb: 2 })); rips.push({ x: ix, y: iy, t: 0, life: 0.75 }); pop(ix, iy, 0.15, 5 + tier, 2.4); H.burst(ix, iy - 0.2, 'spark', H.n(4 + tier), { v: 5, up: 1.5, g: 8, life: 0.3, size: 1.8, color: [PEARL, BLUSH, ROSE] }); } }
         if (!f.dz && t >= DIS) { f.dz = true; sfx('sparkle'); for (const m of M) for (let q = 0; q < H.n(7); q++) B.add(m.x + (Math.random() - 0.5) * WT * 0.6, m.y + 0.05, m.z + (Math.random() - 0.5) * HT * 0.7 + 0.2, { vx: (Math.random() - 0.5) * 1.2, vz: 0.3 + Math.random() * 0.9, g: q % 2 ? -0.3 : 0.6, drag: 1.2, life: 0.7 + Math.random() * 0.3, s: 0.06 + Math.random() * 0.06, kind: q % 2 ? 'h' : 's', col: q % 2 ? (q % 4 === 1 ? CANDY : BLUSH) : SILV }); } },
       drawUnder(c, f, X, Y, T) { const t = f.t, ap = sm(t / 0.4) * (1 - sm((t - DIS) / 0.6));
+        { const FG = K.gfx(); if (FG) { /* (v404 LT) the floor on the GPU: the ring of light, a shimmer inside it, each mirror's pool of light,
+             the shafts' heart ripples */
+          const Q = FG.begin(c, null), GY = H.GY, fh = (x, y, R, col, a, lw) => { const q = R * 2 / 1.678; Q.quad(44, x, y, q, 0, 0, q * GY, col, a, lw || 0.03, 1.1, 0); };
+          if (ap > 0.01) { Q.ring(X, Y, R * T, ROSE, 0.55 * ap, T * 0.3, GY); Q.ring(X, Y, R * T * 0.995, CANDY, 0.7 * ap, T * 0.07, GY); Q.ring(X, Y, R * T * 0.99, PEARL, 0.6 * ap, T * 0.025, GY); Q.caustic(X, Y, R * T * 0.95, ROSE, 0.18 * ap, 3.3, GY);
+            for (const m of M) { const u = sm((t - m.on + 0.25) / 0.3); Q.glow(H.sx(m.x), H.sy(m.y), T * WT * (0.9 + 0.5 * m.lit), ROSE, (0.4 + 0.45 * m.lit) * u * ap, GY); } }
+          for (const r of rips) { const u = r.t / r.life, X2 = H.sx(r.x), Y2 = H.sy(r.y); Q.glow(X2, Y2, RS * T * 1.3, ROSE, 0.55 * (1 - u), GY); fh(X2, Y2, RS * T * (0.6 + 0.8 * H.ease.out(u)), ROSE, 0.95 * (1 - u)); K.gFillHeart(Q, X2, Y2, RS * T * 1.2, GY, BLUSH, 0.8 * (1 - u), 0.9, 0.01, 0); if (tier >= 2) fh(X2, Y2, RS * T * (0.4 + 1.2 * H.ease.out(u)), CANDY, 0.5 * (1 - u), 0.02); }
+          FG.flush(c); return; } }
         if (ap > 0.01) { c.save(); c.globalCompositeOperation = 'lighter'; for (const [lw, al, col] of [[7, 0.08, ROSE], [2.5, 0.22, CANDY], [1, 0.35, PEARL]]) { c.globalAlpha = al * ap; c.strokeStyle = col; c.lineWidth = lw; c.beginPath(); c.ellipse(X, Y, R * T, R * T * H.GY, 0, 0, TAU); c.stroke(); } c.restore();
           for (const m of M) { const u = sm((t - m.on + 0.25) / 0.3); floorGlow(c, K, H.sx(m.x), H.sy(m.y), T * WT * (0.9 + 0.5 * m.lit), ROSE, (0.3 + 0.4 * m.lit) * u * ap); } }
         for (const r of rips) { const u = r.t / r.life, X2 = H.sx(r.x), Y2 = H.sy(r.y); floorGlow(c, K, X2, Y2, RS * T * 1.3, ROSE, 0.5 * (1 - u)); floorHeart(c, K, X2, Y2, RS * T * (0.6 + 0.8 * H.ease.out(u)), 0.95 * (1 - u)); floorHeart(c, K, X2, Y2, RS * T * 0.6, 0.6 * (1 - u), 0, hpoolSpr()); if (tier >= 2) floorHeart(c, K, X2, Y2, RS * T * (0.4 + 1.2 * H.ease.out(u)), 0.45 * (1 - u)); } },
@@ -280,6 +325,21 @@
           // the heart crest on top
           const cy = -hp / 2 - wp * 0.02, cz = wp * 0.55 * (1 + 0.12 * fl); K.glowC(c, 0, cy, cz * (tier === 3 ? 0.8 : 0.6), ROSE, (0.3 + 0.3 * on + (tier === 3 ? 0.25 : 0) + 0.4 * fl) * da); K.blitC(c, K.smallSpr(tier === 3 ? CANDY : ROSE), 0, cy, cz, cz, da, false); if (tier === 3) K.glowC(c, 0, cy - cz * 0.05, cz * 0.35, PEARL, (0.6 + 0.4 * Math.sin(t * 6 + m.i)) * da);
           c.restore(); });
+        { const FG = K.gfx(); if (FG) { /* (v404 LT) the light on the GPU (the mirrors themselves stay as drawn above): each face's heart of light
+             swelling as it lights, the lance legs as strips of light lingering as a constellation, the lance head, the volley's shafts (kind 51) */
+          const Q = FG.begin(c, null);
+          M.forEach(m => { const st = t - m.on + 0.3; if (st <= UNF || dis > 0) return; const [mX, mY] = scr(m), on = sm((t - m.on) / 0.12), fire = t > FIRE ? Math.exp(-(t - FIRE) * 4) : 0, grow = 1 + 0.06 * Math.sin(t * 4 + m.i) + 0.6 * tilt + 0.3 * m.lit, hz = wp * Math.cos(m.yaw) * 0.62 * grow;
+            Q.quad(48, mX, mY, hz * 0.55, 0, 0, hz * 0.55 * (1 - 0.22 * tilt), ROSE, (0.35 + 0.4 * m.lit + 0.5 * fire) * on, 0.03, 0.7, 10); Q.glow(mX, mY, hz * 0.3, PEARL, (0.25 + 0.4 * m.lit + 0.5 * fire) * on); });
+          for (const s of segs) { if (!s.go) continue; const age = t - s.t0 - s.tr, u = cl((t - s.t0) / s.tr), fa = age > 0 ? 1 - sm(age / 0.6) : 1; if (fa <= 0.01) continue; const n = 16, P = [];
+            for (let k = 0; k <= n; k++) { const v = u * k / n, p = pt(s, v); P.push([H.sx(p[0]), H.sy(p[1]) - T * p[2]]); }
+            const tw = v => age > 0 ? 1 - 0.6 * sm(age / 0.6) : 0.35 + 0.65 * v, ka = v => fa * (age > 0 ? 1 : 0.3 + 0.7 * v);
+            K.gStrip(Q, P, v => T * 0.34 * tw(v), ROSE, v => 0.35 * ka(v)); K.gStrip(Q, P, v => T * 0.14 * tw(v), CANDY, v => 0.7 * ka(v)); K.gStrip(Q, P, v => Math.max(0.6, T * 0.05 * tw(v)), PEARL, v => ka(v));
+            if (age > 0) { const q = P[n]; Q.glow(q[0], q[1], T * 0.3 * fa, BLUSH, 0.6 * fa); Q.quad(50, q[0], q[1], T * 0.22 * fa, 0, 0, T * 0.22 * fa, BLUSH, fa, 0.6, t, 0); if (s.P) { const m = P[n >> 1]; Q.quad(50, m[0], m[1], T * 0.16 * fa, 0, 0, T * 0.16 * fa, CANDY, 0.8 * fa, 0.6, -t, 0); } }
+            else { const q = P[n]; Q.glow(q[0], q[1], T * 0.5, ROSE, 0.75); Q.glow(q[0], q[1], T * 0.2, PEARL, 1); Q.star(q[0], q[1], T * 0.45, 0.9, PEARL); } }
+          for (const sh of shafts) { const u = (t - FIRE) / 0.42; if (u >= 1) continue; const [mX, mY] = scr(sh.m), iX = H.sx(sh.x), iY = H.sy(sh.y), dx = iX - mX, dy = iY - mY, L = Math.hypot(dx, dy) || 1, gr = cl(u / 0.15), al = 1 - sm((u - 0.35) / 0.65), wd = T * 0.42 * (1 - 0.5 * sm(u)), ux = dx / L, uy = dy / L, Lg = L * gr;
+            if (Lg > 2) { Q.beam(mX, mY, mX + ux * Lg, mY + uy * Lg, wd * 1.4, ROSE, 0.5 * al); Q.quad(51, mX + ux * Lg / 2, mY + uy * Lg / 2, -uy * wd * 0.9, ux * wd * 0.9, ux * Lg / 2, uy * Lg / 2, ROSE, al, 2, sh.m.i, 0.6); }
+            if (u < 0.5) { Q.glow(iX, iY - T * 0.1, T * 0.9 * (1 - u), PEARL, 0.8 * (1 - u * 2)); Q.star(iX, iY - T * 0.1, T * 0.8 * (1 - u), 0.8 * (1 - u * 2), PEARL); } }
+          K.gBits(Q, B, T); FG.flush(c); return; } }
         // the lance legs: a constellation that lingers briefly, its head a bright tapered streak
         c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.lineJoin = 'round';
         for (const s of segs) { if (!s.go) continue; const age = t - s.t0 - s.tr, u = cl((t - s.t0) / s.tr), fa = age > 0 ? 1 - sm(age / 0.6) : 1; if (fa <= 0.01) continue; const n = 16, P = [];

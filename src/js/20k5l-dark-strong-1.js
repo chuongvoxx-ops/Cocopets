@@ -85,6 +85,10 @@
   function bake(ms) { const t0 = performance.now(); for (const k of ORDER) { if (SPR[k]) continue; SPR[k] = BAKE[k](); if (performance.now() - t0 > ms * 0.5) return ready(); } return true; }
   const ready = () => ORDER.every(k => SPR[k]);
 
+  /* (v404 DK) the GPU picture: the shared painter (20k6h FGFX: Dark's kinds 53..59) when it is usable; else the 2D picture, as it was. The
+     disc's obsidian face and side stay their baked sprites; its eclipse corona (kind 59), the rift, the shards, the streaks, the scar, the
+     burst and every glow are drawn on the GPU */
+  const gfx = () => { try { const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; return F && F.usable() ? F : null; } catch (e) { return null; } };
   function glow(c, x, y, r, col, a) { if (r < 1 || !(a > 0.01)) return; c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = Math.min(1, a); blitSized(c, glowSprite(col), x - r, y - r, r * 2, r * 2); c.restore(); }
   function floorLight(c, X, Y, r, a, col, GY) { if (r < 1 || !(a > 0.01)) return; c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = Math.min(1, a); c.drawImage(glowSprite(col), X - r, Y - r * GY, r * 2, r * 2 * GY); c.restore(); }
 
@@ -93,7 +97,7 @@
   function drawDisc(c, x, y, r, o) { if (r < 0.8 || !SPR.face) return; const { spin, yaw, roll, a, en, t, evo } = o, sq = Math.max(0.12, Math.cos(yaw)), sd = Math.sin(yaw), k = r / DR, th = r * 0.24;
     c.save(); c.globalAlpha = a; c.translate(x, y); c.rotate(roll);
     // the eclipse corona behind (turning the other way)
-    if (SPR.corona) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = a * (0.75 + 0.25 * Math.sin(t * 9)) * (1 - en * 0.4); c.scale(sq * 0.5 + 0.5, 1); c.rotate(-spin * 0.35); const cr = r * 2.05 * (1 - en * 0.35); c.drawImage(SPR.corona, -cr, -cr, cr * 2, cr * 2);
+    if (SPR.corona && !o.gpu) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = a * (0.75 + 0.25 * Math.sin(t * 9)) * (1 - en * 0.4); c.scale(sq * 0.5 + 0.5, 1); c.rotate(-spin * 0.35); const cr = r * 2.05 * (1 - en * 0.35); c.drawImage(SPR.corona, -cr, -cr, cr * 2, cr * 2);
       if (evo >= 7) { c.rotate(spin * 0.6 + 0.4); c.globalAlpha = a * 0.55; const c2 = cr * 0.86; c.drawImage(SPR.corona, -c2, -c2, c2 * 2, c2 * 2); } c.restore(); }
     c.scale(sq, 1);
     // the side: slices stacked from the far face to the near one
@@ -107,7 +111,7 @@
     if (SPR.glint) { c.save(); c.globalAlpha = a * 0.9; c.rotate(Math.sin(t * 1.7) * 0.5 + sd * 0.6); c.drawImage(SPR.glint, -CC * k, -CC * k, SZ * k, SZ * k); c.restore(); }
     if (SPR.rim) { c.globalAlpha = a * (0.85 + en * 0.15); const rr = r * 1.06; c.drawImage(SPR.rim, -rr, -rr, rr * 2, rr * 2); }
     // the charge: energy floods the face as it contracts
-    if (en > 0.01) { c.globalAlpha = a * en * 0.9; c.drawImage(glowSprite(EDGE), -r * 1.1, -r * 1.1, r * 2.2, r * 2.2); c.globalAlpha = a * en * en; c.drawImage(glowSprite(ACC), -r * 0.6, -r * 0.6, r * 1.2, r * 1.2); }
+    if (en > 0.01 && !o.gpu) { c.globalAlpha = a * en * 0.9; c.drawImage(glowSprite(EDGE), -r * 1.1, -r * 1.1, r * 2.2, r * 2.2); c.globalAlpha = a * en * en; c.drawImage(glowSprite(ACC), -r * 0.6, -r * 0.6, r * 1.2, r * 1.2); }
     c.restore(); }
 
   S.eclipsedisc = (C, h) => { const H = h, me = H.me, a = C.a, dir = [Math.cos(a), Math.sin(a)], V = 7, ev = evoOf(C), EK = evoK(C), GY = H.GY;
@@ -135,12 +139,27 @@
           for (let i = 0; i < H.n(7); i++) { const b = i / 7 * TAU; H.P({ kind: 'smoke', x: bx + Math.cos(b) * 0.4, y: by + Math.sin(b) * 0.3, vx: Math.cos(b) * 2.2, vy: Math.sin(b) * 1.3 - 0.3, life: 0.7, max: 0.7, size: 0.4, color: 'rgba(150,120,200,' }); }
           H.X.light(bx, by, BR * 2, 0.3); H.X.shake(6 + ev * 0.6, 0.2); H.X.sfx.crash(); H.X.hitstop(0.035); } },
       drawUnder(c, f, X, Y, T) { const k = f.burst ? 1 - cl((f.t - f.bT) / 0.55) : 1;
+        { const FG = gfx(); if (FG) { /* (v404 DK) the scar as a fading seam of violet energy, the disc's pool of light, the burst's rolling wave */
+          const Q = FG.begin(c, null);
+          for (let i = 1; i < f.scar.length; i++) { const p = f.scar[i - 1], q = f.scar[i], al = cl(1 - (f.t - q[2]) / 0.7) * k; if (al <= 0.01) continue; const ax = H.sx(p[0]), ay = H.sy(p[1]), bx = H.sx(q[0]), by = H.sy(q[1]);
+            Q.ebeam(ax, ay, bx, by, T * 0.36 * (0.4 + 0.6 * al), ENERGY, 0.6, 0.6 * al, i * 0.7, 3); Q.beam(ax, ay, bx, by, T * 0.12 * (0.4 + 0.6 * al), EDGE, 0.45 * al); Q.beam(ax, ay, bx, by, Math.max(0.7, T * 0.03), ACC, 0.6 * al); }
+          if (!f.burst) { const form = sstep(0, 0.22, f.t), u = f.t > f.cT ? cl((f.t - f.cT) / CON) : 0; Q.glow(X, Y, T * RW * 1.7 * form * (1 - u * 0.6), EDGE, 0.5 + u * 0.4, GY); Q.caustic(X, Y, T * RW * 1.2 * form, EDGE, 0.3 + 0.3 * u, 2.2, GY); }
+          else { const u = cl((f.t - f.bT) / 0.5), rr = T * BR * (0.2 + 1.0 * Math.sqrt(u)) * 1.1; Q.glow(X, Y, T * BR * (0.9 + u * 0.8), EDGE, 0.75 * (1 - u), GY); Q.ewave(X, Y, rr, EDGE, 0.8, 0.95 * (1 - u), 3.7, GY, 0.2); Q.ring(X, Y, rr, ACC, 0.8 * (1 - u), T * 0.07, GY); }
+          FG.flush(c); return; } }
         // the scar: a violet light line along the path, fading from its tail
         if (f.scar.length > 1) { c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; for (let i = 1; i < f.scar.length; i++) { const p = f.scar[i - 1], q = f.scar[i], age = f.t - q[2], al = cl(1 - age / 0.7) * k; if (al <= 0.01) continue; for (const [w, col, m] of [[0.6, ENERGY, 0.2], [0.26, EDGE, 0.26], [0.06, ACC, 0.3]]) { c.globalAlpha = al * m; c.strokeStyle = col; c.lineWidth = T * w * (0.4 + 0.6 * al); c.beginPath(); c.moveTo(H.sx(p[0]), H.sy(p[1])); c.lineTo(H.sx(q[0]), H.sy(q[1])); c.stroke(); } } c.restore(); }
         if (!f.burst) { const form = sstep(0, 0.22, f.t), u = f.t > f.cT ? cl((f.t - f.cT) / CON) : 0; floorLight(c, X, Y, T * RW * 1.5 * form * (1 - u * 0.6), 0.45 + u * 0.4, EDGE, GY); }
         else { const u = cl((f.t - f.bT) / 0.5); floorLight(c, X, Y, T * BR * (0.8 + u * 0.8), 0.7 * (1 - u), EDGE, GY);
           if (SPR.ring) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.9 * (1 - u); const rr = T * BR * (0.2 + 1.0 * Math.sqrt(u)) * 1.1; c.drawImage(SPR.ring, X - rr, Y - rr * GY, rr * 2, rr * 2 * GY); c.restore(); } } },
       draw(c, f, X, Y, T, gt) { const Hh = RW * 1.32, cy = Y - T * Hh;
+        const FG = gfx();
+        if (f.burst && FG) { /* (v404 DK) the burst on the GPU: a white-violet star, a standing ring and its echo racing out, tapering rays, a collapsing void heart */
+          const u = cl((f.t - f.bT) / 0.55), r0 = T * RW, Q = FG.begin(c, null), rr = T * BR * (0.15 + 0.85 * Math.sqrt(u));
+          Q.glow(X, cy, r0 * (2.6 + ev * 0.1) * (1 - u * 0.5), EDGE, 0.95 * (1 - u)); Q.glow(X, cy, r0 * 1.2 * (1 - u), ACC, (1 - u) * (1 - u)); Q.glow(X, cy, r0 * 0.55 * (1 - u), '#FFFFFF', (1 - u) * (1 - u)); Q.star(X, cy, r0 * 2.2 * (1 - 0.5 * u), (1 - u) * (1 - u), '#F0E4FF'); if (u < 0.7) Q.eorb(X, cy, r0 * (0.8 + 1.4 * Math.sqrt(u)), EDGE, 1.0 - 0.6 * u, (1 - u / 0.7) * 0.9, f.bT * 3.1, 1.2);
+          Q.ring(X, cy, rr, EDGE, 0.9 * (1 - u), T * 0.12); Q.ring(X, cy, rr * 0.97, ACC, 0.7 * (1 - u), T * 0.04); if (ev >= 7) Q.ring(X, cy, rr * 0.7, EDGE, 0.6 * (1 - u), T * 0.08);
+          if (u < 0.35) Q.quad(56, X, cy, r0 * 0.7 * (1 - u / 0.35), 0, 0, r0 * 0.7 * (1 - u / 0.35), '#FFFFFF', 1 - u / 0.35, 1, f.bT, 0);
+          if (u < 0.6) { const n = 8 + (ev >= 4 ? 2 : 0) + (ev >= 7 ? 2 : 0), w = 1 - u / 0.6; for (let i = 0; i < n; i++) { const b = i / n * TAU + 0.2 + R1(i) * 0.3, L = T * BR * (0.6 + R1(i * 3) * 0.6) * (0.4 + u), x0 = X + Math.cos(b) * T * 0.15, y0 = cy + Math.sin(b) * T * 0.15; Q.rbeam(x0, y0, x0 + Math.cos(b) * L, y0 + Math.sin(b) * L, T * 0.1 * w, i % 2 ? EDGE : ACC, 0.9 * w, 1, 0); } }
+          FG.flush(c); return; }
         if (f.burst) { const u = cl((f.t - f.bT) / 0.55), r0 = T * RW;
           // the point flashes, a standing ring races out, short rays, a fading violet heart
           glow(c, X, cy, r0 * (2.4 + ev * 0.1) * (1 - u * 0.5), EDGE, 0.9 * (1 - u)); glow(c, X, cy, r0 * 1.1 * (1 - u), ACC, (1 - u) * (1 - u)); glow(c, X, cy, r0 * 0.5 * (1 - u), '#FFFFFF', (1 - u) * (1 - u));
@@ -151,6 +170,27 @@
         // contraction: a beat of swelling, then an accelerating shrink to a point
         const swell = u < 0.25 ? 1 + 0.1 * Math.sin(u / 0.25 * Math.PI * 0.5) : 1.1 * (1 - Math.pow((u - 0.25) / 0.75, 1.6)), r = Math.max(0, T * RW * form * swell);
         const yaw = lerp(sgn * (0.68 + 0.2 * Math.sin(f.t * 3.1)), 0, sstep(0, 0.6, u)), roll = lerp(sgn * 0.12 + Math.sin(f.t * 4.3) * 0.05, 0, u);
+        if (FG) { /* (v404 DK) the disc on the GPU: behind it the rift it unfurls from (kind 57), its glow, its eclipse corona (kind 59, squashed by
+             its yaw, a second counter-turning one at Celestial), the far shards (kind 58), the afterimages; the obsidian disc (baked); then the
+             charge flooding it, the streaks drawn in, the near shards and the point it collapses to */
+          const px = H.sx(me.x), py = H.sy(me.y) - T * 0.55, dp = Math.hypot(X - px, cy - py), dim = 0.35 + 0.65 * sstep(T * 0.3, T * 0.3 + r + T * 0.5, dp), sq = Math.max(0.12, Math.cos(yaw)), en = sstep(0.2, 1, u), al = dim * Math.min(1, f.t / 0.08);
+          const shards = (Q, front) => { if (ev < 4 || r <= 2) return; const n = ev >= 7 ? 7 : 4; for (let i = 0; i < n; i++) { const b = f.spin * 0.5 + i / n * TAU; if ((Math.sin(b) > 0) !== front) continue; const s2 = T * 0.1 * (1 - u * 0.7); Q.rq(58, X + Math.cos(b) * r * 1.3, cy + Math.sin(b) * r * 0.42, s2 * 1.2, s2 * 1.6, b * 2, '#FFFFFF', dim * (front ? 1 : 0.55), b, i * 1.9, front ? 0.9 : 0.4); if (front) Q.glow(X + Math.cos(b) * r * 1.3, cy + Math.sin(b) * r * 0.42, s2 * 2, EDGE, 0.3 * dim); } };
+          let Q = FG.begin(c, null);
+          if (f.t < 0.3) { const s2 = 1 - f.t / 0.3; Q.quad(57, X, cy, T * 0.9, 0, 0, T * 1.1 * (0.4 + form), '#FFFFFF', s2, 0.4 + 0.6 * form, 5.1, 0); Q.glow(X, cy, T * 1.3, EDGE, 0.6 * s2); }
+          Q.glow(X, cy, r * 2.2, ENERGY, 0.4 * dim + u * 0.3);
+          if (r > 1) { const cr = r * 2.05 * (1 - en * 0.35) / 0.84 * 0.42 * 2.4, cs = Math.cos(roll), sn = Math.sin(roll), kx = sq * 0.5 + 0.5; Q.quad(59, X, cy, cr * kx * cs, cr * kx * sn, -cr * sn, cr * cs, '#FFFFFF', al * (0.8 + 0.2 * Math.sin(f.t * 9)) * (1 - en * 0.4), ev >= 7 ? 1 : 0, f.spin * -0.1, en);
+            if (ev >= 7) Q.quad(59, X, cy, cr * 0.86 * kx * cs, cr * 0.86 * kx * sn, -cr * 0.86 * sn, cr * 0.86 * cs, '#FFFFFF', al * 0.5, 0, 3.3 + f.spin * 0.1, en); }
+          shards(Q, false);
+          if (u === 0 && f.v > 2) for (let i = 1; i <= 2; i++) { const bx = X - H.sx(f.x + dir[0] * 0.28 * i) + H.sx(f.x), by = cy - (H.sy(f.y + dir[1] * 0.28 * i) - H.sy(f.y)), rr = r * 1.05; Q.quad(1, bx, by, rr * 1.04 * sq, 0, 0, rr * 1.04, EDGE, 0.4 / i * dim, 0.96, 0, 0.08); }
+          FG.flush(c);
+          if (!ready()) { Q = FG.begin(c, null); Q.glow(X, cy, Math.max(2, r * 1.5), EDGE, 0.6); FG.flush(c); return; }
+          drawDisc(c, X, cy, r, { spin: f.spin, yaw, roll, a: al, en, t: gt != null ? gt : f.t, evo: ev, gpu: true });
+          Q = FG.begin(c, null);
+          if (en > 0.01) { Q.glow(X, cy, r * 1.2, EDGE, al * en * 0.95); Q.glow(X, cy, r * 0.65, ACC, al * en * en); Q.quad(1, X, cy, r * 1.08 * sq, 0, 0, r * 1.08, ACC, al * en, 0.96, 0, 0.06); }
+          if (u > 0.05) { const n = 14; for (let i = 0; i < n; i++) { const b = i / n * TAU + R1(i) * 0.4, ph = (u * 2.2 + R1(i * 5)) % 1, ro = T * (2.4 - ph * 1.9), ri = Math.max(r * 1.05, ro - T * 0.5), a2 = Math.sin(ph * Math.PI) * sstep(0.05, 0.3, u); Q.rbeam(X + Math.cos(b) * ro, cy + Math.sin(b) * ro, X + Math.cos(b) * ri, cy + Math.sin(b) * ri, T * 0.05, i % 2 ? EDGE : ACC, a2, 0.2, 1); } }
+          shards(Q, true);
+          if (u > 0.6) { Q.glow(X, cy, T * (0.3 + (u - 0.6) * 1.4), '#FFFFFF', (u - 0.6) * 2.4); Q.star(X, cy, T * (0.4 + (u - 0.6) * 2), (u - 0.6) * 2.4, ACC); }
+          FG.flush(c); return; }
         // the seam it unfurls from
         if (f.t < 0.3) { const s = 1 - f.t / 0.3; c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = s; c.strokeStyle = rgba(EDGE, 0.9); c.lineWidth = 2.5; c.lineCap = 'round'; c.beginPath(); c.moveTo(X, cy - T * 1.1 * (0.3 + form)); c.lineTo(X, cy + T * 1.1 * (0.3 + form)); c.stroke(); c.restore(); glow(c, X, cy, T * 1.2, EDGE, 0.6 * s); }
         if (!ready()) { glow(c, X, cy, Math.max(2, r * 1.5), EDGE, 0.6); return; }

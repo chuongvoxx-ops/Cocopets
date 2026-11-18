@@ -108,7 +108,11 @@
     g.globalCompositeOperation = 'destination-in'; gr = g.createLinearGradient(0, 0, 128, 0); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(0.35, 'rgba(0,0,0,1)'); gr.addColorStop(0.88, 'rgba(0,0,0,1)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 32); });
   const ringSpr = () => fxSprite('dk2ring', 128, 128, g => { const gr = g.createRadialGradient(64, 64, 0, 64, 64, 63); gr.addColorStop(0, 'rgba(109,40,168,0.12)'); gr.addColorStop(0.55, 'rgba(109,40,168,0.06)'); gr.addColorStop(0.7, 'rgba(165,92,255,0.25)'); gr.addColorStop(0.8, 'rgba(208,174,255,0.95)'); gr.addColorStop(0.86, 'rgba(165,92,255,0.45)'); gr.addColorStop(0.95, 'rgba(109,40,168,0.08)'); gr.addColorStop(1, 'rgba(109,40,168,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); });
   function blit(c, img, x, y, w, h, a, add) { if (!(a > 0.01) || w < 0.5 || h < 0.5) return; c.globalAlpha = Math.min(1, a); if (add) c.globalCompositeOperation = 'lighter'; c.drawImage(img, x - w / 2, y - h / 2, w, h); if (add) c.globalCompositeOperation = 'source-over'; }
-  function glow(c, x, y, r, col, a) { if (r < 1 || !(a > 0.01)) return; c.globalCompositeOperation = 'lighter'; c.globalAlpha = Math.min(1, a); blitSized(c, glowSprite(col), x - r, y - r, r * 2, r * 2); c.globalCompositeOperation = 'source-over'; }
+  /* (v404 DK) the GPU picture: the shared painter (20k6h FGFX) when it is usable; else the 2D picture, as it was. The fang (a per-pixel lit
+     sprite) and the glossy ink stay 2D; the light (the wake, the floor streaks, the rings, every glow) is drawn on the GPU */
+  const gfx = () => { try { const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; return F && F.usable() ? F : null; } catch (e) { return null; } };
+  let GPUF = false;   // (set while the 2D pass runs under the GPU one: its glows, wake and shadows are already drawn)
+  function glow(c, x, y, r, col, a) { if (GPUF || r < 1 || !(a > 0.01)) return; c.globalCompositeOperation = 'lighter'; c.globalAlpha = Math.min(1, a); blitSized(c, glowSprite(col), x - r, y - r, r * 2, r * 2); c.globalCompositeOperation = 'source-over'; }
   /* a glossy ink ribbon along screen points: a tapered dark body, a lit upper edge, a violet rim, a pale wet highlight */
   function inkRibbon(c, pts, w0, w1, a) {
     const n = pts.length; if (n < 2 || !(a > 0.02)) return; const L = [], R = [];
@@ -154,6 +158,16 @@
         if (!F.sink && tau >= T_HIT + 0.5) { F.sink = true; const [ex, ey] = F.at(1); H.X.ring(ex, ey, 0.1, 0.75, 0.35, ACC, 0.3);
           for (let k = 0; k < H.n(3); k++) { const b = Math.random() * TAU; H.P({ kind: 'smoke', x: ex + Math.cos(b) * 0.3, y: ey + Math.sin(b) * 0.2, vx: Math.cos(b) * 0.5, vy: -0.5, life: 0.6, max: 0.6, size: 0.35, color: 'rgba(110,80,150,' }); } } } },
       drawUnder(c, f, X, Y, T) {
+        { const FG = gfx(); if (FG) { /* (v404 DK) the floor on the GPU: a violet energy streak along each lunge, the welling ripple, the impact's
+             rolling wave and pool of light */
+          const Q = FG.begin(c, null), gy = H.GY;
+          for (const F of fangs) { const tau = f.t - F.d; if (tau < 0) continue; const s = sAt(tau), fade = tau < T_HIT ? 1 : 1 - sstep(T_HIT, T_HIT + 0.5, tau);
+            if (s > 0.02 && fade > 0.01) { const N = 6; let p = F.at(0); for (let k = 1; k <= N; k++) { const q = F.at(s * k / N), PX = H.sx(p[0]), PY = H.sy(p[1]), QX = H.sx(q[0]), QY = H.sy(q[1]), kk = 0.4 + 0.6 * k / N;
+              Q.ebeam(PX, PY, QX, QY, T * 0.22 * kk, ENERGY, 0.6, 0.55 * fade * kk, F.seed + k, 4); Q.beam(PX, PY, QX, QY, T * 0.05, ACC, 0.6 * fade * kk); p = q; } }
+            if (tau < T_FORM + 0.2) { const [sx0, sy0] = F.at(0), k = cl(tau / (T_FORM + 0.2)), R = T * (0.25 + 0.4 * k); Q.ripple(H.sx(sx0), H.sy(sy0), R, EDGE, 0.8 * (1 - k), F.seed, gy, 0.14); Q.glow(H.sx(sx0), H.sy(sy0), R * 1.4, ENERGY, 0.4 * (1 - k), gy); }
+            if (tau >= T_HIT) { const u = tau - T_HIT, [ex, ey] = F.at(1), EX = H.sx(ex), EY = H.sy(ey), R = T * (0.5 + 0.9 * H.ease.out(cl(u / 0.4))), a = 1 - sstep(0.05, 0.45, u);
+              Q.ewave(EX, EY, R, EDGE, 0.75, 0.8 * a, F.seed, gy, 0.18); Q.ring(EX, EY, R * 0.97, ACC, 0.6 * a, T * 0.05, gy); Q.glow(EX, EY, T * 1.1, ENERGY, 0.55 * (1 - sstep(0.1, 0.6, u)), gy); Q.caustic(EX, EY, T * 0.9, EDGE, 0.3 * (1 - sstep(0.1, 0.6, u)), F.seed, gy); } }
+          FG.flush(c); return; } }
         // the floor: a violet light streak along each lunge, a glow under the impact (light only)
         for (const F of fangs) { const tau = f.t - F.d; if (tau < 0) continue; const s = sAt(tau), fade = tau < T_HIT ? 1 : 1 - sstep(T_HIT, T_HIT + 0.5, tau);
           if (s > 0.02 && fade > 0.01) { const N = 6; let p = F.at(0); for (let k = 1; k <= N; k++) { const q = F.at(s * k / N), PX = H.sx(p[0]), PY = H.sy(p[1]), QX = H.sx(q[0]), QY = H.sy(q[1]), l = Math.hypot(QX - PX, QY - PY);
@@ -167,6 +181,22 @@
         const PXp = H.sx(me.x), PYp = H.sy(me.y) - T * 0.45, petK = (x, y) => lerp(0.3, 1, sstep(T * 0.45, T * 1.05, Math.hypot(x - PXp, y - PYp)));
         const order = fangs.slice().sort((p, q) => p.at(sAt(f.t - p.d))[1] - q.at(sAt(f.t - q.d))[1]);
         const FLs = T * 0.68 * size;   // half the fang's length on screen
+        const FG = gfx(); GPUF = !!FG;
+        if (FG) { /* (v404 DK) the shadows (2D), then the light on the GPU (each fang's aura, its wake of rolling violet energy, the burst's flash and
+             the droplet's glow), then the fang and the ink in 2D over it */
+          c.save(); for (const F of order) { const tau = f.t - F.d; if (tau < 0 || tau >= T_HIT + 0.05) continue; const s = sAt(tau), [fx0, fy0] = F.at(s), form = tau < T_FORM ? tau / T_FORM : 1, crush = sstep(T_HIT - 0.01, T_HIT + 0.05, tau), pk = petK(H.sx(fx0), H.sy(fy0) - hAt(tau, s) * T); blit(c, shadowSpr(), H.sx(fx0), H.sy(fy0), FLs * 1.6 * (0.5 + 0.5 * form), FLs * 1.6 * H.GY * (0.5 + 0.5 * form), 0.9 * pk * (1 - crush), false); } c.restore();
+          const Q = FG.begin(c, null);
+          for (const F of order) { const tau = f.t - F.d; if (tau < 0) continue;
+            if (tau < T_HIT + 0.05) { const s = sAt(tau), hh = hAt(tau, s), [fx0, fy0] = F.at(s), FX = H.sx(fx0), FY = H.sy(fy0) - hh * T, [qx, qy] = F.at(Math.min(1, s + 0.04)), [px2, py2] = F.at(Math.max(0, s - 0.04));
+              let hd = Math.atan2(H.sy(qy) - H.sy(py2), H.sx(qx) - H.sx(px2)); if (!(Math.abs(H.sx(qx) - H.sx(px2)) + Math.abs(H.sy(qy) - H.sy(py2)) > 0.5)) hd = Math.atan2(F.sa, F.ca); hd += (F.mir ? -1 : 1) * 0.12 * (tau < T_FORM ? 0 : 1);
+              const pk = petK(FX, FY), form = tau < T_FORM ? tau / T_FORM : 1, crush = sstep(T_HIT - 0.01, T_HIT + 0.05, tau), aF = sstep(0.35, 0.75, form) * (1 - crush) * pk, ch = Math.cos(hd), sh = Math.sin(hd);
+              Q.glow(FX, FY, FLs * 1.4, ENERGY, (0.4 + 0.25 * s) * aF); Q.glow(FX + ch * FLs * 0.75, FY + sh * FLs * 0.75, FLs * 0.55, ACC, 0.3 * aF);
+              if (s > 0.03 && aF > 0.02) { const rx = FX - ch * FLs * 0.62, ry = FY - sh * FLs * 0.62, len = FLs * (0.6 + 1.6 * s); Q.ebeam(rx - ch * len, ry - sh * len + FLs * 0.1, rx + ch * FLs * 0.2, ry + sh * FLs * 0.2, FLs * 0.5, ENERGY, 0.75, 0.75 * aF, F.seed, -5); Q.beam(rx - ch * len * 0.7, ry - sh * len * 0.7, rx, ry, FLs * 0.12, ACC, 0.5 * aF); }
+              if (form < 1) Q.glow(FX, H.sy(fy0) - hh * T * 0.8, FLs * 0.9, EDGE, 0.5 * pk * form); }
+            if (tau >= T_HIT) { const u = tau - T_HIT, [ex, ey] = F.at(1), EX = H.sx(ex), EY = H.sy(ey) - T * 0.3, pk = petK(EX, EY), ext = H.ease.out(cl(u / 0.11)), ret = H.ease.in(sstep(0.16, 0.48, u)), aR = pk * (1 - sstep(0.5, 0.6, u));
+              if (aR > 0.02) { Q.glow(EX, EY, T * (0.8 + 0.6 * ext) * (1 - ret * 0.5), EDGE, 0.55 * aR * (1 - ret * 0.6)); if (u < 0.12) { Q.star(EX, EY, T * (0.6 + 1.2 * u / 0.12), (1 - u / 0.12) * pk, ACC); Q.glow(EX, EY, T * 0.35, '#FFFFFF', (1 - u / 0.12) * 0.8 * pk); } }
+              const sink = sstep(0.5, 0.62, u); if (u > 0.08 && sink < 1) Q.glow(EX, EY, FLs * 0.9, ACC, 0.3 * pk * (1 - sink)); } }
+          FG.flush(c); }
         for (const F of order) { const tau = f.t - F.d; if (tau < 0) continue;
           if (tau < T_HIT + 0.05) {
             const s = sAt(tau), hh = hAt(tau, s), [fx0, fy0] = F.at(s), GX = H.sx(fx0), GY0 = H.sy(fy0), FX = GX, FY = GY0 - hh * T;
@@ -176,12 +206,12 @@
             const pk = petK(FX, FY), form = tau < T_FORM ? tau / T_FORM : 1, crush = sstep(T_HIT - 0.01, T_HIT + 0.05, tau);
             const aF = sstep(0.35, 0.75, form) * (1 - crush) * pk;
             // contact shadow, glow
-            c.save(); blit(c, shadowSpr(), GX, GY0, FLs * 1.6 * (0.5 + 0.5 * form), FLs * 1.6 * H.GY * (0.5 + 0.5 * form), 0.9 * pk * (1 - crush), false);
+            c.save(); if (!GPUF) blit(c, shadowSpr(), GX, GY0, FLs * 1.6 * (0.5 + 0.5 * form), FLs * 1.6 * H.GY * (0.5 + 0.5 * form), 0.9 * pk * (1 - crush), false);
             glow(c, FX, FY, FLs * 1.25, ENERGY, (0.35 + 0.25 * s) * aF); glow(c, FX + Math.cos(hd) * FLs * 0.75, FY + Math.sin(hd) * FLs * 0.75, FLs * 0.5, ACC, 0.25 * aF);
             // the liquid tail and wake behind the lunge
             if (s > 0.03 && aF > 0.02) { const pts = [], ch = Math.cos(hd), sh = Math.sin(hd), rx = FX - ch * FLs * 0.62, ry = FY - sh * FLs * 0.62, len = FLs * (0.5 + 1.1 * s), wob = f.t * 26 + F.seed;
               for (let k = 0; k <= 6; k++) { const q = k / 6, w = Math.sin(wob - q * 5) * FLs * 0.09 * q; pts.push([rx - ch * len * q - sh * w, ry - sh * len * q + ch * w + q * q * FLs * 0.12]); }
-              H.trail(c, pts.slice().reverse(), FLs * 0.55, ENERGY, null); c.globalCompositeOperation = 'source-over';
+              if (!GPUF) H.trail(c, pts.slice().reverse(), FLs * 0.55, ENERGY, null); c.globalCompositeOperation = 'source-over';
               inkRibbon(c, pts, FLs * 0.52, FLs * 0.05, 0.92 * aF); }
             // the droplet welling up and stretching (formation)
             if (form < 1) { const q = form, r = FLs * 0.42 * sm(q / 0.45) * (1 - sstep(0.55, 0.9, q)), st = 1 + 0.6 * sstep(0.3, 0.7, q); if (r > 0.5) { c.save(); c.translate(GX, GY0 - hh * T * 0.8); c.rotate(-Math.PI / 2 + (hd + Math.PI / 2) * sstep(0.4, 0.9, q)); c.scale(st, 1 / Math.sqrt(st)); blit(c, dropSpr(), 0, 0, r * 2.3, r * 2.3, pk, false); c.restore(); } }
@@ -195,7 +225,7 @@
             c.restore();
           }
           if (tau >= T_HIT) this.splash(c, F, tau - T_HIT, T, FLs, petK, size);
-        } },
+        } GPUF = false; },
       // the burst: a crown of glossy ribbons that splash up and retract into one droplet, which sinks into the floor
       splash(c, F, u, T, FLs, petK, size) {
         const [ex, ey] = F.at(1), EX = H.sx(ex), EY = H.sy(ey) - T * 0.3, pk = petK(EX, EY), hd = Math.atan2(H.sy(ey) - H.sy(F.at(0.9)[1]), H.sx(ex) - H.sx(F.at(0.9)[0]));

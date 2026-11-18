@@ -90,6 +90,10 @@
     x.putImageData(img, 0, 0); TR = cv; return TR; }
   function drawTrail(c, x0, y0, x1, y1, w, a) { const L = Math.hypot(x1 - x0, y1 - y0); if (L < 2) return; c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = a; c.translate(x0, y0); c.rotate(Math.atan2(y1 - y0, x1 - x0)); c.drawImage(trailSprite(), 0, -w / 2, L + w * 0.3, w); c.restore(); }
 
+  /* (v404 DK) the GPU picture: the shared painter (20k6h FGFX: Dark's kinds 53..58) when it is usable; else the 2D picture, as it was. The
+     needles keep their baked crystal views; the trails (rolling violet energy with a hot thread), the pools and rune rings, every glow and the
+     shards are drawn on the GPU */
+  const gfx = () => { try { const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; return F && F.usable() ? F : null; } catch (e) { return null; } };
   S.nightneedle = (C, h) => { H = h; const me = H.me, a = C.a, evo = Math.max(1, Math.min(7, Math.round(C.evo || 1))), N = COUNTS[evo - 1], DK = C.base * C.K, per = DK * 2.94 * (1 + 0.08 * (evo - 1)) / N, LS = 1 + 0.03 * (evo - 1), adept = evo >= 4, cel = evo >= 7;
     const ns = [], half = Math.ceil(N / 2), span = 1.0 / Math.max(1, half - 1), LAUNCH = 0.4, WIN = 0.32 + 0.012 * N, fanW = 0.5 + 0.022 * N;
     for (let i = 0; i < N; i++) { const side = i % 2 ? 1 : -1, k = i >> 1, ax = 0.6 + k * span, wob = hash(i, 3.7), z = 0.45 + ((i * 0.618 + 0.21) % 1) * 0.75 + 0.8 * Math.max(0, 1 - (ax - 0.6) / 0.6);
@@ -119,12 +123,32 @@
       },
       drawUnder(c, f, X, Y, T) {   // light only: a violet glow pooled under the cluster, a ring of light at Adept, a broken rune ring at Celestial
         const form = H.ease.out(cl(f.t / 0.3)), out = 1 - cl((f.t - LAUNCH - WIN * 0.6) / 0.35); if (out <= 0) return; const k = form * out, PX = H.sx(me.x), PY = H.sy(me.y);
+        { const FG = gfx(); if (FG) { const Q = FG.begin(c, null), gy = H.GY;   // (v404 DK) the pool of violet light, the ring (Adept), the broken rune ring (Celestial)
+          Q.glow(PX, PY, T * 1.8, ENERGY, 0.4 * k, gy); Q.glow(PX, PY, T * 0.95, EDGE, 0.22 * k, gy); Q.caustic(PX, PY, T * 1.2, EDGE, 0.22 * k, 1.3, gy);
+          if (adept) { Q.ring(PX, PY, T * 1.05 * form, EDGE, 0.5 * k, T * 0.05, gy); Q.ripple(PX, PY, T * 1.0 * form, ACC, 0.25 * k, 2.1, gy, 0.08); }
+          if (cel) { const r = T * 1.35 * form, rot = f.t * 0.8; for (let j = 0; j < 8; j++) { const b0 = rot + j / 8 * TAU; let px = PX + Math.cos(b0) * r, py = PY + Math.sin(b0) * r * gy; for (let q = 1; q <= 4; q++) { const b = b0 + 0.5 * q / 4, x = PX + Math.cos(b) * r, y = PY + Math.sin(b) * r * gy; Q.beam(px, py, x, y, T * 0.05, ACC, 0.55 * k); px = x; py = y; } Q.star(PX + Math.cos(b0 + 0.62) * r, PY + Math.sin(b0 + 0.62) * r * gy, T * 0.14, 0.7 * k, ACC); } }
+          FG.flush(c); return; } }
         c.save(); c.translate(PX, PY); c.scale(1, H.GY); H.glow(c, 0, 0, T * 1.6, ENERGY, 0.32 * k); H.glow(c, 0, 0, T * 0.9, EDGE, 0.16 * k);
         if (adept) { c.globalCompositeOperation = 'lighter'; c.strokeStyle = H.rgba(EDGE, 0.35 * k); c.lineWidth = 1.5; c.beginPath(); c.arc(0, 0, T * 1.05 * form, 0, TAU); c.stroke(); }
         if (cel) { c.globalCompositeOperation = 'lighter'; c.strokeStyle = H.rgba(ACC, 0.4 * k); c.lineWidth = 2; const r = T * 1.35 * form, rot = f.t * 0.8; for (let j = 0; j < 8; j++) { const b0 = rot + j / 8 * TAU; c.beginPath(); c.arc(0, 0, r, b0, b0 + 0.5); c.stroke(); c.beginPath(); c.moveTo(Math.cos(b0 + 0.62) * (r - 4), Math.sin(b0 + 0.62) * (r - 4)); c.lineTo(Math.cos(b0 + 0.62) * (r + 4), Math.sin(b0 + 0.62) * (r + 4)); c.stroke(); } }
         c.restore(); },
       draw(c, f, X, Y, T) {
         const L = Math.round(T * 1.05 * LS / 2) * 2, gt = H.g.t, PX = H.sx(me.x), PY = H.sy(me.y), aS = Math.atan2(Math.sin(a) * H.GY, Math.cos(a));
+        { const FG = gfx(); if (FG) { /* (v404 DK) the trails in one GPU pass, the needles (baked) over them, then their light and the shards */
+          let Q = FG.begin(c, null); const fl = [];
+          for (const s of f.ns) { if (!s.fly || s.gone) continue; const hx = H.sx(s.x), hy = H.sy(s.y) - T * s.z, sx0 = H.sx(s.x0), sy0 = H.sy(s.y0) - T * s.z0, dl = Math.hypot(hx - sx0, hy - sy0), ang = Math.atan2(Math.sin(s.ang) * H.GY, Math.cos(s.ang)), tlen = Math.min(dl, T * 1.9), tx0 = hx - Math.cos(ang) * tlen, ty0 = hy - Math.sin(ang) * tlen;
+            fl.push([s, hx, hy, ang]); if (tlen > 2) { Q.ebeam(tx0, ty0, hx, hy, T * 0.2, ENERGY, 0.8, 0.8, s.i * 1.3, -6); Q.rbeam(tx0, ty0, hx, hy, T * 0.05, ACC, 0.9, 0, 1); if (cel) Q.rbeam(tx0 + Math.cos(ang) * tlen * 0.3, ty0 + Math.sin(ang) * tlen * 0.3, hx, hy, T * 0.025, '#FFFFFF', 0.9, 0, 1); } }
+          FG.flush(c); const tips = [];
+          for (const s of f.ns) { if (s.fly || s.gone) continue; const u = cl((f.t - s.d) / 0.26); if (u <= 0) continue; const e = H.ease.out(u), sw = H.ease.io(cl((f.t - s.d - 0.1) / 0.2)),
+              gx = PX + s.ox * T, gy = PY + s.oy * T * H.GY, bob = Math.sin(f.t * 5 + s.ph) * T * 0.05, py = gy - T * s.z * e + bob, ang = -Math.PI / 2 + H.wrap(aS + Math.PI / 2) * sw,
+              pre = cl((f.t - (s.tl - 0.08)) / 0.08), rec = Math.sin(pre * Math.PI) * T * 0.08, sp = sprite(ang, L, gt);
+            if (sp) { const sc = 0.55 + 0.45 * e, D = sp.D * sc, xx = gx - Math.cos(ang) * rec, yy = py - Math.sin(ang) * rec; c.globalAlpha = e; c.drawImage(sp.cv, xx - D / 2, yy - D / 2, D, D); c.globalAlpha = 1; tips.push([xx + Math.cos(ang) * L * 0.3 * sc, yy + Math.sin(ang) * L * 0.3 * sc, T * (0.2 + pre * 0.14), (0.35 + pre * 0.45) * e, xx, yy, e]); } }
+          for (const [s, hx, hy, ang] of fl) { const sp = sprite(ang, L, gt); if (sp) { const D = sp.D * 1.08; c.drawImage(sp.cv, hx - D / 2, hy - D / 2, D, D); } tips.push([hx + Math.cos(ang) * L * 0.4, hy + Math.sin(ang) * L * 0.4, T * 0.26, 0.55, hx, hy, 1]);
+            if (Math.random() < 0.25 * H.Q()) H.P({ kind: 'spark', x: s.x - Math.cos(s.ang) * 0.4, y: s.y - Math.sin(s.ang) * 0.4 - s.z, vx: (Math.random() - 0.5) * 1.2, vy: (Math.random() - 0.5) * 1.2 - 0.4, life: 0.3, max: 0.3, size: 1.3, color: Math.random() < 0.5 ? EDGE : ACC }); }
+          Q = FG.begin(c, null);
+          for (const q of tips) { Q.glow(q[0], q[1], q[2], adept ? ACC : EDGE, q[3]); Q.glow(q[4], q[5], T * 0.45, ENERGY, 0.18 * q[6]); }
+          for (const q of f.frags) { const k = 1 - cl((q.t - 0.25) / 0.17), fx = H.sx(q.x), fy = H.sy(q.y) - T * q.z, s2 = T * 0.12 * q.s; Q.rq(58, fx, fy, s2, s2 * 1.2, q.rot, '#FFFFFF', k, q.rot, q.s * 7, 0.8); Q.glow(fx, fy, s2 * 1.6, EDGE, 0.35 * k); }
+          FG.flush(c); if (f.t < LAUNCH) bakeIdle(L, gt); return; } }
         // hovering needles first (back to front by height), then flyers; fragments last
         for (const s of f.ns) { if (s.fly || s.gone) continue; const u = cl((f.t - s.d) / 0.26); if (u <= 0) continue; const e = H.ease.out(u), sw = H.ease.io(cl((f.t - s.d - 0.1) / 0.2)),
             gx = PX + s.ox * T, gy = PY + s.oy * T * H.GY, bob = Math.sin(f.t * 5 + s.ph) * T * 0.05, py = gy - T * s.z * e + bob, ang = -Math.PI / 2 + H.wrap(aS + Math.PI / 2) * sw,

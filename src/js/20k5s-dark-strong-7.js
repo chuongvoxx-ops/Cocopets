@@ -46,6 +46,10 @@
   const hx = h => hexRGB(h);
   const cV = hx(VOID), cB = hx(BODY), cP = hx(PLUM), cI = hx(INDIGO), cS = hx(SMOKE), cE = hx(ENERGY), cG = hx(EDGE), cA = hx(ACC), cW = hx(PALE), cR = hx(RUBY);
   let H;
+  /* (v404 DK) the GPU picture: the shared painter (20k6h FGFX: Dark's kinds 53..58) when it is usable; else the 2D picture, as it was. The
+     crescents keep their baked bodies; the tear (a rift, kind 57), the floor streaks, the fractures, the rune ring and the cuts are drawn on the GPU */
+  const gfx = () => { try { const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; return F && F.usable() ? F : null; } catch (e) { return null; } };
+  const gB = (Q, pts, w, col, a) => { for (let i = 0; i + 1 < pts.length; i++) Q.beam(pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1], w, col, a); };
 
   /* ---- tuning ---- */
   const CFG = {
@@ -279,6 +283,13 @@
       const wid = T0 * (0.085 + 0.06 * seam.flare) * sstep(0.2, 1, seam.open) * (1 - seam.close), pk = petK(OX, OY, T0), N = 12, L = [], R = [];
       for (let i = 0; i <= N; i++) { const l = i / N * 2 - 1, j = seamJ[i], prof = Math.pow(Math.max(0, 1 - l * l), 0.75), along = l + (j[2] - 0.5) * 0.06, cx = OX + ax * len * along, cy = OY + ay * len * along;
         L.push([cx + nx * wid * prof * (0.55 + 0.9 * j[0]), cy + ny * wid * prof * (0.55 + 0.9 * j[0])]); R.push([cx - nx * wid * prof * (0.55 + 0.9 * j[1]), cy - ny * wid * prof * (0.55 + 0.9 * j[1])]); }
+      { const FG = gfx(); if (FG) { /* (v404 DK) the tear on the GPU: a rift (kind 57) along the slit, its violet halo, a crimson thread down its middle */
+        const Q = FG.begin(c, null), op = cl(wid / (T0 * 0.145)); Q.glow(OX, OY, len * 1.5, ENERGY, (0.45 + 0.3 * seam.flare) * pk); Q.glow(OX, OY, len * 0.65, CRIM, 0.16 * pk);
+        Q.quad(57, OX, OY, nx * T0 * 0.42, ny * T0 * 0.42, ax * len * 1.1, ay * len * 1.1, '#FFFFFF', pk, 0.25 + 0.75 * op, a * 3.3, 0);
+        gB(Q, L, Math.max(2, T0 * 0.09), EDGE, 0.55 * pk); gB(Q, R, Math.max(2, T0 * 0.09), EDGE, 0.55 * pk); gB(Q, L, Math.max(1, T0 * 0.03), PALE, 0.9 * pk); gB(Q, R, Math.max(1, T0 * 0.03), PALE, 0.9 * pk);
+        const mid = []; for (let i = 1; i < N; i++) mid.push([(L[i][0] + R[i][0]) / 2, (L[i][1] + R[i][1]) / 2]); gB(Q, mid, Math.max(1, T0 * 0.04), CRIM, (0.45 + 0.35 * seam.flare) * pk);
+        if (seam.flare > 0.05) Q.star(OX, OY, len * 0.8, 0.6 * seam.flare * pk, ACC);
+        FG.flush(c); return; } }
       c.save(); c.globalAlpha = pk; glow(c, OX, OY, len * 1.35, ENERGY, (0.4 + 0.3 * seam.flare) * pk); glow(c, OX, OY, len * 0.6, CRIM, 0.12 * pk);
       c.globalAlpha = pk; c.beginPath(); c.moveTo(L[0][0], L[0][1]); for (let i = 1; i <= N; i++) c.lineTo(L[i][0], L[i][1]); for (let i = N; i >= 0; i--) c.lineTo(R[i][0], R[i][1]); c.closePath();
       c.fillStyle = '#05020A'; c.fill();
@@ -290,7 +301,12 @@
     }
     /* ---- the floor: a violet light streak under each crescent (light only) ---- */
     function drawUnder(c, f) {
-      const T0 = T(); c.save(); c.globalCompositeOperation = 'lighter';
+      const T0 = T();
+      { const FG = gfx(); if (FG) { const Q = FG.begin(c, null);   // (v404 DK) a streak of rolling violet energy under each crescent
+        for (const cr of cres) { if (cr.state !== 'fly' && cr.state !== 'end') continue; const s = cr.s, s0 = Math.max(0, s - 2.2), A = cr.state === 'end' ? 1 - sstep(0, 0.14, f.t - cr.end) : 1; if (s - s0 < 0.1) continue;
+          const X0 = H.sx(ox + ca * s0), Y0 = H.sy(oy + sa * s0), X1 = H.sx(ox + ca * s), Y1 = H.sy(oy + sa * s), w = T0 * 0.4 * cr.sc / CFG.size, a2 = A * (cr.fin ? 1.3 : 1); Q.ebeam(X0, Y0, X1, Y1, w, ENERGY, 0.65, 0.6 * a2, cr.seed, -4); Q.beam(X0, Y0, X1, Y1, w * 0.25, ACC, 0.55 * a2); Q.glow(X1, Y1, w * 2, EDGE, 0.3 * a2, GY); }
+        FG.flush(c); return; } }
+      c.save(); c.globalCompositeOperation = 'lighter';
       for (const cr of cres) { if (cr.state !== 'fly' && cr.state !== 'end') continue; const s = cr.s, s0 = Math.max(0, s - 2.2), A = cr.state === 'end' ? 1 - sstep(0, 0.14, f.t - cr.end) : 1; if (s - s0 < 0.1) continue;
         const X0 = H.sx(ox + ca * s0), Y0 = H.sy(oy + sa * s0), X1 = H.sx(ox + ca * s), Y1 = H.sy(oy + sa * s), l = Math.hypot(X1 - X0, Y1 - Y0); if (l < 1) continue;
         c.save(); c.translate(X0, Y0); c.rotate(Math.atan2(Y1 - Y0, X1 - X0)); c.globalAlpha = 0.4 * A * (cr.fin ? 1.3 : 1); c.drawImage(streakSpr(), 0, -T0 * 0.2 * cr.sc / CFG.size, l, T0 * 0.4 * cr.sc / CFG.size); c.restore(); }
@@ -298,7 +314,23 @@
     }
     /* ---- on top: the suspended fractures (closing from the ends), the Celestial rune ring, the luminous cuts ---- */
     function draw(c, f) {
-      const T0 = T(), t = f.t; c.save(); c.lineCap = 'round'; c.lineJoin = 'round'; c.globalCompositeOperation = 'lighter';
+      const T0 = T(), t = f.t;
+      { const FG = gfx(); if (FG) { /* (v404 DK) the fractures, the Celestial's rune ring and the cuts as light on the GPU */
+        const Q = FG.begin(c, null);
+        for (const q of fr) { const age = t - q.t0, LIFE = q.ring ? 1.25 : 0.7, op = sstep(0, 0.06, age), shut = sstep(LIFE * 0.3, LIFE, age), k = (1 - shut) * op, A = (1 - sstep(LIFE * 0.75, LIFE, age)) * op; if (A < 0.01) continue;
+          const X0 = H.sx(q.x), Y0 = H.sy(q.y) - CFG.z * T0, bl = Math.hypot(q.B[0], q.B[1]) || 1, bx = q.B[0] / bl, by = q.B[1] / bl, L = q.len * T0, pk = petK(X0, Y0, T0), a = A * pk;
+          if (q.ring) { const R = T0 * 0.95 * (1 - 0.65 * shut), rot = age * 1.6, Ng = 10; Q.glow(X0, Y0, R * 1.8, EDGE, 0.4 * a); Q.glow(X0, Y0, R * 0.75, CRIM, 0.3 * a * (1 - shut)); Q.ring(X0, Y0, R * 1.05, EDGE, 0.4 * a, T0 * 0.06, GY);
+            for (let i = 0; i < Ng; i++) { const b0 = rot + i / Ng * TAU, b1 = b0 + TAU / Ng * 0.72, pts = jag(X0 + Math.cos(b0) * R, Y0 + Math.sin(b0) * R * GY, X0 + Math.cos(b1) * R, Y0 + Math.sin(b1) * R * GY, 3, T0 * 0.05, q.seed + i, 1); gB(Q, pts, Math.max(1.5, T0 * 0.08), EDGE, 0.75 * a); gB(Q, pts, Math.max(0.8, T0 * 0.02), PALE, a);
+              const bm = (b0 + b1) / 2, gx = X0 + Math.cos(bm) * R * 0.82, gy = Y0 + Math.sin(bm) * R * 0.82 * GY; Q.star(gx, gy, T0 * 0.16 * (1 - 0.5 * shut), 0.85 * a, i % 2 ? ACC : RUBY); }
+            for (let i = 0; i < 6; i++) { const b = i / 6 * TAU - rot * 0.5, r0 = R * 0.15, r1 = R * (0.55 + 0.2 * R1(q.seed + i)) * (1 - shut * 0.5), pts = jag(X0 + Math.cos(b) * r0, Y0 + Math.sin(b) * r0 * GY, X0 + Math.cos(b) * r1, Y0 + Math.sin(b) * r1 * GY, 3, T0 * 0.04, q.seed * 2 + i, 1); gB(Q, pts, Math.max(1, T0 * 0.05), EDGE, 0.65 * a); gB(Q, pts, Math.max(0.7, T0 * 0.014), PALE, 0.8 * a); }
+            continue; }
+          if (k < 0.02) continue; const pts = jag(X0 - bx * L, Y0 - by * L, X0 + bx * L, Y0 + by * L, q.big ? 7 : 5, T0 * (q.big ? 0.09 : 0.06), q.seed, k);
+          gB(Q, pts, Math.max(1.5, T0 * (q.big ? 0.1 : 0.07)), ENERGY, 0.75 * a); gB(Q, pts, Math.max(0.8, T0 * 0.02), ACC, 0.8 * a);
+          for (let j = 1; j < pts.length - 1; j += 2) { const p = pts[j], br = (R1(q.seed + j * 5) - 0.5) * 2, bb = T0 * 0.14 * k; if (q.rune) gB(Q, [p, [p[0] - by * bb, p[1] + bx * bb], [p[0] - by * bb + bx * bb * 0.5, p[1] + bx * bb + by * bb * 0.5]], Math.max(0.8, T0 * 0.02), j % 4 === 1 ? RUBY : ACC, 0.85 * a); else Q.beam(p[0], p[1], p[0] + (-by + bx * br) * bb, p[1] + (bx + by * br) * bb, Math.max(0.8, T0 * 0.02), EDGE, 0.8 * a); } }
+        for (const q of cuts) { const age = t - q.t0, A = 1 - sstep(0.06, 0.3, age), grow = sstep(0, 0.05, age); if (A < 0.01) continue; const X0 = H.sx(q.x), Y0 = H.sy(q.y) - q.z * T0, bl = Math.hypot(q.B[0], q.B[1]) || 1, bx = q.B[0] / bl, by = q.B[1] / bl, L = q.len * T0 * 0.5 * grow;
+          Q.glow(X0, Y0, T0 * 0.7, q.fin ? RUBY : EDGE, 0.5 * A); Q.beam(X0 - bx * L, Y0 - by * L, X0 + bx * L, Y0 + by * L, Math.max(2, T0 * 0.14 * (1 - age * 2)), EDGE, 0.8 * A); Q.beam(X0 - bx * L, Y0 - by * L, X0 + bx * L, Y0 + by * L, Math.max(1, T0 * 0.035), '#FFFFFF', A); if (age < 0.1) Q.star(X0, Y0, T0 * 0.6, (1 - age / 0.1), ACC); }
+        FG.flush(c); return; } }
+      c.save(); c.lineCap = 'round'; c.lineJoin = 'round'; c.globalCompositeOperation = 'lighter';
       for (const q of fr) { const age = t - q.t0, LIFE = q.ring ? 1.25 : 0.7, op = sstep(0, 0.06, age), shut = sstep(LIFE * 0.3, LIFE, age), k = (1 - shut) * op, A = (1 - sstep(LIFE * 0.75, LIFE, age)) * op; if (A < 0.01) continue;
         const X0 = H.sx(q.x), Y0 = H.sy(q.y) - CFG.z * T0, bl = Math.hypot(q.B[0], q.B[1]) || 1, bx = q.B[0] / bl, by = q.B[1] / bl, L = q.len * T0, pk = petK(X0, Y0, T0);
         if (q.ring) { // the Celestial final: a ring of angular runes that turns and seals shut

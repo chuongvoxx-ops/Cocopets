@@ -73,6 +73,9 @@
     const th = Math.acos(c), s = Math.sin(th), k0 = Math.sin((1 - u) * th) / s, k1 = Math.sin(u * th) / s; return nrm3([a[0] * k0 + b[0] * k1, a[1] * k0 + b[1] * k1, a[2] * k0 + b[2] * k1]); }
   const VV = nrm3([0, 1, GY]);   // toward the viewer
   let H = null;
+  /* (v404 DK) the GPU picture: the shared painter (20k6h FGFX: Dark's kinds 53..58) when it is usable; else the 2D picture, as it was.
+     The sword itself stays the baked ray-marched sprite (it is already a solid model); everything round it is drawn on the GPU */
+  const gfx = () => { try { const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; return F && F.usable() ? F : null; } catch (e) { return null; } };
 
   /* ================= the sword's model: a thickness field Th(u, a) (u along the sword from the pommel 0 to the tip 1,
      a across; the solid is |b| <= Th, b its thickness axis), in sword lengths. Globals of the last call: MAT, SV, RN ================= */
@@ -605,6 +608,12 @@
       const tau = o.t - o.dly; if (tau < 0) return; const T = H.X.Tz(), Ps = scr([o.sx0, o.d0, o.zc], T), X = Ps[0], Y = Ps[1], SWl = 0.09, RU = o.RU;
       let k, a = 1; if (tau < SWl) { const u = tau / SWl; k = 1.12 * (1 - Math.pow(1 - u, 3)); } else if (tau < RU) { const u = (tau - SWl) / (RU - SWl); k = lerp(1.12, 0.82, sm(u)) + 0.025 * Math.sin(u * 34) * u; } else { const u = (tau - RU) / 0.13; k = lerp(0.82, 1.25, sm(u)); a = 1 - sm(u); }
       if (a <= 0.01) return; a *= nearPet(X, Y, T); const r = o.R * T * k, wob = tau < RU ? 0.035 * Math.sin(tau * 41) : 0, rx = r * (1 + wob), ry = r * (1 - wob) * (o.dome ? 0.82 : 1), sp = BK.spr.get('DSPH');
+      { const FG = gfx(); if (FG) { /* (v404 DK) a turning globe of void (kind 56), its fissures opening as it strains, a violet halo, a star as it bursts */
+        const Q = FG.begin(c, null), fk = sstep(SWl * 0.7, RU, tau) * (tau > RU ? 1 - sm((tau - RU) / 0.09) : 1) + (tau > RU - 0.03 && tau < RU + 0.06 ? 0.6 : 0);
+        if (o.dome) { Q.glow(X, Y, rx * 1.7, EDGE, 0.4 * a, 0.45); Q.glow(X, Y, rx * 1.1, CRIM, 0.18 * a, 0.45); }
+        Q.glow(X, Y, r * 1.7, EDGE, 0.26 * a); Q.quad(56, X, Y, rx * 1.03, 0, 0, ry * 1.03, '#FFFFFF', a, Math.min(1, fk), o.sx0 * 3.7 + o.d0, o.dome ? 1 : 0);
+        if (tau > RU - 0.02 && tau < RU + 0.1) { const u = (tau - RU + 0.02) / 0.12, rr = r * (0.55 + 0.9 * u); Q.star(X, Y, rr, (1 - u) * 0.95 * a, '#E8D6FF'); Q.glow(X, Y, rr * 0.7, '#FFFFFF', (1 - u) * 0.75 * a); Q.ring(X, Y, r * (0.8 + 0.7 * u), EDGE, (1 - u) * 0.7 * a, r * 0.12); }
+        FG.flush(c); return; } }
       c.save(); if (o.dome) { c.beginPath(); c.rect(X - rx * 1.7, Y - ry * 1.7, rx * 3.4, ry * 1.7 + 1); c.clip(); glowF(c, X, Y, rx * 1.5, EDGE, 0.3 * a, 0.45); }
       glowF(c, X, Y, r * 1.5, EDGE, 0.2 * a);
       c.globalAlpha = a; const sx = SPN / 2 / SPR;
@@ -667,6 +676,16 @@
     function drawLayer(c, side) {
       if (ph === 'gone') return; const d0 = nowMs(), T = H.X.Tz(), t = lastT;
       const dep = swordDepth(); if (Math.abs(dep) > 0.08 * hT) depthS = dep > 0 ? 1 : -1;
+      { const FG = gfx(); if (FG) { /* (v404 DK) the rift, the Celestial ghost's backlight and the trails in one GPU pass; the sword (baked) over them,
+           then its light (crackles, glows) in a second pass */
+        const Q = FG.begin(c, null);
+        if (side < 0) { if (ph === 'summon') gSeam(Q, T, t - tK);
+          if (pose.ghost > 0.01) { const f = feet(), Fp = scr(f, T), w = T * hT * 2.1, h2 = w * 1.25, y0 = Fp[1] - h2 * 0.92 - T * hT * 0.1; Q.glow(Fp[0], y0 + h2 * 0.42, w * 0.7, EDGE, 0.26 * pose.ghost); Q.glow(Fp[0], y0 + h2 * 0.36, w * 0.34, CRIM, 0.12 * pose.ghost); Q.quad(53, Fp[0], y0 + h2 * 0.55, w * 0.62, 0, 0, h2 * 0.5, '#140A22', 0.55 * pose.ghost, 0.8, 7.7, 0.4); } }
+        for (const tr of trails) gTrail(Q, tr, T, t, side);
+        FG.flush(c);
+        if (side < 0 && pose.ghost > 0.01) drawGhost(c, T, true);
+        if (depthS === side) drawBlade(c, T, t, FG);
+        const dd = nowMs() - d0; if (dd > dbg.maxDraw) dbg.maxDraw = dd; return; } }
       if (side < 0) {
         if (ph === 'summon') drawSeam(c, T, t - tK);
         if (pose.ghost > 0.01) drawGhost(c, T);
@@ -675,13 +694,14 @@
       if (depthS === side) drawBlade(c, T, t); const q2 = nowMs(); dbg.trMax = Math.max(dbg.trMax || 0, q1 - q0); dbg.blMax = Math.max(dbg.blMax || 0, q2 - q1);
       const dd = nowMs() - d0; if (dd > dbg.maxDraw) dbg.maxDraw = dd;
     }
-    function drawBlade(c, T, t) {
+    function drawBlade(c, T, t, G) {   // (v404 DK: G, the GPU painter: the sword stays its baked sprite, its light goes to one GPU pass)
+      const Q = G ? G.begin(c, null) : null, gw = (X, Y, r, col, a, gy) => (Q ? Q.glow(X, Y, r, col, a, gy) : glowF(c, X, Y, r, col, a, gy));
       const hp = hiltPt(), O3 = [hp[0] - pose.d[0] * GRIPU * LSW * hT, hp[1] - pose.d[1] * GRIPU * LSW * hT, hp[2] - pose.d[2] * GRIPU * LSW * hT], O = scr(O3, T), V = swordView(T, pose.d, pose.n);
       if (ph === 'summon') { for (const p of PS) if (p.k === 'xtal') drawXtal(c, p, T, t); }
       const Lw = nrm3([-0.4, 0.3, 0.85]), Hv = nrm3([Lw[0] + VV[0], Lw[1] + VV[1], Lw[2] + VV[2]]), nf = dot(pose.n, VV) < 0 ? [-pose.n[0], -pose.n[1], -pose.n[2]] : pose.n, gl = 0.25 + 0.9 * Math.pow(Math.abs(dot(nf, Hv)), 6);
       const sheen = cur && ph === 'swing' && cur.om ? lerp(0.3, 1.0, ((t * 2.2) % 1)) : null;
       // a dark contact bloom round the blade (keeps it readable on dark floors), the sword
-      glowF(c, O[0] + V.ey[0] * 0.6, O[1] + V.ey[1] * 0.6, T * hT * 0.9, EDGE, 0.06 * pose.a);
+      gw(O[0] + V.ey[0] * 0.6, O[1] + V.ey[1] * 0.6, T * hT * 0.9, EDGE, 0.06 * pose.a);
       // the dark afterimages of a fast cut (the blade a few frames ago, fading)
       if (hist.length > 6 && ph === 'swing') { const spd = hist[hist.length - 1].om, ka = cl((spd - 7) / 8); if (ka > 0.02) for (const [lag, al] of [[6, 0.14], [4, 0.24], [2, 0.36]]) { const q = hist[hist.length - 1 - lag]; if (!q) continue; const Pq = absP(q.Q), hq = [Pq[0] + q.d[0] * GRIP * hT, Pq[1] + q.d[1] * GRIP * hT, Pq[2] + q.d[2] * GRIP * hT], Oq = scr([hq[0] - q.d[0] * GRIPU * LSW * hT, hq[1] - q.d[1] * GRIPU * LSW * hT, hq[2] - q.d[2] * GRIPU * LSW * hT], T), Vq = swordView(T, q.d, q.n);
           drawSword(c, { tier, rb: Vq.rb, o: Oq, ex: Vq.ex, ey: Vq.ey, a: al * ka, gloss: 0, em: 0.5 * ka, u0: 0.27, u1: pose.u1, runeU: 0 }); } }
@@ -690,14 +710,16 @@
       { const spd = cur && ph === 'swing' ? Math.abs(cur.om || 0) : 0, kc = cl((spd - 9) / 6) + (cur && cur.fin && cur.impact && t - cur.impT < 0.25 ? 1 - (t - cur.impT) / 0.25 : 0);
         if (kc > 0.02 && pose.u1 > 0.9) { const sd = Math.floor(t * 20); c.globalCompositeOperation = 'lighter'; c.lineJoin = 'miter';
           for (let j = 0; j < 2; j++) { const pts = []; for (let i = 0; i <= 7; i++) { const u = 0.33 + 0.66 * i / 7, off = (R1(sd * 7.1 + i * 3.3 + j * 11) - 0.5) * 0.12 * (i ? 1 : 0.3); pts.push(scr(swordPt(u, off), T)); }
+            if (Q) { const kk = Math.min(1, kc); for (let i = 0; i + 1 < pts.length; i++) { const A = pts[i], B = pts[i + 1]; Q.beam(A[0], A[1], B[0], B[1], T * 0.05, EDGE, 0.55 * kk); Q.beam(A[0], A[1], B[0], B[1], Math.max(0.8, T * 0.014), '#F4ECFF', 0.95 * kk); } Q.star(pts[7][0], pts[7][1], T * 0.35, 0.6 * kk, ACC); continue; }
             for (const [lw, col] of [[Math.max(2, T * 0.07), `rgba(165,92,255,${0.35 * Math.min(1, kc)})`], [Math.max(1, T * 0.022), `rgba(240,225,255,${0.9 * Math.min(1, kc)})`]]) { c.strokeStyle = col; c.lineWidth = lw; c.beginPath(); pts.forEach((p, i) => (i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]))); c.stroke(); } }
           c.globalCompositeOperation = 'source-over'; } }
       // the grip's tether: violet light where the paws hold it
-      if (ph !== 'summon' || pose.u1 > 0.2) { const H2 = scr(hp, T); glowF(c, H2[0], H2[1], T * 0.32, EDGE, 0.28); glowF(c, H2[0], H2[1], T * 0.12, ACC, 0.35); }
+      if (ph !== 'summon' || pose.u1 > 0.2) { const H2 = scr(hp, T); gw(H2[0], H2[1], T * 0.32, EDGE, 0.28); gw(H2[0], H2[1], T * 0.12, ACC, 0.35); }
       // the dissolving / forming front
-      if (pose.u1 < U1 - 0.01 && pose.u1 > U0 + 0.01) { const p = scr(swordPt(pose.u1, 0), T); glowF(c, p[0], p[1], T * 0.38, EDGE, 0.45); glowF(c, p[0], p[1], T * 0.14, '#FFFFFF', 0.4); }
+      if (pose.u1 < U1 - 0.01 && pose.u1 > U0 + 0.01) { const p = scr(swordPt(pose.u1, 0), T); gw(p[0], p[1], T * 0.38, EDGE, 0.45); gw(p[0], p[1], T * 0.14, '#FFFFFF', 0.4); }
       // Celestial: the floating fragments
-      if (tier && pose.u1 > 0.8) { for (const q of frag) { if (!q.p) continue; const fr2 = BK.spr.get('FR' + q.v), P = scr(q.p, T), r = T * q.s * hT; c.save(); c.translate(P[0], P[1]); c.rotate(t * 1.5 + q.ph); c.globalAlpha = 0.9 * pose.a; if (fr2) c.drawImage(fr2.cv, -r, -r, r * 2, r * 2); c.restore(); glowF(c, P[0], P[1], r * 1.8, EDGE, 0.2); } c.globalAlpha = 1; }
+      if (tier && pose.u1 > 0.8) { for (const q of frag) { if (!q.p) continue; const fr2 = BK.spr.get('FR' + q.v), P = scr(q.p, T), r = T * q.s * hT; c.save(); c.translate(P[0], P[1]); c.rotate(t * 1.5 + q.ph); c.globalAlpha = 0.9 * pose.a; if (fr2) c.drawImage(fr2.cv, -r, -r, r * 2, r * 2); c.restore(); gw(P[0], P[1], r * 1.8, EDGE, 0.2); } c.globalAlpha = 1; }
+      if (Q) G.flush(c);
     }
     function drawXtal(c, p, T, t) {   // the assembly: a crystal shard flying out of the seam to its place on the forming sword
       const tau = t - tK, u = cl((tau - p.t0) / (p.t1 - p.t0)); if (u <= 0 || u >= 1) return; const fr = cur.fr, P = pose.P, sd = (p.src - 0.5) * 1.2 * hT;
@@ -712,9 +734,9 @@
       glowF(c, bot[0], bot[1] - hgt * 0.5, hgt * 0.6, EDGE, 0.35 * k); glowF(c, bot[0], bot[1] - hgt * 0.5, hgt * 0.25, ACC, 0.25 * k); c.globalAlpha = Math.min(1, k * 1.2); c.drawImage(seamSpr(), bot[0] - w / 2, top[1], w, hgt); c.globalAlpha = 1;
       glowF(c, bot[0], bot[1], T * 0.8, EDGE, 0.3 * k, 0.4);
     }
-    function drawGhost(c, T) {   // the Celestial finisher: a faint horned shadow behind the pet, mirroring the strike with its own blade
+    function drawGhost(c, T, gpu) {   // the Celestial finisher: a faint horned shadow behind the pet, mirroring the strike with its own blade
       const a = pose.ghost * 0.6, f = feet(), Fp = scr(f, T), sc = 1.75, img = shadowSpr(), w = T * hT * 2.1, h2 = w * 200 / 160, y0 = Fp[1] - h2 * 0.92 - T * hT * 0.1;
-      glowF(c, Fp[0], y0 + h2 * 0.42, w * 0.62, EDGE, 0.2 * pose.ghost); glowF(c, Fp[0], y0 + h2 * 0.36, w * 0.3, CRIM, 0.08 * pose.ghost);   // (a dim violet backlight the silhouette stands against)
+      if (!gpu) { glowF(c, Fp[0], y0 + h2 * 0.42, w * 0.62, EDGE, 0.2 * pose.ghost); glowF(c, Fp[0], y0 + h2 * 0.36, w * 0.3, CRIM, 0.08 * pose.ghost); }   // (a dim violet backlight the silhouette stands against; v404 DK: on the GPU path drawn by the GPU pass)
       c.globalAlpha = a; c.drawImage(img, Fp[0] - w / 2, y0, w, h2); c.globalAlpha = 1;
       const hp = hiltPt(), pv = [f[0] + (hp[0] - f[0]) * sc, f[1] + (hp[1] - f[1]) * sc - 0.02, hp[2] * sc + 0.3 * hT], O3 = [pv[0] - pose.d[0] * GRIPU * LSW * hT * sc, pv[1] - pose.d[1] * GRIPU * LSW * hT * sc, pv[2] - pose.d[2] * GRIPU * LSW * hT * sc], V = swordView(T, pose.d, pose.n, sc);
       drawSword(c, { tier, rb: V.rb, o: scr(O3, T), ex: V.ex, ey: V.ey, a: a * 0.6, gloss: 0, em: 0.35, u0: U0, u1: U1, runeU: 0 });
@@ -752,8 +774,74 @@
       fill(0.7, 0.718, CRB, 0.42, 1, i => 0.55 + 0.45 * Math.sin(TH[i] * 7 + t * 9));
       c.restore(); c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1;
     }
+    /* ---- (v404 DK) the GPU picture ---- */
+    function gSeam(Q, T, tau) {   // the rift (kind 57) opening beside the pet, its violet light, smoke curling at its lips
+      const k = sstep(0, 0.2, tau) * (1 - sstep(0.72, 0.95, tau / SUMMON)); if (k < 0.01 || !cur) return; const fr = cur.fr, P = pose.P;
+      const bot = scr([P[0] + fr.F[0] * 0.25 * hT, P[1] + fr.F[1] * 0.25 * hT, 0.0], T), top = scr([P[0] + fr.F[0] * 0.25 * hT, P[1] + fr.F[1] * 0.25 * hT, 2.0 * hT], T), hgt = bot[1] - top[1], my = bot[1] - hgt * 0.5;
+      Q.glow(bot[0], my, hgt * 0.7, EDGE, 0.42 * k); Q.glow(bot[0], my, hgt * 0.28, ACC, 0.22 * k); Q.glow(bot[0], bot[1], T * 1.0, EDGE, 0.38 * k, 0.4);
+      for (let i = 0; i < 3; i++) { const v = (i - 1) * 0.55, s = i === 1 ? 1 : -1; Q.quad(53, bot[0] + s * T * 0.22, my + v * hgt * 0.4, T * 0.42, 0, 0, T * 0.42, '#160A26', 0.5 * k, 0.9, i * 2.3 + 1, 0.3); }
+      Q.quad(57, bot[0], my, T * 1.15, 0, 0, hgt * 0.56, '#FFFFFF', Math.min(1, k * 1.3), 0.35 + 0.65 * k, 3.3, 0);
+      Q.star(bot[0], my, hgt * 0.3 * k, 0.35 * k, ACC); }
+    function gTrail(Q, tr, T, t, side) {   // as drawTrail; each run on this side of the pet one crescent (kinds 54 body, 55 light) in its swing's plane
+      const sm2 = tr.smp; if (sm2.length < 2) return; const sw = tr.sw, P = tr.P || pose.P, Ro = bladeR(1) * hT, Lb = (1 - 0.3) * LSW * hT, fd = feet();
+      TH.length = 0; WW.length = 0; AL.length = 0;
+      for (let i = 0; i < sm2.length; i++) { const s2 = sm2[i], al = Math.pow(cl(1 - (t - s2.t) / TLIFE), 1.4); TH.push(s2.th); WW.push(s2.w); AL.push(al); }
+      let i0 = -1; const n = TH.length;
+      for (let i = 0; i <= n; i++) { let on = false; if (i < n) { const d = dirAt(sw, TH[i]), dp = P[1] + d[1] * Ro * 0.75 - fd[1]; on = side > 0 ? dp >= 0 : dp < 0; }
+        if (on && i0 < 0) i0 = Math.max(0, i - 1); if ((!on || i === n) && i0 >= 0) { const i1 = on ? n - 1 : Math.min(n - 1, i); if (i1 > i0) gRun(Q, sw, P, i0, i1, Ro, Lb, T); i0 = -1; } } }
+    function gRun(Q, sw, P, i0, i1, Ro, Lb, T) {
+      const O = scr(P, T), a = prj(sw.A, T), b = prj(sw.B, T); if (Math.abs(a[0] * b[1] - a[1] * b[0]) < T * T * 0.02) return;
+      const thH = TH[i1], span = thH - TH[i0]; if (span <= 1e-3 || span > TAU * 0.95) return;
+      let wm = 0; for (let i = i0; i <= i1; i++) wm = Math.max(wm, WW[i]); const ah = AL[i1]; if (wm < 0.01 || ah < 0.01) return;
+      const ch = Math.cos(thH), sh = Math.sin(thH), k = Ro * 1.25, ux = (a[0] * ch + b[0] * sh) * k, uy = (a[1] * ch + b[1] * sh) * k, vx = (-a[0] * sh + b[0] * ch) * k, vy = (-a[1] * sh + b[1] * ch) * k;
+      const ta = Math.min(1, AL[i0] / ah), th = Math.min(0.8, wm * Lb / Ro * 1.05);
+      Q.quad(54, O[0], O[1], ux, uy, vx, vy, '#000000', ah * 0.95, span, ta, th); Q.quad(55, O[0], O[1], ux, uy, vx, vy, '#FFFFFF', ah, span, ta, th); }
+    function gSlash(Q, X, Y, L, rot, v, a) {   // a slash mark: a short crescent cut (the 2D sprite's ellipse arc), its head at the right
+      const cr = Math.cos(rot), sr = Math.sin(rot), rx = L * 0.975, ry = L * 0.55, h0 = -0.25, k = 1.25;
+      const loc = (x, y) => [x * cr - y * v * sr, x * sr + y * v * cr], c0 = loc(0, L * 0.2), U = loc(Math.cos(h0) * rx * k, Math.sin(h0) * ry * k), V = loc(-Math.sin(h0) * rx * k, Math.cos(h0) * ry * k);
+      Q.quad(54, X + c0[0], Y + c0[1], U[0], U[1], V[0], V[1], '#000000', a * 0.9, Math.PI - 0.5, 0, 0.28); Q.quad(55, X + c0[0], Y + c0[1], U[0], U[1], V[0], V[1], '#FFFFFF', a, Math.PI - 0.5, 0, 0.28); }
+    function drawUnderG(Q, c, T, t) {
+      if (ph !== 'gone' && pose.u1 > 0.3 && cur && Math.abs(cur.om || 0) > 6) { const tp = swordPt(Math.min(pose.u1, 1), 0), B = scr([tp[0], tp[1], 0], T), k = cl((Math.abs(cur.om) - 6) / 10); Q.glow(B[0], B[1], T * 1.0 * hT, EDGE, 0.24 * k, 0.5); Q.caustic(B[0], B[1], T * 0.8 * hT, EDGE, 0.25 * k, 3.1, 0.5); }
+      for (const q of floorFx) { const u = (t - q.t0) / q.life;
+        if (q.k === 'lit') { const X = q.m && valid(q.m) ? H.sx(q.m.x) : H.sx(q.x), Y = q.m && valid(q.m) ? H.sy(q.m.y) + 0.12 * T : H.sy(q.y * GY) + 0.18 * T; Q.glow(X, Y, T * q.r * 1.1, EDGE, 0.5 * (1 - u), 0.5); Q.glow(X, Y, T * q.r * 0.45, ACC, 0.35 * (1 - u) * (1 - u), 0.5); Q.glow(X, Y, T * q.r * 0.7, CRIM, 0.16 * (1 - u), 0.5); }
+        else if (q.k === 'fis') { const a = (1 - sstep(0.35, 1, u)) * sstep(0, 0.04, t - q.t0), grow = sstep(0, 0.18, t - q.t0), nP = Math.max(2, Math.ceil(q.pts.length * grow)), w0 = T * hT * (1 - 0.3 * u);
+          const P = pp => [H.sx(pp[0]), H.sy(pp[1] * GY) + 0.18 * T];
+          const chain = (pts, m, wk) => { const n2 = Math.min(m, pts.length); for (let i = 0; i + 1 < n2; i++) { const A = P(pts[i]), B = P(pts[i + 1]), e = i / Math.max(1, n2 - 1); Q.ebeam(A[0], A[1], B[0], B[1], w0 * 0.2 * wk, CRIM, 0.85, a * 0.8, i * 0.7, 2); Q.beam(A[0], A[1], B[0], B[1], w0 * 0.09 * wk, EDGE, a * 0.85 * (1 - 0.3 * e)); Q.beam(A[0], A[1], B[0], B[1], Math.max(0.8, w0 * 0.03 * wk), '#FFE6F2', a * 0.95); } };
+          chain(q.pts, nP, 1); if (grow > 0.6) for (const b of q.br) chain(b, Math.ceil(b.length * sstep(0.6, 1, grow)), 0.6);
+          const p0 = P(q.pts[4]), pm = P(q.pts[Math.floor(q.pts.length / 2)]); Q.glow(p0[0], p0[1], T * 1.8 * hT, CRIM, 0.34 * a, 0.5); Q.glow(pm[0], pm[1], T * 2.2 * hT, EDGE, 0.22 * a, 0.5); }
+      }
+      for (const p of PS) if (p.k === 'ripple' && p.floor) { const u = p.t / p.life, X = H.sx(p.x), Y = H.sy(p.y * GY) + 0.18 * T, r = T * p.s * (0.2 + 0.8 * (1 - Math.pow(1 - u, 2.2))); Q.ewave(X, Y, r, EDGE, 0.8, 0.9 * (1 - u), 2.7, GY, 0.22); Q.ring(X, Y, r, ACC, 0.7 * (1 - u), T * 0.08, GY); Q.quad(53, X, Y - r * 0.15, r * 0.9, 0, 0, r * 0.45, '#120820', 0.35 * (1 - u), 0.7, 5.5, 0.4); }
+    }
+    function drawG(Q, c, T, t) {
+      let drops = false;
+      for (const p of PS) { const u = p.t / p.life, P = scr([p.x, p.y, p.z], T), X = P[0], Y = P[1];
+        if (p.k === 'mist') { const r = T * p.s * Math.max(0.2, 1 + p.grow * u), a = Math.min(1, p.t / 0.08) * (1 - u) * p.a * (p.v === 2 ? 1 : nearPet(X, Y, T)); if (a < 0.01) continue;
+          if (p.v === 2) { Q.eorb(X, Y, r * 0.75, ENERGY, 0.55, a * 0.6, p.rot, 0.8); Q.glow(X, Y, r, EDGE, a * 0.3); }
+          else Q.quad(53, X, Y, r * 1.15, 0, 0, r * 1.15, p.v ? '#24103A' : '#180B28', cl(a * 0.7), 0.8, p.rot * 1.7, 0.35); }
+        else if (p.k === 'frag' || p.k === 'spec') { const r = T * p.s * (p.k === 'spec' ? 1 - 0.5 * u : 1), a = p.k === 'spec' ? 0.85 * (1 - sstep(0.4, 0.8, u)) : 1 - sm((u - 0.6) / 0.4);
+          Q.rq(58, X, Y, r * 1.1, r * 1.1, p.rot, '#FFFFFF', a, p.rot * 0.7, p.v * 2.7 + 1, p.k === 'spec' ? 1 : 0.3); if (p.k === 'spec') { Q.glow(X, Y, r * 2.4, EDGE, 0.4 * (1 - u)); if (u > 0.55) Q.glow(X, Y, T * 0.14, RUBY, 0.9 * (1 - u) / 0.45); } }
+        else if (p.k === 'spk') { const sp = Math.hypot(p.vx, p.vy * GY - p.vz) || 1, ax = p.vx / sp, ay = (p.vy * GY - p.vz) / sp, L = T * p.s * (1 + sp * 0.06); Q.beam(X - ax * L * 0.5, Y - ay * L * 0.5, X + ax * L, Y + ay * L, L * 0.16, p.v === 0 ? ACC : EDGE, 0.8 * (1 - u)); Q.beam(X - ax * L * 0.2, Y - ay * L * 0.2, X + ax * L, Y + ay * L, Math.max(0.7, L * 0.04), '#FFF4FF', 0.95 * (1 - u)); }
+        else if (p.k === 'flash') { const r = T * p.s * (0.5 + 0.7 * u), a = (1 - u) * (1 - u); Q.star(X, Y, r, a, '#EEDDFF'); Q.glow(X, Y, r * 0.9, EDGE, a * 0.7); Q.glow(X, Y, r * 0.3, '#FFFFFF', a); }
+        else if (p.k === 'ripple' && !p.floor) { const r = T * p.s * (0.25 + 0.75 * (1 - Math.pow(1 - u, 2))); Q.ring(X, Y, r, EDGE, 0.75 * (1 - u), T * 0.07, 0.8); Q.ring(X, Y, r * 0.92, ACC, 0.4 * (1 - u), T * 0.03, 0.8); }
+        else if (p.k === 'ember') { Q.glow(X, Y, T * p.s * 2.6, RUBY, 0.85 * (1 - u)); Q.glow(X, Y, T * p.s * 0.8, ROSE, 0.9 * (1 - u)); }
+        else if (p.k === 'slash') { const L = T * p.s * (0.55 + 0.45 * sm(p.t / 0.06)), a = (1 - sstep(0.45, 1, u)) * nearPet(X, Y, T); gSlash(Q, X, Y, L, p.rot, p.v, a); Q.glow(X, Y, L * 0.6, EDGE, 0.3 * a); }
+        else if (p.k === 'drop') drops = true;
+        else if (p.k === 'shock') { const Fp = scr([p.x, p.y, 0], T), rr = T * p.s * (0.25 + 0.75 * (1 - Math.pow(1 - u, 2.2))), a = (1 - u) * nearPet(Fp[0], Fp[1], T); Q.ewave(Fp[0], Fp[1], rr, EDGE, 0.75, 0.85 * a, p.x * 3.1, GY, 0.18); Q.ring(Fp[0], Fp[1], rr * 0.95, ACC, 0.55 * a, T * 0.04, GY); }
+        else if (p.k === 'jet') { const ax = p.vx, ay = p.vy * GY - p.vz, l = Math.hypot(ax, ay) || 1, L = T * p.s * (1 - u * 0.5); Q.ebeam(X - ax / l * L, Y - ay / l * L, X + ax / l * L, Y + ay / l * L, L * 0.2, EDGE, 0.75, 0.75 * (1 - u), p.rot, 5); }
+      }
+      for (const q of threads) { const u = (t - q.t0) / 0.45, f = feet(), A = scr([f[0], f[1], 0.5 * hT], T), B = scr(hiltPt(), T), a = (1 - sm(u)) * sstep(0, 0.06, t - q.t0), mx = (A[0] + B[0]) / 2 + Math.sin(t * 30) * T * 0.08, my = (A[1] + B[1]) / 2 - T * 0.25;
+        const bz = v => [(1 - v) * (1 - v) * A[0] + 2 * (1 - v) * v * mx + v * v * B[0], (1 - v) * (1 - v) * A[1] + 2 * (1 - v) * v * my + v * v * B[1]];
+        for (let i = 0; i < 8; i++) { const p0 = bz(i / 8), p1 = bz((i + 1) / 8); Q.beam(p0[0], p0[1], p1[0], p1[1], T * 0.07, CRIM, 0.55 * a); Q.beam(p0[0], p0[1], p1[0], p1[1], Math.max(0.8, T * 0.018), '#FF9AB0', 0.95 * a); }
+        const qv = bz(cl(u * 2.2)); Q.glow(qv[0], qv[1], T * 0.26, RUBY, 0.85 * a); Q.glow(A[0], A[1], T * 0.34, CRIM, 0.45 * a); }
+      return drops;
+    }
     function drawUnder(c) {
       if (ph === 'gone' && !floorFx.length) return; const T = H.X.Tz(), t = lastT;
+      { const FG = gfx(); if (FG) { /* (v404 DK) the sword's shadow (2D), then the floor's light on the GPU: the edge's light under a fast cut, the
+           struck monsters' pools, the finisher's fissure (a crimson-hot crack with a violet core) and its rolling wave of darkness */
+        if (ph !== 'gone' && pose.u1 > 0.3) { const hp = hiltPt(), tp = swordPt(Math.min(pose.u1, 1), 0), A = scr([hp[0], hp[1], 0], T), B = scr([tp[0], tp[1], 0], T), hk = 1 / (1 + Math.max(0, Math.min(hp[2], tp[2])) * 0.8);
+          c.lineCap = 'round'; c.strokeStyle = `rgba(0,0,0,${0.22 * hk * pose.a})`; c.lineWidth = T * 0.16 * hT; c.beginPath(); c.moveTo(A[0], A[1]); c.lineTo(B[0], B[1]); c.stroke(); c.strokeStyle = `rgba(0,0,0,${0.14 * hk})`; c.lineWidth = T * 0.3 * hT; c.stroke(); }
+        const Q = FG.begin(c, null); drawUnderG(Q, c, T, t); FG.flush(c); return; } }
       // the sword's shadow on the floor, and the violet light of its edge on the floor under a fast cut
       if (ph !== 'gone' && pose.u1 > 0.3) { const hp = hiltPt(), tp = swordPt(Math.min(pose.u1, 1), 0), A = scr([hp[0], hp[1], 0], T), B = scr([tp[0], tp[1], 0], T), hk = 1 / (1 + Math.max(0, Math.min(hp[2], tp[2])) * 0.8);
         c.lineCap = 'round'; c.strokeStyle = `rgba(0,0,0,${0.22 * hk * pose.a})`; c.lineWidth = T * 0.16 * hT; c.beginPath(); c.moveTo(A[0], A[1]); c.lineTo(B[0], B[1]); c.stroke(); c.strokeStyle = `rgba(0,0,0,${0.14 * hk})`; c.lineWidth = T * 0.3 * hT; c.stroke();
@@ -770,6 +858,11 @@
     }
     function draw(c) {
       const d0 = nowMs(), T = H.X.Tz(), t = lastT;
+      { const FG = gfx(); if (FG) { /* (v404 DK) the particles on the GPU: void smoke, black crystal shards, violet sparks and flashes, slash
+           marks as crescent cuts, the shadow shockwaves as rolling waves of darkness, the price's crimson thread; the blood drops stay sprites */
+        const Q = FG.begin(c, null), drops = drawG(Q, c, T, t); FG.flush(c);
+        if (drops) for (const p of PS) if (p.k === 'drop') { const u = p.t / p.life, P = scr([p.x, p.y, p.z], T), r = T * p.s * (p.z <= 0.01 ? 1.3 : 1); c.globalAlpha = 1 - sstep(0.6, 1, u); c.drawImage(dropSpr(), P[0] - r, P[1] - r, r * 2, r * 2); }
+        c.globalAlpha = 1; const dd = nowMs() - d0; if (dd > dbg.maxDraw) dbg.maxDraw = dd; return; } }
       for (const p of PS) { const u = p.t / p.life, P = scr([p.x, p.y, p.z], T), X = P[0], Y = P[1];
         if (p.k === 'mist') { const r = T * p.s * Math.max(0.2, 1 + p.grow * u), a = Math.min(1, p.t / 0.08) * (1 - u) * p.a * (p.v === 2 ? 1 : nearPet(X, Y, T)); c.globalAlpha = cl(a); if (p.v === 2) c.globalCompositeOperation = 'lighter'; c.drawImage(mistSpr(p.v), X - r, Y - r, r * 2, r * 2); c.globalCompositeOperation = 'source-over'; }
         else if (p.k === 'frag' || p.k === 'spec') { const fr = BK.spr.get('FR' + p.v), r = T * p.s * (p.k === 'spec' ? 1 - 0.5 * u : 1); c.save(); c.translate(X, Y); c.rotate(p.rot); if (p.k === 'spec') { c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.5 * (1 - sstep(0.4, 0.8, u)); glowF(c, 0, 0, r * 2.2, EDGE, 0.35 * (1 - u)); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.45 * (1 - sstep(0.4, 0.8, u)); } else c.globalAlpha = 1 - sm((u - 0.6) / 0.4); if (fr) c.drawImage(fr.cv, -r, -r, r * 2, r * 2); c.restore(); c.globalCompositeOperation = 'source-over'; if (p.k === 'spec' && u > 0.55) glowF(c, X, Y, T * 0.12, RUBY, 0.8 * (1 - u) / 0.45); }
