@@ -166,6 +166,10 @@
 
   /* ================= the move ================= */
   let H = null;
+  /* (v404 DK) the GPU picture: the shared painter (20k6h FGFX: Dark's kinds 53..58) when it is usable; else the 2D picture, as it was. The
+     flowers, stems and seeds keep their 2D art; the floor (a glow-only tell: a pool of violet light deepening to crimson, no drawn circle or
+     sweep), the ripples, the smoky shockwave, the flashes and the shards' streaks are drawn on the GPU */
+  const gfx = () => { try { const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; return F && F.usable() ? F : null; } catch (e) { return null; } };
   S.nightbloom = (C, h) => {
     H = h; const me = H.me, X = H.X, evo = evoOf(C), sfx = X.sfx || {}, note = (...a) => sfx.note && sfx.note(...a), chime = (...a) => sfx.chime && sfx.chime(...a), hiss = (...a) => sfx.hiss && sfx.hiss(...a);
     const DK = C.base * C.K * (1 + TUNE.evoK * (evo - 1)), nSat = evo >= 7 ? 4 : evo >= 4 ? 2 : 0;
@@ -206,6 +210,17 @@
       },
       drawUnder(c, f, X0, Y0, T) {
         const t = f.t;
+        { const FG = gfx(); if (FG) { const Q = FG.begin(c, null);
+          for (const F of flowers) { const SX = H.sx(F.x), SY = H.sy(F.y), rx = F.R * T;
+            if (t >= F.show && t < F.det + 0.08) { const a = cl((t - F.show) / 0.25) * (t > F.det ? 1 - (t - F.det) / 0.08 : 1), near = cl((t - (F.det - 0.3)) / 0.3), act = t >= F.t0 ? 1 : 0.6, pr = cl((t - Math.max(F.show, F.t0)) / Math.max(0.01, F.det - Math.max(F.show, F.t0)));
+              Q.glow(SX, SY, rx * 1.15, ENERGY, (0.28 + 0.2 * pr) * a * act, GY); Q.glow(SX, SY, rx * 0.8, CRIM, 0.3 * near * a, GY); Q.caustic(SX, SY, rx * 0.95, EDGE, (0.18 + 0.2 * pr) * a * act, F.rot, GY);
+              const ng = F.central ? 8 : 5; for (let i = 0; i < ng; i++) { const an = i / ng * TAU + t * 0.6 + F.rot; Q.star(SX + Math.cos(an) * rx * 0.9, SY + Math.sin(an) * rx * 0.9 * GY, T * 0.12 * (F.central ? 1 : 0.8), 0.55 * a * act, ACC); } }
+            if (t >= F.land && t < F.land + 0.55) { const u = (t - F.land) / 0.55; for (let i = 0; i < 2; i++) { const v = cl(u * 1.3 - i * 0.3); if (v <= 0 || v >= 1) continue; Q.ripple(SX, SY, T * F.s * (0.15 + 0.75 * v), EDGE, 0.8 * (1 - v), F.rot + i, GY, 0.14); } }
+            if (t >= F.land && t < F.det + 0.9) { const k = t < F.det ? cl((t - F.land) / 0.4) * (0.5 + 0.5 * F.glow) : 1 - (t - F.det) / 0.9; Q.glow(SX, SY, T * F.s * 1.2, CRIM, 0.2 * k, GY); Q.glow(SX, SY, T * F.s * 1.5, EDGE, 0.18 * k, GY); }
+            if (F.done && t < F.det + 0.85) { const u = (t - F.det) / 0.85, e = 1 - Math.pow(1 - u, 2.2), np = F.central ? 12 : 8, rr = F.R * (0.2 + 0.95 * e);
+              for (let i = 0; i < np; i++) { const an = i / np * TAU + R1(i + F.rot) * 0.3, rj = rr * (0.9 + 0.2 * R1(i * 3.3 + F.rot)), ps = T * F.s * (0.4 + 0.5 * e) * (0.8 + 0.4 * R1(i * 1.7)); Q.quad(53, SX + Math.cos(an) * rj * T, SY + Math.sin(an) * rj * T * GY - T * 0.08 * e, ps, 0, 0, ps * 0.75, BODY, 0.6 * Math.pow(1 - u, 1.4), 0.9, F.rot + i, 0.5); }
+              Q.ewave(SX, SY, rr * T, EDGE, 0.75, 0.85 * (1 - u), F.rot, GY, 0.2); Q.ring(SX, SY, rr * T * 0.8, RUBY, 0.5 * Math.max(0, 1 - u * 2), T * 0.05, GY); } }
+          FG.flush(c); return; } }
         for (const F of flowers) { const SX = H.sx(F.x), SY = H.sy(F.y), rx = F.R * T, ry = rx * GY;
           // the ground indicator: a light violet area with a sweep showing the growth delay
           if (t >= F.show && t < F.det + 0.08) { const a = cl((t - F.show) / 0.25) * (t > F.det ? 1 - (t - F.det) / 0.08 : 1), pr = cl((t - Math.max(F.show, F.t0)) / (F.det - Math.max(F.show, F.t0))), near = cl((t - (F.det - 0.3)) / 0.3), act = t >= F.t0 ? 1 : 0.6;
@@ -227,7 +242,7 @@
         }
       },
       draw(c, f, X0, Y0, T) {
-        const t = f.t, mx = H.sx(me.x), my = H.sy(me.y);
+        const t = f.t, mx = H.sx(me.x), my = H.sy(me.y), FG = gfx();   // (v404 DK: FG, the GPU painter: the flashes and streaks in one pass after the 2D art)
         for (const F of flowers) { const SX = H.sx(F.x), SY = H.sy(F.y), cov = Math.hypot(F.x - me.x, (F.y - me.y) * 1.2) < 1.15 * F.s + 0.4 && my > SY - T * 0.3 ? 0.55 : 1; void mx;
           // the seed: falling (central, from above) or arcing out of the central burst (satellites)
           if (t < F.land + 0.05 && t >= F.t0) { let x, y, z; const u = cl((t - F.t0) / (F.land - F.t0));
@@ -248,12 +263,18 @@
           if (F.shards.length || F.drift.length) { const so = SPR.out, si = SPR.in;
             for (const p of F.shards) { const k = 1 - p.t / p.life; if (k <= 0) continue; const px = H.sx(p.x), py = H.sy(p.y) - p.z * T, L = p.L * T, Wd = L * 0.45 * Math.abs(Math.cos(p.spin)) + 0.6;
               c.save(); c.translate(px, py); c.rotate(p.rot); c.globalAlpha = Math.min(1, k * 1.6) * cov; if (so) { c.scale(L / SW, Wd / SHh); c.drawImage(Math.cos(p.spin) > 0 && si ? si : so, -SW * 0.5, -SHh / 2); } else { c.fillStyle = PLUM; c.fillRect(-L / 2, -Wd / 2, L, Wd); } c.restore();
-              if (p.t < 0.25) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = (1 - p.t / 0.25) * 0.8; c.strokeStyle = p.hot ? ROSE : ACC; c.lineWidth = 1.2; c.beginPath(); c.moveTo(px, py); c.lineTo(px - p.vx * T * 0.04, py - (p.vy * GY - p.vz) * T * 0.04); c.stroke(); c.restore(); } }
+              if (p.t < 0.25 && !FG) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = (1 - p.t / 0.25) * 0.8; c.strokeStyle = p.hot ? ROSE : ACC; c.lineWidth = 1.2; c.beginPath(); c.moveTo(px, py); c.lineTo(px - p.vx * T * 0.04, py - (p.vy * GY - p.vz) * T * 0.04); c.stroke(); c.restore(); } }
             for (const p of F.drift) { const k = 1 - p.t / p.life; if (k <= 0) continue; const px = H.sx(p.x), py = H.sy(p.y) - p.z * T, L = p.L * T;
               c.save(); c.translate(px, py); c.rotate(p.rot); c.globalAlpha = Math.min(1, k * 2) * 0.75 * cov; if (si) { c.scale(L / SW, L * 0.42 * (0.6 + 0.4 * Math.abs(Math.sin(p.t * 2 + p.ph))) / SHh); c.drawImage(si, -SW * 0.5, -SHh / 2); } c.restore(); }
           }
           // the burst's flash
-          if (F.done && t < F.det + 0.35) { const u = (t - F.det) / 0.35, CY = SY - F.h * T; c.save(); c.globalCompositeOperation = 'lighter'; H.glow(c, SX, CY, T * F.s * (0.8 + 1.6 * u), RUBY, 0.9 * (1 - u)); H.glow(c, SX, CY, T * F.s * (0.4 + 0.8 * u), '#FFD6E0', 0.8 * (1 - u) * (1 - u)); c.strokeStyle = H.rgba(ACC, 0.7 * (1 - u)); c.lineWidth = 2 * (1 - u) + 0.5; c.beginPath(); c.ellipse(SX, CY + (SY - CY) * u, T * F.s * (0.3 + 1.4 * u), T * F.s * (0.3 + 1.4 * u) * lerp(0.8, GY, u), 0, 0, TAU); c.stroke(); c.restore(); }
+          if (FG) { const Q = FG.begin(c, null);
+            if (t >= F.land && t < F.det + 0.3) { const u = (t - F.land) / (F.det - F.land), CY = SY - F.h * sm(u / (F.central ? 0.43 : 0.42)) * T, pulse = 0.75 + 0.25 * Math.sin(t * 13); Q.glow(SX, CY, T * F.s * 0.9, RUBY, 0.3 * F.glow * pulse * cov); Q.glow(SX, CY, T * F.s * 1.4, EDGE, 0.16 * cov); }
+            for (const p of F.shards) { if (p.t >= 0.25) continue; const px = H.sx(p.x), py = H.sy(p.y) - p.z * T; Q.beam(px, py, px - p.vx * T * 0.06, py - (p.vy * GY - p.vz) * T * 0.06, T * 0.03, p.hot ? ROSE : ACC, (1 - p.t / 0.25) * 0.9); }
+            if (F.done && t < F.det + 0.35) { const u = (t - F.det) / 0.35, CY = SY - F.h * T, R = T * F.s * (0.3 + 1.4 * u); Q.glow(SX, CY, T * F.s * (0.9 + 1.7 * u), RUBY, 0.95 * (1 - u)); Q.glow(SX, CY, T * F.s * (0.45 + 0.8 * u), '#FFD6E0', 0.85 * (1 - u) * (1 - u)); Q.star(SX, CY, T * F.s * (1 + 1.5 * u), (1 - u), '#FFD6E0');
+              Q.eorb(SX, CY, T * F.s * (0.5 + 0.9 * u), CRIM, 0.95 - 0.5 * u, 0.7 * (1 - u), F.rot, 1.5); Q.ring(SX, CY + (SY - CY) * u, R, ACC, 0.75 * (1 - u), T * 0.06, lerp(0.8, GY, u)); }
+            FG.flush(c); }
+          if (F.done && t < F.det + 0.35 && !FG) { const u = (t - F.det) / 0.35, CY = SY - F.h * T; c.save(); c.globalCompositeOperation = 'lighter'; H.glow(c, SX, CY, T * F.s * (0.8 + 1.6 * u), RUBY, 0.9 * (1 - u)); H.glow(c, SX, CY, T * F.s * (0.4 + 0.8 * u), '#FFD6E0', 0.8 * (1 - u) * (1 - u)); c.strokeStyle = H.rgba(ACC, 0.7 * (1 - u)); c.lineWidth = 2 * (1 - u) + 0.5; c.beginPath(); c.ellipse(SX, CY + (SY - CY) * u, T * F.s * (0.3 + 1.4 * u), T * F.s * (0.3 + 1.4 * u) * lerp(0.8, GY, u), 0, 0, TAU); c.stroke(); c.restore(); }
         }
       } });
     // the detonation of flower F: one hit (above), then shards, smoke (drawn), embers, a flash, light, sound

@@ -54,6 +54,9 @@
   const RGB = h => hexRGB(h);
   const cV = RGB(VOID), cB = RGB(BODY), cP = RGB(PLUM), cS = RGB(SMOKE), cE = RGB(ENERGY), cG = RGB(EDGE), cA = RGB(ACC);
   let H = null;
+  /* (v404 DK) the GPU picture: the shared painter (20k6h FGFX: Dark's kinds 53..58) when it is usable; else the 2D picture, as it was. The
+     skulls stay their baked shaded views; the ribbons, the detonations, the smoke, the shards and the floor's light are drawn on the GPU */
+  const gfx = () => { try { const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; return F && F.usable() ? F : null; } catch (e) { return null; } };
 
   /* ---- the tuning: exposed as S.deathspursuit.cfg ---- */
   const CFG = {
@@ -438,6 +441,16 @@
     const petK = (X, Y, Tt) => { const PX = HH.sx(me.x), PY = HH.sy(me.y) - Tt * 0.5; return lerp(0.35, 1, sstep(Tt * 0.5, Tt * 1.05, Math.hypot(X - PX, Y - PY))); };
     function drawUnder(c, f, X0, Y0, Tt) {
       const t = f.t;
+      { const FG = gfx(); if (FG) { /* (v404 DK) the rune rings (baked) in violet light, the impacts' rolling waves of darkness, the shadows */
+        const ring = peek('RING'), Q = FG.begin(c, null), gy = HH.GY;
+        for (const s of sk) { const a = sstep(s.ring, s.ring + 0.12, t) * (1 - sstep(s.tl - 0.05, s.tl + 0.25, t)); if (a <= 0.01) continue; const [px, py] = slotPos(s), X = HH.sx(px), Y = HH.sy(py), R = Tt * 0.5 * (0.6 + 0.4 * sm((t - s.ring) / 0.2));
+          if (ring) { c.save(); c.translate(X, Y); c.scale(1, gy); c.rotate(t * 2.2 * (s.side || 1) + s.seed); blit(c, ring.cv, 0, 0, R * 2, R * 2, a * 0.95, true); c.restore(); }
+          Q.glow(X, Y, R * 1.3, ENERGY, 0.45 * a, gy); Q.ring(X, Y, R * 0.9, EDGE, 0.6 * a, Tt * 0.04, gy); Q.etongue(X, Y, R * 0.5, Tt * 0.9 * a, 0, EDGE, 0.8, 0.45 * a, s.seed); }
+        for (const e of exps) { const u = t - e.t0; if (u > 0.7) continue; const X = HH.sx(e.x), Y = HH.sy(e.y), R = Tt * (0.4 + 1.2 * H.ease.out(cl(u / 0.4))) * (e.big ? 1.25 : 1), a = 1 - sstep(0.1, 0.6, u);
+          Q.ewave(X, Y, R, EDGE, 0.75, 0.85 * a, e.sd, gy, 0.2); Q.ring(X, Y, R * 0.96, CRIM, 0.45 * a, Tt * 0.05, gy); Q.glow(X, Y, Tt * 1.2, ENERGY, 0.55 * (1 - sstep(0, 0.5, u)), gy); }
+        FG.flush(c);
+        const sh = shadowSpr(); for (const s of sk) { if (s.st === 'done' || s.alpha < 0.02) continue; const X = HH.sx(s.x), Y = HH.sy(s.y), w = Tt * 0.7 * s.scale / (1 + s.z * 0.5); c.save(); blit(c, sh, X, Y, w, w * gy, s.alpha * 0.8 * petK(X, Y - s.z * Tt, Tt), false); c.restore(); }
+        return; } }
       // the summoning rune rings, rotating, with a faint light column
       const ring = peek('RING');
       for (const s of sk) { const a = sstep(s.ring, s.ring + 0.12, t) * (1 - sstep(s.tl - 0.05, s.tl + 0.25, t)); if (a <= 0.01) continue;
@@ -470,7 +483,7 @@
       c.restore();
     }
     function drawSkull(c, s) {
-      const Tt = T(), t = lastT; drawRibbon(c, s, Tt, t);
+      const Tt = T(), t = lastT; if (!gfx()) drawRibbon(c, s, Tt, t);   // (v404 DK: on the GPU path the ribbons are drawn by the main pass)
       if (s.st === 'done' || s.alpha < 0.02) return;
       const X = HH.sx(s.x), Y = HH.sy(s.y) - s.z * Tt, pk = petK(X, Y, Tt), A = s.alpha * pk;
       // the view: the skull's floor heading on screen (0 = toward the viewer), mirrored for the left
@@ -509,8 +522,34 @@
       c.fillStyle = RUBY; c.beginPath(); c.moveTo(s * 0.06, -s * 0.06); c.lineTo(s * 0.2, -s * 0.12); c.lineTo(s * 0.14, s * 0.02); c.closePath(); c.fill();
       c.restore();
     }
+    /* (v404 DK) a skull's ribbon on the GPU: billows of void smoke widening and fading with age, a violet energy core with a pale thread, stopping
+       short of the skull itself (drawn by its own entity, over it) */
+    function gRibbon(Q, s, Tt, t) {
+      const n = s.hist.length; if (n < 2) return; const pts = []; for (let k = 0; k < n; k++) { const p = s.hist[k], age = t - p.t, ak = cl(age / TR); pts.push([HH.sx(p.x), HH.sy(p.y) - (p.z + age * 0.7) * Tt, ak]); }
+      for (let k = 0; k < pts.length; k++) { const p = pts[k], q = pts[Math.min(pts.length - 1, k + 1)], o = pts[Math.max(0, k - 1)]; let tx = q[0] - o[0], ty = q[1] - o[1]; const l = Math.hypot(tx, ty) || 1; tx /= l; ty /= l; const w = Math.sin(t * 15 - k * 0.9 + s.seed) * Tt * 0.09 * p[2]; p[0] += -ty * w; p[1] += tx * w; }
+      let acc = 0; for (let k = 0; k < pts.length; k++) { const p = pts[k], w = Tt * (0.24 + 0.42 * p[2]); if (k > 0) acc += Math.hypot(p[0] - pts[k - 1][0], p[1] - pts[k - 1][1]); if (k > 0 && acc < w * 0.4) continue; acc = 0; const a = Math.pow(1 - p[2], 0.85);
+        Q.quad(53, p[0], p[1], w * 1.25, 0, 0, w * 1.25, BODY, 0.7 * a, 0.9, s.seed + k * 0.37, 0.35); Q.glow(p[0], p[1], w * 1.3, EDGE, 0.2 * a); }
+      for (let k = 1; k < pts.length; k++) { const a = Math.pow(1 - pts[k][2], 1.5), A = pts[k - 1], B = pts[k], w = 1 - 0.6 * pts[k][2]; if (a < 0.02) continue; Q.ebeam(A[0], A[1], B[0], B[1], Tt * 0.2 * w, ENERGY, 0.75, 0.6 * a, s.seed + k * 0.5, 4); Q.beam(A[0], A[1], B[0], B[1], Math.max(0.8, Tt * 0.04 * w), ACC, 0.7 * a); Q.beam(A[0], A[1], B[0], B[1], Math.max(0.6, Tt * 0.015), '#FFF4FF', 0.5 * a); } }
     function draw(c, f, X0, Y0, Tt) {
       const u0 = nowMs(), t = f.t;
+      { const FG = gfx(); if (FG) { /* (v404 DK) the GPU picture: the Celestial's rune threads, every ribbon, the detonations (a crimson flash inside a
+           bloom of violet-black flame: void smoke laid over, a churning orb of violet energy, a ring), the smoke, the embers, the obsidian shards */
+        const Q = FG.begin(c, null);
+        if (cel) { const a = sstep(0.32, 0.5, t) * (1 - sstep(LAUNCH - 0.08, LAUNCH + 0.06, t)); if (a > 0.01) { const live = sk.filter(s => s.st === 'hover' || s.st === 'sum');
+          for (let k = 1; k < live.length; k++) { const p = live[k - 1], q = live[k], P1 = [HH.sx(p.x), HH.sy(p.y) - p.z * Tt], Q1 = [HH.sx(q.x), HH.sy(q.y) - q.z * Tt], mx = (P1[0] + Q1[0]) / 2, my = (P1[1] + Q1[1]) / 2 + Tt * 0.18, fl = 0.75 + 0.25 * Math.sin(t * 23 + k * 2);
+            let px = P1[0], py = P1[1]; for (let j = 1; j <= 8; j++) { const v = j / 8, x = (1 - v) * (1 - v) * P1[0] + 2 * (1 - v) * v * mx + v * v * Q1[0], y = (1 - v) * (1 - v) * P1[1] + 2 * (1 - v) * v * my + v * v * Q1[1]; Q.beam(px, py, x, y, Tt * 0.07, EDGE, 0.35 * a * fl); Q.beam(px, py, x, y, Math.max(0.8, Tt * 0.018), ACC, 0.8 * a * fl); px = x; py = y; }
+            const gx = (P1[0] + 2 * mx + Q1[0]) / 4, gy = (P1[1] + 2 * my + Q1[1]) / 4; Q.glow(gx, gy, Tt * 0.25, EDGE, 0.45 * a); Q.star(gx, gy, Tt * 0.22, 0.8 * a * fl, ACC); } } }
+        for (const s of sk) gRibbon(Q, s, Tt, t);
+        for (const e of exps) { const u = t - e.t0; if (u > 0.75) continue; const X = HH.sx(e.x), Y = HH.sy(e.y) - e.z * Tt, big = e.big ? 1.25 : 1, g2 = H.ease.out(cl(u / 0.4)), R = Tt * (0.35 + 1.05 * g2) * big, fa = 1 - sstep(0.2, 0.7, u);
+          if (u < 0.12) { const k = 1 - u / 0.12; Q.glow(X, Y, Tt * (1.0 + 0.5 * (1 - k)) * big, CRIM, 0.95 * k); Q.glow(X, Y, Tt * 0.4 * big, '#FF5A7A', 0.8 * k * k); Q.star(X, Y, Tt * 1.2 * big, k, '#FFD0DC'); }
+          Q.quad(53, X, Y, R * 1.1, 0, 0, R * 1.1, BODY, 0.85 * fa * (1 - sstep(0.45, 0.75, u)), 1, e.sd, 0.7);
+          Q.eorb(X, Y, R * 0.95, EDGE, 0.85 - 0.4 * u, 0.85 * fa, e.sd * 2.3, 1.4); if (u < 0.4) Q.eorb(X, Y, R * 0.6, CRIM, 0.9, 0.5 * (1 - u / 0.4), e.sd, -2);
+          Q.ring(X, Y, R * 1.05, EDGE, 0.5 * fa, Tt * 0.08); Q.glow(X, Y, Tt * 1.5 * big, EDGE, 0.45 * (1 - sstep(0.05, 0.5, u))); }
+        for (const p of PS) { if (p.k !== 'smoke') continue; const u = p.t / p.life, X = HH.sx(p.x), Y = HH.sy(p.y) - p.z * Tt, w = Tt * p.s * (1 + p.grow * u); Q.quad(53, X, Y, w * 1.2, 0, 0, w * 1.2, p.v ? '#24103A' : BODY, p.a * (1 - u) * sstep(0, 0.12, u) * 0.85, 0.8, p.x * 3 + p.v, 0.3); }
+        for (const p of PS) { if (p.k !== 'ember') continue; const u = p.t / p.life, X = HH.sx(p.x), Y = HH.sy(p.y) - p.z * Tt; Q.glow(X, Y, Tt * p.s * 2.6, p.v ? EDGE : RUBY, 0.85 * (1 - u)); Q.glow(X, Y, Tt * p.s * 0.6, p.v === 2 ? '#FFD6E0' : ACC, 1 - u); }
+        for (const p of PS) { if (p.k !== 'frag') continue; const u = p.t / p.life, X = HH.sx(p.x), Y = HH.sy(p.y) - p.z * Tt, sz = Tt * p.s, fl = Math.cos(p.spin), a = 1 - sstep(0.5, 1, u), w = sz * Math.max(0.15, Math.abs(fl)), cr = Math.cos(p.rot), sr = Math.sin(p.rot);
+          Q.quad(58, X, Y, cr * w, sr * w, -sr * sz, cr * sz, '#FFFFFF', a, p.spin, p.v * 1.7 + 2, u < 0.35 ? 1 : 0.4); if (u < 0.35) Q.glow(X, Y, sz * 1.2, RUBY, 0.6 * (1 - u / 0.35)); }
+        FG.flush(c); const du = nowMs() - u0; if (du > dbg.maxDraw) dbg.maxDraw = du; return; } }
       // Celestial: faint rune threads connect the four skulls while they gather
       if (cel) { const a = sstep(0.32, 0.5, t) * (1 - sstep(LAUNCH - 0.08, LAUNCH + 0.06, t)); if (a > 0.01) { c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round';
         const live = sk.filter(s => s.st === 'hover' || s.st === 'sum');

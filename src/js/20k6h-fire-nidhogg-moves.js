@@ -471,6 +471,8 @@ vec4 u4g(float p, float r){ vec4 c;   /* (v391 U4) Dead Scream's 2D sprites (20k
   else if (p < 6.5) { c = vec4(0.0314, 0.0196, 0.0588, 0.96); c = u4s(c, r, 0.0, 0.6, vec4(0.0392, 0.0235, 0.0784, 0.88)); c = u4s(c, r, 0.6, 0.85, vec4(0.0941, 0.0431, 0.1804, 0.4)); c = u4s(c, r, 0.85, 1.0, vec4(0.0941, 0.0431, 0.1804, 0.0)); }
   else if (p < 11.5) { c = vec4(0.4275, 0.1569, 0.6588, 0.0); c = u4s(c, r, 0.66, 0.84, vec4(0.4275, 0.1569, 0.6588, 0.28)); c = u4s(c, r, 0.84, 0.93, vec4(0.6471, 0.3608, 1.0, 0.7)); c = u4s(c, r, 0.93, 0.965, vec4(0.8157, 0.6824, 1.0, 0.75)); c = u4s(c, r, 0.965, 1.0, vec4(0.8157, 0.6824, 1.0, 0.0)); }
   else c = vec4(0.0); return c; }
+vec3 dcr(vec2 u, float span, float th){ float rr = length(u), an = atan(u.y, u.x), s = mod(-an + 0.04, 6.2831853) - 0.04, v = s / max(span, 0.05), tk = th * (1.0 - 0.6 * clamp(v, 0.0, 1.0));
+  return vec3((0.8 - rr) / max(tk, 0.004), v, smoothstep(-0.035, 0.0, s) * step(v, 1.0)); }   /* (v404 DK) a crescent cut (kinds 54, 55): an arc of radius 0.8, its head at angle 0, its tail round toward -v: x across (0 the sharp outer edge .. 1 the inner), y along (0 head .. 1 tail), z inside */
 /*<W>*/vec4 wbl(vec2 u, float q0, float th0){ float md = floor(q0 / 10.0), span = max(0.05, q0 - md * 10.0), rr = length(u), an = atan(u.y, u.x), v = 0.0, tk = th0, m = 1.0;   /* (v370, wind) a blade of wind: an arc of radius 0.8 in its quad (mode 0 a trail, its head at angle 0 and its tail round toward -v; 1 a crescent tapering both ways; 2 a whole ring): x across (0 its sharp outer edge .. 1 its inner), y along (0 the head .. 1 the tail), z inside, w arc length */
   if (md < 0.5) { float s = mod(-an + 0.03, 6.2831853) - 0.03; v = s / span; tk = th0 * (1.0 - 0.78 * clamp(v, 0.0, 1.0)) * smoothstep(-0.03 / span, 0.05, v); m = step(v, 1.0); }
   else if (md < 1.5) { v = an / (span * 0.5); tk = th0 * pow(clamp(1.0 - v * v, 0.0, 1.0), 0.6); v = abs(v); m = step(v, 1.0); }
@@ -489,6 +491,38 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
     float a = g.a * v_c.a;
     if (v_k < 71.5) gl_FragColor = vec4(g.rgb * a, a);
     else { vec3 L = min(g.rgb * a, vec3(1.0)); gl_FragColor = vec4(L, max(max(L.r, L.g), L.b)); } }
+  else if (v_k > 52.5 && v_k < 58.5 && (v_k < 54.5 || v_k > 55.5)) { // (v404 DK) Dark's solids: 53 void smoke, 54 a cut's body, 56 a sphere of darkness, 57 a rift, 58 a crystal shard
+    vec3 c = vec3(0.0); float a = 0.0;
+    if (v_k < 53.5) { // void smoke: billowing violet-black, curling, a violet rim where it thins (v_q.x), crimson embers deep in it (v_q.z); v_q.y seed
+      vec2 w = u + 0.28 * vec2(fbm(u * 1.6 + vec2(v_q.y, t * 0.22)) - 0.5, fbm(u * 1.6 + vec2(v_q.y + 4.1, -t * 0.27)) - 0.5); float rr = length(w), f = fbm(w * 2.3 + vec2(v_q.y * 3.1, v_q.y - t * 0.38)), g = fbm(w * 5.2 + vec2(-t * 0.5, v_q.y * 2.0));
+      float d = clamp((1.0 - rr * rr) * (0.25 + 1.5 * f * f) - 0.14, 0.0, 1.0) * (1.0 - smoothstep(0.75, 1.0, r)) * (0.75 + 0.5 * g), rim = smoothstep(0.0, 0.08, d) * (1.0 - smoothstep(0.08, 0.3, d));
+      c = mix(col * 0.4, col, smoothstep(-0.6, 0.6, -u.y + f * 0.6)) * (0.7 + 0.55 * g) + vec3(0.55, 0.3, 0.95) * rim * v_q.x * (0.45 + 0.55 * g) + vec3(0.85, 0.08, 0.25) * v_q.z * smoothstep(0.55, 0.85, g) * smoothstep(0.3, 0.7, d);
+      a = smoothstep(0.0, 0.55, d) * 0.9; }
+    else if (v_k < 54.5) { // a cut's crescent body: translucent indigo-black, densest at the sharp outer edge, its inner side breaking into smoke; v_q.x span, v_q.y its strength at the tail, v_q.z thickness
+      vec3 B = dcr(u, v_q.x, v_q.z); float d = B.x, v = clamp(B.y, 0.0, 1.0), sl = atan(u.y, u.x) * r, f = fbm(vec2(sl * 3.0 + t * 1.4, d * 2.2 + v_q.x * 3.0)), lim = 1.0 + 0.4 * (f - 0.5) + 0.2 * v, e = clamp(1.0 - d, 0.0, 1.0);
+      a = (0.26 + 0.5 * pow(e, 1.4)) * (0.7 + 0.5 * f) * (1.0 - smoothstep(lim - 0.55, lim, d)) * smoothstep(-0.05, 0.02, d) * mix(1.0, v_q.y, v) * B.z;
+      c = mix(vec3(0.04, 0.015, 0.09), vec3(0.3, 0.11, 0.52), pow(e, 1.6)); }
+    else if (v_k < 56.5) { // a sphere of darkness: a turning globe of void, violet currents swirling in it, a violet limb, fissures of light opening
+      // as it strains (v_q.x 0..1); v_q.y seed; v_q.z 1: a dome (its lower half below the floor)
+      a = 1.0 - smoothstep(0.9, 1.0, r); vec3 n = vec3(u, sqrt(max(0.0, 1.0 - r * r))); float ang = t * 0.9 + v_q.y, ca = cos(ang), sa = sin(ang); vec3 p = vec3(n.x * ca + n.z * sa, n.y, -n.x * sa + n.z * ca);
+      vec2 q = vec2(fbm3(p * 2.0 + vec3(0.0, t * 0.4, v_q.y)), fbm3(p * 2.0 + vec3(4.3, -t * 0.3, 1.7)));
+      float f = fbm3(p * 3.0 + vec3(q * 2.5, t * 0.2)), sw = smoothstep(0.45, 0.8, f), lit = clamp(dot(n, vec3(-0.45, -0.6, 0.66)), 0.0, 1.0), fres = pow(1.0 - n.z, 2.4);
+      float rg = 1.0 - abs(fbm3(p * 3.4 + vec3(q * 1.2, v_q.y)) * 2.0 - 1.0), rg2 = 1.0 - abs(fbm3(p * 7.0 - vec3(q * 0.8, v_q.y)) * 2.0 - 1.0), fis = (smoothstep(0.93 - 0.08 * v_q.x, 0.985, rg) + 0.35 * smoothstep(0.95 - 0.06 * v_q.x, 0.99, rg2)) * min(1.0, v_q.x * 1.6);
+      c = mix(vec3(0.02, 0.012, 0.045), vec3(0.13, 0.055, 0.24), lit * 0.8 + sw * 0.5) + vec3(0.43, 0.16, 0.66) * sw * 0.35 * (1.0 - fres);
+      c += vec3(0.65, 0.36, 1.0) * fres * 0.95 + vec3(0.82, 0.09, 0.25) * pow(1.0 - n.z, 6.0) * 0.5 + vec3(0.92, 0.85, 1.0) * pow(lit, 30.0) * 0.25 + mix(vec3(1.0, 0.25, 0.45), vec3(1.0, 0.9, 1.0), clamp(fis - 0.5, 0.0, 1.0)) * fis * 1.3 + vec3(0.65, 0.36, 1.0) * exp(-sq((rg - 0.9) / 0.05)) * v_q.x * 0.35;
+      if (v_q.z > 0.5) a *= 1.0 - smoothstep(-0.02, 0.06, u.y); }
+    else if (v_k < 57.5) { // a rift torn in the air (uv.y along it, uv.x across): a black slit between ragged lips lit violet from within, a violet
+      // haze round it; v_q.x its opening 0..1, v_q.y seed
+      float y = u.y, f = fbm(vec2(y * 3.0 + v_q.y, t * 0.8)), g = fbm(vec2(y * 7.0 - t * 1.3, u.x * 2.0 + v_q.y)), w = 0.6 * pow(max(0.0, 1.0 - y * y), 0.75) * v_q.x * (0.8 + 0.4 * f), x = abs(u.x + (f - 0.5) * 0.16 * (1.0 - y * y));
+      float inner = 1.0 - smoothstep(w * 0.5, w * 0.72, x), lip = exp(-sq((x - w * 0.62) / max(w * 0.2, 0.012))), hz = exp(-max(x - w * 0.6, 0.0) / max(w * 0.7, 0.03)) * (1.0 - inner) * (1.0 - smoothstep(0.7, 1.0, abs(y)));
+      c = vec3(0.012, 0.004, 0.03) * inner + vec3(0.62, 0.34, 1.0) * lip * (0.6 + 0.5 * g) + vec3(0.25, 0.1, 0.45) * hz * 0.35; a = clamp(inner + lip * 0.9 + hz * 0.35, 0.0, 1.0) * (1.0 - smoothstep(0.8, 1.0, abs(y))); c = min(c + vec3(0.95, 0.88, 1.0) * pow(lip, 5.0) * 0.5 * a, vec3(1.0)); c /= max(a, 0.001); }
+    else { // a shard of black crystal: a faceted kite (its long point up), four facets lit from the upper left (v_q.x turns the light), violet
+      // light along its ridges and edges (v_q.z), a glint; v_q.y seed
+      float sk = 0.32 + 0.22 * h1(vec2(v_q.y, 1.3)), m = -0.2 + 0.15 * h1(vec2(v_q.y, 7.1)), x = u.x, y = u.y, pr = y < m ? (y + 0.98) / (m + 0.98) : (0.72 - y) / (0.72 - m), e = 1.0 - abs(x) / max(sk * pr, 0.001);
+      a = smoothstep(0.0, 0.1, e) * step(-0.98, y) * step(y, 0.72); float la = v_q.x, sx = x < 0.0 ? -1.0 : 1.0; vec3 n = normalize(vec3(sx * 0.62, y < m ? -0.45 : 0.42, 0.66)), Ld = normalize(vec3(-0.5 * cos(la) - 0.3 * sin(la), -0.6 * cos(la) + 0.4 * sin(la), 0.62));
+      float df = max(dot(n, Ld), 0.0), sp = pow(max(dot(n, normalize(Ld + vec3(0.0, 0.0, 1.0))), 0.0), 40.0), rid = exp(-sq(x / 0.035)) * 0.6 + exp(-sq((y - m) / 0.04)) * 0.4, ed = exp(-sq(e / 0.14));
+      c = vec3(0.035, 0.02, 0.07) + vec3(0.2, 0.12, 0.34) * df * df + vec3(0.95, 0.9, 1.0) * sp * 0.7 + vec3(0.65, 0.36, 1.0) * (rid * 0.35 + ed * 0.6) * (0.35 + v_q.z); }
+    a *= v_c.a * pk; gl_FragColor = vec4(min(c, vec3(1.0)) * a, a); }
   else if (v_k > 15.5 && v_k < 16.5) { // (v346, Thunderstorm) a storm cloud (solid): billowing lobes of night violet, darker beneath, a cool rim
     // of light along the top, lit from within by its lightning (v_q.x) in electric blue-white; v_c its colour, v_q.y seed
     float f = fbm(u * 1.9 + vec2(v_q.y, t * 0.07)), g = fbm(u * 4.4 + vec2(-t * 0.11, v_q.y * 2.3)), d = clamp((1.0 - dot(u, u)) * (0.35 + 1.25 * f * f) - 0.12, 0.0, 1.0);
@@ -599,7 +633,18 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
     c = mix(c, vec3(0.3, 0.16, 0.03), (1.0 - smoothstep(0.016, 0.034, d1)) * 0.85 + (1.0 - smoothstep(0.02, 0.05, d2)) * 0.95 * step(d2, d1));   /* (the rim: a hair along the sharp edge, firmer along the inner) */
     a *= v_c.a; gl_FragColor = vec4(min(c, vec3(1.0)) * a, a); }
 /*</W>*/  else { vec3 L = vec3(0.0);
-    if (v_k > 41.5 && v_k < 44.5) { // (v402, Sunflare light)
+    if (v_k > 54.5 && v_k < 55.5) { // (v404 DK) a cut's light (as kind 54): violet energy brightening toward the sharp edge, a crisp violet-white
+      // edge line with a halo outside it, streaks racing along it, a crimson filament inside; v_q.x span, v_q.y tail strength, v_q.z thickness
+      vec3 B = dcr(u, v_q.x, v_q.z); float d = B.x, v = clamp(B.y, 0.0, 1.0), sl = atan(u.y, u.x) * r, al = mix(1.0, v_q.y, v) * B.z, st = fbm(vec2(sl * 7.0 + t * 6.0, d * 3.0)), e = clamp(1.0 - d, 0.0, 1.0), inb = step(0.0, d) * (1.0 - smoothstep(0.8, 1.05, d));
+      L = (mix(vec3(0.43, 0.16, 0.66), vec3(0.65, 0.36, 1.0), e) * (0.1 + 0.7 * pow(e, 2.2)) * inb + vec3(0.94, 0.88, 1.0) * exp(-sq(d / 0.06)) * 1.1 + vec3(0.65, 0.36, 1.0) * exp(-max(-d, 0.0) * 9.0) * step(d, 0.0) * 0.4
+        + vec3(0.8, 0.6, 1.0) * smoothstep(0.55, 0.85, st) * inb * e * 0.6 + vec3(0.82, 0.09, 0.25) * exp(-sq((d - 0.3) / 0.04)) * (0.55 + 0.45 * sin(sl * 18.0 + t * 9.0)) * 0.75) * al; }
+    else if (v_k > 58.5 && v_k < 59.5) { // (v404 DK) an eclipse's corona round a dark disc of radius 0.42: a thin silver ring at the limb, streamers of
+      // silver-violet light flickering out of it, fine rays at v_q.x >= 1; v_q.y seed, v_q.z its pulse
+      float an = atan(u.y, u.x), h = max(r - 0.42, 0.0), st = fbm(vec2(an * 3.0 + v_q.y, h * 4.0 - t * 0.5)), st2 = fbm(vec2(an * 9.0 - v_q.y, h * 9.0 - t * 1.1)), reach = 0.1 + 0.36 * st * st + 0.12 * st2;
+      L = vec3(0.93, 0.9, 0.98) * exp(-sq((r - 0.425) / 0.018)) * 1.1 + mix(vec3(0.65, 0.36, 1.0), vec3(0.93, 0.9, 0.98), exp(-h * 8.0)) * exp(-h / max(reach, 0.02)) * smoothstep(0.4, 0.43, r) * (0.55 + 0.45 * st2) * 0.8;
+      if (v_q.x > 0.5) L += vec3(0.9, 0.86, 1.0) * pow(0.5 + 0.5 * cos(an * 16.0 + v_q.y * 3.0), 12.0) * exp(-h * 3.5) * smoothstep(0.41, 0.44, r) * 0.55;
+      L *= (1.0 + 0.4 * v_q.z) * (1.0 - smoothstep(0.85, 1.0, r)); }
+    else if (v_k > 41.5 && v_k < 44.5) { // (v402, Sunflare light)
       if (v_k < 42.5) { // its corona (the heart fills the inner 0.43): curved crescent strips of rose light turning, at v_q.x >= 2 a second
         // ring of thinner magenta-and-lavender strips curling the other way, at 3 fine pearl-and-gold rays; a soft halo where it leaves
         // the heart, all of it flickering like plasma. v_q.y its turn (seconds), v_q.z the tick's pulse
@@ -800,7 +845,7 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
   const Q = { lit: new Float32Array(12 * 6 * 600), nl: 0, smk: new Float32Array(12 * 6 * 200), ns: 0, wlit: new Float32Array(12 * 6 * 200), nwl: 0, wsmk: new Float32Array(12 * 6 * 100), nws: 0, get windOK() { return !!PRW; }, a: 1, b: 0, c0: 0, d: 1, e: 0, f: 0, k: 1, t: 0, W: 0, Hh: 0, pet: [0, 0, 0], gpu: true,
     X(x, y) { return this.a * x + this.c0 * y + this.e; }, Y(x, y) { return this.b * x + this.d * y + this.f; },
     /* one quad: centre (screen px), half-axes (ux, uy), (vx, vy) in screen px */
-    quad(kind, x, y, ux, uy, vx, vy, col, al, q0, q1, q2) { if (!(al > 0.004)) return; const solid = (kind >= 9 && kind <= 12) || kind === 16 || kind === 24 || kind === 25 || kind === 33 || kind === 36 || kind === 39 || kind === 40 || kind === 41 /* v402 */ || kind === 71 /* v391 U4 */, wd = kind >= 33 && kind <= 40;
+    quad(kind, x, y, ux, uy, vx, vy, col, al, q0, q1, q2) { if (!(al > 0.004)) return; const solid = (kind >= 9 && kind <= 12) || kind === 16 || kind === 24 || kind === 25 || kind === 33 || kind === 36 || kind === 39 || kind === 40 || kind === 41 /* v402 */ || (kind >= 53 && kind <= 58 && kind !== 55) /* v404 DK */ || kind === 71 /* v391 U4 */, wd = kind >= 33 && kind <= 40;
       const ka = wd ? (solid ? 'wsmk' : 'wlit') : (solid ? 'smk' : 'lit'), kn = wd ? (solid ? 'nws' : 'nwl') : (solid ? 'ns' : 'nl'); let A = this[ka]; const n = this[kn];
       if ((n + 6) * 12 > A.length) { const q = new Float32Array(A.length * 2); q.set(A); A = q; this[ka] = q; }
       const cx = this.X(x, y), cy = this.Y(x, y), a = this.a, b = this.b, c = this.c0, d = this.d, Ux = a * ux + c * uy, Uy = b * ux + d * uy, Vx = a * vx + c * vy, Vy = b * vx + d * vy, C = rgbOf(col); let o = n * 12;

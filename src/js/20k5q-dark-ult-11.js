@@ -32,6 +32,9 @@
   const U = ELEM_IMPL.dark.ult;
   const TAU = Math.PI * 2;
   const VOID = '#08050F', BODY = '#180B2E', PLUM = '#2B0B45', SMOKE = '#463052', ENERGY = '#6D28A8', EDGE = '#A55CFF', ACC = '#D0AEFF';
+  /* (v404 DK) the GPU picture: the shared painter (20k6h FGFX) when it is usable; else the 2D picture, as it was. The circle's marigold
+     glyphs, the candles' wax and the spirits stay their baked 2D art; every flame, glow, thread and wave is drawn on the GPU */
+  const gfx = () => { try { const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; return F && F.usable() ? F : null; } catch (e) { return null; } };
   const MARI = '#FF9A1F', MARI2 = '#FFB52E', DEEP = '#D9540B', GOLD = '#FFC24D', CANDLE = '#FFE3A6', WAX = '#7A3FC2';
   const cl = u => u < 0 ? 0 : u > 1 ? 1 : u, lerp = (a, b, u) => a + (b - a) * u, sstep = (a, b, x) => { const u = cl((x - a) / (b - a)); return u * u * (3 - 2 * u); };
   const rgba = (h, a) => { const [r, g, b] = hexRGB(h); return `rgba(${r},${g},${b},${cl(a)})`; };
@@ -256,8 +259,12 @@
     c.restore();
   }
   /* the violet flame pillar (rise) and the small golden flame that leaves (departure) */
-  function pillar(c, x, y, T, k, t, seed) {
-    if (k <= 0.01) return; const hgt = T * (3.2 + 0.4 * Math.sin(t * 7 + seed)), w = T * (0.42 + 0.06 * Math.sin(t * 11 + seed));
+  function pillar(c, x, y, T, k, t, seed, Q) {
+    if (k <= 0.01) return;
+    if (Q) { const hgt = T * (3.2 + 0.4 * Math.sin(t * 7 + seed)), w = T * (0.42 + 0.06 * Math.sin(t * 11 + seed));   /* (v404 DK) a column of violet flame: rolling energy, a hotter core, tongues licking at its foot */
+      Q.glow(x, y - hgt * 0.4, hgt * 0.45, ENERGY, 0.3 * k); Q.ebeam(x, y + w * 0.3, x, y - hgt, w * 1.5, ENERGY, 0.7, 0.75 * k, seed, 3.5); Q.ebeam(x, y, x, y - hgt * 0.85, w * 0.75, EDGE, 0.95, 0.85 * k, seed + 2, 5); Q.beam(x, y, x, y - hgt * 0.62, w * 0.22, ACC, 0.7 * k);
+      for (let i = 0; i < 3; i++) Q.etongue(x + (i - 1) * w * 0.55, y + T * 0.05, w * 0.55, T * (0.7 + 0.25 * i % 2), (i - 1) * 0.25, EDGE, 0.9, 0.8 * k, seed + i * 1.3);
+      Q.glow(x, y - T * 0.2, T * 1.2, EDGE, 0.5 * k, 0.6); Q.ewave(x, y, T * (0.6 + 0.3 * Math.sin(t * 3 + seed)), EDGE, 0.7, 0.5 * k, seed, 0.55, 0.3); return; } const hgt = T * (3.2 + 0.4 * Math.sin(t * 7 + seed)), w = T * (0.42 + 0.06 * Math.sin(t * 11 + seed));
     c.save(); c.globalCompositeOperation = 'lighter';
     c.translate(x, y); c.rotate(-Math.PI / 2);
     c.globalAlpha = 0.5 * k; blitSized(c, beamSprite(ENERGY), -w * 0.3, -w * 1.5, hgt, w * 3);
@@ -266,25 +273,30 @@
     c.restore();
     c.save(); c.globalCompositeOperation = 'lighter'; blit(c, glowSprite(EDGE), x, y - T * 0.2, T * 1.1, 0.45 * k); c.restore();
   }
-  function goldFlame(c, x, y, T, a, t) {
-    if (a <= 0.01) return; c.save(); c.globalCompositeOperation = 'lighter'; blit(c, glowSprite(MARI2), x, y, T * 0.7, 0.6 * a); blit(c, glowSprite('#FFF1C8'), x, y, T * 0.28, 0.8 * a);
+  function goldFlame(c, x, y, T, a, t, Q) {
+    if (a <= 0.01) return;
+    if (Q) { const s = T * 0.2; Q.glow(x, y, T * 0.8, MARI2, 0.6 * a); Q.glow(x, y, T * 0.3, '#FFF1C8', 0.8 * a); Q.etongue(x, y + s * 0.7, s * 1.1, s * 3.0, 0, GOLD, 1.0, a, 4.2); Q.etongue(x, y + s * 0.4, s * 0.55, s * 1.8, 0, '#FFF1C8', 1.05, a, 7.7); return; }   // (v404 DK) c.save(); c.globalCompositeOperation = 'lighter'; blit(c, glowSprite(MARI2), x, y, T * 0.7, 0.6 * a); blit(c, glowSprite('#FFF1C8'), x, y, T * 0.28, 0.8 * a);
     const s = T * 0.2, fl = Math.sin(t * 17) * s * 0.15; c.globalAlpha = cl(0.9 * a); c.fillStyle = '#FFE3A0'; c.beginPath(); c.moveTo(x + fl, y - s * 2.1); c.bezierCurveTo(x + s * 0.9, y - s * 0.6, x + s * 0.7, y + s * 0.6, x, y + s * 0.7); c.bezierCurveTo(x - s * 0.7, y + s * 0.6, x - s * 0.9, y - s * 0.6, x + fl, y - s * 2.1); c.fill(); c.restore();
   }
   /* a small violet candle standing on the circle's rim */
-  function candle(c, x, y, T, lit, t, seed, a) {
+  function candle(c, x, y, T, lit, t, seed, a, Q) {   // (v404 DK: Q, the GPU painter: the flame and its light on the GPU)
     if (a <= 0.01) return; const w = T * 0.12, h = T * (0.3 + 0.08 * R1(seed));
     c.save(); c.globalAlpha = a;
     const gr = c.createLinearGradient(x - w / 2, 0, x + w / 2, 0); gr.addColorStop(0, '#9B6BE0'); gr.addColorStop(0.45, WAX); gr.addColorStop(1, '#2E1250'); c.fillStyle = gr; c.fillRect(x - w / 2, y - h, w, h);
     c.fillStyle = '#B48AF0'; c.beginPath(); c.ellipse(x, y - h, w / 2, w * 0.2, 0, 0, TAU); c.fill();
     c.fillStyle = rgba('#000000', 0.25); c.beginPath(); c.ellipse(x, y, w * 0.7, w * 0.22, 0, 0, TAU); c.fill();
     c.restore();
+    if (lit > 0.01 && Q) { const fy = y - h - T * 0.08, fl = 1 + 0.15 * Math.sin(t * 19 + seed * 3), s = T * 0.07 * lit * fl; Q.glow(x, fy, T * 0.5 * lit * fl, '#FFB347', 0.6 * a); Q.glow(x, y - h * 0.5, T * 0.3, WAX, 0.25 * a * lit); Q.etongue(x, fy + s * 0.7, s * 1.2, s * 3.2, 0, '#FFB347', 1.0, a, seed * 1.7); return; }
     if (lit > 0.01) { const fy = y - h - T * 0.08, fl = 1 + 0.15 * Math.sin(t * 19 + seed * 3); c.save(); c.globalCompositeOperation = 'lighter'; blit(c, glowSprite('#FFB347'), x, fy, T * 0.42 * lit * fl, 0.55 * a);
       const s = T * 0.07 * lit * fl; c.globalAlpha = cl(0.95 * a); c.fillStyle = CANDLE; c.beginPath(); c.moveTo(x, fy - s * 2.2); c.quadraticCurveTo(x + s, fy, x, fy + s * 0.6); c.quadraticCurveTo(x - s, fy, x, fy - s * 2.2); c.fill(); c.restore(); }
   }
   /* a golden thread: a curve from (x0, y0) to (x1, y1) arching upward, drawn to u, beads running along it */
-  function thread(c, x0, y0, x1, y1, u, a, t, seed, flare) {
+  function thread(c, x0, y0, x1, y1, u, a, t, seed, flare, Q) {
     if (a <= 0.01 || u <= 0.01) return; const mx = (x0 + x1) / 2, my = (y0 + y1) / 2 - Math.hypot(x1 - x0, y1 - y0) * 0.32 - 20, N = 22, pts = [];
     for (let j = 0; j <= N; j++) { const q = j / N * u, w = 1 - q; pts.push([w * w * x0 + 2 * w * q * mx + q * q * x1, w * w * y0 + 2 * w * q * my + q * q * y1 + Math.sin(q * 9 + t * 3 + seed) * 2.5 * (1 - flare)]); }
+    if (Q) { for (let j = 0; j < N; j++) { const A = pts[j], B = pts[j + 1]; Q.beam(A[0], A[1], B[0], B[1], 5 + 5 * flare, MARI, 0.35 * a * (1 + flare)); Q.beam(A[0], A[1], B[0], B[1], 1.4 + flare * 1.5, GOLD, 0.8 * a * (1 + flare * 0.6)); Q.beam(A[0], A[1], B[0], B[1], 0.7, '#FFF1C8', 0.9 * a); }   /* (v404 DK) */
+      for (let b = 0; b < 2; b++) { const q = ((t * 0.45 + b * 0.5 + seed * 0.13) % 1) * u, j = Math.min(N, Math.round(q / Math.max(u, 0.001) * N)); Q.glow(pts[j][0], pts[j][1], 8 + flare * 6, '#FFE7A8', 0.9 * a); Q.star(pts[j][0], pts[j][1], 7 + flare * 6, 0.7 * a, '#FFF1C8'); }
+      if (u >= 0.99) Q.glow(x1, y1, 14 + 10 * flare, GOLD, 0.5 * a); return; }
     c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.lineJoin = 'round';
     const path = () => { c.beginPath(); pts.forEach((q, j) => (j ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1]))); };
     path(); c.strokeStyle = rgba(MARI, 0.18 * a * (1 + flare)); c.lineWidth = 7 + 6 * flare; c.stroke();
@@ -343,33 +355,39 @@
         const u = f.t, X = H.sx(cx), Y = H.sy(cy), out = f.ending ? cl(f.life / 0.8) : 1;
         // the great circle: unfolds (petals open from the centre), turns, fades after the release
         const open = sstep(0, 0.8, u), fadeC = (1 - sstep(SYNC + 1.2, SYNC + 2.4, u)) * out, R = CR * T * (0.35 + 0.65 * open) * (1 + 0.04 * Math.sin(u * 2));
-        const B = bake();
+        const B = bake(), FG = gfx(), Q = FG ? FG.begin(c, null) : null;   // (v404 DK: the light under and round the circle on the GPU)
+        if (Q && fadeC > 0.01) { Q.glow(X, Y, R * 1.25, ENERGY, 0.3 * fadeC, 0.55); Q.glow(X, Y, R * 0.6, MARI, 0.12 * fadeC * open, 0.55); Q.ring(X, Y, R * 1.02, EDGE, 0.5 * fadeC * open, T * 0.06, 0.55); Q.ripple(X, Y, R * 0.95, MARI2, 0.35 * fadeC * open, 2.2, 0.55, 0.06); if (u < 0.9) Q.ewave(X, Y, R * (0.4 + 0.7 * u), EDGE, 0.7, 0.6 * (1 - u / 0.9), 3.3, 0.55, 0.2); }
         if (fadeC > 0.01) {
-          c.save(); c.globalCompositeOperation = 'lighter'; blit(c, glowSprite(ENERGY), X, Y, R * 1.15, 0.22 * fadeC); c.restore();
+          if (!Q) { c.save(); c.globalCompositeOperation = 'lighter'; blit(c, glowSprite(ENERGY), X, Y, R * 1.15, 0.22 * fadeC); c.restore(); }
           floorImg(c, B.A, X, Y, R, u * 0.12, 0.9 * fadeC * open);
           floorImg(c, B.B, X, Y, R * (0.9 + 0.1 * open), -u * 0.22, 0.85 * fadeC * sstep(0.2, 0.9, u), true);
           if (tier >= 2) floorImg(c, B.B, X, Y, R * 0.62, u * 0.35, 0.45 * fadeC * sstep(0.4, 1.0, u), true);
           floorImg(c, B.C, X, Y, R * 0.9, -u * 0.18, 0.85 * fadeC * sstep(0.3, 1.0, u));
           // candles round the rim, lit one after another
-          for (let i = 0; i < NC; i++) { const an = i / NC * TAU + 0.2, px = X + Math.cos(an) * R * 1.02, py = Y + Math.sin(an) * R * 1.02 * 0.55; if (Math.sin(an) > 0.15) continue; candle(c, px, py, T, sstep(0.25 + i / NC * 0.7, 0.35 + i / NC * 0.7, u), t, i, fadeC * open); }
+          for (let i = 0; i < NC; i++) { const an = i / NC * TAU + 0.2, px = X + Math.cos(an) * R * 1.02, py = Y + Math.sin(an) * R * 1.02 * 0.55; if (Math.sin(an) > 0.15) continue; candle(c, px, py, T, sstep(0.25 + i / NC * 0.7, 0.35 + i / NC * 0.7, u), t, i, fadeC * open, Q); }
         }
         // the giant spectral marigold under the formation at the release
         if (flareT > 0) { const v = u - flareT, k = sstep(0, 0.35, v) * (1 - sstep(1.0, 2.0, v)) * out; if (k > 0.01) { const BX = H.sx(bcx), BY = H.sy(bcy), RR = bigR * T * (0.55 + 0.45 * sstep(0, 0.6, v));
-          c.save(); c.globalCompositeOperation = 'lighter'; blit(c, glowSprite(MARI), BX, BY, RR * 1.1, 0.25 * k); c.restore();
+          if (Q) { Q.glow(BX, BY, RR * 1.2, MARI, 0.32 * k, 0.55); const w = cl(v / 0.9); if (w < 1) { Q.ewave(BX, BY, RR * (0.3 + 0.9 * w), MARI2, 0.85, 0.9 * (1 - w), 5.1, 0.55, 0.22); Q.ring(BX, BY, RR * (0.3 + 0.9 * w), '#FFF1C8', 0.7 * (1 - w), T * 0.08, 0.55); } Q.caustic(BX, BY, RR * 0.9, GOLD, 0.3 * k, 1.7, 0.55); }
+          else { c.save(); c.globalCompositeOperation = 'lighter'; blit(c, glowSprite(MARI), BX, BY, RR * 1.1, 0.25 * k); c.restore(); }
           floorImg(c, B.A, BX, BY, RR, v * 0.3, 0.75 * k, true); floorImg(c, B.C, BX, BY, RR * 0.85, -v * 0.4, 0.7 * k, true); floorImg(c, B.B, BX, BY, RR * 1.05, v * 0.2, 0.5 * k, true); } }
+        if (Q) FG.flush(c);
       },
       draw(c, f, x, y, T, t) {
         const u = f.t, X = H.sx(cx), Y = H.sy(cy), out = f.ending ? cl(f.life / 0.8) : 1, open = sstep(0, 0.8, u), fadeC = (1 - sstep(SYNC + 1.2, SYNC + 2.4, u)) * out, R = CR * T * (0.35 + 0.65 * open);
+        const FG = gfx(), Q = FG ? FG.begin(c, null) : null;   // (v404 DK)
         // the near candles (in front of the caster)
-        if (fadeC > 0.01) for (let i = 0; i < NC; i++) { const an = i / NC * TAU + 0.2; if (Math.sin(an) <= 0.15) continue; const px = X + Math.cos(an) * R * 1.02, py = Y + Math.sin(an) * R * 1.02 * 0.55; candle(c, px, py, T, sstep(0.25 + i / NC * 0.7, 0.35 + i / NC * 0.7, u), t, i, fadeC * open); }
+        if (fadeC > 0.01) for (let i = 0; i < NC; i++) { const an = i / NC * TAU + 0.2; if (Math.sin(an) <= 0.15) continue; const px = X + Math.cos(an) * R * 1.02, py = Y + Math.sin(an) * R * 1.02 * 0.55; candle(c, px, py, T, sstep(0.25 + i / NC * 0.7, 0.35 + i / NC * 0.7, u), t, i, fadeC * open, Q); }
         // warm light waves to every revival point, then the golden threads
         const CXs = H.sx(me.x), CYs = H.sy(me.y) - T * 0.15;
         for (const S of spirits) { const SX = H.sx(S.x0), SY = H.sy(S.y0);
           const w = sstep(0.65, 1.25, u); if (w > 0 && w < 1) { const mx = (X + SX) / 2, my = (Y + SY) / 2 - Math.hypot(SX - X, SY - Y) * 0.25, q = w, a = 1 - q; const hx = a * a * X + 2 * a * q * mx + q * q * SX, hy = a * a * Y + 2 * a * q * my + q * q * SY;
-            c.save(); c.globalCompositeOperation = 'lighter'; blit(c, glowSprite(MARI2), hx, hy, T * 0.9, 0.7); blit(c, glowSprite('#FFF1C8'), hx, hy, T * 0.3, 0.9); c.restore(); }
+            if (Q) { Q.glow(hx, hy, T * 1.0, MARI2, 0.7); Q.glow(hx, hy, T * 0.32, '#FFF1C8', 0.95); Q.star(hx, hy, T * 0.6, 0.6, '#FFF1C8'); for (let j = 1; j <= 4; j++) { const q2 = Math.max(0, q - j * 0.05), a2 = 1 - q2; Q.glow(a2 * a2 * X + 2 * a2 * q2 * mx + q2 * q2 * SX, a2 * a2 * Y + 2 * a2 * q2 * my + q2 * q2 * SY, T * (0.5 - j * 0.07), MARI, 0.4 * (1 - j / 5)); } }
+            else { c.save(); c.globalCompositeOperation = 'lighter'; blit(c, glowSprite(MARI2), hx, hy, T * 0.9, 0.7); blit(c, glowSprite('#FFF1C8'), hx, hy, T * 0.3, 0.9); c.restore(); } }
           if (S.gone) continue;
           const live = S.phase === 'depart' || S.phase === 'fracture' ? 1 - cl((g.t - S.endT) / 0.5) : 1, flare = flareT > 0 ? Math.max(0, 1 - (u - flareT) / 0.9) : 0;
-          thread(c, CXs, CYs, H.sx(S.x), H.sy(S.y) - T * 0.15, sstep(1.4, 2.1, u), (0.35 + 0.65 * Math.max(flare, 1 - sstep(SYNC + 0.6, SYNC + 2.2, u))) * live * out, t, S.seed, flare); }
+          thread(c, CXs, CYs, H.sx(S.x), H.sy(S.y) - T * 0.15, sstep(1.4, 2.1, u), (0.35 + 0.65 * Math.max(flare, 1 - sstep(SYNC + 0.6, SYNC + 2.2, u))) * live * out, t, S.seed, flare, Q); }
+        if (Q) FG.flush(c);
       },
     });
     /* one effect per spirit: its body among the actors (depth-sorted), its seal and pillar, its own runner's effects */
@@ -378,13 +396,18 @@
         update(dt, f) { f.entY = S.y + 0.01; f.x = S.x; f.y = S.y; if (S.gone) f.life = 0; },
         drawUnder(c, f, x, y, T, t) { const u = master.t, X = H.sx(S.x0), Y = H.sy(S.y0), B = bake();
           const k = sstep(1.15, 1.45, u) * (1 - sstep(SYNC + 0.6, SYNC + 1.6, u)); if (k > 0.01) { floorImg(c, B.A, X, Y, T * 1.05 * (0.4 + 0.6 * k), u * 0.5, 0.85 * k); floorImg(c, B.B, X, Y, T * 1.1, -u * 0.8, 0.8 * k, true); }
-          if (!S.gone && S.phase !== 'rise') { c.save(); c.globalCompositeOperation = 'lighter'; blit(c, glowSprite(ENERGY), H.sx(S.x), H.sy(S.y), T * 0.8, 0.22 * (S.dead ? 0.4 : 1)); c.restore(); }
+          const FG = gfx(); if (FG) { const Q = FG.begin(c, null), X2 = H.sx(S.x), Y2 = H.sy(S.y);   // (v404 DK)
+            if (k > 0.01) { Q.glow(X, Y, T * 1.3, EDGE, 0.35 * k, 0.55); Q.ring(X, Y, T * 1.05 * (0.4 + 0.6 * k), MARI2, 0.5 * k, T * 0.05, 0.55); }
+            if (!S.gone && S.phase !== 'rise') { Q.glow(X2, Y2, T * 0.95, ENERGY, 0.28 * (S.dead ? 0.4 : 1), 0.6); Q.ripple(X2, Y2, T * 0.7, EDGE, 0.2 * (S.dead ? 0.4 : 1), S.seed, 0.55, 0.1); }
+            FG.flush(c); }
+          else if (!S.gone && S.phase !== 'rise') { c.save(); c.globalCompositeOperation = 'lighter'; blit(c, glowSprite(ENERGY), H.sx(S.x), H.sy(S.y), T * 0.8, 0.22 * (S.dead ? 0.4 : 1)); c.restore(); }
           S.E.draw(c, true); },
         drawEnt(c, f) { const T = H.X.Tz(), t = g.t, vis = spiritVis(S, master.t); if (vis.a > 0.01) drawBody(H, S, c, T, t, vis); for (const q of S.E.fx) if (q.drawEnt) { c.save(); q.drawEnt(c, q); c.restore(); } },
         draw(c, f, x, y, T, t) { const u = master.t;
-          pillar(c, H.sx(S.x0), H.sy(S.y0), T, sstep(1.2, 1.4, u) * (1 - 0.55 * sstep(1.55, 1.9, u)) * (1 - sstep(SYNC - 0.25, SYNC + 0.35, u)), t, S.seed);
+          const FG = gfx(), pk = sstep(1.2, 1.4, u) * (1 - 0.55 * sstep(1.55, 1.9, u)) * (1 - sstep(SYNC - 0.25, SYNC + 0.35, u));   // (v404 DK: the pillar and the leaving flame on the GPU)
+          if (FG && pk > 0.01) { const Q = FG.begin(c, null); pillar(c, H.sx(S.x0), H.sy(S.y0), T, pk, t, S.seed, Q); FG.flush(c); } else if (!FG) pillar(c, H.sx(S.x0), H.sy(S.y0), T, pk, t, S.seed);
           S.E.draw(c);
-          if (S.phase === 'depart') { const v = g.t - S.endT; goldFlame(c, H.sx(S.x), H.sy(S.y) - T * (0.6 + v * 2.4), T, sstep(0, 0.25, v) * (1 - sstep(TUNE.depart - 0.4, TUNE.depart, v)), t); }
+          if (S.phase === 'depart') { const v = g.t - S.endT, ga = sstep(0, 0.25, v) * (1 - sstep(TUNE.depart - 0.4, TUNE.depart, v)); if (FG && ga > 0.01) { const Q = FG.begin(c, null); goldFlame(c, H.sx(S.x), H.sy(S.y) - T * (0.6 + v * 2.4), T, ga, t, Q); FG.flush(c); } else if (!FG) goldFlame(c, H.sx(S.x), H.sy(S.y) - T * (0.6 + v * 2.4), T, ga, t); }
           if (!S.dead && S.phase !== 'rise') hpBar(c, S, T, t); },
         drawHud(c) { S.E.draw(c, 'hud'); },
       });
