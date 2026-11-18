@@ -4,7 +4,9 @@
    Celestial), each a curved beam with a pearl core, a candy body and a rose glow, and little love hearts sprout where
    they strike. It follows the pet. 7 s / 10 s at Adept / 14 s at Celestial; Adept adds stars orbiting the heart,
    Celestial a larger heart framed by two turning heart outlines. At the end it slows, flares and dissolves into
-   expanding heart outlines and rising hearts. */
+   expanding heart outlines and rising hearts.
+   (v404 LT) On the GPU too when the shared painter (20k6h) is usable: the same heart (kind 41), rays as curved strips of light, hearts of
+   light (kinds 44, 48), stars of light (kind 50); the 2D picture stays as it was for a device without the painter. */
 (() => {
   const U = ELEM_IMPL.light.ult, TAU = Math.PI * 2;
   delete U.crescentbeam;
@@ -40,6 +42,27 @@
         const t = f.t, g0 = H.ease.back ? H.ease.back(cl(t / GROW)) : sm(t / GROW), out = cl((t - DUR) / OUT), a = Math.min(1, t / 0.2) * (1 - out);
         const px = H.sx(me.x), py = H.sy(me.y), hh = T * HP0 * Math.max(0, g0) * (1 - 0.35 * out), hx = px + Math.sin(t * 1.7) * T * 0.12, hy = py - T * (1.3 + (0.9 + HP0 * 0.55) * sm(t / GROW)) - T * 0.12 * Math.sin(t * 2.3);
         const spin = t < DUR ? t * (3.2 + 0.8 * tier) : DUR * (3.2 + 0.8 * tier) + (t - DUR) * 2, lean = 0.12 * Math.sin(t * 1.3);
+        { const FG = K.gfx(); if (FG) { /* (v404 LT) on the GPU, in two passes: behind the heart (the rays as curved strips of light with a pearl
+             core and a heart of light where each strikes, the heart's halo, the far stars, the Celestial outlines turning round it); then the heart
+             itself (the shared candy heart, kind 41), the near stars, the ending's expanding outlines, the hearts and stars */
+          let Q = FG.begin(c, [px, py - T * 0.45, T * 0.8]);
+          const sx = hx, sy = hy + hh * 0.25, wk = tier === 3 ? 1.25 : tier === 2 ? 1.1 : 1;
+          for (const z of zaps) { const u = z.t / 0.3, za = (u < 0.15 ? u / 0.15 : 1 - sm((u - 0.15) / 0.85)) * a; if (za < 0.02) continue;
+            const mx = H.sx(z.m.dead ? z.x : z.m.x), my = H.sy(z.m.dead ? z.y : z.m.y) - T * 0.35, dx = mx - sx, dy = my - sy, L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L, bw = L * 0.12 * z.bend * (1 - u * 0.5), cx = sx + dx * 0.5 + nx * bw, cy = sy + dy * 0.5 + ny * bw, P = [];
+            for (let j = 0; j <= 14; j++) { const v = j / 14, w0 = (1 - v) * (1 - v), w1 = 2 * v * (1 - v), w2 = v * v; P.push([w0 * sx + w1 * cx + w2 * mx, w0 * sy + w1 * cy + w2 * my]); }
+            const wf = k => T * k * wk * (1 - 0.4 * u), ka = k => v => k * za * sm(v / 0.12 + 0.3);
+            K.gStrip(Q, P, wf(0.42), ROSE, ka(0.35)); K.gStrip(Q, P, wf(0.2), CANDY, ka(0.8)); K.gStrip(Q, P, Math.max(1.2, wf(0.06)), PEARL, ka(1));
+            for (let j = 0; j < 3; j++) { const v = ((z.t * 3 + j / 3 + z.sd * 0.13) % 1), p = P[Math.round(v * 14)]; Q.glow(p[0], p[1], T * 0.18, PEARL, 0.7 * za); }
+            Q.glow(mx, my, T * (0.7 + 0.3 * (1 - u)), ROSE, 0.6 * za); Q.glow(mx, my, T * 0.3, PEARL, 0.9 * za * (1 - u));
+            if (u < 0.5) { const q = T * (0.8 + 1.4 * u) * 0.42; Q.quad(44, mx, my, q, 0, 0, q, ROSE, (1 - u * 2) * a, 0.035, 1.1, 0.2); Q.quad(48, mx, my, q * 0.9, 0, 0, q * 0.9, CANDY, (1 - u * 2) * a * 0.5, 0.01, 0.6, 0); } }
+          if (hh > 2) { Q.glow(hx, hy, hh * 1.5, ROSE, 0.35 * a); Q.glow(hx, hy + hh * 0.1, hh * 0.7, PEARL, (0.12 + 0.08 * Math.sin(t * 9)) * a);
+            if (tier === 3) for (let q = 0; q < 2; q++) { const th = t * (q ? -1.3 : 0.9) + q * 1.4, ws = Math.abs(Math.cos(th)) * 0.85 + 0.15, sz = hh * (1.85 + q * 0.35) * 0.42; Q.quad(44, hx, hy + sz * 0.05, sz * ws, 0, 0, sz, ROSE, (0.6 - q * 0.15) * a, 0.03, 1.1, 0.15); Q.quad(44, hx, hy + sz * 0.05, sz * ws, 0, 0, sz, PEARL, (0.5 - q * 0.12) * a, 0.01, 1.1, 0); }
+            if (tier >= 2) { const NS = tier === 3 ? 6 : 4; for (let q = 0; q < NS; q++) { const b = t * 2.2 + q / NS * TAU, ox = Math.cos(b) * hh * 0.95, oy = Math.sin(b) * hh * 0.28; if (Math.sin(b) < 0) Q.quad(50, hx + ox, hy + oy, T * 0.13, 0, 0, T * 0.13, q % 2 ? BLUSH : CANDY, 0.55 * a, 0.6, b, 0); } } }
+          FG.flush(c); Q = FG.begin(c, [px, py - T * 0.45, T * 0.8]);
+          if (hh > 2) { const lit = f.n && f.tk - t > TICK - 0.1 ? 0.6 : 0; K.gHeart(Q, hx, hy, hh, spin, lean, a, lit * 0.6, Math.min(2, tier), 0, 0.5, (t * 0.6) % 1);
+            if (tier >= 2) { const NS = tier === 3 ? 6 : 4; for (let q = 0; q < NS; q++) { const b = t * 2.2 + q / NS * TAU, ox = Math.cos(b) * hh * 0.95, oy = Math.sin(b) * hh * 0.28; if (Math.sin(b) >= 0) { Q.glow(hx + ox, hy + oy, T * 0.22, q % 2 ? BLUSH : PEARL, 0.5 * a); Q.quad(50, hx + ox, hy + oy, T * 0.15, 0, 0, T * 0.15, q % 2 ? BLUSH : CANDY, 0.95 * a, 0.6, b, 0); } } } }
+          if (out > 0) for (let q = 0; q < 3; q++) { const u = cl((t - DUR - q * 0.15) / 0.7); if (u <= 0 || u >= 1) continue; const sz = T * HP0 * (1.2 + 2.2 * u) * (1 + q * 0.2) * 0.42; Q.quad(44, hx, hy, sz, 0, 0, sz, ROSE, (1 - u) * 0.9, 0.03, 1.1, 0.2); Q.quad(44, hx, hy, sz, 0, 0, sz, PEARL, (1 - u) * 0.7, 0.01, 1.1, 0); }
+          K.gBits(Q, B, T); FG.flush(c); return; } }
         c.save();
         // the rays: from the heart's lower point to each monster, a gentle curve, glow / body / pearl core, fading fast
         c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.lineJoin = 'round';

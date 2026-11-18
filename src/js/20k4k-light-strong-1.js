@@ -18,7 +18,10 @@
    Then it recoils into a hanging curve, is drawn back into the casting heart, the charm spins once and dissolves.
    Canvas 2D: the "3D" tube is a cached shaded stroke stack (deep side, lit gradient body, blossom inner, pearl core,
    rim) squashed by cos(bank) over a deep side copy offset by the bank; strands, highlight, cracks and fragments are
-   live strokes along the cached heart curve. */
+   live strokes along the cached heart curve.
+   (v404 LT) Both on the GPU too (the shared painter, 20k6h, through LU1's helpers in 20k4b), from the same paths and timing: the tube
+   heart and the chain's links as glassy tube hearts (kind 52), the charm the shared candy heart (kind 41), trails, cracks, fragments and
+   slashes as strips of light; the 2D picture stays as it was for a device without the painter. */
 (() => {
   const S = ELEM_IMPL.light.strong, TAU = Math.PI * 2;
   delete S.prismpetal; delete S.dawnspear;
@@ -90,6 +93,21 @@
     c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1;
   }
 
+  /* (v404 LT) the tube heart on the GPU: centre (x, y), hpx tall, turned rot, squashed (kx, ky); its soft halo, a deeper copy behind
+     when it banks, the glassy tube (kind 52) shown from its point up to prog, its winding strands as light, and (ornate) a rose-gold
+     inner outline with star glints. hl: where its sliding highlight is */
+  function gTube(Q, x, y, hpx, rot, kx, ky, a, t, o) {
+    if (!(a > 0.01) || hpx < 2) return; o = o || {}; const K = globalThis.LU1, cr = Math.cos(rot || 0), sr = Math.sin(rot || 0), hy = hpx / 1.57, prog = o.prog == null ? 1.1 : o.prog;
+    const P = (lx, ly) => [x + lx * kx * cr - ly * ky * sr, y + lx * kx * sr + ly * ky * cr], q = (kind, lx, ly, s, col, al, q0, q1, q2) => { const c0 = P(lx, ly); Q.quad(kind, c0[0], c0[1], cr * hy * s * kx, sr * hy * s * kx, -sr * hy * s * ky, cr * hy * s * ky, col, al, q0, q1, q2); };
+    if (o.glowA !== 0) { if (prog > 1) q(48, 0, 0, 1, HOT, a * (o.glowA == null ? 1 : o.glowA), 0.004, 0, 10);  Q.glow(x, y, hpx * 0.75, HOT, 0.18 * a); }
+    if (o.side) q(52, o.side, 0, 1, '#FFFFFF', a * 0.85, 0.07, 0.5, prog);
+    q(52, 0, 0, 1, '#FFFFFF', a, 0.07, (t * 0.4) % 1, prog);
+    if (prog > 1) { const s = hpx / 1.71, tr = TW * 0.5 * hpx / THGT, NSd = o.ornate ? 4 : 2;
+      for (let qq = 0; qq < NSd; qq++) { const pts = []; for (let i = 0; i <= HN; i += 2) { const p = hp(i, s), n = HNRM[i % HN], off = tr * 0.95 * Math.sin(i / HN * TAU * 7 + t * 9 + qq * Math.PI * (2 / NSd) * (qq < 2 ? 1 : 0.5) + (qq >= 2 ? 1.2 : 0)); pts.push(P(p[0] + n[0] * off, p[1] + n[1] * off)); }
+        K.gStrip(Q, pts, Math.max(0.8, hpx * 0.012), qq >= 2 ? LAV : qq ? BLOS : PEARL, () => a * 0.55 * (o.strandA || 0.6)); }
+      if (o.ornate) { q(44, 0, hy * 0.06, 0.7, RGOLD, a * 0.8, 0.025, 1.1, 0.1); for (const [i, z] of [[14, 1], [HN - 14, 1], [HHALF, 0.8]]) { const p = hp(i, s), c0 = P(p[0], p[1] - tr * 0.3), tw = 0.75 + 0.25 * Math.sin(t * 11 + i); Q.glow(c0[0], c0[1], s * 0.3 * z, PEARL, 0.5 * a); Q.quad(50, c0[0], c0[1], s * 0.24 * z * tw, 0, 0, s * 0.24 * z * tw, BLOS, a, 0.6, 0, 0); } } }
+  }
+
   /* ================= Honey Sugar Heart Attack ================= */
   S.honeyheart = (C, H) => {
     const K = globalThis.LU1; K.setH(H);
@@ -147,11 +165,42 @@
         if (!alive && !B.L.length && f.life > 0.05) f.life = 0.05;
       },
       drawUnder(c, f, X, Y, T) { const t = f.t;
+        { const FG = K.gfx(); if (FG) { const Q = FG.begin(c, null), GY = H.GY;   // (v404 LT) the floor on the GPU: the heart's light, the shockwave rings and heart ripple
+          for (const h of hearts) if (h.st === 'form' || h.st === 'fly') Q.glow(H.sx(h.px), H.sy(h.py), T * h.size * 0.6, HOT, 0.4 * (h.st === 'fly' ? 1 : cl((t - h.tf) / FORM)), GY);
+          for (const r of rings) { const u = (t - r.t0) / 0.55; if (u < 0 || u > 1) continue; const e = H.ease.out(u), x = H.sx(r.x), y = H.sy(r.y), rr = T * r.R * (0.25 + 0.85 * e);
+            Q.ewave(x, y, rr, HOT, 0.9, (1 - u) * 0.85, r.x * 2.1, GY, 0.2); Q.ring(x, y, rr, PEARL, (1 - u) * 0.85, T * 0.08, GY); Q.glow(x, y, T * r.R * 0.9, HOT, 0.5 * (1 - u), GY);
+            const hs = T * r.R * (0.6 + 0.9 * e); K.gFloorHeart(Q, x, y, hs * 0.7, GY, HOT, (1 - u) * 0.9, 1.1, 0.03, 0.3); }
+          FG.flush(c); return; } }
         for (const h of hearts) if (h.st === 'form' || h.st === 'fly') floorGlow(H, c, H.sx(h.px), H.sy(h.py), T * h.size * 0.55, HOT, 0.32 * (h.st === 'fly' ? 1 : cl((t - h.tf) / FORM)));
         for (const r of rings) { const u = (t - r.t0) / 0.55; if (u < 0 || u > 1) continue; const e = H.ease.out(u), x = H.sx(r.x), y = H.sy(r.y), rr = T * r.R * (0.25 + 0.85 * e);
           blit(c, ringSpr(), x, y, rr * 2, rr * 2 * H.GY, (1 - u) * 1.1, true); floorGlow(H, c, x, y, T * r.R * 0.9, HOT, 0.5 * (1 - u));
           const hs = T * r.R * (0.6 + 0.9 * e); blit(c, K.lineSpr(), x, y + hs * 0.05, hs, hs * H.GY * 1.05, (1 - u) * 0.85, true); } },
       draw(c, f, X, Y, T) { const t = f.t;
+        { const FG = K.gfx(); if (FG) { /* (v404 LT) on the GPU: the tube hearts (kind 52) forming, flying, breaking, their ribbon trails,
+             the cracks and luminous fragments, the contact core, the hearts and stars */
+          const Q = FG.begin(c, null);
+          for (const h of hearts) { if (h.st === 'wait' || h.st === 'done') continue;
+            const hpx = T * h.size, k = hpx / THGT, sx = H.sx(h.px), sy = H.sy(h.py) - zOf(h) * T, dim = petDim(H, sx, sy, hpx * 0.6), s = hpx / 1.71;
+            if (h.hist.length > 2 && (h.st === 'fly' || h.st === 'boom')) { const ta = h.st === 'boom' ? 1 - cl((t - h.tb) / 0.3) : 1;
+              for (const sd of [-1, 1]) { const lp = hp(HHALF + sd * 13, s), pts = h.hist.map(p => [H.sx(p[0]) + lp[0], H.sy(p[1]) - p[2] * T + lp[1]]); if (h.st === 'fly') pts.push([sx + lp[0], sy + lp[1]]);
+                K.gStrip(Q, pts, u => T * 0.2 * u, HOT, u => 0.55 * ta * dim * u); K.gStrip(Q, pts, u => T * 0.07 * u, PEARL, u => 0.8 * ta * dim * u); } }
+            const opt = { ornate: h.ornate, strandA: 0.45 + 0.04 * ev };
+            if (h.st === 'form') { const u = cl((t - h.tf) / FORM);
+              if (u < 1) { const pr = sm(u), wk = 0.45 + 0.55 * u; Q.glow(sx, sy, hpx * 0.7 * u, HOT, 0.3 * dim); gTube(Q, sx, sy, hpx, 0, 1, 1, dim, t, { prog: pr, glowA: 0.8 });
+                for (const p of K.gHeads(sx, sy, hpx / 1.62 * 1.678, 1, pr)) { Q.glow(p[0], p[1], T * 0.35, HOT, 0.6 * dim); Q.glow(p[0], p[1], T * 0.14, PEARL, dim); Q.star(p[0], p[1], T * 0.3, dim * wk, PEARL); } }
+              else { const tc = t - h.tf - FORM, pul = 1 + 0.13 * Math.exp(-7 * tc) * Math.sin(tc * 24); gTube(Q, sx, sy, hpx, 0, pul, 2 - pul, dim, t, opt); Q.glow(sx, sy, hpx * 0.5, PEARL, 0.35 * Math.exp(-6 * tc) * dim); } }
+            else if (h.st === 'fly') { const bank = h.bank || 0; gTube(Q, sx, sy, hpx, bank * 0.32, Math.cos(bank * 0.9), 1, dim, t, Object.assign({ side: Math.sin(bank * 0.9) * hpx * 0.09 }, opt)); }
+            else if (h.st === 'fade') { const u = cl((t - h.tb) / 0.4); gTube(Q, sx, sy, hpx, 0, 1 + 0.2 * u, 1 + 0.2 * u, (1 - u) * dim, t, { ornate: h.ornate, glowA: 1 - u }); }
+            else if (h.st === 'boom') { const tb = t - h.tb;
+              if (tb < 0.18) { const p = Math.sin(cl(tb / 0.18) * Math.PI); gTube(Q, sx, sy + hpx * 0.12 * p * 0.2, hpx, 0, 1 + 0.16 * p, 1 - 0.2 * p, dim, t, { ornate: h.ornate });
+                const qq = cl((tb - 0.02) / 0.14); if (qq > 0.02) { const hy = hpx / 1.62; Q.quad(44, sx, sy, hy * (1 + 0.16 * p), 0, 0, hy * (1 - 0.2 * p), HOT, dim, 0.05, qq, 0.4); Q.quad(44, sx, sy, hy * (1 + 0.16 * p), 0, 0, hy * (1 - 0.2 * p), PEARL, dim, 0.014, qq, 0); } }
+              else { const u = cl((tb - 0.18) / 0.62), e = H.ease.out(u), NF = 7 + (h.ornate ? 2 : 0), fa = Math.pow(1 - u, 1.3) * dim, wsh = 1 - 0.55 * u;
+                for (let j = 0; j < NF; j++) { const i0 = Math.round(j * HN / NF) + 1, i1 = Math.round((j + 1) * HN / NF) - 1, mid = hp((i0 + i1) >> 1, s), dl = Math.hypot(mid[0], mid[1]) || 1, sp = 0.55 + 0.35 * R1(j + h.i * 3), rot = (R1(j * 2.3 + h.i) - 0.5) * 3 * e, cr = Math.cos(rot), sr = Math.sin(rot);
+                  const ox = sx + mid[0] / dl * hpx * sp * e + mid[0], oy = sy + mid[1] / dl * hpx * sp * e + hpx * 0.35 * u * u + mid[1], pts = []; for (let i = i0; i <= i1; i++) { const p = hp(i, s), lx = p[0] - mid[0], ly = p[1] - mid[1]; pts.push([ox + lx * cr - ly * sr, oy + lx * sr + ly * cr]); }
+                  K.gStrip(Q, pts, TW * 1.3 * k * wsh, HOT, () => 0.6 * fa); K.gStrip(Q, pts, TW * 0.6 * k * wsh, BLOS, () => 0.8 * fa); K.gStrip(Q, pts, TW * 0.2 * k * wsh, PEARL, () => fa); } }
+              const hu = cl(tb / 0.5); Q.glow(sx, sy + hpx * 0.3, T * h.R * (0.6 + 0.5 * hu), HOT, 0.6 * (1 - hu) * dim); Q.glow(sx, sy + hpx * 0.3, T * 0.55 * (1 - hu * 0.6), PEARL, Math.max(0, 1 - tb / 0.28) * dim);
+              if (tb < 0.25) { const z = T * (0.7 + 1.6 * tb / 0.25); Q.star(sx, sy + hpx * 0.3, z * 0.7, (1 - tb / 0.25) * dim, PEARL); Q.quad(50, sx, sy + hpx * 0.3, z * 0.35, 0, 0, z * 0.35, HOT, (1 - tb / 0.25) * dim, 0.8, tb * 3, 0); } } }
+          K.gBits(Q, B, T); FG.flush(c); return; } }
         for (const h of hearts) {
           if (h.st === 'wait' || h.st === 'done') continue;
           const hpx = T * h.size, k = hpx / THGT, sx = H.sx(h.px), sy = H.sy(h.py) - zOf(h) * T, dim = petDim(H, sx, sy, hpx * 0.6);
@@ -255,11 +304,33 @@
         if (Math.random() < dt * 10 * H.Q() && (f.tipV || 0) > 6) B.add(tp[0], tp[1], tp[2], { vx: (Math.random() - 0.5), vy: (Math.random() - 0.5) * 0.5, vz: 0.3, life: 0.4, s: 0.07, kind: 's', col: Math.random() < 0.5 ? PEARL : BLOS, drag: 2 });
       },
       drawUnder(c, f, X, Y, T) { const t = f.t; // pink ground light under the tip's sweep
+        { const FG = K.gfx(); if (FG) { const Q = FG.begin(c, null); for (let i = 0; i < tipH.length; i += 2) { const p = tipH[i], u = (t - p[3]) / 0.16; Q.glow(H.sx(p[0]), H.sy(p[1]), T * 0.65, HOT, 0.3 * (1 - u) * cl(1.2 - p[2] * 0.5), H.GY); } FG.flush(c); return; } }   // (v404 LT)
         for (let i = 0; i < tipH.length; i += 2) { const p = tipH[i], u = (t - p[3]) / 0.16; floorGlow(H, c, H.sx(p[0]), H.sy(p[1]), T * 0.6, HOT, 0.22 * (1 - u) * cl(1.2 - p[2] * 0.5)); } },
       draw(c, f, X, Y, T) {
         const t = f.t, pts = chain(t), ex = extent(t), nv = NL * ex, fin = cl((t - END - REC - RET - SPIN * 0.6) / 0.35), A = cl(t / 0.12) * (1 - fin);
         const S2 = pts.map(p => [H.sx(p[0]), H.sy(p[1]) - p[2] * T]);
         const lk = lashAt(t), wave = lk >= 0 ? (t - LASH[lk].t0) / (D * 0.75) : -9;
+        { const FG = K.gfx(); if (FG) { /* (v404 LT) on the GPU: the tip's trail, the links as little glass tube hearts (kind 52) face-on and
+             edge-on in turn with the pulse running down them, the rose-gold filament, the charm and the casting heart (kind 41), the slashes */
+          const Q = FG.begin(c, null);
+          if (tipH.length > 2) { const tr = tipH.map(p => [H.sx(p[0]), H.sy(p[1]) - p[2] * T]), sp = cl(((f.tipV || 0) - 4) / 14);
+            K.gStrip(Q, tr, u => T * (0.14 + 0.18 * sp) * u, HOT, u => (0.35 + 0.4 * sp) * A * u); K.gStrip(Q, tr, u => T * (0.04 + 0.05 * sp) * u, PEARL, u => (0.4 + 0.5 * sp) * A * u);
+            if (tier >= 2) { const tr2 = tipH.map((p, i) => [H.sx(p[0]), H.sy(p[1]) - p[2] * T + Math.sin(i * 1.3 + t * 20) * T * 0.08]); K.gStrip(Q, tr2, T * 0.035, LAV, u => 0.6 * rk * A * u); } }
+          const L = T * SP0 * 1.55, NV = Math.min(NL, Math.ceil(nv));
+          for (let k = 1; k <= NV; k++) { const p = S2[k], pa = S2[k - 1], pb = S2[Math.min(NL, k + 1)], ang = Math.atan2(pb[1] - pa[1], pb[0] - pa[0]) - Math.PI / 2, u = k / NL, part = cl(nv - k + 1);
+            const la = A * part * petDim(H, p[0], p[1], T * 0.5) * (0.55 + 0.45 * sm((k * SP0) / 0.5)), hy = L / 1.57, ws = k % 2 ? 1 : 0.36, ca = Math.cos(ang), sa = Math.sin(ang);
+            Q.glow(p[0], p[1], L * 0.75, HOT, 0.25 * la); Q.quad(52, p[0], p[1], ca * hy * ws, sa * hy * ws, -sa * hy, ca * hy, '#FFFFFF', la, 0.11, (t * 0.6 + k * 0.1) % 1, 1.1);
+            const wv = Math.exp(-Math.pow((u - wave) / 0.14, 2)); if (wv > 0.03) { Q.glow(p[0], p[1], L * 0.7, PEARL, 0.7 * wv * la); Q.star(p[0], p[1], L * 0.5, 0.6 * wv * la, PEARL); } }
+          if (rk > 0.1 && NV > 2) { const pts = []; for (let k = 0; k <= NV; k++) { const p = S2[k], o = Math.sin(k * 1.6 + t * 12) * T * 0.07; pts.push([p[0], p[1] + o]); } K.gStrip(Q, pts, Math.max(0.8, T * 0.025), RGOLD, () => 0.75 * rk * A); }
+          if (nv > 0.3) { const fi = Math.min(nv, NL), i0 = Math.floor(fi), q = fi - i0, a = S2[Math.max(0, i0)], b = S2[Math.min(NL, i0 + 1)], cx = lerp(a[0], b[0], q), cy = lerp(a[1], b[1], q), ch = T * (0.42 + 0.1 * rk) * (0.5 + 0.5 * cl(nv / 2));
+            if (tipH.length > 2) { const rb = tipH.slice(-7).map((p, i) => [H.sx(p[0]) + Math.sin(t * 14 + i) * T * 0.05, H.sy(p[1]) - p[2] * T + ch * 0.35]); rb.push([cx, cy + ch * 0.62]); K.gStrip(Q, rb, u => T * 0.11 * u, BLOS, u => 0.6 * A * u * (1 - 0.7 * sm((u - 0.75) / 0.25))); K.gStrip(Q, rb, u => T * 0.035 * u, PEARL, u => 0.7 * A * u * (1 - 0.7 * sm((u - 0.75) / 0.25))); }
+            K.gHeart(Q, cx, cy + ch * 0.15, ch, f.spin, 0.25 * Math.sin(t * 6), A * petDim(H, cx, cy, ch), lk >= 0 ? 0.35 * tension(t) : 0, Math.min(2, tier), 0, 0.45, tier >= 2 ? (t * 0.8) % 1 : null);
+            Q.glow(cx, cy, ch * 0.9, CANDY, 0.2 * A * tension(t)); }
+          { const rp = S2[0], ca = cl(t / 0.15) * (1 - fin), rs = T * 0.3 * (0.6 + 0.4 * H.ease.back(cl(t / 0.25))); if (ca > 0.02) { Q.glow(rp[0], rp[1], rs * 1.4, HOT, 0.35 * ca); K.gHeart(Q, rp[0], rp[1], rs, t * 3, 0, ca * petDim(H, rp[0], rp[1], rs) * 0.9, (t > END + REC && t < END + REC + RET) ? 0.4 : 0, 1, 0, 0.8); } }
+          for (const s of slashes) { const u = (t - s.t) / 0.32, x = H.sx(s.x), y = H.sy(s.y) - T * 0.45, r = T * (s.big ? 0.85 : 0.65) * (0.8 + 0.4 * u), sa = 1 - u, arc = []; for (let j = 0; j <= 10; j++) { const b = s.a - 1.05 + 2.1 * j / 10; arc.push([x + Math.cos(b) * r, y + Math.sin(b) * r]); }
+            const env = v => Math.sin(Math.PI * v); K.gStrip(Q, arc, v => T * 0.2 * env(v) + 0.5, HOT, v => 0.9 * sa * env(v)); K.gStrip(Q, arc, v => T * 0.06 * env(v) + 0.5, PEARL, v => sa * env(v));
+            Q.glow(x, y, T * 0.6, HOT, 0.45 * sa); if (u < 0.45) Q.star(x, y, T * (0.4 + 1.0 * u), 1 - u / 0.45, PEARL); }
+          K.gBits(Q, B, T); FG.flush(c); return; } }
         c.save(); c.lineCap = 'round'; c.lineJoin = 'round';
         // the tip's trail: brightest where it whips fastest
         if (tipH.length > 2) { const tr = tipH.map(p => [H.sx(p[0]), H.sy(p[1]) - p[2] * T]), sp = cl(((f.tipV || 0) - 4) / 14);

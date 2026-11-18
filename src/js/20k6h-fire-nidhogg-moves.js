@@ -461,6 +461,9 @@ float fbm3(vec3 p){ return 0.5 * n3(p) + 0.27 * n3(p * 2.07 + 3.1) + 0.15 * n3(p
 float caus(vec2 p, float t){ vec2 i = p; float c = 1.0; for (int n = 0; n < 4; n++) { float tt = t * (1.0 - 3.5 / float(n + 1)); i = p + vec2(cos(tt - i.x) + sin(tt + i.y), sin(tt - i.y) + cos(tt + i.x)); c += 1.0 / length(vec2(p.x / (sin(i.x + tt) / 0.005), p.y / (cos(i.y + tt) / 0.005))); } c /= 4.0; c = 1.17 - pow(c, 1.4); return clamp(pow(abs(c), 8.0), 0.0, 1.6); }   /* (v361) the web of light that water throws (after the classic tileable caustic) */
 float hsd(vec2 p){ p.x = abs(p.x); if (p.y + p.x > 1.0) return length(p - vec2(0.25, 0.75)) - 0.35355; vec2 a = p - vec2(0.0, 1.0), b = p - vec2(0.5 * max(p.x + p.y, 0.0)); return sqrt(min(dot(a, a), dot(b, b))) * sign(p.x - p.y); }   /* (v402, Sunflare) a rounded love heart's signed distance: its point at the origin, its lobes' top at y 1.1, 1.2 wide */
 vec2 hmap(vec2 u){ return vec2(u.x * 0.72, 0.53 - u.y * 0.68); }   /* (v402) a quad's uv to the heart's own space: the heart fills 84% of the quad */
+float sd5(vec2 p, float r, float rf){ vec2 k1 = vec2(0.809017, -0.587785), k2 = vec2(-0.809017, -0.587785); p.x = abs(p.x); p -= 2.0 * max(dot(k1, p), 0.0) * k1; p -= 2.0 * max(dot(k2, p), 0.0) * k2; p.x = abs(p.x); p.y -= r;
+  vec2 ba = rf * vec2(-k1.y, k1.x) - vec2(0.0, 1.0); float h = clamp(dot(p, ba) / dot(ba, ba), 0.0, r); return length(p - ba * h) * sign(p.y * ba.x - p.x * ba.y); }   /* (v404 LT) a five-pointed star's signed distance (a point up, r its points' reach, rf how deep its notches) */
+float wprof(float a){ float u = mod(a, 1.2566371); u = min(u, 1.2566371 - u); float c = cos(u), s = sin(u); return 0.31153 / (c * 0.31153 + s * 0.57122) * (1.0 - 0.07 * exp(-u * u / 0.008)); }   /* (v404 LT, Wish Upon a Star) its star's polar profile (20k4h prof): 1 at a point (angle 0, 72 deg ...), 0.53 at a notch */
 vec4 u4s(vec4 c, float r, float x0, float x1, vec4 c1){ return mix(c, c1, clamp((r - x0) / (x1 - x0), 0.0, 1.0)); }   /* (v391 U4) */
 vec4 u4g(float p, float r){ vec4 c;   /* (v391 U4) Dead Scream's 2D sprites (20k5k) as exact gradients: 1 the scream band, 2 the wide wave, 3 the darkened air, 4 dark smoke, 5 pale smoke, 6 the mouth's hollow, 11 the light band; colour and alpha, not premultiplied */
   if (p < 1.5) { c = vec4(0.0941, 0.0431, 0.1804, 0.0); c = u4s(c, r, 0.5, 0.68, vec4(0.0549, 0.0275, 0.102, 0.32)); c = u4s(c, r, 0.68, 0.82, vec4(0.1686, 0.0431, 0.2706, 0.62)); c = u4s(c, r, 0.82, 0.9, vec4(0.4275, 0.1569, 0.6588, 0.7)); c = u4s(c, r, 0.9, 0.945, vec4(0.6471, 0.3608, 1.0, 0.8)); c = u4s(c, r, 0.945, 0.975, vec4(0.8157, 0.6824, 1.0, 0.35)); c = u4s(c, r, 0.975, 1.0, vec4(0.8157, 0.6824, 1.0, 0.0)); }
@@ -473,6 +476,10 @@ vec4 u4g(float p, float r){ vec4 c;   /* (v391 U4) Dead Scream's 2D sprites (20k
   else c = vec4(0.0); return c; }
 vec3 dcr(vec2 u, float span, float th){ float rr = length(u), an = atan(u.y, u.x), s = mod(-an + 0.04, 6.2831853) - 0.04, v = s / max(span, 0.05), tk = th * (1.0 - 0.6 * clamp(v, 0.0, 1.0));
   return vec3((0.8 - rr) / max(tk, 0.004), v, smoothstep(-0.035, 0.0, s) * step(v, 1.0)); }   /* (v404 DK) a crescent cut (kinds 54, 55): an arc of radius 0.8, its head at angle 0, its tail round toward -v: x across (0 the sharp outer edge .. 1 the inner), y along (0 head .. 1 tail), z inside */
+vec2 uhP(float t){ float s = sin(t), c = cos(t), c2 = 2.0 * c * c - 1.0, c3 = c * (4.0 * c * c - 3.0), c4 = 2.0 * c2 * c2 - 1.0; return vec2(16.0 * s * s * s / 17.0, -(13.0 * c - 5.0 * c2 - 2.0 * c3 - c4) / 17.0 + 0.15); }   /* (v409 DK2, Umbra Heart) its 2D heart curve (lobes up, the point at y 1.15, the cleft at -0.144) */
+vec3 uhd(vec2 p){ float sx = p.x < 0.0 ? -1.0 : 1.0; p.x = abs(p.x); vec2 a = uhP(0.0), bq = a, bn = vec2(0.0, -1.0); float best = 1e9;
+  for (int i = 1; i <= 22; i++) { vec2 b = uhP(3.1415927 * float(i) / 22.0), e = b - a, w = p - a; vec2 q = a + e * clamp(dot(w, e) / dot(e, e), 0.0, 1.0); float dd = dot(p - q, p - q); if (dd < best) { best = dd; bq = q; bn = normalize(vec2(e.y, -e.x)); } a = b; }
+  float d = sqrt(best) * (dot(p - bq, bn) > 0.0 ? 1.0 : -1.0); return vec3(d, bn.x * sx, bn.y); }   /* (v409 DK2) that curve's signed distance (negative inside) and its outward normal */
 /*<W>*/vec4 wbl(vec2 u, float q0, float th0){ float md = floor(q0 / 10.0), span = max(0.05, q0 - md * 10.0), rr = length(u), an = atan(u.y, u.x), v = 0.0, tk = th0, m = 1.0;   /* (v370, wind) a blade of wind: an arc of radius 0.8 in its quad (mode 0 a trail, its head at angle 0 and its tail round toward -v; 1 a crescent tapering both ways; 2 a whole ring): x across (0 its sharp outer edge .. 1 its inner), y along (0 the head .. 1 the tail), z inside, w arc length */
   if (md < 0.5) { float s = mod(-an + 0.03, 6.2831853) - 0.03; v = s / span; tk = th0 * (1.0 - 0.78 * clamp(v, 0.0, 1.0)) * smoothstep(-0.03 / span, 0.05, v); m = step(v, 1.0); }
   else if (md < 1.5) { v = an / (span * 0.5); tk = th0 * pow(clamp(1.0 - v * v, 0.0, 1.0), 0.6); v = abs(v); m = step(v, 1.0); }
@@ -523,6 +530,52 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
       float df = max(dot(n, Ld), 0.0), sp = pow(max(dot(n, normalize(Ld + vec3(0.0, 0.0, 1.0))), 0.0), 40.0), rid = exp(-sq(x / 0.035)) * 0.6 + exp(-sq((y - m) / 0.04)) * 0.4, ed = exp(-sq(e / 0.14));
       c = vec3(0.035, 0.02, 0.07) + vec3(0.2, 0.12, 0.34) * df * df + vec3(0.95, 0.9, 1.0) * sp * 0.7 + vec3(0.65, 0.36, 1.0) * (rid * 0.35 + ed * 0.6) * (0.35 + v_q.z); }
     a *= v_c.a * pk; gl_FragColor = vec4(min(c, vec3(1.0)) * a, a); }
+  else if (v_k > 59.5 && v_k < 62.5) { // (v409 DK2, Umbra Heart) 60 its heart of glossy shadow, 61 a pool of liquid shadow, 62 a strand or drop of it (solids)
+    vec3 c = vec3(0.0); float a = 0.0; vec3 VI = vec3(0.65, 0.36, 1.0), EN = vec3(0.43, 0.16, 0.66), BD = vec3(0.094, 0.043, 0.18);
+    if (v_k < 60.5) { // the heart (its own curve, in heart units: uv x 1.25 about its visual centre), a thick slab turned about the vertical: the
+      // near face at v_q.x (heart units), its side band swept back to -v_q.x. v_q.y seed; v_q.z its tier (0..2) + its fissures' base light x 0.9;
+      // v_c.rgb: the inner light, the beat's flash, the widening (the end)
+      vec2 hp = u * 1.25 + vec2(0.0, 0.295); float nh = v_q.x, sd = v_q.y, tier = floor(v_q.z), crk = fract(v_q.z) / 0.9, inn = v_c.r, fl = v_c.g, wide = v_c.b;
+      vec3 F = uhd(hp - vec2(nh, 0.0)); float db = F.x; for (int i = 0; i < 4; i++) db = min(db, uhd(hp - vec2(nh * (-1.0 + 0.5 * float(i)), 0.0)).x);
+      float yy = clamp((hp.y + 0.56) / 1.71, 0.0, 1.0); vec3 bc = mix(vec3(0.243, 0.173, 0.322), vec3(0.169, 0.043, 0.271), smoothstep(0.0, 0.3, yy)); bc = mix(bc, BD, smoothstep(0.3, 0.68, yy)); bc = mix(bc, vec3(0.11, 0.043, 0.2), smoothstep(0.68, 0.88, yy)); bc = mix(bc, vec3(0.227, 0.09, 0.392), smoothstep(0.88, 1.0, yy));
+      bc *= 0.75 + 0.25 * smoothstep(-0.05, -0.0, -abs(db + 0.03)); bc *= 1.0 - 0.75 * exp(-sq(db / 0.018));   /* (the band: lit on top, a violet bounce from the pool beneath, inked) */
+      float ins = -F.x; vec2 q = hp - vec2(nh, 0.0), od = F.yz; float e = clamp(ins / 0.34, 0.0, 1.0), sl = (1.0 - e) / max(sqrt(max(1.0 - sq(1.0 - e), 0.0)), 0.1);
+      vec2 g = od * min(sl, 3.5) * 0.55; for (int i = 0; i < 2; i++) { vec2 dq = q - vec2(i == 0 ? -0.46 : 0.46, -0.18); g += dq * 2.2 * exp(-dot(dq, dq) / 0.2) * 0.5; }
+      vec3 n = normalize(vec3(g, 1.0)), Ld = normalize(vec3(-0.5 - nh * 1.2, -0.62, 0.6)); float dif = max(dot(n, Ld), 0.0), fres = pow(1.0 - n.z, 1.8);
+      vec3 fc = mix(BD * 0.8, vec3(0.44, 0.33, 0.57), pow(dif, 1.7) * 0.9); fc *= 1.0 - 0.55 * smoothstep(-0.2, 1.3, q.x * 0.55 + (q.y - 0.25) * 0.75); fc += vec3(0.17, 0.06, 0.27) * exp(-sq(length((q - vec2(0.0, 0.4)) * vec2(1.0, 1.1)) / 0.55)) * 0.6;
+      if (tier > 0.5) { float nc = tier > 1.5 ? 4.0 : 2.0; for (int j = 0; j < 4; j++) { if (float(j) >= nc) break; float dir = mod(float(j), 2.0) > 0.5 ? -1.0 : 1.0, ph = u_t * (0.5 + 0.18 * float(j)) * dir + float(j) * 2.3, y0 = -0.3 + float(j) * 1.1 / nc + 0.06 * sin(u_t * 0.4 + float(j) * 1.7);
+          float cy2 = y0 + 0.08 * sin(q.x * 3.1 + ph) + 0.03 * sin(q.x * 7.0 - ph * 1.6), dd = abs(q.y - cy2); fc = mix(fc, vec3(0.2, 0.13, 0.28), exp(-sq(dd / 0.05)) * 0.45 * (1.0 - fres)); fc += EN * exp(-sq(dd / 0.014)) * (0.25 + 0.3 * fl) * (1.0 - fres); } }   /* (Adept: currents under the surface; Celestial: four, crossing) */
+      fc += VI * inn * exp(-dot(q - vec2(0.0, 0.32), q - vec2(0.0, 0.32)) / 0.42) * (0.25 + 0.5 * (1.0 - dif)) * 0.7 + EN * inn * 0.12;
+      vec2 fq = q * vec2(1.0, 0.9) + vec2(sd * 0.37, sd * 0.61); float rg = 1.0 - abs(fbm(fq * 2.4) * 2.0 - 1.0), rg2 = 1.0 - abs(fbm(fq * 4.6 + 3.7) * 2.0 - 1.0), w = 0.035 + 0.075 * wide;
+      float fis = (smoothstep(1.0 - w, 1.0 - w * 0.2, rg) + 0.45 * smoothstep(1.0 - w * 0.7, 1.0 - w * 0.12, rg2)) * smoothstep(0.03, 0.12, ins), hal = smoothstep(1.0 - w * 4.0, 1.0 - w, rg) * smoothstep(0.03, 0.12, ins);
+      float bl = 0.0; for (int i = 0; i < 3; i++) { if (float(i) >= (tier > 1.5 ? 3.0 : tier > 0.5 ? 1.0 : 0.0)) break; float yb = -0.6 + fract(u_t * (0.22 + 0.09 * float(i)) + float(i) * 0.37) * 1.9; bl += max(0.0, 1.0 - abs(q.y - yb) / 0.22) * 0.7; }
+      float tr = tier > 0.5 ? smoothstep(0.82, 0.97, fract(rg2 * 3.0 + q.x * 0.7 - u_t * 0.6)) * 0.5 : 0.0, br = min(1.7, crk * (0.55 + 0.45 * sin(u_t * 1.7 + q.x * 2.3 + q.y * 1.3 + sd)) + fl * 0.85 + wide * 0.9 + bl + tr * fis);
+      fc += EN * hal * br * (0.32 + 0.3 * wide); fc = mix(fc, VI, clamp(fis * br * 0.9, 0.0, 1.0)); fc += vec3(0.85, 0.72, 1.0) * fis * max(br - 0.6, 0.0) * (0.9 + 0.6 * wide);
+      vec3 Hh = normalize(Ld + vec3(0.0, 0.0, 1.0)); float nh2 = max(dot(n, Hh), 0.0); fc += vec3(0.96, 0.94, 1.0) * (pow(nh2, 70.0) * 0.95 + pow(nh2, 9.0) * 0.12);
+      float shp = q.x * 0.9 + q.y * 0.44 - (nh * 2.5 + 0.12 * sin(u_t * 0.5)); fc += vec3(0.82, 0.68, 1.0) * exp(-sq(shp / 0.22)) * 0.13 * (0.4 + dif);   /* (a sheen sliding over it as it turns) */
+      fc += VI * fres * clamp(dot(od, vec2(0.55, 0.83)), 0.0, 1.0) * 0.75 + vec3(0.82, 0.68, 1.0) * fres * clamp(dot(od, vec2(-0.7, -0.7)), 0.0, 1.0) * 0.18;
+      fc *= 1.0 - 0.8 * exp(-sq(ins / 0.016)); fc += VI * 0.35 * exp(-sq((ins - 0.03) / 0.012)) * clamp(dot(od, vec2(0.55, 0.83)), 0.0, 1.0);
+      float af = smoothstep(-0.008, 0.008, ins), ab = smoothstep(-0.008, 0.008, -db); c = mix(bc, fc, af); a = max(af, ab); }
+    else if (v_k < 61.5) { // a pool of liquid shadow on the floor (uv a unit disc): a dark translucent surface, its edge breathing in lobes (v_q.z), a slow
+      // liquid sheen and glints, veins beneath lit by the beat (v_q.x), the heart's violet light reflected in it; v_q.y seed; v_c tints its depth
+      float an = atan(u.y, u.x), sd = v_q.y, lb = v_q.z, rim = 0.84 + lb * (0.06 * sin(an * 3.0 + sd + t * 0.6) + 0.045 * sin(an * 5.0 - t * 0.9 + sd * 2.0) + 0.06 * (fbm(vec2(an * 1.6 + sd, t * 0.25)) - 0.5)), e = r / rim;
+      vec2 sp = u * 2.6 + vec2(sd * 1.3, sd * 0.7) + vec2(t * 0.12, -t * 0.09); float h0 = fbm(sp), hx = fbm(sp + vec2(0.06, 0.0)), hy = fbm(sp + vec2(0.0, 0.06));
+      vec3 n = normalize(vec3((h0 - hx) * 7.0, (h0 - hy) * 7.0, 1.0)); float spc = pow(max(dot(n, normalize(vec3(-0.25, -0.75, 0.6))), 0.0), 30.0);
+      c = mix(vec3(0.024, 0.014, 0.05), v_c.rgb * 0.4 + vec3(0.06, 0.025, 0.1), smoothstep(0.35, 0.95, e)) + vec3(0.06, 0.03, 0.1) * h0;
+      float vr = 1.0 - abs(fbm(vec2(an * 2.2 + r * 1.5 + sd, r * 3.2 - t * 0.08)) * 2.0 - 1.0), vn = smoothstep(0.87, 0.975, vr) * smoothstep(0.08, 0.3, e) * (1.0 - smoothstep(0.85, 1.0, e));
+      c += VI * vn * (0.12 + 0.9 * v_q.x) + EN * smoothstep(0.7, 0.95, vr) * v_q.x * 0.35 * (1.0 - smoothstep(0.85, 1.0, e)) + EN * exp(-dot(u - vec2(0.0, -0.05), u - vec2(0.0, -0.05)) * 2.6) * (0.12 + 0.4 * v_q.x);
+      c += vec3(0.78, 0.66, 1.0) * spc * 0.55 * (1.0 - smoothstep(0.75, 1.0, e)) + vec3(0.4, 0.22, 0.62) * exp(-sq((e - 0.86) / 0.05)) * 0.28;
+      a = (1.0 - smoothstep(0.8, 1.0, e)) * mix(0.86, 0.66, smoothstep(0.35, 0.85, e)); }
+    else { // a strand or a drop of liquid shadow (uv.x across in its half-widths, uv.y along: -1 its root .. 1 its bulb's foot): v_q.x its half-length
+      // over its half-width, v_q.y its neck's half-width, v_q.z its root's (both in half-widths); a bulb of radius 0.92 at the foot
+      float asp = max(v_q.x, 1.0); vec2 p = vec2(u.x, u.y * asp), pb = p - vec2(0.0, asp - 0.95); float dbb = length(pb) - 0.92, v = clamp((p.y + asp) / max(2.0 * asp - 0.95, 0.01), 0.0, 1.0);
+      float hw = mix(v_q.z, v_q.y, smoothstep(0.0, 0.75, v)), dn = abs(p.x) - hw, k = 0.35, hh = clamp(0.5 + 0.5 * (dn - dbb) / k, 0.0, 1.0), d = mix(dn, dbb, hh) - k * hh * (1.0 - hh);
+      a = (1.0 - smoothstep(-0.05, 0.04, d)) * smoothstep(-asp, -asp + 0.3, p.y);
+      vec2 nx = mix(vec2(clamp(p.x / max(hw, 0.04), -1.0, 1.0), -0.15), pb / 0.92, hh); vec3 n = normalize(vec3(nx * 0.92, sqrt(max(0.06, 1.0 - dot(nx, nx) * 0.85))));
+      float dif = max(dot(n, normalize(vec3(-0.55, -0.55, 0.62))), 0.0), fr = pow(1.0 - n.z, 1.6), spc = pow(max(dot(n, normalize(vec3(-0.35, -0.4, 1.0))), 0.0), 50.0);
+      c = mix(BD * 0.85, vec3(0.4, 0.3, 0.55), pow(dif, 1.8) * 0.75) + VI * fr * clamp(dot(nx, vec2(0.6, 0.8)), 0.0, 1.0) * 0.8 + vec3(0.92, 0.88, 1.0) * spc * 0.95;
+      c *= 1.0 - 0.7 * exp(-sq(d / 0.07)); }
+    a *= v_c.a; gl_FragColor = vec4(min(c, vec3(1.0)) * a, a); }
   else if (v_k > 15.5 && v_k < 16.5) { // (v346, Thunderstorm) a storm cloud (solid): billowing lobes of night violet, darker beneath, a cool rim
     // of light along the top, lit from within by its lightning (v_q.x) in electric blue-white; v_c its colour, v_q.y seed
     float f = fbm(u * 1.9 + vec2(v_q.y, t * 0.07)), g = fbm(u * 4.4 + vec2(-t * 0.11, v_q.y * 2.3)), d = clamp((1.0 - dot(u, u)) * (0.35 + 1.25 * f * f) - 0.12, 0.0, 1.0);
@@ -605,6 +658,64 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
     c = mix(c, vec3(0.46, 0.12, 0.38), (1.0 - smoothstep(0.008, 0.03, -d)) * 0.6);
     float dis = floor(v_q.x) / 100.0; if (dis > 0.0) { float nz = fbm(u * 4.5 + v_q.y), th = dis * 1.3; a *= smoothstep(th - 0.2, th - 0.06, nz); c = mix(c, vec3(1.0, 0.94, 0.98), (1.0 - smoothstep(th - 0.06, th + 0.08, nz)) * 0.8); }
     a *= v_c.a; gl_FragColor = vec4(min(c, vec3(1.0)) * a, a); }
+  else if (v_k > 44.5 && v_k < 47.5) { // (v404 LT) Light's solids: 45 a feather of light, 46 a glass bubble, 47 a candy star
+    vec3 c = vec3(0.0); float a = 0.0;
+    if (v_k < 45.5) { // a feather (uv.x -1 its root .. 1 its tip, uv.y across, +y its shaded side): a tapered blade bending by v_q.z, deep pink at the
+      // root through candy and blossom to a pearl tip, lit along its upper edge, fine barbs slanting from a pearl shaft; v_q.x a brightening, v_q.y seed
+      float al = u.x * 0.5 + 0.5, c0 = v_q.z * (al * al - al) * 1.6, w = 0.1 + 0.9 * pow(sin(3.1416 * clamp(pow(al, 0.72), 0.0, 1.0)), 0.85) * (1.0 - 0.3 * al), y = (u.y - c0) / max(w, 0.02), ay = abs(y);
+      a = (1.0 - smoothstep(0.74, 1.0, ay)) * smoothstep(0.0, 0.08, al) * (1.0 - smoothstep(0.9, 1.0, al));
+      c = mix(vec3(0.85, 0.29, 0.57), vec3(1.0, 0.41, 0.71), smoothstep(0.04, 0.36, al)); c = mix(c, vec3(1.0, 0.72, 0.84), smoothstep(0.34, 0.72, al)); c = mix(c, vec3(1.0, 0.94, 0.97), smoothstep(0.68, 0.95, al));
+      c *= mix(1.15, 0.62, smoothstep(-0.9, 0.9, y)); c = mix(c, vec3(0.55, 0.11, 0.34), smoothstep(0.4, 1.0, y) * 0.45);
+      float barb = pow(0.5 + 0.5 * sin((al * 30.0 - ay * 3.5 + v_q.y) * 3.1416), 10.0) * smoothstep(0.1, 0.45, ay) * (1.0 - smoothstep(0.7, 0.98, ay)) * smoothstep(0.1, 0.3, al), sh = exp(-sq(y / 0.08)) * smoothstep(0.04, 0.3, al) * (1.0 - smoothstep(0.82, 1.0, al)), sw = fract(t * 0.45);
+      c = mix(c, vec3(1.0, 0.94, 0.97), clamp(barb * 0.22 + sh * 0.7 + v_q.x * 0.45, 0.0, 1.0)) + vec3(1.0, 0.9, 0.96) * exp(-sq((y + 0.76) / 0.1)) * 0.5 * smoothstep(0.15, 0.6, al);
+      c = mix(c, vec3(0.45, 0.08, 0.28), exp(-sq((y - 0.84) / 0.1)) * 0.5) + vec3(1.0, 0.92, 0.97) * exp(-sq((al - sw * 1.3 + 0.15) / 0.07)) * 0.4 * (1.0 - 0.5 * ay); }
+    else if (v_k < 46.5) { // a glass bubble in v_c filling 0.92 of its quad: a clear middle, a saturated rim, a pearl core of radius v_q.x (solid), shade low
+      // right, a reflected light along the lower right rim, a soft highlight and a glint upper left (v_q.z the gloss)
+      float rr = r / 0.92; vec3 n = vec3(u / 0.92, sqrt(max(0.0, 1.0 - rr * rr))); float fr = pow(1.0 - n.z, 1.5), df = max(dot(n, normalize(vec3(-0.5, -0.6, 0.65))), 0.0);
+      c = mix(min(col * 1.1 + 0.12, vec3(1.0)), col * vec3(0.7, 0.36, 0.55), fr) * (0.78 + 0.32 * df); a = mix(0.42, 0.97, fr) * (1.0 - smoothstep(0.96, 1.0, rr)); c = mix(c, col * vec3(0.5, 0.2, 0.38), smoothstep(0.88, 0.97, rr) * 0.7);
+      c += vec3(1.0, 0.72, 0.87) * exp(-sq((rr - 0.84) / 0.08)) * smoothstep(0.0, 0.7, dot(u / max(r, 0.001), vec2(0.7, 0.7))) * 0.55;
+      float core = v_q.x > 0.0 ? 1.0 - smoothstep(v_q.x - 0.05, v_q.x, r) : 0.0, hl = exp(-sq((u.x + 0.33) / 0.2) - sq((u.y + 0.38) / 0.11)) * 0.7 + pow(max(dot(n, normalize(vec3(-0.35, -0.45, 1.6))), 0.0), 60.0) * 1.2;
+      c = mix(c, vec3(1.0, 0.95, 0.98), core); a = max(a, core); c += vec3(1.0) * hl * v_q.z; a = max(a, min(1.0, hl * v_q.z) * (1.0 - smoothstep(0.96, 1.0, rr))); }
+    else { // (Wish Upon a Star) a shallow rounded five-pointed star (a point toward +u.x, its edge at 0.9 of the quad): a height field rising to
+      // ridges along its points, lit from the upper left (v_q.y the quad's turn, so the light stays put), pearl at its heart to saturated rose
+      // and magenta points, a pearly bevel inside the rim, translucent, every edge feathered; v_q.x a brightening; v_q.z -1 its side band
+      vec2 p = u / 0.9; float q = length(p) / wprof(atan(p.y, p.x)), rr = length(p);
+      if (v_q.z < -0.5) { c = mix(vec3(0.91, 0.24, 0.67), vec3(0.56, 0.18, 0.45), clamp(0.5 + u.y * 0.5, 0.0, 1.0)); a = 0.85 * (1.0 - smoothstep(0.84, 1.04, q)); }
+      else { float e = 0.02, h0 = 1.0 - pow(min(q, 1.0), 1.6), hx = 1.0 - pow(min(length(p + vec2(e, 0.0)) / wprof(atan(p.y, p.x + e)), 1.0), 1.6), hy = 1.0 - pow(min(length(p + vec2(0.0, e)) / wprof(atan(p.y + e, p.x)), 1.0), 1.6);
+        float cr = cos(v_q.y), sr = sin(v_q.y); vec2 l2 = vec2(-0.45 * cr - 0.6 * sr, 0.45 * sr - 0.6 * cr); vec3 n = normalize(vec3(-(hx - h0) / e * 0.22, -(hy - h0) / e * 0.22, 1.0)), Ld = normalize(vec3(l2, 0.66));
+        float dt = dot(n, Ld), sh = clamp(1.0 + (dt - Ld.z) * 1.1, 0.6, 1.35);
+        c = mix(vec3(1.0, 0.96, 0.99), vec3(1.0, 0.83, 0.93), smoothstep(0.22, 0.4, rr)); c = mix(c, vec3(1.0, 0.69, 0.9), smoothstep(0.4, 0.5, rr)); c = mix(c, vec3(1.0, 0.56, 0.86), smoothstep(0.5, 0.68, rr)); c = mix(c, vec3(1.0, 0.36, 0.8), smoothstep(0.68, 0.86, rr)); c = mix(c, vec3(0.91, 0.24, 0.67), smoothstep(0.86, 1.0, rr));
+        c = sh <= 1.0 ? c * (0.55 + 0.45 * sh) : c + (1.0 - c) * (sh - 1.0) * 1.2; float bev = exp(-sq((q - 0.9) / 0.035)) * max(0.0, dt - Ld.z) * 2.2; c = mix(c, vec3(1.0), clamp(bev, 0.0, 1.0)); c += vec3(1.0, 0.8, 0.93) * v_q.x * 0.3 * (1.0 - rr);
+        a = (1.0 - smoothstep(0.86, 1.05, q)) * (0.55 + 0.38 * pow(1.0 - clamp(rr, 0.0, 1.0), 1.5) + 0.1 * clamp(bev, 0.0, 1.0)); } }
+    a *= v_c.a; gl_FragColor = vec4(min(c, vec3(1.0)) * a, a); }
+  else if (v_k > 51.5 && v_k < 52.5) { // (v404 LT, Honey Sugar Heart Attack, Luv Me Chain) a heart drawn as a glassy tube (solid): v_q.x the tube's half
+    // width (heart units), lit from the upper left (a hot-pink body deepening on its shaded side, a blossom inner light, a pearl core line, a thin
+    // hot-pink outer rim), a highlight sliding round it at v_q.y (0..1 from the cleft round the left side); shown from its point up to v_q.z (1.1 all)
+    vec2 p = hmap(u); float d = hsd(p), w = max(v_q.x, 0.008), x = clamp(d / w, -1.0, 1.0), up = abs(atan(p.x, 0.55 - p.y)) / 3.1416, e = 0.006;
+    vec2 g = vec2(hsd(p + vec2(e, 0.0)) - hsd(p - vec2(e, 0.0)), hsd(p + vec2(0.0, e)) - hsd(p - vec2(0.0, e))) / (2.0 * e); g = normalize(g + 1e-4);
+    vec3 n = vec3(g * x, sqrt(max(0.0, 1.0 - x * x))); float df = max(dot(n, normalize(vec3(-0.5, 0.62, 0.65))), 0.0), sp = pow(max(dot(n, normalize(vec3(-0.25, 0.35, 1.0))), 0.0), 28.0);
+    float fr = p.x < 0.0 ? up * 0.5 : 1.0 - up * 0.5, dh = abs(fract(fr - v_q.y + 0.5) - 0.5), hl = exp(-sq(dh / 0.06)) * exp(-sq((x + 0.3) / 0.35));
+    vec3 c = mix(vec3(0.62, 0.17, 0.42), vec3(1.0, 0.41, 0.71), 0.25 + 0.75 * df); c = mix(c, vec3(1.0, 0.72, 0.84), exp(-sq((x + 0.2) / 0.22)) * 0.45); c = mix(c, vec3(1.0, 0.94, 0.97), exp(-sq((x + 0.22) / 0.08)) * 0.75);
+    c += vec3(1.0) * sp * 0.45 + vec3(1.0, 0.95, 0.98) * hl * 0.6; c = mix(c, vec3(1.0, 0.25, 0.64), exp(-sq((x - 0.88) / 0.08)) * 0.8); c = mix(c, vec3(0.5, 0.14, 0.36), exp(-sq((x + 0.95) / 0.07)) * 0.5);
+    float a = (1.0 - smoothstep(0.82, 1.0, abs(d / w))) * (1.0 - smoothstep(v_q.z - 0.04, v_q.z, up)) * (0.86 + 0.14 * df) * v_c.a; gl_FragColor = vec4(min(c, vec3(1.0)) * a, a); }
+  else if (v_k > 48.5 && v_k < 49.5) { // (v404 LT, Sweetheart Stamp) a heart seal (solid): v_q.z 1 its stamping face (a bevelled rose-gold rim, a pearly pink
+    // face, nested engraved hearts glowing by v_q.x), 2 its back (the rim, a pearly domed plate, a raised rose-gold heart), -1 its side (the
+    // thickness band), -2 the side at a face (a rose-gold rim line); v_q.y a sheen's place across it (-1..1)
+    vec2 p = hmap(u), c0 = vec2(0.0, 0.52); float d = hsd(p), a = 1.0 - smoothstep(-0.012, 0.004, d); vec3 c;
+    if (v_q.z < 0.0) { c = mix(vec3(1.0, 0.83, 0.9), vec3(0.94, 0.55, 0.75), smoothstep(-0.8, 0.0, u.y)); c = mix(c, vec3(0.7, 0.25, 0.5), smoothstep(0.0, 0.85, u.y)); if (v_q.z < -1.5) c = mix(c, vec3(0.91, 0.69, 0.72), exp(-sq(d / 0.035))); }
+    else { float e = 0.006, di = hsd((p - c0) / 0.84 + c0) * 0.84, gk = clamp(0.5 + 0.6 * (p.x - (p.y - 0.55)) * 0.7, 0.0, 1.0);
+      vec2 g = vec2(hsd(p + vec2(e, 0.0)) - hsd(p - vec2(e, 0.0)), hsd(p + vec2(0.0, e)) - hsd(p - vec2(0.0, e))) / (2.0 * e); float lt = dot(normalize(g + 1e-4), vec2(-0.6, 0.8));
+      vec3 gold = mix(vec3(1.0, 0.89, 0.92), vec3(0.91, 0.69, 0.72), smoothstep(0.0, 0.35, gk)); gold = mix(gold, vec3(0.79, 0.54, 0.58), smoothstep(0.3, 0.7, gk)); gold = mix(gold, vec3(0.61, 0.37, 0.43), smoothstep(0.65, 1.0, gk));
+      gold *= 0.8 + 0.38 * lt * (d + di > 0.0 ? 1.0 : -0.6); gold += vec3(1.0, 0.95, 0.97) * exp(-sq((d + 0.03) / 0.012)) * 0.5 * max(lt, 0.0);
+      vec3 f; if (v_q.z < 1.5) { float rc = length(p - vec2(-0.13, 0.66)) / 0.62; f = mix(vec3(1.0, 0.94, 0.97), vec3(1.0, 0.72, 0.84), smoothstep(0.0, 0.22, rc)); f = mix(f, vec3(1.0, 0.41, 0.71), smoothstep(0.2, 0.55, rc)); f = mix(f, vec3(0.85, 0.29, 0.57), smoothstep(0.5, 0.85, rc)); f = mix(f, vec3(0.56, 0.18, 0.45), smoothstep(0.82, 1.0, rc));
+        for (int k = 0; k < 2; k++) { float s = k == 0 ? 0.62 : 0.42, dk = hsd((p - c0 - vec2(0.0, 0.05 - 0.07 * float(k))) / s + c0) * s; f = mix(f, vec3(0.5, 0.14, 0.4), exp(-sq(dk / 0.02)) * 0.75); f = mix(f, vec3(1.0, 0.94, 0.97), exp(-sq((dk + 0.02) / 0.01)) * 0.85); f += vec3(1.0, 0.45, 0.78) * exp(-sq(dk / 0.04)) * v_q.x * 0.35 + vec3(1.0, 0.9, 0.96) * exp(-sq((dk + 0.02) / 0.01)) * v_q.x * 0.3; }
+        f = mix(f, vec3(1.0, 0.95, 0.98), 1.0 - smoothstep(-0.006, 0.006, hsd((p - c0 - vec2(0.0, -0.08)) / 0.2 + c0) * 0.2)); }
+      else { float rc = length(p - vec2(-0.15, 0.7)) / 0.82; f = mix(vec3(1.0), vec3(1.0, 0.94, 0.97), smoothstep(0.0, 0.15, rc)); f = mix(f, vec3(1.0, 0.72, 0.84), smoothstep(0.12, 0.4, rc)); f = mix(f, vec3(1.0, 0.41, 0.71), smoothstep(0.38, 0.75, rc)); f = mix(f, vec3(0.85, 0.29, 0.57), smoothstep(0.72, 1.0, rc));
+        float dk = hsd((p - c0 - vec2(0.0, 0.0)) / 0.4 + c0) * 0.4; f = mix(f, vec3(0.91, 0.69, 0.72), exp(-sq(dk / 0.022))); f = mix(f, vec3(1.0, 0.94, 0.97), exp(-sq((dk + 0.012) / 0.008)) * 0.7); }
+      c = mix(f, gold, smoothstep(-0.012, 0.004, di)); c = mix(c, vec3(0.56, 0.18, 0.45), exp(-sq(di / 0.008)) * 0.6);
+      c += vec3(1.0, 0.95, 0.98) * (exp(-sq((p.x * 0.85 + (p.y - 0.55) * 0.5 - v_q.y * 0.6) / 0.09)) * 0.3 + exp(-sq((p.x * 0.85 + (p.y - 0.55) * 0.5 - v_q.y * 0.6 - 0.16) / 0.03)) * 0.25); }
+    c = mix(c, vec3(0.47, 0.2, 0.29), (1.0 - smoothstep(0.004, 0.02, -d)) * (v_q.z > -1.5 && v_q.z < -0.5 ? 0.0 : 0.85));   /* (the inner copies of the side band carry no contour: no stripes) */
+    a *= v_c.a; gl_FragColor = vec4(min(c, vec3(1.0)) * a, a); }
 /*<W>*/  else if (v_k > 32.5 && v_k < 33.5) { // (v370, wind) the body of a blade of wind (solid): deep emerald toward its sharp outer edge, its
     // opacity fading toward the inner edge, streaked as the air races along it; v_q.x span + 10 x mode, v_q.y seed, v_q.z thickness
     vec4 B = wbl(u, v_q.x, v_q.z); float d = B.x, rr = r, md = floor(v_q.x / 10.0), along = md < 0.5 ? pow(clamp(1.0 - B.y, 0.0, 1.0), 1.3) : md < 1.5 ? 1.0 - smoothstep(0.7, 1.0, B.y) : 1.0;
@@ -669,6 +780,33 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
         vec2 p = hmap(u); float d = hsd(p), up = abs(atan(p.x, 0.55 - p.y)) / 3.1416, w = max(v_q.x, 0.01), sh = 1.0 - smoothstep(v_q.y - 0.05, v_q.y, up);
         L = mix(col, vec3(1.0), 0.75 * exp(-sq(d / (w * 0.4)))) * exp(-sq(d / w)) * sh + col * v_q.z * exp(-max(d, 0.0) * 7.0) * (d > 0.0 ? 1.0 : 0.35);
         L *= 1.0 - smoothstep(0.88, 1.0, max(abs(u.x), abs(u.y))); } }
+    else if (v_k > 47.5 && v_k < 51.5) { // (v404 LT) Light's light: 48 a heart of light, 50 a star of light, 51 a column of light
+      if (v_k < 48.5) { // a heart filled with soft light (pearl at its heart, blush, the quad's colour out to the rim), v_q.y the fill's strength; its rim
+        // line (v_q.x its half width); v_q.z 0..3 nested outlines inside it, + 10 a halo outside
+        vec2 p = hmap(u); float d = hsd(p), w = max(v_q.x, 0.004), ins = 1.0 - smoothstep(-0.012, 0.01, d), rc = length(p - vec2(-0.02, 0.56)), nn = mod(v_q.z, 10.0);
+        L = mix(vec3(1.0, 0.96, 0.99), mix(vec3(1.0, 0.83, 0.93), col, smoothstep(0.12, 0.5, rc)), smoothstep(0.0, 0.25, rc)) * ins * v_q.y * (0.4 + 0.6 * exp(-rc * rc * 5.0) + 0.35 * smoothstep(-0.12, 0.0, d));
+        L += mix(col, vec3(1.0), 0.7 * exp(-sq(d / (w * 0.45)))) * exp(-sq(d / w));
+        for (int k = 1; k < 4; k++) { float fk = float(k); if (fk > nn + 0.5) break; float s = 1.0 - 0.2 * fk; vec2 c0 = vec2(0.0, 0.5); float dk = hsd((p - c0) / s + c0) * s; L += mix(col, vec3(1.0), 0.6 * exp(-sq(dk / (w * 0.4)))) * exp(-sq(dk / (w * 0.85))) * 0.8; }
+        if (v_q.z > 9.5) L += col * exp(-max(d, 0.0) * 13.0) * (1.0 - ins) * 0.4 * (1.0 - smoothstep(0.6, 0.95, r));
+        L *= 1.0 - smoothstep(0.86, 1.0, max(abs(u.x), abs(u.y))); }
+      else if (v_k < 50.5) { // a five-pointed star of light (a point up, turned by v_q.y): v_q.z 0 a little star (a pearl body, the quad's colour at its edge, a
+        // soft glow, v_q.x the glow's strength); v_q.z > 0 the Wish star's outline or wave (its profile wprof, a point toward +u.x, its edge at 0.8 of
+        // the quad): a pearl leading edge (v_q.z its width), a rose band inside, a translucent candy body of v_q.x, a halo; drawn round from the
+        // point to v_q.y of the way (1 all)
+        float ca = cos(v_q.y), sa = sin(v_q.y); vec2 p = vec2(u.x * ca - u.y * sa, -(u.x * sa + u.y * ca));
+        if (v_q.z < 0.001) { float d = sd5(p, 0.62, 0.42), ins = 1.0 - smoothstep(-0.02, 0.02, d); L = mix(vec3(1.0, 0.97, 0.99), col, smoothstep(0.05, 0.55, length(p) / 0.62)) * ins + col * exp(-max(d, 0.0) * 9.0) * (1.0 - ins) * v_q.x; }
+        else { float q = r / (0.8 * wprof(atan(u.y, u.x))), w = v_q.z, an = mod(atan(u.y, u.x), 6.2832) / 6.2832, sh = v_q.y > 0.999 ? 1.0 : 1.0 - smoothstep(v_q.y - 0.012, v_q.y, an);
+          L = (vec3(1.0, 0.97, 0.99) * exp(-sq((q - 0.985) / w)) * 1.2 + col * exp(-sq((q - 0.94) / (w * 2.5))) * 0.65 + mix(col, vec3(1.0, 0.56, 0.86), 0.5) * smoothstep(0.3, 0.92, q) * (1.0 - smoothstep(0.96, 1.02, q)) * 0.3 * v_q.x + col * exp(-max(q - 1.0, 0.0) * 14.0) * step(1.0, q) * 0.2) * sh; }
+        L *= 1.0 - smoothstep(0.86, 1.0, max(abs(u.x), abs(u.y))); }
+      else { // a column of light (uv.x across, uv.y along: -1 its top .. 1 its foot): a soft halo, a rose body with a brighter limb, a pearl middle,
+        // currents winding down it (v_q.x of them, 1..3), fine strands streaming down; v_q.y its length in half widths (so the currents keep
+        // their shape on any column), v_q.z its ends' feather (0 none .. 1)
+        float x = u.x, ax = abs(x), v = u.y * 0.5 + 0.5, yy = v * max(v_q.y, 1.0), s = t * 1.5, body = exp(-ax * ax * 3.0) * (1.0 - smoothstep(0.7, 1.0, ax)), limb = exp(-sq((ax - 0.56) / 0.08)) * (1.0 - smoothstep(0.66, 0.86, ax)), core = exp(-sq(x / 0.13));
+        float cu = smoothstep(0.42, 0.82, fbm(vec2(x * 3.0 + 1.7, yy * 0.9 - s))) * 0.6 + pow(0.5 + 0.5 * sin(yy * 2.2 - s * 3.0 + asin(clamp(x / 0.7, -1.0, 1.0)) * 2.0), 6.0) * body * 0.7;
+        if (v_q.x > 1.5) cu += pow(0.5 + 0.5 * sin(yy * 2.2 - s * 3.0 - asin(clamp(x / 0.7, -1.0, 1.0)) * 2.0 + 3.1416), 8.0) * body * 0.5;
+        if (v_q.x > 2.5) cu += smoothstep(0.55, 0.9, fbm(vec2(x * 8.0 + 5.0, yy * 1.8 - s * 2.4))) * 0.4;
+        float st = pow(n2(vec2(x * 24.0 + 3.0, yy * 0.5 - s * 1.6)), 6.0) * body, fe = v_q.z > 0.0 ? smoothstep(0.0, 0.12 * v_q.z, v) * (1.0 - smoothstep(1.0 - 0.18 * v_q.z, 1.0, v)) : 1.0;
+        L = (col * exp(-ax * ax * 1.6) * 0.3 + col * body * (0.5 + 0.4 * cu) + mix(col, vec3(1.0, 0.85, 0.94), 0.5) * limb * 0.45 + vec3(1.0, 0.95, 0.98) * core * (0.75 + 0.25 * cu) + vec3(1.0, 0.88, 0.95) * st * 0.6) * fe * (1.0 - smoothstep(0.88, 1.0, ax)); } }
     else if (v_k > 25.5) { // (v361, water light)
       if (v_k < 26.5) { // caustic light: v_q.z > 0.5 on a sphere of water (the web of light inside it, a specular glint, its rim
         // glowing), else on the floor (a pool of rippling light fading out); v_q.x strength, v_q.y seed
@@ -845,7 +983,7 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
   const Q = { lit: new Float32Array(12 * 6 * 600), nl: 0, smk: new Float32Array(12 * 6 * 200), ns: 0, wlit: new Float32Array(12 * 6 * 200), nwl: 0, wsmk: new Float32Array(12 * 6 * 100), nws: 0, get windOK() { return !!PRW; }, a: 1, b: 0, c0: 0, d: 1, e: 0, f: 0, k: 1, t: 0, W: 0, Hh: 0, pet: [0, 0, 0], gpu: true,
     X(x, y) { return this.a * x + this.c0 * y + this.e; }, Y(x, y) { return this.b * x + this.d * y + this.f; },
     /* one quad: centre (screen px), half-axes (ux, uy), (vx, vy) in screen px */
-    quad(kind, x, y, ux, uy, vx, vy, col, al, q0, q1, q2) { if (!(al > 0.004)) return; const solid = (kind >= 9 && kind <= 12) || kind === 16 || kind === 24 || kind === 25 || kind === 33 || kind === 36 || kind === 39 || kind === 40 || kind === 41 /* v402 */ || (kind >= 53 && kind <= 58 && kind !== 55) /* v404 DK */ || kind === 71 /* v391 U4 */, wd = kind >= 33 && kind <= 40;
+    quad(kind, x, y, ux, uy, vx, vy, col, al, q0, q1, q2) { if (!(al > 0.004)) return; const solid = (kind >= 9 && kind <= 12) || kind === 16 || kind === 24 || kind === 25 || kind === 33 || kind === 36 || kind === 39 || kind === 40 || kind === 41 /* v402 */ || (kind >= 45 && kind <= 47) || kind === 49 || kind === 52 /* v404 LT */ || (kind >= 53 && kind <= 58 && kind !== 55) /* v404 DK */ || (kind >= 60 && kind <= 62) /* v409 DK2 */ || kind === 71 /* v391 U4 */, wd = kind >= 33 && kind <= 40;
       const ka = wd ? (solid ? 'wsmk' : 'wlit') : (solid ? 'smk' : 'lit'), kn = wd ? (solid ? 'nws' : 'nwl') : (solid ? 'ns' : 'nl'); let A = this[ka]; const n = this[kn];
       if ((n + 6) * 12 > A.length) { const q = new Float32Array(A.length * 2); q.set(A); A = q; this[ka] = q; }
       const cx = this.X(x, y), cy = this.Y(x, y), a = this.a, b = this.b, c = this.c0, d = this.d, Ux = a * ux + c * uy, Uy = b * ux + d * uy, Vx = a * vx + c * vy, Vy = b * vx + d * vy, C = rgbOf(col); let o = n * 12;
