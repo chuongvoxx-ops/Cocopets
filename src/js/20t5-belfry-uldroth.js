@@ -385,7 +385,7 @@ const BEL_ULDROTH = (() => {
   /* ================= the fight ================= */
   const TQ = '#61D9D2', TQ_HI = '#C9FFF8', WARN = '#FF4D6D', SAFE = '#8FE0A6', GOLD = '#FFE37A', FOAM = '#E2F7F2', DEEP = '#123C52';
   const CYC = { 1: ['jaw', 'undertow'], 2: ['jaw', 'undertow', 'jaw'], 3: ['wave', 'jaw', 'wave', 'undertow'] };
-  const TUNE = { hp: 28000 * 2, dmg: 21, bars: 9,   /* (hp: measured with level-10 bots (fresh random pets) at 85-145 dps: a median of about 4 minutes, 3 to 6 by the pet, with the bell, the surges and the waves) */
+  const TUNE = { hp: 28000 * 4 /* v404 */, dmg: 21, bars: 9,   /* (hp: measured with level-10 bots (fresh random pets) at 85-145 dps: a median of about 4 minutes, 3 to 6 by the pet, with the bell, the surges and the waves) */
     jawTrack: 1.55, jawLock: 1.1, jawLen: 13.5, jawSp: 0.36, jawRec: 1.9,
     pullT: 2.8, pullR: 6.2, pullV0: 0.6, pullV1: 2.9, gasp: 2.5,
     bellEvery: 30, bellFirst: 3.5, bellCall: 5, bellRise: 7, bellHold: 2.6, bellEbb: 3.4, floodZ: 1.35, floodK: 0.42,

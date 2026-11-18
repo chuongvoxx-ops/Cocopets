@@ -362,7 +362,7 @@ const BELK = (() => {
   /* (the tuning: Kharrox is set in absolute terms for the rift's recommended level, 10: six bars (BEL_BOSS_K, the 6/7/9
      convention), blows of about TUNE.dmg, and every blow on it scaled (dmgK) so its whole health is worth effHp of the pet's
      own damage, which sets the fight's length (about 90 s for a level-10 pet using its skills); a rift may set Rf.belkHp) */
-  const TUNE = { bars: 6, dmg: 15, effHp: 21000 * 2, addHp: 1000,   /* (v391: measured, a level-10 bot with skills deals ~270 of its damage a second here) */ sweepK: 1.45, ringK: 1.15, closedK: 0.85, openK: 1.25, eyeK: 1.7, stunK: 1.1 };
+  const TUNE = { bars: 6, dmg: 15, effHp: 21000 * 4 /* v404: 4x, the user 2026-11-19 */, addHp: 1000,   /* (v391: measured, a level-10 bot with skills deals ~270 of its damage a second here) */ sweepK: 1.45, ringK: 1.15, closedK: 0.85, openK: 1.25, eyeK: 1.7, stunK: 1.1 };
   const CYC = { 1: ['sweep', 'toll', 'sweep', 'toll'], 2: ['sweep', 'toll', 'sweep', 'sweep', 'toll'] };
   const sf = (FX, k, ...a) => { const s = FX.H && FX.H.sfx; if (s && s[k]) try { s[k](...a); } catch (e) { /* no sound */ } };
   const say = (FX, key, s, sub, col, dur) => { const M = FX.mem, n = (+M.seen[key] || 0) + 1; M.seen[key] = n; if (n > 2) return; FX.H.banner(s, n === 1 ? sub || '' : '', col || TQ_HI, n === 1 ? (dur || 2.6) : 1.1, n === 1); };

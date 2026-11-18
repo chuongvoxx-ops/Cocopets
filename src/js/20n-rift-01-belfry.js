@@ -653,7 +653,7 @@ if (typeof window !== 'undefined') window.BEL = BEL;
         if (m && !C.layer && E.layer) C.layer = E.layer(X); } catch (e) { try { console.warn('bel guard', e); } catch (e2) {} m = null; } }
     if (!m) { const B2 = BOSSES.find(b => b.id === 'kharrox'); m = X.lesserBoss(x, y, 0.35, '', B2); if (m && typeof RiftEvil !== 'undefined') { const Ev = RiftEvil.make(d.seed * 7919 >>> 0, null); m.evil = Ev; m.glow = d.palette.col; } if (m) { m.bname = d.name; m.aggro = false; } }
     if (m && o && o.hpMin > m.maxhp) { m.maxhp = m.hp = Math.round(o.hpMin); }
-    if (m && (key === 'church' || key === 'foundry' || key === 'storm')) { m.maxhp = m.hp = Math.round(m.maxhp * 2); m.belHard = 5; }   /* (v400: Gloomfin, Clangrot, Squallmaw: double health, 5x blows, the user 2026-11-17) */
+    if (m && (key === 'church' || key === 'foundry' || key === 'storm')) { m.maxhp = m.hp = Math.round(m.maxhp * 4); m.belHard = 5; }   /* (v404: 4x, was 2x in v400; v400: Gloomfin, Clangrot, Squallmaw: double health, 5x blows, the user 2026-11-17) */
     if (m) { m.belGuard = key; C.guard = { m, key, def: d, gate, home: { x, y } }; }
     return m; }
   BEL.placeGuard = placeGuard;
@@ -980,10 +980,10 @@ if (typeof window !== 'undefined') window.BEL = BEL;
   for (const id of ['belfoundry', 'belstorm']) { if (!BIOME_ORDER.includes(id)) BIOME_ORDER.push(id); if (typeof DARK_COL !== 'undefined') DARK_COL[id] = id === 'belfoundry' ? '12,8,6' : '6,14,24'; if (typeof ROOM_SHAPES !== 'undefined') ROOM_SHAPES[id] = id === 'belfoundry' ? ['rect', 'rect', 'oval'] : ['oval', 'rect', 'oval']; if (typeof BOSS_ARENA !== 'undefined') BOSS_ARENA[id] = 'oval'; }
   if (BIOMES.belnave && !BIOMES.belnave.__d1) { BIOMES.belnave.props = ['belcolumn', 'belstump', 'belbench', 'belfall', 'belcoral', 'bellamp', 'belpillar']; BIOMES.belnave.__d1 = 1; }
   const DUNS = {
-    d1: { key: 'd1', name: 'The Drowned Lower Church', land: 'belnave', n: 150, guard: 'church', valves: 3, gate: true, traps: 15,   // v395 B1: three gate valves drain the flooded gate hall (no surge halls here)
+    d1: { key: 'd1', name: 'The Drowned Lower Church', land: 'belnave', n: 80 /* v404: was 150, the user 2026-11-19 */, guard: 'church', valves: 3, gate: true, traps: 15,   // v395 B1: three gate valves drain the flooded gate hall (no surge halls here)
           hpK: 0.8, dmgK: 0.75, leadK: 0.25, period: 15, vista: { x: 32, y: -20 } },
-    d2: { key: 'd2', name: 'The Bell Foundry Undercroft', land: 'belfoundry', n: 180, guard: 'foundry', valves: 3, traps: 22, hpK: 0.9, dmgK: 0.82, leadK: 0.25, period: 13, vista: { x: 32, y: 84 } },
-    d3: { key: 'd3', name: 'The Storm Galleries', land: 'belstorm', n: 200, guard: 'storm', valves: 4, traps: 30, hpK: 1.0, dmgK: 0.9, leadK: 0.25, period: 11.5, vista: { x: 32, y: -24 } } };
+    d2: { key: 'd2', name: 'The Bell Foundry Undercroft', land: 'belfoundry', n: 90 /* v404: was 180 */, guard: 'foundry', valves: 3, traps: 22, hpK: 0.9, dmgK: 0.82, leadK: 0.25, period: 13, vista: { x: 32, y: 84 } },
+    d3: { key: 'd3', name: 'The Storm Galleries', land: 'belstorm', n: 100 /* v404: was 200 */, guard: 'storm', valves: 4, traps: 30, hpK: 1.0, dmgK: 0.9, leadK: 0.25, period: 11.5, vista: { x: 32, y: -24 } } };
   BEL.DUNS = DUNS;
   const BROOD_T = ['crawler', 'leech', 'reeflantern'], MOBS = ['crawler', 'crawler', 'reeflantern', 'crawler', 'leech', 'crawler'];
   const themeOf = key => { try { const Th = BEL.THEMES && BEL.THEMES[key]; return Th || null; } catch (e) { return null; } };
@@ -1147,7 +1147,7 @@ if (typeof window !== 'undefined') window.BEL = BEL;
   const Rf = defRift({
     id: 'belfry', n: 1, name: 'The Drowned Belfry', lvl: 10, sigil: 'Tide', biome: 'belfry', aff: ['water', 'dark'], region: 'the coast', layoutVer: 4,   // v394 B1: eight stages (three dungeons)
     blurb: 'A coastal bell tower sunk halfway into an alien sea. Fight down through three drowned dungeons, each held by a corrupted Cocopet, win three crystals in the Hall of Three Tides, balance the clapper counterweights, and silence the Drowned Herald.',
-    stageNote: 'Eight stages: the Drowned Lower Church (a dungeon of 150 brood), the Hall of Three Tides (three gate trials), Kharrox the Bellback, the Bell Foundry Undercroft (a dungeon of 180), the Clapper Counterweights, Nhalu the Lantern Eel, the Storm Galleries (a dungeon of 200), and Uldroth the Drowned Herald, who seals the rift. A corrupted Cocopet guards each dungeon\'s gate; turn a flooded hall\'s valve to drain it.',
+    stageNote: 'Eight stages: the Drowned Lower Church (a dungeon of 80 brood), the Hall of Three Tides (three gate trials), Kharrox the Bellback, the Bell Foundry Undercroft (a dungeon of 90), the Clapper Counterweights, Nhalu the Lantern Eel, the Storm Galleries (a dungeon of 200), and Uldroth the Drowned Herald, who seals the rift. A corrupted Cocopet guards each dungeon\'s gate; turn a flooded hall\'s valve to drain it.',
     gate: { anima: 'cancer', name: 'The Oracle Shell' }, mons: ['crawler', 'leech', 'reeflantern'], sealing: SEALING,
     scale: 0.5,   // (half the health and blows the brood was first built with)
     ease: 1, monCount: 0.55,   // v394 B1: the dungeons' rolled floors thinned (each is trimmed or topped up to its exact count), elites at the Tower's own share
