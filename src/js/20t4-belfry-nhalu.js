@@ -636,7 +636,7 @@ const BEL_NHALU = (() => {
     if (M.lanes.some(L => L.armed)) pts.push([me.x + (me.x < FX.C.x ? 4 : -4), me.y]);
     let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; for (const [x, y] of pts) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
     const W = H.W ? H.W() : 390, Hh = H.H ? H.H() : 844, TS = FX.Tz() / Math.max(0.05, FX.g.zoom || 0.6);
-    const zoom = Math.max(0.36, Math.min(0.62, (W - 40) / (TS * (x1 - x0 + 3)), (Hh - 300) / (TS * (y1 - y0 + 3))));
+    const ck = (FX.g && FX.g.camK) || 1, zoom = Math.max(0.36 / ck, Math.min(0.62, (W - 40) / (TS * (x1 - x0 + 3) * ck), (Hh - 300) / (TS * (y1 - y0 + 3) * ck)));   // (v404 BF: as Kharrox's: the engine's g.camK (1.2) divided out of the fit, so the lanes in play stay on screen)
     return { x: (x0 + x1) / 2, y: (y0 + y1) / 2 + 30 / (TS * zoom), k: 1, zoom }; }
 
   /* ---------- drawing ---------- */
@@ -668,15 +668,54 @@ const BEL_NHALU = (() => {
       if (wet < 0.98) { c.fillStyle = `rgba(40,54,58,${0.25 * (1 - wet)})`; c.fillRect(x0, yN, x1 - x0, yS - yN); }
       if (wet > 0.02) { const top = lerp(yS, yN, Math.min(1, wet * 1.05)); const g = c.createLinearGradient(x0, 0, x1, 0); g.addColorStop(0, `rgba(18,60,82,${0.55 * wet})`); g.addColorStop(0.5, `rgba(26,84,104,${0.42 * wet})`); g.addColorStop(1, `rgba(18,60,82,${0.55 * wet})`); c.fillStyle = g; c.fillRect(x0, top, x1 - x0, yS - top);
         if (pat && !lowFx() && pat.setTransform && typeof DOMMatrix !== 'undefined') { const k = T * 3.2 / 96; pat.setTransform(new DOMMatrix([k, 0, 0, k * GY, sx(C.x) + Math.sin(t * 0.13 + L.i) * T * 1.5 + t * T * 0.12, sy(C.y) + t * T * 0.3 + L.i * T])); c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.16 * wet; c.fillStyle = pat; c.fillRect(x0, top, x1 - x0, yS - top); c.restore(); }
-        c.strokeStyle = `rgba(220,250,255,${0.35 * wet})`; c.lineWidth = Math.max(1, T * 0.05); c.beginPath(); c.moveTo(x0, top); c.lineTo(x0, yS); c.moveTo(x1, top); c.lineTo(x1, yS); c.stroke(); } }
+        if (!fg()) { c.strokeStyle = `rgba(220,250,255,${0.35 * wet})`; c.lineWidth = Math.max(1, T * 0.05); c.beginPath(); c.moveTo(x0, top); c.lineTo(x0, yS); c.moveTo(x1, top); c.lineTo(x1, yS); c.stroke(); } } }   // (v404 BF: on the GPU the water's edges are feathered light, tellsGPU)
     // its shadow under the water: soft and dark along the body
     if (M.sp && !(M.end && M.end.t > 5)) { c.save(); c.fillStyle = 'rgba(4,14,20,.3)'; for (let s = -0.6; s < BODY_L + 0.8; s += 0.55) { const p = spW(m, M, Math.max(0, s)), r = (s < 0 ? 0.5 : RAD(Math.min(s, BODY_L))) * T * 1.1; c.beginPath(); c.ellipse(sx(p.x) + T * 0.12, sy(p.y) + T * 0.06, r, r * 0.5, 0, 0, TAU); c.fill(); } c.restore(); }
+    { const F = fg(); if (F) { tellsGPU(c, FX, M, T, t, F, m.dead && M.end); return; } }   // v404 BF: glow-only telegraphs on the GPU; the 2D below where the painter is not
     if (m.dead && M.end) return;
     // the lanes' warnings
     for (const L of M.lanes) if (L.armed) drawLaneWarn(c, FX, M, L, T, t);
     // the marked lane of a drain, and its countdown
     const A = M.ac; if (A && A.k === 'drain' && (A.step === 1 || A.step === 2)) drawDrainMark(c, FX, M, A, T, t);
     if (A && A.bite) drawBiteWarn(c, FX, A.bite, T, t); }
+  /* v404 BF (the user: the lane edges, the countdown digits and the drain chevrons were still crisp 2D lines): the telegraphs on
+     the GPU painter, glow-only and feathered. The lanes' water edges are soft light. Lantern Hunt's lane: its two edges a wide
+     faint amber light over a thin bright core (feathered at the ends), quickening as the strike nears, and an amber tide of
+     light rising up the lane over its wait, so the time reads without a number (the symbol is drawFx's symbol of light). The
+     drain's lane: teal edges and chevrons of light running down to the sluice; the window to turn the wheel a row of small
+     lights going out one by one. The bite: a soft red lane filling from the head, its sides and two chevrons of light closing
+     on its end. No countdown digits; the words (MOVE LANE, DRAIN) stay. Without the painter, the 2D picture as before. */
+  function tellsGPU(c, FX, M, T, t, F, ended) { const C = FX.C, me = FX.me, A = M.ac, sx = FX.sx, sy = FX.sy, yN = sy(C.y - NY), yS = sy(C.y + NY), words = [];
+    const Q = F.begin(c, null);
+    // a V of light (tip at x, y, arms back toward dir a, half-width s): the arms overlap past the tip, a glow over it (no bead)
+    const vee = (x, y, a, s, col, al, w) => { const ca = Math.cos(a), sa = Math.sin(a); for (const sg of [-1, 1]) { const bx = x - ca * s + -sa * sg * s * 0.9, by = y - sa * s + ca * sg * s * 0.9, ex = (x - bx) * 0.12, ey = (y - by) * 0.12; Q.beam(bx, by, x + ex, y + ey, w * 2.6, col, al * 0.3); Q.beam(bx, by, x + ex, y + ey, w, col, al); } Q.glow(x, y, w * 2.2, col, al * 0.45); };
+    try {
+      // the water's edges in each lane: feathered light from its surface down to the sluice
+      for (const L of M.lanes) { if (L.wet <= 0.02) continue; const x0 = sx(laneX(C, L.i) - LWW), x1 = sx(laneX(C, L.i) + LWW), top = lerp(yS, yN, Math.min(1, L.wet * 1.05));
+        for (const x of [x0, x1]) { Q.beam(x, top, x, yS + T * 0.3, T * 0.42, '#BFEFFF', 0.1 * L.wet); Q.beam(x, top, x, yS + T * 0.2, T * 0.12, '#E6FBFF', 0.28 * L.wet); } }
+      if (ended) return;
+      // Lantern Hunt
+      for (const L of M.lanes) { if (!L.armed) continue; const a = L.armed, u = cl(a.t / a.T), [x0, y0, x1, y1] = laneBox(FX, C, L.i), pul = 0.6 + 0.4 * Math.sin(t * (8 + 14 * u)), xc = (x0 + x1) / 2, hw = (x1 - x0) / 2, H = y1 - y0;
+        for (const sd of [-1, 1]) { const x = xc + sd * (hw - T * 0.45); Q.beam(x, y0 - T * 0.8, x, y1 + T * 0.8, T * 1.5, AMBER, (0.3 + 0.3 * u) * pul); Q.beam(x, y0 - T * 0.6, x, y1 + T * 0.6, T * 0.32, AMBER_HI, (0.6 + 0.4 * u) * pul); }   // (on the water, just inside the kerbs: light on the pale kerb would not read)
+        for (const y of [y0 + T * 0.4, y1 - T * 0.4]) Q.beam(x0 + T * 0.2, y, x1 - T * 0.2, y, T * 0.9, AMBER, (0.2 + 0.2 * u) * pul);
+        const top = y1 - H * u, nb = 6; if (u > 0.03) { for (let k = 0; k < nb; k++) { const yy = lerp(y1, top, (k + 0.5) / nb), sq = (H * u / nb) * 0.8 / hw; Q.glow(xc, yy, hw * 1.0, AMBER, (0.14 + 0.16 * u) * (0.6 + 0.4 * (k + 1) / nb), sq); }
+          Q.beam(x0 + T * 0.2, top, x1 - T * 0.2, top, T * 0.8, AMBER_HI, (0.45 + 0.4 * u) * pul); Q.glow(xc, top, hw * 0.9, AMBER, 0.2 + 0.2 * u, 0.35); }   // (the tide's leading edge)
+        if (inLane(C, L.i, me.x, me.y, me.r)) words.push(['MOVE LANE', sx(me.x), sy(me.y) - T * 2.1, T * 0.42, AMBER_HI]); }
+      // the drain: its lane's edges teal, chevrons of light running down toward the sluice, the window to turn the wheel
+      if (A && A.k === 'drain' && (A.step === 1 || A.step === 2)) { const [x0, y0, x1, y1] = laneBox(FX, C, A.L), xa = sx(laneX(C, A.L) - LWW), xb = sx(laneX(C, A.L) + LWW), cx = (x0 + x1) / 2;
+        for (const x of [xa, xb]) { Q.beam(x, y0 - T * 0.5, x, y1 + T * 0.5, T * 0.8, TEAL, 0.2); Q.beam(x, y0 - T * 0.3, x, y1 + T * 0.3, T * 0.2, '#BFF8F2', 0.5); }
+        for (let k = 0; k < 6; k++) { const f = (k / 6 + t * 0.25) % 1, y = y0 + f * (y1 - y0); vee(cx, y, Math.PI / 2, T * 0.8, '#BFF8F2', 0.75 * Math.sin(Math.PI * f), T * 0.16); }
+        if (A.step === 1) { const W2 = M.wheels[A.wheel], left = Math.max(0, A.dl), tot = TM.drainWait[FX.S.phase > 1 ? 1 : 0], n = Math.ceil(tot), px = sx(W2.x), py = sy(W2.y) - T * 2.75, gap = T * 0.42, col = left < 3 ? WARN : TEAL;
+          for (let i = 0; i < n; i++) { const on = cl(left - i), x = px + (i - (n - 1) / 2) * gap; Q.glow(x, py, T * 0.24, col, 0.1 + 0.5 * on); if (on > 0) Q.glow(x, py, T * 0.1, '#FFFFFF', 0.55 * on); }
+          words.push(['DRAIN', px, sy(W2.y) - T * 3.3, T * 0.42, left < 3 ? WARN : '#DFFBF8']); } }
+      // the bite
+      if (A && A.bite && !A.bite.hit) { const B = A.bite, X = sx(B.x), Y = sy(B.y), u = cl(B.t / TM.bite), L = B.len * T, w = B.w * T, ca = Math.cos(B.a), sa = Math.sin(B.a), nx = -sa, ny = ca, P = (d, o) => [X + ca * d + nx * o, Y + sa * d + ny * o], pul = 0.75 + 0.25 * Math.sin(t * 16);
+        { const [ax, ay] = P(0, 0), [bx, by] = P(L * Math.max(0.05, u), 0); Q.beam(ax, ay, bx, by, w * 0.85, WARN, 0.1 + 0.16 * u); }
+        { const [ax, ay] = P(0, 0), [bx, by] = P(L, 0); Q.beam(ax, ay, bx, by, w * 1.1, WARN, 0.06 + 0.05 * u); }
+        for (const sg of [-1, 1]) { const [ax, ay] = P(-T * 0.2, sg * w / 2), [bx, by] = P(L + T * 0.2, sg * w / 2); Q.beam(ax, ay, bx, by, T * 0.7, WARN, (0.14 + 0.12 * u) * pul); Q.beam(ax, ay, bx, by, T * 0.18, '#FFB0A8', (0.4 + 0.35 * u) * pul); }
+        for (const k of [0.55, 0.8]) { const [x, y] = P(L * k, 0); vee(x, y, B.a, w * 0.32, '#FFD0C8', 0.75 * pul, T * 0.15); } }
+    } finally { F.flush(c); }
+    for (const [s2, x, y, z, col] of words) label(c, s2, x, y, z, col); }
   function laneBox(FX, C, i) { return [FX.sx(laneX(C, i) - HW), FX.sy(C.y - NY), FX.sx(laneX(C, i) + HW), FX.sy(C.y + NY)]; }
   function drawLaneWarn(c, FX, M, L, T, t) { const C = FX.C, a = L.armed, u = cl(a.t / a.T), [x0, y0, x1, y1] = laneBox(FX, C, L.i), me = FX.me, left = Math.max(0, a.T - a.t);
     c.save();
@@ -757,7 +796,8 @@ const BEL_NHALU = (() => {
           if (Q) { for (let k = 0; k < n; k++) { Q.caustic(xc, y0 + seg * (k + 0.5), hw * 1.05, '#7FD8FF', a * 1.25, L.seed + k, sqz); if (u > 0.45 && !lf) Q.glow(xc, y0 + seg * (k + 0.5), hw * 1.2, VOLT, 0.16 * (u - 0.45) / 0.55 * fl, sqz); }
             // the charge gathering on the surface: pinpricks of light winking on the water, more and brighter as the count runs out
             { const R = rngOf(Math.floor(t * 12) + L.i * 31), nt = Math.round((lf ? 3 : 9) * (0.3 + u)); for (let k = 0; k < nt; k++) { const px = xc + (R() - 0.5) * hw * 1.8, py = y0 + R() * (y1 - y0), tw = R(); Q.star(px, py, T * (0.18 + 0.22 * u) * (0.6 + tw), (0.35 + 0.5 * u) * tw, VOLT_HI); if (u > 0.6 && tw > 0.7 && !lf) Q.glow(px, py, T * 0.5, VOLT, 0.25 * u); } }
-            symbolLight(Q, sym, xc, ty, ss, 0.55 + 0.45 * u, t); for (const yy of [lerp(y0, y1, 0.22), lerp(y0, y1, 0.78)]) if (Math.abs(yy - ty) > T * 3) symbolLight(Q, sym, xc, yy, T, 0.4 + 0.4 * u, t + 2); }
+            { const sk = 1.6;   // (v404 BF: the symbol's light is the only symbol now (no 2D mark over it): brighter)
+              symbolLight(Q, sym, xc, ty, ss, (0.55 + 0.45 * u) * sk, t); for (const yy of [lerp(y0, y1, 0.22), lerp(y0, y1, 0.78)]) if (Math.abs(yy - ty) > T * 3) symbolLight(Q, sym, xc, yy, T, (0.4 + 0.4 * u) * sk, t + 2); } }
           else { c.save(); c.globalCompositeOperation = 'lighter'; const g = c.createLinearGradient(xc - hw, 0, xc + hw, 0); g.addColorStop(0, 'rgba(120,210,255,0)'); g.addColorStop(0.5, `rgba(120,210,255,${a * 0.5})`); g.addColorStop(1, 'rgba(120,210,255,0)'); c.fillStyle = g; c.fillRect(xc - hw, y0, hw * 2, y1 - y0); c.restore(); glowAt(c, xc, ty, ss * 2, AMBER, 0.3 + 0.3 * u); }
           const bs = M.bulbScr && M.bulbScr[L.armed.bulb]; if (bs) { if (Q) { Q.shafts(bs[0], bs[1], xc, ty, T * (0.9 + 0.5 * u), AMBER, 0.22 + 0.25 * u, L.seed); Q.glow(bs[0], bs[1], T * 1.2, AMBER_HI, 0.35 + 0.3 * u); }
             else { c.save(); c.globalCompositeOperation = 'lighter'; const g = c.createLinearGradient(bs[0], bs[1], xc, ty); g.addColorStop(0, 'rgba(255,200,87,.45)'); g.addColorStop(1, 'rgba(255,200,87,0)'); c.strokeStyle = g; c.lineWidth = T * 0.6; c.lineCap = 'round'; c.beginPath(); c.moveTo(bs[0], bs[1]); c.lineTo(xc, ty); c.stroke(); c.restore(); } } }

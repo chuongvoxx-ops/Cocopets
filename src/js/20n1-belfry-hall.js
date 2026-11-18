@@ -396,23 +396,42 @@ var BELFRY_HALL = (() => {
     const T = { B: 'E', state: 'idle', list: [], group: 0, gapT: 0, kills: 0, V: null, bossState: 'pending', ringT: 0, cage: 1, downT: 0, crystalAt: CR, crystalH: 2.6 };
     if (DRS) T.dress = DRS.tick;   // v392 PR: shots through the dressing (the hall's update calls it)
     const silent = m => { if (!m.dead) { m.dead = true; m.hp = 0; } };
-    T.reset = () => { for (const m of T.list) silent(m); T.list = []; if (T.V) { T.V.remove(); T.V = null; } T.group = 0; T.gapT = 0; T.kills = 0; T.bossState = 'pending'; T.ringT = 0; T.cage = 1; T.downT = 0; T.state = 'idle'; BELLS.forEach(b => { b.sw = 0; }); };
+    T.reset = () => { for (const m of T.list) silent(m); T.list = []; if (T.V) { T.V.remove(); T.V = null; } T.group = 0; T.gapT = 0; T.kills = 0; T.bossState = 'pending'; T.ringT = 0; T.cage = 1; T.downT = 0; T.state = 'idle'; BELLS.forEach(b => { b.sw = 0; }); T.q = []; T.relT = 0; /* v404 BF */ };
     /* (v397, the user: double the east gate's monsters) 100 in five groups of twenty: sixteen crawlers and four leeches */
     const MUSTER_N = 100, GROUP_C = 16, GROUP_L = 4;
     T.restoreWon = () => { T.state = 'won'; T.cage = 0; T.kills = MUSTER_N; T.bossState = 'down'; };
     function spawnOne(type, p, pack) { const q = X.freeSpot(p.x, p.y, 0.45) || p; const m = X.spawnMon(MON[type] ? type : 'blob', q.x, q.y, { pack, rift: true, aggro: true }); m.aggro = true; m.muster = true; X.g.total = (X.g.total || 0) + 1; T.list.push(m); return m; }
-    function spawnGroup() { T.group++; const pack = 960 + T.group, rnd = Math.random;
-      for (let i = 0; i < GROUP_C; i++) { const mo = MOUTH[(i + T.group) % 4], top = mo.y < 55, p = { x: mo.x + (rnd() - 0.5) * 2.6, y: mo.y + (top ? 1.3 : -1.3) + (rnd() - 0.5) * 0.9 };
-        const m = spawnOne('crawler', p, pack); m.maxhp = m.hp = atkOf() * TUNE.CRAWL_K; m.dmg *= TUNE.CRAWL_DMG; m.cd = 0.6 + rnd() * 1.2; }
-      for (let j = 0; j < GROUP_L; j++) { const p = LEECH[(T.group * GROUP_L + j) % LEECH.length], m = spawnOne('leech', p, pack); m.maxhp = m.hp = atkOf() * TUNE.LEECH_K; m.dmg *= TUNE.LEECH_DMG; m.cd = 1.2 + rnd(); }
+    /* v404 BF (the user: "all enemies coming at you, not you going to them"): every group rushes the pet from the moment it
+       crawls out: the crawlers sprint along the floor's flow (round the moulds and the pens, 20n crawler m.rush) and the leeches
+       drop off their walls and slither in to spitting range (20n leech m.rush). The groups no longer wait for a clear field:
+       they pour in one after another, each a trickle over ~1.4 s (spawn cost spread over frames), the next as soon as the
+       field has room under the rift's own live cap (36, as its dungeon floors) and at least STAGGER s after the last; at
+       once if the field is empty. Same 100 in five groups of twenty (sixteen crawlers, four leeches) */
+    const LIVE_CAP = 36, STAGGER = 3.5, TRICKLE = 0.07, RUSH_C = 1.8, LEECH_SPD = 2.2;
+    T.q = []; T.relT = 0;
+    function spawnGroup() { T.group++; const pack = 960 + T.group, rnd = Math.random, gi = T.group; T.relT = 0;
+      const crawl = i => () => { const mo = MOUTH[(i + gi) % 4], top = mo.y < 55, p = { x: mo.x + (rnd() - 0.5) * 2.6, y: mo.y + (top ? 1.3 : -1.3) + (rnd() - 0.5) * 0.9 };
+        const m = spawnOne('crawler', p, pack); m.maxhp = m.hp = atkOf() * TUNE.CRAWL_K; m.dmg *= TUNE.CRAWL_DMG; m.cd = 0.6 + rnd() * 1.2; m.rush = RUSH_C; if (i % 4 === 0) X.splash(mo.x, mo.y + (top ? 0.8 : -0.8), 1.0); };
+      const leech = j => () => { const p = LEECH[(gi * GROUP_L + j) % LEECH.length], m = spawnOne('leech', p, pack); m.maxhp = m.hp = atkOf() * TUNE.LEECH_K; m.dmg *= TUNE.LEECH_DMG; m.cd = 1.6 + rnd(); m.rush = 1; m.spd = LEECH_SPD; };
+      // (crawlers and leeches interleaved: a leech every fourth place, so each trickle has both)
+      let k = 0; for (let i = 0, j = 0; i < GROUP_C || j < GROUP_L; ) { const f = (k % 5 === 4 && j < GROUP_L) || i >= GROUP_C ? leech(j++) : crawl(i++); T.q.push({ t: k * TRICKLE, f }); k++; }
       for (const mo of MOUTH) { X.splash(mo.x, mo.y + (mo.y < 55 ? 0.8 : -0.8), 1.2); }
-      X.banner(T.group === 1 ? 'THE SUNKEN MUSTER' : `GROUP ${T.group} OF 5`, T.group === 1 ? 'Twenty crawl out of the drains: sixteen brine crawlers, four bell leeches' : `${T.kills}/${MUSTER_N} down · twenty more from the drains`, BR.E.col, 2, T.group === 1); }
+      X.banner(T.group === 1 ? 'THE SUNKEN MUSTER' : `GROUP ${T.group} OF 5`, T.group === 1 ? 'They pour out of the drains and come for you: sixteen brine crawlers, four bell leeches a group' : `${T.kills}/${MUSTER_N} down · twenty more pour in`, BR.E.col, 2, T.group === 1); }
+    function pour(dt) { if (!T.q.length) return; for (const e of T.q) e.t -= dt; while (T.q.length && T.q[0].t <= 0) T.q.shift().f(); }
+    // (the muster keeps a little room between its own: a crowd fans round the pet instead of stacking in one spot; a coarse grid, a few dozen pairs)
+    const SEP = new Map();
+    function spread(dt) { SEP.clear(); const L2 = []; for (const m of T.list) if (!m.dead) L2.push(m); if (L2.length < 2) return;
+      for (const m of L2) { const k = (Math.floor(m.x) >> 1) * 1000 + (Math.floor(m.y) >> 1); let a = SEP.get(k); if (!a) SEP.set(k, a = []); a.push(m); }
+      for (const m of L2) { const gx = Math.floor(m.x) >> 1, gy = Math.floor(m.y) >> 1; let px = 0, py = 0;
+        for (let yy = gy - 1; yy <= gy + 1; yy++) for (let xx = gx - 1; xx <= gx + 1; xx++) { const a = SEP.get(xx * 1000 + yy); if (!a) continue;
+          for (const o of a) { if (o === m) continue; const dx = m.x - o.x, dy = m.y - o.y, d = Math.hypot(dx, dy), want = (m.r + o.r) * 0.95; if (d >= want) continue; if (d < 1e-3) { px += Math.cos(m.wob || 0) * 0.5; py += Math.sin(m.wob || 0) * 0.5; continue; } const f = (want - d) / want; px += dx / d * f; py += dy / d * f; } }
+        if (px || py) { const v = Math.min(1, Math.hypot(px, py)) * 2.2 * dt, n = Math.hypot(px, py); X.moveEnt(m, px / n * v, py / n * v); } } }
     const atkOf = () => K.atk();
     T.start = () => { T.state = 'run'; spawnGroup(); };
     function varkulHp() { let base = atkOf() * TUNE.VARKUL_K;
       // (the spec's reference: about a quarter of Kharrox's effective health, where his file says what that is)
       // (B3's Kharrox, 20t3: TUNE.effHp, the pet damage his whole health is worth, or the rift's own Rf.belkHp)
-      try { const Rf = RIFT_BY_ID[X.F.rift.id], KT = typeof BELK !== 'undefined' && BELK && BELK.TUNE, eh = (Rf && Rf.belkHp) || (KT && KT.effHp); if (eh > 0) base = eh * TUNE.VARKUL_KHARROX; } catch (e) {}
+      try { const Rf = RIFT_BY_ID[X.F.rift.id], KT = typeof BELK !== 'undefined' && BELK && BELK.TUNE, eh = (Rf && Rf.belkHp) || (KT && KT.effHp / 4 /* v404: Kharrox's own 4x boss health (v400/v404) is not Varkul's */); if (eh > 0) base = eh * TUNE.VARKUL_KHARROX; } catch (e) {}
       return base; }
     function ringBell() { T.bossState = 'ring'; T.ringT = 0; const b = BELLS[0]; b.sw = 1; bellNote(X, 1); X.shake(lowFx() ? 2 : 6, 0.6); X.ring(b.x, b.y + 1, 0.4, 7, 0.9, '#FFD27A', 0.35); X.flash(0.3, '#FFE9B0');
       X.banner('A CRACKED BELL TOLLS', 'A hundred fallen. Varkul, the Chainbound, is released', BR.E.col, 3, true, true); }
@@ -421,8 +440,11 @@ var BELFRY_HALL = (() => {
       else { T.bossState = 'down'; } }
     T.update = dt => {
       let alive = 0; for (const m of T.list) if (!m.dead) alive++; T.kills = Math.min(MUSTER_N, T.list.length - alive);
-      if (T.group < 5) { if (alive === 0) { T.gapT += dt; if (T.gapT > 0.45) { T.gapT = 0; spawnGroup(); } } }
-      else if (alive === 0 && T.bossState === 'pending' && T.kills >= MUSTER_N) ringBell();
+      // v404 BF: the groups pour in while the last still fights (the live cap and STAGGER above); an empty field calls the next at once
+      pour(dt); T.relT += dt; const field = alive + T.q.length;
+      if (T.group < 5) { if (field === 0) { T.gapT += dt; if (T.gapT > 0.45) { T.gapT = 0; spawnGroup(); } } else { T.gapT = 0; if (field + GROUP_C + GROUP_L <= LIVE_CAP && T.relT >= STAGGER) spawnGroup(); } }
+      else if (field === 0 && T.bossState === 'pending' && T.kills >= MUSTER_N) ringBell();
+      if (alive > 1) spread(dt);
       if (T.bossState === 'ring') { T.ringT += dt; if (T.ringT > 1.9) release(); }
       if (T.V && T.V.tick) T.V.tick(dt);
       if (T.bossState === 'fight' && T.V && T.V.m.dead) { T.bossState = 'down'; T.downT = 0; }

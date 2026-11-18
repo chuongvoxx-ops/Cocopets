@@ -415,6 +415,8 @@ if (typeof window !== 'undefined') window.BEL = BEL;
       // the tell: both claws raised (mode 'raise') with a narrow line shown ahead, then the pinch, then a moment to punish
       if (m.pinch > 0) { m.pinch -= A.dt; m.mode = 'raise'; if (m.pinch <= 0) { const a = m.pa; X.slash(m.x + Math.cos(a) * 0.8, m.y + Math.sin(a) * 0.8, a, 0.9, '#9FE8FF'); if (X.inCone(m.x, m.y, a, 1.8, 0.36)) X.hurtPet(m.dmg * 1.3, m); m.mode = 'pinch'; m.recT = 0.7; m.cd = 2.0 + Math.random(); } return; }
       if (m.recT > 0) { m.recT -= A.dt; if (m.recT <= 0) m.mode = ''; return; }
+      // v404 BF: a muster crawler (the hall's east trial, m.rush) sprints in along the floor's flow, round props and pens, no sidestep, until near
+      if (m.rush && A.d > 3.2) { A.steer(A.sp * m.rush); m.mode = ''; return; }
       m.side = m.side || (Math.random() < 0.5 ? 1 : -1); m.sideT = (m.sideT || 0) - A.dt; if (m.sideT <= 0) { m.sideT = 1.1 + Math.random(); m.side *= -1; }
       if (A.d > 1.5) { const sx2 = -A.uy * m.side * 0.6 + A.ux, sy2 = A.ux * m.side * 0.6 + A.uy, n = Math.hypot(sx2, sy2) || 1; X.moveEnt(m, sx2 / n * A.sp * A.dt, sy2 / n * A.sp * A.dt); m.face = A.dx >= 0 ? 1 : -1; m.mode = Math.abs(sx2 / n - A.ux) > 0.3 ? 'side' : ''; }
       else if (m.cd <= 0 && A.los()) { m.pinch = 1.1; m.mode = 'raise'; m.pa = Math.atan2(X.me.y - m.y, X.me.x - m.x); m.face = Math.cos(m.pa) >= 0 ? 1 : -1; X.warn({ shape: 'cone', x: m.x, y: m.y, a: m.pa, len: 1.9, spread: 0.36, life: 1.1, max: 1.1, src: m, color: '#9FE8FF' }); }
@@ -425,6 +427,7 @@ if (typeof window !== 'undefined') window.BEL = BEL;
       m.face = A.dx >= 0 ? 1 : -1;
       if (m.spitT > 0) { m.spitT -= A.dt; m.mode = 'spit'; if (m.spitT <= 0) { X.lob(m.x, m.y - 0.2, X.me.x, X.me.y, { dur: 1.5, r: 0.8, dmg: m.dmg, kind: 'bubble', src: m, color: '#B6A2F0' }); m.mode = m.holds ? 'cling' : ''; m.cd = 2.8 + Math.random(); } return; }
       m.mode = m.holds ? 'cling' : '';
+      if (m.rush && !m.holds && A.d > 3.4) A.steer(A.sp);   // v404 BF: a muster leech drops off its wall and slithers in to spitting range
       if (m.cd <= 0 && A.d < 6.5 && A.los()) { m.spitT = 0.75; }
     },
     reeflantern(m, A, X) {
