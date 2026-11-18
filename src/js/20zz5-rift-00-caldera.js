@@ -1478,12 +1478,13 @@ CAL.bossMake = CAL.bossMake || {};
         // lava light flickering along the gaps' edges
         if (!lowFx() && edges.length) { c.save(); c.globalCompositeOperation = 'lighter'; const spr = glowSprite('#FF6A1F'); for (const [x, y, ph] of edges) { if (!on(x, y, T)) continue; const k = 0.18 + 0.1 * Math.sin(t * 1.6 + ph) * (1 - 0.6 * C.calm); c.globalAlpha = k; c.drawImage(spr, X.sx(x) - T * 0.7, X.sy(y) - T * 0.45, T * 1.4, T * 0.9); } c.restore(); }
         for (const p of C.lava) lavaPoolArt(c, X, p);
+        if (CAL.trapArt && C.lava.length) CAL.trapArt.ground(c, X, C);   // v408 CA: the lava's churning currents, feathered edges, bubbles, embers on the GPU (20zz5c)
         for (const v of C.vents) ventArt(c, X, v);
         // the crystals' pulses running along the floor toward the heart
         if (C.pulses.length) { c.save(); c.globalCompositeOperation = 'lighter'; for (const u of C.pulses) { const f = u.t / u.life, d = f * u.len, a = Math.sin(f * Math.PI); const hx = u.x + u.ux * d, hy = u.y + u.uy * d; c.strokeStyle = rgba(FRACTURE, 0.5 * a); c.lineWidth = Math.max(1.5, T * 0.06); c.lineCap = 'round'; c.beginPath(); c.moveTo(X.sx(u.x + u.ux * Math.max(0, d - 1.2)), X.sy(u.y + u.uy * Math.max(0, d - 1.2))); c.lineTo(X.sx(hx), X.sy(hy)); c.stroke(); c.globalAlpha = a; blitSized(c, glowSprite(FRACTURE_HI), X.sx(hx) - T * 0.35, X.sy(hy) - T * 0.35, T * 0.7, T * 0.7); c.globalAlpha = 1; } c.restore(); }
         // the bombs on the floor: their damage circle and fuse, the safe ring, the aim guide to their target
         for (const m of X.mons) if (m.type === 'bomblarva' && !m.dead && m.cal) larvaGround(c, X, m); },
-      drawOver(c) { const T = T0(), t = X.g.t, W = X.W(), Hh = X.H(), dim = C.calm, G = gpu(c, true);
+      drawOver(c) { const T = T0(), t = X.g.t, W = X.W(), Hh = X.H(), dim = C.calm, G = gpu(c, true), GV = G || (CAL.trapArt && CAL.trapArt.live(C) ? gpu(c, false) : null);   // v408 CA: (GV: the vents' fire, a hazard, keeps the GPU pass under Fewer effects too)
         // the props' live light: crystals' fire circling inside them, the lavafalls and forge mouths breathing
         for (const q of glows) { const p = q.p; if (p.broken) continue; const Xs = X.sx(p.x) + q.dx * T, Ys = X.sy(p.y) + q.dy * T; if (Xs < -T * 3 || Xs > W + T * 3 || Ys < -T * 3 || Ys > Hh + T * 3) continue;
           if (q.kind === 'cry') { const pl = q.pul ? q.pul.flash || 0 : 0, k = (0.3 + 0.15 * Math.sin(t * 0.9 + q.ph * 6) + 0.6 * pl) * (1 - 0.85 * dim), a = t * 0.5 + q.ph * TAU; const lx = Xs + Math.cos(a) * q.r * T * 0.25, ly = Ys + Math.sin(a * 1.3) * q.r * T * 0.45;
@@ -1499,7 +1500,8 @@ CAL.bossMake = CAL.bossMake || {};
         // embers drifting up
         if (C.embers.length) { if (G) for (const e of C.embers) { const a = Math.sin(e.t / e.life * Math.PI); G.Q.glow(X.sx(e.x), X.sy(e.y), T * 0.09 * e.s, e.frost ? '#9FD8FF' : LAVA, a * 0.9); G.Q.glow(X.sx(e.x), X.sy(e.y), T * 0.03 * e.s, e.frost ? '#FFFFFF' : LAVA_HI, a); }
           else { c.save(); c.globalCompositeOperation = 'lighter'; for (const e of C.embers) { const a = Math.sin(e.t / e.life * Math.PI); c.globalAlpha = a * 0.85; c.fillStyle = e.frost ? (e.s > 1.1 ? '#FFFFFF' : '#BFE3FA') : e.s > 1.1 ? LAVA_HI : LAVA; const Xs = X.sx(e.x), Ys = X.sy(e.y); if (Xs < -5 || Xs > W + 5 || Ys < -5 || Ys > Hh + 5) continue; c.beginPath(); c.arc(Xs, Ys, Math.max(0.8, T * 0.035 * e.s), 0, TAU); c.fill(); } c.restore(); } }
-        gpuEnd(c, G);
+        if (GV && CAL.trapArt && CAL.trapArt.live(C)) CAL.trapArt.over(GV.Q, X, C, T, t);   // v408 CA: the vents' live fire (20zz5c)
+        gpuEnd(c, GV);
         // the bombs' words: HIT IT! while they are safe, GET CLEAR! when they flash, the seconds left
         for (const m of X.mons) if (m.type === 'bomblarva' && !m.dead && m.cal) larvaOver(c, X, m);
         for (const v of C.vents) if (v.demo && v.on) label(c, 'SAFE TO WATCH', X.sx(v.x), X.sy(v.y) - T * 1.5, Math.max(11, T * 0.28), ASH_HI); } }; };
@@ -1514,15 +1516,17 @@ CAL.bossMake = CAL.bossMake || {};
       const g = c.createRadialGradient(Xs, Ys, R * 0.2, Xs, Ys, R); g.addColorStop(0, 'rgba(255,230,150,.25)'); g.addColorStop(0.8, 'rgba(255,90,30,0)'); g.addColorStop(1, 'rgba(60,14,6,.55)'); c.fillStyle = g; c.fill();
       glow(c, Xs, Ys, R * 2.1, LAVA, 0.32 + 0.08 * Math.sin(C.t * 2 + (p.seed || 0)));
       // its hazard ring (never colour alone: a dashed warning edge)
-      c.setLineDash([T * 0.2, T * 0.14]); c.strokeStyle = 'rgba(255,77,109,.55)'; c.lineWidth = Math.max(1.5, T * 0.05); ell(c, Xs, Ys, R * 1.18, R * 1.18); c.stroke(); c.setLineDash([]); }
+      if (!(CAL.trapArt && CAL.trapArt.on())) { c.setLineDash([T * 0.2, T * 0.14]); c.strokeStyle = 'rgba(255,77,109,.55)'; c.lineWidth = Math.max(1.5, T * 0.05); ell(c, Xs, Ys, R * 1.18, R * 1.18); c.stroke(); c.setLineDash([]); } }   // v408 CA: (no dashed red ring where the GPU lava burns: its glow is the edge)
     else { c.beginPath(); for (const t of p.tiles) { const Xs = X.sx(t.tx), Ys = X.sy(t.ty); if (Xs < -T * 2 || Xs > W + T || Ys < -T * 2 || Ys > Hh + T) continue; c.rect(Xs, Ys, T + 0.5, T + 0.5); } c.fillStyle = '#FF6A1F'; c.fill(); c.fillStyle = pat; c.fill();
       c.save(); c.clip(); c.globalCompositeOperation = 'lighter'; for (const t of p.tiles) { const Xs = X.sx(t.tx + 0.5), Ys = X.sy(t.ty + 0.5); if (Xs < -T * 2 || Xs > W + T * 2 || Ys < -T * 2 || Ys > Hh + T * 2) continue; c.globalAlpha = 0.25; c.drawImage(glowSprite(LAVA_HI), Xs - T * 0.8, Ys - T * 0.8, T * 1.6, T * 1.6); } c.restore();
       c.strokeStyle = '#1A0E0C'; c.lineWidth = Math.max(2, T * 0.08); for (const t of p.tiles) { const MW = p.MW, x = t.tx, y = t.ty, has = (dx, dy) => p.set.has((y + dy) * MW + x + dx), Xs = X.sx(x), Ys = X.sy(y); if (Xs < -T * 2 || Xs > W + T || Ys < -T * 2 || Ys > Hh + T) continue; c.beginPath(); if (!has(0, -1)) { c.moveTo(Xs, Ys); c.lineTo(Xs + T, Ys); } if (!has(0, 1)) { c.moveTo(Xs, Ys + T); c.lineTo(Xs + T, Ys + T); } if (!has(-1, 0)) { c.moveTo(Xs, Ys); c.lineTo(Xs, Ys + T); } if (!has(1, 0)) { c.moveTo(Xs + T, Ys); c.lineTo(Xs + T, Ys + T); } c.stroke(); } }
     c.restore(); }
   CAL.lavaPoolArt = lavaPoolArt;
   /* a vent: a crusted mouth in the floor; it glows and hisses (a ring fills toward the eruption), then a column of fire */
-  function ventArt(c, X, v) { const T = X.Tz(), Xs = X.sx(v.x), Ys = X.sy(v.y), R = v.r * T, t = X.g.t; c.save();
-    ell(c, Xs, Ys, R * 0.75, R * 0.42); c.fillStyle = '#120A0A'; c.fill(); ink(c, Math.max(1.2, T * 0.04), 0.9); c.strokeStyle = '#4A4042'; c.lineWidth = Math.max(2, T * 0.1); ell(c, Xs, Ys, R * 0.82, R * 0.48); c.stroke();
+  function ventArt(c, X, v) { const T = X.Tz(), Xs = X.sx(v.x), Ys = X.sy(v.y), R = v.r * T, t = X.g.t;
+    const pic = CAL.trapArt ? CAL.trapArt.vent(c, X, v) : 0; if (pic === 2) return;   // v408 CA: the painted mouth (20zz5c); its live fire in drawOver on the GPU; 1: the old 2D tell and column below
+    c.save(); if (!pic) {
+    ell(c, Xs, Ys, R * 0.75, R * 0.42); c.fillStyle = '#120A0A'; c.fill(); ink(c, Math.max(1.2, T * 0.04), 0.9); c.strokeStyle = '#4A4042'; c.lineWidth = Math.max(2, T * 0.1); ell(c, Xs, Ys, R * 0.82, R * 0.48); c.stroke(); }
     const st2 = v.st, u = st2 === 'warn' ? v.t / v.warn : 0;
     /* (v392, the user: no red area or countdown ring on the vents: the mouth only glows orange, then red, then bursts;
        learning the beat is the player's part) */
