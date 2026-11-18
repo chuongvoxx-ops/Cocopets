@@ -53,6 +53,10 @@
   const waveSpr = () => fxSprite('du4wave', 256, 256, (g, w) => { const c0 = w / 2; g.fillStyle = rg(g, c0, c0, c0, [[0, 'rgba(165,92,255,0)'], [0.7, 'rgba(165,92,255,0)'], [0.84, 'rgba(165,92,255,0.35)'], [0.9, 'rgba(208,174,255,0.8)'], [0.95, 'rgba(165,92,255,0.3)'], [1, 'rgba(165,92,255,0)']]); g.fillRect(0, 0, w, w); });
   const blitF = (c, img, X, Y, r, GY, a, rot) => { if (!(a > 0.01) || !(r > 1)) return; c.save(); c.translate(X, Y); c.scale(1, GY); if (rot) c.rotate(rot); c.globalAlpha = Math.min(1, a); c.drawImage(img, -r, -r, r * 2, r * 2); c.restore(); };
 
+  /* (v404 DK) the GPU picture: the shared painter (20k6h FGFX) when it is usable; else the 2D picture, as it was. The ribbons' dark bands, the
+     torn rings and the fragments keep their 2D art; the floor (a pool of light under a turning vortex of violet energy), the sweeps, the
+     ribbons' rim light, currents and fractures, the core and the bloom are drawn on the GPU */
+  const gfx = () => { try { const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; return F && F.usable() ? F : null; } catch (e) { return null; } };
   U.eventide = (C, H) => {
     const me = H.me, x = C.tx, y = C.ty, ev = Math.max(1, Math.min(7, C.evo || 1)), cel = ev >= 7, ek = 1 + 0.08 * (ev - 1), DK = C.K * ek;
     const R = 2.7 * C.K, COILS = 6, SW = [1.1, 1.5, 1.9], UNW = 2.3, FIN = 3.7, STEP = 0.2, LIFE = 4.4, GY = H.GY;
@@ -74,7 +78,7 @@
         const rr = R * (1 - 0.75 * u) * grow * (1 + un * 0.8) * (1 + 0.03 * Math.sin(t * 3 + u * 9 + r.ph * 6)), h = (0.3 + 3.75 * u) * HK * grow * (1 - un);
         p.x = X + Math.cos(a) * rr * T; p.y = Y + Math.sin(a) * rr * T * GY; p.h = h * T; p.w = T * BW * (1.1 - 0.4 * u) * (1 - 0.45 * sstep(0.86, 1, u)) * grow * (1 - un);
         p.a = a; p.ca = Math.cos(a); p.sa = Math.sin(a); p.vis = u <= grow && un < 1; p.al = (1 - un) * (1 - un) * cl(u / 0.07 + 0.1) * (1 - 0.6 * sstep(0.9, 1, u)); p.L = 0.5 + 0.5 * Math.cos(a - 3.9); p.u = u; } };
-    const drawRib = (c, r, f, X, Y, T, front) => { spine(r, f, X, Y, T); const t = f.t, fa = cl(Math.min(t / 0.25, (FIN + 0.25 - t) / 0.3)); if (fa <= 0.01) return;
+    const drawRib = (c, r, f, X, Y, T, front, Q) => {   // (v404 DK: Q, the GPU painter: the rim light, currents and fractures as GPU light) spine(r, f, X, Y, T); const t = f.t, fa = cl(Math.min(t / 0.25, (FIN + 0.25 - t) / 0.3)); if (fa <= 0.01) return;
       const lipT = T * 0.17, pulse = f.pulse;
       for (let k = 0; k < SEG; k++) { const p = pts[k], q = pts[k + 1]; if (!p.vis || !q.vis) continue; const sa = (p.sa + q.sa) * 0.5; if ((sa > 0) !== front) continue;
         const edgeOn = Math.abs(sa), L = (p.L + q.L) * 0.5, li = Math.round(L * (NL - 1)), dim = petDim(T, (p.x + q.x) * 0.5, (p.y + q.y) * 0.5 - p.h - p.w * 0.5);
@@ -88,6 +92,11 @@
         c.fillStyle = css(LIP[li], A * 0.9); c.beginPath(); c.moveTo(p.x, t0); c.lineTo(q.x, t1); c.lineTo(q.x + ix1, t1 + iy1); c.lineTo(p.x + ix0, t0 + iy0); c.closePath(); c.fill();
         // a shadow under the lower edge of the band where it turns to the camera (the volume sits on the coil below)
         if (front) { c.fillStyle = css(VOID, A * 0.35 * edgeOn); c.beginPath(); c.moveTo(p.x, y0); c.lineTo(q.x, y1); c.lineTo(q.x, y1 + T * 0.05); c.lineTo(p.x, y0 + T * 0.05); c.closePath(); c.fill(); }
+        if (Q) { const fk = front ? 1 : 0.55; Q.beam(p.x, t0, q.x, t1, 1.4 + 1.2 * L, EDGEh, A * (0.3 + 0.55 * L + 0.35 * pulse) * fk);
+          const NC = ev >= 4 ? 2 : 1; for (let s2 = 0; s2 < NC; s2++) { const ph = (p.u * 2.6 - t * (0.7 + 0.5 * s2) + r.ph + s2 * 0.5) % 1, v = ph < 0 ? ph + 1 : ph; if (v < 0.16) { const kk = Math.sin(v / 0.16 * Math.PI); Q.beam(p.x, y0 - p.w * (0.5 + 0.15 * s2), q.x, y1 - q.w * (0.5 + 0.15 * s2), Math.max(1.2, p.w * (0.3 - 0.08 * s2)), s2 ? ACCh : EDGEh, A * kk * (0.55 + 0.4 * pulse) * (front ? 1 : 0.5)); } }
+          if (cel) for (const fr of fracs) { if (fr.u < p.u || fr.u >= q.u) continue; const fl = 0.35 + 0.65 * Math.abs(Math.sin(t * 6 + fr.sd * 1.7)), mx = p.x + (q.x - p.x) * 0.5, my = t0 + (t1 - t0) * 0.5, dn = p.w * fr.len, sg = fr.sd % 2 ? 1 : -1, P1 = [mx + T * 0.06 * sg, my + dn * 0.4];
+            for (const [a0, b0] of [[[mx, my], P1], [P1, [mx - T * 0.04 * sg, my + dn * 0.75]], [[mx - T * 0.04 * sg, my + dn * 0.75], [mx + T * 0.05, my + dn]], [P1, [mx + T * 0.14 * sg, my + dn * 0.55]]]) Q.beam(a0[0], a0[1], b0[0], b0[1], 1.6, EDGEh, A * fl); Q.glow(mx, my, T * 0.12, ACCh, A * fl * 0.5); }
+          continue; }
         c.globalCompositeOperation = 'lighter';
         // the rim light along the upper outer edge, brighter on the lit side and in the sweeps' pulses
         c.strokeStyle = css(EDGE, A * (0.22 + 0.5 * L + 0.3 * pulse) * (front ? 1 : 0.55)); c.lineWidth = 1 + 0.6 * L; c.beginPath(); c.moveTo(p.x, t0); c.lineTo(q.x, t1); c.stroke();
@@ -124,6 +133,17 @@
           H.burst(x, y - 0.8, 'shard', 14, { v: 7, up: 3, g: 9, life: 0.7, size: 3.5, color: ['#463052', EDGEh, '#2B0B45'] }); } },
       drawUnder(c, f, X, Y, T) { const t = f.t, fa = cl(Math.min(t / 0.4, (LIFE - t) / 0.7)), sp = H.ease.out(cl(t / 0.6)), Rp = R * T * sp;
         if (Rp < 2) return;
+        { const FG = gfx(); if (FG) { const end = f.bt ? cl(1 - (t - f.bt) / 0.6) : 1;   // (v404 DK) the floor on the GPU, then the torn rings (2D bands) and the back ribbons
+          let Q = FG.begin(c, null);
+          Q.glow(X, Y, Rp * 1.2, ENERh, fa * (0.35 + 0.3 * f.pulse) * end, GY); Q.evortex(X, Y, Rp * 1.05, EDGEh, 0.85 + 0.2 * f.pulse, fa * (0.8 + 0.3 * f.pulse) * end, 1.7, -1.1, GY); if (ev >= 4) Q.evortex(X, Y, Rp * 0.7, ACCh, 0.7, fa * 0.35 * end, 4.2, 1.6, GY);
+          Q.glow(X, Y, Rp * 0.5, ENERh, fa * (0.3 + 0.4 * f.pulse), GY); Q.ring(X, Y, Rp, EDGEh, fa * 0.5 * end, T * 0.06, GY);
+          for (let i = 0; i < SW.length; i++) { const u = (t - SW[i]) / 0.45; if (u <= 0 || u >= 1) continue; const rr = Rp * (0.15 + 1.0 * H.ease.out(u)); Q.ewave(X, Y, rr, EDGEh, 0.8, (1 - u) * 0.9, i * 2.3, GY, 0.2); Q.ring(X, Y, rr, ACCh, (1 - u) * 0.6, T * 0.05, GY); }
+          FG.flush(c);
+          for (const q of rings) { const u = cl((t - q.t0) / 0.6); if (u >= 1) continue; const rad = lerp(q.r0, q.r1, H.ease.out(u)) * T / 0.78, a = Math.pow(1 - u, 1.3) * 0.95, th = T * q.w * (1 - 0.55 * u) * 0.8, dim = petDim(T, X, Y - th) * 0.5 + 0.5;
+            blitF(c, ringSide(), X, Y, rad, GY, a * dim); blitF(c, ringSide(), X, Y - th * 0.5, rad, GY, a * dim * 0.8); blitF(c, ringTop(), X, Y - th, rad, GY, a * dim); }
+          Q = FG.begin(c, null);
+          for (const q of rings) { const u = cl((t - q.t0) / 0.6); if (u >= 1) continue; const rad = lerp(q.r0, q.r1, H.ease.out(u)) * T * 0.82, a = Math.pow(1 - u, 1.3) * 0.95, th = T * q.w * (1 - 0.55 * u) * 0.8; Q.ewave(X, Y - th, rad, EDGEh, 0.8, a * 0.7, q.r0, GY, 0.12); Q.ring(X, Y - th, rad * 0.97, ACCh, a * 0.6, T * 0.04, GY); }
+          c.save(); for (const r of rib) drawRib(c, r, f, X, Y, T, false, Q); drawFrags(c, f, X, Y, T, false); c.restore(); FG.flush(c); return; } }
         // the floor: violet light only (a ring, slow spiral arms turning, a glow that swells with the pulses), fully gone at the end
         c.save(); c.globalCompositeOperation = 'lighter';
         blitF(c, floorSpr(), X, Y, Rp * 1.15, GY, fa * (0.55 + 0.4 * f.pulse) * (f.bt ? cl(1 - (t - f.bt) / 0.6) : 1));
@@ -140,6 +160,12 @@
         // the back halves of the ribbons and the fragments behind the axis (under the monsters)
         c.save(); for (const r of rib) drawRib(c, r, f, X, Y, T, false); drawFrags(c, f, X, Y, T, false); c.restore(); },
       draw(c, f, X, Y, T) { const t = f.t;
+        { const FG = gfx(); if (FG) { const Q = FG.begin(c, null);   // (v404 DK) the front ribbons (2D bands, GPU light), the fragments, then the core and the bloom
+          for (const r of rib) drawRib(c, r, f, X, Y, T, true, Q); drawFrags(c, f, X, Y, T, true);
+          if (t > UNW && t < FIN + 0.35) { const u = cl((t - UNW) / (FIN - UNW)), col = t > FIN ? cl((t - FIN) / 0.35) : 0, cz = T * 1.2 * HK * (1 - col), cr = Math.max(1, T * (0.3 + u * 0.3) * (1 - col * 0.6)), dim = petDim(T, X, Y - cz);
+            if (col < 1) { Q.glow(X, Y - cz, cr * 3, ENERh, 0.6 * (1 - col) * dim); Q.eorb(X, Y - cz, cr * 1.3, EDGEh, 0.95, 0.9 * (1 - col) * dim, 2.2, 2); Q.glow(X, Y - cz, cr * 0.5, '#FFFFFF', 0.8 * (1 - col) * dim); Q.star(X, Y - cz, cr * 2.5, 0.6 * (1 - col) * dim, ACCh); } }
+          if (f.bt) { const u = cl((t - f.bt) / 0.6); if (u < 1) { Q.glow(X, Y - T * 0.6, T * (1.6 + u * 2.6), EDGEh, (1 - u) * 0.8); Q.ewave(X, Y, T * (0.6 + (R + 1.2) * H.ease.out(u)), EDGEh, 0.85, (1 - u) * 0.95, 9.1, GY, 0.22); if (u < 0.3) Q.star(X, Y - T * 0.6, T * 3, (1 - u / 0.3), ACCh); } }
+          FG.flush(c); return; } }
         // the front halves, the fragments in front, the core
         for (const r of rib) drawRib(c, r, f, X, Y, T, true); drawFrags(c, f, X, Y, T, true);
         if (t > UNW && t < FIN + 0.35) { const u = cl((t - UNW) / (FIN - UNW)), col = t > FIN ? cl((t - FIN) / 0.35) : 0, cz = T * 1.2 * HK * (1 - col), cr = Math.max(1, T * (0.3 + u * 0.3) * (1 - col * 0.6)), dim = petDim(T, X, Y - cz);

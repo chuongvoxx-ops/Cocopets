@@ -108,8 +108,48 @@
     step(dt) { for (let i = L.length - 1; i >= 0; i--) { const p = L[i]; p.t += dt; if (p.t >= p.life) { L.splice(i, 1); continue; } const k = Math.exp(-p.drag * dt); p.vx *= k; p.vy *= k; p.vz = p.vz * k - p.g * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z = Math.max(0, p.z + p.vz * dt); } },
     draw(c, T, fa) { for (const p of L) { const u = p.t / p.life, a = Math.min(1, u * 6) * (1 - u) * (fa == null ? 1 : fa), r = p.s * T * (p.kind === 'h' ? 1.6 : 1.3) * (1 - 0.3 * u); if (a < 0.02) continue; const X = H.sx(p.x), Y = H.sy(p.y) - p.z * T; c.save(); c.globalAlpha = a; c.globalCompositeOperation = p.kind === 'h' ? 'source-over' : 'lighter'; c.translate(X, Y); if (p.rot) c.rotate(p.rot * Math.sin(p.t * 3)); c.drawImage(p.kind === 'h' ? smallSpr(p.col) : starSpr(p.col), -r, -r, r * 2, r * 2); c.restore(); } } }; }
   const near = (x, y, r) => H.living().filter(m => Math.hypot(m.x - x, m.y - y) < r + m.r);
+
+  /* (v404 LT) the GPU side of the pink moves: the shared painter (20k6h FGFX) when it is usable, else null (each move then keeps its
+     2D picture as it was); the thick turning heart in shade and light (kind 41), the little hearts and stars of bits(), hearts of
+     light on the floor (kind 44 drawn from its point up both sides, kind 48 filled), a point on that heart's rim */
+  const gfx = () => { try { const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; return F && F.usable() ? F : null; } catch (e) { return null; } };
+  // the painter's heart (20k6h hsd/hmap): its rim at a fraction w of the way from its point round to its cleft, in quad units (x right, y down)
+  const hsdJ = (x, y) => { x = Math.abs(x); if (y + x > 1) return Math.hypot(x - 0.25, y - 0.75) - 0.35355; const ax = x, ay = y - 1, m = 0.5 * Math.max(x + y, 0), bx = x - m, by = y - m; return Math.sqrt(Math.min(ax * ax + ay * ay, bx * bx + by * by)) * Math.sign(x - y); };
+  const HE = []; for (let i = 0; i <= 64; i++) { const ph = i / 64 * Math.PI, dx = Math.sin(ph), dy = -Math.cos(ph); let lo = 0, hi = 1; for (let k = 0; k < 18; k++) { const m = (lo + hi) / 2; if (hsdJ(dx * m, 0.55 + dy * m) < 0) lo = m; else hi = m; } HE.push([dx * lo / 0.72, (0.53 - (0.55 + dy * lo)) / 0.68]); }
+  const hEdge = (w, side) => { const k = cl(w) * 64, i = Math.min(63, Math.floor(k)), f = k - i, a = HE[i], b = HE[i + 1]; return [(a[0] + (b[0] - a[0]) * f) * (side || 1), a[1] + (b[1] - a[1]) * f]; };
+  /* the thick heart: centre (x, y), hp px tall, spin th about its upright axis, lean (rad), alpha a, lit a brightening (0..1), lvl its
+     shading (1..3), dis its dissolution (0..1), gw its glow (default 1), rim (0..1 or null) a pearl glint running round its rim */
+  function gHeart(Q, x, y, hp, th, lean, a, lit, lvl, dis, gw, rim) {
+    if (!(a > 0.01) || hp < 2) return;
+    const hy = hp / 1.62, cs = Math.cos(th || 0), sn = Math.sin(th || 0), ws = Math.max(0.07, Math.abs(cs)), c2 = Math.cos(lean || 0), s2 = Math.sin(lean || 0), dep = hp * 0.2, nr = (cs >= 0 ? 1 : -1) * dep / 2 * sn, NK = Math.max(2, Math.min(9, Math.round(Math.abs(dep * sn) / 2.5))), d0 = Math.round(cl(dis || 0) * 100), g = gw == null ? 1 : gw;
+    const P = (ox, oy) => [x + ox * c2 - oy * s2, y + ox * s2 + oy * c2], hq = (ox, w, z, q0) => { const p = P(ox, 0); Q.quad(41, p[0], p[1], c2 * hy * w, s2 * hy * w, -s2 * hy, c2 * hy, '#FFFFFF', a, q0, 3.3, z); };
+    if (g > 0) { Q.glow(x, y, hp * 0.95, ROSE, 0.42 * a * g); Q.glow(x, y + hp * 0.05, hp * 0.55, CANDY, 0.25 * a * g); }
+    for (let q = 0; q <= NK; q++) hq(lerp(-nr, nr, q / NK), ws, -1, d0);
+    if (ws < 0.45) { const p0 = P(nr * 0.2, -hp * 0.32), p1 = P(nr * 0.2 - dep * 0.05, hp * 0.42); Q.beam(p0[0], p0[1], p1[0], p1[1], Math.max(1, hp * 0.02), BLUSH, a * (0.45 - ws) * 1.6); }
+    if (Math.abs(cs) > 0.08) hq(nr, ws, lvl || 1, d0 + Math.min(0.98, cl(lit || 0)));
+    if (rim != null && Math.abs(cs) > 0.08) { const e = hEdge(Math.abs(((rim % 1) + 1) % 1 * 2 - 1), rim % 1 < 0.5 ? -1 : 1), p = P(nr + e[0] * hy * ws, e[1] * hy); Q.glow(p[0], p[1], hp * 0.16, PEARL, 0.8 * a); Q.star(p[0], p[1], hp * 0.12, 0.7 * a, PEARL); }
+  }
+  /* a heart on the floor at (x, y), w px wide, squashed by sy: its outline drawn from the point up both sides to u (1.1 whole), line width
+     lw (fraction), its glow ha; or (fill > 0) filled with soft light, nest inner outlines (0..3), halo +10 */
+  const gFloorHeart = (Q, x, y, w, sy, col, a, u, lw, ha) => { const q = w / 1.678; Q.quad(44, x, y, q, 0, 0, q * sy, col, a, lw || 0.03, u == null ? 1.1 : u, ha || 0); };
+  const gFillHeart = (Q, x, y, w, sy, col, a, fill, lw, nest, rot) => { const q = w / 1.678, c = Math.cos(rot || 0), s = Math.sin(rot || 0); Q.quad(48, x, y, c * q, s * q, -s * q * sy, c * q * sy, col, a, lw || 0.025, fill == null ? 0.8 : fill, nest || 0); };
+  // the drawing heads of a floor heart drawn to u (screen points)
+  const gHeads = (x, y, w, sy, u) => { const q = w / 1.678, e = hEdge(Math.min(1, u)); return [[x - e[0] * q, y + e[1] * q * sy], [x + e[0] * q, y + e[1] * q * sy]]; };
+  /* the little hearts and stars of a bits() list on the GPU: each heart a shaded candy heart (pink kinds) or a heart of light (pale ones)
+     under a glow of its colour, each star a five-pointed star of light; same sizes, fades and wobble as the 2D */
+  const PINKS = new Set([ROSE, CANDY, MAG, DEEP, '#FF69B4', '#D94B91', '#E83EAC']);
+  function gBits(Q, B, T, fa, scr) { for (const p of B.L) { const u = p.t / p.life, a = Math.min(1, u * 6) * (1 - u) * (fa == null ? 1 : fa), r = p.s * T * (p.kind === 'h' ? 1.6 : 1.3) * (1 - 0.3 * u); if (a < 0.02 || p.t < 0) continue;
+    let X, Y; if (scr) { const sa = (p.sp || 0) * p.t; X = p.x + Math.cos(sa) * (p.sr || 0); Y = p.y - p.z + Math.sin(sa) * (p.sr || 0) * 0.4; } else { X = H.sx(p.x); Y = H.sy(p.y) - p.z * T; }
+    if (p.kind === 'h') { const ro = p.rot ? p.rot * Math.sin(p.t * 3) : 0, hy = r * 0.6, c = Math.cos(ro), s = Math.sin(ro); Q.glow(X, Y, r * 1.1, p.col, a * 0.5);
+      if (PINKS.has(p.col)) Q.quad(41, X, Y, c * hy, s * hy, -s * hy, c * hy, '#FFFFFF', a, 0.15, 1.7, 1); else Q.quad(48, X, Y, c * hy * 1.1, s * hy * 1.1, -s * hy * 1.1, c * hy * 1.1, p.col, a, 0.05, 1, 0); }
+    else if (p.kind === 'o') Q.quad(44, X, Y, r * 0.62, 0, 0, r * 0.62, ROSE, a, 0.035, 1.1, 0.3);
+    else { Q.glow(X, Y, r * 0.85, p.col, a * 0.55); Q.quad(50, X, Y, r * 0.8, 0, 0, r * 0.8, p.col, a, 0.6, Math.sin(p.t * 2 + p.x) * 0.4, 0); } } }
+  /* a strip of light through screen points (tail first): links of beams overlapping so they sum to one (no beads), width w(u) and
+     strength k(u) along it (u 0 the tail .. 1 the head) */
+  function gStrip(Q, pts, w, col, k) { const n = pts.length; if (n < 2) return; for (let j = 0; j < n - 1; j++) { const p0 = pts[j], p1 = pts[j + 1], dx = p1[0] - p0[0], dy = p1[1] - p0[1], ex = dx * 0.125, ey = dy * 0.125, u0 = j / (n - 1), u1 = (j + 1) / (n - 1), ww = typeof w === 'function' ? w((u0 + u1) / 2) : w;
+    if (ww < 0.4) continue; Q.rbeam(p0[0] - ex, p0[1] - ey, p1[0] + ex, p1[1] + ey, ww, col, 1, k(u0), k(u1)); } }
   // shared with the other pink ults (Aphrodite's Beam uses the same spinning heart)
-  globalThis.LU1 = { thickHeart, smallSpr, starSpr, lineSpr, glowC, blitC, bits, setH: h => { H = h; } };
+  globalThis.LU1 = { gStrip, thickHeart, smallSpr, starSpr, lineSpr, glowC, blitC, bits, setH: h => { H = h; }, gfx, gHeart, gBits, gFloorHeart, gFillHeart, gHeads, hEdge };
 
   /* ================= 1. Rainbow Heart Attack ================= */
   U.rainbowheart = (C, h) => {
