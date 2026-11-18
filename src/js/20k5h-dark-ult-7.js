@@ -215,6 +215,25 @@
     c.strokeStyle = `rgba(165,92,255,${0.35 + 0.4 * glint})`; c.lineWidth = Math.max(1, wd * 0.2); c.stroke(); if (glint > 0.4) { c.strokeStyle = `rgba(232,222,255,${glint - 0.3})`; c.lineWidth = Math.max(0.7, wd * 0.08); c.stroke(); }
     c.restore();
   }
+  /* (v409 DK2) the GPU picture: the shared painter (20k6h FGFX) when it is usable; else the 2D picture, as it was. The heart is drawn by kind 60
+     (its own curve, a glossy turning slab with a puffy face, travelling currents, fissures of violet light that widen at the end), the pool by
+     kind 61 (liquid shadow with a moving sheen and veins lit by the beat), the strands, drops and flung liquid by kind 62 (glossy liquid with
+     a bulb), the glass by kind 58, the mist and smoke by kind 53, the dark bands by kind 71; the light (rings, waves, glows, rays) is added */
+  const gfx = () => { try { const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; return F && F.usable() ? F : null; } catch (e) { return null; } };
+  // (v409 DK2) a link of a chain of beams: lengthened an eighth each way, so the links' faded ends overlap and sum to one (no beads at the joints)
+  const cb = (Q, x0, y0, x1, y1, w, col, a) => { const ex = (x1 - x0) * 0.125, ey = (y1 - y0) * 0.125; Q.beam(x0 - ex, y0 - ey, x1 + ex, y1 + ey, w, col, a); };
+  // (v409 DK2) a soft dark stroke laid over from (x0, y0) to (x1, y1), w its half-width: soft round dots (kind 71's glow, laid over) packed close
+  function gDots(Q, x0, y0, x1, y1, w0, w1, col, a0, a1) { const L = Math.hypot(x1 - x0, y1 - y0), n = Math.max(1, Math.ceil(L / (Math.max(0.6, Math.min(w0, w1)) * 0.4))); for (let i = 0; i < n; i++) { const u = (i + 0.5) / n, w = w0 + (w1 - w0) * u, a = a0 + (a1 - a0) * u; if (a > 0.01) Q.quad(71, x0 + (x1 - x0) * u, y0 + (y1 - y0) * u, w * 2.4, 0, 0, w * 2.4, col, Math.min(1, a * 0.25), 12); } }
+  const hx = v => (Math.round(cl(v) * 15) * 17).toString(16).padStart(2, '0');
+  function gHeart(Q, G, S, tier) {   // the heart as kind 60, behind it the darkened air and a violet bloom (laid over: the heart covers them)
+    const a = S.a; if (!(a > 0.01)) return; const k = 1.25 * G.u, sx = k * G.ws * G.kx, sy = k * G.ky;
+    Q.quad(71, G.cx, G.cy, G.hp * 0.95, 0, 0, G.hp * 0.9, '#FFFFFF', a * 0.85, 3);
+    Q.quad(71, G.cx, G.cy + G.hp * 0.08, G.hp * 0.85, 0, 0, G.hp * 0.85, ENERGY, a * (0.2 + 0.25 * S.flash + 0.3 * S.wide), 12);
+    Q.quad(60, G.cx, G.cy, sx * G.cL, sx * G.sL, -sy * G.sL, sy * G.cL, '#' + hx(S.inner) + hx(S.flash) + hx(S.wide), a, G.near / (G.u * G.ws * G.kx), S.seed, tier + 0.9 * Math.min(0.99, S.crack));
+  }
+  // a strand or a drop as kind 62: from the root (x0, y0) to the bulb's foot (x1, y1), the bulb rb px, the neck wn and the root wt (half-widths, px)
+  function gStrand(Q, x0, y0, x1, y1, rb, wn, wt, a) { if (!(a > 0.01) || rb < 0.4) return; const W = rb / 0.92, h = Math.hypot(x1 - x0, y1 - y0), ex = h > 0.3 ? (x1 - x0) / h : 0, ey = h > 0.3 ? (y1 - y0) / h : 1, L = Math.max(h / 2, W);
+    Q.quad(62, x1 - ex * L, y1 - ey * L, -ey * W, ex * W, ex * L, ey * L, '#FFFFFF', a, L / W, wn / W, wt / W); }
   // a small dark fragment: a triangle with a violet edge
   function frag(c, x, y, s, rot, a) { if (!(a > 0.01)) return; c.save(); c.translate(x, y); c.rotate(rot); c.globalAlpha = Math.min(1, a); c.beginPath(); c.moveTo(s, 0); c.lineTo(-s * 0.6, s * 0.5); c.lineTo(-s * 0.4, -s * 0.45); c.closePath(); c.fillStyle = BODY; c.fill(); c.strokeStyle = 'rgba(165,92,255,0.75)'; c.lineWidth = 1; c.stroke(); c.restore(); }
 
@@ -294,6 +313,27 @@
         t = f.t; const pr = poolR(t) * T, pa = poolA(t), b = beatAt(t), fl = b.post * (t < TE ? 1 : 0), wide = t > TW ? sm((t - TW) / (TE - TW)) : 0, endK = cl((LIFE - t) / 0.4);
         if (pa * endK < 0.01) return;
         const A = pa * endK;
+        { const FG = gfx(); if (FG) { /* (v409 DK2) the floor on the GPU: the pool of liquid shadow, its lobes and puddles, the heart's reflection, the
+             sliding glints, the rim, the beat's rolling wave, the ripples, the burst's waves (the dark bands kind 71, the light added) */
+          const Q = FG.begin(c, null), gy = H.GY, hA = heartA(t), vn = (0.03 + 0.42 * fl + 0.3 * wide) * cl((t - FORM + 0.3) / 0.6);
+          Q.glow(X, Y, pr * 1.3, ENERGY, A * (0.16 + 0.12 * fl + 0.12 * wide), gy);
+          Q.quad(61, X, Y, pr * 1.08, 0, 0, pr * 1.08 * gy, PLUM, 0.95 * A, vn, seed % 97, 1);
+          lobes.forEach((l, i) => { const rr = pr * l.r * (1 + 0.04 * Math.sin(t * 1.3 + l.ph)), lx = X + Math.cos(l.a) * rr, ly = Y + Math.sin(l.a) * rr * gy; Q.quad(61, lx, ly, pr * l.s * 1.1, 0, 0, pr * l.s * 1.1 * gy, PLUM, 0.6 * A, vn * 0.6, (seed % 97) + i * 3.1, 0.7); });
+          blobs.forEach((q, i) => { const g2 = H.ease.out(cl(q.t / 0.45)), r2 = q.r * T * (0.4 + 0.6 * g2) * 1.1; Q.quad(61, H.sx(q.x), H.sy(q.y), r2, 0, 0, r2 * gy, PLUM, 0.55 * A * cl(1.2 - q.t / 14), vn * 0.4, i * 1.7 + 0.5, 0.8); });
+          Q.glow(X, Y, pr * 0.9, ENERGY, A * (0.06 + 0.18 * fl + 0.18 * wide + (t > TE && t < TB + 0.4 ? 0.6 * (1 - cl((t - TB) / 0.4)) : 0)), gy);
+          if (hA > 0.01) { const G = geoT(f, t), U2 = HT * T / 1.71 * 0.95 * 0.9, ox = X + G.near * T * 0.3, oy = Y + pr * gy * 0.12, kx = G.ws * G.kx * U2, ky = -gy * 0.62 * G.ky * U2, ra = A * hA * (0.2 + 0.3 * fl + 0.3 * wide), NP = 36;
+            Q.glow(ox, oy - ky * 0.4, HT * T * 0.45, EDGE, ra * 0.5, gy);
+            let px = 0, py = 0; for (let i = 0; i <= NP; i++) { const p = HP[Math.round(i / NP * HN) % HN], qx = ox + p[0] * kx, qy = oy + (p[1] + 0.033 - HMID) * ky; if (i) { cb(Q, px, py, qx, qy, T * 0.1, ENERGY, ra * 0.55); cb(Q, px, py, qx, qy, Math.max(0.8, T * 0.025), ACC, ra * 0.9); } px = qx; py = qy; } }
+          for (const gq of glints) { const b2 = gq.ph + t * gq.sp, gx = X + Math.cos(b2) * pr * gq.r, gy2 = Y + Math.sin(b2) * pr * gq.r * gy, gw = pr * gq.w * 0.5; Q.glow(gx, gy2, gw, EDGE, A * (0.3 + 0.12 * Math.sin(t * 2 + gq.ph)) * cl(t / 1.0), 0.12); Q.glow(gx, gy2, gw * 0.35, ACC, A * 0.4 * cl(t / 1.0), 0.15); }
+          Q.ring(X, Y, pr * 1.02, EDGE, A * (0.3 + 0.3 * fl + 0.2 * wide), T * 0.12, gy); Q.ripple(X, Y, pr * 0.98, ACC, A * (0.18 + 0.2 * fl), seed % 13, gy, 0.05);
+          if (t < FORM) for (let i = 0; i < 3; i++) { const q = ((t * 1.2 + i / 3) % 1), rr = R * T * (1.15 - 0.8 * q); Q.ring(X, Y, rr, EDGE, 0.45 * Math.sin(q * Math.PI) * cl(t / 0.3), T * 0.1, gy); Q.ewave(X, Y, rr, ENERGY, 0.6, 0.3 * Math.sin(q * Math.PI) * cl(t / 0.3), i * 2.1, gy, 0.12); }
+          if (b.k >= 0 && b.d >= 0 && b.d < 0.6) { const q = b.d / 0.6, rr = pr * (0.25 + 0.85 * H.ease.out(q)); Q.ewave(X, Y, rr, EDGE, 0.75, A * 0.8 * (1 - q), b.k * 1.7, gy, 0.2); Q.ring(X, Y, rr, ACC, A * 0.5 * (1 - q), T * 0.06, gy); if (ADE) Q.quad(71, X, Y, pr * (0.15 + 0.7 * H.ease.out(q)), 0, 0, pr * (0.15 + 0.7 * H.ease.out(q)) * gy, '#FFFFFF', A * 0.4 * (1 - q), 1); }
+          for (const r of ripples) { const q = r.t / r.life, rr = r.rm * T * H.ease.out(q) + 2, rx = H.sx(r.x), ry = H.sy(r.y); Q.quad(71, rx, ry, rr, 0, 0, rr * gy, '#FFFFFF', A * 0.5 * (1 - q) * r.w, 1); Q.ring(rx, ry, rr * 0.93, EDGE, A * 0.5 * (1 - q) * r.w, Math.max(1.5, rr * 0.12), gy); }
+          if (t >= TB) { const p = t - TB; Q.glow(X, Y, RB * T * 1.2, ACC, 0.6 * Math.max(0, 1 - p / 0.35), gy); Q.glow(X, Y, RB * T * 0.6, '#FFFFFF', 0.4 * Math.max(0, 1 - p / 0.2), gy);
+            const waves = CEL ? [[0, 1.0, 1, 0], [0.1, 1.25, 0.7, 1], [0.24, 1.5, 0.5, 1]] : ADE ? [[0, 1.0, 1, 0], [0.12, 1.25, 0.7, 1]] : [[0, 1.0, 1, 0], [0.14, 1.15, 0.6, 1]];
+            for (const [d, sc, w, L] of waves) { const q = cl((p - d) / 0.7); if (q > 0 && q < 1) { const rr = RB * T * 1.25 * sc * H.ease.out(q); if (!L) Q.quad(71, X, Y, rr, 0, 0, rr * gy, '#FFFFFF', (1 - q) * w * endK, 1); Q.ewave(X, Y, rr, L ? ACC : EDGE, 0.8, (1 - q) * w * endK * 0.85, d * 9 + 1, gy, 0.2); Q.ring(X, Y, rr * 0.97, ACC, (1 - q) * w * endK * 0.5, T * 0.07, gy); } }
+            const q = cl(p / 0.5); if (q < 1) { Q.ring(X, Y, pr * 1.03, ACC, (1 - q) * 0.9, T * 0.16, gy); Q.ewave(X, Y, pr * 1.03, EDGE, 0.9, (1 - q) * 0.7, 4.4, gy, 0.15); } }
+          FG.flush(c); return; } }
         // the pool: a dark translucent surface, its edge breathing in lobes; the puddles where drops landed
         const ps = poolSpr();
         floorSpr(c, ps, X, Y, pr * 1.05, 0.9 * A);
@@ -330,6 +370,46 @@
         const G = geom(X + tr, Y - f.HZ * T + Gt.cy * 0 + tr * 0.5, HT * T, turnAt(t), Gt.lean, Gt.kx, Gt.ky);
         G.cy = Y - f.HZ * T; const hA = heartA(t), hpf = 0.25 + 0.75 * sstep(0.2 * T, 1.4 * T, Math.hypot(PX - G.cx, (PY - G.cy) * 1.15) - HT * T * 0.55);
         const AIR = cl((LIFE - t) / 0.5);
+        { const FG = gfx(); if (FG) { /* (v409 DK2) the air in one GPU pass, in the 2D picture's order: the rising mist, the fragments drifting up, the
+             formation's streams of shadow and its climbing outline, the heart (kind 60), the fine streams, the hanging strands, the drops and
+             beads (kind 62), the burst (its flash, rays, the shockwave's dark band and light, smoke, flung liquid, glass) */
+          const Q = FG.begin(c, null), tier = CEL ? 2 : ADE ? 1 : 0;
+          for (const m of mist) { const u = m.t / m.life, mx = H.sx(m.x), my = H.sy(m.y) - m.z * T, r = T * m.s * (0.7 + 0.6 * u), a = Math.sin(u * Math.PI) * 0.75 * pfAt(mx, my, T, PX, PY) * AIR; Q.quad(53, mx, my, r * 1.3, 0, 0, r * 1.0, '#4A3560', a * 0.85, 0.8, (m.life * 37) % 19, 0.15); }
+          for (const q of frags) { const qx = H.sx(q.x), qy = H.sy(q.y) - q.z * T, a = cl(q.t / 0.4) * (1 - sstep(f.HZ - 0.5 * HT - 0.8, f.HZ - 0.5 * HT, q.z) * 0.9) * pfAt(qx, qy, T, PX, PY); if (a < 0.02) continue; Q.rq(58, qx, qy, q.s * T * 0.75, q.s * T * 1.1, q.rot, '#FFFFFF', a, q.rot * 0.5, q.sw * 3.1, 0.8); Q.glow(qx, qy, T * 0.16, EDGE, a * 0.4); }
+          if (t < FORM + 0.2) { const tip = hpt(G, 0, 1.12);
+            for (let i = 0; i < NSTR; i++) { const s = streams[i], uh = H.ease.out(cl((t - s.d) / 0.8)), ut = H.ease.in(cl((t - 0.75 - s.d * 0.5) / 0.55)); if (uh <= ut + 0.01) continue;
+              const p0 = [X + Math.cos(s.a) * s.r * T, Y + Math.sin(s.a) * s.r * T * H.GY], p3 = tip, p1 = [p0[0] + Math.cos(s.a + s.sw) * T * 0.9, p0[1] - T * 1.4], p2 = [p3[0] + Math.cos(s.a) * T * 1.1 * s.sw, p3[1] + T * 0.9];
+              const N = 22, pts = []; for (let k = 0; k <= N; k++) { const u = lerp(ut, uh, k / N), m = 1 - u, bx = m * m * m * p0[0] + 3 * m * m * u * p1[0] + 3 * m * u * u * p2[0] + u * u * u * p3[0], by = m * m * m * p0[1] + 3 * m * m * u * p1[1] + 3 * m * u * u * p2[1] + u * u * u * p3[1], sw = Math.sin(u * 9 - t * 7 + i) * T * 0.1 * (1 - u); pts.push([bx + sw, by, u]); }
+              const pf = pfAt(pts[N >> 1][0], pts[N >> 1][1], T, PX, PY);
+              const ew = k => Math.min(1, (k / N) * 4, (N - k + 1) / N * 5), ww = k => T * (0.26 - 0.14 * pts[k][2]) * 0.42; for (let k = 1; k <= N; k++) { const A0 = pts[k - 1], B0 = pts[k]; gDots(Q, A0[0], A0[1], B0[0], B0[1], ww(k - 1), ww(k), '#1A0C30', 0.9 * ew(k - 1) * pf, 0.9 * ew(k) * pf); if (k % 5 === 0) Q.quad(53, B0[0], B0[1], ww(k) * 2.2, 0, 0, ww(k) * 2.2, BODY, 0.45 * ew(k) * pf, 0.9, i * 1.3 + k * 0.21, 0.2); }
+              for (let k = 1; k <= N; k++) { const e = Math.min(1, (k / N) * 4, (N - k + 1) / N * 5); cb(Q, pts[k - 1][0], pts[k - 1][1], pts[k][0], pts[k][1], Math.max(1.5, T * 0.08), ENERGY, 0.6 * pf * e); cb(Q, pts[k - 1][0], pts[k - 1][1], pts[k][0], pts[k][1], Math.max(0.8, T * 0.022), ACC, 0.75 * pf * e); }
+              const hd = pts[N]; if (uh < 0.99) { Q.glow(hd[0], hd[1], T * 0.4, EDGE, 0.6 * pf); Q.star(hd[0], hd[1], T * 0.35, 0.45 * pf, ACC); } }
+            const uo = sm((t - 0.6) / 0.5), fo = 1 - sm((t - 1.15) / 0.35);
+            if (uo > 0 && fo > 0) { const kk = Math.round(HHALF * cl(uo)); if (kk >= 1) { let pp = null; for (let i = HHALF - kk; i <= HHALF + kk; i++) { const p = hptI(G, i); if (pp) { gDots(Q, pp[0], pp[1], p[0], p[1], G.u * 0.07, G.u * 0.07, '#1A0C30', 0.9 * fo * hpf, 0.9 * fo * hpf); cb(Q, pp[0], pp[1], p[0], p[1], G.u * 0.06, ENERGY, 0.55 * fo * hpf); cb(Q, pp[0], pp[1], p[0], p[1], Math.max(1, G.u * 0.016), ACC, 0.85 * fo * hpf); } pp = p; }
+              if (uo < 1) for (const p of [hptI(G, HHALF - kk), hptI(G, HHALF + kk)]) { Q.glow(p[0], p[1], T * 0.5, ACC, 0.8 * fo * hpf); Q.star(p[0], p[1], T * 0.45, 0.6 * fo * hpf, ACC); } } }
+            Q.glow(tip[0], tip[1], T * 0.9, ENERGY, 0.55 * Math.sin(cl(t / FORM) * Math.PI) * hpf); }
+          if (hA > 0.01) { const formK = t < FORM ? 1 - sm((t - 0.85) / 0.55) : 0;
+            gHeart(Q, G, { a: hA * (0.6 + 0.4 * hpf), inner: 0.16 + 0.35 * fl + 0.75 * wide + 0.5 * formK + 0.6 * con, crack: 0.22 + 0.25 * formK, flash: fl, wide: Math.max(wide, con), seed: (seed % 41) * 0.37 }, tier);
+            Q.glow(G.cx, G.cy + G.hp * 0.1, G.hp * 0.75, EDGE, hA * hpf * (0.05 + 0.12 * fl + 0.18 * wide)); if (con > 0) { Q.glow(G.cx, G.cy + G.hp * 0.1, G.hp * (0.55 - 0.3 * con), ACC, 0.6 * con * hpf); Q.star(G.cx, G.cy + G.hp * 0.1, G.hp * 0.6 * con, 0.4 * con * hpf, ACC); } }
+          for (const s of fines) { const p = hptI(G, s.idx), gx = p[0], gy0 = p[1] + G.u * 0.02, floorY = Y + s.dy * T, head = H.ease.in(cl(s.age / 0.35)), top = cl((s.age - s.life + 0.4) / 0.4), y0 = lerp(gy0, floorY, top * top), y1 = lerp(gy0, floorY, head); if (y1 - y0 < 2) continue; const pf = pfAt(gx, (y0 + y1) / 2, T, PX, PY) * hA;
+            gStrand(Q, gx, y0 - G.u * 0.04, gx + Math.sin(t * 5 + s.ph) * T * 0.03, y1, Math.max(1.2, T * 0.04), Math.max(0.8, T * 0.022), Math.max(1, T * 0.03), 0.95 * pf);
+            for (let k = 0; k < 3; k++) { const u = ((t * 1.6 + k / 3 + s.ph) % 1), yy = lerp(y0, y1, u); Q.glow(gx, yy, T * 0.07, EDGE, 0.6 * pf); } }
+          for (const d of drips) { const p = hptI(G, d.idx), ax = p[0], ay = p[1] - G.u * 0.02, pf = pfAt(ax, ay, T, PX, PY) * hA; let L, rb, wn;
+            if (d.ret < 0) { const g1 = sm(d.age / d.tg), v = cl((d.age - d.tg) / d.ts); rb = d.rb * T * Math.pow(g1, 0.7) * (1 + 0.1 * v); L = (0.05 * g1 + (d.Lm - 0.05) * Math.pow(v, 1.6)) * T; wn = rb * (0.6 - 0.42 * v); }
+            else if (d.snap) { const q = d.ret; L = d.snap * T * Math.exp(-q * 5) * Math.abs(Math.cos(q * 9)); rb = d.rb * T * 0.3 * Math.exp(-q * 3); wn = rb * 0.5; }
+            else { const q = cl(d.ret / 0.45); rb = d.rb * T * (1 - q); L = d.Lm * T * 0.4 * (1 - q) * (1 - q); wn = rb * 0.5; }
+            if (rb < 0.5) continue; const bx = ax + Math.sin(t * 2 + d.idx) * rb * 0.15, by = ay + L + rb; gStrand(Q, ax, ay - rb * 0.9 - G.u * 0.03, bx, by + rb, rb, Math.max(0.6, wn), rb * 0.95, pf); }
+          for (const d of drops) { const dx = H.sx(d.wx), dy = H.sy(d.wy) - d.z * T, rb = d.rb * T, sp = Math.min(1.4, -d.vz * 0.18), ry = rb * (1 + sp), tail = Math.max(0, d.tl * T * Math.exp(-d.t * 4) + rb * sp * 1.2); gStrand(Q, dx, dy - Math.max(ry * 1.5, rb + tail * 1.15), dx, dy + ry * 0.2 + rb * 0.95, rb, rb * 0.4, rb * 0.1, pfAt(dx, dy, T, PX, PY) * AIR); }
+          for (const q of beads) { const bx = H.sx(q.x), by = H.sy(q.y) - q.z * T, r = Math.max(0.9, q.r * T); Q.quad(62, bx, by, r, 0, 0, r, '#FFFFFF', pfAt(bx, by, T, PX, PY) * (1 - cl((q.t - 0.6) / 0.6)), 1, 0.9, 0.9); }
+          if (t >= TB) { const p = t - TB, bx = X, by = Y - f.HZ * T, bpf = 0.3 + 0.7 * sstep(0.2 * T, 1.4 * T, Math.hypot(PX - bx, PY - by) - HT * T * 0.4);
+            const fl2 = Math.max(0, 1 - p / 0.3); if (fl2 > 0) { Q.glow(bx, by, HT * T * (0.9 + 0.5 * H.ease.out(cl(p / 0.12))), ACC, 0.8 * fl2 * bpf); Q.glow(bx, by, HT * T * 0.35, WHITE, 0.85 * fl2 * bpf); Q.glow(bx, by, HT * T * 1.7, ENERGY, 0.55 * fl2 * bpf); Q.star(bx, by, HT * T * 1.2, 0.8 * fl2 * bpf, ACC); Q.eorb(bx, by, HT * T * (0.4 + 0.6 * (1 - fl2)), EDGE, 1.0, 0.7 * fl2 * bpf, seed % 7, 1.5); }
+            for (const [d, sc, L] of CEL ? [[0, 1, 0], [0.06, 0.85, 1], [0.16, 1.3, 1]] : [[0, 1, 0], [0.08, 0.85, 1]]) { const q = cl((p - d) / 0.6); if (q > 0 && q < 1) { const rr = RB * T * 1.15 * sc * H.ease.out(q), ry = rr * 0.38; if (!L) Q.quad(71, bx, by, rr, 0, 0, ry, '#FFFFFF', (1 - q) * 0.95 * bpf, 1); Q.ring(bx, by, rr * 0.96, L ? ACC : EDGE, (1 - q) * 0.8 * bpf, T * 0.1, 0.38); Q.ewave(bx, by, rr, EDGE, 0.8, (1 - q) * 0.6 * bpf, d * 5 + 2, 0.38, 0.18); } }
+            const ra = Math.max(0, 1 - p / 0.5); if (ra > 0) { const NR = 8 + ev; for (let i = 0; i < NR; i++) { const b = i / NR * TAU + R1(seed + i * 3) * 0.5, L = HT * T * (0.9 + 0.7 * R1(seed + i * 5)) * H.ease.out(cl(p / 0.25)); Q.rbeam(bx, by, bx + Math.cos(b) * L, by + Math.sin(b) * L, T * (0.14 + 0.12 * R1(seed + i)), i % 3 ? EDGE : ACC, 0.75 * ra * bpf, 1, 0); } }
+            for (const s of smoke) { const u = s.t / s.life, sx = H.sx(s.x), sy = H.sy(s.y) - s.z * T, r = T * s.s * (0.6 + 0.9 * H.ease.out(u)); Q.quad(53, sx, sy, r * 1.2, 0, 0, r * 1.2, s.d ? '#160A28' : '#3A2850', Math.sin(Math.min(1, u * 3) * Math.PI / 2) * (1 - u) * 0.85 * pfAt(sx, sy, T, PX, PY), 0.8, s.life * 31 % 17, 0.45); } }
+          for (const d of liq) { const dx = H.sx(d.x), dy = H.sy(d.y) - d.z * T, rb = d.r * T, vx = d.vx * T, vy = d.vy * T - d.vz * T, vl = Math.hypot(vx, vy) || 1, ex = vx / vl, ey = vy / vl, sp = Math.min(1.5, vl / T * 0.12); gStrand(Q, dx - ex * rb * (1 + sp) * 1.6, dy - ey * rb * (1 + sp) * 1.6, dx + ex * rb * 1.1, dy + ey * rb * 1.1, rb, rb * 0.4, rb * 0.1, pfAt(dx, dy, T, PX, PY)); }
+          for (const s of shards) { const sx = H.sx(s.x), sy = H.sy(s.y) - s.z * T, a = (s.rest ? 1 - cl((s.t - s.life + 0.7) / 0.7) : 1) * (1 - cl((s.t - s.maxT) / 0.5)) * pfAt(sx, sy, T, PX, PY), fl3 = s.rest ? 0.3 : Math.cos(s.fl), gl = 0.5 + 0.5 * Math.sin(s.fl * 1.3 + s.ang); if (a < 0.02) continue;
+            Q.rq(58, sx, sy, s.wd * T * 1.3 * Math.max(0.2, Math.abs(fl3)), s.L * T * 0.6, s.ang - Math.PI / 2, '#FFFFFF', a, s.fl, s.ang * 3.7, 0.3 + 0.7 * gl); if (gl > 0.6) Q.glow(sx, sy, s.L * T * 0.35, EDGE, a * (gl - 0.6) * 0.8); }
+          FG.flush(c); return; } }
         // mist at the boundary, rising (behind everything above it)
         { const sp = puffSpr(); c.save(); for (const m of mist) { const u = m.t / m.life, a = Math.sin(u * Math.PI) * 0.75, mx = H.sx(m.x), my = H.sy(m.y) - m.z * T, r = T * m.s * (0.7 + 0.6 * u); c.globalAlpha = a * pfAt(mx, my, T, PX, PY) * AIR; c.drawImage(sp, mx - r, my - r * 0.75, r * 2, r * 1.5); } c.restore(); }
         // fragments drifting up into the heart
