@@ -13,7 +13,10 @@
    stamps again: 1 press / 2 at Adept (the second leaves a brighter double heart) / 3 at Celestial (a nested heart
    sigil; the last press larger and strongest). Then it rises, turns its glowing face to the camera and breaks into
    pearl-pink fragments; the floor engraving lingers. One AoE hit per press.
-   2D canvas: "3D" is cached shaded sprites, squashed for tilt, a stacked thickness band, moving highlights. */
+   2D canvas: "3D" is cached shaded sprites, squashed for tilt, a stacked thickness band, moving highlights.
+   (v404 LT) Both on the GPU too (the shared painter, 20k6h, through LU1's helpers in 20k4b), from the same poses, paths and timing:
+   the seal a shaded heart seal (kind 49: face, back and side band), its floor hearts of light (kinds 44, 48); the 2D picture stays
+   as it was for a device without the painter. */
 (() => {
   const S = ELEM_IMPL.light.strong, TAU = Math.PI * 2;
   delete S.sunseed; delete S.lucentwheel;
@@ -234,6 +237,22 @@
         if (!f.frag && t >= TURN + 0.05) { f.frag = true; const p = pose(t), nh = H.n(16 + 4 * tier); for (let k = 0; k < nh; k++) { const hp = HP[Math.floor(Math.random() * HN)], w = WT * p.sc, x = p.x + hp[0] * w * 0.5, z = p.z + 0.7 + -hp[1] * w * 0.5 + 0.2; B.add(x, p.y, Math.max(0.2, z), { vx: hp[0] * 1.6 + (Math.random() - 0.5), vy: (Math.random() - 0.5) * 0.4, vz: 0.4 + Math.random() * 0.9, g: 0.6, drag: 1.4, life: 0.6 + Math.random() * 0.5, s: k % 4 ? 0.07 : 0.13, kind: k % 2 ? 's' : 'h', col: [PEARL, BLOS, PINK, RGOLD][k % 4], rot: 0.6 }); } H.X.sfx.sparkle && H.X.sfx.sparkle(); }
       },
       drawUnder(c, f, X, Y, T) { const t = f.t, p = pose(t);
+        { const FG = K.gfx(); if (FG) { /* (v404 LT) the floor on the GPU: the matching heart brightening under the seal, the engravings
+             (a heart of light with nested outlines, a ring of little hearts round the sigil), the light cushion and heart ripples */
+          if (p.a > 0.02 && t < DISS) { const k = cl(1 - p.z / 2.8); H.softShadow(c, H.sx(p.x), H.sy(p.y) + T * 0.1, T * WT * p.sc * (0.35 + 0.25 * k), 0.12 + 0.22 * k * p.a); }
+          const Q = FG.begin(c, null), MID = 0.294 * SU / HW, eng = (x, y, w, k, a, fill) => { const cy = y + MID * w * GY; K.gFillHeart(Q, x, cy, w, GY, PINK, a, fill, 0.022, (k === 1 ? 0 : k === 2 ? 1 : 3) + 10); K.gFloorHeart(Q, x, cy, w * (k === 3 ? 1.02 : 0.97), GY, PINK, a * 0.9, 1.1, 0.03, 0.2);
+            if (k === 3) for (let i = 0; i < 10; i++) { const e = K.hEdge((i % 5 + 0.5) / 5, i < 5 ? -1 : 1), q = w / 1.678 * 0.76; K.gFillHeart(Q, x + e[0] * q, cy + (e[1] + 0.03) * q * GY + 0.03 * w * GY, w * 0.1, GY, BLOS, a, 1, 0.05, 0); } };
+          const nxt = f.n < NP ? f.n : -1;
+          if (nxt >= 0 && t > 0.35) { const c0 = CT[nxt], u = cl(1 - (c0 - t) / (nxt ? 0.5 : 0.45)), sp = spots[Math.min(nxt, spots.length - 1)]; if (u > 0) { eng(H.sx(sp[0]), H.sy(sp[1]), WT * big(nxt) * T * 1.02, 1, 0.6 * u, 0.25 + 0.3 * u); Q.glow(H.sx(sp[0]), H.sy(sp[1]) + MID * WT * T * GY, T * WT * 0.7, PINK, 0.3 * u, GY); } }
+          for (const e of engr) { const lt = t - e.t0, fa = (0.55 + 0.45 * Math.exp(-lt * 4)) * (1 - sm((t - (END - 0.85)) / 0.85)), X2 = H.sx(e.x), Y2 = H.sy(e.y), w = WT * e.s * T * 1.02;
+            Q.glow(X2, Y2 + MID * w * GY, T * R * e.s * 0.9, PINK, 0.4 * fa, GY); Q.caustic(X2, Y2 + MID * w * GY, w * 0.62, PINK, 0.25 * fa, e.k + 1, GY);
+            eng(X2, Y2, w, e.k, fa, 0.32 + 0.5 * Math.exp(-lt * 5));
+            if (lt < 0.25) K.gFillHeart(Q, X2, Y2 + MID * w * GY, w * (1 + lt), GY, BLOS, (1 - lt / 0.25) * 0.9, 1, 0.03, 0); }
+          for (const r of rips) { const u = r.t / 0.7, X2 = H.sx(r.x), Y2 = H.sy(r.y), e = H.ease.out(cl(u * 1.4)), w0 = T * WT * r.s / R;
+            if (u < 0.4) Q.glow(X2, Y2, T * r.s * (0.7 + 0.6 * e), BLOS, 0.6 * (1 - u / 0.4), GY);
+            K.gFloorHeart(Q, X2, Y2, w0 * (0.95 + 1.5 * e), GY, PINK, (1 - u) * 0.95, 1.1, 0.035, 0.3); K.gFloorHeart(Q, X2, Y2, w0 * (0.95 + 1.5 * e) * 0.985, GY, PEARL, (1 - u) * 0.7, 1.1, 0.012, 0);
+            if (tier >= 2) { const e2 = H.ease.out(cl((u - 0.12) * 1.5)); if (e2 > 0) K.gFloorHeart(Q, X2, Y2, w0 * (0.9 + 1.9 * e2), GY, BLOS, (1 - u) * 0.55, 1.1, 0.025, 0.2); } }
+          FG.flush(c); return; } }
         c.save();
         // the matching heart on the floor brightens beneath the seal as it comes down; then the engravings left behind
         const nxt = f.n < NP ? f.n : -1;
@@ -252,9 +271,29 @@
         c.restore();
       },
       draw(c, f, X, Y, T) { const t = f.t, p = pose(t);
+        { const FG = K.gfx(); if (FG) { const Q = FG.begin(c, null); if (t < DISS && p.a > 0.01) gSeal(Q, f, t, p, T); K.gBits(Q, B, T); FG.flush(c); return; } }   // (v404 LT)
         if (t < DISS && p.a > 0.01) drawSeal(c, f, t, p, T);
         B.draw(c, T);
       } });
+
+    /* (v404 LT) the seal on the GPU, from the same pose: its stack of pearly side copies (kind 49 -1, -2 at the faces), the stamping face
+       with its engravings glowing as it charges or the domed back (kind 49), glints running round the rose-gold rim, the light threads */
+    function gSeal(Q, f, t, p, T) {
+      const Xs = H.sx(p.x), Yg = H.sy(p.y), dim = petDim(H, p.x, p.y), a = p.a * (0.55 + 0.45 * dim);
+      const s = WT * p.sc * T / HW * (1 + p.sq * 0.5), kyR = Math.cos(p.al + 0.576), ky0 = kyR >= 0 ? kyR / 0.84 : kyR, ky = Math.sign(ky0 || 1) * Math.max(0.07, Math.abs(ky0)) * (1 - p.sq);
+      const d = T * 0.24 * p.sc * (1 - p.sq * 0.6), off = -(Math.cos(p.al) * GY + Math.sin(p.al)) * d, Y = Yg - p.z * T;
+      const faceUp = ky0 > 0, hid = faceUp ? off : 0, vis = faceUp ? 0 : off, NK = Math.max(3, Math.min(10, Math.round(Math.abs(off) / 2)));
+      const nxt = f.n < NP ? CT[f.n] : -1, charge = nxt > 0 ? cl(1 - (nxt - t) / 0.45) : 0, ka = Math.abs(ky), w = HW * s, hq = w / 1.678, mid = 0.294 * SU * s * ka, cr = Math.cos(p.roll), sr = Math.sin(p.roll);
+      const Pt = (ox, oy) => [Xs + ox * cr - oy * sr, Y + ox * sr + oy * cr], sheen = Math.sin(t * 2.1) * 0.9;
+      const seal = (oy, mode, q0) => { const c0 = Pt(0, oy + mid); Q.quad(49, c0[0], c0[1], cr * hq, sr * hq, -sr * hq * ka, cr * hq * ka, '#FFFFFF', a, q0 || 0, sheen, mode); };
+      { const g = Pt(0, off * 0.5 + mid); Q.glow(g[0], g[1], T * WT * p.sc * 0.8, PINK, (0.3 + 0.3 * charge) * a); }
+      if (nxt > 0 && nxt - t < 0.16 && p.z > 0.02) { const u = 1 - (nxt - t) / 0.16; for (let k = 0; k < 12; k++) { const hp = HP[Math.round(k / 12 * HN)], hx = hp[0] * SU * s, hy = hp[1] * SU * s; Q.beam(Xs + hx, Y + hy * ka, Xs + hx * 1.02, Yg + hy * GY * 1.02, Math.max(1, T * 0.03), k % 2 ? BLOS : PEARL, 0.6 * u * a); } }
+      for (let k = 0; k <= NK; k++) seal(lerp(hid, vis, k / NK), k === 0 || k === NK ? -2 : -1);
+      const gl = faceUp ? 0.35 + 0.65 * Math.max(charge, cl(1 - t / 0.6), cl((t - RISE0) / 0.3)) : 0;
+      seal(vis, faceUp ? 1 : 2, gl);
+      if (gl > 0.05) { const c0 = Pt(0, vis + mid); Q.glow(c0[0], c0[1], w * 0.3, PINK, a * gl * 0.18); Q.quad(44, c0[0], c0[1] + hq * ka * 0.04, cr * hq * 0.62, sr * hq * 0.62, -sr * hq * 0.62 * ka, cr * hq * 0.62 * ka, PINK, a * gl * 0.35, 0.02, 1.1, 0.1); }
+      for (const [ph, col, rr, al] of [[0, PEARL, 0.22, 0.75], [0.5, RGOLD, 0.15, 0.55]]) { const fr = ((t * 0.45 + ph) % 1), e = K.hEdge(Math.abs(fr * 2 - 1), fr < 0.5 ? -1 : 1), q = Pt(e[0] * hq * 0.98, vis + mid + e[1] * hq * ka * 0.98); Q.glow(q[0], q[1], T * rr, col, al * a); Q.star(q[0], q[1], T * rr * 0.9, al * a, PEARL); }
+    }
 
     function drawSeal(c, f, t, p, T) {
       const X = H.sx(p.x), Yg = H.sy(p.y), dim = petDim(H, p.x, p.y), a = p.a * (0.55 + 0.45 * dim);

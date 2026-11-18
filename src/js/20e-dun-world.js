@@ -660,5 +660,8 @@ const DunWorld = (() => {
     P.pin(p, -wx + W / 2, -wy + H / 2);
     return { base: { water: '#1B4442', lava: '#FF6A1F', sky: '#9ED8F5', heaven: '#E8DDF8', void: '#07040C', abyss: '#06070F', iceabyss: '#0E2440', pit: '#05040A', sand: '#E2BE78', icewater: '#16324A', grid: '#05070F', river: '#245C6A', pond: '#4FA0B8', coolant: '#0B2A2E', plasma: '#0A0414' }[kind] || (window.GAP_EXT && GAP_EXT[kind] && GAP_EXT[kind].base) || '#05040A', pat: kind === 'sky' || kind === 'heaven' ? null : p };
   }
-  return { PROPS, propSprite, chunk, CH, backdrop, gapStyle, decal, pattern, cloud };
+  // v404 IF: the props' pictures are made per land and zoom and were kept for up to 300 of them across stages (some 75 MB on a
+  // 3x phone screen by the end of Rift 0): a closed stage gives its own back (20b destroy); the next stage's loading repaints them
+  function dropProps() { propCache.forEach(s => { if (s && s.cv) s.cv.width = s.cv.height = 1; }); propCache.clear(); }
+  return { PROPS, propSprite, chunk, CH, backdrop, gapStyle, decal, pattern, cloud, dropProps };
 })();

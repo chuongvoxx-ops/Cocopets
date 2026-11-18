@@ -203,6 +203,7 @@ const CALFLAN = (() => {
     }
     /* draw(c, x, y, z, heading, pose, o): o = { T, sx, sy, t }. The instance (o.I) keeps the bubbles */
     let LAST = null, LASTERR = null;
+    try { if (typeof BEL !== 'undefined' && BEL && Array.isArray(BEL.onRelease)) BEL.onRelease.push(() => { LAST = null; }); } catch (e) {}   // v404 IF: (the last draw's view: the dead stage's camera) let go when a new stage is made
     function draw(c, x, y, z, a, P, o) {
       const t = o.t != null ? o.t : nowMs() / 1000, I = o.I || (o.I = inst()), al = P.alpha == null ? 1 : P.alpha; if (!(al > 0.01)) return;
       const gl = glOn(), V = view(x, y, z + (P.lift || 0), a, o), G = MESH ? MESH.gel : (draw.G || (draw.G = mkGel(32, 20)));
@@ -334,6 +335,9 @@ const CALFLAN = (() => {
 
   /* ================= the arena: the three wells, their fields, the crystals' integrity ================= */
   let CUR = null;   // (the live arena: set by the stage's maker, found again by the fiend through the game it runs in)
+  // v404 IF: (the user, iPhone: Ifrit's stage would not load) CUR held the flan's whole dead stage (its fiend, its 1920 px painted
+  // arena, its floor) alive through every later stage of the rift: let go whenever a new stage is made (BEL.releaseStale, 20n)
+  try { if (typeof BEL !== 'undefined' && BEL && Array.isArray(BEL.onRelease)) BEL.onRelease.push(() => { CUR = null; }); } catch (e) {}
   function makeArena(C, g, o) {
     o = o || {};
     const wells = [0, 1, 2].map(i => Object.assign(wellGeo(C, i), { integ: INTEG, broken: false, regrowT: 0, grow: 1, flash: 0, hit: 0, shake: 0, chime: 0, glow: 0, plate: null, obj: null }));

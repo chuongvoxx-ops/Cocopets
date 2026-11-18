@@ -160,8 +160,12 @@ const CAL_MINI = (() => {
   /* ======================= its moves ======================= */
   const say = (X, m, s) => { try { X.say(m, s); } catch (e) {} };
   function done(m, cd) { m.act = 'move'; m.cd = cd; m.actT = 0; m.step = 0; }
-  function shoot(X, m, a, n, gap, spd, o) { for (let i = 0; i < n; i++) X.eshot(m.x + Math.cos(a) * m.r * 0.8, m.y - m.r * 0.8, a + (i - (n - 1) / 2) * gap, spd, Object.assign({ src: m, life: 2.2 }, o)); }
-  function radial(X, m, n, spd, o, off) { for (let i = 0; i < n; i++) X.eshot(m.x, m.y - m.r * 0.6, (off || 0) + i / n * TAU, spd, Object.assign({ src: m, life: 2 }, o)); }
+  // (v404 EM: its shots carry their own GPU painter (paint, below: the engine's GPU pass calls it) and its tells a hook that
+  // says when the layer paints them (drawn); the numbers are as they were)
+  function shoot(X, m, a, n, gap, spd, o) { for (let i = 0; i < n; i++) X.eshot(m.x + Math.cos(a) * m.r * 0.8, m.y - m.r * 0.8, a + (i - (n - 1) / 2) * gap, spd, Object.assign({ src: m, life: 2.2, paint: shotPaint, calEl: m.calMini && m.calMini.def.el }, o)); }
+  function radial(X, m, n, spd, o, off) { for (let i = 0; i < n; i++) X.eshot(m.x, m.y - m.r * 0.6, (off || 0) + i / n * TAU, spd, Object.assign({ src: m, life: 2, paint: shotPaint, calEl: m.calMini && m.calMini.def.el }, o)); }
+  // v404 EM: a tell is the engine's own warn zone (as X.warn makes it), kept in the run's list so the layer can paint it
+  const tellZ = (X, o) => { const R = RUN(X); if (!X.zone) return X.warn(o); const z = Object.assign({ kind: 'warn', own: 'enemy', color: '#FF4D6D' }, o, { calTell: 1, drawn: R.drawn }); X.zone(z); (R.tells || (R.tells = [])).push(z); };
   function ai(m, A, X, B) {
     const S = m.calMini; if (!S) return; const d = S.def, me = X.me, T = m.actT, ph = m.phase || 1;
     S.aiT = (S.aiT || 0) + A.dt;
@@ -189,29 +193,29 @@ const CAL_MINI = (() => {
     const tell = ph >= 3 ? 0.6 : 0.75;
     switch (m.act) {
       case 'lunge': {   // a shown lane, then it springs along it; from phase two a clawing swipe follows
-        if (m.step === 0) { m.step = 1; S.la = A.a; S.len = clamp(A.d + 1.6 + m.r * 0.5, 3.6 + m.r, 6.6 + m.r); m.face = Math.cos(S.la) >= 0 ? 1 : -1; X.warn({ shape: 'line', x: m.x, y: m.y, a: S.la, len: S.len, w: 0.8 + m.r, life: tell, max: tell, src: m, color: d.col }); if (Math.random() < 0.5) say(X, m, d.cry[0]); }
+        if (m.step === 0) { m.step = 1; S.la = A.a; S.len = clamp(A.d + 1.6 + m.r * 0.5, 3.6 + m.r, 6.6 + m.r); m.face = Math.cos(S.la) >= 0 ? 1 : -1; tellZ(X, { shape: 'line', x: m.x, y: m.y, a: S.la, len: S.len, w: 0.8 + m.r, life: tell, max: tell, src: m, color: d.col }); if (Math.random() < 0.5) say(X, m, d.cry[0]); }
         if (T > tell && T < tell + 0.3) { const v = S.len / 0.3; X.moveEnt(m, Math.cos(S.la) * v * A.dt, Math.sin(S.la) * v * A.dt); (S.trailPts = S.trailPts || []).push({ x: m.x, y: m.y }); if (S.trailPts.length > 12) S.trailPts.shift(); S.dashing = 0.05; if (!lowFx() && Math.random() < 0.6) X.part({ kind: 'ember', x: m.x + (Math.random() - 0.5) * 0.6, y: m.y - 0.4, vx: -Math.cos(S.la) * 2, vy: -1, life: 0.4, max: 0.4, size: 4, color: Math.random() < 0.5 ? d.col : '#1A0E1E' });
           if (!S.hit && Math.hypot(me.x - m.x, me.y - m.y) < m.r + me.r + 0.35) { S.hit = true; if (X.hurtPet(m.dmg * 1.5, m)) X.push(S.la, 1.8); } }
-        if (m.step === 1 && T > tell + 0.3) { m.step = 2; if (ph >= 2) { S.sa = Math.atan2(me.y - m.y, me.x - m.x); m.face = Math.cos(S.sa) >= 0 ? 1 : -1; X.warn({ shape: 'cone', x: m.x, y: m.y, a: S.sa, len: 2.1 + m.r * 1.2, spread: 0.85, life: 0.45, max: 0.45, src: m, color: d.col }); } }
+        if (m.step === 1 && T > tell + 0.3) { m.step = 2; if (ph >= 2) { S.sa = Math.atan2(me.y - m.y, me.x - m.x); m.face = Math.cos(S.sa) >= 0 ? 1 : -1; tellZ(X, { shape: 'cone', x: m.x, y: m.y, a: S.sa, len: 2.1 + m.r * 1.2, spread: 0.85, life: 0.45, max: 0.45, src: m, color: d.col }); } }
         if (m.step === 2 && ph >= 2 && T > tell + 0.75) { m.step = 3; if (X.inCone(m.x, m.y, S.sa, 2.1 + m.r * 1.2, 0.85)) X.hurtPet(m.dmg, m); X.slash(m.x + Math.cos(S.sa) * m.r, m.y - 0.3 + Math.sin(S.sa) * m.r, S.sa, 1.6 + m.r, d.col); snd(X, 'whoosh'); }
         if (T > tell + (ph >= 2 ? 1.25 : 0.85)) done(m, 1.3);
         break; }
       case 'fire': case 'ice': {   // waves of shots along shown cones
         const waves = ph >= 2 ? 3 : 2, gapT = 0.78;
         if (m.step < waves && T > m.step * gapT) { const a = A.a + (m.step % 2 ? 0.12 : -0.05), ice = m.act === 'ice'; m.face = Math.cos(a) >= 0 ? 1 : -1; m.step++;
-          X.warn({ shape: 'cone', x: m.x, y: m.y, a, len: 7, spread: ice ? 0.42 : 0.5, life: 0.5, max: 0.5, src: m, color: d.col }); if (m.step === 1) say(X, m, d.cry[1]);
+          tellZ(X, { shape: 'cone', x: m.x, y: m.y, a, len: 7, spread: ice ? 0.42 : 0.5, life: 0.5, max: 0.5, src: m, color: d.col }); if (m.step === 1) say(X, m, d.cry[1]);
           const sh = d.shot; X.after(0.5, () => { if (m.dead) return; shoot(X, m, a, sh.n, sh.gap, sh.spd, Object.assign({ dmg: m.dmg * 0.75, color: sh.col, core: sh.core, r: sh.r, style: sh.style }, sh.chill ? { chill: sh.chill } : {})); snd(X, ice ? 'chime' : 'whoosh', 880, 0.2); }); }
         if (T > waves * gapT + 0.55) done(m, 1.4);
         break; }
       case 'beam': {   // a shown lane, then a prism ray along it; three fanned in turn from phase two
         const n = ph >= 2 ? 3 : 1, per = 1.25;
         if (m.step < n && T > m.step * per) { const off = n === 1 ? 0 : [0, -0.5, 0.5][m.step], a = A.a + off; S.beams = S.beams || []; S.beams.push({ a, x: m.x, y: m.y - m.r * 0.9, w: 0.6 + m.r * 0.6, rise: m.r * 0.9, t: 0, on: 0.85, off: 1.3, hit: false }); m.face = Math.cos(a) >= 0 ? 1 : -1; m.step++;
-          X.warn({ shape: 'line', x: m.x, y: m.y, a, len: 9, w: 0.6 + m.r * 0.6, life: 0.85, max: 0.85, src: m, color: d.col }); if (m.step === 1) say(X, m, d.cry[1]); }
+          tellZ(X, { shape: 'line', x: m.x, y: m.y, a, len: 9, w: 0.6 + m.r * 0.6, life: 0.85, max: 0.85, src: m, color: d.col }); if (m.step === 1) say(X, m, d.cry[1]); }
         if (T > n * per + 0.5) done(m, 1.4);
         break; }
       case 'pounce': {   // Cinder Pounce: a crouch, a leap, a marked landing that bursts (from phase two, embers fly out of it)
         if (m.step === 0) { m.step = 1; const p = X.walkPoint ? X.walkPoint(me.x, me.y, { r: m.r, mv: 0, x: m.x, y: m.y }) : { x: me.x, y: me.y }; S.from = { x: m.x, y: m.y }; S.to = p || { x: me.x, y: me.y }; S.tell = 1;
-          X.warn({ x: S.to.x, y: S.to.y, r: 1.4 + m.r * 0.8, life: 1.25, max: 1.25, src: m, color: d.col }); X.text(m.x, m.y - m.r * 3.2, d.sigName + '!', d.col, 15); snd(X, 'hiss', 0.8, 0.2, 500); }
+          tellZ(X, { x: S.to.x, y: S.to.y, r: 1.4 + m.r * 0.8, life: 1.25, max: 1.25, src: m, color: d.col }); X.text(m.x, m.y - m.r * 3.2, d.sigName + '!', d.col, 15); snd(X, 'hiss', 0.8, 0.2, 500); }
         if (T > 0.55 && T < 1.25) { const u = (T - 0.55) / 0.7; m.x = lerp(S.from.x, S.to.x, u); m.y = lerp(S.from.y, S.to.y, u); m.z = Math.sin(u * Math.PI) * (1.6 + m.r); }
         if (m.step === 1 && T >= 1.25) { m.step = 2; m.z = 0; m.x = S.to.x; m.y = S.to.y; S.tell = 0; if (X.unstick) X.unstick(m);
           if (Math.hypot(me.x - m.x, me.y - m.y) < 1.4 + m.r * 0.8 + me.r) X.hurtPet(m.dmg * 2, m);
@@ -220,7 +224,7 @@ const CAL_MINI = (() => {
         if (T > 2.15) done(m, 1.2);   // (it pants after it: the window to punish)
         break; }
       case 'howl': {   // Glacial Howl: it plants and howls; a marked ring round it; then a frost nova that chills
-        if (m.step === 0) { m.step = 1; S.tell = 1; X.warn({ x: m.x, y: m.y, r: 2.6 + m.r * 1.2, life: 1.4, max: 1.4, src: m, color: d.col, follow: m }); X.text(m.x, m.y - m.r * 3.2, d.sigName + '!', d.col, 15); snd(X, 'hum'); }
+        if (m.step === 0) { m.step = 1; S.tell = 1; tellZ(X, { x: m.x, y: m.y, r: 2.6 + m.r * 1.2, life: 1.4, max: 1.4, src: m, color: d.col, follow: m }); X.text(m.x, m.y - m.r * 3.2, d.sigName + '!', d.col, 15); snd(X, 'hum'); }
         if (m.step === 1 && T >= 1.4) { m.step = 2; S.tell = 0; if (Math.hypot(me.x - m.x, me.y - m.y) < 2.6 + m.r * 1.2 + me.r && X.hurtPet(m.dmg * 2, m) && d.shot.chill) X.chillPet(2.4);
           X.boom(m.x, m.y, 2.6 + m.r * 1.2, d.shot.col, d.shot.core, { n: 30, shake: 8, smoke: 4 }); X.ring(m.x, m.y, 0.3, 2.8 + m.r * 1.2, 0.45, '#2A4A6A', 0.5); snd(X, 'crash');
           radial(X, m, ph >= 2 ? 14 : 10, 5.5, Object.assign({ dmg: m.dmg * 0.6, color: d.shot.col, core: d.shot.core, r: 0.16, style: d.shot.style }, d.shot.chill ? { chill: 1 } : {}), Math.random()); }
@@ -228,7 +232,7 @@ const CAL_MINI = (() => {
         break; }
       case 'rain': {   // Shatter Rain: marked circles round the pet, then glass falls on each (a second, smaller fall from phase two)
         const drop = (cx, cy, k, lag) => { const R = 0.9 + m.r * 0.4; for (let i = 0; i < k; i++) { const a = Math.random() * TAU, rr = i ? 1.6 + Math.random() * 1.6 : 0, p = { x: cx + Math.cos(a) * rr, y: cy + Math.sin(a) * rr }, life = 1.05 + i * 0.16 + (lag || 0);
-          X.warn({ x: p.x, y: p.y, r: R, life, max: life, src: m, color: d.col, fn: () => { if (m.dead) return; if (Math.hypot(me.x - p.x, me.y - p.y) < R + me.r) X.hurtPet(m.dmg * 1.5, m); X.boom(p.x, p.y, R, d.col, '#FFFFFF', { n: 12, shake: 3 }); X.sparks(p.x, p.y, d.core, 8, 5); snd(X, 'crack'); } }); } };
+          tellZ(X, { x: p.x, y: p.y, r: R, life, max: life, src: m, color: d.col, fn: () => { if (m.dead) return; if (Math.hypot(me.x - p.x, me.y - p.y) < R + me.r) X.hurtPet(m.dmg * 1.5, m); X.boom(p.x, p.y, R, d.col, '#FFFFFF', { n: 12, shake: 3 }); X.sparks(p.x, p.y, d.core, 8, 5); snd(X, 'crack'); } }); } };
         if (m.step === 0) { m.step = 1; S.tell = 1; X.text(m.x, m.y - m.r * 3.2, d.sigName + '!', d.col, 15); drop(me.x, me.y, ph >= 2 ? 7 : 5); snd(X, 'chime', 1400, 0.3); }
         if (m.step === 1 && T > 1.6) { m.step = 2; S.tell = 0; if (ph >= 2) drop(me.x, me.y, 3, 0.1); }
         if (T > 2.6) done(m, 1.2);
@@ -254,6 +258,65 @@ const CAL_MINI = (() => {
   function cv(k, w, h) { let o = CV[k]; if (!o) o = CV[k] = document.createElement('canvas'); if (o.width !== w || o.height !== h) { o.width = w; o.height = h; } const x = o.getContext('2d'); x.setTransform(1, 0, 0, 1, 0, 0); x.globalAlpha = 1; x.globalCompositeOperation = 'source-over'; x.clearRect(0, 0, w, h); return [o, x]; }
   const gpu = c => { try { return CAL.gpu ? CAL.gpu(c, false) : null; } catch (e) { return null; } };
   const gpuEnd = (c, G) => { if (G) try { CAL.gpuEnd(c, G); } catch (e) {} };
+  /* ======================= v404 EM: its attacks on the GPU, soft =======================
+     The user (v403, the Belfry's Clangrot fight): "some of the attack edges are not blended in properly, there are rough
+     edges, the beams look like they're cropped". Where Nidhogg's painter runs, every attack of a guardian is light on FGFX,
+     feathered on every side (numbers, timing and hit areas untouched; where the painter cannot run, the engine's own 2D as
+     before):
+       - its tells (the lane, the cones, the circles: engine warn zones made through tellZ) were the engine's 2D shapes (a
+         filled box with a dashed border, a hard wedge, stroked circles); now glow on the floor in the layer's ground batch: a
+         soft band or fan of light deepening as the count runs out, its edges soft lines of light, a front of light sweeping out
+         to where the blow lands, glints running along a lane; a circle a pool of light filling and a ring of overlapping
+         links (no stroke). The zone is still the engine's (its time, its fn); z.drawn() tells the engine not to draw it (20b)
+       - its shots (volleys, the bursts of a pounce and a howl) were flat 2D discs (and the frost one a wooden arrow); now
+         painted in the engine's own GPU pass (eshot.paint, 20b): a fireball with a comet tail, an ice lance (a white-hot
+         thread in a pale body, a glint at its point), an orb of energy or of water; each tail thins to nothing
+       - a lunge's streak was a row of separate energy beams (beads); now one ribbon of overlapping links ramped tail to head
+       - the prism / umbral ray had a hard 2D stroke laid over its GPU light; now a soft dark sheath on the GPU under a halo,
+         its body and a white core, a flare at its mouth
+       - the leaders' dark ring under them (a 2D stroke under the GPU ring) is a soft dark ring on the GPU
+     Cost: a tell is 6-30 quads, a shot 3-5, all in batches that were drawn anyway (no extra pass). */
+  // a soft dark stroke laid over (FGFX kind 71, picture 7: gaussian across, its ends fading)
+  const stroke71 = (Q, x0, y0, x1, y1, w, col, a) => { const dx = (x1 - x0) / 2, dy = (y1 - y0) / 2, L = Math.hypot(dx, dy); if (L < 0.5 || !(a > 0.004)) return; Q.quad(71, x0 + dx, y0 + dy, dx, dy, -dy / L * w, dx / L * w, col, Math.min(1, a), 7); };
+  // a ring of overlapping links (each an eighth longer at both ends, so their soft ends sum to one): no stroke, no seam; as
+  // many links as keep each chord within a quarter of the line's width of the true circle (no facets)
+  const linksFor = (R, w, span) => Math.ceil(span / (2 * Math.acos(clamp(1 - Math.max(0.5, w * 0.12) / R, -1, 1)) || 1));
+  function softRing(Q, x, y, R, sy, w, col, a, solid) { if (!(R > 1) || !(a > 0.004)) return; const n = clamp(linksFor(R, w, TAU), 12, 44), st = TAU / n, e = st / 8;
+    for (let i = 0; i < n; i++) { const b0 = i * st - e, b1 = (i + 1) * st + e, x0 = x + Math.cos(b0) * R, y0 = y + Math.sin(b0) * R * sy, x1 = x + Math.cos(b1) * R, y1 = y + Math.sin(b1) * R * sy; if (solid) stroke71(Q, x0, y0, x1, y1, w, col, a); else Q.beam(x0, y0, x1, y1, w, col, a); } }
+  // an arc of light from b0 to b1, its strength rising and falling along it (so its ends dissolve)
+  function softArc(Q, x, y, R, b0, b1, w, col, a) { if (!(R > 1) || !(a > 0.004)) return; const n = clamp(linksFor(R, w, Math.abs(b1 - b0)), 3, 18), st = (b1 - b0) / n, e = st / 8, env = u => Math.sin(Math.PI * clamp(u, 0, 1));
+    for (let i = 0; i < n; i++) { const c0 = b0 + i * st - e, c1 = b0 + (i + 1) * st + e; Q.rbeam(x + Math.cos(c0) * R, y + Math.sin(c0) * R, x + Math.cos(c1) * R, y + Math.sin(c1) * R, w, col, a, env(i / n) * 0.9 + 0.1, env((i + 1) / n) * 0.9 + 0.1); } }
+  /* a tell, painted in the layer's ground batch (z: the engine's warn zone) */
+  function paintTell(Q, X, z, t, T) { const life = z.max || 1, u = clamp(1 - z.life / life, 0, 1), k = clamp((life - z.life) / 0.12, 0, 1) * clamp(z.life / 0.06, 0, 1); if (!(k > 0.01)) return;
+    const col = z.color || '#FF4D6D', hi = z.calHi || (z.calHi = mixHex(col, '#FFFFFF', 0.45)), x = X.sx(z.x), y = X.sy(z.y), pulse = 0.5 + 0.5 * Math.sin(t * (7 + 9 * u)), lw = Math.max(2.5, T * 0.08);
+    if (z.shape === 'line') { const L = z.len * T, hw = z.w * T / 2, ca = Math.cos(z.a), sa = Math.sin(z.a), nx = -sa, ny = ca, x1 = x + ca * L, y1 = y + sa * L, f = Math.max(0.1, u), xf = x + ca * L * f, yf = y + sa * L * f;
+      Q.rbeam(x, y, x1, y1, hw * 1.7, col, (0.3 + 0.3 * u) * k, 0.45, 1);              // the lane: a soft band of its colour
+      Q.rbeam(x, y, xf, yf, hw * 1.15, col, (0.3 + 0.4 * u) * k, 0.25, 1);              // the count: light filling it from its root
+      Q.glow(xf, yf, hw * 1.4, hi, (0.22 + 0.25 * u) * k);                                  // and its front
+      for (const sd of [-1, 1]) Q.rbeam(x + nx * hw * sd, y + ny * hw * sd, x1 + nx * hw * sd, y1 + ny * hw * sd, lw, hi, (0.55 + 0.3 * pulse) * k, 0.15, 1);   // its edges: soft lines of light
+      for (let i = 0; i < 3; i++) { const g = (i / 3 + t * 0.7) % 1; Q.star(x + ca * L * g, y + sa * L * g, hw * 0.45, 0.55 * Math.sin(Math.PI * g) * k, hi); }   // glints running along it, the way it goes
+      return; }
+    if (z.shape === 'cone') { const L = z.len * T, sp = z.spread, r0 = T * 0.35, n = clamp(Math.ceil(2 * sp * L / (T * 0.9)) + 1, 5, 10), hwR = 2 * sp * 0.82 * L / (n - 1) * 1.45;
+      for (let i = 0; i < n; i++) { const b = z.a - sp * 0.82 + 2 * sp * 0.82 * i / (n - 1), cb = Math.cos(b), sb = Math.sin(b); Q.rbeam(x + cb * r0, y + sb * r0, x + cb * L, y + sb * L, hwR, col, (0.11 + 0.15 * u) * k, 0.2, 1); }   // a fan of soft light
+      for (const b of [z.a - sp, z.a + sp]) { const cb = Math.cos(b), sb = Math.sin(b); Q.rbeam(x + cb * r0, y + sb * r0, x + cb * L, y + sb * L, lw, hi, (0.55 + 0.3 * pulse) * k, 0.1, 1); }   // its edges
+      softArc(Q, x, y, r0 + (L - r0) * u, z.a - sp, z.a + sp, T * 0.22, hi, (0.4 + 0.4 * u) * k);   // the front sweeping out
+      softArc(Q, x, y, L, z.a - sp, z.a + sp, T * 0.16, col, 0.45 * k);   // its reach
+      return; }
+    const R = z.r * T; Q.glow(x, y, R * 1.15, col, (0.22 + 0.3 * u) * k); Q.glow(x, y, R * (0.25 + 0.85 * u), hi, (0.12 + 0.3 * u) * k);   // a pool of light filling it
+    softRing(Q, x, y, R, 1, Math.max(3, T * 0.22), col, (0.3 + 0.2 * u) * k); softRing(Q, x, y, R, 1, lw, hi, (0.45 + 0.3 * pulse) * k);   // its rim: links of light
+    if (z.r > 1.6) for (let i = 0; i < 2; i++) { const b = t * 3 + i * Math.PI; Q.star(x + Math.cos(b) * R * 0.6, y + Math.sin(b) * R * 0.6, T * 0.3, 0.6 * k, hi); } }
+  /* a shot, painted in the engine's GPU pass (20b drawEShots calls b.paint(Q, x, y, r, T, b) and skips its 2D when it returns
+     true); x, y its place on screen, r its radius in px */
+  function shotPaint(Q, x, y, r, T, b) { const sp = Math.hypot(b.vx, b.vy) || 1, ux = b.vx / sp, uy = b.vy / sp, sd = b.sd || (b.sd = 1 + Math.random() * 50), col = b.color || '#B784FF', core = b.core || '#FFFFFF', k = clamp((b.t || 0) / 0.06, 0.35, 1);
+    if (b.style === 'arrow') { const hx = x + ux * r * 1.6, hy = y + uy * r * 1.6, L = r * 5.5, tx = x - ux * L, ty = y - uy * L;   // an ice lance: its point forward, its tail thinning away
+      stroke71(Q, hx, hy, tx, ty, r * 0.9, '#0E1A2C', 0.3 * k);
+      Q.ebeam(hx, hy, tx, ty, r * 0.75, col, 0.9, 0.95 * k, sd, 7); Q.rbeam(hx, hy, tx, ty, r * 0.24, '#FFFFFF', 0.95 * k, 1, 0.1);
+      Q.glow(x, y, r * 2.6, col, 0.45 * k); Q.star(hx, hy, r * 1.7, 0.9 * k, core); return true; }
+    const fire = b.calEl === 'fire', water = b.calEl === 'water', L = r * (fire ? 5 : 4.5);
+    if (fire) { Q.firebeam(x, y, x - ux * L, y - uy * L, r * 0.8, 0.75, 0.85 * k, sd, 5); Q.fire(x, y, r * 1.3, 0.95, k, sd); Q.glow(x, y, r * 3, col, 0.45 * k); return true; }
+    Q.ebeam(x, y, x - ux * L, y - uy * L, r * 0.7, col, 0.8, 0.7 * k, sd, 6);   // its tail
+    if (water && Q.wsphere) Q.wsphere(x, y, r * 1.2, col, k, sd, 1.5); else Q.eorb(x, y, r * 1.25, col, 0.9, k, sd, 3);
+    Q.glow(x, y, r * 2.8, col, 0.42 * k); Q.glow(x, y, r * 0.75, core, 0.7 * k); return true; }
   /* the aura on the GPU: smoke as dark as soot rolling up round it (solid, so it shows on a light floor), and tongues of
      black fire: a violet heart, an ember edge */
   function gpuAura(Q, Xs, foot, h, t, k, d, seed) {
@@ -365,7 +428,13 @@ const CAL_MINI = (() => {
     for (const sd of [-1, 1]) { Q.glow(Xs + sd * eg * fl + fl * h * 0.03, ey, h * 0.09, RED_EYE, 0.9 * ek); Q.star(Xs + sd * eg * fl + fl * h * 0.03, ey, h * 0.05 * (0.8 + 0.4 * ek), 0.8 * ek, '#FFD0C8'); }
     Q.glow(Xs + fl * h * 0.03, ey, h * 0.26, RED_EYE, 0.22 * ek, 0.5);
     if (tell > 0) { Q.ring(Xs, foot, h * (0.55 + 0.1 * Math.sin(t * 9)), d.col, 0.6 * tell, h * 0.05, 0.34); Q.glow(Xs, fy - h * 0.45, h * 0.5, d.col, 0.3 * tell); }
-    if (S.trailPts && S.trailPts.length > 1) { const X0 = p => S.X.sx(p.x), Y0 = p => S.X.sy(p.y) - h * 0.35; for (let i = 0; i < S.trailPts.length - 1; i++) { const a0 = S.trailPts[i], a1 = S.trailPts[i + 1], u = i / S.trailPts.length; Q.ebeam(X0(a0), Y0(a0), X0(a1), Y0(a1), h * 0.22 * u, d.col, 0.8, 0.55 * u, seed + i, 3); } } }
+    // a lunge's streak (v404 EM: one ribbon of overlapping links, its strength ramped from tail to head: no beads)
+    if (S.trailPts && S.trailPts.length > 1) streakPaint(Q, S.trailPts.map(p => [S.X.sx(p.x), S.X.sy(p.y) - h * 0.35]), h, d.col, seed); }
+  function streakPaint(Q, P, h, col, seed) { const n = P.length;
+      for (let i = 0; i < n - 1; i++) { const [x0, y0] = P[i], [x1, y1] = P[i + 1], dx = x1 - x0, dy = y1 - y0; if (dx * dx + dy * dy < 0.25) continue; const u0 = i / (n - 1), u1 = (i + 1) / (n - 1), e = 0.125, f = 0.16;
+        Q.rbeam(x0 - dx * e, y0 - dy * e, x1 + dx * e, y1 + dy * e, h * 0.3 * (0.35 + 0.65 * u1), col, 0.5, u0, u1);
+        Q.ebeam(x0 - dx * f, y0 - dy * f, x1 + dx * f, y1 + dy * f, h * 0.18 * (0.3 + 0.7 * u1), col, 0.8, 0.5 * u1, seed + i * 0.37, 3);
+        Q.rbeam(x0 - dx * e, y0 - dy * e, x1 + dx * e, y1 + dy * e, h * 0.06 * (0.4 + 0.6 * u1), '#FFFFFF', 0.6, u0 * u0, u1 * u1); } }
   // where the layer draws it from: its screen place from its look (this frame's for the front, the last one's for the aura)
   function lookAt(X, S) { const L = S.look; if (!L) return null; const T = X.Tz(), r = L.r * T, h = r * 2.5, Xs = X.sx(L.x), Ys = X.sy(L.y) - L.z * T, foot = Ys + r * 0.75; return { Xs, foot, fy: foot - L.bob, h }; }
   if (typeof RiftEvil !== 'undefined' && !RiftEvil.__calMini) { const d0 = RiftEvil.draw; RiftEvil.draw = function (c, m) { if (m && m.calMini) { m.calMini.d0 = m.calMini.d0 || ((...a) => { const s = m.calMini; m.calMini = null; try { return d0(...a); } finally { m.calMini = s; } }); try { return drawMini.apply(null, arguments); } catch (e) { try { console.warn('cal mini draw', e); } catch (e2) {} return false; } } return d0.apply(this, arguments); }; RiftEvil.__calMini = 1; }
@@ -373,7 +442,9 @@ const CAL_MINI = (() => {
   /* ======================= the floor: setting the guardian at its gate, the leaders in the packs ======================= */
   /* the run's guardians and leaders (one record per running game) */
   const RUNS = new WeakMap();
-  const RUN = X => { const k = X.g || X; let R = RUNS.get(k); if (!R) RUNS.set(k, R = { guards: [], leaders: [] }); return R; };
+  const RUN = X => { const k = X.g || X; let R = RUNS.get(k); if (!R) { RUNS.set(k, R = { guards: [], leaders: [] });
+    R.drawn = () => R.gT != null && Math.abs(R.gT - k.t) < 0.3 && gpuOK(); }   // v404 EM: its tells are painted by the layer (its ground batch ran this last moment, on the GPU)
+    return R; };
   /* arm a lesser boss the engine made as a corrupted Cocopet: its form, its numbers, its post (home), its gate */
   function arm(X, m, d, o) { o = o || {}; const E = evilOf(d), ex = o.gate || null, home = o.home || { x: m.x, y: m.y };
     m.x = home.x; m.y = home.y; m.wx = m.x; m.wy = m.y;
@@ -449,11 +520,15 @@ const CAL_MINI = (() => {
         // (v398 M: the guardians' aura and the smoke at their feet ride in this batch too, from their last look)
         const gv = []; for (const G of R.guards) { const m = G.m, S = m && m.calMini; if (!S || m.dead || !S.look || Math.abs(S.look.t - t) > 0.25) continue; const A = lookAt(X, S); if (A && A.Xs > -A.h * 1.5 && A.Xs < W + A.h * 1.5 && A.foot > -A.h && A.foot < Hh + A.h * 1.5) gv.push([S, A]); }
         R.layerT = t;
-        const Gq = vis.length || gv.length ? gpu(c) : null; R.leaderGpu = !!Gq; R.layerFx = !!(Gq || gpuOK());
+        // (v404 EM: the guardians' tells, glow on the floor: the engine leaves them to this batch while it runs)
+        const gok = gpuOK(); R.gT = gok ? t : null; if (R.tells) R.tells = R.tells.filter(z => z.life > 0); const tells = gok && R.tells ? R.tells : [];
+        const Gq = vis.length || gv.length || tells.length ? gpu(c) : null; R.leaderGpu = !!Gq; R.layerFx = !!(Gq || gok);
+        if (Gq) { for (const z of tells) paintTell(Gq.Q, X, z, t, T); } else if (tells.length) R.gT = null;
         if (Gq) { const sc = scOf(c); for (const [S, A] of gv) { const L = S.look, h = A.h, P2 = poolPic(h * 1.24, h * 0.4, sc); c.drawImage(P2, A.Xs - h * 0.62, A.foot - h * 0.2, h * 1.24, h * 0.4); S.pooled = t;   // (its dark pool first: the aura's light lies on it, as when it was drawn inline)
           gpuAura(Gq.Q, A.Xs, A.foot, A.h, t, L.k, S.def, L.seed); feetSmoke(Gq.Q, A.Xs, A.foot, A.h, t, L.seed); } }
         for (const L of vis) { const Xs = X.sx(L.x), gy = X.sy(L.y) + L.r * T * 0.72, R = L.r * T * 1.35; c.save();
-          c.strokeStyle = 'rgba(20,8,14,.55)'; c.lineWidth = Math.max(3, T * 0.11); c.beginPath(); c.ellipse(Xs, gy, R, R * 0.36, 0, 0, TAU); c.stroke();
+          if (Gq) softRing(Gq.Q, Xs, gy, R, 0.36, Math.max(3, T * 0.12), '#14080E', 0.55, true);   // v404 EM: soft, laid on the GPU (was a 2D stroke under its light)
+          else { c.strokeStyle = 'rgba(20,8,14,.55)'; c.lineWidth = Math.max(3, T * 0.11); c.beginPath(); c.ellipse(Xs, gy, R, R * 0.36, 0, 0, TAU); c.stroke(); }
           if (Gq) { const Q = Gq.Q, sd = L.leaderSeed; Q.ring(Xs, gy, R, '#FFB347', 0.8, Math.max(2, T * 0.07), 0.36); Q.ground(Xs, gy, R * 0.9, 0.55, 0.45, sd, 0.36, 0.7); Q.glow(Xs, gy - R * 0.4, R * 1.2, '#FF8A3D', 0.2 + 0.08 * Math.sin(t * 4 + sd), 0.6);
             for (let i = 0; i < 2; i++) { const ph = (t * 0.7 + i * 0.5 + sd) % 1; Q.smoke(Xs + (i ? 1 : -1) * R * 0.5, gy - R * (0.3 + 1.1 * ph), R * (0.28 + 0.2 * ph), 0.45 * (1 - ph), sd + i, '#160A16', 0); } }
           // (no GPU: the dark ring, the crown, the tag and the bar carry it)
@@ -484,9 +559,16 @@ const CAL_MINI = (() => {
     for (const b of m.calMini.beams) { const x0 = X.sx(b.x), y0 = X.sy(b.y), L = 9 * T, x1 = x0 + Math.cos(b.a) * L, y1 = y0 + Math.sin(b.a) * L;
       if (b.t < b.on) { const u = b.t / b.on; if (Q) { Q.glow(x0, y0, T * (0.3 + 0.6 * u), d.col, 0.5 + 0.5 * u); Q.star(x0, y0, T * 0.35 * u, u, '#FFFFFF'); } continue; } if (!Q) continue;
       const k = clamp(1 - (b.t - b.on) / (b.off - b.on + 0.2), 0, 1), w = T * (b.w || 1) * 0.5 * (0.6 + 0.4 * k);
-      if (Q) { Q.ebeam(x0, y0, x1, y1, w, d.col, 0.9, k, 3, 6); Q.glow(x0, y0, T * 0.8, d.col, 0.6 * k); }
-      c.save(); c.lineCap = 'round'; for (const [lw, col, a] of [[w * 1.25, '#140A1E', 0.75]]) { c.globalAlpha = a * k; c.strokeStyle = col; c.lineWidth = lw; c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke(); } c.restore(); }
+      // (v404 EM: its dark sheath (so it reads on a light floor) laid on the GPU, soft, in three overlapping links: it was a 2D
+      // stroke over the GPU light, its edges hard; then a halo, its body, a white core and a flare at its mouth)
+      rayPaint(Q, x0, y0, x1, y1, w, k, T, d.col, d.core); }
   }
+  function rayPaint(Q, x0, y0, x1, y1, w, k, T, col, core) { const L = Math.hypot(x1 - x0, y1 - y0) || 1, ca = (x1 - x0) / L, sa = (y1 - y0) / L, s0x = x0 - ca * w * 0.8, s0y = y0 - sa * w * 0.8, ddx = (x1 - ca * w * 2.2 - s0x) / 3, ddy = (y1 - sa * w * 2.2 - s0y) / 3;   // (the sheath thins out before the light does)
+    for (let i = 0; i < 3; i++) stroke71(Q, s0x + ddx * (i - 0.125), s0y + ddy * (i - 0.125), s0x + ddx * (i + 1.125), s0y + ddy * (i + 1.125), w * (1.5 - 0.2 * i), '#140A1E', [0.6, 0.5, 0.32][i] * k);
+    Q.rbeam(x0, y0, x1, y1, w * 2.4, col, 0.3 * k, 1, 0.5);
+    Q.ebeam(x0, y0, x1, y1, w, col, 0.9, k, 3, 6);
+    Q.rbeam(x0, y0, x1, y1, w * 0.28, '#FFFFFF', 0.75 * k, 1, 0.45);
+    Q.glow(x0, y0, T * 0.8, col, 0.6 * k); Q.star(x0, y0, T * (0.3 + 0.25 * k), 0.8 * k, core || '#FFFFFF'); }
   const countLeft = X => X.mons.filter(q => !q.dead && !q.boss && !q.optional).length + ((X.g.reserve && X.g.reserve.length) || 0);
   // (v398 M: a tag is a picture made once per text, size, colour and sharpness, then laid down: no text drawn per frame)
   function tagPic(s, size, col, sc) { const key = 'tag|' + s + '|' + size + '|' + col + '|' + sc; let o = PICS.get(key); if (o) return o;
@@ -527,7 +609,7 @@ const CAL_MINI = (() => {
   /* ======================= its fall: the cracks blaze, the corruption burns off into light, the shell shatters =======================
      (the engine has already given the lesser boss's reward; this is the picture: 2.2 s) */
   function startFall(X, G) { const m = G.m, S = m.calMini, LF = S && S.lastFrame; G.fall = { t: 0, x: m.x, y: m.y, face: m.eface || 1, burst: false, sealed: false };
-    if (LF && LF.cv) { const [o] = [document.createElement('canvas')]; o.width = LF.cv.width; o.height = LF.cv.height; o.getContext('2d').drawImage(LF.cv, 0, 0); G.fall.cv = o; G.fall.sc = LF.sc; G.fall.sz = LF.sz; G.fall.oy = LF.oy; G.fall.h = LF.h / X.Tz(); }
+    if (LF && LF.cv) { const [o] = [document.createElement('canvas')]; o.width = LF.cv.width; o.height = LF.cv.height; o.getContext('2d').drawImage(LF.cv, 0, 0); G.fall.cv = o; G.fall.sc = LF.sc; G.fall.sz = LF.sz; G.fall.cw = LF.cw || LF.sz; G.fall.ch = LF.ch || LF.sz; G.fall.oy = LF.oy; G.fall.h = LF.h / X.Tz(); }
     try { X.banner(`${G.def.short.toUpperCase()} FALLS`, 'The black fire leaves it: the gate is free', G.def.col, 2.6, true); X.g.slowT = Math.max(X.g.slowT || 0, 0.6); X.flash(0.35, '#FFFFFF'); } catch (e) {}
     if (G.onFall) try { G.onFall(m, G); } catch (e) {}
     snd(X, 'hum'); }
@@ -552,7 +634,7 @@ const CAL_MINI = (() => {
     // its body (the last GPU frame of it), the corruption burning off it into light
     if (F.cv && F.t < 1.15) { const shake = (Math.random() - 0.5) * T * 0.06 * u, x0 = Xs - F.sz / 2 + shake, y0 = Ys + 0.75 * (F.h * T / 2.5) - F.oy;
       const [W2, w2] = cv('fall', F.cv.width, F.cv.height); w2.drawImage(F.cv, 0, 0); w2.globalCompositeOperation = 'source-atop'; w2.fillStyle = `rgba(255,${Math.round(220 + 35 * u)},${Math.round(190 + 65 * u)},${(u * 0.85).toFixed(3)})`; w2.fillRect(0, 0, W2.width, W2.height);
-      c.save(); c.globalAlpha = 1 - u * 0.15; c.drawImage(W2, x0, y0, F.sz, F.sz); c.restore(); } }
+      c.save(); c.globalAlpha = 1 - u * 0.15; c.drawImage(W2, x0, y0, F.cw || F.sz, F.ch || F.sz); c.restore(); } }   // (v404 EM: at its own frame's size: it was laid square, so stretched)
 
   /* ======================= v398 M: the loading screen's warm-up =======================
      So that nothing of a guardian or a leader is made for the first time mid-fight, the stage's loading pass (20b
@@ -612,7 +694,7 @@ const CAL_MINI = (() => {
         return { update(dt) { if (xm.update) xm.update(dt); gm.update(dt);
             if (!wrapped && self.mod && self.mod.goal) { wrapped = true; const g0 = self.mod.goal; self.mod.goal = () => { if (self.done || G.m.dead) return g0(); const left = countLeft(X); return left > 0 ? `${left} left · Defeat ${G.def.short} to open the gate` : `Defeat ${G.def.short} to open the gate`; }; } },
           drawGround(c) { if (xm.drawGround) xm.drawGround(c); gm.drawGround(c); }, drawOver(c) { if (xm.drawOver) xm.drawOver(c); gm.drawOver(c); } }; }; } }
-  return { DEF, PRESET, spawn, leader, packLeaders, layer, guards: X => RUN(X).guards, leaders: X => RUN(X).leaders, hpFor, dmgFor, evilOf, specOf, drawMini, guardians, tearLeader, warm, modesOf };
+  return { DEF, PRESET, spawn, leader, packLeaders, layer, guards: X => RUN(X).guards, leaders: X => RUN(X).leaders, hpFor, dmgFor, evilOf, specOf, drawMini, guardians, tearLeader, warm, modesOf, fx: { paintTell, shotPaint, softRing, rayPaint, streakPaint } };   // (v404 EM: fx for the pictures' studio)
 })();
 const EVIL_MINI = CAL_MINI;
 if (typeof self !== 'undefined') self.EVIL_MINI = EVIL_MINI;   // (tests, and other rifts' files that load before this one, at run time)
