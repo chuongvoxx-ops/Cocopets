@@ -246,6 +246,22 @@
     c.restore();
   }
 
+  /* (v409 DK2) the GPU picture: the shared painter (20k6h FGFX) when it is usable; else the 2D picture, as it was. The scythes stay their live
+     cel-shaded GeoKit models (and their clip at the portal's plane); round them the GPU draws the portals (a hollow of void with a turning
+     violet vortex in it, void smoke curling at its lip, a rim of light with two arcs racing round it), the shadow crescent of each sweep (kind 54,
+     its light kind 55, laid in the sweep's own plane), the light along the edge in a fast cut, the engravings' glow, the floor's violet light */
+  const gfx = () => { try { const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; return F && F.usable() ? F : null; } catch (e) { return null; } };
+  // (v409 DK2) a link of a chain of beams: lengthened an eighth each way, so the links' faded ends overlap and sum to one (no beads at the joints)
+  const cb = (Q, x0, y0, x1, y1, w, col, a) => { const ex = (x1 - x0) * 0.125, ey = (y1 - y0) * 0.125; Q.beam(x0 - ex, y0 - ey, x1 + ex, y1 + ey, w, col, a); };
+  function gPortal(Q, X, PY, rx, ry, open, t, k, seed) {
+    if (open <= 0.01 || rx < 1 || !(k > 0.01)) return; const ox = rx * open, sy = ry / rx;
+    Q.glow(X, PY, rx * 1.7, ENERGY, 0.38 * k, sy * 1.6); Q.glow(X, PY, rx * 0.9, EDGE, 0.2 * k, sy);
+    for (let i = 0; i < 5; i++) { const b = i / 5 * TAU + seed + t * 0.25; Q.quad(53, X + Math.cos(b) * ox * 1.0, PY + Math.sin(b) * ry * 1.0, rx * 0.32, 0, 0, rx * 0.22, '#1C0E30', 0.5 * k, 0.9, seed * 1.3 + i, 0.25); }
+    Q.quad(63, X, PY, ox / 0.8, 0, 0, ry / 0.8, '#FFFFFF', k, 1, seed, 1.0);
+    Q.quad(1, X, PY, ox * 1.03, 0, 0, ry * 1.03, EDGE, 0.6 * k, 0.96, 0, 0.08);
+    for (let i = 0; i < 2; i++) { const a0 = t * (1.3 + i * 0.4) * (i ? -1 : 1) + i * 2.2; let px = 0, py = 0; for (let j = 0; j <= 7; j++) { const a = a0 + 1.3 * j / 7, qx = X + Math.cos(a) * ox * 0.98, qy = PY + Math.sin(a) * ry * 0.98; if (j) { const e = Math.sin(Math.PI * j / 7); cb(Q, px, py, qx, qy, Math.max(1.5, rx * 0.07), EDGE, 0.5 * k * e); cb(Q, px, py, qx, qy, Math.max(0.8, rx * 0.022), ACC, 0.85 * k * e); } px = qx; py = qy; } }
+    Q.star(X + Math.cos(t * 1.3) * ox * 0.98, PY + Math.sin(t * 1.3) * ry * 0.98, rx * 0.3, 0.45 * k, ACC); }
+
   /* ================= the move ================= */
   U.requiem = (C, h) => {
     H = h; const g = G(), me = H.me, x = C.tx, y = C.ty, ev = Math.max(1, Math.min(7, Math.round(C.evo || 1))), N = [1, 1, 2, 3, 3, 4, 5][ev - 1], CEL = ev >= 7, evoK = 1 + 0.08 * (ev - 1);
@@ -307,6 +323,12 @@
           if (ps.open > 0.3 && Math.random() < 0.6 * H.Q()) { const b = Math.random() * TAU; H.P({ kind: 'ember', x: ps.ax + Math.cos(b) * PRX * 0.7, y: ps.ay + Math.sin(b) * PRX * 0.3 - PZ * CE, vx: (Math.random() - 0.5) * 0.6, vy: 0.8 + Math.random() * 1.2, g: 1.5, life: 0.9, max: 0.9, size: 1.4, color: Math.random() < 0.3 ? EDGE : '#2A1C3A' }); } }
       },
       drawUnder(c, f, X, Y, T) {
+        { const FG = gfx(); if (FG) { /* (v409 DK2) the floor's violet light under each scythe on the GPU, a wave of it under a cut */
+          const Q = FG.begin(c, null), gy = 0.55;
+          for (const s of sc) { const ps = pose(s, f.t); if (!ps || ps.gone) continue; const AX = H.sx(ps.ax), AY = H.sy(ps.ay), r = T * (1.6 + 0.6 * ps.cutK) * SC, k = (0.35 + 0.45 * ps.cutK) * ps.open;
+            Q.glow(AX, AY, r * 1.15, ENERGY, k * 0.75, gy); Q.glow(AX, AY, r * 0.55, EDGE, k * 0.45, gy); Q.caustic(AX, AY, r * 0.8, EDGE, k * 0.35, s.i * 2.3 + 1, gy); Q.ring(AX, AY, r * 0.85, EDGE, k * 0.25, T * 0.06, gy);
+            if (ps.cutK > 0.05) { Q.ewave(AX, AY, r * (0.6 + 0.4 * ps.cutK), EDGE, 0.7, 0.55 * ps.cutK, s.i * 1.7, gy, 0.15); Q.glow(AX, AY, r * 0.35, ACC, 0.35 * ps.cutK, gy); } }
+          FG.flush(c); return; } }
         // violet light on the floor under each scythe (light only), brighter under a cut
         const fl = floorSpr(); c.save(); c.globalCompositeOperation = 'lighter';
         for (const s of sc) { const ps = pose(s, f.t); if (!ps || ps.gone) continue; const AX = H.sx(ps.ax), AY = H.sy(ps.ay), r = T * (1.6 + 0.6 * ps.cutK) * SC, k = (0.35 + 0.45 * ps.cutK) * ps.open; c.globalAlpha = k; c.drawImage(fl, AX - r, AY - r * 0.55, r * 2, r * 1.1); }
@@ -316,6 +338,36 @@
         const t = f.t, PX = H.sx(me.x), PY = H.sy(me.y) - T * 0.45, cm0 = g.cam(0, 0, T * SC), list = [];
         for (const s of sc) { const ps = pose(s, t); if (!ps) continue; list.push({ s, ps, Y: H.sy(ps.ay) }); }
         list.sort((a, b) => a.Y - b.Y);
+        { const FG = gfx(); if (FG) { /* (v409 DK2) the shadows (2D), one GPU pass for the portals and the shadow crescents, the scythes (their models),
+             then one GPU pass for their light (the edge in a fast cut, the engravings' glow at the socket) */
+          for (const L of list) { const { s, ps } = L, AX = H.sx(ps.ax), AY = H.sy(ps.ay), cm = g.cam(AX, AY, T * SC), PRY = AY - PZ * CE * T * SC, prx = PRX * T * SC;
+            const pts = [[0, 0, 0], [bow(SL_BOT), 0, SL_BOT], [0, 0, 1.2], [BZ[2][0], 0, BZ[2][1]]].map(v => cm.P(g.add(ps.t, g.mv(ps.R, v))));
+            let dp = 1e9; for (const [a, b] of [[0, 1], [0, 2], [2, 3]]) dp = Math.min(dp, g.segD(PX, PY, pts[a][0], pts[a][1], pts[b][0], pts[b][1]));
+            Object.assign(L, { AX, AY, cm, PRY, prx, pts, alpha: lerp(0.12, 1, sstep(T * 0.6, T * 1.7, dp)) });
+            if (!ps.gone) { c.save(); c.globalAlpha = L.alpha * 0.35 * ps.open; G().shadow(c, (pts[1][0] + pts[3][0]) / 2, AY, Math.abs(pts[3][0] - pts[1][0]) * 0.5 + T * 0.5, T * 0.4, 0, 0.5); c.restore(); }
+            // the sweep's samples (anchor space: the tip's angle and radius round the shaft's axis, its height, the middle's radius)
+            if (!ps.gone && (ps.phase === 'cut' || ps.phase === 'follow')) { const B = bladePts(ps.R, ps.t), E = [B[2][0] - ps.t[0], B[2][1] - ps.t[1]], th0 = Math.atan2(E[1], E[0]), gt = s.gtr || (s.gtr = []); let th = th0;
+              if (gt.length) { const p0 = gt[gt.length - 1].th; while (th - p0 > Math.PI) th -= TAU; while (th - p0 < -Math.PI) th += TAU; }
+              gt.push({ t, th, rho: Math.hypot(E[0], E[1]), zt: B[2][2], rm: Math.hypot(B[1][0] - ps.t[0], B[1][1] - ps.t[1]), ax: ps.ax, ay: ps.ay, k: ps.cutK }); }
+            else if (s.gtr && s.gtr.length && t - s.gtr[s.gtr.length - 1].t > 0.3) s.gtr.length = 0;
+            if (s.gtr) while (s.gtr.length && t - s.gtr[0].t > 0.24) s.gtr.shift(); }
+          let Q = FG.begin(c, null);
+          for (const L of list) { const { s, ps } = L; if (ps.open > 0.01) gPortal(Q, L.AX, L.PRY, L.prx, L.prx * 0.42, ps.open, t + s.i, L.alpha * Math.min(1, (LIFE - t) / 0.3), s.i * 1.9 + 0.7);
+            const gt = s.gtr; if (ps.gone || !gt || gt.length < 2) continue; const nw = gt[gt.length - 1], ol = gt[0], span = Math.abs(nw.th - ol.th), age = cl(1 - (t - nw.t) / 0.24); if (span < 0.02 || age <= 0) continue;
+            const TS = T * SC, CX = H.sx(nw.ax), CY = H.sy(nw.ay) - nw.zt * CE * TS, ra = nw.rho * TS, dir = nw.th >= ol.th ? 1 : -1, ch = Math.cos(nw.th), sh = Math.sin(nw.th), k = 1.25;
+            const ux = ra * ch * k, uy = ra * sh * SE * k, vx = -ra * sh * k * dir, vy = ra * ch * SE * k * dir, th = Math.min(0.78, 0.8 * (1 - 0.55 * nw.rm / Math.max(nw.rho, 0.01))), al = L.alpha * age * age * (0.55 + 0.45 * nw.k);
+            Q.quad(54, CX, CY, ux, uy, vx, vy, '#000000', al * 0.85, Math.min(span, 5.5), 0, th); Q.quad(55, CX, CY, ux, uy, vx, vy, '#FFFFFF', al * 0.9, Math.min(span, 5.5), 0, th * 0.5); }
+          FG.flush(c);
+          for (const L of list) { const { s, ps } = L; if (ps.gone) continue; const cm = L.cm, alpha = L.alpha;
+            c.save(); if (ps.clip) { c.beginPath(); c.rect(L.AX - T * 8, L.PRY, T * 16, T * 30); c.clip(); }
+            const fast = cl((Math.abs(ps.yawV) - 4) / 10), tcN = s.cuts.find(tc => t >= tc - 0.01 && t < tc + 0.4), hlPos = ps.phase === 'cut' && tcN != null ? 0.15 + 0.8 * cl((t - tcN) / 0.2) : 0;
+            paintScythe(c, cm, ps.R, ps.t, { charge: s.charge * (ev >= 4 ? 1 : 0.8), hl: fast, hlPos, glow: !(st && st.lowFx), alpha }); c.restore(); L.fast = fast; }
+          Q = FG.begin(c, null);
+          for (const L of list) { const { s, ps } = L; if (ps.gone) continue; const cm = L.cm, alpha = L.alpha, sk = L.pts[2], P3 = v => cm.P(g.add(ps.t, g.mv(ps.R, v))), clipY = ps.clip ? L.PRY : -1e9;
+            if (s.charge > 0.05) { if (sk[1] > clipY) { Q.glow(sk[0], sk[1], T * 0.8, ENERGY, alpha * 0.3 * s.charge); Q.glow(sk[0], sk[1], T * 0.3, EDGE, alpha * 0.25 * s.charge); } }
+            const ek = Math.max(L.fast || 0, ps.cutK * 0.8) * (ps.clip ? 0 : 1); if (ek > 0.03) { let pp = null; for (let i = 0; i <= 8; i++) { const u = i / 8, P = bz(u), T2 = bzT(u), w = bW(u), q = P3([P[0] + T2[1] * w, 0, P[1] - T2[0] * w]); if (pp) { const e = Math.sin(Math.PI * (i - 0.5) / 8); cb(Q, pp[0], pp[1], q[0], q[1], T * 0.12, EDGE, alpha * ek * 0.45 * e); cb(Q, pp[0], pp[1], q[0], q[1], Math.max(0.8, T * 0.025), '#F2EAFF', alpha * ek * 0.8 * e); } pp = q; }
+              const tp = L.pts[3]; Q.glow(tp[0], tp[1], T * 0.5, EDGE, alpha * ek * 0.5); Q.star(tp[0], tp[1], T * 0.6, alpha * ek * 0.6, ACC); } }
+          FG.flush(c); return; } }
         for (const { s, ps } of list) {
           const AX = H.sx(ps.ax), AY = H.sy(ps.ay), cm = g.cam(AX, AY, T * SC), PRY = AY - PZ * CE * T * SC, prx = PRX * T * SC, pry = prx * 0.42;
           // the weapon's distance to the pet on the screen: it dims smoothly as it comes near, never covering it

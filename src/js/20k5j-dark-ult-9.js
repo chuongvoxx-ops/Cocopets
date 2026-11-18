@@ -212,6 +212,22 @@
   let scratch = null;
   function glow(c, x, y, r, col, a) { if (r < 0.5 || !(a > 0.01)) return; c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = Math.min(1, a); blitSized(c, glowSprite(col), x - r, y - r, r * 2, r * 2); c.restore(); }
   function blit(c, cv, x, y, w, h, a) { if (!(a > 0.01) || w < 0.5) return; c.globalAlpha = Math.min(1, a); c.drawImage(cv, x - w / 2, y - h / 2, w, h); c.globalAlpha = 1; }
+  /* (v409 DK2) the GPU picture: the shared painter (20k6h FGFX) when it is usable; else the 2D picture, as it was. The zombies stay their cached
+     cel-shaded sprites (and the rising mask); everything round them is drawn on the GPU: the opening graves (a dark pit, cracks of violet light,
+     void smoke curling at the rim), the mist at their feet and their contact shadows, the living lights (eyes, the belly's pulse, the Celestial
+     crack pulse), the claw slashes as crescent cuts, the dark wisps and sprint streaks, the explosions (a swelling orb of violet energy, void
+     smoke, a dark band racing out over the floor, rays, a star) */
+  const gfx = () => { try { const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; return F && F.usable() ? F : null; } catch (e) { return null; } };
+  // (v409 DK2) a link of a chain of beams: lengthened an eighth each way, so the links' faded ends overlap and sum to one (no beads at the joints)
+  const cb = (Q, x0, y0, x1, y1, w, col, a) => { const ex = (x1 - x0) * 0.125, ey = (y1 - y0) * 0.125; Q.beam(x0 - ex, y0 - ey, x1 + ex, y1 + ey, w, col, a); };
+  // (v409 DK2) a soft dark stroke laid over from (x0, y0) to (x1, y1), w its half-width: soft round dots (kind 71's glow, laid over) packed close
+  function gDots(Q, x0, y0, x1, y1, w0, w1, col, a0, a1) { const L = Math.hypot(x1 - x0, y1 - y0), n = Math.max(1, Math.ceil(L / (Math.max(0.6, Math.min(w0, w1)) * 0.4))); for (let i = 0; i < n; i++) { const u = (i + 0.5) / n, w = w0 + (w1 - w0) * u, a = a0 + (a1 - a0) * u; if (a > 0.01) Q.quad(71, x0 + (x1 - x0) * u, y0 + (y1 - y0) * u, w * 2.4, 0, 0, w * 2.4, col, Math.min(1, a * 0.25), 12); } }
+  // a soft dark stroke (laid over: kind 71's stroke) from (x0, y0) to (x1, y1), w its half-width, overlapping its neighbours
+  const gStroke = (Q, x0, y0, x1, y1, w, col, a) => gDots(Q, x0, y0, x1, y1, w * 0.6, w * 0.6, col, a, a);
+  // a claw crescent (kinds 54 body, 55 light): the 2D slash's arc from x0 to x1 (local, bulging up by h), mapped by the slash's frame M
+  function gClaw(Q, X, Y, M, x0, x1, oy, h, tk, a) { const s = (x1 - x0) / 2; if (s < 0.5 || !(a > 0.01)) return; const R = (s * s + h * h) / (2 * h), mx = (x0 + x1) / 2, cy = oy - h + R, ha = Math.atan2(-(R - h), s), k = R / 0.8, th = Math.min(0.7, tk / k);
+    const L = (lx, ly) => [M[0] * lx + M[2] * ly, M[1] * lx + M[3] * ly], C0 = L(mx, cy), Ux = Math.cos(ha) * k, Uy = Math.sin(ha) * k, U = L(Ux, Uy), V = L(-Uy, Ux), span = 2 * Math.asin(Math.min(1, s / R));
+    Q.quad(54, X + C0[0], Y + C0[1], U[0], U[1], V[0], V[1], '#000000', a * 0.85, span, 0.25, th); Q.quad(55, X + C0[0], Y + C0[1], U[0], U[1], V[0], V[1], '#FFFFFF', a, span, 0.25, th); }
 
   /* ================= Thriller ================= */
   U.thriller = (C, h) => {
@@ -379,7 +395,7 @@
     /* ---- drawing ---- */
     let hpx = 0;
     function petDim(X, Y, T) { const PX = H.sx(me.x), PY = H.sy(me.y) - T * 0.45, d = Math.hypot(X - PX, Y - T * 0.45 - PY); return 0.3 + 0.7 * sstep(T * 0.3, T * 0.85, d); }
-    function drawZombie(c, z, T, t, front) {
+    function drawZombie(c, z, T, t, front, gpu) {   // (v409 DK2: gpu, the sprite alone: its mist and lights go to the GPU passes)
       if (z.st === 'wait' || z.st === 'gone') return;
       const X = H.sx(z.x), Y = H.sy(z.y), k = ZH * T / hpx;
       let sti = z.anim || 'idle', u = sti === 'walk' ? z.ph : sti === 'sprint' ? z.ph : z.idleU;
@@ -388,7 +404,7 @@
       let a = z.alpha * (front ? petDim(X, Y, T) : 1);
       const lx = z.lunge * T * 0.16 * z.fk, x0 = X + lx;
       // mist at the feet (sparse), behind
-      for (let j = 0; j < 2; j++) { const mp = z.mist + t * (0.5 + j * 0.3), mx = x0 + Math.sin(mp + j * 2) * T * 0.28, my = Y - T * 0.04 + Math.cos(mp * 0.7 + j) * T * 0.03, ms = T * (0.42 + 0.08 * Math.sin(mp * 1.3 + j)); blit(c, mistSpr(), mx, my, ms * 1.6, ms * 0.7, a * 0.6 * (z.st === 'rise' ? z.u : 1)); }
+      if (!gpu) for (let j = 0; j < 2; j++) { const mp = z.mist + t * (0.5 + j * 0.3), mx = x0 + Math.sin(mp + j * 2) * T * 0.28, my = Y - T * 0.04 + Math.cos(mp * 0.7 + j) * T * 0.03, ms = T * (0.42 + 0.08 * Math.sin(mp * 1.3 + j)); blit(c, mistSpr(), mx, my, ms * 1.6, ms * 0.7, a * 0.6 * (z.st === 'rise' ? z.u : 1)); }
       const dw = fr.cv.width * k, dh = fr.cv.height * k, dx = x0 - fr.ox * k, dy = Y - fr.oy * k;
       if (z.st === 'rise') {
         // rising through the shadow: the figure drawn into a scratch canvas, everything below the ground line erased softly
@@ -400,12 +416,13 @@
         g.globalCompositeOperation = 'source-over';
         c.globalAlpha = a; c.drawImage(scratch, dx, dy, dw, dh); c.globalAlpha = 1;
         // the eyes light last
-        if (z.eyes > 0.01 && fr.out.eyes) for (const e of fr.out.eyes) { const exx = x0 + (e[0] - fr.ox) * k, eyy = Y + (e[1] - fr.oy) * k + sink; if (eyy < Y - T * 0.1) { glow(c, exx, eyy, T * 0.16 * e[2], EDGE, a * z.eyes * 0.9); glow(c, exx, eyy, T * 0.06 * e[2], ACC, a * z.eyes); } }
+        if (!gpu && z.eyes > 0.01 && fr.out.eyes) for (const e of fr.out.eyes) { const exx = x0 + (e[0] - fr.ox) * k, eyy = Y + (e[1] - fr.oy) * k + sink; if (eyy < Y - T * 0.1) { glow(c, exx, eyy, T * 0.16 * e[2], EDGE, a * z.eyes * 0.9); glow(c, exx, eyy, T * 0.06 * e[2], ACC, a * z.eyes); } }
         return;
       }
       c.globalAlpha = a; c.drawImage(fr.cv, dx, dy, dw, dh);
       if (frB) { c.globalAlpha = a * cl(z.crack); c.drawImage(frB.cv, dx, dy, dw, dh); }
       c.globalAlpha = 1;
+      if (gpu) return;
       // the living lights: the eyes, the slow pulse in the torso (the rush gathers it), the Celestial pulse in the cracks
       const O = fr.out, ex = p => x0 + (p[0] - fr.ox) * k, ey = p => Y + (p[1] - fr.oy) * k;
       const pulse = 0.5 + 0.5 * Math.sin(t * 2.6 + z.pulse), gather = z.st === 'brighten' || z.st === 'rush' || z.st === 'boom' ? 1 : 0;
@@ -439,17 +456,80 @@
       // contact shadows
       for (const z of Z) { if (z.st === 'wait' || z.st === 'gone' || z.st === 'rise') continue; blit(c, shadowSpr(), H.sx(z.x), H.sy(z.y), T * 0.75, T * 0.75 * H.GY, z.alpha * 0.9); }
     }
+    /* ---- (v409 DK2) the GPU picture ---- */
+    function zGeo(z, T) {   // as drawZombie: its frame, scale and place
+      let sti = z.anim || 'idle', u = sti === 'walk' ? z.ph : sti === 'sprint' ? z.ph : z.idleU;
+      if (z.st === 'rise') { sti = 'rise'; u = z.u; } else if (z.st === 'boom') { sti = 'boom'; u = z.u; } else if (z.atk) { sti = 'atk'; u = z.atk.u; }
+      const X = H.sx(z.x), Y = H.sy(z.y); return { fr: zFrame(tier, sti, frameIdx(sti, u), z.fk, 0, hpx), k: ZH * T / hpx, X, Y, x0: X + z.lunge * T * 0.16 * z.fk }; }
+    function gFloor(Q, T, t) {
+      const ft = F.t, gy = H.GY;
+      for (const v of fxv) {
+        const lt = ft - v.t0; if (lt < 0) continue; const X = H.sx(v.x), Y = H.sy(v.y);
+        if (v.kind === 'hole') {   // the grave opening: a dark pit with void smoke curling at its rim, cracks of violet light racing out, a violet glow
+          const o = sstep(0, 0.3, lt) * (1 - sstep(v.life - 0.6, v.life, lt)), r = T * 0.62 * (0.5 + 0.5 * sstep(0, 0.35, lt)); if (o < 0.01) continue;
+          Q.glow(X, Y, r * 1.5, ENERGY, 0.3 * o, gy); if (lt < 0.5) Q.star(X, Y - T * 0.1, T * 0.9 * (1 - lt / 0.5), 0.5 * o * (1 - lt / 0.5), ACC); Q.quad(71, X, Y, r * 1.1, 0, 0, r * 1.1 * gy, '#FFFFFF', 0.95 * o, 6);
+          for (let j = 0; j < 3; j++) { const b = j / 3 * TAU + v.seed + lt * 0.6; Q.quad(53, X + Math.cos(b) * r * 0.6, Y + Math.sin(b) * r * 0.6 * gy - r * 0.15, r * 0.6, 0, 0, r * 0.45, BODY, 0.55 * o, 0.9, v.seed * 1.7 + j, 0.3); }
+          Q.ring(X, Y, r * 0.95, EDGE, 0.55 * o, T * 0.07, gy); Q.ripple(X, Y, r * 1.2, EDGE, 0.3 * o, v.seed, gy, 0.08);
+          for (const k of v.cracks) { const L = T * k.l * (0.4 + 0.6 * sstep(0.05, 0.4, lt)) * 0.8, a2 = k.a, x1 = X + Math.cos(a2) * r * 0.5, y1 = Y + Math.sin(a2) * r * 0.5 * gy, x2 = X + Math.cos(a2 + 0.25) * (r * 0.5 + L * 0.5), y2 = Y + Math.sin(a2 + 0.25) * (r * 0.5 + L * 0.5) * gy, x3 = X + Math.cos(a2 - 0.1) * (r * 0.5 + L), y3 = Y + Math.sin(a2 - 0.1) * (r * 0.5 + L) * gy;
+            cb(Q, x1, y1, x2, y2, T * 0.11, ENERGY, 0.75 * o); cb(Q, x2, y2, x3, y3, T * 0.09, ENERGY, 0.55 * o); cb(Q, x1, y1, x2, y2, Math.max(1, T * 0.03), EDGE, 1.0 * o); cb(Q, x2, y2, x3, y3, Math.max(0.9, T * 0.025), EDGE, 0.75 * o); cb(Q, x1, y1, x2, y2, Math.max(0.7, T * 0.01), ACC, 0.8 * o); }
+          Q.glow(X, Y - T * 0.05, T * 0.5, EDGE, 0.3 * o); }
+        else if (v.kind === 'boom') {   // the blast on the floor: a dark band racing out, a rolling wave of violet light inside it, the floor lit
+          const u = lt / v.life, r = BR * T * (0.25 + 0.85 * (1 - Math.pow(1 - cl(u / 0.55), 3)));
+          Q.glow(X, Y, BR * T * 0.9, ENERGY, 0.5 * (1 - sstep(0, 0.6, u)), gy); Q.quad(71, X, Y, r * 1.05, 0, 0, r * 1.05 * gy, '#FFFFFF', 0.85 * (1 - sstep(0.3, 1, u)), 1);
+          Q.ewave(X, Y, r, EDGE, 0.85, 0.85 * (1 - sstep(0.15, 0.85, u)), v.seed, gy, 0.2); Q.ring(X, Y, r * 0.96, ACC, 0.6 * (1 - sstep(0.15, 0.85, u)), T * 0.06, gy); Q.caustic(X, Y, BR * T * 0.7, EDGE, 0.35 * (1 - u), v.seed, gy); }
+      }
+      // contact shadows, the mist curling at every zombie's feet, the belly's glow on the floor
+      for (const z of Z) { if (z.st === 'wait' || z.st === 'gone') continue; const X = H.sx(z.x), Y = H.sy(z.y), x0 = X + z.lunge * T * 0.16 * z.fk, a = z.alpha * (z.y >= me.y - 0.02 ? petDim(X, Y, T) : 1), rk = z.st === 'rise' ? z.u : 1, gather = z.st === 'brighten' || z.st === 'rush' || z.st === 'boom' ? 1 : 0;
+        if (z.st !== 'rise') Q.quad(71, X, Y, T * 0.42, 0, 0, T * 0.42 * gy, '#FFFFFF', z.alpha * 0.9, 3);
+        for (let j = 0; j < 2; j++) { const mp = z.mist + t * (0.5 + j * 0.3), mx = x0 + Math.sin(mp + j * 2) * T * 0.28, my = Y - T * 0.04 + Math.cos(mp * 0.7 + j) * T * 0.03, ms = T * (0.42 + 0.08 * Math.sin(mp * 1.3 + j)); Q.quad(53, mx, my, ms * 0.95, 0, 0, ms * 0.45, '#3E2C56', a * 0.6 * rk, 0.85, z.i * 2.3 + j * 1.1, 0.12); }
+        Q.glow(x0, Y, T * (0.55 + 0.3 * gather), gather ? EDGE : ENERGY, a * (0.16 + 0.3 * gather) * rk, gy); }
+    }
+    function gLights(Q, z, T, t, front) {   // the living lights: the eyes, the belly's slow pulse (the rush gathers it), the Celestial crack pulse
+      if (z.st === 'wait' || z.st === 'gone') return; const G0 = zGeo(z, T), fr = G0.fr, k = G0.k, x0 = G0.x0, Y = G0.Y, a = z.alpha * (front ? petDim(G0.X, Y, T) : 1);
+      if (z.st === 'rise') { const e = 1 - Math.pow(1 - cl(z.u * 1.15), 2.2), sink = (1 - e) * ZH * T * 1.02; if (z.eyes > 0.01 && fr.out.eyes) for (const e2 of fr.out.eyes) { const exx = x0 + (e2[0] - fr.ox) * k, eyy = Y + (e2[1] - fr.oy) * k + sink; if (eyy < Y - T * 0.1) { Q.glow(exx, eyy, T * 0.2 * e2[2], EDGE, a * z.eyes * 0.9); Q.glow(exx, eyy, T * 0.06 * e2[2], ACC, a * z.eyes); Q.star(exx, eyy, T * 0.2 * e2[2], a * z.eyes * 0.5, ACC); } } return; }
+      const O = fr.out, ex = p => x0 + (p[0] - fr.ox) * k, ey = p => Y + (p[1] - fr.oy) * k, pulse = 0.5 + 0.5 * Math.sin(t * 2.6 + z.pulse), gather = z.st === 'brighten' || z.st === 'rush' || z.st === 'boom' ? 1 : 0, bu = z.st === 'boom' ? z.u : 0;
+      if (O.belly) { const bx = ex(O.belly), by = ey(O.belly); Q.glow(bx, by, T * (0.34 + 0.1 * pulse + gather * (0.25 + bu * 0.5)), gather ? EDGE : ENERGY, a * (0.24 + 0.24 * pulse + gather * 0.45) * (tier >= 3 ? 1.1 : 1));
+        if (gather) { Q.glow(bx, by, T * (0.12 + bu * 0.35), ACC, a * (0.55 + 0.3 * pulse)); Q.eorb(bx, by, T * (0.16 + 0.3 * bu) * (0.6 + 0.4 * z.crack), EDGE, 0.9, a * z.crack * 0.7, z.i * 1.7, 1.3); if (bu > 0) Q.star(bx, by, T * (0.4 + bu * 0.9), a * bu, ACC); } }
+      if (O.eyes) for (const e of O.eyes) { Q.glow(ex(e), ey(e), T * 0.15 * e[2], EDGE, a * z.eyes * (0.55 + 0.25 * pulse + gather * 0.3)); Q.glow(ex(e), ey(e), T * 0.05 * e[2], ACC, a * z.eyes * 0.75); if (gather) Q.star(ex(e), ey(e), T * 0.18 * e[2], a * 0.5, ACC); }
+      if (tier >= 3 && O.head && z.st === 'fight') { const v = (t * 0.7 + z.pulse) % 1; Q.glow(ex(O.head) + T * 0.1 * z.fk + v * T * 0.08 * z.fk, ey(O.head) - O.hr * k * (0.75 - v * 0.9), T * 0.08, EDGE, a * 0.55 * Math.sin(v * Math.PI)); }
+    }
+    function gAir(Q, T, t) {   // the sprint streaks, claws, wisps and explosions
+      for (const z of Z) if (z.st === 'rush' && z.trail.length > 2) for (let i = 1; i < z.trail.length; i++) { const v = 1 - i / z.trail.length, p0 = z.trail[i - 1], p1 = z.trail[i], ax = H.sx(p0[0]), ay = H.sy(p0[1]), bx = H.sx(p1[0]), by = H.sy(p1[1]);
+        gStroke(Q, ax, ay - T * 0.35, bx, by - T * 0.35, T * 0.16 * v, BODY, 0.5 * v); cb(Q, ax, ay - T * 0.4, bx, by - T * 0.4, T * 0.06, EDGE, 0.45 * v); if (i % 3 === 1) Q.quad(53, bx, by - T * 0.3, T * 0.25 * v, 0, 0, T * 0.22 * v, BODY, 0.4 * v, 0.8, z.i + i, 0.2); }
+      const ft = F.t;
+      for (const v of fxv) {
+        const lt = ft - v.t0; if (lt < 0) continue; const u = lt / v.life, X = H.sx(v.x), Y = H.sy(v.y) - T * 0.4;
+        if (v.kind === 'slash') { const s = v.s * T, o = 1 - sstep(0.35, 1, u), wipe = sstep(0, 0.3, u), ca = Math.cos(v.a), sa = Math.sin(v.a), M = [ca * v.fk, sa * v.fk, -sa, ca];
+          for (let j = 0; j < 3; j++) gClaw(Q, X, Y, M, -s, -s + 2 * s * wipe, (j - 1) * s * 0.34, 0.25 * s * wipe + 0.5, 0.2 * s * wipe + 0.8, o);
+          Q.glow(X, Y, T * 0.55, EDGE, 0.35 * o); if (u < 0.3) Q.star(X + Math.cos(v.a) * s * (2 * wipe - 1) * v.fk, Y + Math.sin(v.a) * s * (2 * wipe - 1), T * 0.35, 0.6 * (1 - u / 0.3), ACC); }
+        else if (v.kind === 'trail') { const o = 1 - u, sx = H.sx(v.x), sy = H.sy(v.y) - T * 0.45, mx = (sx + X) / 2 + (Y - sy) * v.bend * 0.3, my = (sy + Y) / 2 - T * 0.25 + (sx - X) * v.bend * 0.1, q = (p0, p1, p2, s2) => (1 - s2) * (1 - s2) * p0 + 2 * (1 - s2) * s2 * p1 + s2 * s2 * p2;
+          for (let j = 0; j < 8; j++) { const a0 = j / 8, a1 = (j + 1) / 8, w = Math.sin(a1 * Math.PI) * T * 0.07, x0 = q(sx, mx, X, a0), y0 = q(sy, my, Y, a0), x1 = q(sx, mx, X, a1), y1 = q(sy, my, Y, a1); gStroke(Q, x0, y0, x1, y1, w + 0.5, BODY, 0.5 * o); cb(Q, x0, y0, x1, y1, Math.max(1, T * 0.03), EDGE, 0.45 * o * Math.sin(a1 * Math.PI)); } }
+        else if (v.kind === 'boom') { const R0 = BR * T, fo = 1 - sstep(0.25, 1, u);
+          for (let j = 0; j < 6; j++) { const a = j / 6 * TAU + v.seed, d = R0 * 0.45 * sstep(0, 0.7, u), s2 = R0 * (0.3 + 0.13 * (j % 2)) * (0.6 + 0.6 * sstep(0, 0.5, u)); Q.quad(53, X + Math.cos(a) * d, Y + Math.sin(a) * d * 0.6 - R0 * 0.2 * u, s2 * 1.1, 0, 0, s2, j % 2 ? '#2A1640' : BODY, 0.8 * fo, 0.9, v.seed * 2.1 + j, 0.5); }
+          const fl = 1 - sstep(0, 0.45, u); Q.eorb(X, Y, R0 * (0.25 + 0.5 * u), EDGE, 1.0, 0.85 * fl, v.seed, 1.5); Q.glow(X, Y, R0 * (0.6 + 0.6 * u), EDGE, 0.7 * fl); Q.glow(X, Y, R0 * 0.32 * (1 - u * 0.5), ACC, 0.95 * (1 - sstep(0, 0.25, u))); Q.glow(X, Y, R0 * 0.14, '#FFFFFF', 0.9 * (1 - sstep(0, 0.18, u)));
+          if (u < 0.35) { const ra = 1 - u / 0.35; Q.star(X, Y, R0 * 1.1, 0.8 * ra, ACC); for (let i = 0; i < 9; i++) { const b = i / 9 * TAU + v.seed * 0.7, L = R0 * (0.9 + 0.5 * R1(v.seed + i)) * (0.4 + 0.6 * u / 0.35); Q.rbeam(X, Y, X + Math.cos(b) * L, Y + Math.sin(b) * L * 0.75, T * 0.13, i % 3 ? EDGE : ACC, 0.7 * ra, 1, 0); } }
+          const rq = cl(u / 0.6); if (rq < 1) Q.ring(X, Y, R0 * (0.3 + 1.1 * H.ease.out(rq)), ACC, 0.6 * (1 - rq), T * 0.08, 0.55); }
+      }
+    }
     function warm(c, T) {
       const tr = c.getTransform(), sc = Math.max(0.5, Math.hypot(tr.a, tr.b));
       if (!hpx) hpx = Math.max(40, Math.min(168, Math.round(ZH * T * sc * 1.15 / 8) * 8));
     }
     function drawUnder(c, f, X0, Y0, T, t) {
-      warm(c, T); drawFloor(c, T, t);
+      warm(c, T);
+      { const FG = gfx(); if (FG) { /* (v409 DK2) the floor and the feet on the GPU, the zombies behind the pet (sprites), then their lights */
+        let Q = FG.begin(c, null); gFloor(Q, T, t); FG.flush(c);
+        const list = Z.filter(z => z.y < me.y - 0.02).sort((a, b) => a.y - b.y); for (const z of list) drawZombie(c, z, T, t, false, true);
+        Q = FG.begin(c, null); for (const z of list) gLights(Q, z, T, t, false); FG.flush(c); return; } }
+      drawFloor(c, T, t);
       const list = Z.filter(z => z.y < me.y - 0.02).sort((a, b) => a.y - b.y);
       for (const z of list) drawZombie(c, z, T, t, false);
     }
     function draw(c, f, X0, Y0, T, t) {
       warm(c, T);
+      { const FG = gfx(); if (FG) { /* (v409 DK2) the zombies in front of the pet (sprites), then one GPU pass: their lights, the streaks, claws, wisps, blasts */
+        const list = Z.filter(z => z.y >= me.y - 0.02).sort((a, b) => a.y - b.y); for (const z of list) drawZombie(c, z, T, t, true, true);
+        const Q = FG.begin(c, null); for (const z of list) gLights(Q, z, T, t, true); gAir(Q, T, t); FG.flush(c); return; } }
       const list = Z.filter(z => z.y >= me.y - 0.02).sort((a, b) => a.y - b.y);
       for (const z of list) drawZombie(c, z, T, t, true);
       // the rush: a dark streak behind each sprinter along its real path
