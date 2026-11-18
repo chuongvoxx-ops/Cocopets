@@ -124,6 +124,10 @@
   }
 
   // D-U08 Black Rose Compass
+  /* (v404 DK) the GPU picture: the shared painter (20k6h FGFX) when it is usable; else the 2D picture, as it was. The sigil, the thorns, the
+     fragments and the rose keep their 2D art; the floor's light, the thrusts' streaks, the forming halos, the strike flares, the heart's core
+     and the burst's flash are drawn on the GPU (one pass under, one over) */
+  const gfx = () => { try { const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; return F && F.usable() ? F : null; } catch (e) { return null; } };
   U.blackrose = (C, h) => {
     H = h; const x = C.tx, y = C.ty, a = C.a, R = 3.2 * C.K, evo = Math.max(1, Math.min(7, C.evo || 1)), STRIKES = [[1.2, 0], [1.7, 1], [2.2, 0], [2.7, 1]], ROSE = 3.0, BURST = 3.35;
     H.warn(x, y, R, 1.1, C.col); H.X.banner('BLACK ROSE COMPASS', '', C.col, 1.4); H.X.sfx.hum();
@@ -142,8 +146,13 @@
       drawUnder(c, f, X, Y, T) {
         const k = H.fade(f, 0.6, 0.7), t = f.t; let pulse = 0; for (const [t0] of STRIKES) if (t > t0 && t < t0 + 0.35) pulse = Math.max(pulse, 1 - (t - t0) / 0.35);
         const bk = f.burstT >= 0 ? Math.max(0, 1 - (t - f.burstT) / 0.5) : 0, draw = Math.min(1, t / 0.9), rad = R * T * 1.08;
+        const FG = gfx(); if (FG) { const Q = FG.begin(c, null), gy = H.GY;   // (v404 DK) the pool of light, a caustic shimmer, a rolling wave at each strike and at the burst
+          Q.glow(X, Y, rad * 0.95, ENERGY, k * (0.36 + 0.25 * pulse + 0.55 * bk), gy); Q.caustic(X, Y, rad * 0.8, EDGE, k * (0.2 + 0.2 * pulse), a, gy); Q.ring(X, Y, rad, EDGE, k * draw * 0.4, T * 0.05, gy);
+          for (const [t0] of STRIKES) { const u = (t - t0) / 0.45; if (u > 0 && u < 1) Q.ewave(X, Y, rad * (0.2 + 0.6 * H.ease.out(u)), EDGE, 0.75, (1 - u) * 0.8 * k, t0 * 3, gy, 0.2); }
+          if (f.burstT >= 0) { const u = (t - f.burstT) / 0.7; if (u < 1) { Q.ewave(X, Y, rad * (0.3 + 1.0 * H.ease.out(u)), EDGE, 0.85, (1 - u) * 0.95 * k, 4.4, gy, 0.22); Q.ring(X, Y, rad * (0.3 + 1.0 * H.ease.out(u)), ACC, (1 - u) * 0.7 * k, T * 0.08, gy); } }
+          FG.flush(c); }
         c.save(); c.translate(X, Y); c.scale(1, H.GY); c.globalCompositeOperation = 'lighter';
-        c.globalAlpha = k * (0.28 + 0.2 * pulse + 0.5 * bk); blitSized(c, glowSprite(ENERGY), -rad * 0.8, -rad * 0.8, rad * 1.6, rad * 1.6);
+        if (!FG) { c.globalAlpha = k * (0.28 + 0.2 * pulse + 0.5 * bk); blitSized(c, glowSprite(ENERGY), -rad * 0.8, -rad * 0.8, rad * 1.6, rad * 1.6); }
         c.save(); c.rotate(a + Math.PI / 4 + t * 0.22); c.globalAlpha = k * draw * (0.62 + 0.3 * pulse + 0.4 * bk); const sg = sigilSpr(); c.drawImage(sg, -rad * 1.085, -rad * 1.085, rad * 2.17, rad * 2.17); c.restore();
         c.save(); c.rotate(-t * 0.5); c.globalAlpha = k * draw * (0.55 + 0.3 * pulse); const wh = wheelSpr(); c.drawImage(wh, -rad * 0.5, -rad * 0.5, rad, rad); c.restore();
         c.restore();
@@ -162,6 +171,7 @@
       },
       draw(c, f, X, Y, T, gt) {
         const t = f.t, k = Math.min(1, f.life / 0.7), form = H.ease.out(Math.min(1, t / 0.5)), aim = H.ease.io(cl((t - 0.4) / 0.45)), nfade = t > ROSE ? Math.min(1, (t - ROSE) / 0.3) : 0, items = [];
+        const FG = gfx(), GQ = [];   // (v404 DK: FG, the GPU painter; GQ, the light queued for its pass over the 2D art)
         /* --- the needles --- */
         if (nfade < 1) nd.forEach((n, i) => {
           const th = f.thrust[i], rr = R * (1 + 0.25 * Math.max(0, -th)) - R * 0.85 * Math.max(0, th), bx = x + Math.cos(n.b) * rr, by = y + Math.sin(n.b) * rr;
@@ -170,12 +180,14 @@
           items.push({ y: H.sy(by) + inw[1] * L * 0.5 * T * H.GY, draw() {
             // the trail of a fast thrust: a soft violet streak back along the path, gone as soon as the point stops
             const v = f.vel[i], TP = drawThorn(c, T, bx, by, Z, dir, f.roll[i], L, w, en, al, FRAC);
-            if (TP && v > 1.5) { const kv = cl(v / 7); c.save(); c.globalAlpha = al; H.ray(c, TP.tp[0], TP.tp[1], TP.sa + Math.PI, L * T * (0.5 + 0.7 * kv), T * 0.3, EDGE, 0.5 * kv); H.ray(c, TP.tp[0], TP.tp[1], TP.sa + Math.PI, L * T * 0.6 * kv, T * 0.12, ACC, 0.5 * kv); c.restore(); }
+            if (TP && v > 1.5 && FG) { const kv = cl(v / 7), b = TP.sa + Math.PI; GQ.push(Q => { Q.rbeam(TP.tp[0], TP.tp[1], TP.tp[0] + Math.cos(b) * L * T * (0.5 + 0.7 * kv), TP.tp[1] + Math.sin(b) * L * T * (0.5 + 0.7 * kv), T * 0.16, EDGE, 0.7 * kv * al, 1, 0); Q.rbeam(TP.tp[0], TP.tp[1], TP.tp[0] + Math.cos(b) * L * T * 0.6 * kv, TP.tp[1] + Math.sin(b) * L * T * 0.6 * kv, T * 0.05, ACC, 0.8 * kv * al, 1, 0); Q.glow(TP.tp[0], TP.tp[1], T * 0.3, ACC, 0.5 * kv * al); }); }
+            else if (TP && v > 1.5) { const kv = cl(v / 7); c.save(); c.globalAlpha = al; H.ray(c, TP.tp[0], TP.tp[1], TP.sa + Math.PI, L * T * (0.5 + 0.7 * kv), T * 0.3, EDGE, 0.5 * kv); H.ray(c, TP.tp[0], TP.tp[1], TP.sa + Math.PI, L * T * 0.6 * kv, T * 0.12, ACC, 0.5 * kv); c.restore(); }
             // forming: the mist it condenses from, a halo
-            if (t < 0.7) { const q = 1 - t / 0.7; GeoKit.glow(c, sx, sy - L * T * 0.4, T * (0.6 + 0.6 * q), ENERGY, al * 0.45 * q); } } });
+            if (t < 0.7) { const q = 1 - t / 0.7; if (FG) GQ.push(Q => { Q.glow(sx, sy - L * T * 0.4, T * (0.7 + 0.7 * q), ENERGY, al * 0.55 * q); Q.quad(53, sx, sy - L * T * 0.4, T * (0.5 + 0.5 * q), 0, 0, T * (0.5 + 0.5 * q), '#180B2E', al * 0.5 * q, 0.9, i * 2.1, 0.2); }); else GeoKit.glow(c, sx, sy - L * T * 0.4, T * (0.6 + 0.6 * q), ENERGY, al * 0.45 * q); } } });
         });
         /* --- the strike flare at the centre --- */
-        if (f.flare > 0) { const q = f.flare, cy = Y - T * 0.55; c.save(); c.globalAlpha = k * q * petDim(X, cy, T, T * 0.4); GeoKit.glow(c, X, cy, T * (1.1 + (1 - q) * 1.2), EDGE, 0.6); H.core(c, X, cy, T * (0.14 + (1 - q) * 0.2), ENERGY, ACC, q); c.restore(); }
+        if (f.flare > 0 && FG) { const q = f.flare, cy = Y - T * 0.55, pd = k * q * petDim(X, cy, T, T * 0.4); GQ.push(Q => { Q.glow(X, cy, T * (1.2 + (1 - q) * 1.3), EDGE, 0.7 * pd); Q.eorb(X, cy, T * (0.25 + (1 - q) * 0.35), EDGE, 0.95, pd, t * 3, 2); Q.glow(X, cy, T * 0.15, '#FFFFFF', pd); Q.star(X, cy, T * (0.8 + (1 - q)), pd, ACC); }); }
+        else if (f.flare > 0) { const q = f.flare, cy = Y - T * 0.55; c.save(); c.globalAlpha = k * q * petDim(X, cy, T, T * 0.4); GeoKit.glow(c, X, cy, T * (1.1 + (1 - q) * 1.2), EDGE, 0.6); H.core(c, X, cy, T * (0.14 + (1 - q) * 0.2), ENERGY, ACC, q); c.restore(); }
         /* --- the fragments orbiting the heart (seen through the whole cast, thickest round the rose) --- */
         const fk = Math.min(1, t / 0.8) * (t > ROSE - 0.4 ? 1 : 0.55) * (f.burstT >= 0 ? Math.max(0, 1 - (t - f.burstT) / 0.4) : 1) * k, fs = fragSpr();
         if (fk > 0.02) for (const g of f.frags) { const b = g.a0 + gt * g.sp, rr = g.rr * T * (t > ROSE - 0.4 ? 0.8 : 1), fx = X + Math.cos(b) * rr, fy = Y - g.z * T + Math.sin(b) * rr * 0.45 + Math.sin(gt * 2 + g.ph) * T * 0.06, s = T * 0.22 * g.s; items.push({ y: Y + Math.sin(b) * rr * 0.45, draw() { c.save(); c.globalAlpha = fk * petDim(fx, fy, T, s); c.translate(fx, fy); c.rotate(gt * g.sp * 2 + g.ph); c.drawImage(fs, -s, -s, s * 2, s * 2); c.restore(); } }); }
@@ -192,7 +204,7 @@
               for (let q = 0; q < 4; q++) { const u = 0.2 + q * 0.2, px = (1 - u) * (1 - u) * p0[0] + 2 * (1 - u) * u * p1[0] + u * u * p2[0], py = (1 - u) * (1 - u) * p0[1] + 2 * (1 - u) * u * p1[1] + u * u * p2[1], s = q % 2 ? 1 : -1; c.beginPath(); c.moveTo(px, py + T * 0.04); c.lineTo(px + s * T * 0.12, py - T * 0.06); c.lineTo(px, py - T * 0.05); c.closePath(); c.fillStyle = PLUM; c.fill(); c.strokeStyle = INK; c.lineWidth = 1.2; c.stroke(); }
               const lf = leafSpr(); for (const [u, s, rot] of [[0.42, -1, -1.1], [0.66, 1, 1.0]]) { const px = (1 - u) * (1 - u) * p0[0] + 2 * (1 - u) * u * p1[0] + u * u * p2[0], py = (1 - u) * (1 - u) * p0[1] + 2 * (1 - u) * u * p1[1] + u * u * p2[1], lw = T * 0.34 * grow, lh = T * 0.7 * grow; c.save(); c.translate(px, py); c.rotate(rot * (0.6 + 0.4 * grow)); c.drawImage(lf, -lw / 2, -lh, lw, lh); c.restore(); } }
             // the heart's light behind everything
-            const beat = 0.5 + 0.5 * Math.sin(gt * 9); GeoKit.glow(c, X, cy, roseR * (0.9 + 0.3 * open) * grow, ENERGY, (0.18 + 0.12 * open + 0.08 * beat * open) * (1 - gone)); if (burst && bu < 0.3) GeoKit.glow(c, X, cy, roseR * 1.6, ACC, 0.8 * (1 - bu / 0.3));
+            const beat = 0.5 + 0.5 * Math.sin(gt * 9); GeoKit.glow(c, X, cy, roseR * (0.9 + 0.3 * open) * grow, ENERGY, (0.18 + 0.12 * open + 0.08 * beat * open) * (1 - gone)); if (burst && bu < 0.3) { if (FG) { const bq = 1 - bu / 0.3, aa = c.globalAlpha; GQ.push(Q => { Q.glow(X, cy, roseR * 1.8, ACC, 0.85 * bq * aa); Q.star(X, cy, roseR * 2.2, bq * aa, '#EEDDFF'); Q.eorb(X, cy, roseR * (0.6 + 0.8 * (1 - bq)), EDGE, 1.0, 0.8 * bq * aa, 7.7, 1.5); Q.glow(X, cy, roseR * 0.5, '#FFFFFF', bq * aa); }); } else GeoKit.glow(c, X, cy, roseR * 1.6, ACC, 0.8 * (1 - bu / 0.3)); }
             // the petals, back to front, the heart between them
             const list = [];
             for (const p of f.petals) {
@@ -206,9 +218,11 @@
             }
             list.push({ y: 0, draw: () => { const r0 = T * 0.27 * RS * grow; H.sphere(c, X, cy - T * 0.05, r0, PLUM, SMOKE, VOID, { rimCol: EDGE, outline: false, spec: false }); c.strokeStyle = rgba(EDGE, 0.7); c.lineWidth = 1.4; c.beginPath(); c.arc(X, cy - T * 0.05, r0, 0, TAU); c.stroke(); H.core(c, X, cy - T * 0.05, r0 * (0.7 + 0.25 * open), ENERGY, ACC, (0.55 + 0.35 * open) * (1 - gone)); } });
             list.sort((p, q) => p.y - q.y).forEach(it => it.draw());
+            if (FG) { const r0 = T * 0.27 * RS * grow, aa = c.globalAlpha; GQ.push(Q => { Q.glow(X, cy - T * 0.05, r0 * (1.6 + 0.6 * open), ENERGY, 0.6 * (1 - gone) * aa); Q.eorb(X, cy - T * 0.05, r0 * (0.75 + 0.25 * open), EDGE, 0.8 + 0.2 * beat * open, (0.55 + 0.35 * open) * (1 - gone) * aa, 3.3, 1.2); }); }
             c.restore();
           }
         }
+        if (FG && GQ.length) { const Q = FG.begin(c, null); for (const g of GQ) g(Q); FG.flush(c); }
       } });
     STRIKES.forEach(([t0, pr]) => H.X.after(t0, () => { nd.forEach(n => { if (n.pair === pr) H.hitLine(x + Math.cos(n.b) * R, y + Math.sin(n.b) * R, n.b + Math.PI, R * 0.95, 1.3, C.base * 1.5, C.dmgO({ kb: 2 })); }); H.hitArea(x, y, 0.9, C.base * 0.6, C.dmgO({ kb: 2 }));
       const F = H.fx.find(q => q.petals === petals); if (F) F.flare = 1; motes(x, y, 10, { v: 6, up: 2 }); shards(x, y, 5, { v: 4, up: 3, size: 3 }); H.X.ring(x, y, 0.2, 1.2, 0.3, EDGE, 0.3); H.X.light(x, y, 1.4, 0.2); H.X.shake(5, 0.12); H.X.sfx.whoosh(); H.X.hitstop(0.02); }));

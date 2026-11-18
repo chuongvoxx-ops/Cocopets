@@ -13,7 +13,10 @@
    pink shockwave (a second thin ring from Adept), curved light fragments, and a rounded cloud of rising hearts (big slow
    ones and tiny fast stars; a flower-like burst and floor pattern at Celestial, nested hearts inside the shell).
    Blast radius x1.0 / x1.2 / x1.4 (interpolated). Two bombs at every level.
-   2D canvas: "3D" here is cached shaded sprites, the shared thick turning heart (LU1, 20k4b), squash and moving light. */
+   2D canvas: "3D" here is cached shaded sprites, the shared thick turning heart (LU1, 20k4b), squash and moving light.
+   (v404 LT) Love Shock on the GPU too (the shared painter, 20k6h): the same wings, spheres, trails, pops and timing, each feather a
+   shaded feather of light (kind 45), each sphere a glass bubble (kind 46) round a pearl core and a turning candy heart (kind 41);
+   the 2D picture stays as it was for a device without the painter. */
 (() => {
   const S = ELEM_IMPL.light.strong, TAU = Math.PI * 2;
   delete S.stitch; delete S.mirrorwing;
@@ -85,6 +88,44 @@
       for (let j = 0; j < NF; j += 2) { const L = lenOf(j, NF); feather(ang(j, NF), L * 1.05, L * 0.5, A * (0.14 + 0.4 * W.flash), true, j, NF); }
       c.restore();
     }
+  }
+  /* (v404 LT) the wings on the GPU: the same feathers on the same arm, each a shaded feather (kind 45) under a halo of light; the
+     thin streaks between them and the flash over the big ones as light. tips (as the 2D): where sparkles shed from */
+  function gWings(Q, X, Y, T, W, tips) {
+    const NF = W.tier === 2 ? 6 : 5, lo = W.tier === 2 ? -0.6 : -0.45, hi = W.tier === 2 ? 1.35 : 1.2, spanK = W.span;
+    const ARM = T * 0.5 * spanK * lerp(0.3, 1, W.open) * (1 - 0.6 * W.diss), AA = lerp(-0.6, 0.8, W.open), A = W.a * (1 - Math.pow(W.diss, 1.4));
+    for (const s of [-1, 1]) {
+      const ox = X + s * T * 0.07, oy = Y - T * 0.5, kx = s * (1 - 0.32 * W.snap), ky = 1 + 0.08 * W.snap;
+      const ang = (j, n, off) => { const u = n > 1 ? j / (n - 1) : 0.5, op = W.open; return lerp(-1.3 + j * 0.06, lerp(lo, hi, u) * 0.85 + (off || 0), op) + W.snap * 0.32 * (0.4 + u) - W.droop * 0.14 * (1 - u) + 0.045 * Math.sin(W.t * 5.2 - j * 0.7 + s); };
+      const lenOf = (j, n) => { const u = n > 1 ? j / (n - 1) : 0.5; return T * spanK * (0.72 + 0.6 * Math.sin(Math.PI * (0.18 + 0.72 * u))) * lerp(0.38, 1, W.open) * (1 - 0.82 * W.diss); };
+      // one feather: root on the arm at j, angle th up from horizontal, length len, width wid; the frame mirrored for the side
+      const fth = (th, len, wid, a, j, n, mode) => { if (!(a > 0.01) || len < 2) return; const u = n > 1 ? j / (n - 1) : 0.5, d = ARM * (0.1 + 0.9 * u), ax = Math.cos(AA) * d, ay = -Math.sin(AA) * d, ct = Math.cos(th), st = Math.sin(th);
+        const M = (fx, fy) => [(ax + fx * ct + fy * st) * kx, (ay - fx * st + fy * ct) * ky], c0 = M(len * 0.5, -0.12 * wid), U = M(len * 0.5, -0.12 * wid), V = M(0, wid * 0.44); U[0] -= M(0, 0)[0]; U[1] -= M(0, 0)[1]; V[0] -= M(0, 0)[0]; V[1] -= M(0, 0)[1];
+        const cx = ox + c0[0], cy = oy + c0[1];
+        if (mode === 2) { Q.beam(cx - U[0] * 0.9, cy - U[1] * 0.9, cx + U[0] * 0.95, cy + U[1] * 0.95, wid * 0.32, BLOS, a * 0.8); Q.beam(cx - U[0] * 0.8, cy - U[1] * 0.8, cx + U[0] * 0.9, cy + U[1] * 0.9, wid * 0.1, PEARL, a); return; }
+        if (mode === 3) { Q.beam(cx - U[0], cy - U[1], cx + U[0], cy + U[1], wid * 0.5, PINK, a * 0.6); Q.glow(cx + U[0] * 0.75, cy + U[1] * 0.75, wid * 0.55, PEARL, a * 0.6); return; }
+        Q.beam(cx - U[0] * 0.95, cy - U[1] * 0.95, cx + U[0] * 1.02, cy + U[1] * 1.02, wid * 0.62, PINK, a * 0.3);
+        Q.quad(45, cx, cy, U[0], U[1], V[0], V[1], '#FFFFFF', a, W.flash * 0.6 + (mode === 1 ? 0.15 : 0), j * 1.7 + (s > 0 ? 3 : 0), 0.55); };
+      if (W.tier >= 1) for (let j = 0; j < NF - 1; j++) { const Lf = lenOf(j + 0.5, NF) * 1.1; fth(ang(j + 0.5, NF, 0.04), Lf, Lf * 0.34, A * 0.72, j + 0.5, NF, 1); }
+      for (let j = 0; j < NF; j++) { const Lf = lenOf(j, NF); fth(ang(j, NF), Lf, Lf * 0.36, A, j, NF, 0); if (tips && s === 1 && j % 2 === 0) { const th = ang(j, NF), d = ARM * (0.1 + 0.9 * j / (NF - 1)); tips.push([Math.cos(AA) * d + Math.cos(th) * Lf * 0.95, -Math.sin(AA) * d - Math.sin(th) * Lf * 0.95]); } }
+      for (let j = 0; j < NF - 1; j++) { const Lf = lenOf(j + 0.5, NF) * 0.62; fth(ang(j + 0.5, NF, -0.05), Lf, Lf * 0.16, A * 0.55, j + 0.5, NF, 2); }
+      for (let j = 0; j < NF; j += 2) { const Lf = lenOf(j, NF); fth(ang(j, NF), Lf * 1.05, Lf * 0.5, A * (0.14 + 0.4 * W.flash), j, NF, 3); }
+    }
+  }
+  /* (v404 LT) a sphere on the GPU: its glow, the far half of its sparkle strand, the solid pearl core (kind 46), the little turning heart
+     (kind 41), the translucent pink glass shell (kind 46), the near half of the strand */
+  function gSphere(Q, X, Y, r, sp, t, a, rich) {
+    if (!(a > 0.01) || r < 1) return;
+    Q.glow(X, Y, r * 2.6, ROSE, 0.3 * a); Q.glow(X, Y, r * 1.5, BLOS, 0.12 * a);
+    const tilt = 0.55 + 0.25 * Math.sin(sp.sd), NS = rich ? 7 : 5, ph = t * 3.4 + sp.sd, ct = Math.cos(tilt), st = Math.sin(tilt), E = b => [X + Math.cos(b) * r * 1.3 * ct - Math.sin(b) * r * 0.42 * st, Y + Math.cos(b) * r * 1.3 * st + Math.sin(b) * r * 0.42 * ct];
+    const strand = front => { const pts = []; for (let k = 0; k <= 12; k++) pts.push(E((front ? 0 : Math.PI) + k / 12 * Math.PI)); globalThis.LU1.gStrip(Q, pts, Math.max(0.8, r * 0.06), PEARL, u => (front ? 0.75 : 0.3) * a * Math.sin(Math.PI * u) ** 0.5);
+      for (let q = 0; q < NS; q++) { const b = ph + q / NS * TAU, sn = Math.sin(b); if ((sn >= 0) !== front) continue; const p = E(b), ss = r * (0.3 + 0.1 * (q % 2)); Q.glow(p[0], p[1], ss * 1.3, q % 2 ? BLOS : PINK, (front ? 0.6 : 0.25) * a); Q.quad(50, p[0], p[1], ss, 0, 0, ss, q % 2 ? BLOS : CANDY, (front ? 1 : 0.4) * a, 0.6, b, 0); } };
+    strand(false);
+    Q.quad(46, X, Y, r * 0.38, 0, 0, r * 0.38, '#FFE0EF', a, 0.88, 0, 0.6);
+    const hs = Math.max(0.18, Math.abs(Math.cos(sp.spin))), hy = r * 0.62, ro = 0.25 * Math.sin(sp.spin * 0.5), cr = Math.cos(ro), sr = Math.sin(ro); Q.quad(41, X - sr * r * 0.04, Y + cr * r * 0.04, cr * hy * hs, sr * hy * hs, -sr * hy, cr * hy, '#FFFFFF', a, 0.35, sp.sd, 1);
+    Q.quad(46, X, Y, r * 1.08, 0, 0, r * 1.08, PINK, a, 0, sp.sd, 1);
+    Q.glow(X, Y + r * 0.1, r * 0.95, CANDY, 0.45 * a); Q.glow(X, Y, r * 0.45, PEARL, 0.22 * a); Q.ring(X, Y, r * 0.96, BLOS, 0.4 * a, r * 0.08);
+    strand(true);
   }
   function drawSphere(c, X, Y, r, sp, t, a, rich) {
     if (!(a > 0.01) || r < 1) return; const K = globalThis.LU1;
@@ -178,6 +219,13 @@
         const t = f.t;
         // the wings, behind the pet: unfold, snap forward to fling, settle, dissolve from the tips
         const open = backOut(t / 0.4), snap = t > REL - 0.06 ? Math.sin(Math.PI * cl((t - REL + 0.06) / 0.26)) : 0, droop = sm((t - 0.85) / 0.4), diss = sm((t - 1.15) / 0.5);
+        { const FG = gfx(); if (FG) { /* (v404 LT) on the GPU: the wings' feathers (kind 45) with their halos of light, the floor light under
+             each sphere and the contact ripples */
+          const Q = FG.begin(c, null), GY = 0.55;
+          if (diss < 1) { const tips = []; gWings(Q, H.sx(me.x), H.sy(me.y), T, { open, snap, droop, diss, t, a: cl(t / 0.12), tier: L, span: SPAN, flash: snap }, tips); f.tips = tips; }
+          for (const sp of sph) { if (sp.st === 'gone' || sp.a < 0.02) continue; const gx = H.sx(sp.x), gy = H.sy(sp.y), k = cl(1 - sp.z / 2.5); H.softShadow(c, gx, gy, T * RS * 1.1, 0.16 * sp.a * k); Q.glow(gx, gy, T * RS * 2.6 * k, PINK, 0.4 * sp.a, GY); Q.glow(gx, gy, T * RS * 1.1 * k, BLOS, 0.25 * sp.a, GY); }
+          for (const p of pops) { const u = (t - p.t0) / 0.5; if (u < 0 || u > 1) continue; const X = H.sx(p.x), Y = H.sy(p.y), rr = T * (0.25 + (p.big ? 1.1 : 0.75) * H.ease.out(u)); Q.ring(X, Y, rr, PINK, (1 - u) * 0.85, T * 0.1, GY); Q.ring(X, Y, rr * 0.98, PEARL, (1 - u) * 0.8, T * 0.035, GY); if (u < 0.4) Q.glow(X, Y, rr * 0.9, PINK, (1 - u / 0.4) * 0.35, GY); }
+          FG.flush(c); return; } }
         if (diss < 1) { const tips = []; drawWings(c, H.sx(me.x), H.sy(me.y), T, { open, snap, droop, diss, t, a: cl(t / 0.12), tier: L, span: SPAN, flash: snap }, tips); f.tips = tips; }
         // pink floor light under each sphere and its contact ripples
         for (const sp of sph) { if (sp.st === 'gone' || sp.a < 0.02) continue; const gx = H.sx(sp.x), gy = H.sy(sp.y), k = cl(1 - sp.z / 2.5); blit(c, glowSprite(PINK), gx, gy, T * RS * 5 * k, T * RS * 5 * 0.55 * k, 0.32 * sp.a, true); H.softShadow(c, gx, gy, T * RS * 1.1, 0.16 * sp.a * k); }
@@ -185,6 +233,21 @@
       },
       draw(c, f, X0, Y0, T) {
         const t = f.t;
+        { const FG = gfx(); if (FG) { /* (v404 LT) on the GPU: each sphere's ribbon of light along its real path, the glass sphere, the
+             contact pops (a heart of light springing out, a pearl flash), the little hearts and stars */
+          const Q = FG.begin(c, null);
+          for (const sp of sph) { if (sp.st === 'gone' || sp.a < 0.02) continue;
+            if (sp.tr.length > 2) { const pts = sp.tr.map(p => [H.sx(p[0]), H.sy(p[1]) - p[2] * T]), w = T * RS * (0.35 + 0.65 * cl(sp.vel / 9)) * sp.a, wf = k => u => w * k * Math.pow(u, 0.8);
+              // (the trail stops at the glass: the light pass lies over the sphere, so its head must not run through it)
+              const hx = pts[pts.length - 1][0], hy = pts[pts.length - 1][1], rr = T * RS * 0.85; while (pts.length > 2 && Math.hypot(pts[pts.length - 2][0] - hx, pts[pts.length - 2][1] - hy) < rr) pts.splice(pts.length - 2, 1);
+              { const a = pts[pts.length - 2], dx = hx - a[0], dy = hy - a[1], d = Math.hypot(dx, dy) || 1; pts[pts.length - 1] = [hx - dx / d * Math.min(rr, d * 0.9), hy - dy / d * Math.min(rr, d * 0.9)]; }
+              K.gStrip(Q, pts, wf(2.8), ROSE, u => 0.3 * u); K.gStrip(Q, pts, wf(1.7), PINK, u => 0.55 * u); K.gStrip(Q, pts, wf(0.85), BLOS, u => 0.55 * u); K.gStrip(Q, pts, wf(0.32), PEARL, u => 0.8 * u); }
+            const sx0 = H.sx(sp.x), sy0 = H.sy(sp.y) - sp.z * T, pulse = sp.st === 'die' ? 1 + 0.5 * (1 - sp.a) : 1;
+            gSphere(Q, sx0, sy0, T * RS * pulse * (sp.st === 'form' ? Math.max(0.05, sp.a) : 1), sp, t, sp.st === 'form' ? cl(sp.a * 1.4) : sp.a, L >= 1); }
+          for (const p of pops) { const u = (t - p.t0) / 0.42; if (u < 0 || u > 1) continue; const X = H.sx(p.x), Y = H.sy(p.y) - p.z * T - T * 0.1 * u, sz = T * (p.big ? 0.9 : 0.55) * (0.5 + 0.9 * H.ease.out(u)), q = sz * 0.62;
+            Q.quad(44, X, Y, q, 0, 0, q, ROSE, (1 - u) * 0.95, 0.045, 1.1, 0.25); if (u < 0.3) { Q.glow(X, Y, T * (p.big ? 0.6 : 0.4), CANDY, (1 - u / 0.3) * 0.7); Q.star(X, Y, T * (p.big ? 0.55 : 0.35), (1 - u / 0.3) * 0.7, PEARL); } }
+          K.gBits(Q, B, T);
+          FG.flush(c); return; } }
         for (const sp of sph) { if (sp.st === 'gone' || sp.a < 0.02) continue;
           // the trail: follows the real path, widens with speed, tapers to nothing
           if (sp.tr.length > 2) { const pts = sp.tr.map(p => [H.sx(p[0]), H.sy(p[1]) - p[2] * T]), w = T * RS * (0.35 + 0.65 * cl(sp.vel / 9)) * sp.a;

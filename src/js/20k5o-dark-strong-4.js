@@ -65,6 +65,9 @@
   function vnoise(x, y) { const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi, u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf), a = hash2(xi, yi), b = hash2(xi + 1, yi), c = hash2(xi, yi + 1), d = hash2(xi + 1, yi + 1); return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v; }
   const fbm = (x, y) => vnoise(x, y) * 0.5 + vnoise(x * 2.03 + 5.2, y * 2.03 + 1.3) * 0.3 + vnoise(x * 4.1 + 9.1, y * 4.1 + 7.7) * 0.2;
   let H = null;
+  /* (v404 DK) the GPU picture: the shared painter (20k6h FGFX: Dark's kinds 53..58) when it is usable; else the 2D picture, as it was.
+     The bat stays its baked 2D model; its light, the smoke, the shells, the shockwaves and the trail are drawn on the GPU */
+  const gfx = () => { try { const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; return F && F.usable() ? F : null; } catch (e) { return null; } };
 
   /* ================= the bat's geometry (units: tiles for a bat of size 1; y down; the body's centre at 0) ================= */
   const NP = 10, FOLDK = [0, 0.5, 1];
@@ -302,10 +305,10 @@
      B: s (px per unit), roll, pitch (0..1, nose down), ph (flap phase), k (fold 0..1), flare (0..1), a (alpha), emA (the
      wings' emissive light), pulse (the heal's crimson pulse), eye, bite (the fang flash), asym (bank: -..+), wob (ears) */
   function fallbackWing(c, s, k, ph) { const G = wingGeo(wingParams(k, ph)); c.save(); c.scale(s, s); memPath(c, G); c.fillStyle = '#24122A'; c.fill(); c.strokeStyle = 'rgba(165,92,255,0.5)'; c.lineWidth = 1.2 / s; c.stroke(); c.restore(); }
-  function drawBat(c, X, Y, B, t, acc) {
+  function drawBat(c, X, Y, B, t, acc, gq) {   // (v404 DK: gq, the GPU path: its glows are drawn by the GPU passes round it)
     const s = B.s; if (s < 2 || !(B.a > 0.01)) return;
     c.save(); c.translate(X, Y); c.rotate(B.roll); c.scale(1, 1 - 0.12 * B.pitch);
-    glowF(c, 0, 0, s * 0.95, EDGE, 0.16 * B.a);   // (a narrow violet back-light: the dark bat reads on dark floors)
+    if (!gq) glowF(c, 0, 0, s * 0.95, EDGE, 0.16 * B.a);   // (a narrow violet back-light: the dark bat reads on dark floors)
     c.globalAlpha = B.a;
     const kk = cl(B.k), ki = B.flare > 0.5 ? 3 : Math.round(kk * 2), pf = ((B.ph % 1) + 1) % 1, p = ki === 3 ? 0 : Math.round(pf * NP) % NP;
     let dth = 0; if (ki < 3) dth = Math.max(-0.4, Math.min(0.4, wingParams(kk, pf).th - wingParams(FOLDK[ki], p / NP).th));
@@ -323,7 +326,7 @@
         c.restore(); } }
     { const bd = get('B' + acc); if (bd) { const f = s / bd.s; c.drawImage(bd.cv, -bd.ox * f, -bd.oy * f, bd.cv.width * f, bd.cv.height * f); } else { c.fillStyle = '#1E1426'; c.beginPath(); c.ellipse(0, TOR[1] * s, TOR[2] * s, TOR[3] * s, 0, 0, TAU); c.moveTo(HEAD[2] * s, HEAD[1] * s); c.arc(0, HEAD[1] * s, HEAD[2] * s, 0, TAU); c.fill(); } }
     // the eyes' glow, the fangs' flash, the heal's crimson pulse in the chest
-    c.globalAlpha = 1;
+    c.globalAlpha = 1; if (gq) { c.restore(); return; }
     for (const sd of [-1, 1]) glowF(c, sd * 0.052 * s, -0.166 * s, s * (0.06 + 0.05 * B.eye), RUBY, B.a * (0.45 + 0.45 * B.eye));
     if (B.bite > 0.01) { c.globalCompositeOperation = 'lighter'; c.globalAlpha = B.a * B.bite; const r = s * (0.08 + 0.12 * B.bite); c.drawImage(starSpr(), -r, -0.075 * s - r, r * 2, r * 2); c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1; }
     if (B.pulse > 0.01) { glowF(c, 0, 0.04 * s, s * (0.22 + 0.25 * B.pulse), CRIM, B.a * 0.75 * B.pulse); glowF(c, 0, 0.0, s * 0.1, '#FFC0CC', B.a * 0.5 * B.pulse); }
@@ -534,6 +537,15 @@
     function mouthXY(T) { const [X, Y] = batXY(T), s = T * bs * bat.scale, mx = 0, my = -0.08 * s * (1 - 0.12 * bat.pitch), c = Math.cos(bat.roll), sn = Math.sin(bat.roll); return [X + mx * c - my * sn, Y + mx * sn + my * c]; }
     function drawUnder(c) {
       const T = H.X.Tz(), t = lastT;
+      { const FG = gfx(); if (FG) { /* (v404 DK) the bat's shadow (2D), then on the GPU: the strike point's crimson ripples and light, the bursts'
+           rolling waves of darkness on the floor */
+        if (bat.on && bat.a > 0.05) { const X = H.sx(me.x), Y = floorY(me.y, T); H.softShadow(c, X, Y, T * 0.42 * bs * (1 - Math.min(0.45, bat.z * 0.15)) * (0.6 + 0.4 * (1 - bat.k * 0.4)), (0.34 - Math.min(0.18, bat.z * 0.06)) * bat.a); }
+        const Q = FG.begin(c, null);
+        for (const r of ripples) { const u = (t - r.t0) / 0.6, x = r.tg && valid(r.tg) ? r.tg.x : r.x, y = r.tg && valid(r.tg) ? r.tg.y : r.y, X = H.sx(x), Y = floorY(y, T) - 0.1 * T;
+          for (const off of [0, 0.22]) { const v = cl((u - off) / (1 - off)); if (v <= 0 || v >= 1) continue; const rr = T * r.R * (0.25 + 0.85 * sm(v)); Q.ewave(X, Y, rr, CRIM, 0.7, 0.75 * (1 - v), off * 9 + 1, 0.55, 0.14); Q.ring(X, Y, rr, RUBY, 0.5 * (1 - v), T * 0.05, 0.55); } }
+        if (q && (ph.name === 'asc' || ph.name === 'aim' || ph.name === 'dive') && valid(q.tgt)) { const X = H.sx(q.tgt.x), Y = floorY(q.tgt.y, T) - 0.1 * T, k = ph.name === 'dive' ? 0.36 : 0.2; Q.glow(X, Y, T * q.R * 1.1, CRIM, k, 0.55); Q.glow(X, Y, T * q.R * 0.45, RUBY, k * 0.6, 0.55); }
+        for (const p of PS) if (p.k === 'shock') { const u = p.t / p.life, X = H.sx(p.x), Y = floorY(p.y, T), rr = T * p.s * (0.3 + 0.7 * Math.sqrt(u)); Q.ewave(X, Y, rr, EDGE, 0.8, 0.85 * (1 - u), p.x * 2.3, 0.55, 0.2); Q.ring(X, Y, rr * 0.96, CRIM, 0.45 * (1 - u), T * 0.07, 0.55); if (u < 0.5) Q.glow(X, Y, T * p.s * 0.7, EDGE, 0.36 * (1 - u * 2), 0.55); }
+        FG.flush(c); return; } }
       // the strike point: a dark-red ripple and a faint light on the floor where the dive will land
       for (const r of ripples) { const u = (t - r.t0) / 0.6, x = r.tg && valid(r.tg) ? r.tg.x : r.x, y = r.tg && valid(r.tg) ? r.tg.y : r.y, X = H.sx(x), Y = floorY(y, T) - 0.1 * T;
         for (const off of [0, 0.22]) { const v = cl((u - off) / (1 - off)); if (v <= 0) continue; ringF(c, 'c', X, Y, T * r.R * (0.25 + 0.85 * sm(v)), T * 0.12, 0.55 * (1 - v)); } }
@@ -545,6 +557,34 @@
     }
     function draw(c) {
       const d0 = nowMs(), T = H.X.Tz(), t = lastT;
+      { const FG = gfx(); if (FG) { /* (v404 DK) the GPU picture: the air shockwaves, the void smoke, the black shell shards, the trail (smoke and a violet
+           ribbon with crimson streaks) and the bat's back-light in one pass; the blood (glossy liquid) and the bat in 2D; then their light */
+        let Q = FG.begin(c, null);
+        for (const p of PS) { const u = p.t / p.life, X = H.sx(p.x), Y = floorY(p.y, T) - p.z * T;
+          if (p.k === 'air') { const r = T * p.s * (0.5 + 0.7 * sm(u)); Q.ring(X, Y, r, EDGE, 0.7 * (1 - u), T * 0.12); Q.ring(X, Y, r * 1.1, ACC, 0.3 * (1 - u), T * 0.04); Q.shimmer(X, Y, r * 1.15, 0.3 * (1 - u), 1, EDGE); }
+          else if (p.k === 'mist') { const r = T * p.s * Math.max(0.2, 1 + p.grow * u), a = Math.min(1, p.t / 0.08) * (1 - u) * p.a; if (a < 0.01) continue;
+            if (p.v === 2) { Q.eorb(X, Y, r * 0.75, '#6D28A8', 0.55, cl(a * 0.7), p.rot || p.x, 0.8); Q.glow(X, Y, r, EDGE, a * 0.3); } else Q.quad(53, X, Y, r * 1.15, 0, 0, r * 1.15, p.v ? '#24103A' : BODY, cl(a * 0.75), 0.8, (p.rot || 0) * 1.7 + p.x, 0.4); }
+          else if (p.k === 'frag') { const r = T * p.s; Q.rq(58, X, Y, r * 1.1, r * 1.1, p.rot, '#FFFFFF', 1 - sm((u - 0.5) / 0.5), p.rot * 0.7, p.v * 2.7 + 1, 0.35); } }
+        if (trail.length > 2 && bat.on) { const n = trail.length, P = [], Wd = [];
+          for (let i = 0; i < n; i++) { const p = trail[i]; P.push([H.sx(p.x), floorY(p.y, T) - p.z * T]); Wd.push(cl(1 - (t - p.t) / 0.3) * p.d); }
+          for (let i = 1; i < n; i += 2) if (Wd[i] > 0.05) Q.quad(53, P[i][0], P[i][1], T * bs * (0.2 + 0.16 * (1 - i / n)), 0, 0, T * bs * (0.2 + 0.16 * (1 - i / n)), BODY, 0.45 * Wd[i], 0.9, i * 1.3, 0.6);
+          for (let i = 1; i < n; i++) { const a = P[i - 1], b = P[i], w = Wd[i]; if (w < 0.05) continue; Q.ebeam(a[0], a[1], b[0], b[1], T * bs * 0.14 * w, '#6D28A8', 0.6, 0.55 * w, i * 0.4, 4);
+            const dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1; if (w > 0.4) for (const off of [-0.07, 0.0, 0.08]) { const o = off * T * bs; Q.beam(a[0] - dy / l * o, a[1] + dx / l * o, b[0] - dy / l * o, b[1] + dx / l * o, Math.max(0.8, T * 0.02), RUBY, 0.75 * w * w); } } }
+        const B = bat.on && bat.a > 0.01 ? batPose(T) : null, BX = batXY(T);
+        if (B) { if (me.hurtT != null && me.hurtT < 0.3 && Math.floor(lastT * 24) % 2 === 0) B.a *= 0.55; Q.glow(BX[0], BX[1], B.s * 1.05, EDGE, 0.22 * B.a); Q.glow(BX[0], BX[1], B.s * 0.5, CRIM, 0.08 * B.a); }
+        FG.flush(c);
+        for (const sp of siph) drawSiphon(c, sp, T, t, true);
+        if (B) drawBat(c, BX[0], BX[1], B, t, acc, true);
+        Q = FG.begin(c, null);
+        for (const sp of siph) { const tau = t - sp.t0; if (tau < 0 || !sp.q.src) continue; const end = cl((tau - sp.dur) / 0.15), s = sp.q.src, X = H.sx(s.x), Y = floorY(s.y, T) - s.z * T, m = mouthXY(T), k = (1 - end) * cl(tau / 0.08);
+          Q.glow(X, Y, T * 0.4, CRIM, 0.55 * k); Q.glow(X, Y, T * 0.12, ROSE, 0.6 * k); Q.glow(m[0], m[1], T * 0.24, ROSE, 0.45 * k);
+          const head = cl(tau / 0.25); let px = X, py = Y; for (let i = 1; i <= 8; i++) { sCurve(sp, 0.5, head * i / 8, T, SQ); Q.beam(px, py, SQ[0], SQ[1], T * 0.1, CRIM, 0.28 * k); px = SQ[0]; py = SQ[1]; } }
+        if (B) { const s = B.s, cr = Math.cos(B.roll), sr = Math.sin(B.roll), py = 1 - 0.12 * B.pitch, at = (x, y) => [BX[0] + x * cr - y * py * sr, BX[1] + x * sr + y * py * cr];
+          for (const sd of [-1, 1]) { const e = at(sd * 0.052 * s, -0.166 * s); Q.glow(e[0], e[1], s * (0.07 + 0.06 * B.eye), RUBY, B.a * (0.55 + 0.45 * B.eye)); Q.glow(e[0], e[1], s * 0.025, '#FFD0DA', B.a * (0.5 + 0.5 * B.eye)); }
+          if (B.bite > 0.01) { const f = at(0, -0.075 * s), r = s * (0.08 + 0.12 * B.bite); Q.star(f[0], f[1], r * 1.4, B.a * B.bite, '#FFE8F0'); Q.glow(f[0], f[1], r, '#FFFFFF', B.a * B.bite * 0.8); }
+          if (B.pulse > 0.01) { const ch = at(0, 0.04 * s); Q.glow(ch[0], ch[1], s * (0.24 + 0.28 * B.pulse), CRIM, B.a * 0.8 * B.pulse); Q.glow(ch[0], ch[1], s * 0.1, '#FFC0CC', B.a * 0.55 * B.pulse); Q.ring(ch[0], ch[1], s * (0.2 + 0.5 * B.pulse), RUBY, B.a * 0.5 * B.pulse * (1 - B.pulse), s * 0.05); } }
+        for (const p of PS) if (p.k === 'mote') { const u = p.t / p.life, X = H.sx(p.x), Y = floorY(p.y, T) - p.z * T; Q.glow(X, Y, T * p.s * 2.4, RUBY, 0.85 * (1 - u)); Q.glow(X, Y, T * p.s * 0.7, '#FFB0C0', 0.8 * (1 - u)); }
+        FG.flush(c); const dd = nowMs() - d0; if (dd > dbg.maxDraw) dbg.maxDraw = dd; return; } }
       // the air shockwaves and the distortion ripple of each rupture
       for (const p of PS) if (p.k === 'air') { const u = p.t / p.life, X = H.sx(p.x), Y = floorY(p.y, T) - p.z * T, r = T * p.s * (0.5 + 0.7 * sm(u)); ringF(c, 'v', X, Y, r, T * 0.18, 0.7 * (1 - u), 1); if (u < 0.6) { c.strokeStyle = `rgba(0,0,0,${0.18 * (1 - u / 0.6)})`; c.lineWidth = Math.max(1, T * 0.05); c.beginPath(); c.arc(X, Y, r * 1.12, 0, TAU); c.stroke(); } }
       // smoke, shell fragments
@@ -578,7 +618,7 @@
       const c1x = x0 + dx * 0.3 + nx * bow, c1y = y0 + dy * 0.3 + ny * bow - T * 0.15, c2x = x0 + dx * 0.75 + nx * bow * 0.4, c2y = y0 + dy * 0.75 + ny * bow * 0.4, v = 1 - u;
       out[0] = v * v * v * x0 + 3 * v * v * u * c1x + 3 * v * u * u * c2x + u * u * u * m[0]; out[1] = v * v * v * y0 + 3 * v * v * u * c1y + 3 * v * u * u * c2y + u * u * u * m[1]; return out; }
     const SQ = [0, 0], SQ2 = [0, 0];
-    function drawSiphon(c, sp, T, t) {
+    function drawSiphon(c, sp, T, t, gq) {   // (v404 DK: gq, the GPU path: the wound's and the mouth's light drawn by the GPU pass)
       const tau = t - sp.t0; if (tau < 0 || !sp.q.src) return; const end = cl((tau - sp.dur) / 0.15);
       // the ribbons: narrow liquid strands that pour along the curve and narrow into the mouth
       for (const [side, dl] of [[-1, 0.02], [0.5, 0.07], [1.1, 0.12]]) {
@@ -592,12 +632,17 @@
       for (const d of sp.drops) { const u = (tau - d.t0) / d.dur; if (u <= 0 || u >= 1) continue; const e = u * u * (1.6 - 0.6 * u); sCurve(sp, d.side, e, T, SQ); sCurve(sp, d.side, Math.min(1, e + 0.04), T, SQ2); const a = Math.atan2(SQ2[1] - SQ[1], SQ2[0] - SQ[0]), r = T * 0.075 * d.s * (1 - 0.55 * e);
         c.save(); c.translate(SQ[0], SQ[1]); c.rotate(a); c.scale(1.5, 1); c.drawImage(dsp, -r, -r, r * 2, r * 2); c.restore(); }
       // where it leaves the victim: a small wound-light; where it enters: a glow at the mouth
-      { const s = sp.q.src, X = H.sx(s.x), Y = floorY(s.y, T) - s.z * T; glowF(c, X, Y, T * 0.3, CRIM, 0.45 * (1 - end) * cl(tau / 0.05)); const m = mouthXY(T); glowF(c, m[0], m[1], T * 0.18, ROSE, 0.35 * (1 - end) * cl(tau / 0.1)); }
+      if (!gq) { const s = sp.q.src, X = H.sx(s.x), Y = floorY(s.y, T) - s.z * T; glowF(c, X, Y, T * 0.3, CRIM, 0.45 * (1 - end) * cl(tau / 0.05)); const m = mouthXY(T); glowF(c, m[0], m[1], T * 0.18, ROSE, 0.35 * (1 - end) * cl(tau / 0.1)); }
     }
     function drawSphere(c, o) {
       const tau = o.t - o.d; if (tau < 0) return; const T = H.X.Tz(), X = H.sx(o.x), Y = floorY(o.y, T) - o.zc * T, SW = 0.11, RU = o.RU;
       let k, a = 1; if (tau < SW) { const u = tau / SW; k = 1.12 * (1 - Math.pow(1 - u, 3)); } else if (tau < RU) { const u = (tau - SW) / (RU - SW); k = lerp(1.12, 0.8, sm(u)) + 0.025 * Math.sin(u * 34) * u; } else { const u = (tau - RU) / 0.13; k = lerp(0.8, 1.2, sm(u)); a = 1 - sm(u); }
       if (a <= 0.01) return; const r = o.R * T * k, wob = tau < RU ? 0.035 * Math.sin(tau * 41) : 0, rx = r * (1 + wob), ry = r * (1 - wob), sp = BK.spr.get('SPH');
+      { const FG = gfx(); if (FG) { /* (v404 DK) a turning globe of void (kind 56), its fissures opening as it strains, a crimson-violet halo, a star as it bursts */
+        const Q = FG.begin(c, null), fk = sstep(SW * 0.7, RU, tau) * (tau > RU ? 1 - sm((tau - RU) / 0.09) : 1) + (tau > RU - 0.03 && tau < RU + 0.06 ? 0.6 : 0);
+        Q.glow(X, Y, r * 1.75, EDGE, 0.26 * a); Q.glow(X, Y, r * 1.2, CRIM, 0.1 * a); Q.quad(56, X, Y, rx * 1.03, 0, 0, ry * 1.03, '#FFFFFF', a, Math.min(1, fk), o.x * 3.7 + o.y, 0);
+        if (tau > RU - 0.02 && tau < RU + 0.1) { const u = (tau - RU + 0.02) / 0.12, rr = r * (0.55 + 0.9 * u); Q.star(X, Y, rr, (1 - u) * 0.95 * a, '#FFDDE8'); Q.glow(X, Y, rr * 0.7, '#FFFFFF', (1 - u) * 0.75 * a); Q.ring(X, Y, r * (0.8 + 0.7 * u), RUBY, (1 - u) * 0.6 * a, r * 0.12); }
+        FG.flush(c); return; } }
       glowF(c, X, Y, r * 1.6, EDGE, 0.22 * a);   // (a controlled bloom round it)
       c.globalAlpha = a;
       if (sp) c.drawImage(sp.cv, X - rx * SPN / 2 / SPR, Y - ry * SPN / 2 / SPR, rx * SPN / SPR, ry * SPN / SPR); else { const gr = c.createRadialGradient(X - r * 0.3, Y - r * 0.35, 0, X, Y, r); gr.addColorStop(0, '#2A1C40'); gr.addColorStop(0.7, '#0C0716'); gr.addColorStop(1, '#05030A'); c.fillStyle = gr; c.beginPath(); c.ellipse(X, Y, rx, ry, 0, 0, TAU); c.fill(); }

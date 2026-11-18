@@ -13,7 +13,10 @@
    stamps again: 1 press / 2 at Adept (the second leaves a brighter double heart) / 3 at Celestial (a nested heart
    sigil; the last press larger and strongest). Then it rises, turns its glowing face to the camera and breaks into
    pearl-pink fragments; the floor engraving lingers. One AoE hit per press.
-   2D canvas: "3D" is cached shaded sprites, squashed for tilt, a stacked thickness band, moving highlights. */
+   2D canvas: "3D" is cached shaded sprites, squashed for tilt, a stacked thickness band, moving highlights.
+   (v404 LT) Both on the GPU too (the shared painter, 20k6h, through LU1's helpers in 20k4b), from the same poses, paths and timing:
+   the seal a shaded heart seal (kind 49: face, back and side band), its floor hearts of light (kinds 44, 48); the 2D picture stays
+   as it was for a device without the painter. */
 (() => {
   const S = ELEM_IMPL.light.strong, TAU = Math.PI * 2;
   delete S.sunseed; delete S.lucentwheel;
@@ -106,6 +109,17 @@
         }
       },
       drawUnder(c, f, X, Y, T) { const t = f.t, fa = cl(t / 0.25) * (1 - cl((t - END + 0.1) / 0.6));
+        { const FG = K.gfx(); if (FG) { /* (v404 LT) the floor on the GPU: the marked area's light with a shimmer, the S-curves drawing themselves
+             as strips of light, their swept stretches glowing behind each ribbon's base */
+          const Q = FG.begin(c, null); Q.glow(X, Y, T * R * 1.25, PINK, 0.3 * fa, GY); Q.caustic(X, Y, T * R * 1.05, PINK, 0.16 * fa, 2.7, GY);
+          for (const s of swirls) { const draw0 = cl((t - s.i * 0.03) / PREP), u = (t - s.t0) / SWEEP, endU = cl((t - s.t0 - SWEEP) / (UNW + 0.3)), lit = t >= s.t0 ? 1 : 0.35 + 0.65 * draw0 * draw0;
+            if (draw0 <= 0 || endU >= 1) continue; const lo = endU * 0.5, hi = Math.min(draw0, 1 - endU * 0.5); if (hi <= lo) continue;
+            const pts = []; for (let k = 0; k <= 24; k++) { const uu = lerp(lo, hi, k / 24), p = at(s, uu); pts.push([H.sx(p[0]), H.sy(p[1])]); }
+            const ka = k => v => k * lit * fa * sm(v / 0.08) * sm((1 - v) / 0.08 + (draw0 < 1 ? 1 : 0));
+            K.gStrip(Q, pts, T * 0.26, PINK, ka(0.3)); K.gStrip(Q, pts, T * 0.08, BLOS, ka(0.8)); K.gStrip(Q, pts, Math.max(1, T * 0.025), PEARL, ka(0.95));
+            if (u > 0 && u < 1.05) { const b = at(s, u); Q.glow(H.sx(b[0]), H.sy(b[1]), T * 0.95, PINK, 0.6 * fa, GY); Q.glow(H.sx(b[0]), H.sy(b[1]), T * 0.38, PEARL, 0.65 * fa, GY); }
+            if (draw0 < 1) { const p = at(s, draw0); Q.glow(H.sx(p[0]), H.sy(p[1]), T * 0.25, PEARL, 0.9 * fa); Q.star(H.sx(p[0]), H.sy(p[1]), T * 0.3, 0.9 * fa, PEARL); } }
+          FG.flush(c); return; } }
         // the marked area: a faint feathered pink floor light
         floorGlow(c, X, Y, T * R * 1.25, PINK, 0.22 * fa, K);
         c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.lineJoin = 'round';
@@ -126,12 +140,43 @@
         c.save(); c.lineCap = 'round'; c.lineJoin = 'round';
         // back to front by screen depth
         const order = swirls.filter(s => s.base && t >= s.t0 && t < s.t0 + SWEEP + UNW).sort((p, q2) => p.base[1] - q2.base[1]);
+        { const FG = K.gfx(); if (FG) { for (const s of order) drawRibbon(c, s, t, T, true); const Q = FG.begin(c, null); for (const s of order) gRibbonEL(Q, s, t, T); K.gBits(Q, B, T); FG.flush(c); c.restore(); return; } }   // (v404 LT: the satin bodies as the 2D strips, all their light on the GPU)
         for (const s of order) drawRibbon(c, s, t, T);
         c.restore();
         B.draw(c, T);
       } });
 
-    function drawRibbon(c, s, t, T) {
+    /* (v404 LT) a ribbon on the GPU, from the same helix: a soft sheet of light round it, its body a strip of pink satin (kind 47) showing
+       its upper face or its underside as it twists, a sheen sliding up it, the pearl centre stripe, light beads flowing up, the forks,
+       the star at its tip and the pearl bloom at its base */
+    function gRibbonEL(Q, s, t, T) {
+      const lt = t - s.t0, rise = H.ease.back ? Math.max(0, H.ease.back(cl(lt / RISE))) : sm(lt / RISE), unw = cl((lt - SWEEP) / UNW);
+      const bx = H.sx(s.base[0]), by = H.sy(s.base[1]), dim = petDim(H, s.base[0], s.base[1]), A = (1 - unw * unw) * Math.min(1, lt / 0.12) * dim;
+      if (A < 0.02) return;
+      const Hh = T * HT * rise, NS = 24, vTop = 1 - unw * 0.85, W0 = T * (0.38 + 0.1 * q + (tier === 3 ? 0.04 : 0));
+      let lx = s.dir[0] * T * 0.75, ly = s.dir[1] * T * 0.25;
+      if (tier === 3) { const ox = H.sx(s.base[0]) - H.sx(cx), oy = H.sy(s.base[1]) - H.sy(cy), ol = Math.hypot(ox, oy) || 1, bl = sm(lt / (RISE + 0.5)); lx = lerp(lx, ox / ol * T * 1.5, bl); ly = lerp(ly, oy / ol * T * 0.5 - T * 0.2, bl); }
+      const C0 = [], depth = [], WD = [], TW = [];
+      for (let k = 0; k <= NS; k++) { const v = k / NS * vTop, ph = s.sd * TAU + v * TAU * 1.35 - t * 6.5, r = T * (0.15 + 0.55 * v); C0.push([bx + Math.cos(ph) * r + lx * v * v, by - Hh * v + Math.sin(ph) * r * 0.3 + ly * v * v]); depth.push(Math.sin(ph)); }
+      for (let k = 0; k <= NS; k++) { const v = k / NS, tc = Math.cos(s.sd * 5 + v * Math.PI * 1.6 - t * 2.2), taper = sm(v / 0.12) * 0.6 + 0.4, tip = 1 - sm((v - 0.62) / 0.38); TW.push(tc); WD.push(W0 * (0.3 + 0.7 * Math.abs(tc)) * Math.min(taper, tip) * (0.6 + 0.4 * rise)); }
+      Q.glow(bx, by, T * 0.85, PINK, 0.55 * A, GY);
+      for (let k = 2; k <= NS; k += 3) Q.glow(C0[k][0], C0[k][1], WD[k] * 2.4 + T * 0.1, PINK, 0.22 * A);   // (a soft sheet of light round it: glows, never wide links)
+      // (its satin body is the 2D strip, laid just before this pass; here its light: a sheen where it faces the light)
+      K.gStrip(Q, C0, v => WD[Math.round(v * NS)] * 0.9, BLOS, v => 0.45 * A * Math.pow(Math.abs(TW[Math.round(v * NS)]), 3) * sm(v / 0.1));
+      const front = [], back = []; for (let k = 1; k <= NS - 2; k++) (depth[k] > -0.15 ? front : back).push(k);
+      const stripe = (ks, al, w) => { let run = []; const fl = () => { if (run.length > 1) K.gStrip(Q, run, w, PEARL, () => al * A); run = []; }; for (let i = 0; i < ks.length; i++) { if (i && ks[i] !== ks[i - 1] + 1) fl(); run.push(C0[ks[i]]); } fl(); };
+      stripe(back, 0.3, Math.max(1, W0 * 0.12)); stripe(front, 0.9, Math.max(1.2, W0 * 0.17));
+      for (let k = 0; k < 3; k++) { const v = (t * 1.7 + k / 3 + s.sd) % 1; if (v > vTop * 0.95) continue; const p = C0[Math.min(NS, Math.round(v / vTop * NS))]; Q.glow(p[0], p[1], T * 0.22, PEARL, 0.75 * A * Math.sin(v * Math.PI)); }
+      if (tier >= 2 && rise > 0.5) { const k0 = Math.round(NS * 0.5), nf = tier === 3 ? 3 : 2;
+        for (let j = 0; j < nf; j++) { const sg = j === 2 ? 0 : j ? 1 : -1, pts = [];
+          for (let k = k0; k <= NS; k++) { const v = (k - k0) / (NS - k0), p = C0[k], a = C0[Math.max(0, k - 1)], tx = p[0] - a[0], ty = p[1] - a[1], tl = Math.hypot(tx, ty) || 1, o = T * 0.55 * v * v * (sg || 0.4) * (1 + 0.25 * Math.sin(t * 4 + j + s.sd * 6)), up = sg ? 0 : -T * 0.4 * v * v; pts.push([p[0] - ty / tl * o, p[1] + tx / tl * o + up]); }
+          const fa2 = A * (1 - unw); K.gStrip(Q, pts, T * 0.14, PINK, () => 0.4 * fa2); K.gStrip(Q, pts, T * 0.05, j === 2 ? LAV : BLOS, () => 0.85 * fa2); K.gStrip(Q, pts, Math.max(1, T * 0.018), PEARL, () => 0.9 * fa2);
+          const e = pts[pts.length - 1]; Q.glow(e[0], e[1], T * 0.22, j === 2 ? LAV : BLOS, 0.6 * fa2); Q.quad(50, e[0], e[1], T * 0.16, 0, 0, T * 0.16, j === 2 ? LAV : BLOS, 0.95 * fa2, 0.6, t * 2 + j, 0); } }
+      const tp = C0[NS]; Q.glow(tp[0], tp[1], T * 0.5, PINK, 0.5 * A); Q.glow(tp[0], tp[1], T * 0.2, BLOS, 0.5 * A); Q.quad(50, tp[0], tp[1], T * 0.2, 0, 0, T * 0.2, BLOS, 0.95 * A, 0.6, t * 1.5, 0);
+      Q.glow(bx, by - T * 0.05, T * 0.45, PEARL, 0.6 * A);
+      s.top = [s.base[0] + (tp[0] - bx) / T, s.base[1]]; s.topZ = Math.max(0.3, (by - tp[1]) / T);
+    }
+    function drawRibbon(c, s, t, T, bodyOnly) {
       const lt = t - s.t0, rise = H.ease.back ? Math.max(0, H.ease.back(cl(lt / RISE))) : sm(lt / RISE), unw = cl((lt - SWEEP) / UNW);
       const bx = H.sx(s.base[0]), by = H.sy(s.base[1]), dim = petDim(H, s.base[0], s.base[1]), A = (1 - unw * unw) * Math.min(1, lt / 0.12) * dim;
       if (A < 0.02) return;
@@ -148,6 +193,7 @@
         const w = W0 * (0.3 + 0.7 * tw) * Math.min(taper, tip) * (0.6 + 0.4 * rise);
         L.push([C0[k][0] - ty / tl * w, C0[k][1] + tx / tl * w]); Rr.push([C0[k][0] + ty / tl * w, C0[k][1] - tx / tl * w]); }
       const strip = sc => { c.beginPath(); for (let k = 0; k <= NS; k++) { const p = C0[k], l = L[k]; const x = p[0] + (l[0] - p[0]) * sc, y = p[1] + (l[1] - p[1]) * sc; k ? c.lineTo(x, y) : c.moveTo(x, y); } for (let k = NS; k >= 0; k--) { const p = C0[k], r = Rr[k]; c.lineTo(p[0] + (r[0] - p[0]) * sc, p[1] + (r[1] - p[1]) * sc); } c.closePath(); };
+      if (bodyOnly) { c.globalCompositeOperation = 'source-over'; c.globalAlpha = 0.85 * A; c.fillStyle = DEEP; strip(1); c.fill(); c.globalAlpha = 0.92 * A; c.fillStyle = PINK; strip(0.68); c.fill(); c.globalAlpha = 0.55 * A; c.fillStyle = BLOS; strip(0.36); c.fill(); c.globalAlpha = 1; return; }   // (v404 LT: the body alone, under the GPU's light)
       // the ribbon's light on the floor at its base
       floorGlow(c, bx, by, T * 0.8, PINK, 0.5 * A, K);
       // the soft translucent sheet round it
@@ -234,6 +280,22 @@
         if (!f.frag && t >= TURN + 0.05) { f.frag = true; const p = pose(t), nh = H.n(16 + 4 * tier); for (let k = 0; k < nh; k++) { const hp = HP[Math.floor(Math.random() * HN)], w = WT * p.sc, x = p.x + hp[0] * w * 0.5, z = p.z + 0.7 + -hp[1] * w * 0.5 + 0.2; B.add(x, p.y, Math.max(0.2, z), { vx: hp[0] * 1.6 + (Math.random() - 0.5), vy: (Math.random() - 0.5) * 0.4, vz: 0.4 + Math.random() * 0.9, g: 0.6, drag: 1.4, life: 0.6 + Math.random() * 0.5, s: k % 4 ? 0.07 : 0.13, kind: k % 2 ? 's' : 'h', col: [PEARL, BLOS, PINK, RGOLD][k % 4], rot: 0.6 }); } H.X.sfx.sparkle && H.X.sfx.sparkle(); }
       },
       drawUnder(c, f, X, Y, T) { const t = f.t, p = pose(t);
+        { const FG = K.gfx(); if (FG) { /* (v404 LT) the floor on the GPU: the matching heart brightening under the seal, the engravings
+             (a heart of light with nested outlines, a ring of little hearts round the sigil), the light cushion and heart ripples */
+          if (p.a > 0.02 && t < DISS) { const k = cl(1 - p.z / 2.8); H.softShadow(c, H.sx(p.x), H.sy(p.y) + T * 0.1, T * WT * p.sc * (0.35 + 0.25 * k), 0.12 + 0.22 * k * p.a); }
+          const Q = FG.begin(c, null), MID = 0.294 * SU / HW, eng = (x, y, w, k, a, fill) => { const cy = y + MID * w * GY; K.gFillHeart(Q, x, cy, w, GY, PINK, a, fill, 0.022, (k === 1 ? 0 : k === 2 ? 1 : 3) + 10); K.gFloorHeart(Q, x, cy, w * (k === 3 ? 1.02 : 0.97), GY, PINK, a * 0.9, 1.1, 0.03, 0.2);
+            if (k === 3) for (let i = 0; i < 10; i++) { const e = K.hEdge((i % 5 + 0.5) / 5, i < 5 ? -1 : 1), q = w / 1.678 * 0.76; K.gFillHeart(Q, x + e[0] * q, cy + (e[1] + 0.03) * q * GY + 0.03 * w * GY, w * 0.1, GY, BLOS, a, 1, 0.05, 0); } };
+          const nxt = f.n < NP ? f.n : -1;
+          if (nxt >= 0 && t > 0.35) { const c0 = CT[nxt], u = cl(1 - (c0 - t) / (nxt ? 0.5 : 0.45)), sp = spots[Math.min(nxt, spots.length - 1)]; if (u > 0) { eng(H.sx(sp[0]), H.sy(sp[1]), WT * big(nxt) * T * 1.02, 1, 0.6 * u, 0.25 + 0.3 * u); Q.glow(H.sx(sp[0]), H.sy(sp[1]) + MID * WT * T * GY, T * WT * 0.7, PINK, 0.3 * u, GY); } }
+          for (const e of engr) { const lt = t - e.t0, fa = (0.55 + 0.45 * Math.exp(-lt * 4)) * (1 - sm((t - (END - 0.85)) / 0.85)), X2 = H.sx(e.x), Y2 = H.sy(e.y), w = WT * e.s * T * 1.02;
+            Q.glow(X2, Y2 + MID * w * GY, T * R * e.s * 0.9, PINK, 0.4 * fa, GY); Q.caustic(X2, Y2 + MID * w * GY, w * 0.62, PINK, 0.25 * fa, e.k + 1, GY);
+            eng(X2, Y2, w, e.k, fa, 0.32 + 0.5 * Math.exp(-lt * 5));
+            if (lt < 0.25) K.gFillHeart(Q, X2, Y2 + MID * w * GY, w * (1 + lt), GY, BLOS, (1 - lt / 0.25) * 0.9, 1, 0.03, 0); }
+          for (const r of rips) { const u = r.t / 0.7, X2 = H.sx(r.x), Y2 = H.sy(r.y), e = H.ease.out(cl(u * 1.4)), w0 = T * WT * r.s / R;
+            if (u < 0.4) Q.glow(X2, Y2, T * r.s * (0.7 + 0.6 * e), BLOS, 0.6 * (1 - u / 0.4), GY);
+            K.gFloorHeart(Q, X2, Y2, w0 * (0.95 + 1.5 * e), GY, PINK, (1 - u) * 0.95, 1.1, 0.035, 0.3); K.gFloorHeart(Q, X2, Y2, w0 * (0.95 + 1.5 * e) * 0.985, GY, PEARL, (1 - u) * 0.7, 1.1, 0.012, 0);
+            if (tier >= 2) { const e2 = H.ease.out(cl((u - 0.12) * 1.5)); if (e2 > 0) K.gFloorHeart(Q, X2, Y2, w0 * (0.9 + 1.9 * e2), GY, BLOS, (1 - u) * 0.55, 1.1, 0.025, 0.2); } }
+          FG.flush(c); return; } }
         c.save();
         // the matching heart on the floor brightens beneath the seal as it comes down; then the engravings left behind
         const nxt = f.n < NP ? f.n : -1;
@@ -252,9 +314,29 @@
         c.restore();
       },
       draw(c, f, X, Y, T) { const t = f.t, p = pose(t);
+        { const FG = K.gfx(); if (FG) { const Q = FG.begin(c, null); if (t < DISS && p.a > 0.01) gSeal(Q, f, t, p, T); K.gBits(Q, B, T); FG.flush(c); return; } }   // (v404 LT)
         if (t < DISS && p.a > 0.01) drawSeal(c, f, t, p, T);
         B.draw(c, T);
       } });
+
+    /* (v404 LT) the seal on the GPU, from the same pose: its stack of pearly side copies (kind 49 -1, -2 at the faces), the stamping face
+       with its engravings glowing as it charges or the domed back (kind 49), glints running round the rose-gold rim, the light threads */
+    function gSeal(Q, f, t, p, T) {
+      const Xs = H.sx(p.x), Yg = H.sy(p.y), dim = petDim(H, p.x, p.y), a = p.a * (0.55 + 0.45 * dim);
+      const s = WT * p.sc * T / HW * (1 + p.sq * 0.5), kyR = Math.cos(p.al + 0.576), ky0 = kyR >= 0 ? kyR / 0.84 : kyR, ky = Math.sign(ky0 || 1) * Math.max(0.07, Math.abs(ky0)) * (1 - p.sq);
+      const d = T * 0.24 * p.sc * (1 - p.sq * 0.6), off = -(Math.cos(p.al) * GY + Math.sin(p.al)) * d, Y = Yg - p.z * T;
+      const faceUp = ky0 > 0, hid = faceUp ? off : 0, vis = faceUp ? 0 : off, NK = Math.max(3, Math.min(10, Math.round(Math.abs(off) / 2)));
+      const nxt = f.n < NP ? CT[f.n] : -1, charge = nxt > 0 ? cl(1 - (nxt - t) / 0.45) : 0, ka = Math.abs(ky), w = HW * s, hq = w / 1.678, mid = 0.294 * SU * s * ka, cr = Math.cos(p.roll), sr = Math.sin(p.roll);
+      const Pt = (ox, oy) => [Xs + ox * cr - oy * sr, Y + ox * sr + oy * cr], sheen = Math.sin(t * 2.1) * 0.9;
+      const seal = (oy, mode, q0) => { const c0 = Pt(0, oy + mid); Q.quad(49, c0[0], c0[1], cr * hq, sr * hq, -sr * hq * ka, cr * hq * ka, '#FFFFFF', a, q0 || 0, sheen, mode); };
+      { const g = Pt(0, off * 0.5 + mid); Q.glow(g[0], g[1], T * WT * p.sc * 0.8, PINK, (0.3 + 0.3 * charge) * a); }
+      if (nxt > 0 && nxt - t < 0.16 && p.z > 0.02) { const u = 1 - (nxt - t) / 0.16; for (let k = 0; k < 12; k++) { const hp = HP[Math.round(k / 12 * HN)], hx = hp[0] * SU * s, hy = hp[1] * SU * s; Q.beam(Xs + hx, Y + hy * ka, Xs + hx * 1.02, Yg + hy * GY * 1.02, Math.max(1, T * 0.03), k % 2 ? BLOS : PEARL, 0.6 * u * a); } }
+      for (let k = 0; k <= NK; k++) seal(lerp(hid, vis, k / NK), k === 0 || k === NK ? -2 : -1);
+      const gl = faceUp ? 0.35 + 0.65 * Math.max(charge, cl(1 - t / 0.6), cl((t - RISE0) / 0.3)) : 0;
+      seal(vis, faceUp ? 1 : 2, gl);
+      if (gl > 0.05) { const c0 = Pt(0, vis + mid); Q.glow(c0[0], c0[1], w * 0.3, PINK, a * gl * 0.18); Q.quad(44, c0[0], c0[1] + hq * ka * 0.04, cr * hq * 0.62, sr * hq * 0.62, -sr * hq * 0.62 * ka, cr * hq * 0.62 * ka, PINK, a * gl * 0.35, 0.02, 1.1, 0.1); }
+      for (const [ph, col, rr, al] of [[0, PEARL, 0.22, 0.75], [0.5, RGOLD, 0.15, 0.55]]) { const fr = ((t * 0.45 + ph) % 1), e = K.hEdge(Math.abs(fr * 2 - 1), fr < 0.5 ? -1 : 1), q = Pt(e[0] * hq * 0.98, vis + mid + e[1] * hq * ka * 0.98); Q.glow(q[0], q[1], T * rr, col, al * a); Q.star(q[0], q[1], T * rr * 0.9, al * a, PEARL); }
+    }
 
     function drawSeal(c, f, t, p, T) {
       const X = H.sx(p.x), Yg = H.sy(p.y), dim = petDim(H, p.x, p.y), a = p.a * (0.55 + 0.45 * dim);
