@@ -1,0 +1,82 @@
+# Files left out of the Claude artifact build only (pocket-pet.html), to keep it under the artifact's 16 MB limit.
+# The website build (dist/index.html, GitHub Pages) and the test builds keep every file; nothing here is deleted.
+# These rifts are due to be rebuilt; when one is, delete its block so it comes back into the artifact.
+# In the artifact the game shows a left-out rift as "not built yet" (riftBuilt() is false), as it does for Rift 12.
+
+# Rift 03, The Mouth Beneath the Dunes (+ Scorpio gate)
+20r-rift-03-dunes.js
+20r1-rift-03-lands.js
+20s-rift-gate-scorpio.js
+20y-rift-fiend-dunes-1.js
+20y-rift-fiend-dunes-2.js
+20y-rift-fiend-dunes-3.js
+
+# Rift 04, The Sepulchre of Borrowed Hours (+ Gemini gate)
+20s1-rift-04-stages.js
+20s1b-rift-04-action.js
+20s2-rift-04-sepulchre.js
+20s3-rift-gate-gemini.js
+20z1-rift-fiend-sepulchre-1.js
+20z2-rift-fiend-sepulchre-2.js
+20z3-rift-fiend-sepulchre-3.js
+
+# Rift 05, The Pale Aurora (+ Capricorn gate)
+20s5-rift-05-stages.js
+20s6-rift-05-aurora.js
+20s6b-rift-05-frost.js
+20s6c-rift-05-beasts.js
+20s7-rift-gate-capricorn.js
+20z4-rift-fiend-aurora-1.js
+20z5-rift-fiend-aurora-2.js
+20z6-rift-fiend-aurora-3.js
+
+# Rift 06, The Yuggoth Engine (+ Aquarius gate)
+20u5-rift-06-stages.js
+20u6-rift-06-yuggoth.js
+20u6b-rift-06-mecha.js
+20u7-rift-gate-aquarius.js
+20z7-rift-fiend-yuggoth-1.js
+20z8-rift-fiend-yuggoth-2.js
+20z9-rift-fiend-yuggoth-3.js
+
+# Rift 07, The Library of Unwritten Lives (+ Virgo gate)
+20za-rift-07-stages.js
+20zb-rift-07-library.js
+20zb2-rift-07-heights.js
+20zc-rift-gate-virgo.js
+20ze-rift-fiend-library-1.js
+20zf-rift-fiend-library-2.js
+20zg-rift-fiend-library-3.js
+
+# Rift 08, The Hollow Moon (+ Pisces gate)
+20zh-rift-08-stages.js
+20zi-rift-08-moon.js
+20zi2-rift-08-castle.js
+20zj-rift-gate-pisces.js
+20zk-rift-fiend-moon-1.js
+20zl-rift-fiend-moon-2.js
+20zm-rift-fiend-moon-3.js
+
+# Rift 09, The Basilica of the Veiled Eye (+ Libra gate)
+20zt-rift-09-stages.js
+20zt2-rift-09-basilica.js
+20zu-rift-gate-libra.js
+20zv-rift-fiend-basilica-1.js
+20zw-rift-fiend-basilica-2.js
+20zx-rift-fiend-basilica-3.js
+
+# Rift 10, The Sea of Fallen Colours (+ Sagittarius gate)
+20zn-rift-10-stages.js
+20zo-rift-10-colours.js
+20zp-rift-gate-sagittarius.js
+20zq-rift-fiend-colours-1.js
+20zr-rift-fiend-colours-2.js
+20zs-rift-fiend-colours-3.js
+
+# Rift 11, The Choir Before Creation (+ Leo gate)
+20zy-rift-11-stages.js
+20zy2-rift-11-choir.js
+20zz-rift-gate-leo.js
+20zz1-rift-fiend-choir-1.js
+20zz2-rift-fiend-choir-2.js
+20zz3-rift-fiend-choir-3.js

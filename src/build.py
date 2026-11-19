@@ -24,7 +24,21 @@ HOOK = ("window.__pp = { get PetGL() { return typeof PetGL !== 'undefined' ? Pet
         "shop: { openShop, renderShop, shopBuy, SHOP_ITEMS, feedPet, foodXP, foodEffect, bondFoodXP, bondInfo, SNACKS, SPECIAL_FOODS, FOOD_DROPS, BOSS_FOOD, dunXpNeed, fuseStonesFor }, "
         "get retro() { return typeof retro !== 'undefined' ? retro : null; }, get music() { return typeof music !== 'undefined' ? music : null; }, get nidhogg() { return typeof NIDHOGG_MODEL !== 'undefined' ? NIDHOGG_MODEL : null; }, nidhoggPreview: (o) => (typeof NIDHOGG_MODEL !== 'undefined' ? NIDHOGG_MODEL.preview(o) : null), get susano() { return typeof SUSANO_MODEL !== 'undefined' ? SUSANO_MODEL : null; }, get fenrir() { return typeof FENRIR_MODEL !== 'undefined' ? FENRIR_MODEL : null; }, get belladonna() { return typeof BELLADONNA_MODEL !== 'undefined' ? BELLADONNA_MODEL : null; }, get jaws() { return typeof JAWS_MODEL !== 'undefined' ? JAWS_MODEL : null; }, __extra: (typeof __PP_EXTRA === 'function' ? __PP_EXTRA() : null) };")
 
-def build(test, web=False):
+def artifact_skip():
+    """(v424) the files the Claude artifact build leaves out (src/artifact-skip.txt: Rifts 03-11, due to be rebuilt), to stay
+    under the artifact's 16 MB limit; the website build and the test builds keep them all (a test build of the artifact's
+    set: --test-only NAME.html --lite)"""
+    p = os.path.join(HERE, 'artifact-skip.txt')
+    if not os.path.isfile(p): return set()
+    with open(p, encoding='utf-8') as f:
+        names = {l.strip() for l in f if l.strip() and not l.lstrip().startswith('#')}
+    missing = [n for n in names if not os.path.isfile(os.path.join(HERE, 'js', n))]
+    assert not missing, 'artifact-skip.txt names files that do not exist: %s' % missing
+    return names
+
+def build(test, web=False, lite=None):
+    if lite is None: lite = not test and not web   # (the artifact build is the lite one)
+    skip = artifact_skip() if lite else set()
     parts = [rd('head.html'), '<style>\n', rd('styles.css'), '</style>\n\n', rd('body.html'), '<script>\n(() => {\n\'use strict\';\n']
     # (v375) the Claude build carries the loading screens' pictures inside it: a page there cannot load files beside it
     if not test and not web:
@@ -40,7 +54,7 @@ def build(test, web=False):
             parts.append('/* ===== the loading pictures (Claude build) ===== */\nconst LOAD_PICS_DATA = ' + json.dumps(pics) + ';\n')
     # (the songs are left out of every build now: the website plays them from files beside the page, and the Claude
     #  build carries none at all, to stay well under the artifact size limit; an empty MUSIC_DATA keeps the player quiet)
-    js = sorted(f for f in os.listdir(os.path.join(HERE, 'js')) if f.endswith('.js') and f != '05a-music-data.js')
+    js = sorted(f for f in os.listdir(os.path.join(HERE, 'js')) if f.endswith('.js') and f != '05a-music-data.js' and f not in skip)
     for f in js:
         if f == '05b-music.js' and not web:
             parts.append('/* ===== no songs in this build ===== */\nconst MUSIC_DATA = {};\n')
@@ -113,7 +127,8 @@ if __name__ == '__main__':
     if '--test-only' in sys.argv:   # (only a test build, to a file of your own: --test-only NAME.html, for work beside other builds)
         name = sys.argv[sys.argv.index('--test-only') + 1]
         with open(os.path.join(OUT, name), 'w', encoding='utf-8') as f:
-            f.write(minify(build(True)) if '--min' in sys.argv else build(True))
+            T = build(True, lite='--lite' in sys.argv)
+            f.write(minify(T) if '--min' in sys.argv else T)
         print('%s written' % name)
         sys.exit(0)
     prod = minify(build(False))
