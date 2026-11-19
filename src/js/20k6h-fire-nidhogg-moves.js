@@ -644,6 +644,21 @@ float ttnSig(vec2 u, float sd){ float r = length(u), an = atan(u.y, u.x), m = 1e
   if (abs(r - 0.865) < 0.04) { float ca = an / 0.34906585, c = floor(ca), h = h1(vec2(c, sd)), ly = (ca - c - 0.5) * 0.34906585 * r, lx = r - 0.865, cut = step(0.026, abs(lx)) * 1e3;
     m = min(m, abs(ly) / 0.005 + cut); if (h > 0.45) m = min(m, abs(lx * 0.8 - ly) / 0.005 + cut); if (fract(h * 7.3) > 0.55) m = min(m, abs(lx - 0.016) / 0.005 + step(0.014, abs(ly)) * 1e3); }
   return m; }
+/* (v417 GH, Fault Line: kinds 97, 98) its crack along one stretch of its path (a quad: uv.x -1 .. 1 along, uv.y across, 0.3 tiles each side): v_q.x the arc length at the stretch's
+   start (tiles) + 100 x the fissure's seed, v_q.y its length (negative: the racing head is at its far end, where the crack tapers to nothing). x the signed offset from its jagged
+   centre line, y the distance to the nearest side crack beyond its half width, z its half width, w the arc length (all in tiles; continuous from one stretch to the next) */
+vec4 ghCr(vec2 u, vec3 q){ float sd = floor(q.x / 100.0), s0 = q.x - sd * 100.0, ln = abs(q.y), al = u.x * 0.5 + 0.5, s = s0 + al * ln, y = u.y * 0.3;
+  float c = 0.06 * (n2(vec2(s * 2.1, sd)) - 0.5) + 0.03 * (n2(vec2(s * 6.3, sd + 3.0)) - 0.5) + 0.012 * (n2(vec2(s * 19.0, sd + 5.0)) - 0.5);
+  float hw = (0.04 + 0.03 * n2(vec2(s * 3.7, sd + 9.0))) * smoothstep(0.0, 0.3, s); if (q.y < 0.0) hw *= smoothstep(0.0, 0.45, (1.0 - al) * ln);
+  float db = 1.0; for (int k = 0; k < 2; k++) { float bi = floor(s * 2.4) - float(k), bs = (bi + 0.15 + 0.7 * h1(vec2(bi, sd))) / 2.4, bg = h1(vec2(bi, sd + 1.3)) < 0.5 ? -1.0 : 1.0, bl = 0.08 + 0.17 * h1(vec2(bi, sd + 2.1)), ba = 0.55 + 0.6 * h1(vec2(bi, sd + 3.7));
+    if (h1(vec2(bi, sd + 4.4)) < 0.3 || bs < 0.25 || (q.y < 0.0 && bs > s0 + ln - 0.08)) continue;
+    vec2 p = vec2(s - bs, (y - c) * bg), dr = vec2(cos(ba), sin(ba)); float tt = clamp(dot(p, dr), 0.0, bl); db = min(db, length(p - dr * tt) - 0.55 * hw * (1.0 - tt / bl)); }
+  return vec4(y - c, db, hw, s); }
+/* (v417 MH, Mercury's Hammer: kinds 115, 116) the stone broken by a ground impact (uv a unit disc on the floor, sd its seed): cells of a polar net (radial and
+   ring cracks). x how near a crack (1 on it), y the cell's own hash (its heave), z the cell's middle radius */
+vec3 mhCrk(vec2 u, float sd){ float r = length(u), an = atan(u.y, u.x); vec2 cp = vec2((an / 6.2831853 + 0.5) * 10.0, sqrt(r) * 4.2), ci = floor(cp), cf = cp - ci, bc = vec2(0.0); float d1 = 9.0, d2 = 9.0;
+  for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) { vec2 g = vec2(float(i), float(j)), cc = ci + g; cc.x = mod(cc.x, 10.0); vec2 dd = g + vec2(h1(cc + sd), h1(cc + sd + 7.3)) * 0.76 + 0.12 - cf; float d = dot(dd, dd); if (d < d1) { d2 = d1; d1 = d; bc = cc; } else if (d < d2) d2 = d; }
+  float e = sqrt(d2) - sqrt(d1), w = 0.05 + 0.06 * (1.0 - min(r, 1.0)); return vec3(1.0 - smoothstep(w * 0.35, w, e), h1(bc + sd + 3.1), sq((bc.y + 0.5) / 4.2)); }
 /*<W>*/vec4 wbl(vec2 u, float q0, float th0){ float md = floor(q0 / 10.0), span = max(0.05, q0 - md * 10.0), rr = length(u), an = atan(u.y, u.x), v = 0.0, tk = th0, m = 1.0;   /* (v370, wind) a blade of wind: an arc of radius 0.8 in its quad (mode 0 a trail, its head at angle 0 and its tail round toward -v; 1 a crescent tapering both ways; 2 a whole ring): x across (0 its sharp outer edge .. 1 its inner), y along (0 the head .. 1 the tail), z inside, w arc length */
   if (md < 0.5) { float s = mod(-an + 0.03, 6.2831853) - 0.03; v = s / span; tk = th0 * (1.0 - 0.78 * clamp(v, 0.0, 1.0)) * smoothstep(-0.03 / span, 0.05, v); m = step(v, 1.0); }
   else if (md < 1.5) { v = an / (span * 0.5); tk = th0 * pow(clamp(1.0 - v * v, 0.0, 1.0), 0.6); v = abs(v); m = step(v, 1.0); }
@@ -907,6 +922,55 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
       else { a = exp(-eaWeb(u * 1.1, v_q.y, floor(v_q.z + 0.0001), fract(v_q.z) / 0.99).x / 0.018) * 0.75 * (1.0 - smoothstep(0.85, 1.0, r)); c = vec3(0.06, 0.04, 0.028); }
       a = clamp(a, 0.0, 1.0); A = vec4(c * a, a); }
     gl_FragColor = A * v_c.a; }
+  else if (v_k > 103.5 && v_k < 106.5) { // (v417 BR) Ball Crusher and Rapid Fire (20k2s, 20k2t), all solid. 104 a run of the boulder's scuffed trail (uv.x -1 its start .. 1 its end, uv.y across;
+    // v_q.x the trail's length in tiles at its start, v_q.y its length, v_q.z floor(1000 a0) + 0.999 a1, its strength at each end; v_c the dirt). 105 a stone chip or pebble (v_q.x the
+    // light's turn, its quad's rotation; v_q.y seed; v_q.z its stone (0 sandstone, 1 terracotta, 2 charcoal basalt, 3 dark orange) + 0.9 x how far it is crushed flat: a flake
+    // pressed into the floor in a ring of powder). 106 a shard's tight trail of stone flecks (uv.x -1 its tail .. 1 at the shard, uv.y across, 0.14 tile; v_q.x how far the
+    // shard has flown, tiles; v_q.y the trail's length; v_q.z seed; v_c the dust's colour)
+    vec4 A = vec4(0.0);
+    if (v_k < 104.5) { float uu = u.x * 0.5 + 0.5, s = v_q.x + uu * v_q.y, ak = mix(floor(v_q.z) / 1000.0, fract(v_q.z) / 0.999, uu), ay = abs(u.y);
+      float f = fbm(vec2(s * 1.6, u.y * 1.2 + 3.0)), gv = smoothstep(0.5, 0.85, n2(vec2(s * 0.45, u.y * 6.5))), gv2 = smoothstep(0.62, 0.9, n2(vec2(s * 0.8 + 9.0, u.y * 13.0)));   // (grooves pressed along it)
+      float body = 1.0 - smoothstep(0.5 + 0.32 * f, 1.0, ay), scr = smoothstep(0.7, 0.9, n2(vec2(s * 2.4 + 5.0, u.y * 21.0))) * (1.0 - gv), grit = step(0.88, h1(floor(vec2(s * 26.0, u.y * 10.0))));
+      vec3 c = mix(col * 0.82, col * 0.42, gv * 0.85 + gv2 * 0.3); c = mix(c, mix(col, vec3(0.88, 0.78, 0.62), 0.6), scr * 0.75); c = mix(c, vec3(0.1, 0.07, 0.05), grit * 0.45);
+      float a = body * (0.42 + 0.55 * gv + 0.3 * gv2 + 0.4 * scr + 0.25 * grit) * (0.65 + 0.55 * f) * ak; a = clamp(a, 0.0, 0.9) * v_c.a; A = vec4(c * a, a); }
+    else if (v_k < 105.5) { float md = floor(v_q.z + 0.001), fl = fract(v_q.z) / 0.9, sd = v_q.y, ca = cos(v_q.x), sa = sin(v_q.x);
+      vec3 Ld = normalize(vec3(-0.5 * ca - 0.62 * sa, 0.5 * sa - 0.62 * ca, 0.6)), Hv = normalize(Ld + vec3(0.0, 0.0, 1.0));
+      vec2 w = u / mix(0.92, 0.72, fl); float e = ebPoly(w, sd), i0 = floor(atan(w.y, w.x) / 6.2831853 * 7.0), mid = (i0 + 0.5) / 7.0 * 6.2831853;
+      vec3 n = normalize(mix(vec3(cos(mid) * 0.95, sin(mid) * 0.95, 0.6 + 0.3 * h1(vec2(i0, sd + 4.0))), vec3((h1(vec2(sd, 1.0)) - 0.5) * 0.5, (h1(vec2(sd, 2.0)) - 0.5) * 0.5, 1.0), max(smoothstep(0.3, 0.5, e), fl * 0.85)));
+      float dif = max(dot(n, Ld), 0.0), sp = pow(max(dot(n, Hv), 0.0), 26.0), g = n2(u * 6.0 + sd), g2 = n2(u * 17.0 + sd * 1.3), bd = smoothstep(0.4, 0.6, n2(vec2(dot(u, vec2(0.3, 0.95)) * 5.0 + sd, sd)));
+      vec3 alb = md < 0.5 ? vec3(0.8, 0.66, 0.46) : md < 1.5 ? vec3(0.68, 0.36, 0.2) : md < 2.5 ? vec3(0.16, 0.145, 0.14) : vec3(0.8, 0.45, 0.16); alb *= (0.78 + 0.35 * g) * (0.9 + 0.2 * g2) * (1.0 - 0.18 * bd);
+      vec3 c = alb * (0.3 + 1.15 * dif) + vec3(1.0, 0.92, 0.8) * sp * (md > 1.5 && md < 2.5 ? 0.35 : 0.15); c = mix(c, alb * 1.25 + 0.08, (1.0 - smoothstep(0.0, 0.08, e)) * (1.0 - fl) * 0.45); c *= 1.0 - 0.3 * fl;   /* (fresh pale chipped rims; a crushed flake darker) */
+      float a = smoothstep(0.0, 0.06, e); c *= 0.6 + 0.4 * smoothstep(0.0, 0.12, e);
+      float pw = (1.0 - smoothstep(0.45, 1.0, r)) * fl * 0.5 * (0.55 + 0.6 * n2(u * 9.0 + sd)); vec3 pc = alb * 0.95 + 0.07; A = vec4(c * a + pc * pw * (1.0 - a), a + pw * (1.0 - a)) * v_c.a; }   /* (the powder round a crushed one) */
+    else { float uu = u.x * 0.5 + 0.5, age = 1.0 - uu, xT = v_q.x - age * v_q.y, yT = u.y * 0.14, cs = xT * 11.0, ci = floor(cs), fk = 0.0, sh = 0.0;   /* (the flecks keep their place in the world as the shard flies on) */
+      for (int j = -1; j <= 1; j++) { float cj = ci + float(j), h0 = h1(vec2(cj, v_q.z)), cx = (cj + h1(vec2(cj, v_q.z + 7.7))) / 11.0, ag = clamp((v_q.x - cx) / max(v_q.y, 0.01), 0.0, 1.0), cy = (h1(vec2(cj, v_q.z + 3.1)) - 0.5) * 0.14 * (0.25 + 1.3 * ag), rs = (0.024 + 0.022 * h0) * (1.0 - 0.5 * ag);
+        float k = (1.0 - smoothstep(0.55, 1.0, length(vec2(xT - cx, yT - cy)) / rs)) * step(0.22, h0) * (1.0 - ag); if (k > fk) { fk = k; sh = h0; } }
+      vec3 fc = mix(vec3(0.15, 0.13, 0.12), vec3(0.8, 0.64, 0.43), step(0.58, sh)); float hz = exp(-sq(u.y / (0.28 + 0.6 * age))) * sq(1.0 - age) * 0.55 * (0.5 + 0.7 * fbm(vec2(xT * 6.0, u.y * 2.0 + v_q.z)));
+      float a = fk + hz * (1.0 - fk); vec3 c = (fc * fk + col * hz * (1.0 - fk)) / max(a, 1e-3); a = clamp(a, 0.0, 1.0) * smoothstep(0.0, 0.1, uu) * v_c.a; A = vec4(c * a, a); }
+    gl_FragColor = A * pk; }
+  else if (v_k > 95.5 && v_k < 97.5) { // (v417 GH) Earth's Strongs on the floor (solids). 96 God's Hand's low ring of cracked stone (a unit disc on the floor squashed by its quad): the floor
+    // broken into plates in a band just inside the front v_q.x and buckled into a low ridge (each plate tilted its own way, lit from the upper left, dark gaps, pale broken lips, raised
+    // a little as it heaves), a soft shadow just outside it; v_q.z the heave 0..1 (settling to 0: the plates lie flat), v_q.y seed, v_c the stone's tint. 97 a stretch of Fault Line's
+    // crack (ghCr): its dark jagged core and side cracks, broken lips lit from the upper left, a faint scuff of dust round it; v_q.z how open 0..1, v_c the dust's tint
+    vec4 A = vec4(0.0); vec3 Ld = normalize(vec3(-0.45, -0.55, 0.7));
+    if (v_k < 96.5) { float sd = v_q.y, F = v_q.x, hv = clamp(v_q.z, 0.0, 1.0), W = 0.16 + 0.09 * hv;
+      float an0 = atan(u.y, u.x), s0 = (F + (n2(vec2(an0 * 3.0, sd)) - 0.5) * 0.08 - r) / W; vec2 w = u + vec2(0.0, 0.07 * hv * max(0.0, 1.0 - abs(s0 - 0.5) * 2.0));   /* (the ridge raised up the screen as it heaves) */
+      float rw = length(w), an = atan(w.y, w.x), s = (F + (n2(vec2(an * 3.0, sd)) - 0.5) * 0.08 - rw) / W, N = 22.0, ca = an / 6.2831853 * N + (n2(vec2(rw * 5.0, sd + 1.0)) - 0.5) * 0.8 + sd, ci = floor(ca), fa = fract(ca);
+      float mid = 0.5 + 0.22 * (h1(vec2(ci, sd)) - 0.5), row = step(mid, s), hp = h1(vec2(ci, sd + row * 7.0)), gap = min(min(min(fa, 1.0 - fa) * 6.2831853 / N * rw, abs(s - mid) * W), min(abs(s), abs(s - 1.0)) * W);
+      vec2 dr = w / max(rw, 0.001); float tl = hv * (0.5 + 0.4 * hp) * (row > 0.5 ? -1.0 : 1.0);   /* (the outer row lifts its inner edge, the inner row its outer one: a ridge between them) */
+      vec3 nn = normalize(vec3(dr * tl + vec2(hp - 0.5, h1(vec2(ci, sd + 3.0)) - 0.5) * 0.35 * hv, 1.0)); float dif = max(dot(nn, Ld), 0.0), g = fbm(w * 12.0 + sd), g2 = n2(w * 38.0 + sd);
+      vec3 alb = mix(col, vec3(0.58, 0.3, 0.15), step(0.74, hp) * 0.85) * (0.72 + 0.4 * g) * (0.88 + 0.18 * g2);
+      float gw = 0.006 + 0.008 * hv, ink = 1.0 - smoothstep(gw * 0.5, gw, gap), lip = (1.0 - smoothstep(gw, gw * 2.8, gap)) * (1.0 - ink);
+      vec3 c = alb * (0.32 + 1.05 * dif) + vec3(1.0, 0.92, 0.78) * pow(max(dot(nn, normalize(Ld + vec3(0.0, 0.0, 1.0))), 0.0), 24.0) * 0.18;
+      c = mix(c, vec3(0.9, 0.8, 0.64) * (0.55 + 0.6 * dif), lip * 0.55 * (0.3 + 0.7 * hv)); c = mix(c, vec3(0.045, 0.032, 0.025), ink);
+      float a = smoothstep(-0.04, 0.03, s) * (1.0 - smoothstep(0.95, 1.04, s)), sh = smoothstep(-0.45, -0.03, s) * (1.0 - smoothstep(-0.03, 0.02, s)) * 0.4 * hv;
+      A = vec4(c * a + vec3(0.035, 0.024, 0.016) * sh * (1.0 - a), a + sh * (1.0 - a)) * (1.0 - smoothstep(0.92, 1.0, r)); }
+    else { vec4 K = ghCr(u, v_q); float op = clamp(v_q.z, 0.0, 1.0), d = abs(K.x), hw = K.z * (0.35 + 0.65 * op), g = n2(vec2(K.w * 9.0, u.y * 6.0) + 3.0);
+      float core = 1.0 - smoothstep(hw * 0.6, hw, d), br = (1.0 - smoothstep(0.0, 0.004 + 0.01 * op, K.y)) * step(0.004, K.z), ld = d - hw, lip = exp(-sq(ld / 0.022)) * step(0.0, ld), lit = K.x < 0.0 ? 1.0 : 0.35;
+      float sc = (1.0 - smoothstep(0.0, 0.2 + 0.06 * g, d)) * 0.22, cr = max(core * 0.96, br * 0.85);
+      vec3 c = mix(col * (0.6 + 0.3 * g), mix(vec3(0.3, 0.21, 0.14), vec3(0.86, 0.74, 0.55), lit) * (0.8 + 0.3 * g), clamp(lip * 1.6, 0.0, 1.0)); float a = max(sc, lip * 0.55);
+      c = mix(c, vec3(0.05, 0.035, 0.028), cr); a = max(a, cr); A = vec4(c * a, a) * op * (1.0 - smoothstep(0.9, 1.0, abs(u.y))); }
+    gl_FragColor = A * v_c.a; }
   else if (v_k > 88.5 && v_k < 89.5) { // (v415 TI, Titan) broken ground (solid; a unit disc on the floor): dark fissures out to v_q.x, and v_q.z a dark pit at the middle (0 none .. 1 a deep opening with a heaved dirt rim); v_q.y seed
     vec3 cr = ttnCr(u * 0.97, v_q.y, 1.7); float lt = 1.0 - smoothstep(v_q.x - 0.06, v_q.x + 0.02, r), f = fbm(u * 4.0 + v_q.y), fis = min(1.0, cr.x * 1.15 + cr.y * 0.7) * lt, pz = v_q.z, pr = r + 0.2 * (f - 0.5);
     float pit = pz * (1.0 - smoothstep(0.4 * pz + 0.08, 0.6 * pz + 0.14, pr)), rim = pz * exp(-sq((pr - (0.6 * pz + 0.2)) / 0.11)) * (1.0 - pit);
@@ -918,6 +982,22 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
     float f = fbm3(vec3(dr * 3.0, rr * 3.5 - t * 1.3) + v_q.y), f2 = fbm3(vec3(dr * 7.0, rr * 8.0 - t * 2.0) + v_q.y * 1.7);
     float body = smoothstep(-th * (1.0 + 0.8 * f), -th * 0.12, d) * (1.0 - smoothstep(-0.01, th * (0.18 + 0.55 * f), d)), dns = body * smoothstep(0.22 + 0.3 * v_q.z, 0.72, f * 0.75 + f2 * 0.45) * (1.0 - 0.55 * v_q.z);
     vec3 c = col * (0.8 - 0.16 * dr.y + 0.25 * (f2 - 0.5) + 0.18 * smoothstep(-th * 0.5, 0.0, d)); float a = clamp(dns * 1.2, 0.0, 1.0) * v_c.a * (1.0 - smoothstep(1.18, 1.3, rr)); gl_FragColor = vec4(c * a, a); }
+  else if (v_k > 111.5 && v_k < 112.5) { // (v417 MH, Mercury's Hammer) a swing's smear (solid): the quad is the swing's circle (uv the unit disc in the swing's own plane, the head
+    // at angle 0, the trail behind it toward +v); v_q.x the trail's span (radians), v_q.y the inner radius (the smear of the head runs from it out to 1, the shaft's fainter
+    // inside it), v_q.z seed; v_c the dust's colour: grit and stone dust streaked along the arc behind the head, densest at the head, thinning back along the trail
+    float an = atan(u.y, u.x); if (an < -0.35) an += 6.2831853; float sp = max(v_q.x, 0.05), x = an / sp, r0 = v_q.y;
+    float lead = smoothstep(-0.14, 0.0, an), tail = 1.0 - smoothstep(0.1, 1.0, x), rad = smoothstep(r0 - 0.1, r0 + 0.1, r) * (1.0 - smoothstep(0.92, 1.0, r)), shaft = (1.0 - smoothstep(r0 - 0.06, r0 + 0.02, r)) * smoothstep(0.15, 0.4, r) * 0.3;
+    float st = n2(vec2(r * 30.0 + v_q.z, an * 1.5 - t * 0.5)), st2 = n2(vec2(r * 8.0 - v_q.z, an * 5.0 + t)), d = (rad + shaft) * lead * tail * tail * (0.4 + 0.8 * st) * (0.7 + 0.5 * st2);
+    vec3 c = col * (0.62 + 0.45 * smoothstep(r0, 1.0, r) - 0.2 * x) * (0.85 + 0.3 * st2); float a = clamp(d * 0.9, 0.0, 0.78) * v_c.a * pk; gl_FragColor = vec4(min(c, vec3(1.0)) * a, a); }
+  else if (v_k > 114.5 && v_k < 115.5) { // (v417 MH, Mercury's Hammer) a ground impact (solid; a unit disc on the floor): the stone broken in radial and ring cracks out to
+    // v_q.x (0..1), the slabs near the middle heaved up by v_q.z (lit on the side toward the upper-left light, shaded away from it), crushed dust in the middle; v_q.y seed;
+    // v_c the stone's colour
+    vec3 K = mhCrk(u, v_q.y); float rr = r + 0.04 * (n2(u * 6.0 + v_q.y) - 0.5), reach = 1.0 - smoothstep(v_q.x - 0.1, v_q.x + 0.02, rr);
+    float slab = step(0.3, K.y) * v_q.z * (0.5 + 0.5 * K.y) * (1.0 - smoothstep(0.22, 0.7, K.z)) * reach; vec2 dO = u / max(r, 0.001);
+    vec3 nn = normalize(vec3(-dO * slab * 1.5, 1.0)), Ld = normalize(vec3(-0.5, -0.62, 0.6)); float dif = max(dot(nn, Ld), 0.0), g = n2(u * 23.0 + v_q.y);
+    vec3 c = col * (0.5 + 0.85 * dif) * (0.85 + 0.3 * g); float crk = K.x * reach, dust = (1.0 - smoothstep(0.0, 0.32, rr)) * v_q.z * 0.55;
+    c = mix(c, vec3(0.05, 0.035, 0.025), crk * 0.9);
+    float a = max(max(crk * 0.9, smoothstep(0.02, 0.12, slab) * 0.88), dust) * (1.0 - smoothstep(0.86, 1.0, r)) * v_c.a; gl_FragColor = vec4(min(c, vec3(1.0)) * a, a); }
   else if (v_k > 67.5 && v_k < 68.5) { // (v412 LM, Lantern Fall) a lantern (solid): its 2D design (20k4l lantern()) as a lit object. A hexagonal silk lantern
     // seen a little from above, turned by v_q.x: six upper panels and six lower petals (hinged at the equator, opening by fract(v_q.y) / 0.98) of
     // pearly pink silk with the light scattering through them (brightest before its heart of light, shaded along the ribs, heart cutouts glowing
@@ -1394,6 +1474,11 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
         if (fq > 0.0) { float wa = an + 0.5 * (fbm(vec2(r * 2.2, sd + 5.0)) - 0.5), sc = wa / 6.2831853 * 9.0 + sd, id = floor(sc + 0.5), dd = abs(sc - id) * 6.2831853 / 9.0 * r, pl = fract(-r * 0.8 + u_t * 0.35 + id * 0.37);
           Lq += vec3(1.0, 0.75, 0.3) * (exp(-sq(dd / 0.006)) * 0.55 + exp(-sq(dd / 0.022)) * 0.15) * smoothstep(0.1, 0.25, r) * fq * (0.45 + 1.2 * exp(-sq((pl - 0.5) / 0.06))); }
         L = Lq * (1.0 - smoothstep(0.82, 0.97, r)); } }
+    else if (v_k > 97.5 && v_k < 98.5) { // (v417 GH, Fault Line) the light in its crack (as kind 97: ghCr): amber deep in its core, white-gold while the heat v_q.z is high, a soft haze over
+      // the lips, its side cracks lit, embers flickering along it; v_c its colour
+      vec4 K = ghCr(u, v_q); float ht = clamp(v_q.z, 0.0, 1.5), d = abs(K.x), hw = max(K.z, 0.002), fl = 0.75 + 0.25 * n2(vec2(K.w * 6.0 - t * 3.0, 1.7)), em = step(0.86, h1(floor(vec2(K.w * 16.0, u.y * 5.0)))) * pow(0.5 + 0.5 * sin(u_t * 7.0 + K.w * 40.0), 4.0);
+      L = (eramp(0.3 + 0.62 * ht, col) * exp(-sq(d / (hw * 0.85))) * 1.1 + col * exp(-d / 0.07) * 0.3 * ht + col * exp(-max(K.y, 0.0) / 0.01) * 0.5 * ht * step(0.004, K.z) + vec3(1.0, 0.8, 0.4) * em * exp(-d / 0.02) * 0.6) * fl * min(1.0, ht * 1.4);
+      L *= 1.0 - smoothstep(0.85, 1.0, abs(u.y)); }
     else if (v_k > 87.5 && v_k < 88.5) { // (v415 TI, Titan) glowing earth fractures on the floor (a unit disc squashed to it): ember light along the cracks out to the front v_q.x, hottest just behind it; v_q.y seed, v_q.z heat; v_c its colour
       vec3 cr = ttnCr(u, v_q.y, 1.0); float an = atan(u.y, u.x), lt = 1.0 - smoothstep(v_q.x - 0.12, v_q.x, r), band = exp(-sq((r - v_q.x) / 0.07)) * step(r, v_q.x + 0.05), fl = 0.8 + 0.2 * n2(vec2(r * 7.0 - t * 2.0, an * 4.0 + v_q.y));
       float k = (cr.x + 0.55 * cr.y) * lt, temp = v_q.z * (0.3 + 0.62 * k + 0.55 * band * cr.x) * (1.0 - 0.3 * r) * fl;
@@ -1403,6 +1488,19 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
       float m = ttnSig(u, v_q.y), an = atan(u.y, u.x), rv = smoothstep(r - 0.12, r + 0.02, v_q.x * 1.12), fl = 0.84 + 0.16 * n2(vec2(an * 3.0 + v_q.y, t * 2.3)), core = exp(-m * m), halo = exp(-m * m / 14.0);
       L = (col * 0.4 * halo + mix(col, vec3(1.0, 0.92, 0.72), 0.55) * core * 0.8 + vec3(1.0, 0.97, 0.88) * core * core * 0.5) * v_q.z * fl * rv + col * 0.16 * (1.0 - r) * rv * v_q.z;
       L *= 1.0 - smoothstep(0.95, 1.0, r); }
+    else if (v_k > 112.5 && v_k < 116.5) { // (v417 MH, Mercury's Hammer) its light: 113 a swing's (the quad as kind 112: the steel face's bright edge sweeping round at the head's
+      // outer radius, warm, fading back along the trail, a flash at the head; v_q.x span, v_q.y the band's inner radius, v_q.z strength); 114 the magical grip (uv.x along the
+      // handle, uv.y across: bands of amber light wrapped round it like fingers, flowing, a soft halo; v_q.x strength, v_q.y seed); 116 the impact's cracks lit amber (the quad
+      // as kind 115: out to v_q.x, hottest near the middle, cooling with v_q.z; v_q.y seed)
+      if (v_k < 113.5) { float an = atan(u.y, u.x); if (an < -0.35) an += 6.2831853; float x = an / max(v_q.x, 0.05), lead = smoothstep(-0.12, 0.0, an), tail = pow(max(0.0, 1.0 - x), 2.2);
+        float band = smoothstep(v_q.y - 0.06, v_q.y + 0.05, r) * (1.0 - smoothstep(0.94, 1.0, r)), eg = exp(-sq((r - 0.955) / 0.022)), fl = 0.7 + 0.3 * n2(vec2(r * 40.0, an * 3.0 - t * 2.0));
+        L = (col * band * 0.28 + mix(col, vec3(1.0, 0.95, 0.85), 0.6) * eg * 1.1) * lead * tail * fl * v_q.z + vec3(1.0, 0.92, 0.75) * exp(-sq(an / 0.12)) * (eg + 0.25 * band) * 0.35 * v_q.z; }
+      else if (v_k < 114.5) { float fl = n2(vec2(u.x * 5.0 - t * 1.5, v_q.y)), bands = 0.0;
+        for (int i = 0; i < 4; i++) { float fi = float(i), xc = -0.56 + fi * 0.37 + 0.05 * sin(t * 3.0 + fi * 1.7), w = (u.x - xc - u.y * 0.35) / 0.075; bands += exp(-w * w) * (1.0 - smoothstep(0.5, 0.95, abs(u.y))); }
+        float halo = exp(-(u.x * u.x * 1.4 + u.y * u.y * 2.6) * 2.0), core = exp(-u.y * u.y * 30.0) * (1.0 - smoothstep(0.55, 1.0, abs(u.x)));
+        L = (col * halo * 0.45 + mix(col, vec3(1.0, 0.92, 0.7), 0.5) * bands * (0.7 + 0.5 * fl) + vec3(1.0, 0.85, 0.5) * core * 0.3) * v_q.x * (1.0 - smoothstep(0.8, 1.0, max(abs(u.x), abs(u.y)))); }
+      else if (v_k > 115.5) { vec3 K = mhCrk(u, v_q.y); float rr = r + 0.04 * (n2(u * 6.0 + v_q.y) - 0.5), reach = 1.0 - smoothstep(v_q.x - 0.1, v_q.x + 0.02, rr), temp = v_q.z * (1.0 - 0.55 * rr) * (0.85 + 0.15 * n2(u * 9.0 - t));
+        L = eramp(temp * K.x, col) * K.x * reach + col * 0.14 * v_q.z * (1.0 - smoothstep(0.0, 0.45, rr)) * reach; L *= 1.0 - smoothstep(0.86, 1.0, r); } }
     else if (v_k > 69.5 && v_k < 70.5) { // (v412 LM) Light Strong's light: v_q.x 0 a lantern's light spilling on the floor (uv a unit disc squashed by its quad; v_q.y
       // its turn, v_q.z its flicker seed): warm at its middle, v_c outward, hexagonal, the soft shadows of its six rods radiating; 1 / 2 a mirror's left / right
       // half breaking up into glints (as kind 69: its frame's wire, rims and bead lit, its face faint)
@@ -1645,7 +1743,7 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
   const Q = { lit: new Float32Array(12 * 6 * 600), nl: 0, smk: new Float32Array(12 * 6 * 200), ns: 0, wlit: new Float32Array(12 * 6 * 200), nwl: 0, wsmk: new Float32Array(12 * 6 * 100), nws: 0, get windOK() { return !!PRW; }, a: 1, b: 0, c0: 0, d: 1, e: 0, f: 0, k: 1, t: 0, W: 0, Hh: 0, pet: [0, 0, 0], gpu: true,
     X(x, y) { return this.a * x + this.c0 * y + this.e; }, Y(x, y) { return this.b * x + this.d * y + this.f; },
     /* one quad: centre (screen px), half-axes (ux, uy), (vx, vy) in screen px */
-    quad(kind, x, y, ux, uy, vx, vy, col, al, q0, q1, q2) { if (!(al > 0.004)) return; const solid = (kind >= 9 && kind <= 12) || kind === 16 || kind === 24 || kind === 25 || kind === 33 || kind === 36 || kind === 39 || kind === 40 || kind === 41 /* v402 */ || (kind >= 45 && kind <= 47) || kind === 49 || kind === 52 /* v404 LT */ || (kind >= 53 && kind <= 58 && kind !== 55) /* v404 DK */ || (kind >= 60 && kind <= 63) /* v409 DK2 */ || kind === 68 || kind === 69 /* v412 LM */ || kind === 71 /* v391 U4 */ || kind === 80 || kind === 82 || (kind >= 84 && kind <= 87) /* v415 EB */ || (kind >= 73 && kind <= 75) || kind === 78 /* v415 EA */ || kind === 89 || kind === 90 /* v415 TI */, wd = kind >= 33 && kind <= 40;
+    quad(kind, x, y, ux, uy, vx, vy, col, al, q0, q1, q2) { if (!(al > 0.004)) return; const solid = (kind >= 9 && kind <= 12) || kind === 16 || kind === 24 || kind === 25 || kind === 33 || kind === 36 || kind === 39 || kind === 40 || kind === 41 /* v402 */ || (kind >= 45 && kind <= 47) || kind === 49 || kind === 52 /* v404 LT */ || (kind >= 53 && kind <= 58 && kind !== 55) /* v404 DK */ || (kind >= 60 && kind <= 63) /* v409 DK2 */ || kind === 68 || kind === 69 /* v412 LM */ || kind === 71 /* v391 U4 */ || kind === 80 || kind === 82 || (kind >= 84 && kind <= 87) /* v415 EB */ || (kind >= 73 && kind <= 75) || kind === 78 /* v415 EA */ || kind === 89 || kind === 90 /* v415 TI */, wd = kind >= 33 && kind <= 40 || (kind >= 104 && kind <= 106) /* v417 BR */ || kind === 96 || kind === 97 /* v417 GH */ || kind === 112 || kind === 115 /* v417 MH */;
       const ka = wd ? (solid ? 'wsmk' : 'wlit') : (solid ? 'smk' : 'lit'), kn = wd ? (solid ? 'nws' : 'nwl') : (solid ? 'ns' : 'nl'); let A = this[ka]; const n = this[kn];
       if ((n + 6) * 12 > A.length) { const q = new Float32Array(A.length * 2); q.set(A); A = q; this[ka] = q; }
       const cx = this.X(x, y), cy = this.Y(x, y), a = this.a, b = this.b, c = this.c0, d = this.d, Ux = a * ux + c * uy, Uy = b * ux + d * uy, Vx = a * vx + c * vy, Vy = b * vx + d * vy, C = rgbOf(col); let o = n * 12;

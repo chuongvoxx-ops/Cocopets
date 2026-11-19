@@ -1033,6 +1033,44 @@ void main() {
     float flare = clamp(uGlow2, 0.0, 1.5); col = mix(col, WH * (0.8 + 0.4 * fis), clamp(flare * (0.35 + 0.5 * fis + 0.25 * (1.0 - ndv0)), 0.0, 1.0));
     gl_FragColor = vec4(vec3(tone(col.r), tone(col.g), tone(col.b)) * uAlpha, uAlpha); return; }
   /*</DOOM-MAT>*/
+  /*<GH-MAT ids 160..166 (v417 GH: 20k2nh God's Hand, 20k2ni Fault Line)>*/
+  else if (id >= 160 && id <= 166) {   // ---- (v417 GH) Earth's Strongs in stone: 160 a sandstone plate (160.3 a terracotta plate; vA.y 1 on a bevel), 161 charcoal basalt (the core showing in the seams), 162 the fist's striking face (sandstone, runes cut in it lit amber by uGlow2), 163 bronze (the cuff), 164 champagne crystal, 165 a wedge (layered strata by its own height: champagne sandstone, terracotta, dark orange, a charcoal basalt root; amber light where it meets the floor), 166 amber mineral. uGlow the amber in the cracks, uKind the tier (2: deeper sculpted cracks), uSpill dust settled on top, uWear crumbling 0..1 (dulled, its light dying)
+    float fr = vA.x - float(id), gg = clamp(uGlow, 0.0, 2.0), ndv0 = max(0.0, dot(n, uV)), up = dot(n, uUP), crm = clamp(uWear, 0.0, 1.0), w1 = vn(L.xy * 2.3 + L.z * 1.7), w2 = vn(L.yz * 7.0 + L.x * 4.0), w3 = vn(L.xz * 19.0 + L.y * 11.0);
+    vec3 AMB1 = vec3(1.0, 0.45, 0.07), GOLD1 = vec3(1.35, 0.86, 0.32), HOT1 = vec3(1.5, 1.3, 0.95);
+    if (id == 164 || id == 166) { vec3 hh = normalize(uLK + uV); float k = pow(ndv0, 1.2), sp = pow(max(0.0, dot(n, hh)), 70.0); vec3 c;   // crystal and mineral: glassy, lit from within, bright facet edges, a sharp glint
+      if (id == 164) c = mix(vec3(0.4, 0.31, 0.19), vec3(1.05, 0.93, 0.72), 0.2 + 0.8 * k) * (0.6 + 0.45 * max(0.0, dot(n, uLK))) + vec3(1.0, 0.94, 0.8) * smoothstep(0.8, 1.0, edge) * 0.45 + vec3(1.0, 0.82, 0.5) * 0.2 * gg;
+      else c = mix(vec3(0.34, 0.1, 0.01), vec3(1.15, 0.62, 0.14), k) * (0.55 + 0.7 * gg) + GOLD1 * smoothstep(0.8, 1.0, edge) * (0.3 + 0.5 * gg);
+      c += vec3(1.0, 0.97, 0.9) * sp * 1.6 + pow(1.0 - ndv0, 3.0) * AMB1 * 0.35; c *= 1.0 - 0.55 * crm;
+      gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
+    metal = 0.0; F0 = vec3(0.04); rough = 0.8;
+    if (uLow < 0.5) n = normalize(n + (vec3(vn(L.yz * 6.0), vn(L.zx * 6.0 + 3.0), vn(L.xy * 6.0 + 7.0)) - 0.5) * 0.22 + (vec3(vn(L.yz * 21.0 + 1.0), vn(L.zx * 21.0 + 4.0), vn(L.xy * 21.0 + 8.0)) - 0.5) * 0.12);   // (stone grain: lumps and grit in the light)
+    if (uLow < 0.5 && id != 163) { vec3 an = abs(NL); vec2 cuv = (an.z >= an.x && an.z >= an.y ? L.xy : an.y >= an.x ? L.xz : L.yz) * 6.5 + fr * 3.0, ci = floor(cuv), cf = cuv - ci, bc = vec2(0.0); float d1 = 9.0, d2 = 9.0;   // (chisel facets: each cell of the face tilted its own way, a faint ridge between)
+      for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) { vec2 g = vec2(float(i), float(j)), cc = ci + g, dd = g + vec2(hs(cc), hs(cc + 17.3)) * 0.8 + 0.1 - cf; float dq = dot(dd, dd); if (dq < d1) { d2 = d1; d1 = dq; bc = cc; } else if (dq < d2) d2 = dq; }
+      n = normalize(n + (vec3(hs(bc + 3.1), hs(bc + 7.7), hs(bc + 11.9)) - 0.5) * (id == 165 ? 0.2 : 0.38)); cav += (1.0 - smoothstep(0.0, 0.07, sqrt(d2) - sqrt(d1))) * 0.3; }
+    float c1 = abs(fract(dot(L, vec3(2.1, 1.3, 1.7)) + w1 * 1.5) - 0.5), c2 = abs(fract(dot(L, vec3(-1.6, 2.4, 1.1)) + w2 * 0.9) - 0.5), cw = 0.009 + 0.008 * uKind + 0.03 * crm, cm = min(c1, c2);
+    float msk = smoothstep(0.6 - 0.12 * uKind - 0.3 * crm, 0.74 - 0.1 * uKind, vn(L.zx * 1.1 + L.y * 0.8 + fr * 5.0)), fis = smoothstep(cw, cw * 0.2, cm) * msk; cav += smoothstep(cw * 3.5, cw, cm) * msk * 0.3;   // (a few cracks here and there: more and deeper at Celestial, opening as it crumbles; darkened lips)
+    if (id == 163) { metal = 1.0; alb = vec3(0.36, 0.22, 0.1) * (0.85 + 0.3 * w2); F0 = vec3(0.93, 0.64, 0.36) * (0.86 + 0.24 * w1); rough = 0.3 + 0.16 * w3; fis = 0.0;   // bronze: engraved bands, dull tarnish in places, a warm controlled sheen
+      if (abs(fract(L.z * 30.0 + w1 * 0.4) - 0.5) < 0.07) cav += 0.5; if (w3 > 0.72) { F0 *= 0.72; rough = 0.58; } }
+    else if (id == 161) { alb = vec3(0.075, 0.064, 0.058) * (0.75 + 0.5 * w2); rough = 0.9; float mv = vn(L.xy * 3.0 + L.z * 2.0 + vec2(uTime * 0.2, 0.0)); em += AMB1 * (0.05 + 0.55 * gg) * mv * mv; }   // charcoal basalt, smouldering
+    else {
+      float strata = sin((L.z + 0.07 * w1) * 46.0) * 0.5 + 0.5;   // (fine sedimentary layers)
+      alb = vec3(0.7, 0.56, 0.38) * (0.8 + 0.28 * w1) * (0.92 + 0.12 * strata);
+      if (fr > 0.15 && fr < 0.45) alb = vec3(0.6, 0.31, 0.16) * (0.82 + 0.3 * w1) * (0.92 + 0.1 * strata);   // (160.3: terracotta)
+      if (id == 165) { float zz = L.z + 0.05 * (w1 - 0.5) + 0.03 * L.x, b = floor(zz * 4.5 + 3.0), hb = hs(vec2(b, 3.0 + fr * 10.0)), bl = abs(fract(zz * 4.5 + 3.0) - 0.5);   // (broad layers; its top face dusty pale)
+        alb = (zz < -0.12 ? vec3(0.1, 0.085, 0.075) : hb < 0.28 ? vec3(0.68, 0.37, 0.19) : hb < 0.45 ? vec3(0.62, 0.33, 0.12) : vec3(0.8, 0.67, 0.48)) * (0.86 + 0.26 * w1) * (0.94 + 0.08 * strata); if (bl > 0.46) cav += 0.35;
+        alb = mix(alb, vec3(0.84, 0.74, 0.58), smoothstep(0.45, 0.9, up) * 0.55); fis *= 0.5;
+        em += AMB1 * (1.0 - smoothstep(0.0, 0.32, vW.z)) * (0.08 + 0.75 * gg) * (0.7 + 0.3 * w2); }   // (the amber of the crack below lighting its foot)
+      alb = mix(alb, vec3(0.55, 0.27, 0.08), smoothstep(0.62, 0.85, w2) * 0.35);   // (dark orange weathering)
+      alb = mix(alb, vec3(0.86, 0.76, 0.6), (id == 165 ? smoothstep(0.86, 1.0, edge) : smoothstep(0.55, 0.95, edge)) * (0.4 + 0.4 * w3));   // (pale chipped edges on the bevels; a wedge's facets only right at their rims)
+      cav += smoothstep(0.82, 0.9, vn(L.xy * 13.0 + L.z * 7.0)) * (1.0 - uLow) * 0.5;   // (pits)
+      if (id == 162) { vec2 q = L.xy * 9.0, ci = floor(q), f = fract(q) - 0.5; float h = hs(ci + 0.37), d = abs(f.x - (h - 0.5) * 0.3) + step(0.32, abs(f.y));   // (runes: a stem, a branch, a ring, cell by cell)
+        if (h > 0.35) d = min(d, abs(f.y - f.x * (h > 0.6 ? 0.8 : -0.8) - 0.05) + step(0.3, abs(f.x))); if (fract(h * 7.1) > 0.5) d = min(d, abs(length(f - vec2(0.0, 0.17)) - 0.1));
+        float rn = smoothstep(0.075, 0.03, d) * step(0.18, hs(ci + 9.1)); cav += rn * 0.7;
+        em += mix(AMB1, HOT1, clamp(uGlow2 - 1.3, 0.0, 1.0) * 0.6) * rn * uGlow2 * 2.2 + AMB1 * 0.16 * uGlow2 * (1.0 - smoothstep(-0.2, 0.6, up)); } }
+    cav += fis * (0.7 + 0.35 * uKind); alb *= 1.0 - 0.65 * fis;
+    em += mix(vec3(0.75, 0.24, 0.03), mix(AMB1, GOLD1, gg * 0.4), smoothstep(cw * 0.7, cw * 0.15, cm)) * fis * (0.02 + (0.55 + 0.45 * uKind) * gg) * (0.8 + 0.2 * sin(uTime * 3.0 + L.x * 4.0 + L.z * 3.0));   // (amber light deep inside the cracks: ember red at the lips)
+    alb = mix(alb, vec3(0.63, 0.54, 0.42), smoothstep(0.2, 0.9, up) * clamp(uSpill, 0.0, 1.0) * 0.6 * (0.6 + 0.4 * w1));   // (dust settled on top)
+    alb *= 1.0 - 0.42 * crm; em *= 1.0 - 0.7 * crm; }
   /*<OD-DRILL-MAT ids 150..151 (v416 OD: 20k2iz-earth-drill-gpu.js)>*/
   else if (id >= 150 && id <= 151) {   // ---- (v416 OD) the Obsidian Drill (20k2iz), z its axis in its own frame: 150 black volcanic glass (150.2 its core, 150.4 its tip; vA.y 1 on a bevel or a facet's rim, vA.z the occlusion), 151 gold crystal (151.0 the inlay along a flight's rim: vA.z its length along the helix; 151.3 a joint's crystal). uGlow the gold's light, uWear world units a model unit (its height over the floor from vW.z), uTime.
     // Glass: a near-black body with a grey-violet lit flank; a cool sky above, a bright horizon strip and the floor's warm light below in its reflections; a fresnel rim; sharp glints with a faint rainbow sheen; conchoidal facets (a cell net round the axis, each cell tilting the normal its own way, rippled from its seed) that turn with it; bright bevels
@@ -1064,6 +1102,90 @@ void main() {
     c *= 0.22 + 0.78 * smoothstep(0.0, 0.6, zm);   // (dark where it grinds into the floor)
     gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
   /*</OD-DRILL-MAT>*/
+  /*<MH-HAMMER-MAT ids 180..189 (v417 MH: 20k2r-earth-mercury-hammer.js)>*/
+  else if (id >= 180 && id <= 189) {   // ---- (v417 MH) Mercury's Hammer (20k2r), model z along the handle (0 the grip's lower end, the head's centre at 1.5), x the striking axis: 180 the stone head (sandstone, terracotta and dark-orange strata, charcoal basalt grit, champagne mineral veins, chipped pale bevels, amber light in selected seams by uGlow; 180.2 a proud stratum), 181 bevelled steel (181.3 a striking face: concentric polish, the impact's heat by uGlow2), 182 bronze (clamps, rings, socket, straps; 182.3 a rivet), 183 the handle's basalt (an amber vein by uGlow), 184 champagne crystal (184.3 amber), 185 the grip's terracotta cord. uSpill 0..1: breaking into mineral grains (uFx stays the frost) (a dissolve with amber edges)
+    float fr = vA.x - float(id), w1 = vn(L.xy * 3.1 + L.z * 1.9), w2 = vn(L.yz * 8.3 + L.x * 5.1), w3 = vn(L.xz * 21.0 + L.y * 13.0), upn = dot(n, uUP), gg = clamp(uGlow, 0.0, 2.0), ndv0 = max(0.0, dot(n, uV));
+    vec3 MAMB = vec3(1.0, 0.5, 0.08), MGLD = vec3(1.3, 0.88, 0.36);
+    if (uSpill > 0.0) { float nz = vn(L.xy * 9.0 + L.z * 6.1) * 0.55 + vn(L.yz * 17.0 + L.x * 11.0) * 0.3 + vn(L.xz * 4.0 + 2.0) * 0.15, th = uSpill * 1.12 - 0.06; if (nz < th) discard; em += mix(MAMB, MGLD, 0.5) * smoothstep(th + 0.07, th, nz) * 2.4; }
+    if (id == 184) { float k = pow(ndv0, 1.3); vec3 hh = normalize(uLK + uV); float isA = step(0.15, fr);
+      vec3 c = mix(mix(vec3(0.42, 0.33, 0.2), vec3(1.05, 0.92, 0.7), k), mix(vec3(0.35, 0.1, 0.01), vec3(1.15, 0.6, 0.12), k), isA) * (0.55 + 0.4 * max(dot(n, uLK), 0.0) + 0.35 * gg)
+        + vec3(1.0, 0.95, 0.85) * smoothstep(0.8, 1.0, edge) * (0.35 + 0.4 * gg) + pow(max(0.0, dot(n, hh)), 110.0) * 1.6 + pow(1.0 - ndv0, 3.0) * mix(vec3(1.0, 0.82, 0.55), MAMB, isA) * 0.6 + em;
+      gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
+    if (id == 180) { metal = 0.0; F0 = vec3(0.04); rough = 0.8 + 0.1 * w2; float m1 = vn(L.xy * 1.3 + L.z * 0.9 + 4.0);
+      if (uLow < 0.5) n = normalize(n + (vec3(vn(L.yz * 6.0), vn(L.zx * 6.0 + 3.0), vn(L.xy * 6.0 + 7.0)) - 0.5) * 0.3 + (vec3(vn(L.yz * 19.0 + 1.0), vn(L.zx * 19.0 + 4.0), vn(L.xy * 19.0 + 8.0)) - 0.5) * 0.14);   // (rough stone: lumps and grit in the light)
+      float zz = (L.z - 1.5) * 4.6 + (vn(L.xy * 1.6 + 1.0) - 0.5) * 1.1 + L.x * 0.35, bi = floor(zz), bf = zz - bi, hb = hs(vec2(bi, 3.7)), hb2 = hs(vec2(bi + 1.0, 3.7));   // (strata of uneven depth, gently warped)
+      vec3 CRM = vec3(0.86, 0.74, 0.55), SAND = vec3(0.76, 0.6, 0.41), TERR = vec3(0.64, 0.35, 0.2), DORG = vec3(0.72, 0.38, 0.12);
+      vec3 c0 = hb < 0.3 ? SAND : hb < 0.55 ? CRM : hb < 0.8 ? TERR : DORG, c1 = hb2 < 0.3 ? SAND : hb2 < 0.55 ? CRM : hb2 < 0.8 ? TERR : DORG;
+      alb = mix(c0, c1, smoothstep(0.7, 1.0, bf)) * (0.78 + 0.28 * m1) * (0.86 + 0.2 * w2) * (0.92 + 0.12 * w3) * (0.93 + 0.07 * sin((zz * 6.0 + w2 * 2.0) * 3.1416));   // (fine laminations in each stratum)
+      float seam = 1.0 - smoothstep(0.0, 0.035, min(bf, 1.0 - bf)); cav += seam * 0.45;
+      float q1 = abs(fract(dot(L, vec3(2.3, 1.7, 2.9)) + w1 * 1.4) - 0.5), q2 = abs(fract(dot(L, vec3(-1.9, 2.6, 1.4)) + w2 * 0.9) - 0.5), fis = smoothstep(0.03, 0.006, min(q1, q2)) * smoothstep(0.45, 0.65, vn(L.zx * 2.1 + L.y * 1.7));   // (a fissure net)
+      cav += fis * 0.8 + smoothstep(0.82, 0.92, vn(L.xy * 13.0 + L.z * 9.0)) * (1.0 - uLow) * 0.4; alb *= 1.0 - 0.55 * fis;   // (and pits)
+      em += mix(MAMB, MGLD, 0.4) * max(seam * step(0.6, hs(vec2(bi, 9.1))), fis * step(0.5, vn(L.xy * 1.1 + 9.0))) * (0.05 + 1.3 * gg) * (0.8 + 0.2 * sin(uTime * 2.4 + L.x * 4.0));   // (amber light inside selected seams and cracks)
+      float grit = smoothstep(0.82, 0.9, vn(L.xy * 26.0 + L.z * 19.0)) * (1.0 - uLow); alb = mix(alb, vec3(0.13, 0.12, 0.12), grit * 0.75);   // (charcoal basalt grit)
+      float vv = abs(vn(L.xy * 2.4 + L.z * 3.3 + 7.0) - 0.5), vein = smoothstep(0.02, 0.005, vv) * smoothstep(0.35, 0.65, vn(L.yz * 1.7 + 2.0));
+      alb = mix(alb, vec3(0.95, 0.84, 0.6), vein * 0.85); F0 = mix(F0, vec3(0.9, 0.75, 0.45), vein * 0.6); rough = mix(rough, 0.25, vein); em += MGLD * vein * 0.12 * gg;   // (champagne mineral veins)
+      float chip = smoothstep(0.5, 0.9, edge) * smoothstep(0.35, 0.65, w3 + 0.25); alb = mix(alb, vec3(0.93, 0.84, 0.68), chip * 0.6); rough = mix(rough, 0.92, chip);   // (chipped to fresh pale stone at the bevels)
+      alb = mix(alb, vec3(0.82, 0.72, 0.56), max(upn, 0.0) * max(upn, 0.0) * 0.18); }   // (dust on what faces up)
+    else if (id == 181) { alb = vec3(0.28, 0.29, 0.31); F0 = vec3(0.82, 0.84, 0.88); rough = 0.2 + 0.1 * w2; vec2 fp = vec2(L.y, L.z - 1.5); float rr = length(fp);
+      if (fr > 0.15) { rough = 0.11 + 0.06 * w3; if (abs(fract(rr * 38.0 + w2 * 0.6) - 0.5) < 0.12) rough += 0.08; wear += 0.4; cav += smoothstep(0.86, 0.94, vn(fp * 40.0)) * (1.0 - uLow) * 0.5; }   // (the face: concentric polish, a few pits)
+      else if (abs(fract(L.x * 60.0 + w2 * 2.0) - 0.5) < 0.1) rough += 0.06;   // (a brushed collar)
+      wear += smoothstep(0.7, 1.0, edge) * 0.8;   // (bright bevels)
+      float heat = clamp(uGlow2, 0.0, 2.0) * (fr > 0.15 ? 1.0 : 0.35) * (1.0 - smoothstep(0.1, 0.4, rr * (fr > 0.15 ? 1.0 : 0.6)));
+      em += mix(vec3(1.4, 0.35, 0.05), vec3(1.9, 1.5, 0.95), smoothstep(0.6, 1.6, heat)) * heat * 0.9; }
+    else if (id == 182) { alb = vec3(0.34, 0.19, 0.07); F0 = vec3(0.93, 0.62, 0.34); rough = 0.3 + 0.16 * w2;
+      float pat = smoothstep(0.5, 0.75, w2 * 0.7 + w1 * 0.5) * (1.0 - smoothstep(0.3, 0.7, edge)) * (fr > 0.15 ? 0.3 : 1.0);
+      alb = mix(alb, vec3(0.12, 0.24, 0.19), pat * 0.7); F0 = mix(F0, vec3(0.06), pat * 0.8); metal = 1.0 - step(0.45, pat); rough = mix(rough, 0.75, pat);   // (verdigris in the hollows)
+      wear += smoothstep(0.6, 1.0, edge) * 0.9; if (fr > 0.15) rough *= 0.7;
+      if (fr < 0.1 && uLow < 0.5 && abs(fract(L.z * 18.0 + L.x * 2.0) - 0.5) < 0.06) cav += 0.35; }   // (engraved lines)
+    else if (id == 183) { metal = 0.0; F0 = vec3(0.045); rough = 0.55 + 0.2 * w2; alb = vec3(0.13, 0.12, 0.115) * (0.75 + 0.45 * w2) * (0.9 + 0.2 * w3);
+      cav += smoothstep(0.8, 0.9, vn(L.xy * 40.0 + L.z * 33.0)) * (1.0 - uLow) * 0.6;   // (vesicles)
+      float an = atan(L.y, L.x), sv = abs(fract(an / 6.2832 * 2.0 + L.z * 1.3 + w1 * 0.3) - 0.5), vein = smoothstep(0.03, 0.008, sv) * smoothstep(0.3, 0.6, vn(vec2(L.z * 3.0, 1.0)));
+      em += mix(MAMB, MGLD, 0.3) * vein * (0.04 + 0.9 * gg); alb = mix(alb, vec3(0.7, 0.4, 0.12), vein * 0.4); alb = mix(alb, vec3(0.3, 0.27, 0.24), smoothstep(0.5, 0.95, edge) * 0.4); }
+    else { metal = 0.0; F0 = vec3(0.04); rough = 0.82; float an = atan(L.y, L.x), s = fract(L.z * 30.0 + an / 6.2832 * 2.0), rid = abs(s - 0.5) * 2.0;   // (the corded grip)
+      alb = vec3(0.5, 0.23, 0.11) * (0.75 + 0.35 * w3) * (0.7 + 0.3 * (1.0 - rid)); cav += smoothstep(0.75, 1.0, rid) * 0.7; } }
+  /*</MH-HAMMER-MAT>*/
+  /*<BR-MAT ids 170..174 (v417 BR: 20k2r-earth-br-model.js)>*/
+  else if (id >= 170 && id <= 179) {   // ---- (v417 BR) Ball Crusher's boulder and Rapid Fire's shards (20k2r), in their own frames: 170 the boulder's layered stone (170.25 near a glowing seam; vA.y a crack's depth 0..1, vA.z occlusion), 171 a champagne crystal (171.2 a bronze nugget), 172 a charcoal basalt inclusion, 173 a shard of compacted basalt and sandstone (vA.y 1 at a facet's rim: a fresh chip; uKind 1: in the boulder's own stone, a chunk of it crumbling), 174 the shard's amber core. uGlow the seams' and the core's amber light, uWear world units a model unit (its height from vW.z), uTime.
+    float bFr = vA.x - float(id), bGw = clamp(uGlow, 0.0, 1.5), bZm = vW.z / max(uWear, 1e-4); vec3 bP = L, bNl = NL;
+    float bW1 = vn(bP.xy * 1.7 + bP.z * 1.1), bW2 = vn(bP.yz * 4.3 + bP.x * 2.9), bW3 = vn(bP.xz * 11.0 + bP.y * 7.0);
+    if (uLow < 0.5 && id != 171 && id != 174) bNl = normalize(bNl + (vec3(vn(bP.yz * 6.0), vn(bP.zx * 6.0 + 3.0), vn(bP.xy * 6.0 + 7.0)) - 0.5) * 0.34 + (vec3(vn(bP.yz * 17.0 + 1.0), vn(bP.zx * 17.0 + 4.0), vn(bP.xy * 17.0 + 8.0)) - 0.5) * 0.2);   // (grit and pitting in the light)
+    { vec3 n2 = normalize(uM0 * bNl.x + uM1 * bNl.y + uM2 * bNl.z); if (dot(n2, uV) < -0.02) n2 = -n2; n = n2; }
+    float bNdv = max(0.001, dot(n, uV)), bNdl = dot(n, uLK), bDif = max(bNdl, 0.0), bUp = dot(n, uUP);
+    float bCel = 0.22 * smoothstep(-0.05, 0.06, bNdl) + 0.38 * smoothstep(0.26, 0.36, bNdl) + 0.4 * smoothstep(0.62, 0.72, bNdl);   // (cel bands, as the game's art: shadow, midtone, light)
+    float bLit = mix(bDif, bCel, 0.6); vec3 bHh = normalize(uLK + uV); float bNh = max(0.0, dot(n, bHh));
+    vec3 bAmb = mix(vec3(0.17, 0.12, 0.1), vec3(0.4, 0.4, 0.47), 0.5 + 0.5 * bUp), bKey = vec3(1.28, 1.12, 0.92), bRim = pow(1.0 - bNdv, 3.0) * max(0.0, dot(n, uLR) + 0.3) * vec3(0.6, 0.55, 0.62);
+    vec3 bAM = vec3(1.0, 0.5, 0.08), bGO = vec3(1.35, 0.92, 0.38), bC = vec3(0.0), bA = vec3(0.5);
+    if (id == 174) { bC = mix(vec3(0.75, 0.3, 0.04), vec3(1.7, 1.15, 0.5), pow(bNdv, 1.4)) * (0.65 + 0.55 * bGw) + vec3(1.0, 0.95, 0.85) * pow(bNh, 70.0) * 1.4 + bGO * smoothstep(0.85, 1.0, edge) * 0.35;
+      gl_FragColor = vec4(vec3(tone(bC.r), tone(bC.g), tone(bC.b)) * uAlpha, uAlpha); return; }
+    if (id == 171) { vec3 bR = 2.0 * bNdv * n - uV; float bRu = dot(bR, uUP), bSb = max(dot(bR, uLS), 0.0);
+      if (bFr > 0.1) { vec3 bFb = vec3(0.86, 0.56, 0.3); bC = bFb * (0.12 + 0.55 * bLit) + bFb * mix(vec3(0.25, 0.16, 0.1), vec3(0.85, 0.8, 0.75), smoothstep(-0.2, 0.6, bRu)) * 0.55 + vec3(1.0, 0.9, 0.75) * pow(bNh, 60.0) * 1.6 + bRim * 0.5; }   // a bronze nugget: polished, warm reflections
+      else { vec3 bG0 = vec3(0.98, 0.85, 0.6);   // a champagne crystal: pale gold glass, sharp glints, bright rims, a little warm light inside
+        bC = bG0 * (0.22 + 0.7 * bLit) * vec3(1.0, 0.95, 0.85) + mix(vec3(0.25, 0.2, 0.18), vec3(0.95, 0.92, 0.9), smoothstep(-0.1, 0.7, bRu)) * (0.15 + 0.6 * pow(1.0 - bNdv, 2.0)) + vec3(1.0, 0.97, 0.9) * (pow(bNh, 90.0) * 2.2 + pow(bSb, 30.0) * 0.8) + vec3(1.0, 0.92, 0.7) * smoothstep(0.8, 1.0, edge) * (0.25 + 0.4 * bDif) + bAM * 0.12 * (0.5 + bGw); }
+      bC *= 0.4 + 0.6 * smoothstep(0.0, 0.5, bZm);
+      gl_FragColor = vec4(vec3(tone(bC.r), tone(bC.g), tone(bC.b)) * uAlpha, uAlpha); return; }
+    float bSp = 0.1, bCrk = 0.0, bOcc = 1.0, bGk = 0.0;
+    if (id == 172) { bA = vec3(0.12, 0.11, 0.105) * (0.75 + 0.5 * bW2) + vec3(0.5, 0.45, 0.38) * step(0.93, hs(floor(bP.xy * 40.0 + bP.z * 23.0))) * pow(bNh, 8.0); bSp = 0.35; }   // (charcoal basalt, a few glinting grains)
+    else if (id == 170 || uKind > 0.5) {   // layered strata, tilted bedding, warped: sandstone beige, terracotta, dark orange, pale bands and now and then a charcoal parting
+      float bS = dot(bP, vec3(0.26, 0.14, 0.95)) * 5.0 + (bW1 - 0.5) * 1.5 + (bW2 - 0.5) * 0.3, bLi = floor(bS), bB = bS - bLi, bH0 = hs(vec2(bLi, 3.7)), bH1 = hs(vec2(bLi + 1.0, 3.7));
+      vec3 bC0 = bH0 < 0.28 ? vec3(0.86, 0.71, 0.5) : bH0 < 0.52 ? vec3(0.56, 0.25, 0.12) : bH0 < 0.74 ? vec3(0.83, 0.44, 0.12) : bH0 < 0.86 ? vec3(0.95, 0.86, 0.68) : vec3(0.17, 0.145, 0.13);
+      vec3 bC1 = bH1 < 0.28 ? vec3(0.86, 0.71, 0.5) : bH1 < 0.52 ? vec3(0.56, 0.25, 0.12) : bH1 < 0.74 ? vec3(0.83, 0.44, 0.12) : bH1 < 0.86 ? vec3(0.95, 0.86, 0.68) : vec3(0.17, 0.145, 0.13);   // (sandstone beige, terracotta, dark orange, a pale band, a charcoal parting)
+      bA = mix(bC0, bC1, smoothstep(0.86, 0.98, bB)) * (0.8 + 0.32 * bW2) * (0.9 + 0.2 * bW3);
+      bA = mix(bA, vec3(0.24, 0.14, 0.08), (smoothstep(0.1, 0.0, bB) + smoothstep(0.9, 0.99, bB) * 0.6) * 0.45);   // (thin dark partings between the beds)
+      bA = mix(bA, bA * vec3(0.92, 0.85, 0.8), smoothstep(0.55, 0.8, vn(vec2(bS * 3.0, bW3 * 4.0))) * 0.5);   // (laminations within a bed)
+      if (id == 170) { bCrk = clamp(edge, 0.0, 1.0); bOcc = clamp(ao, 0.0, 1.0); bGk = smoothstep(0.04, 0.2, bFr) * smoothstep(0.25, 0.8, bCrk); }
+      else { bA = mix(bA, vec3(0.95, 0.85, 0.66), smoothstep(0.86, 1.0, edge) * (0.4 + 0.4 * bW3)); bOcc = 0.85 + 0.15 * smoothstep(0.0, 0.5, edge); } }
+    else {   // a shard: compacted basalt and sandstone in sharp, slanted beds; fresh pale chips along its facets' rims
+      float bS = dot(bP, vec3(0.62, 0.7, 0.5)) * 3.4 + (bW1 - 0.5) * 0.7, bH0 = fract(floor(bS) * 0.5 + 0.25) < 0.5 ? 0.2 : hs(vec2(floor(bS), 9.1)) * 0.55 + 0.45;   // (charcoal basalt every other bed)
+      bA = bH0 < 0.45 ? vec3(0.12, 0.11, 0.105) * (0.8 + 0.4 * bW2) : bH0 < 0.75 ? vec3(0.86, 0.7, 0.48) * (0.85 + 0.25 * bW2) : vec3(0.66, 0.32, 0.15) * (0.85 + 0.25 * bW2);
+      float bChip = smoothstep(0.82, 0.98, edge) * (0.45 + 0.55 * step(0.45, bW3)); bA = mix(bA, bH0 < 0.45 ? vec3(0.42, 0.4, 0.38) : vec3(0.96, 0.88, 0.7), bChip * 0.75); bSp = bH0 < 0.45 ? 0.4 : 0.15;
+      bOcc = 0.8 + 0.2 * smoothstep(0.0, 0.4, edge); }
+    bA *= 1.0 - 0.35 * smoothstep(0.82, 0.9, vn(bP.xy * 13.0 + bP.z * 9.0)) * (1.0 - uLow);   // (pits)
+    bA *= 1.0 - 0.72 * bCrk;   // (a crack: dark inside)
+    bC = bA * (bAmb * 0.85 + bKey * (0.14 + 0.92 * bLit)) * bOcc + vec3(1.0, 0.92, 0.8) * pow(bNh, 22.0) * bSp * (1.0 - bCrk) + bRim * (1.0 - 0.6 * bCrk);
+    if (id == 170) bC += mix(bAM, bGO, smoothstep(0.7, 1.0, bCrk)) * bGk * (0.7 + 1.5 * bGw) * (0.82 + 0.18 * sin(uTime * 3.1 + bP.x * 5.0 + bP.y * 3.0)) + bAM * smoothstep(0.2, 0.6, bCrk) * (1.0 - bGk) * 0.04;   // (the amber light inside the selected seams)
+    bC *= 0.45 + 0.55 * smoothstep(0.0, 0.45, bZm);   // (darker where it meets the floor)
+    gl_FragColor = vec4(vec3(tone(bC.r), tone(bC.g), tone(bC.b)) * uAlpha, uAlpha); return; }
+  /*</BR-MAT>*/
   else if (id >= 38 && id <= 47) {   // ---- Nidhogg (M). uKind 0 a rigid part (detail from its own coordinates), 6 a swept tube (vA.y = along it in armour periods, vA.z = round it, 0 the top, 0.5 the belly), 7 a moving part with a true edge and occlusion; uGlow2 = the trace (Ultima: every seam white-hot)
     float su = edge, sv = ao, trc = clamp(uGlow2, 0.0, 1.0), gK = 0.35 + 0.9 * uGlow + 0.45 * trc, ndv0 = max(0.0, dot(n, uV)); vec3 fireC = vec3(1.0, 0.3, 0.05), hotC = vec3(1.6, 0.9, 0.42);
     if (uKind > 5.5 && uKind < 6.5) { edge = 0.0; ao = 0.72 + 0.28 * smoothstep(0.0, 0.32, abs(sv - 0.5)); }   // (a tube: its underside shaded)

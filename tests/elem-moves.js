@@ -1,7 +1,7 @@
 // Every elemental Strong and Ultimate fires in the Tower without errors, lands damage, and cleans up its effects.
 // usage: node tests/elem-moves.js            (every element that has an implementation)
 //        HTML=test-wind.html (a build made with: python3 src/build.py --test-only test-wind.html)
-//        ELEM=earth,wind node tests/elem-moves.js      ONLY=faultline,rosary       SHOTS=1 (a screenshot each into shots/)
+//        ELEM=earth,wind node tests/elem-moves.js      ONLY=faultline,rapidfire    SHOTS=1 (a screenshot each into shots/)
 //        SHOT_MS=900 (when to take the screenshot after the cast)   EVO=7 (cast as an evolved pet: 1 Hatchling .. 7 Celestial)
 const { chromium } = require('/opt/npm-tools/node_modules/playwright');
 const path = require('path');
@@ -36,7 +36,7 @@ const path = require('path');
   ok(Object.values(info.counts).every(c => c[0] === 10 && c[1] >= 10) && Object.keys(info.counts).length === 8, 'eight elements, ten Strongs and ten or more Ultimates each (Dark has an 11th)', info.counts);
   console.log('implemented', JSON.stringify(info.impl));
   await page.evaluate(() => window.__pp.dun.startDungeon(3, 11));
-  await page.waitForFunction(() => window.__pp.arc.state === 'ready', null, { timeout: 15000 });
+  await page.waitForFunction(() => window.__pp.arc.state === 'ready', null, { timeout: process.env.GLFLAGS ? 900000 : 15000 });   // (v417 BR: the forced GPU path compiles its shaders on the software rasteriser while the floor loads: minutes)
   await page.evaluate(() => window.__pp.beginPlay()); await page.waitForTimeout(2600);
   const ELEMS = process.env.ELEM ? process.env.ELEM.split(',') : Object.keys(info.impl), ONLY = process.env.ONLY ? process.env.ONLY.split(',') : null;
   const results = [];

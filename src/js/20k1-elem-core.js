@@ -31,14 +31,14 @@ Object.assign(E8_OF, { wind: 'wind', ice: 'ice', water: 'water', thunder: 'thund
 /* the moves: [key, name, glyph, cost, cooldown, description], ten Strongs then ten Ults an element, in unlock order */
 const ELEM_MOVES = {
   earth: { strong: [
-    ['faultline', 'Faultline Fang', 'thorns', 24, 2.6, 'Stamp: a glowing crack races ahead and stone teeth erupt along it, one after another.'],
-    ['rosary', 'Boulder Rosary', 'orbit', 26, 3, 'Five stones rise into orbit round you, then fire one by one at the nearest monster, spinning faster as they go.'],
+    ['faultline', 'Fault Line', 'thorns', 24, 8, 'You strike the ground: an amber crack races ahead and stone wedges buckle up behind it, hitting every monster along it (one fissure; two in a V at Adept; three in a fan at Celestial).'],   // (v417: the user's new Earth strong; was Faultline Fang)
+    ['rapidfire', 'Rapid Fire', 'orbit', 22, 6, 'Stone shards form beside you and fire at your target in a fast barrage, like stone gunfire (6 shots; 8 at Adept; 10 at Celestial).'],   // (v417: replaces Boulder Rosary)
     ['amber', 'Amber Breaker', 'gem', 24, 2.4, 'A wedge of amber grows ahead of you and is thrust forward; its tip shatters into golden splinters.'],
-    ['quarry', 'Quarry Wheel', 'boom', 26, 2.8, 'Stone segments lock into a wheel that rolls ahead, crushing all along its way.'],
-    ['geode', 'Geode Burst', 'burst', 26, 3, 'A dark geode rises where you aim, cracks with coloured light, then splits into a burst of shards.'],
+    ['ballcrusher', 'Ball Crusher', 'boom', 28, 16, 'Launches an enormous boulder that rolls for six seconds, rebounding off walls and crushing monsters on every pass (larger at Adept; two boulders at Celestial).'],   // (v417: replaces Quarry Wheel)
+    ['godshand', "God's Hand", 'burst', 30, 12, 'Fragments assemble into an enormous stone fist above your aim; it smashes down in one huge blow that staggers monsters (larger at Adept and Celestial).'],   // (v417: replaces Geode Burst; 6-star only)
     ['talons', 'Terracotta Talons', 'claw', 24, 2.6, 'Three stone claws sweep out of the ground ahead; the last crosses the first two.'],
     ['sandglass', 'Sandglass Snare', 'hourglass', 26, 3.4, 'Sand streams into a ring that slows and scours the monsters inside, then bursts upward.'],
-    ['basalt', 'Basalt Knuckle', 'hammer', 26, 2.8, 'Dark blocks stack into a huge fist beside you; it punches a short line and shoves monsters back.'],
+    ['mercuryhammer', "Mercury's Hammer", 'hammer', 26, 10, 'You wield a huge hammer of rock and steel: an overhead smash (a sweep and a finisher at Adept; a four-blow combo at Celestial).'],   // (v417: replaces Basalt Knuckle)
     ['cairn', 'Skipping Cairn', 'slam', 24, 2.6, 'A flat stone skips three times toward your aim, each bounce a ring of pebbles and a blow.'],
     ['rebuttal', "Mountain's Rebuttal", 'shield', 28, 3.6, 'Slabs rise round you and guard you for a moment, then tilt out and slam down as a shockwave.'] ],
   ult: [
@@ -227,14 +227,15 @@ const ELEM_SIX = {
   ice: { strong: ['absolutewinter', 'rimecoil', 'snowfall'], ult: ['iceage', 'fenrir', 'catastrophe'] },
   thunder: { strong: ['sparkstep', 'staticblossom', 'stormthread'], ult: ['beastmachine', 'ragnarok', 'thunderstorm'] },   // (Ragnarok here is Thunder's Ult, not the 5★ star-pool Ragnarok)
   wind: { strong: ['cyclone', 'seedburst', 'windblades'], ult: ['belladonna', 'pandemonium', 'terribletornado'] },
-  earth: { strong: ['rebuttal', 'quarry', 'rosary'], ult: ['genbu', 'coronation', 'rocky'] },
+  earth: { strong: ['rebuttal', 'godshand'], ult: ['genbu', 'coronation', 'rocky'] },   // (v417: God's Hand 6-star only; Quarry/Rosary replaced by Ball Crusher/Rapid Fire in the normal pool, the user 2026-11-19)
   light: { strong: ['lovebombs', 'sweetheartstamp', 'loveshock'], ult: ['sportscar', 'sunflare', 'salvation'] },
   dark: { strong: ['demonblade', 'dracula', 'eclipsemantle'], ult: ['susanoo', 'dayofthedead', 'annihilation', 'finaleclipse'] },
 };
 for (const e in ELEM_SIX) for (const s of ['strong', 'ult']) ELEM_SIX[e][s].forEach(k => { if (!ELEM_LIST[e] || !ELEM_LIST[e][(s === 'ult' ? 'ey_' : 'ex_') + k]) console.warn('ELEM_SIX: no ' + e + ' ' + s + ' "' + k + '"'); });
 const elemId = (el, key) => `e:${el}:${key}`;
 /* (v370) moves replaced in place: an old key reads as the move now in its row, so a pet that had it equipped keeps the slot */
-const ELEM_ALIAS = { wind: { silkstream: 'gust', courier: 'flumes', updraft: 'windblades', shears: 'boomerang', pearl: 'seedburst', galestair: 'featherfall', featherstorm: 'garuda', zephyr: 'swallow', needle: 'sanctuary', tailwind: 'cyclone' } };
+const ELEM_ALIAS = { earth: { rosary: 'rapidfire', quarry: 'ballcrusher', geode: 'godshand', basalt: 'mercuryhammer' },   // (v417)
+  wind: { silkstream: 'gust', courier: 'flumes', updraft: 'windblades', shears: 'boomerang', pearl: 'seedburst', galestair: 'featherfall', featherstorm: 'garuda', zephyr: 'swallow', needle: 'sanctuary', tailwind: 'cyclone' } };
 const elemParse = id => { if (typeof id !== 'string' || id.slice(0, 2) !== 'e:') return null; let [, el, key] = id.split(':'); const M = ELEM_LIST[el]; if (!M) return null; const al = ELEM_ALIAS[el]; if (al && al[key] && !M['ex_' + key]) key = al[key]; return M['ex_' + key] || M['ey_' + key] || null; };
 const petStars = p => starsOf(rarityOf(formOf(p)));
 /* may this pet learn this move: its own element, its level, and (an Ultimate) its stars */
