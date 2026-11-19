@@ -33,7 +33,8 @@
   function scr(c) { const m = c.getTransform(), a = m.a || 1, d = m.d || 1; return { x0: -m.e / a, y0: -m.f / d, w: c.canvas.width / a, h: c.canvas.height / d, k: a }; }
   let H;
   /* (v415 EB) the GPU picture: the shared painter (20k6h FGFX, Earth's kinds 80..87) when it is usable; else the 2D picture below, as it was */
-  const gfx = () => { try { const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; return F && F.usable() ? F : null; } catch (e) { return null; } };
+  /* (v416 OD) and the drills themselves real 3D meshes on GLM (20k2iz DRILL_GPU): the GPU picture needs both */
+  const gfx = () => { try { const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; return F && F.usable() && typeof DRILL_GPU !== 'undefined' && DRILL_GPU.usable() ? F : null; } catch (e) { return null; } };
 
   /* ---- the camera: the game's floor squash (0.55) as the sine of the view's elevation ---- */
   const SE = 0.55, CE = Math.sqrt(1 - SE * SE), V = [0, CE, SE];
@@ -222,6 +223,16 @@
     const chips = [], dust = [], specks = [], cracks = [];
     let dead = false, ruptured = false, plunged = false;
     H.X.banner('OBSIDIAN DRILL', '', C.col, 1.4); H.X.sfx.hum();
+    if (gfx()) DRILL_GPU.warm();   // (v416 OD: the meshes onto the GPU during the mark, if they are not there yet)
+    /* (v416 OD) the GPU picture's floor slabs round each foot: the far ones under the monsters (drawUnder), the near ones over the
+       drill (draw), each left out where a nearer drill's body stands in front of it (DL: the drills as drawn this frame) */
+    const Zh = d => (1 - Math.min(1, d.rise)) * (HT + 0.7) - Math.max(0, d.rise - 1) * (HT + 0.7);   // (how deep a drill is still sunk, model units)
+    const behind = (x, y, fy, DL) => { for (const q of DL) { if (q.Y <= fy + 0.5) continue; const w = q.u * q.sq, dx = Math.abs(x - q.X) / w; if (dx > 1.02) continue;
+      if (y > q.Y + SE * q.u * Math.sqrt(Math.max(0, 1 - dx * dx))) continue; const zt = (q.Y - y) / (CE * q.u); if (zt > HT + 0.12 - q.dz) continue; const zz = zt + q.dz; if (zz > ZB && dx > DRILL_GPU.roAt(zz)) continue; return true; } return false; };
+    const slabsQ = (Q, d, X, Y, u, ca, pulse, front, DL) => { const n = d.main ? 15 : 10; for (let k = 0; k < n; k++) { const a = k / n * TAU + R1(seed + d.i * 7 + k) * 0.4, fr = Math.sin(a) > 0; if (fr !== front) continue;
+      const rr = u * (1.08 + 0.18 * R1(k * 5.7 + d.i)), s2 = u * (0.2 + 0.12 * R1(k * 2.3 + d.i)), rot = R1(k * 3.1) * TAU, sx = X + Math.cos(a) * rr, fy = Y + Math.sin(a) * rr * SE, sy = fy - s2 * 0.3 - (1 - ca) * u * 0.3;
+      if (DL && behind(sx, sy, fy, DL)) continue; Q.rq(85, sx, sy, s2, s2 * 0.7, rot, '#FFFFFF', ca, rot, d.i * 3 + k, (k % 3 ? 0 : 3) + 0.9 * 0.3 * pulse); } };
+    const pulseOf = (d, t) => (CEL && !d.main ? 0.5 + 0.5 * Math.sin(t * 5 - d.i * 0.6) : 0.5 + 0.5 * Math.sin(t * 3.2));
     // the rupture's cracks: from the formation outward, branching once
     { const NC = 12 + 2 * NSM; for (let i = 0; i < NC; i++) { let b = i / NC * TAU + (R1(seed + i * 1.3) - 0.5) * 0.35, r = U0 * 0.9; const pts = [[cx + Math.cos(b) * r, cy + Math.sin(b) * r]], L = RR * (0.75 + 0.3 * R1(seed + i * 2.7)), n = 9;
       for (let k = 0; k < n; k++) { b += (R1(seed + i * 7 + k) - 0.5) * 0.3; r += (L - U0 * 0.9) / n; pts.push([cx + Math.cos(b) * r, cy + Math.sin(b) * r]); }
@@ -296,6 +307,7 @@
             if (e > 0 && d.rise > 0.02) { const on = Math.min(1, d.rise) * end * (d.main ? 1 : 0.6), gr = u * 1.22, fin = t > TF ? sm((t - TF) / 0.4) : 0;
               Q.quad(82, X, Y, u * 1.7, 0, 0, u * 1.7 * SE, '#FFFFFF', on, 0.25 + 0.2 * Math.sin(t * 9 + d.i) + 0.35 * fin, sd);
               Q.sshadow(X, Y, u * 1.25, u * 1.25 * SE, 0.75 * on, '#0A0604');
+              slabsQ(Q, d, X, Y, u, sm(d.rise * 1.6) * end, pulseOf(d, t), false, null);   // (v416 OD: the far slabs of its collar, under the drill)
               Q.quad(83, X, Y, u * 2.3, 0, 0, u * 2.3 * SE, '#FFFFFF', on * (0.6 + 0.2 * Math.sin(t * 9 + d.i)), 0.35 + 0.3 * fin, sd, 0.9 * 0.7);
               Q.ring(X, Y, gr, GOLD, on * (0.55 + 0.15 * Math.sin(t * 13 + d.i)), gr * 0.1, SE); Q.ring(X, Y, gr * 0.98, PALE, on * 0.45, gr * 0.03, SE); Q.glow(X, Y, u * 1.6, AMBER, on * (0.25 + 0.2 * fin), SE);
               for (let k = 0, nk = d.main ? 6 : 3; k < nk; k++) { const b = d.rot + k / nk * TAU, s2 = 0.5 + 0.5 * Math.sin(b * 3); Q.star(X + Math.cos(b) * gr * 0.95, Y + Math.sin(b) * gr * 0.95 * SE, u * 0.3, on * 0.8 * s2, PALE); }
@@ -337,27 +349,31 @@
       draw(c, f, X0, Y0, T) {
         const t = f.t, SC = scr(c), end = cl(f.life / 0.5), PX = H.sx(me.x), PY = H.sy(me.y) - T * 0.45;
         const order = drills.slice().sort((p, q) => p.y - q.y);
-        { const FG = gfx(); if (FG) { /* (v415 EB) the GPU picture: each drill ray-marched per pixel (kind 86: glossy black volcanic glass in sharp
-             conchoidal facets, gold crystal along its flights' rims and in their joints), rising out of a collar of broken floor slabs (85) behind
-             and in front of it, gold highlights travelling up its leading edges, the tip's burst of light; obsidian shards, chips and dust (84) */
-          const Q = FG.begin(c, [PX, PY, T * 0.6]);
-          for (const d of order) { if (d.rise <= 0.005) continue;
-            const X = H.sx(d.x), Y = H.sy(d.y), u = d.u0 * T, dz = (1 - Math.min(1, d.rise)) * (HT + 0.7) - Math.max(0, d.rise - 1) * (HT + 0.7), ca = sm(d.rise * 1.6) * end;
-            const pulse = CEL && !d.main ? 0.5 + 0.5 * Math.sin(t * 5 - d.i * 0.6) : 0.5 + 0.5 * Math.sin(t * 3.2), gw = Math.min(1, 0.35 + 0.35 * pulse + (t > TF ? 0.4 * sm((t - TF) / 0.4) : 0));
-            const slab = front => { const n = d.main ? 11 : 7; for (let k = 0; k < n; k++) { const a = k / n * TAU + R1(seed + d.i * 7 + k) * 0.4, fr = Math.sin(a) > 0; if (fr !== front) continue; const rr = u * (1.08 + 0.18 * R1(k * 5.7 + d.i)), s2 = u * (0.2 + 0.12 * R1(k * 2.3 + d.i)), rot = R1(k * 3.1) * TAU;
-              Q.rq(85, X + Math.cos(a) * rr, Y + Math.sin(a) * rr * SE - s2 * 0.3 - (1 - ca) * u * 0.3, s2, s2 * 0.7, rot, '#FFFFFF', ca, rot, d.i * 3 + k, (k % 3 ? 0 : 3) + 0.9 * 0.3 * pulse); } };
-            slab(false);
-            Q.quad(86, X, Y - 1.525 * u, 1.15 * u * d.sq, 0, 0, 2.275 * u, '#FFFFFF', end, d.rot, dz, Math.max(1, Math.floor(u * Q.k)) + 0.9 * gw);
-            Q.glow(X, Y - 1.4 * u, u * 1.6, AMBER, 0.22 * gw * end); Q.glow(X, Y - 0.6 * u, u * 1.1, GOLD, 0.12 * gw * end);
-            for (let s2 = 0; s2 < 2; s2++) { const zz = ((t * 0.9 + s2 * 0.5 + d.i * 0.2) % 1) * (ZB + 1.2), an = d.rot + zz / PITCH * TAU + s2 * Math.PI, sn = Math.sin(an); if (sn < 0.15 || zz - dz < 0.1) continue; const ro = roAt(zz - Math.min(0, dz) * 0), hx = X + Math.cos(an) * ro * u * d.sq, hy = Y + (Math.sin(an) * ro * SE - (zz - dz) * CE) * u; Q.glow(hx, hy, u * 0.35, PALE, end * 0.7 * sn); Q.star(hx, hy, u * 0.3, end * 0.6 * sn, CORE); }
-            slab(true);
+        { const FG = gfx(); if (FG) { /* (v416 OD) the GPU picture: the drills as real 3D meshes (20k2iz DRILL_GPU on GLM: glossy black volcanic
+             glass, gold crystal inlaid along the flights' rims and in their joints), every one in one render at the screen's full resolution,
+             turning, rising, sinking through the floor; then on the painter (v415 EB) the near slabs of each collar of broken floor (85, left out
+             behind a nearer drill), a faint warm haze, gold highlights travelling up the leading edges, the tip's burst of light; obsidian
+             shards, chips and dust (84), those behind a drill hidden by it */
+          const DL = [];
+          for (const d of order) { if (d.rise <= 0.005) continue; const gw = Math.min(1, 0.35 + 0.35 * pulseOf(d, t) + (t > TF ? 0.4 * sm((t - TF) / 0.4) : 0));
+            DL.push({ X: H.sx(d.x), Y: H.sy(d.y), u: d.u0 * T, rot: d.rot, dz: Zh(d), sq: d.sq, glow: gw, main: d.main, d }); }
+          let pet = null; for (const q of DL) { const Ytop = q.Y - (HT + 0.2 - q.dz) * CE * q.u; if (dimAt(q.X, Ytop, q.Y, q.u * 1.3, PX, PY) < 1) { pet = [PX, PY, T * 0.85]; break; } }
+          if (DL.length) DRILL_GPU.draw(c, DL, { k: T * 2, alpha: end, pet });
+          const Q = FG.begin(c, [PX, PY, T * 0.6]), hid = (x, y, fy) => behind(x, y, fy, DL);
+          for (const q of DL) { const d = q.d, X = q.X, Y = q.Y, u = q.u, dz = q.dz, ca = sm(d.rise * 1.6) * end, gw = q.glow;
+            slabsQ(Q, d, X, Y, u, ca, pulseOf(d, t), true, DL);
+            Q.glow(X, Y - 1.5 * u, u * 1.8, AMBER, 0.17 * gw * end); Q.glow(X, Y - 0.3 * u, u * 1.4, GOLD, 0.16 * gw * end);
+            for (let s2 = 0; s2 < 2; s2++) { const zz = ((t * 0.9 + s2 * 0.5 + d.i * 0.2) % 1) * (ZB + 1.2), an = d.rot + (zz - DRILL_GPU.Z0) / PITCH * TAU + s2 * Math.PI, sn = Math.sin(an); if (sn < 0.15 || zz - dz < 0.1) continue;
+              const ro = DRILL_GPU.roAt(zz), hx = X + Math.cos(an) * ro * u * d.sq, hy = Y + (Math.sin(an) * ro * SE - (zz - dz) * CE) * u; Q.glow(hx, hy, u * 0.3, PALE, end * 0.45 * sn); Q.star(hx, hy, u * 0.26, end * 0.55 * sn, CORE); }
             if (d.rise > 0.6 && t < TP) for (let k = 0; k < (d.main ? 4 : 2); k++) { const ph = (t * 0.7 + k / (d.main ? 4 : 2) + d.i * 0.21) % 1, an = d.rot * 0.3 + k * 2.1 + d.i, r2 = u * (0.4 + 0.4 * ph);   // (v415 EB: dust rolling off its foot)
-              Q.quad(84, X + Math.cos(an) * u * 1.05 * (1 + 0.35 * ph), Y + Math.sin(an) * u * 0.55 - ph * u * 0.45, r2, 0, 0, r2 * 0.8, '#7E6A54', Math.sin(ph * Math.PI) * 0.5 * ca, ph, d.i * 3 + k + 1, 0.9 * 0.3); }
+              const fx = X + Math.cos(an) * u * 1.05 * (1 + 0.35 * ph), fy = Y + Math.sin(an) * u * 0.55, fyy = fy - ph * u * 0.45; if (hid(fx, fyy, fy)) continue;
+              Q.quad(84, fx, fyy, r2, 0, 0, r2 * 0.8, '#7E6A54', Math.sin(ph * Math.PI) * 0.5 * ca, ph, d.i * 3 + k + 1, 0.9 * 0.3); }
             const e = t - d.em; if (e > 0 && e < 0.4) { Q.glow(X, Y - u * 0.3, u * (1.4 + 1.6 * e), PALE, (1 - e / 0.4) * 0.7); Q.glow(X, Y - u * 0.2, u * (0.8 + 2 * e), CORE, (1 - e / 0.4) * 0.5); } }
-          for (const p of dust) { if (p.t < 0) continue; const q = p.t / p.life, r = T * p.s * (0.6 + 0.9 * q), a = Math.sin(Math.min(1, q * 2.5) * Math.PI / 2) * (1 - q) * (p.veil ? 0.8 : p.fine ? 0.5 : 0.7);
-            Q.quad(84, H.sx(p.x), H.sy(p.y) - p.z * T, r, 0, 0, r * (p.veil ? 0.6 : 0.85), '#7E6A54', a, q, p.sd || (p.sd = 1 + Math.random() * 9), 0.9 * 0.3 * Math.max(0, 1 - q * 2)); }
+          for (const p of dust) { if (p.t < 0) continue; const q = p.t / p.life, r = T * p.s * (0.6 + 0.9 * q), a = Math.sin(Math.min(1, q * 2.5) * Math.PI / 2) * (1 - q) * (p.veil ? 0.8 : p.fine ? 0.5 : 0.7), x = H.sx(p.x), fy = H.sy(p.y), y = fy - p.z * T;
+            if (!p.veil && hid(x, y, fy)) continue; Q.quad(84, x, y, r, 0, 0, r * (p.veil ? 0.6 : 0.85), '#7E6A54', a, q, p.sd || (p.sd = 1 + Math.random() * 9), 0.9 * 0.3 * Math.max(0, 1 - q * 2)); }
           for (const p of chips) { if (p.t < 0) continue; const sz = p.s * T * 1.1, a = (p.settle ? 1 - sm((p.t - p.life * 0.6) / (p.life * 0.4)) : 1 - sm((p.t - p.life * 0.7) / (p.life * 0.3))) * (p.pull ? sm(p.t / 0.1) : 1); if (a < 0.02 || sz < 0.5) continue;
-            Q.rq(85, H.sx(p.x), H.sy(p.y) - p.z * T, sz * (p.k === 1 ? 0.6 : 1), sz * (p.k === 1 ? 1 : 0.8), p.rot, '#FFFFFF', a, p.rot, p.k * 2.3 + 1, p.k === 1 ? 2 : p.k === 3 ? 0 : 1); }
+            const x = H.sx(p.x), fy = H.sy(p.y), y = fy - p.z * T; if (hid(x, y, fy)) continue;
+            Q.rq(85, x, y, sz * (p.k === 1 ? 0.6 : 1), sz * (p.k === 1 ? 1 : 0.8), p.rot, '#FFFFFF', a, p.rot, p.k * 2.3 + 1, p.k === 1 ? 2 : p.k === 3 ? 0 : 1); }
           for (const p of specks) { if (p.t < 0) continue; const q = p.t / p.life, X = H.sx(p.x), Y = H.sy(p.y) - p.z * T, s = T * p.s * (1 + 2 * (1 - q)); Q.glow(X, Y, s * 1.4, HONEY, Math.sin(q * Math.PI) * 0.8); Q.star(X, Y, s * 1.2, Math.sin(q * Math.PI), PALE); }
           if (ruptured) { const p = t - TR; if (p < 0.35) { Q.glow(H.sx(cx), H.sy(cy) - T * 0.3, RR * T * 0.55, PALE, 0.35 * (1 - p / 0.35)); Q.glow(H.sx(cx), H.sy(cy) - T * 0.2, RR * T * 1.0, AMBER, 0.3 * (1 - p / 0.35)); } }
           FG.flush(c); return; } }
@@ -396,5 +412,6 @@
       } });
     void F; void EARTH; void px; void py; void fx; void fy;
   };
+  U.obsidiandrill.warm = () => { setTimeout(() => { try { if (gfx()) DRILL_GPU.warm(); } catch (e) { /* (built on the cast instead) */ } }, 400); };   // (v416 OD: a floor starting with it in a kit)
   U.obsidiandrill.preview = (s, phi) => { const S = drillSet(s); return renderPhase(phi, s, S); };   // (for the model preview in tests)
 })();

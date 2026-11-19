@@ -1033,6 +1033,37 @@ void main() {
     float flare = clamp(uGlow2, 0.0, 1.5); col = mix(col, WH * (0.8 + 0.4 * fis), clamp(flare * (0.35 + 0.5 * fis + 0.25 * (1.0 - ndv0)), 0.0, 1.0));
     gl_FragColor = vec4(vec3(tone(col.r), tone(col.g), tone(col.b)) * uAlpha, uAlpha); return; }
   /*</DOOM-MAT>*/
+  /*<OD-DRILL-MAT ids 150..151 (v416 OD: 20k2iz-earth-drill-gpu.js)>*/
+  else if (id >= 150 && id <= 151) {   // ---- (v416 OD) the Obsidian Drill (20k2iz), z its axis in its own frame: 150 black volcanic glass (150.2 its core, 150.4 its tip; vA.y 1 on a bevel or a facet's rim, vA.z the occlusion), 151 gold crystal (151.0 the inlay along a flight's rim: vA.z its length along the helix; 151.3 a joint's crystal). uGlow the gold's light, uWear world units a model unit (its height over the floor from vW.z), uTime.
+    // Glass: a near-black body with a grey-violet lit flank; a cool sky above, a bright horizon strip and the floor's warm light below in its reflections; a fresnel rim; sharp glints with a faint rainbow sheen; conchoidal facets (a cell net round the axis, each cell tilting the normal its own way, rippled from its seed) that turn with it; bright bevels
+    float fr = vA.x - float(id), gw = clamp(uGlow, 0.0, 1.5), zm = vW.z / max(uWear, 1e-4), ang = atan(L.y, L.x), rr = length(L.xy), ridge = 1.0, hx = 0.5;
+    vec3 nl = NL;
+    if (uLow < 0.5) { vec2 cp = vec2(ang * 2.5464791, L.z * 3.4 + rr * 1.7), ci = floor(cp), cf = cp - ci, bc = vec2(0.0), bo = vec2(0.0); float d1 = 9.0, d2 = 9.0;
+      for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) { vec2 g = vec2(float(i), float(j)), cc = ci + g; cc.x = mod(cc.x, 16.0); vec2 dd = g + vec2(hs(cc), hs(cc + 17.3)) * 0.8 + 0.1 - cf; float d = dot(dd, dd); if (d < d1) { d2 = d1; d1 = d; bc = cc; bo = dd; } else if (d < d2) d2 = d; }
+      float rl = sqrt(d1); ridge = sqrt(d2) - rl; hx = hs(bc + 3.1); vec3 Tf = vec3(-sin(ang), cos(ang), 0.0);
+      nl = normalize(nl + (vec3(hx, hs(bc + 7.7), hs(bc + 11.9)) - 0.5) * (id == 151 ? 0.55 : 0.32) - (Tf * bo.x + vec3(0.0, 0.0, bo.y)) / max(rl, 1e-3) * sin(rl * 26.0) * 0.045); }
+    { vec3 n2 = normalize(uM0 * nl.x + uM1 * nl.y + uM2 * nl.z); if (dot(n2, uV) < -0.02) n2 = -n2; n = n2; }
+    float ndv = max(0.001, dot(n, uV)), ndl = dot(n, uLK), dif = max(ndl, 0.0), wrap = clamp(ndl * 0.5 + 0.5, 0.0, 1.0);
+    vec3 R = 2.0 * ndv * n - uV; float up = dot(R, uUP), sb = max(dot(R, uLK), 0.0), sr = max(dot(R, uLR), 0.0), hz = up - 0.07;
+    vec3 sky = mix(vec3(0.09, 0.095, 0.16), vec3(0.7, 0.74, 0.98), pow(smoothstep(0.0, 1.0, up), 1.4)), flo = mix(vec3(0.95, 0.45, 0.1) * (0.4 + 0.6 * gw), vec3(0.1, 0.06, 0.045), smoothstep(-0.04, -0.6, up));
+    vec3 ev = (up > 0.0 ? sky : flo) + vec3(0.95, 0.9, 1.0) * exp(-hz * hz / 0.0022) * 0.55, c;
+    if (id == 151) { float jt = step(0.15, fr); vec3 G0 = vec3(1.0, 0.8, 0.34), Fg = G0 + (1.0 - G0) * pow(1.0 - ndv, 5.0);
+      c = G0 * (0.18 + 0.85 * dif) * vec3(1.0, 0.9, 0.65) + Fg * ev * 1.4 + vec3(1.0, 0.94, 0.78) * (pow(sb, 90.0) * 3.0 + pow(sb, 14.0) * 0.45) + vec3(0.7, 0.8, 1.0) * pow(sr, 30.0) * 0.6;
+      c += mix(vec3(0.85, 0.42, 0.06), vec3(1.5, 1.08, 0.42), pow(ndv, 1.2)) * (0.55 + 0.9 * gw) * (1.0 + 0.35 * jt);   // (its warm inner light)
+      if (jt < 0.5) c += vec3(1.5, 1.2, 0.7) * pow(max(0.0, sin(ao * 0.9 - uTime * 4.2)), 24.0) * (0.5 + 0.7 * gw);   // (a light running up along the rim)
+      c += vec3(1.0, 0.9, 0.7) * (1.0 - smoothstep(0.0, 0.07, ridge)) * 0.35 * (0.3 + dif); }
+    else { float occ = mix(0.3, 1.0, clamp(ao, 0.0, 1.0)), F = 0.045 + 0.955 * pow(1.0 - ndv, 4.0); vec3 ir = 0.5 + 0.5 * cos(6.2832 * (ndv * 1.4 + hx * 0.7 + vec3(0.0, 0.33, 0.67)));
+      c = (vec3(0.007, 0.006, 0.01) + vec3(0.03, 0.027, 0.042) * wrap * wrap + vec3(0.11, 0.1, 0.15) * smoothstep(0.66, 0.98, wrap)) * occ;
+      float pnl = smoothstep(0.86, 0.95, dot(R, uLS)), sbk = 0.22 + F;   // (a soft window high behind: whole facets flash with it as they turn)
+      c += ev * F * (0.4 + 0.6 * occ) * 1.3 + vec3(1.0, 0.96, 0.9) * pnl * sbk * 1.25 * (0.4 + 0.6 * occ) + mix(vec3(1.0), ir, 0.6) * pow(sb, 14.0) * 0.3 * occ + ir * pow(sb, 22.0) * 0.3 * occ + vec3(1.0, 0.97, 0.93) * (pow(sb, 220.0) * 4.0 + pow(sb, 60.0) * 0.8) * (0.5 + 0.5 * occ);
+      c += vec3(0.55, 0.65, 1.0) * (pow(sr, 120.0) * 1.1 + pow(sr, 30.0) * 0.06) + pow(1.0 - ndv, 3.0) * max(0.0, dot(n, uLR) + 0.3) * vec3(0.45, 0.52, 0.9) * 0.45 * (1.0 - 0.7 * dif);
+      c += vec3(0.85, 0.82, 1.0) * (1.0 - smoothstep(0.0, 0.05, ridge)) * (0.03 + 0.35 * dif) * 0.5;
+      c += vec3(0.95, 0.82, 0.62) * smoothstep(0.82, 1.0, edge) * (0.02 + 0.4 * dif * dif * dif + 0.3 * pow(sb, 6.0));   // (the bevels catch the light)
+      c += vec3(0.75, 0.36, 0.08) * (1.0 - smoothstep(0.0, 1.5, zm)) * max(0.3 - n.z, 0.0) * (0.3 + 0.5 * gw);   // (the floor's warm bounce)
+      if (fr > 0.1 && fr < 0.3 && uLow < 0.5) { float vv = abs(vn(L.xy * 3.0 + L.z * 2.1) - 0.5), vein = smoothstep(0.03, 0.006, vv) * smoothstep(0.4, 0.7, vn(L.yz * 1.3 + 4.0)); c = mix(c, vec3(1.0, 0.65, 0.18) * (0.5 + 0.8 * gw) + pow(sb, 30.0), vein * 0.9); } }   // (faint gold veins in the core)
+    c *= 0.22 + 0.78 * smoothstep(0.0, 0.6, zm);   // (dark where it grinds into the floor)
+    gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
+  /*</OD-DRILL-MAT>*/
   else if (id >= 38 && id <= 47) {   // ---- Nidhogg (M). uKind 0 a rigid part (detail from its own coordinates), 6 a swept tube (vA.y = along it in armour periods, vA.z = round it, 0 the top, 0.5 the belly), 7 a moving part with a true edge and occlusion; uGlow2 = the trace (Ultima: every seam white-hot)
     float su = edge, sv = ao, trc = clamp(uGlow2, 0.0, 1.0), gK = 0.35 + 0.9 * uGlow + 0.45 * trc, ndv0 = max(0.0, dot(n, uV)); vec3 fireC = vec3(1.0, 0.3, 0.05), hotC = vec3(1.6, 0.9, 0.42);
     if (uKind > 5.5 && uKind < 6.5) { edge = 0.0; ao = 0.72 + 0.28 * smoothstep(0.0, 0.32, abs(sv - 0.5)); }   // (a tube: its underside shaded)
