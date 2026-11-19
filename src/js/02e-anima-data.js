@@ -16,10 +16,14 @@ const ANIMAS = {
     color: '#FF5A3C', glow: '#FFB066', dark: '#5A1424', forms: ['Ember Lamb', 'Cinder Ram', 'Samael the Infernal'],
     skill: 'Charges into monster after monster. Every hit builds Rage, so the charges get faster and burn harder.',
     finisher: 'Infernal Stampede', finDesc: 'A blazing stampede through every monster in reach, leaving the ground on fire.' },
-  taurus: { sign: 'Taurus', name: 'Belial', title: 'The Transcendent', role: 'Tank', realm: 'void', el: 'gold', gem: 'emerald', floor: 7, opp: 'scorpio',
-    color: '#F2C65A', glow: '#FFE9A8', dark: '#1E1C24', forms: ['Gilded Calf', 'Bronze Bull', 'Belial the Transcendent'],
-    skill: 'Stands guard beside your pet: you take 65% less damage, nearby monsters are dragged to the bull, and every stomp stuns them.',
-    finisher: 'Aegis of Ages', finDesc: 'A golden dome makes your pet untouchable while a great quake stuns the room.' },
+  // v426 BL: Belial remade as The World Pillar, Zodiac Anima No. 02: a colossal biomechanical bull and living citadel of obsidian, bronze,
+  // gold and ivory stone, Earth / Metal, a Tank and Juggernaut (the same 'taurus' key, so saves, gems and ascension carry over). Its forms are
+  // the fortress-bull, the Ascended and the Celestial; its four powers and its finisher are 20g3-belial-moves.js, its model 02f4
+  taurus: { sign: 'Taurus', name: 'Belial', title: 'The World Pillar', role: 'Tank · Juggernaut', realm: 'void', el: 'earth', elems: 'Earth / Metal', no: 2, gem: 'emerald', floor: 7, opp: 'scorpio',
+    color: '#F2C65A', glow: '#FFE9A8', dark: '#1E1C24', forms: ['Belial', 'Ascended Belial', 'Celestial Belial'],
+    tag: 'Zodiac Anima No. 02 · Earth / Metal · a colossal biomechanical god and living citadel that anchors the heavens to the earth.',
+    skill: 'An immovable juggernaut that picks its power for the fight: Thronebreaker Rush charges through far monsters, Crown of Burdens slows and gathers a crowd under falling rings, Citadel Carapace shields your pet and stores the blows for a crushing retaliation, and Graviton Stampede pounds everything clustered round it.',
+    finisher: 'Dominion of the World Pillar', finDesc: 'Belial seizes the world\'s gravity: colossal pillars rise round the room, everything is crushed inward and two great pulses of golden force strike every monster, leaving them slowed and taking more damage.' },
   gemini: { sign: 'Gemini', name: 'Raziel', title: 'The Celestial', role: 'Blaster', realm: 'heaven', el: 'prism', gem: 'sapphire', floor: 13, opp: 'sagittarius',
     color: '#FFD36B', glow: '#9CC8FF', dark: '#1E2B5C', forms: ['Sun & Moon Wyrmlings', 'Twin Star Dragons', 'Raziel the Celestial'],
     skill: 'The twin celestial dragons of sun and moon coil round your pet, taking turns firing piercing beams of sunlight and moonlight.',

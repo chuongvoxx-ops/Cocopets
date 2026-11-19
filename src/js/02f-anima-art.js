@@ -331,34 +331,8 @@ const AnimaArt = (() => {
       if (k === 3) { gem(c, 0, hy - hr * 0.42, 3.6, '#FF3B4E'); L.fx(g => glow(g, 0, hy - hr * 0.42, 14, '#FF3B4E', 0.85)); }
       if (k >= 2) L.fx(g => { g.globalCompositeOperation = 'lighter'; for (let i = 0; i < 4 + k * 3; i++) { const ph = (t * 0.5 + i * 0.137) % 1, x = Math.sin(i * 12.9) * bw * 0.9 + Math.sin(t * 2 + i) * 3, y = by + bh * 0.4 - ph * 75; g.globalAlpha = FA * (Math.sin(ph * Math.PI) * 0.9); blitSized(g, glowSprite(i % 2 ? '#FFB066' : '#FF5A3C'), x - 4, y - 4, 8, 8); } });
     },
-    // Belial: a glossy black calf whose gold horns become a crown of ages, armoured in gold as it grows
-    taurus(c, k, t, L) {
-      const hide = '#24222D', hideHi = '#6A6C92', gold = '#F2C65A', mz = '#4C4756';
-      const bw = [31, 35, 39][k - 1], bh = [22, 23, 25][k - 1], by = [13, 11, 9][k - 1], s = [1, 1.1, 1.22][k - 1], hr = [18, 19.5, 20.5][k - 1], hy = by - bh * 0.92, sway = Math.sin(t * 2.2) * 3;
-      const tp = bez([bw * 0.8, by - 6], [bw * 1.25, by - 4], [bw * 1.32, by + 12 + sway], [bw * 1.16, by + 22 + sway], 12);
-      form(c, ribbon(c, tp, 3.6, 2.2), bw * 1.1, by + 8, 14, hide, { spec: false, lw: 1 });
-      const te = tp[tp.length - 1]; form(c, furPath(c, te[0], te[1] + 3, 3.4, 4.6, { n: 8, len: 3.5, seed: 4 }), te[0], te[1] + 3, 5, '#14121A', { spec: false, lw: 0.9 });
-      if (k === 3) plate(c, () => { c.beginPath(); c.ellipse(te[0], te[1] - 3, 5.2, 5.2, 0, 0, TAU); c.moveTo(te[0] + 3, te[1] - 3); c.ellipse(te[0], te[1] - 3, 3, 3, 0, 0, TAU, true); }, te[0], te[1] - 3, 5.2, gold, { lw: 0.9 });
-      [-1, 1].forEach(sx => { limb(c, sx * bw * 0.58, by + 4, sx * bw * 0.62, 37, 11.5 * s, 9 * s, sh(hide, -0.1), { tex: 'hide', texA: 0.3 }); hoof(c, sx * bw * 0.62, 38.6, 6.4 * s, '#121016', k >= 2 ? gold : null); });
-      [-1, 1].forEach(sx => { limb(c, sx * 11, by + 6, sx * 11.5, 37.5, 12.5 * s, 9.6 * s, hide, { tex: 'hide', texA: 0.3 }); hoof(c, sx * 11.5, 39, 7 * s, '#121016', k >= 2 ? gold : null); });
-      form(c, ell(c, 0, by, bw, bh), 0, by, bw, hide, { tex: 'hide', texA: 0.32, hi: hideHi, specA: 0.5, spR: 0.42, soft: () => { soft(c, -bw * 0.15 * MIR, by - bh * 0.62, bw * 0.62, bh * 0.2, -0.15 * MIR, '#A8B0E8', 0.22); soft(c, 0, by + bh * 0.8, bw, bh * 0.4, 0, '#000000', 0.35); } });
-      if (k >= 2) form(c, ell(c, 0, by - bh * 0.5, bw * 0.62, bh * 0.58), 0, by - bh * 0.5, bw * 0.62, hide, { tex: 'hide', texA: 0.3, hi: hideHi, specA: 0.45, lw: 1.2 });
-      if (k === 3) { plate(c, blob(c, [[0, by - 10], [13, by - 6], [16, by + 4], [8, by + 14], [0, by + 18], [-8, by + 14], [-16, by + 4], [-13, by - 6]]), 0, by + 3, 16, gold, { fili: () => { c.beginPath(); c.moveTo(0, by - 6); c.bezierCurveTo(8, by - 2, 8, by + 8, 0, by + 12); c.bezierCurveTo(-8, by + 8, -8, by - 2, 0, by - 6); c.moveTo(-11, by + 1); c.quadraticCurveTo(-6, by + 9, 0, by + 15); c.moveTo(11, by + 1); c.quadraticCurveTo(6, by + 9, 0, by + 15); c.stroke(); } }); gem(c, 0, by + 3, 4.4, '#B983F5'); L.fx(g => glow(g, 0, by + 3, 13, '#B983F5', 0.6)); }
-      both(c, () => { c.save(); c.translate(-hr * 1.08, hy - hr * 0.12); c.rotate(-0.35); form(c, ell(c, -4, 0, 9.5, 4.3), -4, 0, 9.5, hide, { tex: 'hide', texA: 0.3, specA: 0.3, hi: hideHi }); form(c, ell(c, -4.6, 0.3, 5.8, 2.2), -4.6, 0.3, 5.8, '#B05A70', { lw: 0, spec: false }); c.restore(); });
-      const hl = [9, 22, 40][k - 1], hw = [6.4, 8.4, 11.5][k - 1];
-      both(c, () => horn(c, -hr * 0.62, hy - hr * 0.6, hl, k === 1 ? -1.95 : k === 2 ? -2.75 : -2.95, k === 1 ? 0.35 : k === 2 ? 1.4 : 1.9, hw, gold, { metal: true, rings: k > 1, ringStep: 3, lw: 1.1 }));
-      form(c, ell(c, 0, hy, hr, hr * 0.86), 0, hy, hr, hide, { tex: 'hide', texA: 0.32, hi: hideHi, specA: 0.48 });
-      form(c, furPath(c, 0, hy - hr * 0.72, hr * 0.42, hr * 0.2, { n: 9, len: 3.6, seed: 8, prof: a => (a > Math.PI ? 1.2 : 0.3) }), 0, hy - hr * 0.72, hr * 0.42, '#16141C', { spec: false, lw: 0.9 });
-      if (k >= 2) { const cr = k === 3 ? 11 : 7; plate(c, blob(c, [[0, hy - hr * 0.95 - cr * 0.4], [cr * 0.55, hy - hr * 0.6], [cr * (k === 3 ? 1.3 : 0.5), hy - hr * 0.75], [cr * 0.4, hy - hr * 0.25], [0, hy - hr * 0.1], [-cr * 0.4, hy - hr * 0.25], [-cr * (k === 3 ? 1.3 : 0.5), hy - hr * 0.75], [-cr * 0.55, hy - hr * 0.6]]), 0, hy - hr * 0.55, cr, gold, { lw: 1 }); gem(c, 0, hy - hr * 0.5, k === 3 ? 3.4 : 2.6, '#B983F5'); L.fx(g => glow(g, 0, hy - hr * 0.5, 10, '#D9B8FF', 0.55)); }
-      [-1, 1].forEach(sx => eye(c, sx * hr * 0.44, hy - 1, 4.8, '#FFB347', { lid: [0, 0.16, 0.24][k - 1], skin: hide, side: -sx }));
-      if (k === 3) L.fx(g => [-1, 1].forEach(sx => glow(g, sx * hr * 0.44, hy - 1, 11, '#FFB347', 0.45)));
-      form(c, ell(c, 0, hy + hr * 0.52, hr * 0.68, hr * 0.42), 0, hy + hr * 0.52, hr * 0.68, mz, { tex: 'hide', texA: 0.35, specA: 0.35, lw: 1.1 });
-      [-1, 1].forEach(sx => orb(c, sx * hr * 0.28, hy + hr * 0.5, 2.3, 1.7, '#0E0C12', { spec: false, lw: 0 }));
-      mouth(c, 0, hy + hr * 0.72, 2.4);
-      if (k >= 2) { c.lineWidth = 2.4; c.strokeStyle = metalG(c, -4, 0, 4, 0, gold); c.beginPath(); c.arc(0, hy + hr * 0.62, 4.2, 0.25, Math.PI - 0.25); c.stroke(); }
-      [-1, 1].forEach(sx => blush(c, sx * hr * 0.7, hy + hr * 0.3, 4, '#FF8AA8'));
-      if (k === 3) L.fx(g => { for (let i = 0; i < 4; i++) { const ph = (t * 0.6 + i * 0.25) % 1; [-1, 1].forEach(sx => { const x = sx * (hr * 0.28 + ph * 8), y = hy + hr * 0.62 + ph * 5, s2 = 3 + ph * 9; g.globalAlpha = FA * (0.28 * (1 - ph)); blitSized(g, puffSprite('rgba(240,240,255,'), x - s2, y - s2, s2 * 2, s2 * 2); }); } });
-    },
+    // v426 BL: Belial, the World Pillar, is a model of its own (02f4 on the GPU, 02f2 cel-shaded); the painted layer draws that model in its place
+    taurus(c, k, t) { if (typeof Anima3D !== 'undefined' && Anima3D.has('taurus')) Anima3D.draw(c, 'taurus', k, 0, 40, 110, t, { fk: 1 }); },
     // Raziel: the twin celestial dragons of the sun and the moon are a cel-shaded model of their own (see Anima3D); the
     // painted layer, when it is asked for, draws that model in its place (feet at y 40, 110 units tall)
     gemini(c, k, t) { if (typeof Anima3D !== 'undefined' && Anima3D.has('gemini')) Anima3D.draw(c, 'gemini', k, 0, 40, 110, t, { fk: 1 }); },
@@ -1009,6 +983,12 @@ const AnimaArt = (() => {
       if (o.bloom || o.aura !== false) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = (o.alpha == null ? 1 : o.alpha) * (o.bloom ? 0.42 : 0.22); const gs = size * 0.8; blitSized(c, glowSprite('#6FA2FF'), x - gs, y - size * 0.55 - gs, gs * 2, gs * 2); c.restore(); }
       if (ABADDON_GL.drawAnima(c, k, x, y, size, t, o)) return;
     }
+    // v426 BL: Belial, the World Pillar, is a real 3D model on the GPU (02f4); without it, the cel-shaded model of the same design (02f2)
+    if (id === 'taurus' && !o.legacy && typeof BELIAL_GL !== 'undefined' && BELIAL_GL.usable()) {
+      if (o.bloom || o.aura !== false) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = (o.alpha == null ? 1 : o.alpha) * (o.bloom ? 0.32 : 0.16); const gs = size * 0.85; blitSized(c, glowSprite('#FFB347'), x - gs, y - size * 0.5 - gs, gs * 2, gs * 2); c.restore(); }
+      if (BELIAL_GL.drawAnima(c, k, x, y, size, t, o)) return;
+    }
+    if (id === 'taurus' && o.yaw != null) o = Object.assign({}, o, { yaw: undefined });   // (v426 BL) the cel model keeps its own three-quarter view, like the GPU one
     if (typeof Anima3D !== 'undefined' && Anima3D.has(id) && !o.legacy) return draw3d(c, id, k, x, y, size, t, o);
     const p = P[id]; if (!p) return;
     const u = size / 110, fl = o.flip ? -1 : 1, A = ANIMAS[id], L = { b: [], f: [], back(fn) { this.b.push(fn); }, fx(fn) { this.f.push(fn); } };

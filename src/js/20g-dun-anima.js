@@ -53,6 +53,9 @@ const DunAnima = (() => {
     // v418 AB: Abaddon, the Eternal Moonlight, fights through its own module (20g2): four powers and The Ninth Tide; its model is prepared now
     const AB = typeof ABADDON_MOVES !== 'undefined' && (kit.main.id === 'cancer' || (kit.res && kit.res.id === 'cancer')) ? ABADDON_MOVES.create({ X, me, g, S, T, ST, P, near, living, hit, emote: (a, k) => emote(a, k) }) : null;
     if (AB && typeof ABADDON_GL !== 'undefined') setTimeout(() => { try { ABADDON_GL.warm(); const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; if (F) F.usable(); } catch (e) {} }, 300);   // (its meshes and both shaders ready before the summon)
+    // v426 BL: Belial, the World Pillar, fights through its own module (20g3): four powers and Dominion of the World Pillar; its model is prepared now
+    const BL = typeof BELIAL_MOVES !== 'undefined' && (kit.main.id === 'taurus' || (kit.res && kit.res.id === 'taurus')) ? BELIAL_MOVES.create({ X, me, g, S, T, ST, P, near, living, hit, emote: (a, k) => emote(a, k) }) : null;
+    if (BL && typeof BELIAL_GL !== 'undefined') setTimeout(() => { try { BELIAL_GL.warm(); const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; if (F) F.usable(); } catch (e) {} }, 300);   // v426 BL
     /* ---- the gauge ---- */
     function onHurt(d, dot) { if (S.used) return; const hp = ST().hp, was = S.gauge; S.gauge = Math.min(1, S.gauge + (dot ? 0 : 0.05) + d / hp * 1.3); if (was < 1 && S.gauge >= 1) { X.sfx.chirp(); X.banner('Anima ready!', 'Tap the sigil to summon', ANIMAS[kit.main.id].glow, 1.6); } }
     /* ---- the summon ---- */
@@ -86,7 +89,7 @@ const DunAnima = (() => {
       const em = (n, col, sp, up) => { for (let i = 0; i < n; i++) { const an = Math.random() * TAU, v = sp * (0.4 + Math.random()); X.part({ kind: 'ember', x, y: y - 0.4, vx: Math.cos(an) * v, vy: Math.sin(an) * v - (up || 0), life: 0.9, max: 0.9, size: 5 + Math.random() * 6, color: col, drag: 1.2 }); } };
       switch (a.id) {
         case 'aries': em(34, '#FF7A3D', 7, 4); X.boom(x, y, 1.8, '#FF5A3C', '#FFE37A', { n: 24, shake: 8, smoke: 5 }); break;
-        case 'taurus': X.shake(16, 0.6); for (let i = 0; i < 3; i++) X.after(i * 0.15, () => X.ring(x, y, 0.4, 1.8 + i * 0.5, 0.45, '#F2C65A', 0.1)); for (let i = 0; i < 14; i++) { const an = Math.random() * TAU; X.part({ kind: 'shard', x, y, vx: Math.cos(an) * 6, vy: Math.sin(an) * 6 - 3, g: 12, life: 0.8, max: 0.8, size: 6, rot: an, vr: 9, color: '#8C7B6B' }); } break;
+        case 'taurus': if (BL) { BL.entrance(a); break; } /* v426 BL */ X.shake(16, 0.6); for (let i = 0; i < 3; i++) X.after(i * 0.15, () => X.ring(x, y, 0.4, 1.8 + i * 0.5, 0.45, '#F2C65A', 0.1)); for (let i = 0; i < 14; i++) { const an = Math.random() * TAU; X.part({ kind: 'shard', x, y, vx: Math.cos(an) * 6, vy: Math.sin(an) * 6 - 3, g: 12, life: 0.8, max: 0.8, size: 6, rot: an, vr: 9, color: '#8C7B6B' }); } break;
         case 'gemini': S.fx.push({ kind: 'twin', x, y: y - 1, t: 0, life: 1.4, c1: '#FFD98A', c2: '#4A90E2' }); X.ring(x, y, 0.3, 2.4, 0.5, '#FFD98A', 0.1); X.after(0.12, () => X.ring(x, y, 0.3, 2.8, 0.55, '#4A90E2', 0.1)); break;
         case 'cancer': if (AB) { AB.entrance(a); break; } for (let i = 0; i < 26; i++) X.part({ kind: 'bubble', x: x + (Math.random() - 0.5) * 3, y: y + (Math.random() - 0.5), vx: (Math.random() - 0.5) * 2, vy: -2 - Math.random() * 3, life: 1.1, max: 1.1, size: 3 + Math.random() * 5, color: Math.random() < 0.5 ? '#5DF2FF' : '#B983F5' }); X.ring(x, y, 0.3, 2.4, 0.6, '#7A2E5E', 0.14); break;
         case 'leo': for (let i = 0; i < 18; i++) { const an = i / 18 * TAU; X.part({ kind: 'star', x: x + Math.cos(an) * 0.5, y: y - 0.7 + Math.sin(an) * 0.4, vx: Math.cos(an) * 3.2, vy: Math.sin(an) * 2.4 - 0.6, life: 0.7, max: 0.7, size: 3 + (i % 3), color: i % 2 ? '#FFE37A' : '#FFFFFF', drag: 1.5 }); } X.shake(6, 0.3); break;
@@ -139,8 +142,8 @@ const DunAnima = (() => {
       aries: { tick(a, dt) { if (a.dash) return dashTick(a, dt, m => { area(a.x, a.y, 1.7, P(a) * 1.2 * (1 + a.rage * 0.08), { el: 'fire', burn: true, kb: 3 }); X.boom(a.x, a.y, 1.7, '#FF5A3C', '#FFE37A', { n: 14, shake: 5, smoke: 2 }); a.rage = Math.min(10, a.rage + 1); if (a.rage % 3 === 0) X.text(a.x, a.y - 1.6, `RAGE ×${a.rage}`, '#FF7A3D', 14); a.cd = Math.max(0.22, 0.6 - a.rage * 0.036); });
           a.cd -= dt; if (a.cd <= 0) { const t = near(a.x, a.y, 9)[0]; if (t) dash(a, t, 0.18); else { a.cd = 0.3; heel(a, dt); } } else heel(a, dt); },
         aw: ['INFERNAL STAMPEDE', '#FF5A3C'], fin(a) { const tg = near(a.x, a.y, 11).slice(0, 8); tg.forEach((m, i) => X.after(0.12 * i, () => { if (m.dead) return; X.part({ kind: 'beamfx', x: a.x, y: a.y - 0.3, a: Math.atan2(m.y - a.y, m.x - a.x), r: Math.hypot(m.x - a.x, m.y - a.y), life: 0.3, max: 0.3, color: '#FF7A3D', vx: 0, vy: 0 }); a.x = m.x; a.y = m.y; area(m.x, m.y, 2.2, P(a) * 3.2, { el: 'fire', burn: true, kb: 5 }); X.boom(m.x, m.y, 2.2, '#FF5A3C', '#FFE37A', { n: 22, shake: 9, smoke: 4 }); X.zones.push({ kind: 'fire', x: m.x, y: m.y, r: 1.4, life: 3, max: 3, dps: ST().atk * 0.6 * (a.awk || 1), tick: 0, own: 'pet', el: 'fire' }); })); } },
-      taurus: { tick(a, dt) { S.bulwark = 1; heel(a, dt); for (const m of near(a.x, a.y, 5)) if (!m.boss && !m.still && Math.hypot(m.x - a.x, m.y - a.y) > 1.4) X.moveEnt(m, (a.x - m.x) * 0.9 * dt, (a.y - m.y) * 0.9 * dt); a.cd -= dt; if (a.cd <= 0) { a.cd = 1.5; area(a.x, a.y, 3, P(a) * 1.1, { el: 'gold', stun: 1.2 }); X.ring(a.x, a.y, 0.3, 3.2, 0.4, '#F2C65A', 0.3); X.shake(6, 0.2); X.sfx.thud(); } },
-        aw: ['AEGIS OF AGES', '#F2C65A'], fin(a) { me.inv = Math.max(me.inv, 3.2); S.dome = 3.2; area(a.x, a.y, 7, P(a) * 4, { el: 'gold', stun: 2.2, kb: 4 }); for (let i = 0; i < 4; i++) X.after(i * 0.12, () => X.ring(a.x, a.y, 0.5, 4 + i * 2, 0.6, '#F2C65A', 0.35)); X.shake(18, 0.6); X.sfx.crash(); } },
+      taurus: { tick(a, dt) { if (BL) return BL.tick(a, dt); /* v426 BL */ S.bulwark = 1; heel(a, dt); for (const m of near(a.x, a.y, 5)) if (!m.boss && !m.still && Math.hypot(m.x - a.x, m.y - a.y) > 1.4) X.moveEnt(m, (a.x - m.x) * 0.9 * dt, (a.y - m.y) * 0.9 * dt); a.cd -= dt; if (a.cd <= 0) { a.cd = 1.5; area(a.x, a.y, 3, P(a) * 1.1, { el: 'gold', stun: 1.2 }); X.ring(a.x, a.y, 0.3, 3.2, 0.4, '#F2C65A', 0.3); X.shake(6, 0.2); X.sfx.thud(); } },
+        aw: ['DOMINION OF THE WORLD PILLAR', '#FFC24D'] /* v426 BL */, fin(a) { if (BL) return BL.fin(a); /* v426 BL */ me.inv = Math.max(me.inv, 3.2); S.dome = 3.2; area(a.x, a.y, 7, P(a) * 4, { el: 'gold', stun: 2.2, kb: 4 }); for (let i = 0; i < 4; i++) X.after(i * 0.12, () => X.ring(a.x, a.y, 0.5, 4 + i * 2, 0.6, '#F2C65A', 0.35)); X.shake(18, 0.6); X.sfx.crash(); } },
       gemini: { tick(a, dt) { heel(a, dt); a.cd -= dt; if (a.cd <= 0) { a.cd = 0.3; a.alt = !a.alt; const t = near(a.x, a.y, 9)[0]; if (t) { const ox = a.alt ? -0.5 : 0.5, an = Math.atan2(t.y - a.y, t.x - (a.x + ox)); line(a.x + ox, a.y - 0.6, an, 9, 0.9, P(a) * 0.75, a.alt ? '#FFD36B' : '#8FD3FF', { el: 'prism' }); } } },
         aw: ['TWIN HELIX NOVA', '#FFD98A'], fin(a) { helixNova(a); } },
       // v418 AB: Abaddon the Eternal Moonlight, a guardian: Lunar Carapace, Crescent Reavers, Gravitational Tide, Eclipse Requiem; The Ninth Tide (20g2)
@@ -442,7 +445,7 @@ const DunAnima = (() => {
       a.ph += dt * (2.4 + v * STRIDE[loco] * 1.9) * (a.mv > 0.04 ? 1 : 0.15);
       // a puff of dust each time a foot lands; a trail of sparkles behind fliers and swimmers
       const step = Math.floor(a.ph / Math.PI);
-      if (step !== a.step) { a.step = step; if (a.mv > 0.35 && GROUNDED[loco]) X.part({ kind: 'smoke', x: a.x + (Math.random() - 0.5) * 0.4, y: a.y + 0.05, vx: -a.face * 0.6, vy: -0.3, life: 0.45, max: 0.45, size: loco === 'stomp' ? 0.34 : 0.22, color: 'rgba(210,200,235,' }); if (loco === 'stomp' && a.mv > 0.5) X.shake(1.5, 0.08); }
+      if (step !== a.step) { a.step = step; if (a.mv > 0.35 && GROUNDED[loco] && !a.feet /* v426 BL: Belial lays its own footfalls */) X.part({ kind: 'smoke', x: a.x + (Math.random() - 0.5) * 0.4, y: a.y + 0.05, vx: -a.face * 0.6, vy: -0.3, life: 0.45, max: 0.45, size: loco === 'stomp' ? 0.34 : 0.22, color: 'rgba(210,200,235,' }); if (loco === 'stomp' && a.mv > 0.5) X.shake(1.5, 0.08); }
       if (!GROUNDED[loco] && a.mv > 0.4 && Math.random() < dt * 9) X.part({ kind: 'star', x: a.x - a.face * 0.5 + (Math.random() - 0.5) * 0.4, y: a.y - 0.6 - Math.random() * 0.6, vx: -a.face * 0.8, vy: -0.4, life: 0.5, max: 0.5, size: 2.2, color: a.A.glow });
       if (a.atk >= 0) { a.atk += dt / (a.atkDur || 0.42); if (a.atk > 1) a.atk = -1; }
       // follow-through: the top of the body lags when it sets off and swings past when it stops
@@ -481,6 +484,7 @@ const DunAnima = (() => {
     function beginDescent(a) {
       a.en = 0; a.dropZ = 5; a.alpha = 0; a.scale = 0.5;
       if (a.id === 'cancer' && AB) { AB.descent(a); X.sfx.sparkle(); return; }   // v418 AB: a lunar seal opens overhead instead of the shaft of heaven
+      if (a.id === 'taurus' && BL) { BL.descent(a); X.sfx.sparkle(); return; }   // v426 BL: the Taurus sigil, rings and rising pillars; it assembles where it stands
       S.fx.push({ kind: 'heaven', a, x: a.x, y: a.y, t: 0, life: 1.75, col: a.A.glow, col2: a.A.color });
       X.light(a.x, a.y, 5, 1.2); X.sfx.sparkle();
     }
@@ -515,7 +519,7 @@ const DunAnima = (() => {
         a.alpha = Math.min(1, a.alpha + dt * 3); a.scale = Math.min(1, a.scale + dt * 3);
         if (a.st === 'fight') { a.life -= dt; const c0 = a.cd, c2 = a.cd2, c3 = a.cd3, dsh = !!a.dash; if (B[a.id]) B[a.id].tick(a, dt); noticeStrike(a, c0, c2, c3, dsh); if (a.life <= 0) { a.st = 'awaken'; a.aw = 0; a.dash = null; emote(a, 'anger', true); } }
         else if (a.st === 'awaken') {
-          a.aw += dt; heel(a, dt);
+          a.aw += dt; if (!a.hold) heel(a, dt);   // (v426 BL: a.hold - Belial stands planted for its finale)
           if (a.aw < 0.7 && Math.random() < 0.5) X.part({ kind: 'star', x: a.x + (Math.random() - 0.5) * 2, y: a.y - Math.random() * 2, vx: 0, vy: -1.5, life: 0.5, max: 0.5, size: 3, color: a.A.glow });
           if (a.aw >= 0.25 && !a.awakened) { a.awakened = true; X.part({ kind: 'flare', x: a.x, y: a.y - 0.9, vx: 0, vy: 0, life: 0.7, max: 0.7, size: 6, color: a.A.color }); X.ring(a.x, a.y, 0.4, 3.5, 0.5, a.A.glow, 0.3); X.sfx.sparkle(); }
           if (a.aw >= 0.7 && !a.finDone) { a.finDone = true; const other = S.list.find(b => b !== a && b.st === 'awaken');
@@ -534,6 +538,7 @@ const DunAnima = (() => {
       }
       for (const a of S.list) if (!(a.delay > 0)) live(a, dt);
       if (AB) AB.update(dt, dtReal);   // v418 AB
+      if (BL) BL.update(dt, dtReal);   // v426 BL
       if (S.theme) { if (!S.list.length || me.dead || g.won) { S.theme.stop(); S.theme = null; } else S.theme.beat(); }
       // effects
       for (let i = S.fx.length - 1; i >= 0; i--) {
@@ -548,7 +553,7 @@ const DunAnima = (() => {
     function ents() { return S.list.filter(a => !(a.delay > 0)).map(a => [a.y + 0.05, a]); }
     function drawAnima(c, a) {
       if (!(a.alpha > 0.01) || (a.judg && !(a.jA > 0.01))) return;
-      const Tz = T(), X0 = X.sx(a.x), Y0 = X.sy(a.y), aw = a.st === 'awaken', k = aw ? 3 : a.k, size = Tz * ANIMA_SIZE[k] * (aw ? 1.18 : 1) * (0.2 + 0.8 * a.scale) * (a.id === 'ophiuchus' ? OPH_BIG : 1), loco = AnimaArt.LOCO[a.id];
+      const Tz = T(), X0 = X.sx(a.x), Y0 = X.sy(a.y), aw = a.st === 'awaken', k = aw ? 3 : a.k, size = Tz * ANIMA_SIZE[k] * (aw ? 1.18 : 1) * (0.2 + 0.8 * a.scale) * (a.id === 'ophiuchus' ? OPH_BIG : 1) * (BL && a.id === 'taurus' ? BELIAL_MOVES.BIG : 1) /* v426 BL: a colossus */, loco = AnimaArt.LOCO[a.id];
       const hover = Tz * ((GROUNDED[loco] ? 0.02 : loco === 'fly' ? 0.55 : 0.32) + (a.dropZ || 0)), sh = 1 - Math.min(1, (a.dropZ || 0) / 6);
       c.save(); c.globalAlpha = 0.35 * a.alpha * sh; c.fillStyle = '#000'; c.beginPath(); c.ellipse(X0, Y0 + Tz * 0.12, size * 0.32 * (0.5 + 0.5 * sh), size * 0.08 * (0.5 + 0.5 * sh), 0, 0, TAU); c.fill(); c.restore();
       c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = (0.45 + (aw ? 0.35 : 0) + 0.1 * Math.sin(a.t * 4)) * a.alpha; const gs = size * (aw ? 1.1 : 0.85); blitSized(c, glowSprite(a.A.glow), X0 - gs, Y0 - hover - size * 0.45 - gs, gs * 2, gs * 2); c.restore();
@@ -557,12 +562,14 @@ const DunAnima = (() => {
       AnimaArt.draw(c, a.id, k, X0, fy, size, a.at, { inst: a, fk: a.fk == null ? a.face : a.fk, flip: (a.fk == null ? a.face : a.fk) < 0, alpha: a.alpha * (a.judg ? a.jA : 1), mv: a.mv, ph: a.ph, atk: a.atk >= 0 ? a.atk : null, atkBig: a.atkBig, lag: a.lag, sq: a.sq, blink: a.blink, vx: a.vx, fall: a.st === 'enter' ? (a.dropZ || 0) / 5 : 0 });
       c.restore();
       if (AB && a.id === 'cancer') AB.drawBodyFx(c, a);   // v418 AB
+      if (BL && a.id === 'taurus') BL.drawBodyFx(c, a);   // v426 BL
       if (a.emo) drawEmote(c, a, X0 + a.face * size * 0.2, Y0 - hover - size * 1.02);
       if (aw) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.5 * a.alpha; AnimaArt.sigil(c, a.id, X0, Y0 - hover - size * 1.05, Tz * 0.9, a.A.color, 0.9, 2.6); c.restore(); }
     }
     function drawFx(c) {
       const Tz = T();
       if (AB) AB.drawFx(c);   // v418 AB
+      if (BL) BL.drawFx(c);   // v426 BL
       if (S.dome > 0 || S.bulwark) { const X0 = X.sx(me.x), Y0 = X.sy(me.y - 0.4), R = Tz * (S.dome > 0 ? 1.6 : 1.15); c.globalAlpha = S.dome > 0 ? 0.9 : 0.55; blitSized(c, shockSprite('#F2C65A'), X0 - R / 0.86, Y0 - R / 0.86, R / 0.43, R / 0.43); c.globalAlpha = 1; }
       if (S.balance) { const X0 = X.sx(me.x), Y0 = X.sy(me.y), s = Tz * 1.1; c.globalAlpha = 0.5 + 0.2 * Math.sin(g.t * 4); blitSized(c, glowSprite('#FFC24D'), X0 - s, Y0 - s * 1.2, s * 2, s * 2); c.globalAlpha = 1; }
       for (const a of S.list) if (a.id === 'pisces' && a.st === 'fight') { const X0 = X.sx(a.x), Y0 = X.sy(a.y), R = Tz * 3 / 0.86; for (let i = 0; i < 2; i++) { c.save(); c.translate(X0, Y0); c.rotate(g.t * (2 + i)); c.scale(1, 0.6); c.globalAlpha = 0.35; blitSized(c, shockSprite(i ? '#B9A6FF' : '#EAF2FF'), -R * (0.7 + i * 0.3), -R * (0.7 + i * 0.3), R * (1.4 + i * 0.6), R * (1.4 + i * 0.6)); c.restore(); } }
@@ -602,6 +609,7 @@ const DunAnima = (() => {
        and the Anima's own sign blazing in the middle */
     function drawGround(c) {
       if (AB) AB.drawGround(c);   // v418 AB
+      if (BL) BL.drawGround(c);   // v426 BL
       for (const f of S.fx) if (f.kind === 'heaven') drawHeaven(c, f, T(), X.sx(f.x), X.sy(f.y), false);
       const Cc = S.circle; if (!Cc) return;
       const t = Cc.t, grow = ease(Math.min(1, t / 0.4)), fade = Math.min(1, (Cc.life - t) / 0.55), k = grow * fade;
@@ -630,6 +638,7 @@ const DunAnima = (() => {
     /* the summoning: the zodiac sign flashes up on screen, then the light takes over */
     function drawCine(c, W, H) {
       if (AB) AB.drawCine(c, W, H);   // v418 AB
+      if (BL) BL.drawCine(c, W, H);   // v426 BL
       if (S.judg) drawJudgement(c, W, H);
       if (S.helix) drawHelix(c, W, H);
       if (!S.cine) return;
@@ -672,10 +681,10 @@ const DunAnima = (() => {
     }
     /* how the Animas tilt the fight */
     const inK = src => (S.bulwark ? 0.35 : 1) * (S.balance ? 0.7 : 1) * (src && src.curseT > 0 ? 0.6 : 1) * (AB ? AB.inK() : 1);   // (v418 AB: the Lunar Carapace)
-    const outK = m => (S.balance ? 1.5 : 1) * (m && m.curseT > 0 ? 1.3 : 1) * (AB ? AB.outK(m) : 1);   // (v418 AB: Lunar Weakness)
+    const outK = m => (S.balance ? 1.5 : 1) * (m && m.curseT > 0 ? 1.3 : 1) * (AB ? AB.outK(m) : 1) * (BL ? BL.outK(m) : 1);   // (v418 AB: Lunar Weakness; v426 BL: Dominion's crushed defence)
     const rateK = () => (S.balance ? 1.25 : 1);
-    const stop = () => { if (S.theme) { S.theme.stop(); S.theme = null; } if (AB) AB.stop(); };   // (v418 AB: the stage ends: Abaddon lets everything go)
-    return { S, kit, ab: AB /* v418 AB */, stop, active: () => S.list.length > 0 || !!S.cine, ready, summon, onHurt, update, ents, drawAnima, drawFx, drawGround, drawCine, drawBtn, onBtn, inK, outK, rateK, liberated: () => S.liberate > 0 };
+    const stop = () => { if (S.theme) { S.theme.stop(); S.theme = null; } if (AB) AB.stop(); if (BL) BL.stop(); };   // (v418 AB: the stage ends: Abaddon lets everything go; v426 BL: Belial too)
+    return { S, kit, ab: AB /* v418 AB */, bl: BL /* v426 BL */, stop, active: () => S.list.length > 0 || !!S.cine, ready, summon, onHurt, update, ents, drawAnima, drawFx, drawGround, drawCine, drawBtn, onBtn, inK, outK, rateK, liberated: () => S.liberate > 0 };
   }
   return { create };
 })();

@@ -1221,6 +1221,94 @@ void main() {
       gl_FragColor = vec4(min(cs * abA, vec3(abA)) * uAlpha, abA * uAlpha); return; }
     gl_FragColor = vec4(vec3(tone(abC.r), tone(abC.g), tone(abC.b)) * uAlpha, uAlpha); return; }
   /*</AB-MAT>*/
+  /*<BL-MAT ids 280..299 (v426 BL: 02f4-belial-model.js, Belial the World Pillar)>*/
+  else if (id >= 280 && id <= 299) {   // ---- (v426 BL) Belial, the World Pillar (02f4): 280 ivory stone-ceramic (280.1 the faceplate: no joints or cracks; 280.3 weathered; masonry joints, carved grooves, hairline cracks lit amber by uGlow; vA.y 1 on a rim: gilded trim), 281 obsidian black metal (281.2 a recess; panel seams holding amber light), 282 weathered bronze (patina in its hollows), 283 antique gold (283.2 engraved), 284 an amber energy channel (vA.z along it: pulses), 285 an eye (uGlow2), 286 the Core's planet (bands, continents, amber fissures; uGlow2 compression to white heat), 287 its transparent amber field, 288 a ring's metal with runes lit in a pulse running round (288.3 a dark runic band: vA.z along, vA.y across), 289 a ring of light (see-through), 290 a temple wall (arched windows lit amber by uGlow), 291 roof tiles (gilded eaves and hips on vA.y), 292 banner cloth (maroon, a gold border and the sign), 293 weathered stone (293.3 carved runes lit by uGlow2; amber cracks by uGlow). uSpill 0..1 dissolves every one into gold dust (burning gold edges); uKind a ring's phase; uTime
+    float bF = vA.x - float(id), bG = clamp(uGlow, 0.0, 3.0), bG2 = clamp(uGlow2, 0.0, 3.0), bT = uTime, bDE = 0.0;
+    if (uSpill > 0.0) { float bDn = vn(L.xy * 4.3 + L.z * 2.7) * 0.55 + vn(L.yz * 11.0 + L.x * 6.0) * 0.3 + vn(L.xz * 23.0 + 5.0) * 0.15, bTh = uSpill * 1.15 - 0.08; if (bDn < bTh) discard; bDE = smoothstep(bTh + 0.09, bTh, bDn); }
+    float bNV = max(0.001, dot(n, uV)), bNL = dot(n, uLK), bDif = max(bNL, 0.0), bWr = clamp(bNL * 0.5 + 0.5, 0.0, 1.0);
+    vec3 bR = 2.0 * bNV * n - uV; float bUp = dot(bR, uUP), bSb = max(dot(bR, uLK), 0.0), bHz = bUp - 0.05;
+    vec3 bEv = bUp > 0.0 ? mix(vec3(0.17, 0.14, 0.12), vec3(0.82, 0.74, 0.62), pow(clamp(bUp, 0.0, 1.0), 1.2)) : mix(vec3(0.24, 0.16, 0.08), vec3(0.035, 0.028, 0.022), clamp(-bUp * 2.5, 0.0, 1.0));
+    bEv += vec3(1.0, 0.82, 0.52) * exp(-bHz * bHz / 0.004) * 0.6;   // (a warm stormlit horizon in its reflections)
+    float bOcc = mix(0.38, 1.0, clamp(ao, 0.0, 1.0)), bFr = pow(1.0 - bNV, 5.0), bHm = 0.5 + 0.5 * dot(n, uUP);
+    vec3 bKEY = vec3(1.62, 1.46, 1.24), bAmb = mix(vec3(0.11, 0.09, 0.09), vec3(0.42, 0.37, 0.32), bHm) * uAmb, bRim = pow(1.0 - bNV, 2.4) * max(0.0, dot(n, uLR) + 0.35) * uRim;
+    vec3 bAMB = vec3(1.0, 0.56, 0.12), bHOT = vec3(1.5, 1.2, 0.75), bG0 = vec3(1.0, 0.72, 0.33), bGF = bG0 + (1.0 - bG0) * bFr;
+    float bEng = (1.0 - uLow) * smoothstep(0.075, 0.03, abs(fract(L.x * 5.0 + L.y * 3.0 + 0.6 * sin(L.z * 7.0 + L.x * 3.0)) - 0.5)) * step(0.45, vn(L.xz * 1.7 + L.y)) * (id == 283 && bF > 0.1 ? 1.0 : 0.45);   // (engraved filigree)
+    vec3 bGold = (bG0 * (0.12 + 0.68 * bDif) * bKEY * 0.55 + bGF * mix(bEv, vec3(dot(bEv, vec3(0.33))) * vec3(1.0, 0.8, 0.5), 0.45) * 1.3 + vec3(1.0, 0.93, 0.76) * (pow(bSb, 60.0) * 2.4 + pow(bSb, 11.0) * 0.32) + bRim * 0.45) * bOcc * (1.0 - bEng * 0.45);
+    vec3 bC = vec3(0.0); float bA = 1.0;
+    if (id == 280) {   // ivory stone-ceramic: a warm glaze, masonry joints, carved grooves, weathering, hairline cracks with amber light deep in them, gilded rims
+      float sm = step(0.05, bF) * step(bF, 0.15), wth = step(0.25, bF) * step(bF, 0.45), w1 = vn(L.xy * 1.9 + L.z * 1.3 + 3.0), w2 = vn(L.yz * 5.0 + L.x * 2.5);
+      vec3 alb = vec3(0.86, 0.8, 0.68) * (0.9 + 0.12 * w2) * (1.0 - wth * 0.1 * w1);
+      alb = mix(alb, vec3(0.58, 0.48, 0.36), wth * smoothstep(0.5, 0.85, w1) * 0.5);
+      vec3 c = alb * (bDif * bKEY * vec3(1.0, 0.96, 0.88) + bAmb * 1.1) * bOcc + alb * vec3(0.18, 0.14, 0.1) * (1.0 - bWr) * 0.25;
+      c += bEv * (0.035 + 0.965 * bFr) * 0.9 * bOcc + vec3(1.0, 0.97, 0.9) * (pow(bSb, 90.0) * 1.2 + pow(bSb, 18.0) * 0.12) * bOcc * (1.0 - wth * 0.6) + bRim * 0.35 * alb;
+      vec2 bq = vec2((L.x + L.y) * 1.7, L.z * 3.4); float row = floor(bq.y); bq.x += 0.5 * mod(row, 2.0); vec2 bfq = fract(bq);
+      float joint = (1.0 - sm) * (1.0 - uLow * 0.5) * max(smoothstep(0.035, 0.0, min(bfq.y, 1.0 - bfq.y)), smoothstep(0.03, 0.0, min(bfq.x, 1.0 - bfq.x)) * 0.8);
+      c *= 1.0 - joint * 0.42;
+      float ck = abs(vn(L.xy * 2.3 + L.z * 1.6 + 11.0) - 0.5) + abs(vn(L.yz * 3.7 + 2.0) - 0.5) * 0.4, crack = (1.0 - sm) * smoothstep(0.03, 0.008, ck) * smoothstep(0.4, 0.62, vn(L.zx * 0.9 + 7.0));
+      c = c * (1.0 - crack * 0.6) + bAMB * crack * (0.12 + 0.85 * bG) + bHOT * crack * bG * bG * 0.25;
+      bC = mix(c, bGold, clamp(smoothstep(0.8, 0.94, edge), 0.0, 1.0)); }
+    else if (id == 281) { float rec = step(0.15, bF); vec3 T0 = vec3(0.03, 0.027, 0.03) * (rec > 0.5 ? 0.55 : 1.0), TF = T0 + (vec3(0.6, 0.55, 0.5) - T0) * bFr;   // obsidian: glossy black metal, panel seams holding amber light
+      float pn = fract(L.z * 2.6 + 0.3 * floor(L.x * 1.8 + L.y * 1.8)), seam = smoothstep(0.05, 0.0, min(pn, 1.0 - pn)) * (1.0 - uLow * 0.5), rg = 0.18 + 0.14 * vn(L.xy * 8.0 + L.z * 4.0);
+      bC = (T0 * (0.2 + 0.8 * bDif) * bKEY + TF * bEv * 1.05 + vec3(1.0, 0.92, 0.8) * pow(bSb, 2.0 / (rg * rg)) * 1.1 + bRim * 0.55) * bOcc * (1.0 - seam * 0.5) + bAMB * seam * (0.06 + 0.5 * bG) * (1.0 - rec * 0.5); bC = mix(bC, bGold, smoothstep(0.86, 0.97, edge) * (1.0 - rec)); }
+    else if (id == 282) { float w1 = vn(L.xy * 3.0 + L.z * 2.0), w2 = vn(L.yz * 9.0 + L.x * 5.0), pat = smoothstep(0.55, 0.8, w1) * (0.6 + 0.4 * w2);   // weathered bronze: patina in its hollows, a warm sheen
+      vec3 B0 = mix(vec3(0.62, 0.38, 0.2), vec3(0.22, 0.2, 0.14), pat * 0.7) * (0.85 + 0.25 * w2), BF = B0 + (1.0 - B0) * bFr; float rg = 0.32 + 0.25 * pat;
+      bC = (B0 * (0.1 + 0.55 * bDif) * bKEY * 0.5 + BF * bEv * (1.0 - pat * 0.6) + vec3(1.0, 0.85, 0.65) * pow(bSb, 2.0 / (rg * rg)) * (0.9 - pat * 0.5) + bRim * 0.35) * bOcc + vec3(0.05, 0.06, 0.04) * pat * bAmb + bAMB * smoothstep(0.85, 1.0, edge) * bG * 0.25; }
+    else if (id == 283) bC = bGold + bAMB * bEng * bG * 0.45;
+    else if (id == 284) { float fl = pow(0.5 + 0.5 * sin(ao * 16.0 - bT * 4.5), 5.0), fl2 = pow(0.5 + 0.5 * sin(ao * 6.0 - bT * 1.9 + 1.0), 3.0), k = 0.6 + 0.8 * bG;   // amber energy, pulses running along it
+      bC = mix(vec3(0.9, 0.38, 0.05), vec3(1.6, 1.25, 0.75), fl * 0.7 + fl2 * 0.25) * k + vec3(0.35, 0.18, 0.05) * bNV; }
+    else if (id == 285) bC = mix(vec3(1.5, 0.75, 0.15), vec3(1.7, 1.45, 1.0), 0.3 + 0.3 * min(bG2, 1.5)) * (0.8 + 0.8 * bG2) * (0.92 + 0.08 * sin(bT * 9.0));
+    else if (id == 286) { vec3 lp = normalize(L); float lat = lp.z, lon = atan(lp.y, lp.x);   // the planet: dense, banded, amber fissures and continents; compression turns it white-hot
+      float bands = sin(lat * 15.0 + 2.0 * vn(vec2(lon * 2.0 + bT * 0.15, lat * 3.0))) * 0.5 + 0.5, cont = smoothstep(0.45, 0.62, vn(vec2(lon * 1.6 - bT * 0.2, lat * 2.4) + 4.0) * 0.7 + vn(vec2(lon * 4.0, lat * 6.0)) * 0.3);
+      float fis = smoothstep(0.035, 0.0, abs(vn(vec2(lon * 3.0 - bT * 0.3, lat * 5.0) + 9.0) - 0.5));
+      vec3 sf = mix(vec3(0.16, 0.09, 0.04), vec3(0.42, 0.26, 0.1), bands) * (0.6 + 0.4 * cont);
+      vec3 c = sf * (0.5 + 0.8 * bWr) + bAMB * (fis * (0.9 + 1.1 * bG) + (1.0 - cont) * 0.2 * (0.5 + bG)) + vec3(1.0, 0.7, 0.3) * pow(1.0 - bNV, 2.5) * (0.5 + 0.6 * bG);
+      bC = mix(c, bHOT * (1.0 + 0.6 * bG), clamp(bG2 * 0.55, 0.0, 0.9)) + vec3(1.0, 0.95, 0.85) * pow(bSb, 40.0) * 0.6; }
+    else if (id == 287) { vec3 lp = normalize(L); float an = atan(lp.y, lp.x), sw = vn(vec2(an * 2.5 + lp.z * 3.0 - bT * 0.8, lp.z * 4.0 + bT * 0.4)), fil = smoothstep(0.05, 0.0, abs(sw - 0.5));   // the amber field: see-through, currents of light turning in it
+      vec3 cs = vec3(1.0, 0.5, 0.1) * (0.15 + 0.6 * pow(1.0 - bNV, 2.0)) * (0.6 + 0.8 * bG) + vec3(1.4, 1.0, 0.55) * fil * (0.4 + 0.7 * bG) + bEv * (0.04 + 0.96 * bFr) * 0.6 + vec3(1.0, 0.95, 0.85) * pow(bSb, 120.0) * 3.0;
+      cs = vec3(tone(cs.r), tone(cs.g), tone(cs.b)); bA = clamp(0.03 + 0.45 * pow(1.0 - bNV, 2.5) + fil * 0.25 + max(cs.r, max(cs.g, cs.b)) * 0.18, 0.0, 0.85);
+      gl_FragColor = vec4(min(cs, vec3(bA)) * uAlpha, bA * uAlpha); return; }
+    else if (id == 288) { float band = step(0.25, bF) * step(bF, 0.45), an = atan(L.y, L.x), crd = band > 0.5 ? ao * 14.0 : an * 7.6394 + 24.0, cell = floor(crd), dd = fract(crd) - 0.5, ac = band > 0.5 ? (edge - 0.5) * 2.0 : NL.z;   // runes lit in a pulse running round (or along a band)
+      float h = hs(vec2(cell, 3.0 + uKind)), stem = smoothstep(0.1, 0.05, abs(dd - (h - 0.5) * 0.2)) * step(abs(ac), 0.72);
+      float brn = h > 0.55 ? smoothstep(0.09, 0.035, abs(ac - dd * 1.4 * (h > 0.8 ? 1.0 : -1.0))) * step(abs(dd), 0.35) : smoothstep(0.09, 0.035, abs(ac - (h - 0.5) * 0.8)) * step(abs(dd), 0.3);
+      float rune = max(stem, brn) * step(0.22, h) * (band > 0.5 ? 1.0 : step(0.25, abs(ac)) * 0.0 + 1.0);
+      float pl = pow(0.5 + 0.5 * sin(crd * 0.45 - bT * 3.0 + uKind * 1.7), 6.0);
+      vec3 base = band > 0.5 ? vec3(0.035, 0.028, 0.025) * (0.4 + bDif) + bEv * (0.04 + 0.96 * bFr) * 0.5 : bGold;
+      bC = base * (1.0 - rune * 0.5) + mix(bAMB, bHOT, pl) * rune * (0.3 + 0.7 * bG + 1.0 * pl * (0.4 + bG2)); }
+    else if (id == 289) { float an = atan(L.y, L.x), pl = pow(0.5 + 0.5 * sin(an * 5.0 - bT * 3.2 + uKind * 1.7), 6.0);   // a ring of light
+      vec3 cl2 = vec3(1.1, 0.62, 0.16) * (0.55 + 0.6 * bG) + vec3(1.4, 1.15, 0.7) * pl * 0.8; cl2 = vec3(tone(cl2.r), tone(cl2.g), tone(cl2.b));
+      bA = clamp(max(cl2.r, max(cl2.g, cl2.b)) * (0.45 + 0.55 * bNV), 0.0, 1.0); gl_FragColor = vec4(cl2 * bA * uAlpha, bA * uAlpha); return; }
+    else if (id == 290) { vec3 an3 = abs(NL); float side = step(an3.z, max(an3.x, an3.y)); vec2 wq = an3.x > an3.y ? vec2(L.y, L.z) : vec2(L.x, L.z);   // a temple wall: ivory masonry, arched windows lit amber
+      vec2 cq = vec2(wq.x * 2.4, wq.y * 2.6), ci = floor(cq), cf = fract(cq) - 0.5;
+      float arch = cf.y < 0.05 ? abs(cf.x) - 0.17 : length(vec2(cf.x, cf.y - 0.05)) - 0.17, win = smoothstep(0.02, -0.02, arch) * step(-0.36, cf.y) * step(0.3, hs(ci + 7.0) + 0.25) * side;
+      float frm = smoothstep(0.05, 0.0, abs(arch) - 0.035) * step(-0.38, cf.y) * side;
+      vec3 alb = vec3(0.84, 0.78, 0.66) * (0.9 + 0.12 * vn(wq * 3.0));
+      vec3 c = alb * (bDif * bKEY + bAmb * 1.1) * bOcc + bEv * (0.035 + 0.965 * bFr) * 0.7 * bOcc;
+      float lit = 0.55 + 0.45 * hs(ci + 3.0), fl = 0.85 + 0.15 * sin(bT * 2.0 + hs(ci) * 20.0);
+      c = mix(c, bGold, frm * 0.75 * (1.0 - uLow * 0.5));
+      c = mix(c, mix(vec3(0.5, 0.2, 0.04), bHOT, 0.3 + 0.3 * cf.y) * lit * fl * (0.45 + 0.8 * bG), win);
+      bC = mix(c, bGold, smoothstep(0.82, 0.95, edge)); }
+    else if (id == 291) { float tl = fract(L.z * 9.0), tc = fract((L.x + L.y) * 6.0 + 0.5 * floor(L.z * 9.0)), gro = smoothstep(0.1, 0.0, tl) + smoothstep(0.07, 0.0, min(tc, 1.0 - tc)) * 0.6, w1 = vn(L.xy * 4.0);   // roof tiles: dark glazed rows, gilded eaves and hips
+      vec3 T0 = mix(vec3(0.05, 0.04, 0.035), vec3(0.16, 0.1, 0.06), w1 * 0.6), TF = T0 + (vec3(0.6, 0.5, 0.4) - T0) * bFr;
+      vec3 c = (T0 * (0.25 + 0.75 * bDif) * bKEY + TF * bEv * 0.9 + vec3(1.0, 0.9, 0.75) * pow(bSb, 30.0) * 0.6 + bRim * 0.4) * bOcc * (1.0 - gro * 0.45);
+      bC = mix(c, bGold, smoothstep(0.75, 0.92, edge)); }
+    else if (id == 292) { float wv = vn(vec2(L.y, L.z) * vec2(8.0, 2.0) + 3.0); vec3 alb = vec3(0.32, 0.05, 0.07) * (0.75 + 0.35 * wv);   // banner cloth: maroon, a gold border, the sign
+      vec2 g = vec2(L.y, L.z + 0.55); float cir = abs(length(g - vec2(0.0, -0.08)) - 0.1), cre = abs(length(g - vec2(0.0, 0.12)) - 0.13) + step(0.12, g.y) * 9.0, gly = smoothstep(0.03, 0.015, min(cir, cre));
+      vec3 c = alb * (bDif * bKEY * 0.9 + bAmb) * bOcc + vec3(0.5, 0.2, 0.2) * pow(1.0 - bNV, 3.0) * 0.4 + bRim * 0.25 * alb;
+      bC = mix(c, bGold, max(gly, smoothstep(0.7, 0.9, edge))) + bAMB * gly * bG * 0.4; }
+    else {   // 293 weathered stone: grain, chisel marks, carved runes (lit by uGlow2), cracks with amber light (uGlow), gilded bevels
+      float w1 = vn(L.xy * 2.2 + L.z * 1.7), w2 = vn(L.yz * 7.0 + L.x * 4.0), w3 = vn(L.xz * 19.0 + L.y * 11.0);
+      vec3 ns = uLow < 0.5 ? normalize(n + (vec3(vn(L.yz * 6.0), vn(L.zx * 6.0 + 3.0), vn(L.xy * 6.0 + 7.0)) - 0.5) * 0.3) : n; float dd2 = max(dot(ns, uLK), 0.0);
+      vec3 alb = mix(vec3(0.42, 0.38, 0.33), vec3(0.64, 0.58, 0.49), w1) * (0.85 + 0.25 * w2) * (1.0 - 0.25 * smoothstep(0.7, 0.9, w3));
+      vec3 c = alb * (dd2 * bKEY + bAmb * 1.05) * bOcc + bEv * (0.03 + 0.97 * bFr) * 0.4 * bOcc;
+      if (bF > 0.25) { vec2 q = vec2(atan(L.y, L.x) * 2.546, L.z * 6.0), ci = floor(q), f = fract(q) - 0.5; float hh = hs(ci + 0.37), dr = abs(f.x - (hh - 0.5) * 0.3) + step(0.32, abs(f.y));
+        if (hh > 0.35) dr = min(dr, abs(f.y - f.x * (hh > 0.6 ? 0.8 : -0.8) - 0.05) + step(0.3, abs(f.x))); float rn = smoothstep(0.075, 0.03, dr) * step(0.3, hs(ci + 9.1));
+        c = c * (1.0 - rn * 0.45) + mix(bAMB, bHOT, 0.3) * rn * (0.25 + 1.6 * bG2); }
+      float c1 = abs(fract(dot(L, vec3(2.1, 1.3, 1.7)) + w1 * 1.5) - 0.5), c2 = abs(fract(dot(L, vec3(-1.6, 2.4, 1.1)) + w2 * 0.9) - 0.5), fis = smoothstep(0.014, 0.003, min(c1, c2)) * smoothstep(0.55, 0.72, vn(L.zx * 1.1 + L.y * 0.8));
+      c = c * (1.0 - fis * 0.7) + bAMB * fis * (0.05 + 1.2 * bG);
+      bC = mix(c, bGold, smoothstep(0.88, 1.0, edge) * 0.6); }
+    bC += bAMB * bDE * 2.2 + bHOT * bDE * bDE * 1.5;   // (the dissolve's burning gold edge)
+    gl_FragColor = vec4(vec3(tone(bC.r), tone(bC.g), tone(bC.b)) * uAlpha, uAlpha); return; }
+  /*</BL-MAT>*/
   /*<OD-DRILL-MAT ids 150..151 (v416 OD: 20k2iz-earth-drill-gpu.js)>*/
   else if (id >= 150 && id <= 151) {   // ---- (v416 OD) the Obsidian Drill (20k2iz), z its axis in its own frame: 150 black volcanic glass (150.2 its core, 150.4 its tip; vA.y 1 on a bevel or a facet's rim, vA.z the occlusion), 151 gold crystal (151.0 the inlay along a flight's rim: vA.z its length along the helix; 151.3 a joint's crystal). uGlow the gold's light, uWear world units a model unit (its height over the floor from vW.z), uTime.
     // Glass: a near-black body with a grey-violet lit flank; a cool sky above, a bright horizon strip and the floor's warm light below in its reflections; a fresnel rim; sharp glints with a faint rainbow sheen; conchoidal facets (a cell net round the axis, each cell tilting the normal its own way, rippled from its seed) that turn with it; bright bevels
@@ -1732,5 +1820,7 @@ void main() {
   function halos(c, list) { if (!list || !list.length) return; c.save(); c.globalCompositeOperation = 'lighter';
     for (const h of list) { const a = Math.max(0, Math.min(1, h.a == null ? 0.3 : h.a)); if (!(a > 0.004) || !(h.r > 0)) continue; const sp = haloSprite(HALO[h.col] || h.col || HALO.mint); if (!sp) break; const ry = h.r * (h.sy == null ? 1 : h.sy); c.globalAlpha = a; c.drawImage(sp, h.x - h.r, h.y - ry, h.r * 2, ry * 2); }
     c.restore(); }
-  return { builder, ok, render, touch, touchGeo, halos, HALO, get stats() { return { calls, tris, gl2: isGL2, lost, failed, soft }; }, get soft() { return soft; }, get canvas() { return cv; }, loseForTest() { LX = gl && gl.getExtension('WEBGL_lose_context'); if (LX) LX.loseContext(); return !!LX; }, restoreForTest() { if (LX) LX.restoreContext(); } };
+  /* (v426 BL) free a mesh's GPU buffers (its arrays stay: it uploads again when next drawn) */
+  function free(M) { if (M && M.gl && gl && M.gl.gen === gen && !gl.isContextLost()) { try { gl.deleteBuffer(M.gl.p); gl.deleteBuffer(M.gl.n); gl.deleteBuffer(M.gl.a); gl.deleteBuffer(M.gl.i); } catch (e) {} } if (M) M.gl = null; }
+  return { builder, ok, render, touch, touchGeo, halos, HALO, free /* v426 BL */, get stats() { return { calls, tris, gl2: isGL2, lost, failed, soft }; }, get soft() { return soft; }, get canvas() { return cv; }, loseForTest() { LX = gl && gl.getExtension('WEBGL_lose_context'); if (LX) LX.loseContext(); return !!LX; }, restoreForTest() { if (LX) LX.restoreContext(); } };
 })();

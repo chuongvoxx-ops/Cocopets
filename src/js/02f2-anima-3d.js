@@ -260,48 +260,69 @@ const Anima3D = (() => {
   }
   H.wing = wing;
 
-  /* Belial (Taurus): a glossy black calf whose gold horns grow into a crown of ages, armoured in gold as it grows */
+  /* (v426 BL) Belial, the World Pillar (Taurus), cel-shaded: the same design as its GPU model (02f4) for devices without one: a
+     front-heavy fortress-bull of obsidian under big ivory slabs with gold trim, pillar legs on stepped plinths, a wedge skull with amber
+     eyes and the sign, crescent gold horns with rings, the Core of Dominion glowing in its chest, a tiered citadel on its back, a tail
+     with its floating anchor; monoliths from the second form, a halo at the last. Its pose comes from the fight (o.inst.blP) or rest */
   MODELS.taurus = (k, t, o) => {
-    const mv = clamp01(o.mv || 0), ph = o.ph || 0, s = [1.25, 1.38, 1.52][k - 1], S = strikeOf(o.atk, o.atkBig);
-    const hide = '#2A2834', hideSh = '#15141C', hideHi = '#5E6090', gold = '#F2C65A', goldSh = '#B8862A', goldHi = '#FFF0B0', mz = '#5A5464';
-    const ff = -5 * S.wind + 10 * S.hit, bob = (1 - Math.abs(Math.cos(ph))) * 1.8 * mv, hb = 25 * s + bob;
-    const BL = 23 * s, BW = 18 * s, BH = 15 * s, body = [ff * 0.5, 0, hb], G = gait4(ph, mv, 'stomp');
-    [[11, 8, 1], [11, -8, 1], [-11, 8, -1], [-11, -8, -1]].forEach(([lf, ls, kd], i) => {
-      const hip = [lf * s + ff * 0.4, ls * s, hb - BH * 0.45], foot = leg(hip, hip[2], G[i].sw, G[i].lift, kd, 6.2 * s, 4.8 * s, { col: hide, shade: hideSh, hi: hideHi, line: INK });
-      ell([foot[0] + 0.8, foot[1], foot[2] + 2 * s], [4.6 * s, 4.2 * s, 2.6 * s], { col: '#14121A', shade: '#08070C', hi: '#4A4860', line: INK, spec: 0.5 });
-      if (k >= 2) ell([foot[0] + 0.5, foot[1], foot[2] + 4.4 * s], [4.4 * s, 4 * s, 1.1 * s], { col: gold, shade: goldSh, hi: goldHi, line: INK, spec: 0.6, z: -0.5 });
+    const PZ = (o.inst && o.inst.blP) || {}, LF = typeof BELIAL_GL !== 'undefined' && BELIAL_GL.life ? BELIAL_GL.life({ t: PZ.t != null ? PZ.t : t, live: PZ.live != null ? PZ.live : 1 }) : null;
+    const s = [0.8, 0.9, 1][k - 1], mv = clamp01(o.mv != null ? o.mv : PZ.mv || 0), ph = o.ph != null ? o.ph : PZ.ph || 0, G = gait4(ph, mv, 'stomp'), br = LF ? LF.breath : Math.sin(t * 0.9), bob = br * 0.5 * s;
+    const OB = { col: '#2E2925', shade: '#16120F', hi: '#625850', line: '#0A0806' }, IV = { col: '#EDE4CE', shade: '#B8A88A', hi: '#FFFAEC', line: '#8A6424' }, GD = { col: '#EBBC52', shade: '#A87420', hi: '#FFF0B0', line: '#5A3A0A' }, RF = { col: '#2E241C', shade: '#16110C', hi: '#6A5440', line: '#0A0806' };
+    const W = (st, x) => Object.assign({}, st, x);
+    if (PZ.dis > 0) R.alpha *= 1 - Math.min(1, PZ.dis);   // (it fades as its GPU twin dissolves into light)
+    const hd = (PZ.head || 0) + (LF ? LF.head : 0), core = PZ.core != null ? PZ.core : 0.85 + (LF ? LF.core : 0), horn = PZ.horn || 0, cit = PZ.cit || 0, crouch = (PZ.crouch || 0) * 3 * s, rear = (PZ.rear || 0) * 6 * s;
+    const BZ = 44 * s + bob - crouch, HZ = 38 * s + bob * 0.6 - crouch;
+    // the legs: thick ivory pillars banded in gold, standing on stepped plinth hooves (front knees forward, hind knees back)
+    [[15, 15.5, 1, 1.75, 1.8], [15, -15.5, 1, 1.75, 1.8], [-17, 14, -1, 1.5, 1.55], [-17, -14, -1, 1.5, 1.55]].forEach(([lf, ly, kd, w, hs], i) => {
+      const hip = [lf * s, ly * s, HZ + (lf > 0 ? rear : 0)], r0 = 3.9 * w * s, r1 = 3.3 * w * s, foot = leg(hip, hip[2] - 7 * s, G[i].sw, G[i].lift, kd, r0, r1, W(IV, { knee: 0.35 }));
+      const hr = 4.7 * hs * s, fz = foot[2];
+      ell([foot[0], foot[1], fz + 1.6 * s], [hr * 1.12, hr * 1.12, 1.7 * s], W(OB, { z: 0.6 }));
+      ell([foot[0], foot[1], fz + 4.2 * s], [hr, hr, 2.8 * s], W(IV, { spec: 0.3, z: 0.3 })); ell([foot[0], foot[1], fz + 7.4 * s], [hr * 0.84, hr * 0.84, 2 * s], W(IV, { spec: 0.3, z: 0.1 }));
+      ell([foot[0], foot[1], fz + 9.6 * s], [hr * 0.74, hr * 0.74, 0.9 * s], W(GD, { spec: 0.6, z: -0.3 }));
+      for (const u of [0.3, 0.62]) ell([lerp(hip[0], foot[0], u), hip[1], lerp(hip[2], fz + 7 * s, u)], [lerp(r0, r1, u) * 1.06, lerp(r0, r1, u) * 1.06, 1 * s], W(GD, { spec: 0.6, z: -0.5 }));
     });
-    ell(add(body, [BL * 0.08, 0, BH * 0.12]), [BL * 1.02, BW, BH * 1.12], { col: hide, shade: hideSh, hi: hideHi, line: INK, spec: 0.75, specR: 0.14, pitch: -0.08 });
-    // the tail: a rope with a tuft, swishing
-    const tw = Math.sin(t * 2.4) * 4, tp = bez3([body[0] - BL * 0.92, 0, hb + BH * 0.4], [body[0] - BL * 1.3, tw * 0.5, hb + BH * 0.5], [body[0] - BL * 1.35, tw, hb - BH * 0.6], [body[0] - BL * 1.22, tw * 1.2, hb - BH * 1.2], 8);
-    tube(tp, u => (2.2 - u * 0.8) * s, { col: hide, shade: hideSh, hi: hideHi, line: INK, z: 3 });
-    sphere(tp[8], 3.8 * s, { col: '#121016', shade: '#060508', hi: '#3A3848', line: INK, z: 2.5 });
-    if (k === 3) ell(sub(tp[8], [0, 0, -3 * s]), [3.2 * s, 3.2 * s, 1.2 * s], { col: gold, shade: goldSh, hi: goldHi, line: INK, spec: 0.6, z: 2 });
-    // armour on the last form: a heart plate on the chest with a violet gem, gold pauldrons
-    if (k === 3) { const cp = [body[0] + BL * 0.95, 0, hb + BH * 0.15]; mark(cp, [1, 0, 0.1], 11 * s, (c, r) => { c.fillStyle = gold; c.strokeStyle = INK; c.lineWidth = r * 0.08; c.beginPath(); c.moveTo(0, -r * 0.8); c.bezierCurveTo(r * 0.9, -r * 1.2, r * 1.2, 0, 0, r); c.bezierCurveTo(-r * 1.2, 0, -r * 0.9, -r * 1.2, 0, -r * 0.8); c.fill(); c.stroke(); c.fillStyle = goldSh; c.beginPath(); c.moveTo(0, -r * 0.5); c.bezierCurveTo(r * 0.5, -r * 0.75, r * 0.7, 0, 0, r * 0.6); c.bezierCurveTo(-r * 0.7, 0, -r * 0.5, -r * 0.75, 0, -r * 0.5); c.fill(); c.fillStyle = '#B983F5'; c.beginPath(); c.ellipse(0, -r * 0.05, r * 0.32, r * 0.38, 0, 0, TAU); c.fill(); c.fillStyle = '#FFFFFF'; c.beginPath(); c.ellipse(-r * 0.1, -r * 0.18, r * 0.1, r * 0.07, -0.5, 0, TAU); c.fill(); });
-      [-1, 1].forEach(q => ell([body[0] + BL * 0.55, q * BW * 0.82, hb + BH * 0.75], [7 * s, 6 * s, 4.2 * s], { col: gold, shade: goldSh, hi: goldHi, line: INK, spec: 0.7 })); }
-    // the head: broad, glossy, low on a thick neck; it lowers its head to charge
-    const hr = 18 * s, F = frame([body[0] + BL * 1.0 + ff * 0.4, 0, hb + BH * 0.42 + Math.sin(ph * 2) * mv], Math.sin(t * 0.7) * 0.18 * (1 - mv), 0.08 + 0.35 * S.hit - 0.2 * S.wind + Math.sin(ph * 2) * 0.05 * mv, Math.sin(t * 1.1) * 0.04), at = F.at;
-    ell(F.c, [hr * 0.9, hr * 0.98, hr * 0.85], { B: F.B, col: hide, shade: hideSh, hi: hideHi, line: INK, spec: 0.7 });
-    ell(at(hr * 0.68, 0, -hr * 0.42), [hr * 0.46, hr * 0.66, hr * 0.42], { B: F.B, col: mz, shade: sh(mz, -0.3), hi: sh(mz, 0.3), line: INK, spec: 0.4 });
-    [-1, 1].forEach(q => { mark(at(hr * 1.08, q * hr * 0.26, -hr * 0.42), F.B[0], 2.2 * s, (c, r) => { c.fillStyle = '#0E0C12'; c.beginPath(); c.ellipse(0, 0, r, r * 0.75, 0, 0, TAU); c.fill(); });
-      // ears out to the sides
-      const eb = at(-hr * 0.05, q * hr * 0.9, hr * 0.15), et = at(-hr * 0.25, q * hr * 1.6, hr * 0.05 + Math.sin(t * 2 + q) * hr * 0.08), em = mix3(eb, et, 0.5), wv = F.dir(0, 0, hr * 0.2);
-      blob([eb, add(em, wv), et, sub(em, wv)], { col: hide, shade: hideSh, hi: hideHi, line: INK, z: -1.5 }); blob([mix3(eb, et, 0.2), add(em, mul(wv, 0.5)), mix3(eb, et, 0.8), sub(em, mul(wv, 0.5))], { col: '#B05A70', shade: '#803A50', hi: false, line: false, z: -1.7 });
-      eye(at(hr * 0.62, q * hr * 0.42, hr * 0.12), F.dir(0.75, q * 0.62, 0.15), 4.8 * s, { iris: '#FFB347', blink: o.blink, lid: [0, 0.14, 0.22][k - 1], lidCol: hide, irisR: 0.74 });
-      const bp = at(hr * 0.5, q * hr * 0.72, -hr * 0.2); mark(bp, F.dir(0.5, q * 0.85, -0.1), 3.6 * s, (c, r) => { c.fillStyle = 'rgba(255,138,168,.5)'; c.beginPath(); c.ellipse(0, 0, r, r * 0.6, 0, 0, TAU); c.fill(); });
-      // gold horns: stubs, then a sweep up, then a great crown curving up and in
-      const hl = [0.42, 0.78, 1.1][k - 1] * hr, b0 = at(-hr * 0.15, q * hr * 0.66, hr * 0.48), pts = bez3(b0, at(-hr * 0.3, q * (hr * 0.66 + hl * 0.65), hr * 0.45), at(-hr * 0.3, q * (hr * 0.66 + hl * 1.0), hr * 0.48 + hl * 0.4), at(-hr * 0.22, q * (hr * 0.66 + hl * (k === 3 ? 0.62 : 0.9)), hr * 0.48 + hl * [0.32, 0.75, 1.05][k - 1]), 10);
-      tube(pts, u => [4.4, 5.4, 6.6][k - 1] * s * (1 - u * 0.78), { col: gold, shade: goldSh, hi: goldHi, line: INK, z: q > 0 ? -1 : -0.5,
-        inner: k > 1 ? c => { c.strokeStyle = 'rgba(120,80,20,.55)'; c.lineWidth = Math.max(1, R.u); const sp = pts.map(P); for (let i = 1; i < 5; i++) { const p = sp[i], p2 = sp[i + 1], dx = p2[0] - p[0], dy = p2[1] - p[1], d = Math.hypot(dx, dy) || 1, w = 5 * s * R.u * (1 - i / 10 * 0.78); c.beginPath(); c.moveTo(p[0] - dy / d * w, p[1] + dx / d * w); c.lineTo(p[0] + dy / d * w, p[1] - dx / d * w); c.stroke(); } } : null });
-    });
-    // a tuft on the brow, a crest of gold, a violet gem; a nose ring on the bull
-    for (let i = 0; i < 4; i++) sphere(at(hr * 0.35 - i * 0.12 * hr, (i - 1.5) * hr * 0.16, hr * 0.82), 3.4 * s, { col: '#16141C', shade: '#08070C', hi: '#3A3848', line: INK, z: -0.6 });
-    if (k >= 2) { const cr = at(hr * 0.62, 0, hr * 0.62); mark(cr, F.dir(0.8, 0, 0.6), (k === 3 ? 7 : 5) * s, (c, r) => { c.fillStyle = gold; c.strokeStyle = INK; c.lineWidth = r * 0.12; c.beginPath(); c.moveTo(0, -r * 1.2); c.lineTo(r * 0.7, -r * 0.2); c.lineTo(r * (k === 3 ? 1.4 : 0.6), -r * 0.8); c.lineTo(r * 0.6, r * 0.6); c.lineTo(0, r * 0.9); c.lineTo(-r * 0.6, r * 0.6); c.lineTo(-r * (k === 3 ? 1.4 : 0.6), -r * 0.8); c.lineTo(-r * 0.7, -r * 0.2); c.closePath(); c.fill(); c.stroke(); c.fillStyle = '#B983F5'; c.beginPath(); c.ellipse(0, 0, r * 0.36, r * 0.42, 0, 0, TAU); c.fill(); c.fillStyle = '#FFFFFF'; c.beginPath(); c.arc(-r * 0.1, -r * 0.14, r * 0.1, 0, TAU); c.fill(); }); glowAt(cr, 8 * s, '#D9B8FF', 0.5);
-      const nr = at(hr * 1.1, 0, -hr * 0.66); mark(nr, F.B[0], 4 * s, (c, r) => { c.strokeStyle = gold; c.lineWidth = r * 0.42; c.beginPath(); c.arc(0, -r * 0.2, r, 0.3, Math.PI - 0.3); c.stroke(); }); }
-    mark(at(hr * 1.06, 0, -hr * 0.68), F.B[0], 2.4 * s, (c, r) => { c.strokeStyle = '#0E0C12'; c.lineWidth = r * 0.4; c.lineCap = 'round'; c.beginPath(); c.moveTo(-r, 0); c.quadraticCurveTo(0, r * 0.7, r, 0); c.stroke(); });
-    if (k === 3) for (let i = 0; i < 3; i++) { const ph2 = (t * 0.6 + i / 3) % 1; [-1, 1].forEach(q => glowAt(at(hr * 1.2 + ph2 * 6, q * hr * (0.3 + ph2 * 0.3), -hr * 0.5 + ph2 * 3), (2 + ph2 * 5) * s, '#F0F0FF', 0.25 * (1 - ph2))); }
+    // the barrel: an obsidian substructure, front-heavy, under big ivory slabs edged in gold
+    ell([1 * s, 0, BZ], [28 * s, 18 * s, 15 * s], W(OB, { spec: 0.5, specR: 0.12 }));
+    ell([14 * s, 0, BZ + 3 * s + rear * 0.5], [16 * s, 19.5 * s, 16 * s], W(OB, { spec: 0.5, specR: 0.12, z: 0.2 }));
+    for (const sd of [1, -1]) [[-20, 9, 7], [-7, 11, 9], [7, 12.5, 11], [20, 13, 12]].forEach(([x0, hh, dn], j) => { const x = x0 * s, y = sd * (16.5 + j * 1.1) * s, z0 = BZ + (j * 1.5 + 2) * s + (j > 1 ? rear * 0.5 : 0);
+      blob([[x - 6 * s, y, z0 + hh * 0.7 * s], [x + 6 * s, y, z0 + hh * 0.75 * s], [x + 6.5 * s, y + sd * 1.6 * s, z0 - dn * 0.4 * s], [x, y + sd * 2.6 * s, z0 - dn * s], [x - 6.5 * s, y + sd * 1.6 * s, z0 - dn * 0.4 * s]], W(IV, { line: '#B88A2A', z: -1.2, sharp: true })); });
+    [[-22, 52, 10, 13], [-9, 56, 11, 16], [5, 59, 11, 18], [19, 61, 10, 18]].forEach(([x, z, lx, ly]) => ell([x * s, 0, (z - 44) * s + BZ + (x > 0 ? rear * 0.6 : 0)], [lx * s, ly * s, 3.4 * s], W(IV, { spec: 0.35, line: '#B88A2A', z: -1.5 })));
+    // the tail and its floating anchor
+    const tw = (LF ? LF.tail : 0) * 6 + (PZ.tail || 0) * 8, tp = bez3([-27 * s, 0, BZ + 6 * s], [-37 * s, tw * 0.5, BZ + 3 * s], [-41 * s, tw, BZ - 12 * s], [-39 * s, tw * 1.2, BZ - 21 * s], 8);
+    tube(tp, u => (3.6 - u * 1.6) * s, W(OB, { z: 3 }));
+    const mc = add(tp[8], [0, 0, -6 * s + Math.sin(t * 1.4) * s]); sphere(mc, 3.6 * s, W(OB, { z: 2.5 })); ell(mc, [5.2 * s, 5.2 * s, 1.1 * s], W(GD, { z: 2 })); glowAt(mc, 5 * s, '#FFB347', 0.4);
+    // the shoulder bastions: layered ivory pauldrons with a lit rampart, the highest, widest point of the body
+    for (const sd of [1, -1]) { const bp = [16 * s, sd * 18 * s, BZ + 13 * s + rear * 0.6 + (PZ.bast || 0) * 3 * s];
+      for (let i = 2; i >= 0; i--) ell(add(bp, [-i * 1.5 * s, sd * i * 2 * s, -i * 4.5 * s]), [12 * s, 6 * s, 4.2 * s], W(IV, { spec: 0.4, line: '#B88A2A', z: -0.6 - i * 0.2 }));
+      blob([add(bp, [-9 * s, -sd * 2 * s, 3.5 * s]), add(bp, [9 * s, -sd * 2 * s, 3.5 * s]), add(bp, [9 * s, -sd * 2 * s, 8.5 * s]), add(bp, [-9 * s, -sd * 2 * s, 8.5 * s])], W(IV, { line: '#6A4E22', z: -1, sharp: true, inner: c => { c.globalCompositeOperation = 'lighter'; c.fillStyle = 'rgba(255,170,60,.55)'; for (let w = -2; w <= 2; w++) { const q = P(add(bp, [w * 3.4 * s, -sd * 2 * s, 6 * s])); c.fillRect(q[0] - 0.7 * s * R.u, q[1] - 1.3 * s * R.u, 1.4 * R.u * s, 2.6 * R.u * s); } } })); }
+    // the citadel on its back: a rear hall and the keep's tiers over the shoulders (taller toward the front), lit windows, spires
+    const CZ = BZ + 17 * s + cit * 2 * s, up = (PZ.citUp || 0) * 6 * s, tiers = k === 3 ? 3 : k === 2 ? 2 : 1;
+    const roof = (cx, z, hx, hy, h) => { blob([[cx - hx, -hy, z], [cx + hx, -hy, z], [cx + hx * 0.3, 0, z + h], [cx - hx * 0.3, 0, z + h]], W(RF, { line: '#C8962A', z: -2, sharp: true })); blob([[cx - hx, hy, z], [cx + hx, hy, z], [cx + hx * 0.3, 0, z + h], [cx - hx * 0.3, 0, z + h]], W(RF, { line: '#C8962A', z: -2.1, sharp: true })); };
+    const hall = (cx, z, hx, hy, h) => { for (const sd of [1, -1]) blob([[cx - hx, sd * hy, z], [cx + hx, sd * hy, z], [cx + hx, sd * hy, z + h], [cx - hx, sd * hy, z + h]], W(IV, { z: -1.8, sharp: true, inner: c => { c.globalCompositeOperation = 'lighter'; c.fillStyle = 'rgba(255,170,60,.5)'; for (let w = -2; w <= 2; w++) { const q = P([cx + w * hx * 0.36, sd * hy, z + h * 0.5]); c.fillRect(q[0] - 0.8 * R.u * s, q[1] - 1.5 * R.u * s, 1.6 * R.u * s, 3 * R.u * s); } } })); };
+    hall(-12 * s, CZ - 5 * s + up * 0.5, 10 * s, 8 * s, 6 * s); roof(-12 * s, CZ + 1 * s + up * 0.5, 12.5 * s, 10 * s, 6 * s);
+    for (let i = 0; i < tiers; i++) { const sc = 1 - i * 0.26, z = CZ + i * 10 * s + up * (0.6 + i * 0.3); hall(8 * s, z, 9 * sc * s, 9 * sc * s, 5 * s); roof(8 * s, z + 5 * s, 12 * sc * s, 11.5 * sc * s, 5.5 * s); }
+    if (k === 3) tube([[8 * s, 0, CZ + 30 * s + up], [8 * s, 0, CZ + 42 * s + up]], u => (1.5 - u * 1.4) * s, W(GD, { z: -3 }));
+    for (let i = 0; i < [2, 4, 6][k - 1]; i++) { const x = (-20 + (i >> 1) * 13) * s, y = (i % 2 ? 1 : -1) * 10 * s; tube([[x, y, CZ - 4 * s], [x, y, CZ + 8 * s]], u => (1.5 - u * 1.3) * s, W(IV, { z: -2.5 })); }
+    // the Core of Dominion: an amber planet in gold rings, in the chest under the head
+    const cp = [32 * s, 0, BZ - 10 * s]; sphere(cp, 6.4 * s, { col: '#E89A3A', shade: '#8A4A12', hi: '#FFF0C0', line: '#5A3A0A', z: -2 });
+    decal(cp, (c, p) => { c.save(); c.strokeStyle = '#F2C65A'; c.lineWidth = Math.max(1, R.u * 1.2); for (let j = 0; j < 3; j++) { c.beginPath(); c.ellipse(p[0], p[1], 9 * s * R.u, (2.6 + j * 2.4) * s * R.u, t * (0.5 + j * 0.4) + j, 0, TAU); c.stroke(); } c.restore(); }, -3);
+    glowAt(cp, 15 * s * (0.8 + 0.2 * Math.min(2, core)), '#FFB347', 0.32 + 0.12 * Math.min(3, core)); glowAt(cp, 5.5 * s, '#FFFFFF', 0.5);
+    // the head: a heavy armoured wedge on a short neck, low and forward; ivory faceplate, amber eyes, the sign; crescent horns with rings
+    const F = frame([31 * s + hd * 3 * s, 0, BZ + 5 * s - hd * 5 * s + rear * 0.8], (PZ.look || 0) * 0.4 + (LF ? LF.look * 0.3 : 0), 0.3 + hd * 0.4, 0), at = F.at;
+    tube([[20 * s, 0, BZ + 8 * s + rear * 0.6], F.c], u => (11 - u * 2.5) * s, W(OB, { z: 1 }));
+    ell(F.c, [10 * s, 9.5 * s, 8 * s], W({ B: F.B }, OB, { spec: 0.6 }));
+    blob([at(-3 * s, -8 * s, 7.5 * s), at(-3 * s, 8 * s, 7.5 * s), at(16 * s, 4.5 * s, -2 * s), at(18 * s, 0, -3.5 * s), at(16 * s, -4.5 * s, -2 * s)], W(IV, { line: '#B88A2A', z: -1, sharp: true }));
+    ell(at(15 * s, 0, -5 * s), [5 * s, 5.2 * s, 4.2 * s], W({ B: F.B }, IV, { spec: 0.4 }));
+    mark(at(4 * s, 0, 7.8 * s), F.dir(0.4, 0, 1), 3 * s, (c, r) => { c.strokeStyle = '#FFB347'; c.lineWidth = r * 0.18; c.beginPath(); c.arc(0, r * 0.35, r * 0.38, 0, TAU); c.stroke(); c.beginPath(); c.arc(0, -r * 0.3, r * 0.48, 0.25, Math.PI - 0.25); c.stroke(); });
+    for (const sd of [1, -1]) { const e = at(5 * s, sd * 8.6 * s, 2 * s); glowAt(e, 3.6 * s, '#FFB347', 0.75); decal(e, (c, p) => { c.fillStyle = '#FFD27A'; c.beginPath(); c.ellipse(p[0], p[1], 1.6 * s * R.u, 0.9 * s * R.u, 0, 0, TAU); c.fill(); }, -2);
+      const hs2 = [0.8, 0.9, 1][k - 1] * s * (1 + horn * 0.05), b0 = at(-1 * s, sd * 8.5 * s, 5 * s), pts = bez3(b0, at(2 * s, sd * 24 * hs2, 4 * s), at(5 * s, sd * 28 * hs2, 22 * hs2), at(8 * s, sd * 16 * hs2, 33 * hs2), 10);
+      tube(pts, u => (5.2 - u * 4.3) * s, W(GD, { spec: 0.8, z: -1.5 }));
+      const rc = pts[5]; for (let j = 0; j < [1, 2, 3][k - 1]; j++) decal(rc, (c, p) => { c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = 'rgba(255,200,100,.85)'; c.lineWidth = Math.max(1, R.u * 1.1); c.beginPath(); c.ellipse(p[0], p[1], (7.5 + j * 2.6) * s * R.u, (3.2 + j) * s * R.u, t * (0.4 + j * 0.3) * (j % 2 ? -1 : 1) + sd * 0.4, 0, TAU); c.stroke(); c.restore(); }, -3); }
+    // monoliths from the second form, a halo at the last
+    for (let i = 0; i < [0, 3, 6][k - 1]; i++) { const an = i * 2.1 + t * 0.05, r = 40 * s, mp = [Math.cos(an) * r, Math.sin(an) * r * 0.85, 76 * s + Math.sin(t * 0.6 + i) * 2 * s]; blob([add(mp, [0, -3 * s, 8.5 * s]), add(mp, [0, 3 * s, 8.5 * s]), add(mp, [0, 3 * s, -8.5 * s]), add(mp, [0, -3 * s, -8.5 * s])], W(OB, { line: '#C8962A', z: -4, sharp: true })); glowAt(mp, 4 * s, '#FFB347', 0.35); }
+    if (k === 3) { const hc = [8 * s, 0, 100 * s]; decal(hc, (c, p) => { c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = 'rgba(255,205,110,.9)'; c.lineWidth = Math.max(1, R.u * 1.5); c.beginPath(); c.ellipse(p[0], p[1], 22 * s * R.u, 7 * s * R.u, 0, 0, TAU); c.stroke(); c.restore(); }, -5); }
   };
+  MODELS.taurus.yaw = 0.95;   // (v426 BL) the same three-quarter view as its GPU model
 
   /* Raphael (Sagittarius): a star-dappled celestial horse. A wobbly foal with a comet mane grows into a courser in a starry
      saddle cloth with a moon-bow over its back, then a prancing steed in a constellation caparison and a crescent diadem */

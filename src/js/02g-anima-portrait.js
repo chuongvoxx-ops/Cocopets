@@ -91,16 +91,28 @@ const AnimaPortrait = (() => {
         if (k === 3) add(c, () => { for (let i = 0; i < 6; i++) { const x = w * (0.08 + R() * 0.84); flame(c, x, h * 0.78, 0, w * 0.025, h * (0.18 + R() * 0.2), (R() - 0.5) * 10, 'rgba(200,30,60,.7)', '#FF7A3D', 'rgba(255,236,150,0)'); } });
         return { fy: h * 0.88, light: '#FF7A3D', grade: ['#FF6A2A', 0.12] };
       }, front(c, w, h, k, R) { particles(c, w, h, 30 + k * 18, R, 'ember', ['#FFB066', '#FF5A3C', '#FFE37A'], { s: 1 }); particles(c, w, h, 16, R, 'ash', ['#5A4A50'], { s: 1.2 }); } },
-    // Belial: a golden canyon at dusk, a wet sand floor holding the light
+    // v426 BL: Belial, the World Pillar: a storm-lit plain of broken ground, ruined colonnades on the horizon, stones and monoliths
+    // hanging in the air round it, golden light breaking through the clouds behind
     taurus: { back(c, w, h, k, R) {
-        sky(c, w, h, [[0, '#1E1428'], [0.35, '#6A3A3A'], [0.62, '#E0904A'], [0.74, '#FFD38A'], [1, '#3A2418']]);
-        sunDisc(c, w * 0.5, h * 0.62, w * 0.05, '#FFC24D', { rays: k >= 2 ? 8 : 0 });
-        clouds(c, -20, w + 20, h * 0.3, h * 0.08, 18, R, '#F2A86A', '#5A2E3A', 0.55);
-        ridge(c, w, h * 0.78, h * 0.62, 4, R, '#3A2014', '#1A0E08', { rim: '#FFC24D', rimA: 0.9, shape: x => Math.pow(Math.abs(x - 0.5) * 2, 1.6) + 0.04 });
-        c.fillStyle = lin(c, 0, h * 0.76, 0, h, [[0, '#C98A4A'], [0.3, '#7A4A2A'], [1, '#2A160C']]); c.fillRect(0, h * 0.76, w, h * 0.24);
-        waterSurface(c, w, h * 0.78, h, 'rgba(255,210,140,.25)', 'rgba(40,20,10,0)', R, { n: 50, col: '#FFE3A8', a: 0.4, rx: w * 0.5, rcol: '#FFE9A8' });
-        return { fy: h * 0.86, light: '#FFC24D', reflect: 0.25, grade: ['#FFB347', 0.12] };
-      }, front(c, w, h, k, R) { particles(c, w, h, 24 + k * 10, R, 'mote', ['#FFE9A8', '#FFC24D'], { s: 0.7 }); } },
+        sky(c, w, h, [[0, '#14100E'], [0.3, '#3A2E2A'], [0.55, '#7A6458'], [0.7, '#C9A27A'], [1, '#2A1E16']]);
+        clouds(c, -30, w + 30, h * 0.2, h * 0.12, 22, R, '#8A7A70', '#2A2220', 0.75);
+        add(c, () => { blot(c, w * 0.55, h * 0.42, w * 0.5, '#FFC24D', 0.22 + k * 0.05); blot(c, w * 0.55, h * 0.45, w * 0.22, '#FFE9A8', 0.18 + k * 0.04); });
+        rays(c, w * 0.55, h * 0.3, 10, h * 0.7, w * 0.04, '#FFD38A', 0.05 + k * 0.025, R, Math.PI * 0.25, Math.PI * 0.75);
+        clouds(c, -30, w + 30, h * 0.42, h * 0.08, 16, R, '#B8A090', '#4A3A32', 0.6);
+        // ruined colonnades on the horizon
+        for (const sd of [-1, 1]) { const x0 = sd < 0 ? w * 0.02 : w * 0.72, cw = w * 0.26; c.fillStyle = 'rgba(30,22,18,.85)'; for (let i = 0; i < 5; i++) { const cx = x0 + (i + 0.5) * cw / 5, ch = h * (0.08 + R() * 0.1); c.fillRect(cx - w * 0.009, h * 0.66 - ch, w * 0.018, ch); }
+          c.fillRect(x0, h * 0.66 - h * 0.17, cw * 0.62, h * 0.014); }
+        ridge(c, w, h * 0.7, h * 0.08, 9, R, '#3A2C24', '#1E1612', { jag: true, rim: '#FFC24D', rimA: 0.4 });
+        c.fillStyle = lin(c, 0, h * 0.68, 0, h, [[0, '#5A4434'], [0.4, '#3A2A20'], [1, '#140E0A']]); c.fillRect(0, h * 0.68, w, h * 0.32);
+        // the broken ground glowing along its cracks; boulders
+        add(c, () => { c.strokeStyle = 'rgba(255,170,60,.55)'; c.lineWidth = Math.max(1, w / 260); for (let i = 0; i < 6 + k * 2; i++) { let x = w * (0.1 + R() * 0.8), y = h * (0.8 + R() * 0.15); c.beginPath(); c.moveTo(x, y); for (let j = 0; j < 5; j++) { x += (R() - 0.5) * w * 0.08; y += (R() - 0.3) * h * 0.02; c.lineTo(x, y); } c.stroke(); } });
+        for (let i = 0; i < 7; i++) { const x = R() * w, y = h * (0.78 + R() * 0.2), s = w * (0.03 + R() * 0.05); rock(c, x, y, s * 1.2, s * 2, s * 0.8, '#4A3A30', R, {}); }
+        // stones and monoliths hanging in the air round it
+        for (let i = 0; i < 8 + k * 4; i++) { const x = w * (0.05 + R() * 0.9), y = h * (0.15 + R() * 0.45), s = w * (0.008 + R() * 0.016); c.fillStyle = '#2A201A'; c.beginPath(); c.moveTo(x, y - s); c.lineTo(x + s, y); c.lineTo(x + s * 0.3, y + s * 1.1); c.lineTo(x - s, y + s * 0.2); c.closePath(); c.fill(); c.fillStyle = 'rgba(255,200,120,.35)'; c.fillRect(x - s * 0.5, y - s * 0.5, s * 0.6, s * 0.3); }
+        if (k >= 2) for (let i = 0; i < 2 + k; i++) { const x = w * (0.08 + (i % 2 ? 0.78 : 0) + R() * 0.12), y = h * (0.12 + R() * 0.25), mw = w * 0.022, mh = h * 0.07; c.fillStyle = '#16120E'; c.fillRect(x - mw / 2, y - mh / 2, mw, mh); c.fillStyle = '#E8B850'; c.fillRect(x - mw / 2, y - mh / 2, mw, mh * 0.06); c.fillRect(x - mw / 2, y + mh * 0.44, mw, mh * 0.06); add(c, () => blot(c, x, y, mw * 1.2, '#FFB347', 0.35)); }
+        if (k === 3) add(c, () => { c.save(); c.translate(w * 0.5, h * 0.2); c.scale(1, 0.3); c.strokeStyle = 'rgba(255,205,110,.7)'; c.lineWidth = w * 0.006; c.beginPath(); c.arc(0, 0, w * 0.26, 0, TAU); c.stroke(); c.restore(); });
+        return { fy: h * 0.88, light: '#FFC24D', grade: ['#FFB347', 0.1] };
+      }, front(c, w, h, k, R) { particles(c, w, h, 22 + k * 10, R, 'mote', ['#FFE9A8', '#FFC24D'], { s: 0.7 }); particles(c, w, h, 14, R, 'ash', ['#5A4A40'], { s: 1.1 }); } },
     // Raziel: the celestial sky at night above a sea of clouds, floating islands adrift in it, the sun on one side and the
     // moon on the other, gold and blue nebulae, and a round sky-platform inlaid with gold where the twin dragons coil
     gemini: { back(c, w, h, k, R) {

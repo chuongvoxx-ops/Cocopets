@@ -1541,6 +1541,57 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
         vec2 g = vec2(an * 4.4563, r * 7.0 - ag * 9.0), gi = floor(g), gf = fract(g) - 0.5; float mo = smoothstep(0.18, 0.0, length((gf - (vec2(h1(gi + 2.2), h1(gi + 6.6)) - 0.5) * 0.5) * vec2(1.0, 0.5))) * step(0.55, h1(gi + v_q.y)) * v_q.z * e;
         L = (col * (body * (0.3 + 0.7 * cl) * 0.8 + shell) + vec3(1.0, 0.97, 0.88) * (mo + exp(-r * r * 26.0) * e * e * e)) * (1.0 - smoothstep(0.9, 1.0, r)); } }
     /*</GO-FX>*/
+    /*<BL-FX kinds 192..207 (v426 BL: 20g3-belial-moves.js, 02f4-belial-model.js, Belial the World Pillar)>*/
+    else if (v_k > 191.5 && v_k < 207.5) { float tt = u_t, an = atan(u.y, u.x);
+      if (v_k < 192.5) { // 192 a gravitational ring (uv a unit disc, on the floor or in the air as its quad lays it): a gold band at radius v_q.x, runes running round it at v_q.y, rails either side, a soft halo; v_q.z strength
+        float R0 = max(v_q.x, 0.05), w = 0.035 + 0.02 * R0, h = (r - R0) / w;
+        float crd = (an + tt * v_q.y) * 7.6394 * max(1.0, R0 * 1.4), cell = floor(crd), dd = fract(crd) - 0.5, hh = h1(vec2(cell, 7.0));
+        float stem = smoothstep(0.12, 0.05, abs(dd - (hh - 0.5) * 0.25)) * step(abs(h), 0.6), brn = smoothstep(0.14, 0.06, abs(h * 0.5 - dd * (hh > 0.5 ? 1.2 : -1.2))) * step(abs(dd), 0.35) * step(abs(h), 0.6), rune = max(stem, brn) * step(0.25, hh);
+        float band = exp(-h * h * 0.9), rails = exp(-sq((abs(h) - 1.35) / 0.18)), halo = exp(-abs(r - R0) * 9.0) * 0.35, pl = pow(0.5 + 0.5 * sin(an * 3.0 - tt * 2.4 + v_q.y), 4.0);
+        L = (col * (band * 0.45 + rails * 0.55 + halo) + mix(col, vec3(1.0, 0.95, 0.85), 0.6) * rune * band * (0.7 + 0.8 * pl)) * v_q.z; L *= 1.0 - smoothstep(0.95, 1.0, r); }
+      else if (v_k < 193.5) { // 193 the Taurus sigil on the floor (a unit disc squashed by its quad): rings, a band of runes, twelve spokes, an eight-point star, the sign at its heart; drawn on from the middle as v_q.x goes 0..1 (past 1 brighter), v_q.y its turn, v_q.z strength
+        float rv = smoothstep(r - 0.05, r + 0.02, v_q.x * 1.05), a2 = an + v_q.y;
+        float ring = exp(-sq((r - 0.97) / 0.008)) + exp(-sq((r - 0.9) / 0.006)) * 0.8 + exp(-sq((r - 0.62) / 0.007)) * 0.9 + exp(-sq((r - 0.3) / 0.006)) * 0.8;
+        float crd = a2 * 9.549, cell = floor(crd), dd = fract(crd) - 0.5, hh = h1(vec2(cell, 3.0)), rb = (r - 0.935) / 0.03;
+        float rune = max(smoothstep(0.12, 0.05, abs(dd)) * step(abs(rb), 0.75), smoothstep(0.16, 0.06, abs(rb * 0.4 - dd * (hh > 0.5 ? 1.0 : -1.0))) * step(abs(dd), 0.35) * step(abs(rb), 0.8)) * step(0.3, hh);
+        float spk = smoothstep(0.015, 0.0, abs(fract(a2 * 1.9099 + 0.5) - 0.5) * r * 3.3) * step(0.62, r) * step(r, 0.9);
+        vec2 q = vec2(cos(a2), sin(a2)) * r; float s1 = abs(max(abs(q.x), abs(q.y)) - 0.44), q2x = (q.x + q.y) * 0.7071, q2y = (q.x - q.y) * 0.7071, s2 = abs(max(abs(q2x), abs(q2y)) - 0.44), star = (exp(-s1 * s1 / 0.00004) + exp(-s2 * s2 / 0.00004)) * step(r, 0.63);
+        float cir = abs(length(u - vec2(0.0, 0.07)) - 0.11), cre = abs(length(u - vec2(0.0, -0.16)) - 0.16) + step(u.y, -0.16) * 9.0, gly = exp(-sq(min(cir, cre) / 0.012));
+        L = (col * (ring * 0.8 + rune * 0.9 + spk * 0.5 + star * 0.6 + exp(-r * r * 30.0) * 0.4) + mix(col, vec3(1.0), 0.6) * gly * smoothstep(0.55, 0.9, v_q.x) * 1.3) * rv * v_q.z * (1.0 + 0.6 * max(v_q.x - 1.0, 0.0));
+        L += col * exp(-sq((r - v_q.x * 1.02) / 0.03)) * step(v_q.x, 1.0) * 0.8 * v_q.z; L *= 1.0 - smoothstep(0.97, 1.0, r); }
+      else if (v_k < 194.5) { // 194 a compression field on the floor (a unit disc): rings flowing inward faster as v_q.x (0..1) rises, streaks drawn to the middle, a bright rim, a dense heart; v_q.z strength
+        float k2 = clamp(v_q.x, 0.0, 1.0), rings = 0.0; for (int i = 0; i < 4; i++) { float rr = fract(float(i) * 0.25 - tt * (0.25 + 0.9 * k2)); rings += exp(-sq((r - rr) / (0.01 + 0.012 * rr))) * smoothstep(0.0, 0.15, rr) * (0.4 + 0.6 * rr); }
+        float st2 = pow(n2(vec2(an * 12.0, r * 3.0 + tt * (1.0 + 3.0 * k2))), 6.0) * smoothstep(0.1, 0.5, r), rim = exp(-sq((r - 0.96) / 0.015)), core = exp(-r * r * (18.0 - 10.0 * k2));
+        L = (col * (rings * 0.7 + st2 * 0.8 + rim * 0.6 + 0.06 * (1.0 - r)) + mix(col, vec3(1.0), 0.6) * core * (0.3 + 0.7 * k2)) * v_q.z; L *= 1.0 - smoothstep(0.97, 1.0, r); }
+      else if (v_k < 195.5) { // 195 a gravity well (a unit disc): log-spiral arms winding in (v_q.y their spin), motes spiralling to the middle, the ring of bent light at radius v_q.x, arcs beside it; v_q.z strength
+        float sw = an + v_q.y * tt + 2.8 * log(r + 0.04), arms = pow(0.5 + 0.5 * cos(4.0 * sw), 10.0) * smoothstep(0.08, 0.35, r) * (1.0 - r), R0 = max(v_q.x, 0.05);
+        float ein = exp(-sq((r - R0) / 0.012)) * (0.7 + 0.3 * sin(an * 6.0 + tt * 3.0)), arcs = exp(-sq((r - R0 * 1.25) / 0.02)) * pow(0.5 + 0.5 * sin(an * 2.0 - tt), 8.0) * 0.6;
+        float mo = pow(n2(vec2(sw * 5.0, r * 10.0 + tt * 4.0)), 10.0) * 3.0 * smoothstep(0.1, 0.4, r) * (1.0 - r);
+        L = (col * (arms * 0.6 + mo) + mix(col, vec3(1.0), 0.7) * (ein + arcs)) * v_q.z; L *= 1.0 - smoothstep(0.95, 1.0, r); }
+      else if (v_k < 196.5) { // 196 a pressure shockwave across the floor (a unit disc): its front at radius v_q.x, a bright gold crest, a dark-gold trough behind, a second ripple, grit; v_q.y seed, v_q.z strength
+        float R0 = v_q.x, h = r - R0, nn = fbm(vec2(an * 8.0 + v_q.y, r * 10.0 - tt)), crest = exp(-sq(h / 0.02)) * (0.6 + 0.6 * nn), behind = step(h, 0.0) * exp(h / 0.12) * 0.35 * (0.5 + nn), rip = exp(-sq((h + 0.12) / 0.015)) * 0.5;
+        L = (mix(col, vec3(1.0, 0.95, 0.8), 0.55) * crest + col * (behind + rip)) * v_q.z * (1.0 - smoothstep(0.92, 1.0, R0)); L *= 1.0 - smoothstep(0.96, 1.0, r); }
+      else if (v_k < 197.5) { // 197 the Citadel's barrier, a dome in its quad (a unit disc): courses of gilded masonry panels turning by v_q.y, each pulsing, a fresnel rim; a blow's ripple from angle fract(v_q.z) x 2pi, its age floor(v_q.z) / 10 (0 none); v_q.x the layer (0 outer, 1 inner)
+        float zz = sqrt(max(0.0, 1.0 - r * r)), lat = asin(clamp(-u.y, -1.0, 1.0)), lon = atan(u.x, max(zz, 0.001)) + v_q.y;
+        float rows = lat * 7.0, ri = floor(rows), rf = fract(rows), cols = lon * 9.6 + 0.5 * mod(ri, 2.0), ci = floor(cols), cf = fract(cols);
+        float seam = max(smoothstep(0.06, 0.0, min(rf, 1.0 - rf)), smoothstep(0.05, 0.0, min(cf, 1.0 - cf))), pan = 0.25 + 0.35 * pow(0.5 + 0.5 * sin(tt * 1.7 + h1(vec2(ri, ci)) * 20.0), 3.0);
+        float fr = pow(1.0 - zz, 2.5), rim = exp(-sq((r - 0.97) / 0.03)), hitA = fract(v_q.z) * 6.2832, age = floor(v_q.z) / 10.0, hd = length(u - vec2(cos(hitA), sin(hitA)) * 0.8), wave = age > 0.0 ? exp(-sq((hd - age * 1.4) / 0.08)) * (1.0 - age) * 1.4 : 0.0;
+        L = col * (seam * 0.55 + pan * 0.12 + fr * 0.6) * (v_q.x > 0.5 ? 0.6 : 1.0) + mix(col, vec3(1.0), 0.6) * (rim * 0.6 + wave); L *= 1.0 - smoothstep(0.96, 1.0, r); }
+      else if (v_k < 198.5) { // 198 a column of concentrated gravity (uv.x across, uv.y -1 its top .. 1 its foot): a white-gold core, rings of force climbing it, currents round it, its foot flaring; v_q.x the core's width, v_q.y seed, v_q.z the rings' speed
+        float x = u.x, y = u.y, w = max(v_q.x, 0.05) * (1.0 + 0.6 * smoothstep(0.6, 1.0, y)), core = exp(-sq(x / w) * 2.0), body = exp(-sq(x / (w * 2.6)));
+        float rg = pow(0.5 + 0.5 * sin((y + tt * v_q.z) * 22.0), 8.0) * exp(-sq(x / (w * 2.2))) * 0.8, cur = fbm(vec2(x * 3.0 + v_q.y, y * 4.0 + tt * v_q.z * 1.5)), ends = (1.0 - smoothstep(0.75, 1.0, -y)) * (1.0 - smoothstep(0.92, 1.0, y));
+        L = (mix(col, vec3(1.0), 0.7) * core + col * (body * (0.35 + 0.5 * cur) + rg)) * ends; }
+      else if (v_k < 199.5) { // 199 a cloud of glittering gold dust (a unit disc): motes twinkling and drifting up (v_q.x its age 0..1: it spreads and thins), a faint haze; v_q.y seed, v_q.z density
+        float ag = clamp(v_q.x, 0.0, 1.0), m2 = 0.0; for (int i = 0; i < 3; i++) { float fi = float(i), s = 6.0 + fi * 5.0; vec2 q = u * s + vec2(v_q.y * (fi + 1.0), tt * (0.4 + fi * 0.3) + ag * 2.0); vec2 gi = floor(q), gf = fract(q) - 0.5; float hh = h1(gi + fi * 13.0); m2 += step(1.0 - v_q.z * 0.6, hh) * exp(-dot(gf, gf) * 70.0) * (0.5 + 0.5 * sin(tt * (4.0 + hh * 8.0) + hh * 30.0)); }
+        float hz = fbm(u * 2.0 + v_q.y + tt * 0.1) * (1.0 - smoothstep(0.2, 1.0, r));
+        L = (col * hz * 0.25 * (1.0 - ag) + mix(col, vec3(1.0), 0.5) * m2 * 1.2) * (1.0 - ag * ag) * (1.0 - smoothstep(0.6, 1.0, r)); }
+      else if (v_k < 201.5) { // 201 the Core of Dominion's light (a unit disc; the planet's radius v_q.x of it): a dense white-gold heart, a tight amber limb, a ring of bent light just outside, a controlled bloom, orbital arcs; v_q.y the pulse, v_q.z strength
+        float R0 = max(v_q.x, 0.02), q = r / R0, pl = 0.85 + 0.3 * v_q.y;
+        float core = exp(-q * q * 9.0) * 0.8 * pl, limb = exp(-sq((q - 0.95) / 0.06)) * 0.45, ein = exp(-sq((q - 1.45) / 0.05)) * (0.4 + 0.2 * sin(an * 5.0 + tt * 2.0)), bloom = 0.32 * exp(-max(q - 0.8, 0.0) * 1.3) * (1.0 - smoothstep(0.3, 1.0, r)) * pl;
+        float arcs = exp(-sq((q - 1.9 - 0.15 * sin(an * 2.0 + tt)) / 0.03)) * pow(0.5 + 0.5 * sin(an * 3.0 - tt * 1.5), 6.0) * 0.5;
+        L = (mix(col, vec3(1.0, 0.97, 0.9), 0.85) * core + mix(col, vec3(1.0), 0.45) * (limb + ein) + col * (bloom + arcs)) * v_q.z; L *= 1.0 - smoothstep(0.8, 1.0, r); }
+      else L = col * exp(-r * r * 4.0) * 0.5; }
+    /*</BL-FX>*/
     else if (v_k > 135.5 && v_k < 140.5) { // (v420 GC) the Gate of Cancer's light (20o-rift-gate-cancer.js, 20o1-cancer-props.js). v_c its colour
       float tt = u_t, an = atan(u.y, u.x);
       if (v_k < 136.5) { // 136 the arena's carved lunar rings (its quad the arena's ellipse: uv a unit disc): the gold-inlaid rings at 0.3 and 0.86 and the carved ring at 0.58, light running round each in slow pulses, a soft pool on the sigil at the heart; v_q.x strength, v_q.y seed, v_q.z the sigil's glow
