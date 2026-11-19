@@ -1,0 +1,11 @@
+// v426 TG: every picture of the Taurus gate (TAURUS_PROPS) painted at P 94 on one sheet, with its paint time: shots/v426-TG/props-sheet.png
+const { chromium } = require('/opt/npm-tools/node_modules/playwright'); const path = require('path');
+(async () => { const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' }); const p = await b.newPage({ viewport: { width: 1500, height: 1300 } });
+  const errs = []; p.on('pageerror', e => errs.push(e.message)); p.on('console', m => { if (m.type() === 'warning' || m.type() === 'error') console.log('console:', m.text().slice(0, 300)); });
+  await p.goto('file://' + path.resolve(__dirname, '..', process.env.HTML || 'test-tg.html')); await p.waitForFunction(() => window.__pp, null, { timeout: 30000 }); await p.waitForTimeout(1500);
+  const out = await p.evaluate(P0 => { const C = window.TAURUS_PROPS, P = P0; const list = [['node', 0], ['door', 0], ['leaf', 'l'], ['leaf', 'r'], ['brazier', 0], ['column', 0], ['column', 1], ['ruin', 0], ['ruin', 1], ['ruin', 2], ['ruin', 3], ['arch', 0], ['arch', 1], ['monolith', 0], ['monolith', 1], ['monolith', 2], ['debris', 0], ['debris', 1], ['debris', 2], ['sun', 0]];
+    const cv = document.createElement('canvas'); cv.width = 1500; cv.height = 1300; const c = cv.getContext('2d'); const g = c.createLinearGradient(0, 0, 0, 1300); g.addColorStop(0, '#2A2448'); g.addColorStop(1, '#A08A70'); c.fillStyle = g; c.fillRect(0, 0, 1500, 1300);
+    let x = 10, y = 10, rowH = 0; const times = {};
+    for (const [n, v] of list) { const t0 = performance.now(); const s = C.sprite(n, v, n === 'sun' ? 160 : P); times[n + v] = Math.round(performance.now() - t0); if (!s) { times[n + v] = 'FAIL'; continue; } let w = s.cv.width, h = s.cv.height; if (x + w > 1500) { x = 10; y += rowH + 10; rowH = 0; } c.drawImage(s.cv, x, y); c.strokeStyle = 'rgba(255,255,255,.2)'; c.strokeRect(x, y, w, h); c.fillStyle = '#fff'; c.fillText(n + ' ' + v, x + 4, y + 12); x += w + 10; rowH = Math.max(rowH, h); }
+    document.body.appendChild(cv); cv.style.position = 'fixed'; cv.style.left = cv.style.top = '0'; cv.style.zIndex = 99999; return times; }, +(process.env.P || 80));
+  console.log(JSON.stringify(out)); await p.screenshot({ path: path.resolve(__dirname, '../shots/v426-TG/props-sheet.png') }); console.log('errs', errs); await b.close(); })();
