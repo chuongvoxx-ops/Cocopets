@@ -151,11 +151,13 @@ const CANCER_BOSS = (() => {
   function unhook() { const mod = S && S.modRef, O = S && S.orig; if (!mod || !O) return; for (const k in O) { if (O[k].had) mod[k] = O[k].v; else delete mod[k]; } S.orig = null; S.modRef = null; }
   /* the camera: the whole god (its halo included) kept below the top HUD with a margin, and the pet above the buttons; the view
      widens (a little, on a phone) when that span will not fit, as it does while the god is risen for the Ninth Tide */
-  const CAM = { top: 160, bot: 210, zFight: 0.7, zTide: 0.62, zMin: 0.5 };
+  const CAM = { top: 160, bot: 210, zFight: 0.7, zTide: 0.62, zMin: 0.5, zIn: 1.35 };
   function frame(topY, botY, x, z0) {
     const X = S.X, g = S.g, Hh = X.H(), TS = X.Tz() / Math.max(0.05, g.zoom || 1), room = Math.max(120, Hh - CAM.top - CAM.bot), span = Math.max(1, botY - topY);
-    const z = Math.max(CAM.zMin, Math.min(z0, room / (span * TS))), y = topY + (Hh / 2 - CAM.top) / (TS * z);
-    return { x, y: Math.min(y, (topY + botY) / 2 + 2), k: 0.92, zoom: z };
+    const z = Math.max(CAM.zMin, Math.min(z0, room / (span * TS))) * CAM.zIn;   /* (v422 CZ: the user: "zoom in by 35%") */
+    // closer in, the god and the pet may no longer both fit: keep the god's top below the HUD when they do, else keep the pet in view
+    const yGod = topY + (Hh / 2 - CAM.top) / (TS * z), yPet = botY - (Hh / 2 - CAM.bot) / (TS * z), y = Math.max(yPet, Math.min(yGod, (topY + botY) / 2 + 2));
+    return { x, y, k: 0.92, zoom: z };
   }
   const godTop = () => { const B = S.B; return B.y - TUNE.hover - (B.drop || 0) - Math.max(0, B.lift || 0) - TUNE.size * 1.18 - 0.4; };
   function camOf() {
