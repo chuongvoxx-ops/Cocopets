@@ -118,14 +118,23 @@
     const RW = 0.75 * (1.25 + 0.0083 * (ev - 1)), HITR = 1.0, BR = 1.45 + 0.05 * (ev - 1);   // disc radius (tiles), its hit radius, the burst's
     const sgn = Math.cos(a) >= 0 ? 1 : -1, CON = 0.36;   // (the contraction lasts CON s)
     bake(2); H.X.sfx.whoosh(); me.sq = 0.8;
-    const f0 = H.add({ key: 'eclipsedisc', life: 2.0, x: me.x + dir[0] * 1.15, y: me.y + dir[1] * 1.15, hits: new Set(), cT: 1.0, bT: 0, v: 0, spin: 0, scar: [], burst: false, sparkT: 0,
+    /* (v421 ED) aimed at its target: the disc steers onto the monster the cast aimed at (C.A.t), stops on it and bursts there,
+       instead of running its full length through it and bursting far behind; with no target it runs as before */
+    const TG = C.A && C.A.t && !C.A.t.dead ? C.A.t : null, D0 = TG ? Math.hypot(TG.x - me.x, TG.y - me.y) : 0, SX = me.x, SY = me.y;
+    const f0 = H.add({ key: 'eclipsedisc', life: 2.0, x: me.x + dir[0] * 1.15, y: me.y + dir[1] * 1.15, hits: new Set(), cT: 1.0, bT: 0, v: 0, spin: 0, scar: [], burst: false, sparkT: 0, tg: TG,
       update(dt, f) { if (!ready()) bake(2.5);
         if (f.burst) return;
         // the run: accelerating out of the seam, braking into the contraction
-        const run = f.t < f.cT; f.v = run ? V * sstep(0, 0.2, f.t) : f.v * Math.pow(0.0004, dt);
+        let run = f.t < f.cT;
+        if (run && f.tg) { const T0 = f.tg; if (T0.dead) f.tg = null; else { const tx = T0.x - f.x, ty = T0.y - f.y, d = Math.hypot(tx, ty) || 1e-3;
+            // steer onto it (up to 7 rad/s), and on reaching it, stop there and contract
+            const want = Math.atan2(ty, tx), cur = Math.atan2(dir[1], dir[0]); let da = want - cur; while (da > Math.PI) da -= TAU; while (da < -Math.PI) da += TAU; const na = cur + Math.max(-7 * dt, Math.min(7 * dt, da)); dir[0] = Math.cos(na); dir[1] = Math.sin(na);
+            if (d <= 0.45) { f.cT = f.t; run = false; f.v *= 0.2; } } }
+        if (run && TG && Math.hypot(f.x - SX, f.y - SY) > D0 + 0.6 && f.t > 0.25) { f.cT = f.t; run = false; }   /* (its target gone or dodged: no further than it was) */
+        f.v = run ? V * sstep(0, 0.2, f.t) : f.v * Math.pow(0.0004, dt);
         const nx = f.x + dir[0] * f.v * dt, ny = f.y + dir[1] * f.v * dt; if (!H.X.blocked(nx, ny, 0.3, 0)) { f.x = nx; f.y = ny; } else if (run && f.t > 0.25) f.cT = f.t;
         f.spin += dt * (run ? 7 + 4 * sstep(0, 0.3, f.t) : 11 + 40 * sstep(f.cT, f.cT + CON, f.t)) * sgn;
-        if (run && f.t > 0.08) { for (const m of H.near(f.x, f.y, HITR)) { if (f.hits.has(m)) continue; f.hits.add(m); H.X.hitMon(m, C.base * 1.3 * C.K * EK, C.dmgO({ kb: 1.2 }));
+        if (run && f.t > 0.08) { for (const m of H.near(f.x, f.y, HITR)) { if (f.hits.has(m)) continue; f.hits.add(m); H.X.hitMon(m, C.base * 1.3 * C.K * EK, C.dmgO({ kb: m === TG ? 0.3 : 1.2 }));   /* (v421 ED: its target is barely pushed, so the burst still catches it) */
             H.burst(m.x, m.y - 0.5, 'spark', 6, { v: 6, life: 0.35, size: 1.8, color: [EDGE, ACC, '#FFFFFF'] }); H.burst(m.x, m.y - 0.5, 'shard', 3, { v: 5, up: 2, g: 9, life: 0.45, size: 3, color: [EDGE, SMOKE, ACC] }); H.X.ring(m.x, m.y, 0.15, 0.9, 0.25, EDGE, 0.5); H.X.sfx.crack && H.X.sfx.crack(); }
           // rim sparks thrown off tangentially at the bottom, pale smoke behind
           f.sparkT += dt; while (f.sparkT > 0.03) { f.sparkT -= 0.03; if (Math.random() < H.Q()) { const s = Math.random() < 0.5 ? 1 : -1; H.P({ kind: 'spark', x: f.x + s * 0.3, y: f.y - 0.05, vx: -dir[0] * 3 + s * 2.5 * Math.random(), vy: -dir[1] * 2 - 1.5 * Math.random(), g: 6, life: 0.3, max: 0.3, size: 1.5, color: Math.random() < 0.5 ? EDGE : ACC }); } }

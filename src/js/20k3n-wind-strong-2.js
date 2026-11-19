@@ -25,7 +25,7 @@
     H.X.sfx.hum && H.X.sfx.hum(); me.sq = 0.75;
     const F = H.add({ key: 'windblades', life: 1e6, st: 'on', t0: g.t, until: g.t + DUR, dur: DUR, dmg: DMG, rot: Math.random() * TAU, flash: -9, endT: 0, dbg, imps,
       update(dt, f) { const now = g.t;
-        if (f.st === 'on' && (!alive(H, P0) || now >= f.until)) { f.st = 'end'; f.endT = now; H.X.sfx.whoosh && H.X.sfx.whoosh(); }
+        if (f.st === 'on' && (H.me.dead || now >= f.until)) { f.st = 'end';   /* (v421 WB: a party swap no longer ends it: the ring keeps turning round the pet on the field until it runs out) */ f.endT = now; H.X.sfx.whoosh && H.X.sfx.whoosh(); }
         if (f.st === 'end') { f.rot += OM * dt * 0.6; if (now - f.endT > ENDT) f.life = 0; return; }
         const r0 = f.rot; f.rot += OM * dt; const form = cl((now - f.t0) / FORM); if (form < 0.6) return;
         // the cuts: each sword's floor angle swept since the last frame, against every monster in its reach
