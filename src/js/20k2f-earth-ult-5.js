@@ -60,6 +60,10 @@
     for (const l of L) { let s = 0; l.c = [0]; for (let j = 1; j < l.p.length; j++) { s += Math.hypot(l.p[j][0] - l.p[j - 1][0], l.p[j][1] - l.p[j - 1][1]); l.c.push(s); } l.len = s; }
     return L; }
 
+  /* (v415 EA) the GPU picture: the shared painter (20k6h FGFX, kinds 73..79) when it is usable and this is the Earth ult itself (a variant keeps its 2D
+     picture); else the 2D picture below, as it was. hx packs three 0..1 numbers as a colour (the painter's per-quad parameters) */
+  const gfx = V => { if (V) return null; try { const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; return F && F.usable() ? F : null; } catch (e) { return null; } };
+  const hx = (r, g, b) => '#' + [r, g, b].map(v => { const q = Math.round(Math.max(0, Math.min(1, v)) * 63) * 4; return (q > 255 ? 255 : q).toString(16).padStart(2, '0'); }).join('');
   /* (2026-11-12) V: an optional variant, for Susano O's Dark Spikes (20k5x), which reuses this formation, its spires, its
      eruption choreography and its burst. Left out (as the Earth ult always calls it) everything is exactly as above.
      V = { pal (the spires' material palette, see EARTHC.clusterGen), col { AMBER, GOLD, HONEY, PALE, CORE } (the light
@@ -106,6 +110,58 @@
         for (let j = 0; j < H.n(6); j++) { const p = along(cr.k, i, Math.random()); motes.push({ x: p[0], y: p[1], z: p[2], vx: ox * (1 + Math.random() * 2), vz: 0.5 + Math.random() * 1.2, t: 0, life: 0.7 + Math.random() * 0.6, s: 0.06 + Math.random() * 0.07 }); }
         for (let j = 0; j < H.n(2); j++) { const p = along(cr.k, i, 0.05), b = (Math.random() - 0.5) * 1.2; puffs.push({ x: p[0], y: p[1], z: 0.1, vx: (ox * Math.cos(b) - oy * Math.sin(b)) * 2, vy: (oy * Math.cos(b) + ox * Math.sin(b)) * 1, vz: 0.4, t: -j * 0.05, life: 0.8, s: 0.3 + 0.05 * cr.k, thin: 1 }); } }
       H.burst(cx, cy, 'spark', 10 + 4 * cr.k, { v: 9, up: 3, g: 6, life: 0.5, size: 2, color: [VC.GOLD, VC.HONEY, VC.PALE, VC.CORE] }); }
+    /* (v415 EA) the GPU picture, in three passes: the floor (the charred, glowing six-pointed fissures, the crowns' shockfronts rippling out with their
+       dust, light pooling at the roots, the explosion's cracks, shock rings and dust), the far half of the crowns, then (over the monsters) the near half,
+       the chips, shards, dust and motes. Each spire is ray-cast per pixel (20k6h kind 73 its body, 76 its light): a faceted amber crystal rising out of the
+       floor on a dark stone root, its side crystals and root stones (kind 74) round it */
+    const G = { RK: RBK[NCR - 1] / HTK[NCR - 1], sz: 1 + 0.025 * (ev - 1) };
+    const hFloor = (Q, X, Y, T, t) => { const out = cl(F.life / 0.5), gone = 1 - sstep(XB(0), XB(0) + 0.5, t), ch = sstep(HOLD, HOLD + CHG, t) * gone, GY = E.GY, Rs = RMAX * 1.02 * T * 1.18;
+      const tr = cl(t / TR), a = sstep(0, 0.08, t) * (1 + 1.2 * ch) * out * (1 - sstep(XL + 0.2, LIFE - 0.4, t)) * (0.55 + 0.45 * (1 - sstep(XL, XL + 0.4, t))), pulse = t > ER(0) ? Math.exp(-(t - ER(0)) * 3) : 0;
+      if (a > 0.01) { const sd = 3 + (ev % 4), heat = cl(0.5 + 0.35 * ch + 0.3 * pulse - 0.45 * sstep(XB(0), XB(0) + 1.2, t));
+        Q.quad(78, X, Y, Rs, 0, 0, Rs * GY, '#000000', Math.min(1, a * 0.75), 2, sd, tr); Q.quad(77, X, Y, Rs, 0, 0, Rs * GY, hx(heat, 0.6 * pulse, 0), Math.min(1, a * 0.85), 0, sd, tr); }
+      Q.glow(X, Y, RMAX * T * 1.05, VC.AMBER, (0.12 * sm(tr) + 0.15 * pulse + 0.28 * ch) * gone * out, GY); Q.glow(X, Y, RMAX * T * 0.45, VC.HONEY, (0.1 * pulse + 0.2 * ch) * gone * out, GY);
+      // the crowns' shockfronts: a crest of light rippling out to the ring, its dust behind; light pooling at each root
+      for (const cr of crowns) { const p = t - ER(cr.k); if (p < 0) continue; const RR = cr.R * T, q = cl(p / 0.2), q2 = cl(p / 0.55);
+        if (q2 < 1) { const rd = RR * (0.2 + 1.0 * H.ease.out(q2)), rl = RR * (0.12 + 0.95 * H.ease.out(q)); Q.quad(78, X, Y, rd / 0.8, 0, 0, rd / 0.8 * GY, '#8C7A62', (1 - q2) * sstep(0, 0.1, q2) * 0.7 * out, 1, cr.k * 3.1, 0.22);
+          Q.quad(79, X, Y, rl / 0.8, 0, 0, rl / 0.8 * GY, VC.GOLD, (1 - q2) * 0.95 * out, 0, cr.k * 2.3, 0.2); }
+        const g = Math.exp(-p * 3) * 0.6 + (0.16 + 0.5 * ch) * gone; for (let i = 0; i < 6; i++) { const [x, y] = base(cr.k, i); Q.glow(H.sx(x), H.sy(y), T * (0.8 + 0.25 * cr.k), VC.AMBER, g * out * 0.8, GY); } }
+      // the explosion: a hot core of light, cracks bursting out of the middle, shock rings and a dust ring, light under the landed shards
+      if (t >= XB(0)) { const p = t - XB(0), RR = RMAX * T, rc = RR * 0.95;
+        Q.glow(X, Y, RR * 1.0, VC.HONEY, 0.75 * Math.exp(-p * 4) * out, GY); Q.glow(X, Y, RR * 1.5, VC.AMBER, 0.4 * Math.exp(-p * 2) * out, GY);
+        const ca = out * (1 - sstep(0.6, 1.6, p)); if (ca > 0.01) { const rq = 11 + 0.99 * sm(p / 0.22); Q.quad(78, X, Y, rc, 0, 0, rc * GY, '#000000', ca * 0.8, 3, 7 + ev, rq); Q.quad(77, X, Y, rc, 0, 0, rc * GY, hx(1 - sstep(0, 1.4, p) * 0.75, 0.3 * Math.exp(-p * 5), 0), ca, 1, 7 + ev, rq); }
+        for (const [d, sc, w, lt] of [[0, 1.12, 1, 1], [0.06, 1.3, 0.85, 0], [0.14, 1.5, 0.6, 1]]) { const q = cl((p - d) / 0.55); if (q <= 0 || q >= 1) continue; const rr = RR * (0.15 + sc * H.ease.out(q)) + 3;
+          if (lt) Q.quad(79, X, Y, rr / 0.8, 0, 0, rr / 0.8 * GY, d ? VC.AMBER : VC.GOLD, (1 - q) * sstep(0, 0.08, q) * w * out, 0, 5 + d * 10, 0.16); else Q.quad(78, X, Y, rr / 0.8, 0, 0, rr / 0.8 * GY, '#8C7A62', (1 - q) * sstep(0, 0.08, q) * w * 0.8 * out, 1, 4.4, 0.3); }
+        for (const q of shards) if (q.rest) Q.glow(H.sx(q.x), H.sy(q.y), T * 0.35 * q.s, VC.AMBER, 0.4 * (1 - sstep(q.life - 0.5, q.life, q.t)) * out, GY); } };
+    // the crowns' spires (front: the near half, over the monsters): each a list item sorted far to near with its root stones and side crystals
+    const hSpires = (Q, T, t, front) => { const out = cl(F.life / 0.5), PX = H.sx(me.x), PY = H.sy(me.y) - T * 0.45, mons = front ? H.living() : [], L = [], GY = E.GY, k0 = Q.k || 1;
+      for (const cr of crowns) { const e = ER(cr.k); if (t < e || t >= XB(cr.k)) continue;
+        for (let i = 0; i < 6; i++) { const [x, y, az] = base(cr.k, i); if ((Math.sin(az) >= 0) !== front) continue; const p = t - (e + i * 0.018); if (p < 0) continue;
+          const j = (2 * i + cr.k) % 12, kz = HTK[cr.k] / HTK[NCR - 1], hs = HTK[cr.k] * G.sz * (0.9 + 0.2 * R1(j * 3.3 + ev)), Hp = hs * T, rr = G.RK / (0.9 + 0.2 * R1(j * 3.3 + ev)), ln = 0.32 + (R1(j * 5.1) - 0.5) * 0.08;
+          const gu = cl(p / GROW), grow = gu < 1 ? 1 - Math.pow(1 - gu, 3) + Math.sin(gu * Math.PI) * 0.08 : 1, ch = sstep(HOLD, HOLD + CHG, t), trem = ch * ch * T * 0.035;
+          const bx = H.sx(x) + Math.sin(t * 71 + i * 2.1) * trem, by = H.sy(y) + Math.sin(t * 59 + i) * trem * 0.4, Hd = Hp * Math.max(1, grow) * (1 + 0.03 * ch), sink = cl(1 - grow);
+          let A = out * sstep(0, 0.04, p); if (front) { const inX = Math.abs(PX - bx) / (Hd * 0.3 + T * 0.3), inY = PY < by && PY > by - Hd * 1.05 - T * 0.2 ? 1 : 0; A *= 1 - 0.55 * inY * (1 - sstep(0.6, 1.0, inX));
+            let mk = 0; for (const m of mons) { const mx = H.sx(m.x), my = H.sy(m.y) - T * 0.4; if (my < by && my > by - Hd && Math.abs(mx - bx) < Hd * 0.3 + T * 0.25) mk = Math.max(mk, 1 - sstep(0.2, 0.45, Math.abs(mx - bx) / (Hd * 0.6))); } A *= 1 - 0.4 * mk; }
+          const flash = Math.exp(-p * 5), gl = (0.32 + 0.1 * Math.sin(t * 3 + i) + flash * 1.1 + 0.25 * ch) * 0.75, hc = (t - (LAST + 0.35 + cr.k * 0.12 + i * 0.03)) / 0.8, bd = hc > -0.1 && hc < 1.15 ? Math.max(0.002, Math.min(1, hc)) : 0;
+          L.push({ y: by, f: () => { const q0 = (j * 7 + ev) % 1000, q1 = Math.floor(Hd * k0) + Math.min(0.9, rr), q2 = (az % TAU + TAU) % TAU + 7 * (Math.floor(ln * 100) + 200 * Math.floor(sink * 40)), cy0 = by + sink * Hd - 0.48 * Hd;   // (sunk: the floor cuts it, it rises out of it)
+            Q.quad(73, bx, cy0, 0.62 * Hd, 0, 0, 0.66 * Hd, hx(0, 0.3, 0), A, q0, q1, q2); Q.quad(76, bx, cy0, 0.62 * Hd, 0, 0, 0.66 * Hd, hx(Math.min(1, gl), ch, bd), A, q0, q1, q2);
+            if (flash > 0.05) Q.glow(bx, by - Hd * 0.3, T * (0.6 + 0.2 * cr.k), VC.HONEY, flash * 0.5 * A); if (ch > 0.02) Q.glow(bx, by - Hd * 0.45, T * (0.5 + 0.25 * cr.k) * (0.6 + ch), VC.HONEY, ch * ch * 0.45 * A); } });
+          // its side crystals, leaning further out, and the stones heaped at its root
+          const r = RBK[NCR - 1] * G.sz * kz, nsd = 1 + j % 2 + (ev >= 7 ? 1 : 0);
+          for (let q = 0; q < nsd; q++) { const a = (q - 0.5) * 2.1 + R1(j * 5 + q * 3) * 0.8, h2 = hs * (0.32 + 0.16 * R1(j * 7 + q)), H2 = h2 * T * Math.max(1, grow), ox = Math.cos(az + a) * r * 0.75 * T, oy = Math.sin(az + a) * r * 0.75 * T * GY, sx2 = bx + ox, sy2 = by + oy, ln2 = Math.min(1.2, 0.62 + 0.2 * R1(q + j)), az2 = ((az + a) % TAU + TAU) % TAU;
+            L.push({ y: sy2, f: () => { const q0 = (j * 5 + q + 61) % 1000, q1 = Math.floor(H2 * k0) + Math.min(0.9, r * 0.55 / h2), q2 = az2 + 7 * (Math.floor(ln2 * 100) + 200 * Math.floor(sink * 40)), cy0 = sy2 + sink * H2 - 0.48 * H2;
+              Q.quad(73, sx2, cy0, 0.62 * H2, 0, 0, 0.66 * H2, hx(0, 0, 0), A, q0, q1, q2); Q.quad(76, sx2, cy0, 0.62 * H2, 0, 0, 0.66 * H2, hx(Math.min(1, gl * 0.8), ch, 0), A, q0, q1, q2); } }); }
+          for (let q = 0; q < 3; q++) { const a = q / 3 * TAU + R1(j + q * 2) * 1.2, rs = r * (0.55 + 0.25 * R1(j * 3 + q)) * T * Math.min(1, gu * 2.2), rx = bx + Math.cos(az + a) * r * T, ry = by + Math.sin(az + a) * r * T * GY;
+            if (rs > 0.8) L.push({ y: ry + rs * 0.2, f: () => Q.quad(74, rx, ry - rs * 0.45, rs * 1.15, 0, 0, rs * 1.15, hx(0.35 + 0.4 * ch, 0, 0), A, (j * 3 + q + 17) % 1000, Math.floor(rs * k0) + 0.55, (q * 1.7 + j) % TAU + 7 * Math.floor((0.25 + 0.5 * ch) * 100)) }); } } }
+      L.sort((p, q) => p.y - q.y); for (const o of L) o.f(); };
+    // the debris over the monsters: pebbles and chips (stones), the shards (crystals tumbling, then lying and fading), the explosion's core, dust, motes
+    const hDraw = (Q, X, Y, T, t) => { const out = cl(F.life / 0.5), k0 = Q.k || 1, rot = v => (v % TAU + TAU) % TAU;
+      for (const p of pebbles) { if (t < p.t0) continue; const R = p.s * T * 0.55; Q.quad(74, H.sx(p.x + (p.jx || 0)), H.sy(p.y) - p.z * T, R * 1.15, 0, 0, R * 1.15, hx(0.5, 0, 0), out * sstep(0, 0.15, t - p.t0), 30 + p.v * 3, Math.floor(R * k0) + 0.3, rot(p.ph)); }
+      for (const q of chipsL) { const R = q.s * T * (q.big ? 0.62 : 0.55); Q.quad(74, H.sx(q.x), H.sy(q.y) - q.z * T, R * 1.15, 0, 0, R * 1.15, hx(0.5, 0.15, 0), out * (1 - sstep(q.life - 0.3, q.life, q.t)), 40 + q.v * 3 + (q.big ? 20 : 0), Math.floor(R * k0) + (q.big ? 0.5 : 0.2), rot(q.rot) + 7 * (q.big ? Math.floor(Math.exp(-q.t * 2) * 60) : 0)); }
+      for (const q of shards) { const Ls = T * (0.42 + 0.3 * R1(q.v * 5.7)) * q.s * 1.05, sx = H.sx(q.x), sy = H.sy(q.y) - q.z * T, a = out * (1 - sstep(q.life - 0.45, q.life, q.t)), hot = Math.exp(-q.t * 2.5), q0 = 2000 + 20 + q.v * 7, q1 = Math.floor(Ls * k0) + 0.17 + 0.03 * R1(q.v), q2 = rot(q.rot) + 7 * Math.floor(rot(q.t * 6 + q.v) * 100);
+        Q.quad(73, sx, sy, 0.62 * Ls, 0, 0, 0.62 * Ls, '#000000', a, q0, q1, q2); Q.quad(76, sx, sy, 0.62 * Ls, 0, 0, 0.62 * Ls, hx(0.12 + hot * 0.5, 0, 0), a, q0, q1, q2); if (hot > 0.05) Q.glow(sx, sy, Ls * 0.7, VC.HONEY, hot * 0.35 * a); }
+      if (t >= XB(0)) { const p = t - XB(0), r1 = RMAX * T * 0.75, r2 = RMAX * T * 1.2; Q.glow(X, Y - T * 0.6, r1, VC.HONEY, 0.8 * Math.exp(-p * 6) * out); Q.glow(X, Y - T * 0.5, r2, VC.AMBER, 0.4 * Math.exp(-p * 3.5) * out); if (p < 0.6) Q.quad(79, X, Y - T * 0.55, r1 * 0.9, 0, 0, r1 * 0.9, VC.GOLD, out, 1, 2.7 + ev, p / 0.6); }
+      { const PX = H.sx(me.x), PY = H.sy(me.y) - T * 0.45; for (const p of puffs) { if (p.t < 0) continue; const q = p.t / p.life, sx = H.sx(p.x), sy = H.sy(p.y) - p.z * T, r = T * p.s * (0.6 + 0.9 * q); Q.quad(78, sx, sy, r, 0, 0, r * 0.8, '#8C7A62', Math.sin(Math.min(1, q * 4) * Math.PI / 2) * (1 - q) * (p.thin ? 0.5 : 0.85) * out * (0.4 + 0.6 * sstep(0.3 * T, T, Math.hypot(sx - PX, sy - PY))), 0, (p.s * 97) % 13, q); } }
+      for (const p of motes) { const q = p.t / p.life, r = T * p.s * (1 + q), tw = 0.6 + 0.4 * Math.sin(p.t * 17 + p.s * 99), x = H.sx(p.x), y = H.sy(p.y) - p.z * T, a = Math.sin(q * Math.PI) * tw * out; Q.glow(x, y, r * 1.4, VC.GOLD, a * 0.5); Q.star(x, y, r * 1.6, a, VC.PALE); } };
     const F = H.add({ life: LIFE, x: cx, y: cy, key: 'coronation', log, NCR,
       update(dt, f) {
         const t = f.t;
@@ -134,6 +190,7 @@
       },
       drawUnder(c, f, X, Y, T) {
         const t = f.t, out = cl(f.life / 0.5), gone = 1 - sstep(XB(0), XB(0) + 0.5, t), ch = sstep(HOLD, HOLD + CHG, t) * gone;
+        { const FG = gfx(V); if (FG) { let Q = FG.begin(c, null); hFloor(Q, X, Y, T, t); FG.flush(c); Q = FG.begin(c, null); hSpires(Q, T, t, false); FG.flush(c); return; } }   /* (v415 EA) */
         prep(c, T, t);
         // the fissures: the six-pointed pattern traced over the area, then held, dimming as the spires retract (light only)
         { const tr = cl(t / TR), a = sstep(0, 0.08, t) * (1 + 1.2 * ch) * out * (1 - sstep(XL + 0.2, LIFE - 0.4, t)) * (0.55 + 0.45 * (1 - sstep(XL, XL + 0.4, t))), pulse = t > ER(0) ? Math.exp(-(t - ER(0)) * 3) : 0;
@@ -161,6 +218,7 @@
       },
       draw(c, f, X, Y, T) {
         const t = f.t, out = cl(f.life / 0.5);
+        { const FG = gfx(V); if (FG) { const Q = FG.begin(c, null); hSpires(Q, T, t, true); hDraw(Q, X, Y, T, t); FG.flush(c); return; } }   /* (v415 EA) */
         spires(c, T, t, true, out);
         // pebbles and chips, dust, crystal dust
         const cs = chipS; if (cs) { for (const p of pebbles) { if (t < p.t0) continue; const r2 = cs[p.v], s = p.s * T / r2.S, sx = H.sx(p.x + (p.jx || 0)), sy = H.sy(p.y) - p.z * T; c.save(); c.globalAlpha = out * sstep(0, 0.15, t - p.t0); c.translate(sx, sy); c.rotate(p.ph); c.drawImage(r2.body, -r2.cx * s, -r2.cy * s, r2.W * s, r2.H * s); c.restore(); }

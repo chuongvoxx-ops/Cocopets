@@ -31,6 +31,11 @@
     const a = hash2(i, j), b = hash2(i1, j), c = hash2(i, j1), d = hash2(i1, j1); return a + (b - a) * ux + (c - a) * uy + (a - b - c + d) * ux * uy; }
   const mk = (w, h) => { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; return cv; };
   let H;
+  /* (v415 EA) the GPU picture: the shared painter (20k6h FGFX, kinds 73..79) when it is usable; else the 2D picture below, as it was. hx packs three
+     0..1 numbers as a colour (the painter's per-quad parameters) */
+  const gfx = () => { try { const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; return F && F.usable() ? F : null; } catch (e) { return null; } };
+  const hx = (r, g, b) => '#' + [r, g, b].map(v => { const q = Math.round(Math.max(0, Math.min(1, v)) * 63) * 4; return (q > 255 ? 255 : q).toString(16).padStart(2, '0'); }).join('');
+  const wrA = a => (a % TAU + TAU) % TAU;
 
   /* ---- cached soft sprites ---- */
   const BWS = [0.05, 0.09, 0.15, 0.24, 0.38];   // band thickness buckets (of the radius)
@@ -218,7 +223,7 @@
     H.add({ life: END, wi: 0, etr: true,
       update(dt, f) {
         const tt = f.t;
-        { const t0 = performance.now(); while (f.wi < warm.length && (performance.now() - t0 < 3 || tt > J[0].D - 0.1)) warm[f.wi++](); }   // (about 3 ms a frame; whatever is left is finished before the first landing)
+        if (!gfx()) { const t0 = performance.now(); while (f.wi < warm.length && (performance.now() - t0 < 3 || tt > J[0].D - 0.1)) warm[f.wi++](); }   // (about 3 ms a frame; whatever is left is finished before the first landing; v415 EA: none of it on the GPU)
         if (me.dead) { f.life = 0; return; }
         // the pet's body
         if (tt < LAST.D + 0.95) { const P = poseAt(tt), kq = Math.min(1, dt * 30); me.z = P[0]; me.hopSq = (me.hopSq || 0) + (P[1] - (me.hopSq || 0)) * Math.min(1, dt * 45); me.hopArm = (me.hopArm || 0) + (P[2] - (me.hopArm || 0)) * kq; me.hopFoot = (me.hopFoot || 0) + (P[3] - (me.hopFoot || 0)) * kq; }
@@ -239,6 +244,7 @@
       onEnd() { me.z = 0; me.hopSq = 0; me.hopArm = 0; me.hopFoot = 0; waves.length = 0; frac.length = 0; },
       drawUnder(c, f, _X, _Y, T) {
         const tt = f.t;
+        { const FG = gfx(); if (FG) { let Q = FG.begin(c, null); gFloor(Q, tt, T); FG.flush(c); Q = FG.begin(c, null); for (const w of waves) { const tau = tt - w.t0; if (tau < 0) continue; const X = H.sx(w.x), Y = H.sy(w.y) + FO * T; if (!w.launch) gPlates(Q, w, tau, X, Y, T); gPuffs(Q, w, tau, X, Y, T, false); gChips(Q, w, tau, X, Y, T, false); } FG.flush(c); return; } }   /* (v415 EA) */
         // Celestial: the fracture web, each layer at its own landing, re-lit by every new impact; it fades after the final ring
         if (frac.length) { const fade = 1 - sm((tt - LAST.D - 0.85) / 1.1); if (fade > 0.01) { c.save();
           const kick = Math.exp(-(tt - lastLand) * 2.6);
@@ -271,6 +277,11 @@
       },
       draw(c, f, _X, _Y, T) {
         const tt = f.t;
+        { const FG = gfx(); if (FG) { const Q = FG.begin(c, null); for (const w of waves) { const tau = tt - w.t0; if (tau < 0) continue; const X = H.sx(w.x), Y = H.sy(w.y) + FO * T; gPuffs(Q, w, tau, X, Y, T, true); gChips(Q, w, tau, X, Y, T, true); }   /* (v415 EA) */
+          let j = 0; while (j + 1 < NJ && tt >= J[j + 1].L) j++; const q = J[j];
+          if (tt >= q.L && tt < q.D) { const u = (tt - q.L) / q.A, uf = q.fin ? 0.6 : 0.44; if (u > uf) { const v = (u - uf) / (1 - uf), z = (me.z || 0) * T, X = H.sx(me.x), Y = H.sy(me.y) + FO * T - z, a = sm(v * 1.5) * (q.fin ? 0.75 : 0.45), hh = T * (0.9 + 1.4 * v) * (q.fin ? 1.4 : 1);
+            for (const [dx, k] of [[-0.42, 1], [0.44, 0.85], [-0.2, 0.55], [0.22, 0.5]]) { const x = X + dx * T, y1 = Y - T * 0.95; Q.rbeam(x, y1 - hh, x, y1, T * 0.07, GOLD, a * k, 0, 1); Q.rbeam(x, y1 - hh, x, y1, T * 0.025, PALE, a * k, 0, 1); } } }
+          FG.flush(c); return; } }
         for (const w of waves) { const tau = tt - w.t0; if (tau < 0) continue; const X = H.sx(w.x), Y = H.sy(w.y) + FO * T; drawPuffs(c, w, tau, X, Y, T, true); drawChips(c, w, tau, X, Y, T, true); }
         // falling: soft streaks of light beside the pet
         let j = 0; while (j + 1 < NJ && tt >= J[j + 1].L) j++; const q = J[j];
@@ -280,6 +291,46 @@
           c.restore(); } }
       } });
 
+    /* (v415 EA) the GPU picture: the floor (Celestial's layered fracture web glowing with embers, the landing ring tightening under the falling pet,
+       each landing's white-gold contact flash, its cracks racing out behind the front, pressure ripples and the leading crest rippling the floor, the
+       dust sheet riding it), then the stone plates (ray-cast slabs, kind 74, hinged in the floor, a slot of light under each), the chips (rough
+       stones, kind 74, with soft contact shadows) and the dust (kind 78), far half under the monsters and near half over */
+    function gFloor(Q, tt, T) {
+      if (frac.length) { const fade = 1 - sm((tt - LAST.D - 0.85) / 1.1), kick = Math.exp(-(tt - lastLand) * 2.6); if (fade > 0.01) for (const q of frac) { const age = tt - q.t0, g0 = sm(age / 0.35), X = H.sx(q.x), Y = H.sy(q.y) + FO * T, r = R * 1.05 * T * (0.85 + 0.15 * g0) * (q.i === NJ - 1 ? 1.12 : 1), a = fade * g0 * (0.22 + 0.3 * kick + 0.05 * Math.sin(tt * 3 + q.i)) * (q.i === frac.length - 1 ? 1.6 : 1); if (a < 0.01) continue;
+        const rq = 7 + q.i + 0.99 * (0.35 + 0.65 * sm(age / 0.4)); Q.quad(78, X, Y, r, 0, 0, r * GY, '#000000', Math.min(1, a * 0.6), 3, 40 + q.i * 3.3, rq); Q.quad(77, X, Y, r, 0, 0, r * GY, hx(0.3 + 0.4 * kick, 0.15 * kick, 0), Math.min(1, a), 1, 40 + q.i * 3.3, rq); } }
+      { let j = 0; while (j + 1 < NJ && tt >= J[j + 1].L) j++; const q = J[j]; if (tt >= q.L && tt < q.D) { const u = (tt - q.L) / q.A, X = H.sx(me.x), Y = H.sy(me.y) + FO * T, k = sm((u - 0.15) / 0.85), rr = T * lerp(1.0, 0.5, k) * (q.fin ? 1.3 : 1);
+        Q.quad(79, X, Y, rr / 0.8, 0, 0, rr / 0.8 * GY, AMBER, (0.3 + 0.6 * k) * (q.fin ? 1.2 : 1), 0, q.j * 1.3, 0.16); Q.glow(X, Y, T * 0.8, AMBER, 0.25 * k, GY);
+        if (q.fin && u > 0.3) { const kk = sm((u - 0.3) / 0.25) * (1 - 0.5 * sm((u - 0.8) / 0.2)); Q.quad(79, X, Y, RF * T / 0.8, 0, 0, RF * T / 0.8 * GY, HONEY, 0.35 * kk, 0, 9.1, 0.1); } } }
+      for (const w of waves) { const tau = tt - w.t0; if (tau < 0 || w.launch) continue; const X = H.sx(w.x), Y = H.sy(w.y) + FO * T, rf = front(w, tau), RP = rf * T, end = cl(1 - (tau - w.DW * 0.75) / (w.DW * 0.6)), big = w.fin ? 1.3 : 1;
+        const ck = Math.exp(-tau * 7); if (ck > 0.02) { const cr = T * 0.9 * big * (0.7 + 0.5 * (1 - ck)); Q.quad(79, X, Y - T * 0.1, cr * 1.4, 0, 0, cr * 1.4 * 0.75, HONEY, Math.min(1, ck * 1.3), 1, w.t0 * 13, 1 - ck); Q.glow(X, Y, T * 1.6 * big, AMBER, 0.45 * ck, GY); }
+        // the cracks lighting through the ground behind the front, glowing and cooling
+        const CR = w.Rw * T, ca = Math.exp(-Math.max(0, tau - w.DW) * (w.fin ? 1.4 : 2.2)) * sm(tau / 0.08), reach = cl(rf / w.Rw * 1.02);
+        if (ca > 0.02) { const rq = (w.fin ? 13 : 10) + 0.99 * reach, sd = 11 + w.t0 * 7; Q.quad(78, X, Y, CR / 1.1 * 1.05, 0, 0, CR / 1.1 * 1.05 * GY, '#000000', ca * 0.7, 3, sd, rq); Q.quad(77, X, Y, CR / 1.1 * 1.05, 0, 0, CR / 1.1 * 1.05 * GY, hx(0.85 * Math.exp(-tau * 1.2) + 0.15, 0.25 * ck, 0), ca * (w.fin ? 1 : 0.85), 1, sd, rq); }
+        // pressure ripples behind the front, the leading crest and the dust sheet riding just behind it
+        const ra = end * (0.7 + 0.3 * (1 - cl(tau / w.DW)));
+        for (const [k, al] of (ADEPT ? [[0.8, 0.5], [0.62, 0.32], [0.45, 0.22]] : [[0.8, 0.5], [0.62, 0.32]])) { const r = RP * k; if (r > 2) Q.quad(79, X, Y, r / 0.8, 0, 0, r / 0.8 * GY, HONEY, al * ra, 0, k * 9 + w.t0, 0.3); }
+        if (rf > 0.35) { const re = RP + T * 0.08; Q.quad(79, X, Y, re / 0.8, 0, 0, re / 0.8 * GY, GOLD, Math.min(1, 1.0 * end), 0, w.t0 * 3, 0.14 * big); Q.glow(X, Y, re * 1.05, AMBER, 0.12 * end, GY);
+          const rd = RP * 0.96, dw = T * (0.6 + 0.08 * ev) * big * (0.6 + 0.4 * cl(tau / w.DW)) / Math.max(rd, 1); Q.quad(78, X, Y, rd / 0.8, 0, 0, rd / 0.8 * GY, '#9A8264', 0.7 * cl(1 - (tau - w.DW) / 0.9), 1, w.t0 * 5, Math.min(0.5, dw)); } } }
+    function gPlates(Q, w, tau, X0, Y0, T) { if (!w.plates.length) return; const ps = w.plates.slice().sort((p, q) => Math.sin(p.pa) - Math.sin(q.pa)), k0 = Q.k || 1;
+      for (const p of ps) { const u = tau - p.tp; if (u < -0.02 || u > 0.75) continue; const up = sm(u / 0.1), dn = u > 0.16 ? sm((u - 0.16) / 0.26) : 0, bounce = u > 0.42 ? 0.12 * Math.abs(Math.sin((u - 0.42) * 14)) * Math.exp(-(u - 0.42) * 9) : 0;
+        const phi = p.phiM * (up * (1 - dn) + bounce), hop = p.hop * up * (1 - dn), a = sm((u + 0.02) / 0.08) * (1 - sm((u - 0.45) / 0.28)), ct = Math.cos(p.th), st = Math.sin(p.th), cf = Math.cos(phi), sf = Math.sin(phi), Lh = p.L / 2;
+        const bx = p.r0 * Math.cos(p.pa), by = p.r0 * Math.sin(p.pa), cu = bx + Lh * cf * ct, cv = by + Lh * cf * st, cz = Lh * sf + hop - 0.1 * (1 - up), X = X0 + cu * T, Y = Y0 + cv * T * GY - cz * T, U = Lh * T;
+        if (phi > 0.02) { const kk = cl(phi / 0.4), mx = X0 + (bx + p.L * 0.5 * ct) * T, my = Y0 + (by + p.L * 0.5 * st) * T * GY; Q.glow(mx, my, T * p.L * 0.9, AMBER, 0.75 * kk * a, GY); Q.glow(mx, my, T * p.L * 0.45, HONEY, 0.55 * kk * a, GY); }
+        Q.quad(74, X, Y, U * 1.25, 0, 0, U * 1.25, hx(0.4 + 0.5 * cl(phi / 0.4), 0.1, 0), a, 1000 + Math.floor(p.tu * 50), Math.floor(U * k0) + 0.25, wrA(p.th) + 7 * Math.floor(cl(phi / 1.5708) * 99)); } }
+    function gPuffs(Q, w, tau, X, Y, T, near) { const PX = H.sx(me.x), PY = H.sy(me.y) + FO * T - (me.z || 0) * T - T * 0.5;
+      for (const p of w.puffs) { const age = tau - p.ts; if (age < 0 || age > p.life) continue; const sn = Math.sin(p.a); if ((sn > 0) !== near) continue;
+        const r0 = w.launch ? 0.35 + p.dr * age : front(w, p.ts) * 0.97 + p.dr * age, u = age / p.life, px = X + Math.cos(p.a) * r0 * T, py = Y + sn * r0 * T * GY - T * (0.12 + 0.35 * u) * p.sz, s = T * p.sz * (0.7 + 0.9 * sm(u));
+        let a = 0.75 * sm(age / 0.12) * (1 - sm(u)); if (near) { const dd = Math.hypot(px - PX, py - PY); a *= 0.25 + 0.75 * sstep(T * 0.35, T * 0.9, dd); } if (a < 0.02) continue;
+        Q.quad(78, px, py, s, 0, 0, s * 0.72, '#A08868', a, 0, (p.a * 7.7) % 13, u); } }
+    function gChips(Q, w, tau, X, Y, T, near) { const PX = H.sx(me.x), PY = H.sy(me.y) + FO * T - (me.z || 0) * T - T * 0.5, end = w.launch ? 0.35 : w.DW, k0 = Q.k || 1;
+      for (const p of w.chips) { const age = tau - p.t0; if (age < 0) continue; const sn = Math.sin(p.a); if ((sn > 0) !== near) continue;
+        const g = 17, t1 = 2 * p.v0 / g; let z; if (age < t1) z = p.v0 * age - g * age * age / 2; else { const v1 = p.v0 * 0.3, a2 = age - t1, t2 = 2 * v1 / g; z = a2 < t2 ? v1 * a2 - g * a2 * a2 / 2 : 0; }
+        const rr = (w.launch ? 0.3 + p.k * 0.5 * cl(age / 0.3) : front(w, Math.min(tau, end)) * p.k) + p.out * Math.min(age, 0.9) * (w.launch ? 1 : 0.8), fa = 1 - sm((tau - end - 0.25) / 0.45), cen = w.launch ? 1 : p.big ? sstep(0.9, 1.5, rr) : sstep(0.45, 0.95, rr);
+        let a = fa * cen * sm(age / 0.05); if (a < 0.02) continue;
+        const px = X + Math.cos(p.a) * rr * T, gy0 = Y + sn * rr * T * GY, py = gy0 - z * T, s = p.sz * T;
+        if (near) { const dd = Math.hypot(px - PX, py - PY); a *= 0.2 + 0.8 * sstep(T * 0.3, T * 0.85, dd); }
+        const ss = s * (1.1 - 0.3 * cl(z)); Q.sshadow(px, gy0, ss, ss * 0.45, a * 0.55 * (1 - cl(z / 1.5)), '#140E08');
+        const rot = p.r0 + p.spin * Math.min(age, t1 + 0.2), R = s * 0.62; if (R > 0.6) Q.quad(74, px, py, R * 1.15, 0, 0, R * 1.15, hx(0.55, 0.12, 0), a, 600 + p.sh * 17 + Math.floor(p.r0 * 5), Math.floor(R * k0) + 0.25, wrA(rot) + 7 * (p.big || p.sh % 2 ? Math.floor(Math.max(0, 0.7 - age * 0.5) * 99) : 0)); } }
     // the dust sheet: puffs left along the front that drift on, rise a little and settle (far half under, near half over)
     function drawPuffs(c, w, tau, X, Y, T, near) { const img = puffSpr(), PX = H.sx(me.x), PY = H.sy(me.y) + FO * T - (me.z || 0) * T - T * 0.5;
       for (const p of w.puffs) { const age = tau - p.ts; if (age < 0 || age > p.life) continue; const sn = Math.sin(p.a); if ((sn > 0) !== near) continue;

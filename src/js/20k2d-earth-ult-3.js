@@ -22,6 +22,12 @@
   const cl = u => u < 0 ? 0 : u > 1 ? 1 : u, lerp = (a, b, u) => a + (b - a) * u, sm = u => { u = cl(u); return u * u * (3 - 2 * u); };
   const sstep = (a, b, x) => sm((x - a) / (b - a));
   const evoOf = C => Math.max(1, Math.min(7, Math.round(C.evo || 1)));
+  /* (v415 EA) the GPU picture: the shared painter (20k6h FGFX, kinds 73..79) when it is usable (the crystals then ray-cast per pixel live: nothing is
+     baked); else the 2D picture below, as it was. hx packs three 0..1 numbers as a colour (the painter's per-quad parameters) */
+  const gfx = () => { try { const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; return F && F.usable() ? F : null; } catch (e) { return null; } };
+  const qb = (Q, x0, y0, x1, y1, w, col, a) => { const ex = (x1 - x0) * 0.1, ey = (y1 - y0) * 0.1; Q.beam(x0 - ex, y0 - ey, x1 + ex, y1 + ey, w, col, a); };   /* (v415 EA) a link of a chain of beams, overlapping its neighbours so the chain has no beads */
+  const hx = (r, g, b) => '#' + [r, g, b].map(v => { const q = Math.round(Math.max(0, Math.min(1, v)) * 63) * 4; return (q > 255 ? 255 : q).toString(16).padStart(2, '0'); }).join('');
+  const wrA = a => (a % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
   const nrm = v => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
   let H;
   function glow(c, x, y, r, col, a) { if (r < 1 || !(a > 0.01)) return; c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = Math.min(1, a); blitSized(c, glowSprite(col), x - r, y - r, r * 2, r * 2); c.restore(); }
@@ -130,6 +136,11 @@
       onEnd() { reset(); },
       drawUnder(c, f, X, Y, T) {
         const t = f.t, sx = H.sx, sy = H.sy;
+        { const FG = gfx(); if (FG) { const Q = FG.begin(c, null), GY = H.GY;   /* (v415 EA) the floor, then the swirl's far crystals */
+          if (!died) { const k = sstep(0.05, 0.4, t) * (1 - sstep(DESC, LAND, t)); Q.glow(sx(me.x), sy(me.y), T * 1.6, AMBER, 0.35 * k, GY); Q.glow(sx(me.x), sy(me.y), T * 0.8, HONEY, 0.25 * k, GY); }
+          for (const rg of rings) { const u = rg.t / rg.life, r = (rg.r0 + (rg.r1 - rg.r0) * H.ease.out(u)) * T; Q.quad(79, sx(rg.x), sy(rg.y), r / 0.8, 0, 0, r / 0.8 * GY, GOLD, rg.a * (1 - u) * 1.2, 0, rg.r1 * 7, 0.3); Q.quad(78, sx(rg.x), sy(rg.y), r * 0.9 / 0.8, 0, 0, r * 0.9 / 0.8 * GY, '#8C7A62', rg.a * (1 - u) * 0.7, 1, rg.r0 * 9, 0.3); }
+          for (const mk of marks) { const u = mk.t / mk.life, a = (1 - sstep(0.2, 1, u)) * Math.min(1, u * 8), r = T * 0.75, rq = 6 + 0.99 * sstep(0, 0.12, mk.t); Q.quad(78, sx(mk.x), sy(mk.y), r, 0, 0, r * GY, '#000000', a * 0.8, 3, mk.seed * 5.3 + mk.x, rq); Q.quad(77, sx(mk.x), sy(mk.y), r, 0, 0, r * GY, hx(1 - 0.8 * u, 0.3 * (1 - u), 0), a, 1, mk.seed * 5.3 + mk.x, rq); Q.glow(sx(mk.x), sy(mk.y), r * 0.6, AMBER, 0.4 * a * (1 - u), GY); }
+          FG.flush(c); const Q2 = FG.begin(c, null); gCrystals(Q2, T, t, false); FG.flush(c); return; } }
         // the warm light under the hovering pet, the lift-off and landing rings, the impacts' light marks
         if (!died) { const k = sstep(0.05, 0.4, t) * (1 - sstep(DESC, LAND, t)); floorGlow(c, sx(me.x), sy(me.y), T * 1.6, 0.35 * k, AMBER); floorGlow(c, sx(me.x), sy(me.y), T * 0.8, 0.25 * k, HONEY); }
         for (const rg of rings) { const u = rg.t / rg.life; floorSpr(c, bandSpr(), sx(rg.x), sy(rg.y), (rg.r0 + (rg.r1 - rg.r0) * H.ease.out(u)) * T, rg.a * (1 - u), true); }
@@ -139,6 +150,16 @@
       },
       draw(c, f, X, Y, T) {
         const t = f.t, sx = H.sx, sy = H.sy;
+        { const FG = gfx(); if (FG) { const Q = FG.begin(c, null), k0 = Q.k || 1;   /* (v415 EA) the swirl, the near crystals and the flying ones, splinters, sparks, dust, flashes */
+          if (!died) { const k = sstep(0.1, 0.5, t) * (1 - sstep(DESC - 0.2, LAND, t)); if (k > 0.02) { const p = pc(t), PX = sx(p[0]), PY = sy(p[1]) - p[2] * CE * T, rx = RO * T * 0.95, ryy = rx * 0.8 * 0.6;
+            for (let j = 0; j < 3; j++) { const a0 = swirl * 1.15 + j * TAU / 3, span = 1.5; let pp = null; for (let i = 0; i <= 10; i++) { const u = i / 10, a = a0 + span * u, q = [PX + Math.cos(a) * rx * (0.85 + 0.15 * u), PY + Math.sin(a) * ryy - Math.sin(a + 0.9) * T * 0.2];
+              if (pp) { const e = Math.sin(Math.PI * (i - 0.5) / 10); qb(Q, pp[0], pp[1], q[0], q[1], Math.max(1.5, T * 0.16), AMBER, k * 0.22 * e); qb(Q, pp[0], pp[1], q[0], q[1], Math.max(1, T * 0.06), HONEY, k * 0.5 * e); qb(Q, pp[0], pp[1], q[0], q[1], Math.max(0.6, T * 0.02), CORE, k * 0.6 * e); } pp = q; } } } }
+          gCrystals(Q, T, t, true);
+          for (const p of shards) { const u = p.t / p.life, s = T * 0.24, x = sx(p.x), y = sy(p.y) - p.z * CE * T, a = 1 - sstep(0.6, 1, u), q0 = 2000 + 60 + p.v * 7, q2 = wrA(p.rot) + 7 * Math.floor(wrA(p.t * 11 + p.v) * 100); Q.quad(73, x, y, 0.62 * s, 0, 0, 0.62 * s, hx(1, 0, 0), a, q0, Math.floor(s * k0) + 0.2, q2); Q.quad(76, x, y, 0.62 * s, 0, 0, 0.62 * s, hx(0.6 * (1 - u), 0, 0), a, q0, Math.floor(s * k0) + 0.2, q2); }
+          for (const p of sparks) { const u = p.t / p.life, x = sx(p.x), y = sy(p.y) - p.z * CE * T; Q.glow(x, y, T * 0.1, HONEY, (1 - u) * 0.8); Q.star(x, y, T * 0.12, (1 - u) * 0.6, PALE); }
+          for (const p of puffs) { const u = p.t / p.life, r = p.s * (0.6 + 0.9 * u) * T, a = 0.85 * Math.sin(Math.PI * Math.min(1, u * 1.3 + 0.08)) * (1 - u), x = sx(p.x), y = sy(p.y) - p.z * CE * T; if (p.gold) Q.glow(x, y, r, GOLD, a * 0.7); else Q.quad(78, x, y, r, 0, 0, r * 0.8, '#9A8466', a, 0, (p.s * 41) % 9, u); }
+          for (const p of motes) { const u = p.t / p.life, s = p.s * T * (1 + u), x = sx(p.x), y = sy(p.y) - p.z * CE * T; if (p.soft) Q.glow(x, y, s, HONEY, 0.6 * (1 - u)); else Q.quad(79, x, y, s * 1.6, 0, 0, s * 1.6, GOLD, 1, 1, p.x * 3.1, u); Q.star(x, y, s, (1 - u) * (p.soft ? 0.45 : 1), PALE); }
+          FG.flush(c); f.zx = sx(me.x); f.zy = sy(me.y) - T * (1 + (me.z || 0) * CE); return; } }
         // the swirl: ember ribbons circling the pet while it is aloft
         if (!died) { const k = sstep(0.1, 0.5, t) * (1 - sstep(DESC - 0.2, LAND, t)); if (k > 0.02) { const p = pc(t), PX = sx(p[0]), PY = sy(p[1]) - p[2] * CE * T, rx = RO * T * 0.95, ryy = rx * 0.8 * 0.6;
           c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round';
@@ -153,6 +174,21 @@
         for (const p of motes) { const u = p.t / p.life, s = p.s * T * (1 + u), x = sx(p.x), y = sy(p.y) - p.z * CE * T; c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = (1 - u) * (p.soft ? 0.45 : 1); c.drawImage(starSpr(), x - s, y - s, s * 2, s * 2); c.restore(); glow(c, x, y, s, HONEY, 0.6 * (1 - u)); }
         f.zx = sx(me.x); f.zy = sy(me.y) - T * (1 + (me.z || 0) * CE);
       } });
+    /* (v415 EA) the crystals on the GPU: each a doubly terminated ember crystal ray-cast per pixel (20k6h kind 73 its body, 76 its inner light), lying
+       along its flight and rolling on it, foreshortened as it turns toward or away; a burning tail (fire beams) behind each flying one */
+    function gCrystals(Q, T, t, front) { const sx = H.sx, sy = H.sy, pX = sx(me.x), pY = sy(me.y) - T * (0.45 + (me.z || 0) * CE), k0 = Q.k || 1;
+      for (const q of crys) { let p, v, al = 1, sc = 1, pre = 0;
+        if (q.st === 'orbit') { const a = q.ph + swirl; if ((Math.sin(a) > 0) !== front) continue; p = orbitPos(q, t); v = [-Math.sin(a), Math.cos(a) * 0.8, Math.cos(a + 0.9) * 0.28]; const u = cl((t - q.born) / 0.32); sc = H.ease.back(u) * 0.95 + 0.05; al = Math.min(1, u * 3);
+          if (u < 1) { const c0 = pc(t), e = H.ease.out(u); p = [lerp(c0[0], p[0], e), lerp(c0[1], p[1], e), lerp(c0[2], p[2], e)]; }
+          pre = sstep(q.go - 0.25, q.go, t); if (pre > 0) { const L = live(), m = L.length ? L[shot % L.length] : null; if (m) v = nrm([lerp(v[0], m.x - p[0], pre), lerp(v[1], m.y - p[1], pre), lerp(v[2], 0, pre)]); } }
+        else if (q.st === 'fly') { if (!front) continue; p = q.p; v = q.v; pre = 1; }
+        else continue;
+        const X = sx(p[0]), Y = sy(p[1]) - p[2] * CE * T, X2 = sx(p[0] + v[0] * 0.1), Y2 = sy(p[1] + v[1] * 0.1) - (p[2] + v[2] * 0.1) * CE * T, ang = Math.atan2(Y2 - Y, X2 - X), fore = Math.max(0.55, Math.min(1, Math.hypot(X2 - X, Y2 - Y) / (T * 0.1)));
+        const pd = q.st === 'orbit' && front ? 0.45 + 0.55 * sstep(0.15 * T, 0.6 * T, Math.hypot(X - pX, Y - pY)) : 1, A = al * pd;
+        if (q.st === 'fly' && q.tr.length > 1) { const P = [[X, Y]]; for (let i = q.tr.length - 1; i >= 0; i -= 2) { const tp = q.tr[i]; P.push([sx(tp[0]), sy(tp[1]) - tp[2] * CE * T]); } Q.trail(P, P.length, T * 0.22 * SZ, 0.85, 0.85, q.j * 1.3); }
+        Q.glow(X, Y, T * 0.5 * SZ * sc, AMBER, 0.32 * A); Q.glow(X, Y, T * 0.22 * SZ * sc, HONEY, 0.35 * A);
+        const L = T * 0.8 * SZ * sc, c0 = Math.cos(ang), s0 = Math.sin(ang), h = 0.62 * L, q0 = 1000 + 70 + q.s * 9 + (q.j % 3) * 2, q1 = Math.floor(L * k0) + 0.14, q2 = 7 * Math.floor(wrA(q.roll * 0.6) * 100);
+        Q.quad(73, X, Y, c0 * h * fore, s0 * h * fore, -s0 * h, c0 * h, hx(1, 0, 0), A, q0, q1, q2); Q.quad(76, X, Y, c0 * h * fore, s0 * h * fore, -s0 * h, c0 * h, hx(0.45 + 0.15 * Math.sin(t * 13 + q.j * 2) + 0.35 * pre, 0, 0), A, q0, q1, q2); } }
     // the crystals (front: the near half of the swirl and every flying one; back: the far half, drawn under the pet)
     function drawCrystals(c, T, t, front) {
       const k = scr(c).k, Spx = Math.max(16, Math.min(160, Math.round(T * k * SZ / 4) * 4)); if (!CS) CS = crystalSet(Spx); if (!CS.ready) CS.step(3);

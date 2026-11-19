@@ -54,6 +54,12 @@
   const wrapA = a => { while (a > Math.PI) a -= TAU; while (a < -Math.PI) a += TAU; return a; };
   const evoOf = C => Math.max(1, Math.min(7, Math.round(C.evo || 1)));
   let H = null;
+  /* (v415 EA) the GPU picture: the shared painter (20k6h FGFX) when it is usable (the fists then ray-marched per pixel, kind 75: nothing is baked);
+     else the 2D picture below, as it was. hx packs three 0..1 numbers as a colour (the painter's per-quad parameters) */
+  const gfx = () => { try { const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; return F && F.usable() ? F : null; } catch (e) { return null; } };
+  const qb = (Q, x0, y0, x1, y1, w, col, a) => { const ex = (x1 - x0) * 0.1, ey = (y1 - y0) * 0.1; Q.beam(x0 - ex, y0 - ey, x1 + ex, y1 + ey, w, col, a); };   /* (v415 EA) a link of a chain of beams, overlapping its neighbours so the chain has no beads */
+  const hx = (r, g, b) => '#' + [r, g, b].map(v => { const q = Math.round(Math.max(0, Math.min(1, v)) * 63) * 4; return (q > 255 ? 255 : q).toString(16).padStart(2, '0'); }).join('');
+  const wrA = a => (a % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
 
   /* ================= the ray caster (the EARTHC view: x right, y toward the viewer, z up; screen X = x, Y = y GY - z) ================= */
   const LIT = nrm([-0.55, 0.5, 0.78]), VIEW = nrm([0, 0.84, 0.55]), HV = nrm([LIT[0] + VIEW[0], LIT[1] + VIEW[1], LIT[2] + VIEW[2]]), RAYK = Math.hypot(1, GY);
@@ -319,7 +325,7 @@
     const dpr = typeof devicePixelRatio === 'number' ? devicePixelRatio : 1, RES = Math.min(2, Math.max(1, dpr));
     setScale(H.X.Tz(), SZ, RES);
     let A = Math.atan2(C.ty - me.y, C.tx - me.x); if (!isFinite(A)) A = 0;
-    plan(tier, A);
+    if (!gfx()) plan(tier, A);   /* (v415 EA: on the GPU nothing is baked) */
     H.X.banner('ROCKY', '', C.col, 1.4); H.X.sfx.rumble ? H.X.sfx.rumble() : H.X.sfx.hum(); H.X.shake(2, 0.3);
     // the schedule
     // Celestial: a second, upper pair (1.4x, higher, further behind and outside) echoes strikes 1-6 a beat later (each its own
@@ -488,7 +494,7 @@
       if (extra) extra(m); return true;
     }
     const tasks = [];
-    function prepMarks(S) { const T = H.X.Tz(); if (S.type === 'down' || S.type === 'over') { const big = (NS === 4 && S.i === 3) || S.type === 'over', R = S.R * (big ? 1.25 : 1.05) * T; tasks.push(() => E.cracks(S.i * 3 + 1, R * (big ? 0.75 : 0.7), big ? 9 : 6, big ? 2 : 1)); }
+    function prepMarks(S) { if (gfx()) return; /* (v415 EA: the GPU draws its own cracks) */ const T = H.X.Tz(); if (S.type === 'down' || S.type === 'over') { const big = (NS === 4 && S.i === 3) || S.type === 'over', R = S.R * (big ? 1.25 : 1.05) * T; tasks.push(() => E.cracks(S.i * 3 + 1, R * (big ? 0.75 : 0.7), big ? 9 : 6, big ? 2 : 1)); }
       if (S.type === 'final') tasks.push(() => E.cracks(7, 2.0 * K * T * 0.75, 9, 2), () => streakSpr()); }
     function flash(x, y, z, r, life, big) { fx.flashes.push({ x, y, z, r, life, t: 0, big }); }
     /* the contact of a strike that lands at one moment (uppercut, downward, overhead) */
@@ -580,7 +586,8 @@
       // (what the blows and the end will need, made a piece a frame ahead of time: no hitch when they come)
       if (tasks.length) tasks.shift()();
       if (!shattered && t >= endAt + 0.28 && !F._pc) { F._pc = 1; for (const s of [-1, 1]) tasks.push(() => { if (lastFr[s]) { pcFr[s] = lastFr[s]; try { chunksOf(lastFr[s]); } catch (e) { /* (drawn whole then) */ } } }); }
-      if (!shattered && t >= endAt + 0.38) { shattered = true; shatter(t); }
+      if (!shattered && t >= endAt + 0.38) { shattered = true; if (gfx()) gShatter(t); else shatter(t); }   /* (v415 EA: on the GPU the fist's own stones) */
+      gStep(dt, t);
       // the effects age
       for (const q of fx.flashes) q.t += dt; fx.flashes = fx.flashes.filter(q => q.t < q.life);
       for (const q of fx.marks) q.t += dt; fx.marks = fx.marks.filter(q => q.t < q.life);
@@ -590,7 +597,7 @@
       for (const q of fx.chunks) { const w = t - q.t0 - q.d; if (w <= 0) continue; if (w < 0.16) { q.ox = q.dx * sm(w / 0.16); q.oy = q.dy * sm(w / 0.16); } else { q.vz -= 7 * dt; q.z = Math.max(q.zmin, q.z + q.vz * dt); q.rot += q.vr * dt; } if (!q.dusted && w > 0.42) { q.dusted = 1; dust(q.wx, q.wy, 2, 0.6, 0.26); } }
       if (t > endAt + ENDD && !ended) { ended = true; f.life = Math.min(f.life, 0.45); for (const c of kids) c.life = Math.min(c.life, 0.45); clearPet(); }
       // the pictures still to bake, a slice at a time (more while what is on screen is missing)
-      if (FC.queue.length || FC.job) { const sync = typeof window !== 'undefined' && window.__rkySync; bakeStep(sync ? 1e4 : FC.miss > 0 ? 2 : 0.7); FC.miss = 0; }
+      if ((FC.queue.length || FC.job) && !gfx()) { const sync = typeof window !== 'undefined' && window.__rkySync; bakeStep(sync ? 1e4 : FC.miss > 0 ? 2 : 0.7); FC.miss = 0; }
     }
     // the end: each fist split into its stones, which loosen (the fingers first), drop a short way and crumble to dust
     function shatter(t) {
@@ -605,11 +612,79 @@
     /* ---- drawing ---- */
     function petBox(T) { return [H.sx(me.x + (me.hopDX || 0)), H.sy(me.y + (me.hopDY || 0)) - T * 0.5 - (me.z || 0) * T]; }
     const nearPet = (x, y, T) => { const pb = petBox(T); return 0.35 + 0.65 * sstep(T * 0.35, T * 1.1, Math.hypot(x - pb[0], y - pb[1])); };
+    /* (v415 EA) the GPU picture (20k6h FGFX): each fist ray-marched per pixel (kind 75: hewn stones grained and lit, moss on top, dark crevices with
+       amber light deep in them, ember veins; its stones growing into place as it forms; at the end it splits into its own stones, kind 74, which drop
+       and crumble); chips and pebbles kind 74; the blows' charred cracks glowing with embers (78 / 77), shock rings and contact flashes (79), dust (78);
+       the knuckles' wakes as feathered streams of dust and gold */
+    const gFist = (Q, s, X, Y, p, upx, a, gk, bld, rf, ch) => { const psi = A + p.yr, ps = wrA(s < 0 ? Math.PI - psi : psi), ph = Math.max(0, Math.min(Math.PI, p.ph));
+      Q.quad(75, X, Y, 1.3 * upx, 0, 0, 1.3 * upx, hx(Math.min(1, gk * 0.65), ch, 0.25 + 0.2 * Math.min(1, gk)), a, ps + 8 * Math.floor(ph * 500), s * (Math.floor(upx * (Q.k || 1)) + 0.1 * tier), Math.min(1, bld) + 2 * Math.floor(cl(rf) * 100)); };
+    const gRock = (Q, x, y, R, a, sd, rot, hot, moss) => { if (R > 0.6) Q.quad(74, x, y, R * 1.15, 0, 0, R * 1.15, hx(0.3, 0, 0), a, Math.floor(sd) % 1000, Math.floor(R * (Q.k || 1)) + (moss == null ? 0.35 : moss), wrA(rot) + 7 * Math.floor(cl(hot) * 99)); };
+    const bldOf = tf => sstep(0.36, 0.5, tf) * 0.34 + sstep(0.56, 0.7, tf) * 0.33 + sstep(0.76, 0.88, tf) * 0.33;
+    const gFrags = (Q, s, front, a, t, T) => { for (const q of fx.frags[s]) { if (!q.p || q.front !== front) continue; const fa = t < FORM ? sstep(0.75, 1.0, t) : 1; if (fa < 0.02) continue; const sz = q.s * T * SZ * 1.15;
+      gRock(Q, H.sx(q.p[0]), H.sy(q.p[1]) - q.p[2] * T, sz * 0.42, a * fa, 300 + q.k * 7 + (s > 0 ? 50 : 0), t * 1.3 + q.a, 0.3 + glowK * 0.4); } };
+    // the end on the GPU: the fist's stones (fist units: centre, radius; the fingers first), set loose where the fist was
+    const STONES = [[-0.05, 0, -0.06, 0.42, 1], [-0.1, 0.02, 0.3, 0.36, 1], [0.12, -0.6, -0.1, 0.22, 0], [0.86, -0.27, -0.3, 0.17, 0], [-0.72, 0, -0.02, 0.3, 2], [0.47, -0.42, 0.19, 0.2, 0], [0.47, -0.14, 0.21, 0.2, 0], [0.47, 0.14, 0.19, 0.2, 0], [0.41, 0.41, 0.15, 0.18, 0],
+      [0.7, -0.42, -0.19, 0.16, 0], [0.73, -0.14, -0.17, 0.16, 0], [0.7, 0.14, -0.19, 0.16, 0], [0.64, 0.41, -0.23, 0.14, 0], [-0.93, 0.44, 0.0, 0.15, 2], [-0.93, -0.36, 0.25, 0.15, 2], [-0.93, -0.36, -0.25, 0.15, 2], [-0.93, 0.14, -0.4, 0.15, 2]];
+    function gShatter(t) { const T = H.X.Tz(); fx.gch = [];
+      for (const s of [-1, 1]) { const p = FS[s]; if (!p) continue; const wp = world(p), k = UNIT * SZ * (p.sc || 1);
+        STONES.forEach((st, i) => { const o = fistPt(s, p, st); fx.gch.push({ x: wp[0] + o[0], y: wp[1] + o[1], z: Math.max(0.05, wp[2] + o[2]), r: st[3] * k * 1.05, vx: o[0] * 0.6 + (Math.random() - 0.5) * 0.3, vy: o[1] * 0.4, vz: 0.3 + Math.random() * 0.5, rot: Math.random() * TAU, vr: (Math.random() - 0.5) * (st[4] ? 2.2 : 4), t0: t, d: st[4] === 0 ? 0.02 * Math.random() : st[4] === 1 ? 0.1 + Math.random() * 0.06 : 0.05, sd: 500 + i * 11 + (s > 0 ? 7 : 0), dusted: 0, T }); });
+        sparks(wp[0], wp[1] - wp[2], 5, 1); }
+      H.X.sfx.thud(); }
+    function gStep(dt, t) { if (!fx.gch) return; for (const q of fx.gch) { const w = t - q.t0 - q.d; if (w <= 0) continue; q.vz -= 7 * dt; q.x += q.vx * dt; q.y += q.vy * dt; q.z = Math.max(q.r * 0.5, q.z + q.vz * dt); if (q.z <= q.r * 0.5) { q.vx *= 0.9; q.vy *= 0.9; q.vr *= 0.9; } q.rot += q.vr * dt; if (!q.dusted && w > 0.42) { q.dusted = 1; dust(q.x, q.y, 2, 0.6, 0.26); } } }
+    function gUnder(Q, T, t) {
+      const GY = E.GY;
+      if (t < FORM + 0.3) for (const s of [-1, 1]) { const wp = world(guard(s)), k = sstep(0, 0.3, t) * (1 - sstep(FORM - 0.1, FORM + 0.3, t)); Q.glow(H.sx(wp[0]), H.sy(wp[1]), T * 1.1 * SZ, AMBER, 0.32 * k, GY); }
+      const shd = (p, a0, al) => { const wp = world(p), k = 1 / (1 + wp[2] * 0.7), w = T * 0.95 * SZ * p.sc * k; Q.sshadow(H.sx(wp[0]), H.sy(wp[1]), w, w * GY * 0.8, al * a0 * k, '#0C0804'); return [wp, k, w]; };
+      if (!shattered) for (const s of [-1, 1]) { const p = FS[s]; if (!p) continue; const a = (t < FORM ? sstep(0.4, 0.9, t) : 1) * dimA[s] * (t >= endAt ? 1 - sstep(0.2, 0.5, t - endAt) : 1), [wp, k, w] = shd(p, a, 0.55); Q.glow(H.sx(wp[0]), H.sy(wp[1]), w * 0.8, AMBER, 0.14 * glowK * a * k, GY); }
+      if (UPPER && !shattered) for (const s of [-1, 1]) { const p = UFS[s]; if (!p || !(p.a > 0.01)) continue; shd(p, (t < FORM ? sstep(0.5, 1.0, t) : 1) * p.a * udim[s], 0.42); }
+      if (fx.gch) for (const q of fx.gch) { const w = t - q.t0 - q.d, al = 1 - sstep(0.45, 0.85, w); if (al > 0.01) Q.sshadow(H.sx(q.x), H.sy(q.y), q.r * T * 1.1, q.r * T * 0.6, 0.35 * al, '#0C0804'); }
+      // the marks of the blows: charred cracks glowing with embers and cooling, a shock ring rippling out with its dust, light on the floor
+      for (const q of fx.marks) { const u = q.t / q.life, X = H.sx(q.x), Y = H.sy(q.y), Rp = q.R * T, ck = (1 - sstep(0.4, 1, u)) * sstep(0, 0.06, q.t), sx = q.fwd ? 1.45 : 1, ca = Math.cos(q.a || 0), sa = Math.sin(q.a || 0), rc = Rp * (q.big ? 0.85 : 0.8);
+        const quad = (k, r, col, al, q0, q1, q2) => { if (q.fwd) Q.quad(k, X, Y, ca * r * sx, sa * r * sx * GY, -sa * r, ca * r * GY, col, al, q0, q1, q2); else Q.quad(k, X, Y, r, 0, 0, r * GY, col, al, q0, q1, q2); };
+        const rq = (q.big ? 9 : 6) + 0.99 * sm(q.t / 0.14); quad(78, rc, '#000000', ck * 0.85, 3, q.seed * 3.7, rq); quad(77, rc, hx(1 - 0.85 * sstep(0, 0.9, q.t), 0.35 * Math.exp(-q.t * 6), 0), ck, 1, q.seed * 3.7, rq);
+        if (q.ring) { const r = Rp * (0.25 + 0.95 * (1 - Math.pow(1 - cl(u / 0.45), 2))), ra = 1 - sstep(0.25, 0.75, u); quad(79, r / 0.8, GOLD, ra * 0.85, 0, q.seed, 0.22); quad(78, r * 0.95 / 0.8, '#8C7A62', ra * 0.6, 1, q.seed + 2, 0.25); }
+        Q.glow(X, Y, Rp * 0.6, AMBER, 0.42 * (1 - sstep(0, 0.45, u)), GY); Q.glow(X, Y, Rp * 0.3, HONEY, 0.35 * (1 - sstep(0, 0.25, u)), GY); } }
+    function gDraw(Q, T, t) {
+      const pb = petBox(T), k0 = Q.k || 1;
+      // the formation's pebbles, spiralling into place
+      for (const q of fx.rocks) { const p = q.up ? UFS[q.s] : FS[q.s]; if (!p) continue; if (!q.fin && t > q.t1 + 0.05) continue; if (t < q.t0) continue;
+        const u = cl((t - q.t0) / (q.t1 - q.t0)), e = sm(u), wp = world(p), lp = fistPt(q.s, p, q.lp), tx = wp[0] + lp[0], ty = wp[1] + lp[1], tz = wp[2] + lp[2];
+        const ox = q.fin ? q.ox : world(guard(q.s))[0], oy = q.fin ? q.oy : world(guard(q.s))[1], ang = q.a0 + q.sp * u * TAU * 0.6, rr = q.d0 * (1 - e), x = lerp(ox + Math.cos(q.a0) * q.d0, tx, e) + Math.cos(ang) * rr * 0.6, y = lerp(oy + Math.sin(q.a0) * q.d0 * 0.6, ty, e) + Math.sin(ang) * rr * 0.4, z = lerp(0.02, tz, e) + Math.sin(u * Math.PI) * 0.5;
+        const X = H.sx(x), Y = H.sy(y) - z * T, sz = q.s0 * T * SZ * 1.3 * (q.fin ? 1 : 1 - 0.3 * e), al = Math.min(1, (t - q.t0) / 0.08) * (u >= 1 ? 1 - cl((t - q.t1) / 0.05) : 1) * nearPet(X, Y, T);
+        gRock(Q, X, Y, sz * 0.42, al, 200 + q.k * 13 + Math.floor(q.a0 * 10), q.a0 + u * q.sp * 3, 0.2 + 0.5 * e); Q.glow(X, Y, sz * 1.2, u < 1 ? AMBER : HONEY, 0.35 * al * (0.4 + 0.6 * e)); }
+      // the energy strands from the pet's hands to the stone wrists
+      { let k = sstep(0.62, 0.85, t) * (1 - sstep(1.2, 1.45, t)); const St = strikes[curIdx(t)];
+        if (tier >= 3 && St.on && t < endAt) { const u = (t - St.s) / St.d; if (St.type === 'final') k = Math.max(k, 0.9 * sstep(0.1, 0.25, u) * (1 - sstep(St.ct + 0.05, St.ct + 0.2, u))); else if (St.type === 'over' || (St.type === 'up' && St.i === 1)) k = Math.max(k, 0.6 * Math.exp(-Math.pow((u - St.ct) / 0.12, 2))); }
+        if (k > 0.02 && !shattered) for (const s of [-1, 1]) { const p = FS[s]; if (!p) continue; const wp = world(p), wr = fistPt(s, p, [-0.75, 0, 0]), ex = H.sx(wp[0] + wr[0]), ey = H.sy(wp[1] + wr[1]) - (wp[2] + wr[2]) * T, sx0 = pb[0] + scrSide(s) * T * 0.34, sy0 = pb[1] + T * 0.08;
+          for (let j = 0; j < 3; j++) { const ph = t * (5 + j) + j * 2.1 + s, mx = (sx0 + ex) / 2 + Math.sin(ph) * T * 0.16, my = (sy0 + ey) / 2 - T * 0.25 + Math.cos(ph * 0.8) * T * 0.12, B = v => { const w = 1 - v; return [w * w * sx0 + 2 * w * v * mx + v * v * ex, w * w * sy0 + 2 * w * v * my + v * v * ey]; };
+            for (let n = 0; n < 8; n++) { const a0 = B(n / 8), a1 = B((n + 1) / 8); qb(Q, a0[0], a0[1], a1[0], a1[1], Math.max(2, T * 0.09), AMBER, k * 0.35); qb(Q, a0[0], a0[1], a1[0], a1[1], Math.max(0.8, T * 0.022), j ? HONEY : PALE, k * 0.9); }
+            const bp = B((t * 1.6 + j / 3) % 1); Q.glow(bp[0], bp[1], T * 0.13, HONEY, k); }
+          Q.glow(ex, ey, T * 0.32, GOLD, k * 0.6); Q.glow(sx0, sy0, T * 0.2, GOLD, k * 0.6); } }
+      // the knuckles' wakes: streams of dust and gold, widest at the knuckles, tapering behind
+      for (const key in fx.trails) { const tr = fx.trails[key]; if (tr.length < 2) continue;
+        const BG = tr.some(q => q.big), wide = (tr.some(q => q.k === 'hook') ? 1.35 : tr.some(q => q.k === 'final') ? 1.6 : 1) * (BG ? 1.5 : 1), W0 = T * 0.62 * SZ * wide, LW = BG ? 0.2 : 0.35, EXP = BG ? 0.8 : 1.3, runs = []; let run = [];
+        for (const q of tr) { if (q.gap) { if (run.length > 1) runs.push(run); run = []; continue; } const k = 1 - (t - q.t) / LW; if (k <= 0) continue; run.push([H.sx(q.x), H.sy(q.y) - q.z * T, k]); }
+        if (run.length > 1) runs.push(run);
+        for (const R of runs) { const dim = nearPet(R[R.length - 1][0], R[R.length - 1][1], T);
+          for (let i = 0; i < R.length - 1; i++) { const a = R[i], b = R[i + 1], w = W0 * Math.pow((a[2] + b[2]) / 2, EXP) * 0.5;
+            if (i % 2 === 0) Q.quad(78, a[0], a[1], w * 1.1, 0, 0, w * 0.9, '#8A7860', 0.28 * dim * a[2], 0, i * 1.7 + key.length, 1 - a[2]);
+            qb(Q, a[0], a[1], b[0], b[1], w * 1.2, AMBER, 0.15 * dim); qb(Q, a[0], a[1], b[0], b[1], w * 0.6, GOLD, 0.22 * dim); qb(Q, a[0], a[1], b[0], b[1], w * 0.18, PALE, 0.4 * dim); } } }
+      // tumbling stone chips (some hot), the final punch's pressure streaks, the contact flashes, the end's stones
+      for (const q of fx.debris) { const X = H.sx(q.x), Y = H.sy(q.y) - q.z * T, sz = q.s * T * 1.4, al = (1 - sstep(0.65, 1, q.t / q.life)) * nearPet(X, Y, T); gRock(Q, X, Y, sz * 0.4, al, 400 + q.k * 9 + Math.floor(q.vr * 3), q.r, q.hot ? 0.9 * (1 - q.t / q.life) : 0, 0.2); if (q.hot && q.t < 0.35) Q.glow(X, Y, sz, AMBER, 0.4 * al * (1 - q.t / 0.35)); }
+      for (const q of fx.streaks) { if (q.t < 0) continue; const u = q.t / q.life, d = q.v * q.t, X = H.sx(q.x + Math.cos(q.a) * d), Y = H.sy(q.y + Math.sin(q.a) * d) - q.z * T * (1 - u * 0.5), L = T * (1.2 + 1.2 * q.w) * (1 - u * 0.4), dx = Math.cos(q.a), dy = Math.sin(q.a), al = (1 - u) * nearPet(X, Y, T);
+        qb(Q, X - dx * L, Y - dy * L, X, Y, T * 0.1 * q.w + T * 0.04, GOLD, al * 0.5); qb(Q, X - dx * L, Y - dy * L, X, Y, T * 0.035 * q.w + T * 0.015, PALE, al * 0.8); }
+      for (const q of fx.flashes) { const u = q.t / q.life, X = H.sx(q.x), Y = H.sy(q.y) - q.z * T, a = (1 - u) * nearPet(X, Y, T), r = q.r * T * (0.6 + 0.5 * Math.pow(u, 0.5));
+        Q.glow(X, Y, r * 1.6, AMBER, a * 0.6); Q.quad(79, X, Y, r * 1.5, 0, 0, r * 1.5, GOLD, Math.min(1, a * 1.2), 1, q.x * 7.3 + q.y, u); if (q.big) Q.glow(X, Y, r * 2.4, AMBER, a * 0.35); }
+      if (fx.gch) for (const q of fx.gch) { const w = t - q.t0, al = 1 - sstep(0.45, 0.85, w - q.d); if (al <= 0.01) continue; const R = q.r * T * (1 - 0.35 * sstep(0.35, 0.85, w - q.d)); gRock(Q, H.sx(q.x), H.sy(q.y) - q.z * T, R, al, q.sd, q.rot, glowK * 0.3 * (1 - sstep(0, 0.5, w)), 0.5); } }
     function drawEnt(c, f, s) {
       if (shattered) return; const p = FS[s]; if (!p) return; const T = H.X.Tz(), t = lastT, wp = world(p), upx = T * UNIT * SZ * p.sc, [X, Y] = inView(c, H.sx(wp[0]), H.sy(wp[1]) - wp[2] * T, upx);
       setScale(T, SZ, (() => { const m = c.getTransform(); return Math.min(2, Math.max(1, Math.hypot(m.a, m.b) || 1)); })());
       // in front of the pet it dims smoothly where it would cover it
       const inFront = wp[1] > me.y + 0.02, dt = inFront ? nearPet(X, Y, T) : 1; dimA[s] += (dt - dimA[s]) * 0.25; const a = dimA[s];
+      { const FG = gfx(); if (FG) { const Q = FG.begin(c, null); gFrags(Q, s, false, a, t, T);   /* (v415 EA) the fist on the GPU, ray-marched */
+        if (t < FORM) gFist(Q, s, X, Y, p, upx, a, glowK, bldOf(t), 0, 0);
+        else { let jx = 0, jy = 0; if (s > 0 && finalCharge > 0.01 && finalCharge < 0.999) { jx = Math.sin(t * 61) * T * 0.02 * finalCharge; jy = Math.cos(t * 47) * T * 0.015 * finalCharge; } gFist(Q, s, X + jx, Y + jy, p, upx, a, glowK * (s > 0 ? 1 + finalCharge * 0.6 : 1), 1, p.rf || 0, s > 0 ? finalCharge : 0); }
+        gFrags(Q, s, true, a, t, T); FG.flush(c); return; } }
       const sync = typeof window !== 'undefined' && window.__rkySync; if (sync && (FC.queue.length || FC.job)) bakeStep(1e4);
       // the fragments behind, the fist, the fragments in front
       const frag = front => { for (const q of fx.frags[s]) { if (!q.p || q.front !== front) continue; const fa = t < FORM ? sstep(0.75, 1.0, t) : 1, rs = CH[q.k], sz = q.s * T * SZ * 1.15, x = H.sx(q.p[0]), y = H.sy(q.p[1]) - q.p[2] * T; if (fa < 0.02) continue; c.save(); c.globalAlpha = a * fa; c.translate(x, y); c.rotate(t * 1.3 + q.a); c.drawImage(rs.body, -sz / 2, -sz / 2 * rs.H / rs.W, sz, sz * rs.H / rs.W); c.restore(); glowF(c, x, y, sz * 1.1, AMBER, 0.28 * a * fa * (0.4 + glowK * 0.6)); } };
@@ -634,6 +709,7 @@
       if (shattered) return; const p = UFS[s]; if (!p || !(p.a > 0.01)) return; const T = H.X.Tz(), t = lastT, wp = world(p), upx = T * UNIT * SZ * p.sc, [X, Y] = inView(c, H.sx(wp[0]), H.sy(wp[1]) - wp[2] * T, upx);
       // (big and high: it dims wherever it would cover the pet, in front or behind)
       const dtg = 0.35 + 0.65 * sstep(T * 0.35, T * 1.0, Math.hypot(X - petBox(T)[0], Y - petBox(T)[1])); udim[s] += (dtg - udim[s]) * 0.25; const a = udim[s] * p.a;
+      { const FG = gfx(); if (FG) { const Q = FG.begin(c, null); gFist(Q, s, X, Y, p, upx, a, glowK * (p.merge ? 1 + p.merge : 1), t < FORM ? bldOf(t - 0.1) : 1, 0, 0); FG.flush(c); if (p.merge > 0.02) glowF(c, X, Y, upx * (1 + p.merge), GOLD, 0.5 * p.merge * a); return; } }   /* (v415 EA) */
       c.save();
       if (t < FORM) { const tf = t - 0.1, a1 = sstep(0.36, 0.5, tf), a2 = sstep(0.56, 0.7, tf), a3 = sstep(0.76, 0.88, tf);
         if (a1 > 0.01 && a3 < 0.99) drawFist(c, tier, s, X, Y, A + p.yr, p.ph, upx, a * a1, glowK, 's1', 0); if (a2 > 0.01 && a3 < 0.99) drawFist(c, tier, s, X, Y, A + p.yr, p.ph, upx, a * a2, glowK, 's2', 0); if (a3 > 0.01) drawFist(c, tier, s, X, Y, A + p.yr, p.ph, upx, a * a3, glowK, 'up', 0);
@@ -643,6 +719,7 @@
     }
     function drawUnder(c, f, X0, Y0, T, tg) {
       const t = lastT;
+      { const FG = gfx(); if (FG) { const Q = FG.begin(c, null); gUnder(Q, T, t); FG.flush(c); return; } }   /* (v415 EA) */
       // the formation's light on the floor where the stones gather
       if (t < FORM + 0.3) for (const s of [-1, 1]) { const g = guard(s), wp = world(g), k = sstep(0, 0.3, t) * (1 - sstep(FORM - 0.1, FORM + 0.3, t)); glowF(c, H.sx(wp[0]), H.sy(wp[1]), T * 1.1 * SZ, AMBER, 0.32 * k, GY); }
       // soft shadows under the fists (fainter and smaller the higher they are)
@@ -659,6 +736,7 @@
     }
     function draw(c, f, X0, Y0, T, tg) {
       const t = lastT, pb = petBox(T);
+      { const FG = gfx(); if (FG) { const Q = FG.begin(c, null); gDraw(Q, T, t); FG.flush(c); return; } }   /* (v415 EA) */
       // the formation's pebbles: up from the floor, spiralling into the cluster, onto their place in the stone
       for (const q of fx.rocks) { const p = q.up ? UFS[q.s] : FS[q.s]; if (!p) continue; if (!q.fin && t > q.t1 + 0.05) continue; if (t < q.t0) continue;
         const u = cl((t - q.t0) / (q.t1 - q.t0)), e = sm(u), wp = world(p), lp = fistPt(q.s, p, q.lp), tx = wp[0] + lp[0], ty = wp[1] + lp[1], tz = wp[2] + lp[2];
@@ -711,6 +789,7 @@
     return F;
   };
   U.rocky.warm = o => {
+    if (gfx()) return;   /* (v415 EA: on the GPU nothing is baked) */
     const ev = Math.max(1, Math.min(7, Math.round(o.evo || 1))), tier = ev >= 7 ? 3 : ev >= 4 ? 2 : 1, SZ = 1 + 0.06 * (ev - 1);
     setTimeout(() => { const T = typeof o.T === 'function' ? o.T() : o.T; if (!(T > 0)) return; const dpr = typeof devicePixelRatio === 'number' ? devicePixelRatio : 1; setScale(T, SZ, Math.min(2, Math.max(1, dpr))); try { chipSet(); } catch (e) { /* (the chips are made at the cast then) */ } plan(tier, Math.PI / 2); idleBake(); }, 300);
   };

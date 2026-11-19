@@ -273,6 +273,8 @@ const EARTHC = (() => {
   const E = EARTHC, TAU = Math.PI * 2, { cl, lerp, sm, sstep, R1 } = E;
   const AMBER = '#D98A1E', GOLD = '#F2B73A', HONEY = '#FFCF5C', PALE = '#FFE9B8', CORE = '#FFF4D6';
   const evoOf = C => Math.max(1, Math.min(7, Math.round(C.evo || 1)));
+  /* (v415 EB) the GPU picture: the shared painter (20k6h FGFX, Earth's kinds 80..87) when it is usable; else the 2D picture below, as it was */
+  const gfx = () => { try { const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; return F && F.usable() ? F : null; } catch (e) { return null; } };
   const NB = 16, STEP = TAU / NB, AXIS = [0.78, 0.32, 0.52];
   // the rock's sprites (per size and level, cached): one render per rotation bucket, built on demand / in slices
   const RSETS = {};
@@ -305,6 +307,7 @@ const EARTHC = (() => {
     const from = { x: p0.x + 2.4 * (me.x < p0.x ? -1 : 1) * 0.6, y: p0.y - 1.4 };
     const pebbles = [], chipsL = [], puffs = [], embers = [], splint = [], rings = [], crys = [], shell = [];
     const log = []; let nImp = 0, flash = 0, shattered = false, nBlast = 0, RS = null, CS = null, chipS = null, dead = false;
+    const smk = [], SEED = 3 + ev;   // (v415 EB) the GPU picture's smoke trail behind the falling rock, the rock's seed
     H.X.banner(CEL ? 'CATACLYSM' : 'CATACLYSM', '', GOLD, 1.4); H.X.sfx.hum();
     // the mark: pebbles that rise off the floor round the first landing
     for (let i = 0; i < H.n(8 + ev); i++) { const b = R1(i * 3.3 + ev) * TAU, r = RI * (0.25 + 0.7 * R1(i * 1.7 + 5)); pebbles.push({ x: p0.x + Math.cos(b) * r, y: p0.y + Math.sin(b) * r, t0: 0.15 + R1(i * 2.9) * 0.6, h: 0.25 + 0.5 * R1(i * 4.1), s: 0.12 + 0.08 * R1(i * 7.3), v: i % 6, ph: R1(i) * TAU }); }
@@ -342,6 +345,8 @@ const EARTHC = (() => {
       if (B && B.ready) { const ch = E.rockChunks(B.res), u = RT / B.res.S;   // tiles per sprite px
         for (const q of ch) { const dx = (q.mx - B.res.cx) * u, dz = -(q.my - B.res.cy) * u, d = Math.hypot(dx, dz) || 1, v = 3 + Math.random() * 1.8;
           shell.push({ q, x: s.x + dx, y: s.y + 0.05, z: ZR + dz, vx: dx / d * v, vy: (Math.random() - 0.5) * 1.4 + 0.4, vz: 1.8 + Math.max(0, dz / RT) * 3.2 + Math.random(), rot: 0, vr: (Math.random() - 0.5) * 2.6, t: 0, rest: false, r: Math.max(q.w, q.h) * u * 0.42, u }); } }
+      else for (let i = 0, n = 9 + ev; i < n; i++) { const b = i / n * TAU + Math.random() * 0.4, rr = RT * (0.3 + 0.45 * Math.random()), dx = Math.cos(b) * rr, dz = Math.sin(b) * rr * 0.9, v = 3 + Math.random() * 1.8, d = Math.hypot(dx, dz) || 1;   // (v415 EB) the GPU picture's shell: chunks of the boulder (no 2D render behind them)
+        shell.push({ q: null, x: s.x + dx, y: s.y + 0.05, z: ZR + dz, vx: dx / d * v, vy: (Math.random() - 0.5) * 1.4 + 0.4, vz: 1.8 + Math.max(0, dz / RT) * 3.2 + Math.random(), rot: Math.random() * TAU, vr: (Math.random() - 0.5) * 2.6, t: 0, rest: false, r: RT * (0.2 + 0.14 * Math.random()), sd: i * 1.7 + 3 }); }
       // the ember crystals: short arcs round the landing, half of them toward monsters close by
       const tg = H.sortNear(s.x, s.y, H.near(s.x, s.y, RT + 3.2)).slice(0, Math.floor(NC / 2)), RS1 = 1.9 + 0.13 * ev;
       for (let i = 0; i < NC; i++) { const m = tg[i], b = i * 2.39996 + R1(i + ev) * 0.5, r = lerp(RT * 0.55 + 0.35, RS1 + RT * 0.3, Math.sqrt((i + 0.5) / NC));
@@ -367,6 +372,8 @@ const EARTHC = (() => {
         for (const p of pebbles) { const u = sm((t - p.t0) / 0.8); p.z = 0.04 + p.h * u + Math.sin(t * 23 + p.ph) * 0.03 * u; }
         // the falling rock sheds embers from its veins
         if (t > TA && t < TS && Math.random() < dt * 30 * H.Q()) { const r = rockAt(t), b = Math.random() * TAU; embers.push({ x: r[0] + Math.cos(b) * RT * 0.8, y: r[1], z: r[2] + Math.sin(b) * RT * 0.8, vx: (Math.random() - 0.5) * 0.8, vy: 0, vz: t < T1 ? 2.5 : 0.6, t: 0, life: 0.5 + Math.random() * 0.4, s: 0.08 + Math.random() * 0.08 }); }
+        if (t > TA + 0.05 && t < T1 && Math.random() < dt * 18 * H.Q()) { const r = rockAt(t); smk.push({ x: r[0] + (Math.random() - 0.5) * RT * 0.8, y: r[1], z: r[2] + RT * (0.55 + Math.random() * 0.6), t: 0, life: 0.6 + Math.random() * 0.4, s: RT * (0.4 + Math.random() * 0.3), sd: Math.random() * 9 }); }   // (v415 EB: the GPU picture's smoke trail)
+        for (let i = smk.length - 1; i >= 0; i--) { const p = smk[i]; p.t += dt; p.z += 0.5 * dt; if (p.t >= p.life) smk.splice(i, 1); }
         for (let i = chipsL.length - 1; i >= 0; i--) { const q = chipsL[i]; q.t += dt; q.x += q.vx * dt; q.y += q.vy * dt; q.z += q.vz * dt; q.vz -= 16 * dt; q.rot += q.vr * dt; if (q.z < 0.04) { q.z = 0.04; if (q.vz < -1.5) { q.vz = -q.vz * 0.3; q.vx *= 0.5; q.vy *= 0.5; q.vr *= 0.5; } else { q.vz = 0; q.vx *= Math.exp(-dt * 8); q.vy *= Math.exp(-dt * 8); q.vr *= Math.exp(-dt * 8); } } if (q.t >= q.life) chipsL.splice(i, 1); }
         for (let i = puffs.length - 1; i >= 0; i--) { const p = puffs[i]; p.t += dt; if (p.t < 0) continue; const d = Math.exp(-2.2 * dt); p.vx *= d; p.vy *= d; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; if (p.t >= p.life) puffs.splice(i, 1); }
         for (let i = embers.length - 1; i >= 0; i--) { const p = embers[i]; p.t += dt; p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; p.vz -= 1.5 * dt; if (p.t >= p.life) embers.splice(i, 1); }
@@ -378,6 +385,29 @@ const EARTHC = (() => {
       },
       drawUnder(c, f, X, Y, T) {
         const t = f.t, out = cl(f.life / 0.6);
+        { const FG = gfx(); if (FG) { /* (v415 EB) the floor on the GPU: the mark's ring of light; the rock's soft shadow and its warm light growing
+             under it; each landing punches a scorched crater (kind 82) whose cracks burn white-hot and cool to red (83), a shockwave of light and a
+             ripple racing over the floor, a ring of dust rolling out (84); a crystal's blast its own small crater and cracks */
+          const Q = FG.begin(c, null), GY = E.GY;
+          if (t < T1 + 0.3) { const u = sm(t / 0.55), a = sstep(0, 0.15, t) * (1 - sstep(T1, T1 + 0.3, t)) * out, RR = RI * T * (0.35 + 0.65 * u), sx = H.sx(p0.x), sy = H.sy(p0.y);
+            Q.glow(sx, sy, RR * 1.15, AMBER, a * (0.22 + 0.25 * sstep(TA, T1, t)), GY); Q.ring(sx, sy, RR, GOLD, a * (0.6 + 0.2 * Math.sin(t * 9)), RR * 0.12, GY); Q.ring(sx, sy, RR * 0.985, PALE, a * 0.7, RR * 0.03, GY);
+            Q.quad(83, sx, sy, RR * 0.9, 0, 0, RR * 0.9 * GY, '#FFFFFF', a * 0.55, 0.15, SEED + 0.5, 0.9 * 0.35 * u); }
+          if (t > TA && !shattered) { const r = rockAt(t), hz = cl((r[2] - ZR) / (Z0 - ZR)), sx = H.sx(r[0]), sy = H.sy(r[1]), rs = RT * T * (1.2 - 0.55 * hz);
+            Q.sshadow(sx, sy, rs, rs * GY, (0.18 + 0.55 * (1 - hz)) * out, '#120A05'); Q.glow(sx, sy, RT * T * 2.2, AMBER, (0.1 + 0.3 * (1 - hz) + 0.25 * flash) * out, GY); }
+          if (shattered) { const s = stops[NI - 1], u = cl((t - TS) / 0.4); Q.sshadow(H.sx(s.x), H.sy(s.y), RT * T * (1.2 + 0.4 * u), RT * T * (1.2 + 0.4 * u) * GY, 0.55 * (1 - u), '#120A05'); }
+          for (const R of rings) { const p = t - R.t0, sx = H.sx(R.x), sy = H.sy(R.y), RR = R.R * T, sd = R.x * 3.1 + R.y * 1.7; if (p < 0) continue;
+            const heat = Math.exp(-p * (R.small ? 1.6 : 0.85)), grow = sm(p / (R.small ? 0.18 : 0.3));
+            if (R.small) { const q = cl(p / 0.45);
+              Q.quad(82, sx, sy, RR * 1.0, 0, 0, RR * GY, '#FFFFFF', 0.8 * out * (1 - sstep(1.6, 2.4, p)), heat * 0.7, sd);
+              Q.quad(83, sx, sy, RR * 1.35, 0, 0, RR * 1.35 * GY, '#FFFFFF', out * (0.5 + 0.5 * heat), heat, sd, 0.9 * grow);
+              Q.glow(sx, sy, RR * 1.3, HONEY, 0.55 * (1 - q) * out, GY); if (q < 1) { Q.ewave(sx, sy, RR * (0.35 + 0.9 * sm(q)), AMBER, 0.9, (1 - q) * 0.7 * out, sd, GY, 0.2); } continue; }
+            Q.quad(82, sx, sy, RR * 1.08, 0, 0, RR * 1.08 * GY, '#FFFFFF', out * sstep(0, 0.04, p), heat * (R.fin ? 1 : 0.85), sd);
+            Q.quad(83, sx, sy, RR * 1.4, 0, 0, RR * 1.4 * GY, '#FFFFFF', out * (0.65 + 0.5 * heat), heat, sd, 0.9 * grow);
+            Q.glow(sx, sy, RR * 1.6, AMBER, (0.55 * Math.exp(-p * 2.5) + 0.06 * heat) * out, GY); Q.glow(sx, sy, RR * 0.55, CORE, 0.7 * Math.exp(-p * 6) * out, GY);
+            const q = cl(p / 0.6); if (q < 1) { const rr = RR * (0.3 + 1.7 * (1 - (1 - q) * (1 - q))); Q.ewave(sx, sy, rr, AMBER, 1.0, (1 - q) * 0.85 * out, sd, GY, 0.16); Q.ripple(sx, sy, rr * 1.04, PALE, (1 - q) * 0.55 * out, sd, GY, 0.1); }
+            const qd = cl(p / 1.05); if (qd < 1) Q.quad(84, sx, sy, RR * 2.1, 0, 0, RR * 2.1 * GY, '#8C7358', (1 - qd) * sstep(0, 0.06, qd) * (R.fin ? 0.95 : 0.85) * out, 0.22 + 0.7 * (1 - (1 - qd) * (1 - qd)), sd, 1 + 0.9 * 0.8 * heat); }
+          for (const cr of crys) { if (cr.done || !cr.landed) continue; const g = cl((t - cr.land) / 0.6); Q.glow(H.sx(cr.x1), H.sy(cr.y1), T * (0.65 + 0.5 * g) * cr.sc, AMBER, (0.25 + 0.45 * g) * out, GY); }
+          FG.flush(c); return; } }
         // the mark: a widening amber circle round the first landing, light only
         if (t < T1 + 0.3) { const u = sm(t / 0.55), a = sstep(0, 0.15, t) * (1 - sstep(T1, T1 + 0.3, t)), RR = RI * T * (0.35 + 0.65 * u), sx = H.sx(p0.x), sy = H.sy(p0.y);
           E.floorSpr(c, E.amberBand(), sx, sy, RR, a * (0.55 + 0.2 * Math.sin(t * 9)), true); E.floorSpr(c, glowSprite(AMBER), sx, sy, RR * 0.9, a * 0.16 * (0.5 + u), true); }
@@ -397,6 +427,38 @@ const EARTHC = (() => {
       },
       draw(c, f, X, Y, T) {
         const t = f.t, SC = E.scr(c), out = cl(f.life / 0.6), PX = H.sx(me.x), PY = H.sy(me.y) - T * 0.45;
+        { const FG = gfx(); if (FG) { /* (v415 EB) the GPU picture: the boulder ray-cast per pixel (kind 80: vesicular basalt in bevelled facets, ember veins
+             in grooves; 81 their light), turning smoothly, its leading side white-hot through a fiery trail and a dark smoke wake as it falls, heat
+             shimmering over it; the shell's chunks, chips and pebbles as lit faceted stone (85), the ember crystals as gold shards spinning in flight
+             and amber crystals standing where they land, glowing up to their blast; dust plumes lit from above with ember light under them (84) */
+          const Q = FG.begin(c, [PX, PY, T * 0.6]), items = [];
+          if (t > TA && !shattered) { const r = rockAt(t), pre = t > TF ? sm((t - TF) / (TS - TF)) : 0, cx = H.sx(r[0]) + pre * T * 0.03 * Math.sin(t * 63), cy = H.sy(r[1]) - r[2] * T + pre * T * 0.02 * Math.sin(t * 51), hq = RT * T / 0.77;
+            const en = t < T1 ? sstep(TA, TA + 0.25, t) * (1 - sstep(T1 - 0.1, T1, t)) : 0, ht = Math.min(1, 0.22 + 0.6 * flash + 0.8 * pre), ang = angAt(t) + 0.7;
+            items.push({ y: r[1] + 0.5, f: () => { Q.quad(80, cx, cy, hq, 0, 0, hq, '#FFFFFF', out, ang, SEED + 0.9 * en, 0.9 * ht); Q.quad(81, cx, cy, hq, 0, 0, hq, '#FFFFFF', out, ang, SEED + 0.9 * en, 0.9 * ht); } });
+            Q.glow(cx, cy, RT * T * 1.75, AMBER, (0.1 + 0.3 * flash + 0.4 * pre + 0.25 * en) * out); if (pre > 0) Q.glow(cx, cy, RT * T * (0.6 + 0.6 * pre), HONEY, pre * 0.45 * out);
+            if (en > 0.01) { const P = [], dv = [H.sx(rockAt(t - 0.05)[0]) - H.sx(r[0]), H.sy(rockAt(t - 0.05)[1]) - rockAt(t - 0.05)[2] * T - (H.sy(r[1]) - r[2] * T)], dl = Math.hypot(dv[0], dv[1]) || 1;
+              for (let k = 0; k < 8; k++) P.push([cx + dv[0] / dl * RT * T * (0.75 + k * 0.42), cy + dv[1] / dl * RT * T * (0.75 + k * 0.42) + Math.sin(t * 9 + k) * T * 0.04]);
+              Q.trail(P, 8, RT * T * 0.62, 0.95, en * 0.6, SEED); Q.glow(cx + dv[0] / dl * RT * T * 0.8, cy + dv[1] / dl * RT * T * 0.8, RT * T * 1.0, '#FF8A2E', en * 0.3);
+              Q.shimmer(cx + dv[0] / dl * RT * T * 0.9, cy + dv[1] / dl * RT * T * 0.9, RT * T * 1.2, 0.3 * en * out, 1, '#FFB060'); }
+            if (pre > 0.05) Q.shimmer(cx, cy - RT * T * 0.6, RT * T * 1.2, 0.3 * pre * out, 1, '#FFB060'); }
+          // the shell's chunks, the chips, the mark's pebbles: lit faceted stone, the shell's still ember-hot
+          const fo = 1 - sstep(LIFE - 1.4, LIFE - 0.7, t), sink = sstep(LIFE - 1.4, LIFE - 0.5, t);
+          for (const q of shell) { if (fo <= 0.01) break; const hot = Math.exp(-q.t * 1.6); items.push({ y: q.y, f: () => { const sx = H.sx(q.x), sy = H.sy(q.y) - (q.z - sink * q.r * 0.8) * T, s = q.r * T * 1.3;
+            const hq = q.r * T / 0.77, sdq = 10 + Math.floor(q.sd || 1); Q.quad(80, sx, sy, hq, 0, 0, hq, '#FFFFFF', fo * out, q.rot, sdq, 0.9 * 0.6 * hot); if (hot > 0.03) { Q.quad(81, sx, sy, hq, 0, 0, hq, '#FFFFFF', fo * out * hot, q.rot, sdq, 0.9 * 0.6 * hot); Q.glow(sx, sy, s * 1.4, AMBER, hot * 0.35 * fo * out); } } }); }
+          for (const p of pebbles) { if (p.z == null) continue; items.push({ y: p.y, f: () => { const sx = H.sx(p.x), sy = H.sy(p.y) - p.z * T, s = p.s * T * 0.9, rot = p.ph + Math.sin(t * 17 + p.ph) * 0.15; Q.rq(85, sx, sy, s, s * 0.85, rot, '#FFFFFF', sstep(0, 0.2, t - p.t0) * out, rot, p.v + 1, 0.9 * 0.25); } }); }
+          for (const q of chipsL) items.push({ y: q.y, f: () => { const sx = H.sx(q.x), sy = H.sy(q.y) - q.z * T, s = q.s * T * 0.9; Q.rq(85, sx, sy, s, s * 0.85, q.rot, '#FFFFFF', (1 - sstep(q.life - 0.35, q.life, q.t)) * out, q.rot, q.v + 1, 0.9 * Math.exp(-q.t * 3) * 0.7); } });
+          // the ember crystals: gold shards spinning in flight; standing amber crystals once down, brightening to their blast
+          for (const cr of crys) { if (cr.done) continue; items.push({ y: cr.y + 0.2, f: () => { const sx = H.sx(cr.x), sy = H.sy(cr.y) - cr.z * T, g = cr.landed ? cl((t - cr.land) / 0.6) : 0, k = cr.sc;
+            if (!cr.landed) { const rot = (t - cr.t0) * cr.spin; Q.rq(85, sx, sy - T * 0.3 * k, T * 0.24 * k, T * 0.42 * k, rot, '#FFFFFF', out, rot, cr.v + 2, 2 + 0.9 * 0.5); Q.glow(sx, sy - T * 0.3 * k, T * 0.55 * k, AMBER, 0.35 * out); }
+            else { const em = sm((t - cr.land) / 0.14), pu = 1 + 0.05 * g * Math.sin(t * 40), hw = T * 0.3 * k * pu, hh = T * 0.62 * k * pu; Q.quad(85, sx, sy - hh * 0.85, hw, 0, 0, hh, '#FFFFFF', out, em, cr.v + 2, 4 + 0.9 * (0.25 + 0.75 * g * g));
+              Q.glow(sx, sy - hh * 0.6, T * (0.5 + 0.55 * g) * k, AMBER, (0.25 + 0.5 * g) * out); if (g > 0.5) { Q.glow(sx, sy - hh * 0.6, T * 0.35 * k, CORE, (g - 0.5) * 1.2 * out); Q.star(sx + hw * 0.3, sy - hh * 1.2, T * 0.35 * k * g, (g - 0.5) * out, PALE); } } } }); }
+          for (const p of smk) { const q = p.t / p.life; Q.quad(84, H.sx(p.x), H.sy(p.y) - p.z * T, T * p.s * (0.7 + 0.9 * q), 0, 0, T * p.s * (0.7 + 0.9 * q), '#3E3632', Math.sin(Math.min(1, q * 3) * Math.PI / 2) * (1 - q) * 0.75 * out, q, p.sd, 0.9 * 0.6 * (1 - q)); }   // (the smoke wake, behind the rock)
+          items.sort((p, q) => p.y - q.y); for (const it of items) it.f();
+          // dust (lit, ember light under the fresh ones), embers and splinters
+          for (const p of puffs) { if (p.t < 0) continue; const q = p.t / p.life, r = T * p.s * (0.6 + 0.9 * q); Q.quad(84, H.sx(p.x), H.sy(p.y) - p.z * T, r, 0, 0, r * 0.8, '#8C7358', Math.sin(Math.min(1, q * 4) * Math.PI / 2) * (1 - q) * 0.85 * out, q, p.sd || (p.sd = 1 + Math.random() * 9), 0.9 * 0.5 * Math.max(0, 1 - q * 2.5)); }
+          for (const p of embers) { const q = p.t / p.life, r = T * p.s * (1 - q * 0.5), sx = H.sx(p.x), sy = H.sy(p.y) - p.z * T; Q.glow(sx, sy, r * 1.6, '#FF8A2E', (1 - q) * 0.8 * out); Q.star(sx, sy, r * 0.9, (1 - q) * out, HONEY); }
+          for (const p of splint) { const q = p.t / p.life, sx = H.sx(p.x), sy = H.sy(p.y) - p.z * T, ex = sx - p.vx * T * 0.035, ey = sy - (p.vy - p.vz) * T * 0.035; Q.beam(ex, ey, sx, sy, T * 0.08, GOLD, (1 - q) * 0.6 * out); Q.beam(ex, ey, sx, sy, T * 0.03, CORE, (1 - q) * out); }
+          FG.flush(c); return; } }
         const want = Math.max(36, Math.min(120, Math.round(RT * T * SC.k / 12) * 12));
         if (!RS || RS.Spx !== want) RS = rockSet(want, ev);
         const cpx = Math.max(16, Math.min(160, Math.round(T * SC.k / 8) * 8)); if (!CS || CS.px !== cpx) { CS = crySet(cpx, ev); CS.px = cpx; }
@@ -422,7 +484,7 @@ const EARTHC = (() => {
             if (pre > 0 && res.seam) { E.addLayer(c, res.seam, x, y, w2, h2, pre * 2.2 * A); E.glowAt(c, cx, cy, RT * T * (0.6 + 0.6 * pre), HONEY, pre * 0.5 * A); }
           } }); }
         // the shell pieces
-        for (const q of shell) { const fo = 1 - sstep(LIFE - 1.4, LIFE - 0.7, t), sink = sstep(LIFE - 1.4, LIFE - 0.5, t); if (fo <= 0.01) continue;
+        for (const q of shell) { const fo = 1 - sstep(LIFE - 1.4, LIFE - 0.7, t), sink = sstep(LIFE - 1.4, LIFE - 0.5, t); if (fo <= 0.01 || !q.q) continue;   // (v415 EB: GPU-made chunks have no 2D render)
           items.push({ y: q.y, f: () => { const sc = q.u * T, cx = H.sx(q.x), cy = H.sy(q.y) - (q.z - sink * q.r * 0.8) * T, a = fo * out, hot = Math.exp(-q.t * 2.2);
             const Q = q.q, dw = Q.w * sc, dh = Q.h * sc, th = Math.min(dw, dh) * 0.12; c.save(); c.globalAlpha = a; c.translate(cx, cy); c.rotate(q.rot); c.drawImage(Q.bk, -dw / 2, -dh / 2 + th, dw, dh); if (hot > 0.02) { c.globalCompositeOperation = 'lighter'; c.globalAlpha = a * hot * 0.5; c.drawImage(Q.hot, -dw / 2, -dh / 2 + th * 0.6, dw, dh); c.globalCompositeOperation = 'source-over'; c.globalAlpha = a; } c.drawImage(Q.cv, -dw / 2, -dh / 2, dw, dh); c.restore();
             if (hot > 0.02) E.glowAt(c, cx, cy, q.r * T * 1.4, AMBER, hot * 0.35 * a); } }); }
