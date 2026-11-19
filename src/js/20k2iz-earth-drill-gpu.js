@@ -53,9 +53,9 @@ const DRILL_GPU = (() => {
         const outR = p => { const r = Math.hypot(p[0], p[1]) || 1; return [p[0] / r, p[1] / r, 0]; };
         const lenA = u => (th + u * WS) * 1.0;   // (the gold's length along the helix, for the light running along it)
         strip(B, span(0, 2), nu, 2, () => MT.OBS, (u, v) => (v > 0.99 ? 1 : 0), (u, v) => (v < 0.01 ? 0.45 : 1), () => [0, 0, 1]);                 // the top
-        strip(B, span(2, 3), nu, 1, () => MT.OBS, () => 1, () => 1, p => { const o = outR(p); return [o[0], o[1], 0.8]; });                       // the upper bevel
+        strip(B, span(2, 3), nu, 1, () => MT.GOLD, () => 1, u => lenA(u), p => { const o = outR(p); return [o[0], o[1], 0.8]; });                 // the upper bevel (v417 POL: gold too: a wider band of gold round the rim)
         strip(B, span(3, 4), nu, 1, () => MT.GOLD, () => 1, u => lenA(u), outR);                                                                   // the gold inlaid along the rim
-        strip(B, span(4, 5), nu, 1, () => MT.OBS, () => 1, () => 1, p => { const o = outR(p); return [o[0], o[1], -0.8]; });                      // the lower bevel
+        strip(B, span(4, 5), nu, 1, () => MT.GOLD, () => 1, u => lenA(u), p => { const o = outR(p); return [o[0], o[1], -0.8]; });                // the lower bevel (v417 POL: gold)
         strip(B, span(5, 7), nu, 2, () => MT.OBS, (u, v) => (v < 0.01 ? 1 : 0), (u, v) => (v > 0.99 ? 0.45 : 1), () => [0, 0, -1]);               // the underside
         // its ends: the trailing face, the raked leading face (facets: an edge light round their rims)
         const g0 = geo(th), inT = P(g0.rc * 0.5, th + s * Math.PI + 0.25, g0.z), inL = P(g1.rc * 0.5, th + WS + s * Math.PI - 0.35, g1.z);

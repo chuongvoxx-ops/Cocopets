@@ -383,10 +383,10 @@ void main() {
   else if (id >= 140 && id <= 146) {   // ---- (v415 TI) Titan, the moss-grown stone golem (20k2jz): 140 its stone plates (140.2 a cooler stone), 141 the charcoal core between them, 142 a mossy face (142.2 a raised moss cushion), 143 a fracture (a strip: vA.y its length, vA.z 0..1 across; 143.3 an engraved marking), 144 an eye, 145 the gauntlets' basalt, 146 amber crystal. uGlow the region's golden light, uGlow2 the eyes, uSpill 1: light runs along the fractures (Celestial)
     float gg = clamp(uGlow, 0.0, 1.6), ndv0 = max(0.0, dot(n, uV)), up = dot(n, uUP), w1 = vn(L.xy * 0.55 + L.z * 0.37), w2 = vn(L.yz * 1.9 + L.x * 1.3), w3 = vn(L.xz * 5.7 + L.y * 3.9), fr = vA.x - float(id);
     vec3 AMB1 = vec3(0.95, 0.42, 0.06), GOLD1 = vec3(1.25, 0.82, 0.3), HOT1 = vec3(1.45, 1.28, 0.98);
-    if (id == 143) { float x = (clamp(ao, 0.0, 1.0) - 0.5) * 2.0, core = exp(-x * x * 7.0), lip = exp(-x * x * 1.8), gv = fr > 0.15 ? 0.3 + 0.7 * gg : gg;
-      if (uSpill > 0.5) gv += gg * 0.7 * smoothstep(0.55, 0.97, sin(edge * 1.6 - uTime * 6.5 + L.x * 0.7 + L.z * 0.5));   // (Celestial: light running along it)
-      float fl = 0.82 + 0.18 * vn(vec2(edge * 1.7 - uTime * 2.4, L.z * 0.6 + L.y));
-      vec3 c = vec3(0.03, 0.022, 0.015) * (1.0 - 0.6 * core) + (mix(AMB1, GOLD1, smoothstep(0.1, 0.7, gv * core)) * lip * 1.3 + HOT1 * core * core * smoothstep(0.3, 0.9, gv) * 1.4) * gv * fl;
+    if (id == 143) { float x = (clamp(ao, 0.0, 1.0) - 0.5) * 2.0, core = exp(-x * x * 7.0), lip = exp(-x * x * 1.8), gv = fr > 0.15 ? 0.12 + 0.8 * gg : gg;
+      if (uSpill > 0.5) gv += gg * 1.0 * smoothstep(0.6, 0.98, sin(edge * 1.6 - uTime * 6.5 + L.x * 0.7 + L.z * 0.5));   // (Celestial: light running along it)
+      float fl = 0.82 + 0.18 * vn(vec2(edge * 1.7 - uTime * 2.4, L.z * 0.6 + L.y)), e = 1.0 - exp(-2.4 * gv);   // (v417 POL: warmer, brighter: ember red at the lips to rich gold at the core, a hot pale-gold heart only at full power)
+      vec3 c = vec3(0.03, 0.022, 0.015) * (1.0 - 0.6 * core) + mix(vec3(1.7, 0.62, 0.1), vec3(2.3, 1.55, 0.42), core) * lip * min(1.0, e * 1.6) * fl + vec3(3.2, 2.5, 1.2) * core * core * smoothstep(0.45, 1.0, e) * 0.4 * fl;
       gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
     if (id == 144) { float e = clamp(uGlow2, 0.0, 1.0), k = 0.6 + 0.4 * pow(ndv0, 1.5); vec3 c = mix(vec3(0.015, 0.02, 0.015), mix(vec3(0.42, 0.95, 0.38), vec3(1.3, 1.4, 1.22), pow(ndv0, 2.5)) * k * 1.35, e);
       gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
@@ -410,7 +410,7 @@ void main() {
       alb = mix(alb, mc, mossK); rough = mix(rough, 0.97, mossK); cav *= 1.0 - mossK * 0.7; em += vec3(0.05, 0.085, 0.012) * pow(1.0 - ndv0, 2.0) * mossK;
       n = normalize(n + (vec3(vn(L.yz * 9.0), vn(L.zx * 9.0 + 2.0), vn(L.xy * 9.0 + 5.0)) - 0.5) * 0.5 * mossK); fis *= 1.0 - mossK; }
     alb *= (1.0 - 0.3 * smoothstep(-0.25, -0.85, up)) * (1.0 - 0.75 * fis);
-    em += mix(AMB1, GOLD1, gg * 0.6) * fis * (0.06 + (id == 145 ? 2.6 : 1.5) * gg) * (0.75 + 0.25 * sin(uTime * 2.6 + L.x * 0.8 + L.z)); }   // (ember in the fissures: brighter in the light)
+    em += mix(AMB1, GOLD1, gg * 0.6) * fis * (0.06 + (id == 145 ? 2.6 : 2.1) * gg) * (0.75 + 0.25 * sin(uTime * 2.6 + L.x * 0.8 + L.z)); }   // (ember in the fissures: brighter in the light; v417 POL 2.1, was 1.5)
   else if (id >= 69 && id <= 74) {   // ---- Genbu (lead): 69 sandstone armour (warm beige, stone grain, carved geometric markings, chipped edges to rust primer, dust on top), 70 burnt-orange paint (borders, fittings, drill flutes; chips to steel), 71 dark steel machinery (machined, oily), 72 polished piston chrome, 73 amber light (eyes, slots; uGlow = power, uFx-free), 74 track iron (treads along x)
     float ndv0 = max(0.0, dot(n, uV)), up = max(0.0, dot(n, uUP)), w1 = vn(L.xy * 3.1 + L.z * 1.7), w2 = vn(L.yz * 9.0 + L.x * 4.0), w3 = vn(L.xz * 27.0 + L.y * 11.0);
     if (id == 73) { vec3 hh = normalize(uLK + uV); float fl = 0.9 + 0.1 * sin(uTime * 3.0 + L.x * 9.0); vec3 c = mix(vec3(0.95, 0.38, 0.04), vec3(1.7, 1.15, 0.5), pow(ndv0, 1.6)) * (0.55 + 0.6 * uGlow) * fl + pow(max(0.0, dot(n, hh)), 160.0) * 1.2;
@@ -1045,21 +1045,21 @@ void main() {
     { vec3 n2 = normalize(uM0 * nl.x + uM1 * nl.y + uM2 * nl.z); if (dot(n2, uV) < -0.02) n2 = -n2; n = n2; }
     float ndv = max(0.001, dot(n, uV)), ndl = dot(n, uLK), dif = max(ndl, 0.0), wrap = clamp(ndl * 0.5 + 0.5, 0.0, 1.0);
     vec3 R = 2.0 * ndv * n - uV; float up = dot(R, uUP), sb = max(dot(R, uLK), 0.0), sr = max(dot(R, uLR), 0.0), hz = up - 0.07;
-    vec3 sky = mix(vec3(0.09, 0.095, 0.16), vec3(0.7, 0.74, 0.98), pow(smoothstep(0.0, 1.0, up), 1.4)), flo = mix(vec3(0.95, 0.45, 0.1) * (0.4 + 0.6 * gw), vec3(0.1, 0.06, 0.045), smoothstep(-0.04, -0.6, up));
+    vec3 sky = mix(vec3(0.095, 0.09, 0.14), vec3(0.76, 0.74, 0.88), pow(smoothstep(0.0, 1.0, up), 1.4)) /* v417 POL: a warmer sky (was 0.09 0.095 0.16 / 0.7 0.74 0.98) */, flo = mix(vec3(0.95, 0.45, 0.1) * (0.4 + 0.6 * gw), vec3(0.1, 0.06, 0.045), smoothstep(-0.04, -0.6, up));
     vec3 ev = (up > 0.0 ? sky : flo) + vec3(0.95, 0.9, 1.0) * exp(-hz * hz / 0.0022) * 0.55, c;
-    if (id == 151) { float jt = step(0.15, fr); vec3 G0 = vec3(1.0, 0.8, 0.34), Fg = G0 + (1.0 - G0) * pow(1.0 - ndv, 5.0);
-      c = G0 * (0.18 + 0.85 * dif) * vec3(1.0, 0.9, 0.65) + Fg * ev * 1.4 + vec3(1.0, 0.94, 0.78) * (pow(sb, 90.0) * 3.0 + pow(sb, 14.0) * 0.45) + vec3(0.7, 0.8, 1.0) * pow(sr, 30.0) * 0.6;
-      c += mix(vec3(0.85, 0.42, 0.06), vec3(1.5, 1.08, 0.42), pow(ndv, 1.2)) * (0.55 + 0.9 * gw) * (1.0 + 0.35 * jt);   // (its warm inner light)
+    if (id == 151) { float jt = step(0.15, fr); vec3 G0 = vec3(1.0, 0.66, 0.2), Fg = G0 + (1.0 - G0) * pow(1.0 - ndv, 5.0);   // (v417 POL: a richer gold, its reflections tinted warm, a brighter inner light)
+      c = G0 * (0.22 + 0.9 * dif) * vec3(1.0, 0.9, 0.65) + Fg * mix(ev, vec3(dot(ev, vec3(0.33))) * vec3(1.0, 0.72, 0.36), 0.55) * 1.4 + vec3(1.0, 0.94, 0.78) * (pow(sb, 90.0) * 3.0 + pow(sb, 14.0) * 0.45) + vec3(0.7, 0.8, 1.0) * pow(sr, 30.0) * 0.6;
+      c += mix(vec3(0.95, 0.42, 0.04), vec3(1.65, 1.0, 0.3), pow(ndv, 1.2)) * (0.75 + 1.05 * gw) * (1.0 + 0.35 * jt);   // (its warm inner light)
       if (jt < 0.5) c += vec3(1.5, 1.2, 0.7) * pow(max(0.0, sin(ao * 0.9 - uTime * 4.2)), 24.0) * (0.5 + 0.7 * gw);   // (a light running up along the rim)
       c += vec3(1.0, 0.9, 0.7) * (1.0 - smoothstep(0.0, 0.07, ridge)) * 0.35 * (0.3 + dif); }
     else { float occ = mix(0.3, 1.0, clamp(ao, 0.0, 1.0)), F = 0.045 + 0.955 * pow(1.0 - ndv, 4.0); vec3 ir = 0.5 + 0.5 * cos(6.2832 * (ndv * 1.4 + hx * 0.7 + vec3(0.0, 0.33, 0.67)));
-      c = (vec3(0.007, 0.006, 0.01) + vec3(0.03, 0.027, 0.042) * wrap * wrap + vec3(0.11, 0.1, 0.15) * smoothstep(0.66, 0.98, wrap)) * occ;
+      c = (vec3(0.008, 0.006, 0.008) + vec3(0.033, 0.027, 0.036) * wrap * wrap + vec3(0.125, 0.105, 0.13) * smoothstep(0.66, 0.98, wrap)) * occ;   /* (v417 POL: a touch warmer) */
       float pnl = smoothstep(0.86, 0.95, dot(R, uLS)), sbk = 0.22 + F;   // (a soft window high behind: whole facets flash with it as they turn)
       c += ev * F * (0.4 + 0.6 * occ) * 1.3 + vec3(1.0, 0.96, 0.9) * pnl * sbk * 1.25 * (0.4 + 0.6 * occ) + mix(vec3(1.0), ir, 0.6) * pow(sb, 14.0) * 0.3 * occ + ir * pow(sb, 22.0) * 0.3 * occ + vec3(1.0, 0.97, 0.93) * (pow(sb, 220.0) * 4.0 + pow(sb, 60.0) * 0.8) * (0.5 + 0.5 * occ);
       c += vec3(0.55, 0.65, 1.0) * (pow(sr, 120.0) * 1.1 + pow(sr, 30.0) * 0.06) + pow(1.0 - ndv, 3.0) * max(0.0, dot(n, uLR) + 0.3) * vec3(0.45, 0.52, 0.9) * 0.45 * (1.0 - 0.7 * dif);
       c += vec3(0.85, 0.82, 1.0) * (1.0 - smoothstep(0.0, 0.05, ridge)) * (0.03 + 0.35 * dif) * 0.5;
       c += vec3(0.95, 0.82, 0.62) * smoothstep(0.82, 1.0, edge) * (0.02 + 0.4 * dif * dif * dif + 0.3 * pow(sb, 6.0));   // (the bevels catch the light)
-      c += vec3(0.75, 0.36, 0.08) * (1.0 - smoothstep(0.0, 1.5, zm)) * max(0.3 - n.z, 0.0) * (0.3 + 0.5 * gw);   // (the floor's warm bounce)
+      c += vec3(0.85, 0.42, 0.1) * (1.0 - smoothstep(0.0, 2.4, zm)) * clamp(0.5 - n.z, 0.0, 1.0) * (0.42 + 0.5 * gw) + vec3(0.1, 0.05, 0.015) * (1.0 - smoothstep(0.0, 1.8, zm));   // (the floor's warm bounce: v417 POL stronger, higher up the body)
       if (fr > 0.1 && fr < 0.3 && uLow < 0.5) { float vv = abs(vn(L.xy * 3.0 + L.z * 2.1) - 0.5), vein = smoothstep(0.03, 0.006, vv) * smoothstep(0.4, 0.7, vn(L.yz * 1.3 + 4.0)); c = mix(c, vec3(1.0, 0.65, 0.18) * (0.5 + 0.8 * gw) + pow(sb, 30.0), vein * 0.9); } }   // (faint gold veins in the core)
     c *= 0.22 + 0.78 * smoothstep(0.0, 0.6, zm);   // (dark where it grinds into the floor)
     gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }

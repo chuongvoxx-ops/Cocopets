@@ -70,6 +70,12 @@ const TITAN_GPU = (() => {
     let v0 = 0, i0 = 0; for (const m of list) { pos.set(m.pos, v0 * 3); nrm.set(m.nrm, v0 * 3); att.set(m.att, v0 * 3); for (let i = 0; i < m.idx.length; i++) idx[i0 + i] = m.idx[i] + v0; rg.push([i0, m.idx.length]); v0 += m.nv; i0 += m.idx.length; }
     return { mesh: { pos, nrm, att, idx, nv, ntri: ni / 3, gl: null }, rg };
   }
+  // (v417 POL) a stone's fractures as short streaks for the bloom (bone frame): [a xyz, b xyz, the face's normal xyz, 0 a fracture / 1 a branch / 2 a marking, phase]
+  function seamsOf(Pt, out) { const m = Pt.m, R = Pt.R, t = Pt.t, P = p => add(t, mv(R, p));
+    const put = (a, b, n, k, ph) => { const A = P(a), B2 = P(b), N = mv(R, n); out.push(A[0], A[1], A[2], B2[0], B2[1], B2[2], N[0], N[1], N[2], k, ph); };
+    for (const cr of Pt.cr || []) { const L = cr.pts, n = m.fn[cr.fi]; if (L.length >= 6) { put(L[0], L[3], n, 0, cr.ph); put(L[3], L[L.length - 1], n, 0, cr.ph + 0.5); } else put(L[0], L[L.length - 1], n, 1, cr.ph); }
+    const en = Pt.en || []; if (en.length) { const n = m.fn[en[0].fi], L = en[0].pts; put(L[0], L[2], n, 2, 0); }   // (an engraved marking: one soft streak down its diamond)
+  }
   const HO = [1.5, 0, 0.35], EYEX = 0.85;   // the head's place forward of its bone (model units)
   const REGION = b => /^(clav)/.test(b) ? 'sh' : /^(ua|fa)/.test(b) ? 'arm' : /^(hand|f\d|t\d)/.test(b) ? 'fist' : /^(th|sh|ft)/.test(b) ? 'leg' : 'chest';
   const TIERS = {};
@@ -88,7 +94,8 @@ const TITAN_GPU = (() => {
       const L2 = byBone[b], { mesh, rg } = merge(L2.map(e => e.mesh));
       if (b === 'head') { for (let i = 0; i < mesh.pos.length; i += 3) { mesh.pos[i] += HO[0]; mesh.pos[i + 1] += HO[1]; mesh.pos[i + 2] += HO[2]; } for (const e of L2) e.c = add(e.c, HO); }   // (the head set forward of the breast plates: the 2D picture only paints it over them)
       let cx = 0, cy = 0, cz = 0; for (const e of L2) { cx += e.c[0]; cy += e.c[1]; cz += e.c[2]; } const cen = [cx / L2.length, cy / L2.length, cz / L2.length]; let r = 0; for (const e of L2) r = Math.max(r, Math.hypot(e.c[0] - cen[0], e.c[1] - cen[1], e.c[2] - cen[2]) + e.r);
-      D.bones.push({ b, mesh, cen, r, reg: REGION(b), parts: L2.map((e, i) => ({ Pt: e.Pt, first: rg[i][0], cnt: rg[i][1], c: e.c, r: e.r, eye: e.eye })) }); yield;
+      const sg = []; for (const e of L2) if (!e.eye) seamsOf(e.Pt, sg); if (b === 'head') for (let i = 0; i < sg.length; i += 11) for (let j = 0; j < 3; j++) { sg[i + j] += HO[j]; sg[i + 3 + j] += HO[j]; }   /* (v417 POL) the bloom's streaks */
+      D.bones.push({ b, mesh, cen, r, reg: REGION(b), sg: new Float32Array(sg), parts: L2.map((e, i) => ({ Pt: e.Pt, first: rg[i][0], cnt: rg[i][1], c: e.c, r: e.r, eye: e.eye })) }); yield;
     }
     { const B = GLM.builder(q); B.ell([0, 0, 0], [1, 1, 1], MT.CRY, { seg: 14, rings: 9 }); D.coreMesh = B.done(); }
     D.nv = D.bones.reduce((s, e) => s + e.mesh.nv, 0) + D.gnt.reduce((s, e) => s + e.mesh.nv, 0);
@@ -124,7 +131,7 @@ const TITAN_GPU = (() => {
   /* ================= drawing the golem ================= */
   const LW = GK.LD, SBW = norm([-0.2, -0.38, 0.9]), RIMW = norm([0.55, -0.72, 0.42]), PXW = [1, 0, 0], PYW = [0, SE, -CE], PDW = [0, CE, SE], UPW = [0, 0, 1];
   const RIMC = [0.85, 0.72, 0.55], AMBC = [1.38, 1.32, 1.24], OUTC = [0.09, 0.07, 0.055], GLCAP = 1500;
-  const POOL = [], ITEMS = []; let NP = 0;
+  const POOL = [], ITEMS = [], SG = []; let NP = 0;   /* (v417 POL: SG the bloom's streaks of the frame) */
   const item = () => { const g = POOL[NP] || (POOL[NP] = { R0: new Float32Array(3), R1: new Float32Array(3), R2: new Float32Array(3), T: new Float32Array(3) }); NP++; return g; };
   const setIt = (g, mesh, R, T, s, glow, o) => { g.mesh = mesh; for (let i = 0; i < 3; i++) { g.R0[i] = R[i * 3] * s; g.R1[i] = R[i * 3 + 1] * s; g.R2[i] = R[i * 3 + 2] * s; g.T[i] = T[i]; } g.alpha = 1; g.glow = glow; g.glow2 = o ? o.glow2 || 0 : 0; g.spill = o ? o.spill || 0 : 0; g.kind = 0; g.wear = 1; g.fx = 0; g.first = o && o.first || 0; g.cnt = o && o.cnt || 0; g.outline = true; ITEMS.push(g); };
   const STATS = { ms: 0, n: 0, items: 0, W: 0, H: 0 };
@@ -137,12 +144,20 @@ const TITAN_GPU = (() => {
       const L = LIB(), B = L.rig(o.P, L.D0), Rh = GK.rz(o.yaw || 0), s = (o.scale || 1), sw = WS * s, zs = -(o.sink || 0), k = o.K / WS, X0 = o.X, Y0 = o.Y, gl = o.glow || {}, tier = o.tier, spill = tier >= 3 ? 1 : 0;
       const W3 = p => { const w = mv(Rh, p); return [w[0] * sw, w[1] * sw, (w[2] + zs) * sw]; };   // model -> GLM world
       const SX = w => X0 + w[0] * k, SY = w => Y0 + (w[1] * SE - w[2] * CE) * k;
-      ITEMS.length = 0; NP = 0; let bx0 = 1e9, by0 = 1e9, bx1 = -1e9, by1 = -1e9;
+      ITEMS.length = 0; NP = 0; SG.length = 0; let bx0 = 1e9, by0 = 1e9, bx1 = -1e9, by1 = -1e9;
       const box = (w, r) => { const x = SX(w), y = SY(w), rr = r * k; if (x - rr < bx0) bx0 = x - rr; if (x + rr > bx1) bx1 = x + rr; if (y - rr < by0) by0 = y - rr; if (y + rr > by1) by1 = y + rr; };
       const cr = o.crumble == null ? -1 : o.crumble;
       for (const bn of D.bones) {
         const b = B[bn.b]; if (!b) continue; const Rw = mm(Rh, b.R), Tw = W3(b.t), glow = gl[bn.reg] || 0, g2 = bn.b === 'head' ? (o.eye == null ? 1 : o.eye) : 0;
-        if (cr < 0) { setIt(item(), bn.mesh, Rw, Tw, sw, glow, { glow2: g2, spill }); box(W3(add(b.t, mv(b.R, bn.cen))), bn.r * sw); continue; }
+        if (cr < 0) { setIt(item(), bn.mesh, Rw, Tw, sw, glow, { glow2: g2, spill }); box(W3(add(b.t, mv(b.R, bn.cen))), bn.r * sw);
+          // (v417 POL) the lit fractures facing the camera, as screen streaks for the bloom (x0, y0, x1, y1, strength, kind, phase)
+          const sg = bn.sg; if (sg && sg.length && glow > 0.02) { const R = b.R, bt = b.t, ks = sw * k;
+            for (let i = 0; i < sg.length; i += 11) { const kd = sg[i + 9], a0 = kd === 2 ? 0.2 + 0.8 * glow : glow, nx = sg[i + 6], ny = sg[i + 7], nz = sg[i + 8];
+              const fw = (Rw[3] * nx + Rw[4] * ny + Rw[5] * nz) * PDW[1] + (Rw[6] * nx + Rw[7] * ny + Rw[8] * nz) * PDW[2], f = sstep(-0.05, 0.35, fw); if (f * a0 < 0.02) continue;
+              SG.push(0, 0, 0, 0, a0 * f, kd, sg[i + 10]); const o = SG.length - 7;
+              for (let e = 0; e < 2; e++) { const px = sg[i + e * 3], py = sg[i + e * 3 + 1], pz = sg[i + e * 3 + 2], mx = bt[0] + R[0] * px + R[1] * py + R[2] * pz, my = bt[1] + R[3] * px + R[4] * py + R[5] * pz, mz = bt[2] + R[6] * px + R[7] * py + R[8] * pz;
+                SG[o + e * 2] = X0 + (Rh[0] * mx + Rh[1] * my + Rh[2] * mz) * ks; SG[o + e * 2 + 1] = Y0 + ((Rh[3] * mx + Rh[4] * my + Rh[5] * mz) * SE - (Rh[6] * mx + Rh[7] * my + Rh[8] * mz + zs) * CE) * ks; } } }
+          continue; }
         // the crumble: each stone of the bone drops, drifts and tumbles to the floor, then the rubble sinks
         for (const p of bn.parts) { const Pt = p.Pt, u = cl((cr - (Pt.cd || 0)) / 0.85), e = u * u, pm = add(b.t, mv(b.R, p.c)), wc = mv(Rh, pm); wc[2] += zs;
           const out = norm([wc[0] + 1e-3, wc[1], 0]), ex = 1 - Math.pow(1 - u, 2), rest = Math.max(0.4, (Pt.rest || 1));
@@ -174,12 +189,25 @@ const TITAN_GPU = (() => {
       const al = o.alpha == null ? 1 : o.alpha; if (al > 0.004) { c.save(); c.globalAlpha = Math.min(1, al); c.drawImage(cvs, 0, 0, W, H, bx0, by0, bw, bh); c.restore(); }
       STATS.ms = STATS.ms * 0.9 + (nowMs() - t0) * 0.1; STATS.n++; STATS.items = ITEMS.length; STATS.W = W; STATS.H = H;
       // the points the effects need, on the screen
-      const P2 = p => { const w = W3(p); return [SX(w), SY(w)]; }, out = { bb: [bx0, by0, bx1, by1], eyes: [] };
+      const P2 = p => { const w = W3(p); return [SX(w), SY(w)]; }, out = { bb: [bx0, by0, bx1, by1], eyes: [], seams: SG, unit: sw * k };   /* (v417 POL: seams, unit px a model unit) */
       for (const sd of ['L', 'R']) { const h = B['hand' + sd], fp = add(h.t, mv(h.R, [0, 0, -3.8])); out['fist' + sd] = P2(fp); out['foot' + sd] = P2(B['ft' + sd].t); }
       out.head = P2(add(B.head.t, mv(B.head.R, HO))); out.chest = P2(add(B.chest.t, mv(B.chest.R, [3, 0, 6.5])));
       if (cr < 0) { const hd = B.head, Rw = mm(Rh, hd.R), fw = Rw[3] * PDW[1] + Rw[6] * PDW[2], f = cl((fw + 0.2) / 0.45); for (const e of D.eyesP || []) { const q = P2(add(hd.t, mv(hd.R, add(e, [HO[0] + EYEX, HO[1], HO[2]])))); out.eyes.push([q[0], q[1], f]); } }
       return out;
     } catch (e) { fail(e); return null; }
+  }
+
+  /* (v417 POL) the bloom round the lit fractures, on the FGFX painter (Q, over the golem): a wide warm amber haze and a narrow
+     honey core along each streak drawGolem found facing the camera, as strong as its region's glow; Celestial (spill): a soft hot
+     bead of light running along each fracture. a: the golem's alpha, t: time (s). Two quads a lit streak (three at Celestial) */
+  function bloom(Q, out, a, t, spill) {
+    const S = out && out.seams; if (!S || !S.length || !(a > 0.02)) return; const u = out.unit, lo = lowFx();
+    for (let i = 0; i < S.length; i += 7) { const x0 = S[i], y0 = S[i + 1], x1 = S[i + 2], y1 = S[i + 3], s = S[i + 4] * a, kd = S[i + 5], ph = S[i + 6];
+      let dx = (x1 - x0) / 2, dy = (y1 - y0) / 2; const L = Math.hypot(dx, dy), mx = x0 + dx, my = y0 + dy; if (L > 1e-3) { dx /= L; dy /= L; } else { dx = 1; dy = 0; }
+      const run = spill ? 0.8 + 0.35 * Math.sin(t * 6.5 - ph * 9 - (mx + my) * 0.02) : 1, w = u * (kd === 2 ? 1.6 : 2.1), ws = u * 0.75, sk = Math.min(1.1, s) * run;
+      Q.quad(0, mx, my, dx * (L + w * 0.5), dy * (L + w * 0.5), -dy * w, dx * w, '#E07A16', 0.36 * sk);
+      if (sk > 0.15) Q.quad(0, mx, my, dx * (L + ws), dy * (L + ws), -dy * ws, dx * ws, '#FFB83C', 0.3 * sstep(0.15, 0.8, sk));
+      if (spill && !lo && kd !== 2) { const q = (t * 0.9 + ph) % 1, e = Math.sin(q * Math.PI); Q.quad(0, x0 + (x1 - x0) * q, y0 + (y1 - y0) * q, u * 1.15, 0, 0, u * 1.15, '#FFD98A', 0.55 * e * Math.min(1, s)); } }
   }
 
   /* ================= the effects' 3D pieces (Genbu's G3D) ================= */
@@ -231,6 +259,6 @@ const TITAN_GPU = (() => {
     return { add, step, g3d, fg, P, count: () => P.length, clear() { while (P.length) { const p = P.pop(); NK[p.k]--; FREE.push(p); } } };
   }
 
-  return { usable, warm, step, ready: tier => !!(TIERS[tier] && TIERS[tier].ready), drawGolem, fxPool, TPL, WS, STATS, TIERS, COL: { GREYS, MOSSC, DUST, DUSTL, GOLD, HONEY, PALE }, get off() { return NOGL; }, get impl() { try { return ELEM_IMPL.earth.ult.titan; } catch (e) { return null; } } };
+  return { usable, warm, step, ready: tier => !!(TIERS[tier] && TIERS[tier].ready), drawGolem, bloom /* v417 POL */, fxPool, TPL, WS, STATS, TIERS, COL: { GREYS, MOSSC, DUST, DUSTL, GOLD, HONEY, PALE }, get off() { return NOGL; }, get impl() { try { return ELEM_IMPL.earth.ult.titan; } catch (e) { return null; } } };
 })();
 if (typeof self !== 'undefined') self.TITAN_GPU = TITAN_GPU;

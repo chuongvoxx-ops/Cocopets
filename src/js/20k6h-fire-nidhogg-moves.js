@@ -884,14 +884,16 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
           vec3 gq = vec3(n3(p * 9.0 + vec3(0.07, 0.0, 0.0)), n3(p * 9.0 + vec3(0.0, 0.07, 0.0)), n3(p * 9.0 + vec3(0.0, 0.0, 0.07))) - n3(p * 9.0), n = normalize(M * normalize(nl - gq * 1.6));
           float plate = (grp > 1.5 && grp < 2.5) || grp > 14.5 ? 1.0 : 0.0, knk = grp > 2.5 && grp < 7.5 ? 1.0 : 0.0, ndv = max(dot(n, eaVw), 0.0);
           vec3 c = eaStone(n, p * 1.7 + grp * 3.1, grp, 0.32 - 0.22 * knk) * (1.0 + 0.14 * plate - 0.1 * knk);
+          c = c * vec3(1.2, 1.2, 1.2) + vec3(0.17, 0.15, 0.115) * smoothstep(0.25, 0.85, max(dot(n, eaLt), 0.0)) + vec3(0.06, 0.055, 0.05);   /* (v417 POL: warmer, brighter sandstone on the lit faces, shadows lifted: a wider value range that reads on dark floors) */
           c = mix(c, vec3(0.66, 0.56, 0.44), smoothstep(0.045, 0.06, gap) * (1.0 - smoothstep(0.06, 0.1, gap)) * clamp(dot(n, eaLt) * 1.5, 0.0, 1.0) * 0.5 * hit);   /* (worn pale rims along each stone's edge) */
-          float cv = (1.0 - smoothstep(0.0, 0.05, gap)) * hit, hc = (1.0 - smoothstep(0.0, 0.028, gap)) * hit * (knk > 0.5 ? 1.0 : 0.4) * clamp(gl, 0.0, 1.5);
-          c *= 1.0 - 0.72 * cv; c = mix(c, vec3(0.95, 0.52, 0.1), clamp(hc * 0.8, 0.0, 1.0));
+          float cv = (1.0 - smoothstep(0.0, 0.05, gap)) * hit, hc = (1.0 - smoothstep(0.0, 0.034, gap)) * hit * (knk > 0.5 ? 1.0 : 0.55) * clamp(0.2 + gl * 1.25, 0.0, 1.5);   /* (v417 POL: wider, brighter, a little lit even at rest) */
+          c *= 1.0 - 0.62 * cv; c = mix(c, vec3(1.0, 0.68, 0.22), clamp(hc * 0.95, 0.0, 1.0)) + vec3(0.9, 0.5, 0.1) * hc * 0.3;   /* (v417 POL: the gold seams brighter and less red) */
           float rv = abs(n3(p * 2.3 + 20.0) - 0.5) + 0.3 * abs(n3(p * 6.5 + 4.0) - 0.5), vn = (1.0 - smoothstep(0.025, 0.06, rv)) * smoothstep(0.44 - 0.06 * tier, 0.58 - 0.06 * tier, n3(p * 1.2 + 7.0)) * hit;
           float run = 1.0 - smoothstep(ch * 2.2 - 0.95, ch * 2.2 - 0.75, p.x), vg = clamp(gl * 0.75 + ch * run * 0.8, 0.0, 1.6);
-          c = mix(c, mix(vec3(0.3, 0.1, 0.02), mix(vec3(0.95, 0.5, 0.1), vec3(1.0, 0.9, 0.62), clamp(vg - 0.6, 0.0, 1.0)), clamp(vg, 0.0, 1.0)), vn);
+          c = mix(c, mix(vec3(0.42, 0.16, 0.03), mix(vec3(1.0, 0.62, 0.16), vec3(1.0, 0.92, 0.66), clamp(vg - 0.6, 0.0, 1.0)), clamp(vg, 0.0, 1.0)), vn);   /* (v417 POL: warmer veins) */
           c += vec3(1.0, 0.62, 0.18) * ch * run * 0.25 * (1.0 - ndv) + vec3(0.85, 0.48, 0.12) * v_c.b * clamp(-n.z * 0.8 + 0.4, 0.0, 1.0) * 0.45;
-          c *= 0.42 + 0.58 * smoothstep(0.02, 0.3, ndv); A = vec4(min(c, vec3(1.0)), 1.0) * cov; } } }
+          c *= 0.6 + 0.4 * smoothstep(0.02, 0.3, ndv); c += vec3(1.0, 0.76, 0.42) * pow(1.0 - ndv, 2.2) * 0.34 * hit * (0.5 + 0.5 * clamp(dot(n, eaLt) + 0.6, 0.0, 1.0));   /* (v417 POL: less edge darkening, a warm rim light) */
+          A = vec4(min(c, vec3(1.0)), 1.0) * cov; } } }
     else { // 78 dust and floor shade (v_q.x its form): 0 a billow of dust (v_q.y seed, v_q.z its age 0..1: it swells and thins), lit warm from below; 1 a ring
       // of dust (an annulus at 0.8 of the quad, v_q.z its width of the radius, trailing inward), torn by noise; 2 the fissures' charred lips (eaHex: v_q.y seed,
       // v_q.z the trace); 3 an impact's charred cracks (eaWeb: v_q.y seed, v_q.z rays + 0.99 x their reach). v_c the dust's colour

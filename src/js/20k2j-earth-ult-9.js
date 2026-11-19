@@ -1015,19 +1015,15 @@
     // the golem on the GPU: false when it cannot be drawn (the 2D picture then)
     function drawEntG(c) {
       const T = H.X.Tz(), t = F.t, K1 = T * SC; lastT = t;
-      const lp = livePose(t); if (!lp) return true;   // (travelling: only its stream of stones, drawn by draw)
+      const lp = livePose(t); if (!lp) { G.bloomA = 0; return true; }   // (travelling: only its stream of stones, drawn by draw) (v417 POL: no bloom)
       const [P, sink, lunge, clip] = lp; if (!G.mv && crumble < 0) G.lastPose = P;
       let rjA = 1, rjS = 1; if (G.mv) { const w = t - G.mv.t0; if (w < RJ.OUT) rjA = 1 - sstep(0.25, RJ.OUT, w); else { const u = cl((w - RJ.IN0) / (RJ.LOCK - RJ.IN0)); rjA = sstep(0, 0.35, u); rjS = 0.75 + 0.25 * H.ease.back(u); } }
       const X = H.sx(G.x) + Math.cos(G.face) * lunge * T, Y = H.sy(G.y) + Math.sin(G.face) * lunge * T * H.GY;
       const inFront = G.y > me.y - 0.05, dimT = inFront ? petDim(G.lastOut) : 1; G.dimA += (dimT - G.dimA) * 0.25;
-      const out = TITAN_GPU.drawGolem(c, { X, Y, K: K1, yaw: G.face, P, tier, glow: gl, eye: G.eye, gaunt, gbreak, sink, scale: rjS, clip, crumble: crumble >= 0 ? crumble : -1, alpha: G.dimA * alphaEnd * rjA });
+      const gk = G.st === 'wb' ? 1.15 : 1.55, glG = G.glG || (G.glG = {}); for (const q in gl) glG[q] = Math.min(1.3, gl[q] * gk);   // (v417 POL) the fractures' light on the GPU a good deal stronger in the blows (the 2D picture's strokes read brighter at the same level)
+      const out = TITAN_GPU.drawGolem(c, { X, Y, K: K1, yaw: G.face, P, tier, glow: glG, eye: G.eye, gaunt, gbreak, sink, scale: rjS, clip, crumble: crumble >= 0 ? crumble : -1, alpha: G.dimA * alphaEnd * rjA });
       if (!out) return false;
-      G.lastOut = out; G.scr = [X, Y];
-      // the eyes' faint halo (white-green), the fists' light while they glow
-      c.save(); c.globalCompositeOperation = 'lighter';
-      for (const e of out.eyes) { const r = T * 0.22 * S, a = G.eye * e[2] * G.dimA * alphaEnd * rjA; if (a > 0.02) { c.globalAlpha = 0.55 * a; blitSized(c, glowSprite(EYEG), e[0] - r, e[1] - r, r * 2, r * 2); } }
-      for (const s of ['L', 'R']) { const p = out['fist' + s], gv = Math.max(gl.fist * 0.6, gl.gaunt); if (p && gv > 0.03) { const r = T * (0.5 + 0.35 * gv) * S * (G.st === 'wb' ? 1.4 + 0.2 * tier : 1); c.globalAlpha = 0.5 * gv * G.dimA * alphaEnd; blitSized(c, glowSprite(GOLD), p[0] - r, p[1] - r, r * 2, r * 2); } }
-      c.restore();
+      G.lastOut = out; G.scr = [X, Y]; G.bloomA = G.dimA * alphaEnd * rjA; G.bloomT = t;   // (v417 POL) the eyes' halo, the fists' light and the fractures' bloom: on the FGFX painter in drawG
       // the backhand's trail behind the fist (drawn by draw), golden sparks off it
       if (G.atk && G.atk.kind === 'back') { const p = out[G.atk.mir ? 'fistR' : 'fistL']; if (p && G.atk.u > 0.4 && G.atk.u < 0.85) { G.trail.push({ x: p[0] - X, y: p[1] - Y, t }); if (Math.random() < 0.6) gSpark(G.x + (p[0] - X) / T, G.y, (Y - p[1]) / (T * ZK3), (Math.random() - 0.5) * 1.5, (Math.random() - 0.5) * 0.6, 0.6 + Math.random(), 0.45, 0.05, Math.random() < 0.5 ? GOLD : HONEY); } }
       return true;
@@ -1122,6 +1118,10 @@
       // Celestial spires' light at their feet
       for (const v of vfx) if (v.kind === 'spires') { const u = (t - v.t0) / v.life; if (u < 1) Q.glow(H.sx(v.x), H.sy(v.y), T * 1.8, GOLD, 0.35 * (1 - u), H.GY); }
       FX.fg(Q, H, ZT, T);
+      // (v417 POL) the bloom over the golem drawn this frame: its lit fractures' warm haze (Celestial: light running along them), the eyes' halo, the fists' light
+      if (G.lastOut && G.bloomT === t && G.bloomA > 0.02 && !gone) { const O = G.lastOut, ba = G.bloomA; TITAN_GPU.bloom(Q, O, ba, t, tier >= 3);
+        for (const e of O.eyes) { const a = G.eye * e[2] * ba, r = T * 0.22 * S; if (a > 0.02) { Q.glow(e[0], e[1], r * 1.5, EYEG, 0.45 * a); Q.glow(e[0], e[1], r * 0.55, EYE, 0.35 * a); } }
+        for (const s of ['L', 'R']) { const p = O['fist' + s], gv = Math.max(gl.fist * 0.6, gl.gaunt); if (p && gv > 0.03) { const r = T * (0.5 + 0.35 * gv) * S * (G.st === 'wb' ? 1.4 + 0.2 * tier : 1); Q.glow(p[0], p[1], r * 1.5, AMBER, 0.45 * gv * ba); Q.glow(p[0], p[1], r * 0.7, HONEY, 0.4 * gv * ba); } } }
       // the windup: thin streams of mineral light rising from the floor toward the arms; Celestial: golden energy from the gauntlets to the chest
       if (G.st === 'wb' && G.lastOut) { const w = t - wbT, k = sstep(0.7, 1.0, w) * (1 - sstep(1.35, 1.5, w)), O = G.lastOut;
         if (k > 0.02) for (let j = 0; j < 6 + 2 * tier; j++) { const p = O['fist' + (j % 2 ? 'L' : 'R')]; if (!p) continue; const b = j * 2.4 + seed, bx = H.sx(G.x + Math.cos(b) * 1.8 * S), by = H.sy(G.y + Math.sin(b) * 1.2 * S), uu = (t * 0.9 + j * 0.17) % 1, u0 = Math.max(0, uu - 0.25);
