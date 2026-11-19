@@ -480,6 +480,21 @@ vec2 uhP(float t){ float s = sin(t), c = cos(t), c2 = 2.0 * c * c - 1.0, c3 = c 
 vec3 uhd(vec2 p){ float sx = p.x < 0.0 ? -1.0 : 1.0; p.x = abs(p.x); vec2 a = uhP(0.0), bq = a, bn = vec2(0.0, -1.0); float best = 1e9;
   for (int i = 1; i <= 22; i++) { vec2 b = uhP(3.1415927 * float(i) / 22.0), e = b - a, w = p - a; vec2 q = a + e * clamp(dot(w, e) / dot(e, e), 0.0, 1.0); float dd = dot(p - q, p - q); if (dd < best) { best = dd; bq = q; bn = normalize(vec2(e.y, -e.x)); } a = b; }
   float d = sqrt(best) * (dot(p - bq, bn) > 0.0 ? 1.0 : -1.0); return vec3(d, bn.x * sx, bn.y); }   /* (v409 DK2) that curve's signed distance (negative inside) and its outward normal */
+vec3 sat5(float k, vec3 a, vec3 b, vec3 c, vec3 d, vec3 e){ k = clamp(k, 0.0, 1.0) * 4.0; return k < 1.0 ? mix(a, b, k) : k < 2.0 ? mix(b, c, k - 1.0) : k < 3.0 ? mix(c, d, k - 2.0) : mix(d, e, k - 3.0); }   /* (v412 SA) the satin's colour ramps, dark to lit (kind 64): its upper face and its underside per palette (0 Eternal Light, 1 rose, 2 pearl, 3 Heartache: the 2D strips' own ramps) */
+vec3 satTop(float p, float k){ if (p < 0.5) return sat5(k, vec3(0.561, 0.176, 0.451), vec3(0.768, 0.261, 0.535), vec3(0.925, 0.353, 0.637), vec3(1.0, 0.565, 0.771), vec3(1.0, 0.941, 0.969)); if (p < 1.5) return sat5(k, vec3(0.851, 0.294, 0.569), vec3(0.934, 0.359, 0.645), vec3(1.0, 0.458, 0.725), vec3(1.0, 0.69, 0.824), vec3(1.0, 0.941, 0.969));
+  if (p < 2.5) return sat5(k, vec3(0.898, 0.545, 0.745), vec3(0.949, 0.631, 0.79), vec3(1.0, 0.718, 0.835), vec3(1.0, 0.859, 0.918), vec3(1.0)); return sat5(k, vec3(0.788, 0.322, 0.624), vec3(0.954, 0.459, 0.783), vec3(1.0, 0.609, 0.863), vec3(1.0, 0.736, 0.904), vec3(1.0, 0.918, 0.969)); }
+vec3 satBack(float p, float k){ if (p < 0.5) return sat5(k, vec3(0.29, 0.071, 0.22), vec3(0.459, 0.137, 0.364), vec3(0.618, 0.198, 0.464), vec3(0.761, 0.251, 0.498), vec3(0.906, 0.478, 0.71)); if (p > 1.5 && p < 2.5) return sat5(k, vec3(0.62, 0.282, 0.471), vec3(0.741, 0.408, 0.58), vec3(0.839, 0.541, 0.69), vec3(0.918, 0.69, 0.8), vec3(0.969, 0.847, 0.906)); if (p < 2.5) return sat5(k, vec3(0.431, 0.114, 0.294), vec3(0.486, 0.139, 0.331), vec3(0.541, 0.165, 0.369), vec3(0.71, 0.302, 0.525), vec3(0.878, 0.439, 0.682));
+  return sat5(k, vec3(0.478, 0.133, 0.384), vec3(0.629, 0.189, 0.479), vec3(0.826, 0.229, 0.616), vec3(0.964, 0.314, 0.747), vec3(1.0, 0.604, 0.875)); }
+vec4 lmO(vec4 A, vec3 c, float a){ a = clamp(a, 0.0, 1.0); return vec4(c * a + A.rgb * (1.0 - a), a + A.a * (1.0 - a)); }   /* (v412 LM) premultiplied 'over' */
+vec2 lmIB(vec2 p, vec2 a, vec2 b, vec2 c, vec2 d){ vec2 e = b - a, f = d - a, g = a - b + c - d, h = p - a; float k2 = g.x * f.y - g.y * f.x, k1 = e.x * f.y - e.y * f.x + h.x * g.y - h.y * g.x, k0 = h.x * e.y - h.y * e.x, v, s; vec2 dn;
+  if (abs(k2) < 1e-4) { v = -k0 / (abs(k1) > 1e-6 ? k1 : 1e-6); dn = e + g * v; return vec2(abs(dn.x) > abs(dn.y) ? (h.x - f.x * v) / dn.x : (h.y - f.y * v) / dn.y, v); }
+  float w = k1 * k1 - 4.0 * k0 * k2; if (w < 0.0) return vec2(-9.0); w = sqrt(w); v = (-k1 - w) / (2.0 * k2); dn = e + g * v; s = abs(dn.x) > abs(dn.y) ? (h.x - f.x * v) / dn.x : (h.y - f.y * v) / dn.y;
+  if (s < -0.01 || s > 1.01 || v < -0.01 || v > 1.35) { v = (-k1 + w) / (2.0 * k2); dn = e + g * v; s = abs(dn.x) > abs(dn.y) ? (h.x - f.x * v) / dn.x : (h.y - f.y * v) / dn.y; } return vec2(s, v); }   /* (v412 LM) a point's place in a quad a b c d: s across a -> b, v down a -> d (inverse bilinear) */
+float lmSeg(vec2 p, vec2 a, vec2 b){ vec2 pa = p - a, ba = b - a; return length(pa - ba * clamp(dot(pa, ba) / max(dot(ba, ba), 1e-6), 0.0, 1.0)); }   /* (v412 LM) */
+float lmAr(vec2 p, float hw, float hh){ p.x = abs(p.x); float cy = -hh + hw; if (p.y < cy) return length(p - vec2(0.0, cy)) - hw; float rb = 0.62 * hw; vec2 q = p - vec2(hw - rb, hh - rb); return (q.x > 0.0 && q.y > 0.0) ? length(q) - rb : max(p.x - hw, p.y - hh); }   /* (v412 LM, Love Mirrors) the mirror's outline (20k4l mPath: an arched top, straight sides, a rounded foot), signed distance in sprite px */
+float lmFh(float f){ f = clamp(f, 0.0, 1.0); return 0.5 * smoothstep(0.0, 0.16, f) + 0.22 * sin(3.1416 * clamp((f - 0.16) / 0.44, 0.0, 1.0)) - 0.12 * exp(-sq((f - 0.65) / 0.06)) + 0.5 * sqrt(max(0.0, 1.0 - sq((f - 0.84) / 0.16))) * smoothstep(0.66, 0.72, f); }   /* (v412 LM) the mirror frame's moulding across it (0 at the face .. 1 its outer edge): a lip, a cove, the wire's groove, a round outer bead */
+vec3 lmMt(vec3 n, vec3 Ld, vec3 Hv){ float df = max(dot(n, Ld), 0.0); return mix(vec3(0.42, 0.24, 0.27), vec3(0.96, 0.75, 0.78), df) + vec3(1.0, 0.94, 0.97) * (pow(max(dot(n, Hv), 0.0), 36.0) * 0.95 + sq(1.0 - n.z) * 0.15); }   /* (v412 LM) polished rose gold */
+vec3 lmRt(vec3 n, float cy, float sy, float ct, float st){ n = vec3(n.x * cy + n.z * sy, n.y, -n.x * sy + n.z * cy); return vec3(n.x, n.y * ct + n.z * st, -n.y * st + n.z * ct); }   /* (v412 LM) a normal turned by a yaw (cos, sin) then tilted down (cos, sin) */
 /*<W>*/vec4 wbl(vec2 u, float q0, float th0){ float md = floor(q0 / 10.0), span = max(0.05, q0 - md * 10.0), rr = length(u), an = atan(u.y, u.x), v = 0.0, tk = th0, m = 1.0;   /* (v370, wind) a blade of wind: an arc of radius 0.8 in its quad (mode 0 a trail, its head at angle 0 and its tail round toward -v; 1 a crescent tapering both ways; 2 a whole ring): x across (0 its sharp outer edge .. 1 its inner), y along (0 the head .. 1 the tail), z inside, w arc length */
   if (md < 0.5) { float s = mod(-an + 0.03, 6.2831853) - 0.03; v = s / span; tk = th0 * (1.0 - 0.78 * clamp(v, 0.0, 1.0)) * smoothstep(-0.03 / span, 0.05, v); m = step(v, 1.0); }
   else if (md < 1.5) { v = an / (span * 0.5); tk = th0 * pow(clamp(1.0 - v * v, 0.0, 1.0), 0.6); v = abs(v); m = step(v, 1.0); }
@@ -498,6 +513,162 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
     float a = g.a * v_c.a;
     if (v_k < 71.5) gl_FragColor = vec4(g.rgb * a, a);
     else { vec3 L = min(g.rgb * a, vec3(1.0)); gl_FragColor = vec4(L, max(max(L.r, L.g), L.b)); } }
+  else if (v_k > 67.5 && v_k < 68.5) { // (v412 LM, Lantern Fall) a lantern (solid): its 2D design (20k4l lantern()) as a lit object. A hexagonal silk lantern
+    // seen a little from above, turned by v_q.x: six upper panels and six lower petals (hinged at the equator, opening by fract(v_q.y) / 0.98) of
+    // pearly pink silk with the light scattering through them (brightest before its heart of light, shaded along the ribs, heart cutouts glowing
+    // in the front panels; the back panels lit from inside, seen through), rose-gold rods and rings, a lacquered dome cap with a rose-gold rim,
+    // knob and loop, a rose-gold base bead, two silk tassels swinging (v_q.z: 4 x seed + 2 + sway), a heart of flame flickering inside, a flame
+    // licking from its cleft; floor(v_q.y) its tier; v_c: its glow, its flash, its dissolution (0..1: tassels, petals, body, cap in turn).
+    // Lantern units: w across, y down, the equator at 0 (the quad: 0.95 w either side, 0.9 h above and below 0.1 h)
+    vec2 p = vec2(u.x * 0.95, (0.1 + u.y * 0.9) * 1.25); float spin = v_q.x, tier = floor(v_q.y + 0.001), op = clamp((v_q.y - tier) / 0.98, 0.0, 1.0), sd = floor(v_q.z / 4.0), sw = v_q.z - sd * 4.0 - 2.0;
+    float gl = v_c.r, dis = v_c.b, nz = n2(p * 13.0 + sd * 7.1) - 0.5, fk = 1.0 + 0.07 * sin(u_t * 17.0 + sd * 3.0) + 0.05 * sin(u_t * 29.3 + sd);
+    float aPet = 1.0 - smoothstep(0.15, 0.6, dis + 0.14 * nz), aBody = 1.0 - smoothstep(0.35, 0.85, dis + 0.14 * nz), aCap = 1.0 - smoothstep(0.55, 1.0, dis + 0.14 * nz), aCr = 1.0 - smoothstep(0.0, 0.35, dis + 0.14 * nz);
+    float rbo = 0.3 + op * 0.34, yB = mix(0.4, 0.175, op), ks = 0.24 * (1.0 + 1.4 * op), bY = mix(0.472, 0.25, op * 0.6);
+    vec3 PE = vec3(1.0, 0.941, 0.969), BL = vec3(1.0, 0.718, 0.835), RO = vec3(1.0, 0.412, 0.706), DP = vec3(0.851, 0.294, 0.569), DE = vec3(0.561, 0.176, 0.451), RG = vec3(0.91, 0.686, 0.722), RD = vec3(0.612, 0.353, 0.4);
+    vec3 Ld = normalize(vec3(-0.5, -0.62, 0.6)), Hv = normalize(Ld + vec3(0.0, 0.0, 1.0));
+    float vU = clamp((p.y + 0.45) / 0.45, 0.0, 1.0), vL = clamp(p.y / max(yB, 0.1), 0.0, 1.0); vec2 q = vec2(p.x / (1.0 + (p.y < 0.0 ? 0.24 * vU * (1.0 - vU) : 0.2 * vL * (1.0 - vL))), p.y);   /* (the panels' sides bow out a little, as the 2D curves) */
+    vec2 dc = (p - vec2(0.0, 0.02)) * vec2(1.2, 1.0); float gc = exp(-dot(dc, dc) / 0.075);   /* (the light falls off from the heart of light) */
+    vec4 A = vec4(0.0);
+    for (int ps = 0; ps < 2; ps++) { bool fr = ps == 1;
+      if (fr) { // the heart of light inside, behind the front panels: a volume of rose light, a heart of flame, a flame licking from its cleft, light pouring down when open
+        A = lmO(A, RO, 0.5 * gl * gc * aBody);
+        float kh = 0.3 * (0.85 + 0.25 * gl) * (0.97 + 0.03 * fk) / 1.2; vec2 hp = vec2(p.x / kh, 0.55 - p.y / kh); hp.x += (n2(vec2(hp.y * 3.0, u_t * 4.0 + sd)) - 0.5) * 0.14 * smoothstep(0.3, 1.1, hp.y);
+        float dh = hsd(hp), ins = clamp(-dh / 0.32, 0.0, 1.0); vec3 hc = mix(RO, vec3(1.0, 0.72, 0.8), smoothstep(0.0, 0.35, ins)); hc = mix(hc, vec3(1.0, 0.92, 0.86), smoothstep(0.35, 0.8, ins)); hc = mix(hc, vec3(1.0, 0.99, 0.96), smoothstep(0.75, 1.0, ins) * min(fk, 1.0));
+        A = lmO(A, RO, exp(-max(dh, 0.0) / 0.16) * 0.5 * gl * aBody * step(0.0, dh)); A = lmO(A, hc, (1.0 - smoothstep(-0.03, 0.02, dh)) * (0.5 + 0.5 * gl) * aBody);
+        float ty = (-0.45 * kh - p.y) / (0.7 * kh * fk), tx = p.x - sin(u_t * 9.0 + sd + ty * 3.0) * 0.18 * kh * ty, tw = 0.16 * kh * pow(max(1.0 - ty, 0.0), 0.8) * sqrt(max(ty, 0.0) + 0.08);
+        A = lmO(A, mix(vec3(1.0, 0.98, 0.94), vec3(1.0, 0.8, 0.74), clamp(ty, 0.0, 1.0)), (1.0 - smoothstep(0.55, 1.0, abs(tx) / max(tw, 1e-3))) * smoothstep(-0.15, 0.05, ty) * (1.0 - smoothstep(0.7, 1.0, ty)) * 0.9 * gl * aBody);
+        if (op > 0.02) A = lmO(A, PE, 0.5 * op * gl * aPet * exp(-sq(p.x / 0.24) - sq((p.y - 0.3) / 0.13))); }
+      for (int k = 0; k < 6; k++) { // the panels: back ones first, then front ones; each its upper panel then its petal
+        float a0 = spin + float(k) * 1.0471976, a1 = a0 + 1.0471976, am = a0 + 0.5235988, ms = sin(am); if ((ms >= 0.0) != fr) continue;
+        vec2 c0 = vec2(cos(a0), sin(a0)), c1 = vec2(cos(a1), sin(a1)), t0 = vec2(0.3 * c0.x, -0.45 + 0.072 * c0.y), t1 = vec2(0.3 * c1.x, -0.45 + 0.072 * c1.y), e0 = vec2(0.5 * c0.x, 0.12 * c0.y), e1 = vec2(0.5 * c1.x, 0.12 * c1.y);
+        vec2 b0 = vec2(rbo * c0.x, yB + rbo * ks * c0.y), b1 = vec2(rbo * c1.x, yB + rbo * ks * c1.y); float lt = 0.5 + 0.5 * cos(am - 2.2708); vec3 tg = vec3(-ms, 0.0, cos(am));
+        vec2 st = lmIB(q, t0, t1, e1, e0); float cu = smoothstep(-0.007, 0.007, min(min(st.x, 1.0 - st.x) * length(mix(t1 - t0, e1 - e0, st.y)), min(st.y, 1.0 - st.y) * length(mix(e0 - t0, e1 - t1, st.x))));
+        if (aBody > 0.01 && cu > 0.0) {
+          if (fr) { vec3 n = normalize(vec3(cos(am), -0.385, ms) - tg * (st.x - 0.5) * 0.7 + vec3(0.0, (st.y - 0.5) * 0.45, 0.0)); float df = max(dot(n, Ld), 0.0), spc = pow(max(dot(n, Hv), 0.0), 26.0);
+            float rib = smoothstep(0.0, 0.2, min(st.x, 1.0 - st.x)) * smoothstep(0.0, 0.16, st.y) * smoothstep(0.0, 0.14, 1.0 - st.y), tr = gl * fk * (0.52 + 0.9 * gc) * (0.5 + 0.5 * rib) * (0.92 + 0.08 * n2(vec2(st.x * 30.0, st.y * 44.0) + sd));
+            vec3 c = mix(DP * 0.62, RO, smoothstep(0.0, 0.45, tr)); c = mix(c, mix(RO, BL, 0.55), smoothstep(0.45, 0.9, tr)); c = mix(c, BL, smoothstep(0.9, 1.3, tr)); c = c * (0.78 + 0.22 * df) + mix(DP, BL, lt * 0.7) * df * 0.12 + PE * spc * 0.4; float al = (mix(0.88, 0.64, gc) + 0.06 * lt) * cu;
+            float hv = smoothstep(tier > 1.5 ? 0.25 : 0.6, tier > 1.5 ? 0.45 : 0.8, ms);
+            if (hv > 0.0) { float hs = tier > 1.5 ? 0.63 : 0.58, dh = hsd(vec2((st.x - 0.5) / hs * 1.2, (0.5 - st.y) / (hs * 0.81) * 1.1 + 0.55)), hin = 1.0 - smoothstep(-0.02, 0.03, dh);   /* (a heart cut in the silk: the light comes through it) */
+              c = mix(c, mix(BL, PE, 0.3 + 0.6 * gl), hin * hv * (0.45 + 0.55 * gl)); al = mix(al, 0.97 * cu, hin * hv); c = mix(c, DE, exp(-sq((dh - 0.025) / 0.03)) * 0.6 * hv); if (tier > 1.5) c += PE * exp(-sq((dh - 0.11) / 0.03)) * 0.5 * gl * hv; }
+            A = lmO(A, min(c, vec3(1.0)), al * aBody); }
+          else A = lmO(A, mix(DE, RO, 0.25 + 0.3 * gl * gc), 0.55 * aBody * cu); }
+        vec2 sp = lmIB(q, e0, e1, b1, b0); float sg = 0.044 * (1.0 - 0.5 * op) / max(abs(0.5 * (b0.y + b1.y - e0.y - e1.y)), 0.06), sb = 1.0 + sg * 4.0 * sp.x * (1.0 - sp.x);
+        float W = length(mix(e1 - e0, b1 - b0, sp.y)), Hh = length(mix(b0 - e0, b1 - e1, sp.x)), de = min(min(sp.x, 1.0 - sp.x) * W, min(sp.y, sb - sp.y) * Hh), cp = smoothstep(-0.007, 0.007, de);
+        if (aPet > 0.01 && cp > 0.0) { vec3 c; float al;
+          if (fr) { vec3 n = normalize(vec3(cos(am), mix(0.433, -0.69, op), ms) - tg * (sp.x - 0.5) * 0.6); float df = max(dot(n, Ld), 0.0), spc = pow(max(dot(n, Hv), 0.0), 26.0), rib = smoothstep(0.0, 0.2, min(sp.x, 1.0 - sp.x)) * smoothstep(0.0, 0.14, sp.y);
+            float tr = gl * fk * (0.38 + 0.8 * gc + 0.4 * op * (0.4 + 0.6 * sp.y)) * (0.55 + 0.45 * rib);
+            c = mix(DP * 0.62, RO, smoothstep(0.0, 0.45, tr)); c = mix(c, mix(RO, BL, 0.55), smoothstep(0.45, 0.9, tr)); c = mix(c, BL, smoothstep(0.9, 1.3, tr)); c = c * (0.78 + 0.22 * df) + mix(DP, BL, lt * 0.7 * (1.0 - 0.3 * op)) * df * 0.12 + PE * spc * 0.35; al = 0.74 + 0.1 * lt;
+            if (tier > 1.5 && ms > 0.4) { float dh = hsd(vec2((sp.x - 0.5) / 0.34 * 1.2, (0.5 - sp.y) / 0.3 * 1.1 + 0.55)); c = mix(c, BL * (0.7 + 0.4 * gl), (1.0 - smoothstep(-0.02, 0.03, dh)) * smoothstep(0.4, 0.6, ms) * gl); } }
+          else { c = mix(DE, RO, 0.2 + 0.3 * gl * min(gc + op, 1.0)); al = 0.45; }
+          c = mix(c, fr ? mix(RD, RG, 0.55) : RD * 0.8, (1.0 - smoothstep(0.012, 0.024, de)) * (fr ? 0.9 : 0.45)); A = lmO(A, min(c, vec3(1.0)), al * aPet * cp); } }   /* (its rose-gold piping) */
+      // the rods (each corner from the top ring down to the equator) and the two rings: rounded rose-gold, the back ones dim behind the light
+      float bw = 0.034, cov = 0.0; vec3 bn = vec3(0.0, 0.0, 1.0);
+      for (int k = 0; k < 6; k++) { float a0 = spin + float(k) * 1.0471976, s0 = sin(a0); if ((s0 > -0.05) != fr) continue;
+        vec2 ta = vec2(0.3 * cos(a0), -0.45 + 0.072 * s0), ba = vec2(0.5 * cos(a0), 0.12 * s0) - ta, pa = q - ta, dv = pa - ba * clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0); float d = length(dv), cv = 1.0 - smoothstep(bw - 0.01, bw + 0.006, d);
+        if (cv > cov) { cov = cv; vec2 nn = dv / max(d, 1e-4) * clamp(d / bw, 0.0, 1.0); bn = vec3(nn, sqrt(max(0.0, 1.0 - dot(nn, nn)))); } }
+      for (int k = 0; k < 2; k++) { float R = k == 0 ? 0.3 : 0.5, y0 = k == 0 ? -0.45 : 0.0; if ((q.y >= y0) != fr) continue; vec2 e = vec2(q.x / R, (q.y - y0) / (0.24 * R)); float le = length(e);
+        vec2 gg = vec2(e.x / R, e.y / (0.24 * R)) / max(le, 1e-4); float d = abs(le - 1.0) / max(length(gg), 1e-4), cv = 1.0 - smoothstep(bw - 0.01, bw + 0.006, d);
+        if (cv > cov) { cov = cv; vec2 nn = normalize(gg + 1e-5) * sign(le - 1.0) * clamp(d / bw, 0.0, 1.0); bn = vec3(nn, sqrt(max(0.0, 1.0 - dot(nn, nn)))); } }
+      if (cov > 0.0) A = lmO(A, fr ? min(lmMt(bn, Ld, Hv) * mix(0.45, 1.0, smoothstep(0.0, 0.55, bn.z)) + RO * 0.15 * gl * (1.0 - bn.z), vec3(1.0)) : mix(RD, RO, 0.35) * 0.75, cov * aBody * (fr ? 1.0 : 0.45)); }
+    if (aCap > 0.01) { // the cap: a lacquered dome on a rose-gold rim, its knob, the loop it hangs from
+      float X = p.x / 0.336, s2 = max(0.0, 1.0 - X * X), yTop = -0.45 - 0.3125 * pow(s2, 0.55), yBot = -0.45 + 0.081 * sqrt(s2);
+      float m = smoothstep(yTop - 0.008, yTop + 0.01, p.y) * (1.0 - smoothstep(yBot - 0.01, yBot + 0.006, p.y)) * (1.0 - smoothstep(0.985, 1.02, abs(X)));
+      if (m > 0.0) { float Y = (p.y + 0.45) / 0.3125; bool dome = p.y < -0.462; vec3 c;
+        if (dome) { vec3 n = normalize(vec3(X * 0.95, Y * 0.85, sqrt(max(0.03, 1.0 - X * X * 0.9 - Y * Y * 0.72)))); float df = max(dot(n, Ld), 0.0), spc = pow(max(dot(n, Hv), 0.0), 48.0);
+          c = mix(DE * 0.65, DP, 0.25 + 0.75 * df) + BL * smoothstep(-0.2, 0.6, -n.y) * 0.16 * (1.0 - 0.5 * df) + PE * spc * 0.45 + BL * exp(-sq((n.x + 0.42) / 0.2) - sq((n.y + 0.4) / 0.32)) * 0.4 + RO * 0.22 * gl * sq(1.0 - n.z);
+          c = mix(c, lmMt(n, Ld, Hv), exp(-sq((p.y + 0.49) / 0.014)) * 0.85); c = mix(c, RD * 0.6, exp(-sq((p.y - yTop) / 0.012)) * 0.5); }
+        else c = lmMt(normalize(vec3(X * 0.85, 0.45, sqrt(max(0.05, 1.0 - X * X * 0.72)))), Ld, Hv);
+        A = lmO(A, min(c, vec3(1.0)), m * aCap); }
+      float ld = (length(p - vec2(0.0, -0.85)) - 0.07) / 0.022; if (abs(ld) < 1.3) { vec2 dr = normalize(p - vec2(0.0, -0.85) + 1e-5) * clamp(ld, -1.0, 1.0); A = lmO(A, min(lmMt(vec3(dr, sqrt(max(0.0, 1.0 - dot(dr, dr)))), Ld, Hv), vec3(1.0)), (1.0 - smoothstep(0.75, 1.25, abs(ld))) * aCap); }
+      vec2 kq = (p - vec2(0.0, -0.7625)) / 0.05; float kr = length(kq); if (kr < 1.2) A = lmO(A, min(lmMt(vec3(kq * min(1.0, 1.0 / max(kr, 1e-3)) * min(kr, 1.0), sqrt(max(0.0, 1.0 - kr * kr))), Ld, Hv), vec3(1.0)), (1.0 - smoothstep(0.85, 1.15, kr)) * aCap); }
+    if (aCr > 0.01) { // the crystal's thread, the two silk tassels (cords of twisted silk, a rose-gold knot, a tuft of fine threads), the base bead
+      A = lmO(A, RG * 0.9, (1.0 - smoothstep(0.008, 0.016, lmSeg(p, vec2(0.0, bY), vec2(0.0, bY + 0.175)))) * aCr * 0.9);
+      for (int s = 0; s < 2; s++) { float sg = s == 0 ? -1.0 : 1.0, x0 = sg * 0.255, sww = sw + sg * 0.12; vec2 pp = vec2(x0, bY), pv = pp;
+        for (int j = 1; j <= 4; j++) { float fj = float(j) / 4.0, an = sww * fj, hw = 0.5 * (0.075 - float(j) * 0.013); vec2 nq = vec2(x0 + sin(an) * 0.6875 * fj, bY + cos(an) * 0.625 * fj), bb = nq - pp, pa = p - pp;
+          float h = clamp(dot(pa, bb) / max(dot(bb, bb), 1e-6), 0.0, 1.0), d = length(pa - bb * h), cv = 1.0 - smoothstep(hw - 0.006, hw + 0.006, d);
+          if (cv > 0.0) { float x = clamp(d / hw, 0.0, 1.0) * sign(bb.x * pa.y - bb.y * pa.x), al = dot(pa, bb) / max(length(bb), 1e-4), tw = 0.5 + 0.5 * sin(al * 150.0 + x * 2.6);
+            A = lmO(A, min((j < 3 ? DP : RO) * (0.5 + 0.6 * sqrt(max(0.0, 1.0 - x * x))) * (0.82 + 0.18 * tw) + PE * pow(max(0.0, 1.0 - abs(x + 0.4)), 6.0) * 0.3, vec3(1.0)), cv * aCr); }
+          pv = pp; pp = nq; }
+        vec2 dr = normalize(pp - pv + 1e-5), pr = vec2(-dr.y, dr.x), lq = p - pp; float v = dot(lq, dr) / 0.15, x = dot(lq, pr) / (0.016 + 0.03 * clamp(v, 0.0, 1.0));
+        float tf = (1.0 - smoothstep(0.75, 1.05, abs(x))) * smoothstep(-0.02, 0.06, v) * (1.0 - smoothstep(0.8, 1.0, v)), th = 0.6 + 0.4 * sin(x * 9.0 + v * 2.0 + sd);
+        A = lmO(A, mix(RO, BL, clamp(v, 0.0, 1.0)) * th * (0.7 + 0.3 * sqrt(max(0.0, 1.0 - x * x))), tf * aCr);
+        vec2 kq = (p - pp) / 0.024; float kr = length(kq); if (kr < 1.2) A = lmO(A, min(lmMt(vec3(kq * min(kr, 1.0) / max(kr, 1e-3), sqrt(max(0.0, 1.0 - kr * kr))), Ld, Hv), vec3(1.0)), (1.0 - smoothstep(0.8, 1.15, kr)) * aCr); }
+      vec2 kq = (p - vec2(0.0, bY)) / 0.04; float kr = length(kq); if (kr < 1.2) A = lmO(A, min(lmMt(vec3(kq * min(kr, 1.0) / max(kr, 1e-3), sqrt(max(0.0, 1.0 - kr * kr))), Ld, Hv), vec3(1.0)), (1.0 - smoothstep(0.85, 1.12, kr)) * aCr); }
+    gl_FragColor = A * v_c.a; }
+  else if (v_k > 68.5 && v_k < 69.5) { // (v412 LM, Love Mirrors) a mirror (solid): its 2D design (20k4l frameSpr) as a polished object. An arched mirror in a
+    // moulded pink lacquer frame lit from the upper left (a lip, a cove, a raised rose-gold wire, a round outer bead; a second wire and pearl beads at
+    // Adept, rose-gold hearts at Celestial) and a silvered face reflecting a room of light (a pearl ceiling, arched windows, a rose floor) that shifts as
+    // it turns (yaw) and tilts down, a specular sweep crossing it, fresnel brightening as it turns away, a fine bevel at the face's edge, a soft inner
+    // shade; faint hearts drifting in the reflection, its suspended heart of light, the lance's ripple. uv: its sprite (96 x 176) about its centre.
+    // v_q.x mode + 10 x tier (0 the mirror, 1 its thickness swept back by v_q.y sprite px, 2 / 3 its left / right half, 4 a soft shadow on the floor);
+    // v_q.y 4 x round(100 x its heart's size) + 2 + yaw; v_q.z 16 x round(100 x its heart's light) + 2 x seed + tilt; v_c: its heart (0..1), a flash, the ripple (0 none)
+    float tier = floor(v_q.x / 10.0 + 0.01), md = v_q.x - tier * 10.0, a = 0.0; vec3 c = vec3(0.0);
+    vec3 PE = vec3(1.0, 0.941, 0.969), BL = vec3(1.0, 0.718, 0.835), RO = vec3(1.0, 0.412, 0.706), DP = vec3(0.851, 0.294, 0.569), DE = vec3(0.561, 0.176, 0.451), RG = vec3(0.91, 0.686, 0.722), LV = vec3(0.847, 0.706, 1.0);
+    if (md > 3.5) { float e = 1.0 - smoothstep(0.0, 1.0, r); a = e * e * 0.6; c = vec3(0.15, 0.04, 0.13); }
+    else if (md > 0.5 && md < 1.5) { float off = v_q.y, hw = 48.0 + abs(off) * 0.5; vec2 p = vec2(u.x * hw + off * 0.5, u.y * 88.0); float d = lmAr(vec2(p.x - clamp(p.x, min(off, 0.0), max(off, 0.0)), p.y), 42.0, 84.0), w = clamp(p.x / (abs(off) > 0.01 ? off : 0.01), 0.0, 1.0);
+      a = 1.0 - smoothstep(-0.8, 0.8, d); c = mix(DP * 0.8, DE * 0.45, w) * (0.75 + 0.25 * smoothstep(84.0, -84.0, p.y)) + RG * 0.35 * exp(-sq(d / 1.3)) * (1.0 - w); }
+    else { float gi = floor(v_q.y / 4.0), yaw = v_q.y - gi * 4.0 - 2.0, grow = gi / 100.0, bi = floor(v_q.z / 16.0), rs = v_q.z - bi * 16.0, sd = floor(rs / 2.0), tilt = clamp((rs - sd * 2.0) / 0.999, 0.0, 1.0), hb = bi / 100.0;
+      vec2 p = vec2(u.x * 48.0, u.y * 88.0); float dO = lmAr(p, 42.0, 84.0), dI = lmAr(p, 29.0, 71.0);
+      a = 1.0 - smoothstep(-0.7, 0.7, dO); if (md > 1.5) a *= md < 2.5 ? 1.0 - smoothstep(-0.5, 0.5, p.x) : smoothstep(-0.5, 0.5, p.x);
+      float ya = yaw + 0.07 * sin(u_t * 0.6 + sd * 1.9), cy = cos(ya), sy = -sin(ya), ta = tilt * 0.68, ct = cos(ta), st = sin(ta); vec3 Ld = normalize(vec3(-0.5, -0.62, 0.6)), Hv = normalize(Ld + vec3(0.0, 0.0, 1.0));
+      vec2 gI = vec2(lmAr(p + vec2(0.6, 0.0), 29.0, 71.0) - lmAr(p - vec2(0.6, 0.0), 29.0, 71.0), lmAr(p + vec2(0.0, 0.6), 29.0, 71.0) - lmAr(p - vec2(0.0, 0.6), 29.0, 71.0)); gI /= max(length(gI), 1e-4);
+      vec3 cf = vec3(0.0), cm = vec3(0.0);
+      if (dI > -1.0) { // the frame
+        float fw = clamp(dI / max(dI - dO, 0.01), 0.0, 1.0), dh = (lmFh(fw + 0.02) - lmFh(fw - 0.02)) / 0.04; vec3 n = lmRt(normalize(vec3(-gI * dh * 0.3, 1.0)), cy, sy, ct, st);
+        float df = max(dot(n, Ld), 0.0), spc = pow(max(dot(n, Hv), 0.0), 40.0), gk = clamp((p.x / 42.0 + p.y / 84.0) * 0.5 + 0.5, 0.0, 1.0);
+        vec3 base = mix(BL, RO, smoothstep(0.0, 0.36, gk)); base = mix(base, DP, smoothstep(0.36, 0.8, gk)); base = mix(base, mix(DP, DE, 0.5), smoothstep(0.8, 1.0, gk));
+        cf = base * (0.58 + 0.62 * df) + PE * spc * 0.8 + BL * sq(1.0 - n.z) * 0.25;
+        float dw = lmAr(p, 37.5, 79.5), wv = 1.0 - smoothstep(0.75, 1.15, abs(dw)); if (wv > 0.0) cf = mix(cf, lmMt(lmRt(vec3(gI * clamp(dw / 0.95, -1.0, 1.0), sqrt(max(0.0, 1.0 - sq(dw / 0.95)))), cy, sy, ct, st), Ld, Hv), wv);
+        if (tier > 1.5) { float d2 = lmAr(p, 35.2, 77.2), w2 = 1.0 - smoothstep(0.35, 0.65, abs(d2)); if (w2 > 0.0) cf = mix(cf, lmMt(lmRt(vec3(gI * clamp(d2 / 0.5, -1.0, 1.0), sqrt(max(0.0, 1.0 - sq(d2 / 0.5)))), cy, sy, ct, st), Ld, Hv) * 0.9, w2 * 0.85);
+          float an = atan(p.y + 42.0, p.x), bi2 = clamp(floor((an + 3.1415927) / 0.3926991 + 0.5), 1.0, 7.0), ba = -3.1415927 + bi2 * 0.3926991; vec2 bp = vec2(cos(ba), sin(ba)) * 39.6 + vec2(0.0, -42.0);
+          vec2 bs = vec2(sign(p.x) * 39.6, -30.0 + 16.0 * clamp(floor((p.y + 30.0) / 16.0 + 0.5), 0.0, 5.0)); if (p.y > -42.0 || length(p - bs) < length(p - bp)) bp = bs;
+          vec2 bq = (p - bp) / 1.9; float br = length(bq); if (br < 1.3) { vec3 nb = lmRt(vec3(bq * min(br, 1.0) / max(br, 1e-3), sqrt(max(0.0, 1.0 - br * br))), cy, sy, ct, st);
+            vec3 pc = PE * (0.62 + 0.42 * max(dot(nb, Ld), 0.0)) + vec3(1.0) * pow(max(dot(nb, Hv), 0.0), 50.0) * 0.9 + LV * sq(1.0 - nb.z) * 0.25; pc = mix(pc, vec3(0.62, 0.38, 0.42), exp(-sq((br - 1.0) / 0.18)) * 0.4); cf = mix(cf, pc, 1.0 - smoothstep(1.0, 1.25, br)); } }
+        if (tier > 2.5) { vec2 hq = vec2((p.x - sign(p.x) * 38.0) / 8.4, (13.4 - p.y) / 8.4); float d3 = hsd(hq) * 8.4; if (d3 < 1.5) { vec2 g3 = vec2(hsd(hq + vec2(0.02, 0.0)) - hsd(hq - vec2(0.02, 0.0)), hsd(hq + vec2(0.0, 0.02)) - hsd(hq - vec2(0.0, 0.02))); g3 = vec2(g3.x, -g3.y) / max(length(g3), 1e-4);
+            float e3 = clamp(-d3 / 3.0, 0.0, 1.0); vec3 hc = lmMt(lmRt(normalize(vec3(g3 * (1.0 - e3) * 1.4, 0.5 + e3)), cy, sy, ct, st), Ld, Hv); hc = mix(hc, DE * 0.8, exp(-sq(d3 / 0.6)) * 0.8); hc = mix(hc, PE, (1.0 - smoothstep(1.0, 1.6, length(p - vec2(sign(p.x) * 38.0 - 1.6, 6.8)))) * 0.9);
+            cf = mix(cf, hc, 1.0 - smoothstep(-0.2, 0.6, d3)); } }
+        cf = mix(cf, DE * 0.7, exp(-sq(dO / 0.8)) * 0.6); cf = mix(cf, DE * 0.75, exp(-sq(dI / 0.9)) * 0.65); cf += (PE * 0.45 + RO * 0.15) * v_c.g * (0.5 + 0.5 * df); }
+      if (dI < 1.0) { // the face: the room of light reflected (its view widening with the face: a near viewer), tinted pink silver, lavender to its foot
+        vec3 N = vec3(-sin(ya) * ct, st, cy * ct), V = normalize(vec3(p.x * 0.007, p.y * 0.0055 + 0.08, -1.0)), R = reflect(V, N); float el = -R.y, az = atan(R.x, R.z) + sd * 0.83;
+        float wx = abs(fract(az / 0.9 + 0.5) - 0.5) * 0.9, wt = 0.34 + 0.09 * sqrt(max(0.0, 1.0 - sq(wx / 0.14)));
+        vec3 sky = mix(vec3(1.0, 0.86, 0.93), vec3(1.0, 0.98, 1.0), smoothstep(0.0, 0.45, el)), flr = mix(vec3(0.95, 0.74, 0.9), vec3(0.8, 0.44, 0.7), smoothstep(0.0, 0.45, -el));
+        cm = mix(flr, sky, smoothstep(-0.03, 0.03, el)) + LV * exp(-sq(el / 0.045)) * 0.22 + RO * exp(-sq((el + 0.17) / 0.04)) * 0.3 * (0.6 + 0.4 * sin(az * 3.0 + u_t));
+        float win = (1.0 - smoothstep(0.125, 0.145, wx)) * smoothstep(0.05, 0.07, el) * (1.0 - smoothstep(wt - 0.015, wt, el)), mul = max(1.0 - smoothstep(0.006, 0.012, wx), 1.0 - smoothstep(0.005, 0.01, abs(el - 0.2)));
+        cm = mix(cm, mix(vec3(1.0, 0.99, 1.0), vec3(0.95, 0.8, 0.9), mul * 0.85), win * 0.8);
+        cm *= vec3(0.97, 0.9, 0.95); cm = mix(cm, cm * mix(vec3(1.0), LV, 0.6), smoothstep(5.0, 71.0, p.y) * 0.5);
+        for (int k = 1; k <= 3; k++) { float fq = float(k); if (fq > (tier > 1.5 ? 3.5 : 1.5)) break; vec2 o = vec2(sin(u_t * 0.9 + sd * 1.3 + fq * 2.0) * 11.5 * fq, -7.0 * fq + cos(u_t * 0.7 + fq) * 3.5); float kk = 45.0 * (0.95 - 0.15 * fq) / 1.2, d4 = hsd(vec2((p.x - o.x) / kk, 0.55 - (p.y - o.y) / kk)) * kk;
+          cm = mix(cm, mod(fq, 2.0) > 0.5 ? LV : BL, (1.0 - smoothstep(-5.0, 3.0, d4)) * (0.34 - 0.07 * fq) * 1.2); }
+        cm = mix(cm, PE, (1.0 - abs(dot(V, N))) * 0.6);   /* (fresnel: whiter as it turns away) */
+        float sx = (fract((u_t * 0.45 + sd * 0.37) / 1.6) * 1.6 - 0.8) * 134.0, xr = (p.x - sx) * 0.9 + p.y * 0.435; cm += PE * (exp(-sq(xr / 10.0)) * 0.42 + exp(-sq((xr - 15.0) / 2.2)) * 0.3);
+        if (md < 0.5 && v_c.r > 0.01) { float kk = 45.0 * grow / 1.2; vec2 hp = vec2(p.x / kk, 0.55 - p.y / kk); float d5 = hsd(hp), rc = length(hp - vec2(-0.07, 0.64));   /* (its suspended heart of light, glossy, in the glass) */
+          vec3 hc = mix(PE, BL, smoothstep(0.0, 0.22, rc)); hc = mix(hc, RO, smoothstep(0.2, 0.55, rc)); hc = mix(hc, DP, smoothstep(0.52, 0.85, rc)); hc = hc * (0.8 + 0.45 * hb) + PE * exp(-sq(length(hp - vec2(-0.27, 0.8)) / 0.09)) * 0.7;
+          cm = mix(cm, RO, exp(-max(d5, 0.0) / 0.22) * step(0.0, d5) * 0.4 * v_c.r * (0.6 + 0.6 * hb)); cm = mix(cm, min(hc, vec3(1.0)), (1.0 - smoothstep(-0.02, 0.02, d5)) * (0.35 + 0.65 * v_c.r)); }
+        if (md < 0.5 && v_c.b > 0.01) { float rp = v_c.b, kk = 45.0 * 1.15 * (0.5 + 1.4 * rp) / 1.2, d6 = hsd(vec2(p.x / kk, 0.55 - p.y / kk)) * kk, rr = length(p / vec2(1.0, 1.3)) - 96.0 * (0.2 + 0.6 * rp);
+          cm += (PE * exp(-sq(d6 / 1.4)) * 0.8 + RO * exp(-sq(d6 / 4.5)) * 0.35 + PE * exp(-sq(rr / 1.2)) * 0.6) * (1.0 - rp); }
+        cm *= 1.0 - 0.32 * exp(min(dI, 0.0) / 4.5); float bv = smoothstep(-3.0, -1.6, dI) * (1.0 - smoothstep(-0.9, -0.2, dI)), bl = dot(-gI, vec2(-0.63, -0.78)); cm += PE * bv * max(bl, 0.0) * 0.75 - cm * bv * max(-bl, 0.0) * 0.25; }
+      c = mix(cf, cm, 1.0 - smoothstep(-0.5, 0.5, dI)); }
+    a *= v_c.a; gl_FragColor = vec4(min(c, vec3(1.0)) * a, a); }
+  else if (v_k > 63.5 && v_k < 66.5) { // (v412 SA) satin ribbons, each ONE continuous strip (Q.satin): 64 its body (solid), 65 the light along its edges (added); 66 a soft contact shadow (solid, a quad)
+    // a strip's vertex: uv (arc length along, signed px across), v_q (its twist, its half width px, its direction on screen), v_c (flash, pale edges or glow reach px, palette + trim, alpha)
+    if (v_k > 65.5) { float a = v_c.a * exp(-r * r * 2.8) * (1.0 - smoothstep(0.7, 1.0, r)); gl_FragColor = vec4(v_c.rgb * a, a); }
+    else { float hw = max(v_q.y, 0.05), ed = hw - abs(v_uv.y), s = clamp(v_uv.y / hw, -1.0, 1.0), pal = floor(v_c.b + 0.01), trim = v_c.b - pal, ar = v_uv.x;
+      // the cross-section bows gently and rolls in slow soft folds along the ribbon: the normal's turn about the ribbon at this pixel; the face
+      // shown flips where the twist turns it edge-on (a soft crease there), the underside lit by the reversed normal
+      float ph = v_q.x + 0.9 * s + 0.1 * sin(ar * 0.8 - s * 1.2 + pal * 1.7) + 0.05 * sin(ar * 1.9 + s * 1.6), cf = cos(v_q.x + 0.3 * s), face = smoothstep(-0.07, 0.07, cf);
+      vec3 T = vec3(cos(v_q.z), sin(v_q.z), 0.0), N = vec3(-T.y * sin(ph), T.x * sin(ph), cos(ph)), LD = vec3(-0.6, -0.62, 0.5), HV = normalize(LD + vec3(0.0, 0.0, 1.0)), hp = HV - T * dot(HV, T);
+      float hl = length(hp), an = hl * hl * hl, dT = dot(N, LD), hT = dot(N, hp) / max(hl, 0.001);   /* (fibres along the ribbon: anisotropic, its sheen a band across it where the twist faces the light, dimmer where it runs toward the light) */
+      float bS = an * pow(max(hT, 0.0), 10.0), sS = an * pow(max(hT, 0.0), 34.0), bB = an * pow(max(-hT, 0.0), 6.0);   /* (a broad soft sheen with a brighter core: satin, never a razor line) */
+      float lift = pal < 0.5 ? 0.08 : 0.0;   /* (Eternal Light's satin is a ribbon of light: lifted) */
+      vec3 cT = satTop(pal, 0.16 + lift + 0.56 * max(dT, 0.0) + 0.08 * dT + 0.3 * bS) + vec3(1.0, 0.84, 0.93) * (0.3 * sS + 0.05 * bS);
+      vec3 cB = satBack(pal, 0.12 + lift * 2.0 + 0.6 * max(-dT, 0.0) + 0.12 * bB);   /* (the back is matte) */
+      vec3 c = mix(cB, cT, face) * (1.0 - 0.22 * exp(-cf * cf * 60.0));
+      float eg = (1.0 - smoothstep(0.0, 0.8 + hw * 0.1, ed)) * smoothstep(0.5, 3.0, hw); c = mix(c, vec3(1.0, 0.95, 0.98), v_c.g * eg * mix(0.25, 0.6, face) * (0.6 + 0.5 * max(dot(N * sign(cf), LD), 0.0)));   // pale selvedges
+      if (pal < 0.5) c = mix(c, vec3(1.0, 0.94, 0.97), trim * exp(-s * s / 0.02) * mix(0.35, 0.9, face));   // (Eternal Light) a pearl centre stripe
+      else c = mix(c, vec3(0.91, 0.69, 0.72), trim * exp(-sq((abs(s) - 0.55) * hw / 0.9)) * face * 0.8);   // rose-gold trim lines
+      c += v_c.r * 0.4 * vec3(1.0, 0.9, 0.96);
+      if (v_k < 64.5) { float a = v_c.a * smoothstep(-0.5, 0.5, ed); gl_FragColor = vec4(min(c, vec3(1.0)) * a, a); }
+      else { float gw = max(v_c.g, 0.5); vec3 gc = pal > 1.5 && pal < 2.5 ? vec3(1.0, 0.75, 0.88) : vec3(1.0, 0.36, 0.75);
+        float e2 = max(ed, 0.0); vec3 L = (gc * 0.45 * exp(-e2 / gw) + vec3(1.0, 0.92, 0.97) * 0.7 * exp(-sq(e2 - 0.6) / 0.6) * (0.4 + 0.6 * face)) * smoothstep(-0.5, 0.5, ed) * (1.0 + v_c.r) * v_c.a * smoothstep(1.5, 3.0 + 3.0 * gw, hw);   /* (inside its edges only, so its folds never stack; a narrow stretch keeps its colour) */ L = min(L, vec3(1.0)); gl_FragColor = vec4(L, max(max(L.r, L.g), L.b)); } } }
   else if (v_k > 52.5 && v_k < 58.5 && (v_k < 54.5 || v_k > 55.5)) { // (v404 DK) Dark's solids: 53 void smoke, 54 a cut's body, 56 a sphere of darkness, 57 a rift, 58 a crystal shard
     vec3 c = vec3(0.0); float a = 0.0;
     if (v_k < 53.5) { // void smoke: billowing violet-black, curling, a violet rim where it thins (v_q.x), crimson embers deep in it (v_q.z); v_q.y seed
@@ -759,6 +930,14 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
       vec3 B = dcr(u, v_q.x, v_q.z); float d = B.x, v = clamp(B.y, 0.0, 1.0), sl = atan(u.y, u.x) * r, al = mix(1.0, v_q.y, v) * B.z, st = fbm(vec2(sl * 7.0 + t * 6.0, d * 3.0)), e = clamp(1.0 - d, 0.0, 1.0), inb = step(0.0, d) * (1.0 - smoothstep(0.8, 1.05, d));
       L = (mix(vec3(0.43, 0.16, 0.66), vec3(0.65, 0.36, 1.0), e) * (0.1 + 0.7 * pow(e, 2.2)) * inb + vec3(0.94, 0.88, 1.0) * exp(-sq(d / 0.06)) * 1.1 + vec3(0.65, 0.36, 1.0) * exp(-max(-d, 0.0) * 9.0) * step(d, 0.0) * 0.4
         + vec3(0.8, 0.6, 1.0) * smoothstep(0.55, 0.85, st) * inb * e * 0.6 + vec3(0.82, 0.09, 0.25) * exp(-sq((d - 0.3) / 0.04)) * (0.55 + 0.45 * sin(sl * 18.0 + t * 9.0)) * 0.75) * al; }
+    else if (v_k > 69.5 && v_k < 70.5) { // (v412 LM) Light Strong's light: v_q.x 0 a lantern's light spilling on the floor (uv a unit disc squashed by its quad; v_q.y
+      // its turn, v_q.z its flicker seed): warm at its middle, v_c outward, hexagonal, the soft shadows of its six rods radiating; 1 / 2 a mirror's left / right
+      // half breaking up into glints (as kind 69: its frame's wire, rims and bead lit, its face faint)
+      if (v_q.x < 0.5) { float an = atan(u.y, u.x) - v_q.y, hx = mod(an, 1.0471976) - 0.5235988, rr = r * mix(1.0, 0.866 / cos(hx), 0.5), fk = 1.0 + 0.07 * sin(u_t * 17.0 + v_q.z * 3.0) + 0.05 * sin(u_t * 29.3 + v_q.z), sh = smoothstep(0.7, 1.0, cos(6.0 * an)) * smoothstep(0.1, 0.5, rr);
+        L = mix(vec3(1.0, 0.93, 0.9), col, smoothstep(0.0, 0.55, rr)) * exp(-rr * rr * 2.6) * (1.0 - 0.38 * sh) * fk * (1.0 - smoothstep(0.8, 1.0, r)); }
+      else { vec2 p = vec2(u.x * 48.0, u.y * 88.0); float dO = lmAr(p, 42.0, 84.0), dI = lmAr(p, 29.0, 71.0), mk = (1.0 - smoothstep(-0.7, 0.7, dO)) * (v_q.x < 1.5 ? 1.0 - smoothstep(-0.5, 0.5, p.x) : smoothstep(-0.5, 0.5, p.x)), fr = smoothstep(-0.6, 0.6, dI);
+        float fw = clamp(dI / max(dI - dO, 0.01), 0.0, 1.0), wire = exp(-sq(lmAr(p, 37.5, 79.5) / 1.3)), rim = exp(-sq(dO / 1.5)) + exp(-sq(dI / 1.2));
+        L = (col * fr * (0.3 + 0.4 * exp(-sq((fw - 0.84) / 0.12))) + vec3(1.0, 0.94, 0.97) * (wire * 0.85 + rim * 0.5) * fr + vec3(1.0, 0.85, 0.93) * (1.0 - fr) * 0.22) * mk; } }
     else if (v_k > 58.5 && v_k < 59.5) { // (v404 DK) an eclipse's corona round a dark disc of radius 0.42: a thin silver ring at the limb, streamers of
       // silver-violet light flickering out of it, fine rays at v_q.x >= 1; v_q.y seed, v_q.z its pulse
       float an = atan(u.y, u.x), h = max(r - 0.42, 0.0), st = fbm(vec2(an * 3.0 + v_q.y, h * 4.0 - t * 0.5)), st2 = fbm(vec2(an * 9.0 - v_q.y, h * 9.0 - t * 1.1)), reach = 0.1 + 0.36 * st * st + 0.12 * st2;
@@ -993,13 +1172,38 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
   const Q = { lit: new Float32Array(12 * 6 * 600), nl: 0, smk: new Float32Array(12 * 6 * 200), ns: 0, wlit: new Float32Array(12 * 6 * 200), nwl: 0, wsmk: new Float32Array(12 * 6 * 100), nws: 0, get windOK() { return !!PRW; }, a: 1, b: 0, c0: 0, d: 1, e: 0, f: 0, k: 1, t: 0, W: 0, Hh: 0, pet: [0, 0, 0], gpu: true,
     X(x, y) { return this.a * x + this.c0 * y + this.e; }, Y(x, y) { return this.b * x + this.d * y + this.f; },
     /* one quad: centre (screen px), half-axes (ux, uy), (vx, vy) in screen px */
-    quad(kind, x, y, ux, uy, vx, vy, col, al, q0, q1, q2) { if (!(al > 0.004)) return; const solid = (kind >= 9 && kind <= 12) || kind === 16 || kind === 24 || kind === 25 || kind === 33 || kind === 36 || kind === 39 || kind === 40 || kind === 41 /* v402 */ || (kind >= 45 && kind <= 47) || kind === 49 || kind === 52 /* v404 LT */ || (kind >= 53 && kind <= 58 && kind !== 55) /* v404 DK */ || (kind >= 60 && kind <= 63) /* v409 DK2 */ || kind === 71 /* v391 U4 */, wd = kind >= 33 && kind <= 40;
+    quad(kind, x, y, ux, uy, vx, vy, col, al, q0, q1, q2) { if (!(al > 0.004)) return; const solid = (kind >= 9 && kind <= 12) || kind === 16 || kind === 24 || kind === 25 || kind === 33 || kind === 36 || kind === 39 || kind === 40 || kind === 41 /* v402 */ || (kind >= 45 && kind <= 47) || kind === 49 || kind === 52 /* v404 LT */ || (kind >= 53 && kind <= 58 && kind !== 55) /* v404 DK */ || (kind >= 60 && kind <= 63) /* v409 DK2 */ || kind === 68 || kind === 69 /* v412 LM */ || kind === 71 /* v391 U4 */, wd = kind >= 33 && kind <= 40;
       const ka = wd ? (solid ? 'wsmk' : 'wlit') : (solid ? 'smk' : 'lit'), kn = wd ? (solid ? 'nws' : 'nwl') : (solid ? 'ns' : 'nl'); let A = this[ka]; const n = this[kn];
       if ((n + 6) * 12 > A.length) { const q = new Float32Array(A.length * 2); q.set(A); A = q; this[ka] = q; }
       const cx = this.X(x, y), cy = this.Y(x, y), a = this.a, b = this.b, c = this.c0, d = this.d, Ux = a * ux + c * uy, Uy = b * ux + d * uy, Vx = a * vx + c * vy, Vy = b * vx + d * vy, C = rgbOf(col); let o = n * 12;
       for (let j = 0; j < 6; j++) { const su = QV[j][0], sv = QV[j][1]; A[o++] = cx + Ux * su + Vx * sv; A[o++] = cy + Uy * su + Vy * sv; A[o++] = su; A[o++] = sv; A[o++] = kind; A[o++] = C[0]; A[o++] = C[1]; A[o++] = C[2]; A[o++] = al > 1 ? 1 : al; A[o++] = q0 || 0; A[o++] = q1 || 0; A[o++] = q2 || 0; }
       this[kn] += 6; },
     rq(kind, x, y, w, h, rot, col, al, q0, q1, q2) { const c = Math.cos(rot || 0), s = Math.sin(rot || 0); this.quad(kind, x, y, c * w, s * w, -s * h, c * h, col, al, q0, q1, q2); },
+    /* (v412 SA) a satin ribbon as ONE continuous triangle strip (no links: no seams, steps or beads): n stations along it, each its centre
+       (X, Y) and unit direction across (NX, NY) in the 2D path's coordinates, half width HW (px), twist TH (radians: its normal cos TH toward
+       the camera + sin TH toward +across; cos > 0 shows its upper face) and alpha AL. kind 64 its body (laid over, satin shaded per pixel),
+       65 a narrow light along its edges (added). o: pal (0 Eternal Light, 1 rose, 2 pearl, 3 Heartache), edge (its pale edges 0..1), trim
+       (pal 0 a pearl centre stripe, else rose-gold lines), unit (px per unit of arc length, for its soft folds), gw (65: the light's reach,
+       px), a (an alpha multiplier). FL (optional) a flash per station; D (optional) a depth per station: its stretches are then laid far to near (a helix crossing in
+       front of itself). Each vertex carries its arc length, its px across, the twist, the half width and the ribbon's direction, all
+       continuous along the strip, so the shading is one smooth function of the ribbon; its sides reach 1.2 px past the edge for the AA */
+    satin(kind, n, X, Y, NX, NY, HW, TH, AL, o, FL, D) { if (n < 2) return; o = o || {}; const lit = kind === 65, ka = lit ? 'lit' : 'smk', kn = lit ? 'nl' : 'ns', k = this.k || 1, gw = Math.max(1, (o.gw || 4) * k), m = 1.2, un = 1 / ((o.unit || 40) * k), pal = (o.pal || 0) + Math.min(0.9, Math.max(0, o.trim || 0)), eg = lit ? gw : (o.edge == null ? 1 : o.edge);
+      const W2 = v => v - Math.round(v / 6.283185307) * 6.283185307; let S = this._sv; if (!S || S.length < n * 8) S = this._sv = new Float32Array(n * 16);
+      const a = this.a, b = this.b, c = this.c0, d = this.d; let ar = 0, pa = 0, pt = 0;
+      for (let i = 0; i < n; i++) { const p = i * 8, x = this.X(X[i], Y[i]), y = this.Y(X[i], Y[i]); let nx = a * NX[i] + c * NY[i], ny = b * NX[i] + d * NY[i]; const nl = Math.hypot(nx, ny) || 1; nx /= nl; ny /= nl;
+        if (i) ar += Math.hypot(x - S[p - 8], y - S[p - 7]) * un;
+        let al = Math.atan2(-nx, ny), th = TH[i]; if (i) { al = pa + W2(al - pa); th = pt + W2(th - pt); } pa = al; pt = th;
+        S[p] = x; S[p + 1] = y; S[p + 2] = nx; S[p + 3] = ny; S[p + 4] = Math.max(0, HW[i]) * k; S[p + 5] = ar; S[p + 6] = al; S[p + 7] = th; }
+      let A = this[ka]; const nv = this[kn], need = (nv + (n - 1) * 6) * 12; if (need > A.length) { let L = A.length; while (L < need) L *= 2; const q = new Float32Array(L); q.set(A); A = q; this[ka] = q; }
+      let order = null; if (D) { order = []; for (let i = 0; i < n - 1; i++) order.push(i); order.sort((p, q) => (D[p] + D[p + 1]) - (D[q] + D[q + 1])); }
+      let o2 = nv * 12; const ak = o.a == null ? 1 : o.a;
+      const put = (i, sd) => { const p = i * 8, h = S[p + 4] + m; A[o2++] = S[p] + S[p + 2] * h * sd; A[o2++] = S[p + 1] + S[p + 3] * h * sd; A[o2++] = S[p + 5]; A[o2++] = h * sd; A[o2++] = kind; A[o2++] = FL ? FL[i] : 0; A[o2++] = eg; A[o2++] = pal; A[o2++] = Math.min(1, AL[i] * ak); A[o2++] = S[p + 7]; A[o2++] = S[p + 4]; A[o2++] = S[p + 6]; };
+      for (let j = 0; j < n - 1; j++) { const i = order ? order[j] : j; if (AL[i] < 0.004 && AL[i + 1] < 0.004) continue; put(i, 1); put(i, -1); put(i + 1, 1); put(i + 1, 1); put(i, -1); put(i + 1, -1); }
+      this[kn] = o2 / 12; },
+    /* (v412 SA) a soft contact shadow on the floor (solid, kind 66): an ellipse of half axes rx, ry, darkest at its middle */
+    sshadow(x, y, rx, ry, a, col) { if (!(a > 0.004) || !(rx > 0.5)) return; let A = this.smk; const n = this.ns; if ((n + 6) * 12 > A.length) { const q = new Float32Array(A.length * 2); q.set(A); A = q; this.smk = q; }
+      const C = rgbOf(col || '#1C0714'), cx = this.X(x, y), cy = this.Y(x, y), ux = this.a * rx, uy = this.b * rx, vx = this.c0 * ry, vy = this.d * ry; let o = n * 12;
+      for (let j = 0; j < 6; j++) { const su = QV[j][0], sv = QV[j][1]; A[o++] = cx + ux * su + vx * sv; A[o++] = cy + uy * su + vy * sv; A[o++] = su; A[o++] = sv; A[o++] = 66; A[o++] = C[0]; A[o++] = C[1]; A[o++] = C[2]; A[o++] = Math.min(1, a); A[o++] = 0; A[o++] = 0; A[o++] = 0; } this.ns += 6; },
     glow(x, y, r, col, a, sy) { if (r > 0.5) this.quad(0, x, y, r, 0, 0, r * (sy || 1), col, a); },
     ring(x, y, r, col, a, w, sy) { if (r > 0.5) this.quad(1, x, y, r * 1.04, 0, 0, r * 1.04 * (sy || 1), col, a, 0.96, 0, Math.max(0.02, (w || r * 0.1) / r * 0.6)); },
     beam(x0, y0, x1, y1, w, col, a) { const dx = (x1 - x0) / 2, dy = (y1 - y0) / 2, L = Math.hypot(dx, dy); if (L < 0.5) return; this.quad(2, x0 + dx, y0 + dy, dx, dy, -dy / L * w, dx / L * w, col, a); },

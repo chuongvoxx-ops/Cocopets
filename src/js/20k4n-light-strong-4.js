@@ -16,7 +16,10 @@
    2D canvas: "3D" is cached shaded sprites, squashed for tilt, a stacked thickness band, moving highlights.
    (v404 LT) Both on the GPU too (the shared painter, 20k6h, through LU1's helpers in 20k4b), from the same poses, paths and timing:
    the seal a shaded heart seal (kind 49: face, back and side band), its floor hearts of light (kinds 44, 48); the 2D picture stays
-   as it was for a device without the painter. */
+   as it was for a device without the painter.
+   (v412 SA) Eternal Light's satin bodies on the GPU too: each ribbon ONE continuous strip of satin (the painter's Q.satin, kind 64)
+   from the same helix, widths and twist, laid far to near, over its sheet of light (a pass of its own) and under its beads, forks and
+   stars; a soft contact shadow at each base (kind 66). */
 (() => {
   const S = ELEM_IMPL.light.strong, TAU = Math.PI * 2;
   delete S.sunseed; delete S.lucentwheel;
@@ -28,6 +31,8 @@
   const evoK = ev => 1 + 0.08 * (ev - 1);
   // the pet's light: an effect near the pet dims smoothly (never a hole cut round it)
   const petDim = (H, x, y) => 0.4 + 0.6 * sm((Math.hypot(x - H.me.x, y - H.me.y) - 0.5) / 1.4);
+  // (v412 SA) scratch for a satin ribbon's stations on the GPU (Eternal Light)
+  const SN = 48, SX = new Float32Array(SN + 1), SY = new Float32Array(SN + 1), SNX = new Float32Array(SN + 1), SNY = new Float32Array(SN + 1), SHW = new Float32Array(SN + 1), STH = new Float32Array(SN + 1), SAL = new Float32Array(SN + 1), SDP = new Float32Array(SN + 1);
 
   /* ---- the heart curve (as the shipped pink moves): lobes up, point down ---- */
   const HP = (() => { const N = 96, pts = []; for (let i = 0; i <= N; i++) { const t = i / N * TAU, s = Math.sin(t); pts.push([16 * s * s * s / 17, -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t)) / 17 + 0.15]); } return pts; })();
@@ -112,6 +117,8 @@
         { const FG = K.gfx(); if (FG) { /* (v404 LT) the floor on the GPU: the marked area's light with a shimmer, the S-curves drawing themselves
              as strips of light, their swept stretches glowing behind each ribbon's base */
           const Q = FG.begin(c, null); Q.glow(X, Y, T * R * 1.25, PINK, 0.3 * fa, GY); Q.caustic(X, Y, T * R * 1.05, PINK, 0.16 * fa, 2.7, GY);
+          for (const s of swirls) { if (!s.base || t < s.t0 || t >= s.t0 + SWEEP + UNW) continue; const lt = t - s.t0, unw = cl((lt - SWEEP) / UNW), A = (1 - unw * unw) * Math.min(1, lt / 0.12) * petDim(H, s.base[0], s.base[1]), rise = sm(lt / RISE);   // (v412 SA) each satin ribbon's soft contact shadow, cast away from the light
+            Q.sshadow(H.sx(s.base[0]) + T * 0.3, H.sy(s.base[1]) + T * 0.1, T * (0.45 + 0.35 * rise), T * 0.28, 0.42 * A); }
           for (const s of swirls) { const draw0 = cl((t - s.i * 0.03) / PREP), u = (t - s.t0) / SWEEP, endU = cl((t - s.t0 - SWEEP) / (UNW + 0.3)), lit = t >= s.t0 ? 1 : 0.35 + 0.65 * draw0 * draw0;
             if (draw0 <= 0 || endU >= 1) continue; const lo = endU * 0.5, hi = Math.min(draw0, 1 - endU * 0.5); if (hi <= lo) continue;
             const pts = []; for (let k = 0; k <= 24; k++) { const uu = lerp(lo, hi, k / 24), p = at(s, uu); pts.push([H.sx(p[0]), H.sy(p[1])]); }
@@ -140,7 +147,8 @@
         c.save(); c.lineCap = 'round'; c.lineJoin = 'round';
         // back to front by screen depth
         const order = swirls.filter(s => s.base && t >= s.t0 && t < s.t0 + SWEEP + UNW).sort((p, q2) => p.base[1] - q2.base[1]);
-        { const FG = K.gfx(); if (FG) { for (const s of order) drawRibbon(c, s, t, T, true); const Q = FG.begin(c, null); for (const s of order) gRibbonEL(Q, s, t, T); K.gBits(Q, B, T); FG.flush(c); c.restore(); return; } }   // (v404 LT: the satin bodies as the 2D strips, all their light on the GPU)
+        { const FG = K.gfx(); if (FG) { let Q = FG.begin(c, null); for (const s of order) gRibbonEL(Q, s, t, T, 0); FG.flush(c);   // (v404 LT; v412 SA: the sheets of light, then the satin bodies on the GPU too, far to near, with their light over them)
+          Q = FG.begin(c, null); for (const s of order) { gSatinEL(Q, s, t, T); gRibbonEL(Q, s, t, T, 1); } K.gBits(Q, B, T); FG.flush(c); c.restore(); return; } }
         for (const s of order) drawRibbon(c, s, t, T);
         c.restore();
         B.draw(c, T);
@@ -149,7 +157,23 @@
     /* (v404 LT) a ribbon on the GPU, from the same helix: a soft sheet of light round it, its body a strip of pink satin (kind 47) showing
        its upper face or its underside as it twists, a sheen sliding up it, the pearl centre stripe, light beads flowing up, the forks,
        the star at its tip and the pearl bloom at its base */
-    function gRibbonEL(Q, s, t, T) {
+    /* (v412 SA) the satin body itself on the GPU: the same helix, widths and twist as the 2D strip (sampled finer: 48 stations) as ONE
+       continuous strip of real satin (kind 64: its pink upper face and a deeper underside where the twist turns it over, a sheen band
+       sliding up it, soft folds across it, the pearl centre stripe woven in, pale edges), its stretches laid far to near so the helix
+       crosses in front of itself; a narrow light along its edges (kind 65) */
+    function gSatinEL(Q, s, t, T) {
+      const lt = t - s.t0, rise = H.ease.back ? Math.max(0, H.ease.back(cl(lt / RISE))) : sm(lt / RISE), unw = cl((lt - SWEEP) / UNW);
+      const bx = H.sx(s.base[0]), by = H.sy(s.base[1]), dim = petDim(H, s.base[0], s.base[1]), A = (1 - unw * unw) * Math.min(1, lt / 0.12) * dim;
+      if (A < 0.02) return;
+      const Hh = T * HT * rise, vTop = 1 - unw * 0.85, W0 = T * (0.38 + 0.1 * q + (tier === 3 ? 0.04 : 0));
+      let lx = s.dir[0] * T * 0.75, ly = s.dir[1] * T * 0.25;
+      if (tier === 3) { const ox = H.sx(s.base[0]) - H.sx(cx), oy = H.sy(s.base[1]) - H.sy(cy), ol = Math.hypot(ox, oy) || 1, bl = sm(lt / (RISE + 0.5)); lx = lerp(lx, ox / ol * T * 1.5, bl); ly = lerp(ly, oy / ol * T * 0.5 - T * 0.2, bl); }
+      for (let k = 0; k <= SN; k++) { const v = k / SN * vTop, ph = s.sd * TAU + v * TAU * 1.35 - t * 6.5, r = T * (0.15 + 0.55 * v); SX[k] = bx + Math.cos(ph) * r + lx * v * v; SY[k] = by - Hh * v + Math.sin(ph) * r * 0.3 + ly * v * v; SDP[k] = Math.sin(ph); }
+      for (let k = 0; k <= SN; k++) { const v = k / SN, a = Math.max(0, k - 1), b = Math.min(SN, k + 1), tx = SX[b] - SX[a], ty = SY[b] - SY[a], tl = Math.hypot(tx, ty) || 1, th = s.sd * 5 + v * Math.PI * 1.6 - t * 2.2;
+        const taper = sm(v / 0.12) * 0.6 + 0.4, tip = 1 - sm((v - 0.62) / 0.38); SNX[k] = -ty / tl; SNY[k] = tx / tl; STH[k] = th; SHW[k] = W0 * (0.3 + 0.7 * Math.abs(Math.cos(th))) * Math.min(taper, tip) * (0.6 + 0.4 * rise); SAL[k] = A; }
+      Q.satin(64, SN + 1, SX, SY, SNX, SNY, SHW, STH, SAL, { pal: 0, edge: 0.8, trim: 0.7, unit: T * 0.45 }, null, SDP);
+    }
+    function gRibbonEL(Q, s, t, T, over) {   // (v412 SA: over 0 the light behind its satin, 1 the light over it)
       const lt = t - s.t0, rise = H.ease.back ? Math.max(0, H.ease.back(cl(lt / RISE))) : sm(lt / RISE), unw = cl((lt - SWEEP) / UNW);
       const bx = H.sx(s.base[0]), by = H.sy(s.base[1]), dim = petDim(H, s.base[0], s.base[1]), A = (1 - unw * unw) * Math.min(1, lt / 0.12) * dim;
       if (A < 0.02) return;
@@ -159,13 +183,9 @@
       const C0 = [], depth = [], WD = [], TW = [];
       for (let k = 0; k <= NS; k++) { const v = k / NS * vTop, ph = s.sd * TAU + v * TAU * 1.35 - t * 6.5, r = T * (0.15 + 0.55 * v); C0.push([bx + Math.cos(ph) * r + lx * v * v, by - Hh * v + Math.sin(ph) * r * 0.3 + ly * v * v]); depth.push(Math.sin(ph)); }
       for (let k = 0; k <= NS; k++) { const v = k / NS, tc = Math.cos(s.sd * 5 + v * Math.PI * 1.6 - t * 2.2), taper = sm(v / 0.12) * 0.6 + 0.4, tip = 1 - sm((v - 0.62) / 0.38); TW.push(tc); WD.push(W0 * (0.3 + 0.7 * Math.abs(tc)) * Math.min(taper, tip) * (0.6 + 0.4 * rise)); }
-      Q.glow(bx, by, T * 0.85, PINK, 0.55 * A, GY);
-      for (let k = 2; k <= NS; k += 3) Q.glow(C0[k][0], C0[k][1], WD[k] * 2.4 + T * 0.1, PINK, 0.22 * A);   // (a soft sheet of light round it: glows, never wide links)
-      // (its satin body is the 2D strip, laid just before this pass; here its light: a sheen where it faces the light)
-      K.gStrip(Q, C0, v => WD[Math.round(v * NS)] * 0.9, BLOS, v => 0.45 * A * Math.pow(Math.abs(TW[Math.round(v * NS)]), 3) * sm(v / 0.1));
-      const front = [], back = []; for (let k = 1; k <= NS - 2; k++) (depth[k] > -0.15 ? front : back).push(k);
-      const stripe = (ks, al, w) => { let run = []; const fl = () => { if (run.length > 1) K.gStrip(Q, run, w, PEARL, () => al * A); run = []; }; for (let i = 0; i < ks.length; i++) { if (i && ks[i] !== ks[i - 1] + 1) fl(); run.push(C0[ks[i]]); } fl(); };
-      stripe(back, 0.3, Math.max(1, W0 * 0.12)); stripe(front, 0.9, Math.max(1.2, W0 * 0.17));
+      if (!over) { Q.glow(bx, by, T * 0.85, PINK, 0.55 * A, GY);
+        for (let k = 2; k <= NS; k += 3) Q.glow(C0[k][0], C0[k][1], WD[k] * 2.4 + T * 0.1, PINK, 0.3 * A);   // (a soft sheet of light round it: glows, never wide links)
+        return; }   // (v412 SA: its satin body, sheen and pearl centre stripe are the GPU satin strip, gSatinEL, laid over this)
       for (let k = 0; k < 3; k++) { const v = (t * 1.7 + k / 3 + s.sd) % 1; if (v > vTop * 0.95) continue; const p = C0[Math.min(NS, Math.round(v / vTop * NS))]; Q.glow(p[0], p[1], T * 0.22, PEARL, 0.75 * A * Math.sin(v * Math.PI)); }
       if (tier >= 2 && rise > 0.5) { const k0 = Math.round(NS * 0.5), nf = tier === 3 ? 3 : 2;
         for (let j = 0; j < nf; j++) { const sg = j === 2 ? 0 : j ? 1 : -1, pts = [];
