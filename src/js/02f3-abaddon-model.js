@@ -83,7 +83,7 @@ const ABADDON_GL = (() => {
 
   /* the parts. Model units: x right, y toward the viewer, z up; the floor at z 0 (it floats: its lowest points near 0.5) */
   const HEART = [0, 0.8, 5.62], HEAD = [0, 0.18, 8.5], HALO = [0, -0.4, 11.3], HEARTS = 1.3, SHO = [1.05, -0.12, 7.32], PELV = [0, 0, 4.25], SHELLC = [0, 0.05, 6.1];
-  const ELB = 1.35, FORE0 = 1.0, FORE1 = 2.3;   // the upper arm's length; the forearm telescoping from FORE0 to FORE1
+  const ELB = 1.35, FORE0 = 1.0, FORE1 = 2.3, UPX = [0, 0.5025, 0.8925];   // (v420 AP: UPX the upper arm's joints)   // the upper arm's length; the forearm telescoping from FORE0 to FORE1
   const RINGS = [   // ordered: concentric crowns behind / above the head sharing one gentle tilt, small collars along the spire, a nimbus behind.
     // R, tube, style (0 gold runes, 1 segmented, 2 double rail, 3 light, 4 toothed, 5 platinum with spikes), centre offset from HALO, tilt (x, y), spin, precession
     { R: 1.3, r: 0.075, s: 0, c: [0, -0.15, 0.0], tx: 0.08, ty: 0, sp: 0.3, pr: 0.02 },        // the crown
@@ -205,11 +205,13 @@ const ABADDON_GL = (() => {
     })); yield;
     /* the arms: a chain of interlocked titanium segments with gilded collars (upper arm, about the shoulder joint along +x), and the
        forearm's three nested telescoping sleeves; the claw's mount */
-    M.upper = mk(B => {
-      for (let i = 0; i < 9; i++) { const x0 = 0.12 + i * 0.13, r = 0.27 - i * 0.008 + (i % 2) * 0.035; B.tube([x0, 0, 0], [x0 + 0.115, 0, 0], r, r * 0.94, MT.TI + (i % 2 ? 0.1 : 0), { seg: 16, cap0: 'flat', cap1: 'flat', edge: 0.4 }); if (i % 2) B.torX([x0 + 0.06, 0, 0], r * 1.0, 0.03, i % 4 === 1 ? MT.GD : MT.PT, { seg: 18, rseg: 4 }); }
-      B.tube([0.15, 0.0, 0.3], [ELB - 0.1, 0.0, 0.24], 0.055, 0.045, MT.PT, { seg: 6 }); B.tube([0.15, 0.0, -0.3], [ELB - 0.1, 0.0, -0.24], 0.055, 0.045, MT.PT, { seg: 6 });   // the pistons
-      B.sph([0, 0, 0], 0.34, MT.TI, 14); B.sph([ELB, 0, 0], 0.29, MT.GD, 12); B.torZ([ELB, 0, 0], 0.31, 0.04, MT.PT, { seg: 18, rseg: 4 });
-    });
+    // (v420 AP: the upper arm in three groups of three segments, each about its own joint (UPX), so the chain flexes in a wave)
+    M.upper = [0, 1, 2].map(g => mk(B => { const ox = UPX[g];
+      for (let i = g * 3; i < g * 3 + 3; i++) { const x0 = 0.12 + i * 0.13 - ox, r = 0.27 - i * 0.008 + (i % 2) * 0.035; B.tube([x0, 0, 0], [x0 + 0.115, 0, 0], r, r * 0.94, MT.TI + (i % 2 ? 0.1 : 0), { seg: 16, cap0: 'flat', cap1: 'flat', edge: 0.4 }); if (i % 2) B.torX([x0 + 0.06, 0, 0], r * 1.0, 0.03, i % 4 === 1 ? MT.GD : MT.PT, { seg: 18, rseg: 4 }); }
+      const x1 = (g === 2 ? ELB - 0.1 : UPX[g + 1]) - ox; for (const sz of [1, -1]) B.tube([0.05, 0.0, sz * (0.3 - g * 0.02)], [x1 - 0.03, 0.0, sz * (0.28 - g * 0.02)], 0.055, 0.045, MT.PT, { seg: 6 });   // the pistons
+      if (g === 0) B.sph([0, 0, 0], 0.34, MT.TI, 14); else { B.sph([0, 0, 0], 0.235, MT.TI, 12); B.torX([0, 0, 0], 0.25, 0.028, MT.GD, { seg: 16, rseg: 4 }); }
+      if (g === 2) { B.sph([ELB - ox, 0, 0], 0.29, MT.GD, 12); B.torZ([ELB - ox, 0, 0], 0.31, 0.04, MT.PT, { seg: 18, rseg: 4 }); }
+    }));
     M.sleeve = [0, 1, 2].map(i => mk(B => { const r = 0.25 - i * 0.035, L = 1.0; B.tube([0, 0, 0], [L, 0, 0], r, r * 0.92, MT.TI + (i === 1 ? 0.1 : 0), { seg: 14, cap0: 'flat', cap1: 'flat', edge: 0.4 }); B.torX([L - 0.04, 0, 0], r * 0.98, 0.032, MT.GD, { seg: 16, rseg: 4 }); B.torX([0.06, 0, 0], r * 0.95, 0.022, MT.PT, { seg: 16, rseg: 4 });
       for (let j = 0; j < 3; j++) { const a = j / 3 * TAU + i; B.tube([0.15, Math.cos(a) * r * 0.85, Math.sin(a) * r * 0.85], [L - 0.15, Math.cos(a) * r * 0.85, Math.sin(a) * r * 0.85], 0.022, 0.022, MT.CH + 0.1, { seg: 4, cap0: false, cap1: false }); } for (let j = 1; j < 4; j++) B.torX([j * 0.25, 0, 0], r * 1.01, 0.022, MT.PT, { seg: 16, rseg: 3 }); }));
     M.wrist = mk(B => { B.sph([0, 0, 0], 0.32, MT.TI, 14); B.torY([0, 0, 0], 0.37, 0.07, MT.GD, { seg: 24, rseg: 5 }); B.torX([0, 0, 0], 0.34, 0.045, MT.PT, { seg: 20, rseg: 4 }); B.ell([0, 0.26, 0], [0.11, 0.07, 0.11], MT.CH, { seg: 8, rings: 5 }); }); yield;
@@ -302,6 +304,39 @@ const ABADDON_GL = (() => {
       arm: [{ swing: 0.06 * Math.sin(t * 0.9), raise: 0.04 * Math.sin(t * 1.1 + 1), ext: 0.2 + 0.06 * Math.sin(t * 0.7), claw: 0.05 * Math.sin(t * 1.4) }, { swing: 0.06 * Math.sin(t * 0.9 + 2), raise: 0.04 * Math.sin(t * 1.1 + 2.5), ext: 0.2 + 0.06 * Math.sin(t * 0.7 + 1), claw: 0.05 * Math.sin(t * 1.4 + 1.3) }],
       heart: 0.75 + 0.15 * Math.sin(t * 2.2), dark: 0, heartOut: 0, heartPos: null, ringK: 1, align: 0, alignAt: null, eye: 0.85 + 0.15 * Math.sin(t * 3.1), look: [0, 0], stagger: 0, hide: null, glow: 0 };
   }
+  /* (v420 AP) its life: the layered secondary motion laid over any pose every frame (the menus, the fight, The Ninth Tide, the
+     boss), so it never holds still: each arm's three segment groups and three forearm sleeves flexing in a wave running down the
+     chain, the claws reaching, opening and closing and their finger blades pinching, all on their own incommensurate rhythms;
+     the crescent blades and shoulder plates breathing and swaying; the tendrils curling with lag; a slow hover bob and drift
+     with banking into the drift; the mask looking about; and every few seconds a flourish (a claw stretch on one side or the
+     other, a flare of every blade, a turn of the halo with a lift of the head), each with its anticipation and its settle.
+     P.live (0..1, default 1) scales all of it: a power's pose turns it down so the strike reads. Pure: also drives the cel model */
+  const FLP = 4.6;   // (a flourish every FLP s: claw stretch R, blade flare, claw stretch L, halo turn)
+  function life(P) {
+    const t = (P && P.t) || 0, lv = P && P.live != null ? cl(P.live) : 1, s1 = Math.sin;
+    const n = Math.floor((t + 2.1) / FLP), ft = t + 2.1 - n * FLP, typ = ((n % 4) + 4) % 4;
+    // a flourish's shape: a small counter-move first (anticipation), the gesture, then a damped settle (follow-through)
+    const pre = ft < 0.4 ? s1(Math.PI * ft / 0.4) : 0, main = sstep(0.3, 0.8, ft) * (1 - sstep(1.15, 1.85, ft)), set = ft > 1.5 && ft < 3 ? Math.exp(-(ft - 1.5) * 3.2) * s1((ft - 1.5) * 8) : 0;
+    const L = { arm: [], sleeve: [[], []], up: [[], []], wing: [0, 0], flare: 0, sho: 0, bob: 0, dx: 0, bank: 0, pitch: 0, look: [0, 0], tenSway: 1, tenCurl: 0, ringPh: 0, heart: 0, edge: 0, typ, fl: main };
+    for (let i = 0; i < 2; i++) { const f = i ? 2.3 : 0, st = (typ === 0 && i === 0) || (typ === 2 && i === 1) ? 1 : 0, fx = typ === 1 ? 1 : 0;
+      L.arm.push({
+        swing: (0.15 * s1(t * 0.73 + f) + 0.06 * s1(t * 1.71 + f * 1.3)) * lv + st * (0.15 * pre - 0.3 * main + 0.1 * set) - fx * 0.12 * main,
+        raise: (0.14 * s1(t * 0.61 + f + 0.7) + 0.05 * s1(t * 1.37 + f)) * lv + st * (-0.1 * pre + 0.24 * main - 0.08 * set) + fx * 0.12 * main,
+        ext: (0.26 * (0.5 + 0.5 * s1(t * 0.53 + f * 0.8)) + 0.06 * s1(t * 1.9 + f)) * lv + st * (-0.1 * pre + 0.45 * main + 0.08 * set),
+        claw: (0.2 * s1(t * 0.97 + f + 1.1) + 0.06 * s1(t * 2.3 + f)) * lv + st * (-0.1 * pre + 0.22 * main - 0.08 * set) - fx * 0.15 * main,
+        bend: (0.14 * s1(t * 0.81 + f + 0.4)) * lv + st * (0.2 * pre - 0.3 * main),
+        pinch: (0.3 * s1(t * 1.13 + f * 1.7) + 0.1 * s1(t * 2.9 + f)) * lv + st * (-0.25 * pre + 0.6 * main - 0.2 * set) + fx * 0.3 * main });
+      for (let j = 0; j < 3; j++) { L.up[i].push((0.075 * s1(t * 1.05 - j * 0.75 + f) + 0.03 * s1(t * 2.2 - j * 1.1 + f)) * lv + st * 0.06 * (main - pre) * (j + 1) / 3);
+        L.sleeve[i].push((0.09 * s1(t * 1.21 - j * 0.65 + f + 1) + 0.03 * s1(t * 2.6 - j * 0.9)) * lv - st * 0.08 * main); } }
+    L.wing = [(0.1 * s1(t * 0.83) + 0.04 * s1(t * 1.9 + 1)) * lv, (0.1 * s1(t * 0.79 + 2.2) + 0.04 * s1(t * 1.7 + 3)) * lv]; L.flare = (typ === 1 ? 0.42 * main - 0.1 * pre + 0.12 * set : 0.06 * main) * lv;
+    L.sho = (0.06 * s1(t * 0.71 + 0.5)) * lv + (typ === 1 ? 0.25 * main + 0.08 * set : 0) * lv;
+    L.edge = (typ === 1 ? 0.9 * main : st0(typ) * 0.5 * main) * lv;
+    L.bob = (0.42 * s1(t * 0.92) + 0.1 * s1(t * 2.05 + 0.6)) * lv; L.dx = 0.34 * s1(t * 0.47) * lv; L.bank = (0.06 * Math.cos(t * 0.47) + 0.02 * s1(t * 1.3)) * lv; L.pitch = (0.03 * s1(t * 0.66 + 1) - (typ === 3 ? 0.05 * main : 0)) * lv;
+    L.look = [(0.16 * s1(t * 0.37) + 0.06 * s1(t * 1.1) + (typ === 0 ? 0.2 : typ === 2 ? -0.2 : 0) * main) * lv, (0.1 * s1(t * 0.53 + 2) + (typ === 3 ? 0.35 * main : 0)) * lv];
+    L.tenSway = 1 + 0.9 * lv; L.tenCurl = 0.1 * lv; L.ringPh = 1.6 * (Math.floor(Math.max(0, n) / 4) + (typ === 3 ? sstep(0.3, 1.8, ft) : 0));   // (summed over the flourishes so far: it never jumps back) L.heart = (typ === 3 ? 0.35 * main : 0.1 * main) * lv;
+    return L;
+  }
+  const st0 = typ => (typ === 0 || typ === 2 ? 1 : 0);
   /* tendril springs kept on the instance: each tendril swings with inertia from the body's acceleration */
   function springs(inst, n, ax, ay, dt) {
     let S = inst.abTS; if (!S || S.length !== n * 4) S = inst.abTS = new Float32Array(n * 4);
@@ -329,9 +364,10 @@ const ABADDON_GL = (() => {
     const d = data(); if (!d.ready || NOGL) return null;
     try {
       const P = o.P || idlePose(o.k || 3, o.t || 0), k = P.k || o.k || 3, t = P.t || 0, s = o.scale || 1, sw = WS * s, K = o.K, kk = K / WS, X0 = o.X, Y0 = o.Y, M = D.M;
-      const yawR = rz((P.yaw || 0)), Rroot = mm([1, 0, 0, 0, 1, 0, 0, 0, 1.18], mm(yawR, mm(axisR([0, 1, 0], P.bank || 0), rx(P.pitch || 0))));   // (stood 18% taller: the camera looks down on it)
-      const lift = (P.bob || 0) + (P.lift || 0), ROOTO = [0, 0, 4.6];   // (it banks and leans about its middle)
-      const W3 = p => { const q = add(mv(Rroot, sub(p, ROOTO)), ROOTO); return [q[0] * sw, q[1] * sw, (q[2] + lift) * sw]; };
+      const LF = life(P);   // (v420 AP: its life, laid over the pose)
+      const yawR = rz((P.yaw || 0)), Rroot = mm([1, 0, 0, 0, 1, 0, 0, 0, 1.18], mm(yawR, mm(axisR([0, 1, 0], (P.bank || 0) + LF.bank), rx((P.pitch || 0) + LF.pitch))));   // (stood 18% taller: the camera looks down on it)
+      const lift = (P.bob || 0) + (P.lift || 0) + LF.bob, ROOTO = [0, 0, 4.6], drx = LF.dx;   // (it banks and leans about its middle; v420 AP: it bobs and drifts as it hovers)
+      const W3 = p => { const q = add(mv(Rroot, sub(p, ROOTO)), ROOTO); return [(q[0] + drx) * sw, q[1] * sw, (q[2] + lift) * sw]; };
       const SX = w => X0 + w[0] * kk, SY = w => Y0 + (w[1] * SE - w[2] * CE) * kk;
       const scr = p => { const w = W3(p); return [SX(w), SY(w)]; };
       ITEMS.length = 0; TRANS.length = 0; NP = 0; let bx0 = 1e9, by0 = 1e9, bx1 = -1e9, by1 = -1e9;
@@ -352,12 +388,12 @@ const ABADDON_GL = (() => {
       if (k >= 2) put(M.gear, axisR([0, 1, 0], t * 0.3 * (P.ringK || 1)), [0, -0.72, 6.75], 0.75 + 0.25 * (k - 2), glow, false);   // (the back's mechanism turns slowly)
       put(M.neck, I3, [0, 0, 0], 1, glow);
       /* the head: it looks about and nods; the stagger throws it back */
-      const look = P.look || [0, 0], Rh = mm(rz(look[0] * 0.5), rx(-(look[1] || 0) * 0.3 - (P.stagger || 0) * 0.35));
+      const look = [((P.look && P.look[0]) || 0) + LF.look[0], ((P.look && P.look[1]) || 0) + LF.look[1]], Rh = mm(rz(look[0] * 0.5), rx(-(look[1] || 0) * 0.3 - (P.stagger || 0) * 0.35));
       put(M.head, Rh, HEAD, 1.42, glow, false, { glow2: P.eye == null ? 1 : P.eye });
       const eyeP = add(HEAD, mv(Rh, [0, 1.05, 0.25])), headTop = add(HEAD, mv(Rh, [0, 0, 2.7]));
       /* the Lunar Heart */
       const hp = P.heartPos ? lerp3(HEART, P.heartPos, sstep(0, 1, P.heartOut || 0)) : HEART, hs = HEARTS * (1 + (P.heartGrow || 0)), hsp = t * 0.35;
-      put(M.moon, rz(hsp), hp, hs * 1.12, (P.heart || 0) + 0.3, false, { glow2: P.dark || 0, kind: 1, noInk: true });
+      put(M.moon, rz(hsp), hp, hs * 1.12, (P.heart || 0) + LF.heart + 0.3, false, { glow2: P.dark || 0, kind: 1, noInk: true });
       put(M.water, mm(rz(-t * 0.6), rx(0.3)), hp, hs, P.heart || 0, false, { alpha: 0.99, glow2: P.dark || 0, noInk: true });
       put(M.glass, I3, hp, hs, P.heart || 0, false, { alpha: 0.99, glow2: P.dark || 0, noInk: true });
       if (!(P.heartOut > 0.5)) put(M.frame, I3, HEART, HEARTS, glow);
@@ -366,7 +402,7 @@ const ABADDON_GL = (() => {
       /* the halo: each ring on its own axis, turning at its own speed, its axis precessing; align gathers them into one
          concentric glyph facing the viewer about alignAt */
       const nr = Math.min(RINGS.length, (NRING[k] || 4) - (low && k === 3 ? 2 : 0)), al = sstep(0, 1, P.align || 0), rk = P.ringK || 1, hc0 = add(HALO, [0, 0, 0]), hc1 = P.alignAt || hp;
-      for (let i = 0; i < nr; i++) { const R0 = RINGS[i], ph = t * R0.sp * rk * (1 + al * 2.5) + i * 1.7 + (P.ringPh || 0) * (i % 2 ? 1 : -1), pr = Math.sin(t * 0.5 + i) * R0.pr * 6;
+      for (let i = 0; i < nr; i++) { const R0 = RINGS[i], ph = t * R0.sp * rk * (1 + al * 2.5) + i * 1.7 + ((P.ringPh || 0) + LF.ringPh * (0.4 + (i % 3) * 0.3)) * (i % 2 ? 1 : -1), pr = Math.sin(t * 0.5 + i) * R0.pr * 6;
         const tx = lerp(R0.tx + pr * 0.2, Math.PI / 2, al), ty = lerp(R0.ty + pr * 0.1, 0, al), Rt = mm(mm(ry(ty), rx(tx)), rz(ph));
         const cen = lerp3(add(hc0, R0.c), hc1, al), sc = lerp(1, 0.45 + i * 0.16, al);
         put(M.rings[i], Rt, cen, sc, glow + (P.ringGlow || 0), false, { alpha: R0.s === 3 ? 0.99 : 1, noInk: true, kind: i });
@@ -376,30 +412,36 @@ const ABADDON_GL = (() => {
       const fold = cl(P.fold || 0), spread = P.spread || 0;
       for (const mir of [false, true]) {
         const ns = NSHO[k] || 1;
-        for (let i = ns - 1; i >= 0; i--) { const a = 0.06 * Math.sin(t * 0.8 + i + (mir ? 1.3 : 0)) - fold * (0.5 + i * 0.15) + spread * 0.25 * (1 + i * 0.2) - (1 - unf) * 0.5, R = mm(axisR([0, 1, 0.15], -a), rz(-fold * 0.3 + i * 0.08));
+        for (let i = ns - 1; i >= 0; i--) { const a = 0.06 * Math.sin(t * 0.8 + i + (mir ? 1.3 : 0)) + LF.sho * (1 + i * 0.3) * unf - fold * (0.5 + i * 0.15) + spread * 0.25 * (1 + i * 0.2) - (1 - unf) * 0.5, R = mm(axisR([0, 1, 0.15], -a), rz(-fold * 0.3 + i * 0.08));
           put(M.sho[i], R, add(SHO, [0, -i * 0.05, br * 6]), kS * (1 - 0.55 * sstep(0.3, 1, 1 - open)), glow, mir); }
         box(mirP([2.2, 0, 9.8], mir), 1.2);
       }
       /* the wings: hung from the back of each shoulder; spread lifts them out toward a ring, fold wraps them round the body */
       const nw = NWING[k] || 0;
       for (const mir of [false, true]) for (let i = nw - 1; i >= 0; i--) {
-        const sp = spread * (i ? 0.4 : 0.9), fl = fold, wv = 0.05 * Math.sin(t * 1.1 + i * 0.8 + (mir ? 2 : 0));
+        const sp = spread * (i ? 0.4 : 0.9) + LF.flare * (i ? 0.8 : 1), fl = fold, wv = 0.05 * Math.sin(t * 1.1 + i * 0.8 + (mir ? 2 : 0)) + LF.wing[mir ? 1 : 0] * (i ? 1.4 : 1);
         const R = mm(rz(-fl * 0.6 + sp * 0.15), axisR([0, 1, 0], (wv - (i ? 0.1 : 0.32) - sp * 0.7 + fl * 0.5) * unf + (1 - unf) * 0.8));   // (the inner crescents fanned out, apart from the outer)
         put(M.wing[i], R, i ? [0.62, 0.12, 4.55] : [0.95, -0.42, 7.0], kS * (0.25 + 0.75 * unf), glow, mir);
       }
       /* the arms and claws: swing (forward about z), raise (about the arm's forward axis), telescoping forearm, claw opening */
       const out = { eyes: [], clawL: null, clawR: null, wingTips: [], tenTips: [] };
       for (const mir of [false, true]) {
-        const A = (P.arm && P.arm[mir ? 1 : 0]) || {}, sideK = (1 - unf) * 0.55 + fold * 0.7;
+        const A0 = (P.arm && P.arm[mir ? 1 : 0]) || {}, sideK = (1 - unf) * 0.55 + fold * 0.7;
         if (hide.arms) continue;
-        const Ra = rz((A.swing || 0) + sideK * 0.25), Rr = mm(Ra, axisR([0, 1, 0], -(A.raise || 0) + 0.3 + sideK * 0.95));   // (the arms angle down and out to the claws)
-        const so = add(SHO, [0, 0, br * 6]); put(M.upper, Rr, so, kS, glow, mir);
-        const elb = add(so, mv(Rr, [ELB * kS, 0, 0])), Rf = mm(Rr, axisR([0, 1, 0], 0.22 - (A.bend || 0))), fl = (FORE0 + (FORE1 - FORE0) * cl(A.ext == null ? 0.2 : A.ext)) * kS;
-        // the three sleeves: each slides out over the last
-        for (let j = 0; j < 3; j++) { const off = fl * (j / 3) * 0.96, Ls = (fl / 3 + 0.12) / kS; put(M.sleeve[j], mm(Rf, [Ls, 0, 0, 0, 1, 0, 0, 0, 1]), add(elb, mv(Rf, [off, 0, 0])), kS, glow, mir); }
-        const wr = add(elb, mv(Rf, [fl + 0.05, 0, 0])); put(M.wrist, Rf, wr, kS, glow, mir);
-        const Rc = mm(Rf, axisR([0, 1, 0], -0.5 + (A.claw || 0) + fold * 0.6 + (1 - unf) * 0.35)), csz = kS * (A.clawS || 1);
-        if (!(A.clawHide)) { put(M.claw, Rc, wr, csz, glow + (A.edge || 0), mir, { glow2: A.edge || 0 }); if (k >= 3) put(M.blade, mm(Rc, mm(rx(Math.PI / 2), rz(-1.1))), add(wr, mv(Rc, [0.35, 0.12, -0.6])), csz * 0.55, glow, mir); }
+        // (v420 AP: its life on the arm, damped while it is folded into its shell)
+        const sd = mir ? 1 : 0, la = LF.arm[sd], lk = unf * (1 - fold * 0.8), A = { swing: (A0.swing || 0) + la.swing * lk, raise: (A0.raise || 0) + la.raise * lk, ext: cl((A0.ext == null ? 0.2 : A0.ext) + la.ext * lk), claw: (A0.claw || 0) + la.claw * lk, bend: (A0.bend || 0) + la.bend * lk, edge: (A0.edge || 0) + LF.edge * 0.4, clawS: A0.clawS, clawHide: A0.clawHide, pinch: (A0.pinch || 0) + la.pinch * lk };
+        const Ra = rz((A.swing || 0) + sideK * 0.25), Rr = mm(Ra, axisR([0, 1, 0], -(A.raise || 0) - LF.up[sd][0] * lk + 0.3 + sideK * 0.95));   // (the arms angle down and out to the claws)
+        const so = add(SHO, [0, 0, br * 6]); let Ru = Rr, pu = so;
+        for (let g2 = 0; g2 < 3; g2++) { if (g2) { pu = add(pu, mv(Ru, [(UPX[g2] - UPX[g2 - 1]) * kS, 0, 0])); const fx = LF.up[sd][g2] * lk; Ru = mm(Ru, mm(axisR([0, 1, 0], fx), rz(fx * 0.55))); } put(M.upper[g2], Ru, pu, kS, glow, mir); }
+        const elb = add(pu, mv(Ru, [(ELB - UPX[2]) * kS, 0, 0])), Rf = mm(Ru, axisR([0, 1, 0], 0.22 - (A.bend || 0))), fl = (FORE0 + (FORE1 - FORE0) * cl(A.ext == null ? 0.2 : A.ext)) * kS;
+        // the three sleeves: each slides out over the last (v420 AP: each turned a little on the last: the forearm curls and flexes)
+        let Rs = Rf, ps = elb; const sl = LF.sleeve[sd];
+        for (let j = 0; j < 3; j++) { if (j) ps = add(ps, mv(Rs, [fl / 3 * 0.96, 0, 0])); const fx = sl[j] * lk; Rs = mm(Rs, mm(axisR([0, 1, 0], fx), rz(fx * 0.6))); const Ls = (fl / 3 + 0.12) / kS; put(M.sleeve[j], mm(Rs, [Ls, 0, 0, 0, 1, 0, 0, 0, 1]), ps, kS, glow, mir); }
+        const wr = add(ps, mv(Rs, [fl * (1 - 0.64) + 0.05, 0, 0])); put(M.wrist, Rs, wr, kS, glow, mir);
+        const Rc = mm(Rs, axisR([0, 1, 0], -0.5 + (A.claw || 0) + fold * 0.6 + (1 - unf) * 0.35)), csz = kS * (A.clawS || 1);
+        if (!(A.clawHide)) { put(M.claw, Rc, wr, csz, glow + (A.edge || 0), mir, { glow2: A.edge || 0 });
+          if (k >= 3) { const Rb0 = mm(Rc, mm(rx(Math.PI / 2), rz(-1.1))), Rb = mm(Rc, mm(rx(Math.PI / 2), rz(-1.1 + (A.pinch || 0)))), piv = [-1.1 * csz * 0.55, 0, 0];   // (the finger blade opens and closes about its root: a pincer)
+            put(M.blade, Rb, add(add(wr, mv(Rc, [0.35, 0.12, -0.6])), sub(mv(Rb0, piv), mv(Rb, piv))), csz * 0.55, glow, mir); } }
         const tipM = add(wr, mv(Rc, mul(CLAWC[0], csz))), hookM = add(wr, mv(Rc, mul(CLAWC[3], csz)));
         const edge = []; for (let j = 0; j <= 8; j++) { const u = 0.04 + j / 8 * 0.9; edge.push(scr(mirP(add(wr, mv(Rc, mul(clawArc(u), csz))), mir))); }
         const cw = { base: scr(mirP(wr, mir)), tip: scr(mirP(tipM, mir)), hook: scr(mirP(hookM, mir)), edge, elbow: scr(mirP(elb, mir)) };
@@ -411,8 +453,8 @@ const ABADDON_GL = (() => {
       for (let i = 0; i < ntn; i++) { const T0 = TEN[i], dir = [Math.cos(T0.a), Math.sin(T0.a), 0], Ls = T0.L * 1.3 * (k === 1 ? 0.7 : k === 2 ? 0.85 : 1) / segN, side = norm(cross([0, 0, 1], dir));
         let p = add(PELV, mul(dir, 0.72)); p[2] -= 0.05; let R = I3;
         const sx = S2 ? S2[i * 4] : 0, sy = S2 ? S2[i * 4 + 2] : 0;
-        for (let j = 0; j < segN; j++) { const u = j / (segN - 1), sway = 0.07 * Math.sin(t * 1.3 - j * 0.55 + i * 1.7) + (P.tenK || 0) * 0.1 * Math.sin(t * 7 + j + i),
-            bend = (j === 0 ? T0.lean : 0) + (u < 0.5 ? 0.05 : -T0.curl * 0.32) * (1 - fold * 0.5) + fold * 0.12 + (P.tenUp || 0) * (j === 0 ? -1.2 : 0.1);
+        for (let j = 0; j < segN; j++) { const u = j / (segN - 1), sway = 0.07 * LF.tenSway * Math.sin(t * 1.3 - j * 0.55 + i * 1.7) + (P.tenK || 0) * 0.1 * Math.sin(t * 7 + j + i),
+            bend = (j === 0 ? T0.lean : 0) + LF.tenCurl * Math.sin(t * 1.07 - j * 0.8 + i * 1.3) * (0.5 + u) + (u < 0.5 ? 0.05 : -T0.curl * 0.32) * (1 - fold * 0.5) + fold * 0.12 + (P.tenUp || 0) * (j === 0 ? -1.2 : 0.1);
           R = mm(R, mm(axisR(side, -bend), axisR(dir, sway + sx * (0.3 + u * 0.4)))); R = mm(R, axisR([1, 0, 0], sy * 0.25 * (j === 0 ? 1 : 0.3)));
           const sc = Ls * (1 - u * 0.35), Rseg = mm(R, rz(T0.a - Math.PI / 2));
           put(j === segN - 1 ? M.tip : M.seg, Rseg, p, j === segN - 1 ? sc * 1.1 : sc, glow, false);
@@ -454,7 +496,16 @@ const ABADDON_GL = (() => {
     const K = size / (k === 1 ? 8.6 : k === 2 ? 10.4 : 11.6);   // (px a model unit: each form fills about `size`)
     const r = draw(c, { X: x, Y: y, K, P, k: P.k || k, alpha: o.alpha == null ? 1 : o.alpha, inst: o.inst });
     if (o.out) o.out.r = r; if (o.inst && ip) o.inst.abOut = { r };
+    if (r && !ip && !o.abP && o.light !== false && size >= 60) heartLight(c, r, P, o.alpha == null ? 1 : o.alpha);   // (v420 AP: the Heart's glow in the menus too; in a fight 20g2's bodyLight lays it)
     return !!r;
+  }
+  /* (v420 AP) the Lunar Heart's light on the shared GPU painter (FGFX kind 132: core, limb, water-light, feathered bloom, pulse),
+     for a still or a menu portrait; nothing when the painter is not there */
+  function heartLight(c, r, P, al) {
+    try { const N = typeof self !== 'undefined' && self.NIDHOGG_MOVES, F = N && N.FGFX; if (!F || !F.usable()) return false;
+      const hb = Math.min(3, P.heart || 0.8), ch = cl((hb - 0.95) / 1.6), t = P.t || 0, pl = 0.5 + 0.5 * Math.sin(t * 2.2), hR = Math.min(r.heartR, r.unit * 1.7), Rq = hR * 3.4, dk = cl(P.dark || 0);
+      F.flush(c); const Q = F.begin(c, null); Q.glow(r.heart[0], r.heart[1], hR * 4.2, '#6FA2FF', (0.16 + 0.14 * ch + 0.05 * pl) * al * (1 - dk * 0.6)); Q.quad(132, r.heart[0], r.heart[1], Rq, 0, 0, Rq, '#6FA2FF', al * (1 - dk * 0.85), hR / Rq * 0.92, pl, 0.72 + 0.3 * ch);
+      F.flush(c); F.begin(c, null); return true; } catch (e) { return false; }
   }
   /* parts drawn on their own in screen space (one GLM pass): the Crescent Reavers' blades ({ x, y, rot, tilt, s px, a, b }) and the
      Ninth Tide's sea ({ m: 'helix' | 'canopy' | 'orb', X, Y (its foot / centre), r px, h px, ph, a }). World units are px / 100;
@@ -485,6 +536,6 @@ const ABADDON_GL = (() => {
       else if (e.m === 'canopy') { const r = e.r; put(M.canopy, [[r, 0, 0], [0, r * 0.5, r * 0.4], [0, r * 0.55, 0]], [e.X, e.Y, -40], e.a, 0.6, 0, 3); box(e.X, e.Y, r + 4); }
       else { const r = e.r; put(M.orb, [[r, 0, 0], [0, 0, r], [0, -r, 0]], [e.X, e.Y, 60], e.a, 1.2, 0, 5); box(e.X, e.Y, r + 4); } }); }
   if (typeof window !== 'undefined') setTimeout(() => { try { warm(); } catch (e) {} }, 1200);   // (prepared at load, in idle time)
-  return { usable, warm, ensure, step, draw, drawAnima, idlePose, springs, drawParts, drawSea, profile, RES, ready: () => !!(D && D.ready), get up() { return !!(D && D.up); }, STATS, RINGS, MT, WS, get nv() { return D ? D.nv : 0; }, get off() { return NOGL; } };
+  return { usable, warm, ensure, step, draw, drawAnima, idlePose, life /* v420 AP */, heartLight /* v420 AP */, springs, drawParts, drawSea, profile, RES, ready: () => !!(D && D.ready), get up() { return !!(D && D.up); }, STATS, RINGS, MT, WS, get nv() { return D ? D.nv : 0; }, get off() { return NOGL; } };
 })();
 if (typeof self !== 'undefined') self.ABADDON_GL = ABADDON_GL;

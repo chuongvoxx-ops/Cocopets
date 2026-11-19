@@ -1,7 +1,9 @@
 // (v418 AB) Abaddon in a fight: summons the Cancer Anima, casts each power, the Ninth Tide, checks the combat effects, and
 // photographs set moments on the GPU path (GLM + FGFX forced on the software rasteriser). The game loop is stopped and stepped
 // by hand at 60 Hz (a software GPU frame takes seconds), each photo is one drawn frame.
-// usage: HTML=test-ab.html node tests/_ab-battle.js [form 1|2|3] [shots 1|0] [dpr] [steps: summon,reavers,tide,eclipse,swipe,t9,auto]
+// usage: HTML=test-ab.html node tests/_ab-battle.js [form 1|2|3] [shots 1|0] [dpr] [steps: summon,reavers,tide,eclipse,swipe,t9,auto,idle,t9f]
+//   (v420 AP) OUT=shots/v420-AP (where the photos go; default shots/v418-AB); idle: a strip of 10 frames over 4.5 s with no power;
+//   t9f: The Ninth Tide frame by frame (every T9DT s, default 0.1); TAG=name (the photos' prefix)
 const { chromium } = require('/opt/npm-tools/node_modules/playwright');
 const path = require('path');
 (async () => {
@@ -32,12 +34,12 @@ const path = require('path');
     return { summon: AN.summon(), hp: D.ST.hp, place: !!best };
   }, { K });
   console.log('setup', JSON.stringify(setup)); if (!setup || !setup.summon) { console.log(errors); await browser.close(); return; }
-  const out = [], tag = `ab-k${K}-d${DPR}`;
+  const out = [], tag = process.env.TAG || `ab-k${K}-d${DPR}`, OUTD = process.env.OUT || 'shots/v418-AB';
   const state = () => page.evaluate(() => { const { D } = window.__AB, AN = D.AN, a = AN.S.list[0], AB = AN.ab, ms = D.mons.filter(m => !m.boss && !m.dead).slice(0, 8);
     return { list: AN.S.list.map(b => b.id + ':' + b.st).join(','), st: a && a.st, life: a && +a.life.toFixed(2), act: a && a.ab && a.ab.act && a.ab.act.kind, store: a && a.ab && Math.round(a.ab.store), sh: AB.shield && { pool: Math.round(AB.shield.pool), max: Math.round(AB.shield.max), src: AB.shield.src }, seal: !!AB.seal, t9: AB.t9 && +AB.t9.t.toFixed(2),
       dmg: Math.round(ms.reduce((s, m) => s + (1e7 - Math.max(0, m.hp)), 0)), lifted: ms.filter(m => m.liftZ > 0.2).length, weak: ms.filter(m => m.lunarT > D.g.t).length, zoom: +D.g.zoom.toFixed(2), cineT: +(D.g.cineT || 0).toFixed(2), fx: AB.fx.length, pet: Math.round(D.me.hp) }; });
   const draw = async (name) => { if (!SHOTS) return null; const r = await page.evaluate(() => { const { G, P } = window.__AB; window.__NG_GL = 1; window.__AB_GL = 1; const t0 = performance.now(); G.draw(P.arc.ctx || document.getElementById('arcCanvas').getContext('2d')); window.__NG_GL = 0; window.__AB_GL = 0; const S = window.ABADDON_GL.STATS; return { ms: Math.round(performance.now() - t0), W: S.W, H: S.H, items: S.items }; });
-    const f = `shots/v418-AB/${tag}-${name}.png`; await page.screenshot({ path: path.resolve(__dirname, '..', f) }); out.push(f); return r; };
+    const f = `${OUTD}/${tag}-${name}.png`; await page.screenshot({ path: path.resolve(__dirname, '..', f) }); out.push(f); return r; };
   const beat = async (name, sec) => { await page.evaluate(s => window.__AB.step(s), sec); const d = await draw(name); const s = await state(); console.log(name, JSON.stringify(s), d ? JSON.stringify(d) : ''); return s; };
   const want = n => !ONLY || ONLY.includes(n);
   const cast = (k) => page.evaluate(k => { const { D } = window.__AB, a = D.AN.S.list[0]; a.ab.first = true; a.life = Math.max(a.life, 9); return D.AN.ab.cast(a, k); }, k);
@@ -54,6 +56,13 @@ const path = require('path');
     console.log('eclipse-absorb', JSON.stringify(ecl)); await beat('7-eclipse-hold', 0.6); await beat('7-eclipse-open', 0.35); await beat('7-eclipse-wave', 0.3); }
   if (want('swipe')) { await cast('swipe'); await beat('8-swipe', 0.28); }
   if (want('auto')) { await page.evaluate(() => { const { D } = window.__AB, a = D.AN.S.list[0]; a.life = 12; a.ab.eclDone = false; for (const k in a.ab.cd) a.ab.cd[k] = 0; }); for (let i = 0; i < 6; i++) await beat('auto-' + i, 1.5); }
+  if (want('idle')) { await page.evaluate(() => { const { D } = window.__AB, a = D.AN.S.list[0]; a.life = 30; a.ab.first = true; a.ab.eclDone = true; if (a.ab.act) a.ab.act.t = 99; for (const k in a.ab.cd) a.ab.cd[k] = 99; window.__AB.step(0.6); for (const k in a.ab.cd) a.ab.cd[k] = 99; });
+    for (let i = 0; i < 10; i++) await beat('idle-' + String(i).padStart(2, '0'), i ? 0.45 : 0.05); }
+  if (want('t9f')) {
+    await page.evaluate(() => { const { D } = window.__AB; D.AN.S.list.forEach(a => { if (a.st === 'fight') a.life = 0.01; }); });
+    await page.evaluate(() => { const { D } = window.__AB; for (let k = 0; k < 400 && !D.AN.ab.t9; k++) window.__AB.step(1 / 60); });
+    const dt = +(process.env.T9DT || 0.1); for (let i = 0; i * dt < 5.75; i++) await beat('t9f-' + String(i).padStart(2, '0'), i ? dt : 0);
+  }
   if (want('t9')) {
     await page.evaluate(() => { const { D } = window.__AB; D.AN.S.list.forEach(a => { if (a.st === 'fight') a.life = 0.01; }); });
     await beat('9-awaken', 1.5);
@@ -61,7 +70,7 @@ const path = require('path');
   }
   const after = await page.evaluate(() => { const { D } = window.__AB, AN = D.AN; const lifted = D.mons.filter(m => m.liftZ > 0).length; AN.stop(); return { list: AN.S.list.length, lifted, liftedAfterStop: D.mons.filter(m => m.liftZ > 0).length, shield: !!AN.ab.shield, zoomP: D.g.zoomP, cineT: D.g.cineT }; });
   console.log('cleanup', JSON.stringify(after));
-  require('fs').writeFileSync(path.resolve(__dirname, `../shots/v418-AB/${tag}-list.json`), JSON.stringify(out));
+  require('fs').writeFileSync(path.resolve(__dirname, '..', `${OUTD}/${tag}-list.json`), JSON.stringify(out));
   console.log('errors', errors.length, JSON.stringify(errors.slice(0, 6)));
   await browser.close();
 })().catch(e => { console.error(e); process.exit(2); });

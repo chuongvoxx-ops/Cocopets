@@ -22,7 +22,20 @@
    kinds), the Reavers' blades and the Ninth Tide's sea as GLM meshes. Without the GPU painter the powers still act in full and
    are shown with the game's own particles. lowFx halves the particle counts and drops the costliest layers.
    Clean-up: stop() (the stage ends or the map closes), a dismissal (the Anima leaves), the pet's death or an interrupted
-   power each release the lifted monsters, the ward, the camera and every effect. */
+   power each release the lifted monsters, the ward, the camera and every effect.
+   (v420 AP) Shared with the boss fight (20o2-cancer-abaddon-boss.js), all pure (no game state touched):
+     inst.drawTide9(c, { x, y, t, seed, k: 3, alpha, strike, rel, len, r, groundOnly, skyOnly, at, size, hover, from, fromP, glowK, blastT })
+       The Ninth Tide's whole picture (the god, its sea, every light) at t s into it: x, y the god's floor point (tiles); strike /
+       rel / len its timings (default CFG.tide9; the picture is remapped onto them); r the sea's radius (tiles); groundOnly the
+       floor layer alone (under the entities), skyOnly the sky, the sea and the god alone (over them). at the body's clock (its
+       living motion), size its height (tiles), hover, from / fromP the summoned Anima's place and pose (glided from and back to).
+       glowK (default 1) multiplies all its additive light (glows, stars, beams, shells, the blast, the body's light); blastT (s,
+       default 0.35) how long the blast's white peak lasts before the scene reads again.
+       Returns { x, y } the risen Heart's screen point (and r, the god's screen points). Our own Ninth Tide draws through it.
+     inst.bodyLight(c, r, P, alpha, at)   the light over the body (the Lunar Heart's glow, eye, claw edges, halo, seams).
+     ABADDON_MOVES.poseFor(kind, t, o)    the pose a power holds t s in ('carapace' | 'reavers' | 'tide' | 'eclipse' | 'swipe'),
+       with its wind-up and follow-through; o = { seal, dur, arm, base, n, charge }. ABADDON_MOVES.easePose(store, tg, dt) the
+       shared ease (store.pz). */
 const ABADDON_MOVES = (() => {
   const TAU = Math.PI * 2, cl = u => (u < 0 ? 0 : u > 1 ? 1 : u), lerp = (a, b, u) => a + (b - a) * u;
   const sstep = (a, b, x) => { const u = cl((x - a) / (b - a)); return u * u * (3 - 2 * u); }, eout = u => 1 - Math.pow(1 - cl(u), 3), ein = u => cl(u) * cl(u);
@@ -41,6 +54,54 @@ const ABADDON_MOVES = (() => {
   };
   const COL = { sap: '#6FA2FF', ice: '#BFD8FF', white: '#EAF2FF', deep: '#2448B8', teal: '#7FE6FF', gold: '#E8C27A', night: '#03050E' };
   const lowFx = () => !!(typeof st !== 'undefined' && st && st.lowFx);
+
+  /* ---- (v420 AP) the power poses, pure and shared (the Anima here, the boss in 20o2): poseFor(kind, t, o) is the pose a power
+     holds t s into it - kind 'carapace' | 'reavers' | 'tide' | 'eclipse' | 'swipe' (anything else: the resting pose); o: base (an
+     ABADDON_GL.idlePose, the default the form-3 rest at t 0), seal / dur (the eclipse's seal and the power's length; CFG's by
+     default), arm (the swipe's arm, 0 right / 1 left), n (the Reavers' slashes), charge (the Heart's stored charge). Every power has
+     its anticipation (a wind-up the other way), its strike and its follow-through (a damped settle), and turns its living motion
+     down (live) while it holds its shape. easePose(store, tg, dt) eases store.pz toward tg (the arms faster than the body; the
+     eclipse's panels snap) and returns it. ---- */
+  const bump = (t, a, b, c, d) => sstep(a, b, t) * (1 - sstep(c, d, t));
+  const settle = (t, t0, f, k) => (t > t0 ? Math.exp(-(t - t0) * k) * Math.sin((t - t0) * f) : 0);   // (a damped ring after t0)
+  function poseFor(kind, t, o) {
+    o = o || {}; const base = o.base || (typeof ABADDON_GL !== 'undefined' ? ABADDON_GL.idlePose(3, 0) : { arm: [{}, {}], open: 1, heart: 0.8, eye: 1 });
+    const arm = i => Object.assign({ swing: 0, raise: 0, ext: 0.2, claw: 0, edge: 0, bend: 0, pinch: 0 }, (base.arm && base.arm[i]) || {});
+    const tg = { open: base.open == null ? 1 : base.open, fold: 0, spread: 0, heart: (base.heart == null ? 0.8 : base.heart) + (o.charge || 0) * 0.6, dark: 0, ringK: 1, align: 0, glow: 0, ringGlow: 0, seam: 0, eye: base.eye == null ? 1 : base.eye, lift: 0, pitch: 0, roll: 0, live: 1, arms: [arm(0), arm(1)], tenK: 0, tenUp: 0, stagger: 0, snapOpen: false };
+    const B = tg.arms, bo = tg.open;
+    if (kind === 'carapace') {   // it rears and throws its arms wide, snaps shut into its shell (a shiver as it locks), holds, then blossoms open with a sway that settles
+      const dur = o.dur || CFG.carapace.act, wind = bump(t, 0, 0.18, 0.2, 0.34), f = sstep(0.2, 0.42, t) * (1 - sstep(dur - 0.55, dur - 0.15, t)), lock = settle(t, 0.42, 26, 8) * (t < dur - 0.55 ? 1 : 0), op = settle(t, dur - 0.3, 9, 3.5);
+      tg.fold = f; tg.open = lerp(bo, 0, f); tg.seam = f; tg.heart += f * 0.8 + bump(t, 0.38, 0.46, 0.5, 0.9) * 1.3; tg.glow = f * 0.3 + bump(t, 0.38, 0.46, 0.5, 0.9) * 0.3; tg.pitch = -0.1 * wind + 0.05 * lock; tg.lift = 0.3 * wind; tg.spread = 0.55 * wind + 0.3 * op; tg.stagger = 0.15 * lock; tg.live = 1 - 0.85 * Math.max(wind, f);
+      for (const q of B) { q.swing = -0.35 * wind + 0.12 * op; q.raise = 0.45 * wind - 0.1 * op; q.claw = -0.45 * wind + 0.2 * op; q.pinch = 0.6 * wind; q.ext = lerp(q.ext, 0.75, wind); }
+    } else if (kind === 'reavers') {   // arms drawn back and up as it rises, a snap forward, the claws slashing in turn (left, right) to the rhythm of the blades, a settle
+      const dur = o.dur || 2, gap = CFG.reavers.gap, ant = bump(t, 0, 0.32, 0.42, 0.55), go = sstep(0.42, 0.58, t) * (1 - sstep(dur - 0.45, dur, t)), fol = settle(t, dur - 0.4, 10, 4);
+      B.forEach((q, i) => { const s = (t - 0.6) / gap, hit = go * (0.5 + 0.5 * Math.cos(Math.PI * (s - i)));
+        q.swing = -0.75 * ant + 0.3 * go + 0.35 * hit + 0.15 * fol; q.raise = 0.45 * ant + 0.22 * go - 0.08 * hit; q.ext = lerp(q.ext, 1, go); q.claw = -0.45 * ant - 0.6 * go - 0.2 * hit; q.pinch = -0.3 * ant + 0.7 * hit; q.edge = go * 1.2 + ant * 0.5; q.bend = 0.3 * ant - 0.1 * go; });
+      tg.pitch = -0.12 * ant + 0.1 * go + 0.04 * fol; tg.lift = 0.35 * ant + 0.1 * go; tg.glow = 0.3 * go + 0.15 * ant; tg.ringK = 1 - 0.5 * ant + go; tg.spread = 0.3 * go - 0.15 * ant; tg.roll = 0.05 * Math.sin(t * 9) * go; tg.live = 1 - 0.75 * Math.max(ant, go);
+    } else if (kind === 'tide') {   // a gather (arms swept down and back, a bow), then the arms lift the world, heaving; the release drops them with a ring
+      const dur = o.dur || CFG.tide.dur[2] + 0.35, wind = bump(t, 0, 0.25, 0.3, 0.45), on = sstep(0.3, 0.6, t) * (1 - sstep(dur - 0.3, dur, t)), rel = settle(t, dur - 0.25, 8, 3.5), hv = Math.sin(t * 2.4) * on;
+      tg.heart += on * 1.1 + wind * 0.4; tg.ringK = 1 + on * 3.5 - wind * 0.6; tg.ringGlow = on * 1.2; tg.glow = on * 0.35; tg.spread = on * 0.55 - wind * 0.2; tg.tenUp = on * 0.35; tg.tenK = on; tg.pitch = 0.08 * wind - 0.05 * on + 0.04 * rel; tg.lift = -0.25 * wind + 0.35 * on + 0.1 * hv; tg.live = 1 - 0.6 * Math.max(on, wind);
+      for (const q of B) { q.raise = -0.25 * wind + 0.55 * on + 0.06 * hv - 0.1 * rel; q.claw = 0.25 * wind - 0.5 * on; q.ext = lerp(q.ext, 0.85, on); q.swing = -0.2 * wind + 0.15 * on + 0.1 * rel; q.pinch = 0.5 * on; }
+    } else if (kind === 'eclipse') {   // arms flung wide, it seals itself (shivering with what it holds), the panels snap open with a recoil and a ringing settle
+      const seal = o.seal || CFG.eclipse.seal[2], dur = o.dur || seal + 1, wide = bump(t, 0, 0.15, 0.18, 0.35), cls = sstep(0.12, 0.5, t) * (1 - sstep(seal, seal + 0.18, t)), snap = sstep(seal, seal + 0.2, t) * (1 - sstep(seal + 0.5, dur, t)), rg = settle(t, seal + 0.2, 11, 4);
+      tg.fold = cls; tg.open = lerp(bo, 0, cls); tg.dark = cls; tg.seam = cls; tg.heart = lerp(tg.heart, 1.8, cls) + snap * 1.5; tg.spread = snap + 0.3 * wide + 0.25 * rg; tg.glow = snap * 0.8 + cls * 0.2; tg.ringK = 1 + snap * 4; tg.eye = tg.eye + snap * 1.5; tg.pitch = -0.08 * wide + 0.025 * Math.sin(t * 31) * cls - 0.1 * snap * (1 - sstep(seal + 0.2, seal + 0.6, t)); tg.snapOpen = t > seal; tg.live = 1 - 0.85 * Math.max(cls, snap * 0.6);
+      for (const q of B) { q.raise = 0.4 * snap + 0.3 * wide; q.claw = -0.6 * snap - 0.3 * wide; q.ext = lerp(q.ext, 1, snap); q.swing = -0.25 * wide + 0.15 * rg; q.pinch = 0.6 * snap; }
+    } else if (kind === 'swipe') {   // the claw drawn back (a counter-turn of the body), the sweep, an overshoot that rings out
+      const i = o.arm ? 1 : 0, q = B[i], q2 = B[1 - i], ant = sstep(0, 0.18, t) * (1 - sstep(0.18, 0.24, t)), hit = sstep(0.18, 0.3, t) * (1 - sstep(0.36, 0.62, t)), fol = settle(t, 0.3, 14, 6);
+      q.swing = -0.7 * ant + 0.9 * hit + 0.2 * fol; q.raise = 0.35 * ant - 0.12 * hit; q.ext = lerp(q.ext, 1, Math.max(hit, ant * 0.4)); q.claw = -0.3 * ant + 0.3 * hit; q.pinch = -0.3 * ant + 0.6 * hit; q.edge = hit + 0.6 * ant; q.bend = 0.35 * ant - 0.15 * hit;
+      q2.swing += 0.2 * ant - 0.15 * hit; tg.pitch = -0.05 * ant + 0.07 * hit; tg.roll = (i ? -1 : 1) * (0.08 * ant - 0.12 * hit); tg.live = 1 - 0.7 * Math.max(ant, hit);
+    }
+    return tg;
+  }
+  const PZK = ['open', 'fold', 'spread', 'heart', 'dark', 'ringK', 'align', 'glow', 'ringGlow', 'seam', 'eye', 'lift', 'pitch', 'tenK', 'tenUp', 'stagger', 'roll', 'live'], ARMK = ['swing', 'raise', 'ext', 'claw', 'edge', 'bend', 'pinch'];
+  function easePose(store, tg, dt) {
+    let pz = store.pz; const r1 = Math.min(1, dt * 7), r2 = Math.min(1, dt * 14), dv = q => (q === 'live' ? 1 : 0);
+    if (!pz) pz = store.pz = Object.assign({}, tg, { arms: tg.arms.map(q => Object.assign({}, q)) });
+    if (!pz.arms) pz.arms = [{}, {}];
+    for (const q of PZK) { const v = tg[q] == null ? dv(q) : tg[q]; if (pz[q] == null) pz[q] = v; pz[q] += (v - pz[q]) * (q === 'open' && tg.snapOpen ? Math.min(1, dt * 18) : r1); }
+    for (let i = 0; i < 2; i++) { const s = pz.arms[i] || (pz.arms[i] = {}), d = (tg.arms && tg.arms[i]) || {}; for (const q of ARMK) { const v = d[q] || 0; s[q] = (s[q] || 0) + (v - (s[q] || 0)) * r2; } }
+    return pz;
+  }
 
   function create(H) {
     const X = H.X, me = H.me, g = H.g, T = H.T, ST = H.ST, S = H.S;
@@ -168,39 +229,23 @@ const ABADDON_MOVES = (() => {
       if (ab.cd.car <= 0 && !sh && me.hp < hp * CFG.carapace.rehp && life > 2) return start(a, 'carapace');
       if (ab.cd.sw <= 0) { const m = H.near(a.x, a.y, CFG.swipe.r)[0]; if (m) return start(a, 'swipe', { m }); }
     }
-    /* ---- the pose: what each power and moment does to the body, eased so nothing snaps ---- */
+    /* ---- the pose: what each power and moment does to the body, eased so nothing snaps (v420 AP: poseFor / easePose, shared with the boss) ---- */
     function poseOf(a, dt) {
-      const ab = stOf(a), k = kOf(a), base = (typeof ABADDON_GL !== 'undefined' ? ABADDON_GL.idlePose(k, a.at || 0) : { arm: [{}, {}] }), A = ab.act, t = A ? A.t : 0;
-      const tg = { open: base.open, fold: 0, spread: 0, heart: base.heart + (ab.charge || 0) * 0.6, dark: 0, ringK: 1, align: 0, glow: 0, ringGlow: 0, seam: 0, eye: base.eye, lift: 0, pitch: 0, arms: [Object.assign({}, base.arm[0]), Object.assign({}, base.arm[1])], tenK: 0, tenUp: 0, stagger: 0 };
-      if (a.st === 'enter') { const e = a.abEn || 0; tg.open = lerp(0, base.open, sstep(0.15, 1.1, e)); tg.heart = lerp(0.1, 2.2, sstep(0.1, 0.5, e)) - sstep(0.6, 1.3, e) * 1.2; tg.glow = 0.6 * (1 - sstep(0.5, 1.3, e)); tg.seam = 1 - sstep(0.2, 0.8, e); tg.ringK = 3 - sstep(0.4, 1.4, e) * 2; }
-      if (A) {
-        if (A.kind === 'carapace') { const f = sstep(0, 0.35, t) * (1 - sstep(1.15, 1.6, t)); tg.fold = f; tg.open = lerp(base.open, 0, f); tg.seam = f; tg.heart += f * 0.8; tg.glow = f * 0.3; }
-        else if (A.kind === 'reavers') { const ant = sstep(0, 0.35, t) * (1 - sstep(0.4, 0.55, t)), go = sstep(0.4, 0.6, t) * (1 - sstep(A.dur - 0.45, A.dur, t));
-          for (const q of tg.arms) { q.swing = -0.55 * ant + 0.55 * go + 0.12 * Math.sin(t * 9) * go; q.raise = 0.35 * ant + 0.25 * go; q.ext = lerp(q.ext, 1, go); q.claw = -0.3 * ant - 0.75 * go; q.edge = go * 1.2; }
-          tg.pitch = -0.08 * ant + 0.1 * go; tg.glow = 0.3 * go; tg.ringK = 1 + go; tg.spread = 0.3 * go; }
-        else if (A.kind === 'tide') { const on = sstep(0, 0.35, t) * (1 - sstep(A.dur - 0.3, A.dur, t)); tg.heart += on * 1.1; tg.ringK = 1 + on * 3.5; tg.ringGlow = on * 1.2; tg.glow = on * 0.35; tg.spread = on * 0.55; tg.tenUp = on * 0.35; tg.tenK = on;
-          for (const q of tg.arms) { q.raise = 0.55 * on; q.claw = -0.5 * on; q.ext = lerp(q.ext, 0.8, on); q.swing = 0.15 * on; } }
-        else if (A.kind === 'eclipse') { const cls = sstep(0, 0.5, t) * (1 - sstep(A.seal, A.seal + 0.18, t)), snap = sstep(A.seal, A.seal + 0.22, t) * (1 - sstep(A.seal + 0.5, A.dur, t));
-          tg.fold = cls; tg.open = lerp(base.open, 0, cls); tg.dark = cls; tg.seam = cls; tg.heart = lerp(tg.heart, 1.8, cls) + snap * 1.5; tg.spread = snap * 1.0; tg.glow = snap * 0.8 + cls * 0.2; tg.ringK = 1 + snap * 4; tg.eye = base.eye + snap * 1.5;
-          for (const q of tg.arms) { q.raise = 0.4 * snap; q.claw = -0.6 * snap; q.ext = lerp(q.ext, 1, snap); } }
-        else if (A.kind === 'swipe') { const q = tg.arms[A.arm], ant = sstep(0, 0.18, t) * (1 - sstep(0.18, 0.24, t)), hit = sstep(0.18, 0.3, t) * (1 - sstep(0.36, 0.62, t));
-          q.swing = -0.6 * ant + 0.8 * hit; q.raise = 0.3 * ant - 0.1 * hit; q.ext = lerp(q.ext, 1, hit); q.claw = -0.25 * ant + 0.25 * hit; q.edge = hit; tg.pitch = 0.06 * hit; }
-      }
-      if (a.st === 'leave') { const u = sstep(0, 0.7, a.lv || 0); tg.open = lerp(tg.open, 0, u); tg.fold = u; tg.heart *= 1 - u * 0.7; tg.lift = u * 1.2; }
+      const ab = stOf(a), k = kOf(a), base = (typeof ABADDON_GL !== 'undefined' ? ABADDON_GL.idlePose(k, a.at || 0) : { arm: [{}, {}] }), A = ab.act;
+      const tg = poseFor(A ? A.kind : null, A ? A.t : 0, { base, charge: ab.charge, seal: A && A.seal, dur: A && A.dur, arm: A && A.arm, n: A && A.n });
+      if (a.st === 'enter') { const e = a.abEn || 0; tg.open = lerp(0, base.open, sstep(0.15, 1.1, e)); tg.heart = lerp(0.1, 2.2, sstep(0.1, 0.5, e)) - sstep(0.6, 1.3, e) * 1.2; tg.glow = 0.6 * (1 - sstep(0.5, 1.3, e)); tg.seam = 1 - sstep(0.2, 0.8, e); tg.ringK = 3 - sstep(0.4, 1.4, e) * 2;
+        tg.spread = 0.45 * sstep(0.7, 1.1, e) * (1 - sstep(1.2, 1.9, e)); tg.lift = 0.3 * Math.sin(Math.PI * sstep(0.6, 1.6, e)); tg.live = sstep(0.8, 1.8, e); }   // (v420 AP: it blossoms with a stretch, then settles into its living hover)
+      if (a.st === 'leave') { const u = sstep(0, 0.7, a.lv || 0); tg.open = lerp(tg.open, 0, u); tg.fold = u; tg.heart *= 1 - u * 0.7; tg.lift = u * 1.2; tg.live *= 1 - u; }
       if (a.st === 'awaken') { const u = sstep(0, 0.7, a.aw || 0); tg.spread = Math.max(tg.spread, u * 0.6); tg.heart += u; tg.ringK += u * 2; tg.glow = Math.max(tg.glow, u * 0.5); }
       if (ab.stag > 0) { ab.stag = Math.max(0, ab.stag - dt * 3); tg.stagger = Math.sin(ab.stag * Math.PI) * 0.8; tg.pitch -= 0.08 * Math.sin(ab.stag * Math.PI); }
       ab.charge = Math.max(0, (ab.charge || 0) - dt * 0.15);
-      // follow (eased); the arms faster than the body
-      let pz = ab.pz; const r1 = Math.min(1, dt * 7), r2 = Math.min(1, dt * 14);
-      if (!pz) { pz = ab.pz = Object.assign({}, tg, { arms: tg.arms.map(q => Object.assign({}, q)) }); }
-      for (const q of ['open', 'fold', 'spread', 'heart', 'dark', 'ringK', 'align', 'glow', 'ringGlow', 'seam', 'eye', 'lift', 'pitch', 'tenK', 'tenUp', 'stagger']) pz[q] += (tg[q] - pz[q]) * (q === 'open' && A && A.kind === 'eclipse' && A.t > A.seal ? Math.min(1, dt * 18) : r1);
-      for (let i = 0; i < 2; i++) for (const q of ['swing', 'raise', 'ext', 'claw', 'edge']) { const v = tg.arms[i][q] || 0; pz.arms[i][q] = (pz.arms[i][q] || 0) + (v - (pz.arms[i][q] || 0)) * r2; }
+      const pz = easePose(ab, tg, dt);
       // the body's motion: banking into its drift, leaning, the tendrils' springs
       const vx = a.vx || 0, vy = a.vy || 0; ab.ax = lerp(ab.ax, (vx - (ab.lvx || 0)) / Math.max(dt, 1e-3), 0.3); ab.ay = lerp(ab.ay, (vy - (ab.lvy || 0)) / Math.max(dt, 1e-3), 0.3); ab.lvx = vx; ab.lvy = vy;
       const foe = A && A.x != null ? A : A && A.m ? A.m : null, yawT = foe ? Math.max(-0.6, Math.min(0.6, -Math.atan2(foe.x - a.x, Math.max(0.4, foe.y - a.y)))) : -(a.face || 1) * 0.1;
       ab.yaw = lerp(ab.yaw || 0, yawT, Math.min(1, dt * 2.5));
       if (typeof ABADDON_GL !== 'undefined') ABADDON_GL.springs(a, k === 3 ? 8 : k === 2 ? 6 : 4, ab.ax, ab.ay, dt);
-      a.abP = Object.assign(base, pz, { arm: pz.arms, yaw: ab.yaw, bank: Math.max(-0.22, Math.min(0.22, -vx * 0.05)), pitch: pz.pitch + Math.max(-0.12, Math.min(0.12, vy * 0.03)), k, t: a.at || 0, look: [0, 0] });
+      a.abP = Object.assign(base, pz, { arm: pz.arms, yaw: ab.yaw, bank: Math.max(-0.22, Math.min(0.22, -vx * 0.05)) + (pz.roll || 0), pitch: pz.pitch + Math.max(-0.12, Math.min(0.12, vy * 0.03)), k, t: a.at || 0, look: [0, 0] });
     }
     /* ---- The Ninth Tide ---- */
     function fin(a) {
@@ -228,8 +273,8 @@ const ABADDON_MOVES = (() => {
           H.hit(m, p * (C.k + (core ? C.kc : 0)), { el: n % 2 ? 'shadow' : 'bubble', kb: core ? 7 : 5, noCrit: true }); m.lunarT = g.t + (m.boss ? C.weakBoss : C.weak); n++; X.sparks(m.x, m.y, n % 2 ? COL.ice : COL.white, 8, 7); }
         for (const [m, q] of J.lifted) { if (m.liftZ != null) delete m.liftZ; m.hitSq = 1; } J.lifted.clear();
         const max = ST().hp * C.shield; sh = { pool: max, max, t: 0, life: C.shieldT, src: 'tide', a: null, took: 0, hit: null }; ensureWard();
-        X.flash(0.9, '#E8F0FF'); X.shake(28, 0.9); X.sfx.crash(); X.after(0.14, () => X.sfx.fanfare()); X.light(J.x, J.y, 12, 1.2); g.hitStop = Math.max(g.hitStop || 0, 0.08);
-        X.text(me.x, me.y - 1.5, 'LUNAR SHIELD', COL.ice, 14, { crit: true, life: 1.2 }); J.n = n;
+        X.flash(0.35, '#E8F0FF'); X.shake(24, 0.8); X.sfx.crash(); X.after(0.14, () => X.sfx.fanfare()); X.light(J.x, J.y, 10, 1.0); g.hitStop = Math.max(g.hitStop || 0, 0.08);   // (v420 AP: a softer flash: the blast's own light carries it)
+        X.after(0.55, () => X.text(me.x, me.y + 0.9, 'LUNAR SHIELD', COL.ice, 14, { crit: true, life: 1.2 })); J.n = n;   // (v420 AP: after the white-out, under the pet: clear of the god and the numbers)
       }
       if (t >= C.len) endT9();
     }
@@ -275,21 +320,7 @@ const ABADDON_MOVES = (() => {
         else if (f.kind === 'seal') { const u = eout(f.t / 0.6) * (1 - cl((f.t - f.life + 0.6) / 0.6)), R = Tz * 2.2; Q.quad(121, X0, Y0, R, 0, 0, R * FSY, COL.sap, 0.8 * u, eout(f.t / 0.8), g.t * 0.6, 0.9); }
         else if (f.kind === 'bloom') { const u = f.t / f.life, R = Tz * 3.2 * eout(u); Q.quad(130, X0, Y0, R / 0.94, 0, 0, R / 0.94 * FSY, COL.ice, 1 - u, 0.9, 0.3, 1 - u); }
       }
-      if (T9) groundT9(Q);
-      fgClose(c);
-    }
-    /* the light over the body (drawn right after it, 20g drawAnima): the Heart's bloom, the eye, the claws' cutting edges, the seams */
-    function drawBodyFx(c, a) {
-      if (!gpu() || !a.abOut || !a.abOut.r) return; const r = a.abOut.r, P = a.abP || {}, NM = NMv(), Q = fgOpen(c), al = a.alpha == null ? 1 : a.alpha, u = r.unit;
-      const hb = Math.min(2.2, P.heart || 0.8), dk = P.dark || 0, hR = Math.min(r.heartR, u * 1.6);   // (the bloom stays round the Heart: it never washes over the body)
-      Q.glow(r.heart[0], r.heart[1], hR * (1.9 + hb * 0.45), dk > 0.5 ? COL.deep : COL.sap, Math.min(0.5, 0.22 + 0.1 * hb) * al * (1 - dk * 0.5));
-      Q.glow(r.heart[0], r.heart[1], hR * 0.9, COL.white, Math.min(0.35, 0.1 + 0.08 * hb) * al * (1 - dk));
-      if (dk > 0.05) Q.quad(123, r.heart[0], r.heart[1], r.heartR * 1.9, 0, 0, r.heartR * 1.9, COL.ice, al * dk, 0.52, a.at || 0, 1.2);
-      Q.glow(r.eye[0], r.eye[1], u * 0.9, COL.ice, 0.4 * al * (P.eye || 1)); Q.star(r.eye[0], r.eye[1] - u * 0.1, u * (0.4 + 0.25 * (P.eye || 1)), 0.5 * al, COL.white);
-      for (const cw of [r.clawL, r.clawR]) { if (!cw || !cw.edge) continue; const ed = 0.12 + 0.55 * (Math.max((P.arm && P.arm[0] && P.arm[0].edge) || 0, (P.arm && P.arm[1] && P.arm[1].edge) || 0));
-        for (let i = 0; i < cw.edge.length - 1; i += 1) { const p = cw.edge[i], q = cw.edge[i + 1]; Q.beam(p[0], p[1], q[0], q[1], u * 0.45, COL.sap, ed * al * 0.55); } }
-      if ((P.ringGlow || 0) > 0.05 || (P.glow || 0) > 0.2) Q.glow(r.halo[0], r.halo[1], u * 3.6, COL.sap, 0.22 * al * Math.max(P.ringGlow || 0, P.glow || 0));
-      if ((P.seam || 0) > 0.05 && r.shell) Q.glow(r.shell[0], r.shell[1], r.shellR * 1.25, COL.sap, 0.25 * al * P.seam);
+      if (T9) groundT9(Q, t9Scene({ x: T9.x, y: T9.y, t: T9.t, seed: T9.seed, from: { x: T9.a.x, y: T9.a.y } }));   // (v420 AP)
       fgClose(c);
     }
     function drawFx(c) {
@@ -361,80 +392,176 @@ const ABADDON_MOVES = (() => {
       Q.glow(X0, Y0 - Tz * 1.0, R * 0.5, COL.sap, on * 0.25);
     }
 
-    /* ---- The Ninth Tide's pictures ---- */
-    const T9P = () => { const J = T9, a = J.a, Tz = T(), t = J.t, C = CFG.tide9, rise = eout(t / 0.9) * (1 - sstep(C.rel, C.len, t)), X0 = sx(J.x), Y0 = sy(J.y), up = Tz * (0.4 + 1.1 * rise); return { J, a, Tz, t, C, rise, X0, Y0, up, K: Tz * 3.1 * 1.05 / 11.6 }; };
-    function groundT9(Q) {
-      const { t, C, X0, Y0, Tz, rise } = T9P(), R = C.r * Tz;
-      // the seal under it, the gravity field as the sea is drawn up, the wave racing out at the release
-      Q.quad(121, X0, Y0, Tz * 3.4, 0, 0, Tz * 3.4 * FSY, COL.sap, 0.8 * rise, eout(t / 1.2), t * 0.5, 1);
-      if (t > 1.6 && t < C.strike) { const k2 = sstep(1.6, 2.2, t); Q.quad(126, X0, Y0, R * 0.9, 0, 0, R * 0.9 * FSY, COL.sap, 0.8 * k2, k2, -1.5, 1); }
-      if (t >= C.strike) { const u = (t - C.strike) / 1.1; if (u < 1) { for (let i = 0; i < 3; i++) { const v = cl(u - i * 0.08), rr = R * eout(v); Q.quad(130, X0, Y0, rr / 0.94 + 4, 0, 0, (rr / 0.94 + 4) * FSY, i ? COL.ice : COL.white, (1 - v) * 1.2, 0.9, 0.18, 1.4 - i * 0.3); } Q.glow(X0, Y0, R * eout(u) * 0.8, COL.sap, 0.5 * (1 - u), FSY); } }
-      if (t > C.rel) { const u = cl((t - C.rel) / (C.len - C.rel)); Q.quad(131, X0, Y0 - Tz * 0.5, R * 0.8, 0, 0, R * 0.8 * FSY, COL.ice, 1 - u, 0.5, 3, 0.8 * (1 - u)); }
+    /* ---- The Ninth Tide's pictures (v420 AP: rebuilt as one smooth sequence, and pure: drawTide9 draws it for the Anima and for
+       the boss alike; nothing here touches the game) ----
+       The god glides out of the Anima's place and rises; a pale moon hangs over it and a black disc slides across it into a full
+       eclipse (its corona blooming, a diamond ring at the last bright limb) while its own Heart goes dark; the Heart then leaves
+       its chest and rises into the eclipse, kindling it into the Artificial Moon in a sky seal; the sea climbs round it in three
+       helixes of real water (FGFX water streams, split behind / in front of the god so they wind round it) under a canopy of water
+       circling overhead; the helixes and canopy are crushed into the Moon as the rings converge; a beat of silence; the blast
+       (shock shells, moonlight rays, shards, spray, a floor wave racing out); the sea falls as glittering droplets and the god
+       glides home. Every layer eases in and out: nothing pops. o (all optional but x, y, t): x, y the god's floor point (tiles),
+       t (s since it began), strike / rel / len its timings (default CFG.tide9: the picture is remapped onto them), r the sea's
+       radius (tiles), seed, alpha, at (the body's own clock, for its living motion), size (the god's height in tiles, default
+       the awakened Anima's 3.66), hover (tiles), from ({ x, y } where the summoned Anima stands: it glides out from there and home
+       again), fromP (the Anima's pose, blended into the god's at the start and the end). */
+    const T9SIZE = 3.1 * 1.18;
+    function t9Scene(o) {
+      const C = CFG.tide9, sk = o.strike || C.strike, rl = o.rel || C.rel, ln = o.len || C.len, t0 = Math.max(0, o.t || 0);
+      const t = t0 < sk ? t0 * C.strike / sk : t0 < rl ? C.strike + (t0 - sk) / Math.max(0.01, rl - sk) * (C.rel - C.strike) : C.rel + (t0 - rl) / Math.max(0.01, ln - rl) * (C.len - C.rel);
+      const Tz = T(), size = o.size || T9SIZE, K = Tz * size / 11.6, rise = eout(t / 0.9) * (1 - sstep(C.rel, C.len, t)), hov = o.hover == null ? 0.32 : o.hover, seed = o.seed || 0;
+      const gl0 = o.from ? eout(t / 0.75) * (1 - sstep(C.rel + 0.1, C.len - 0.05, t)) : 1, wx = o.from ? lerp(o.from.x, o.x, gl0) : o.x, wy = o.from ? lerp(o.from.y, o.y, gl0) : o.y;
+      const X0 = sx(o.x), Y0 = sy(o.y), up = Tz * (hov + 1.1 * rise);
+      const p2 = sstep(0.9, 1.6, t), p3 = sstep(1.7, 2.6, t), p4 = sstep(2.9, C.strike - 0.15, t), blast = t >= C.strike ? 1 - sstep(C.strike, C.rel + 0.2, t) : 0, rec = sstep(C.rel, C.len, t);
+      const bT = Math.max(0.05, o.blastT == null ? 0.35 : o.blastT) * (C.rel - C.strike) / Math.max(0.01, rl - sk);   // (v420 AP: the blast's white peak, s on the canonical timeline)
+      const sil = sstep(3.55, 3.75, t) * (t < C.strike ? 1 : 0), shk = blast > 0.3 ? Math.sin(t * 61 + seed) * Math.sin(t * 37 + seed * 1.7) * Tz * 0.05 * blast : 0;
+      const gx = sx(wx) + shk, gy = sy(wy) - up, hOut = sstep(0, 1, cl(p2 - rec)), hy = gy - K * lerp(4.95, 10.45, hOut), ey = gy - K * 10.45;
+      const VR = Math.min((o.r || C.r) * Tz, Tz * 6.2), R = (o.r || C.r) * Tz, HR = Math.min(VR * 0.55, Tz * 2.9);
+      return { o, t, C, Tz, K, rise, X0, Y0, gx, gy, hy, ey, p2, p3, p4, blast, rec, sil, VR, R, HR, seed, al: o.alpha == null ? 1 : o.alpha, gk: o.glowK == null ? 1 : Math.max(0, o.glowK), bT, bp: t >= C.strike ? 1 - sstep(C.strike, C.strike + bT, t) : 0 };
+    }
+    // the god's pose through it (its living motion turned down while it holds its great shapes)
+    function t9Pose(S) {
+      const { t, C, p2, p3, p4, blast, rec } = S, o = S.o, at = o.at != null ? o.at : t * 1.2 + 3;
+      const P = Object.assign(typeof ABADDON_GL !== 'undefined' ? ABADDON_GL.idlePose(3, at) : { arm: [{}, {}] }, { open: 1, spread: lerp(sstep(0, 0.9, t), 0.2, rec) * (1 - p4 * 0.35) + blast * 0.4, align: (p2 * 0.9 + p4 * 0.1) * (1 - rec), ringK: 1 + p2 * 3 + p4 * 6 - rec * 9 - S.sil * 3, heart: 1.2 + p2 * 1.5 + p4 * 1.6 + S.bp * 1.2 - blast * 0.6, dark: (1 - sstep(0.75, 1.25, t)) * sstep(0, 0.35, t) * 0.85, heartOut: (p2 - rec) * 1, heartGrow: p2 * 0.9 - p4 * 0.3 - blast * 0.4 - rec * 0.2, ringGlow: p2 + p4, glow: 0.3 + p4 * 0.4 + S.bp * 0.5,
+        heartPos: [0, 2.2, 12.2], alignAt: [0, 2.2, 12.2], eye: 1 + p4 + blast * 2, tenUp: p3 * 0.5 - blast * 0.3, tenK: p3 * (1 - S.sil), lift: 0, yaw: 0, k: 3, t: at, live: 0.75 - 0.45 * Math.max(p4, blast) + 0.25 * rec, pitch: -0.06 * p2 + 0.05 * p4 - 0.08 * blast + 0.04 * Math.sin(t * 1.3) * (1 - p4),
+        arm: [0, 1].map(i => ({ swing: 0.35 * p2 - 0.3 * p4 + 0.5 * blast + 0.06 * Math.sin(t * 1.7 + i) * p3, raise: 0.35 * p2 + 0.15 * p3 - 0.25 * p4 + 0.3 * blast, ext: 0.6 + 0.4 * p2 - 0.3 * p4 + 0.4 * blast, claw: -0.35 * p2 + 0.55 * p4 - 0.6 * blast, edge: p4 * 1.5 + blast, pinch: 0.5 * p3 - 0.6 * p4 + 0.8 * blast, bend: 0.25 * p4 - 0.2 * blast })) });
+      if (t > C.rel) P.align = 0;
+      // (the Anima's own pose blended in at the start and the end: no snap from it to the god and back)
+      const fp = o.fromP, w = fp ? (1 - sstep(0, 0.55, t)) + sstep(C.len - 0.5, C.len, t) : 0;
+      if (w > 0.001) { for (const q of ['open', 'spread', 'align', 'ringK', 'heart', 'dark', 'heartOut', 'ringGlow', 'glow', 'eye', 'tenUp', 'tenK', 'pitch', 'live', 'yaw', 'bank']) if (typeof fp[q] === 'number') P[q] = lerp(P[q] || 0, fp[q], cl(w));
+        if (fp.arm) for (let i = 0; i < 2; i++) for (const q of ['swing', 'raise', 'ext', 'claw', 'edge', 'pinch', 'bend']) if (fp.arm[i] && typeof fp.arm[i][q] === 'number') P.arm[i][q] = lerp(P.arm[i][q] || 0, fp.arm[i][q], cl(w)); }
+      return P;
+    }
+    // the sea's helixes and canopy: water streams (solid water + its light), the half behind the god (side -1) or in front (+1)
+    function t9Water(Q, S, side) {
+      const { t, Tz, X0, Y0, gx, hy, p3, p4, sil, HR, VR, C } = S; if (p3 <= 0.01 || t > C.strike) return;
+      const fade = (1 - sstep(3.45, 3.8, t)) * (1 - sil), lq = lowFx(), n = lq ? 2 : 3, segs = lq ? 12 : 22, climb = p3 * 1.08;
+      if (fade > 0.01) for (let s = 0; s < n; s++) { const a0 = s / n * TAU + t * (1.5 + p4 * 3.5) + S.seed, rr0 = HR * (1 - 0.85 * p4);
+        let prev = null;
+        for (let j = 0; j <= segs; j++) { const v = j / segs * Math.min(1, climb), an = a0 + v * 1.25 * TAU, rr = rr0 * (1 - 0.6 * v), cx = lerp(X0, gx, v), cy = lerp(Y0, hy, v), x = cx + Math.cos(an) * rr, y = cy + Math.sin(an) * rr * 0.4, dz = Math.sin(an);
+          if (prev && (dz + prev.dz) * side >= 0) { const top = 1 - sstep(Math.min(1, climb) - 0.12, Math.min(1, climb), v), fz = 0.55 + 0.45 * Math.abs((dz + prev.dz) / 2), a = 0.62 * fade * top * fz * sstep(0, 0.06, v), w = Tz * (0.3 - 0.12 * v) * (1 - 0.45 * p4), ex = (x - prev.x) * 0.3, ey = (y - prev.y) * 0.3;
+            if (a > 0.01) { Q.wstream(prev.x - ex, prev.y - ey, x + ex, y + ey, w, COL.teal, a, s * 7 + j, 2.6, 0.75, 0.45); Q.beam(prev.x - ex, prev.y - ey, x + ex, y + ey, w * 0.2, COL.ice, a * 0.18 * (side > 0 ? 1 : 0.5)); } }
+          prev = { x, y, dz }; } }
+      // the canopy: the ocean turned over, circling overhead and drawn in to the Moon
+      const ca = sstep(2.0, 2.6, t) * fade; if (ca > 0.01) { const CR = Math.min(VR * 0.72, Tz * 3.6) * (1 - 0.8 * p4), cy = hy - Tz * 0.25 + Tz * 0.6 * (1 - p4), m = lq ? 14 : 24, rot = t * 1.2;
+        if (side < 0) Q.glow(gx, cy, CR * 1.15, COL.teal, 0.22 * ca, 0.32);
+        for (let j = 0; j < m; j++) { const a1 = j / m * TAU + rot, a2 = (j + 1) / m * TAU + rot, dz = Math.sin((a1 + a2) / 2); if (dz * side < 0) continue; const x1 = gx + Math.cos(a1) * CR, y1 = cy + Math.sin(a1) * CR * 0.3, x2 = gx + Math.cos(a2) * CR, y2 = cy + Math.sin(a2) * CR * 0.3, ex = (x2 - x1) * 0.3, ey = (y2 - y1) * 0.3, a = 0.75 * ca * (0.6 + 0.4 * Math.abs(dz));
+          Q.wstream(x1 - ex, y1 - ey, x2 + ex, y2 + ey, Tz * 0.36 * (1 - 0.4 * p4), COL.teal, a * 0.8, j + 40, 3, 0.8, 0.45); Q.beam(x1 - ex, y1 - ey, x2 + ex, y2 + ey, Tz * 0.07, COL.ice, a * (side > 0 ? 0.2 : 0.1)); } }
+    }
+    // (the additive light through glowK: glows, stars, beams, spray and the light kinds; water and the dark disc pass unscaled)
+    function lightK(Q, k) { if (k === 1) return Q; const L = Object.create(Q);
+      L.glow = (x, y, r, col, a, sy) => Q.glow(x, y, r, col, a * k, sy); L.star = (x, y, s, a, col) => Q.star(x, y, s, a * k, col); L.beam = (x0, y0, x1, y1, w, col, a) => Q.beam(x0, y0, x1, y1, w, col, a * k);
+      L.rbeam = (x0, y0, x1, y1, w, col, a, a0, a1) => Q.rbeam(x0, y0, x1, y1, w, col, a * k, a0, a1); L.spray = (x, y, r, col, a, seed, sp, sy) => Q.spray(x, y, r, col, a * k, seed, sp, sy);
+      L.quad = (kind, x, y, ux, uy, vx, vy, col, al, q0, q1, q2) => Q.quad(kind, x, y, ux, uy, vx, vy, col, kind === 124 || kind === 80 ? al : al * k, q0, q1, q2); L.wsphere = Q.wsphere.bind(Q); L.wstream = Q.wstream.bind(Q); return L; }
+    function groundT9(Q0, S) { const Q = lightK(Q0, S.gk);
+      const { t, C, X0, Y0, Tz, rise, VR, R, rec } = S, al = S.al;
+      // the seal under it, the gravity field as the sea is drawn up, the waves racing out at the release, a last mist
+      Q.quad(121, X0, Y0, Tz * 3.4, 0, 0, Tz * 3.4 * FSY, COL.sap, 0.8 * rise * al, eout(t / 1.2), t * 0.5, 1);
+      if (t > 1.6 && t < C.strike + 0.4) { const k2 = sstep(1.6, 2.3, t) * (1 - sstep(C.strike - 0.1, C.strike + 0.35, t)); Q.quad(126, X0, Y0, VR * 0.95, 0, 0, VR * 0.95 * FSY, COL.sap, 0.7 * k2 * al, sstep(1.6, 2.4, t), -1.5, 1); }
+      if (t >= C.strike) { const u = (t - C.strike) / 1.1, RW = Math.min(R, Tz * 9); if (u < 1) { for (let i = 0; i < 2; i++) { const v = cl(u - i * 0.12), rr = RW * eout(v); Q.quad(130, X0, Y0, rr / 0.94 + 4, 0, 0, (rr / 0.94 + 4) * FSY, i ? COL.ice : COL.white, (1 - v) * al, 0.9, 0.16, 1.2 - i * 0.35); } Q.glow(X0, Y0, RW * eout(u) * 0.7, COL.sap, 0.35 * (1 - u) * al, FSY); } }
+      if (t > C.rel - 0.3) { const u = cl((t - C.rel + 0.3) / (C.len - C.rel + 0.3)), k2 = Math.sin(u * Math.PI); for (let i = 0; i < 5; i++) { const an = i / 5 * TAU + 0.4, d = VR * 0.45 * (0.6 + 0.4 * ((i * 0.618) % 1)); Q.glow(X0 + Math.cos(an) * d, Y0 + Math.sin(an) * d * FSY, Tz * 2.2, COL.teal, 0.16 * k2 * al, FSY); } }
+      void rec;
+    }
+    // behind the god: the eclipse, the Moon's seal and its filaments, the rising sea, the helixes' far halves
+    function skyBack(c, S) {
+      const { t, C, Tz, gx, gy, hy, ey, p2, p3, p4, rec, VR, X0, Y0, al } = S, J = S;
+      let Q = lightK(fgOpen(c), S.gk);
+      Q.glow(gx, gy - S.K * 6, Tz * (3.2 + p2 * 2.4), COL.deep, (0.3 + 0.2 * p2 + 0.25 * p4) * al);
+      // 1 the eclipse: a pale moon over it, a black disc sliding across it, the corona blooming; it dissolves as the Heart rises into it
+      const mf = sstep(0, 0.35, t) * (1 - sstep(1.25, 1.65, t)), Rm = Tz * 1.45;
+      if (mf > 0.004) { const cov = sstep(0.12, 0.6, t), ign = sstep(1.0, 1.6, t);
+        Q.quad(132, gx, ey, Rm * 2.6, 0, 0, Rm * 2.6, COL.ice, mf * al, 1 / 2.6, 0.5, 0.85 * (1 - cov * 0.92));
+        fgClose(c); Q = lightK(fgOpen(c), S.gk);   // (the black disc must lie over the moon's light: its own batch)
+        const off = (1 - cov) * Rm * 1.25, dR = Rm * (1.02 - 0.5 * ign), dx = gx - off * 0.8, dy = ey - off * 0.6;   // (the shadow crossing the moon: it darkens as it covers it, never a black ball out on its own)
+        Q.quad(124, dx, dy, dR * 1.5, 0, 0, dR * 1.5, '#02030A', 0.96 * mf * sstep(0.1, 0.85, cov) * al, 1 / 1.5, 0.03, 0);
+        Q.quad(123, gx, ey, Rm * 2.3, 0, 0, Rm * 2.3, COL.ice, mf * sstep(0.35, 0.62, t) * (1 + ign * 0.6) * al, 1 / 2.3, 2.2 + S.seed, 1.25);
+        const dia = sstep(0.46, 0.56, t) * (1 - sstep(0.58, 0.8, t)); if (dia > 0.01) { Q.star(gx + Rm * 0.62, ey + Rm * 0.75, Tz * 1.3 * dia, dia * al, COL.white); Q.glow(gx + Rm * 0.62, ey + Rm * 0.75, Tz * 0.9, COL.white, 0.6 * dia * al); } }
+      // 2 the Artificial Moon: its sky seal drawn on round it, moonlight filaments turning in to it
+      if (p2 > 0.01) { const sk = p2 * (1 - rec) * (1 - 0.5 * p4) * al;
+        for (let i = 0; i < 2; i++) { const rr = Tz * (2.0 + i * 1.1) * (1 - p4 * 0.55); Q.quad(121, gx, hy, rr, 0, 0, rr, i ? COL.ice : COL.sap, sk * (0.65 - i * 0.3), eout((t - 0.9) / 0.9), (i ? -1 : 1) * t * (0.5 + p4 * 2.5) + i, 1); }
+        for (let i = 0; i < 8 * LQ(); i++) { const an = i / 8 * TAU + t * (0.6 + p4 * 3), rr = Tz * (2.4 + 0.7 * Math.sin(i * 2.3)) * (1 - p4 * 0.6); Q.quad(128, gx + Math.cos(an) * rr * 0.55, hy + Math.sin(an) * rr * 0.55, Math.cos(an) * rr * 0.5, Math.sin(an) * rr * 0.5, -Math.sin(an) * Tz * 0.06, Math.cos(an) * Tz * 0.06, COL.ice, sk * 0.6, 10, i); } }
+      // 3 the sea drawn up: droplets and stones rising and spiralling in, streams from the floor
+      if (p3 > 0.01 && t < C.strike) { const n = Math.round(16 * LQ()), R1 = mulberry32(((J.seed | 0) + 3) >>> 0), kk = (1 - S.sil) * al;
+        for (let i = 0; i < n; i++) { const an = R1() * TAU, d0 = VR * (0.3 + 0.65 * R1()), sp = R1(), v = ((t - 1.7) * (0.4 + sp * 0.5) + R1()) % 1, d = d0 * (1 - v * (0.5 + 0.5 * p4)), x = X0 + Math.cos(an + v * 1.5) * d, y = Y0 + Math.sin(an + v * 1.5) * d * FSY - v * Tz * 4.5 * (1 - p4 * 0.5), fv = Math.sin(Math.PI * v), sz = 0.15 + 0.15 * R1();
+          if (i % 2) Q.wsphere(x, y, Tz * sz, COL.teal, p3 * (1 - p4 * 0.7) * fv * kk, i, 1, 0.7, 1); else Q.quad(80, x, y, Tz * sz * 0.8, 0, 0, Tz * sz * 0.8, '#4E5266', p3 * (1 - p4) * fv * kk, t * 3 + i, i + 5, 0); }
+        for (let i = 0; i < 5 * LQ(); i++) { const x = X0 + (i - 2) * VR * 0.3, k2 = p3 * 0.5 * (1 - p4) * kk; Q.wstream(x, Y0, lerp(x, gx, 0.6), lerp(Y0, hy, 0.45), Tz * 0.3, COL.teal, k2, i, 2, 0.6, 1); } }
+      t9Water(Q, S, -1);
+      fgClose(c);
+    }
+    // in front of it: the helixes' near halves, the crushed sea, the silence, the blast, the droplets of the recovery
+    function skyFront(c, S, r) {
+      const { t, C, Tz, gx, gy, p3, p4, blast, rec, VR, X0, Y0, al, sil } = S, J = S, hx = r && r.heart ? r.heart[0] : gx, hy = r && r.heart ? r.heart[1] : S.hy;
+      const Q = lightK(fgOpen(c), S.gk);
+      t9Water(Q, S, 1);
+      // 4 the compression: the sea's last water a sphere crushed into the Moon, rings converging, the Moon blinding; then a held breath
+      if (p4 > 0.01 && t < C.strike + 0.05) { const k2 = p4 * (1 - sstep(3.62, 3.9, t)) * al;
+        Q.wsphere(hx, hy, Tz * lerp(1.9, 0.75, p4), COL.teal, 0.5 * k2, 3 + J.seed, 2, 0.6, 0.5);
+        for (let i = 0; i < 4; i++) { const v = ((t - 2.9) * 1.6 + i / 4) % 1, rr = Tz * 4 * (1 - v); Q.quad(125, hx, hy, rr, 0, 0, rr, COL.ice, p4 * Math.sin(v * Math.PI) * 0.8 * (1 - sil) * al, 0.96, 0.02, 1); }
+        for (let sI = 0; sI < (lowFx() ? 3 : 6); sI++) { let px = null, py = null; const R0 = VR * 0.55 * (1 - p4 * 0.8);
+          for (let j = 0; j <= 12; j++) { const v = j / 12, an = sI / 6 * TAU + v * 4.5 + t * 5, rr = R0 * (1 - v), x = hx + Math.cos(an) * rr, y = hy + (Y0 - hy) * (1 - v) * 0.5 + Math.sin(an) * rr * 0.42;
+            if (px != null) { const ex = (x - px) * 0.3, ey = (y - py) * 0.3; Q.beam(px - ex, py - ey, x + ex, y + ey, Tz * 0.1, COL.ice, 0.55 * k2 * (0.4 + v)); } px = x; py = y; } }
+        Q.glow(hx, hy, Tz * (1 + 1.2 * p4), COL.white, (0.1 + 0.16 * p4) * al); }
+      if (sil > 0.01 && t < C.strike) { const k2 = sil * al; Q.star(hx, hy, Tz * (0.7 + 1.3 * sstep(3.7, C.strike, t)), 0.75 * k2, COL.white); Q.glow(hx, hy, Tz * (1.2 + 1.8 * sstep(3.75, C.strike, t)), COL.white, (0.14 + 0.22 * sstep(3.75, C.strike, t)) * k2); }
+      // 5 the blast
+      if (t >= C.strike - 0.02 && t < C.rel + 0.5) { const u = cl((t - C.strike) / 0.8), RB = VR * 1.25;
+        for (let i = 0; i < 2; i++) { const v = cl(u * 1.15 - i * 0.16), rr = RB * eout(v); if (rr > 2) Q.quad(125, hx, lerp(hy, Y0 - Tz, 0.35), rr, 0, 0, rr * 0.78, i ? COL.ice : COL.white, (1 - v) * (1 - v) * (0.45 + 0.5 * S.bp) * al, 0.97, 0.025 + i * 0.012, 1); }
+        for (let i = 0; i < 10; i++) { const an = i / 10 * TAU + 0.2 + J.seed, L2 = RB * (0.35 + 0.75 * eout(u)); Q.rbeam(hx, hy, hx + Math.cos(an) * L2, hy + Math.sin(an) * L2 * 0.7, Tz * (0.35 - 0.2 * u), COL.ice, (1 - u) * 0.42 * al, 1, 0); }
+        for (let i = 0; i < 12 * LQ(); i++) { const an = i / 12 * TAU, d = VR * 0.8 * eout(u); Q.spray(X0 + Math.cos(an) * d, Y0 + Math.sin(an) * d * FSY - Tz * 0.4, Tz * 0.9, '#DDF4FF', (1 - u) * 0.7 * al, i, 1, 0.7); }
+        const R1 = mulberry32(((J.seed | 0) + 9) >>> 0); for (let i = 0; i < 20 * LQ(); i++) { const an = R1() * TAU, d = (0.3 + R1()) * VR * 0.7 * eout(u), x = hx + Math.cos(an) * d, y = hy + (Y0 - hy) * eout(u) * 0.55 + Math.sin(an) * d * 0.5, s = Tz * (0.25 + R1() * 0.3), rot = R1() * 6 + u * 12; Q.quad(129, x, y, Math.cos(rot) * s, Math.sin(rot) * s, -Math.sin(rot) * s, Math.cos(rot) * s, COL.ice, (1 - u) * al); }
+        const fl = t < C.strike ? sstep(C.strike - 0.02, C.strike, t) : S.bp; Q.glow(hx, hy, Tz * 5, COL.white, 0.35 * fl * al); Q.glow(hx, hy, Tz * 2.6, COL.white, 0.4 * fl * al); }   // (a brief white peak (blastT), then the scene reads again)
+      // 6 the sea falls as glittering droplets
+      if (t > C.rel - 0.2) { const u = cl((t - C.rel + 0.2) / (C.len - C.rel + 0.2)), R1 = mulberry32(((J.seed | 0) + 17) >>> 0); for (let i = 0; i < 36 * LQ(); i++) { const x = X0 + (R1() - 0.5) * VR * 1.8, y0 = Y0 - Tz * (0.5 + R1() * 4.5), y = y0 + u * u * Tz * 2.2 * (0.6 + R1()), tw = 0.55 + 0.45 * Math.sin(t * 7 + i * 1.3); Q.star(x, y, Tz * (0.1 + R1() * 0.12), Math.sin(Math.PI * cl(u * 1.1)) * tw * al, i % 3 ? COL.ice : COL.white); } }
+      fgClose(c); void gy; void p3; void blast; void rec;
+    }
+    // the whole picture: o as above; returns the risen Heart's screen point ({ x, y, r: the god's screen points })
+    function drawTide9(c, o) {
+      o = o || {}; const S = t9Scene(o), on = gpu(); if (S.al <= 0.004) return { x: S.gx, y: S.hy, r: null };
+      if (on && !o.skyOnly) { const Q = fgOpen(c); groundT9(Q, S); fgClose(c); }
+      if (o.groundOnly) return { x: S.gx, y: S.hy, r: null };
+      const P = t9Pose(S);
+      c.save(); c.globalCompositeOperation = 'source-over';   // (20b calls drawFx under 'lighter': the god and the water are solid things, laid over)
+      if (on) skyBack(c, S);
+      let r = null;
+      if (glOn()) { r = ABADDON_GL.draw(c, { X: S.gx, Y: S.gy, K: S.K, P, k: 3, alpha: S.al }); if (r && on) bodyLight(c, r, P, S.al * S.gk, P.t); }
+      else if (typeof AnimaArt !== 'undefined') { const inst = { abP: P }; AnimaArt.draw(c, 'cancer', 3, S.gx, S.gy, S.Tz * T9SIZE, P.t, { inst, alpha: S.al, aura: false }); }
+      if (on) skyFront(c, S, r);
+      c.restore();
+      return { x: r ? r.heart[0] : S.gx, y: r ? r.heart[1] : S.hy, r };
     }
     function drawT9(c) {
-      const { J, a, Tz, t, C, rise, X0, Y0, up, K } = T9P(), on = gpu(), NM = on ? NMv() : null;
-      // phase 1-2: it rises and unfolds into its charging ring, the moon leaves its chest; 3: the sea climbs; 4: everything crushed in; 5: the blast; 6: home
-      const p2 = sstep(0.9, 1.6, t), p3 = sstep(1.7, 2.6, t), p4 = sstep(2.9, C.strike - 0.15, t), blast = t >= C.strike ? 1 - sstep(C.strike, C.rel + 0.2, t) : 0, rec = sstep(C.rel, C.len, t);
-      const P = Object.assign(typeof ABADDON_GL !== 'undefined' ? ABADDON_GL.idlePose(3, t * 1.2 + 3) : {}, { open: 1, spread: lerp(sstep(0, 0.9, t), 0.2, rec) * (1 - p4 * 0.25), align: (p2 * 0.9 + p4 * 0.1) * (1 - rec), ringK: 1 + p2 * 3 + p4 * 6 - rec * 9, heart: 1.2 + p2 * 1.5 + p4 * 2 + blast * 1.5, dark: (1 - sstep(0.1, 0.9, t)) * sstep(0, 0.15, t) * 0.8, heartOut: (p2 - rec) * 1, heartGrow: p2 * 0.9 + p4 * 0.6 - blast * 1.2 - rec * 0.3, ringGlow: p2 + p4, glow: 0.3 + p4 * 0.7 + blast,
-        heartPos: [0, 2.2, 12.2], alignAt: [0, 2.2, 12.2], eye: 1 + p4 + blast * 2, arm: [0, 1].map(() => ({ swing: 0.35 * p2 - 0.2 * p4, raise: 0.35 * p2 - 0.1 * p4, ext: 0.6 + 0.4 * p2, claw: -0.35 * p2 + 0.5 * p4, edge: p4 * 1.5 + blast })), tenUp: p3 * 0.5, tenK: p3, lift: 0, yaw: 0, k: 3 });
-      if (t > C.rel) { P.align = 0; }
-      const shake = blast > 0.5 ? (Math.random() - 0.5) * Tz * 0.1 : 0, gx = X0 + shake, gy = Y0 - up;
-      // the sea: helixes of water climbing round it, a canopy overhead, crushed into one sphere, gone in the blast (GLM, in its own pass)
-      const sea = [];
-      if (t > 1.7 && t < C.strike + 0.05 && glOn()) { const R = C.r * Tz, h = Tz * 9, n = lowFx() ? 3 : 6, sq = 1 - p4;
-        for (let i = 0; i < n; i++) sea.push({ m: 'helix', X: X0, Y: Y0, ph: i / n * TAU + t * 0.9, r: R * (0.55 + 0.1 * (i % 2)) * (0.2 + 0.8 * sq) , h: h * p3, rise: p3, a: 0.85 * p3 * (1 - sstep(2.6, 2.9, t)), i });   // (the helixes give way to light as the sea is crushed)
-        sea.push({ m: 'canopy', X: X0, Y: gy - Tz * 3.4, r: R * 0.85 * (0.15 + 0.85 * sq), a: 0.45 * sstep(2.0, 2.7, t) * (0.2 + 0.8 * sq), sq });
-        if (p4 > 0.01) sea.push({ m: 'orb', X: gx, Y: gy - Tz * 2.9, r: Tz * lerp(3.2, 0.9, p4), a: 0.9 * p4 }); }
-      if (on) { const Q = fgOpen(c);
-        // the dark: the eclipse comes first; the moonlight streaks and the god's own light
-        Q.glow(gx, gy - Tz * 1.8, Tz * (4 + p2 * 3), COL.sap, 0.25 + 0.25 * p2 + 0.4 * p4);
-        if (t < 1.1) { const ek = sstep(0, 0.3, t) * (1 - sstep(0.8, 1.1, t)); Q.quad(124, gx, gy - Tz * 3.3, Tz * 2.4, 0, 0, Tz * 2.4, '#02030A', ek * 0.9, 0.5, 0.05, 0); Q.quad(123, gx, gy - Tz * 3.3, Tz * 2.4, 0, 0, Tz * 2.4, COL.ice, ek * 1.2, 0.5, 2.2, 1.3); }
-        if (p2 > 0.01) { const hy = gy - Tz * 2.9; for (let i = 0; i < 3; i++) { const rr = Tz * (1.6 + i * 0.9) * (1 - p4 * 0.6); Q.quad(121, gx, hy, rr, 0, 0, rr, i % 2 ? COL.ice : COL.sap, p2 * (0.7 - i * 0.15) * (1 - rec), eout((t - 0.9) / 0.8), (i % 2 ? -1 : 1) * t * (0.6 + p4 * 3) + i, 1); }
-          for (let i = 0; i < 8 * LQ(); i++) { const an = i / 8 * TAU + t * (1 + p4 * 4), rr = Tz * (2.2 + 0.8 * Math.sin(i * 2.3)) * (1 - p4 * 0.7); Q.quad(128, gx + Math.cos(an) * rr * 0.5, hy + Math.sin(an) * rr * 0.5, Math.cos(an) * rr * 0.5, Math.sin(an) * rr * 0.5, -Math.sin(an) * Tz * 0.06, Math.cos(an) * Tz * 0.06, COL.ice, p2 * 0.7, 10, i); } }
-        // phase 3: streams of water and stone drawn up, everything pulled to one centre
-        if (p3 > 0.01 && t < C.strike) { const R = C.r * Tz, n = Math.round(16 * LQ()), R1 = mulberry32(((J.seed | 0) + 3) >>> 0);
-          for (let i = 0; i < n; i++) { const an = R1() * TAU, d0 = R * (0.3 + 0.7 * R1()), sp = R1(), v = ((t - 1.7) * (0.4 + sp * 0.5) + R1()) % 1, d = d0 * (1 - v * (0.5 + 0.5 * p4)), x = X0 + Math.cos(an + v * 1.5) * d, y = Y0 + Math.sin(an + v * 1.5) * d * FSY - v * Tz * 5 * (1 - p4 * 0.5);
-            if (i % 2) Q.wsphere(x, y, Tz * (0.15 + 0.15 * R1()), COL.teal, p3 * (1 - p4 * 0.7), i, 1, 0.7, 1); else Q.quad(80, x, y, Tz * (0.15 + 0.12 * R1()), 0, 0, Tz * (0.15 + 0.12 * R1()), '#4E5266', p3 * (1 - p4), t * 3 + i, i + 5, 0); }
-          for (let i = 0; i < 5 * LQ(); i++) { const x = X0 + (i - 2) * R * 0.35; Q.wstream(x, Y0, lerp(x, gx, 0.6), gy - Tz * 2, Tz * 0.35, COL.teal, p3 * 0.55 * (1 - p4), i, 2, 0.6, 1); } }
-        // phase 4: the compression: tightening rings, a lens of light, the heart blinding
-        if (p4 > 0.01 && t < C.strike + 0.05) { const R = C.r * Tz * 0.6 * (1 - p4 * 0.8), hy0 = gy - Tz * 2.9;   // (v418 AB round 2: the crushed sea as bright streams of water-light spiralling into the moon)
-          for (let sI = 0; sI < (lowFx() ? 3 : 6); sI++) { let px = null, py = null; for (let j = 0; j <= 14; j++) { const v = j / 14, an = sI / 6 * TAU + v * 4.5 + t * 5, rr = R * (1 - v), x = gx + Math.cos(an) * rr, y = hy0 + (Y0 - hy0) * (1 - v) * 0.6 + Math.sin(an) * rr * 0.45;
-            if (px != null) { Q.wstream(px, py, x, y, Tz * 0.32 * (1 - v * 0.6), COL.teal, 0.55 * p4, sI, 2.5, 0.5, 1); Q.beam(px, py, x, y, Tz * 0.12, COL.ice, 0.6 * p4 * (0.4 + v)); } px = x; py = y; } }
-          Q.wsphere(gx, hy0, Tz * lerp(2.6, 0.9, p4), COL.teal, 0.5 * p4, 3, 2, 0.6, 1); }
-        if (p4 > 0.01 && t < C.strike + 0.05) { const hy = gy - Tz * 2.9; for (let i = 0; i < 4; i++) { const v = ((t - 2.9) * 1.6 + i / 4) % 1, rr = Tz * 4 * (1 - v); Q.quad(125, gx, hy, rr, 0, 0, rr, COL.ice, p4 * v * 0.9, 0.96, 0.02, 1); }
-          Q.glow(gx, hy, Tz * (1 + 2 * p4), COL.white, 0.4 + 0.5 * p4); if (t > C.strike - 0.3) Q.glow(gx, hy, Tz * 5, COL.white, sstep(C.strike - 0.3, C.strike, t) * 0.6); }
-        // phase 5: the blast: concentric shock shells, crescent shards, moonlight streaks, spray
-        if (t >= C.strike && t < C.rel + 0.4) { const u = cl((t - C.strike) / 0.75), hy = gy - Tz * 2.9, R = C.r * Tz;
-          for (let i = 0; i < 4; i++) { const v = cl(u * 1.2 - i * 0.12), rr = R * 0.9 * eout(v); Q.quad(125, X0, Y0 - Tz * 1.5, rr, 0, 0, rr * 0.75, i % 2 ? COL.ice : COL.white, (1 - v) * 1.3, 0.97, 0.02 + i * 0.01, 1); }
-          for (let i = 0; i < 12 * LQ(); i++) { const an = i / 12 * TAU, d = R * 0.8 * eout(u); Q.quad(131, X0 + Math.cos(an) * d, Y0 + Math.sin(an) * d * FSY - Tz * 0.5, Tz * 1.6, 0, 0, Tz * 1.0, COL.ice, 1 - u, 1, i, 0.9); Q.spray(X0 + Math.cos(an) * d, Y0 + Math.sin(an) * d * FSY - Tz * 0.4, Tz * 0.9, '#DDF4FF', (1 - u) * 0.8, i, 1, 0.7); }
-          const R1 = mulberry32(((J.seed | 0) + 9) >>> 0); for (let i = 0; i < 22 * LQ(); i++) { const an = R1() * TAU, d = (0.3 + R1()) * R * 0.7 * eout(u), x = X0 + Math.cos(an) * d, y = hy + (Y0 - hy) * eout(u) * 0.6 + Math.sin(an) * d * 0.5, s = Tz * (0.25 + R1() * 0.3), rot = R1() * 6 + u * 12; Q.quad(129, x, y, Math.cos(rot) * s, Math.sin(rot) * s, -Math.sin(rot) * s, Math.cos(rot) * s, COL.ice, (1 - u) * 1.1); }
-          for (let i = 0; i < 8; i++) { const an = i / 8 * TAU + 0.2, L2 = R * 1.1 * eout(u); Q.beam(X0, hy, X0 + Math.cos(an) * L2, hy + Math.sin(an) * L2 * 0.6, Tz * 0.3, COL.ice, (1 - u) * 0.5); }
-          Q.glow(X0, hy, Tz * 8 * (1 - u * 0.5), COL.white, (1 - u) * 0.8); }
-        // phase 6: the sea turns to glittering droplets as it evaporates
-        if (t > C.rel - 0.2) { const u = cl((t - C.rel + 0.2) / (C.len - C.rel + 0.2)), R1 = mulberry32(((J.seed | 0) + 17) >>> 0); for (let i = 0; i < 40 * LQ(); i++) { const x = X0 + (R1() - 0.5) * C.r * 2 * Tz, y = Y0 + (R1() - 0.5) * C.r * Tz - u * Tz * (1 + R1() * 2), tw = 0.5 + 0.5 * Math.sin(t * 9 + i); Q.star(x, y, Tz * (0.08 + R1() * 0.12), (1 - u) * tw, i % 3 ? COL.ice : COL.white); } }
-        fgClose(c); }
-      // the sea's meshes behind the god, then the god (larger: it towers over the room)
-      c.save(); c.globalCompositeOperation = 'source-over';   // (20b calls drawFx under 'lighter': the sea and the god are solid things, laid over)
-      if (sea.length) ABADDON_GL.drawSea(c, sea, t);
-      const al = Math.min(1, t / 0.25) * (rec > 0.95 ? 1 - (rec - 0.95) / 0.05 : 1);
-      a.abOut = { r: null }; if (glOn()) { const r = ABADDON_GL.draw(c, { X: gx, Y: gy, K, P, k: 3, alpha: al }); a.abOut.r = r; if (r) drawBodyFx(c, Object.assign({}, a, { abP: P, alpha: al })); }
-      else AnimaArt.draw(c, 'cancer', 3, gx, gy, Tz * 3.1 * 1.05, t, { inst: a, alpha: al, aura: false });
-      c.restore();
-      // the light of the release over everything
-      if (on && t >= C.strike - 0.05 && t < C.strike + 0.35) { const Q = fgOpen(c), u = cl((t - C.strike + 0.05) / 0.4); Q.glow(gx, gy - Tz * 2.9, Tz * 9, COL.white, (1 - u) * 1.1); fgClose(c); }
+      const J = T9, a = J.a, res = drawTide9(c, { x: J.x, y: J.y, t: J.t, seed: J.seed, at: (a.at || 0), from: { x: a.x, y: a.y }, fromP: a.abP, skyOnly: true });
+      a.abOut = { r: res.r };
     }
+    /* the light over the body (drawn right after it): the Lunar Heart's light (v420 AP: FGFX 132, a white-hot core, a luminous limb,
+       water-light turning inside, a soft feathered bloom, faint rays; a gentle pulse; brighter as it charges a power or the Tide),
+       the eye, the claws' cutting edges, the halo, the seams. r: the model's screen points, P its pose, al its alpha, at its clock */
+    function bodyLight(c, r, P, al, at) {
+      const Q = fgOpen(c), u = r.unit, hb = Math.min(3, P.heart || 0.8), dk = cl(P.dark || 0), hR = Math.min(r.heartR, u * 1.7 * (1 + Math.max(0, P.heartGrow || 0))), ch = cl((hb - 0.95) / 1.6), gl = cl(P.glow || 0);
+      const pulse = 0.5 + 0.5 * Math.sin((at || 0) * (2.2 + ch * 2.5)), hx = r.heart[0], hy = r.heart[1], Rq = hR * (3.4 + 1.4 * ch);
+      Q.glow(hx, hy, hR * (4.2 + 2 * ch), dk > 0.5 ? COL.deep : COL.sap, (0.16 + 0.14 * ch + 0.05 * pulse) * al * (1 - dk * 0.6));
+      Q.quad(132, hx, hy, Rq, 0, 0, Rq, COL.sap, al * (1 - dk * 0.85), hR / Rq * 0.92, pulse, Math.min(1.12, 0.72 + 0.3 * ch + 0.12 * gl));
+      if (dk > 0.05) Q.quad(123, hx, hy, r.heartR * 1.9, 0, 0, r.heartR * 1.9, COL.ice, al * dk, 0.52, at || 0, 1.2);
+      Q.glow(r.eye[0], r.eye[1], u * 0.9, COL.ice, 0.4 * al * (P.eye || 1)); Q.star(r.eye[0], r.eye[1] - u * 0.1, u * (0.4 + 0.25 * (P.eye || 1)), 0.5 * al, COL.white);
+      for (const cw of [r.clawL, r.clawR]) { if (!cw || !cw.edge) continue; const ed = 0.12 + 0.55 * (Math.max((P.arm && P.arm[0] && P.arm[0].edge) || 0, (P.arm && P.arm[1] && P.arm[1].edge) || 0));
+        for (let i = 0; i < cw.edge.length - 1; i += 1) { const p = cw.edge[i], q = cw.edge[i + 1], ex = (q[0] - p[0]) * 0.25, ey = (q[1] - p[1]) * 0.25; Q.beam(p[0] - ex, p[1] - ey, q[0] + ex, q[1] + ey, u * 0.45, COL.sap, ed * al * 0.45); } }
+      if ((P.ringGlow || 0) > 0.05 || gl > 0.2) Q.glow(r.halo[0], r.halo[1], u * 3.6, COL.sap, 0.22 * al * Math.max(P.ringGlow || 0, gl));
+      if ((P.seam || 0) > 0.05 && r.shell) Q.glow(r.shell[0], r.shell[1], r.shellR * 1.25, COL.sap, 0.25 * al * P.seam);
+      fgClose(c);
+    }
+    function drawBodyFx(c, a) { if (!gpu() || !a.abOut || !a.abOut.r) return; bodyLight(c, a.abOut.r, a.abP || {}, a.alpha == null ? 1 : a.alpha, a.at || 0); }
     /* screen-space: the room dims for the eclipse; Eclipse Requiem's seal hushes the light */
     function drawCine(c, W, Hh) {
-      let dim = 0; if (T9) { const t = T9.t, C = CFG.tide9; dim = 0.55 * sstep(0, 0.5, t) * (1 - sstep(C.strike, C.strike + 0.15, t)) + 0.35 * sstep(C.strike + 0.15, C.rel, t) * (1 - sstep(C.rel, C.len, t)) + (t > 3.7 && t < C.strike ? 0.25 : 0); }
+      let dim = 0, cx = W / 2, cy = Hh * 0.45, r0 = Math.min(W, Hh) * 0.15; if (T9) { const t = T9.t, C = CFG.tide9; dim = 0.55 * sstep(0, 0.5, t) * (1 - sstep(C.strike, C.strike + 0.15, t)) + 0.3 * sstep(C.strike + 0.15, C.rel, t) * (1 - sstep(C.rel, C.len, t)) + 0.22 * sstep(3.5, 3.75, t) * (1 - sstep(C.strike - 0.02, C.strike, t));
+        const S = t9Scene({ x: T9.x, y: T9.y, t, from: { x: T9.a.x, y: T9.a.y } }); cx = S.gx; cy = S.gy - S.K * 6.5; r0 = S.Tz * 3.2; }   // (v420 AP: the dark falls round the god, its own light kept; the held breath before the blast deepens it smoothly)
       for (const f of FX) if (f.kind === 'eclipse') dim = Math.max(dim, 0.28 * sstep(0, 0.5, f.t) * (1 - sstep(f.seal, f.seal + 0.25, f.t)));
       for (const a of S.list) if (a.id === 'cancer' && a.st === 'enter') dim = Math.max(dim, 0.3 * (1 - sstep(0.8, 1.6, a.abEn || 0)));
-      if (dim > 0.005) { c.save(); c.globalCompositeOperation = 'source-over'; const gr = c.createRadialGradient(W / 2, Hh * 0.45, Math.min(W, Hh) * 0.15, W / 2, Hh * 0.45, Math.max(W, Hh) * 0.75); gr.addColorStop(0, `rgba(3,5,18,${dim * 0.6})`); gr.addColorStop(1, `rgba(1,2,10,${Math.min(0.92, dim * 1.25)})`); c.fillStyle = gr; c.fillRect(0, 0, W, Hh); c.restore(); }
+      if (dim > 0.005) { c.save(); c.globalCompositeOperation = 'source-over'; const gr = c.createRadialGradient(cx, cy, r0, cx, cy, Math.max(W, Hh) * 0.75); gr.addColorStop(0, `rgba(3,5,18,${dim * (T9 ? 0.12 : 0.6)})`); gr.addColorStop(0.35, `rgba(2,4,14,${dim * 0.75})`); gr.addColorStop(1, `rgba(1,2,10,${Math.min(0.92, dim * 1.25)})`); c.fillStyle = gr; c.fillRect(0, 0, W, Hh); c.restore(); }
     }
     // (a power on demand, aimed as the mind would aim it: for showcases and tests)
     function cast(a, kind) { stOf(a); if (a.ab.act) endAct(a); const c = crowd(me.x, me.y, 9, 2.5) || { x: a.x + 3, y: a.y + 1 }, m = H.near(a.x, a.y, 6)[0];
       if (kind === 'swipe' && !m) return false; start(a, kind, kind === 'swipe' ? { m } : kind === 'tide' || kind === 'reavers' ? { x: c.x, y: c.y } : null); return true; }
-    return { tick, fin, cast, update, stop, inK, outK, descent, entrance, drawGround, drawFx, drawBodyFx, drawCine, CFG, get shield() { return sh; }, get seal() { return seal; }, get t9() { return T9; }, get fx() { return FX; }, get lifted() { return lifted; } };
+    return { tick, fin, cast, update, stop, inK, outK, descent, entrance, drawGround, drawFx, drawBodyFx, drawCine, drawTide9 /* v420 AP */, bodyLight /* v420 AP */, CFG, get shield() { return sh; }, get seal() { return seal; }, get t9() { return T9; }, get fx() { return FX; }, get lifted() { return lifted; } };
   }
-  return { create, CFG };
+  return { create, CFG, poseFor /* v420 AP */, easePose /* v420 AP */ };
 })();
 if (typeof self !== 'undefined') self.ABADDON_MOVES = ABADDON_MOVES;

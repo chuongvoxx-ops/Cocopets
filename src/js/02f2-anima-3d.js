@@ -499,11 +499,14 @@ const Anima3D = (() => {
      great crescent claws with luminous inner edges, the Lunar Heart, hanging tendrils and the long spine-blade; its sealed shell
      (form 1, and when the fight's pose closes it: o.inst.abP) a ball of porcelain petals */
   MODELS.cancer = (k, t, o) => {
-    const PZ = (o.inst && o.inst.abP) || {}, q = [0.8, 0.9, 1][k - 1], C = 8.4 * q, G = (x, y, z) => [y * C, x * C, (z + 0.4) * C * 1.08];
-    const open = PZ.open != null ? PZ.open : [0.16, 0.62, 1][k - 1], heart = PZ.heart != null ? PZ.heart : 0.8 + 0.15 * Math.sin(t * 2.2), dark = PZ.dark || 0, bob = Math.sin(t * 1.05) * 0.12;
+    const PZ = (o.inst && o.inst.abP) || {}, q = [0.8, 0.9, 1][k - 1], C = 8.4 * q, G = (x, y, z) => [y * C, (x + drx) * C, (z + 0.4) * C * 1.08];   // (v420 AP: drx its hover's drift)
+    const open = PZ.open != null ? PZ.open : [0.16, 0.62, 1][k - 1], heart = PZ.heart != null ? PZ.heart : 0.8 + 0.15 * Math.sin(t * 2.2), dark = PZ.dark || 0;
+    // (v420 AP: the same living motion as its GPU model: ABADDON_GL.life - the arms reaching, the claws opening and closing, the blades swaying, the hover)
+    const LF = typeof ABADDON_GL !== 'undefined' && ABADDON_GL.life ? ABADDON_GL.life({ t: PZ.t != null ? PZ.t : t, live: PZ.live != null ? PZ.live : 1 }) : null, lk = Math.max(0, Math.min(1, (open - 0.45) / 0.4)) * (1 - (PZ.fold || 0) * 0.8);
+    const bob = Math.sin(t * 1.05) * 0.12 + (LF ? LF.bob * 0.8 : 0), drx = LF ? LF.dx * 0.8 : 0;
     const IV = { col: '#ECE6DA', shade: '#B4B4C8', hi: '#FFFFFF', line: '#8A6A34', lw: Math.max(1, R.u * 1.1) }, TI = { col: '#262A38', shade: '#14161F', hi: '#4A5068', line: '#0A0C14' }, GD = '#D8B068';
     // a crescent plate in the x-z plane (GL units): its outer edge bulging w, its inner a quarter of that
-    const crescent = (a, b, c2, d, w, st, z) => { const bz = u => [0, 1, 2].map(i2 => { const v = 1 - u; return v * v * v * a[i2] + 3 * v * v * u * b[i2] + 3 * v * u * u * c2[i2] + u * u * u * d[i2]; }), n = 10, L1 = [], L2 = [];
+    const crescent = (a, b, c2, d, w, st, z, rot) => { if (rot) { const o2 = rot[0], ca = Math.cos(rot[1]), sa = Math.sin(rot[1]), R2 = q => [o2[0] + (q[0] - o2[0]) * ca - (q[2] - o2[2]) * sa, q[1], o2[2] + (q[0] - o2[0]) * sa + (q[2] - o2[2]) * ca]; a = R2(a); b = R2(b); c2 = R2(c2); d = R2(d); } const bz = u => [0, 1, 2].map(i2 => { const v = 1 - u; return v * v * v * a[i2] + 3 * v * v * u * b[i2] + 3 * v * u * u * c2[i2] + u * u * u * d[i2]; }), n = 10, L1 = [], L2 = [];
       for (let i2 = 0; i2 <= n; i2++) { const u = i2 / n, p = bz(u), pn = bz(Math.min(1, u + 0.02)), pp = bz(Math.max(0, u - 0.02)), tx = pn[0] - pp[0], tz = pn[2] - pp[2], L = Math.hypot(tx, tz) || 1, sn = Math.pow(Math.sin(Math.PI * Math.min(1, 0.02 + u * 0.96)), 0.8);
         L1.push([p[0] + tz / L * w * sn, p[1], p[2] - tx / L * w * sn]); L2.push([p[0] - tz / L * w * 0.25 * sn, p[1], p[2] + tx / L * w * 0.25 * sn]); }
       return blob(L1.concat(L2.reverse()).map(p => G(p[0], p[1], p[2] + bob)), Object.assign({}, st, { z: z || 0 })); };
@@ -513,21 +516,27 @@ const Anima3D = (() => {
     const sealed = open < 0.45;
     // the claws (outermost crescents), the arms, the shoulder horns and wing ribs
     for (const sd of [-1, 1]) {
-      const wx = sd * (sealed ? 2.6 : 3.7), wz = sealed ? 6.6 : 7.4;
-      tube([G(sd * 1.05, 0, 7.4 + bob), G(sd * 2.4, 0, 7.2 + bob), G(wx, 0.1, wz + bob)], u => (2.3 - u * 0.5) * q, Object.assign({}, TI, { z: 1 }));
-      crescent([wx - sd * 0.75, 0.2, wz + 3.6], [wx + sd * 2.3, 0.2, wz + 1.5], [wx + sd * 2.75, 0.3, wz - 5.3], [wx - sd * 1.7, 0.4, wz - 7.4], (k === 1 ? 0.7 : 0.95), Object.assign({}, IV, { glowCol: '#6FA2FF', glowA: 0.55 }), 2);
-      if (!sealed) { for (let i = 0; i < [0, 1, 2, 3][k]; i++) crescent([sd * 1.0, -0.2, 7.6 + i * 0.12], [sd * (2.1 - i * 0.2), -0.25, 8.0 + i * 0.1], [sd * (3.3 - i * 0.3), -0.35, 9.4], [sd * (3.6 - i * 0.35), -0.4, 10.9 - i * 0.3], (0.72 - i * 0.1) * 0.9, IV, -2 - i);
+      // (v420 AP: the arm swings, lifts and reaches about the shoulder, the elbow flexes, the claw turns about the wrist)
+      const la = LF ? LF.arm[sd > 0 ? 0 : 1] : null, PA = (PZ.arm && PZ.arm[sd > 0 ? 0 : 1]) || {}, sw = la ? ((la.raise + (PA.raise || 0)) * 0.9 - (la.swing + (PA.swing || 0)) * 0.45) * lk : 0, ex = la ? 1 + (la.ext + ((PA.ext || 0.2) - 0.2)) * 0.22 * lk - 0.04 : 1;
+      const sx0 = sd * 1.05, sz0 = 7.4, wx0 = sd * (sealed ? 2.6 : 3.7) - sx0, wz0 = (sealed ? 6.6 : 7.4) - sz0, cs = Math.cos(sd * sw), sn = Math.sin(sd * sw), wx = sx0 + (wx0 * cs - wz0 * sn) * ex, wz = sz0 + (wx0 * sn + wz0 * cs) * ex;
+      const ebx = (sx0 + wx) / 2 + sd * 0.1, ebz = (sz0 + wz) / 2 - 0.2 + (la ? la.bend * lk * 0.9 : 0);
+      tube([G(sx0, 0, sz0 + bob), G(ebx, 0, ebz + bob), G(wx, 0.1, wz + bob)], u => (2.3 - u * 0.5) * q, Object.assign({}, TI, { z: 1 }));
+      crescent([wx - sd * 0.75, 0.2, wz + 3.6], [wx + sd * 2.3, 0.2, wz + 1.5], [wx + sd * 2.75, 0.3, wz - 5.3], [wx - sd * 1.7, 0.4, wz - 7.4], (k === 1 ? 0.7 : 0.95), Object.assign({}, IV, { glowCol: '#6FA2FF', glowA: 0.55 + (la ? LF.edge * 0.3 : 0) }), 2, la ? [[wx, 0, wz], sd * (sw * 0.6 + (la.claw + (PA.claw || 0)) * 0.55 * lk)] : null);
+      if (!sealed) { const wf = LF ? (LF.wing[sd > 0 ? 0 : 1] * 1.4 + LF.flare * 0.8 + LF.sho * 0.6) * sd : 0; for (let i = 0; i < [0, 1, 2, 3][k]; i++) crescent([sd * 1.0, -0.2, 7.6 + i * 0.12], [sd * (2.1 - i * 0.2), -0.25, 8.0 + i * 0.1], [sd * (3.3 - i * 0.3), -0.35, 9.4], [sd * (3.6 - i * 0.35), -0.4, 10.9 - i * 0.3], (0.72 - i * 0.1) * 0.9, IV, -2 - i, wf ? [[sd * 1.0, 0, 7.6], -wf * (1 + i * 0.2)] : null);
         for (let i = 0; i < [0, 0, 3, 5][k]; i++) crescent([sd * 0.9, -0.4, 7.1 - i * 0.16], [sd * (2.0 + i * 0.1), -0.45, 7.0 - i * 0.3], [sd * (2.6 + i * 0.12), -0.4, 5.2 - i * 0.2], [sd * (1.2 + i * 0.25), -0.25, 3.3 - i * 0.1], 0.36 * 0.9, IV, -6 - i); } }
     // the torso, sternum and heart
     if (!sealed) { ell(G(0, 0, 6.2 + bob), [0.7 * C, 0.85 * C, 1.9 * C], Object.assign({}, TI, { z: -1 })); blob([G(-0.6, 0.6, 8.0 + bob), G(0.6, 0.6, 8.0 + bob), G(0.2, 0.75, 7.0 + bob), G(0, 0.8, 6.55 + bob), G(-0.2, 0.75, 7.0 + bob)], Object.assign({}, IV, { z: 0.5 }));
       blob([G(-0.5, 0, 4.3 + bob), G(0.5, 0, 4.3 + bob), G(0.12, 0.05, 1.5 + bob), G(0, 0.05, -0.6 + bob), G(-0.12, 0.05, 1.5 + bob)], Object.assign({}, IV, { z: 0.2, glowCol: '#6FA2FF', glowA: 0.5 }));
-      for (let i = 0; i < [0, 4, 6, 8][k]; i++) { const a = (i / Math.max(1, [0, 4, 6, 8][k] - 1) - 0.5) * 2.6, ox = Math.sin(a) * 0.75, L = (4.6 - Math.abs(a) * 0.6) * (k === 3 ? 1 : 0.85), sw = Math.sin(t * 1.3 + i * 1.7) * 0.25;
+      for (let i = 0; i < [0, 4, 6, 8][k]; i++) { const a = (i / Math.max(1, [0, 4, 6, 8][k] - 1) - 0.5) * 2.6, ox = Math.sin(a) * 0.75, L = (4.6 - Math.abs(a) * 0.6) * (k === 3 ? 1 : 0.85), sw = Math.sin(t * 1.3 + i * 1.7) * 0.25 * (LF ? LF.tenSway : 1);
         tube([G(ox, 0.3, 4.2 + bob), G(ox * 1.6 + sw * 0.4, 0.4, 4.2 - L * 0.4 + bob), G(ox * 1.2 + sw, 0.5, 4.2 - L * 0.8 + bob), G(ox * 0.6 + sw * 1.4, 0.7, 4.2 - L + bob)], u => (1.7 - u * 1.5) * q, Object.assign({}, IV, { z: 0.6 })); } }
     // the sealed shell: a ball of porcelain petals, seams of light
     if (sealed) { const sc = G(0, 0, 5.3 + bob), sr = 2.5 * C; sphere(sc, sr, Object.assign({}, IV, { z: 0, sprite: false, inner: c => { const p0 = P(sc); c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = 'rgba(111,162,255,.75)'; c.lineWidth = Math.max(1, R.u * 1.2); for (let i = -2; i <= 2; i++) { c.beginPath(); c.ellipse(p0[0], p0[1], Math.abs(i) * sr * R.u * 0.33 + 0.5, sr * R.u * 0.98, 0, 0, TAU); c.stroke(); } c.restore(); } })); }
     // the heart: a moon in swirling water, glowing (black in an eclipse)
     const hp = G(0, sealed ? 1.6 : 0.8, 5.62 + bob); sphere(hp, 1.25 * C * (sealed ? 0.6 : 1), { col: dark > 0.5 ? '#0A0E1C' : '#6FA2FF', shade: dark > 0.5 ? '#02040A' : '#2448B8', hi: '#DDE8FF', line: '#8A6A34', spec: 0.9, z: 2, sprite: false });
-    glowAt(hp, 2.6 * C * (0.6 + 0.3 * heart), dark > 0.5 ? '#3A5AC8' : '#8FB8FF', 0.6);
+    { const hb = Math.min(3, heart), ch = Math.max(0, Math.min(1, (hb - 0.95) / 1.6)), pl = 0.5 + 0.5 * Math.sin(t * (2.2 + ch * 2.5)), dk = dark > 0.5;   // (v420 AP: the Lunar Heart's glow: a soft wide bloom, the glow, a white inner core; a gentle pulse; brighter as it charges)
+      glowAt(hp, 4.4 * C * (0.75 + 0.25 * ch), dk ? '#2448B8' : '#6FA2FF', (0.28 + 0.2 * ch + 0.06 * pl) * (dk ? 0.5 : 1));
+      glowAt(hp, 2.6 * C * (0.6 + 0.3 * Math.min(2, heart)), dk ? '#3A5AC8' : '#8FB8FF', 0.6);
+      if (!dk) glowAt(hp, 1.05 * C * (0.85 + 0.2 * pl + 0.3 * ch), '#FFFFFF', 0.5 + 0.2 * pl + 0.25 * ch); }
     // the mask
     const mh = G(0, 0.25, 8.5 + bob); blob([G(-0.62, 0.55, 9.5 + bob), G(-0.75, 0.4, 10.4 + bob), G(0, 0.5, 11.0 + bob), G(0.75, 0.4, 10.4 + bob), G(0.62, 0.55, 9.5 + bob), G(0, 0.85, 7.05 + bob)], Object.assign({}, IV, { z: 3 }));
     mark(G(0, 0.9, 9.6 + bob), [1, 0, 0.1], 2 * C, (c, r) => { c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = '#BFD8FF'; c.lineWidth = r * 0.12; c.beginPath(); c.moveTo(0, -r * 0.8); c.lineTo(0, r * 0.5); c.stroke(); c.restore(); });

@@ -1823,7 +1823,7 @@ GAMES.dungeon = {
       const key = bossUp ? `b${Math.ceil(g.boss.hp)}|${g.coins}|${g.boss.act === 'sleep' ? 1 : 0}|${FD ? FD.S.phase : 0}|${four}` : `${left}|${g.coins}|${g.cleared ? 1 : 0}|${RL}|${RIFT ? RIFT.goal() : ''}`;
       if (key === hudKey) return;
       hudKey = key;
-      if (bossUp) api.hud({ score: g.coins, hearts: 0, max: 0, goal: FD ? FD.goal() : g.boss.act === 'sleep' ? `Find ${g.boss.bname} in the arena` : `${g.boss.bname} · ${Math.max(0, Math.ceil(g.boss.hp / g.boss.maxhp * 100))}%${four}` });
+      if (bossUp) api.hud({ score: g.coins, hearts: 0, max: 0, goal: FD ? FD.goal() : g.boss.goalFn ? g.boss.goalFn() /* v420 CB: a boss with its own line (Abaddon, 20o2) */ : g.boss.act === 'sleep' ? `Find ${g.boss.bname} in the arena` : `${g.boss.bname} · ${Math.max(0, Math.ceil(g.boss.hp / g.boss.maxhp * 100))}%${four}` });
       else if (RIFT) api.hud({ score: g.coins, hearts: 0, max: 0, goal: g.won ? 'Section clear!' : RIFT.goal() });
       else api.hud({ score: g.coins, hearts: 0, max: 0, goal: (g.won ? 'Floor clear!' : left ? `${left} monster${left > 1 ? 's' : ''} left · ${PB.name}` : g.cleared ? 'The boss is coming!' : RULES && !RULES.keysDone() ? 'Find the keys' : 'Floor clear!') + (RL ? ' · ' + RL : '') });
     }
@@ -2637,7 +2637,8 @@ GAMES.dungeon = {
       // Rift-touched Cocopet, a key keeper, a roamer; the nearest of them. Brutes are monsters and have none)
       let BB = bossUp && !sleeping && g.bossIntro <= 2.2 ? g.boss : null;
       if (!BB && !bossUp) { let bd = 15; for (const m of mons) if (m.lesser && !m.brute && !m.dead && m.aggro) { const d = hyp(m.x - me.x, m.y - me.y); if (d < bd) { bd = d; BB = m; } } }
-      if (BB && !FD) {
+      if (BB && BB.ownBar && !FD) { try { BB.ownBar(c, W); } catch (e) { /* (its own bar failed: none this frame) */ } }   /* v420 CB: a boss that draws its own stacked bars (Abaddon, 20o2) */
+      else if (BB && !FD) {
         // the finale boss (or a mini boss): one slim strip under the pet HUD
         const bw2 = Math.min(140, W * 0.36), bx0 = W - 12 - bw2, by = 10 + Math.min(88, W * 0.24) + 14, yb = by + 7, bh = 5;
         c.save(); c.globalAlpha = 0.92;

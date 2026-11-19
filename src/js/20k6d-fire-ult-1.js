@@ -2,7 +2,7 @@
    The showpieces. Every flame is FK's shaded volume; every molten or solid thing (a bowl plate, a kiln brick, a lotus
    petal, a lantern cap) has a four-tone ramp, a dark crust, glowing seams, a rim of firelight and an outline; every
    burning thing lights the floor and sheds embers; every hit scorches the ground. Things over the aim fade where they
-   would pass in front of the pet (petGuard), and the beams of Armageddon lean aside round the pet. */
+   would pass in front of the pet (petGuard); the beams of Armageddon keep their own paths (v420 AR: they no longer shy from the pet). */
 (() => {
   const S = ELEM_IMPL.fire.strong, U = ELEM_IMPL.fire.ult;   // (S unused here: Strongs are other workers')
   const TAU = Math.PI * 2, P = FK.P, HOT = '#CFEFFF';
@@ -167,88 +167,96 @@
         px = x2; py = y2; pc = cq; } }
     function underGL(FG, c, f, X, Y, T) {
       const fa = cl(Math.min(f.t / 0.6, (D + 0.9 - f.t) / 0.9)), S = scr(c), tt = f.t, m = T * 3, gy = GY();
-      c.save(); c.globalAlpha = (sup ? 0.3 : 0.24) * fa; c.fillStyle = 'rgb(44,12,6)'; c.fillRect(S.x0, S.y0, S.w, S.h); c.restore();   // (the smouldering dim, 2D)
+      c.save(); c.globalAlpha = (sup ? 0.24 : 0.2) * fa; c.fillStyle = 'rgb(26,10,8)'; c.fillRect(S.x0, S.y0, S.w, S.h); c.restore();   // (the smouldering dim, 2D; v420 AR: a plain darkening, so the floor keeps its own colour)
       const Q = FG.begin(c, null), gv = H.ease.out(cl(tt / 1.2));
       // the floor round the aim burning and cracking open, breathing
-      Q.ground(X, Y, T * RX * 1.08 * (0.35 + 0.65 * gv), 0.8, fa * gv * (0.6 + 0.15 * Math.sin(tt * 4)), 4.2, gy, 1); Q.glow(X, Y, T * RX * 1.3, P.red, 0.3 * fa * gv, gy);
+      Q.ground(X, Y, T * RX * 1.0 * (0.35 + 0.65 * gv), 0.6, fa * gv * (0.13 + 0.04 * Math.sin(tt * 4)), 4.2, gy, 1); Q.glow(X, Y, T * RX * 1.2, P.red, 0.06 * fa * gv, gy);   // (v420 AR, second pass: no floor-wide wash: faint cracks, the fire pools only under each beam)
       for (const b of beams) { if (tt < b.s) continue; const BX = H.sx(b.x), BY = H.sy(b.y), on = tt < b.e, a = cl((tt - b.s) / 0.35) * (on ? 1 : Math.max(0, 1 - (tt - b.e) / 0.45));
-        for (const p of b.tr) { const age = tt - p.t, k = Math.max(0, 1 - age / 1.3); if (k <= 0 || (p.n & 1)) continue; const qx = H.sx(p.x), qy = H.sy(p.y); if (qx < S.x0 - m || qx > S.x0 + S.w + m || qy < S.y0 - m || qy > S.y0 + S.h + m) continue; Q.glow(qx, qy, T * BR * 1.9 * (0.6 + 0.4 * k), P.org, 0.45 * k * kN, gy); if (k > 0.5) Q.ground(qx, qy, T * BR * 0.9, 0.6 * k, 0.4 * k * kN, p.sd, gy, 0.3); }
+        for (const p of b.tr) { const age = tt - p.t, k = Math.max(0, 1 - age / 1.3); if (k <= 0 || (p.n & 1)) continue; const qx = H.sx(p.x), qy = H.sy(p.y); if (qx < S.x0 - m || qx > S.x0 + S.w + m || qy < S.y0 - m || qy > S.y0 + S.h + m) continue; Q.glow(qx, qy, T * BR * 1.5 * (0.6 + 0.4 * k), P.red, 0.1 * k * kN, gy); if (k > 0.5) Q.ground(qx, qy, T * BR * 0.8, 0.45 * k, 0.14 * k * kN, p.sd, gy, 0.3); }
         if (a <= 0.01 || BX < S.x0 - m || BX > S.x0 + S.w + m || BY < S.y0 - m || BY > S.y0 + S.h + m) continue;
         const br = 1 + 0.067 * Math.sin(tt * 3 + b.ph), R0 = T * BR * br;
-        // the swirl of fire on the floor, the pool of firelight, the white splash, the burning ring with embers running round it
-        Q.quad(14, BX, BY, R0 * 1.6, 0, 0, R0 * 1.6 * gy, '#FFFFFF', 0.8 * kN * a, 0.9, b.ph, 0.42 * b.spin);
-        Q.glow(BX, BY, R0 * 2.1, P.red, 0.5 * kN * a, gy); Q.glow(BX, BY, R0 * 1.45, P.org, 0.45 * kN * a, gy); Q.glow(BX, BY, R0 * 0.7, P.wht, 0.55 * a, gy);
-        Q.ground(BX, BY, R0 * 1.15, 0.85, 0.6 * a * kN, b.sd, gy, 0.6);
-        Q.ring(BX, BY, R0 * 0.95, P.org, a * (0.9 + 0.1 * Math.sin(tt * 19 + b.ph)), R0 * 0.14, gy); Q.ring(BX, BY, R0 * 0.95, '#FFFFFF', 0.55 * a, R0 * 0.035, gy);
-        for (let i = 0; i < 4; i++) { const q = tt * 2 * b.spin + i * TAU / 4, ex = BX + Math.cos(q) * R0 * 0.95, ey = BY + Math.sin(q) * R0 * 0.95 * gy; Q.glow(ex, ey, T * 0.3, P.amb, 0.7 * a); Q.star(ex, ey, T * 0.16, 0.8 * a); } }
+        // the swirl of fire on the floor, the pool of firelight, a gold splash, the burning ring with embers running round it
+        // (v420 AR: toned down: no white splash or white ring, the pool lower and wider so it feathers out, the swirl cooler)
+        Q.quad(14, BX, BY, R0 * 1.35, 0, 0, R0 * 1.35 * gy, '#FFFFFF', 0.36 * kN * a, 0.74, b.ph, 0.42 * b.spin);
+        Q.glow(BX, BY, R0 * 1.9, P.red, 0.2 * kN * a, gy); Q.glow(BX, BY, R0 * 1.2, P.org, 0.17 * kN * a, gy); Q.glow(BX, BY, R0 * 0.6, P.gold, 0.18 * kN * a, gy);
+        Q.ground(BX, BY, R0 * 1.05, 0.68, 0.3 * a * kN, b.sd, gy, 0.6);
+        Q.ring(BX, BY, R0 * 0.95, P.org, 0.45 * a * (0.9 + 0.1 * Math.sin(tt * 19 + b.ph)), R0 * 0.12, gy); Q.ring(BX, BY, R0 * 0.95, P.yel, 0.18 * a, R0 * 0.03, gy);
+        for (let i = 0; i < 2; i++) { const q = tt * 2 * b.spin + i * Math.PI, ex = BX + Math.cos(q) * R0 * 0.95, ey = BY + Math.sin(q) * R0 * 0.95 * gy; Q.glow(ex, ey, T * 0.24, P.amb, 0.35 * a); Q.star(ex, ey, T * 0.12, 0.3 * a, P.yel); } }   // (v420 AR, second pass: the pool tighter and fainter, two embers on the ring, not four)
       FG.flush(c);
     }
     function drawGL(FG, c, f, X, Y, T) {
       const fa = cl(Math.min(f.t / 0.6, (D + 0.9 - f.t) / 0.9)), S = scr(c), tt = f.t, topY = S.y0 - T * 0.5, low = LQ();
-      const PX = H.sx(me.x), PY = H.sy(me.y) - T * 0.46, Q = FG.begin(c, null);
+      const PX = H.sx(me.x), PY = H.sy(me.y) - T * 0.46, Q = FG.begin(c, [PX, PY, T * 0.6]);   // (v420 AR: the pet's face kept clear by the painter's soft hole, now that no beam leans aside)
       // the vortex of fire in the sky the beams fall from (a greater, double one at Celestial)
       const VX = X, VY = S.y0 + T * 0.6, vs = sup ? 1.3 : 1, vr = T * 6.5 * vs;
-      Q.glow(VX, VY, T * 7 * vs, P.red, 0.45 * fa, 0.55); Q.glow(VX, VY, T * 3 * vs, P.org, 0.3 * fa, 0.5);
-      Q.quad(14, VX, VY, vr, 0, 0, vr * 0.38, '#FFFFFF', fa, 0.95, 1.3, -0.15); Q.quad(14, VX, VY, vr * 0.6, 0, 0, vr * 0.6 * 0.38, '#FFFFFF', 0.75 * fa, 1.0, 4.1, 0.22);
-      if (sup) { Q.quad(14, VX, VY, vr * 1.45, 0, 0, vr * 1.45 * 0.38, '#FFFFFF', 0.55 * fa, 0.85, 7.7, -0.08); Q.glow(VX, VY, T * 1.6, P.yel, 0.45 * fa); }
+      Q.glow(VX, VY, T * 5.5 * vs, P.red, 0.18 * fa, 0.55); Q.glow(VX, VY, T * 2.6 * vs, P.org, 0.13 * fa, 0.5);   // (v420 AR: the vortex cooler, its eye gold, not white; second pass: its haze over the screen cut well down)
+      Q.quad(14, VX, VY, vr, 0, 0, vr * 0.38, '#FFFFFF', 0.55 * fa, 0.82, 1.3, -0.15); Q.quad(14, VX, VY, vr * 0.6, 0, 0, vr * 0.6 * 0.38, '#FFFFFF', 0.42 * fa, 0.85, 4.1, 0.22);
+      if (sup) { Q.quad(14, VX, VY, vr * 1.45, 0, 0, vr * 1.45 * 0.38, '#FFFFFF', 0.28 * fa, 0.78, 7.7, -0.08); Q.glow(VX, VY, T * 1.4, P.gold, 0.15 * fa); }
+      // (v420 AR, second pass: where columns cross or run side by side their light adds up: each is scaled by 1 / sqrt(1 + how
+      // many others run close beside it), measured between the columns' lower parts on the screen, the part over the floor)
+      const CO = [];
+      for (const b of beams) { if (tt < b.s || (tt >= b.e && tt - b.e > 0.45)) continue; const BX = H.sx(b.x), BY = H.sy(b.y), TX = BX * 0.55 + VX * 0.45 + Math.cos(b.ph + tt * 0.45 * b.spin) * T * 1.6; CO.push([b, (TX + BX) / 2 * 0.4 + BX * 0.6, (topY + BY) / 2 * 0.4 + BY * 0.6, TX * 0.3 + BX * 0.7]); }
+      const kOv = b => { const me0 = CO.find(o => o[0] === b); if (!me0) return 1; const wr = T * BR * 1.25 * 1.4; let n = 0; for (const o of CO) if (o !== me0) { const d1 = Math.hypot(o[1] - me0[1], o[2] - me0[2]), d2 = Math.abs(o[3] - me0[3]); n += Math.exp(-(d1 * d1) / (wr * wr * 2.2)) * 0.6 + Math.exp(-(d2 * d2) / (wr * wr * 1.4)) * 0.4; } return 1 / Math.sqrt(1 + n); };
       for (const b of beams) { if (tt < b.s) continue; const on = tt < b.e, out = on ? 0 : cl((tt - b.e) / 0.45); if (out >= 1) continue;
-        const BX = H.sx(b.x), BY = H.sy(b.y), grow = H.ease.in(cl((tt - b.s) / 0.32)), a = (0.35 + 0.65 * cl((tt - b.s - 0.2) / 0.3)) * (1 - out) * (0.92 + 0.08 * Math.sin(tt * 23 + b.ph * 3));
-        const qa = b.ph + tt * 0.45 * b.spin, TY = topY; let TX = BX * 0.55 + VX * 0.45 + Math.cos(qa) * T * 1.6;
-        { const u = (PY - TY) / (BY - TY); if (u > 0 && u < 0.97) { const need = T * BR * 0.75 + T * 0.75, xu = TX + (BX - TX) * u, dd = PX - xu; if (Math.abs(dd) < need) { const xt = PX - (dd >= 0 ? 1 : -1) * need; TX = Math.max(TX - T * 9, Math.min(TX + T * 9, (xt - BX * u) / (1 - u))); } } }   // (it leans aside round the pet)
-        const w = T * BR * 1.4 * (on ? 1 : 1 - 0.7 * out) * (0.25 + 0.75 * cl((tt - b.s - 0.15) / 0.3)) * (1 + 0.07 * Math.sin(tt * 9 + b.ph) + 0.03 * Math.sin(tt * 21 + b.i));
+        const BX = H.sx(b.x), BY = H.sy(b.y), grow = H.ease.in(cl((tt - b.s) / 0.32)), a = (0.35 + 0.65 * cl((tt - b.s - 0.2) / 0.3)) * (1 - out) * (0.92 + 0.08 * Math.sin(tt * 23 + b.ph * 3)) * kOv(b) * (sup ? 0.9 : 1);
+        const qa = b.ph + tt * 0.45 * b.spin, TY = topY, TX = BX * 0.55 + VX * 0.45 + Math.cos(qa) * T * 1.6;   // (v420 AR: no lean round the pet: the column keeps its own path; the soft hole in the painter keeps the pet's face readable)
+        const w = T * BR * 1.25 * (on ? 1 : 1 - 0.7 * out) * (0.25 + 0.75 * cl((tt - b.s - 0.15) / 0.3)) * (1 + 0.07 * Math.sin(tt * 9 + b.ph) + 0.03 * Math.sin(tt * 21 + b.i));
         if (Math.max(TX, BX) + w < S.x0 || Math.min(TX, BX) - w > S.x0 + S.w) continue;
         const L = Math.hypot(BX - TX, BY - TY) || 1, d = [(BX - TX) / L, (BY - TY) / L], n = [-d[1], d[0]], Lg = L * grow, top0 = out * L, A = [TX, TY];
-        if (grow >= 1 && a > 0.05) Q.glow(BX, BY - T * 0.9, T * BR * 2.2, P.org, 0.4 * a * kN);
+        if (grow >= 1 && a > 0.05) Q.glow(BX, BY - T * 0.8, T * BR * 1.6, P.org, 0.14 * a * kN);
         if (Lg - top0 > T) { const x0 = TX + d[0] * top0, y0 = TY + d[1] * top0, x1 = TX + d[0] * Lg * 1.04, y1 = TY + d[1] * Lg * 1.04, sp = 4.5 + b.i * 0.3;
           const fl = [[P.red, w * 0.1, 0.55], [P.org, w * 0.055, 0.85], [P.yel, w * 0.022, 0.9]];
           // (flames licking up and out as they wind round the column: real fire tongues; the far ones dim, behind it)
-          const licks = front => { const NL = low ? 5 : 9; for (let j = 0; j < NL; j++) { const u = ((tt * 0.35 + j / NL) % 1), q = j * 2.4 + u * 7 - tt * 4.2 * b.spin + b.ph, sq = Math.sin(q), cq = Math.cos(q); if ((cq > 0) !== front) continue;
+          const licks = front => { const NL = low ? 4 : 7; for (let j = 0; j < NL; j++) { const u = ((tt * 0.35 + j / NL) % 1), q = j * 2.4 + u * 7 - tt * 4.2 * b.spin + b.ph, sq = Math.sin(q), cq = Math.cos(q); if ((cq > 0) !== front) continue;
             const yy = top0 + (Lg - top0) * (0.15 + 0.6 * u), env = Math.sin(Math.PI * u), off = sq * w * 0.42, ex = TX + d[0] * yy + n[0] * off, ey = TY + d[1] * yy + n[1] * off - w * 0.08 * cq, sz = w * (0.6 + 0.15 * Math.sin(tt * 9 + j)) * env;
-            Q.tongue(ex, ey, sz * 0.32, sz * 0.55, Math.atan2(d[1], d[0]) + Math.PI / 2 + Math.PI + sq * 0.9, 0.9, a * env * (front ? 0.95 : 0.4), b.sd + j); } };
+            Q.tongue(ex, ey, sz * 0.32, sz * 0.55, Math.atan2(d[1], d[0]) + Math.PI / 2 + Math.PI + sq * 0.9, 0.78, a * env * (front ? 0.62 : 0.26), b.sd + j); } };
           licks(false);
-          // the column: a broad glow, the body of the fire laid over, turbulent fire pouring down it, a white-hot core
-          for (let k = 0; k <= 3; k++) { const u = k / 3; Q.glow(lerp(x0, x1, u), lerp(y0, y1, u), w * 0.8, P.red, 0.18 * a); }
-          Q.firebody(x0, y0, x1, y1, w * 0.36, 0.7, 0.7 * a, b.sd * 0.37, sp);
+          // the column: a broad glow, the body of the fire laid over, turbulent fire pouring down it, a gold core
+          // (v420 AR: cooler and softer: deep orange and red with a gold heart, not white; its upper stretches fainter, where the
+          // beams gather toward the vortex and would stack up)
+          for (let k = 0; k <= 3; k++) { const u = k / 3; Q.glow(lerp(x0, x1, u), lerp(y0, y1, u), w * 0.6, P.red, 0.08 * a * kN * (0.6 + 0.4 * u)); }
+          Q.firebody(x0, y0, x1, y1, w * 0.34, 0.6, 0.5 * a, b.sd * 0.37, sp);   // (v420 AR, second pass: the column fainter and a little narrower; its halo much smaller)
           // (the turbulent fire in stretches about two widths long, overlapping, so the flame keeps its grain down a long column)
           { const NS = Math.max(2, Math.min(low ? 5 : 9, Math.round(Math.hypot(x1 - x0, y1 - y0) / (w * 1.6)))); for (let k = 0; k < NS; k++) { const u0 = Math.max(0, k / NS - 0.05), u1 = Math.min(1, (k + 1) / NS + 0.05);
-            Q.firebeam(lerp(x0, x1, u0), lerp(y0, y1, u0), lerp(x0, x1, u1), lerp(y0, y1, u1), w * 0.44, 0.8, 0.85 * a, b.sd * 0.53 + k * 0.71, sp); } }
-          Q.firebeam(x0, y0, x1, y1, w * 0.17, 1.0, 0.6 * a, b.sd * 0.91, sp * 1.5);
-          Q.beam(x0, y0, x1, y1, w * 0.06, P.yel, 0.65 * a); Q.beam(x0, y0, x1, y1, w * 0.022, '#FFFFFF', 0.9 * a);
+            Q.firebeam(lerp(x0, x1, u0), lerp(y0, y1, u0), lerp(x0, x1, u1), lerp(y0, y1, u1), w * 0.42, 0.62, 0.48 * a * (0.55 + 0.45 * (u0 + u1) / 2), b.sd * 0.53 + k * 0.71, sp); } }
+          Q.firebeam(x0, y0, x1, y1, w * 0.16, 0.68, 0.32 * a, b.sd * 0.91, sp * 1.5);
+          Q.beam(x0, y0, x1, y1, w * 0.055, P.gold, 0.26 * a); Q.beam(x0, y0, x1, y1, w * 0.022, P.yel, 0.28 * a);
           licks(true);
           // embers whirling up inside it
-          for (let j = 0; j < (low ? 3 : 6); j++) { const u = (tt * 0.6 + j / 6 + b.i * 0.13) % 1, yy = top0 + (Lg - top0) * (1 - u), q = u * 12 + j * 1.3 - tt * 3 * b.spin, xx = Math.sin(q) * w * 0.42, ex = TX + d[0] * yy + n[0] * xx, ey = TY + d[1] * yy + n[1] * xx; Q.glow(ex, ey, T * 0.28, j & 1 ? P.org : P.amb, 0.8 * a); Q.star(ex, ey, T * 0.12, 0.8 * a); } }
+          for (let j = 0; j < (low ? 2 : 3); j++) { const u = (tt * 0.6 + j / 3 + b.i * 0.13) % 1, yy = top0 + (Lg - top0) * (1 - u), q = u * 12 + j * 1.3 - tt * 3 * b.spin, xx = Math.sin(q) * w * 0.42, ex = TX + d[0] * yy + n[0] * xx, ey = TY + d[1] * yy + n[1] * xx; Q.glow(ex, ey, T * 0.22, j & 1 ? P.org : P.amb, 0.45 * a); Q.star(ex, ey, T * 0.1, 0.35 * a, P.yel); } }   // (v420 AR, second pass: three embers, not six)
         // its last flare as it lifts: a burst of light, a shock ring of fire over the floor
-        if (out > 0) { Q.glow(BX, BY - T * 0.8, T * 2.6 * (1 - out * 0.4), P.yel, 0.75 * (1 - out)); Q.fire(BX, BY - T * 0.5, T * 0.9 * (1 - out * 0.5), 1.0, 0.8 * (1 - out), b.sd); const rr = T * (BR + 2 * out); Q.ring(BX, BY, rr, P.org, 1 - out, T * 0.22, GY()); Q.ring(BX, BY, rr * 0.97, '#FFFFFF', 0.5 * (1 - out), T * 0.06, GY()); Q.shimmer(BX, BY, rr * 1.05, 0.35 * (1 - out), GY()); }
+        if (out > 0) { Q.glow(BX, BY - T * 0.8, T * 2.1 * (1 - out * 0.4), P.gold, 0.28 * (1 - out)); Q.fire(BX, BY - T * 0.5, T * 0.85 * (1 - out * 0.5), 0.8, 0.5 * (1 - out), b.sd); const rr = T * (BR + 2 * out); Q.ring(BX, BY, rr, P.org, 0.55 * (1 - out), T * 0.2, GY()); Q.ring(BX, BY, rr * 0.97, P.yel, 0.2 * (1 - out), T * 0.05, GY()); Q.shimmer(BX, BY, rr * 1.05, 0.35 * (1 - out), GY()); }   // (v420 AR: gold, not white)
       }
       // embers drifting up over the whole screen, twinkling
-      if (fa > 0.01) for (let i = 0; i < (low ? NFL >> 1 : NFL); i++) { const F = FL[i], fx2 = S.x0 + ((F.x * S.w + 16 * Math.sin(tt * F.w * 1.7 + i) - tt * 6) % S.w + S.w) % S.w, fy2 = S.y0 + S.h - ((F.y * S.h + tt * F.sp) % S.h), al = fa * (0.55 + 0.45 * Math.sin(tt * (3 + F.w * 4) + i * 1.3));
-        Q.glow(fx2, fy2, F.sz * 1.6, F.v ? P.org : P.amb, al); if (F.sz > 5) Q.star(fx2, fy2, F.sz * 0.9, 0.6 * al, F.v ? P.amb : '#FFF6D8'); }
+      if (fa > 0.01) for (let i = 0; i < (low ? NFL >> 2 : NFL >> 1); i++) {   // (v420 AR, second pass: half as many)
+        const F = FL[i], fx2 = S.x0 + ((F.x * S.w + 16 * Math.sin(tt * F.w * 1.7 + i) - tt * 6) % S.w + S.w) % S.w, fy2 = S.y0 + S.h - ((F.y * S.h + tt * F.sp) % S.h), al = fa * (0.55 + 0.45 * Math.sin(tt * (3 + F.w * 4) + i * 1.3));
+        Q.glow(fx2, fy2, F.sz * 1.4, F.v ? P.org : P.amb, 0.6 * al); if (F.sz > 6) Q.star(fx2, fy2, F.sz * 0.75, 0.3 * al, F.v ? P.amb : P.yel); }
       FG.flush(c);
     }
-    return H.add({ life: D + 0.9, x, y, wi: 0, pi: 0, nP: 0, fin: false,
+    return H.add({ beams, life: D + 0.9, x, y, wi: 0, pi: 0, nP: 0, fin: false,   /* (v420 AR: its beams kept on it, so a check can read their paths) */
       update(dt, f) {
         for (let q = 0; q < 4 && f.wi < warm.length; q++) warm[f.wi++]();
         const live = H.living(), t = f.t;
         // the burning patches, one at a time at the beams in turn
         if (f.nP < NPATCH && t >= W0 + (W1 - W0) * f.nP / NPATCH) { const on = beams.filter(b => t > b.s + 0.3 && t < b.e); if (on.length) { const b = on[f.pi++ % on.length]; H.fire(b.x, b.y, sup ? 0.9 : 1.0, 2.0, C.base * 0.3, 'fire'); } f.nP++; }
         for (const b of beams) { if (t < b.s || t > b.e + 0.5) continue; const on = t < b.e;
-          if (!b.land && t >= b.s + 0.32) { b.land = true; H.X.light(b.x, b.y, 2.4, 0.35); H.X.shake(3, 0.12); H.X.sfx.crash(); K.sparks(b.x, b.y - 0.2, 6, 5); K.embers(b.x, b.y - 0.3, 8, { v: 3 }); H.X.ring(b.x, b.y, 0.2, BR * 1.6, 0.4, P.org, 0.12); }
-          if (!on && !b.flare) { b.flare = true; H.hitArea(b.x, b.y, BR + 0.8, 1.5 * Dm / NB, C.dmgO({ kb: 4, burn: 1 })); H.X.light(b.x, b.y, 3, 0.3); K.embers(b.x, b.y - 1, 10, { v: 4, up: 4 }); K.sparks(b.x, b.y - 0.4, 6, 6); H.X.ring(b.x, b.y, 0.3, BR + 0.8, 0.35, P.yel, 0.3); H.X.shake(4, 0.12);
-            if (sup && !f.fin && t >= endT) { f.fin = true; K.blast(x, y, RX * 0.55, 1.6); H.X.flash(0.22, '#FFD9A0'); H.X.shake(12, 0.35); H.X.sfx.crash(); } }
-          // steer: toward its own monster (one each when there are enough), sweeping across it; held inside the area, away from the pet
+          if (!b.land && t >= b.s + 0.32) { b.land = true; H.X.light(b.x, b.y, 2.4, 0.35); H.X.shake(3, 0.12); H.X.sfx.crash(); K.sparks(b.x, b.y - 0.2, 4, 4); K.embers(b.x, b.y - 0.3, 5, { v: 3 });   /* (v420 AR: fewer sparks and embers, here and below) */ H.X.ring(b.x, b.y, 0.2, BR * 1.6, 0.4, P.org, 0.12); }
+          if (!on && !b.flare) { b.flare = true; H.hitArea(b.x, b.y, BR + 0.8, 1.5 * Dm / NB, C.dmgO({ kb: 4, burn: 1 })); H.X.light(b.x, b.y, 3, 0.3); K.embers(b.x, b.y - 1, 6, { v: 4, up: 4 }); K.sparks(b.x, b.y - 0.4, 4, 5); H.X.ring(b.x, b.y, 0.3, BR + 0.8, 0.35, P.yel, 0.3); H.X.shake(4, 0.12);
+            if (sup && !f.fin && t >= endT) { f.fin = true; K.blast(x, y, RX * 0.55, 1.6); H.X.flash(0.14, '#FFB070'); /* (v420 AR: a warmer, softer finale flash, was 0.22 of a pale white) */ H.X.shake(12, 0.35); H.X.sfx.crash(); } }
+          // steer: toward its own monster (one each when there are enough), sweeping across it; held inside the area
+          // (v420 AR: its path never reacts to the pet: no more shying away as the pet walks up; it never hurts the pet anyway)
           if (on && (!b.tgt || b.tgt.dead || t > b.re)) { b.re = t + 1.1 + R1(b.sd + t) * 0.6; const taken = new Set(beams.filter(q => q !== b && q.tgt).map(q => q.tgt)); const cand = live.filter(m => Math.hypot(m.x - x, m.y - y) < RX * 1.25 + m.r); const free = cand.filter(m => !taken.has(m)); const pool = free.length ? free : R1(b.sd + Math.floor(t)) < 0.35 ? cand : []; b.tgt = pool.length ? pool.sort((p, q) => Math.hypot(p.x - b.x, p.y - b.y) - Math.hypot(q.x - b.x, q.y - b.y))[0] : null; }
           const V = 1.7 + 0.08 * ev; let dx = 0, dy = 0;
           if (b.tgt && on) { const tx = b.tgt.x - b.x, ty = b.tgt.y - b.y, d = Math.hypot(tx, ty) || 1, k = Math.min(1, d / 1.2); dx = tx / d * V * k - ty / d * V * 0.55 * b.spin; dy = ty / d * V * k + tx / d * V * 0.55 * b.spin; }
           else { const ox = b.x - x, oy = b.y - y, d = Math.hypot(ox, oy) || 1; dx = -oy / d * V * b.spin + Math.cos(t * 0.9 + b.ph) * V * 0.4; dy = ox / d * V * b.spin + Math.sin(t * 1.1 + b.ph) * V * 0.4; }
           const cx = b.x - x, cy = b.y - y, dc = Math.hypot(cx, cy); if (dc > RX) { dx -= cx / dc * (dc - RX) * 3; dy -= cy / dc * (dc - RX) * 3; }
-          const px = b.x - me.x, py = b.y - me.y, dp = Math.hypot(px, py) || 0.01; if (dp < 1.7) { dx += px / dp * (1.7 - dp) * 5; dy += py / dp * (1.7 - dp) * 5; }
           for (const o of beams) { if (o === b || tt0a(o, f)) continue; const ex = b.x - o.x, ey = b.y - o.y, d2 = Math.hypot(ex, ey) || 0.01; if (d2 < 2.4) { dx += ex / d2 * (2.4 - d2) * 2.2; dy += ey / d2 * (2.4 - d2) * 2.2; } }
           const kk = Math.min(1, dt * 2.4); b.vx += (dx - b.vx) * kk; b.vy += (dy - b.vy) * kk; b.x += b.vx * dt; b.y += b.vy * dt;
           if (on && t - b.trT > 0.22) { b.trT = t; b.n = (b.n || 0) + 1; b.tr.push({ x: b.x, y: b.y, t, c: b.n % 2 === 0, n: b.n, sd: b.sd + b.n }); if (b.tr.length > 14) b.tr.shift(); }
           if (on && t > b.s + 0.3) for (const m of live) { const d = Math.hypot(m.x - b.x, m.y - b.y); if (d < BR * 2 && d > 0.3) H.pull(m, b.x, b.y, (1 - d / (BR * 2)) * dt * 1.2); }   /* (it draws them into its burning spiral) */
-          if (on && t >= b.nt) { b.nt += TICK; const k = H.hitArea(b.x, b.y, BR, b.dmg, C.dmgO({ kb: 0, burn: 1 })); if (k && Math.random() < 0.6 * kN) K.sparks(b.x, b.y - 0.3, 3, 4); }
-          if (on && b.land) { if (NB <= 5 || (b.i & 1) === 0) lit(f, 'b' + b.i, b.x, b.y - 0.6, 2.4, dt);
-            if (Math.random() < 0.8 * H.Q() * kN) { const q = Math.random() * TAU, rr = BR * (0.4 + Math.random() * 0.6); H.P({ kind: Math.random() < 0.7 ? 'ember' : 'spark', x: b.x + Math.cos(q) * rr, y: b.y + Math.sin(q) * rr * 0.6, vx: -Math.sin(q) * 1.6 * b.spin, vy: -1.6 - Math.random() * 1.8, g: -0.6, drag: 0.6, life: 0.6 + Math.random() * 0.5, max: 1.1, size: 1.8 + Math.random() * 2, color: Math.random() < 0.4 ? P.yel : Math.random() < 0.5 ? P.org : P.gold }); }
+          if (on && t >= b.nt) { b.nt += TICK; const k = H.hitArea(b.x, b.y, BR, b.dmg, C.dmgO({ kb: 0, burn: 1 })); if (k && Math.random() < 0.3 * kN) K.sparks(b.x, b.y - 0.3, 2, 3); }
+          if (on && b.land) { if (NB <= 5 || (b.i & 1) === 0) lit(f, 'b' + b.i, b.x, b.y - 0.6, 1.9, dt);
+            if (Math.random() < 0.45 * H.Q() * kN) { const q = Math.random() * TAU, rr = BR * (0.4 + Math.random() * 0.6); H.P({ kind: Math.random() < 0.7 ? 'ember' : 'spark', x: b.x + Math.cos(q) * rr, y: b.y + Math.sin(q) * rr * 0.6, vx: -Math.sin(q) * 1.6 * b.spin, vy: -1.6 - Math.random() * 1.8, g: -0.6, drag: 0.6, life: 0.6 + Math.random() * 0.5, max: 1.1, size: 1.4 + Math.random() * 1.3, color: Math.random() < 0.4 ? P.yel : Math.random() < 0.5 ? P.org : P.gold }); }
             if (Math.random() < 0.15 * H.Q()) K.smoke(b.x, b.y - 0.3, 1, 0.5); } }
       },
       drawUnder(c, f, X, Y, T) {
@@ -281,8 +289,8 @@
         for (const b of beams) { if (tt < b.s) continue; const on = tt < b.e, out = on ? 0 : cl((tt - b.e) / 0.45); if (out >= 1) continue;
           const BX = H.sx(b.x), BY = H.sy(b.y), grow = H.ease.in(cl((tt - b.s) / 0.32)), a = (0.35 + 0.65 * cl((tt - b.s - 0.2) / 0.3)) * (1 - out) * (0.92 + 0.08 * Math.sin(tt * 23 + b.ph * 3));
           const qa = b.ph + tt * 0.45 * b.spin, TY = topY; let TX = BX * 0.55 + VX * 0.45 + Math.cos(qa) * T * 1.6;
-          /* a beam whose foot is in front of the pet leans aside so its column passes beside the pet, never over it */
-          let over = false; { const u = (PY - TY) / (BY - TY); if (u > 0 && u < 1.05) { const need = T * BR * 0.75 + T * 0.75; if (u < 0.97) { const xu = TX + (BX - TX) * u, d = PX - xu; if (Math.abs(d) < need) { const xt = PX - (d >= 0 ? 1 : -1) * need; TX = Math.max(TX - T * 9, Math.min(TX + T * 9, (xt - BX * u) / (1 - u))); } } const u2 = Math.min(1, u); over = Math.abs(PX - (TX + (BX - TX) * u2)) < need; } }
+          /* (v420 AR: a beam no longer leans aside round the pet: its column keeps its own path wherever the pet walks) */
+          let over = false; { const u = (PY - TY) / (BY - TY); if (u > 0 && u < 1.05) { const need = T * BR * 0.75 + T * 0.75, u2 = Math.min(1, u); over = Math.abs(PX - (TX + (BX - TX) * u2)) < need; } }
           const w = T * BR * 1.4 * (on ? 1 : 1 - 0.7 * out) * (0.25 + 0.75 * cl((tt - b.s - 0.15) / 0.3)) * (1 + 0.07 * Math.sin(tt * 9 + b.ph) + 0.03 * Math.sin(tt * 21 + b.i));
           const offL = Math.max(TX, BX) + w < S.x0, offR = Math.min(TX, BX) - w > S.x0 + S.w;
           const nearP = Math.abs(BX - PX) < T * 5 && Math.abs(BY - PY) < T * 4, crownOn = grow >= 1 && a > 0.05, cs = tt * 1.8 * b.spin;
