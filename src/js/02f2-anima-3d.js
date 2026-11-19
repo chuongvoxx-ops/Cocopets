@@ -494,34 +494,47 @@ const Anima3D = (() => {
   }
   H.bugLeg = bugLeg;
 
-  /* Abaddon (Cancer): a glossy crimson crab with lantern-cyan eyes on stalks; spikes and glowing spots, then a pale moon */
+  /* v418 AB: Abaddon (Cancer), The Eternal Moonlight, cel-shaded: the same being as its GPU model (02f3), drawn where WebGL is not
+     there. Porcelain crescents edged in gold, a pointed mask with a sapphire slit, a halo of thin gold rings, dark arms out to two
+     great crescent claws with luminous inner edges, the Lunar Heart, hanging tendrils and the long spine-blade; its sealed shell
+     (form 1, and when the fight's pose closes it: o.inst.abP) a ball of porcelain petals */
   MODELS.cancer = (k, t, o) => {
-    // seen nearly head-on, like a crab sidling toward you
-    const mv = clamp01(o.mv || 0), ph = o.ph || 0, s = [1.12, 1.24, 1.36][k - 1], S = strikeOf(o.atk, o.atkBig);
-    const shell = '#8A2A48', shellSh = '#5A1630', shellHi = '#E07090', cy = '#5DF2FF', leg2 = '#74223C';
-    const hb = 15 * s + Math.abs(Math.sin(ph * 2)) * 1.2 * mv, body = [0, 0, hb], CW = 20 * s, CL = 15 * s, CH = 10.5 * s;
-    if (k === 3) { const mc = [-16 * s, 0, 38 * s]; sphere(mc, 19 * s, { col: '#DDE6F6', shade: '#A8B6D6', hi: '#FFFFFF', line: '#6A7AA0', z: 30, inner: c => { const R0 = mulberry32(3), q = P(mc); [[-0.4, -0.3, 0.22], [0.3, 0.25, 0.28], [0.35, -0.45, 0.12], [-0.1, 0.45, 0.16]].forEach(([dx, dy, r]) => { c.fillStyle = 'rgba(120,140,190,.35)'; c.beginPath(); c.arc(q[0] + dx * 19 * s * R.u, q[1] + dy * 19 * s * R.u, r * 19 * s * R.u, 0, TAU); c.fill(); }); } }); glowAt(mc, 38 * s, '#BFEFFF', 0.3, true); }
-    // six walking legs, scuttling in a ripple
-    for (const q of [-1, 1]) for (let i = 0; i < 3; i++) { const p2 = ph * 2 + i * 2.1 + (q > 0 ? Math.PI : 0), lift = Math.max(0, Math.sin(p2)) * 4 * mv, sw = Math.cos(p2) * 0.5 * mv, hip = [(3 - i * 5.5) * s, q * CW * 0.72, hb - 3 * s];
-      bugLeg(hip, [(-0.15 - i * 0.2) * 6 * s, q * 0.95], 14 * s, lift, sw, 3.8 * s, { col: leg2, shade: sh(leg2, -0.35), hi: sh(leg2, 0.35), line: INK, kh: 0.6 }); }
-    // the carapace: wide, glossy, a pale belly band, spikes and glowing spots as it grows
-    ell(body, [CL, CW, CH], { col: shell, shade: shellSh, hi: shellHi, line: INK, spec: 0.85, specR: 0.13, inner: k >= 2 ? c => { const R0 = mulberry32(8); for (let i = 0; i < (k === 3 ? 10 : 6); i++) { const q = P([(R0() - 0.5) * CL * 1.4, (R0() - 0.5) * CW * 1.5, hb + CH * 0.7]), pl = 0.6 + 0.4 * Math.sin(t * 2.4 + i); c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = R.alpha * 0.8 * pl; blitSized(c, glowSprite(cy), q[0] - 4 * R.u * s, q[1] - 4 * R.u * s, 8 * R.u * s, 8 * R.u * s); c.restore(); c.fillStyle = '#E8FFFF'; c.beginPath(); c.arc(q[0], q[1], 0.9 * R.u * s, 0, TAU); c.fill(); } } : null });
-    ell([CL * 0.35, 0, hb - CH * 0.45], [CL * 0.6, CW * 0.7, CH * 0.45], { col: '#F2B0C0', shade: '#C8788C', hi: '#FFE0E8', line: INK, z: -1 });
-    if (k >= 2) { const n = k === 3 ? 7 : 5; for (let i = 0; i < n; i++) { const a = (i / (n - 1) - 0.5) * 2.2, b = [Math.cos(a) * CL * 0.2 - 2, Math.sin(a) * CW * 0.85, hb + CH * 0.7], tp = add(b, [0, Math.sin(a) * 3 * s, (4 + (k === 3 ? 3 : 0)) * s]); tube([b, tp], u => 2.4 * s * (1 - u * 0.9), { col: '#E4EAFF', shade: '#A8B4D8', hi: '#FFFFFF', line: INK }); } }
-    // claws held up, snipping; they snap forward to strike
-    [-1, 1].forEach(q => { const sh2 = [CL * 0.55, q * CW * 0.62, hb + 1 * s], snip = Math.max(0, Math.sin(t * 3 + q)) * 0.3, el = add(sh2, [4 * s + S.hit * 6, q * 7 * s, 7 * s]), cl = add(el, [3 * s + S.hit * 8, q * 1 * s, 8 * s + Math.sin(t * 3 + q) * 1.4 - S.wind * 3]);
-      tube([sh2, el], u => 3.6 * s, { col: shell, shade: shellSh, hi: shellHi, line: INK }); tube([el, cl], u => 3.4 * s, { col: shell, shade: shellSh, hi: shellHi, line: INK });
-      const cs = [11, 13.5, 16][k - 1] * s, F2 = frame(cl, q * 0.25, -1.0, 0); ell(F2.at(cs * 0.3, 0, 0), [cs * 0.62, cs * 0.42, cs * 0.5], { B: F2.B, col: shell, shade: shellSh, hi: shellHi, line: INK, spec: 0.8 });
-      ell(F2.at(cs * 0.95, 0, cs * 0.18 + snip * cs * 0.3), [cs * 0.45, cs * 0.22, cs * 0.18], { B: frame(cl, q * 0.25, -1.0 - snip, 0).B, col: shell, shade: shellSh, hi: shellHi, line: INK });
-      ell(F2.at(cs * 0.9, 0, -cs * 0.2), [cs * 0.42, cs * 0.22, cs * 0.16], { B: F2.B, col: '#F2E6EA', shade: '#C8B0BA', hi: '#FFFFFF', line: INK });
-      if (k === 3) fx(c => { const a2 = P(F2.at(cs, 0, cs * 0.4)), seed = Math.floor(t * 8) + q * 5, Rr = mulberry32(seed + 9); c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = R.alpha; c.strokeStyle = cy; c.lineWidth = Math.max(1, R.u * 1.4); c.beginPath(); c.moveTo(a2[0], a2[1]); for (let i = 1; i < 6; i++) c.lineTo(a2[0] + q * i * 3 * R.u + (Rr() - 0.5) * 6 * R.u, a2[1] - i * 4 * R.u * s); c.stroke(); c.restore(); }); });
-    // eyes on stalks, bobbing, lantern-cyan
-    [-1, 1].forEach(q => { const b = [CL * 0.75, q * 5.5 * s, hb + CH * 0.5], tp = add(b, [1 * s, q * 1 * s, (9 + Math.sin(t * 2.2 + q) * 1.2) * s]); tube([b, tp], u => 1.8 * s, { col: shell, shade: shellSh, hi: shellHi, line: INK });
-      sphere(tp, 4.6 * s, { col: '#1A3A4A', shade: '#0A1A24', hi: '#3A6A7A', line: INK, z: -0.4 }); eye(add(tp, [3 * s, 0, 0.4]), [1, q * 0.15, 0.1], 3.8 * s, { iris: '#2FC9DD', blink: o.blink, irisR: 0.86, white: '#E8FFFF', look: [0.2, 0.1] }); glowAt(tp, 10 * s, cy, 0.35 + k * 0.06); });
-    mark([CL * 0.98, 0, hb + CH * 0.05], [1, 0, 0.2], 3 * s, (c, r) => { c.strokeStyle = INK; c.lineWidth = r * 0.3; c.lineCap = 'round'; c.beginPath(); c.moveTo(-r, -r * 0.2); c.quadraticCurveTo(-r * 0.5, r * 0.5, 0, 0); c.quadraticCurveTo(r * 0.5, r * 0.5, r, -r * 0.2); c.stroke(); c.fillStyle = 'rgba(255,140,170,.5)'; [-1, 1].forEach(q => { c.beginPath(); c.ellipse(q * r * 2.4, -r * 0.4, r * 0.9, r * 0.55, 0, 0, TAU); c.fill(); }); });
-    if (k === 3) for (let i = 0; i < 4; i++) { const ph2 = (t * 0.6 + i * 0.25) % 1; glowAt([(-6 + i * 4) * s, (i % 2 ? 1 : -1) * CW * 0.4, hb - CH - ph2 * 10 * s], 3 * s, cy, 0.8 * (1 - ph2)); }
+    const PZ = (o.inst && o.inst.abP) || {}, q = [0.8, 0.9, 1][k - 1], C = 8.4 * q, G = (x, y, z) => [y * C, x * C, (z + 0.4) * C * 1.08];
+    const open = PZ.open != null ? PZ.open : [0.16, 0.62, 1][k - 1], heart = PZ.heart != null ? PZ.heart : 0.8 + 0.15 * Math.sin(t * 2.2), dark = PZ.dark || 0, bob = Math.sin(t * 1.05) * 0.12;
+    const IV = { col: '#ECE6DA', shade: '#B4B4C8', hi: '#FFFFFF', line: '#8A6A34', lw: Math.max(1, R.u * 1.1) }, TI = { col: '#262A38', shade: '#14161F', hi: '#4A5068', line: '#0A0C14' }, GD = '#D8B068';
+    // a crescent plate in the x-z plane (GL units): its outer edge bulging w, its inner a quarter of that
+    const crescent = (a, b, c2, d, w, st, z) => { const bz = u => [0, 1, 2].map(i2 => { const v = 1 - u; return v * v * v * a[i2] + 3 * v * v * u * b[i2] + 3 * v * u * u * c2[i2] + u * u * u * d[i2]; }), n = 10, L1 = [], L2 = [];
+      for (let i2 = 0; i2 <= n; i2++) { const u = i2 / n, p = bz(u), pn = bz(Math.min(1, u + 0.02)), pp = bz(Math.max(0, u - 0.02)), tx = pn[0] - pp[0], tz = pn[2] - pp[2], L = Math.hypot(tx, tz) || 1, sn = Math.pow(Math.sin(Math.PI * Math.min(1, 0.02 + u * 0.96)), 0.8);
+        L1.push([p[0] + tz / L * w * sn, p[1], p[2] - tx / L * w * sn]); L2.push([p[0] - tz / L * w * 0.25 * sn, p[1], p[2] + tx / L * w * 0.25 * sn]); }
+      return blob(L1.concat(L2.reverse()).map(p => G(p[0], p[1], p[2] + bob)), Object.assign({}, st, { z: z || 0 })); };
+    // the halo: thin gold rings behind and above the head, the spire through them
+    const hc = G(0, -0.4, 11.3 + bob); decal(hc, (c, p) => { c.save(); c.lineWidth = Math.max(1, R.u * 1.1); for (let i = 0; i < [0, 3, 5, 7][k]; i++) { const rr = (0.6 + i * 0.32) * C * R.u, a = t * (i % 2 ? -0.3 : 0.25); c.strokeStyle = i % 3 === 2 ? 'rgba(143,184,255,.85)' : GD; c.globalAlpha = R.alpha * (0.9 - i * 0.06); c.beginPath(); c.ellipse(p[0], p[1], rr, rr * 0.42, 0, a, a + TAU * 0.92); c.stroke(); }
+      c.globalCompositeOperation = 'lighter'; c.strokeStyle = 'rgba(160,200,255,.9)'; c.lineWidth = Math.max(1, R.u * 1.4); c.beginPath(); c.moveTo(p[0], p[1] - C * R.u * 1.8); c.lineTo(p[0], p[1] + C * R.u * 1.4); c.stroke(); c.restore(); }, 6);
+    const sealed = open < 0.45;
+    // the claws (outermost crescents), the arms, the shoulder horns and wing ribs
+    for (const sd of [-1, 1]) {
+      const wx = sd * (sealed ? 2.6 : 3.7), wz = sealed ? 6.6 : 7.4;
+      tube([G(sd * 1.05, 0, 7.4 + bob), G(sd * 2.4, 0, 7.2 + bob), G(wx, 0.1, wz + bob)], u => (2.3 - u * 0.5) * q, Object.assign({}, TI, { z: 1 }));
+      crescent([wx - sd * 0.75, 0.2, wz + 3.6], [wx + sd * 2.3, 0.2, wz + 1.5], [wx + sd * 2.75, 0.3, wz - 5.3], [wx - sd * 1.7, 0.4, wz - 7.4], (k === 1 ? 0.7 : 0.95), Object.assign({}, IV, { glowCol: '#6FA2FF', glowA: 0.55 }), 2);
+      if (!sealed) { for (let i = 0; i < [0, 1, 2, 3][k]; i++) crescent([sd * 1.0, -0.2, 7.6 + i * 0.12], [sd * (2.1 - i * 0.2), -0.25, 8.0 + i * 0.1], [sd * (3.3 - i * 0.3), -0.35, 9.4], [sd * (3.6 - i * 0.35), -0.4, 10.9 - i * 0.3], (0.72 - i * 0.1) * 0.9, IV, -2 - i);
+        for (let i = 0; i < [0, 0, 3, 5][k]; i++) crescent([sd * 0.9, -0.4, 7.1 - i * 0.16], [sd * (2.0 + i * 0.1), -0.45, 7.0 - i * 0.3], [sd * (2.6 + i * 0.12), -0.4, 5.2 - i * 0.2], [sd * (1.2 + i * 0.25), -0.25, 3.3 - i * 0.1], 0.36 * 0.9, IV, -6 - i); } }
+    // the torso, sternum and heart
+    if (!sealed) { ell(G(0, 0, 6.2 + bob), [0.7 * C, 0.85 * C, 1.9 * C], Object.assign({}, TI, { z: -1 })); blob([G(-0.6, 0.6, 8.0 + bob), G(0.6, 0.6, 8.0 + bob), G(0.2, 0.75, 7.0 + bob), G(0, 0.8, 6.55 + bob), G(-0.2, 0.75, 7.0 + bob)], Object.assign({}, IV, { z: 0.5 }));
+      blob([G(-0.5, 0, 4.3 + bob), G(0.5, 0, 4.3 + bob), G(0.12, 0.05, 1.5 + bob), G(0, 0.05, -0.6 + bob), G(-0.12, 0.05, 1.5 + bob)], Object.assign({}, IV, { z: 0.2, glowCol: '#6FA2FF', glowA: 0.5 }));
+      for (let i = 0; i < [0, 4, 6, 8][k]; i++) { const a = (i / Math.max(1, [0, 4, 6, 8][k] - 1) - 0.5) * 2.6, ox = Math.sin(a) * 0.75, L = (4.6 - Math.abs(a) * 0.6) * (k === 3 ? 1 : 0.85), sw = Math.sin(t * 1.3 + i * 1.7) * 0.25;
+        tube([G(ox, 0.3, 4.2 + bob), G(ox * 1.6 + sw * 0.4, 0.4, 4.2 - L * 0.4 + bob), G(ox * 1.2 + sw, 0.5, 4.2 - L * 0.8 + bob), G(ox * 0.6 + sw * 1.4, 0.7, 4.2 - L + bob)], u => (1.7 - u * 1.5) * q, Object.assign({}, IV, { z: 0.6 })); } }
+    // the sealed shell: a ball of porcelain petals, seams of light
+    if (sealed) { const sc = G(0, 0, 5.3 + bob), sr = 2.5 * C; sphere(sc, sr, Object.assign({}, IV, { z: 0, sprite: false, inner: c => { const p0 = P(sc); c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = 'rgba(111,162,255,.75)'; c.lineWidth = Math.max(1, R.u * 1.2); for (let i = -2; i <= 2; i++) { c.beginPath(); c.ellipse(p0[0], p0[1], Math.abs(i) * sr * R.u * 0.33 + 0.5, sr * R.u * 0.98, 0, 0, TAU); c.stroke(); } c.restore(); } })); }
+    // the heart: a moon in swirling water, glowing (black in an eclipse)
+    const hp = G(0, sealed ? 1.6 : 0.8, 5.62 + bob); sphere(hp, 1.25 * C * (sealed ? 0.6 : 1), { col: dark > 0.5 ? '#0A0E1C' : '#6FA2FF', shade: dark > 0.5 ? '#02040A' : '#2448B8', hi: '#DDE8FF', line: '#8A6A34', spec: 0.9, z: 2, sprite: false });
+    glowAt(hp, 2.6 * C * (0.6 + 0.3 * heart), dark > 0.5 ? '#3A5AC8' : '#8FB8FF', 0.6);
+    // the mask
+    const mh = G(0, 0.25, 8.5 + bob); blob([G(-0.62, 0.55, 9.5 + bob), G(-0.75, 0.4, 10.4 + bob), G(0, 0.5, 11.0 + bob), G(0.75, 0.4, 10.4 + bob), G(0.62, 0.55, 9.5 + bob), G(0, 0.85, 7.05 + bob)], Object.assign({}, IV, { z: 3 }));
+    mark(G(0, 0.9, 9.6 + bob), [1, 0, 0.1], 2 * C, (c, r) => { c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = '#BFD8FF'; c.lineWidth = r * 0.12; c.beginPath(); c.moveTo(0, -r * 0.8); c.lineTo(0, r * 0.5); c.stroke(); c.restore(); });
+    glowAt(G(0, 0.9, 9.6 + bob), 1.5 * C, '#8FB8FF', 0.5 * (PZ.eye || 1));
+    void mh;
   };
-  MODELS.cancer.yaw = 0.3;
+  MODELS.cancer.yaw = 0.0001;   // (it faces the viewer)
 
   /* Asmodeus (Scorpio): a round obsidian scorpion veined with embers, trailing red smoke, with a burning stinger */
   MODELS.scorpio = (k, t, o) => {

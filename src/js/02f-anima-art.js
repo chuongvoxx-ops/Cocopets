@@ -362,27 +362,8 @@ const AnimaArt = (() => {
     // Raziel: the twin celestial dragons of the sun and the moon are a cel-shaded model of their own (see Anima3D); the
     // painted layer, when it is asked for, draws that model in its place (feet at y 40, 110 units tall)
     gemini(c, k, t) { if (typeof Anima3D !== 'undefined' && Anima3D.has('gemini')) Anima3D.draw(c, 'gemini', k, 0, 40, 110, t, { fk: 1 }); },
-    // Abaddon: a glossy crimson crab under a pale moon, with lantern-cyan eyes
-    cancer(c, k, t, L) {
-      const shell = '#6C2139', hi = '#D0607E', cy = '#5DF2FF', by = 12, wave = Math.sin(t * 3) * 0.1, csz = [11, 14, 17][k - 1];
-      if (k === 3) L.back(g => { const R = 40; glow(g, 0, -28, R * 1.9, '#BFEFFF', 0.25); g.save(); const gr = g.createRadialGradient(-10, -40, 4, 0, -28, R); gr.addColorStop(0, '#F4F8FF'); gr.addColorStop(0.65, '#C9D6EE'); gr.addColorStop(1, '#8EA0C8'); g.fillStyle = gr; g.globalAlpha = FA * (0.85); g.beginPath(); g.arc(0, -28, R, 0, TAU); g.fill(); g.globalAlpha = FA * (0.35); [[-14, -40, 7], [12, -20, 9], [16, -44, 4], [-4, -14, 5], [-22, -22, 4]].forEach(([x, y, r]) => { g.fillStyle = '#7A8AB0'; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill(); g.fillStyle = '#FFFFFF'; g.beginPath(); g.arc(x - r * 0.25, y - r * 0.25, r * 0.6, 0, TAU); g.fill(); }); g.restore(); });
-      for (let i = 2; i >= 0; i--) both(c, () => { const y0 = by + 4 + i * 5, kx = -40 - i * 2, ky = by - 4 + i * 5, tx = -46 + i * 3, ty = 38; limb(c, -22, y0, kx, ky, 6, 4.8, sh(shell, -0.12), { tex: 'chitin', texA: 0.35 }); limb(c, kx, ky, tx, ty, 4.8, 1.6, sh(shell, -0.05), { tex: 'chitin', texA: 0.35 }); orb(c, kx, ky, 3, 3, sh(shell, -0.1), { lw: 0.9, specA: 0.5 }); });
-      both(c, s => {
-        limb(c, -18, by - 4, -30, by - 10, 7.5, 6.5, shell, { tex: 'chitin', texA: 0.35 }); limb(c, -30, by - 10, -38, by - 18, 6.5, 6, shell, { tex: 'chitin', texA: 0.35 });
-        const x = -42, y = by - 24 + Math.sin(t * 3 + s) * 1.4, z = csz; c.save(); c.translate(x, y); c.rotate(-0.45 + wave * s);
-        form(c, blob(c, [[-z * 0.8, z * 0.45], [-z * 0.7, -z * 0.35], [-z * 0.1, -z * 0.8], [z * 0.75, -z * 0.95], [z * 1.15, -z * 0.55], [z * 0.35, -z * 0.18], [z * 1.05, z * 0.05], [z * 0.75, z * 0.45], [0, z * 0.82]]), 0, 0, z, shell, { tex: 'chitin', texA: 0.4, hi, specA: 0.55, lw: 1.2 });
-        c.fillStyle = '#F2E6EA'; for (let j = 0; j < 3; j++) { const px = z * (0.42 + j * 0.2), py = -z * (0.32 - j * 0.04); c.beginPath(); c.moveTo(px - z * 0.07, py); c.lineTo(px, py + z * 0.16); c.lineTo(px + z * 0.07, py); c.closePath(); c.fill(); }
-        spec(c, -z * 0.15, -z * 0.4, z * 0.4, 0.5); c.restore();
-      });
-      const shellP = blob(c, [[-34, by + 2], [-31, by - 9], [-16, by - 16], [16, by - 16], [31, by - 9], [34, by + 2], [24, by + 14], [-24, by + 14]]);
-      form(c, shellP, 0, by - 2, 34, shell, { tex: 'chitin', texA: 0.42, hi, specA: 0.55, spR: 0.3, lw: 1.3, soft: () => { soft(c, 0, by + 12, 26, 7, 0, '#F2B0C0', 0.4); c.strokeStyle = 'rgba(255,255,255,.35)'; c.lineWidth = 1.2; c.beginPath(); c.moveTo(-20 * MIR, by - 12); c.quadraticCurveTo(-6 * MIR, by - 15, 6 * MIR, by - 13); c.stroke(); } });
-      if (k >= 2) { const pts = [-30, -22, -13, 13, 22, 30]; pts.forEach((x, i) => { const y = by - (Math.abs(x) > 25 ? 8 : Math.abs(x) > 16 ? 13 : 15.5); form(c, () => { c.beginPath(); c.moveTo(x - 3, y + 1); c.lineTo(x + Math.sign(x) * 2, y - 6 - (k === 3 ? 3 : 0)); c.lineTo(x + 3, y + 1); c.closePath(); }, x, y - 2, 4, sh(shell, 0.1), { lw: 0.9, specA: 0.4 }); }); L.fx(g => { const R = mulberry32(8); for (let i = 0; i < (k === 3 ? 10 : 6); i++) { const x = (R() - 0.5) * 46, y = by - 8 + R() * 16, p = 0.6 + 0.4 * Math.sin(t * 2.4 + i); glow(g, x, y, 5.5, cy, 0.75 * p); glow(g, x, y, 1.6, '#FFFFFF', 0.9 * p); } }); }
-      if (k === 3) { [-13, 0, 13].forEach((x, i) => form(c, () => { c.beginPath(); c.moveTo(x - 4, by - 14); c.lineTo(x, by - 26 - (i === 1 ? 7 : 0)); c.lineTo(x + 4, by - 14); c.closePath(); }, x, by - 18, 6, '#E4EAFF', { lw: 1, specA: 0.5, hi: '#FFFFFF' })); L.fx(g => { g.save(); g.globalCompositeOperation = 'lighter'; g.strokeStyle = cy; g.lineWidth = 1.4; [-20, -6, 10, 22].forEach((x, i) => { const ph = (t * 0.6 + i * 0.27) % 1; g.globalAlpha = FA * (0.8 * (1 - ph)); g.beginPath(); g.moveTo(x, by + 14); g.lineTo(x, by + 14 + ph * 16); g.stroke(); glow(g, x, by + 14 + ph * 16, 3, cy, 0.8 * (1 - ph)); }); g.restore(); const s2 = Math.floor(t * 8); bolt(g, -36, by - 26, -50, by - 44, s2, cy, 7); bolt(g, 36, by - 26, 50, by - 44, s2 + 5, cy, 7); }); }
-      both(c, () => { limb(c, -8, by - 13, -12, by - 26, 3.8, 3.2, sh(shell, 0.05), { tex: 'chitin', texA: 0.3 }); });
-      [-1, 1].forEach(sx => eye(c, sx * 12.5, by - 30, 6.2, '#2FC9DD', { tall: 1.04, side: -sx, lid: k === 3 ? 0.18 : 0, skin: shell }));
-      L.fx(g => [-1, 1].forEach(sx => glow(g, sx * 12.5, by - 30, 15, cy, 0.4 + k * 0.08)));
-      mouth(c, 0, by + 2, 3.4); [-1, 1].forEach(sx => blush(c, sx * 13, by, 4.2));
-    },
+    // v418 AB: Abaddon, the Eternal Moonlight, is a model of its own (02f3 on the GPU, 02f2 cel-shaded); the painted layer draws that model in its place
+    cancer(c, k, t) { if (typeof Anima3D !== 'undefined' && Anima3D.has('cancer')) Anima3D.draw(c, 'cancer', k, 0, 40, 110, t, { fk: 1 }); },
     // Michael: a sun sprite. A round, cat-faced cub of dawn light whose mane is a living corona of sun petals, riding a little
     // cloud; it grows into a solar paladin with wings of dawn, a shield of light, gold armour and a blazing sun disc behind it
     leo(c, k, t, L) {
@@ -907,8 +888,8 @@ const AnimaArt = (() => {
   /* ---- life: how each Anima moves and strikes. A pose (o.mv speed 0..1, o.ph stride phase, o.atk 0..1 strike progress)
      bends the painted model: the body bobs and leans, the legs step in alternation (the lower band of the model is cut in
      two and each half lifts and swings), swimmers undulate, flyers bank, and strikes wind up, lunge and recover ---- */
-  const LOCO = { aries: 'trot', taurus: 'stomp', gemini: 'float', cancer: 'scuttle', leo: 'float', virgo: 'fly', libra: 'hop', scorpio: 'scuttle', sagittarius: 'gallop', capricorn: 'swim', aquarius: 'swim', pisces: 'swim', ophiuchus: 'fly' };
-  const STRIKE = { aries: 'lunge', taurus: 'lunge', gemini: 'cast', cancer: 'lunge', leo: 'lunge', virgo: 'cast', libra: 'cast', scorpio: 'lunge', sagittarius: 'shoot', capricorn: 'cast', aquarius: 'cast', pisces: 'lunge', ophiuchus: 'cast' };
+  const LOCO = { aries: 'trot', taurus: 'stomp', gemini: 'float', cancer: 'float' /* v418 AB: it hovers */, leo: 'float', virgo: 'fly', libra: 'hop', scorpio: 'scuttle', sagittarius: 'gallop', capricorn: 'swim', aquarius: 'swim', pisces: 'swim', ophiuchus: 'fly' };
+  const STRIKE = { aries: 'lunge', taurus: 'lunge', gemini: 'cast', cancer: 'cast' /* v418 AB */, leo: 'lunge', virgo: 'cast', libra: 'cast', scorpio: 'lunge', sagittarius: 'shoot', capricorn: 'cast', aquarius: 'cast', pisces: 'lunge', ophiuchus: 'cast' };
   const GAIT = { trot: { bob: 2.6, lift: 4.5, stride: 2.6, lean: 0.05 }, stomp: { bob: 1.6, lift: 3.4, stride: 2, lean: 0.03, thud: 1 }, gallop: { bob: 3.2, lift: 5, stride: 3.4, lean: 0.04, rock: 0.05 }, scuttle: { bob: 0.6, lift: 2.4, stride: 1.6, lean: 0.02, jitter: 0.9 } };
   const ease = u => u * u * (3 - 2 * u);
   const IDLE_SEED = { aries: 0.3, taurus: 2.1, gemini: 1.2, cancer: 3.3, leo: 0.9, virgo: 2.7, libra: 1.6, scorpio: 3.9, sagittarius: 0.5, capricorn: 2.4, aquarius: 1.9, pisces: 3.1, ophiuchus: 1.4 };
@@ -1023,6 +1004,11 @@ const AnimaArt = (() => {
     o = o || {}; if (!(size > 2)) return;
     k = clamp(k | 0, 1, 3); t = t || 0;
     if (id === 'ophiuchus') return drawOph(c, k, x, y, size, t, o);
+    // v418 AB: Abaddon, the Eternal Moonlight, is a real 3D model on the GPU (02f3); without it, the cel-shaded model of the same design (02f2)
+    if (id === 'cancer' && !o.legacy && typeof ABADDON_GL !== 'undefined' && ABADDON_GL.usable()) {
+      if (o.bloom || o.aura !== false) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = (o.alpha == null ? 1 : o.alpha) * (o.bloom ? 0.42 : 0.22); const gs = size * 0.8; blitSized(c, glowSprite('#6FA2FF'), x - gs, y - size * 0.55 - gs, gs * 2, gs * 2); c.restore(); }
+      if (ABADDON_GL.drawAnima(c, k, x, y, size, t, o)) return;
+    }
     if (typeof Anima3D !== 'undefined' && Anima3D.has(id) && !o.legacy) return draw3d(c, id, k, x, y, size, t, o);
     const p = P[id]; if (!p) return;
     const u = size / 110, fl = o.flip ? -1 : 1, A = ANIMAS[id], L = { b: [], f: [], back(fn) { this.b.push(fn); }, fx(fn) { this.f.push(fn); } };

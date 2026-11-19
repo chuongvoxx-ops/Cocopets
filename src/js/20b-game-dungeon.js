@@ -1063,6 +1063,8 @@ GAMES.dungeon = {
       hitMon, hitArea, banner, flash, heal, gainMP, shot, drop, zap, nearestMon, sx, sy,
       // (a Super Fiend's health bars: how many and how much each holds; nothing for a boss of a single bar)
       bossBars: () => (FD && FD.S ? { n: FD.S.bars, hp: FD.barHP } : null),
+      // v418 AB: (Abaddon's Lunar Carapace, Eclipse Requiem and the Ninth Tide's lunar shield, 20g2) a ward in hurtPet, as ELEM's addWard; returns the remover
+      addWard: (fn, first) => { if (first) petWards.unshift(fn); else petWards.push(fn); return () => { const i = petWards.indexOf(fn); if (i >= 0) petWards.splice(i, 1); }; },
     }));
     STAR = DunStar.create({ me, g, mons, eshots, zones, ST: () => ST, shot, hitMon, hitArea, part, ring, boom, zap, bolt: (x, y, color) => bolts.push({ pts: skyBolt(x, y), life: 0.3, max: 0.3, color, w: 5 }), sparks, after, nearestMon, text, banner, flash, shake, hitstop, heal, light, moveEnt, walkPoint, blocked, meteorAt, sfx: api.sfx, sx, sy, Tz: () => Tz(), warn: (x, y, r, life, col, fn) => zones.push({ kind: 'warn', x, y, r, life, max: life, own: 'pet', color: col, fn }), blizzard: t => { blizT = Math.max(blizT, t); }, supernova: r => { supernova = 1; me.inv = 2; novaR = r; }, dragon: d => dragons.push(d), gq: () => DQ });
     /* (an elemental Ultimate in a kit may prepare in idle time before it is cast: Earth's Titan bakes its pictures, 20k2j) */

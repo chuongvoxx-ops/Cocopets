@@ -124,17 +124,22 @@ const AnimaPortrait = (() => {
         c.restore();
         return { fy: py, light: '#5A8AE8', grade: ['#4A90E2', 0.08] };
       }, front(c, w, h, k, R) { clouds(c, -30, w + 30, h * 1.0, h * 0.07, 18, R, '#DDEBFF', '#3A5AA8', 0.85); particles(c, w, h, 18 + k * 8, R, 'spark', ['#FFE9A8', '#8FD3FF'], { y1: 0.85 }); } },
-    // Abaddon: a black sea under an enormous moon, waves glowing with cyan light
+    // v418 AB: Abaddon, the Eternal Moonlight: a still night sea under an enormous moon, ruined colonnades on the horizon, falling
+    // threads of water lit sapphire, and rings of moonlight spreading on the water beneath the floating god
     cancer: { back(c, w, h, k, R) {
-        sky(c, w, h, [[0, '#03050E'], [0.5, '#0A1430'], [0.66, '#16284A'], [1, '#050A16']]);
-        stars(c, w, h, 90, R, { y1: 0.6, glow: '#8FFCFF' });
-        moon(c, w * 0.5, h * 0.36, w * (0.24 + k * 0.03), R, { glow: '#BFEFFF' });
-        clouds(c, -20, w + 20, h * 0.5, h * 0.05, 14, R, '#3A4A70', '#0A1020', 0.55);
-        if (k >= 2) { const s = Math.floor(R() * 99); bolt(c, w * 0.1, h * 0.12, w * 0.24, h * 0.5, s, '#5DF2FF', 18 * w / 300); bolt(c, w * 0.92, h * 0.1, w * 0.78, h * 0.48, s + 4, '#5DF2FF', 18 * w / 300); }
-        waterSurface(c, w, h * 0.64, h, '#0E2A48', '#02060E', R, { n: 110, col: '#8FFCFF', a: 0.35, rx: w * 0.5, rcol: '#DDF6FF' });
-        add(c, () => { for (let i = 0; i < 7; i++) { const y = h * (0.66 + i * 0.045), x0 = R() * w * 0.4; c.globalAlpha = 0.25 + R() * 0.25; c.strokeStyle = '#5DF2FF'; c.lineWidth = 1.4 * w / 300; c.beginPath(); for (let x = -10; x < w + 10; x += 8) c.lineTo(x, y + Math.sin(x * 0.05 + i + x0) * 3 * w / 300); c.stroke(); } });
-        return { fy: h * 0.8, light: '#8FFCFF', reflect: 0.32, grade: ['#3A8AFF', 0.12] };
-      }, front(c, w, h, k, R) { particles(c, w, h, 14 + k * 8, R, 'mote', ['#5DF2FF', '#BFEFFF'], { y0: 0.55, s: 0.8 }); } },
+        sky(c, w, h, [[0, '#02040C'], [0.45, '#0A1434'], [0.64, '#1A2A58'], [1, '#03060E']]);
+        nebula(c, w * 0.5, h * 0.3, w * 0.6, h * 0.18, ['#3A5AC8', '#6FA2FF', '#1E2B5C'], 14, R, 0.1 + k * 0.04);
+        stars(c, w, h, 110, R, { y1: 0.62, glow: '#BFD8FF' });
+        moon(c, w * (0.3 + k * 0.03), h * 0.3, w * (0.26 + k * 0.03), R, { glow: '#9FB8FF', col: '#E2E8F8', dk: '#8A98C4' });
+        // ruined colonnades on the far shore
+        for (const sd of [-1, 1]) { const x0 = sd < 0 ? 0 : w * 0.78, cw = w * 0.22; c.fillStyle = 'rgba(8,12,30,.92)'; for (let i = 0; i < 4; i++) { const cx = x0 + (i + 0.5) * cw / 4, ch = h * (0.12 + R() * 0.12); c.fillRect(cx - w * 0.008, h * 0.64 - ch, w * 0.016, ch); }
+          c.beginPath(); c.moveTo(x0, h * 0.64 - h * 0.2); c.lineTo(x0 + cw, h * 0.64 - h * 0.17); c.lineTo(x0 + cw, h * 0.64 - h * 0.15); c.lineTo(x0, h * 0.64 - h * 0.18); c.fill(); }
+        clouds(c, -20, w + 20, h * 0.52, h * 0.05, 12, R, '#3A4A80', '#0A1020', 0.5);
+        if (k >= 2) add(c, () => { for (let i = 0; i < 4 + k * 2; i++) { const x = w * (0.12 + R() * 0.76), y0 = h * (0.1 + R() * 0.2); c.globalAlpha = 0.18 + R() * 0.2; c.fillStyle = lin(c, 0, y0, 0, h * 0.66, [[0, 'rgba(111,162,255,0)'], [0.5, '#6FA2FF'], [1, 'rgba(191,216,255,0.9)']]); c.fillRect(x - w * 0.003, y0, w * 0.006, h * 0.66 - y0); } });
+        waterSurface(c, w, h * 0.64, h, '#0E2048', '#02050E', R, { n: 110, col: '#9FC4FF', a: 0.32, rx: w * 0.5, rcol: '#DDE8FF' });
+        add(c, () => { c.save(); c.translate(w * 0.5, h * 0.8); c.scale(1, 0.22); for (let i = 0; i < 5 + k; i++) { c.globalAlpha = 0.45 - i * 0.05; c.strokeStyle = i % 2 ? '#6FA2FF' : '#BFD8FF'; c.lineWidth = 1.6 * w / 300; c.beginPath(); c.arc(0, 0, w * (0.08 + i * 0.07), 0, TAU); c.stroke(); } c.restore(); });
+        return { fy: h * 0.8, light: '#9FB8FF', reflect: 0.3, float: true, grade: ['#3A6AFF', 0.12] };
+      }, front(c, w, h, k, R) { particles(c, w, h, 14 + k * 8, R, 'mote', ['#8FB8FF', '#DDE8FF'], { y0: 0.4, s: 0.8 }); } },
     // Michael: above the clouds, a snowy peak in blinding holy light
     leo: { back(c, w, h, k, R) {
         sky(c, w, h, [[0, '#24306E'], [0.4, '#5A68B8'], [0.64, '#E8A07A'], [0.8, '#FFD0A0'], [1, '#6A5A7A']]);

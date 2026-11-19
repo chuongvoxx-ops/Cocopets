@@ -1382,6 +1382,9 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
       c += vec3(1.0, 0.95, 0.98) * (exp(-sq((p.x * 0.85 + (p.y - 0.55) * 0.5 - v_q.y * 0.6) / 0.09)) * 0.3 + exp(-sq((p.x * 0.85 + (p.y - 0.55) * 0.5 - v_q.y * 0.6 - 0.16) / 0.03)) * 0.25); }
     c = mix(c, vec3(0.47, 0.2, 0.29), (1.0 - smoothstep(0.004, 0.02, -d)) * (v_q.z > -1.5 && v_q.z < -0.5 ? 0.0 : 0.85));   /* (the inner copies of the side band carry no contour: no stripes) */
     a *= v_c.a; gl_FragColor = vec4(min(c, vec3(1.0)) * a, a); }
+  else if (v_k > 123.5 && v_k < 124.5) { // (v418 AB, Abaddon) a dark disc (solid): the black moon's shadow, the eclipse's dark; v_q.x its radius (uv), v_q.y its softness, a faint dark haze beyond; laid over in v_c
+    float a = 1.0 - smoothstep(v_q.x - max(v_q.y, 0.004), v_q.x, r); a += (1.0 - a) * exp(-max(r - v_q.x, 0.0) / max(v_q.y * 3.0, 0.01)) * 0.35 * step(v_q.x, r); a *= (1.0 - smoothstep(0.9, 1.0, r)) * v_c.a;
+    gl_FragColor = vec4(col * a, a); }
 /*<W>*/  else if (v_k > 32.5 && v_k < 33.5) { // (v370, wind) the body of a blade of wind (solid): deep emerald toward its sharp outer edge, its
     // opacity fading toward the inner edge, streaked as the air races along it; v_q.x span + 10 x mode, v_q.y seed, v_q.z thickness
     vec4 B = wbl(u, v_q.x, v_q.z); float d = B.x, rr = r, md = floor(v_q.x / 10.0), along = md < 0.5 ? pow(clamp(1.0 - B.y, 0.0, 1.0), 1.3) : md < 1.5 ? 1.0 - smoothstep(0.7, 1.0, B.y) : 1.0;
@@ -1410,7 +1413,57 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
     c = mix(c, vec3(0.3, 0.16, 0.03), (1.0 - smoothstep(0.016, 0.034, d1)) * 0.85 + (1.0 - smoothstep(0.02, 0.05, d2)) * 0.95 * step(d2, d1));   /* (the rim: a hair along the sharp edge, firmer along the inner) */
     a *= v_c.a; gl_FragColor = vec4(min(c, vec3(1.0)) * a, a); }
 /*</W>*/  else { vec3 L = vec3(0.0);
-    if ((v_k > 75.5 && v_k < 77.5) || (v_k > 78.5 && v_k < 79.5)) { // (v415 EA) Earth's light
+    if (v_k > 119.5 && v_k < 135.5) { // (v418 AB) Abaddon, the Eternal Moonlight (20g2-abaddon-moves.js): its light. v_c its colour
+      float tt = u_t, an = atan(u.y, u.x);
+      if (v_k < 120.5) { // 120 a crescent's trail: an arc of radius 0.8 in its quad, its head at angle v_q.x, v_q.y its span back (radians), v_q.z its band's thickness (of the radius): a sharp white outer cutting edge, light fading inward across the band and back along it
+        float s = mod(v_q.x - an + 0.04, 6.2831853) - 0.04, v = s / max(v_q.y, 0.05), th = max(v_q.z, 0.01) * 0.8 * (1.0 - 0.65 * clamp(v, 0.0, 1.0)), x = (0.8 - r) / th;
+        float cut = exp(-max(x, 0.0) * 2.6) * (1.0 - smoothstep(0.85, 1.0, x)) * exp(-max(-x, 0.0) * 22.0), tail = pow(clamp(1.0 - v, 0.0, 1.0), 1.6) * smoothstep(-0.04, 0.02, v), sh = 0.75 + 0.35 * n2(vec2(s * 9.0 - tt * 3.0, x * 2.0));
+        L = (col * cut * 0.9 + mix(col, vec3(1.0), 0.75) * exp(-x * x * 40.0) * step(-0.2, x) * 0.9) * tail * sh + vec3(0.9, 0.95, 1.0) * exp(-sq(s / 0.06)) * exp(-x * x * 6.0) * 0.8 * step(-0.04, v);
+        L *= 1.0 - smoothstep(0.92, 1.0, r); }
+      else if (v_k < 121.5) { // 121 a lunar seal (a unit disc, on the floor or in the sky as its quad lays it): rings, a band of eight moon phases, runes, spokes, a star at its heart; drawn on from the middle out (v_q.x 0..1), turned by v_q.y (radians), v_q.z its strength
+        float a2 = an + v_q.y, d = 9.0, sct = 0.785398;
+        d = min(d, abs(r - 0.95) / 0.012); d = min(d, abs(r - 0.885) / 0.007); d = min(d, abs(r - 0.62) / 0.008); d = min(d, abs(r - 0.36) / 0.007);
+        float ca = mod(a2 + sct * 0.5, sct) - sct * 0.5, k = floor((a2 + sct * 0.5) / sct), ph = (mod(k, 8.0) - 3.5) / 3.5; vec2 cp = vec2(r * cos(ca) - 0.755, r * sin(ca));
+        d = min(d, abs(max(length(cp) - 0.07, -(length(cp - vec2(ph * 0.06, 0.012)) - 0.062))) / 0.006);
+        float ra = a2 * 5.7296, rn = fract(ra); if (r > 0.885 && r < 0.95 && h1(vec2(floor(ra), 3.0)) > 0.35) d = min(d, abs(rn - 0.5) / 0.09);
+        float sp = fract(a2 * 1.9099); if (r > 0.36 && r < 0.62) d = min(d, abs(sp - 0.5) * r * 0.5236 / 0.006);
+        d = min(d, abs(r - 0.3 * (0.25 + 0.75 * pow(1.0 - abs(sin(a2 * 4.0)), 6.0))) / 0.008);
+        float core = exp(-d * d * 0.5), halo = exp(-d * 0.6), rv = smoothstep(r - 0.1, r + 0.02, v_q.x * 1.1);
+        L = (col * halo * 0.35 + mix(col, vec3(1.0), 0.6) * core * 0.9 + col * 0.12 * (1.0 - r)) * rv * v_q.z;
+        L *= 1.0 - smoothstep(0.96, 1.0, r); }
+      else if (v_k < 122.5) { // 122 the Lunar Carapace's field round the pet (a sphere seen in its quad: uv a unit disc): panels on the sphere turning by v_q.y, their seams lit, each panel pulsing on its own; a fresnel rim; v_q.x a hit's ripple (its age 0..1, 0 none) spreading over the sphere from the direction v_q.z (radians)
+        if (r < 1.0) { float z = sqrt(1.0 - r * r); vec3 p = vec3(u.x, -u.y, z); float cy = cos(v_q.y), sy = sin(v_q.y); vec3 q = vec3(p.x * cy + p.z * sy, p.y, -p.x * sy + p.z * cy);
+          float lat = asin(clamp(q.y, -1.0, 1.0)), lon = atan(q.x, q.z), ry = lat / 3.14159 * 7.0 + 3.5, iy = floor(ry), fy = fract(ry);
+          float cols = max(3.0, floor(cos((iy + 0.5) / 7.0 * 3.14159 - 1.5708) * 14.0)), rx = (lon / 6.2831853 + 0.5) * cols + 0.5 * mod(iy, 2.0), ix = floor(rx), fx = fract(rx);
+          float sm = exp(-sq(min(min(fy, 1.0 - fy), min(fx, 1.0 - fx))) / 0.0016), pc = h1(vec2(ix, iy) + 0.37), pls = 0.5 + 0.5 * sin(tt * (1.5 + pc * 2.0) + pc * 6.28), fr = pow(1.0 - z, 2.2), rim = exp(-sq((r - 0.985) / 0.02));
+          vec3 hd = normalize(vec3(cos(v_q.z), -sin(v_q.z) * 0.6, 0.5)); float dh = acos(clamp(dot(p, hd), -1.0, 1.0)), rp = v_q.x > 0.0 ? exp(-sq((dh - v_q.x * 2.2) / 0.16)) * (1.0 - v_q.x) : 0.0;
+          L = col * (0.06 + 0.5 * fr + sm * (0.35 + 0.4 * pls) * (0.4 + 0.6 * fr) + pls * 0.05) + mix(col, vec3(1.0), 0.6) * (rim * 0.7 + rp * 1.2 + sm * rp * 1.5); }
+        L *= 1.0 - smoothstep(0.97, 1.0, r); }
+      else if (v_k < 123.5) { // 123 an eclipse's corona round a black disc of radius v_q.x (uv): a white-blue limb, streamers licking out through 3D noise; v_q.y seed, v_q.z strength
+        float h = r - v_q.x; vec2 dr = u / max(r, 0.001); float fl = fbm3(vec3(dr * 2.4, r * 2.0 - tt * 0.6) + v_q.y), fl2 = fbm3(vec3(dr * 7.0, r * 5.0 - tt * 1.4) + v_q.y * 2.0), reach = 0.08 + 0.7 * fl * fl;
+        L = (col * smoothstep(-0.01, 0.01, h) * exp(-max(h, 0.0) / max(reach, 0.02) * 2.5) * (0.5 + 0.8 * fl2) + mix(col, vec3(1.0), 0.7) * exp(-h * h / 0.00012) * 1.4) * v_q.z;
+        L *= 1.0 - smoothstep(0.85, 1.0, r); }
+      else if (v_k < 125.5) { // 125 a lunar shockwave: a shell at radius v_q.x (uv), v_q.y its rim's width, v_q.z strength: a sharp bright rim, a faint sphere inside it brightening toward its limb, streaks round it
+        float R0 = max(v_q.x, 0.01), w = max(v_q.y, 0.004), h = r - R0, ns = 0.7 + 0.5 * n2(vec2(an * 9.0, tt * 2.0)), ins = r < R0 ? 0.12 / sqrt(max(0.05, 1.0 - sq(r / R0))) : 0.0;
+        L = (mix(col, vec3(1.0), 0.6) * exp(-h * h / (w * w)) * ns + col * exp(-max(-h, 0.0) / (w * 4.0)) * step(h, 0.0) * 0.35 + col * min(ins, 0.6) * 0.5) * v_q.z;
+        L *= 1.0 - smoothstep(0.94, 1.0, r); }
+      else if (v_k < 126.5) { // 126 an inverted gravity field on the floor (uv a unit disc): rings drifting inward, three log-spiral arms turning (v_q.y their spin), points of light flowing to the middle; v_q.x its opening 0..1, v_q.z strength
+        float ring = 0.0; for (int i = 0; i < 5; i++) { float rr = fract(float(i) * 0.2 - tt * 0.35); ring += exp(-sq((r - rr) / 0.012)) * smoothstep(0.0, 0.2, rr) * (1.0 - rr * 0.5); }
+        float sw = an + v_q.y * tt + 3.2 * log(r + 0.05), arms = pow(0.5 + 0.5 * cos(3.0 * sw), 8.0) * smoothstep(0.05, 0.3, r), rim = exp(-sq((r - 0.97) / 0.015)) + 0.5 * exp(-sq((r - 0.9) / 0.006)), dots = pow(n2(vec2(sw * 4.0, r * 12.0 + tt * 3.0)), 8.0) * 3.0;
+        L = (col * (ring * 0.6 + arms * 0.5 + dots * 0.5 + 0.08 * (1.0 - r)) + mix(col, vec3(1.0), 0.6) * rim) * v_q.z * smoothstep(r - 0.08, r + 0.02, v_q.x * 1.06);
+        L *= 1.0 - smoothstep(0.98, 1.0, r); }
+      else if (v_k < 128.5) { // 128 a filament of light (uv.x along -1..1, uv.y across): pulses flowing along it at v_q.x, v_q.y seed, its ends fading
+        float al = u.x * 0.5 + 0.5, pl = 0.35 + 0.65 * pow(0.5 + 0.5 * sin(al * 14.0 - tt * v_q.x + v_q.y), 4.0);
+        L = (col * exp(-u.y * u.y * 6.0) * 0.6 + mix(col, vec3(1.0), 0.7) * exp(-u.y * u.y * 40.0)) * pl * (1.0 - smoothstep(0.7, 1.0, abs(u.x))); }
+      else if (v_k < 129.5) { // 129 a crescent shard of moonlight (its quad turned as it tumbles): a disc less an offset disc, white at its edge
+        float d = max(r - 0.62, -(length(u - vec2(0.24, 0.1)) - 0.55)); L = mix(col, vec3(1.0), 0.6) * exp(-max(d, 0.0) * 40.0) * smoothstep(-0.3, 0.0, d) * 0.9 + col * exp(-max(d, 0.0) * 8.0) * 0.4; L *= 1.0 - smoothstep(0.9, 1.0, r); }
+      else if (v_k < 130.5) { // 130 a tidal wave's crest (a ring at radius v_q.x, on the floor as its quad squashes it): a foaming white front, sapphire water trailing inward over v_q.y, v_q.z strength
+        float h = r - v_q.x, f = fbm(vec2(an * 10.0, r * 14.0 - tt * 3.0) + 2.0), fr = exp(-sq(h / 0.022)) * (0.6 + 0.6 * f), tr = step(h, 0.0) * exp(h / max(v_q.y, 0.01)) * (0.4 + 0.6 * f);
+        L = (vec3(0.9, 0.96, 1.0) * fr * 1.1 + col * tr * 0.55 + col * exp(-sq(h / 0.06)) * 0.4) * v_q.z; L *= 1.0 - smoothstep(0.94, 1.0, r); }
+      else { // 131 moonlit mist (a soft cloud thinning to its rim; v_q.x its drift, v_q.y seed, v_q.z density) with a glitter of droplets in it
+        float f = fbm(u * 2.2 + vec2(tt * 0.12 * v_q.x, -tt * 0.08) + v_q.y), g = pow(n2(u * 30.0 + v_q.y + tt * 0.5), 14.0) * 4.0;
+        L = col * f * (1.0 - smoothstep(0.3, 1.0, r)) * v_q.z * 0.6 + vec3(0.9, 0.95, 1.0) * g * (1.0 - smoothstep(0.5, 1.0, r)) * v_q.z; } }
+    else if ((v_k > 75.5 && v_k < 77.5) || (v_k > 78.5 && v_k < 79.5)) { // (v415 EA) Earth's light
       if (v_k < 76.5) { // a crystal's light (as kind 73: eaCSet): its inner glow by its thickness (v_c.r), glints on its edges and twinkles on its facets,
         // v_c.b a band of golden light climbing it (0..1 of its height; 0 none), v_c.g its charge: light flooding up from the root, its fractures white-hot
         eaCSet(u); float cov = clamp(eaSil + 0.5, 0.0, 1.0);
@@ -1743,7 +1796,7 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
   const Q = { lit: new Float32Array(12 * 6 * 600), nl: 0, smk: new Float32Array(12 * 6 * 200), ns: 0, wlit: new Float32Array(12 * 6 * 200), nwl: 0, wsmk: new Float32Array(12 * 6 * 100), nws: 0, get windOK() { return !!PRW; }, a: 1, b: 0, c0: 0, d: 1, e: 0, f: 0, k: 1, t: 0, W: 0, Hh: 0, pet: [0, 0, 0], gpu: true,
     X(x, y) { return this.a * x + this.c0 * y + this.e; }, Y(x, y) { return this.b * x + this.d * y + this.f; },
     /* one quad: centre (screen px), half-axes (ux, uy), (vx, vy) in screen px */
-    quad(kind, x, y, ux, uy, vx, vy, col, al, q0, q1, q2) { if (!(al > 0.004)) return; const solid = (kind >= 9 && kind <= 12) || kind === 16 || kind === 24 || kind === 25 || kind === 33 || kind === 36 || kind === 39 || kind === 40 || kind === 41 /* v402 */ || (kind >= 45 && kind <= 47) || kind === 49 || kind === 52 /* v404 LT */ || (kind >= 53 && kind <= 58 && kind !== 55) /* v404 DK */ || (kind >= 60 && kind <= 63) /* v409 DK2 */ || kind === 68 || kind === 69 /* v412 LM */ || kind === 71 /* v391 U4 */ || kind === 80 || kind === 82 || (kind >= 84 && kind <= 87) /* v415 EB */ || (kind >= 73 && kind <= 75) || kind === 78 /* v415 EA */ || kind === 89 || kind === 90 /* v415 TI */, wd = kind >= 33 && kind <= 40 || (kind >= 104 && kind <= 106) /* v417 BR */ || kind === 96 || kind === 97 /* v417 GH */ || kind === 112 || kind === 115 /* v417 MH */;
+    quad(kind, x, y, ux, uy, vx, vy, col, al, q0, q1, q2) { if (!(al > 0.004)) return; const solid = (kind >= 9 && kind <= 12) || kind === 16 || kind === 24 || kind === 25 || kind === 33 || kind === 36 || kind === 39 || kind === 40 || kind === 41 /* v402 */ || (kind >= 45 && kind <= 47) || kind === 49 || kind === 52 /* v404 LT */ || (kind >= 53 && kind <= 58 && kind !== 55) /* v404 DK */ || (kind >= 60 && kind <= 63) /* v409 DK2 */ || kind === 68 || kind === 69 /* v412 LM */ || kind === 71 /* v391 U4 */ || kind === 80 || kind === 82 || (kind >= 84 && kind <= 87) /* v415 EB */ || (kind >= 73 && kind <= 75) || kind === 78 /* v415 EA */ || kind === 89 || kind === 90 /* v415 TI */ || (kind >= 104 && kind <= 106) /* v417 BR */ || kind === 96 || kind === 97 /* v417 GH */ || kind === 112 || kind === 115 /* v417 MH */ || kind === 124 /* v418 AB */, wd = kind >= 33 && kind <= 40;
       const ka = wd ? (solid ? 'wsmk' : 'wlit') : (solid ? 'smk' : 'lit'), kn = wd ? (solid ? 'nws' : 'nwl') : (solid ? 'ns' : 'nl'); let A = this[ka]; const n = this[kn];
       if ((n + 6) * 12 > A.length) { const q = new Float32Array(A.length * 2); q.set(A); A = q; this[ka] = q; }
       const cx = this.X(x, y), cy = this.Y(x, y), a = this.a, b = this.b, c = this.c0, d = this.d, Ux = a * ux + c * uy, Uy = b * ux + d * uy, Vx = a * vx + c * vy, Vy = b * vx + d * vy, C = rgbOf(col); let o = n * 12;

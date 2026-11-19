@@ -1071,6 +1071,85 @@ void main() {
     em += mix(vec3(0.75, 0.24, 0.03), mix(AMB1, GOLD1, gg * 0.4), smoothstep(cw * 0.7, cw * 0.15, cm)) * fis * (0.02 + (0.55 + 0.45 * uKind) * gg) * (0.8 + 0.2 * sin(uTime * 3.0 + L.x * 4.0 + L.z * 3.0));   // (amber light deep inside the cracks: ember red at the lips)
     alb = mix(alb, vec3(0.63, 0.54, 0.42), smoothstep(0.2, 0.9, up) * clamp(uSpill, 0.0, 1.0) * 0.6 * (0.6 + 0.4 * w1));   // (dust settled on top)
     alb *= 1.0 - 0.42 * crm; em *= 1.0 - 0.7 * crm; }
+  /*</GH-MAT>*/
+  /*<AB-MAT ids 190..209 (v418 AB: 02f3-abaddon-model.js, Abaddon the Eternal Moonlight)>*/
+  else if (id >= 190 && id <= 209) {   // ---- (v418 AB) Abaddon, the Eternal Moonlight (02f3): 190 porcelain ivory (190.1 the mask: no veins, 190.2 an underside; vA.y 1 on a rim: gilded trim), 191 brushed platinum, 192 dark titanium (192.1 darker; sapphire light in its seams), 193 antique gold, 194 a sapphire light channel (vA.z its length: pulses run along it; 194.2 the halo's spear), 195 a claw's luminous cutting edge (vA.z 0 at the edge .. 1 inward), 196 the eye slit, 197 the moon (uGlow2: the black moon of the eclipse), 198 the heart's water and 199 its glass shell (both see-through: their own alpha), 200 a halo ring's metal (200.2 platinum; glowing runes), 201 a ring of light (see-through), 202 the lunar shell's dark inside (its seams lit), 203 the sea of the Ninth Tide (see-through; vA.z along its flow, vA.y 1 at its foaming rim). uGlow the body's light, uGlow2 the eye's / the blade edge's / the eclipse's, uKind a ring's phase, uTime
+    float abF = vA.x - float(id), abG = clamp(uGlow, 0.0, 3.0), abT = uTime;
+    float abNV = max(0.001, dot(n, uV)), abNL = dot(n, uLK), abDif = max(abNL, 0.0), abWr = clamp(abNL * 0.5 + 0.5, 0.0, 1.0);
+    vec3 abR = 2.0 * abNV * n - uV; float abUp = dot(abR, uUP), abSb = max(dot(abR, uLK), 0.0), abSr = max(dot(abR, uLR), 0.0), abHz = abUp - 0.06;
+    vec3 abEv = abUp > 0.0 ? mix(vec3(0.06, 0.08, 0.19), vec3(0.6, 0.68, 1.0), pow(clamp(abUp, 0.0, 1.0), 1.25)) : mix(vec3(0.08, 0.13, 0.32), vec3(0.012, 0.016, 0.045), clamp(-abUp * 2.5, 0.0, 1.0));
+    abEv += vec3(0.85, 0.9, 1.0) * exp(-abHz * abHz / 0.003) * 0.55;   // (a moonlit horizon in its reflections)
+    float abOcc = mix(0.35, 1.0, clamp(ao, 0.0, 1.0)), abFr = pow(1.0 - abNV, 5.0), abHm = 0.5 + 0.5 * dot(n, uUP);
+    vec3 abKEY = vec3(1.5, 1.52, 1.68), abAmb = mix(vec3(0.09, 0.11, 0.24), vec3(0.4, 0.44, 0.64), abHm) * uAmb,   /* (v418 AB: brighter, so the porcelain reads in a dark room) */ abRim = pow(1.0 - abNV, 2.4) * max(0.0, dot(n, uLR) + 0.35) * uRim;
+    vec3 abC = vec3(0.0); float abA = 1.0;
+    vec3 abG0 = vec3(0.92, 0.68, 0.34) * (abF > 0.05 && id == 193 ? 0.8 : 1.0), abGF = abG0 + (1.0 - abG0) * abFr;   // (the gilding every trim shares: antique gold, warm reflections of the night sky, a bright glint)
+    vec3 abGold = (abG0 * (0.1 + 0.62 * abDif) * abKEY * 0.55 + abGF * mix(abEv, vec3(dot(abEv, vec3(0.33))) * vec3(1.0, 0.8, 0.5), 0.45) * 1.25 + vec3(1.0, 0.93, 0.78) * (pow(abSb, 70.0) * 2.4 + pow(abSb, 12.0) * 0.3) + abRim * 0.35) * abOcc;
+    if (id == 190) {   // porcelain: a cool glaze, a pearl sheen at grazing angles, kintsugi veins and faint carved runes, gilded rims
+      float abU = step(0.15, abF) * step(abF, 0.3), abMk = step(0.05, abF) * step(abF, 0.15), w1 = vn(L.xy * 2.1 + L.z * 1.4 + 7.0), w2 = vn(L.yz * 4.3 + L.x * 2.0);
+      float abAr = step(0.32, abF) * step(abF, 0.45);   // (v418 AB round 2: 190.35 the armour blades - warm ivory, dense gold kintsugi cracks; 190.2 a dark navy undercoat; the blue only as light)
+      vec3 alb = mix(vec3(0.93, 0.9, 0.83), vec3(0.07, 0.09, 0.2), abU) * (0.94 + 0.08 * w2);
+      vec3 ir = 0.5 + 0.5 * cos(6.2832 * (abNV * 1.3 + w1 * 0.6 + vec3(0.0, 0.33, 0.67))), abEw = mix(abEv, vec3(dot(abEv, vec3(0.33))) * vec3(1.06, 1.0, 0.9), 0.6);
+      float F = 0.04 + 0.96 * abFr;
+      vec3 c = alb * (abDif * abKEY * vec3(1.0, 0.97, 0.9) + abAmb * 1.15) * abOcc + alb * vec3(0.16, 0.18, 0.28) * (1.0 - abWr) * 0.3;
+      c += abEw * mix(vec3(1.0), ir * 1.3, 0.3) * F * (1.1 - abU * 0.5) * abOcc + vec3(1.0, 0.98, 0.95) * (pow(abSb, 160.0) * 2.2 + pow(abSb, 26.0) * 0.22) * abOcc + abRim * 0.4 * alb;
+      float vq = 1.0 + abAr * 0.9, vv = abs(vn(L.xy * 1.7 * vq + L.z * 1.2 * vq + 3.0) - 0.5) + abs(vn(L.yz * 2.6 * vq + 1.0) - 0.5) * 0.35;
+      float vein = (1.0 - abMk) * (1.0 - abU) * smoothstep(0.035 + abAr * 0.05, 0.012 + abAr * 0.022, vv) * smoothstep(0.35 - abAr * 0.3, 0.6 - abAr * 0.3, vn(L.zx * 1.1 + 9.0));
+      vein = max(vein, abAr * (1.0 - abU) * smoothstep(0.06, 0.025, abs(vn(L.yz * 3.3 + L.x * 1.9 + 17.0) - 0.5)) * smoothstep(0.42, 0.62, vn(L.xy * 0.9 + 4.0)));   // (v418 AB round 3: a second, branching net of cracks on the armour)
+      vec2 ru = vec2(L.x * 6.0 + L.y * 3.0, L.z * 9.0), rf = fract(ru); float rc = hs(floor(ru));
+      float rune = (1.0 - abMk) * (1.0 - uLow) * step(0.72, rc) * step(0.5, vn(L.xz * 0.7 + 2.0)) * max(smoothstep(0.08, 0.03, abs(rf.x - 0.5)) * step(0.2, rf.y) * step(rf.y, 0.8), smoothstep(0.06, 0.02, abs(rf.y - 0.5)) * step(0.3, rf.x) * step(rf.x, 0.7) * step(0.86, rc));
+      c = c * (1.0 - rune * 0.28) + vec3(0.25, 0.5, 1.2) * rune * 0.18 * (0.3 + abG);
+      abC = mix(c, abGold, clamp(max(smoothstep(0.78 - abAr * 0.12, 0.93, edge), vein * 0.95), 0.0, 1.0)) + vec3(1.0, 0.7, 0.28) * vein * (0.12 + abAr * 0.4); }   // (v418 AB round 3: the kintsugi glows a little, warm, so it reads at the fight's size)
+    else if (id == 193) abC = abGold;
+    else if (id == 202) { float F = 0.04 + 0.96 * abFr; abC = vec3(0.012, 0.015, 0.032) * (0.4 + abWr) + abEv * F * 0.6 + vec3(0.2, 0.5, 1.4) * smoothstep(0.55, 1.0, edge) * (0.35 + abG * 0.6 + uGlow2 * 1.6); }
+    else if (id == 191) { vec3 P0 = vec3(0.78, 0.8, 0.86), PF = P0 + (1.0 - P0) * abFr; float st = vn(vec2(L.x * 3.0 + L.y * 2.0, L.z * 46.0 + L.y * 9.0));   // brushed platinum: fine streaks along it
+      abC = (P0 * (0.06 + 0.35 * abDif) * abKEY * 0.5 + PF * abEv * (0.85 + 0.35 * st) + vec3(1.0) * (pow(abSb, 50.0) * 1.6 * (0.7 + 0.6 * st) + pow(abSb, 8.0) * 0.12) + abRim * 0.4) * abOcc; }
+    else if (id == 192) { vec3 T0 = vec3(0.075, 0.08, 0.11) * (abF > 0.05 ? 0.7 : 1.0), TF = T0 + (vec3(0.55, 0.58, 0.66) - T0) * abFr;   // dark titanium: panels with seams that hold a sapphire light
+      float pn = fract(L.z * 3.2 + 0.25 * floor(L.x * 2.0)), seam = smoothstep(0.045, 0.0, min(pn, 1.0 - pn)) * (1.0 - uLow * 0.5), rg = 0.35 + 0.2 * vn(L.xy * 9.0 + L.z * 5.0);
+      abC = (T0 * (0.15 + 0.85 * abDif) * abKEY + TF * abEv * 0.9 + vec3(0.8, 0.85, 1.0) * pow(abSb, 2.0 / (rg * rg)) * 0.9 + abRim * 0.6) * abOcc * (1.0 - seam * 0.5) + vec3(0.12, 0.4, 1.3) * seam * (0.15 + 0.6 * abG + uSpill); }
+    else if (id == 194) { float fl = pow(0.5 + 0.5 * sin(ao * 18.0 - abT * 5.5), 5.0), fl2 = pow(0.5 + 0.5 * sin(ao * 7.0 - abT * 2.3 + 1.0), 3.0), k = (0.55 + 0.75 * abG) * (abF > 0.15 ? 1.5 : 1.0);   // a channel of sapphire light, pulses running along it
+      abC = mix(vec3(0.06, 0.24, 1.0), vec3(0.75, 0.92, 1.35), fl * 0.7 + fl2 * 0.2) * k + vec3(0.1, 0.2, 0.5) * abNV; }
+    else if (id == 195) { float x = clamp(ao, 0.0, 1.0), fl = vn(vec2(L.x * 1.5 + L.z * 1.5 - abT * 1.6, x * 3.0));   // the cutting edge: white-hot at the edge, sapphire, then deep blue into the blade
+      vec3 e = mix(vec3(1.25, 1.4, 1.6), vec3(0.25, 0.6, 1.45), smoothstep(0.0, 0.35, x)); e = mix(e, vec3(0.03, 0.12, 0.6), smoothstep(0.35, 1.0, x));
+      abC = e * (0.75 + 0.5 * abG + 0.6 * uGlow2) * (0.85 + 0.3 * fl) + abEv * (0.04 + 0.96 * abFr) * 0.8 + vec3(1.0) * pow(abSb, 90.0) * 2.0; }
+    else if (id == 196) abC = vec3(0.8, 0.95, 1.6) * (0.9 + 1.4 * uGlow2) * (0.9 + 0.1 * sin(abT * 11.0));
+    else if (id == 197) {   // the moon: maria and craters, lit by the key light and its own glow; the eclipse turns it black with a blue corona
+      vec3 lp = normalize(L); vec2 mu = vec2(atan(lp.y, lp.x) * 0.9549, lp.z * 2.4);
+      float cr = vn(mu * 2.0 + 3.0) * 0.55 + vn(mu * 5.0) * 0.28 + vn(mu * 11.0) * 0.17, mar = smoothstep(0.42, 0.62, vn(mu * 1.3 + 11.0));
+      vec2 cc = mu * 3.2, ci = floor(cc), cf = fract(cc) - 0.5; float rr = length(cf + (vec2(hs(ci + 3.1), hs(ci + 7.7)) - 0.5) * 0.4), crat = step(0.55, hs(ci)) * (smoothstep(0.32, 0.22, rr) * 0.6 - smoothstep(0.22, 0.12, rr) * 0.35);
+      vec3 ma = mix(vec3(0.82, 0.85, 0.95), vec3(0.42, 0.46, 0.62), mar) * (0.82 + 0.3 * cr) * (1.0 + crat * 0.6);
+      abC = ma * (0.3 + 0.95 * abWr) * (0.9 + 0.5 * abG) + vec3(0.2, 0.4, 1.0) * 0.18 * (0.5 + abG) + vec3(0.55, 0.75, 1.3) * pow(1.0 - abNV, 2.5) * 0.6;
+      abC = mix(abC, vec3(0.004, 0.005, 0.012), uGlow2 * 0.96) + vec3(0.35, 0.62, 1.5) * pow(1.0 - abNV, 3.0) * uGlow2 * 2.6; }
+    else if (id == 198) {   // the heart's water: currents swirling round the moon, bright filaments, see-through
+      vec3 lp = normalize(L); float an = atan(lp.y, lp.x);
+      float sw = vn(vec2(an * 2.0 + lp.z * 3.0 + abT * 0.9, lp.z * 4.0 - abT * 0.5)), sw2 = vn(vec2(an * 4.0 - lp.z * 5.0 - abT * 1.3, lp.z * 7.0 + abT * 0.7) + 5.0);
+      float fil = smoothstep(0.05, 0.0, abs(sw - 0.5)) + smoothstep(0.04, 0.0, abs(sw2 - 0.5)) * 0.6;
+      vec3 cw = mix(vec3(0.02, 0.1, 0.45), vec3(0.3, 0.7, 1.35), sw * 0.6 + 0.2) * (0.6 + 0.6 * abG) + vec3(0.7, 0.9, 1.4) * fil * (0.5 + 0.7 * abG);
+      cw = mix(cw, vec3(0.02, 0.03, 0.08), uGlow2 * 0.85) + vec3(0.3, 0.55, 1.4) * fil * uGlow2 * 0.4;
+      vec3 cc = vec3(tone(cw.r), tone(cw.g), tone(cw.b)); abA = clamp(max(0.3 + 0.28 * sw + 0.4 * fil + 0.25 * (1.0 - abNV), max(cc.r, max(cc.g, cc.b)) * 0.9), 0.0, 0.94);
+      gl_FragColor = vec4(min(cc * abA, vec3(abA)) * uAlpha, abA * uAlpha); return; }
+    else if (id == 199) {   // the glass shell: clear, its reflections and fresnel rim, the heart's light caught in it
+      vec3 cg = abEv * (0.04 + 0.96 * abFr) * 1.6 + vec3(1.0, 0.98, 1.0) * (pow(abSb, 200.0) * 4.0 + pow(abSb, 40.0) * 0.5) + vec3(0.6, 0.75, 1.0) * pow(abSr, 60.0) * 0.8 + vec3(0.25, 0.5, 1.2) * pow(1.0 - abNV, 2.0) * (0.3 + 0.4 * abG) * (1.0 - uGlow2 * 0.5);
+      cg = vec3(tone(cg.r), tone(cg.g), tone(cg.b)); abA = clamp(0.04 + 0.7 * pow(1.0 - abNV, 3.0) + max(cg.r, max(cg.g, cg.b)) * 0.8, 0.0, 1.0);
+      gl_FragColor = vec4(min(cg, vec3(abA)) * uAlpha, abA * uAlpha); return; }
+    else if (id == 200) {   // a halo ring: gold (or platinum), its runes lit in a slow pulse running round it
+      float an = atan(L.y, L.x), cell = floor(an * 7.6394 + 24.0), dd = fract(an * 7.6394) - 0.5, on = step(0.42, hs(vec2(cell, 3.0 + uKind))) * smoothstep(0.32, 0.12, abs(dd)) * step(0.35, abs(NL.z) + 0.2);
+      float pl = pow(0.5 + 0.5 * sin(an * 3.0 - abT * 2.0 + uKind * 1.3), 6.0);
+      vec3 PF = vec3(0.78, 0.8, 0.86) + (1.0 - vec3(0.78, 0.8, 0.86)) * abFr, plat = (vec3(0.78, 0.8, 0.86) * (0.06 + 0.35 * abDif) * abKEY * 0.5 + PF * abEv + vec3(1.0) * pow(abSb, 50.0) * 1.5 + abRim * 0.4) * abOcc;
+      abC = (abF > 0.15 ? plat : abGold) + vec3(0.35, 0.65, 1.5) * on * (0.3 + 0.8 * abG + 1.2 * pl); }
+    else if (id == 201 || id == 203) {
+      if (id == 201) { float an = atan(L.y, L.x), pl = pow(0.5 + 0.5 * sin(an * 5.0 - abT * 3.0 + uKind * 1.7), 6.0);   // a ring of light: see-through, a pulse running round
+        vec3 cl2 = vec3(0.3, 0.58, 1.4) * (0.55 + 0.6 * abG) + vec3(0.8, 0.9, 1.3) * pl * 0.8; cl2 = vec3(tone(cl2.r), tone(cl2.g), tone(cl2.b));
+        abA = clamp(max(cl2.r, max(cl2.g, cl2.b)) * (0.45 + 0.55 * abNV), 0.0, 1.0); gl_FragColor = vec4(cl2 * abA * uAlpha, abA * uAlpha); return; }
+      // the sea of the Ninth Tide: moving water (its normal stirred by two noises flowing along it), fresnel reflections, glints, foam at its rim, caustic threads
+      vec2 fq = vec2(ao * 6.0 - abT * 1.2, edge * 3.0 + abT * 0.2); float wv = vn(fq * 2.0 + L.xy * 0.5), wv2 = vn(fq * 5.3 + 3.0);
+      vec3 nn = normalize(n + (vec3(wv, wv2, 0.5) - 0.5) * 0.6); float nd2 = max(0.001, dot(nn, uV)), F = 0.04 + 0.96 * pow(1.0 - nd2, 5.0); vec3 r2 = 2.0 * nd2 * nn - uV; float sb2 = max(dot(r2, uLK), 0.0);
+      float foam = smoothstep(0.75, 1.0, edge + wv2 * 0.25) + smoothstep(0.55, 0.9, wv2) * 0.25;
+      float cau = smoothstep(0.03, 0.0, abs(wv - 0.5)) + smoothstep(0.025, 0.0, abs(wv2 - 0.5)) * 0.6;   // (v418 AB: clearer, lighter water - caustic threads and foam carry it, the body thin)
+      vec3 cs = mix(vec3(0.06, 0.28, 0.66), vec3(0.32, 0.78, 1.25), wv * 0.6 + 0.2) * (0.6 + 0.6 * abG) + abEv * F * 1.3 + vec3(1.0) * pow(sb2, 120.0) * 2.5 + vec3(0.85, 0.95, 1.1) * foam * 0.9 + vec3(0.5, 0.85, 1.4) * cau * 0.7;
+      cs = vec3(tone(cs.r), tone(cs.g), tone(cs.b)); abA = clamp(max(0.16 + 0.45 * F + foam * 0.6 + cau * 0.3 + 0.08 * wv, max(cs.r, max(cs.g, cs.b)) * 0.45), 0.0, 0.92);
+      gl_FragColor = vec4(min(cs * abA, vec3(abA)) * uAlpha, abA * uAlpha); return; }
+    gl_FragColor = vec4(vec3(tone(abC.r), tone(abC.g), tone(abC.b)) * uAlpha, uAlpha); return; }
+  /*</AB-MAT>*/
   /*<OD-DRILL-MAT ids 150..151 (v416 OD: 20k2iz-earth-drill-gpu.js)>*/
   else if (id >= 150 && id <= 151) {   // ---- (v416 OD) the Obsidian Drill (20k2iz), z its axis in its own frame: 150 black volcanic glass (150.2 its core, 150.4 its tip; vA.y 1 on a bevel or a facet's rim, vA.z the occlusion), 151 gold crystal (151.0 the inlay along a flight's rim: vA.z its length along the helix; 151.3 a joint's crystal). uGlow the gold's light, uWear world units a model unit (its height over the floor from vW.z), uTime.
     // Glass: a near-black body with a grey-violet lit flank; a cool sky above, a bright horizon strip and the floor's warm light below in its reflections; a fresnel rim; sharp glints with a faint rainbow sheen; conchoidal facets (a cell net round the axis, each cell tilting the normal its own way, rippled from its seed) that turn with it; bright bevels

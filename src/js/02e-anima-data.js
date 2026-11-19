@@ -24,10 +24,14 @@ const ANIMAS = {
     color: '#FFD36B', glow: '#9CC8FF', dark: '#1E2B5C', forms: ['Sun & Moon Wyrmlings', 'Twin Star Dragons', 'Raziel the Celestial'],
     skill: 'The twin celestial dragons of sun and moon coil round your pet, taking turns firing piercing beams of sunlight and moonlight.',
     finisher: 'Twin Helix Nova', finDesc: 'The twins spiral into the sky as one double helix, braid sunlight and moonlight into a single beam and crash it down as a vast yin-yang nova across the room.' },
-  cancer: { sign: 'Cancer', name: 'Abaddon', title: 'The Corrupt', role: 'Saboteur', realm: 'void', el: 'shadow', gem: 'amethyst', floor: 19, opp: 'capricorn',
-    color: '#5DF2FF', glow: '#8FFCFF', dark: '#3A1426', forms: ['Moonshell Crab', 'Tidebreaker Crab', 'Abaddon the Corrupt'],
-    skill: 'Curses every monster nearby: cursed monsters hit 40% softer, take 30% more damage and move slower.',
-    finisher: 'Abyssal Tide', finDesc: 'A black tide washes over every monster, cursing and crushing them all.' },
+  // v418 AB: Abaddon remade as The Eternal Moonlight, Zodiac Anima No. 04: an ancient biomechanical lunar god of porcelain, platinum
+  // and obsidian, Water / Shadow, a Guardian (the same 'cancer' key, so saves, gems and ascension carry over). Its forms are
+  // the sealed lunar shell, the half-unfolded warden and the full god; its four powers and its finisher are 20g2-abaddon-moves.js
+  cancer: { sign: 'Cancer', name: 'Abaddon', title: 'The Eternal Moonlight', role: 'Guardian · Tank', realm: 'void', el: 'shadow', el2: 'bubble', elems: 'Water / Shadow', no: 4, gem: 'amethyst', floor: 19, opp: 'capricorn',
+    color: '#6FA2FF', glow: '#D8E6FF', dark: '#0B1230', forms: ['Sealed Moonshell', 'Crescent Warden', 'Abaddon the Eternal Moonlight'],
+    tag: 'Zodiac Anima No. 04 · Water / Shadow · a primordial guardian that would rather seal life away beneath an eternal moon than see it harmed.',
+    skill: 'Guards your pet like a fortress: Lunar Carapace shields it and stores every blow it absorbs, Crescent Reavers sweep monsters together, Gravitational Tide lifts and drags them in, and Eclipse Requiem seals the stored power into a great shockwave.',
+    finisher: 'The Ninth Tide', finDesc: 'Abaddon rises over the room, raises the sea into the sky round an artificial moon, crushes it to a single point and lets it burst as one vast tide: huge damage, Lunar Weakness on every monster and a lunar shield on your pet.' },
   leo: { sign: 'Leo', name: 'Michael', title: 'The Just', role: 'Paladin', realm: 'heaven', el: 'gold', gem: 'citrine', floor: 3, opp: 'aquarius',
     color: '#FFD36B', glow: '#FFF3C2', dark: '#B9861A', forms: ['Sunpuff Cub', 'Dawnshield Paladin', 'Michael the Just'],
     skill: 'Bounds into monsters behind its shield of sunlight while its warm glow heals your pet over time.',
@@ -73,7 +77,7 @@ const RESONANCE = {
   'aries|libra': { name: 'Judgement Pyre', desc: 'Uriel weighs every monster and Samael sets the guilty ablaze: a pillar of hellfire on each one.' },
   'taurus|scorpio': { name: 'Fortress of Rot', desc: 'Belial\'s golden fortress shields your pet while Asmodeus\'s plague erupts in every monster on the floor.' },
   'gemini|sagittarius': { name: 'Starfall Volley', desc: 'Sun and moon beams cross the room as Raphael looses a thousand star arrows through them.' },
-  'cancer|capricorn': { name: 'Abyssal Storm', desc: 'Abaddon\'s black tide curses everything; Mammon\'s lightning strikes every cursed monster.' },
+  'cancer|capricorn': { name: 'Abyssal Storm', desc: 'Abaddon\'s lunar tide drags every monster down and weakens it; Mammon\'s lightning strikes each one through the water.' },   // v418 AB
   'leo|aquarius': { name: 'Solar Tide', desc: 'Sunlight and celestial water become one radiant wave that crushes monsters and restores your pet.' },
   'virgo|pisces': { name: 'Eternal Covenant', desc: 'Holy light and unbound tides: your pet is fully healed and freed, and every monster is smitten.' },
 };
@@ -126,7 +130,7 @@ const ANIMA_THEME = {
   aries: { bpm: 156, root: 220, wave: 'sawtooth', bwave: 'square', lead: [0, 1, 3, null, 7, 6, 3, 1, 0, null, 0, 3, 8, 7, 3, 1], bass: [0, 0, 0, 0, 1, 1, 0, 0, -2, -2, 0, 0, 1, 1, -5, -5] },
   taurus: { bpm: 92, root: 147, wave: 'triangle', bwave: 'square', lead: [0, null, 3, null, 5, null, 7, 5, 3, null, 0, null, -2, null, 0, null], bass: [0, 0, 0, 0, -5, -5, -5, -5, -2, -2, -2, -2, -5, -5, 0, 0] },
   gemini: { bpm: 128, root: 330, wave: 'square', bwave: 'triangle', lead: [0, 4, 7, 12, 7, 4, 9, 7, 5, 9, 12, 16, 12, 9, 7, 4], bass: [0, 0, 7, 7, 5, 5, 4, 4, 2, 2, 7, 7, 0, 0, 7, 7] },
-  cancer: { bpm: 100, root: 196, wave: 'sine', bwave: 'triangle', lead: [0, 3, 6, null, 9, 6, 3, null, 0, 3, 6, 9, 12, null, 9, 6], bass: [0, 0, 0, 0, 6, 6, 6, 6, 3, 3, 3, 3, 0, 0, -3, -3] },
+  cancer: { bpm: 84, root: 165, wave: 'sine', bwave: 'triangle', lead: [0, 7, 12, null, 10, 7, 3, null, 0, 3, 7, 12, 15, null, 12, 10], bass: [0, 0, 0, 0, -4, -4, -4, -4, -2, -2, -2, -2, -5, -5, -5, -5] },   // v418 AB: a slow, sacred minor hymn
   leo: { bpm: 120, root: 262, wave: 'triangle', bwave: 'square', lead: [0, null, 7, 4, 7, null, 12, 11, 9, 7, 9, 12, 16, null, 12, null], bass: [0, 0, 0, 0, 5, 5, 5, 5, 7, 7, 7, 7, 0, 0, 0, 0] },
   virgo: { bpm: 84, root: 392, wave: 'sine', bwave: 'sine', lead: [0, 4, 6, 11, 12, 11, 7, 4, 6, 9, 11, 14, 12, 7, 4, 2], bass: [0, 0, 0, 0, 2, 2, 2, 2, 4, 4, 4, 4, 2, 2, 0, 0] },
   libra: { bpm: 108, root: 294, wave: 'triangle', bwave: 'triangle', lead: [0, 2, 3, 5, 7, 9, 10, 9, 7, 5, 3, 2, 0, null, 7, null], bass: [0, 0, 7, 7, 3, 3, 10, 10, 5, 5, 0, 0, 7, 7, 0, 0] },
