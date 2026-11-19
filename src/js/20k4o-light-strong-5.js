@@ -211,12 +211,16 @@
     function aimFor(k) { const zig = k === 0 ? 0 : k % 2 ? 1 : -1;
       // the monster to cut through: the first pass the one nearest the aim, later ones the nearest not struck by the pass before (never one right on top of the pet)
       let L = group0.filter(m => !m.dead); if (!L.length) L = H.sortNear(me.x, me.y).filter(m => Math.hypot(m.x - me.x, m.y - me.y) < RANGE).slice(0, 3);
-      const last = st.pass ? st.pass.hits : null, pick = (k === 0 ? L : H.sortNear(me.x, me.y, L)).filter(m => Math.hypot(m.x - me.x, m.y - me.y) > 0.9), m = pick.find(q => !last || !last.has(q)) || pick[0];
+      const last = st.pass ? st.pass.hits : null, pick = (k === 0 ? L : H.sortNear(me.x, me.y, L)).filter(m => Math.hypot(m.x - me.x, m.y - me.y) > 0.9);
+      // (v414: a target the dash can actually reach in a straight line: one behind a wall or a pillar made the route check veer the pass
+      // off it or cancel it, so the rush could whiff entirely; prefer the first one with a clear line, else as before)
+      const clear = q => { const d = Math.hypot(q.x - me.x, q.y - me.y); return reach(me.x, me.y, Math.atan2(q.y - me.y, q.x - me.x), d) >= d - q.r - 0.3; };
+      const fresh = pick.filter(q => !last || !last.has(q)), m = fresh.find(clear) || pick.find(clear) || fresh[0] || pick[0];
       if (!m) return { ang: k ? prevAng + Math.PI + zig * 0.85 : C.a, len: k ? 3.4 : 4.2 };
-      const d = Math.hypot(m.x - me.x, m.y - me.y); return { ang: Math.atan2(m.y - me.y, m.x - me.x) + zig * 0.22, len: Math.max(2.4, Math.min(5.2, d + 1.5)) }; }
-    function validate(ang, len) { let best = null; for (const da of [0, 0.45, -0.45, 0.9, -0.9]) { const r = reach(me.x, me.y, ang + da, len + 0.3) - 0.15; if (r >= Math.min(len, 2)) return { ang: ang + da, len: Math.min(len, r) }; if (!best || r > best.len) best = { ang: ang + da, len: r }; } return best; }
+      const d = Math.hypot(m.x - me.x, m.y - me.y); return { ang: Math.atan2(m.y - me.y, m.x - me.x) + zig * 0.22, len: Math.max(2.4, Math.min(5.2, d + 1.5)), need: d }; }
+    function validate(ang, len, need) { let best = null; for (const da of [0, 0.45, -0.45, 0.9, -0.9]) { const r = reach(me.x, me.y, ang + da, len + 0.3) - 0.15; if (r >= Math.min(len, 2) || (!da && need && r >= Math.min(len, need))) return { ang: ang + da, len: Math.min(len, r) }; if (!best || r > best.len) best = { ang: ang + da, len: r }; } return best; }
     const st = { ph: 'form', k: 0, pass: null, next: null, t0: 0, ghostT: 0, done: false };
-    function startPass(t) { const want = st.next || aimFor(st.k), v = validate(want.ang, want.len); st.next = null;
+    function startPass(t) { const want = st.next || aimFor(st.k), v = validate(want.ang, want.len, want.need); st.next = null;
       if (!v || v.len < 0.8) { st.ph = 'settle'; st.t0 = t; st.sdir = prevAng; return; }
       st.pass = { x0: me.x, y0: me.y, ang: v.ang, len: v.len, dur: 0.14 + v.len / 20, hits: new Set(), k: st.k }; st.ph = 'pass'; st.t0 = t; prevAng = v.ang; H.X.sfx.whoosh(); }
     const ePos = u => 0.3 * u + 0.7 * (1 - (1 - u) * (1 - u));
@@ -249,7 +253,10 @@
           let vx = (tx - me.x) / Math.max(dt, 1e-3), vy = (ty - me.y) / Math.max(dt, 1e-3); const vm = Math.hypot(vx, vy); if (vm > 30) { vx *= 30 / vm; vy *= 30 / vm; }
           hold(vx, vy); me.vx = vx; me.vy = vy; if (Math.abs(vx) > 0.5) me.face = vx > 0 ? 1 : -1;
           // a wall the route check missed (a monster's barrier, a closing door): cut the pass short
-          if (u > 0.2 && Math.hypot(tx - me.x, ty - me.y) > 0.7) { finishPass(t); return; }
+          // (v414: only when the pet has really stopped: a slow frame (a long dt, a hitch on a phone) leaves it a step behind its mark for one
+          // frame, which used to end the pass at once, short of every monster; now the pass ends only after two frames without progress)
+          const prog = (me.x - P.x0) * Math.cos(P.ang) + (me.y - P.y0) * Math.sin(P.ang); if (u > 0.2 && Math.hypot(tx - me.x, ty - me.y) > 0.7 && prog - (P.prog || 0) < 0.03) P.stall = (P.stall || 0) + 1; else P.stall = 0; P.prog = prog;
+          if (P.stall >= 2) { finishPass(t); return; }
           st.ghostT -= dt; if (st.ghostT <= 0) { st.ghostT = 0.05; H.P({ kind: 'afterP', x: me.x, y: me.y, vx: 0, vy: 0, life: 0.22, max: 0.22, size: 1, color: MAIN, face: me.face, rot: me.tilt || 0 }); H.P({ kind: 'ghost', x: me.x, y: me.y - 0.1, vx: 0, vy: 0, life: 0.25, max: 0.25, size: 1, color: MAIN }); }
           if (u >= 1) finishPass(t); }
         else if (st.ph === 'turn') { const u = cl((t - st.t0) / TT), a = st.a0 + H.wrap(st.next.ang - st.a0) * sm(u), sp = 4.2; hold(Math.cos(a) * sp, Math.sin(a) * sp); me.vx = Math.cos(a) * sp; me.vy = Math.sin(a) * sp;
