@@ -256,6 +256,7 @@ const DunWorld = (() => {
       if (!near) { c.fillStyle = shadeC(B.top, -0.3 - Math.round(h * 2) * 0.03); c.fillRect(X, Y - H, T + 0.5, T + 0.5); if (h < 0.12) { c.fillStyle = 'rgba(255,255,255,.05)'; c.fillRect(X + T * 0.2, Y - H + T * 0.3, T * 0.4, T * 0.2); } continue; }
       // roof
       c.fillStyle = B.top; c.fillRect(X, Y - H, T + 0.5, T + 0.5);
+      if (B.roofFn) B.roofFn(c, X, Y - H, T, x, y, isWall);   // v423 GE: a land's own wall-top picture (20p3, the garden's moss)
       c.fillStyle = 'rgba(255,255,255,.08)'; if (h < 0.4) c.fillRect(X + T * 0.15, Y - H + T * 0.2, T * 0.3, T * 0.12);
       c.fillStyle = rgba('#FFFFFF', 0.22); if (!isWall(x, y - 1)) c.fillRect(X, Y - H, T + 0.5, T * 0.07); if (!isWall(x - 1, y)) c.fillRect(X, Y - H, T * 0.06, T); if (!isWall(x + 1, y)) { c.fillStyle = 'rgba(0,0,0,.18)'; c.fillRect(X + T * 0.94, Y - H, T * 0.06, T); }
       if (front) {

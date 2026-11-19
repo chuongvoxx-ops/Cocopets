@@ -47,12 +47,21 @@ const GardenFiend = (() => {
    It is never still: the bulb breathes, the roots step in turn (each a thud) and curl their tips, the eggs swing on
    their stalks with every step, the crown parts to sniff at the pet; before a breath it draws itself up and the crown
    parts, before a slam it rears back on its hind roots and comes down with overshoot, before the spears its roots dig
-   in; struck, the bulb is squashed; peeled open, it sways dizzy and its roots curl in; it rears and roars on entering. */
+   in; struck, the bulb is squashed; peeled open, it sways dizzy and its roots curl in; it rears and roars on entering.
+   (v423 GO) Drawn on the GPU where it can be (20x1-orrubel-gl.js: ORB3, a GLM model at the Drowned Belfry's fidelity, its attacks'
+   light on the FGFX painter, its own fall); the 2D bud below is the fallback without WebGL. The fight is unchanged. */
 RiftFiend.define({ id: 'orrubel', name: 'Orrubel', title: 'The Seed-Mother', color: '#2F183A', glow: '#FFD36B', accent: '#F2D8A1', biome: 'garden', r: 2.6, els: ['earth', 'dark'] }, (() => {
   const { TAU, TN, frame, tubeLite, ell, sorted, hit } = RiftFiend, G = GardenFiend;
   const { PLUM, PLUM_SH, PLUM_HI, ROSE, ROSE_SH, ROSE_HI, JADE, JADE_SH, JADE_HI, CREAM, CREAM_SH, GOLD, INK, decay, toward, snap } = G;
   const PETAL = '#4E2C68', PETAL_SH = '#2A1538', PETAL_HI = '#7E5398', BS = 0.95, ROOT_A = [-0.5, 0.5, 1.9, -1.9, Math.PI], POD_A = [Math.PI / 2 + 0.6, Math.PI / 2 + 0.6 + TAU / 3, Math.PI / 2 + 0.6 - TAU / 3];
   const podAt = (C, i) => [C.x + Math.cos(POD_A[i]) * (C.R - 2.4), C.y + Math.sin(POD_A[i]) * (C.R - 2.4)];
+  /* (v423 GO) the GPU model and its light (ORB3, 20x1-orrubel-gl.js); without them the 2D bud and its 2D effects, as before. Every
+     warning is the engine's own (the same shape, moment and damage), marked 'fn' so the engine paints nothing of it: its picture is
+     light on the moss (ORB3.overlay), or, without the GPU painter, the engine's old 2D shape drawn from its geo */
+  const O3 = () => { try { return typeof ORB3 !== 'undefined' ? ORB3 : null; } catch (e) { return null; } }, glOn = () => { const o = O3(); return !!(o && o.on()); }, fxOn = () => { const o = O3(); return !!(o && o.fx()); };
+  const mark = (FX, o) => { const geo = Object.assign({}, o); return FX.tele(Object.assign(o, { geo: o.shape, shape: 'fn', seed: Math.random() * 40, test: (x, y, rr) => FX.inShape(geo, x, y, rr) })); };
+  const burst = (FX, x, y, r, col, core, o) => { if (fxOn()) O3().burst(FX, x, y, r, col, o); else FX.H.boom(x, y, r, col, core, o); };
+  const partsOf = (FX, m, M) => (glOn() ? O3().parts(FX, m) : bodyParts(m, M)), eyeOf = (FX, m, M) => (glOn() ? O3().eyeAt(FX, m) : eyeAt(m, M)), crownOf = (FX, m, M) => (glOn() ? O3().crownAt(FX, m) : crownAt(m, M));
   return {
     arenaR: 15, firstAct: 'circle',
     artPoses: [{ name: 'pacing, side on', mem: { hd: 0.1, gait: 1, spdK: 1 } }, { name: 'drawing breath', mem: { hd: 1.57, inhale: 1, menace: 1 } }, { name: 'rearing to slam', mem: { hd: 1.57, rear: 1, menace: 1 } }, { name: 'peeled open: the eye bared', mem: { hd: 1.57, open: 1 } }],
@@ -64,10 +73,11 @@ RiftFiend.define({ id: 'orrubel', name: 'Orrubel', title: 'The Seed-Mother', col
       c2.strokeStyle = 'rgba(168,94,135,.3)'; c2.lineWidth = 0.3; c2.beginPath(); c2.arc(0, 0, 5.5, 0, TAU); c2.stroke(); } }); },
     sky(c, W, H, t, cam, T) { G.sky(c, W, H, t, cam, T); },
     /* ---- the fight ---- */
-    init(FX) { const M = FX.mem; FX.m.act = 'enter';
+    init(FX) { const M = FX.mem; FX.m.act = 'enter'; if (O3()) { O3().init(FX); O3().HOOK.crown2D = (m, M) => crownAt(m, M); }   // (v423 GO)
       Object.assign(M, { hd: Math.PI / 2, gait: 0, spdK: 0, open: 0, rear: 0, inhale: 0, breath: 0, menace: 0, crouch: 0, dig: 0, roar: 0, lunge: 0, slam: 0, slamT: 0, recoil: 0, blink: 0, blinkT: 2, sniff: 0, sniffT: 3, bt: 0, px: FX.m.x, py: FX.m.y, vx: 0, vy: 0, lean: 0, roll: 0, wasEnter: true, roared: false, lobs: [], pods: POD_A.map(() => ({ obj: null, respawnT: 0 })), broodT: 14, stepT: 0 });
       POD_A.forEach((a, i) => spawnPod(FX, i)); },
     phase(FX, p, lv) { const M = FX.mem, m = FX.m; M.roar = 1; M.menace = 1; M.inhale = 0.6; M.broodT = 4; FX.H.shake(10, 0.5); FX.H.flash(0.2, GOLD); FX.H.sfx.crash(); FX.H.sparks(m.x, m.y - 4, GOLD, 18, 7);
+      if (fxOn()) { const h = crownOf(FX, m, M); O3().burst(FX, h[0], h[1] - h[2] + 1.5, 2.6, GOLD, { z: 0, n: 0, shake: 10, motes: 1 }); }   // (v423 GO: the roar's gold)
       M.pods.forEach((h, i) => { if (!h.obj || h.obj.dead) { h.respawnT = 0; spawnPod(FX, i); } });
       for (let i = 0; i < 2; i++) { const a = FX.angPet(m.x, m.y) + (i - 0.5) * 0.9, p = FX.clampArena({ x: FX.me.x + Math.cos(a) * 3, y: FX.me.y + Math.sin(a) * 3 }, 1.5); lob(FX, m, p.x, p.y, 1.3 + i * 0.3, true); }
       if (lv >= 2) FX.H.banner('THE HATCHING', 'The seed bombs hatch thornlings; the pods grow back', GOLD, 2.4); if (lv >= 4) FX.H.banner('The Last Seed', 'Nothing it sows stays buried', '#FF6A5A', 2.2); },
@@ -81,7 +91,7 @@ RiftFiend.define({ id: 'orrubel', name: 'Orrubel', title: 'The Seed-Mother', col
           if (m.actT > (P >= 3 ? 1.5 : 2.1)) { m.actT = 0; FX.mem.cDir = Math.random() < 0.5 ? 1 : -1;
             const r = Math.random(); if (d < 8.5 && r < 0.32) startBreath(FX, m); else if (r < 0.58) startSpears(FX, m); else if (r < 0.8 || d > 6) startBombs(FX, m); else startSlam(FX, m); }
           break; }
-        case 'breath': { const drawn = m.actT < M.bw; menace = drawn ? 1 : 0.4; inhale = drawn ? 1 : 0; if (!drawn) { M.breath = Math.max(0, 1 - (m.actT - M.bw) / 0.9); if (M.breath > 0.1) for (let i = 0; i < 2; i++) { const a = M.ba + (Math.random() - 0.5) * 0.9, v = 7 + Math.random() * 4, top = crownAt(m, M); FX.H.part({ kind: 'glow', x: top[0], y: top[1] - top[2] + 0.3, vx: Math.cos(a) * v, vy: Math.sin(a) * v + 2.5, life: 0.75, max: 0.75, size: 0.35 + Math.random() * 0.3, color: Math.random() < 0.3 ? CREAM : GOLD }); } }
+        case 'breath': { const drawn = m.actT < M.bw; menace = drawn ? 1 : 0.4; inhale = drawn ? 1 : 0; if (!drawn) { M.breath = Math.max(0, 1 - (m.actT - M.bw) / 0.9); if (M.breath > 0.1) for (let i = 0; i < 2; i++) { const a = M.ba + (Math.random() - 0.5) * 0.9, v = 7 + Math.random() * 4, top = crownOf(FX, m, M);   /* v423 GO */ FX.H.part({ kind: 'glow', x: top[0], y: top[1] - top[2] + 0.3, vx: Math.cos(a) * v, vy: Math.sin(a) * v + 2.5, life: 0.75, max: 0.75, size: 0.35 + Math.random() * 0.3, color: Math.random() < 0.3 ? CREAM : GOLD }); } }
           if (m.actT > M.bw + 1.0) { m.act = 'circle'; m.actT = 0; M.breath = 0; } break; }
         case 'spears': { menace = 0.7; crouch = m.actT < 1.0 ? Math.min(1, m.actT / 0.5) : 0; dig = crouch; if (m.actT > 1.9) { m.act = 'circle'; m.actT = 0; } break; }
         case 'bombs': { menace = 0.5; rear = m.actT < 0.5 ? m.actT / 0.5 * 0.4 : Math.max(0, 0.4 - (m.actT - 0.5)); if (m.actT > 1.6) { m.act = 'circle'; m.actT = 0; } break; }
@@ -92,12 +102,12 @@ RiftFiend.define({ id: 'orrubel', name: 'Orrubel', title: 'The Seed-Mother', col
       if (m.act !== 'circle') M.spdK *= Math.pow(0.02, dt);
       // heading: side-on as it paces, square to the pet to strike
       const want = m.act === 'circle' ? aPet + (M.cDir || 1) * Math.PI / 2 : m.act === 'breath' ? M.ba : aPet; M.hd = FX.K.lerpA(M.hd, want, Math.min(1, dt * (m.act === 'circle' ? 2.5 : 4)));
-      FX.parts(bodyParts(m, M));
+      FX.parts(partsOf(FX, m, M));   // (v423 GO: on the GPU, where the model shows)
     },
-    stunned(FX, m, dt) { const M = FX.mem; M.open = Math.min(1, M.open + dt * 2.2); M.inhale = decay(M.inhale, dt, 3); M.menace = decay(M.menace, dt, 4); M.rear = decay(M.rear, dt, 6); M.crouch = decay(M.crouch, dt, 4); M.breath = 0; const p = eyeAt(m, M); FX.weak('eye', p[0], p[1], 1.3, 2.4, m.stunT > 0.05);
+    stunned(FX, m, dt) { const M = FX.mem; M.open = Math.min(1, M.open + dt * 2.2); M.inhale = decay(M.inhale, dt, 3); M.menace = decay(M.menace, dt, 4); M.rear = decay(M.rear, dt, 6); M.crouch = decay(M.crouch, dt, 4); M.breath = 0; const p = eyeOf(FX, m, M);   /* v423 GO */ FX.weak('eye', p[0], p[1], 1.3, 2.4, m.stunT > 0.05);
       // dizzy: a seed falls now and then, the ground is pawed
       M.kickT = (M.kickT || 0) - dt; if (M.kickT <= 0) { M.kickT = 0.5; FX.H.part({ kind: 'petal', x: m.x + FX.rnd(-2, 2), y: m.y - 3 + FX.rnd(-1, 1), vx: FX.rnd(-1, 1), vy: 1.5, g: 3, life: 1.2, max: 1.2, size: 4, rot: Math.random() * 3, color: ROSE_HI }); FX.H.shake(1.5, 0.08); }
-      FX.parts(bodyParts(m, M)); },
+      FX.parts(partsOf(FX, m, M)); },   // (v423 GO)
     update(FX, dt) { const M = FX.mem, m = FX.m; if (!m) return; M.bt += dt; if (!(m.stunT > 0)) { M.open = Math.max(0, M.open - dt * 1.8); if (FX.S.weak.eye) FX.weak('eye', 0, 0, 0, 0, false); }
       // where it is going: it leans into it and rocks with its stride
       if (dt > 1e-4) { const vx = (m.x - M.px) / dt, vy = (m.y - M.py) / dt; M.px = m.x; M.py = m.y; M.vx = toward(M.vx, vx, dt, 8); M.vy = toward(M.vy, vy, dt, 8); }
@@ -105,7 +115,7 @@ RiftFiend.define({ id: 'orrubel', name: 'Orrubel', title: 'The Seed-Mother', col
       M.lean = toward(M.lean, -fwd * 0.03, dt, 6); M.roll = toward(M.roll, side * 0.03, dt, 6);
       // the gait: each root that lands thuds and shakes the moss a little
       const g0 = M.gait || 0; if (m.act !== 'circle' || !(M.spdK > 0.05)) M.gait = g0 + dt * 0.6; M.stepT -= dt;
-      if (M.spdK > 0.3 && M.stepT <= 0 && !(M.open > 0.3)) { for (let i = 0; i < 5 && M.stepT <= 0; i++) { const ph0 = ((g0 + i * 1.26) % TAU + TAU) % TAU, ph1 = ((M.gait + i * 1.26) % TAU + TAU) % TAU; if (ph0 < Math.PI && ph1 >= Math.PI) { const W = budFrame(m, M), a = ROOT_A[i], ft = W(Math.cos(a) * 3.4, Math.sin(a) * 3.4, 0); for (let k = 0; k < 3; k++) FX.H.part({ kind: 'petal', x: ft[0] + FX.rnd(-0.3, 0.3), y: ft[1], vx: FX.rnd(-1.5, 1.5), vy: -1.5 - Math.random(), g: 6, life: 0.5, max: 0.5, size: 3, rot: Math.random() * 3, color: JADE_HI }); FX.H.shake(1 + M.spdK * 1.6, 0.07); if (Math.random() < 0.4) FX.H.sfx.thud(); M.stepT = 0.08; break; } } }
+      if (M.spdK > 0.3 && M.stepT <= 0 && !(M.open > 0.3) && !glOn()) {   /* (v423 GO: on the GPU its planted feet thud as they land: ORB3.update) */ for (let i = 0; i < 5 && M.stepT <= 0; i++) { const ph0 = ((g0 + i * 1.26) % TAU + TAU) % TAU, ph1 = ((M.gait + i * 1.26) % TAU + TAU) % TAU; if (ph0 < Math.PI && ph1 >= Math.PI) { const W = budFrame(m, M), a = ROOT_A[i], ft = W(Math.cos(a) * 3.4, Math.sin(a) * 3.4, 0); for (let k = 0; k < 3; k++) FX.H.part({ kind: 'petal', x: ft[0] + FX.rnd(-0.3, 0.3), y: ft[1], vx: FX.rnd(-1.5, 1.5), vy: -1.5 - Math.random(), g: 6, life: 0.5, max: 0.5, size: 3, rot: Math.random() * 3, color: JADE_HI }); FX.H.shake(1 + M.spdK * 1.6, 0.07); if (Math.random() < 0.4) FX.H.sfx.thud(); M.stepT = 0.08; break; } } }
       // the follow-through of a slam, the roar, the recoil
       if (M.slam > 0) { M.slamT += dt; M.slam = M.slamT > 0.8 ? 0 : 1; } M.roar = decay(M.roar, dt, 0.8); M.recoil = decay(M.recoil, dt, 2.5);
       if (m.act !== 'enter') M.lunge = decay(M.lunge, dt, 2.5);
@@ -116,28 +126,39 @@ RiftFiend.define({ id: 'orrubel', name: 'Orrubel', title: 'The Seed-Mother', col
       for (let i = M.lobs.length - 1; i >= 0; i--) { const L = M.lobs[i]; L.t += dt; if (L.t >= L.dur) M.lobs.splice(i, 1); }
       // the entrance: it rises out of the bed, rears up on its hind roots with a roar, and comes down on all five
       if (m.act === 'enter') { const e = FX.S.enterT || 0; if (e > 1.4) { M.lunge = toward(M.lunge, 1, dt, 4); M.menace = toward(M.menace, 1, dt, 4); M.inhale = toward(M.inhale, 1, dt, 3); if (!M.roared) { M.roared = true; FX.H.sfx.crash(); FX.H.shake(6, 0.3); } } }
-      else if (M.wasEnter) { M.wasEnter = false; M.slam = 1; M.slamT = 0; M.inhale = 0; FX.H.sfx.thud(); for (let i = 0; i < 16; i++) { const a = i / 16 * TAU; FX.H.part({ kind: 'petal', x: m.x + Math.cos(a) * 3, y: m.y + Math.sin(a) * 1.8, vx: Math.cos(a) * 3, vy: -2, g: 6, life: 0.6, max: 0.6, size: 4, rot: a, color: JADE_HI }); } } },
+      else if (M.wasEnter) { M.wasEnter = false; M.slam = 1; M.slamT = 0; M.inhale = 0; FX.H.sfx.thud(); for (let i = 0; i < 16; i++) { const a = i / 16 * TAU; FX.H.part({ kind: 'petal', x: m.x + Math.cos(a) * 3, y: m.y + Math.sin(a) * 1.8, vx: Math.cos(a) * 3, vy: -2, g: 6, life: 0.6, max: 0.6, size: 4, rot: a, color: JADE_HI }); } }
+      if (O3()) O3().update(FX, dt); },   // (v423 GO: the model's motion: planted feet, the bud's lag, the eggs' swing, the petals' flare; its fall)
     dmgK(FX, m) { return 1; },
-    keep: { steps: 2, pad: 2.5 },
-    draw(c, FX, m, X, Y, T, t, step) { drawBud(c, FX, m, X, Y, T, t, step); },
-    drawObj(c, FX, o, X, Y, T, t) { if (o.kind === 'pod') drawPod(c, FX, o, X, Y, T, t); },
-    drawFx(c, FX, T, t) { const M = FX.mem; if (!M.lobs) return; for (const L of M.lobs) { const u = Math.min(1, L.t / L.dur), x = L.x0 + (L.x1 - L.x0) * u, y = L.y0 + (L.y1 - L.y0) * u, h = 4 * u * (1 - u) * L.h, X = FX.sx(x), Y = FX.sy(y); c.save(); c.fillStyle = 'rgba(10,6,4,.3)'; c.beginPath(); c.ellipse(X, Y, T * 0.4 * (1 - h * 0.08), T * 0.18 * (1 - h * 0.08), 0, 0, TAU); c.fill(); G.egg(c, X, Y - h * T, T * 0.45, { rot: L.t * 3 }); c.restore(); } },
+    get keep() { return glOn() ? null : { steps: 2, pad: 2.5 }; }, get MODEL() { return O3(); },
+    force(FX, k) { const m = FX.m; if (!m || m.dead || m.act === 'enter') return; m.stunT = 0; FX.S.tele.length = 0; FX.mem.lobs.length = 0; ({ breath: startBreath, spears: startSpears, bombs: startBombs, slam: startSlam })[k](FX, m); },   // (v423 GO: tests: start an act now)   // (v423 GO: the 2D bud is a kept picture; the GPU model is drawn live)
+    /* (v423 GO) the loading screen's jobs (the meshes, a first frame), the floor's light (the warnings), the fallen husk, its fall */
+    preload(P) { const o = O3(); return o ? o.preload(P) : []; },
+    overlay(c, FX, t, T) { const o = O3(); if (o && FX.m) o.overlay(c, FX, t, T); },
+    drawProp(c, FX, p, X, Y, T, t) { const m = FX.m; if (p.kind !== 'orbHusk' || !m) return; if (glOn() && O3().drawBoss(c, FX, m, FX.sx(m.x), FX.sy(m.y), T, t)) return; },
+    ending(FX, m) { if (!glOn()) return null;   // (the 2D bud keeps the engine's own fall)
+      const M = FX.mem; FX.noParts(); FX.weak('eye', 0, 0, 0, 0, false); FX.S.tele.length = 0; M.lobs.length = 0; m.stunT = 0;
+      if (!M.husk) { M.husk = { kind: 'orbHusk', x: m.x, y: m.y + 0.05 }; FX.S.props.push(M.husk); } O3().die(FX, m);
+      return { title: 'ORRUBEL WITHERS', sub: 'Its petals fall, and the golden eye goes dark', col: GOLD, delay: 6.2, bannerAt: 2.0, fanfareAt: 2.0, quiet: true, slow: 0.45 }; },
+    camFocus(FX, m) { const S = FX.mem && FX.mem.g3; if (!S || !S.end || !glOn()) return null; const u = Math.min(1, S.end.t / 1.2); return { x: m.x, y: m.y - 1.4, k: 0.6 + 0.3 * u, zoom: 0.62 }; },   // (v423 GO: its fall framed; otherwise the engine's own view)
+    draw(c, FX, m, X, Y, T, t, step) { if (glOn() && O3().drawBoss(c, FX, m, X, Y, T, t)) return; drawBud(c, FX, m, X, Y, T, t, step); },   // (v423 GO)
+    drawObj(c, FX, o, X, Y, T, t) { if (o.kind === 'pod' && !(glOn() && O3().drawPod(c, FX, o, X, Y, T, t))) drawPod(c, FX, o, X, Y, T, t); },   // (v423 GO)
+    drawFx(c, FX, T, t) { const M = FX.mem; if (!M.lobs) return; { const o = O3(); if (o && o.drawFx(c, FX, T, t)) return; }   /* (v423 GO: the eggs in flight on the GPU, and the light over everything) */ for (const L of M.lobs) { const u = Math.min(1, L.t / L.dur), x = L.x0 + (L.x1 - L.x0) * u, y = L.y0 + (L.y1 - L.y0) * u, h = 4 * u * (1 - u) * L.h, X = FX.sx(x), Y = FX.sy(y); c.save(); c.fillStyle = 'rgba(10,6,4,.3)'; c.beginPath(); c.ellipse(X, Y, T * 0.4 * (1 - h * 0.08), T * 0.18 * (1 - h * 0.08), 0, 0, TAU); c.fill(); G.egg(c, X, Y - h * T, T * 0.45, { rot: L.t * 3 }); c.restore(); } },
   };
   /* ---- pieces of the fight ---- */
-  function spawnPod(FX, i) { const p = podAt(FX.C, i), h = FX.mem.pods[i]; h.obj = FX.obj({ kind: 'pod', x: p[0], y: p[1], r: 0.9, hp: FX.S.barHP * 0.03, idx: i, onKill: o => { const m = FX.m; if (!m || m.dead) return; FX.H.boom(o.x, o.y, 1.3, CREAM, '#FFFFFF', { n: 16, shake: 7 }); for (let k = 0; k < 8; k++) FX.H.part({ kind: 'petal', x: o.x, y: o.y - 1, vx: FX.rnd(-3, 3), vy: FX.rnd(-4, -1), g: 7, life: 0.8, max: 0.8, size: 4, rot: Math.random() * 3, color: CREAM }); FX.H.sfx.crack(); startOpen(FX, m); } }); }
-  function startOpen(FX, m) { const M = FX.mem; m.stunT = 6; m.act = 'circle'; m.actT = 0; M.inhale = 1; M.breath = 0; M.rear = 0; FX.S.tele.length = 0; M.lobs.length = 0; FX.H.banner('THE PETALS PEEL', 'It inhales and opens: strike the golden eye!', GOLD, 2, true); FX.H.shake(10, 0.5); FX.H.sfx.hum(); FX.H.sparks(m.x, m.y - 4, GOLD, 16, 6); }
-  function startBreath(FX, m) { const M = FX.mem, a = FX.angPet(m.x, m.y), wait = 1.1 / FX.S.fast; M.ba = a; M.bw = wait; m.act = 'breath'; m.actT = 0; FX.H.sfx.hum(); FX.tele({ shape: 'cone', x: m.x, y: m.y, a, len: 8.5, spread: 0.5, t: wait, dmg: m.dmg * 1.5, col: GOLD, fn: s => { M.breath = 1; M.recoil = 0.6; FX.H.sfx.whoosh(); FX.H.beamFx && FX.H.beamFx(s.x, s.y, s.a, s.len, CREAM); FX.H.shake(5, 0.3); } }); FX.H.banner('POLLEN BREATH', 'Out of the cone', GOLD, 1.3, true); }
+  function spawnPod(FX, i) { const p = podAt(FX.C, i), h = FX.mem.pods[i]; h.obj = FX.obj({ kind: 'pod', x: p[0], y: p[1], r: 0.9, hp: FX.S.barHP * 0.03, idx: i, onKill: o => { const m = FX.m; if (!m || m.dead) return; burst(FX, o.x, o.y, 1.3, CREAM, '#FFFFFF', { n: 16, shake: 7, z: 2.6 });   /* v423 GO */ for (let k = 0; k < 8; k++) FX.H.part({ kind: 'petal', x: o.x, y: o.y - 1, vx: FX.rnd(-3, 3), vy: FX.rnd(-4, -1), g: 7, life: 0.8, max: 0.8, size: 4, rot: Math.random() * 3, color: CREAM }); FX.H.sfx.crack(); startOpen(FX, m); } }); }
+  function startOpen(FX, m) { const M = FX.mem; m.stunT = 6; m.act = 'circle'; m.actT = 0; M.inhale = 1; M.breath = 0; M.rear = 0; FX.S.tele.length = 0; M.lobs.length = 0; FX.H.banner('THE PETALS PEEL', 'It inhales and opens: strike the golden eye!', GOLD, 2, true); FX.H.shake(10, 0.5); FX.H.sfx.hum(); FX.H.sparks(m.x, m.y - 4, GOLD, 16, 6); if (O3()) O3().peelFx(FX); }   // (v423 GO: a burst of gold out of the bud)
+  function startBreath(FX, m) { const M = FX.mem, a = FX.angPet(m.x, m.y), wait = 1.1 / FX.S.fast; M.ba = a; M.bw = wait; m.act = 'breath'; m.actT = 0; FX.H.sfx.hum(); mark(FX, { orb: 'breath', shape: 'cone', x: m.x, y: m.y, a, len: 8.5, spread: 0.5, t: wait, dmg: m.dmg * 1.5, col: GOLD, fn: s => { M.breath = 1; M.recoil = 0.6; FX.H.sfx.whoosh(); if (O3()) O3().onBreath(FX, s); if (!fxOn()) FX.H.beamFx && FX.H.beamFx(s.x, s.y, s.a, s.len, CREAM); FX.H.shake(5, 0.3); } });   /* (v423 GO: the breath pours from the crown as light) */ FX.H.banner('POLLEN BREATH', 'Out of the cone', GOLD, 1.3, true); }
   function startSpears(FX, m) { const M = FX.mem, P = FX.S.lv, me = FX.me, n = P >= 2 ? 6 : 4; m.act = 'spears'; m.actT = 0; FX.H.sfx.hum();
-    for (let i = 0; i < n; i++) { const a = Math.random() * TAU, dd = i === 0 ? 0 : 1.2 + Math.random() * 3.2, p = FX.clampArena({ x: me.x + Math.cos(a) * dd, y: me.y + Math.sin(a) * dd }, 1); FX.tele({ shape: 'circle', x: p.x, y: p.y, r: 1.25, t: 1.0 + i * 0.12, dmg: m.dmg * 1.4, col: JADE_HI, fn: s => { FX.H.part({ kind: 'spike', x: s.x, y: s.y, life: 0.9, max: 0.9, size: 2.2, color: JADE }); FX.H.shake(5, 0.2); FX.H.sfx.crack(); for (let k = 0; k < 5; k++) FX.H.part({ kind: 'petal', x: s.x, y: s.y, vx: FX.rnd(-3, 3), vy: FX.rnd(-5, -2), g: 8, life: 0.6, max: 0.6, size: 3, rot: Math.random() * 3, color: '#3A2449' }); } }); }
+    for (let i = 0; i < n; i++) { const a = Math.random() * TAU, dd = i === 0 ? 0 : 1.2 + Math.random() * 3.2, p = FX.clampArena({ x: me.x + Math.cos(a) * dd, y: me.y + Math.sin(a) * dd }, 1); mark(FX, { orb: 'spear', shape: 'circle', x: p.x, y: p.y, r: 1.25, t: 1.0 + i * 0.12, dmg: m.dmg * 1.4, col: JADE_HI, fn: s => { if (glOn()) O3().spear(FX, s); else FX.H.part({ kind: 'spike', x: s.x, y: s.y, life: 0.9, max: 0.9, size: 2.2, color: JADE }); FX.H.shake(5, 0.2);   /* v423 GO: on the GPU a root spear bursts out of the moss */ FX.H.sfx.crack(); for (let k = 0; k < 5; k++) FX.H.part({ kind: 'petal', x: s.x, y: s.y, vx: FX.rnd(-3, 3), vy: FX.rnd(-5, -2), g: 8, life: 0.6, max: 0.6, size: 3, rot: Math.random() * 3, color: '#3A2449' }); } }); }
     FX.H.banner('ROOT SPEARS', 'Off the marked moss', JADE_HI, 1.3, true); }
   function startBombs(FX, m) { const M = FX.mem, P = FX.S.lv, me = FX.me; m.act = 'bombs'; m.actT = 0; FX.H.sfx.hum(); const n = 3;
     for (let i = 0; i < n; i++) { const a = Math.random() * TAU, dd = i === 0 ? 0.6 : 1.5 + Math.random() * 3, p = FX.clampArena({ x: me.x + Math.cos(a) * dd, y: me.y + Math.sin(a) * dd }, 1.2); lob(FX, m, p.x, p.y, 1.3 + i * 0.25, P >= 2); }
     FX.H.banner('SEED BOMBS', P >= 2 ? 'Eggs that hatch: break them or step away' : 'Eggs that burst where they land', CREAM, 1.3, true); }
   // an egg lobbed from the crown to a mark: it bursts there (and, hatching, leaves an egg that becomes a thornling)
-  function lob(FX, m, x, y, dur, hatch) { const M = FX.mem, top = crownAt(m, M); M.lobs.push({ x0: top[0], y0: top[1] - top[2], x1: x, y1: y, t: 0, dur, h: 3 });
-    FX.tele({ shape: 'circle', x, y, r: 1.3, t: dur, dmg: m.dmg * 1.2, col: CREAM, fn: s => { FX.H.boom(s.x, s.y, 1.1, CREAM, '#FFFFFF', { n: 12, shake: 4 }); FX.H.sfx.pop(); if (hatch && FX.m && !FX.m.dead) { const e = FX.minion('egg', s.x, s.y); if (e) { e.life = 3.2; e.aggro = true; } } } }); }
+  function lob(FX, m, x, y, dur, hatch) { const M = FX.mem, top = crownOf(FX, m, M); M.lobs.push({ x0: top[0], y0: top[1] - top[2], x1: x, y1: y, t: 0, dur, h: 3 });   // (v423 GO: from the crown where it shows)
+    mark(FX, { orb: 'bomb', shape: 'circle', x, y, r: 1.3, t: dur, dmg: m.dmg * 1.2, col: CREAM, fn: s => { burst(FX, s.x, s.y, 1.1, CREAM, '#FFFFFF', { n: 12, shake: 4, z: 0.3 }); FX.H.sfx.pop(); if (hatch && FX.m && !FX.m.dead) { const e = FX.minion('egg', s.x, s.y); if (e) { e.life = 3.2; e.aggro = true; } } } }); }
   function startSlam(FX, m) { const M = FX.mem, wait = 1.1 / FX.S.fast; M.sw = wait; m.act = 'slam'; m.actT = 0; FX.H.sfx.hum(); const gaps = [[Math.random() * TAU, 0.4], [Math.random() * TAU, 0.4]];
-    FX.tele({ shape: 'ring', x: m.x, y: m.y, r0: 1.2, r1: 6, gaps, t: wait, dmg: m.dmg * 1.7, col: ROSE_HI, fn: s => { M.slam = 1; M.slamT = 0; FX.H.shake(12, 0.5); FX.H.sfx.crash(); FX.H.boom(s.x, s.y, 2.5, ROSE_HI, '#FFFFFF', { n: 22, shake: 10, smoke: 6 }); for (let i = 0; i < 14; i++) { const a = i / 14 * TAU; FX.H.part({ kind: 'petal', x: s.x + Math.cos(a) * 3, y: s.y + Math.sin(a) * 2, vx: Math.cos(a) * 4, vy: -3, g: 7, life: 0.7, max: 0.7, size: 5, rot: a, color: ROSE_HI }); } } });
+    mark(FX, { orb: 'slam', shape: 'ring', x: m.x, y: m.y, r0: 1.2, r1: 6, gaps, t: wait, dmg: m.dmg * 1.7, col: ROSE_HI, fn: s => { M.slam = 1; M.slamT = 0; FX.H.shake(12, 0.5); FX.H.sfx.crash(); burst(FX, s.x, s.y, 2.5, ROSE_HI, '#FFFFFF', { n: 22, shake: 10, smoke: 6, z: 0.4 }); if (fxOn()) O3().slamFx(FX, s);   /* v423 GO: a crest of petals racing out through its ring */ for (let i = 0; i < 14; i++) { const a = i / 14 * TAU; FX.H.part({ kind: 'petal', x: s.x + Math.cos(a) * 3, y: s.y + Math.sin(a) * 2, vx: Math.cos(a) * 4, vy: -3, g: 7, life: 0.7, max: 0.7, size: 5, rot: a, color: ROSE_HI }); } } });
     FX.H.banner('PETAL SLAM', 'Through a gap in the ring, or in close', ROSE_HI, 1.4, true); }
   /* ---- the bud in three dimensions ---- */
   function budFrame(m, M) { const open = M.open || 0, hs = m.hitSq || 0, lunge = M.lunge || 0, slam = M.slam > 0 ? snap(Math.min(1, M.slamT / 0.8)) : 0, roar = M.roar || 0, bt = M.bt || 0, rear = M.rear || 0, crouch = M.crouch || 0;

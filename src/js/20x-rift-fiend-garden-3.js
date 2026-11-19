@@ -18,6 +18,23 @@ RiftFiend.define({ id: 'calyx', name: 'Calyx Astrum', title: 'The Starborn Vine'
   const VINE = '#3E7A68', VINE_SH = '#1F4A3E', VINE_HI = '#86C9B2', BLOOM = [4, 9, 14, 19], WHIP = [6, 12, 18], BL_A = [Math.PI / 2 + 0.3, Math.PI / 2 + 0.3 + TAU / 3, Math.PI / 2 + 0.3 - TAU / 3];
   const lerp = (a, b, u) => a + (b - a) * u, blossomAt = (C, i) => [C.x + Math.cos(BL_A[i]) * (C.R - 3.6), C.y + Math.sin(BL_A[i]) * (C.R - 3.6)];
   const pulse = t => 0.7 + 0.3 * Math.sin(t * 2.4);
+  /* v423 GB: on the GPU (CALYX_GL, 20x3: the 3D vine and its effects on the FGFX painter) the same fight is drawn live; its tells
+     are made light only (each shape kept as a test of its own, 'fn': the same strike, nothing filled or outlined); without the
+     GPU everything below is drawn as before */
+  const GBC = () => { try { return typeof CALYX_GL !== 'undefined' && CALYX_GL.on(); } catch (e) { return false; } }, KEEP = { every: 2 };
+  const angD = (a, b) => { let d = b - a; while (d > Math.PI) d -= TAU; while (d < -Math.PI) d += TAU; return d; };
+  function lineTest(x, y, rr) { const s = this, rx = x - s.x, ry = y - s.y, al = rx * Math.cos(s.a) + ry * Math.sin(s.a), of = Math.abs(-rx * Math.sin(s.a) + ry * Math.cos(s.a)); return al > -rr && al < s.len + rr && of < s.w / 2 + rr; }
+  function circTest(x, y, rr) { return Math.hypot(x - this.x, y - this.y) < this.r + rr; }
+  function ringTest(x, y, rr) { const s = this, d = Math.hypot(x - s.x, y - s.y); if (d < s.r0 - rr || d > s.r1 + rr) return false; if (s.gaps) { const a = Math.atan2(y - s.y, x - s.x); if (s.gaps.some(([g0, w]) => Math.abs(angD(g0, a)) < w)) return false; } return true; }
+  const gbT = (o, tag) => { if (!GBC()) return o; const ex = { shape: 'fn', gb: tag, test: o.shape === 'line' ? lineTest : o.shape === 'circle' ? circTest : ringTest }; if (o.gaps) { ex.ga = o.gaps[0][0]; ex.gw = o.gaps[0][1]; } return Object.assign(o, ex); };
+  const petalP = (Q, X, Y, r, T, b) => GBC() && CALYX_GL.petalPaint(Q, X, Y, r, T, b);
+  // the spine as drawVine shapes it (the wave down it, a jolt, the tremble, a recoil), each point with its width in tiles
+  function gbSpine(M, m, t) { if (!M.trail || !M.trail.length) return null; const B = body(M), hs = m.hitSq || 0, roar = M.roar || 0, recoil = M.recoil || 0, seize = M.seize || 0, bunch = M.bunch || 0, wph = M.wph == null ? t * 3 : M.wph;
+    const amp = (1 + hs * 1.2 + bunch * 0.6) * (1 - seize * 0.95), trem = seize * 0.06;
+    for (let i = 1; i < N; i++) { const u = i / (N - 1), a = B[Math.max(0, i - 1)], b = B[Math.min(N - 1, i + 1)], dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 1, s = Math.sin(wph - i * 0.55) * (0.12 + u * 0.55) * amp * Math.min(1, i / 3) + Math.sin(t * 40 + i) * trem, p = B[i]; p.x += -dy / d * s; p.y += dx / d * s; p.z += Math.max(0, Math.cos(wph * 0.8 - i * 0.5)) * 0.18 * amp * Math.min(1, i / 3); }
+    if (recoil > 0) { const h = B[0], n2 = B[1], dx = h.x - n2.x, dy = h.y - n2.y, d = Math.hypot(dx, dy) || 1; h.x -= dx / d * recoil * 0.3; h.y -= dy / d * recoil * 0.3; h.z += recoil * 0.35; }
+    return B.map((p, i) => { const u = i / (N - 1); return { x: p.x, y: p.y, z: p.z, w: (u < 0.1 ? 1.05 + u * 3.5 : 1.4 * Math.pow(1 - (u - 0.1) / 0.9, 0.7) + 0.12) * (1 + hs * 0.1 + roar * 0.08 + bunch * 0.12 * Math.sin(u * Math.PI)) }; }); }
+  function blossomLabel(c, FX, o, X, Y, T) { if (FX.mem.lit !== o.idx) return; c.save(); c.font = `800 ${Math.round(T * 0.26)}px ${arcFont}`; c.textAlign = 'center'; c.lineWidth = 3; c.strokeStyle = 'rgba(0,0,0,.6)'; c.fillStyle = '#FFFFFF'; c.strokeText('LIT · break it', X, Y - T * 2.9); c.fillText('LIT · break it', X, Y - T * 2.9); c.restore(); }
   return {
     arenaR: 15, firstAct: 'circle', artY: 0.5, ambient: 'motes',
     artPoses: [{ name: 'slithering', mem: { demoA: 0.3 } }, { name: 'rearing to call the stars', mem: { demoA: 1.6, alt: 2, jaw: 0.6, menace: 1 } }, { name: 'the blossoms open', mem: { demoA: 2.6, bloom: 1 } }, { name: 'seized: the star core bared', mem: { demoA: 1.0, seize: 1, open: 1, jaw: 1 } }],
@@ -48,7 +65,7 @@ RiftFiend.define({ id: 'calyx', name: 'Calyx Astrum', title: 'The Starborn Vine'
         case 'whips': { menace = m.actT < M.ww ? 0.9 : 0.3; bunch = m.actT < M.ww ? Math.min(1, m.actT / 0.6) : 0; slither(FX, m, M, m.x, m.y, 1, dt, 1); if (m.actT > M.ww + 0.7) { m.act = 'circle'; m.actT = 0; } break; }
         case 'rain': { menace = 1; altW = 2.2; jaw = Math.min(1, m.actT / 0.8); slither(FX, m, M, m.x, m.y, 1, dt, 1); if (m.actT > M.rw + 0.8) { m.act = 'circle'; m.actT = 0; M.recoil = 0.6; } break; }
         case 'bloom': { const drawn = m.actT < 0.9; menace = 0.7; bloom = drawn ? Math.min(1, m.actT / 0.7) : 1; slither(FX, m, M, m.x, m.y, 1, dt, 1); M.blT = (M.blT || 0) - dt;
-          if (!drawn && M.blN > 0 && M.blT <= 0) { M.blT = 0.6; M.blN--; const B = body(M); BLOOM.forEach((i, k) => { const p = B[i], a = Math.atan2(me.y - p.y, me.x - p.x); FX.fan(p.x, p.y, a + (k - 1.5) * 0.08, 5, 0.8, 6 * fast, { dmg: m.dmg * 0.5, color: GOLD, core: '#FFFFFF', r: 0.24 }); FX.H.sparks(p.x, p.y - 0.5, GOLD, 6, 4); }); FX.H.sfx.hum(); M.recoil = 0.3; }
+          if (!drawn && M.blN > 0 && M.blT <= 0) { M.blT = 0.6; M.blN--; const B = body(M); BLOOM.forEach((i, k) => { const p = B[i], a = Math.atan2(me.y - p.y, me.x - p.x); FX.fan(p.x, p.y, a + (k - 1.5) * 0.08, 5, 0.8, 6 * fast, { dmg: m.dmg * 0.5, color: GOLD, core: '#FFFFFF', r: 0.24, paint: petalP /* v423 GB */ }); FX.H.sparks(p.x, p.y - 0.5, GOLD, 6, 4); }); FX.H.sfx.hum(); M.recoil = 0.3; }
           if (m.actT > 0.9 + (P >= 2 ? 1.4 : 0.9)) { m.act = 'circle'; m.actT = 0; } break; }
         case 'constrict': { const L = M.cl, a = L.a0 + m.actT * 3.0, p = { x: L.x + Math.cos(a) * 3.6, y: L.y + Math.sin(a) * 3.6 }; slither(FX, m, M, p.x, p.y, 11 * fast, dt, 6); menace = 0.6; bunch = 0.4; if (m.actT > L.wait + 0.5) { m.act = 'circle'; m.actT = 0; } break; }
       }
@@ -61,6 +78,7 @@ RiftFiend.define({ id: 'calyx', name: 'Calyx Astrum', title: 'The Starborn Vine'
       M.tremT -= dt; if (M.tremT <= 0) { M.tremT = 0.4; const B = body(M), p = B[Math.floor(Math.random() * N)]; FX.H.part({ kind: 'petal', x: p.x, y: p.y - p.z, vx: FX.rnd(-1, 1), vy: 1, g: 2.5, life: 1, max: 1, size: 4, rot: Math.random() * 3, color: JADE_HI }); FX.H.shake(1.5, 0.08); }
       FX.parts(bodyParts(m, M)); },
     update(FX, dt) { const M = FX.mem, m = FX.m; if (!m) return;
+      if (m.dead && GBC()) { CALYX_GL.fall(FX, m); CALYX_GL.fallTick(FX, m, dt); return; }   // v423 GB: on the GPU it withers where it died
       if (!(m.stunT > 0)) { if (FX.S.weak.core) FX.weak('core', 0, 0, 0, 0, false); if (M.wasStun) { M.wasStun = false; M.litT = 6; M.recoil = 0.8; M.roar = 0.5; FX.H.text(m.x, m.y - 2, 'The vine stirs again', GOLD, 13); } } else M.wasStun = true;
       // how it moves: its speed drives the wave down its body
       if (dt > 1e-4) { const vx = (m.x - M.px) / dt, vy = (m.y - M.py) / dt; M.px = m.x; M.py = m.y; M.vx = toward(M.vx, vx, dt, 10); M.vy = toward(M.vy, vy, dt, 10); M.spd = toward(M.spd, Math.hypot(vx, vy), dt, 6); }
@@ -74,10 +92,13 @@ RiftFiend.define({ id: 'calyx', name: 'Calyx Astrum', title: 'The Starborn Vine'
       if (m.act === 'enter') { const e = FX.S.enterT || 0; if (e > 1.4) { if (e < 2.7 && FX.dist(m.x, m.y) > 3) slither(FX, m, M, FX.me.x, FX.me.y, 6, dt, 4); M.jaw = Math.min(1, M.jaw + dt * 3); M.alt = toward(M.alt, 1.8, dt, 3); M.menace = toward(M.menace, 1, dt, 5); if (!M.roared) { M.roared = true; FX.H.sfx.crash(); FX.H.shake(6, 0.3); } } }
       else if (M.wasEnter) { M.wasEnter = false; M.recoil = 1; M.bloom = 1; M.roar = 0.6; FX.H.sfx.thud(); } },
     dmgK() { return 1; },
-    keep: { every: 2 },
-    draw(c, FX, m, X, Y, T, t) { drawVine(c, FX, m, X, Y, T, t); },
-    drawObj(c, FX, o, X, Y, T, t) { if (o.kind === 'blossom') drawBlossom(c, FX, o, X, Y, T, t); },
-    drawFx(c, FX, T, t) { const M = FX.mem; if (!M.rain) return;
+    get keep() { return GBC() ? null : KEEP; },   // v423 GB: the GPU vine is drawn live
+    draw(c, FX, m, X, Y, T, t) { if (GBC() && CALYX_GL.paint(c, FX, m, X, Y, T, t, gbSpine(FX.mem, m, t))) return; /* v423 GB */ drawVine(c, FX, m, X, Y, T, t); },
+    drawObj(c, FX, o, X, Y, T, t) { if (o.kind === 'blossom') { if (GBC() && CALYX_GL.blossom(c, FX, o, X, Y, T, t, FX.mem.lit === o.idx)) { blossomLabel(c, FX, o, X, Y, T); return; } /* v423 GB */ drawBlossom(c, FX, o, X, Y, T, t); } },
+    overlay(c, FX, t, T) { if (GBC()) CALYX_GL.ground(c, FX, T, t); },   // v423 GB: the floor's light (the tells, the blossoms' pools) under everything standing
+    drawProp(c, FX, p, X, Y, T, t) { if (p.kind === 'gbcorpse' && FX.m && GBC()) CALYX_GL.paint(c, FX, FX.m, FX.sx(FX.m.x), FX.sy(FX.m.y), T, t, gbSpine(FX.mem, FX.m, t), true); },   // v423 GB: its withering, after the kill
+    GB: { get gl() { return typeof CALYX_GL !== 'undefined' ? CALYX_GL : null; }, act(FX, k) { const f = { whips: startWhips, rain: startRain, bloom: startBloom, constrict: startConstrict }[k]; if (f && FX.m) f(FX, FX.m); } },   // v423 GB: (tests)
+    drawFx(c, FX, T, t) { const M = FX.mem; if (GBC() && CALYX_GL.upper(c, FX, T, t)) return; /* v423 GB */ if (!M.rain) return;
       // the stars coming down: high over their rings, falling faster toward the end, with a tail
       for (const s of M.rain) { if (s.done) continue; const u = clamp(s.age / s.t, 0, 1), X = FX.sx(s.x), Y = FX.sy(s.y), h = (1 - u * u) * T * 9, y = Y - h; if (y < -40) continue; c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.5 + 0.4 * u; softRay(c, X + T * 0.5, y - T * 2.2 * (1 - u * 0.6), X, y, T * 0.2, GOLD, 0.6, 0.5); c.globalAlpha = 1; blitSized(c, glowSprite(GOLD), X - T * 0.6, y - T * 0.6, T * 1.2, T * 1.2); TN.twinkle(c, X, y, T * (0.25 + 0.1 * Math.sin(t * 9)), '#FFFFFF', 1); c.restore(); } },
   };
@@ -111,14 +132,14 @@ RiftFiend.define({ id: 'calyx', name: 'Calyx Astrum', title: 'The Starborn Vine'
   /* ---- choosing ---- */
   function pick(FX, m, d, P) { const r = Math.random(); if (r < 0.28) startWhips(FX, m); else if (r < 0.52) startRain(FX, m); else if (r < 0.76) startBloom(FX, m); else startConstrict(FX, m); }
   function startWhips(FX, m) { const M = FX.mem, me = FX.me, P = FX.S.lv, wait = 1.2 / FX.S.fast, B = body(M), segs = P >= 2 ? WHIP.concat([3]) : WHIP; m.act = 'whips'; m.actT = 0; M.ww = wait; FX.H.sfx.hum();
-    segs.forEach((i, k) => { const p = B[i], a = Math.atan2(me.y - p.y, me.x - p.x) + (k === 3 ? 0.5 : 0); FX.tele({ shape: 'line', x: p.x, y: p.y, a, len: 9.5, w: 1.5, t: wait + k * 0.15, dmg: m.dmg * 1.4, col: JADE_HI, fn: s => { M.recoil = Math.max(M.recoil, 0.5); FX.H.part({ kind: 'slash', x: s.x + Math.cos(s.a) * 4, y: s.y + Math.sin(s.a) * 4, a: s.a, r: 3, life: 0.3, max: 0.3, color: JADE_HI }); FX.H.sparks(s.x + Math.cos(s.a) * 5, s.y + Math.sin(s.a) * 5, JADE_HI, 10, 6); FX.H.shake(6, 0.25); FX.H.sfx.whoosh(); } }); });
+    segs.forEach((i, k) => { const p = B[i], a = Math.atan2(me.y - p.y, me.x - p.x) + (k === 3 ? 0.5 : 0); FX.tele(gbT({ shape: 'line', x: p.x, y: p.y, a, len: 9.5, w: 1.5, t: wait + k * 0.15, dmg: m.dmg * 1.4, col: JADE_HI, fn: s => { M.recoil = Math.max(M.recoil, 0.5); FX.H.part({ kind: 'slash', x: s.x + Math.cos(s.a) * 4, y: s.y + Math.sin(s.a) * 4, a: s.a, r: 3, life: 0.3, max: 0.3, color: JADE_HI }); FX.H.sparks(s.x + Math.cos(s.a) * 5, s.y + Math.sin(s.a) * 5, JADE_HI, 10, 6); FX.H.shake(6, 0.25); FX.H.sfx.whoosh(); } }, 'whip')); });   // v423 GB (gbT)
     FX.H.banner('VINE WHIPS', 'Off the lines', JADE_HI, 1.3, true); }
   function startRain(FX, m) { const M = FX.mem, me = FX.me, P = FX.S.lv, n = P >= 2 ? 10 : 6, wait = 1.3 / FX.S.fast; m.act = 'rain'; m.actT = 0; M.rain.length = 0; FX.H.sfx.hum();
-    for (let i = 0; i < n; i++) { const a = Math.random() * TAU, dd = i === 0 ? 0 : 1.2 + Math.random() * 4.5, p = FX.clampArena({ x: me.x + Math.cos(a) * dd, y: me.y + Math.sin(a) * dd }, 1), s = FX.tele({ shape: 'circle', x: p.x, y: p.y, r: 1.4, t: wait + i * 0.2, dmg: m.dmg * 1.3, col: GOLD, fn: s2 => { FX.H.boom(s2.x, s2.y, 1.3, GOLD, '#FFFFFF', { n: 14, shake: 5 }); FX.H.sfx.pop(); for (let k = 0; k < 4; k++) FX.H.part({ kind: 'star', x: s2.x, y: s2.y - 0.3, vx: FX.rnd(-2, 2), vy: FX.rnd(-3, -1), g: 5, life: 0.6, max: 0.6, size: 3, color: '#FFFFFF' }); } }); M.rain.push(s); }
+    for (let i = 0; i < n; i++) { const a = Math.random() * TAU, dd = i === 0 ? 0 : 1.2 + Math.random() * 4.5, p = FX.clampArena({ x: me.x + Math.cos(a) * dd, y: me.y + Math.sin(a) * dd }, 1), s = FX.tele(gbT({ shape: 'circle', x: p.x, y: p.y, r: 1.4, t: wait + i * 0.2, dmg: m.dmg * 1.3, col: GOLD, fn: s2 => { FX.H.boom(s2.x, s2.y, 1.3, GOLD, '#FFFFFF', { n: 14, shake: 5 }); FX.H.sfx.pop(); for (let k = 0; k < 4; k++) FX.H.part({ kind: 'star', x: s2.x, y: s2.y - 0.3, vx: FX.rnd(-2, 2), vy: FX.rnd(-3, -1), g: 5, life: 0.6, max: 0.6, size: 3, color: '#FFFFFF' }); } }, 'rain')); M.rain.push(s); }   // v423 GB (gbT)
     M.rw = wait + n * 0.2; FX.H.banner('STAR RAIN', 'Off the rings as the stars come down', GOLD, 1.5, true); }
   function startBloom(FX, m) { const M = FX.mem, P = FX.S.lv; m.act = 'bloom'; m.actT = 0; M.blN = P >= 2 ? 3 : 2; M.blT = 0; FX.H.sfx.hum(); FX.H.banner('BLOOM BURST', 'Its blossoms open and shoot: between the petals', CREAM, 1.4, true); }
   function startConstrict(FX, m) { const M = FX.mem, me = FX.me, wait = 1.4 / FX.S.fast, p = FX.clampArena({ x: me.x, y: me.y }, 4.5); m.act = 'constrict'; m.actT = 0; M.cl = { x: p.x, y: p.y, a0: Math.atan2(m.y - p.y, m.x - p.x), wait }; FX.H.sfx.hum();
-    FX.tele({ shape: 'ring', x: p.x, y: p.y, r0: 2.3, r1: 4.8, gaps: [[Math.random() * TAU, 0.45]], t: wait, dmg: m.dmg * 1.5, col: JADE_HI, fn: () => { M.recoil = 0.5; M.bunch = 1; FX.H.sfx.crash(); FX.H.shake(8, 0.3); } }); FX.H.banner('CONSTRICT', 'Through the gap', JADE_HI, 1.2, true); }
+    FX.tele(gbT({ shape: 'ring', x: p.x, y: p.y, r0: 2.3, r1: 4.8, gaps: [[Math.random() * TAU, 0.45]], t: wait, dmg: m.dmg * 1.5, col: JADE_HI, fn: () => { M.recoil = 0.5; M.bunch = 1; FX.H.sfx.crash(); FX.H.shake(8, 0.3); } }, 'coil')); /* v423 GB (gbT) */ FX.H.banner('CONSTRICT', 'Through the gap', JADE_HI, 1.2, true); }
   /* ---- painting: a serpent of woven vines, blossoms along it, a bud for a head ---- */
   function drawVine(c, FX, m, X, Y, T, t) {
     const K = FX.K, M = FX.mem;

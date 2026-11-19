@@ -1424,7 +1424,37 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
     c = mix(c, vec3(0.3, 0.16, 0.03), (1.0 - smoothstep(0.016, 0.034, d1)) * 0.85 + (1.0 - smoothstep(0.02, 0.05, d2)) * 0.95 * step(d2, d1));   /* (the rim: a hair along the sharp edge, firmer along the inner) */
     a *= v_c.a; gl_FragColor = vec4(min(c, vec3(1.0)) * a, a); }
 /*</W>*/  else { vec3 L = vec3(0.0);
-    if (v_k > 119.5 && v_k < 135.5) { // (v418 AB) Abaddon, the Eternal Moonlight (20g2-abaddon-moves.js): its light. v_c its colour
+    /*<GB-FX kinds 176..191 (v423 GB: 20x2-ambrel-gl.js, 20x3-calyx-gl.js)>*/
+    if (v_k > 175.5 && v_k < 191.5) { float tt = u_t;
+      if (v_k < 176.5) { // 176 a lane of falling pollen seen from above (uv.x along, uv.y across): a soft gold haze, motes drifting down the screen through it, glints; v_q.x the half length (tiles), v_q.y seed, v_q.z the lane's angle (for the screen's down)
+        float hl = max(v_q.x, 0.5), hw = 1.15; vec2 b = vec2(u.x * hl, u.y * hw), dn = vec2(sin(v_q.z), cos(v_q.z)), pr = vec2(-dn.y, dn.x);
+        float sp = 0.0; for (int k = 0; k < 3; k++) { float fk = float(k), s = 2.0 + fk * 0.9; vec2 q = (b + dn * (-tt * (1.3 + fk * 0.45) - fk * 3.7)) * s + v_q.y * (fk + 1.0); vec2 gi = floor(q), gf = fract(q) - 0.5, of = (vec2(h1(gi + 1.3), h1(gi + 7.1)) - 0.5) * 0.5;
+          float hh = h1(gi + fk * 11.0 + v_q.y); vec2 dd = gf - of; float al2 = dot(dd, dn), ac = dot(dd, pr);
+          sp += step(0.55, hh) * exp(-ac * ac * 260.0 - al2 * al2 * 40.0) * (0.55 + 0.45 * sin(tt * (3.0 + hh * 6.0) + hh * 30.0)) * (1.0 - fk * 0.22); }
+        float side = 1.0 - smoothstep(0.62, 1.0, abs(u.y)), ends = 1.0 - smoothstep(0.86, 1.0, abs(u.x)), hz = (0.5 + 0.5 * fbm(vec2(b.x * 0.6 + v_q.y, b.y * 0.9 - tt * 0.35))) * exp(-u.y * u.y * 1.6);
+        L = (col * hz * 0.32 + mix(col, vec3(1.0), 0.6) * sp * 0.95) * side * ends; }
+      else if (v_k < 177.5) { // 177 a sheet of moonlight: the triangle from the floor under its source (uv -1,-1) along the floor (uv.x) and up to its source (uv.y): rays stirring from the source, motes drifting in it, its slanted edge brightest; v_q.y seed, v_q.z the motes
+        float su = u.x * 0.5 + 0.5, sv = u.y * 0.5 + 0.5, e = 1.0 - su - sv, rq = su / max(1.0 - sv, 0.02);
+        float ins = smoothstep(-0.01, 0.07, e) * smoothstep(0.0, 0.05, su) * smoothstep(0.0, 0.03, sv + 0.02);
+        float rays = 0.55 + 0.45 * fbm(vec2(rq * 9.0 + v_q.y, (1.0 - sv) * 1.5 - tt * 0.25)), mot = pow(n2(vec2(su * 34.0 + v_q.y, sv * 14.0 - tt * 1.1)), 14.0) * 4.0 * v_q.z;
+        float fall = 0.22 + 0.4 * pow(1.0 - sv, 1.5) + 0.35 * exp(-sv * 18.0);
+        L = (col * fall * rays + mix(col, vec3(1.0), 0.7) * exp(-e * e / 0.0016) * 0.45 + vec3(1.0) * mot) * ins; }
+      else if (v_k < 178.5) { // 178 a wing scale tumbling (uv.x toward its tip): a pearl teardrop, iridescent as it turns, a bright rim, a soft halo; v_q.x its turn (its width the cosine), v_q.y seed
+        float fw = max(0.12, abs(cos(v_q.x))), x = u.x, w = 0.52 * fw * sqrt(max(0.0, 1.0 - x * x)) * (1.0 - 0.45 * max(x, 0.0)), dd = abs(u.y) - w, ins = 1.0 - smoothstep(-0.03, 0.03, dd) ;
+        float hue = v_q.x * 1.3 + x * 1.5 + v_q.y; vec3 ir = 0.55 + 0.45 * cos(vec3(0.0, 2.1, 4.2) + hue);
+        vec3 bodyc = mix(col, ir, 0.55) * (0.55 + 0.45 * abs(sin(v_q.x))) + vec3(1.0) * exp(-sq(dd / 0.04)) * 0.6 * ins;
+        L = bodyc * ins + col * exp(-r * r * 3.0) * 0.28 * (1.0 - ins); L *= 1.0 - smoothstep(0.85, 1.0, r); }
+      else if (v_k < 179.5) { // 179 a thorny strand of vine light along a lane (uv.x along, uv.y across): a winding bright line, barbs off it, light running out along it; v_q.x its length in its widths, v_q.y seed, v_q.z how near the lash (0..1)
+        float asp = max(v_q.x, 1.0), x = u.x * asp, yc = 0.32 * sin(x * 1.1 + v_q.y + tt * 1.6) * (0.6 + 0.4 * v_q.z), dy = u.y - yc, core = exp(-dy * dy / 0.006), halo = exp(-dy * dy / 0.08);
+        float bx = fract(x * 0.9 + v_q.y), bar = exp(-sq((dy - (bx - 0.5) * 0.7 * sign(sin(floor(x * 0.9 + v_q.y) * 2.3))) / 0.05)) * smoothstep(0.5, 0.2, abs(bx - 0.5)) * step(abs(dy), 0.42);
+        float run = 0.55 + 0.45 * pow(0.5 + 0.5 * sin(x * 0.8 - tt * 5.0 * (0.4 + v_q.z)), 3.0), ends = smoothstep(-1.0, -0.9, u.x) * (1.0 - smoothstep(0.85, 1.0, u.x));
+        L = (col * (halo * 0.35 + bar * 0.5) + mix(col, vec3(1.0), 0.6) * core * 0.9) * run * ends * (1.0 - smoothstep(0.8, 1.0, abs(u.y))); }
+      else if (v_k < 180.5) { // 180 a petal of light (uv.x toward its tip): cream at its heart, gold toward its rim, a vein down it, a soft halo; v_q.x its turn (its width the cosine), v_q.y seed
+        float fw = max(0.15, abs(cos(v_q.x))), x = u.x, w = 0.5 * fw * pow(max(0.0, 1.0 - x * x), 0.6) * (1.0 - 0.3 * x), dd = abs(u.y) - w, ins = 1.0 - smoothstep(-0.04, 0.04, dd), vein = exp(-sq(u.y / (0.05 * fw))) * smoothstep(1.0, -0.4, x);
+        L = (mix(vec3(1.0, 0.96, 0.84), col, smoothstep(0.0, 1.0, (abs(u.y) / max(w, 0.01)))) * (0.7 + 0.3 * abs(sin(v_q.x))) + vec3(1.0) * vein * 0.35) * ins + col * exp(-r * r * 3.0) * 0.25 * (1.0 - ins); L *= 1.0 - smoothstep(0.85, 1.0, r); }
+      else { L = vec3(0.0); } }
+    /*</GB-FX>*/
+    else if (v_k > 119.5 && v_k < 135.5) { // (v418 AB) Abaddon, the Eternal Moonlight (20g2-abaddon-moves.js): its light. v_c its colour
       float tt = u_t, an = atan(u.y, u.x);
       if (v_k < 120.5) { // 120 a crescent's trail: an arc of radius 0.8 in its quad, its head at angle v_q.x, v_q.y its span back (radians), v_q.z its band's thickness (of the radius): a sharp white outer cutting edge, light fading inward across the band and back along it
         float s = mod(v_q.x - an + 0.04, 6.2831853) - 0.04, v = s / max(v_q.y, 0.05), th = max(v_q.z, 0.01) * 0.8 * (1.0 - 0.65 * clamp(v, 0.0, 1.0)), x = (0.8 - r) / th;
@@ -1480,6 +1510,37 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
         float bloom = 0.36 * exp(-max(q - 0.6, 0.0) * 1.1) * (1.0 - smoothstep(0.3, 1.0, r)) * pl, rays = pow(0.5 + 0.5 * cos(an * 7.0 + tt * 0.3) * cos(an * 3.0 - tt * 0.2), 6.0) * exp(-max(q - 1.0, 0.0) * 1.6) * step(1.0, q) * 0.22;
         L = (mix(col, vec3(1.0), 0.85) * core + mix(col, vec3(1.0), 0.5) * limb + col * inner + col * max(bloom, 0.0) + mix(col, vec3(1.0), 0.3) * rays) * v_q.z;
         L *= 1.0 - smoothstep(0.8, 1.0, r); } }
+    /*<GO-FX kinds 168..171 (v423 GO: 20x1-orrubel-gl.js, Orrubel the Seed-Mother)>*/
+    else if (v_k > 167.5 && v_k < 171.5) { float an = atan(u.y, u.x);
+      if (v_k < 168.5) { // 168 a fan of pollen light on the moss (its source at the quad's centre, uv.x along the fan): v_q.x its half-spread (radians), v_q.y seed, v_q.z the mode: 0..1 a tell gathering (its strength: a soft wash, its sides and rim brighter, motes drifting in), 1 + k the breath pouring (billowing gold streaming out, motes riding it)
+        float sp = max(v_q.x, 0.05), br = step(1.0, v_q.z), pr = clamp(v_q.z - br, 0.0, 1.0), ang = 1.0 - smoothstep(sp * 0.8, sp * 1.05, abs(an)), rad = smoothstep(0.03, 0.18, r) * (1.0 - smoothstep(0.84, 1.0, r)), m0 = ang * rad;
+        float side = exp(-sq((abs(an) - sp * 0.92) / (sp * 0.09))) * rad, arc = exp(-sq((r - 0.9) / 0.05)) * ang * (1.0 - smoothstep(0.95, 1.0, r));
+        float fl = br > 0.5 ? -3.2 : 1.1; vec2 q = vec2(r * 6.0 + t * fl, an / sp * 2.0); float cl = fbm(q), cl2 = fbm(q * 2.3 + 4.1);
+        vec2 g = vec2(r * 16.0 + t * fl * 2.6, an / sp * 5.0), gi = floor(g), gf = fract(g) - 0.5; float mote = smoothstep(0.2, 0.0, length(gf - (vec2(h1(gi + 3.1), h1(gi + 7.7)) - 0.5) * 0.55)) * step(0.6, h1(gi));
+        if (br < 0.5) L = col * (m0 * (0.12 + 0.3 * pr) * (0.5 + 0.7 * cl) + (side + arc) * (0.25 + 0.5 * pr) + mote * m0 * (0.5 + 0.8 * pr));
+        else L = (col * m0 * (0.5 + 1.1 * cl * cl2) * (0.55 + 0.45 * (1.0 - r)) + vec3(1.0, 0.96, 0.82) * mote * m0 * 1.3 + col * side * 0.35) * pr; }
+      else if (v_k < 169.5) { // 169 roots breaking the moss (uv a unit disc): seven warped root-veins reaching out from the middle as v_q.x goes 0..1 (a tell), then 1..2 the burst: a white-jade flash dying, the veins cooling; v_q.y seed
+        float pg = v_q.x, tl = clamp(pg, 0.0, 1.0), af = clamp(pg - 1.0, 0.0, 1.0), vs = 0.0;
+        for (int i = 0; i < 7; i++) { float fi = float(i), a0 = (fi + h1(vec2(fi, v_q.y))) * 0.8976 + 0.4 * sin(r * 5.0 + fi * 1.7 + v_q.y), da = abs(mod(an - a0 + 3.1416, 6.2832) - 3.1416) * r, reach = tl * (0.55 + 0.4 * h1(vec2(fi + 3.0, v_q.y))), w = 0.045 * (1.0 - 0.5 * r) + 0.015;
+          vs += exp(-sq(da / w)) * (1.0 - smoothstep(reach - 0.12, reach, r)); }
+        float crk = smoothstep(0.08, 0.0, abs(fbm(u * 4.0 + v_q.y) - 0.5)) * (1.0 - smoothstep(tl * 0.5, tl * 0.8, r)) * 0.5, core = exp(-r * r * 9.0), fade = 1.0 - smoothstep(0.82, 1.0, r);
+        float vk = pg <= 1.0 ? 0.45 + 0.9 * tl : 1.3 * (1.0 - af), fl2 = pg > 1.0 ? (1.0 - af) * (1.0 - af) : 0.0;
+        L = (col * (min(vs, 1.5) * vk + crk * vk + core * vk * 0.4) + mix(col, vec3(1.0), 0.6) * exp(-r * r * (4.0 + 10.0 * af)) * fl2 * 1.4) * fade; }
+      else if (v_k < 170.5) { // 170 Petal Slam's ring (uv a unit disc): v_q.x its inner radius (of the outer), v_q.y and v_q.z - 4 its two openings' angles: rose light in the band, petals of light drifting in it, its edges feathered, the openings dark; v_q.z + 10: the strike's crest at 0.86 (its openings dark too)
+        float md = step(9.0, v_q.z), g2 = v_q.z - 10.0 * md - 4.0, d1 = abs(mod(an - v_q.y + 3.1416, 6.2832) - 3.1416), d2 = abs(mod(an - g2 + 3.1416, 6.2832) - 3.1416), gp = smoothstep(0.34, 0.5, min(d1, d2));
+        if (md < 0.5) { float ri = v_q.x, band = smoothstep(ri - 0.03, ri + 0.08, r) * (1.0 - smoothstep(0.86, 1.0, r));
+          vec2 pc = vec2(an * 3.8197 + t * 0.15, r * 9.0 - t * 0.35), pi = floor(pc), pf = fract(pc) - 0.5; float ph = h1(pi + 7.0), ra = ph * 6.2832 + t * (ph - 0.5); vec2 pq = pf - (vec2(h1(pi + 1.3), h1(pi + 5.1)) - 0.5) * 0.4;
+          vec2 p2 = vec2(cos(ra) * pq.x + sin(ra) * pq.y, -sin(ra) * pq.x + cos(ra) * pq.y); float pet = smoothstep(0.02, -0.02, length(p2 * vec2(1.0, 2.1)) - 0.28 + 0.2 * p2.x) * step(0.45, ph);
+          float cl = fbm(vec2(an * 3.0, r * 5.0 - t * 0.4)), crest = exp(-sq((r - 0.93) / 0.035)) + 0.5 * exp(-sq((r - ri - 0.04) / 0.03));
+          L = col * gp * (band * (0.2 + 0.35 * cl) + band * pet * 0.75 + crest * (1.0 - smoothstep(0.97, 1.0, r)) * 0.8); }
+        else { float cr = exp(-sq((r - 0.86) / 0.045)), tr = exp(-sq((r - 0.78) / 0.12)) * 0.35, cl = fbm(vec2(an * 5.0, r * 8.0 - t * 2.0));
+          L = (mix(col, vec3(1.0), 0.55) * cr * (0.7 + 0.5 * cl) + col * tr * cl) * gp * (1.0 - smoothstep(0.92, 1.0, r)); } }
+      else { // 171 a burst of spores (uv a unit disc): v_q.x its age 0..1 (a soft billow swelling toward the rim, its shell of light thinning), v_q.y seed, v_q.z its motes 0..1 (streaking out)
+        float ag = clamp(v_q.x, 0.0, 1.0), fr = 0.3 + 0.62 * sqrt(ag), cl = fbm(vec2(an * 2.4, r * 4.0 - ag * 2.0) + v_q.y), e = 1.0 - ag;
+        float body = (1.0 - smoothstep(fr * (0.45 + 0.4 * cl), fr, r)) * e, shell = exp(-sq((r - fr * 0.95) / (0.05 + 0.1 * ag))) * e * (0.5 + 0.7 * cl);
+        vec2 g = vec2(an * 4.4563, r * 7.0 - ag * 9.0), gi = floor(g), gf = fract(g) - 0.5; float mo = smoothstep(0.18, 0.0, length((gf - (vec2(h1(gi + 2.2), h1(gi + 6.6)) - 0.5) * 0.5) * vec2(1.0, 0.5))) * step(0.55, h1(gi + v_q.y)) * v_q.z * e;
+        L = (col * (body * (0.3 + 0.7 * cl) * 0.8 + shell) + vec3(1.0, 0.97, 0.88) * (mo + exp(-r * r * 26.0) * e * e * e)) * (1.0 - smoothstep(0.9, 1.0, r)); } }
+    /*</GO-FX>*/
     else if (v_k > 135.5 && v_k < 140.5) { // (v420 GC) the Gate of Cancer's light (20o-rift-gate-cancer.js, 20o1-cancer-props.js). v_c its colour
       float tt = u_t, an = atan(u.y, u.x);
       if (v_k < 136.5) { // 136 the arena's carved lunar rings (its quad the arena's ellipse: uv a unit disc): the gold-inlaid rings at 0.3 and 0.86 and the carved ring at 0.58, light running round each in slow pulses, a soft pool on the sigil at the heart; v_q.x strength, v_q.y seed, v_q.z the sigil's glow

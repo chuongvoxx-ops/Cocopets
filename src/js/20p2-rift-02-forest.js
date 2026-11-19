@@ -10,7 +10,9 @@
      thornbush   a round spiked bush with rose berries
      mossrock    a mossy boulder with sprigs growing from it
    The floor grows undergrowth between them (grass tufts, star flowers, fern sprigs, roots, moss), and every bridge
-   in the rift is a braid of green vines with thorns sticking out over the drop and tendrils hanging under it. */
+   in the rift is a braid of green vines with thorns sticking out over the drop and tendrils hanging under it.
+   (v423 GE: all of these are repainted in 2.5D by 20p3-garden-props.js, through the engine's prop cache and the land's own
+   hooks; what is drawn here stays as their fallback, GARDEN_PROPS.OLD / .OLDB, wherever those pictures cannot be painted.) */
 (() => {
   const TAU = Math.PI * 2, B = BIOMES.garden;
   const { PROPS } = DunWorld, { LN, shade } = DunArt;
