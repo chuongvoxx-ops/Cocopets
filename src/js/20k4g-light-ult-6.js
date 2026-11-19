@@ -82,6 +82,26 @@
     c.restore();
   }
 
+  /* (v412 SA) the same satin strip on the GPU (the shared painter's Q.satin, 20k6h): the same points, 3D frame, twist, widths and alphas,
+     as ONE continuous strip of satin shaded per pixel (kind 64: pearl-pink top face, a richer rose underside where it turns over, an
+     anisotropic sheen band sliding along it as it twists, the travelling sheen, soft folds, pale edges), with its narrow light along both
+     edges (kind 65, fading toward the tail, brighter at the head on contact) */
+  const GX = new Float32Array(64), GY2 = new Float32Array(64), GNX = new Float32Array(64), GNY = new Float32Array(64), GHW = new Float32Array(64), GTH = new Float32Array(64), GAL = new Float32Array(64), GEA = new Float32Array(64), GFL = new Float32Array(64);
+  function gStripH(Q, S, n, ra, flash, t, ph, T) {
+    let n0x = 0, n0y = 1, pnx = 0, pny = 0;
+    for (let k = 0; k < n; k++) {
+      const kp = Math.max(0, k - 1), kn = Math.min(n - 1, k + 1); let tx = S.X[kn] - S.X[kp], ty = S.Y[kn] - S.Y[kp], tz = S.D[kn] - S.D[kp]; const tl = Math.hypot(tx, ty, tz) || 1; tx /= tl; ty /= tl; tz /= tl;
+      const sl = Math.hypot(tx, ty); if (sl > 0.05) { n0x = ty / sl; n0y = -tx / sl; }
+      const b0x = -tz * n0y, b0y = tz * n0x, b0z = tx * n0y - ty * n0x, cs = Math.cos(S.TW[k]), sn = Math.sin(S.TW[k]);
+      const wx = cs * n0x + sn * b0x, wy = cs * n0y + sn * b0y, wz = sn * b0z, wl = Math.hypot(wx, wy) || 1e-6;
+      const Nx = ty * wz - tz * wy, Ny = tz * wx - tx * wz, Nz = tx * wy - ty * wx, u = k / (n - 1); let nx = wx / wl, ny = wy / wl;
+      if (k && nx * pnx + ny * pny < 0) { nx = -nx; ny = -ny; } pnx = nx; pny = ny;   // (one side stays one side where it turns edge-on: the same edges, never a flip through itself)
+      GX[k] = S.X[k]; GY2[k] = S.Y[k]; GNX[k] = nx; GNY[k] = ny; GHW[k] = S.HW[k] * wl; GTH[k] = Math.atan2(-(Nx * nx + Ny * ny), -Nz); GAL[k] = S.AL[k] * ra;
+      GEA[k] = S.AL[k] * ra * (1 - 0.8 * u) * (1 + flash * 0.8 * Math.max(0, 1 - u * 5)); GFL[k] = flash * 0.9 * Math.max(0, 1 - u * 5) + 0.3 * Math.pow(Math.max(0, Math.sin(u * 8.5 - t * 4.2 + ph)), 6); }
+    Q.satin(64, n, GX, GY2, GNX, GNY, GHW, GTH, GAL, { pal: 3, edge: 0.85, unit: T * 0.5 }, GFL);
+    Q.satin(65, n, GX, GY2, GNX, GNY, GHW, GTH, GEA, { pal: 3, gw: T * 0.06, a: 1 });
+  }
+
   U.ribbonheartache = (C, h) => {
     H = h; const me = H.me, ev = evoOf(C), N = [2, 2, 3, 4, 4, 5, 6][ev - 1], tier = ev >= 7 ? 3 : ev >= 4 ? 2 : 1;
     const DK = C.base * C.K * (1 + 0.08 * (ev - 1)), MAXH = 7, DMG = DK * 15 / MAXH, GAP = 0.4;
@@ -149,7 +169,10 @@
       drawUnder(c, f, X, Y, T, t) {
         t = f.t; const fa = sm(t / 0.6) * (1 - sm((t - TE) / 0.7));
         if (fa < 0.02) return;
-        { const K = globalThis.LU1, FG = K.gfx(); if (FG) { const Q = FG.begin(c, null); for (const rb of rbs) { const L = rb.h, n = Math.min(MB, L.length); for (let k = 0; k < n; k += 6) { const p = L[L.length - 1 - k]; if (p.z > 1.3) continue; Q.glow(H.sx(p.x), H.sy(p.y), T * 1.1, ROSE, 0.3 * fa * (1 - p.z / 1.3) * (1 - k / n), H.GY); } } FG.flush(c); return; } }   // (v404 LT) the pink light on the floor under the ribbons
+        { const K = globalThis.LU1, FG = K.gfx(); if (FG) { const Q = FG.begin(c, null); for (const rb of rbs) { const L = rb.h, n = Math.min(MB, L.length); for (let k = 0; k < n; k += 6) { const p = L[L.length - 1 - k]; if (p.z > 1.3) continue; Q.glow(H.sx(p.x), H.sy(p.y), T * 1.1, ROSE, 0.3 * fa * (1 - p.z / 1.3) * (1 - k / n), H.GY); } }
+          for (const rb of rbs) { const L = rb.h, n = Math.min(MB, L.length); if (rb.snap) continue; for (let k = 2; k < n; k += 4) { const p = L[L.length - 1 - k], u = k / n, r = T * WT * (1.1 + 0.45 * p.z) * Math.pow(1 - u, 0.6);   // (v412 SA) each satin ribbon's soft shadow on the floor, softer and fainter the higher it flies
+            Q.sshadow(H.sx(p.x) + T * 0.18 * p.z, H.sy(p.y) + T * 0.06 * p.z, r, r * 0.45, 0.2 * fa * sm(t / 0.5 - rb.t0) * (1 - u) / (1 + 0.6 * p.z)); } }
+          FG.flush(c); return; } }   // (v404 LT) the pink light on the floor under the ribbons
         c.save(); c.globalCompositeOperation = 'lighter'; const gs = glowSprite(ROSE);
         for (const rb of rbs) { const L = rb.h, n = Math.min(MB, L.length); for (let k = 0; k < n; k += 6) { const p = L[L.length - 1 - k]; if (p.z > 1.3) continue; const a = 0.22 * fa * (1 - p.z / 1.3) * (1 - k / n), r = T * 1.1; c.globalAlpha = a; c.drawImage(gs, H.sx(p.x) - r, H.sy(p.y) - r * H.GY, r * 2, r * 2 * H.GY); } }
         c.restore();
@@ -203,8 +226,8 @@
           if (ra > 0.02 && !(tier === 3 && bowU > 0.5 && loose > 0.3)) { const hx = S.X[1], hy = S.Y[1]; blitC(c, glowSprite(ROSE), hx, hy, T * (1.6 + 1.2 * rb.flash), T * (1.6 + 1.2 * rb.flash), 0.5 * ra, true); blitC(c, glowSprite(PEARL), hx, hy, T * (0.7 + 0.6 * rb.flash), T * (0.7 + 0.6 * rb.flash), (0.6 + 0.4 * rb.flash) * ra, true); }
         }
         if (G1) { FG.flush(c);
-          for (const o of later) if (o.ra > 0.02) strip(c, o.S, o.n, o.ra, o.rb.flash, t, o.rb.i * 1.7, T);
           const Q = FG.begin(c, null);
+          for (const o of later) if (o.ra > 0.02) gStripH(Q, o.S, o.n, o.ra, o.rb.flash, t, o.rb.i * 1.7, T);   // (v412 SA: the satin on the GPU, laid first)
           for (const o of later) { const { rb, S, ra } = o; if (ra > 0.02 && !(tier === 3 && bowU > 0.5 && loose > 0.3)) { const hx = S.X[1], hy = S.Y[1]; Q.glow(hx, hy, T * (0.8 + 0.6 * rb.flash), ROSE, 0.55 * ra); Q.glow(hx, hy, T * (0.35 + 0.3 * rb.flash), PEARL, (0.6 + 0.4 * rb.flash) * ra); if (rb.flash > 0.05) Q.star(hx, hy, T * (0.5 + 0.6 * rb.flash), rb.flash * ra, PEARL); } }
           if (tier === 3 && bowU > 0.3) for (let pr = 0; pr < 3; pr++) { const Kb = bowK(pr), a = sm((t - TE - 0.35) / 0.3) * (1 - sm((t - TL) / 0.6)), kx = H.sx(Kb.x), ky = H.sy(Kb.y) - Kb.z * T; Q.glow(kx, ky, T * 1.2, ROSE, 0.55 * a); Q.glow(kx, ky, T * 0.5, PEARL, 0.9 * a); Q.quad(41, kx, ky, T * 0.2, 0, 0, T * 0.2, '#FFFFFF', a, 0.4, pr, 1); }
           K.setH(H); K.gBits(Q, B, T); FG.flush(c); return; }

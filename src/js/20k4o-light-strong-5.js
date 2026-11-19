@@ -53,6 +53,15 @@
       if (o.trim && up[i]) { c.globalAlpha = Math.min(1, a * 0.7 * o.trim); c.strokeStyle = RG; c.lineWidth = Math.max(0.6, w * 0.6); c.beginPath(); c.moveTo(lerp(Lp[i][0], P[i].x, 0.45), lerp(Lp[i][1], P[i].y, 0.45)); c.lineTo(lerp(Lp[i + 1][0], P[i + 1].x, 0.45), lerp(Lp[i + 1][1], P[i + 1].y, 0.45)); c.stroke(); } }
     c.restore();
   }
+  /* (v412 SA) the same satin strip on the GPU (the shared painter's Q.satin, 20k6h): the same samples, widths, twist and alphas as ONE
+     continuous strip shaded per pixel (kind 64: its upper face and darker underside by the twist, a sheen band sliding along it as it
+     twists, soft folds across it, pale edges, the rose-gold trim; o.hl's travelling highlight as a brightening along it); gRuns as runs */
+  const GS = { X: [], Y: [], NX: [], NY: [], HW: [], TH: [], AL: [], FL: [] };
+  function gStripS(Q, P, o) { const n = P.length; if (n < 2) return; o = o || {}; const A = o.a == null ? 1 : o.a, G = GS;
+    for (let i = 0; i < n; i++) { const p = P[i], q0 = P[Math.max(0, i - 1)], q1 = P[Math.min(n - 1, i + 1)], tx = q1.x - q0.x, ty = q1.y - q0.y, d = Math.hypot(tx, ty) || 1;
+      G.X[i] = p.x; G.Y[i] = p.y; G.NX[i] = -ty / d; G.NY[i] = tx / d; G.HW[i] = Math.max(0, p.w) * (0.16 + 0.84 * Math.abs(Math.cos(p.tw))); G.TH[i] = p.tw; G.AL[i] = p.a * A; G.FL[i] = o.hl != null ? Math.exp(-Math.pow(i / (n - 1) - o.hl, 2) / 0.006) * 0.55 : 0; }
+    Q.satin(64, n, G.X, G.Y, G.NX, G.NY, G.HW, G.TH, G.AL, { pal: o.pearl ? 2 : 1, edge: Math.min(1, 0.75 * (o.edge || 1)), trim: o.trim ? 0.6 * o.trim : 0, unit: H.X.Tz() * 0.35 }, G.FL); }
+  function gRuns(Q, P, back, o) { let cur = []; for (let i = 0; i < P.length; i++) { if (!!P[i].back === back) { if (!cur.length && i > 0) cur.push(P[i - 1]); cur.push(P[i]); } else if (cur.length) { cur.push(P[i]); gStripS(Q, cur, o); cur = []; } } if (cur.length > 1) gStripS(Q, cur, o); }
   /* draw only the runs of samples marked behind (back = true) or in front */
   function runs(c, P, back, o) { let cur = []; for (let i = 0; i < P.length; i++) { if (!!P[i].back === back) { if (!cur.length && i > 0) cur.push(P[i - 1]); cur.push(P[i]); } else if (cur.length) { cur.push(P[i]); strip(c, cur, o); cur = []; } } if (cur.length > 1) strip(c, cur, o); }
   /* world point for a screen point near a monster/pet standing at (wx, wy) (for the heart particles) */
@@ -134,26 +143,26 @@
             K.gFloorHeart(Q, G.X, G.foot, T * (0.9 + 0.9 * u) * b.rr * 2.2 * 0.68, GY, MAIN, (1 - u) * 0.85 * ua, 1.1, 0.035, 0); Q.glow(G.X, G.foot, T * 1.8 * b.rr, MAIN, 0.32 * ua, GY); Q.caustic(G.X, G.foot, T * 1.5 * b.rr, MAIN, 0.25 * ua, b.sd, GY); }
           for (const p of pops) { if (!p.big) continue; const u = p.t / 0.7, X = H.sx(p.x), Y = H.sy(p.y) + T * 0.3; K.gFloorHeart(Q, X, Y, T * p.r * 2.6 * 0.68 * H.ease.out(cl(u * 1.4)), GY, MAIN, (1 - u) * 0.95, 1.1, 0.035, 0); Q.ewave(X, Y, T * p.r * 1.2 * H.ease.out(cl(u * 1.2)), MAIN, 0.85, (1 - u) * 0.6, p.x, GY, 0.25); Q.glow(X, Y, T * p.r * 1.5, MAIN, 0.45 * (1 - u), GY); }
           FG.flush(c);
-          for (const b of bows) { if (t < b.tl) continue; const ua = b.burst ? 1 - cl((t - b.tb) / 0.42) : 1; if (ua <= 0) continue; for (const P of streams(b, t, T)) runs(c, P, true, { a: ua * 0.92, edge: 0.7, trim: tier === 3 ? 0.6 : 0 }); }
-          return; } }
+          const Q2 = FG.begin(c, null);   // (v412 SA: the far side of each wrap as GPU satin)
+          for (const b of bows) { if (t < b.tl) continue; const ua = b.burst ? 1 - cl((t - b.tb) / 0.42) : 1; if (ua <= 0) continue; for (const P of streams(b, t, T)) gRuns(Q2, P, true, { a: ua * 0.92, edge: 0.7, trim: tier === 3 ? 0.6 : 0 }); }
+          FG.flush(c); return; } }
         for (const b of bows) { if (t < b.tl) continue; const ua = b.burst ? 1 - cl((t - b.tb) / 0.42) : 1; if (ua <= 0) continue;
           for (const P of streams(b, t, T)) runs(c, P, true, { a: ua * 0.92, edge: 0.7, trim: tier === 3 ? 0.6 : 0 });   // the far side of the wrap, behind the monster
           if (b.hit) { const G = geo(b, T), u = cl((t - b.th) / 0.5); floorBlit(c, K.lineSpr(), G.X, G.foot, T * (0.9 + 0.9 * u) * b.rr * 2.2, (1 - u) * 0.7 * ua); K.blitC(c, glowSprite(MAIN), G.X, G.foot, T * 1.8 * b.rr * 2, T * 1.8 * b.rr * 2 * H.GY, 0.22 * ua, true); } }
         for (const p of pops) { if (!p.big) continue; const u = p.t / 0.7, X = H.sx(p.x), Y = H.sy(p.y) + T * 0.3; floorBlit(c, K.lineSpr(), X, Y, T * p.r * 2.6 * H.ease.out(cl(u * 1.4)), (1 - u) * 0.9); K.blitC(c, glowSprite(MAIN), X, Y, T * p.r * 3, T * p.r * 3 * H.GY, 0.4 * (1 - u), true); } },
       draw(c, f, X0, Y0, T) { const t = f.t, ga = cl(t / 0.15) * cl((TL0 + (NB - 1) * STG + 0.3 - t) / 0.3);
-        { const FG = K.gfx(); if (FG) { /* (v404 LT) the satin itself stays the 2D strips (exact shaded quads); everything that shines is on the
-             GPU: the casting glow, light along the ribbons, the knot (the shared candy heart, kind 41) flaring, the star charms, pops, hearts */
-          const knots = [], glows = [];
+        { const FG = K.gfx(); if (FG) { /* (v404 LT) everything that shines is on the GPU: the casting glow, light along the ribbons, the knot
+             (the shared candy heart, kind 41) flaring, the star charms, pops, hearts; (v412 SA) and the satin itself (gStripS), laid first */
+          const knots = [], glows = [], Q = FG.begin(c, null);
           for (const b of bows) { if (t < b.tl) continue; const G = geo(b, T), ua = b.burst ? 1 - cl((t - b.tb) / 0.42) : 1; if (ua <= 0) continue;
             const o = { a: ua, edge: tier === 3 ? 1.35 : 1, trim: tier === 3 ? 1 : 0, hl: (t * 0.7 + b.sd) % 1.4 - 0.2 };
-            for (const P of streams(b, t, T)) { runs(c, P, false, o); for (let i = 0; i < P.length; i += 4) if (!P[i].back) glows.push([P[i].x, P[i].y, P[i].w * 3.2 + 2, (0.1 + 0.07 * rich) * ua]); }
+            for (const P of streams(b, t, T)) { gRuns(Q, P, false, o); for (let i = 0; i < P.length; i += 4) if (!P[i].back) glows.push([P[i].x, P[i].y, P[i].w * 3.2 + 2, (0.1 + 0.07 * rich) * ua]); }
             const gT = t - (b.th - TB); if (gT <= 0) continue;
             const g = Math.max(0, H.ease.back(cl(gT / TB))) * (1 - 0.35 * (1 - ua)), k = b.hit ? Math.max(0, Math.sin(cl((t - b.th + 0.05) / 0.25) * Math.PI)) : 0, Sz = b.rr * T * 1.9 * (1 + 0.04 * (ev - 1));
             const Kx = G.cx, Ky = G.cy + G.ry * 0.95 * (1 - 0.1 * k), parts = bowParts(b, Kx, Ky, Sz, g * (b.burst ? 1 + 0.25 * (1 - ua) : 1), k, t); b.parts = parts;
-            for (const pt of parts) if (pt.kind === 'tail') strip(c, pt.P, Object.assign({}, o, { hl: null }));
-            for (const pt of parts) if (pt.kind === 'loop') strip(c, pt.P, o);
+            for (const pt of parts) if (pt.kind === 'tail') gStripS(Q, pt.P, Object.assign({}, o, { hl: null }));
+            for (const pt of parts) if (pt.kind === 'loop') gStripS(Q, pt.P, o);
             knots.push({ b, Kx, Ky, Sz, g, k, ua, parts }); }
-          const Q = FG.begin(c, null);
           if (ga > 0.01) { const px = H.sx(me.x), py = H.sy(me.y) - T * 0.32; Q.glow(px, py, T * (0.5 + 0.3 * Math.sin(t * 18)), MAIN, 0.4 * ga); Q.glow(px, py, T * 0.22, PEARL, 0.6 * ga); Q.star(px, py, T * 0.4, 0.6 * ga, PEARL); }
           for (const gq of glows) Q.glow(gq[0], gq[1], gq[2], MAIN, gq[3]);
           for (const q of knots) { const { b, Kx, Ky, Sz, g, k, ua, parts } = q;
@@ -253,12 +262,12 @@
           const P = [], W = [], A = []; for (let i = 0; i < hist.length; i++) { const q = hist[i], ag = t - q.t; if (ag > TRL) continue; const k = 1 - ag / TRL; P.push([H.sx(q.x), H.sy(q.y) - T * 0.3]); W.push(T * (0.2 + Math.min(0.32, 0.016 * q.v)) * Math.pow(k, 0.6) * (1 + 0.1 * tier)); A.push(k); }
           if (P.length > 1) { const at = (arr, u) => arr[Math.min(arr.length - 1, Math.round(u * (arr.length - 1)))];
             K.gStrip(Q, P, u => at(W, u) * 2.4, MAIN, u => 0.45 * at(A, u) * ea); K.gStrip(Q, P, u => at(W, u) * 1.1, BLOS, u => 0.5 * at(A, u) * ea); K.gStrip(Q, P, u => at(W, u) * 0.4, PEARL, u => 0.8 * at(A, u) * at(A, u) * ea); }
-          FG.flush(c);
+          FG.flush(c); const Q2 = FG.begin(c, null);   // (v412 SA: the trailing ribbons and the finale's far side as GPU satin, each with a soft shadow on the floor)
           if (hist.length > 2) for (const sd of [1, -1]) { const P2 = []; for (let i = hist.length - 1; i >= 0; i--) { const q = hist[i], ag = t - q.t; if (ag > RIB) break; const q0 = hist[Math.max(0, i - 1)], q1 = hist[Math.min(hist.length - 1, i + 1)]; let dx = q1.x - q0.x, dy = q1.y - q0.y; const dl = Math.hypot(dx, dy) || 1; dx /= dl; dy /= dl;
               const u = ag / RIB, off = T * (0.14 + 0.1 * Math.sin(ag * 16 + sd * 1.3) + 0.12 * u) * sd; P2.push({ x: H.sx(q.x) - dy * off, y: H.sy(q.y) - T * (0.32 + 0.06 * Math.sin(ag * 11 + sd)) + dx * off * 0.6, w: T * 0.055 * (1 + 0.3 * rich) * (1 - 0.6 * u) * cl(ag / 0.03 + 0.2), tw: ag * 18 + sd, a: (1 - u) * ea }); }
-            if (P2.length > 2) strip(c, P2, { pearl: true, edge: 0.9, trim: tier === 3 ? 0.8 : 0 }); }
-          if (st.ph === 'end') { const fr = finale(t, T); for (const P3 of fr) runs(c, P3, true, { a: 0.9, pearl: true }); }
-          return; } }
+            if (P2.length > 2) { for (let i = 1; i < P2.length; i += 3) { const p = P2[i]; Q2.sshadow(p.x + T * 0.06, p.y + T * 0.34, p.w * 2.2 + T * 0.08, (p.w * 2.2 + T * 0.08) * 0.45, 0.16 * p.a); } gStripS(Q2, P2, { pearl: true, edge: 0.9, trim: tier === 3 ? 0.8 : 0 }); } }
+          if (st.ph === 'end') { const fr = finale(t, T); for (const P3 of fr) gRuns(Q2, P3, true, { a: 0.9, pearl: true }); }
+          FG.flush(c); return; } }
         // pink light on the floor under the pet, and the bright core of the comet behind it
         K.blitC(c, glowSprite(MAIN), px, py + T * 0.2, T * 2.4, T * 2.4 * H.GY, 0.4 * fa * ea, true);
         // the comet's tail: soft stamps along the real path, wider with speed, thinning and fading behind
@@ -276,8 +285,8 @@
         const fa = cl(t / TF), ea = st.ph === 'end' ? 1 - cl((t - st.t0) / 0.35) : 1;
         { const FG = K.gfx(); if (FG) { /* (v404 LT) on the GPU: the contour of light round the pet, the leading candy heart (kind 41), the slices
              as tapered strips of light, the finale (its satin ribbons as 2D strips, then the heart of light opening), the hearts and stars */
-          if (st.ph === 'end') for (const P of finale(t, T)) runs(c, P, false, { a: 1, pearl: true, edge: 1.1, trim: tier === 3 ? 1 : 0 });
           const Q = FG.begin(c, [px, py, T * 0.45]);
+          if (st.ph === 'end') for (const P of finale(t, T)) gRuns(Q, P, false, { a: 1, pearl: true, edge: 1.1, trim: tier === 3 ? 1 : 0 });   // (v412 SA: GPU satin)
           if (ea > 0) { const rx = T * 0.5, ry = T * 0.62, a0 = -Math.PI / 2 + t * 4, span = TAU * Math.min(1, fa * 1.05), P = []; for (let j = 0; j <= 32; j++) { const b = a0 + span * j / 32; P.push([px + Math.cos(b) * rx, py + Math.sin(b) * ry]); }
             const al = ea * (moving ? 1 : 0.8), env = u => span < TAU * 0.99 ? sm(u / 0.15) : 1; K.gStrip(Q, P, T * 0.16, MAIN, u => 0.35 * al * env(u)); K.gStrip(Q, P, Math.max(1, T * 0.035), BLOS, u => 0.85 * al * env(u)); Q.glow(px, py, T * 0.85, MAIN, 0.18 * fa * ea); }
           if (moving || st.ph === 'settle') { const a = st.ph === 'turn' ? st.a0 + H.wrap(st.next.ang - st.a0) * sm((t - st.t0) / TT) : st.ph === 'settle' ? st.sdir : st.pass.ang, hx = px + Math.cos(a) * T * 0.62, hy = py + Math.sin(a) * T * 0.4, la = st.ph === 'settle' ? 1 - cl((t - st.t0) / TS) : 1;
