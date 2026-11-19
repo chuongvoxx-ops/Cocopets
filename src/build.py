@@ -41,7 +41,10 @@ def build(test, web=False, lite=None):
     skip = artifact_skip() if lite else set()
     parts = [rd('head.html'), '<style>\n', rd('styles.css'), '</style>\n\n', rd('body.html'), '<script>\n(() => {\n\'use strict\';\n']
     # (v375) the Claude build carries the loading screens' pictures inside it: a page there cannot load files beside it
-    if not test and not web:
+    # (v425) no longer: the artifact build now leaves the pictures out (about 2 MB as base64) and the page loads them from the
+    # artifact's asset store (/_blob/..., LOAD_PICS.BLOB in 12b; the page declares the assets capability); set
+    # EMBED_LOAD_PICS=1 in the environment to carry them inside the page again
+    if not test and not web and os.environ.get('EMBED_LOAD_PICS') == '1':
         import base64
         ld = os.path.join(os.path.dirname(HERE), 'assets', 'loading')
         if os.path.isdir(ld):
