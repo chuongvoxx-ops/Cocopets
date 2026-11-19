@@ -39,7 +39,14 @@
    when first seen, the Worldbreaker's 3 s before it. A floor that starts with Titan in a kit prepares in idle time
    (U.titan.warm, a hook in 20b). Each frame lays one or two pictures down; glows, trails and the crumble's tumbling
    rocks are sprites on top. Cache kept between casts, capped at 32 MB (a typical cast ~10-16 MB).
-   Pet death or floor change: it crumbles / is cleared with the game. */
+   Pet death or floor change: it crumbles / is cleared with the game.
+   (v415 TI) The GPU picture, when WebGL is usable (20k2jz TITAN_GPU): the same stones and rig built once per tier into GLM meshes
+   (in idle time when a floor starts with Titan in a kit) and posed live every frame - every pose blended continuously, any
+   facing - with stone, moss, ember-fracture and eye materials; it crumbles stone by stone. Its effects in 3D and light: the
+   sigil, racing fractures and the opening (FGFX kinds 88..91), floor slabs heaved up round it, rocks lifting out of the cracks,
+   dust (Genbu's G3D), the blows' shockwaves, cracks and debris, the slam's torn-up slabs, Worldbreaker's ridge of standing
+   slabs and Celestial spires. Timing, places, hit areas and damage are untouched; none of the 2D pictures are made then.
+   Without it, the 2D picture above, as it was. */
 (() => {
   const U = ELEM_IMPL.earth.ult; delete U.mountainheart;
   const TAU = Math.PI * 2, GK = GeoKit, SE = GK.SE, CE = GK.CE, LDW = GK.LD;
@@ -56,6 +63,11 @@
   let H;
   const evoOf = C => Math.max(1, Math.min(7, Math.round(C.evo || 1)));
   const lowFx = () => !!(typeof st !== 'undefined' && st && st.lowFx);
+  /* (v415 TI) the GPU picture when it is usable: the golem as a 3D model on GLM, posed live (20k2jz TITAN_GPU), its effects on the
+     shared painter (20k6h FGFX: Titan's kinds 88..91) and Genbu's 3D painter (20k2m G3D: rocks, slabs, dust); else the 2D picture, as it was */
+  const TGPU = () => { try { return typeof TITAN_GPU !== 'undefined' && TITAN_GPU.usable() ? TITAN_GPU : null; } catch (e) { return null; } };
+  const gfx = () => { try { const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; return F && F.usable() ? F : null; } catch (e) { return null; } };
+  const g3d = () => { try { const G = self.GENBU_MOVES && self.GENBU_MOVES.G3D; return G && G.usable() ? G : null; } catch (e) { return null; } };
 
   /* ================= solids: convex polytopes cut from planes ================= */
   function clipPoly(P, pl) { const out = []; for (let i = 0; i < P.length; i++) { const a = P[i], b = P[(i + 1) % P.length], da = a[0] * pl[0] + a[1] * pl[1] + a[2] * pl[2] - pl[3], db = b[0] * pl[0] + b[1] * pl[1] + b[2] * pl[2] - pl[3]; if (da <= 0) out.push(a); if ((da <= 0) !== (db <= 0)) { const t = da / (da - db); out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]); } } return out; }
@@ -732,15 +744,19 @@
     const DMG = { punch: 4.4 * DK * DM, splash: 1.5 * DK * DM, back: 3.8 * DK * DM, slam: 5.4 * DK * DM, wbImp: 6 * DK, wbWave: 5 * DK };
     const R_SLAM = (1.9 + 0.09 * (ev - 1)) * K, R_IMP = (1.9 + 0.067 * (ev - 1)) * K, R_WAVE = (4 + 0.25 * (ev - 1)) * K, LEASH = 6.5, REACH = 1.55 * S;
     const seed = Math.floor(Math.random() * 1000);
+    // (v415 TI) the GPU picture when it can be drawn (its meshes built now, once, if the idle-time preparation has not); FX its pooled 3D pieces
+    let GPU = !!TGPU() && (TITAN_GPU.ready(tier) || TITAN_GPU.step(tier, 1e4)), fb2d = false; const FX = GPU ? TITAN_GPU.fxPool() : null;
     // the warm-up (if the kit's idle-time preparation has not done it): textures, stone shapes, sprites, a piece at a time
-    warmTasks(tier, seed);
+    if (!GPU) warmTasks(tier, seed);
     H.X.banner('TITAN', '', C.col, 1.5); H.X.sfx.rumble ? H.X.sfx.rumble() : H.X.sfx.hum(); H.X.shake(3, 0.4);
     // the summon spot: toward the aim and a little aside, on walkable floor, clear of the pet
     const aim = Math.atan2(C.ty - me.y, C.tx - me.x), side = Math.cos(aim) >= 0 ? -1 : 1;
     let spot = null; for (const [d, da] of [[2.1, 0.55 * side], [2.1, -0.55 * side], [1.9, 0], [2.4, Math.PI / 2], [2.4, -Math.PI / 2], [1.6, Math.PI]]) { const p = H.walk(me.x + Math.cos(aim + da) * d, me.y + Math.sin(aim + da) * d); if (Math.hypot(p.x - me.x, p.y - me.y) > 1.2) { spot = p; break; } }
     if (!spot) spot = { x: me.x + Math.cos(aim) * 1.8, y: me.y + Math.sin(aim) * 1.8 };
     const G = { lastPick: null, x: spot.x, y: spot.y, r: 0.4, face: aim, st: 'enter', u: 0, ph: 0, atk: null, cool: 0.4, tgt: null, retT: 0, combo: 0, slamCd: 2, trail: [], moving: 0, eye: 0, prog: 0, progT: 0, stuckT: 0, dimA: 1, lastOut: null, rT: -1 };
-    setScale(H.X.Tz(), SC, typeof devicePixelRatio === 'number' ? devicePixelRatio : 1); planBakes(tier, aim);
+    if (!GPU) { setScale(H.X.Tz(), SC, typeof devicePixelRatio === 'number' ? devicePixelRatio : 1); planBakes(tier, aim); }
+    // (v415 TI) the GPU lost mid-cast: the 2D picture from here on (its pictures planned now)
+    const toFallback = () => { if (fb2d) return; fb2d = true; GPU = false; warmTasks(tier, seed); setScale(H.X.Tz(), SC, typeof devicePixelRatio === 'number' ? devicePixelRatio : 1); planBakes(tier, G.face); };
     const waves = [], vfx = [], pebs = [];
     let gl = { chest: 0, sh: 0, arm: 0, fist: 0, leg: 0, gaunt: 0 }, gaunt = 0, gbreak = 0, crumble = -1, wbT = -1, peace = false, ended = false, life0 = END0 + 6, gone = false, alphaEnd = 1;
     const valid = m => m && !m.dead && !m.under && !m.falling && !m.fobj && !(m.boss && (m.act === 'enter' || m.act === 'sleep'));
@@ -770,22 +786,26 @@
       if (kind === 'slam') G.slamCd = 4.2 - 0.15 * (ev - 1);
       if (kind !== 'punch') H.X.sfx.whoosh();
     }
-    function chips(x, y, n, up, sz) { for (let j = 0; j < H.n(n); j++) { const b = Math.random() * TAU, v = 1.5 + Math.random() * 3; H.P({ kind: 'shard', x: x + Math.cos(b) * 0.15, y, vx: Math.cos(b) * v, vy: Math.sin(b) * v * 0.5 - (up || 3) - Math.random() * 2, g: 10, life: 0.5 + Math.random() * 0.35, max: 0.85, size: (sz || 3) + Math.random() * 2.5, rot: Math.random() * TAU, vr: (Math.random() - 0.5) * 14, color: ['#77716A', '#5A544D', '#A39C90', '#47423D'][j % 4] }); } }
-    function dust(x, y, n, sp, sz) { for (let j = 0; j < H.n(n); j++) { const b = Math.random() * TAU, v = (sp || 1) * (0.4 + Math.random()); H.P({ kind: 'smoke', x: x + Math.cos(b) * 0.2, y: y + Math.sin(b) * 0.1, vx: Math.cos(b) * v, vy: Math.sin(b) * v * 0.5 - 0.25, life: 0.7 + Math.random() * 0.4, max: 1.1, size: (sz || 0.3) * (0.7 + Math.random() * 0.6), color: 'rgba(150,136,116,' }); } }
+    function chips(x, y, n, up, sz, z3) { if (GPU) { gChips(x, y + (z3 || 0), n, up, sz, z3); return; }   /* (v415 TI) z3: the height the 2D picture shows by lifting y (the GPU's rocks start there) */
+      for (let j = 0; j < H.n(n); j++) { const b = Math.random() * TAU, v = 1.5 + Math.random() * 3; H.P({ kind: 'shard', x: x + Math.cos(b) * 0.15, y, vx: Math.cos(b) * v, vy: Math.sin(b) * v * 0.5 - (up || 3) - Math.random() * 2, g: 10, life: 0.5 + Math.random() * 0.35, max: 0.85, size: (sz || 3) + Math.random() * 2.5, rot: Math.random() * TAU, vr: (Math.random() - 0.5) * 14, color: ['#77716A', '#5A544D', '#A39C90', '#47423D'][j % 4] }); } }
+    function dust(x, y, n, sp, sz) { if (GPU) { gDust(x, y, n, sp, sz); return; }   /* (v415 TI) */
+      for (let j = 0; j < H.n(n); j++) { const b = Math.random() * TAU, v = (sp || 1) * (0.4 + Math.random()); H.P({ kind: 'smoke', x: x + Math.cos(b) * 0.2, y: y + Math.sin(b) * 0.1, vx: Math.cos(b) * v, vy: Math.sin(b) * v * 0.5 - 0.25, life: 0.7 + Math.random() * 0.4, max: 1.1, size: (sz || 0.3) * (0.7 + Math.random() * 0.6), color: 'rgba(150,136,116,' }); } }
     function landHit() {
       const A = G.atk, f = fwd(), kind = A.kind; A.hit = true;
       if (kind === 'punch') {
         const px = G.x + f[0] * REACH, py = G.y + f[1] * REACH; let n = 0; const tg = G.tgt;
         for (const m of living()) { const d = Math.hypot(m.x - px, m.y - py); if (d < 0.75 + m.r) { H.X.hitMon(m, m === tg || n === 0 ? DMG.punch : DMG.splash, C.dmgO({ stun: 0.25 })); knock(m, G.x, G.y, 4); n++; } }
-        F.hits.punch += n; vfx.push({ kind: 'flash', x: px, y: py, z: 1.0 * S, t0: F.t, life: 0.3, r: 0.9 + 0.1 * tier }); chips(px, py - 0.5, 7 + tier * 2, 2, 3); dust(px, py, 3, 1.2, 0.3);
+        F.hits.punch += n; vfx.push({ kind: 'flash', x: px, y: py, z: 1.0 * S, t0: F.t, life: 0.3, r: 0.9 + 0.1 * tier }); chips(px, py - 0.5, 7 + tier * 2, 2, 3, 0.5); dust(px, py, 3, 1.2, 0.3);   /* (v415 TI: z3) */
+        if (GPU) { vfx.push({ kind: 'shock', x: px, y: py, z: 1.0 * S, t0: F.t, life: 0.42, r: 1.0 + 0.1 * tier }, { kind: 'gcr', x: px, y: py, R: 0.8 + 0.1 * tier, t0: F.t, life: 1.0, seed: (seed + G.combo) % 7, sp: 0.12 }); }   /* (v415 TI) the GPU's shockwave and the cracks under the blow */
         H.X.shake(3 + tier, 0.15); H.X.sfx.thud(); if (n) H.X.hitstop && H.X.hitstop(0.03);
       } else if (kind === 'back') {
-        let n = 0; for (const m of living()) { const d = Math.hypot(m.x - G.x, m.y - G.y), a = Math.atan2(m.y - G.y, m.x - G.x) - G.face; if (d < 1.9 * S + m.r && Math.cos(a) > Math.cos(1.3)) { H.X.hitMon(m, DMG.back, C.dmgO({ stun: 0.2 })); knock(m, G.x, G.y, 5); n++; vfx.push({ kind: 'flash', x: m.x, y: m.y, z: 0.9 * S, t0: F.t, life: 0.22, r: 0.6 }); } }
+        let n = 0; for (const m of living()) { const d = Math.hypot(m.x - G.x, m.y - G.y), a = Math.atan2(m.y - G.y, m.x - G.x) - G.face; if (d < 1.9 * S + m.r && Math.cos(a) > Math.cos(1.3)) { H.X.hitMon(m, DMG.back, C.dmgO({ stun: 0.2 })); knock(m, G.x, G.y, 5); n++; vfx.push({ kind: 'flash', x: m.x, y: m.y, z: 0.9 * S, t0: F.t, life: 0.22, r: 0.6 }); if (GPU) { gDust(m.x, m.y, 2, 1.4, 0.3); gChips(m.x, m.y, 3, 2, 2.5, 0.5); } } }   /* (v415 TI) */
         F.hits.back += n; H.X.shake(2 + tier, 0.15); H.X.sfx.thud();
       } else if (kind === 'slam') {
         const cx = G.x + f[0] * 0.75 * S, cy = G.y + f[1] * 0.75 * S;
         waves.push({ x: cx, y: cy, r: 0, R: R_SLAM, v: R_SLAM / 0.38, dmg: DMG.slam, hit: new Set(), o: C.dmgO({ stun: 0.4 }), kb: 3, t0: F.t, kind: 'slam', tag: 'slam' });
         vfx.push({ kind: 'cracks', x: cx, y: cy, R: R_SLAM * 1.05, t0: F.t, life: 1.3, seed: seed % 5, sp: 0.38 }); vfx.push({ kind: 'flash', x: cx, y: cy, z: 0.25, t0: F.t, life: 0.35, r: 1.4 + 0.15 * tier });
+        if (GPU) { gSlam(cx, cy); vfx.push({ kind: 'shock', x: cx, y: cy, z: 0.25, t0: F.t, life: 0.5, r: 1.6 + 0.15 * tier }); } else   /* (v415 TI) slabs and rocks thrown up in 3D */
         for (let j = 0; j < H.n(10 + 3 * tier); j++) { const b = j / (10 + 3 * tier) * TAU + Math.random() * 0.4, d = R_SLAM * (0.3 + Math.random() * 0.6); H.P({ kind: 'shard', x: cx + Math.cos(b) * d, y: cy + Math.sin(b) * d * 0.8, vx: Math.cos(b) * 1.5, vy: -3.5 - Math.random() * 3, g: 11, life: 0.6 + Math.random() * 0.3, max: 0.9, size: 4 + Math.random() * 4, rot: Math.random() * TAU, vr: (Math.random() - 0.5) * 10, color: ['#77716A', '#5A544D', '#A39C90'][j % 3] }); }
         dust(cx, cy, 8 + tier * 2, 2.2, 0.42); H.X.shake(7 + 2 * tier, 0.3); H.X.sfx.crash(); H.X.light && H.X.light(cx, cy, R_SLAM * 1.2, 0.25);
       }
@@ -794,12 +814,14 @@
       w.r = Math.min(w.R, w.r + w.v * dt);
       for (const m of living()) { if (w.hit.has(m)) continue; const d = Math.hypot(m.x - w.x, (m.y - w.y)); if (d <= w.r + m.r * 0.5 && d <= w.R + m.r) { w.hit.add(m); H.X.hitMon(m, w.dmg, w.o); knock(m, w.x, w.y, w.kb || 3); F.hits[w.tag === 'wb' ? 'wbWave' : 'slam']++; } }
       // the ridge: rock fragments thrown up at the front (decoration: they never hit)
+      if (GPU) { gWave(w, dt); return; }   /* (v415 TI) */
       if (w.kind === 'wb' && w.r < w.R && Math.random() < dt * 40 * H.Q()) { const b = Math.random() * TAU; H.P({ kind: 'shard', x: w.x + Math.cos(b) * w.r, y: w.y + Math.sin(b) * w.r, vx: Math.cos(b) * 2.5, vy: Math.sin(b) * 1.2 - 4 - Math.random() * 3, g: 11, life: 0.7, max: 0.7, size: 4 + Math.random() * 4 * (0.6 + 0.2 * tier), rot: Math.random() * TAU, vr: (Math.random() - 0.5) * 12, color: ['#77716A', '#5A544D', '#A39C90', '#3A342E'][Math.floor(Math.random() * 4)] }); }
     }
     /* ---- the update ---- */
     function update(dt, f) {
       const t = f.t;
       if (ended) return;
+      if (FX) FX.step(dt);   /* (v415 TI) the GPU's 3D pieces */
       G.deadT = me.dead ? (G.deadT || 0) + dt : 0;
       if (G.deadT > 0.25 && G.st !== 'crumble' && G.st !== 'gone') { G.st = 'crumble'; crumble = 0; G.atk = null; waves.length = 0; H.X.sfx.thud(); }
       G.cool -= dt; G.slamCd -= dt;
@@ -809,16 +831,17 @@
       for (let i = pebs.length - 1; i >= 0; i--) { const p = pebs[i]; p.u += dt / p.d; if (p.u >= 1) pebs.splice(i, 1); }
       if (G.st === 'enter') {
         // the sigil spreads, pebbles shake, the golem rises
-        if (t < 2.2 && Math.random() < dt * 14 * H.Q()) { const b = Math.random() * TAU, d = Math.random() * 1.5; H.P({ kind: 'shard', x: G.x + Math.cos(b) * d, y: G.y + Math.sin(b) * d * 0.8, vx: (Math.random() - 0.5) * 0.6, vy: -1.6 - Math.random() * 1.6, g: 12, life: 0.35, max: 0.35, size: 2 + Math.random() * 2, rot: Math.random() * TAU, vr: 6, color: ['#77716A', '#5A544D', '#A39C90'][Math.floor(Math.random() * 3)] }); }
+        if (GPU) gEnter(dt, t);   /* (v415 TI) rocks lift out of the cracking floor, dust boils at the opening */
+        else if (t < 2.2 && Math.random() < dt * 14 * H.Q()) { const b = Math.random() * TAU, d = Math.random() * 1.5; H.P({ kind: 'shard', x: G.x + Math.cos(b) * d, y: G.y + Math.sin(b) * d * 0.8, vx: (Math.random() - 0.5) * 0.6, vy: -1.6 - Math.random() * 1.6, g: 12, life: 0.35, max: 0.35, size: 2 + Math.random() * 2, rot: Math.random() * TAU, vr: 6, color: ['#77716A', '#5A544D', '#A39C90'][Math.floor(Math.random() * 3)] }); }
         if (t > 0.5 && t < 2.3 && Math.random() < dt * 10 * H.Q()) dust(G.x + (Math.random() - 0.5) * 1.6, G.y + (Math.random() - 0.5) * 0.8, 1, 0.8, 0.4);
         if (!G._e1 && t > 0.9) { G._e1 = 1; H.X.sfx.thud(); H.X.shake(3, 0.25); }
         if (!G._e2 && t > 1.5) { G._e2 = 1; chips(G.x + Math.cos(G.face) * 1.2, G.y + Math.sin(G.face) * 1.2, 6, 2, 3); dust(G.x + Math.cos(G.face + 0.4) * 1.0, G.y + Math.sin(G.face + 0.4) * 1.0, 4, 1, 0.4); H.X.sfx.thud(); }
-        if (!G._e3 && t > 2.2) { G._e3 = 1; chips(G.x, G.y - 1.6 * S, 10, 1, 3); }
+        if (!G._e3 && t > 2.2) { G._e3 = 1; chips(G.x, G.y - 1.6 * S, 10, 1, 3, 1.6 * S); }   /* (v415 TI: z3) */
         G.eye = sstep(2.1, 2.45, t);
         if (!G._e4 && t > 2.45) { G._e4 = 1; H.X.sfx.stomp ? H.X.sfx.stomp() : H.X.sfx.thud(); H.X.shake(6, 0.3); vfx.push({ kind: 'ring', x: G.x, y: G.y, R: 1.9 * S, t0: t, life: 0.7 }); dust(G.x, G.y, 10, 2.2, 0.45); }
         if (t >= ENTER) { G.st = 'fight'; }
       } else if (G.st === 'fight') {
-        if (!G._wbq && t > END0 - 3) { G._wbq = 1; planBakes(tier, G.face, true); }
+        if (!G._wbq && t > END0 - 3) { G._wbq = 1; if (!GPU) planBakes(tier, G.face, true); }   /* (v415 TI) */
         if (t >= END0 && !G.mv) {   // the fight's time is over (after a rejoin in progress): Worldbreaker, or the peaceful departure when no monster is left
           G.atk = null; wbT = t; if (living().some(m => Math.hypot(m.x - G.x, m.y - G.y) < 12)) { G.st = 'wb'; H.X.sfx.hum(); } else { G.st = 'peace'; peace = true; }
         } else fight(dt, t);
@@ -831,9 +854,9 @@
       const tgtGlow = G.st === 'wb' ? null : G.atk ? (0.25 + 0.35 * (tier - 1) / 2) * Math.sin(cl(G.atk.u / G.atk.def.T) * Math.PI) : 0;
       if (tgtGlow != null) for (const k in gl) gl[k] += ((k === 'gaunt' ? 0 : tgtGlow * (k === 'fist' || k === 'arm' ? 1.3 : k === 'leg' ? 0.5 : 1)) - gl[k]) * Math.min(1, dt * 6);
       // the pictures still to bake, a slice at a time
-      if (FC.queue.length || FC.job || FC.tasks.length) bakeStep(typeof window !== 'undefined' && window.__ttnSync ? 1e4 : BUDGET);
+      if (!GPU && (FC.queue.length || FC.job || FC.tasks.length)) bakeStep(   /* (v415 TI: none on the GPU) */typeof window !== 'undefined' && window.__ttnSync ? 1e4 : BUDGET);
       f.x = G.x; f.y = G.y; f.entY = G.y + 0.05;
-      if (gone && !waves.length) { f.life = Math.min(f.life, 0.05); f.entY = null; }
+      if (gone && !waves.length && !(FX && FX.count())) { f.life = Math.min(f.life, 0.05); f.entY = null; }   /* (v415 TI: its last rocks settle) */
       else if (gone) f.entY = null;
     }
     function fight(dt, t) {
@@ -898,7 +921,7 @@
       for (let i = 0; i < n; i++) { const fx = O ? lerp(O.bb[0], O.bb[2], 0.15 + 0.7 * Math.random()) : X + (Math.random() - 0.5) * T * 2, fy = O ? lerp(O.bb[1], O.bb[3], 0.1 + 0.75 * Math.random()) : Y - Math.random() * T * 2;
         R.push({ sx: (fx - X) / T, sh: Math.max(0.1, (Y - fy) / T), ex: (Math.random() - 0.5) * 1.4 * S, eh: (0.3 + Math.random() * 1.9) * S, t0: 0.08 + Math.random() * 0.28, d: 0.75 + Math.random() * 0.25, arc: 1.6 + Math.random() * 1.6, r: Math.random() * TAU, vr: (Math.random() - 0.5) * 9, s: (0.45 + Math.random() * 0.35) * S, k: i % 8, mo: Math.random() < 0.35 }); }
       vfx.push({ kind: 'stream', x0: G.x, y0: G.y, x1: to.x, y1: to.y, t0: t, life: RJ.END + 0.2, R });
-      dust(G.x, G.y, 10, 2.2, 0.5); chips(G.x, G.y - 0.5, 6, 2, 3); H.X.sfx.whoosh();
+      dust(G.x, G.y, 10, 2.2, 0.5); chips(G.x, G.y - 0.5, 6, 2, 3, 0.5); H.X.sfx.whoosh();   /* (v415 TI: z3) */
       // the pictures it will need at the far end
       for (const i of [3, 2]) frameFor(tier, 'rise', i, to.a, 'R', true); frameFor(tier, 'idle', 0, to.a, 'R', true);
     }
@@ -907,9 +930,10 @@
       if (w < RJ.OUT) { G.eye = 1 - sstep(0, 0.25, w); if (Math.random() < dt * 30 * H.Q()) dust(G.x + (Math.random() - 0.5) * 1.6 * S, G.y + (Math.random() - 0.5) * 0.6, 1, 1.4, 0.45); return; }
       if (!M.done.move) { M.done.move = 1; G.x = M.to.x; G.y = M.to.y; G.face = M.to.a; }
       // amber motes gathering where it will stand
-      if (w > RJ.IN0 - 0.25 && w < RJ.LOCK && Math.random() < dt * 30 * H.Q()) { const b = Math.random() * TAU, d = 1 + Math.random() * 0.8; H.P({ kind: 'spark', x: G.x + Math.cos(b) * d, y: G.y + Math.sin(b) * d * 0.6 - 0.6, vx: -Math.cos(b) * d * 2.2, vy: -Math.sin(b) * d * 1.3 - 0.6, g: 0, life: 0.45, max: 0.45, size: 1.6 + Math.random(), color: Math.random() < 0.5 ? GOLD : HONEY }); }
+      if (GPU) { if (w > RJ.IN0 - 0.25 && w < RJ.LOCK && Math.random() < dt * 30 * H.Q()) { const b = Math.random() * TAU, d = 1 + Math.random() * 0.8; gSpark(G.x + Math.cos(b) * d, G.y + Math.sin(b) * d * H.GY, 0.4 + Math.random() * 0.8, -Math.cos(b) * d * 2.2, -Math.sin(b) * d * 1.3, 0.6, 0.45, 0.06, Math.random() < 0.5 ? GOLD : HONEY); } }   /* (v415 TI) */
+      else if (w > RJ.IN0 - 0.25 && w < RJ.LOCK && Math.random() < dt * 30 * H.Q()) { const b = Math.random() * TAU, d = 1 + Math.random() * 0.8; H.P({ kind: 'spark', x: G.x + Math.cos(b) * d, y: G.y + Math.sin(b) * d * 0.6 - 0.6, vx: -Math.cos(b) * d * 2.2, vy: -Math.sin(b) * d * 1.3 - 0.6, g: 0, life: 0.45, max: 0.45, size: 1.6 + Math.random(), color: Math.random() < 0.5 ? GOLD : HONEY }); }
       G.eye = sstep(RJ.LOCK - 0.05, RJ.END, w);
-      if (!M.done.lock && w > RJ.LOCK) { M.done.lock = 1; vfx.push({ kind: 'flash', x: G.x, y: G.y, z: 1.4 * S, t0: t, life: 0.3, r: 1.2 }); chips(G.x, G.y - 1, 6, 1.5, 3); H.X.sfx.thud(); }
+      if (!M.done.lock && w > RJ.LOCK) { M.done.lock = 1; vfx.push({ kind: 'flash', x: G.x, y: G.y, z: 1.4 * S, t0: t, life: 0.3, r: 1.2 }); chips(G.x, G.y - 1, 6, 1.5, 3, 1); H.X.sfx.thud(); }   /* (v415 TI: z3) */
       if (!M.done.land && w > RJ.LAND) { M.done.land = 1; H.X.sfx.stomp ? H.X.sfx.stomp() : H.X.sfx.thud(); H.X.shake(4, 0.22); vfx.push({ kind: 'ring', x: G.x, y: G.y, R: 1.7 * S, t0: t, life: 0.6 }); dust(G.x, G.y, 8, 2, 0.42); }
       if (w >= RJ.END) { G.mv = null; G.eye = 1; G.cool = 0.3; G.retT = 0; }
     }
@@ -923,7 +947,8 @@
       if (!G._w0) { G._w0 = 1; H.X.sfx.rumble ? H.X.sfx.rumble() : H.X.sfx.hum(); const nm = H.sortNear(G.x, G.y, living())[0]; G.wbA = nm ? Math.atan2(nm.y - G.y, nm.x - G.x) : G.face; }
       if (w < 1.3) turnTo(G.wbA, dt, 2.5);
       // dust sliding outward from the feet, stones lifting and spiralling up to the arms
-      if (w < 1.0 && Math.random() < dt * 22 * H.Q()) { const b = Math.random() * TAU; H.P({ kind: 'smoke', x: G.x + Math.cos(b) * 0.5, y: G.y + Math.sin(b) * 0.3, vx: Math.cos(b) * 2.2, vy: Math.sin(b) * 1.1, life: 0.9, max: 0.9, size: 0.32 + Math.random() * 0.2, color: 'rgba(150,136,116,' }); }
+      if (GPU) { if (w < 1.0 && Math.random() < dt * 22 * H.Q()) { const b = Math.random() * TAU; FX.add(1, G.x + Math.cos(b) * 0.6, G.y + Math.sin(b) * 0.35, 0.05, Math.cos(b) * 2.0, Math.sin(b) * 1.0, 0.12, 1.0, 0.3 + Math.random() * 0.2, { peak: 0.5 }); } }   /* (v415 TI) dust sliding out from the feet */
+      else if (w < 1.0 && Math.random() < dt * 22 * H.Q()) { const b = Math.random() * TAU; H.P({ kind: 'smoke', x: G.x + Math.cos(b) * 0.5, y: G.y + Math.sin(b) * 0.3, vx: Math.cos(b) * 2.2, vy: Math.sin(b) * 1.1, life: 0.9, max: 0.9, size: 0.32 + Math.random() * 0.2, color: 'rgba(150,136,116,' }); }
       if (w > 0.1 && w < 1.3 && Math.random() < dt * (14 + 6 * tier) * H.Q()) { const b = Math.random() * TAU, d = 1.2 + Math.random() * 1.6; pebs.push({ x0: G.x + Math.cos(b) * d, y0: G.y + Math.sin(b) * d * 0.8, a: b, side: Math.random() < 0.5 ? 'L' : 'R', u: 0, d: 0.7 + Math.random() * 0.4, s: 0.06 + Math.random() * 0.07, sp: (Math.random() < 0.5 ? 1 : -1) * (2 + Math.random() * 2) }); }
       if (!G._w1 && w > 1.0) { G._w1 = 1; H.X.sfx.whoosh(); H.X.shake(3, 0.4); }
       if (!G._w2 && w >= WB.HIT) {
@@ -935,18 +960,189 @@
         if (tier >= 3) vfx.push({ kind: 'spires', x: cx, y: cy, t0: t, life: 1.6 });
         H.X.flash && H.X.flash(0.18, HONEY); H.X.hitstop && H.X.hitstop(0.09); H.X.sfx.crash(); H.X.shake(16 + 3 * tier, 0.55); H.X.light && H.X.light(cx, cy, R_WAVE, 0.45);
         chips(cx, cy, 16 + 4 * tier, 4, 4); dust(cx, cy, 12 + 3 * tier, 3, 0.55);
+        if (GPU) { gWbHit(cx, cy); } else   /* (v415 TI) */
         for (let j = 0; j < H.n(16 + 8 * tier); j++) { const b = Math.random() * TAU, v = 2 + Math.random() * 5; H.P({ kind: 'spark', x: cx + Math.cos(b) * 0.4, y: cy - 0.2, vx: Math.cos(b) * v, vy: Math.sin(b) * v * 0.6 - 2.5, g: 1.2, drag: 1.5, life: 0.9 + Math.random() * 0.8, max: 1.7, size: 2 + Math.random() * 1.6, color: j % 3 ? GOLD : HONEY }); }
       }
       if (!G._w3 && w > 1.75) { G._w3 = 1; H.X.sfx.thud(); }
       if (w > 2.05 && crumble < 0) { crumble = 0; H.X.sfx.crash(); }
       // the hanging golden mineral sparks over the impact (Celestial: a dense shower)
-      if (w > WB.HIT && w < WB.HIT + 1.2 && Math.random() < dt * (10 + 14 * (tier - 1)) * H.Q()) { const b = Math.random() * TAU, d = Math.random() * R_WAVE * 0.6; H.P({ kind: 'spark', x: cx + Math.cos(b) * d, y: cy + Math.sin(b) * d * 0.7 - 0.5, vx: (Math.random() - 0.5) * 0.5, vy: -0.5 - Math.random() * 0.6, g: 0.3, life: 0.8 + Math.random() * 0.6, max: 1.4, size: 1.6 + Math.random() * 1.4, color: Math.random() < 0.5 ? GOLD : PALE }); }
+      if (GPU) { if (w > WB.HIT && w < WB.HIT + 1.2 && Math.random() < dt * (10 + 14 * (tier - 1)) * H.Q()) { const b = Math.random() * TAU, d = Math.random() * R_WAVE * 0.6; gSpark(cx + Math.cos(b) * d, cy + Math.sin(b) * d * 0.7, 0.3 + Math.random() * 0.6, (Math.random() - 0.5) * 0.4, 0, 0.35 + Math.random() * 0.4, 0.8 + Math.random() * 0.6, 0.045 + Math.random() * 0.04, Math.random() < 0.5 ? GOLD : PALE); } }   /* (v415 TI) */
+      else if (w > WB.HIT && w < WB.HIT + 1.2 && Math.random() < dt * (10 + 14 * (tier - 1)) * H.Q()) { const b = Math.random() * TAU, d = Math.random() * R_WAVE * 0.6; H.P({ kind: 'spark', x: cx + Math.cos(b) * d, y: cy + Math.sin(b) * d * 0.7 - 0.5, vx: (Math.random() - 0.5) * 0.5, vy: -0.5 - Math.random() * 0.6, g: 0.3, life: 0.8 + Math.random() * 0.6, max: 1.4, size: 1.6 + Math.random() * 1.4, color: Math.random() < 0.5 ? GOLD : PALE }); }
+    }
+
+    /* ---- (v415 TI) the GPU picture: the golem posed live on GLM (20k2jz), its effects as real 3D rocks, slabs and dust (Genbu's G3D)
+       and floor light, fractures, shockwaves and sparks (FGFX, Titan's kinds 88..91), at the 2D path's times and places ---- */
+    const ZK3 = 0.694, SLABC = '#776E64', DUSTC = '#9E9282', STONEC = '#7E776D';
+    function gChips(x, y, n, up, sz, z) { const q = H.n(n), C = TITAN_GPU.COL; for (let j = 0; j < q; j++) { const b = Math.random() * TAU, v = (0.7 + Math.random() * 2.0) * (up > 2.5 ? 1.25 : 1);
+      FX.add(0, x + Math.cos(b) * 0.12, y + Math.sin(b) * 0.08, (z || 0.12) + Math.random() * 0.1, Math.cos(b) * v, Math.sin(b) * v * 0.7, (up || 3) * 0.85 + Math.random() * 2, 1.1 + Math.random() * 0.6, (0.04 + Math.random() * 0.05) * (sz || 3) / 3 * (0.9 + 0.1 * tier), Math.random() < 0.2 ? { col: C.MOSSC } : null); } }
+    function gDust(x, y, n, sp, sz, z) { const q = H.n(n), C = TITAN_GPU.COL; for (let j = 0; j < q; j++) { const b = Math.random() * TAU, v = (sp || 1) * (0.3 + Math.random() * 0.8);
+      FX.add(1, x + Math.cos(b) * 0.2, y + Math.sin(b) * 0.12, (z || 0) + 0.06, Math.cos(b) * v, Math.sin(b) * v * 0.6, 0.18 + Math.random() * 0.35, 0.9 + Math.random() * 0.6, (sz || 0.3) * (0.55 + Math.random() * 0.5), Math.random() < 0.4 ? { col: C.DUSTL } : null); } }
+    function gSpark(x, y, z, vx, vy, vz, life, s, col) { FX.add(2, x, y, z, vx, vy, vz, life, s, { col: col || GOLD, g: 1.4 }); }
+    // the summoning: rocks lift out of the cracking floor and hover, trembling, until the golem stands, then drop; dust boils at the opening
+    let lifts = null;
+    function gEnter(dt, t) {
+      if (!lifts) { lifts = []; const n = H.n(10 + 3 * tier); for (let i = 0; i < n; i++) { const b = Math.random() * TAU, d = (0.65 + Math.random() * 1.2) * S, p = FX.add(0, G.x + Math.cos(b) * d, G.y + Math.sin(b) * d * H.GY, -0.25, 0, 0, 0, 3.4, (0.07 + Math.random() * 0.1) * S, { fixed: 1, lt0: 0.12 + Math.random() * 1.1, lh: 0.25 + Math.random() * 0.75, lph: Math.random() * TAU, warm: 0.75, heat: 0.45 }); if (p) lifts.push(p); } }
+      for (const p of lifts) { if (!p.fixed) continue; const e = sstep(p.lt0, p.lt0 + 0.8, t); p.z = -0.25 + (p.lh + 0.25) * e + 0.06 * Math.sin(t * 5 + p.lph) * e; p.rz += dt * 1.6 * e; p.rx += dt * 0.9 * e;
+        if (t > 2.2 + p.lph * 0.03) { p.fixed = 0; p.vz = -0.3; const dx = p.x - G.x, dy = p.y - G.y, dl = Math.hypot(dx, dy) || 1; p.vx = dx / dl * 1.2; p.vy = dy / dl * 0.8; p.life = Math.min(p.life, 1.4); } }
+      if (t > 0.45 && t < 2.35 && Math.random() < dt * 16 * H.Q()) { const b = Math.random() * TAU, d = (0.8 + Math.random() * 0.5) * S; gDust(G.x + Math.cos(b) * d, G.y + Math.sin(b) * d * H.GY, 1, 0.5, 0.42); }
+    }
+    // the slam: floor slabs torn up and thrown, rocks, a ring of dust
+    function gSlam(cx, cy) { const n = H.n(6 + 2 * tier); for (let j = 0; j < n; j++) { const b = j / n * TAU + Math.random() * 0.5, d = R_SLAM * (0.25 + Math.random() * 0.4), v = 1.2 + Math.random() * 1.6;
+        FX.add(3, cx + Math.cos(b) * d, cy + Math.sin(b) * d * H.GY, 0.05, Math.cos(b) * v, Math.sin(b) * v * 0.6, 3.5 + Math.random() * 2.5, 1.2 + Math.random() * 0.4, (0.16 + Math.random() * 0.1) * S, { col: SLABC, heat: 0.3, warm: 0.5 }); }
+      gChips(cx, cy, 10 + 3 * tier, 4, 4, 0.1); }
+    // a wave's front: rocks thrown up along it (the earthquake), dust rolling with it
+    function gWave(w, dt) { if (w.r >= w.R) return; const k = w.kind === 'wb' ? 1 : 0.4;
+      if (Math.random() < dt * 34 * k * H.Q()) { const b = Math.random() * TAU; FX.add(0, w.x + Math.cos(b) * w.r, w.y + Math.sin(b) * w.r * H.GY, 0.1, Math.cos(b) * 2.2, Math.sin(b) * 1.2, 3.5 + Math.random() * 3, 0.9, (0.07 + Math.random() * 0.08) * (0.7 + 0.2 * tier), { warm: 0.4 }); }
+      if (Math.random() < dt * 12 * k * H.Q()) { const b = Math.random() * TAU; FX.add(1, w.x + Math.cos(b) * w.r, w.y + Math.sin(b) * w.r * H.GY, 0.05, Math.cos(b) * 1.6, Math.sin(b) * 0.9, 0.25, 1.0, 0.28 + Math.random() * 0.2, { peak: 0.42 }); } }
+    // Worldbreaker's impact: golden sparks flung up, rocks and slabs
+    function gWbHit(cx, cy) { for (let j = 0; j < H.n(16 + 8 * tier); j++) { const b = Math.random() * TAU, v = 1.5 + Math.random() * 3.5; gSpark(cx + Math.cos(b) * 0.4, cy, 0.3, Math.cos(b) * v, Math.sin(b) * v * 0.5, 2.5 + Math.random() * 2.5, 0.9 + Math.random() * 0.8, 0.05 + Math.random() * 0.04, j % 3 ? GOLD : HONEY); }
+      for (let j = 0; j < H.n(5 + 2 * tier); j++) { const b = Math.random() * TAU, v = 1.5 + Math.random() * 2; FX.add(3, cx + Math.cos(b) * 0.5, cy + Math.sin(b) * 0.3, 0.1, Math.cos(b) * v, Math.sin(b) * v * 0.6, 4 + Math.random() * 3, 1.3, (0.15 + Math.random() * 0.12) * S, { col: SLABC, warm: 0.7 }); } }
+    // the pose of the moment, continuous (the 2D picture uses the nearest baked key pose): [pose, sink (units), lunge (tiles), the level (units) below which nothing shows, or false]
+    function livePose(t) {
+      if (G.mv) { const w = t - G.mv.t0, P0 = G.mv.lp || (G.mv.lp = G.lastPose || idlePose(t));
+        if (w < RJ.OUT) return [P0, 7 * sstep(0.05, RJ.OUT, w), 0, -3];
+        if (w < RJ.IN0) return null;
+        if (w < RJ.LOCK) { const u = cl((w - RJ.IN0) / (RJ.LOCK - RJ.IN0)); return [kfPose(RISE, lerp(1.95, 2.25, u)), 9 * (1 - H.ease.out(u)), 0, -3]; }
+        return [idlePose(t), 0, 0, false]; }
+      if (crumble >= 0) return [G.crP || (G.crP = G.lastPose || idlePose(t)), 0, 0, false];
+      if (G.st === 'enter') { const kt = Math.max(0, t - 0.35); return [kfPose(RISE, kt), kt < 0.55 ? (0.55 - kt) / 0.55 * 16 : 0, 0, t < 2.6 ? -4.5 : false]; }   // (it climbs out of the opening: what is in the pit shows)
+      if (G.st === 'wb') return [kfPose(WB.KF, Math.min(2.0, t - wbT)), 0, 0, false];
+      if (G.st === 'peace') return [kfPose(PEACE, Math.max(0, t - wbT - 0.1)), 0, 0, false];
+      if (G.atk) { const A = G.atk, u = A.u, lunge = A.kind === 'punch' ? 0.24 * S * (sstep(0.36, 0.5, u) - sstep(0.66, 0.95, u)) : A.kind === 'slam' ? 0.12 * S * (sstep(0.7, 0.86, u) - sstep(1.1, 1.5, u)) : 0; return [kfPose(A.KF, u), 0, lunge, false]; }
+      const mv = cl(G.moving * 1.4 - 0.2); if (mv > 0.01) return [blendP(idlePose(t), walkPose(((G.ph % 1) + 1) % 1, 1), mv), 0, 0, false];
+      return [idlePose(t), 0, 0, false];
+    }
+    // the golem on the GPU: false when it cannot be drawn (the 2D picture then)
+    function drawEntG(c) {
+      const T = H.X.Tz(), t = F.t, K1 = T * SC; lastT = t;
+      const lp = livePose(t); if (!lp) return true;   // (travelling: only its stream of stones, drawn by draw)
+      const [P, sink, lunge, clip] = lp; if (!G.mv && crumble < 0) G.lastPose = P;
+      let rjA = 1, rjS = 1; if (G.mv) { const w = t - G.mv.t0; if (w < RJ.OUT) rjA = 1 - sstep(0.25, RJ.OUT, w); else { const u = cl((w - RJ.IN0) / (RJ.LOCK - RJ.IN0)); rjA = sstep(0, 0.35, u); rjS = 0.75 + 0.25 * H.ease.back(u); } }
+      const X = H.sx(G.x) + Math.cos(G.face) * lunge * T, Y = H.sy(G.y) + Math.sin(G.face) * lunge * T * H.GY;
+      const inFront = G.y > me.y - 0.05, dimT = inFront ? petDim(G.lastOut) : 1; G.dimA += (dimT - G.dimA) * 0.25;
+      const out = TITAN_GPU.drawGolem(c, { X, Y, K: K1, yaw: G.face, P, tier, glow: gl, eye: G.eye, gaunt, gbreak, sink, scale: rjS, clip, crumble: crumble >= 0 ? crumble : -1, alpha: G.dimA * alphaEnd * rjA });
+      if (!out) return false;
+      G.lastOut = out; G.scr = [X, Y];
+      // the eyes' faint halo (white-green), the fists' light while they glow
+      c.save(); c.globalCompositeOperation = 'lighter';
+      for (const e of out.eyes) { const r = T * 0.22 * S, a = G.eye * e[2] * G.dimA * alphaEnd * rjA; if (a > 0.02) { c.globalAlpha = 0.55 * a; blitSized(c, glowSprite(EYEG), e[0] - r, e[1] - r, r * 2, r * 2); } }
+      for (const s of ['L', 'R']) { const p = out['fist' + s], gv = Math.max(gl.fist * 0.6, gl.gaunt); if (p && gv > 0.03) { const r = T * (0.5 + 0.35 * gv) * S * (G.st === 'wb' ? 1.4 + 0.2 * tier : 1); c.globalAlpha = 0.5 * gv * G.dimA * alphaEnd; blitSized(c, glowSprite(GOLD), p[0] - r, p[1] - r, r * 2, r * 2); } }
+      c.restore();
+      // the backhand's trail behind the fist (drawn by draw), golden sparks off it
+      if (G.atk && G.atk.kind === 'back') { const p = out[G.atk.mir ? 'fistR' : 'fistL']; if (p && G.atk.u > 0.4 && G.atk.u < 0.85) { G.trail.push({ x: p[0] - X, y: p[1] - Y, t }); if (Math.random() < 0.6) gSpark(G.x + (p[0] - X) / T, G.y, (Y - p[1]) / (T * ZK3), (Math.random() - 0.5) * 1.5, (Math.random() - 0.5) * 0.6, 0.6 + Math.random(), 0.45, 0.05, Math.random() < 0.5 ? GOLD : HONEY); } }
+      return true;
+    }
+    // a point on the golem's screen (sx, sy) as a world point standing over the floor line y0
+    const s2w = (sx, sy, y0) => { const T = H.X.Tz(); return [G.x + (sx - H.sx(G.x)) / T, y0, (H.sy(y0) - sy) / (T * ZK3)]; };
+    // the floor slabs round the opening, heaved up as it rises and dropped back as it stands (back: the far half)
+    function heaveG(Q, t, back) { const hv = sstep(0.45, 1.3, t) * (1 - sstep(2.25, 2.75, t)); if (hv < 0.01) return;
+      for (let i = 0; i < 12; i++) { const b = i / 12 * TAU + R1(seed + i) * 0.4, sb = Math.sin(b); if ((sb < 0) !== back) continue; const d = (0.95 + 0.25 * R1(seed * 3 + i)) * S, x = G.x + Math.cos(b) * d, y = G.y + sb * d * H.GY, sz = 0.3 * S * (0.8 + 0.4 * R1(i * 7 + seed)), tilt = hv * (0.45 + 0.45 * R1(i * 5 + seed)) + 0.04 * Math.sin(t * 11 + i) * hv;
+        Q.mesh(TITAN_GPU.TPL.SLABS[i % 6], x, y, -0.07 + Math.sin(tilt) * sz * 0.8, sz, sz * 0.9, sz * 1.1, Q.rot(Math.atan2(sb * H.GY / 0.72, Math.cos(b)), tilt, 0), Q.K.stone, SLABC, 1, { heat: 0.3, seed: i * 3.1, warm: 0.55 * hv }); } }
+    // the travelling ridge: standing slabs thrust up along the front (a second lower row behind), sinking back once it has passed
+    function ridgeG(Q, w, t, back) {
+      const lt = t - w.t0, done = w.r >= w.R ? cl((lt - w.R / w.v) / 0.45) : 0; if (w.r < 0.1 || done >= 1) return;
+      const N = (lowFx() ? 14 : 19) + 5 * tier, hk = (0.85 + 0.25 * tier) * (1 - 0.45 * w.r / w.R) * (1 - done) * sstep(0, 0.12, lt) * 0.95;
+      for (const row of [1, 0]) for (let i = 0; i < N; i++) {
+        const b = (i + (row ? 0.5 : 0)) / N * TAU + R1(i * 5 + seed) * 0.08, sb = Math.sin(b); if ((sb < 0) !== back) continue;
+        if (row && R1(i * 29 + seed) < 0.4) continue; const rr = w.r * (row ? 0.84 : 1) + (R1(i * 11 + seed) - 0.5) * 0.3, x = w.x + Math.cos(b) * rr, y = w.y + sb * rr * H.GY, h = hk * (row ? 0.6 : 1) * (0.6 + 0.75 * R1(i * 13 + seed)), wd = h * (0.5 + 0.28 * R1(i * 3 + seed));
+        if (h < 0.03) continue; const ya = Math.atan2(sb * H.GY / 0.72, Math.cos(b)) + (R1(i * 17 + seed) - 0.5) * 0.5;
+        Q.mesh(TITAN_GPU.TPL.SLABS[(i + row * 3) % 6], x, y, h * 0.42 - h * 0.2 * done, h * 0.5, wd, h * 0.7, Q.rot(ya, -Math.PI / 2 + 0.22 + (R1(i * 19 + seed) - 0.5) * 0.3, (R1(i * 23 + seed) - 0.5) * 0.4), Q.K.stone, (i + row) % 4 === 3 ? '#7A7266' : '#958C80', 1, { heat: 0.35, seed: i * 1.7, warm: 0.6 * (1 - done) * (1 - w.r / w.R * 0.5) });
+      }
+    }
+    // Celestial: a towering jagged ring of spires thrown up round the impact, collapsing back
+    function spiresG(Q, v, t, back) { const lt = t - v.t0, u = lt / v.life; if (u >= 1) return; const rise = H.ease.out(cl(lt / 0.18)) * (1 - sstep(0.55, 1, u));
+      for (let i = 0; i < 12; i++) { const b = i / 12 * TAU + 0.2, sb = Math.sin(b); if ((sb < 0) !== back) continue; const rr = (1.25 + 0.2 * R1(i + seed)) * (1 + 0.3 * u), x = v.x + Math.cos(b) * rr, y = v.y + sb * rr * H.GY, hh = (1.5 + 0.7 * R1(i * 3 + seed)) * rise;
+        if (hh < 0.05) continue; Q.mesh(TITAN_GPU.TPL.SPIRES[i % 6], x, y, -0.3 * hh, 0.34, 0.34, hh * 1.25, Q.rot(b, (R1(i * 7 + seed) - 0.5) * 0.35 + Math.cos(b) * 0.12, Math.sin(b) * 0.12), Q.K.stone, '#6E675C', 1, { heat: 1, seed: i * 2.3, warm: 0.9 * rise }); } }
+    // the floor layer on the GPU: light, fractures, the opening, shadows, dust rings (FGFX); slabs and the pieces behind the golem (G3D)
+    function drawUnderG(c, T) {
+      const FG = gfx(), G3 = g3d(); if (!FG || !G3) return false;
+      const t = F.t, X = H.sx(G.x), Y = H.sy(G.y), GYv = H.GY, sd = (seed % 97) * 0.173;
+      const Q = FG.begin(c, null);
+      // the summoning: the sigil (turning), fractures racing out from it, the opening under the golem, the floor's amber light
+      { const sk = sstep(0, 0.6, t) * (1 - sstep(2.6, 3.4, t)); if (sk > 0.01) { const r = T * 1.9 * S * (0.5 + 0.5 * H.ease.out(cl(t / 0.6))), ro = t * 0.25, ca = Math.cos(ro), sa = Math.sin(ro), hk = sstep(0.3, 0.7, t) * (1 - sstep(2.0, 2.7, t)), RC = T * 2.3 * S;
+        Q.quad(89, X, Y, RC, 0, 0, RC * GYv, '#000000', 0.95 * sk, cl(t / 0.9) * 1.03, sd, 0.8 * hk);
+        Q.quad(88, X, Y, RC, 0, 0, RC * GYv, AMBER, 0.9 * sk, cl(t / 0.9) * 1.03, sd, 1.0 + 0.15 * hk);
+        Q.quad(91, X, Y, ca * r, sa * r * GYv, -sa * r, ca * r * GYv, GOLD, sk * (0.8 + 0.15 * Math.sin(t * 5)), cl(t / 0.55), sd, 1.0);
+        Q.glow(X, Y, T * 2.2 * S, AMBER, sk * 0.3, GYv); Q.glow(X, Y, T * 1.2 * S, HONEY, sk * hk * 0.25, GYv); } }
+      // the contact shadow under the golem and its feet
+      if (!gone && G.st !== 'gone' && t > 0.6) { const a = (crumble >= 0 ? 1 - sstep(0.8, 1.5, crumble) : 1) * sstep(0.6, 1.4, t) * G.dimA, w = T * 2.6 * S; Q.sshadow(X, Y, w * 0.5, w * 0.25, 0.7 * a, '#0C0906');
+        if (G.lastOut && crumble < 0) for (const s of ['footL', 'footR']) { const p = G.lastOut[s]; if (p) Q.sshadow(p[0], p[1] + T * 0.08, T * 0.55 * S, T * 0.25 * S, 0.5 * a, '#0C0906'); } }
+      // the Worldbreaker gather: a golden fracture spreading across the target area, under the feet
+      if (G.st === 'wb' || (wbT > 0 && !peace)) { const w = t - wbT; if (w > 0 && w < 1.8) { const fw = fwd(), cx = H.sx(G.x + fw[0] * 0.8 * S), cy = H.sy(G.y + fw[1] * 0.8 * S), RC = T * R_WAVE * 0.7, a = 1 - sstep(1.45, 1.8, w), fr = sstep(0.1, 1.2, w);
+        Q.quad(89, cx, cy, RC, 0, 0, RC * GYv, '#000000', 0.7 * a, fr, sd + 3, 0); Q.quad(88, cx, cy, RC, 0, 0, RC * GYv, GOLD, 0.85 * a, fr, sd + 3, 0.9 + 0.3 * sstep(0.8, 1.4, w)); Q.glow(cx, cy, T * 1.6 * S, AMBER, 0.35 * sstep(0.2, 1.2, w) * (1 - sstep(1.4, 1.6, w)), GYv); } }
+      for (const v of vfx) { const lt = t - v.t0, u = lt / v.life, vx = H.sx(v.x), vy = H.sy(v.y);
+        if (v.kind === 'cracks' || v.kind === 'gcr') { const RC = T * v.R, fr = cl(lt / v.sp) * 1.03, a = 1 - sstep(0.45, 1, u), s2 = sd + v.seed * 1.7;
+          Q.quad(89, vx, vy, RC, 0, 0, RC * GYv, '#000000', 0.9 * a, fr, s2, v.kind === 'gcr' ? 0.25 : 0.35); Q.quad(88, vx, vy, RC, 0, 0, RC * GYv, AMBER, a, fr, s2, 1.1 * (1 - 0.5 * sstep(0.2, 0.8, u))); Q.glow(vx, vy, RC * 0.5, AMBER, 0.35 * (1 - sstep(0, 0.4, u)), GYv); }
+        else if (v.kind === 'ring') { const r = T * v.R * H.ease.out(cl(u / 0.8)); if (r > 2) Q.quad(90, vx, vy, r * 1.3, 0, 0, r * 1.3 * GYv, DUSTC, (1 - u) * 0.95, 0.32, sd + 1, u); }
+        else if (v.kind === 'shock') { const r = T * v.r * (0.25 + 0.95 * H.ease.out(cl(u / 0.9))); if (r > 2) Q.quad(90, vx, vy, r * 1.3, 0, 0, r * 1.3 * GYv, DUSTC, (1 - u) * 0.8, 0.3, sd + 2, u); }
+        else if (v.kind === 'stream') { const k = (1 - sstep(0.5, 1, u)) * sstep(0, 0.12, u); if (k > 0.01) for (let j = 0; j <= 8; j++) { const q = j / 8, x = H.sx(lerp(v.x0, v.x1, q)), y = H.sy(lerp(v.y0, v.y1, q)), on = sstep(q * 0.5, q * 0.5 + 0.3, u); Q.glow(x, y, T * (0.9 - 0.3 * Math.abs(q - 0.5)), AMBER, 0.24 * k * on, GYv); } }
+        else if (v.kind === 'step') { const RC = T * 0.5 * S; Q.quad(89, vx, vy, RC, 0, 0, RC * GYv, '#000000', 0.55 * (1 - sstep(0.4, 1, u)), 1, sd + v.x * 3.1, 0.12); }
+      }
+      // the waves on the floor: a rolling ring of dust behind, the lit leading edge of golden energy
+      for (const w of waves) { const lt = t - w.t0, rp = w.r * T, X1 = H.sx(w.x), Y1 = H.sy(w.y), done = w.r >= w.R ? cl((lt - w.R / w.v) / 0.6) : 0, a = 1 - done, wb = w.kind === 'wb';
+        if (rp > 2) { Q.quad(90, X1, Y1, rp * 1.3, 0, 0, rp * 1.3 * GYv, DUSTC, a * 0.95, wb ? 0.34 : 0.26, sd + 5, done); Q.ewave(X1, Y1, rp, GOLD, wb ? 0.95 : 0.8, a * (wb ? 0.95 : 0.75), sd, GYv, wb ? 0.1 : 0.08); if (wb) Q.ewave(X1, Y1, rp * 0.82, AMBER, 0.6, a * 0.4, sd + 2, GYv, 0.06); } }
+      FG.flush(c);
+      // 3D: the heaved slabs, the ridge and spires' far halves, the pieces behind the golem
+      const QG = G3.begin(c, H, T * ZK3, G.x, G.y, null);
+      if (G.st === 'enter') heaveG(QG, t, true);
+      for (const w of waves) if (w.kind === 'wb') ridgeG(QG, w, t, true);
+      for (const v of vfx) if (v.kind === 'spires') spiresG(QG, v, t, true);
+      FX.g3d(QG, G.y - 0.05, false);
+      G3.flush(c);
+      return true;
+    }
+    // the layer over everything on the GPU: the near pieces, the pebbles to the fists, the rejoin's stones (G3D); flashes, shockwaves, sparks, streams of light, the backhand's trail (FGFX)
+    function drawG(c, T) {
+      const FG = gfx(), G3 = g3d(); if (!FG || !G3) return false;
+      const t = F.t, PX = H.sx(me.x), PY = H.sy(me.y) - T * 0.45, ZT = T * ZK3;
+      const QG = G3.begin(c, H, ZT, G.x, G.y, [PX, PY, T * 0.85]);
+      if (G.st === 'enter') heaveG(QG, t, false);
+      for (const w of waves) if (w.kind === 'wb') ridgeG(QG, w, t, false);
+      for (const v of vfx) if (v.kind === 'spires') spiresG(QG, v, t, false);
+      FX.g3d(QG, G.y - 0.05, true);
+      // the Worldbreaker's pebbles: stones lifted from the floor, spiralling up into the fists
+      if (pebs.length && G.lastOut) { const O = G.lastOut; for (const p of pebs) { const tg = O['fist' + p.side]; if (!tg) continue; const e = p.u * p.u * (3 - 2 * p.u), W = s2w(tg[0], tg[1], G.y), sw = Math.sin(p.u * Math.PI) * 0.7, ang = p.a + p.sp * p.u;
+          const x = lerp(p.x0, W[0], e) + Math.cos(ang) * sw, y = lerp(p.y0, W[1], e) + Math.sin(ang) * sw * 0.5, z = lerp(0.05, W[2], e) + Math.sin(p.u * Math.PI) * 0.4;
+          QG.mesh(TITAN_GPU.TPL.ROCKS[(p.x0 * 97 | 0) & 7], x, y, z, p.s * 1.6, p.s * 1.6, p.s * 1.3, QG.rot(p.a + p.u * p.sp * 2, p.u * 3, 0.5), QG.K.stone, p.side === 'L' ? STONEC : '#6A645C', Math.min(1, p.u * 5) * G.dimA, { heat: 0.5, seed: p.a * 7, warm: 0.6 * p.u }); } }
+      // the rejoin's stones: peeling off, arcing over, locking on at the far end
+      for (const v of vfx) { if (v.kind !== 'stream') continue; const w = t - v.t0;
+        for (const r of v.R) { if (w < r.t0) continue; const u = cl((w - r.t0) / r.d), e = u * u * (3 - 2 * u); if (u >= 1 && w > r.t0 + r.d + 0.15) continue; const a = u >= 1 ? 1 - (w - r.t0 - r.d) / 0.15 : Math.min(1, (w - r.t0) / 0.08);
+          const x = lerp(v.x0 + r.sx, v.x1 + r.ex, e), y = lerp(v.y0, v.y1, e), z = (lerp(r.sh, r.eh, e) + r.arc * Math.sin(u * Math.PI)) * CE / ZK3, s = r.s * 0.55;
+          QG.mesh(TITAN_GPU.TPL.ROCKS[r.k & 7], x, y, z, s, s, s * 0.85, QG.rot(r.r + r.vr * u, r.r * 0.7 + u * 2, 0.3), QG.K.stone, r.mo ? TITAN_GPU.COL.MOSSC : STONEC, a, { heat: 0.5, seed: r.k * 3.3, warm: u < 1 ? 0.85 : 0.3 }); } }
+      G3.flush(c);
+      const Q = FG.begin(c, [PX, PY, T * 0.9]);
+      // the rejoin's light: a feathered streak of amber behind each stone along its arc, a halo round it
+      for (const v of vfx) { if (v.kind !== 'stream') continue; const w = t - v.t0;
+        for (const r of v.R) { if (w < r.t0) continue; const u = cl((w - r.t0) / r.d); if (u >= 1 || u < 0.04) continue; const at = q => { const e = q * q * (3 - 2 * q); return [H.sx(lerp(v.x0 + r.sx, v.x1 + r.ex, e)), H.sy(lerp(v.y0, v.y1, e)) - (lerp(r.sh, r.eh, e) + r.arc * Math.sin(q * Math.PI)) * T * CE]; }, A = at(Math.max(0, u - 0.14)), B = at(u), ww = T * r.s;
+          Q.rbeam(A[0], A[1], B[0], B[1], ww * 0.5, AMBER, 0.55, 0, 1); Q.rbeam(A[0], A[1], B[0], B[1], ww * 0.14, PALE, 0.8, 0, 1); Q.glow(B[0], B[1], ww * 1.2, GOLD, 0.4); } }
+      // flashes at the contacts, with a ring of shock round each blow
+      for (const v of vfx) { if (v.kind !== 'flash' && v.kind !== 'shock') continue; const u = (t - v.t0) / v.life, x = H.sx(v.x), y = H.sy(v.y) - v.z * CE * T, a = (1 - u) * (0.35 + 0.65 * sstep(T * 0.3, T * 1.2, Math.hypot(x - PX, y - PY)));
+        if (v.kind === 'flash') { Q.glow(x, y, T * v.r * (0.6 + 0.4 * u), AMBER, a * 0.75); Q.glow(x, y, T * v.r * 0.35, EMBER, a * 0.85); Q.star(x, y, T * v.r * 0.55 * (1 - 0.5 * u), a * (1 - u), PALE); }
+        else { const rr = T * v.r * (0.2 + 1.0 * H.ease.out(cl(u))); Q.ring(x, y, rr, GOLD, a * 0.7, T * 0.1 * (1 - u) + 1, 0.8); Q.ring(x, y, rr * 0.8, PALE, a * 0.35, T * 0.04 + 1, 0.8); } }
+      // Celestial spires' light at their feet
+      for (const v of vfx) if (v.kind === 'spires') { const u = (t - v.t0) / v.life; if (u < 1) Q.glow(H.sx(v.x), H.sy(v.y), T * 1.8, GOLD, 0.35 * (1 - u), H.GY); }
+      FX.fg(Q, H, ZT, T);
+      // the windup: thin streams of mineral light rising from the floor toward the arms; Celestial: golden energy from the gauntlets to the chest
+      if (G.st === 'wb' && G.lastOut) { const w = t - wbT, k = sstep(0.7, 1.0, w) * (1 - sstep(1.35, 1.5, w)), O = G.lastOut;
+        if (k > 0.02) for (let j = 0; j < 6 + 2 * tier; j++) { const p = O['fist' + (j % 2 ? 'L' : 'R')]; if (!p) continue; const b = j * 2.4 + seed, bx = H.sx(G.x + Math.cos(b) * 1.8 * S), by = H.sy(G.y + Math.sin(b) * 1.2 * S), uu = (t * 0.9 + j * 0.17) % 1, u0 = Math.max(0, uu - 0.25);
+          Q.rbeam(lerp(bx, p[0], u0), lerp(by, p[1], u0), lerp(bx, p[0], uu), lerp(by, p[1], uu), Math.max(1.5, T * 0.05), HONEY, k * 0.8 * Math.sin(uu * Math.PI), 0, 1); }
+        const k3 = tier >= 3 ? sstep(0.75, 1.0, w) * (1 - sstep(1.4, 1.5, w)) : 0; if (k3 > 0.02 && O.chest) { for (const s of ['L', 'R']) { const p = O['fist' + s]; if (!p) continue;
+          for (let j = 0; j < 3; j++) { const mx = (p[0] + O.chest[0]) / 2 + Math.sin(t * 9 + j * 2.1) * T * 0.18, my = (p[1] + O.chest[1]) / 2 + Math.cos(t * 7 + j) * T * 0.12, qb = q => { const r = 1 - q; return [r * r * p[0] + 2 * r * q * mx + q * q * O.chest[0], r * r * p[1] + 2 * r * q * my + q * q * O.chest[1]]; };
+            for (let i = 0; i < 6; i++) { const A = qb(i / 6), B = qb((i + 1) / 6); Q.beam(A[0], A[1], B[0], B[1], Math.max(2, T * 0.1), AMBER, k3 * 0.45); Q.beam(A[0], A[1], B[0], B[1], Math.max(1, T * 0.03), PALE, k3 * 0.9); }
+            const B = qb((t * 1.8 + j / 3) % 1); Q.glow(B[0], B[1], T * 0.16, HONEY, k3); } }
+          Q.glow(O.chest[0], O.chest[1], T * 0.9, GOLD, k3 * 0.6); } }
+      // the backhand's trail: a smear of dust and a golden line behind the fist
+      if (G.trail.length && G.scr) { while (G.trail.length && t - G.trail[0].t > 0.28) G.trail.shift(); const [X, Y] = G.scr;
+        for (let i = 1; i < G.trail.length; i++) { const a = G.trail[i - 1], b = G.trail[i], k = (1 - (t - b.t) / 0.28) * G.dimA; Q.rbeam(X + a.x, Y + a.y, X + b.x, Y + b.y, Math.max(1, T * 0.09 * k), GOLD, 0.8 * k, 1, 1); Q.glow(X + b.x, Y + b.y, T * 0.3 * k, AMBER, 0.12 * k); } }
+      FG.flush(c);
+      return true;
     }
 
     /* ---- drawing ---- */
     let lastT = 0;
     // the body settling into loose stone: baked rocks thrown from where the golem stood, tumbling down and settling
     function crumbleRocks() {
+      if (GPU) { gChips(G.x, G.y, 10 + 3 * tier, 1.5, 4, 0.8 * S); gDust(G.x, G.y, 8 + 2 * tier, 1.6, 0.55); return; }   /* (v415 TI) on the GPU the golem's own stones fall; a burst of rubble and dust */
       const O = G.lastOut, T = H.X.Tz(), X = H.sx(G.x), Y = H.sy(G.y); if (!O) return; const bb = O.bb, n = H.n(16 + 4 * tier), R = [];
       for (let i = 0; i < n; i++) { const px = lerp(bb[0], bb[2], 0.15 + 0.7 * Math.random()), py = lerp(bb[1], bb[3], 0.1 + 0.8 * Math.random()); R.push({ x: (px - X) / T, h: Math.max(0.1, (Y - py) / T), vx: (px - X) / T * (0.6 + Math.random()), vh: Math.random() * 1.5, r: Math.random() * TAU, vr: (Math.random() - 0.5) * 6, s: (0.35 + Math.random() * 0.35) * S, k: i % 8, d: Math.random() * 0.25 }); }
       vfx.push({ kind: 'rocks', x: G.x, y: G.y, t0: F.t, life: 2.0, R, last: F.t });
@@ -973,7 +1169,9 @@
       return ['idle', -1, 'R', 0, 0];
     }
     function drawEnt(c, f) {
-      if (gone || G.st === 'gone') return; const T = H.X.Tz(), t = F.t, K1 = T * SC; lastT = t;
+      if (gone || G.st === 'gone') return;
+      if (GPU) { if (drawEntG(c)) return; toFallback(); }   /* (v415 TI) the golem on the GPU; the 2D picture if it could not draw */
+      const T = H.X.Tz(), t = F.t, K1 = T * SC; lastT = t;
       setScale(T, SC, (() => { const m = c.getTransform(); return Math.hypot(m.a, m.b) || 1; })());
       const pk = pick(t); if (!pk) return; if (!G.mv) G.lastPick = pk;
       // (the rejoin: sinking and thinning as it leaves; rising, filling out and locking as it re-forms)
@@ -1006,6 +1204,7 @@
       if (G.trail.length) { while (G.trail.length && t - G.trail[0].t > 0.28) G.trail.shift(); if (G.trail.length > 2) { c.save(); c.lineCap = 'round'; c.lineJoin = 'round'; for (let i = 1; i < G.trail.length; i++) { const a = G.trail[i - 1], b = G.trail[i], k = (1 - (t - b.t) / 0.28) * G.dimA; c.globalAlpha = 0.35 * k; c.strokeStyle = 'rgb(150,136,116)'; c.lineWidth = T * 0.5 * k; c.beginPath(); c.moveTo(X + a.x, Y + a.y); c.lineTo(X + b.x, Y + b.y); c.stroke(); } c.globalCompositeOperation = 'lighter'; for (let i = 1; i < G.trail.length; i++) { const a = G.trail[i - 1], b = G.trail[i], k = (1 - (t - b.t) / 0.28) * G.dimA; c.globalAlpha = 0.6 * k; c.strokeStyle = GOLD; c.lineWidth = Math.max(1, T * 0.07 * k); c.beginPath(); c.moveTo(X + a.x, Y + a.y); c.lineTo(X + b.x, Y + b.y); c.stroke(); } c.restore(); } }
     }
     function drawUnder(c, f, X0, Y0, T, tg) {
+      if (GPU && drawUnderG(c, T)) return;   /* (v415 TI) */
       const t = F.t, X = H.sx(G.x), Y = H.sy(G.y);
       // the sigil (light only), cracks branching from it, the soft dark of the opening (fades)
       { const sk = sstep(0, 0.6, t) * (1 - sstep(2.6, 3.4, t)); if (sk > 0.01) { const r = T * 1.9 * S * (0.5 + 0.5 * H.ease.out(cl(t / 0.6))); c.save(); c.translate(X, Y); c.rotate(0); c.scale(1, H.GY); c.globalCompositeOperation = 'lighter'; c.globalAlpha = sk * (0.75 + 0.15 * Math.sin(t * 5)); c.rotate(t * 0.25); c.drawImage(sigilSpr(), -r, -r, r * 2, r * 2); c.restore(); glowF(c, X, Y, T * 2.2 * S, AMBER, sk * 0.35, H.GY);
@@ -1051,6 +1250,7 @@
         c.save(); c.globalAlpha = a; c.drawImage(spr, x - ww / 2, y - hh, ww, hh); c.restore(); if (!back) glowF(c, x, y - hh * 0.3, T * 0.4, GOLD, 0.3 * rise * a); }
     }
     function draw(c, f, X0, Y0, T, tg) {
+      if (GPU && drawG(c, T)) return;   /* (v415 TI) */
       const t = F.t;
       // the near half of the ridge and the spires, flashes at the contacts, the pebbles spiralling to the fists
       for (const w of waves) if (w.kind === 'wb') ridge(c, w, T, t, false);
@@ -1080,8 +1280,11 @@
   };
   U.titan.warm = o => {
     const ev = Math.max(1, Math.min(7, Math.round(o.evo || 1))), tier = ev >= 7 ? 3 : ev >= 4 ? 2 : 1;
-    setTimeout(() => { const T = typeof o.T === 'function' ? o.T() : o.T; if (!(T > 0)) return; setScale(T, 0.103 * (1 + 0.02 * (ev - 1)), typeof devicePixelRatio === 'number' ? devicePixelRatio : 1); warmTasks(tier, 0); planBakes(tier, Math.PI / 2); idleBake(); }, 300);
+    setTimeout(() => { if (TGPU() && TITAN_GPU.warm(tier)) return;   /* (v415 TI) the GPU model's meshes, built in idle time; no 2D pictures */
+      const T = typeof o.T === 'function' ? o.T() : o.T; if (!(T > 0)) return; setScale(T, 0.103 * (1 + 0.02 * (ev - 1)), typeof devicePixelRatio === 'number' ? devicePixelRatio : 1); warmTasks(tier, 0); planBakes(tier, Math.PI / 2); idleBake(); }, 300);
   };
+  // (v415 TI) what the GPU model (20k2jz) builds and poses from: the stones, the rig, its proportions
+  U.titan.lib = { model, rig, D0 };
   // the debug door for the harness: the model alone, the poses
   U.titan.__dbg = { FC, CLIPS, bakeStep, planBakes, frameFor, blitFrame, setScale, clipPose, drawGolem, prepGolem, paintGolem, model, rig, kfPose, walkPose, idlePose, mirrorP, KP, POSES: { PUNCH, BACKHAND, SLAM, RISE, WB, PEACE }, D0 };
 })();

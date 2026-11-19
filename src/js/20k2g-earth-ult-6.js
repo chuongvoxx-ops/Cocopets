@@ -39,6 +39,8 @@
   const evoOf = C => Math.max(1, Math.min(7, Math.round(C.evo || 1)));
   const G = () => GeoKit;
   let H;
+  /* (v415 EB) the GPU picture: the shared painter (20k6h FGFX, Earth's kinds 80..87) when it is usable; else the 2D picture below, as it was */
+  const gfx = () => { try { const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; return F && F.usable() ? F : null; } catch (e) { return null; } };
 
   /* ---- cached sprites (every edge soft) ---- */
   const radial = (key, S, stops) => fxSprite(key, S, S, g => { const h = S / 2, gr = g.createRadialGradient(h, h, 0, h, h, h); stops.forEach(s => gr.addColorStop(s[0], s[1])); g.fillStyle = gr; g.fillRect(0, 0, S, S); });
@@ -186,6 +188,21 @@
       onEnd() { release(); },
       drawUnder(c, f, X, Y, T) {
         const t = f.t, fa = fadeOf(t), GY = H.GY, Rg = tier === 3 ? 1.62 : tier === 2 ? 1.6 : 1.56;
+        { const FG = gfx(); if (FG) { /* (v415 EB) on the GPU: the golden ground circle opening out (a band of light, a warm pool, glints running
+             round it); each hit's pressure wave of light rolling out to the edge of the reach with a ripple; under each monster struck a small
+             web of cracks burning gold and cooling (83); under each rock its warm light and soft contact shadow; then the rocks behind the pet */
+          const Q = FG.begin(c, null), uo = H.ease.out(cl(t / 0.45)), flare = Math.exp(-Math.max(0, t - absT) * 5), form = 1 - sm((t - 0.2) / 1.2), rg = Rg * T * (0.35 + 0.65 * uo), a0 = fa * cl(t / 0.15);
+          Q.glow(X, Y, Rg * T * 1.25, AMBER, fa * (0.16 + 0.25 * form + 0.22 * flare), GY);
+          Q.ring(X, Y, rg, GOLD, a0 * (0.55 + 0.35 * form + 0.3 * flare), rg * 0.16, GY); Q.ring(X, Y, rg * 0.995, PALE, a0 * (0.6 + 0.3 * flare), rg * 0.035, GY); Q.ring(X, Y, rg * 0.86, AMBER, a0 * 0.3, rg * 0.05, GY);
+          const NG = 6 + 2 * tier; for (let q = 0; q < NG; q++) { const b = q / NG * TAU + t * 0.25, tw = 0.5 + 0.5 * Math.sin(t * 2.2 + q * 1.9); Q.star(X + Math.cos(b) * rg, Y + Math.sin(b) * rg * GY, T * 0.32, 0.7 * tw * fa * uo, PALE); }
+          for (const pl of pulses) { const u = cl((t - pl.t) / 0.42); if (u >= 1) continue; const r = (0.4 + (RR - 0.4) * H.ease.out(u)) * T, a = Math.pow(1 - u, 1.4) * Math.min(1, pl.k);
+            Q.ewave(X, Y, r, GOLD, 0.8, a * 0.75, pl.t * 3.7, GY, 0.14); Q.ripple(X, Y, r * 1.03, PALE, a * 0.5, pl.t * 3.7, GY, 0.1); if (u < 0.3) Q.glow(X, Y, T * 1.3, HONEY, (1 - u / 0.3) * 0.5 * Math.min(1, pl.k), GY); }
+          for (const fs of fissures) { const age = t - fs.t, gr = sm(age / 0.12), a = Math.min(1, fs.k) * (1 - sm((age - 0.2) / 0.75)); if (a <= 0.01) continue; const fx = H.sx(fs.x), fy = H.sy(fs.y);
+            Q.quad(83, fx, fy, T * 1.3, 0, 0, T * 1.3 * GY, '#FFFFFF', a, 0.35 + 0.6 * Math.exp(-age * 4), (fs.cr.length * 7.1 + fs.x * 3.3) % 50, 0.9 * gr); Q.glow(fx, fy, T * 1.1, AMBER, a * 0.4, GY); }
+          for (const rk of rocks) { const P = rk.pose; if (!P) continue; const sx = X + P.p[0] * T, sy = Y + P.p[1] * GY * T, k = flashE(t - rk.flT) * rk.flK, a = P.a * fa;
+            Q.glow(sx, sy, rk.s * T * 2.2, AMBER, a * (0.14 + 0.45 * k) / (1 + P.p[2] * 0.8), GY); Q.sshadow(sx, sy, rk.s * T * 1.5, rk.s * T * 0.75, a * 0.42 / (1 + P.p[2] * 1.2), '#140C06'); }
+          gpuRocks(Q, X, Y, T, t, fa, false);
+          FG.flush(c); return; } }
         c.save(); c.globalCompositeOperation = 'lighter';
         // the golden ground circle: it opens out from the pet, brightens on each absorbed hit and on each retaliation
         const uo = H.ease.out(cl(t / 0.45)), flare = Math.exp(-Math.max(0, t - absT) * 5), form = 1 - sm((t - 0.2) / 1.2), rg = Rg * T * (0.35 + 0.65 * uo) / 0.88;
@@ -216,6 +233,11 @@
       },
       draw(c, f, X, Y, T) {
         const t = f.t, fa = fadeOf(t);
+        { const FG = gfx(); if (FG) { /* (v415 EB) the rocks in front of the pet (dimmed round it), their strands, the chips: on the GPU */
+          const Q = FG.begin(c, [X, Y - T * 0.55, T * 0.55]); gpuRocks(Q, X, Y, T, t, fa, true);
+          for (const p of chips) { const x = H.sx(p.x), y = H.sy(p.y) - p.z * CE * T, s2 = p.s * T * 1.3, a = cl((p.life - p.t) / 0.25); if (a <= 0.02) continue;
+            Q.rq(85, x, y, s2 * (p.gold ? 0.6 : 1), s2 * (p.gold ? 1 : 0.8), p.rot, '#FFFFFF', a, p.rot, (p.x * 13.7) % 40, p.gold ? 2 + 0.9 * 0.6 : 3); if (p.gold) Q.glow(x, y, s2 * 2, HONEY, a * 0.5); }
+          FG.flush(c); return; } }
         drawRocks(c, X, Y, T, t, fa, true);
         // chips (cel two-tone flakes, gold ones glowing)
         if (chips.length) { const px = H.sx(me.x), py = H.sy(me.y) - T * 0.55;
@@ -265,6 +287,25 @@
         c.restore(); }
     }
     let rFrame = -1, rBudget = 0;
+    /* (v415 EB) the rocks of one layer on the GPU, depth-sorted: each a chipped slab of warm grey stone cast per pixel (kind 80 mode 1: fresh pale
+       chips at its edges, moss on its upper side, gold flecks, a gold seam right round it; 81 the seam's glow and the flecks' glints), tumbling
+       slowly as it orbits, its seam flaring with each absorbed hit; amber strands between rocks of different bands as they pass */
+    function gpuRocks(Q, X, Y, T, t, fa, front) {
+      const cm = camAt(X, Y, T), list = [];
+      for (const rk of rocks) { const P = rk.pose; if (!P || P.a * fa < 0.02) continue; if ((P.p[1] > 0) !== front) continue; list.push(rk); }
+      list.sort((a, b) => cm.dep(a.pose.p) - cm.dep(b.pose.p));
+      for (const rk of list) { const P = rk.pose, k = flashE(t - rk.flT) * rk.flK, sp = cm.P(P.p), a = P.a * fa, hq = rk.s * T * 1.62, ang = rk.sp0 + t * (0.35 + rk.spW) + (P.az || 0) * 0.5, ht = Math.min(1, 0.12 + 0.88 * k + 0.06 * Math.sin(t * 2.3 + rk.ph)), sd = 20 + rk.i;
+        Q.glow(sp[0], sp[1], rk.s * T * (2.2 + 1.2 * k), AMBER, a * (0.08 + 0.4 * k));
+        Q.quad(80, sp[0], sp[1], hq, 0, 0, hq, '#FFFFFF', a, ang, sd, 1 + 0.9 * ht); Q.quad(81, sp[0], sp[1], hq, 0, 0, hq, '#FFFFFF', a, ang, sd, 1 + 0.9 * ht);
+        if (k > 0.3) Q.glow(sp[0], sp[1], rk.s * T * 1.4, HONEY, a * 0.5 * (k - 0.3)); }
+      if (state === 'on') for (let i = 0; i < rocks.length; i++) for (let j = i + 1; j < rocks.length; j++) { const A = rocks[i], B = rocks[j]; if (A.band === B.band || !A.pose || !B.pose) continue;
+        const d = g.len(g.sub(A.pose.p, B.pose.p)), lim = 0.95 + 0.6 * (A.s + B.s); if (d > lim) continue; const mid = g.mul(g.add(A.pose.p, B.pose.p), 0.5); if ((mid[1] > 0) !== front) continue;
+        const e = sm((lim - d) / 0.4) * Math.min(A.pose.a, B.pose.a) * fa, ft = Math.max(flashE(t - A.flT) * A.flK, flashE(t - B.flT) * B.flK); if (e < 0.02) continue;
+        const pa = cm.P(A.pose.p), pb = cm.P(B.pose.p), pm = cm.P(g.add(mid, [0, 0, -0.08])), N = 6;
+        for (let s2 = 0; s2 < N; s2++) { const B0 = qb(pa, pm, pb, s2 / N), B1 = qb(pa, pm, pb, (s2 + 1) / N); Q.rbeam(B0[0], B0[1], B1[0], B1[1], T * 0.09, AMBER, e * (0.3 + 0.3 * ft), Math.sin(Math.PI * s2 / N), Math.sin(Math.PI * (s2 + 1) / N)); Q.rbeam(B0[0], B0[1], B1[0], B1[1], T * 0.025, PALE, e * (0.75 + 0.25 * ft), Math.sin(Math.PI * s2 / N), Math.sin(Math.PI * (s2 + 1) / N)); }
+        const u = (t * 0.9 + i * 0.37 + j * 0.21) % 1, bp = qb(pa, pm, pb, u); Q.glow(bp[0], bp[1], T * 0.16, PALE, e * 0.8 * Math.sin(Math.PI * u)); Q.star(bp[0], bp[1], T * 0.2, e * 0.7 * Math.sin(Math.PI * u), CORE0); }
+    }
+    const CORE0 = '#FFF4D6';
     /* render one rock, turned by R, into its cached body canvas (solid, fractures, the seam's dark groove) and its seam
        light canvas (amber, gold and a pale core, laid additively over the body at the seam's current brightness) */
     function paintRock(rk, R, T, sc, q) {

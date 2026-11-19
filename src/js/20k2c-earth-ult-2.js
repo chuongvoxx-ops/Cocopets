@@ -25,6 +25,12 @@
   const sstep = (a, b, x) => sm((x - a) / (b - a));
   const R1 = s => { const v = Math.sin(s * 12.9898 + 78.233) * 43758.5453; return v - Math.floor(v); };
   const evoOf = C => Math.max(1, Math.min(7, Math.round(C.evo || 1)));
+  /* (v415 EA) the GPU picture: the shared painter (20k6h FGFX, kinds 73..79) when it is usable (the orb and its ring then drawn per pixel live: nothing is
+     baked); else the 2D picture below, as it was. hx packs three 0..1 numbers as a colour (the painter's per-quad parameters) */
+  const gfx = () => { try { const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; return F && F.usable() ? F : null; } catch (e) { return null; } };
+  const qb = (Q, x0, y0, x1, y1, w, col, a) => { const ex = (x1 - x0) * 0.1, ey = (y1 - y0) * 0.1; Q.beam(x0 - ex, y0 - ey, x1 + ex, y1 + ey, w, col, a); };   /* (v415 EA) a link of a chain of beams, overlapping its neighbours so the chain has no beads */
+  const hx = (r, g, b) => '#' + [r, g, b].map(v => { const q = Math.round(Math.max(0, Math.min(1, v)) * 63) * 4; return (q > 255 ? 255 : q).toString(16).padStart(2, '0'); }).join('');
+  const wrA = a => (a % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
   const nrm = v => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
   const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
   const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
@@ -245,9 +251,56 @@
       for (let i = 0, n = H.n(18); i < n; i++) { const b = i / 18 * TAU + Math.random() * 0.3, d = RBU * (0.45 + Math.random() * 0.35); puffs.push({ x: ox + Math.cos(b) * d, y: oy + Math.sin(b) * d, z: 0.15, vx: Math.cos(b) * 1.6, vy: Math.sin(b) * 1.6, vz: 0.35, t: 0, life: 1.1 + Math.random() * 0.5, s: 0.5 + Math.random() * 0.4, g: 1.6 }); }
       for (let i = 0, n = H.n(22); i < n; i++) { const b = Math.random() * TAU, v = 2 + Math.random() * 3.5; flakes.push({ x: ox + Math.cos(b) * R * 0.8, y: oy + Math.sin(b) * R * 0.8, z: oz + (Math.random() - 0.5) * R, vx: Math.cos(b) * v, vy: Math.sin(b) * v, vz: 1 + Math.random() * 2, t: 0, life: 1 + Math.random() * 0.7, s: 0.09 + Math.random() * 0.08, ph: Math.random() * TAU, vr: 5 + Math.random() * 8, rot: Math.random() * TAU, v: i % 3 }); }
     }
+    /* (v415 EA) the GPU picture: the floor (the fracture strip burning behind the orb, ember-hot and cooling; the pressure ripples; the light pool; the
+       finale's cracks bursting out, shock rings and a dust ring), then the dark haze and gold strands of its trail, charcoal flakes with ember rims (kind 74),
+       hopping stones, the orb itself (kind 73: a glossy mineral globe) sandwiched in its carved stone ring (kind 74, ray-marched), golden shards, dust */
+    function gUnder(Q, t, T, f) { const fo = died ? cl(f.life / 0.5) : 1; if (fo <= 0) return; const tight = tightAt(t), bt = burst ? t - burstT : -1, sx = H.sx, sy = H.sy, GY = H.GY;
+      const fadeT = CEL ? 1.25 : 0.95, endK = burst ? cl(1 - bt / 1.4) : 1, WD = [[0.2, 0.08, 0.03], [0.13, 0.055, 0.022], [0.08, 0.034, 0.015]];
+      for (const sg of segs) { const ag = t - sg.tb; if (ag < 0) continue; let I = ag < 0.1 ? ag / 0.1 : Math.exp(-(ag - 0.1) / fadeT); if (tight > 0 || burst) I = Math.max(I, 0.35 * tight * (1 - sstep(0, 1.4, bt < 0 ? 0 : bt))); I *= endK * fo; if (I < 0.04) continue;
+        const w = WD[sg.w], x0s = sx(sg.x0), y0s = sy(sg.y0), x1s = sx(sg.x1), y1s = sy(sg.y1), hot = Math.exp(-ag * 2.2);
+        qb(Q, x0s, y0s, x1s, y1s, Math.max(2, T * w[0] * 1.2), AMBER, I * 0.4); qb(Q, x0s, y0s, x1s, y1s, Math.max(1, T * w[1] * 0.9), hot > 0.4 ? HONEY : GOLD, I * 0.85); qb(Q, x0s, y0s, x1s, y1s, Math.max(0.6, T * w[2] * 0.8), CORE, I * (0.3 + 0.6 * hot)); }
+      if (burst && bt < 1.6) { const rc = RBU * T * 1.05, I = (1 - sstep(0.2, 1.6, bt)) * fo, rq = (CEL ? 14 : ADE ? 11 : 8) + 0.99 * sstep(0, 0.22, bt); Q.quad(78, sx(ox), sy(oy), rc, 0, 0, rc * GY, '#000000', I * 0.8, 3, seed % 97, rq); Q.quad(77, sx(ox), sy(oy), rc, 0, 0, rc * GY, hx(1 - 0.7 * sstep(0.3, 1.6, bt), 0.3 * Math.exp(-bt * 5), 0), I, 1, seed % 97, rq); }
+      for (const rp of ripples) { const ag = t - rp.t0; if (ag < 0) continue; const u = ag / 0.85, rr = (R * 0.85 + u * (R * 0.7 + 1.5) * rp.k) * T; Q.quad(79, sx(rp.x), sy(rp.y), rr / 0.8, 0, 0, rr / 0.8 * GY, HONEY, 0.5 * Math.pow(1 - u, 1.5) * fo * (rp.k > 1 ? 0.75 : 1), 0, rp.t0 * 7, 0.25); }
+      if (!burst || bt < 0.3) { const k = (burst ? 1 - bt / 0.3 : sstep(0.3, 0.8, t)) * fo; Q.glow(sx(ox), sy(oy), R * T * (1.7 + 0.5 * tight), AMBER, (0.3 + 0.25 * tight) * k, GY); Q.glow(sx(ox), sy(oy), R * T * 0.9, HONEY, (0.22 + 0.3 * tight) * k, GY); Q.sshadow(sx(ox), sy(oy), R * T * 0.85, R * T * 0.4, 0.35 * k * (burst ? 0 : 1), '#0C0804'); }
+      for (const s of stones) { const k = 0.4 / (1 + s.z * 1.5) * (s.rest != null ? s.rest / 0.25 : 1); Q.sshadow(sx(s.x), sy(s.y), s.s * T, s.s * T * 0.5, k * fo, '#0C0804'); }
+      if (burst && bt < 1.2) { const u = sstep(0, 0.55, bt), r1 = (R + (RBU - R) * u) * T * 1.05, u2 = sstep(0.08, 0.8, bt), r2 = (R * 0.6 + (RBU * 1.2 - R * 0.6) * u2) * T;
+        Q.quad(79, sx(ox), sy(oy), r1 / 0.8, 0, 0, r1 / 0.8 * GY, GOLD, 0.95 * (1 - sstep(0.15, 0.8, bt)) * fo, 0, 3.3, 0.3); Q.quad(79, sx(ox), sy(oy), r2 / 0.8, 0, 0, r2 / 0.8 * GY, AMBER, 0.6 * (1 - u2) * fo, 0, 5.1, 0.18);
+        Q.quad(78, sx(ox), sy(oy), r1 * 0.95 / 0.8, 0, 0, r1 * 0.95 / 0.8 * GY, '#8C7A62', 0.7 * (1 - sstep(0.2, 1.0, bt)) * fo, 1, 2.2, 0.3); Q.glow(sx(ox), sy(oy), RBU * T, HONEY, 0.45 * (1 - sstep(0, 0.6, bt)) * fo, GY); } }
+    function gDraw(Q, t, T, f) { const fo = died ? cl(f.life / 0.5) : 1; if (fo <= 0) return; const sx = H.sx, sy = H.sy, tight = tightAt(t), bt = burst ? t - burstT : -1, k0 = Q.k || 1;
+      const rpx = R * T, vib = burst ? 0 : rpx * (0.02 + 0.05 * grindK + 0.04 * tight) * sstep(0.5, 0.9, t), OX = sx(ox) + vib * (Math.sin(t * 57) * 0.7 + Math.sin(t * 89 + 1) * 0.5), OY = sy(oy) - oz * CE * T + vib * (Math.sin(t * 63 + 2) * 0.7 + Math.sin(t * 97) * 0.4);
+      const pX = sx(me.x), pY = sy(me.y) - T * 0.45, pd = 0.38 + 0.62 * sstep(0.2 * T, 1.2 * T, Math.hypot(OX - pX, OY - pY) - rpx * 0.55);
+      for (const p of haze) { const u = p.t / p.life, r = p.s * (0.7 + 0.8 * u) * T; Q.quad(78, sx(p.x), sy(p.y) - p.z * CE * T, r, 0, 0, r * 0.85, '#2E241A', 0.85 * Math.sin(Math.PI * Math.min(1, u * 1.4 + 0.05)) * (1 - u) * fo, 0, (p.s * 31) % 17, u); }
+      if (hist.length > 2) for (let j = 0; j < (CEL ? 4 : 3); j++) { let px = null, py = 0; for (let i = hist.length - 1; i >= 0; i -= 2) { const q = hist[i], ag = t - q[3], u = ag / 0.9, w = Math.sin(ag * 4.5 + j * 2.1 + t * 1.5), lo = w * R * (0.08 + 0.26 * u) + (j - 1) * R * 0.18 * u, zz = q[2] + Math.cos(ag * 3.5 + j * 1.7) * R * (0.06 + 0.16 * u) - R * 0.25 * u, x = sx(q[0] - dy * lo), y = sy(q[1] + dx * lo) - zz * CE * T;
+        if (px != null) { const a2 = Math.pow(1 - u, 1.8) * 0.45 * fo; qb(Q, px, py, x, y, Math.max(2, T * 0.09), AMBER, a2 * 0.4); qb(Q, px, py, x, y, Math.max(1, T * 0.03), HONEY, a2); } px = x; py = y; } }
+      for (const p of flakes) { const u = p.t / p.life, heat = cl(1 - u / 0.55), a = Math.min(1, p.t / 0.08) * (1 - sstep(0.75, 1, u)) * fo, sq = 0.25 + 0.75 * Math.abs(Math.cos(p.ph)), s = p.s * T * (1 - 0.3 * u) * 0.75, c0 = Math.cos(p.rot), s0 = Math.sin(p.rot);
+        if (s > 0.6) Q.quad(74, sx(p.x), sy(p.y) - p.z * CE * T, c0 * s * 1.15, s0 * s * 1.15, -s0 * s * 1.15 * sq, c0 * s * 1.15 * sq, hx(0.2, 0, 0), a, 700 + p.v * 13, Math.floor(s * k0) + 0.05, wrA(p.ph) + 7 * Math.floor(heat * 99)); }
+      for (const s of stones) { const r = s.s * T, a = (s.rest != null ? s.rest / 0.25 : 1) * fo; if (r > 0.6) Q.quad(74, sx(s.x), sy(s.y) - s.z * CE * T - r * 0.4, r * 1.15, 0, 0, r * 1.15, hx(0.45, 0.1, 0), a, 720 + s.v * 7, Math.floor(r * k0) + 0.3, wrA(s.rot)); }
+      if (t > T_GO && (!burst || bt < 0.2)) { const k2 = (burst ? 1 - bt / 0.2 : sstep(T_GO, T_GO + 0.3, t)) * fo * pd; for (let i = 1; i <= 4; i++) { const d = R * (0.35 + i * 0.32); Q.glow(sx(ox - dx * d), sy(oy - dy * d) - oz * CE * T, rpx * (1.05 - i * 0.16), i < 2 ? GOLD : AMBER, 0.24 * k2 * (1 - i * 0.18)); } }
+      if (t < 1.0) for (const fr of frags) { const u = cl((t - fr.del) / fr.dur); if (fr.done) continue; if (u >= 1) { fr.done = true; for (let k3 = 0; k3 < 2; k3++) sparks.push({ x: x0, y: y0, z: oz0, vx: (Math.random() - 0.5) * 2, vy: (Math.random() - 0.5) * 2, vz: 1 + Math.random(), t: 0, life: 0.35 }); continue; }
+        const e = u * u * (3 - 2 * u), rr = fr.r0 * (1 - e * 0.95), an = fr.a0 + 2.8 * e, zz = oz0 + fr.z0 * (1 - e), x = sx(x0 + Math.cos(an) * rr), y = sy(y0 + Math.sin(an) * rr) - zz * CE * T, s = T * 0.3 * (1 - 0.5 * e), al = Math.min(1, u * 5) * fo;
+        const an2 = an - 0.35, rr2 = fr.r0 * (1 - Math.max(0, e - 0.08) * 0.95), x2 = sx(x0 + Math.cos(an2) * rr2), y2 = sy(y0 + Math.sin(an2) * rr2) - (oz0 + fr.z0 * (1 - Math.max(0, e - 0.08))) * CE * T;
+        qb(Q, x2, y2, x, y, s * 0.12, GOLD, al * 0.5); Q.glow(x, y, s * 0.7, HONEY, al * 0.4); const q0 = 2000 + 30 + fr.v * 7, q2 = wrA(fr.rot + t * 6) + 7 * Math.floor(wrA(t * 4 + fr.a0) * 100); Q.quad(73, x, y, 0.62 * s, 0, 0, 0.62 * s, '#000000', al, q0, Math.floor(s * k0) + 0.2, q2); Q.quad(76, x, y, 0.62 * s, 0, 0, 0.62 * s, hx(0.6, 0, 0), al, q0, Math.floor(s * k0) + 0.2, q2); }
+      // the orb and its ring
+      const grow = t < 0.3 ? 0 : 0.18 + 0.82 * H.ease.back(cl((t - 0.3) / 0.55)), oA = sstep(0.3, 0.5, t) * (burst ? 1 - sstep(0, 0.22, bt) : 1) * fo * pd, oS = grow * (burst ? 1 + 0.35 * sstep(0, 0.22, bt) : 1);
+      const ringIn = sstep(0.72, 0.95, t), rK = (1.12 - 0.12 * ringIn) * (1 - 0.19 * H.ease.in(tight)) * (burst ? 1 + 0.6 * sstep(0, 0.2, bt) : 1), rA = ringIn * (burst ? 1 - sstep(0, 0.16, bt) : 1) * fo * pd, rw = 0.1 * Math.sin(t * 1.9) + 0.03 * Math.sin(t * 7.3), ry = 1 + 0.16 * Math.sin(t * 2.6 + 1), rr = rpx * rK, cw = Math.cos(rw), sw = Math.sin(rw);
+      const ringQ = front => { if (rA < 0.02) return; Q.quad(74, OX, OY, rr * 1.75, 0, 0, rr * 1.75, hx(0.3 + 0.7 * tight, (ry - 0.7) / 0.6, (rw + 0.4) / 0.8), rA, 2000 + 1, Math.floor(rr * 1.75 * k0) + (front ? 0.75 : 0.25), wrA(ringA)); };
+      const segQ = front => { if (!CEL) return; const al = ringIn * (burst ? 1 - sstep(0, 0.3, bt) : 1) * fo * pd; if (al < 0.02) return; for (const sg of segM) { const th = sg.th + t * 0.35, p = ringPt(Math.cos(th) * sg.rad, Math.sin(th) * sg.rad, 0.12 * Math.sin(t * 1.3 + sg.ph)); if ((p[2] > 0) !== front) continue;
+        const x = OX + (p[0] * cw - p[1] * ry * sw) * rpx, y = OY + (p[0] * sw + p[1] * ry * cw) * rpx, L = rpx * sg.sc * 0.45 * (burst ? 1 + bt : 1), q0 = 1000 + 50 + Math.floor(sg.ph * 10), q2 = wrA(sg.ph + t * 0.6) + 7 * Math.floor(wrA(t * 1.3 + sg.th) * 100); Q.quad(73, x, y, 0.62 * L, 0, 0, 0.62 * L, '#000000', al, q0, Math.floor(L * k0) + 0.24, q2); Q.quad(76, x, y, 0.62 * L, 0, 0, 0.62 * L, hx(0.3, 0, 0), al, q0, Math.floor(L * k0) + 0.24, q2); } };
+      if (t > 0.45 && t < 1.0) { const sp = TAU * sstep(0.45, 0.85, t), al = (1 - sstep(0.85, 1.0, t)) * fo * pd; let pp = null; for (let i = 0; i <= 24; i++) { const th = -1.2 + sp * i / 24, p = ringPt(Math.cos(th) * RM, Math.sin(th) * RM, 0), q = [OX + (p[0] * cw - p[1] * ry * sw) * rr, OY + (p[0] * sw + p[1] * ry * cw) * rr];
+        if (pp) { qb(Q, pp[0], pp[1], q[0], q[1], Math.max(1, rpx * 0.12), AMBER, al * 0.35); qb(Q, pp[0], pp[1], q[0], q[1], Math.max(1, rpx * 0.04), CORE, al * 0.9); } pp = q; } if (pp) Q.glow(pp[0], pp[1], rpx * 0.45, CORE, al * 0.8); }
+      segQ(false); ringQ(false);
+      if (oA > 0.01 && oS > 0.01) { const sR = rpx * oS; Q.glow(OX, OY, sR * 2.4, AMBER, oA * (0.18 + 0.35 * tight)); Q.glow(OX, OY, sR * 1.6, GOLD, oA * (0.12 + 0.3 * tight));
+        Q.quad(73, OX, OY, sR, 0, 0, sR, hx(cl(0.15 + 0.1 * Math.sin(t * 8) + 0.08 * Math.sin(t * 13.7) + 0.4 * tight + 0.2 * grindK), burst ? 0.6 * sstep(0, 0.22, bt) : 0, 0), oA, 3000, Math.floor(sR * k0) + (ADE ? 0.5 : 0.1), wrA(spin)); }
+      ringQ(true); segQ(true);
+      if (rA > 0.02) for (let j = 0; j < 2; j++) { const th = -ringA * 1.7 + j * Math.PI, p = ringPt(Math.cos(th) * (RM - RA), Math.sin(th) * (RM - RA), 0); if (p[2] <= 0) continue; const x = OX + (p[0] * cw - p[1] * ry * sw) * rr, y = OY + (p[0] * sw + p[1] * ry * cw) * rr; Q.glow(x, y, rpx * 0.32, CORE, rA * 0.55); Q.star(x, y, rpx * 0.35, rA * 0.6, PALE); }
+      if (burst && bt < 0.6) { const u = bt / 0.6; Q.glow(OX, OY, rpx * (2 + 2 * u), HONEY, 0.7 * (1 - u) * (1 - u) * fo); Q.quad(79, OX, OY, rpx * 2.2, 0, 0, rpx * 2.2, GOLD, fo, 1, seed % 13, u); }
+      for (const p of sparks) { const u = p.t / p.life; Q.glow(sx(p.x), sy(p.y) - p.z * CE * T, T * 0.09, HONEY, (1 - u) * 0.9 * fo); }
+      for (const p of shards) { const u = p.t / p.life, s = T * 0.34, x = sx(p.x), y = sy(p.y) - p.z * CE * T, a = (1 - sstep(0.6, 1, u)) * fo, q0 = 2000 + 40 + (p.v || 0) * 7, q2 = wrA(p.rot || 0) + 7 * Math.floor(wrA(p.t * 9) * 100); Q.glow(x, y, s * 0.7, HONEY, 0.35 * (1 - u) * fo); Q.quad(73, x, y, 0.62 * s, 0, 0, 0.62 * s, '#000000', a, q0, Math.floor(s * k0) + 0.2, q2); Q.quad(76, x, y, 0.62 * s, 0, 0, 0.62 * s, hx(0.5 * (1 - u), 0, 0), a, q0, Math.floor(s * k0) + 0.2, q2); }
+      for (const p of chunks) { const s = p.s * T; if (s > 0.6) Q.quad(74, sx(p.x), sy(p.y) - p.z * CE * T, s * 1.15, 0, 0, s * 1.15, hx(0.6, 0, 0), fo, 740 + (p.v || 0) * 7, Math.floor(s * k0) + 0.15, wrA(p.rot || 0) + 7 * 70); }
+      for (const p of puffs) { const u = p.t / p.life, r = p.s * (0.6 + 0.9 * u) * T; Q.quad(78, sx(p.x), sy(p.y) - p.z * CE * T, r, 0, 0, r * 0.8, '#9A8466', 0.9 * Math.sin(Math.PI * Math.min(1, u * 1.3 + 0.08)) * (1 - u) * fo, 0, (p.s * 53) % 11, u); } }
     const f = H.add({ life: LIFE0, x: x0, y: y0, key: 'worldshaking', TB: T_GO + TT + 0.42,
       update(dt, f) {
-        const t = f.t, T0 = texFor(ADE); if (!T0.ready) { const s0 = performance.now(); while (!T0.ready && performance.now() - s0 < 2) T0.it.next(); }
+        const t = f.t, T0 = texFor(ADE); if (!T0.ready && !gfx()) {   /* (v415 EA: on the GPU nothing is baked) */ const s0 = performance.now(); while (!T0.ready && performance.now() - s0 < 2) T0.it.next(); }
         if (me.dead && !died) { died = true; if (!burst) f.life = Math.min(f.life, 0.5); }
         // the orb's route: it turns smoothly after its monster's current place, eases onto it, grinds it; it arrives
         // (and the finale begins) at the end of its range, at a wall, or after grinding its monster for 0.55 s
@@ -297,6 +350,7 @@
       /* ---- the floor: light only ---- */
       drawUnder(c, f, X, Y, T, gt) {
         const t = f.t;
+        { const FG = gfx(); if (FG) { const Q = FG.begin(c, null); gUnder(Q, t, T, f); FG.flush(c); return; } }   /* (v415 EA) */
         const fo = died ? cl(f.life / 0.5) : 1; if (fo <= 0) return;
         const tight = tightAt(t), bt = burst ? t - burstT : -1, sx = H.sx, sy = H.sy;
         // the fracture strip: lit as the orb passes, fading behind it (buckets of brightness, three widths, additive)
@@ -325,6 +379,7 @@
       },
       draw(c, f, X, Y, T, gt) {
         const t = f.t;
+        { const FG = gfx(); if (FG) { const Q = FG.begin(c, null); gDraw(Q, t, T, f); FG.flush(c); return; } }   /* (v415 EA) */
         const fo = died ? cl(f.life / 0.5) : 1; if (fo <= 0) return;
         const sx = H.sx, sy = H.sy, k = scr(c).k, tight = tightAt(t), bt = burst ? t - burstT : -1;
         if (!S) { const D = Math.max(32, Math.min(320, Math.round(R * 2 * T * k / 8) * 8)); S = orbFor(D, ADE); }

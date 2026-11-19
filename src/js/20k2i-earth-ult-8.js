@@ -32,6 +32,8 @@
   const mk = (w, h) => { const cv = document.createElement('canvas'); cv.width = Math.max(1, Math.ceil(w)); cv.height = Math.max(1, Math.ceil(h)); return cv; };
   function scr(c) { const m = c.getTransform(), a = m.a || 1, d = m.d || 1; return { x0: -m.e / a, y0: -m.f / d, w: c.canvas.width / a, h: c.canvas.height / d, k: a }; }
   let H;
+  /* (v415 EB) the GPU picture: the shared painter (20k6h FGFX, Earth's kinds 80..87) when it is usable; else the 2D picture below, as it was */
+  const gfx = () => { try { const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; return F && F.usable() ? F : null; } catch (e) { return null; } };
 
   /* ---- the camera: the game's floor squash (0.55) as the sine of the view's elevation ---- */
   const SE = 0.55, CE = Math.sqrt(1 - SE * SE), V = [0, CE, SE];
@@ -282,6 +284,29 @@
       },
       drawUnder(c, f, X0, Y0, T) {
         const t = f.t, end = cl(f.life / 0.6);
+        { const FG = gfx(); if (FG) { /* (v415 EB) the floor on the GPU: the mark's rings of amber light drawing in while cracks of light (83) spread
+             through the floor above the drill; under each drill a scorched pit of broken floor (82) glowing gold from the grinding, its contact
+             shadow, a ring of grinding light with glints running round it, ripples of light pulsing out; Celestial: gold pulses running in along
+             the floor; the rupture: one great web of cracks burning white and cooling, a shockwave and a ring of dust rolling out */
+          const Q = FG.begin(c, null);
+          for (const d of drills) { const X = H.sx(d.x), Y = H.sy(d.y), u = d.u0 * T, e = t - d.em, sd = 11 + d.i * 3.7 + seed % 17;
+            if (e < 0.35) { const q = cl(t / Math.max(0.1, d.em)), a = sm(t / 0.25) * (1 - sm(e / 0.35)) * end, k = d.main ? 1 : 0.8;
+              for (let j = 0; j < 3; j++) { const rr = u * (0.9 + 0.55 * j) * (1.25 - 0.3 * sm(q)); Q.ring(X, Y, rr, j === 1 ? GOLD : AMBER, a * k * (0.85 + 0.15 * Math.sin(t * 7 + j * 2)), rr * 0.1, SE); Q.ring(X, Y, rr * 0.99, PALE, a * k * 0.8, rr * 0.03, SE); }
+              Q.quad(83, X, Y, u * 2.2, 0, 0, u * 2.2 * SE, '#FFFFFF', Math.min(1, a * k * 1.4), 0.45 + 0.5 * q, sd, 0.9 * (0.2 + 0.7 * q)); Q.glow(X, Y, u * (1.0 + 0.8 * q), AMBER, a * 0.45 * q, SE); }
+            if (e > 0 && d.rise > 0.02) { const on = Math.min(1, d.rise) * end * (d.main ? 1 : 0.6), gr = u * 1.22, fin = t > TF ? sm((t - TF) / 0.4) : 0;
+              Q.quad(82, X, Y, u * 1.7, 0, 0, u * 1.7 * SE, '#FFFFFF', on, 0.25 + 0.2 * Math.sin(t * 9 + d.i) + 0.35 * fin, sd);
+              Q.sshadow(X, Y, u * 1.25, u * 1.25 * SE, 0.75 * on, '#0A0604');
+              Q.quad(83, X, Y, u * 2.3, 0, 0, u * 2.3 * SE, '#FFFFFF', on * (0.6 + 0.2 * Math.sin(t * 9 + d.i)), 0.35 + 0.3 * fin, sd, 0.9 * 0.7);
+              Q.ring(X, Y, gr, GOLD, on * (0.55 + 0.15 * Math.sin(t * 13 + d.i)), gr * 0.1, SE); Q.ring(X, Y, gr * 0.98, PALE, on * 0.45, gr * 0.03, SE); Q.glow(X, Y, u * 1.6, AMBER, on * (0.25 + 0.2 * fin), SE);
+              for (let k = 0, nk = d.main ? 6 : 3; k < nk; k++) { const b = d.rot + k / nk * TAU, s2 = 0.5 + 0.5 * Math.sin(b * 3); Q.star(X + Math.cos(b) * gr * 0.95, Y + Math.sin(b) * gr * 0.95 * SE, u * 0.3, on * 0.8 * s2, PALE); }
+              const pq = (t * 1.6 + d.i * 0.3) % 1; Q.ripple(X, Y, u * (1.1 + 1.0 * pq), HONEY, on * 0.4 * (1 - pq), sd, SE, 0.1);
+              if (CEL && !d.main && t < TP) { const M = drills[0], MX = H.sx(M.x), MY = H.sy(M.y); for (let k = 0; k < 3; k++) { const q = ((t * 0.9 + k / 3 + d.i * 0.13) % 1), ss = u * (0.55 - 0.2 * q); Q.glow(lerp(X, MX, 0.15 + 0.7 * q), lerp(Y, MY, 0.15 + 0.7 * q), ss, GOLD, on * 0.6 * Math.sin(q * Math.PI), SE * 1.4); } } } }
+          if (ruptured) { const p = t - TR, X = H.sx(cx), Y = H.sy(cy), R0 = RR * T, heat = Math.exp(-p * 1.1), fadeA = 1 - sm((p - 0.5) / 1.3);
+            if (fadeA > 0.01) { Q.quad(82, X, Y, R0 * 0.55, 0, 0, R0 * 0.55 * SE, '#FFFFFF', fadeA * end, heat * 0.8, seed + 0.5); Q.quad(83, X, Y, R0 * 1.15, 0, 0, R0 * 1.15 * SE, '#FFFFFF', fadeA * end, heat, seed + 0.5, 0.9 * sm(p / 0.32)); }
+            Q.glow(X, Y, R0 * 1.1, AMBER, 0.45 * Math.max(0, 1 - p / 0.8) * end, SE); Q.glow(X, Y, R0 * 0.35, CORE, 0.3 * Math.max(0, 1 - p / 0.3) * end, SE);
+            const q = cl(p / 0.6); if (q < 1) { const rr = R0 * (0.25 + 0.9 * H.ease.out(q)); Q.ewave(X, Y, rr, AMBER, 0.75, (1 - q) * 0.7 * end, seed, SE, 0.15); Q.ripple(X, Y, rr * 1.04, PALE, (1 - q) * 0.4 * end, seed, SE, 0.1); }
+            const qd = cl(p / 1.1); if (qd < 1) Q.quad(84, X, Y, R0 * 1.3, 0, 0, R0 * 1.3 * SE, '#7E6A54', (1 - qd) * sstep(0, 0.06, qd) * 0.85 * end, 0.2 + 0.7 * (1 - (1 - qd) * (1 - qd)), seed % 9, 1 + 0.9 * 0.7 * heat); }
+          FG.flush(c); return; } }
         for (const d of drills) { const X = H.sx(d.x), Y = H.sy(d.y), u = d.u0 * T, e = t - d.em;
           // the mark: broken amber rings drawing in, light seeping up through the floor while the drill assembles
           if (e < 0.35) { const q = cl(t / Math.max(0.1, d.em)), a = sm(t / 0.25) * (1 - sm(e / 0.35)), rr = u * (2.2 - 0.6 * sm(q)), rot = t * 0.6 * (d.i % 2 ? -1 : 1);
@@ -312,6 +337,28 @@
       draw(c, f, X0, Y0, T) {
         const t = f.t, SC = scr(c), end = cl(f.life / 0.5), PX = H.sx(me.x), PY = H.sy(me.y) - T * 0.45;
         const order = drills.slice().sort((p, q) => p.y - q.y);
+        { const FG = gfx(); if (FG) { /* (v415 EB) the GPU picture: each drill ray-marched per pixel (kind 86: glossy black volcanic glass in sharp
+             conchoidal facets, gold crystal along its flights' rims and in their joints), rising out of a collar of broken floor slabs (85) behind
+             and in front of it, gold highlights travelling up its leading edges, the tip's burst of light; obsidian shards, chips and dust (84) */
+          const Q = FG.begin(c, [PX, PY, T * 0.6]);
+          for (const d of order) { if (d.rise <= 0.005) continue;
+            const X = H.sx(d.x), Y = H.sy(d.y), u = d.u0 * T, dz = (1 - Math.min(1, d.rise)) * (HT + 0.7) - Math.max(0, d.rise - 1) * (HT + 0.7), ca = sm(d.rise * 1.6) * end;
+            const pulse = CEL && !d.main ? 0.5 + 0.5 * Math.sin(t * 5 - d.i * 0.6) : 0.5 + 0.5 * Math.sin(t * 3.2), gw = Math.min(1, 0.35 + 0.35 * pulse + (t > TF ? 0.4 * sm((t - TF) / 0.4) : 0));
+            const slab = front => { const n = d.main ? 11 : 7; for (let k = 0; k < n; k++) { const a = k / n * TAU + R1(seed + d.i * 7 + k) * 0.4, fr = Math.sin(a) > 0; if (fr !== front) continue; const rr = u * (1.08 + 0.18 * R1(k * 5.7 + d.i)), s2 = u * (0.2 + 0.12 * R1(k * 2.3 + d.i)), rot = R1(k * 3.1) * TAU;
+              Q.rq(85, X + Math.cos(a) * rr, Y + Math.sin(a) * rr * SE - s2 * 0.3 - (1 - ca) * u * 0.3, s2, s2 * 0.7, rot, '#FFFFFF', ca, rot, d.i * 3 + k, (k % 3 ? 0 : 3) + 0.9 * 0.3 * pulse); } };
+            slab(false);
+            Q.quad(86, X, Y - 1.525 * u, 1.15 * u * d.sq, 0, 0, 2.275 * u, '#FFFFFF', end, d.rot, dz, 0.9 * gw);
+            Q.glow(X, Y - 1.4 * u, u * 1.5, AMBER, 0.12 * gw * end);
+            for (let s2 = 0; s2 < 2; s2++) { const zz = ((t * 0.9 + s2 * 0.5 + d.i * 0.2) % 1) * (ZB + 1.2), an = d.rot + zz / PITCH * TAU + s2 * Math.PI, sn = Math.sin(an); if (sn < 0.15 || zz - dz < 0.1) continue; const ro = roAt(zz - Math.min(0, dz) * 0), hx = X + Math.cos(an) * ro * u * d.sq, hy = Y + (Math.sin(an) * ro * SE - (zz - dz) * CE) * u; Q.glow(hx, hy, u * 0.35, PALE, end * 0.7 * sn); Q.star(hx, hy, u * 0.3, end * 0.6 * sn, CORE); }
+            slab(true);
+            const e = t - d.em; if (e > 0 && e < 0.4) { Q.glow(X, Y - u * 0.3, u * (1.4 + 1.6 * e), PALE, (1 - e / 0.4) * 0.7); Q.glow(X, Y - u * 0.2, u * (0.8 + 2 * e), CORE, (1 - e / 0.4) * 0.5); } }
+          for (const p of dust) { if (p.t < 0) continue; const q = p.t / p.life, r = T * p.s * (0.6 + 0.9 * q), a = Math.sin(Math.min(1, q * 2.5) * Math.PI / 2) * (1 - q) * (p.veil ? 0.8 : p.fine ? 0.5 : 0.7);
+            Q.quad(84, H.sx(p.x), H.sy(p.y) - p.z * T, r, 0, 0, r * (p.veil ? 0.6 : 0.85), '#7E6A54', a, q, p.sd || (p.sd = 1 + Math.random() * 9), 0.9 * 0.3 * Math.max(0, 1 - q * 2)); }
+          for (const p of chips) { if (p.t < 0) continue; const sz = p.s * T * 1.1, a = (p.settle ? 1 - sm((p.t - p.life * 0.6) / (p.life * 0.4)) : 1 - sm((p.t - p.life * 0.7) / (p.life * 0.3))) * (p.pull ? sm(p.t / 0.1) : 1); if (a < 0.02 || sz < 0.5) continue;
+            Q.rq(85, H.sx(p.x), H.sy(p.y) - p.z * T, sz * (p.k === 1 ? 0.6 : 1), sz * (p.k === 1 ? 1 : 0.8), p.rot, '#FFFFFF', a, p.rot, p.k * 2.3 + 1, p.k === 1 ? 2 : p.k === 3 ? 0 : 1); }
+          for (const p of specks) { if (p.t < 0) continue; const q = p.t / p.life, X = H.sx(p.x), Y = H.sy(p.y) - p.z * T, s = T * p.s * (1 + 2 * (1 - q)); Q.glow(X, Y, s * 1.4, HONEY, Math.sin(q * Math.PI) * 0.8); Q.star(X, Y, s * 1.2, Math.sin(q * Math.PI), PALE); }
+          if (ruptured) { const p = t - TR; if (p < 0.35) { Q.glow(H.sx(cx), H.sy(cy) - T * 0.3, RR * T * 0.55, PALE, 0.35 * (1 - p / 0.35)); Q.glow(H.sx(cx), H.sy(cy) - T * 0.2, RR * T * 1.0, AMBER, 0.3 * (1 - p / 0.35)); } }
+          FG.flush(c); return; } }
         // (the drill's phases build a few milliseconds a frame from the cast on; a missing one borrows the nearest built)
         let budget = 5; for (const d of drills) { const S = drillSet(Math.max(16, Math.round(d.u0 * T * SC.k / 6) * 6)); if (!S.ready && budget > 0) { const t0 = performance.now(); S.step(budget); budget -= performance.now() - t0; } }
         for (const d of order) { if (d.rise <= 0.005) continue;

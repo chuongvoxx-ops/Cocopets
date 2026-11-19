@@ -380,6 +380,37 @@ void main() {
     vec3 c = a2 * (wrap * vec3(1.45, 1.35, 1.25) + amb2) + trans * 0.7 + pow(nh, 30.0) * 0.18 * max(0.0, ndl) * (1.0 - 0.5 * vein) + pow(1.0 - ndv, 3.0) * max(0.0, dot(n, uLR) + 0.3) * uRim * 0.3 + vec3(1.0, 0.35, 0.08) * vein * trc * 0.9;
     float hem = smoothstep(0.93, 0.985, pv) + smoothstep(0.025, 0.0, pv); c = mix(c, vec3(0.06, 0.005, 0.012), min(1.0, hem) * 0.85) + vec3(1.6, 0.8, 0.35) * trc * smoothstep(0.92, 0.99, pv) * 0.9;
     gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
+  else if (id >= 140 && id <= 146) {   // ---- (v415 TI) Titan, the moss-grown stone golem (20k2jz): 140 its stone plates (140.2 a cooler stone), 141 the charcoal core between them, 142 a mossy face (142.2 a raised moss cushion), 143 a fracture (a strip: vA.y its length, vA.z 0..1 across; 143.3 an engraved marking), 144 an eye, 145 the gauntlets' basalt, 146 amber crystal. uGlow the region's golden light, uGlow2 the eyes, uSpill 1: light runs along the fractures (Celestial)
+    float gg = clamp(uGlow, 0.0, 1.6), ndv0 = max(0.0, dot(n, uV)), up = dot(n, uUP), w1 = vn(L.xy * 0.55 + L.z * 0.37), w2 = vn(L.yz * 1.9 + L.x * 1.3), w3 = vn(L.xz * 5.7 + L.y * 3.9), fr = vA.x - float(id);
+    vec3 AMB1 = vec3(0.95, 0.42, 0.06), GOLD1 = vec3(1.25, 0.82, 0.3), HOT1 = vec3(1.45, 1.28, 0.98);
+    if (id == 143) { float x = (clamp(ao, 0.0, 1.0) - 0.5) * 2.0, core = exp(-x * x * 7.0), lip = exp(-x * x * 1.8), gv = fr > 0.15 ? 0.3 + 0.7 * gg : gg;
+      if (uSpill > 0.5) gv += gg * 0.7 * smoothstep(0.55, 0.97, sin(edge * 1.6 - uTime * 6.5 + L.x * 0.7 + L.z * 0.5));   // (Celestial: light running along it)
+      float fl = 0.82 + 0.18 * vn(vec2(edge * 1.7 - uTime * 2.4, L.z * 0.6 + L.y));
+      vec3 c = vec3(0.03, 0.022, 0.015) * (1.0 - 0.6 * core) + (mix(AMB1, GOLD1, smoothstep(0.1, 0.7, gv * core)) * lip * 1.3 + HOT1 * core * core * smoothstep(0.3, 0.9, gv) * 1.4) * gv * fl;
+      gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
+    if (id == 144) { float e = clamp(uGlow2, 0.0, 1.0), k = 0.6 + 0.4 * pow(ndv0, 1.5); vec3 c = mix(vec3(0.015, 0.02, 0.015), mix(vec3(0.42, 0.95, 0.38), vec3(1.3, 1.4, 1.22), pow(ndv0, 2.5)) * k * 1.35, e);
+      gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
+    if (id == 146) { float k = pow(ndv0, 1.3), vein = smoothstep(0.035, 0.0, abs(vn(L.xy * 2.3 + L.z * 1.7) - 0.5)); vec3 hh = normalize(uLK + uV);
+      vec3 c = mix(vec3(0.3, 0.1, 0.012), vec3(1.05, 0.58, 0.12), k) * (0.45 + 0.8 * gg) + GOLD1 * vein * (0.3 + 0.9 * gg) + HOT1 * smoothstep(0.82, 1.0, edge) * (0.25 + 0.5 * gg) + pow(max(0.0, dot(n, hh)), 90.0) * 1.4 + pow(1.0 - ndv0, 3.0) * AMB1 * 0.5;
+      gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
+    metal = 0.0; F0 = vec3(0.035); rough = 0.86;
+    n = normalize(n + (vec3(vn(L.yz * 1.6), vn(L.zx * 1.6 + 3.0), vn(L.xy * 1.6 + 7.0)) - 0.5) * 0.28 + (vec3(vn(L.yz * 5.3 + 1.0), vn(L.zx * 5.3 + 4.0), vn(L.xy * 5.3 + 8.0)) - 0.5) * (uLow > 0.5 ? 0.0 : 0.18));   // (rough stone: lumps and grit in the light)
+    alb = (fr > 0.1 && id == 140 ? vec3(0.5, 0.505, 0.5) : vec3(0.57, 0.53, 0.475)) * (0.76 + 0.38 * w1) * (0.87 + 0.2 * w2);
+    float c1 = abs(fract(dot(L, vec3(0.31, 0.19, 0.27)) + w1 * 1.6) - 0.5), c2 = abs(fract(dot(L, vec3(-0.23, 0.35, 0.16)) + w2 * 1.1) - 0.5);
+    float fis = smoothstep(0.024, 0.004, min(c1, c2)) * smoothstep(0.42, 0.62, vn(L.zx * 0.31 + L.y * 0.23)), pit = smoothstep(0.8, 0.9, vn(L.xy * 7.3 + L.z * 4.1)) * (1.0 - uLow);   // (a fissure net here and there; pits)
+    cav += fis * 0.8 + pit * 0.55;
+    alb = mix(alb, vec3(0.68, 0.65, 0.58), smoothstep(0.6, 0.95, edge) * (0.5 + 0.5 * w3) * 0.6);   // (worn pale edges)
+    float lich = smoothstep(0.74, 0.8, vn(L.yz * 3.7 + L.x * 2.9)) * smoothstep(0.1, 0.6, up) * (1.0 - uLow); alb = mix(alb, w3 > 0.5 ? vec3(0.62, 0.58, 0.36) : vec3(0.55, 0.33, 0.12), lich * 0.6);   // (lichen)
+    float mossK = smoothstep(0.62, 0.92, up + (w1 - 0.5) * 0.6) * smoothstep(0.45, 0.68, w2);   // (moss settles on what faces up)
+    if (id == 141) { alb = vec3(0.13, 0.115, 0.1) * (0.7 + 0.6 * w2); mossK = 0.0; rough = 0.92; float mv = vn(L.xy * 0.8 + L.z * 0.6 + vec2(uTime * 0.12, 0.0)); em += AMB1 * (0.035 + 0.6 * gg) * mv * mv; }   // (the core smoulders, molten when powered)
+    else if (id == 145) { alb = vec3(0.16, 0.145, 0.13) * (0.8 + 0.4 * w2); mossK *= 0.3; }
+    else if (id == 142) mossK = max(mossK, fr > 0.1 ? 1.0 : smoothstep(0.44, 0.6, vn(L.xy * 0.7 + L.z * 0.45) + 0.18 * up));
+    if (mossK > 0.0) { float ms = vn(L.xy * 6.5 + L.z * 4.7), tuft = smoothstep(0.68, 0.85, vn(L.yz * 13.0 + L.x * 9.0));
+      vec3 mc = mix(mix(vec3(0.11, 0.22, 0.05), vec3(0.26, 0.47, 0.1), ms), vec3(0.55, 0.74, 0.22), tuft * 0.8) * (0.8 + 0.3 * w1);
+      alb = mix(alb, mc, mossK); rough = mix(rough, 0.97, mossK); cav *= 1.0 - mossK * 0.7; em += vec3(0.05, 0.085, 0.012) * pow(1.0 - ndv0, 2.0) * mossK;
+      n = normalize(n + (vec3(vn(L.yz * 9.0), vn(L.zx * 9.0 + 2.0), vn(L.xy * 9.0 + 5.0)) - 0.5) * 0.5 * mossK); fis *= 1.0 - mossK; }
+    alb *= (1.0 - 0.3 * smoothstep(-0.25, -0.85, up)) * (1.0 - 0.75 * fis);
+    em += mix(AMB1, GOLD1, gg * 0.6) * fis * (0.06 + (id == 145 ? 2.6 : 1.5) * gg) * (0.75 + 0.25 * sin(uTime * 2.6 + L.x * 0.8 + L.z)); }   // (ember in the fissures: brighter in the light)
   else if (id >= 69 && id <= 74) {   // ---- Genbu (lead): 69 sandstone armour (warm beige, stone grain, carved geometric markings, chipped edges to rust primer, dust on top), 70 burnt-orange paint (borders, fittings, drill flutes; chips to steel), 71 dark steel machinery (machined, oily), 72 polished piston chrome, 73 amber light (eyes, slots; uGlow = power, uFx-free), 74 track iron (treads along x)
     float ndv0 = max(0.0, dot(n, uV)), up = max(0.0, dot(n, uUP)), w1 = vn(L.xy * 3.1 + L.z * 1.7), w2 = vn(L.yz * 9.0 + L.x * 4.0), w3 = vn(L.xz * 27.0 + L.y * 11.0);
     if (id == 73) { vec3 hh = normalize(uLK + uV); float fl = 0.9 + 0.1 * sin(uTime * 3.0 + L.x * 9.0); vec3 c = mix(vec3(0.95, 0.38, 0.04), vec3(1.7, 1.15, 0.5), pow(ndv0, 1.6)) * (0.55 + 0.6 * uGlow) * fl + pow(max(0.0, dot(n, hh)), 160.0) * 1.2;
@@ -1227,14 +1258,14 @@ void main() {
     if (S.outline > 0) { const oc = S.outlineCol || OUTC; gl.uniform3f(U.uOutV, 2 * S.outline / W, 2 * S.outline / H, S.outlineBias || 0.006); gl.uniform4f(U.uOutF, oc[0], oc[1], oc[2], 1); gl.depthMask(true);
       for (const it of items) { if (it.outline === false || !(it.alpha > 0.6)) continue; const g = upload(it.mesh); if (!g) continue; bindM(g);
         gl.uniform3fv(U.uR0, it.R0); gl.uniform3fv(U.uR1, it.R1); gl.uniform3fv(U.uR2, it.R2); gl.uniform3fv(U.uT, it.T); gl.uniform1f(U.uAlpha, it.alpha > 0.995 ? 1 : it.alpha);
-        gl.drawElements(gl.TRIANGLES, g.n3, g.it, 0); calls++; tris += g.n3 / 3; } }
+        gl.drawElements(gl.TRIANGLES, it.cnt || g.n3, g.it, (it.first || 0) * (g.it === gl.UNSIGNED_INT ? 4 : 2)); calls++; tris += (it.cnt || g.n3) / 3; } }   /* (v415 TI: it.first, it.cnt draw one stretch of a mesh's indices - one stone of a merged bone) */
     gl.uniform3f(U.uOutV, 0, 0, 0); gl.uniform4f(U.uOutF, 0, 0, 0, 0);
     for (const it of items) { const g = upload(it.mesh); if (!g) continue;
       if (lastM !== g) { gl.bindBuffer(gl.ARRAY_BUFFER, g.p); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0); gl.bindBuffer(gl.ARRAY_BUFFER, g.n); gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0); gl.bindBuffer(gl.ARRAY_BUFFER, g.a); gl.vertexAttribPointer(2, 3, gl.FLOAT, false, 0, 0); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, g.i); lastM = g; }
       gl.uniform3fv(U.uR0, it.R0); gl.uniform3fv(U.uR1, it.R1); gl.uniform3fv(U.uR2, it.R2); gl.uniform3fv(U.uT, it.T); gl.uniform3fv(U.uM0, it.R0); gl.uniform3fv(U.uM1, it.R1); gl.uniform3fv(U.uM2, it.R2);
       gl.uniform1f(U.uAlpha, it.alpha); gl.uniform1f(U.uFx, it.fx || 0); gl.uniform1f(U.uGlow2, it.glow2 || 0); gl.uniform1f(U.uSpill, it.spill || 0); gl.uniform1f(U.uGlow, it.glow); gl.uniform1f(U.uKind, it.kind || 0); gl.uniform1f(U.uWear, it.wear == null ? 1 : it.wear);
       gl.depthMask(it.alpha > 0.995);
-      gl.drawElements(gl.TRIANGLES, g.n3, g.it, 0); calls++; tris += g.n3 / 3; }
+      gl.drawElements(gl.TRIANGLES, it.cnt || g.n3, g.it, (it.first || 0) * (g.it === gl.UNSIGNED_INT ? 4 : 2)); calls++; tris += (it.cnt || g.n3) / 3; }   /* (v415 TI) */
     gl.depthMask(true);
     return cv;
   }

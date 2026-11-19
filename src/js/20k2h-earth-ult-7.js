@@ -31,6 +31,8 @@
   function scr(c) { const m = c.getTransform(), a = m.a || 1; return { k: a }; }
   const GY = 0.55;
   let H;
+  /* (v415 EB) the GPU picture: the shared painter (20k6h FGFX, Earth's kinds 80..87) when it is usable; else the 2D picture below, as it was */
+  const gfx = () => { try { const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; return F && F.usable() ? F : null; } catch (e) { return null; } };
 
   /* ---- cached textures ---- */
   // wrap-around drawing on a square tile of S px
@@ -171,6 +173,7 @@
           if (t >= FORM && t < TE) for (const m of H.living()) if (inField(m)) { m.sandT = Math.max(m.sandT || 0, 0.2); slowed.add(m); }
           while (next < NT && t >= FORM + 0.5 + next * 0.5) { for (const m of H.living()) if (inField(m)) H.X.hitMon(m, TICK, C.dmgO({})); if (next % 4 === 0) H.X.sfx.thud(); next++; }
           if (!halted && t >= TE) { halted = true; for (const m of slowed) if (!m.dead) m.sandT = 0; slowed.clear(); H.X.sfx.crack(); H.X.shake(4, 0.15); }
+          if (halted && !plates && t >= TE + 0.02 && gfx()) { plates = cells.map(cel => ({ cx: cel.cx, cy: cel.cy, lz: 0, s: cel.s, gpu: true })); built = cells.length; }   // (v415 EB: the GPU picture's plates, ready before the rupture)
           if (!ruptured && t >= TR) { ruptured = true; rupture(); }
         }
         // the monsters' feet: rings and lips fade in and out with them
@@ -189,6 +192,31 @@
       },
       drawUnder(c, f, X0, Y0, T) {
         const t = f.t, SC = scr(c), X = H.sx(cx), Y = H.sy(cy), rx = R * T, ry = rx * GY, endA = dead ? cl(f.life / 0.5) : 1, tA = Math.min(t, TE);
+        { const FG = gfx(); if (FG) { /* (v415 EB) the field on the GPU: cracks of gold light spreading out first (83); then the sand itself (87):
+             mineral grains swirling slowly into a shallow funnel, dunes lit from the upper left (Adept: crossing sets; Celestial: terraces
+             drifting in, gold veins with light running inward), glittering grains; at the halt it sets into plates of stone with amber light
+             in the gaps, which lift and burst; amber crystal tips surfacing (85), grains sliding in round each monster's feet (84) */
+          const Q = FG.begin(c, null), tier = CEL ? 2 : ADE ? 1 : 0;
+          if (halted && !dead && !plates && t >= TE + 0.02) { plates = cells.map(cel => ({ cx: cel.cx, cy: cel.cy, lz: 0, s: cel.s, gpu: true })); built = cells.length; }
+          if (t < FORM + 0.4) { const g = sm(t / 0.6), a = sm(t / 0.1) * (1 - sm((t - FORM + 0.15) / 0.45)) * endA; if (a > 0.01) Q.quad(83, X, Y, rx * 1.05, 0, 0, ry * 1.05, '#FFFFFF', a * 0.85, 0.3, seed % 13, 0.9 * (0.1 + 0.9 * g)); }
+          const grow = sm((t - 0.4) / 0.55), showF = t > 0.4 && !ruptured;
+          if (showF) { const mg = 0.15 + 0.85 * grow, a0 = endA * (t < 0.95 ? sm((t - 0.4) / 0.3) : 1), hd = halted ? sm((t - TE) / 0.3) : 0, lift = plates && t >= TL ? sm((t - TL) / 0.4) : 0;
+            Q.quad(87, X, Y, rx * 1.06 * mg, 0, 0, ry * 1.06 * mg, '#FFFFFF', a0, tA, seed % 23, tier + 0.9 * hd);
+            const op = halted ? 0.5 * sm((t - TE) / 0.3) * (1 - 0.5 * sm((t - TE - 0.12) / 0.3)) + 0.9 * lift : 0;
+            if (op > 0.01 || CEL) Q.quad(83, X, Y, rx * 1.06 * mg, 0, 0, ry * 1.06 * mg, '#FFFFFF', a0 * (dead ? 0 : 1), op, seed % 23, 1 + 0.9 * (CEL && !halted ? 0.6 * sm((t - FORM) / 0.5) : 0));
+            if (lift > 0) Q.glow(X, Y, rx, AMBER, 0.3 * lift, GY); }
+          if (tips.length && t > FORM && t < TE + 0.2 && !dead) for (const p of tips) { const e = t - p.t0; if (e < 0 || e > 2.6) continue; const up = sm(e / 0.45) * (1 - sm((e - 2.1) / 0.5)) * (t > TE ? 1 - sm((t - TE) / 0.2) : 1); if (up < 0.02) continue;
+            const [px, py] = at(p.u, p.v, T), hw = T * 0.32, hh = T * 0.62; Q.quad(85, px, py - hh * 0.85, hw, 0, 0, hh, '#FFFFFF', 1, up, p.i + 3, 4 + 0.9 * 0.4); Q.glow(px, py - T * 0.15, T * 0.5, AMBER, up * 0.45, 0.7); }
+          if (t > FORM - 0.2 && (!plates || t < TL) && !ruptured) { const fa = sm((t - FORM + 0.2) / 0.4) * endA;
+            for (const p of glints) { const s = Math.sin(tA * p.w + p.ph), a = s > 0.8 ? Math.pow((s - 0.8) / 0.2, 2) : 0; if (a < 0.03) continue; const [gx, gy] = at(p.u, p.v, T); Q.star(gx, gy, T * 0.34 * (0.6 + 0.4 * a), fa * a, PALE); Q.glow(gx, gy, T * 0.25, HONEY, fa * a * 0.5); }
+            for (const [m, q] of feet) { if (m.dead) continue; const mx = H.sx(m.x), my = H.sy(m.y), r0 = Math.max(T * 0.35, m.r * T * 1.25);
+              Q.sshadow(mx, my, r0 * 1.1, r0 * 0.5, q.a * 0.6, '#0A0603');
+              for (let k = 0; k < 2; k++) { const u = (tA * 0.75 + q.ph + k * 0.5) % 1, rr = r0 * (2.3 - 1.5 * u); Q.quad(84, mx, my, r0 * 2.5, 0, 0, r0 * 2.5 * GY, '#FFFFFF', Math.sin(u * Math.PI) * q.a * 0.9, rr / (r0 * 2.5), q.ph * 9 + k, 3); } }
+            for (const p of crumbs) { const [qx, qy] = at(Math.cos(p.a) * p.r, Math.sin(p.a) * p.r, T), a = Math.sin(cl(p.t / p.life) * Math.PI) * 0.8 * endA, sz = T * p.s * 1.3; Q.quad(84, qx, qy, sz, 0, 0, sz * 0.7, '#6E5230', a, 0.4, p.a * 7 + p.k, 0); } }
+          if (ruptured) { const p = t - TR; Q.glow(X, Y, rx * 1.1, AMBER, 0.4 * Math.max(0, 1 - p / 1.4), GY); Q.glow(X, Y, rx * 0.6, HONEY, 0.3 * Math.max(0, 1 - p / 0.5), GY);
+            const q = cl(p / 0.6); if (q < 1) { const rr = rx * (0.4 + 0.8 * H.ease.out(q)); Q.ewave(X, Y, rr, GOLD, 0.8, (1 - q) * 0.75, seed, GY, 0.14); Q.ripple(X, Y, rr * 1.03, PALE, (1 - q) * 0.45, seed, GY, 0.1); }
+            const qd = cl(p / 1.2); if (qd < 1) Q.quad(84, X, Y, rx * 1.25, 0, 0, ry * 1.25, '#8A7050', (1 - qd) * sstep(0, 0.06, qd) * 0.8, 0.25 + 0.65 * (1 - (1 - qd) * (1 - qd)), seed % 7, 1 + 0.9 * 0.5 * (1 - qd)); }
+          FG.flush(c); return; } }
         // the formation's cracks (light only), growing out from the centre
         if (t < FORM + 0.4) { const g = sm(t / 0.6), a = sm(t / 0.1) * (1 - sm((t - FORM + 0.15) / 0.45)) * endA; if (a > 0.01) { c.save(); c.beginPath(); c.ellipse(X, Y, rx * (0.08 + 0.98 * g), ry * (0.08 + 0.98 * g), 0, 0, TAU); c.clip(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = a; c.drawImage(crackSpr(seed % 5), X - rx, Y - ry, rx * 2, ry * 2); c.restore(); } }
         // the field: composed offscreen while it is sand (and frozen once it hardens)
@@ -228,7 +256,8 @@
         if (plates && t >= TL && !ruptured && !dead) { const lift = sm((t - TL) / 0.4), sk = T / snapT;
           H.glow(c, X, Y, rx * 1.0, AMBER, 0.3 * lift); edges(c, X, Y, rx, ry, [[AMBER, Math.max(2, T * 0.22), 0.4 + 0.3 * lift], [HONEY, Math.max(1, T * 0.05), 0.85]], 1);
           const ox = X - rx, oy = Y - ry, kq = 1 / snapK * sk;
-          for (const p of plates) { const jit = Math.sin(t * 60 + p.s * 40) * T * 0.012 * lift; c.drawImage(p.cv, ox + p.x0 * kq + jit, oy + p.y0 * kq - p.lz * T, p.cw * kq, p.ch * kq); } }
+          for (const p of plates) { if (!p.cv) continue;   // (v415 EB: the GPU picture's plates have no 2D cut)
+            const jit = Math.sin(t * 60 + p.s * 40) * T * 0.012 * lift; c.drawImage(p.cv, ox + p.x0 * kq + jit, oy + p.y0 * kq - p.lz * T, p.cw * kq, p.ch * kq); } }
         // Adept: amber crystal tips surfacing and sinking
         if (tips.length && t > FORM && t < TE + 0.2 && !dead) { const sp = tipSpr(); for (const p of tips) { const e = t - p.t0; if (e < 0 || e > 2.6) continue; const up = sm(e / 0.45) * (1 - sm((e - 2.1) / 0.5)) * (t > TE ? 1 - sm((t - TE) / 0.2) : 1); if (up < 0.02) continue;
           const [px, py] = at(p.u, p.v, T), w = T * 0.32, hh = T * 0.5 * up; c.save(); c.beginPath(); c.rect(px - w, py - T, w * 2, T + T * 0.04); c.clip(); c.drawImage(sp, px - w / 2, py - hh, w, w * 1.5); c.restore();
@@ -252,11 +281,22 @@
       },
       draw(c, f, X0, Y0, T) {
         const t = f.t, X = H.sx(cx), Y = H.sy(cy), rx = R * T, ry = rx * GY, PX = H.sx(me.x), PY = H.sy(me.y) - T * 0.45;
+        { const FG = gfx(); if (FG) { /* (v415 EB) over the monsters on the GPU: a lip of glittering sand piled round each one's feet (84); the plates
+             of hardened sand thrown up in short weighted arcs (85), dust and gold specks */
+          const Q = FG.begin(c, [PX, PY, T * 0.6]);
+          if (feet.size && t < TL + 0.3) for (const [m, q] of feet) { if (m.dead || q.a < 0.02 || m.mv === 1) continue; const mx = H.sx(m.x), my = H.sy(m.y) - (m.z || 0) * T, w = Math.max(T * 0.42, m.r * T * 1.35);
+            Q.quad(84, mx, my - w * 0.05, w, 0, 0, w * 0.42, '#FFFFFF', q.a * (t > TE ? 1 - sm((t - TE) / 0.5) : 1), 0, q.ph * 7 + 1, 2); }
+          if (plates && ruptured && !dead) for (const p of plates) { if (!p.fly) continue; const a = p.down ? 1 - cl(p.dt / 0.3) : 1; if (a <= 0.01) continue; const px2 = X + p.cx * rx, py2 = Y + p.cy * ry - p.z * T, sz = T * 0.95 * 0.5 * (p.down ? 1 + 0.3 * cl(p.dt / 0.3) : 1), rot = (p.rot || 0) * 0.5;
+            Q.rq(85, px2, py2, sz, sz * (p.down ? 0.5 : 0.42 + 0.4 * Math.abs(Math.sin(p.ft * 4 + p.s * 6))), rot, '#FFFFFF', a, rot, p.s * 37, 5 + 0.9 * Math.max(0, 0.6 - p.ft)); }
+          for (const p of dust) { if (p.t < 0) continue; const q = p.t / p.life, r = T * p.s * (0.6 + 0.9 * q); Q.quad(84, H.sx(p.x), H.sy(p.y) - p.z * T, r, 0, 0, r * 0.55, '#8A7050', Math.sin(Math.min(1, q * 2.5) * Math.PI / 2) * (1 - q) * (p.veil ? 0.8 : 0.65), q, p.sd || (p.sd = 1 + Math.random() * 9), 0.9 * 0.3 * Math.max(0, 1 - q * 2)); }
+          for (const p of specks) { if (p.t < 0) continue; const q = p.t / p.life, sx2 = H.sx(p.x), sy2 = H.sy(p.y) - p.z * T, s = T * p.s * (1 + 2 * (1 - q)); Q.glow(sx2, sy2, s * 1.4, HONEY, Math.sin(q * Math.PI) * 0.8); Q.star(sx2, sy2, s * 1.2, Math.sin(q * Math.PI), PALE); }
+          FG.flush(c); return; } }
         // the lip of piled sand over each monster's feet (never over the pet)
         if (feet.size && t < TL + 0.3) { const ls = lipSpr(); c.save(); for (const [m, q] of feet) { if (m.dead || q.a < 0.02 || m.mv === 1) continue; const mx = H.sx(m.x), my = H.sy(m.y) - (m.z || 0) * T, w = Math.max(T * 0.42, m.r * T * 1.35); c.globalAlpha = q.a * (t > TE ? 1 - sm((t - TE) / 0.5) : 1); c.drawImage(ls, mx - w, my - w * 0.12, w * 2, w * 0.75); } c.restore(); }
         // the plates thrown up in short weighted arcs, breaking where they land
         if (plates && ruptured && !dead) { const ox = X - rx, oy = Y - ry, kq = 1 / snapK * (T / snapT);
-          for (const p of plates) { if (!p.fly) continue; const a = p.down ? 1 - cl(p.dt / 0.3) : 1; if (a <= 0.01) continue; const w = p.cw * kq, hh = p.ch * kq, hx = ox + (p.mx * kq) + p.cx * rx - (p.mx * kq - rx) - rx + 0, px2 = X + p.cx * rx, py2 = Y + p.cy * ry - p.z * T;
+          for (const p of plates) { if (!p.fly || !p.cv) continue;   // (v415 EB: the GPU picture's plates have no 2D cut)
+ const a = p.down ? 1 - cl(p.dt / 0.3) : 1; if (a <= 0.01) continue; const w = p.cw * kq, hh = p.ch * kq, hx = ox + (p.mx * kq) + p.cx * rx - (p.mx * kq - rx) - rx + 0, px2 = X + p.cx * rx, py2 = Y + p.cy * ry - p.z * T;
             const dim = Math.hypot(px2 - PX, py2 - PY) < T * 1.0 ? 0.45 : 1; void hx;
             c.save(); c.translate(px2, py2); c.rotate(p.rot || 0); c.scale(1, p.down ? 1 - 0.3 * cl(p.dt / 0.3) : 1 - 0.25 * Math.abs(Math.sin(p.ft * 4 + p.s * 6))); c.globalAlpha = a * dim; c.drawImage(p.cv, (p.x0 - p.mx) * kq, (p.y0 - p.my) * kq, w, hh); c.restore(); } }
         // dust: the low veil after the rupture, puffs where plates land; the gold specks

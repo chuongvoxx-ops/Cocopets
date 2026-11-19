@@ -495,6 +495,155 @@ float lmAr(vec2 p, float hw, float hh){ p.x = abs(p.x); float cy = -hh + hw; if 
 float lmFh(float f){ f = clamp(f, 0.0, 1.0); return 0.5 * smoothstep(0.0, 0.16, f) + 0.22 * sin(3.1416 * clamp((f - 0.16) / 0.44, 0.0, 1.0)) - 0.12 * exp(-sq((f - 0.65) / 0.06)) + 0.5 * sqrt(max(0.0, 1.0 - sq((f - 0.84) / 0.16))) * smoothstep(0.66, 0.72, f); }   /* (v412 LM) the mirror frame's moulding across it (0 at the face .. 1 its outer edge): a lip, a cove, the wire's groove, a round outer bead */
 vec3 lmMt(vec3 n, vec3 Ld, vec3 Hv){ float df = max(dot(n, Ld), 0.0); return mix(vec3(0.42, 0.24, 0.27), vec3(0.96, 0.75, 0.78), df) + vec3(1.0, 0.94, 0.97) * (pow(max(dot(n, Hv), 0.0), 36.0) * 0.95 + sq(1.0 - n.z) * 0.15); }   /* (v412 LM) polished rose gold */
 vec3 lmRt(vec3 n, float cy, float sy, float ct, float st){ n = vec3(n.x * cy + n.z * sy, n.y, -n.x * sy + n.z * cy); return vec3(n.x, n.y * ct + n.z * st, -n.y * st + n.z * ct); }   /* (v412 LM) a normal turned by a yaw (cos, sin) then tilted down (cos, sin) */
+/* (v415 EA) Earth's ults (20k2b/c/d/f/k), kinds 73..79. Solids are ray-cast (convex crystals and stones: the exact ray through the intersection of
+   half-spaces n.p <= d, as the 2D bakes in 20k2e cast it) or ray-marched (Rocky's fists) per pixel in the EARTHC view: x right, y toward the viewer,
+   z up; screen x = x, screen y = y GY - z (GY 0.55), so a pixel's ray is the world step (0, 1, GY). eaPl takes one face; eaSE gives the distance to
+   the silhouette and to the nearest edge in px (for the soft edge and the bevels) */
+float eaU1, eaU2, eaLo, eaMs, eaSil, eaEd, eaTh, eaSS, eaRR, eaMD, eaSD; vec4 eaN1, eaN2, eaNB; mat3 eaM; vec3 eaQ;
+const vec3 eaLt = vec3(-0.5105, 0.4641, 0.7239), eaVw = vec3(0.0, 0.83662, 0.54778), eaHv = vec3(-0.2702, 0.6884, 0.6731);
+void eaI(){ eaU1 = 1e9; eaU2 = 1e9; eaLo = -1e9; eaMs = 0.0; eaN1 = vec4(0.0, 1.0, 0.0, 0.0); eaN2 = eaN1; eaNB = vec4(0.0, -1.0, 0.0, 0.0); }
+void eaPl(vec3 n, float d, vec2 s){ float a = n.y + n.z * 0.55, r = d - n.x * s.x + n.z * s.y;
+  if (a > 1e-4) { float v = r / a; if (v < eaU1) { eaU2 = eaU1; eaN2 = eaN1; eaU1 = v; eaN1 = vec4(n, d); } else if (v < eaU2) { eaU2 = v; eaN2 = vec4(n, d); } }
+  else if (a < -1e-4) { float v = r / a; if (v > eaLo) { eaLo = v; eaNB = vec4(n, d); } }
+  else if (r < 0.0) eaMs = 1.0; }
+vec2 eaG(vec3 n){ float a = n.y + n.z * 0.55; return vec2(-n.x, n.z) / (abs(a) > 1e-4 ? a : 1e-4); }
+vec2 eaSE(float S){ return vec2(eaMs > 0.5 || eaLo < -1e8 ? -9.0 : (eaU1 - eaLo) / clamp(length(eaG(eaN1.xyz) - eaG(eaNB.xyz)), 1e-3, 6.0) * S, eaU2 > 1e8 ? 1e4 : (eaU2 - eaU1) / max(length(eaG(eaN2.xyz) - eaG(eaN1.xyz)), 1e-3) * S); }
+mat3 eaFr(vec3 A, float sp){ vec3 X = normalize(cross(abs(A.z) < 0.95 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0), A)), Y = cross(A, X); float c = cos(sp), s = sin(sp); return mat3(c * X + s * Y, c * Y - s * X, A); }
+vec3 eaLoc(mat3 M, vec3 p){ return vec3(dot(p, M[0]), dot(p, M[1]), dot(p, M[2])); }
+/* a crystal's faces: six sides of radius rr jittered by sd; md 0 a spire (its root at the origin, a pyramid tip at z 1, tapering, cut by the floor),
+   1 doubly terminated (z -0.5 .. 0.5), 2 a shard (a point at +0.5, broken off at -0.45) */
+void eaCry(vec2 s, mat3 M, float sd, float rr, float md){
+  vec2 to = (vec2(h1(vec2(sd, 1.3)), h1(vec2(sd, 2.9))) - 0.5) * rr * 0.5, tb = (vec2(h1(vec2(sd, 4.1)), h1(vec2(sd, 5.7))) - 0.5) * rr * 0.4;
+  for (int i = 0; i < 6; i++) { float fi = float(i), a = fi * 1.0471976 + (h1(vec2(sd + fi * 2.3, 3.1)) - 0.5) * 0.35, ri = rr * (0.82 + 0.3 * h1(vec2(sd + fi * 5.1, 1.7))), kk = 0.8 + 0.4 * h1(vec2(sd + fi * 3.7, 8.3)); vec2 cs = vec2(cos(a), sin(a)); vec3 n;
+    if (md < 0.5) { float rs = ri * 0.62; n = vec3(cs, (ri - rs) / 0.5); eaPl(M * normalize(n), ri / length(n), s); n = vec3(cs, rs / 0.5 * kk); eaPl(M * normalize(n), dot(n, vec3(to, 1.0)) / length(n), s); }
+    else { eaPl(M * vec3(cs, 0.0), ri, s); n = vec3(cs, ri / 0.28 * kk); eaPl(M * normalize(n), dot(n, vec3(to, 0.5)) / length(n), s);
+      if (md < 1.5) { n = vec3(cs, -ri / 0.28 * (1.8 - kk)); eaPl(M * normalize(n), dot(n, vec3(tb, -0.5)) / length(n), s); } } }
+  if (md < 0.5) eaPl(vec3(0.0, 0.0, -1.0), 0.0, s);
+  else if (md > 1.5) { vec3 n = normalize(vec3(h1(vec2(sd, 6.6)) - 0.5, h1(vec2(sd, 7.7)) - 0.5, -1.2)); eaPl(M * n, 0.45 * abs(n.z), s); } }
+/* kinds 73 / 76 (a crystal's body / its light) share this: v_q.x md x 1000 + seed, v_q.y px per unit + its radius (fraction), v_q.z an angle + 7 x
+   floor(100 x a second one): md 0 the lean's azimuth and the lean (the unit its height; the quad from 0.14 below the root to 1.14 above it),
+   md 1 / 2 the axis's angle on screen and its roll (the unit its length; the quad 0.62 of it either way) */
+void eaCSet(vec2 u){ eaMD = floor(v_q.x / 1000.0 + 0.0001); eaSD = v_q.x - eaMD * 1000.0; eaSS = floor(v_q.y); eaRR = max(v_q.y - eaSS, 0.02); float lq = floor(v_q.z / 7.0 + 0.0001), an = v_q.z - lq * 7.0, sk = 0.0; vec2 s; vec3 A; float sp;
+  if (eaMD < 0.5) { sk = floor(lq / 200.0 + 0.0001); lq -= sk * 200.0; sk /= 40.0; float ln = lq / 100.0; s = vec2(u.x * 0.62, u.y * 0.66 - 0.48); A = vec3(sin(ln) * cos(an), sin(ln) * sin(an), cos(ln)); sp = eaSD * 2.39; }   /* (md 0: + 200 x floor(40 x its sink): its root that far under the floor, of its height) */
+  else { s = u * 0.62; A = normalize(vec3(cos(an), eaMD > 1.5 ? (h1(vec2(eaSD, 9.1)) - 0.5) * 1.2 : 0.12, -sin(an))); sp = lq / 100.0; }
+  eaM = eaFr(A, sp); eaI(); eaCry(s, eaM, eaSD, eaRR, eaMD); if (eaMD < 0.5) eaPl(vec3(0.0, 0.0, -1.0), -sk, s); vec2 se = eaSE(eaSS); eaSil = se.x; eaEd = se.y; eaTh = (eaU1 - eaLo) * 1.14127; eaQ = eaLoc(eaM, vec3(s.x, eaU1, eaU1 * 0.55 - s.y)); }
+vec3 eaAm(float k, float p){ k = clamp(k, 0.0, 1.0) * 5.0; vec3 a = vec3(0.204, 0.086, 0.02), b = vec3(0.408, 0.196, 0.043), c = vec3(0.69, 0.376, 0.075), d = vec3(0.886, 0.573, 0.141), e = vec3(0.973, 0.753, 0.314), f = vec3(1.0, 0.902, 0.675);
+  if (p > 0.5) { a = vec3(0.17, 0.035, 0.015); b = vec3(0.4, 0.09, 0.025); c = vec3(0.74, 0.24, 0.05); d = vec3(0.95, 0.46, 0.1); e = vec3(1.0, 0.69, 0.29); f = vec3(1.0, 0.9, 0.66); }   /* (1: ember crystal, redder) */
+  return k < 1.0 ? mix(a, b, k) : k < 2.0 ? mix(b, c, k - 1.0) : k < 3.0 ? mix(c, d, k - 2.0) : k < 4.0 ? mix(d, e, k - 3.0) : mix(e, f, k - 4.0); }
+/* rough stone at world normal n, object point q (about a unit across): grained albedo, soft-banded light, a warm bounce from below, a cool sky
+   rim, a matte sheen; moss (0..1) on what faces up */
+vec3 eaStone(vec3 n, vec3 q, float sd, float moss){ float ndl = max(dot(n, eaLt), 0.0), ndv = max(dot(n, eaVw), 0.0), t1 = n3(q * 3.0 + sd), t2 = n3(q * 11.0 + 3.0), t3 = n3(q * 27.0 + sd * 1.7);
+  float alb = 0.8 + 0.34 * (t1 - 0.5) + 0.24 * (t2 - 0.5) + 0.16 * (t3 - 0.5) + (t3 > 0.78 ? 0.3 * (t3 - 0.78) / 0.22 : 0.0), b = clamp((0.3 * smoothstep(0.04, 0.18, ndl) + 0.35 * smoothstep(0.34, 0.48, ndl) + 0.35 * smoothstep(0.66, 0.78, ndl)) * 0.45 + 0.55 * ndl, 0.0, 1.0) * alb + 0.07;
+  vec3 c = mix(vec3(0.05, 0.038, 0.028), vec3(0.21, 0.165, 0.12), smoothstep(0.0, 0.45, b)); c = mix(c, vec3(0.52, 0.42, 0.31), smoothstep(0.4, 1.05, b));
+  float fr = pow(1.0 - ndv, 2.4); c += vec3(0.59, 0.34, 0.08) * fr * clamp(-n.z * 1.1 + 0.25, 0.0, 1.0) * 0.55 + vec3(0.16, 0.17, 0.2) * fr * clamp(n.z * 1.2 - 0.3, 0.0, 1.0) * 0.3 + vec3(0.9, 0.8, 0.67) * pow(max(dot(n, eaHv), 0.0), 22.0) * 0.2 * (0.4 + t2);
+  float mo = moss * smoothstep(0.2, 0.65, n.z) * smoothstep(0.45, 0.6, n3(q * 3.5 + sd + 20.0) + 0.2 * (t3 - 0.5)); c = mix(c, mix(vec3(0.06, 0.09, 0.03), vec3(0.29, 0.4, 0.12), 0.3 + 0.7 * ndl) * (0.7 + 0.6 * t3), mo * 0.92);
+  return c; }
+/* a stone's faces (kind 74 md 0): nine broad ones round it and four chips, radius about 0.85 */
+void eaRk(vec2 s, mat3 M, float sd){ for (int i = 0; i < 9; i++) { float fi = float(i), yy = 1.0 - (fi + 0.5) / 4.5, rr = sqrt(1.0 - yy * yy), th = fi * 2.39996 + h1(vec2(sd + fi, 1.0)) * 0.6;
+    eaPl(M * normalize(vec3(cos(th) * rr + (h1(vec2(sd + fi * 3.1, 2.0)) - 0.5) * 0.3, yy + (h1(vec2(sd + fi * 4.3, 3.0)) - 0.5) * 0.3, sin(th) * rr + (h1(vec2(sd + fi * 5.9, 4.0)) - 0.5) * 0.3)), 0.8 + 0.1 * h1(vec2(sd + fi * 7.7, 5.0)), s); }
+  for (int i = 0; i < 4; i++) { float fi = float(i); eaPl(M * normalize(vec3(h1(vec2(sd + fi, 6.0)), h1(vec2(sd + fi * 1.3, 7.0)), h1(vec2(sd + fi * 1.7, 8.0))) - 0.5), 0.86 + 0.08 * h1(vec2(sd + fi, 9.0)), s); } }
+/* a slab's faces (kind 74 md 1): a block 1 x 0.62 x 0.2 (half sizes), its edges chamfered, a corner knocked off */
+void eaSb(vec2 s, mat3 M, float sd){ vec3 e = vec3(1.0, 0.62, 0.2); for (int i = 0; i < 3; i++) { vec3 n = i == 0 ? vec3(1.0, 0.0, 0.0) : i == 1 ? vec3(0.0, 1.0, 0.0) : vec3(0.0, 0.0, 1.0); float d = dot(n, e); eaPl(M * n, d, s); eaPl(-(M * n), d, s); }
+  for (int i = 0; i < 4; i++) { float fi = float(i), sx = mod(fi, 2.0) * 2.0 - 1.0, sy = floor(fi / 2.0) * 2.0 - 1.0; eaPl(M * normalize(vec3(sx, 0.0, 1.0)), (1.0 + 0.2) * 0.7071 - 0.06 - 0.04 * h1(vec2(sd, fi)), s); eaPl(M * normalize(vec3(0.0, sy, 1.0)), (0.62 + 0.2) * 0.7071 - 0.06 - 0.04 * h1(vec2(sd + 3.0, fi)), s); }
+  eaPl(M * normalize(vec3(1.0, 1.0, 0.6) * vec3(sign(h1(vec2(sd, 4.4)) - 0.5), sign(h1(vec2(sd, 5.5)) - 0.5), 1.0)), 1.32, s); }
+/* Rocky's fist (kind 75), ray-marched: ~18 stones on a hand (fist units: x toward the knuckles, y the pinky side, z the back of the hand; a right
+   fist, 20k2k model()); each a block with rounded, chamfered corners; the nearest two distances and the nearest stone's group are kept (eaFk, eaFg)
+   for the crevices between them */
+vec2 eaFk; float eaFg;
+void eaFu(float d, float g){ if (d < eaFk.x) { eaFk.y = eaFk.x; eaFk.x = d; eaFg = g; } else if (d < eaFk.y) eaFk.y = d; }
+vec3 eaRy(vec3 p, float c, float s){ return vec3(c * p.x - s * p.z, p.y, s * p.x + c * p.z); }   /* (a turn about y given as its cosine and sine: no trigonometry per step) */
+vec3 eaRxyz(vec3 p, vec3 r){ float c = cos(r.z), s = sin(r.z); p = vec3(c * p.x + s * p.y, -s * p.x + c * p.y, p.z); c = cos(r.y); s = sin(r.y); p = vec3(c * p.x - s * p.z, p.y, s * p.x + c * p.z); c = cos(r.x); s = sin(r.x); return vec3(p.x, c * p.y + s * p.z, -s * p.y + c * p.z); }
+float eaSt(vec3 p, vec3 e){ float r = min(e.x, min(e.y, e.z)) * 0.42; vec3 q = abs(p) - e + r; return max(length(max(q, 0.0)) + min(max(q.x, max(q.y, q.z)), 0.0) - r, (dot(abs(p) / e, vec3(1.0)) - 2.3) * 0.33 * min(e.x, min(e.y, e.z))); }
+float eaFist(vec3 p, float tier, float bld, float kb){ eaFk = vec2(9.0); eaFg = 0.0; float g1 = (1.0 - smoothstep(0.0, 0.34, bld)) * 0.45, g2 = (1.0 - smoothstep(0.3, 0.68, bld)) * 0.45, g3 = (1.0 - smoothstep(0.62, 1.0, bld)) * 0.45, bg = kb - 1.0;
+  eaFu(eaSt(p - vec3(-0.05, 0.0, -0.06), vec3(0.53, 0.6, 0.35)) + g1, 1.0);
+  eaFu(eaSt(eaRy(p - vec3(-0.1, 0.02, 0.3), 0.995004, -0.0998334), vec3(0.5, 0.63, 0.13)) + g1, 2.0);
+  if (tier > 1.5 || bg > 0.05) eaFu(eaSt(eaRy(p - vec3(0.16, 0.0, 0.41), 0.968912, -0.247404), vec3(0.11, 0.57, 0.08)) + g1, 2.0);
+  if (tier > 2.5 || bg > 0.05) { eaFu(eaSt(eaRy(p - vec3(-0.34, 0.0, 0.43), 0.998201, -0.059964), vec3(0.22, 0.52, 0.09)) + g1, 2.0); eaFu(eaSt(p - vec3(-0.1, 0.6, 0.02), vec3(0.37, 0.08, 0.26)) + g3, 15.0); }
+  if (bg > 0.05) eaFu(eaSt(eaRxyz(p - vec3(0.0, 0.05, 0.47 + 0.1 * bg), vec3(0.06, -0.12, 0.12)), vec3(0.33, 0.46, 0.09)) + (1.0 - smoothstep(0.0, 0.3, bg)) * 0.4, 15.0);
+  for (int i = 0; i < 4; i++) { float fi = float(i), y = mix(-0.42, 0.41, fi / 3.0), w = fi > 2.5 ? 0.135 : abs(fi - 1.0) < 0.5 ? 0.155 : 0.15, x = abs(fi - 1.0) < 0.5 ? 0.03 : fi > 2.5 ? -0.06 : 0.0, z = abs(fi - 1.0) < 0.5 ? 0.02 : fi > 2.5 ? -0.04 : 0.0;
+    eaFu(eaSt(eaRy(p - vec3(0.47 + x + 0.2 * bg, y, 0.19 + z + 0.1 * bg), 0.975897, 0.21823), vec3(0.275 * kb, w * 1.1 * (1.0 + 0.2 * bg), 0.253 * kb)) + g1, 3.0 + fi);
+    eaFu(eaSt(eaRy(p - vec3(0.7 + x + 0.27 * bg, y, -0.19 + z), 0.980067, -0.198669), vec3(0.165, w * 1.03, 0.242)) + g2, 3.0 + fi); }
+  eaFu(eaSt(eaRxyz(p - vec3(0.12, -0.6, -0.1), vec3(0.2, 0.1, 0.45)), vec3(0.33, 0.2, 0.23)) + g2, 7.0);
+  eaFu(eaSt(eaRxyz(p - vec3(0.86 + 0.1 * bg, -0.27, -0.3), vec3(0.0, 0.05, 0.3)), vec3(0.154, 0.308, 0.165)) + g2, 7.0);
+  eaFu(eaSt(p - vec3(-0.72, 0.0, -0.02), vec3(0.286, 0.418, 0.33)) + g3, 8.0);
+  for (int k = 0; k < 4; k++) { float an = (k == 3 ? 4.0 : float(k)) * 1.2566371 + 0.5, ck = 1.0 + 0.12 * bg, ca = cos(an), sa = sin(an); vec3 pc = p - vec3(-0.93, ca * 0.44 * ck, sa * 0.418 * ck); eaFu(eaSt(vec3(pc.x, sa * pc.y - ca * pc.z, ca * pc.y + sa * pc.z), vec3(0.154, 0.275 * ck, 0.121)) + g3, 9.0 + float(k)); }
+  return eaFk.x; }
+/* the floor's patterns (floor units: x, y before the squash). The six-pointed fissure pattern of Crystal Coronation (radius 1; its two triangles from
+   d0 0.15 / 0.2 of the trace on, the spokes from the start), traced to tr: the distance to the nearest drawn line, the nearest tracing head */
+vec2 eaHex(vec2 p, float tr, float sd){ p += (vec2(n2(p * 6.0 + sd), n2(p * 6.0 + sd + 17.3)) - 0.5) * 0.075 + (vec2(n2(p * 21.0 - sd), n2(p * 21.0 + 5.1)) - 0.5) * 0.02; float best = 9.0, hd = 9.0;
+  for (int i = 0; i < 6; i++) { float fi = float(i), d0 = 0.15 + 0.05 * mod(fi, 2.0), uu = clamp((tr - d0) / (1.0 - d0), 0.0, 1.0), as = (fi + 0.5) * 1.0471976, us = clamp(tr, 0.0, 1.0);
+    vec2 A = vec2(cos(fi * 1.0471976), sin(fi * 1.0471976)), B = vec2(cos((fi + 2.0) * 1.0471976), sin((fi + 2.0) * 1.0471976)), E = mix(A, B, uu), S0 = vec2(cos(as), sin(as)) * 0.12, S1 = mix(S0, vec2(cos(as), sin(as)) * 0.52, us);
+    if (uu > 0.0) { best = min(best, lmSeg(p, A, E)); if (uu < 1.0) hd = min(hd, length(p - E)); }
+    if (us > 0.0) { best = min(best, lmSeg(p, S0, S1)); if (us < 1.0) hd = min(hd, length(p - S1)); } }
+  return vec2(best, hd); }
+/* radial ground cracks round an impact (p in units of the reach): n jagged rays, each forking once, growing out to rch (0..1), and a cell network
+   near the middle; the distance to the nearest crack (in units) and how far out along its ray (0..1) */
+vec2 eaWeb(vec2 p, float sd, float n, float rch){ float r = length(p), a = atan(p.y, p.x), sec = 6.2831853 / n, i0 = floor(a / sec), best = 9.0, al = 0.0;
+  for (int k = -1; k <= 1; k++) { float ii = mod(i0 + float(k), n), L = (0.55 + 0.45 * h1(vec2(ii + 3.1, sd))) * rch, ar = (ii + 0.5 + (h1(vec2(ii, sd)) - 0.5) * 0.6) * sec + 0.3 * (n2(vec2(r * 3.0 + ii * 7.0, sd)) - 0.5) + 0.08 * (n2(vec2(r * 14.0, ii * 3.0 + sd)) - 0.5);
+    float da = a - ar; da -= 6.2831853 * floor(da / 6.2831853 + 0.5); float tp = clamp(r / max(L, 1e-3), 0.0, 1.0), d = abs(da) * r / mix(1.0, 0.25, tp * tp) + max(r - L, 0.0) * 3.0; if (d < best) { best = d; al = tp; }
+    float r0 = 0.4 * L, sg = h1(vec2(ii, sd + 9.0)) < 0.5 ? -1.0 : 1.0, af = ar + sg * 0.55 * clamp((r - r0) / max(L, 1e-3), 0.0, 1.0) + 0.1 * (n2(vec2(r * 9.0, ii + sd * 2.0)) - 0.5), db = a - af; db -= 6.2831853 * floor(db / 6.2831853 + 0.5);
+    float L2 = r0 + 0.38 * L, t2 = clamp((r - r0) / max(L2 - r0, 1e-3), 0.0, 1.0); if (r > r0) { float d2 = abs(db) * r / mix(1.0, 0.25, t2 * t2) + max(r - L2, 0.0) * 3.0; if (d2 < best) { best = d2; al = mix(0.4, 1.0, t2); } } }
+  vec2 g = p * 6.0 + sd, gi = floor(g), gf = g - gi; float f1 = 9.0, f2 = 9.0;
+  for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) { vec2 o = vec2(float(i), float(j)), q = o + vec2(h1(gi + o), h1(gi + o + 7.7)) * 0.8 + 0.1 - gf; float dd = dot(q, q); if (dd < f1) { f2 = f1; f1 = dd; } else if (dd < f2) f2 = dd; }
+  float cw = (sqrt(f2) - sqrt(f1)) / 6.0 + smoothstep(0.1, 0.32, r / max(rch, 0.05)) * 0.2; if (cw < best) { best = cw; al = 0.0; }
+  return vec2(best, al); }
+/* (v415 EB) Earth's kit (kinds 80..87): a turn about a unit axis, a 3D hash, a seed's turning axis */
+vec3 ebR(vec3 p, vec3 k, float c, float s){ return p * c + cross(k, p) * s + k * dot(k, p) * (1.0 - c); }
+vec3 ebH(vec3 p){ p = vec3(dot(p, vec3(127.1, 311.7, 74.7)), dot(p, vec3(269.5, 183.3, 246.1)), dot(p, vec3(113.5, 271.9, 124.6))); return fract(sin(p) * 43758.5453); }
+vec3 ebAx(float sd){ return normalize(vec3(0.62 + 0.3 * sin(sd * 1.7), 0.42 + 0.3 * cos(sd * 2.3), 0.55 + 0.3 * sin(sd * 3.1 + 1.0))); }
+/* (v415 EB) a rough convex rock (26 planes round a sphere, each pushed in by its seed) cast through the view along -z at the point s (rock units: it spans
+   about 0.95): md 0 a boulder, 1 a slab (1.25 x 0.95 x 0.55), turned by ang about its seed's axis. Returns x 1 on a hit, y its thickness there, z the gap to the
+   next face (small along an edge), w that edge's own random (0..1); P the point (its own space, turning with it), N the view normal (bevelled at the edges) */
+vec4 ebCast(vec2 s, float md, float ang, float sd, out vec3 P, out vec3 N){
+  vec3 k = ebAx(sd), S = md < 0.5 ? vec3(1.0) : vec3(1.25, 0.95, 0.55); float c = cos(ang), sn = sin(ang); s *= md < 0.5 ? 1.0 : 1.25;   /* (a slab: drawn smaller, to stay in its quad) */
+  vec3 o = ebR(vec3(s, 3.0), k, c, -sn) / S, d = ebR(vec3(0.0, 0.0, -1.0), k, c, -sn) / S; float t1 = -1e4, t2 = -1e4, tO = 1e4, i1 = 0.0, i2 = 0.0; vec3 n1 = vec3(0.0, 0.0, 1.0), n2 = n1;
+  for (int i = 0; i < 26; i++) { float fi = float(i), yy = 1.0 - (fi + 0.5) / 13.0, rr = sqrt(max(0.0, 1.0 - yy * yy)), th = fi * 2.39996 + sd; vec3 h = ebH(vec3(fi, sd, 3.7));
+    vec3 n = normalize(vec3(cos(th) * rr, yy, sin(th) * rr) + (h - 0.5) * 0.42); float dn = dot(n, d), t = (0.8 + 0.13 * h.z - dot(n, o)) / (abs(dn) > 1e-4 ? dn : 1e-4);
+    if (dn < -1e-4) { if (t > t1) { t2 = t1; n2 = n1; i2 = i1; t1 = t; n1 = n; i1 = fi; } else if (t > t2) { t2 = t; n2 = n; i2 = fi; } } else if (dn > 1e-4) tO = min(tO, t); }
+  P = o + d * t1; float e = t1 - t2; vec3 n = normalize(mix(n1, n2, 0.5 * (1.0 - smoothstep(0.0, 0.05, e)))); N = ebR(normalize(n / S), k, c, sn);
+  return vec4(step(t1, tO), tO - t1, e, fract(sin(min(i1, i2) * 91.3 + max(i1, i2) * 17.1 + sd) * 4375.85)); }
+/* (v415 EB) the boulder's ember veins at its point P (e, eh: ebCast's z, w): x the vein, y the warm halo round it, z the groove (darkened stone beside it) */
+float ebW3(vec3 x){ vec3 i = floor(x), f = fract(x); float d1 = 9.0, d2 = 9.0;
+  for (int c = -1; c <= 1; c++) for (int b = -1; b <= 1; b++) for (int a = -1; a <= 1; a++) { vec3 g = vec3(float(a), float(b), float(c)), rv = g + ebH(i + g) * 0.8 + 0.1 - f; float dd = dot(rv, rv); if (dd < d1) { d2 = d1; d1 = dd; } else if (dd < d2) d2 = dd; }
+  return sqrt(d2) - sqrt(d1); }   /* (v415 EB) 3D cells: about twice the distance to the nearest cell wall (a network of cracks) */
+vec3 ebVein(vec3 P, float sd, float e, float eh){
+  vec3 wp = P + (vec3(n3(P * 2.3 + sd), n3(P * 2.3 + 5.1), n3(P * 2.3 + 9.7)) - 0.5) * 0.3; float rg = 1.0 - ebW3(wp * 2.0 + sd * 0.37) * 2.2, dm = smoothstep(0.44, 0.6, n3(P * 1.5 + vec3(9.0, sd, 3.0)));
+  float ev = step(eh, 0.22) * (1.0 - smoothstep(0.003, 0.012, e)), v = max(smoothstep(0.905, 0.965, rg) * dm, ev);
+  return vec3(v, max(smoothstep(0.82, 0.96, rg) * dm, ev * 0.5), smoothstep(0.85, 0.93, rg)); }
+/* (v415 EB) 2D cells: x about the distance to the nearest cell wall, y the cell's random, zw its centre */
+vec4 ebCell(vec2 p){ vec2 i = floor(p), f = fract(p), c1 = vec2(0.0); float d1 = 9.0, d2 = 9.0, hv = 0.0;
+  for (int b = -1; b <= 1; b++) for (int a = -1; a <= 1; a++) { vec2 g = vec2(float(a), float(b)), o = vec2(h1(i + g), h1(i + g + 17.3)) * 0.8 + 0.1, rv = g + o - f; float dd = dot(rv, rv);
+    if (dd < d1) { d2 = d1; d1 = dd; c1 = i + g + o; hv = h1(i + g + 5.7); } else if (dd < d2) d2 = dd; }
+  return vec4((sqrt(d2) - sqrt(d1)) * 0.5, hv, c1); }
+/* (v415 EB) an irregular seven-cornered outline: 1 at its middle, 0 on its straight edges (negative outside) */
+float ebPoly(vec2 w, float sd){ float rw = length(w), i0 = floor(atan(w.y, w.x) / 6.2831853 * 7.0); vec2 pA = (0.56 + 0.38 * h1(vec2(mod(i0, 7.0), sd))) * vec2(cos(i0 * 0.8975979), sin(i0 * 0.8975979)), pB = (0.56 + 0.38 * h1(vec2(mod(i0 + 1.0, 7.0), sd))) * vec2(cos(i0 * 0.8975979 + 0.8975979), sin(i0 * 0.8975979 + 0.8975979)), ab = pB - pA, dw = w / max(rw, 1e-4);
+  return 1.0 - rw * (dw.x * ab.y - dw.y * ab.x) / (pA.x * ab.y - pA.y * ab.x); }
+/* (v415 EB) a crater's height at the floor point p (uv of its disc): a bowl, a broken raised rim, rubble */
+float ebCh(vec2 p, float sd){ float r = length(p), an = atan(p.y, p.x), R0 = 0.4 * (1.0 + 0.14 * (fbm(vec2(an * 1.3, sd)) - 0.5)), q = min(r / R0, 1.0);
+  return -0.32 * (1.0 - q * q) + 0.15 * exp(-sq((r - R0) / (0.09 + 0.05 * n2(vec2(an * 3.0, sd))))) * (0.6 + 0.8 * n2(vec2(an * 4.0, sd + 2.0))) + 0.07 * (fbm(p * 6.0 + sd) - 0.5) * (1.0 - smoothstep(0.3, 0.95, r))
+    + 0.05 * smoothstep(0.6, 0.75, n2(p * 11.0 + sd)) * smoothstep(R0, R0 + 0.1, r) * (1.0 - smoothstep(0.55, 0.9, r)); }
+/* (v415 EB, Obsidian Drill) the drill at a model point p (x right, y toward the viewer, z up; its flights' radius 1, its tip at 4.42), turned by rot: negative
+   inside. A faceted core, two starts of sloping flights (pitch 1.7) cut into wedges, each gap holding a joint of gold crystal set back */
+vec4 ebDrP(vec3 p, float rot){ float z = p.z, rc = 0.54 * clamp(1.0 - (z - 2.3) / 2.12, 0.0, 1.0), ro = z < 2.3 ? 1.0 : rc + 0.46 * pow(clamp(1.0 - (z - 2.3) / 2.0, 0.0, 1.0), 1.15), r = length(p.xy);
+  float ph = atan(p.y, p.x) - rot, w = z / 0.85 - ph / 3.14159265, sc = clamp((r - rc) / max(ro - rc, 0.01), 0.0, 1.0), cw = w + 0.12 * sc; cw -= floor(cw + 0.5);
+  float al = 3.14159265 * (z / 0.85 - floor(w + 0.5)) / 1.2566371, jt = step(0.88, al - floor(al)) * step(-0.3, z);
+  return vec4(r - rc * (0.94 + 0.06 * cos(ph * 14.0)), r - mix(ro, rc + 0.62 * (ro - rc), jt), (abs(cw) - mix(0.27, 0.12, sc)) * 0.85, min(sc, 0.999) + 2.0 * jt); }   /* (its parts: x core, y the flights' outer face, z their faces, w how far out (fract) + 2 in a joint) */
+float ebDr(vec3 p, float rot){ vec4 q = ebDrP(p, rot); return min(q.x, max(q.y, q.z)); }
+/* (v415 TI, Titan: kinds 88..91) floor fractures in a unit disc: radial trunks that wander, thin and end at their own reach, a net of side cracks near them. x the trunks' line, y the side cracks', z the arc distance to the nearest trunk */
+vec3 ttnCr(vec2 u, float sd, float wk){ float r = length(u), an = atan(u.y, u.x), nr = 11.0 + floor(fract(sd * 0.37) * 4.0);
+  float s = an / 6.2831853 * nr + (n2(vec2(r * 2.7, sd * 1.7)) - 0.5) * 1.7 + (n2(u * 4.5 + sd + 4.0) - 0.5) * 0.7 + (n2(u * 12.0 + sd + 9.0) - 0.5) * 0.3 + sd, id = floor(s + 0.5), d = abs(s - id) * 6.2831853 / nr * max(r, 0.04);
+  float reach = 0.55 + 0.45 * h1(vec2(id, sd)), w = max(wk * 0.016 * (1.25 - 0.7 * r) * (1.0 - smoothstep(reach - 0.18, reach, r)), 1e-4), tr = exp(-d * d / (w * w)) * smoothstep(0.02, 0.07, r);
+  float nn = n2(u * 6.5 + sd * 3.0), sc = exp(-sq((nn - 0.5) / (0.03 * wk))) * exp(-d * 5.0) * step(0.36, n2(u * 2.2 + sd)) * smoothstep(0.1, 0.25, r) * (1.0 - smoothstep(reach - 0.1, reach + 0.05, r));
+  return vec3(tr, sc, d); }
+/* (v415 TI) the summoning sigil's lines (three rings, a hexagon, spokes, a triangle, a band of 18 runes): the least distance / width to any */
+float ttnSig(vec2 u, float sd){ float r = length(u), an = atan(u.y, u.x), m = 1e3;
+  m = min(m, abs(r - 0.93) / 0.012); m = min(m, abs(r - 0.8) / 0.008); m = min(m, abs(r - 0.42) / 0.007);
+  if (r < 0.81) m = min(m, abs(r * cos(mod(an, 1.0471976) - 0.5235988) - 0.69282) / 0.007);
+  if (r > 0.42 && r < 0.8) m = min(m, abs(r * sin(mod(an, 1.0471976) - 0.5235988)) / 0.006);
+  if (r < 0.3) m = min(m, abs(r * cos(mod(an + 1.5708, 2.0943951) - 1.0471976) - 0.14) / 0.006);
+  if (abs(r - 0.865) < 0.04) { float ca = an / 0.34906585, c = floor(ca), h = h1(vec2(c, sd)), ly = (ca - c - 0.5) * 0.34906585 * r, lx = r - 0.865, cut = step(0.026, abs(lx)) * 1e3;
+    m = min(m, abs(ly) / 0.005 + cut); if (h > 0.45) m = min(m, abs(lx * 0.8 - ly) / 0.005 + cut); if (fract(h * 7.3) > 0.55) m = min(m, abs(lx - 0.016) / 0.005 + step(0.014, abs(ly)) * 1e3); }
+  return m; }
 /*<W>*/vec4 wbl(vec2 u, float q0, float th0){ float md = floor(q0 / 10.0), span = max(0.05, q0 - md * 10.0), rr = length(u), an = atan(u.y, u.x), v = 0.0, tk = th0, m = 1.0;   /* (v370, wind) a blade of wind: an arc of radius 0.8 in its quad (mode 0 a trail, its head at angle 0 and its tail round toward -v; 1 a crescent tapering both ways; 2 a whole ring): x across (0 its sharp outer edge .. 1 its inner), y along (0 the head .. 1 the tail), z inside, w arc length */
   if (md < 0.5) { float s = mod(-an + 0.03, 6.2831853) - 0.03; v = s / span; tk = th0 * (1.0 - 0.78 * clamp(v, 0.0, 1.0)) * smoothstep(-0.03 / span, 0.05, v); m = step(v, 1.0); }
   else if (md < 1.5) { v = an / (span * 0.5); tk = th0 * pow(clamp(1.0 - v * v, 0.0, 1.0), 0.6); v = abs(v); m = step(v, 1.0); }
@@ -513,6 +662,254 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
     float a = g.a * v_c.a;
     if (v_k < 71.5) gl_FragColor = vec4(g.rgb * a, a);
     else { vec3 L = min(g.rgb * a, vec3(1.0)); gl_FragColor = vec4(L, max(max(L.r, L.g), L.b)); } }
+  else if (v_k > 79.5 && v_k < 80.5) { // (v415 EB) a rock (solid): a rough convex rock cast per pixel (ebCast), turned by v_q.x about its seed's axis; v_q.y its seed (whole)
+    // + 0.9 x its entry heat (its leading side glowing as it falls); v_q.z its mode + 0.9 x heat. Mode 0 Cataclysm's boulder: dark vesicular basalt in bevelled
+    // facets, ember veins recessed in grooves, hotter with the heat; mode 1 Rock Steady's stone: a chipped slab of warm grey stone, fresh pale chips along its
+    // edges, moss on its upper side, gold flecks, a gold seam right round it brightening with the heat
+    float md = floor(v_q.z), ht = fract(v_q.z) / 0.9, sd = floor(v_q.y), en = fract(v_q.y) / 0.9; vec3 P, N; vec4 Hc = ebCast(u * 1.12, md, v_q.x, sd, P, N); float a = 0.0; vec3 c = vec3(0.0);
+    if (Hc.x > 0.5) {
+      vec3 Ld = normalize(vec3(-0.5, -0.62, 0.6)), Hv = normalize(Ld + vec3(0.0, 0.0, 1.0)); float bev = 1.0 - smoothstep(0.0, 0.05, Hc.z);
+      vec3 bp = P * (md < 0.5 ? 5.5 : 7.0) + sd; N = normalize(N + (vec3(n3(bp), n3(bp + 17.1), n3(bp + 31.7)) - 0.5) * (md < 0.5 ? 0.55 : 0.4) * (1.0 - 0.6 * bev));
+      float g1 = fbm3(P * 2.6 + sd), g2 = n3(P * 13.0 + 2.0), g3 = n3(P * 29.0 + sd), dif = max(dot(N, Ld), 0.0), wr = clamp(dot(N, Ld) * 0.5 + 0.5, 0.0, 1.0), sp = pow(max(dot(N, Hv), 0.0), 36.0), fr = pow(1.0 - max(N.z, 0.0), 2.5), dn = max(N.y, 0.0);
+      if (md < 0.5) {
+        vec3 V = ebVein(P, sd, Hc.z, Hc.w), alb = mix(vec3(0.085, 0.075, 0.075), vec3(0.32, 0.28, 0.25), g1) * (0.8 + 0.4 * g2) * (1.0 - 0.55 * smoothstep(0.74, 0.86, g3));
+        float cel = 0.3 * smoothstep(0.04, 0.18, dif) + 0.35 * smoothstep(0.34, 0.48, dif) + 0.35 * smoothstep(0.66, 0.78, dif);   /* (soft cel bands, as the game's art) */
+        c = alb * (0.16 + 0.75 * cel + 0.6 * dif + 0.15 * wr) + vec3(0.95, 0.88, 0.8) * sp * (0.3 + 0.4 * g2) + vec3(0.42, 0.5, 0.7) * fr * max(-N.y, 0.0) * 0.3 + vec3(0.85, 0.35, 0.06) * dn * fr * (0.4 + 0.6 * ht);
+        c = mix(c, vec3(0.97, 0.86, 0.68), bev * (0.15 + dif) * 0.3) * (1.0 - 0.7 * V.z * (1.0 - V.x));   /* (lit bevels; grooves round the veins) */
+        float pu = 0.8 + 0.2 * sin(u_t * 3.0 + n3(P * 3.0) * 9.0); c += vec3(0.8, 0.22, 0.03) * V.y * (0.08 + 0.25 * ht); c = mix(c, ramp(0.5 + 0.38 * pu + 0.3 * ht), V.x);
+        c += ramp(0.45 + 0.3 * en) * en * smoothstep(0.2, 0.95, N.y + 0.2) * fr * 0.8; }   /* (its entry: the leading side hot) */
+      else {
+        vec3 alb = mix(vec3(0.16, 0.14, 0.12), vec3(0.4, 0.36, 0.3), g1) * (0.78 + 0.42 * g2); alb = mix(alb, vec3(0.6, 0.55, 0.47), bev * 0.35);   /* (fresh pale chips at the edges) */
+        float ms = smoothstep(0.1, 0.3, (fbm3(P * 3.3 + 7.0) - 0.5) * 1.4 - N.y * 0.6 - 0.35) * (1.0 - bev);   /* (moss in patches on its upper side) */
+        alb = mix(alb, mix(vec3(0.1, 0.17, 0.04), vec3(0.32, 0.44, 0.1), n3(P * 22.0) * 0.7 + g2 * 0.3), ms);
+        float fk = 1.0 - abs(fbm3(P * 3.4 + sd) * 2.0 - 1.0); alb *= 1.0 - 0.6 * smoothstep(0.93, 0.985, fk) * (1.0 - ms);   /* (fractures) */
+        vec3 gq = floor(P * 9.0), gh = ebH(gq + sd), gf = P * 9.0 - gq - 0.5 - (gh - 0.5) * 0.5; float fl = step(0.86, gh.x) * (1.0 - smoothstep(0.08, 0.18, length(gf))) * (1.0 - ms);
+        float sg = dot(P, normalize(vec3(1.0, 0.35 * sin(sd), 0.3))) - 0.12 * sin(sd * 2.1), seam = 1.0 - smoothstep(0.022, 0.05, abs(sg + (n3(P * 6.0) - 0.5) * 0.06));
+        c = alb * (0.25 + 1.2 * dif + 0.2 * wr) + vec3(0.9, 0.86, 0.78) * sp * 0.18 * (1.0 - ms) + vec3(0.85, 0.55, 0.2) * dn * fr * 0.3 + vec3(0.5, 0.55, 0.65) * fr * max(-N.y, 0.0) * 0.18;
+        c = mix(c, vec3(0.95, 0.68, 0.2) * (0.45 + 0.8 * dif) + vec3(1.0, 0.95, 0.78) * pow(max(dot(N, Hv), 0.0), 12.0) * 0.8, fl); c = mix(c, mix(vec3(0.75, 0.48, 0.1), vec3(1.0, 0.86, 0.5), 0.3 + 0.7 * ht), seam); }
+      c *= 0.35 + 0.65 * smoothstep(0.0, 0.1, Hc.y); a = smoothstep(0.0, 0.03, Hc.y) * v_c.a * pk; }
+    gl_FragColor = vec4(min(c, vec3(1.0)) * a, a); }
+  else if (v_k > 81.5 && v_k < 82.5) { // (v415 EB) a crater punched in the floor (solid; uv a unit disc squashed by its quad): a scorched bowl (ebCh) under a broken raised
+    // rim, rubble and dark ejecta rays round it, lit from the upper left, molten in its heart with the heat v_q.x; v_q.y seed
+    float sd = v_q.y, an = atan(u.y, u.x), e = 0.012, h0 = ebCh(u, sd), hx = ebCh(u + vec2(e, 0.0), sd), hy = ebCh(u + vec2(0.0, e), sd);
+    vec3 n = normalize(vec3((h0 - hx) / e * 0.55, (h0 - hy) / e * 0.55, 1.0)), Ld = normalize(vec3(-0.45, -0.55, 0.7)); float dif = max(dot(n, Ld), 0.0), g = fbm(u * 9.0 + sd);
+    vec3 c = mix(vec3(0.07, 0.055, 0.045), vec3(0.32, 0.25, 0.19), g) * (0.25 + 1.15 * dif) * (0.5 + 0.5 * smoothstep(-0.32, 0.0, h0));
+    float ray = smoothstep(0.55, 0.85, n2(vec2(an * 4.5, sd))) * smoothstep(0.42, 0.55, r) * (1.0 - smoothstep(0.6, 1.0, r)); c *= 1.0 - 0.45 * ray;
+    float mol = v_q.x * (1.0 - smoothstep(0.0, 0.3, r)) * (0.6 + 0.6 * fbm(u * 5.0 - u_t * 0.3 + sd)); c = mix(c, ramp(0.35 + 0.55 * mol), smoothstep(0.1, 0.5, mol));
+    float a = (1.0 - smoothstep(0.62, 0.98, r + 0.14 * (g - 0.5))) * v_c.a; gl_FragColor = vec4(min(c, vec3(1.0)) * a, a); }
+  else if (v_k > 83.5 && v_k < 84.5) { // (v415 EB) dust and sand (solid; v_c its colour, v_q.y seed, v_q.z mode + 0.9 x the ember light under it): 0 a billowing plume (v_q.x
+    // its age 0..1: it thins and opens), 1 a ring of dust rolling out (uv a unit disc squashed by its quad, its crest at radius v_q.x), 2 a lip of sand piled round a
+    // foot (the front half of a ring, grains lit on top), 3 a ring of grains sliding inward (radius v_q.x)
+    float md = floor(v_q.z), wm = fract(v_q.z) / 0.9, sd = v_q.y, an = atan(u.y, u.x), a = 0.0; vec3 c = col;
+    if (md < 0.5) { vec2 w = u + 0.3 * vec2(fbm(u * 1.5 + vec2(sd, u_t * 0.25)) - 0.5, fbm(u * 1.5 + vec2(sd + 4.1, -u_t * 0.3)) - 0.5); float rr = length(w), f = fbm(w * 2.4 + vec2(sd * 3.1, sd - u_t * 0.3)), g = fbm(w * 5.5 + vec2(-u_t * 0.4, sd * 2.0));
+      float d = clamp((1.0 - rr * rr) * (0.3 + 1.4 * f * f) - 0.1 - 0.25 * v_q.x, 0.0, 1.0) * (0.8 + 0.4 * g), lit = smoothstep(-0.7, 0.7, -w.y * 0.9 - w.x * 0.4 + (f - 0.5) * 1.3);
+      c = col * (0.5 + 0.75 * lit) * (0.8 + 0.35 * g) + vec3(0.9, 0.42, 0.08) * wm * smoothstep(-0.2, 0.9, w.y) * (0.5 + 0.5 * f); a = smoothstep(0.0, 0.45, d) * 0.92 * (1.0 - smoothstep(0.85, 1.0, r)); }
+    else if (md < 1.5) { float R0 = v_q.x * (1.0 + 0.06 * (fbm(vec2(an * 2.5, sd)) - 0.5)), f = fbm(vec2(an * 5.0 + sd, r * 5.0 - u_t * 0.8)), g = fbm(vec2(an * 11.0 - sd, r * 9.0 + u_t)), x = (r - R0) / (0.12 + 0.1 * f);
+      float d = exp(-x * x * (x > 0.0 ? 2.2 : 0.9)) * (0.45 + 0.9 * f) * (0.75 + 0.4 * g) - 0.18, lit = smoothstep(-0.6, 0.8, -u.y * 0.6 + x * 0.35 + (g - 0.5));
+      c = col * (0.55 + 0.7 * lit) + vec3(0.9, 0.42, 0.08) * wm * (1.0 - smoothstep(-0.5, 0.5, x)) * 0.6; a = smoothstep(0.0, 0.4, d) * 0.9 * (1.0 - smoothstep(0.88, 1.0, r)); }
+    else if (md < 2.5) { float x = (r - 0.76) / 0.2, d = (1.0 - x * x) * smoothstep(-0.05, 0.25, u.y) * (0.7 + 0.5 * n2(u * 30.0 + sd)), gr = n2(u * vec2(60.0, 90.0) + sd);
+      c = mix(vec3(0.16, 0.11, 0.06), vec3(0.6, 0.44, 0.2), clamp(0.3 - 0.4 * x, 0.0, 1.0) * 0.6 + gr * 0.4) + vec3(1.0, 0.85, 0.5) * step(0.93, gr) * 0.6; a = smoothstep(0.0, 0.3, d); }
+    else { float x = (r - v_q.x) / 0.09, gr = n2(vec2(an * 70.0, r * 40.0) + sd), d = exp(-x * x) * (0.4 + 0.8 * gr) - 0.15;
+      c = mix(vec3(0.12, 0.08, 0.04), vec3(0.55, 0.4, 0.18), clamp(0.4 - 0.4 * x, 0.0, 1.0) * 0.5 + gr * 0.5) + vec3(1.0, 0.85, 0.5) * step(0.94, gr) * 0.5; a = smoothstep(0.0, 0.35, d) * (1.0 - smoothstep(0.9, 1.0, r)); }
+    a *= v_c.a * pk; gl_FragColor = vec4(min(c, vec3(1.0)) * a, a); }
+  else if (v_k > 84.5 && v_k < 85.5) { // (v415 EB) a shard, chip or crystal (solid): v_q.x the light's turn (the quad's own rotation, so the light stays at the upper left),
+    // v_q.y seed, v_q.z material + 0.9 x its glow: 0 a basalt chip (an irregular faceted lump, ember-lit edges by the glow), 1 a shard of obsidian (a kite of black
+    // volcanic glass, mirror facets, a sharp specular), 2 a gold crystal shard, 3 a chip of mossy stone, 4 an amber crystal standing on the floor (a hexagonal
+    // prism with a point, lit from inside by the glow; v_q.x how far it has risen out of the floor: its foot at uv.y 0.85), 5 a plate of hardened sand
+    float md = floor(v_q.z + 0.001), gw = fract(v_q.z) / 0.9, sd = v_q.y, la = md > 3.5 && md < 4.5 ? 0.0 : v_q.x, ca = cos(la), sa = sin(la), a = 0.0;
+    vec3 Ld = normalize(vec3(-0.5 * ca - 0.62 * sa, 0.5 * sa - 0.62 * ca, 0.6)), Hv = normalize(Ld + vec3(0.0, 0.0, 1.0)), c = vec3(0.0), n = vec3(0.0, 0.0, 1.0);
+    if (md < 0.5 || (md > 2.5 && md < 3.5) || md > 4.5) { // an irregular faceted lump (7 sides, raised in the middle); a plate: flat on top, its dark side below
+      vec2 w = md > 4.5 ? (u + vec2(0.0, 0.14)) / 0.9 : u; float i0 = floor(atan(w.y, w.x) / 6.2831853 * 7.0), e = ebPoly(w, sd);   /* (straight edges between seven corners) */
+      float mid = (i0 + 0.5) / 7.0 * 6.2831853, tp = smoothstep(0.38, 0.5, e); n = normalize(mix(vec3(cos(mid) * 0.95, sin(mid) * 0.95, 0.66 + 0.25 * h1(vec2(i0, sd + 4.0))), vec3((h1(vec2(sd, 1.0)) - 0.5) * 0.5, (h1(vec2(sd, 2.0)) - 0.5) * 0.5, 1.0), md > 4.5 ? 0.85 : tp));
+      float dif = max(dot(n, Ld), 0.0), sp = pow(max(dot(n, Hv), 0.0), 30.0), g = n2(u * 7.0 + sd), g2 = n2(u * 19.0 + sd);
+      if (md < 0.5) { c = mix(vec3(0.05, 0.045, 0.05), vec3(0.22, 0.2, 0.19), g) * (0.25 + 1.25 * dif) + vec3(0.9, 0.85, 0.8) * sp * 0.3; c += ramp(0.45 + 0.4 * gw) * gw * (1.0 - smoothstep(0.02, 0.16, e)) * 0.8; }
+      else if (md < 3.5) { c = mix(vec3(0.2, 0.17, 0.14), vec3(0.46, 0.41, 0.34), g) * (0.25 + 1.2 * dif) + vec3(0.9, 0.86, 0.78) * sp * 0.15; float ms = smoothstep(0.0, 0.3, -w.y + (g2 - 0.5) * 0.8 - 0.1); c = mix(c, mix(vec3(0.1, 0.17, 0.04), vec3(0.3, 0.42, 0.1), g2) * (0.4 + 0.9 * dif), ms); }
+      else { float side = 1.0 - smoothstep(0.0, 0.05, e); float e2 = ebPoly(u / 0.9, sd);
+        float gm = n2(u * 40.0 + sd); c = mix(vec3(0.14, 0.1, 0.055), vec3(0.5, 0.37, 0.17), g * 0.6 + gm * 0.4) * (0.45 + 0.8 * dif) + vec3(1.0, 0.88, 0.55) * step(0.94, gm) * 0.5; c = mix(c, vec3(0.75, 0.6, 0.38), (1.0 - smoothstep(0.0, 0.06, e)) * 0.4);
+        if (e < 0.0) { c = mix(vec3(0.07, 0.05, 0.035), vec3(0.16, 0.11, 0.07), g) + vec3(1.0, 0.6, 0.15) * gw * 0.5 * smoothstep(-0.1, 0.0, e2); e = e2; } }
+      a = smoothstep(0.0, 0.07, e); c *= 0.55 + 0.45 * smoothstep(0.0, 0.12, e); }
+    else if (md < 2.5) { // a kite: obsidian or gold crystal
+      float sk = 0.3 + 0.2 * h1(vec2(sd, 1.3)), m = -0.2 + 0.15 * h1(vec2(sd, 7.1)), x = u.x, y = u.y, pr = y < m ? (y + 0.98) / (m + 0.98) : (0.72 - y) / (0.72 - m), e = 1.0 - abs(x) / max(sk * pr, 0.001);
+      a = smoothstep(0.0, 0.1, e) * step(-0.98, y) * step(y, 0.72); float sx = x < 0.0 ? -1.0 : 1.0; n = normalize(vec3(sx * 0.62, y < m ? -0.45 : 0.42, 0.66));
+      float dif = max(dot(n, Ld), 0.0), sp = pow(max(dot(n, Hv), 0.0), 80.0), rid = exp(-sq(x / 0.03)) * 0.6 + exp(-sq((y - m) / 0.035)) * 0.4, fres = pow(1.0 - n.z, 2.0); vec3 R = reflect(vec3(0.0, 0.0, -1.0), n);
+      if (md < 1.5) c = vec3(0.02, 0.018, 0.026) + vec3(0.07, 0.065, 0.09) * dif + mix(vec3(0.5, 0.26, 0.07), vec3(0.32, 0.33, 0.42), smoothstep(-0.2, 0.2, -R.y)) * (0.12 + 0.6 * fres) + vec3(1.0, 0.97, 0.94) * sp * 1.6 + vec3(0.75, 0.7, 0.9) * rid * 0.12 + vec3(1.0, 0.7, 0.25) * gw * (1.0 - smoothstep(0.0, 0.3, e)) * 0.6;
+      else c = mix(vec3(0.5, 0.28, 0.05), vec3(1.0, 0.8, 0.38), 0.25 + 0.75 * dif) + vec3(1.0, 0.97, 0.88) * (sp * 1.4 + rid * 0.35) + vec3(1.0, 0.75, 0.3) * gw * 0.35; }
+    else { // an amber crystal standing on the floor: a hexagonal prism (three faces seen) with a point; brighter inside with the glow
+      float y = u.y + (1.0 - clamp(v_q.x, 0.0, 1.0)) * 1.85, x = u.x, tip = -0.3, hw = y < tip ? 0.62 * clamp((y + 0.95) / (tip + 0.95), 0.0, 1.0) : 0.62 * (1.0 + 0.1 * (y - tip)), f = (x - 0.12 * (y < tip ? (tip - y) : 0.0) * sign(h1(vec2(sd, 9.0)) - 0.5)) / max(hw, 0.001), e = 1.0 - abs(f);
+      a = smoothstep(0.0, 0.12, e) * step(-0.95, y) * (1.0 - smoothstep(0.8, 0.86, u.y)); float fc = f < -0.34 ? -1.0 : f > 0.34 ? 1.0 : 0.0; n = normalize(vec3(fc * 0.75, y < tip ? -0.55 : -0.05, 0.62));
+      float dif = max(dot(n, Ld), 0.0), th = 1.0 - abs(f) * 0.8, eg = exp(-sq((abs(f) - 0.34) / 0.045)) + (y < tip ? exp(-sq((y - tip) / 0.03)) * 0.0 : exp(-sq((y - tip) / 0.03))) * 0.7;
+      float stk = smoothstep(0.55, 0.85, n2(vec2(x * 9.0 + sd, y * 1.6))) * (1.0 - abs(fc) * 0.5);   /* (streaks inside, along its axis) */
+      c = mix(vec3(0.3, 0.12, 0.02), vec3(1.0, 0.72, 0.28), 0.08 + 0.8 * dif) * (0.7 + 0.3 * th) + vec3(0.35, 0.18, 0.03) * stk + ramp(0.55 + 0.4 * gw) * th * gw * 0.45 + vec3(1.0, 0.92, 0.7) * eg * (0.25 + 0.5 * dif) + vec3(1.0, 0.95, 0.85) * pow(max(dot(n, Hv), 0.0), 50.0); }
+    a *= v_c.a * pk; gl_FragColor = vec4(min(c, vec3(1.0)) * a, a); }
+  else if (v_k > 85.5 && v_k < 86.5) { // (v415 EB, Obsidian Drill) a drill (solid; uv.x across: 1.15 of its flights' radius; uv.y -1 at 3.8 above its foot's screen point .. 1 at 0.75
+    // below it, in its own units, through the game's view: screen y = y 0.55 - z 0.835): ebDr ray-marched through the view, glossy black volcanic glass in sharp
+    // conchoidal facets reflecting a warm floor and a pale sky, gold crystal along its flights' rims and in their joints, brighter with the glow; v_q.x its turn,
+    // v_q.y how deep it is still sunk (its own units), v_q.z 0.9 x its glow. The floor hides what is below it
+    float X = u.x * 1.15, Y = mix(-3.8, 0.75, u.y * 0.5 + 0.5), rot = v_q.x, dz = v_q.y, gw = fract(v_q.z) / 0.9, SE = 0.55, CE = 0.835, q = 1.0404 - X * X, a = 0.0; vec3 c = vec3(0.0);
+    vec3 p0 = vec3(X, Y * SE, -Y * CE), Vv = vec3(0.0, CE, SE);
+    if (q > 0.0) { q = sqrt(q); float lhi = min((q - Y * SE) / CE, (4.45 - dz + Y * CE) / SE), llo = max((-q - Y * SE) / CE, Y * CE / SE);
+      if (lhi > llo) { float st = (lhi - llo) / 30.0, lam = lhi, hf = 0.0, dm = 9.0, prev = lhi;
+        for (int i = 0; i <= 30; i++) { vec3 pm = p0 + Vv * lam; pm.z += dz; float d = ebDr(pm, rot); dm = min(dm, d); if (d < 0.0) { hf = 1.0; break; } prev = lam; lam -= st; }
+        if (hf > 0.5) { float lo = lam, hi = prev; for (int j = 0; j < 5; j++) { float mi = 0.5 * (lo + hi); vec3 pq = p0 + Vv * mi; pq.z += dz; if (ebDr(pq, rot) < 0.0) lo = mi; else hi = mi; }
+          vec3 pm = p0 + Vv * hi; pm.z += dz; float ee = 0.012;
+          vec3 n = normalize(vec3(ebDr(pm + vec3(ee, 0.0, 0.0), rot) - ebDr(pm - vec3(ee, 0.0, 0.0), rot), ebDr(pm + vec3(0.0, ee, 0.0), rot) - ebDr(pm - vec3(0.0, ee, 0.0), rot), ebDr(pm + vec3(0.0, 0.0, ee), rot) - ebDr(pm - vec3(0.0, 0.0, ee), rot)));
+          vec4 pa = ebDrP(pm, rot); float sc = fract(pa.w), jt = step(1.5, pa.w), isC = step(pa.x, max(pa.y, pa.z)), cr = cos(rot), sr = sin(rot); vec3 pr = vec3(pm.x * cr + pm.y * sr, -pm.x * sr + pm.y * cr, pm.z);
+          vec3 fh = ebH(floor(pr * vec3(4.0, 4.0, 3.2)) + 3.0); n = normalize(n + (fh - 0.5) * 0.3 * (1.0 - jt));   /* (conchoidal facets turning with it) */
+          vec3 Lm = normalize(vec3(-0.55, 0.42, 0.75)), R = reflect(-Vv, n); float dif = max(dot(n, Lm), 0.0), nv = max(dot(n, Vv), 0.0), F = 0.05 + 0.95 * pow(1.0 - nv, 5.0), rl = max(dot(R, Lm), 0.0);
+          vec3 env = mix(vec3(0.55, 0.28, 0.07) * (0.5 + 0.8 * gw), mix(vec3(0.2, 0.19, 0.25), vec3(0.62, 0.6, 0.7), clamp(R.z, 0.0, 1.0)), smoothstep(-0.15, 0.15, R.z));
+          c = vec3(0.022, 0.02, 0.028) + vec3(0.07, 0.065, 0.085) * dif + env * mix(0.1, 1.0, F) + vec3(1.0, 0.97, 0.92) * (pow(rl, 90.0) * 2.2 + pow(rl, 12.0) * 0.12) + vec3(0.04, 0.03, 0.06) * sin(length(fract(pr.xy * 4.0) - 0.5) * 40.0 + fh.x * 6.0) * 0.5 * (1.0 - jt);
+          float seam = (1.0 - isC) * smoothstep(0.93, 0.98, sc) * (1.0 - smoothstep(-0.088, -0.074, pa.z)), gk = max(jt * (1.0 - isC), seam);
+          vec3 gc = (mix(vec3(0.55, 0.3, 0.05), vec3(1.0, 0.78, 0.32), 0.3 + 0.7 * dif) + vec3(1.0, 0.95, 0.8) * pow(rl, 20.0) * 0.9 + vec3(1.0, 0.7, 0.2) * gw * 0.55) * (0.8 + 0.4 * fh.y); c = mix(c, gc, gk);
+          c += vec3(1.0, 0.85, 0.55) * (1.0 - isC) * exp(-sq(pa.y / 0.03)) * exp(-sq(pa.z / 0.035)) * (0.25 + 0.6 * dif);   /* (the flights' lit edges) */
+          c += vec3(0.6, 0.3, 0.06) * (1.0 - smoothstep(0.0, 1.0, pm.z - dz)) * (0.15 + 0.3 * gw) * max(0.3 - n.z, 0.0); c *= 0.45 + 0.55 * smoothstep(0.0, 0.22, pm.z - dz); a = 1.0; }
+        else { a = (1.0 - smoothstep(0.0, 0.035, dm)) * 0.85; c = vec3(0.02, 0.015, 0.02); } } }
+    a *= v_c.a * pk; gl_FragColor = vec4(min(c, vec3(1.0)) * a, a); }
+  else if (v_k > 86.5 && v_k < 87.5) { // (v415 EB, Gilded Quicksand) the field (solid; uv a unit disc squashed by its quad): mineral sand of dark umber and gold grains swirling
+    // slowly into a shallow funnel, rippled dunes lit from the upper left (Adept: a second set crossing them; Celestial: broad terraces drifting inward), dark patches,
+    // paler streaks following the swirl, glittering grains catching the light, a grainy feathered rim; v_q.x the flow's clock (it stops at the halt), v_q.y seed,
+    // v_q.z its tier (0, 1, 2) + 0.9 x the hardening (the sand turns to plates of stone, dark gaps between them)
+    float tr = floor(v_q.z), hd = fract(v_q.z) / 0.9, sd = v_q.y, ft = v_q.x, an = atan(u.y, u.x);
+    float rim = 0.93 + 0.025 * sin(an * 7.0 + sd) + 0.018 * sin(an * 13.0 + sd * 2.3) + 0.04 * (fbm(vec2(an * 2.0, sd)) - 0.5), e = r / rim;
+    float sw = ft * 0.2 * (1.25 - min(e, 1.0)) + 0.5 * sq(1.0 - min(e, 1.0)), cs = cos(sw), ss = sin(sw); vec2 p = vec2(u.x * cs - u.y * ss, u.x * ss + u.y * cs) * 4.0;
+    float rr = e + ft * 0.045, wv = fbm(p * 0.6 + sd + vec2(0.0, ft * 0.05)) * 3.0, ph = dot(p, vec2(1.5, 6.0)) + wv * 2.0; vec2 G = vec2(0.24, 0.97);
+    if (tr > 1.5) { ph = rr * 34.0 + wv * 0.6; G = u / max(r, 1e-3); }
+    float h = sin(ph) + 0.35 * sin(2.0 * ph - 0.6); vec2 gr = G * (cos(ph) + 0.7 * cos(2.0 * ph - 0.6)) * 0.3;
+    if (tr > 0.5) { float ph2 = dot(p, vec2(5.0, -2.2)) + wv * 1.6 + ft * 0.4; h += 0.5 * (sin(ph2) + 0.35 * sin(2.0 * ph2 - 0.6)); gr += vec2(0.91, -0.41) * (cos(ph2) + 0.7 * cos(2.0 * ph2 - 0.6)) * 0.15; }
+    float arm = 0.5 + 0.5 * sin(an * 3.0 + log(max(e, 0.03)) * 5.0 + ft * 0.9 + (wv - 1.5) * 1.2);   /* (spiral arms of paler sand flowing in) */
+    vec3 n = normalize(vec3(-gr * (0.6 + 0.4 * arm) - u * 0.75, 1.0)), Ld = normalize(vec3(-0.45, -0.55, 0.7)); float dif = max(dot(n, Ld), 0.0);
+    float gn = n2(p * 14.0 + vec2(ft * 0.6, 0.0)), gm = n2(p * 33.0 - vec2(0.0, ft * 0.9)), bl = smoothstep(0.5, 0.78, fbm(p * 0.8 + vec2(sd, ft * 0.04)));
+    vec3 c = mix(vec3(0.13, 0.09, 0.05), vec3(0.52, 0.38, 0.18), clamp(0.4 + 0.2 * h + 0.18 * arm + (gn - 0.5) * 0.3 + (gm - 0.5) * 0.15, 0.0, 1.0)) * (1.0 - 0.4 * bl);
+    c = c * (0.3 + 1.15 * dif) + vec3(0.95, 0.72, 0.32) * smoothstep(0.7, 1.0, sin(ph + 0.4)) * dif * 0.3;
+    float st = smoothstep(0.55, 0.9, fbm(vec2((an + sw) * 5.0, rr * 16.0) + sd)) * arm; c = mix(c, vec3(0.66, 0.5, 0.27) * (0.5 + 0.7 * dif), st * 0.35);   /* (paler streaks swirling in) */
+    c *= 0.42 + 0.58 * smoothstep(0.0, 0.8, e); c += vec3(0.45, 0.22, 0.04) * (1.0 - smoothstep(0.0, 0.3, e)) * 0.2; c += vec3(0.5, 0.38, 0.2) * exp(-sq((e - 0.86) / 0.05)) * dif * 0.3;   /* (the funnel's depth, a mineral glow in it; a lip at its rim) */
+    for (int k = 0; k < 2; k++) { float S = k == 0 ? 7.0 : 16.0; vec2 gq = p * S, gi = floor(gq), gf = fract(gq) - 0.5; float hh = h1(gi + sd + float(k) * 7.0); vec2 of = (vec2(h1(gi + 1.3), h1(gi + 2.7)) - 0.5) * 0.5;
+      float spot = exp(-dot(gf - of, gf - of) * (k == 0 ? 34.0 : 26.0)), tw = pow(0.5 + 0.5 * sin(u_t * (2.0 + hh * 9.0) + hh * 80.0), 10.0);
+      c += vec3(1.0, 0.9, 0.62) * spot * step(0.88, hh) * (tw * 1.5 + 0.2) * (k == 0 ? 1.0 : 0.6) * (0.5 + dif) + vec3(0.9, 0.62, 0.2) * spot * step(0.7, hh) * step(hh, 0.88) * 0.3 * dif; }   /* (glitter) */
+    if (hd > 0.0) { vec4 ce = ebCell(u * 4.6 + sd); vec2 dc = u * 4.6 + sd - ce.zw; float gp = 1.0 - smoothstep(0.0, 0.012 + 0.03 * hd, ce.x - 0.004), bv = (1.0 - smoothstep(0.0, 0.07, ce.x)) * sign(dot(dc, vec2(-0.6, -0.8)));
+      vec3 sc2 = mix(c, vec3(dot(c, vec3(0.33))) * vec3(1.05, 0.95, 0.82) * 1.1, 0.5) * (1.0 + 0.35 * bv); c = mix(c, mix(sc2, vec3(0.025, 0.018, 0.012), gp), hd); }
+    float a = (1.0 - smoothstep(0.8, 1.0, e + 0.1 * (n2(u * 45.0 + sd) - 0.5))) * v_c.a; gl_FragColor = vec4(min(c, vec3(1.0)) * a, a); }
+  else if ((v_k > 72.5 && v_k < 75.5) || (v_k > 77.5 && v_k < 78.5)) { // (v415 EA) Earth's solids: 73 a crystal, 74 a stone, 75 Rocky's fist, 78 dust and floor shade
+    vec4 A = vec4(0.0);
+    if (v_k < 73.5 && v_q.x > 2999.5) { // md 3 (World Shaking) the golden orb (the quad its radius; screen space: x right, y down, z toward the viewer): a mineral
+      // globe of bands, seams, veins and pockets turning about a tilted axis (v_q.z its turn), glossy gold metal reflecting a warm room, a hard specular, a
+      // dark limb, a pale rim; at Adept (v_q.y fraction > 0.25) a counter-turning inner globe seen through its translucent pockets. v_c.r the seams' light, v_c.g a white flash
+      float S = floor(v_q.y), ade = v_q.y - S > 0.25 ? 1.0 : 0.0, sp = v_q.z, cov = clamp((1.0 - r) * S + 0.5, 0.0, 1.0);
+      if (cov > 0.003) { vec3 n = vec3(u, sqrt(max(0.0, 1.0 - r * r))) / max(1.0, r), AX = vec3(-0.3, -0.88, 0.37) / 1.0011, q = n * cos(-sp) + cross(AX, n) * sin(-sp) + AX * dot(AX, n) * (1.0 - cos(-sp));
+        float lat = dot(q, AX), w1 = fbm3(q * 1.7 + 3.0), w2 = fbm3(q * 4.6 + 9.0), arg = lat * (2.5 + 0.8 * ade) * 1.5708 + (w1 - 0.5) * 1.5 + (w2 - 0.5) * 0.35, band = 0.5 + 0.5 * sin(arg * 6.2832), gr = fbm3(q * 9.0 + 3.0), pk = smoothstep(0.56, 0.72, fbm3(q * 2.6 + 21.0));
+        float fr = fract(arg), bd = min(abs(fr - 0.25), abs(fr - 0.75)), sb = exp(-sq(bd / 0.03)) * (0.45 + 0.55 * gr), vein = pow(1.0 - abs(2.0 * fbm3(q * 3.3 + 31.0) - 1.0), 14.0), tone = clamp(0.26 + 0.58 * band + 0.28 * (gr - 0.5) - 0.42 * pk + 0.12 * vein, 0.0, 1.0), seam = clamp(max(sb * 0.75 * (1.0 - 0.6 * pk), vein * 0.95), 0.0, 1.0);
+        vec3 bc = mix(vec3(0.18, 0.086, 0.024), vec3(0.44, 0.23, 0.055), smoothstep(0.0, 0.22, tone)); bc = mix(bc, vec3(0.745, 0.44, 0.1), smoothstep(0.22, 0.42, tone)); bc = mix(bc, vec3(0.91, 0.63, 0.165), smoothstep(0.42, 0.6, tone)); bc = mix(bc, vec3(0.97, 0.78, 0.29), smoothstep(0.6, 0.76, tone)); bc = mix(bc, vec3(1.0, 0.89, 0.59), smoothstep(0.76, 0.95, tone));
+        vec3 Lv = vec3(-0.5, -0.66, 0.56) / 0.9934, Hh = normalize(Lv + vec3(0.0, 0.0, 1.0)); float ndl = max(dot(n, Lv), 0.0), ndh = max(dot(n, Hh), 0.0), up = -reflect(vec3(0.0, 0.0, -1.0), n).y;
+        vec3 env = mix(vec3(0.3, 0.15, 0.04), vec3(1.0, 0.9, 0.7), smoothstep(-0.35, 0.65, up)) + vec3(1.0, 0.85, 0.55) * exp(-sq((up - 0.08) / 0.09)) * 0.5;
+        vec3 c = mix(bc * (0.38 + 0.62 * (0.4 * smoothstep(0.05, 0.3, ndl) + 0.6 * ndl)), bc * env * 1.15, 0.5 * (1.0 - pk));
+        if (ade > 0.5 && r < 0.66) { vec3 m = vec3(u / 0.66, sqrt(max(0.0, 1.0 - r * r / 0.4356))), A2 = vec3(0.55, -0.62, 0.56) / 0.9978, m2 = m * cos(sp * 2.0) + cross(A2, m) * sin(sp * 2.0) + A2 * dot(A2, m) * (1.0 - cos(sp * 2.0));
+          float t2 = fbm3(m2 * 2.4 + 7.0), s2 = pow(1.0 - abs(2.0 * fbm3(m2 * 3.0 + 13.0) - 1.0), 10.0); c = mix(c, mix(vec3(0.6, 0.3, 0.06), vec3(1.0, 0.8, 0.4), t2) + vec3(1.0, 0.93, 0.75) * s2 * 0.7, pk * 0.75 * smoothstep(0.0, 0.25, m.z)); }
+        c += vec3(1.0, 0.95, 0.85) * (pow(ndh, 70.0) * 1.1 + pow(ndh, 12.0) * 0.12) + vec3(1.0, 0.91, 0.72) * pow(1.0 - n.z, 3.0) * clamp(-(u.x * 0.7 + u.y * 0.72), 0.0, 1.0) * 0.6 + vec3(0.85, 0.54, 0.12) * pow(1.0 - n.z, 2.4) * clamp(u.y * 0.9 + u.x * 0.2, 0.0, 1.0) * 0.4;
+        c += vec3(1.0, 0.94, 0.77) * seam * (0.15 + 0.6 * v_c.r) * (0.62 + 0.38 * ndl); c *= 1.0 - 0.55 * pow(1.0 - n.z, 1.6) * clamp(0.2 + u.x * 0.5 + u.y * 0.75, 0.0, 1.0);
+        c = mix(c, vec3(1.0, 0.97, 0.88), v_c.g); c *= 0.42 + 0.58 * smoothstep(0.0, 3.2, (1.0 - r) * S); A = vec4(min(c, vec3(1.0)), 1.0) * cov; } }
+    else if (v_k < 73.5) { // a faceted crystal (eaCSet): honey to amber by the light and its thickness, the back facets showing through as inner planes, the view
+      // bent in at the front face and out at the back in bands of light, streaks along its axis, inner fracture planes, pale gold bevelled edges, a hard
+      // specular and fresnel; md 0 a dark stone root (v_c.g its height) with a gold seam. v_c.r its palette (0 amber, 1 ember)
+      eaCSet(u); float cov = clamp(eaSil + 0.5, 0.0, 1.0);
+      if (cov > 0.003) { vec3 n = eaN1.xyz; float bw = max(1.1, eaSS * eaRR * 0.07); if (eaEd < bw) n = normalize(mix(n, eaN2.xyz, 0.5 * (1.0 - smoothstep(0.0, bw, eaEd))));
+        float ndl = max(dot(n, eaLt), 0.0), ndv = max(dot(n, eaVw), 0.0), ndh = max(dot(n, eaHv), 0.0), th = clamp(eaTh / (eaRR * 2.0), 0.0, 1.0), z = eaQ.z, fh = h1(floor(eaN1.xy * 23.0 + 50.0) + eaN1.z * 3.7);
+        vec3 rf = refract(-eaVw, n, 0.66), ro = refract(rf, -eaNB.xyz, 1.5); if (dot(ro, ro) < 0.01) ro = reflect(rf, -eaNB.xyz);
+        float rb = 0.5 + 0.5 * sin(dot(ro, vec3(2.7, 4.1, 3.3)) * 2.6 + z * 5.0 / max(eaRR * 5.0, 0.3) + eaSD), rb2 = smoothstep(0.55, 0.95, rb);
+        vec3 c = eaAm(0.03 + 0.58 * pow(ndl, 1.3) + 0.12 * fh + 0.18 * rb * (0.3 + 0.7 * th) - 0.1 * th * (1.0 - ndl), v_c.r);
+        float ip = smoothstep(0.2, 0.9, abs(dot(eaNB.xyz, eaLt))) * (0.3 + 0.7 * th) * (1.0 - 0.5 * ndl); c += vec3(0.24 + 0.16 * fh, 0.17 + 0.13 * fh, 0.05) * ip * 0.7 + vec3(0.5, 0.38, 0.16) * rb2 * th * 0.3;
+        c += vec3(0.11, 0.086, 0.047) * smoothstep(0.6, 0.82, n3(vec3(eaQ.xy * 9.0 / max(eaRR, 0.05), z * 2.0) + eaSD));
+        float fp = abs(fract(dot(eaQ, vec3(0.55, 0.25, 0.8)) / max(eaRR, 0.05) * 0.9 + eaSD * 0.37) - 0.5); c += vec3(0.55, 0.42, 0.18) * exp(-fp * fp * 300.0) * th * 0.45;
+        c += vec3(1.0, 0.965, 0.88) * pow(ndh, 46.0) * 1.1 + vec3(0.47, 0.41, 0.27) * pow(1.0 - ndv, 3.0) * 0.3;
+        c = mix(c, vec3(1.0, 0.914, 0.722), (1.0 - smoothstep(0.45, 1.5, eaEd)) * (0.4 + 0.6 * clamp(ndl * 1.6, 0.0, 1.0)) * 0.85);
+        float rh = v_c.g * 0.3; if (rh > 0.001 && eaMD < 0.5) { float zr = rh * (0.8 + 0.5 * n3(eaQ * 9.0 + eaSD)), rk = 1.0 - smoothstep(-0.02, 0.02, z - zr), sm2 = 1.0 - smoothstep(0.0, rh * 0.16, abs(z - zr));
+          c = mix(c, eaStone(n, eaQ / max(eaRR, 0.05) * 0.5, eaSD, 0.5), rk); c = mix(c, vec3(1.0, 0.77, 0.33), sm2 * 0.8); }
+        c *= 0.32 + 0.68 * smoothstep(0.0, 2.0, eaSil); A = vec4(min(c, vec3(1.0)), 1.0) * cov; } }
+    else if (v_k < 74.5) { // a stone: v_q.x md x 1000 + seed, v_q.y px per unit + its moss (fraction), v_q.z its turn + 7 x floor(100 x its embers). md 0 a rough rock
+      // (radius about 0.85; the quad 1.15 units either way), md 1 a slab (half sizes 1 x 0.62 x 0.2; the quad 1.25 either way; v_q.z its heading on the floor
+      // + 7 x floor(100 x its lift, 0..1 of upright)). Lit faces, worn pale edges, grain, chips and pits, moss, ember veins; v_c.r a warm light from below, v_c.g dust on it
+      float md = floor(v_q.x / 1000.0 + 0.0001), sd = v_q.x - md * 1000.0, S = floor(v_q.y), moss = v_q.y - S, lq = floor(v_q.z / 7.0 + 0.0001), an = v_q.z - lq * 7.0, hot = lq / 100.0; vec2 s; mat3 M;
+      if (md > 1.5) { // md 2 (World Shaking) the carved ring round the orb, ray-marched: a chamfered torus (radius 1.46 orb radii, 0.17 x 0.1 its half section) tilted
+        // back 1.15 and turned -0.3 on screen; its outer faces dark carved stone (a groove, notched runes), gold bevels catching the light, gold studs turning
+        // with it (v_q.z its turn), its inner edge luminous honey (v_c.r its light). The quad 1.75 units either way; v_q.y fraction < 0.5 its back half, else its
+        // front; v_c.g (ry - 0.7) / 0.6 its squash, v_c.b (rw + 0.4) / 0.8 its wobble (as the 2D draws it)
+        float S2 = floor(v_q.y), fr = v_q.y - S2 > 0.5 ? 1.0 : 0.0, rw = v_c.b * 0.8 - 0.4, ry = 0.7 + v_c.g * 0.6, ta = v_q.z; vec2 w0 = u * 1.75; w0 = vec2(cos(rw) * w0.x + sin(rw) * w0.y, (-sin(rw) * w0.x + cos(rw) * w0.y) / ry);
+        vec3 E1 = vec3(cos(-0.3), sin(-0.3), 0.0), E2 = vec3(-sin(-0.3) * cos(1.15), cos(-0.3) * cos(1.15), sin(1.15)), EN = vec3(sin(-0.3) * sin(1.15), -cos(-0.3) * sin(1.15), cos(1.15)), dl = -vec3(E1.z, E2.z, EN.z), ol = vec3(dot(vec3(w0, 4.0), E1), dot(vec3(w0, 4.0), E2), dot(vec3(w0, 4.0), EN));
+        float ta0 = (ol.z - 0.16) / -dl.z, ta1 = (ol.z + 0.16) / -dl.z, tt = min(ta0, ta1), te = max(ta0, ta1), hit = 0.0, dm = 9.0, px = 1.0 / max(S2 / 1.75, 1.0); vec3 p = ol;
+        for (int i = 0; i < 28; i++) { p = ol + dl * tt; vec2 qq = vec2(abs(length(p.xy) - 1.46), abs(p.z)), aa = qq - vec2(0.17, 0.1); float d = max(length(max(aa, 0.0)) + min(max(aa.x, aa.y), 0.0), (qq.x + qq.y - 0.22) * 0.7071); dm = min(dm, d); if (d < px * 0.3) { hit = 1.0; break; } tt += max(d, px * 0.4); if (tt > te) break; }
+        float zs = 4.0 - tt, side = zs > 0.0 ? 1.0 : 0.0, cov = (hit > 0.5 ? 1.0 : clamp(1.0 - dm / px, 0.0, 1.0)) * (1.0 - abs(side - fr));
+        if (cov > 0.003) { vec2 e = vec2(0.004, 0.0); vec3 g3; float th = atan(p.y, p.x);
+          vec2 q0 = vec2(abs(length(p.xy) - 1.46), abs(p.z));
+          #define EARS(P) max(length(max(vec2(abs(length((P).xy) - 1.46), abs((P).z)) - vec2(0.17, 0.1), 0.0)) + min(max(abs(length((P).xy) - 1.46) - 0.17, abs((P).z) - 0.1), 0.0), (abs(length((P).xy) - 1.46) + abs((P).z) - 0.22) * 0.7071)
+          g3 = normalize(vec3(EARS(p + e.xyy) - EARS(p - e.xyy), EARS(p + e.yxy) - EARS(p - e.yxy), EARS(p + e.yyx) - EARS(p - e.yyx)));
+          #undef EARS
+          vec3 rd = vec3(cos(th), sin(th), 0.0); float nr = dot(g3.xy, rd.xy), nw = g3.z, qx = length(p.xy) - 1.46; vec3 ns = g3.x * E1 + g3.y * E2 + g3.z * EN, ne = normalize(vec3(ns.x, ns.z, -ns.y)), q3 = vec3(p.xy * 2.0, p.z * 2.0);
+          float ndl = max(dot(ne, eaLt), 0.0), ndh = max(dot(ne, eaHv), 0.0), bev = abs(nw) > 0.3 && abs(nr) > 0.3 ? 1.0 : 0.0, inr = clamp((-nr - 0.25) / 0.6, 0.0, 1.0), fl3 = smoothstep(0.75, 0.9, abs(nw));
+          vec3 c = eaStone(ne, q3 * 1.5, 7.0, 0.25);
+          float grv = exp(-sq((abs(qx) - 0.066) / 0.011)) * fl3, run = fl3 * smoothstep(0.095, 0.105, abs(qx)) * (1.0 - smoothstep(0.14, 0.15, abs(qx))) * smoothstep(0.3, 0.4, abs(fract((th - ta) * 36.0 / 6.2832) - 0.5));
+          c *= 1.0 - 0.6 * grv - 0.45 * run; c = mix(c, vec3(0.95, 0.68, 0.22) * (0.45 + 0.75 * ndl) + vec3(1.0, 0.93, 0.75) * pow(ndh, 30.0), bev * 0.85); c += vec3(0.9, 0.62, 0.2) * exp(-sq((abs(qx) - 0.083) / 0.008)) * fl3 * 0.5 * (0.4 + ndl);
+          float stp = 6.2832 / 8.0, ds = length(vec2((mod(th - ta + stp * 0.5, stp) - stp * 0.5) * 1.46, qx)); if (fl3 > 0.5) { float sm3 = 1.0 - smoothstep(0.045, 0.055, ds); c = mix(c, vec3(0.97, 0.75, 0.3) * (0.5 + 0.6 * ndl) + vec3(1.0, 0.95, 0.8) * pow(ndh, 20.0) * 0.8 + vec3(0.12, 0.08, 0.04) * (1.0 - smoothstep(0.02, 0.035, ds)), sm3); }
+          c = mix(c, mix(vec3(1.0, 0.75, 0.3), vec3(1.0, 0.93, 0.75), inr), inr * (0.55 + 0.4 * v_c.r) * (0.75 + 0.25 * sin(th * 6.0 - ta * 2.0)));
+          c *= 0.45 + 0.55 * smoothstep(0.04, 0.32, abs(ns.z)); A = vec4(min(c, vec3(1.0)), 1.0) * cov; }
+        gl_FragColor = A * v_c.a; return; }
+      if (md < 0.5) { s = u * 1.15; M = eaFr(normalize(vec3(h1(vec2(sd, 1.1)) - 0.5, h1(vec2(sd, 2.2)) - 0.5, 0.7)), an); eaI(); eaRk(s, M, sd); }
+      else { s = u * 1.25; vec3 X = vec3(cos(an), sin(an), 0.0), Z = vec3(0.0, 0.0, 1.0); float ct = cos(hot * 1.5708), st = sin(hot * 1.5708); M = mat3(ct * X + st * Z, vec3(-sin(an), cos(an), 0.0), ct * Z - st * X); hot = 0.0; eaI(); eaSb(s, M, sd); }
+      vec2 se = eaSE(S); float cov = clamp(se.x + 0.5, 0.0, 1.0);
+      if (cov > 0.003) { vec3 n = eaN1.xyz; float bw = max(1.3, S * 0.06); if (se.y < bw) n = normalize(mix(n, eaN2.xyz, 0.5 * (1.0 - smoothstep(0.0, bw, se.y))));
+        vec3 q = eaLoc(M, vec3(s.x, eaU1, eaU1 * 0.55 - s.y)), gq = vec3(n3(q * 5.0 + vec3(0.08, 0.0, 0.0)), n3(q * 5.0 + vec3(0.0, 0.08, 0.0)), n3(q * 5.0 + vec3(0.0, 0.0, 0.08))) - n3(q * 5.0);
+        n = normalize(n - (M * gq) * 1.2);
+        vec3 c = eaStone(n, q, sd, moss); float ndl = max(dot(n, eaLt), 0.0);
+        c = mix(c, vec3(0.6, 0.5, 0.38), (1.0 - smoothstep(0.35, 1.7, se.y)) * 0.5 * clamp(ndl * 2.0, 0.0, 1.0)); c *= 1.0 - 0.35 * smoothstep(0.7, 0.85, n3(q * 13.0 + sd * 3.0));
+        c += vec3(0.85, 0.48, 0.12) * v_c.r * clamp(-n.z * 0.8 + 0.5, 0.0, 1.0) * 0.5; c = mix(c, vec3(0.55, 0.47, 0.38) * (0.6 + 0.5 * ndl), v_c.g * smoothstep(0.0, 0.6, n.z + 0.3) * 0.7);
+        if (hot > 0.01) { float rv = abs(n3(q * 2.4 + sd + 30.0) - 0.5) + 0.25 * abs(n3(q * 6.0 + 9.0) - 0.5), vn = (1.0 - smoothstep(0.03, 0.07, rv)) * smoothstep(0.35, 0.55, n3(q * 1.3 + sd));
+          c = mix(c, mix(vec3(0.45, 0.16, 0.03), mix(vec3(0.95, 0.5, 0.1), vec3(1.0, 0.86, 0.55), smoothstep(0.5, 1.0, hot)), smoothstep(0.0, 0.5, hot)), vn); }
+        c *= 0.3 + 0.7 * smoothstep(0.0, 2.2, se.x); A = vec4(min(c, vec3(1.0)), 1.0) * cov; } }
+    else if (v_k < 75.5) { // Rocky's fist, ray-marched (eaFist): v_q.x heading + 8 x floor(500 x pitch) (20k2k orient), v_q.y +-(px per unit + tier / 10) (-: a left fist,
+      // the right one mirrored on screen as the 2D draws it), v_q.z its build (0..1) + 2 x floor(100 x its reinforcement); v_c.r its veins' light, v_c.g the final
+      // punch's charge (light running wrist -> knuckles), v_c.b the floor's light from below. Hewn stones lit and grained, moss on top, dark crevices with amber
+      // light deep in them (brightest between the knuckles), a network of ember veins. The quad 1.3 units either way
+      float qq = floor(v_q.x / 8.0 + 0.0001), psi = v_q.x - qq * 8.0, phi = qq / 500.0, aq = abs(v_q.y), S = floor(aq), tier = floor((aq - S) * 10.0 + 0.3), rq = floor(v_q.z / 2.0 + 0.0001), bld = v_q.z - rq * 2.0, kb = 1.0 + 0.3 * rq / 100.0;
+      vec2 s = u * 1.3; if (v_q.y < 0.0) s.x = -s.x;
+      vec3 f = vec3(cos(psi), sin(psi), 0.0), D = vec3(0.0, 0.0, cos(phi)) + f * sin(phi), B0 = f * cos(phi) - vec3(0.0, 0.0, sin(phi)), Bv = B0 * cos(2.0 * phi) - cross(B0, D) * sin(2.0 * phi); mat3 M = mat3(D, cross(Bv, D), Bv);
+      vec3 ro = eaLoc(M, vec3(s.x, 2.0, 1.1 - s.y)), rd = eaLoc(M, vec3(0.0, -0.87622, -0.48192)); float b = dot(ro, rd), h = b * b - dot(ro, ro) + 1.96;
+      if (h > 0.0) { float tt = -b - sqrt(h), t1 = -b + sqrt(h), dm = 9.0, hit = 0.0, px = 1.0 / max(S, 1.0); vec3 p = ro;
+        for (int i = 0; i < 44; i++) { p = ro + rd * tt; float d = eaFist(p, tier, bld, kb); dm = min(dm, d); if (d < px * 0.35) { hit = 1.0; break; } tt += max(d, px * 0.3); if (tt > t1) break; }
+        float cov = hit > 0.5 ? 1.0 : clamp(1.0 - dm / (px * 1.1), 0.0, 1.0);
+        if (cov > 0.003) { vec2 e = vec2(0.006, -0.006); vec3 nl = normalize(e.xyy * eaFist(p + e.xyy, tier, bld, kb) + e.yyx * eaFist(p + e.yyx, tier, bld, kb) + e.yxy * eaFist(p + e.yxy, tier, bld, kb) + e.xxx * eaFist(p + e.xxx, tier, bld, kb));
+          eaFist(p, tier, bld, kb); float gap = eaFk.y - eaFk.x, grp = eaFg, gl = v_c.r, ch = v_c.g;
+          vec3 gq = vec3(n3(p * 9.0 + vec3(0.07, 0.0, 0.0)), n3(p * 9.0 + vec3(0.0, 0.07, 0.0)), n3(p * 9.0 + vec3(0.0, 0.0, 0.07))) - n3(p * 9.0), n = normalize(M * normalize(nl - gq * 1.6));
+          float plate = (grp > 1.5 && grp < 2.5) || grp > 14.5 ? 1.0 : 0.0, knk = grp > 2.5 && grp < 7.5 ? 1.0 : 0.0, ndv = max(dot(n, eaVw), 0.0);
+          vec3 c = eaStone(n, p * 1.7 + grp * 3.1, grp, 0.32 - 0.22 * knk) * (1.0 + 0.14 * plate - 0.1 * knk);
+          c = mix(c, vec3(0.66, 0.56, 0.44), smoothstep(0.045, 0.06, gap) * (1.0 - smoothstep(0.06, 0.1, gap)) * clamp(dot(n, eaLt) * 1.5, 0.0, 1.0) * 0.5 * hit);   /* (worn pale rims along each stone's edge) */
+          float cv = (1.0 - smoothstep(0.0, 0.05, gap)) * hit, hc = (1.0 - smoothstep(0.0, 0.028, gap)) * hit * (knk > 0.5 ? 1.0 : 0.4) * clamp(gl, 0.0, 1.5);
+          c *= 1.0 - 0.72 * cv; c = mix(c, vec3(0.95, 0.52, 0.1), clamp(hc * 0.8, 0.0, 1.0));
+          float rv = abs(n3(p * 2.3 + 20.0) - 0.5) + 0.3 * abs(n3(p * 6.5 + 4.0) - 0.5), vn = (1.0 - smoothstep(0.025, 0.06, rv)) * smoothstep(0.44 - 0.06 * tier, 0.58 - 0.06 * tier, n3(p * 1.2 + 7.0)) * hit;
+          float run = 1.0 - smoothstep(ch * 2.2 - 0.95, ch * 2.2 - 0.75, p.x), vg = clamp(gl * 0.75 + ch * run * 0.8, 0.0, 1.6);
+          c = mix(c, mix(vec3(0.3, 0.1, 0.02), mix(vec3(0.95, 0.5, 0.1), vec3(1.0, 0.9, 0.62), clamp(vg - 0.6, 0.0, 1.0)), clamp(vg, 0.0, 1.0)), vn);
+          c += vec3(1.0, 0.62, 0.18) * ch * run * 0.25 * (1.0 - ndv) + vec3(0.85, 0.48, 0.12) * v_c.b * clamp(-n.z * 0.8 + 0.4, 0.0, 1.0) * 0.45;
+          c *= 0.42 + 0.58 * smoothstep(0.02, 0.3, ndv); A = vec4(min(c, vec3(1.0)), 1.0) * cov; } } }
+    else { // 78 dust and floor shade (v_q.x its form): 0 a billow of dust (v_q.y seed, v_q.z its age 0..1: it swells and thins), lit warm from below; 1 a ring
+      // of dust (an annulus at 0.8 of the quad, v_q.z its width of the radius, trailing inward), torn by noise; 2 the fissures' charred lips (eaHex: v_q.y seed,
+      // v_q.z the trace); 3 an impact's charred cracks (eaWeb: v_q.y seed, v_q.z rays + 0.99 x their reach). v_c the dust's colour
+      float md = v_q.x, a = 0.0; vec3 c = v_c.rgb;
+      if (md < 0.5) { float ag = v_q.z; vec2 p = u * 1.15; float n = fbm(p * 2.1 + v_q.y + vec2(0.0, ag * 0.9)), nb = fbm(p * 4.3 - v_q.y * 1.3 + vec2(ag * 0.6, 0.0));
+        a = (1.0 - smoothstep(0.3 + 0.1 * ag, 1.0, length(p) + (n - 0.5) * 0.7)) * (0.45 + 0.75 * n * (0.6 + 0.4 * nb)) * (1.0 - 0.45 * ag);
+        c = mix(c * 0.62, c * 1.15 + vec3(0.16, 0.08, 0.0), smoothstep(-0.7, 0.8, u.y + (nb - 0.5) * 0.4)) * (0.82 + 0.3 * (1.0 - smoothstep(-0.8, 0.2, u.x + u.y))); }
+      else if (md < 1.5) { float rr = r / 0.8, w = max(v_q.z, 0.02), an = atan(u.y, u.x), n = fbm(vec2(an * 3.0, rr * 4.0) + v_q.y), x = (rr - 1.0) / w;
+        a = exp(-x * x * 2.2 - max(-x, 0.0) * 0.6) * (0.35 + 0.9 * n) * (1.0 - smoothstep(0.85, 1.0, r)); c *= 0.75 + 0.45 * n; }
+      else if (md < 2.5) { a = exp(-eaHex(u * 1.18, v_q.z, v_q.y).x / 0.02) * 0.8 * (1.0 - smoothstep(0.9, 1.0, r)); c = vec3(0.06, 0.04, 0.028); }
+      else { a = exp(-eaWeb(u * 1.1, v_q.y, floor(v_q.z + 0.0001), fract(v_q.z) / 0.99).x / 0.018) * 0.75 * (1.0 - smoothstep(0.85, 1.0, r)); c = vec3(0.06, 0.04, 0.028); }
+      a = clamp(a, 0.0, 1.0); A = vec4(c * a, a); }
+    gl_FragColor = A * v_c.a; }
+  else if (v_k > 88.5 && v_k < 89.5) { // (v415 TI, Titan) broken ground (solid; a unit disc on the floor): dark fissures out to v_q.x, and v_q.z a dark pit at the middle (0 none .. 1 a deep opening with a heaved dirt rim); v_q.y seed
+    vec3 cr = ttnCr(u * 0.97, v_q.y, 1.7); float lt = 1.0 - smoothstep(v_q.x - 0.06, v_q.x + 0.02, r), f = fbm(u * 4.0 + v_q.y), fis = min(1.0, cr.x * 1.15 + cr.y * 0.7) * lt, pz = v_q.z, pr = r + 0.2 * (f - 0.5);
+    float pit = pz * (1.0 - smoothstep(0.4 * pz + 0.08, 0.6 * pz + 0.14, pr)), rim = pz * exp(-sq((pr - (0.6 * pz + 0.2)) / 0.11)) * (1.0 - pit);
+    vec3 c = mix(vec3(0.06, 0.045, 0.035), vec3(0.012, 0.009, 0.008), pit), rc = vec3(0.42, 0.36, 0.29) * (0.72 + 0.45 * f) * (1.0 - 0.3 * smoothstep(-0.3, 0.8, u.y));
+    float a = max(fis * 0.85, pit * (0.78 + 0.22 * f)); c = mix(c, rc, rim * 0.9 * (1.0 - fis)); a = max(a, rim * 0.62 * (0.55 + 0.45 * f));
+    a = clamp(a, 0.0, 1.0) * v_c.a * (1.0 - smoothstep(0.88, 1.0, r)); gl_FragColor = vec4(c * a, a); }
+  else if (v_k > 89.5 && v_k < 90.5) { // (v415 TI, Titan) a rolling ring of dust on the floor (quad 1.3 times its radius): billows streaming outward, densest just behind the front, thinning inward over v_q.x radii; v_q.y seed, v_q.z age 0..1 (thinner, broken); v_c its colour
+    float rr = r * 1.3, d = rr - 1.0, th = max(v_q.x, 0.03); vec2 dr = u / max(r, 0.001);
+    float f = fbm3(vec3(dr * 3.0, rr * 3.5 - t * 1.3) + v_q.y), f2 = fbm3(vec3(dr * 7.0, rr * 8.0 - t * 2.0) + v_q.y * 1.7);
+    float body = smoothstep(-th * (1.0 + 0.8 * f), -th * 0.12, d) * (1.0 - smoothstep(-0.01, th * (0.18 + 0.55 * f), d)), dns = body * smoothstep(0.22 + 0.3 * v_q.z, 0.72, f * 0.75 + f2 * 0.45) * (1.0 - 0.55 * v_q.z);
+    vec3 c = col * (0.8 - 0.16 * dr.y + 0.25 * (f2 - 0.5) + 0.18 * smoothstep(-th * 0.5, 0.0, d)); float a = clamp(dns * 1.2, 0.0, 1.0) * v_c.a * (1.0 - smoothstep(1.18, 1.3, rr)); gl_FragColor = vec4(c * a, a); }
   else if (v_k > 67.5 && v_k < 68.5) { // (v412 LM, Lantern Fall) a lantern (solid): its 2D design (20k4l lantern()) as a lit object. A hexagonal silk lantern
     // seen a little from above, turned by v_q.x: six upper panels and six lower petals (hinged at the equator, opening by fract(v_q.y) / 0.98) of
     // pearly pink silk with the light scattering through them (brightest before its heart of light, shaded along the ribs, heart cutouts glowing
@@ -925,11 +1322,79 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
     c = mix(c, vec3(0.3, 0.16, 0.03), (1.0 - smoothstep(0.016, 0.034, d1)) * 0.85 + (1.0 - smoothstep(0.02, 0.05, d2)) * 0.95 * step(d2, d1));   /* (the rim: a hair along the sharp edge, firmer along the inner) */
     a *= v_c.a; gl_FragColor = vec4(min(c, vec3(1.0)) * a, a); }
 /*</W>*/  else { vec3 L = vec3(0.0);
-    if (v_k > 54.5 && v_k < 55.5) { // (v404 DK) a cut's light (as kind 54): violet energy brightening toward the sharp edge, a crisp violet-white
+    if ((v_k > 75.5 && v_k < 77.5) || (v_k > 78.5 && v_k < 79.5)) { // (v415 EA) Earth's light
+      if (v_k < 76.5) { // a crystal's light (as kind 73: eaCSet): its inner glow by its thickness (v_c.r), glints on its edges and twinkles on its facets,
+        // v_c.b a band of golden light climbing it (0..1 of its height; 0 none), v_c.g its charge: light flooding up from the root, its fractures white-hot
+        eaCSet(u); float cov = clamp(eaSil + 0.5, 0.0, 1.0);
+        if (cov > 0.003) { float th = clamp(eaTh / (eaRR * 2.0), 0.0, 1.0), zn = eaMD < 0.5 ? eaQ.z : eaQ.z + 0.5, gl = v_c.r, ch = v_c.g, bd = v_c.b, ab = eaMD < 0.5 ? smoothstep(0.06, 0.14, eaQ.z) : 1.0, fh = h1(floor(eaN1.xy * 23.0 + 50.0) + eaN1.z * 3.7);
+          float ed = 1.0 - smoothstep(0.3, 1.8, eaEd), tw = pow(0.5 + 0.5 * sin(u_t * (2.0 + fh * 3.0) + fh * 40.0 + eaSD), 18.0), sp = pow(max(dot(eaN1.xyz, eaHv), 0.0), 10.0);
+          L = mix(vec3(0.8, 0.4, 0.06), vec3(1.0, 0.72, 0.3), th) * gl * (0.06 + 0.7 * th * th) * 0.6 * ab + vec3(1.0, 0.91, 0.72) * ed * (0.22 * gl + 0.7 * tw * (0.3 + gl)) * ab + vec3(1.0, 0.96, 0.86) * tw * sp * 0.7;
+          if (bd > 0.001) L += vec3(1.0, 0.82, 0.42) * exp(-sq((zn - bd) / 0.11)) * (0.55 + 0.65 * th) * 1.2 * ab;
+          if (ch > 0.001) { float cr = abs(n3(eaQ * vec3(14.0, 14.0, 4.0) / max(eaRR * 5.0, 0.3) + eaSD) - 0.5); L += vec3(1.0, 0.78, 0.32) * (1.0 - smoothstep(ch * 1.15 - 0.18, ch * 1.15, zn)) * (0.3 + 0.6 * ch) * (0.45 + 0.55 * th) * ab + vec3(1.0, 0.97, 0.88) * (1.0 - smoothstep(0.012, 0.035, cr)) * smoothstep(0.15, 0.85, ch) * 1.3 * ab; }
+          L *= cov; } }
+      else if (v_k < 77.5) { // floor fissures in light (v_q.x its form): 0 the six-pointed pattern (eaHex; the quad its radius x 1.18; v_q.y seed, v_q.z the trace 0..1),
+        // its tracing heads bright; 1 an impact's cracks (eaWeb: v_q.z rays + 0.99 x their reach). v_c.r the heat (white-hot -> gold -> amber -> a dull red as it
+        // cools), v_c.g a pulse; a white-gold core, amber round it, embers flickering along it
+        float md = v_q.x, ht = v_c.r; vec2 dd;
+        if (md < 0.5) { vec2 hx = eaHex(u * 1.18, v_q.z, v_q.y); dd = vec2(hx.x, 0.5); L = vec3(1.0, 0.86, 0.5) * exp(-hx.y / 0.03) * 0.9 + vec3(0.85, 0.5, 0.1) * exp(-hx.y / 0.09) * 0.4; }
+        else dd = eaWeb(u * 1.1, v_q.y, floor(v_q.z + 0.0001), fract(v_q.z) / 0.99);
+        float d = dd.x, w = 0.005 + 0.008 * (1.0 - dd.y); vec2 eg = floor(u * 34.0 + v_q.y); float em = step(0.8, h1(eg)) * pow(0.5 + 0.5 * sin(u_t * (5.0 + 6.0 * h1(eg + 3.3)) + h1(eg + 1.7) * 30.0), 3.0);
+        vec3 hot = mix(vec3(0.5, 0.1, 0.02), mix(vec3(0.95, 0.52, 0.1), vec3(1.0, 0.95, 0.78), smoothstep(0.55, 1.0, ht)), smoothstep(0.08, 0.5, ht));
+        L += hot * exp(-sq(d / w)) * 1.1 + mix(vec3(0.85, 0.45, 0.08), hot, 0.4) * exp(-d / 0.028) * 0.45 * (0.4 + 0.6 * ht) + vec3(0.85, 0.5, 0.1) * exp(-d / 0.1) * 0.12 * ht + vec3(1.0, 0.72, 0.28) * em * exp(-d / 0.014) * (0.3 + 0.7 * ht);
+        L *= (1.0 - smoothstep(0.88, 1.0, r)) * (1.0 + v_c.g); }
+      else { // 79 shock light (v_q.x its form): 0 a shockwave across the floor (a ring at 0.8 of its quad; v_q.z its width, of the radius; v_q.y seed; v_c its colour):
+        // a sharp bright crest, pressure ripples trailing inside it, a faint halo ahead; 1 an impact flash (v_q.y seed, v_q.z its age 0..1): a white-gold core, a
+        // burst of sharp rays, a soft halo, a flat streak
+        if (v_q.x < 0.5) { float an = atan(u.y, u.x), rr = r / 0.8 + (n2(vec2(an * 5.0, v_q.y)) - 0.5) * 0.025, w = max(v_q.z, 0.02), x = (1.0 - rr) / w;
+          float crest = exp(-sq((rr - 1.0) / (w * 0.22))), rip = (0.5 + 0.5 * cos(x * 10.0 - 1.0)) * exp(-max(x, 0.0) * 1.1) * step(0.0, x) * smoothstep(0.0, 0.25, x), ahead = exp(-max(rr - 1.0, 0.0) / 0.03) * step(1.0, rr);
+          L = (col * (crest + rip * 0.4 + ahead * 0.25) + vec3(1.0, 0.97, 0.88) * pow(crest, 3.0) * 0.55) * (0.75 + 0.5 * n2(vec2(an * 12.0, v_q.y + u_t * 2.0))) * (1.0 - smoothstep(0.92, 1.0, r)); }
+        else { float ag = clamp(v_q.z, 0.0, 1.0), an = atan(u.y, u.x), ry = pow(abs(cos(an * 4.0 + v_q.y)), 30.0) + 0.7 * pow(abs(cos(an * 7.0 - v_q.y * 2.0)), 50.0);
+          L = vec3(1.0, 0.98, 0.9) * exp(-r * r * 40.0 / (1.0 + ag * 2.0)) * (1.0 - ag) * 1.4 + col * exp(-r * 3.2) * 0.6 * (1.0 - ag * ag) + mix(col, vec3(1.0, 0.95, 0.8), 0.5) * ry * exp(-r * (2.0 + 3.0 * ag)) * (1.0 - ag) * 0.9
+            + mix(col, vec3(1.0), 0.4) * exp(-abs(u.y) * 28.0) * exp(-abs(u.x) * 2.5) * (1.0 - ag) * 0.5;
+          L *= 1.0 - smoothstep(0.85, 1.0, r); } } }
+    else if (v_k > 54.5 && v_k < 55.5) { // (v404 DK) a cut's light (as kind 54): violet energy brightening toward the sharp edge, a crisp violet-white
       // edge line with a halo outside it, streaks racing along it, a crimson filament inside; v_q.x span, v_q.y tail strength, v_q.z thickness
       vec3 B = dcr(u, v_q.x, v_q.z); float d = B.x, v = clamp(B.y, 0.0, 1.0), sl = atan(u.y, u.x) * r, al = mix(1.0, v_q.y, v) * B.z, st = fbm(vec2(sl * 7.0 + t * 6.0, d * 3.0)), e = clamp(1.0 - d, 0.0, 1.0), inb = step(0.0, d) * (1.0 - smoothstep(0.8, 1.05, d));
       L = (mix(vec3(0.43, 0.16, 0.66), vec3(0.65, 0.36, 1.0), e) * (0.1 + 0.7 * pow(e, 2.2)) * inb + vec3(0.94, 0.88, 1.0) * exp(-sq(d / 0.06)) * 1.1 + vec3(0.65, 0.36, 1.0) * exp(-max(-d, 0.0) * 9.0) * step(d, 0.0) * 0.4
         + vec3(0.8, 0.6, 1.0) * smoothstep(0.55, 0.85, st) * inb * e * 0.6 + vec3(0.82, 0.09, 0.25) * exp(-sq((d - 0.3) / 0.04)) * (0.55 + 0.45 * sin(sl * 18.0 + t * 9.0)) * 0.75) * al; }
+    else if (v_k > 80.5 && v_k < 81.5) { // (v415 EB) a rock's light (kind 80's cast, the same values): mode 0 the boulder's veins burning (ramped by the heat), a warm halo
+      // round them, its entry's hot side; mode 1 the stone's gold seam glowing with the heat, its gold flecks glinting as it turns
+      float md = floor(v_q.z), ht = fract(v_q.z) / 0.9, sd = floor(v_q.y), en = fract(v_q.y) / 0.9; vec3 P, N; vec4 Hc = ebCast(u * 1.12, md, v_q.x, sd, P, N);
+      if (Hc.x > 0.5) {
+        if (md < 0.5) { vec3 V = ebVein(P, sd, Hc.z, Hc.w); float pu = 0.8 + 0.2 * sin(u_t * 3.0 + n3(P * 3.0) * 9.0), fr = pow(1.0 - max(N.z, 0.0), 2.5);
+          L = ramp(0.55 + 0.35 * pu + 0.35 * ht) * V.x * (0.45 + 0.6 * ht) + vec3(0.9, 0.36, 0.05) * V.y * (0.04 + 0.26 * ht) + ramp(0.5 + 0.35 * en) * en * smoothstep(0.2, 0.95, N.y + 0.2) * fr * 0.6; }
+        else { float sg = abs(dot(P, normalize(vec3(1.0, 0.35 * sin(sd), 0.3))) - 0.12 * sin(sd * 2.1) + (n3(P * 6.0) - 0.5) * 0.06); vec3 gq = floor(P * 9.0), gh = ebH(gq + sd), gf = P * 9.0 - gq - 0.5 - (gh - 0.5) * 0.5;
+          float fl = step(0.86, gh.x) * (1.0 - smoothstep(0.06, 0.16, length(gf))), tw = pow(max(dot(normalize(N + (gh - 0.5) * 1.2), normalize(vec3(-0.5, -0.62, 1.6))), 0.0), 40.0);
+          L = vec3(1.0, 0.72, 0.25) * (exp(-sq(sg / 0.032)) * (0.22 + 0.9 * ht) + exp(-sq(sg / 0.07)) * 0.3 * ht) + vec3(1.0, 0.9, 0.6) * fl * tw * 1.5; }
+        L *= smoothstep(0.0, 0.03, Hc.y); } }
+    else if (v_k > 82.5 && v_k < 83.5) { // (v415 EB) light in the floor (uv a unit disc squashed by its quad; v_q.y seed). Mode 0 (v_q.z) a crater's cracks: nine warped radial
+      // cracks branching, a cellular web round the middle, spread out to v_q.z's fraction / 0.9, cooling with v_q.x (1 white-hot .. 0 a dull red). Mode 1 the quicksand's
+      // light: amber in the gaps between its plates (v_q.x how open), its Celestial gold veins with light running inward (v_q.z's fraction / 0.9 their strength)
+      float md = floor(v_q.z), fq = fract(v_q.z) / 0.9, sd = v_q.y, an = atan(u.y, u.x), ht = v_q.x;
+      if (md < 0.5) {
+        float wa = an + 0.42 * (fbm(vec2(r * 2.6, sd)) - 0.5) + 0.1 * (n2(vec2(r * 11.0, sd + 3.0)) - 0.5), sc = wa / 6.2831853 * 9.0 + sd, id = floor(sc + 0.5), dd = abs(sc - id) * 6.2831853 / 9.0 * r;
+        float ln = 0.5 + 0.5 * h1(vec2(id, sd)), w = (0.008 + 0.022 * max(0.0, 1.0 - r / ln)) * smoothstep(0.0, 0.08, r), reach = ln * fq, cut = 1.0 - smoothstep(-0.12, 0.0, r - reach);
+        float cr = exp(-sq(dd / max(w, 0.003))) * cut * smoothstep(0.03, 0.12, r);
+        float sc2 = (an + 0.5 * (fbm(vec2(r * 3.3, sd + 7.0)) - 0.5)) / 6.2831853 * 23.0 + sd * 2.0, id2 = floor(sc2 + 0.5), dd2 = abs(sc2 - id2) * 6.2831853 / 23.0 * r, r0 = 0.2 + 0.45 * h1(vec2(id2, sd + 1.0));
+        float br = exp(-sq(dd2 / 0.007)) * step(0.45, h1(vec2(id2, sd + 2.0))) * smoothstep(r0, r0 + 0.04, r) * (1.0 - smoothstep(-0.08, 0.06, r - r0 - 0.3 * fq)) * smoothstep(0.3, 0.6, fq);
+        vec4 ce = ebCell(u * 7.0 + sd); float wr = 1.0 - smoothstep(-0.1, 0.05, r - 0.42 * fq), web = exp(-sq(ce.x / 0.045)) * wr;
+        float k = max(cr, max(br * 0.8, web * 0.85)), hal = (exp(-sq(dd / max(w * 4.0, 0.012))) * cut + exp(-sq(ce.x / 0.14)) * wr) * 0.22;
+        L = ramp(clamp(0.38 + 0.7 * ht * (1.1 - 0.6 * r), 0.0, 1.1)) * k + vec3(0.85, 0.32, 0.05) * hal * (0.3 + 0.7 * ht) + ramp(0.5 + 0.5 * ht) * exp(-r * r * 30.0) * 0.5 * ht;
+        L *= 1.0 - smoothstep(0.9, 1.0, r); }
+      else { vec3 Lq = vec3(0.0);
+        if (ht > 0.0) { vec4 ce = ebCell(u * 4.6 + sd); Lq += vec3(1.0, 0.62, 0.16) * (exp(-sq(ce.x / (0.012 + 0.03 * ht))) * 0.9 + exp(-sq(ce.x / 0.06)) * 0.25) * ht; }
+        if (fq > 0.0) { float wa = an + 0.5 * (fbm(vec2(r * 2.2, sd + 5.0)) - 0.5), sc = wa / 6.2831853 * 9.0 + sd, id = floor(sc + 0.5), dd = abs(sc - id) * 6.2831853 / 9.0 * r, pl = fract(-r * 0.8 + u_t * 0.35 + id * 0.37);
+          Lq += vec3(1.0, 0.75, 0.3) * (exp(-sq(dd / 0.006)) * 0.55 + exp(-sq(dd / 0.022)) * 0.15) * smoothstep(0.1, 0.25, r) * fq * (0.45 + 1.2 * exp(-sq((pl - 0.5) / 0.06))); }
+        L = Lq * (1.0 - smoothstep(0.82, 0.97, r)); } }
+    else if (v_k > 87.5 && v_k < 88.5) { // (v415 TI, Titan) glowing earth fractures on the floor (a unit disc squashed to it): ember light along the cracks out to the front v_q.x, hottest just behind it; v_q.y seed, v_q.z heat; v_c its colour
+      vec3 cr = ttnCr(u, v_q.y, 1.0); float an = atan(u.y, u.x), lt = 1.0 - smoothstep(v_q.x - 0.12, v_q.x, r), band = exp(-sq((r - v_q.x) / 0.07)) * step(r, v_q.x + 0.05), fl = 0.8 + 0.2 * n2(vec2(r * 7.0 - t * 2.0, an * 4.0 + v_q.y));
+      float k = (cr.x + 0.55 * cr.y) * lt, temp = v_q.z * (0.3 + 0.62 * k + 0.55 * band * cr.x) * (1.0 - 0.3 * r) * fl;
+      L = eramp(temp, col) * min(1.0, k * 1.4 + band * cr.x * 0.8) + col * exp(-sq(cr.z / 0.07)) * lt * 0.1 * v_q.z * (1.0 - r);
+      L *= 1.0 - smoothstep(0.9, 1.0, r); }
+    else if (v_k > 90.5 && v_k < 91.5) { // (v415 TI, Titan) the amber summoning sigil (a unit disc on the floor, turned by its quad): drawn on from the middle out as v_q.x goes 0..1; v_q.y seed, v_q.z heat; v_c its colour
+      float m = ttnSig(u, v_q.y), an = atan(u.y, u.x), rv = smoothstep(r - 0.12, r + 0.02, v_q.x * 1.12), fl = 0.84 + 0.16 * n2(vec2(an * 3.0 + v_q.y, t * 2.3)), core = exp(-m * m), halo = exp(-m * m / 14.0);
+      L = (col * 0.4 * halo + mix(col, vec3(1.0, 0.92, 0.72), 0.55) * core * 0.8 + vec3(1.0, 0.97, 0.88) * core * core * 0.5) * v_q.z * fl * rv + col * 0.16 * (1.0 - r) * rv * v_q.z;
+      L *= 1.0 - smoothstep(0.95, 1.0, r); }
     else if (v_k > 69.5 && v_k < 70.5) { // (v412 LM) Light Strong's light: v_q.x 0 a lantern's light spilling on the floor (uv a unit disc squashed by its quad; v_q.y
       // its turn, v_q.z its flicker seed): warm at its middle, v_c outward, hexagonal, the soft shadows of its six rods radiating; 1 / 2 a mirror's left / right
       // half breaking up into glints (as kind 69: its frame's wire, rims and bead lit, its face faint)
@@ -1172,7 +1637,7 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
   const Q = { lit: new Float32Array(12 * 6 * 600), nl: 0, smk: new Float32Array(12 * 6 * 200), ns: 0, wlit: new Float32Array(12 * 6 * 200), nwl: 0, wsmk: new Float32Array(12 * 6 * 100), nws: 0, get windOK() { return !!PRW; }, a: 1, b: 0, c0: 0, d: 1, e: 0, f: 0, k: 1, t: 0, W: 0, Hh: 0, pet: [0, 0, 0], gpu: true,
     X(x, y) { return this.a * x + this.c0 * y + this.e; }, Y(x, y) { return this.b * x + this.d * y + this.f; },
     /* one quad: centre (screen px), half-axes (ux, uy), (vx, vy) in screen px */
-    quad(kind, x, y, ux, uy, vx, vy, col, al, q0, q1, q2) { if (!(al > 0.004)) return; const solid = (kind >= 9 && kind <= 12) || kind === 16 || kind === 24 || kind === 25 || kind === 33 || kind === 36 || kind === 39 || kind === 40 || kind === 41 /* v402 */ || (kind >= 45 && kind <= 47) || kind === 49 || kind === 52 /* v404 LT */ || (kind >= 53 && kind <= 58 && kind !== 55) /* v404 DK */ || (kind >= 60 && kind <= 63) /* v409 DK2 */ || kind === 68 || kind === 69 /* v412 LM */ || kind === 71 /* v391 U4 */, wd = kind >= 33 && kind <= 40;
+    quad(kind, x, y, ux, uy, vx, vy, col, al, q0, q1, q2) { if (!(al > 0.004)) return; const solid = (kind >= 9 && kind <= 12) || kind === 16 || kind === 24 || kind === 25 || kind === 33 || kind === 36 || kind === 39 || kind === 40 || kind === 41 /* v402 */ || (kind >= 45 && kind <= 47) || kind === 49 || kind === 52 /* v404 LT */ || (kind >= 53 && kind <= 58 && kind !== 55) /* v404 DK */ || (kind >= 60 && kind <= 63) /* v409 DK2 */ || kind === 68 || kind === 69 /* v412 LM */ || kind === 71 /* v391 U4 */ || kind === 80 || kind === 82 || (kind >= 84 && kind <= 87) /* v415 EB */ || (kind >= 73 && kind <= 75) || kind === 78 /* v415 EA */ || kind === 89 || kind === 90 /* v415 TI */, wd = kind >= 33 && kind <= 40;
       const ka = wd ? (solid ? 'wsmk' : 'wlit') : (solid ? 'smk' : 'lit'), kn = wd ? (solid ? 'nws' : 'nwl') : (solid ? 'ns' : 'nl'); let A = this[ka]; const n = this[kn];
       if ((n + 6) * 12 > A.length) { const q = new Float32Array(A.length * 2); q.set(A); A = q; this[ka] = q; }
       const cx = this.X(x, y), cy = this.Y(x, y), a = this.a, b = this.b, c = this.c0, d = this.d, Ux = a * ux + c * uy, Uy = b * ux + d * uy, Vx = a * vx + c * vy, Vy = b * vx + d * vy, C = rgbOf(col); let o = n * 12;
