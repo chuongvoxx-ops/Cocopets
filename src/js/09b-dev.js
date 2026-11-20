@@ -40,7 +40,7 @@ function renderDev() {
       <button class="btn small" type="button" data-go="dev-needs">Fill needs</button>
     </div>
     <h3 class="sec">Adventure</h3>
-    <div class="setting"><div><span id="unlockLbl">Unlock all stages</span><p class="note">Every world and stage on the map is open.</p></div><button class="switch" type="button" role="switch" data-go="dev-unlock" aria-checked="${!!st.unlockAll}" aria-labelledby="unlockLbl"></button></div>
+    <div class="setting"><div><span id="unlockLbl">Unlock all stages and rifts</span><p class="note">Every world, Tower floor, rift and Anima gate is open, and energy is free. On a rift, tap any stage on its strip to play it.</p></div><button class="switch" type="button" role="switch" data-go="dev-unlock" aria-checked="${!!st.unlockAll}" aria-labelledby="unlockLbl"></button></div>
     <h3 class="sec">House and pets</h3>
     <div class="evo-actions">
       <button class="btn small" type="button" data-go="dev-ripen">${ICON.sprout}Ripen all crops</button>
@@ -105,7 +105,7 @@ function devAction(k, btn) {
     }
     case 'bond': { let guard = 0; while (bondInfo(st.xp).level < 22 && guard++ < 500) st.xp += 200; updateHud(); saveSoon(); toast(`Bond level ${bondInfo(st.xp).level}`); return; }
     case 'needs': st.food = st.joy = st.energy = st.clean = 100; if (st.asleep || pet.mode === 'sleep') wake(false); updateHud(); saveSoon(); toast('All needs filled'); return;
-    case 'unlock': st.unlockAll = !st.unlockAll; btn.setAttribute('aria-checked', String(st.unlockAll)); saveSoon(); toast(st.unlockAll ? 'All stages unlocked' : 'Stages unlock normally again'); if (mapOpen) renderMap(); return;
+    case 'unlock': st.unlockAll = !st.unlockAll; btn.setAttribute('aria-checked', String(st.unlockAll)); saveSoon(); toast(st.unlockAll ? 'Every stage, rift and gate is open' : 'Stages unlock normally again'); if (mapOpen) { renderMap(); try { renderRift(); } catch (e) {} } return;
     case 'ripen': { let n = 0; st.house.rooms.forEach(r => (r.plots || []).forEach(p => { if (p.crop) { p.g = CROPS[p.crop].hours; n++; } })); refreshPlots(); saveSoon(); toast(n ? `${n} crop${n > 1 ? 's' : ''} ready to harvest` : hasRoom(st.house, 'farm') ? 'Nothing is planted yet. Tap a farm plot to plant a seed.' : 'No farm yet. Build one from the House button.'); return; }
     case 'food': Object.keys(CROPS).forEach(k => { st.pantry[k] = (st.pantry[k] || 0) + 3; }); saveSoon(); toast('+3 of each farm food in the pantry'); return;
     case 'egg': startAdopt('dev'); return;
