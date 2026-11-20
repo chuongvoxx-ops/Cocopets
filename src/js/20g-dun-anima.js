@@ -47,6 +47,9 @@ const DunAnima = (() => {
     // pair), and the attack only once the last has gone, so it is seen whole. aw: an Anima's awakening, named in its
     // banner (the subtitle names the Anima, or the pair for a Harmony)
     const AW_T = 1;
+    /* v435 AN: how long (s) an Awakening's blows keep falling after it begins, for those that land over time without a cinematic of
+       their own (those that have one hold the Anima through a.judg): it leaves only once they are done, never before its finale ends */
+    const FIN_LEN = { aries: 1.1, virgo: 1.1, sagittarius: 2.3, capricorn: 1.5, aquarius: 1.25 };
     function awBanner(a, sub) { const w = B[a.id].aw; X.banner(w[0], sub || `${a.A.name} · Astral Awakening`, w[1], AW_T, true, true); }
     // (things to do a moment from now, on the wall's clock like the banners, not the fight's, which slows for effect)
     const later = (t, f) => S.q.push({ t, f });
@@ -155,7 +158,9 @@ const DunAnima = (() => {
         aw: ['JUDGEMENT OF THE SUN', '#FFD36B'], fin(a) { area(a.x, a.y, 7, P(a) * 4.5, { el: 'gold', kb: 6 }); X.heal(ST().hp * 0.35); X.part({ kind: 'flare', x: a.x, y: a.y - 1, vx: 0, vy: 0, life: 0.9, max: 0.9, size: 9, color: '#FFE37A' }); for (let i = 0; i < 3; i++) X.ring(a.x, a.y, 0.4, 6 + i * 1.5, 0.7 + i * 0.1, i ? '#FFD36B' : '#FFFFFF', 0.4); X.flash(0.5, '#FFF3C2'); X.shake(12, 0.4); sunOnBoss(a); } },
       virgo: { tick(a, dt) { heel(a, dt); a.cd -= dt; if (a.cd <= 0) { a.cd = 0.6; const tg = near(a.x, a.y, 9); const m = tg[Math.floor(Math.random() * Math.min(4, tg.length))]; if (m) holy(m.x, m.y, P(a) * 1.4); } a.cd3 -= dt; if (a.cd3 <= 0) { a.cd3 = 1; X.heal(ST().hp * 0.012, true); X.part({ kind: 'petal', x: me.x + (Math.random() - 0.5), y: me.y - 1, vx: (Math.random() - 0.5) * 2, vy: 1, life: 1, max: 1, size: 5, rot: 0, vr: 5, color: '#FFB3D9' }); } },
         aw: ['ETERNAL REQUIEM', '#FFB3D9'], fin(a) { const tg = near(a.x, a.y, 12); for (let i = 0; i < 14; i++) X.after(i * 0.07, () => { const m = tg[i % Math.max(1, tg.length)]; const x = m ? m.x : me.x + (Math.random() - 0.5) * 10, y = m ? m.y : me.y + (Math.random() - 0.5) * 8; holy(x, y, P(a) * 2.5); }); X.heal(ST().hp * 0.2); X.eshots.length = 0; } },
-      libra: { tick(a, dt) { S.balance = 1; heel(a, dt); a.cd -= dt; if (a.cd <= 0) { a.cd = 2; X.ring(a.x, a.y, 0.4, 6, 0.6, '#FFC24D', 0.25); for (const m of near(a.x, a.y, 6)) hit(m, m.boss ? P(a) * 0.8 : Math.max(P(a) * 0.5, m.maxhp * 0.03), { el: 'gold' }); } },
+      // v435 AN: the scales ring out every second (was every 2 s, which read as a cooldown) at half the blow, the same weight a second,
+      // and only when there is something to weigh (it waits, ready, until a monster comes near)
+      libra: { tick(a, dt) { S.balance = 1; heel(a, dt); a.cd -= dt; if (a.cd <= 0) { const tg = near(a.x, a.y, 6); if (!tg.length) { a.cd = 0; return; } a.cd = 1; X.ring(a.x, a.y, 0.4, 6, 0.6, '#FFC24D', 0.25); for (const m of tg) hit(m, m.boss ? P(a) * 0.4 : Math.max(P(a) * 0.25, m.maxhp * 0.015), { el: 'gold' }); } },
         aw: ['SCALES OF JUDGEMENT', '#FFC24D'], fin(a) { near(a.x, a.y, 14).forEach((m, i) => X.after(Math.min(i, 14) * 0.04, () => { if (m.dead) return; if (i < 14) X.part({ kind: 'pillar', x: m.x, y: m.y, vx: 0, vy: 0, life: 0.6, max: 0.6, size: 0.9, color: '#FFC24D' }); hit(m, (m.boss ? m.maxhp * 0.08 : m.maxhp * 0.22) + P(a), { el: 'gold' }); })); X.flash(0.35, '#FFE9A8'); } },
       scorpio: { tick(a, dt) { heel(a, dt); a.cd -= dt; if (a.cd <= 0) { a.cd = 0.5; for (const m of mons) { if (m.dead || m.falling) continue; const vis = Math.hypot(m.x - me.x, m.y - me.y) < 8; if (vis || m.boss) hit(m, m.boss ? P(a) * 0.35 : Math.max(P(a) * 0.18, m.maxhp * 0.012), { dot: true, dotC: '#FF6A7A' }); else fester(m, Math.max(P(a) * 0.06, m.maxhp * 0.01), { dot: true, noText: true, noAggro: true }); if (vis && Math.random() < 0.35) X.part({ kind: 'smoke', x: m.x, y: m.y - 0.3, vx: 0, vy: -0.8, life: 0.6, max: 0.6, size: 0.3, color: 'rgba(150,200,60,' }); } }
           a.cd2 -= dt; if (a.cd2 <= 0) { a.cd2 = 1.1; const t = near(a.x, a.y, 7)[0]; if (t) { X.zap(a.x, a.y - 1.2, t.x, t.y, '#FF3B4E', 4); hit(t, P(a) * 1.8, { el: 'shadow', venom: 2 }); } } },
@@ -172,7 +177,10 @@ const DunAnima = (() => {
           a.cd -= dt; if (a.cd <= 0) { const tg = near(a.x, a.y, 9).slice(0, a.k >= 3 ? 3 : 2); if (tg.length) { a.cd = 0.5; tg.forEach((m, i) => X.after(i * 0.06, () => { if (m.dead) return; const an = Math.atan2(m.y - (a.y - 0.8), m.x - a.x), d = Math.hypot(m.x - a.x, m.y - (a.y - 0.8)); line(a.x, a.y - 0.8, an, d + 0.3, 0.45, 0, i % 2 ? '#FFE9A8' : '#BFF4FF'); hit(m, P(a) * 0.85, { el: 'prism' }); X.sparks(m.x, m.y, '#BFF4FF', 5, 4); })); } else a.cd = 0.25; }
           a.cd2 -= dt; if (a.cd2 <= 0) { if (near(a.x, a.y, 4).length) { a.cd2 = 1.8; area(a.x, a.y, 3.6, P(a) * 1.3, { el: 'gold', stun: 0.6 }); for (let i = 0; i < 2; i++) X.after(i * 0.1, () => X.ring(a.x, a.y - 0.6, 0.4, 3.4 + i * 0.6, 0.45, i ? '#BFF4FF' : '#FFD36B', 0.3)); X.sfx.hum(); } else a.cd2 = 0.6; } },
         aw: ['FINAL JUDGEMENT', '#FFE9A8'], fin(a) { judgement(a); } },
-      pisces: { tick(a, dt) { S.liberate = 1; me.chill = 0; heel(a, dt); a.cd -= dt; if (a.cd <= 0) { a.cd = 0.25; for (const m of near(a.x, a.y, 3)) { m.shield = 0; m.block = 0; hit(m, P(a) * 0.45, { el: 'cosmic' }); if (!m.boss && !m.still) X.moveEnt(m, (a.x - m.x) * 0.25, (a.y - m.y) * 0.25); } } },
+      pisces: { tick(a, dt) { S.liberate = 1; me.chill = 0; heel(a, dt); a.cd -= dt; if (a.cd <= 0) { a.cd = 0.25; for (const m of near(a.x, a.y, 3)) { m.shield = 0; m.block = 0; hit(m, P(a) * 0.45, { el: 'cosmic' }); if (!m.boss && !m.still) X.moveEnt(m, (a.x - m.x) * 0.25, (a.y - m.y) * 0.25); }
+            /* v435 AN: the whirlpool's undertow reaches further: monsters up to 7 tiles off are drawn in toward it (no blow until they are in), so
+               it is never idle while monsters are about */
+            for (const m of near(a.x, a.y, 7)) { const d = Math.hypot(m.x - a.x, m.y - a.y); if (d > 3 + m.r && !m.boss && !m.still) X.moveEnt(m, (a.x - m.x) / d * Math.min(0.35, d - 2.6), (a.y - m.y) / d * Math.min(0.35, d - 2.6)); } } },
         aw: ['TIDE OF UNBINDING', '#B9A6FF'], fin(a) { area(a.x, a.y, 6.5, P(a) * 4.2, { el: 'cosmic', kb: 7 }); X.eshots.length = 0; me.inv = Math.max(me.inv, 2.5); S.fx.push({ kind: 'twin', x: a.x, y: a.y - 0.6, t: 0, life: 1, c1: '#FFFFFF', c2: '#6A5AB0', burst: true }); X.flash(0.35, '#EAF2FF'); } },
     };
     /* the Judgement of the Sun falls on the floor's boss too, wherever it stands in sight: a column of sunlight takes three
@@ -523,17 +531,18 @@ const DunAnima = (() => {
           if (a.aw < 0.7 && Math.random() < 0.5) X.part({ kind: 'star', x: a.x + (Math.random() - 0.5) * 2, y: a.y - Math.random() * 2, vx: 0, vy: -1.5, life: 0.5, max: 0.5, size: 3, color: a.A.glow });
           if (a.aw >= 0.25 && !a.awakened) { a.awakened = true; X.part({ kind: 'flare', x: a.x, y: a.y - 0.9, vx: 0, vy: 0, life: 0.7, max: 0.7, size: 6, color: a.A.color }); X.ring(a.x, a.y, 0.4, 3.5, 0.5, a.A.glow, 0.3); X.sfx.sparkle(); }
           if (a.aw >= 0.7 && !a.finDone) { a.finDone = true; const other = S.list.find(b => b !== a && b.st === 'awaken');
-            if (kit.resonance && other && !S.resDone) {   // a pair: two banners, then the two attack as one
+            if (kit.resonance && other && !S.resDone && !other.finDone /* v435 AN: never a second finale for one that has already had its own */) {   // a pair: two banners, then the two attack as one
               S.resDone = true; other.finDone = true; const main = S.list[0] === other ? other : a, sec = main === a ? other : a, R = kit.resonance;
               if (R.generic) { awBanner(main); later(AW_T, () => awBanner(sec, `Astral Harmony · ${main.A.name} + ${sec.A.name}`)); }
               else { X.banner('ZODIAC RESONANCE', `${main.A.name} + ${sec.A.name}`, '#FFE37A', AW_T, true, true); later(AW_T, () => X.banner(R.name.toUpperCase(), 'Astral Awakening', '#FFE37A', AW_T, true, true)); }
-              main.wait = sec.wait = AW_T * 2; later(AW_T * 2, () => { main.awk = awkOf(main); sec.awk = awkOf(sec); strike(main, true); strike(sec, true); resonance(main, sec); });
-            } else if (!S.resDone || !kit.resonance) { awBanner(a); a.wait = AW_T; later(AW_T, () => { a.awk = awkOf(a); strike(a, true); B[a.id].fin(a); }); }
+              main.wait = sec.wait = AW_T * 2; later(AW_T * 2, () => { main.awk = awkOf(main); sec.awk = awkOf(sec); strike(main, true); strike(sec, true); resonance(main, sec); main.finEnd = sec.finEnd = Math.max(FIN_LEN[main.id] || 0, FIN_LEN[sec.id] || 0, 2.1); /* v435 AN */ });
+            } else if (!S.resDone || !kit.resonance) { awBanner(a); a.wait = AW_T; later(AW_T, () => { a.awk = awkOf(a); strike(a, true); B[a.id].fin(a); a.finEnd = FIN_LEN[a.id] || 0; /* v435 AN */ }); }
           }
+          if (a.finEnd > 0) a.finEnd -= dt;   // v435 AN: (its finale's last blows still falling: it stays till they have)
           // (an Anima holds its awakened pose while its banners are up)
           if (a.wait > 0) { a.wait -= dtReal; a.aw = Math.min(a.aw, 0.7); }
           if (a.judg) a.aw = Math.min(a.aw, 1);   // Bahamut (and Raziel) stay until the cinematic is done
-          if (a.aw >= 1.7) { a.st = 'leave'; a.lv = 0; }
+          if (a.aw >= 1.7 && !(a.finEnd > 0)) { a.st = 'leave'; a.lv = 0; }   // (v435 AN: and only once its finale is done)
         } else if (a.st === 'leave') { if (!a.waved) { a.waved = true; emote(a, 'heart', true); } a.lv += dt; a.alpha = Math.max(0, 1 - a.lv / 0.8); if (a.lv >= 0.8) { S.list.splice(i, 1); for (let j = 0; j < 12; j++) X.part({ kind: 'star', x: a.x + (Math.random() - 0.5) * 1.5, y: a.y - Math.random() * 2, vx: (Math.random() - 0.5), vy: -2.5, life: 0.8, max: 0.8, size: 3, color: a.A.glow }); } }
       }
       for (const a of S.list) if (!(a.delay > 0)) live(a, dt);

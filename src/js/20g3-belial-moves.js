@@ -214,6 +214,11 @@ const BELIAL_MOVES = (() => {
       if (thr > 0.35 && a.life > 2) opts.push({ kind: 'carapace', s: 0.5 + thr });
       // clustered on it: the stampede
       const nb = foes.filter(m => Math.hypot(m.x - a.x, m.y - a.y) < 3.2).length; if (nb) { const cc = crowd(a.x, a.y, 4, 2.5); opts.push({ kind: 'stamp', s: nb >= 2 ? 0.66 + 0.12 * Math.min(5, nb) : 0.42, o: cc ? { x: cc.x, y: cc.y } : { x: foes[0].x, y: foes[0].y } }); }
+      // v435 AN: a power starts only if its whole animation fits in the summon's time left (its finale follows, never a power frozen
+      // half done); in the last seconds, with nothing that fits, a roar at whatever is close
+      if (a.st === 'fight') { const lenOf = q => q.kind === 'rush' ? CFG.rush.wind + Math.min(CFG.rush.maxD, Math.hypot(q.o.m.x - a.x, q.o.m.y - a.y) + 1) / CFG.rush.speed + CFG.rush.rec : q.kind === 'crown' ? CFG.crown.dur[k - 1] + 0.45 : q.kind === 'carapace' ? CFG.carapace.dur[k - 1] + 0.85 : 0.45 + (CFG.stamp.n[k - 1] - 1) * CFG.stamp.gap + 0.9;
+        for (let i = opts.length - 1; i >= 0; i--) if (lenOf(opts[i]) > a.life + 0.2) opts.splice(i, 1);
+        if (!opts.length && a.life > 1.45 && dn < CFG.roar.r + 1.5) opts.push({ kind: 'roar', s: 0.5 }); }
       if (!opts.length) return null;
       for (const q of opts) { if (q.kind === ab.last) q.s *= 0.78; q.s += Math.random() * 0.08; }   // (variety: a bias, not a timer)
       opts.sort((p, q) => q.s - p.s); return opts[0].s > 0.35 ? opts[0] : null;

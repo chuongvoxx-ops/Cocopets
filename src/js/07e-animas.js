@@ -82,7 +82,7 @@ function renderAnimas() {
     ${actions}
     ${res}
     <div class="an-grid">${tiles}</div>
-    <p class="note">The Anima is bound to your whole party, not one pet. In the Tower the summon gauge fills when your pets take hits, and fills at once in critical condition. It can be called once per floor, and once per Super Fiend fight. When it glows, tap the sigil to summon. Once per floor. Each Anima arrives in its own way, fights with its own theme, and finishes with its Astral Awakening.</p>`;
+    <p class="note">The Anima is bound to your whole party, not one pet. In the Tower the summon gauge fills when your pets take hits, and fills at once in critical condition. It can be called once per floor, and once per Super Fiend fight. When it glows, tap the sigil to summon. Once per floor. Each Anima arrives in its own way and fights at your side for ${ANIMA_DUR[1]} seconds with its own theme, using its powers freely with no cooldowns, then leaves with its Astral Awakening.</p><!-- v435 AN -->`;
   updateAnimaBtn();
 }
 /* the second Anima, if the pet is old enough to call two */

@@ -14,7 +14,7 @@ function ascendCinematic(id, k, done) {
     <h2>${esc(A.forms[k - 1])}</h2>
     <p class="asc-sub">${k === 3 ? `${esc(A.name)}'s final form` : `${esc(A.name)} ${esc(A.title)}`}</p>
     <p class="asc-stars" aria-label="${k} of 3 stars">${[0, 1, 2].map(i => i < k ? `<span style="--i:${i}">★</span>` : '<i>★</i>').join('')}</p>
-    <p class="asc-gain">${from ? `Power ×${ANIMA_POWER[from]} → ×${ANIMA_POWER[k]} · Summon ${ANIMA_DUR[from]}s → ${ANIMA_DUR[k]}s` : `Power ×${ANIMA_POWER[k]} · Summon ${ANIMA_DUR[k]}s`}</p>
+    <p class="asc-gain">${from ? `Power ×${ANIMA_POWER[from]} → ×${ANIMA_POWER[k]} · Summon ${ANIMA_DUR[from] === ANIMA_DUR[k] ? '' : `${ANIMA_DUR[from]}s → `}${ANIMA_DUR[k]}s` /* v435 AN: no "30s → 30s" */ :`Power ×${ANIMA_POWER[k]} · Summon ${ANIMA_DUR[k]}s`}</p>
     <p class="asc-tap">Tap to continue</p></div>`;
   document.body.appendChild(ov);
   const cv = ov.querySelector('canvas'), c = cv.getContext('2d'), oc = document.createElement('canvas'), o = oc.getContext('2d');

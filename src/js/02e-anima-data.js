@@ -92,7 +92,10 @@ const HARMONY = { name: 'Astral Harmony', desc: 'Both Animas awaken as one: thei
 const pairResonance = (a, b) => (a && b && a !== b ? resonanceOf(a, b) || HARMONY : null);
 /* Ascension: three forms. Gems of the Anima's element, starstones for the last step, and coins */
 const ASCEND = [null, null, { gems: 3, star: 0, crystals: 500 }, { gems: 5, star: 2, crystals: 1000 }];
-const ANIMA_POWER = [0, 1.6, 2.5, 3.6], ANIMA_DUR = [0, 10, 12, 14], ANIMA_SIZE = [0, 2.1, 2.6, 3.1];
+// v435 AN: every Zodiac Anima fights for 30 s of active time in every form (counted from when it is combat-ready, not during its
+// entrance), with no cooldowns on its powers; then it stops attacking, unleashes its Astral Awakening once and leaves when that is done.
+// The forms still differ in power and size
+const ANIMA_POWER = [0, 1.6, 2.5, 3.6], ANIMA_DUR = [0, 30, 30, 30], ANIMA_SIZE = [0, 2.1, 2.6, 3.1];
 // Bahamut, the thirteenth, stands a third again as large as the zodiac in the Tower
 const OPH_BIG = 1.3;
 const ANIMA_SIGIL = 450;   // crystals to unseal an Anima before you have earned it

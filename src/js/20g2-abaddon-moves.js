@@ -45,11 +45,14 @@ const ABADDON_MOVES = (() => {
     carapace: { pool: [0.3, 0.42, 0.55],   // the shield's pool, a share of the pet's max health
       dur: [4.5, 5.0, 5.5],                 // how long it holds (s)
       reduce: 0.35,                         // what it takes off every blow while it holds (before the pool absorbs the rest)
-      cd: 9, rehp: 0.6, act: 1.7 },         // its cooldown; recast only when the pet is under this share of health; its fold (s)
-    reavers: { slashes: [2, 4, 6], dmg: 0.95, r: [1.6, 1.8, 2.0], pull: 0.55, gap: 0.17, fin: 2.4, finR: 2.8, cd: 3.2, reach: 9 },
-    tide: { dur: [2.2, 2.6, 3.0], r: [3.0, 3.5, 4.0], tick: 0.3, dmg: 0.3, pull: 1.6, lift: 0.75, cd: 6.5, slow: 1.6 },
+      rehp: 0.6, act: 1.7, low: 0.3 },     // the pet's health under which it most wants the shield; its fold (s); v435 AN: low - the share
+                                            // (of its pool, or of 1.5 s of its time) under which a carapace counts as spent and is refreshed
+    // v435 AN: no cooldowns (the user's rule for every summon): the old cd values are gone; the mind (choose) weighs the field instead
+    reavers: { slashes: [2, 4, 6], dmg: 0.95, r: [1.6, 1.8, 2.0], pull: 0.55, gap: 0.17, fin: 2.4, finR: 2.8, reach: 9 },
+    tide: { dur: [2.2, 2.6, 3.0], r: [3.0, 3.5, 4.0], tick: 0.3, dmg: 0.3, pull: 1.6, lift: 0.75, slow: 1.6 },
     eclipse: { seal: [1.3, 1.5, 1.7], base: 2.2, k: 6, cap: [3, 4, 5], r: [3.6, 4.2, 4.8], minLife: 5.5, absorbR: 4.5, store: 0.25 },
-    swipe: { dmg: 0.8, r: 3.4, cd: 1.2 },
+    swipe: { dmg: 0.8, r: 3.4 },
+    mind: { gap: 0.15, rep: 0.78, last: 0.85, hist: 4, jit: 0.1 },   // v435 AN: the beat between powers (s); variety: x rep for each use among its last hist powers, x last more for the very last; a little chance
     tide9: { len: 5.6, strike: 3.95, rel: 4.7, r: 12, k: 8, kc: 4, core: 4, weak: 8, weakBoss: 5, weakK: 1.25, weakKBoss: 1.12, shield: 0.5, shieldT: 6 },
   };
   const COL = { sap: '#6FA2FF', ice: '#BFD8FF', white: '#EAF2FF', deep: '#2448B8', teal: '#7FE6FF', gold: '#E8C27A', night: '#03050E' };
@@ -133,7 +136,7 @@ const ABADDON_MOVES = (() => {
       const own = (sh && sh.a) || (seal && seal.a); if (own && own.ab) { own.ab.charge = Math.min(1.5, (own.ab.charge || 0) + 0.35); own.ab.stag = 1; } }   // (the Heart charges; the blow it took through its shield staggers it a little)
     function breakShield() { if (!sh) return; X.text(me.x, me.y - 1.3, 'Carapace broken', COL.ice, 13); for (let i = 0; i < 14 * LQ(); i++) { const an = Math.random() * TAU; X.part({ kind: 'star', x: me.x + Math.cos(an) * 0.9, y: me.y - 0.4 + Math.sin(an) * 0.6, vx: Math.cos(an) * 3, vy: Math.sin(an) * 2 - 1, life: 0.6, max: 0.6, size: 3, color: COL.ice, drag: 1.5 }); } sh = null; }
     /* ---- state ---- */
-    function stOf(a) { return a.ab || (a.ab = { act: null, cd: { rev: 0.9, tide: 2.6, car: 0, sw: 0.6 }, store: 0, charge: 0, first: false, eclDone: false, pz: null, vx: 0, vy: 0, ax: 0, ay: 0, px: a.x, py: a.y }); }
+    function stOf(a) { return a.ab || (a.ab = { act: null, last: null, streak: 0, hist: [], gap: 0.5 /* v435 AN: no per-power timers; last / streak / hist (its latest powers) for variety, gap the beat between powers */, store: 0, charge: 0, first: false, pz: null, vx: 0, vy: 0, ax: 0, ay: 0, px: a.x, py: a.y }); }
     // the crowd to aim at: the monster with the most others near it (within reach of the pet), and the middle of that crowd
     function crowd(x, y, reach, rr) {
       const tg = H.near(x, y, reach); if (!tg.length) return null; let best = null, bn = -1;
@@ -154,6 +157,7 @@ const ABADDON_MOVES = (() => {
     /* ---- the powers ---- */
     function start(a, kind, o) {
       const ab = a.ab, k = kOf(a); ab.act = Object.assign({ kind, t: 0, k, hits: 0 }, o || {}); const A = ab.act;
+      ab.streak = ab.last === kind ? (ab.streak || 0) + 1 : 1; ab.last = kind; (ab.hist || (ab.hist = [])).push(kind); if (ab.hist.length > CFG.mind.hist) ab.hist.shift();   // v435 AN
       if (kind === 'carapace') { A.dur = CFG.carapace.act; X.sfx.hum(); emoteSafe(a, 'heart'); }
       else if (kind === 'reavers') { A.n = CFG.reavers.slashes[k - 1]; A.dur = 0.6 + A.n * CFG.reavers.gap + (k >= 3 ? 0.45 : 0.1) + 0.45; A.seed = Math.random() * 100; X.sfx.whoosh(); }
       else if (kind === 'tide') { A.dur = CFG.tide.dur[k - 1] + 0.35; A.R = CFG.tide.r[k - 1]; A.tk = 0; A.el = 0; X.sfx.hum(); FX.push({ kind: 'gfield', x: A.x, y: A.y, R: A.R, t: 0, life: A.dur + 0.5, a, seed: Math.random() * 50 }); }
@@ -189,9 +193,9 @@ const ABADDON_MOVES = (() => {
       }
       if (t >= A.dur) { endAct(a); }
     }
-    function endAct(a) { const ab = a.ab, A = ab.act; if (!A) return; const C = ab.cd;
-      if (A.kind === 'carapace') C.car = CFG.carapace.cd; else if (A.kind === 'reavers') C.rev = CFG.reavers.cd; else if (A.kind === 'tide') { C.tide = CFG.tide.cd; releaseLift(a, false); } else if (A.kind === 'eclipse') { ab.eclDone = true; if (seal && seal.a === a) seal = null; } else if (A.kind === 'swipe') C.sw = CFG.swipe.cd;
-      ab.act = null; }
+    function endAct(a) { const ab = a.ab, A = ab.act; if (!A) return;
+      if (A.kind === 'tide') releaseLift(a, false); else if (A.kind === 'eclipse') { if (seal && seal.a === a) seal = null; }
+      ab.act = null; ab.gap = CFG.mind.gap; }   // v435 AN: no cooldown set: only the beat before its next power
     // (an interrupted power: no more blows, the held monsters set down, the seal lifted, its pictures left to fade)
     function abort(a) { const ab = a.ab; if (!ab || !ab.act) return; const A = ab.act; if (A.kind === 'tide') releaseLift(a, false); if (seal && seal.a === a) seal = null; for (const f of FX) if (f.a === a && f.life - f.t > 0.4) f.life = f.t + 0.4; ab.act = null; }
     function releaseLift(a, land) { for (const [m, q] of lifted) { if (q.by !== a) continue; q.rel = 1; q.land = land; } }
@@ -215,19 +219,41 @@ const ABADDON_MOVES = (() => {
       ab.store = 0; ab.charge = 0; FX.push({ kind: 'requiem', a, x: a.x, y: a.y, t: 0, life: 1.1, R, k: 1 + bonus / E.base });
       X.flash(0.45, '#DDE8FF'); X.shake(16 + k * 2, 0.5); X.sfx.crash(); X.light(a.x, a.y, 7, 0.8); g.hitStop = Math.max(g.hitStop || 0, 0.06);
     }
-    /* ---- the guardian's mind: one power at a time ---- */
+    /* ---- the guardian's mind (v435 AN): no cooldowns. One power at a time: whenever it is free (each power's wind-up, action and
+       follow-through are its animation lock, then a short beat) it weighs the field and picks the power that fits it best:
+         Lunar Carapace     the pet has no shield, or the one it has is spent or about to lapse (it is refreshed to full, never stacked):
+                            wanted most when the pet is hurt, swarmed or shot at;
+         Eclipse Requiem    monsters round it and a good share of the pet's health stored to release (in its last seconds, whatever
+                            it holds); now and then a plain seal against a big crowd;
+         Gravitational Tide a crowd of two or more round the pet, the larger the more;
+         Crescent Reavers   any monster in reach, at the middle of the crowd (so it is never idle while monsters are about);
+         a claw swipe       a monster right by it: the quick blow between the great powers.
+       A power starts only if it can finish in the time left. Variety: each power is weighed down for every time it was used among its
+       last four (more if it was the very last) and a little chance is added: a bias, never a timer. */
+    function choose(a) {
+      const ab = stOf(a), k = kOf(a), hp = ST().hp, life = a.life, M = CFG.mind, foes = H.near(a.x, a.y, CFG.reavers.reach), opts = [];
+      if (!foes.length) return null;
+      const n6 = foes.filter(m => Math.hypot(m.x - a.x, m.y - a.y) < 6).length, onPet = H.near(me.x, me.y, 2.6).length, shots = (X.eshots || []).filter(b => Math.hypot(b.x - me.x, b.y - me.y) < 3.5).length, hurt = me.hp < hp * CFG.carapace.rehp;
+      const left = sh ? Math.min(sh.pool / Math.max(1, sh.max), (sh.life - sh.t) / 1.5) : 0;
+      if (left < CFG.carapace.low && life > CFG.carapace.act + 0.4) opts.push({ kind: 'carapace', s: 0.42 + (hurt ? 0.45 : 0) + Math.min(0.3, onPet * 0.1) + Math.min(0.3, shots * 0.08) });
+      const E = CFG.eclipse, stK = ab.store / Math.max(1, hp);
+      if (n6 && life > E.seal[k - 1] + 1.2) { const s = stK >= E.store ? 0.85 + Math.min(0.5, stK) : life < E.minLife && stK > 0.04 ? 0.75 : n6 >= 3 ? 0.4 + 0.06 * Math.min(5, n6) : 0; if (s) opts.push({ kind: 'eclipse', s }); }
+      if (life > CFG.tide.dur[k - 1] + 0.6) { const c = crowd(me.x, me.y, 8, 2.5); if (c && c.n >= 2) opts.push({ kind: 'tide', s: 0.5 + 0.08 * Math.min(5, c.n), o: { x: c.x, y: c.y } }); }
+      const rd = 0.6 + CFG.reavers.slashes[k - 1] * CFG.reavers.gap + (k >= 3 ? 0.45 : 0.1) + 0.45;
+      if (life > rd + 0.1) { const c = crowd(me.x, me.y, CFG.reavers.reach, 2.2); if (c) opts.push({ kind: 'reavers', s: 0.55 + 0.08 * Math.min(5, c.n), o: { x: c.x, y: c.y } }); }
+      const m = H.near(a.x, a.y, CFG.swipe.r)[0]; if (m && life > 0.7) opts.push({ kind: 'swipe', s: 0.45, o: { m } });
+      if (!opts.length) return null;
+      for (const q of opts) { const n = (ab.hist || []).filter(h => h === q.kind).length; q.s *= Math.pow(M.rep, n) * (q.kind === ab.last ? M.last : 1); q.s += Math.random() * M.jit; }
+      opts.sort((p, q) => q.s - p.s); return opts[0];
+    }
     function tick(a, dt) {
-      const ab = stOf(a); for (const q in ab.cd) ab.cd[q] -= dt;
+      const ab = stOf(a);
       if (me.dead) { abort(a); return; }
       if (ab.act) { act(a, dt); if (ab.act) guard(a, dt, ab.act.x != null ? ab.act : null); return; }
       guard(a, dt, null);
-      const k = kOf(a), foes = H.near(a.x, a.y, CFG.reavers.reach), hp = ST().hp, life = a.life;
       if (!ab.first) { ab.first = true; return start(a, 'carapace'); }
-      if (!ab.eclDone && life > CFG.eclipse.seal[k - 1] + 0.8 && foes.some(m => Math.hypot(m.x - a.x, m.y - a.y) < 6) && (life < CFG.eclipse.minLife || ab.store > hp * CFG.eclipse.store)) return start(a, 'eclipse');
-      if (ab.cd.tide <= 0 && life > CFG.tide.dur[k - 1] + 0.6 && foes.length) { const c = crowd(me.x, me.y, 8, 2.5); if (c && (c.n >= 2 || ab.cd.rev > 0.5)) return start(a, 'tide', { x: c.x, y: c.y }); }
-      if (ab.cd.rev <= 0 && life > 1.6 && foes.length) { const c = crowd(me.x, me.y, CFG.reavers.reach, 2.2); if (c) return start(a, 'reavers', { x: c.x, y: c.y }); }
-      if (ab.cd.car <= 0 && !sh && me.hp < hp * CFG.carapace.rehp && life > 2) return start(a, 'carapace');
-      if (ab.cd.sw <= 0) { const m = H.near(a.x, a.y, CFG.swipe.r)[0]; if (m) return start(a, 'swipe', { m }); }
+      ab.gap -= dt; if (ab.gap > 0) return;
+      const ch = choose(a); if (ch) start(a, ch.kind, ch.o);
     }
     /* ---- the pose: what each power and moment does to the body, eased so nothing snaps (v420 AP: poseFor / easePose, shared with the boss) ---- */
     function poseOf(a, dt) {
@@ -560,7 +586,7 @@ const ABADDON_MOVES = (() => {
     // (a power on demand, aimed as the mind would aim it: for showcases and tests)
     function cast(a, kind) { stOf(a); if (a.ab.act) endAct(a); const c = crowd(me.x, me.y, 9, 2.5) || { x: a.x + 3, y: a.y + 1 }, m = H.near(a.x, a.y, 6)[0];
       if (kind === 'swipe' && !m) return false; start(a, kind, kind === 'swipe' ? { m } : kind === 'tide' || kind === 'reavers' ? { x: c.x, y: c.y } : null); return true; }
-    return { tick, fin, cast, update, stop, inK, outK, descent, entrance, drawGround, drawFx, drawBodyFx, drawCine, drawTide9 /* v420 AP */, bodyLight /* v420 AP */, CFG, get shield() { return sh; }, get seal() { return seal; }, get t9() { return T9; }, get fx() { return FX; }, get lifted() { return lifted; } };
+    return { tick, fin, cast, choose /* v435 AN */, update, stop, inK, outK, descent, entrance, drawGround, drawFx, drawBodyFx, drawCine, drawTide9 /* v420 AP */, bodyLight /* v420 AP */, CFG, get shield() { return sh; }, get seal() { return seal; }, get t9() { return T9; }, get fx() { return FX; }, get lifted() { return lifted; } };
   }
   return { create, CFG, poseFor /* v420 AP */, easePose /* v420 AP */ };
 })();
