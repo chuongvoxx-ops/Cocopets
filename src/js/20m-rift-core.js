@@ -60,6 +60,12 @@ function riftDef(id, stage) {
   if (Rf.typeShare) F.typeShare = Rf.typeShare;   // (types held to a share of the rolled monsters, at most three to a pack)   // (at most this many monsters on the field at once: the rest wait, unseen)
   // (and its ordinary monsters alone may be eased further: Rf.monEase scales their health and blows, not the bosses')
   if (Rf.monEase) { F.monHp *= Rf.monEase; F.monDmg *= Rf.monEase; }
+  /* v430 BD: a rift's own hardness on its foes, kept apart from the ease and scale above (never folded into hpMul / monHp,
+     which feed one another and the bosses' bar sizes): Rf.monHpK (ordinary monsters and elites), Rf.miniHpK (mini bosses:
+     guardians, pack leaders, the trials' lesser bosses), Rf.bossHpK (the main bosses' effective health), Rf.foeDmgK (every
+     blow a monster or boss lands on the pet). Held on F.rift, so an Anima gate (which replaces F.rift) never takes them;
+     applied once: health by DunRift's foeStamp (below), the bosses by their own files, blows by hurtPet (20b) */
+  if (Rf.monHpK || Rf.miniHpK || Rf.bossHpK || Rf.foeDmgK) F.rift.foeK = { mon: Rf.monHpK || 1, mini: Rf.miniHpK || 1, boss: Rf.bossHpK || 1, dmg: Rf.foeDmgK || 1 };
   if (S.kind === 'fight') { const mobs = S.mobs || Rf.mons || []; Object.assign(F, { types: mobs.concat(mobs, F.types.filter(t => !mobs.includes(t) && !MON[t].still).slice(-3)), rooms: 7, pack: Math.max(F.pack, 10), packsPer: 3, maxMons: Math.max(F.maxMons, 90), elite: Rf.ease ? Math.min(F.elite, 0.3) : Math.max(F.elite, 0.45), nests: 0, gremlin: 0.3, shrines: 1, events: true }); if (S.mod === 'boon') F.band = 'rboon'; else if (S.mod === 'curse') F.band = 'rcurse'; else if (S.mod === 'random') F.band = 'rrand'; }
   else if (S.kind === 'boss') { const fd = riftFiend(S.boss, n); F.fiend = fd; F.boss = false; F.bossName = fd ? fd.name : S.goal; F.name = fd ? fd.name : Rf.name; F.events = false; F.dark = 0; }
   else { Object.assign(F, { rooms: 1, pack: 0, packsPer: 0, maxMons: 60, types: [], nests: 0, elite: 0, gremlin: 0, shrines: 0, hazards: false, traps: 0, stones: 0 }); }
@@ -118,12 +124,22 @@ const DunRift = (() => {
     // (a rift may lay something over every one of its stages: Rf.everyStage(X, self, H) -> { update, drawGround, drawOver })
     const amb = !F.rift.gate && Rf.everyStage ? Rf.everyStage(X, self, { obj, setExit, spawnPacks, channelTick, monstersLeft, exit: () => exit }) || {} : {}; self.amb = amb;
     if (S.kind === 'boss' && S.seal && Rf.sealing) riftSealing(X, self, mod, Object.assign({ wound: M.FC ? { x: M.FC.x, y: M.FC.y - M.FC.R + 3 } : { x: M.MW / 2, y: 3.5 } }, Rf.sealing));
+    /* v430 BD: the rift's foe health (F.rift.foeK, riftDef): every monster and mini boss on the field or held back, once each,
+       whatever made it and however its health was set (the floor's roll, a stage's own numbers, a guardian's, a leader's),
+       on the first frame it is there; m.foeK marks it done (a stage played again makes new monsters). The main bosses (fiends)
+       carry it in their own files; the fiends' objects (props, weak points, urns) are not foes */
+    const FK = F.rift && F.rift.foeK;
+    function foeStampL(L) { for (let i = 0; i < L.length; i++) { const m = L[i]; if (m.foeK || m.dead || m.fiend || m.fobj) continue; const k = m.boss || m.calLeader || m.belGuard ? FK.mini : FK.mon; m.foeK = k; if (k === 1) continue;
+        m.maxhp *= k; m.hp *= k; if (m.shieldMax) { m.shieldMax *= k; m.shield = (m.shield || 0) * k; } } }
+    function foeStamp() { if (!FK) return; foeStampL(mons); if (g.reserve && g.reserve.length) foeStampL(g.reserve); }   // (no allocation: it runs twice a frame)
+    self.foeStamp = foeStamp;
     function update(dt) {
-      self.t += dt;
+      self.t += dt; foeStamp();
       if (self.cine) { self.cine.t += dt; if (mod.cine) mod.cine(dt, self.cine); return; }
       for (const o of objs) channelTick(o, dt);
       if (mod.update) mod.update(dt);
       if (amb.update) amb.update(dt);
+      foeStamp();
       if (exit && !g.won && !me.dead && self.done && Math.hypot(me.x - exit.x, me.y - exit.y) < exit.r) X.winStage();
     }
     function finish() { self.done = true; }

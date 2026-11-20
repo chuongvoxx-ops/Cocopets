@@ -1154,6 +1154,7 @@ if (typeof window !== 'undefined') window.BEL = BEL;
     gate: { anima: 'cancer', name: 'The Oracle Shell' }, mons: ['crawler', 'leech', 'reeflantern'], sealing: SEALING,
     scale: 0.5,   // (half the health and blows the brood was first built with)
     ease: 1, monCount: 0.55,   // v394 B1: the dungeons' rolled floors thinned (each is trimmed or topped up to its exact count), elites at the Tower's own share
+    monHpK: 3.5, miniHpK: 3.5, bossHpK: 3, foeDmgK: 2,   // v430 BD (the user 2026-11-20): monsters and elites 3.5x health, mini bosses (the guardians, pack leaders, the trials' lesser bosses) 3.5x, Kharrox, Nhalu and Uldroth 3x; every foe's blow 2x. On top of all the numbers above, once (riftDef: F.rift.foeK)
     typeShare: Object.fromEntries(Object.keys(MON).filter(t => !BROOD_T.includes(t)).map(t => [t, 0])),   // v394 B1: only the brood rolls in the dungeons
     stages: STAGES });
   function Rf0() { return Rf; }

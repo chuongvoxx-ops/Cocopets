@@ -378,6 +378,7 @@ const BEL_NHALU = (() => {
       for (let k = 0; k < 120; k++) M.path.push({ x: hx, y: hy - k * 0.1 });
       m.x = hx; m.y = hy * GY;
       if (CUR && CUR.g === FX.H.g) { M.mod = CUR.mod; CUR.FX = FX; }
+      M.effHp *= typeof BEL_FOE_BOSS_K === 'function' ? BEL_FOE_BOSS_K(FX) : 1;   /* v430 BD: the rift's main-boss health (x3 in the Belfry), on his effective health; his bars read as before */
       M.hpAmp = m.maxhp / M.effHp;
       M.breaks = BREAKS.map(b => { const o = FX.obj({ kind: b.kind, x: C.x + b.x, y: C.y + b.y, r: b.kind === 'belglass' ? 0.55 : 0.4, hp: b.kind === 'belglass' ? 90 : 60, onHit: q => { q.flash = 0.1; sf(FX, 'tick'); }, onKill: q => breakObj(FX, q) }); return o; });
       spine(FX, m, M, 0); },

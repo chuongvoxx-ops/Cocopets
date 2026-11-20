@@ -393,7 +393,7 @@ const BELK = (() => {
     init(FX) { const M = FX.mem, m = FX.m, C = FX.C, L0 = ARENA.lair(C); m.x = L0.x; m.y = L0.y; m.noTouch = true; m.touchK = 0;
       Object.assign(M, { ok: 1, bt: 0, th: Math.PI / 2, P: Object.assign(blankPose(), { eyeGlow: 0.15, wet: 1 }), A: null, idleT: 0, pick: 0, seen: {}, fx: [], drops: [], trail: [], end: null, bell: { r: 0, vr: 0, p: 0, vp: 0, y: 0, vy: 0 }, brood: false, adds: [], deco: [], hitT: -1, hitN: 0, lastHp: m.hp, flinch: 0, spd: 0,
         stat: { sweeps: 0, sweepHit: 0, sweepSafe: 0, sweepOut: 0, tolls: 0, rings: 0, ringHit: 0, ringGap: 0, adds: 0, decoBroken: 0, exposed: 0, eyeHits: 0, phase2At: null, t0: FX.S.t, dmg: {} } });
-      const Rf = riftOf(); M.effHp = (Rf && Rf.belkHp) || TUNE.effHp; M.amp = m.maxhp / M.effHp;
+      const Rf = riftOf(); M.effHp = ((Rf && Rf.belkHp) || TUNE.effHp) * BEL_FOE_BOSS_K(FX); M.amp = m.maxhp / M.effHp;   /* v430 BD: the rift's main-boss health (x3 in the Belfry): his effective health, here and not in TUNE.effHp (the hall's Varkul is measured on that); his bars read as before */
       locoInit(FX, m);
       if (STAGE && STAGE.g === FX.g) STAGE.FX = FX;
       for (const d of ARENA.deco(C)) { const o = FX.obj({ kind: 'beldeco', x: d.x, y: d.y, r: d.kind === 'coral' ? 0.55 : 0.48, hp: 1, deco: d, onKill: ob => breakDeco(FX, ob, null) }); M.deco.push(o); } },
@@ -1013,6 +1013,8 @@ const BELK = (() => {
 })();
 /* Kharrox's health and blows in absolute terms (the 6/7/9-bar convention: six bars), for the floor its stage plays as in
    whichever rift holds a 'belkharrox' boss stage (the Belfry; else a test rift); see CAL_BOSS_HPK (20zz6) */
+/* v430 BD: the main-boss health factor of the rift a fiend fight plays in (riftDef's F.rift.foeK.boss; 1 elsewhere) */
+function BEL_FOE_BOSS_K(FX) { const K = FX && FX.F && FX.F.rift && FX.F.rift.foeK; return K && K.boss > 0 ? K.boss : 1; }
 function BEL_BOSS_K(id, kind) { try { const T = BELK.TUNE; let Rf = RIFT_BY_ID.belfry, i = Rf && Rf.stages ? Rf.stages.findIndex(s => s.boss === id) : -1;
   if (i < 0) for (const R of RIFTS) { const j = R.stages ? R.stages.findIndex(s => s.boss === id) : -1; if (j >= 0) { Rf = R; i = j; break; } }
   const n = i >= 0 ? Math.max(1, (Rf.lvl || 1) + (riftStagePos(Rf, i).sec - 1) * 3) : 10, E = i >= 0 ? ((Rf.ease || 1) * (Rf.scale || 1)) : 1;

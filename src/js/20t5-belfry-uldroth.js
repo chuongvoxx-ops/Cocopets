@@ -386,6 +386,9 @@ const BEL_ULDROTH = (() => {
   /* ================= the fight ================= */
   const TQ = '#61D9D2', TQ_HI = '#C9FFF8', WARN = '#FF4D6D', SAFE = '#8FE0A6', GOLD = '#FFE37A', FOAM = '#E2F7F2', DEEP = '#123C52';
   const CYC = { 1: ['jaw', 'undertow'], 2: ['jaw', 'undertow', 'jaw'], 3: ['wave', 'jaw', 'wave', 'undertow'] };
+  /* v430 BD: the rift's main-boss health factor (riftDef's F.rift.foeK.boss: x3 in the Belfry, 1 elsewhere), taken as a cut on
+     every blow into him (dmgK and the throat), not on TUNE.hp: that sets his maxhp (through the stage's hpMul), which his leeches' and urns' health follow */
+  const ULD_BOSS_K = FX => (typeof BEL_FOE_BOSS_K === 'function' ? BEL_FOE_BOSS_K(FX) : 1);
   const TUNE = { hp: 28000 * 4 /* v404 */, dmg: 21, bars: 9,   /* (hp: measured with level-10 bots (fresh random pets) at 85-145 dps: a median of about 4 minutes, 3 to 6 by the pet, with the bell, the surges and the waves) */
     jawTrack: 1.55, jawLock: 1.1, jawLen: 13.5, jawSp: 0.36, jawRec: 1.9,
     pullT: 2.8, pullR: 6.2, pullV0: 0.6, pullV1: 2.9, gasp: 2.5,
@@ -587,7 +590,7 @@ const BEL_ULDROTH = (() => {
     return [{ key: 'torso', dx: ch.x - m.x, dy: ch.y - m.y, r: 2.0 }, { key: 'base', dx: 0, dy: -0.6, r: 1.9 }, { key: 'head', dx: hd.x - m.x, dy: hd.y - m.y, r: 1.2 }]; }
   function weakPoints(FX, m, M) { const A = M.A; let k = 0;
     if (A && A.exposed) k = A.kind === 'undertow' ? 1.75 : 1.4; else if (A && A.kind === 'bell' && (A.phase === 'call' || A.phase === 'rise')) k = 1.35; else if (m.stunT > 0) k = 1.5;
-    if (k > 0 && m.act === 'fight' && !m.dead) { const p = vis(anc(FX, m, 'throat')); FX.weak('throat', p.x, p.y + 0.6, 1.5, k, true); M.weakK = k; } else { FX.weak('throat', 0, 0, 0, 0, false); M.weakK = 0; } }
+    if (k > 0 && m.act === 'fight' && !m.dead) { const p = vis(anc(FX, m, 'throat')); FX.weak('throat', p.x, p.y + 0.6, 1.5, k / ULD_BOSS_K(FX), true); M.weakK = k; }   /* v430 BD: the throat's blows / the rift's main-boss health too */ else { FX.weak('throat', 0, 0, 0, 0, false); M.weakK = 0; } }
   /* ---------------- the fall: he slumps, the sea drains away downward, the bell sounds once, the sun breaks through ---------------- */
   function deadTick(FX, m, dt) { const M = FX.mem;
     if (M.deadT == null) { M.deadT = 0; M.A = null; FX.S.tele.length = 0; for (let i = FX.S.hz.length - 1; i >= 0; i--) if (FX.S.hz[i].dps) FX.S.hz.splice(i, 1); try { if (FX.H.eshots) FX.H.eshots.length = 0; } catch (e) { /* none */ }
@@ -1090,7 +1093,7 @@ const BEL_ULDROTH = (() => {
       if (M.lvl > 0.55 && !sheltered(FX, me.x, me.y)) me.chill = Math.max(me.chill || 0, 0.15);
       if (!lowFx() && m.act !== 'enter' && Math.random() < dt * 3) { const l = anc(FX, m, 'lure'); FX.H.part({ kind: 'star', x: l.x + FX.rnd(-0.3, 0.3), y: l.y - l.z * ZK, vx: FX.rnd(-0.3, 0.3), vy: FX.rnd(-0.8, -0.3), life: 1.0, max: 1.0, size: 1.4, color: TQ_HI }); }
       easePose(FX, m, dt); },
-    dmgK(FX, m, o) { flinch(FX, m, 0.05); let k = 0.62; if (m.stunT > 0) k = 0.75; return k * stackK(FX, o); },
+    dmgK(FX, m, o) { flinch(FX, m, 0.05); let k = 0.62; if (m.stunT > 0) k = 0.75; return k * stackK(FX, o) / ULD_BOSS_K(FX); },   /* v430 BD: / the rift's main-boss health (x3 in the Belfry), as on his throat below; his bars read as before */
     onWeakHit(FX) { const M = FX.mem; flinch(FX, FX.m, 0.12); M.stat.exposed = (M.stat.exposed || 0) + 1; stackK(FX, null); },
     draw(c, FX, m, X, Y, T, t) { c.globalAlpha = 1; Y += (m.z || 0) * T * 4; paintBoss(c, FX, m, X, Y, T, t); },
     drawFx(c, FX, T, t) { drawFx(c, FX, T, t); },
