@@ -29,7 +29,19 @@
    Pure hooks for a boss fight later (no game state touched): BELIAL_MOVES.poseFor(kind, t, o) / easePose(store, tg, dt) /
    ultPose(t) / UT (the ultimate's timeline); inst.drawDominion(c, o) (the ultimate's whole picture: o = { x, y the centre,
    bx, by Belial's floor point, t, seed, k, groundOnly, skyOnly, alpha }) and inst.bodyLight(c, r, P, alpha, at) (the light over
-   the body: the core, eyes, horn rings, filaments). */
+   the body: the core, eyes, horn rings, filaments).
+   v430 BP (the animation and effects polish; everything in the shared pure hooks, so the boss gets it):
+   - poseFor: every power in seven beats (stance, weight shift, machinery, build, action, its own impact's recoil, the settle), with the
+     new pose keys dx, spread, shift, mech (BELIAL_GL.draw reads them); ultPose adds them too (UT unchanged).
+   - easePose(store, tg, dt): a critically damped spring per key (store.pzv), solved exactly: blends without snaps at any frame rate.
+   - effects: new FX kinds 'foot' (a footfall: the plinth's ring, a dust skirt, cracks), 'lens' (a gravitational lens, FGFX 202; inward
+     for a wind-up), 'quake' (a seismic upheaval, 205), 'bow' (the charge's pressure bow, 203, on the floor and ahead of the horns),
+     'burst' (a shaft of force, 198), 'pulse' (a compression pulse from the core down, 204), 'ccharge' (the crown's charge over the
+     brow), 'csig' (the carapace's foundation), 'shard' (the barrier's GPU shards); 'cring' arcs from the horns when given src (else as
+     before) with gyroscopic rings and pulses driven down; the dome rises in three layers (197, the rune lattice 206, 197) with the
+     energy drawn to the core and floating architecture. FX records the boss pushes are unchanged.
+   - Dominion: pillars break out with momentum (drums turning into place), the ground heaving at each, the compression's lens and
+     pulses, layered slam shockwaves, an eased camera; one painter batch for its sky and the effects; pillar parts pooled. */
 const BELIAL_MOVES = (() => {
   const TAU = Math.PI * 2, cl = u => (u < 0 ? 0 : u > 1 ? 1 : u), lerp = (a, b, u) => a + (b - a) * u;
   const sstep = (a, b, x) => { const u = cl((x - a) / (b - a)); return u * u * (3 - 2 * u); }, eout = u => 1 - Math.pow(1 - cl(u), 3), ein = u => cl(u) * cl(u);
@@ -56,30 +68,52 @@ const BELIAL_MOVES = (() => {
   /* ---- the power poses (pure: shared with a boss): poseFor(kind, t, o) the pose a power holds t s into it (kind 'rush' | 'crown' |
      'carapace' | 'stamp' | 'roar'; anything else: rest); o: base (an idlePose), dur, wind, charge (the charge's length), n, gap (the
      stomps), k (form), pulse (0..1 a crown pulse), stag (a stagger), tailT (when the tail sweeps). Each with anticipation and settle ---- */
+  /* v430 BP: every power is choreographed in the same beats, each its own curve so they overlap and blend: 1 the stance (the feet
+     step out: spread), 2 the weight shift (back onto the haunches, or off the leg about to stamp: dx, shift), 3 the machinery
+     (the horn segments turning, the stabilisers spinning, the plates chattering: mech), 4 the build (the core, the rings, a
+     tremble), 5 the action, 6 the reaction to its own impact (a recoil: dx back, a stagger, a rear), 7 the return to its stance (a
+     damped settle). New keys (read by BELIAL_GL.draw, eased by easePose): dx, spread, shift, mech */
   function poseFor(kind, t, o) {
     o = o || {}; const base = o.base || {};
-    const tg = { head: 0, look: 0, jaw: 0, horn: 0, ringK: 1, ringOut: 0, core: base.core == null ? 0.85 : base.core, coreOpen: 0, cit: 0, citUp: 0, bast: 0, mono: 0, monoIn: 0, glow: 0, live: 1, crouch: 0, rear: 0, pitch: 0, lift: 0, tail: 0, stagger: o.stag || 0, hornAlign: 0, eye: 1, feet: null };
-    if (kind === 'rush') { const w = o.wind || CFG.rush.wind, ct = o.charge || 1, tI = w + ct, an = sstep(0, w * 0.8, t) * (1 - sstep(tI, tI + 0.12, t)), ch = sstep(w * 0.85, w, t) * (1 - sstep(tI - 0.05, tI + 0.1, t)), th = bump(t, tI - 0.05, tI + 0.08, tI + 0.25, tI + 0.6), rc = settle(t, tI + 0.3, 7, 3);
-      tg.head = 0.95 * an - 1.25 * th + 0.1 * rc; tg.crouch = 0.65 * an * (1 - ch * 0.6) + 0.2 * th; tg.horn = Math.max(an, th, ch); tg.ringK = 1 + 5 * Math.max(an, ch) + 2 * th; tg.ringOut = 0.3 * an + 0.6 * th; tg.glow = 0.4 * an + 0.5 * th; tg.jaw = 0.35 * th;
-      tg.rear = 0.3 * th; tg.bast = 0.45 * an; tg.core += 0.8 * an + th; tg.live = 1 - 0.85 * Math.max(an, th); tg.pitch = 0.035 * Math.sin(t * 25) * ch; tg.tail = 0.3 * ch; }
-    else if (kind === 'crown') { const d = o.dur || 3.6, rs = sstep(0, 0.7, t) * (1 - sstep(d, d + 0.4, t)), pl = o.pulse || 0, fin = bump(t, d - 0.1, d, d + 0.1, d + 0.45);
-      tg.head = -0.75 * rs + 0.25 * pl + 0.45 * fin; tg.jaw = 0.75 * bump(t, 0.15, 0.45, 0.7, 1.2) + 0.2 * rs; tg.horn = Math.max(rs, fin); tg.ringOut = rs; tg.ringK = 1 + 2.5 * rs + 2 * pl; tg.core += 0.9 * rs + 0.8 * pl; tg.glow = 0.35 * rs + 0.4 * pl + 0.3 * fin; tg.crouch = 0.25 * pl + 0.3 * fin; tg.live = 1 - 0.6 * rs; tg.look = 0.12 * Math.sin(t * 0.9) * rs; }
-    else if (kind === 'carapace') { const d = o.dur || 4.5, tr = sstep(0.1, 0.9, t) * (1 - sstep(d, d + 0.7, t)), rel = bump(t, d - 0.05, d + 0.05, d + 0.25, d + 0.7);
-      tg.cit = tr; tg.bast = 0.9 * tr; tg.mono = tr; tg.crouch = 0.4 * tr - 0.1 * rel; tg.core += 1.1 * tr + (o.charge || 0) * 1.2 + 1.5 * rel; tg.glow = 0.4 * tr + 0.7 * rel; tg.head = 0.25 * tr - 0.5 * rel; tg.jaw = 0.8 * rel; tg.horn = 0.5 * tr + rel; tg.ringK = 1 + 1.5 * tr + 3 * rel; tg.live = 1 - 0.8 * tr; tg.stagger *= 0.35; }
-    else if (kind === 'stamp') { const n = o.n || 3, gap = o.gap || CFG.stamp.gap, t0 = 0.45, last = t0 + (n - 1) * gap, on = sstep(0, 0.3, t) * (1 - sstep(last + 0.3, last + 0.8, t)), fe = [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]]; let up = 0;
-      for (let i = 0; i < n; i++) { const ts = t0 + i * gap, u = (t - (ts - 0.8 * gap)) / (0.8 * gap); if (u > 0 && u < 1) { const lf = u < 0.72 ? sstep(0, 0.72, u) : 1 - ein((u - 0.72) / 0.28), hk = i === n - 1 && (o.k || 1) >= 3 ? 1.35 : 1; fe[i % 2] = [0.5 * lf, 0, 2.0 * lf * hk]; up = Math.max(up, lf * hk); } }
-      const cr = bump(t, last - 0.05, last, last + 0.2, last + 0.65) * ((o.k || 1) >= 3 ? 1 : 0.4), tt = o.tailT || -9;
-      tg.feet = fe; tg.rear = 0.3 * up; tg.core += 1.4 * on; tg.ringK = 1 + 2.5 * on; tg.glow = 0.35 * on + 0.4 * cr; tg.head = 0.3 * on - 0.25 * up + 0.4 * cr; tg.horn = 0.6 * on; tg.crouch = 0.15 * on + 0.55 * cr; tg.live = 1 - 0.6 * on;
+    const tg = { head: 0, look: 0, jaw: 0, horn: 0, ringK: 1, ringOut: 0, core: base.core == null ? 0.85 : base.core, coreOpen: 0, cit: 0, citUp: 0, bast: 0, mono: 0, monoIn: 0, glow: 0, live: 1, crouch: 0, rear: 0, pitch: 0, lift: 0, tail: 0, stagger: o.stag || 0, hornAlign: 0, eye: 1, feet: null, dx: 0, spread: 0, shift: 0, mech: 0 };
+    if (kind === 'rush') { const w = o.wind || CFG.rush.wind, ct = o.charge || 1, tI = w + ct, end = 1 - sstep(tI + 0.3, tI + 0.9, t);
+      const st = sstep(0, 0.3, t), ws = sstep(0.08, 0.5, t) * (1 - sstep(w - 0.16, w - 0.02, t)), mc = sstep(0.2, 0.6, t), en = sstep(0.4, w, t) * (1 - sstep(w, w + 0.2, t)), lunge = bump(t, w - 0.14, w - 0.02, w + 0.05, w + 0.4);
+      const go = sstep(w - 0.1, w + 0.05, t) * (1 - sstep(tI - 0.08, tI + 0.04, t)), th = bump(t, tI - 0.1, tI - 0.01, tI + 0.14, tI + 0.5), rc = bump(t, tI, tI + 0.07, tI + 0.2, tI + 0.62), rv = settle(t, tI + 0.4, 6.5, 3.4);
+      tg.spread = 0.42 * st * (1 - 0.55 * go) * end; tg.dx = -0.5 * ws + 0.45 * lunge - 0.6 * rc + 0.12 * rv; tg.crouch = 0.55 * ws + 0.3 * en * (1 - ws) + 0.25 * go + 0.15 * th - 0.1 * rc;
+      tg.head = 0.95 * Math.max(ws, en, go, lunge) * (1 - th) + 0.25 * st * (1 - ws) - 1.2 * th + 0.18 * rv; tg.horn = Math.max(mc, go, th) * end; tg.mech = mc * end * (1 - 0.4 * go); tg.ringK = 1 + 4.5 * Math.max(mc * (0.4 + 0.6 * en), go) + 2 * th;
+      tg.ringOut = 0.3 * en + 0.6 * th; tg.glow = 0.35 * en + 0.2 * go + 0.5 * th; tg.jaw = 0.4 * th + 0.25 * bump(t, 0.25, 0.4, 0.55, 0.8); tg.rear = 0.3 * th + 0.12 * rc; tg.bast = 0.45 * Math.max(ws, en) * end + 0.3 * rc;
+      tg.core += 0.9 * en + 0.5 * go + th; tg.live = 1 - 0.85 * Math.max(ws, en, go, th); tg.pitch = 0.03 * Math.sin(t * 25) * en * (1 - go); tg.tail = 0.4 * go - 0.35 * ws + 0.5 * rc; tg.stagger += 0.35 * rc; }
+    else if (kind === 'crown') { const d = o.dur || 3.6, pl = o.pulse || 0, st = sstep(0, 0.3, t) * (1 - sstep(d + 0.1, d + 0.7, t)), an = bump(t, 0, 0.14, 0.2, 0.42), rs = sstep(0.18, 0.75, t) * (1 - sstep(d - 0.12, d + 0.05, t)), mc = sstep(0.12, 0.5, t) * (1 - sstep(d, d + 0.5, t));
+      const lv = sstep(0.45, 0.95, t) * (1 - sstep(d, d + 0.4, t)), fin = bump(t, d - 0.1, d + 0.02, d + 0.12, d + 0.5), rv = settle(t, d + 0.3, 6, 3.2);
+      tg.spread = 0.28 * st; tg.head = 0.28 * an - 0.75 * rs + 0.25 * pl + 0.55 * fin + 0.12 * rv; tg.crouch = 0.25 * an + 0.25 * pl + 0.35 * fin; tg.dx = -0.18 * rs + 0.3 * fin - 0.06 * pl; tg.jaw = 0.8 * bump(t, 0.3, 0.5, 0.75, 1.2) + 0.15 * rs + 0.3 * pl + 0.3 * fin;
+      tg.horn = Math.max(rs, fin, mc * 0.7); tg.mech = mc; tg.ringOut = lv; tg.ringK = 1 + 1.5 * mc + 1.5 * rs + 2 * pl; tg.core += 0.6 * mc + 0.5 * rs + 0.8 * pl + 0.5 * fin; tg.glow = 0.35 * rs + 0.4 * pl + 0.3 * fin; tg.live = 1 - 0.6 * rs;
+      tg.look = 0.12 * Math.sin(t * 0.9) * rs; tg.shift = 0.25 * Math.sin(t * 1.1) * rs; tg.bast = 0.3 * rs + 0.2 * pl; }
+    else if (kind === 'carapace') { const d = o.dur || 4.5, pl = sstep(0, 0.35, t) * (1 - sstep(d + 0.3, d + 0.9, t)), tr = sstep(0.25, 1.0, t) * (1 - sstep(d, d + 0.7, t)), mc = sstep(0.12, 0.45, t) * (1 - sstep(d + 0.2, d + 0.8, t));
+      const ga = bump(t, d - 0.5, d - 0.18, d - 0.06, d + 0.02), rel = bump(t, d - 0.05, d + 0.05, d + 0.25, d + 0.7), rv = settle(t, d + 0.5, 6, 3);
+      tg.spread = 0.55 * pl; tg.cit = tr; tg.bast = 0.9 * tr; tg.mono = tr; tg.mech = mc; tg.crouch = 0.42 * pl + 0.25 * ga - 0.15 * rel; tg.dx = -0.3 * ga + 0.4 * rel + 0.1 * rv; tg.core += 1.1 * tr + (o.charge || 0) * 1.2 + 0.6 * ga + 1.5 * rel;
+      tg.glow = 0.4 * tr + 0.3 * ga + 0.7 * rel; tg.head = 0.3 * pl + 0.2 * ga - 0.55 * rel + 0.12 * rv; tg.jaw = 0.8 * rel; tg.horn = 0.5 * tr + rel; tg.ringK = 1 + 1.5 * tr + 1.5 * ga + 3 * rel; tg.rear = 0.18 * rel; tg.live = 1 - 0.8 * tr; tg.stagger *= 0.35; }
+    else if (kind === 'stamp') { const n = o.n || 3, gap = o.gap || CFG.stamp.gap, t0 = 0.45, last = t0 + (n - 1) * gap, big = (o.k || 1) >= 3, on = sstep(0, 0.3, t) * (1 - sstep(last + 0.3, last + 0.8, t)), fe = [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]]; let up = 0, sh = 0, rc = 0, lk = 0;
+      for (let i = 0; i < n; i++) { const ts = t0 + i * gap, u = (t - (ts - 0.8 * gap)) / (0.8 * gap), both = i === n - 1 && big, hk = (both ? 1.45 : 1 + 0.06 * i) * (i % 3 === 2 ? 1.1 : 1);
+        if (u > 0 && u < 1) { const lf = u < 0.72 ? sstep(0, 0.72, u) : 1 - ein((u - 0.72) / 0.28), f = [0.5 * lf * (1 + 0.1 * (i % 2)), 0.08 * lf * (i % 3 === 1 ? 1 : 0), 2.0 * lf * hk]; fe[i % 2] = f; if (both) fe[(i + 1) % 2] = f; up = Math.max(up, lf * hk); sh += (both ? 0 : (i % 2 ? 0.55 : -0.55)) * lf; lk += 0.14 * (i % 2 ? -1 : 1) * lf; }
+        rc = Math.max(rc, bump(t, ts - 0.01, ts + 0.04, ts + 0.1, ts + 0.38) * (both ? 1.6 : 1)); }
+      const cr = bump(t, last - 0.05, last, last + 0.2, last + 0.65) * (big ? 1 : 0.4), tt = o.tailT || -9, rv = settle(t, last + 0.5, 6, 3);
+      tg.feet = fe; tg.spread = 0.25 * on; tg.shift = sh; tg.look = lk; tg.dx = -0.25 * on * (1 - rc) + 0.12 * rc + 0.08 * rv; tg.rear = 0.3 * up; tg.mech = on; tg.core += 1.4 * on + 0.5 * rc; tg.ringK = 1 + 2.5 * on + 1.5 * rc; tg.glow = 0.35 * on + 0.4 * cr + 0.2 * rc;
+      tg.head = 0.3 * on - 0.25 * up + 0.3 * rc + 0.4 * cr + 0.1 * rv; tg.horn = 0.6 * on; tg.crouch = 0.15 * on + 0.3 * rc + 0.55 * cr; tg.live = 1 - 0.6 * on; tg.stagger += 0.12 * rc;
       tg.tail = 1.3 * bump(t, tt - 0.3, tt, tt + 0.1, tt + 0.6) - 0.4 * bump(t, tt - 0.5, tt - 0.3, tt - 0.25, tt); }
-    else if (kind === 'roar') { const r = bump(t, 0.05, 0.35, 0.8, 1.25); tg.head = -0.45 * r + 0.25 * bump(t, 0.5, 0.65, 0.8, 1.2); tg.jaw = r; tg.horn = 0.7 * r; tg.ringK = 1 + 3 * r; tg.core += r; tg.glow = 0.4 * r; tg.live = 1 - 0.7 * r; tg.crouch = 0.2 * bump(t, 0.4, 0.55, 0.7, 1.1); }
+    else if (kind === 'roar') { const r = bump(t, 0.05, 0.35, 0.8, 1.25), an = bump(t, 0, 0.12, 0.18, 0.35); tg.head = 0.2 * an - 0.45 * r + 0.25 * bump(t, 0.5, 0.65, 0.8, 1.2); tg.jaw = r; tg.horn = 0.7 * r; tg.mech = r; tg.ringK = 1 + 3 * r; tg.core += r; tg.glow = 0.4 * r; tg.live = 1 - 0.7 * r;
+      tg.crouch = 0.2 * an + 0.2 * bump(t, 0.4, 0.55, 0.7, 1.1); tg.dx = -0.2 * r + 0.1 * an; tg.spread = 0.25 * bump(t, 0, 0.3, 1.0, 1.4); }
     return tg;
   }
-  const PZK = ['head', 'look', 'jaw', 'horn', 'ringK', 'ringOut', 'core', 'coreOpen', 'cit', 'citUp', 'bast', 'mono', 'monoIn', 'glow', 'live', 'crouch', 'rear', 'pitch', 'lift', 'tail', 'stagger', 'hornAlign', 'eye'];
-  /* easePose(store, tg, dt): eases store.pz toward tg (heavy: a slow body; the jaw, the stagger and the rear-up faster) */
+  const PZK = ['head', 'look', 'jaw', 'horn', 'ringK', 'ringOut', 'core', 'coreOpen', 'cit', 'citUp', 'bast', 'mono', 'monoIn', 'glow', 'live', 'crouch', 'rear', 'pitch', 'lift', 'tail', 'stagger', 'hornAlign', 'eye', 'dx', 'spread', 'shift', 'mech'];
+  // v430 BP: each key's stiffness (a critically damped spring's angular frequency): the body heavy, the head and the crouch quicker, the jaw and the stagger quickest
+  const PZW = { jaw: 26, stagger: 26, head: 15, crouch: 15, rear: 15, dx: 13, pitch: 22, look: 7, spread: 6, shift: 6, ringK: 9, core: 11, glow: 11, eye: 12, coreOpen: 8, cit: 8, citUp: 8, mono: 7, monoIn: 8, mech: 8, tail: 10, hornAlign: 9, horn: 9, ringOut: 8 };
+  /* easePose(store, tg, dt): eases store.pz toward tg. v430 BP: each key on its own critically damped spring (store.pzv its speed;
+     solved exactly, so it is stable at any dt): a pose blends into the next with its speed carried (no snaps, no overshoot) */
   function easePose(store, tg, dt) {
-    let pz = store.pz; if (!pz) pz = store.pz = Object.assign({}, tg);
-    const r1 = Math.min(1, dt * 6), r2 = Math.min(1, dt * 14);
-    for (const q of PZK) { const v = tg[q] == null ? (q === 'live' ? 1 : q === 'ringK' || q === 'eye' ? 1 : 0) : tg[q]; if (pz[q] == null) pz[q] = v; pz[q] += (v - pz[q]) * (q === 'jaw' || q === 'stagger' || q === 'rear' || q === 'head' || q === 'crouch' ? r2 : r1); }
+    let pz = store.pz; if (!pz) pz = store.pz = Object.assign({}, tg); let pv = store.pzv; if (!pv) pv = store.pzv = {};
+    dt = Math.max(0, Math.min(0.1, dt || 0));
+    for (let j = 0; j < PZK.length; j++) { const q = PZK[j], g = tg[q] == null ? (q === 'live' || q === 'ringK' || q === 'eye' ? 1 : 0) : tg[q]; if (pz[q] == null) pz[q] = g; const v = pv[q] || 0;
+      const w = PZW[q] || 7.5, e = Math.exp(-w * dt), d = pz[q] - g, jv = (v + w * d) * dt; pz[q] = g + (d + jv) * e; pv[q] = (v - jv * w) * e; }
     pz.feet = tg.feet || null; return pz;
   }
   /* the ultimate's pose at t (pure): planted, horns unfolding, the core opening and compressing, the citadel rising and folding,
@@ -95,7 +129,11 @@ const BELIAL_MOVES = (() => {
       cit: 0.6 * p2 * keep, citUp: p3 * (1 - 0.3 * p5) * keep, mono: 0.5 * p3 * (1 - p4), monoIn: p4, monoDis: sstep(U.slam, U.slam + 1.0, t), bast: 0.5 * p2 * keep,
       glow: Math.max(0, 0.3 * p1 + 0.3 * p2 + 0.4 * p3 + 0.6 * p4 + sb + 0.5 * p2b - 1.6 * p6), jaw: 0.5 * bump(t, 0.3, 0.6, 1.0, 1.5) + 0.8 * sb + 0.6 * p2b, eye: 1 + p4 + 2 * sb,
       live: 0.5 - 0.4 * Math.max(p4, sb) + 0.5 * p6, pitch: 0.015 * Math.sin(t * 40) * p1 * (1 - p2), yawOff: 0.55 * Math.sin(Math.PI * p3) * (1 - p4),
-      dis: sstep(U.len - 1.6, U.len - 0.15, t), tail: 0.5 * sb, halo: keep, lift: 0, stagger: 0, look: 0, feet: null };
+      dis: sstep(U.len - 1.6, U.len - 0.15, t), tail: 0.5 * sb, halo: keep, lift: 0, stagger: 0, look: 0, feet: null,
+      // v430 BP: it plants wide as the world goes silent, its machinery wakes and races toward the slam, it gathers its weight back
+      // before rearing, lurches forward with the slam, rocks with the second pulse, and settles (the pose's own beats; the times unchanged)
+      spread: 0.5 * p1 * keep, mech: Math.max(0, sstep(0.3, U.p1, t) * keep - 0.6 * p5), dx: -0.35 * sstep(U.p3, U.slam - 0.4, t) * (1 - sstep(U.slam - 0.15, U.slam, t)) + 0.35 * sb - 0.15 * p2b + 0.1 * settle(t, U.p6, 5, 2.5),
+      shift: 0.15 * Math.sin(t * 0.8) * p2 * (1 - p4) };
   }
 
   function create(H) {
@@ -110,6 +148,7 @@ const BELIAL_MOVES = (() => {
     let UL = null;                  // Dominion of the World Pillar in progress
     let bar = null, wardOff = null; // the Citadel Carapace's barrier { a, t, dur, R, reduce, store, hit: [age, dir] } and the ward's remover
     let released = true;            // (its GPU buffers freed since it last left)
+    let stompT = -9;                // v430 BP: (game time) the last stomp: the floating rocks jolt
     const held = new Set();         // monsters it is slowing (released on clean-up)
     const kOf = a => Math.max(1, Math.min(3, a.k | 0)), pw = a => H.P(a), LQ = () => (lowFx() ? 0.5 : 1);
     const list = () => S.list.filter(a => a.id === 'taurus');
@@ -144,12 +183,16 @@ const BELIAL_MOVES = (() => {
       moveBy(a, ab.vx * dt, ab.vy * dt);
     }
     function moveBy(a, mx, my) { const ab = a.bl, p = X.walkPoint(a.x + mx, a.y + my, { r: 0.6, mv: 0, x: a.x, y: a.y }), dd = Math.hypot(p.x - a.x, p.y - a.y); a.x = p.x; a.y = p.y;
-      const ph0 = ab.ph; ab.ph += dd / Math.max(0.05, stride(a) * Math.max(0.3, ab.mv)) * TAU; footfalls(a, ph0, ab.ph); return dd; }
+      const ph0 = ab.ph; ab.ph += dd / Math.max(0.05, stride(a) * (ab.gk || 1) /* v430 BP: the charge's long stride */ * Math.max(0.3, ab.mv)) * TAU; footfalls(a, ph0, ab.ph); return dd; }
     function footfalls(a, ph0, ph1) { const G = GLB(); if (!G) return; const ab = a.bl, A = ab.act;
       for (const f of G.footfalls(ph0, ph1)) { const p = footW(a, f.i), big = A && A.kind === 'rush' && A.t > A.wind;
-        if (big) { area(p.x, p.y, 1.0, pw(a) * CFG.rush.step, { noCrit: true }); FX.push({ kind: 'wave', x: p.x, y: p.y, R: 1.6, t: 0, life: 0.45, seed: Math.random() * 50, a: 0.35 }); FX.push({ kind: 'crack', x: p.x, y: p.y, R: 1.0, t: 0, life: 1.2, seed: Math.random() * 50, heat: 0.45, a: 0.6 }); X.shake(3.5, 0.12); }
-        if (ab.mv > 0.25) FX.push({ kind: 'dust', x: p.x, y: p.y, R: big ? 1.4 : 0.7, t: 0, life: 0.7, seed: Math.random() * 50 });
-        if (f.f && ab.mv > 0.4) { X.shake(1.2 + ab.mv * 1.6, 0.08); if (!big) FX.push({ kind: 'wave', x: p.x, y: p.y, R: 0.9, t: 0, life: 0.4, seed: Math.random() * 50, a: 0.5 }); if (ab.thudT <= 0) { sfx('thud'); ab.thudT = 0.5; } } } }
+        if (big) { area(p.x, p.y, 1.0, pw(a) * CFG.rush.step * (ab.gk || 1) /* v430 BP: the charge's longer stride lands fewer, heavier footfalls: the same damage a tile */, { noCrit: true }); FX.push({ kind: 'wave', x: p.x, y: p.y, R: 1.6, t: 0, life: 0.45, seed: Math.random() * 50, a: 0.35 }); FX.push({ kind: 'crack', x: p.x, y: p.y, R: 1.0, t: 0, life: 1.2, seed: Math.random() * 50, heat: 0.45, a: 0.6 }); X.shake(3.5, 0.12); }
+        // v430 BP: each footfall its own impact: the plinth pressed into the floor (its ring of light), a skirt of dust rolling out;
+        // the forefeet heavier (a larger ring and skirt, a light shake), the hind feet a softer puff
+        if (ab.mv > 0.2) FX.push({ kind: 'foot', x: p.x, y: p.y, R: big ? 1.35 : f.f ? 0.95 : 0.7, t: 0, life: big ? 1.1 : 0.85, seed: Math.random() * 50, f: f.f ? 1 : 0, big: big ? 1 : 0 });
+        if (f.f && ab.mv > 0.4) { X.shake(1.2 + ab.mv * 1.6, 0.08); if (ab.thudT <= 0) { sfx('thud'); ab.thudT = 0.5; } } } }
+    // v430 BP: the steps the model takes at a standstill (settling, turning in place, widening its stance): a small puff each
+    function idleSteps(a) { const ab = a.bl, M = a.blM; if (!M || M.n === ab.sn) return; ab.sn = M.n; for (const s of M.steps) if (s.idle) { const p = footW(a, s.i); FX.push({ kind: 'foot', x: p.x, y: p.y, R: s.f ? 0.7 : 0.55, t: 0, life: 0.7, seed: Math.random() * 50, f: s.f ? 1 : 0, small: 1 }); if (s.f) X.shake(0.8, 0.06); } }
     function guard(a, dt) {
       const ab = a.bl, side = a.side || -1, dp = Math.hypot(me.x - a.x, me.y - a.y);
       if (dp > 14) { const p = X.walkPoint(me.x + side * 2.2, me.y - 1.0, { r: 0.6, mv: 0, x: me.x, y: me.y }); a.x = p.x; a.y = p.y; ab.vx = ab.vy = 0; FX.push({ kind: 'dust', x: a.x, y: a.y, R: 2.2, t: 0, life: 0.8, seed: 3 }); return; }
@@ -189,32 +232,38 @@ const BELIAL_MOVES = (() => {
       const ab = a.bl, A = ab.act, t0 = A.t; A.t += dt; const t = A.t, k = A.k, P = pw(a), cross = x => t0 < x && t >= x;
       if (A.kind === 'rush') {
         const w = A.wind, tI = w + A.chargeT;
-        if (t < w) { ab.mv = 0; ab.vx = ab.vy = 0; if (cross(0.12)) { const f = frontOf(a, 0.7); FX.push({ kind: 'crack', x: f.x, y: f.y, R: 1.6, t: 0, life: 2.2, seed: Math.random() * 50, heat: 1 }); FX.push({ kind: 'srings', a, t: 0, life: tI + 0.4 }); FX.push({ kind: 'dust', x: f.x, y: f.y, R: 1.6, t: 0, life: 0.9, seed: 7 }); }
+        if (t < w) { ab.mv = 0; ab.vx = ab.vy = 0; if (cross(0.12)) { const f = frontOf(a, 0.7); FX.push({ kind: 'crack', x: f.x, y: f.y, R: 1.6, t: 0, life: 2.2, seed: Math.random() * 50, heat: 1 }); FX.push({ kind: 'srings', a, t: 0, life: tI + 0.4 }); FX.push({ kind: 'dust', x: f.x, y: f.y, R: 1.6, t: 0, life: 0.9, seed: 7 });
+            FX.push({ kind: 'lens', a, x: a.x, y: a.y, R: 3.6, t: 0, life: w - 0.08, inward: 1, seed: Math.random() * 40 }); /* v430 BP: its gravity gathering in round it */ }
           if (Math.random() < dt * 8) X.shake(1.5, 0.06); }
         else if (t0 < tI) { const ease = u => u < 0.18 ? (u / 0.18) * (u / 0.18) * 0.09 : u > 0.9 ? 1 - (1 - u) * (1 - u) / 0.1 * 0.05 : 0.09 + (u - 0.18) / 0.72 * 0.86, u0 = cl((t0 - w) / A.chargeT), u1 = cl((t - w) / A.chargeT), want = (ease(u1) - ease(u0)) * A.dist;
-          ab.mv = 1; const dd = moveBy(a, A.dx * want, A.dy * want); A.trav += dd; if (want > 0.02 && dd < want * 0.25 && u1 > 0.2) { A.t = tI; }   // (blocked: it strikes where it stands)
+          if (cross(w) || (t0 <= w && t > w)) { FX.push({ kind: 'bow', a, A, t: 0, life: A.chargeT + 0.25 }); const b = frontOf(a, -1.6); FX.push({ kind: 'dust', x: b.x, y: b.y, R: 2.0, t: 0, life: 0.9, seed: 19 }); FX.push({ kind: 'quake', x: b.x, y: b.y, R: 1.8, t: 0, life: 0.6, seed: Math.random() * 40, a: 0.7 }); }   // v430 BP: the launch: the pressure bow ahead, the ground kicked out behind
+          ab.mv = 1; ab.gk = 2.0; /* v430 BP */ const dd = moveBy(a, A.dx * want, A.dy * want); A.trav += dd; if (want > 0.02 && dd < want * 0.25 && u1 > 0.2) { A.t = tI; }   // (blocked: it strikes where it stands)
+          if (A.trav >= (A.nextT || 0.6)) { A.nextT = A.trav + 0.7; const b = frontOf(a, -0.4); FX.push({ kind: 'dust', x: b.x - A.dx * 0.8, y: b.y - A.dy * 0.8, R: 1.3, t: 0, life: 0.8, seed: Math.random() * 50 }); }   // v430 BP: a wake of dust (the fractures are its footfalls')
           const f = frontOf(a, 1.1);
           for (const m of H.living()) { if (A.hit.has(m) || Math.hypot(m.x - f.x, m.y - f.y) > CFG.rush.w + m.r) continue; A.hit.add(m); H.hit(m, P * CFG.rush.dmg, { el: 'earth' }); A.hits++;
             if (!m.boss && !m.still) { const sd = Math.sign(A.dx * (m.y - a.y) - A.dy * (m.x - a.x)) || 1; m.kbx = (m.kbx || 0) + (-A.dy * sd * 4 + A.dx * 2); m.kby = (m.kby || 0) + (A.dx * sd * 4 + A.dy * 2); }
-            X.shake(5, 0.12); FX.push({ kind: 'dust', x: m.x, y: m.y, R: 1.0, t: 0, life: 0.6, seed: Math.random() * 30 }); }
+            X.shake(5, 0.12); FX.push({ kind: 'dust', x: m.x, y: m.y, R: 1.0, t: 0, life: 0.6, seed: Math.random() * 30 }); FX.push({ kind: 'lens', x: m.x, y: m.y, R: 1.3, t: 0, life: 0.4, seed: Math.random() * 40 }); FX.push({ kind: 'wave', x: m.x, y: m.y, R: 1.2, t: 0, life: 0.35, seed: Math.random() * 40, a: 0.8 }); g.hitStop = Math.max(g.hitStop || 0, 0.025); }   // v430 BP: each collision a bent ring of force and a beat
           if (k >= 3) while (A.trav >= A.nextE) { A.nextE += CFG.rush.sideGap; for (const sd of [1, -1]) { const ex = a.x - A.dy * sd * 1.6, ey = a.y + A.dx * sd * 1.6; area(ex, ey, CFG.rush.sideR, P * CFG.rush.side, { kbf: 2 }); erupt(ex, ey, 1.2, 3); } X.shake(6, 0.15); sfx('thud'); } }
+        if (t >= tI) { ab.mv *= 1 - Math.min(1, dt * 9); ab.gk = 1; }   // v430 BP: it stops dead at the impact (its inertia lurches it on, and it settles)
         if (cross(tI)) impact(a, A, P);
       }
       else if (A.kind === 'crown') {
         if (cross(0.55)) { FX.push({ kind: 'cfield', a, x: A.x, y: A.y, R: A.R, t: 0, life: A.dur - 0.55 + 0.6, A }); sfx('sparkle'); }
+        if (cross(0.12)) FX.push({ kind: 'ccharge', a, t: 0, life: 0.75 });   // v430 BP: the horns' engines winding up, a crown of rune rings forming over its brow
         const on = t > 0.6 && t < A.dur;
         if (on) { for (const m of H.living()) { const d = Math.hypot(m.x - A.x, m.y - A.y); if (d > A.R + m.r) continue;
-            if (!A.tg.has(m) && A.tg.size < CFG.crown.maxT * 2) { A.tg.add(m); FX.push({ kind: 'cring', m, A, t: 0, life: A.dur - t + 0.55, seed: Math.random() * 100 }); }
+            if (!A.tg.has(m) && A.tg.size < CFG.crown.maxT * 2) { A.tg.add(m); FX.push({ kind: 'cring', m, A, src: a, t: 0, life: A.dur - t + 0.55, seed: Math.random() * 100 }); }
             m.sandT = Math.max(m.sandT || 0, 0.35); held.add(m);
             if (k >= 2 && !m.boss && !m.still && d > 0.6) { const sp = Math.min(d - 0.5, CFG.crown.pull * dt * (0.4 + d / A.R)); X.moveEnt(m, (A.x - m.x) / d * sp, (A.y - m.y) / d * sp); } }
           A.tk -= dt; if (A.tk <= 0) { A.tk = CFG.crown.tick; for (const m of A.tg) if (!m.dead && Math.hypot(m.x - A.x, m.y - A.y) < A.R + m.r + 0.5) H.hit(m, P * CFG.crown.dmg, { el: 'earth', dot: true, dotC: COL.gold }); }
           if (k >= 3) { A.pk -= dt; if (A.pk <= 0) { A.pk = CFG.crown.pulse; A.pulseT = t; for (const m of A.tg) if (!m.dead && Math.hypot(m.x - A.x, m.y - A.y) < A.R + m.r + 0.5) { H.hit(m, P * CFG.crown.slam, { el: 'earth', stun: CFG.crown.stun }); m.hitSq = 1; FX.push({ kind: 'wave', x: m.x, y: m.y, R: 1.3, t: 0, life: 0.45, seed: Math.random() * 40 }); debris(m.x, m.y, 4, 1); }
             X.shake(6, 0.15); sfx('thud'); } } }
         if (cross(A.dur)) { for (const m of A.tg) if (!m.dead && Math.hypot(m.x - A.x, m.y - A.y) < A.R + m.r + 0.5) { H.hit(m, P * CFG.crown.fin, { el: 'earth' }); FX.push({ kind: 'dust', x: m.x, y: m.y, R: 0.9, t: 0, life: 0.6, seed: Math.random() * 30 }); debris(m.x, m.y, 5, 1); }
-          FX.push({ kind: 'wave', x: A.x, y: A.y, R: A.R * 1.1, t: 0, life: 0.6, seed: 5 }); X.shake(8, 0.2); sfx('crash'); }
+          FX.push({ kind: 'wave', x: A.x, y: A.y, R: A.R * 1.1, t: 0, life: 0.6, seed: 5 }); FX.push({ kind: 'quake', x: A.x, y: A.y, R: A.R, t: 0, life: 0.8, seed: 7 }); FX.push({ kind: 'lens', x: A.x, y: A.y, R: A.R * 1.15, t: 0, life: 0.55, seed: 9 }); X.shake(8, 0.2); sfx('crash'); }
       }
       else if (A.kind === 'carapace') {
         ab.vx = ab.vy = 0; ab.mv = 0;
+        if (cross(0.05)) FX.push({ kind: 'csig', a, x: a.x, y: a.y, t: 0, life: A.dur + 0.6 });   // v430 BP: the fortress's foundation drawn on the floor before the shield rises
         if (cross(0.5)) { bar = { a, t: 0, dur: A.dur - 0.5, R: A.R, reduce: CFG.carapace.reduce[k - 1], store: 0, hit: null, k }; ensureWard(); FX.push({ kind: 'dome', a, t: 0, life: A.dur - 0.5 + 0.7 }); X.text(me.x, me.y - 1.5, 'CITADEL CARAPACE', COL.pale, 14, { crit: true, life: 1 }); sfx('sparkle'); X.shake(5, 0.3); }
         if (cross(A.dur)) retaliate(a, A, P);
       }
@@ -230,9 +279,9 @@ const BELIAL_MOVES = (() => {
       }
       if (ab.act === A && t >= A.end) endAct(a);
     }
-    function endAct(a) { const ab = a.bl; if (!ab || !ab.act) return; const A = ab.act; if (A.kind === 'carapace' && bar && bar.a === a) bar = null; if (A.kind === 'crown') releaseHeld(A.tg); ab.act = null; ab.gap = 0.25; }
+    function endAct(a) { const ab = a.bl; if (!ab || !ab.act) return; const A = ab.act; ab.gk = 1; /* v430 BP */ if (A.kind === 'carapace' && bar && bar.a === a) bar = null; if (A.kind === 'crown') releaseHeld(A.tg); ab.act = null; ab.gap = 0.25; }
     /* an interrupted power: no more blows; the carapace releases what it stored at once; held monsters let go; its pictures fade */
-    function interrupt(a) { const ab = a.bl; if (!ab || !ab.act) return; const A = ab.act; if (A.kind === 'carapace' && bar && bar.a === a && A.t > 0.6) retaliate(a, A, pw(a)); if (A.kind === 'crown') releaseHeld(A.tg); if (bar && bar.a === a) bar = null;
+    function interrupt(a) { const ab = a.bl; if (!ab || !ab.act) return; const A = ab.act; ab.gk = 1; /* v430 BP */ if (A.kind === 'carapace' && bar && bar.a === a && A.t > 0.6) retaliate(a, A, pw(a)); if (A.kind === 'crown') releaseHeld(A.tg); if (bar && bar.a === a) bar = null;
       for (const f of FX) if ((f.a === a || f.A === A) && f.life - f.t > 0.4) f.life = f.t + 0.4; ab.act = null; }
     function releaseHeld(set) { if (!set) return; for (const m of set) { if (m.sandT > 0.35) continue; held.delete(m); } }
     function impact(a, A, P) {
@@ -240,28 +289,35 @@ const BELIAL_MOVES = (() => {
       for (const m of H.living()) if (Math.hypot(m.x - f.x, m.y - f.y) < R + m.r) { H.hit(m, P * CFG.rush.fin[k - 1], { el: 'earth' }); knock(m, a.x, a.y, CFG.rush.kb); }
       FX.push({ kind: 'wave', x: f.x, y: f.y, R: 2.8, t: 0, life: 0.6, seed: 3 }); FX.push({ kind: 'well', x: f.x, y: f.y, R: 1.8, t: 0, life: 0.7, h: 1.2 }); FX.push({ kind: 'crack', x: f.x, y: f.y, R: 2.2, t: 0, life: 2.2, seed: 13, heat: 1.2 }); FX.push({ kind: 'dust', x: f.x, y: f.y, R: 2.4, t: 0, life: 1.0, seed: 17 }); erupt(f.x, f.y, 1.6, 5);
       X.flash(0.18, '#FFE9A8'); X.shake(12, 0.35); sfx('crash'); X.light(f.x, f.y, 4, 0.4); g.hitStop = Math.max(g.hitStop || 0, 0.05);
-      if (k >= 2) X.after(0.12, () => { area(a.x, a.y, CFG.rush.shockR, P * CFG.rush.shock, { kbf: 3 }); FX.push({ kind: 'wave', x: a.x, y: a.y, R: CFG.rush.shockR * 1.15, t: 0, life: 0.7, seed: 21 }); FX.push({ kind: 'dust', x: a.x, y: a.y, R: CFG.rush.shockR, t: 0, life: 1.0, seed: 23 }); X.shake(9, 0.25); });
-      if (k >= 3) X.after(0.32, () => { area(f.x, f.y, CFG.rush.boomR, P * CFG.rush.boom, { kbf: 6 }); FX.push({ kind: 'well', x: f.x, y: f.y, R: CFG.rush.boomR, t: 0, life: 0.9, h: 1.6, big: 1 }); FX.push({ kind: 'field', x: f.x, y: f.y, R: CFG.rush.boomR * 1.1, t: 0, life: 0.8, rev: 1 }); FX.push({ kind: 'wave', x: f.x, y: f.y, R: CFG.rush.boomR * 1.3, t: 0, life: 0.8, seed: 25 }); erupt(f.x, f.y, 2.6, 8); X.flash(0.3, '#FFF0C8'); X.shake(18, 0.5); sfx('crash'); });
+      FX.push({ kind: 'quake', x: f.x, y: f.y, R: 3.2, t: 0, life: 0.85, seed: Math.random() * 40 }); FX.push({ kind: 'lens', x: f.x, y: f.y, R: 3.8, t: 0, life: 0.6, seed: Math.random() * 40 }); FX.push({ kind: 'burst', x: f.x, y: f.y, R: 1.0, t: 0, life: 0.55, seed: Math.random() * 40 });   // v430 BP: the ground heaving, space bent, a shaft of force
+      if (k >= 2) X.after(0.12, () => { area(a.x, a.y, CFG.rush.shockR, P * CFG.rush.shock, { kbf: 3 }); FX.push({ kind: 'wave', x: a.x, y: a.y, R: CFG.rush.shockR * 1.15, t: 0, life: 0.7, seed: 21 }); FX.push({ kind: 'dust', x: a.x, y: a.y, R: CFG.rush.shockR, t: 0, life: 1.0, seed: 23 }); FX.push({ kind: 'quake', x: a.x, y: a.y, R: CFG.rush.shockR * 1.1, t: 0, life: 0.8, seed: 27 }) /* v430 BP */; X.shake(9, 0.25); });
+      if (k >= 3) X.after(0.32, () => { area(f.x, f.y, CFG.rush.boomR, P * CFG.rush.boom, { kbf: 6 }); FX.push({ kind: 'well', x: f.x, y: f.y, R: CFG.rush.boomR, t: 0, life: 0.9, h: 1.6, big: 1 }); FX.push({ kind: 'field', x: f.x, y: f.y, R: CFG.rush.boomR * 1.1, t: 0, life: 0.8, rev: 1 }); FX.push({ kind: 'wave', x: f.x, y: f.y, R: CFG.rush.boomR * 1.3, t: 0, life: 0.8, seed: 25 }); erupt(f.x, f.y, 2.6, 8); FX.push({ kind: 'lens', x: f.x, y: f.y, R: CFG.rush.boomR * 1.4, t: 0, life: 0.75, seed: 29 }); FX.push({ kind: 'burst', x: f.x, y: f.y, R: 1.6, t: 0, life: 0.7, seed: 31 }) /* v430 BP */; X.flash(0.3, '#FFF0C8'); X.shake(18, 0.5); sfx('crash'); });
     }
     function retaliate(a, A, P) {
       const k = A.k, C = CFG.carapace, R = C.waveR[k - 1], st2 = bar ? bar.store : 0, bonus = Math.min(C.cap[k - 1], st2 / Math.max(1, ST().hp) * C.store), d = P * (C.wave[k - 1] + bonus);
       let n = 0; for (const m of H.living()) if (Math.hypot(m.x - a.x, m.y - a.y) < R + m.r) { H.hit(m, d, { el: 'earth', noCrit: true }); knock(m, a.x, a.y, 6); n++; }
       X.text(me.x, me.y - 1.6, bonus > 0.3 ? `Retaliation ×${(1 + bonus / C.wave[k - 1]).toFixed(1)}` : 'Retaliation', COL.pale, 13, { life: 1.2 });
       FX.push({ kind: 'wave', x: a.x, y: a.y, R: R * 1.15, t: 0, life: 0.8, seed: 31, big: 1 }); FX.push({ kind: 'field', x: a.x, y: a.y, R: R, t: 0, life: 0.7, rev: 1 }); FX.push({ kind: 'dust', x: a.x, y: a.y, R: R, t: 0, life: 1.1, seed: 33 });
+      // v430 BP: the barrier breaks outward: its shards flung, the ground heaving, space bent by the release
+      FX.push({ kind: 'quake', x: a.x, y: a.y, R: R, t: 0, life: 0.9, seed: 35 }); FX.push({ kind: 'lens', x: a.x, y: a.y, R: R * 1.2, t: 0, life: 0.65, seed: 37 }); shards(a.x, a.y, Math.round(10 * LQ()), (bar ? bar.R : 3) * 0.9);
       X.flash(0.3, '#FFE9A8'); X.shake(14 + k * 2, 0.45); sfx('crash'); X.light(a.x, a.y, 6, 0.6); g.hitStop = Math.max(g.hitStop || 0, 0.05); if (a.bl) a.bl.charge = 0; bar = null; void n;
     }
     function stomp(a, A, i, P) {
       const k = A.k, last = i === A.n - 1, f = footW(a, i % 2), c = frontOf(a, 1.0), R = CFG.stamp.R;
       area(c.x, c.y, R, P * CFG.stamp.dmg, { kbf: 2.5 }); FX.push({ kind: 'wave', x: f.x, y: f.y, R: R * 1.2, t: 0, life: 0.55, seed: i * 7 }); FX.push({ kind: 'crack', x: f.x, y: f.y, R: 1.8, t: 0, life: 1.8, seed: i * 11, heat: 1 }); FX.push({ kind: 'dust', x: f.x, y: f.y, R: 1.8, t: 0, life: 0.9, seed: i * 13 }); debris(f.x, f.y, 6, 1);
+      // v430 BP: each stomp its own upheaval (its slabs, its seed, wider with each), a pulse driven down from the core, the floating rocks jolted
+      FX.push({ kind: 'quake', x: f.x, y: f.y, R: R * (1.0 + 0.08 * i), t: 0, life: 0.7, seed: i * 19 + 3 }); FX.push({ kind: 'pulse', a, x: c.x, y: c.y, t: 0, life: 0.4, seed: i * 5 }); FX.push({ kind: 'lens', x: c.x, y: c.y, R: R * 1.1, t: 0, life: 0.45, seed: i * 23 }); stompT = g.t;
       const tg = H.near(c.x, c.y, 4.5); for (let j = 0; j < CFG.stamp.rocks[k - 1] * (lowFx() ? 0.5 : 1); j++) { const m = tg[j % Math.max(1, tg.length)], x = m ? m.x + (Math.random() - 0.5) * 0.6 : c.x + (Math.random() - 0.5) * 3, y = m ? m.y + (Math.random() - 0.5) * 0.4 : c.y + (Math.random() - 0.5) * 2; rock(x, y, 0.3 + Math.random() * 0.15, P * CFG.stamp.rockD, 1.1 + Math.random() * 0.4, 0.25 + j * 0.06); }
       if (k >= 2) X.after(0.15, () => { area(c.x, c.y, CFG.stamp.shockR, P * CFG.stamp.shock, {}); FX.push({ kind: 'field', x: c.x, y: c.y, R: CFG.stamp.shockR, t: 0, life: 0.5, rev: 1 }); FX.push({ kind: 'wave', x: c.x, y: c.y, R: CFG.stamp.shockR * 1.15, t: 0, life: 0.6, seed: i * 17 }); });
       X.shake(7 + i * 0.6, 0.18); sfx(i % 2 ? 'thud' : 'crash');
-      if (last && k >= 3) { area(c.x, c.y, CFG.stamp.craterR, P * CFG.stamp.crater, { stun: 1.0, kbf: 5 }); FX.push({ kind: 'crater', x: c.x, y: c.y, R: CFG.stamp.craterR * 0.75, t: 0, life: 3.0, seed: 41 }); FX.push({ kind: 'wave', x: c.x, y: c.y, R: CFG.stamp.craterR * 1.3, t: 0, life: 0.8, seed: 43, big: 1 }); FX.push({ kind: 'dust', x: c.x, y: c.y, R: CFG.stamp.craterR, t: 0, life: 1.2, seed: 45 }); erupt(c.x, c.y, 2.4, 8);
+      if (last && k >= 3) { area(c.x, c.y, CFG.stamp.craterR, P * CFG.stamp.crater, { stun: 1.0, kbf: 5 }); FX.push({ kind: 'crater', x: c.x, y: c.y, R: CFG.stamp.craterR * 0.75, t: 0, life: 3.0, seed: 41 }); FX.push({ kind: 'wave', x: c.x, y: c.y, R: CFG.stamp.craterR * 1.3, t: 0, life: 0.8, seed: 43, big: 1 }); FX.push({ kind: 'dust', x: c.x, y: c.y, R: CFG.stamp.craterR, t: 0, life: 1.2, seed: 45 }); erupt(c.x, c.y, 2.4, 8); FX.push({ kind: 'quake', x: c.x, y: c.y, R: CFG.stamp.craterR * 1.15, t: 0, life: 1.0, seed: 47 }); FX.push({ kind: 'burst', x: c.x, y: c.y, R: 2.0, t: 0, life: 0.8, seed: 49 }); FX.push({ kind: 'lens', x: c.x, y: c.y, R: CFG.stamp.craterR * 1.3, t: 0, life: 0.7, seed: 51 }) /* v430 BP */;
         X.flash(0.3, '#FFE9A8'); X.shake(20, 0.5); g.hitStop = Math.max(g.hitStop || 0, 0.06); }
     }
     /* debris (painter rocks flung up and falling), a rock (a GPU boulder: rises, hangs, is slammed down by gravity: dmg on landing), an eruption */
     function debris(x, y, n, sp) { n = Math.round(n * LQ()); for (let i = 0; i < n; i++) { const an = Math.random() * TAU, v = (1 + Math.random() * 2) * sp; FX.push({ kind: 'chip', x, y, z: 0.1, vx: Math.cos(an) * v, vy: Math.sin(an) * v * 0.6, vz: 3 + Math.random() * 3, t: 0, life: 1.2, s: 0.12 + Math.random() * 0.12, seed: Math.random() * 90 | 0, rot: Math.random() * 6 }); } }
     function rock(x, y, s, dmg, h, delay) { FX.push({ kind: 'rock', x, y, z: -s, h, s, dmg, t: -(delay || 0), life: 1.6, rise: 0.35, hold: 0.25, done: false, seed: Math.random() * 100, yaw: Math.random() * 6, tilt: Math.random() * 2 }); }
+    // v430 BP: the barrier's shards: GPU fragments of gilded masonry flung out from its shell, tumbling and falling
+    function shards(x, y, n, R) { for (let i = 0; i < n; i++) { const an = i / n * TAU + Math.random() * 0.5, v = 2.5 + Math.random() * 2; FX.push({ kind: 'shard', x: x + Math.cos(an) * R * 0.7, y: y + Math.sin(an) * R * 0.5, z: 0.6 + Math.random() * R * 0.6, vx: Math.cos(an) * v, vy: Math.sin(an) * v * 0.6, vz: 2 + Math.random() * 3, t: 0, life: 1.3, s: 0.22 + Math.random() * 0.14, seed: Math.random() * 90 | 0, rot: Math.random() * 6 }); } }
     function erupt(x, y, R, n) { FX.push({ kind: 'crack', x, y, R, t: 0, life: 1.6, seed: Math.random() * 60, heat: 1 }); debris(x, y, n, 1.3); if (!lowFx()) rock(x, y, 0.25, 0, 0.6, 0); }
     /* ---- the pose every frame: the power's (or the ultimate's), the entrance's assembly, the final seconds' intensity, eased; its yaw turned heavily ---- */
     function poseOf(a, dt) {
@@ -282,7 +338,7 @@ const BELIAL_MOVES = (() => {
       const vx = ab.vx || 0, vy = ab.vy || 0; ab.ax = lerp(ab.ax, (vx - ab.lvx) / Math.max(dt, 1e-3), 0.3); ab.ay = lerp(ab.ay, (vy - ab.lvy) / Math.max(dt, 1e-3), 0.3); ab.lvx = vx; ab.lvy = vy;
       if (G) G.springs(a, ab.ax, ab.ay, dt);
       if (!A && !inU) ab.mv += ((Math.hypot(vx, vy) / 1.5) - ab.mv) * Math.min(1, dt * 4); ab.mv = cl(ab.mv);
-      a.blP = Object.assign(base, pz, { k: kv, t: a.at || 0, yaw: ab.yaw + (inU ? tg.yawOff || 0 : 0), ph: ab.ph, mv: inU ? 0 : ab.mv, feet: pz.feet, asm: tg.asm == null ? 1 : tg.asm, dis: tg.dis || 0, monoDis: tg.monoDis || 0, halo: tg.halo == null ? 1 : tg.halo, live: pz.live });
+      a.blP = Object.assign(base, pz, { k: kv, t: a.at || 0, yaw: ab.yaw + (inU ? tg.yawOff || 0 : 0), ph: ab.ph, mv: inU ? 0 : ab.mv, feet: pz.feet, asm: tg.asm == null ? 1 : tg.asm, dis: tg.dis || 0, monoDis: tg.monoDis || 0, halo: tg.halo == null ? 1 : tg.halo, live: pz.live, gaitK: ab.gk || 1 /* v430 BP */ });
     }
     /* ---- the guardian's loop (20g's tick, in its 'fight') ---- */
     function tick(a, dt) {
@@ -311,7 +367,8 @@ const BELIAL_MOVES = (() => {
       const J = UL, a = J.a, t0 = J.t; J.t += dt; const t = J.t, cross = x => t0 < x && t >= x, C = CFG.ult, P = pw(a);
       if (t < UT.pulse2 + 0.3) { g.cineT = Math.max(0.02, UT.pulse2 + 0.3 - t); me.inv = Math.max(me.inv, 0.4); } else if (t0 < UT.pulse2 + 0.3) g.cineT = 0;
       // the camera: back as the world trembles, further as the pillars rise and the field gathers, pulled back for the compression, a punch at the slam, home at the end
-      const zp = t < UT.p1 ? lerp(1, 0.86, sstep(0, UT.p1, t)) : t < UT.p3 ? lerp(0.86, 0.8, sstep(UT.p1, UT.p3, t)) + 0.02 * Math.sin(t * 1.3) : t < UT.slam ? lerp(0.8, 0.74, sstep(UT.p3, UT.slam, t)) : t < UT.p6 ? lerp(0.82, 0.88, sstep(UT.slam, UT.p6, t)) : lerp(0.88, 1, sstep(UT.p6, UT.len, t));
+      // v430 BP: eased throughout (no step at the slam): out as the world goes silent, a slow breathing drift as the pillars rise, in toward the compression, a held push in the silence, the slam's punch out, home
+      const zp = t < UT.p1 ? lerp(1, 0.86, sstep(0, UT.p1, t)) : t < UT.p3 ? lerp(0.86, 0.8, sstep(UT.p1, UT.p3, t)) + 0.015 * Math.sin((t - UT.p1) * 1.3) * sstep(UT.p1, UT.p1 + 0.8, t) * (1 - sstep(UT.p3 - 0.8, UT.p3, t)) : t < UT.slam ? lerp(0.8, 0.73, sstep(UT.p3, UT.slam, t)) - 0.02 * bump(t, UT.slam - 0.5, UT.slam - 0.3, UT.slam - 0.02, UT.slam) : t < UT.p6 ? lerp(0.73, 0.84, eout(cl((t - UT.slam) / 0.18))) + 0.04 * sstep(UT.slam + 0.18, UT.p6, t) : lerp(0.88, 1, sstep(UT.p6, UT.len, t));
       g.zoomP = zp; g.zoomT = t < UT.len - 0.05 ? 0.25 : 0;
       if (t < UT.p1 && Math.random() < dt * 10) X.shake(1.5 + t, 0.08);
       for (const p of J.pillars) if (cross(p.ts)) { X.shake(5, 0.2); if (p.i % 2 === 0) sfx('thud'); }
@@ -339,12 +396,12 @@ const BELIAL_MOVES = (() => {
         if (a.st === 'enter' && a.en >= 0) { if (ab.en < 0) ab.en = 0; ab.en += dtReal; a.dropZ = 0; a.scale = 1; a.alpha = 1; }
         if (a.st === 'awaken') a.hold = true;
         if (a.st !== 'fight' && ab.act) interrupt(a);
-        poseOf(a, dtReal); released = false; }
+        poseOf(a, dtReal); idleSteps(a); released = false; }
       if (UL) { if (!L.includes(UL.a)) endUL(false); else stepUL(dtReal); }
       if (bar) { bar.t += dt; if (bar.hit) { bar.hit[0] += dt / 0.6; if (bar.hit[0] >= 1) bar.hit = null; } if (bar.k >= 3) me.push = null; if (!L.includes(bar.a)) bar = null; }
       for (const a of L) if (a.bl) a.bl.hurt *= Math.exp(-dt / 2.5);
       for (let i = FX.length - 1; i >= 0; i--) { const f = FX[i]; f.t += f.cine ? dtReal : dt;
-        if (f.kind === 'chip') { const tt = Math.max(0, dt); f.x += f.vx * tt; f.y += f.vy * tt; f.vz -= 14 * tt; f.z += f.vz * tt; if (f.z < 0) { f.z = 0; f.vz *= -0.25; f.vx *= 0.5; f.vy *= 0.5; } }
+        if (f.kind === 'chip' || f.kind === 'shard') { const tt = Math.max(0, dt); f.x += f.vx * tt; f.y += f.vy * tt; f.vz -= 14 * tt; f.z += f.vz * tt; if (f.z < 0) { f.z = 0; f.vz *= -0.25; f.vx *= 0.5; f.vy *= 0.5; } }
         else if (f.kind === 'rock' && f.t > f.rise + f.hold && !f.done) { const ft = f.t - f.rise - f.hold, z = f.h * (1 - ein(ft / 0.22)); if (z <= 0) { f.done = true; f.land = f.t; if (f.dmg) area(f.x, f.y, 1.0 + f.s, f.dmg, { stun: 0.3 }); FX.push({ kind: 'dust', x: f.x, y: f.y, R: 1.0, t: 0, life: 0.6, seed: f.seed }); FX.push({ kind: 'crack', x: f.x, y: f.y, R: 0.9, t: 0, life: 1.0, seed: f.seed, heat: 0.8 }); debris(f.x, f.y, 3, 0.8); X.shake(3, 0.08); f.life = f.t + 0.35; } }
         if (f.kind === 'cring' && f.m && f.m.dead) f.life = Math.min(f.life, f.t + 0.3);
         if (f.t >= f.life) FX.splice(i, 1); }
@@ -381,11 +438,25 @@ const BELIAL_MOVES = (() => {
         else if (f.kind === 'field') { const k2 = f.rev ? 1 - u : u; Q.quad(194, X0, Y0, R * (f.rev ? 0.6 + 0.4 * eout(u) : 1), 0, 0, R * (f.rev ? 0.6 + 0.4 * eout(u) : 1) * FSY, COL.gold, Math.sin(Math.PI * u), k2, 0, 1); }
         else if (f.kind === 'well') { if (!f.h) Q.quad(195, X0, Y0, R, 0, 0, R * FSY, COL.gold, Math.sin(Math.PI * u), 0.35, 2, 1); }
         else if (f.kind === 'sigil') { const dr = sstep(0, 1.1, f.t) + sstep(1.6, 2.2, f.t) * 0.4, fade = 1 - sstep(f.life - 0.7, f.life, f.t); Q.quad(193, X0, Y0, R, 0, 0, R * FSY, COL.gold, fade, dr, f.t * 0.2, 1); Q.glow(X0, Y0, R * 1.2, COL.amber, 0.25 * fade, FSY); }
-        else if (f.kind === 'cfield') { const op = eout(f.t / 0.5), fade = 1 - sstep(f.life - 0.6, f.life, f.t), A = f.A; Q.quad(194, X0, Y0, R, 0, 0, R * FSY, COL.gold, 0.75 * fade * op, 0.35 + 0.65 * cl(f.t / (f.life - 0.6)), 0, 1); ring192(Q, X0, Y0, R * 1.05, FSY, 0.7 * fade * op, 0.4, 1);
+        else if (f.kind === 'cfield') { const op = eout(f.t / 0.5), fade = 1 - sstep(f.life - 0.6, f.life, f.t), A = f.A, act = sstep(0.35, 0.9, f.t); Q.quad(194, X0, Y0, R, 0, 0, R * FSY, act > 0.5 ? COL.gold : COL.amber, (0.5 + 0.3 * act) * fade * op, 0.2 + 0.8 * act * cl(f.t / (f.life - 0.6)), 0, 0.7 + 0.4 * act); ring192(Q, X0, Y0, R * 1.05, FSY, 0.7 * fade * op, 0.4 + 0.8 * act, 1);
+          Q.quad(202, X0, Y0, R * 1.25, 0, 0, R * 1.25 * FSY, COL.gold, (0.35 + 0.35 * act) * fade * op, 0.84 - 0.04 * Math.sin(f.t * 2.2), (f.x * 7) % 40, 0.8);   // v430 BP: the space round it bending; dim amber while it charges, bright once it presses
           if (A && A.k >= 3 && A.pulseT > -1) { const pu = cl((A.t - A.pulseT) / 0.5); if (pu < 1) Q.quad(196, X0, Y0, R, 0, 0, R * FSY, COL.pale, 1 - pu, eout(pu) * 0.9, 3, 1 - pu); } }
         else if (f.kind === 'cring' && f.m && !f.m.dead) { const m = f.m, fade = sstep(0, 0.3, f.t) * (1 - sstep(f.life - 0.4, f.life, f.t)); ring192(Q, sx(m.x), sy(m.y), Tz * (0.9 + 0.15 * Math.sin(f.t * 3)), FSY, 0.8 * fade, 1.2, 1); Q.glow(sx(m.x), sy(m.y), Tz * 1.1, COL.amber, 0.25 * fade, FSY); }
         else if (f.kind === 'dome') { const a = f.a, fade = sstep(0, 0.6, f.t) * (1 - sstep(f.life - 0.6, f.life, f.t)), Rd = (bar && bar.a === a ? bar.R : 3) * Tz; ring192(Q, sx(a.x), sy(a.y), Rd, FSY, 0.8 * fade, 0.6, 1); Q.glow(sx(a.x), sy(a.y), Rd * 1.1, COL.amber, 0.2 * fade, FSY); }
         else if (f.kind === 'epill') { /* (drawn with the parts below) */ }
+        /* v430 BP: a footfall (the plinth's ring pressed into the floor, a skirt of dust; a charge's footfalls add their cracks), a gravitational lens
+           (space bent round a ring: gathering inward for the charge's wind-up, else thrown out), a seismic upheaval (slabs heaving at the front),
+           the carapace's foundation (the sigil drawn on under it, its rays) */
+        else if (f.kind === 'foot') { const fade = 1 - sstep(0.45, 1, u), rr = R * (0.45 + 0.6 * eout(u)), sm = f.small ? 0.6 : 1;
+          Q.quad(90, X0, Y0, rr * 1.3, 0, 0, rr * 1.3 * FSY, COL.dust, (1 - u) * (f.big ? 0.95 : 0.7) * sm, 0.32, f.seed, u);
+          if (u < 0.4) { const k2 = 1 - u / 0.4; Q.quad(192, X0, Y0, R * 0.62, 0, 0, R * 0.62 * FSY, COL.gold, 0.55 * k2 * sm, 0.78, 0, 0.9 * k2); Q.glow(X0, Y0, R * 0.7, COL.amber, 0.25 * k2 * sm, FSY); } }
+        else if (f.kind === 'lens') { const a0 = f.a && f.a.x != null ? f.a : null, Xc = a0 ? sx(a0.x) : X0, Yc = a0 ? sy(a0.y) : Y0, k2 = f.inward ? 0.9 - 0.65 * ein(u) : 0.12 + 0.86 * eout(u), al = f.inward ? sstep(0, 0.25, u) * (1 - sstep(0.85, 1, u)) : (1 - u) * (1 - u);
+          Q.quad(202, Xc, Yc, R, 0, 0, R * FSY, f.inward ? COL.amber : COL.gold, al * (f.inward ? 0.9 : 1), k2, f.seed, f.inward ? 0.8 + 0.6 * u : 1.2); }
+        else if (f.kind === 'quake') { const fr = eout(u) * 0.92, al = (f.a || 1) * (1 - sstep(0.55, 1, u)); Q.quad(205, X0, Y0, R, 0, 0, R * FSY, COL.amber, al, fr, f.seed, 1.15 * (1 - 0.5 * u)); Q.quad(90, X0, Y0, R * fr * 1.15, 0, 0, R * fr * 1.15 * FSY, COL.dust, 0.55 * (1 - u) * (f.a || 1), 0.25, f.seed + 9, u); }
+        else if (f.kind === 'bow') { const a0 = f.a, A = f.A, fade = sstep(0, 0.12, f.t) * (1 - sstep(f.life - 0.25, f.life, f.t)), adx = A ? (A.dx != null ? A.dx : A.ux) : null, ady = A ? (A.dy != null ? A.dy : A.uy) : null; if (adx != null) { const sv = (wx, wy) => [sx(a0.x + wx) - sx(a0.x), sy(a0.y + wy) - sy(a0.y)], d = sv(adx * 2.4, ady * 2.4), n = sv(-ady * 2.0, adx * 2.0);
+            Q.quad(203, sx(a0.x + adx * 1.3), sy(a0.y + ady * 1.3), d[0], d[1], n[0], n[1], COL.amber, 0.6 * fade, cl(a0.bl ? a0.bl.mv : a0.mv != null ? a0.mv : 1), 5, 0.9); } }   // v430 BP: the pressure wave pushed along the floor ahead of it
+        else if (f.kind === 'csig') { const a0 = f.a, Xc = sx(a0.x), Yc = sy(a0.y), dr = sstep(0, 0.6, f.t), fade = 1 - sstep(f.life - 0.6, f.life, f.t), RR = Tz * (bar && bar.a === a0 ? bar.R : 3) * 1.05;
+          Q.quad(193, Xc, Yc, RR, 0, 0, RR * FSY, COL.gold, 0.75 * fade, dr * (1 + 0.2 * sstep(0.5, 0.8, f.t)), f.t * 0.12, 0.8 + 0.4 * (1 - sstep(0.5, 1.2, f.t))); Q.glow(Xc, Yc, RR * 1.1, COL.amber, 0.18 * fade, FSY); }
       }
       if (UL) groundU(Q, ulScene({ x: UL.x, y: UL.y, bx: UL.a.x, by: UL.a.y, t: UL.t, seed: UL.seed, k: UL.k, pillars: UL.pillars }), parts, -1);
       for (const f of FX) if (f.kind === 'epill') epillParts(f, parts, -1);
@@ -397,23 +468,41 @@ const BELIAL_MOVES = (() => {
       for (let i = 0; i < 4; i++) { const an = i / 4 * TAU + 0.6, x = f.x + Math.cos(an) * 2.8, y = f.y + Math.sin(an) * 2.2; if ((sy(y) > sy(f.y) ? 1 : -1) !== side) continue; parts.push({ m: 'pillar', X: sx(x), Y: sy(y), s: Tz * 0.32, h, t: f.t, gl: 0.6, g2: 0.6, yaw: an }); } }
     function drawFx(c) {
       const Tz = T(), on = gpu();
-      if (UL) drawULsky(c);
-      if (!FX.length && !bar) return;
-      if (!on) { drawFx2d(c); return; }
-      const Q = fgOpen(c), parts = [];
+      if (!on) { if (UL) drawULsky(c); if (FX.length || bar) drawFx2d(c); return; }
+      if (!UL && !FX.length && !bar) return;
+      // v430 BP: one painter batch for the ultimate's sky and the effects (was two: a whole layer's composite saved every frame)
+      let Q0 = UL ? ulSkyOpen(c) : null; if (!FX.length && !bar) { if (Q0) fgClose(c); return; }
+      const Q = Q0 || fgOpen(c), parts = [];
       for (const f of FX) {
         const u = f.t / f.life;
-        if (f.kind === 'chip') { const x = sx(f.x), y = sy(f.y) - f.z * Tz, s = f.s * Tz, fade = 1 - sstep(0.75, 1, u); Q.quad(80, x, y, s, 0, 0, s, COL.stone, fade, f.rot + f.t * 6, f.seed, 1); }
-        else if (f.kind === 'rock' && f.t > 0) { const z = f.done ? 0 : f.t < f.rise ? -f.s + (f.h + f.s) * eout(f.t / f.rise) : f.t < f.rise + f.hold ? f.h + 0.05 * Math.sin(f.t * 20) : f.h * (1 - ein((f.t - f.rise - f.hold) / 0.22)), fade = f.done ? 1 - cl((f.t - f.land) / 0.35) : 1;
+        if (f.kind === 'shard') { const fade = 1 - sstep(0.7, 1, u), X1 = sx(f.x), Y1 = sy(f.y) - f.z * Tz; parts.push({ m: 'frag', X: X1, Y: Y1, z: sy(f.y), s: f.s * Tz, yaw: f.rot + f.t * 5, tilt: f.t * 3 + f.seed, a: fade, gl: 0.5 + 0.5 * (1 - u), g2: 0.8 }); if (f.t < 0.5) Q.glow(X1, Y1, f.s * Tz * 2.2, COL.amber, 0.3 * (1 - f.t / 0.5)); }   // v430 BP
+        else if (f.kind === 'bow') { const a0 = f.a, A = f.A, p = pts(a0), fade = sstep(0, 0.12, f.t) * (1 - sstep(f.life - 0.25, f.life, f.t)), adx = A ? (A.dx != null ? A.dx : A.ux) : null, ady = A ? (A.dy != null ? A.dy : A.uy) : null; if (adx != null && p.head) { const sv = (wx, wy) => [sx(a0.x + wx) - sx(a0.x), sy(a0.y + wy) - sy(a0.y)], d = sv(adx, ady), dl = Math.hypot(d[0], d[1]) || 1, ux = d[0] / dl, uy = d[1] / dl, L = Tz * 2.4, Wd = Tz * 2.0, hx = p.head[0] + ux * Tz * 0.9, hy = p.head[1] + uy * Tz * 0.9 + Tz * 0.2;
+            Q.quad(203, hx - ux * L * 0.35, hy - uy * L * 0.35, ux * L, uy * L, -uy * Wd, ux * Wd, COL.amber, 0.42 * fade, cl(a0.bl ? a0.bl.mv : a0.mv != null ? a0.mv : 1), 3, 1); Q.glow(hx, hy, Tz * 1.1, COL.pale, 0.25 * fade); } }   // v430 BP: the pressure bow ahead of the horns
+        else if (f.kind === 'burst') { const X1 = sx(f.x), Y1 = sy(f.y), k2 = Math.sin(Math.PI * cl(u * 1.25)), hh = Tz * (2.6 + 3.2 * eout(u)); Q.quad(198, X1, Y1 - hh, Tz * f.R, 0, 0, hh, COL.gold, k2 * (1 - u * 0.6), 0.28, f.seed, 3); Q.glow(X1, Y1 - Tz * 0.6, Tz * f.R * 2.2, COL.pale, 0.45 * (1 - u)); }   // v430 BP: a shaft of force from the impact
+        else if (f.kind === 'pulse') { const p = pts(f.a), x1 = sx(f.x), y1 = sy(f.y), x0 = p.core ? p.core[0] : x1, y0 = Math.min(p.core ? p.core[1] : y1, y1 - Tz) - Tz * 1.2, dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy) || 1, W = Tz * 1.1;
+          Q.quad(204, (x0 + x1) / 2, (y0 + y1) / 2, -dy / L * W, dx / L * W, dx / 2, dy / 2, COL.gold, Math.sin(Math.PI * cl(u * 1.1)) * 0.9, 0.34, f.seed, eout(u)); }   // v430 BP: a compression pulse driven from the core down to the stomp
+        else if (f.kind === 'ccharge') { const p = pts(f.a), fade = sstep(0, 0.2, f.t) * (1 - sstep(f.life - 0.25, f.life, f.t)), g0 = eout(cl(f.t / 0.6)), U2 = p.unit; if (p.head) { for (let i = 0; i < 2; i++) ring192(Q, p.head[0], p.head[1] - U2 * (2.6 + i * 2.0) * g0, U2 * (3.2 + i * 1.6) * (0.4 + 0.6 * g0), 0.32, 0.85 * fade, (i ? -1 : 1) * (1.5 + 2 * g0), 1);
+            for (const h of p.hornTips) { Q.star(h[0], h[1], U2 * 2.4 * g0, 0.55 * fade, COL.pale); Q.glow(h[0], h[1], U2 * 2.2, COL.amber, 0.35 * fade); } Q.quad(199, p.head[0], p.head[1] - U2 * 3, U2 * 6, 0, 0, U2 * 4, COL.gold, 0.7 * fade, f.t / f.life, 7, 0.8); } }   // v430 BP: the crown's charge over its brow
+        else if (f.kind === 'chip') { const x = sx(f.x), y = sy(f.y) - f.z * Tz, s = f.s * Tz, fade = 1 - sstep(0.75, 1, u); Q.quad(80, x, y, s, 0, 0, s, COL.stone, fade, f.rot + f.t * 6, f.seed, 1); }
+        else if (f.kind === 'rock' && f.t > 0) { const z = f.done ? 0 : f.t < f.rise ? -f.s + (f.h + f.s) * eout(f.t / f.rise) : f.t < f.rise + f.hold ? f.h + 0.05 * Math.sin(f.t * 20) - f.h * 0.3 * bump(g.t - stompT, 0, 0.05, 0.12, 0.45) /* v430 BP: each stomp jolts them down */ : f.h * (1 - ein((f.t - f.rise - f.hold) / 0.22)), fade = f.done ? 1 - cl((f.t - f.land) / 0.35) : 1;
           if (!f.done) { Q.sshadow(sx(f.x), sy(f.y), f.s * Tz * 1.2, f.s * Tz * 0.5, 0.4 * fade, '#0C0804'); Q.glow(sx(f.x), sy(f.y) - z * Tz, f.s * Tz * 2, COL.amber, 0.2 * fade); }
           parts.push({ m: 'rock', X: sx(f.x), Y: sy(f.y) - z * Tz, z: sy(f.y), s: f.s * Tz, yaw: f.yaw + f.t * 2, tilt: f.tilt + f.t, a: fade, gl: 0.3, g2: 0.6, dis: f.done ? cl((f.t - f.land) / 0.35) : 0 }); }
         else if (f.kind === 'srings') { const p = pts(f.a), fade = sstep(0, 0.3, f.t) * (1 - sstep(f.life - 0.3, f.life, f.t)); if (p.bast || p.back) { const b = p.back || p.top; for (let i = 0; i < 2; i++) ring192(Q, b[0], b[1] + p.unit * (2 + i * 1.6), p.unit * (5.5 + i * 1.2), 0.45, 0.9 * fade, (i ? -1 : 1) * 2.4, 1); } }
         else if (f.kind === 'well' && f.h) { const X0 = sx(f.x), Y0 = sy(f.y) - f.h * Tz, R = f.R * Tz, fade = Math.sin(Math.PI * cl(u)); Q.quad(195, X0, Y0, R, 0, 0, R * 0.8, COL.gold, fade, 0.35, 3, f.big ? 1.3 : 1); Q.glow(X0, Y0, R * 0.6, COL.white, 0.35 * fade * (1 - u)); }
-        else if (f.kind === 'cring' && f.m && !f.m.dead) { const m = f.m, fade = sstep(0, 0.35, f.t) * (1 - sstep(f.life - 0.4, f.life, f.t)), A = f.A, prog = cl(f.t / Math.max(0.5, f.life - 0.4)), pl = A && A.pulseT > -1 ? Math.max(0, 1 - Math.abs(A.t - A.pulseT) / 0.25) : 0, nr = lowFx() ? 1 : 3;
-          for (let j = 0; j < nr; j++) { const h = (1.7 - j * 0.48) * (1 - 0.75 * prog) * (1 - 0.5 * pl) + 0.15, X0 = sx(m.x), Y0 = sy(m.y) - h * Tz; parts.push({ m: 'gring', X: X0, Y: Y0, z: sy(m.y) + 1, s: Tz * (0.55 + 0.2 * j) * (1 - 0.15 * prog), yaw: f.t * (j % 2 ? -1.6 : 1.3) + f.seed, a: fade, gl: 0.6 + pl, g2: 1 + pl, kind: j }); ring192(Q, X0, Y0, Tz * (0.62 + 0.2 * j), FSY, 0.5 * fade, 1.5, 1); }
-          if (!lowFx()) for (let j = 0; j < 4; j++) { const an = f.seed + j * 1.57 + f.t * 1.2, d = Tz * 0.8, h = Tz * (0.6 + 0.4 * Math.sin(f.t * 2 + j)) * (1 - pl); Q.quad(80, sx(m.x) + Math.cos(an) * d, sy(m.y) + Math.sin(an) * d * FSY - h, Tz * 0.1, 0, 0, Tz * 0.1, COL.stone, fade, f.t * 3 + j, (f.seed | 0) + j, 1); } }
-        else if (f.kind === 'dome') { const a = f.a, fade = sstep(0, 0.6, f.t) * (1 - sstep(f.life - 0.6, f.life, f.t)), Rd = (bar && bar.a === a ? bar.R : 3) * Tz, X0 = sx(a.x), Y0 = sy(a.y) - Rd * 0.25, hc = bar && bar.hit ? Math.floor(Math.min(9, bar.hit[0] * 10) + 1) + ((bar.hit[1] / TAU) % 1 + 1) % 1 : 0;
-          Q.quad(197, X0, Y0, Rd, 0, 0, Rd * 0.82, COL.gold, 0.55 * fade, 0, g.t * 0.2, hc); Q.quad(197, X0, Y0, Rd * 0.88, 0, 0, Rd * 0.72, COL.amber, 0.35 * fade, 1, -g.t * 0.3, 0);
+        else if (f.kind === 'cring' && f.m && !f.m.dead) {   // v430 BP: the rings leave its horns and arc to the monster; three gyroscopic rings tilting on their own axes, descending one after another; pulses driven down onto it; debris spiralling in
+          const m = f.m, A = f.A, fly = f.src && f.src.bl ? 0.5 : 0, fu = fly ? eout(cl(f.t / fly)) : 1, fade = sstep(0, 0.2, f.t) * (1 - sstep(f.life - 0.4, f.life, f.t)), prog = cl((f.t - fly) / Math.max(0.5, f.life - 0.4 - fly)),
+            pl = A && A.pulseT > -1 ? Math.max(0, 1 - Math.abs(A.t - A.pulseT) / 0.25) : 0, tk = A && A.tk != null && !(A.k >= 3) ? 1 - cl(A.tk / CFG.crown.tick) : -1, nr = lowFx() ? 1 : 3, mx = sx(m.x), my = sy(m.y), sp = f.src ? pts(f.src) : null;
+          for (let j = 0; j < nr; j++) { const dsc = sstep(j * 0.12, 0.85 + j * 0.05, prog), h = (1.9 - j * 0.5) * (1 - 0.72 * dsc) * (1 - 0.45 * pl) + 0.18 + 0.06 * Math.sin(f.t * 2.4 + j);
+            let X0 = mx, Y0 = my - h * Tz; if (fu < 1 && sp) { const o0 = sp.hornRings[j % Math.max(1, sp.hornRings.length)] || sp.head; X0 = lerp(o0[0], X0, fu); Y0 = lerp(o0[1], Y0, fu) - Math.sin(Math.PI * fu) * Tz * 2.2; }
+            parts.push({ m: 'gring', X: X0, Y: Y0, z: my + 1, s: Tz * (0.55 + 0.2 * j) * (1 - 0.15 * dsc) * (0.5 + 0.5 * fu), yaw: f.t * (j % 2 ? -1.6 : 1.3) * (1 + pl * 2) + f.seed, tilt: (0.22 + 0.1 * j) * Math.sin(f.t * (1.1 + 0.3 * j) + j * 2.1 + f.seed) * (1 - 0.6 * dsc), a: fade, gl: 0.6 + pl + 0.3 * dsc, g2: 1 + pl, kind: j });
+            ring192(Q, X0, Y0, Tz * (0.62 + 0.2 * j) * (0.5 + 0.5 * fu), FSY, 0.5 * fade, 1.5 + 2 * pl, 1); }
+          const pk = Math.max(pl, tk >= 0 ? Math.max(0, 1 - tk / 0.35) * 0.5 : 0); if (fu >= 1 && pk > 0.02) { const top = my - Tz * 2.3, hh = (my - top) / 2; Q.quad(204, mx, top + hh, Tz * 1.0, 0, 0, hh, COL.gold, pk * fade, 0.38, f.seed, pl > 0 ? 1 - pl : tk / 0.35); }
+          if (!lowFx()) for (let j = 0; j < 5; j++) { const sp2 = 1.2 + 0.25 * j, an = f.seed + j * 1.26 + f.t * sp2 * (1 + 2 * pl), d = Tz * (0.95 - 0.35 * prog) * (0.8 + 0.2 * Math.sin(j * 1.7)), hgt = Tz * ((0.55 + 0.45 * Math.sin(f.t * 1.6 + j)) * (1 - 0.6 * prog) * (1 - 0.7 * pl) + 0.1), ss = Tz * (0.08 + 0.03 * (j % 2)); Q.quad(80, mx + Math.cos(an) * d, my + Math.sin(an) * d * FSY - hgt, ss, 0, 0, ss, COL.stone, fade, f.t * 3 + j, (f.seed | 0) + j, 1); } }
+        else if (f.kind === 'dome') {   // v430 BP: the shell rises from its foundation; three layers (gilded masonry, the rune lattice, the amber inner); the energy it takes drawn into the core; architecture floating in it
+          const a = f.a, rise = eout(cl(f.t / 0.55)), fade = sstep(0, 0.25, f.t) * (1 - sstep(f.life - 0.6, f.life, f.t)), Rd = (bar && bar.a === a ? bar.R : 3) * Tz, X0 = sx(a.x), Yg = sy(a.y), Y0 = Yg - Rd * 0.25 * rise, ry2 = Rd * 0.82 * (0.25 + 0.75 * rise), hc = bar && bar.hit ? Math.floor(Math.min(9, bar.hit[0] * 10) + 1) + ((bar.hit[1] / TAU) % 1 + 1) % 1 : 0, chg = bar && bar.a === a ? cl(bar.store / Math.max(1, ST().hp) * 2) : 0, hit = bar && bar.hit ? 1 - bar.hit[0] : 0;
+          Q.quad(197, X0, Y0, Rd, 0, 0, ry2, COL.gold, 0.55 * fade, 0, g.t * 0.2, hc); if (!lowFx()) Q.quad(206, X0, Y0, Rd * 0.94, 0, 0, ry2 * 0.94, COL.amber, 0.5 * fade * rise, chg, -g.t * 0.12, hc); Q.quad(197, X0, Y0, Rd * 0.88, 0, 0, ry2 * 0.88, COL.amber, 0.35 * fade, 1, -g.t * 0.3, 0);
+          const p = pts(a); if (p.core) for (let i = 0; i < 3; i++) { const an = -Math.PI / 2 + (i - 1) * 0.9 + 0.2 * Math.sin(g.t * 0.7 + i), ex = X0 + Math.cos(an) * Rd * 0.9, ey = Y0 + Math.sin(an) * ry2 * 0.9, dx = p.core[0] - ex, dy = p.core[1] - ey, L = Math.hypot(dx, dy) || 1; Q.quad(128, (ex + p.core[0]) / 2, (ey + p.core[1]) / 2, dx / 2, dy / 2, -dy / L * Tz * 0.12, dx / L * Tz * 0.12, COL.gold, (0.25 + 0.5 * chg + 0.5 * hit) * fade * rise, 6 + 8 * chg, i); }
+          const nf = lowFx() ? 2 : 4; for (let i = 0; i < nf; i++) { const an = g.t * 0.35 + i / nf * TAU; parts.push({ m: 'mono', X: X0 + Math.cos(an) * Rd * 1.02, Y: Y0 - ry2 * 0.35 + Math.sin(an) * ry2 * 0.3 - Tz * 0.4 * Math.sin(g.t * 0.9 + i), z: Yg + Math.sin(an) * Rd * 0.5, s: Tz * 0.2 * rise, yaw: an + Math.PI / 2, tilt: 0.15 * Math.sin(g.t + i), a: fade * rise, gl: 0.5 + chg, g2: 0.5 }); }
           if (Math.hypot(me.x - a.x, me.y - a.y) < (bar ? bar.R : 3) * 1.6 + 0.5) { const pr = Tz * 0.9; Q.quad(197, sx(me.x), sy(me.y) - Tz * 0.45, pr, 0, 0, pr, COL.pale, 0.45 * fade, 0, g.t * 0.4, hc); } }
         else if (f.kind === 'arings') { const fade = sstep(0, 0.4, f.t) * (1 - sstep(f.life - 0.6, f.life, f.t)), X0 = sx(f.x), Y0 = sy(f.y); for (let i = 0; i < 3; i++) { const h = Tz * (3.2 + i * 0.9 - 1.6 * sstep(0.6, 2.2, f.t)); ring192(Q, X0, Y0 - h, Tz * (2.4 - i * 0.5), 0.35, 0.8 * fade, (i % 2 ? -1 : 1) * 1.8, 1); } }
         else if (f.kind === 'epill') epillParts(f, parts, 1);
@@ -433,9 +522,9 @@ const BELIAL_MOVES = (() => {
     }
     // a pillar's state at t: its rise, drums lifting (the weight of heaven), collapsing inward (compression), breaking into light (dominion)
     function pillarPart(S, p) {
-      const { t, Tz, X0, Y0 } = S, h = sstep(p.ts, p.ts + 0.7, t), col = ein(S.p4), dis = sstep(UT.slam - 0.05, UT.slam + 0.9, t), X1 = sx(p.x), Y1 = sy(p.y), cx = lerp(X1, X0, col * 0.7), cy = lerp(Y1, Y0, col * 0.7);
-      const drums = []; for (let i = 0; i < 5; i++) { const lf = S.p3 * (i >= 2 ? (i - 1) * 0.35 : 0) * (1 - col) + col * (i >= 1 ? i * 0.12 : 0); drums.push({ lift: Tz * lf * (0.8 + 0.2 * Math.sin(t * 1.3 + i + p.i)), rot: S.p3 * 0.3 * Math.sin(i * 1.7 + p.i) + col * 0.4 * (i % 2 ? 1 : -1), tip: col * 0.25 * (i % 2 ? 1 : -1), gl: 0.4 * S.p3 + col, dis: dis * sstep(0, 0.6, 1 - i * 0.15) }); }
-      return { m: 'pillar', X: cx, Y: cy, z: Y1, s: Tz * 0.48, h, t, gl: 0.3 + 0.5 * S.p2 + 0.8 * S.p4, g2: 0.6 + S.p3 + 2 * S.p4, yaw: p.an, lean: (X1 < X0 ? 1 : -1) * col * 0.6, drums, dis: Math.min(1, dis * 1.05), a: S.al };
+      const { t, Tz, X0, Y0 } = S, e0 = sstep(p.ts, p.ts + 0.6, t), h = e0 + 0.05 * bump(t, p.ts + 0.38, p.ts + 0.56, p.ts + 0.62, p.ts + 0.95) /* v430 BP: it breaks out with momentum and settles */, col = S.o && S.o.stand ? 0 : ein(S.p4) /* v429 TB: o.stand keeps them standing where they rose (the boss's shelters) */, dis = sstep(UT.slam - 0.05, UT.slam + 0.9, t), X1 = sx(p.x), Y1 = sy(p.y), cx = lerp(X1, X0, col * 0.7), cy = lerp(Y1, Y0, col * 0.7);
+      const q = p._pp || (p._pp = { m: 'pillar', drums: [{}, {}, {}, {}, {}] }), drums = q.drums, shud = e0 > 0 && e0 < 1 ? Math.sin(t * 47 + p.i * 3) * Tz * 0.04 * (1 - e0) : 0; for (let i = 0; i < 5; i++) { const lf = S.p3 * (i >= 2 ? (i - 1) * 0.35 : 0) * (1 - col) + col * (i >= 1 ? i * 0.12 : 0); Object.assign(drums[i], { lift: Tz * lf * (0.8 + 0.2 * Math.sin(t * 1.3 + i + p.i)), rot: (1 - e0) * (i % 2 ? 0.9 : -0.9) * (0.3 + 0.15 * i) /* v430 BP: the drums turning into place as it rises */ + S.p3 * 0.3 * Math.sin(i * 1.7 + p.i) + col * 0.4 * (i % 2 ? 1 : -1), tip: col * 0.25 * (i % 2 ? 1 : -1), gl: 0.4 * S.p3 + col, dis: dis * sstep(0, 0.6, 1 - i * 0.15) }); }
+      return Object.assign(q, { m: 'pillar', X: cx + shud, Y: cy, z: Y1, s: Tz * 0.48, h, t, gl: 0.3 + 0.5 * S.p2 + 0.8 * S.p4, g2: 0.6 + S.p3 + 2 * S.p4, yaw: p.an, lean: (X1 < X0 ? 1 : -1) * col * 0.6, drums, dis: Math.min(1, dis * 1.05), a: S.al }); /* v430 BP: pooled per pillar (no allocation a frame) */
     }
     function groundU(Q, S, parts, side) {
       const { t, Tz, X0, Y0, BX, BY, p1, p2, p3, p4, p5, p6, al } = S;
@@ -448,8 +537,14 @@ const BELIAL_MOVES = (() => {
       // 5 the slam and the second pulse: shockwaves across the floor, the network of glowing cracks, dust rolling out
       for (const [s, big] of [[S.s1, 1], [S.s2, 1.35]]) if (s >= 0 && s < 1) { const RR = S.R * 1.1 * big; Q.quad(196, X0, Y0, RR, 0, 0, RR * FSY, COL.gold, al * (1 - s * 0.5), eout(s) * 0.95, big * 7, 1.4 * (1 - s)); Q.quad(90, X0, Y0, RR * eout(s) * 1.1, 0, 0, RR * eout(s) * 1.1 * FSY, COL.dust, (1 - s) * 0.9 * al, 0.32, big * 5, s); }
       if (S.s1 >= 0) { const fr = sstep(UT.slam, UT.slam + 0.5, t) * 1.03, fade = 1 - p6 * 0.9; Q.quad(89, X0, Y0, S.R, 0, 0, S.R * FSY, '#000000', 0.9 * fade * al, fr, S.seed % 50, 0.6); Q.quad(88, X0, Y0, S.R, 0, 0, S.R * FSY, COL.amber, fade * al, fr, (S.seed % 50) + 3, 1.3 * (1 - 0.6 * p5) + (S.s2 >= 0 && S.s2 < 0.4 ? 0.8 : 0)); }
+      // v430 BP: each pillar's emergence heaves the ground round it; the compression's lens closing in; the slam's layered shockwaves (the
+      // upheaval of the floor's slabs, space bent outward, a late third ring under the two pulses)
+      for (const p of S.pillars) { const u = (t - p.ts) / 0.8; if (u > 0 && u < 1) Q.quad(205, sx(p.x), sy(p.y), Tz * 2.0, 0, 0, Tz * 2.0 * FSY, COL.amber, (1 - u) * al, eout(u) * 0.9, p.i * 13 + 1, 1); }
+      if (p4 > 0.01 && t < UT.slam) Q.quad(202, X0, Y0, S.R * 1.05, 0, 0, S.R * 1.05 * FSY, COL.gold, p4 * 0.8 * al, 0.9 - 0.75 * ein(p4), S.seed % 40, 0.8 + p4);
+      if (S.s1 >= 0 && S.s1 < 1) { const u = S.s1; Q.quad(205, X0, Y0, S.R * 1.05, 0, 0, S.R * 1.05 * FSY, COL.amber, (1 - sstep(0.6, 1, u)) * al, eout(u) * 0.92, S.seed % 40 + 2, 1.3 * (1 - 0.5 * u)); Q.quad(202, X0, Y0, S.R * 1.3, 0, 0, S.R * 1.3 * FSY, COL.pale, (1 - u) * (1 - u) * al, 0.1 + 0.88 * eout(cl(u * 1.6)), S.seed % 40 + 5, 1.4); }
+      { const u3 = t >= UT.slam + 0.28 ? cl((t - UT.slam - 0.28) / 1.0) : -1; if (u3 >= 0 && u3 < 1) Q.quad(196, X0, Y0, S.R * 0.8, 0, 0, S.R * 0.8 * FSY, COL.amber, al * (1 - u3), eout(u3) * 0.95, S.seed % 40 + 11, 0.9 * (1 - u3)); }
       if (p6 > 0.01) { const u = p6; Q.quad(199, X0, Y0 - Tz, S.R * 0.6, 0, 0, S.R * 0.45, COL.gold, Math.sin(Math.PI * u) * al, u, S.seed, 0.8); }
-      for (const p of S.pillars) if ((sy(p.y) > Y0 ? 1 : -1) === side && t > p.ts - 0.05) parts.push(pillarPart(S, p));
+      if (!S.o.noPillars) /* v429 TB: the boss draws them itself, depth-sorted */ for (const p of S.pillars) if ((sy(p.y) > Y0 ? 1 : -1) === side && t > p.ts - 0.05) parts.push(pillarPart(S, p));
       void p1; void p2;
     }
     function skyU(Q, S, r) {
@@ -457,7 +552,7 @@ const BELIAL_MOVES = (() => {
       // 1 suspended stones rising slowly, dust hanging in the air
       const nR = Math.round(18 * (lq ? 0.5 : 1));
       for (let i = 0; i < nR; i++) { const an = i / nR * TAU + S.seed, d0 = Tz * (2.2 + 4.5 * ((i * 0.618) % 1)), rise = sstep(0.2 + i * 0.03, 1.6, t), into = ein(p3 * 0.6 + p4), out = S.s1 >= 0 ? eout(S.s1) : 0, fall = p6;
-        if (rise < 0.01) continue; let x = BX + Math.cos(an + t * 0.25 * p3) * d0 * (1 - into * 0.85), y = BY + Math.sin(an + t * 0.25 * p3) * d0 * FSY * (1 - into * 0.85) - Tz * (0.6 + 1.8 * rise * (1 - fall) + 1.2 * into);
+        if (rise < 0.01) continue; const sa = an + t * 0.25 * p3 + into * 1.8 /* v430 BP: spiralling in as they are drawn */; let x = BX + Math.cos(sa) * d0 * (1 - into * 0.85), y = BY + Math.sin(sa) * d0 * FSY * (1 - into * 0.85) - Tz * (0.6 + 1.8 * rise * (1 - fall) + 1.2 * into);
         if (out > 0) { x += Math.cos(an) * Tz * 7 * out; y += Math.sin(an) * Tz * 3 * out - Tz * 2 * Math.sin(Math.PI * out); }
         const fade = (1 - (S.s1 >= 0 ? sstep(0.6, 1, S.s1) : 0)) * (1 - sil * 0.3); Q.quad(80, x, y, Tz * (0.14 + 0.08 * (i % 3)), 0, 0, Tz * (0.14 + 0.08 * (i % 3)), COL.stone, fade * al, t * (1 + i % 3) + i, (S.seed | 0) + i, 1 + 0.9 * (0.4 * p3 + p4) * 0.5); }
       if (!lq) Q.quad(199, BX, BY - Tz * 2.5, Tz * 5, 0, 0, Tz * 3.5, COL.pale, 0.6 * p1 * (1 - p4) * al, 0.2, S.seed, 0.5);
@@ -467,6 +562,7 @@ const BELIAL_MOVES = (() => {
         for (const p of S.pillars) { const px = sx(p.x), py = sy(p.y) - Tz * 2.2, dx = cx - px, dy = cy - py, L2 = Math.hypot(dx, dy) || 1; Q.quad(128, (px + cx) / 2, (py + cy) / 2, dx / 2, dy / 2, -dy / L2 * Tz * 0.12, dx / L2 * Tz * 0.12, COL.gold, 0.6 * k2 * al, 9, p.i); } }
       // 4 golden rings compressing on the centre; the silence; the slam's white-gold peak
       if (p4 > 0.01 && t < UT.slam + 0.05) for (let i = 0; i < 4; i++) { const v = ((t - UT.p3) * (0.8 + 2.2 * p4) + i / 4) % 1, rr = S.R * 0.9 * (1 - v); ring192(Q, X0, Y0 - Tz * 0.5, rr, 0.5, p4 * Math.sin(v * Math.PI) * al * (1 - sil * 0.7), 3, 1); }
+      if (p4 > 0.01 && t < UT.slam) for (let i = 0; i < 3; i++) { const v = ((t - UT.p3) * (0.9 + 2.0 * p4) + i / 3) % 1, ox = (i - 1) * Tz * 1.6, hh = Tz * 3.6; Q.quad(204, X0 + ox, Y0 - hh, Tz * 1.5, 0, 0, hh, COL.gold, p4 * 0.55 * Math.sin(Math.PI * v) * (1 - sil * 0.7) * al, 0.3, i * 7 + 1, v); }   // v430 BP: pulses of weight driven down onto the centre
       if (sil > 0.01) { Q.star(cx, cy, Tz * (0.8 + 1.4 * sil), 0.7 * sil * al, COL.white); Q.glow(cx, cy, Tz * 2.4, COL.white, 0.3 * sil * al); }
       for (const [s, big] of [[S.s1, 1], [S.s2, 1.3]]) if (s >= 0 && s < 1) { const pk = 1 - sstep(0, 0.35, s); Q.glow(X0, Y0 - Tz, Tz * 6 * big, COL.white, 0.35 * pk * al); Q.glow(X0, Y0 - Tz, Tz * 3 * big, COL.pale, 0.45 * pk * al); for (let i = 0; i < 10; i++) { const an = i / 10 * TAU + S.seed + big, L2 = S.R * (0.3 + 0.8 * eout(s)); Q.rbeam(X0, Y0 - Tz, X0 + Math.cos(an) * L2, Y0 - Tz + Math.sin(an) * L2 * 0.6, Tz * (0.4 - 0.25 * s), COL.gold, (1 - s) * 0.35 * al, 1, 0); } }
       // 5 the towering column of gravity above it
@@ -487,7 +583,7 @@ const BELIAL_MOVES = (() => {
       for (const [sv, big] of [[S.s1, 1], [S.s2, 1.35]]) if (sv >= 0 && sv < 1) ring(X0, Y0, S.R * 1.1 * big * eout(sv), (1 - sv) * 0.8, 4, COL.pale);
       const col = bump(t, UT.slam - 0.3, UT.slam, UT.slam + 0.25, UT.slam + 1.1); if (col > 0.01) { const w = Tz * 1.1, g = c.createLinearGradient(X0 - w, 0, X0 + w, 0); g.addColorStop(0, 'rgba(255,194,77,0)'); g.addColorStop(0.5, 'rgba(255,240,200,.9)'); g.addColorStop(1, 'rgba(255,194,77,0)'); c.globalAlpha = col * al * 0.8; c.fillStyle = g; c.fillRect(X0 - w, Y0 - Tz * 14, w * 2, Tz * 14); }
       c.globalCompositeOperation = 'source-over';
-      const ps = S.pillars.map(p => pillarPart(S, p)).filter(q => q.h > 0.02 && q.dis < 0.98).sort((a, b) => a.z - b.z);
+      const ps = (S.o.noPillars ? [] : S.pillars) /* v429 TB */.map(p => pillarPart(S, p)).filter(q => q.h > 0.02 && q.dis < 0.98).sort((a, b) => a.z - b.z);
       for (const q of ps) { const w = q.s * 0.85, H = q.s * 7.5 * q.h, a = al * (1 - q.dis); c.save(); c.globalAlpha = a; c.translate(q.X, q.Y); c.rotate(q.lean * 0.35);
         const g = c.createLinearGradient(-w, 0, w, 0); g.addColorStop(0, '#9A8A70'); g.addColorStop(0.45, '#F2E8D2'); g.addColorStop(1, '#8A7A60'); c.fillStyle = g; c.fillRect(-w * 0.8, -H, w * 1.6, H);
         c.fillStyle = '#E8B850'; c.fillRect(-w, -H - q.s * 0.35, w * 2, q.s * 0.35); c.fillRect(-w * 1.05, -q.s * 0.3, w * 2.1, q.s * 0.3);
@@ -498,12 +594,16 @@ const BELIAL_MOVES = (() => {
       o = o || {}; const S = ulScene(o), on = gpu(); if (S.al <= 0.004) return S; if (!on) { if (!o.groundOnly) dominion2d(c, S); return S; }
       if (!o.skyOnly) { const Q = fgOpen(c), parts = []; groundU(Q, S, parts, -1); fgClose(c); if (parts.length && glOn()) { c.save(); c.globalCompositeOperation = 'source-over'; GLB().drawParts(c, parts); c.restore(); } }
       if (o.groundOnly) return S;
-      const parts = []; for (const p of S.pillars) if (sy(p.y) > S.Y0 && t9(S, p)) parts.push(pillarPart(S, p));
+      const parts = []; if (!o.noPillars) /* v429 TB */ for (const p of S.pillars) if (sy(p.y) > S.Y0 && t9(S, p)) parts.push(pillarPart(S, p));
       if (parts.length && glOn()) { c.save(); c.globalCompositeOperation = 'source-over'; GLB().drawParts(c, parts); c.restore(); }
       const Q = fgOpen(c); skyU(Q, S, o.r || null); fgClose(c);
       return S;
     }
     const t9 = (S, p) => S.t > p.ts - 0.05;
+    // v430 BP: the ultimate's sky for drawFx: its front pillars (one GPU pass), then a painter batch with the sky drawn into it, left open for the effects
+    function ulSkyOpen(c) { const J = UL, r = J.a.blOut && J.a.blOut.r, S = ulScene({ x: J.x, y: J.y, bx: J.a.x, by: J.a.y, t: J.t, seed: J.seed, k: J.k, pillars: J.pillars }); if (S.al <= 0.004) return null;
+      const parts = []; for (const p of S.pillars) if (sy(p.y) > S.Y0 && t9(S, p)) parts.push(pillarPart(S, p)); if (parts.length && glOn()) { c.save(); c.globalCompositeOperation = 'source-over'; GLB().drawParts(c, parts); c.restore(); }
+      const Q = fgOpen(c); skyU(Q, S, r || null); return Q; }
     function drawULsky(c) { const J = UL; drawDominion(c, { x: J.x, y: J.y, bx: J.a.x, by: J.a.y, t: J.t, seed: J.seed, k: J.k, pillars: J.pillars, skyOnly: true, r: J.a.blOut && J.a.blOut.r }); }
     /* the light over the body (after it is drawn): the Core of Dominion's (FGFX 201: a dense heart, a limb, a ring of bent light, a
        controlled bloom; brighter as it charges or compresses; hidden as it faces away), the eyes, the maw when the jaw drops, the
@@ -514,7 +614,8 @@ const BELIAL_MOVES = (() => {
       for (const e of r.eyes) { Q.glow(e[0], e[1], u * 1.2, COL.amber, 0.45 * al * (P.eye || 1)); Q.star(e[0], e[1], u * (0.5 + 0.3 * (P.eye || 1)), 0.45 * al, COL.pale); }
       if ((P.jaw || 0) > 0.15) Q.glow(r.mouth[0], r.mouth[1], u * 2.4, COL.amber, 0.5 * al * cl(P.jaw));
       const hn = cl(P.horn || 0), rg = cl(((P.ringK || 1) - 1) / 4);
-      for (const h of r.hornRings) Q.glow(h[0], h[1], u * 2.2, COL.gold, (0.12 + 0.25 * hn + 0.15 * rg) * al);
+      const mc = cl(P.mech || 0); for (const h of r.hornRings) Q.glow(h[0], h[1], u * 2.2, COL.gold, (0.12 + 0.25 * hn + 0.15 * rg + 0.15 * mc) * al);
+      if (mc > 0.05) for (const h of r.hornTips) { const fl = 0.5 + 0.5 * Math.sin((at || 0) * 13 + h[0]); Q.star(h[0], h[1], u * (0.9 + 1.4 * mc * fl), 0.4 * mc * al, COL.pale); Q.glow(h[0], h[1], u * 1.6, COL.amber, 0.3 * mc * al); }   // v430 BP: the horn engines working: their tips sparking
       if (hn > 0.3 || (P.k || 1) >= 3) { const fk = Math.max(hn, (P.k || 1) >= 3 ? 0.35 : 0) * al; for (let i = 0; i < r.hornRings.length; i += 2) { const h = r.hornRings[i], dx = r.core[0] - h[0], dy = r.core[1] - h[1], L = Math.hypot(dx, dy) || 1; Q.quad(128, (h[0] + r.core[0]) / 2, (h[1] + r.core[1]) / 2, dx / 2, dy / 2, -dy / L * u * 0.35, dx / L * u * 0.35, COL.gold, 0.5 * fk * cv, 7 + 6 * hn, i); } }
       if ((P.cit || 0) > 0.05 || (P.citUp || 0) > 0.05) Q.glow(r.back[0], r.back[1], u * 6, COL.amber, 0.22 * al * Math.max(P.cit || 0, P.citUp || 0));
       fgClose(c);
@@ -530,7 +631,10 @@ const BELIAL_MOVES = (() => {
     // (a power on demand, aimed as the mind would aim it: for showcases and tests)
     function cast(a, kind) { stOf(a); if (a.bl.act) endAct(a); const c = crowd(a.x, a.y, 9, 2.5), m = H.near(a.x, a.y, 9).slice(-1)[0];
       if (kind === 'rush') { if (!m) return false; start(a, 'rush', { m }); } else if (kind === 'crown') { if (!c) return false; start(a, 'crown', { x: c.x, y: c.y }); } else if (kind === 'stamp') start(a, 'stamp', c ? { x: c.x, y: c.y } : null); else start(a, kind); return true; }
-    return { tick, fin, cast, choose, update, stop, outK, descent, entrance, drawGround, drawFx, drawBodyFx, drawCine, drawDominion, bodyLight, pillarsOf, CFG,
+    /* v429 TB: (pure, for the boss) the risen World Pillars' parts at the scene o (as drawDominion's: x, y, bx, by, t, seed, k, pillars,
+       stand), each with its pillar's index i: for BELIAL_GL.drawParts, drawn in the boss's own depth order */
+    function domParts(o) { const S2 = ulScene(o || {}); return S2.pillars.filter(p => t9(S2, p)).map(p => Object.assign(pillarPart(S2, p), { i: p.i })); }
+    return { tick, fin, cast, choose, update, stop, outK, descent, entrance, drawGround, drawFx, drawBodyFx, drawCine, drawDominion, bodyLight, pillarsOf, CFG, domParts /* v429 TB */,
       get barrier() { return bar; }, get ul() { return UL; }, get fx() { return FX; }, get held() { return held; }, get wardOn() { return !!wardOff; } };
   }
   return { create, CFG, UT, BIG, poseFor, easePose, ultPose };

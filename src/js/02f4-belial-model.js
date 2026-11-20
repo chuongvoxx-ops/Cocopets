@@ -28,7 +28,18 @@
    effects need; drawParts(c, list) draws effect meshes (the World Pillars, rocks, gravity rings, monoliths) in screen space.
    Pure: no game state is read or written (the boss fight can reuse every piece). release() frees the GPU buffers (they
    upload again on the next draw). Real-GPU WebGL only, like Abaddon (window.__BL_GL = 1 / __NG_GL = 1 force it on a software
-   rasteriser for the tests; __BL_GL = 0 turns it off): without it AnimaArt draws the cel model (02f2 MODELS.taurus). */
+   rasteriser for the tests; __BL_GL = 0 turns it off): without it AnimaArt draws the cel model (02f2 MODELS.taurus).
+   v430 BP (the animation polish; shared with the boss, 20q2, through the same calls):
+   - gait(ph, mv, gk): a diagonal-couplet walk (the diagonal pairs a fifth of a cycle apart), stances that match the body's travel
+     exactly (no foot slides), swings on a mechanical arc (toe-off flex, high early, reach, a vertical plant); gk the stride (P.gaitK).
+   - motion(inst, P) NEW HOOK: the per-instance motion (inst.blM), stepped by draw() itself whenever o.inst is given (so nothing new to
+     call): planted feet that keep their place on the floor (turning twists the body over them; settle steps after a stop, a turn in
+     place or a wider stance), the body's inertia (footfall dip, the lurch and settle of a stop, the turn's sway), the head leading
+     into turns, the tail's lagging chain, the citadel's restrained sway. draw()'s result adds r.steps (feet landed this frame) and r.lifts.
+   - new pose keys (idlePose defaults, all neutral): spread (stance width), shift (weight sideways), mech (machinery working), gaitK.
+   - draw(): weight transfer (the body shifts off a lifted leg, sags over it), shoulders and haunches riding their legs, idle weight
+     shifts and deliberate neck adjustments (life(P): shift, neckL, neckH, armour), horn segments turning on their own, debris
+     orbiting the Core, the citadel's tiers rising in turn, its plates unlatching, overshooting and chattering, an ankle on each hoof. */
 const BELIAL_GL = (() => {
   const TAU = Math.PI * 2, EL = 0.62, SE = Math.sin(EL), CE = Math.cos(EL);
   const cl = u => (u < 0 ? 0 : u > 1 ? 1 : u), lerp = (a, b, u) => a + (b - a) * u, sstep = (a, b, x) => { const u = cl((x - a) / (b - a)); return u * u * (3 - 2 * u); };
@@ -116,10 +127,12 @@ const BELIAL_GL = (() => {
   const TAIL0 = [-3.95, 0, 7.15];
   const CITF = 9.1, CITR = 8.2, CITZ = CITR;           // the citadel's floors: the front keep over the shoulders, the rear terrace
   const L1 = 2.3, L2 = 2.25, HOOFH = 0.62;             // upper leg, lower leg, hoof (before its scale)
-  const LEGS = [   // the hip (x, y, z), side, front, the gait's phase offset (a lateral-sequence walk: HL, FL, HR, FR), the leg's thickness, the hoof's scale, the foot's y
-    { x: 2.2, hy: 1.9, z: 5.45, s: 1, f: 1, off: 0.25, w: 1.75, hs: 1.8, fy: 2.25 }, { x: 2.2, hy: 1.9, z: 5.45, s: -1, f: 1, off: 0.75, w: 1.75, hs: 1.8, fy: 2.25 },
+  /* v430 BP: a heavy diagonal-couplet walk: the diagonal pairs (hind +y with front -y, hind -y with front +y) step a fifth of a cycle
+     apart (the hind leading), the pairs half a cycle apart: never two legs of a side together, never a pair in step */
+  const LEGS = [   // the hip (x, y, z), side, front, the gait's phase offset, the leg's thickness, the hoof's scale, the foot's y
+    { x: 2.2, hy: 1.9, z: 5.45, s: 1, f: 1, off: 0.7, w: 1.75, hs: 1.8, fy: 2.25 }, { x: 2.2, hy: 1.9, z: 5.45, s: -1, f: 1, off: 0.2, w: 1.75, hs: 1.8, fy: 2.25 },
     { x: -2.45, hy: 1.75, z: 5.35, s: 1, f: 0, off: 0.0, w: 1.5, hs: 1.55, fy: 2.0 }, { x: -2.45, hy: 1.75, z: 5.35, s: -1, f: 0, off: 0.5, w: 1.5, hs: 1.55, fy: 2.0 }];
-  const STRIDE = 2.1, SWING = 0.27;                    // stride (model units), the swing's share of a step cycle
+  const STRIDE = 2.1, SWING = 0.28;                    // stride (model units), the swing's share of a step cycle
   // the horn: a crescent rising from the mount out and up round a centre above it, its tip curling in over the head (horn local: x forward, y out, z up)
   const HA0 = -Math.PI / 2, HA1 = HA0 + 2.45, HRY = 1.95, HRZ = 1.7, HCN = [0.5, 0, HRZ];   // (a 140 deg crescent: out sideways from the mount, up, curling in at the tip, and leaning forward as it rises)
   const hornP = u => { const a = HA0 + (HA1 - HA0) * u; return [0.7 * Math.pow(u, 1.4), HRY * Math.cos(a), HRZ * (1 + Math.sin(a))]; };
@@ -363,8 +376,11 @@ const BELIAL_GL = (() => {
   /* ================= the pose ================= */
   /* the resting pose of a form at time t (o: overrides) */
   function idlePose(k, t, o) {
-    return Object.assign({ k: k || 3, t: t || 0, yaw: 0, bank: 0, pitch: 0, lift: 0, dx: 0, crouch: 0, rear: 0, head: 0, look: 0, jaw: 0, horn: 0, ringK: 1, ringOut: 0, core: 0.85, coreOpen: 0, cit: 0, citUp: 0, bast: 0, mono: 0, monoIn: 0, glow: 0, live: 1, ph: 0, mv: 0, feet: null, tail: 0, stagger: 0, dis: 0, asm: 1, halo: 1, hornAlign: 0, eye: 1, plant: 0 }, o || {});
+    return Object.assign({ k: k || 3, t: t || 0, yaw: 0, bank: 0, pitch: 0, lift: 0, dx: 0, crouch: 0, rear: 0, head: 0, look: 0, jaw: 0, horn: 0, ringK: 1, ringOut: 0, core: 0.85, coreOpen: 0, cit: 0, citUp: 0, bast: 0, mono: 0, monoIn: 0, glow: 0, live: 1, ph: 0, mv: 0, feet: null, tail: 0, stagger: 0, dis: 0, asm: 1, halo: 1, hornAlign: 0, eye: 1, plant: 0,
+      spread: 0, shift: 0, mech: 0, gaitK: 1 /* v430 BP: the stance's width (model units: feet step out to it), the weight shifted sideways (-1..1), the machinery working (0..1), the stride's length (x STRIDE) */ }, o || {});
   }
+  /* v430 BP: a deliberate wandering value: it moves to a new place every period s (eased over the first share ease of it) and holds there */
+  const hold = (t, per, sd, ease) => { const u = t / per + sd, n = Math.floor(u), f = u - n, a = hash(n * 1.37 + sd * 7.1) * 2 - 1, b = hash((n + 1) * 1.37 + sd * 7.1) * 2 - 1; return lerp(a, b, sstep(0, ease || 0.4, f)); };
   /* its life, laid over any pose (pure; drives the cel model too): breathing, the head lowering now and then, the horns' slow turn
      and their rings, the core's pulse, the plates shifting, the stabilisers adjusting, the tail swaying, the monoliths drifting;
      every 5.2 s a flourish (a slow nod of the head, a shrug of the bastions, a turn of the horns, a sweep of the tail) with its
@@ -380,15 +396,25 @@ const BELIAL_GL = (() => {
       bast: (0.04 * s1(t * 0.6) + (typ === 1 ? 0.22 * main - 0.05 * pre + 0.06 * set : 0)) * lv, plates: 0.03 * s1(t * 0.8) * lv,
       horn: (typ === 2 ? 0.25 * main : 0.04 * (0.5 + 0.5 * s1(t * 0.5))) * lv, hornTurn: (0.03 * s1(t * 0.31) + (typ === 2 ? 0.06 * main : 0)) * lv,
       core: (0.12 * s1(t * 1.6) + 0.06 * s1(t * 3.3)) * lv, tail: (0.18 * s1(t * 0.7) + (typ === 3 ? 0.5 * main - 0.15 * pre + 0.1 * set : 0)) * lv, tailY: 0.08 * s1(t * 1.1) * lv,
-      stab: t * 0.6, piston: 0.04 * s1(t * 1.3) * lv, mono: 0.25 * s1(t * 0.4) * lv, jaw: (typ === 0 ? 0.08 * main : 0) * lv };
+      stab: t * 0.6, piston: 0.04 * s1(t * 1.3) * lv, mono: 0.25 * s1(t * 0.4) * lv, jaw: (typ === 0 ? 0.08 * main : 0) * lv,
+      /* v430 BP: its slow weight shifts (side to side, held between), small deliberate adjustments of the neck, the armour's slow settle */
+      shift: 0.55 * hold(t, 7.3, 0.21, 0.45) * lv, neckL: 0.06 * hold(t, 3.7, 1.13, 0.35) * lv, neckH: 0.045 * hold(t, 4.9, 2.37, 0.4) * lv, armour: 0.5 + 0.5 * s1(t * 0.9 - 0.6) };
   }
   /* the gait: each leg's foot (forward offset, lift) and its load, from the step phase ph (radians) and the walk's amount mv */
-  function gait(ph, mv) {
-    const out = [];
-    for (const L of LEGS) { let q = ph / TAU + L.off; q -= Math.floor(q); const sw = q >= 1 - SWING, w = sw ? (q - (1 - SWING)) / SWING : 0, S = STRIDE * mv;
-      const dx = sw ? -S / 2 + S * sstep(0, 1, w) : S / 2 - S * (q / (1 - SWING)), lift = sw ? Math.sin(Math.PI * w) * (0.55 + 0.25 * L.f) * Math.min(1, mv * 1.6) : 0;
+  /* v430 BP: no foot slides: in its stance a foot travels back exactly as far as the body goes forward (the moves advance the phase a
+     cycle per STRIDE x max(0.3, mv) x gk walked), so its stance spans STRIDE x max(0.3, mv) x (1 - SWING); the swing is a mechanical arc:
+     the heel peels up and the hoof flexes back (toe-off), the foot rises high early and swings through, reaches, then comes straight
+     down flat in the last fifth (the plant). gk: the stride's length (P.gaitK, 1 the walk). Returns per leg dx, lift, load, sw, w (the
+     swing's progress), pitch (the hoof's flex about its ankle) */
+  const swF = w => sstep(0.04, 0.82, w);                                                         // (forward, done before the plant)
+  const swL = w => (w < 0.38 ? Math.sin(Math.PI / 2 * w / 0.38) : Math.pow(Math.cos(Math.PI / 2 * (w - 0.38) / 0.62), 1.35));   // (up early, down late)
+  const swP = w => 0.62 * Math.sin(Math.PI * cl(w / 0.5)) * (w < 0.5 ? 1 : 0) - 0.2 * Math.sin(Math.PI * cl((w - 0.5) / 0.45));  // (toe-off flex, then the reach)
+  function gait(ph, mv, gk) {
+    const out = [], mvp = Math.max(0.3, mv) * sstep(0, 0.3, mv), kk = gk || 1;
+    for (const L of LEGS) { let q = ph / TAU + L.off; q -= Math.floor(q); const sw = q >= 1 - SWING, w = sw ? (q - (1 - SWING)) / SWING : 0, D = STRIDE * kk * mvp * (1 - SWING);
+      const dx = sw ? -D / 2 + D * swF(w) : D / 2 - D * (q / (1 - SWING)), lift = sw ? swL(w) * (0.55 + 0.25 * L.f) * Math.min(1, mv * 1.6) * (1 + 0.25 * (kk - 1)) : 0;
       const load = !sw && q < 0.16 ? Math.sin(Math.PI * q / 0.16) * mv : 0;   // (just landed: the weight comes onto it)
-      out.push({ dx, lift, load, sw }); }
+      out.push({ dx, lift, load, sw, w, pitch: sw ? swP(w) * Math.min(1, mv * 1.6) : 0 }); }
     return out;
   }
   /* the legs that landed as the phase went from ph0 to ph1 (their indices, front legs flagged): footfalls for the effects */
@@ -400,6 +426,71 @@ const BELIAL_GL = (() => {
     for (let i = 0; i < 4; i++) { const o = i * 4, kx = 14 + i * 4, dmp = 2.6; S[o + 1] += (-ax * 0.03 - S[o] * kx - S[o + 1] * dmp) * dt; S[o] += S[o + 1] * dt; S[o + 3] += (-ay * 0.03 - S[o + 2] * kx - S[o + 3] * dmp) * dt; S[o + 2] += S[o + 3] * dt; S[o] = Math.max(-0.6, Math.min(0.6, S[o])); S[o + 2] = Math.max(-0.6, Math.min(0.6, S[o + 2])); }
     return S;
   }
+  /* ---- v430 BP: the motion an instance keeps (inst.blM), stepped by draw() from the pose alone (its time P.t, yaw, ph, mv, gaitK,
+     spread, feet, rear), so the Anima and the boss both get it without a call of their own (BELIAL_GL.motion(inst, P) steps it by
+     hand; a second draw in the same frame does not step it again):
+     - the feet are PLANTED: a foot on the floor keeps its place on the floor (in the ground's frame round the body's floor point),
+       so the body really travels and twists over planted feet when it turns; the gait's phase lifts each leg in turn and swings it
+       to its landing a half-stance ahead; at a standstill or turning in place, a foot left out of line steps back under its hip
+       (one or a diagonal two at a time: the stop's settle, the turn's shuffle, a widened stance's step out); each landing is
+       recorded in M.steps (i, f front, idle) for the effects
+     - the body's inertia: a vertical spring kicked down by every landing (the weight coming onto a leg, with a little rebound), a
+       fore-aft spring driven by the walk's acceleration (it lurches on as it stops, overshoots and settles; it lags as it starts),
+       a lateral spring from the turn (centripetal sway), the turn's rate (the head leads into it, the tail swings out)
+     - the citadel's restrained sway (a stiff, lightly damped spring kicked by the footfalls and the lurches) and the tail's chain
+       (each segment following the one before it a little late) ---- */
+  const ISD = 0.42;                                                          // an idle step's length (s)
+  const homeOf = (i, P) => { const L = LEGS[i]; return [L.x, L.s * (L.fy + (P.spread || 0) * (L.f ? 1 : 0.85))]; };
+  const angDf = (a, b) => { let d = (a - b) % TAU; if (d > Math.PI) d -= TAU; if (d < -Math.PI) d += TAU; return d; };
+  function newM(P) { const yaw = P.yaw || 0, c = Math.cos(yaw), s = Math.sin(yaw), F = [];
+    for (let i = 0; i < 4; i++) { const h = homeOf(i, P); F.push({ gx: c * h[0] - s * h[1], gy: s * h[0] + c * h[1], sw: 0, w0: 0, p: 0, dir: 1, s0x: h[0], s0y: h[1], tx: h[0], ty: h[1], bx: h[0], by: h[1], lift: 0, l0: 0, pitch: 0, ld: 0, cyc: Math.floor((P.ph || 0) / TAU + LEGS[i].off), H: 0 }); }
+    return { t: P.t || 0, yaw, ph: P.ph || 0, mv: cl(P.mv || 0), h: 0, yr: 0, acc: 0, sx: 0, vx: 0, sy: 0, vy: 0, sz: 0, vz: 0, cp: 0, cpv: 0, cr: 0, crv: 0, F, tail: new Float32Array(6), tailP: new Float32Array(6), steps: [], n: 0 }; }
+  function motion(inst, P) {
+    if (!inst || !P) return null; const t = P.t || 0; let M = inst.blM; const dt = M ? t - M.t : 0;
+    if (!M || dt < -1e-3 || dt > 0.6) { M = inst.blM = newM(P); return M; }
+    M.h = 0; if (dt < 1e-5) return M;
+    M.steps.length = 0; const h = Math.min(dt, 0.05); M.h = h; M.t = t;
+    const yaw = P.yaw || 0, ph = P.ph || 0, mv = cl(P.mv || 0), gk = P.gaitK || 1, c = Math.cos(yaw), s = Math.sin(yaw), dph = ph - M.ph, walking = Math.abs(dph) / TAU / dt > 0.3 /* (a creep slower than this steps like a standstill: no leg left hovering) */, dir = dph >= 0 ? 1 : -1;
+    M.yr += (angDf(yaw, M.yaw) / dt - M.yr) * Math.min(1, h * 7); M.acc += ((mv - M.mv) / dt - M.acc) * Math.min(1, h * 9); M.yaw = yaw; M.ph = ph; M.mv = mv;
+    const mvp = Math.max(0.3, mv), tr = dph / TAU * STRIDE * gk * mvp, mx = c * tr, my = s * tr, D = STRIDE * gk * mvp * (1 - SWING), toB = (x, y) => [c * x + s * y, -s * x + c * y];
+    const rear = cl(P.rear || 0), fe = P.feet;
+    let nIdle = 0, idleP = 1; for (const f of M.F) if (f.sw === 2) { nIdle++; idleP = Math.min(idleP, f.p); }
+    for (let i = 0; i < 4; i++) {
+      const L = LEGS[i], f = M.F[i], hm = homeOf(i, P); let q = ph / TAU + L.off; const cyc = Math.floor(q); q -= cyc; const inW = q >= 1 - SWING, w = inW ? (q - (1 - SWING)) / SWING : 0, Hs = (0.55 + 0.25 * L.f) * Math.min(1, mv * 1.6 + 0.25) * (1 + 0.25 * (gk - 1));
+      f.ld = Math.max(0, f.ld - h / 0.28);
+      const land = (x, y, idle) => { const gx = c * x - s * y, gy = s * x + c * y; f.gx = gx; f.gy = gy; f.sw = 0; f.lift = 0; f.pitch = 0; f.ld = 1; f.cyc = cyc; f.bx = x; f.by = y;
+        const kick = (L.f ? 0.62 : 0.42) * (idle ? 0.55 : 0.55 + 0.45 * mv) * (1 + 0.35 * (gk - 1)); M.vz -= kick; M.cpv += (L.f ? -1 : 0.7) * kick * 0.06; M.crv += L.s * kick * 0.05; M.steps.push({ i, f: !!L.f, idle: !!idle }); M.n++; };
+      if (f.sw === 0) { f.gx -= mx; f.gy -= my; const b = toB(f.gx, f.gy); f.bx = b[0]; f.by = b[1];
+        if (walking && inW) { f.sw = 1; f.dir = dir; f.w0 = dir > 0 ? w : 1 - w; f.s0x = f.bx; f.s0y = f.by; }
+        else if (walking && dir > 0 && cyc !== f.cyc && !inW) land(hm[0] + D / 2, hm[1], false);   // (its whole swing inside one frame: a very fast stride)
+        else if (!walking) f.cyc = cyc; }
+      if (f.sw === 1) {
+        if (!walking) { f.sw = 2; f.p = 0; f.dur = 0.3; f.l0 = f.lift; f.s0x = f.bx; f.s0y = f.by; nIdle++; idleP = 0; }
+        else if (!inW) land(hm[0] + f.dir * D / 2, hm[1], false);
+        else { const pr = cl(((f.dir > 0 ? w : 1 - w) - f.w0) / Math.max(0.05, 1 - f.w0)); f.tx = hm[0] + f.dir * D / 2; f.ty = hm[1]; f.bx = lerp(f.s0x, f.tx, swF(pr)); f.by = lerp(f.s0y, f.ty, swF(pr)); f.lift = swL(pr) * Hs; f.pitch = swP(pr) * f.dir; f.H = Hs; }
+      }
+      if (f.sw === 2) { f.p = Math.min(1, f.p + h / (f.dur || ISD)); const pr = f.p, Hi = 0.3 + 0.14 * L.f; f.bx = lerp(f.s0x, hm[0], swF(pr)); f.by = lerp(f.s0y, hm[1], swF(pr)); f.lift = Math.max(swL(pr) * Hi, f.l0 * (1 - sstep(0, 0.6, pr))); f.pitch = swP(pr) * 0.6;
+        if (pr >= 1) land(hm[0], hm[1], true); }
+    }
+    // a foot left out of line steps back under its hip (the stop's settle, the turn's shuffle, the stance widening); a teleport snaps them
+    if (!walking) {
+      let best = -1, be = 0; for (let i = 0; i < 4; i++) { const f = M.F[i], L = LEGS[i]; if (f.sw !== 0) continue; const hm = homeOf(i, P), e = Math.hypot(f.bx - hm[0], f.by - hm[1]);
+        if (e > 4) { const gx = c * hm[0] - s * hm[1], gy = s * hm[0] + c * hm[1]; f.gx = gx; f.gy = gy; f.bx = hm[0]; f.by = hm[1]; continue; }
+        if ((L.f && rear > 0.05) || (fe && fe[i] && (Math.abs(fe[i][0]) + Math.abs(fe[i][2])) > 0.01)) continue;
+        const mate = M.F[3 - i];   // (a leg's diagonal partner: 0-3, 1-2)
+        if (nIdle >= 2 || (nIdle === 1 && !(mate.sw === 2 || idleP > 0.55))) continue;
+        if (e > 0.24 + (nIdle ? 0.1 : 0) && e > be) { be = e; best = i; } }
+      if (best >= 0) { const f = M.F[best]; f.sw = 2; f.p = 0; f.dur = ISD * (be > 0.9 ? 1 : 0.85); f.l0 = 0; f.s0x = f.bx; f.s0y = f.by; }
+    }
+    // the body's inertia: vertical (footfalls), fore-aft (the walk's acceleration), lateral (the turn); the citadel's sway
+    const spr = (x, v, k, z, F) => v + (-k * x - 2 * z * Math.sqrt(k) * v + F) * h;
+    M.vz = spr(M.sz, M.vz, 110, 0.5, 0); M.sz += M.vz * h;
+    M.vx = spr(M.sx, M.vx, 26, 0.36, -M.acc * 1.1); M.sx += M.vx * h;
+    M.vy = spr(M.sy, M.vy, 24, 0.45, mv * M.yr * 0.7); M.sy += M.vy * h;
+    M.cpv = spr(M.cp, M.cpv, 58, 0.2, -M.vx * 0.12); M.cp += M.cpv * h; M.crv = spr(M.cr, M.crv, 52, 0.22, M.vy * 0.1); M.cr += M.crv * h;
+    M.sz = Math.max(-0.5, Math.min(0.3, M.sz)); M.sx = Math.max(-0.6, Math.min(0.6, M.sx)); M.sy = Math.max(-0.5, Math.min(0.5, M.sy)); M.cp = Math.max(-0.08, Math.min(0.08, M.cp)); M.cr = Math.max(-0.08, Math.min(0.08, M.cr));
+    return M;
+  }
   /* two-bone IK in the leg's plane (x, z): hip H, ankle A; the knee bends toward kd (+1 forward, -1 back) */
   function ik(H, A, kd) { let d = sub(A, H); const dl = Math.min(L1 + L2 - 0.002, Math.max(0.4, len(d))); d = mul(norm(d), dl); const a = Math.acos(cl((L1 * L1 + dl * dl - L2 * L2) / (2 * L1 * dl))), dn = norm(d), side = norm(cross(dn, [0, 1, 0])), K = add(H, add(mul(dn, Math.cos(a) * L1), mul(side, kd * Math.sin(a) * L1)));
     return { K, A: add(H, d) }; }
@@ -409,6 +500,7 @@ const BELIAL_GL = (() => {
   const LW = norm([-0.45, 0.42, 0.8]), SBW = norm([-0.3, -0.2, 0.92]), RIMW = norm([0.65, -0.62, 0.42]), PXW = [1, 0, 0], PYW = [0, SE, -CE], PDW = [0, CE, SE], UPW = [0, 0, 1];
   const RIMC = [1.35, 1.0, 0.55], AMBC = [1.25, 1.18, 1.08], OUTC = [0.035, 0.022, 0.012], GLCAP = 1600;
   const POOL = [], ITEMS = [], TRANS = []; let NP = 0;
+  const LGS = [{}, {}, {}, {}], ZM = { sx: 0, sy: 0, sz: 0, cp: 0, cr: 0, yr: 0, h: 0, F: null, steps: null };   // v430 BP: the legs' working state (reused), no motion
   const item = () => { const g = POOL[NP] || (POOL[NP] = { R0: new Float32Array(3), R1: new Float32Array(3), R2: new Float32Array(3), T: new Float32Array(3) }); NP++; return g; };
   const STATS = { ms: 0, n: 0, items: 0, W: 0, H: 0 };
   const RES = { k: 1 }; const profile = () => (lowFx() ? 'low' : RES.k < 0.95 ? 'medium' : 'high');
@@ -437,12 +529,17 @@ const BELIAL_GL = (() => {
         if (mesh.bs) { const bs = mesh.bs, c3 = add(T, mv(R, mul(bs, sc))), sk = Math.max(Math.hypot(R[0], R[3], R[6]), Math.hypot(R[1], R[4], R[7]), Math.hypot(R[2], R[5], R[8])); box(c3, bs[3] * sc * sk * 1.03 + 0.05); }
         return g; };
       /* the body's frame: pitch (nose down +), bank, lift, a sway forward; the gait's dip as the front feet take the weight */
-      const G = gait(P.ph || 0, cl(P.mv || 0)), feet = P.feet;
-      let dip = 0, push = 0; for (let i = 0; i < 4; i++) { if (LEGS[i].f) dip += G[i].load * 0.13; else push += G[i].load * 0.05; }
-      const rear = cl(P.rear || 0), crouch = P.crouch || 0;
-      const pitch = (P.pitch || 0) + dip * 0.12 - push * 0.4 + crouch * 0.1 - rear * 0.42 + (P.stagger || 0) * 0.08, bank = (P.bank || 0) + 0.015 * Math.sin((P.ph || 0)) * cl(P.mv || 0);
-      const lift = (P.lift || 0) + LF.bob - dip - crouch * 0.35 + rear * 0.55;
-      const Mb = mm(rx(bank), ry(pitch)), tbo = [(P.dx || 0) + rear * -0.35, 0, lift];
+      const G = gait(P.ph || 0, cl(P.mv || 0), P.gaitK || 1), feet = P.feet, MS = o.inst ? motion(o.inst, P) : null, dyn = MS || ZM, mvv = cl(P.mv || 0);
+      /* v430 BP: each leg's foot (body frame) and its swing: the motion's planted feet with an instance, else the pure gait; the weight
+         moves off a lifted leg (the body shifts toward its support and sags a little over the lifted corner), lands with each footfall
+         (the vertical spring) and lurches with the walk's acceleration; the idle's slow weight shifts (held, then moved on) */
+      for (let i = 0; i < 4; i++) { const q = LGS[i], L = LEGS[i]; if (MS) { const f = MS.F[i]; q.bx = f.bx; q.by = f.by; q.lift = f.lift; q.pitch = f.pitch; q.load = f.ld * (L.f ? 1 : 0.8) * Math.max(0.35, mvv); }
+        else { const g = G[i], hm = homeOf(i, P); q.bx = hm[0] + g.dx; q.by = hm[1]; q.lift = g.lift; q.pitch = g.pitch; q.load = g.load; } }
+      let dip = 0, push = 0, wr = 0, wy = 0, wp = 0; for (let i = 0; i < 4; i++) { const L = LEGS[i], q = LGS[i], lf = cl(q.lift / 0.6); if (L.f) dip += q.load * 0.13; else push += q.load * 0.05; wr -= lf * L.s * 0.024; wy -= lf * L.s * 0.075; wp += lf * (L.f ? 0.018 : -0.012); }
+      const rear = cl(P.rear || 0), crouch = P.crouch || 0, sh = (P.shift || 0) + LF.shift * (1 - mvv) * (1 - rear);
+      const pitch = (P.pitch || 0) + dip * 0.12 - push * 0.4 + crouch * 0.1 - rear * 0.42 + (P.stagger || 0) * 0.08 + wp + dyn.sx * 0.07, bank = (P.bank || 0) + wr - dyn.sy * 0.05 - sh * 0.035;
+      const lift = (P.lift || 0) + LF.bob - (MS ? dip * 0.35 : dip) + dyn.sz * 1.9 - crouch * 0.35 + rear * 0.55;
+      const Mb = mm(rx(bank), ry(pitch)), tbo = [(P.dx || 0) + rear * -0.35 + dyn.sx * 0.85, wy + dyn.sy * 0.55 + sh * 0.3, lift];
       const BP = p => add(add(mv(Mb, sub(p, BODYC)), BODYC), tbo), BR = R => mm(Mb, R);
       const br = LF.breath * 0.012;
       /* the torso */
@@ -454,33 +551,52 @@ const BELIAL_GL = (() => {
       const ncr = Math.min(CRINGS.length, NCR[k] - (low && k === 3 ? 1 : 0));
       for (let i = 0; i < ncr; i++) { const C = CRINGS[i], ax = norm(add(C.ax, [0.2 * Math.sin(t * 0.3 + i), 0.15 * Math.cos(t * 0.4 + i), 0])), Rt = mm(frameZ(ax), rz(t * C.sp * rk + i * 1.3)), rr = C.R * (1 + co * (0.35 + i * 0.12)) * CORER / 0.62;
         put(M.cring[C.m], BR(Rt), cp, rr, glow + cg * 0.4, { kind: i, glow2: cg, noInk: true }, 0.9); }
-      put(M.cstab, BR(mm(ry(Math.PI / 2), rz(-t * 0.2 * rk))), add(cp, mv(Mb, [-0.05, 0, 0])), CF * (1 + co * 0.3), glow, null, 0.9);
+      const mech = cl(P.mech || 0); if (MS) { MS.mA = (MS.mA || 0) + MS.h * (0.2 + 2.6 * mech) * rk; }   // v430 BP: the machinery's own turn (integrated: no jump as it speeds up)
+      put(M.cstab, BR(mm(ry(Math.PI / 2), rz(-t * 0.2 * rk - (MS ? MS.mA : 0)))), add(cp, mv(Mb, [-0.05, 0, 0])), CF * (1 + co * 0.3), glow, null, 0.9);
+      /* v430 BP: debris held round the Core of Dominion by its gravity: stone and bronze shards on tilted orbits, slower farther out,
+         thrown wider as it opens, drawn in as it compresses (P.monoIn) */
+      if (!low || k === 3) { const nd = [0, 3, 4, 6][k] - (low ? 2 : 0), mi0 = cl(P.monoIn || 0);
+        for (let j = 0; j < nd; j++) { const a = t * (0.62 - j * 0.06) * (0.6 + 0.4 * rk) + j * 2.39, R0 = CORER * (1.75 + 0.32 * j) * (1 + co * 0.45) * (1 - 0.35 * mi0), tl = 0.5 + 0.35 * Math.sin(j * 2.1), ca = Math.cos(a), sa = Math.sin(a);
+          const off = [0.35 * sa * Math.sin(tl) + 0.25, ca * R0, sa * R0 * Math.cos(tl) * 0.85 + 0.1 * Math.sin(t * 0.7 + j)];
+          put(j % 2 ? M.frag2 : M.frag, BR(mm(rz(a * 1.7 + j), rx(a * 1.3))), add(cp, mv(Mb, off)), 0.15 + 0.05 * ((j * 7) % 3), glow + 0.15, null, 0.9); } }
       box(cp, 1.7 * CF + co * 0.8);
       /* the bastions and haunches (mirrored): they rise (P.bast) */
       const bastA = (P.bast || 0) + LF.bast;
       for (const s of [1, -1]) { const Mi = s > 0 ? I3 : MY, bp = [BASTP[0], s * BASTP[1], BASTP[2]];
-        put(M.bast[k], BR(mm(Mi, rx(-bastA * 0.5))), BP(add(bp, [0, 0, bastA * 0.45])), BSC, glow, null, 0.45);
-        put(M.haunch, BR(mm(Mi, rx(-bastA * 0.3))), BP([HAUNP[0], s * HAUNP[1], HAUNP[2] + bastA * 0.25]), 1.15, glow, null, 0.42); }
+        // v430 BP: each shoulder rides its foreleg (it rocks back as the leg reaches, lifts with it) and the haunch its hind leg; the armour settles with the breath
+        const qf = LGS[s > 0 ? 0 : 1], qh = LGS[s > 0 ? 2 : 3], df = qf.bx - LEGS[0].x, dh = qh.bx - LEGS[2].x, ar = 0.025 * LF.armour * lv;
+        put(M.bast[k], BR(mm(ry(-df * 0.055), mm(Mi, rx(-bastA * 0.5 - qf.lift * 0.05)))), BP(add(bp, [-df * 0.04, 0, bastA * 0.45 + qf.lift * 0.1 + ar])), BSC, glow, null, 0.45);
+        put(M.haunch, BR(mm(ry(-dh * 0.05), mm(Mi, rx(-bastA * 0.3 - qh.lift * 0.05)))), BP([HAUNP[0] - dh * 0.035, s * HAUNP[1], HAUNP[2] + bastA * 0.25 + qh.lift * 0.08 + ar * 0.7]), 1.15, glow, null, 0.42); }
       /* the citadel: the keep's tiers by form; the ultimate extends it skyward (citUp), the carapace lifts it a little (cit) */
       const cit = cl(P.cit || 0), up = cl(P.citUp || 0);
+      /* v430 BP: the citadel's tiers sway a little on their own bases (the higher, the more), late behind the body's lurches and footfalls,
+         a breath of idle drift; they rise in turn (the keep's tiers, then its towers and spires one by one) rather than all together */
+      const swP = dyn.cp + 0.004 * Math.sin(t * 0.83) * lv, swR = dyn.cr + 0.004 * Math.sin(t * 0.61 + 1) * lv;
+      const swy = (pv, kq, off, mesh, ord) => { const R = mm(ry(swP * kq), rx(swR * kq)); put(mesh, BR(R), BP(add(sub(pv, mv(R, pv)), off)), 1, glow, null, ord); };
+      const upI = (i, n) => sstep(i / (n + 2), (i + 2.2) / (n + 2), up);
       put(M.cit, BR(I3), BP([0, 0, up * 0.15]), 1, glow, null, 0.6);
-      put(M.hall, BR(I3), BP([0, 0, up * 0.55 + cit * 0.12]), 1, glow, null, 0.66);
-      put(M.rhall, BR(I3), BP([0, 0, up * 0.35 + cit * 0.1]), 1, glow, null, 0.64);
-      if (k >= 2) put(M.hall2, BR(I3), BP([0, 0, up * 1.1 + cit * 0.25]), 1, glow, null, 0.7);
-      if (k >= 3) put(M.crown, BR(I3), BP([0, 0, up * 1.7 + cit * 0.35]), 1, glow, null, 0.74);
+      swy([1.75, 0, CITF], 1.6, [0, 0, upI(0, 4) * 0.55 + cit * 0.12], M.hall, 0.66);
+      swy([-1.75, 0, CITR], 1.4, [0, 0, upI(0, 4) * 0.35 + cit * 0.1], M.rhall, 0.64);
+      if (k >= 2) swy([1.75, 0, CITF + 2.3], 2.6, [0, 0, upI(1, 4) * 1.1 + cit * 0.25], M.hall2, 0.7);
+      if (k >= 3) swy([1.75, 0, CITF + 3.6], 3.6, [0, 0, upI(2, 4) * 1.7 + cit * 0.35], M.crown, 0.74);
       const TOW = k === 3 ? [[-0.15, 0.82, 0.85], [-0.15, -0.82, 0.85], [-3.0, 0.82, 0.9], [-3.0, -0.82, 0.9], [-3.15, 0, 1.2]] : k === 2 ? [[-0.15, 0.82, 0.85], [-0.15, -0.82, 0.85]] : [];
-      TOW.forEach((w, i) => put(M.tower, BR(I3), BP([w[0], w[1], CITR + 0.1 + up * (0.6 + 0.25 * i) + cit * 0.2]), w[2], glow, null, 0.7));
+      TOW.forEach((w, i) => { const R = mm(ry(swP * 3 + 0.05 * cit * (w[0] > -1 ? 1 : -1)), rx(swR * 3 + 0.06 * cit * Math.sign(w[1]))); put(M.tower, BR(R), BP([w[0], w[1], CITR + 0.1 + upI(i, TOW.length) * (0.6 + 0.25 * i) + cit * 0.2]), w[2], glow, null, 0.7); });
       const SPI = [[1.75, 1.5, CITF, 0.9], [1.75, -1.5, CITF, 0.9], [-1.6, 1.4, CITR, 0.85], [-1.6, -1.4, CITR, 0.85], [-2.6, 1.4, CITR, 0.8], [-2.6, -1.4, CITR, 0.8], [-0.6, 1.4, CITR, 0.8], [-0.6, -1.4, CITR, 0.8]];
-      const nsp = [0, 2, 4, 8][k]; for (let i = 0; i < nsp; i++) { const w = SPI[i]; put(M.spire, BR(I3), BP([w[0], w[1], w[2] + 0.95 + up * 0.4]), w[3], glow, null, 0.72); }
+      const nsp = [0, 2, 4, 8][k]; for (let i = 0; i < nsp; i++) { const w = SPI[i], R = mm(ry(swP * 4), rx(swR * 4 + 0.1 * cit * Math.sign(w[1]))); put(M.spire, BR(R), BP([w[0], w[1], w[2] + 0.95 + upI(i, nsp) * 0.4]), w[3], glow, null, 0.72); }
       /* the fortress plates: hinged along the walls; the carapace raises them past upright and swings them out into an array */
       const pls = LF.plates;
-      for (const s of [1, -1]) for (let i = 0; i < 3; i++) { const xi = [-2.35, -0.65, 1.75][i], zf = i === 2 ? CITF : CITR, lag = sstep(i * 0.12, 0.64 + i * 0.12, cit), op = sstep(0, 1, lag);
+      for (const s of [1, -1]) for (let i = 0; i < 3; i++) { const xi = [-2.35, -0.65, 1.75][i], zf = i === 2 ? CITF : CITR, lag = sstep(i * 0.12 + (s < 0 ? 0.05 : 0), 0.64 + i * 0.12 + (s < 0 ? 0.05 : 0), cit), op = sstep(0, 1, lag);
+        // v430 BP: the plates unlatch (a small kick back against the hinge), swing up past upright with an overshoot that settles, and
+        // chatter on their hinges while the machinery works
+        const ov = 0.22 * Math.sin(Math.PI * cl((lag - 0.55) / 0.45)) * (lag > 0.55 ? 1 : 0), unl = 0.12 * Math.sin(Math.PI * cl(lag / 0.18)) * (lag < 0.18 ? 1 : 0), chat = mech * 0.035 * Math.sin(t * 11 + i * 2.1 + s);
         const hinge = [xi + op * (i - 1) * 0.6, s * (1.62 + op * 0.7), zf + 0.55 + op * (1.0 + 0.3 * Math.abs(i - 1)) + up * 0.3];
-        const Rr = mm(s > 0 ? I3 : MY, mm(rz(op * (i - 1) * 0.35), rx(0.95 - op * 2.45 + pls + up * 0.3)));
+        const Rr = mm(s > 0 ? I3 : MY, mm(rz(op * (i - 1) * 0.35), rx(0.95 - op * 2.45 - ov + unl + chat + pls + up * 0.3)));
         put(M.cplate, BR(Rr), BP(hinge), 1.15, glow + op * 0.6, null, 0.55); }
       /* the neck and head: the head hangs low and forward on a short massive neck; it dips (P.head +) and looks about; it lowers for the charge, raises for the crown */
-      const hd = (P.head || 0) + LF.head, look = (P.look || 0) + LF.look, stg = P.stagger || 0;
-      const HP = add(HEADP, [0.3 * hd, 0, -0.7 * hd + 0.1 * stg]), Rh = mm(rz(look * 0.55), ry(0.2 + 0.42 * hd - 0.25 * stg)), hpW = BP(HP), RhW = BR(Rh), RhS = mm(Rh, scl3(HS));
+      // v430 BP: the head leads into a turn, keeps its level against the body's footfall bob and lurch (a stabilised gaze, a beat
+      // late), counters the body's roll, and makes its own small deliberate adjustments at rest
+      const lead = Math.max(-0.32, Math.min(0.32, dyn.yr * 0.28)), hd = (P.head || 0) + LF.head + LF.neckH * (1 - mvv) - wp * 1.2 - dyn.sx * 0.12, look = (P.look || 0) + LF.look + LF.neckL * (1 - mvv) + lead - bank * 0.8, stg = P.stagger || 0;
+      const HP = add(HEADP, [0.3 * hd, -wy * 0.6 - sh * 0.15, -0.7 * hd + 0.1 * stg - dyn.sz * 1.1]), Rh = mm(rz(look * 0.55), mm(rx(-bank * 0.7), ry(0.2 + 0.42 * hd - 0.25 * stg))), hpW = BP(HP), RhW = BR(Rh), RhS = mm(Rh, scl3(HS));
       for (let i = 0; i < 3; i++) { const u = (i + 0.5) / 3, a = NECK0, b = add(HP, mv(RhS, [-0.5, 0, 0.05])), m3 = lerp3(a, b, u); m3[2] += 0.15 * Math.sin(Math.PI * u) * (1 - hd * 0.5);
         const dirN = norm(sub(b, a)), Rv = mm(rz(look * 0.55 * u), ry(-Math.atan2(dirN[2], dirN[0]))); put(M.vert, BR(Rv), BP(m3), 1.75 - u * 0.25, glow, null, 0.7); }
       put(M.head, RhW, hpW, HS, glow, { glow2: (P.eye == null ? 1 : P.eye) }, 0.8);
@@ -494,7 +610,8 @@ const BELIAL_GL = (() => {
         const Mi = s > 0 ? I3 : MY, mount = add(HP, mv(RhS, [HORNM[0], s * HORNM[1], HORNM[2]])), Rhn = mm(Rh, mm(Mi, mm(rz(0.05 + hal * 0.3), mm(rx(-0.12 - hal * 0.5), ry(-0.2 + LF.hornTurn - hal * 0.6)))));
         const H3 = p => BP(add(mount, mv(Rhn, mul(p, hk)))), HR3 = R => BR(mm(Rhn, R));
         put(M.hcore, HR3(I3), H3([0, 0, 0]), hk, 0.7 + hn * 1.6 + glow, { noInk: true }, 0.95);
-        for (let i = 0; i < NHS; i++) { const S = HSEG[i], o2 = hn * (0.16 + 0.05 * Math.sin(i * 1.7)) * hornR(0.5) * 1.6, tw = hn * 0.12 * (i % 2 ? 1 : -1);
+        for (let i = 0; i < NHS; i++) { const S = HSEG[i], o2 = hn * (0.16 + 0.05 * Math.sin(i * 1.7)) * hornR(0.5) * 1.6 * (1 + 0.15 * mech * Math.sin(t * 7 + i * 1.3)),
+            tw = hn * 0.12 * (i % 2 ? 1 : -1) + (0.035 * lv + 0.1 * mech) * Math.sin(t * (0.33 + 0.07 * i) * (1 + 2.5 * mech) + i * 1.9 + s);   // v430 BP: each segment turns on its own, faster as the engine works
           const Rs = mm(axisR(S.t, tw), I3), piv = S.c, T = add(sub(piv, mv(Rs, piv)), mul(S.o, o2));
           put(M.hseg[i], HR3(Rs), H3(T), hk, glow + hn * 0.8, null, 0.97); }
         const tip = H3(add(hornP(1), mul(hornF(1).T, 0.5))); out.hornTips.push(scr(tip)); box(H3(hornP(0.5)), 2.4 * hk);
@@ -512,20 +629,26 @@ const BELIAL_GL = (() => {
       out.eyes = [1, -1].map(s => scr(BP(add(HP, mv(RhS, [0.96, s * 0.95, 0.29])))));
       /* the tail: segments hanging and swaying (its spring), the anchor floating below its tip */
       const Sp = o.inst && o.inst.blS ? o.inst.blS : null, tsw = (P.tail || 0) + LF.tail + (Sp ? Sp[0] : 0), tup = LF.tailY + (Sp ? Sp[2] : 0);
-      { let p = TAIL0, R = mm(rz(tsw * 0.25), ry(-0.55 - tup * 0.4)); const n = 6;
-        for (let i = 0; i < n; i++) { const sc = (1 - i * 0.08) * 1.35; put(M.tseg, BR(R), BP(p), sc, glow, null, 0.35); p = add(p, mv(R, [-0.62 * sc, 0, 0])); R = mm(R, mm(rz(tsw * 0.22 + 0.06 * Math.sin(t * 0.9 - i * 0.6) * lv), ry(-0.17 - tup * 0.1))); }
+      { const n = 6;
+        // v430 BP: a chain: each segment follows the one before it a little late (with an instance), so a swing travels down the tail;
+        // it swings out of a turn and lifts and drops with the body's footfalls and lurches
+        if (MS && MS.h > 0) { const d0 = tsw - Math.max(-0.5, Math.min(0.5, dyn.yr * 0.4)) + dyn.sy * 0.7, d1 = tup - dyn.sz * 1.8 + dyn.sx * 0.35; for (let i = 0; i < n; i++) { const r2 = Math.min(1, MS.h * (10 - i * 1.25)); MS.tail[i] += ((i ? MS.tail[i - 1] : d0) - MS.tail[i]) * r2; MS.tailP[i] += ((i ? MS.tailP[i - 1] : d1) - MS.tailP[i]) * r2; } }
+        const tA = i => (MS ? MS.tail[i] : tsw), tP = i => (MS ? MS.tailP[i] : tup);
+        let p = TAIL0, R = mm(rz(tA(0) * 0.25), ry(-0.55 - tP(0) * 0.4));
+        for (let i = 0; i < n; i++) { const sc = (1 - i * 0.08) * 1.35; put(M.tseg, BR(R), BP(p), sc, glow, null, 0.35); p = add(p, mv(R, [-0.62 * sc, 0, 0])); const j = Math.min(n - 1, i + 1); R = mm(R, mm(rz(tA(j) * 0.22 + 0.06 * Math.sin(t * 0.9 - i * 0.6) * lv), ry(-0.17 - tP(j) * 0.1))); }
         const mp = add(p, mv(R, [-0.7, 0, -0.45])); mp[2] += 0.15 * Math.sin(t * 1.4);
         put(M.mace, BR(mm(rz(t * 0.8), rx(0.15 * Math.sin(t * 0.9)))), BP(mp), 1.35, glow + 0.4, null, 0.35); out.mace = scr(BP(mp)); out.tailTip = scr(BP(p)); box(BP(mp), 1.9); }
       /* the legs: hips on the body, feet planted on the floor (the gait, or P.feet), the knees by IK; massive (each thickened by w), pistons that compress */
       const stabA = LF.stab;
       for (let i = 0; i < 4; i++) {
-        const L = LEGS[i], s = L.s, Mi = s > 0 ? I3 : MY, H = BP([L.x, s * L.hy, L.z]), g = G[i], fo = feet && feet[i] ? feet[i] : null, hh = HOOFH * L.hs, Wd = [L.w, 0, 0, 0, L.w, 0, 0, 0, 1];
-        let fx = L.x + g.dx + (fo ? fo[0] : 0), fz = g.lift + (fo ? fo[2] : 0); if (L.f && rear > 0) { fx += rear * 1.2; fz = Math.max(fz, rear * 2.6); }
-        const footY = s * (L.fy + (fo ? fo[1] : 0)), Aw = [fx, footY, hh + fz];
+        const L = LEGS[i], s = L.s, Mi = s > 0 ? I3 : MY, H = BP([L.x, s * L.hy, L.z]), g = LGS[i], fo = feet && feet[i] ? feet[i] : null, hh = HOOFH * L.hs, Wd = [L.w, 0, 0, 0, L.w, 0, 0, 0, 1];
+        let fx = g.bx + (fo ? fo[0] : 0), fz = g.lift + (fo ? fo[2] : 0); if (L.f && rear > 0) { fx += rear * 1.2; fz = Math.max(fz, rear * 2.6); }
+        const footY = g.by + s * (fo ? fo[1] : 0), Aw = [fx, footY, hh + fz];
         const J = ik(H, Aw, L.f ? 1 : -1), Rt = segR(H, J.K), Rs = segR(J.K, J.A), RtW = mm(Rt, Wd), RsW = mm(Rs, Wd);
         put(M.thigh, mm(RtW, Mi), H, 1, glow, null, 0.18); put(M.shin, mm(RsW, Mi), J.K, 1, glow, null, 0.12);
-        put(M.stab, mm(RsW, rz(stabA * (i % 2 ? 1 : -1) * (1 + cl(P.mv || 0)))), add(J.K, mv(Rs, [0, 0, -0.55 * L2])), 1.04, glow, null, 0.12);
-        const hoofR = fz > 0.02 ? mm(ry(-(Math.atan2(J.A[0] - J.K[0], J.K[2] - J.A[2])) * 0.5), Mi) : Mi; put(M.hoof, hoofR, J.A, L.hs, glow, null, 0.0);
+        put(M.stab, mm(RsW, rz(stabA * (i % 2 ? 1 : -1) * (1 + mvv) + g.lift * 1.6 * (i % 2 ? 1 : -1))), add(J.K, mv(Rs, [0, 0, -0.55 * L2])), 1.04, glow, null, 0.12);
+        // v430 BP: the ankle: flat on the floor when planted; in the air the hoof flexes back at toe-off, reaches, and levels before it lands
+        const shA = Math.atan2(J.A[0] - J.K[0], J.K[2] - J.A[2]), air = sstep(0.0, 0.18, fz), hoofR = air > 0.001 ? mm(ry(g.pitch * air - shA * 0.3 * air), Mi) : Mi; put(M.hoof, hoofR, J.A, L.hs, glow, null, 0.0);
         const a1 = add(H, mv(RtW, [-0.5, s * 0.42, -0.4])), a2 = add(J.K, mv(RsW, [-0.42, s * 0.36, -0.9])), dv = sub(a2, a1), dl = len(dv), dn = norm(dv), Rp = frameZ(dn), Rx = [Rp[2], Rp[0], Rp[1], Rp[5], Rp[3], Rp[4], Rp[8], Rp[6], Rp[7]], pw = L.w * 0.8;
         put(M.pS, mm(Rx, [dl * 0.58 / pw, 0, 0, 0, 1, 0, 0, 0, 1]), a1, pw, glow, null, 0.15); put(M.pR, mm(Rx, [dl * 0.62 / pw, 0, 0, 0, 1, 0, 0, 0, 1]), add(a2, mul(dn, -dl * 0.62)), pw, glow, null, 0.15);
         out.feet.push(scr([fx, footY, 0])); box(H, 1.2 * L.w); box(Aw, 1.0 * L.hs);
@@ -552,6 +675,7 @@ const BELIAL_GL = (() => {
       const alp = o.alpha == null ? 1 : o.alpha; if (alp > 0.004) { c.save(); c.globalAlpha = Math.min(1, alp); c.drawImage(cvs, 0, 0, W, H, bx0, by0, bw, bh); c.restore(); }
       STATS.ms = STATS.ms * 0.9 + (nowMs() - t0) * 0.1; STATS.n++; if (!GLM.soft && STATS.n > 20) RES.k = STATS.ms > 7 ? Math.max(0.6, RES.k - 0.02) : STATS.ms < 3.5 ? Math.min(1, RES.k + 0.01) : RES.k; STATS.items = ITEMS.length; STATS.W = W; STATS.H = H;
       out.bb = [bx0, by0, bx1, by1]; out.unit = K * (o.scale || 1); out.core = scr(cp); out.coreR = CORER * (1 + co * 0.25) * out.unit; out.head = scr(hpW); out.mouth = scr(BP(add(HP, mv(RhS, [2.0, 0, -0.95])))); out.back = scr(BP([0.4, 0, CITF + 1.2])); out.top = scr(BP([1.75, 0, CITF + 4.6 + up * 1.7]));
+      out.steps = MS ? MS.steps : null; out.lifts = LGS.map(q => q.lift);   // v430 BP: the feet that landed this frame ({ i, f, idle }), each foot's height
       out.ground = [X0, Y0]; out.coreVis = cl((Math.sin(P.yaw || 0) * CE + 0.45) / 0.7); out.chest = scr(BP([CORE[0], 0, CORE[2] - 1.5 * CF]));
       return out;
     } catch (e) { fail(e); return null; }
@@ -589,7 +713,7 @@ const BELIAL_GL = (() => {
         const s = e.s, al = e.a == null ? 1 : e.a; if (!(al > 0.01) || !(s > 0.05)) continue;
         const Rb = mm(CAM, mm(rx(e.tilt || 0), mm(ry(e.lean || 0), rz(e.yaw || 0)))), zz = e.z == null ? e.Y : e.z, at = (lx, ly, lz) => { const v = mv(Rb, [lx, ly, lz]); return [e.X + v[0] * s, e.Y + v[1] * s, zz + v[2] * s]; };
         const R = sc => [Rb[0] * s * sc, Rb[1] * s * sc, Rb[2] * s * sc, Rb[3] * s * sc, Rb[4] * s * sc, Rb[5] * s * sc, Rb[6] * s * sc, Rb[7] * s * sc, Rb[8] * s * sc];
-        if (e.m === 'pillar') { const h = cl(e.h == null ? 1 : e.h), sink = (1 - h) * 5.8, dr = e.drums || [];
+        if (e.m === 'pillar') { const h = Math.max(0, Math.min(1.1, e.h == null ? 1 : e.h)) /* v430 BP: a little past risen (its emergence's overshoot) */, sink = (1 - h) * 5.8, dr = e.drums || [];
           put(M.pbase, R(1), at(0, 0, -sink), al, e.gl, e.g2, e.dis);
           for (let i = 0; i < 4; i++) { const q = dr[i] || {}, lz = 0.72 + i * 1.0 - sink, of = q.off || [0, 0]; const Rd = mm(Rb, mm(rz(q.rot || 0), rx(q.tip || 0))), Rds = Rd.map(v => v * s);
             const T = at(of[0], of[1], lz); T[1] -= q.lift || 0; put(M.drum, Rds, T, al, (e.gl || 0) + (q.gl || 0), e.g2, Math.max(e.dis || 0, q.dis || 0)); }
@@ -608,7 +732,7 @@ const BELIAL_GL = (() => {
     } catch (e) { fail(e); return false; }
   }
   if (typeof window !== 'undefined') setTimeout(() => { try { warm(); } catch (e) {} }, 1500);   // (prepared at load, in idle time)
-  return { usable, warm, ensure, step, release, gpuCount, draw, drawAnima, drawParts, coreLight, idlePose, life, gait, footfalls, springs, profile, RES, STATS, MT, WS, HEIGHT, STRIDE, LEGS, CORE, BODYC, NMONO,
+  return { usable, warm, ensure, step, release, gpuCount, draw, drawAnima, drawParts, coreLight, idlePose, life, gait, footfalls, springs, profile, motion /* v430 BP */, SWING, RES, STATS, MT, WS, HEIGHT, STRIDE, LEGS, CORE, BODYC, NMONO,
     ready: () => !!(D && D.ready), get up() { return !!(D && D.up); }, get nv() { return D ? D.nv : 0; }, get off() { return NOGL; } };
 })();
 if (typeof self !== 'undefined') self.BELIAL_GL = BELIAL_GL;

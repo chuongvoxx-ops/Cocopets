@@ -1590,6 +1590,32 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
         float core = exp(-q * q * 9.0) * 0.8 * pl, limb = exp(-sq((q - 0.95) / 0.06)) * 0.45, ein = exp(-sq((q - 1.45) / 0.05)) * (0.4 + 0.2 * sin(an * 5.0 + tt * 2.0)), bloom = 0.32 * exp(-max(q - 0.8, 0.0) * 1.3) * (1.0 - smoothstep(0.3, 1.0, r)) * pl;
         float arcs = exp(-sq((q - 1.9 - 0.15 * sin(an * 2.0 + tt)) / 0.03)) * pow(0.5 + 0.5 * sin(an * 3.0 - tt * 1.5), 6.0) * 0.5;
         L = (mix(col, vec3(1.0, 0.97, 0.9), 0.85) * core + mix(col, vec3(1.0), 0.45) * (limb + ein) + col * (bloom + arcs)) * v_q.z; L *= 1.0 - smoothstep(0.8, 1.0, r); }
+      /* v430 BP: Belial's polish */
+      else if (v_k < 202.5) { // 202 a gravitational lens (a unit disc): space bent round a ring at radius v_q.x: a bright inner fringe, a warm outer fringe, fine ripples shimmering through the band, faint radial strain; v_q.y seed, v_q.z strength
+        float R0 = max(v_q.x, 0.04), h = r - R0; if (abs(h) < 0.32) {   /* (only its band is shaded: the quad is mostly empty) */
+        float nn = n2(vec2(an * 3.0 + v_q.y, r * 5.0 - tt * 0.6)) * 0.7 + n2(vec2(an * 7.0 - v_q.y, r * 11.0 + tt * 0.4)) * 0.3, band = exp(-sq(h / (0.07 + 0.05 * R0)));
+        float rip = 0.5 + 0.5 * sin((r - tt * 0.3) * 70.0 + nn * 7.0), f1 = exp(-sq((h + 0.012) / 0.012)), f2 = exp(-sq((h - 0.026) / 0.018)), strain = pow(0.5 + 0.5 * cos(an * 14.0 + nn * 5.0), 12.0) * band * 0.5;
+        L = (mix(col, vec3(1.0), 0.65) * f1 * 0.75 + col * vec3(1.0, 0.72, 0.42) * f2 * 0.55 + col * (rip * band * 0.28 + strain)) * v_q.z * (1.0 - smoothstep(0.22, 0.32, abs(h))); L *= 1.0 - smoothstep(0.92, 1.0, r); } }
+      else if (v_k < 203.5) { // 203 a bow of pressure ahead of a charge (uv.x -1 behind .. 1 ahead along its quad's u, uv.y across): three shells of compressed air and gravity curving back from the front, streaks raking back past them; v_q.x the speed (0..1), v_q.y seed, v_q.z strength
+        float x = u.x, y = u.y, s3 = 0.0; for (int i = 0; i < 3; i++) { float fi = float(i), px = 0.62 - fi * 0.3 - (1.05 + fi * 0.45) * y * y, d = x - px; s3 += exp(-sq(d / (0.03 + 0.025 * fi))) * (1.0 - fi * 0.3) * (1.0 - smoothstep(0.55, 0.95, abs(y))); }
+        float stk = pow(n2(vec2(y * 16.0 + v_q.y, x * 1.6 + tt * (2.0 + 9.0 * v_q.x))), 5.0) * smoothstep(0.75, -0.2, x + 0.6 * y * y) * (1.0 - smoothstep(0.4, 0.9, abs(y))) * 1.6, hot = exp(-sq((x - 0.62 + 1.05 * y * y) / 0.06)) * exp(-y * y * 6.0);
+        L = (mix(col, vec3(1.0), 0.35) * (s3 * 0.55 + hot * 0.6) + col * stk * (0.4 + 0.6 * v_q.x)) * v_q.z * (1.0 - smoothstep(0.8, 1.0, abs(x))) * (1.0 - smoothstep(0.85, 1.0, abs(y))); }
+      else if (v_k < 204.5) { // 204 a compression pulse driven down (uv.x across, uv.y -1 its top .. 1 its foot): a funnel narrowing to the foot, rings of force running DOWN it, a white-hot band at v_q.z (0 top .. 1 foot; < 0 none), the foot flaring; v_q.x the funnel's width, v_q.y seed
+        float x = u.x, yy = (u.y + 1.0) * 0.5, w = max(v_q.x, 0.04) * mix(1.7, 0.55, yy), body = exp(-sq(x / w)), core = exp(-sq(x / (w * 0.32)));
+        float rg = pow(0.5 + 0.5 * sin(yy * 20.0 - tt * 11.0 + v_q.y), 9.0) * exp(-sq(x / (w * 1.3))), pul = v_q.z >= 0.0 ? exp(-sq((yy - v_q.z) / 0.07)) * exp(-sq(x / (w * 1.6))) : 0.0, cur = n2(vec2(x * 4.0 + v_q.y, yy * 3.0 - tt * 2.5));
+        float ends = smoothstep(0.0, 0.2, yy) * (1.0 - smoothstep(0.88, 1.0, yy)), foot = exp(-sq((yy - 0.9) / 0.05)) * exp(-sq(x / (w * 3.0))) * 0.6;
+        L = (mix(col, vec3(1.0), 0.65) * (core * 0.45 + pul * 1.5) + col * (body * (0.18 + 0.3 * cur) + rg * 0.65 + foot)) * ends; }
+      else if (v_k < 205.5) { // 205 a seismic upheaval on the floor (a unit disc): the ground's slabs heaving at the front v_q.x (0..1): a jagged lit crest, fissures between the slabs behind it, grit; v_q.y seed, v_q.z strength
+        float R0 = v_q.x, h = r - R0; if (h > -0.34 && h < 0.12) {   /* (only near its front) */ float ns = 9.0 + floor(h1(vec2(v_q.y, 1.0)) * 6.0), sg = (an / 6.2832 + 0.5) * ns + h1(vec2(v_q.y, 3.0)), si = floor(sg), sf = fract(sg), jag = (h1(vec2(si, v_q.y)) - 0.5) * 0.07 * (0.4 + R0);
+        float crest = exp(-sq((h - jag) / 0.022)), edge = exp(-sq((h - jag + 0.085) / 0.018)) * 0.45, fis = smoothstep(0.07, 0.0, min(sf, 1.0 - sf)) * exp(-sq((h + 0.07) / 0.08)) * step(h, jag);
+        float grit = pow(n2(vec2(an * 36.0, r * 36.0) + v_q.y), 8.0) * exp(-sq(h / 0.12)) * 2.2, slab = (0.12 + 0.1 * h1(vec2(si, v_q.y + 5.0))) * smoothstep(-0.2, 0.0, h - jag) * step(h, jag);
+        L = (mix(col, vec3(1.0, 0.95, 0.82), 0.6) * crest + col * (fis * 0.9 + edge + grit + slab)) * v_q.z * (1.0 - smoothstep(0.88, 1.0, R0)) * (1.0 - smoothstep(0.22, 0.34, -h)) * (1.0 - smoothstep(0.08, 0.12, h)); L *= 1.0 - smoothstep(0.95, 1.0, r); } }
+      else if (v_k < 206.5) { // 206 the Citadel's rune lattice (a sphere in its quad: uv a unit disc): hexagonal cells of light across the dome, a rune ring in each pulsing in turn, light running down the cell walls toward its foot (the energy drawn into the core), a fresnel rim; a blow's ripple as 197 (v_q.z: floor its age x 10, fract its angle / 2pi); v_q.x the charge (0..1 brighter, faster), v_q.y its turn
+        float zz = sqrt(max(0.0, 1.0 - r * r)); vec2 p = vec2(atan(u.x, max(zz, 0.001)) + v_q.y, asin(clamp(u.y, -1.0, 1.0))) * vec2(3.2, 3.6); vec2 hs = vec2(1.0, 1.7320508), ha = mod(p, hs) - hs * 0.5, hb = mod(p - hs * 0.5, hs) - hs * 0.5, gv = dot(ha, ha) < dot(hb, hb) ? ha : hb, id = p - gv;
+        float hd = max(dot(abs(gv), vec2(0.5, 0.8660254)), abs(gv.x)), wall = exp(-sq((hd - 0.5) / 0.035)), k2 = clamp(v_q.x, 0.0, 1.0), ph = h1(id + 3.3);
+        float rune = exp(-sq((length(gv) - 0.24) / 0.025)) * pow(0.5 + 0.5 * sin(tt * (1.5 + 2.0 * k2) + ph * 20.0), 3.0), flow = pow(0.5 + 0.5 * sin(id.y * 1.3 - p.y * 0.0 + tt * (3.0 + 5.0 * k2) + ph * 2.0), 6.0) * wall;
+        float hitA = fract(v_q.z) * 6.2832, age = floor(v_q.z) / 10.0, hdd = length(u - vec2(cos(hitA), sin(hitA)) * 0.8), wave = age > 0.0 ? exp(-sq((hdd - age * 1.4) / 0.08)) * (1.0 - age) * 1.4 : 0.0, fr = pow(1.0 - zz, 2.0);
+        L = (col * (wall * (0.22 + 0.25 * k2) + rune * (0.35 + 0.5 * k2) + fr * 0.25) + mix(col, vec3(1.0), 0.6) * (flow * (0.3 + 0.6 * k2) + wave)) * (0.55 + 0.45 * zz + fr); L *= 1.0 - smoothstep(0.94, 1.0, r); }
       else L = col * exp(-r * r * 4.0) * 0.5; }
     /*</BL-FX>*/
     else if (v_k > 135.5 && v_k < 140.5) { // (v420 GC) the Gate of Cancer's light (20o-rift-gate-cancer.js, 20o1-cancer-props.js). v_c its colour
