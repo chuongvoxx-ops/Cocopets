@@ -181,7 +181,11 @@ var BELFRY_HALL = (() => {
     // the opening: the corridor beyond, dark; lit in the branch's colour once open
     const og = c.createLinearGradient(0, Ys - ph, 0, Ys); og.addColorStop(0, '#071016'); og.addColorStop(1, G.open > 0 ? rgba(C.col, 0.25 * G.open) : '#0E1C24'); c.fillStyle = og; c.fillRect(Xs - hw, Ys - ph, hw * 2, ph);
     // the leaves
-    const slide = G.open * hw * 0.92; for (const sd of [-1, 1]) { const x0 = sd < 0 ? Xs - hw - slide + 0 : Xs + slide, w = hw; c.save(); c.beginPath(); c.rect(Xs - hw, Ys - ph, hw * 2, ph); c.clip();
+    /* v430 BW: the leaves are heavy bronze now (BEL_DOORS 'leaf' hall): they slide with their mass (a slow start, a heavy stop), a lock
+       rosette on the seam turns before they part and rides away on the west leaf, dust shaken from the sill, a tremor as they go */
+    const BD = typeof BEL_DOORS !== 'undefined' ? BEL_DOORS : null, oE = BD ? BD.heavy(G.open) : G.open, mv = BD ? BD.dust('hg' + B, Xs, Ys, hw * 2, G.open, T) : false, vib = mv ? Math.sin(t * 70) * T * 0.012 : 0;
+    const slide = oE * hw * 0.92; for (const sd of [-1, 1]) { const x0 = (sd < 0 ? Xs - hw - slide + 0 : Xs + slide) + vib, w = hw; c.save(); c.beginPath(); c.rect(Xs - hw, Ys - ph, hw * 2, ph); c.clip();
+      if (BD && BD.pic(c, 'leaf', sd < 0 ? 'halll' : 'hallr', sd < 0 ? x0 + hw : x0, Ys, T)) { if (sd < 0) BD.lockArt(c, 'std', x0 + hw, Ys - ph * 0.47, T, ease(G.open / 0.35) * TAU * 0.75); c.restore(); continue; }
       if (BPZ() && BPZ().draw(c, 'leaf', 0, x0, Ys, T)) { c.restore(); continue; }   // v392 PR: a repainted leaf (a slab with brass straps and studs)
       const lg = c.createLinearGradient(x0, 0, x0 + w, 0); lg.addColorStop(0, '#9FA597'); lg.addColorStop(0.5, P.LIME); lg.addColorStop(1, '#7E8478'); c.fillStyle = lg; c.fillRect(x0, Ys - ph, w, ph); c.strokeStyle = P.INK; c.lineWidth = lw; c.strokeRect(x0, Ys - ph, w, ph);
       // the tidal stain on the lower third, brass straps, rivets
@@ -190,7 +194,7 @@ var BELFRY_HALL = (() => {
       c.restore(); }
     // the seal: brass bars and a glowing seam while shut
     if (G.open < 0.05) { c.strokeStyle = G.sealed ? rgba(C.col, 0.25) : rgba(C.col, 0.75 + 0.2 * Math.sin(t * 3)); c.lineWidth = Math.max(2, T * 0.06); c.beginPath(); c.moveTo(Xs, Ys - ph); c.lineTo(Xs, Ys); c.stroke();
-      if (G.sealed) { c.strokeStyle = P.BRASS_D; c.lineWidth = Math.max(3, T * 0.12); for (const u of [0.35, 0.7]) { c.beginPath(); c.moveTo(Xs - hw, Ys - ph * u); c.lineTo(Xs + hw, Ys - ph * u); c.stroke(); } } }
+      if (G.sealed && !(BD && [0.35, 0.7].every(u => BD.pic(c, 'bolt', 'h', Xs, Ys - ph * u, T) && BD.pic(c, 'bolt', 'h', Xs, Ys - ph * u, T, { sx: -1 })))) { c.strokeStyle = P.BRASS_D; c.lineWidth = Math.max(3, T * 0.12); for (const u of [0.35, 0.7]) { c.beginPath(); c.moveTo(Xs - hw, Ys - ph * u); c.lineTo(Xs + hw, Ys - ph * u); c.stroke(); } } }   // v430 BW: a sealed gate barred by two bronze bolts
     // the pillars
     for (const sd of [-1, 1]) { const x0 = sd < 0 ? Xs - hw - pw : Xs + hw, plA = c.globalAlpha; if (BPZ() && BPZ().draw(c, 'gpillar', 0, x0 + pw / 2, Ys, T)) c.globalAlpha = 0;   /* v392 PR: repainted pillars */ const pg = c.createLinearGradient(x0, 0, x0 + pw, 0); pg.addColorStop(0, P.LIME_HI); pg.addColorStop(1, P.LIME_D); c.fillStyle = pg; c.fillRect(x0, Ys - ph - T * 0.3, pw, ph + T * 0.3); c.strokeStyle = P.INK; c.lineWidth = lw; c.strokeRect(x0, Ys - ph - T * 0.3, pw, ph + T * 0.3);
       const sg = c.createLinearGradient(0, Ys - ph * 0.45, 0, Ys); sg.addColorStop(0, 'rgba(14,20,24,0)'); sg.addColorStop(1, 'rgba(14,20,24,.85)'); c.fillStyle = sg; c.fillRect(x0, Ys - ph * 0.45, pw, ph * 0.45);
@@ -200,6 +204,7 @@ var BELFRY_HALL = (() => {
     const ly = Ys - ph - T * 0.95, lg2 = c.createLinearGradient(0, ly, 0, ly + T * 0.8); lg2.addColorStop(0, P.LIME_HI); lg2.addColorStop(1, '#9AA092'); c.fillStyle = lg2; c.fillRect(Xs - hw - pw - T * 0.2, ly, (hw + pw + T * 0.2) * 2, T * 0.8); c.strokeStyle = P.INK; c.lineWidth = lw; c.strokeRect(Xs - hw - pw - T * 0.2, ly, (hw + pw + T * 0.2) * 2, T * 0.8);
     c.globalAlpha = lA; label(c, C.dir, Xs - hw * 0.62, ly + T * 0.42, T * 0.36, '#24323A', { ink: 'rgba(255,255,255,.45)', lw: 2 }); label(c, C.dir, Xs + hw * 0.62, ly + T * 0.42, T * 0.36, '#24323A', { ink: 'rgba(255,255,255,.45)', lw: 2 });
     medallion(c, B, Xs, ly + T * 0.15, T * 0.95, G, t);
+    if (BD) BD.fx(c);   // v430 BW: the dust it shook loose
     c.restore(); }
   /* the big round emblem medallion over a gate: brass rim, the emblem in its colour (bright when chosen or complete) */
   function medallion(c, B, x, y, r, G, t) { const C = BR[B], lit = G.done ? 1 : G.sel ? 0.75 + 0.25 * Math.sin(t * 4) : G.sealed ? 0.25 : 0.55;
@@ -216,9 +221,13 @@ var BELFRY_HALL = (() => {
     c.save();
     const top = Ys - half, bot = Ys + half;
     // the threshold strip and the slab (its top face, then its hall-facing side, height shrinking as it sinks)
-    const hgt = T * 1.6 * (1 - G.open);
+    const BD = typeof BEL_DOORS !== 'undefined' ? BEL_DOORS : null, oE = BD ? Math.min(1, BD.heavy(G.open)) : G.open, hgt = T * 1.6 * (1 - oE);
     c.fillStyle = '#5E6660'; c.fillRect(Xs - T * 0.5, top, T, bot - top);
-    if (hgt > 1) { const fx = Xs + dirX * T * 0.32; const sg = c.createLinearGradient(0, top - hgt, 0, bot); sg.addColorStop(0, P.LIME_HI); sg.addColorStop(1, '#8C9286'); c.fillStyle = sg; c.fillRect(Xs - T * 0.32, top - hgt, T * 0.64, bot - top); c.strokeStyle = P.INK; c.lineWidth = lw; c.strokeRect(Xs - T * 0.32, top - hgt, T * 0.64, bot - top);
+    /* v430 BW: the slab is bronze-clad stone (BEL_DOORS 'slab': its top, its south end), sinking with its mass, trembling, dust at its foot */
+    const mv = BD ? BD.dust('hs' + B, Xs, bot, T * 0.8, G.open, T) : false, vib = mv ? Math.sin(t * 70) * T * 0.012 : 0;
+    if (hgt > 1 && BD && BD.pic(c, 'slab', 't', Xs + vib, bot - hgt, T)) { c.save(); c.beginPath(); c.rect(Xs - T * 0.4, bot - hgt, T * 0.8, hgt); c.clip(); BD.pic(c, 'slab', 'f', Xs + vib, bot + (T * 1.6 - hgt), T); c.restore();
+      const fx = Xs + dirX * T * 0.32; c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = G.sealed ? rgba(C.col, 0.25) : rgba(C.col, 0.8 + 0.2 * Math.sin(t * 3)); c.lineWidth = Math.max(2, T * 0.06); c.beginPath(); c.moveTo(fx, top - hgt); c.lineTo(fx, bot - hgt); c.stroke(); c.restore(); }
+    else if (hgt > 1) { const fx = Xs + dirX * T * 0.32; const sg = c.createLinearGradient(0, top - hgt, 0, bot); sg.addColorStop(0, P.LIME_HI); sg.addColorStop(1, '#8C9286'); c.fillStyle = sg; c.fillRect(Xs - T * 0.32, top - hgt, T * 0.64, bot - top); c.strokeStyle = P.INK; c.lineWidth = lw; c.strokeRect(Xs - T * 0.32, top - hgt, T * 0.64, bot - top);
       c.fillStyle = P.BRASS; for (const u of [0.25, 0.75]) c.fillRect(Xs - T * 0.32, top - hgt + (bot - top) * u, T * 0.64, T * 0.12);
       c.strokeStyle = G.sealed ? rgba(C.col, 0.25) : rgba(C.col, 0.8 + 0.2 * Math.sin(t * 3)); c.lineWidth = Math.max(2, T * 0.06); c.beginPath(); c.moveTo(fx, top - hgt); c.lineTo(fx, bot - hgt); c.stroke(); }
     // the pylons at the gate's two ends
@@ -228,6 +237,7 @@ var BELFRY_HALL = (() => {
     const mx = Xs + dirX * T * 1.15, my = Ys - T * 1.9; c.fillStyle = P.BRASS_D; c.fillRect(mx - T * 0.08, my, T * 0.16, Ys - my + T * 0.1); c.fillStyle = 'rgba(0,0,0,.3)'; ell(c, mx, Ys + T * 0.12, T * 0.35, T * 0.1); c.fill();
     medallion(c, B, mx, my, T * 0.8, G, t);
     label(c, C.dir, mx, my - T * 1.15, T * 0.42, '#F4F1E2', { ink: rgba('#0A1A22', 0.85), lw: 3.5 });
+    if (BD) BD.fx(c);   // v430 BW
     c.restore(); }
 
   /* the central doorway (D: rise 0..1, part 0..1, wet 0..1): two limestone pillars banded with tarnished brass, a
@@ -249,6 +259,8 @@ var BELFRY_HALL = (() => {
       const wg = c.createLinearGradient(0, Y - h, 0, Y); wg.addColorStop(0, `rgba(40,90,110,${0.35 * D.wet})`); wg.addColorStop(1, `rgba(20,40,50,${0.25 + 0.35 * D.wet})`); c.fillStyle = wg; c.fillRect(x0, Y - h, w, h);
       c.restore(); }
     if (D.part < 0.98) { const gk = 1 - D.part; c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = rgba(P.TURQ, 0.85 * gk); c.lineWidth = Math.max(2, T * 0.07); c.beginPath(); c.moveTo(Xs, Y - h); c.lineTo(Xs, Y); c.stroke(); c.restore(); }
+    // v430 BW: the doorway's great lock: a triple-ringed bronze rosette on the seam turns a half turn as the slabs part, riding away on the west slab; dust off it as it rises and parts
+    const BD = typeof BEL_DOORS !== 'undefined' ? BEL_DOORS : null; if (BD) { BD.dust('cer', Xs, Ys, w * 2, (D.rise + D.part) / 2, T); c.save(); c.beginPath(); c.rect(Xs - w, Y - h, w * 2, h); c.clip(); BD.lockArt(c, 'cer', Xs - sl, Y - h * 0.52, T, ease(D.part / 0.4) * Math.PI); c.restore(); }
     // the pillars with their brass bands (v392 PR: the repainted frame, pillars, lintel and emblems in one picture; the old 2D only where that is off)
     const dfA = c.globalAlpha; if (BPZ() && BPZ().draw(c, 'doorframe', 0, Xs, Y, T)) c.globalAlpha = 0;
     for (const sd of [-1, 1]) { const x0 = sd < 0 ? Xs - w - pw : Xs + w; const g = c.createLinearGradient(x0, 0, x0 + pw, 0); g.addColorStop(0, P.LIME_HI); g.addColorStop(1, '#8E948A'); c.fillStyle = g; c.fillRect(x0, Y - h, pw, h); c.strokeStyle = P.INK; c.lineWidth = lw; c.strokeRect(x0, Y - h, pw, h);
@@ -267,6 +279,7 @@ var BELFRY_HALL = (() => {
       if (D.part > 0.02) { Q.glow(Xs, Y - h * 0.4, w * 1.4, P.TURQ, 0.35 * D.part, 1.3); Q.caustic(Xs, Ys + T * 0.6, w * 1.5, '#7FF0F0', 0.4 * D.part, 1.7, 0.45); }
       if (D.wet > 0.05) for (let i = 0; i < 6; i++) { const x = Xs + (i / 5 - 0.5) * (w + pw) * 2; Q.wstream(x, ly + lh, x, Ys, T * 0.12, '#8FE3F0', 0.45 * D.wet, i * 1.3, 4, 0.5, 0.7); Q.spray(x, Ys, T * 0.5, '#CFF6FF', 0.35 * D.wet, i * 0.7, 1, 0.45); } },
       c2 => { if (D.part > 0.02) glow(c2, Xs, Y - h * 0.4, w * 1.3, P.TURQ, 0.3 * D.part, 1.3); KEYS.forEach((B, i) => glow(c2, Xs + (i - 1) * w * 0.72, Y - h - lh * 0.5, lh * 0.8, BR[B].col, 0.45 * ease(D.rise))); });
+    if (BD) BD.fx(c);   // v430 BW
   }
 
   /* ======================= the hall's floor dressing ======================= */
@@ -950,7 +963,7 @@ var BELFRY_HALL = (() => {
 
     /* ---- the update ---- */
     function update(dt) { S.t += dt; S.dt = dt; S.msgT = Math.max(0, S.msgT - dt); if (S.door.hold > 0) S.door.hold -= dt;
-      for (const B of KEYS) { const G = GT[B]; G.open = clamp(G.open + (G.want ? dt / 0.8 : -dt / 0.6), 0, 1); }
+      for (const B of KEYS) { const G = GT[B]; G.open = clamp(G.open + (G.want ? dt / 1.5 : -dt / 1.0), 0, 1); }   // v430 BW: heavier (was 0.8 s / 0.6 s; the way through opens and shuts at once, as before: only the leaves' look takes longer)
       for (const B of KEYS) { if (S.grip[B] > 0 && S.grip[B] < 1) S.grip[B] = Math.min(1, S.grip[B] + dt / 0.6); if (S.chan[B] > 0 && S.chan[B] < 1) S.chan[B] = Math.min(1, S.chan[B] + dt / 0.9); }
       bubbleTick(dt); doorTick(dt); for (const k of KEYS) if (TR[k].frame) TR[k].frame();
       for (const k of KEYS) if (TR[k].dress) TR[k].dress(dt);   // v392 PR: the breakable dressing (shots through it, a swinging bell's hiding)

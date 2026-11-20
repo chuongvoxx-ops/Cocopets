@@ -1396,6 +1396,26 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
     vec2 p = u * vec2(2.2, 1.4) + vec2(u_t * 0.05 * v_q.x, u_t * 0.012) + v_q.y; float f = fbm(p), f2 = fbm(p * 2.3 - vec2(u_t * 0.08 * v_q.x, 0.0) + 3.1);
     float a = smoothstep(0.3, 0.85, f * 0.75 + f2 * 0.45) * (1.0 - smoothstep(0.3, 1.0, r)) * v_q.z * v_c.a; vec3 c = mix(col * 0.78, min(col * 1.18 + 0.08, vec3(1.0)), f2);
     gl_FragColor = vec4(c * a, a); }
+  /*<BW-FX solids 216, 218 (v430 BW: 20n9e-belfry-drain.js, the Drowned Belfry's draining halls)>*/
+  else if (v_k > 215.5 && v_k < 216.5) { // 216 a hall's water over its sloping floor (its quad the hall's rect, uv -1..1): the floor dips to the drain at the sump and rises to the walls (BEL_DRAIN's elev, the same function); the water lies where the surface v_q.x stands above it, its edge feathered; the revealed floor dark and wet, drying. v_q.y the sump (packed), v_q.z turbulence + dryness (packed); v_c.r aspect / 4, v_c.g seed, v_c.b mode (0 the shallows, 1 deep water, 0.5 the deep water's tint over what stands in it)
+    float ar = max(v_c.r * 4.0, 0.05), sd = v_c.g * 6.2832, md = v_c.b, sq0 = floor(v_q.y), tq = floor(v_q.z), turb = tq / 1000.0, dry = (v_q.z - tq) / 0.998;
+    vec2 s = vec2((sq0 / 1000.0 * 2.0 - 1.0) * ar, (v_q.y - sq0) / 0.998 * 2.0 - 1.0), p = vec2(u.x * ar, u.y);
+    float dm = max(max(length(vec2(ar, 1.0) - s), length(vec2(-ar, 1.0) - s)), max(length(vec2(ar, -1.0) - s), length(vec2(-ar, -1.0) - s)));
+    float d = length(p - s), e = 0.06 + 0.84 * pow(d / dm, 0.8) + 0.05 * sin(p.x * 3.1 + sd) * sin(p.y * 2.7 + sd * 0.7) + 0.07 * (1.0 - smoothstep(0.0, 0.3, min(ar - abs(p.x), 1.0 - abs(p.y))));
+    float an = atan(p.y - s.y, p.x - s.x), fl = n2(vec2(an * 3.0 + sd, d * 7.0 + u_t * (0.4 + 1.6 * turb)));
+    float dep = v_q.x - e + (fl - 0.5) * 0.012 * turb, wm = smoothstep(-0.003, 0.012, dep), a = 0.0; vec3 c = vec3(0.0);
+    if (md > 0.75) { float k = smoothstep(0.0, 0.45, dep); c = mix(vec3(0.118, 0.42, 0.5), vec3(0.025, 0.1, 0.155), k) * (0.94 + 0.12 * fl); a = wm * mix(0.42, 0.93, k); }
+    else if (md > 0.25) { float k = smoothstep(0.12, 0.5, dep); c = vec3(0.055, 0.24, 0.33); a = wm * k * 0.42; }
+    else { c = vec3(0.118, 0.463, 0.557) * (0.92 + 0.16 * fl * turb); a = wm * (0.3 + 0.12 * smoothstep(0.0, 0.45, dep) + 0.05 * turb); }
+    vec3 P = c * a; if (md < 0.25 || md > 0.75) { float wf = (1.0 - wm) * (1.0 - dry) * (0.1 + 0.32 * exp(min(dep, 0.0) * 9.0)); P += vec3(0.02, 0.05, 0.06) * wf * (1.0 - a); a += wf * (1.0 - a); }
+    gl_FragColor = vec4(min(P, vec3(1.0)), a) * v_c.a; }
+  else if (v_k > 217.5 && v_k < 218.5) { // 218 a north wall face over a draining hall (uv.x along it, uv.y -1 its top .. 1 its foot): the water against it up to v_q.x of its height (its top feathered, lapping), the stone above dark and wet up to the old line (v_q.y packed: that height, its wetness), streaked where it drips; v_q.z seed; v_c the water's colour
+    float yb = (1.0 - u.y) * 0.5, h = v_q.x, q0 = floor(v_q.y), hm = q0 / 1000.0, wt = (v_q.y - q0) / 0.998, sd = v_q.z * 37.0;
+    float drip = smoothstep(0.55, 1.0, n2(vec2((u.x * 9.0 + sd) * 1.7, yb * 2.0 - u_t * 0.15)));
+    float stain = (1.0 - smoothstep(hm - 0.04 + drip * 0.09, hm + 0.03 + drip * 0.14, yb)) * wt, wtr = 1.0 - smoothstep(h - 0.025, h + 0.01, yb + 0.01 * sin(u.x * 30.0 + u_t * 3.0)) * step(0.002, h) - step(h, 0.002);
+    float ends = 1.0 - smoothstep(0.9, 1.0, abs(u.x)), a = max(stain * 0.4, max(wtr, 0.0) * 0.5) * ends; vec3 c = mix(vec3(0.02, 0.05, 0.06), col, max(wtr, 0.0));
+    gl_FragColor = vec4(c * a, a) * v_c.a; }
+  /*</BW-FX>*/
 /*<W>*/  else if (v_k > 32.5 && v_k < 33.5) { // (v370, wind) the body of a blade of wind (solid): deep emerald toward its sharp outer edge, its
     // opacity fading toward the inner edge, streaked as the air races along it; v_q.x span + 10 x mode, v_q.y seed, v_q.z thickness
     vec4 B = wbl(u, v_q.x, v_q.z); float d = B.x, rr = r, md = floor(v_q.x / 10.0), along = md < 0.5 ? pow(clamp(1.0 - B.y, 0.0, 1.0), 1.3) : md < 1.5 ? 1.0 - smoothstep(0.7, 1.0, B.y) : 1.0;
@@ -1618,6 +1638,30 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
         L = (col * (wall * (0.22 + 0.25 * k2) + rune * (0.35 + 0.5 * k2) + fr * 0.25) + mix(col, vec3(1.0), 0.6) * (flow * (0.3 + 0.6 * k2) + wave)) * (0.55 + 0.45 * zz + fr); L *= 1.0 - smoothstep(0.94, 1.0, r); }
       else L = col * exp(-r * r * 4.0) * 0.5; }
     /*</BL-FX>*/
+    /*<BW-FX lights 217, 219 (v430 BW: 20n9e-belfry-drain.js)>*/
+    else if (v_k > 216.5 && v_k < 219.5) { float tt = u_t;
+      if (v_k < 217.5) { // 217 the light on a draining hall's water (the same quad and packing as 216): slow caustics, foam riding the shoreline, rings of flow running in to the drain, streaks drawn toward it, a whirl over the sump while the water moves, glints
+        float ar = max(v_c.r * 4.0, 0.05), sd = v_c.g * 6.2832, md = v_c.b, sq0 = floor(v_q.y), tq = floor(v_q.z), turb = tq / 1000.0;
+        vec2 s = vec2((sq0 / 1000.0 * 2.0 - 1.0) * ar, (v_q.y - sq0) / 0.998 * 2.0 - 1.0), p = vec2(u.x * ar, u.y);
+        float dm = max(max(length(vec2(ar, 1.0) - s), length(vec2(-ar, 1.0) - s)), max(length(vec2(ar, -1.0) - s), length(vec2(-ar, -1.0) - s)));
+        float d = length(p - s), e = 0.06 + 0.84 * pow(d / dm, 0.8) + 0.05 * sin(p.x * 3.1 + sd) * sin(p.y * 2.7 + sd * 0.7) + 0.07 * (1.0 - smoothstep(0.0, 0.3, min(ar - abs(p.x), 1.0 - abs(p.y))));
+        float an = atan(p.y - s.y, p.x - s.x), fl = n2(vec2(an * 3.0 + sd, d * 7.0 + tt * (0.4 + 1.6 * turb))), dep = v_q.x - e + (fl - 0.5) * 0.012 * turb, wm = smoothstep(-0.003, 0.012, dep), dk = smoothstep(0.0, 0.05, dep);
+        vec2 q = p * 2.4 + vec2(tt * 0.09, tt * 0.06) + sd; float k1 = sin(q.x * 2.0 + sin(q.y * 3.0) * 1.2) + sin(q.y * 2.0 + sin(q.x * 3.0 + 1.0) * 1.3) + sin(q.x + q.y + sin(q.x - q.y) * 0.8);
+        vec2 q2 = p * 3.7 - vec2(tt * 0.07, -tt * 0.1) + 3.1; float k2 = sin(q2.x * 2.0 + sin(q2.y * 3.0) * 1.2) + sin(q2.y * 2.0 + sin(q2.x * 3.0 + 1.0) * 1.3) + sin(q2.x + q2.y + sin(q2.x - q2.y) * 0.8);
+        float caus = pow(max(0.0, 1.0 - abs(k1) * 0.7), 3.0) + 0.6 * pow(max(0.0, 1.0 - abs(k2) * 0.7), 3.0);
+        float foam = exp(-sq(dep / 0.02)) * (0.45 + 0.55 * n2(p * 11.0 + vec2(tt * 0.8, -tt * 0.5))) * (0.45 + 0.75 * turb);
+        float rip = pow(0.5 + 0.5 * sin(d * 24.0 + tt * 5.0 - fl * 2.0), 10.0) * turb * dk * (1.0 - smoothstep(0.25, 1.0, d / dm));
+        float stk = pow(n2(vec2(an * 6.0 + sd, d * 4.0 + tt * 2.4)), 6.0) * 2.0 * turb * dk;
+        float sw = an + 3.0 * log(d + 0.05) + tt * 3.2, arms = pow(0.5 + 0.5 * cos(3.0 * sw), 7.0) * (1.0 - smoothstep(0.03, 0.26, d)) * turb * wm, eye = exp(-sq(d / 0.05)) * turb * wm * 0.4;
+        vec2 gg = p * 22.0, gi = floor(gg), gf = fract(gg) - 0.5; float gl = step(0.988, h1(gi + floor(tt * 2.0) * 0.37)) * exp(-dot(gf, gf) * 60.0) * dk * 0.55;
+        L = vec3(0.55, 0.92, 0.9) * (caus * (md > 0.75 ? 0.08 : 0.11) * dk + rip * 0.22 + stk * 0.12 + arms * 0.22) + vec3(0.9, 1.0, 0.98) * (foam * 0.7 + gl + eye); }
+      else { // 219 a wall face's waterline (the quad of 218): a thin bright film at v_q.x of its height, lapping, light sliding along it; drips running down the wet stone above (v_q.y the water's turbulence, v_q.z seed)
+        float yb = (1.0 - u.y) * 0.5, h = v_q.x, sd = v_q.z * 37.0, ends = 1.0 - smoothstep(0.9, 1.0, abs(u.x));
+        float line = exp(-sq((yb - h - 0.012 * sin(u.x * 30.0 + tt * 3.0)) / 0.02)) * (0.55 + 0.45 * n2(vec2(u.x * 14.0 - tt * 1.5, sd)));
+        float cx = (u.x * 0.5 + 0.5) * 26.0, ci = floor(cx), on = step(0.62, h1(vec2(ci, sd))), dy = fract(yb * 2.5 + tt * (0.5 + h1(vec2(ci, 3.0))) + h1(vec2(ci, 7.0)));
+        float drop = on * exp(-sq((fract(cx) - 0.5) / 0.08)) * smoothstep(0.0, 0.25, dy) * (1.0 - smoothstep(0.25, 0.32, dy)) * step(h, yb) * (1.0 - smoothstep(h + 0.15, h + 0.45, yb));
+        L = vec3(0.75, 0.97, 0.95) * (line * (0.55 + 0.45 * v_q.y) + drop * 0.5) * ends; } }
+    /*</BW-FX>*/
     else if (v_k > 135.5 && v_k < 140.5) { // (v420 GC) the Gate of Cancer's light (20o-rift-gate-cancer.js, 20o1-cancer-props.js). v_c its colour
       float tt = u_t, an = atan(u.y, u.x);
       if (v_k < 136.5) { // 136 the arena's carved lunar rings (its quad the arena's ellipse: uv a unit disc): the gold-inlaid rings at 0.3 and 0.86 and the carved ring at 0.58, light running round each in slow pulses, a soft pool on the sigil at the heart; v_q.x strength, v_q.y seed, v_q.z the sigil's glow
@@ -1953,6 +1997,7 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
     try { const di = gl.getExtension('WEBGL_debug_renderer_info'); info = String(di ? gl.getParameter(di.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)); } catch (e) { info = '?'; } soft = /swiftshader|llvmpipe|software|softpipe/i.test(info);
     PR = prog(VS, FSM(), ['a_p', 'a_uv', 'a_k', 'a_c', 'a_q']); bq = gl.createBuffer();
     try { PRW = prog(VS, FS, ['a_p', 'a_uv', 'a_k', 'a_c', 'a_q']); whyW = ''; } catch (e) { PRW = null; whyW = String(e && e.message || e).slice(0, 300); try { console.warn('Nidhogg GFX (wind): ' + whyW); } catch (e2) {} }
+    PRS = null; try { const s = FSS(); if (s) PRS = prog(VS, s, ['a_p', 'a_uv', 'a_k', 'a_c', 'a_q']); } catch (e) { PRS = null; }   /* v430 PF: the simple kinds' program (none: the main one draws them) */
     return true; }
   /* (v375) a lost context (a phone may drop one when many pages or pictures want the GPU) is made again a moment later on a
      fresh canvas, rather than leaving every effect in 2D for the rest of the session; a failed frame only after three in a row */
@@ -1964,16 +2009,61 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
   /* the batch: light quads and smoke quads, 12 floats a vertex */
   const RGB = new Map(), rgbOf = h => { let v = RGB.get(h); if (!v) { const q = hexRGB(h || '#FF7A2E'); v = [q[0] / 255, q[1] / 255, q[2] / 255]; RGB.set(h, v); } return v; };
   const QV = [[-1, -1], [1, -1], [-1, 1], [-1, 1], [1, -1], [1, 1]];
+  /* (v430 PF) the shape a round kind paints, laid as that shape and not as its whole square. The shader is given the same uv
+     at every pixel it shades (uv is affine in the quad, so any triangles inside it carry it unchanged): the picture is the
+     same, but the pixels a glow's, a ring's or a ripple's quad never lights (the corners; a thin ring's whole middle) are no
+     longer shaded at all. A disc (r0 0) is a fan of NSEG triangles, an annulus r0..r1 NSEG trapezoids, each with its outer
+     corners pushed out so the polygon holds the whole circle; every 6 vertices one kind, as the batch's readers expect.
+     A quad small on the screen stays a quad (its vertices would cost more than the pixels saved). window.__PF_OFF = 1:
+     every quad whole, as before (tests compare the two) */
+  const NSEG = 20, SCS = [], SSN = [], SKO = 1 / Math.cos(Math.PI / NSEG); for (let i = 0; i <= NSEG; i++) { SCS.push(Math.cos(i / NSEG * Math.PI * 2)); SSN.push(Math.sin(i / NSEG * Math.PI * 2)); }
+  const pfOff = () => { try { return typeof window !== 'undefined' && window.__PF_OFF === 1; } catch (e) { return false; } };
+  function shapeOut(Q, kind, x, y, ux, uy, vx, vy, col, al, q0, q1, q2, r0, r1, t0) {   /* (light kinds only: the 'lit' batch) */
+    const cx = Q.X(x, y), cy = Q.Y(x, y), a = Q.a, b = Q.b, c = Q.c0, d = Q.d, Ux = a * ux + c * uy, Uy = b * ux + d * uy, Vx = a * vx + c * vy, Vy = b * vx + d * vy;
+    if (pfOff() || Math.abs(Ux * Vy - Uy * Vx) < 900) return false;   /* (under ~60 x 60 px: a quad) */
+    const nv = t0 != null ? 6 : r0 > 0 ? NSEG * 6 : NSEG * 3; let A = Q.lit; const n = Q.nl;
+    if ((n + nv) * 12 > A.length) { let L = A.length; while (L < (n + nv) * 12) L *= 2; const z = new Float32Array(L); z.set(A); A = z; Q.lit = z; }
+    const C = rgbOf(col), al1 = al > 1 ? 1 : al, Q0 = q0 || 0, Q1 = q1 || 0, Q2 = q2 || 0; let o = n * 12;
+    const put = (su, sv) => { A[o++] = cx + Ux * su + Vx * sv; A[o++] = cy + Uy * su + Vy * sv; A[o++] = su; A[o++] = sv; A[o++] = kind; A[o++] = C[0]; A[o++] = C[1]; A[o++] = C[2]; A[o++] = al1; A[o++] = Q0; A[o++] = Q1; A[o++] = Q2; };
+    if (t0 != null) { put(-t0, -1); put(t0, -1); put(-1, 1); put(-1, 1); put(t0, -1); put(1, 1); }   /* a trapezoid: t0 of the width at uv.y -1, all of it at 1 */
+    else { const ro = r1 * SKO; for (let i = 0; i < NSEG; i++) { const c0 = SCS[i], s0 = SSN[i], c1 = SCS[i + 1], s1 = SSN[i + 1];
+      if (r0 > 0) { put(c0 * r0, s0 * r0); put(c0 * ro, s0 * ro); put(c1 * r0, s1 * r0); put(c1 * r0, s1 * r0); put(c0 * ro, s0 * ro); put(c1 * ro, s1 * ro); }
+      else { put(0, 0); put(c0 * ro, s0 * ro); put(c1 * ro, s1 * ro); } } }
+    Q.nl += nv; Q.sv += nv; Q.nq++; return true; }
+  /* (v430 PF) the box (layer px, [x0, y0, x1, y1]) round a layer's vertices, 3 px of nothing round them, inside the layer; null
+     when none of it is on the layer */
+  function boxOf(A, n, B, nb, W, Hh) { let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    for (let s = 0; s < 2; s++) { const P = s ? B : A, m = s ? nb : n; for (let i = 0, o = 0; i < m; i++, o += 12) { const x = P[o], y = P[o + 1]; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; } }
+    x0 = Math.max(0, Math.floor(x0) - 3); y0 = Math.max(0, Math.floor(y0) - 3); x1 = Math.min(W, Math.ceil(x1) + 3); y1 = Math.min(Hh, Math.ceil(y1) + 3);
+    return x1 > x0 && y1 > y0 ? [x0, y0, x1, y1] : null; }
+  /* (v430 PF) the light layer split by program: its simple kinds (0 glow, 1 ring, 2 beam, 7 sparkle) for PRS, the rest for the
+     main shader (6 vertices at a time, each six one kind) */
+  const SPL = { s: new Float32Array(12 * 6 * 256), r: new Float32Array(12 * 6 * 256) };
+  function splitLit(A, n) { let ns = 0, nr = 0; if (SPL.s.length < n * 12) SPL.s = new Float32Array(n * 12); if (SPL.r.length < n * 12) SPL.r = new Float32Array(n * 12);
+    for (let o = 0; o < n * 12; o += 72) { const k = A[o + 4], simple = k < 2.5 || (k > 6.5 && k < 7.5), D = simple ? SPL.s : SPL.r; let d = (simple ? ns : nr) * 12; for (let i = o; i < o + 72; i++) D[d++] = A[i]; if (simple) ns += 6; else nr += 6; }   /* (copied by hand: a subarray per quad was an object per quad, thousands a frame under Dead Scream) */
+    return { ns, nr }; }
+  /* (v430 PF) the simple kinds' program: the main shader's own opening (the pet's clear spot, each kind's fade inside its quad)
+     and its own lines for these four kinds, cut from FS itself, so the two can never drift apart; null if they cannot be found
+     (everything then goes through the main shader, as before) */
+  let PRS = null;
+  function FSS() { const L = FS.split('\n'), f = re => L.find(l => re.test(l)), i0 = FS.indexOf('void main(){'), i1 = FS.indexOf('  pk *= v_k > 11.5', i0), j = i1 < 0 ? -1 : FS.indexOf('\n', i1);
+    const ks = [/^    else if \(v_k < 0\.5\) L = col \* exp\(-r \* r \* 4\.2\)/, /^    else if \(v_k < 1\.5\) \{ float d = max\(\(v_q\.x - r\) \/ v_q\.z/, /^    else if \(v_k < 2\.5\) \{ float fe = fth\(v_k\)/, /^    else if \(v_k < 7\.5\) \{ vec2 a = abs\(u\); L = col \* \(exp/].map(f), fn = ['sq', 'fth', 'fte', 'ftk'].map(n => f(new RegExp('^float ' + n + '\\(')));
+    if (i0 < 0 || j < 0 || ks.some(x => !x) || fn.some(x => !x)) return null;
+    return HDR + 'uniform float u_t; uniform vec3 u_pet; varying vec2 v_uv, v_px; varying float v_k; varying vec4 v_c; varying vec3 v_q;\n' + fn.join('\n') + '\n' + FS.slice(i0, j) + '\n  vec3 L = vec3(0.0);\n  if (v_k < -1.0) L = vec3(0.0);\n' + ks.join('\n') + '\n  L *= pk;\n  L = min(L * v_c.a, vec3(1.0)); gl_FragColor = vec4(L, max(max(L.r, L.g), L.b)); }'; }
   const Q = { lit: new Float32Array(12 * 6 * 600), nl: 0, smk: new Float32Array(12 * 6 * 200), ns: 0, wlit: new Float32Array(12 * 6 * 200), nwl: 0, wsmk: new Float32Array(12 * 6 * 100), nws: 0, get windOK() { return !!PRW; }, a: 1, b: 0, c0: 0, d: 1, e: 0, f: 0, k: 1, t: 0, W: 0, Hh: 0, pet: [0, 0, 0], gpu: true,
     X(x, y) { return this.a * x + this.c0 * y + this.e; }, Y(x, y) { return this.b * x + this.d * y + this.f; },
     /* one quad: centre (screen px), half-axes (ux, uy), (vx, vy) in screen px */
-    quad(kind, x, y, ux, uy, vx, vy, col, al, q0, q1, q2) { if (!(al > 0.004)) return; const solid = (kind >= 9 && kind <= 12) || kind === 16 || kind === 24 || kind === 25 || kind === 33 || kind === 36 || kind === 39 || kind === 40 || kind === 41 /* v402 */ || (kind >= 45 && kind <= 47) || kind === 49 || kind === 52 /* v404 LT */ || (kind >= 53 && kind <= 58 && kind !== 55) /* v404 DK */ || (kind >= 60 && kind <= 63) /* v409 DK2 */ || kind === 68 || kind === 69 /* v412 LM */ || kind === 71 /* v391 U4 */ || kind === 80 || kind === 82 || (kind >= 84 && kind <= 87) /* v415 EB */ || (kind >= 73 && kind <= 75) || kind === 78 /* v415 EA */ || kind === 89 || kind === 90 /* v415 TI */ || (kind >= 104 && kind <= 106) /* v417 BR */ || kind === 96 || kind === 97 /* v417 GH */ || kind === 112 || kind === 115 /* v417 MH */ || kind === 124 /* v418 AB */ || kind === 137 /* v420 GC */ || kind === 144 || kind === 145 /* v420 CB */, wd =kind >= 33 && kind <= 40;
+    quad(kind, x, y, ux, uy, vx, vy, col, al, q0, q1, q2) { if (!(al > 0.004)) return; const solid = (kind >= 9 && kind <= 12) || kind === 16 || kind === 24 || kind === 25 || kind === 33 || kind === 36 || kind === 39 || kind === 40 || kind === 41 /* v402 */ || (kind >= 45 && kind <= 47) || kind === 49 || kind === 52 /* v404 LT */ || (kind >= 53 && kind <= 58 && kind !== 55) /* v404 DK */ || (kind >= 60 && kind <= 63) /* v409 DK2 */ || kind === 68 || kind === 69 /* v412 LM */ || kind === 71 /* v391 U4 */ || kind === 80 || kind === 82 || (kind >= 84 && kind <= 87) /* v415 EB */ || (kind >= 73 && kind <= 75) || kind === 78 /* v415 EA */ || kind === 89 || kind === 90 /* v415 TI */ || (kind >= 104 && kind <= 106) /* v417 BR */ || kind === 96 || kind === 97 /* v417 GH */ || kind === 112 || kind === 115 /* v417 MH */ || kind === 124 /* v418 AB */ || kind === 137 /* v420 GC */ || kind === 144 || kind === 145 /* v420 CB */ || kind === 216 || kind === 218 /* v430 BW */, wd =kind >= 33 && kind <= 40;
       const ka = wd ? (solid ? 'wsmk' : 'wlit') : (solid ? 'smk' : 'lit'), kn = wd ? (solid ? 'nws' : 'nwl') : (solid ? 'ns' : 'nl'); let A = this[ka]; const n = this[kn];
       if ((n + 6) * 12 > A.length) { const q = new Float32Array(A.length * 2); q.set(A); A = q; this[ka] = q; }
       const cx = this.X(x, y), cy = this.Y(x, y), a = this.a, b = this.b, c = this.c0, d = this.d, Ux = a * ux + c * uy, Uy = b * ux + d * uy, Vx = a * vx + c * vy, Vy = b * vx + d * vy, C = rgbOf(col); let o = n * 12;
       for (let j = 0; j < 6; j++) { const su = QV[j][0], sv = QV[j][1]; A[o++] = cx + Ux * su + Vx * sv; A[o++] = cy + Uy * su + Vy * sv; A[o++] = su; A[o++] = sv; A[o++] = kind; A[o++] = C[0]; A[o++] = C[1]; A[o++] = C[2]; A[o++] = al > 1 ? 1 : al; A[o++] = q0 || 0; A[o++] = q1 || 0; A[o++] = q2 || 0; }
       this[kn] += 6; },
     rq(kind, x, y, w, h, rot, col, al, q0, q1, q2) { const c = Math.cos(rot || 0), s = Math.sin(rot || 0); this.quad(kind, x, y, c * w, s * w, -s * h, c * h, col, al, q0, q1, q2); },
+    /* (v430 PF) a light quad laid as the disc (r0 0) or annulus r0..r1 its kind paints in (uv radius), or (trap) the trapezoid
+       t0 wide at uv.y -1 and whole at 1: the same picture, fewer pixels shaded (see shapeOut) */
+    shape(kind, x, y, ux, uy, vx, vy, col, al, q0, q1, q2, r0, r1) { if (!(al > 0.004)) return; if (!shapeOut(this, kind, x, y, ux, uy, vx, vy, col, al, q0, q1, q2, r0 > 0.05 ? r0 : 0, r1)) this.quad(kind, x, y, ux, uy, vx, vy, col, al, q0, q1, q2); },
+    trap(kind, x, y, ux, uy, vx, vy, col, al, q0, q1, q2, t0) { if (!(al > 0.004)) return; if (!shapeOut(this, kind, x, y, ux, uy, vx, vy, col, al, q0, q1, q2, 0, 1, t0)) this.quad(kind, x, y, ux, uy, vx, vy, col, al, q0, q1, q2); },
     /* (v412 SA) a satin ribbon as ONE continuous triangle strip (no links: no seams, steps or beads): n stations along it, each its centre
        (X, Y) and unit direction across (NX, NY) in the 2D path's coordinates, half width HW (px), twist TH (radians: its normal cos TH toward
        the camera + sin TH toward +across; cos > 0 shows its upper face) and alpha AL. kind 64 its body (laid over, satin shaded per pixel),
@@ -1999,8 +2089,10 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
     sshadow(x, y, rx, ry, a, col) { if (!(a > 0.004) || !(rx > 0.5)) return; let A = this.smk; const n = this.ns; if ((n + 6) * 12 > A.length) { const q = new Float32Array(A.length * 2); q.set(A); A = q; this.smk = q; }
       const C = rgbOf(col || '#1C0714'), cx = this.X(x, y), cy = this.Y(x, y), ux = this.a * rx, uy = this.b * rx, vx = this.c0 * ry, vy = this.d * ry; let o = n * 12;
       for (let j = 0; j < 6; j++) { const su = QV[j][0], sv = QV[j][1]; A[o++] = cx + ux * su + vx * sv; A[o++] = cy + uy * su + vy * sv; A[o++] = su; A[o++] = sv; A[o++] = 66; A[o++] = C[0]; A[o++] = C[1]; A[o++] = C[2]; A[o++] = Math.min(1, a); A[o++] = 0; A[o++] = 0; A[o++] = 0; } this.ns += 6; },
-    glow(x, y, r, col, a, sy) { if (r > 0.5) this.quad(0, x, y, r, 0, 0, r * (sy || 1), col, a); },
-    ring(x, y, r, col, a, w, sy) { if (r > 0.5) this.quad(1, x, y, r * 1.04, 0, 0, r * 1.04 * (sy || 1), col, a, 0.96, 0, Math.max(0.02, (w || r * 0.1) / r * 0.6)); },
+    glow(x, y, r, col, a, sy) { if (r > 0.5) this.shape(0, x, y, r, 0, 0, r * (sy || 1), col, a, 0, 0, 0, 0, 1); },   /* (v430 PF: its disc; nothing past uv 1) */
+    /* (v430 PF) a ring as its band: nothing past uv 0.97; inward it falls as 0.4 e^-2.4d + 0.7 e^-12d (d in widths), under a
+       fifth of a level past 2.6 widths, so the middle beyond that is not shaded */
+    ring(x, y, r, col, a, w, sy) { if (r > 0.5) { const th = Math.max(0.02, (w || r * 0.1) / r * 0.6); this.shape(1, x, y, r * 1.04, 0, 0, r * 1.04 * (sy || 1), col, a, 0.96, 0, th, 0.96 - 2.6 * th, 0.975); } },
     beam(x0, y0, x1, y1, w, col, a) { const dx = (x1 - x0) / 2, dy = (y1 - y0) / 2, L = Math.hypot(dx, dy); if (L < 0.5) return; this.quad(2, x0 + dx, y0 + dy, dx, dy, -dy / L * w, dx / L * w, col, a); },
     /* (v392 Z) a beam whose strength runs smoothly from a0 at (x0, y0) to a1 at (x1, y1) (times a): links of a chain given the
        same ramp at their shared ends fade in or out along it with no step, so a wide column's foot can feather out */
@@ -2012,18 +2104,18 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
     firebeam(x0, y0, x1, y1, w, heat, a, seed, scroll) { const dx = (x1 - x0) / 2, dy = (y1 - y0) / 2, L = Math.hypot(dx, dy); if (L < 0.5) return; this.quad(6, x0 + dx, y0 + dy, dx, dy, -dy / L * w, dx / L * w, '#FFFFFF', a, heat, seed || 0, scroll || 3); },
     firebody(x0, y0, x1, y1, w, heat, a, seed, scroll) { const dx = (x1 - x0) / 2, dy = (y1 - y0) / 2, L = Math.hypot(dx, dy); if (L < 0.5) return; this.quad(11, x0 + dx, y0 + dy, dx, dy, -dy / L * w, dx / L * w, '#FFFFFF', a, heat, seed || 0, scroll || 3); },   /* (a fire beam's body: laid over, so it reads on any floor) */
     star(x, y, s, a, col) { this.quad(7, x, y, s, 0, 0, s, col || '#FFF6D8', a); },
-    wave(x, y, r, heat, a, seed, sy, th) { if (r > 1 && a > 0.01) this.quad(18, x, y, r * 1.3, 0, 0, r * 1.3 * (sy || 1), '#FF5A1E', a, heat, seed || 0, th == null ? 0.18 : th); },   /* (v349) a rolling wave of fire energy, radius r at its front */
+    wave(x, y, r, heat, a, seed, sy, th) { if (r > 1 && a > 0.01) { const h = th == null ? 0.18 : th; this.shape(18, x, y, r * 1.3, 0, 0, r * 1.3 * (sy || 1), '#FF5A1E', a, heat, seed || 0, h, (1 - 6 * Math.max(0.03, h)) / 1.3, 1); } },   /* (v349) a rolling wave of fire energy, radius r at its front (v430 PF: as its band: nothing past its front's 1.3, under a fifth of a level 6 depths inside it) */
     /* (v354) energy in any colour, as the fire kinds: an orb, a beam, a floor wave, a tongue (heat 0..1.1, col its hue) */
     eorb(x, y, r, col, heat, a, seed, swirl) { if (r > 0.5) this.quad(19, x, y, r, 0, 0, r, col, a, heat, seed || 0, swirl || 0); },
     ebeam(x0, y0, x1, y1, w, col, heat, a, seed, scroll) { const dx = (x1 - x0) / 2, dy = (y1 - y0) / 2, L = Math.hypot(dx, dy); if (L < 0.5) return; this.quad(20, x0 + dx, y0 + dy, dx, dy, -dy / L * w, dx / L * w, col, a, heat, seed || 0, scroll || 3); },
-    ewave(x, y, r, col, heat, a, seed, sy, th) { if (r > 1 && a > 0.01) this.quad(21, x, y, r * 1.3, 0, 0, r * 1.3 * (sy || 1), col, a, heat, seed || 0, th == null ? 0.18 : th); },
+    ewave(x, y, r, col, heat, a, seed, sy, th) { if (r > 1 && a > 0.01) { const h = th == null ? 0.18 : th; this.shape(21, x, y, r * 1.3, 0, 0, r * 1.3 * (sy || 1), col, a, heat, seed || 0, h, (1 - 6 * Math.max(0.03, h)) / 1.3, 1); } },   /* (v430 PF: as wave) */
     evortex(x, y, r, col, heat, a, seed, spin, sy) { if (r > 0.5) this.quad(23, x, y, r, 0, 0, r * (sy || 1), col, a, heat, seed || 0, spin || 1); },
     etongue(x, y, w, h, rot, col, heat, a, seed) { if (h > 0.5) { const c = Math.cos(rot || 0), s = Math.sin(rot || 0); this.quad(22, x + s * h, y - c * h, c * w, s * w, -s * h, c * h, col, a, heat, seed || 0); } },
     /* (v361) water: a sphere of water (body laid over, caustics, glints and rim light added), a stream (body + its light), caustic
        light on the floor, foam and spray, a spreading ripple */
     wsphere(x, y, r, col, a, seed, turn, dens, lite) { if (r > 0.5) { this.quad(24, x, y, r, 0, 0, r, col, a, dens == null ? 0.8 : dens, seed || 0, turn == null ? 1 : turn); this.quad(26, x, y, r, 0, 0, r, col, a, lite == null ? 0.9 : lite, seed || 0, 1); } },
     wstream(x0, y0, x1, y1, w, col, a, seed, flow, dens, lite) { const dx = (x1 - x0) / 2, dy = (y1 - y0) / 2, L = Math.hypot(dx, dy); if (L < 0.5) return; const vx = -dy / L * w, vy = dx / L * w; this.quad(25, x0 + dx, y0 + dy, dx, dy, vx, vy, col, a, dens == null ? 0.85 : dens, seed || 0, flow == null ? 3 : flow); this.quad(29, x0 + dx, y0 + dy, dx, dy, vx, vy, col, a, lite == null ? 0.7 : lite, seed || 0, flow == null ? 3 : flow); },
-    caustic(x, y, r, col, a, seed, sy) { if (r > 0.5) this.quad(26, x, y, r, 0, 0, r * (sy || 1), col, a, 1, seed || 0, 0); },
+    caustic(x, y, r, col, a, seed, sy) { if (r > 0.5) this.shape(26, x, y, r, 0, 0, r * (sy || 1), col, a, 1, seed || 0, 0, 0, 1); },   /* (v430 PF: its disc) */
     spray(x, y, r, col, a, seed, spread, sy) { if (r > 0.5) this.quad(27, x, y, r, 0, 0, r * (sy || 1), col || '#CFF6FF', a, 1, seed || 0, spread || 0); },
     wring(x, y, rx, ry, rot, col, a, side, th, seed, spin) { if (rx > 1 && a > 0.01) { const c = Math.cos(rot || 0), sn = Math.sin(rot || 0), k = 1 / 0.8; this.quad(32, x, y, c * rx * k, sn * rx * k, -sn * ry * k, c * ry * k, col, a, (side == null ? 2 : side) + Math.min(0.49, Math.max(0.02, th || 0.06)), seed || 0, spin || 1); } },
     /* (v370) wind: a blade of wind (an arc of radius |U| along U and V, its head toward U: mode 0 a trail, 1 a crescent, 2 a ring; th
@@ -2036,7 +2128,9 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
     wrib(x0, y0, x1, y1, w, col, lite, a, edge, seed, flow, dens) { const dx = (x1 - x0) / 2, dy = (y1 - y0) / 2, L = Math.hypot(dx, dy); if (L < 0.5) return; const vx = -dy / L * w, vy = dx / L * w; if (dens !== 0) this.quad(39, x0 + dx, y0 + dy, dx, dy, vx, vy, col, a * (dens == null ? 1 : dens), edge || 0, seed || 0, flow == null ? 3 : flow); this.quad(38, x0 + dx, y0 + dy, dx, dy, vx, vy, lite || col, a, edge || 0, seed || 0, flow == null ? 3 : flow); },
     bubbles(x, y, rx, ry, col, a, seed, rise) { if (rx > 0.5) this.quad(30, x, y, rx, 0, 0, ry || rx, col || '#9FE8FF', a, 1, seed || 0, rise == null ? 1 : rise); },
     shafts(x0, y0, x1, y1, w, col, a, seed) { const dx = (x1 - x0) / 2, dy = (y1 - y0) / 2, L = Math.hypot(dx, dy); if (L < 0.5) return; this.quad(31, x0 + dx, y0 + dy, -dy / L * w, dx / L * w, dx, dy, col || '#8FE3F0', a, 1, seed || 0, 0); },   /* (uv.y runs from (x0, y0) to (x1, y1)) */
-    ripple(x, y, r, col, a, seed, sy, th) { if (r > 1 && a > 0.01) this.quad(28, x, y, r * 1.3, 0, 0, r * 1.3 * (sy || 1), col, a, 1, seed || 0, th == null ? 0.12 : th); },
+    /* (v430 PF) a ripple as its band: nothing past 1.28 of its radius; its crest, wavelets and inner wash fade under a fifth of
+       a level more than 9.2 thicknesses + 0.03 inside it */
+    ripple(x, y, r, col, a, seed, sy, th) { if (r > 1 && a > 0.01) { const h = th == null ? 0.12 : th; this.shape(28, x, y, r * 1.3, 0, 0, r * 1.3 * (sy || 1), col, a, 1, seed || 0, h, (0.97 - 9.2 * Math.max(0.03, h)) / 1.3, 0.985); } },
     shimmer(x, y, r, a, sy, col) { if (r > 0.5) this.quad(8, x, y, r, 0, 0, r * (sy || 1), col || '#FFA640', a); },
     smoke(x, y, r, a, seed, col, lit) { if (r > 0.5) this.quad(9, x, y, r, 0, 0, r, col || '#3A2E2A', a, lit || 0, seed || 0); },
     /* a comet trail of fire through screen points (head first), each stretch a fire-beam quad, tapering */
@@ -2044,7 +2138,7 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
       this.firebeam(x0 - ex, y0 - ey, x1 + ex, y1 + ey, w * (1 - 0.75 * k), heat * (1 - 0.6 * k), a * (1 - k * k), (seed || 0) + i * 0.37, 4); } } };
   /* begin a pass on the game canvas c (its transform is the camera); pet: [screen x, y, radius] to keep clear, or null */
   function begin(c, pet) { const B = c.getTransform(), cv0 = c.canvas, L = LOWQ(), k0 = Math.min(L ? 0.42 : 0.7, 1500 / Math.max(cv0.width, cv0.height));   /* (v364: a finer GPU layer: 1500 px on the long side, was 1200) */ Q.W = Math.max(8, Math.round(cv0.width * k0)); Q.Hh = Math.max(8, Math.round(cv0.height * k0)); const kx = Q.W / cv0.width;
-    Q.a = B.a * kx; Q.b = B.b * kx; Q.c0 = B.c * kx; Q.d = B.d * kx; Q.e = B.e * kx; Q.f = B.f * kx; Q.k = (Math.sqrt(Math.abs(B.a * B.d - B.b * B.c)) || 1) * kx; Q.nl = Q.ns = Q.nwl = Q.nws = 0; Q.t = (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000 % 1000;
+    Q.a = B.a * kx; Q.b = B.b * kx; Q.c0 = B.c * kx; Q.d = B.d * kx; Q.e = B.e * kx; Q.f = B.f * kx; Q.k = (Math.sqrt(Math.abs(B.a * B.d - B.b * B.c)) || 1) * kx; Q.nl = Q.ns = Q.nwl = Q.nws = 0; Q.sv = Q.nq = 0; /* v430 PF */ Q.t =(typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000 % 1000;
     if (pet) { Q.pet[0] = Q.X(pet[0], pet[1]); Q.pet[1] = Q.Y(pet[0], pet[1]); Q.pet[2] = pet[2] * Q.k; } else Q.pet[2] = 0; return Q; }
   /* (v388 E: every beam's far end feathers out) beams (kinds 2, 6, 11, 20) are laid as chains of overlapping stretches
      whose ends fade over only their last tenth or fifth (so the links sum to one where they overlap); the last stretch of a
@@ -2071,13 +2165,30 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
       const pass0 = (A, n) => { gl.bufferData(gl.ARRAY_BUFFER, A.subarray(0, n * 12), gl.DYNAMIC_DRAW); attr(0, 2, 0); attr(1, 2, 2); attr(2, 1, 4); attr(3, 4, 5); attr(4, 3, 9); gl.drawArrays(gl.TRIANGLES, 0, n); draws++; };
       const pass = (A, n, AW, nw) => { if (n) { use(PR); pass0(A, n); } if (nw && PRW) { use(PRW); pass0(AW, nw); } };   /* (v375: the main program's quads, then Wind's with its own) */
       const cv0 = c.canvas; c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1;
-      if (Q.ns || Q.nws) { gl.clear(gl.COLOR_BUFFER_BIT); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); pass(Q.smk, Q.ns, Q.wsmk, Q.nws); c.globalCompositeOperation = 'source-over'; c.drawImage(cv, 0, 0, cv0.width, cv0.height); }   // the left half: smoke, solid
-      if (Q.nl || Q.nwl) { gl.clear(gl.COLOR_BUFFER_BIT); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_COLOR); pass(Q.lit, Q.nl, Q.wlit, Q.nwl); c.globalCompositeOperation = 'lighter'; c.drawImage(cv, 0, 0, cv0.width, cv0.height); }    // the right half: light, screened (stacked fire saturates softly, never clips to a white slab)
-      stats.draws = draws; stats.quads = Q.nl / 6; stats.smoke = Q.ns / 6; stats.W = W; stats.H = Hh; stats.frames++; stats.maxDraws = Math.max(stats.maxDraws, draws); stats.maxQuads = Math.max(stats.maxQuads, Q.nl / 6); stats.maxSmoke = Math.max(stats.maxSmoke, Q.ns / 6);
+      /* (v430 PF) each layer is cleared, drawn and laid over the game only inside the box round what it holds (3 layer px of
+         nothing round its quads, which all fade out inside their edges; 2 more cleared round that, so the box's own edge
+         never filters in anything older): a pass of a few small sparks no longer clears and copies the whole screen, and a
+         layer wholly off the screen is not drawn at all. The light layer's simple kinds (glows, rings, beams, sparkles) are
+         drawn by a program of their own (PRS, built from these same lines of the main shader): screening adds up the same
+         in any order, so splitting it changes nothing in the picture and keeps the big soft glows out of the heavy shader.
+         window.__PF_OFF = 1: the whole layer every time, one program, as before */
+      const off = pfOff(), sxr = cv0.width / W, syr = cv0.height / Hh;
+      const lay = (A, n, AW, nw, lit) => { const R = off ? [0, 0, W, Hh] : boxOf(A, n, AW, nw, W, Hh); if (!R) return; const full = R[0] === 0 && R[1] === 0 && R[2] === W && R[3] === Hh;
+        if (off) gl.disable(gl.SCISSOR_TEST); else { gl.enable(gl.SCISSOR_TEST); const x0 = Math.max(0, R[0] - 2), y0 = Math.max(0, R[1] - 2), x1 = Math.min(W, R[2] + 2), y1 = Math.min(Hh, R[3] + 2); gl.scissor(x0, Hh - y1, x1 - x0, y1 - y0); }   /* (the scissor always on, the whole layer for a full one: one state for every pass, so no driver builds a second version of the big shader mid-fight; llvmpipe did, for seconds) */
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        if (lit) { gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_COLOR); if (PRS && !off) { const m = splitLit(A, n); if (m.nr) { use(PR); pass0(SPL.r, m.nr); } if (m.ns) { use(PRS); pass0(SPL.s, m.ns); } if (nw && PRW) { use(PRW); pass0(AW, nw); } } else pass(A, n, AW, nw); c.globalCompositeOperation = 'lighter'; }
+        else { gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); pass(A, n, AW, nw); c.globalCompositeOperation = 'source-over'; }
+        if (full) c.drawImage(cv, 0, 0, cv0.width, cv0.height); else { const w = R[2] - R[0], h = R[3] - R[1]; c.drawImage(cv, R[0], R[1], w, h, R[0] * sxr, R[1] * syr, w * sxr, h * syr); }
+        stats.comp++; stats.compPx += (R[2] - R[0]) * (R[3] - R[1]) * sxr * syr; };
+      stats.comp = 0; stats.compPx = 0;
+      if (Q.ns || Q.nws) lay(Q.smk, Q.ns, Q.wsmk, Q.nws, false);   // the solid layer (smoke, bodies), laid over
+      if (Q.nl || Q.nwl) lay(Q.lit, Q.nl, Q.wlit, Q.nwl, true);    // the light, screened (stacked fire saturates softly, never clips to a white slab), added
+      const nq = (Q.nl - Q.sv) / 6 + Q.nq;   /* (v430 PF: quads, a shape counted once) */
+      stats.draws = draws; stats.quads = nq; stats.verts = Q.nl + Q.ns; stats.smoke = Q.ns / 6; stats.W = W; stats.H = Hh; stats.frames++; stats.maxDraws = Math.max(stats.maxDraws, draws); stats.maxQuads = Math.max(stats.maxQuads, nq); stats.maxSmoke = Math.max(stats.maxSmoke, Q.ns / 6);
       c.restore();
       fails = 0;
     } catch (e) { why = String(e && e.message || e); if (++fails >= 3 || (gl && gl.isContextLost && gl.isContextLost())) { ok = false; if (gl && gl.isContextLost && gl.isContextLost()) { why = 'context lost'; lostAt = performance.now(); } } } }
   /* (tests) pixels that break rgb <= a, right after a flush */
   function check() { if (!gl) return null; const W = cv.width, Hh = cv.height, px = new Uint8Array(W * Hh * 4); gl.readPixels(0, 0, W, Hh, gl.RGBA, gl.UNSIGNED_BYTE, px); let bad = 0, lit = 0; for (let i = 0; i < px.length; i += 4) { const a = px[i + 3]; if (a) lit++; if (px[i] > a + 1 || px[i + 1] > a + 1 || px[i + 2] > a + 1) bad++; } return { bad, lit }; }
-  NM.FGFX = { usable, begin, flush, check, stats, windOK: () => !!PRW, info: () => ({ ok, soft, renderer: info, why, wind: !!PRW, whyW }) };
+  NM.FGFX = { usable, begin, flush, check, stats, windOK: () => !!PRW, info: () => ({ ok, soft, renderer: info, why, wind: !!PRW, whyW, simple: !!PRS /* v430 PF */ }) };
 })();

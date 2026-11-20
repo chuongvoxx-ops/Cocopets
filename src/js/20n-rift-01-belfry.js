@@ -592,13 +592,13 @@ if (typeof window !== 'undefined') window.BEL = BEL;
   function regionEdge(c, X, R) { const T = X.Tz(), W = X.W(), Hh = X.H(); for (const t of R.tiles) { const Xs = X.sx(t.tx), Ys = X.sy(t.ty); if (Xs < -T * 2 || Xs > W + T || Ys < -T * 2 || Ys > Hh + T) continue; const has = (dx, dy) => R.set.has((t.ty + dy) * R.MW + t.tx + dx), rr = T * 0.42, n = !has(0, -1), so = !has(0, 1), w = !has(-1, 0), e = !has(1, 0);
       if (n) { c.moveTo(Xs + (w ? rr : 0), Ys); c.lineTo(Xs + T - (e ? rr : 0), Ys); } if (so) { c.moveTo(Xs + (w ? rr : 0), Ys + T); c.lineTo(Xs + T - (e ? rr : 0), Ys + T); } if (w) { c.moveTo(Xs, Ys + (n ? rr : 0)); c.lineTo(Xs, Ys + T - (so ? rr : 0)); } if (e) { c.moveTo(Xs + T, Ys + (n ? rr : 0)); c.lineTo(Xs + T, Ys + T - (so ? rr : 0)); }
       if (n && w) { c.moveTo(Xs, Ys + rr); c.quadraticCurveTo(Xs, Ys, Xs + rr, Ys); } if (n && e) { c.moveTo(Xs + T - rr, Ys); c.quadraticCurveTo(Xs + T, Ys, Xs + T, Ys + rr); } if (so && e) { c.moveTo(Xs + T, Ys + T - rr); c.quadraticCurveTo(Xs + T, Ys + T, Xs + T - rr, Ys + T); } if (so && w) { c.moveTo(Xs + rr, Ys + T); c.quadraticCurveTo(Xs, Ys + T, Xs, Ys + T - rr); } } }
-  function inRegion(R, x, y) { if (R.kind === 'ring') { const d = Math.hypot(x - R.x, y - R.y); return d >= R.r0 && d <= R.r1; } if (R.kind === 'pool') return Math.hypot(x - R.x, y - R.y) <= R.r; if (R.kind === 'rect') return x >= R.x0 && x <= R.x1 && y >= R.y0 && y <= R.y1; if (R.kind === 'tiles') return R.set.has(Math.floor(y) * R.MW + Math.floor(x)); return false; }
+  function inRegion(R, x, y) { if (R.kind === 'ring') { const d = Math.hypot(x - R.x, y - R.y); return d >= R.r0 && d <= R.r1; } if (R.kind === 'pool') return Math.hypot(x - R.x, y - R.y) <= R.r; if (R.kind === 'rect') return x >= R.x0 && x <= R.x1 && y >= R.y0 && y <= R.y1; if (R.kind === 'tiles') return R.set.has(Math.floor(y) * R.MW + Math.floor(x)) && (!R.W || R.W.wet(x, y)); return false; }   // v430 BW: a draining hall is water only where its surface still stands above its floor
   BEL.shallow = (X, R) => { const C = ctx(X); R = Object.assign({ kind: 'pool' }, R); if (R.kind === 'tiles') { R.MW = X.M.MW; R.set = new Set(R.tiles.map(t => t.ty * R.MW + t.tx)); } C.shallow.push(R); return R; };
   BEL.unshallow = (X, R) => { const C = ctx(X), i = C.shallow.indexOf(R); if (i >= 0) C.shallow.splice(i, 1); };
   BEL.inShallow = (X, x, y) => ctx(X).shallow.some(R => !R.off && inRegion(R, x, y));
   /* the caustic light pattern on the shallows (worked out once, wrapping; added over the water, sliding) */
   window.GAP_EXT.belcaustic = { base: '#000000', paint(c, S, R) { c.clearRect(0, 0, S, S); for (let i = 0; i < 26; i++) { const x = R() * S, y = R() * S, rr = 6 + R() * 16; for (const ox of [-S, 0, S]) for (const oy of [-S, 0, S]) { c.strokeStyle = `rgba(200,255,250,${(0.12 + R() * 0.2).toFixed(2)})`; c.lineWidth = 1 + R() * 1.4; c.beginPath(); c.ellipse(x + ox, y + oy, rr, rr * (0.5 + R() * 0.4), R() * 3, 0, TAU); c.stroke(); } } }, back(c, o) { o.grad('#000000', '#000000'); } };
-  function drawShallow(c, X, C) { if (!C.shallow.length) return; const T = X.Tz(), t = C.t; c.save(); c.beginPath(); for (const R of C.shallow) if (!R.off) regionPath(c, X, R);
+  function drawShallow(c, X, C) { if (!C.shallow.length) return; const T = X.Tz(), t = C.t; c.save(); c.beginPath(); for (const R of C.shallow) if (!R.off && !R.dr) regionPath(c, X, R);   // v430 BW (R.dr: a draining hall draws its own water, BEL_DRAIN)
     c.fillStyle = 'rgba(30,118,142,.34)'; c.fill(); c.clip();
     // a deeper tint toward the middle of broad water; the caustics sliding; a soft shine
     const p = DunWorld.pattern('belcaustic', 1), sc = T * 2.2 / 128; try { p.setTransform(new DOMMatrix([sc, 0, 0, sc, X.sx(0) + t * T * 0.22, X.sy(0) + t * T * 0.09])); } catch (e) {}
@@ -606,7 +606,7 @@ if (typeof window !== 'undefined') window.BEL = BEL;
     if (!lowFx()) { try { p.setTransform(new DOMMatrix([sc * 1.3, 0, 0, sc * 1.3, X.sx(0) - t * T * 0.15, X.sy(0) + t * T * 0.05])); } catch (e) {} c.globalAlpha = 0.2; c.fillRect(0, 0, X.W(), X.H()); }
     c.restore();
     // its edge: a soft line of foam (so walkable water reads as water, apart from the opaque sea)
-    c.save(); c.beginPath(); for (const R of C.shallow) if (!R.off) (R.kind === 'tiles' ? regionEdge : regionPath)(c, X, R); c.strokeStyle = 'rgba(226,247,242,.5)';   /* v392 B1: a tile region's foam runs along its outer edge only (not round every tile) */ c.lineWidth = Math.max(1.2, T * 0.045); c.stroke(); c.strokeStyle = 'rgba(14,60,74,.35)'; c.lineWidth = Math.max(2, T * 0.1); c.globalCompositeOperation = 'destination-over'; c.stroke(); c.restore();
+    c.save(); c.beginPath(); for (const R of C.shallow) if (!R.off && !R.dr) (R.kind === 'tiles' ? regionEdge : regionPath)(c, X, R); c.strokeStyle = 'rgba(226,247,242,.5)';   /* v392 B1: a tile region's foam runs along its outer edge only (not round every tile) */ c.lineWidth = Math.max(1.2, T * 0.045); c.stroke(); c.strokeStyle = 'rgba(14,60,74,.35)'; c.lineWidth = Math.max(2, T * 0.1); c.globalCompositeOperation = 'destination-over'; c.stroke(); c.restore();
     // the pet's wake
     for (const r of C.ripples) { const u = r.t / r.life; c.strokeStyle = `rgba(226,247,242,${(0.55 * (1 - u)).toFixed(3)})`; c.lineWidth = Math.max(1, T * 0.035); ell(c, X.sx(r.x), X.sy(r.y), T * (0.25 + u * 0.9), T * (0.1 + u * 0.36)); c.stroke(); } }
   /* ---- the causeway's three low waves: crests sliding across it from the sea (a shove and a splash, never damage) ---- */
@@ -726,7 +726,8 @@ if (typeof window !== 'undefined') window.BEL = BEL;
         else if (P.items.length) { const cl = P.items.pop(); P.w -= cl.n; cl.where = 'bubble'; carrying = cl; P.flash = 1; R.removes++; X.text(P.x, P.y - 3.0, `−${cl.n}: back in the bubble`, '#FFFFFF', 12); snd(X, 'boop'); } } }));
     function spawnPair() { finalPair = []; X.banner('A PAN READS THREE', 'Two crawlers climb out of the drains', '#FFE9A8', 2.4, true); for (const p of mk.g) { const m = BEL.spawn(X, 'crawler', p.x, p.y, { aggro: true, pack: 530 }); if (m) finalPair.push(m); X.splash(p.x, p.y, 1.4); X.sparks(p.x, p.y, TURQ, 10, 5); } snd(X, 'crash'); }
     // the lift (east), its bars, and its guardian
-    const E = mk.E[0], liftObj = H.obj({ x: E.x - 0.9, y: E.y + 0.6, kind: 'lift', r: 0.1, h: 3.4, label: '', draw(c, Xs, Ys, T) { liftArt(c, X.sx(E.x - 0.9), X.sy(E.y + 0.6), T, liftK, liftOpen); } }); void liftObj;
+    const E = mk.E[0], liftObj = H.obj({ x: E.x - 0.9, y: E.y + 0.6, kind: 'lift', r: 0.1, h: 3.4, label: '', draw(c, Xs, Ys, T) { if (C.door && typeof BEL_DOORS !== 'undefined' && BEL_DOORS.live && BEL_DOORS.live.C === C && BEL_DOORS.pic(c, 'frame', 'lift', -9999, -9999, T)) return; liftArt(c, X.sx(E.x - 0.9), X.sy(E.y + 0.6), T, liftK, liftOpen); } }); void liftObj;   // v430 BW: the lift door (BEL_DOORS 'lift', at the exit) is the cage and its grille; the old 2D cage only without it
+    C.doorWant = () => liftOpen;   // v430 BW: the grille rises when the lift unlocks (its light comes on when the stage is done)
     H.setExit(E.x, E.y, 'The lift');
     const gp = mk.G[0]; placeGuard(X, 'cistern', gp.x, gp.y, { x: E.x, y: E.y });
     X.after(1.6, () => X.banner('THE CLAPPER COUNTERWEIGHTS', 'Load both pans to exactly three: lift a clapper, set it on a pan', BRASS_HI, 3.0, true, true));
@@ -784,7 +785,7 @@ if (typeof window !== 'undefined') window.BEL = BEL;
       c.restore(); label(c, `${P.w} / ${want}${good ? ' ✓' : ''}`, Xs, Ys + r * 1.75, T * 0.32, good ? SAFE : over ? '#FF9BD2' : '#FFFFFF'); }
     /* the barred lift: a brass cage platform in the east wall; its bars slide up when it unlocks */
     function liftArt(c, Xs, Ys, T, k, open) { const w = T * 1.8, h = T * 2.6, lw = lw0(T); c.save(); c.fillStyle = 'rgba(4,14,20,.4)'; ell(c, Xs, Ys + T * 0.1, w * 0.7, T * 0.3); c.fill();
-      c.fillStyle = '#2A3236'; c.fillRect(Xs - w / 2, Ys - T * 0.25, w, T * 0.3); ink(c, lw); c.strokeStyle = BRASS; c.lineWidth = Math.max(2, T * 0.08); c.strokeRect(Xs - w / 2, Ys - h, w, h - T * 0.2);
+      c.fillStyle = '#2A3236'; c.fillRect(Xs - w / 2, Ys - T * 0.25, w, T * 0.3); ink(c, lw); if (k < 1) { c.save(); c.globalAlpha *= 1 - k; c.strokeStyle = BRASS; c.lineWidth = Math.max(2, T * 0.08); c.strokeRect(Xs - w / 2, Ys - h, w, h - T * 0.2); c.restore(); }   // v430 BW: the cage's bare brass frame (the user's "stray orange outline" by the lift) goes with its bars
       c.beginPath(); c.rect(Xs - w / 2, Ys - h, w, h); c.clip(); const lift = k * h * 0.95; c.strokeStyle = LN; c.lineWidth = Math.max(3, T * 0.12); for (let i = 0; i <= 6; i++) { const x = Xs - w / 2 + i * w / 6; c.beginPath(); c.moveTo(x, Ys - h - lift); c.lineTo(x, Ys - T * 0.2 - lift); c.stroke(); } c.strokeStyle = open ? BRASS_HI : BRASS; c.lineWidth = Math.max(1.5, T * 0.06); for (let i = 0; i <= 6; i++) { const x = Xs - w / 2 + i * w / 6; c.beginPath(); c.moveTo(x, Ys - h - lift); c.lineTo(x, Ys - T * 0.2 - lift); c.stroke(); }
       c.restore(); if (!open) label(c, 'LIFT · LOCKED', Xs, Ys - h - T * 0.25, T * 0.26, '#FFD9C8'); }
   }
@@ -1040,6 +1041,11 @@ if (typeof window !== 'undefined') window.BEL = BEL;
        untouchable under it, until the three gate valves are turned; then it drains and the guardian wakes */
     const GH = D.gate ? DS.gate = { room: exRoom, x0: exRoom.x, y0: exRoom.y, x1: exRoom.x + exRoom.w, y1: exRoom.y + exRoom.h, cx: exRoom.x + exRoom.w / 2, cy: exRoom.y + exRoom.h / 2, level: 1, want: 1, turned: 0, need: D.valves, open: false, camT: 0, last: null, toldT: 0, G: null } : null;
     if (GH && mini) { if (mini.calMini) mini.calMini.hold = true; mini.guardFn = () => (GH.open ? 1 : 0); mini.belSubmerged = true; try { GH.G = (E.guards(X) || []).find(G => G.m === mini) || null; } catch (e) { GH.G = null; } }
+    /* v430 BW: the gate hall's deep water over its floor (dipping to a sump in its middle): each valve lowers it a step over seconds, the
+       last drains it (BEL_DRAIN); the pet is held off only where it is still too deep to wade */
+    if (GH && typeof BEL_DRAIN !== 'undefined') { const tl = []; for (let y = exRoom.y; y < exRoom.y + exRoom.h; y++) for (let x = exRoom.x; x < exRoom.x + exRoom.w; x++) if (M.G[y * M.MW + x] === T_FLOOR) tl.push({ tx: x, ty: y });
+      if (tl.length) { GH.reg = { kind: 'tiles', tiles: tl, MW: M.MW, set: new Set(tl.map(t => t.ty * M.MW + t.tx)) }; GH.sump = { x: Math.floor(GH.cx) + 0.5, y: Math.floor(GH.cy) + 0.5 };
+        GH.W = BEL_DRAIN.make({ x0: GH.x0, y0: GH.y0, x1: GH.x1, y1: GH.y1, sump: GH.sump, seed: 7, deep: true, tiles: tl }); GH.runs = BEL_DRAIN.northRuns(tl, GH.reg.set, M.MW, (x, y) => M.G[y * M.MW + x] === T_SOLID); } }
     // the valve halls: flooded, tidal rooms, each with a refuge valve at its mouth and a leech clinging to it
     const vh = rooms.filter(({ r }) => r !== exRoom && r.w >= 5 && r.h >= 5).sort((a, b) => Math.hypot(a.r.x + a.r.w / 2 - S0.x, a.r.y + a.r.h / 2 - S0.y) - Math.hypot(b.r.x + b.r.w / 2 - S0.x, b.r.y + b.r.h / 2 - S0.y));
     const pickN = Math.min(D.valves, vh.length), chosen = []; for (let k = 0; k < pickN; k++) chosen.push(vh[Math.floor((k + 0.5) * vh.length / pickN)]);
@@ -1049,6 +1055,11 @@ if (typeof window !== 'undefined') window.BEL = BEL;
       let vt = null, vd = 1e9; for (const t of tiles) { const wallBy = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => M.G[(t.ty + dy) * M.MW + t.tx + dx] === T_SOLID); if (!wallBy) continue; const d = Math.hypot(t.tx + 0.5 - S0.x, t.ty + 0.5 - S0.y); if (d < vd) { vd = d; vt = t; } } if (!vt) vt = tiles[0];
       const mouth = { x: vt.tx + 0.5, y: vt.ty + 0.5 }, away = Math.atan2(cy - mouth.y, cx - mouth.x);
       const VH = { k, room: r, ri: i, region, tiles, mouth, cx, cy, away, drained: false, level: 0, phase: 'calm', t: R() * D.period * 0.6, crest: -1, hit: false, sweeps: 0, beachT: 0 };
+      /* v430 BW: the hall's water over its floor, which dips to a sump grate a little past the hall's middle (away from the valve): the
+         drain lowers it (BEL_DRAIN); the wall faces it laps against; the sump's grate */
+      if (!D.gate && typeof BEL_DRAIN !== 'undefined') { const gx = cx + Math.cos(away) * r.w * 0.14, gy = cy + Math.sin(away) * r.h * 0.14; let sp = tiles[0], sd2 = 1e9; for (const t of tiles) { const d = Math.hypot(t.tx + 0.5 - gx, t.ty + 0.5 - gy); if (d < sd2) { sd2 = d; sp = t; } }
+        VH.sump = { x: sp.tx + 0.5, y: sp.ty + 0.5 }; VH.W = BEL_DRAIN.make({ x0: r.x, y0: r.y, x1: r.x + r.w, y1: r.y + r.h, sump: VH.sump, seed: k + 1 + key.charCodeAt(1), tiles });
+        VH.runs = BEL_DRAIN.northRuns(tiles, region.set, M.MW, (x, y) => M.G[y * M.MW + x] === T_SOLID); }
       const lp = X.freeSpot(mouth.x + Math.cos(away) * 0.6, mouth.y + Math.sin(away) * 0.6, 0.4) || mouth, lch = BEL.spawn(X, 'leech', lp.x, lp.y, { pack: 380 + k, count: false });   // (pack 380+: never held off the field by the live cap)
       if (lch) { lch.holds = true; lch.x = lp.x; lch.y = lp.y; lch.belValve = k; lch.belDun = key; lch.maxhp = Math.round(lch.maxhp * D.hpK); lch.hp = lch.maxhp; VH.leech = lch; }
       VH.valve = H.obj({ x: mouth.x, y: mouth.y, kind: 'valve', valveHall: k, spin: 0, on: false, t: 0, r: 0.9, h: 1.9, locked: true, lockCol: 'rgba(182,162,240,.8)',
@@ -1061,10 +1072,23 @@ if (typeof window !== 'undefined') window.BEL = BEL;
     X.g.total = all().filter(isB).length;
     function drain(VH) { const o = VH.valve; o.on = true; o.spin += Math.PI; VH.drained = true; VH.drainT = 0; VH.phase = 'drain'; DS.drained = (DS.drained || 0) + 1;
       X.banner('THE HALL DRAINS', 'The refuge holds: no more surges here, and the brood is left beached', '#C9FFF8', 2.4, true); snd(X, 'fanfare'); X.ring(o.x, o.y, 0.3, 4, 0.7, TURQ, 0.35); X.flash(0.12, TURQ_HI);
+      /* v430 BW: the water goes down over seconds (BEL_DRAIN): the brood is beached where it leaves them, the floor gives up what it held
+         as it is revealed (tick); the hall's surges stop at once (the sea is shut off) */
+      if (VH.W) { VH.region.W = VH.W; VH.region.dr = true; VH.W.go(0, BEL_DRAIN.durFor(VH.tiles.length, 'shallow')); snd(X, 'whoosh'); X.shake(lowFx() ? 1.5 : 3, 0.5);
+        VH.loot = []; for (let i = 0; i < 4; i++) { const a = R() * TAU, d = 1 + R() * 2.4, p = X.freeSpot(VH.cx + Math.cos(a) * d, VH.cy + Math.sin(a) * d, 0.4); if (p) VH.loot.push({ x: p.x, y: p.y, kind: i % 2 ? 'coin' : 'hp' }); } return; }
       const r = VH.room; for (const m of X.mons) if (!m.dead && !m.boss && m.x >= r.x && m.x <= r.x + r.w && m.y >= r.y && m.y <= r.y + r.h) { m.stun = Math.max(m.stun || 0, 3.5); m.belBeached = 3.5; X.text(m.x, m.y - m.r - 0.6, 'Beached!', '#C9FFF8', 11); }
       for (let i = 0; i < 4; i++) X.after(0.4 + i * 0.25, () => { const a = R() * TAU, d = 1 + R() * 2, p = X.freeSpot(VH.cx + Math.cos(a) * d, VH.cy + Math.sin(a) * d, 0.4); if (p) X.drop(i % 2 ? 'coin' : 'hp', p.x, p.y); }); }
+    /* v430 BW: a refuge hall draining: its level falls (BEL_DRAIN, dt-based); each of the brood in it is beached as the water leaves the
+       floor under it (any still in it when the hall is empty too); what the sea held appears where the floor is revealed; the hall's
+       shallows go once its floor has dried (the old end state) */
+    function drainTick(VH, dt) { const Wd = VH.W, r = VH.room; Wd.tick(dt);
+      for (const m of X.mons) { if (m.dead || m.boss || m.belBeachV === VH.k || !(m.x >= r.x && m.x <= r.x + r.w && m.y >= r.y && m.y <= r.y + r.h)) continue; if (Wd.depth(m.x, m.y) > 0.015 && !Wd.drained) continue;
+        m.belBeachV = VH.k; m.stun = Math.max(m.stun || 0, 3.5); m.belBeached = 3.5; X.text(m.x, m.y - m.r - 0.6, 'Beached!', '#C9FFF8', 11); X.splash(m.x, m.y, 0.8); }
+      if (VH.loot) for (let i = VH.loot.length - 1; i >= 0; i--) { const p = VH.loot[i]; if (Wd.depth(p.x, p.y) > 0 && !Wd.drained) continue; VH.loot.splice(i, 1); X.drop(p.kind, p.x, p.y); X.splash(p.x, p.y, 0.6); }
+      if (Wd.done && !VH.region.off) { VH.region.off = true; VH.region.dr = false; } }
     /* v395 B1: a gate valve turned: the gate hall's water drops a step (a sound and a look at the hall); at the last one it drains */
     function gateTurn(VH) { const o = VH.valve; o.on = true; o.spin += Math.PI; VH.drained = true; GH.turned++; GH.want = 1 - GH.turned / GH.need; GH.camT = 1.8; DS.drained = GH.turned;
+      if (GH.W) { const last = GH.turned >= GH.need; GH.W.go(GH.want, last ? BEL_DRAIN.durFor(GH.reg.tiles.length, 'deep') : BEL_DRAIN.CFG.step); }   // v430 BW: a step down over seconds; the last valve the whole drain
       X.ring(o.x, o.y, 0.3, 3.5, 0.6, TURQ, 0.35); X.flash(0.1, TURQ_HI); snd(X, 'chime', 262 + GH.turned * 66, 0.6); snd(X, 'whoosh'); X.shake(4, 0.35);
       if (GH.turned < GH.need) X.banner(`GATE VALVE ${GH.turned} OF ${GH.need}`, `The water in the gate hall drops: ${GH.need - GH.turned} more to turn`, '#C9FFF8', 2.4, true);
       else X.banner('THE GATE HALL DRAINS', `The last valve turns: the sea pours out, and ${GUARDS[D.guard].short} wakes`, '#C9FFF8', 2.8, true); }
@@ -1072,20 +1096,21 @@ if (typeof window !== 'undefined') window.BEL = BEL;
     try { const TR = trapsAPI(); if (TR && TR.place) { const avoid = [{ x: S0.x, y: S0.y, r: 6 }, { x: ex.x, y: ex.y, r: 5 }, { x: post.x, y: post.y, r: 6 }].concat(GH ? [{ x: GH.cx, y: GH.cy, r: Math.hypot(exRoom.w, exRoom.h) / 2 + 1 }] : []).concat(DS.valveHalls.map(V => ({ x: V.mouth.x, y: V.mouth.y, r: 3 }))); DS.traps = TR.place(X, H, { count: D.traps, kinds: null, avoid, dungeon: key, minGap: D.traps > 25 ? 2.8 : D.traps > 18 ? 3.2 : 3.5 }) || null; } } catch (e) { try { console.warn('bel traps', e); } catch (e2) {} }
     /* v395 B1: the gate hall: its water eases to the step the valves allow; the pet cannot wade in while it is deep; at the last
        valve it drains and the guardian, freed, wakes */
-    function gateTick(dt) { GH.level += (GH.want - GH.level) * Math.min(1, dt * (GH.turned >= GH.need ? 0.9 : 1.4)); GH.camT = Math.max(0, GH.camT - dt); GH.toldT -= dt;
+    function gateTick(dt) { if (GH.W) { GH.W.tick(dt); GH.level = GH.W.level; } else GH.level += (GH.want - GH.level) * Math.min(1, dt * (GH.turned >= GH.need ? 0.9 : 1.4)); GH.camT = Math.max(0, GH.camT - dt); GH.toldT -= dt;   // v430 BW
       const m = DS.mini;
-      if (!GH.open && GH.turned >= GH.need && GH.level < 0.04) { GH.open = true; GH.level = 0;
+      if (!GH.open && GH.turned >= GH.need && (GH.W ? GH.W.drained : GH.level < 0.04)) { GH.open = true; GH.level = 0;
         if (m && !m.dead) { m.belSubmerged = false; if (m.calMini) m.calMini.hold = false; if (GH.G) GH.G.wakeR = 40; X.splash(m.x, m.y, 2.2); X.text(m.x, m.y - m.r - 1.2, `${GUARDS[D.guard].short} wakes!`, GUARDS[D.guard].palette.col, 15); }
         X.flash(0.2, TURQ_HI); snd(X, 'crash'); }
       if (GH.open || me.dead) return;
       if (m && !m.dead) m.aggro = false;   // (it waits at its post, under the water)
       const pad = 0.25, inside = me.x > GH.x0 - pad && me.x < GH.x1 + pad && me.y > GH.y0 - pad && me.y < GH.y1 + pad;
-      if (!inside) { GH.last = { x: me.x, y: me.y }; return; }
+      if (!inside || (GH.W && GH.W.depth(me.x, me.y) <= BEL_DRAIN.CFG.wade)) { GH.last = { x: me.x, y: me.y }; return; }   // v430 BW: the floor the water has left (or barely covers) can be walked
       let L = GH.last; if (!L) { const dl = me.x - GH.x0, dr = GH.x1 - me.x, du = me.y - GH.y0, dd = GH.y1 - me.y, k = Math.min(dl, dr, du, dd); L = k === dl ? { x: GH.x0 - 0.6, y: me.y } : k === dr ? { x: GH.x1 + 0.6, y: me.y } : k === du ? { x: me.x, y: GH.y0 - 0.6 } : { x: me.x, y: GH.y1 + 0.6 }; }
       me.x = L.x; me.y = L.y; me.vx = me.vy = 0; me.push = null;
       if (GH.toldT <= 0) { GH.toldT = 2.4; X.text(me.x, me.y - 1.4, `Too deep: turn the gate valves (${GH.turned}/${GH.need})`, '#C9FFF8', 13); X.splash(me.x, me.y, 1); snd(X, 'whoosh'); } }
     // the deep water: dark, swelling, caustic light on it, a pale rim; the drained floor shows as it falls
-    function gateGround(c) { const lv = GH.level; if (lv < 0.01) return; const T = X.Tz(), W = X.W(), Hh = X.H(), t = C.t, x0 = X.sx(GH.x0), y0 = X.sy(GH.y0), x1 = X.sx(GH.x1), y1 = X.sy(GH.y1);
+    function gateGround(c) { if (GH.W) { const T = X.Tz(); if (typeof BEL_DOORS !== 'undefined') BEL_DOORS.pic(c, 'sump', 0, X.sx(GH.sump.x), X.sy(GH.sump.y), T); GH.W.draw(c, X, c2 => regionPath(c2, X, GH.reg)); GH.W.walls(c, X, GH.runs, 0.75); return; }   // v430 BW: the deep water over its floor, its level sinking (BEL_DRAIN)
+      const lv = GH.level; if (lv < 0.01) return; const T = X.Tz(), W = X.W(), Hh = X.H(), t = C.t, x0 = X.sx(GH.x0), y0 = X.sy(GH.y0), x1 = X.sx(GH.x1), y1 = X.sy(GH.y1);
       if (x1 < -T || y1 < -T || x0 > W + T || y0 > Hh + T) return;
       c.save(); const g = c.createLinearGradient(0, y0, 0, y1); g.addColorStop(0, `rgba(10,40,58,${(0.9 * lv).toFixed(3)})`); g.addColorStop(1, `rgba(4,18,30,${(0.94 * lv).toFixed(3)})`); c.fillStyle = g; c.fillRect(x0, y0, x1 - x0, y1 - y0);
       c.beginPath(); c.rect(x0, y0, x1 - x0, y1 - y0); c.clip(); c.strokeStyle = `rgba(120,215,226,${(0.2 * lv).toFixed(3)})`; c.lineWidth = Math.max(1, T * 0.05);
@@ -1096,7 +1121,8 @@ if (typeof window !== 'undefined') window.BEL = BEL;
     // over it all: the guardian seen through the water (a tint and moving light over it), three pips over the door (the valves
     // turned), and an arrow at the screen's edge toward every valve still to turn
     function gateOver(c) { const T = X.Tz(), W = X.W(), Hh = X.H(), t = C.t, lv = GH.level;
-      if (lv > 0.01) { const x0 = X.sx(GH.x0), y0 = X.sy(GH.y0), x1 = X.sx(GH.x1), y1 = X.sy(GH.y1);
+      if (GH.W) GH.W.draw(c, X, c2 => regionPath(c2, X, GH.reg), { over: true });   // v430 BW: the water's tint over what stands deep in it (the guardian), only where it is deep
+      else if (lv > 0.01) { const x0 = X.sx(GH.x0), y0 = X.sy(GH.y0), x1 = X.sx(GH.x1), y1 = X.sy(GH.y1);
         if (!(x1 < -T || y1 < -T || x0 > W + T || y0 > Hh + T)) { c.save(); c.fillStyle = `rgba(14,62,86,${(0.4 * lv).toFixed(3)})`; c.fillRect(x0, y0, x1 - x0, y1 - y0); c.globalCompositeOperation = 'lighter'; c.strokeStyle = `rgba(150,235,240,${(0.16 * lv).toFixed(3)})`; c.lineWidth = Math.max(1, T * 0.04);
           for (let k = 0; k < 6; k++) { const yy = y0 + (y1 - y0) * ((k + 0.5) / 6) + Math.sin(t * 1.3 + k) * T * 0.15; c.beginPath(); for (let xx = x0; xx <= x1; xx += T * 0.5) { const w = Math.sin(xx / T * 1.1 + t * 2 + k) * T * 0.08; xx === x0 ? c.moveTo(xx, yy + w) : c.lineTo(xx, yy + w); } c.stroke(); } c.restore(); } }
       if (DS.exit && !GH.open) { const Xs = X.sx(DS.exit.x), Ys = X.sy(DS.exit.y) - T * 2.9; if (Xs > -T * 2 && Xs < W + T * 2 && Ys > -T * 2 && Ys < Hh + T * 2) { c.save(); for (let i = 0; i < GH.need; i++) { const on = i < GH.turned, px = Xs + (i - (GH.need - 1) / 2) * T * 0.7; if (on) glow(c, px, Ys, T * 0.5, TURQ, 0.6); c.fillStyle = on ? TURQ : '#20343A'; c.strokeStyle = BRASS; c.lineWidth = Math.max(1.5, T * 0.06); c.beginPath(); c.arc(px, Ys, T * 0.2, 0, TAU); c.fill(); c.stroke(); } c.restore(); } }
@@ -1106,6 +1132,7 @@ if (typeof window !== 'undefined') window.BEL = BEL;
         c.save(); c.translate(px, py); glow(c, 0, 0, T * 0.7, TURQ, 0.35 * p); c.rotate(a); c.fillStyle = `rgba(97,217,210,${p.toFixed(3)})`; c.strokeStyle = 'rgba(10,30,36,.85)'; c.lineWidth = Math.max(1.5, T * 0.06); c.beginPath(); c.moveTo(T * 0.42, 0); c.lineTo(-T * 0.22, -T * 0.3); c.lineTo(-T * 0.08, 0); c.lineTo(-T * 0.22, T * 0.3); c.closePath(); c.fill(); c.stroke(); c.restore(); } }
     // the surges: a tidal hall's water rises (the shallows deepen, turquoise lines climb its walls), then a crest sweeps across it
     function tick(dt) { if (GH) gateTick(dt); for (const VH of DS.valveHalls) { const r = VH.room; VH.valve.t += dt; VH.valve.locked = !!(VH.leech && !VH.leech.dead); if (GH) continue;   // (v395 B1: D1's valves only drain the gate hall)
+        if (VH.drained && VH.W) { VH.drainT += dt; VH.level = Math.max(0, VH.level - dt * 0.6); drainTick(VH, dt); continue; }   // v430 BW
         if (VH.drained) { VH.drainT += dt; VH.level = Math.max(0, VH.level - dt * 0.6); if (VH.drainT > 2.2 && !VH.region.off) VH.region.off = true; continue; }
         const near = Math.hypot(me.x - VH.cx, me.y - VH.cy) < Math.max(r.w, r.h) * 0.5 + 12; VH.t += dt * (near ? 1 : 0.4); const P = D.period, u = VH.t % P;
         // calm (most of the cycle), then the rise (3.5 s), the crest (0.9 s), the fall
@@ -1118,6 +1145,9 @@ if (typeof window !== 'undefined') window.BEL = BEL;
         else { VH.phase = 'fall'; VH.level = Math.max(0, 1 - (u - (P - 0.8)) / 0.8); VH.said = false; if (VH.crest >= 0 && near) { X.shake(3, 0.25); } VH.crest = -1; } } }
     function ground(c) { const T = X.Tz(), W = X.W(), Hh = X.H(), t = C.t; if (GH) { gateGround(c); return; }
       for (const VH of DS.valveHalls) { const r = VH.room, x0 = X.sx(r.x), y0 = X.sy(r.y), x1 = X.sx(r.x + r.w), y1 = X.sy(r.y + r.h); if (x1 < -T || y1 < -T || x0 > W + T || y0 > Hh + T) continue; const lv = VH.level;
+        // v430 BW: the sump's bronze grate (under the water), and a draining hall's water over its floor, lapping at its wall faces
+        if (VH.sump && typeof BEL_DOORS !== 'undefined') BEL_DOORS.pic(c, 'sump', 0, X.sx(VH.sump.x), X.sy(VH.sump.y), T);
+        if (VH.W && VH.region.dr) { VH.W.draw(c, X, c2 => regionPath(c2, X, VH.region)); VH.W.walls(c, X, VH.runs, 0.75); }
         if (lv > 0.01) { c.save(); c.beginPath(); regionPath(c, X, VH.region); c.clip(); c.fillStyle = `rgba(24,96,124,${(0.28 * lv).toFixed(3)})`; c.fillRect(x0, y0, x1 - x0, y1 - y0);
           if (VH.phase === 'crest' && VH.crest >= 0) { const fx = X.sx(VH.cx + Math.cos(VH.away) * (r.w / 2) * (1 - 2 * VH.crest)), fy = X.sy(VH.cy + Math.sin(VH.away) * (r.h / 2) * (1 - 2 * VH.crest)), nx = -Math.sin(VH.away), ny = Math.cos(VH.away), L = Math.max(x1 - x0, y1 - y0);
             c.strokeStyle = 'rgba(245,255,253,.95)'; c.lineWidth = Math.max(3, T * 0.14); c.lineCap = 'round'; c.beginPath(); for (let i = -10; i <= 10; i++) { const s = i / 10 * L, wob = Math.sin(i * 1.3 + t * 9) * T * 0.1; const px = fx + nx * s - Math.cos(VH.away) * wob, py = fy + ny * s - Math.sin(VH.away) * wob; i > -10 ? c.lineTo(px, py) : c.moveTo(px, py); } c.stroke(); }
@@ -1170,6 +1200,9 @@ if (typeof window !== 'undefined') window.BEL = BEL;
     // the props' live lights
     const glows = []; for (const p of X.props || []) { const f = GLOWS[p.kind]; if (f) for (const [dx, dy, r, kind] of f(p.v | 0)) glows.push({ p, dx, dy, r, kind, ph: hh(p.k || 0, 1, 3) * TAU }); }
     C.motes = C.motes || []; let wakeT = 0, gDelay = -1;
+    /* v430 BW: the stage's exit door (BEL_DOORS, 20n9d): a boss arena's entrance for the dungeon before Uldroth, the lift in the Clapper
+       Counterweights, the Hall's own doorway there (it draws its own), else a standard door; open when the stage says so (C.doorWant) */
+    if (typeof BEL_DOORS !== 'undefined') { const dk = S.dun ? (S.dun === 'd3' ? 'boss' : 'std') : S.name === 'The Clapper Counterweights' ? 'lift' : /Hall of Three Tides/.test(S.name || '') ? 'none' : 'std'; if (dk !== 'none') { C.exitPos = H.exit || null; BEL_DOORS.stage(X, C, dk); } }   // (the Hall: its central doorway, 20n1, stands over its exit as before)
     const genericGuard = () => !!(S.guard && !S.noGuard && !C.guard);
     /* v394 B1: a dungeon (riftFight runs it): the gate opens only when every one of its brood AND its guardian has fallen;
        the goal counts the brood of this dungeon; the hint leads to the nearest far one, then to the guardian */
@@ -1188,6 +1221,7 @@ if (typeof window !== 'undefined') window.BEL = BEL;
       if (GH) md.cam = () => (GH.camT > 0 ? { x: GH.cx, y: GH.cy, k: Math.min(1, GH.camT * 1.6, (1.8 - GH.camT) * 3) * 0.9, zoom: 0.72 } : null); }   // v395 B1: a look at the gate hall as each valve turns
     return { C, BEL, glows,
       update(dt) { CUR = C; C.X = X; C.t += dt; C.calm += (C.calmTo - C.calm) * Math.min(1, dt * 0.5); const me = X.me;
+        if (C.door && typeof BEL_DOORS !== 'undefined') BEL_DOORS.tick(C, dt, C.doorWant ? C.doorWant() : !!self.done);   // v430 BW: the exit door's lock and leaves
         // the pet's wake in shallow water
         wakeT -= dt; if (!me.dead && C.shallow.length && Math.hypot(me.vx || 0, me.vy || 0) > 0.6 && wakeT <= 0 && BEL.inShallow(X, me.x, me.y)) { wakeT = 0.16; C.ripples.push({ x: me.x, y: me.y + 0.3, t: 0, life: 0.9 }); if (Math.random() < 0.25) X.splash(me.x, me.y + 0.2, 0.5); }
         for (const r of C.ripples) r.t += dt; C.ripples = C.ripples.filter(r => r.t < r.life);

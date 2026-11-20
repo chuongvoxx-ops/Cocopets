@@ -536,7 +536,7 @@ const BEL_NHALU = (() => {
   /* the wheel used: the marked lane drains, the eel beaches for 8 s */
   function useWheel(FX, W2) { const M = FX.mem, m = FX.m, A = M.ac; if (!A || A.k !== 'drain' || A.step !== 1 || !W2.exposed) return false;
     if (W2.locked) { FX.H.text(W2.x, W2.y - 2, 'A leech holds the wheel!', LEECH, 13); sf(FX, 'wrong'); return false; }
-    const lane = M.lanes[A.L]; lane.wetTo = 0; W2.spinV = 9; W2.exposed = false; W2.drainedBy = true; M.stat.drained++; A.bite = null; M.lunge = 0; M.lungeTo = 0;
+    const lane = M.lanes[A.L]; lane.wetTo = 0; lane.dr = { from: lane.wet, t: 0, dur: 2.8 }; /* v430 BW: the lane's water goes down over 2.8 s (eased), not in a blink */ W2.spinV = 9; W2.exposed = false; W2.drainedBy = true; M.stat.drained++; A.bite = null; M.lunge = 0; M.lungeTo = 0;
     A.step = 2; M.beach = { t: 0, L: A.L, wheel: W2.i }; m.stunT = TM.beach + 0.6; M.stat.beached++; M.jawTo = 0.6;
     FX.H.banner('BEACHED!', 'The lane drains away: strike while it gasps on the stones', '#BFF8F2', 2.2, true); sf(FX, 'hiss', 1.2, 0.35, 400); sf(FX, 'thud'); shakeK(FX, 7, 0.4);
     lane.vortex = 0.001; hitstop(FX, 0.08); M.thrash = 1;   // (v398 B4: the sluice's whirlpool opens; the eel's first heave)
@@ -591,7 +591,7 @@ const BEL_NHALU = (() => {
       if (tt > 2.6) M.p2 = null; }
     fxTick(M, dt);
     // the lanes: telegraphs counting down, discharges, the water's level
-    let armedN = 0; for (const L of M.lanes) { L.wet = toward(L.wet, L.wetTo, dt, L.wetTo < L.wet ? 1.6 : 1.0); if (L.fx > 0) L.fx = Math.max(0, L.fx - dt);
+    let armedN = 0; for (const L of M.lanes) { if (L.dr && L.wetTo < 0.5) { L.dr.t += dt; const u = Math.min(1, L.dr.t / L.dr.dur); L.wet = L.dr.from * (1 - (typeof BEL_DRAIN !== 'undefined' ? BEL_DRAIN.ease(u) : ease(u))); if (u >= 1) L.dr = null; } else { L.dr = null; L.wet = toward(L.wet, L.wetTo, dt, L.wetTo < L.wet ? 1.6 : 1.0); }   // v430 BW: a drain runs its eased course (the thunder in a lane reads this level); a refill as before if (L.fx > 0) L.fx = Math.max(0, L.fx - dt);
       if (L.armed && !M.end) { armedN++; L.armed.t += dt; if (L.armed.t >= L.armed.T) discharge(FX, M, L.i); } }
     if (armedN >= 3) M.stat.noSafe++;
     // the wheels and the leeches

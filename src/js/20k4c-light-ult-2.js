@@ -125,7 +125,7 @@
     const warm = [heartSpr, sideSpr, bandSpr, () => coronaSpr(1), shaftSpr, floorSpr, ringSpr, miniHeart, miniEdge, () => starSpr(BLUSH), () => starSpr(CANDY), () => starSpr(GOLD), () => streakSpr(BLUSH), () => streakSpr(GOLD)]; if (L >= 2) warm.push(() => coronaSpr(2)); if (L >= 3) warm.push(() => coronaSpr(3));
     H.add({ life: A1 + FADE + 0.05, x, y, wi: 0, nt: 0, pulse: 0, waves: [],
       update(dt, f) {
-        for (let q = 0; q < 3 && f.wi < warm.length; q++) warm[f.wi++]();
+        if (!gfx()) for (let q = 0; q < 3 && f.wi < warm.length; q++) warm[f.wi++]();   /* (v430 PF: the 2D picture's sprites, warmed only where it is the picture: on the GPU fourteen big gradient paintings in the cast's first frames were drawn for nothing) */
         f.pulse = Math.max(0, f.pulse - dt * 2.6); while (f.waves.length && f.t - f.waves[0] > 1.2) f.waves.shift();
         // the ticks: every monster in the circle; a little light rises from each one hit
         while (f.nt < NT && f.t >= T0 + f.nt * TICK) { f.nt++; f.pulse = 1; f.waves.push(f.t); const hit = H.near(x, y, R); H.hitArea(x, y, R, dmg, C.dmgO()); for (const m of hit) { H.P({ kind: 'glow', x: m.x, y: m.y - 0.3, vx: 0, vy: 0, life: 0.4, max: 0.4, size: 1.1 + (m.r || 0.4), color: ROSE, alpha: 0.8 }); H.flareAt(m.x, m.y - 0.35, 0.7, 0.18, CANDY); for (let k = 0; k < H.n(2); k++) H.P({ kind: 'star', x: m.x + (Math.random() - 0.5) * 0.6, y: m.y - 0.2, vx: (Math.random() - 0.5) * 0.6, vy: -1.2 - Math.random(), life: 0.7, max: 0.7, size: 2.2 + Math.random() * 1.5, color: k % 2 ? BLUSH : ROSE }); } }
@@ -161,7 +161,7 @@
         c.restore(); },
       draw(c, f, X, Y, T, t) {
         const ft = f.t, s0 = scr(c), hw = HW * T, form = cl(ft / A0), out = ft > A1 ? cl((ft - A1) / FADE) : 0, pu = f.pulse;
-        const hs = heartSpr(), m = hs._m; if (!m) return;
+        let hs = null, m = null;   /* (v430 PF: the heart's 2D picture is painted only for the 2D picture, below; the GPU draws its own) */
         // where the heart hangs: Z tiles over the cast's aim (a fixed spot in the world)
         const HX = X, HY = Y - Z * T; void s0;
         const grow = form < 1 ? H.ease.back(sstep(0.15, 1, form)) : 1, scale = grow * (1 - 0.18 * H.ease.in(out)), ha = Math.min(1, form * 1.6) * (1 - sstep(0.25, 1, out));
@@ -186,7 +186,7 @@
           let Q = FG.begin(c, [pX, pY, T * 0.9]);
           flG(Q, false);
           if (len > 2 && sa > 0.01) {
-            Q.quad(43, HX, top + len / 2, bw / 2, 0, 0, len / 2, '#FFFFFF', sa * (0.85 + 0.15 * pu), pu, 0, ev >= 7 ? 1 : 0);
+            Q.trap(43, HX, top + len / 2, bw / 2, 0, 0, len / 2, '#FFFFFF', sa * (0.85 + 0.15 * pu), pu, 0, ev >= 7 ? 1 : 0, 0.36);   /* (v430 PF: laid as the cone it paints, 0.36 as wide at the heart: its empty corners not shaded) */
             for (const w0 of f.waves) { const u = (ft - w0) / WDN; if (u < 0 || u > 1.15) continue; const yy = lerp(top, bot0, Math.min(1, u)), half = lerp(TOPK, 1, Math.min(1, u)) * bw / 2, wa = sa * (u > 1 ? 1 - (u - 1) / 0.15 : 1);
               Q.glow(HX, yy, half * 1.05, ROSE, wa * 0.55, 0.3); Q.glow(HX, yy, half * 0.7, BLUSH, wa * 0.45, 0.16); Q.quad(44, HX, yy, half * 1.12, 0, 0, half * 1.12 * GY, ROSE, wa * 0.9, 0.05, 1.1, 0); }
             Q.glow(HX, botN, bw * 0.4, CANDY, sa * (0.22 + 0.14 * pu) * sh, GY); Q.glow(HX, botN, bw * 0.12, PEARL, sa * 0.16 * sh, GY); }
@@ -194,7 +194,7 @@
           if (ha > 0.01) {
             Q.glow(HX, HY, hw * 1.6 * scale * (1 + 0.15 * pu), ROSE, ha * (0.34 + 0.16 * bright + 0.3 * pu)); Q.glow(HX, HY, hw * 0.8 * scale, BLUSH, ha * 0.28 * pu); Q.glow(HX, HY, hw * 1.05 * scale, MAG, ha * 0.22);
             Q.quad(44, HX, HY, hx * 1.1, 0, 0, hx * 1.1, ROSE, ha * (0.55 + 0.3 * pu) * (1 - out), 0.03, 1.1, 0.5 + 0.3 * bright);
-            const rr = hw * 1.15 * cs; if (rr > 2 && ca > 0.01) Q.quad(42, HX, HY, rr, 0, 0, rr, ROSE, Math.min(1, ca * (1 + 0.3 * pu)), L, ft + out * 9, pu);
+            const rr = hw * 1.15 * cs; if (rr > 2 && ca > 0.01) Q.shape(42, HX, HY, rr, 0, 0, rr, ROSE, Math.min(1, ca * (1 + 0.3 * pu)), L, ft + out * 9, pu, 0, 1);   /* (v430 PF: its disc) */
             if (ca > 0.05) for (let i = 0; i < NARC; i++) { const per = 1.5 + 0.4 * R1(i), ph = (ft / per + i / NARC) % 1, cyc = Math.floor(ft / per + i / NARC), a0 = R1(cyc * 7.3 + i * 13.1) * TAU, dir = R1(cyc * 3.1 + i) < 0.5 ? 1 : -1, rc = hw * 0.5 * cs;
               const u1 = Math.min(1, ph * 1.7), u0 = Math.max(0, ph * 1.7 - 0.55); if (u1 <= u0) continue; const aa = ca * (1 - sstep(0.55, 1, ph)), pt = j => { const u = lerp(u0, u1, j / 8), r = rc * (1 + 0.75 * u), b = a0 + dir * 0.7 * u; return [HX + Math.cos(b) * r, HY + Math.sin(b) * r]; };
               for (let j = 0; j < 7; j++) { const p0 = pt(j), p1 = pt(j + 2 > 8 ? 8 : j + 2); Q.beam(p0[0], p0[1], p1[0], p1[1], T * 0.09, ROSE, aa * 0.7); Q.beam(p0[0], p0[1], p1[0], p1[1], T * 0.03, PEARL, aa * 0.8); } } }
@@ -215,6 +215,7 @@
             if (form < 1) Q.quad(44, HX, HY, hw / 1.68, 0, 0, hw / 1.68, ROSE, 1 - sstep(0.7, 1, form), 0.035, sstep(0, 0.75, form) * 1.1, 0.25); }
           flG(Q, true);
           FG.flush(c); return; } }
+        hs = heartSpr(); m = hs._m; if (!m) return;   // (v430 PF: the 2D picture's heart, here)
         c.save();
         drawFl(false);
         if (len > 2 && sa > 0.01) {
