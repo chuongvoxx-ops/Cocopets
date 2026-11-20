@@ -77,6 +77,22 @@ const THUL_GL = (() => {
   const ARMC = [], ARMF = [];
   function armSpine(S, out0) { const n = S.length - 1; for (let i = 0; i <= ANU; i++) ARMC[i] = spl(S, i / ANU * n);
     let zp = out0; for (let i = 0; i <= ANU; i++) { const a = ARMC[Math.max(0, i - 1)], b = ARMC[Math.min(ANU, i + 1)], x = vnrm(vsub(b, a)); let z = vsub(zp, vmul(x, vdot(zp, x))); if (vlen(z) < 1e-4) z = Math.abs(x[2]) < 0.9 ? [0, 0, 1] : [1, 0, 0]; z = vnrm(z); ARMF[i] = { x, y: vcross(z, x), z }; zp = z; } }
+  /* (v434 PO) an arm's surface rewritten in place every frame: the same grid, the same positions and normals as GB_KIT.regrid
+     gave it (the same arithmetic in the same order: central differences clamped at the ends, crossed, turned outward, scaled to
+     unit length), but without the arrays it made for every vertex (a position, two differences, a cross product, a flip: about
+     2,800 short-lived arrays an arm, 1.1 MB of garbage a frame for eight arms, which an iPhone's collector then stops the
+     frame to sweep). window.__PO_OFF = 1: K.regrid, as v433 (tests compare the two) */
+  const poOff = () => { try { return typeof window !== 'undefined' && window.__PO_OFF === 1; } catch (e) { return false; } };
+  const AG = new Float64Array((ANU + 1) * (ANV + 1) * 3), AW1 = ANU + 1;
+  function armGrid(M, rad) { if (!M) return; const P = M.pos, N = M.nrm;
+    for (let j = 0; j <= ANV; j++) for (let i = 0; i <= ANU; i++) { const u = i / ANU, v = j / ANV, ii = Math.round(u * ANU), c = ARMC[ii], F = ARMF[ii], a = v * TAU, r = rad(u), sa = Math.sin(a), ca = Math.cos(a) * r, sb = sa * r * (sa < 0 ? 0.82 : 1), o = (j * AW1 + i) * 3;
+      AG[o] = c[0] + (F.y[0] * ca + F.z[0] * sb); AG[o + 1] = c[1] + (F.y[1] * ca + F.z[1] * sb); AG[o + 2] = c[2] + (F.y[2] * ca + F.z[2] * sb); }
+    const at = (i, j) => (Math.max(0, Math.min(ANV, j)) * AW1 + Math.max(0, Math.min(ANU, i))) * 3;
+    let o = 0; for (let j = 0; j <= ANV; j++) for (let i = 0; i <= ANU; i++) { const q = at(i, j), a = at(i + 1, j), b = at(i - 1, j), c2 = at(i, j + 1), d = at(i, j - 1);
+      const u0 = AG[a] - AG[b], u1 = AG[a + 1] - AG[b + 1], u2 = AG[a + 2] - AG[b + 2], v0 = AG[c2] - AG[d], v1 = AG[c2 + 1] - AG[d + 1], v2 = AG[c2 + 2] - AG[d + 2];
+      const n0 = -(u1 * v2 - u2 * v1), n1 = -(u2 * v0 - u0 * v2), n2 = -(u0 * v1 - u1 * v0), l = Math.sqrt(n0 * n0 + n1 * n1 + n2 * n2) || 1;
+      P[o] = AG[q]; P[o + 1] = AG[q + 1]; P[o + 2] = AG[q + 2]; N[o] = n0 / l; N[o + 1] = n1 / l; N[o + 2] = n2 / l; o += 3; }
+    if (typeof GLM !== 'undefined' && GLM.touchGeo) GLM.touchGeo(M); }
   /* P: hd (the head's heading, model), z0 (the dome's centre over the sand), sw / sq (breath, a blow), gaze (model dir), dil, lidU, lidL, bulge,
      eyeGlow, roar, foot ([x, y] the dome's footprint where it meets the sand), arms ([{ k, pts (model, root first), up, wind, open, kr }]),
      dizzy, flash, dead, alpha */
@@ -97,7 +113,7 @@ const THUL_GL = (() => {
       armSpine(S, vmul(toward, -1)); const kr = Ar.kr || 1, ph0 = k * 1.7 + t * 1.3, rad = u => (0.74 * Math.pow(1 - u, 1.25) + 0.045 + 0.16 * Math.exp(-sq(u / 0.1))) * kr * (1 + 0.055 * Math.sin(u * 26 - t * 4 + k));
       // (v433 DB, second pass) a twist along its length (its underside's suckers turning into view as it curls), a ripple running down it
       for (let i = 0; i <= ANU; i++) { const u = i / ANU, tw = (0.9 * u + 0.25 * Math.sin(u * 5 + ph0)) * (k % 2 ? 1 : -1), F = ARMF[i], c = Math.cos(tw), s2 = Math.sin(tw); ARMF[i] = { x: F.x, y: vadd(vmul(F.y, c), vmul(F.z, s2)), z: vadd(vmul(F.z, c), vmul(F.y, -s2)) }; }
-      K.regrid(M, ANU, ANV, (u, v) => { const i = Math.round(u * ANU), c = ARMC[i], F = ARMF[i], a = v * TAU, r = rad(u), sa = Math.sin(a); return vadd(c, vadd(vmul(F.y, Math.cos(a) * r), vmul(F.z, sa * r * (sa < 0 ? 0.82 : 1)))); }, true); TH.PB['arm' + k] = null;
+      if (!poOff()) armGrid(M, rad); else /* (v434 PO: the v433 way, window.__PO_OFF = 1) */ K.regrid(M, ANU, ANV, (u, v) => { const i = Math.round(u * ANU), c = ARMC[i], F = ARMF[i], a = v * TAU, r = rad(u), sa = Math.sin(a); return vadd(c, vadd(vmul(F.y, Math.cos(a) * r), vmul(F.z, sa * r * (sa < 0 ? 0.82 : 1)))); }, true); TH.PB['arm' + k] = null;
       I('arm' + k, I3(), [0, 0, 0], { glow: Ar.wind || 0, wear: 0.1 + k * 0.11 });
       // its suckers: two staggered rows down the underside, smaller toward the tip
       const MS = TH.MESH.suckers; for (let j = 0; j < NSK; j++) { const row = j % 2, u = 0.1 + (Math.floor(j / 2) + row * 0.5) * 0.095; if (u > 0.93) { K.hide(MS, k * NSK + j); continue; }

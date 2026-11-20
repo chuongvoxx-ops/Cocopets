@@ -2170,6 +2170,7 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
   /* (v430 PF) the light layer split by program: its simple kinds (0 glow, 1 ring, 2 beam, 7 sparkle) for PRS, the rest for the
      main shader (6 vertices at a time, each six one kind) */
   const SPL = { s: new Float32Array(12 * 6 * 256), r: new Float32Array(12 * 6 * 256) };
+  const PTS = [];   /* (v434 PO) a layer's parts inside Q.clipTo's rectangles, reused */
   function splitLit(A, n) { let ns = 0, nr = 0; if (SPL.s.length < n * 12) SPL.s = new Float32Array(n * 12); if (SPL.r.length < n * 12) SPL.r = new Float32Array(n * 12);
     for (let o = 0; o < n * 12; o += 72) { const k = A[o + 4], simple = k < 2.5 || (k > 6.5 && k < 7.5), D = simple ? SPL.s : SPL.r; let d = (simple ? ns : nr) * 12; for (let i = o; i < o + 72; i++) D[d++] = A[i]; if (simple) ns += 6; else nr += 6; }   /* (copied by hand: a subarray per quad was an object per quad, thousands a frame under Dead Scream) */
     return { ns, nr }; }
@@ -2262,6 +2263,14 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
     /* (v430 PF) a ripple as its band: nothing past 1.28 of its radius; its crest, wavelets and inner wash fade under a fifth of
        a level more than 9.2 thicknesses + 0.03 inside it */
     ripple(x, y, r, col, a, seed, sy, th) { if (r > 1 && a > 0.01) { const h = th == null ? 0.12 : th; this.shape(28, x, y, r * 1.3, 0, 0, r * 1.3 * (sy || 1), col, a, 1, seed || 0, h, (0.97 - 9.2 * Math.max(0.03, h)) / 1.3, 0.985); } },
+    /* (v434 PO) only these parts of the screen will be seen: rectangles [x0, y0, x1, y1, ...] in the canvas's own coordinates
+       (as the quads'; whole layer pixels round them), disjoint. Each layer of this pass is then shaded and laid over only inside
+       them (the rest of its box is not drawn at all), all of them laid from one copy of the layer. For a picture that the caller
+       knows will be covered outside them (the dunes' far view, seen only through the gaps in the land). Every edge is rounded
+       to the nearest layer pixel, so rectangles that touch still touch and never overlap (nothing is laid twice). Cleared by begin */
+    clipTo(R, n) { this.rl = null; if (!R || !(n > 0) || Math.abs(this.b) > 1e-6 || Math.abs(this.c0) > 1e-6) return; const L = this.rlB || (this.rlB = []); L.length = 0;
+      for (let i = 0; i < n * 4; i += 4) { const x0 = Math.round(Math.min(this.X(R[i], 0), this.X(R[i + 2], 0))), x1 = Math.round(Math.max(this.X(R[i], 0), this.X(R[i + 2], 0))), y0 = Math.round(Math.min(this.Y(0, R[i + 1]), this.Y(0, R[i + 3]))), y1 = Math.round(Math.max(this.Y(0, R[i + 1]), this.Y(0, R[i + 3])));
+        if (x1 > x0 && y1 > y0) L.push(x0, y0, x1, y1); } this.rl = L; },
     shimmer(x, y, r, a, sy, col) { if (r > 0.5) this.quad(8, x, y, r, 0, 0, r * (sy || 1), col || '#FFA640', a); },
     smoke(x, y, r, a, seed, col, lit) { if (r > 0.5) this.quad(9, x, y, r, 0, 0, r, col || '#3A2E2A', a, lit || 0, seed || 0); },
     /* a comet trail of fire through screen points (head first), each stretch a fire-beam quad, tapering */
@@ -2269,7 +2278,7 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
       this.firebeam(x0 - ex, y0 - ey, x1 + ex, y1 + ey, w * (1 - 0.75 * k), heat * (1 - 0.6 * k), a * (1 - k * k), (seed || 0) + i * 0.37, 4); } } };
   /* begin a pass on the game canvas c (its transform is the camera); pet: [screen x, y, radius] to keep clear, or null */
   function begin(c, pet) { const B = c.getTransform(), cv0 = c.canvas, L = LOWQ(), k0 = Math.min(L ? 0.42 : 0.7, 1500 / Math.max(cv0.width, cv0.height));   /* (v364: a finer GPU layer: 1500 px on the long side, was 1200) */ Q.W = Math.max(8, Math.round(cv0.width * k0)); Q.Hh = Math.max(8, Math.round(cv0.height * k0)); const kx = Q.W / cv0.width;
-    Q.a = B.a * kx; Q.b = B.b * kx; Q.c0 = B.c * kx; Q.d = B.d * kx; Q.e = B.e * kx; Q.f = B.f * kx; Q.k = (Math.sqrt(Math.abs(B.a * B.d - B.b * B.c)) || 1) * kx; Q.nl = Q.ns = Q.nwl = Q.nws = 0; Q.sv = Q.nq = 0; /* v430 PF */ Q.t =(typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000 % 1000;
+    Q.a = B.a * kx; Q.b = B.b * kx; Q.c0 = B.c * kx; Q.d = B.d * kx; Q.e = B.e * kx; Q.f = B.f * kx; Q.k = (Math.sqrt(Math.abs(B.a * B.d - B.b * B.c)) || 1) * kx; Q.nl = Q.ns = Q.nwl = Q.nws = 0; Q.sv = Q.nq = 0; /* v430 PF */ Q.rl = null; /* v434 PO */ Q.t =(typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000 % 1000;
     if (pet) { Q.pet[0] = Q.X(pet[0], pet[1]); Q.pet[1] = Q.Y(pet[0], pet[1]); Q.pet[2] = pet[2] * Q.k; } else Q.pet[2] = 0; return Q; }
   /* (v388 E: every beam's far end feathers out) beams (kinds 2, 6, 11, 20) are laid as chains of overlapping stretches
      whose ends fade over only their last tenth or fifth (so the links sum to one where they overlap); the last stretch of a
@@ -2305,6 +2314,16 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
          window.__PF_OFF = 1: the whole layer every time, one program, as before */
       const off = pfOff(), sxr = cv0.width / W, syr = cv0.height / Hh;
       const lay = (A, n, AW, nw, lit) => { const R = off ? [0, 0, W, Hh] : boxOf(A, n, AW, nw, W, Hh); if (!R) return; const full = R[0] === 0 && R[1] === 0 && R[2] === W && R[3] === Hh;
+        /* (v434 PO) Q.clipTo's rectangles: the layer shaded inside each (its box cut to it, 2 px more drawn round it so a laid
+           edge never filters in anything else), then each laid over from the one copy. window.__PO_OFF = 1: the whole box, as v433 */
+        const RL = Q.rl; if (RL && RL.length && !off && !(typeof window !== 'undefined' && window.__PO_OFF === 1)) { const PT = PTS; PT.length = 0;
+          for (let i = 0; i < RL.length; i += 4) { const a0 = Math.max(R[0], RL[i]), b0 = Math.max(R[1], RL[i + 1]), a1 = Math.min(R[2], RL[i + 2]), b1 = Math.min(R[3], RL[i + 3]); if (a1 > a0 && b1 > b0) PT.push(a0, b0, a1, b1); }
+          if (!PT.length) return; gl.enable(gl.SCISSOR_TEST); const m = lit && PRS ? splitLit(A, n) : null; gl.blendFunc(gl.ONE, lit ? gl.ONE_MINUS_SRC_COLOR : gl.ONE_MINUS_SRC_ALPHA);
+          for (let i = 0; i < PT.length; i += 4) { const x0 = Math.max(0, PT[i] - 2), y0 = Math.max(0, PT[i + 1] - 2), x1 = Math.min(W, PT[i + 2] + 2), y1 = Math.min(Hh, PT[i + 3] + 2); gl.scissor(x0, Hh - y1, x1 - x0, y1 - y0); gl.clear(gl.COLOR_BUFFER_BIT);
+            if (m) { if (m.nr) { use(PR); pass0(SPL.r, m.nr); } if (m.ns) { use(PRS); pass0(SPL.s, m.ns); } if (nw && PRW) { use(PRW); pass0(AW, nw); } } else pass(A, n, AW, nw); }
+          c.globalCompositeOperation = lit ? 'lighter' : 'source-over';
+          for (let i = 0; i < PT.length; i += 4) { const w = PT[i + 2] - PT[i], h = PT[i + 3] - PT[i + 1]; c.drawImage(cv, PT[i], PT[i + 1], w, h, PT[i] * sxr, PT[i + 1] * syr, w * sxr, h * syr); stats.compPx += w * h * sxr * syr; }
+          stats.comp++; return; }
         if (off) gl.disable(gl.SCISSOR_TEST); else { gl.enable(gl.SCISSOR_TEST); const x0 = Math.max(0, R[0] - 2), y0 = Math.max(0, R[1] - 2), x1 = Math.min(W, R[2] + 2), y1 = Math.min(Hh, R[3] + 2); gl.scissor(x0, Hh - y1, x1 - x0, y1 - y0); }   /* (the scissor always on, the whole layer for a full one: one state for every pass, so no driver builds a second version of the big shader mid-fight; llvmpipe did, for seconds) */
         gl.clear(gl.COLOR_BUFFER_BIT);
         if (lit) { gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_COLOR); if (PRS && !off) { const m = splitLit(A, n); if (m.nr) { use(PR); pass0(SPL.r, m.nr); } if (m.ns) { use(PRS); pass0(SPL.s, m.ns); } if (nw && PRW) { use(PRW); pass0(AW, nw); } } else pass(A, n, AW, nw); c.globalCompositeOperation = 'lighter'; }

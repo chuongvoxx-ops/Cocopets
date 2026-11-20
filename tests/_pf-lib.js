@@ -14,7 +14,7 @@ function install() {
   const C = window.__PFC = { on: false, z() { for (const k of Object.keys(this)) if (typeof this[k] === 'number') this[k] = 0; } };
   const K = ['di', 'diA', 'diGL', 'diGLA', 'diCv', 'diCvA', 'fill', 'stroke', 'fillRect', 'fillRectA', 'grad', 'pat', 'cvNew', 'cvResize', 'gid', 'pid', 'lighter', 'lighterA', 'filt', 'shad', 'clip',
     'glDraw', 'glVerts', 'glBuf', 'glBufB', 'glTex', 'glTexB', 'glCompile', 'glCompileMs', 'glLink', 'glLinkMs', 'glRead', 'glClear', 'glProg',
-    'fgFlush', 'fgMs', 'fgFill', 'fgQuads', 'fgSmoke', 'fgDraws', 'fgComp', 'glmN', 'glmMs', 'glmA', 'glmDraw', 'glmVerts', 'diGLms'];
+    'fgFlush', 'fgMs', 'fgFill', 'fgFillV', 'fgLayers', 'cvResizeGLM', 'fgQuads', 'fgSmoke', 'fgDraws', 'fgComp', 'glmN', 'glmMs', 'glmA', 'glmDraw', 'glmVerts', 'diGLms'];
   for (const k of K) C[k] = 0;
   const now = () => performance.now();
   const P2 = CanvasRenderingContext2D.prototype, sc = c => { const m = c.getTransform(); return Math.abs(m.a * m.d - m.b * m.c); };
@@ -30,7 +30,7 @@ function install() {
   wrap(P2, 'createRadialGradient', function () { C.grad++; who('grad'); }); wrap(P2, 'createLinearGradient', function () { C.grad++; who('grad'); }); wrap(P2, 'createPattern', function () { C.pat++; who('pat'); });
   wrap(P2, 'getImageData', function (a) { if (a[2] * a[3] > 1) C.gid++; }); wrap(P2, 'putImageData', function () { C.pid++; });
   const ce = Document.prototype.createElement; Document.prototype.createElement = function (t) { if (C.on && /^canvas$/i.test(t)) { C.cvNew++; if (C.trace) { const L = (new Error().stack || '').split('\n')[2] || '', m = L.match(/:(\d+):\d+\)?$/); const key = 'canvas ' + (m ? m[1] : '?') + ' ' + (L.match(/at ([^ ]+) /) || [])[1]; C.trace[key] = (C.trace[key] || 0) + 1; } } return ce.apply(this, arguments); };
-  for (const pr of ['width', 'height']) { const d = Object.getOwnPropertyDescriptor(HTMLCanvasElement.prototype, pr); Object.defineProperty(HTMLCanvasElement.prototype, pr, { get: d.get, set(v) { if (C.on && d.get.call(this) !== v) { C.cvResize++; if (C.trace) { const L = (new Error().stack || '').split('\n')[2] || '', m = L.match(/:(\d+):\d+\)?$/); const key = 'resize ' + (m ? m[1] : '?') + ' ' + (L.match(/at ([^ ]+) /) || [])[1]; C.trace[key] = (C.trace[key] || 0) + 1; } } d.set.call(this, v); }, configurable: true }); }
+  for (const pr of ['width', 'height']) { const d = Object.getOwnPropertyDescriptor(HTMLCanvasElement.prototype, pr); Object.defineProperty(HTMLCanvasElement.prototype, pr, { get: d.get, set(v) { if (C.on && d.get.call(this) !== v) { C.cvResize++; if (this.__pfGL === 'glm') C.cvResizeGLM++; /* (v434 PO: the GLM canvas's own) */ if (C.trace) { const L = (new Error().stack || '').split('\n')[2] || '', m = L.match(/:(\d+):\d+\)?$/); const key = 'resize ' + (m ? m[1] : '?') + ' ' + (L.match(/at ([^ ]+) /) || [])[1]; C.trace[key] = (C.trace[key] || 0) + 1; } } d.set.call(this, v); }, configurable: true }); }
   const gc = HTMLCanvasElement.prototype.getContext; HTMLCanvasElement.prototype.getContext = function (t) { const r = gc.apply(this, arguments); if (r && /webgl/.test(t)) { this.__pfGL = arguments[1] && arguments[1].depth ? 'glm' : 'fg'; r.__pfK = this.__pfGL; } return r; };
   for (const G of [self.WebGLRenderingContext, self.WebGL2RenderingContext]) { if (!G) continue; const P = G.prototype;
     wrap(P, 'drawArrays', function (a) { C.glDraw++; C.glVerts += a[2]; }); wrap(P, 'drawElements', function (a) { C.glDraw++; C.glVerts += a[1]; if (this.__pfK === 'glm') { C.glmDraw++; C.glmVerts += a[1]; } });
@@ -50,10 +50,13 @@ async function open(o) {
   await page.addInitScript(install);
   // the GPU paths a real GPU takes, forced on the software rasteriser
   await page.addInitScript(gpu => { if (gpu) for (const f of ['__NG_GL', '__TTN_GL', '__DS_GL', '__BELK_GL', '__ULD_GL', '__NHALU_GL', '__VARKUL_GL', '__GLM_WARM']) window[f] = 1; }, o.gpu !== false);
+  // (v434 PO) Rift 03's GPU bosses too (Sarrukh, Oneira, Thul-Ammon), at a phone's full resolution (HQ: not the software rasteriser's 0.45x; HQ=0 keeps 0.45x)
+  await page.addInitScript(([gpu, hq]) => { if (gpu) { window.__SAR_GL = 1; window.__DB_GL = 1; if (hq) { window.__SAR_GLHQ = 1; window.__DB_GLHQ = 1; } } }, [o.gpu !== false, process.env.HQ !== '0']);
   await page.goto('file://' + path.resolve(__dirname, '..', o.html || process.env.HTML || 'test.html'));
   await page.waitForFunction(() => window.__pp, null, { timeout: 900000 }); await page.waitForTimeout(300);
   await page.evaluate(() => { const P = window.__pp; P.quickStart('Bot'); P.st.dun.god = true; P.st.energy = 100; P.st.dlv = 30; P.st.unlockAll = true; P.st.dun.best = 120; P.openMap(); P.dun.setMapTab('rift', true); });
-  const start = async stage => { await page.evaluate(stage => { const P = window.__pp; if (P.arc.open) P.closeArcade(true); P.st.energy = 100; P.openMap(); P.dun.setMapTab('rift', true); P.startRift('belfry', stage); }, stage);
+  const RIFT = o.rift || process.env.RIFT || 'belfry';   // (v434 PO: any rift; RIFT=dunes for Rift 03)
+  const start = async stage => { await page.evaluate(([stage, rift]) => { const P = window.__pp; if (P.arc.open) P.closeArcade(true); P.st.energy = 100; const w = document.getElementById('giftWrap'); if (w) w.hidden = true; try { P.riftState().prog[rift] = stage; } catch (e) {} P.openMap(); P.dun.setMapTab('rift', true); P.startRift(rift, stage); }, [stage, RIFT]);
     await page.waitForFunction(() => window.__pp.arc.state === 'ready', null, { timeout: 1800000 }); await page.evaluate(() => window.__pp.beginPlay()); await page.waitForFunction(() => window.__pp.arc.state === 'play', null, { timeout: 60000 });
     // the arcade's loop stopped: the frames are driven by hand from here (the same steps as arcFrame)
     await page.evaluate(() => { const P = window.__pp; cancelAnimationFrame(P.arc.raf); P.arc.open = false; Math.random = (s => () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; })(4242); }); };
@@ -65,12 +68,17 @@ async function open(o) {
     if (F && !F.__pf) { const b0 = F.begin, fl = F.flush; let Qc = null; F.begin = function () { Qc = b0.apply(this, arguments); return Qc; };
       const tri = (A, n) => { let s = 0; for (let o = 0; o + 36 <= n * 12; o += 36) s += Math.abs((A[o + 12] - A[o]) * (A[o + 25] - A[o + 1]) - (A[o + 13] - A[o + 1]) * (A[o + 24] - A[o])) / 2; return s; };
       F.flush = function (cc) { if (!C.on) return fl.apply(this, arguments); if (Qc) C.fgFill += tri(Qc.lit, Qc.nl) + tri(Qc.smk, Qc.ns) + tri(Qc.wlit, Qc.nwl) + tri(Qc.wsmk, Qc.nws);
-        const s = F.stats, f0 = s.frames, d0 = C.diGL, t = performance.now(); const r = fl.apply(this, arguments); C.fgMs += performance.now() - t; C.fgFlush++; if (s.frames !== f0) { C.fgQuads += s.quads; C.fgSmoke += s.smoke; C.fgDraws += s.draws; } C.fgComp += C.diGL - d0; return r; }; F.__pf = 1; }
+        /* (v434 PO) fgFillV: the fill the GPU really shades: each triangle cut to the layer, and to Q.clipTo's rectangles when the pass has them */
+        if (Qc) { const RS = Qc.rl && Qc.rl.length && window.__PO_OFF !== 1 ? Qc.rl : [0, 0, Qc.W, Qc.Hh]; const clip = (P, R) => { for (const [ax, lim, sg] of [[0, R[0], 1], [0, R[2], -1], [1, R[1], 1], [1, R[3], -1]]) { const o = []; for (let i = 0; i < P.length; i++) { const p = P[i], q = P[(i + 1) % P.length], ip = (p[ax] - lim) * sg >= 0, iq = (q[ax] - lim) * sg >= 0; if (ip) o.push(p); if (ip !== iq) { const t = (lim - p[ax]) / (q[ax] - p[ax]); o.push([p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t]); } } P = o; if (!P.length) return 0; } let a = 0; for (let i = 0; i < P.length; i++) { const p = P[i], q = P[(i + 1) % P.length]; a += p[0] * q[1] - q[0] * p[1]; } return Math.abs(a) / 2; };
+          for (const [A, n] of [[Qc.lit, Qc.nl], [Qc.smk, Qc.ns], [Qc.wlit, Qc.nwl], [Qc.wsmk, Qc.nws]]) for (let o = 0; o + 36 <= n * 12; o += 36) { const T3 = [[A[o], A[o + 1]], [A[o + 12], A[o + 13]], [A[o + 24], A[o + 25]]]; for (let r = 0; r < RS.length; r += 4) C.fgFillV += clip(T3, [RS[r], RS[r + 1], RS[r + 2], RS[r + 3]]); } }
+        const s = F.stats, f0 = s.frames, d0 = C.diGL, t = performance.now(); const r = fl.apply(this, arguments); C.fgMs += performance.now() - t; C.fgFlush++; if (s.frames !== f0) { C.fgQuads += s.quads; C.fgSmoke += s.smoke; C.fgDraws += s.draws; } C.fgComp += C.diGL - d0; if (s.frames !== f0) C.fgLayers += s.comp || 0; /* (v434 PO: layers laid, each one copy of the GL canvas) */ return r; }; F.__pf = 1; }
     if (opt.off != null) window.__PF_OFF = opt.off;
     const rows = [], mem = () => (performance.memory ? performance.memory.usedJSHeapSize : 0), sync = () => c.getImageData(0, 0, 1, 1);
     for (let i = 0; i < n; i++) {
       if (opt.hold) opt.hold.forEach(f => (0, eval)(f));
       if (D.me && !D.me.dead) { D.me.hp = D.ST.hp; D.me.mp = 999; }
+      /* (v434 PO) extra counters: window.__PFX() returns { name: number } (a picture cache's paints, misses, ...): per-frame deltas as x_<name> */
+      const X0 = window.__PFX ? window.__PFX() : null;
       sync(); C.z(); C.on = true; D.g.prof = opt.prof ? {} : null; const h0 = mem();
       const t0 = performance.now(); A.t += opt.dt; G.update(opt.dt); const t1 = performance.now();
       c.save(); G.draw(c); c.restore(); const t2 = performance.now(); if (P.retro) P.retro.post(cv, c); sync(); const t3 = performance.now();
@@ -78,6 +86,7 @@ async function open(o) {
       const r = { upd: t1 - t0, draw: t2 - t1, post: t3 - t2, tot: t3 - t0, heap: mem() - h0, pr };
       for (const k in C) if (typeof C[k] === 'number') r[k] = C[k];
       r.parts = D.parts ? D.parts.length : 0; r.fx = D.ELEM ? D.ELEM.fx.length : 0; r.mons = D.mons.filter(m => !m.dead).length;
+      if (X0) { const X1 = window.__PFX(); for (const k in X1) r['x_' + k] = (X1[k] || 0) - (X0[k] || 0); }   /* (v434 PO) */
       rows.push(r);
     }
     return { rows, cv: [cv.width, cv.height], compiles: (C.compiles || []).filter(x => x[2] === 'frame') };

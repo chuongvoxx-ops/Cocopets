@@ -359,7 +359,10 @@ var DUNE_SKY = (() => {
   // the copies of a thing repeated every `per` tiles that can be on the screen (its reach r tiles about its place)
   function each(V, per, fx, r, f) { const x0 = (V.W * -0.5) / V.T, camX = (V.W / 2 - V.sx(0)) / V.T, lo = camX - V.W / 2 / V.T - r, hi = camX + V.W / 2 / V.T + r; void x0;
     for (let n = Math.floor((lo - fx * per) / per); n <= Math.ceil((hi - fx * per) / per); n++) { const xw = fx * per + n * per; if (xw < lo || xw > hi) continue; f(xw, n); } }
-  function vista(c, V, o) { o = o || {}; const L = LANDS[V.land]; if (!L) return; const W = V.W, H = V.H, T = V.T, ya = a => V.sy(V.hy + a * V.span), yo = dy => V.sy(V.hy + dy), lf = lowFx(); STATS.frames++;
+  function vista(c, V, o) { o = o || {}; const L = LANDS[V.land]; if (!L) return;
+    if (o.rn > 0) { const n = o.rn; c.save(); try { c.beginPath(); for (let i = 0; i < n * 4; i += 4) c.rect(SRC[i], SRC[i + 1], SRC[i + 2] - SRC[i], SRC[i + 3] - SRC[i + 1]); c.clip(); vistaIn(c, V, o, L); } finally { c.restore(); } return; }   /* (v434 PO: only where it will be seen: seenRects) */
+    vistaIn(c, V, o, L); }
+  function vistaIn(c, V, o, L) { const W = V.W, H = V.H, T = V.T, ya = a => V.sy(V.hy + a * V.span), yo = dy => V.sy(V.hy + dy), lf = lowFx(); STATS.frames++;
     const camY = V.hy + (H / 2 - V.sy(V.hy)) / T, top = camY - H / 2 / T, bot = camY + H / 2 / T;   // (the rows of the world on the screen)
     // the sky's column
     const col = column(V.land), y0 = ya(A0), y1 = ya(A1); c.save(); c.imageSmoothingEnabled = true;
@@ -380,7 +383,7 @@ var DUNE_SKY = (() => {
       if (L.moon) return;   // (the moon is laid after the sky's light: below)
       else { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = L.sun.v ? 0.5 : 0.42; if (typeof blitSized === 'function' && typeof glowSprite === 'function') blitSized(c, glowSprite(L.sun.glow), X - R * 6, Y - R * (L.sun.v ? 6 : 3.4), R * 12, R * (L.sun.v ? 12 : 6.8)); c.restore(); drawPic(c, V, 'sun', L.sun.v, X, Y, orb.r); } });
     // the light of the sky (the GPU): the corona, the aurora, the stars' twinkle
-    const F = o.gpu === false ? null : gpuF(); if (F) { try { const Q = F.begin(c, null); skyLight(Q, V, L, lf); if (Q.nl || Q.ns) { STATS.quads += (Q.nl + Q.ns) / 6; F.flush(c); } } catch (e) {} }
+    const F = o.gpu === false ? null : gpuF(); if (F) { try { const Q = F.begin(c, null); if (o.rn > 0 && Q.clipTo) Q.clipTo(SRC, o.rn); /* v434 PO */ skyLight(Q, V, L, lf); if (Q.nl || Q.ns) { STATS.quads += (Q.nl + Q.ns) / 6; F.flush(c); } } catch (e) {} }
     if (L.moon) each(V, L.per, L.moon.fx, (L.moon.r + 2) * 4, xw => { const X = V.sx(xw), Y = skyY(V, L.moon), R = L.moon.r * T; if (Y < -R * 2 || Y > H + R * 2) return; drawPic(c, V, 'moon', 0, X, Y, L.moon.r); });
     // the upper jaw closing the dusk overhead: its ridge and the fangs hanging down from it
     if (L.jaw) { const yj = skyY(V, L.jaw); if (yj > -T * 2.5 && yj < H + T * 7) { const per = JAWP; each(V, per, 0, per / 2 + 1, xw => drawPic(c, V, 'jaw', 0, V.sx(xw), yj, 1));
@@ -395,7 +398,7 @@ var DUNE_SKY = (() => {
         drawPic(c, V, 'rib', 0, V.sx(xc - 3.52 * sj), yj, sj, { alpha: al }); drawPic(c, V, 'rib', 0, V.sx(xc + 3.52 * sj), yj, sj, { alpha: al, flip: true }); } }); continue; }
       each(V, L.per, it.fx, 7 * it.s, xw => drawPic(c, V, it.kind, it.v, V.sx(xw), Y, it.s, { alpha: (it.a == null ? 1 : it.a) * (it.haze ? 1 - it.haze * 0.75 : 1), flip: it.flip })); }   /* (aerial perspective: the far ones let the hazy horizon through; one painting each, no tinted copies) */
     // the air (the GPU): veils of sand or mist, heat shimmer and mirages, fireflies, dust and glints
-    if (F) { try { const Q = F.begin(c, null); airLight(Q, V, L, lf, top, bot); if (Q.nl || Q.ns) { STATS.quads += (Q.nl + Q.ns) / 6; F.flush(c); } } catch (e) {} }
+    if (F) { try { const Q = F.begin(c, null); if (o.rn > 0 && Q.clipTo) Q.clipTo(SRC, o.rn); /* v434 PO */ airLight(Q, V, L, lf, top, bot); if (Q.nl || Q.ns) { STATS.quads += (Q.nl + Q.ns) / 6; F.flush(c); } } catch (e) {} }
   }
   // the cracked clay: a wrapping tile of dark crack lines and pale curled edges (160 css px)
   let CRACK = null;
@@ -449,7 +452,32 @@ var DUNE_SKY = (() => {
       back(c, o) { if (off()) { o.grad('#0C0918', '#040308'); return; } let V = null; const Lv = LIVE;
         if (Lv && Lv.X && !Lv.fiend && Lv.land === land) { try { V = view(Lv.X, land); V.W = o.W; V.H = o.H; V.k = o.k || 1; V.t = o.t; } catch (e) { V = null; } }
         if (!V) { const T = Math.max(24, Math.min(o.W, o.H) / 10), cx = o.wx / T, cy = o.wy / T; V = { W: o.W, H: o.H, T, sx: x => (x - cx) * T + o.W / 2, sy: y => (y - cy) * T + o.H / 2, t: o.t, land, light: L.light, hy: cy + 2, span: 18, k: o.k || 1 }; }
-        try { vista(c, V, { gpu: !!(Lv && Lv.X) }); } catch (e) { c.fillStyle = base; c.fillRect(0, 0, o.W, o.H); } } }; }
+        const RS = Lv && Lv.X && !Lv.fiend && !poOff() ? seenRects(Lv.X, o.W, o.H) : 0;   /* (v434 PO: where the view will be seen) */
+        try { vista(c, V, { gpu: !!(Lv && Lv.X), rn: RS }); } catch (e) { c.fillStyle = base; c.fillRect(0, 0, o.W, o.H); } } }; }
+  /* (v434 PO) where the far view will be seen: the land's chunks are laid over it everywhere but its gaps (the pit), the walls'
+     tiles and past the map's edge. Those tiles on the screen, one tile more all round (the ground's rounded corners and lips
+     beside a gap), as rectangles (runs of tiles along each row, rows with the same runs joined): the view's two GPU passes are
+     shaded and laid only inside them (FGFX clipTo) and its 2D pictures clipped to them, instead of over the whole box round
+     every gap on the screen (which, with gaps on both sides, was the whole screen: about a third of it covered by the land
+     straight after). Up to 40 rectangles (else the whole box, as before); the same pixels where the view shows.
+     window.__PO_OFF = 1: as v433 */
+  const poOff = () => { try { return HAS_W && window.__PO_OFF === 1; } catch (e) { return false; } };
+  const SRC = [], SRP = [], SRQ = [];
+  function seenRects(X, W, H) { const M = X.M; if (!M || !M.G || !(W > 0) || !(H > 0)) return 0; const G = M.G, MW = M.MW, MH = M.MH, T = X.Tz(), ox = X.sx(0), oy = X.sy(0); if (!(T > 0)) return 0;
+    const TF = typeof T_FLOOR !== 'undefined' ? T_FLOOR : 1, TB = typeof T_BRIDGE !== 'undefined' ? T_BRIDGE : 5, TM = typeof T_MUD !== 'undefined' ? T_MUD : 3, TI = typeof T_ICE !== 'undefined' ? T_ICE : 4;
+    const open = (x, y) => { if (x < 0 || y < 0 || x >= MW || y >= MH) return true; const g = G[y * MW + x]; return g !== TF && g !== TB && g !== TM && g !== TI; };
+    const tx0 = Math.floor(-ox / T) - 1, tx1 = Math.floor((W - ox) / T) + 1, ty0 = Math.floor(-oy / T) - 1, ty1 = Math.floor((H - oy) / T) + 1;
+    const seen = (x, y) => { for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) if (open(x + i, y + j)) return true; return false; };
+    SRC.length = 0; SRP.length = 0; let n = 0, rowStart = 0;
+    for (let ty = ty0; ty <= ty1; ty++) { SRQ.length = 0; let s = null; for (let tx = tx0; tx <= tx1 + 1; tx++) { const v = tx <= tx1 && seen(tx, ty); if (v && s === null) s = tx; else if (!v && s !== null) { SRQ.push(s, tx); s = null; } }
+      const same = SRQ.length === SRP.length && SRQ.every((q, i) => q === SRP[i]);
+      if (!same) { for (let i = 0; i < SRP.length; i += 2) { SRC.push(SRP[i], rowStart, SRP[i + 1], ty); n++; } SRP.length = 0; for (const q of SRQ) SRP.push(q); rowStart = ty; }
+      if (n > 40) return 0; }
+    for (let i = 0; i < SRP.length; i += 2) { SRC.push(SRP[i], rowStart, SRP[i + 1], ty1 + 1); n++; } if (n > 40) return 0;
+    // (to the screen: whole rows of tiles, in the canvas's own coordinates, kept to the screen)
+    let k = 0; for (let i = 0; i < n * 4; i += 4) { const x0 = Math.max(0, SRC[i] * T + ox), y0 = Math.max(0, SRC[i + 1] * T + oy), x1 = Math.min(W, SRC[i + 2] * T + ox), y1 = Math.min(H, SRC[i + 3] * T + oy); if (x1 > x0 && y1 > y0) { SRC[k] = x0; SRC[k + 1] = y0; SRC[k + 2] = x1; SRC[k + 3] = y1; k += 4; } }
+    SRC.length = k; let a = 0; for (let i = 0; i < k; i += 4) a += (SRC[i + 2] - SRC[i]) * (SRC[i + 3] - SRC[i + 1]); STATS.seenN = k / 4; STATS.seenA = +(a / (W * H)).toFixed(3);
+    return a > W * H * 0.85 ? 0 : k / 4; }   /* (nearly all of the screen: drawn whole, as before; each part laid costs a little of its own) */
   const OLDB = {};
   const HAZE_K = { dunes: [0.7, 0.68], mesa: [0.75, 0.7], nightdune: [0.8, 0.72] };   // (veil, edge: the land's standing dust and its vignette, a third lighter)
   function install() { if (typeof BIOMES === 'undefined') return; for (const [gap, land] of Object.entries(LAND_OF)) { const B = BIOMES[land]; if (!B || B.__dsky) continue; B.__dsky = 1; OLDB[land] = { gap: B.gap, haze: B.haze ? Object.assign({}, B.haze) : null }; B.gap = gap;

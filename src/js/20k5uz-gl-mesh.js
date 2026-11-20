@@ -1969,8 +1969,14 @@ void main() {
   const OUTC = [0.012, 0.03, 0.1];
   function render(W, H, S, items) {
     if (!ok()) return null;
-    if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
-    gl.viewport(0, 0, W, H); gl.clearColor(0, 0, 0, 0); gl.clearDepth(1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    /* (v434 PO) S.keep: a pass whose size wanders a few pixels every frame (a boss's box following its moving parts) no longer
+       reallocates the drawing buffer and its depth buffer every frame: the canvas is kept while it holds W x H and is not much
+       larger (sizes rounded up to 32 px when it must change), and the picture is drawn into its top-left W x H, which is what
+       every caller copies out (source rectangle 0, 0, W, H). window.__PO_OFF = 1: resized to W x H every time, as v433 */
+    let VY = 0; const keep = S.keep && !(typeof window !== 'undefined' && window.__PO_OFF === 1);
+    if (keep) { if (cv.width < W || cv.height < H || cv.width * cv.height > W * H * 1.35) { cv.width = Math.ceil(W / 32) * 32; cv.height = Math.ceil(H / 32) * 32; } VY = cv.height - H; }
+    else if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+    gl.viewport(0, VY, W, H); gl.clearColor(0, 0, 0, 0); gl.clearDepth(1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL); gl.disable(gl.CULL_FACE); gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
     gl.useProgram(prog);
     gl.uniform3fv(U.uPX, S.px); gl.uniform3fv(U.uPY, S.py); gl.uniform3fv(U.uPD, S.pd); gl.uniform4fv(U.uCl, S.cl);

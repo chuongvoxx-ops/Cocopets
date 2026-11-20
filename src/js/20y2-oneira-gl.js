@@ -40,7 +40,7 @@ const DUNE3 = (() => {
     let W = Math.ceil((bx1 - bx0) * dev), H = Math.ceil((by1 - by0) * dev); const scl = Math.min(1, GLCAP / Math.max(W, H)); W = Math.max(2, Math.ceil(W * scl)); H = Math.max(2, Math.ceil(H * scl));
     const bw = bx1 - bx0, bh = by1 - by0;
     const S = { px: PX, py: PY, pd: PD, cl: [2 * k / bw, 2 * (X0[0] - bx0) / bw - 1, -2 * k / bh, 1 - 2 * (X0[1] - by0) / bh], v: PD, lk: LT.lk, ls: LT.ls, lr: LT.lr, up: UPW, low: o.low != null ? o.low : lowFx(), rim: LT.rim, amb: LT.key, t: (o.t || 0) % 600,
-      outline: o.outline === 0 ? 0 : Math.max(1, 1.0 * (W / bw)), outlineCol: OUTC };
+      outline: o.outline === 0 ? 0 : Math.max(1, 1.0 * (W / bw)), outlineCol: OUTC, keep: 1 /* v434 PO: GLM keeps its canvas while the box wanders (no reallocation a frame) */ };
     if (o.clip != null) S.clip = [o.clip, 1e-6];
     if (o.occ && o.occ.length) { let n2 = 0; for (const [p, r] of o.occ) { if (n2 >= 12) break; const w = mv(V.Rh, p); OCC[n2 * 4] = w[0]; OCC[n2 * 4 + 1] = w[1]; OCC[n2 * 4 + 2] = w[2]; OCC[n2 * 4 + 3] = r; n2++; } S.occ = OCC; S.nocc = n2; }
     let n = 0; const items = GLJ; items.length = 0;
@@ -88,7 +88,11 @@ const DUNE3 = (() => {
   /* letting go: when a new stage is made (BEL.releaseStale, 20n) the pictures are dropped and every mesh's GPU buffers freed (their
      arrays stay: they upload again when next drawn); each boss adds its own (its pointer to the last fight) */
   const REL = [];
-  function release() { dropPics(); for (const G of MODELS) if (G.MESH && typeof GLM !== 'undefined' && GLM.free) for (const k in G.MESH) if (G.MESH[k]) GLM.free(G.MESH[k]); for (const f of REL) try { f(); } catch (e) { /* (nothing to drop) */ } }
+  function release() { dropPics(); for (const G of MODELS) if (G.MESH && typeof GLM !== 'undefined' && GLM.free) for (const k in G.MESH) if (G.MESH[k]) GLM.free(G.MESH[k]); for (const f of REL) try { f(); } catch (e) { /* (nothing to drop) */ }
+    /* (v434 PO) the shared GLM canvas is given back too: after a boss fight it kept the last pass's size (Thul-Ammon's whole arena,
+       1500 x ~1000 at an iPhone's DPR 3: ~6 MB of colour and as much depth) into every later stage; the next pass sizes it again.
+       window.__PO_OFF = 1: kept, as v433 */
+    try { const cv = typeof GLM !== 'undefined' && GLM.canvas; if (cv && cv.width * cv.height > 4096 && !(typeof window !== 'undefined' && window.__PO_OFF === 1)) { cv.width = 64; cv.height = 64; } } catch (e) { /* (no canvas yet) */ } }
   try { if (typeof BEL !== 'undefined' && BEL && Array.isArray(BEL.onRelease)) BEL.onRelease.push(release); } catch (e) { /* (no rift hook) */ }
   return { K, LIGHT, model, glPass, tubeC, pic, blitPic, dropPics, fg, mark, tele2D, bossK, rgbaH, onRelease: f => REL.push(f), release, get picN() { return PICS.size; } };
 })();
