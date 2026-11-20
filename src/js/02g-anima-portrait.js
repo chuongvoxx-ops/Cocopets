@@ -79,10 +79,14 @@ const AnimaPortrait = (() => {
   /* ---- the scenes: back() paints the place and returns where the creature stands; front() paints what drifts before it ---- */
   const SC = {
     // Samael: a burning plain under volcanoes, the sky full of embers
+    // v435 SM: (the First Cataclysm) a violet-crimson cosmos over it: a nebula, a dark world rimmed in fire, at the last form a black sun eclipsed in a crimson corona
     aries: { back(c, w, h, k, R) {
-        sky(c, w, h, [[0, '#0E0205'], [0.4, '#36070E'], [0.66, '#8A2410'], [0.76, '#3A0A0A'], [1, '#0C0204']]);
+        sky(c, w, h, [[0, '#0A0310'], [0.3, '#2A0A26'], [0.52, '#5A1022'], [0.68, '#8A2410'], [0.76, '#3A0A0A'], [1, '#0C0204']]);
+        nebula(c, w * 0.6, h * 0.25, w * 0.6, h * 0.16, ['#7A2A8A', '#3A1060', '#C23A6A'], 16, R, 0.14 + k * 0.04);
         nebula(c, w * 0.5, h * 0.62, w * 0.75, h * 0.1, ['#FF5A2A', '#C2182E', '#FF9A3D'], 18, R, 0.22 + k * 0.08);
-        stars(c, w, h, 30, R, { y1: 0.45, a: 0.4, glow: '#FF9A6A' });
+        stars(c, w, h, 60, R, { y1: 0.5, a: 0.55, glow: '#FFB0C8' });
+        { const px = w * 0.08, py = h * 0.06, pr = w * 0.2; c.fillStyle = 'rgba(14,4,12,.92)'; c.beginPath(); c.arc(px, py, pr, 0, TAU); c.fill(); add(c, () => { c.strokeStyle = 'rgba(255,90,60,.55)'; c.lineWidth = Math.max(1, w / 220); c.beginPath(); c.arc(px, py, pr, -0.2, 1.75); c.stroke(); }); }
+        if (k === 3) { const ex = w * 0.72, ey = h * 0.2, er = w * 0.07; add(c, () => { blot(c, ex, ey, er * 3, '#FF2A1E', 0.35); blot(c, ex, ey, er * 1.6, '#FF8A3D', 0.5); }); c.fillStyle = '#050104'; c.beginPath(); c.arc(ex, ey, er, 0, TAU); c.fill(); }
         for (let i = 0; i < 9; i++) { const x = R() * w, y = h * (0.15 + R() * 0.4), s = w * (0.12 + R() * 0.15); c.globalAlpha = 0.5; blitSized(c, puffSprite('rgba(20,6,8,'), x - s, y - s, s * 2, s * 2); } c.globalAlpha = 1;
         ridge(c, w, h * 0.74, h * 0.3, 6, R, '#140608', '#2A0A0A', { rim: '#FF6A2A', rimA: 0.8, shape: x => 0.6 + 0.4 * Math.sin(x * Math.PI * 2.2) });
         add(c, () => { blot(c, w * 0.3, h * 0.48, w * 0.25, '#FF6A2A', 0.35); blot(c, w * 0.78, h * 0.5, w * 0.2, '#FF3A2A', 0.3); });
@@ -186,8 +190,11 @@ const AnimaPortrait = (() => {
         return { fy: h * 0.83, light: '#FFC24D', grade: ['#FFB347', 0.14] };
       }, front(c, w, h, k, R) { particles(c, w, h, 30 + k * 12, R, 'ember', ['#FFE9A8', '#FFC24D', '#FF9A3D'], { s: 0.8 }); } },
     // Asmodeus: a black void veined with red smoke, a crimson glow rising from below
+    // v436 AS: (the Fester remade) a violet ritual sky over it, a blood moon behind a ring of runes, ruined spires; at the last form the moon eclipsed
     scorpio: { back(c, w, h, k, R) {
-        sky(c, w, h, [[0, '#040103'], [0.55, '#120306'], [0.85, '#3A0610'], [1, '#100204']]);
+        sky(c, w, h, [[0, '#0A0412'], [0.35, '#24082A'], [0.6, '#3A0A22'], [0.85, '#3A0610'], [1, '#100204']]);   // v436 AS
+        nebula(c, w * 0.5, h * 0.3, w * 0.7, h * 0.2, ['#7A2A9A', '#4A1060', '#C2234A'], 16, R, 0.14 + k * 0.04);   // v436 AS
+        { const mx = w * 0.62, my = h * 0.24, mr = w * 0.2; add(c, () => blot(c, mx, my, mr * 1.8, '#C2183A', 0.3)); c.fillStyle = k === 3 ? 'rgba(14,4,10,.95)' : 'rgba(150,24,40,.75)'; c.beginPath(); c.arc(mx, my, mr, 0, TAU); c.fill(); add(c, () => { c.strokeStyle = 'rgba(255,90,120,.45)'; c.lineWidth = Math.max(1, w / 260); c.beginPath(); c.arc(mx, my, mr * 1.25, 0, TAU); c.stroke(); for (let i = 0; i < 14; i++) { const an = i / 14 * TAU; c.beginPath(); c.arc(mx + Math.cos(an) * mr * 1.25, my + Math.sin(an) * mr * 1.25, w / 160, 0, TAU); c.stroke(); } }); }   // v436 AS
         add(c, () => { blot(c, w * 0.5, h * 0.95, w * 0.8, '#C2182E', 0.5 + k * 0.08); });
         add(c, () => { for (let i = 0; i < 20 + k * 8; i++) { const x = R() * w, y = R() * h, s = w * (0.06 + R() * 0.14); c.globalAlpha = 0.22 + R() * 0.2; blitSized(c, puffSprite('rgba(200,20,40,'), x - s, y - s * 0.5, s * 2, s); } });
         add(c, () => { for (let i = 0; i < 8; i++) { let x = R() * w, y = h; c.strokeStyle = '#FF3B4E'; c.lineWidth = 1.2 * w / 300; c.globalAlpha = 0.35; c.beginPath(); c.moveTo(x, y); for (let j = 0; j < 8; j++) { x += (R() - 0.5) * 30 * w / 300; y -= h * 0.08; c.lineTo(x, y); } c.stroke(); } });

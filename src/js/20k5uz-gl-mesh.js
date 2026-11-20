@@ -1405,6 +1405,176 @@ void main() {
     bC += bAMB * bDE * 2.2 + bHOT * bDE * bDE * 1.5;   // (the dissolve's burning gold edge)
     gl_FragColor = vec4(vec3(tone(bC.r), tone(bC.g), tone(bC.b)) * uAlpha, uAlpha); return; }
   /*</BL-MAT>*/
+  /*<SM-MAT ids 400..429 (v435 SM: 02f5-samael-model.js, Samael the First Cataclysm)>*/
+  else if (id >= 400 && id <= 429) {   // ---- (v435 SM) Samael (02f5): 400 obsidian black lacquer (400.2 a recess; 400.3 a plate: molten cracks glowing through it; vA.y 1 a rim: burnished gold trim), 401 dark titanium (brushed; 401.3 ribbed), 402 burnished gold (402.2 engraved), 403 a molten crimson channel (vA.z along it: pulses; 403.3 a lit slot), 404 living plasma (404.3 the horns' core: pulses flowing to the tips, uGlow2 white heat), 405 an eye, 406 the Heart of Ruin's star (uGlow2 0..1 crimson to white-hot), 407 its corona (see-through), 408 a containment ring (runes lit in a pulse; uKind its phase; 408.3 a band), 409 a ring of light, 410 the lattice cage (open cells), 411 a black glass blade (411.3 its molten cutting edge), 412 molten rock (412.3 hotter), 413 horn armour (ridged lacquer, engraved gold; 413.3 the molten crimson underside), 414 the meteor's plasma shell, 415 an incandescent mote, 416 a crescent blade of plasma (vA.y 1 its cutting edge; vA.z along it). uSpill: the dissolve into crimson embers. Approximates PBR (a lacquer's fresnel and sharp reflections, brushed metal, gold's tinted reflection) with the scene's analytic environment: a violet-crimson sky, a burning horizon, a glowing ground
+    float sF = vA.x - float(id), sG = clamp(uGlow, 0.0, 4.0), sG2 = clamp(uGlow2, 0.0, 3.0), sT = uTime, sDE = 0.0;
+    if (uSpill > 0.0) { float sDn = vn(L.xy * 4.7 + L.z * 2.9) * 0.55 + vn(L.yz * 12.0 + L.x * 6.0) * 0.3 + vn(L.xz * 25.0 + 3.0) * 0.15, sTh = uSpill * 1.15 - 0.08; if (sDn < sTh) discard; sDE = smoothstep(sTh + 0.1, sTh, sDn); }
+    float sNV = max(0.001, dot(n, uV)), sNL = dot(n, uLK), sDif = max(sNL, 0.0), sWr = clamp(sNL * 0.5 + 0.5, 0.0, 1.0);
+    vec3 sR = 2.0 * sNV * n - uV; float sUp = dot(sR, uUP), sSb = max(dot(sR, uLK), 0.0), sHz = sUp - 0.05;
+    vec3 sEv = sUp > 0.0 ? mix(vec3(0.12, 0.07, 0.11), vec3(0.46, 0.34, 0.46), pow(clamp(sUp, 0.0, 1.0), 1.3)) : mix(vec3(0.32, 0.09, 0.03), vec3(0.04, 0.02, 0.02), clamp(-sUp * 2.5, 0.0, 1.0));
+    sEv += vec3(1.0, 0.45, 0.18) * exp(-sHz * sHz / 0.004) * 0.7;   // (a burning horizon in its reflections)
+    float sOcc = mix(0.42, 1.0, clamp(ao, 0.0, 1.0)), sFr = pow(1.0 - sNV, 5.0), sHm = 0.5 + 0.5 * dot(n, uUP);
+    vec3 sKEY = vec3(1.55, 1.4, 1.26), sAmb = mix(vec3(0.1, 0.05, 0.06), vec3(0.36, 0.3, 0.34), sHm) * uAmb, sRim = pow(1.0 - sNV, 2.4) * max(0.0, dot(n, uLR) + 0.35) * uRim;
+    vec3 sCR = vec3(0.75, 0.05, 0.02), sOR = vec3(1.45, 0.5, 0.08), sWH = vec3(1.7, 1.45, 1.05), sG0 = vec3(1.0, 0.64, 0.28), sGF = sG0 + (1.0 - sG0) * sFr;
+    float sEng = (1.0 - uLow) * smoothstep(0.07, 0.025, abs(fract(L.x * 5.5 + L.z * 3.0 + 0.6 * sin(L.y * 7.0 + L.x * 3.0)) - 0.5)) * step(0.45, vn(L.xz * 1.9 + L.y));
+    vec3 sGold = (sG0 * (0.1 + 0.62 * sDif) * sKEY * 0.55 + sGF * mix(sEv, vec3(dot(sEv, vec3(0.33))) * vec3(1.0, 0.75, 0.45), 0.4) * 1.35 + vec3(1.0, 0.88, 0.7) * (pow(sSb, 60.0) * 2.4 + pow(sSb, 10.0) * 0.3) + sRim * 0.4) * sOcc * (1.0 - sEng * 0.4) * 1.25;
+    vec3 sC = vec3(0.0); float sA = 1.0;
+    if (id == 400 || id == 413) {   // black lacquer (the armour, the horns): near-black, a deep clear coat with sharp reflections, panel seams, cracks glowing molten
+      float rec = step(0.15, sF) * step(sF, 0.25), crk = step(0.25, sF), hornIn = id == 413 ? step(0.25, sF) : 0.0;
+      if (hornIn > 0.5) {   // the horn's underside: crimson lacquer lit from within, darker ridges across it, flowing heat
+        float rid = 0.5 + 0.5 * sin(ao * 120.0), fl = pow(0.5 + 0.5 * sin(ao * 22.0 - sT * 3.0), 3.0);
+        float cel = abs(vn(L.xy * 15.0 + L.z * 9.0 + 3.0) - 0.5) + abs(vn(L.yz * 19.0 + L.x * 7.0 + 9.0) - 0.5) * 0.5, lines = smoothstep(0.06, 0.015, cel) * (1.0 - uLow * 0.5);   // (v435 SM concept2: lava seen through a net of dark scale-seams)
+        vec3 hc = mix(vec3(0.62, 0.05, 0.02), vec3(1.45, 0.5, 0.08), clamp(0.15 + 0.25 * sG + 0.25 * fl + 0.35 * smoothstep(0.25, 0.0, cel), 0.0, 1.0)) * (0.8 + 0.2 * rid) * 1.35;
+        sC = hc * (1.0 - lines * 0.45) + vec3(1.0, 0.75, 0.6) * pow(sSb, 40.0) * 0.8 + sEv * sFr * 0.5 + vec3(1.0, 0.6, 0.3) * sRim * 0.4;
+        sC = mix(sC, sGold, smoothstep(0.82, 0.96, edge)); }
+      else {
+        vec3 T0 = vec3(0.022, 0.016, 0.02) * (rec > 0.5 ? 0.5 : 1.0), TF = T0 + (vec3(0.55, 0.48, 0.5) - T0) * sFr;
+        float rg = id == 413 ? 0.12 + 0.05 * sin(ao * 120.0) : 0.1 + 0.08 * vn(L.xy * 7.0 + L.z * 4.0), pn = fract(L.z * 2.3 + 0.35 * floor(L.x * 1.6 + L.y * 1.6)), seam = smoothstep(0.045, 0.0, min(pn, 1.0 - pn)) * (1.0 - uLow * 0.5) * (id == 413 ? 0.0 : 1.0);
+        float ann = 0.0;   // (v435 SM concept2: no annulation ridges: the horn is scaled)   // (the horn's annulation ridges)
+        sC = (T0 * (0.2 + 0.8 * sDif) * sKEY + TF * sEv * 1.15 + vec3(1.0, 0.9, 0.85) * pow(sSb, 2.0 / (rg * rg)) * 1.25 + sRim * 0.55) * sOcc * (1.0 - seam * 0.5) * (1.0 - ann * 0.25);
+        float ck = abs(vn(L.xy * 2.6 + L.z * 1.7 + 11.0) - 0.5) + abs(vn(L.yz * 4.1 + 2.0) - 0.5) * 0.45, crack = (crk > 0.5 || id == 400 && rec < 0.5) ? smoothstep(0.085, 0.02, ck) * smoothstep(0.3, 0.5, vn(L.zx * 1.1 + 7.0)) * (crk > 0.5 ? 1.0 : 0.8) : 0.0;
+        float halo = (crk > 0.5 || id == 400 && rec < 0.5) ? smoothstep(0.22, 0.03, ck) * smoothstep(0.3, 0.5, vn(L.zx * 1.1 + 7.0)) * 0.4 : 0.0;   // (the molten light bleeding round each crack, as the concept: the body glowing red through its armour)
+        sC = sC * (1.0 - crack * 0.7) + mix(sCR, sOR, clamp(0.08 + sG * 0.3, 0.0, 1.0)) * 1.9 * (crack * (0.95 + 0.9 * sG) + halo * (0.6 + 0.5 * sG)) + sWH * crack * sG * sG * 0.08 + sCR * seam * (0.18 + 0.35 * sG) + vec3(1.0, 0.12, 0.05) * pow(1.0 - sNV, 2.5) * 0.32 * (1.0 - rec);   // (a crimson fresnel: the furnace's light caught along the lacquer's rims)
+        if (id == 413) {   // (v435 SM concept2) the horn's outer half: tight, flush, overlapping dragon scales drawn by u (ao, along the horn) and v (edge, round the tube): gold-rimmed, molten in their seams
+          float ru = ao * 18.0, row = floor(ru), fu = fract(ru), fv = fract(edge * 3.0 + 0.5 * mod(row, 2.0)) - 0.5, ev = 0.62 + 0.36 * (1.0 - pow(abs(2.0 * fv), 1.3));   // (larger, fewer scales: rounded, ending in a point toward the tip)
+          float on = step(fu, ev), up = clamp(fu / ev, 0.0, 1.0), hi = smoothstep(ev - 0.16, ev - 0.03, fu) * on, sm2 = abs(fu - ev), mol = smoothstep(0.03, 0.0, sm2) * (1.0 - uLow * 0.3), sh = (1.0 - on) * (1.0 - 0.6 * smoothstep(ev, 1.0, fu)), side = smoothstep(0.05, 0.0, 0.5 - abs(fv)) * on;
+          sC = sC * (0.5 + 0.7 * pow(up, 1.5)) * (1.0 - 0.7 * sh) * (1.0 - 0.5 * side) + vec3(1.0, 0.85, 0.75) * pow(sSb, 14.0) * 0.4 * up * on;   // (each scale lifting toward its free edge, a shadow under it)
+          sC = mix(sC, sGold * 0.85, hi * 0.6); sC = mix(sC, mix(sCR, sOR, 0.3 + 0.3 * sG) * 1.8, mol); }   // (a bronze-gold highlight on its edge, the molten seam only in the thin gap)
+        else sC = mix(sC, sGold, smoothstep(0.8, 0.95, edge) * (1.0 - rec)); } }
+    else if (id == 401) { float rib = step(0.25, sF), br = vn(vec2(L.x * 40.0 + L.y * 40.0, L.z * 2.0)), rg = 0.28 + 0.1 * br;   // dark titanium: brushed gunmetal, a cool sheen, worn bevels
+      vec3 T0 = vec3(0.16, 0.16, 0.18) * (0.85 + 0.25 * br) * (rib > 0.5 ? 0.7 + 0.3 * smoothstep(0.2, 0.0, abs(fract(L.z * 9.0) - 0.5)) : 1.0), TF = T0 + (1.0 - T0) * sFr * 0.5;
+      sC = (T0 * (0.15 + 0.75 * sDif) * sKEY * 0.6 + TF * sEv * 0.9 + vec3(0.9, 0.9, 1.0) * pow(sSb, 2.0 / (rg * rg)) * 0.8 + sRim * 0.4) * sOcc + vec3(0.5, 0.48, 0.5) * smoothstep(0.7, 1.0, edge) * 0.25 + sCR * smoothstep(0.85, 1.0, edge) * sG * 0.15; }
+    else if (id == 402) sC = sGold + sOR * sEng * sG * 0.35 + sOR * smoothstep(0.85, 1.0, edge) * sG * 0.2;
+    else if (id == 403) { float fl = pow(0.5 + 0.5 * sin(ao * 18.0 - sT * 5.0), 5.0), fl2 = pow(0.5 + 0.5 * sin(ao * 7.0 - sT * 2.1 + 1.0), 3.0), k = 0.55 + 0.6 * sG, slot = step(0.25, sF);   // molten crimson, pulses running along it
+      float hk = clamp(0.25 + 0.3 * sG + 0.5 * fl * (1.0 - slot) + 0.2 * fl2, 0.0, 2.0); sC = (hk < 1.0 ? mix(sCR, sOR, hk) : mix(sOR, sWH, hk - 1.0)) * k * (slot > 0.5 ? 0.85 + 0.15 * sin(sT * 7.0 + L.x * 9.0) : 1.0) + vec3(0.3, 0.05, 0.02) * sNV; }
+    else if (id == 404) { float core = step(0.25, sF);   // living plasma: dark crust cells over a turbulent molten glow (the horns' core: heat flowing to the tips)
+      vec2 pq = core > 0.5 ? vec2(ao * 26.0 - sT * 1.8, (L.z + L.y) * 3.0) : L.xy * 2.6 + L.z * 1.3 + vec2(sT * 0.25, -sT * 0.18);
+      float w1 = vn(pq), w2 = vn(pq * 2.7 + 5.0 + sT * 0.4), crust = smoothstep(0.42, 0.62, w1 * 0.65 + w2 * 0.35), pul = core > 0.5 ? pow(0.5 + 0.5 * sin(ao * 30.0 - sT * 6.0), 4.0) : 0.5 + 0.5 * sin(sT * 2.3 + w1 * 6.0);
+      float hk = clamp(0.18 + 0.3 * sG + 0.3 * pul * w2 + (core > 0.5 ? 0.15 + sG2 * ao * 1.2 : 0.0), 0.0, 2.2);   // (crimson first, orange in its hottest veins, as the concept)
+      vec3 hot = (hk < 1.0 ? mix(sCR, sOR, hk * 0.45) : mix(sOR, sWH, min(1.0, hk - 1.0))) * 2.1;
+      float vein = smoothstep(0.66, 0.82, w2);
+      sC = mix(hot * (0.7 + 0.6 * w2) + sOR * vein * 0.45, vec3(0.05, 0.008, 0.008) + hot * 0.18, crust * (0.55 - 0.2 * min(1.0, sG * 0.5))) + vec3(1.0, 0.2, 0.1) * pow(1.0 - sNV, 2.0) * 0.3 * (0.5 + sG); }
+    else if (id == 405) sC = mix(vec3(1.4, 0.12, 0.05), vec3(1.7, 1.2, 0.8), clamp(0.15 + 0.3 * sG2, 0.0, 1.0)) * (0.8 + 0.7 * sG2) * (0.92 + 0.08 * sin(sT * 11.0));
+    else if (id == 406) { vec3 lp = normalize(L); float lat = asin(clamp(lp.z, -1.0, 1.0)), lon = atan(lp.y, lp.x);   // the dying star: convection cells, sunspots, a bright limb; white-hot with uGlow2
+      vec2 g1 = vec2(lon * 4.0 + sT * 0.35, lat * 5.0 - sT * 0.2), g2 = vec2(lon * 9.0 - sT * 0.6, lat * 11.0 + sT * 0.3);
+      float cells = vn(g1) * 0.6 + vn(g2) * 0.4, gran = smoothstep(0.35, 0.75, cells), spot = smoothstep(0.78, 0.86, vn(vec2(lon * 1.7 + sT * 0.08, lat * 2.2) + 7.0)), turb = vn(vec2(lon * 3.0 + sin(lat * 6.0 + sT), lat * 4.0 - sT * 0.5) + 3.0);
+      float hk = clamp(0.55 + 0.25 * gran + 0.2 * turb + 0.25 * sG + 0.9 * sG2 - 0.6 * spot * (1.0 - sG2 * 0.6), 0.0, 2.4), limb = pow(1.0 - sNV, 1.6);
+      vec3 hot = hk < 1.0 ? mix(sCR, sOR, hk) : mix(sOR, sWH, min(1.0, hk - 1.0));
+      sC = hot * (0.75 + 0.6 * gran) * (1.0 - 0.35 * limb * (1.0 - sG2)) + sOR * limb * 0.5 + sWH * max(0.0, sG2 - 0.6) * 0.6; }
+    else if (id == 407) { vec3 lp = normalize(L); float an = atan(lp.y, lp.x), sw = vn(vec2(an * 3.0 + lp.z * 3.0 - sT * 1.2, lp.z * 5.0 + sT * 0.5)), fil = smoothstep(0.06, 0.0, abs(sw - 0.5)), fr = pow(1.0 - sNV, 1.8);   // the corona: turbulent plasma, see-through
+      vec3 cs = mix(sCR, sOR, 0.4 + 0.3 * sG2) * (0.25 + 0.9 * fr) * (0.6 + 0.6 * sG) + mix(sOR, sWH, sG2 * 0.6) * fil * (0.6 + 0.6 * sG);
+      cs = vec3(tone(cs.r), tone(cs.g), tone(cs.b)); sA = clamp(0.05 + 0.6 * fr + fil * 0.35, 0.0, 0.9);
+      gl_FragColor = vec4(min(cs, vec3(sA)) * uAlpha, sA * uAlpha); return; }
+    else if (id == 408) { float band = step(0.25, sF), an = atan(L.y, L.x), crd = band > 0.5 ? ao * 14.0 : an * 7.6394 + 24.0, cell = floor(crd), dd = fract(crd) - 0.5, ac = band > 0.5 ? (edge - 0.5) * 2.0 : NL.z;   // titanium with crimson runes, a pulse running round
+      float h = hs(vec2(cell, 5.0 + uKind)), stem = smoothstep(0.1, 0.05, abs(dd - (h - 0.5) * 0.2)) * step(abs(ac), 0.72), brn = smoothstep(0.09, 0.035, abs(ac - dd * 1.4 * (h > 0.6 ? 1.0 : -1.0))) * step(abs(dd), 0.35), rune = max(stem, brn) * step(0.25, h);
+      float pl = pow(0.5 + 0.5 * sin(crd * 0.45 - sT * 3.6 + uKind * 1.7), 6.0); vec3 T0 = vec3(0.15, 0.15, 0.17);
+      vec3 base = (T0 * (0.2 + 0.7 * sDif) * sKEY * 0.6 + (T0 + (1.0 - T0) * sFr * 0.5) * sEv + vec3(0.9) * pow(sSb, 30.0) * 0.6) * sOcc;
+      sC = base * (1.0 - rune * 0.6) + mix(sCR, sOR, pl) * rune * (0.35 + 0.6 * sG + 1.1 * pl * (0.4 + sG2)); }
+    else if (id == 409) { float an = atan(L.y, L.x), pl = pow(0.5 + 0.5 * sin(an * 5.0 - sT * 3.0 + uKind * 1.7), 6.0);   // a ring of crimson-gold light
+      vec3 cl2 = mix(vec3(1.0, 0.18, 0.05), vec3(1.3, 0.7, 0.25), 0.4 + 0.3 * pl) * (0.55 + 0.5 * sG) + vec3(1.5, 1.1, 0.7) * pl * 0.6; cl2 = vec3(tone(cl2.r), tone(cl2.g), tone(cl2.b));
+      sA = clamp(max(cl2.r, max(cl2.g, cl2.b)) * (0.45 + 0.55 * sNV), 0.0, 1.0); gl_FragColor = vec4(cl2 * sA * uAlpha, sA * uAlpha); return; }
+    else if (id == 410) { vec3 lp = normalize(L); vec2 q = vec2(atan(lp.y, lp.x) * 2.2, asin(clamp(lp.z, -1.0, 1.0)) * 2.6); vec2 hsz = vec2(1.0, 1.7320508), ha = mod(q, hsz) - hsz * 0.5, hb = mod(q - hsz * 0.5, hsz) - hsz * 0.5, gv = dot(ha, ha) < dot(hb, hb) ? ha : hb;   // the lattice cage: a hexagonal frame, the cells open
+      float hd = max(dot(abs(gv), vec2(0.5, 0.8660254)), abs(gv.x)); if (hd < 0.4) discard;
+      vec3 T0 = vec3(0.14, 0.13, 0.15); sC = (T0 * (0.25 + 0.7 * sDif) * sKEY * 0.6 + (T0 + (1.0 - T0) * sFr * 0.5) * sEv + vec3(1.0) * pow(sSb, 40.0) * 0.8) * sOcc;
+      sC = mix(sC, sGold, smoothstep(0.47, 0.5, hd) * 0.8) + sOR * (0.2 + 0.4 * sG) * (1.0 - sNV) * 0.4; }
+    else if (id == 411) { float tip = 1.0 - clamp(ao, 0.0, 1.0), side = step(0.25, sF);   // black glass: a dark mirror with a molten edge (the facet rims toward its tip; a prism's sides)
+      vec3 T0 = vec3(0.025, 0.015, 0.02), TF = T0 + (vec3(0.6, 0.5, 0.55) - T0) * sFr;
+      vec3 c = (T0 * (0.2 + 0.7 * sDif) * sKEY + TF * sEv * 1.2 + vec3(1.0, 0.9, 0.85) * pow(sSb, 120.0) * 2.2 + sRim * 0.6) * sOcc;
+      float hotE = side > 0.5 ? 1.0 : pow(clamp(edge, 0.0, 1.0), 3.0) * (0.25 + 0.75 * tip), hk = clamp(0.3 + 0.5 * sG + 0.3 * sin(sT * 3.0 + L.x * 4.0) * 0.3, 0.0, 2.0);
+      sC = c + (hk < 1.0 ? mix(sCR, sOR, hk) : mix(sOR, sWH, hk - 1.0)) * hotE * (0.35 + 0.5 * sG); }
+    else if (id == 412) { float hot = step(0.25, sF), w1 = vn(L.xy * 2.4 + L.z * 1.8), w2 = vn(L.yz * 7.0 + L.x * 4.0);   // molten rock: basalt, glowing fissures and a hot underside
+      vec3 alb = mix(vec3(0.07, 0.055, 0.06), vec3(0.16, 0.12, 0.11), w1) * (0.8 + 0.3 * w2), c = alb * (sDif * sKEY + sAmb) * sOcc + sEv * sFr * 0.3;
+      float c1 = abs(fract(dot(L, vec3(2.2, 1.4, 1.8)) + w1 * 1.5) - 0.5), c2 = abs(fract(dot(L, vec3(-1.7, 2.5, 1.2)) + w2 * 0.9) - 0.5), fis = smoothstep(0.03, 0.005, min(c1, c2));
+      float hk = clamp(0.4 + 0.4 * sG + 0.5 * hot, 0.0, 2.0); vec3 lava = hk < 1.0 ? mix(sCR, sOR, hk) : mix(sOR, sWH, hk - 1.0);
+      sC = c * (1.0 - fis * 0.8) + lava * (fis * (0.6 + 0.6 * sG) + max(0.0, -n.z) * 0.15 * sG + hot * smoothstep(0.55, 0.8, w2) * 0.4 * sG); }
+    else if (id == 414) { vec3 lp = normalize(L); float st2 = vn(vec2(lp.y * 9.0 + lp.z * 4.0, L.x * 2.5 + sT * 9.0)), fr = pow(1.0 - sNV, 1.5), front = smoothstep(-0.2, 0.9, lp.x);   // the meteor's shell: streaming plasma, white-hot at its front
+      float k = clamp(0.15 + 0.7 * front * front + 0.35 * st2 + 0.15 * sG, 0.0, 1.8); vec3 cs = (k < 1.0 ? mix(sCR, sOR, k) : mix(sOR, sWH, k - 1.0)) * (0.3 + 0.8 * fr + 0.3 * front) * (0.6 + 0.4 * sG2);
+      sA = clamp(0.06 + 0.55 * fr * (0.5 + 0.5 * st2) + 0.3 * front * st2, 0.0, 0.85); cs = vec3(tone(cs.r), tone(cs.g), tone(cs.b)) * sA;   // (premultiplied: the colour carries its own alpha, staying crimson)
+      gl_FragColor = vec4(cs * uAlpha, sA * uAlpha); return; }
+    else if (id == 415) { float k = clamp(0.8 + 0.4 * sG, 0.0, 2.0); sC = (k < 1.0 ? mix(sCR, sOR, k) : mix(sOR, sWH, k - 1.0)) * (0.8 + 0.4 * sNV); }
+    else if (sF > 0.25) { float v = clamp(edge, 0.0, 1.0), u2 = clamp(ao, 0.0, 1.0), fl = vn(vec2(u2 * 9.0 - sT * 4.0, v * 2.5 + sT * 0.7)), fl2 = vn(vec2(u2 * 23.0 - sT * 7.0, v * 6.0));   // (v435 SM concept2) 416.3 a flame ribbon: crimson fire streaming off it, hot at its root, tattered and fading to its tip
+      float bd = smoothstep(0.0, 0.3 + 0.2 * fl2, v) * smoothstep(1.0, 0.7 - 0.2 * fl, v), k = clamp(0.3 * pow(1.0 - u2, 2.5) + 0.15 * fl + 0.08 * sG, 0.0, 2.0);
+      vec3 cs = (k < 1.0 ? mix(sCR, sOR, k) : mix(sOR, sWH, min(1.0, k - 1.0))) * (1.0 + 0.6 * fl) * 1.3; cs = vec3(tone(cs.r), tone(cs.g), tone(cs.b));
+      sA = clamp(bd * pow(1.0 - u2, 0.7) * (0.5 + 0.7 * fl + 0.3 * fl2) * 1.6, 0.0, 0.95) * smoothstep(0.0, 0.06, u2 + 0.02); gl_FragColor = vec4(cs * sA * uAlpha, sA * uAlpha); return; }
+    else { float v = clamp(edge, 0.0, 1.0), u2 = clamp(ao, 0.0, 1.0), fl = vn(vec2(u2 * 14.0 - sT * 5.0, v * 3.0 + sT));   // 416 a crescent of plasma: a white-hot cutting edge, crimson inward, fading to nothing toward the arc's centre
+      float ends = smoothstep(0.0, 0.15, u2) * smoothstep(1.0, 0.85, u2), k = clamp(0.3 + 1.6 * pow(v, 3.0) + 0.3 * fl + 0.3 * sG, 0.0, 2.3);
+      vec3 cs = (k < 1.0 ? mix(sCR, sOR, k) : mix(sOR, sWH, min(1.0, k - 1.0))) * (0.6 + 0.6 * fl); cs = vec3(tone(cs.r), tone(cs.g), tone(cs.b));
+      sA = clamp((0.08 + 0.9 * pow(v, 2.2) + 0.25 * fl * v) * ends, 0.0, 1.0); gl_FragColor = vec4(cs * sA * uAlpha, sA * uAlpha); return; }
+    sC += sOR * sDE * 2.0 + sWH * sDE * sDE * 1.2;   // (the dissolve's burning crimson edge: it breaks into embers)
+    gl_FragColor = vec4(vec3(tone(sC.r), tone(sC.g), tone(sC.b)) * uAlpha, uAlpha); return; }
+  /*</SM-MAT>*/
+  /*<AS-MAT ids 440..469 (v436 AS: 02f6-asmodeus-model.js, Asmodeus the Fester)>*/
+  else if (id >= 440 && id <= 469) {   // ---- (v436 AS) Asmodeus (02f6): 440 obsidian lacquer (440.2 a recess; 440.3 engraved: gold filigree inlaid; vA.y 1 a rim: gold trim), 441 dark titanium, 442 antique gold (442.2 engraved), 443 a venom channel (vA.z along the part, uKind the part's place along its chain, uWear the venom's front along it, uGlow2 the flow; 443.3 a lit slot), 444 ivory porcelain (crimson channels under the glaze by uGlow2), 445 an eye, 446 ruby venom crystal (vA.z 1 - the place along a shard; 446.3 a see-through faceted shell, 446.6 the heart: hotter; uGlow2 white-hot crimson), 447 venom fluid (see-through), 448 a runed ring (448.3 its dark band; uKind its phase), 449 scarlet cloth (449.3 its back; vA.y 1 the gold border), 450 a ring of crimson-violet light (see-through), 451 dark crystal (the cocoon: uGlow2 its cracks), 453 a mote. uFx 0..0.5 crimson cracks through the armour (Eclipse Molt), uFx > 0.75 the whole part a spectral crystal replica (the decoy shells); uSpill the dissolve into black-crimson crystal grains. Approximates PBR with the scene's analytic environment: a violet night, a crimson horizon, a dark ground
+    float aF = vA.x - float(id), aG = clamp(uGlow, 0.0, 4.0), aG2 = clamp(uGlow2, 0.0, 4.0), aT = uTime, aDE = 0.0;
+    if (uSpill > 0.0) { float aDn = vn(L.xy * 9.0 + L.z * 5.3) * 0.55 + vn(L.yz * 21.0 + L.x * 7.0) * 0.3 + vn(L.xz * 43.0 + 3.0) * 0.15, aTh = uSpill * 1.15 - 0.08; if (aDn < aTh) discard; aDE = smoothstep(aTh + 0.08, aTh, aDn); }
+    float aNV = max(0.001, dot(n, uV)), aNL = dot(n, uLK), aDif = max(aNL, 0.0), aFr = pow(1.0 - aNV, 5.0), aHm = 0.5 + 0.5 * dot(n, uUP);
+    vec3 aR = 2.0 * aNV * n - uV; float aUp = dot(aR, uUP), aSb = max(dot(aR, uLK), 0.0), aHz = aUp - 0.06;
+    vec3 aEv = aUp > 0.0 ? mix(vec3(0.1, 0.06, 0.13), vec3(0.42, 0.32, 0.5), pow(clamp(aUp, 0.0, 1.0), 1.2)) : mix(vec3(0.22, 0.04, 0.08), vec3(0.03, 0.015, 0.025), clamp(-aUp * 2.5, 0.0, 1.0));
+    aEv += vec3(1.0, 0.28, 0.36) * exp(-aHz * aHz / 0.005) * 0.5;   // (a crimson horizon in its reflections)
+    vec3 aKEY = vec3(1.5, 1.38, 1.32), aAmb = mix(vec3(0.08, 0.05, 0.08), vec3(0.32, 0.28, 0.34), aHm) * uAmb, aRim = pow(1.0 - aNV, 2.4) * max(0.0, dot(n, uLR) + 0.35) * uRim;
+    vec3 aCR = vec3(0.85, 0.03, 0.09), aRU = vec3(1.25, 0.1, 0.22), aPK = vec3(1.6, 0.55, 0.68), aVI = vec3(0.45, 0.08, 0.66), aWH = vec3(1.7, 1.3, 1.35);
+    if (uFx > 0.75) {   // the spectral replica: see-through ruby glass, a bright fresnel, its armour lines traced, crimson cracks spreading as it nears its end (uFx - 1)
+      float ck = abs(vn(L.xy * 2.7 + L.z * 1.9 + 3.0) - 0.5) + abs(vn(L.yz * 5.0 + 1.0) - 0.5) * 0.5, crk = smoothstep(0.06, 0.0, ck) * clamp(uFx - 0.9, 0.0, 1.5), fr = pow(1.0 - aNV, 2.0);
+      vec3 c = aRU * 0.2 + aPK * fr * 0.9 + aVI * 0.3 * (1.0 - fr) + vec3(1.0, 0.85, 0.95) * pow(aSb, 90.0) * 2.0 + aRU * crk * 2.2 + aPK * smoothstep(0.85, 1.0, edge) * 0.45;
+      c = vec3(tone(c.r), tone(c.g), tone(c.b)); float a = clamp(0.14 + 0.6 * fr + crk * 0.6 + 0.2 * smoothstep(0.85, 1.0, edge), 0.0, 0.9); gl_FragColor = vec4(c * a * uAlpha, a * uAlpha); return; }
+    float aCk = uFx > 0.0 && uFx < 0.75 ? uFx * 2.0 : 0.0;
+    vec3 aG0 = vec3(0.92, 0.64, 0.32), aGF = aG0 + (1.0 - aG0) * aFr;   // (antique gold: a warm tinted reflection, a broad sheen and a sharp glint)
+    vec3 aGold = (aG0 * (0.12 + 0.6 * aDif) * aKEY * 0.5 + aGF * mix(aEv, vec3(dot(aEv, vec3(0.33))) * vec3(1.0, 0.78, 0.5), 0.45) * 1.3 + vec3(1.0, 0.9, 0.72) * (pow(aSb, 70.0) * 2.4 + pow(aSb, 9.0) * 0.28) + aRim * 0.35) * 1.2;
+    vec3 aC = vec3(0.0);
+    if (id == 440) { float rec = step(0.15, aF) * step(aF, 0.25), eng = step(0.25, aF);   // obsidian lacquer: near-black, a deep clear coat, a dark violet fresnel, gold filigree inlaid, gold rims
+      vec3 T0 = vec3(0.022, 0.017, 0.026) * (rec > 0.5 ? 0.45 : 1.0), TF = T0 + (vec3(0.5, 0.44, 0.56) - T0) * aFr; float rg = 0.1 + 0.07 * vn(L.xy * 6.0 + L.z * 3.0);
+      aC = T0 * (0.2 + 0.8 * aDif) * aKEY + TF * aEv * 1.15 + vec3(1.0, 0.92, 0.95) * pow(aSb, 2.0 / (rg * rg)) * 1.2 + aRim * 0.5 + vec3(0.5, 0.06, 0.4) * pow(1.0 - aNV, 2.6) * 0.16 * (1.0 - rec);
+      if (eng > 0.5 && uLow < 0.5) { vec2 q = vec2(L.x * 2.6 + L.y * 2.0, L.z * 2.8); float w1 = vn(q * 1.3), s1 = abs(fract(q.x + 0.35 * sin(q.y * 3.1 + w1 * 2.0)) - 0.5), s2 = abs(length(fract(q + vec2(0.5 * w1, 0.0)) - 0.5) - 0.3);
+        float fil = max(smoothstep(0.03, 0.01, s1) * step(0.35, w1), smoothstep(0.026, 0.008, s2) * step(0.5, w1)); aC = mix(aC, aGold * 0.85, fil * 0.8); }
+      if (aCk > 0.0) { float ck = abs(vn(L.xy * 3.1 + L.z * 2.3 + 7.0) - 0.5) + abs(vn(L.yz * 6.3 + 2.0) - 0.5) * 0.5, crk = smoothstep(0.07, 0.015, ck) * clamp(aCk, 0.0, 1.0); aC = aC * (1.0 - crk * 0.6) + mix(aRU, aPK, 0.3) * crk * 1.8 + aCR * smoothstep(0.2, 0.03, ck) * aCk * 0.3; }
+      aC = mix(aC, aGold, smoothstep(0.8, 0.95, edge) * (1.0 - rec)); }
+    else if (id == 441) { float br = vn(vec2(L.x * 40.0 + L.y * 40.0, L.z * 2.0)), rg = 0.28 + 0.1 * br;   // dark titanium: brushed gunmetal, a cool sheen
+      vec3 T0 = vec3(0.15, 0.14, 0.17) * (0.85 + 0.25 * br), TF = T0 + (1.0 - T0) * aFr * 0.5;
+      aC = T0 * (0.15 + 0.75 * aDif) * aKEY * 0.6 + TF * aEv * 0.9 + vec3(0.9, 0.9, 1.0) * pow(aSb, 2.0 / (rg * rg)) * 0.8 + aRim * 0.4 + vec3(0.5, 0.46, 0.5) * smoothstep(0.7, 1.0, edge) * 0.25; }
+    else if (id == 442) { float eg = step(0.15, aF), ln = (1.0 - uLow) * eg * smoothstep(0.06, 0.02, abs(fract(L.x * 7.0 + L.z * 4.0 + 0.5 * sin(L.y * 9.0)) - 0.5)); aC = aGold * (1.0 - ln * 0.55) + aCR * ln * aG * 0.3; }
+    else if (id == 443) { float slot = step(0.25, aF), s = ao + uKind, fill = smoothstep(uWear + 0.6, uWear - 0.2, s);   // venom: thick, viscous pulses rolling along the channel toward the blade, blobs in it, a glassy cover
+      float pul = pow(0.5 + 0.5 * sin(s * 3.2 - aT * (2.0 + 2.5 * aG2)), 4.0), blob = pow(vn(vec2(s * 2.5 - aT * (1.2 + aG2), edge * 2.0)), 2.0);
+      float hk = clamp(0.2 + 0.25 * aG2 + 0.55 * pul * fill + 0.35 * blob * fill, 0.0, 2.0) * (0.3 + 0.7 * fill);
+      vec3 c = mix(vec3(0.16, 0.0, 0.03), aRU, clamp(hk, 0.0, 1.0)) + aPK * max(0.0, hk - 1.0) * 0.8;
+      c *= 0.55 + 0.6 * smoothstep(0.0, 0.45, edge) * smoothstep(1.0, 0.55, edge) + 0.25; c += vec3(1.0, 0.8, 0.85) * pow(aSb, 40.0) * 0.6 + aEv * aFr * 0.4;
+      if (slot > 0.5) c = aRU * (0.55 + 0.5 * aG2 * fill) * (0.85 + 0.15 * sin(aT * 6.0 + L.z * 9.0)); aC = c; }
+    else if (id == 444) { vec3 alb = vec3(0.95, 0.9, 0.82);   // ivory porcelain: a warm glaze, a soft sheen, faint crimson channels under it
+      vec3 c = alb * (0.62 + aDif * 0.6 + aHm * 0.12) * vec3(1.0, 0.97, 0.94) + vec3(0.9, 0.35, 0.35) * (1.0 - aDif) * 0.04 + vec3(1.0, 0.96, 0.92) * pow(aSb, 90.0) * 1.6 + aEv * aFr * 0.5 + aRim * 0.25;
+      float vein = smoothstep(0.035, 0.0, abs(vn(L.yz * 8.0 + 2.0) - 0.5)) * (1.0 - uLow);
+      c += aCR * vein * (0.1 + 0.2 * aG2 * (0.6 + 0.4 * sin(aT * 2.0 + L.z * 6.0))); aC = mix(c, aGold, smoothstep(0.85, 1.0, edge) * 0.75); }
+    else if (id == 445) aC = mix(aRU, aWH, clamp(0.12 + 0.22 * aG2, 0.0, 0.6)) * (0.9 + 0.55 * aG2) * (0.92 + 0.08 * sin(aT * 9.0));
+    else if (id == 446) { float sh = step(0.2, aF) * step(aF, 0.45), hrt = step(0.45, aF), tip = 1.0 - clamp(ao, 0.0, 1.0);   // ruby venom crystal: dark interior facets, light caught at the rims, two layers seen through it (a fake refraction), liquid flowing inside, violet filaments, bright edges, glints
+      vec3 rf = refract(-uV, n, 0.66), p1 = L * 3.0 + rf * 0.6, p2 = L * 5.5 + rf * 1.4;
+      float f1 = vn(p1.xy + p1.z * 0.7 + vec2(0.0, -aT * 0.35)), f2 = vn(p2.yz * 1.3 + p2.x + vec2(aT * 0.25, 0.0)), flw = pow(0.5 + 0.5 * sin((tip + f1 * 0.3) * 14.0 - aT * 2.2), 3.0), dep = clamp(0.3 + 0.7 * aNV, 0.0, 1.0);
+      vec3 body = mix(vec3(0.09, 0.0, 0.025), aCR * 0.9, f1 * 0.6 + 0.2), c = mix(aRU * (0.75 + 0.5 * f2), body, dep * 0.85);
+      c += aCR * flw * (0.25 + 0.35 * aG) * (0.5 + 0.5 * f2) + aVI * smoothstep(0.62, 0.8, f2) * 0.35 + aPK * pow(1.0 - aNV, 3.0) * 0.6 + aPK * smoothstep(0.86, 1.0, edge) * (0.22 + 0.3 * aG);
+      c += vec3(1.0, 0.85, 0.9) * pow(aSb, 160.0) * 3.0 + aEv * aFr * 0.6 + aRU * tip * tip * (0.15 + 0.45 * aG); c *= 0.75 + 0.35 * min(aG, 2.0);
+      if (aG2 > 0.0) c += mix(aRU, aWH, clamp(aG2 * 0.3, 0.0, 0.8)) * aG2 * (0.15 + 0.3 * (1.0 - dep));
+      if (hrt > 0.5) c = c * 1.25 + aRU * (0.25 + 0.2 * sin(aT * 3.0)) * (1.0 - dep);
+      if (aF > 0.05 && aF < 0.2) { float fac = floor((NL.y + 1.0) * 2.5 + L.z * 6.0), fv = hs(vec2(fac, 3.0)); c = c * (0.55 + 0.35 * fv) + aRU * (0.35 + 0.25 * fv) * (0.6 + 0.4 * sin(tip * 9.0 - aT * 2.5)) + aCR * 0.25 + mix(aPK, aWH, 0.45) * smoothstep(0.6, 0.95, edge) * 1.1 + aPK * pow(1.0 - aNV, 2.0) * 0.5; }
+      if (sh > 0.5) { float a = clamp(0.26 + 0.55 * pow(1.0 - aNV, 1.6) + 0.35 * smoothstep(0.8, 1.0, edge), 0.0, 0.92); c = vec3(tone(c.r), tone(c.g), tone(c.b)); gl_FragColor = vec4(c * a * uAlpha, a * uAlpha); return; }
+      aC = c; }
+    else if (id == 447) { vec3 lp = normalize(L); float an = atan(lp.y, lp.x), la = asin(clamp(lp.z, -1.0, 1.0));   // venom fluid: thick, swirling, domain-warped, violet filaments, a wet sheen (see-through)
+      vec2 q = vec2(an * 2.0 + aT * 0.5, la * 2.5 - aT * 0.2), w = vec2(vn(q * 1.7 + aT * 0.3), vn(q * 1.7 + 5.0 - aT * 0.25)); float sw = vn(q * 2.4 + w * 2.2), sw2 = vn(q * 5.0 - w * 1.5 + 3.0), fr = pow(1.0 - aNV, 1.6);
+      vec3 c = mix(vec3(0.3, 0.0, 0.05), aRU, smoothstep(0.3, 0.75, sw)) * (0.85 + 0.15 * aG2) + aPK * smoothstep(0.7, 0.85, sw2) * 0.5 + aVI * smoothstep(0.55, 0.62, sw) * smoothstep(0.7, 0.62, sw) * 0.8 + aPK * fr * 0.6 + vec3(1.0, 0.8, 0.85) * pow(aSb, 50.0) * 1.2;
+      c = vec3(tone(c.r), tone(c.g), tone(c.b)); float a = clamp(0.32 + 0.35 * sw + 0.35 * fr, 0.0, 0.85); gl_FragColor = vec4(c * a * uAlpha, a * uAlpha); return; }
+    else if (id == 448) { float band = step(0.25, aF), an = atan(L.y, L.x), crd = an * 7.6394 + 24.0, cell = floor(crd), dd = fract(crd) - 0.5, ac = NL.z;   // a runed ring: gold (or a dark band) with crimson runes, a pulse running round
+      float h = hs(vec2(cell, 9.0 + uKind)), stem = smoothstep(0.1, 0.05, abs(dd - (h - 0.5) * 0.2)), brn = smoothstep(0.09, 0.035, abs(ac - dd * 1.4 * (h > 0.6 ? 1.0 : -1.0))) * step(abs(dd), 0.35), rune = max(stem, brn) * step(0.3, h), pl = pow(0.5 + 0.5 * sin(crd * 0.45 - aT * 3.0 + uKind * 1.7), 6.0);
+      vec3 base = band > 0.5 ? vec3(0.03, 0.02, 0.03) * (0.3 + aDif) + aEv * aFr * 0.5 + vec3(1.0) * pow(aSb, 30.0) * 0.5 : aGold * 0.75;
+      aC = base * (1.0 - rune * 0.5) + mix(aCR, aPK, pl) * rune * (0.3 + 0.4 * aG + 0.9 * pl * (0.3 + aG2)); }
+    else if (id == 449) { float bk = step(0.25, aF); vec3 alb = vec3(0.36, 0.012, 0.045) * (bk > 0.5 ? 0.6 : 1.0);   // scarlet cloth: velvet (a bright grazing sheen), a faint damask, folds lit by a wrapped key, a gold border
+      float dam = vn(L.xy * 6.0 + L.z * 2.0) * 0.5 + vn(L.yz * 13.0) * 0.5, pat = smoothstep(0.55, 0.6, dam) * (1.0 - uLow), wrap = clamp((aNL + 0.4) / 1.4, 0.0, 1.0), vel = pow(1.0 - aNV, 2.2);
+      vec3 c = alb * (1.0 - pat * 0.25) * (wrap * aKEY * 0.85 + aAmb * 0.9) + vec3(0.95, 0.2, 0.32) * vel * 0.35 * (0.4 + wrap) + aRim * 0.25 + aVI * pow(1.0 - aNV, 4.0) * 0.12;
+      aC = mix(c, aGold * 0.85, smoothstep(0.8, 0.95, edge) * (1.0 - bk * 0.3)); }
+    else if (id == 450) { float an = atan(L.y, L.x), pl = pow(0.5 + 0.5 * sin(an * 4.0 - aT * 2.5 + uKind * 1.9), 5.0);   // a ring of crimson-violet light (see-through)
+      vec3 c = mix(aCR, aVI * 1.5, 0.35 + 0.3 * sin(an * 2.0 + aT)) * (0.55 + 0.5 * aG) + aPK * pl * 0.8; c = vec3(tone(c.r), tone(c.g), tone(c.b));
+      float a = clamp(max(c.r, max(c.g, c.b)) * (0.5 + 0.5 * aNV), 0.0, 1.0); gl_FragColor = vec4(c * a * uAlpha, a * uAlpha); return; }
+    else if (id == 451) { float ck = abs(vn(L.xy * 3.3 + L.z * 2.1 + 5.0) - 0.5) + abs(vn(L.yz * 6.0 + L.x * 3.0) - 0.5) * 0.5, crk = smoothstep(0.06 + 0.04 * aG2, 0.0, ck) * clamp(aG2, 0.0, 1.5);   // dark crystal (the cocoon): a black-violet glass, crimson light in its cracks
+      aC = vec3(0.04, 0.012, 0.03) * (0.3 + aDif) + aEv * aFr * 0.9 + vec3(1.0, 0.85, 0.95) * pow(aSb, 120.0) * 2.0 + aVI * pow(1.0 - aNV, 2.0) * 0.4 + aRU * crk * 1.6 + aCR * smoothstep(0.85, 1.0, edge) * 0.25; }
+    else aC = mix(aRU, aPK, clamp(0.3 + 0.3 * aG, 0.0, 1.0)) * (0.8 + 0.4 * aNV) * (0.8 + 0.3 * aG);   // 453 a mote
+    aC += aRU * aDE * 2.0 + aPK * aDE * aDE * 1.2;   // (the dissolve's burning crimson edge: it breaks into grains)
+    gl_FragColor = vec4(vec3(tone(aC.r), tone(aC.g), tone(aC.b)) * uAlpha, uAlpha); return; }
+  /*</AS-MAT>*/
   /*<OD-DRILL-MAT ids 150..151 (v416 OD: 20k2iz-earth-drill-gpu.js)>*/
   else if (id >= 150 && id <= 151) {   // ---- (v416 OD) the Obsidian Drill (20k2iz), z its axis in its own frame: 150 black volcanic glass (150.2 its core, 150.4 its tip; vA.y 1 on a bevel or a facet's rim, vA.z the occlusion), 151 gold crystal (151.0 the inlay along a flight's rim: vA.z its length along the helix; 151.3 a joint's crystal). uGlow the gold's light, uWear world units a model unit (its height over the floor from vW.z), uTime.
     // Glass: a near-black body with a grey-violet lit flank; a cool sky above, a bright horizon strip and the floor's warm light below in its reflections; a fresnel rim; sharp glints with a faint rainbow sheen; conchoidal facets (a cell net round the axis, each cell tilting the normal its own way, rippled from its seed) that turn with it; bright bevels

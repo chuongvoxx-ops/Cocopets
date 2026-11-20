@@ -988,6 +988,16 @@ const AnimaArt = (() => {
       if (o.bloom || o.aura !== false) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = (o.alpha == null ? 1 : o.alpha) * (o.bloom ? 0.32 : 0.16); const gs = size * 0.85; blitSized(c, glowSprite('#FFB347'), x - gs, y - size * 0.5 - gs, gs * 2, gs * 2); c.restore(); }
       if (BELIAL_GL.drawAnima(c, k, x, y, size, t, o)) return;
     }
+    // v435 SM: Samael, the First Cataclysm, is a real 3D model on the GPU (02f5); without it, the Aries Anima's existing art below
+    if (id === 'aries' && !o.legacy && typeof SAMAEL_GL !== 'undefined' && SAMAEL_GL.usable()) {
+      if (o.bloom || o.aura !== false) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = (o.alpha == null ? 1 : o.alpha) * (o.bloom ? 0.3 : 0.15); const gs = size * 0.85; blitSized(c, glowSprite('#FF3A1E'), x - gs, y - size * 0.5 - gs, gs * 2, gs * 2); c.restore(); }
+      if (SAMAEL_GL.drawAnima(c, k, x, y, size, t, o)) return;
+    }
+    // v436 AS: Asmodeus, The Fester, is a real 3D model on the GPU (02f6); without it, the Scorpio Anima's existing art below
+    if (id === 'scorpio' && !o.legacy && typeof ASMODEUS_GL !== 'undefined' && ASMODEUS_GL.usable()) {
+      if (o.bloom || o.aura !== false) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = (o.alpha == null ? 1 : o.alpha) * (o.bloom ? 0.3 : 0.14); const gs = size * 0.85; blitSized(c, glowSprite('#FF2A4A'), x - gs, y - size * 0.5 - gs, gs * 2, gs * 2); c.restore(); }
+      if (ASMODEUS_GL.drawAnima(c, k, x, y, size, t, o)) return;
+    }
     if (id === 'taurus' && o.yaw != null) o = Object.assign({}, o, { yaw: undefined });   // (v426 BL) the cel model keeps its own three-quarter view, like the GPU one
     if (typeof Anima3D !== 'undefined' && Anima3D.has(id) && !o.legacy) return draw3d(c, id, k, x, y, size, t, o);
     const p = P[id]; if (!p) return;

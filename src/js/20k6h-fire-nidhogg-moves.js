@@ -458,6 +458,10 @@ float ftk(float e){ float s = 1.0 - smoothstep(0.0, 1.0, e); return s * sqrt(s);
 float h3(vec3 p){ p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
 float n3(vec3 x){ vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f); return mix(mix(mix(h3(i), h3(i + vec3(1.0, 0.0, 0.0)), f.x), mix(h3(i + vec3(0.0, 1.0, 0.0)), h3(i + vec3(1.0, 1.0, 0.0)), f.x), f.y), mix(mix(h3(i + vec3(0.0, 0.0, 1.0)), h3(i + vec3(1.0, 0.0, 1.0)), f.x), mix(h3(i + vec3(0.0, 1.0, 1.0)), h3(i + vec3(1.0, 1.0, 1.0)), f.x), f.y), f.z); }
 float fbm3(vec3 p){ return 0.5 * n3(p) + 0.27 * n3(p * 2.07 + 3.1) + 0.15 * n3(p * 4.13 + 7.7) + 0.08 * n3(p * 8.3 + 1.3); }
+/*<AS-FN v436 AS: a segment's distance, the Scorpio sign's (three stems, two arches, a tail ending in an arrow; g in sign units, y up)>*/ float asSeg(vec2 p, vec2 a, vec2 b){ vec2 pa = p - a, ba = b - a; float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0); return length(pa - ba * h); }
+float asGly(vec2 g){ float d = min(min(asSeg(g, vec2(-0.5, -0.42), vec2(-0.5, 0.32)), asSeg(g, vec2(0.0, -0.42), vec2(0.0, 0.32))), asSeg(g, vec2(0.5, -0.3), vec2(0.5, 0.32)));
+  if (g.y > 0.32) d = min(d, min(abs(length(g - vec2(-0.25, 0.32)) - 0.25), abs(length(g - vec2(0.25, 0.32)) - 0.25)));
+  d = min(d, min(asSeg(g, vec2(0.5, -0.3), vec2(0.62, -0.55)), asSeg(g, vec2(0.62, -0.55), vec2(0.9, -0.62)))); return min(d, min(asSeg(g, vec2(0.9, -0.62), vec2(0.74, -0.7)), asSeg(g, vec2(0.9, -0.62), vec2(0.82, -0.47)))); }
 float caus(vec2 p, float t){ vec2 i = p; float c = 1.0; for (int n = 0; n < 4; n++) { float tt = t * (1.0 - 3.5 / float(n + 1)); i = p + vec2(cos(tt - i.x) + sin(tt + i.y), sin(tt - i.y) + cos(tt + i.x)); c += 1.0 / length(vec2(p.x / (sin(i.x + tt) / 0.005), p.y / (cos(i.y + tt) / 0.005))); } c /= 4.0; c = 1.17 - pow(c, 1.4); return clamp(pow(abs(c), 8.0), 0.0, 1.6); }   /* (v361) the web of light that water throws (after the classic tileable caustic) */
 float hsd(vec2 p){ p.x = abs(p.x); if (p.y + p.x > 1.0) return length(p - vec2(0.25, 0.75)) - 0.35355; vec2 a = p - vec2(0.0, 1.0), b = p - vec2(0.5 * max(p.x + p.y, 0.0)); return sqrt(min(dot(a, a), dot(b, b))) * sign(p.x - p.y); }   /* (v402, Sunflare) a rounded love heart's signed distance: its point at the origin, its lobes' top at y 1.1, 1.2 wide */
 vec2 hmap(vec2 u){ return vec2(u.x * 0.72, 0.53 - u.y * 0.68); }   /* (v402) a quad's uv to the heart's own space: the heart fills 84% of the quad */
@@ -1689,6 +1693,156 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
         L = (col * (wall * (0.22 + 0.25 * k2) + rune * (0.35 + 0.5 * k2) + fr * 0.25) + mix(col, vec3(1.0), 0.6) * (flow * (0.3 + 0.6 * k2) + wave)) * (0.55 + 0.45 * zz + fr); L *= 1.0 - smoothstep(0.94, 1.0, r); }
       else L = col * exp(-r * r * 4.0) * 0.5; }
     /*</BL-FX>*/
+    /*<SM-FX kinds 296..311 (v435 SM: 20g4-samael-moves.js, 02f5-samael-model.js, Samael the First Cataclysm)>*/
+    else if (v_k > 295.5 && v_k < 311.5) { float tt = u_t, an = atan(u.y, u.x); vec3 sCR = vec3(0.85, 0.06, 0.03), sOR = vec3(1.0, 0.42, 0.07), sWH = vec3(1.0, 0.93, 0.82);
+      if (v_k < 296.5) { // 296 a crescent of plasma (uv.x -1 behind .. 1 ahead, the way it flies; uv.y across): its outer edge a sharp white-hot line, crimson inward, fading to nothing toward the arc's centre; flowing energy, wisps trailing; v_q.x its age 0..1, v_q.y seed, v_q.z strength
+        vec2 q = u - vec2(-0.85, 0.0); float d = length(q), a = atan(q.y, q.x), h = d - 1.62, span = 1.0 - smoothstep(0.55, 0.92, abs(a)), w = 0.42 * (1.0 - smoothstep(0.0, 0.92, abs(a))) + 0.03;
+        float fl = fbm(vec2(a * 6.0 - tt * 4.0 + v_q.y, d * 5.0)), edgeL = exp(-sq(h / 0.018)) * span, inner = step(h, 0.0) * pow(smoothstep(-w, 0.0, h), 2.2) * span, wisp = step(h, -w * 0.6) * exp((h + w) * 6.0) * pow(fl, 3.0) * span * 1.4;
+        float k = 0.25 + 1.4 * pow(smoothstep(-w, 0.0, h), 4.0) + 0.3 * fl; vec3 hc = k < 1.0 ? mix(sCR, sOR, k) : mix(sOR, sWH, min(1.0, k - 1.0));
+        L = (sWH * edgeL * 1.3 + hc * inner * (0.55 + 0.5 * fl) + sCR * wisp * 0.6) * v_q.z * (1.0 - smoothstep(0.75, 1.0, v_q.x)); L *= (1.0 - smoothstep(0.92, 1.0, abs(u.x))) * (1.0 - smoothstep(0.9, 1.0, abs(u.y))); }
+      else if (v_k < 297.5) { // 297 a hemispherical shockwave (uv a unit disc; its foot the disc's middle line): the dome's bright silhouette (radius v_q.x), a faint fresnel shell over it, heat ripples, its foot a squashed ring on the floor; v_q.y seed, v_q.z strength
+        float R0 = max(v_q.x, 0.04), up = step(u.y, 0.0), rd = length(vec2(u.x, u.y * (up > 0.5 ? 1.0 : 1.0 / 0.55))), h = rd - R0, nn = fbm(vec2(an * 5.0 + v_q.y, rd * 7.0 - tt * 2.0));
+        float sil = exp(-sq(h / (0.018 + 0.03 * R0))) * (0.75 + 0.5 * nn), shell = up * step(rd, R0) * pow(clamp(1.0 / sqrt(max(0.02, 1.0 - sq(rd / R0))) - 1.0, 0.0, 3.0), 1.0) * 0.12, rip = up * step(rd, R0) * pow(0.5 + 0.5 * sin(rd * 60.0 - tt * 10.0 + nn * 4.0), 6.0) * 0.12;
+        L = (mix(sOR, sWH, 0.55) * sil + mix(sCR, sOR, 0.6) * (shell + rip)) * v_q.z * (1.0 - smoothstep(0.85, 1.0, R0)); L *= 1.0 - smoothstep(0.95, 1.0, r); }
+      else if (v_k < 298.5) { // 298 the infernal Aries sigil on the floor (a unit disc squashed by its quad): rings, a band of runes, twelve blades, a spiral of two horns at its heart, flames licking off its rim; drawn on as v_q.x goes 0..1 (past 1 hotter), v_q.y its turn, v_q.z strength
+        float rv = smoothstep(r - 0.05, r + 0.02, v_q.x * 1.05), a2 = an + v_q.y, ring = exp(-sq((r - 0.96) / 0.009)) + exp(-sq((r - 0.88) / 0.007)) * 0.8 + exp(-sq((r - 0.6) / 0.008)) * 0.9 + exp(-sq((r - 0.34) / 0.007)) * 0.7;
+        float crd = a2 * 9.549, cell = floor(crd), dd = fract(crd) - 0.5, hh = h1(vec2(cell, 13.0)), rb = (r - 0.92) / 0.03, rune = max(smoothstep(0.12, 0.05, abs(dd)) * step(abs(rb), 0.75), smoothstep(0.16, 0.06, abs(rb * 0.4 - dd * (hh > 0.5 ? 1.0 : -1.0))) * step(abs(dd), 0.35) * step(abs(rb), 0.8)) * step(0.3, hh);
+        float bl = fract(a2 * 1.9099 + 0.5) - 0.5, blade = smoothstep(0.02, 0.0, abs(bl - (r - 0.6) * 0.35) * r * 3.0) * step(0.6, r) * step(r, 0.88);
+        vec2 g = u * 3.2; float h1c = abs(length(g - vec2(-0.42, -0.1)) - 0.42) + step(0.1, g.y) * 9.0, h2c = abs(length(g - vec2(0.42, -0.1)) - 0.42) + step(0.1, g.y) * 9.0, stem = abs(g.x) + step(0.1, -g.y + 0.0) * 0.0 + step(g.y, -0.1) * 9.0 + step(0.9, g.y) * 9.0, gly = exp(-sq(min(min(h1c, h2c), stem) / 0.05));
+        float flm = pow(fbm(vec2(a2 * 10.0, r * 4.0 - tt * 2.5)), 2.0) * smoothstep(0.9, 0.97, r) * (1.0 - smoothstep(0.97, 1.0, r)) * 2.0, hk = 0.45 + 0.5 * max(v_q.x - 1.0, 0.0) + 0.3 * flm;
+        vec3 hc = hk < 1.0 ? mix(sCR, sOR, hk) : mix(sOR, sWH, min(1.0, hk - 1.0));
+        L = (hc * (ring * 0.85 + rune * 0.9 + blade * 0.6 + flm + exp(-r * r * 20.0) * 0.35) + mix(sOR, sWH, 0.5) * gly * smoothstep(0.5, 0.9, v_q.x) * 1.2) * rv * v_q.z;
+        L += sOR * exp(-sq((r - v_q.x * 1.02) / 0.03)) * step(v_q.x, 1.0) * 0.8 * v_q.z; L *= 1.0 - smoothstep(0.97, 1.0, r); }
+      else if (v_k < 299.5) { // 299 the Heart of Ruin's light (a unit disc; the star's radius v_q.x of it): a white-hot heart, a crimson limb, the star-sigil's long rays turning, prominences, a controlled bloom; v_q.y heat 0..1 (white-hot), v_q.z strength
+        float R0 = max(v_q.x, 0.02), q = r / R0, ht = clamp(v_q.y, 0.0, 1.0), a2 = an + tt * 0.15;
+        float core = exp(-q * q * (6.0 - 3.0 * ht)), limb = exp(-sq((q - 1.0) / 0.08)) * 0.5, ray = pow(abs(cos(a2 * 4.0)), 60.0) * exp(-max(q - 1.0, 0.0) * (1.6 - 0.6 * ht)) * step(1.0, q) + pow(abs(cos(a2 * 4.0 + 0.785)), 90.0) * exp(-max(q - 1.0, 0.0) * 3.5) * step(1.0, q) * 0.6;
+        float prom = pow(fbm(vec2(an * 3.0 + tt * 0.6, q * 3.0 - tt)), 3.0) * exp(-sq((q - 1.3) / 0.25)) * 1.6, bloom = 0.3 * exp(-max(q - 0.9, 0.0) * 1.2) * (1.0 - smoothstep(0.3, 1.0, r));
+        vec3 hc = mix(sOR, sWH, 0.55 + 0.45 * ht);
+        L = (hc * core * (0.9 + 0.4 * ht) + mix(sCR, sOR, 0.5 + 0.5 * ht) * (limb + bloom + prom * (0.6 + 0.6 * ht)) + mix(sOR, sWH, ht) * ray * (0.55 + 0.5 * ht)) * v_q.z; L *= 1.0 - smoothstep(0.82, 1.0, r); }
+      else if (v_k < 300.5) { // 300 an arc of plasma between two points (uv.x -1 .. 1 along, uv.y across): a filament writhing between them, a thinner one round it, flickering; v_q.x its writhe (0..1), v_q.y seed, v_q.z strength
+        float x = u.x, env2 = 1.0 - x * x, o1 = (fbm(vec2(x * 3.0 + v_q.y, tt * 3.0)) - 0.5) * 1.4 * v_q.x * env2, o2 = (fbm(vec2(x * 5.0 - v_q.y, tt * 4.3 + 3.0)) - 0.5) * 1.8 * v_q.x * env2;
+        float f1 = exp(-sq((u.y - o1) / 0.05)), f2 = exp(-sq((u.y - o2) / 0.03)) * 0.6, gl2 = exp(-sq((u.y - o1) / 0.3)) * 0.25, fk = 0.75 + 0.25 * sin(tt * 37.0 + v_q.y);
+        L = (mix(sOR, sWH, 0.6) * f1 + sOR * f2 + sCR * gl2) * v_q.z * fk * (1.0 - smoothstep(0.85, 1.0, abs(x))); }
+      else if (v_k < 301.5) { // 301 a field of embers (a unit disc): thousands of motes drifting up and out, twinkling, crimson to white (in one quad: the shader instances them); v_q.x its age 0..1 (it spreads and thins), v_q.y seed, v_q.z density
+        float ag = clamp(v_q.x, 0.0, 1.0), m2 = 0.0; vec3 ec = vec3(0.0); for (int i = 0; i < 3; i++) { float fi = float(i), s = 7.0 + fi * 6.0; vec2 p = u * s * (1.0 - 0.35 * ag) + vec2(v_q.y * (fi + 1.0), tt * (0.6 + fi * 0.35) + ag * 3.0); vec2 gi = floor(p), gf = fract(p) - 0.5; float hh = h1(gi + fi * 17.0), ml = step(1.0 - v_q.z * 0.55, hh) * exp(-dot(gf - (vec2(h1(gi + 3.0), h1(gi + 7.0)) - 0.5) * 0.6, gf - (vec2(h1(gi + 3.0), h1(gi + 7.0)) - 0.5) * 0.6) * 90.0) * (0.55 + 0.45 * sin(tt * (5.0 + hh * 9.0) + hh * 30.0));
+          ec += (hh > 0.93 ? sWH : hh > 0.75 ? sOR : sCR) * ml; }
+        L = ec * 1.4 * (1.0 - ag * ag) * (1.0 - smoothstep(0.55, 1.0, r)); }
+      else if (v_k < 302.5) { // 302 a fireball (a unit disc): a white-hot heart, turbulent cells boiling outward with structure kept (domain-warped), a darker crimson skin at its limb; cooling as v_q.x (its age) goes 0..1; v_q.y seed, v_q.z strength
+        float ag = clamp(v_q.x, 0.0, 1.0); vec2 w = vec2(fbm(u * 2.5 + v_q.y + tt * 0.3), fbm(u * 2.5 - v_q.y + 4.0 - tt * 0.3)); float cel = fbm(u * 3.5 + w * 1.8 + vec2(0.0, tt * 0.6)), rr = r / (0.55 + 0.4 * ag);
+        float body = smoothstep(1.0, 0.65 + 0.2 * cel, rr), k = clamp((1.0 - rr * 0.75) * 1.6 + cel * 0.8 - ag * 1.4, 0.0, 2.2), skin = exp(-sq((rr - 0.85) / 0.12)) * 0.4;
+        vec3 hc = k < 1.0 ? mix(sCR * 0.5, sOR, k) : mix(sOR, sWH, min(1.0, k - 1.0));
+        L = (hc * body * (0.6 + 0.5 * cel) + sCR * skin * (1.0 - ag)) * v_q.z * (1.0 - ag * 0.6); L *= 1.0 - smoothstep(0.9, 1.0, r); }
+      else if (v_k < 303.5) { // 303 a pillar of fire (uv.x across, uv.y -1 its top .. 1 its foot): a white-hot core, a turbulent body rushing up, tongues at its ragged top, its foot flaring; v_q.x the core's width, v_q.y seed, v_q.z its heat
+        float x = u.x, y = u.y, yy = (y + 1.0) * 0.5, w = max(v_q.x, 0.05) * (1.0 + 0.9 * smoothstep(0.75, 1.0, yy)) * (0.75 + 0.25 * yy), tb2 = fbm(vec2(x * 3.0 + v_q.y, y * 2.5 + tt * 3.5)), xo = (tb2 - 0.5) * 0.25;
+        float core = exp(-sq((x - xo * 0.5) / (w * 0.4))), body = exp(-sq((x - xo) / (w * 1.2))) * (0.55 + 0.6 * tb2), top = smoothstep(0.0, 0.35, yy + (tb2 - 0.5) * 0.3), foot = 1.0 - smoothstep(0.9, 1.0, yy);
+        float k = clamp(v_q.z * (0.4 + core * 1.3 + 0.3 * tb2), 0.0, 2.3); vec3 hc = k < 1.0 ? mix(sCR, sOR, k) : mix(sOR, sWH, min(1.0, k - 1.0));
+        L = hc * (core * 0.9 + body * 0.6) * top * foot * min(1.0, v_q.z); }
+      else if (v_k < 304.5) { // 304 a meteor's trail (uv.x -1 its tail .. 1 its head, uv.y across): a plasma streak widening to its head, turbulence raked back along it, the head white-hot; v_q.x speed, v_q.y seed, v_q.z strength
+        float x = u.x, s = (x + 1.0) * 0.5, w = 0.08 + 0.55 * pow(s, 1.6), tb2 = fbm(vec2(x * 4.0 - tt * (6.0 + 10.0 * v_q.x) + v_q.y, u.y * 3.0)), core = exp(-sq(u.y / (w * 0.35))), body = exp(-sq(u.y / w)) * (0.4 + 0.7 * tb2);
+        float k = clamp(0.3 + 1.6 * s * s + 0.4 * core, 0.0, 2.3); vec3 hc = k < 1.0 ? mix(sCR, sOR, k) : mix(sOR, sWH, min(1.0, k - 1.0));
+        L = hc * (core * 0.7 + body * 0.55) * smoothstep(-1.0, -0.4, x) * (1.0 - smoothstep(0.88, 1.0, x)) * v_q.z; }
+      else if (v_k < 305.5) { // 305 a burning corona on the floor (a unit disc): a ring of flame at radius v_q.x, tongues licking out from it, an inner heat; v_q.y seed, v_q.z strength
+        float R0 = max(v_q.x, 0.1), h = r - R0, fl = fbm(vec2(an * 7.0 + v_q.y, r * 3.0 - tt * 3.0)), tng = pow(fl, 2.0) * smoothstep(-0.05, 0.0, h) * exp(-max(h, 0.0) / (0.06 + 0.12 * fl)), band = exp(-sq(h / 0.03)) * (0.6 + 0.6 * fl), inner = step(r, R0) * smoothstep(0.0, R0, r) * 0.18 * fl;
+        L = (mix(sOR, sWH, 0.3) * band + mix(sCR, sOR, fl) * tng * 1.4 + sCR * inner) * v_q.z; L *= 1.0 - smoothstep(0.95, 1.0, r); }
+      else if (v_k < 306.5) { // 306 an infernal portal (a unit disc): arms of fire spiralling into a dark heart, a rune-lit rim; v_q.x how far open (0..1), v_q.y spin, v_q.z strength
+        float op = clamp(v_q.x, 0.0, 1.0), R0 = 0.88 * op + 0.02, sw = an + v_q.y * tt + 3.0 * log(r + 0.05), arms = pow(0.5 + 0.5 * cos(3.0 * sw + fbm(u * 3.0 + tt * 0.5) * 2.0), 6.0) * smoothstep(0.12, 0.45, r / R0) * step(r, R0);
+        float rim = exp(-sq((r - R0) / 0.025)), crd = (an - tt * 0.4) * 7.0, rn = smoothstep(0.15, 0.05, abs(fract(crd) - 0.5)) * exp(-sq((r - R0 * 0.93) / 0.012)) * step(0.4, h1(vec2(floor(crd), 5.0)));
+        L = (mix(sCR, sOR, 0.5) * arms * (1.0 - r / max(R0, 0.01)) * 1.3 + mix(sOR, sWH, 0.5) * (rim + rn * 0.8)) * v_q.z; L *= 1.0 - smoothstep(0.95, 1.0, r); }
+      else if (v_k < 307.5) { // 307 a shock front tearing the sky (a unit disc): radial streaks thrown out behind a front at v_q.x, the clouds' torn edges lit; v_q.y seed, v_q.z strength
+        float R0 = v_q.x, h = r - R0, st2 = pow(n2(vec2(an * 40.0 + v_q.y, 0.0)), 4.0) * step(h, 0.0) * exp(h * 3.0) * smoothstep(0.05, 0.4, r), front = exp(-sq(h / 0.03)) * (0.6 + 0.5 * fbm(vec2(an * 8.0, tt)));
+        L = (mix(sOR, sWH, 0.4) * front + mix(sCR, sOR, 0.5) * st2 * 1.3) * v_q.z * (1.0 - smoothstep(0.85, 1.0, R0)); L *= 1.0 - smoothstep(0.95, 1.0, r); }
+      else if (v_k < 308.5) { // 308 a cross of plasma detonating (a unit disc): two crescents crossing as an X, blazing then thrown wide, a burst at the crossing; v_q.x its age 0..1, v_q.y seed, v_q.z strength
+        float ag = clamp(v_q.x, 0.0, 1.0), d1 = abs(u.x + u.y) * 0.7071, d2 = abs(u.x - u.y) * 0.7071, ln = 0.04 + 0.12 * ag, reach = 0.35 + 0.65 * sqrt(ag);
+        float arm = (exp(-sq(d1 / ln)) + exp(-sq(d2 / ln))) * (1.0 - smoothstep(reach * 0.75, reach, r)), burst = exp(-r * r / (0.02 + 0.2 * ag)), fl = fbm(u * 4.0 + v_q.y + tt);
+        L = (mix(sOR, sWH, 0.7 - 0.5 * ag) * arm * (0.7 + 0.5 * fl) + mix(sOR, sWH, 1.0 - ag) * burst * 1.4) * v_q.z * (1.0 - ag * ag); L *= 1.0 - smoothstep(0.92, 1.0, r); }
+      else if (v_k < 309.5) { // 309 the ground fractured (a unit disc on the floor): fissures radiating and ringing, molten in them, spreading to v_q.x and cooling as v_q.z (heat) falls; v_q.y seed
+        float sp = smoothstep(r - 0.06, r + 0.02, v_q.x), sd = v_q.y, rad = abs(fract(an * 1.9099 + (fbm(vec2(r * 3.0, sd)) - 0.5) * 0.6 + sd) - 0.5) * r * 6.0, rg = abs(fract(r * 4.0 + fbm(vec2(an * 3.0, sd + 1.0)) * 0.6) - 0.5);
+        float fis = max(exp(-sq(rad / 0.05)) * step(0.12, r), exp(-sq(rg / 0.035)) * step(0.5, h1(vec2(floor(r * 4.0), floor(an * 2.0) + sd)))), hk = clamp(v_q.z, 0.0, 1.6), glw = exp(-sq(rad / 0.18)) * 0.25 * step(0.12, r);
+        vec3 hc = hk < 1.0 ? mix(sCR * 0.6, sOR, hk) : mix(sOR, sWH, min(1.0, hk - 1.0));
+        L = hc * (fis + glw) * sp * min(1.0, hk + 0.15); L *= 1.0 - smoothstep(0.92, 1.0, r); }
+      else if (v_k < 310.5) { // 310 a plasma jet (uv.x across, uv.y -1 its tip .. 1 its nozzle): a plume flaring out of the nozzle, shock diamonds down its core, ragged turbulent edges; v_q.x the width, v_q.y seed, v_q.z strength
+        float yy = (1.0 - u.y) * 0.5, w = max(v_q.x, 0.05) * (0.45 + 0.9 * yy), tb2 = fbm(vec2(u.x * 4.0 + v_q.y, yy * 5.0 - tt * 8.0)), body = exp(-sq(u.x / (w * (0.8 + 0.4 * tb2)))), core = exp(-sq(u.x / (w * 0.25))), dia = pow(0.5 + 0.5 * cos(yy * 30.0 - tt * 4.0), 4.0) * core * (1.0 - yy);
+        float k = clamp(0.35 + 1.3 * core * (1.0 - yy) + 0.6 * dia, 0.0, 2.3); vec3 hc = k < 1.0 ? mix(sCR, sOR, k) : mix(sOR, sWH, min(1.0, k - 1.0));
+        L = hc * (body * (0.5 + 0.4 * tb2) + dia * 0.8) * (1.0 - smoothstep(0.6, 1.0, yy)) * smoothstep(0.0, 0.06, 1.0 - u.y) * v_q.z; }
+      else { // 311 a ring of crimson energy across the floor (a unit disc): its front at v_q.x, ember spikes thrown out of it, a trailing glow; v_q.y seed, v_q.z strength
+        float R0 = v_q.x, h = r - R0, nn = fbm(vec2(an * 9.0 + v_q.y, tt * 1.5)), crest = exp(-sq(h / 0.022)) * (0.7 + 0.5 * nn), spk = pow(n2(vec2(an * 30.0 + v_q.y, 0.0)), 6.0) * smoothstep(0.0, 0.02, h) * exp(-h / 0.08) * 2.0, trail = step(h, 0.0) * exp(h / 0.1) * 0.3;
+        L = (mix(sOR, sWH, 0.45) * crest + mix(sCR, sOR, 0.6) * spk + sCR * trail) * v_q.z * (1.0 - smoothstep(0.88, 1.0, R0)); L *= 1.0 - smoothstep(0.96, 1.0, r); } }
+    /*</SM-FX>*/
+    /*<AS-FX kinds 320..335 (v436 AS: 20g5-asmodeus-moves.js, 02f6-asmodeus-model.js, Asmodeus the Fester)>*/
+    else if (v_k > 319.5 && v_k < 335.5) { float tt = u_t, an = atan(u.y, u.x), sec = 0.8975979; vec3 aCR = vec3(0.9, 0.04, 0.14), aRU = vec3(1.0, 0.12, 0.3), aPK = vec3(1.0, 0.55, 0.7), aVI = vec3(0.55, 0.12, 0.95), aWH = vec3(1.0, 0.9, 0.95);
+      if (v_k < 320.5) { // 320 the Scorpio sigil on the floor (a unit disc squashed by its quad): rings, a heptagram, seven ruby filaments, a band of runes, the sign at its heart; drawn on as v_q.x goes 0..1 (past 1 hotter), v_q.y its turn, v_q.z strength
+        float a2 = an + v_q.y, rv = smoothstep(r - 0.05, r + 0.02, v_q.x * 1.05), am = mod(a2 + sec * 0.5, sec) - sec * 0.5, pd = r * cos(am);
+        float ring = exp(-sq((r - 0.96) / 0.009)) + exp(-sq((r - 0.88) / 0.006)) * 0.7 + exp(-sq((r - 0.62) / 0.008)) * 0.8 + exp(-sq((r - 0.36) / 0.006)) * 0.6;
+        float star = exp(-sq((pd - 0.196) / 0.007)) * step(r, 0.89), spk = exp(-sq(r * sin(am) / 0.006)) * step(0.36, r) * step(r, 0.88);
+        float crd = a2 * 6.6845, dd = fract(crd) - 0.5, rb = (r - 0.92) / 0.03, hh = h1(vec2(floor(crd), 21.0)), rune = max(smoothstep(0.12, 0.05, abs(dd)) * step(abs(rb), 0.7), smoothstep(0.16, 0.06, abs(rb * 0.4 - dd * (hh > 0.5 ? 1.0 : -1.0))) * step(abs(dd), 0.35) * step(abs(rb), 0.8)) * step(0.3, hh);
+        float gly = exp(-sq(asGly(vec2(u.x, -u.y) / 0.25) * 0.25 / 0.012)) * smoothstep(0.45, 0.85, v_q.x), fil = pow(0.5 + 0.5 * sin(r * 30.0 - tt * 5.0), 6.0) * spk, hk = 0.5 + 0.45 * max(v_q.x - 1.0, 0.0);
+        L = (mix(aCR, aRU, hk) * (ring * 0.85 + star * 0.8 + rune * 0.8 + spk * 0.5 + exp(-r * r * 18.0) * 0.3) + aPK * (fil * 0.8 + gly * 1.2) + aVI * exp(-sq((r - 0.75) / 0.12)) * 0.12) * rv * v_q.z;
+        L += aPK * exp(-sq((r - v_q.x * 1.02) / 0.03)) * step(v_q.x, 1.0) * 0.7 * v_q.z; L *= 1.0 - smoothstep(0.97, 1.0, r); }
+      else if (v_k < 321.5) { // 321 a burst of venom crystal (a unit disc): a hot core, sharp ruby shards flung out as rays, a ring of droplets, violet sparks; v_q.x its age 0..1, v_q.y seed, v_q.z strength
+        float ag = clamp(v_q.x, 0.0, 1.0), sd = v_q.y, rays = pow(n2(vec2(an * 9.0 + sd, sd)), 6.0) * 3.0, ray = rays * exp(-max(r - 0.05, 0.0) / (0.12 + 0.75 * ag)) * smoothstep(0.0, 0.08, r);
+        float drop = exp(-sq((r - (0.25 + 0.65 * ag)) / 0.04)) * pow(n2(vec2(an * 22.0 + sd * 3.0, 4.0)), 4.0) * 2.0, core = exp(-r * r / (0.01 + 0.06 * ag)), fl = n2(u * 9.0 + sd + tt);
+        L = (aPK * core * 1.6 * (1.0 - ag) + mix(aRU, aPK, 0.4) * ray * (1.0 - ag * 0.7) + aCR * drop * (1.0 - ag) + aVI * fl * exp(-r * r * 4.0) * 0.25 * (1.0 - ag)) * v_q.z; L *= 1.0 - smoothstep(0.9, 1.0, r); }
+      else if (v_k < 322.5) { // 322 a stinger's trail (uv.x -1 behind .. 1 ahead): a curved blade of crimson light, its cutting edge a sharp hot line, opacity falling inward, venom flowing in it, violet filaments, crystal glints, streaks; v_q.x age 0..1, v_q.y seed, v_q.z strength
+        vec2 q = u - vec2(-0.85, 0.0); float d = length(q), a = atan(q.y, q.x), h = d - 1.62, span = 1.0 - smoothstep(0.55, 0.92, abs(a)), w = 0.36 * (1.0 - smoothstep(0.0, 0.92, abs(a))) + 0.03;
+        float fl = fbm(vec2(a * 6.0 - tt * 4.0 + v_q.y, d * 5.0)), edgeL = exp(-sq(h / 0.016)) * span, inner = step(h, 0.0) * pow(smoothstep(-w, 0.0, h), 2.4) * span, fil = exp(-sq((h + w * 0.55 + 0.04 * sin(a * 9.0 + tt * 6.0)) / 0.01)) * span;
+        float gl2 = step(0.94, h1(floor(vec2(a * 40.0, h * 30.0)) + v_q.y)) * step(h, 0.0) * step(-w, h) * span, strk = pow(n2(vec2(d * 40.0, a * 3.0 - tt * 9.0)), 6.0) * inner;
+        L = (aWH * edgeL * 1.2 + mix(aCR, aRU, fl) * inner * (0.5 + 0.6 * fl) + aVI * fil * 0.7 + aPK * (gl2 * 1.2 + strk * 0.6)) * v_q.z * (1.0 - smoothstep(0.7, 1.0, v_q.x)); L *= (1.0 - smoothstep(0.92, 1.0, abs(u.x))) * (1.0 - smoothstep(0.9, 1.0, abs(u.y))); }
+      else if (v_k < 323.5) { // 323 a Venom Debt mark (a unit disc over a monster): a fine ring, one rune lit for each stack (v_q.x 0..7) turning, a heptagram from four, at seven the complete scorpion seal; v_q.y phase, v_q.z strength (a flash on a new stack)
+        float n = v_q.x, a2 = mod(an - tt * 0.8 + v_q.y + 6.2831853, 6.2831853), k = floor(a2 / sec), am = mod(a2, sec) - sec * 0.5, lit = step(k + 0.5, n);
+        float ring = exp(-sq((r - 0.74) / 0.025)) * (0.35 + 0.1 * n), rune = exp(-(sq(r - 0.74) + sq(am * 0.74)) / 0.004) * lit, rn2 = exp(-(sq(r - 0.86) + sq(am * 0.86 * 3.0)) / 0.002) * lit * step(2.5, n);
+        float pd = r * cos(mod(a2 + sec * 0.5, sec) - sec * 0.5), star = exp(-sq((pd - 0.165) / 0.012)) * step(r, 0.76) * step(3.5, n), seal = step(6.5, n), gly = exp(-sq(asGly(vec2(u.x, -u.y) / 0.36) * 0.36 / 0.035)) * seal;
+        L = (aRU * ring + aPK * (rune * 1.2 + rn2 * 0.8) + aCR * star * 0.8 + mix(aRU, aWH, 0.35) * gly * (1.1 + 0.3 * sin(tt * 6.0)) + aRU * exp(-r * r * 6.0) * 0.25 * seal) * v_q.z; L *= 1.0 - smoothstep(0.92, 1.0, r); }
+      else if (v_k < 324.5) { // 324 the Crimson Labyrinth on the floor (a unit disc): a heptagonal web of ruby wire (rings, spokes, the cross-threads between them), runes round its rim, energy running inward along it, more turning layers at level 7; v_q.x drawn on 0..1, v_q.y its time + 100 x its layers, v_q.z strength
+        float lay = floor(v_q.y / 100.0), ph = v_q.y - lay * 100.0, p = clamp(v_q.x, 0.0, 1.0), a2 = an + 0.3, am = mod(a2 + sec * 0.5, sec) - sec * 0.5, pd = r * cos(am) / 0.901;
+        float rings = 0.0; for (int i = 0; i < 5; i++) { float rr = 0.95 - float(i) * 0.18; rings += exp(-sq((pd - rr) / 0.008)); }
+        float spk = exp(-sq(r * sin(am) / 0.007)) * step(0.06, r) * step(pd, 0.96), xt = exp(-sq((fract(pd * 5.55 + am / sec * 1.2) - 0.5) * 0.18 / 0.006)) * step(0.1, pd) * step(pd, 0.94);
+        float lay2 = 0.0; if (lay > 0.5) { float a3 = an - ph * 0.35, am3 = mod(a3 + sec * 0.5, sec) - sec * 0.5, pd3 = r * cos(am3) / 0.901; lay2 = (exp(-sq((pd3 - 0.68) / 0.007)) + exp(-sq((pd3 - 0.34) / 0.007)) + exp(-sq(r * sin(am3) / 0.006)) * step(pd3, 0.7) * step(0.3, pd3)) * step(1.5, lay + 0.6); }
+        float crd = an * 7.0, dd = fract(crd) - 0.5, hh = h1(vec2(floor(crd), 33.0)), rune = smoothstep(0.14, 0.05, abs(dd)) * exp(-sq((r - 0.99) / 0.012)) * step(0.35, hh);
+        float pul = pow(0.5 + 0.5 * sin(pd * 22.0 + ph * 5.0), 8.0), out1 = smoothstep(0.0, 0.35, p) * (rings * 0.9 + spk * 0.6), con = smoothstep(0.3, 1.0, p) * (xt * 0.7 + rune), glw = exp(-r * r * 2.5) * 0.12 * p;
+        L = (mix(aCR, aRU, 0.5) * (out1 + con + lay2 * 0.8 * p) + aPK * (rings + spk) * pul * 0.6 * p + aVI * glw + aVI * lay2 * 0.3) * v_q.z; L *= 1.0 - smoothstep(0.97, 1.0, r); }
+      else if (v_k < 325.5) { // 325 the Venom Crucible's light (a unit disc; the heart's radius v_q.x of it): a ruby heart, a pink limb, seven long rays turning, violet filaments round it, a controlled bloom; v_q.y the bloom 0..1, v_q.z strength
+        float R0 = max(v_q.x, 0.02), q = r / R0, bl = clamp(v_q.y, 0.0, 1.0), a2 = an + tt * 0.12, core = exp(-q * q * 3.2), limb = exp(-sq((q - 1.0) / 0.1)) * 0.45;
+        float ray = pow(abs(cos(a2 * 3.5)), 70.0) * exp(-max(q - 1.0, 0.0) * (1.4 - 0.5 * bl)) * step(1.0, q), fil = pow(fbm(vec2(an * 3.0 - tt * 0.5, q * 2.5 - tt * 0.8)), 3.0) * exp(-sq((q - 1.5) / 0.4)) * 1.6, bloom = 0.28 * exp(-max(q - 0.9, 0.0) * 1.1) * (1.0 - smoothstep(0.3, 1.0, r));
+        L = (mix(aRU, aPK, 0.4 + 0.3 * bl) * core * (0.9 + 0.3 * bl) + aPK * limb + aRU * (bloom + ray * (0.5 + 0.5 * bl)) + aVI * fil * (0.6 + 0.6 * bl)) * v_q.z; L *= 1.0 - smoothstep(0.82, 1.0, r); }
+      else if (v_k < 326.5) { // 326 a ring of crystal blades across the floor (a unit disc): its front at v_q.x, ruby blades fanning out of it, venom trailing behind, violet light; v_q.y seed, v_q.z strength
+        float R0 = v_q.x, h = r - R0, nn = fbm(vec2(an * 9.0 + v_q.y, tt * 1.5)), crest = exp(-sq(h / 0.02)) * (0.7 + 0.5 * nn), bc = an * 14.0 + v_q.y, bf = fract(bc) - 0.5, bh = h1(vec2(floor(bc), v_q.y));
+        float bld = step(0.0, h) * step(h, 0.16 * bh + 0.03) * smoothstep(0.42 * (1.0 - h / (0.16 * bh + 0.03)), 0.0, abs(bf)) * step(0.25, bh), trail = step(h, 0.0) * exp(h / 0.09) * (0.3 + 0.4 * nn);
+        L = (aPK * crest + mix(aRU, aPK, 0.3) * bld * 1.3 + aCR * trail + aVI * trail * 0.3 * nn) * v_q.z * (1.0 - smoothstep(0.88, 1.0, R0)); L *= 1.0 - smoothstep(0.96, 1.0, r); }
+      else if (v_k < 327.5) { // 327 black-violet motes swirling (a unit disc): the dark of a vanishing, its light only at the motes' rims; v_q.x age 0..1, v_q.y seed, v_q.z strength
+        float ag = clamp(v_q.x, 0.0, 1.0), m2 = 0.0; for (int i = 0; i < 2; i++) { float fi = float(i); vec2 p = vec2(an * (5.0 + fi * 3.0) / 6.2831853 * 6.0 + tt * (1.5 + fi) + v_q.y, r * (9.0 + fi * 5.0) - tt * 2.0 * (1.0 - ag)); vec2 gi = floor(p), gf = fract(p) - 0.5; float hh = h1(gi + fi * 11.0); m2 += step(0.55, hh) * exp(-dot(gf, gf) * 40.0) * (0.5 + 0.5 * sin(tt * 9.0 + hh * 20.0)); }
+        L = (mix(aVI, aRU, 0.35) * m2 * 0.9 + aVI * exp(-sq((r - 0.3 - 0.5 * ag) / 0.15)) * 0.25) * v_q.z * (1.0 - ag * ag); L *= 1.0 - smoothstep(0.75, 1.0, r); }
+      else if (v_k < 328.5) { // 328 a crystal shattering (a unit disc): shards flung outward on streaks, flashing as they turn, a pale burst at its heart; v_q.x age 0..1, v_q.y seed, v_q.z strength
+        float ag = clamp(v_q.x, 0.0, 1.0), cel = an * 26.0 / 6.2831853 * 2.0, ci = floor(cel), cf = fract(cel) - 0.5, hh = h1(vec2(ci, v_q.y)), rr = (0.15 + 0.85 * sqrt(ag)) * (0.4 + 0.6 * hh), d = r - rr;
+        float sh = exp(-sq(cf / (0.12 + 0.1 * hh))) * exp(-sq(d / (0.035 + 0.02 * hh))) * step(0.25, hh), stk = exp(-sq(cf / 0.05)) * step(d, 0.0) * exp(d / (0.08 + 0.2 * ag)) * step(0.25, hh), fl = 0.6 + 0.4 * sin(tt * 20.0 + hh * 40.0);
+        L = (mix(aRU, aWH, 0.3 * fl) * sh * 1.5 + aCR * stk * 0.6 + aPK * exp(-r * r / (0.005 + 0.05 * ag)) * (1.0 - ag)) * v_q.z * (1.0 - ag * ag); L *= 1.0 - smoothstep(0.92, 1.0, r); }
+      else if (v_k < 329.5) { // 329 a pillar of crimson-violet energy (uv.x across, uv.y -1 its top .. 1 its foot): a hot core, crystalline striations rushing up, violet sheath, its foot flaring; v_q.x the core's width, v_q.y seed, v_q.z strength
+        float x = u.x, yy = (u.y + 1.0) * 0.5, w = max(v_q.x, 0.05) * (1.0 + 0.8 * smoothstep(0.75, 1.0, yy)) * (0.75 + 0.25 * yy), tb2 = fbm(vec2(x * 3.0 + v_q.y, u.y * 2.5 + tt * 4.0)), xo = (tb2 - 0.5) * 0.18;
+        float core = exp(-sq((x - xo * 0.5) / (w * 0.35))), body = exp(-sq((x - xo) / (w * 1.15))) * (0.55 + 0.6 * tb2), str = pow(abs(sin(x * 40.0 + tb2 * 6.0)), 12.0) * body, top = smoothstep(0.0, 0.3, yy + (tb2 - 0.5) * 0.3), foot = 1.0 - smoothstep(0.9, 1.0, yy);
+        L = (mix(aPK, aWH, 0.4) * core * 0.9 + aRU * body * 0.6 + aPK * str * 0.4 + aVI * exp(-sq((x - xo) / (w * 2.2))) * 0.35) * top * foot * v_q.z; }
+      else if (v_k < 330.5) { // 330 an alchemical rune circle (a unit disc): twin rings, a heptagram, seven small sigils round it, the inner ring of runes; drawn on by v_q.x, turned by v_q.y, v_q.z strength
+        float a2 = an + v_q.y, am = mod(a2 + sec * 0.5, sec) - sec * 0.5, pd = r * cos(am), rv = smoothstep(a2 - 0.2, a2, v_q.x * 6.2831853 - 3.14159) + step(1.0, v_q.x);
+        float ring = exp(-sq((r - 0.94) / 0.012)) + exp(-sq((r - 0.86) / 0.008)) * 0.7 + exp(-sq((r - 0.45) / 0.008)) * 0.6, star = exp(-sq((pd - 0.86 * 0.2225) / 0.008)) * step(r, 0.87);
+        vec2 sc = vec2(cos(a2 - am), sin(a2 - am)) * 0.66; float sg = exp(-sq((length(u - vec2(sc.x, sc.y) * 0.0 - vec2(cos(an - am), sin(an - am)) * 0.66) - 0.08) / 0.01)), crd = a2 * 9.0, dd = fract(crd) - 0.5, hh = h1(vec2(floor(crd), 51.0)), rune = smoothstep(0.12, 0.05, abs(dd)) * exp(-sq((r - 0.9) / 0.018)) * step(0.3, hh);
+        L = (mix(aCR, aRU, 0.6) * (ring + star * 0.8 + rune) + aPK * sg * 0.8 + aVI * exp(-sq((r - 0.7) / 0.2)) * 0.1) * clamp(rv, 0.0, 1.0) * v_q.z; L *= 1.0 - smoothstep(0.97, 1.0, r); }
+      else if (v_k < 331.5) { // 331 a corruption field on the floor (a unit disc): a crimson-violet stain spreading to v_q.x, its edge crawling, fractures of venom light through it; v_q.y seed, v_q.z strength
+        float R0 = max(v_q.x, 0.05), nz = fbm(u * 3.0 + v_q.y), e = r / R0 + (nz - 0.5) * 0.35, inside = smoothstep(1.0, 0.8, e), rim = exp(-sq((e - 0.9) / 0.06));
+        float c1 = abs(fract(an * 1.6 + fbm(vec2(r * 4.0, v_q.y)) * 0.8) - 0.5) * r * 6.0, c2 = abs(fract(r * 5.0 + fbm(vec2(an * 2.0, v_q.y + 3.0)) * 0.7) - 0.5), fis = max(exp(-sq(c1 / 0.04)) * step(0.1, r), exp(-sq(c2 / 0.03)) * step(0.55, h1(vec2(floor(r * 5.0), floor(an * 2.0)))));
+        L = (aCR * inside * 0.18 * (0.6 + 0.6 * nz) + aVI * inside * 0.12 * (1.0 - nz) + aRU * rim * 0.5 + aPK * fis * inside * (0.6 + 0.4 * sin(tt * 3.0 + r * 10.0))) * v_q.z; L *= 1.0 - smoothstep(0.95, 1.0, r); }
+      else if (v_k < 332.5) { // 332 a ruby filament between two points (uv.x -1 .. 1 along, uv.y across): a fine wire of light, a little writhe, pulses running along it; v_q.x the writhe, v_q.y seed, v_q.z strength
+        float x = u.x, env2 = 1.0 - x * x, o1 = (fbm(vec2(x * 2.5 + v_q.y, tt * 2.0)) - 0.5) * v_q.x * env2, f1 = exp(-sq((u.y - o1) / 0.07)), gl2 = exp(-sq((u.y - o1) / 0.35)) * 0.25, pul = pow(0.5 + 0.5 * sin(x * 9.0 - tt * 7.0 + v_q.y), 6.0);
+        L = (mix(aRU, aPK, 0.3 + 0.5 * pul) * f1 + aVI * gl2 + aWH * f1 * pul * 0.5) * v_q.z * (1.0 - smoothstep(0.88, 1.0, abs(x))); }
+      else if (v_k < 333.5) { // 333 the spectral Scorpio sign (a unit disc): the great sign in light, a halo of rings round it; v_q.x its reveal 0..1, v_q.y seed, v_q.z strength
+        float rv = clamp(v_q.x, 0.0, 1.0), d = asGly(vec2(u.x, -u.y) / 0.62) * 0.62, gly = exp(-sq(d / 0.02)) + exp(-sq(d / 0.07)) * 0.35, ring = exp(-sq((r - 0.9) / 0.012)) + exp(-sq((r - 0.82) / 0.008)) * 0.6, fl = fbm(u * 4.0 + tt * 0.6 + v_q.y);
+        L = (mix(aRU, aWH, 0.35) * gly * (0.8 + 0.4 * fl) + aRU * ring * 0.7 + aVI * exp(-r * r * 2.0) * 0.2 * fl) * rv * v_q.z; L *= 1.0 - smoothstep(0.95, 1.0, r); }
+      else if (v_k < 334.5) { // 334 a dome of violet shock (uv a unit disc; its foot the middle line): its bright silhouette at radius v_q.x, a faint shell, ripples, the foot a squashed ring; v_q.y seed, v_q.z strength
+        float R0 = max(v_q.x, 0.04), up = step(u.y, 0.0), rd = length(vec2(u.x, u.y * (up > 0.5 ? 1.0 : 1.0 / 0.55))), h = rd - R0, nn = fbm(vec2(an * 5.0 + v_q.y, rd * 7.0 - tt * 2.0));
+        float sil = exp(-sq(h / (0.018 + 0.03 * R0))) * (0.75 + 0.5 * nn), shell = up * step(rd, R0) * clamp(1.0 / sqrt(max(0.02, 1.0 - sq(rd / R0))) - 1.0, 0.0, 3.0) * 0.1, rip = up * step(rd, R0) * pow(0.5 + 0.5 * sin(rd * 55.0 - tt * 10.0 + nn * 4.0), 6.0) * 0.1;
+        L = (mix(aVI, aPK, 0.45) * sil + mix(aVI, aRU, 0.4) * (shell + rip)) * v_q.z * (1.0 - smoothstep(0.85, 1.0, R0)); L *= 1.0 - smoothstep(0.95, 1.0, r); }
+      else { // 335 a field of black-crimson crystal grains rising (a unit disc): motes drifting up and thinning, crimson to pink; v_q.x age 0..1, v_q.y seed, v_q.z density
+        float ag = clamp(v_q.x, 0.0, 1.0); vec3 ec = vec3(0.0); for (int i = 0; i < 3; i++) { float fi = float(i), s = 7.0 + fi * 5.0; vec2 p = u * s + vec2(v_q.y * (fi + 1.0), tt * (0.7 + fi * 0.4) + ag * 4.0); vec2 gi = floor(p), gf = fract(p) - 0.5, of = (vec2(h1(gi + 3.0), h1(gi + 7.0)) - 0.5) * 0.6; float hh = h1(gi + fi * 17.0), ml = step(1.0 - v_q.z * 0.6, hh) * exp(-dot(gf - of, gf - of) * 110.0) * (0.55 + 0.45 * sin(tt * (5.0 + hh * 9.0) + hh * 30.0));
+          ec += (hh > 0.93 ? aWH : hh > 0.7 ? aPK : aRU) * ml; }
+        L = ec * 1.3 * (1.0 - ag * ag) * (1.0 - smoothstep(0.55, 1.0, r)); } }
+    /*</AS-FX>*/
     /*<BW-FX lights 217, 219 (v430 BW: 20n9e-belfry-drain.js)>*/
     else if (v_k > 216.5 && v_k < 219.5) { float tt = u_t;
       if (v_k < 217.5) { // 217 the light on a draining hall's water (the same quad and packing as 216): slow caustics, foam riding the shoreline, rings of flow running in to the drain, streaks drawn toward it, a whirl over the sump while the water moves, glints

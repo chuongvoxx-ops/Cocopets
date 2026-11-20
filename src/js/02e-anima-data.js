@@ -12,10 +12,14 @@ const COVENANT_LORE = [
 const ANIMA_ORDER = ['aries', 'taurus', 'gemini', 'cancer', 'leo', 'virgo', 'libra', 'scorpio', 'sagittarius', 'capricorn', 'aquarius', 'pisces', 'ophiuchus'];
 /* realm: heaven descends in a column of light, void rises from a rift. gem: what Ascension costs */
 const ANIMAS = {
-  aries: { sign: 'Aries', name: 'Samael', title: 'The Infernal', role: 'Berserker', realm: 'void', el: 'fire', gem: 'citrine', floor: 1, opp: 'libra',
-    color: '#FF5A3C', glow: '#FFB066', dark: '#5A1424', forms: ['Ember Lamb', 'Cinder Ram', 'Samael the Infernal'],
-    skill: 'Charges into monster after monster. Every hit builds Rage, so the charges get faster and burn harder.',
-    finisher: 'Infernal Stampede', finDesc: 'A blazing stampede through every monster in reach, leaving the ground on fire.' },
+  // v435 SM: Samael remade as The First Cataclysm, Zodiac Anima No. 01: a colossal ram-dragon of black gold-edged scales and molten fire
+  // round a dying star, Fire / Dark, a Berserker (the same 'aries' key, so saves, gems and ascension carry over). Its forms are The First
+  // Cataclysm, The Fiery Herald and The Starforged Ram; its four powers, Ruin Pressure and its finisher are 20g4-samael-moves.js, its model 02f5
+  aries: { sign: 'Aries', name: 'Samael', title: 'The First Cataclysm', role: 'Berserker · Heavy Assault', realm: 'void', el: 'fire', elems: 'Fire / Dark', no: 1, gem: 'citrine', floor: 1, opp: 'libra',
+    color: '#FF5A3C', glow: '#FFB066', dark: '#5A1424', forms: ['The First Cataclysm', 'The Fiery Herald', 'The Starforged Ram'],   // (v435 SM: the forms named after the concept sheet)
+    tag: 'Zodiac Anima No. 01 · Fire / Dark · the first to awaken: a ram-dragon of black scales and molten fire forged round a dying star, whose first charge shattered the heavens.',
+    skill: 'An unstoppable berserker that picks its attack for the fight: Hellbreak Charge gallops through far monsters, Horns of Perdition hurls spinning crescents of plasma, Furnace Overdrive ignites its heart for faster, burning attacks, and First Impact leaps and crashes down on a crowd. Every blow builds Ruin Pressure until it erupts into the Cataclysm State.',
+    finisher: 'Wrath of the Fallen', finDesc: 'Samael rises into the sky, becomes a living meteor and falls on the battlefield: a cataclysmic explosion that strikes the nearest monsters hardest, then rings of fire that burn everything and leave it taking more damage.' },
   // v426 BL: Belial remade as The World Pillar, Zodiac Anima No. 02: a colossal biomechanical bull and living citadel of obsidian, bronze,
   // gold and ivory stone, Earth / Metal, a Tank and Juggernaut (the same 'taurus' key, so saves, gems and ascension carry over). Its forms are
   // the fortress-bull, the Ascended and the Celestial; its four powers and its finisher are 20g3-belial-moves.js, its model 02f4
@@ -48,10 +52,15 @@ const ANIMAS = {
     color: '#FFC24D', glow: '#FFE9A8', dark: '#3A2618', forms: ['Seer Owlet', 'Balance Owl', 'Uriel the Seer'],
     skill: 'Tips the scales: your pet hits 50% harder and attacks faster, while every monster hits 30% softer and takes 20% more damage.',
     finisher: 'Scales of Judgement', finDesc: 'Every monster in sight is weighed and loses a large share of its health.' },
-  scorpio: { sign: 'Scorpio', name: 'Asmodeus', title: 'The Fester', role: 'Plague', realm: 'void', el: 'shadow', gem: 'amethyst', floor: 21, opp: 'taurus',
-    color: '#FF3B4E', glow: '#FF8A8A', dark: '#1E1418', forms: ['Ember Scorpling', 'Ashen Scorpion', 'Asmodeus the Fester'],
-    skill: 'A festering plague: every monster on the whole floor loses health non-stop, and its stinger hunts the nearest.',
-    finisher: 'Pandemic', finDesc: 'The plague bursts in every monster on the floor at once.' },
+  // v436 AS: Asmodeus remade as a biomechanical god on six blade legs crowned by seven stingers, Zodiac Anima No. 08, Dark / Poison, an
+  // Assassin, Debuffer and Area Control (the same 'scorpio' key and his title The Fester, at the user's word, so saves, gems and ascension
+  // carry over). Its forms are The Veiled Predator, The Crimson Sovereign and The Seventh Sin; Venom Debt, its four powers and its finisher
+  // are 20g5-asmodeus-moves.js, its model 02f6
+  scorpio: { sign: 'Scorpio', name: 'Asmodeus', title: 'The Fester', role: 'Assassin · Debuffer · Area Control', realm: 'void', el: 'shadow', elems: 'Dark / Poison', no: 8, gem: 'amethyst', floor: 21, opp: 'taurus',
+    color: '#FF2A4A', glow: '#FF8AA8', dark: '#1E0C16', forms: ['The Veiled Predator', 'The Crimson Sovereign', 'The Seventh Sin'],
+    tag: 'Zodiac Anima No. 08 · Dark / Poison · an ancient alchemical god of venom and forbidden knowledge that never kills at once: it marks its prey with seven curses and lets each one deepen.',
+    skill: 'A patient assassin that picks its attack for the fight: Sevenfold Perdition strikes again and again with its seven stingers, Crimson Labyrinth binds a crowd in a web of ruby wire, Eclipse Molt leaves a crystal shell behind and strikes from behind, and Scarlet Rupture shatters a great crystal into waves of blades. Every venom blow lays Venom Debt, up to seven stacks that poison and deepen every detonation.',
+    finisher: 'The Seventh Sin', finDesc: 'Asmodeus raises its stingers into a cathedral of crimson light, blooms its heart into a flower of ruby and strikes seven times, then everything collapses into one detonation that consumes every stack of Venom Debt on the field.' },
   sagittarius: { sign: 'Sagittarius', name: 'Raphael', title: 'The Magnificent', role: 'Archer', realm: 'heaven', el: 'cosmic', gem: 'citrine', floor: 5, opp: 'gemini',
     color: '#BFA8FF', glow: '#E8E0FF', dark: '#5B4FA8', forms: ['Twinkle Foal', 'Comet Courser', 'Raphael the Magnificent'],
     skill: 'Rains a ceaseless storm of starlight arrows down on every monster around.',
