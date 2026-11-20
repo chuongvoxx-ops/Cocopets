@@ -11,7 +11,10 @@
    It is never still: it bobs on the air and rolls a little as it turns, the body breathes in the opening, the eye
    stalks sway and track the pet and blink one after another, echo rings pulse from it; before a beam it turns its
    opening square to the pet and the eyes gather; before a slam it rises and tips; struck, it is squashed and the
-   eyes flinch in; deafened, it lies on its side and the body lolls out; it flares and cries on entering. */
+   eyes flinch in; deafened, it lies on its side and the body lolls out; it flares and cries on entering.
+   (v433 DB) Drawn on the GPU where it can be (20y2-oneira-gl.js: ONEIRA_GL, a GLM model at the Drowned Belfry's fidelity, its moves'
+   light on the FGFX painter); the 2D shell below is the fallback without WebGL. The fight is unchanged; its health is the rift's
+   main-boss factor (foeK.boss) times what it was: every blow on it, and on its bared mantle, counts 1 / that. */
 RiftFiend.define({ id: 'oneira', name: 'Oneira', title: 'The Listening Shell', color: '#28252F', glow: '#62BFC9', accent: '#DFFFF8', biome: 'dunes', r: 2.5, els: ['earth', 'wind'] }, (() => {
   const { TAU, TN, hit } = RiftFiend, G = DuneFiend, tubeLite = TN.tubeLite;
   const { OCHRE, OCHRE_SH, OCHRE_HI, BASALT, BASALT_SH, BASALT_HI, BONE, BONE_SH, BONE_HI, CYAN, CYAN_HI, AMBER, INK, decay, toward, lerp, snap } = G;
@@ -21,6 +24,12 @@ RiftFiend.define({ id: 'oneira', name: 'Oneira', title: 'The Listening Shell', c
   const RS = 2.6, B = 0.17, TH = 2.6 * TAU, SPIRAL = []; for (let th = 0; th <= TH + 1e-6; th += 0.16) { const r = Math.exp(B * (th - TH)); SPIRAL.push({ th, rc: r * 0.672, w: r * 0.656 * 1.1 }); }
   const APER = TH + Math.PI / 2;   // the aperture's tangent, before the shell is turned
   const flicker = t => 0.8 + 0.12 * Math.sin(t * 17) + 0.08 * Math.sin(t * 5.1 + 1);
+  /* (v433 DB) the GPU model and its light (ONEIRA_GL); without them the 2D shell and its 2D effects. Its warnings are the engine's own
+     (the same shapes, moments and damage), marked so the engine paints none of them: their picture is light on the sand (overlay) */
+  const O3 = () => { try { return typeof ONEIRA_GL !== 'undefined' ? ONEIRA_GL : null; } catch (e) { return null; } }, glOn = () => { const o = O3(); return !!(o && o.on()); }, fxOn = () => { const o = O3(); return !!(o && o.fx()); };
+  const mark = (FX, o) => (O3() ? O3().mark(FX, o) : FX.tele(o)), hpK = FX => { const K = FX && FX.F && FX.F.rift && FX.F.rift.foeK; return K && K.boss > 0 ? K.boss : 1; };
+  const partsOf = (FX, m, M) => (glOn() ? O3().parts(FX, m) : bodyParts(m, M)), mantleOf = (FX, m, M) => (glOn() ? O3().mantleAt(FX, m) : mantleAt(m, M));
+  const boom = (FX, x, y, r, col, core, o) => { if (fxOn()) O3().burst(FX, x, y, r, col, o); else FX.H.boom(x, y, r, col, core, o); };
   return {
     arenaR: 15, firstAct: 'circle', artY: 0.5,
     artPoses: [{ name: 'drifting, listening', mem: { ap: 2.2, alt: 2.4 } }, { name: 'the opening turned to beam', mem: { ap: 1.57, alt: 2.6, menace: 1, aim: 1 } }, { name: 'tipped for a slam', mem: { ap: 2.6, alt: 3.4, tip: 1, menace: 1 } }, { name: 'deafened: the mantle bared', mem: { ap: 1.57, alt: 0.2, slump: 1 } }],
@@ -31,10 +40,10 @@ RiftFiend.define({ id: 'oneira', name: 'Oneira', title: 'The Listening Shell', c
       ST_A.forEach(a => { const x = Math.cos(a) * (R - 3.6), y = Math.sin(a) * (R - 3.6); c2.fillStyle = BASALT; c2.beginPath(); c2.ellipse(x, y + 0.2, 1.4, 0.7, 0, 0, TAU); c2.fill(); c2.strokeStyle = BASALT_SH; c2.lineWidth = 0.12; c2.stroke(); c2.fillStyle = 'rgba(98,191,201,.15)'; c2.beginPath(); c2.ellipse(x, y + 0.15, 1.1, 0.5, 0, 0, TAU); c2.fill(); }); } }); },
     sky(c, W, H, t, cam, T) { G.sky(c, W, H, t, cam, T, { top: '#230C1E', mid: '#4E1A36' }); },
     /* ---- the fight ---- */
-    init(FX) { const M = FX.mem, m = FX.m; m.noTouch = true; m.x = FX.C.x; m.y = FX.C.y - 4; m.act = 'enter';
+    init(FX) { const M = FX.mem, m = FX.m; m.noTouch = true; m.x = FX.C.x; m.y = FX.C.y - 4; m.act = 'enter'; if (O3()) O3().init(FX);   // (v433 DB)
       Object.assign(M, { ap: Math.PI / 2, alt: 2.4, roll: 0, tip: 0, slump: 0, aim: 0, menace: 0, roar: 0, recoil: 0, bt: 0, px: m.x, py: m.y, vx: 0, vy: 0, spd: 0, hd: Math.PI / 2, lastHd: Math.PI / 2, turn: 0, blinks: [0, 0, 0, 0, 0], blinkT: 1.5, stones: ST_A.map(() => ({ obj: null })), cracked: 0, relightT: 0, beams: [], echoes: [], broodT: 13, wasEnter: true, roared: false, wasStun: false, dir: 1, seen: {}, pulseT: 0, slamK: 0, slamT: 9 });
       ST_A.forEach((a, i) => spawnStone(FX, i)); },
-    phase(FX, p, lv) { const M = FX.mem, m = FX.m; M.roar = 1; M.menace = 1; M.broodT = 4; FX.H.shake(10, 0.5); FX.H.flash(0.2, CYAN); FX.H.sfx.crash(); FX.H.sparks(m.x, m.y - M.alt, CYAN, 20, 8); FX.H.ring(m.x, m.y, 0.5, 8, 0.9, CYAN, 0.4);
+    phase(FX, p, lv) { const M = FX.mem, m = FX.m; M.roar = 1; M.menace = 1; M.broodT = 4; FX.H.shake(10, 0.5); FX.H.flash(0.2, CYAN); FX.H.sfx.crash(); FX.H.sparks(m.x, m.y - M.alt, CYAN, 20, 8); if (fxOn()) O3().cry(FX); else FX.H.ring(m.x, m.y, 0.5, 8, 0.9, CYAN, 0.4);   // (v433 DB: its cry as light)
       for (let i = 0; i < 2; i++) { const a = Math.random() * TAU; const g = FX.minion('grub', m.x + Math.cos(a) * 3, m.y + Math.sin(a) * 3); if (g) { g.mode = 'rise'; g.riseT = 0.3; } }
       if (lv >= 2) FX.H.banner('THE SECOND VOICE', 'Two beams; the rings come faster; grubs answer its call', CYAN, 2.6, true); if (lv >= 4) FX.H.banner('The Last Echo', 'Every stone rings at once', '#FF6A5A', 2.2); },
     ai(FX, m, dt) {
@@ -53,13 +62,13 @@ RiftFiend.define({ id: 'oneira', name: 'Oneira', title: 'The Listening Shell', c
       M.menace = toward(M.menace, menace, dt, menace > M.menace ? 5 : 3); M.aim = toward(M.aim, aim, dt, 4); M.tip = toward(M.tip, tip, dt, tip > M.tip ? 2.5 : 8); M.alt = toward(M.alt, altW, dt, altW < M.alt && m.act === 'slam' ? 14 : 2.5); M.slump = decay(M.slump, dt, 2);
       // where the opening points: at the pet when it listens or strikes, else drifting round slowly as it turns
       if (apW != null) M.ap = FX.K.lerpA(M.ap, apW, Math.min(1, dt * (aim ? 4 : 2.5))); else M.ap = FX.K.lerpA(M.ap, FX.angPet(m.x, m.y) + Math.sin(m.t * 0.35) * 0.9, Math.min(1, dt * 0.8));
-      FX.parts(bodyParts(m, M));
+      FX.parts(partsOf(FX, m, M));   // (v433 DB: where the model shows)
     },
     stunned(FX, m, dt) { const M = FX.mem; M.slump = Math.min(1, M.slump + dt * 2); M.alt = toward(M.alt, 0.2, dt, 3.5); M.menace = decay(M.menace, dt, 4); M.aim = decay(M.aim, dt, 3); M.tip = decay(M.tip, dt, 3); M.beams.length = 0; m.noTouch = true; M.ap = FX.K.lerpA(M.ap, Math.PI / 2 + 0.3, Math.min(1, dt * 3));
-      const p = mantleAt(m, M); FX.weak('mantle', p[0], p[1], 1.3, 2.4, m.stunT > 0.05);
+      const p = mantleOf(FX, m, M); FX.weak('mantle', p[0], p[1], 1.3, 2.4 / hpK(FX), m.stunT > 0.05);   // (v433 DB: the bared mantle where the model shows it; its blows 1 / foeK.boss)
       // deafened: it twitches and spills sand
       M.kickT = (M.kickT || 0) - dt; if (M.kickT <= 0) { M.kickT = 0.45; G.sand(FX, p[0] + FX.rnd(-1, 1), p[1] + FX.rnd(-0.5, 0.5), 3, 0.7); FX.H.shake(1.5, 0.08); }
-      FX.parts(bodyParts(m, M)); },
+      FX.parts(partsOf(FX, m, M)); },   // (v433 DB)
     update(FX, dt) { const M = FX.mem, m = FX.m; if (!m) return; M.bt += dt;
       if (!(m.stunT > 0)) { if (FX.S.weak.mantle) FX.weak('mantle', 0, 0, 0, 0, false); if (M.wasStun) { M.wasStun = false; M.relightT = 3; M.recoil = 0.8; M.roar = 0.5; FX.H.text(m.x, m.y - 2, 'It draws back into the shell', CYAN_HI, 13); } } else M.wasStun = true;
       // how it moves: it banks into its turns, the roll follows its course
@@ -73,12 +82,22 @@ RiftFiend.define({ id: 'oneira', name: 'Oneira', title: 'The Listening Shell', c
       if (M.beams.length) M.beams = M.beams.filter(s => FX.S.tele.includes(s));
       // the entrance: it sinks down out of the dusk, its eyes flare and it cries, the first echo ring rolls from it
       if (m.act === 'enter') { const e = FX.S.enterT || 0; M.alt = 2.4 + Math.max(0, 1.6 - e) * 2.5; if (e > 1.4) { M.menace = toward(M.menace, 1, dt, 5); M.aim = toward(M.aim, 1, dt, 3); if (!M.roared) { M.roared = true; M.roar = 1; FX.H.sfx.hum(); FX.H.sfx.crash(); FX.H.shake(6, 0.3); FX.H.ring(m.x, m.y, 0.3, 7, 1, CYAN, 0.4); } } }
-      else if (M.wasEnter) { M.wasEnter = false; M.recoil = 1; M.roar = 0.5; FX.H.sfx.whoosh(); } },
-    dmgK() { return 1; },
-    keep: { every: 2 },
-    draw(c, FX, m, X, Y, T, t) { drawShell(c, FX, m, X, Y, T, t); },
-    drawObj(c, FX, o, X, Y, T, t) { if (o.kind === 'stone') drawStone(c, FX, o, X, Y, T, t); },
-    drawFx(c, FX, T, t) { const M = FX.mem, m = FX.m; if (!m) return;
+      else if (M.wasEnter) { M.wasEnter = false; M.recoil = 1; M.roar = 0.5; FX.H.sfx.whoosh(); }
+      if (O3()) O3().update(FX, dt); },   // (v433 DB: the model's motion: its lean and bank, the stalks on their springs, the feelers, the pores' pulse)
+    dmgK(FX) { return 1 / hpK(FX); },   // (v433 DB: the rift's main-boss health, foeK.boss times)
+    get keep() { return glOn() ? null : { every: 2 }; }, get MODEL() { return O3(); },   // (v433 DB: the 2D shell is a kept picture; the GPU model is drawn live)
+    force(FX, k) { const m = FX.m; if (!m || m.dead || m.act === 'enter') return; m.stunT = 0; FX.S.tele.length = 0; FX.mem.beams.length = 0; ({ echo: startEcho, beam: startBeam, chorus: startChorus, slam: startSlam })[k](FX, m); },   // (v433 DB: tests: start an act now)
+    /* (v433 DB) the loading screen's jobs (the meshes, a first frame), the floor's light (the warnings) */
+    preload(P) { const o = O3(); return o ? o.preload(P) : []; },
+    overlay(c, FX, t, T) { const o = O3(); if (o && FX.m) o.overlay(c, FX, t, T); },
+    draw(c, FX, m, X, Y, T, t) { if (glOn() && O3().drawBoss(c, FX, m, X, Y, T, t)) return; drawShell(c, FX, m, X, Y, T, t); },   // (v433 DB)
+    /* (v433 DB) its fall on the GPU: it drops onto the sand, rolls onto its side, its light drains and its eyes close (the 2D shell keeps the engine's own) */
+    ending(FX, m) { if (!glOn()) return null; const M = FX.mem; FX.noParts(); FX.weak('mantle', 0, 0, 0, 0, false); FX.S.tele.length = 0; M.beams.length = 0; m.stunT = 0;
+      if (!M.husk) { M.husk = { kind: 'oneHusk', x: m.x, y: m.y + 0.05 }; FX.S.props.push(M.husk); } O3().die(FX, m);
+      return { title: 'ONEIRA FALLS SILENT', sub: 'The shell drops to the sand, and its eyes close', col: CYAN, delay: 4.4, bannerAt: 1.3, fanfareAt: 1.3, quiet: true, slow: 0.5 }; },
+    drawProp(c, FX, p, X, Y, T, t) { const m = FX.m; if (p.kind !== 'oneHusk' || !m || !glOn()) return; O3().drawBoss(c, FX, m, FX.sx(m.x), FX.sy(m.y), T, t); },
+    drawObj(c, FX, o, X, Y, T, t) { if (o.kind === 'stone' && !(glOn() && O3().drawStone(c, FX, o, X, Y, T, t))) drawStone(c, FX, o, X, Y, T, t); },   // (v433 DB)
+    drawFx(c, FX, T, t) { const M = FX.mem, m = FX.m; if (!m) return; { const o = O3(); if (o && o.drawFx(c, FX, T, t)) return; }   // (v433 DB: the beams, the opening's and the eyes' light, the bursts, on the GPU painter)
       // the beams: a dotted aim line while they wait, then a bar of cyan light from the opening to the sand, tracking
       for (const s of M.beams) { const x0 = FX.sx(s.x), y0 = FX.sy(s.y), ya = y0 - (M.alt || 0) * T, x1 = FX.sx(s.x + Math.cos(s.a) * s.len), y1 = FX.sy(s.y + Math.sin(s.a) * s.len); c.save();
         if (!s.done) { const u = s.age / s.t; c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.3 + 0.4 * u; c.strokeStyle = CYAN_HI; c.lineWidth = Math.max(1.5, T * 0.12); c.setLineDash([T * 0.5, T * 0.35]); c.lineDashOffset = -t * T * 3; c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke(); c.setLineDash([]); c.globalAlpha = 0.12 + 0.2 * u; c.lineWidth = s.w * T; c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke(); }
@@ -91,10 +110,10 @@ RiftFiend.define({ id: 'oneira', name: 'Oneira', title: 'The Listening Shell', c
   };
   /* ---- the echo stones: four, round the Whorl; a ring that passes one lights it; crack all four to deafen it ---- */
   function spawnStone(FX, i) { const p = stoneAt(FX.C, i), h = FX.mem.stones[i]; h.obj = FX.obj({ kind: 'stone', x: p[0], y: p[1], r: 0.9, hp: FX.S.barHP * 0.03, idx: i, invuln: true, lit: 0, tick: (o, dt) => { if (o.lit > 0) { o.lit -= dt; if (o.lit <= 0) { o.lit = 0; o.invuln = true; } } },
-    onKill: o => { const m = FX.m, M = FX.mem; if (!m || m.dead) return; M.cracked = Math.min(4, (M.cracked || 0) + 1); FX.H.boom(o.x, o.y, 1.3, CYAN, '#FFFFFF', { n: 16, shake: 7 }); FX.H.sfx.crack(); for (let k = 0; k < 8; k++) FX.H.part({ kind: 'shard', x: o.x, y: o.y - 1, vx: FX.rnd(-3, 3), vy: FX.rnd(-5, -1), g: 8, life: 0.8, max: 0.8, size: 5, rot: Math.random() * 3, vr: 6, color: BASALT_HI }); M.recoil = Math.max(M.recoil, 0.5);
+    onKill: o => { const m = FX.m, M = FX.mem; if (!m || m.dead) return; M.cracked = Math.min(4, (M.cracked || 0) + 1); boom(FX, o.x, o.y, 1.3, CYAN, '#FFFFFF', { n: 16, shake: 7, z: 1.2 });   /* v433 DB */ FX.H.sfx.crack(); for (let k = 0; k < 8; k++) FX.H.part({ kind: 'shard', x: o.x, y: o.y - 1, vx: FX.rnd(-3, 3), vy: FX.rnd(-5, -1), g: 8, life: 0.8, max: 0.8, size: 5, rot: Math.random() * 3, vr: 6, color: BASALT_HI }); M.recoil = Math.max(M.recoil, 0.5);
       if (M.cracked >= 4) deafen(FX, m); else FX.H.text(o.x, o.y - 1.8, `A stone cracks · ${M.cracked} of 4`, CYAN_HI, 13); } }); }
   function lightStone(FX, o) { if (o.dead) return; const was = o.lit > 0; o.lit = 6; o.invuln = false; if (!was) { FX.H.ring(o.x, o.y, 0.3, 2.4, 0.5, CYAN, 0.35); FX.H.sfx.chime(); FX.H.text(o.x, o.y - 1.8, 'LIT', CYAN_HI, 12); } }
-  function deafen(FX, m) { const M = FX.mem; m.stunT = 7; m.act = 'circle'; m.actT = 0; M.slump = 0; FX.S.tele.length = 0; M.beams.length = 0; M.roar = 0.6; FX.H.banner('DEAFENED', 'The body slumps from the shell: strike the mantle!', CYAN, 2.2, true); FX.H.shake(12, 0.5); FX.H.sfx.crash(); FX.H.sparks(m.x, m.y - M.alt, CYAN, 18, 7); FX.H.flash(0.2, CYAN_HI); }
+  function deafen(FX, m) { const M = FX.mem; m.stunT = 7; m.act = 'circle'; m.actT = 0; M.slump = 0; FX.S.tele.length = 0; M.beams.length = 0; M.roar = 0.6; FX.H.banner('DEAFENED', 'The body slumps from the shell: strike the mantle!', CYAN, 2.2, true); FX.H.shake(12, 0.5); FX.H.sfx.crash(); FX.H.sparks(m.x, m.y - M.alt, CYAN, 18, 7); FX.H.flash(0.2, CYAN_HI); if (fxOn()) { O3().burst(FX, m.x, m.y, 3.2, CYAN, { z: 2, n: 0, shake: 12 }); O3().cry(FX); } }   // (v433 DB: a burst of its light)
   function drawStone(c, FX, o, X, Y, T, t) { const lit = o.lit > 0, k = lit ? 0.7 + 0.3 * Math.sin(t * 5 + o.idx) : 0.2 + 0.1 * Math.sin(t * 1.5 + o.idx), cracked = 1 - o.hp / o.maxhp, lw = Math.max(1.2, T * 0.07); c.save();
     c.fillStyle = 'rgba(60,40,20,.3)'; c.beginPath(); c.ellipse(X, Y + T * 0.1, T * 1.0, T * 0.36, 0, 0, TAU); c.fill();
     c.globalCompositeOperation = 'lighter'; c.globalAlpha = (lit ? 0.6 : 0.15) * k; blitSized(c, glowSprite(CYAN), X - T * 2, Y - T * 3, T * 4, T * 4); c.globalCompositeOperation = 'source-over'; c.globalAlpha = 1;
@@ -113,7 +132,7 @@ RiftFiend.define({ id: 'oneira', name: 'Oneira', title: 'The Listening Shell', c
   /* ---- choosing ---- */
   function pick(FX, m, d, P) { const r = Math.random(); if (r < 0.3) startEcho(FX, m); else if (r < 0.55) startBeam(FX, m); else if (r < 0.77) startChorus(FX, m); else startSlam(FX, m); }
   function startEcho(FX, m) { const M = FX.mem, P = FX.S.lv, n = P >= 2 ? 4 : 3, sp = (P >= 2 ? 5.6 : 4.5) * FX.S.fast, wait = 0.9 / FX.S.fast, gapT = (P >= 2 ? 0.55 : 0.75) / FX.S.fast; m.act = 'echo'; m.actT = 0; M.ew = wait + n * gapT; FX.H.sfx.hum();
-    for (let k = 0; k < n; k++) FX.tele({ shape: 'ring', x: m.x, y: m.y, r0: 0.6, r1: 1.7, t: wait + k * gapT, dmg: m.dmg * 1.2, col: CYAN, linger: (FX.C.R + 3) / sp, tick: (dt, s) => { if (!s.done) { s.x = m.x; s.y = m.y; return; } s.r0 += sp * dt; s.r1 += sp * dt; s.hitT = (s.hitT || 0) - dt; if (s.hitT <= 0 && FX.inShape(s, FX.me.x, FX.me.y, FX.me.r)) { s.hitT = 1; FX.hurt(s.dmg); }
+    for (let k = 0; k < n; k++) mark(FX, { orb: 'echo', shape: 'ring', x: m.x, y: m.y, r0: 0.6, r1: 1.7, t: wait + k * gapT,   /* v433 DB: light on the sand */ dmg: m.dmg * 1.2, col: CYAN, linger: (FX.C.R + 3) / sp, tick: (dt, s) => { if (!s.done) { s.x = m.x; s.y = m.y; return; } s.r0 += sp * dt; s.r1 += sp * dt; s.hitT = (s.hitT || 0) - dt; if (s.hitT <= 0 && FX.inShape(s, FX.me.x, FX.me.y, FX.me.r)) { s.hitT = 1; FX.hurt(s.dmg); }
       // the ring lights any stone it passes over
       for (const h of M.stones) { const o = h.obj; if (!o || o.dead) continue; const dd = Math.hypot(o.x - s.x, o.y - s.y); if (dd > s.r0 - 0.5 && dd < s.r1 + 0.5) lightStone(FX, o); } }, fn: () => { M.recoil = Math.max(M.recoil, 0.4); M.echoes.push({ t: 0 }); FX.H.sfx.hum(); FX.H.shake(4, 0.2); } });
     say(FX, 'echo', 'ECHO CALL', 'Rings roll out: step between them (they light the stones they pass)', CYAN); }
@@ -125,9 +144,9 @@ RiftFiend.define({ id: 'oneira', name: 'Oneira', title: 'The Listening Shell', c
   function startChorus(FX, m) { const M = FX.mem, P = FX.S.lv, me = FX.me, n = P >= 2 ? 4 : 3; m.act = 'chorus'; m.actT = 0; FX.H.sfx.hum();
     for (let k = 0; k < n; k++) { const a = Math.random() * TAU, dd = k === 0 ? 0.8 : 1.8 + Math.random() * 3; callAt(FX, m, me.x + Math.cos(a) * dd, me.y + Math.sin(a) * dd, 1.4 + k * 0.15, P >= 2 && k === n - 1 ? 'manta' : 'grub'); }
     say(FX, 'chorus', 'GRUB CHORUS', 'Off the marked circles: the brood answers through them', OCHRE_HI); }
-  function callAt(FX, m, x, y, wait, type) { const p = FX.clampArena({ x, y }, 1.5); FX.tele({ shape: 'circle', x: p.x, y: p.y, r: 1.3, t: wait, dmg: m.dmg * 0.8, col: type === 'manta' ? CYAN : OCHRE_HI, fn: s => { G.sand(FX, s.x, s.y, 10, 1.3); FX.H.sfx.pop(); FX.H.ring(s.x, s.y, 0.2, 1.6, 0.4, CYAN, 0.3); if (FX.m && !FX.m.dead) { const g = FX.minion(type, s.x, s.y); if (g && type === 'grub') { g.mode = 'rise'; g.riseT = 0.2; } } } }); }
+  function callAt(FX, m, x, y, wait, type) { const p = FX.clampArena({ x, y }, 1.5); mark(FX, { orb: 'call', shape: 'circle', x: p.x, y: p.y, r: 1.3, t: wait, dmg: m.dmg * 0.8, col: type === 'manta' ? CYAN : OCHRE_HI, fn: s => { G.sand(FX, s.x, s.y, 10, 1.3); FX.H.sfx.pop(); if (fxOn()) O3().churn(FX, s, type); else FX.H.ring(s.x, s.y, 0.2, 1.6, 0.4, CYAN, 0.3);   /* v433 DB: light on the sand */ if (FX.m && !FX.m.dead) { const g = FX.minion(type, s.x, s.y); if (g && type === 'grub') { g.mode = 'rise'; g.riseT = 0.2; } } } }); }
   function startSlam(FX, m) { const M = FX.mem, wait = 1.3 / FX.S.fast; M.sw = wait; m.act = 'slam'; m.actT = 0; FX.H.sfx.hum(); const gaps = [[Math.random() * TAU, 0.42], [Math.random() * TAU, 0.4]];
-    FX.tele({ shape: 'ring', x: m.x, y: m.y, r0: 1.0, r1: 5.8, gaps, t: wait, dmg: m.dmg * 1.7, col: BONE_HI, tick: (dt, s) => { if (!s.done) { s.x = m.x; s.y = m.y; } }, fn: s => { M.slamT = 0; M.slamK = 1; FX.H.shake(12, 0.5); FX.H.sfx.crash(); FX.H.boom(s.x, s.y, 2.6, OCHRE_HI, '#FFFFFF', { n: 22, shake: 10, smoke: 6 }); for (let i = 0; i < 12; i++) { const a = i / 12 * TAU; G.sand(FX, s.x + Math.cos(a) * 3, s.y + Math.sin(a) * 2, 3, 1.2); } M.echoes.push({ t: 0 }); } });
+    mark(FX, { orb: 'slam', shape: 'ring', x: m.x, y: m.y, r0: 1.0, r1: 5.8, gaps, t: wait, dmg: m.dmg * 1.7, col: BONE_HI, tick: (dt, s) => { if (!s.done) { s.x = m.x; s.y = m.y; } }, fn: s => { M.slamT = 0; M.slamK = 1; FX.H.shake(12, 0.5); FX.H.sfx.crash(); if (fxOn()) { O3().slamFx(FX, s); O3().burst(FX, s.x, s.y, 2.6, OCHRE_HI, { z: 0.3, n: 22, shake: 10 }); } else FX.H.boom(s.x, s.y, 2.6, OCHRE_HI, '#FFFFFF', { n: 22, shake: 10, smoke: 6 });   /* v433 DB: its crest rolls out as light */ for (let i = 0; i < 12; i++) { const a = i / 12 * TAU; G.sand(FX, s.x + Math.cos(a) * 3, s.y + Math.sin(a) * 2, 3, 1.2); } M.echoes.push({ t: 0 }); } });
     say(FX, 'slam', 'SHELL SLAM', 'Through a gap in the ring, or in close', BONE_HI); }
   /* ---- painting: the coil, its bands, the opening and the body in it, the eyes on their stalks ---- */
   function drawShell(c, FX, m, X, Y, T, t) {

@@ -1416,6 +1416,15 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
     float ends = 1.0 - smoothstep(0.9, 1.0, abs(u.x)), a = max(stain * 0.4, max(wtr, 0.0) * 0.5) * ends; vec3 c = mix(vec3(0.02, 0.05, 0.06), col, max(wtr, 0.0));
     gl_FragColor = vec4(c * a, a) * v_c.a; }
   /*</BW-FX>*/
+  /*<DS-FX solid 244 (v433 DS: 20r3-dune-sky.js, the Mouth Beneath the Dunes' far views)>*/
+  else if (v_k > 243.5 && v_k < 244.5) { // 244 a veil of blowing sand or mist (solid, laid over): a long bank streaming along x, thinning to its rim, its upper side in the light (uv.x along -1..1, uv.y -1 its top .. 1 its foot); v_q.x its streaming speed, v_q.y seed, v_q.z its density; v_c its colour
+    float sd = v_q.y * 23.0, tt = u_t * v_q.x; vec2 p = vec2(u.x * 2.4 + sd, u.y * 1.2 + sd * 0.37);
+    float f = n2(p * vec2(1.0, 2.0) - vec2(tt * 0.07, 0.0)) * 0.55 + n2(p * vec2(2.3, 4.4) + vec2(3.1 - tt * 0.11, 1.3)) * 0.3 + n2(p * vec2(5.1, 9.0) - vec2(tt * 0.19, 0.0)) * 0.15;
+    float yb = u.y + 0.18 * sin(u.x * 2.7 + sd) + 0.1 * sin(u.x * 6.1 - tt * 0.05 + sd * 2.0), env = (1.0 - smoothstep(0.4, 1.0, abs(u.x))) * (1.0 - smoothstep(0.1, 0.95, abs(yb)));
+    float streak = 0.72 + 0.4 * n2(vec2(u.x * 1.6 - tt * 0.25, u.y * 13.0 + sd));
+    float a = smoothstep(0.3, 0.78, f) * env * streak * v_q.z * v_c.a; vec3 c = mix(col * 0.8, min(col * 1.3 + 0.07, vec3(1.0)), clamp(0.55 - yb * 0.7 + (f - 0.5) * 0.8, 0.0, 1.0));
+    gl_FragColor = vec4(c * a, a); }
+  /*</DS-FX>*/
 /*<W>*/  else if (v_k > 32.5 && v_k < 33.5) { // (v370, wind) the body of a blade of wind (solid): deep emerald toward its sharp outer edge, its
     // opacity fading toward the inner edge, streaked as the air races along it; v_q.x span + 10 x mode, v_q.y seed, v_q.z thickness
     vec4 B = wbl(u, v_q.x, v_q.z); float d = B.x, rr = r, md = floor(v_q.x / 10.0), along = md < 0.5 ? pow(clamp(1.0 - B.y, 0.0, 1.0), 1.3) : md < 1.5 ? 1.0 - smoothstep(0.7, 1.0, B.y) : 1.0;
@@ -1561,6 +1570,48 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
         vec2 g = vec2(an * 4.4563, r * 7.0 - ag * 9.0), gi = floor(g), gf = fract(g) - 0.5; float mo = smoothstep(0.18, 0.0, length((gf - (vec2(h1(gi + 2.2), h1(gi + 6.6)) - 0.5) * 0.5) * vec2(1.0, 0.5))) * step(0.55, h1(gi + v_q.y)) * v_q.z * e;
         L = (col * (body * (0.3 + 0.7 * cl) * 0.8 + shell) + vec3(1.0, 0.97, 0.88) * (mo + exp(-r * r * 26.0) * e * e * e)) * (1.0 - smoothstep(0.9, 1.0, r)); } }
     /*</GO-FX>*/
+    /*<DA-FX kinds 256..263 (v433 DA: 20y1-sarrukh-gl.js, Sarrukh the Bloom Serpent)>*/
+    else if (v_k > 255.5 && v_k < 263.5) { float an = atan(u.y, u.x);
+      if (v_k < 256.5) { // 256 Sand Wake's lane (uv.x along, -1 the head .. 1 the far end; uv.y across): the sand along it trembling with cyan resonance: a soft wash, its two borders lit, a bright core, pulses racing toward the far end, grains jittering; v_q.x the tell 0..1, v_q.y seed, v_q.z its half length in half widths
+        float asp = max(v_q.z, 1.0), x = u.x * asp, pr = clamp(v_q.x, 0.0, 1.0), ay = abs(u.y), ends = smoothstep(-1.0, -0.94, u.x) * (1.0 - smoothstep(0.88, 1.0, u.x)), side = 1.0 - smoothstep(0.7, 1.0, ay);
+        float wash = exp(-u.y * u.y * 1.6) * side, core = exp(-u.y * u.y * 34.0), rails = exp(-sq((ay - 0.8) / 0.07)), run = pow(0.5 + 0.5 * sin(x * 1.6 - t * (6.0 + 8.0 * pr)), 5.0), cl = fbm(vec2(x * 0.7 - t * 0.6, u.y * 2.0) + v_q.y);
+        vec2 g = vec2(x * 2.6, u.y * 3.0), gi = floor(g), gf = fract(g) - 0.5, jt = vec2(sin(t * 37.0 + h1(gi) * 20.0), cos(t * 31.0 + h1(gi + 2.0) * 20.0)) * 0.06 * pr;
+        float mote = smoothstep(0.17, 0.0, length(gf - (vec2(h1(gi + 1.7), h1(gi + 5.3)) - 0.5) * 0.5 - jt)) * step(0.6, h1(gi + v_q.y));
+        L = (col * (wash * (0.07 + 0.22 * pr) * (0.6 + 0.6 * cl) + core * (0.2 + 0.55 * pr) * (0.55 + 0.45 * run) + rails * (0.16 + 0.34 * pr) * side) + mix(col, vec3(1.0), 0.6) * mote * (0.25 + 0.65 * pr) * side) * ends; }
+      else if (v_k < 257.5) { // 257 a Breach's mark (uv a unit disc): the sand sinking into a funnel: spiral grooves of ochre light turning inward, faster as it nears, a lit rim, the middle glowing hot; v_q.x the tell 0..1, v_q.y seed
+        float pr = clamp(v_q.x, 0.0, 1.0), sp = sin(an * 3.0 + log(r + 0.04) * 5.5 + t * (1.5 + 5.0 * pr) + fbm(u * 2.5 + v_q.y) * 2.0);
+        float groove = smoothstep(0.35, 1.0, sp) * smoothstep(0.04, 0.3, r) * (1.0 - smoothstep(0.8, 0.97, r)), rim = exp(-sq((r - 0.9) / 0.045)) * (1.0 - smoothstep(0.96, 1.0, r)), core = exp(-r * r * (9.0 - 4.0 * pr));
+        L = col * (groove * (0.12 + 0.42 * pr) + rim * (0.3 + 0.55 * pr) * (0.8 + 0.2 * sin(an * 9.0 - t * 4.0)) + core * pr * pr * 0.8 + (1.0 - smoothstep(0.0, 0.9, r)) * 0.04 * pr) + vec3(1.0, 0.95, 0.85) * core * pr * pr * pr * 0.4; }
+      else if (v_k < 258.5) { // 258 a Quake Ring (uv a unit disc, the quad its outer radius): v_q.x its inner radius (of the outer), v_q.y and v_q.z - 4 (- 10 more: rolling) its two openings' angles: a crest of sand-light, grains on it, dark in the openings; rolling, a heavier crest
+        float md = step(9.0, v_q.z), g2 = v_q.z - 10.0 * md - 4.0, d1 = abs(mod(an - v_q.y + 3.1416, 6.2832) - 3.1416), d2 = abs(mod(an - g2 + 3.1416, 6.2832) - 3.1416), gp = smoothstep(0.34, 0.52, min(d1, d2));
+        float ri = clamp(v_q.x, 0.0, 0.95), band = smoothstep(ri - 0.03, ri + 0.06, r) * (1.0 - smoothstep(0.9, 1.0, r)), cl = fbm(vec2(an * 5.0, r * 7.0 - t * (1.0 + 2.0 * md)) + v_q.y);
+        float crest = exp(-sq((r - 0.88) / (0.05 + 0.02 * md))) * (1.0 - smoothstep(0.96, 1.0, r)), inner = exp(-sq((r - ri - 0.04) / 0.035));
+        vec2 g = vec2(an * 9.549, r * 14.0 - t * 2.0 * md), gi = floor(g), gf = fract(g) - 0.5; float mo = smoothstep(0.2, 0.0, length(gf - (vec2(h1(gi + 3.3), h1(gi + 8.1)) - 0.5) * 0.5)) * step(0.62, h1(gi + v_q.y)) * band;
+        L = (col * (band * (0.08 + 0.2 * cl) + crest * (0.55 + 0.45 * cl) * (1.0 + 0.6 * md) + inner * 0.25 * (1.0 - md)) + mix(col, vec3(1.0), 0.6) * mo * 0.6) * gp; }
+      else if (v_k < 259.5) { // 259 the sand cracking open over something rising (uv a unit disc): bone-white light in warped cracks reaching out from the middle as v_q.x goes 0..1, the middle swelling; v_q.y seed
+        float pr = clamp(v_q.x, 0.0, 1.0), vs = 0.0;
+        for (int i = 0; i < 6; i++) { float fi = float(i), a0 = (fi + h1(vec2(fi, v_q.y))) * 1.0472 + 0.5 * sin(r * 4.0 + fi * 1.9 + v_q.y), da = abs(mod(an - a0 + 3.1416, 6.2832) - 3.1416) * r, reach = 0.2 + pr * (0.55 + 0.3 * h1(vec2(fi + 4.0, v_q.y))), w = 0.04 * (1.0 - 0.5 * r) + 0.012;
+          vs += exp(-sq(da / w)) * (1.0 - smoothstep(reach - 0.12, reach, r)); }
+        float crk = smoothstep(0.07, 0.0, abs(fbm(u * 3.6 + v_q.y) - 0.5)) * (1.0 - smoothstep(0.3 + 0.5 * pr, 0.45 + 0.5 * pr, r)), core = exp(-r * r * (7.0 - 3.0 * pr)), rim = exp(-sq((r - 0.93) / 0.05)) * (1.0 - smoothstep(0.97, 1.0, r));
+        L = col * (min(vs, 1.4) * (0.35 + 0.8 * pr) + crk * 0.45 * pr + core * (0.12 + 0.55 * pr * pr) + rim * (0.18 + 0.32 * pr)) * (1.0 - smoothstep(0.85, 1.0, r)); }
+      else if (v_k < 260.5) { // 260 a spat fan of grit (its source at the quad's centre, uv.x along the fan): streaks of sunlit grit flying out, a flash at the mouth; v_q.x the half spread (radians), v_q.y seed, v_q.z its age 0..1
+        float sp = max(v_q.x, 0.05), ag = clamp(v_q.z, 0.0, 1.0), e = 1.0 - ag, ang = 1.0 - smoothstep(sp * 0.85, sp * 1.1, abs(an)), k = an / sp * 7.0, ki = floor(k), kf = fract(k) - 0.5;
+        float ln = 0.35 + 0.6 * h1(vec2(ki, v_q.y)), head = 0.15 + 0.85 * ag * (0.7 + 0.3 * h1(vec2(ki + 9.0, v_q.y))), st = exp(-sq(kf / 0.12)) * smoothstep(head - ln * 0.5, head, r) * (1.0 - smoothstep(head, head + 0.04, r));
+        L = (col * (st * ang * e * 0.9 + ang * exp(-r * 2.2) * e * 0.3) + vec3(1.0, 0.95, 0.85) * exp(-r * r * 30.0) * e * e) * (1.0 - smoothstep(0.92, 1.0, r)); }
+      else if (v_k < 261.5) { // 261 resonance (uv a unit disc): standing waves of cyan light in rings, two sources beating; v_q.x its age 0..1 (a front swelling out), v_q.y seed, v_q.z a hum (1: no front, a steady breathing)
+        float hum = step(0.5, v_q.z), ag = clamp(v_q.x, 0.0, 1.0), fr = mix(0.15 + 0.85 * sqrt(ag), 0.95, hum), e = mix(1.0 - ag, 0.6 + 0.4 * sin(t * 3.0), hum);
+        vec2 o2 = vec2(0.18 * cos(t * 0.7 + v_q.y), 0.18 * sin(t * 0.9)); float w = 0.5 + 0.5 * sin(r * 30.0 - t * 7.0) * sin(length(u - o2) * 26.0 - t * 5.0);
+        float inside = 1.0 - smoothstep(fr - 0.25, fr, r), front = exp(-sq((r - fr) / 0.04)) * (1.0 - hum);
+        L = (col * (w * w * w * inside * 0.55 + inside * 0.08) + mix(col, vec3(1.0), 0.7) * front * 0.9) * e * (1.0 - smoothstep(0.92, 1.0, r)); }
+      else if (v_k < 262.5) { // 262 sand thrown up by an eruption (uv a unit disc): streaks of lit grains flying out, a shell of glowing dust, a white heart; v_q.x its age 0..1, v_q.y seed, v_q.z its grains 0..1
+        float ag = clamp(v_q.x, 0.0, 1.0), e = 1.0 - ag, fr = 0.25 + 0.7 * sqrt(ag), k = an * 4.775 + v_q.y, ki = floor(k), kf = fract(k) - 0.5, ln = 0.2 + 0.4 * h1(vec2(ki, v_q.y + 1.0)), hd = fr * (0.75 + 0.3 * h1(vec2(ki + 5.0, v_q.y)));
+        float st = exp(-sq(kf / 0.1)) * smoothstep(hd - ln, hd, r) * (1.0 - smoothstep(hd, hd + 0.03, r)) * step(0.35, h1(vec2(ki + 2.0, v_q.y))) * v_q.z;
+        float cl = fbm(vec2(an * 2.0, r * 4.0 - ag * 2.0) + v_q.y), shell = exp(-sq((r - fr * 0.9) / (0.06 + 0.12 * ag))) * (0.5 + 0.7 * cl), body = (1.0 - smoothstep(fr * 0.4, fr, r)) * (0.3 + 0.7 * cl);
+        L = (col * (st * 1.1 + shell * 0.55 + body * 0.25) * e + vec3(1.0, 0.96, 0.86) * exp(-r * r * 24.0) * e * e * e) * (1.0 - smoothstep(0.9, 1.0, r)); }
+      else { // 263 the bloom's light (uv a unit disc): a flower of light, five lobes turning, their edges brighter, a white heart; v_q.x how open 0..1, v_q.y its turn, v_q.z its flicker 0..1
+        float op = clamp(v_q.x, 0.0, 1.0), lb = 0.5 + 0.5 * cos(an * 5.0 + v_q.y), rr = r / (0.35 + 0.6 * op * (0.55 + 0.45 * pow(lb, 0.7))), fl = mix(1.0, 0.55 + 0.45 * abs(sin(t * 13.0) * sin(t * 5.3 + 1.0)), clamp(v_q.z, 0.0, 1.0));
+        L = (col * (exp(-rr * rr * 2.6) * 0.55 + exp(-sq((rr - 0.85) / 0.06)) * op * 0.45) + vec3(1.0) * exp(-r * r * 40.0) * 0.8) * fl * (1.0 - smoothstep(0.9, 1.0, r)); } }
+    /*</DA-FX>*/
     /*<BL-FX kinds 192..207 (v426 BL: 20g3-belial-moves.js, 02f4-belial-model.js, Belial the World Pillar)>*/
     else if (v_k > 191.5 && v_k < 207.5) { float tt = u_t, an = atan(u.y, u.x);
       if (v_k < 192.5) { // 192 a gravitational ring (uv a unit disc, on the floor or in the air as its quad lays it): a gold band at radius v_q.x, runes running round it at v_q.y, rails either side, a soft halo; v_q.z strength
@@ -1662,6 +1713,86 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
         float drop = on * exp(-sq((fract(cx) - 0.5) / 0.08)) * smoothstep(0.0, 0.25, dy) * (1.0 - smoothstep(0.25, 0.32, dy)) * step(h, yb) * (1.0 - smoothstep(h + 0.15, h + 0.45, yb));
         L = vec3(0.75, 0.97, 0.95) * (line * (0.55 + 0.45 * v_q.y) + drop * 0.5) * ends; } }
     /*</BW-FX>*/
+    /*<DS-FX lights 240..242 (v433 DS: 20r3-dune-sky.js, the Mouth Beneath the Dunes' far views)>*/
+    else if (v_k > 239.5 && v_k < 242.5) { float tt = u_t;
+      if (v_k < 240.5) { // 240 aurora-like dust: up to three folded curtains hanging one behind another (uv.x along -1..1, uv.y -1 top .. 1 foot): each a ribbon whose line doubles back on itself (brightest where a fold is seen edge-on), its light rising from a bright, softly fringed foot in vertical rays of their own heights, greenish white at the foot, its colour above, violet at the top; v_q.x seed, v_q.y its sway's speed, v_q.z its rays' strength (under 0.5: one curtain, lowFx); v_c its colour
+        float sd = v_q.x * 17.0, t = tt * v_q.y, x = u.x; vec3 acc = vec3(0.0);
+        for (int i = 0; i < 3; i++) { float fi = float(i); if (i > 0 && v_q.z < 0.5) break;
+          float ph = sd + fi * 2.1 + t * 0.21, xf = x + 0.13 * sin(x * 4.0 + ph), fold = 0.6 / (abs(1.0 + 0.52 * cos(x * 4.0 + ph)) + 0.32);
+          float yc = 0.16 + fi * 0.13 + 0.26 * sin(x * 2.1 + sd + fi * 1.7 + t * 0.25) + 0.09 * sin(x * 5.7 - t * 0.4 + fi) + 0.08 * (n2(vec2(x * 3.0 + fi * 5.0, t * 0.15 + sd)) - 0.5);
+          float ray = pow(n2(vec2(xf * 34.0 + fi * 7.3 + sd, t * 0.25)), 1.4), hgt = 0.22 + 0.5 * n2(vec2(xf * 9.0 + fi * 3.0, t * 0.2 + sd)), d = u.y - yc;
+          float prof = d < 0.0 ? exp(d / hgt) * (0.3 + 0.7 * ray) : exp(-sq(d / 0.05)) * 0.7 + 0.3 * exp(-d / 0.14), hgh = max(-d, 0.0) / hgt;
+          vec3 c = mix(mix(min(col * 1.15 + 0.12, vec3(1.0)), col, smoothstep(0.0, 0.35, hgh)), vec3(0.62, 0.4, 1.0), smoothstep(0.6, 1.8, hgh) * 0.85);
+          c += vec3(0.9, 0.28, 0.6) * exp(-sq((d - 0.05) / 0.04)) * 0.35;   // (a faint rose fringe under the foot)
+          acc += c * prof * fold * (0.5 + 0.5 * ray) * (1.0 - fi * 0.28); }
+        float ends = (1.0 - smoothstep(0.45, 1.0, abs(x))) * (1.0 - smoothstep(0.8, 1.0, u.y)) * smoothstep(-1.0, -0.5, u.y);
+        L = acc * ends * 1.7 * (0.85 + 0.15 * sin(t * 0.6 + x * 3.0 + sd)); }
+      else if (v_k < 241.5) { // 241 a sun's corona: its bloom and slow rays turning about it, seamless round the circle (a disc quad: uv radius 1 its reach); v_q.x seed, v_q.y the rays' strength, v_q.z their turning speed; v_c its colour
+        float an = atan(u.y, u.x), sd = v_q.x * 13.0, t = tt * v_q.z; vec2 dir = vec2(cos(an + t), sin(an + t)), dir2 = vec2(cos(an - t * 0.7), sin(an - t * 0.7));
+        float ray = pow(n2(dir * 3.5 + sd), 3.0) * 0.75 + pow(n2(dir2 * 7.0 - sd + 5.0), 4.0) * 0.55, fall = 1.0 - smoothstep(0.0, 1.0, r);
+        float bloom = exp(-r * r * 26.0) * 0.9 + exp(-r * 5.0) * 0.32;
+        L = col * (bloom + ray * v_q.y * fall * fall * smoothstep(0.06, 0.2, r)) * (1.0 - smoothstep(0.82, 1.0, r)); }
+      else { // 242 heat over the ground: (v_q.y 0) threads of shimmering air wavering as they rise; (1) a mirage, a silver pool of false water with the sky trembling in it (uv.x along -1..1, uv.y -1 top .. 1 foot); v_q.x seed, v_q.z its strength; v_c its colour
+        float sd = v_q.x * 11.0, x = u.x, ends = 1.0 - smoothstep(0.45, 1.0, abs(x));
+        if (v_q.y < 0.5) { float k = 0.0; for (int i = 0; i < 3; i++) { float fi = float(i), yy = -0.5 + fi * 0.5 + 0.09 * sin(x * 13.0 + tt * (1.8 + fi * 0.6) + sd + fi * 2.0) + 0.05 * sin(x * 29.0 - tt * 3.7 + fi);
+            k += exp(-sq((u.y - yy) / 0.13)) * (0.3 + 0.7 * n2(vec2(x * 6.0 - tt * 1.1 + fi * 3.0, sd + fi))); }
+          L = col * k * ends * (1.0 - smoothstep(0.55, 1.0, abs(u.y))) * 0.55 * v_q.z; }
+        else { float band = exp(-sq(u.y / 0.42)), st = n2(vec2(x * 3.0 + sd, u.y * 16.0 + sin(x * 9.0 + tt * 2.1) * 0.8 - tt * 0.5)), gl = pow(n2(vec2(x * 21.0 + tt * 0.8, u.y * 28.0 + sd)), 6.0) * 2.2;
+          L = col * band * ends * (0.3 + 0.45 * st + gl) * v_q.z; } } }
+    /*</DS-FX>*/
+    /*<DB-FX kinds 264..271 (v433 DB: 20y2-oneira-gl.js, 20y3-thulammon-gl.js: Oneira the Listening Shell, Thul-Ammon the Sand Kraken)>*/
+    else if (v_k > 263.5 && v_k < 271.5) { float an = atan(u.y, u.x), tt = u_t, sd = v_q.y;
+      if (v_k < 264.5) { // 264 a ring of sound on the sand (uv a unit disc): v_q.x its inner edge (of the outer), v_q.z 0..1 a tell gathering (a faint shimmering band), 1 + k a rolling ring at strength k (interference fringes across it, a bright leading crest, its edges feathered)
+        float ri = clamp(v_q.x, 0.0, 0.97), md = step(1.0, v_q.z), k = md > 0.5 ? clamp(v_q.z - 1.0, 0.0, 1.0) : clamp(v_q.z, 0.0, 1.0), wd = max(1.0 - ri, 0.02), x = (r - ri) / wd;
+        float band = smoothstep(-0.12, 0.12, x) * (1.0 - smoothstep(0.8, 1.0, x)) * (1.0 - smoothstep(0.94, 1.0, r));
+        float fr = 0.5 + 0.5 * sin(x * 18.0 - tt * 9.0 + 2.0 * fbm(vec2(an * 3.0, r * 4.0) + sd)), sh = 0.6 + 0.4 * fbm(vec2(an * 5.0 + sd, r * 8.0 - tt * 1.5));
+        float crest = exp(-sq((x - 0.78) / 0.07)) * (1.0 - smoothstep(0.94, 1.0, r)), trail = exp(-sq((x - 0.15) / 0.12)) * 0.4 * band;
+        if (md < 0.5) L = col * band * (0.08 + 0.25 * k) * sh * (0.6 + 0.4 * sin(tt * 7.0 + x * 6.0));
+        else L = (col * (band * (0.14 + 0.3 * fr) * sh + trail * 0.7) + mix(col, vec3(1.0), 0.35) * crest * 0.7) * k; }
+      else if (v_k < 265.5) { // 265 Shell Slam's ring (uv a unit disc): v_q.x the inner edge (of the outer), v_q.y its first opening's angle, v_q.z the second's + 4 + 10 x mode: 0 the tell (bone light pressing into the band, sand streaks drawn in, its edges lit, cyan light in the openings), 1 the strike (a crest at 0.86 and churned dust behind it)
+        float md = step(9.0, v_q.z), g2 = v_q.z - 10.0 * md - 4.0, d1 = abs(mod(an - v_q.y + 3.1416, 6.2832) - 3.1416), d2 = abs(mod(an - g2 + 3.1416, 6.2832) - 3.1416), dg = min(d1, d2), gp = smoothstep(0.3, 0.46, dg);
+        if (md < 0.5) { float ri = v_q.x, band = smoothstep(ri - 0.02, ri + 0.07, r) * (1.0 - smoothstep(0.88, 1.0, r)), st = fbm(vec2(an * 14.0, r * 3.0 + tt * 1.2)), cl = fbm(vec2(an * 4.0 + 1.3, r * 6.0 + tt * 0.5));
+          float rims = exp(-sq((r - 0.95) / 0.03)) + 0.6 * exp(-sq((r - ri - 0.03) / 0.03));
+          L = col * gp * (band * (0.14 + 0.3 * cl + 0.35 * smoothstep(0.55, 0.85, st)) + rims * 0.7 * (1.0 - smoothstep(0.98, 1.0, r))) + vec3(0.35, 1.0, 1.1) * (1.0 - gp) * band * exp(-sq(dg / 0.2)) * 0.4; }
+        else { float cr = exp(-sq((r - 0.86) / 0.05)), tr = exp(-sq((r - 0.74) / 0.14)) * 0.4, cl = fbm(vec2(an * 6.0, r * 9.0 - tt * 2.5));
+          L = (mix(col, vec3(1.0), 0.5) * cr * (0.7 + 0.5 * cl) + col * tr * cl) * gp * (1.0 - smoothstep(0.93, 1.0, r)); } }
+      else if (v_k < 266.5) { // 266 the Listening Beam's lane (uv.x -1 the opening .. 1 the far end, uv.y across): v_q.x 0..1 its aim (a thin bright thread, pulses running out along it, a faint haze), 1 + k the beam lying on the sand at strength k (a white core, a cyan body, rings of sound running out along it, the far end feathered); v_q.z its length in its widths
+        float md = step(1.0, v_q.x), k = md > 0.5 ? clamp(v_q.x - 1.0, 0.0, 1.0) : clamp(v_q.x, 0.0, 1.0), asp = max(v_q.z, 1.0), x = (u.x * 0.5 + 0.5) * asp, ay = abs(u.y), ends = smoothstep(-1.0, -0.88, u.x) * (1.0 - smoothstep(0.8, 1.0, u.x));
+        if (md < 0.5) { float th = exp(-sq(u.y / 0.07)), pl = pow(0.5 + 0.5 * sin(x * 2.4 - tt * 10.0), 6.0), hz = exp(-sq(u.y / 0.6)) * (0.5 + 0.5 * fbm(vec2(x * 0.8 - tt, u.y * 3.0) + sd));
+          L = (mix(col, vec3(1.0), 0.5) * th * (0.25 + 0.75 * pl) + col * hz * 0.18) * k * ends; }
+        else { float core = exp(-sq(u.y / 0.13)), body = exp(-sq(u.y / 0.5)) * (0.65 + 0.35 * fbm(vec2(x * 1.3 - tt * 4.0, u.y * 4.0) + sd)), ph = fract(x * 0.45 - tt * 1.6), rgs = exp(-sq((ph - 0.5) / 0.05)) * (1.0 - smoothstep(0.4, 1.0, ay)), fl = 0.85 + 0.15 * sin(tt * 31.0 + sd);
+          L = (vec3(1.0) * core * 0.85 + col * body * 0.6 + mix(col, vec3(1.0), 0.5) * rgs * 0.7) * k * fl * ends * (1.0 - smoothstep(0.85, 1.0, ay)); } }
+      else if (v_k < 267.5) { // 267 sand churning (uv a unit disc): v_q.x 0..1 the tell (sand drawn round and in on spiral arms, cracks of light reaching out from the middle), 1..2 the burst (a flash dying, the arms flung out); v_q.z its turn (+1 / -1)
+        float pg = v_q.x, tl = clamp(pg, 0.0, 1.0), af = clamp(pg - 1.0, 0.0, 1.0), dir = v_q.z < 0.0 ? -1.0 : 1.0, sw = an * 3.0 + dir * (log(r + 0.05) * 5.0 + tt * (1.5 + 2.5 * tl));
+        float arms = pow(0.5 + 0.5 * sin(sw + 2.0 * fbm(u * 3.0 + sd)), 3.0) * smoothstep(0.05, 0.3, r) * (1.0 - smoothstep(0.75, 1.0, r)), crk = 0.0;
+        for (int i = 0; i < 5; i++) { float fi = float(i), a0 = (fi + h1(vec2(fi, sd))) * 1.2566 + 0.3 * sin(r * 6.0 + fi), da = abs(mod(an - a0 + 3.1416, 6.2832) - 3.1416) * r; crk += exp(-sq(da / 0.03)) * (1.0 - smoothstep(tl * 0.8 - 0.1, tl * 0.8, r)); }
+        float core = exp(-r * r * 12.0), fade = 1.0 - smoothstep(0.85, 1.0, r);
+        if (pg <= 1.0) L = (col * arms * (0.12 + 0.4 * tl) + mix(col, vec3(1.0), 0.35) * min(crk, 1.2) * (0.3 + 0.6 * tl) + mix(col, vec3(1.0), 0.5) * core * tl * 0.5) * fade;
+        else L = (col * arms * 0.5 * (1.0 - af) + mix(col, vec3(1.0), 0.6) * exp(-r * r * (3.0 + 12.0 * af)) * (1.0 - af) * (1.0 - af) * 1.3) * fade; }
+      else if (v_k < 268.5) { // 268 Tentacle Sweep's lane (uv.x -1 the root .. 1 the far end, uv.y across): v_q.x 0..1 the tell (sand stirring along it, dust streaming out from the root, its edges lit, a front creeping out as it grows), 1 + k the strike (a crest racing out along it as k falls 1 .. 0, churned sand behind); v_q.z its length in its widths
+        float md = step(1.0, v_q.x), k = md > 0.5 ? clamp(v_q.x - 1.0, 0.0, 1.0) : clamp(v_q.x, 0.0, 1.0), asp = max(v_q.z, 1.0), xu = u.x * 0.5 + 0.5, x = xu * asp, ay = abs(u.y);
+        float side = 1.0 - smoothstep(0.7, 1.0, ay), ends = smoothstep(0.0, 0.06, xu) * (1.0 - smoothstep(0.9, 1.0, xu)), st = fbm(vec2(x * 1.4 - tt * 3.0, u.y * 2.5) + sd), rims = exp(-sq((ay - 0.82) / 0.07));
+        if (md < 0.5) { float front = 1.0 - smoothstep(k * 1.1 - 0.1, k * 1.1, xu); L = col * (side * (0.06 + 0.32 * smoothstep(0.45, 0.85, st)) * front + rims * 0.45 * k) * ends * (0.4 + 0.6 * k); }
+        else { float hp = (1.0 - k) * 1.15, crest = exp(-sq((xu - hp) / 0.07)) * side, behind = smoothstep(0.0, 0.15, hp - xu) * side; L = (mix(col, vec3(1.0), 0.5) * crest * 1.1 + col * behind * (0.2 + 0.5 * st) * k) * ends; } }
+      else if (v_k < 269.5) { // 269 a mark in the sand where something comes down (uv a unit disc): v_q.x 0..1 the tell (rings drawn in to the middle, cracks reaching out, the middle brightening), 1..2 the impact (a flash, a crater's rim of light spreading and fading, the cracks cooling); v_q.z its form: 0 a slam, 1 a grasp (five furrows clawing in), 2 a shard's fall (softer)
+        float pg = v_q.x, tl = clamp(pg, 0.0, 1.0), af = clamp(pg - 1.0, 0.0, 1.0), fm = v_q.z, fade = 1.0 - smoothstep(0.86, 1.0, r);
+        float rings = pow(0.5 + 0.5 * sin(r * 16.0 + tt * (4.0 + 6.0 * tl)), 4.0) * smoothstep(0.08, 0.3, r) * (1.0 - smoothstep(0.7, 0.95, r)), crk = 0.0;
+        for (int i = 0; i < 6; i++) { float fi = float(i), a0 = (fi + 0.5 * h1(vec2(fi, sd))) * 1.0472 + 0.35 * sin(r * 7.0 + fi * 1.3 + sd), da = abs(mod(an - a0 + 3.1416, 6.2832) - 3.1416) * r; crk += exp(-sq(da / 0.028)) * (1.0 - smoothstep(tl * 0.9 - 0.1, tl * 0.9, r)) * smoothstep(0.05, 0.15, r); }
+        if (fm > 0.5 && fm < 1.5) { float fu = 0.0; for (int i = 0; i < 5; i++) { float fi = float(i), a0 = fi * 1.2566 + sd, da = abs(mod(an - a0 - 0.6 * (1.0 - r) + 3.1416, 6.2832) - 3.1416) * r; fu += exp(-sq(da / 0.07)) * smoothstep(1.0 - tl, 1.0 - tl + 0.2, r) * (1.0 - smoothstep(0.85, 1.0, r)); } crk = fu * 0.8; rings *= 0.5; }
+        float mid = exp(-r * r * 10.0);
+        if (pg <= 1.0) L = (col * (rings * (0.1 + 0.3 * tl) + mid * tl * 0.5) + mix(col, vec3(1.0), 0.4) * min(crk, 1.3) * (0.25 + 0.6 * tl)) * fade;
+        else { float rim = exp(-sq((r - (0.25 + 0.6 * sqrt(af))) / (0.06 + 0.08 * af))) * (1.0 - af); L = (mix(col, vec3(1.0), 0.6) * (exp(-r * r * (2.0 + 10.0 * af)) * (1.0 - af) * (1.0 - af) * 1.5 + rim * 0.9) + col * min(crk, 1.0) * (1.0 - af) * 0.6) * fade; }
+        if (fm > 1.5) L *= 0.8; }
+      else if (v_k < 270.5) { // 270 ink's sheen (uv a unit disc): an oily film over the dark pool, colours shifting through it, slow swirls, bright specks; v_q.x its strength
+        float swl = fbm(vec2(an * 2.0 + tt * 0.2, r * 3.0 - tt * 0.15) + sd), film = 0.5 + 0.5 * sin(swl * 12.0 + r * 6.0 - tt * 0.8);
+        vec3 ir = 0.5 + 0.5 * cos(vec3(0.0, 2.1, 4.2) + swl * 7.0 + tt * 0.3); float spk = pow(n2(u * 26.0 + sd + vec2(tt * 0.3, 0.0)), 18.0) * 3.0, body = 1.0 - smoothstep(0.55, 1.0, r);
+        L = (mix(col, ir, 0.55) * film * 0.22 + vec3(1.0) * spk * 0.35) * body * v_q.x; }
+      else { // 271 a shaft of falling dust from above (uv.x across, uv.y -1 its top .. 1 the sand): grit and motes falling, brighter low; v_q.x its strength 0..1 (the motes falling faster as it grows)
+        float k = clamp(v_q.x, 0.0, 1.0), yb = u.y * 0.5 + 0.5, side = exp(-sq(u.x / (0.3 + 0.25 * yb))), ends = smoothstep(0.0, 0.25, yb) * (1.0 - smoothstep(0.93, 1.0, yb));
+        vec2 g = vec2(u.x * 9.0, yb * 14.0 - tt * (2.0 + 5.0 * k)), gi = floor(g), gf = fract(g) - 0.5; float mo = smoothstep(0.22, 0.0, length((gf - (vec2(h1(gi + 2.1 + sd), h1(gi + 5.3)) - 0.5) * 0.5) * vec2(1.0, 0.35))) * step(0.55, h1(gi + 9.7));
+        float haze = 0.4 + 0.6 * fbm(vec2(u.x * 2.0 + sd, yb * 3.0 - tt * 0.8));
+        L = (col * side * haze * (0.1 + 0.25 * yb) + mix(col, vec3(1.0), 0.6) * mo * side * 0.9) * ends * k; } }
+    /*</DB-FX>*/
     else if (v_k > 135.5 && v_k < 140.5) { // (v420 GC) the Gate of Cancer's light (20o-rift-gate-cancer.js, 20o1-cancer-props.js). v_c its colour
       float tt = u_t, an = atan(u.y, u.x);
       if (v_k < 136.5) { // 136 the arena's carved lunar rings (its quad the arena's ellipse: uv a unit disc): the gold-inlaid rings at 0.3 and 0.86 and the carved ring at 0.58, light running round each in slow pulses, a soft pool on the sigil at the heart; v_q.x strength, v_q.y seed, v_q.z the sigil's glow
@@ -2053,7 +2184,7 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
   const Q = { lit: new Float32Array(12 * 6 * 600), nl: 0, smk: new Float32Array(12 * 6 * 200), ns: 0, wlit: new Float32Array(12 * 6 * 200), nwl: 0, wsmk: new Float32Array(12 * 6 * 100), nws: 0, get windOK() { return !!PRW; }, a: 1, b: 0, c0: 0, d: 1, e: 0, f: 0, k: 1, t: 0, W: 0, Hh: 0, pet: [0, 0, 0], gpu: true,
     X(x, y) { return this.a * x + this.c0 * y + this.e; }, Y(x, y) { return this.b * x + this.d * y + this.f; },
     /* one quad: centre (screen px), half-axes (ux, uy), (vx, vy) in screen px */
-    quad(kind, x, y, ux, uy, vx, vy, col, al, q0, q1, q2) { if (!(al > 0.004)) return; const solid = (kind >= 9 && kind <= 12) || kind === 16 || kind === 24 || kind === 25 || kind === 33 || kind === 36 || kind === 39 || kind === 40 || kind === 41 /* v402 */ || (kind >= 45 && kind <= 47) || kind === 49 || kind === 52 /* v404 LT */ || (kind >= 53 && kind <= 58 && kind !== 55) /* v404 DK */ || (kind >= 60 && kind <= 63) /* v409 DK2 */ || kind === 68 || kind === 69 /* v412 LM */ || kind === 71 /* v391 U4 */ || kind === 80 || kind === 82 || (kind >= 84 && kind <= 87) /* v415 EB */ || (kind >= 73 && kind <= 75) || kind === 78 /* v415 EA */ || kind === 89 || kind === 90 /* v415 TI */ || (kind >= 104 && kind <= 106) /* v417 BR */ || kind === 96 || kind === 97 /* v417 GH */ || kind === 112 || kind === 115 /* v417 MH */ || kind === 124 /* v418 AB */ || kind === 137 /* v420 GC */ || kind === 144 || kind === 145 /* v420 CB */ || kind === 216 || kind === 218 /* v430 BW */, wd =kind >= 33 && kind <= 40;
+    quad(kind, x, y, ux, uy, vx, vy, col, al, q0, q1, q2) { if (!(al > 0.004)) return; const solid = (kind >= 9 && kind <= 12) || kind === 16 || kind === 24 || kind === 25 || kind === 33 || kind === 36 || kind === 39 || kind === 40 || kind === 41 /* v402 */ || (kind >= 45 && kind <= 47) || kind === 49 || kind === 52 /* v404 LT */ || (kind >= 53 && kind <= 58 && kind !== 55) /* v404 DK */ || (kind >= 60 && kind <= 63) /* v409 DK2 */ || kind === 68 || kind === 69 /* v412 LM */ || kind === 71 /* v391 U4 */ || kind === 80 || kind === 82 || (kind >= 84 && kind <= 87) /* v415 EB */ || (kind >= 73 && kind <= 75) || kind === 78 /* v415 EA */ || kind === 89 || kind === 90 /* v415 TI */ || (kind >= 104 && kind <= 106) /* v417 BR */ || kind === 96 || kind === 97 /* v417 GH */ || kind === 112 || kind === 115 /* v417 MH */ || kind === 124 /* v418 AB */ || kind === 137 /* v420 GC */ || kind === 144 || kind === 145 /* v420 CB */ || kind === 216 || kind === 218 /* v430 BW */ || kind === 244 /* v433 DS */, wd =kind >= 33 && kind <= 40;
       const ka = wd ? (solid ? 'wsmk' : 'wlit') : (solid ? 'smk' : 'lit'), kn = wd ? (solid ? 'nws' : 'nwl') : (solid ? 'ns' : 'nl'); let A = this[ka]; const n = this[kn];
       if ((n + 6) * 12 > A.length) { const q = new Float32Array(A.length * 2); q.set(A); A = q; this[ka] = q; }
       const cx = this.X(x, y), cy = this.Y(x, y), a = this.a, b = this.b, c = this.c0, d = this.d, Ux = a * ux + c * uy, Uy = b * ux + d * uy, Vx = a * vx + c * vy, Vy = b * vx + d * vy, C = rgbOf(col); let o = n * 12;

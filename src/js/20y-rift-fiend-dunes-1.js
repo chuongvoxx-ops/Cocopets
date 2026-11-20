@@ -68,7 +68,10 @@ const DuneFiend = (() => {
    petals breathe and twitch and the blades drift round it; before each spit the bud swells, opens a little and the
    blades draw in, and every spit pops it open; it rears up out of the sand and blooms with a roar on entering and on
    the second phase; struck, it flinches and the blades jolt out; forced up, it writhes end to end in full bloom, the
-   orb flickering and the blades hanging round it in a slow halo. */
+   orb flickering and the blades hanging round it in a slow halo.
+   (v433 DA) Drawn on the GPU where it can be (20y1-sarrukh-gl.js: SAR3, a GLM model at the Drowned Belfry's fidelity posed on this
+   file's own body, its moves' light on the FGFX painter, its own fall); the 2D serpent below is the fallback without WebGL. The fight
+   is unchanged; its health is the rift's main-boss health (foeK.boss) and its blows reach the pet as its own (x foeK.dmg). */
 RiftFiend.define({ id: 'sarrukh', name: 'Sarrukh', title: 'The Bloom Serpent', color: '#E7D9B1', glow: '#62BFC9', accent: '#DFFFF8', biome: 'dunes', r: 2.4, els: ['earth', 'dark'] }, (() => {
   const { TAU, TN, ell, hit } = RiftFiend, G = DuneFiend, tubeLite = TN.tubeLite;
   const { OCHRE, OCHRE_SH, OCHRE_HI, BASALT, BASALT_SH, BASALT_HI, BONE, BONE_SH, BONE_HI, CYAN, CYAN_HI, AMBER, INK, decay, toward, lerp } = G;
@@ -85,27 +88,43 @@ RiftFiend.define({ id: 'sarrukh', name: 'Sarrukh', title: 'The Bloom Serpent', c
   const CRES = [], CRES_LIT = [], CRES_EDGE = [], KITE = [[1.15, 0], [0, 0.42], [-0.6, 0], [0, -0.42]], KITE_LIT = [[1.15, 0], [-0.6, 0], [0, -0.42]], KITE_EDGE = [[-0.6, 0], [0, -0.42], [1.15, 0]];
   for (let i = 0; i <= 6; i++) { const x = i / 3 - 1; CRES.push([x, -0.62 * (1 - x * x)]); CRES_EDGE.push([x, -0.62 * (1 - x * x)]); CRES_LIT.push([x, -0.62 * (1 - x * x)]); }
   for (let i = 5; i >= 1; i--) { const x = (i / 3 - 1) * 0.85; CRES.push([x, -0.14 * (1 - x * x)]); CRES_LIT.push([x, -0.36 * (1 - x * x)]); }
+  /* (v433 DA) the GPU model and its light (SAR3, 20y1-sarrukh-gl.js); without them the 2D serpent and its 2D effects, as before. Its
+     warnings are the engine's own (the same shape, moment and damage), marked 'sar' and shaped 'fn' so the engine paints nothing of
+     them: their picture is light in the sand (SAR3.overlay), or, without the GPU painter, the engine's old 2D shape drawn from geo */
+  const S3 = () => { try { return typeof SAR3 !== 'undefined' ? SAR3 : null; } catch (e) { return null; } }, glOn = () => { const o = S3(); return !!(o && o.on()); }, fxOn = () => { const o = S3(); return !!(o && o.fx()); };
+  const mark = (FX, o, kind) => { if (!fxOn()) return FX.tele(o); const geo = o.shape, tmp = {}, s = FX.tele(Object.assign(o, { geo, shape: 'fn', sar: kind, seed: Math.random() * 40 })); s.test = (x, y, rr) => { Object.assign(tmp, s); tmp.shape = geo; return FX.inShape(tmp, x, y, rr); }; return s; };
+  const boom = (FX, x, y, r, col, core, o) => { if (fxOn()) S3().erupt(FX, x, y, r, { n: o && o.n, shake: o && o.shake }); else FX.H.boom(x, y, r, col, core, o); };
+  // (v433 DA) the rift's main-boss health (riftDef's F.rift.foeK.boss: x2 in the Dunes), as the Belfry's bosses take it: its blows
+  // land at 1/K (the weak point's too), so its effective health is K times; its bars read as before
+  const bossK = FX => { const K = FX && FX.F && FX.F.rift && FX.F.rift.foeK; return K && K.boss > 0 ? K.boss : 1; };
   return {
     arenaR: 15, firstAct: 'hunt',
     artPoses: [{ name: 'the wake', mem: { demo: 'under', hd: 0.3 } }, { name: 'breaching', mem: { demo: 'arc', hd: 1.0, arcProg: 4.2 } }, { name: 'surfaced to spit: the bud swells', mem: { demo: 'surf', hd: 1.57, menace: 1, jaw: 1, bloom: 0.45, wind: 0.8 } }, { name: 'forced up: the heart bared', mem: { demo: 'lie', hd: 1.57, lie: 1, jaw: 1, bloom: 1 } }],
     phaseNames: ['The Gullet', 'The Second Wake', 'The Swallowing', 'The Last Wake'],
     paintGround(c, A) { G.floor(c, A, { extra: (c2, A2) => { const R = A2.R;
       // the spires' footings: rings of basalt rubble; and the gullet's rings: concentric ridges in the sand toward the middle
-      SP_A.forEach(a => { const x = Math.cos(a) * (R - 2.6), y = Math.sin(a) * (R - 2.6); c2.fillStyle = BASALT; c2.beginPath(); c2.ellipse(x, y + 0.2, 1.4, 0.75, 0, 0, TAU); c2.fill(); c2.strokeStyle = BASALT_SH; c2.lineWidth = 0.12; c2.stroke(); c2.fillStyle = 'rgba(98,191,201,.15)'; c2.beginPath(); c2.ellipse(x, y + 0.15, 1.1, 0.55, 0, 0, TAU); c2.fill(); });
+      // (v433 DA) each footing a scoop of dark sand ringed by basalt rubble, lit on top, cyan cracks running out from it (painted once with the ground)
+      SP_A.forEach((a, si) => { const x = Math.cos(a) * (R - 2.6), y = Math.sin(a) * (R - 2.6), rn = mulberry32(71 + si);
+        let gr = c2.createRadialGradient(x, y + 0.15, 0.1, x, y + 0.15, 1.9); gr.addColorStop(0, 'rgba(40,28,22,.55)'); gr.addColorStop(0.55, 'rgba(80,56,30,.3)'); gr.addColorStop(1, 'rgba(110,80,40,0)'); c2.fillStyle = gr; c2.beginPath(); c2.ellipse(x, y + 0.15, 1.9, 1.15, 0, 0, TAU); c2.fill();
+        c2.save(); c2.globalCompositeOperation = 'lighter'; c2.strokeStyle = 'rgba(98,191,201,.22)'; c2.lineWidth = 0.07; c2.lineCap = 'round'; for (let k = 0; k < 6; k++) { let px = x, py = y + 0.15, an = k / 6 * TAU + rn() * 0.6; c2.beginPath(); c2.moveTo(px, py); for (let j = 0; j < 4; j++) { px += Math.cos(an) * 0.45; py += Math.sin(an) * 0.3; an += (rn() - 0.5) * 0.8; c2.lineTo(px, py); } c2.stroke(); } c2.restore();
+        for (let k = 0; k < 11; k++) { const b = k / 11 * TAU + rn() * 0.4, d = 0.95 + rn() * 0.35, sx = x + Math.cos(b) * d * 1.1, sy = y + 0.15 + Math.sin(b) * d * 0.62, s = 0.16 + rn() * 0.2;
+          c2.fillStyle = BASALT_SH; c2.beginPath(); c2.ellipse(sx + 0.04, sy + 0.05, s * 1.1, s * 0.6, 0, 0, TAU); c2.fill(); c2.fillStyle = BASALT; c2.beginPath(); c2.moveTo(sx - s, sy + s * 0.2); c2.lineTo(sx - s * 0.4, sy - s * 0.6); c2.lineTo(sx + s * 0.5, sy - s * 0.55); c2.lineTo(sx + s, sy + s * 0.15); c2.closePath(); c2.fill(); c2.fillStyle = 'rgba(122,110,140,.55)'; c2.beginPath(); c2.moveTo(sx - s * 0.4, sy - s * 0.6); c2.lineTo(sx + s * 0.5, sy - s * 0.55); c2.lineTo(sx + s * 0.1, sy - s * 0.15); c2.closePath(); c2.fill(); } });
       c2.strokeStyle = 'rgba(110,70,25,.22)'; c2.lineWidth = 0.3; for (let i = 0; i < 3; i++) { c2.beginPath(); c2.arc(0, 0, 3 + i * 2.6, 0, TAU); c2.stroke(); } } }); },
     sky(c, W, H, t, cam, T) { G.sky(c, W, H, t, cam, T); },
     /* ---- the fight ---- */
     init(FX) { const M = FX.mem, m = FX.m; m.noTouch = true; m.act = 'enter'; m.x = FX.C.x; m.y = FX.C.y - 3;
       Object.assign(M, { hd: Math.PI / 2, mode: 'surf', rise: 0, zs: new Float32Array(N).fill(-1.2), up: new Uint8Array(N), trail: [], px: m.x, py: m.y, vx: 0, vy: 0, spd: 0, wph: 0, menace: 0, jaw: 0, roar: 0, recoil: 0, lie: 0, bt: 0, twT: 1, tw: 0, spires: SP_A.map(() => ({ obj: null, respawnT: 0 })), broodT: 12, wasEnter: true, roared: false, wasStun: false, seen: {}, sprayT: 0, wk: null, br: null, arcX: m.x, arcY: m.y, arcA: Math.PI / 2, arcProg: 0, surfT: 0, spitT: 0, bloom: 0, peek: 0, wind: 0, bA: 0, bS: 0, turn: 0, lastHd: Math.PI / 2, colT: 0 });
       for (let i = 0; i < 80; i++) M.trail.push({ x: m.x, y: m.y - i * 0.25 });
+      M.bossK = bossK(FX); if (S3()) S3().init(FX);   // (v433 DA: its health x foeK.boss; the GPU model's own state)
       SP_A.forEach((a, i) => spawnSpire(FX, i)); },
     phase(FX, p, lv) { const M = FX.mem, m = FX.m; M.roar = 1; M.jaw = 1; M.menace = 1; M.broodT = 3; FX.H.shake(10, 0.5); FX.H.flash(0.2, CYAN); FX.H.sfx.crash(); FX.H.sparks(m.x, m.y - 2, CYAN, 18, 7); G.sand(FX, m.x, m.y, 14, 1.6);
+      if (fxOn()) { S3().roarFx(FX); S3().erupt(FX, m.x, m.y, 2.4, { shake: 0 }); }   // (v433 DA: the roar's bloom of light, the sand thrown up)
       M.spires.forEach((h, i) => { if (!h.obj || h.obj.dead) { h.respawnT = 0; spawnSpire(FX, i); } });
       if (lv >= 2) FX.H.banner('THE SECOND WAKE', 'It runs two wakes; dune skitters burst from the sand', CYAN, 2.6, true); if (lv >= 4) FX.H.banner('The Last Wake', 'The sand itself hunts', '#FF6A5A', 2.2); },
     ai(FX, m, dt) {
       const M = FX.mem, me = FX.me, C = FX.C, P = FX.S.lv, fast = (1 + (P - 1) * 0.08) * FX.S.fast, d = FX.dist(m.x, m.y); m.actT += dt; m.noTouch = true;
       M.spires.forEach((h, i) => { if ((!h.obj || h.obj.dead) && !h.respawnT) h.respawnT = 14; if (h.respawnT) { h.respawnT -= dt; if (h.respawnT <= 0) { h.respawnT = 0; spawnSpire(FX, i); } } });
-      if (P >= 2 && (M.broodT -= dt) <= 0 && m.act === 'hunt') { M.broodT = P >= 4 ? 9 : 13; for (let i = 0; i < 2; i++) { const a = Math.random() * TAU, p = FX.clampArena({ x: me.x + Math.cos(a) * 3, y: me.y + Math.sin(a) * 3 }, 1.5); FX.tele({ shape: 'circle', x: p.x, y: p.y, r: 1.1, t: 0.9, dmg: m.dmg * 0.6, col: BONE, fn: s => { G.sand(FX, s.x, s.y, 8, 1); FX.H.sfx.pop(); if (FX.m && !FX.m.dead) FX.minion('skitter', s.x, s.y); } }); } FX.H.text(me.x, me.y - 2, 'Skitters burst from the sand', BONE, 13); }
+      if (P >= 2 && (M.broodT -= dt) <= 0 && m.act === 'hunt') { M.broodT = P >= 4 ? 9 : 13; for (let i = 0; i < 2; i++) { const a = Math.random() * TAU, p = FX.clampArena({ x: me.x + Math.cos(a) * 3, y: me.y + Math.sin(a) * 3 }, 1.5); mark(FX, { shape: 'circle', x: p.x, y: p.y, r: 1.1, t: 0.9, dmg: m.dmg * 0.6, col: BONE, fn: s => { G.sand(FX, s.x, s.y, 8, 1); FX.H.sfx.pop(); if (fxOn()) S3().erupt(FX, s.x, s.y, 1.0, { small: true, shake: 0 }); if (FX.m && !FX.m.dead) FX.minion('skitter', s.x, s.y); } }, 'brood'); }   /* v433 DA: its tell light in the sand */ FX.H.text(me.x, me.y - 2, 'Skitters burst from the sand', BONE, 13); }
       let menace = 0, jaw = 0;
       switch (m.act) {
         case 'hunt': {   // under the sand, circling the pet by its wake; then chooses
@@ -125,7 +144,7 @@ RiftFiend.define({ id: 'sarrukh', name: 'Sarrukh', title: 'The Bloom Serpent', c
         case 'spit': { const S = M.sp;
           if (!S.go) { M.mode = 'under'; menace = 0.7; glide(FX, m, M, m.x, m.y, 1, dt, 1); M.hd = FX.K.lerpA(M.hd, FX.angPet(m.x, m.y), Math.min(1, dt * 4)); if (m.actT > S.wait + 1.5) { m.act = 'hunt'; m.actT = 0; } break; }
           M.mode = 'surf'; menace = 1; jaw = 1; M.hd = FX.K.lerpA(M.hd, FX.angPet(m.x, m.y), Math.min(1, dt * 2.5)); M.spitT -= dt;
-          if (M.spitT <= 0 && M.rise > 0.7) { M.spitT = P >= 3 ? 0.45 : 0.6; M.recoil = 0.6; const hp = headAt(M, m), a = FX.angPet(m.x, m.y) + (Math.random() - 0.5) * 0.3; FX.fan(hp[0] + Math.cos(a) * HR, hp[1] + Math.sin(a) * HR, a, P >= 2 ? 7 : 5, 1.0, 6.5 * fast, { dmg: m.dmg * 0.5, color: OCHRE, core: '#FFF0C2', r: 0.26 }); FX.H.sfx.whoosh(); FX.H.sparks(hp[0] + Math.cos(a) * HR, hp[1] - hp[2] + Math.sin(a) * HR, OCHRE_HI, 6, 5); }
+          if (M.spitT <= 0 && M.rise > 0.7) { M.spitT = P >= 3 ? 0.45 : 0.6; M.recoil = 0.6; const hp = headAt(M, m), a = FX.angPet(m.x, m.y) + (Math.random() - 0.5) * 0.3; FX.fan(hp[0] + Math.cos(a) * HR, hp[1] + Math.sin(a) * HR, a, P >= 2 ? 7 : 5, 1.0, 6.5 * fast, { dmg: m.dmg * 0.5, color: OCHRE, core: '#FFF0C2', r: 0.26 }); FX.H.sfx.whoosh(); FX.H.sparks(hp[0] + Math.cos(a) * HR, hp[1] - hp[2] + Math.sin(a) * HR, OCHRE_HI, 6, 5); if (fxOn()) S3().spitFx(FX, hp[0], hp[1] - hp[2], a, 0.55); }   /* v433 DA: a fan of lit grit from the bloom */
           if (m.actT > S.wait + 3.0) { dive(FX, m, true); m.act = 'hunt'; m.actT = 0; }
           break; }
       }
@@ -133,11 +152,11 @@ RiftFiend.define({ id: 'sarrukh', name: 'Sarrukh', title: 'The Bloom Serpent', c
       FX.parts(bodyParts(m, M));
     },
     stunned(FX, m, dt) { const M = FX.mem; M.mode = 'lie'; M.lie = Math.min(1, M.lie + dt * 2.5); M.jaw = toward(M.jaw, 1, dt, 3); M.menace = decay(M.menace, dt, 4); m.noTouch = true;
-      const p = orbAt(FX, M, m); FX.weak('throat', p[0], p[1], 1.3, 2.4, m.stunT > 0.05);
+      const p = glOn() ? S3().orbAt(FX, m) : orbAt(FX, M, m); FX.weak('throat', p[0], p[1], 1.3, 2.4 / (M.bossK || 1), m.stunT > 0.05);   // (v433 DA: where the GPU model's orb shows; its blows at 1/foeK.boss)
       // thrashing end to end: sand flung with every heave
       M.kickT = (M.kickT || 0) - dt; if (M.kickT <= 0) { M.kickT = 0.3; const B = body(M, m), q = B[2 + Math.floor(Math.random() * (N - 3))]; grit(FX, q.x, q.y, 5, 0.9); FX.H.shake(2, 0.08); if (Math.random() < 0.4) FX.H.sfx.thud(); }
       FX.parts(bodyParts(m, M)); },
-    update(FX, dt) { const M = FX.mem, m = FX.m; if (!m) return; M.bt += dt;
+    update(FX, dt) { const M = FX.mem, m = FX.m; if (!m) return; M.bt += dt; if (S3()) S3().update(FX, dt); if (M.dead3) return;   // (v433 DA: the GPU model's motion and its fall, which takes the body over)
       if (!(m.stunT > 0)) { if (FX.S.weak.throat) FX.weak('throat', 0, 0, 0, 0, false); if (M.wasStun) { M.wasStun = false; dive(FX, m, false); M.recoil = 0.8; FX.H.text(m.x, m.y - 2, 'It dives', OCHRE_HI, 13); } } else M.wasStun = true;
       // how it moves: its speed drives the wave down its body and the spray off its wake
       if (dt > 1e-4) { const vx = (m.x - M.px) / dt, vy = (m.y - M.py) / dt; M.px = m.x; M.py = m.y; M.vx = toward(M.vx, vx, dt, 10); M.vy = toward(M.vy, vy, dt, 10); M.spd = toward(M.spd, Math.hypot(vx, vy), dt, 6); }
@@ -175,19 +194,31 @@ RiftFiend.define({ id: 'sarrukh', name: 'Sarrukh', title: 'The Bloom Serpent', c
       // the entrance: it heaves up out of the Gullet's sand, rears with a roar, mouth agape at the sky, and plunges
       if (m.act === 'enter') { const e = FX.S.enterT || 0; M.mode = e > 0.8 ? 'surf' : 'under'; M.hd = Math.PI / 2; if (e > 1.4) { M.menace = toward(M.menace, 1, dt, 5); M.jaw = toward(M.jaw, 1, dt, 3); if (!M.roared) { M.roared = true; M.roar = 1; FX.H.sfx.crash(); FX.H.shake(8, 0.4); G.sand(FX, m.x, m.y, 16, 1.8); } } }
       else if (M.wasEnter) { M.wasEnter = false; dive(FX, m, false); M.recoil = 1; } },
-    dmgK() { return 1; },
-    keep: { steps: 2, pad: 3 },
-    draw(c, FX, m, X, Y, T, t, step) { drawWorm(c, FX, m, X, Y + (m.z || 0) * T * 4, T, t, step); },
-    drawObj(c, FX, o, X, Y, T, t) { if (o.kind === 'spire') drawSpire(c, FX, o, X, Y, T, t); },
+    dmgK(FX) { return 1 / ((FX && FX.mem && FX.mem.bossK) || bossK(FX)); },   // (v433 DA: the rift's main-boss health, x foeK.boss)
+    get keep() { return glOn() ? null : { steps: 2, pad: 3 }; }, get MODEL() { return S3(); },   // (v433 DA: the 2D serpent is a kept picture; the GPU model is drawn live)
+    draw(c, FX, m, X, Y, T, t, step) { if (glOn() && S3().drawBoss(c, FX, m, X, Y + (m.z || 0) * T * 4, T, t)) return; drawWorm(c, FX, m, X, Y + (m.z || 0) * T * 4, T, t, step); },   // (v433 DA)
+    drawObj(c, FX, o, X, Y, T, t) { if (o.kind === 'spire') { if (!(glOn() && S3().drawSpire(c, FX, o, X, Y, T, t))) drawSpire(c, FX, o, X, Y, T, t); else spireWord(c, FX, o, X, Y, T); } },   // (v433 DA: the spire on the GPU, its word as before)
+    /* (v433 DA) the loading screen's jobs (the meshes, a first frame), the sand's light (the warnings), the light over everything, its fall */
+    preload(P) { const o = S3(); return o ? o.preload(P) : []; },
+    overlay(c, FX, t, T) { const o = S3(); if (o && FX.m) o.overlay(c, FX, t, T); },
+    drawFx(c, FX, T, t) { const o = S3(); if (o) o.drawFx(c, FX, T, t); },
+    drawProp(c, FX, p, X, Y, T, t) { const m = FX.m; if (p.kind !== 'sarHusk' || !m) return; if (glOn()) S3().drawBoss(c, FX, m, FX.sx(m.x), FX.sy(m.y), T, t); },
+    ending(FX, m) { if (!glOn()) return null;   // (the 2D serpent keeps the engine's own fall)
+      const M = FX.mem; FX.noParts(); FX.weak('throat', 0, 0, 0, 0, false); FX.S.tele.length = 0; M.wk = null; M.br = null; m.stunT = 0; FX.untarget(false);
+      if (!M.husk) { M.husk = { kind: 'sarHusk', x: m.x, y: m.y + 0.05 }; FX.S.props.push(M.husk); } S3().die(FX, m);
+      return { title: 'SARRUKH SINKS', sub: 'The bloom bursts, and the sand closes over it', col: CYAN, delay: 6.4, bannerAt: 2.2, fanfareAt: 2.2, quiet: true, slow: 0.45 }; },
+    camFocus(FX, m) { const S = FX.mem && FX.mem.g3; if (!S || !S.end || !glOn()) return null; const u = Math.min(1, S.end.t / 1.2); return { x: m.x, y: m.y - 1.6, k: 0.6 + 0.3 * u, zoom: 0.62 }; },
+    force(FX, k) { const m = FX.m; if (!m || m.dead || m.act === 'enter') return; m.stunT = 0; FX.S.tele.length = 0; if (k === 'resonate') { FX.mem.mode = 'under'; resonate(FX, m); return; } ({ wake: m2 => startWake(FX, m2, 1), breach: m2 => startBreach(FX, m2), spit: m2 => startSpit(FX, m2) })[k](m); },   // (v433 DA: tests: start an act now)
+    G2: { posed, bud: budOf, blades: bladesOf, N, SEG },   // (v433 DA: the GPU model's view of the fight's body)
   };
   /* ---- the resonator spires: three, round the Gullet; broken while the worm is under, their note forces it up ---- */
-  function spawnSpire(FX, i) { const p = spireAt(FX.C, i), h = FX.mem.spires[i]; h.obj = FX.obj({ kind: 'spire', x: p[0], y: p[1], r: 0.9, hp: FX.S.barHP * 0.03, idx: i, onKill: o => { const m = FX.m, M = FX.mem; if (!m || m.dead) return; FX.H.boom(o.x, o.y, 1.3, CYAN, '#FFFFFF', { n: 16, shake: 7 }); FX.H.sfx.crack(); for (let k = 0; k < 8; k++) FX.H.part({ kind: 'shard', x: o.x, y: o.y - 1, vx: FX.rnd(-3, 3), vy: FX.rnd(-5, -1), g: 8, life: 0.8, max: 0.8, size: 5, rot: Math.random() * 3, vr: 6, color: BASALT_HI });
+  function spawnSpire(FX, i) { const p = spireAt(FX.C, i), h = FX.mem.spires[i]; h.obj = FX.obj({ kind: 'spire', x: p[0], y: p[1], r: 0.9, hp: FX.S.barHP * 0.03, idx: i, onKill: o => { const m = FX.m, M = FX.mem; if (!m || m.dead) return; if (fxOn()) { S3().resonance(FX, o.x, o.y, 2.6, 3.4); S3().erupt(FX, o.x, o.y, 1.3, { n: 16, shake: 7, col: CYAN_HI }); } else FX.H.boom(o.x, o.y, 1.3, CYAN, '#FFFFFF', { n: 16, shake: 7 }); FX.H.sfx.crack();   /* v433 DA: its note bursts out as light */ for (let k = 0; k < 8; k++) FX.H.part({ kind: 'shard', x: o.x, y: o.y - 1, vx: FX.rnd(-3, 3), vy: FX.rnd(-5, -1), g: 8, life: 0.8, max: 0.8, size: 5, rot: Math.random() * 3, vr: 6, color: BASALT_HI });
     if (M.mode === 'under' && !(m.stunT > 0) && m.act !== 'enter') resonate(FX, m); else FX.H.text(o.x, o.y - 2, 'The note finds nothing beneath', CYAN_HI, 13); } }); }
   function resonate(FX, m) { const M = FX.mem; m.stunT = 6; m.act = 'hunt'; m.actT = 0; M.mode = 'lie'; M.lie = 0; M.wk = null; M.br = null; FX.S.tele.length = 0; FX.untarget(false); M.roar = 0.7; M.recoil = 1;
-    FX.H.banner('THE RESONANCE', 'It is forced up, in bloom: strike the glowing heart!', CYAN, 2.2, true); FX.H.shake(12, 0.5); FX.H.sfx.crash(); FX.H.ring(m.x, m.y, 0.3, 6, 0.6, CYAN, 0.4); const B = body(M, m); for (let i = 0; i < N; i += 2) G.sand(FX, B[i].x, B[i].y, 6, 1.4); }
-  function dive(FX, m, quake) { const M = FX.mem; M.mode = 'under'; M.rise = 0; G.sand(FX, m.x, m.y, 14, 1.6); FX.H.shake(6, 0.3); FX.H.sfx.thud(); if (quake) quakeRings(FX, m, m.x, m.y); }
+    FX.H.banner('THE RESONANCE', 'It is forced up, in bloom: strike the glowing heart!', CYAN, 2.2, true); FX.H.shake(12, 0.5); FX.H.sfx.crash(); if (fxOn()) { S3().resonance(FX, m.x, m.y, 7, 0); S3().erupt(FX, m.x, m.y, 2.6, { shake: 0 }); } else FX.H.ring(m.x, m.y, 0.3, 6, 0.6, CYAN, 0.4); const B = body(M, m);   /* v433 DA */ for (let i = 0; i < N; i += 2) G.sand(FX, B[i].x, B[i].y, 6, 1.4); }
+  function dive(FX, m, quake) { const M = FX.mem; M.mode = 'under'; M.rise = 0; G.sand(FX, m.x, m.y, 14, 1.6); FX.H.shake(6, 0.3); if (fxOn()) S3().erupt(FX, m.x, m.y, 1.8, { shake: 0 });   /* v433 DA */ FX.H.sfx.thud(); if (quake) quakeRings(FX, m, m.x, m.y); }
   function quakeRings(FX, m, x, y) { const M = FX.mem, P = FX.S.lv, n = P >= 2 ? 3 : 2;
-    for (let k = 0; k < n; k++) { const gaps = [[Math.random() * TAU, 0.45], [Math.random() * TAU, 0.4]]; FX.tele({ shape: 'ring', x, y, r0: 0.4, r1: 1.5, gaps, t: 0.5 + k * 0.7, dmg: m.dmg * 1.3, col: OCHRE_HI, linger: 2.6, tick: (dt, s) => { if (!s.done) return; const sp = 5.5 * FX.S.fast; s.r0 += sp * dt; s.r1 += sp * dt; s.hitT = (s.hitT || 0) - dt; if (s.hitT <= 0 && FX.inShape(s, FX.me.x, FX.me.y, FX.me.r)) { s.hitT = 1; FX.hurt(s.dmg); } }, fn: s => { FX.H.shake(6, 0.3); FX.H.sfx.thud(); for (let i = 0; i < 8; i++) { const a = i / 8 * TAU; G.sand(FX, s.x + Math.cos(a) * 1.2, s.y + Math.sin(a) * 0.8, 2, 0.8); } } }); }
+    for (let k = 0; k < n; k++) { const gaps = [[Math.random() * TAU, 0.45], [Math.random() * TAU, 0.4]]; mark(FX, { shape: 'ring', x, y, r0: 0.4, r1: 1.5, gaps, t: 0.5 + k * 0.7, dmg: m.dmg * 1.3, col: OCHRE_HI, linger: 2.6, tick: (dt, s) => { if (!s.done) return; const sp = 5.5 * FX.S.fast; s.r0 += sp * dt; s.r1 += sp * dt; s.hitT = (s.hitT || 0) - dt; if (s.hitT <= 0 && FX.inShape(s, FX.me.x, FX.me.y, FX.me.r)) { s.hitT = 1; FX.hurt(s.dmg); } }, fn: s => { FX.H.shake(6, 0.3); FX.H.sfx.thud(); for (let i = 0; i < 8; i++) { const a = i / 8 * TAU; G.sand(FX, s.x + Math.cos(a) * 1.2, s.y + Math.sin(a) * 0.8, 2, 0.8); } } }, 'quake'); }   /* v433 DA: a crest of sand-light rolling out */
     say(FX, 'quake', 'QUAKE RINGS', 'Rings roll out from where it dives: slip through the gaps', OCHRE_HI); }
   /* the steady sand off it as it moves (its wake, where it goes into the sand, its thrashing): streaks of grit only.
      (G.sand's dust puff is kept for the big moments, a breach or a dive; a puff for every grain of spray would lay an
@@ -199,17 +230,17 @@ RiftFiend.define({ id: 'sarrukh', name: 'Sarrukh', title: 'The Bloom Serpent', c
     // the line runs from the head through the pet to the Gullet's edge
     let len = 2; while (len < 26 && FX.inArena(m.x + Math.cos(a) * len, m.y + Math.sin(a) * len, 1.2)) len += 0.5; len = Math.min(len, far + 4);
     M.wk = { a, x0: m.x, y0: m.y, len, wait, go: false, prog: 0, hit: false, n }; m.act = 'wake'; m.actT = 0; FX.H.sfx.hum();
-    FX.tele({ shape: 'line', x: m.x, y: m.y, a, len, w: 2.4, t: wait, dmg: m.dmg * 1.3, col: CYAN, fn: () => { if (M.wk) M.wk.go = true; M.recoil = 0.5; FX.H.sfx.whoosh(); G.sand(FX, m.x, m.y, 10, 1.4); } });
+    mark(FX, { shape: 'line', x: m.x, y: m.y, a, len, w: 2.4, t: wait, dmg: m.dmg * 1.3, col: CYAN, fn: () => { if (M.wk) M.wk.go = true; M.recoil = 0.5; FX.H.sfx.whoosh(); G.sand(FX, m.x, m.y, 10, 1.4); if (fxOn()) S3().erupt(FX, m.x, m.y, 1.5, { shake: 0 }); } }, 'wake');   /* v433 DA: the lane trembles with resonance */
     say(FX, 'wake', n === 1 ? 'SAND WAKE' : 'SAND WAKE · AGAIN', 'Off the line: it surges beneath it', CYAN); }
   function startBreach(FX, m) { const M = FX.mem, me = FX.me, C = FX.C, wait = 1.5 / FX.S.fast, p = FX.clampArena({ x: me.x + (me.vx || 0) * 0.3, y: me.y + (me.vy || 0) * 0.3 }, 2.2);
     let a = Math.atan2(C.y - p.y, C.x - p.x) + (Math.random() - 0.5) * 1.2; if (!FX.inArena(p.x + Math.cos(a) * ARC_D, p.y + Math.sin(a) * ARC_D, 1.5)) a = Math.atan2(C.y - p.y, C.x - p.x);
     M.br = { x: p.x, y: p.y, a, wait, go: false }; m.act = 'breach'; m.actT = 0; FX.H.sfx.hum();
-    FX.tele({ shape: 'circle', x: p.x, y: p.y, r: 2.6, t: wait, dmg: m.dmg * 1.6, col: OCHRE_HI, fn: s => { const B = M.br; if (!B) return; B.go = true; M.arcX = m.x; M.arcY = m.y; M.arcA = B.a; M.arcProg = 0; M.mode = 'arc'; M.roar = 0.5; M.jaw = 1; FX.H.boom(s.x, s.y, 2.2, OCHRE_HI, '#FFFFFF', { n: 20, shake: 10, smoke: 6 }); G.sand(FX, s.x, s.y, 18, 2); FX.H.sfx.crash();
+    mark(FX, { shape: 'circle', x: p.x, y: p.y, r: 2.6, t: wait, dmg: m.dmg * 1.6, col: OCHRE_HI, fn: s => { const B = M.br; if (!B) return; B.go = true; M.arcX = m.x; M.arcY = m.y; M.arcA = B.a; M.arcProg = 0; M.mode = 'arc'; M.roar = 0.5; M.jaw = 1; boom(FX, s.x, s.y, 2.2, OCHRE_HI, '#FFFFFF', { n: 20, shake: 10, smoke: 6 });   /* v433 DA: the sand funnels, then erupts */ G.sand(FX, s.x, s.y, 18, 2); FX.H.sfx.crash();
       // where it comes down, and the rings that roll from it
-      const ex = s.x + Math.cos(B.a) * ARC_D, ey = s.y + Math.sin(B.a) * ARC_D; FX.tele({ shape: 'circle', x: ex, y: ey, r: 2.2, t: ARC_D / (8 * FX.S.fast), dmg: m.dmg * 1.2, col: OCHRE_HI, fn: s2 => { FX.H.boom(s2.x, s2.y, 1.8, OCHRE_HI, '#FFFFFF', { n: 14, shake: 8, smoke: 4 }); G.sand(FX, s2.x, s2.y, 14, 1.8); quakeRings(FX, m, s2.x, s2.y); } }); } });
+      const ex = s.x + Math.cos(B.a) * ARC_D, ey = s.y + Math.sin(B.a) * ARC_D; mark(FX, { shape: 'circle', x: ex, y: ey, r: 2.2, t: ARC_D / (8 * FX.S.fast), dmg: m.dmg * 1.2, col: OCHRE_HI, fn: s2 => { boom(FX, s2.x, s2.y, 1.8, OCHRE_HI, '#FFFFFF', { n: 14, shake: 8, smoke: 4 }); G.sand(FX, s2.x, s2.y, 14, 1.8); quakeRings(FX, m, s2.x, s2.y); } }, 'land'); } }, 'breach');
     say(FX, 'breach', 'BREACH', 'Off the ring: it erupts there and arcs over', OCHRE_HI); }
   function startSpit(FX, m) { const M = FX.mem, wait = 1.0 / FX.S.fast; M.sp = { wait, go: false }; m.act = 'spit'; m.actT = 0; M.spitT = 0.6; FX.H.sfx.hum();
-    FX.tele({ shape: 'circle', x: m.x, y: m.y, r: 2.2, t: wait, dmg: m.dmg * 1.2, col: BONE, tick: (dt, s) => { if (!s.done) { s.x = m.x; s.y = m.y; } }, fn: s => { if (M.sp) M.sp.go = true; M.roar = 0.4; FX.H.boom(s.x, s.y, 1.6, OCHRE_HI, '#FFFFFF', { n: 14, shake: 7, smoke: 5 }); G.sand(FX, s.x, s.y, 16, 1.8); FX.H.sfx.crash(); } });
+    mark(FX, { shape: 'circle', x: m.x, y: m.y, r: 2.2, t: wait, dmg: m.dmg * 1.2, col: BONE, tick: (dt, s) => { if (!s.done) { s.x = m.x; s.y = m.y; } }, fn: s => { if (M.sp) M.sp.go = true; M.roar = 0.4; boom(FX, s.x, s.y, 1.6, OCHRE_HI, '#FFFFFF', { n: 14, shake: 7, smoke: 5 }); G.sand(FX, s.x, s.y, 16, 1.8); FX.H.sfx.crash(); } }, 'spit');   /* v433 DA: the sand cracks open over it */
     say(FX, 'spit', 'SPIT GRIT', 'It surfaces and spits: between the fans, and strike it while it is up', BONE); }
   /* ---- the body: the head leads, the rest follows its trail; each segment has its own height out of the sand ---- */
   function push(M, m) { const tr = M.trail, last = tr[0]; if (!last || Math.hypot(m.x - last.x, m.y - last.y) > 0.1) { tr.unshift({ x: m.x, y: m.y }); if (tr.length > 160) tr.pop(); } }
@@ -227,7 +258,7 @@ RiftFiend.define({ id: 'sarrukh', name: 'Sarrukh', title: 'The Bloom Serpent', c
   function pitchOf(M) { if (M.mode === 'arc' || M.demo === 'arc') { const d2 = M.arcProg || 0; return d2 > 0 && d2 < ARC_D ? Math.atan(ARC_H * Math.PI / ARC_D * Math.cos(Math.PI * d2 / ARC_D) * 0.8) : -0.6; } if (M.mode === 'lie' || M.demo === 'lie') return 1.15 + Math.sin((M.bt || 0) * 3.1) * 0.2; if (M.mode === 'surf' || M.demo === 'surf') return 0.45 - (M.menace || 0) * 0.25 + (M.recoil || 0) * 0.35; return 0; }
   function fwdOf(M, k) { const hd = M.hd == null ? Math.PI / 2 : M.hd, p = pitchOf(M) * (k == null ? 1 : k), cp = Math.cos(p), sp = Math.sin(p); return [Math.cos(hd) * cp, Math.sin(hd) * cp, sp]; }
   // (every key is always listed: a segment under the sand shrinks to nothing at the head, rather than lingering where it was)
-  function bodyParts(m, M) { const B = body(M, m), out = []; [0, 3, 6, 9, 13].forEach((i, k) => { const p = B[i], up = p.z > -0.3; out.push(up ? { key: 'b' + k, dx: p.x - m.x, dy: p.y - Math.max(0, p.z) - m.y, r: k ? 1.0 : 1.5 } : { key: 'b' + k, dx: 0, dy: 0, r: 0.01 }); }); return out; }
+  function bodyParts(m, M) { const B = body(M, m), out = [], gl = glOn(); [0, 3, 6, 9, 13].forEach((i, k) => { const p = B[i], up = p.z > -0.3, lift = gl ? S3().liftOf(p.z, i / (N - 1)) * 0.695 : 0; out.push(up ? { key: 'b' + k, dx: p.x - m.x, dy: p.y - Math.max(0, p.z) - lift - m.y, r: k ? 1.0 : 1.5 } : { key: 'b' + k, dx: 0, dy: 0, r: 0.01 }); }); return out; }   // (v433 DA: lifted as the GPU model rests its body on the sand)
   /* ---- the spire: a basalt needle with a fork of bone at its top that hums cyan while the worm is under ---- */
   function drawSpire(c, FX, o, X, Y, T, t) { const M = FX.mem, cracked = 1 - o.hp / o.maxhp, under = M.mode === 'under' && FX.m && !(FX.m.stunT > 0) && FX.m.act !== 'enter' ? 1 : 0, hum = under ? 0.6 + 0.4 * Math.sin(t * 6 + o.idx) : 0.2, lw = Math.max(1.2, T * 0.07), sw = Math.sin(t * 1.3 + o.idx) * 0.02;
     c.save(); c.fillStyle = 'rgba(60,40,20,.3)'; c.beginPath(); c.ellipse(X, Y + T * 0.1, T * 0.9, T * 0.32, 0, 0, TAU); c.fill();
@@ -238,11 +269,15 @@ RiftFiend.define({ id: 'sarrukh', name: 'Sarrukh', title: 'The Bloom Serpent', c
     [-1, 1].forEach(sd => tubeLite(c, [[X + sd * T * 0.1, Y - T * 2.85], [X + sd * T * 0.3 + sw * T * 3, Y - T * 3.4], [X + sd * T * 0.36 + sw * T * 4, Y - T * 3.95]], u => T * (0.16 - u * 0.05), { col: BONE, shade: BONE_SH, hi: BONE_HI, line: INK, lw: lw * 0.8, force: true }));
     // the note: rings rising off the fork while it hums
     if (under) { c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = CYAN_HI; c.lineWidth = Math.max(1, T * 0.06); for (let i = 0; i < 3; i++) { const u = (t * 0.9 + i / 3 + o.idx * 0.2) % 1; c.globalAlpha = (1 - u) * 0.7; c.beginPath(); c.ellipse(X + sw * T * 4, Y - T * 3.6 - u * T * 1.2, T * (0.3 + u * 1.1), T * (0.12 + u * 0.4), 0, 0, TAU); c.stroke(); } c.restore();
-      c.font = `800 ${Math.round(T * 0.26)}px ${arcFont}`; c.textAlign = 'center'; c.lineWidth = 3; c.strokeStyle = 'rgba(0,0,0,.6)'; c.fillStyle = '#FFFFFF'; c.strokeText('RESONATE', X, Y - T * 4.5); c.fillText('RESONATE', X, Y - T * 4.5); }
+      spireWord(c, FX, o, X, Y, T); }
     c.restore(); }
+  // (v433 DA) its word while the worm is under (the 2D spire's and the GPU spire's)
+  function spireWord(c, FX, o, X, Y, T) { const M = FX.mem; if (!(M.mode === 'under' && FX.m && !(FX.m.stunT > 0) && FX.m.act !== 'enter')) return;
+    c.save(); c.font = `800 ${Math.round(T * 0.26)}px ${arcFont}`; c.textAlign = 'center'; c.lineWidth = 3; c.strokeStyle = 'rgba(0,0,0,.6)'; c.fillStyle = '#FFFFFF'; c.strokeText('RESONATE', X, Y - T * 4.5); c.fillText('RESONATE', X, Y - T * 4.5); c.restore(); }
   /* ---- painting: the wake; Astaroth's serpent wherever it is out of the sand; the bud, its heart and the blades ---- */
-  function drawWorm(c, FX, m, X, Y, T, t, step) {
-    const go = i => step == null || step === i, K = FX.K, M = FX.mem, P3 = TN.cam(X, Y, T, m), bt = M.bt || t, hs = m.hitSq || 0, roar = M.roar || 0, menace = M.menace || 0, lie = M.lie || (M.demo === 'lie' ? 1 : 0), wph = M.wph == null ? t * 3 : M.wph, lw = Math.max(1.4, T * 0.08);
+  /* (v433 DA) the body as drawn this frame (the 2D painter's and the GPU model's): its points out of the sand or under it, with the
+     swim's wave and the rear's bow on them */
+  function posed(FX, m, t) { const M = FX.mem, bt = M.bt || t, hs = m.hitSq || 0, lie = M.lie || (M.demo === 'lie' ? 1 : 0), wph = M.wph == null ? t * 3 : M.wph;
     if (M.demo && (!M.trail || !M.trail.length)) { M.hd = M.hd == null ? Math.PI / 2 : M.hd; M.mode = M.demo; M.trail = []; M.zs = new Float32Array(N); for (let i = 0; i < 90; i++) { const u = i * 0.15; M.trail.push({ x: m.x - Math.cos(M.hd) * u + Math.sin(u * 0.7) * 0.9 * Math.sin(M.hd), y: m.y - Math.sin(M.hd) * u - Math.sin(u * 0.7) * 0.9 * Math.cos(M.hd) }); } for (let i = 0; i < N; i++) M.zs[i] = M.demo === 'under' ? -1.2 : M.demo === 'surf' ? (i < 10 ? 4.2 * Math.pow(1 - i / 10, 1.2) : -1.2) : 0.3; M.rise = 1; }
     const B = body(M, m), under = M.mode === 'under';
     // rearing out of the sand it is seen to come up at once (the picture leads its heights a little, so the first
@@ -255,6 +290,10 @@ RiftFiend.define({ id: 'sarrukh', name: 'Sarrukh', title: 'The Bloom Serpent', c
       if (p.z > 0) p.z = lie > 0 ? p.z + Math.max(0, Math.sin(wph * 1.3 - i * 0.7)) * 0.45 * lie : Math.max(0.03, p.z + Math.cos(wph * 0.7 - i * 0.5) * 0.12 * u * amp); }
     // reared out of the sand, its neck bows back like a cobra's, the bud held out in front, swaying
     const rs = M.mode === 'surf' || M.demo === 'surf' ? (M.rise || 0) : 0; if (rs > 0) { const hd = M.hd == null ? Math.PI / 2 : M.hd, cx = Math.cos(hd), cy = Math.sin(hd); for (let i = 1; i < 10; i++) { const off = Math.sin(i / 9 * Math.PI) * 1.1 * rs * (1 + Math.sin(bt * 1.2) * 0.12); B[i].x -= cx * off; B[i].y -= cy * off; } }
+    return B; }
+  function drawWorm(c, FX, m, X, Y, T, t, step) {
+    const go = i => step == null || step === i, K = FX.K, M = FX.mem, P3 = TN.cam(X, Y, T, m), bt = M.bt || t, hs = m.hitSq || 0, roar = M.roar || 0, menace = M.menace || 0, lie = M.lie || (M.demo === 'lie' ? 1 : 0), wph = M.wph == null ? t * 3 : M.wph, lw = Math.max(1.4, T * 0.08);
+    const B = posed(FX, m, t), under = M.mode === 'under';   // (v433 DA)
     // (its girth, breathing at the shoulders)
     const wf = i => T * girth(i / (N - 1)) * (1 + hs * 0.1 + roar * 0.06 + Math.sin(bt * 1.6) * 0.04 * Math.max(0, 1 - i / 6));
     // the stretches of it out of the sand, each cut off exactly where it meets the sand (a point laid on the surface there)
@@ -312,14 +351,23 @@ RiftFiend.define({ id: 'sarrukh', name: 'Sarrukh', title: 'The Bloom Serpent', c
         c.save(); c.fillStyle = 'rgba(251,244,224,.8)'; for (let j = 0; j < 5; j++) { const ph = (bt * 1.6 + j * 0.21 + p.i * 0.3) % 1, a = j * 1.3 + p.i; c.globalAlpha = (1 - ph) * 0.8; c.beginPath(); c.arc(q[0] + Math.cos(a) * w * (0.3 + ph * 0.5), q[1] - w * (0.25 + ph * 0.6 - ph * ph * 0.9), T * (0.07 - ph * 0.04), 0, TAU); c.fill(); } c.restore(); } }
     fins.forEach(F => !F.far && fin(F));
     // the head: a flower bud on the end of the neck, or (still under the sand) the bud pushing up through the wake
-    const k = M.bloom || (M.demo === 'lie' ? 1 : 0), wind = M.wind || 0, sw = BUD * (1 + wind * 0.14 + hs * 0.08 + Math.sin(bt * 1.6) * 0.025);
-    if (hOut) { const h = B[0], F = budFrame(FX, M, m, [h.x, h.y, h.z]); drawBud(c, FX, m, M, P3, T, t, F, { k, sw, wind, lie, alpha: 1 }); }
-    else if (under && (M.peek || 0) > 0.02) { const pk = M.peek, hd = M.hd == null ? Math.PI / 2 : M.hd, pp = 1.0 + Math.sin(bt * 1.3) * 0.08, cp = Math.cos(pp), spp = Math.sin(pp), ch = Math.cos(hd), sh = Math.sin(hd), f = [ch * cp, sh * cp, spp], base = [m.x, m.y, -2.4 + pk * 3.0];
-      const F = { f, u: [-sh, ch, 0], v: [-ch * spp, -sh * spp, cp], base }, cy = Y - T * 0.45;
-      drawBud(c, FX, m, M, P3, T, t, F, { k, sw, wind, lie: 0, alpha: 1, clipY: cy, neck: true });
-      G.mound(c, X, cy + T * 0.2, T * 1.05, T * 0.42, 1); }
+    const bd = budOf(FX, m, B, t);   // (v433 DA: the bloom's state, shared with the GPU model)
+    if (bd && !bd.peek) drawBud(c, FX, m, M, P3, T, t, bd.F, { k: bd.k, sw: bd.sw, wind: bd.wind, lie: bd.lie, alpha: 1 });
+    else if (bd) { const cy = Y - T * 0.45; drawBud(c, FX, m, M, P3, T, t, bd.F, { k: bd.k, sw: bd.sw, wind: bd.wind, lie: 0, alpha: 1, clipY: cy, neck: true }); G.mound(c, X, cy + T * 0.2, T * 1.05, T * 0.42, 1); }
     if (roar > 0 && (hOut || under)) { const h = hOut ? B[0] : { x: m.x, y: m.y, z: 0.5 }, q = P3(h.x, h.y, Math.max(0, h.z) + 1); c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = roar * 0.35; blitSized(c, glowSprite(CYAN), q[0] - T * 3.5, q[1] - T * 3, T * 7, T * 6); c.restore(); }
   }
+  /* (v433 DA) the bloom's state (the 2D painter's and the GPU model's): its frame, how open, how big; pushing up through the wake
+     (peek) while the head is under; null when nothing of it shows */
+  function budOf(FX, m, B, t) { const M = FX.mem, bt = M.bt || t, hs = m.hitSq || 0, lie = M.lie || (M.demo === 'lie' ? 1 : 0), under = M.mode === 'under';
+    const k = M.bloom || (M.demo === 'lie' ? 1 : 0), wind = M.wind || 0, sw = BUD * (1 + wind * 0.14 + hs * 0.08 + Math.sin(bt * 1.6) * 0.025);
+    if (B[0].z > 0) { const h = B[0]; return { F: budFrame(FX, M, m, [h.x, h.y, h.z]), k, sw, wind, lie, peek: false }; }
+    if (under && (M.peek || 0) > 0.02) { const pk = M.peek, hd = M.hd == null ? Math.PI / 2 : M.hd, pp = 1.0 + Math.sin(bt * 1.3) * 0.08, cp = Math.cos(pp), spp = Math.sin(pp), ch = Math.cos(hd), sh = Math.sin(hd), f = [ch * cp, sh * cp, spp], base = [m.x, m.y, -2.4 + pk * 3.0];
+      return { F: { f, u: [-sh, ch, 0], v: [-ch * spp, -sh * spp, cp], base }, k, sw, wind, lie: 0, peek: true }; }
+    return null; }
+  /* (v433 DA) the blades' ring about the bloom (2D world points): a loose ring, bobbing; spinning up as it blooms, wide when it lies out */
+  function bladesOf(M, F, k, sw, lie, wind, hs, bt) { const { f, base } = F, spin = k * (1 - lie * 0.75), glowK = clamp((k - 0.2) / 0.5, 0, 1), bA = M.bA == null ? bt * 0.5 : M.bA, bS = M.bS == null ? bt * 0.4 : M.bS, Cb = [base[0] + f[0] * 0.85 * sw, base[1] + f[1] * 0.85 * sw, base[2] + f[2] * 0.85 * sw], R0 = 2.5 + lie * 0.6 - (wind || 0) * 0.6 + hs * 0.45 - spin * 0.15, list = [];
+    for (let j = 0; j < 6; j++) { const a = bA + j * TAU / 6, R = R0 + Math.sin(bt * 0.9 + j * 1.7) * 0.12; list.push({ p: [Cb[0] + Math.cos(a) * R, Cb[1] + Math.sin(a) * R, Cb[2] + Math.sin(bt * 1.7 + j * 2.1) * 0.22 * (1 - spin * 0.5) + lie * 0.35], a, R, j, rs: bS * (j % 2 ? 1 : -1) + j }); }
+    return { list, spin, glowK, c: Cb }; }
   // the bud's frame: f along it (its heading, tipped up by its pitch), u and v across. Surfaced or lying out it turns its
   // bud toward the pet; it sways a little always, and leans into its turns
   function budFrame(FX, M, m, h) { const mode = M.demo || M.mode, bt = M.bt || 0, me = FX.me; let hd = M.hd == null ? Math.PI / 2 : M.hd;
@@ -361,8 +409,7 @@ RiftFiend.define({ id: 'sarrukh', name: 'Sarrukh', title: 'The Bloom Serpent', c
       c.save(); c.globalAlpha = ko; c.fillStyle = CYAN; c.beginPath(); c.arc(q[0], q[1], rr, 0, TAU); c.fill(); c.fillStyle = '#E8FFFC'; c.beginPath(); c.arc(q[0] - rr * 0.15, q[1] - rr * 0.15, rr * 0.72, 0, TAU); c.fill(); c.strokeStyle = 'rgba(30,26,34,.55)'; c.lineWidth = Math.max(1, T * 0.04); c.beginPath(); c.arc(q[0], q[1], rr, 0, TAU); c.stroke(); c.fillStyle = '#FFFFFF'; c.beginPath(); c.arc(q[0] - rr * 0.35, q[1] - rr * 0.4, rr * 0.22, 0, TAU); c.fill(); c.restore();
       TN.twinkle(c, q[0], q[1], T * (0.4 + 0.2 * Math.sin(t * 4)) * ko * fl, '#FFFFFF', 0.9 * ko); } });
     // the blades: a loose ring about the middle of the bud, the far ones behind it and the near ones in front
-    const spin = k * (1 - lie * 0.75), glowK = clamp((k - 0.2) / 0.5, 0, 1), bA = M.bA == null ? bt * 0.5 : M.bA, bS = M.bS == null ? bt * 0.4 : M.bS, Cb = at(0.85 * sw, 0, 1, 0, 0), cd = dep(Cb), R0 = 2.5 + lie * 0.6 - (o.wind || 0) * 0.6 + hs * 0.45 - spin * 0.15, far = [], near = [];
-    for (let j = 0; j < 6; j++) { const a = bA + j * TAU / 6, R = R0 + Math.sin(bt * 0.9 + j * 1.7) * 0.12, p = [Cb[0] + Math.cos(a) * R, Cb[1] + Math.sin(a) * R, Cb[2] + Math.sin(bt * 1.7 + j * 2.1) * 0.22 * (1 - spin * 0.5) + lie * 0.35], b = { p, a, R, j, rs: bS * (j % 2 ? 1 : -1) + j }; (dep(p) < cd ? far : near).push(b); }
+    const BL = bladesOf(M, F, k, sw, lie, o.wind || 0, hs, bt), spin = BL.spin, glowK = BL.glowK, cd = dep(BL.c), far = [], near = []; for (const b of BL.list) (dep(b.p) < cd ? far : near).push(b);   // (v433 DA)
     const al = b => (o.clipY != null ? clamp((b.p[2] + 0.3) / 0.6, 0, 1) : 1) * o.alpha;
     far.forEach(b => blade(c, P3, T, b, spin, glowK, lw, al(b)));
     if (o.clipY != null) { c.save(); c.beginPath(); c.rect(hq[0] - T * 12, o.clipY - T * 16, T * 24, T * 16); c.clip(); }

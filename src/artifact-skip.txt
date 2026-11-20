@@ -3,14 +3,6 @@
 # These rifts are due to be rebuilt; when one is, delete its block so it comes back into the artifact.
 # In the artifact the game shows a left-out rift as "not built yet" (riftBuilt() is false), as it does for Rift 12.
 
-# Rift 03, The Mouth Beneath the Dunes (+ Scorpio gate)
-20r-rift-03-dunes.js
-20r1-rift-03-lands.js
-20s-rift-gate-scorpio.js
-20y-rift-fiend-dunes-1.js
-20y-rift-fiend-dunes-2.js
-20y-rift-fiend-dunes-3.js
-
 # Rift 04, The Sepulchre of Borrowed Hours (+ Gemini gate)
 20s1-rift-04-stages.js
 20s1b-rift-04-action.js
