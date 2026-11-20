@@ -11,6 +11,18 @@
     floor: ['#3A2449', '#402A50', '#352042'], grout: '#2A1634', hi: '#5A3F6B', top: '#4A8D7B', face: '#2F183A', faceD: '#1E0F26', cliff: '#2F183A', deco: '#F2D8A1',
     props: ['oak', 'fern', 'stump'], hazard: 'thorns', grade: 'rgba(168,94,135,.08)', fog: '#1E0F26', darkRGB: '30,15,38' };
   BIOME_ORDER.push('garden');
+  /* v437 GR: sections 2 and 3 in grounds and glows of their own (the user: "dungeons 2 and 3 here need a colour change up
+     because it feels same same"): section 2 a cool jade-green ground, darker and bluer than the grass, under an aquamarine
+     starry void; section 3 a deep slate-navy ground under a sapphire one. Each is the garden itself (Object.create: the
+     props, thicket, bridges, decals and the painted land's hooks, all set on BIOMES.garden by 20p2 / 20p3, are inherited)
+     with its own ground, wall face, fog and darkness colours; 20p3 paints the variant's ground, void and light (GARDEN_PROPS
+     VAR), 20p4 the traps' light, 20n9d the doors' light. Section 1 stays BIOMES.garden. */
+  BIOMES.garden2 = Object.assign(Object.create(BIOMES.garden), { bg: '#9FD8CC', mud: ['#183E38', '#1D4640'], mudSpot: 'rgba(160,255,230,.16)',
+    floor: ['#1F4A44', '#22504A', '#1C443F'], grout: '#13302C', hi: '#2F6A60', face: '#173A35', faceD: '#0B201D', cliff: '#173A35', grade: 'rgba(80,210,185,.08)', fog: '#081E1C', darkRGB: '6,26,24' });
+  BIOMES.garden3 = Object.assign(Object.create(BIOMES.garden), { bg: '#9FB0E0', mud: ['#1A2450', '#1F2A5A'], mudSpot: 'rgba(170,190,255,.16)',
+    floor: ['#1E2A55', '#22305E', '#1B264D'], grout: '#131B3A', hi: '#33427A', face: '#16204A', faceD: '#0B1130', cliff: '#16204A', grade: 'rgba(70,110,230,.08)', fog: '#080E28', darkRGB: '6,10,34' });
+  BIOME_ORDER.push('garden2', 'garden3');
+  if (typeof DARK_COL !== 'undefined') { DARK_COL.garden2 = '6,26,24'; DARK_COL.garden3 = '6,10,34'; }
   const PLUM = '#2F183A', ROSE = '#A85E87', JADE = '#4A8D7B', CREAM = '#F2D8A1', GOLD = '#FFD36B', INK = '#2B2433';
   // v423 GE: the garden's painted pictures (20p3, loaded after this file: asked for when drawn) and the GPU painter; null where off
   const GPP = () => (typeof window !== 'undefined' && window.GARDEN_PROPS && window.__GPP !== 0 && window.__BELP !== 0) ? window.GARDEN_PROPS : null;
@@ -632,10 +644,41 @@
     id: 'garden', n: 2, name: 'The Garden of Unborn Stars', lvl: 20, sigil: 'Bloom', biome: 'garden', aff: ['earth', 'dark'], region: 'the forest',
     blurb: 'A forest that grows eggs instead of fruit under three unmoving moons. March its seedlings, catch its stars.', gate: { anima: 'taurus', name: 'The Unbroken Constellation' },
     mons: ['thornling', 'milkcap', 'pollenmoth'], sealing: SEALING,
+    /* v437 GR: (the user: "too many dungeons in rift 2, half that ... Dungeon 1 > puzzle > boss > dungeon 2 > puzzle 2 > boss 2 >
+       dungeon 3 > puzzle 3 > boss 3") nine stages for twelve: each section its first dungeon (its mini boss, one random mod),
+       its puzzle, its boss. The retired dungeons (The Moss Terraces, The Pollen Galleries, The Root Cellars) are kept by name
+       only (retired: read by nothing). Sections 2 and 3 play in their own lands (biome: 'garden2' / 'garden3', above) */
     stages: riftSections([
-      { pattern: ['fight', 'puzzle', 'fight', 'boss'], mods: ['random', 'random'], fights: ['The Egg Orchard', 'The Moss Terraces'], minis: ['briarpet'], puzzles: [MARCH], boss: 'orrubel', bossName: 'Orrubel the Seed-Mother', bossRoom: 'The Cradle Bed' },
-      { pattern: ['fight', 'fight', 'puzzle', 'boss'], mods: ['random', 'random'], fights: ['The Glassless Conservatory', 'The Pollen Galleries'], minis: ['dustpet'], puzzles: [STARFALL], boss: 'ambrel', bossName: 'Ambrel the Void Moth', bossRoom: 'The Lantern Bower' },
-      { pattern: ['puzzle', 'fight', 'fight', 'boss'], mods: ['random', 'random'], fights: ['The Thorn Walks', 'The Root Cellars'], minis: ['rootpet'], puzzles: [GALLERY], boss: 'calyx', bossName: 'Calyx Astrum the Starborn Vine', bossRoom: 'The Hollow Under the Moons' },
+      { pattern: ['fight', 'puzzle', 'boss'], mods: ['random'], fights: ['The Egg Orchard'], retired: ['The Moss Terraces'], minis: ['briarpet'], puzzles: [MARCH], boss: 'orrubel', bossName: 'Orrubel the Seed-Mother', bossRoom: 'The Cradle Bed' },
+      { biome: 'garden2', pattern: ['fight', 'puzzle', 'boss'], mods: ['random'], fights: ['The Glassless Conservatory'], retired: ['The Pollen Galleries'], minis: ['dustpet'], puzzles: [STARFALL], boss: 'ambrel', bossName: 'Ambrel the Void Moth', bossRoom: 'The Lantern Bower' },
+      { biome: 'garden3', pattern: ['fight', 'puzzle', 'boss'], mods: ['random'], fights: ['The Thorn Walks'], retired: ['The Root Cellars'], minis: ['rootpet'], puzzles: [GALLERY], boss: 'calyx', bossName: 'Calyx Astrum the Starborn Vine', bossRoom: 'The Hollow Under the Moons' },
     ]),
   });
+
+  /* v437 GR: a save from the twelve-stage Garden. st.rift.prog.garden is the next stage to play; the old twelve were
+       0 Egg Orchard  1 MARCH  2 Moss Terraces  3 Orrubel | 4 Conservatory  5 Pollen Galleries  6 STARFALL  7 Ambrel |
+       8 GALLERY  9 Thorn Walks  10 Root Cellars  11 Calyx
+     and the nine are 0 Egg Orchard 1 MARCH 2 Orrubel | 3 Conservatory 4 STARFALL 5 Ambrel | 6 Thorn Walks 7 GALLERY 8 Calyx.
+     Each old checkpoint goes to the new stage that keeps what was done and skips no boss: a retired dungeon next moves on to
+     what follows it (2 -> Orrubel, 5 -> STARFALL, 10 -> Calyx); in section 3, where the puzzle now follows the dungeon, a run
+     that had solved the Gallery (9) keeps one stage done and plays the Gallery again (7), never the boss early. Once, on the
+     load (04-state's sanitize), keyed by st.rift.ver.garden (2 from now on); a seal, the gate and the Anima are untouched. */
+  const GARDEN_MIG12 = [0, 1, 2, 2, 3, 4, 4, 5, 6, 7, 8, 8], Rf2 = RIFT_BY_ID.garden;
+  Rf2.VER = 2; Rf2.mapOld = p => GARDEN_MIG12[Math.max(0, Math.min(11, p | 0))];
+  Rf2.migrate = (s, o) => { const r = s && s.rift; if (!r) return; if (!r.ver || typeof r.ver !== 'object') r.ver = {};
+    const was = o && o.rift && o.rift.ver && +o.rift.ver.garden || 0; if (was >= 2) { r.ver.garden = 2; return; }
+    if (r.prog && r.prog.garden != null) r.prog.garden = Math.min(Rf2.stages.length - 1, Rf2.mapOld(r.prog.garden));
+    r.ver.garden = 2; };
+
+  /* v437 GR: the stage exits are the Drowned Belfry's doors (BEL_DOORS, 20n9d: the same relief door, lock and swing, dust
+     and light), lit in the section's own light (its theme, registered by 20p3). The exit before a boss is the Belfry's boss
+     door (as its dungeon before Uldroth), the others its standard door. Positions, trigger radius and progression are the
+     stage's own (H.setExit): the door only reads whether the stage is done. The door is let go with the stage (BEL.onRelease,
+     as the Belfry's), its pictures painted on the loading screen (preload); without BELPROPS the old stone gate is drawn. */
+  const doorKind = i => { const nx = Rf2.stages[i + 1]; return nx && nx.kind === 'boss' ? 'boss' : 'std'; };
+  const DOORS = () => (typeof BEL_DOORS !== 'undefined' && BEL_DOORS && BEL_DOORS.stage && BEL_DOORS.themed) ? BEL_DOORS : null;
+  Rf2.everyStage = (X, self, H) => { const D = DOORS(), S = self.S || {}; if (!D || S.kind === 'boss' || !X.F.rift || X.F.rift.gate) return {};
+    const C = { t: 0, X, exitPos: () => H.exit() }; D.stage(X, C, doorKind(X.F.rift.stage), D.themed(X.F.biome || 'garden'));
+    return { update(dt) { C.t += dt; D.tick(C, dt, !!self.done); }, door: C }; };
+  Rf2.preload = P => { const D = DOORS(), S = P && P.S; if (!D || !S || S.kind === 'boss' || !P.F || !P.F.rift || P.F.rift.gate) return []; return D.warmDoor(P, doorKind(P.F.rift.stage), P.F.biome || 'garden'); };
 })();

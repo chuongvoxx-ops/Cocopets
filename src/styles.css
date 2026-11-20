@@ -2012,3 +2012,9 @@ body.in-map .outside-btn,body.in-mansion .outside-btn,body.home-mode .outside-bt
 .sk-fnote{margin-top:6px}
 .dev-skillpick .cgrid{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
 .dev-skillpick .acard{box-sizing:border-box}
+/* v437 GR: the frame counter (Settings > Frame counter; 09b-fps-meter.js): a 10 px tab at the top edge's middle, under the safe area,
+   above every screen's HUD (the room's pills, the map's chips, the rift header's title all start below it), never in the way of a tap */
+#fpsMeter{position:fixed;z-index:9999;left:50%;top:var(--sat,env(safe-area-inset-top,0px));transform:translateX(-50%);width:142px;height:10px;contain:strict;pointer-events:none;user-select:none;-webkit-user-select:none;box-sizing:border-box;padding:0 5px;border-radius:0 0 6px 6px;background:rgba(10,8,18,.58);color:#C8F5D2;font:700 8.5px/10px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:-.1px;text-align:center;white-space:nowrap;overflow:hidden;font-variant-numeric:tabular-nums}
+#fpsMeter[data-b="mid"]{color:#FFE08A}
+#fpsMeter[data-b="low"]{color:#FF9A9A}
+#fpsMeter[hidden]{display:none}

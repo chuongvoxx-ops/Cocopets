@@ -39,6 +39,8 @@
    Memory: the field and the pictures are let go when a stage is made or closed (GAMES.dungeon create / destroy, and
    BEL.onRelease); the pictures are warmed on the loading screen (the fight stages' S.preload) for the kinds that stage uses.
    window.__GT = 0 turns all of it off (the floors as before).
+   v437 GR: the Garden now has one fight stage a section (the Egg Orchard, the Glassless Conservatory, the Thorn Walks: each
+   its section's first, n 1); its traps are painted in the section's light (LIGHTS: section 2 aquamarine, section 3 sapphire).
    API (global GARDEN_TRAPS): place(X, H, { sec, n, seed, count, br, kinds, teach }) -> field; clear(); release(); KINDS;
    SPEC; fields(); dmg(field, kind); stats; draw(c, name, v, Xs, Ys, T, o); sprite(name, v, P); warm(P, sec) */
 var GARDEN_TRAPS = (() => {
@@ -73,7 +75,12 @@ var GARDEN_TRAPS = (() => {
   /* ======================= the pictures (BELPROPS.kit, in the garden's light) ======================= */
   const FR = 0.7;   // (a round thing lying on the floor, as these pictures draw it and its hit area is measured: its depth over its width)
   const LIGHT = { a0: [0.11, 0.07, 0.13], a1: [0.1, 0.08, 0.14], e0: [0.12, 0.08, 0.15], e1: [0.5, 0.44, 0.62], k: [1.16, 1.08, 1.0], rim: [0.46, 0.3, 0.52], bo: [0.06, 0.15, 0.12] };
-  function lit(K, fn) { const L = K.LIGHTS.bel, save = {}; for (const k in L) save[k] = L[k]; Object.assign(L, LIGHT); try { fn(); } finally { for (const k in save) L[k] = save[k]; } }
+  /* v437 GR: the traps take their section's light (section 2 aquamarine, section 3 sapphire: the shadows, the sky in the
+     reflections and the rim), as the garden's land and props do (20p3); their own colours are kept. LSEC: the section painted */
+  const LIGHTS = { 1: LIGHT, 2: { a0: [0.06, 0.11, 0.11], a1: [0.06, 0.11, 0.11], e0: [0.06, 0.12, 0.12], e1: [0.36, 0.56, 0.56], k: [1.12, 1.12, 1.04], rim: [0.28, 0.5, 0.46], bo: [0.05, 0.15, 0.12] },
+    3: { a0: [0.06, 0.07, 0.15], a1: [0.06, 0.07, 0.14], e0: [0.06, 0.08, 0.16], e1: [0.36, 0.44, 0.68], k: [1.1, 1.08, 1.12], rim: [0.26, 0.34, 0.6], bo: [0.05, 0.1, 0.14] } };
+  let LSEC = 1;
+  function lit(K, fn) { const L = K.LIGHTS.bel, save = {}; for (const k in L) save[k] = L[k]; Object.assign(L, LIGHTS[LSEC] || LIGHT); try { fn(); } finally { for (const k in save) L[k] = save[k]; } }
   const E = (k, r, g, b) => { const M = k.M; M.r = M.g = M.b = 0; M.fr = M.fg = M.fb = 0; M.mt = 0; M.rg = 1; M.cc = 0; M.sh = 0; M.ao = 0; M.er = r; M.eg = g; M.eb = b; };   // (a light layer: emission only)
   // materials (each sets k.M)
   function bark(k, u, v, sd) { const { M, vn, fbm, ss } = k, g = fbm(u * 3 + sd, v * 2.2 + sd * 0.5), fis = ss(0.08, 0.0, Math.abs(vn(u * 7 + sd, v * 1.6) - 0.5)); M.r = 0.17 * (0.7 + 0.55 * g); M.g = 0.1 * (0.7 + 0.55 * g); M.b = 0.13 * (0.7 + 0.55 * g); M.rg = 0.82; M.ao *= 1 - 0.45 * fis;
@@ -210,13 +217,13 @@ var GARDEN_TRAPS = (() => {
     try { S = K.surface(b[0], b[1], b[2], b[3], P); lit(K, () => { D.paint(K, S, v); S.unlock(); }); } catch (e) { if (typeof console !== 'undefined') console.warn('GARDEN_TRAPS', name, e); if (S) S.cv.width = S.cv.height = 1; return null; }
     const cv = document.createElement('canvas'); cv.width = S.w; cv.height = S.h; cv.getContext('2d').drawImage(S.cv, 0, 0); S.cv.width = S.cv.height = 1;   // (the work canvas given back at once: the plain copy is kept)
     const ms = now() - t0; STATS.painted++; STATS.paintMs += ms; budMs += ms; return { cv, ax: S.ax, ay: S.ay, P }; }
-  const keyOf = (name, v, P) => name + '|' + v + '|' + P;
+  const keyOf = (name, v, P) => (LSEC > 1 ? 's' + LSEC + ':' : '') + name + '|' + v + '|' + P;   // v437 GR: (sections 2 and 3: pictures of their own light)
   function sprite(name, v, P, force) { if (!DEFS[name] || !BP()) return null; P = Math.max(8, Math.round(P || BASE || 48)); const key = keyOf(name, v, P); let s = CACHE.get(key); if (s) return s;
     const t = now(); if (t - budT > 30) { budT = t; budMs = 0; } if (!force && budMs > 10) return null;   // (a painting budget: what does not fit waits a frame)
     s = paint(name, v, P); if (s) CACHE.set(key, s); return s; }
   function draw(c, name, v, Xs, Ys, T, o) { if (!BASE) return false; const s = CACHE.get(keyOf(name, v, BASE)) || sprite(name, v, BASE); if (!s) { STATS.misses++; return false; } o = o || {}; const f = T / s.P, sx = o.sx == null ? 1 : o.sx, sy = o.sy == null ? 1 : o.sy; STATS.draws++;
     c.save(); if (o.add) c.globalCompositeOperation = 'lighter'; if (o.alpha != null) c.globalAlpha *= clamp(o.alpha, 0, 1); c.translate(Xs, Ys); if (o.rot) c.rotate(o.rot); if (sx !== 1 || sy !== 1) c.scale(sx, sy); c.drawImage(s.cv, -s.ax * f, -s.ay * f, s.cv.width * f, s.cv.height * f); c.restore(); return true; }
-  function warm(P, sec) { if (!BP() || !P || !(P.T > 0) || off()) return []; BASE = Math.round(P.T * (P.k || 1)); const jobs = []; for (const kd of kindsOf(sec || 3)) for (const [n, v] of PICS[kd] || []) jobs.push(() => { sprite(n, v, BASE, true); }); return jobs; }
+  function warm(P, sec) { if (!BP() || !P || !(P.T > 0) || off()) return []; LSEC = clamp(sec || 1, 1, 3); BASE = Math.round(P.T * (P.k || 1)); const jobs = []; for (const kd of kindsOf(sec || 3)) for (const [n, v] of PICS[kd] || []) jobs.push(() => { sprite(n, v, BASE, true); }); return jobs; }   // v437 GR: (LSEC: the section's light)
   function releasePics() { CACHE.forEach(s => { if (s && s.cv) s.cv.width = s.cv.height = 1; }); STATS.released += CACHE.size; CACHE.clear(); BASE = 0; }
 
   /* ======================= placing ======================= */
@@ -433,7 +440,8 @@ var GARDEN_TRAPS = (() => {
     gpu(c, L); }
 
   /* ======================= the garden's fight stages ======================= */
-  function stageTraps(X, self, H, sec, n) { if (off() || !BP()) return null; if (!BASE) { try { BASE = Math.round(X.Tz() * Math.min(2, (typeof devicePixelRatio !== 'undefined' && devicePixelRatio) || 1)); } catch (e) { BASE = 48; } }
+  function stageTraps(X, self, H, sec, n) { if (off() || !BP()) return null; LSEC = clamp(sec || 1, 1, 3);   // v437 GR: (the section's light)
+    if (!BASE) { try { BASE = Math.round(X.Tz() * Math.min(2, (typeof devicePixelRatio !== 'undefined' && devicePixelRatio) || 1)); } catch (e) { BASE = 48; } }
     clear(); const F = place(X, H, { sec, n }); self.gtraps = F;
     return { update(dt) { if (F.live && !F.freeze) F.tick(Math.min(dt, 0.1)); }, drawGround(c) { F.drawGround(c); }, drawOver(c) { F.drawOver(c); } }; }
   function merge(a, b) { if (!b) return a; const o = Object.assign({}, a);

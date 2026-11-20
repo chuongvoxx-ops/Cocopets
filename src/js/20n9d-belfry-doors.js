@@ -31,7 +31,10 @@
    API (global BEL_DOORS): pic(c, name, v, Xs, Ys, T, o) a picture with its feet (or its centre) at a screen spot (o.sx a squash about o.pv px from them);
    stage(X, C, kind) / tick(C, dt) / claim(...) the exit door of the running stage; state(C) its door's numbers (tests);
    lockArt(c, kind, Xs, Ys, T, rot) a rosette; dust(key, x, y, w, k) a door's dust (draw-time) and fx(c) its light;
-   warm(P) the pictures painted at a stage's loading. */
+   warm(P) the pictures painted at a stage's loading.
+   v437 GR: the Garden of Unborn Stars' exits use these doors too, in its sections' light: a door may carry a theme
+   (defTheme / themed: the kit's light it is painted in, its rune glass, the colours of its GPU light and of the light in its
+   opening), its pictures cached apart; stage(X, C, kind, theme), warmDoor(P, kind, id). A door without one is the Belfry's. */
 var BEL_DOORS = (() => {
   const TAU = Math.PI * 2;
   const clamp = (v, a, b) => v < a ? a : v > b ? b : v, lerp = (a, b, u) => a + (b - a) * u;
@@ -70,7 +73,8 @@ var BEL_DOORS = (() => {
   /* ======================= materials ======================= */
   function stoneM(K, o, x, z, sd, stain) { K.lime(x * 1.3 + o.u * 0.7, z * 1.1 + o.v * 0.5, K.M.ao, sd + (o.blk || 0) * 1.7, stain, z, { tone: 0.94 + 0.12 * ((o.blk || 0) * 0.37 % 1) }); }
   function bronzeM(K, x, z, sd, wear, k) { K.bronze(x * 1.4, z * 1.2, K.M.ao, sd, wear, false, k); }
-  function gemM(K, k) { const M = K.M; M.r = 0.06; M.g = 0.42; M.b = 0.44; M.rg = 0.08; M.cc = 1; M.mt = 0; M.er = 0.05 * k; M.eg = 0.42 * k; M.eb = 0.4 * k; }
+  function gemM(K, k) { const M = K.M, g = PT && PT.gem; M.r = 0.06; M.g = 0.42; M.b = 0.44; M.rg = 0.08; M.cc = 1; M.mt = 0; M.er = 0.05 * k; M.eg = 0.42 * k; M.eb = 0.4 * k;
+    if (g) { M.r = g[0]; M.g = g[1]; M.b = g[2]; M.er = g[0] * k; M.eg = g[1] * k; M.eb = g[2] * k; } }   // v437 GR: (a themed door's rune glass: its light's colour)
   function darkM(K) { const M = K.M; M.r = 0.03; M.g = 0.05; M.b = 0.06; M.rg = 0.7; }
 
   /* ======================= the surround (std | boss | lift) ======================= */
@@ -158,7 +162,7 @@ var BEL_DOORS = (() => {
         else { const sp = Math.min(Math.abs(Math.sin(a * 2)) * r, 1); if (sp < 0.035) { o.id = 20; o.h = 0.035; o.wear = 0.5; } else { o.id = 22; o.h = 0.0; o.ao = 0.85; }
           if (r < R * 0.24) { o.id = 20; o.h = 0.05 + dome(r, R * 0.24) * 0.5; o.wear = 0.6; if (Math.abs(x) < 0.018 && z < 0.02 && z > -R * 0.16 || Math.hypot(x, z - 0.02) < 0.028) { o.id = 22; o.h = -0.02; o.ao = 0.4; } } }
         return cov(tooth - r, 80); },
-      (o, x, z) => { if (o.id === 21) { gemM(K, 0.5); K.M.r = 0.05; K.M.g = 0.3; K.M.b = 0.33; } else if (o.id === 22) darkM(K); else bronzeM(K, x * 2, z * 2, 6.6, o.wear, 0); });
+      (o, x, z) => { if (o.id === 21) { gemM(K, 0.5); if (PT && PT.gem) { K.M.r = PT.gem[0] * 0.72; K.M.g = PT.gem[1] * 0.72; K.M.b = PT.gem[2] * 0.72; } else { K.M.r = 0.05; K.M.g = 0.3; K.M.b = 0.33; } }   /* v437 GR: (the enamel in a themed door's colour) */ else if (o.id === 22) darkM(K); else bronzeM(K, x * 2, z * 2, 6.6, o.wear, 0); });
     K.ink(S, [10, 16, 16], 0.5); K.glint(S.c, -R * 0.4, -R * 0.45, R * 0.35, 0.5); }
 
   /* ======================= the boss's bolts, the lift's grille, wheels and counterweights; the sump grate; the hall's sluice slab ======================= */
@@ -213,19 +217,26 @@ var BEL_DOORS = (() => {
   const boxOf = (name, v) => BOX[name][v];
   const DEFS = { frame: (K, S, v) => paintFrame(K, S, v), leaf: (K, S, v) => paintLeaf(K, S, v.slice(0, -1), v.slice(-1)), lock: paintLock, bolt: paintBolt, port: paintPort, wheel: paintWheel, cwt: paintCwt, sump: paintSump, slab: paintSlab };
   const CACHE = new Map(); let BASE = 0, budT = 0, budMs = 0;
-  function paint(name, v, P) { const B = BP(); if (!B) return null; const K = B.kit, b = boxOf(name, v); if (!b) return null; const t0 = now(); let S = null;
-    try { S = K.surface(b[0], b[1], b[2], b[3], P); DEFS[name](K, S, v); S.unlock(); } catch (e) { if (typeof console !== 'undefined') console.warn('BEL_DOORS', name, v, e); if (S) S.cv.width = S.cv.height = 1; return null; }
+  /* v437 GR: a door may carry a theme (another rift's light: the Garden's three sections), defTheme(id, { light (the kit's
+     light colours, as BELPROPS.kit.LIGHTS.bel), gem [r, g, b] (the rune glass), rune, runeHi, ring, lit, litFloor, caustic,
+     mote, smoke, drip (its GPU light's colours), recess [top, open, shut], glowIn [[r, g, b] x3] (the light in the opening) });
+     its pictures are painted in its light and cached under its own key ('@id:'). The Belfry's doors carry none (as before) */
+  const THEMES = {}; let PT = null, TH = null;   // (PT: the theme being painted; TH: the theme of the door being drawn)
+  const keyOf = (name, v, P, th) => (th ? '@' + th.id + ':' : '') + name + '|' + v + '|' + P;
+  function withLight(K, th, fn) { if (!th || !th.light || !K.LIGHTS || !K.LIGHTS.bel) return fn(); const L = K.LIGHTS.bel, save = {}; for (const k in L) save[k] = L[k]; Object.assign(L, th.light); try { return fn(); } finally { for (const k in save) L[k] = save[k]; } }
+  function paint(name, v, P, th) { const B = BP(); if (!B) return null; const K = B.kit, b = boxOf(name, v); if (!b) return null; const t0 = now(); let S = null;
+    try { PT = th || null; S = K.surface(b[0], b[1], b[2], b[3], P); withLight(K, PT, () => DEFS[name](K, S, v)); S.unlock(); } catch (e) { if (typeof console !== 'undefined') console.warn('BEL_DOORS', name, v, e); if (S) S.cv.width = S.cv.height = 1; return null; } finally { PT = null; }   // v437 GR: (in its theme's light)
     const cv = document.createElement('canvas'); cv.width = S.w; cv.height = S.h; cv.getContext('2d').drawImage(S.cv, 0, 0); S.cv.width = S.cv.height = 1;   // (the work canvas given back at once)
     const ms = now() - t0; STATS.painted++; STATS.paintMs += ms; budMs += ms; return { cv, ax: S.ax, ay: S.ay, P }; }
   const qP = P => Math.max(8, Math.round(Math.exp(Math.round(Math.log(P) * 10) / 10)));
-  function sprite(name, v, P, force) { if (!BP()) return null; P = Math.max(8, Math.round(P)); const key = name + '|' + v + '|' + P; let s = CACHE.get(key); if (s) return s;
+  function sprite(name, v, P, force, th) { if (!BP()) return null; P = Math.max(8, Math.round(P)); const key = keyOf(name, v, P, th); let s = CACHE.get(key); if (s) return s;
     const t = now(); if (t - budT > 30) { budT = t; budMs = 0; } if (!force && budMs > 14) return null;   // (a painting budget: what does not fit waits a frame)
-    s = paint(name, v, P); if (!s) return null; if (CACHE.size > 60) { CACHE.forEach(q => { if (q.cv) q.cv.width = q.cv.height = 1; }); CACHE.clear(); } CACHE.set(key, s); return s; }
+    s = paint(name, v, P, th); if (!s) return null; if (CACHE.size > 60) { CACHE.forEach(q => { if (q.cv) q.cv.width = q.cv.height = 1; }); CACHE.clear(); } CACHE.set(key, s); return s; }
   /* a picture at a screen spot: its feet at (Xs, Ys) (a disc's centre), T px a tile; o: { rot, sx (a squash about the feet: a leaf on
-     its hinge), alpha, dark (0..1 shade laid over it) } -> false when it is not painted (the caller draws its old art) */
-  function pic(c, name, v, Xs, Ys, T, o) { if (!BP() || !BOX[name] || !BOX[name][v]) return false; o = o || {}; const m = c.getTransform ? c.getTransform() : null, dpr = Math.min(2, m ? Math.max(0.5, Math.hypot(m.a, m.b)) : 1);
+     its hinge), alpha, dark (0..1 shade laid over it), th (a theme; else the door being drawn's) } -> false when it is not painted (the caller draws its old art) */
+  function pic(c, name, v, Xs, Ys, T, o) { if (!BP() || !BOX[name] || !BOX[name][v]) return false; o = o || {}; const m = c.getTransform ? c.getTransform() : null, dpr = Math.min(2, m ? Math.max(0.5, Math.hypot(m.a, m.b)) : 1), th = o.th || TH;
     let P = qP(T * dpr); if (BASE && P <= BASE * 1.1 && P >= BASE * 0.6) P = BASE;
-    let s = sprite(name, v, P); if (!s) { const pre = name + '|' + v + '|'; for (const [k, s2] of CACHE) if (k.startsWith(pre)) { s = s2; break; } if (!s) { STATS.misses++; return false; } }
+    let s = sprite(name, v, P, false, th); if (!s) { const pre = keyOf(name, v, '', th); for (const [k, s2] of CACHE) if (k.startsWith(pre)) { s = s2; break; } if (!s) { STATS.misses++; return false; } }
     const f = T / s.P, sx = o.sx == null ? 1 : o.sx; STATS.draws++; c.save(); if (o.alpha != null) c.globalAlpha *= o.alpha; c.translate(Xs, Ys); if (o.rot) c.rotate(o.rot); if (sx !== 1) { const pv = o.pv || 0; c.translate(pv, 0); c.scale(sx, 1); c.translate(-pv, 0); }
     c.drawImage(s.cv, -s.ax * f, -s.ay * f, s.cv.width * f, s.cv.height * f);
     if (o.dark > 0.01) { c.globalCompositeOperation = 'source-atop'; c.fillStyle = `rgba(4,12,16,${clamp(o.dark, 0, 1).toFixed(3)})`; c.fillRect(-s.ax * f, -s.ay * f, s.cv.width * f, s.cv.height * f); }
@@ -268,8 +279,9 @@ var BEL_DOORS = (() => {
   /* ======================= a door drawn ======================= */
   // the recess: the passage beyond, dark; filled with light when the way is open (its glow the GPU's)
   function recess(c, Xs, Ys, T, G, on, lit, t) { c.save(); c.beginPath(); archPath(c, Xs, Ys, T, G, 0); c.clip();
-    const g = c.createLinearGradient(0, Ys - G.ZA * T, 0, Ys); g.addColorStop(0, '#04080C'); g.addColorStop(1, on ? '#123A3A' : '#0A1418'); c.fillStyle = g; c.fillRect(Xs - G.WO * T, Ys - G.ZA * T, G.WO * 2 * T, G.ZA * T);
-    if (lit > 0.01) { const r = G.ZS * T, cg = c.createRadialGradient(Xs, Ys - r * 0.55, 0, Xs, Ys - r * 0.55, r * 1.1); cg.addColorStop(0, `rgba(235,255,245,${(0.95 * lit).toFixed(3)})`); cg.addColorStop(0.35, `rgba(170,240,215,${(0.7 * lit).toFixed(3)})`); cg.addColorStop(1, `rgba(60,150,130,${(0.35 * lit).toFixed(3)})`); c.fillStyle = cg; c.fillRect(Xs - G.WO * T, Ys - G.ZA * T, G.WO * 2 * T, G.ZA * T); }
+    const RC = (TH && TH.recess) || ['#04080C', '#123A3A', '#0A1418'], GI = (TH && TH.glowIn) || [[235, 255, 245], [170, 240, 215], [60, 150, 130]];   // v437 GR: (a themed door's own colours)
+    const g = c.createLinearGradient(0, Ys - G.ZA * T, 0, Ys); g.addColorStop(0, RC[0]); g.addColorStop(1, on ? RC[1] : RC[2]); c.fillStyle = g; c.fillRect(Xs - G.WO * T, Ys - G.ZA * T, G.WO * 2 * T, G.ZA * T);
+    if (lit > 0.01) { const r = G.ZS * T, cg = c.createRadialGradient(Xs, Ys - r * 0.55, 0, Xs, Ys - r * 0.55, r * 1.1); cg.addColorStop(0, `rgba(${GI[0]},${(0.95 * lit).toFixed(3)})`); cg.addColorStop(0.35, `rgba(${GI[1]},${(0.7 * lit).toFixed(3)})`); cg.addColorStop(1, `rgba(${GI[2]},${(0.35 * lit).toFixed(3)})`); c.fillStyle = cg; c.fillRect(Xs - G.WO * T, Ys - G.ZA * T, G.WO * 2 * T, G.ZA * T); }
     c.restore(); }
   function archPath(c, Xs, Ys, T, G, inset) { const wo = G.WO - inset, n = 18; c.moveTo(Xs - wo * T, Ys - G.PL * T); c.lineTo(Xs - wo * T, Ys - G.ZS * T); for (let i = 1; i <= n; i++) { const x = -wo + wo * i / n; c.lineTo(Xs + x * T, Ys - archZ(x, wo, G.ZS, G.ZA - inset) * T); } for (let i = 1; i <= n; i++) { const x = wo * i / n; c.lineTo(Xs + x * T, Ys - Math.max(G.ZS, archZ(x, wo, G.ZS, G.ZA - inset)) * T); } c.lineTo(Xs + wo * T, Ys - G.PL * T); c.closePath(); }
   // two leaves on their hinges: each foreshortened about its hinge as it swings in, its thickness showing at its free edge, shading as it turns
@@ -292,18 +304,20 @@ var BEL_DOORS = (() => {
     for (const sd of [-1, 1]) { c.save(); c.beginPath(); c.rect(Xs + sd * wx * T - T * 0.3, Ys - bz * T, T * 0.6, bz * T + T); c.clip(); pic(c, 'cwt', 0, Xs + sd * wx * T, Ys - (bz - 1.72) * T + drop, T); c.restore(); pic(c, 'wheel', 0, Xs + sd * wx * T, Ys - bz * T, T, { rot: D.kE * 5.5 * sd + sd * 0.3 }); }
     return true; }
   // the light of a door (GPU): its runes, the lock's ring turning, light through an open door, dust and drips
-  function light(c, Xs, Ys, T, D, kind, G, on, t, lit) { const F = FG(); if (!F) return; const Q = F.begin(c, null), lf = lowFx(), pul = 0.75 + 0.25 * Math.sin(t * 2.4), gz = Ys - (G.ZA + G.RW * 0.52) * T;
-    Q.glow(Xs, gz, T * 0.55, '#61D9D2', (0.35 + 0.4 * D.lock + 0.3 * lit) * pul); Q.glow(Xs, gz, T * 0.16, '#E8FFFB', 0.5 + 0.4 * lit);
-    if (kind === 'boss') { const bz = Ys - (G.ZA + G.RW * 1.12 + G.RW * 0.62 * 1.15 + 0.42) * T; Q.glow(Xs, bz, T * 0.9, '#61D9D2', 0.18 * pul + 0.3 * D.lock); }
-    if (D.lock > 0 && D.lock < 1 && (kind === 'std' || kind === 'boss')) { const zr = kind === 'boss' ? 1.02 : 0.92, R = (kind === 'boss' ? 0.36 : 0.27) * T; Q.ring(Xs, Ys - zr * T, R * 1.05, '#9FF0EA', 0.8 * Math.sin(D.lock * Math.PI), R * 0.12); Q.glow(Xs, Ys - zr * T, R * 1.8, '#61D9D2', 0.4 * Math.sin(D.lock * Math.PI)); }
-    if (lit > 0.01) { const cy = Ys - G.ZS * 0.55 * T; Q.glow(Xs, cy, G.ZS * T * 0.9, '#B8FFD8', 0.45 * lit * (0.85 + 0.15 * Math.sin(t * 2.5))); Q.glow(Xs, Ys + T * 0.2, T * 2.2, '#8FE0C0', 0.28 * lit, 0.35); if (!lf) Q.caustic(Xs, Ys + T * 0.35, T * 1.6, '#9FF0EA', 0.3 * lit, 2.3, 0.38);
-      if (!lf) for (let i = 0; i < 8; i++) { const u = (t * 0.3 + i / 8) % 1, a = i * 2.4 + u * 2; Q.glow(Xs + Math.cos(a) * G.WO * T * 0.7 * (1 - u), cy + Math.sin(a) * G.ZS * T * 0.4 * (1 - u), T * 0.07, '#FFFFFF', u * 0.8 * lit); } }
-    for (const p of D.puffs) { const u = p.t / p.life, a = p.a * Math.sin(Math.PI * Math.min(1, u * 1.4)) * (1 - u * 0.4); Q.smoke(Xs + p.x * T, Ys + p.y * T, p.r * T * (1 + u * 1.6), a, p.r * 13, '#6E7A78', 0.3); }
-    for (const p of D.drips) Q.glow(Xs + p.x * T, Ys + p.y * T, T * 0.05, '#CFF6FF', 0.7 * (1 - p.t / p.life));
+  const BELC = { rune: '#61D9D2', runeHi: '#E8FFFB', ring: '#9FF0EA', lit: '#B8FFD8', litFloor: '#8FE0C0', caustic: '#9FF0EA', mote: '#FFFFFF', smoke: '#6E7A78', drip: '#CFF6FF' };
+  function light(c, Xs, Ys, T, D, kind, G, on, t, lit) { const F = FG(); if (!F) return; const Q = F.begin(c, null), lf = lowFx(), pul = 0.75 + 0.25 * Math.sin(t * 2.4), gz = Ys - (G.ZA + G.RW * 0.52) * T, K = TH || BELC;   // v437 GR: (K: a themed door's light colours)
+    Q.glow(Xs, gz, T * 0.55, K.rune, (0.35 + 0.4 * D.lock + 0.3 * lit) * pul); Q.glow(Xs, gz, T * 0.16, K.runeHi, 0.5 + 0.4 * lit);
+    if (kind === 'boss') { const bz = Ys - (G.ZA + G.RW * 1.12 + G.RW * 0.62 * 1.15 + 0.42) * T; Q.glow(Xs, bz, T * 0.9, K.rune, 0.18 * pul + 0.3 * D.lock); }
+    if (D.lock > 0 && D.lock < 1 && (kind === 'std' || kind === 'boss')) { const zr = kind === 'boss' ? 1.02 : 0.92, R = (kind === 'boss' ? 0.36 : 0.27) * T; Q.ring(Xs, Ys - zr * T, R * 1.05, K.ring, 0.8 * Math.sin(D.lock * Math.PI), R * 0.12); Q.glow(Xs, Ys - zr * T, R * 1.8, K.rune, 0.4 * Math.sin(D.lock * Math.PI)); }
+    if (lit > 0.01) { const cy = Ys - G.ZS * 0.55 * T; Q.glow(Xs, cy, G.ZS * T * 0.9, K.lit, 0.45 * lit * (0.85 + 0.15 * Math.sin(t * 2.5))); Q.glow(Xs, Ys + T * 0.2, T * 2.2, K.litFloor, 0.28 * lit, 0.35); if (!lf) Q.caustic(Xs, Ys + T * 0.35, T * 1.6, K.caustic, 0.3 * lit, 2.3, 0.38);
+      if (!lf) for (let i = 0; i < 8; i++) { const u = (t * 0.3 + i / 8) % 1, a = i * 2.4 + u * 2; Q.glow(Xs + Math.cos(a) * G.WO * T * 0.7 * (1 - u), cy + Math.sin(a) * G.ZS * T * 0.4 * (1 - u), T * 0.07, K.mote, u * 0.8 * lit); } }
+    for (const p of D.puffs) { const u = p.t / p.life, a = p.a * Math.sin(Math.PI * Math.min(1, u * 1.4)) * (1 - u * 0.4); Q.smoke(Xs + p.x * T, Ys + p.y * T, p.r * T * (1 + u * 1.6), a, p.r * 13, K.smoke, 0.3); }
+    for (const p of D.drips) Q.glow(Xs + p.x * T, Ys + p.y * T, T * 0.05, K.drip, 0.7 * (1 - p.t / p.life));
     F.flush(c); }
   function label(c, s, Xs, Ys, T, col) { c.save(); c.font = `800 ${Math.round(T * 0.42)}px ${typeof arcFont !== 'undefined' ? arcFont : 'sans-serif'}`; c.textAlign = 'center'; c.lineWidth = 3; c.strokeStyle = 'rgba(0,0,0,.6)'; c.fillStyle = col || '#FFFFFF'; c.strokeText(s, Xs, Ys); c.fillText(s, Xs, Ys); c.restore(); }
   /* the whole door at its feet (Xs, Ys): kind std | boss | lift; on: the way is open (the stage done); lit: its light 0..1 */
-  function drawDoor(c, Xs, Ys, T, D, on, t, text) { const kind = D.kind, G = GEO[kind]; if (!pic(c, 'frame', kind, -9999, -9999, T)) return false;   // (the surround painted, else the old gate)
+  function drawDoor(c, Xs, Ys, T, D, on, t, text) { const T0 = TH; TH = D.th || null; try { return drawDoor0(c, Xs, Ys, T, D, on, t, text); } finally { TH = T0; } }   // v437 GR: (drawn in its theme, if it has one)
+  function drawDoor0(c, Xs, Ys, T, D, on, t, text) { const kind = D.kind, G = GEO[kind]; if (!pic(c, 'frame', kind, -9999, -9999, T)) return false;   // (the surround painted, else the old gate)
     D.lit = clamp((D.lit || 0) + ((on ? 1 : 0) - (D.lit || 0)) * 0.08, 0, 1); const lit = D.lit * (kind === 'lift' ? 1 : Math.max(0.25, D.kE)), vib = D.vib * Math.sin(t * 70) * T * 0.01;
     c.save(); c.fillStyle = 'rgba(0,0,0,.32)'; c.beginPath(); c.ellipse(Xs, Ys + T * 0.1, (G.WO + G.JW + 0.35) * T, T * 0.34, 0, 0, TAU); c.fill(); c.restore();
     recess(c, Xs, Ys, T, G, on, lit, t);
@@ -316,7 +330,7 @@ var BEL_DOORS = (() => {
 
   /* ======================= the running stage's exit door ======================= */
   let LIVE = null;   // { X, C, D, kind } of the Belfry stage now running (20n everyStage), dropped when the next stage is made
-  function stage(X, C, kind) { C.door = C.door || mk(kind); C.door.kind = kind; LIVE = { X, C, D: C.door, kind }; return C.door; }
+  function stage(X, C, kind, th) { C.door = C.door || mk(kind); C.door.kind = kind; C.door.th = th || null; LIVE = { X, C, D: C.door, kind }; return C.door; }   // v437 GR: th, a theme (themed(id)) for another rift's door
   function tick(C, dt, want) { const D = C && C.door; if (!D) return; D.want = !!want; step(D, Math.min(dt, 0.1), C.X); }
   /* 20m's riftGate, asked to draw the exit of a Belfry stage: the stage's own door instead (true: drawn) */
   function claim(c, Xs, Ys, T0, on, t, text) { const L = LIVE; if (!L || !BP()) return false; const X = L.X, ex = L.C.exitPos && L.C.exitPos(); if (!ex) return false;
@@ -338,7 +352,13 @@ var BEL_DOORS = (() => {
     if (n) F.flush(c); }
   const lockArt = (c, kind, Xs, Ys, T, rot, o) => pic(c, 'lock', kind, Xs, Ys, T, Object.assign({ rot }, o || {}));
   const state = C => { const D = C && C.door; return D ? { kind: D.kind, want: D.want, lock: +D.lock.toFixed(3), k: +D.k.toFixed(3), kE: +D.kE.toFixed(3), puffs: D.puffs.length, lit: +(D.lit || 0).toFixed(3) } : null; };
-  const API = { GEO, TIMES, archZ, pic, sprite: (n, v, P) => sprite(n, v, P, true), warm, release, stage, tick, claim, drawDoor, mk, step, state, dust, fx, lockArt, heavy, get live() { return LIVE; }, get stats() { return Object.assign({ cached: CACHE.size }, STATS); } };
+  /* v437 GR: themes for other rifts' doors: defTheme(id, o) registers one, themed(id) gives it (null: none, the Belfry's own);
+     warmDoor(P, kind, id) the loading screen's jobs for one door of that kind in that theme (as warm does for a Belfry stage) */
+  function defTheme(id, o) { THEMES[id] = Object.assign({}, BELC, o || {}, { id }); return THEMES[id]; }
+  const themed = id => THEMES[id] || null;
+  function warmDoor(P, kind, id) { if (!BP() || !P || !(P.T > 0) || !NEED[kind]) return []; BASE = qP(P.T * Math.min(2, P.k || 1)); const th = themed(id);
+    return NEED[kind].map(([n, v]) => () => { try { sprite(n, v, BASE, true, th); } catch (e) {} }); }
+  const API = { GEO, TIMES, archZ, pic, sprite: (n, v, P, th) => sprite(n, v, P, true, th ? themed(th) : null), warm, warmDoor, defTheme, themed, THEMES, release, stage, tick, claim, drawDoor, mk, step, state: C => { const s = state(C); if (s && C.door.th) s.theme = C.door.th.id; return s; }, dust, fx, lockArt, heavy, get live() { return LIVE; }, get stats() { return Object.assign({ cached: CACHE.size, keys: [...CACHE.keys()] }, STATS); } };
   if (typeof window !== 'undefined') window.BEL_DOORS = API;
   return API;
 })();

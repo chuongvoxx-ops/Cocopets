@@ -1,10 +1,10 @@
 // v423 GE: shared helpers for the Garden of Unborn Stars (Rift 02) environment tests.
 // open({ dpr, html, lowFx, gl }) -> page with the debug hook, a quick-started save that can enter every garden stage.
-// stage(i) starts garden stage i (0..11) and waits for play; for a boss stage it also waits for the fiend to start.
-// Stages: 0 fight 1 March 2 fight 3 Orrubel | 4 fight 5 fight 6 Starfall 7 Ambrel | 8 Gallery 9 fight 10 fight 11 Calyx
+// stage(i) starts garden stage i (0..8) and waits for play; for a boss stage it also waits for the fiend to start.
+// Stages (v437 GR: nine for twelve): 0 fight 1 March 2 Orrubel | 3 fight 4 Starfall 5 Ambrel | 6 fight 7 Gallery 8 Calyx
 const { chromium } = require('/opt/npm-tools/node_modules/playwright');
 const path = require('path');
-const STAGES = { fight1: 0, march: 1, fight1b: 2, orrubel: 3, fight2: 4, fight2b: 5, starfall: 6, ambrel: 7, gallery: 8, fight3: 9, fight3b: 10, calyx: 11 };
+const STAGES = { fight1: 0, march: 1, orrubel: 2, fight2: 3, starfall: 4, ambrel: 5, fight3: 6, gallery: 7, calyx: 8 };   // v437 GR: (the retired fight1b, fight2b, fight3b are gone)
 async function open(o) {
   o = o || {};
   const args = ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--disable-gpu-watchdog'];

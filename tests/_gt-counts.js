@@ -6,7 +6,7 @@ const L = require('./_gt-lib.js'); const { results, ok } = L.reporter();
 (async () => { const { browser, page, errors } = await L.open();
   await page.evaluate(() => { const P = window.__pp; P.quickStart('Bot'); window.__gtBoot = 1; P.st.unlockAll = true; });
   const rows = [];
-  for (const i of [0, 2, 4, 5, 9, 10]) {
+  for (const i of [0, 3, 6]) {   // v437 GR: (the three fight stages of the nine)
     await page.evaluate(() => { window.__GT = 1; }); await L.stage(page, i);
     const r = await page.evaluate(() => { const D = window.__pp.arc.game._dbg, M = D.M, XH = window.__XH, GT = self.GARDEN_TRAPS, F = XH.X.rift ? XH.X.rift.self.gtraps : null;
       const T = F ? F.traps : [], kinds = {}; for (const t of T) { const k = t.kind + (t.bridge ? '@br' : ''); kinds[k] = (kinds[k] || 0) + 1; }
@@ -23,7 +23,7 @@ const L = require('./_gt-lib.js'); const { results, ok } = L.reporter();
       return { stage: XH.k, name: XH.X.F.rift.name, sec: F ? F.info.sec : null, thorns: M.hazards.length, tower: M.traps.length, garden: T.length, diag: F ? F.diag : null, kinds, bad, gapBad, nearThorn: +near.toFixed(2), same, sameLive, bySec, live: GT.stats.live, diff: window.__gtDiff || null, fpNow: F && GT.fields().length, fpSame: F ? null : null }; });
     rows.push(r); console.log(JSON.stringify(r)); }
   // window.__GT = 0: the floors as before (none added)
-  await page.evaluate(() => { window.__GT = 0; }); await L.stage(page, 9);
+  await page.evaluate(() => { window.__GT = 0; }); await L.stage(page, 6);   /* v437 GR: (The Thorn Walks) */
   const offR = await page.evaluate(() => { const XH = window.__XH, M = window.__pp.arc.game._dbg.M; return { garden: XH.X.rift.self.gtraps ? XH.X.rift.self.gtraps.traps.length : 0, thorns: M.hazards.length, tower: M.traps.length }; });
   await page.evaluate(() => { window.__GT = 1; });
   console.log('\nstage                          before  after   (thorn spikes + Tower traps -> + garden traps, one layout)');

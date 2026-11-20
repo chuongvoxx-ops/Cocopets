@@ -23,7 +23,11 @@
    API (global GARDEN_PROPS): draw(c, name, v, Xs, Ys, T, o) the picture with its feet at Xs, Ys (o: { alpha, sx, sy, rot,
    flip }) -> false when it is not painted (the caller then draws its old art); sprite(name, v, P); tex(name, P); has(name);
    warm(P) -> jobs; release() frees every picture and texture (on the stage's close: DunWorld.dropProps is chained);
-   glowsOf(kind, v) -> the live lights of a prop; arena { floor, sky }; stats. window.__GPP = 0 turns all of it off. */
+   glowsOf(kind, v) -> the live lights of a prop; arena { floor, sky }; stats. window.__GPP = 0 turns all of it off.
+   v437 GR: three sections, three looks (VAR, from the stage's biome: garden, garden2, garden3): section 2 a jade-green ground
+   under an aquamarine void and light, section 3 a slate-navy ground under a sapphire one (PALV, LIGHT.grove2 / grove3; the
+   voids gardenvoid2 / gardenvoid3); the props keep their colours in the section's light; the arenas of Ambrel and Calyx take
+   the section's tints; the Belfry's doors at the exits are lit in the sections' themes (BEL_DOORS.defTheme). */
 var GARDEN_PROPS = (() => {
   const TAU = Math.PI * 2, HAS_W = typeof window !== 'undefined';
   const off = () => HAS_W && (window.__GPP === 0 || window.__BELP === 0);
@@ -39,8 +43,30 @@ var GARDEN_PROPS = (() => {
   const GOLD = '#FFD36B', CREAM = '#F2D8A1', ROSE = '#E07BA8', JADE = '#4A8D7B', LILAC = '#B9A6FF', MINT = '#7FE3B4';
 
   /* ======================= the light ======================= */
-  const LIGHT = { grove: { a0: [0.13, 0.08, 0.17], a1: [0.07, 0.1, 0.11], e0: [0.08, 0.05, 0.11], e1: [0.42, 0.36, 0.56], k: [1.16, 1.08, 1.02], rim: [0.5, 0.22, 0.42], bo: [0.05, 0.14, 0.1] } };
-  function lit(K, fn) { const L = K.LIGHTS.bel, save = {}; for (const k in L) save[k] = L[k]; Object.assign(L, LIGHT.grove); try { fn(); } finally { for (const k in save) L[k] = save[k]; } }
+  /* v437 GR: the three sections' lights (VAR 0 the grove as it was; 1, section 2: the night's shadows and the sky in the
+     reflections turned aquamarine, an aquamarine rim; 2, section 3: sapphire). Everything painted (land, props, the puzzles'
+     pieces, the moons' isles) is painted in the section's light; the props keep their own colours */
+  const LIGHT = { grove: { a0: [0.13, 0.08, 0.17], a1: [0.07, 0.1, 0.11], e0: [0.08, 0.05, 0.11], e1: [0.42, 0.36, 0.56], k: [1.16, 1.08, 1.02], rim: [0.5, 0.22, 0.42], bo: [0.05, 0.14, 0.1] },
+    grove2: { a0: [0.06, 0.13, 0.13], a1: [0.05, 0.11, 0.1], e0: [0.04, 0.1, 0.1], e1: [0.3, 0.5, 0.5], k: [1.1, 1.12, 1.06], rim: [0.24, 0.52, 0.46], bo: [0.04, 0.15, 0.11] },
+    grove3: { a0: [0.06, 0.08, 0.18], a1: [0.05, 0.07, 0.13], e0: [0.04, 0.06, 0.13], e1: [0.3, 0.38, 0.62], k: [1.08, 1.08, 1.14], rim: [0.22, 0.32, 0.62], bo: [0.04, 0.1, 0.14] } };
+  /* v437 GR: the section being drawn (0..2: BIOMES garden, garden2, garden3), set when a stage is defined (riftDef, wrapped
+     below), made (everyStage) and loaded (warm); a change lets go of every picture and texture (painted in the old light) */
+  const VARS = ['garden', 'garden2', 'garden3'];
+  let VAR = 0;
+  const varOf = b => Math.max(0, VARS.indexOf(b));
+  /* each section's ground and void: loam / bank / cliff earth (the kit's material colours, x a tone), the dark washes and edge
+     shades (r,g,b), the void's base, nebulae and its two great glows, the mist, the dust of a break, the arenas' tints */
+  const PALV = [
+    { loam: [0.16, 0.04, 0.095, 0, 0.21, -0.03], bank: [0.24, 0.14, 0.25], cliff: [0.2, 0.11, 0.21], isle: [0.22, 0.12, 0.24], dark: '14,6,20', edge: '10,4,16',
+      voidB: '#0A0512', neb: ['44,18,64', '30,44,60', '64,20,48'], glow: ['#5A2A7A', '#2A6A60'], mist: ['#8E7AB8', '#6E9A8E'], dust: '#B9A6D8', arena: null },
+    { loam: [0.05, 0.02, 0.17, 0.02, 0.19, -0.02], bank: [0.08, 0.18, 0.19], cliff: [0.06, 0.15, 0.16], isle: [0.07, 0.17, 0.17], dark: '3,16,14', edge: '2,12,10',
+      voidB: '#03100F', neb: ['16,66,60', '20,50,66', '30,84,70'], glow: ['#3FD8BC', '#1E7A78'], ga: [0.3, 0.17], mist: ['#6EC8B4', '#5E9A8E'], dust: '#A6D8CC',
+      arena: { mid: '#1A3F3A', edge: '#10302C', rim: '4,16,14', top: '#04100F', skyMid: '#0E2A28', bot: '#030A0A' } },
+    { loam: [0.06, 0.02, 0.085, 0, 0.24, -0.02], bank: [0.09, 0.12, 0.27], cliff: [0.07, 0.1, 0.23], isle: [0.08, 0.11, 0.24], dark: '3,7,24', edge: '2,6,20',
+      voidB: '#040818', neb: ['18,30,86', '14,40,78', '30,26,96'], glow: ['#2F5FE0', '#1E3A80'], ga: [0.28, 0.16], mist: ['#7A8CD0', '#5E7A9A'], dust: '#A6B4E0',
+      arena: { mid: '#1C2A55', edge: '#121E42', rim: '4,8,24', top: '#040818', skyMid: '#0E1A3E', bot: '#03050E' } } ];
+  const PV = () => PALV[VAR];
+  function lit(K, fn) { const L = K.LIGHTS.bel, save = {}; for (const k in L) save[k] = L[k]; Object.assign(L, [LIGHT.grove, LIGHT.grove2, LIGHT.grove3][VAR] || LIGHT.grove); try { fn(); } finally { for (const k in save) L[k] = save[k]; } }   // v437 GR: (the section's light)
 
   /* ======================= noise that wraps (for the textures) ======================= */
   const PH = (x, y, s) => hh(x, y, s);
@@ -309,7 +335,7 @@ var GARDEN_PROPS = (() => {
     else if (kind === 4) { stoneM(GK, pox * 3 + pid, poy * 3, pid % 7, 0.75); }
     else if (kind === 6) { const P2 = [[1, 0.94, 0.8], [0.98, 0.62, 0.8], [0.76, 0.68, 1], [1, 0.85, 0.45]][fk]; if (fl === 2) { M.r = 1; M.g = 0.86; M.b = 0.4; M.er = 0.7; M.eg = 0.55; M.eb = 0.12; } else { M.r = P2[0]; M.g = P2[1]; M.b = P2[2]; M.er = P2[0] * 0.3; M.eg = P2[1] * 0.3; M.eb = P2[2] * 0.3; } M.rg = 0.4; }
     else if (kind === 5) { const C = [[0.12, 0.24, 0.19], [0.36, 0.17, 0.28], [0.42, 0.34, 0.24]][lk]; const t = 0.8 + 0.3 * PH(lc.id, 3, 34); M.r = C[0] * t; M.g = C[1] * t; M.b = C[2] * t; M.rg = 0.6; M.ao *= 0.92; }
-    else { const t = 0.7 + 0.42 * loam + 0.14 * crumb, warm = pvn(x * 0.5 + 9, y * 0.5, FN * 0.5, 12); M.r = (0.16 + 0.04 * warm) * t; M.g = 0.095 * t; M.b = (0.21 - 0.03 * warm) * t; M.rg = 0.88; M.ao *= 0.66 + 0.34 * cav;
+    else { const t = 0.7 + 0.42 * loam + 0.14 * crumb, warm = pvn(x * 0.5 + 9, y * 0.5, FN * 0.5, 12), L = PV().loam; M.r = (L[0] + L[1] * warm) * t; M.g = (L[2] + L[3] * warm) * t; M.b = (L[4] + L[5] * warm) * t; M.rg = 0.88; M.ao *= 0.66 + 0.34 * cav;   // v437 GR: (the section's loam: plum, jade-green, slate-navy)
       if (kind === 2 || mk > 0) { const r = M.r, g = M.g, b = M.b, ao = M.ao; mossM(GK, x * 0.8, y * 0.8, 4); M.r *= 0.78; M.g *= 0.7; M.b *= 0.78; const k2 = ss(0, 0.6, mk); M.r = lerp(r, M.r, k2); M.g = lerp(g, M.g, k2); M.b = lerp(b, M.b, k2); M.ao = ao; if (mk < 0.6) { M.er *= mk; M.eg *= mk; M.eb *= mk; } }
       if (crumb > 0.82) { M.r += 0.04; M.g += 0.03; M.b += 0.05; } }
     return h; }
@@ -327,7 +353,7 @@ var GARDEN_PROPS = (() => {
     if (kind === 2) { mossM(GK, x * 2, y * 2, 6); M.ao *= 0.85 + 0.15 * (1 - y / H); }
     else if (kind === 3) { bark(GK, rd, x * 2, 1, 4.4, 0); }
     else if (kind === 4) { stoneM(GK, sc.ox * 3 + sc.id, sc.oy * 3, sc.id % 5, 0.85); }
-    else { const t = 0.72 + 0.35 * w + 0.15 * st; M.r = 0.24 * t; M.g = 0.14 * t; M.b = 0.25 * t; M.rg = 0.9; if (st > 0.66) { M.r *= 0.82; M.g *= 0.8; M.b *= 0.85; } M.ao *= 0.6 + 0.4 * v; if (pvn(x * 21, y * 21, WN * 21, 60) > 0.86) { M.r += 0.05; M.g += 0.04; M.b += 0.05; } }
+    else { const t = 0.72 + 0.35 * w + 0.15 * st, E = PV().bank; M.r = E[0] * t; M.g = E[1] * t; M.b = E[2] * t; M.rg = 0.9;   /* v437 GR: (the section's earth) */ if (st > 0.66) { M.r *= 0.82; M.g *= 0.8; M.b *= 0.85; } M.ao *= 0.6 + 0.4 * v; if (pvn(x * 21, y * 21, WN * 21, 60) > 0.86) { M.r += 0.05; M.g += 0.04; M.b += 0.05; } }
     return h; }; }
   /* the wall tops: a deep moss bed with fern sprigs, the odd glowing spore (4 tiles square, wrapping) */
   function roofFn(x, y, mode) { const M = GK.M, w = pfbm(x * 1.2, y * 1.2, WN * 1.2, 71), f = pvn(x * 12, y * 12, WN * 12, 72), cl = pfeat(x * 2, y * 2, WN * 2, 73, 0.55);
@@ -345,7 +371,7 @@ var GARDEN_PROPS = (() => {
       if (!kind) { FA = 0; return 0; } }
     if (!mode) return h;
     if (kind === 2) { mossM(GK, x * 2, y * 4, 8); M.ao *= 0.9; }
-    else if (kind === 1) { const t = 0.7 + 0.35 * pvn(x * 3, y * 9, WN * 3, 88); M.r = 0.2 * t; M.g = 0.11 * t; M.b = 0.21 * t; M.rg = 0.9; M.ao *= 1 - (y / bot) * 0.55; if (pvn(x * 11, y * 11, WN * 11, 89) > 0.8) { M.r += 0.06; M.g += 0.03; M.b += 0.06; } }
+    else if (kind === 1) { const t = 0.7 + 0.35 * pvn(x * 3, y * 9, WN * 3, 88), E = PV().cliff; M.r = E[0] * t; M.g = E[1] * t; M.b = E[2] * t;   /* v437 GR: (the section's earth) */ M.rg = 0.9; M.ao *= 1 - (y / bot) * 0.55; if (pvn(x * 11, y * 11, WN * 11, 89) > 0.8) { M.r += 0.06; M.g += 0.03; M.b += 0.06; } }
     else if (kind === 3) { bark(GK, x * 3, y * 4, 1, 5.5, 0); M.ao *= 0.8; }
     else { M.r = 0.6; M.g = 1; M.b = 0.8; M.er = 0.45; M.eg = 0.9; M.eb = 0.6; }
     return h; }
@@ -397,7 +423,7 @@ var GARDEN_PROPS = (() => {
   // soft world-space washes over the floor: dark loam, moonlight pools (cream, rose, jade), a glow of moss
   function washes(c, X, Y, T, x, y) { const G = 3.2;
     for (let gy = Math.floor((y - 3) / G); gy <= Math.floor((y + 4) / G); gy++) for (let gx = Math.floor((x - 3) / G); gx <= Math.floor((x + 4) / G); gx++) { const kind = hh(gx, gy, 141); let col, a;
-      if (kind < 0.26) { col = '14,6,20'; a = 0.1 + hh(gx, gy, 143) * 0.1; } else if (kind < 0.42) { col = '242,216,161'; a = 0.06 + hh(gx, gy, 147) * 0.05; } else if (kind < 0.5) { col = '224,123,168'; a = 0.05 + hh(gx, gy, 149) * 0.05; } else if (kind < 0.6) { col = '127,227,180'; a = 0.05 + hh(gx, gy, 151) * 0.04; } else continue;
+      if (kind < 0.26) { col = PV().dark; a = 0.1 + hh(gx, gy, 143) * 0.1; } else if (kind < 0.42) { col = '242,216,161'; a = 0.06 + hh(gx, gy, 147) * 0.05; } else if (kind < 0.5) { col = '224,123,168'; a = 0.05 + hh(gx, gy, 149) * 0.05; } else if (kind < 0.6) { col = '127,227,180'; a = 0.05 + hh(gx, gy, 151) * 0.04; } else continue;
       const cx = (gx + hh(gx, gy, 153)) * G, cy = (gy + hh(gx, gy, 159)) * G, rr = 1 + hh(gx, gy, 161) * 1.8; if (cx + rr < x || cx - rr > x + 1 || cy + rr * 0.8 < y || cy - rr * 0.8 > y + 1) continue;
       const px = X + (cx - x) * T, py = Y + (cy - y) * T; c.save(); c.translate(px, py); c.scale(1, 0.75); const g = c.createRadialGradient(0, 0, 0, 0, 0, rr * T); g.addColorStop(0, `rgba(${col},${a.toFixed(3)})`); g.addColorStop(0.6, `rgba(${col},${(a * 0.5).toFixed(3)})`); g.addColorStop(1, `rgba(${col},0)`); c.fillStyle = g; c.beginPath(); c.arc(0, 0, rr * T, 0, TAU); c.fill(); c.restore(); } }
   function landFloor(c, X, Y, T, h, h2, x, y, lw, gN, gS, gW, gE) { const t = tex('floor', Math.round(T * kOf(c))), P = t ? t.P : 0; if (!t) return OLDB.floorFn ? OLDB.floorFn.apply(null, arguments) : undefined;
@@ -405,11 +431,11 @@ var GARDEN_PROPS = (() => {
     c.drawImage(t.cv, md(x, FN) * P, md(y, FN) * P, P, P, X, Y, T + 0.02, T + 0.02);
     washes(c, X, Y, T, x, y);
     // the ground's edge over the void: darker earth, the moss thinning
-    const side = (x0, y0, x1, y1, w, hh2) => { const g = c.createLinearGradient(x0, y0, x1, y1); g.addColorStop(0, 'rgba(10,4,16,.5)'); g.addColorStop(0.5, 'rgba(10,4,16,.14)'); g.addColorStop(1, 'rgba(10,4,16,0)'); c.fillStyle = g; c.fillRect(Math.min(x0, x1), Math.min(y0, y1), w, hh2); };
+    const ed = PV().edge, side = (x0, y0, x1, y1, w, hh2) => { const g = c.createLinearGradient(x0, y0, x1, y1); g.addColorStop(0, `rgba(${ed},.5)`); g.addColorStop(0.5, `rgba(${ed},.14)`); g.addColorStop(1, `rgba(${ed},0)`);   /* v437 GR: (the section's shade) */ c.fillStyle = g; c.fillRect(Math.min(x0, x1), Math.min(y0, y1), w, hh2); };
     if (gN) side(X, Y, X, Y + T * 0.5, T, T * 0.5); if (gS) side(X, Y + T, X, Y + T * 0.55, T, T * 0.45); if (gW) side(X, Y, X + T * 0.45, Y, T * 0.45, T); if (gE) side(X + T, Y, X + T * 0.55, Y, T * 0.45, T); c.restore(); }
   function landWall(c, X, Y, T, H, h, x, lw, B) { const t = tex('bank', Math.round(T * kOf(c))), P = t ? t.P : 0; if (!t) return OLDB.wallFn ? OLDB.wallFn.apply(null, arguments) : undefined;
     c.drawImage(t.cv, md(x, WN) * P, 0, P, t.cv.height, X, Y, T + 0.5, H);
-    const g = c.createLinearGradient(0, Y, 0, Y + H); g.addColorStop(0, 'rgba(10,4,16,0)'); g.addColorStop(1, 'rgba(10,4,16,.35)'); c.fillStyle = g; c.fillRect(X, Y, T + 0.5, H); }
+    const ed = PV().edge, g = c.createLinearGradient(0, Y, 0, Y + H); g.addColorStop(0, `rgba(${ed},0)`); g.addColorStop(1, `rgba(${ed},.35)`); c.fillStyle = g; c.fillRect(X, Y, T + 0.5, H); }   // v437 GR: (the section's shade)
   function landRoof(c, X, Y, T, x, y, isWall) { const t = tex('roof', Math.round(T * kOf(c))), P = t ? t.P : 0; if (!t) return;
     c.drawImage(t.cv, md(x, WN) * P, md(y, WN) * P, P, P, X, Y, T + 0.5, T + 0.5);
     // where the bank falls away (north, west, east) a lit lip of moss, and a shade toward the south face
@@ -542,21 +568,25 @@ var GARDEN_PROPS = (() => {
   DEF.moon = { box: () => [-1.02, -1.02, 1.02, 1.02], paint: paintMoon };
   /* a far floating isle (P px a tile): a clod of plum earth, roots trailing from it, a tree of eggs on top */
   DEF.isle = { box: () => [-1.6, -2.4, 1.6, 1.4], paint(K, S, v) { const sd = 31 + v * 5, R = K.R1(sd);
-    lump(K, S, 0, 0.0, 1.4, 0.55, { amp: 0.1, fr: 1.5, sd, bump: 0.4, leaf: 3, mat: (dx, dy, ao, e, nz, wx, wy) => { if (dy < -0.35) { mossM(K, wx * 2, wy * 2, sd); } else { const t = 0.6 + 0.4 * K.vn(wx * 4, wy * 4); K.M.r = 0.22 * t; K.M.g = 0.12 * t; K.M.b = 0.24 * t; K.M.rg = 0.9; K.M.ao *= 0.5 + 0.5 * (1 - (dy + 1) / 2); } } });
+    lump(K, S, 0, 0.0, 1.4, 0.55, { amp: 0.1, fr: 1.5, sd, bump: 0.4, leaf: 3, mat: (dx, dy, ao, e, nz, wx, wy) => { if (dy < -0.35) { mossM(K, wx * 2, wy * 2, sd); } else { const t = 0.6 + 0.4 * K.vn(wx * 4, wy * 4), E = PV().isle; K.M.r = E[0] * t; K.M.g = E[1] * t; K.M.b = E[2] * t;   /* v437 GR: (the section's earth) */ K.M.rg = 0.9; K.M.ao *= 0.5 + 0.5 * (1 - (dy + 1) / 2); } } });
     S.unlock(); for (let i = 0; i < 6; i++) { const x = (R() - 0.5) * 2, L = 0.4 + R() * 0.7; K.tube(S, ptsQ(x, 0.3, x + (R() - 0.5) * 0.3, 0.3 + L * 0.6, x + (R() - 0.5) * 0.2, 0.3 + L, 6), 0.05, 0.015, (t, s) => bark(K, s, t * 2, 1, sd + i, 0)); }
     S.unlock(); trunk(K, S, ptsQ(0.1, -0.4, 0.15, -0.9, 0.05, -1.3, 6), 0.1, 0.06, sd, 0); crown(K, S, [[0.05, -1.6, 0.5], [-0.35, -1.4, 0.35], [0.45, -1.42, 0.35]], PAL.jade, sd, 0.3);
     for (const [x, y] of [[-0.3, -1.15], [0.35, -1.2], [0.05, -1.25]]) { halo(S.c, x, y, 0.25, GOLD, 0.45); K.ball(S, x, y, 0.06, 0.08, (dx, dy) => eggM(K, dx, dy, 1, x)); } S.unlock(); } };
   /* the void's tile: deep plum, nebula wisps, stars of three colours (128 px, wrapping) */
   window.GAP_EXT = window.GAP_EXT || {};
   const VOIDB = '#0A0512';
-  GAP_EXT.gardenvoid = { base: VOIDB,
-    paint(c, S, R) { c.fillStyle = VOIDB; c.fillRect(0, 0, S, S); const wrap = f => { for (const ox of [-S, 0, S]) for (const oy of [-S, 0, S]) f(ox, oy); };
-      for (let i = 0; i < 10; i++) { const x = R() * S, y = R() * S, w = 20 + R() * 50, col = ['44,18,64', '30,44,60', '64,20,48'][i % 3]; wrap((ox, oy) => { const g = c.createRadialGradient(x + ox, y + oy, 0, x + ox, y + oy, w); g.addColorStop(0, `rgba(${col},.5)`); g.addColorStop(1, `rgba(${col},0)`); c.fillStyle = g; c.fillRect(x + ox - w, y + oy - w, w * 2, w * 2); }); }
+  /* v437 GR: one void per section (gardenvoid: plum and violet, as it was; gardenvoid2: aquamarine; gardenvoid3: sapphire): its
+     base, its nebulae and its two great glows from PALV; the same stars, moons and isles */
+  const VOID_ID = ['gardenvoid', 'gardenvoid2', 'gardenvoid3'];
+  const mkVoid = vi => { const PVi = PALV[vi], id = VOID_ID[vi], VB = PVi.voidB; return { base: VB,
+    paint(c, S, R) { c.fillStyle = VB; c.fillRect(0, 0, S, S); const wrap = f => { for (const ox of [-S, 0, S]) for (const oy of [-S, 0, S]) f(ox, oy); };
+      for (let i = 0; i < 10; i++) { const x = R() * S, y = R() * S, w = 20 + R() * 50, col = PVi.neb[i % 3]; wrap((ox, oy) => { const g = c.createRadialGradient(x + ox, y + oy, 0, x + ox, y + oy, w); g.addColorStop(0, `rgba(${col},.5)`); g.addColorStop(1, `rgba(${col},0)`); c.fillStyle = g; c.fillRect(x + ox - w, y + oy - w, w * 2, w * 2); }); }
       for (let i = 0; i < 60; i++) { const x = R() * S, y = R() * S, s = R() < 0.12 ? 1.3 : 0.7, a = 0.3 + R() * 0.6, k = R(); c.fillStyle = k > 0.85 ? `rgba(255,211,107,${a})` : k > 0.7 ? `rgba(247,184,216,${a})` : k > 0.6 ? `rgba(160,240,210,${a})` : `rgba(255,255,255,${a})`; c.beginPath(); c.arc(x, y, s, 0, TAU); c.fill(); } },
     back(c, o) { const { pat, pattern, k, P: Pn, W, H, t, wx, wy, bigGlow } = o;
-      c.fillStyle = VOIDB; c.fillRect(0, 0, W, H); pat(pattern('gardenvoid', k), 1, 0, 0);   /* (v428 GA: anchored to the stage, as the floor is) */
-      c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.22; { const PX = Math.max(W, H) * 2.6; for (let n = -1; n <= 1; n++) { bigGlow(c, Pn, '#5A2A7A', md(PX * 0.2 - wx, PX) - PX * 0.5 + n * PX + W * 0.5, md(PX * 0.15 - wy, PX) - PX * 0.5 + H * 0.5, W * 0.9); } c.globalAlpha = 0.14; for (let n = -1; n <= 1; n++) bigGlow(c, Pn, '#2A6A60', md(PX * 0.7 - wx, PX) - PX * 0.5 + n * PX + W * 0.5, md(PX * 0.6 - wy, PX) - PX * 0.5 + H * 0.5, W * 0.8); } c.restore();
-      vista(c, W, H, wx, wy, t); } };
+      c.fillStyle = VB; c.fillRect(0, 0, W, H); pat(pattern(id, k), 1, 0, 0);   /* (v428 GA: anchored to the stage, as the floor is) */
+      c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = PVi.ga ? PVi.ga[0] : 0.22; { const PX = Math.max(W, H) * 2.6; for (let n = -1; n <= 1; n++) { bigGlow(c, Pn, PVi.glow[0], md(PX * 0.2 - wx, PX) - PX * 0.5 + n * PX + W * 0.5, md(PX * 0.15 - wy, PX) - PX * 0.5 + H * 0.5, W * 0.9); } c.globalAlpha = PVi.ga ? PVi.ga[1] : 0.14; for (let n = -1; n <= 1; n++) bigGlow(c, Pn, PVi.glow[1], md(PX * 0.7 - wx, PX) - PX * 0.5 + n * PX + W * 0.5, md(PX * 0.6 - wy, PX) - PX * 0.5 + H * 0.5, W * 0.8); } c.restore();
+      vista(c, W, H, wx, wy, t); } }; };
+  GAP_EXT.gardenvoid = mkVoid(0); GAP_EXT.gardenvoid2 = mkVoid(1); GAP_EXT.gardenvoid3 = mkVoid(2);
   // the three unmoving moons (fixed in the sky: no parallax) and far isles drifting below the garden (slow parallax)
   function vista(c, W, H, wx, wy, t, o) { o = o || {}; const T = Math.max(24, Math.min(W, H) / 10), lf = lowFx();
     if (o.anchor !== false) return vistaAnchored(c, W, H, wx, wy, t, T, lf);
@@ -598,6 +628,9 @@ var GARDEN_PROPS = (() => {
       Object.assign(B, { floorFn: (...a) => off() ? (OLDB.floorFn ? OLDB.floorFn(...a) : undefined) : landFloor(...a), wallFn: (...a) => off() ? (OLDB.wallFn ? OLDB.wallFn(...a) : undefined) : landWall(...a), roofFn: (...a) => off() ? undefined : landRoof(...a),
         cliffTint: (...a) => off() ? (OLDB.cliffTint ? OLDB.cliffTint(...a) : undefined) : landCliff(...a), bridgeFn: (...a) => off() ? OLDB.bridgeFn(...a) : landBridge(...a), bridgeEdge: (...a) => off() ? OLDB.bridgeEdge(...a) : landBridgeEdge(...a),
         gap: 'gardenvoid', top: '#2C4A3E', face: '#2A1834', faceD: '#140A1A' }); }
+    // v437 GR: sections 2 and 3 (BIOMES.garden2 / garden3, 20p: the garden's own land through their prototype) over their own voids, with the garden's undergrowth decals
+    if (typeof BIOMES !== 'undefined') { if (BIOMES.garden2) BIOMES.garden2.gap = 'gardenvoid2'; if (BIOMES.garden3) BIOMES.garden3.gap = 'gardenvoid3'; }
+    if (typeof DECALS !== 'undefined' && DECALS.garden) { DECALS.garden2 = DECALS.garden2 || DECALS.garden; DECALS.garden3 = DECALS.garden3 || DECALS.garden; }
     if (HAS_W && window.DECAL_EXT) { for (const k of Object.keys(DEC)) { const o = DECAL_EXT[k]; if (!o || o.__gpp) continue; OLD['decal:' + k] = o; const f = function (c, d, s, lw, T) { if (!T || !decal(c, k, d, s, T)) return o.apply(this, arguments); }; f.__gpp = 1; DECAL_EXT[k] = f; } }
   }
   install();
@@ -608,10 +641,25 @@ var GARDEN_PROPS = (() => {
   // the trees' and plants' own copies let go once a stage is playing (the engine keeps its pictures of them in its prop cache;
   // should it want one again it is painted again): a phone keeps one copy of each, not two
   function trimKinds() { for (const [k, s2] of CACHE) { const n = k.split('|')[0]; if (DEF[n] && KINDS.includes(n)) { if (s2 && s2.cv) s2.cv.width = s2.cv.height = 1; CACHE.delete(k); STATS.released++; } } }
+  // v437 GR: the section drawn changes: what was painted in the last one's light and colours is let go (a stage's close has
+  // usually let it go already); the doors' themes (BEL_DOORS) are the sections' lights too
+  function setVar(v) { v = Math.max(0, Math.min(2, v | 0)); if (v === VAR) return; release(); VAR = v; }
+  function hookDef() { try { if (typeof riftDef !== 'function' || riftDef.__gr) return; const rd = riftDef; riftDef = function (id, stage) { const F = rd.apply(this, arguments); try { if (id === 'garden' && F && !(F.rift && F.rift.gate)) setVar(varOf(F.biome)); } catch (e) {} return F; }; riftDef.__gr = 1; } catch (e) {} }
+  hookDef();
+  function doorThemes() { try { if (typeof BEL_DOORS === 'undefined' || !BEL_DOORS || !BEL_DOORS.defTheme) return;
+    const D = BEL_DOORS.defTheme;
+    D('garden', { light: LIGHT.grove, gem: [0.42, 0.95, 0.72], rune: '#7FE3B4', runeHi: '#F2FFF6', ring: '#C8FFE4', lit: '#FFE9B8', litFloor: '#F2D8A1', caustic: '#FFF1C8', mote: '#FFF6E0', smoke: '#7E6E8A', drip: '#FFF1C8',
+      recess: ['#0A0610', '#3A2A2A', '#140A18'], glowIn: [[255, 248, 232], [255, 226, 170], [170, 110, 120]] });
+    D('garden2', { light: LIGHT.grove2, gem: [0.35, 1.0, 0.84], rune: '#7FFFD4', runeHi: '#EAFFF8', ring: '#B8FFEE', lit: '#B8FFF0', litFloor: '#7FE8D4', caustic: '#A8FFF0', mote: '#F0FFFC', smoke: '#5E7E78', drip: '#CFFFF6',
+      recess: ['#030C0C', '#0E3A36', '#081816'], glowIn: [[236, 255, 250], [150, 245, 225], [40, 140, 130]] });
+    D('garden3', { light: LIGHT.grove3, gem: [0.3, 0.5, 1.0], rune: '#5A8CFF', runeHi: '#E6EEFF', ring: '#AFC6FF', lit: '#B8CCFF', litFloor: '#8FA8F0', caustic: '#A8C0FF', mote: '#F0F4FF', smoke: '#5E6A88', drip: '#D0DCFF',
+      recess: ['#03060F', '#101C44', '#080C1C'], glowIn: [[236, 242, 255], [160, 186, 255], [50, 70, 170]] }); } catch (e) {} }
+  doorThemes();
   function hookRelease() { try { if (typeof DunWorld === 'undefined' || !DunWorld.dropProps || DunWorld.dropProps.__gpp) return; const od = DunWorld.dropProps; const f = function () { try { od.apply(this, arguments); } finally { release(); } }; f.__gpp = 1; DunWorld.dropProps = f; } catch (e) {} }
   hookRelease();
   // the loading screen's jobs: the land's textures at the floor's sharpness, the undergrowth, the bridge, the moons and isles
-  function warm(P) { if (!BP() || !P || !(P.T > 0)) return []; const k = P.k || 1, PB = Math.min(CAP, Math.round(P.T * k)); BASE = PB; const S2 = P.S || {}, jobs = [], job = f => jobs.push(() => { try { f(); } catch (e) {} });
+  function warm(P) { if (P && P.F && P.F.rift && P.F.rift.id === 'garden' && !P.F.rift.gate) setVar(varOf(P.F.biome));   // v437 GR: (the section being loaded)
+    if (!BP() || !P || !(P.T > 0)) return []; const k = P.k || 1, PB = Math.min(CAP, Math.round(P.T * k)); BASE = PB; const S2 = P.S || {}, jobs = [], job = f => jobs.push(() => { try { f(); } catch (e) {} });
     const boss = S2.kind === 'boss';
     if (!boss) { for (const n of ['floor', 'bank', 'roof', 'cliff', 'bridge', 'bunder']) for (const j of texJobs(n, PB)) jobs.push(j); for (const d of ['dtuft', 'dflower', 'dfern', 'droot', 'dmoss']) for (let v = 0; v < 4; v++) job(() => sprite(d, v, Math.round(PB * 1.25), true)); job(() => sprite('thorn', 0, Math.round(PB * 1.2), true)); }
     const VT = Math.max(24, Math.min(HAS_W ? window.innerWidth || 390 : 390, HAS_W ? window.innerHeight || 844 : 844) / 10), dk = Math.min(2, k);
@@ -655,7 +703,7 @@ var GARDEN_PROPS = (() => {
     for (const b of BURSTS) { if (b.X !== X) continue; const u = b.t / b.life, Xs = X.sx(b.x), Ys = X.sy(b.y), f = Math.pow(1 - u, 1.6);
       if (b.kind === 'spark') { G.Q.glow(Xs, Ys, T * b.r * (1.4 + u * 2.4), b.col, 0.55 * f); G.Q.glow(Xs, Ys, T * b.r * 0.5, '#FFFFFF', 0.6 * f); continue; }
       G.Q.glow(Xs, Ys - T * b.h * 0.6, T * (1.2 + b.h * 0.9) * (0.6 + u * 0.8), b.col, 0.42 * f);   // (the flash of its light, swelling and fading)
-      G.Q.glow(Xs, Ys, T * (1.6 + u * 1.6), '#B9A6D8', 0.16 * f, 0.4);   // (the dust thrown up round its foot, lying low)
+      G.Q.glow(Xs, Ys, T * (1.6 + u * 1.6), PV().dust, 0.16 * f, 0.4);   /* v437 GR: (the section's dust) */   // (the dust thrown up round its foot, lying low)
       if (!lf) G.Q.ring(Xs, Ys, T * (0.5 + u * 2.2), b.col, 0.3 * f, T * 0.35 * (1 - u * 0.5), 0.45); } }
   function hookBreak() { try { if (typeof BREAK_FX === 'undefined' || !BREAK_FX.prop || BREAK_FX.prop.__gpp) return; const op = BREAK_FX.prop; const f = function (Xa, p, o) { const r = op.apply(this, arguments); try { if (p && DEBRIS[p.kind] && !off()) gardenBreak(Xa, p); } catch (e) {} return r; }; f.__gpp = 1; BREAK_FX.prop = f; } catch (e) {} }
   hookBreak();
@@ -676,7 +724,7 @@ var GARDEN_PROPS = (() => {
         for (const q of glows) { const p = q.p; if (p.broken) continue; const Xs = X.sx(p.x) + q.dx * T, Ys = X.sy(p.y); if (Xs < -T * 4 || Xs > W + T * 4 || Ys < -T * 3 || Ys > Hh + T * 3) continue; if (lf && q.kind !== 'egg' && q.kind !== 'bulb') continue;
           G.Q.glow(Xs, Ys - T * 0.05, q.r * T * 2.4, q.col, 0.14 + 0.04 * Math.sin(t * 1.3 + q.ph), 0.42); }
         // the mist lying low over the moss: soft lilac drifts (world-anchored, sliding slowly)
-        if (!lf && !fiend) { for (let i = 0; i < 5; i++) { const cx = X.me.x + Math.sin(t * 0.05 + i * 1.7) * 6 + (i - 2) * 4, cy = X.me.y + Math.cos(t * 0.04 + i * 2.3) * 4 + (i % 2 ? 2 : -2), Xs = X.sx(cx), Ys = X.sy(cy); G.Q.glow(Xs, Ys, T * (5 + i % 3), i % 2 ? '#8E7AB8' : '#6E9A8E', 0.07, 0.38); } }
+        if (!lf && !fiend) { for (let i = 0; i < 5; i++) { const cx = X.me.x + Math.sin(t * 0.05 + i * 1.7) * 6 + (i - 2) * 4, cy = X.me.y + Math.cos(t * 0.04 + i * 2.3) * 4 + (i % 2 ? 2 : -2), Xs = X.sx(cx), Ys = X.sy(cy); G.Q.glow(Xs, Ys, T * (5 + i % 3), PV().mist[i % 2 ? 0 : 1], 0.07, 0.38); } }   // v437 GR: (the section's mist)
         gpuEnd(c, G); },
       drawOver(c) { if (!glows) return; const G = gpu(c); if (!G) return; const T = X.Tz(), W = X.W(), Hh = X.H(), lf = LF();
         // the eggs, bulbs, lilies, glowcaps and beads: a breathing glow and a bright core each
@@ -693,7 +741,8 @@ var GARDEN_PROPS = (() => {
         gpuEnd(c, G); },
       refresh() { glows = null; } }; }
   function hookRift() { try { const Rf = typeof RIFT_BY_ID !== 'undefined' && RIFT_BY_ID.garden; if (!Rf || Rf.__gpp) return; Rf.__gpp = 1;
-    const oe = Rf.everyStage; Rf.everyStage = function (X, self, H) { let a = {}; try { a = oe ? oe.apply(this, arguments) || {} : {}; } catch (e) { a = {}; } if (off()) return a; let L = null; try { L = lights(X, self, H); if (X.F && X.F.fiend) dressArena(X, self); } catch (e) { L = null; } if (!L) return a;
+    const oe = Rf.everyStage; Rf.everyStage = function (X, self, H) { try { setVar(varOf(X.F && X.F.biome)); } catch (e) {}   // v437 GR: (the section being played)
+      let a = {}; try { a = oe ? oe.apply(this, arguments) || {} : {}; } catch (e) { a = {}; } if (off()) return a; let L = null; try { L = lights(X, self, H); if (X.F && X.F.fiend) dressArena(X, self); } catch (e) { L = null; } if (!L) return a;
       return Object.assign({}, a, { update(dt) { if (a.update) a.update(dt); L.update(dt); }, drawGround(c) { L.drawGround(c); if (a.drawGround) a.drawGround(c); }, drawOver(c) { if (a.drawOver) a.drawOver(c); L.drawOver(c); }, gpp: L }); };
     const op = Rf.preload; Rf.preload = function (P) { let a = []; try { a = op ? op.apply(this, arguments) || [] : []; } catch (e) {} let b = []; try { hookArena(); b = warm(P); } catch (e) {} return a.concat(b); }; } catch (e) {} }
   hookRift();
@@ -709,7 +758,7 @@ var GARDEN_PROPS = (() => {
     const pat = c.createPattern(t.cv, 'repeat'); try { pat.setTransform(new DOMMatrix([1 / t.P, 0, 0, 1 / t.P, 0, 0])); } catch (e) { return false; }
     c.save(); c.beginPath(); c.arc(0, 0, R + 1.4, 0, TAU); c.clip(); c.fillStyle = pat; c.fillRect(-R - 1.5, -R - 1.5, R * 2 + 3, R * 2 + 3);
     // the boss's own tint (its mid and edge colours) laid softly over the loam, the floor darkening toward the rim
-    const g = c.createRadialGradient(0, 0, R * 0.1, 0, 0, R + 1.4); g.addColorStop(0, rgba(o.mid || '#3A2449', 0.28)); g.addColorStop(0.62, rgba(o.edge || '#2A1634', 0.36)); g.addColorStop(0.9, 'rgba(16,6,22,.7)'); g.addColorStop(1, 'rgba(10,4,14,.95)'); c.fillStyle = g; c.fillRect(-R - 1.5, -R - 1.5, R * 2 + 3, R * 2 + 3);
+    const AV = PV().arena, g = c.createRadialGradient(0, 0, R * 0.1, 0, 0, R + 1.4); g.addColorStop(0, rgba(o.mid || '#3A2449', 0.28)); g.addColorStop(0.62, rgba(o.edge || '#2A1634', 0.36)); g.addColorStop(0.9, AV ? `rgba(${AV.rim},.7)` : 'rgba(16,6,22,.7)'); g.addColorStop(1, AV ? `rgba(${AV.rim},.95)` : 'rgba(10,4,14,.95)');   /* v437 GR: (sections 2 and 3: their own rim) */ c.fillStyle = g; c.fillRect(-R - 1.5, -R - 1.5, R * 2 + 3, R * 2 + 3);
     [[-R * 0.35, -R * 0.3, '242,216,161'], [R * 0.4, -R * 0.1, '247,184,216'], [0, R * 0.45, '127,227,180']].forEach(([x, y, col]) => { const gg = c.createRadialGradient(x, y, 0, x, y, R * 0.5); gg.addColorStop(0, `rgba(${col},.1)`); gg.addColorStop(1, `rgba(${col},0)`); c.fillStyle = gg; c.fillRect(x - R * 0.5, y - R * 0.5, R, R); });
     // root veins from the rim toward the middle: bark-dark, a lit ridge
     for (let i = 0; i < 12; i++) { const a0 = i / 12 * TAU + rnd() * 0.3; let x = Math.cos(a0) * (R + 0.6), y = Math.sin(a0) * (R + 0.6), a = a0 + Math.PI + (rnd() - 0.5) * 0.4; const pts = [[x, y]]; for (let j = 0; j < 6; j++) { x += Math.cos(a) * (0.9 + rnd() * 0.7); y += Math.sin(a) * (0.9 + rnd() * 0.7); a += (rnd() - 0.5) * 0.9; if (Math.hypot(x, y) < R * 0.42) break; pts.push([x, y]); }
@@ -727,8 +776,8 @@ var GARDEN_PROPS = (() => {
       const sc = (n[0] === 'd' ? 1.8 : 0.85 + hh(i, 3, 2) * 0.3) / sp.P; c.save(); c.translate(x, y + 0.3); if (i % 3 === 0) c.scale(-1, 1); c.drawImage(sp.cv, -sp.ax * sc, -sp.ay * sc, sp.cv.width * sc, sp.cv.height * sc); c.restore(); }
     return true; }
   function arenaSky(c, W, H, t, cam, T, o) { o = o || {}; const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, o.top || '#120820'); g.addColorStop(0.5, o.mid || '#2A1538'); g.addColorStop(1, o.bot || '#0E0712'); c.fillStyle = g; c.fillRect(0, 0, W, H);
-    try { const sp = DunWorld.pattern('gardenvoid', 1); c.save(); c.globalAlpha = 0.85; c.globalCompositeOperation = 'lighter'; sp.setTransform(new DOMMatrix([1, 0, 0, 1, -(cam.x || 0) * T * 0.05, 0])); c.fillStyle = sp; c.fillRect(0, 0, W, H); c.restore(); } catch (e) {}
-    c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.22; blitSized(c, glowSprite('#5A2A7A'), -W * 0.2, -H * 0.1, W * 1.1, H * 0.7); c.globalAlpha = 0.12; blitSized(c, glowSprite('#2A6A60'), W * 0.3, H * 0.25, W * 0.9, H * 0.6); c.restore();
+    try { const sp = DunWorld.pattern(VOID_ID[VAR], 1); c.save(); c.globalAlpha = 0.85; c.globalCompositeOperation = 'lighter'; sp.setTransform(new DOMMatrix([1, 0, 0, 1, -(cam.x || 0) * T * 0.05, 0])); c.fillStyle = sp; c.fillRect(0, 0, W, H); c.restore(); } catch (e) {}   // v437 GR: (the section's void and glows)
+    c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = PV().ga ? PV().ga[0] : 0.22; blitSized(c, glowSprite(PV().glow[0]), -W * 0.2, -H * 0.1, W * 1.1, H * 0.7); c.globalAlpha = PV().ga ? PV().ga[1] * 0.85 : 0.12; blitSized(c, glowSprite(PV().glow[1]), W * 0.3, H * 0.25, W * 0.9, H * 0.6); c.restore();
     vista(c, W, H, ((cam.x || 0) - 28) * T * 0.4, ((cam.y || 0) - 28) * T * 0.4, t, { anchor: false, moons: [[0.2, 0.13, 1.3, 0], [0.56, 0.08, 0.75, 1], [0.84, 0.17, 0.95, 2]] });
     // boughs hanging in from above, eggs on threads glowing
     const R2 = mulberry32(31); c.save(); c.lineCap = 'round'; for (let i = 0; i < 6; i++) { const x0 = W * (i + 0.5) / 6 + (R2() - 0.5) * 40, L = 60 + R2() * 70, sw = (R2() - 0.5) * 60;
@@ -737,8 +786,11 @@ var GARDEN_PROPS = (() => {
       for (let k = 0; k < 3; k++) { const u = 0.4 + k * 0.28, ex = x0 + sw * u + (k - 1) * 10, ey = L * u + 14 + R2() * 8; c.strokeStyle = 'rgba(242,216,161,.5)'; c.lineWidth = 1.2; c.beginPath(); c.moveTo(ex, ey - 12); c.lineTo(ex, ey - 4); c.stroke(); c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.5; blitSized(c, glowSprite(GOLD), ex - 16, ey - 13, 32, 32); c.restore(); const eg = c.createRadialGradient(ex - 1.5, ey, 0.5, ex, ey + 3, 7); eg.addColorStop(0, '#FFF6E0'); eg.addColorStop(1, '#C9AB72'); c.fillStyle = eg; c.beginPath(); c.ellipse(ex, ey + 3, 4.5, 6, 0, 0, TAU); c.fill(); } }
     c.restore(); if (o.silhouette) o.silhouette(c, W, H, t, cam, T); return true; }
   hookArena = () => { try { if (typeof GardenFiend === 'undefined' || !GardenFiend || GardenFiend.__gpp) return; const G = GardenFiend, of = G.floor, os = G.sky; if (typeof of !== 'function' || typeof os !== 'function') return; G.__gpp = 1;
-    G.floor = function (c, A, o) { if (!off() && BP()) { try { c.save(); const ok = arenaFloor(c, A, o); c.restore(); if (ok) return; } catch (e) { try { c.restore(); } catch (e2) {} } } return of.apply(this, arguments); };
-    G.sky = function (c, W, H, t, cam, T, o) { if (!off() && BP()) { try { c.save(); const ok = arenaSky(c, W, H, t, cam, T, o); c.restore(); if (ok) return; } catch (e) { try { c.restore(); } catch (e2) {} } } return os.apply(this, arguments); }; } catch (e) {} };
+    // v437 GR: in sections 2 and 3 (Ambrel's and Calyx's arenas) the ground's and the sky's tints are the section's (on the painted
+    // arena and on the bosses' own 2D art alike: the same art, its colours only)
+    const tint = (o, sky) => { const AV = PV().arena; if (!AV) return o; return Object.assign({}, o || {}, sky ? { top: AV.top, mid: AV.skyMid, bot: AV.bot } : { mid: AV.mid, edge: AV.edge }); };
+    G.floor = function (c, A, o) { o = tint(o, false); if (!off() && BP()) { try { c.save(); const ok = arenaFloor(c, A, o); c.restore(); if (ok) return; } catch (e) { try { c.restore(); } catch (e2) {} } } return of.call(this, c, A, o); };
+    G.sky = function (c, W, H, t, cam, T, o) { o = tint(o, true); if (!off() && BP()) { try { c.save(); const ok = arenaSky(c, W, H, t, cam, T, o); c.restore(); if (ok) return; } catch (e) { try { c.restore(); } catch (e2) {} } } return os.call(this, c, W, H, t, cam, T, o); }; } catch (e) {} };
   if (typeof setTimeout === 'function') setTimeout(() => hookArena(), 0);   // (the boss files load after this one: wrapped once every file has run)
   // the ring of trees beyond the arena's rim (drawn under everything that stands: they are all behind or beside the fight)
   dressArena = (X, self) => { const C = X.M && X.M.FC; if (!C) return; hookArena(); const R = C.R, list = [], rnd = R1(4231 + (X.F.rift ? X.F.rift.stage : 0) * 17), TREES = ['eggtree', 'weepwillow', 'thornpine', 'bulbtree', 'eggtree', 'thornpine'];
@@ -749,6 +801,7 @@ var GARDEN_PROPS = (() => {
     for (const p of L) { const Xs = X.sx(p.x), Ys = X.sy(p.y); if (Xs < -T * 3 || Xs > W + T * 3 || Ys < -T * 1 || Ys > Hh + T * 5) continue; draw(c, p.kind, p.v % 2, Xs, Ys, T, { flip: p.v >= 2 }); } }
 
   const API = { draw, sprite: (n, v, P) => sprite(n, v, P, true), tex, texJobs, texNear, trimKinds, HPK, DEBRIS, BURSTS, AR, arena: { floor: arenaFloor, sky: arenaSky, hook: () => hookArena() }, has: n => !!DEF[n] && !!BP(), warm, release, glowsOf, install, OLD, OLDB, DEF, TDEF, KINDS, vista, lights, EXTRA_WARM, qP,
+    get var() { return VAR; }, setVar, varOf, PALV, LIGHT, VOID_ID,   // v437 GR: the section drawn
     get base() { return BASE; }, set base(v) { if (v > 2) BASE = Math.round(v); }, get stats() { return Object.assign({ cached: CACHE.size, textures: TEX.size, texKeys: [...TEX.keys()], px: [...CACHE.values()].reduce((a, q) => a + q.cv.width * q.cv.height, 0) + [...TEX.values()].reduce((a, q) => a + q.cv.width * q.cv.height, 0) }, STATS); },
     _k: { lump, ribbon, halo, leafM, bark, stoneM, mossM, thornM, vineM, glassM, eggM, petalM, crown, trunk, frond, egg, contact, ptsQ, lit, PAL, INK, pvn, pfbm, pcell, field, setDress: f => { dressArena = f; }, setArena: f => { hookArena = f; } } };
   if (HAS_W) window.GARDEN_PROPS = API;

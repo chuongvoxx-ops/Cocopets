@@ -10,7 +10,7 @@ fs.mkdirSync(OUT, { recursive: true });
   const shots = [], note = {};
   const snap = async (name, cap, crop) => { await page.waitForTimeout(+(process.env.WAIT || 2500)); if (typeof crop === 'function') crop = await crop(); const f = path.join(OUT, `${TAG}-d${DPR}-${name}.png`); await page.screenshot({ path: f, clip: crop ? { x: Math.max(0, crop.x), y: Math.max(0, crop.y), width: crop.w, height: crop.h } : undefined }); shots.push(f); note[path.basename(f)] = cap; console.log('shot', path.basename(f)); };
   const settle = async () => { await page.evaluate(() => { const D = window.__pp.arc.game._dbg; D.mons.length = 0; if (D.g.reserve) D.g.reserve.length = 0; D.me.inv = 99; D.g.intro = 0; }); };
-  for (const st of (process.env.STAGES || '9').split(',').map(Number)) {
+  for (const st of (process.env.STAGES || '6')   /* v437 GR: (The Thorn Walks: stage 6 of the nine) */.split(',').map(Number)) {
     await page.evaluate(([s, ov]) => { window.__gtSeed = 424242 + s; window.__gtOv = ov; }, [st, process.env.OVX ? { x: +process.env.OVX, y: +process.env.OVY } : null]); await L.stage(page, st); await settle(); await page.waitForTimeout(7000); await settle();
     const info = await page.evaluate(() => { const XH = window.__XH, F = XH.X.rift.self.gtraps; return { name: XH.X.F.rift.name, n: F ? F.traps.length : 0 }; });
     console.log('stage', st, JSON.stringify(info));

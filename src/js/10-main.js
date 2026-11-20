@@ -244,6 +244,7 @@ function frame(ms) {
   requestAnimationFrame(frame);
   let dt = (ms - lastFrame) / 1000;
   lastFrame = ms;
+  if (typeof FPSM !== 'undefined') FPSM.tick(ms);   // v437 GR: the frame counter (Settings), from this loop's own timestamps
   if (!(dt > 0)) return;
   if (dt > 0.05) dt = 0.05;
   if (!running || !st) return;

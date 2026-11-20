@@ -6,7 +6,7 @@
 const L = require('./_gt-lib.js'); const { results, ok } = L.reporter();
 (async () => { const { browser, page, errors } = await L.open();
   await page.evaluate(() => { const P = window.__pp; P.quickStart('Bot'); window.__gtBoot = 1; P.st.unlockAll = true; });
-  await L.stage(page, 9);
+  await L.stage(page, 6);   // v437 GR: (The Thorn Walks: stage 6 of the nine)
   const r = await page.evaluate(() => { const { X, H } = window.__XH, D = window.__pp.arc.game._dbg, GT = self.GARDEN_TRAPS, me = D.me, g = D.g, out = { kinds: {} };
     GT.clear(); D.mons.length = 0; if (g.reserve) g.reserve.length = 0;
     const F = GT.place(X, H, { sec: 3, n: 2, teach: false }); const all = F.traps.slice();
@@ -58,7 +58,7 @@ const L = require('./_gt-lib.js'); const { results, ok } = L.reporter();
   // let go: a new stage (any) stops the old field and frees the pictures; leaving a stage frees them too
   const rel = await page.evaluate(() => { const GT = self.GARDEN_TRAPS, before = GT.stats; const old = GT.fields().slice(); return { before: { live: before.live, cached: before.cached }, old: old.length, oldRefs: old.map(F => F.live) }; });
   await page.evaluate(() => { window.__gtOld = self.GARDEN_TRAPS.fields().slice(); });
-  await L.stage(page, 10);
+  await L.stage(page, 3);   // v437 GR: (another fight stage: The Glassless Conservatory, stage 3 of the nine)
   const rel2 = await page.evaluate(() => { const GT = self.GARDEN_TRAPS, D = window.__pp.arc.game._dbg; return { live: GT.stats.live, cached: GT.stats.cached, released: GT.stats.released, oldLive: window.__gtOld.filter(F => F.live).length, oldTraps: window.__gtOld.every(F => F.traps.every(t => !t.obj)), newLive: GT.fields().filter(F => F.live).length, mv: Object.keys(D.g.mvMods || {}).filter(k => /^gt/.test(k)) }; });
   // st.lowFx: the stage keeps drawing with the thinner light (and nothing breaks)
   await page.evaluate(() => { const P = window.__pp, D = P.arc.game._dbg, F = self.GARDEN_TRAPS.fields()[0]; P.st.lowFx = true; if (F) for (const t of F.traps) { t.st = 'warn'; t.t = 0.2; } D.me.x = F ? F.traps[0].x + 1 : D.me.x; });

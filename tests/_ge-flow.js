@@ -14,9 +14,9 @@ const { open, STAGES } = require('./_ge-lib.js');
   try {
     // the land in every dungeon: floor, walls, cliffs, bridges from the painted textures; the props from the painted pictures
     for (const k of ['fight1', 'fight2', 'fight3']) { if (!want(k)) continue; await P.stage(STAGES[k]); await P.run(2);
-      const s = await M(() => { const D = window.__pp.arc.game._dbg, G = window.GARDEN_PROPS, B = window.__pp.BIOMES.garden, kinds = {}; for (const p of D.propList) kinds[p.kind] = (kinds[p.kind] || 0) + 1;
+      const s = await M(() => { const D = window.__pp.arc.game._dbg, G = window.GARDEN_PROPS, B = window.__pp.BIOMES[D.F.biome], kinds = {};   /* v437 GR: (the section's own land: garden, garden2, garden3) */ for (const p of D.propList) kinds[p.kind] = (kinds[p.kind] || 0) + 1;
         return { st: G.stats, gap: B.gap, roof: typeof B.roofFn, props: D.propList.length, kinds: Object.keys(kinds).filter(k => G.KINDS.includes(k)).length, painted: Object.keys(window.__pp.DunWorld.PROPS).filter(k => G.KINDS.includes(k) && window.__pp.DunWorld.PROPS[k].__gpp).length }; });
-      ok(`${k}: land + props painted`, s.st.textures >= 4 && s.gap === 'gardenvoid' && s.roof === 'function' && s.painted === 9 && s.kinds >= 3, JSON.stringify({ tex: s.st.textures, painted: s.st.painted, props: s.props, kinds: s.kinds, ms: Math.round(s.st.paintMs + s.st.texMs) }));
+      ok(`${k}: land + props painted`, s.st.textures >= 4 && /^gardenvoid[23]?$/.test(s.gap) && s.roof === 'function' && s.painted === 9 && s.kinds >= 3, JSON.stringify({ tex: s.st.textures, painted: s.st.painted, props: s.props, kinds: s.kinds, ms: Math.round(s.st.paintMs + s.st.texMs) }));
       await closeAndCheck(k); }
     // the Seedling March: the course, then the Colossus brought low, then the walk to the Garden's heart
     if (want('march')) { await P.stage(STAGES.march); await P.run(3.2);
