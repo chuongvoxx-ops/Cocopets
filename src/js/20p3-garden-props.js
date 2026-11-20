@@ -554,11 +554,12 @@ var GARDEN_PROPS = (() => {
       for (let i = 0; i < 10; i++) { const x = R() * S, y = R() * S, w = 20 + R() * 50, col = ['44,18,64', '30,44,60', '64,20,48'][i % 3]; wrap((ox, oy) => { const g = c.createRadialGradient(x + ox, y + oy, 0, x + ox, y + oy, w); g.addColorStop(0, `rgba(${col},.5)`); g.addColorStop(1, `rgba(${col},0)`); c.fillStyle = g; c.fillRect(x + ox - w, y + oy - w, w * 2, w * 2); }); }
       for (let i = 0; i < 60; i++) { const x = R() * S, y = R() * S, s = R() < 0.12 ? 1.3 : 0.7, a = 0.3 + R() * 0.6, k = R(); c.fillStyle = k > 0.85 ? `rgba(255,211,107,${a})` : k > 0.7 ? `rgba(247,184,216,${a})` : k > 0.6 ? `rgba(160,240,210,${a})` : `rgba(255,255,255,${a})`; c.beginPath(); c.arc(x, y, s, 0, TAU); c.fill(); } },
     back(c, o) { const { pat, pattern, k, P: Pn, W, H, t, wx, wy, bigGlow } = o;
-      c.fillStyle = VOIDB; c.fillRect(0, 0, W, H); pat(pattern('gardenvoid', k), 0.22, 0, 0);
-      c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.22; bigGlow(c, Pn, '#5A2A7A', W * 0.05 - ((wx * 0.04) % (W * 0.6)), H * 0.15 - ((wy * 0.04) % (H * 0.4)), W * 0.9); c.globalAlpha = 0.14; bigGlow(c, Pn, '#2A6A60', W * 0.45 - ((wx * 0.05) % (W * 0.6)), H * 0.5 - ((wy * 0.05) % (H * 0.4)), W * 0.8); c.restore();
+      c.fillStyle = VOIDB; c.fillRect(0, 0, W, H); pat(pattern('gardenvoid', k), 1, 0, 0);   /* (v428 GA: anchored to the stage, as the floor is) */
+      c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.22; { const PX = Math.max(W, H) * 2.6; for (let n = -1; n <= 1; n++) { bigGlow(c, Pn, '#5A2A7A', md(PX * 0.2 - wx, PX) - PX * 0.5 + n * PX + W * 0.5, md(PX * 0.15 - wy, PX) - PX * 0.5 + H * 0.5, W * 0.9); } c.globalAlpha = 0.14; for (let n = -1; n <= 1; n++) bigGlow(c, Pn, '#2A6A60', md(PX * 0.7 - wx, PX) - PX * 0.5 + n * PX + W * 0.5, md(PX * 0.6 - wy, PX) - PX * 0.5 + H * 0.5, W * 0.8); } c.restore();
       vista(c, W, H, wx, wy, t); } };
   // the three unmoving moons (fixed in the sky: no parallax) and far isles drifting below the garden (slow parallax)
   function vista(c, W, H, wx, wy, t, o) { o = o || {}; const T = Math.max(24, Math.min(W, H) / 10), lf = lowFx();
+    if (o.anchor !== false) return vistaAnchored(c, W, H, wx, wy, t, T, lf);
     const ISL = [[0.15, 0.3, 0.55, 0], [0.75, 0.62, 0.45, 1], [0.42, 0.9, 0.35, 2]];
     for (const [fx, fy, sc, v] of ISL) { const par = 0.18 + sc * 0.25, span = W * 1.6, spanY = H * 1.6, x = md(fx * span - wx * par * 0.02 * T / 24 + t * (2 + v), span) - W * 0.3, y = md(fy * spanY - wy * par * 0.02 * T / 24, spanY) - H * 0.3;
       if (!draw(c, 'isle', v % 2, x, y, T * sc * 1.4, { alpha: 0.55 + sc * 0.5, exact: true })) break; }
@@ -566,6 +567,20 @@ var GARDEN_PROPS = (() => {
     for (const [fx, fy, r, v] of MOONS) { const mx = W * fx, my = H * fy, R = T * r, col = ['#F2D8A1', '#F7B8D8', '#A8E8D0'][v];
       c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = lf ? 0.25 : 0.32; blitSized(c, glowSprite(col), mx - R * 3.2, my - R * 3.2, R * 6.4, R * 6.4); c.restore();
       if (!draw(c, 'moon', v, mx, my, R, { exact: true })) { c.fillStyle = col; c.beginPath(); c.arc(mx, my, R, 0, TAU); c.fill(); } } }
+
+  /* (v428 GA) the user: the sky moved with the screen like a filter, with nothing in it held against the stage. Now the moons,
+     isles and glows are laid out over the stage itself, anchored like the floor (screen x = its place - the camera), a layout
+     that repeats every 2.6 screens in both directions so a stage of any size is covered and the camera reveals more of it */
+  function vistaAnchored(c, W, H, wx, wy, t, T, lf) {
+    const PX = Math.max(W, H) * 2.6, PY = Math.max(W, H) * 2.2, at = (fx, fy) => [md(fx * PX - wx, PX) - PX * 0.25, md(fy * PY - wy, PY) - PY * 0.25];
+    const ISL = [[0.1, 0.42, 0.55, 0], [0.58, 0.78, 0.45, 1], [0.36, 0.12, 0.35, 0], [0.86, 0.5, 0.5, 1], [0.72, 0.2, 0.4, 0]];
+    for (const [fx, fy, sc, v] of ISL) { const [x0, y0] = at(fx, fy), y = y0 + Math.sin(t * 0.35 + fx * 9) * T * 0.15;
+      for (const x of [x0, x0 + PX, x0 - PX]) { if (x < -T * 4 || x > W + T * 4 || y < -T * 4 || y > H + T * 4) continue; if (!draw(c, 'isle', v % 2, x, y, T * sc * 1.4, { alpha: 0.55 + sc * 0.5, exact: true })) return; } }
+    const MOONS = [[0.22, 0.2, 1.35, 0], [0.5, 0.06, 0.8, 1], [0.8, 0.3, 1.0, 2], [0.06, 0.66, 0.7, 1], [0.66, 0.62, 1.15, 0], [0.4, 0.86, 0.9, 2]];
+    for (const [fx, fy, r, v] of MOONS) { const [mx0, my] = at(fx, fy), R = T * r, col = ['#F2D8A1', '#F7B8D8', '#A8E8D0'][v];
+      for (const mx of [mx0, mx0 + PX, mx0 - PX]) { if (mx < -R * 4 || mx > W + R * 4 || my < -R * 4 || my > H + R * 4) continue;
+        c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = lf ? 0.25 : 0.32; blitSized(c, glowSprite(col), mx - R * 3.2, my - R * 3.2, R * 6.4, R * 6.4); c.restore();
+        if (!draw(c, 'moon', v, mx, my, R, { exact: true })) { c.fillStyle = col; c.beginPath(); c.arc(mx, my, R, 0, TAU); c.fill(); } } } }
 
   /* ======================= the engine's props, repainted through its prop cache ======================= */
   const OLD = {}, OLDB = {};
@@ -672,7 +687,9 @@ var GARDEN_PROPS = (() => {
         // motes: seed lights drifting up through the air
         for (const e of motes) { const a = Math.sin(e.t / e.life * Math.PI), Xs = X.sx(e.x), Ys = X.sy(e.y); if (Xs < -10 || Xs > W + 10 || Ys < -10 || Ys > Hh + 10) continue; G.Q.glow(Xs, Ys, T * 0.16 * e.s, e.col, a * 0.55); G.Q.glow(Xs, Ys, T * 0.04 * e.s, '#FFFFFF', a * 0.8); }
         // the moons' light falling through the canopy: slow shafts from the upper left
-        if (!lf) for (let i = 0; i < 3; i++) { const x = W * (0.12 + i * 0.36) + Math.sin(t * 0.13 + i * 2) * T * 0.8; G.Q.shafts(x, -T * 1.5, x + W * 0.2, Hh * 0.85, T * (1.4 + i * 0.3), i === 1 ? '#F7D0E6' : '#FFF0D0', fiend ? 0.07 : 0.11, i * 1.9 + 0.5); }
+        if (!lf) { const SP = 11, x0w = X.me.x - W / T, n0 = Math.floor(x0w / SP) - 1, n1 = Math.ceil((X.me.x + W / T) / SP) + 1;   /* (v428 GA: anchored to the stage, not the screen) */
+          for (let n = n0; n <= n1; n++) { const i = ((n % 3) + 3) % 3, xw = n * SP + hh(n, 5, 13) * 4, x = X.sx(xw) + Math.sin(t * 0.13 + n * 2) * T * 0.5; if (x < -W * 0.4 || x > W * 1.2) continue;
+            G.Q.shafts(x, -T * 1.5, x + W * 0.2, Hh * 0.85, T * (1.4 + i * 0.3), i === 1 ? '#F7D0E6' : '#FFF0D0', fiend ? 0.07 : 0.11, i * 1.9 + 0.5); } }
         gpuEnd(c, G); },
       refresh() { glows = null; } }; }
   function hookRift() { try { const Rf = typeof RIFT_BY_ID !== 'undefined' && RIFT_BY_ID.garden; if (!Rf || Rf.__gpp) return; Rf.__gpp = 1;
@@ -712,7 +729,7 @@ var GARDEN_PROPS = (() => {
   function arenaSky(c, W, H, t, cam, T, o) { o = o || {}; const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, o.top || '#120820'); g.addColorStop(0.5, o.mid || '#2A1538'); g.addColorStop(1, o.bot || '#0E0712'); c.fillStyle = g; c.fillRect(0, 0, W, H);
     try { const sp = DunWorld.pattern('gardenvoid', 1); c.save(); c.globalAlpha = 0.85; c.globalCompositeOperation = 'lighter'; sp.setTransform(new DOMMatrix([1, 0, 0, 1, -(cam.x || 0) * T * 0.05, 0])); c.fillStyle = sp; c.fillRect(0, 0, W, H); c.restore(); } catch (e) {}
     c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.22; blitSized(c, glowSprite('#5A2A7A'), -W * 0.2, -H * 0.1, W * 1.1, H * 0.7); c.globalAlpha = 0.12; blitSized(c, glowSprite('#2A6A60'), W * 0.3, H * 0.25, W * 0.9, H * 0.6); c.restore();
-    vista(c, W, H, ((cam.x || 0) - 28) * T * 0.4, ((cam.y || 0) - 28) * T * 0.4, t, { moons: [[0.2, 0.13, 1.3, 0], [0.56, 0.08, 0.75, 1], [0.84, 0.17, 0.95, 2]] });
+    vista(c, W, H, ((cam.x || 0) - 28) * T * 0.4, ((cam.y || 0) - 28) * T * 0.4, t, { anchor: false, moons: [[0.2, 0.13, 1.3, 0], [0.56, 0.08, 0.75, 1], [0.84, 0.17, 0.95, 2]] });
     // boughs hanging in from above, eggs on threads glowing
     const R2 = mulberry32(31); c.save(); c.lineCap = 'round'; for (let i = 0; i < 6; i++) { const x0 = W * (i + 0.5) / 6 + (R2() - 0.5) * 40, L = 60 + R2() * 70, sw = (R2() - 0.5) * 60;
       for (const [col, w] of [['#140818', 9], ['#3A2238', 5]]) { c.strokeStyle = col; c.lineWidth = w; c.beginPath(); c.moveTo(x0, -10); c.quadraticCurveTo(x0 + sw * 0.5, L * 0.5, x0 + sw, L); c.stroke(); c.lineWidth = w * 0.45; c.beginPath(); c.moveTo(x0 + sw * 0.6, L * 0.6); c.quadraticCurveTo(x0 + sw * 0.9 + 20, L * 0.8, x0 + sw + 30, L * 0.75); c.stroke(); }
