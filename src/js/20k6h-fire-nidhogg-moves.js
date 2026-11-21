@@ -1843,6 +1843,16 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
           ec += (hh > 0.93 ? aWH : hh > 0.7 ? aPK : aRU) * ml; }
         L = ec * 1.3 * (1.0 - ag * ag) * (1.0 - smoothstep(0.55, 1.0, r)); } }
     /*</AS-FX>*/
+    /*<SG-FX kind 336 (v445 AG: 20s-rift-gate-scorpio.js, the Amber Vigil's watch-stones)>*/
+    else if (v_k > 335.5 && v_k < 336.5) { // 336 one sector of a watch-stone's gaze on the floor (uv.x -1 at the stone .. 1 at its reach, uv.y across, the quad's half width tan(h) 1.6 + 0.02 reaches): a gaze is laid as N such sectors side by side, each cut where its two rays meet cover (its shadow edge drawn between them), neighbouring sectors' seams blended so they add to exactly one; v_q.x 100 + the sector's index + 5 x its half angle h, v_q.y N + 0.998 x the lit share of its left ray, v_q.z its right ray's; v_c its colour, alpha its strength
+      float q0 = v_q.x - 100.0, si = floor(q0 + 0.0001), h = max((q0 - si) / 5.0, 0.0005), nN = floor(v_q.y + 0.0001), dL = clamp((v_q.y - nN) / 0.998, 0.0, 1.0), dR = clamp(v_q.z, 0.0, 1.0), kw = tan(h) * 1.6 + 0.02, tt = u_t;
+      vec2 p = vec2((u.x + 1.0) * 0.5, u.y * kw); float rr = length(p), aw = atan(p.y, max(p.x, 0.0001)), ep = min(h * 0.5, 0.012);
+      float wgt = clamp(0.5 + (h - abs(aw)) / (2.0 * ep), 0.0, 1.0), dv = mix(dL, dR, clamp((aw + h) / (2.0 * h), 0.0, 1.0)), ph = (si + 0.5 - nN * 0.5) * 2.0 * h + aw, s = ph / max(nN * h, 0.001);
+      float lit = smoothstep(dv + 0.012, dv - 0.03, rr) * smoothstep(1.0, 0.94, rr), side = smoothstep(1.0, 0.8, abs(s)), near = smoothstep(0.02, 0.1, rr);
+      float fall = 0.3 + 0.5 * pow(1.0 - clamp(rr, 0.0, 1.0), 1.4) + 0.3 * exp(-rr * 9.0), scan = pow(0.5 + 0.5 * sin(rr * 30.0 - tt * 3.4), 8.0) * 0.26 * smoothstep(0.05, 0.25, rr);
+      float dust = pow(n2(vec2(rr * 16.0 - tt * 0.6, ph * 40.0 + tt * 0.25)), 6.0) * 1.4, rim = exp(-sq((rr - dv) / 0.018)) * step(dv, 0.985) * 0.55 + exp(-sq((rr - 0.97) / 0.02)) * step(0.985, dv) * 0.4, sl = exp(-sq((abs(s) - 0.985) / 0.025)) * 0.45 * lit;
+      L = col * ((fall + scan + dust * 0.45) * side * lit + (rim * side * smoothstep(0.0, 0.05, dv - rr + 0.04) + sl) * near) * wgt; }
+    /*</SG-FX>*/
     /*<BW-FX lights 217, 219 (v430 BW: 20n9e-belfry-drain.js)>*/
     else if (v_k > 216.5 && v_k < 219.5) { float tt = u_t;
       if (v_k < 217.5) { // 217 the light on a draining hall's water (the same quad and packing as 216): slow caustics, foam riding the shoreline, rings of flow running in to the drain, streaks drawn toward it, a whirl over the sump while the water moves, glints
