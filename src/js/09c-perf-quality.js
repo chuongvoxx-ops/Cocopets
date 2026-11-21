@@ -21,8 +21,8 @@
      quality level. Written four times a second into one text node.
    PERF.bench(): Settings > Run benchmark: a fixed stress run on the game's own systems (the Garden of Unborn Stars' section 2 fight if it
    is open, else the Tower's first floor): idle, a pack of 20 round the pet, the pet's skill, its Ultimate with its Anima summoned, all at
-   once; ~90 s (the last four phases repeat the busiest one with one diagnostic switch each: no lens fringe, no film look, 1.25 px a point,
-   fewer effects; each put back after); nothing is saved from it (energy given back, the stage left without a result); the results shown with a Copy button. */
+   once; ~2.5 min (v441 FL: it opens with the film look off, on, and each of its parts alone over the pack of 20; the busiest phase is
+   then repeated with one diagnostic switch each: 1.25 px a point, fewer effects; each put back after); nothing is saved from it (energy given back, the stage left without a result); the results shown with a Copy button. */
 const GQ = (() => {
   const NAMES = ['High', 'Balanced', 'Performance', 'Performance 30'], CAP = [2, 1.5, 1.25, 1.25], FGK = [1, 0.75, 0.6, 0.6], GLK = [1, 0.8, 0.65, 0.65];
   const MODES = { high: 0, balanced: 1, perf: 2 };
@@ -89,23 +89,30 @@ const PERF = (() => {
 
   /* ---- the benchmark ---- */
   let B = null;
-  /* the run: five phases, then 'everything at once' again under four diagnostic switches, one at a time, put back after (so the phone
-     itself shows which lever matters: the film lens's colour fringe pass, the whole film look, a lower canvas resolution, fewer effects)
+  /* the run: five phases, then 'everything at once' again under diagnostic switches, one at a time, put back after (so the phone
+     itself shows which lever matters: a lower canvas resolution, fewer effects; v441 FL: the film look and its parts are the run's first rows)
      (v440 SQ) then the Drowned Belfry (a stage of its brood: a pack with its leaders round the pet in a flooded hall, the pet's wind
      moves stacked one on another, the hall's water draining) and a boss (the Belfry's first, the Baptism Chamber's GPU boss, with the
      pet's skill, Ultimate and Anima), each in its own stage (left without a result, the next one started). st: G the Garden (or the
      Tower), B the Belfry stage, X the boss stage. The Long run (bench({ long: true })) plays everything-at-once, the Belfry and the
      boss in turn, 20 s each, stage after stage, for 10 minutes of play, and reports each minute (frame times, the JavaScript heap where
      the browser tells it, the GL copies) and the first minute against the last: a phone that heats up shows as a slow drift */
-  const PH = [{ id: 'idle', t: 6, label: 'idle', st: 'G' }, { id: 'pack', t: 10, label: 'pack of 20', st: 'G' }, { id: 'skill', t: 10, label: '+ skill', st: 'G' }, { id: 'ult', t: 12, label: '+ Ult. + Anima', st: 'G' }, { id: 'all', t: 12, label: 'everything', st: 'G' },
-    { id: 'all', t: 8, label: ' no lens fringe', diag: 'nolens', st: 'G' }, { id: 'all', t: 8, label: ' no film look', diag: 'nofilm', st: 'G' }, { id: 'all', t: 8, label: ' 1.25 px/pt', diag: 'lowres', st: 'G' }, { id: 'all', t: 8, label: ' fewer effects', diag: 'lowfx', st: 'G' },
+  /* (v441 FL) the run opens with the film look: off, on (its parts at this quality), then each of its parts alone (forced on whatever
+     the quality: the grade, the grain, the dust, the lens fringe), all with the pack of 20 round the pet, so the phone shows what the
+     look and each of its parts cost; the 'no lens fringe' and 'no film look' rows of v439-v440 are these now */
+  const PH = [{ id: 'pack', t: 8, label: 'film off', diag: 'film:off', st: 'G' }, { id: 'pack', t: 8, label: 'film on', diag: 'film:on', st: 'G' },
+    { id: 'pack', t: 8, label: ' film: grade', diag: 'film:grade', st: 'G' }, { id: 'pack', t: 8, label: ' film: grain', diag: 'film:grain', st: 'G' }, { id: 'pack', t: 8, label: ' film: dust', diag: 'film:dust', st: 'G' }, { id: 'pack', t: 8, label: ' film: fringe', diag: 'film:fringe', st: 'G' },
+    { id: 'idle', t: 6, label: 'idle', st: 'G' }, { id: 'pack', t: 10, label: 'pack of 20', st: 'G' }, { id: 'skill', t: 10, label: '+ skill', st: 'G' }, { id: 'ult', t: 12, label: '+ Ult. + Anima', st: 'G' }, { id: 'all', t: 12, label: 'everything', st: 'G' },
+    { id: 'all', t: 8, label: ' 1.25 px/pt', diag: 'lowres', st: 'G' }, { id: 'all', t: 8, label: ' fewer effects', diag: 'lowfx', st: 'G' },
     { id: 'belfry', t: 16, label: 'Belfry, wind', st: 'B' }, { id: 'boss', t: 16, label: 'boss fight', st: 'X' }];
   const LONG = 600, LPH = [{ id: 'all', t: 20, label: 'everything', st: 'G' }, { id: 'belfry', t: 20, label: 'Belfry', st: 'B' }, { id: 'boss', t: 20, label: 'boss', st: 'X' }];
   const lpt = P => { try { return B && B.long && window.__BENCH_LPT > 0 ? window.__BENCH_LPT : P.t; } catch (e) { return P.t; } };   /* (tests: a shorter phase in the Long run) */
   let DG = null;   // (the diagnostic switch on, and what to put back)
   function diag(k) { undiag(); if (!k) return; DG = { k, retro: st.retro, gq: st.gq, low: st.lowFx };
-    if (k === 'nolens') PERF.noLens = true; else if (k === 'nofilm') { st.retro = false; try { retro.frame(); } catch (e) {} } else if (k === 'lowres') { st.gq = 'perf'; try { arcLayout(); } catch (e) {} } else if (k === 'lowfx') st.lowFx = true; }
-  function undiag() { const d = DG; if (!d) return; DG = null; PERF.noLens = false; st.retro = d.retro; st.lowFx = d.low; if (st.gq !== d.gq) { st.gq = d.gq; try { if (arc.open) arcLayout(); } catch (e) {} } try { retro.frame(); } catch (e) {} }
+    if (k === 'nolens') PERF.noLens = true; else if (k === 'nofilm') { st.retro = false; try { retro.frame(); } catch (e) {} }
+    else if (k.slice(0, 5) === 'film:') { const p = k.slice(5); st.retro = p !== 'off'; try { retro.force = p === 'off' || p === 'on' ? null : { [p]: 1 }; retro.frame(); } catch (e) {} }   /* (v441 FL) */
+    else if (k === 'lowres') { st.gq = 'perf'; try { arcLayout(); } catch (e) {} } else if (k === 'lowfx') st.lowFx = true; }
+  function undiag() { const d = DG; if (!d) return; DG = null; PERF.noLens = false; st.retro = d.retro; try { retro.force = null; } catch (e) {} /* v441 FL */ st.lowFx = d.low; if (st.gq !== d.gq) { st.gq = d.gq; try { if (arc.open) arcLayout(); } catch (e) {} } try { retro.frame(); } catch (e) {} }
   const can = k => k === 'G' ? true : typeof riftOpen === 'function' && riftOpen('belfry') && typeof startRift === 'function';
   /* (v440 SQ) a stage of the run started (energy topped up for it: given back at the end) */
   function stageGo(k) { st.energy = Math.max(st.energy, 10); if (k === 'G') { if (B.garden) startRift('garden', 3); else startDungeon(1); } else startRift('belfry', k === 'B' ? 3 : 2); B.stg = k; B.sw = true; B.swAt = performance.now(); B.started = false; }
@@ -164,6 +171,8 @@ const PERF = (() => {
   function benchFrame(iv, upd, draw, post) { if (!B || B.sw || B.warm > 0 || B.ph < 0 || B.ph >= B.plan.length || !(iv > 0) || iv > 250) return; const js = upd + draw + post;
     if (B.long) { const mi = Math.min(9, Math.floor(B.play / 60)); let M = B.mins[mi]; if (!M) M = B.mins[mi] = { iv: [], js: [], cp: 0, heap: 0, res: '' }; M.iv.push(iv); M.js.push(js); M.cp += cpF; M.res = arcCanvas.width + '×' + arcCanvas.height; if (performance.memory) M.heap = performance.memory.usedJSHeapSize; return; }
     const R = B.rows[B.ph]; R.res = arcCanvas.width + '×' + arcCanvas.height; R.iv.push(iv); R.js.push(js); R.cp += cpF; }
+  /* (v441 FL) the film look's parts at this quality, for the card's head: ' (grade grain dust fringe)' */
+  const filmParts = () => { try { const p = retro.parts; return p ? ' (' + ['grade', 'grain', 'dust', 'fringe'].filter(k => p[k]).join(' ') + ')' : ''; } catch (e) { return ''; } };
   function finish(aborted) {
     const b = B; if (!b) return; B = null; undiag(); GQ.hold = false;
     try { if (typeof arc !== 'undefined' && arc.open) closeArcade(true); } catch (e) {}
@@ -173,9 +182,9 @@ const PERF = (() => {
        percentile frame ms, frames over 33 and 50 ms, the JavaScript ms, GL copies a frame), the canvas size only where it differs */
     const res0 = (b.rows.find(R => R.res) || {}).res || (typeof arcCanvas !== 'undefined' ? arcCanvas.width + '×' + arcCanvas.height : '-');
     const ua = navigator.userAgent, dev = (/iPhone|iPad|Android[^;)]*|Macintosh|Windows NT [\d.]+|Linux/.exec(ua) || [''])[0], br = (/CriOS\/[\d]+|FxiOS\/[\d]+|EdgiOS\/[\d]+|Chrome\/[\d]+|Version\/[\d.]+ (Mobile\/\w+ )?Safari|Firefox\/[\d]+/.exec(ua) || [''])[0].replace(/ Mobile\/\w+/, '');
-    const head = [`Cocopets benchmark v440${b.long ? ' · LONG RUN' : ''} · ${new Date().toISOString().slice(0, 16).replace('T', ' ')}${aborted ? ' · stopped early' : ''}`,
+    const head = [`Cocopets benchmark v441${b.long ? ' · LONG RUN' : ''} · ${new Date().toISOString().slice(0, 16).replace('T', ' ')}${aborted ? ' · stopped early' : ''}`,
       `${dev} ${br} · screen ${innerWidth}×${innerHeight}@${devicePixelRatio} · canvas ${res0}@${(+arc.dpr).toFixed(2)}`,
-      `quality ${GQ.name()}${st.lowFx ? ' · fewer fx' : ''} · film ${st.retro === false ? 'off' : 'on'} · ${b.where}`];
+      `quality ${GQ.name()}${st.lowFx ? ' · fewer fx' : ''} · film ${st.retro === false ? 'off' : 'on' + filmParts()} · ${b.where}`];
     const LW = b.long ? 9 : 15, col = (L, n, f, a, b2, o3, o5, j, cp, x) => `${L.padEnd(LW).slice(0, LW)}${(n ? String(Math.round(f)) : '-').padStart(4)}${a.padStart(6)}${b2.padStart(6)}${o3.padStart(5)}${o5.padStart(5)}${j.padStart(6)}${cp.padStart(4)}${x || ''}`;   /* (~50 characters: a phone's card and a chat keep a row on one line) */
     const line = (L, iv, js, cpS, x) => { const n = iv.length, mean = n ? iv.reduce((s, v) => s + v, 0) / n : 0, c3 = iv.filter(v => v > 33.4).length, c5 = iv.filter(v => v > 50).length;
       return col(L, n, n ? 1000 / mean : 0, q(iv, 0.5).toFixed(1), q(iv, 0.95).toFixed(1), b.long ? (n ? Math.round(c3 / n * 100) + '%' : '-') : String(c3), b.long ? (n ? Math.round(c5 / n * 100) + '%' : '-') : String(c5), (v => v >= 100 ? v.toFixed(0) : v.toFixed(1))(q(js, 0.5)), n ? (cpS / n).toFixed(1) : '-', x); };
