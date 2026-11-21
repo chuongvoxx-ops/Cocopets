@@ -67,9 +67,16 @@ const SAMAEL_MOVES = (() => {
      Every power in the same beats, each its own curve so they overlap and blend: the stance, the weight shift (anticipation), the
      machinery (the horns' segments and rings, the reactor's plates), the build (the core, the heat), the action, the reaction to its own
      impact (recoil), the return (a damped settle) ---- */
+  /* (v444 SL) the paw before a first charge, in its wind-up w: n scrapes (2 when w >= 0.9) then a stamp. pawEv(w): the moments the hoof
+     bites the floor ({ t, stamp }: for the dust); pawFoot(t, w): the fore hoof's offset [forward, up, how busy 0..1] or null */
+  function pawEv(w) { const n = w >= 0.9 ? 2 : 1, seg = Math.min(0.36, w * 0.7 / (n + 0.5)), ev = []; for (let i = 0; i < n; i++) ev.push({ t: 0.03 + i * seg + seg * 0.4, stamp: false }); ev.push({ t: 0.03 + n * seg + seg * 0.42, stamp: true }); return ev; }
+  function pawFoot(t, w) { const n = w >= 0.9 ? 2 : 1, seg = Math.min(0.36, w * 0.7 / (n + 0.5)), t0 = 0.03, ts = t0 + n * seg, te = ts + seg * 0.45; if (t < t0 || t > te + 0.12) return null;
+    if (t < ts) { const i = Math.floor((t - t0) / seg), u = (t - t0 - i * seg) / seg, x0 = i ? -0.8 : 0; return u < 0.35 ? [lerp(x0, 0.45, sstep(0, 0.35, u)), 0.5 * Math.sin(Math.PI * u / 0.35), 1] : [lerp(0.45, -0.8, sstep(0.35, 0.92, u)), 0.04 + 0.1 * sstep(0.92, 1, u), 1]; }
+    if (t < te) { const u = (t - ts) / (te - ts); return [lerp(-0.8, 0.1, sstep(0, 0.7, u)), u < 0.65 ? 0.75 * Math.sin(Math.PI / 2 * u / 0.65) : 0.75 * (1 - ein((u - 0.65) / 0.35)), 1]; }
+    return [0.1 * (1 - (t - te) / 0.12), 0, 1 - (t - te) / 0.12]; }
   function poseFor(kind, t, o) {
     o = o || {}; const base = o.base || {};
-    const tg = { head: 0, look: 0, jaw: 0, horn: 0, hornSpin: 1, hornFwd: 0, hornHeat: 0, crown: 0, drill: 0, core: base.core == null ? 0.9 : base.core, coreOpen: 0, coreBig: 0, heat: 0, vent: 0, dorsal: 0, air: 0, meteor: 0, shell: 0, celest: 0, glow: 0, live: 1, crouch: 0, rear: 0, pitch: 0, lift: 0, tail: 0, stagger: o.stag || 0, eye: 1, feet: null, dx: 0, spread: 0, shift: 0, mech: 0, gal: 0 };
+    const tg = { squash: 0, crest: 0, head: 0, look: 0, jaw: 0, horn: 0, hornSpin: 1, hornFwd: 0, hornHeat: 0, crown: 0, drill: 0, core: base.core == null ? 0.9 : base.core, coreOpen: 0, coreBig: 0, heat: 0, vent: 0, dorsal: 0, air: 0, meteor: 0, shell: 0, celest: 0, glow: 0, live: 1, crouch: 0, rear: 0, pitch: 0, lift: 0, tail: 0, stagger: o.stag || 0, eye: 1, feet: null, dx: 0, spread: 0, shift: 0, mech: 0, gal: 0 };
     if (kind === 'charge') { const w = o.wind || CFG.charge.wind, ct = o.charge || 0.6, tI = w + ct, end = o.last ? 1 - sstep(tI + 0.25, tI + 0.75, t) : 1;
       const st = sstep(0, 0.22, t), ws = sstep(0.04, w * 0.7, t) * (1 - sstep(w - 0.12, w, t)), mc = sstep(0.08, w, t), go = sstep(w - 0.08, w + 0.1, t) * (1 - sstep(tI - 0.05, tI + 0.03, t));
       const th = bump(t, tI - 0.06, tI, tI + 0.08, tI + 0.35), rc = bump(t, tI, tI + 0.06, tI + 0.15, tI + 0.5), rv = settle(t, tI + 0.35, 7, 3.5), paw = o.first ? bump(t, 0.05, 0.16, 0.3, 0.46) : 0;
@@ -77,34 +84,49 @@ const SAMAEL_MOVES = (() => {
       tg.hornFwd = Math.max(mc * 0.6, go, th * 0.8) * end; tg.hornSpin = 1 + 5 * mc * end + 3 * go; tg.hornHeat = (0.6 * mc + 0.6 * go + th) * end; tg.horn = 0.15 * mc * end; tg.mech = mc * end;
       tg.core += 0.6 * mc + 0.5 * go + 0.8 * th; tg.glow = 0.2 * mc + 0.25 * go + 0.5 * th; tg.gal = go; tg.jaw = 0.5 * th + 0.15 * paw; tg.rear = 0.12 * th + 0.18 * paw; tg.stagger += 0.3 * rc;
       tg.live = 1 - 0.8 * Math.max(ws, go, th); tg.tail = 0.5 * go - 0.3 * ws + 0.4 * rc; tg.pitch = 0.035 * Math.sin(t * 28) * ws * (1 - go);
-      if (paw > 0.01) tg.feet = [[-0.7 * Math.sin(Math.PI * paw) - 0.1, 0, 0.55 * paw], null, null, null]; }
+      /* (v444 SL) the first charge's paw: one scrape (two on a long wind-up) of the fore hoof dragged back through the floor, then a stamp;
+         the crest laid back for the run; at its end it brakes: the forelegs braced ahead, the body sitting back into the skid */
+      const pf = o.first ? pawFoot(t, w) : null, brk = bump(t, tI - 0.14, tI - 0.04, tI + 0.12, tI + 0.5);
+      tg.crest = -0.75 * go - 0.35 * ws + 0.3 * rv; tg.pitch -= 0.08 * brk; tg.dx -= 0.3 * brk; tg.spread += 0.2 * brk; tg.squash = 0.35 * th;
+      if (pf) { tg.feet = [[pf[0], 0, pf[1]], null, null, null]; tg.head += 0.12 * pf[2]; tg.rear += 0.06 * pf[2]; }
+      if (brk > 0.01) tg.feet = [[0.6 * brk, 0, 0], [0.5 * brk, 0, 0], tg.feet && tg.feet[2], tg.feet && tg.feet[3]]; }
     else if (kind === 'perd') { const w = o.wind || CFG.perd.wind, n = o.n || 3, gap = o.gap || CFG.perd.gap, last = w + (n - 1) * gap, end = last + (o.k >= 3 ? 0.9 : 0.5);
       const pl = sstep(0, 0.3, t) * (1 - sstep(end - 0.35, end, t)), opn = sstep(0.12, w, t) * (1 - sstep(end - 0.5, end - 0.1, t)); let lk = 0, nod = 0;
       for (let i = 0; i < n; i++) { const ts = w + i * gap, p = (t - (ts - gap * 0.65)) / (gap * 0.95), dir = i % 2 ? -1 : 1; if (p > 0 && p < 1.2) { lk = dir * (-0.55 * Math.cos(Math.PI * cl(p))) * (p > 1 ? 1 - (p - 1) * 2 : 1); nod = Math.max(nod, bump(p, 0.35, 0.55, 0.65, 0.95)); } }
       const cx = o.k >= 3 ? bump(t, last + 0.15, last + 0.35, last + 0.5, last + 0.85) : 0;
       tg.spread = 0.45 * pl; tg.crouch = 0.35 * pl + 0.2 * nod + 0.3 * cx; tg.dx = -0.18 * pl + 0.1 * nod; tg.feet = pl > 0.02 ? [[0.35 * pl, 0, 0], [0.35 * pl, 0, 0], null, null] : null;
-      tg.horn = opn; tg.hornSpin = 1 + 7 * opn; tg.hornHeat = 0.4 * opn + 0.5 * nod; tg.head = 0.22 * pl + 0.3 * nod - 0.5 * cx; tg.look = 0.85 * lk; tg.jaw = 0.25 * nod + 0.8 * cx; tg.core += 0.6 * opn + 0.6 * cx; tg.glow = 0.3 * opn + 0.4 * cx; tg.mech = opn; tg.live = 1 - 0.7 * pl; tg.tail = -0.6 * lk; tg.shift = 0.25 * lk; }
+      tg.horn = opn; tg.hornSpin = 1 + 7 * opn; tg.hornHeat = 0.4 * opn + 0.5 * nod; tg.head = 0.22 * pl + 0.3 * nod - 0.5 * cx; tg.look = 0.85 * lk; tg.jaw = 0.25 * nod + 0.8 * cx; tg.core += 0.6 * opn + 0.6 * cx; tg.glow = 0.3 * opn + 0.4 * cx; tg.mech = opn; tg.live = 1 - 0.7 * pl; tg.tail = -0.6 * lk; tg.shift = 0.25 * lk;
+      tg.crest = -0.45 * opn - 0.3 * nod - 0.5 * cx; tg.squash = 0.25 * nod + 0.4 * cx; }   // (v444 SL: the crest laid back, the body punched down by each swing)
     else if (kind === 'over') { const w = o.wind || CFG.over.wind, br = sstep(0, 0.35, t) * (1 - sstep(w + 0.2, w + 0.7, t)), un = sstep(0.2, w, t), ro = bump(t, w - 0.25, w - 0.05, w + 0.25, w + 0.6), rv = settle(t, w + 0.5, 6, 3);
       tg.crouch = 0.5 * br; tg.spread = 0.5 * br; tg.coreOpen = un * (1 - 0.45 * sstep(w + 0.2, w + 0.8, t)); tg.coreBig = 0.25 * ro; tg.core += 1.5 * un; tg.dorsal = 0.85 * un; tg.vent = 0.5 * un * (1 - sstep(w + 0.3, w + 0.9, t)); tg.mech = br;
-      tg.head = 0.25 * br * (1 - ro) - 0.55 * ro + 0.1 * rv; tg.jaw = ro; tg.hornSpin = 1 + 4 * un; tg.horn = 0.3 * ro; tg.glow = 0.5 * un + 0.3 * ro; tg.pitch = 0.02 * Math.sin(t * 40) * br * (1 - un); tg.live = 1 - 0.75 * br; tg.heat = 0.3 * ro; }
+      tg.head = 0.25 * br * (1 - ro) - 0.55 * ro + 0.1 * rv; tg.jaw = ro; tg.hornSpin = 1 + 4 * un; tg.horn = 0.3 * ro; tg.glow = 0.5 * un + 0.3 * ro; tg.pitch = 0.02 * Math.sin(t * 40) * br * (1 - un); tg.live = 1 - 0.75 * br; tg.heat = 0.3 * ro;
+      tg.crest = 0.55 * un * (1 - ro) - 0.6 * ro + 0.25 * rv; tg.look = 0.16 * Math.sin((t - w + 0.25) * 11) * ro; tg.squash = 0.3 * bump(t, w - 0.3, w - 0.15, w - 0.05, w + 0.15); }   // (v444 SL: the crest raised as the chest opens, laid back in the roar, the head tossed)
     else if (kind === 'impact') { const C = CFG.impact, t1 = o.cr || C.cr, t2 = t1 + (o.rise || C.rise), t3 = t2 + (o.hang || C.hang), t4 = t3 + (o.dive || C.dive);
       const comp = sstep(0.04, t1, t) * (1 - sstep(t1, t1 + 0.08, t)), up = sstep(t1 - 0.02, t1 + 0.14, t) * (1 - sstep(t4 - 0.03, t4 + 0.01, t)), dr = sstep(t1 + 0.1, t3, t) * (1 - sstep(t4, t4 + 0.35, t)), dv = sstep(t3, t4, t) * (1 - sstep(t4, t4 + 0.1, t));
       const land = bump(t, t4 - 0.01, t4 + 0.03, t4 + 0.15, t4 + 0.65), rv = settle(t, t4 + 0.4, 6.5, 3.2);
       tg.crouch = 1.0 * comp + 0.85 * land; tg.spread = 0.4 * comp + 0.55 * land; tg.air = up; tg.drill = dr; tg.hornFwd = dr; tg.hornHeat = dr + 0.5 * land; tg.core += 1.2 * comp + 0.8 * up + 1.2 * land; tg.glow = 0.3 * comp + 0.4 * up + 0.6 * land;
-      tg.head = 0.4 * comp - 0.25 * up * (1 - dv) + 0.55 * dv + 0.4 * land + 0.12 * rv; tg.pitch = 0.45 * dv - 0.12 * up * (1 - dv); tg.jaw = 0.55 * land; tg.tail = 0.6 * up - 0.3 * land; tg.mech = Math.max(comp, up); tg.dorsal = 0.5 * up; tg.live = 1 - 0.85 * Math.max(comp, up, land); tg.stagger += 0.15 * land; }
+      tg.head = 0.4 * comp - 0.25 * up * (1 - dv) + 0.55 * dv + 0.4 * land + 0.12 * rv; tg.pitch = 0.45 * dv - 0.12 * up * (1 - dv); tg.jaw = 0.55 * land; tg.tail = 0.6 * up - 0.3 * land; tg.mech = Math.max(comp, up); tg.dorsal = 0.5 * up; tg.live = 1 - 0.85 * Math.max(comp, up, land); tg.stagger += 0.15 * land;
+      tg.squash = 0.5 * comp + 1.0 * bump(t, t4 - 0.01, t4 + 0.02, t4 + 0.08, t4 + 0.3); tg.crest = -0.8 * up * (1 - land) + 0.4 * rv; }   // (v444 SL: the landing's compression; the crest streaming back in the air)
     else if (kind === 'roar') { const r = bump(t, 0.05, 0.35, 0.8, 1.25), an = bump(t, 0, 0.12, 0.18, 0.35); tg.head = 0.25 * an - 0.55 * r + 0.25 * bump(t, 0.5, 0.65, 0.8, 1.2); tg.jaw = r; tg.horn = 0.35 * r; tg.mech = r; tg.hornSpin = 1 + 3 * r; tg.core += r; tg.glow = 0.4 * r; tg.dorsal = 0.6 * r; tg.live = 1 - 0.7 * r;
-      tg.crouch = 0.2 * an + 0.15 * bump(t, 0.4, 0.55, 0.7, 1.1); tg.dx = -0.2 * r + 0.1 * an; tg.spread = 0.25 * bump(t, 0, 0.3, 1.0, 1.4); }
+      tg.crouch = 0.2 * an + 0.15 * bump(t, 0.4, 0.55, 0.7, 1.1); tg.dx = -0.2 * r + 0.1 * an; tg.spread = 0.25 * bump(t, 0, 0.3, 1.0, 1.4);
+      tg.look = 0.17 * Math.sin((t - 0.4) * 11) * bump(t, 0.35, 0.5, 0.85, 1.15); tg.crest = -0.9 * r + 0.3 * bump(t, 1.0, 1.15, 1.25, 1.5); tg.squash = 0.35 * an; }   // (v444 SL: the head tossed side to side in the roar, the crest flattened, then raised)
     return tg;
   }
-  const PZK = ['head', 'look', 'jaw', 'horn', 'hornSpin', 'hornFwd', 'hornHeat', 'crown', 'drill', 'core', 'coreOpen', 'coreBig', 'heat', 'vent', 'dorsal', 'air', 'meteor', 'shell', 'celest', 'glow', 'live', 'crouch', 'rear', 'pitch', 'lift', 'tail', 'stagger', 'eye', 'dx', 'spread', 'shift', 'mech', 'gal'];
+  const PZK = ['head', 'look', 'jaw', 'horn', 'hornSpin', 'hornFwd', 'hornHeat', 'crown', 'drill', 'core', 'coreOpen', 'coreBig', 'heat', 'vent', 'dorsal', 'air', 'meteor', 'shell', 'celest', 'glow', 'live', 'crouch', 'rear', 'pitch', 'lift', 'tail', 'stagger', 'eye', 'dx', 'spread', 'shift', 'mech', 'gal', 'squash', 'crest'];
   // each key's stiffness (a critically damped spring's angular frequency): the jaw and the stagger quickest, the body's weight slower, the reactor's plates mechanical
-  const PZW = { jaw: 26, stagger: 26, head: 15, crouch: 16, rear: 15, dx: 13, pitch: 22, look: 9, spread: 7, shift: 6, hornSpin: 6, core: 11, glow: 11, eye: 12, coreOpen: 7, coreBig: 9, heat: 5, vent: 7, dorsal: 8, air: 16, meteor: 8, shell: 8, celest: 6, mech: 8, tail: 10, horn: 9, hornFwd: 10, hornHeat: 9, crown: 6, drill: 9, gal: 9 };
+  const PZW = { jaw: 26, stagger: 26, head: 15, crouch: 16, rear: 15, dx: 13, pitch: 22, look: 9, spread: 7, shift: 6, hornSpin: 6, core: 11, glow: 11, eye: 12, coreOpen: 7, coreBig: 9, heat: 5, vent: 7, dorsal: 8, air: 16, meteor: 8, shell: 8, celest: 6, mech: 8, tail: 10, horn: 9, hornFwd: 10, hornHeat: 9, crown: 6, drill: 9, gal: 9, squash: 24, crest: 14 };
+  /* (v444 SL) and its damping: the body's parts are springs that overshoot and settle (head, jaw, crouch, the body's weight, the crest, the
+     tail, the plates), the light and the machinery's drive stay critically damped (1) */
+  const PZZ = { head: 0.58, look: 0.62, jaw: 0.5, crouch: 0.55, rear: 0.6, dx: 0.6, pitch: 0.5, lift: 0.6, spread: 0.72, shift: 0.75, tail: 0.42, horn: 0.66, hornFwd: 0.62, dorsal: 0.52, coreOpen: 0.68, crown: 0.7, air: 0.72, squash: 0.38, crest: 0.3, stagger: 0.55 };
   const ONE = { live: 1, hornSpin: 1, eye: 1 };
   function easePose(store, tg, dt) {
     let pz = store.pz; if (!pz) pz = store.pz = Object.assign({}, tg); let pv = store.pzv; if (!pv) pv = store.pzv = {};
     dt = Math.max(0, Math.min(0.1, dt || 0));
     for (let j = 0; j < PZK.length; j++) { const q = PZK[j], g = tg[q] == null ? (ONE[q] || 0) : tg[q]; if (pz[q] == null) pz[q] = g; const v = pv[q] || 0;
-      const w = PZW[q] || 7.5, e = Math.exp(-w * dt), d = pz[q] - g, jv = (v + w * d) * dt; pz[q] = g + (d + jv) * e; pv[q] = (v - jv * w) * e; }
+      const w = PZW[q] || 7.5, z = PZZ[q] || 1, d = pz[q] - g;
+      if (z < 1) { const a = z * w, b = w * Math.sqrt(1 - z * z), e = Math.exp(-a * dt), co = Math.cos(b * dt), si = Math.sin(b * dt);   // (v444 SL: an underdamped spring, solved exactly for the step)
+        pz[q] = g + e * (d * co + (v + a * d) / b * si); pv[q] = e * (v * co - (a * v + w * w * d) / b * si); continue; }
+      const e = Math.exp(-w * dt), jv = (v + w * d) * dt; pz[q] = g + (d + jv) * e; pv[q] = (v - jv * w) * e; }
     pz.feet = tg.feet || null; return pz;
   }
   /* the ultimate's pose at t (pure): o.cata (0..1, the Cataclysm State's energy left: a hotter, bigger awakening) */
@@ -121,7 +143,8 @@ const SAMAEL_MOVES = (() => {
       vent: sealed + 0.4 * land * keep, dorsal: sealed + 0.6 * land * keep, celest: sealed + 0.5 * met, air: up, meteor: met, shell: shl, glow: 0.3 * p1 + 0.5 * p2 + 0.5 * up + 0.9 * land - 1.2 * p6,
       mech: Math.max(0, sstep(0.2, U.p1, t) * (1 - up) - 0.6 * p6), pitch: 0.016 * Math.sin(t * 47) * p1 * (1 - up) + 0.5 * dv, live: 0.4 - 0.3 * Math.max(p1, up) + 0.5 * p6, eye: 1 + p1 + 2 * roar + fr,
       dx: -0.3 * brace + 0.3 * land, tail: 0.5 * up - 0.4 * land, rear: 0.15 * roar, stagger: 0, look: 0, feet: null, gal: 0, shift: 0, lift: 0,
-      yawOff: 0.6 * Math.sin(Math.PI * p1) * (1 - p2) - 0.4 * Math.sin(Math.PI * p2), dis: sstep(U.len - 1.15, U.len - 0.1, t) };
+      yawOff: 0.6 * Math.sin(Math.PI * p1) * (1 - p2) - 0.4 * Math.sin(Math.PI * p2), dis: sstep(U.len - 1.15, U.len - 0.1, t),
+      squash: 0.4 * brace + bump(t, U.hit - 0.01, U.hit + 0.03, U.hit + 0.1, U.hit + 0.4), crest: 0.5 * sealed - 0.9 * Math.max(roar, fr) - 0.7 * up * (1 - land) };   // (v444 SL)
   }
 
   function create(H) {
@@ -218,7 +241,8 @@ const SAMAEL_MOVES = (() => {
         const C = CFG.charge, r0 = A.rt; A.rt += dtr; const rt = A.rt, w = A.wind, tI = w + A.chargeT, rc = x => r0 < x && rt >= x;
         if (rt < w) { ab.mv *= 1 - Math.min(1, dt * 8); ab.vx = ab.vy = 0; ab.gal = 0;
           if (rc(0.1)) { const f = frontOf(a, 0.8); FX.push({ kind: 'crack', x: f.x, y: f.y, R: 1.1, t: 0, life: 1.6, seed: Math.random() * 50, heat: 1 }); FX.push({ kind: 'dust', x: f.x, y: f.y, R: 1.2, t: 0, life: 0.8, seed: 7 }); sparks(f.x, f.y, 6, 1.4); }
-          if (Math.random() < dt * 6) X.shake(1.2, 0.05); }
+          if (Math.random() < dt * 6) X.shake(1.2, 0.05);
+          if (A.i === 0) for (const e of pawEv(w)) if (rc(e.t)) { const p = footW(a, 0); pawFx(p.x, p.y, e.stamp); if (e.stamp) { X.shake(3, 0.1); sfx('thud'); } } }   // (v444 SL: the paw's scrapes and stamp)
         else if (r0 < tI) { const ease = u => u < 0.15 ? (u / 0.15) * (u / 0.15) * 0.075 : u > 0.92 ? 1 - (1 - u) * (1 - u) / 0.08 * 0.04 : 0.075 + (u - 0.15) / 0.77 * 0.885, u0 = cl((r0 - w) / A.chargeT), u1 = cl((rt - w) / A.chargeT), want = (ease(u1) - ease(u0)) * A.dist;
           if (!A.launched) { A.launched = true; FX.push({ kind: 'trail', a, A, t: 0, life: A.chargeT + 0.4 }); const b = frontOf(a, -1.4); FX.push({ kind: 'dust', x: b.x, y: b.y, R: 1.8, t: 0, life: 0.8, seed: 19 }); FX.push({ kind: 'crack', x: b.x, y: b.y, R: 1.3, t: 0, life: 1.8, seed: Math.random() * 40, heat: 1.2 }); gain(a, CFG.ruin.charge); sfx('whoosh'); }
           ab.mv = 1; ab.gal = 1; ab.gk = 1.7; const dd = moveBy(a, A.dx * want, A.dy * want); A.trav += dd; if (want > 0.02 && dd < want * 0.25 && u1 > 0.2) A.rt = tI;   // (blocked: it strikes where it stands)
@@ -227,6 +251,7 @@ const SAMAEL_MOVES = (() => {
           for (const m of H.living()) { if (A.hit.has(m) || Math.hypot(m.x - f.x, m.y - f.y) > C.w + m.r) continue; A.hit.add(m); hitM(a, m, P * C.dmg); A.hits++;
             if (!m.boss && !m.still) { const sd = Math.sign(A.dx * (m.y - a.y) - A.dy * (m.x - a.x)) || 1; m.kbx = (m.kbx || 0) + (-A.dy * sd * 4.5 + A.dx * 2.5); m.kby = (m.kby || 0) + (A.dx * sd * 4.5 + A.dy * 2.5); }
             X.shake(5, 0.1); sparks(m.x, m.y, 6, 1.8); FX.push({ kind: 'ringw', x: m.x, y: m.y, R: 1.1, t: 0, life: 0.35, seed: Math.random() * 40 }); g.hitStop = Math.max(g.hitStop || 0, 0.02); } }
+        if (rc(tI - 0.1)) { const p0 = footW(a, 0), p1 = footW(a, 1); skidFx(p0.x, p0.y, A.dx, A.dy); skidFx(p1.x, p1.y, A.dx, A.dy); }   // (v444 SL: the brake: dust ploughed up by the braced forelegs)
         if (rt >= tI) { ab.mv *= 1 - Math.min(1, dt * 9); ab.gal *= 1 - Math.min(1, dt * 6); ab.gk = 1; }
         if (!A.struck && rt >= tI) { A.struck = true; A.i++; chargeImpact(a, A, P, A.i >= A.n); }
         if (A.struck && rt >= tI + 0.22 && A.i < A.n) {   // (the next charge: it wheels on another monster, a shorter wind-up)
@@ -279,6 +304,11 @@ const SAMAEL_MOVES = (() => {
       FX.push({ kind: 'crack', x, y, R: big ? 2.8 : 2.0, t: 0, life: 2.4, seed: Math.random() * 40, heat: 1.3 }); FX.push({ kind: 'dust', x, y, R: big ? 3 : 2.2, t: 0, life: 1.0, seed: 17 }); FX.push({ kind: 'fball', x, y, R: big ? 1.6 : 1.0, t: 0, life: 0.6, seed: Math.random() * 40 });
       sparks(x, y, Math.round((big ? 14 : 9) * LQ()), 2.2); rocks(x, y, Math.round((big ? 5 : 3) * LQ()), 1.2);
     }
+    /* (v444 SL) a hoof's scrape (a puff of dust kicked back, a few sparks; a stamp: a cracked print and a ring of dust) and a braking skid
+       (dust ploughed up ahead of a fore hoof, a short furrow): pure pictures, a boss calls them too */
+    function pawFx(x, y, stamp) { FX.push({ kind: 'dust', x, y, R: stamp ? 1.0 : 0.7, t: 0, life: stamp ? 0.8 : 0.6, seed: Math.random() * 50 }); sparks(x, y, stamp ? 5 : 3, stamp ? 1.3 : 0.9);
+      if (stamp) { FX.push({ kind: 'crack', x, y, R: 0.8, t: 0, life: 1.4, seed: Math.random() * 50, heat: 1 }); FX.push({ kind: 'foot', x, y, R: 0.9, t: 0, life: 0.8, seed: Math.random() * 50, f: 1, big: 1 }); } }
+    function skidFx(x, y, dx, dy) { for (let i = 0; i < 3; i++) FX.push({ kind: 'dust', x: x - dx * i * 0.45, y: y - dy * i * 0.45, R: 0.95 - i * 0.18, t: i * 0.08, life: 0.75, seed: Math.random() * 50 }); FX.push({ kind: 'crack', x: x - dx * 0.5, y: y - dy * 0.5, R: 0.85, t: 0, life: 1.2, seed: Math.random() * 50, heat: 0.7 }); sparks(x, y, 3, 1.1); }
     function waveFx(x, y, R) { FX.push({ kind: 'hemi', x, y, R: R * 0.8, t: 0, life: 0.6, seed: Math.random() * 40 }); FX.push({ kind: 'ringw', x, y, R: R * 1.15, t: 0, life: 0.65, seed: Math.random() * 40 }); }
     function volcano(a, x, y, P, dmg, R) {
       area(a, x, y, R, P * dmg, { kbf: 6, big: true }); gain(a, CFG.ruin.impact);
@@ -538,7 +568,7 @@ const SAMAEL_MOVES = (() => {
     function bodyLight(c, r, P, al, at) {
       if (!r || !gpu()) return; const Q = fgOpen(c), u = r.unit, heat = cl(P.heat || 0), co = cl(P.coreOpen || 0), cv = r.coreVis == null ? 1 : r.coreVis, core = P.core == null ? 0.9 : P.core;
       Q.quad(299, r.core[0], r.core[1], Math.max(6, r.coreR * (3.4 + co * 1.5)), 0, 0, Math.max(6, r.coreR * (3.4 + co * 1.5)), COL.crim, al * (0.55 + 0.45 * cv), 1 / (3.4 + co * 1.5), heat, Math.min(1.8, 0.95 + 0.35 * core) * al);
-      if (cv > 0.2) Q.shimmer(r.core[0], r.core[1] - u * 1.2, u * 2.4, 0.18 * al * (0.4 + heat + co), 0.9, '#FF8A50');
+      if (cv > 0.2) Q.shimmer(r.core[0], r.core[1] - u * 1.2, u * 2.4, 0.18 * al * (0.4 + heat * 1.3 + co), 0.9, '#FF8A50');   // (v444 SL: heat 1.3)
       for (const e of r.eyes) Q.glow(e[0], e[1], u * (0.45 + 0.2 * (P.eye || 1)), '#FF2A1E', 0.55 * al);
       for (const p of r.flankWin || []) Q.glow(p[0], p[1], u * 1.4, COL.crim, 0.18 * al * (0.6 + 0.4 * Math.sin((at || 0) * 2.3) + heat));
       const hh = cl(P.hornHeat || 0); if (hh > 0.05) for (const h of r.hornTips) { const fl = 0.6 + 0.4 * Math.sin((at || 0) * 15 + h[0]); Q.glow(h[0], h[1], u * (0.8 + 1.4 * hh), COL.ember, 0.45 * hh * al); Q.star(h[0], h[1], u * (0.8 + 1.2 * hh * fl), 0.5 * hh * al, COL.white); }
@@ -546,6 +576,16 @@ const SAMAEL_MOVES = (() => {
       const vt = Math.max(cl(P.vent || 0), co * 0.6); if (vt > 0.25) for (const j of r.jets || []) { const dx = (j.q[0] - j.p[0]) / 2, dy = (j.q[1] - j.p[1]) / 2, L = Math.hypot(dx, dy) || 1; Q.quad(310, j.p[0] + dx, j.p[1] + dy, -dy / L * u * 1.5, dx / L * u * 1.5, -dx, -dy, COL.crim, 1, 0.45, (at || 0) * 3, (vt - 0.2) * 1.2 * al); }
       for (const v of r.vents || []) if (Math.random() < 0.5) Q.glow(v[0], v[1] - u * 0.5, u * 0.6, COL.ember, 0.25 * al * (0.4 + heat));
       if (cl(P.dorsal || 0) > 0.2) for (const d of r.dorsal || []) Q.glow(d[0], d[1], u * 1.0, COL.ember, 0.22 * P.dorsal * al);
+      /* (v444 SL) a snort: embers and a breath of smoke puffed from the nostrils, blown forward and sinking; heat shimmering off its back in
+         the Cataclysm */
+      const G = GLS(), LF = G && G.life && r.nose && r.head ? G.life(P) : null;
+      if (LF && LF.puff >= 0 && LF.puff < 0.9) { const q = LF.puff / 0.9, dx0 = r.nose[0] - r.head[0], dy0 = r.nose[1] - r.head[1], L0 = Math.hypot(dx0, dy0) || 1, fx = dx0 / L0, fy = dy0 / L0, k = (1 - q) * (1 - q) * LF.puffK * al;
+        for (let j = 0; j < 3; j++) { const d = u * (0.3 + (1.6 + 0.5 * j) * eout(q)), px = r.nose[0] + fx * d + (j - 1) * u * 0.25 * q, py = r.nose[1] + fy * d + u * (0.15 + 0.9 * q * q) - u * 0.2 * j * q;
+          Q.glow(px, py, u * (0.22 + 0.5 * q + 0.08 * j), j ? COL.ember : COL.hot, 0.42 * k); }
+        if (q > 0.12) Q.smoke(r.nose[0] + fx * u * 1.6 * eout(q), r.nose[1] + fy * u * 1.6 * eout(q) + u * 0.5 * q, u * (0.35 + 0.6 * q), 0.3 * (1 - q) * al, 7 + Math.floor(at || 0), COL.smoke, 0.25 * (1 - q));
+        if (q < 0.5) Q.star(r.nose[0] + fx * u * 0.9 * q * 2, r.nose[1] + fy * u * 0.9 * q * 2, u * 0.3 * (1 - q * 2), 0.6 * k, COL.white); }
+      if (heat > 0.3 && r.back && r.top) for (let j = 0; j < 3; j++) { const ph = ((at || 0) * 0.9 + j / 3) % 1, px = lerp(r.back[0], r.top[0], 0.3 + 0.35 * j) + u * 0.6 * Math.sin((at || 0) * 2 + j * 2.1), py = lerp(r.back[1], r.top[1], 0.3 + 0.35 * j) - u * 3.2 * ph;
+        const e = (heat - 0.3) * Math.sin(Math.PI * ph) * al; Q.glow(px, py, u * (0.9 + 1.1 * ph), COL.ember, 0.16 * e); Q.star(px, py, u * 0.28 * (1 - ph), 0.7 * e, COL.white); }   // (embers and heat rising off its back, each fading in and out; the haze itself is the core's shimmer, stronger with the heat)
       fgClose(c);
     }
     function drawBodyFx(c, a) { if (!a.smOut || !a.smOut.r) return; bodyLight(c, a.smOut.r, a.smP || {}, (a.alpha == null ? 1 : a.alpha) * (a.judg ? a.jA : 1), a.at || 0); }
@@ -573,9 +613,9 @@ const SAMAEL_MOVES = (() => {
     function cast(a, kind, o) { stOf(a); a.sm.ready = true; a.sm.first = true; if (a.sm.act) endAct(a); const c = crowd(a.x, a.y, 9, 2.6), m = H.near(a.x, a.y, 10).slice(-1)[0];
       if (kind === 'charge') { const t2 = (o && o.m) || m; if (!t2) return false; start(a, 'charge', { m: t2 }); }
       else if (kind === 'perd' || kind === 'impact') start(a, kind, o || (c ? { x: c.x, y: c.y } : m ? { x: m.x, y: m.y } : null)); else start(a, kind, o); return true; }
-    return { tick, fin, cast, choose, update, stop, outK, descent, entrance, interrupt, drawGround, drawFx, drawBodyFx, drawCine, drawBtn, drawFxList, drawWrath, bodyLight, slashOf, impactFx, waveFx, CFG,
+    return { tick, fin, cast, choose, update, stop, outK, descent, entrance, interrupt, drawGround, drawFx, drawBodyFx, drawCine, drawBtn, drawFxList, drawWrath, bodyLight, slashOf, impactFx, waveFx, pawFx, skidFx /* v444 SL */, CFG,
       get ul() { return UL; }, get fx() { return FX; }, get wardOn() { return !!wardOff; } };
   }
-  return { create, CFG, UT, BIG, poseFor, easePose, ultPose };
+  return { create, CFG, UT, BIG, poseFor, easePose, ultPose, pawEv /* v444 SL */ };
 })();
 if (typeof self !== 'undefined') self.SAMAEL_MOVES = SAMAEL_MOVES;

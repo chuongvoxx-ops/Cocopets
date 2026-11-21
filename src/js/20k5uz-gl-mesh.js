@@ -1416,8 +1416,9 @@ void main() {
     float sOcc = mix(0.42, 1.0, clamp(ao, 0.0, 1.0)), sFr = pow(1.0 - sNV, 5.0), sHm = 0.5 + 0.5 * dot(n, uUP);
     vec3 sKEY = vec3(1.55, 1.4, 1.26), sAmb = mix(vec3(0.1, 0.05, 0.06), vec3(0.36, 0.3, 0.34), sHm) * uAmb, sRim = pow(1.0 - sNV, 2.4) * max(0.0, dot(n, uLR) + 0.35) * uRim;
     vec3 sCR = vec3(0.75, 0.05, 0.02), sOR = vec3(1.45, 0.5, 0.08), sWH = vec3(1.7, 1.45, 1.05), sG0 = vec3(1.0, 0.64, 0.28), sGF = sG0 + (1.0 - sG0) * sFr;
-    float sEng = (1.0 - uLow) * smoothstep(0.07, 0.025, abs(fract(L.x * 5.5 + L.z * 3.0 + 0.6 * sin(L.y * 7.0 + L.x * 3.0)) - 0.5)) * step(0.45, vn(L.xz * 1.9 + L.y));
-    vec3 sGold = (sG0 * (0.1 + 0.62 * sDif) * sKEY * 0.55 + sGF * mix(sEv, vec3(dot(sEv, vec3(0.33))) * vec3(1.0, 0.75, 0.45), 0.4) * 1.35 + vec3(1.0, 0.88, 0.7) * (pow(sSb, 60.0) * 2.4 + pow(sSb, 10.0) * 0.3) + sRim * 0.4) * sOcc * (1.0 - sEng * 0.4) * 1.25;
+    float sEng = 0.0; vec3 sGold = vec3(0.0);   // (v444 SL: the gold and its engraving worked out only for the materials that show them: 400, 402, 410, 413; the same values)
+    if (id == 400 || id == 402 || id == 410 || id == 413) { sEng = (1.0 - uLow) * smoothstep(0.07, 0.025, abs(fract(L.x * 5.5 + L.z * 3.0 + 0.6 * sin(L.y * 7.0 + L.x * 3.0)) - 0.5)) * step(0.45, vn(L.xz * 1.9 + L.y));
+      sGold = (sG0 * (0.1 + 0.62 * sDif) * sKEY * 0.55 + sGF * mix(sEv, vec3(dot(sEv, vec3(0.33))) * vec3(1.0, 0.75, 0.45), 0.4) * 1.35 + vec3(1.0, 0.88, 0.7) * (pow(sSb, 60.0) * 2.4 + pow(sSb, 10.0) * 0.3) + sRim * 0.4) * sOcc * (1.0 - sEng * 0.4) * 1.25; }
     vec3 sC = vec3(0.0); float sA = 1.0;
     if (id == 400 || id == 413) {   // black lacquer (the armour, the horns): near-black, a deep clear coat with sharp reflections, panel seams, cracks glowing molten
       float rec = step(0.15, sF) * step(sF, 0.25), crk = step(0.25, sF), hornIn = id == 413 ? step(0.25, sF) : 0.0;
@@ -1432,8 +1433,10 @@ void main() {
         float rg = id == 413 ? 0.12 + 0.05 * sin(ao * 120.0) : 0.1 + 0.08 * vn(L.xy * 7.0 + L.z * 4.0), pn = fract(L.z * 2.3 + 0.35 * floor(L.x * 1.6 + L.y * 1.6)), seam = smoothstep(0.045, 0.0, min(pn, 1.0 - pn)) * (1.0 - uLow * 0.5) * (id == 413 ? 0.0 : 1.0);
         float ann = 0.0;   // (v435 SM concept2: no annulation ridges: the horn is scaled)   // (the horn's annulation ridges)
         sC = (T0 * (0.2 + 0.8 * sDif) * sKEY + TF * sEv * 1.15 + vec3(1.0, 0.9, 0.85) * pow(sSb, 2.0 / (rg * rg)) * 1.25 + sRim * 0.55) * sOcc * (1.0 - seam * 0.5) * (1.0 - ann * 0.25);
-        float ck = abs(vn(L.xy * 2.6 + L.z * 1.7 + 11.0) - 0.5) + abs(vn(L.yz * 4.1 + 2.0) - 0.5) * 0.45, crack = (crk > 0.5 || id == 400 && rec < 0.5) ? smoothstep(0.085, 0.02, ck) * smoothstep(0.3, 0.5, vn(L.zx * 1.1 + 7.0)) * (crk > 0.5 ? 1.0 : 0.8) : 0.0;
-        float halo = (crk > 0.5 || id == 400 && rec < 0.5) ? smoothstep(0.22, 0.03, ck) * smoothstep(0.3, 0.5, vn(L.zx * 1.1 + 7.0)) * 0.4 : 0.0;   // (the molten light bleeding round each crack, as the concept: the body glowing red through its armour)
+        bool sCk = crk > 0.5 || id == 400 && rec < 0.5; float ck = 0.0, sCz = 0.0;   // (v444 SL: the crack noise only where cracks can show (not the horns' scaled outer half), its mask's noise once for the crack and its halo; the same values)
+        if (sCk) { ck = abs(vn(L.xy * 2.6 + L.z * 1.7 + 11.0) - 0.5) + abs(vn(L.yz * 4.1 + 2.0) - 0.5) * 0.45; sCz = smoothstep(0.3, 0.5, vn(L.zx * 1.1 + 7.0)); }
+        float crack = sCk ? smoothstep(0.085, 0.02, ck) * sCz * (crk > 0.5 ? 1.0 : 0.8) : 0.0;
+        float halo = sCk ? smoothstep(0.22, 0.03, ck) * sCz * 0.4 : 0.0;   // (the molten light bleeding round each crack, as the concept: the body glowing red through its armour)
         sC = sC * (1.0 - crack * 0.7) + mix(sCR, sOR, clamp(0.08 + sG * 0.3, 0.0, 1.0)) * 1.9 * (crack * (0.95 + 0.9 * sG) + halo * (0.6 + 0.5 * sG)) + sWH * crack * sG * sG * 0.08 + sCR * seam * (0.18 + 0.35 * sG) + vec3(1.0, 0.12, 0.05) * pow(1.0 - sNV, 2.5) * 0.32 * (1.0 - rec);   // (a crimson fresnel: the furnace's light caught along the lacquer's rims)
         if (id == 413) {   // (v435 SM concept2) the horn's outer half: tight, flush, overlapping dragon scales drawn by u (ao, along the horn) and v (edge, round the tube): gold-rimmed, molten in their seams
           float ru = ao * 18.0, row = floor(ru), fu = fract(ru), fv = fract(edge * 3.0 + 0.5 * mod(row, 2.0)) - 0.5, ev = 0.62 + 0.36 * (1.0 - pow(abs(2.0 * fv), 1.3));   // (larger, fewer scales: rounded, ending in a point toward the tip)

@@ -74,14 +74,19 @@ const ARIES_BOSS = (() => {
      (1.02x: the corona and the rings, mean blow 6.5, max 27) and 129 at 6 (1.63x: its crescents reach across the altar); pooled 1.21x, as Abaddon sits
      over the Belfry's last boss. A unit blow is 19 (a level-10 pet has ~200 health): the charge 27, its end 21, a crescent 10.5, the
      cross 23, the landing 30, a ring 15, the eruption 19, the corona's tick 2.9, the burning ground's 2.9, the Cataclysm's burn 2.3
-     (x1.2 in the Cataclysm). Its shelter blow (Wrath, wrK of the pet's health) comes once, at the end. */
+     (x1.2 in the Cataclysm). Its shelter blow (Wrath, wrK of the pet's health) comes once, at the end.
+     (v444 SL) three times the health (660000 in 36 bars of the same size), its blows unchanged, three cycles of powers a phase, combos
+     and a breath that shortens as a phase runs out: 2225 s at 4 tiles, 2210 at 6 (pooled 3.49x Ifrit; v443 1.22x), the phases at
+     ~790 s and ~1560 s, the Wrath at ~2200 s; 185 a minute at 4 and 137 at 6 (as before); 41-45 Cataclysms, ~50 Overdrives, ~177 vents,
+     ~47 combos a fight. */
   const TUNE = {
-    hp: 220000, bars: 12,           // its health, absolute (TUNE.hp in TUNE.bars bars; x the rift's main-boss factor foeK.boss, 1 in the Caldera)
+    hp: 660000, bars: 36,           // its health, absolute (TUNE.hp in TUNE.bars bars; x the rift's main-boss factor foeK.boss, 1 in the Caldera)   (v444 SL: three times v443's 220000 in 12; each bar as before)
     dmg: 19,                       // a unit blow, absolute (m.dmg); every blow a multiple of it (x1.2 in the Cataclysm)
     cuts: [1, 0.66, 0.33], wrathAt: 0.05,   // the phases' thresholds (of its health); Wrath of the Fallen at the last
     size: 5.4, r: 1.7 /* (a fallback: its body's radius is read from the model, geo()) */, keep: 4.4, spd: [1.5, 1.7, 1.9], pad: 3.0,   // drawn size (tiles tall: its Celestial form, at a boss's scale), body radius, the distance it keeps, its walk (tiles/s), its distance from the rim
     homeY: -1.2, lean: 0.4, leanMax: 2.4,   // it holds the altar's heart: its place, and how far it leans toward the pet
     intro: 5.8, idle: [1.45, 1.2, 1.0],     // the intro (s); the breath between powers, by phase
+    combo: [0.15, 0.3, 0.45], comboIdle: 0.4, idleEnd: 0.8,   // (v444 SL) the chance that a power follows the last on a short breath (comboIdle) by phase, and the breath at the end of a phase (x idle: quicker as the phase runs out)
     heal: 0.045, healCd: 1.1,      // healing light shaken loose: an orb every this share of a bar dealt
     // Hellbreak Charge: the wind-up (the lane's tell; later charges of a chain 0.75 of it), speed, lane width, blows (x unit: the lane, the horns at its end within
     // chEndR), the shockwave from phase II (radius, blow), charges by phase, recovery, the longest / shortest lane; the volcanic end (phase III's last: radius, blow);
@@ -108,7 +113,13 @@ const ARIES_BOSS = (() => {
     wrK: 0.8, wrWin: 0.6, refR: 1.35, coolN: 2,
   };
   const PH_NAMES = ['The Kindled Ram', 'The Furnace Unbound', 'The First Cataclysm'];
-  const CYC = { 1: ['charge', 'perd', 'impact', 'over', 'charge', 'perd', 'impact'], 2: ['charge', 'impact', 'perd', 'over', 'charge', 'perd', 'impact'], 3: ['charge', 'perd', 'impact', 'charge', 'over', 'impact', 'perd'] };
+  /* (v444 SL) its powers' order by phase: three cycles of seven a phase, taken in turn (v443 had one a phase), so a fight three times as long
+     does not fall into one rhythm; some powers follow the last on a short breath (TUNE.combo); the breath shortens as a phase runs out */
+  const CYC = { 1: [['charge', 'perd', 'impact', 'over', 'charge', 'perd', 'impact'], ['perd', 'charge', 'over', 'impact', 'perd', 'charge', 'impact'], ['charge', 'impact', 'perd', 'charge', 'over', 'perd', 'impact']],
+    2: [['charge', 'impact', 'perd', 'over', 'charge', 'perd', 'impact'], ['perd', 'impact', 'charge', 'perd', 'over', 'impact', 'charge'], ['impact', 'charge', 'perd', 'charge', 'over', 'perd', 'impact']],
+    3: [['charge', 'perd', 'impact', 'charge', 'over', 'impact', 'perd'], ['impact', 'perd', 'charge', 'over', 'perd', 'charge', 'impact'], ['perd', 'charge', 'impact', 'perd', 'charge', 'over', 'impact']] };
+  const COMBO = { charge: ['impact', 'perd'], perd: ['charge', 'impact'], over: ['charge', 'perd', 'impact'] };   // (the powers a power may run straight into)
+  const cycNext = () => { const L = CYC[S.phase], q = L[Math.floor(S.pick / 7) % L.length]; return q[S.pick % 7]; };
   let S = null;   // the fight in progress
   const NMv = () => (typeof self !== 'undefined' && self.NIDHOGG_MOVES) || null;
   const gpu = () => { try { const N = NMv(); return !!(N && N.FGFX && N.FGFX.usable()); } catch (e) { return false; } };
@@ -274,15 +285,20 @@ const ARIES_BOSS = (() => {
     stateTick(da);
     if (S.vent) { ventTick(da); brake(da); easeOut(); return; }
     const rate = (S.over > 0 ? TUNE.ovRate : 1) * (S.cata > 0 ? TUNE.cataSpd : 1);
-    for (let i = S.acts.length - 1; i >= 0; i--) { const A = S.acts[i]; A.t += da * rate; if (actTick(A, da * rate, da)) { S.acts.splice(i, 1); endAct(A); if (!S.acts.length) S.idleT = TUNE.idle[kOf()]; } }
+    for (let i = S.acts.length - 1; i >= 0; i--) { const A = S.acts[i]; A.t += da * rate; if (actTick(A, da * rate, da)) { S.acts.splice(i, 1); endAct(A); if (!S.acts.length) S.idleT = breath(A); } }   // (v444 SL: breath)
     if (!S.acts.length && S.ventQ > 0) { startVent(S.ventQ); S.ventQ = 0; brake(da); return; }   // (a spent furnace, a landing, the Cataclysm's end: it vents once its power is done)
     if (S.noAI) { if (!S.acts.some(A => A.kind === 'charge' || A.kind === 'impact')) { brake(da); if (!S.acts.length) S.B.yawT = clampYaw(Math.atan2(me.y - m.y, me.x - m.x)); } easeOut(); return; }   // (the harness: one power at a time, no walking)
     if (!S.acts.length) {
-      S.idleT -= da; if (S.idleT <= 0) { const cyc = CYC[S.phase]; for (let n = 0; n < cyc.length; n++) { const k = cyc[S.pick % cyc.length]; S.pick++; if (start(k)) break; } S.idleT = 0.4; } }
+      S.idleT -= da; if (S.idleT <= 0) { for (let n = 0; n < 7; n++) { const k = cycNext(); S.pick++; if (start(k)) break; } S.idleT = 0.4; } }   // (v444 SL: cycNext)
     const planted = S.acts.some(A => A.kind === 'perd' || A.kind === 'over' || A.kind === 'roar');
     if (!S.acts.some(A => A.kind === 'charge' || A.kind === 'impact')) walk(da * (S.cata > 0 ? TUNE.cataSpd : 1), planted ? 0 : 1);
     easeOut();
   }
+  /* (v444 SL) the breath after a power: the phase's, shortened as the phase runs out; a combo's short one when the next power in the cycle is
+     one this power may run into (by the phase's chance; never into a vent) */
+  function breath(A) { const k = kOf(), f = realHp() / S.m.maxhp, top = TUNE.cuts[S.phase - 1], bot = S.phase < 3 ? TUNE.cuts[S.phase] : TUNE.wrathAt, run = cl((top - f) / Math.max(0.01, top - bot)), base = TUNE.idle[k] * lerp(1, TUNE.idleEnd, run);
+    if (!S.ventQ && A && COMBO[A.kind] && COMBO[A.kind].includes(cycNext()) && Math.random() < TUNE.combo[k]) { S.stat.combo = (S.stat.combo || 0) + 1; return TUNE.comboIdle; }
+    return base; }
   // it is passed round, not through: the pet eased out from under it
   function easeOut() { const me = S.me, m = S.m; if (me.dead || me.leap || S.B.z > 0.6) return; const dx = me.x - m.x, dy = me.y - m.y, d = Math.hypot(dx, dy), r0 = m.r; if (d < r0 && d > 1e-4) S.X.moveEnt(me, dx / d * (r0 - d) * 0.6, dy / d * (r0 - d) * 0.6, 0); }
   /* its walk: it holds the altar's heart and leans toward the pet, keeping its distance; quick to turn, a predator's stride */
@@ -383,8 +399,11 @@ const ARIES_BOSS = (() => {
     const t = A.t, t0 = t - dt, cross = x => t0 < x && t >= x, m = S.m, X = S.X, me = S.me, B = S.B, k = kOf();
     if (A.kind === 'charge') {
       const ts = t - A.t0, ts0 = ts - dt, tI = A.wind + A.ct, crs = x => ts0 < x && ts >= x;
+      if (crs(tI - 0.1) && S.inst && S.inst.skidFx) { const p0 = footW(0), p1 = footW(1); S.inst.skidFx(p0.x, p0.y, A.ux, A.uy); S.inst.skidFx(p1.x, p1.y, A.ux, A.uy); }   // (v444 SL: the brake's skid)
       if (ts < A.wind) { B.vx = B.vy = 0; B.mv = 0; B.gal = 0; B.yawT = A.a; if (crs(0.12) && S.inst) { const f = frontOf(1.3); S.inst.fx.push({ kind: 'crack', x: f.x, y: f.y, R: 1.4, t: 0, life: 1.8, seed: Math.random() * 50, heat: 1 }); S.inst.fx.push({ kind: 'dust', x: f.x, y: f.y, R: 1.5, t: 0, life: 0.9, seed: 7 }); sfx('thud'); }
-        if (Math.random() < dt * 8) X.shake(1.1, 0.05); return false; }
+        if (Math.random() < dt * 8) X.shake(1.1, 0.05);
+        { const Mv = MV(); if (A.seg === 0 && S.inst && S.inst.pawFx && Mv && Mv.pawEv) for (const e of Mv.pawEv(A.wind)) if (crs(e.t)) { const p = footW(0); S.inst.pawFx(p.x, p.y, e.stamp); if (e.stamp) { X.shake(3.5, 0.12); sfx('thud'); } } }   // (v444 SL: the paw's scrapes and stamp)
+        return false; }
       if (ts0 < tI) {   // the charge: a hard start, then the gallop down the lane
         if (!A.launched) { A.launched = true; if (S.inst) { S.inst.fx.push({ kind: 'trail', a: B, A: { dx: A.ux, dy: A.uy, dist: A.D }, t: 0, life: A.ct + 0.3 }); const b = frontOf(-1.3); S.inst.fx.push({ kind: 'dust', x: b.x, y: b.y, R: 1.8, t: 0, life: 0.8, seed: 19 }); S.inst.fx.push({ kind: 'crack', x: b.x, y: b.y, R: 1.4, t: 0, life: 1.8, seed: Math.random() * 40, heat: 1.2 }); } sfx('whoosh'); gain(1); }
         A.go = true; B.mv = 1; B.gal = 1; B.gk = 1.7; B.yaw = A.a;

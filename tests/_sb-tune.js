@@ -11,7 +11,7 @@ const path = require('path');
 const DIST = +(process.argv[2] || 4), RAW = +(process.argv[3] || 60), DT = 1 / (+(process.argv[4] || 30)), WHO = process.argv[5] || 'both';
 const RUN = `const raw = arg.raw, dist = arg.dist, dt = arg.dt; const out = { t: 0, hits: 0, ord: 0, shel: 0, nOrd: 0, nShel: 0, max: 0, blows: {}, tW: null };
   const bb = BOSS(); out.hp = bb.maxhp; const big = D.ST.hp * 0.35;
-  let acc = 0; while (out.t < 1800 && !bb.dead) { const H0 = g.dmgTaken; U.update(dt); out.t += dt; acc += dt; if (out.tW == null && WR()) out.tW = out.t;
+  let acc = 0; while (out.t < 4800 && !bb.dead) /* (v444 SL: room for three times the health) */ { const H0 = g.dmgTaken; U.update(dt); out.t += dt; acc += dt; if (out.tW == null && WR()) out.tW = out.t;
     if (!me.dead) { me.hp = 1e6; const q = CLAMP(bb.x, bb.y + dist); hold(q.x, q.y); }
     while (acc >= 0.25) { acc -= 0.25; if (!bb.dead && bb.act !== "enter" && READY()) { D.hitMon(bb, raw, { noCrit: true, noText: true }); out.hits++; } }
     const d = g.dmgTaken - H0; if (d > 0) { if (d > big) { out.shel += d; out.nShel++; } else { out.ord += d; out.nOrd++; out.max = Math.max(out.max, d); const k = Math.round(d / 2) * 2; out.blows[k] = (out.blows[k] || 0) + 1; } } }

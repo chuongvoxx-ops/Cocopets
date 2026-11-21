@@ -103,12 +103,12 @@ const SAMAEL_GL = (() => {
   /* the legs: hip, side, front, the walk's phase offset, the gallop's, thickness, hoof scale, foot y, upper / lower / cannon lengths, the
      cannon's rest lean (+ the joint ahead of the hoof), the knee's bend (-1 the elbow back, +1 the stifle forward) */
   const LEGS = [
-    { x: 2.5, hy: 2.35, z: 7.2, s: 1, f: 1, off: 0.7, goff: 0.5, w: 2.15, hs: 2.0, fy: 2.65, L1: 4.0, L2: 3.8, LC: 1.85, ca: 0.05, kd: -1 },
-    { x: 2.5, hy: 2.35, z: 7.2, s: -1, f: 1, off: 0.2, goff: 0.6, w: 2.15, hs: 2.0, fy: 2.65, L1: 4.0, L2: 3.8, LC: 1.85, ca: 0.05, kd: -1 },
+    { x: 2.5, hy: 2.35, z: 7.2, s: 1, f: 1, off: 0.75, goff: 0.5, w: 2.15, hs: 2.0, fy: 2.65, L1: 4.0, L2: 3.8, LC: 1.85, ca: 0.05, kd: -1 },
+    { x: 2.5, hy: 2.35, z: 7.2, s: -1, f: 1, off: 0.25, goff: 0.6, w: 2.15, hs: 2.0, fy: 2.65, L1: 4.0, L2: 3.8, LC: 1.85, ca: 0.05, kd: -1 },
     { x: -2.7, hy: 1.6, z: 6.95, s: 1, f: 0, off: 0.0, goff: 0.0, w: 1.5, hs: 1.45, fy: 1.85, L1: 3.65, L2: 3.25, LC: 2.05, ca: -0.24, kd: 1 },
     { x: -2.7, hy: 1.6, z: 6.95, s: -1, f: 0, off: 0.5, goff: 0.1, w: 1.5, hs: 1.45, fy: 1.85, L1: 3.65, L2: 3.25, LC: 2.05, ca: -0.24, kd: 1 }];
   const XS = 1.46, LZ = 1.7;   // (v435 SM: the body carried LZ higher on longer legs)   // (v435 SM concept2: a long, powerful barrel, the stance long and predatory)
-  const HOOFH = 0.5, STRIDE = 3.7, SW0 = 0.3, SW1 = 0.56;  // the hoof's height, the stride, the swing's share walking and galloping
+  const HOOFH = 0.5, STRIDE = 3.7, SW0 = 0.25, SW1 = 0.56;  // the hoof's height, the stride, the swing's share walking and galloping   (v444 SL: a clear four-beat walk: footfalls a quarter-cycle apart, one hoof up at a time)
   const LMESH = 2.2;                                         // the leg meshes' built length
   /* ---- the Celestial Horns: a spiral about an axis out from the head (a little forward), in head-local space (x forward, y out, z up):
      from the mount at the crown up, back, down behind the ear and forward past the cheek; u 0..1 the Celestial form's whole curl ---- */
@@ -123,6 +123,7 @@ const SAMAEL_GL = (() => {
   const hornQ = (u, ph, k) => { const f = hornF(u), r = hornR(u) * k * hsec(ph) * (1 + 0.012 * Math.sin(u * 150)); return add(f.P, add(mul(f.N, Math.cos(ph) * r), mul(f.Bn, Math.sin(ph) * r * 0.88))); };   // (ridged: a ram's horn's rings)
   const NHS = 12, NHF = [0, 12, 12, 12];                     // segments built, used by form
   const HSEG = []; for (let i = 0; i < NHS; i++) { const u0 = i / NHS, u1 = (i + 1) / NHS, um = (u0 + u1) / 2, f = hornF(um); HSEG.push({ u0, u1, um, c: f.P, t: f.T, n: f.N, b: f.Bn }); }
+  const CRR = [-0.12, 0.52, 0.6];   // (v444 SL) the crest blades' root (head-local, +y side): their pivot
   const HK = [0, 3.9, 4.25, 4.5];   // (v435 SM concept2: each spiral bigger than the head)   // (concept2: each main spiral larger than the head; bigger at L4)   // (huge: the curl about as wide as the head is long)                          // the horns' size by form
   /* the reactor's containment rings: radius (over the star's), axis, speed, mesh */
   const CRINGS = [{ R: 1.45, ax: [1, 0, 0], sp: 0.6, m: 0 }, { R: 1.78, ax: [1, 0.02, 0], sp: -0.42, m: 2 }, { R: 2.1, ax: [1, 0, 0.02], sp: 0.3, m: 1 }, { R: 2.45, ax: [1, -0.02, 0], sp: -0.22, m: 0 }];   // (concept2: concentric gear rings round the star, facing out of the chest)
@@ -250,7 +251,7 @@ const SAMAEL_GL = (() => {
         strip(B, [[0.82, s * 0.54, 0.36], [1.06, s * 0.58, 0.31], [1.32, s * 0.52, 0.18]], () => norm([0.3, s * 0.95, 0.12]), 0.12, MT.EYE, 0.012);
         // (concept2) the dragon's head: gold-edged plates layered down the snout, crest blades swept far back off the skull
         for (let j = 0; j < 1; j++) plate(B, { c: [hug(1.4 + j * 0.45, 0.25 - j * 0.25, s), hug(1.95 + j * 0.4, 0.12 - j * 0.25, s), hug(2.5 + j * 0.3, -0.05 - j * 0.22, s), hug(3.0 + j * 0.15, -0.25 - j * 0.15, s)], nrm: [0.25, s * 0.75, 1], w: u => 0.15 * (1 - 0.45 * u) + 0.03, cup: 0, th: 0.09, nu: Q(8), nv: 2, mat: MT.OB, trim0: 0.7, endTrim: true });
-        for (let j = 0; j < 3; j++) B.crystal([0.2 - j * 0.32, s * (0.42 + j * 0.1), 0.72 - j * 0.12], [-2.7 - j * 0.4, s * (0.7 + j * 0.25), 1.35 - j * 0.3], 0.17 - j * 0.03, MT.BLADE, { n: 4, thin: 0.3, belly: 0.2, up: [0, s, 0.3] });   // (v435 SM)
+        // (v444 SL: the three long crest blades are their own mesh, M.crest, so they can flick)
         plate(B, { c: [[0.45, s * 0.42, 0.98], [0.85, s * 0.7, 0.72], [1.2, s * 0.84, 0.5], [1.5, s * 0.82, 0.3]], nrm: [0.4, s * 0.6, 1], w: () => 0.17, cup: 0, th: 0.2, nu: Q(8), nv: 2, mat: MT.OB, trim0: 0.72 });
         plate(B, { c: [hug(0.5, 0.0, s), hug(1.0, -0.15, s), hug(1.55, -0.3, s), hug(2.0, -0.4, s)], nrm: [0, s, -0.1], w: u => 0.27 * Math.pow(Math.sin(Math.PI * (0.04 + 0.92 * u)), 0.2), cup: 0, th: 0.11, nu: Q(8), nv: 2, mat: MT.OB, trim0: 0.78, endTrim: true });
         plate(B, { c: [hug(0.25, -0.22, s), hug(0.7, -0.36, s), hug(1.15, -0.45, s), hug(1.5, -0.5, s)], nrm: [0, s, -0.35], w: u => 0.2 * Math.pow(Math.sin(Math.PI * (0.04 + 0.92 * u)), 0.2), cup: 0, th: 0.1, nu: Q(8), nv: 2, mat: MT.OB + 0.3, trim0: 0.78, endTrim: true });
@@ -265,6 +266,9 @@ const SAMAEL_GL = (() => {
         B.crystal([0.7, s * 0.66, -0.15], [-0.65, s * 1.2, -0.42], 0.12, MT.BLADE, { n: 4, thin: 0.35, up: [0, 0, 1] }); B.crystal([0.2, s * 0.62, 0.5], [-0.9, s * 1.0, 0.75], 0.1, MT.BLADE, { n: 4, thin: 0.35, up: [0, 0, 1] }); }   // (cheek and brow spikes swept back)
       // under the head: bared mechanism (cables, a piston)
     });
+    /* (v444 SL) the crest: the three long blades swept back off the skull (+y side; mirrored), built about their root (CRR, head-local) so
+       they turn there: flicking, laid back for a roar or a charge, raised in a flare */
+    M.crest = mk(B => { B.push([1, 0, 0], [0, 1, 0], [0, 0, 1], mul(CRR, -1)); for (let j = 0; j < 3; j++) B.crystal([0.2 - j * 0.32, 0.42 + j * 0.1, 0.72 - j * 0.12], [-2.7 - j * 0.4, 0.7 + j * 0.25, 1.35 - j * 0.3], 0.17 - j * 0.03, MT.BLADE, { n: 4, thin: 0.3, belly: 0.2, up: [0, 1, 0.3] }); B.pop(); });
     // a jaw plate (+y half; mirrored): hinged at its back, it swings down and out to bare the chamber
     M.jaw = mk(B => { plate(B, { c: [[0.0, 0.3, 0.0], [1.0, 0.26, -0.14], [2.0, 0.16, -0.2], [2.95, 0.04, -0.12]], nrm: [0, 0.4, -1], w: u => 0.34 * (1 - 0.5 * u) + 0.03, cup: 0.15, th: 0.22, nu: Q(10), nv: 3, mat: MT.OB, trim0: 0.74 });
        B.crystal([0.3, 0.45, -0.05], [-0.4, 0.6, -0.35], 0.09, MT.BLADE, { n: 4, thin: 0.35, up: [0, 0, 1] });
@@ -378,25 +382,39 @@ const SAMAEL_GL = (() => {
      glow, live (life's amount), mech, tail, eye, dis (dissolve), asm (assembly) */
   function idlePose(k, t, o) {
     return Object.assign({ k: k || 3, t: t || 0, yaw: 0, bank: 0, pitch: 0, lift: 0, dx: 0, crouch: 0, rear: 0, head: 0, look: 0, jaw: 0, horn: 0, hornSpin: 1, hornFwd: 0, hornHeat: 0, crown: 0, drill: 0,
-      core: 0.9, coreOpen: 0, heat: 0, vent: 0, dorsal: 0, air: 0, meteor: 0, shell: 0, celest: 0, glow: 0, live: 1, ph: 0, mv: 0, gal: 0, feet: null, tail: 0, stagger: 0, dis: 0, asm: 1, eye: 1, spread: 0, shift: 0, mech: 0, gaitK: 1 }, o || {});
+      core: 0.9, coreOpen: 0, heat: 0, vent: 0, dorsal: 0, air: 0, meteor: 0, shell: 0, celest: 0, glow: 0, live: 1, ph: 0, mv: 0, gal: 0, feet: null, tail: 0, stagger: 0, dis: 0, asm: 1, eye: 1, spread: 0, shift: 0, mech: 0, gaitK: 1,
+      squash: 0, crest: 0 }, o || {});   // (v444 SL: squash the body's compression on a landing; crest the crest blades laid back (-) or raised (+))
   }
   const hold = (t, per, sd, ease) => { const u = t / per + sd, n = Math.floor(u), f = u - n, a = hash(n * 1.37 + sd * 7.1) * 2 - 1, b = hash((n + 1) * 1.37 + sd * 7.1) * 2 - 1; return lerp(a, b, sstep(0, ease || 0.4, f)); };
   /* its life over any pose: mechanical breathing, the shoulder plates shifting, the horn segments turning on their own, the head lowering
      now and then (a flourish every 4.6 s: a low head-dip with a snort of embers, a shrug of the shoulders, a turn of the horns, a lash of
      the tail; each with its anticipation and settle), the joints adjusting under its weight, the tail's delayed sway. P.live scales it */
-  const FLP = 4.6;
+  /* (v444 SL) livelier: five flourishes (the fifth a head toss with a growl and the crest laid back), breathing that swells the chest and
+     flanks (quicker and harder in the Cataclysm), the head scanning the field in held glances (cocked as it looks, the neck following),
+     snorts on their own clock (embers puffed from the nostrils: LF.puff, the snort's age, drawn by the moves' body light), the crest blades
+     flicking (each flick a damped quiver), the tail swishing on its own clock with a slow curl, the weight shifting fore and aft as well as
+     side to side; the Cataclysm (P.heat) shaking it: a tremor, plates flaring, more snorts and flicks */
+  const FLP = 4.6, SN = (t, per, sd) => { const n = Math.floor(t / per + sd), f = t - (n - sd) * per; return { n, f }; };
   function life(P) {
-    const t = (P && P.t) || 0, lv = P && P.live != null ? cl(P.live) : 1, s1 = Math.sin;
-    const n = Math.floor((t + 0.9) / FLP), ft = t + 0.9 - n * FLP, typ = ((n % 4) + 4) % 4;
+    const t = (P && P.t) || 0, lv = P && P.live != null ? cl(P.live) : 1, s1 = Math.sin, hx = cl((P && P.heat) || 0);
+    const n = Math.floor((t + 0.9) / FLP), ft = t + 0.9 - n * FLP, typ = ((n % 5) + 5) % 5;
     const pre = ft < 0.4 ? s1(Math.PI * ft / 0.4) : 0, main = sstep(0.3, 0.9, ft) * (1 - sstep(1.5, 2.4, ft)), set = ft > 2.2 && ft < 3.6 ? Math.exp(-(ft - 2.2) * 2.8) * s1((ft - 2.2) * 7) : 0;
-    return { typ, fl: main, snort: typ === 0 ? sstep(0.8, 1.0, ft) * (1 - sstep(1.2, 1.6, ft)) : 0,
-      breath: s1(t * 1.1) * lv, bob: (0.035 * s1(t * 1.1) + 0.012 * s1(t * 2.7)) * lv,
-      head: (0.05 * s1(t * 0.41) + (typ === 0 ? 0.38 * main - 0.08 * pre + 0.06 * set : 0)) * lv, look: (0.1 * s1(t * 0.27) + (typ === 2 ? 0.22 * main : 0)) * lv,
-      shoulder: (0.035 * s1(t * 0.7) + (typ === 1 ? 0.2 * main - 0.05 * pre + 0.06 * set : 0)) * lv,
-      horn: (typ === 2 ? 0.16 * main : 0.03 * (0.5 + 0.5 * s1(t * 0.6))) * lv, hornTurn: (0.035 * s1(t * 0.33) + (typ === 2 ? 0.07 * main : 0)) * lv,
-      core: (0.14 * s1(t * 2.1) + 0.07 * s1(t * 4.7) + 0.05 * s1(t * 7.3)) * lv, tail: (0.2 * s1(t * 0.8) + (typ === 3 ? 0.55 * main - 0.15 * pre + 0.12 * set : 0)) * lv, tailY: 0.1 * s1(t * 1.2) * lv,
-      piston: 0.04 * s1(t * 1.5) * lv, fpart: t, jaw: (typ === 0 ? 0.12 * main : 0) * lv,
-      shift: 0.5 * hold(t, 6.1, 0.31, 0.45) * lv, neckL: 0.07 * hold(t, 3.3, 1.13, 0.35) * lv, neckH: 0.05 * hold(t, 4.3, 2.37, 0.4) * lv, armour: 0.5 + 0.5 * s1(t * 1.1 - 0.6) };
+    // the snorts: every ~3.7 s (some skipped), every ~1.6 s in the Cataclysm; the flicks of the crest: every ~2.3 s, ~1.1 s in the Cataclysm
+    const sa = SN(t, 3.7, 0.37), sb = SN(t, 1.6, 0.11), hot = hx > 0.5, sc0 = hot ? sb : sa, snOn = hot || hash(sc0.n * 3.13 + 0.7) > 0.3, puff = snOn && sc0.f < 1.2 ? sc0.f : -1, sne = puff >= 0 ? sstep(0, 0.07, puff) * (1 - sstep(0.12, 0.42, puff)) : 0;
+    const ca = SN(t, hot ? 1.1 : 2.3, 0.53), cdl = hash(ca.n * 5.31 + 1.9) * (hot ? 0.5 : 1.3), cfu = ca.f - cdl, flick = cfu > 0 && hash(ca.n * 2.17) > (hot ? 0 : 0.25) ? Math.exp(-cfu * 7) * s1(cfu * 27) * (hot ? 0.55 : 0.32) : 0;
+    const tw = SN(t, 5.3, 0.71), tsw = tw.f > 0.2 ? Math.exp(-(tw.f - 0.2) * 2.6) * s1((tw.f - 0.2) * 5.2) * (hash(tw.n * 1.7) > 0.5 ? 1 : -1) : 0;
+    const toss = typ === 4 ? main : 0, shake = hx * (0.55 * s1(t * 37) + 0.45 * s1(t * 53 + 1.3));
+    const brth = (1 - hx) * s1(t * 1.1) + hx * s1(t * 2.9);
+    return { typ, fl: main, snort: (typ === 0 ? sstep(0.8, 1.0, ft) * (1 - sstep(1.2, 1.6, ft)) : 0) + sne * 0.8, puff, puffK: hot ? 1.5 : 1,
+      breath: brth * lv * (1 + 0.6 * hx), bob: (0.035 * brth + 0.012 * s1(t * 2.7)) * lv,
+      head: (0.05 * s1(t * 0.41) + (typ === 0 ? 0.38 * main - 0.08 * pre + 0.06 * set : 0) + 0.07 * sne - (typ === 4 ? 0.42 * main - 0.1 * pre - 0.08 * set : 0)) * lv, look: (0.1 * s1(t * 0.27) + (typ === 2 ? 0.22 * main : 0) + 0.12 * toss * s1(ft * 9) * (1 - sstep(1.3, 2.0, ft))) * lv + 0.012 * shake,
+      shoulder: (0.035 * s1(t * 0.7) + (typ === 1 ? 0.2 * main - 0.05 * pre + 0.06 * set : 0) + 0.02 * brth) * lv,
+      horn: (typ === 2 ? 0.16 * main : 0.03 * (0.5 + 0.5 * s1(t * 0.6))) * lv, hornTurn: (0.05 * s1(t * 0.33) + (typ === 2 ? 0.07 * main : 0)) * lv,
+      core: (0.14 * s1(t * 2.1) + 0.07 * s1(t * 4.7) + 0.05 * s1(t * 7.3)) * lv, tail: (0.2 * s1(t * 0.8) + (typ === 3 ? 0.55 * main - 0.15 * pre + 0.12 * set : 0) + 0.42 * tsw) * lv, tailY: (0.1 * s1(t * 1.2) + 0.12 * s1(t * 0.37 + 1)) * lv,
+      curl: (0.5 + 0.5 * s1(t * 0.37 + 0.4)) * lv,
+      piston: 0.04 * s1(t * 1.5) * lv, fpart: t, jaw: ((typ === 0 ? 0.12 * main : 0) + 0.06 * sne + 0.3 * toss) * lv,
+      shift: 0.5 * hold(t, 6.1, 0.31, 0.45) * lv, shiftX: 0.22 * hold(t, 7.3, 0.77, 0.5) * lv, neckL: 0.2 * hold(t, 2.9, 1.13, 0.22) * lv, neckH: 0.05 * hold(t, 4.3, 2.37, 0.4) * lv, armour: 0.5 + 0.5 * s1(t * 1.1 - 0.6),
+      crest: (flick + 0.05 * s1(t * 1.1 - 1) - 0.55 * toss) * lv, shake, flare: hx * (0.5 + 0.5 * s1(t * 17)) };
   }
   /* the gait: the walk (diagonal couplets) blended into a rotary gallop by gal: offsets and the swing's share move between the two */
   const legOff = (L, gal) => lerp(L.off, L.goff, cl(gal || 0)), swingOf = gal => lerp(SW0, SW1, cl(gal || 0));
@@ -484,6 +502,14 @@ const SAMAEL_GL = (() => {
   const LW = norm([-0.45, 0.42, 0.8]), SBW = norm([-0.3, -0.2, 0.92]), RIMW = norm([0.65, -0.62, 0.42]), PXW = [1, 0, 0], PYW = [0, SE, -CE], PDW = [0, CE, SE], UPW = [0, 0, 1];
   const RIMC = [1.45, 0.62, 0.42], AMBC = [1.15, 1.04, 1.02], OUTC = [0.03, 0.012, 0.01], GLCAP = 1600;   // (a crimson rim light: its own, not Belial's amber)
   const POOL = [], ITEMS = [], TRANS = []; let NP = 0;
+  /* (v444 SL) the canvas's visible rectangle in its current user space (2 px of margin), and a pass's GL pixel budget in a fight by the
+     visual quality (0 the model, 1 its effect meshes; none outside a fight: menus keep their full resolution) */
+  function visBox(c) { const m = c.getTransform ? c.getTransform() : null, cv = c.canvas; if (!m || !cv || !cv.width) return null; const det = m.a * m.d - m.b * m.c; if (Math.abs(det) < 1e-9) return null;
+    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; for (const [X, Y] of [[0, 0], [cv.width, 0], [0, cv.height], [cv.width, cv.height]]) { const dx = X - m.e, dy = Y - m.f, ux = (m.d * dx - m.c * dy) / det, uy = (-m.b * dx + m.a * dy) / det; x0 = Math.min(x0, ux); y0 = Math.min(y0, uy); x1 = Math.max(x1, ux); y1 = Math.max(y1, uy); }
+    return [Math.floor(x0) - 2, Math.floor(y0) - 2, Math.ceil(x1) + 2, Math.ceil(y1) + 2]; }
+  const PXB = [[0.5e6, 0.35e6, 0.25e6, 0.25e6], [0.42e6, 0.3e6, 0.2e6, 0.2e6]];
+  const budget = j => { try { if (typeof GQ === 'undefined' || typeof arc === 'undefined' || !arc.game || arc.mode !== 'dungeon') return 1e12; return PXB[j][Math.max(0, Math.min(3, GQ.level() | 0))]; } catch (e) { return 1e12; } };
+  const BX = [0, 0, 0], TIPF = [], SLO = () => flag('__SL_OFF') === 1; let HP45 = null;   // (v444 SL: scratch, the horn tip's frame by segment count, window.__SL_OFF = 1: v443's drawing)
   const LGS = [{}, {}, {}, {}], ZM = { sx: 0, sy: 0, sz: 0, yr: 0, h: 0, F: null, steps: null, mA: 0 };
   const item = () => { const g = POOL[NP] || (POOL[NP] = { R0: new Float32Array(3), R1: new Float32Array(3), R2: new Float32Array(3), T: new Float32Array(3) }); NP++; return g; };
   const STATS = { ms: 0, n: 0, items: 0, W: 0, H: 0 };
@@ -493,7 +519,7 @@ const SAMAEL_GL = (() => {
   function draw(c, o) {
     const d = data(); if (!d.ready || NOGL) return null;
     try {
-      const P = o.P || idlePose(o.k || 3, o.t || 0), k = P.k || o.k || 3, t = P.t || 0, sw = WS * (o.scale || 1), K = o.K, kk = K / WS, X0 = o.X, Y0 = o.Y, M = D.M, low = lowFx() || o.low;
+      const slo = SLO(), P = o.P || idlePose(o.k || 3, o.t || 0), k = P.k || o.k || 3, t = P.t || 0, sw = WS * (o.scale || 1), K = o.K, kk = K / WS, X0 = o.X, Y0 = o.Y, M = D.M, low = lowFx() || o.low;
       const LF = life(P), lv = P.live == null ? 1 : cl(P.live), heat = cl(P.heat || 0), vent = cl(P.vent || 0), met = cl(P.meteor || 0), air = Math.max(cl(P.air || 0), met);
       const Rroot = mm([1, 0, 0, 0, 1, 0, 0, 0, 1.06], rz(P.yaw || 0));
       const W3 = p => { const q = mv(Rroot, p); return [q[0] * sw, q[1] * sw, q[2] * sw]; };
@@ -506,11 +532,14 @@ const SAMAEL_GL = (() => {
         if (!mesh) return null; sc = sc || 1; let ga = 0;
         if (asm < 0.999) { const a0 = (ord || 0) * 0.74, a = sstep(a0, a0 + 0.26, asm); if (a < 0.02) return null; const dir = sub(T, CORE), ax = norm([hash(T[0] * 3.1 + T[2]) - 0.5, hash(T[1] * 5.7 + 1) - 0.5, 0.7]);
           T = add(T, add(mul(dir, (1 - a) * 1.3), [0, 0, (1 - a) * 1.2])); R = mm(axisR(ax, (1 - a) * 3.4), R); sc *= 0.45 + 0.55 * a; ga = (1 - a) * 2.4; }   // (each part converging on the reactor, turning into place out of light)
-        const g = item(), Rm = mm(Rroot, R), Tw = W3(T), z = sw * sc;
-        for (let i = 0; i < 3; i++) { g.R0[i] = Rm[i * 3] * z; g.R1[i] = Rm[i * 3 + 1] * z; g.R2[i] = Rm[i * 3 + 2] * z; g.T[i] = Tw[i]; }
+        const g = item(), z = sw * sc;
+        if (slo) { const Rm = mm(Rroot, R), Tw = W3(T); for (let i = 0; i < 3; i++) { g.R0[i] = Rm[i * 3] * z; g.R1[i] = Rm[i * 3 + 1] * z; g.R2[i] = Rm[i * 3 + 2] * z; g.T[i] = Tw[i]; } }
+        else for (let i = 0; i < 3; i++) { const a0 = Rroot[i * 3], a1 = Rroot[i * 3 + 1], a2 = Rroot[i * 3 + 2];   // (v444 SL: the same sums in the same order, no arrays made)
+          g.R0[i] = (a0 * R[0] + a1 * R[3] + a2 * R[6]) * z; g.R1[i] = (a0 * R[1] + a1 * R[4] + a2 * R[7]) * z; g.R2[i] = (a0 * R[2] + a1 * R[5] + a2 * R[8]) * z; g.T[i] = (a0 * T[0] + a1 * T[1] + a2 * T[2]) * sw; }
         g.mesh = mesh; g.alpha = op && op.alpha != null ? op.alpha : 1; g.glow = (gl || 0) + ga; g.glow2 = (op && op.glow2) || 0; g.spill = op && op.spill != null ? op.spill : dis > 0 ? Math.min(1, dis * (op && op.disK != null ? op.disK : 1)) : 0; g.kind = (op && op.kind) || 0; g.wear = 1; g.fx = 0; g.first = 0; g.cnt = 0; g.outline = !(op && op.noInk) && !(g.spill > 0.001);
         (g.alpha < 0.995 ? TRANS : ITEMS).push(g);
-        if (mesh.bs) { const bs = mesh.bs, c3 = add(T, mv(R, mul(bs, sc))), sk = Math.max(Math.hypot(R[0], R[3], R[6]), Math.hypot(R[1], R[4], R[7]), Math.hypot(R[2], R[5], R[8])); box(c3, bs[3] * sc * sk * 1.03 + 0.05); }
+        if (mesh.bs) { const bs = mesh.bs, sk = Math.max(Math.hypot(R[0], R[3], R[6]), Math.hypot(R[1], R[4], R[7]), Math.hypot(R[2], R[5], R[8])); if (slo) box(add(T, mv(R, mul(bs, sc))), bs[3] * sc * sk * 1.03 + 0.05);
+          else { const b0 = bs[0] * sc, b1 = bs[1] * sc, b2 = bs[2] * sc; BX[0] = T[0] + (R[0] * b0 + R[1] * b1 + R[2] * b2); BX[1] = T[1] + (R[3] * b0 + R[4] * b1 + R[5] * b2); BX[2] = T[2] + (R[6] * b0 + R[7] * b1 + R[8] * b2); box(BX, bs[3] * sc * sk * 1.03 + 0.05); } }
         return g; };
       /* the gait and the body's frame */
       const gal = cl(P.gal || 0), G = gait(P.ph || 0, cl(P.mv || 0), P.gaitK || 1, gal), feet = P.feet, MS = o.inst ? motion(o.inst, P) : null, dyn = MS || ZM, mvv = cl(P.mv || 0);
@@ -520,15 +549,19 @@ const SAMAEL_GL = (() => {
       let dip = 0, push = 0, wr = 0, wy = 0, wp = 0; for (let i = 0; i < 4; i++) { const L = LEGS[i], q = LGS[i], lf = cl(q.lift / 0.6) * (1 - air); if (L.f) dip += q.load * 0.14; else push += q.load * 0.06; wr -= lf * L.s * 0.022; wy -= lf * L.s * 0.07; wp += lf * (L.f ? 0.016 : -0.012); }
       const rear = cl(P.rear || 0), crouch = P.crouch || 0, sh = (P.shift || 0) + LF.shift * (1 - mvv) * (1 - rear);
       const gph = P.ph || 0, rock = gal * mvv * (1 - air);   // (the gallop's rocking: the forehand rising as the hinds drive, the body bounding)
-      const pitch = (P.pitch || 0) + dip * 0.11 - push * 0.4 + crouch * 0.06 - rear * 0.42 + (P.stagger || 0) * 0.08 + wp + dyn.sx * 0.07 + rock * 0.06 * Math.sin(gph + 0.6) + met * 0.12, bank = (P.bank || 0) + wr - dyn.sy * 0.06 - sh * 0.035;
-      const lift = (P.lift || 0) + LF.bob - (MS ? dip * 0.35 : dip) + dyn.sz * 1.9 - crouch * 0.55 + rear * 0.55 + rock * 0.32 * (0.5 + 0.5 * Math.sin(gph * 2 + 1.2)) + air * 0.6 + 0.55 + LZ;   // (+0.55: the body carried high on long legs)
-      const Mb = mm(rx(bank), ry(pitch)), tbo = [(P.dx || 0) + rear * -0.35 + dyn.sx * 0.85, wy + dyn.sy * 0.55 + sh * 0.3, lift];
-      const BP = p => add(add(mv(Mb, sub([BODYC[0] + (p[0] - BODYC[0]) * XS, p[1], p[2]], BODYC)), BODYC), tbo), BR = R => mm(Mb, R);
-      const br = LF.breath * 0.012, trem = (heat * 0.012 + cl(P.mech || 0) * 0.006) * Math.sin(t * 61);   // (the armour's vibration as the reactor nears critical)
+      /* (v444 SL) it leans into its turns (the inside shoulder dropping, by the turn's rate and its speed), the spine flexes with the gallop's
+         stride (the barrel gathering and stretching), its weight shifts fore and aft at rest, a landing squashes the body (P.squash), the
+         Cataclysm shakes it */
+      const squash = cl(P.squash || 0), lean = Math.max(-0.14, Math.min(0.14, -dyn.yr * mvv * 0.1)), shX = LF.shiftX * (1 - mvv) * (1 - rear), XSd = XS * (1 + 0.035 * rock * Math.sin(gph + 2.2));
+      const pitch = (P.pitch || 0) + dip * 0.11 - push * 0.4 + crouch * 0.06 - rear * 0.42 + (P.stagger || 0) * 0.08 + wp + dyn.sx * 0.07 + rock * 0.06 * Math.sin(gph + 0.6) + met * 0.12 + shX * 0.03 + squash * 0.04, bank = (P.bank || 0) + wr - dyn.sy * 0.06 - sh * 0.035 + lean + 0.006 * LF.shake;
+      const lift = (P.lift || 0) + LF.bob - (MS ? dip * 0.35 : dip) + dyn.sz * 1.9 - crouch * 0.55 + rear * 0.55 + rock * 0.32 * (0.5 + 0.5 * Math.sin(gph * 2 + 1.2)) + air * 0.6 + 0.55 + LZ - squash * 0.4;   // (+0.55: the body carried high on long legs)
+      const Mb = mm(rx(bank), ry(pitch)), tbo = [(P.dx || 0) + rear * -0.35 + dyn.sx * 0.85 + shX * 0.35, wy + dyn.sy * 0.55 + sh * 0.3, lift];
+      const BP = p => add(add(mv(Mb, sub([BODYC[0] + (p[0] - BODYC[0]) * XSd, p[1], p[2]], BODYC)), BODYC), tbo), BR = R => mm(Mb, R);
+      const br = LF.breath * 0.014, bry = LF.breath * 0.026 + squash * 0.05, brz = br - squash * 0.07, trem = (heat * 0.012 + cl(P.mech || 0) * 0.006) * Math.sin(t * 61) + 0.018 * LF.shake;   // (the armour's vibration as the reactor nears critical)   (v444 SL: the chest and flanks swelling with each breath)
       const out = { hornTips: [], hornRings: [], hornSegs: [], eyes: [], feet: [], vents: [], jets: [], fparts: [], dorsal: [] };
       /* the torso */
       const mtw = 1 - 0.18 * met;   // (the meteor: armour folded tight)
-      put(M.torso, BR([XS, 0, 0, 0, (1 + br) * mtw, 0, 0, 0, 1 + br]), BP([trem, 0, 0]), 1, glow + heat * 0.6, null, 0.4);
+      put(M.torso, BR([XSd, 0, 0, 0, (1 + bry) * mtw, 0, 0, 0, 1 + brz]), BP([trem, 0, 0]), 1, glow + heat * 0.6, null, 0.4);   // (v444 SL: XSd, bry, brz)
       /* ---- the Heart of Ruin ---- */
       const cp = BP(CORE), co = cl(P.coreOpen || 0), cg = Math.max(0, (P.core == null ? 0.9 : P.core) + LF.core * (1 + heat)), ck = 1 + co * 0.35 + (P.coreBig || 0), rr0 = CORER / 0.74;
       const sMA = MS ? (MS.mA = (MS.mA || 0) + MS.h * (0.3 + 2.4 * cl(P.mech || 0) + 1.5 * co + 2 * heat)) : t * 0.5;
@@ -549,7 +582,7 @@ const SAMAEL_GL = (() => {
       /* ---- the shoulders: the armour (it lifts off the plasma in the Cataclysm State), L4's under-plate, the floating shards; the haunches ---- */
       const shA = LF.shoulder + (P.mech || 0) * 0.04;
       for (const s of [1, -1]) { const Mi = s > 0 ? I3 : MY, qf = LGS[s > 0 ? 0 : 1], qh = LGS[s > 0 ? 2 : 3], df = qf.bx - LEGS[0].x * XS, dh = qh.bx - LEGS[2].x * XS, ar = 0.02 * LF.armour * lv;
-        const vt = vent + 0.15 * cl(P.mech || 0) * Math.sin(t * 13 + s);   // (Cataclysm: the plates lift off and out, trembling)
+        const vt = vent + 0.15 * cl(P.mech || 0) * Math.sin(t * 13 + s) + 0.2 * heat * (0.5 + 0.5 * Math.sin(t * 19 + s * 2.1)) * (0.6 + 0.4 * LF.flare);   // (Cataclysm: the plates lift off and out, trembling)   (v444 SL: flaring in bursts)
         const sp = BP([SHOULD[0] - df * 0.05, s * (SHOULD[1] + vt * 0.55), SHOULD[2] + vt * 0.45 + shA * 0.3 + qf.lift * 0.08 + ar]);
         put(M.shoulder[k], BR(mm(ry(-df * 0.05 + vt * 0.12), mm(Mi, rx(-shA * 0.5 - qf.lift * 0.05 - vt * 0.35)))), sp, 1.05 * mtw, glow + vt * 0.6, null, 0.5);
         if (k >= 2) put(M.spad, BR(mm(Mi, rx(-0.25 - vt * 0.2))), BP([SHOULD[0] - 0.9, s * (SHOULD[1] + 0.2 + vt * 0.3), SHOULD[2] - 0.75 + vt * 0.2]), 1.1, glow, null, 0.5);
@@ -577,14 +610,17 @@ const SAMAEL_GL = (() => {
         put(M.dblade, BR(mm(rx(s * fan), ry(-0.2 + dsl * 0.3 + met * 0.8))), BP(top), Bd.s * (1 + dsl * 0.2), glow + dsl * 0.6, null, 0.6); } }
       /* ---- (concept2) the flame ribbons streaming back from the shoulders and flanks, swaying, more and longer from L4 ---- */
       if (!low || k > 1) { const RIB = [{ x: 2.4, a: 0.9, v: 0 }, { x: 0.6, a: 1.2, v: 1 }, { x: -2.4, a: 1.0, v: 2 }, { x: 1.6, a: 1.35, v: 2 }, { x: -1.0, a: 0.75, v: 0 }], nr = k > 1 ? 5 : 3, rl = [1, 1.6, 2.0, 1.85][k] * (1 + 0.25 * heat) * (1 + 1.3 * met);   // (the meteor: its flames streaming behind it as a long burning tail)
-        for (let j = 0; j < nr; j++) { const Rb = RIB[j]; for (const s of [1, -1]) { const Mi = s > 0 ? I3 : MY, sw = Math.sin(t * (1.6 + 0.3 * j) + j * 1.7 + s) * 0.14, sw2 = Math.sin(t * 1.1 + j * 2.3 - s) * 0.1, root = bodyPt(Rb.x, Math.PI / 2 - Rb.a, -0.05);
-          put(M.rib[Rb.v], BR(mm(Mi, mm(rz(-0.3 - sw2 - 0.15 * mvv), ry(-0.05 + sw * 0.6 + 0.1 * mvv)))), BP([root[0], s * root[1], root[2]]), rl * (0.9 + 0.1 * Math.sin(t * 2.3 + j)), glow + 0.6 + heat, { alpha: 0.99, noInk: true, disK: 1.3 }, 0.6); } } }
+        for (let j = 0; j < nr; j++) { const Rb = RIB[j]; for (const s of [1, -1]) { const Mi = s > 0 ? I3 : MY, rp = 0.07 * Math.sin(t * 4.3 + j * 1.9 + s * 0.7) * (1 + mvv + heat), sw = Math.sin(t * (1.6 + 0.3 * j) + j * 1.7 + s) * 0.14 + rp, sw2 = Math.sin(t * 1.1 + j * 2.3 - s) * 0.1 + rp * 0.6, root = bodyPt(Rb.x, Math.PI / 2 - Rb.a, -0.05);   // (v444 SL: rp, a quicker ripple, wilder at speed and in the Cataclysm)
+          put(M.rib[Rb.v], BR(mm(Mi, mm(rz(-0.3 - sw2 - 0.15 * mvv), ry(-0.05 + sw * 0.6 + 0.1 * mvv)))), BP([root[0], s * root[1], root[2]]), rl * (0.9 + 0.1 * Math.sin(t * 2.3 + j) + 0.05 * Math.sin(t * 5.1 + j * 2.7 + s)), glow + 0.6 + heat, { alpha: 0.99, noInk: true, disK: 1.3 }, 0.6); } } }
       /* ---- the neck and head: low and forward; the head dips (P.head +), looks about, leads into turns, steadies its gaze ---- */
       const lead = Math.max(-0.35, Math.min(0.35, dyn.yr * 0.3)), hd = (P.head || 0) + LF.head + LF.neckH * (1 - mvv) - wp * 1.2 - dyn.sx * 0.12 + rock * 0.08 * Math.sin(gph), look = (P.look || 0) + LF.look + LF.neckL * (1 - mvv) + lead - bank * 0.8, stg = P.stagger || 0;
-      const HP = add(HEADP, [0.3 * hd + 0.4 * met, -wy * 0.6 - sh * 0.15, -0.75 * hd + 0.1 * stg - dyn.sz * 1.1 + met * 0.5]), Rh = mm(rz(look * 0.6), mm(rx(-bank * 0.7), ry(0.14 + 0.45 * hd - 0.25 * stg - 0.15 * met))), hpW = BP(HP), RhW = BR(Rh), RhS = mm(Rh, scl3(HS));
+      const tilt = LF.neckL * 0.7 * (1 - mvv) + 0.25 * lean;   // (v444 SL: the head cocked as it glances about, and into a turn)
+      const HP = add(HEADP, [0.3 * hd + 0.4 * met, -wy * 0.6 - sh * 0.15, -0.75 * hd + 0.1 * stg - dyn.sz * 1.1 + met * 0.5 + 0.06 * LF.breath]), Rh = mm(rz(look * 0.6), mm(rx(-bank * 0.7 + tilt), ry(0.14 + 0.45 * hd - 0.25 * stg - 0.15 * met))), hpW = BP(HP), RhW = BR(Rh), RhS = mm(Rh, scl3(HS));
       for (let i = 0; i < 5; i++) { const u = (i + 0.5) / 5, a = NECK0, b = add(HP, mv(RhS, [-0.55, 0, 0.1])), m3 = lerp3(a, b, u); m3[2] += 0.18 * Math.sin(Math.PI * u) * (1 - hd * 0.5);
         const dirN = norm(sub(b, a)), Rv = mm(rz(look * 0.6 * u), ry(-Math.atan2(dirN[2], dirN[0]))); put(M.vert, BR(Rv), BP(m3), 2.0 - u * 0.45, glow, null, 0.72); }
       put(M.head, RhW, hpW, HS, glow, { glow2: (P.eye == null ? 1 : P.eye) + heat * 0.5 }, 0.8);
+      { const cr = Math.max(-1.2, Math.min(1, LF.crest + (P.crest || 0) - 0.35 * met));   // (v444 SL) the crest blades turned at their root: flicks, laid back, raised
+        for (const s of [1, -1]) put(M.crest, BR(mm(Rh, mm(s > 0 ? I3 : MY, mm(ry(0.5 * cr), rz(-0.22 * cr))))), BP(add(HP, mv(RhS, [CRR[0], s * CRR[1], CRR[2]]))), HS, glow, null, 0.8); }
       const jaw = cl((P.jaw || 0) + LF.jaw + LF.snort * 0.15 + 0.04 * (1 - met));   // (the jaw closed at rest)
       for (const s of [1, -1]) { const Mi = s > 0 ? I3 : MY; put(M.jaw, BR(mm(Rh, mm(Mi, mm(rx(-jaw * 0.18), ry(jaw * 0.68))))), BP(add(HP, mv(RhS, [-0.1, s * jaw * 0.05, -0.42]))), HS, glow, null, 0.8); }
       if (jaw > 0.04) put(M.maw, BR(mm(Rh, rx(t * 2.4))), BP(add(HP, mv(RhS, [1.3, 0, -0.5]))), (0.75 + jaw * 0.45) * HS, 0.8 + jaw * 2.2 + glow + heat, { noInk: true }, 0.8);
@@ -603,18 +639,18 @@ const SAMAEL_GL = (() => {
         for (let i = 0; i < nseg; i++) { const S = HSEG[i], ui = i / Math.max(1, nseg - 1);
           // each segment: its own small turn (life), the shells parting (horn: out along its normal, twisting apart), a crown's spread
           // (thrown out from the spiral's axis, turned to face out), the drill's (turned to lie along the horn's forward line)
-          const tw = (0.03 * lv + 0.08 * cl(P.mech || 0)) * Math.sin(t * (0.4 + 0.08 * i) * (1 + 2 * cl(P.mech || 0)) + i * 1.9 + s) + hn * 0.35 * Math.sin(hA * 1.3 + i * 0.9);
+          const tw = (0.045 * lv + 0.08 * cl(P.mech || 0) + 0.05 * heat) * Math.sin(t * (0.4 + 0.08 * i) * (1 + 2 * cl(P.mech || 0)) + i * 1.9 + s) + hn * 0.35 * Math.sin(hA * 1.3 + i * 0.9);
           const opn = 0.06 + hn * (0.55 + 0.25 * Math.sin(i * 1.7)) + crw * 0.9, sep = hornR(S.um) * (0.45 * opn + 0.6 * crw * (0.5 + ui));
           const crOff = crw > 0 ? mul(norm(sub(S.c, add(HC, mul(HA, hAdv(S.um))))), crw * (0.35 + 0.5 * ui)) : [0, 0, 0], drOff = dr > 0 ? mul(S.t, dr * 0.18 * i) : [0, 0, 0];
           for (const half of [0, 1]) { const sg = half ? -1 : 1, Rs = mm(axisR(S.t, tw + sg * opn * 0.55), I3), piv = S.c, T = add(add(add(sub(piv, mv(Rs, piv)), mul(S.n, sg * sep)), crOff), drOff);
             put((half ? M.hin : M.hout)[i], HR3(Rs), H3(T), hk, glow + hn * 0.9 + crw * 0.8 + heat * 0.5 + (P.hornHeat || 0) * ui, { disK: 1.15 }, 0.9 + 0.08 * ui); }
-          if (i % 2 === 0 && i < nseg - 1) { const f = hornF(S.u1), Rr = mm(frameZ(f.T), rz(hA * (1.4 + 0.3 * i) * (i % 4 ? -1 : 1) + i)), ro = add(add(f.P, crOff), drOff);
+          if (i % 2 === 0 && i < nseg - 1) { const f = slo ? hornF(S.u1) : S.f1 || (S.f1 = hornF(S.u1)); if (slo) { const Rr = mm(frameZ(f.T), rz(hA * (1.4 + 0.3 * i) * (i % 4 ? -1 : 1) + i)); void Rr; } const ro = add(add(f.P, crOff), drOff);   // (v444 SL: the joint's frame fixed, made once; the ring's turn no longer worked out: nothing draws it)
             out.hornRings.push(scr(H3(ro))); }   // (concept2: no bands on the horn: the joints' places still given)
           if (i % 3 === 1) out.hornSegs.push(scr(H3(add(S.c, crOff))));
         }
-        { const f = hornF(uEnd), crOff = crw > 0 ? mul(norm(sub(f.P, add(HC, mul(HA, hAdv(uEnd))))), crw * 0.85) : [0, 0, 0], tp = add(add(f.P, crOff), mul(f.T, dr * 0.18 * nseg)), Rt = colsR(f.T, f.N, f.Bn);
+        { const f = slo ? hornF(uEnd) : TIPF[nseg] || (TIPF[nseg] = hornF(uEnd)), crOff = crw > 0 ? mul(norm(sub(f.P, add(HC, mul(HA, hAdv(uEnd))))), crw * 0.85) : [0, 0, 0], tp = add(add(f.P, crOff), mul(f.T, dr * 0.18 * nseg)), Rt = colsR(f.T, f.N, f.Bn);
           put(M.htip, HR3(Rt), H3(add(tp, mul(f.T, -0.08))), hornR(uEnd) * 1.55 * hk / 0.5 * 0.5, glow + hn + (P.hornHeat || 0) * 2 + heat, { glow2: (P.hornHeat || 0) + heat, disK: 1.2 }, 0.99); out.hornTips.push(scr(H3(add(tp, mul(f.T, hornR(uEnd) * 1.3))))); }
-        box(H3(hornP(0.45)), 2.2 * hk);
+        box(H3(slo ? hornP(0.45) : HP45 || (HP45 = hornP(0.45))), 2.2 * hk);
       }
       /* the crown (L7: a gold coronet over the brow) */
       if (false) { const hr = [0, 0.95, 1.0, 1.05][k] * (1 + 0.3 * cl(P.crown || 0)); put(M.halo, BR(mm(ry(Math.PI / 2 - 0.12), rz(t * 0.25))), BP(add(HP, [-1.1 - 0.4 * met, 0, 1.35 + 0.3 * cl(P.crown || 0)])), hr * (1 - 0.5 * met), glow + 0.5, { noInk: true, disK: 1.3 }, 0.9); }   // (the spiked halo over its head, turning)
@@ -627,7 +663,7 @@ const SAMAEL_GL = (() => {
         const tA = i => (MS ? MS.tail[i] : tsw), tP = i => (MS ? MS.tailP[i] : tup);
         // (long and curling, as the concept: out and down from the rump, then curling back up at its end)
         let p = TAIL0, R = mm(rz(tA(0) * 0.25), ry(-0.35 - tP(0) * 0.35));
-        for (let i = 0; i < n; i++) { const sc = 2.7 * (1 - i * 0.062); put(M.tseg, BR(R), BP(p), sc, glow + heat * 0.3, null, 0.36); p = add(p, mv(R, [-0.33 * sc, 0, 0])); const j = Math.min(n - 1, i + 1), cu = i < 5 ? -0.06 : 0.03 * (i - 5); R = mm(R, mm(rz(tA(j) * 0.2 + 0.08 * Math.sin(t * 1.1 - i * 0.6) * lv), ry(cu - tP(j) * 0.08))); }
+        for (let i = 0; i < n; i++) { const sc = 2.7 * (1 - i * 0.062); put(M.tseg, BR(R), BP(p), sc, glow + heat * 0.3, null, 0.36); p = add(p, mv(R, [-0.33 * sc, 0, 0])); const j = Math.min(n - 1, i + 1), cu = i < 5 ? -0.06 : (0.03 + 0.03 * (LF.curl - 0.5)) * (i - 5) /* (v444 SL: the end's curl tightening and opening slowly) */; R = mm(R, mm(rz(tA(j) * 0.2 + 0.08 * Math.sin(t * 1.1 - i * 0.6) * lv), ry(cu - tP(j) * 0.08))); }
         put(M.ttip, BR(R), BP(p), 1.6, glow + 0.2, null, 0.38); out.tailTip = scr(BP(p)); box(BP(p), 1.8);
         if (!low || k > 1) for (const j of [0, 1]) put(M.rib[j ? 2 : 1], BR(mm(R, mm(rx((j ? -1 : 1) * 0.6 + 0.2 * Math.sin(t * 1.7 + j)), ry(0.15 * Math.sin(t * 1.3 + j * 2))))), BP(p), [0.9, 1.15, 1.45, 1.35][k] * (1 + 1.3 * met), glow + 0.6 + heat, { alpha: 0.99, noInk: true, disK: 1.3 }, 0.6); }   // (concept2: flames streaming off the tail's end)
       /* ---- the legs: hips on the body, hooves planted (the motion), the cannon's lean (curled in the swing), the knee by IK; the actuators ---- */
@@ -653,12 +689,17 @@ const SAMAEL_GL = (() => {
       for (const g2 of TRANS) ITEMS.push(g2);
       const m = c.getTransform ? c.getTransform() : null, soft = GLM.soft && !flag('__SM_GLHQ'), dev = (m ? Math.max(0.25, Math.hypot(m.a, m.b)) : 1) * (soft ? 0.5 : RES.k) * (typeof GQ !== 'undefined' ? GQ.animaK() : 1);   /* (v439 SP: the visual quality's factor in a fight, 3/4 under Fewer effects) */
       bx0 = Math.floor(bx0) - 3; by0 = Math.floor(by0) - 3; bx1 = Math.ceil(bx1) + 3; by1 = Math.ceil(by1) + 3;
-      let W = Math.ceil((bx1 - bx0) * dev), H = Math.ceil((by1 - by0) * dev); const scl = Math.min(1, GLCAP / Math.max(W, H)); W = Math.max(2, Math.ceil(W * scl)); H = Math.max(2, Math.ceil(H * scl));
-      const bw = bx1 - bx0, bh = by1 - by0;
-      const S = { px: PXW, py: PYW, pd: PDW, cl: [2 * kk / bw, 2 * (X0 - bx0) / bw - 1, -2 * kk / bh, 1 - 2 * (Y0 - by0) / bh], v: PDW, lk: LW, ls: SBW, lr: RIMW, up: UPW, low, rim: o.rim || RIMC, amb: o.amb || AMBC, t: nowMs() / 1000 % 1000,
-        outline: o.ink === false || low ? 0 : Math.max(0.6, 0.7 * (W / bw)), outlineCol: OUTC, outlineBias: 0.0025, clip: null };
-      const t0 = nowMs(), cvs = GLM.render(W, H, S, ITEMS); if (!cvs) return null;
-      const alp = o.alpha == null ? 1 : o.alpha; if (alp > 0.004) { c.save(); c.globalAlpha = Math.min(1, alp); c.drawImage(cvs, 0, 0, W, H, bx0, by0, bw, bh); c.restore(); }
+      /* (v444 SL) the pass covers only the part of its box on the canvas (a boss's tail or a crescent's flight beyond the screen's edge is
+         never drawn), at most PXB[the visual quality] GL pixels in a fight (the pass's resolution adapted to its box), and keeps its GL
+         canvas while the box wanders (no reallocation each frame) */
+      let rx0 = bx0, ry0 = by0, rx1 = bx1, ry1 = by1, vis = true; if (!slo) { const vb = visBox(c); if (vb) { rx0 = Math.max(rx0, vb[0]); ry0 = Math.max(ry0, vb[1]); rx1 = Math.min(rx1, vb[2]); ry1 = Math.min(ry1, vb[3]); vis = rx1 > rx0 + 1 && ry1 > ry0 + 1; } }
+      let W = Math.ceil((rx1 - rx0) * dev), H = Math.ceil((ry1 - ry0) * dev); const scl = Math.min(1, GLCAP / Math.max(W, H)); W = Math.max(2, Math.ceil(W * scl)); H = Math.max(2, Math.ceil(H * scl));
+      if (!slo) { const bud = budget(0); if (W * H > bud) { const q = Math.sqrt(bud / (W * H)); W = Math.max(2, Math.ceil(W * q)); H = Math.max(2, Math.ceil(H * q)); } }
+      const bw = rx1 - rx0, bh = ry1 - ry0;
+      const S = { px: PXW, py: PYW, pd: PDW, cl: [2 * kk / bw, 2 * (X0 - rx0) / bw - 1, -2 * kk / bh, 1 - 2 * (Y0 - ry0) / bh], v: PDW, lk: LW, ls: SBW, lr: RIMW, up: UPW, low, rim: o.rim || RIMC, amb: o.amb || AMBC, t: nowMs() / 1000 % 1000,
+        outline: o.ink === false || low ? 0 : Math.max(0.6, 0.7 * (W / bw)), outlineCol: OUTC, outlineBias: 0.0025, clip: null, keep: !slo };
+      const t0 = nowMs(), cvs = vis ? GLM.render(W, H, S, ITEMS) : null; if (!cvs && vis) return null;
+      const alp = o.alpha == null ? 1 : o.alpha; if (cvs && alp > 0.004) { c.save(); c.globalAlpha = Math.min(1, alp); c.drawImage(cvs, 0, 0, W, H, rx0, ry0, bw, bh); c.restore(); }
       STATS.ms = STATS.ms * 0.9 + (nowMs() - t0) * 0.1; STATS.n++; if (!GLM.soft && STATS.n > 20) RES.k = STATS.ms > 7 ? Math.max(0.6, RES.k - 0.02) : STATS.ms < 3.5 ? Math.min(1, RES.k + 0.01) : RES.k; STATS.items = ITEMS.length; STATS.W = W; STATS.H = H;
       out.bb = [bx0, by0, bx1, by1]; out.unit = K * (o.scale || 1); out.core = scr(cp); out.coreR = CORER * ck * out.unit; out.back = scr(BP([0.6, 0, 9.8])); out.top = scr(BP([1.2, 0, 13]));
       out.chest = scr(BP([CORE[0], 0, CORE[2] - 1.4])); out.ground = [X0, Y0]; out.coreVis = cl((Math.sin(P.yaw || 0) * CE + 0.5) / 0.7 + 0.15); out.steps = MS ? MS.steps : null; out.lifts = LGS.map(q2 => q2.lift);
@@ -705,9 +746,12 @@ const SAMAEL_GL = (() => {
       }
       if (!(x1 > x0) || !(ITEMS.length + TRANS.length)) return false; for (const g of TRANS) ITEMS.push(g);
       const m = c.getTransform ? c.getTransform() : null, soft = GLM.soft && !flag('__SM_GLHQ'), dev = (m ? Math.max(0.25, Math.hypot(m.a, m.b)) : 1) * (soft ? 0.5 : 1) * (o.res || (lowFx() ? 0.6 : 0.85)) * (typeof GQ !== 'undefined' ? GQ.partsK() : 1);   /* (v439 SP) */
-      x0 = Math.floor(x0) - 2; y0 = Math.floor(y0) - 2; x1 = Math.ceil(x1) + 2; y1 = Math.ceil(y1) + 2; const bw = x1 - x0, bh = y1 - y0;
+      x0 = Math.floor(x0) - 2; y0 = Math.floor(y0) - 2; x1 = Math.ceil(x1) + 2; y1 = Math.ceil(y1) + 2;
+      const slo = SLO(); if (!slo) { const vb = visBox(c); if (vb) { x0 = Math.max(x0, vb[0]); y0 = Math.max(y0, vb[1]); x1 = Math.min(x1, vb[2]); y1 = Math.min(y1, vb[3]); if (!(x1 > x0 + 1 && y1 > y0 + 1)) return true; } }   // (v444 SL: as the model's pass: only what is on the canvas, a budget, the GL canvas kept)
+      const bw = x1 - x0, bh = y1 - y0;
       let W = Math.ceil(bw * dev), H = Math.ceil(bh * dev); const scl = Math.min(1, GLCAP / Math.max(W, H)); W = Math.max(2, Math.ceil(W * scl)); H = Math.max(2, Math.ceil(H * scl));
-      const S = { px: PX2, py: PY2, pd: PD2, cl: [200 / bw, -2 * x0 / bw - 1, -200 / bh, 1 + 2 * y0 / bh], v: SV, lk: SLK, ls: SLS, lr: SLR, up: SUP, low: lowFx(), rim: RIMC, amb: AMBC, t: nowMs() / 1000 % 1000, outline: lowFx() ? 0 : Math.max(0.5, 0.6 * (W / bw)), outlineCol: OUTC, outlineBias: 0.002 };
+      if (!slo) { const bud = budget(1); if (W * H > bud) { const q = Math.sqrt(bud / (W * H)); W = Math.max(2, Math.ceil(W * q)); H = Math.max(2, Math.ceil(H * q)); } }
+      const S = { px: PX2, py: PY2, pd: PD2, cl: [200 / bw, -2 * x0 / bw - 1, -200 / bh, 1 + 2 * y0 / bh], v: SV, lk: SLK, ls: SLS, lr: SLR, up: SUP, low: lowFx(), rim: RIMC, amb: AMBC, t: nowMs() / 1000 % 1000, outline: lowFx() ? 0 : Math.max(0.5, 0.6 * (W / bw)), outlineCol: OUTC, outlineBias: 0.002, keep: !slo };
       const cvs = GLM.render(W, H, S, ITEMS); if (!cvs) return false; c.save(); c.globalAlpha = o.alpha == null ? 1 : o.alpha; c.drawImage(cvs, 0, 0, W, H, x0, y0, bw, bh); c.restore(); return true;
     } catch (e) { fail(e); return false; }
   }
