@@ -507,8 +507,8 @@ GAMES.dungeon = {
     }
     function breakPot(p) {
       p.hp--; p.flash = 0.1;
-      if (p.hp > 0) { sparks(p.x, p.y, '#E7B46C', 5, 4); api.sfx.thud(); return; }
-      p.broken = true;
+      if (p.hp > 0) { sparks(p.x, p.y, '#E7B46C', 5, 4); api.sfx.thud(); if (self.TRAP_ART) TRAP_ART.hit(p); /* v443 SB: its light (its own dice) */ return; }
+      p.broken = true; if (self.TRAP_ART) TRAP_ART.broke(p);   /* v443 SB: a chest's gold light (its own dice: the drops' rolls are untouched) */
       const col = p.kind === 'chest' ? '#C48A52' : p.kind === 'barrel' ? '#D9483B' : p.kind === 'crate' ? '#C49A66' : '#B7836B';
       const bfx = typeof BREAK_FX !== 'undefined' && BREAK_FX.burst(null, p.x, p.y + 0.3, { kind: p.kind === 'pot' && BIOMES[p.biome] && BIOMES[p.biome].out ? 'urn' : p.kind === 'pot' && (p.v % 3 === 0) ? 'crate' : p.kind === 'barrel' ? 'xbarrel' : p.kind, biome: p.biome || F.biome, rubble: p.kind === 'barrel' ? 'scorch' : undefined, sound: !p.quietFx });   // v388 D: it shatters (sherds, splinters), the loot pops as before
       if (!bfx) for (let i = 0; i < 10; i++) { const a = Math.random() * 6.283, v = 2 + Math.random() * 3; part({ kind: 'shard', x: p.x, y: p.y - 0.2, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 1.5, g: 8, life: 0.7, max: 0.7, size: 4 + Math.random() * 3, rot: Math.random() * 6, vr: (Math.random() - 0.5) * 14, color: col }); }
@@ -718,6 +718,7 @@ GAMES.dungeon = {
         const nf = (DunArt.NF && DunArt.NF[m.type]) || 4; for (let f = 0; f < nf; f++) for (const fl of [false, true]) jobs.push(() => { try { DunArt.monSprite(m.type, rpx, (f + 0.5) / nf, m.color, '', fl); } catch (e) {} }); }
       const pk = new Set(); for (const p of propList) { const key = p.kind + '|' + p.v + '|' + p.biome; if (pk.has(key)) continue; pk.add(key); jobs.push(() => { try { DunWorld.propSprite(p.kind, TS, SK(), p.v, p.biome); } catch (e) {} }); }
       for (const p of pots) { const kind = p.kind === 'pot' && BIOMES[p.biome] && BIOMES[p.biome].out ? 'urn' : p.kind === 'pot' && (p.v % 3 === 0) ? 'crate' : p.kind === 'barrel' ? 'xbarrel' : p.kind, bi = p.biome || F.biome, key = 'pot|' + kind + '|' + bi; if (pk.has(key)) continue; pk.add(key); jobs.push(() => { try { DunWorld.propSprite(kind, TS, SK(), 0, bi); } catch (e) {} }); }
+      if (self.TRAP_ART) try { for (const j of TRAP_ART.warm({ T: TS, k: SK(), traps, hazards, pots, bioAt })) jobs.push(j); } catch (e) {}   /* v443 SB: the saws' tracks and blades, the spike plates (20n9f) */
       if (!F.fiend && PB.gap) { let gap = false; for (let i = 0; i < MW * MH && !gap; i++) gap = G[i] === T_GAP; if (gap) jobs.push(() => { try { c.save(); DunWorld.backdrop(c, PB.gap, api.W, api.H, cam.x, cam.y, Tz(), g.t); c.restore(); } catch (e) {} }); }
       if (!F.fiend) { const T = Tz(), x0 = Math.floor(cam.x - api.W / 2 / T) - 1, x1 = Math.ceil(cam.x + api.W / 2 / T) + 1, y0 = Math.floor(cam.y - api.H / 2 / T) - 2, y1 = Math.ceil(cam.y + api.H / 2 / T) + 2;
         const cx0 = Math.max(0, Math.floor(x0 / CH)) - 1, cx1 = Math.min(Math.floor((MW - 1) / CH), Math.floor(x1 / CH)) + 1, cy0 = Math.max(0, Math.floor(y0 / CH)) - 1, cy1 = Math.min(Math.floor((MH - 1) / CH), Math.floor(y1 / CH)) + 1;
@@ -1258,6 +1259,7 @@ GAMES.dungeon = {
       for (let i = 0; i < 24; i++) part({ kind: 'ember', x: s.x + (Math.random() - 0.5), y: s.y - Math.random() * 1.2, vx: (Math.random() - 0.5) * 1.5, vy: -3 - Math.random() * 3, life: 1, max: 1, size: 3 + Math.random() * 3, color: S.color });
       api.sfx.fanfare();
     }
+    const spikeTell = () => !!(self.TRAP_ART && TRAP_ART.tell());   /* v443 SB: a spike plate's tell is its painted picture's glow (glow only; without the GPU painter the old circle) */
     const HZ_COL = { holy: '#FFD447', hands: '#B07CF0', icicle: '#BFEFFF', laser: '#4DF0FF', sandspout: '#FFD88A', steamvent: '#E8F0F8', pollen: '#FFE37A', icespikes: '#BFEFFF', thorns: '#6CC15A' };
     function hazardTick(h, dt) {
       const near = hyp(me.x - (h.x || me.x), me.y - (h.y || me.y)) < 10;
@@ -1296,7 +1298,7 @@ GAMES.dungeon = {
       const st2 = (h.t % per) >= per - warn ? 'warn' : 'idle';
       if (st2 === 'warn' && h.st !== 'warn') {
         const r = fam === 'spikes' ? 0.62 : fam === 'gas' ? 1.35 : 1.25, dmg = 12 * F.dmgMul, x = h.x, y = h.y, col = HZ_COL[h.kind] || (fam === 'gas' ? '#9BE07A' : '#FF4D6D');
-        warnZone({ x, y, r, life: warn, max: warn, color: col, hz: h.kind, fn: () => {
+        warnZone({ x, y, r, life: warn, max: warn, color: col, hz: h.kind, drawn: fam === 'spikes' ? spikeTell : undefined /* v443 SB: the painted plate's glow is its tell (20n9f): no circle */, fn: () => {
           if (fam === 'spikes') { if (hyp(me.x - x, me.y - y) < r + me.r * 0.5) hurtPet(dmg, null); for (const m of mons) if (!m.dead && !m.boss && m.mv === 0 && hyp(m.x - x, m.y - y) < r) hitMon(m, dmg * 2, { src: 'hazard' }); api.sfx.crack(); }
           else if (fam === 'gas') { zones.push({ kind: 'poison', x, y, r, life: 2.4, max: 2.4, dps: dmg * 0.9, tick: 0.2, own: 'enemy', hurtsMons: true, col: h.kind === 'steamvent' ? '#E8F0F8' : h.kind === 'pollen' ? '#FFE37A' : null }); api.sfx.bubble(); }
           else { if (hyp(me.x - x, me.y - y) < r + me.r) hurtPet(dmg, null); for (const m of mons) if (!m.dead && !m.boss && hyp(m.x - x, m.y - y) < r + m.r) hitMon(m, dmg * 2, { el: 'fire', burn: h.kind === 'geyser', src: 'hazard' }); const c1 = h.kind === 'sandspout' ? '#D9B36B' : '#FF7A3D', c2 = h.kind === 'sandspout' ? '#FFF0C2' : '#FFE37A'; boom(x, y, r, c1, c2, { n: 16, shake: 4, smoke: 3 }); for (let j = 0; j < 14; j++) part({ kind: 'ember', x: x + (Math.random() - 0.5) * 0.6, y, vx: (Math.random() - 0.5) * 1.5, vy: -4 - Math.random() * 6, life: 0.7, max: 0.7, size: 6 + Math.random() * 6, color: Math.random() < 0.5 ? c1 : c2 }); if (h.kind === 'geyser') zones.push({ kind: 'efire', x, y, r: r * 0.8, life: 1.6, max: 1.6, dps: dmg * 0.6, tick: 0.2, own: 'enemy' }); api.sfx.crash(); }
@@ -1845,6 +1847,7 @@ GAMES.dungeon = {
     function sx(x) { return (x - cam.x) * TS * g.zoom + api.W / 2 + shX; }
     function sy(y) { return (y - cam.y) * TS * g.zoom + api.H / 2 + shY; }
     const isExp = (x, y) => { const tx = Math.floor(x), ty = Math.floor(y); return inMap(tx, ty) && explored[ty * MW + tx] === 1; };
+    const bioAt = (x, y) => { const tx = Math.floor(x), ty = Math.floor(y); return inMap(tx, ty) && M.BI ? BIOME_ORDER[M.BI[ty * MW + tx]] || F.biome : F.biome; };   /* v443 SB: the land a trap stands in (its picture's light) */
     // ground chunks, painted once and reused
     const chunks = new Map(); let chunkTS = 0, chunkK = 1;
     const CH = DunWorld.CH, CHUNK_MAX = 40;   // the view (up to 3 x 5 chunks) and the ring round it (5 x 7) fit with room to spare
@@ -1933,6 +1936,7 @@ GAMES.dungeon = {
       const sk = SK(), sp = DunWorld.propSprite(kind, TS, sk, 0, p.biome || F.biome), k2 = g.zoom / sk;
       const jig = p.flash > 0 ? (Math.random() - 0.5) * 3 : 0;
       c.drawImage(sp.cv, snX(sx(p.x) - sp.ax * k2 + jig), snY(sy(p.y + 0.3) - sp.ay * k2), sp.cv.width * k2, sp.cv.height * k2);
+      if (self.TRAP_ART) TRAP_ART.pot(c, p, kind, sx(p.x), sy(p.y + 0.3), T, g.t);   /* v443 SB: a chest's gold light, a hit's flash (laid with the GPU pass) */
       p.flash = Math.max(0, p.flash - 0.016);
     }
     function drawShrine(c, s) {
@@ -1952,6 +1956,7 @@ GAMES.dungeon = {
       const T = Tz(), X = sx(h.x), Y = sy(h.y), fam = h.fam || HAZ_FAMILY[h.kind] || 'spikes';
       if (fam === 'spikes') {
         const ice = h.kind === 'icespikes', thorn = h.kind === 'thorns';
+        if (self.TRAP_ART && TRAP_ART.spikes(c, h, X, Y, T, g.t, h.pop > 0 ? Math.min(1, h.pop / 0.15) : h.st === 'warn' ? 0.15 * Math.abs(Math.sin(g.t * 30)) : 0, h.bi || (h.bi = bioAt(h.x, h.y)))) return;   /* v443 SB: the painted plate (20n9f) */
         c.fillStyle = 'rgba(0,0,0,.25)'; GFX.rr(c, X - T * 0.42, Y - T * 0.42, T * 0.84, T * 0.84, T * 0.1); c.fill();
         c.fillStyle = h.st === 'warn' ? '#8C5A6B' : ice ? '#9FC4E0' : thorn ? '#4E6A3A' : '#5E5A6A'; GFX.rr(c, X - T * 0.38, Y - T * 0.38, T * 0.76, T * 0.76, T * 0.08); c.fill(); c.lineWidth = 1.5; c.strokeStyle = GFX.line; c.stroke();
         const up = h.pop > 0 ? Math.min(1, h.pop / 0.15) : h.st === 'warn' ? 0.15 * Math.abs(Math.sin(g.t * 30)) : 0;
@@ -1980,6 +1985,7 @@ GAMES.dungeon = {
         else if (t.on > 0) { t.on -= 0.016; c.fillStyle = '#FFE37A'; c.beginPath(); c.arc(T * 0.18, 0, T * 0.06, 0, 6.283); c.fill(); }
         c.restore();
       } else if (t.kind === 'saw') {
+        if (self.TRAP_ART && TRAP_ART.saw(c, t, sx, sy, T, g.t, t.px == null ? 99 : hyp(me.x - t.px, me.y - t.py), t.bi || (t.bi = bioAt(t.x, t.y)))) return;   /* v443 SB: the painted saw and its track (20n9f) */
         // the track, then the blade
         c.strokeStyle = 'rgba(0,0,0,.35)'; c.lineWidth = T * 0.14; c.lineCap = 'round'; c.beginPath(); c.moveTo(sx(t.x0), sy(t.y0)); c.lineTo(sx(t.x1), sy(t.y1)); c.stroke();
         c.strokeStyle = '#8B93A1'; c.lineWidth = T * 0.06; c.stroke();
@@ -2909,6 +2915,7 @@ GAMES.dungeon = {
         c.restore();
       }
       c.restore();
+      if (self.TRAP_ART) TRAP_ART.lay(c, DQ, sx, sy, Tz(), g.t);   /* v443 SB: the saws', spike plates' and chests' light: into this pass when it has light of its own, else from 2D pictures (no GPU copy added) */
       dqEnd(c);
       if (PF) PF('dragons');
       { const fall = parts.some(p => p.kind === 'rockfall' || p.kind === 'iciclefall'); if (fall) dqBegin(c); drawParts(c, false); if (fall) dqEnd(c); } if (PF) PF('parts');   // (v358: falling rocks and icicles stream on the GPU)
