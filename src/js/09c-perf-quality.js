@@ -21,7 +21,8 @@
      quality level. Written four times a second into one text node.
    PERF.bench(): Settings > Run benchmark: a fixed stress run on the game's own systems (the Garden of Unborn Stars' section 2 fight if it
    is open, else the Tower's first floor): idle, a pack of 20 round the pet, the pet's skill, its Ultimate with its Anima summoned, all at
-   once; ~2.5 min (v441 FL: it opens with the film look off, on, and each of its parts alone over the pack of 20; the busiest phase is
+   once; ~2.5 min (v441 FL: it opens with the film look off, on, and each of its parts alone over the pack of 20 (v442 FM: off, then
+   the look laid each way: v440's, A, A softened, B, v441's, and the fringe alone); the busiest phase is
    then repeated with one diagnostic switch each: 1.25 px a point, fewer effects; each put back after); nothing is saved from it (energy given back, the stage left without a result); the results shown with a Copy button. */
 const GQ = (() => {
   const NAMES = ['High', 'Balanced', 'Performance', 'Performance 30'], CAP = [2, 1.5, 1.25, 1.25], FGK = [1, 0.75, 0.6, 0.6], GLK = [1, 0.8, 0.65, 0.65];
@@ -100,8 +101,12 @@ const PERF = (() => {
   /* (v441 FL) the run opens with the film look: off, on (its parts at this quality), then each of its parts alone (forced on whatever
      the quality: the grade, the grain, the dust, the lens fringe), all with the pack of 20 round the pet, so the phone shows what the
      look and each of its parts cost; the 'no lens fringe' and 'no film look' rows of v439-v440 are these now */
-  const PH = [{ id: 'pack', t: 8, label: 'film off', diag: 'film:off', st: 'G' }, { id: 'pack', t: 8, label: 'film on', diag: 'film:on', st: 'G' },
-    { id: 'pack', t: 8, label: ' film: grade', diag: 'film:grade', st: 'G' }, { id: 'pack', t: 8, label: ' film: grain', diag: 'film:grain', st: 'G' }, { id: 'pack', t: 8, label: ' film: dust', diag: 'film:dust', st: 'G' }, { id: 'pack', t: 8, label: ' film: fringe', diag: 'film:fringe', st: 'G' },
+  /* (v442 FM) the film rows: off, then the whole look (grade, grain, dust and, on a touch screen, the lens fringe) laid each way: v440's
+     own layers (its backdrop blur too), A (v440's blend layers without the blur: the default), A with the canvas softened, B (the grade
+     and grain drawn in the game's canvas), v441's plain-alpha layers, and the fringe alone */
+  const PH = [{ id: 'pack', t: 8, label: 'film off', diag: 'film:off', st: 'G' }, { id: 'pack', t: 8, label: 'film v440', diag: 'film:v440', st: 'G' },
+    { id: 'pack', t: 8, label: 'film A', diag: 'film:A', st: 'G' }, { id: 'pack', t: 8, label: 'film A+soft', diag: 'film:As', st: 'G' }, { id: 'pack', t: 8, label: 'film B', diag: 'film:B', st: 'G' },
+    { id: 'pack', t: 8, label: 'film v441', diag: 'film:v441', st: 'G' }, { id: 'pack', t: 8, label: 'fringe only', diag: 'film:fringe', st: 'G' },
     { id: 'idle', t: 6, label: 'idle', st: 'G' }, { id: 'pack', t: 10, label: 'pack of 20', st: 'G' }, { id: 'skill', t: 10, label: '+ skill', st: 'G' }, { id: 'ult', t: 12, label: '+ Ult. + Anima', st: 'G' }, { id: 'all', t: 12, label: 'everything', st: 'G' },
     { id: 'all', t: 8, label: ' 1.25 px/pt', diag: 'lowres', st: 'G' }, { id: 'all', t: 8, label: ' fewer effects', diag: 'lowfx', st: 'G' },
     { id: 'belfry', t: 16, label: 'Belfry, wind', st: 'B' }, { id: 'boss', t: 16, label: 'boss fight', st: 'X' }];
@@ -110,7 +115,7 @@ const PERF = (() => {
   let DG = null;   // (the diagnostic switch on, and what to put back)
   function diag(k) { undiag(); if (!k) return; DG = { k, retro: st.retro, gq: st.gq, low: st.lowFx };
     if (k === 'nolens') PERF.noLens = true; else if (k === 'nofilm') { st.retro = false; try { retro.frame(); } catch (e) {} }
-    else if (k.slice(0, 5) === 'film:') { const p = k.slice(5); st.retro = p !== 'off'; try { retro.force = p === 'off' || p === 'on' ? null : { [p]: 1 }; retro.frame(); } catch (e) {} }   /* (v441 FL) */
+    else if (k.slice(0, 5) === 'film:') { const p = k.slice(5); st.retro = p !== 'off'; try { retro.force = p === 'off' || p === 'on' ? null : { m: p }; retro.frame(); } catch (e) {} }   /* (v441 FL) (v442 FM: a way of laying the look: v440, A, As, B, v441, fringe) */
     else if (k === 'lowres') { st.gq = 'perf'; try { arcLayout(); } catch (e) {} } else if (k === 'lowfx') st.lowFx = true; }
   function undiag() { const d = DG; if (!d) return; DG = null; PERF.noLens = false; st.retro = d.retro; try { retro.force = null; } catch (e) {} /* v441 FL */ st.lowFx = d.low; if (st.gq !== d.gq) { st.gq = d.gq; try { if (arc.open) arcLayout(); } catch (e) {} } try { retro.frame(); } catch (e) {} }
   const can = k => k === 'G' ? true : typeof riftOpen === 'function' && riftOpen('belfry') && typeof startRift === 'function';
@@ -172,7 +177,7 @@ const PERF = (() => {
     if (B.long) { const mi = Math.min(9, Math.floor(B.play / 60)); let M = B.mins[mi]; if (!M) M = B.mins[mi] = { iv: [], js: [], cp: 0, heap: 0, res: '' }; M.iv.push(iv); M.js.push(js); M.cp += cpF; M.res = arcCanvas.width + '×' + arcCanvas.height; if (performance.memory) M.heap = performance.memory.usedJSHeapSize; return; }
     const R = B.rows[B.ph]; R.res = arcCanvas.width + '×' + arcCanvas.height; R.iv.push(iv); R.js.push(js); R.cp += cpF; }
   /* (v441 FL) the film look's parts at this quality, for the card's head: ' (grade grain dust fringe)' */
-  const filmParts = () => { try { const p = retro.parts; return p ? ' (' + ['grade', 'grain', 'dust', 'fringe'].filter(k => p[k]).join(' ') + ')' : ''; } catch (e) { return ''; } };
+  const filmParts = () => { try { const p = retro.parts; return p ? ' (' + p.m + ': ' + ['grade', 'sat', 'grain', 'dust', 'fringe', 'soft'].filter(k => p[k]).join(' ') + ')' : ' (v440)'; } catch (e) { return ''; } };   /* (v442 FM: and the way: A, B, v441) */
   function finish(aborted) {
     const b = B; if (!b) return; B = null; undiag(); GQ.hold = false;
     try { if (typeof arc !== 'undefined' && arc.open) closeArcade(true); } catch (e) {}
@@ -182,7 +187,7 @@ const PERF = (() => {
        percentile frame ms, frames over 33 and 50 ms, the JavaScript ms, GL copies a frame), the canvas size only where it differs */
     const res0 = (b.rows.find(R => R.res) || {}).res || (typeof arcCanvas !== 'undefined' ? arcCanvas.width + '×' + arcCanvas.height : '-');
     const ua = navigator.userAgent, dev = (/iPhone|iPad|Android[^;)]*|Macintosh|Windows NT [\d.]+|Linux/.exec(ua) || [''])[0], br = (/CriOS\/[\d]+|FxiOS\/[\d]+|EdgiOS\/[\d]+|Chrome\/[\d]+|Version\/[\d.]+ (Mobile\/\w+ )?Safari|Firefox\/[\d]+/.exec(ua) || [''])[0].replace(/ Mobile\/\w+/, '');
-    const head = [`Cocopets benchmark v441${b.long ? ' · LONG RUN' : ''} · ${new Date().toISOString().slice(0, 16).replace('T', ' ')}${aborted ? ' · stopped early' : ''}`,
+    const head = [/* v442 FM */ `Cocopets benchmark v442${b.long ? ' · LONG RUN' : ''} · ${new Date().toISOString().slice(0, 16).replace('T', ' ')}${aborted ? ' · stopped early' : ''}`,
       `${dev} ${br} · screen ${innerWidth}×${innerHeight}@${devicePixelRatio} · canvas ${res0}@${(+arc.dpr).toFixed(2)}`,
       `quality ${GQ.name()}${st.lowFx ? ' · fewer fx' : ''} · film ${st.retro === false ? 'off' : 'on' + filmParts()} · ${b.where}`];
     const LW = b.long ? 9 : 15, col = (L, n, f, a, b2, o3, o5, j, cp, x) => `${L.padEnd(LW).slice(0, LW)}${(n ? String(Math.round(f)) : '-').padStart(4)}${a.padStart(6)}${b2.padStart(6)}${o3.padStart(5)}${o5.padStart(5)}${j.padStart(6)}${cp.padStart(4)}${x || ''}`;   /* (~50 characters: a phone's card and a chat keep a row on one line) */

@@ -1,4 +1,4 @@
-// v439 SP (v441 FL: and the film look's layers take no taps): a resolution step (the visual quality's canvas cap: High 2, Balanced 1.5, Performance 1.25 device px a point) leaves taps where
+// v439 SP (v441 FL: and the film look's layers take no taps; v442 FM: every way of laying them): a resolution step (the visual quality's canvas cap: High 2, Balanced 1.5, Performance 1.25 device px a point) leaves taps where
 // they were: the same screen point maps to the same world point, the canvas keeps its CSS size, and the pet's screen position and the HUD's
 // buttons do not move. usage: HTML=<test html> node tests/_sp-ptr.js
 const { chromium } = require('/opt/npm-tools/node_modules/playwright');
@@ -23,14 +23,15 @@ const path = require('path');
   /* (v441 FL) the film look's layers lie over everything: at every quality level (and v440's, __FL_OFF) none of them takes a tap: the pause
      button, the canvas and a real tap on the pause button reach the game */
   let deaf = true;
-  for (const [L, old] of [[0, 0], [1, 0], [2, 0], [0, 1]]) {
-    const r = await page.evaluate(([L, old]) => { const P = window.__pp; P.st.retro = true; window.__FL_OFF = old; window.GQ.A = L; P.retro.frame();
+  /* (v442 FM) and each way of laying it: v441's (__FM_OFF), B (the canvas grading itself, v440's layers over the HUD's strip), A softened */
+  for (const [L, old, fm, force] of [[0, 0], [1, 0], [2, 0], [0, 1], [0, 0, 1], [0, 0, 0, 'B'], [0, 0, 0, 'As'], [2, 0, 0, 'B']]) {
+    const r = await page.evaluate(([L, old, fm, force]) => { const P = window.__pp; P.st.retro = true; window.__FL_OFF = old; window.__FM_OFF = fm || 0; P.retro.force = force ? { m: force } : null; window.GQ.A = L; P.retro.frame();
       const fx = [...document.querySelectorAll('.retroFx')], pe = fx.map(e => getComputedStyle(e).pointerEvents), pb = document.getElementById('arcPauseBtn').getBoundingClientRect();
       const at = (x, y) => { const e = document.elementFromPoint(x, y); return !e ? null : e.closest('.retroFx') ? 'film layer' : e.closest('#arcPauseBtn') ? 'arcPauseBtn' : e.id || e.tagName; };
-      return { L, old, layers: fx.length, pe: [...new Set(pe)], pause: at(pb.x + pb.width / 2, pb.y + pb.height / 2), mid: at(195, 420), btn: [pb.x + pb.width / 2, pb.y + pb.height / 2] }; }, [L, old]);
+      return { L, old, mode: P.retro.mode, layers: fx.length, pe: [...new Set(pe)], pause: at(pb.x + pb.width / 2, pb.y + pb.height / 2), mid: at(195, 420), btn: [pb.x + pb.width / 2, pb.y + pb.height / 2] }; }, [L, old, fm, force]);
     const ok = r.layers > 0 && r.pe.length === 1 && r.pe[0] === 'none' && r.pause === 'arcPauseBtn' && r.mid === 'arcCanvas'; if (!ok) deaf = false; console.log('film layers', JSON.stringify(r), ok);
   }
-  { const b = await page.evaluate(() => { window.__FL_OFF = 0; window.GQ.A = 0; window.__pp.retro.frame(); const pb = document.getElementById('arcPauseBtn').getBoundingClientRect(); return [pb.x + pb.width / 2, pb.y + pb.height / 2]; });
+  { const b = await page.evaluate(() => { window.__FL_OFF = 0; window.__FM_OFF = 0; window.__pp.retro.force = { m: 'B' }; window.GQ.A = 0; window.__pp.retro.frame();   /* (v442 FM: under B, its HUD-strip layers over the button) */ const pb = document.getElementById('arcPauseBtn').getBoundingClientRect(); return [pb.x + pb.width / 2, pb.y + pb.height / 2]; });
     await page.mouse.click(b[0], b[1]); await page.waitForTimeout(300); const paused = await page.evaluate(() => window.__pp.arc.paused); console.log('a tap on Pause through the film layers pauses the game:', paused); if (!paused) deaf = false; }
   console.log('taps map the same at every level:', same, '| film layers take no taps:', deaf, '| page errors', errors.length, errors.slice(0, 3)); await browser.close(); process.exit(same && deaf && !errors.length ? 0 : 1);
 })().catch(e => { console.error(e); process.exit(2); });

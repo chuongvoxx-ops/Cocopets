@@ -1,4 +1,4 @@
-// v439 SP (v441 FL: and the film look's phases: off, on, each part alone, checked by the layers each phase lays): the in-game benchmark (Settings > Run benchmark) run headless, end to end, on the arcade's own loop (real requestAnimationFrame):
+// v439 SP (v441 FL: and the film look's phases, checked by the layers each phase lays; v442 FM: off, v440, A, A+soft, B, v441, fringe): the in-game benchmark (Settings > Run benchmark) run headless, end to end, on the arcade's own loop (real requestAnimationFrame):
 // it opens Settings, presses Run, waits for the results card, prints its text, checks that nothing was kept (energy, the rift's progress,
 // the pet's level and coins) and that the page threw nothing. Also checks the frame counter's detailed readout and the quality buttons.
 // usage: HTML=<test html> node tests/_sp-bench.js   env: GPU=1 (force the GPU paths on the software rasteriser: slow), UNLOCK=0 (the
@@ -24,17 +24,21 @@ const path = require('path');
   const t0 = Date.now(); let last = '';
   const filmSeen = {};   // (v441 FL) the film look's layers in each phase: what the phase's switch really laid
   for (;;) { await page.waitForTimeout(3000); const r = await page.evaluate(() => { const o = document.getElementById('benchOut'), m = document.getElementById('fpsMeter'), B = window.PERF.B, R = window.__pp.retro;
-      const L = [...document.querySelectorAll('.retroFx')].map(e => e.tagName === 'CANVAS' ? (e.style.willChange === 'transform' ? 'grain' : e.style.willChange === 'opacity' ? 'grade' : 'dust') : 'div');
-      return { done: !!o, text: o ? o.querySelector('pre').textContent : '', meter: m ? m.textContent : '', ph: B ? B.ph : null, label: B && B.plan[B.ph] ? B.plan[B.ph].label : '', st: window.__pp.arc.state, film: R.on ? L.sort().join('+') + (R.parts && R.parts.fringe ? '+fringe' : '') : 'off' }; });
+      const L = [...document.querySelectorAll('.retroFx')].map(e => e.dataset.fm || '?');   /* (v442 FM: each layer's part, data-fm; the way laid: retro.mode) */
+      const soft = document.getElementById('arcCanvas').style.filter ? '+soft' : '';
+      return { done: !!o, text: o ? o.querySelector('pre').textContent : '', meter: m ? m.textContent : '', ph: B ? B.ph : null, label: B && B.plan[B.ph] ? B.plan[B.ph].label : '', st: window.__pp.arc.state, film: R.on ? R.mode + ':' + L.sort().join('+') + (R.parts ? R.parts.fringe ? '+fringe' : '' : '+fringe') + soft : 'off' }; });
     if (r.ph != null && r.label && r.st === 'play') filmSeen[r.label] = r.film;
     if (r.meter !== last && r.ph != null) { last = r.meter; console.log(`  t+${((Date.now() - t0) / 1000).toFixed(0)}s phase ${r.ph} ${r.st} [film ${r.film}] | ${r.meter.replace(/\n/g, ' / ')}`); }
     if (process.env.PHSHOT && r.ph != null && r.ph >= 9 && !global['__shot' + r.ph] && r.st === 'play') { global['__shot' + r.ph] = 1; await page.waitForTimeout(9000); await page.screenshot({ path: process.env.PHSHOT + '-phase' + r.ph + '.png' }); console.log('  shot of phase', r.ph); }   // (v440 SQ: the Belfry's and the boss's phases photographed)
     if (r.done) { console.log('\n' + r.text); break; } if (Date.now() - t0 > 900000) { console.log('timeout'); break; } }
   if (process.env.SHOT) await page.screenshot({ path: process.env.SHOT });
-  if (process.env.LONG !== '1') { const want = { 'film off': 'off', 'film on': 'dust+grade+grain+fringe', ' film: grade': 'grade', ' film: grain': 'grain', ' film: dust': 'dust', ' film: fringe': '+fringe', 'idle': 'dust+grade+grain+fringe' }, gq = process.env.GQ || 'auto';
-    if (gq === 'balanced' || gq === 'perf') { want['film on'] = want.idle = 'grade+grain'; }
+  /* (v442 FM) the rows: v440 (its blur too, the fringe on a touch screen), A (v440's blend layers, no blur), A softened (the canvas's
+     own blur), B (the canvas grades itself: v440's layers only over the HUD's strip), v441's layers, the fringe alone; then the look by
+     the quality: High A with the fringe, Balanced A, Performance A without the 'saturation' wash */
+  if (process.env.LONG !== '1') { const all = 'dust+grain+lift+sat+warm+fringe', want = { 'film off': 'off', 'film v440': 'v440:blur+' + all, 'film A': 'A:' + all, 'film A+soft': 'A+soft:' + all + '+soft', 'film B': 'B:' + all, 'film v441': 'v441:dust+grade441+grain441+fringe', 'fringe only': 'fringe:+fringe', 'idle': 'A:' + all }, gq = process.env.GQ || 'auto';
+    if (gq === 'balanced') want.idle = 'A:dust+grain+lift+sat+warm'; if (gq === 'perf') want.idle = 'A:dust+grain+lift+warm';
     const bad = Object.keys(want).filter(k => filmSeen[k] != null && filmSeen[k] !== want[k]);
-    console.log('(v441 FL) film layers by phase', JSON.stringify(filmSeen), 'as planned:', !bad.length, bad.length ? JSON.stringify(bad) : ''); if (bad.length) errors.push('film phases: ' + bad.join(', ')); }
+    console.log('(v441 FL, v442 FM) film layers by phase', JSON.stringify(filmSeen), 'as planned:', !bad.length, bad.length ? JSON.stringify(bad) : ''); if (bad.length) errors.push('film phases: ' + bad.join(', ')); }
   const after = await page.evaluate(() => { const P = window.__pp; return { film: P.st.retro !== false, force: P.retro.force, layers: document.querySelectorAll('.retroFx').length, energy: P.st.energy, coins: P.st.coins, lvl: P.st.dlv, prog: JSON.stringify(P.riftState().prog), arc: P.arc.open, gqHold: window.GQ.hold, god: !!(P.st.dun && P.st.dun.god), seals: JSON.stringify(P.riftState().seals) }; });
   console.log('after', JSON.stringify(after), 'kept nothing:', Math.abs(after.energy - before.energy) < 0.05 && after.lvl === before.lvl && after.prog === before.prog && after.coins === before.coins && !after.arc);
   console.log('page errors', errors.length, JSON.stringify(errors.slice(0, 4))); await browser.close(); process.exit(errors.length ? 1 : 0);
