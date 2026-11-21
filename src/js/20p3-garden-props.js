@@ -724,7 +724,8 @@ var GARDEN_PROPS = (() => {
         for (const q of glows) { const p = q.p; if (p.broken) continue; const Xs = X.sx(p.x) + q.dx * T, Ys = X.sy(p.y); if (Xs < -T * 4 || Xs > W + T * 4 || Ys < -T * 3 || Ys > Hh + T * 3) continue; if (lf && q.kind !== 'egg' && q.kind !== 'bulb') continue;
           G.Q.glow(Xs, Ys - T * 0.05, q.r * T * 2.4, q.col, 0.14 + 0.04 * Math.sin(t * 1.3 + q.ph), 0.42); }
         // the mist lying low over the moss: soft lilac drifts (world-anchored, sliding slowly)
-        if (!lf && !fiend) { for (let i = 0; i < 5; i++) { const cx = X.me.x + Math.sin(t * 0.05 + i * 1.7) * 6 + (i - 2) * 4, cy = X.me.y + Math.cos(t * 0.04 + i * 2.3) * 4 + (i % 2 ? 2 : -2), Xs = X.sx(cx), Ys = X.sy(cy); G.Q.glow(Xs, Ys, T * (5 + i % 3), PV().mist[i % 2 ? 0 : 1], 0.07, 0.38); } }   // v437 GR: (the section's mist)
+        const FXq = typeof FXB !== 'undefined' && FXB.on;   /* (v440 SQ) the shared cosmetic budget: the mist, the motes and the moons' shafts are its first tier (faint ambient light); the plants' own glows stay */
+        if (!lf && !fiend) { for (let i = 0; i < 5; i++) { const cx = X.me.x + Math.sin(t * 0.05 + i * 1.7) * 6 + (i - 2) * 4, cy = X.me.y + Math.cos(t * 0.04 + i * 2.3) * 4 + (i % 2 ? 2 : -2), Xs = X.sx(cx), Ys = X.sy(cy); if (FXq && !FXB.keepH((i * 0.37 + 0.11) % 1, 0, Math.pow(T * (5 + i % 3) * 2, 2) * 0.38, Xs, Ys, 0.07)) continue; G.Q.glow(Xs, Ys, T * (5 + i % 3), PV().mist[i % 2 ? 0 : 1], 0.07, 0.38); } }   // v437 GR: (the section's mist)
         gpuEnd(c, G); },
       drawOver(c) { if (!glows) return; const G = gpu(c); if (!G) return; const T = X.Tz(), W = X.W(), Hh = X.H(), lf = LF();
         // the eggs, bulbs, lilies, glowcaps and beads: a breathing glow and a bright core each
@@ -733,10 +734,12 @@ var GARDEN_PROPS = (() => {
           G.Q.glow(Xs, Ys, q.r * T * 1.7, q.col, 0.32 * k); G.Q.glow(Xs, Ys, q.r * T * 0.45, '#FFF8E8', 0.42 * k); }
         burstsDraw(G, X);   // (the breaks' bursts of light)
         // motes: seed lights drifting up through the air
-        for (const e of motes) { const a = Math.sin(e.t / e.life * Math.PI), Xs = X.sx(e.x), Ys = X.sy(e.y); if (Xs < -10 || Xs > W + 10 || Ys < -10 || Ys > Hh + 10) continue; G.Q.glow(Xs, Ys, T * 0.16 * e.s, e.col, a * 0.55); G.Q.glow(Xs, Ys, T * 0.04 * e.s, '#FFFFFF', a * 0.8); }
+        const FXq = typeof FXB !== 'undefined' && FXB.on;   /* v440 SQ */
+        for (const e of motes) { const a = Math.sin(e.t / e.life * Math.PI), Xs = X.sx(e.x), Ys = X.sy(e.y); if (Xs < -10 || Xs > W + 10 || Ys < -10 || Ys > Hh + 10) continue; if (FXq && !FXB.keep(e, 0, Math.pow(T * 0.32 * e.s, 2), Xs, Ys, a * 0.55)) continue; G.Q.glow(Xs, Ys, T * 0.16 * e.s, e.col, a * 0.55); G.Q.glow(Xs, Ys, T * 0.04 * e.s, '#FFFFFF', a * 0.8); }
         // the moons' light falling through the canopy: slow shafts from the upper left
         if (!lf) { const SP = 11, x0w = X.me.x - W / T, n0 = Math.floor(x0w / SP) - 1, n1 = Math.ceil((X.me.x + W / T) / SP) + 1;   /* (v428 GA: anchored to the stage, not the screen) */
           for (let n = n0; n <= n1; n++) { const i = ((n % 3) + 3) % 3, xw = n * SP + hh(n, 5, 13) * 4, x = X.sx(xw) + Math.sin(t * 0.13 + n * 2) * T * 0.5; if (x < -W * 0.4 || x > W * 1.2) continue;
+            if (FXq && !FXB.keepH(((n * 0.618034) % 1 + 1) % 1, 0, Hh * T * (2.8 + i * 0.6), x + W * 0.1, Hh * 0.4, 0.11)) continue;   /* v440 SQ */
             G.Q.shafts(x, -T * 1.5, x + W * 0.2, Hh * 0.85, T * (1.4 + i * 0.3), i === 1 ? '#F7D0E6' : '#FFF0D0', fiend ? 0.07 : 0.11, i * 1.9 + 0.5); } }
         gpuEnd(c, G); },
       refresh() { glows = null; } }; }

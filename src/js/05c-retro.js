@@ -69,6 +69,7 @@ const retro = (() => {
      the copy's red added back enlarged. (The Tower and the rifts only, whose pictures are opaque) */
   let caCv = null;
   function post(cv, c) {
+    try { const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; if (F && F.settle) F.settle(); } catch (e) {}   /* (v440 SQ: a run of the painter's passes still open is laid before the canvas is read) */
     if (!on || CA <= 0 || DESKTOP || typeof arc === 'undefined' || arc.mode !== 'dungeon') return;
     if (typeof PERF !== 'undefined' && PERF.noLens) return;   /* (v439 SP: the benchmark's diagnostic phase without this pass) */
     const w = cv.width, h = cv.height; if (!w || !h) return;

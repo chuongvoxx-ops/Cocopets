@@ -14,14 +14,14 @@ function install() {
   const C = window.__PFC = { on: false, z() { for (const k of Object.keys(this)) if (typeof this[k] === 'number') this[k] = 0; } };
   const K = ['di', 'diA', 'diGL', 'diGLA', 'diCv', 'diCvA', 'fill', 'stroke', 'fillRect', 'fillRectA', 'grad', 'pat', 'cvNew', 'cvResize', 'gid', 'pid', 'lighter', 'lighterA', 'filt', 'shad', 'clip',
     'glDraw', 'glVerts', 'glBuf', 'glBufB', 'glTex', 'glTexB', 'glCompile', 'glCompileMs', 'glLink', 'glLinkMs', 'glRead', 'glClear', 'glProg',
-    'fgFlush', 'fgMs', 'fgFill', 'fgFillV', 'fgLayers', 'cvResizeGLM', 'fgQuads', 'fgSmoke', 'fgDraws', 'fgComp', 'glmN', 'glmMs', 'glmA', 'glmDraw', 'glmVerts', 'diGLms'];
+    'diGLr', 'glmR', 'fgFlush', 'fgMs', 'fgFill', 'fgFillV', 'fgLayers', 'cvResizeGLM', 'fgQuads', 'fgSmoke', 'fgDraws', 'fgComp', 'glmN', 'glmMs', 'glmA', 'glmDraw', 'glmVerts', 'diGLms'];
   for (const k of K) C[k] = 0;
   const now = () => performance.now();
   const P2 = CanvasRenderingContext2D.prototype, sc = c => { const m = c.getTransform(); return Math.abs(m.a * m.d - m.b * m.c); };
   const wrap = (P, name, f) => { const o = P[name]; if (!o) return; P[name] = function () { if (C.on) f.call(this, arguments); return o.apply(this, arguments); }; };
   const compOp = (c, A) => { if (c.globalCompositeOperation === 'lighter') { C.lighter++; C.lighterA += A; } if (c.filter && c.filter !== 'none') C.filt++; if (c.shadowBlur > 0 && c.shadowColor && !/,\s*0\)$|transparent/.test(c.shadowColor)) C.shad++; };
   { const o = P2.drawImage; P2.drawImage = function (s) { if (!C.on) return o.apply(this, arguments); const a = arguments, n = a.length, w = n >= 9 ? a[7] : n >= 5 ? a[3] : (s.width || 0), h = n >= 9 ? a[8] : n >= 5 ? a[4] : (s.height || 0), A = Math.abs(w * h) * sc(this);
-    C.di++; C.diA += A; compOp(this, A); if (s && s.__pfGL) { /* (a WebGL canvas laid on the 2D one: the GPU's work and the copy are paid here) */ const t = now(); const r = o.apply(this, a); const dt = now() - t; if (s.__pfGL === 'glm') { C.glmN++; C.glmMs += dt; C.glmA += A; } else { C.diGL++; C.diGLA += A; C.diGLms += dt; } return r; } else if (s instanceof HTMLCanvasElement) { C.diCv++; C.diCvA += A; } return o.apply(this, a); }; }
+    C.di++; C.diA += A; compOp(this, A); if (s && s.__pfGL) { /* (a WebGL canvas laid on the 2D one: the GPU's work and the copy are paid here) */ if (s.__pfDirty) { s.__pfDirty = 0; if (s.__pfGL === 'glm') C.glmR++; else C.diGLr++; }   /* (v440 SQ: a copy of new WebGL content: the GPU's work waited for once; a second drawImage of the same picture reuses it) */ const t = now(); const r = o.apply(this, a); const dt = now() - t; if (s.__pfGL === 'glm') { C.glmN++; C.glmMs += dt; C.glmA += A; } else { C.diGL++; C.diGLA += A; C.diGLms += dt; } return r; } else if (s instanceof HTMLCanvasElement) { C.diCv++; C.diCvA += A; } return o.apply(this, a); }; }
   wrap(P2, 'fill', function () { C.fill++; compOp(this, 0); }); wrap(P2, 'stroke', function () { C.stroke++; compOp(this, 0); });
   wrap(P2, 'fillRect', function (a) { const A = Math.abs(a[2] * a[3]) * sc(this); C.fillRect++; C.fillRectA += A; compOp(this, A); });
   wrap(P2, 'clip', function () { C.clip++; });
@@ -38,6 +38,8 @@ function install() {
     wrap(P, 'texImage2D', a => { C.glTex++; const s = a[a.length - 1]; C.glTexB += s && (s.byteLength || (s.width * s.height * 4)) || 0; }); wrap(P, 'texSubImage2D', () => { C.glTex++; });
     wrap(P, 'readPixels', () => { C.glRead++; }); wrap(P, 'clear', () => { C.glClear++; }); wrap(P, 'useProgram', () => { C.glProg++; });
     for (const [nm, kc, km] of [['compileShader', 'glCompile', 'glCompileMs'], ['linkProgram', 'glLink', 'glLinkMs']]) { const o = P[nm]; P[nm] = function () { const t = now(); const r = o.apply(this, arguments); /* (the driver may defer: the status query forces it) */ try { if (nm === 'compileShader') this.getShaderParameter(arguments[0], this.COMPILE_STATUS); else this.getProgramParameter(arguments[0], this.LINK_STATUS); } catch (e) {} C[kc]++; C[km] += now() - t; (C.compiles = C.compiles || []).push([nm, +(now() - t).toFixed(1), C.on ? 'frame' : 'load']); return r; }; } }
+  /* (v440 SQ) a WebGL canvas with new content since it was last laid (any draw or clear on its context) */
+  for (const G of [self.WebGLRenderingContext, self.WebGL2RenderingContext]) { if (!G) continue; const P = G.prototype; for (const nm of ['drawArrays', 'drawElements', 'clear']) { const o = P[nm]; P[nm] = function () { if (this.canvas) this.canvas.__pfDirty = 1; return o.apply(this, arguments); }; } }
 }
 
 async function open(o) {
@@ -84,7 +86,7 @@ async function open(o) {
       const X0 = window.__PFX ? window.__PFX() : null;
       sync(); C.z(); C.on = true; D.g.prof = opt.prof ? {} : null; const h0 = mem();
       const t0 = performance.now(); A.t += opt.dt; G.update(opt.dt); const t1 = performance.now();
-      c.save(); G.draw(c); c.restore(); const t2 = performance.now(); if (P.retro) P.retro.post(cv, c); sync(); const t3 = performance.now();
+      c.save(); G.draw(c); c.restore(); if (F && F.frameEnd) F.frameEnd(); /* v440 SQ: the arcade's frame end (the run of merged passes laid) */ const t2 = performance.now(); if (P.retro) P.retro.post(cv, c); sync(); const t3 = performance.now();
       C.on = false; const pr = D.g.prof || {}; D.g.prof = null;
       const r = { upd: t1 - t0, draw: t2 - t1, post: t3 - t2, tot: t3 - t0, heap: mem() - h0, pr };
       for (const k in C) if (typeof C[k] === 'number') r[k] = C[k];

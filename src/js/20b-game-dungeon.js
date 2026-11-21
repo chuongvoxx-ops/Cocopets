@@ -2339,8 +2339,16 @@ GAMES.dungeon = {
     const PX_PARTS = new Set(['spark', 'wind', 'ember', 'star', 'confetti', 'shard', 'petal', 'snow', 'bubble']), TILE_PARTS = new Set(['glow', 'ghost', 'smoke']);
     const STAR_U = []; for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, k = i % 2 ? 0.45 : 1; STAR_U.push([Math.cos(a) * k, Math.sin(a) * k]); }
     const partBatch = new Map();
+    /* (v440 SQ) the cosmetic budget's tiers (0 first) and each kind's area on the screen (css px; 0: not budgeted: a big glow is an impact) */
+    const FXT = { petal: 0, confetti: 0, snow: 0, bubble: 0, spark: 1, wind: 1, star: 1, shard: 1, ember: 1, smoke: 1, glow: 2, ghost: 2, afterP: 2, afterM: 2 };
+    function fxA(p, a, T) { const sz = p.size || 1; switch (p.kind) {
+      case 'spark': case 'wind': return (Math.hypot(p.vx || 0, p.vy || 0) * T * 0.035 + 2) * (sz + 1);
+      case 'star': case 'snow': case 'bubble': return 4 * sz * sz; case 'confetti': case 'shard': case 'petal': return 2 * sz * sz;
+      case 'glow': { const s = sz * T * (1.4 - a * 0.4); return s < T * 1.2 ? 4.4 * s * s : 0; }
+      case 'ember': { const s = sz * (0.5 + a * 0.5) * 3.2; return s * s; } case 'ghost': return 1.44 * T * T; case 'smoke': { const s = sz * T * (1.6 - a * 0.6) * 2.4; return s * s; }
+      case 'afterP': return 2.6 * T * T; case 'afterM': { const r = (p.m && p.m.r || 0.5) * T * 2.4; return r * r; } } return 0; }
     function drawParts(c, additive) {
-      const T = Tz(), W = api.W, H = api.H, B = partBatch; B.clear();
+      const T = Tz(), W = api.W, H = api.H, B = partBatch; B.clear(); const FXq = typeof FXB !== 'undefined' && FXB.on;   /* v440 SQ */
       const put = (kind, color, w, a, item) => { const q = Math.round(a * 10) / 10; if (q <= 0) return; const key = kind + '|' + color + '|' + w + '|' + q; let b = B.get(key); if (!b) B.set(key, b = { kind, color, w, a: q, items: [] }); b.items.push(item); };
       for (const p of parts) {
         if (p.add == null) p.add = ADD_PARTS.has(p.kind);
@@ -2348,6 +2356,9 @@ GAMES.dungeon = {
         const X = sx(p.x), Y = sy(p.y);
         if (PX_PARTS.has(p.kind) || TILE_PARTS.has(p.kind)) { const mg = T * 2 + (p.size || 0) * (TILE_PARTS.has(p.kind) ? T * 2 : 2); if (X < -mg || X > W + mg || Y < -mg || Y > H + mg) continue; }
         const a = clamp(p.life / p.max, 0, 1);
+        /* (v440 SQ) the shared cosmetic budget (09c FXB): a decoration thinned when the frame is over its quality's limit (drawing
+           only: the particle lives on as before; a skipped glow draws the game's dice exactly as drawing it first would have) */
+        if (FXq) { const t = FXT[p.kind]; if (t != null) { const px2 = fxA(p, a, T); if (px2 > 0 && !FXB.keep(p, t, px2, X, Y, a)) { if (p.kind === 'glow' && DQ && p.color && p.color[0] === '#') { const s = p.size * T * (1.4 - a * 0.4); if (s > T * 0.5 && a > 0.5) p.sd = p.sd || Math.random() * 50; } continue; } } }
         switch (p.kind) {
           case 'spark': case 'wind': put('line', p.color, p.size == null ? null : Math.max(0.5, Math.round(p.size * 2) / 2), a, [X, Y, X - p.vx * T * 0.035, Y - p.vy * T * 0.035]); break;
           case 'star': put('star', p.color, 0, a, [X, Y, p.size]); break;
@@ -2402,13 +2413,15 @@ GAMES.dungeon = {
     /* the land's own drifting things (snow, leaves, sand, steam, embers, fireflies...): the plain ones gathered into a path
        for each colour and alpha (rounded to tenths), the glowing ones laid down as sprites together in one additive pass */
     const ambBatch = new Map();
+    const AMB_G = new Set(['embers', 'goldmotes', 'greenflies', 'fireflies', 'wisps', 'motes']);   /* v440 SQ: the glowing ones (bigger) */
     function drawAmbient(c) {
-      const W = api.W, H = api.H, B = ambBatch; B.clear();
+      const W = api.W, H = api.H, B = ambBatch; B.clear(); const FXq = typeof FXB !== 'undefined' && FXB.on;   /* v440 SQ */
       const put = (kind, color, a, item) => { const q = Math.round(a * 10) / 10; if (q <= 0) return; const key = kind + '|' + color + '|' + q; let b = B.get(key); if (!b) B.set(key, b = { kind, color, a: q, items: [] }); b.items.push(item); };
       let glows = null;
       for (const p of amb) {
         const X = sx(p.x), Y = sy(p.y); if (X < -40 || X > W + 40 || Y < -40 || Y > H + 40) continue;
         const a = clamp(Math.min(p.life, p.max - p.life) / 0.8, 0, 1);
+        if (FXq) { const s2 = (p.size || 1) * (AMB_G.has(p.kind) ? 5 : 2); if (!FXB.keep(p, 0, s2 * s2, X, Y, a)) continue; }   /* (v440 SQ: the land's drifting things: the budget's first tier) */
         switch (p.kind) {
           case 'snow': put('dot', '#FFFFFF', 0.8 * a, [X, Y, p.size]); break;
           case 'leaf': case 'petal': put('ell', p.c, a, [X, Y, p.size, p.size * (p.kind === 'petal' ? 0.6 : 0.45), p.rot || 0]); break;
@@ -2759,6 +2772,7 @@ GAMES.dungeon = {
     function profPieces(c) { const P = g.prof, fl = g.profNoFlush ? () => {} : () => c.getImageData(0, 0, 1, 1); fl(); let t0 = performance.now(); return k => { fl(); const t = performance.now(); P[k] = (P[k] || 0) + t - t0; t0 = t; }; }
     function draw(c) {
       const W = api.W, H = api.H, PF = g.prof ? profPieces(c) : null;
+      if (typeof FXB !== 'undefined') FXB.begin(W, H);   /* v440 SQ: the cosmetic budget's frame */
       { const M = c.getTransform(); snOn = !M.b && !M.c && M.a === M.d && M.a >= 1.5; snK = M.a; snE = M.e; snF = M.f; }
       shX = cam.sm ? (Math.random() - 0.5) * cam.sm * 2 : 0; shY = cam.sm ? (Math.random() - 0.5) * cam.sm * 2 : 0;
       drawWorld(c); if (PF) PF('world');
@@ -2927,7 +2941,7 @@ GAMES.dungeon = {
     }
     return {
       preloadJobs,   /* (v374: the loading screen's work: StageLoad.warm) */
-      _dbg: { get cam() { return cam; }, get RULES() { return RULES; }, get RIFT() { return RIFT; }, RU, lesserBoss, makeBoss, SKIP, stick, steerTo: (x, y) => { goTo(null, x, y); const d = navDir(1 / 60); nav.goal = null; return d; }, g, me, mons, M, get ST() { return ST; }, KIT, AB, useStrong, useUlt, dodge, hitMon, shots, eshots, zones, parts, texts /* v439 SP: the readout's label count */, helpers, F, pots, picks, shrines, hazards, traps, stones, SIZE, chunks, walkAt, blocked, X, wakeBoss, takeStone, fireEvent, tapAt, toWorld, nav, holds, goTo, banners, get AN() { return AN; }, get FD() { return FD; }, get RX() { return RX; }, get STAR() { return STAR; }, get ELEM() { return ELEM; }, get RES() { return RES; }, propList, get KITR() { return KIT; }, setKit: (slot, a) => { KIT[slot] = a; }, get VEH() { return VEH; }, vehBtns, party, cur: () => cur, switchTo, hurtPet, btnSw, setBoss: id => { if (BOSS_BY_ID[id]) { BOSS_KIND = BOSS_BY_ID[id]; F.bossName = BOSS_KIND.name; } } },
+      _dbg: { get cam() { return cam; }, get RULES() { return RULES; }, get RIFT() { return RIFT; }, RU, lesserBoss, makeBoss, SKIP, stick, steerTo: (x, y) => { goTo(null, x, y); const d = navDir(1 / 60); nav.goal = null; return d; }, g, me, mons, M, get ST() { return ST; }, KIT, AB, useStrong, useUlt, dodge, hitMon, shots, eshots, zones, parts, texts /* v439 SP: the readout's label count */, rings, bolts, dragons, amb /* v440 SQ: tests (what a draw seeds lazily) and the long run's counts */, helpers, F, pots, picks, shrines, hazards, traps, stones, SIZE, chunks, walkAt, blocked, X, wakeBoss, takeStone, fireEvent, tapAt, toWorld, nav, holds, goTo, banners, get AN() { return AN; }, get FD() { return FD; }, get RX() { return RX; }, get STAR() { return STAR; }, get ELEM() { return ELEM; }, get RES() { return RES; }, propList, get KITR() { return KIT; }, setKit: (slot, a) => { KIT[slot] = a; }, get VEH() { return VEH; }, vehBtns, party, cur: () => cur, switchTo, hurtPet, btnSw, setBoss: id => { if (BOSS_BY_ID[id]) { BOSS_KIND = BOSS_BY_ID[id]; F.bossName = BOSS_KIND.name; } } },
       resize() { layout(); if (stick.id != null) { stick.ox = stick.x; stick.oy = stick.y; } },   /* (a resize, a browser bar sliding say, no longer drops a held stick: its base re-centres under the thumb) */
       /* a meal from the pantry while paused: heals the played pet and feeds it Tower experience */
       feed(k) {

@@ -569,8 +569,10 @@ const BREAK_FX = (() => {
       if (s.glint) { const gq = Math.sin(clock * 9 + i * 1.7) * Math.sin(s.ang * 2 + i); if (gq > 0.82) { const a = (gq - 0.82) / 0.18 * (s.fade ? Math.max(0, 1 - s.fade / 0.7) : 1), r = T * (0.14 + s.r * 0.5); if (Q) Q.star(X0, Y0, r, a, '#FFFFFF'); else { c.globalAlpha = a; blitSized(c, glowSprite('#FFFFFF'), X0 - r * 0.6, Y0 - r * 0.6, r * 1.2, r * 1.2); } } }
     }
     let nSm = 0; const SMOKE_CAP = lowFx() ? 24 : 48;   // (a bound on the GPU's smoke volumes per frame, whatever is breaking)
+    const FXq = typeof FXB !== 'undefined' && FXB.on;   /* (v440 SQ) the shared cosmetic budget: sparks, glints and embers of debris (its second tier); their hash from their slot and seed */
     for (let i = 0; i < MAXP; i++) { const p = parts[i]; if (!p.on) continue;
       const u = 1 - p.life / p.max, X0 = X.sx(p.x), Y0 = X.sy(p.y) - p.z * T, r = (p.r + (p.r1 - p.r) * (1 - (1 - u) * (1 - u))) * T;
+      if (FXq && (p.k === P_SPARK || p.k === P_GLINT || p.k === P_EMBER)) { const rr = Math.max(3, p.r * T) * (p.k === P_EMBER ? 6 : 2); if (!FXB.keepH(((i * 0.6180339 + (p.seed || 0) * 0.1373) % 1 + 1) % 1, 1, rr * rr, X0, Y0)) continue; }
       switch (p.k) {
         case P_GLOW: { const a = p.a * (1 - u) * (1 - u); if (Q) Q.glow(X0, Y0, r, hx(p.col), a); else { c.globalAlpha = a * 0.85; blitSized(c, glowSprite(p.col), X0 - r, Y0 - r, r * 2, r * 2); } break; }
         case P_RING: { const a = p.a * (1 - u); if (Q) { Q.ring(X0, Y0, r, hx(p.col), a * 0.55, r * 0.12, 0.5); Q.ewave(X0, Y0, r, hx(p.col), 0.45, a * 0.3, p.seed, 0.5, 0.1); } else { c.globalAlpha = a * 0.42; const s2 = r / 0.86; blitSized(c, shockSprite(p.col), X0 - s2, Y0 - s2 * 0.5, s2 * 2, s2); } break; }

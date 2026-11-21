@@ -2277,7 +2277,7 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
   function prog(vs, fs, attrs) { const sh = (ty, src) => { const q = gl.createShader(ty); gl.shaderSource(q, src); gl.compileShader(q); if (!gl.getShaderParameter(q, gl.COMPILE_STATUS)) throw new Error('shader: ' + gl.getShaderInfoLog(q)); return q; };
     const p = gl.createProgram(); gl.attachShader(p, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs)); attrs.forEach((a, i) => gl.bindAttribLocation(p, i, a)); gl.linkProgram(p); if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error('link: ' + gl.getProgramInfoLog(p));
     const U = {}, n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS); for (let i = 0; i < n; i++) { const q = gl.getActiveUniform(p, i); U[q.name] = gl.getUniformLocation(p, q.name); } return { p, U }; }
-  function build() { if (!cv) { cv = document.createElement('canvas'); cv.width = cv.height = 4; cv.addEventListener('webglcontextlost', e => { e.preventDefault(); ok = false; why = 'context lost'; lostAt = performance.now(); }); cv.addEventListener('webglcontextrestored', () => { ok = null; PR = null; PRW = null; }); }
+  function build() { if (!cv) { cv = document.createElement('canvas'); cv.width = cv.height = 4; cv.addEventListener('webglcontextlost', e => { e.preventDefault(); ok = false; why = 'context lost'; lostAt = performance.now(); }); cv.addEventListener('webglcontextrestored', () => { ok = null; PR = null; PRW = null; RUN = null; /* v440 SQ */ }); }
     const o = { alpha: true, premultipliedAlpha: true, antialias: false, depth: false, stencil: false }; gl = gl || cv.getContext('webgl2', o) || cv.getContext('webgl', o); if (!gl) { why = 'no WebGL'; return false; }
     try { const di = gl.getExtension('WEBGL_debug_renderer_info'); info = String(di ? gl.getParameter(di.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)); } catch (e) { info = '?'; } soft = /swiftshader|llvmpipe|software|softpipe/i.test(info);
     PR = prog(VS, FSM(), ['a_p', 'a_uv', 'a_k', 'a_c', 'a_q']); bq = gl.createBuffer();
@@ -2288,7 +2288,7 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
      fresh canvas, rather than leaving every effect in 2D for the rest of the session; a failed frame only after three in a row */
   let lostAt = 0, fails = 0;
   function usable() { let f = null; try { f = typeof window !== 'undefined' ? window.__NG_GL : null; } catch (e) {} if (f === 0) return false;
-    if (ok === false && why === 'context lost' && performance.now() - lostAt > 1500) { cv = null; gl = null; PR = null; PRW = null; ok = null; why = ''; }
+    if (ok === false && why === 'context lost' && performance.now() - lostAt > 1500) { cv = null; gl = null; PR = null; PRW = null; ok = null; why = ''; RUN = null; /* v440 SQ */ }
     if (ok === false) return false; if (ok === null) { try { ok = build(); } catch (e) { ok = false; why = String(e && e.message || e); try { console.warn('Nidhogg GFX: ' + why); } catch (e2) {} } } return !!ok && (!soft || f === 1); }
   const LOWQ = () => typeof st !== 'undefined' && st && !!st.lowFx;
   const GQK = () => { try { return typeof GQ !== 'undefined' && window.__SP_OFF !== 1 && typeof arc !== 'undefined' && !!arc.game && arc.mode === 'dungeon' ? Math.max(0.6, GQ.fgK()) : 1; } catch (e) { return 1; } };   /* (v439 SP) */
@@ -2442,12 +2442,41 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
   let PEND = null; const HOOKED = new WeakSet();
   const spOn = () => !(typeof window !== 'undefined' && window.__SP_OFF === 1);
   let LZ = false;
-  function settle() { const P = PEND; if (!P) return; PEND = null; LZ = true; try { flush(P.c); } finally { LZ = false; } }
+  function settleP() { const P = PEND; if (!P) return; PEND = null; LZ = true; try { flush(P.c); } finally { LZ = false; } }   /* (v440 SQ: the kept wind batch drawn; with the merge on, into the run below) */
+  function settle() { settleP(); if (RUN) layRun(); }   /* (v440 SQ: and the run of merged passes laid) */
+  /* (v440 SQ) consecutive passes laid from one GPU copy, exactly. Each pass lays its solid layer (bodies, smoke: 'source-over') and
+     then its light layer ('lighter'), every one a copy of the WebGL canvas onto the game's: Sunflare's frame laid 11-13, the other
+     ultimates' 8-14, and on a phone each such copy makes the 2D canvas wait for the GPU. Merging the layers' pictures is not exact
+     (lights laid one after another add; drawn together they screen, and a light under a later solid's soft rim is clipped by the
+     canvas at 255 before that solid dims it), so the layers stay what they were and are laid as before, in the same order and with
+     the same operation, pixel for pixel; what changes is that the passes of a run (consecutive passes on the game canvas with
+     nothing else drawn on it in between) are drawn side by side into one larger WebGL picture (an atlas: the layer canvas at its
+     width + 8 and twice its height + 8, each layer's box in a slot of its own with the same 2 cleared px round it), and that picture
+     is copied once: every layer is then laid from it (a drawImage of its slot, as of its box before). The run is laid when anything
+     else draws on the canvas (its drawing calls are watched: hook), when a layer does not fit in the atlas, another canvas needs
+     the painter, or the frame ends. A pass under a clip, a filter or a shadow, or cut to rectangles (Q.clipTo), is laid as before.
+     Only on the arcade's game canvas, from the frame after its drawing calls are first watched (frameEnd). The layer canvas is
+     the atlas's size whenever this is on (no reallocation between passes); every other pass draws in its top-left corner.
+     window.__SQ_OFF = 1 (or __SP_OFF): every pass laid at once on a canvas of its own size, as v439 */
+  const sqOn = () => { try { return typeof window === 'undefined' || (window.__SQ_OFF !== 1 && window.__SP_OFF !== 1); } catch (e) { return false; } };
+  let RUN = null, ARM = false, SD = 0; const CLIPS = [];
+  /* a slot of w x h (2 px round it) in the run's atlas (shelves, top to bottom): its top-left inside the margin, or null when full */
+  function slot(R, w, h) { const W2 = w + 4, H2 = h + 4; if (R.x + W2 > R.AW) { R.x = 0; R.y += R.sh; R.sh = 0; } if (W2 > R.AW || R.y + H2 > R.AH) return null; const p = [R.x + 2, R.y + 2]; R.x += W2; R.sh = Math.max(R.sh, H2); return p; }
+  function layRun() { const R = RUN; RUN = null; if (!R || !R.segs.length || ok !== true) return; try {
+      const c = R.c, cv0 = c.canvas, sxr = cv0.width / R.W, syr = cv0.height / R.H, S = R.segs;
+      c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1; c.shadowBlur = 0; c.shadowColor = 'rgba(0,0,0,0)'; c.filter = 'none'; c.imageSmoothingEnabled = R.sm;
+      for (let i = 0; i < S.length; i += 7) { const ax = S[i], ay = S[i + 1], x0 = S[i + 2], y0 = S[i + 3], w = S[i + 4], h = S[i + 5]; c.globalCompositeOperation = S[i + 6] ? 'lighter' : 'source-over'; c.drawImage(cv, ax, ay, w, h, x0 * sxr, y0 * syr, w * sxr, h * syr); { const q = w * h * sxr * syr; stats.compPx += q; stats.cpxF = (stats.cpxF || 0) + q; }   /* (v440 SQ: cpxF the frame's laid area, for FXB) */ }
+      c.restore(); if (typeof PERF !== 'undefined') PERF.copy(); stats.runs = (stats.runs || 0) + 1; stats.runLayers = (stats.runLayers || 0) + S.length / 7; stats.runPasses = (stats.runPasses || 0) + R.n;
+    } catch (e) { why = String(e && e.message || e); } }
+  /* the end of the arcade's frame: the run laid, and from now on what the canvas's clips are is known (its save / restore watched) */
+  function frameEnd() { settle(); SD = 0; CLIPS.length = 0; ARM = true; }
   function hook(c) { if (HOOKED.has(c)) return; HOOKED.add(c); const P2 = Object.getPrototypeOf(c);
-    for (const m of ['drawImage', 'fill', 'fillRect', 'stroke', 'fillText', 'strokeText', 'putImageData', 'clearRect', 'getImageData', 'clip'])   /* (clip: laid before a clip can cut it; the other state a lay could inherit is reset by flush when it lays a kept pass: LZ) */ { const o = P2[m]; if (typeof o !== 'function') continue; c[m] = function () { if (PEND) settle(); return o.apply(this, arguments); }; } }
-  function lazyFlush(c, tag) { if (!spOn() || !tag || !c || !c.canvas || c.canvas.id !== 'arcCanvas') return flush(c); if (!Q.nl && !Q.ns && !Q.nwl && !Q.nws) return; hook(c);
+    for (const m of ['drawImage', 'fill', 'fillRect', 'stroke', 'strokeRect', 'fillText', 'strokeText', 'putImageData', 'clearRect', 'getImageData', 'clip', 'drawFocusIfNeeded', 'reset'])   /* (clip: laid before a clip can cut it; the other state a lay could inherit is reset by flush when it lays a kept pass: LZ) (v440 SQ: strokeRect too; the prototype's method looked up at each call, so a counter installed later still sees it) */ { if (typeof P2[m] !== 'function') continue; c[m] = function () { if (PEND || RUN) settle(); if (m === 'clip' && CLIPS[CLIPS.length - 1] !== SD) CLIPS.push(SD); return P2[m].apply(this, arguments); }; }
+    /* (v440 SQ) save / restore counted, so a clip's end is known: a pass begun under a clip is never merged past it */
+    c.save = function () { SD++; return P2.save.apply(this, arguments); }; c.restore = function () { if (SD > 0) SD--; while (CLIPS.length && CLIPS[CLIPS.length - 1] > SD) CLIPS.pop(); return P2.restore.apply(this, arguments); }; }
+  function lazyFlush(c, tag) { if (!spOn() || !tag || !c || !c.canvas || c.canvas.id !== 'arcCanvas' || (CLIPS.length && sqOn())) return flush(c); if (!Q.nl && !Q.ns && !Q.nwl && !Q.nws) return; hook(c);   /* (v440 SQ: not kept under a clip) */
     const B = c.getTransform(); PEND = { c, tag, a: B.a, b: B.b, c0: B.c, d: B.d, e: B.e, f: B.f, W: c.canvas.width, H: c.canvas.height }; }
-  function begin(c, pet, tag) { if (PEND) { const P = PEND, B = c.getTransform(); if (tag && P.tag === tag && P.c === c && !pet && spOn() && B.a === P.a && B.b === P.b && B.c === P.c0 && B.d === P.d && B.e === P.e && B.f === P.f && c.canvas.width === P.W && c.canvas.height === P.H) { PEND = null; stats.merged = (stats.merged || 0) + 1; return Q; } stats.settled = (stats.settled || 0) + 1; settle(); }
+  function begin(c, pet, tag) { if (PEND) { const P = PEND, B = c.getTransform(); if (tag && P.tag === tag && P.c === c && !pet && spOn() && B.a === P.a && B.b === P.b && B.c === P.c0 && B.d === P.d && B.e === P.e && B.f === P.f && c.canvas.width === P.W && c.canvas.height === P.H) { PEND = null; stats.merged = (stats.merged || 0) + 1; return Q; } stats.settled = (stats.settled || 0) + 1; settleP(); }   /* (v440 SQ: the kept wind batch drawn; the run it joins stays open for this pass) */
     return begin0(c, pet); }
   function begin0(c, pet) { const B = c.getTransform(), cv0 = c.canvas, L = LOWQ(), k0 = Math.min(L ? 0.42 : 0.7 * GQK(), 1500 / Math.max(cv0.width, cv0.height));   /* (v439 SP: GQK the visual quality's soft-layer scale: Balanced 3/4, Performance 0.6, never under Fewer effects' 0.42) */   /* (v364: a finer GPU layer: 1500 px on the long side, was 1200) */ Q.W = Math.max(8, Math.round(cv0.width * k0)); Q.Hh = Math.max(8, Math.round(cv0.height * k0)); const kx = Q.W / cv0.width;
     Q.a = B.a * kx; Q.b = B.b * kx; Q.c0 = B.c * kx; Q.d = B.d * kx; Q.e = B.e * kx; Q.f = B.f * kx; Q.k = (Math.sqrt(Math.abs(B.a * B.d - B.b * B.c)) || 1) * kx; Q.nl = Q.ns = Q.nwl = Q.nws = 0; Q.sv = Q.nq = 0; /* v430 PF */ Q.rl = null; /* v434 PO */ Q.t =(typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000 % 1000;
@@ -2470,13 +2499,34 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
       if (linked) continue;
       const fe = Math.max(0.2, Math.min(0.7, 1.7 * hw / (2 * hl))), kk = k + 0.05 + (fe - 0.2) / 1.5, o = FE[p];
       for (let v = 0; v < 6; v++) A[o + v * 12 + 4] = kk; } }
-  function flush(c) { if (PEND) { if (PEND.c !== c) settle(); else PEND = null; }   /* (v439 SP: a kept wind pass laid where it belongs first; on its own canvas it is laid now, with this batch) */
-    if (!Q.nl && !Q.ns && !Q.nwl && !Q.nws) return; if (!usable()) return; try { const W = Q.W, Hh = Q.Hh; featherEnds(Q.lit, Q.nl); featherEnds(Q.smk, Q.ns);   /* (v388 E) */ if (cv.width !== W || cv.height !== Hh) { cv.width = W; cv.height = Hh; }   /* (v326: one layer at a time, the whole canvas copied each time: no source rectangles at all, so no browser can crop or misplace a half) */
-      gl.viewport(0, 0, W, Hh); gl.clearColor(0, 0, 0, 0); gl.enable(gl.BLEND); gl.useProgram(PR.p); gl.uniform2f(PR.U.u_res, W, Hh); gl.uniform1f(PR.U.u_t, Q.t); gl.uniform3f(PR.U.u_pet, Q.pet[0], Q.pet[1], Q.pet[2]); gl.bindBuffer(gl.ARRAY_BUFFER, bq);
+  function flush(c) { if (PEND) { if (PEND.c !== c) settleP(); else PEND = null; }   /* (v439 SP: a kept wind pass laid where it belongs first; on its own canvas it is laid now, with this batch) (v440 SQ: settleP: into the run, when it can join one) */
+    if (!Q.nl && !Q.ns && !Q.nwl && !Q.nws) return; if (!usable()) return; try { const W = Q.W, Hh = Q.Hh; featherEnds(Q.lit, Q.nl); featherEnds(Q.smk, Q.ns);   /* (v388 E) */
+      /* (v440 SQ) this pass joins the run (DEF) when it can: the game canvas, watched since a frame's end, no clip, filter or shadow
+         (or a kept wind batch laid late, whose state is reset for it anyway: LZ), not cut to rectangles; a run on another layer size
+         or smoothing is laid first. The layer canvas: the atlas's size on the game canvas while this is on; elsewhere at least the
+         layer's size (kept if it is already, so a pass on another canvas does not reallocate it), or exactly it under __SQ_OFF */
+      const SQ = sqOn(), GC = !!c.canvas && c.canvas.id === 'arcCanvas'; if (SQ && GC) hook(c);
+      const DEF = SQ && GC && ARM && HOOKED.has(c) && !pfOff() && !(Q.rl && Q.rl.length) && !CLIPS.length && (LZ || ((!c.filter || c.filter === 'none') && !(c.shadowBlur > 0 && c.shadowColor && !/,\s*0\)$|transparent/.test(c.shadowColor))));
+      if (RUN && (!DEF || RUN.c !== c || RUN.W !== W || RUN.H !== Hh || RUN.sm !== c.imageSmoothingEnabled)) layRun();
+      { const AW = W + 8, AH = Hh * 2 + 8; if (!SQ) { if (cv.width !== W || cv.height !== Hh) { cv.width = W; cv.height = Hh; } } else if (GC) { if (cv.width !== AW || cv.height !== AH) { cv.width = AW; cv.height = AH; } } else if (cv.width < W || cv.height < Hh || cv.width * cv.height > 3 * AW * AH) { cv.width = W; cv.height = Hh; } }
+      if (DEF && !RUN) RUN = { c, W, H: Hh, sm: c.imageSmoothingEnabled, n: 0, segs: [], x: 0, y: 0, sh: 0, AW: cv.width, AH: cv.height };
+      if (DEF) RUN.n++;
+      const OY = cv.height - Hh;   /* (v440 SQ: the layer drawn in the canvas's top-left corner: GL's rows run from the bottom) */
+      gl.viewport(0, OY, W, Hh); gl.clearColor(0, 0, 0, 0); gl.enable(gl.BLEND); gl.useProgram(PR.p); gl.uniform2f(PR.U.u_res, W, Hh); gl.uniform1f(PR.U.u_t, Q.t); gl.uniform3f(PR.U.u_pet, Q.pet[0], Q.pet[1], Q.pet[2]); gl.bindBuffer(gl.ARRAY_BUFFER, bq);
       const attr = (i, n, off) => { gl.enableVertexAttribArray(i); gl.vertexAttribPointer(i, n, gl.FLOAT, false, 48, off * 4); }; let draws = 0;
       const use = P => { gl.useProgram(P.p); gl.uniform2f(P.U.u_res, W, Hh); gl.uniform1f(P.U.u_t, Q.t); gl.uniform3f(P.U.u_pet, Q.pet[0], Q.pet[1], Q.pet[2]); };
       const pass0 = (A, n) => { gl.bufferData(gl.ARRAY_BUFFER, A.subarray(0, n * 12), gl.DYNAMIC_DRAW); attr(0, 2, 0); attr(1, 2, 2); attr(2, 1, 4); attr(3, 4, 5); attr(4, 3, 9); gl.drawArrays(gl.TRIANGLES, 0, n); draws++; };
       const pass = (A, n, AW, nw) => { if (n) { use(PR); pass0(A, n); } if (nw && PRW) { use(PRW); pass0(AW, nw); } };   /* (v375: the main program's quads, then Wind's with its own) */
+      /* (v440 SQ) where a layer's region (layer px x0..x1, y0..y1, drawn at canvas offset ox, oy) reaches the layer's own edge but not the
+         canvas's (a slot of the atlas, or the layer in the corner of a larger canvas), the pixel just past that edge is drawn as the
+         edge pixel itself (the layer drawn again moved by one pixel, inside a 1-px scissor): what the laid copy's filtering read there
+         before, when the layer's edge was the canvas's own, so the picture laid stays the same to the last pixel */
+      const edgeRep = (x0, y0, x1, y1, ox, oy, drawL) => { const H0 = cv.height, L = x0 <= 0 && ox > 0, Rt = x1 >= W && ox + W < cv.width, T = y0 <= 0 && oy > 0, B = y1 >= Hh && oy + Hh < H0; if (!L && !Rt && !T && !B) return;
+        const X0 = x0 + ox, Y0 = y0 + oy, X1 = x1 + ox, Y1 = y1 + oy; gl.enable(gl.SCISSOR_TEST);
+        const one = (dx, dy, sx, sy, sw, sh) => { gl.viewport(ox + dx, H0 - Hh - (oy + dy), W, Hh); gl.scissor(sx, H0 - (sy + sh), sw, sh); gl.clear(gl.COLOR_BUFFER_BIT); drawL(); };
+        if (L) one(-1, 0, X0 - 1, Y0, 1, Y1 - Y0); if (Rt) one(1, 0, X1, Y0, 1, Y1 - Y0); if (T) one(0, -1, X0, Y0 - 1, X1 - X0, 1); if (B) one(0, 1, X0, Y1, X1 - X0, 1);
+        if (L && T) one(-1, -1, X0 - 1, Y0 - 1, 1, 1); if (Rt && T) one(1, -1, X1, Y0 - 1, 1, 1); if (L && B) one(-1, 1, X0 - 1, Y1, 1, 1); if (Rt && B) one(1, 1, X1, Y1, 1, 1);
+        gl.viewport(0, OY, W, Hh); stats.edgeRep = (stats.edgeRep || 0) + 1; };
       const cv0 = c.canvas; c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1; if (LZ) { c.shadowBlur = 0; c.shadowColor = 'rgba(0,0,0,0)'; c.filter = 'none'; c.imageSmoothingEnabled = true; }   /* (v439 SP: a kept pass laid in the middle of someone's drawing: none of its shadow or filter) */
       /* (v430 PF) each layer is cleared, drawn and laid over the game only inside the box round what it holds (3 layer px of
          nothing round its quads, which all fade out inside their edges; 2 more cleared round that, so the box's own edge
@@ -2487,22 +2537,31 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
          window.__PF_OFF = 1: the whole layer every time, one program, as before */
       const off = pfOff(), sxr = cv0.width / W, syr = cv0.height / Hh;
       const lay = (A, n, AW, nw, lit) => { const R = off ? [0, 0, W, Hh] : boxOf(A, n, AW, nw, W, Hh); if (!R) return; const full = R[0] === 0 && R[1] === 0 && R[2] === W && R[3] === Hh;
+        if (DEF) { /* (v440 SQ) into the run: the layer drawn as before, in a slot of the atlas (the viewport moved by whole pixels:
+             the same pixels), its 2 px round it cleared; laid later, from the run's one copy */
+          const w = R[2] - R[0], h = R[3] - R[1]; let p = slot(RUN, w, h); if (!p) { const n0 = RUN.n; layRun(); RUN = { c, W, H: Hh, sm: c.imageSmoothingEnabled, n: n0, segs: [], x: 0, y: 0, sh: 0, AW: cv.width, AH: cv.height }; p = slot(RUN, w, h); if (!p) return; }
+          const ox = p[0] - R[0], oy = p[1] - R[1]; gl.viewport(ox, cv.height - Hh - oy, W, Hh); gl.enable(gl.SCISSOR_TEST); gl.scissor(p[0] - 2, cv.height - (p[1] + h + 2), w + 4, h + 4); gl.clear(gl.COLOR_BUFFER_BIT);
+          const m = lit && PRS ? splitLit(A, n) : null, drawL = () => { if (m) { if (m.nr) { use(PR); pass0(SPL.r, m.nr); } if (m.ns) { use(PRS); pass0(SPL.s, m.ns); } if (nw && PRW) { use(PRW); pass0(AW, nw); } } else pass(A, n, AW, nw); };
+          gl.blendFunc(gl.ONE, lit ? gl.ONE_MINUS_SRC_COLOR : gl.ONE_MINUS_SRC_ALPHA); drawL(); edgeRep(R[0], R[1], R[2], R[3], ox, oy, drawL);
+          gl.viewport(0, OY, W, Hh); RUN.segs.push(p[0], p[1], R[0], R[1], w, h, lit ? 1 : 0); stats.comp++; stats.held = (stats.held || 0) + 1; return; }
         /* (v434 PO) Q.clipTo's rectangles: the layer shaded inside each (its box cut to it, 2 px more drawn round it so a laid
            edge never filters in anything else), then each laid over from the one copy. window.__PO_OFF = 1: the whole box, as v433 */
         const RL = Q.rl; if (RL && RL.length && !off && !(typeof window !== 'undefined' && window.__PO_OFF === 1)) { const PT = PTS; PT.length = 0;
           for (let i = 0; i < RL.length; i += 4) { const a0 = Math.max(R[0], RL[i]), b0 = Math.max(R[1], RL[i + 1]), a1 = Math.min(R[2], RL[i + 2]), b1 = Math.min(R[3], RL[i + 3]); if (a1 > a0 && b1 > b0) PT.push(a0, b0, a1, b1); }
           if (!PT.length) return; gl.enable(gl.SCISSOR_TEST); const m = lit && PRS ? splitLit(A, n) : null; gl.blendFunc(gl.ONE, lit ? gl.ONE_MINUS_SRC_COLOR : gl.ONE_MINUS_SRC_ALPHA);
-          for (let i = 0; i < PT.length; i += 4) { const x0 = Math.max(0, PT[i] - 2), y0 = Math.max(0, PT[i + 1] - 2), x1 = Math.min(W, PT[i + 2] + 2), y1 = Math.min(Hh, PT[i + 3] + 2); gl.scissor(x0, Hh - y1, x1 - x0, y1 - y0); gl.clear(gl.COLOR_BUFFER_BIT);
-            if (m) { if (m.nr) { use(PR); pass0(SPL.r, m.nr); } if (m.ns) { use(PRS); pass0(SPL.s, m.ns); } if (nw && PRW) { use(PRW); pass0(AW, nw); } } else pass(A, n, AW, nw); }
+          for (let i = 0; i < PT.length; i += 4) { const x0 = Math.max(0, PT[i] - 2), y0 = Math.max(0, PT[i + 1] - 2), x1 = Math.min(W, PT[i + 2] + 2), y1 = Math.min(Hh, PT[i + 3] + 2); gl.scissor(x0, OY + Hh - y1, x1 - x0, y1 - y0); gl.clear(gl.COLOR_BUFFER_BIT);
+            if (m) { if (m.nr) { use(PR); pass0(SPL.r, m.nr); } if (m.ns) { use(PRS); pass0(SPL.s, m.ns); } if (nw && PRW) { use(PRW); pass0(AW, nw); } } else pass(A, n, AW, nw);
+            if (OY || cv.width !== W) edgeRep(PT[i], PT[i + 1], PT[i + 2], PT[i + 3], 0, 0, () => { if (m) { if (m.nr) { use(PR); pass0(SPL.r, m.nr); } if (m.ns) { use(PRS); pass0(SPL.s, m.ns); } if (nw && PRW) { use(PRW); pass0(AW, nw); } } else pass(A, n, AW, nw); }); }   /* (v440 SQ) */
           c.globalCompositeOperation = lit ? 'lighter' : 'source-over';
-          for (let i = 0; i < PT.length; i += 4) { const w = PT[i + 2] - PT[i], h = PT[i + 3] - PT[i + 1]; c.drawImage(cv, PT[i], PT[i + 1], w, h, PT[i] * sxr, PT[i + 1] * syr, w * sxr, h * syr); stats.compPx += w * h * sxr * syr; } if (typeof PERF !== 'undefined') PERF.copy();   /* v439 SP: a GL layer laid (the readout) */
+          for (let i = 0; i < PT.length; i += 4) { const w = PT[i + 2] - PT[i], h = PT[i + 3] - PT[i + 1]; c.drawImage(cv, PT[i], PT[i + 1], w, h, PT[i] * sxr, PT[i + 1] * syr, w * sxr, h * syr); { const q = w * h * sxr * syr; stats.compPx += q; stats.cpxF = (stats.cpxF || 0) + q; }   /* (v440 SQ: cpxF the frame's laid area, for FXB) */ } if (typeof PERF !== 'undefined') PERF.copy();   /* v439 SP: a GL layer laid (the readout) */
           stats.comp++; return; }
-        if (off) gl.disable(gl.SCISSOR_TEST); else { gl.enable(gl.SCISSOR_TEST); const x0 = Math.max(0, R[0] - 2), y0 = Math.max(0, R[1] - 2), x1 = Math.min(W, R[2] + 2), y1 = Math.min(Hh, R[3] + 2); gl.scissor(x0, Hh - y1, x1 - x0, y1 - y0); }   /* (the scissor always on, the whole layer for a full one: one state for every pass, so no driver builds a second version of the big shader mid-fight; llvmpipe did, for seconds) */
+        if (off) gl.disable(gl.SCISSOR_TEST); else { gl.enable(gl.SCISSOR_TEST); const x0 = Math.max(0, R[0] - 2), y0 = Math.max(0, R[1] - 2), x1 = Math.min(W, R[2] + 2), y1 = Math.min(Hh, R[3] + 2); gl.scissor(x0, OY + Hh - y1, x1 - x0, y1 - y0); }   /* (v440 SQ: OY) (the scissor always on, the whole layer for a full one: one state for every pass, so no driver builds a second version of the big shader mid-fight; llvmpipe did, for seconds) */
         gl.clear(gl.COLOR_BUFFER_BIT);
         if (lit) { gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_COLOR); if (PRS && !off) { const m = splitLit(A, n); if (m.nr) { use(PR); pass0(SPL.r, m.nr); } if (m.ns) { use(PRS); pass0(SPL.s, m.ns); } if (nw && PRW) { use(PRW); pass0(AW, nw); } } else pass(A, n, AW, nw); c.globalCompositeOperation = 'lighter'; }
         else { gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); pass(A, n, AW, nw); c.globalCompositeOperation = 'source-over'; }
-        if (full) c.drawImage(cv, 0, 0, cv0.width, cv0.height); else { const w = R[2] - R[0], h = R[3] - R[1]; c.drawImage(cv, R[0], R[1], w, h, R[0] * sxr, R[1] * syr, w * sxr, h * syr); }
-        stats.comp++; stats.compPx += (R[2] - R[0]) * (R[3] - R[1]) * sxr * syr; if (typeof PERF !== 'undefined') PERF.copy(); };   /* (v439 SP: counted for the readout) */
+        if (OY || cv.width !== W) edgeRep(R[0], R[1], R[2], R[3], 0, 0, () => { if (lit && PRS && !off) { const m = splitLit(A, n); if (m.nr) { use(PR); pass0(SPL.r, m.nr); } if (m.ns) { use(PRS); pass0(SPL.s, m.ns); } if (nw && PRW) { use(PRW); pass0(AW, nw); } } else pass(A, n, AW, nw); });   /* (v440 SQ: the layer in the corner of the atlas-sized canvas) */
+        if (full) { if (OY || cv.width !== W) c.drawImage(cv, 0, 0, W, Hh, 0, 0, cv0.width, cv0.height); else c.drawImage(cv, 0, 0, cv0.width, cv0.height); } else {   /* (v440 SQ: the layer's corner of a larger canvas) */ const w = R[2] - R[0], h = R[3] - R[1]; c.drawImage(cv, R[0], R[1], w, h, R[0] * sxr, R[1] * syr, w * sxr, h * syr); }
+        stats.comp++; { const q = (R[2] - R[0]) * (R[3] - R[1]) * sxr * syr; stats.compPx += q; stats.cpxF = (stats.cpxF || 0) + q; }   /* (v440 SQ: cpxF) */ if (typeof PERF !== 'undefined') PERF.copy(); };   /* (v439 SP: counted for the readout) */
       stats.comp = 0; stats.compPx = 0;
       if (Q.ns || Q.nws) lay(Q.smk, Q.ns, Q.wsmk, Q.nws, false);   // the solid layer (smoke, bodies), laid over
       if (Q.nl || Q.nwl) lay(Q.lit, Q.nl, Q.wlit, Q.nwl, true);    // the light, screened (stacked fire saturates softly, never clips to a white slab), added
@@ -2517,5 +2576,5 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
     } catch (e) { why = String(e && e.message || e); if (++fails >= 3 || (gl && gl.isContextLost && gl.isContextLost())) { ok = false; if (gl && gl.isContextLost && gl.isContextLost()) { why = 'context lost'; lostAt = performance.now(); } } } }
   /* (tests) pixels that break rgb <= a, right after a flush */
   function check() { if (!gl) return null; const W = cv.width, Hh = cv.height, px = new Uint8Array(W * Hh * 4); gl.readPixels(0, 0, W, Hh, gl.RGBA, gl.UNSIGNED_BYTE, px); let bad = 0, lit = 0; for (let i = 0; i < px.length; i += 4) { const a = px[i + 3]; if (a) lit++; if (px[i] > a + 1 || px[i + 1] > a + 1 || px[i + 2] > a + 1) bad++; } return { bad, lit }; }
-  NM.FGFX = { usable, begin, flush, lazyFlush /* v439 SP */, settle /* v439 SP */, get pending() { return !!PEND; }, check, stats, windOK: () => !!PRW, info: () => ({ ok, soft, renderer: info, why, wind: !!PRW, whyW, simple: !!PRS /* v430 PF */ }) };
+  NM.FGFX = { usable, begin, flush, lazyFlush /* v439 SP */, settle /* v439 SP */, frameEnd /* v440 SQ */, get run() { return RUN ? RUN.n : 0; } /* v440 SQ */, get pending() { return !!PEND; }, check, stats, windOK: () => !!PRW, info: () => ({ ok, soft, renderer: info, why, wind: !!PRW, whyW, simple: !!PRS /* v430 PF */ }) };
 })();

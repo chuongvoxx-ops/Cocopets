@@ -2026,3 +2026,4 @@ body.in-map .outside-btn,body.in-mansion .outside-btn,body.home-mode .outside-bt
 #benchOut pre{margin:0 0 10px;max-height:60vh;overflow:auto;white-space:pre-wrap;word-break:break-word;font:600 11px/15px ui-monospace,SFMono-Regular,Menlo,monospace;user-select:text;-webkit-user-select:text}
 .setting.gq{flex-wrap:wrap}.gq-row{display:flex;gap:4px;flex-wrap:wrap}.gq-b{padding:6px 9px;font-size:12px}.gq-b[aria-pressed="true"]{background:#7A5CFF;color:#fff} /* v439 SP */
 #benchOut .bo-row{display:flex;gap:8px;justify-content:flex-end}
+.setting .bench-btns{display:flex;flex-direction:column;gap:6px;flex:none} /* v440 SQ: Run and Long run */

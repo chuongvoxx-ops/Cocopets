@@ -142,13 +142,14 @@
         const rp = R * T, pu = f.pulse;
         { const FG = gfx(); if (FG) { /* (v402) the lit floor on the GPU: a pool of rippling pink light, a bright rim, a ring of
              little hearts turning in it, each tick a ripple of light running out to the rim */
-          const Q = FG.begin(c, null), GY = H.GY, tw = f.t * 0.12;
+          const Q = FG.begin(c, null), GY = H.GY, tw = f.t * 0.12, FXq = typeof FXB !== 'undefined' && FXB.on;   /* v440 SQ */
           Q.glow(X, Y, rp * 1.3, ROSE, 0.34 * a, GY); Q.glow(X, Y, rp * 0.6, BLUSH, (0.16 + 0.12 * pu) * a, GY);
           Q.caustic(X, Y, rp * 1.02, ROSE, (0.3 + 0.2 * pu) * a, 3.1, GY);
           Q.ring(X, Y, rp, ROSE, a, rp * 0.3, GY); Q.ring(X, Y, rp, MAG, 0.8 * a, rp * 0.14, GY); Q.ring(X, Y, rp * 0.97, PEARL, a, rp * 0.05, GY); Q.ring(X, Y, rp * 0.985, CANDY, a, rp * 0.07, GY); Q.ring(X, Y, rp * 0.975, PEARL, (0.6 + 0.4 * pu) * a, rp * 0.035, GY); Q.ring(X, Y, rp * 0.84, BLUSH, 0.3 * a, rp * 0.02, GY); Q.ring(X, Y, rp * 0.66, BLUSH, 0.24 * a, rp * 0.02, GY);
           for (let i = 0; i < 16; i++) { const b = i / 16 * TAU + tw, s2 = rp * 0.06, cb = Math.cos(b), sb = Math.sin(b);   // (each heart's point toward the centre)
             Q.quad(41, X + cb * rp * 0.75, Y + sb * rp * 0.75 * GY, -sb * s2, cb * s2 * GY, -cb * s2, -sb * s2 * GY, BLUSH, 0.7 * a, 0, 0, -2); }
           for (let i = 0; i < 10; i++) { const ph = (f.t * (0.35 + 0.3 * R1(i * 2.7)) + R1(i * 5.1)) % 1, cy2 = Math.floor(f.t * (0.35 + 0.3 * R1(i * 2.7)) + R1(i * 5.1)), b = R1(cy2 * 3.3 + i) * TAU, r2 = Math.sqrt(R1(cy2 * 7.7 + i * 1.3)) * rp * 0.9;
+            if (FXq && !FXB.keepH(R1(i * 7.31 + 0.5), 0, Math.pow(T * (0.28 + 0.24 * R1(i)), 2), X + Math.cos(b) * r2, Y + Math.sin(b) * r2 * GY)) continue;   /* (v440 SQ: a sparkle on the lit floor: the cosmetic budget's first tier) */
             Q.star(X + Math.cos(b) * r2, Y + Math.sin(b) * r2 * GY, T * (0.14 + 0.12 * R1(i)), a * Math.sin(Math.PI * ph) * 0.9, i % 3 ? PEARL : BLUSH); }
           for (const w0 of f.waves) { const u = (f.t - w0 - WDN) / 0.75; if (u < 0 || u > 1) continue; const rr = rp * (0.12 + 0.95 * H.ease.out(u)), wa = a * (1 - u * u);
             Q.ripple(X, Y, rr, CANDY, wa * 0.8, w0 * 3.7, GY, 0.14); Q.ring(X, Y, rr, PEARL, wa * 0.75, rp * 0.05, GY); if (u < 0.5) Q.glow(X, Y, rp * 0.4, CANDY, a * 0.4 * (1 - u * 2), GY); }
@@ -180,7 +181,9 @@
         { const FG = gfx(); if (FG) { /* (v402) the GPU picture, laid in two passes: behind the heart (the far floaters, the shaft and
              what runs down it, the halo, the corona and its arcs), then the heart itself, its gleams and the near floaters */
           const GY = H.GY, hx = hw * scale / 1.68;
+          const FXq = typeof FXB !== 'undefined' && FXB.on;   /* (v440 SQ) the cosmetic budget: the far floaters (its second tier) and the corona's twinkles (its first); the heart, the shaft, the halo, the corona and the near floaters always */
           const flG = (Q, front) => { for (const o of fls) { if (o.front !== front) continue; const q = o.q, al = sa * sstep(0, 0.12, o.hh) * (1 - sstep(0.8, 1, o.hh)) * (front ? 1 : 0.6); if (!(al > 0.02)) continue; const sz = q.sz * T * (front ? 1 : 0.85);
+            if (!front && FXq && !FXB.keepH(R1(q.a * 3.7 + q.h0), 1, 9 * sz * sz, o.px, o.py, al)) continue;
             if (q.heart) { const sx = Math.max(0.16, Math.abs(Math.cos(ft * q.sp + q.a))); Q.glow(o.px, o.py, sz * 1.5, ROSE, al * 0.4); Q.quad(41, o.px, o.py, sz * 0.62 * sx, 0, 0, sz * 0.62, '#FFFFFF', al, 0.3, q.a, 1); }
             else { const k = sz * 0.95 * (0.85 + 0.15 * Math.sin(ft * 5 + q.a * 3)); Q.glow(o.px, o.py, k * 0.7, q.col, al * 0.55); Q.star(o.px, o.py, k, al, q.col === GOLD ? GOLD : PEARL); } } };
           let Q = FG.begin(c, [pX, pY, T * 0.9]);
@@ -210,6 +213,7 @@
               if (pu > 0.05 && !out) { const k = hw * (0.55 + 0.5 * pu); Q.beam(HX - k, cyS - hx * 0.22, HX + k, cyS - hx * 0.22, T * 0.07, PEARL, pu * 0.5 * haG); Q.star(HX - hx * 0.42, cyS - hx * 0.4, T * (0.3 + 0.35 * pu), pu * 0.9 * haG, PEARL); } }
             // twinkles in the corona
             for (let i = 0; i < L * 5; i++) { const sp = 0.6 + 0.5 * R1(i * 1.3), ph = (ft * sp + R1(i * 3.7)) % 1, cyc = Math.floor(ft * sp + R1(i * 3.7)), b = R1(cyc * 5.1 + i) * TAU, r2 = hw * cs * (0.55 + 0.6 * R1(cyc * 2.3 + i * 1.7));
+              if (FXq && !FXB.keepH(R1(i * 4.9 + 0.2), 0, Math.pow(T * (0.32 + 0.4 * R1(i * 4.1)), 2), HX + Math.cos(b) * r2, HY + Math.sin(b) * r2)) continue;   /* v440 SQ */
               Q.star(HX + Math.cos(b) * r2, HY + Math.sin(b) * r2, T * (0.16 + 0.2 * R1(i * 4.1)), ca * Math.sin(Math.PI * ph), ev >= 7 && i % 4 === 3 ? GOLD : PEARL); }
             // the forming heart: a ribbon of rose light traces its outline before it fills
             if (form < 1) Q.quad(44, HX, HY, hw / 1.68, 0, 0, hw / 1.68, ROSE, 1 - sstep(0.7, 1, form), 0.035, sstep(0, 0.75, form) * 1.1, 0.25); }

@@ -667,7 +667,7 @@ function arcFrame(ms) {
   arc.game.draw(c);
   if (arc.mode !== 'dungeon' && (live || arc.state === 'end')) drawJuice(c);
   drawFx(c, live || arc.state === 'end' ? dt : 0);
-  c.restore(); if (SPq) { try { const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; if (F && F.settle) F.settle(); } catch (e) {} }   /* (v439 SP: a wind pass still kept open is laid before the frame ends) */
+  c.restore(); if (SPq) { try { const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; if (F && F.frameEnd) F.frameEnd(); else if (F && F.settle) F.settle(); } catch (e) {} }   /* (v439 SP: a wind pass still kept open is laid before the frame ends) (v440 SQ: and the run of merged passes: frameEnd) */
   SPt2 = performance.now();
   if (typeof retro !== 'undefined') retro.post(arcCanvas, c);   /* the old-film lens: a touch of chromatic aberration */
   if (SPq) { const t3 = performance.now(); const iv = PERF.frame(ms, SPt1 - SPt0, SPt2 - SPt1, t3 - SPt2); if (arc.mode === 'dungeon') GQ.tick(iv, t3 - SPt0, live); if (typeof FPSM !== 'undefined') FPSM.tick(ms, 1); }   /* (v439 SP: the drawn arcade frame: its interval and JS time for the readout and Auto; the frame counter counts drawn frames) */
