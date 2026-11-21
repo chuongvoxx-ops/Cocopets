@@ -71,38 +71,50 @@ const ASMODEUS_MOVES = (() => {
      build (the Crucible, the flow), the action, the reaction, the return (a damped settle). Strikes are not eased (tg.strikes) ---- */
   function poseFor(kind, t, o) {
     o = o || {}; const base = o.base || {};
-    const tg = { head: 0, look: 0, tilt: 0, jaw: 0, eye: 1, arm: 0, reach: 0, crouch: 0, rear: 0, lean: 0, spread: 0, crown: 0, cage: 0, raise: 0, conv: 0, cath: 0, sep: 0, seq: 0, threat: 0, tele: 0, lash: 1,
+    const tg = { claw: 0, twist: 0, head: 0, look: 0, tilt: 0, jaw: 0, eye: 1, arm: 0, reach: 0, crouch: 0, rear: 0, lean: 0, spread: 0, crown: 0, cage: 0, raise: 0, conv: 0, cath: 0, sep: 0, seq: 0, threat: 0, tele: 0, lash: 1,
       core: base.core == null ? 0.9 : base.core, spin: 1, open: 0, heartUp: 0, bloom: 0, rupt: 0, crack: 0, glow: 0, live: 1, flow: 0.5, bladeHeat: 0, pitch: 0, dx: 0, stagger: o.stag || 0, strikes: null };
     const aims = o.aims || [];
     if (kind === 'perd') { const w = o.wind || CFG.perd.wind, n = o.n || 3, gap = o.gap || CFG.perd.gap, last = w + (n - 1) * gap, fin = o.k >= 3 ? last + 0.42 : -9, end = (o.k >= 3 ? fin : last) + 0.55;
       const an = sstep(0, 0.25, t) * (1 - sstep(end - 0.35, end, t)), lit = sstep(0.05, w, t), fe = o.k >= 3 ? strikeE(t, fin, 0.5) : 0, rv = settle(t, end - 0.3, 7, 3.5);
-      tg.crouch = 0.35 * an + 0.25 * fe; tg.spread = 0.45 * an; tg.raise = 0.55 * an * (1 - fe); tg.seq = 7 * lit * (1 - sstep(end - 0.4, end, t)); tg.flow = 0.5 + 0.5 * lit; tg.head = 0.18 * an + 0.12 * rv; tg.jaw = 0.15 * an + 0.6 * fe; tg.arm = 0.25 * an; tg.reach = 0.35 * fe;
+      // (v446 AL) the anticipation: she gathers (a deeper dip, the head drawn back, the tails cocked higher, the claws clenched) before the
+      // first sting; each sting jolts the body (a kick back through the spine) and the springs overshoot and settle after the last
+      const gat = bump(t, 0.05, 0.3, w - 0.12, w + 0.05); let kick = 0; for (let i = 0; i < n; i++) kick += strikeE(t, w + i * gap, 0.2) * (i % 2 ? -1 : 1);
+      tg.crouch = 0.35 * an + 0.25 * fe + 0.22 * gat; tg.spread = 0.45 * an; tg.raise = 0.55 * an * (1 - fe) + 0.3 * gat; tg.seq = 7 * lit * (1 - sstep(end - 0.4, end, t)); tg.flow = 0.5 + 0.5 * lit; tg.head = 0.18 * an + 0.12 * rv - 0.16 * gat; tg.jaw = 0.15 * an + 0.6 * fe; tg.arm = 0.25 * an; tg.reach = 0.35 * fe;
+      tg.claw = 0.55 * an + 0.35 * gat; tg.pitch = 0.05 * Math.abs(kick) - 0.03 * gat; tg.twist = 0.06 * kick;
       tg.core += 0.6 * lit + 0.9 * fe; tg.glow = 0.15 * lit + 0.4 * fe; tg.live = 1 - 0.6 * an; tg.bladeHeat = 0.4 * lit + fe; tg.threat = an;
       const S = []; for (let i = 0; i < n; i++) { const am = aims[i % Math.max(1, aims.length)]; if (!am) continue; const e = strikeE(t, w + i * gap); if (e > 0.003) S.push({ i: am.i, A: am.A, e }); }
       if (fe > 0.003) for (let j = 0; j < 7; j++) { const am = aims[j % Math.max(1, aims.length)]; if (am) S.push({ i: j, A: am.Af || am.A, e: fe }); }
       tg.strikes = S.length ? S : null; }
     else if (kind === 'lab') { const c = o.cast || CFG.lab.cast, up = sstep(0, 0.4, t) * (1 - sstep(c, c + 0.5, t)), rch = bump(t, 0.2, 0.45, c - 0.25, c), rv = settle(t, c + 0.3, 6, 3);
-      tg.rear = 0.8 * up; tg.arm = up; tg.crown = 0.55 * up; tg.jaw = 0.35 * up; tg.core += 1.1 * up; tg.flow = 0.5 + 0.5 * up; tg.seq = 7 * sstep(0.05, 0.5, t) * (1 - sstep(c, c + 0.4, t)); tg.live = 1 - 0.5 * up; tg.glow = 0.3 * up; tg.head = -0.25 * up + 0.1 * rv; tg.spread = 0.3 * up;
+      const dip = bump(t, 0, 0.1, 0.16, 0.34);   // (v446 AL: a dip before she rises tall; the claws spread open as the threads run, closing as they are laid)
+      tg.rear = 0.8 * up; tg.crouch = 0.35 * dip; tg.arm = up - 0.3 * dip; tg.crown = 0.55 * up; tg.jaw = 0.35 * up; tg.claw = 0.7 * dip + 0.85 * bump(t, c - 0.2, c - 0.05, c + 0.15, c + 0.5); tg.core += 1.1 * up; tg.flow = 0.5 + 0.5 * up; tg.seq = 7 * sstep(0.05, 0.5, t) * (1 - sstep(c, c + 0.4, t)); tg.live = 1 - 0.5 * up; tg.glow = 0.3 * up; tg.head = -0.25 * up + 0.1 * rv; tg.spread = 0.3 * up;
       const S = []; for (const am of aims) if (rch > 0.003) S.push({ i: am.i, A: am.A, e: rch * 0.85 }); tg.strikes = S.length ? S : null; }
     else if (kind === 'molt') { const C = CFG.molt, still = sstep(0, 0.08, t) * (1 - sstep(C.vanish, C.vanish + 0.1, t)), fold = sstep(C.still, C.fold, t) * (1 - sstep(C.appear, C.appear + 0.3, t)), ck = sstep(C.still + 0.05, C.vanish - 0.05, t) * (1 - sstep(C.vanish, C.appear, t));
       const fl = bump(t, C.vanish - 0.12, C.vanish - 0.03, C.vanish, C.vanish + 0.1), ap = sstep(C.appear, C.appear + 0.15, t), se = strikeE(t, C.strike, 0.45), rv = settle(t, C.strike + 0.35, 7, 3);
-      tg.live = 1 - 0.95 * still; tg.cage = fold; tg.crack = ck; tg.core += 2.2 * fl + 0.6 * ck; tg.glow = 0.6 * fl; tg.crouch = 0.25 * fold + 0.55 * se * ap + 0.15 * (1 - ap) * 0; tg.head = 0.2 * fold + 0.3 * se + 0.1 * rv; tg.jaw = 0.7 * se; tg.reach = 0.5 * se; tg.bladeHeat = se;
+      tg.live = 1 - 0.95 * still; tg.cage = fold; tg.crack = ck; tg.stagger = 0.08 * Math.sin(t * 43) * ck * (1 - fl); tg.claw = 0.9 * fold + 0.6 * se;   // (v446 AL: a shudder through the cracking armour; the claws clenched) tg.core += 2.2 * fl + 0.6 * ck; tg.glow = 0.6 * fl; tg.crouch = 0.25 * fold + 0.55 * se * ap + 0.15 * (1 - ap) * 0; tg.head = 0.2 * fold + 0.3 * se + 0.1 * rv; tg.jaw = 0.7 * se; tg.reach = 0.5 * se; tg.bladeHeat = se;
       const am = aims[0]; tg.strikes = am && se > 0.003 ? [{ i: am.i, A: am.A, e: se }, { i: (am.i + 2) % 7, A: am.A, e: se * 0.8 }] : null; }
     else if (kind === 'rupt') { const C = CFG.rupt, cv = sstep(0.05, C.conv, t) * (1 - sstep(C.shatter, C.shatter + 0.25, t)), gr = sstep(C.conv - 0.1, C.grow, t), sh = bump(t, C.shatter - 0.02, C.shatter + 0.06, C.shatter + 0.3, C.shatter + 0.75), end = C.shatter + 0.9, rv = settle(t, end, 6, 3);
+      const dip = bump(t, 0, 0.08, 0.12, 0.32); tg.claw = 0.5 * dip + 0.9 * cv * (1 - sh) - 0.2 * sh; tg.pitch = 0.06 * dip - 0.05 * sh;   // (v446 AL: a gathering dip; the claws clenched as the crystal grows, flung open at the shatter)
       tg.conv = cv; tg.rupt = gr * (1 - sstep(C.shatter, C.shatter + 0.04, t)) * (1 + 0.1 * Math.sin(t * 30) * gr); tg.rear = 0.6 * cv; tg.arm = 0.8 * cv; tg.core += 1.6 * cv + 1.2 * gr; tg.spin = 1 + 4 * gr; tg.seq = 7 * cv; tg.flow = 0.5 + 0.5 * cv; tg.jaw = 0.5 * gr + 0.4 * sh;
-      tg.crown = 1.0 * sh; tg.crouch = 0.6 * sh; tg.head = -0.3 * cv + 0.35 * sh + 0.1 * rv; tg.glow = 0.4 * gr + 0.3 * sh; tg.live = 1 - 0.7 * cv; tg.bladeHeat = gr + sh; tg.spread = 0.5 * sh + 0.2 * cv; }
+      tg.crown = 1.0 * sh; tg.crouch = 0.6 * sh + 0.28 * dip; tg.head = -0.3 * cv + 0.35 * sh + 0.1 * rv; tg.glow = 0.4 * gr + 0.3 * sh; tg.live = 1 - 0.7 * cv; tg.bladeHeat = gr + sh; tg.spread = 0.5 * sh + 0.2 * cv; }
     else if (kind === 'rise') { const sp = bump(t, 0.05, 0.3, 0.55, 0.95), pu = bump(t, 0.25, 0.35, 0.45, 0.8); tg.crown = sp; tg.rear = 0.4 * sp; tg.core += 1.4 * pu; tg.arm = 0.5 * sp; tg.jaw = 0.4 * pu; tg.glow = 0.4 * pu; tg.seq = 7 * sp; tg.flow = 0.5 + 0.5 * sp; tg.live = 1 - 0.5 * sp; }
     return tg;
   }
-  const PZK = ['head', 'look', 'tilt', 'jaw', 'eye', 'arm', 'reach', 'crouch', 'rear', 'lean', 'spread', 'crown', 'cage', 'raise', 'conv', 'cath', 'sep', 'seq', 'threat', 'tele', 'lash', 'core', 'spin', 'open', 'heartUp', 'bloom', 'rupt', 'crack', 'glow', 'live', 'flow', 'bladeHeat', 'pitch', 'dx', 'stagger'];
+  const PZK = ['claw', 'twist', 'head', 'look', 'tilt', 'jaw', 'eye', 'arm', 'reach', 'crouch', 'rear', 'lean', 'spread', 'crown', 'cage', 'raise', 'conv', 'cath', 'sep', 'seq', 'threat', 'tele', 'lash', 'core', 'spin', 'open', 'heartUp', 'bloom', 'rupt', 'crack', 'glow', 'live', 'flow', 'bladeHeat', 'pitch', 'dx', 'stagger'];
   // each key's stiffness (a critically damped spring's angular frequency): the jaw and the stagger quickest, the body's weight slower, the tails' great changes mechanical
-  const PZW = { jaw: 24, stagger: 26, head: 13, look: 9, tilt: 8, crouch: 14, rear: 9, lean: 10, spread: 7, crown: 7, cage: 9, raise: 7, conv: 6.5, cath: 4.5, sep: 5, seq: 14, threat: 6, tele: 6, core: 10, spin: 6, open: 5, heartUp: 4, bloom: 4, rupt: 9, crack: 9, glow: 10, live: 8, flow: 6, bladeHeat: 8, arm: 8, reach: 12, eye: 10, pitch: 18, dx: 12, lash: 6 };
+  const PZW = { claw: 16, twist: 14, jaw: 24, stagger: 26, head: 13, look: 9, tilt: 8, crouch: 14, rear: 9, lean: 10, spread: 7, crown: 7, cage: 9, raise: 7, conv: 6.5, cath: 4.5, sep: 5, seq: 14, threat: 6, tele: 6, core: 10, spin: 6, open: 5, heartUp: 4, bloom: 4, rupt: 9, crack: 9, glow: 10, live: 8, flow: 6, bladeHeat: 8, arm: 8, reach: 12, eye: 10, pitch: 18, dx: 12, lash: 6 };
+  /* (v446 AL) and its damping, as Samael's v444: the body's parts are springs that overshoot and settle (the head, the jaw, the crouch and
+     rise, the tails' great changes, the claws, the twist), the light, the venom and the machinery stay critically damped (1) */
+  const PZZ = { head: 0.55, look: 0.6, tilt: 0.5, jaw: 0.45, crouch: 0.55, rear: 0.6, lean: 0.6, pitch: 0.5, twist: 0.45, spread: 0.7, crown: 0.62, cage: 0.66, raise: 0.55, conv: 0.7, threat: 0.7, reach: 0.55, arm: 0.6, claw: 0.5, stagger: 0.5, dx: 0.6 };
   const ONE = { live: 1, spin: 1, eye: 1, lash: 1, flow: 0.5 };
   function easePose(store, tg, dt) {
     let pz = store.pz; if (!pz) pz = store.pz = Object.assign({}, tg); let pv = store.pzv; if (!pv) pv = store.pzv = {};
     dt = Math.max(0, Math.min(0.1, dt || 0));
     for (let j = 0; j < PZK.length; j++) { const q = PZK[j], g = tg[q] == null ? (ONE[q] || 0) : tg[q]; if (pz[q] == null) pz[q] = g; const v = pv[q] || 0;
-      const w = PZW[q] || 7.5, e = Math.exp(-w * dt), d = pz[q] - g, jv = (v + w * d) * dt; pz[q] = g + (d + jv) * e; pv[q] = (v - jv * w) * e; }
+      const w = PZW[q] || 7.5, z = PZZ[q] || 1, d = pz[q] - g;
+      if (z < 1) { const a = z * w, b = w * Math.sqrt(1 - z * z), e = Math.exp(-a * dt), co = Math.cos(b * dt), si = Math.sin(b * dt);   // (an underdamped spring, solved exactly for the step)
+        pz[q] = g + e * (d * co + (v + a * d) / b * si); pv[q] = e * (v * co - (a * v + w * w * d) / b * si); continue; }
+      const e = Math.exp(-w * dt), jv = (v + w * d) * dt; pz[q] = g + (d + jv) * e; pv[q] = (v - jv * w) * e; }
     pz.strikes = tg.strikes || null; return pz;
   }
   /* the ultimate's pose at t (pure); o.aims: the seven strikes' targets in tail space ([{ i, A }]), o.ctr: the centre's (the seventh) */
@@ -188,6 +200,7 @@ const ASMODEUS_MOVES = (() => {
       const side = a.side || -1, dp = Math.hypot(me.x - a.x, me.y - a.y);
       if (dp > 14) { const p = X.walkPoint(me.x + side * 2.4, me.y - 1.0, { r: 0.6, mv: 0, x: me.x, y: me.y }); a.x = p.x; a.y = p.y; ab.vx = ab.vy = 0; return; }
       const f = H.near(a.x, a.y, 9)[0]; let tx = me.x + side * 2.6 + (me.vx || 0) * 0.4, ty = me.y - 1.1 + (me.vy || 0) * 0.4;
+      ab.lk = f || null;   // (v446 AL: the head tracks it)
       if (f) { tx = lerp(tx, f.x, 0.45); ty = lerp(ty, f.y, 0.45); ab.yawT = faceTo(a, f.x, f.y); } else ab.yawT = Math.PI / 2 - 0.3 * side;
       if (Math.hypot(tx - a.x, ty - a.y) < 0.8) { ab.vx *= 1 - Math.min(1, dt * 3); ab.vy *= 1 - Math.min(1, dt * 3); moveBy(a, ab.vx * dt, ab.vy * dt); return; }
       stepTo(a, dt, tx, ty, CFG.walk.speed * (dp > 6 ? 1.5 : 1));
@@ -300,7 +313,11 @@ const ASMODEUS_MOVES = (() => {
       if (!inU && ab.yawT != null) { const rate = CFG.walk.turn * dt, dd = angD(ab.yawT, ab.yaw); ab.yaw += Math.max(-rate, Math.min(rate, dd * Math.min(1, dt * 6) * 5)); }
       a.face = Math.cos(ab.yaw) >= 0 ? 1 : -1; a.fk = 1;
       if (!A && !inU) { ab.mv += ((Math.hypot(ab.vx, ab.vy) / 2.4) - ab.mv) * Math.min(1, dt * 4); ab.run += ((ab.mv > 0.85 ? 1 : 0) - ab.run) * Math.min(1, dt * 3); } ab.mv = cl(ab.mv);
-      a.asP = Object.assign(base, pz, { k: kv, t: a.at || 0, yaw: ab.yaw + (inU ? tg.yawOff || 0 : 0), ph: ab.ph, mv: inU ? 0 : ab.mv, run: inU ? 0 : ab.run, mvA: ab.mvA, crouch: (pz.crouch || 0) + 0.45 * ab.run * ab.mv, strikes: pz.strikes,
+      /* (v446 AL) what her head tracks (lookA: the world angle to it): the power's quarry, the web's heart, the monster she guards against;
+         rest: her last 5 s make her restless (life quickens) */
+      let lq = null; if (A) { const q = A.m && !A.m.dead ? A.m : A.tg ? A.tg.find(m => m && !m.dead) : null; lq = q || (A.x != null ? A : null); } else if (ab.lk && !ab.lk.dead) lq = ab.lk;
+      const lookA = !inU && lq ? Math.atan2(lq.y - a.y, lq.x - a.x) : null, rest = a.st === 'fight' && !inU && a.life < 5 ? 1 - Math.max(0, a.life) / 5 : 0;
+      a.asP = Object.assign(base, pz, { lookA, rest, k: kv, t: a.at || 0, yaw: ab.yaw + (inU ? tg.yawOff || 0 : 0), ph: ab.ph, mv: inU ? 0 : ab.mv, run: inU ? 0 : ab.run, mvA: ab.mvA, crouch: (pz.crouch || 0) + 0.45 * ab.run * ab.mv, strikes: pz.strikes,
         coc: tg.coc || 0, unf: tg.unf == null ? 7 : tg.unf, asm: tg.asm == null ? 1 : tg.asm, dis: tg.dis || 0, rupt: pz.rupt, vflow: null });
     }
     /* ---- the fighter's loop (20g's tick, in its 'fight'). Its time counts only once it is combat-ready (the entrance done) ---- */
@@ -525,14 +542,14 @@ const ASMODEUS_MOVES = (() => {
       { const u = cl((t - 0.2) / 1.8); if (u > 0 && u < 1) Q.quad(333, X0, Y0 - Tz * 5, Tz * 5, 0, 0, Tz * 5, COL.crim, bump(u, 0, 0.2, 0.6, 1), u, f.seed, 1.2); }   // 9 the spectral Scorpio sign
       { const u = (t - 0.7) / 0.7; if (u > 0 && u < 1) Q.quad(326, X0, Y0, Rr * 1.15, 0, 0, Rr * 1.15 * FSY, COL.crim, 1, eout(u) * 0.97, f.seed + 9, 1.4 * (1 - u)); }   // 10 the last outward burst
     }
-    function drawFx(c) {
+    function drawFx(c, keep) {   // (v446 AL: keep, as drawFxList's)
       const Tz = T(), on = gpu(); if (!on) { drawMarks2D(c); return; } if (!UL && !FX.length && !list().length && !DEBT.size) return;
       const Q = fgOpen(c), parts = [], shells = [];
       for (const f of FX) airOne(c, Q, f, Tz, parts, shells);
       marks(Q, Tz);
       fgClose(c);
       if (shells.length && glOn()) drawShells(c, shells, Tz);
-      if (parts.length && glOn()) { parts.sort((p, q) => p.z - q.z); c.save(); GLA().drawParts(c, parts, { res: 0.9 }); c.restore(); }
+      if (parts.length && glOn()) { if (keep) { for (const q of parts) keep.push(q); return; } parts.sort((p, q) => p.z - q.z); c.save(); GLA().drawParts(c, parts, { res: 0.9 }); c.restore(); }
     }
     /* the Venom Debt marks: one painter quad a monster (its runes, at seven the seal), over its head */
     function marks(Q, Tz) { for (const m of DEBT) { if (m.dead || !(m.asDebt > 0)) continue; const X0 = sx(m.x), Y0 = sy(m.y) - (m.z || 0) * Tz - (m.r || 0.5) * Tz * 2.2 - Tz * 0.35, R = Tz * (0.42 + 0.03 * m.asDebt) * (1 + 0.3 * (m.asDebtFl || 0)); Q.quad(323, X0, Y0, R, 0, 0, R * 0.8, COL.crim, 1, m.asDebt, (m.x * 3) % 6, 0.95 + 0.6 * (m.asDebtFl || 0)); } }
@@ -540,7 +557,9 @@ const ASMODEUS_MOVES = (() => {
     /* the decoy shells: the model drawn as its own spectral crystal replica (the low profile), cracking as it nears its burst */
     function drawShells(c, shells, Tz) { const G = GLA(); for (const f of shells) { if (f.done) continue; const K = Tz * ANIMA_SIZE[f.k] * BIG / G.HEIGHT[f.k], P = Object.assign({}, f.P, { t: (f.P.t || 0) + f.t * 0.2, crack: 0.3 + 0.7 * cl(f.t / f.blow), live: 0.1 }), fade = sstep(0, 0.12, f.t);
       const X0 = sx(f.x) + (f.t > f.blow - 0.3 ? Math.sin(f.t * 80) * Tz * 0.04 : 0); G.draw(c, { X: X0, Y: sy(f.y), K, P, k: f.k, shell: true, low: true, alpha: fade }); } }
-    function drawFxList(c, L2, ground) { if (!gpu() || !L2 || !L2.length) return; const Tz = T(), Q = fgOpen(c), parts = [], shells = []; for (const f of L2) ground ? groundOne(Q, f, Tz, parts) : airOne(c, Q, f, Tz, parts, shells); fgClose(c); if (shells.length && glOn()) drawShells(c, shells, Tz); if (parts.length && glOn()) { parts.sort((p, q) => p.z - q.z); GLA().drawParts(c, parts); } }
+    /* (v446 AL) keep (an array): the effect meshes handed back instead of drawn, so a caller can lay its own painter passes first in the same
+       run (one GL copy for all of them) and the meshes after */
+    function drawFxList(c, L2, ground, keep) { if (!gpu() || !L2 || !L2.length) return; const Tz = T(), Q = fgOpen(c), parts = [], shells = []; for (const f of L2) ground ? groundOne(Q, f, Tz, parts) : airOne(c, Q, f, Tz, parts, shells); fgClose(c); if (shells.length && glOn()) drawShells(c, shells, Tz); if (parts.length && glOn()) { if (keep) { for (const q of parts) keep.push(q); return; } parts.sort((p, q) => p.z - q.z); GLA().drawParts(c, parts); } }
     /* the ultimate's detonation at a scene o (pure): its ground and air as if the Testament burst at o.x, o.y o.t s ago */
     function drawSin(c, o) { if (!gpu()) return; const f = { kind: 'testament', x: o.x, y: o.y, t: o.t || 0, life: 3, k: o.k || 3, seed: o.seed || 0 }, Tz = T(), Q = fgOpen(c), parts = []; testamentAir(Q, f, Tz, parts); fgClose(c); if (parts.length && glOn()) GLA().drawParts(c, parts); }
     /* the light over the body (pure: from its screen points r, its pose P): the Crucible's light, the eyes, the blades' heat, the emitter */

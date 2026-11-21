@@ -213,11 +213,13 @@ const ASMODEUS_GL = (() => {
       plate(B, { c: [[0.25, 0, 0.3], [0.38, 0, LA1 * 0.35], [0.33, 0, LA1 * 0.6], [0.22, 0, LA1 * 0.8]], nrm: [1, 0, 0], w: () => 0.2, cup: -0.5, th: 0.07, nu: Q(8), nv: 2, mat: MT.OB + 0.3, trim0: 0.7, endTrim: true }); });
     M.farm = mk(B => { B.sph([0, 0, 0], 0.22, MT.GD, 10); latheZ(B, [[0.1, 0.19, MT.OB], [LA2 * 0.25, 0.2, MT.OB], [LA2 * 0.3, 0.25, MT.GD, 1], [LA2 * 0.75, 0.22, MT.GD + 0.2], [LA2 * 0.8, 0.24, MT.GD, 1], [LA2 * 0.86, 0.17, MT.OB], [LA2, 0.15, MT.OB]], MT.OB, Q(14));
       B.crystal([0.2, 0, LA2 * 0.52], [0.36, 0, LA2 * 0.52], 0.1, MT.RB, { n: 6, belly: 0.45, base: 1 }); B.crystal([-0.18, 0, LA2 * 0.4], [-0.62, 0, LA2 * 0.12], 0.07, MT.GD, { n: 4, thin: 0.4, up: [0, 1, 0] }); });
-    M.hand = mk(B => {   // the palm along +z from the wrist, its back toward +x; four claws and a thumb, long and curved
+    // (v446 AL) the hand in parts so its claws can flex: the palm along +z from the wrist, its back toward +x, and the thumb (M.palm); a
+    // finger from its knuckle on the palm (M.finger, along +z, curving toward -x: the palm's side), posed four times, each curling
+    M.palm = mk(B => {
       B.box([0, 0, 0.28], [0.1, 0.18, 0.26], 0.06, MT.OB); B.box([0.07, 0, 0.3], [0.04, 0.16, 0.2], 0.03, MT.GD);
-      for (let j = 0; j < 4; j++) { const y = (j - 1.5) * 0.11, b0 = [0, y, 0.52], b1 = [-0.12, y * 2.2, 1.0 - Math.abs(j - 1.5) * 0.05], b2 = [-0.55, y * 3.6, 1.85 - Math.abs(j - 1.5) * 0.12];
-        B.tube(b0, b1, 0.045, 0.04, MT.OB, { seg: 6 }); B.sph(b1, 0.05, MT.GD, 6); B.crystal(b1, b2, 0.05, MT.GD, { n: 4, thin: 0.6, bend: 0.12, up: [0, 1, 0] }); }
+      for (let j = 0; j < 4; j++) B.sph([0, (j - 1.5) * 0.11, 0.52], 0.05, MT.GD, 6);
       B.tube([0, 0.16, 0.2], [-0.15, 0.3, 0.45], 0.045, 0.04, MT.OB, { seg: 6 }); B.crystal([-0.15, 0.3, 0.45], [-0.42, 0.38, 0.7], 0.04, MT.GD, { n: 4, thin: 0.6 }); });
+    M.finger = mk(B => { const b1 = [-0.12, 0, 0.48], b2 = [-0.55, 0, 1.33]; B.tube([0, 0, 0], b1, 0.045, 0.04, MT.OB, { seg: 6 }); B.sph(b1, 0.05, MT.GD, 6); B.crystal(b1, b2, 0.05, MT.GD, { n: 4, thin: 0.6, bend: 0.12, up: [0, 1, 0] }); });
     yield;
     /* ---- the neck (along +z, unit length), the head: the ivory mask (upper), the jaw plates (+y half), the hood, the crown, the emitter ---- */
     M.neck = mk(B => { latheZ(B, [[0, 0.3, MT.OB], [0.2, 0.32, MT.GD, 1], [0.28, 0.28, MT.OB], [0.5, 0.26, MT.TI + 0.3], [0.62, 0.28, MT.GD, 1], [0.7, 0.25, MT.OB], [1.0, 0.24, MT.OB]], MT.OB, Q(14)); for (const s of [1, -1]) { const pts = []; for (let i = 0; i <= 8; i++) pts.push([0.24, s * 0.12, i / 8]); strip(B, pts, () => [1, 0, 0], 0.05, MT.CH, 0.01); } });
@@ -362,12 +364,41 @@ const ASMODEUS_GL = (() => {
   }
   const hold = (t, per, sd, ease) => { const u = t / per + sd, n = Math.floor(u), f = u - n, a = hash(n * 1.37 + sd * 7.1) * 2 - 1, b = hash((n + 1) * 1.37 + sd * 7.1) * 2 - 1; return lerp(a, b, sstep(0, ease || 0.4, f)); };
   /* its life over any pose: the torso's slow rise and fall, the head's small precise turns (held, then a quick re-aim: a predator's), the
-     tails' independent targeting (each holds its own aim a while), the Crucible's turning and pulse, the ornaments, the arms' slow shift */
+     tails' independent targeting (each holds its own aim a while), the Crucible's turning and pulse, the ornaments, the arms' slow shift.
+     (v446 AL) livelier: breathing that swells the chest and lifts the shoulders; a heart that beats (lub-dub) and drives the venom up the
+     channels; the jaw plates twitching; the head's re-aims and sharp cocks; five flourishes taking turns every FLP s (a beckoning hand with
+     its claws curling, the hands weaving, the head cocked hard with the jaw chattering, a stinger tasting the air, the claws flexing as it
+     rises a little and settles); each stinger alive on its own (a second serpentine wave, a curl that tightens and opens, its own snaps
+     forward and recoils, a slow taste of the air); P.rest (0..1, its last seconds) quickens all of it and makes it restless */
+  const FLP = 3.3;
+  const EVT = (t, per, sd) => { const u = t / per + sd, n = Math.floor(u); return [n, (u - n) * per]; };
   function life(P) {
-    const t = (P && P.t) || 0, lv = P && P.live != null ? cl(P.live) : 1, s1 = Math.sin;
-    const tails = []; for (let j = 0; j < 7; j++) tails.push({ yaw: 0.22 * hold(t, 2.6 + j * 0.37, j * 0.71, 0.3) * lv, pitch: 0.12 * hold(t, 3.1 + j * 0.29, j * 1.37 + 3, 0.35) * lv, curl: 0.06 * s1(t * (0.5 + j * 0.07) + j * 2.1) * lv });
-    return { breath: s1(t * 0.9) * lv, bob: (0.07 * s1(t * 0.9) + 0.02 * s1(t * 2.3)) * lv, head: (0.04 * s1(t * 0.37) + 0.08 * hold(t, 2.9, 0.4, 0.18)) * lv, look: (0.2 * hold(t, 2.3, 1.7, 0.16) + 0.04 * s1(t * 0.6)) * lv,
-      tilt: 0.06 * hold(t, 3.7, 2.9, 0.3) * lv, arm: 0.06 * s1(t * 0.55) * lv, core: (0.12 * s1(t * 2.1) + 0.06 * s1(t * 4.9)) * lv, tails, sway: lv, shift: 0.35 * hold(t, 5.3, 0.31, 0.45) * lv };
+    const t = (P && P.t) || 0, lv = P && P.live != null ? cl(P.live) : 1, s1 = Math.sin, rs = cl((P && P.rest) || 0), tq = t * (1 + 0.55 * rs);
+    const fp = FLP * (1 - 0.4 * rs), fn = Math.floor((t + 1.3) / fp), ft = t + 1.3 - fn * fp, typ = ((fn % 5) + 5) % 5, sd = hash(fn * 2.71 + 0.3) > 0.5 ? 1 : -1;
+    const pre = ft < 0.3 ? s1(Math.PI * ft / 0.3) : 0, main = sstep(0.22, 0.6, ft) * (1 - sstep(1.7, 2.4, ft)), set = ft > 2.3 && ft < 3.3 ? Math.exp(-(ft - 2.3) * 3.2) * s1((ft - 2.3) * 9) : 0;
+    // the heart: a double beat (lub-dub), quicker when restless; the venom's pulse follows it up the channels
+    const hp = (tq * 1.05) % 1, heart = Math.exp(-hp * 16) + 0.6 * Math.exp(-Math.max(0, hp - 0.2) * 18) * (hp > 0.2 ? 1 : 0);
+    // the jaw plates' twitch (every ~1.9 s, most of them), a chatter in the head-cock flourish
+    const [jn, jf] = EVT(tq, 1.9, 0.37), jt = hash(jn * 3.13 + 0.7) > 0.4 ? Math.exp(-jf * 10) * Math.abs(s1(jf * 38)) * 0.2 : 0;
+    const chat = typ === 2 ? main * (0.5 + 0.5 * s1(ft * 31)) * 0.22 : 0;
+    // the head's cock: a sharp tilt that overshoots and settles (the flourish), held tilts between
+    const cock = typ === 2 ? sd * (0.36 * sstep(0.22, 0.3, ft) * (1 - sstep(1.6, 1.75, ft)) + 0.08 * (ft > 0.3 && ft < 1.3 ? Math.exp(-(ft - 0.3) * 6) * s1((ft - 0.3) * 22) : 0)) : 0;
+    const brth = s1(tq * 0.9) * (1 - 0.3 * rs) + 0.3 * rs * s1(tq * 2.3);
+    // the hands: s = +1 its left (+y), -1 its right; the beckon (one hand, palm up, claws curling twice), the weave (both, circling), the flex
+    const bk = typ === 0 ? main : 0, wv = typ === 1 ? main : 0, fx = typ === 4 ? main : 0;
+    const curlB = bk * (0.45 + 0.55 * Math.max(0, s1(ft * 7.2 - 1.2))), flex = fx * (0.5 + 0.5 * s1(ft * 5.5));
+    const clawI = 0.12 + 0.08 * s1(tq * 0.7 + 1.1);
+    const arm1 = (sd > 0 ? 0.55 * bk - 0.1 * pre * (typ === 0 ? 1 : 0) : 0) + 0.2 * wv + 0.12 * fx, arm2 = (sd < 0 ? 0.55 * bk - 0.1 * pre * (typ === 0 ? 1 : 0) : 0) + 0.2 * wv + 0.12 * fx;
+    const tails = []; for (let j = 0; j < 7; j++) {
+      const [sn, sf] = EVT(tq, 4.1 + j * 0.53, j * 0.29 + 0.11), snOn = hash(sn * 1.91 + j * 7.3) > 0.62 - 0.35 * rs, snap = snOn && sf < 1.4 ? (sstep(0, 0.07, sf) - 0.25 * sstep(0.07, 0.25, sf)) * Math.exp(-Math.max(0, sf - 0.1) * 3.5) : 0;
+      const tst = typ === 3 && j === ((fn * 3 + 1) % 7 + 7) % 7 ? main : 0;
+      tails.push({ yaw: 0.22 * hold(t, 2.6 + j * 0.37, j * 0.71, 0.3) * lv, pitch: 0.12 * hold(t, 3.1 + j * 0.29, j * 1.37 + 3, 0.35) * lv, curl: (0.06 * s1(t * (0.5 + j * 0.07) + j * 2.1) + 0.07 * s1(t * (0.23 + j * 0.03) + j)) * lv,
+        snap: snap * lv * (1 + 0.5 * rs), taste: tst * lv, tf: s1(ft * 15 + j) * tst, wv: (1 + 0.8 * rs) * lv }); }
+    return { breath: brth * lv, chest: (0.5 + 0.5 * brth) * lv, bob: (0.07 * brth + 0.02 * s1(tq * 2.3)) * lv, head: (0.04 * s1(t * 0.37) + 0.08 * hold(t, 2.9, 0.4, 0.18) - 0.06 * fx + 0.05 * bk) * lv,
+      look: (0.2 * hold(tq, 2.3, 1.7, 0.1) + 0.04 * s1(t * 0.6) + 0.1 * sd * bk) * lv, tilt: (0.08 * hold(tq, 3.7, 2.9, 0.12) + cock) * lv, arm: 0.06 * s1(t * 0.55) * lv,
+      arm1: arm1 * lv, arm2: arm2 * lv, reach1: (sd > 0 ? 0.35 * bk : 0) * lv, reach2: (sd < 0 ? 0.35 * bk : 0) * lv, claw1: (clawI + (sd > 0 ? curlB : 0) + flex) * lv, claw2: (clawI + (sd < 0 ? curlB : 0) + fx * (0.5 + 0.5 * s1(ft * 5.5 - 1.3))) * lv,
+      weave: wv * lv, wph: ft * 2.7, rise: (0.25 * fx - 0.1 * pre * (typ === 4 ? 1 : 0) + 0.08 * set * (typ === 4 ? 1 : 0)) * lv,
+      core: (0.12 * s1(t * 2.1) + 0.06 * s1(t * 4.9) + 0.22 * heart) * lv, heart: heart * lv, jaw: (jt + chat) * lv * (1 + rs), tails, sway: lv, rest: rs, shift: 0.35 * hold(t, 5.3, 0.31, 0.45) * lv, halo: t * (0.16 + 0.2 * rs) };
   }
   /* ---- the gait: two tripods, each leg a little late on the one before; the run tightens the swing ---- */
   const legOff = (L, run) => lerp(L.off, L.roff, cl(run || 0)), swingOf = run => lerp(SW0, SW1, cl(run || 0));
@@ -406,15 +437,21 @@ const ASMODEUS_GL = (() => {
         else if (!inW) land(hm[0] + f.dir * dbx * Dd / 2, hm[1] + f.dir * dby * Dd / 2, false);
         else { const pr = cl(((f.dir > 0 ? w : 1 - w) - f.w0) / Math.max(0.05, 1 - f.w0)); f.tx = hm[0] + f.dir * dbx * Dd / 2; f.ty = hm[1] + f.dir * dby * Dd / 2; f.bx = lerp(f.s0x, f.tx, swF(pr)); f.by = lerp(f.s0y, f.ty, swF(pr)); f.lift = swL(pr) * Hs; }
       }
-      if (f.sw === 2) { f.p = Math.min(1, f.p + h / (f.dur || ISD)); const pr = f.p, Hi = 0.55 + 0.2 * L.f; f.bx = lerp(f.s0x, hm[0], swF(pr)); f.by = lerp(f.s0y, hm[1], swF(pr)); f.lift = Math.max(swL(pr) * Hi, f.l0 * (1 - sstep(0, 0.6, pr)));
-        if (pr >= 1) land(hm[0], hm[1], true); }
+      if (f.sw === 2) { f.p = Math.min(1, f.p + h / (f.dur || ISD)); const pr = f.p, Hi = (0.55 + 0.2 * L.f) * (f.fg ? 0.6 : 1), hx = hm[0] + (f.fx || 0), hy = hm[1] + (f.fy || 0); f.bx = lerp(f.s0x, hx, swF(pr)); f.by = lerp(f.s0y, hy, swF(pr)); f.lift = Math.max(swL(pr) * Hi, f.l0 * (1 - sstep(0, 0.6, pr)));   // (v446 AL: a fidget's small step lands a little off home: f.fx, f.fy)
+        if (pr >= 1) { land(hx, hy, true); f.fg = 0; } }
     }
     if (!walking) {   // settle steps: the foot farthest from home, one at a time (or two of one tripod together)
       let best = -1, be = 0; for (let i = 0; i < 6; i++) { const f = M.F[i]; if (f.sw !== 0) continue; const hm = homeOf(i, P), e = Math.hypot(f.bx - hm[0], f.by - hm[1]);
         if (e > 5) { f.gx = c * hm[0] - s * hm[1]; f.gy = s * hm[0] + c * hm[1]; f.bx = hm[0]; f.by = hm[1]; continue; }
         if (fe && fe[i]) continue; if (nIdle >= 2 || (nIdle === 1 && !(idleT === TRIPOD[i] && idleP > 0.3))) continue;
         if (e > 0.3 + (nIdle ? 0.15 : 0) && e > be) { be = e; best = i; } }
-      if (best >= 0) { const f = M.F[best]; f.sw = 2; f.p = 0; f.dur = ISD * (be > 1.2 ? 1.1 : 0.9); f.l0 = 0; f.s0x = f.bx; f.s0y = f.by; }
+      if (best >= 0) { const f = M.F[best]; f.sw = 2; f.p = 0; f.dur = ISD * (be > 1.2 ? 1.1 : 0.9); f.l0 = 0; f.s0x = f.bx; f.s0y = f.by; f.fx = f.fy = 0; f.fg = 0; }
+      /* (v446 AL) at rest it is never quite still: every 1.3-3.5 s (quicker when restless, P.rest) one leg lifts and sets down a little off
+         its place (within 0.2 of home: never far enough to call a settle step), a tiny settling step; the body answers each landing */
+      M.fgT = (M.fgT == null ? 1 + hash(M.n * 0.77) * 2 : M.fgT) - h * (1 + 1.2 * cl(P.rest || 0));
+      if (best < 0 && nIdle === 0 && M.fgT <= 0 && mv < 0.05) { const q = Math.floor(hash(M.n * 1.37 + 0.4) * 6) % 6, f = M.F[q];
+        if (f.sw === 0 && !(fe && fe[q])) { f.sw = 2; f.p = 0; f.dur = ISD * 0.85; f.l0 = 0; f.s0x = f.bx; f.s0y = f.by; f.fx = (hash(M.n * 2.1 + q) - 0.5) * 0.4; f.fy = (hash(M.n * 3.3 + q) - 0.5) * 0.4; f.fg = 1; }
+        M.fgT = 1.3 + hash(M.n * 5.1 + 0.2) * 2.2; }
     }
     const spr = (x, v, k, z, F) => v + (-k * x - 2 * z * Math.sqrt(k) * v + F) * h;
     M.vz = spr(M.sz, M.vz, 90, 0.5, 0); M.sz += M.vz * h;
@@ -422,7 +459,10 @@ const ASMODEUS_GL = (() => {
     M.vy = spr(M.sy, M.vy, 18, 0.38, mv * M.yr * 0.9); M.sy += M.vy * h;
     M.sz = Math.max(-0.4, Math.min(0.25, M.sz)); M.sx = Math.max(-0.8, Math.min(0.8, M.sx)); M.sy = Math.max(-0.7, Math.min(0.7, M.sy));
     // the drapes' and ornaments' own swing (damped pendulums driven by the body's sway)
-    for (let j = 0; j < 8; j++) { const k2 = 10 + j * 1.3; M.dr[j * 2 + 1] = spr(M.dr[j * 2], M.dr[j * 2 + 1], k2, 0.22, M.acc * 0.8 * (j % 2 ? 1 : -0.6) + M.yr * mv * 0.6 * (j % 3 - 1)); M.dr[j * 2] += M.dr[j * 2 + 1] * h; M.dr[j * 2] = Math.max(-0.6, Math.min(0.6, M.dr[j * 2])); }
+    // (v446 AL: and by each landing's bounce, the stride's sway while it walks; M.hdv: the head's turn rate from the last frame, for the ruby drops)
+    const gsw = walking ? Math.sin(ph) * mv * 0.5 : 0, hdv = M.hdv || 0;
+    for (let j = 0; j < 8; j++) { const k2 = 10 + j * 1.3; M.dr[j * 2 + 1] = spr(M.dr[j * 2], M.dr[j * 2 + 1], k2, 0.22, M.acc * 0.8 * (j % 2 ? 1 : -0.6) + M.yr * mv * 0.6 * (j % 3 - 1) + M.vz * (0.9 + 0.2 * (j % 3)) + gsw * (j % 2 ? 1 : -1) * 1.5); M.dr[j * 2] += M.dr[j * 2 + 1] * h; M.dr[j * 2] = Math.max(-0.6, Math.min(0.6, M.dr[j * 2])); }
+    { const O = M.or || (M.or = new Float32Array(12)); for (let j = 0; j < 6; j++) { O[j * 2 + 1] = spr(O[j * 2], O[j * 2 + 1], 16 + j * 2.1, 0.16, -hdv * (5 + j) + M.vz * 1.2 + M.yr * 0.8); O[j * 2] += O[j * 2 + 1] * h; O[j * 2] = Math.max(-0.8, Math.min(0.8, O[j * 2])); } }   // (v446 AL: the ruby drops on their chains, swung by the head's turns and the body's bounce)
     return M;
   }
   /* two-bone IK with a pole: hip H, target A, lengths; the joint bends toward the pole */
@@ -432,22 +472,34 @@ const ASMODEUS_GL = (() => {
   const segF = (from, to, xh) => frameZ(sub(to, from), xh);
 
   /* ================= the tails: each solved as a chain (model space, the body's frame) ================= */
-  const TCH = []; for (let j = 0; j < 7; j++) TCH.push({ p: [], d: [], x: [], L: [], r: [], n: 0, tip: null, tipD: null, tipX: null });
+  /* (v446 AL) solved with no garbage: each segment's frame, direction, side and place written into arrays the chain keeps (the same sums
+     in the same order as v445); and alive on their own: life's second serpentine wave (lt.wv), the snaps forward and back (lt.snap), the
+     taste of the air (lt.taste: the stinger lifted, its end flicking, lt.tf) */
+  const TCH = []; for (let j = 0; j < 7; j++) TCH.push({ p: [], d: [], x: [], L: [], r: [], n: 0, tip: null, tipD: null, tipX: null, rt: null, tp: [0, 0, 0] });
+  const RA = new Array(9), RB = new Array(9), RYs = new Array(9), RXs = new Array(9), RM = new Array(9);
+  const mmTo = (R, A, B) => { for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) R[r * 3 + c] = A[r * 3] * B[c] + A[r * 3 + 1] * B[3 + c] + A[r * 3 + 2] * B[6 + c]; return R; };
+  const v3 = (C, k, s) => C[k][s] || (C[k][s] = [0, 0, 0]);
   function tailChain(j, P, k, LF, low, tilt, flowK) {
     const i = j - 3, ai = Math.abs(i), sg = Math.sign(i), C = TCH[j], n = Math.max(6, NSEG[k] - (low ? 3 : 0)), t = P.t || 0, lt = LF.tails[j];
     const big = i === 0 ? 1.12 : 1, sl = SL0[k] * (i === 0 ? 1.05 : 1) * (NSEG[k] / n), r0 = SR0[k] * big;
     const crw = cl(P.crown || 0), cage = cl(P.cage || 0), rai = cl(P.raise || 0), conv = cl(P.conv || 0), cath = cl(P.cath || 0);
     const un = cl((P.unf == null ? 7 : P.unf) - UNF_ORDER[j]);
-    const root = [ROOT[0] - 0.06 * ai, i * 0.26, ROOT[2] - 0.12 * ai + 0.15];
+    const root = C.rt || (C.rt = [ROOT[0] - 0.06 * ai, i * 0.26, ROOT[2] - 0.12 * ai + 0.15]);
+    const snp = lt.snap || 0, tst = lt.taste || 0, wv2 = lt.wv || 0, calm = 1 - Math.max(crw, cage, conv, cath, rai) * 0.8;   // (v446 AL: life's own movements, quieted while a power holds the tails)
     const fan = FAN[j] * (1 + 0.16 * crw - 0.35 * cage + 0.05 * (P.spread || 0)) * (0.35 + 0.65 * sstep(0, 0.6, un)) + (lt.yaw * 0.5 + (P.threat || 0) * 0.3 * Math.sin((P.aimYaw || 0)) * (ai < 3 ? 1 : 0.5)) * 0.4;
-    const back = 0.22 - 0.2 * rai - 0.1 * crw + lt.pitch * 0.4 + 0.3 * cage, R0 = mm(rz((P.threat || 0) * (P.aimYaw || 0) * 0.35 * (1 - ai / 5)), mm(rx(-fan), ry(-back)));
-    const curlE = (0.36 - 0.16 * crw - 0.15 * rai + lt.curl) * (0.75 + 0.25 * (1 - ai / 4)), droop = 0.07 * ai / 3 * (1 - 0.6 * crw), sway = 0.07 * LF.sway * (P.lash == null ? 1 : P.lash), tw = t * (0.85 + 0.06 * j);
-    let R = R0; C.n = n; let p = root, tl = 0;
+    const back = 0.22 - 0.2 * rai - 0.1 * crw + lt.pitch * 0.4 + 0.3 * cage - (0.32 * snp + 0.22 * tst) * calm, R0 = mm(rz((P.threat || 0) * (P.aimYaw || 0) * 0.35 * (1 - ai / 5)), mm(rx(-fan), ry(-back)));
+    const curlE = (0.36 - 0.16 * crw - 0.15 * rai + lt.curl - 0.12 * tst * calm) * (0.75 + 0.25 * (1 - ai / 4)), droop = 0.07 * ai / 3 * (1 - 0.6 * crw), sway = 0.07 * LF.sway * (P.lash == null ? 1 : P.lash), tw = t * (0.85 + 0.06 * j);
+    const sw2 = 0.035 * wv2 * calm, tw2 = t * (1.7 + 0.13 * j) + j * 2.3, tfl = (lt.tf || 0) * calm;
+    let R = R0, Rn = RA; C.n = n; let tl = 0;
     const coil = 1 - un;   // (the entrance: coiled tight, unfolding)
     const cF = ai ? 0.62 : 0.95, cO = ai ? 0.7 : 0;
-    for (let s = 0; s < n; s++) { const u = s / (n - 1), ce = curlE * sstep(0.4, 1, u) * 1.3, bnd = -0.03 + ce * cF + coil * 0.42, dr = -sg * (droop * sstep(0.2, 1, u) + ce * cO + 0.035 * Math.sin(Math.PI * Math.min(1, u * 1.4)) * (1 - 0.6 * crw)) + sway * Math.sin(tw - s * 0.5 + j * 1.7) * (0.3 + u);
-      R = mm(R, mm(ry(bnd + 0.03 * Math.sin(tw * 0.8 - s * 0.4 + j) * LF.sway), rx(dr)));
-      C.d[s] = [R[2], R[5], R[8]]; C.x[s] = [R[0], R[3], R[6]]; C.L[s] = sl * (1 - 0.02 * s) * (0.5 + 0.5 * un); C.r[s] = r0 * (1 - 0.028 * s) * (0.7 + 0.3 * un); tl += C.L[s]; }
+    for (let s = 0; s < n; s++) { const u = s / (n - 1), ce = curlE * sstep(0.4, 1, u) * 1.3, bnd = -0.03 + ce * cF + coil * 0.42 + (sw2 ? sw2 * Math.sin(tw2 - s * 0.8) * u : 0) + (tfl ? 0.16 * tfl * sstep(0.55, 1, u) : 0), dr = -sg * (droop * sstep(0.2, 1, u) + ce * cO + 0.035 * Math.sin(Math.PI * Math.min(1, u * 1.4)) * (1 - 0.6 * crw)) + sway * Math.sin(tw - s * 0.5 + j * 1.7) * (0.3 + u);
+      const a = bnd + 0.03 * Math.sin(tw * 0.8 - s * 0.4 + j) * LF.sway, ca = Math.cos(a), sa = Math.sin(a), cb = Math.cos(dr), sb = Math.sin(dr);
+      RYs[0] = ca; RYs[1] = 0; RYs[2] = sa; RYs[3] = 0; RYs[4] = 1; RYs[5] = 0; RYs[6] = -sa; RYs[7] = 0; RYs[8] = ca;
+      RXs[0] = 1; RXs[1] = 0; RXs[2] = 0; RXs[3] = 0; RXs[4] = cb; RXs[5] = -sb; RXs[6] = 0; RXs[7] = sb; RXs[8] = cb;
+      mmTo(RM, RYs, RXs); mmTo(Rn, R, RM); R = Rn; Rn = R === RA ? RB : RA;
+      const d = v3(C, 'd', s), x = v3(C, 'x', s); d[0] = R[2]; d[1] = R[5]; d[2] = R[8]; x[0] = R[0]; x[1] = R[3]; x[2] = R[6];
+      C.L[s] = sl * (1 - 0.02 * s) * (0.5 + 0.5 * un); C.r[s] = r0 * (1 - 0.028 * s) * (0.7 + 0.3 * un); tl += C.L[s]; }
     // the targets the rest curve is blended toward, in turn (each a curve sampled at the segments' places): the cathedral arch, the converged
     // ring over the head, the cage round the torso, a strike's arc
     const out = norm([0, sg * 1, 0.15]), blendCurve = (A0, Cc, B0, wgt) => { if (wgt < 0.003) return 0; let L2 = 0, prev = A0; for (let s = 0; s < n; s++) { const u1 = (s + 1) / n, p1 = qb(A0, Cc, B0, u1), d = sub(p1, prev); L2 += len(d); const dd = norm(d); C.d[s] = norm(lerp3(C.d[s], dd, wgt)); prev = p1; } return L2; };
@@ -458,23 +510,31 @@ const ASMODEUS_GL = (() => {
     let se = null; if (P.strikes) for (const S of P.strikes) if (S && S.i === j && S.e > 0.003) se = S;
     if (se) { const A = se.A, d0 = len(sub(A, root)), cc = add(lerp3(root, A, 0.3), [-0.6, 0, 3 + 0.25 * d0]), L2 = blendCurve(root, cc, A, cl(se.e)); tele = lerp(tele, Math.max(0.8, Math.min(1.6, L2 / tl)), cl(se.e)); }
     // telescoping and parting, then the positions; the side vectors kept square to the run (parallel transport)
-    const sep = cl(P.sep || 0); let xv = C.x[0];
-    for (let s = 0; s < n; s++) { const d = C.d[s]; xv = norm(sub(xv, mul(d, dot(xv, d)))); C.x[s] = xv; C.p[s] = p; p = add(p, mul(d, C.L[s] * tele * (1 + sep * 0.55))); C.L[s] *= tele; }
-    C.tip = p; C.tipD = C.d[n - 1]; C.tipX = C.x[n - 1]; C.root = root; C.tele = tele;
+    const sep = cl(P.sep || 0); let x0 = C.x[0][0], x1 = C.x[0][1], x2 = C.x[0][2], p0 = root[0], p1 = root[1], p2 = root[2];
+    for (let s = 0; s < n; s++) { const d = C.d[s], dt = x0 * d[0] + x1 * d[1] + x2 * d[2], a0 = x0 - d[0] * dt, a1 = x1 - d[1] * dt, a2 = x2 - d[2] * dt, l = Math.hypot(a0, a1, a2) || 1; x0 = a0 / l; x1 = a1 / l; x2 = a2 / l;
+      const x = v3(C, 'x', s); x[0] = x0; x[1] = x1; x[2] = x2; const p = v3(C, 'p', s); p[0] = p0; p[1] = p1; p[2] = p2; const kk = C.L[s] * tele * (1 + sep * 0.55); p0 = p0 + d[0] * kk; p1 = p1 + d[1] * kk; p2 = p2 + d[2] * kk; C.L[s] *= tele; }
+    C.tp[0] = p0; C.tp[1] = p1; C.tp[2] = p2; C.tip = C.tp; C.tipD = C.d[n - 1]; C.tipX = C.x[n - 1]; C.root = root; C.tele = tele;
     return C;
   }
   /* (the chain filtered on the instance: each segment's direction chases its target in world space - turned by the yaw - the tip slower, a
-     strike faster; the positions rebuilt from the filtered directions so the chain stays whole) */
+     strike faster; the positions rebuilt from the filtered directions so the chain stays whole)
+     (v446 AL) the outer half is a spring that overshoots and swings back (the follow-through after a turn or a lunge: the tip latest and
+     loosest), a strike's stinger chases as before; no garbage */
   function tailFilter(MS, j, C, P, yaw) {
-    if (!MS || !(MS.h > 0)) return; let T = MS.tl; if (!T) T = MS.tl = [];
-    const n = C.n, c = Math.cos(yaw), s = Math.sin(yaw), fast = P.strikes && P.strikes.some(S => S && S.i === j && S.e > 0.05) ? 1 : 0;
-    let A = T[j]; if (!A || A.length !== n * 3) { A = T[j] = new Float32Array(n * 3); for (let q = 0; q < n; q++) { const d = C.d[q]; A[q * 3] = c * d[0] - s * d[1]; A[q * 3 + 1] = s * d[0] + c * d[1]; A[q * 3 + 2] = d[2]; } return; }
-    let p = C.root;
-    for (let q = 0; q < n; q++) { const u = q / (n - 1), d = C.d[q], wx = c * d[0] - s * d[1], wy = s * d[0] + c * d[1], wz = d[2], k = 1 - Math.exp(-MS.h * (fast ? 34 - 10 * u : 15 - 8.5 * u + 6 * (P.cath || 0)));
-      let ax = A[q * 3] + (wx - A[q * 3]) * k, ay = A[q * 3 + 1] + (wy - A[q * 3 + 1]) * k, az = A[q * 3 + 2] + (wz - A[q * 3 + 2]) * k; const l = Math.hypot(ax, ay, az) || 1; ax /= l; ay /= l; az /= l; A[q * 3] = ax; A[q * 3 + 1] = ay; A[q * 3 + 2] = az;
-      const nd = [c * ax + s * ay, -s * ax + c * ay, az]; C.d[q] = nd; C.p[q] = p; p = add(p, mul(nd, C.L[q] * (1 + cl(P.sep || 0) * 0.55))); }
-    let xv = C.x[0]; for (let q = 0; q < n; q++) { const d = C.d[q]; xv = norm(sub(xv, mul(d, dot(xv, d)))); C.x[q] = xv; }
-    C.tip = p; C.tipD = C.d[n - 1]; C.tipX = C.x[n - 1];
+    if (!MS || !(MS.h > 0)) return; let T = MS.tl; if (!T) T = MS.tl = []; const TV = MS.tv || (MS.tv = []);
+    const n = C.n, c = Math.cos(yaw), s = Math.sin(yaw), fast = P.strikes && P.strikes.some(S => S && S.i === j && S.e > 0.05) ? 1 : 0, h = MS.h;
+    let A = T[j]; if (!A || A.length !== n * 3) { A = T[j] = new Float32Array(n * 3); TV[j] = new Float32Array(n * 3); for (let q = 0; q < n; q++) { const d = C.d[q]; A[q * 3] = c * d[0] - s * d[1]; A[q * 3 + 1] = s * d[0] + c * d[1]; A[q * 3 + 2] = d[2]; } return; }
+    const V = TV[j], spK = 1 + cl(P.sep || 0) * 0.55, cath = P.cath || 0; let p0 = C.root[0], p1 = C.root[1], p2 = C.root[2];
+    for (let q = 0; q < n; q++) { const u = q / (n - 1), d = C.d[q], wx = c * d[0] - s * d[1], wy = s * d[0] + c * d[1], wz = d[2], w = fast ? 34 - 10 * u : 15 - 8.5 * u + 6 * cath;
+      let ax, ay, az; const o = q * 3;
+      if (fast || u < 0.35) { const k = 1 - Math.exp(-h * w); ax = A[o] + (wx - A[o]) * k; ay = A[o + 1] + (wy - A[o + 1]) * k; az = A[o + 2] + (wz - A[o + 2]) * k; V[o] = V[o + 1] = V[o + 2] = 0; }
+      else { const z = lerp(0.95, 0.42, (u - 0.35) / 0.65), w2 = w * w, dz = 2 * z * w;   // (semi-implicit: stable for w h < 2; w <= 12 here, h <= 0.05)
+        V[o] += (w2 * (wx - A[o]) - dz * V[o]) * h; V[o + 1] += (w2 * (wy - A[o + 1]) - dz * V[o + 1]) * h; V[o + 2] += (w2 * (wz - A[o + 2]) - dz * V[o + 2]) * h;
+        ax = A[o] + V[o] * h; ay = A[o + 1] + V[o + 1] * h; az = A[o + 2] + V[o + 2] * h; }
+      const l = Math.hypot(ax, ay, az) || 1; ax /= l; ay /= l; az /= l; A[o] = ax; A[o + 1] = ay; A[o + 2] = az;
+      d[0] = c * ax + s * ay; d[1] = -s * ax + c * ay; d[2] = az; const p = v3(C, 'p', q); p[0] = p0; p[1] = p1; p[2] = p2; const kk = C.L[q] * spK; p0 += d[0] * kk; p1 += d[1] * kk; p2 += d[2] * kk; }
+    let x0 = C.x[0][0], x1 = C.x[0][1], x2 = C.x[0][2]; for (let q = 0; q < n; q++) { const d = C.d[q], dt = x0 * d[0] + x1 * d[1] + x2 * d[2], a0 = x0 - d[0] * dt, a1 = x1 - d[1] * dt, a2 = x2 - d[2] * dt, l = Math.hypot(a0, a1, a2) || 1; x0 = a0 / l; x1 = a1 / l; x2 = a2 / l; const x = v3(C, 'x', q); x[0] = x0; x[1] = x1; x[2] = x2; }
+    C.tp[0] = p0; C.tp[1] = p1; C.tp[2] = p2; C.tip = C.tp; C.tipD = C.d[n - 1]; C.tipX = C.x[n - 1];
   }
 
   /* ================= drawing ================= */
@@ -485,10 +545,24 @@ const ASMODEUS_GL = (() => {
   const item = () => { const g = POOL[NP] || (POOL[NP] = { R0: new Float32Array(3), R1: new Float32Array(3), R2: new Float32Array(3), T: new Float32Array(3) }); NP++; return g; };
   const STATS = { ms: 0, n: 0, items: 0, W: 0, H: 0 };
   const RES = { k: 1 }; const profile = () => (lowFx() ? 'low' : RES.k < 0.95 ? 'medium' : 'high');
+  /* (v446 AL) as Samael's v444 pass: the canvas's visible rectangle in its current user space (2 px of margin), and a pass's GL pixel budget
+     in a fight by the visual quality (0 the model, 1 its effect meshes, 2 a decoy shell; none outside a fight: menus keep their resolution);
+     window.__AL_OFF = 1: v445's drawing */
+  function visBox(c) { const m = c.getTransform ? c.getTransform() : null, cv = c.canvas; if (!m || !cv || !cv.width) return null; const det = m.a * m.d - m.b * m.c; if (Math.abs(det) < 1e-9) return null;
+    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; for (let q = 0; q < 4; q++) { const X = q & 1 ? cv.width : 0, Y = q & 2 ? cv.height : 0, dx = X - m.e, dy = Y - m.f, ux = (m.d * dx - m.c * dy) / det, uy = (-m.b * dx + m.a * dy) / det; x0 = Math.min(x0, ux); y0 = Math.min(y0, uy); x1 = Math.max(x1, ux); y1 = Math.max(y1, uy); }
+    return [Math.floor(x0) - 2, Math.floor(y0) - 2, Math.ceil(x1) + 2, Math.ceil(y1) + 2]; }
+  const PXB = [[0.5e6, 0.35e6, 0.25e6, 0.25e6], [0.42e6, 0.3e6, 0.2e6, 0.2e6], [0.2e6, 0.14e6, 0.1e6, 0.1e6]];
+  const budget = j => { try { if (typeof GQ === 'undefined' || typeof arc === 'undefined' || !arc.game || arc.mode !== 'dungeon') return 1e12; return PXB[j][Math.max(0, Math.min(3, GQ.level() | 0))]; } catch (e) { return 1e12; } };
+  const ALO = () => flag('__AL_OFF') === 1;
+  const AW = new Array(9), AM = new Array(9);   // (v446 AL: scratch: the tails' space to the world's, per frame)
   /* o: X, Y (the floor point under its middle, on screen), K (px a model unit), P (a pose), k (form), alpha, inst (the motion), low, shell
      (drawn as its spectral crystal replica). Returns its screen points or null */
   function draw(c, o) {
     const d = data(); if (!d.ready || NOGL) return null;
+    /* (v446 AL) o.cache (an object the caller keeps) with o.ckey: a still figure (a boss's decoy shell: the same pose, size and turn every
+       frame) is drawn once into a 2D canvas of its own and laid from it while o.ckey holds (no model pass, no GL copy); moved with o.X, o.Y */
+    const CA = o.cache && o.ckey != null && !ALO() ? o.cache : null;
+    if (CA && CA.cv && CA.key === o.ckey) { const al = o.alpha == null ? 1 : o.alpha; if (al > 0.004) { c.save(); c.globalAlpha = Math.min(1, al); c.drawImage(CA.cv, 0, 0, CA.W, CA.H, CA.x0 + o.X - CA.X, CA.y0 + o.Y - CA.Y, CA.bw, CA.bh); c.restore(); } return CA.out; }
     try {
       const P = o.P || idlePose(o.k || 3, o.t || 0), k = P.k || o.k || 3, t = P.t || 0, sw = WS * (o.scale || 1), K = o.K, kk = K / WS, X0 = o.X, Y0 = o.Y, M = D.M, low = lowFx() || o.low;
       const LF = life(P), lv = P.live == null ? 1 : cl(P.live), shellM = Math.max(cl(P.shell || 0), o.shell ? 1 : 0);
@@ -519,30 +593,32 @@ const ASMODEUS_GL = (() => {
       for (let i = 0; i < 6; i++) { const q = LGS[i], hm = homeOf(i, P); if (MS) { const f = MS.F[i]; q.bx = f.bx; q.by = f.by; q.lift = f.lift; q.load = f.ld; }
         else { const L = LEGS[i], SW = swingOf(run); let qq = (P.ph || 0) / TAU + legOff(L, run); qq -= Math.floor(qq); const inW = qq >= 1 - SW, w = inW ? (qq - (1 - SW)) / SW : 0, Dd = STRIDE * Math.max(0.3, mvv) * (1 - SW) * (mvv > 0.02 ? 1 : 0);
           const sl = inW ? -Dd / 2 + Dd * swF(w) : Dd / 2 - Dd * (qq / (1 - SW)), mA = P.mvA == null ? 0 : P.mvA - (P.yaw || 0); q.bx = hm[0] + Math.cos(mA) * sl; q.by = hm[1] + Math.sin(mA) * sl; q.lift = inW ? swL(w) * LIFTH * Math.min(1, mvv * 1.6) : 0; q.load = 0; } }
-      let wr = 0, wp = 0; for (let i = 0; i < 6; i++) { const L = LEGS[i], lf = cl(LGS[i].lift / 1.0); wr -= lf * L.s * 0.012; wp += lf * (L.f - 0.5) * 0.012; }
-      const crouch = (P.crouch || 0), rear = cl(P.rear || 0), sh = (P.shift || 0) + LF.shift * (1 - mvv);
+      // (v446 AL) the body counter-balances each lifted leg (leaning and shifting off it: 0.03, v445 0.012), stalks low and leaning in at a
+      // run, rises a little with life's flourish (LF.rise)
+      let wr = 0, wp = 0, wy = 0; for (let i = 0; i < 6; i++) { const L = LEGS[i], lf = cl(LGS[i].lift / 1.0); wr -= lf * L.s * 0.03; wp += lf * (L.f - 0.5) * 0.03; wy -= lf * L.s * 0.1; }
+      const crouch = (P.crouch || 0) + 0.3 * run * mvv, rear = cl((P.rear || 0) + LF.rise * (1 - mvv)), sh = (P.shift || 0) + LF.shift * (1 - mvv);
       const pitch = (P.pitch || 0) + crouch * 0.05 + wp + dyn.sx * 0.05 + (P.stagger || 0) * 0.06, bank = (P.bank || 0) + wr - dyn.sy * 0.05 - sh * 0.02;
       const lift = (P.lift || 0) + LF.bob + dyn.sz * 1.2 - crouch * 1.35 + rear * 0.75 - mvv * 0.35 * (1 - rear);
-      const Mb = mm(rx(bank), ry(pitch)), tbo = [(P.dx || 0) + dyn.sx * 0.5, sh * 0.18 + dyn.sy * 0.4, lift];
+      const Mb = mm(rx(bank), ry(pitch)), tbo = [(P.dx || 0) + dyn.sx * 0.5, sh * 0.18 + dyn.sy * 0.4 + wy, lift];   // (v446 AL: wy)
       const BP = p => add(add(mv(Mb, sub(p, HUB)), HUB), tbo), BR = R => mm(Mb, R);
       // the upper body's own lean and twist over the hub (predatory forward lean low, upright in ritual)
-      const lean = (P.lean || 0) + crouch * 0.12 + mvv * 0.08 * (1 - rear) + dyn.sx * 0.04 - rear * 0.05, twist = (P.twist || 0) + LF.breath * 0.01, Mu = mm(rz(twist), ry(lean)), UP0 = [0, 0, WAIST - 0.2];
+      const lean = (P.lean || 0) + crouch * 0.12 + mvv * 0.08 * (1 - rear) + 0.08 * run * mvv /* (v446 AL: the stalk) */ + dyn.sx * 0.04 - rear * 0.05, twist = (P.twist || 0) + LF.breath * 0.01, Mu = mm(rz(twist), ry(lean)), UP0 = [0, 0, WAIST - 0.2];
       const MuS = mm(Mu, scl3(US)), UP = p => BP(add(mv(MuS, sub(p, UP0)), UP0)), UR = R => BR(mm(MuS, R));
       const out = { eyes: [], feet: [], hands: [], tailTips: [], tailMid: [], tailRoots: [], tailSegs: [], knees: [] };
       /* ---- the hub, the robe ---- */
       put(M.hub, BR(I3), BP(HUB), 1, glow, { d0: 0.08 }, 0.12);
-      const br = LF.breath * 0.01;
+      const br = LF.breath * 0.016, flowK = cl(P.flow == null ? 0.5 : P.flow), hb = (0.3 + 1.1 * LF.heart) * (0.45 + flowK);   // (v446 AL: a deeper breath; hb the heartbeat's venom pushed up the channels (443 by glow2): the torso's, the neck's, the legs', the tails')
       put(M.skirt, UR(I3), UP([0, 0, 0]), 1, glow, { d0: 0.2 }, 0.3);
       for (let j = 0; j < DRAPES.length; j++) { const Dp = DRAPES[j], a = Dp.a, ca = Math.cos(a), sa = Math.sin(a), swn = (MS ? MS.dr[(j % 8) * 2] : 0) + 0.04 * Math.sin(t * 1.3 + Dp.sd * 1.7) * lv + mvv * (0.1 + 0.12 * Math.max(0, -ca)) * (1 + 0.3 * Math.sin(t * 5 + j));
         const flare = Dp.fl + swn * 0.35 + crouch * 0.05 + 0.12 * cl(P.crown || 0) * 0, Rd = mm(rz(a), mm(ry(-flare), scl3(1, Dp.w, Dp.L)));
         put(M.drape[j % 2], UR(Rd), UP([ca * Dp.r, sa * Dp.r, WAIST - 0.05]), 1, glow, { d0: 0.18, wear: 99 }, 0.3); }
       { const swn = (MS ? MS.dr[14] : 0) + 0.03 * Math.sin(t * 1.1) * lv + mvv * 0.06, Rt = ry(-(0.035 + swn * 0.3 + crouch * 0.04)); put(M.tabard, UR(Rt), UP([0.62, 0, WAIST - 0.05]), 1, glow, { d0: 0.2 }, 0.32); }
       /* ---- the torso, the pauldrons, the dorsal mount ---- */
-      put(M.torso, UR(scl3(1 + br, 1 + br, 1)), UP([0, 0, 0]), 1, glow + crack * 0.4, { d0: 0.3 }, 0.45);
-      for (const s of [1, -1]) { const Mi = s > 0 ? I3 : MY, sa = LF.arm * 0.4 + cl(P.arm || 0) * 0.15; put(M.pauld[k], UR(mm(Mi, rx(-0.32 - sa * 0.3))), UP([-0.05, s * 1.12, 13.55]), 1, glow, { d0: 0.32 }, 0.5); }
+      put(M.torso, UR(scl3(1 + br, 1 + br * 1.4, 1 + br * 0.3)), UP([0, 0, 0]), 1, glow + crack * 0.4, { d0: 0.3, glow2: hb }, 0.45);   // (v446 AL: the chest swelling wider than deep)
+      for (const s of [1, -1]) { const Mi = s > 0 ? I3 : MY, sa = LF.arm * 0.4 + cl(P.arm || 0) * 0.15 + 0.25 * (s > 0 ? LF.arm1 : LF.arm2); put(M.pauld[k], UR(mm(Mi, rx(-0.32 - sa * 0.3))), UP([-0.05, s * 1.12, 13.55 + 0.06 * LF.breath]), 1, glow, { d0: 0.32 }, 0.5); }   // (v446 AL: the shoulders lifting with the breath, rolling with each arm)
       put(M.mount, UR(I3), UP([ROOT[0] + 0.25, 0, ROOT[2] + 0.1]), 1, glow, { d0: 0.36 }, 0.52);
       /* ---- the Venom Crucible ---- */
-      const cpBase = UP(CORE), hu = cl(P.heartUp || 0), bl = cl(P.bloom || 0), opn = Math.max(cl(P.open || 0), hu), cg = Math.max(0, (P.core == null ? 0.9 : P.core) + LF.core), flowK = cl(P.flow == null ? 0.5 : P.flow);
+      const cpBase = UP(CORE), hu = cl(P.heartUp || 0), bl = cl(P.bloom || 0), opn = Math.max(cl(P.open || 0), hu), cg = Math.max(0, (P.core == null ? 0.9 : P.core) + LF.core);
       const cA = MS ? (MS.cA = (MS.cA || 0) + MS.h * (0.4 + 1.6 * (P.spin || 1) * (0.5 + cg * 0.4))) : t * 0.6;
       const heartP = add(cpBase, mul(sub(UP([1.2, 0, 23.5]), cpBase), sstep(0, 1, hu))), hk = 1 + bl * 1.6 + hu * 0.35;
       put(M.heart, UR(mm(rz(cA * 0.7), rx(0.3 * Math.sin(cA * 0.4)))), heartP, CR * 0.86 * hk, glow + cg * 0.9, { glow2: cg, noInk: true, d0: 0.65 }, 0.55);
@@ -559,25 +635,34 @@ const ASMODEUS_GL = (() => {
       box(heartP, CR * 3 * hk + bl * 4);
       out.core = scr(heartP); out.coreR = CR * hk * K * (o.scale || 1); out.coreVis = cl(Math.sin(P.yaw || 0) * 1.2 + 0.45);
       /* ---- the arms: IK from the shoulder to a hand target (rest: out and forward at chest height; raised; reaching) ---- */
-      for (const s of [1, -1]) { const Mi = s > 0 ? I3 : MY, ar = cl(P.arm || 0) + LF.arm, re = cl(P.reach || 0), Sh = UP([SHOULDER[0], s * SHOULDER[1], SHOULDER[2]]);
-        const tgt = add(lerp3(lerp3([1.0, s * 3.05, 12.6 + 0.35 * s], [0.6, s * 2.8, 16.2], ar), [3.3, s * 1.2, 12.6], re), [0, 0, LF.breath * 0.05]), A = UP(tgt);
+      /* (v446 AL) each arm its own: life's beckon raises one hand palm-up, the weave circles both, the claws curl (P.claw + life's) finger by
+         finger, the knuckles a beat apart */
+      for (const s of [1, -1]) { const Mi = s > 0 ? I3 : MY, ar = cl(P.arm || 0) + LF.arm + (s > 0 ? LF.arm1 : LF.arm2), re = cl(cl(P.reach || 0) + (s > 0 ? LF.reach1 : LF.reach2)), Sh = UP([SHOULDER[0], s * SHOULDER[1], SHOULDER[2] + 0.06 * LF.breath]);
+        const wa = LF.weave, wq = LF.wph + (s > 0 ? 0 : Math.PI * 0.6), tgt = add(lerp3(lerp3([1.0, s * 3.05, 12.6 + 0.35 * s], [0.6, s * 2.8, 16.2], ar), [3.3, s * 1.2, 12.6], re), [0.35 * wa * Math.sin(wq * 2), s * 0.45 * wa * Math.cos(wq), LF.breath * 0.05 + 0.4 * wa * Math.sin(wq)]), A = UP(tgt);
         const IK = ik(Sh, A, LA1, LA2, mv(Mu, [-0.4, s * 0.8, -0.7])), Fu = segF(Sh, IK.K, mv(Mu, [0.3, s * 0.4, 1])), Ff = segF(IK.K, IK.A, mv(Mu, [0.6, s * 0.2, 0.6]));
         put(M.uarm, mm(Fu, Mi), Sh, 1.15, glow, { d0: 0.34 }, 0.55); put(M.farm, mm(Ff, Mi), IK.K, 1.15, glow, { d0: 0.34 }, 0.56);
-        const Fh = mm(Ff, mm(rz(s * (0.6 - 0.4 * re)), rx(s * 0.25 + s * 0.35 * (1 - re)))); put(M.hand, mm(Fh, Mi), IK.A, 1.35, glow, { d0: 0.34 }, 0.57); out.hands.push(scr(add(IK.A, mv(Fh, [-0.2, 0, 0.9])))); }
+        const bkp = s > 0 ? LF.reach1 : LF.reach2, Fh = mm(Ff, mm(rz(s * (0.6 - 0.4 * re) + s * 1.2 * bkp), rx(s * 0.25 + s * 0.35 * (1 - re)))); put(M.palm, mm(Fh, Mi), IK.A, 1.35, glow, { d0: 0.34 }, 0.57);
+        const cw = cl(cl(P.claw || 0) + (s > 0 ? LF.claw1 : LF.claw2)); for (let j = 0; j < 4; j++) { const y = (j - 1.5) * 0.11, sp = (j - 1.5) * 0.19 * (1 - 0.4 * cw), cu = cw * (1.05 + 0.12 * j) * (0.75 + 0.25 * Math.sin(LF.wph * 3 + j * 0.9)) - 0.05, Rf = mm(Fh, mm(Mi, mm(rx(-sp), mm(ry(-cu), scl3(1 - Math.abs(j - 1.5) * 0.05)))));
+          put(M.finger, Rf, add(IK.A, mv(Fh, mv(Mi, [0, y * 1.35, 0.52 * 1.35]))), 1.35, glow, { d0: 0.34 }, 0.57); }
+        out.hands.push(scr(add(IK.A, mv(Fh, [-0.2, 0, 0.9])))); }
       /* ---- the neck and head ---- */
-      const hd = (P.head || 0) + LF.head - crouch * 0.1, look = (P.look || 0) + LF.look + Math.max(-0.3, Math.min(0.3, dyn.yr * 0.25)), hTilt = (P.tilt || 0) + LF.tilt - bank * 0.6;
+      /* (v446 AL) the head tracks its quarry (P.lookA: the world angle to it) in held aims and quick re-aims that overshoot a hair and settle
+         (on the instance: a spring that jumps its target only when the quarry has moved off it by 0.12), and turns ahead of the body */
+      let trk = 0; if (P.lookA != null) { const want = Math.max(-0.85, Math.min(0.85, angDf(P.lookA, P.yaw || 0))) * 0.8 * lv; if (MS && MS.h > 0) { if (MS.hT == null || Math.abs(want - MS.hT) > 0.12) MS.hT = want; MS.hv = (MS.hv || 0) + ((MS.hT - (MS.hk || 0)) * 420 - (MS.hv || 0) * 2 * 0.55 * 20.5) * MS.h; MS.hk = (MS.hk || 0) + MS.hv * MS.h; trk = MS.hk; } else trk = want; }
+      const hd = (P.head || 0) + LF.head - crouch * 0.1, look = (P.look || 0) + LF.look + trk + Math.max(-0.3, Math.min(0.3, dyn.yr * 0.25)), hTilt = (P.tilt || 0) + LF.tilt - bank * 0.6;
+      if (MS) { if (MS.h > 0) MS.hdv = (look - (MS.lk == null ? look : MS.lk)) / MS.h * 0.1; MS.lk = look; }
       const HPm = add(HEADP, [0.25 * hd + 0.12 * crouch, 0, -0.35 * hd]), Rh = mm(rz(look * 0.7), mm(rx(hTilt), ry(0.06 + 0.5 * hd))), hpW = UP(HPm), RhW = UR(Rh), Hm = p => UP(add(HPm, mv(Rh, mul(p, HS))));
-      { const a = UP(NECK0), b = hpW, dn = sub(b, a); put(M.neck, colsR(...(() => { const F = frameZ(dn, mv(UR(I3), [1, 0, 0])); return [[F[0], F[3], F[6]], [F[1], F[4], F[7]], mul([F[2], F[5], F[8]], len(dn))]; })()), a, 1, glow, { d0: 0.4 }, 0.6); }
+      { const a = UP(NECK0), b = hpW, dn = sub(b, a); put(M.neck, colsR(...(() => { const F = frameZ(dn, mv(UR(I3), [1, 0, 0])); return [[F[0], F[3], F[6]], [F[1], F[4], F[7]], mul([F[2], F[5], F[8]], len(dn))]; })()), a, 1, glow, { d0: 0.4, glow2: hb }, 0.6); }
       put(M.hood, RhW, hpW, HS, glow, { d0: 0.42 }, 0.66);
       put(M.mask, RhW, hpW, HS, glow, { glow2: (P.eye == null ? 1 : P.eye), d0: 0.44 }, 0.68);
-      const jaw = cl(P.jaw || 0);
+      const jaw = cl((P.jaw || 0) + LF.jaw);   // (v446 AL: life's twitch)
       for (const s of [1, -1]) { const Mi = s > 0 ? I3 : MY, piv = [0.0, s * 0.3, 0.46], Rj = mm(rx(-s * jaw * 0.3), ry(jaw * 0.5)), org = sub(piv, mv(Rj, piv)); put(M.jaw, UR(mm(Rh, mm(Rj, Mi))), Hm(add(org, [0, s * jaw * 0.08, 0])), HS, glow, { d0: 0.44 }, 0.68); }   // (each plate turning down and out about its hinge under the cheek)
       if (jaw > 0.04) put(M.emit, UR(mm(Rh, rx(t * 2))), Hm([0.12, 0, 0.22]), HS * (0.6 + 0.5 * jaw), glow + 0.8 + jaw * 2, { noInk: true, glow2: 1 + jaw, d0: 0.45 }, 0.68);
       put(M.crown[k], RhW, hpW, HS, glow, { d0: 0.46 }, 0.72);
-      for (const s of [1, -1]) for (let j = 0; j < 3; j++) { const pv = [-0.1 - j * 0.28, s * (0.52 + j * 0.06), 1.38 - j * 0.12], sw2 = (MS ? MS.dr[(j + (s > 0 ? 0 : 3)) * 2] : 0) * 1.4 + 0.06 * Math.sin(t * 1.9 + j + s) * lv, Ro = mm(rx(-s * (0.12 + sw2 * 0.5) + hTilt * -0.8), ry(sw2 * 0.6 - 0.5 * hd));
+      for (const s of [1, -1]) for (let j = 0; j < 3; j++) { const pv = [-0.1 - j * 0.28, s * (0.52 + j * 0.06), 1.38 - j * 0.12], sw2 = (MS ? (MS.or ? MS.or[(j + (s > 0 ? 0 : 3)) * 2] : 0) : 0) * 1.4 + 0.06 * Math.sin(t * 1.9 + j + s) * lv,   /* (v446 AL: MS.or, their own pendulums) */ Ro = mm(rx(-s * (0.12 + sw2 * 0.5) + hTilt * -0.8), ry(sw2 * 0.6 - 0.5 * hd));
         put(M.orn, UR(Ro), Hm(pv), 1.25 + 0.2 * (j === 1 ? 1 : 0), glow + 0.3, { d0: 0.46 }, 0.72); }
       // the broken halo behind the head (turning slowly), L4 the rune rings, L7 the rotating halos
-      { const hc = UP(add(HEADP, [-0.75, 0, 1.6 + 0.1 * hd])), Rha = mm(rz(look * 0.4), ry(-0.12)); put(M.halo, UR(mm(Rha, rx(t * 0.06 + 0.2))), hc, 1.55 + 0.1 * k, glow + 0.3, { d0: 0.5 }, 0.8);
+      { const hc = UP(add(HEADP, [-0.75, 0, 1.6 + 0.1 * hd])), Rha = mm(rz(look * 0.4), ry(-0.12)); put(M.halo, UR(mm(Rha, rx(LF.halo + 0.2 + 0.04 * LF.breath))), hc, (1.55 + 0.1 * k) * (1 + 0.025 * LF.heart),   /* (v446 AL: turning, breathing, beating) */ glow + 0.3, { d0: 0.5 }, 0.8);
         if (k >= 2 && !(low && k === 2)) for (let j = 0; j < (k === 3 ? 3 : 2); j++) { const Rr = mm(Rha, mm(ry(Math.PI / 2), mm(rx(0.5 * Math.sin(t * 0.3 + j * 2) + j * 0.9), rz(t * (0.5 + 0.3 * j) * (j % 2 ? -1 : 1))))); put(M.rring, UR(Rr), hc, 2.0 + 0.32 * j, glow + 0.5, { noInk: true, kind: j, glow2: 0.6 + cg * 0.3, d0: 0.5 }, 0.82); }
         if (k === 3 && !low) for (let j = 0; j < 4; j++) { const a = t * 0.35 + j * TAU / 4, fp = UP(add([-1.1, 0, 14.6], [0.35 * Math.sin(a * 1.3), Math.cos(a) * 2.6, Math.sin(a) * 1.4 + 0.2 * Math.sin(t + j)])); put(M.shard, UR(mm(rz(a + 1.2), rx(0.4 + 0.3 * Math.sin(t * 0.7 + j)))), fp, 0.62, glow + 0.4, { d0: 0.5 }, 0.84); }
         box(hc, 3); }
@@ -585,14 +670,25 @@ const ASMODEUS_GL = (() => {
       out.head = scr(hpW); out.mouth = scr(Hm([0.4, 0, 0.25])); out.crownTop = scr(Hm([-0.4, 0, 3.4])); box(hpW, 3.4);
       /* ---- the Sevenfold Crown ---- */
       const venom = P.vflow || null;   // (per tail: the venom's front along it, in segments; absent: full)
+      /* (v446 AL) a segment's item written straight from the chain: the tails' space to the world's once a frame (AW: the root's turn, the
+         body's, the upper body's lean and scale, x its size; T0w its origin), no arrays made per segment; the same box as put's */
+      const alo = ALO(), Tm = mm(Mb, MuS), u0 = W3(UP([0, 0, 0])); mmTo(AM, Rroot, Tm); for (let q = 0; q < 9; q++) AW[q] = AM[q] * sw;
+      const segK = K * (o.scale || 1), tsM = M.tseg[k], tsB = tsM.bs, hidT = HID && HID.has(tsM);
       for (let j = 0; j < 7; j++) {
         const C = tailChain(j, P, k, LF, low, 0, flowK); tailFilter(MS, j, C, P, P.yaw || 0);
         const n = C.n, lit = cl((P.seq || 0) - j), se = P.strikes ? P.strikes.find(S => S && S.i === j) : null, sE = se ? cl(se.e) : 0, cath = cl(P.cath || 0), un = cl((P.unf == null ? 7 : P.unf) - UNF_ORDER[j]);
-        const fr = venom ? venom[j] : 99, tg = glow + lit * 0.8 + sE * 0.8 + cath * 0.6, chG = flowK + lit * 1.2 + sE * 1.4 + cath, ordT = -1;
+        const fr = venom ? venom[j] : 99, tg = glow + lit * 0.8 + sE * 0.8 + cath * 0.6, chG = flowK + lit * 1.2 + sE * 1.4 + cath + 0.35 * hb /* (v446 AL: the heartbeat) */, ordT = -1;
         if (un < 0.02 && asm < 0.999) continue;
-        for (let s = 0; s < n; s++) { const dd = C.d[s], xv = C.x[s], yv = cross(dd, xv), rr = C.r[s], Rs = colsR(mul(xv, rr), mul(yv, rr), mul(dd, C.L[s] * 1.02));
+        if (alo) for (let s = 0; s < n; s++) { const dd = C.d[s], xv = C.x[s], yv = cross(dd, xv), rr = C.r[s], Rs = colsR(mul(xv, rr), mul(yv, rr), mul(dd, C.L[s] * 1.02));
           put(M.tseg[k], UR(Rs), UP(C.p[s]), 1, tg, { kind: s, glow2: chG, wear: fr, d0: 0.5 + 0.004 * s }, ordT);
           if (s % 3 === 1) out.tailSegs.push(scr(UP(C.p[s]))); }
+        else if (!hidT) for (let s = 0; s < n; s++) { const dd = C.d[s], xv = C.x[s], p = C.p[s], rr = C.r[s], Lq = C.L[s] * 1.02, y0 = dd[1] * xv[2] - dd[2] * xv[1], y1 = dd[2] * xv[0] - dd[0] * xv[2], y2 = dd[0] * xv[1] - dd[1] * xv[0], g = item();
+          for (let i = 0; i < 3; i++) { const a0 = AW[i * 3], a1 = AW[i * 3 + 1], a2 = AW[i * 3 + 2]; g.R0[i] = (a0 * xv[0] + a1 * xv[1] + a2 * xv[2]) * rr; g.R1[i] = (a0 * y0 + a1 * y1 + a2 * y2) * rr; g.R2[i] = (a0 * dd[0] + a1 * dd[1] + a2 * dd[2]) * Lq; g.T[i] = a0 * p[0] + a1 * p[1] + a2 * p[2] + u0[i]; }
+          const d0 = 0.5 + 0.004 * s; g.mesh = tsM; g.alpha = shellM > 0.5 ? 0.99 : 1; g.glow = tg; g.glow2 = chG; g.spill = dis > 0 ? cl((dis - d0) / 0.4) : 0; g.kind = s; g.wear = fr; g.fx = shellM > 0.5 ? 1 + crack : crack > 0 ? crack * 0.5 : 0; g.first = 0; g.cnt = 0;
+          g.outline = !(g.spill > 0.001) && shellM < 0.5; (g.alpha < 0.995 ? TRANS : ITEMS).push(g);
+          { const bx = g.R0, by = g.R1, bz = g.R2, cx = g.T[0] + bx[0] * tsB[0] + by[0] * tsB[1] + bz[0] * tsB[2], cy = g.T[1] + bx[1] * tsB[0] + by[1] * tsB[1] + bz[1] * tsB[2], cz = g.T[2] + bx[2] * tsB[0] + by[2] * tsB[1] + bz[2] * tsB[2];
+            const x = X0 + cx * kk, y = Y0 + (cy * SE - cz * CE) * kk, rq = (tsB[3] * US * Math.max(rr, Lq) * 1.03 + 0.05) * segK; if (x - rq < bx0) bx0 = x - rq; if (x + rq > bx1) bx1 = x + rq; if (y - rq < by0) by0 = y - rq; if (y + rq > by1) by1 = y + rq; }
+          if (s % 3 === 1) out.tailSegs.push([X0 + (g.T[0]) * kk, Y0 + (g.T[1] * SE - g.T[2] * CE) * kk]); }
         const roll = (j - 3 ? Math.sign(j - 3) * Math.PI / 2 : 0) * (1 - 0.7 * Math.max(sE, cl(P.conv || 0), cl(P.cage || 0))), tipR = mm(colsR(C.tipX, cross(C.tipD, C.tipX), C.tipD), rz(roll)), bl2 = BLL[k] * (j === 3 ? 1.12 : 1) * (0.55 + 0.45 * un);
         put(M.bcol, UR(mm(tipR, scl3(C.r[n - 1] * 1.05))), UP(C.tip), 1, tg, { d0: 0.52 }, ordT);
         put(M.blade, UR(mm(tipR, mm(ry(0.12 + 0.15 * sE), scl3(bl2 * 0.9, bl2, bl2)))), UP(add(C.tip, mul(C.tipD, 0.05))), 1, tg + 0.2 + sE * 0.6, { glow2: lit + sE * 1.5 + cath + (P.bladeHeat || 0), d0: 0.55 }, ordT + 0.01);
@@ -612,9 +708,9 @@ const ASMODEUS_GL = (() => {
         const dF = norm(sub(IK.K, H)), dT = norm(sub(IK.A, IK.K)), xF = norm(cross(dF, nP)), xT = norm(cross(dT, nP));
         const Rc = segF(BP([Math.cos(ha) * 0.75, Math.sin(ha) * 0.75, HUB[2] - 0.1]), H, [0, 0, 1]);
         put(M.coxa, Rc, BP([Math.cos(ha) * 0.8, Math.sin(ha) * 0.8, HUB[2] - 0.1]), 1.3, glow, { d0: 0.0 }, 0.1);
-        put(M.femur, colsR(xF, cross(dF, xF), dF), H, 1, glow, { d0: 0.02 }, 0.12);
+        put(M.femur, colsR(xF, cross(dF, xF), dF), H, 1, glow, { d0: 0.02, glow2: hb }, 0.12);   // (v446 AL: hb)
         put(M.knee, colsR(dF, nP, cross(dF, nP)), IK.K, 1.35, glow, { d0: 0.04 }, 0.14);
-        put(M.tibia, colsR(mul(xT, L.L2 * 1.0), mul(cross(dT, xT), L.L2 * 0.85), mul(dT, L.L2)), IK.K, 1, glow, { d0: 0.0 }, 0.1);
+        put(M.tibia, colsR(mul(xT, L.L2 * 1.0), mul(cross(dT, xT), L.L2 * 0.85), mul(dT, L.L2)), IK.K, 1, glow, { d0: 0.0, glow2: hb }, 0.1);
         out.feet.push(scr([fx, fy, 0])); out.knees.push(scr(IK.K)); box(H, 1); box(IK.K, 1.2); box(Fp, 0.8); box(lerp3(IK.K, Fp, 0.5), 1.2);
       }
       /* ---- the cocoon (the entrance: rising, cracking, gone when it shatters) ---- */
@@ -624,15 +720,22 @@ const ASMODEUS_GL = (() => {
       ITEMS.sort((a, b) => (a.mesh.nv - b.mesh.nv)); TRANS.sort((a, b) => (a.T[0] * PDW[0] + a.T[1] * PDW[1] + a.T[2] * PDW[2]) - (b.T[0] * PDW[0] + b.T[1] * PDW[1] + b.T[2] * PDW[2])); for (const g2 of TRANS) ITEMS.push(g2);
       const m = c.getTransform ? c.getTransform() : null, soft = GLM.soft && !flag('__AS_GLHQ'), dev = (m ? Math.max(0.25, Math.hypot(m.a, m.b)) : 1) * (soft ? 0.5 : RES.k) * (typeof GQ !== 'undefined' ? GQ.animaK() : 1);   /* (v439 SP: the visual quality's factor in a fight, 3/4 under Fewer effects) */
       bx0 = Math.floor(bx0) - 3; by0 = Math.floor(by0) - 3; bx1 = Math.ceil(bx1) + 3; by1 = Math.ceil(by1) + 3;
-      let W = Math.ceil((bx1 - bx0) * dev), H = Math.ceil((by1 - by0) * dev); const scl = Math.min(1, GLCAP / Math.max(W, H)); W = Math.max(2, Math.ceil(W * scl)); H = Math.max(2, Math.ceil(H * scl));
-      const bw = bx1 - bx0, bh = by1 - by0;
-      const S = { px: PXW, py: PYW, pd: PDW, cl: [2 * kk / bw, 2 * (X0 - bx0) / bw - 1, -2 * kk / bh, 1 - 2 * (Y0 - by0) / bh], v: PDW, lk: LW, ls: SBW, lr: RIMW, up: UPW, low, rim: o.rim || RIMC, amb: o.amb || AMBC, t: nowMs() / 1000 % 1000, keep: true,
+      /* (v446 AL) as Samael's: the pass covers only the part of its box on the canvas (a stinger reaching off the screen's edge is never
+         drawn), at most PXB[the visual quality] GL pixels in a fight (a decoy shell, o.shell, its own smaller budget: see-through crystal),
+         and keeps the GL canvas at the larger of its passes (keep 2: no trading sizes with the effect meshes' pass) */
+      let rx0 = bx0, ry0 = by0, rx1 = bx1, ry1 = by1, vis = true; if (!alo && !CA) { const vb = visBox(c); if (vb) { rx0 = Math.max(rx0, vb[0]); ry0 = Math.max(ry0, vb[1]); rx1 = Math.min(rx1, vb[2]); ry1 = Math.min(ry1, vb[3]); vis = rx1 > rx0 + 1 && ry1 > ry0 + 1; } }
+      let W = Math.ceil((rx1 - rx0) * dev), H = Math.ceil((ry1 - ry0) * dev); const scl = Math.min(1, GLCAP / Math.max(W, H)); W = Math.max(2, Math.ceil(W * scl)); H = Math.max(2, Math.ceil(H * scl));
+      if (!alo) { const bud = budget(o.shell ? 2 : 0); if (W * H > bud) { const q = Math.sqrt(bud / (W * H)); W = Math.max(2, Math.ceil(W * q)); H = Math.max(2, Math.ceil(H * q)); } }
+      const bw = rx1 - rx0, bh = ry1 - ry0;
+      const S = { px: PXW, py: PYW, pd: PDW, cl: [2 * kk / bw, 2 * (X0 - rx0) / bw - 1, -2 * kk / bh, 1 - 2 * (Y0 - ry0) / bh], v: PDW, lk: LW, ls: SBW, lr: RIMW, up: UPW, low, rim: o.rim || RIMC, amb: o.amb || AMBC, t: nowMs() / 1000 % 1000, keep: alo ? true : 2,
         outline: o.ink === false || low || shellM > 0.5 ? 0 : Math.max(0.6, 0.7 * (W / bw)), outlineCol: OUTC, outlineBias: 0.0025, clip: null };
-      const t0 = nowMs(), cvs = GLM.render(W, H, S, ITEMS); if (!cvs) return null;
-      const alp = o.alpha == null ? 1 : o.alpha; if (alp > 0.004) { c.save(); c.globalAlpha = Math.min(1, alp); c.drawImage(cvs, 0, 0, W, H, bx0, by0, bw, bh); c.restore(); }
+      const t0 = nowMs(), cvs = vis ? GLM.render(W, H, S, ITEMS) : null; if (!cvs && vis) return null;
+      if (CA && cvs) { const cc = CA.cv || (CA.cv = document.createElement('canvas')); if (cc.width !== W || cc.height !== H) { cc.width = W; cc.height = H; } const x2 = cc.getContext('2d'); x2.clearRect(0, 0, W, H); x2.drawImage(cvs, 0, 0, W, H, 0, 0, W, H);
+        Object.assign(CA, { key: o.ckey, W, H, x0: rx0, y0: ry0, bw, bh, X: X0, Y: Y0 }); }   // (v446 AL: the still figure kept)
+      const alp = o.alpha == null ? 1 : o.alpha; if (cvs && alp > 0.004) { c.save(); c.globalAlpha = Math.min(1, alp); c.drawImage(CA && CA.cv ? CA.cv : cvs, 0, 0, W, H, rx0, ry0, bw, bh); c.restore(); }
       STATS.ms = STATS.ms * 0.9 + (nowMs() - t0) * 0.1; STATS.n++; if (!GLM.soft && STATS.n > 20) RES.k = STATS.ms > 7 ? Math.max(0.6, RES.k - 0.02) : STATS.ms < 3.5 ? Math.min(1, RES.k + 0.01) : RES.k; STATS.items = ITEMS.length; STATS.W = W; STATS.H = H;
       out.bb = [bx0, by0, bx1, by1]; out.unit = K * (o.scale || 1); out.back = scr(UP([ROOT[0], 0, ROOT[2]])); out.top = scr(UP([0, 0, 21])); out.chest = scr(UP([CORE[0], 0, CORE[2] - 1.4])); out.ground = [X0, Y0]; out.steps = MS ? MS.steps : null; out.lifts = LGS.map(q2 => q2.lift);
-      out.waist = scr(UP([0.3, 0, WAIST])); out.hub = scr(BP(HUB));
+      out.waist = scr(UP([0.3, 0, WAIST])); out.hub = scr(BP(HUB)); if (CA) CA.out = out;
       return out;
     } catch (e) { fail(e); return null; }
   }
@@ -676,9 +779,12 @@ const ASMODEUS_GL = (() => {
       }
       if (!(x1 > x0) || !(ITEMS.length + TRANS.length)) return false; for (const g of TRANS) ITEMS.push(g);
       const m = c.getTransform ? c.getTransform() : null, soft = GLM.soft && !flag('__AS_GLHQ'), dev = (m ? Math.max(0.25, Math.hypot(m.a, m.b)) : 1) * (soft ? 0.5 : 1) * (o.res || (lowFx() ? 0.6 : 0.85)) * (typeof GQ !== 'undefined' ? GQ.partsK() : 1);   /* (v439 SP) */
-      x0 = Math.floor(x0) - 2; y0 = Math.floor(y0) - 2; x1 = Math.ceil(x1) + 2; y1 = Math.ceil(y1) + 2; const bw = x1 - x0, bh = y1 - y0;
+      x0 = Math.floor(x0) - 2; y0 = Math.floor(y0) - 2; x1 = Math.ceil(x1) + 2; y1 = Math.ceil(y1) + 2;
+      const alo = ALO(); if (!alo) { const vb = visBox(c); if (vb) { x0 = Math.max(x0, vb[0]); y0 = Math.max(y0, vb[1]); x1 = Math.min(x1, vb[2]); y1 = Math.min(y1, vb[3]); if (!(x1 > x0 + 1 && y1 > y0 + 1)) return true; } }   // (v446 AL: as the model's pass: only what is on the canvas, a budget, the GL canvas kept)
+      const bw = x1 - x0, bh = y1 - y0;
       let W = Math.ceil(bw * dev), H = Math.ceil(bh * dev); const scl = Math.min(1, GLCAP / Math.max(W, H)); W = Math.max(2, Math.ceil(W * scl)); H = Math.max(2, Math.ceil(H * scl));
-      const S = { px: PX2, py: PY2, pd: PD2, cl: [200 / bw, -2 * x0 / bw - 1, -200 / bh, 1 + 2 * y0 / bh], v: SV, lk: SLK, ls: SLS, lr: SLR, up: SUP, low: lowFx(), rim: RIMC, amb: AMBC, t: nowMs() / 1000 % 1000, outline: lowFx() ? 0 : Math.max(0.5, 0.6 * (W / bw)), outlineCol: OUTC, outlineBias: 0.002 };
+      if (!alo) { const bud = budget(1); if (W * H > bud) { const q = Math.sqrt(bud / (W * H)); W = Math.max(2, Math.ceil(W * q)); H = Math.max(2, Math.ceil(H * q)); } }
+      const S = { px: PX2, py: PY2, pd: PD2, cl: [200 / bw, -2 * x0 / bw - 1, -200 / bh, 1 + 2 * y0 / bh], v: SV, lk: SLK, ls: SLS, lr: SLR, up: SUP, low: lowFx(), rim: RIMC, amb: AMBC, t: nowMs() / 1000 % 1000, outline: lowFx() ? 0 : Math.max(0.5, 0.6 * (W / bw)), outlineCol: OUTC, outlineBias: 0.002, keep: alo ? undefined : 2 };
       const cvs = GLM.render(W, H, S, ITEMS); if (!cvs) return false; c.save(); c.globalAlpha = o.alpha == null ? 1 : o.alpha; c.drawImage(cvs, 0, 0, W, H, x0, y0, bw, bh); c.restore(); return true;
     } catch (e) { fail(e); return false; }
   }
@@ -686,6 +792,6 @@ const ASMODEUS_GL = (() => {
   /* a point of the model's space (the floor at z 0) in the tails' own (the upper body is drawn US larger about the waist): for aiming a strike */
   const toTail = p => [p[0] / US, p[1] / US, WAIST - 0.2 + (p[2] - WAIST + 0.2) / US];
   return { toTail, US, usable, warm, ensure, step, release, gpuCount, draw, drawAnima, drawParts, coreLight, idlePose, life, footfalls, motion, tailChain, profile, RES, STATS, MT, WS, HEIGHT, STRIDE, LEGS, HUB, CORE, ROOT, NSEG, BLL, FAN, TRIPOD,
-    swingOf, legOff, homeOf, ready: () => !!(D && D.ready), get up() { return !!(D && D.up); }, get nv() { return D ? D.nv : 0; }, get off() { return NOGL; } };
+    swingOf, legOff, homeOf, ready: () => !!(D && D.ready), get up() { return !!(D && D.up); }, get nv() { return D ? D.nv : 0; }, get off() { return NOGL; }, meshes: () => (D && D.M) || null /* v446 AL: for the tests */ };
 })();
 if (typeof self !== 'undefined') self.ASMODEUS_GL = ASMODEUS_GL;

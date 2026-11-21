@@ -1522,7 +1522,8 @@ void main() {
       c = vec3(tone(c.r), tone(c.g), tone(c.b)); float a = clamp(0.14 + 0.6 * fr + crk * 0.6 + 0.2 * smoothstep(0.85, 1.0, edge), 0.0, 0.9); gl_FragColor = vec4(c * a * uAlpha, a * uAlpha); return; }
     float aCk = uFx > 0.0 && uFx < 0.75 ? uFx * 2.0 : 0.0;
     vec3 aG0 = vec3(0.92, 0.64, 0.32), aGF = aG0 + (1.0 - aG0) * aFr;   // (antique gold: a warm tinted reflection, a broad sheen and a sharp glint)
-    vec3 aGold = (aG0 * (0.12 + 0.6 * aDif) * aKEY * 0.5 + aGF * mix(aEv, vec3(dot(aEv, vec3(0.33))) * vec3(1.0, 0.78, 0.5), 0.45) * 1.3 + vec3(1.0, 0.9, 0.72) * (pow(aSb, 70.0) * 2.4 + pow(aSb, 9.0) * 0.28) + aRim * 0.35) * 1.2;
+    vec3 aGold = vec3(0.0);   // (v446 AL: the gold worked out only for the materials that show it: 440, 442, 444, 448, 449; the same values)
+    if (id == 440 || id == 442 || id == 444 || id == 448 || id == 449) aGold = (aG0 * (0.12 + 0.6 * aDif) * aKEY * 0.5 + aGF * mix(aEv, vec3(dot(aEv, vec3(0.33))) * vec3(1.0, 0.78, 0.5), 0.45) * 1.3 + vec3(1.0, 0.9, 0.72) * (pow(aSb, 70.0) * 2.4 + pow(aSb, 9.0) * 0.28) + aRim * 0.35) * 1.2;
     vec3 aC = vec3(0.0);
     if (id == 440) { float rec = step(0.15, aF) * step(aF, 0.25), eng = step(0.25, aF);   // obsidian lacquer: near-black, a deep clear coat, a dark violet fresnel, gold filigree inlaid, gold rims
       vec3 T0 = vec3(0.022, 0.017, 0.026) * (rec > 0.5 ? 0.45 : 1.0), TF = T0 + (vec3(0.5, 0.44, 0.56) - T0) * aFr; float rg = 0.1 + 0.07 * vn(L.xy * 6.0 + L.z * 3.0);
@@ -2148,7 +2149,9 @@ void main() {
        larger (sizes rounded up to 32 px when it must change), and the picture is drawn into its top-left W x H, which is what
        every caller copies out (source rectangle 0, 0, W, H). window.__PO_OFF = 1: resized to W x H every time, as v433 */
     let VY = 0; const keep = S.keep && !(typeof window !== 'undefined' && window.__PO_OFF === 1);
-    if (keep) { if (cv.width < W || cv.height < H || cv.width * cv.height > W * H * 1.35) { cv.width = Math.ceil(W / 32) * 32; cv.height = Math.ceil(H / 32) * 32; } VY = cv.height - H; }
+    /* (v446 AL) S.keep === 2: passes of different sizes taking turns in one frame (a body's pass, then its effect meshes') keep the canvas
+       at the larger one instead of trading it back and forth (shrunk only when it holds more than 4x the pass and 1.5 Mpx) */
+    if (keep) { if (cv.width < W || cv.height < H || (S.keep === 2 ? cv.width * cv.height > Math.max(W * H * 4, 1.5e6) : cv.width * cv.height > W * H * 1.35)) { cv.width = Math.ceil(Math.max(W, S.keep === 2 ? Math.min(cv.width, W * 2) : 0) / 32) * 32; cv.height = Math.ceil(Math.max(H, S.keep === 2 ? Math.min(cv.height, H * 2) : 0) / 32) * 32; } VY = cv.height - H; }
     else if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
     gl.viewport(0, VY, W, H); gl.clearColor(0, 0, 0, 0); gl.clearDepth(1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL); gl.disable(gl.CULL_FACE); gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);

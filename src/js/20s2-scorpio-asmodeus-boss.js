@@ -133,6 +133,7 @@ const SCORPIO_BOSS = (() => {
   const NMv = () => (typeof self !== 'undefined' && self.NIDHOGG_MOVES) || null;
   const gpu = () => { try { const N = NMv(); return !!(N && N.FGFX && N.FGFX.usable()); } catch (e) { return false; } };
   const GLS = () => (typeof ASMODEUS_GL !== 'undefined' ? ASMODEUS_GL : null);
+  const alOff = () => typeof window !== 'undefined' && window.__AL_OFF === 1;   // (v446 AL: v445's drawing)
   const glOn = () => { const G = GLS(); try { return !!(G && G.usable()); } catch (e) { return false; } };
   const MV = () => (typeof ASMODEUS_MOVES !== 'undefined' ? ASMODEUS_MOVES : null);
   const UTo = () => { const Mv = MV(); return Mv && Mv.UT ? Mv.UT : { p2: 2.2, p3: 4.4, p4: 6.4, s: [6.9, 7.25, 7.6, 7.95, 8.3, 8.65], s7: 9.1, p5: 9.6, col: 10.05, det: 10.45, p6: 11.0, len: 13.4 }; };
@@ -602,6 +603,7 @@ const SCORPIO_BOSS = (() => {
     X.flash(0.14, '#E0C8FF'); X.shake(11, 0.3); sfx('crash'); S.g.hitStop = Math.max(S.g.hitStop || 0, 0.05);
     for (const s of M.shells) if (!s.done) shellBurst(s, false); }
   function endMolt(abort) { const M = S.molt; if (!M) return; S.molt = null; const m = S.m; m.under = false;
+    for (const s of M.shells || []) if (s.gc && s.gc.cv) { s.gc.cv.width = s.gc.cv.height = 0; s.gc.cv = null; }   // (v446 AL: the shells' pictures freed)
     for (const s of M.shells) { if (s.part) dropPart(s.part); s.done = true; }
     if (M.dobjs) { const R = S.X.rift, list = R && R.objs; for (const o of M.dobjs) { o.draw = null; if (list) { const i = list.indexOf(o); if (i >= 0) list.splice(i, 1); } } M.dobjs = null; }
     if (abort && M.gone) { m.x = M.sx; m.y = M.sy; S.B.x = m.x; S.B.y = m.y; } }
@@ -753,7 +755,8 @@ const SCORPIO_BOSS = (() => {
     // the broken stingers folded away (the outer pairs first, as the entrance unfolds them last): 7 - broken, eased
     B.unf += ((7 - S.brokenN) - B.unf) * Math.min(1, dt * 3);
     const still = S.sin || S.mode === 'dead';
-    B.asP = Object.assign(base, pz, { k: 3, t: B.at, yaw: B.yaw + (still ? (tg.yawOff || 0) : 0), ph: B.ph, mv: still ? 0 : B.mv, run: still ? 0 : B.run, mvA: B.mvA, crouch: (pz.crouch || 0) + 0.45 * B.run * B.mv, strikes: pz.strikes,
+    const lookA = !still && S.mode === 'fight' && !me.dead ? Math.atan2(me.y - B.y, me.x - B.x) : null, rest = S.mode === 'fight' ? 0.22 * (S.phase - 1) + (S.debt >= 7 ? 0.2 : 0) : 0;   // (v446 AL: her head tracks the pet; restless as the fight runs on)
+    B.asP = Object.assign(base, pz, { lookA, rest, k: 3, t: B.at, yaw: B.yaw + (still ? (tg.yawOff || 0) : 0), ph: B.ph, mv: still ? 0 : B.mv, run: still ? 0 : B.run, mvA: B.mvA, crouch: (pz.crouch || 0) + 0.45 * B.run * B.mv, strikes: pz.strikes,
       coc: tg.coc || 0, unf: S.mode === 'intro' ? (tg.unf == null ? 7 : tg.unf) : B.unf, asm: tg.asm == null ? 1 : tg.asm, dis: tg.dis || 0, rupt: pz.rupt, vflow: null });
     m.face = Math.cos(B.yaw) >= 0 ? 1 : -1;
   }
@@ -772,7 +775,8 @@ const SCORPIO_BOSS = (() => {
     const r = B.asOut && B.asOut.r, al = B.alpha * (1 - (B.asP ? B.asP.dis || 0 : 0)), gone = S.molt && S.molt.gone;
     if (!on) { if (typeof shadeSprite === 'function' && !gone) { c.globalAlpha = 0.4 * al; blitSized(c, shadeSprite('#05030A'), sx(B.x) - T * 2.2, sy(B.y) - T * 0.7, T * 4.4, T * 1.4); c.globalAlpha = 1; } drawGround2d(c); return; }
     { const Q = fgOpen(c); if (!gone) { if (r && al > 0.02) { Q.sshadow(r.ground[0], r.ground[1], T * 2.0, T * 0.85, 0.45 * al, '#0C0408'); for (const p of r.feet || []) Q.sshadow(p[0], p[1], T * 0.28, T * 0.13, 0.5 * al, '#0A0306'); } else Q.sshadow(sx(B.x), sy(B.y), T * 2.0, T * 0.85, 0.35 * B.alpha, '#0C0408'); } fgClose(c); }
-    if (S.inst) try { const L = S.inst.fx.filter(f => f.kind !== 'sin'); if (L.length) S.inst.drawFxList(c, L, true); } catch (e) {}
+    const gParts = alOff() ? null : [];   // (v446 AL: the Anima's ground meshes (spikes, shards) laid after every painter pass of this layer: one GL copy for the passes, not three)
+    if (S.inst) try { const L = S.inst.fx.filter(f => f.kind !== 'sin'); if (L.length) S.inst.drawFxList(c, L, true, gParts); } catch (e) {}
     const Q = fgOpen(c);
     const t = S.g.t;
     // Vigil Starlight: a pool of cool violet-white light, a column over it (in the sky layer); brighter as the pet stands in it
@@ -818,6 +822,7 @@ const SCORPIO_BOSS = (() => {
     if (S.mode === 'intro') { const e = S.introT, fade = 1 - sstep(4.4, 5.6, e); if (fade > 0.01) Q.glow(sx(B.x), sy(B.y), T * 4.4, COL.pink, 0.14 * fade); }
     fgClose(c);
     wavesGround(c, T);
+    if (gParts && gParts.length) { const G = GLS(); if (G && glOn()) { gParts.sort((p, q) => p.z - q.z); c.save(); G.drawParts(c, gParts); c.restore(); } }
   }
   // the rings: a ring of crystal blades rolling out (the Anima's own picture, kind 326, in rose), a dark band under its front, and the dark gaps cut in it
   function wavesGround(c, T) {
@@ -870,14 +875,15 @@ const SCORPIO_BOSS = (() => {
     if (s.done || !S.molt) return; const T = Tz(), X0 = sx(s.x), Y0 = sy(s.y), size = T * TUNE.size, G = GLS(), M = S.molt, cr = s.part && s.part.cracking != null ? cl((S.t - s.part.cracking) / TUNE.mtCrack) : 0, fade = sstep(0, 0.2, M.huntT == null ? 0 : M.huntT + 0.2);
     const P = Object.assign({}, M.pose || S.B.asP || {}, { yaw: s.yaw, t: (M.pose && M.pose.t || 0), live: 0, core: 0.25, crack: 0.15 + 0.85 * cr, shell: 0.22 + 0.5 * cr, glow: 0.05, strikes: null, mv: 0, run: 0, dis: 0 });
     const jit = cr > 0 ? Math.sin(S.t * 80) * T * 0.04 * cr : 0;
-    if (G && glOn() && gpu()) { G.draw(c, { X: X0 + jit, Y: Y0, K: size / G.HEIGHT[3], P, k: 3, alpha: fade, low: lowFx() }); }
+    if (G && glOn() && gpu()) { G.draw(c, { X: X0 + jit, Y: Y0, K: size / G.HEIGHT[3], P, k: 3, alpha: fade, low: lowFx(), cache: s.gc || (s.gc = {}), ckey: cr > 0 ? null : (size / G.HEIGHT[3]).toFixed(2) + ' ' + s.yaw.toFixed(3) }); }   // (v446 AL: a still shell drawn once and laid from its own picture until it cracks)
     else { c.save(); c.globalAlpha = 0.85 * fade; try { AnimaArt.draw(c, 'scorpio', 3, X0 + jit, Y0, size, S.B.at, { alpha: 0.85 * fade, aura: false, flip: Math.cos(s.yaw) < 0, legacy: true }); } finally { c.restore(); } }
   }
   /* the sky: the Anima's own effects (strikes, bursts, shards, the rising crystal, the Seven Stings, the Testament), the starlight's
      columns, the seals' columns, the Venom Debt's seal over the pet */
   function drawSkyLayer(c) {
     const T = Tz(), on = gpu(), UT = UTo(), me = S.me;
-    if (S.inst) try { S.inst.drawFx(c); } catch (e) {}
+    const sParts = alOff() || !on ? null : [];   // (v446 AL: as the ground's: the meshes after the painter passes)
+    if (S.inst) try { S.inst.drawFx(c, sParts); } catch (e) {}
     if (!on) { drawSeal2d(c); return; }
     const Q = fgOpen(c), t = S.g.t;
     for (const p of S.pools) { const k = sstep(0, 0.5, p.t) * (p.used ? 1 - sstep(p.usedT, p.usedT + 0.6, p.t) : 1 - sstep(p.life - 1.2, p.life, p.t)); if (k < 0.01) continue; const px = sx(p.x), py = sy(p.y); Q.shafts(px, py - T * 5, px, py, T * p.r * 0.9, COL.cool, 0.35 * k, p.seed * 10);
@@ -888,6 +894,7 @@ const SCORPIO_BOSS = (() => {
     if (S.debt > 0 && !me.dead && S.mode === 'fight') { const X0 = sx(me.x), Y0 = sy(me.y) - T * 1.9, rip = S.seal ? cl(S.seal.t / S.seal.dur) : 0, beat = S.seal ? Math.exp(-((t * (1.5 + 4 * rip)) % 1) * 6) : 0, R = T * (0.5 + 0.035 * S.debt) * (1 + 0.25 * S.debtFl + 0.25 * beat);
       Q.quad(323, X0, Y0, R, 0, 0, R * 0.8, S.seal ? COL.pale : COL.rose, 1, S.debt, (t * 0.3) % 6, 0.95 + 0.6 * S.debtFl + 0.8 * rip + 0.5 * beat); if (S.seal) Q.glow(X0, Y0, R * (1.6 + rip), COL.pink, (0.2 + 0.35 * rip) * (0.6 + 0.4 * beat)); }
     fgClose(c);
+    if (sParts && sParts.length) { const G = GLS(); if (G && glOn()) { sParts.sort((p, q) => p.z - q.z); c.save(); G.drawParts(c, sParts, { res: 0.9 }); c.restore(); } }
   }
   function drawSeal2d(c) { const me = S.me; if (!(S.debt > 0) || me.dead) return; const T = Tz(), X0 = sx(me.x), Y0 = sy(me.y) - T * 1.9; c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = S.seal ? COL.pale : COL.rose; c.lineWidth = 1.6; c.globalAlpha = 0.8;
     for (let i = 0; i < S.debt; i++) { const an = i / 7 * TAU + S.g.t; c.beginPath(); c.arc(X0 + Math.cos(an) * T * 0.36, Y0 + Math.sin(an) * T * 0.26, T * 0.07, 0, TAU); c.stroke(); } c.restore(); }
