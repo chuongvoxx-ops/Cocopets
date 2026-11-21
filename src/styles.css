@@ -2014,7 +2014,7 @@ body.in-map .outside-btn,body.in-mansion .outside-btn,body.home-mode .outside-bt
 .dev-skillpick .acard{box-sizing:border-box}
 /* v437 GR: the frame counter (Settings > Frame counter; 09b-fps-meter.js): a 10 px tab at the top edge's middle, under the safe area,
    above every screen's HUD (the room's pills, the map's chips, the rift header's title all start below it), never in the way of a tap */
-#fpsMeter{position:fixed;z-index:9999;left:50%;top:var(--sat,env(safe-area-inset-top,0px));transform:translateX(-50%);width:142px;height:10px;contain:strict;pointer-events:none;user-select:none;-webkit-user-select:none;box-sizing:border-box;padding:0 5px;border-radius:0 0 6px 6px;background:rgba(10,8,18,.58);color:#C8F5D2;font:700 8.5px/10px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:-.1px;text-align:center;white-space:nowrap;overflow:hidden;font-variant-numeric:tabular-nums}
+#fpsMeter{position:fixed;z-index:2147483000;left:50%;top:calc(var(--sat,env(safe-area-inset-top,0px)) + 2px);transform:translateX(-50%);width:186px;height:18px;contain:strict;pointer-events:none;user-select:none;-webkit-user-select:none;box-sizing:border-box;padding:0 8px;border-radius:9px;background:rgba(8,6,14,.86);border:1px solid rgba(200,245,210,.45);box-shadow:0 1px 4px rgba(0,0,0,.5);color:#B8FFC8;font:800 11.5px/16px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:-.2px;text-align:center;white-space:nowrap;overflow:hidden;font-variant-numeric:tabular-nums} /* v438: bigger and clearer (the user couldn't see the 10 px tab) */
 #fpsMeter[data-b="mid"]{color:#FFE08A}
 #fpsMeter[data-b="low"]{color:#FF9A9A}
 #fpsMeter[hidden]{display:none}
