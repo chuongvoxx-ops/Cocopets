@@ -52,6 +52,9 @@ async function open(o) {
   await page.addInitScript(gpu => { if (gpu) for (const f of ['__NG_GL', '__TTN_GL', '__DS_GL', '__BELK_GL', '__ULD_GL', '__NHALU_GL', '__VARKUL_GL', '__GLM_WARM']) window[f] = 1; }, o.gpu !== false);
   // (v434 PO) Rift 03's GPU bosses too (Sarrukh, Oneira, Thul-Ammon), at a phone's full resolution (HQ: not the software rasteriser's 0.45x; HQ=0 keeps 0.45x)
   await page.addInitScript(([gpu, hq]) => { if (gpu) { window.__SAR_GL = 1; window.__DB_GL = 1; if (hq) { window.__SAR_GLHQ = 1; window.__DB_GLHQ = 1; } } }, [o.gpu !== false, process.env.HQ !== '0']);
+  if (o.flags) await page.addInitScript(f => Object.assign(window, f), o.flags);
+  if (process.env.SP_OFF === '1') await page.addInitScript(() => { window.__SP_OFF = 1; });   // (v439 SP: any test run with v438's behaviour)   // (v439 SP: extra window flags, e.g. the Animas' GPU paths)
+  if (o.init) for (const f of [].concat(o.init)) await page.addInitScript(f);         // (v439 SP: extra init scripts, e.g. GL counters)
   await page.goto('file://' + path.resolve(__dirname, '..', o.html || process.env.HTML || 'test.html'));
   await page.waitForFunction(() => window.__pp, null, { timeout: 900000 }); await page.waitForTimeout(300);
   await page.evaluate(() => { const P = window.__pp; P.quickStart('Bot'); P.st.dun.god = true; P.st.energy = 100; P.st.dlv = 30; P.st.unlockAll = true; P.st.dun.best = 120; P.openMap(); P.dun.setMapTab('rift', true); });

@@ -13,8 +13,9 @@ const IK = (() => {
      the new ice energy (iceBeam, iceOrb, frostWave, iceVortex) paint through Nidhogg's painter (20k6h FGFX) in the ice
      colours; the crafted shards and crystals stay crisp 2D. window[flag] = 0 or window.__ICE_GL = 0 keeps the 2D */
   let GQ = null, GF = null, BM = null;
-  function gpuBegin(c, flag) { if (GQ) return null; try { if (window[flag] === 0 || window.__ICE_GL === 0) return null; const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; if (!F || !F.usable()) return null; GF = F; GQ = F.begin(c, null); BM = c.getTransform(); return GQ; } catch (e) { GQ = null; return null; } }
-  function gpuEnd(c) { if (!GQ) return; const F = GF; GQ = null; GF = null; try { F.flush(c); } catch (e) {} }
+  function gpuBegin(c, flag) { if (GQ) return null; try { if (window[flag] === 0 || window.__ICE_GL === 0) return null; const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; if (!F || !F.usable()) return null; GF = F; GT = flag === '__WIND_GL' ? 'wind' : null; GQ = F.begin(c, null, GT); BM = c.getTransform(); return GQ; } catch (e) { GQ = null; return null; } }   /* (v439 SP: GT 'wind': Wind's consecutive passes may share one batch, 20k6h lazyFlush) */
+  let GT = null;   /* (v439 SP: the pass's merge tag) */
+  function gpuEnd(c) { if (!GQ) return; const F = GF, T = GT; GQ = null; GF = null; GT = null; try { if (T && F.lazyFlush) F.lazyFlush(c, T); else F.flush(c); } catch (e) {} }   /* (v439 SP: a wind pass kept open for the next one) */
   function gpuXY(c, x, y) { const m = c.getTransform(); if (!BM || (m.a === BM.a && m.b === BM.b && m.c === BM.c && m.d === BM.d && m.e === BM.e && m.f === BM.f)) return [x, y, 0, 1];
     const X = m.a * x + m.c * y + m.e, Y = m.b * x + m.d * y + m.f, det = BM.a * BM.d - BM.b * BM.c, dx = X - BM.e, dy = Y - BM.f;
     return [(BM.d * dx - BM.c * dy) / det, (-BM.b * dx + BM.a * dy) / det, Math.atan2(m.b, m.a) - Math.atan2(BM.b, BM.a), Math.sqrt(Math.abs((m.a * m.d - m.b * m.c) / det)) || 1]; }

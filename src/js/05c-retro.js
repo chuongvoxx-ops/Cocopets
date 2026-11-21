@@ -70,6 +70,7 @@ const retro = (() => {
   let caCv = null;
   function post(cv, c) {
     if (!on || CA <= 0 || DESKTOP || typeof arc === 'undefined' || arc.mode !== 'dungeon') return;
+    if (typeof PERF !== 'undefined' && PERF.noLens) return;   /* (v439 SP: the benchmark's diagnostic phase without this pass) */
     const w = cv.width, h = cv.height; if (!w || !h) return;
     /* (the red copy is made at half size: it is only a soft fringe, and a quarter of the pixels) */
     const tw = Math.ceil(w / 2), th = Math.ceil(h / 2);

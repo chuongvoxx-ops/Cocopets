@@ -2139,6 +2139,7 @@ void main() {
   const OUTC = [0.012, 0.03, 0.1];
   function render(W, H, S, items) {
     if (!ok()) return null;
+    if (typeof PERF !== 'undefined' && W * H > 64) PERF.copy();   /* (v439 SP: a model pass, laid on the canvas by its caller: counted for the readout) */
     /* (v434 PO) S.keep: a pass whose size wanders a few pixels every frame (a boss's box following its moving parts) no longer
        reallocates the drawing buffer and its depth buffer every frame: the canvas is kept while it holds W x H and is not much
        larger (sizes rounded up to 32 px when it must change), and the picture is drawn into its top-left W x H, which is what

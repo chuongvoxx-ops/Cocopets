@@ -167,12 +167,14 @@ GAMES.dungeon = {
     //  It also lasts at least three drawn frames, so a slow impact frame can't swallow it)
     const negative = d => { if (typeof reduceMotion !== 'undefined' && reduceMotion) { flash(0.35, '#D0AEFF'); return; } g.negT = Math.max(g.negT || 0, d || 0.5); g.negF = Math.max(g.negF || 0, 3); };
     const hitstop = t => { g.hitStop = Math.max(g.hitStop, t); };
-    function text(x, y, s, color, size, o) { if (texts.length > 40) texts.shift(); texts.push(Object.assign({ x: x + (Math.random() - 0.5) * 0.3, y, s: String(s), color: color || '#FFFFFF', size: size || 15, life: 0.85, max: 0.85, vy: -1.6 }, o || {})); }
-    function dmgText(m, dmg, color, size, crit) {
-      const t = m.dmgT;
-      if (!crit && t && t.life > t.max - 0.22 && texts.includes(t)) { t.n += dmg; t.s = String(Math.round(t.n)); t.size = Math.min(size + 6, t.size + 0.6); return; }
+    const SPOFF = () => typeof window !== 'undefined' && window.__SP_OFF === 1;   /* v439 SP: the A/B switch */
+    let cosS = 12345; const cosR = () => { if (SPOFF()) return Math.random(); cosS = (cosS * 16807) % 2147483647; return (cosS - 1) / 2147483646; };   /* (v439 SP: a label's jitter from its own little generator, not the game's dice: how many labels are shown never changes a fight) */
+    function text(x, y, s, color, size, o) { if (texts.length > 40) texts.shift(); texts.push(Object.assign({ x: x + (cosR() - 0.5) * 0.3, y, s: String(s), color: color || '#FFFFFF', size: size || 15, life: 0.85, max: 0.85, vy: -1.6 }, o || {})); }
+    function dmgText(m, dmg, color, size, crit, dot) {
+      const t = m.dmgT, win = dot && t && t.dot && !SPOFF() ? 0.62 : 0.22;   /* (v439 SP: a burn's or poison's ticks (every half second) add into the tick label still up, a short-window total, as quick hits already did; the damage itself is untouched) */
+      if (!crit && t && t.life > t.max - win && texts.includes(t) && (SPOFF() || !!t.dot === !!dot)) { t.n += dmg; t.s = String(Math.round(t.n)); t.size = Math.min(size + 6, t.size + 0.6); return; }
       text(m.x, m.y - m.r - 0.25 - (m.z || 0), Math.round(dmg), color, size, crit ? { crit: true } : null);
-      m.dmgT = texts[texts.length - 1]; m.dmgT.n = dmg;
+      m.dmgT = texts[texts.length - 1]; m.dmgT.n = dmg; if (dot) m.dmgT.dot = 1;
     }
     /* one big banner at a time; small ones stack two deep, newest at the bottom */
     function banner(s, sub, color, life, big, astral) {
@@ -386,7 +388,7 @@ GAMES.dungeon = {
       const E = EL(o.el || AB.el);
       if (!o.noText && (!o.dot || dmg >= 4)) {
         const big = o.src === 'ult' || dmg > ST.atk * 4;
-        dmgText(m, dmg, crit ? '#FFE37A' : big ? '#FFB066' : o.dot ? (o.dotC || '#B6F09C') : '#FFFFFF', crit ? 21 : big ? 19 : o.dot ? 12 : 15, crit);
+        dmgText(m, dmg, crit ? '#FFE37A' : big ? '#FFB066' : o.dot ? (o.dotC || '#B6F09C') : '#FFFFFF', crit ? 21 : big ? 19 : o.dot ? 12 : 15, crit, !!o.dot);
         if (!o.dot) sparks(m.x, m.y - (m.z || 0), E.color, crit ? 10 : 5, crit ? 8 : 5);
         if (crit) { ring(m.x, m.y, 0.1, 0.9, 0.2, '#FFE37A', 0.12); if (o.src && o.src !== 'normal') hitstop(0.03); }
       }
@@ -2925,7 +2927,7 @@ GAMES.dungeon = {
     }
     return {
       preloadJobs,   /* (v374: the loading screen's work: StageLoad.warm) */
-      _dbg: { get cam() { return cam; }, get RULES() { return RULES; }, get RIFT() { return RIFT; }, RU, lesserBoss, makeBoss, SKIP, stick, steerTo: (x, y) => { goTo(null, x, y); const d = navDir(1 / 60); nav.goal = null; return d; }, g, me, mons, M, get ST() { return ST; }, KIT, AB, useStrong, useUlt, dodge, hitMon, shots, eshots, zones, parts, helpers, F, pots, picks, shrines, hazards, traps, stones, SIZE, chunks, walkAt, blocked, X, wakeBoss, takeStone, fireEvent, tapAt, toWorld, nav, holds, goTo, banners, get AN() { return AN; }, get FD() { return FD; }, get RX() { return RX; }, get STAR() { return STAR; }, get ELEM() { return ELEM; }, get RES() { return RES; }, propList, get KITR() { return KIT; }, setKit: (slot, a) => { KIT[slot] = a; }, get VEH() { return VEH; }, vehBtns, party, cur: () => cur, switchTo, hurtPet, btnSw, setBoss: id => { if (BOSS_BY_ID[id]) { BOSS_KIND = BOSS_BY_ID[id]; F.bossName = BOSS_KIND.name; } } },
+      _dbg: { get cam() { return cam; }, get RULES() { return RULES; }, get RIFT() { return RIFT; }, RU, lesserBoss, makeBoss, SKIP, stick, steerTo: (x, y) => { goTo(null, x, y); const d = navDir(1 / 60); nav.goal = null; return d; }, g, me, mons, M, get ST() { return ST; }, KIT, AB, useStrong, useUlt, dodge, hitMon, shots, eshots, zones, parts, texts /* v439 SP: the readout's label count */, helpers, F, pots, picks, shrines, hazards, traps, stones, SIZE, chunks, walkAt, blocked, X, wakeBoss, takeStone, fireEvent, tapAt, toWorld, nav, holds, goTo, banners, get AN() { return AN; }, get FD() { return FD; }, get RX() { return RX; }, get STAR() { return STAR; }, get ELEM() { return ELEM; }, get RES() { return RES; }, propList, get KITR() { return KIT; }, setKit: (slot, a) => { KIT[slot] = a; }, get VEH() { return VEH; }, vehBtns, party, cur: () => cur, switchTo, hurtPet, btnSw, setBoss: id => { if (BOSS_BY_ID[id]) { BOSS_KIND = BOSS_BY_ID[id]; F.bossName = BOSS_KIND.name; } } },
       resize() { layout(); if (stick.id != null) { stick.ox = stick.x; stick.oy = stick.y; } },   /* (a resize, a browser bar sliding say, no longer drops a held stick: its base re-centres under the thumb) */
       /* a meal from the pantry while paused: heals the played pet and feeds it Tower experience */
       feed(k) {

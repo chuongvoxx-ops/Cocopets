@@ -78,7 +78,7 @@ function newState(name, genome) {
     house: { rooms: [newRoom('living', 1), newRoom('shop', 2)], cur: 0, n: 2, name: '', paint: 'cream', roof: 'terracotta' }, inv: {}, themes: ['meadow'], pantry: {}, others: [],
     map: { stars: {}, best: {}, plays: 0, milestones: {} },
     cards: {}, accs: [], dun: { best: 0, runs: 0, kills: 0, boxes: 0, pity: 0, god: false, tab: 'world', seen: {}, grades: {} }, rift: { seals: {}, prog: {}, gates: {}, rlyeh: 0, ver: { belfry: 4, garden: 2 }, bel: {} },   // v437 GR: (the Garden's nine-stage layout: 2)   // v394 B1: the Belfry's layout 4 (eight stages, three dungeons)   // (v391 B1: ver, a rift's stage-layout version (the Belfry rebuilt: 2); bel, the Belfry's small checkpoint numbers)
-    sound: true, retro: true, fast: false, fps: true, fpsV: 1 /* v438: the frame counter on for a new game too */, tips: {}, dev: false, unlockAll: false,
+    sound: true, retro: true, fast: false, fps: true, fpsV: 1 /* v438: the frame counter on for a new game too */, gq: 'auto', fpsD: false /* v439 SP: visual quality, the frame counter's details */, tips: {}, dev: false, unlockAll: false,
     skillsV: SKILLS_V,   // v391 K: a new game starts under the skills rules (no re-roll on its first load)
     welcome: 0, freeTen: 0, login: { m: '', n: 0, last: '', seen: '' },
     hub: newHub(),
@@ -105,7 +105,7 @@ function migrateV1(o) {
   s.hatchedAt = o.hatchedAt; s.savedAt = o.savedAt || Date.now(); s.hid = 'h' + Math.floor(o.hatchedAt);
   ['food', 'joy', 'energy', 'ageH', 'streak', 'bestStreak', 'meals', 'pats', 'kicks'].forEach(k => { if (typeof o[k] === 'number') s[k] = clamp(o[k], 0, k === 'ageH' || k.endsWith('s') || k.includes('treak') ? 1e7 : 100); });
   s.lastFedDay = typeof o.lastFedDay === 'string' ? o.lastFedDay : null;
-  s.asleep = !!o.asleep; s.lightsOff = !!o.lightsOff; s.sound = o.sound !== false; s.retro = o.retro !== false; s.fast = !!o.fast; s.lowFx = !!o.lowFx; s.fps = o.fpsV ? !!o.fps : true; s.fpsV = 1; /* v437 GR: the frame counter (Settings); v438: on by default, once, for every save (the user asked to see it; Settings turns it off) */ s.bellMute = !!o.bellMute; s.devMoves = !!o.devMoves;
+  s.asleep = !!o.asleep; s.lightsOff = !!o.lightsOff; s.sound = o.sound !== false; s.retro = o.retro !== false; s.fast = !!o.fast; s.lowFx = !!o.lowFx; s.fps = o.fpsV ? !!o.fps : true; s.fpsV = 1; s.gq = ['high', 'balanced', 'perf'].includes(o.gq) ? o.gq : 'auto'; s.fpsD = !!o.fpsD; /* v439 SP */ /* v437 GR: the frame counter (Settings); v438: on by default, once, for every save (the user asked to see it; Settings turns it off) */ s.bellMute = !!o.bellMute; s.devMoves = !!o.devMoves;
   const g = +o.growth || 0;
   s.stage = g >= 96 ? 3 : g >= 24 ? 2 : 1;
   growForms(s, R);
@@ -245,7 +245,7 @@ function sanitize(o) {
   s.accs = cleanAccs(o.accs); linkAccs(s);   // the accessory bag, and only pieces from it worn, each by one pet
   // the party: up to three pets beside the one you play, each one you still have, none twice
   if (Array.isArray(o.party)) { const ok = new Set(s.others.map(p => p.uid)), seen2 = new Set(); s.party = o.party.filter(u => typeof u === 'string' && ok.has(u) && u !== s.uid && !seen2.has(u) && seen2.add(u)).slice(0, 3); }
-  s.sound = o.sound !== false; s.retro = o.retro !== false; s.fast = !!o.fast; s.lowFx = !!o.lowFx; s.fps = o.fpsV ? !!o.fps : true; s.fpsV = 1; /* v437 GR: the frame counter (Settings); v438: on by default, once, for every save (the user asked to see it; Settings turns it off) */ s.bellMute = !!o.bellMute; s.devMoves = !!o.devMoves;
+  s.sound = o.sound !== false; s.retro = o.retro !== false; s.fast = !!o.fast; s.lowFx = !!o.lowFx; s.fps = o.fpsV ? !!o.fps : true; s.fpsV = 1; s.gq = ['high', 'balanced', 'perf'].includes(o.gq) ? o.gq : 'auto'; s.fpsD = !!o.fpsD; /* v439 SP */ /* v437 GR: the frame counter (Settings); v438: on by default, once, for every save (the user asked to see it; Settings turns it off) */ s.bellMute = !!o.bellMute; s.devMoves = !!o.devMoves;
   if (o.tips && typeof o.tips === 'object') for (const k in o.tips) if (o.tips[k] === true && k.length < 20) s.tips[k] = true;
   linkRoom(s);
   return s;

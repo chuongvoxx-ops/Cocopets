@@ -19,12 +19,18 @@ const FPSM = (() => {
     let cnt = 0, sum = 0, worst = 0; for (let k = 1; k < n; k++) { const i = (head - k + N) % N, j = (i - 1 + N) % N, end = T[i], dt = end - T[j]; if (end < now - 1000) break;
       if (dt > worst) worst = dt; if (end >= now - 500) { cnt++; sum += dt; } }
     return cnt ? { fps: 1000 * cnt / sum, ms: sum / cnt, worst, n: cnt } : null; }
-  function tick(ms) { if (want() !== shown) sync(); if (!shown) return;
+  function tick(ms, arcF) { if (want() !== shown) sync(); if (!shown) return;
+    /* (v439 SP) while the Tower or a rift is open, the arcade's own drawn frames are counted (a paced 30 skips display frames;
+       this loop would still read 60): 10-main's ticks are left out then. window.__SP_OFF = 1: as v438 */
+    if (!arcF && typeof arc !== 'undefined' && arc.open && arc.state === 'play' && typeof GQ !== 'undefined' && window.__SP_OFF !== 1) return;
     if (last && ms - last > 1000) n = 0;   // (a pause: a hidden tab, a suspended page; start over)
     last = ms; T[head] = ms; head = (head + 1) % N; if (n < N) n++;
     if (ms < nextUp) return; nextUp = ms + 250;
     const R = read(ms); if (!R) return;
-    const s = `${Math.round(R.fps)} fps · ${R.ms.toFixed(1)} ms · max ${Math.round(R.worst)}`;
+    let s = `${Math.round(R.fps)} fps · ${R.ms.toFixed(1)} ms · max ${Math.round(R.worst)}`;
+    /* (v439 SP) Settings > Frame counter details (st.fpsD): the detailed readout under it (PERF.lines), and the quality in use */
+    const det = !!(st && st.fpsD && typeof PERF !== 'undefined' && window.__SP_OFF !== 1); if (det !== (el.dataset.d === '1')) el.dataset.d = det ? '1' : '';
+    if (det) s += '\n' + PERF.lines(); else if (typeof GQ !== 'undefined' && window.__SP_OFF !== 1 && typeof arc !== 'undefined' && arc.open && arc.mode === 'dungeon' && GQ.level() > 0) s += ' · ' + GQ.name().replace('Auto: ', 'A:').replace('Performance', 'Perf').replace('Balanced', 'Bal');
     if (s !== said) { said = s; txt.nodeValue = s; }
     const b = R.fps >= 50 ? 'ok' : R.fps >= 28 ? 'mid' : 'low'; if (b !== band) { band = b; el.dataset.b = b; } }
   return { tick, sync, read, get el() { return el; } };

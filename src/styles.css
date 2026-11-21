@@ -2018,3 +2018,11 @@ body.in-map .outside-btn,body.in-mansion .outside-btn,body.home-mode .outside-bt
 #fpsMeter[data-b="mid"]{color:#FFE08A}
 #fpsMeter[data-b="low"]{color:#FF9A9A}
 #fpsMeter[hidden]{display:none}
+#fpsMeter{width:212px} /* v439 SP: room for the quality in use (A:Bal, A:Perf) */
+#fpsMeter[data-d="1"]{width:min(352px,98vw);height:auto;contain:layout paint style;white-space:pre;text-align:left;font-size:10.5px;line-height:14px;padding:2px 8px;border-radius:8px} /* v439 SP: Settings > Frame counter details */
+#benchOut{position:fixed;inset:0;z-index:2147483300;display:flex;align-items:center;justify-content:center;background:rgba(8,6,14,.6);padding:12px} /* v439 SP: the benchmark's results */
+#benchOut .bo-card{background:#1B1426;color:#F4ECFF;border-radius:16px;padding:14px;max-width:min(620px,96vw);box-shadow:0 6px 24px rgba(0,0,0,.5)}
+#benchOut h3{margin:0 0 8px;font-size:16px}
+#benchOut pre{margin:0 0 10px;max-height:60vh;overflow:auto;white-space:pre-wrap;word-break:break-word;font:600 11px/15px ui-monospace,SFMono-Regular,Menlo,monospace;user-select:text;-webkit-user-select:text}
+.setting.gq{flex-wrap:wrap}.gq-row{display:flex;gap:4px;flex-wrap:wrap}.gq-b{padding:6px 9px;font-size:12px}.gq-b[aria-pressed="true"]{background:#7A5CFF;color:#fff} /* v439 SP */
+#benchOut .bo-row{display:flex;gap:8px;justify-content:flex-end}

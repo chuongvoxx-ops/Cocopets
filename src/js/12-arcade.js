@@ -338,7 +338,7 @@ function arcLayout() {
   arc.W = W; arc.H = H;
   arcCanvas.style.top = top + 'px';
   arcCanvas.style.width = W + 'px'; arcCanvas.style.height = H + 'px';
-  arc.dpr = Math.min(arc.mode === 'dungeon' ? arc.dunCap : 2.5, window.devicePixelRatio || 1);
+  arc.dpr = Math.min(arc.mode === 'dungeon' ? (typeof GQ !== 'undefined' && window.__SP_OFF !== 1 ? GQ.cap() : arc.dunCap) : 2.5, window.devicePixelRatio || 1);   /* (v439 SP: the visual quality's cap, Settings > Visual quality; Auto steps it) */
   // (a pixel budget: a big screen, a 5K iMac's window say, would otherwise get a canvas of fifteen million pixels, more
   // than ten times a phone's; with the old-film look on, the budget is tighter, as its passes go over every pixel, and
   // the softness of the enlarged canvas is part of that look)
@@ -639,6 +639,9 @@ function beginPlay() {
 function arcFrame(ms) {
   if (!arc.open) return;
   arc.raf = requestAnimationFrame(arcFrame);
+  const SPq = typeof GQ !== 'undefined' && window.__SP_OFF !== 1;   /* (v439 SP) the visual quality, the readout, the benchmark */
+  if (SPq && arc.state === 'play' && !arc.paused && GQ.pace(ms, arc.last)) return;   /* (paced 30: this display frame skipped) */
+  const SPt0 = performance.now(); let SPt1 = SPt0, SPt2 = SPt0;
   let dt = (ms - arc.last) / 1000;
   arc.last = ms;
   if (!(dt > 0)) return;
@@ -646,10 +649,12 @@ function arcFrame(ms) {
   if (!arc.game) return;
   const live = arc.state === 'play' && !arc.paused;
   if (live && arc.stop > 0) { arc.stop -= dt; dt *= 0.22; }
+  if (SPq && live && PERF.on) PERF.benchTick(dt);   /* (v439 SP: the benchmark's actions) */
   if (live) { arc.t += dt; arc.game.update(dt); comboTick(dt); }
+  SPt1 = performance.now();
   // the Tower draws a lot: if this device is struggling, drop to a slightly lower resolution for the rest of the session;
   // if it still runs at half speed or worse there, once a Super Fiend has given up all its light passes, a little lower again
-  if (live && arc.mode === 'dungeon' && arc.dpr > 1.25) {
+  if (!SPq && live && arc.mode === 'dungeon' && arc.dpr > 1.25) {   /* (v439 SP: replaced by GQ's Auto unless __SP_OFF) */
     arc.frames.push(dt);
     if (arc.frames.length >= 120) { const f = arc.frames.slice().sort((a, b) => a - b), med = f[f.length >> 1], first = arc.dpr > 1.5; arc.frames.length = 0;
       const lit = typeof DunFiend !== 'undefined' && DunFiend.KIT && DunFiend.KIT.qq() > 0;
@@ -662,8 +667,10 @@ function arcFrame(ms) {
   arc.game.draw(c);
   if (arc.mode !== 'dungeon' && (live || arc.state === 'end')) drawJuice(c);
   drawFx(c, live || arc.state === 'end' ? dt : 0);
-  c.restore();
+  c.restore(); if (SPq) { try { const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; if (F && F.settle) F.settle(); } catch (e) {} }   /* (v439 SP: a wind pass still kept open is laid before the frame ends) */
+  SPt2 = performance.now();
   if (typeof retro !== 'undefined') retro.post(arcCanvas, c);   /* the old-film lens: a touch of chromatic aberration */
+  if (SPq) { const t3 = performance.now(); const iv = PERF.frame(ms, SPt1 - SPt0, SPt2 - SPt1, t3 - SPt2); if (arc.mode === 'dungeon') GQ.tick(iv, t3 - SPt0, live); if (typeof FPSM !== 'undefined') FPSM.tick(ms, 1); }   /* (v439 SP: the drawn arcade frame: its interval and JS time for the readout and Auto; the frame counter counts drawn frames) */
 }
 function togglePause(force) {
   if (arc.state !== 'play') return;
@@ -750,7 +757,7 @@ function shadeC(hex, k) {
 }
 /* a gloomy's spikes: [angle, length (× r), half width], in drawing order; the first three are the mohawk */
 const GLOOMY_SPIKES = [[-1.9, 1.2, 0.14], [-1.57, 1.4, 0.16], [-1.24, 1.2, 0.14], [-0.72, 1.14, 0.17], [-0.2, 1.16, 0.18], [0.3, 1.08, 0.17], [0.8, 1.06, 0.17], [1.3, 0.94, 0.16], [1.84, 0.94, 0.16], [2.34, 1.06, 0.17], [2.84, 1.08, 0.17], [3.34, 1.16, 0.18], [3.86, 1.14, 0.17]];
-const TEXT_PICS = new Map(), FONTS_IN = new Set();
+const TEXT_PICS = new Map(), FONTS_IN = new Set(), TEXT_FREE = [];   /* (v439 SP: TEXT_FREE canvases of let-go label pictures, reused) */
 const GFX = {
   line: '#2B2433',
   rr(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); },
@@ -891,13 +898,13 @@ const GFX = {
     let sp = TEXT_PICS.get(key);
     if (sp) { TEXT_PICS.delete(key); TEXT_PICS.set(key, sp); }
     else {
-      const ow = stroke ? lw : 0, pad = ow + 2, cv = document.createElement('canvas'), g = cv.getContext('2d'); g.font = font;
+      const ow = stroke ? lw : 0, pad = ow + 2, cv = (window.__SP_OFF !== 1 && TEXT_FREE.pop()) || document.createElement('canvas'), g = cv.getContext('2d'); g.font = font;   /* (v439 SP: a let-go picture's canvas reused (TEXT_FREE), not a new canvas and context for every new number) */
       const w = Math.ceil(g.measureText(s).width + pad * 2), h = Math.ceil(size * 1.5 + ow * 2);
       cv.width = Math.max(1, Math.ceil(w * k)); cv.height = Math.max(1, Math.ceil(h * k));
       g.setTransform(k, 0, 0, k, 0, 0); g.font = font; g.textAlign = 'center'; g.textBaseline = 'middle';
       if (stroke) { g.lineWidth = lw; g.strokeStyle = stroke; g.lineJoin = 'round'; g.strokeText(s, w / 2, h / 2); }
       g.fillStyle = fill; g.fillText(s, w / 2, h / 2);
-      sp = { cv, w, h, pad }; TEXT_PICS.set(key, sp); if (TEXT_PICS.size > 320) { const k0 = TEXT_PICS.keys().next().value, o0 = TEXT_PICS.get(k0); TEXT_PICS.delete(k0); o0.cv.width = o0.cv.height = 0; }   // (its picture let go at once, not when the page next tidies up)
+      sp = { cv, w, h, pad }; TEXT_PICS.set(key, sp); if (TEXT_PICS.size > 320) { const k0 = TEXT_PICS.keys().next().value, o0 = TEXT_PICS.get(k0); TEXT_PICS.delete(k0); o0.cv.width = o0.cv.height = 0; if (TEXT_FREE.length < 48 && window.__SP_OFF !== 1) TEXT_FREE.push(o0.cv); }   // (its picture let go at once, not when the page next tidies up; v439 SP: its canvas kept for the next label)
     }
     // laid down pixel for pixel, on the screen's own pixels (sharper, and cheaper to draw than between them)
     const x0 = align === 'left' ? x - sp.pad : align === 'right' ? x + sp.pad - sp.w : x - sp.w / 2, y0 = y - sp.h / 2, M = c.getTransform(), q = M.a;

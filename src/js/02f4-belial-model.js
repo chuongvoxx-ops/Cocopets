@@ -665,7 +665,7 @@ const BELIAL_GL = (() => {
       if (k === 3 && (P.halo == null || P.halo > 0.01)) { const hc = BP([1.2, 0, CITF + 7.0 + up * 1.8]); put(M.halo, BR(mm(rx(0.5), rz(t * 0.12))), hc, 1.15 * (P.halo == null ? 1 : P.halo) * (1 + up * 0.3), glow + 0.5, { kind: 3, noInk: true }, 1); out.halo = scr(hc); box(hc, 4.8); }
       if (!(bx1 > bx0) || !ITEMS.length) return null;
       for (const g of TRANS) ITEMS.push(g);
-      const m = c.getTransform ? c.getTransform() : null, soft = GLM.soft && !flag('__BL_GLHQ'), dev = (m ? Math.max(0.25, Math.hypot(m.a, m.b)) : 1) * (soft ? 0.5 : RES.k);
+      const m = c.getTransform ? c.getTransform() : null, soft = GLM.soft && !flag('__BL_GLHQ'), dev = (m ? Math.max(0.25, Math.hypot(m.a, m.b)) : 1) * (soft ? 0.5 : RES.k) * (typeof GQ !== 'undefined' ? GQ.animaK() : 1);   /* (v439 SP: the visual quality's factor in a fight, 3/4 under Fewer effects) */
       bx0 = Math.floor(bx0) - 3; by0 = Math.floor(by0) - 3; bx1 = Math.ceil(bx1) + 3; by1 = Math.ceil(by1) + 3;
       let W = Math.ceil((bx1 - bx0) * dev), H = Math.ceil((by1 - by0) * dev); const scl = Math.min(1, GLCAP / Math.max(W, H)); W = Math.max(2, Math.ceil(W * scl)); H = Math.max(2, Math.ceil(H * scl));
       const bw = bx1 - bx0, bh = by1 - by0;
@@ -724,7 +724,7 @@ const BELIAL_GL = (() => {
           put(mesh, R(1), [e.X, e.Y, zz], al, e.gl, e.g2, e.dis, e.kind || 0); box(e.X, e.Y, s * (mesh.bs ? mesh.bs[3] + len(mesh.bs) : 2) * 1.05); }
       }
       if (!(x1 > x0) || !(ITEMS.length + TRANS.length)) return false; for (const g of TRANS) ITEMS.push(g);
-      const m = c.getTransform ? c.getTransform() : null, soft = GLM.soft && !flag('__BL_GLHQ'), dev = (m ? Math.max(0.25, Math.hypot(m.a, m.b)) : 1) * (soft ? 0.5 : 1) * (o.res || (lowFx() ? 0.6 : 0.85));
+      const m = c.getTransform ? c.getTransform() : null, soft = GLM.soft && !flag('__BL_GLHQ'), dev = (m ? Math.max(0.25, Math.hypot(m.a, m.b)) : 1) * (soft ? 0.5 : 1) * (o.res || (lowFx() ? 0.6 : 0.85)) * (typeof GQ !== 'undefined' ? GQ.partsK() : 1);   /* (v439 SP) */
       x0 = Math.floor(x0) - 2; y0 = Math.floor(y0) - 2; x1 = Math.ceil(x1) + 2; y1 = Math.ceil(y1) + 2; const bw = x1 - x0, bh = y1 - y0;
       let W = Math.ceil(bw * dev), H = Math.ceil(bh * dev); const scl = Math.min(1, GLCAP / Math.max(W, H)); W = Math.max(2, Math.ceil(W * scl)); H = Math.max(2, Math.ceil(H * scl));
       const S = { px: PX2, py: PY2, pd: PD2, cl: [200 / bw, -2 * x0 / bw - 1, -200 / bh, 1 + 2 * y0 / bh], v: SV, lk: SLK, ls: SLS, lr: SLR, up: SUP, low: lowFx(), rim: RIMC, amb: AMBC, t: nowMs() / 1000 % 1000, outline: lowFx() ? 0 : Math.max(0.5, 0.6 * (W / bw)), outlineCol: OUTC, outlineBias: 0.002 };

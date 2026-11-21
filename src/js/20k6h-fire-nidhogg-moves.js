@@ -2291,6 +2291,7 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
     if (ok === false && why === 'context lost' && performance.now() - lostAt > 1500) { cv = null; gl = null; PR = null; PRW = null; ok = null; why = ''; }
     if (ok === false) return false; if (ok === null) { try { ok = build(); } catch (e) { ok = false; why = String(e && e.message || e); try { console.warn('Nidhogg GFX: ' + why); } catch (e2) {} } } return !!ok && (!soft || f === 1); }
   const LOWQ = () => typeof st !== 'undefined' && st && !!st.lowFx;
+  const GQK = () => { try { return typeof GQ !== 'undefined' && window.__SP_OFF !== 1 && typeof arc !== 'undefined' && !!arc.game && arc.mode === 'dungeon' ? Math.max(0.6, GQ.fgK()) : 1; } catch (e) { return 1; } };   /* (v439 SP) */
   /* the batch: light quads and smoke quads, 12 floats a vertex */
   const RGB = new Map(), rgbOf = h => { let v = RGB.get(h); if (!v) { const q = hexRGB(h || '#FF7A2E'); v = [q[0] / 255, q[1] / 255, q[2] / 255]; RGB.set(h, v); } return v; };
   const QV = [[-1, -1], [1, -1], [-1, 1], [-1, 1], [1, -1], [1, 1]];
@@ -2431,7 +2432,24 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
     trail(P, n, w, heat, a, seed) { for (let i = 0; i < n - 1; i++) { const k = i / (n - 1), x0 = P[i][0], y0 = P[i][1], x1 = P[i + 1][0], y1 = P[i + 1][1], dx = x1 - x0, dy = y1 - y0, L = Math.hypot(dx, dy) || 1, ex = dx / L * w * 0.4, ey = dy / L * w * 0.4;
       this.firebeam(x0 - ex, y0 - ey, x1 + ex, y1 + ey, w * (1 - 0.75 * k), heat * (1 - 0.6 * k), a * (1 - k * k), (seed || 0) + i * 0.37, 4); } } };
   /* begin a pass on the game canvas c (its transform is the camera); pet: [screen x, y, radius] to keep clear, or null */
-  function begin(c, pet) { const B = c.getTransform(), cv0 = c.canvas, L = LOWQ(), k0 = Math.min(L ? 0.42 : 0.7, 1500 / Math.max(cv0.width, cv0.height));   /* (v364: a finer GPU layer: 1500 px on the long side, was 1200) */ Q.W = Math.max(8, Math.round(cv0.width * k0)); Q.Hh = Math.max(8, Math.round(cv0.height * k0)); const kx = Q.W / cv0.width;
+  /* (v439 SP) stacked wind: Wind's moves lay each group of their air as a pass of its own (20k3l layer()), so five wind moves at once
+     laid 16-20 GL layers a frame, each a copy of the WebGL canvas onto the game's (the measured top cost of a frame under stacked wind,
+     26 copies in a Garden fight). A wind pass that ends (lazyFlush, tag 'wind') is now kept open; if the next pass begun on the game's
+     canvas is wind again, in the same frame of reference, with nothing drawn on the canvas in between, it carries on in the same batch
+     (one copy for both); anything else - another painter's pass, any 2D drawing on that canvas (its drawing calls are watched for
+     this: hook), the frame's end (settle) - lays it first, so the order of everything else is as before. Within a merged run the
+     wind's bodies all go under the lights of the run. window.__SP_OFF = 1: every pass laid at once, as v438 */
+  let PEND = null; const HOOKED = new WeakSet();
+  const spOn = () => !(typeof window !== 'undefined' && window.__SP_OFF === 1);
+  let LZ = false;
+  function settle() { const P = PEND; if (!P) return; PEND = null; LZ = true; try { flush(P.c); } finally { LZ = false; } }
+  function hook(c) { if (HOOKED.has(c)) return; HOOKED.add(c); const P2 = Object.getPrototypeOf(c);
+    for (const m of ['drawImage', 'fill', 'fillRect', 'stroke', 'fillText', 'strokeText', 'putImageData', 'clearRect', 'getImageData', 'clip'])   /* (clip: laid before a clip can cut it; the other state a lay could inherit is reset by flush when it lays a kept pass: LZ) */ { const o = P2[m]; if (typeof o !== 'function') continue; c[m] = function () { if (PEND) settle(); return o.apply(this, arguments); }; } }
+  function lazyFlush(c, tag) { if (!spOn() || !tag || !c || !c.canvas || c.canvas.id !== 'arcCanvas') return flush(c); if (!Q.nl && !Q.ns && !Q.nwl && !Q.nws) return; hook(c);
+    const B = c.getTransform(); PEND = { c, tag, a: B.a, b: B.b, c0: B.c, d: B.d, e: B.e, f: B.f, W: c.canvas.width, H: c.canvas.height }; }
+  function begin(c, pet, tag) { if (PEND) { const P = PEND, B = c.getTransform(); if (tag && P.tag === tag && P.c === c && !pet && spOn() && B.a === P.a && B.b === P.b && B.c === P.c0 && B.d === P.d && B.e === P.e && B.f === P.f && c.canvas.width === P.W && c.canvas.height === P.H) { PEND = null; stats.merged = (stats.merged || 0) + 1; return Q; } stats.settled = (stats.settled || 0) + 1; settle(); }
+    return begin0(c, pet); }
+  function begin0(c, pet) { const B = c.getTransform(), cv0 = c.canvas, L = LOWQ(), k0 = Math.min(L ? 0.42 : 0.7 * GQK(), 1500 / Math.max(cv0.width, cv0.height));   /* (v439 SP: GQK the visual quality's soft-layer scale: Balanced 3/4, Performance 0.6, never under Fewer effects' 0.42) */   /* (v364: a finer GPU layer: 1500 px on the long side, was 1200) */ Q.W = Math.max(8, Math.round(cv0.width * k0)); Q.Hh = Math.max(8, Math.round(cv0.height * k0)); const kx = Q.W / cv0.width;
     Q.a = B.a * kx; Q.b = B.b * kx; Q.c0 = B.c * kx; Q.d = B.d * kx; Q.e = B.e * kx; Q.f = B.f * kx; Q.k = (Math.sqrt(Math.abs(B.a * B.d - B.b * B.c)) || 1) * kx; Q.nl = Q.ns = Q.nwl = Q.nws = 0; Q.sv = Q.nq = 0; /* v430 PF */ Q.rl = null; /* v434 PO */ Q.t =(typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000 % 1000;
     if (pet) { Q.pet[0] = Q.X(pet[0], pet[1]); Q.pet[1] = Q.Y(pet[0], pet[1]); Q.pet[2] = pet[2] * Q.k; } else Q.pet[2] = 0; return Q; }
   /* (v388 E: every beam's far end feathers out) beams (kinds 2, 6, 11, 20) are laid as chains of overlapping stretches
@@ -2452,13 +2470,14 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
       if (linked) continue;
       const fe = Math.max(0.2, Math.min(0.7, 1.7 * hw / (2 * hl))), kk = k + 0.05 + (fe - 0.2) / 1.5, o = FE[p];
       for (let v = 0; v < 6; v++) A[o + v * 12 + 4] = kk; } }
-  function flush(c) { if (!Q.nl && !Q.ns && !Q.nwl && !Q.nws) return; if (!usable()) return; try { const W = Q.W, Hh = Q.Hh; featherEnds(Q.lit, Q.nl); featherEnds(Q.smk, Q.ns);   /* (v388 E) */ if (cv.width !== W || cv.height !== Hh) { cv.width = W; cv.height = Hh; }   /* (v326: one layer at a time, the whole canvas copied each time: no source rectangles at all, so no browser can crop or misplace a half) */
+  function flush(c) { if (PEND) { if (PEND.c !== c) settle(); else PEND = null; }   /* (v439 SP: a kept wind pass laid where it belongs first; on its own canvas it is laid now, with this batch) */
+    if (!Q.nl && !Q.ns && !Q.nwl && !Q.nws) return; if (!usable()) return; try { const W = Q.W, Hh = Q.Hh; featherEnds(Q.lit, Q.nl); featherEnds(Q.smk, Q.ns);   /* (v388 E) */ if (cv.width !== W || cv.height !== Hh) { cv.width = W; cv.height = Hh; }   /* (v326: one layer at a time, the whole canvas copied each time: no source rectangles at all, so no browser can crop or misplace a half) */
       gl.viewport(0, 0, W, Hh); gl.clearColor(0, 0, 0, 0); gl.enable(gl.BLEND); gl.useProgram(PR.p); gl.uniform2f(PR.U.u_res, W, Hh); gl.uniform1f(PR.U.u_t, Q.t); gl.uniform3f(PR.U.u_pet, Q.pet[0], Q.pet[1], Q.pet[2]); gl.bindBuffer(gl.ARRAY_BUFFER, bq);
       const attr = (i, n, off) => { gl.enableVertexAttribArray(i); gl.vertexAttribPointer(i, n, gl.FLOAT, false, 48, off * 4); }; let draws = 0;
       const use = P => { gl.useProgram(P.p); gl.uniform2f(P.U.u_res, W, Hh); gl.uniform1f(P.U.u_t, Q.t); gl.uniform3f(P.U.u_pet, Q.pet[0], Q.pet[1], Q.pet[2]); };
       const pass0 = (A, n) => { gl.bufferData(gl.ARRAY_BUFFER, A.subarray(0, n * 12), gl.DYNAMIC_DRAW); attr(0, 2, 0); attr(1, 2, 2); attr(2, 1, 4); attr(3, 4, 5); attr(4, 3, 9); gl.drawArrays(gl.TRIANGLES, 0, n); draws++; };
       const pass = (A, n, AW, nw) => { if (n) { use(PR); pass0(A, n); } if (nw && PRW) { use(PRW); pass0(AW, nw); } };   /* (v375: the main program's quads, then Wind's with its own) */
-      const cv0 = c.canvas; c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1;
+      const cv0 = c.canvas; c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = 1; if (LZ) { c.shadowBlur = 0; c.shadowColor = 'rgba(0,0,0,0)'; c.filter = 'none'; c.imageSmoothingEnabled = true; }   /* (v439 SP: a kept pass laid in the middle of someone's drawing: none of its shadow or filter) */
       /* (v430 PF) each layer is cleared, drawn and laid over the game only inside the box round what it holds (3 layer px of
          nothing round its quads, which all fade out inside their edges; 2 more cleared round that, so the box's own edge
          never filters in anything older): a pass of a few small sparks no longer clears and copies the whole screen, and a
@@ -2476,14 +2495,14 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
           for (let i = 0; i < PT.length; i += 4) { const x0 = Math.max(0, PT[i] - 2), y0 = Math.max(0, PT[i + 1] - 2), x1 = Math.min(W, PT[i + 2] + 2), y1 = Math.min(Hh, PT[i + 3] + 2); gl.scissor(x0, Hh - y1, x1 - x0, y1 - y0); gl.clear(gl.COLOR_BUFFER_BIT);
             if (m) { if (m.nr) { use(PR); pass0(SPL.r, m.nr); } if (m.ns) { use(PRS); pass0(SPL.s, m.ns); } if (nw && PRW) { use(PRW); pass0(AW, nw); } } else pass(A, n, AW, nw); }
           c.globalCompositeOperation = lit ? 'lighter' : 'source-over';
-          for (let i = 0; i < PT.length; i += 4) { const w = PT[i + 2] - PT[i], h = PT[i + 3] - PT[i + 1]; c.drawImage(cv, PT[i], PT[i + 1], w, h, PT[i] * sxr, PT[i + 1] * syr, w * sxr, h * syr); stats.compPx += w * h * sxr * syr; }
+          for (let i = 0; i < PT.length; i += 4) { const w = PT[i + 2] - PT[i], h = PT[i + 3] - PT[i + 1]; c.drawImage(cv, PT[i], PT[i + 1], w, h, PT[i] * sxr, PT[i + 1] * syr, w * sxr, h * syr); stats.compPx += w * h * sxr * syr; } if (typeof PERF !== 'undefined') PERF.copy();   /* v439 SP: a GL layer laid (the readout) */
           stats.comp++; return; }
         if (off) gl.disable(gl.SCISSOR_TEST); else { gl.enable(gl.SCISSOR_TEST); const x0 = Math.max(0, R[0] - 2), y0 = Math.max(0, R[1] - 2), x1 = Math.min(W, R[2] + 2), y1 = Math.min(Hh, R[3] + 2); gl.scissor(x0, Hh - y1, x1 - x0, y1 - y0); }   /* (the scissor always on, the whole layer for a full one: one state for every pass, so no driver builds a second version of the big shader mid-fight; llvmpipe did, for seconds) */
         gl.clear(gl.COLOR_BUFFER_BIT);
         if (lit) { gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_COLOR); if (PRS && !off) { const m = splitLit(A, n); if (m.nr) { use(PR); pass0(SPL.r, m.nr); } if (m.ns) { use(PRS); pass0(SPL.s, m.ns); } if (nw && PRW) { use(PRW); pass0(AW, nw); } } else pass(A, n, AW, nw); c.globalCompositeOperation = 'lighter'; }
         else { gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); pass(A, n, AW, nw); c.globalCompositeOperation = 'source-over'; }
         if (full) c.drawImage(cv, 0, 0, cv0.width, cv0.height); else { const w = R[2] - R[0], h = R[3] - R[1]; c.drawImage(cv, R[0], R[1], w, h, R[0] * sxr, R[1] * syr, w * sxr, h * syr); }
-        stats.comp++; stats.compPx += (R[2] - R[0]) * (R[3] - R[1]) * sxr * syr; };
+        stats.comp++; stats.compPx += (R[2] - R[0]) * (R[3] - R[1]) * sxr * syr; if (typeof PERF !== 'undefined') PERF.copy(); };   /* (v439 SP: counted for the readout) */
       stats.comp = 0; stats.compPx = 0;
       if (Q.ns || Q.nws) lay(Q.smk, Q.ns, Q.wsmk, Q.nws, false);   // the solid layer (smoke, bodies), laid over
       if (Q.nl || Q.nwl) lay(Q.lit, Q.nl, Q.wlit, Q.nwl, true);    // the light, screened (stacked fire saturates softly, never clips to a white slab), added
@@ -2491,8 +2510,12 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
       stats.draws = draws; stats.quads = nq; stats.verts = Q.nl + Q.ns; stats.smoke = Q.ns / 6; stats.W = W; stats.H = Hh; stats.frames++; stats.maxDraws = Math.max(stats.maxDraws, draws); stats.maxQuads = Math.max(stats.maxQuads, nq); stats.maxSmoke = Math.max(stats.maxSmoke, Q.ns / 6);
       c.restore();
       fails = 0;
+      /* (v439 SP) a batch is laid once: emptied here, so a second flush before the next begin (the Animas' fgOpen, the models'
+         coreLight: flush, then begin) no longer draws and lays the previous pass's quads again (a whole extra copy of the GL
+         layer, its light added twice). window.__SP_OFF = 1: kept, as v438 */
+      if (!(typeof window !== 'undefined' && window.__SP_OFF === 1)) { Q.nl = Q.ns = Q.nwl = Q.nws = 0; Q.sv = Q.nq = 0; }
     } catch (e) { why = String(e && e.message || e); if (++fails >= 3 || (gl && gl.isContextLost && gl.isContextLost())) { ok = false; if (gl && gl.isContextLost && gl.isContextLost()) { why = 'context lost'; lostAt = performance.now(); } } } }
   /* (tests) pixels that break rgb <= a, right after a flush */
   function check() { if (!gl) return null; const W = cv.width, Hh = cv.height, px = new Uint8Array(W * Hh * 4); gl.readPixels(0, 0, W, Hh, gl.RGBA, gl.UNSIGNED_BYTE, px); let bad = 0, lit = 0; for (let i = 0; i < px.length; i += 4) { const a = px[i + 3]; if (a) lit++; if (px[i] > a + 1 || px[i + 1] > a + 1 || px[i + 2] > a + 1) bad++; } return { bad, lit }; }
-  NM.FGFX = { usable, begin, flush, check, stats, windOK: () => !!PRW, info: () => ({ ok, soft, renderer: info, why, wind: !!PRW, whyW, simple: !!PRS /* v430 PF */ }) };
+  NM.FGFX = { usable, begin, flush, lazyFlush /* v439 SP */, settle /* v439 SP */, get pending() { return !!PEND; }, check, stats, windOK: () => !!PRW, info: () => ({ ok, soft, renderer: info, why, wind: !!PRW, whyW, simple: !!PRS /* v430 PF */ }) };
 })();
