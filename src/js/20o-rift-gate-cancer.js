@@ -69,6 +69,32 @@ const CANCER_RIDDLES = [
   const CH_TONES = ['#EFD6D4', '#EACDCD', '#F3DEDB', '#E5C8CB', '#F0D9DD'];
   const IRI = ['255,190,215', '190,230,240', '255,226,190', '214,196,255'];
   // the shell's floor: nacre slabs laid in a fan of ribs round the clam, growth rings, sand drifts, tiny shells; the tide pools; violet toward the gate
+  /* (v448 K, the user, under the open moon gate: "there is a space just under the floor that has a glowing light under it") the
+     arena's moonstone ran out at its rim, darkening to violet, a step before the gate, and the gate's own row was the grotto's
+     pale shell floor: through the opening a dark band, then a pale strip lit by the gate's light. Now a moonstone walkway runs
+     out of the arena's gold ring, through the gate, down to the threshold: slabs in the arena's tones, gold-inlaid curbs, a
+     gold sill. Painted by both floors (the arena's rows and the gate's row) into the cached chunks: no cost per frame. */
+  const GW = { x0: DOORX - 1.5, x1: DOORX + 1.5, y1: DOORY, rr: 0.86, h: 0.58 };
+  const gwTop = wx => AC.y + ARY * GW.rr * Math.sqrt(Math.max(0, 1 - ((wx - AC.x) / (ARX * GW.rr)) ** 2));
+  function gateWalk(c, X, Y, T, x, y) {
+    if (x + 1 <= GW.x0 || x >= GW.x1 || y + 1 <= gwTop(GW.x0) - 0.2 || y >= GW.y1) return;
+    const P = (wx, wy) => [X + (wx - x) * T, Y + (wy - y) * T], yTop = gwTop(GW.x0), arc = (dir) => { const n = 14; for (let i = 0; i <= n; i++) { const wx = lerp(GW.x0, GW.x1, dir ? i / n : 1 - i / n), q = P(wx, gwTop(wx)); if (i || !dir) c.lineTo(q[0], q[1]); else c.moveTo(q[0], q[1]); } };
+    c.save();
+    c.beginPath(); arc(1); let q = P(GW.x1, GW.y1); c.lineTo(q[0], q[1]); q = P(GW.x0, GW.y1); c.lineTo(q[0], q[1]); c.closePath(); c.clip();
+    // the slabs, course by course from the sill up into the ring, staggered, each softly lit like the arena's pavers
+    for (let k = 0; GW.y1 - k * GW.h > yTop - 0.05; k++) { const yb = GW.y1 - k * GW.h, ya = yb - GW.h, off = k % 2 ? 0.5 : 0;
+      for (let j = -1; j < 4; j++) { const xa = Math.max(GW.x0, GW.x0 + off + j), xb = Math.min(GW.x1, GW.x0 + off + j + 1); if (xb - xa < 0.05) continue;
+        const a = P(xa, ya), b = P(xb, yb); c.fillStyle = AR_TONES[Math.floor(hh(k, j + 7, 21) * AR_TONES.length)]; c.fillRect(a[0], a[1], b[0] - a[0], b[1] - a[1]);
+        const m = P((xa + xb) / 2, (ya + yb) / 2), g = c.createRadialGradient(m[0] - T * 0.25, m[1] - T * 0.2, 0, m[0], m[1], T * 0.9); g.addColorStop(0, `rgba(226,220,250,${(0.12 + hh(k, j, 5) * 0.1).toFixed(3)})`); g.addColorStop(1, 'rgba(160,150,220,0)'); c.fillStyle = g; c.fillRect(a[0], a[1], b[0] - a[0], b[1] - a[1]);
+        c.strokeStyle = 'rgba(34,20,72,.62)'; c.lineWidth = Math.max(1, T * 0.04); c.strokeRect(a[0], a[1], b[0] - a[0], b[1] - a[1]); } }
+    // a little of the gate's moonlight lying along it, brightest at the gate
+    { const a = P(GW.x0, yTop), b = P(GW.x1, GW.y1), g = c.createLinearGradient(0, a[1], 0, b[1]); g.addColorStop(0, 'rgba(232,226,255,0)'); g.addColorStop(1, 'rgba(232,226,255,.16)'); c.fillStyle = g; c.fillRect(a[0], a[1], b[0] - a[0], b[1] - a[1]); }
+    // the curbs: a dark groove with gold inlay down each side; the sill: the same across the gate's foot
+    const line = (x0, y0, x1, y1) => { const a = P(x0, y0), b = P(x1, y1); for (const [w, col] of [[Math.max(2.4, T * 0.15), 'rgba(22,12,52,.82)'], [Math.max(1.4, T * 0.075), '#C99A42'], [Math.max(0.7, T * 0.02), 'rgba(255,236,180,.85)']]) { c.strokeStyle = col; c.lineWidth = w; c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke(); } };
+    line(GW.x0 + 0.06, yTop - 0.3, GW.x0 + 0.06, GW.y1); line(GW.x1 - 0.06, yTop - 0.3, GW.x1 - 0.06, GW.y1); line(GW.x0, GW.y1 - 0.04, GW.x1, GW.y1 - 0.04);
+    c.restore();
+    // the gold ring the walkway leaves from, drawn again over its edge (as the arena draws it)
+    c.save(); c.beginPath(); arc(1); for (const [w, col] of [[Math.max(3, T * 0.2), 'rgba(196,186,230,.35)'], [Math.max(2.4, T * 0.15), 'rgba(22,12,52,.82)'], [Math.max(1.4, T * 0.075), '#C99A42'], [Math.max(0.7, T * 0.02), 'rgba(255,236,180,.85)']]) { c.strokeStyle = col; c.lineWidth = w; c.stroke(); } c.restore(); }
   function shellFloor(c, X, Y, T, x, y) {
     c.save(); c.beginPath(); c.rect(X, Y, T, T); c.clip();
     c.fillStyle = '#EED9D6'; c.fillRect(X, Y, T, T);
@@ -117,6 +143,7 @@ const CANCER_RIDDLES = [
     // violet creeping in from the gate, and a little shade at the grotto's edges
     { const p = P(DOORX, DOORY), g = c.createRadialGradient(p[0], p[1], T * 0.5, p[0], p[1], T * 7.5); g.addColorStop(0, 'rgba(120,90,210,.34)'); g.addColorStop(0.5, 'rgba(120,90,210,.14)'); g.addColorStop(1, 'rgba(120,90,210,0)'); c.fillStyle = g; c.fillRect(X, Y, T, T); }
     { const p = P(C0.x, C0.y + 0.5), g = c.createRadialGradient(p[0], p[1], T * 4, p[0], p[1], T * 10); g.addColorStop(0, 'rgba(90,40,70,0)'); g.addColorStop(1, 'rgba(90,40,70,.22)'); c.fillStyle = g; c.fillRect(X, Y, T, T); }
+    gateWalk(c, X, Y, T, x, y);   // (v448 K)
     c.restore(); }
   /* the arena's floor: moonstone pavers laid in courses round its heart (in its own ellipse), carved rings (gold-inlaid at 0.3 and 0.86, a
      plain groove at 0.58), sixteen moon phases carved round the band at 0.51, kintsugi gold along mended cracks, a gold sigil at its
@@ -155,12 +182,16 @@ const CANCER_RIDDLES = [
       c.fillStyle = '#E8D6A6'; c.beginPath(); for (let i = 0; i < 16; i++) { const a = i / 16 * TAU - Math.PI / 2, rr = i % 2 ? R * 0.16 : R * (i % 4 ? 0.34 : 0.48); i ? c.lineTo(Math.cos(a) * rr + R * 0.18, Math.sin(a) * rr) : c.moveTo(Math.cos(a) * rr + R * 0.18, Math.sin(a) * rr); } c.closePath(); c.fill(); c.restore(); }
     // its light: the stone deepening to violet toward the rim, cooler at the heart
     { const cp = P(AC.x, AC.y); c.save(); c.translate(cp[0], cp[1]); c.scale(1, ARY / ARX); const g = c.createRadialGradient(0, 0, ARX * T * 0.2, 0, 0, ARX * T); g.addColorStop(0, 'rgba(110,80,190,0)'); g.addColorStop(0.55, 'rgba(90,60,170,.08)'); g.addColorStop(0.85, 'rgba(84,52,170,.3)'); g.addColorStop(1, 'rgba(52,26,124,.52)'); c.fillStyle = g; c.fillRect(-ARX * T * 2, -ARX * T * 2, ARX * T * 4, ARX * T * 4); c.restore(); }
+    gateWalk(c, X, Y, T, x, y);   // (v448 K)
     c.restore(); }
   /* the arena's edge, laid over each chunk after its floors (a decal of the whole chunk): what lies outside the ellipse is cut away
      (the sky shows there), then the platform's rim: a bevelled lip all round, and under its near half the moonstone's thickness, in
      strata, with violet light under it */
   const EDGE = []; for (let y = 0; y <= WALLY; y++) for (let x = 0; x < W0 + 2; x++) { let n = 0; for (const [a, b] of [[x, y], [x + 1, y], [x, y + 1], [x + 1, y + 1]]) if (((a - AC.x) / ARX) ** 2 + ((b - AC.y) / ARY) ** 2 <= 1) n++; if (n > 0 && n < 4 && y < WALLY) EDGE.push([x, y]); }
-  function arenaEdge(c, T, d) {
+  /* (v448 K) the edge is never drawn over the gate's walkway: the rim's gold lip and dark line ran across it, a line in the gate's
+     opening (the user: "It's not so much of a glow but more like a line that appear in that space") */
+  function arenaEdge(c, T, d) { c.save(); c.beginPath(); c.rect(-T * 8, -T * 8, (W0 + 20) * T, (H0 + 20) * T); c.rect(GW.x0 * T, (gwTop(GW.x0) - 0.02) * T, (GW.x1 - GW.x0) * T, (GW.y1 + 0.5 - gwTop(GW.x0)) * T); c.clip('evenodd'); try { arenaEdge0(c, T, d); } finally { c.restore(); } }
+  function arenaEdge0(c, T, d) {
     // the rim's tiles painted again whole (a tile the ellipse cuts may be sky in the plan, or carry a straight lip of the engine's)
     const x0 = d && d.n ? d.cx * d.n - 1 : -9, x1 = d && d.n ? (d.cx + 1) * d.n : 99, y0 = d && d.n ? d.cy * d.n - 1 : -9, y1 = d && d.n ? (d.cy + 1) * d.n : 99;
     for (const [x, y] of EDGE) if (x >= x0 && x <= x1 && y >= y0 && y <= y1) lunarFloor(c, x * T, y * T, T, x, y);
