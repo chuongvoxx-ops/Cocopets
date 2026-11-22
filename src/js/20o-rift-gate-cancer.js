@@ -224,7 +224,8 @@ const CANCER_RIDDLES = [
     layout: LAYOUT,
     legend: { O: {}, A: {}, D: { tile: T_SOLID }, d: { tile: T_SOLID }, P: { prop: 'cxpillar' }, C: { prop: 'cxcoral' }, L: { prop: 'cxscallop' } },
     // (the loading screen paints every picture at the floor's sharpness: nothing is painted mid-play)
-    preload(P) { const cp = CP(); return cp && P && P.T ? cp.warm(P.T * (P.k || 1)) : []; },
+    preload(P) { const cp = CP(), out = cp && P && P.T ? cp.warm(P.T * (P.k || 1)) : [];   /* (v447 K: and the boss's 3D model, built and on the GPU before the fight, not as it starts) */
+      try { if (P && P.gl && typeof ABADDON_GL !== 'undefined' && ABADDON_GL.usable()) out.push(() => { try { ABADDON_GL.warm(); } catch (e) {} }); } catch (e) {} return out; },
     make(X, self, H) {
       const M = X.M, me = X.me, g = X.g, at = M.marks.O[0], MW = M.MW, MH = M.MH;
       const S = { phase: 'riddle', t: 0, open: 0, seal: 0, lit: 0, litK: [0, 0, 0], openT: 0, sealT: 0, passable: false, mist: [], fade: 1, ribFade: 1, shown: 0 };
@@ -264,9 +265,9 @@ const CANCER_RIDDLES = [
       function chime(n) { const base = [523, 659, 784][Math.max(0, Math.min(2, n - 1))]; note(base, 1.4, 'sine', 0.22); note(base * 2, 0.8, 'sine', 0.08); note(base * 1.5, 1.1, 'triangle', 0.06, null, 0.06); }
       /* ---- the moon gate ---- */
       function setDoor(open) { for (const [x, y] of doorTiles) X.setTile(x, y, open ? T_FLOOR : T_SOLID); S.passable = open; try { X.retile(); } catch (e) {} }
-      function startOpen() { if (S.phase !== 'riddle') return; S.phase = 'opening'; S.openT = 0; S.lit = 3; X.banner('THE ORACLE IS ANSWERED', 'The moon gate wakes in the north wall', '#FFE6F0', 1.7, true, true); X.flash(0.3, '#FFFFFF'); X.sfx.fanfare(); X.ring(clam.x, clam.y - 0.6, 0.3, 5, 0.8, PINK, 0.4); }
+      function startOpen() { if (S.phase !== 'riddle') return; S.phase = 'opening'; if (X.prepTiles) X.prepTiles(doorTiles.map(([x, y]) => [x, y, T_FLOOR]));   /* (v447 K: the open door's floor painted ahead, no glitch as it opens) */ S.openT = 0; S.lit = 3; X.banner('THE ORACLE IS ANSWERED', 'The moon gate wakes in the north wall', '#FFE6F0', 1.7, true, true); X.flash(0.3, '#FFFFFF'); X.sfx.fanfare(); X.ring(clam.x, clam.y - 0.6, 0.3, 5, 0.8, PINK, 0.4); }
       function opened() { S.phase = 'open'; X.banner('THE MOON GATE OPENS', 'Beyond it waits the Moonlit Arena', MOONC, 2.6, true, true); }
-      function seal() { if (S.phase !== 'open') return; S.phase = 'sealing'; S.sealT = 0; X.sfx.whoosh && X.sfx.whoosh(); }
+      function seal() { if (S.phase !== 'open') return; S.phase = 'sealing'; if (X.prepTiles) X.prepTiles(doorTiles.map(([x, y]) => [x, y, T_SOLID])); S.sealT = 0; X.sfx.whoosh && X.sfx.whoosh(); }
       function sealed() { // the gate shut behind the pet: the fight, or (without the boss) Cancer wakes
         if (me.y > WALLY - 0.6) me.y = WALLY - 0.7; setDoor(false); X.shake(9, 0.5); X.sfx.thud && X.sfx.thud(); note(110, 2.4, 'sine', 0.3); note(55, 2.8, 'sine', 0.2);
         const B = CB(); if (B && typeof B.begin === 'function') { S.phase = 'boss'; X.banner('SEALED IN MOONLIGHT', 'The gate is shut behind you', LAV, 2.4, true, true);

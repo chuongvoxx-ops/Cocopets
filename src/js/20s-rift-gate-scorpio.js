@@ -310,7 +310,8 @@
     layout: LAYOUT,
     legend: { A: {}, D: { tile: T_SOLID }, d: { tile: T_SOLID } },
     // (the loading screen paints every picture at the floor's sharpness, and the sky's: nothing is painted mid-play)
-    preload(P) { const tp = SP(), out = tp && P && P.T ? tp.warm(P.T * (P.k || 1)) : []; try { const D = skyLand(); if (D && P && P.F) out.push(...D.warm(P)); } catch (e) {} return out; },
+    preload(P) { const tp = SP(), out = tp && P && P.T ? tp.warm(P.T * (P.k || 1)) : []; try { const D = skyLand(); if (D && P && P.F) out.push(...D.warm(P)); } catch (e) {}
+      try { if (P && P.gl && typeof ASMODEUS_GL !== 'undefined' && ASMODEUS_GL.usable()) out.push(() => { try { ASMODEUS_GL.warm(); } catch (e) {} }); } catch (e) {} return out; },   /* (v447 K: and the boss's 3D model, before the fight) */
     make(X, self, H) {
       const M = X.M, me = X.me, g = X.g, MW = M.MW, MH = M.MH;
       const R = { t: 0, sclk: 0, slow: 1, mode: 'intro', carry: null, banked: [], seenN: 0, meter: 0, by: null, graceT: 0, seenT: -9, held: 0, flyHome: [], bankFx: [], plucks: [], rings: [], lastTake: 0, catchW: { W: 0, E: 0, S: 0 }, msgT: 0, binds: 0, safeT: 0, hidden: false };
@@ -375,9 +376,9 @@
 
       /* ---- the great door ---- */
       function setDoor(open) { for (const [x, y] of doorTiles) X.setTile(x, y, open ? T_FLOOR : T_SOLID); S.passable = open; try { X.retile(); } catch (e) {} }
-      function startOpen() { if (S.phase !== 'puzzle') return; S.phase = 'opening'; S.openT = 0; S.lit = 3; X.flash(0.25, '#E8D8FF'); sfx('fanfare'); X.ring(DOORX, DOORY + 0.6, 0.3, 4, 0.8, VIO, 0.4); }
+      function startOpen() { if (S.phase !== 'puzzle') return; S.phase = 'opening'; if (X.prepTiles) X.prepTiles(doorTiles.map(([x, y]) => [x, y, T_FLOOR]));   /* (v447 K: the open door's floor painted ahead, no glitch as it opens) */ S.openT = 0; S.lit = 3; X.flash(0.25, '#E8D8FF'); sfx('fanfare'); X.ring(DOORX, DOORY + 0.6, 0.3, 4, 0.8, VIO, 0.4); }
       function opened() { S.phase = 'open'; X.banner('THE GREAT DOOR OPENS', 'Beyond it waits the Amber Sanctum', VIO_HI, 2.6, true, true); }
-      function seal() { if (S.phase !== 'open') return; S.phase = 'sealing'; S.sealT = 0; sfx('whoosh'); }
+      function seal() { if (S.phase !== 'open') return; S.phase = 'sealing'; if (X.prepTiles) X.prepTiles(doorTiles.map(([x, y]) => [x, y, T_SOLID])); S.sealT = 0; sfx('whoosh'); }
       const arenaA = () => ({ cx: AC.x, cy: AC.y, r: ARY, rx: ARX, ry: ARY, sen: SEN, ax0: AC.x - ARX + 0.5, ay0: AC.y - ARY + 0.5, ax1: AC.x + ARX - 0.5, ay1: WALLY - 0.5, door: { x: DOORX, y: WALLY - 0.5 },
         inside: (x, y) => y < WALLY && se((x - AC.x) / ARX, (y - AC.y) / ARY) <= 1, solid: (x, y) => SOLID_SET.has(Math.floor(x) + ',' + Math.floor(y)) && y < WALLY,
         rings: RINGS.slice(), sigil: k => { S.sig = clamp(+k || 0, 0, 2); }, moon: k => { S.moon = clamp(+k || 0, 0, 2); }, web: k => { S.web = clamp(+k || 0, 0, 1); }, font: (i, k) => { if (i >= 0 && i < 3) S.font[i] = clamp(+k || 0, 0, 2); },

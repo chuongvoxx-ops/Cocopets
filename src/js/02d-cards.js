@@ -96,8 +96,24 @@ function extraStrongs(AB, p) {
   for (let i = keys.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [keys[i], keys[j]] = [keys[j], keys[i]]; }
   return keys.slice(0, 2);
 }
+/* (v447 K) a five- or six-star pet's extra Strong attacks come from its own pool too (its element's 5★ list, or its 6★
+   list: skillPool), never from the 1–4★ body kit: the pool in a fixed order from the seed, minus its own Strong. Up to two
+   ids ([] below 5★) */
+function extraSkillStrongs(p) {
+  if (!p || !p.dna || typeof skillPool !== 'function') return [];
+  const t = skillTier(p); if (t < 5) return [];
+  const own = petSkills(p).strong.id, pool = skillPool(t, petElement(p), 'strong').slice();
+  const R = mulberry32((Math.imul((p.dna.seed || 7) | 0, 2654435761 | 0) ^ 0x57A0E2) >>> 0);
+  for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+  return pool.filter(id => id !== own).slice(0, 2);
+}
 function innateAbility(slot, AB, p) {
   const E = ELEMENTS[AB.el], grow = 1 + 0.05 * ((p.stage || 1) - 1);
+  if ((slot === 'strong2' || slot === 'strong3') && skillTier(p) >= 5 && p.dna) {   // (v447 K: 5★/6★: from its own list; null when the list has no other move)
+    const id = extraSkillStrongs(p)[slot === 'strong2' ? 0 : 1];
+    if (id) return skillAbility(id, slot, p, AB, { src: 'roll' });
+    if (slot === 'strong3') return null;
+  }
   if (slot === 'strong2' || slot === 'strong3') { const k = extraStrongs(AB, p)[slot === 'strong2' ? 0 : 1], S = INNATE_STRONG[k]; return { slot, own: true, key: 's_' + k, name: k === 'spikes' ? espikeName(AB.el) : `${E.name} ${STRONGS[k].name}`, glyph: S.glyph, el: AB.el, mult: grow, cost: S.cost, cd: S.cd, desc: k === 'spikes' ? espikeDesc(AB.el) : STRONGS[k].desc }; }
   if (slot === 'normal') return { slot, own: true, key: 'n_' + AB.shot, name: AB.name, glyph: NORMAL_GLYPH[AB.shot] || 'orb', el: AB.el, mult: grow, cost: 0, cd: 0, desc: AB.shotDesc.replace('the sky', 'the room').replace('the edges', 'the walls').replace('the ship', 'you') };
   // v391 K: a pet's own Strong and Ult are its skills (petSkills, 20k1s-skills.js): rolled at birth, or given by fusion
@@ -149,7 +165,7 @@ function petKit(p) {
     kit[s] = a;
   });
   // a card in slot 1 might match the innate extra: swap the extra for the other one
-  ['strong2'].forEach(s => { if (!kit[s] || !kit[s].own) return; const clash = kitSlots(p).some(o => o !== s && slotType(o) === 'strong' && kit[o] && kit[o].key === kit[s].key); if (clash) { const alt = innateAbility('strong3', AB, p); if (!kitSlots(p).some(o => kit[o] && kit[o].key === alt.key)) kit[s] = Object.assign((p.stage || 1) >= STRONG_TIER_STAGE ? tierStrong(alt) : alt, { slot: s }); } });
+  ['strong2'].forEach(s => { if (!kit[s] || !kit[s].own) return; const clash = kitSlots(p).some(o => o !== s && slotType(o) === 'strong' && kit[o] && kit[o].key === kit[s].key); if (clash) { const alt = innateAbility('strong3', AB, p); if (alt && !kitSlots(p).some(o => kit[o] && kit[o].key === alt.key)) kit[s] = Object.assign((p.stage || 1) >= STRONG_TIER_STAGE ? tierStrong(alt) : alt, { slot: s }); } });
   return { AB, kit, stats: petCombat(p) };
 }
 

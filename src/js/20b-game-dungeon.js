@@ -1112,7 +1112,7 @@ GAMES.dungeon = {
     RX = DunReact.create({ me, g, mons, eshots, ST: () => ST, AB: () => AB, hitMon, text, part, boom, zap, bolt: (x, y, color) => bolts.push({ pts: skyBolt(x, y), life: 0.3, max: 0.3, color, w: 5 }), sparks, ring, light, drop, heal, banner, sfx: api.sfx, sx, sy, Tz: () => Tz() });
     RULES = F.band ? DunRules.create({ F, M, me, g, mons, R, spawnMon, lesserBoss, walkPoint, freeSpot, after, banner, flash, text, ring, part, sparks, boom, shake, drop, heal, gainMP, ST: () => ST, sfx: api.sfx, sx, sy, Tz: () => Tz() }) : null;
     RIFT = F.rift ? DunRift.create({ F, M, me, g, mons, R, shots, party: () => party, partyCur: () => cur, petK: () => PET_K /* v388 R: the sealing draws the whole party */, spawnMon, lesserBoss, freeSpot, walkPoint, blocked, los, after, banner, flash, text, ring, part, sparks, boom, shake, light, drop, heal, gainMP, hurtPet, hitMon, hitArea, warn: warnZone, zone: z => zones.push(z), eshot, lob, ringWave, slam, pull: X.pull, push: X.push, beamFx: X.beamFx, ST: () => ST, sfx: api.sfx, sx, sy, Tz: () => Tz(), W: () => api.W, H: () => api.H,
-      retile: () => { chunks.clear(); flowT = 0; miniNew.length = 0; expV++; }, winStage, unstick, splash: X.splash, slash: X.slash, say: X.say, inCone, inLine, moveEnt, bolt: X.bolt, get rift() { return RIFT; }, finishWin: () => finishWin(), props: propList, setTile: (x, y, t) => { G[y * MW + x] = t; }, tileAt: (x, y) => G[y * MW + x], killMon, get boss() { return g.boss; } }) : null;
+      retile: () => { staleChunks(); flowT = 0; miniNew.length = 0; expV++; }, winStage, unstick, splash: X.splash, slash: X.slash, say: X.say, inCone, inLine, moveEnt, bolt: X.bolt, get rift() { return RIFT; }, finishWin: () => finishWin(), props: propList, setTile: (x, y, t) => { G[y * MW + x] = t; try { dirtyTile(x, y); } catch (e) {} }, prepTiles: list => prepTiles(list), tileAt: (x, y) => G[y * MW + x], killMon, get boss() { return g.boss; } }) : null;
     if (RULES && RULES.blocks('nosummon') && AN) { AN.ready = () => false; AN.summon = () => { text(me.x, me.y - 1.1, 'Cursed: no summons', '#E07BF0', 13); api.sfx.wrong(); }; }
     const FD = F.fiend ? DunFiend.create({ F, M, me, g, mons, eshots, ST: () => ST, AB: () => AB, e8Of, zone: z => zones.push(z), sfx: api.sfx, spawnMon, walkPoint, moveEnt, blocked, los, hurtPet, wipeParty, hitMon, eshot, banner, flash, shake, boom, ring, sparks, part, text, light, drop, heal, gainMP, after, zap,
       bolt: (x, y, color) => bolts.push({ pts: skyBolt(x, y), life: 0.3, max: 0.3, color, w: 5 }), sx, sy, Tz: () => Tz(), W: () => api.W, H: () => api.H, me }) : null;
@@ -1856,22 +1856,50 @@ GAMES.dungeon = {
     let ringB = null;
     const inRing = k => { if (!ringB) return false; const i = k.indexOf(','), x = +k.slice(0, i), y = +k.slice(i + 1); return x >= ringB[0] && x <= ringB[2] && y >= ringB[1] && y <= ringB[3]; };
     const farChunk = () => { for (const k of chunks.keys()) if (!inRing(k)) return k; return null; };
-    function getChunk(cx, cy, mayPaint) {
+    /* (v447 K, the user: "When the anima gate open after you solved puzzle, it glitches for one frame": a door's retile threw
+       the whole cache away, and the frame after it painted three chunks and left holes in the floor where the rest belong.)
+       A changed tile now marks only the chunks it touches (with two tiles round it, for the edges, shade and cliffs that
+       reach over); retile() marks those stale, or every chunk when it was told nothing (tiles written straight into the map).
+       A stale chunk is drawn as it was until its new picture is painted: the ones in view at once (up to 4 a frame), the
+       ring round the view one a frame. Nothing is ever drawn as a hole. */
+    const tileDirty = new Set(), stale = new Set();
+    function dirtyTile(x, y) { for (let cy = Math.floor((y - 2) / CH); cy <= Math.floor((y + 2) / CH); cy++) for (let cx = Math.floor((x - 2) / CH); cx <= Math.floor((x + 2) / CH); cx++) if (cx >= 0 && cy >= 0) tileDirty.add(cx + ',' + cy); }
+    function staleChunks() {
+      if (tileDirty.size) { tileDirty.forEach(k => { if (chunks.has(k)) stale.add(k); }); tileDirty.clear(); }
+      else chunks.forEach((v, k) => stale.add(k));
+    }
+    /* (v447 K) the pictures a door's tiles will need, painted ahead: prepTiles([[x, y, tile], ...]) (a gate calls it as its door
+       starts to open) queues the chunks those tiles touch; one a frame, each is painted with the tiles set as they will be
+       (then put back). When the retile comes and the tiles are as promised, the stale chunk takes its ready picture at once:
+       no hole, and no painting in that frame. A chunk whose tiles turned out otherwise is painted as usual. */
+    const prepQ = [], prepped = new Map();
+    function prepTiles(list) { if (!Array.isArray(list) || !list.length) return; const keys = new Set(); for (const [x, y] of list) for (let cy = Math.floor((y - 2) / CH); cy <= Math.floor((y + 2) / CH); cy++) for (let cx = Math.floor((x - 2) / CH); cx <= Math.floor((x + 2) / CH); cx++) if (cx >= 0 && cy >= 0 && cx * CH < MW && cy * CH < MH) keys.add(cx + ',' + cy);
+      keys.forEach(k => { const o = prepped.get(k); if (o) { freeChunk(o.cv); prepped.delete(k); } prepQ.push({ k, list: list.map(q => q.slice()) }); }); }
+    function prepOne() { const job = prepQ.shift(); if (!job) return false; if (job.list.every(([x, y, t]) => G[y * MW + x] === t)) return true;   /* (already done: its retile repainted it) */ const i = job.k.indexOf(','), cx = +job.k.slice(0, i), cy = +job.k.slice(i + 1), was = job.list.map(([x, y]) => G[y * MW + x]);
+      const k2 = Math.max(1, Math.round(TS * Math.min(arc.dpr || 1, 1.5))) / TS;
+      try { job.list.forEach(([x, y, t]) => { G[y * MW + x] = t; }); prepped.set(job.k, { cv: DunWorld.chunk(M, cx, cy, TS, k2), list: job.list, TS, k2 }); } catch (e) {} finally { job.list.forEach(([x, y], n) => { G[y * MW + x] = was[n]; }); }
+      return true; }
+    const dropPrep = k => { const o = prepped.get(k); if (o) { prepped.delete(k); freeChunk(o.cv); } };
+    const freeChunk = cv => { try { if (cv && cv.getContext) cv.width = cv.height = 1; } catch (e) {} };
+    function getChunk(cx, cy, mayPaint, mayFresh) {
       // (v389 F, the user: the floor showed its tiles. At k = 1.5 an odd tile size (47 on a phone) put every other tile edge
       // on half a pixel: both tiles painted it half-covered, so a faint line ran along it. k is nudged so a tile is a whole
       // number of the chunk's pixels)
       const k2 = Math.max(1, Math.round(TS * Math.min(arc.dpr || 1, 1.5))) / TS;
-      if (chunkTS !== TS || chunkK !== k2) { chunks.clear(); chunkTS = TS; chunkK = k2; }
+      if (chunkTS !== TS || chunkK !== k2) { chunks.clear(); stale.clear(); chunkTS = TS; chunkK = k2; }
       const key = cx + ',' + cy;
       let c = chunks.get(key);
+      if (c && stale.has(key) && prepped.has(key)) { const o = prepped.get(key); prepped.delete(key); if (o.TS === TS && o.k2 === k2 && o.list.every(([x, y, t]) => G[y * MW + x] === t)) { stale.delete(key); chunks.delete(key); chunks.set(key, o.cv); freeChunk(c); return o.cv; } freeChunk(o.cv); }   // (v447 K: painted ahead)
+      if (c && stale.has(key) && mayFresh) { const n = DunWorld.chunk(M, cx, cy, TS, k2); stale.delete(key); dropPrep(key); chunks.delete(key); chunks.set(key, n); freeChunk(c); return n; }   // (v447 K)
       if (c) { chunks.delete(key); chunks.set(key, c); return c; }
       if (!mayPaint) return null;
-      c = DunWorld.chunk(M, cx, cy, TS, k2);
+      c = DunWorld.chunk(M, cx, cy, TS, k2); dropPrep(key);
       chunks.set(key, c);
-      if (chunks.size > CHUNK_MAX) chunks.delete(farChunk() || chunks.keys().next().value);
+      if (chunks.size > CHUNK_MAX) { const k = farChunk() || chunks.keys().next().value; chunks.delete(k); stale.delete(k); }
       return c;
     }
     function prewarm() {
+      tileDirty.clear();   // (v447 K: tiles set while the stage was laid out are in the first pictures already)
       const T = TS, x0 = Math.floor((cam.x - api.W / 2 / T - 1) / CH), x1 = Math.floor((cam.x + api.W / 2 / T + 1) / CH), y0 = Math.floor((cam.y - api.H / 2 / T - 2) / CH), y1 = Math.floor((cam.y + api.H / 2 / T + 2) / CH);
       for (let cy = y0; cy <= y1; cy++) for (let cx = x0; cx <= x1; cx++) if (cx >= 0 && cy >= 0 && cx * CH < MW && cy * CH < MH) getChunk(cx, cy, true);
     }
@@ -1911,14 +1939,17 @@ GAMES.dungeon = {
       }
       // ground chunks
       const cx0 = Math.max(0, Math.floor(x0 / CH)), cx1 = Math.min(Math.floor((MW - 1) / CH), Math.floor(x1 / CH)), cy0 = Math.max(0, Math.floor(y0 / CH)), cy1 = Math.min(Math.floor((MH - 1) / CH), Math.floor(y1 / CH));
-      let paints = 0; ringB = [cx0 - 1, cy0 - 1, cx1 + 1, cy1 + 1];
+      let paints = 0, fresh = 0; ringB = [cx0 - 1, cy0 - 1, cx1 + 1, cy1 + 1];
       for (let cy = cy0; cy <= cy1; cy++) for (let cx = cx0; cx <= cx1; cx++) {
-        const had = chunks.has(cx + ',' + cy), cv = getChunk(cx, cy, paints < 3);
+        const k = cx + ',' + cy, had = chunks.has(k), was = had && stale.has(k), cv = getChunk(cx, cy, paints < 3, fresh < 4);
+        if (was && !stale.has(k)) fresh++;
         if (!cv || SKIP.chunks) continue;
         if (!had) paints++;
         c.drawImage(cv, sx(cx * CH), sy(cy * CH), CH * T + 0.5, CH * T + 0.5);
       }
       // warm the next ring of chunks a little at a time (while there is room for it, or something farther off to let go)
+      if (paints === 0 && fresh === 0 && prepQ.length) { prepOne(); paints++; }   // (v447 K: a door's pictures, ahead of it)
+      if (paints === 0 && fresh === 0 && stale.size) { outer2: for (let cy = cy0 - 1; cy <= cy1 + 1; cy++) for (let cx = cx0 - 1; cx <= cx1 + 1; cx++) if (stale.has(cx + ',' + cy)) { getChunk(cx, cy, false, true); paints++; break outer2; } }   // (v447 K: the ring's stale chunks, one a frame)
       if (paints === 0 && g.t > 0.5 && (chunks.size < CHUNK_MAX || farChunk())) { outer: for (let cy = cy0 - 1; cy <= cy1 + 1; cy++) for (let cx = cx0 - 1; cx <= cx1 + 1; cx++) { if (cx < 0 || cy < 0 || cx * CH >= MW || cy * CH >= MH) continue; if (!chunks.has(cx + ',' + cy)) { getChunk(cx, cy, true); break outer; } } }
       // animated touches: shimmering ice and mud, glowing lava cracks
       for (let ty = Math.max(0, y0); ty <= Math.min(MH - 1, y1); ty++) for (let tx = Math.max(0, x0); tx <= Math.min(MW - 1, x1); tx++) {
@@ -2967,7 +2998,7 @@ GAMES.dungeon = {
         // v404 IF: (the user, iPhone: the Ifrit fight "doesn't load") the closed stage's canvases are given back now, not when the
         // collector next runs: WebKit caps a page's canvas memory, and the next stage (Ifrit's, last in Rift 0) wants it at once
         try { const free = v => { const cv = v && v.cv ? v.cv : v; if (cv && cv.width != null && cv.getContext) cv.width = cv.height = 1; };
-          chunks.forEach(free); chunks.clear(); HOLES.forEach(free); HOLES.clear(); holePx = 0;
+          chunks.forEach(free); chunks.clear(); stale.clear(); tileDirty.clear(); prepped.forEach(o => free(o.cv)); prepped.clear(); prepQ.length = 0; HOLES.forEach(free); HOLES.clear(); holePx = 0;
           [vig, vigFull, redFull, redHalf, feverFull, stormHaze, lc].forEach(free); vig = vigFull = redFull = redHalf = feverFull = stormHaze = null;
           if (FD && FD.release) FD.release(); if (DunWorld.dropProps) DunWorld.dropProps(); } catch (e) {} }, reparty,
       start() { g.intro = 2.4; api.sfx.hum(); },

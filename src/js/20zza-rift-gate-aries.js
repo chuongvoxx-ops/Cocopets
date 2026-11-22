@@ -286,7 +286,8 @@
     layout: LAYOUT,
     legend: { A: {}, D: { tile: T_SOLID }, d: { tile: T_SOLID }, P: { prop: 'agruin' }, C: { prop: 'agpillar' } },
     // (the loading screen paints every picture at the floor's sharpness: nothing is painted mid-play)
-    preload(P) { const tp = AP(); return tp && P && P.T ? tp.warm(P.T * (P.k || 1)) : []; },
+    preload(P) { const tp = AP(), out = tp && P && P.T ? tp.warm(P.T * (P.k || 1)) : [];   /* (v447 K: and the boss's 3D model, built and on the GPU before the fight, not as it starts) */
+      try { if (P && P.gl && typeof SAMAEL_GL !== 'undefined' && SAMAEL_GL.usable()) out.push(() => { try { SAMAEL_GL.warm(); } catch (e) {} }); } catch (e) {} return out; },
     make(X, self, H) {
       const M = X.M, me = X.me, g = X.g, MW = M.MW, MH = M.MH;
       const R = { yard: 0, Y: null, t: 0, mode: 'intro', el: null, run: null, fails: [0, 0, 0], pours: 0, hinted: false, fadeT: 9, prevY: null, lastFail: null, msgT: 0 };
@@ -358,9 +359,9 @@
 
       /* ---- the great door ---- */
       function setDoor(open) { for (const [x, y] of doorTiles) X.setTile(x, y, open ? T_FLOOR : T_SOLID); S.passable = open; try { X.retile(); } catch (e) {} }
-      function startOpen() { if (S.phase !== 'puzzle') return; S.phase = 'opening'; S.openT = 0; S.lit = 3; X.flash(0.25, '#FFD8B0'); sfx('fanfare'); X.ring(DOORX, DOORY + 0.6, 0.3, 4, 0.8, EMBER, 0.4); }
+      function startOpen() { if (S.phase !== 'puzzle') return; S.phase = 'opening'; if (X.prepTiles) X.prepTiles(doorTiles.map(([x, y]) => [x, y, T_FLOOR]));   /* (v447 K: the open door's floor painted ahead, no glitch as it opens) */ S.openT = 0; S.lit = 3; X.flash(0.25, '#FFD8B0'); sfx('fanfare'); X.ring(DOORX, DOORY + 0.6, 0.3, 4, 0.8, EMBER, 0.4); }
       function opened() { S.phase = 'open'; X.banner('THE GREAT DOOR OPENS', 'Beyond it waits the Cataclysm Altar', LAVA_HI, 2.6, true, true); }
-      function seal() { if (S.phase !== 'open') return; S.phase = 'sealing'; S.sealT = 0; sfx('whoosh'); }
+      function seal() { if (S.phase !== 'open') return; S.phase = 'sealing'; if (X.prepTiles) X.prepTiles(doorTiles.map(([x, y]) => [x, y, T_SOLID])); S.sealT = 0; sfx('whoosh'); }
       const arenaA = () => ({ cx: AC.x, cy: AC.y, r: ARY, rx: ARX, ry: ARY, sen: SEN, ax0: AC.x - ARX + 0.5, ay0: AC.y - ARY + 0.5, ax1: AC.x + ARX - 0.5, ay1: WALLY - 0.5, door: { x: DOORX, y: WALLY - 0.5 },
         inside: (x, y) => y < WALLY && se((x - AC.x) / ARX, (y - AC.y) / ARY) <= 1, glyph: GLYPH.map(p => p.map(q => q.slice())), rings: RINGS.slice(), heat: k => { S.heat = clamp(+k || 0, 0, 2); }, arch: { x: ARCH.x, y: ARCH.y } });
       function sealed() {
