@@ -145,7 +145,8 @@ const ELEM_MOVES = {
     ['apocalypse', 'Apocalypse', 'nova', 100, 22, 'A huge red fireball gathers over the aim, then explodes in a magical blast of fire and fireworks: the strongest fire there is.'],
     ['ninetails', 'Nine-Tailed Conflagration', 'claw', 100, 22, 'Nine flame tails unfurl behind you and lash the ground ahead one by one, then braid into one spiral lance.'],
     ['paperflames', 'World of Paper Flames', 'flame', 95, 20, 'Sheets of flame unfold into banners round the aim and sweep the monsters as their edges burn, then fold into one shape and burst.'] ,
-    ['nidhogg', 'Nidhogg', 'dragon', 100, 120, 'Your pet summons Nidhogg, a vast crimson dragon of living scale and furnace machinery, and rides it for 20 s (25 s at Adept, 35 s at Celestial), flying freely over the land, water and open sky: Dodge becomes a zero-cooldown Dive Bomb, the Strongs become Fireballs (1 / 2 / 3) and Flare (10 / 20 / 30 fire lances), and damage fills an Ultima meter for a dorsal ring charge, a colossal fire beam and an explosion like a nuclear blast. Cooldown starts when you dismount.']] },
+    ['nidhogg', 'Nidhogg', 'dragon', 100, 120, 'Your pet summons Nidhogg, a vast crimson dragon of living scale and furnace machinery, and rides it for 20 s (25 s at Adept, 35 s at Celestial), flying freely over the land, water and open sky: Dodge becomes a zero-cooldown Dive Bomb, the Strongs become Fireballs (1 / 2 / 3) and Flare (10 / 20 / 30 fire lances), and damage fills an Ultima meter for a dorsal ring charge, a colossal fire beam and an explosion like a nuclear blast. Cooldown starts when you dismount.'],
+    /* v450 SF: Snake Flame (20k6j model, 20k6k move; six-star only, ELEM_SIX) */ ['snakeflame', 'Snake Flame', 'dragon', 100, 30, 'A ring of embers opens at the aim and a gigantic serpent of living flame surges through it, coiling round the battlefield for six seconds while the fire inside its coils burns every half second, then collapses into an engulfing fireball. You keep full control while it coils. Wider at Adept (+15%) and Celestial (+30%, richer crests and a grander fireball).']] },
   water: { strong: [
     ['ribbonfin', 'Ribbonfin', 'wave', 24, 2.4, 'A water ribbon curls into a fish and darts forward; it wraps the target once and bursts.'],
     ['tideglass', 'Tideglass Orb', 'orb', 24, 2.6, 'A clear sphere of water rolls slowly through the monsters, then stretches up and splashes.'],
@@ -168,7 +169,8 @@ const ELEM_MOVES = {
     ['heavenfall', 'Heavenfall', 'beam', 95, 20, 'Huge luminous rings open overhead and pour powerful waterfalls onto the monsters: five in a sweeping cascade at Celestial.'],
     ['neptunetrident', "Neptune's Trident", 'lance', 100, 22, 'A giant trident emerges from a rippling sky and plunges into the ground, cracking it open in a vast water explosion; at Celestial ten smaller tridents rain down after it.'],
     ['jellyfish', 'Jellyfish Aurora', 'bubbles', 95, 20, 'Giant jellyfish of water descend over the aim, tendrils sweeping lanes beneath; their bells contract together.'],
-    ['jaws', 'Jaws', 'wave', 100, 150, 'Your pet summons Jaws, a flying mechanical shark, and rides it for 60 s. Water Bombs rain on the enemies and Water Ray leaves Tidal Pools (up to three, five at Celestial); after the fifth pool Jaws unfolds into Leviathan, a flying siege submarine whose Depth Charge and Maelstrom spend the pools for far bigger blasts. Damage fills one gauge for Shark Attack: a starry ocean, a beam through the ground and colossal spirit jaws that snap shut.'] ] },
+    ['jaws', 'Jaws', 'wave', 100, 150, 'Your pet summons Jaws, a flying mechanical shark, and rides it for 60 s. Water Bombs rain on the enemies and Water Ray leaves Tidal Pools (up to three, five at Celestial); after the fifth pool Jaws unfolds into Leviathan, a flying siege submarine whose Depth Charge and Maelstrom spend the pools for far bigger blasts. Damage fills one gauge for Shark Attack: a starry ocean, a beam through the ground and colossal spirit jaws that snap shut.'],
+    /* v450 MD: Moby Dick (20k7q model, 20k7r move; six-star only, ELEM_SIX) */ ['mobydick', 'Moby Dick', 'wave', 100, 40, 'The battlefield becomes a dark, star-filled ocean and Moby Dick, an enormous spirit whale, breaches from it in a great arc, rolls onto its side and crashes down in a devastating body slam, launching tidal rings across the arena: 1 ring, 2 at Adept, 3 at Celestial. Your pet keeps moving and fighting while it does. Cooldown 40 s.'] ] },
   ice: { strong: [
     ['antler', 'Crystal Antler', 'thorns', 24, 2.4, 'Branching ice antlers grow along a short path ahead and shatter outward.'],
     ['skate', 'Glacier Skate', 'crescent', 24, 2.6, 'A smooth blade of ice slides low across the floor, then tilts up and fractures into a fan.'],
@@ -222,8 +224,8 @@ const ELEM_LIST = {}; for (const e in ELEM_MOVES) { ELEM_LIST[e] = {}; for (cons
    here. Ids are the first column of ELEM_MOVES above. Edit freely: a pet already rolled keeps the move it has (p.skills);
    only new rolls follow the edited lists. (20k1s-skills.js has the pools and the roll.) */
 const ELEM_SIX = {
-  fire: { strong: ['mandala', 'cinderfan', 'furnaceseed'], ult: ['nidhogg', 'apocalypse', 'armageddon'] },
-  water: { strong: ['whirlpool', 'pearlburst', 'waterwheel'], ult: ['jaws', 'mayhem', 'aquaillusion'] },
+  fire: { strong: ['mandala', 'cinderfan', 'furnaceseed'], ult: ['nidhogg', 'apocalypse', 'armageddon', 'snakeflame' /* v450 SF */] },
+  water: { strong: ['whirlpool', 'pearlburst', 'waterwheel'], ult: ['jaws', 'mayhem', 'aquaillusion', 'mobydick' /* v450 MD */] },
   ice: { strong: ['absolutewinter', 'rimecoil', 'snowfall'], ult: ['iceage', 'fenrir', 'catastrophe'] },
   thunder: { strong: ['sparkstep', 'staticblossom', 'stormthread'], ult: ['beastmachine', 'ragnarok', 'thunderstorm'] },   // (Ragnarok here is Thunder's Ult, not the 5★ star-pool Ragnarok)
   wind: { strong: ['cyclone', 'seedburst', 'windblades'], ult: ['belladonna', 'pandemonium', 'terribletornado'] },
@@ -343,7 +345,7 @@ const DunElem = (() => {
     }
     const strong = (key, C) => run('strong', key, C), ult = (key, C) => run('ult', key, C);
     function update(dt) { for (let i = fx.length - 1; i >= 0; i--) { const f = fx[i]; f.t += dt; f.life -= dt; if (f.update) f.update(dt, f); if (f.life <= 0) { if (f.onEnd) f.onEnd(f); fx.splice(i, 1); } } }
-    function draw(c, under) { const T = X.Tz(), t = g.t; for (const f of fx) { const fn = under === 'hud' ? f.drawHud : under ? f.drawUnder : f.draw;   /* ('hud': over the HUD's party strip, for Light's Salvation) */ if (!fn) continue; c.save(); fn.call(f, c, f, f.x != null ? X.sx(f.x) : X.sx(me.x), f.y != null ? X.sy(f.y) : X.sy(me.y), T, t); c.restore(); } }
+    function draw(c, under) { const T = X.Tz(), t = g.t; for (const f of fx) { const fn = under === 'hud' ? f.drawHud : under === 'floor' ? f.drawFloor /* v450 MD: on the floor itself, under the warnings, traps and pickups (Moby Dick's ocean) */ : under ? f.drawUnder : f.draw;   /* ('hud': over the HUD's party strip, for Light's Salvation) */ if (!fn) continue; c.save(); fn.call(f, c, f, f.x != null ? X.sx(f.x) : X.sx(me.x), f.y != null ? X.sy(f.y) : X.sy(me.y), T, t); c.restore(); } }
     /* (hook for Dark's Day of the Dead, 20k5q) a move may refuse its cast when it has nothing to act on: I.refuse(H)
        returns the reason; the cast path in 20b (useUlt) then shows it and spends no MP and no cooldown */
     function refuse(kind, key, e8) { const I = ELEM_IMPL[e8] && ELEM_IMPL[e8][kind] && ELEM_IMPL[e8][kind][key]; try { return I && I.refuse ? I.refuse(H) || '' : ''; } catch (e) { return ''; } }

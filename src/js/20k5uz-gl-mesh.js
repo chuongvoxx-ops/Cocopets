@@ -186,6 +186,21 @@ vec3 petalLit(vec3 alb, vec3 n, vec3 trans, float gloss, float glossK) {
 // (uFx: a frost that cracks across every surface - a summon freezing over as it leaves)
 vec3 frostFx(vec3 c, vec3 L) { if (uFx <= 0.0) return c; float w = vn(L.xy * 5.0 + L.z * 3.0), c1 = abs(fract(dot(L, vec3(4.3, 2.9, 3.7)) + w * 1.8) - 0.5), c2 = abs(fract(dot(L, vec3(-3.1, 5.2, 2.2)) + w * 1.4) - 0.5);
   float k = smoothstep(0.5 * uFx, 0.0, min(c1, c2)) * min(1.0, uFx * 2.0); return mix(c, vec3(0.82, 0.93, 1.05) * (0.7 + 0.5 * w), min(1.0, k + uFx * uFx * 0.6)); }
+/*<MD-FN v450 MD: Moby Dick's skin (20k7q): a gaussian; its inner stars, a drifting field of star points in surface cells with the constellation lines joining neighbours (x the stars, y the lines, z the cell's hash)>*/
+float mdG(float x) { return exp(-x * x); }
+float mdSL(vec2 p, vec2 a, vec2 b) { vec2 pa = p - a, ba = b - a; return length(pa - ba * clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0)); }
+vec2 mdSP(vec2 ci) { return vec2(0.2) + 0.6 * vec2(hs(ci + 1.3), hs(ci + 2.7)); }
+float mdOn(vec2 ci) { return step(0.52, hs(ci)); }
+vec3 mdStars(vec2 g, float t) { vec2 ci = floor(g), f = g - ci, sp = mdSP(ci); float on = mdOn(ci), b = hs(ci + 5.1), ln = 0.0, d2 = dot(f - sp, f - sp);
+  float st = on * (exp(-d2 * (110.0 + 240.0 * b)) + 0.14 * exp(-d2 * 16.0)) * (0.72 + 0.28 * sin(t * (1.3 + 2.0 * b) + b * 40.0)) * (0.6 + b);
+  vec2 cR = ci + vec2(1.0, 0.0), cU = ci + vec2(0.0, 1.0), cL = ci - vec2(1.0, 0.0), cD = ci - vec2(0.0, 1.0);
+  if (on > 0.5) {
+    if (mdOn(cR) > 0.5 && hs(ci + 9.1) > 0.55) ln = max(ln, mdG(mdSL(f, sp, vec2(1.0, 0.0) + mdSP(cR)) / 0.035));
+    if (mdOn(cU) > 0.5 && hs(ci + 4.4) > 0.62) ln = max(ln, mdG(mdSL(f, sp, vec2(0.0, 1.0) + mdSP(cU)) / 0.035));
+    if (mdOn(cL) > 0.5 && hs(cL + 9.1) > 0.55) ln = max(ln, mdG(mdSL(f, vec2(-1.0, 0.0) + mdSP(cL), sp) / 0.035));
+    if (mdOn(cD) > 0.5 && hs(cD + 4.4) > 0.62) ln = max(ln, mdG(mdSL(f, vec2(0.0, -1.0) + mdSP(cD), sp) / 0.035)); }
+  return vec3(st, ln, b); }
+/*</MD-FN>*/
 void main() {
   if (uClip.x > 0.5) { if (vW.z < uClip.y) discard; if (vW.z < uClip.y + uClip.z) { float wl = 1.0 - (vW.z - uClip.y) / uClip.z; gl_FragColor = vec4(mix(vec3(0.35, 0.9, 1.0), vec3(1.0), wl * wl) * uAlpha, uAlpha); return; } }   // (S.clip: nothing below a level; a bright waterline band just above the cut)
   if (uOutF.a > 0.0) { gl_FragColor = vec4(uOutF.rgb * uAlpha, uAlpha); return; }
@@ -1405,6 +1420,44 @@ void main() {
     bC += bAMB * bDE * 2.2 + bHOT * bDE * bDE * 1.5;   // (the dissolve's burning gold edge)
     gl_FragColor = vec4(vec3(tone(bC.r), tone(bC.g), tone(bC.b)) * uAlpha, uAlpha); return; }
   /*</BL-MAT>*/
+  /*<MD-MAT ids 495..499 (v450 MD: 20k7q-water-mobydick-model.js, Moby Dick the spirit whale)>*/
+  else if (id >= 495 && id <= 499) {   // ---- (v450 MD) Moby Dick (20k7q): 495 its skin (vA.y round the body: 0 the back .. 0.5 the belly .. 1; vA.z along it: 0 the snout .. 1 the flukes' root): pearl white and pale silver in the light, deep blue-violet in shadow and along the belly, star fields and constellation lines drifting inside it, luminous contour lines, fine creases behind the head, a pearly fresnel edge; 496 a fin or fluke (vA.y 0 its middle .. 1 its free edge: translucent, glowing; vA.z along it); 497 an eye (vA.y 0 the pupil .. 1 behind it); 498 a tooth; 499 the inside of the mouth. uGlow the markings, uGlow2 the slam's flash, uFx the dissolve into foam (0..1), uTime the stars' drift. Colours in display space (no tone curve)
+    float lit, ndv = max(0.0, dot(n, uV)), fres = pow(1.0 - ndv, 2.2), sv = edge, su = clamp(ao, 0.0, 1.0), dz = 0.0; vec3 c;
+    if (uFx > 0.0) { if (dot(normalize(vN), uV) < 0.0) discard;   // (its inside never shows through the holes)
+      float nz = vn(vec2(su * 24.0, sv * 17.0) + float(id) * 1.7) * 0.45 + vn(vec2(su * 61.0, sv * 43.0) + 5.0) * 0.2 + vn(vec2(su * 7.0, sv * 5.0) + 3.0) * 0.35, th = uFx * 1.25 - 0.15; if (nz < th) discard; dz = max(1.0 - smoothstep(th, th + 0.16, nz), uFx * 0.55); }   // (the dissolve: a noise front, its edge foaming white)
+    if (id == 497) { float pu = 1.0 - smoothstep(0.12, 0.2, sv), ir = smoothstep(0.17, 0.24, sv) * (1.0 - smoothstep(0.36, 0.46, sv));
+      c = cel3(vec3(0.02, 0.03, 0.1), vec3(0.05, 0.08, 0.22), vec3(0.12, 0.17, 0.4), n, lit) * (1.0 - 0.6 * pu) + vec3(0.35, 0.85, 1.25) * ir * (0.6 + 0.5 * uGlow) + vec3(1.0) * celSpec(n, 0.975) * 0.9; }
+    else if (id == 498) c = cel3(vec3(0.42, 0.4, 0.52), vec3(0.82, 0.81, 0.84), vec3(1.0, 0.99, 0.95), n, lit) + vec3(0.25, 0.4, 0.6) * fres * 0.5;
+    else if (id == 499) c = cel3(vec3(0.05, 0.02, 0.1), vec3(0.17, 0.07, 0.22), vec3(0.32, 0.15, 0.36), n, lit);
+    else {
+      float bk = id == 495 ? smoothstep(0.42, 0.86, 1.0 - abs(sv * 2.0 - 1.0)) : 0.0;
+      { float hm = 0.5 + 0.5 * dot(n, uUP), x = dot(n, uLK) * 0.85 + (hm - 0.5) * 0.5 - bk * 0.22; lit = 0.5 * smoothstep(0.0, 0.07, x) + 0.5 * smoothstep(0.4, 0.47, x);   // (its own cel bands: a broad shadow band under it, deep blue-violet)
+        vec3 SH = mix(vec3(0.15, 0.13, 0.42), vec3(0.09, 0.07, 0.3), bk), MD = mix(vec3(0.6, 0.64, 0.84), vec3(0.32, 0.3, 0.66), bk), LI = mix(vec3(0.96, 0.97, 1.0), vec3(0.64, 0.64, 0.92), bk);
+        c = (lit < 0.5 ? mix(SH, MD, lit * 2.0) : mix(MD, LI, lit * 2.0 - 1.0)) * (0.86 + 0.2 * hm + 0.1 * clamp(x, -1.0, 1.0)); }
+      c += vec3(0.07, 0.03, 0.12) * fres * (1.0 - bk) + vec3(0.9, 0.95, 1.0) * celSpec(n, 0.965) * 0.35 * (1.0 - bk);   // (a pearl's violet sheen toward its edge; a soft highlight)
+      if (id == 495 && uLow < 0.5) { float w = abs(fract(sv * 64.0 + vn(vec2(su * 26.0, sv * 18.0)) * 1.6) - 0.5); c *= 1.0 - 0.09 * (1.0 - smoothstep(0.02, 0.12, w)) * smoothstep(0.33, 0.45, su) * (1.0 - bk * 0.5); }   // (fine creases along the body behind the head)
+      // the stars inside: a slow-drifting field, brighter where the body is in shade; nebulae of violet light round them
+      vec2 g = id == 495 ? vec2(su * 15.0 + uTime * 0.035, sv * 11.0) : vec2(su * 6.0 + uTime * 0.03, sv * 4.0 + 7.0);
+      vec3 S3 = mdStars(g, uTime); float inner = 0.55 + 0.65 * (1.0 - lit), neb = vn(g * 0.32 + vec2(uTime * 0.02, 0.0)) * vn(g * 0.71 - 3.0);
+      vec3 sc = mix(vec3(0.75, 0.9, 1.25), vec3(1.15, 0.98, 0.7), step(0.82, S3.z));
+      c += vec3(0.05, -0.012, 0.06) * sin(ndv * 9.0 + su * 5.0 + sv * 3.0) * (1.0 - bk) * smoothstep(0.5, 0.9, lit);   // (mother-of-pearl: a faint shift of hue across the lit skin)
+      c = mix(c, vec3(0.6, 0.66, 0.9), neb * 0.3 * smoothstep(0.5, 1.0, lit));   // (the slow star patterns show through the pearl as lilac clouds)
+      c = mix(c, vec3(0.42, 0.66, 1.0), clamp((S3.x * 0.85 + S3.y * 0.3) * smoothstep(0.45, 1.0, lit), 0.0, 0.85));   // (and its stars as blue points and lines where it is lit: light on white would not show)
+      c += sc * S3.x * inner * 1.2 + vec3(0.55, 0.75, 1.2) * S3.y * 0.32 * inner + vec3(0.16, 0.1, 0.38) * neb * inner * (0.6 + 0.4 * bk);
+      // the luminous contour lines: the flanks' lateral lines, the head's case, the dorsal ridge, a curve over the brow; a fin's glowing free edge
+      float mk = 0.0;
+      if (id == 495) { float sd = abs(sv - 0.5); mk = mdG((sd - 0.235 + 0.012 * sin(su * 26.0)) / 0.0075) * smoothstep(0.3, 0.36, su) * (1.0 - smoothstep(0.86, 0.95, su));
+        mk += mdG((su - 0.3 + 0.06 * (sd * 2.0) * (sd * 2.0)) / 0.0045) * smoothstep(0.12, 0.3, sd) * 0.6 + mdG(min(sv, 1.0 - sv) / 0.009) * smoothstep(0.56, 0.62, su) * 0.75;   // (the head's case: a curve low on each side, swept back at the top)
+        mk += mdG((su - 0.07 - 0.11 * (sd * 2.0) * (sd * 2.0)) / 0.005) * (1.0 - smoothstep(0.32, 0.46, sd)) * 0.55; }
+      else mk = smoothstep(0.78, 0.98, sv) * 0.9 + mdG((fract(su * 5.0) - 0.5) / 0.05) * (1.0 - sv) * 0.12;
+      c += vec3(0.45, 0.85, 1.3) * mk * (0.55 + 0.6 * uGlow);
+      if (id == 496) c = mix(c, vec3(0.62, 0.86, 1.2), smoothstep(0.7, 1.0, sv) * 0.45);   // (translucent toward the edge)
+    }
+    c = mix(c, vec3(0.78, 0.92, 1.25), fres * fres * 0.6) + celRim(n) * 1.4;   // (the spectral edge)
+    c += vec3(0.6, 0.85, 1.25) * uGlow2 * (0.3 + 0.7 * fres);
+    c = mix(c, vec3(1.0, 1.02, 1.05), dz * 0.9) + vec3(0.4, 0.7, 1.0) * dz * 0.3;   // (the dissolve's foaming edge)
+    gl_FragColor = vec4(min(c, vec3(1.0)) * uAlpha, uAlpha); return; }
+  /*</MD-MAT>*/
   /*<SM-MAT ids 400..429 (v435 SM: 02f5-samael-model.js, Samael the First Cataclysm)>*/
   else if (id >= 400 && id <= 429) {   // ---- (v435 SM) Samael (02f5): 400 obsidian black lacquer (400.2 a recess; 400.3 a plate: molten cracks glowing through it; vA.y 1 a rim: burnished gold trim), 401 dark titanium (brushed; 401.3 ribbed), 402 burnished gold (402.2 engraved), 403 a molten crimson channel (vA.z along it: pulses; 403.3 a lit slot), 404 living plasma (404.3 the horns' core: pulses flowing to the tips, uGlow2 white heat), 405 an eye, 406 the Heart of Ruin's star (uGlow2 0..1 crimson to white-hot), 407 its corona (see-through), 408 a containment ring (runes lit in a pulse; uKind its phase; 408.3 a band), 409 a ring of light, 410 the lattice cage (open cells), 411 a black glass blade (411.3 its molten cutting edge), 412 molten rock (412.3 hotter), 413 horn armour (ridged lacquer, engraved gold; 413.3 the molten crimson underside), 414 the meteor's plasma shell, 415 an incandescent mote, 416 a crescent blade of plasma (vA.y 1 its cutting edge; vA.z along it). uSpill: the dissolve into crimson embers. Approximates PBR (a lacquer's fresnel and sharp reflections, brushed metal, gold's tinted reflection) with the scene's analytic environment: a violet-crimson sky, a burning horizon, a glowing ground
     float sF = vA.x - float(id), sG = clamp(uGlow, 0.0, 4.0), sG2 = clamp(uGlow2, 0.0, 3.0), sT = uTime, sDE = 0.0;
@@ -1506,6 +1559,62 @@ void main() {
     sC += sOR * sDE * 2.0 + sWH * sDE * sDE * 1.2;   // (the dissolve's burning crimson edge: it breaks into embers)
     gl_FragColor = vec4(vec3(tone(sC.r), tone(sC.g), tone(sC.b)) * uAlpha, uAlpha); return; }
   /*</SM-MAT>*/
+  /*<SF-MAT ids 490..494 (v450 SF: 20k6j-fire-snakeflame-model.js, Snake Flame, the serpent of living flame)>*/
+  else if (id >= 490 && id <= 494) {   // ---- (v450 SF) 490 the body's volcanic plates (a body slice: vA.y its place along the body, 0 the neck .. 1 the tail; vA.z 1 mid-slice .. 0 at a joint; its own normal NL.z the back (+) or the belly (-)): dark basalt plates in staggered shingled rows, orange-gold fire in every seam, the molten core showing between the belly's scutes and at the joints; 491 the head's angular plates (491.2 the mouth, palate and nostrils: molten flesh; 491.4 the lower jaw's plates), 492 fang and horn bone (vA.z 1 at its root .. 0 at its tip; 492.3 a black horn with molten cracks), 493 an amber eye (its own +x the gaze, +z up: a slit pupil), 494 a flame membrane (crests, fins, the tail's flame: vA.y 0 the root .. 1 the tip, vA.z across 0..1; see-through, premultiplied). uGlow the fire (1 at rest, to 3 in the last second), uGlow2 white heat (the collapse), uSpill the dissolve (burning away into embers), uKind the tier 0..2 (gold in the seams, richer flames), uWear a per-part seed, uTime the flow
+    float fF = vA.x - float(id), fG = clamp(uGlow, 0.0, 3.5), fG2 = clamp(uGlow2, 0.0, 2.0), fT = uTime, fDE = 0.0, fK = clamp(uKind, 0.0, 2.0);
+    float fNV = max(0.001, dot(n, uV)), fHm = 0.5 + 0.5 * dot(n, uUP);
+    vec3 fCR = vec3(0.85, 0.11, 0.02), fOR = vec3(1.65, 0.58, 0.08), fGD = vec3(1.9, 1.25, 0.42), fWH = vec3(2.1, 1.85, 1.35);
+    float fAn = atan(NL.z, NL.y); vec2 fQ = id == 490 ? vec2(edge * 46.0, fAn * 1.75) : vec2(L.x * 3.4 + L.z * 1.3, L.y * 3.4 - L.z * 0.9);
+    if (uSpill > 0.0) { float dn = vn(fQ * 1.3 + 3.1 + uWear * 5.0) * 0.6 + vn(fQ * 4.1 + 7.7) * 0.4, th = uSpill * 1.12 - 0.06; if (dn < th) discard; fDE = smoothstep(th + 0.12, th, dn); }
+    if (id == 494) { float al = clamp(edge, 0.0, 1.0), ac = clamp(ao, 0.0, 1.0), cx = abs(ac - 0.5) * 2.0;
+      float fl = vn(vec2(ac * 5.0 + uWear * 11.0, al * 3.2 - fT * 3.4)), fl2 = vn(vec2(ac * 13.0 + uWear * 7.0, al * 7.0 - fT * 6.1));
+      float w = 1.0 - al * (0.8 + 0.3 * fl), body = smoothstep(w + 0.02, w - 0.24, cx) * smoothstep(1.0, 0.8 - 0.22 * fl2, al);   // (a tongue of flame tapering to its tip, its outline eaten by the flicker)
+      float k = clamp(1.12 - al * 1.05 + (1.0 - cx) * 0.48 + 0.3 * (fl2 - 0.5) + 0.25 * (fG - 1.0) + 0.22 * fK, 0.0, 3.0), root = 1.0 - smoothstep(0.0, 0.16, al);
+      vec3 cs = k < 1.0 ? mix(fCR, fOR, k) : k < 2.0 ? mix(fOR, fGD, k - 1.0) : mix(fGD, fWH, min(1.0, k - 2.0));
+      cs = mix(cs, vec3(0.36, 0.07, 0.02) + fOR * 0.22, root * 0.55) * (0.85 + 0.35 * fl);   // (its root an ember membrane, part of the body)
+      float A = clamp(body * (0.7 + 0.45 * fl + 0.3 * root) * (1.0 - 0.6 * fDE), 0.0, 0.97);
+      cs = vec3(tone(cs.r), tone(cs.g), tone(cs.b)); cs = mix(cs, vec3(1.0, 0.95, 0.86), min(1.0, fG2 * 0.5));
+      gl_FragColor = vec4(cs * A * uAlpha, A * 0.8 * uAlpha); return; }
+    if (id == 493) { vec3 p = normalize(L); float fr = clamp(p.x, -1.0, 1.0), rr = length(p.yz), iris = smoothstep(0.5, 0.58, fr);
+      float slit = smoothstep(0.1, 0.05, abs(p.y) / max(0.05, 1.0 - pow(abs(p.z) / 0.75, 2.0))) * iris, fib = 0.75 + 0.25 * vn(vec2(atan(p.z, p.y) * 9.0, rr * 14.0));
+      vec3 ic = mix(vec3(1.95, 1.25, 0.28), vec3(1.25, 0.42, 0.05), smoothstep(0.1, 0.8, rr)) * fib * (0.75 + 0.3 * fG), c = mix(vec3(0.16, 0.05, 0.02), ic, iris);
+      c = mix(c, vec3(0.06, 0.0, 0.0) + fCR * 0.35 * fG, slit * 0.92);   // (the slit's depth glows a little red)
+      vec3 hh = normalize(uLK + uV); c += vec3(1.0, 0.95, 0.85) * (smoothstep(0.9, 0.93, dot(n, hh)) * 1.4 + pow(1.0 - fNV, 3.0) * 0.4); c = mix(c, fWH, fG2 * 0.5);
+      gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
+    vec3 nn = n, alb = vec3(0.05), emi = vec3(0.0); float gloss = 0.35, seam = 0.0, kh = 0.6 + 0.3 * (fG - 1.0) + 0.12 * fK;
+    if (id == 490) { float s = clamp(edge, 0.0, 1.0), bk = NL.z, jt = clamp(ao, 0.0, 1.0), bel = smoothstep(-0.25, -0.5, bk); vec3 TA = normalize(uM0);
+      vec2 q = vec2(s * 46.0, fAn * 1.75); q.y += mod(floor(q.x), 2.0) * 0.5; if (bel > 0.5) q = vec2(s * 30.0, fAn * 0.6 + 0.5);
+      vec2 ci = floor(q), cf = fract(q); float hv = hs(ci + uWear * 0.1), ay = abs(cf.y - 0.5);
+      float e = bel > 0.5 ? min(0.5 - abs(cf.x - 0.5), 0.5 - ay) * 1.2 : min(min((1.0 - cf.x) * 0.9 - ay * 0.55 + 0.06, (0.5 - ay) * 1.2), (cf.x + 0.04) * 1.6);   // (a shield-shaped plate pointing to the tail; the belly's broad scutes)
+      float sw = mix(0.026, 0.075, bel) + 0.022 * (1.0 - jt); seam = 1.0 - smoothstep(sw * 0.35, sw, e);
+      if (uLow < 0.5) nn = normalize(n - TA * 0.22 * (1.0 - seam) * (1.0 - 0.6 * bel) * (cf.x - 0.2));   // (each plate tilted up toward its free edge: angular, shingled)
+      float g1 = vn(vec2(s * 260.0, fAn * 9.0) + hv * 7.0), g2 = vn(vec2(s * 90.0, fAn * 3.0) + hv * 3.0);
+      alb = mix(vec3(0.03, 0.027, 0.03), vec3(0.085, 0.068, 0.065), 0.55 * hv + 0.45 * g2) * (1.0 - 0.45 * smoothstep(0.72, 0.88, g1)); alb += vec3(0.06, 0.055, 0.055) * smoothstep(0.1, 0.04, e) * (1.0 - seam);   // (vesicles; ash-pale worn edges)
+      alb = mix(alb, vec3(0.022, 0.02, 0.024), smoothstep(0.75, 0.95, bk) * 0.5); gloss = (0.18 + 0.2 * hv) * (0.4 + g1);
+      kh += 0.25 * sin(fT * 4.0 - s * 42.0 + hv * 3.0);   // (pulses of heat running down the seams toward the tail)
+      float k = kh + 0.35 * bel; vec3 hc = k < 1.0 ? mix(fCR, fOR, clamp(k, 0.0, 1.0)) : k < 2.0 ? mix(fOR, fGD, k - 1.0) : mix(fGD, fWH, min(1.0, k - 2.0));
+      emi += hc * seam * (0.8 + 0.5 * fG) + fCR * exp(-max(e, 0.0) / 0.035) * 0.16 * fG * (1.0 - seam);   // (the seams' fire, and the plates' edges red-hot from beneath)
+      emi += mix(fOR, fGD, 0.4) * bel * (0.08 + 0.75 * seam) * (0.7 + 0.4 * fG) + mix(fCR, fOR, 0.6) * pow(1.0 - jt, 3.0) * 0.45 * fG;   // (the molten core showing under the belly and at the joints)
+      emi += fGD * step(0.986, hs(floor(vec2(s * 420.0, fAn * 15.0)))) * fK * 0.6 * (1.0 - seam); }   // (gold flecks at the higher tiers)
+    else if (id == 491) { if (fF > 0.1 && fF < 0.3) { float rg = 0.5 + 0.5 * sin(L.x * 34.0 + vn(L.yz * 9.0) * 3.0), k = 1.0 + 0.35 * (fG - 1.0) + 0.3 * rg;   // 491.2 the mouth: molten flesh, ridged
+          alb = vec3(0.3, 0.05, 0.02); emi = (k < 1.0 ? mix(fCR, fOR, k) : mix(fOR, fGD, min(1.0, k - 1.0))) * (0.55 + 0.25 * rg) * (0.8 + 0.3 * fG); gloss = 0.7; }
+      else { vec2 p = vec2(L.x * 2.7 + fF * 3.0, L.y * 3.1 + L.z * 2.2); vec2 pi = floor(p), pf = fract(p); float d1 = 9.0, d2 = 9.0; vec2 pc = vec2(0.0);
+        for (int ii = -1; ii <= 1; ii++) for (int jj = -1; jj <= 1; jj++) { vec2 gq = vec2(float(ii), float(jj)), o = vec2(hs(pi + gq), hs(pi + gq + 17.3)) * 0.8 + 0.1, dd = gq + o - pf; float l = dot(dd, dd); if (l < d1) { d2 = d1; d1 = l; pc = pi + gq; } else if (l < d2) d2 = l; }
+        float ed = sqrt(d2) - sqrt(d1), hv = hs(pc + 3.7); seam = 1.0 - smoothstep(0.03, 0.09, ed);
+        alb = mix(vec3(0.034, 0.03, 0.033), vec3(0.095, 0.074, 0.068), hv) * (0.85 + 0.3 * (1.0 - sqrt(d1))); alb += vec3(0.06, 0.055, 0.05) * smoothstep(0.14, 0.07, ed) * (1.0 - seam); gloss = 0.3 + 0.15 * hv;
+        float k = kh + 0.2 * sin(fT * 3.0 + hv * 6.0); emi += (k < 1.0 ? mix(fCR, fOR, clamp(k, 0.0, 1.0)) : mix(fOR, fGD, min(1.0, k - 1.0))) * seam * (0.8 + 0.5 * fG) + fCR * smoothstep(0.14, 0.05, ed) * 0.14 * fG * (1.0 - seam); } }
+    else { float tip = 1.0 - clamp(ao, 0.0, 1.0);
+      if (fF > 0.2) { float cr = smoothstep(0.05, 0.0, abs(vn(vec2(L.x * 5.0 + L.z * 2.0, L.y * 5.0 + L.z * 3.0) + uWear * 3.0) - 0.5));   // 492.5 a black horn: obsidian, molten cracks
+          alb = vec3(0.035, 0.03, 0.035); gloss = 0.45; emi += mix(fCR, fOR, 0.5 + 0.3 * (fG - 1.0)) * cr * (0.6 + 0.5 * fG) + fOR * pow(tip, 3.0) * 0.35 * fG; }
+      else { alb = mix(vec3(0.16, 0.1, 0.07), mix(vec3(0.8, 0.72, 0.58), vec3(0.97, 0.92, 0.8), tip), smoothstep(0.0, 0.3, tip)); gloss = 0.8; emi += fOR * 0.1 * pow(tip, 2.0) * fG; } }   // 492 fang bone: charred at the root, ivory, its point lit through
+    float ndl = dot(nn, uLK), b = 0.5 * smoothstep(-0.02, 0.07, ndl) + 0.5 * smoothstep(0.42, 0.5, ndl);   // (cel bands: shadow, midtone, light)
+    vec3 amb = mix(vec3(0.34, 0.1, 0.03), vec3(0.13, 0.12, 0.16), fHm) * uAmb;   // (the fire under it lights it from below)
+    vec3 c = alb * (vec3(1.55, 1.4, 1.25) * mix(0.16, 1.0, b) + amb * 1.25) * (1.0 - 0.6 * seam);
+    vec3 hh = normalize(uLK + uV); c += vec3(1.0, 0.9, 0.8) * smoothstep(0.94, 0.965, dot(nn, hh)) * gloss * 0.7 * (1.0 - seam) * (0.4 + 0.6 * b);
+    c += pow(1.0 - fNV, 2.4) * max(0.0, dot(nn, uLR) + 0.35) * uRim * 0.5;
+    c += emi + fOR * fDE * 2.2 + fWH * fDE * fDE * 1.2; c = mix(c, fWH * 0.85 + emi * 0.25, min(1.0, fG2 * 0.55));
+    gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
+  /*</SF-MAT>*/
   /*<AS-MAT ids 440..469 (v436 AS: 02f6-asmodeus-model.js, Asmodeus the Fester)>*/
   else if (id >= 440 && id <= 469) {   // ---- (v436 AS) Asmodeus (02f6): 440 obsidian lacquer (440.2 a recess; 440.3 engraved: gold filigree inlaid; vA.y 1 a rim: gold trim), 441 dark titanium, 442 antique gold (442.2 engraved), 443 a venom channel (vA.z along the part, uKind the part's place along its chain, uWear the venom's front along it, uGlow2 the flow; 443.3 a lit slot), 444 ivory porcelain (crimson channels under the glaze by uGlow2), 445 an eye, 446 ruby venom crystal (vA.z 1 - the place along a shard; 446.3 a see-through faceted shell, 446.6 the heart: hotter; uGlow2 white-hot crimson), 447 venom fluid (see-through), 448 a runed ring (448.3 its dark band; uKind its phase), 449 scarlet cloth (449.3 its back; vA.y 1 the gold border), 450 a ring of crimson-violet light (see-through), 451 dark crystal (the cocoon: uGlow2 its cracks), 453 a mote. uFx 0..0.5 crimson cracks through the armour (Eclipse Molt), uFx > 0.75 the whole part a spectral crystal replica (the decoy shells); uSpill the dissolve into black-crimson crystal grains. Approximates PBR with the scene's analytic environment: a violet night, a crimson horizon, a dark ground
     float aF = vA.x - float(id), aG = clamp(uGlow, 0.0, 4.0), aG2 = clamp(uGlow2, 0.0, 4.0), aT = uTime, aDE = 0.0;

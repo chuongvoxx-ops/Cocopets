@@ -1086,6 +1086,7 @@ GAMES.dungeon = {
          with its own sprite at screen X, Y (its feet), no shadow or ground glow, o.maxH capping its height in tiles; line of
          sight; the kit, for the Ult's cooldown */
       vehicle: o => { VEH = o || null; }, los, kit: () => KIT,
+      isExp: (x, y) => isExp(x, y),   /* v450 MD: Moby Dick's water spreads only over explored floor (the fog stays) */
       mvMod: (key, k) => { g.mvMods = g.mvMods || {}; if (k == null) delete g.mvMods[key]; else g.mvMods[key] = k; return mvModK(); },   /* (Susano O, 20k5w: see mvModK) */
       /* (hook for Fire's Nidhogg, 20k6g: free flight needs the map's size and raw tiles (tileAt is T_SOLID off the map), and
          whether the stage is drawn by hand (a rift puzzle, trial or gate, or a Super Fiend floor: its walls are too tall to fly over)) */
@@ -2813,6 +2814,7 @@ GAMES.dungeon = {
       { const M = c.getTransform(); snOn = !M.b && !M.c && M.a === M.d && M.a >= 1.5; snK = M.a; snE = M.e; snF = M.f; }
       shX = cam.sm ? (Math.random() - 0.5) * cam.sm * 2 : 0; shY = cam.sm ? (Math.random() - 0.5) * cam.sm * 2 : 0;
       drawWorld(c); if (PF) PF('world');
+      if (ELEM) ELEM.draw(c, 'floor');   /* v450 MD: an elemental move's own floor (Moby Dick's ocean), under every warning, trap and pickup */
       // fog over the unexplored
       drawZones(c, false);
       if (FD) FD.drawGround(c);
@@ -2995,6 +2997,8 @@ GAMES.dungeon = {
         return true;
       },
       destroy() { if (AN) AN.stop();
+        try { if (typeof SNAKEFLAME_GL !== 'undefined') SNAKEFLAME_GL.release(); } catch (e) {}   /* v450 SF: Snake Flame's GPU buffers given back with the stage (its meshes kept for the next one) */
+        try { if (typeof MOBY_GL !== 'undefined') MOBY_GL.release(); } catch (e) {}   /* v450 MD: Moby Dick's GPU buffers given back with the stage (its mesh kept for the next one) */
         // v404 IF: (the user, iPhone: the Ifrit fight "doesn't load") the closed stage's canvases are given back now, not when the
         // collector next runs: WebKit caps a page's canvas memory, and the next stage (Ifrit's, last in Rift 0) wants it at once
         try { const free = v => { const cv = v && v.cv ? v.cv : v; if (cv && cv.width != null && cv.getContext) cv.width = cv.height = 1; };
