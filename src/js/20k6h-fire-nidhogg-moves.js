@@ -462,6 +462,13 @@ float fbm3(vec3 p){ return 0.5 * n3(p) + 0.27 * n3(p * 2.07 + 3.1) + 0.15 * n3(p
 float asGly(vec2 g){ float d = min(min(asSeg(g, vec2(-0.5, -0.42), vec2(-0.5, 0.32)), asSeg(g, vec2(0.0, -0.42), vec2(0.0, 0.32))), asSeg(g, vec2(0.5, -0.3), vec2(0.5, 0.32)));
   if (g.y > 0.32) d = min(d, min(abs(length(g - vec2(-0.25, 0.32)) - 0.25), abs(length(g - vec2(0.25, 0.32)) - 0.25)));
   d = min(d, min(asSeg(g, vec2(0.5, -0.3), vec2(0.62, -0.55)), asSeg(g, vec2(0.62, -0.55), vec2(0.9, -0.62)))); return min(d, min(asSeg(g, vec2(0.9, -0.62), vec2(0.74, -0.7)), asSeg(g, vec2(0.9, -0.62), vec2(0.82, -0.47)))); }
+/*<MD-FN v450 MD: Moby Dick's ocean (20k7r): a bit of a tile's missing-neighbour mask (k a power of two); a tile's feather (uv -1..1, sz tiles wide) toward its neighbours that are not water (mk: 1 -x, 2 +x, 4 -y, 8 +y, 16 -x-y, 32 +x-y, 64 -x+y, 128 +x+y)>*/
+float mdB(float mk, float k){ return mod(floor(mk / k + 0.001), 2.0); }
+float mdEdge(vec2 u, float mk, float sz){ if (mk < 0.5) return 1.0; float F = 0.55, dl = (u.x + 1.0) * 0.5 * sz, dr = (1.0 - u.x) * 0.5 * sz, du = (u.y + 1.0) * 0.5 * sz, dd = (1.0 - u.y) * 0.5 * sz, e = 1.0;
+  if (mdB(mk, 1.0) > 0.5) e *= smoothstep(0.02, F, dl); if (mdB(mk, 2.0) > 0.5) e *= smoothstep(0.02, F, dr); if (mdB(mk, 4.0) > 0.5) e *= smoothstep(0.02, F, du); if (mdB(mk, 8.0) > 0.5) e *= smoothstep(0.02, F, dd);
+  if (mdB(mk, 16.0) > 0.5) e *= smoothstep(0.02, F, length(vec2(dl, du))); if (mdB(mk, 32.0) > 0.5) e *= smoothstep(0.02, F, length(vec2(dr, du))); if (mdB(mk, 64.0) > 0.5) e *= smoothstep(0.02, F, length(vec2(dl, dd))); if (mdB(mk, 128.0) > 0.5) e *= smoothstep(0.02, F, length(vec2(dr, dd)));
+  return e; }
+/*</MD-FN>*/
 float caus(vec2 p, float t){ vec2 i = p; float c = 1.0; for (int n = 0; n < 4; n++) { float tt = t * (1.0 - 3.5 / float(n + 1)); i = p + vec2(cos(tt - i.x) + sin(tt + i.y), sin(tt - i.y) + cos(tt + i.x)); c += 1.0 / length(vec2(p.x / (sin(i.x + tt) / 0.005), p.y / (cos(i.y + tt) / 0.005))); } c /= 4.0; c = 1.17 - pow(c, 1.4); return clamp(pow(abs(c), 8.0), 0.0, 1.6); }   /* (v361) the web of light that water throws (after the classic tileable caustic) */
 float hsd(vec2 p){ p.x = abs(p.x); if (p.y + p.x > 1.0) return length(p - vec2(0.25, 0.75)) - 0.35355; vec2 a = p - vec2(0.0, 1.0), b = p - vec2(0.5 * max(p.x + p.y, 0.0)); return sqrt(min(dot(a, a), dot(b, b))) * sign(p.x - p.y); }   /* (v402, Sunflare) a rounded love heart's signed distance: its point at the origin, its lobes' top at y 1.1, 1.2 wide */
 vec2 hmap(vec2 u){ return vec2(u.x * 0.72, 0.53 - u.y * 0.68); }   /* (v402) a quad's uv to the heart's own space: the heart fills 84% of the quad */
@@ -1420,6 +1427,28 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
     float ends = 1.0 - smoothstep(0.9, 1.0, abs(u.x)), a = max(stain * 0.4, max(wtr, 0.0) * 0.5) * ends; vec3 c = mix(vec3(0.02, 0.05, 0.06), col, max(wtr, 0.0));
     gl_FragColor = vec4(c * a, a) * v_c.a; }
   /*</BW-FX>*/
+  /*<MD-FX solids 360, 362, 365 (v450 MD: 20k7r-water-mobydick.js, Moby Dick's starry ocean, the whale's shadow under it, a tidal ring's raised crest)>*/
+  else if ((v_k > 359.5 && v_k < 360.5) || (v_k > 361.5 && v_k < 362.5) || (v_k > 364.5 && v_k < 365.5)) { float tt = u_t; vec4 A = vec4(0.0);
+    if (v_k < 360.5) { // 360 the ocean over one floor tile (v_c.r 1: a 2 x 2 block): uv across it; v_q.xy its centre from the impact (tiles); v_q.z 64 x its missing-neighbour mask + the water's front (tiles from the impact): deep midnight blue, slow currents in it
+      float sz = 1.0 + v_c.r, mk = floor(v_q.z / 64.0 + 0.0001), Rs = v_q.z - mk * 64.0; vec2 p = v_q.xy + u * 0.5 * sz; float d = length(p), e = mdEdge(u, mk, sz);
+      float fr = smoothstep(Rs + 0.15, Rs - 1.0, d + 0.5 * (n2(p * 1.3 + 4.0) - 0.5));
+      float w1 = n2(p * 0.45 + vec2(tt * 0.05, -tt * 0.035)), w2 = n2(p * 1.6 - vec2(tt * 0.12, tt * 0.08));
+      vec3 c = mix(vec3(0.01, 0.025, 0.085), vec3(0.03, 0.065, 0.19), w1 * 0.65 + w2 * 0.35);
+      float a = e * fr * (0.8 + 0.12 * w1); A = vec4(c * a, a); }
+    else if (v_k < 362.5) { // 362 the whale's shadow under the water (uv.x along it: 1 the head .. -1 behind the flukes; uv.y across): a dark silhouette, its edge softened by v_q.x (0 sharp .. 1 deep and soft), swimming (v_q.y its phase); v_c its colour
+      float a0 = (1.0 - u.x) * 0.5, sw = sin(a0 * 5.0 - v_q.y) * 0.05 * a0, y = abs(u.y - sw), bl = 0.04 + 0.12 * v_q.x;
+      float w = a0 < 0.02 ? 0.0 : 0.34 * smoothstep(0.0, 0.07, a0 - 0.02) * (1.0 - 0.18 * smoothstep(0.3, 0.45, a0)) * (1.0 - smoothstep(0.45, 0.8, a0) * 0.82) + 0.02;
+      float body = smoothstep(bl, -bl, y - w) * step(a0, 0.82), fl = smoothstep(bl, -bl, max(y - 0.5 * clamp((a0 - 0.76) / 0.17, 0.0, 1.0), a0 - 0.97 + 0.5 * y * y)) * step(0.76, a0);
+      float a = max(body, fl) * (1.0 - smoothstep(0.92, 1.0, abs(u.y))); A = vec4(col * a, a); }
+    else { // 365 a tidal ring's raised crest (a quad standing on its stretch of the ring: uv.x along it, uv.y -1 its top .. 1 the floor): translucent deep teal rising to a curling lip; v_q.x the stretch's start along the ring (tiles), v_q.y 1 its left end fades, 2 its right, 3 both; v_q.z its length (tiles)
+      float L0 = v_q.x + (u.x + 1.0) * 0.5 * v_q.z, fl = floor(v_q.y + 0.001), y = (1.0 - u.y) * 0.5;   // (y 0 the floor .. 1 the quad's top)
+      float hc = 0.62 + 0.18 * n2(vec2(L0 * 1.3, tt * 0.6)) + 0.08 * sin(L0 * 2.3 + tt * 2.0), lip = smoothstep(hc + 0.04, hc - 0.02, y), face = smoothstep(0.0, 0.08, y);
+      float ends = (mdB(fl, 1.0) > 0.5 ? smoothstep(-1.0, -0.2, u.x) : 1.0) * (mdB(fl, 2.0) > 0.5 ? smoothstep(1.0, 0.2, u.x) : 1.0);
+      vec3 c = mix(vec3(0.02, 0.12, 0.26), vec3(0.08, 0.42, 0.6), smoothstep(0.1, hc, y)); float cu = exp(-sq((y - hc + 0.12) / 0.05));
+      c = mix(c, vec3(0.01, 0.06, 0.16), cu * 0.6);   // (the shade under the curl)
+      float a = lip * face * ends * (0.38 + 0.4 * smoothstep(0.2, hc, y)); A = vec4(c * a, a); }
+    gl_FragColor = A * v_c.a; }
+  /*</MD-FX>*/
   /*<DS-FX solid 244 (v433 DS: 20r3-dune-sky.js, the Mouth Beneath the Dunes' far views)>*/
   else if (v_k > 243.5 && v_k < 244.5) { // 244 a veil of blowing sand or mist (solid, laid over): a long bank streaming along x, thinning to its rim, its upper side in the light (uv.x along -1..1, uv.y -1 its top .. 1 its foot); v_q.x its streaming speed, v_q.y seed, v_q.z its density; v_c its colour
     float sd = v_q.y * 23.0, tt = u_t * v_q.x; vec2 p = vec2(u.x * 2.4 + sd, u.y * 1.2 + sd * 0.37);
@@ -1853,6 +1882,72 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
       float dust = pow(n2(vec2(rr * 16.0 - tt * 0.6, ph * 40.0 + tt * 0.25)), 6.0) * 1.4, rim = exp(-sq((rr - dv) / 0.018)) * step(dv, 0.985) * 0.55 + exp(-sq((rr - 0.97) / 0.02)) * step(0.985, dv) * 0.4, sl = exp(-sq((abs(s) - 0.985) / 0.025)) * 0.45 * lit;
       L = col * ((fall + scan + dust * 0.45) * side * lit + (rim * side * smoothstep(0.0, 0.05, dv - rr + 0.04) + sl) * near) * wgt; }
     /*</SG-FX>*/
+    /*<SF-FX kinds 352..355 (v450 SF: 20k6k-fire-snakeflame.js, Snake Flame)>*/
+    else if (v_k > 351.5 && v_k < 355.5) { float tt = u_t, an = atan(u.y, u.x);
+      if (v_k < 352.5) { // 352 the ring of embers on the floor (a unit disc squashed by its quad): a band of turbulent fire turning, embers riding round it in two counter-turning rings, a molten pit opening inside it; v_q.x how open (0..1, past 1 the surge), v_q.y its turn (radians), v_q.z its heat
+        float op = clamp(v_q.x, 0.0, 1.6), Rr = 0.7 * min(1.0, op) + 0.06, sp = v_q.y, hz = clamp(v_q.z, 0.0, 2.0), band = exp(-sq((r - Rr) / (0.06 + 0.05 * min(1.0, op))));
+        float fb = fbm(vec2(cos(an + sp), sin(an + sp)) * 2.2 + vec2(r * 5.0 - tt * 1.4, tt * 0.3)), em = 0.0;
+        for (int i = 0; i < 2; i++) { float fi = float(i), a2 = (an + (fi > 0.5 ? -sp * 1.4 : sp)) / 6.2831853 * (fi > 0.5 ? 30.0 : 44.0); a2 = mod(a2, fi > 0.5 ? 30.0 : 44.0);
+          float ci = floor(a2), fa = fract(a2) - 0.5, rj = Rr * (fi > 0.5 ? 0.82 : 1.0) + (h1(vec2(ci, 3.1 + fi)) - 0.5) * 0.12, sz = 0.014 + 0.016 * h1(vec2(ci, 7.7 + fi));
+          em += exp(-(sq(fa * 6.2831853 / (fi > 0.5 ? 30.0 : 44.0) * r) + sq(r - rj)) / sq(sz)) * (0.55 + 0.45 * sin(tt * 9.0 + ci * 2.3)) * step(0.25, h1(vec2(ci, 1.3 + fi))); }
+        float pit = exp(-r * r / max(0.02, sq(Rr) * 0.45)) * min(1.0, op), arm = pow(0.5 + 0.5 * cos(3.0 * an + 7.0 * log(r + 0.06) - tt * 5.0), 4.0) * smoothstep(Rr * 0.95, Rr * 0.3, r) * min(1.0, op);
+        float temp = band * (0.55 + 0.6 * fb) * (0.7 + 0.35 * hz) + pit * (0.55 + 0.4 * hz) + arm * 0.35 * hz;
+        L = ramp(temp) * (band * (0.5 + 0.7 * fb) + pit * 0.75 + arm * 0.5) + vec3(1.0, 0.82, 0.45) * em * 1.3 * min(1.0, op * 2.0);
+        L *= 1.0 - smoothstep(0.9, 1.0, r); }
+      else if (v_k < 353.5) { // 353 the fire inside the coil, one cell of it on the floor (the quad 0.8 tiles each way about the cell, uv in tiles / 0.8): cells 0.8 tiles apart sum to one (a tent each way), so the field is one seamless sheet of flowing fire that ends where the cells do (walls, gaps) and at the footprint's radius; v_q.x, v_q.y the cell's offset from the coil's centre (tiles), v_q.z the radius x 100 (whole) + 0.98 x the last second's draw inward; v_c.a its strength
+        vec2 p = vec2(v_q.x, v_q.y) + u * 0.8, dq = abs(u); float Rr = floor(v_q.z) / 100.0, din = fract(v_q.z) / 0.98, rr = length(p), wgt = max(0.0, 1.0 - dq.x) * max(0.0, 1.0 - dq.y);
+        float fade = smoothstep(Rr + 0.04, Rr - 0.42, rr), sw = tt * 0.45, cs = cos(sw), sn = sin(sw), sw2 = -tt * 0.23, c2 = cos(sw2), s2 = sin(sw2);   // (the fire streams round the centre: two layers turning against each other, rigidly, so nothing winds up over time)
+        vec2 q = vec2(cs * p.x + sn * p.y, -sn * p.x + cs * p.y), q2 = vec2(c2 * p.x + s2 * p.y, -s2 * p.x + c2 * p.y);
+        float f1 = fbm(q * 1.1 + 3.3), f2 = fbm(q2 * 2.4 + vec2(0.0, tt * 0.5)), vein = pow(1.0 - abs(f1 * 2.0 - 1.0), 4.0), inw = din * pow(0.5 + 0.5 * sin(rr * 5.5 + tt * 9.0), 3.0);   // (in the last second, bands of flame racing in to the centre)
+        float temp = (0.24 + 0.55 * vein + 0.2 * f2) * (0.9 + 0.25 * din) + inw * 0.45 + din * 0.2 * smoothstep(Rr, 0.0, rr), tw = step(0.975, h1(floor(q * 5.0) + floor(tt * 3.0) * 0.31)) * exp(-dot(fract(q * 5.0) - 0.5, fract(q * 5.0) - 0.5) * 40.0);
+        L = (ramp(temp) * (0.35 + 0.6 * f2 + 0.3 * vein) + vec3(1.0, 0.8, 0.45) * tw * 0.5) * fade * wgt; }
+      else if (v_k < 354.5) { // 354 the engulfing fireball (a unit disc; its body 0.78 of it): a sphere of boiling fire, domain-warped, the serpent's coils as two spiral bands wound round it and unwinding as it grows, a white-hot heart, a ragged limb of flames; at the third tier a ring of prominences round it; v_q.x its age 0..1 (it grows and cools), v_q.y seed, v_q.z the tier 0..2
+        float ag = clamp(v_q.x, 0.0, 1.0), sd = v_q.y * 13.0, tr = clamp(v_q.z, 0.0, 2.0), rn = r / 0.78, limb = sqrt(max(0.0, 1.0 - rn * rn)); vec2 sp = u / 0.78;
+        vec2 w = sp * 2.2 + vec2(fbm(sp * 1.7 + sd + tt * 0.4), fbm(sp * 1.9 - sd - tt * 0.5)) * 1.3; float f = fbm(w + vec2(0.0, -tt * 0.8)), f2 = fbm(w * 2.3 + 7.0);
+        float band = pow(0.5 + 0.5 * cos(2.0 * an + 3.2 * log(r + 0.08) * (1.0 - ag) - tt * 2.6), 3.0) * smoothstep(1.0, 0.25, rn), body = smoothstep(1.08 + 0.14 * f, 0.88, rn);
+        float tongue = (1.0 - smoothstep(0.0, 0.3 + 0.28 * f2, rn - 0.97)) * smoothstep(0.42, 0.78, fbm(vec2(cos(an), sin(an)) * 3.0 + vec2(-tt * 1.3, rn * 2.0) + sd)) * step(0.95, rn);
+        float temp = (0.34 + 0.36 * limb + 0.32 * f - 0.2 * rn) * (1.0 - 0.7 * ag) + band * 0.34 * (1.0 - ag) * (0.6 + 0.2 * tr), heart = exp(-rn * rn * 7.0) * (1.0 - ag) * (1.0 - ag);
+        L = ramp(temp) * max(body * (0.75 + 0.45 * f), tongue * 0.85) + vec3(1.0, 0.9, 0.7) * heart * 0.55;
+        if (tr > 1.5) { float pr = exp(-sq((rn - 1.18 - 0.05 * sin(an * 5.0 + tt * 2.0)) / 0.05)) * (0.4 + 0.6 * fbm(vec2(cos(an), sin(an)) * 4.0 + tt * 0.9)), ray = pow(0.5 + 0.5 * cos(an * 9.0 + tt * 0.7), 6.0) * smoothstep(1.0, 1.15, rn) * (1.0 - smoothstep(1.15, 1.27, rn));
+          L += ramp(0.75 + 0.3 * pr) * (pr * 0.8 + ray * 0.35) * (1.0 - ag * 0.7); }
+        L *= 1.0 - smoothstep(0.9, 1.0, r); }
+      else { // 355 the blast across the floor (a unit disc squashed by its quad): a front of fire racing out to v_q.x, the ground behind it burning in patches and glowing cracks as it cools by v_q.z (heat); v_q.y seed
+        float fr = clamp(v_q.x, 0.0, 1.05), sd = v_q.y * 11.0, ht = clamp(v_q.z, 0.0, 1.5); vec2 ca = vec2(cos(an), sin(an));
+        float nz = fbm(ca * 3.0 + sd + vec2(r * 4.0, 0.0)), front = exp(-sq((r - fr * (0.95 + 0.06 * nz)) / (0.05 + 0.05 * fr))), behind = smoothstep(fr + 0.02, fr - 0.3, r) * smoothstep(1.0, 0.86, r);
+        float crk = pow(1.0 - abs(fbm(ca * 4.0 + vec2(r * 7.0, 0.0) + sd) * 2.0 - 1.0), 8.0), temp = front * (0.6 + 0.22 * min(ht, 1.0)) + behind * ht * (0.22 + 0.35 * fbm(u * 5.0 + sd - tt * 0.3) + 0.5 * crk);
+        L = ramp(temp) * (front * (0.7 + 0.4 * nz) + behind * (0.25 + 0.6 * crk) * min(1.0, ht * 1.5)) * (1.0 - smoothstep(0.9, 1.0, r)); } }
+    /*</SF-FX>*/
+    /*<MD-FX lights 361, 363, 364, 366, 367 (v450 MD: 20k7r-water-mobydick.js, Moby Dick)>*/
+    else if (v_k > 360.5 && v_k < 367.5) { float tt = u_t;
+      if (v_k < 361.5) { // 361 the ocean's light over a tile (the same quad and packing as 360): the stars mirrored in it, twinkling and smeared by shallow ripples, thin moving ripple highlights, a faint sky sheen, foam along the spreading front
+        float sz = 1.0 + v_c.r, mk = floor(v_q.z / 64.0 + 0.0001), Rs = v_q.z - mk * 64.0; vec2 p = v_q.xy + u * 0.5 * sz; float e = mdEdge(u, mk, sz), dn = length(p) + 0.5 * (n2(p * 1.3 + 4.0) - 0.5), fr = smoothstep(Rs + 0.15, Rs - 1.0, dn);
+        vec2 rp = p + 0.05 * vec2(sin(p.y * 3.1 + tt * 1.3), sin(p.x * 2.7 - tt * 1.1)), g = rp * 2.1, gi = floor(g), gf = fract(g) - 0.5, so = (vec2(h1(gi + 3.1), h1(gi + 7.7)) - 0.5) * 0.6; float hh = h1(gi + 11.0);
+        float stv = step(0.7, hh) * (exp(-dot(gf - so, gf - so) * (90.0 + 160.0 * h1(gi + 1.7))) + 0.12 * exp(-dot(gf - so, gf - so) * 12.0)) * (0.55 + 0.45 * sin(tt * (1.2 + 2.0 * hh) + hh * 40.0));
+        float rip = n2(p * 2.2 + vec2(tt * 0.32, 0.0)) * 0.5 + n2(p * 3.0 - vec2(0.0, tt * 0.26)) * 0.5, rl = exp(-sq((rip - 0.5) / 0.03)) * 0.2;
+        float front = exp(-sq((dn - Rs + 0.3) / 0.2)) * step(0.3, Rs) * (1.0 - smoothstep(13.0, 15.0, Rs));
+        L = (vec3(0.6, 0.82, 1.0) * stv * 1.2 + vec3(0.2, 0.5, 0.9) * rl + vec3(0.06, 0.12, 0.3) * (0.06 + 0.05 * n2(p * 0.4 - tt * 0.03))) * e * fr + vec3(0.55, 0.88, 1.0) * front * 0.6 * e; }
+      else if (v_k < 363.5) { // 363 the whale's glow under the water (the same quad as 362): its outline lit faintly from inside, a few stars in it; v_q.x 0..1 how near the surface
+        float a0 = (1.0 - u.x) * 0.5, sw = sin(a0 * 5.0 - v_q.y) * 0.05 * a0, y = abs(u.y - sw), w = a0 < 0.02 ? 0.0 : 0.34 * smoothstep(0.0, 0.07, a0 - 0.02) * (1.0 - 0.18 * smoothstep(0.3, 0.45, a0)) * (1.0 - smoothstep(0.45, 0.8, a0) * 0.82) + 0.02;
+        float rim = exp(-sq((y - w) / (0.03 + 0.05 * (1.0 - v_q.x)))) * step(a0, 0.82) * smoothstep(0.0, 0.05, a0), ins = smoothstep(0.02, -0.04, y - w) * step(a0, 0.82);
+        vec2 g = vec2(a0 * 14.0, u.y * 4.0 + 3.0), gi = floor(g), gf = fract(g) - 0.5; float sp = step(0.75, h1(gi)) * exp(-dot(gf, gf) * 60.0);
+        float fill = smoothstep(0.06, -0.12, y - w) * step(a0, 0.82) + smoothstep(0.08, -0.1, max(y - 0.5 * clamp((a0 - 0.76) / 0.17, 0.0, 1.0), a0 - 0.97 + 0.5 * y * y)) * step(0.76, a0) * 0.8;
+        L = col * (rim * 0.3 + fill * (0.3 + 0.12 * n2(vec2(a0 * 9.0 - tt * 0.8, u.y * 3.0))) + ins * sp * 0.9) * (1.0 - smoothstep(0.85, 1.0, abs(u.x))); }
+      else if (v_k < 364.5) { // 364 a tidal ring's band over a tile (the same packing as 360, v_q.z's remainder the ring's radius): its white front breaking along the ring, a turquoise glow trailing inside it, glitter
+        float mk = floor(v_q.z / 64.0 + 0.0001), R0 = v_q.z - mk * 64.0; vec2 p = v_q.xy + u * 0.5; float e = mdEdge(u, mk, 1.0), d = length(p), an = atan(p.y, p.x), x = d - R0 + 0.12 * (n2(vec2(an * R0 * 1.4, tt * 0.9)) - 0.5);
+        float foam = exp(-sq((x + 0.04) / 0.075)) * (0.55 + 0.6 * n2(vec2(an * R0 * 3.0 + tt * 0.5, d * 6.0))), trail = exp(min(x, 0.0) / 0.55) * step(x, 0.0) * 0.32, ahead = exp(-max(x, 0.0) / 0.12) * step(0.0, x) * 0.25;
+        vec2 g = p * 5.0, gi = floor(g), gf = fract(g) - 0.5; float gl = step(0.86, h1(gi + 5.0)) * exp(-dot(gf, gf) * 70.0) * smoothstep(-0.7, -0.05, x) * (1.0 - smoothstep(0.0, 0.1, x)) * (0.5 + 0.5 * sin(tt * 9.0 + h1(gi) * 30.0));
+        L = (vec3(0.88, 0.97, 1.0) * foam + vec3(0.15, 0.7, 0.95) * (trail + ahead) + vec3(1.0) * gl) * e; }
+      else if (v_k < 366.5) { // 366 a crest's light (the same quad and packing as 365): the foam on its lip, breaking, glitter thrown off it, a rim of light along the face
+        float L0 = v_q.x + (u.x + 1.0) * 0.5 * v_q.z, fl = floor(v_q.y + 0.001), y = (1.0 - u.y) * 0.5, hc = 0.62 + 0.18 * n2(vec2(L0 * 1.3, tt * 0.6)) + 0.08 * sin(L0 * 2.3 + tt * 2.0);
+        float ends = (mdB(fl, 1.0) > 0.5 ? smoothstep(-1.0, -0.2, u.x) : 1.0) * (mdB(fl, 2.0) > 0.5 ? smoothstep(1.0, 0.2, u.x) : 1.0);
+        float foam = exp(-sq((y - hc) / 0.07)) * (0.5 + 0.7 * n2(vec2(L0 * 7.0 - tt * 1.5, y * 9.0))), face = exp(-sq((y - hc * 0.55) / 0.22)) * 0.12;
+        vec2 g = vec2(L0 * 6.0, y * 7.0 - tt * 2.0), gi = floor(g), gf = fract(g) - 0.5; float gl = step(0.88, h1(gi + 2.0)) * exp(-dot(gf, gf) * 60.0) * step(hc - 0.05, y) * (1.0 - smoothstep(hc + 0.15, 1.0, y));
+        L = (vec3(0.92, 0.98, 1.0) * foam + vec3(0.2, 0.7, 0.95) * face + vec3(1.0) * gl * 0.9) * ends * (1.0 - smoothstep(0.92, 1.0, y)); }
+      else { // 367 the water parting where it breaches, or round its slam (a disc on the floor, uv radius 1 the quad's): a ring of white water at v_q.x of the radius (0..1) with streaks bursting out from it, a swelling glow inside (v_q.z 0 the bulge before the breach .. 1 the parting); v_q.y seed
+        float an = atan(u.y, u.x), R0 = max(v_q.x, 0.02), x = r - R0, st = n2(vec2(an * 9.0 + v_q.y, r * 3.0 - tt * 1.5)), ring = exp(-sq(x / (0.05 + 0.05 * st))) * (0.6 + 0.6 * st);
+        float swell = exp(-sq(r / max(R0, 0.15)) * 1.6) * (1.0 - v_q.z * 0.6) * 0.5, streak = pow(n2(vec2(an * 16.0 + v_q.y * 3.0, 1.0)), 4.0) * smoothstep(0.0, 0.1, x) * exp(-x / 0.18) * v_q.z * 1.4;
+        L = (vec3(0.85, 0.97, 1.0) * ring + vec3(0.25, 0.65, 0.95) * swell + vec3(0.7, 0.92, 1.0) * streak) * (1.0 - smoothstep(0.85, 1.0, r)); } }
+    /*</MD-FX>*/
     /*<BW-FX lights 217, 219 (v430 BW: 20n9e-belfry-drain.js)>*/
     else if (v_k > 216.5 && v_k < 219.5) { float tt = u_t;
       if (v_k < 217.5) { // 217 the light on a draining hall's water (the same quad and packing as 216): slow caustics, foam riding the shoreline, rings of flow running in to the drain, streaks drawn toward it, a whirl over the sump while the water moves, glints
@@ -2350,7 +2445,7 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
   const Q = { lit: new Float32Array(12 * 6 * 600), nl: 0, smk: new Float32Array(12 * 6 * 200), ns: 0, wlit: new Float32Array(12 * 6 * 200), nwl: 0, wsmk: new Float32Array(12 * 6 * 100), nws: 0, get windOK() { return !!PRW; }, a: 1, b: 0, c0: 0, d: 1, e: 0, f: 0, k: 1, t: 0, W: 0, Hh: 0, pet: [0, 0, 0], gpu: true,
     X(x, y) { return this.a * x + this.c0 * y + this.e; }, Y(x, y) { return this.b * x + this.d * y + this.f; },
     /* one quad: centre (screen px), half-axes (ux, uy), (vx, vy) in screen px */
-    quad(kind, x, y, ux, uy, vx, vy, col, al, q0, q1, q2) { if (!(al > 0.004)) return; const solid = (kind >= 9 && kind <= 12) || kind === 16 || kind === 24 || kind === 25 || kind === 33 || kind === 36 || kind === 39 || kind === 40 || kind === 41 /* v402 */ || (kind >= 45 && kind <= 47) || kind === 49 || kind === 52 /* v404 LT */ || (kind >= 53 && kind <= 58 && kind !== 55) /* v404 DK */ || (kind >= 60 && kind <= 63) /* v409 DK2 */ || kind === 68 || kind === 69 /* v412 LM */ || kind === 71 /* v391 U4 */ || kind === 80 || kind === 82 || (kind >= 84 && kind <= 87) /* v415 EB */ || (kind >= 73 && kind <= 75) || kind === 78 /* v415 EA */ || kind === 89 || kind === 90 /* v415 TI */ || (kind >= 104 && kind <= 106) /* v417 BR */ || kind === 96 || kind === 97 /* v417 GH */ || kind === 112 || kind === 115 /* v417 MH */ || kind === 124 /* v418 AB */ || kind === 137 /* v420 GC */ || kind === 144 || kind === 145 /* v420 CB */ || kind === 216 || kind === 218 /* v430 BW */ || kind === 244 /* v433 DS */, wd =kind >= 33 && kind <= 40;
+    quad(kind, x, y, ux, uy, vx, vy, col, al, q0, q1, q2) { if (!(al > 0.004)) return; const solid = (kind >= 9 && kind <= 12) || kind === 16 || kind === 24 || kind === 25 || kind === 33 || kind === 36 || kind === 39 || kind === 40 || kind === 41 /* v402 */ || (kind >= 45 && kind <= 47) || kind === 49 || kind === 52 /* v404 LT */ || (kind >= 53 && kind <= 58 && kind !== 55) /* v404 DK */ || (kind >= 60 && kind <= 63) /* v409 DK2 */ || kind === 68 || kind === 69 /* v412 LM */ || kind === 71 /* v391 U4 */ || kind === 80 || kind === 82 || (kind >= 84 && kind <= 87) /* v415 EB */ || (kind >= 73 && kind <= 75) || kind === 78 /* v415 EA */ || kind === 89 || kind === 90 /* v415 TI */ || (kind >= 104 && kind <= 106) /* v417 BR */ || kind === 96 || kind === 97 /* v417 GH */ || kind === 112 || kind === 115 /* v417 MH */ || kind === 124 /* v418 AB */ || kind === 137 /* v420 GC */ || kind === 144 || kind === 145 /* v420 CB */ || kind === 216 || kind === 218 /* v430 BW */ || kind === 244 /* v433 DS */ || kind === 360 || kind === 362 || kind === 365 /* v450 MD */, wd =kind >= 33 && kind <= 40;
       const ka = wd ? (solid ? 'wsmk' : 'wlit') : (solid ? 'smk' : 'lit'), kn = wd ? (solid ? 'nws' : 'nwl') : (solid ? 'ns' : 'nl'); let A = this[ka]; const n = this[kn];
       if ((n + 6) * 12 > A.length) { const q = new Float32Array(A.length * 2); q.set(A); A = q; this[ka] = q; }
       const cx = this.X(x, y), cy = this.Y(x, y), a = this.a, b = this.b, c = this.c0, d = this.d, Ux = a * ux + c * uy, Uy = b * ux + d * uy, Vx = a * vx + c * vy, Vy = b * vx + d * vy, C = rgbOf(col); let o = n * 12;
