@@ -56,7 +56,10 @@ const music = (() => {
       const D = arc.game && arc.game._dbg, F = D && D.F; if (!F || (arc.state !== 'play' && arc.state !== 'loading' && arc.state !== 'ready')) return null;
       const R = F.rift;
       if (held && arc.state === 'play' && has(held)) return held;
-      if (R) { if (R.kind === 'boss') return 'triumph'; if (R.gate || R.kind === 'gate') return 'gates';
+      if (R) { if (R.kind === 'boss') return 'triumph'; if (R.gate || R.kind === 'gate') {   /* (v449, the user: "When you fight the animas in their gates, the music should switch to the song that plays when you summon them") */
+          let ph = null; try { ph = D.RIFT.self.mod.S.phase; } catch (e) {}
+          const fight = ph === 'boss' || ph === 'won' || (ph == null && D.g && D.g.boss && !D.g.boss.dead && !D.g.won);
+          return fight ? (has('summon') ? 'summon' : 'triumph') : 'gates'; }
         let S = null; try { S = RIFT_BY_ID[R.id].stages[R.stage]; } catch (e) {}
         return R.kind === 'fight' || (S && S.trial) ? RIFT_SONG[R.id] || 'charge' : 'crown'; }
       return held && arc.state === 'play' && has(held) ? held : F.fiend || (D.g && D.g.boss && !D.g.won) ? 'triumph' : floorSong(arc.game);
