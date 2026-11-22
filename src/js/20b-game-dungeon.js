@@ -1533,6 +1533,7 @@ GAMES.dungeon = {
       const cdK = (g.buff.arcane > 0 ? 1.6 : 1) * (RULES ? RULES.cdK() : 1) / (1 - Math.min(0.5, accK('cdr')));
       const cdA = cdK * zephK('as');   /* (Zephyr's attack speed: the Strongs only, never the Ultimate) */
       g.cdS = Math.max(0, g.cdS - dt * cdA); g.cdS2 = Math.max(0, g.cdS2 - dt * cdA); g.cdS3 = Math.max(0, g.cdS3 - dt * cdA); g.cdU = Math.max(0, g.cdU - dt * cdK);
+      if (st && st.devFree && !me.dead) { g.cdS = g.cdS2 = g.cdS3 = g.cdU = 0; me.mp = ST.mp; }   // (v451 K: the developer's skill tester, free casts)
       ['warpT', 'stopT', 'shieldT', 'phoenixT', 'dodgeCd', 'counterT', 'frostbite'].forEach(kk => { g[kk] = Math.max(0, g[kk] - dt); });
       if (g.swapCd > 0) g.swapCd -= dt;
       for (const b in g.buff) { if (g.buff[b] > 0) { g.buff[b] -= dt; if (g.buff[b] <= 0) { g.buff[b] = 0; if (b === 'guardian') g.guardHP = 0; text(me.x, me.y - 1.2, `${SHRINES[b].name} faded`, '#CFE2FF', 12); } } }

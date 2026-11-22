@@ -2027,3 +2027,10 @@ body.in-map .outside-btn,body.in-mansion .outside-btn,body.home-mode .outside-bt
 .setting.gq{flex-wrap:wrap}.gq-row{display:flex;gap:4px;flex-wrap:wrap}.gq-b{padding:6px 9px;font-size:12px}.gq-b[aria-pressed="true"]{background:#7A5CFF;color:#fff} /* v439 SP */
 #benchOut .bo-row{display:flex;gap:8px;justify-content:flex-end}
 .setting .bench-btns{display:flex;flex-direction:column;gap:6px;flex:none} /* v440 SQ: Run and Long run */
+
+/* v451 K: the developer's skill tester */
+.dev-sk{display:flex;flex-direction:column;gap:8px;margin:8px 0}
+.dev-sk-row{display:flex;flex-direction:column;gap:4px;font-weight:700}
+.dev-sk-row small{font-weight:500;opacity:.7}
+.dev-sk-sel{width:100%;max-width:100%;padding:10px 12px;border:2.5px solid var(--line);border-radius:14px;background:var(--paper);color:var(--fg);font:inherit;font-weight:600;font-size:16px}
+.dev-sk-sel:disabled{opacity:.5}

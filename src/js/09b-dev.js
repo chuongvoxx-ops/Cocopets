@@ -49,6 +49,7 @@ function renderDev() {
     </div>
     <div class="setting dev-skills"><div><span id="devMvLbl">Unlock all skills (dev)</span><p class="note"><b>Developer only.</b> Any pet can equip any Strong or Ultimate from every pool (the 1–4★ pool, every element's 5★ and 6★ lists) on its Ability cards screen, to test them. Players never get this: their pets keep the skills they were born with. Turn it off and every pet's own skills come back.</p></div><button class="switch" type="button" role="switch" data-go="dev-moves" aria-checked="${!!st.devMoves}" aria-labelledby="devMvLbl"></button></div>
     <div class="setting"><div><span id="dev6Lbl">Every egg a six-star</span><p class="note">To try the six-star Legendaries: every summoned or hatched egg is one (100%).</p></div><button class="switch" type="button" role="switch" data-go="dev-six" aria-checked="${!!st.dev6}" aria-labelledby="dev6Lbl"></button></div>
+    ${devSkillTester()}
     <h3 class="sec">Tower of Oblivion</h3>
     <div class="setting"><div><span id="godLbl">Tower god mode</span><p class="note">Your pet can't be hurt in the Tower.</p></div><button class="switch" type="button" role="switch" data-go="dev-god" aria-checked="${!!st.dun.god}" aria-labelledby="godLbl"></button></div>
     <div class="evo-actions">
@@ -67,6 +68,38 @@ function renderDev() {
       <button class="btn small" type="button" data-go="dev-gems">${gemSVG('starstone')}One of each gem</button>
     </div>`;
   sheetEl.innerHTML = `<div class="sheet-grab" aria-hidden="true"></div><button class="icon-btn sheet-close" type="button" data-sheet-close aria-label="Close">${ICON.close}</button>${html}`;
+  sheetEl.querySelectorAll('select[data-dev-skill]').forEach(el => el.addEventListener('change', () => devPickSkill(el.dataset.devSkill, el.value)));   // (v451 K)
+}
+/* (v451 K, the user: "I need a function where I can test out all the skills and ults. Have it in the developer's tool as a
+   setting where I can select the skills") the skill tester: pick any Strong attack (both slots) or Ultimate of any pool for the
+   pet that leads in the Tower, set its stage (Base / Adept / Celestial: the Ultimates' tiers), free casts, then try it */
+const DEV_SLOTS = [['strong', 'Strong attack'], ['strong2', 'Strong attack 2'], ['ult', 'Ultimate']];
+function devSkillTester() {
+  const P = st, AB = applyAbOv(petAbility(formOf(P), P.dna.seed), P), deck = P.deck || {}, names = {};
+  const label = (id, slot) => { const k = slot + '|' + id; if (names[k]) return names[k]; let n = id; try { const a = skillAbility(id, slot, P, AB, { dev: true }); if (a && a.name) n = a.name; } catch (e) {} return (names[k] = n); };
+  const sel = (slot, title) => { const open = slotOpen(slot, P.stage || 1), cur = st.devMoves && isSkillId(deck[slot]) ? deck[slot] : '';
+    const own = (() => { try { const a = innateAbility(slot, AB, P); return a ? a.name : ''; } catch (e) { return ''; } })();
+    const groups = skillGroups(slotType(slot)).map(G => `<optgroup label="${esc(G.name)}">${G.ids.map(id => `<option value="${esc(id)}"${id === cur ? ' selected' : ''}>${esc(label(id, slotType(slot)))}</option>`).join('')}</optgroup>`).join('');
+    return `<label class="dev-sk-row"><span>${title}</span><select class="dev-sk-sel" data-dev-skill="${slot}"${open ? '' : ' disabled'}><option value=""${cur ? '' : ' selected'}>${esc(own ? `Own: ${own}` : 'Its own')}</option>${groups}</select>${open ? '' : '<small>opens at Adept (stage 4)</small>'}</label>`; };
+  const stg = P.stage || 1, tier = stg >= 7 ? 'Celestial' : stg >= 4 ? 'Adept' : 'Base';
+  return `<h3 class="sec">Skill tester</h3>
+    <p class="note">Give ${esc(P.name)} (who leads in the Tower) any Strong attack or Ultimate from every pool and element, then try it. Picking one turns on "Unlock all skills (dev)". The Ultimates' Base, Adept and Celestial forms follow the stage: now <b>${tier}</b> (stage ${stg}).</p>
+    <div class="evo-actions">${[[1, 'Base'], [4, 'Adept'], [7, 'Celestial']].map(([n, t]) => `<button class="btn small${stg === n ? ' primary' : ''}" type="button" data-go="dev-jump" data-n="${n}"${stg === n ? ' disabled' : ''}>${t} · stage ${n}</button>`).join('')}</div>
+    <div class="dev-sk">${DEV_SLOTS.map(([s, t]) => sel(s, t)).join('')}</div>
+    <div class="setting"><div><span id="devFreeLbl">Free casts</span><p class="note">In the Tower: no MP cost and no cooldowns, so every move can be cast again at once.</p></div><button class="switch" type="button" role="switch" data-go="dev-free" aria-checked="${!!st.devFree}" aria-labelledby="devFreeLbl"></button></div>
+    <div class="evo-actions"><button class="btn primary" type="button" data-go="dev-try">${ICON.sword}Try them in the Tower</button><button class="btn small" type="button" data-go="dev-skclear">Back to its own skills</button></div>`;
+}
+function devPickSkill(slot, id) {
+  if (!st || !DEV_SLOTS.some(d => d[0] === slot)) return;
+  if (id && !isSkillId(id)) return;
+  if (id && !st.devMoves) st.devMoves = true;
+  st.deck = cleanDeck(st.deck, st);
+  if (!id) st.deck[slot] = null;
+  else { SLOTS.forEach(s => { if (s !== slot && st.deck[s] === id) st.deck[s] = null; }); st.deck[slot] = id; }
+  saveSoon(); sfx.pop();
+  let n = id; try { const a = petKit(st).kit[slot]; if (a) n = a.name; } catch (e) {}
+  toast(id ? `${DEV_SLOTS.find(d => d[0] === slot)[1]}: ${n}` : `${DEV_SLOTS.find(d => d[0] === slot)[1]}: its own again`);
+  renderDev();
 }
 function devAction(k, btn) {
   if (!st) return;
@@ -110,6 +143,9 @@ function devAction(k, btn) {
     case 'food': Object.keys(CROPS).forEach(k => { st.pantry[k] = (st.pantry[k] || 0) + 3; }); saveSoon(); toast('+3 of each farm food in the pantry'); return;
     case 'egg': startAdopt('dev'); return;
     case 'moves': st.devMoves = !st.devMoves; btn.setAttribute('aria-checked', String(st.devMoves)); saveSoon(); toast(st.devMoves ? 'Developer: every skill can be equipped on any pet' : 'Skills are back to each pet\'s own'); if (typeof renderDungeon === 'function') try { renderDungeon(); } catch (e) {} return;   // (v391 K)
+    case 'free': st.devFree = !st.devFree; btn.setAttribute('aria-checked', String(st.devFree)); saveSoon(); toast(st.devFree ? 'Free casts: no MP cost, no cooldowns in the Tower' : 'Casts cost MP and have cooldowns again'); return;   // (v451 K)
+    case 'skclear': st.deck = cleanDeck(st.deck, st); DEV_SLOTS.forEach(([s]) => { if (isSkillId(st.deck[s])) st.deck[s] = null; }); saveSoon(); toast(`${st.name} uses its own skills again`); renderDev(); return;
+    case 'try': { const n = Math.max(1, Math.min((st.dun.best || 0) + 1, typeof TOWER_TOP !== 'undefined' ? TOWER_TOP : 999)); st.energy = Math.max(st.energy, 100); closeSheet(); if (!mapOpen) openMap(); setMapTab('dungeon', true); startDungeon(n, Math.floor(Math.random() * 9999)); return; }
     case 'six': st.dev6 = !st.dev6; btn.setAttribute('aria-checked', String(st.dev6)); saveSoon(); toast(st.dev6 ? 'Every egg is now a six-star Legendary' : 'Eggs roll their usual odds again'); return;
     case 'god': st.dun.god = !st.dun.god; btn.setAttribute('aria-checked', String(st.dun.god)); saveSoon(); toast(st.dun.god ? 'God mode on: nothing can hurt your pet in the Tower' : 'God mode off'); return;
     case 'tower': st.dun.best = TOWER_TOP - 1; st.unlockAll = true; saveSoon(); toast('Every floor is open, energy is free'); renderDungeon(); return;
