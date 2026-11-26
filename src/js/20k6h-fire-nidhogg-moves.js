@@ -2618,6 +2618,43 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
     for (let s = 0; s < 2; s++) { const P = s ? B : A, m = s ? nb : n; for (let i = 0, o = 0; i < m; i++, o += 12) { const x = P[o], y = P[o + 1]; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; } }
     x0 = Math.max(0, Math.floor(x0) - 3); y0 = Math.max(0, Math.floor(y0) - 3); x1 = Math.min(W, Math.ceil(x1) + 3); y1 = Math.min(Hh, Math.ceil(y1) + 3);
     return x1 > x0 && y1 > y0 ? [x0, y0, x1, y1] : null; }
+  /* (v459 GP2) the parts of a layer's box R its quads really occupy (layer px rectangles into PARTS, their count returned; 0: lay the
+     whole box, as before). A grid of GPC px over R: every cell touched by a triangle's bounds + 3 px (boxOf's own margin) is marked; each
+     8-connected group of marked cells gives the box round it; boxes that overlap are joined (none is laid twice). Two parts never meet
+     where either side holds light: along any edge between two parts at most one side's cell is marked, and every pixel within 3 px of an
+     unmarked cell is empty, so the filtering of each laid part reads the same (empty) pixels as the whole box's did; the cells left out
+     hold nothing (nothing is added by 'lighter' nor covered by 'source-over' there). The same picture, laid from the same copy: a light
+     layer of scattered sparks, motes or trap glows (the Garden's traps: a box over the whole screen, a sixth of it lit) no longer lays its
+     whole box. Used only when the parts leave out at least 15% of the box; at most 8 parts (the closest pair joined first).
+     window.__GP2_OFF = 1: the whole box, as v458 */
+  const GPC = 16, PARTS = []; let GPM = new Uint8Array(4096), GPL = new Int32Array(4096), GPS = new Int32Array(4096); const GPB = [];
+  let GLo = 0, GHi = 0, GYa = 0, GYb = 0;   /* (the span of a triangle's edges inside the band GYa..GYb: no closure a row) */
+  function gpEd(ax, ay, bx, by) { if (ay >= GYa && ay <= GYb) { if (ax < GLo) GLo = ax; if (ax > GHi) GHi = ax; } if ((ay - GYa) * (by - GYa) < 0) { const x = ax + (bx - ax) * (GYa - ay) / (by - ay); if (x < GLo) GLo = x; if (x > GHi) GHi = x; } if ((ay - GYb) * (by - GYb) < 0) { const x = ax + (bx - ax) * (GYb - ay) / (by - ay); if (x < GLo) GLo = x; if (x > GHi) GHi = x; } }
+  const gp2Off = () => { try { return typeof window !== 'undefined' && window.__GP2_OFF === 1; } catch (e) { return false; } };
+  function partsOf(A, n, B, nb, R) { PARTS.length = 0; if (gp2Off()) return 0; const X0 = R[0], Y0 = R[1], cw = Math.ceil((R[2] - X0) / GPC), ch = Math.ceil((R[3] - Y0) / GPC), N = cw * ch; if (N < 4) return 0;
+    if (GPM.length < N) { GPM = new Uint8Array(N * 2); GPL = new Int32Array(N * 2); GPS = new Int32Array(N * 2); } GPM.fill(0, 0, N);
+    for (let s = 0; s < 2; s++) { const P = s ? B : A, m = s ? nb : n; for (let o = 0; o + 36 <= m * 12; o += 36) { let a0 = P[o], a1 = a0, b0 = P[o + 1], b1 = b0; for (let v = 12; v <= 24; v += 12) { const x = P[o + v], y = P[o + v + 1]; if (x < a0) a0 = x; if (x > a1) a1 = x; if (y < b0) b0 = y; if (y > b1) b1 = y; }
+      const i0 = Math.max(0, Math.floor((a0 - 3 - X0) / GPC)), i1 = Math.min(cw - 1, Math.floor((a1 + 3 - X0) / GPC)), j0 = Math.max(0, Math.floor((b0 - 3 - Y0) / GPC)), j1 = Math.min(ch - 1, Math.floor((b1 + 3 - Y0) / GPC));
+      if (i1 - i0 < 2 || j1 - j0 < 2) { for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) GPM[j * cw + i] = 1; continue; }
+      /* (a long or slanted triangle (a shaft, a beam): row by row, only the cells its own span in that row's band (3 px more above,
+         below and to each side) reaches, not its whole bounding box) */
+      const x0 = P[o], y0 = P[o + 1], x1 = P[o + 12], y1 = P[o + 13], x2 = P[o + 24], y2 = P[o + 25];
+      for (let j = j0; j <= j1; j++) { GYa = Y0 + j * GPC - 3; GYb = Y0 + (j + 1) * GPC + 3; GLo = 1e9; GHi = -1e9;
+        gpEd(x0, y0, x1, y1); gpEd(x1, y1, x2, y2); gpEd(x2, y2, x0, y0); if (GHi < GLo) continue;
+        const k0 = Math.max(i0, Math.floor((GLo - 3 - X0) / GPC)), k1 = Math.min(i1, Math.floor((GHi + 3 - X0) / GPC)); for (let i = k0; i <= k1; i++) GPM[j * cw + i] = 1; } } }
+    GPL.fill(-1, 0, N); GPB.length = 0; let nB = 0;
+    for (let k = 0; k < N; k++) { if (!GPM[k] || GPL[k] >= 0) continue; let sp = 0; GPS[sp++] = k; GPL[k] = nB; let bi0 = 1e9, bj0 = 1e9, bi1 = -1, bj1 = -1;
+      while (sp) { const q = GPS[--sp], i = q % cw, j = (q / cw) | 0; if (i < bi0) bi0 = i; if (i > bi1) bi1 = i; if (j < bj0) bj0 = j; if (j > bj1) bj1 = j;
+        for (let dj = -1; dj <= 1; dj++) { const jj = j + dj; if (jj < 0 || jj >= ch) continue; for (let di = -1; di <= 1; di++) { const ii = i + di; if (ii < 0 || ii >= cw) continue; const r = jj * cw + ii; if (GPM[r] && GPL[r] < 0) { GPL[r] = nB; GPS[sp++] = r; } } } }
+      GPB.push(bi0, bj0, bi1, bj1); nB++; if (nB > 64) return 0; }
+    const ov = (a, b) => GPB[a] <= GPB[b + 2] && GPB[b] <= GPB[a + 2] && GPB[a + 1] <= GPB[b + 3] && GPB[b + 1] <= GPB[a + 3];
+    const join = (a, b) => { GPB[a] = Math.min(GPB[a], GPB[b]); GPB[a + 1] = Math.min(GPB[a + 1], GPB[b + 1]); GPB[a + 2] = Math.max(GPB[a + 2], GPB[b + 2]); GPB[a + 3] = Math.max(GPB[a + 3], GPB[b + 3]); GPB.splice(b, 4); };
+    const area = a => (GPB[a + 2] - GPB[a] + 1) * (GPB[a + 3] - GPB[a + 1] + 1);
+    for (let again = true; again;) { again = false; for (let a = 0; a < GPB.length && !again; a += 4) for (let b = a + 4; b < GPB.length && !again; b += 4) if (ov(a, b)) { join(a, b); again = true; } }
+    while (GPB.length > 32) { let best = -1, ba = 0, bb = 0; for (let a = 0; a < GPB.length; a += 4) for (let b = a + 4; b < GPB.length; b += 4) { const u = (Math.max(GPB[a + 2], GPB[b + 2]) - Math.min(GPB[a], GPB[b]) + 1) * (Math.max(GPB[a + 3], GPB[b + 3]) - Math.min(GPB[a + 1], GPB[b + 1]) + 1) - area(a) - area(b); if (best < 0 || u < best) { best = u; ba = a; bb = b; } }
+      join(ba, bb); for (let again = true; again;) { again = false; for (let a = 0; a < GPB.length && !again; a += 4) for (let b = a + 4; b < GPB.length && !again; b += 4) if (ov(a, b)) { join(a, b); again = true; } } }
+    let tot = 0; for (let a = 0; a < GPB.length; a += 4) { const x0 = X0 + GPB[a] * GPC, y0 = Y0 + GPB[a + 1] * GPC, x1 = Math.min(R[2], X0 + (GPB[a + 2] + 1) * GPC), y1 = Math.min(R[3], Y0 + (GPB[a + 3] + 1) * GPC); PARTS.push(x0, y0, x1, y1); tot += (x1 - x0) * (y1 - y0); }
+    if (!PARTS.length || tot > 0.85 * (R[2] - R[0]) * (R[3] - R[1])) { PARTS.length = 0; return 0; } return PARTS.length / 4; }
   /* (v430 PF) the light layer split by program: its simple kinds (0 glow, 1 ring, 2 beam, 7 sparkle) for PRS, the rest for the
      main shader (6 vertices at a time, each six one kind) */
   const SPL = { s: new Float32Array(12 * 6 * 256), r: new Float32Array(12 * 6 * 256) };
@@ -2839,7 +2876,11 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
           const ox = p[0] - R[0], oy = p[1] - R[1]; gl.viewport(ox, cv.height - Hh - oy, W, Hh); gl.enable(gl.SCISSOR_TEST); gl.scissor(p[0] - 2, cv.height - (p[1] + h + 2), w + 4, h + 4); gl.clear(gl.COLOR_BUFFER_BIT);
           const m = lit && PRS ? splitLit(A, n) : null, drawL = () => { if (m) { if (m.nr) { use(PR); pass0(SPL.r, m.nr); } if (m.ns) { use(PRS); pass0(SPL.s, m.ns); } if (nw && PRW) { use(PRW); pass0(AW, nw); } } else pass(A, n, AW, nw); };
           gl.blendFunc(gl.ONE, lit ? gl.ONE_MINUS_SRC_COLOR : gl.ONE_MINUS_SRC_ALPHA); drawL(); edgeRep(R[0], R[1], R[2], R[3], ox, oy, drawL);
-          gl.viewport(0, OY, W, Hh); RUN.segs.push(p[0], p[1], R[0], R[1], w, h, lit ? 1 : 0); stats.comp++; stats.held = (stats.held || 0) + 1; return; }
+          gl.viewport(0, OY, W, Hh);
+          { const np = partsOf(A, n, AW, nw, R); if (np) { let pa = 0; for (let i = 0; i < np * 4; i += 4) { const x0 = PARTS[i], y0 = PARTS[i + 1], pw = PARTS[i + 2] - x0, ph = PARTS[i + 3] - y0; RUN.segs.push(p[0] + x0 - R[0], p[1] + y0 - R[1], x0, y0, pw, ph, lit ? 1 : 0); pa += pw * ph; }
+              stats.cpxF = (stats.cpxF || 0) + (w * h - pa) * sxr * syr; stats.parts = (stats.parts || 0) + np; stats.partSaved = (stats.partSaved || 0) + (w * h - pa) * sxr * syr; }   /* (v459 GP2: only the occupied parts laid, from the same copy; the cosmetic budget (FXB) still counts the whole box, so what it thins is unchanged) */
+            else RUN.segs.push(p[0], p[1], R[0], R[1], w, h, lit ? 1 : 0); }
+          stats.comp++; stats.held = (stats.held || 0) + 1; return; }
         /* (v434 PO) Q.clipTo's rectangles: the layer shaded inside each (its box cut to it, 2 px more drawn round it so a laid
            edge never filters in anything else), then each laid over from the one copy. window.__PO_OFF = 1: the whole box, as v433 */
         const RL = Q.rl; if (RL && RL.length && !off && !(typeof window !== 'undefined' && window.__PO_OFF === 1)) { const PT = PTS; PT.length = 0;
