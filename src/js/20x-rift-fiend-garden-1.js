@@ -64,6 +64,10 @@ RiftFiend.define({ id: 'orrubel', name: 'Orrubel', title: 'The Seed-Mother', col
   const partsOf = (FX, m, M) => (glOn() ? O3().parts(FX, m) : bodyParts(m, M)), eyeOf = (FX, m, M) => (glOn() ? O3().eyeAt(FX, m) : eyeAt(m, M)), crownOf = (FX, m, M) => (glOn() ? O3().crownAt(FX, m) : crownAt(m, M));
   return {
     arenaR: 15, firstAct: 'circle',
+    /* v453 GP: the arena's ground is opaque well past R - 0.15 (the painted loam to R + 1.4; the 2D floor's gradient opaque to 0.94 of
+       R + 1.4), so the rows of the screen it spans from side to side need no sky under them (20h's drawArena copies only the rest, as
+       for the Belfry's bosses): the same pixels, one full-screen copy a frame less. __GP_OFF = 1: as v451a */
+    get floorDisc() { return !(typeof window !== 'undefined' && window.__GP_OFF === 1); },
     artPoses: [{ name: 'pacing, side on', mem: { hd: 0.1, gait: 1, spdK: 1 } }, { name: 'drawing breath', mem: { hd: 1.57, inhale: 1, menace: 1 } }, { name: 'rearing to slam', mem: { hd: 1.57, rear: 1, menace: 1 } }, { name: 'peeled open: the eye bared', mem: { hd: 1.57, open: 1 } }],
     phaseNames: ['The Cradle Bed', 'The Hatching', 'The Brood Bed', 'The Last Seed'],
     paintGround(c, A) { G.floor(c, A, { extra: (c2, A2) => { const R = A2.R;

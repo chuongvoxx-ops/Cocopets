@@ -224,7 +224,7 @@ const ORB3 = (() => {
     let W = Math.ceil((bx1 - bx0) * dev), H = Math.ceil((by1 - by0) * dev); const scl = Math.min(1, GLCAP / Math.max(W, H)); W = Math.max(2, Math.ceil(W * scl)); H = Math.max(2, Math.ceil(H * scl));
     const bw = bx1 - bx0, bh = by1 - by0;
     const S = { px: PX, py: PY, pd: PD, cl: [2 * k / bw, 2 * (X0[0] - bx0) / bw - 1, -2 * k / bh, 1 - 2 * (X0[1] - by0) / bh], v: PD, lk: LW, ls: SBW, lr: RIMW, up: UPW, low: o.low != null ? o.low : lowFx(), rim: RIMC, amb: AMBC, t: (o.t || 0) % 600,
-      outline: o.outline === 0 ? 0 : Math.max(1, 1.1 * (W / bw)), outlineCol: OUTC };
+      outline: o.outline === 0 ? 0 : Math.max(1, 1.1 * (W / bw)), outlineCol: OUTC, keep: win('__GP_OFF') === 1 ? 0 : 2 /* v453 GP: GLM keeps its canvas while the box round the moving model wanders, and across its two passes of different sizes in a frame (the body's, then the field's eggs and root spears: keep 2, as v446 AL), so no reallocation of colour + depth a frame; __GP_OFF = 1: as v451a */ };
     if (o.clip) S.clip = o.clip;
     if (o.occ && o.occ.length) { let n2 = 0; for (const [p, r] of o.occ) { if (n2 >= 12) break; const w = mv(V.Rh, p); OCC[n2 * 4] = w[0]; OCC[n2 * 4 + 1] = w[1]; OCC[n2 * 4 + 2] = w[2]; OCC[n2 * 4 + 3] = r; n2++; } S.occ = OCC; S.nocc = n2; }
     let n = 0; const items = GLJ; items.length = 0;

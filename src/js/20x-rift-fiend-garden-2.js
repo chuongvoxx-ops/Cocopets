@@ -48,6 +48,7 @@ RiftFiend.define({ id: 'ambrel', name: 'Ambrel', title: 'The Void Moth', color: 
   const lineT = (o, tag) => (GBA() ? Object.assign(o, { shape: 'fn', gb: tag, test: lineTest }) : o), scaleP = (Q, X, Y, r, T, b) => GBA() && AMBREL_GL.scalePaint(Q, X, Y, r, T, b);
   return {
     arenaR: 15, firstAct: 'circle', artY: 0.5, ambient: 'motes',
+    get floorDisc() { return !(typeof window !== 'undefined' && window.__GP_OFF === 1); },   /* v453 GP: the sky copied only where the opaque ground does not span the screen (see garden-1) */
     artPoses: [{ name: 'hovering', mem: { hd: 1.57, alt: 2.4 } }, { name: 'banking into a turn', mem: { hd: 0.8, alt: 2.6, turn: 2.5, beat: 0.8 } }, { name: 'wings flared for the storm', mem: { hd: 1.57, alt: 2.4, flare: 1, menace: 1 } }, { name: 'grounded, the eye bared', mem: { hd: 1.57, alt: 0.15, ground: 1 } }],
     phaseNames: ['The Lantern Bower', 'The Second Moon', 'The Pollen Night', 'The Last Lantern'],
     paintGround(c, A) { G.floor(c, A, { mid: '#33203F', edge: '#241330', extra: (c2, A2) => { const R = A2.R;

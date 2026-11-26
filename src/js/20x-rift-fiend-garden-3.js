@@ -37,6 +37,7 @@ RiftFiend.define({ id: 'calyx', name: 'Calyx Astrum', title: 'The Starborn Vine'
   function blossomLabel(c, FX, o, X, Y, T) { if (FX.mem.lit !== o.idx) return; c.save(); c.font = `800 ${Math.round(T * 0.26)}px ${arcFont}`; c.textAlign = 'center'; c.lineWidth = 3; c.strokeStyle = 'rgba(0,0,0,.6)'; c.fillStyle = '#FFFFFF'; c.strokeText('LIT · break it', X, Y - T * 2.9); c.fillText('LIT · break it', X, Y - T * 2.9); c.restore(); }
   return {
     arenaR: 15, firstAct: 'circle', artY: 0.5, ambient: 'motes',
+    get floorDisc() { return !(typeof window !== 'undefined' && window.__GP_OFF === 1); },   /* v453 GP: the sky copied only where the opaque ground does not span the screen (see garden-1) */
     artPoses: [{ name: 'slithering', mem: { demoA: 0.3 } }, { name: 'rearing to call the stars', mem: { demoA: 1.6, alt: 2, jaw: 0.6, menace: 1 } }, { name: 'the blossoms open', mem: { demoA: 2.6, bloom: 1 } }, { name: 'seized: the star core bared', mem: { demoA: 1.0, seize: 1, open: 1, jaw: 1 } }],
     phaseNames: ['The Hollow', 'The Star Fall', 'The Thorn Night', 'The Last Star'],
     paintGround(c, A) { G.floor(c, A, { mid: '#2E1E3C', edge: '#1F1229', extra: (c2, A2) => { const R = A2.R;

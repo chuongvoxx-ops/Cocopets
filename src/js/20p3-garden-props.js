@@ -578,13 +578,37 @@ var GARDEN_PROPS = (() => {
   /* v437 GR: one void per section (gardenvoid: plum and violet, as it was; gardenvoid2: aquamarine; gardenvoid3: sapphire): its
      base, its nebulae and its two great glows from PALV; the same stars, moons and isles */
   const VOID_ID = ['gardenvoid', 'gardenvoid2', 'gardenvoid3'];
+  /* v453 GP: the void is painted only where it will be seen (as v434 PO did for Rift 03's far view). The engine paints it inside the
+     box round every gap on the screen (with gaps on both sides of an island, the whole screen: a base fill, its pattern, six big
+     'lighter' glows and the moons' and isles' pictures), and the land's ground chunks then cover the islands. Here: the void, wall
+     and bridge tiles on the screen and past the map's edge, one tile more all round (the ground's rounded corners and lips beside
+     the void), as rectangles (runs of tiles along each row, rows with the same runs joined; at most 40), and the backdrop clipped
+     to them when they leave out at least 15% of the screen (else drawn whole, as before). The live stage (LIVEX) is set by the
+     stage's light (lights(), everyStage) and dropped on release. The same pixels where it shows. window.__GP_OFF = 1: as v451a */
+  const gpOff = () => { try { return HAS_W && window.__GP_OFF === 1; } catch (e) { return false; } };
+  let LIVEX = null; const SRC = [], SRP = [], SRQ = [];
+  function seenRects(W, H) { const X = LIVEX; if (!X || gpOff() || !(W > 0) || !(H > 0)) return 0; let M, T, ox, oy; try { M = X.M; T = X.Tz(); ox = X.sx(0); oy = X.sy(0); } catch (e) { return 0; } if (!M || !M.G || !(T > 0)) return 0;
+    const G = M.G, MW = M.MW, MH = M.MH, TF = typeof T_FLOOR !== 'undefined' ? T_FLOOR : 1, TM = typeof T_MUD !== 'undefined' ? T_MUD : 3, TI = typeof T_ICE !== 'undefined' ? T_ICE : 4;
+    const open = (x, y) => { if (x < 0 || y < 0 || x >= MW || y >= MH) return true; const g = G[y * MW + x]; return g !== TF && g !== TM && g !== TI; };   // (the vine bridges count as open: the void shows between their vines)
+    const tx0 = Math.floor(-ox / T) - 1, tx1 = Math.floor((W - ox) / T) + 1, ty0 = Math.floor(-oy / T) - 1, ty1 = Math.floor((H - oy) / T) + 1;
+    const seen = (x, y) => { for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) if (open(x + i, y + j)) return true; return false; };
+    SRC.length = 0; SRP.length = 0; let n = 0, rowStart = ty0;
+    for (let ty = ty0; ty <= ty1; ty++) { SRQ.length = 0; let s = null; for (let tx = tx0; tx <= tx1 + 1; tx++) { const v = tx <= tx1 && seen(tx, ty); if (v && s === null) s = tx; else if (!v && s !== null) { SRQ.push(s, tx); s = null; } }
+      let same = SRQ.length === SRP.length; for (let i = 0; same && i < SRQ.length; i++) same = SRQ[i] === SRP[i];
+      if (!same) { for (let i = 0; i < SRP.length; i += 2) { SRC.push(SRP[i], rowStart, SRP[i + 1], ty); n++; } SRP.length = 0; for (let i = 0; i < SRQ.length; i++) SRP.push(SRQ[i]); rowStart = ty; }
+      if (n > 40) return 0; }
+    for (let i = 0; i < SRP.length; i += 2) { SRC.push(SRP[i], rowStart, SRP[i + 1], ty1 + 1); n++; } if (n > 40) return 0;
+    let k = 0; for (let i = 0; i < n * 4; i += 4) { const x0 = Math.max(0, SRC[i] * T + ox), y0 = Math.max(0, SRC[i + 1] * T + oy), x1 = Math.min(W, SRC[i + 2] * T + ox), y1 = Math.min(H, SRC[i + 3] * T + oy); if (x1 > x0 && y1 > y0) { SRC[k] = x0; SRC[k + 1] = y0; SRC[k + 2] = x1; SRC[k + 3] = y1; k += 4; } }
+    SRC.length = k; let a = 0; for (let i = 0; i < k; i += 4) a += (SRC[i + 2] - SRC[i]) * (SRC[i + 3] - SRC[i + 1]); STATS.seenN = k / 4; STATS.seenA = +(a / (W * H)).toFixed(3); STATS.seenF = (STATS.seenF || 0) + 1;
+    return a > W * H * 0.85 ? 0 : k / 4; }
   const mkVoid = vi => { const PVi = PALV[vi], id = VOID_ID[vi], VB = PVi.voidB; return { base: VB,
     paint(c, S, R) { c.fillStyle = VB; c.fillRect(0, 0, S, S); const wrap = f => { for (const ox of [-S, 0, S]) for (const oy of [-S, 0, S]) f(ox, oy); };
       for (let i = 0; i < 10; i++) { const x = R() * S, y = R() * S, w = 20 + R() * 50, col = PVi.neb[i % 3]; wrap((ox, oy) => { const g = c.createRadialGradient(x + ox, y + oy, 0, x + ox, y + oy, w); g.addColorStop(0, `rgba(${col},.5)`); g.addColorStop(1, `rgba(${col},0)`); c.fillStyle = g; c.fillRect(x + ox - w, y + oy - w, w * 2, w * 2); }); }
       for (let i = 0; i < 60; i++) { const x = R() * S, y = R() * S, s = R() < 0.12 ? 1.3 : 0.7, a = 0.3 + R() * 0.6, k = R(); c.fillStyle = k > 0.85 ? `rgba(255,211,107,${a})` : k > 0.7 ? `rgba(247,184,216,${a})` : k > 0.6 ? `rgba(160,240,210,${a})` : `rgba(255,255,255,${a})`; c.beginPath(); c.arc(x, y, s, 0, TAU); c.fill(); } },
-    back(c, o) { const { pat, pattern, k, P: Pn, W, H, t, wx, wy, bigGlow } = o;
+    back(c, o) { const n = seenRects(o.W, o.H); if (n) { c.save(); try { c.beginPath(); for (let i = 0; i < n * 4; i += 4) c.rect(SRC[i], SRC[i + 1], SRC[i + 2] - SRC[i], SRC[i + 3] - SRC[i + 1]); c.clip(); this.back0(c, o); } finally { c.restore(); } return; } this.back0(c, o); },   /* v453 GP: only where it will be seen (seenRects) */
+    back0(c, o) { const { pat, pattern, k, P: Pn, W, H, t, wx, wy, bigGlow } = o;
       c.fillStyle = VB; c.fillRect(0, 0, W, H); pat(pattern(id, k), 1, 0, 0);   /* (v428 GA: anchored to the stage, as the floor is) */
-      c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = PVi.ga ? PVi.ga[0] : 0.22; { const PX = Math.max(W, H) * 2.6; for (let n = -1; n <= 1; n++) { bigGlow(c, Pn, PVi.glow[0], md(PX * 0.2 - wx, PX) - PX * 0.5 + n * PX + W * 0.5, md(PX * 0.15 - wy, PX) - PX * 0.5 + H * 0.5, W * 0.9); } c.globalAlpha = PVi.ga ? PVi.ga[1] : 0.14; for (let n = -1; n <= 1; n++) bigGlow(c, Pn, PVi.glow[1], md(PX * 0.7 - wx, PX) - PX * 0.5 + n * PX + W * 0.5, md(PX * 0.6 - wy, PX) - PX * 0.5 + H * 0.5, W * 0.8); } c.restore();
+      c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = PVi.ga ? PVi.ga[0] : 0.22; { const PX = Math.max(W, H) * 2.6, bigG = (cc, P2, col, x, y, w) => { if (gpOff() || (x < W + 2 && y < H + 2 && x + w > -2 && y + w > -2)) bigGlow(cc, P2, col, x, y, w); };   /* v453 GP: the copies of the two great glows that lie wholly off the screen (of the three laid 2.6 screens apart, mostly two or three) not drawn */ for (let n = -1; n <= 1; n++) { bigG(c, Pn, PVi.glow[0], md(PX * 0.2 - wx, PX) - PX * 0.5 + n * PX + W * 0.5, md(PX * 0.15 - wy, PX) - PX * 0.5 + H * 0.5, W * 0.9); } c.globalAlpha = PVi.ga ? PVi.ga[1] : 0.14; for (let n = -1; n <= 1; n++) bigG(c, Pn, PVi.glow[1], md(PX * 0.7 - wx, PX) - PX * 0.5 + n * PX + W * 0.5, md(PX * 0.6 - wy, PX) - PX * 0.5 + H * 0.5, W * 0.8); } c.restore();
       vista(c, W, H, wx, wy, t); } }; };
   GAP_EXT.gardenvoid = mkVoid(0); GAP_EXT.gardenvoid2 = mkVoid(1); GAP_EXT.gardenvoid3 = mkVoid(2);
   // the three unmoving moons (fixed in the sky: no parallax) and far isles drifting below the garden (slow parallax)
@@ -637,7 +661,7 @@ var GARDEN_PROPS = (() => {
 
   /* ======================= release, warm-up, budgets ======================= */
   // everything let go (the stage closed: DunWorld.dropProps, chained below): the pictures' and textures' memory given back at once
-  function release(keepTex) { if (!keepTex && typeof BURSTS !== 'undefined') BURSTS.length = 0; CACHE.forEach(s => { if (s && s.cv) s.cv.width = s.cv.height = 1; }); STATS.released += CACHE.size; CACHE.clear(); if (!keepTex) { TEX.forEach(t => { if (t && t.cv) t.cv.width = t.cv.height = 1; }); TEX.clear(); BASE = 0; } }
+  function release(keepTex) { if (!keepTex) LIVEX = null; /* v453 GP */ if (!keepTex && typeof BURSTS !== 'undefined') BURSTS.length = 0; CACHE.forEach(s => { if (s && s.cv) s.cv.width = s.cv.height = 1; }); STATS.released += CACHE.size; CACHE.clear(); if (!keepTex) { TEX.forEach(t => { if (t && t.cv) t.cv.width = t.cv.height = 1; }); TEX.clear(); BASE = 0; } }
   // the trees' and plants' own copies let go once a stage is playing (the engine keeps its pictures of them in its prop cache;
   // should it want one again it is painted again): a phone keeps one copy of each, not two
   function trimKinds() { for (const [k, s2] of CACHE) { const n = k.split('|')[0]; if (DEF[n] && KINDS.includes(n)) { if (s2 && s2.cv) s2.cv.width = s2.cv.height = 1; CACHE.delete(k); STATS.released++; } } }
@@ -714,6 +738,7 @@ var GARDEN_PROPS = (() => {
   const gpu = c => { try { if (HAS_W && (window.__GG_GL === 0 || window.__DUN_GL === 0)) return null; const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; if (!F || !F.usable()) return null; return { F, Q: F.begin(c, null) }; } catch (e) { return null; } };
   const gpuEnd = (c, G) => { if (G) try { G.F.flush(c); } catch (e) {} };
   function lights(X, self) { const S = self.S || {}, fiend = !!(X.F && X.F.fiend); let glows = null, t = 0; const motes = [], LF = lowFx;
+    LIVEX = fiend ? null : X;   /* v453 GP: the stage the void is painted for (seenRects) */
     const collect = () => { glows = []; for (const p of (X.props || []).concat(fiend && AR.trees && AR.X === X ? AR.trees : [])) { const gs = glowsOf(p.kind, p.v | 0); for (const [dx, dy, r, col, kind] of gs) glows.push({ p, dx, dy, r, col, kind, ph: hh(p.k || Math.round(p.x * 7 + p.y * 13), 1, 3) * TAU }); } };
     return {
       update(dt) { t += dt; burstsTick(dt); if (!glows) { collect(); toughen(X.props); if (!fiend) trimKinds(); } const me = X.me, want = LF() ? 8 : 26;
