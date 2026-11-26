@@ -1,6 +1,6 @@
-// (v451 TM) Tiamat's frame cost in a crowded Tower battle: 44 monsters awake round the aim (attacking: their own effects run),
+// (v451 TM, v457 TM4) Tiamat's frame cost in a crowded Tower battle: 44 monsters awake round the aim (attacking: their own effects run),
 // a phone's screen (390 x 844, DPR 3 by default), every GPU path forced on the software rasteriser (tests/_pf-lib.js counters).
-// Phases: idle (before the cast), forks, forming, roar, charge, dive, impact, pulse 1, pulse 3 (Celestial), fade, after.
+// Phases: idle (before the cast), forks, forming, flight with bolts (v457 TM4), the twirl, the plunge, impact, pulse 1, pulse 3 (Celestial), fade, after.
 // Per phase (F frames of 1/60 s, frames stepped by hand): this machine's frame ms (median), JS ms (the frame less the GPU copies' waits),
 // the WebGL -> 2D copies a frame (FGFX composites + GLM passes), GLM passes and GL pixels, FGFX quads. Read the ms relatively: the
 // software rasteriser is many times slower than a phone's GPU.
@@ -19,7 +19,7 @@ const GLMLOG = () => { window.__SPT = { n: 0, px: 0 };
   await page.evaluate(() => { const P = window.__pp; cancelAnimationFrame(P.arc.raf); P.arc.open = false; P.arc.game._dbg.g.intro = 0; Math.random = (s => () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; })(4242); });
   // the crowd: 44 monsters on the floor round the aim (the largest room and the floor round it), awake, hp held high
   const crowd = await page.evaluate(() => { const P = window.__pp, D = P.arc.game._dbg, me = D.me, X = D.ELEM.H.X; X.isExp = () => true;
-    const R = D.M.rooms.reduce((a, r) => (r.w * r.h > a.w * a.h ? r : a)), T = { x: R.x + R.w / 2, y: R.y + R.h / 2 }; me.x = T.x - 3.2; me.y = T.y + 0.8; window.__tmT = T;
+    const R = D.M.rooms.reduce((a, r) => (r.w * r.h > a.w * a.h ? r : a)), T = { x: R.x + R.w / 2, y: R.y + R.h / 2 }; me.x = T.x - 3.2; me.y = T.y + 0.8; D.cam.x = me.x; D.cam.y = me.y; window.__tmT = T;
     const L = D.mons.filter(m => !m.boss && !m.dead), spots = []; for (let r = 1; r < 9 && spots.length < 60; r += 0.9) for (let k = 0; k < 14; k++) { const a = k / 14 * 6.283 + r, x = T.x + Math.cos(a) * r, y = T.y + Math.sin(a) * r * 0.8; if (!D.blocked(x, y, 0.4, 0)) spots.push([x, y]); }
     let n = 0; for (const m of L) { if (n < 44 && n < spots.length) { m.x = spots[n][0]; m.y = spots[n][1]; m.hp = m.maxhp = 1e9; m.act = 'chase'; m.sleep = false; n++; } }
     return { n, all: D.mons.length }; });
@@ -33,7 +33,7 @@ const GLMLOG = () => { window.__SPT = { n: 0, px: 0 };
   await page.evaluate(evo => { const P = window.__pp, D = P.arc.game._dbg, T = window.__tmT, mv = P.ELEM_LIST.thunder.ey_tiamat, ab = Object.assign(P.elemAbility(mv, 'ult', P.st), { star: 6, evo, tier: evo >= 7 ? 2 : 1 }); D.setKit('ult', ab);
     D.ELEM.ult('tiamat', { a: 0, base: D.ST.atk * ab.mult, el: 'thunder', e8: 'thunder', evo, tx: T.x, ty: T.y, up: evo >= 7 }); window.__tmT0 = D.g.t; }, EVO);
   const life = await page.evaluate(() => { const f = window.__pp.arc.game._dbg.ELEM.fx.find(q => q.key === 'tiamat'); return f ? f.life : 0; });
-  const PH = [['forks', 0.4], ['form', 0.95], ['roar', 1.6], ['charge', 2.0], ['dive', 2.7], ['impact', 2.9], ['pulse1', 3.36], ['pulse3', 4.26], ['fade', life - 0.4], ['after', life + 0.4]];
+  const PH = [['forks', 0.4], ['form', 0.95], ['bolts', 1.6], ['bolts2', 2.75], ['twirl', 4.8], ['plunge', 5.55], ['impact', 5.9], ['pulse1', 6.36], ['pulse3', 7.26], ['fade', life - 0.4], ['after', life + 0.4]];
   let t = 0;
   for (const [nm, at] of PH) { if (at > t) await ff(at - t); const L = (await frames(F, { prof: false })).rows; t = at + F / 60; out.phases[nm] = S(L); }
   out.glm = await page.evaluate(() => ({ stats: self.TIAMAT_GL.STATS, nv: self.TIAMAT_GL.nv, tris: self.TIAMAT_GL.ntri, gpu: self.TIAMAT_GL.gpuCount() }));

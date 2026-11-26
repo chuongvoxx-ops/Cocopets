@@ -21,6 +21,9 @@
      number), 508 an eye (508.2 the mouth's glow, 508.4 a fang). The uniforms: uSpill the formation's front (under 1.45 still
      forming: the chest first, then the head, the fins, the tail), uKind the charge's front (the veins and dots brightening from the
      tail, q 0, to the jaws, q 1), uFx the break-up into arcs, uGlow its brightness, uGlow2 a white flash. S.clip cuts it at the floor.
+   - (v457 TM4) A path mode (P.path, P.lc): the spine laid along a flight path instead of integrated from the curvature channels, so
+     it can fly a sweeping course, climb in a corkscrew (the path's roll turning the body round) and plunge, the body following the
+     head's path (pathRings).
    - The view: the game's floor top-down (a tile a square): screen x = x, screen y = y - 0.9 z (tiles), as Moby Dick's.
    TIAMAT_GL: usable(), warm(), ready(), step(), release() (frees the GPU buffers; returns how many), gpuCount(), pose(P) (poses the
    meshes and returns the anchors in tiles from the origin), draw(c, o) (the GPU picture), draw2D(c, o) (the painted picture from
@@ -58,7 +61,7 @@ const TIAMAT_GL = (() => {
   const bone = (k, j) => LB0 + k * 6 + j;   // (k 0 its left, 1 its right; j 0..2 the fore limb, 3..5 the hind limb)
   const sailH = s => 1.85 * sstep(SAIL0, 0.12, s) * (1 - 0.85 * sstep(0.24, SAIL1, s));   // the sail's height along the back
   const crestH = s => 0.5 * sstep(CREST0, 0.62, s) * (1 - 0.6 * sstep(0.8, CREST1, s)), venH = s => 0.42 * sstep(VEN0, 0.56, s) * (1 - 0.7 * sstep(0.78, VEN1, s));
-  const DIMS = { LS, NR, S0, S_FORE, S_HIND, S_PEC, S_MID, S_TF, SAIL0, SAIL1, prof, sailH };
+  const DIMS = { LS, NR, S0, S_FORE, S_HIND, S_PEC, S_MID, S_TF, SAIL0, SAIL1, HK, prof, sailH };   // (v457 TM4: HK for the move's snout reach)
   const MAT = { BODY: 505, SPIKE: 506, FIN: 507, EYE: 508, MOUTH: 508.2, TOOTH: 508.4, SAIL: 509 };
   const qf = (m, q) => m + 0.4 * cl(q);   // (a spike's or a membrane's place along the body, carried in its material's fraction)
   const GRP = { NONE: 0, SAIL: 1, FIN: 2 };
@@ -182,12 +185,30 @@ const TIAMAT_GL = (() => {
     return [(P.neck || 0) * nk + (P.arch || 0) * bk + (P.tail || 0) * tk + (P.wave || 0) * Math.sin(ph) * gw * 7, (P.neckT || 0) * nk + (P.tailT || 0) * tk + (P.waveL || 0) * Math.sin(ph + 1.3) * gw * 7];
   }
   const RF = [], RPt = [];
+  /* (v457 TM4) the path mode: the spine laid along a flight path. P.path.at(l) gives { p the point (tiles from the origin), x the unit
+     tangent toward the head, y the side (left) vector carried along the path, r an extra roll about the tangent } at arc length l
+     (tiles, growing toward the head); P.lc the chest's l. Ring s rides the path at lc + (S0 - s) LS k, so the head leads and the
+     body and the tail trace the same path (one creature); the swim waves (P.und: [up and down, side to side] in tiles, growing
+     toward the tail, running down the body with P.waveF) are laid over it, and each ring's frame comes from its neighbours.
+     The points are kept unscaled about the chest (the pose scales every bone by k after) */
+  const PW3 = [], PY3 = [];
+  function pathRings(P, p0) {
+    const K = P.k || 1, L = LS * K, lc = P.lc || 0, U = P.und || [0, 0], wf = P.waveF || 0;
+    for (let i = 0; i <= NR; i++) { const s = i / NR, Q = P.path.at(lc + (S0 - s) * L), x = Q.x; let y = Q.y;
+      if (Q.r) { const z0 = vcross(x, y), c = Math.cos(Q.r), sn = Math.sin(Q.r); y = vadd(vmul(y, c), vmul(z0, sn)); }
+      const z = vcross(x, y), gw = 0.3 + 0.9 * sstep(0.08, 0.8, s), ph = TAU * (1.6 * s - wf), a = U[0] * gw * Math.sin(ph), b = U[1] * gw * Math.sin(ph + 1.3);
+      PW3[i] = [Q.p[0] + z[0] * a + y[0] * b, Q.p[1] + z[1] * a + y[1] * b, Q.p[2] + z[2] * a + y[2] * b]; PY3[i] = y; }
+    const c0 = PW3[ringAt(S0)]; p0[0] = c0[0]; p0[1] = c0[1]; p0[2] = c0[2];
+    for (let i = 0; i <= NR; i++) { const x = vnrm(vsub(PW3[Math.max(0, i - 1)], PW3[Math.min(NR, i + 1)])), yy = PY3[i], y = vnrm(vsub(yy, vmul(x, vdot(x, yy)))), q = PW3[i];
+      RF[i] = FR(x, y, vcross(x, y)); RPt[i] = [p0[0] + (q[0] - p0[0]) / K, p0[1] + (q[1] - p0[1]) / K, p0[2] + (q[2] - p0[2]) / K]; }
+  }
   function pose(P) {
     const d = data(), ds = 1 / NR, st = LS * ds, i0 = ringAt(S0);
     let F0 = FR([1, 0, 0], [0, 1, 0], [0, 0, 1]); F0 = yawF(F0, P.yaw || 0); F0 = pitchF(F0, P.pitch || 0); F0 = rollF(F0, P.roll || 0);
     const p0 = [P.x || 0, P.y || 0, P.z || 0]; RF[i0] = F0; RPt[i0] = p0;
-    let F = F0, p = p0; for (let i = i0; i < NR; i++) { const k = curv(P, (i + 0.5) * ds), Fh = yawF(pitchF(F, -k[0] * ds * 0.5), -k[1] * ds * 0.5); p = vsub(p, vmul(Fh.x, st)); F = yawF(pitchF(F, -k[0] * ds), -k[1] * ds); RF[i + 1] = F; RPt[i + 1] = p; }
-    F = F0; p = p0; for (let i = i0; i > 0; i--) { const k = curv(P, (i - 0.5) * ds), Fh = yawF(pitchF(F, k[0] * ds * 0.5), k[1] * ds * 0.5); p = vadd(p, vmul(Fh.x, st)); F = yawF(pitchF(F, k[0] * ds), k[1] * ds); RF[i - 1] = F; RPt[i - 1] = p; }
+    if (P.path) pathRings(P, p0);   // (v457 TM4: laid along its flight path)
+    else { let F = F0, p = p0; for (let i = i0; i < NR; i++) { const k = curv(P, (i + 0.5) * ds), Fh = yawF(pitchF(F, -k[0] * ds * 0.5), -k[1] * ds * 0.5); p = vsub(p, vmul(Fh.x, st)); F = yawF(pitchF(F, -k[0] * ds), -k[1] * ds); RF[i + 1] = F; RPt[i + 1] = p; }
+      F = F0; p = p0; for (let i = i0; i > 0; i--) { const k = curv(P, (i - 0.5) * ds), Fh = yawF(pitchF(F, k[0] * ds * 0.5), k[1] * ds * 0.5); p = vadd(p, vmul(Fh.x, st)); F = yawF(pitchF(F, k[0] * ds), k[1] * ds); RF[i - 1] = F; RPt[i - 1] = p; } }
     for (let i = 0; i <= NR; i++) SETB(d, i, RF[i], RPt[i]);
     const Fh = yawF(pitchF(RF[0], P.head || 0), P.headT || 0), ph = vadd(RPt[0], vmul(RF[0].x, 0.04)); SETB(d, HEAD, Fh, ph);
     const Fj = pitchF(Fh, -(P.jaw || 0)), pj = vadd(ph, toW(Fh, [0.12 * HK, 0, -0.12 * HK])); SETB(d, JAW, Fj, pj);
