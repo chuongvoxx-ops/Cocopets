@@ -117,29 +117,36 @@ const AnimaPortrait = (() => {
         if (k === 3) add(c, () => { c.save(); c.translate(w * 0.5, h * 0.2); c.scale(1, 0.3); c.strokeStyle = 'rgba(255,205,110,.7)'; c.lineWidth = w * 0.006; c.beginPath(); c.arc(0, 0, w * 0.26, 0, TAU); c.stroke(); c.restore(); });
         return { fy: h * 0.88, light: '#FFC24D', grade: ['#FFB347', 0.1] };
       }, front(c, w, h, k, R) { particles(c, w, h, 22 + k * 10, R, 'mote', ['#FFE9A8', '#FFC24D'], { s: 0.7 }); particles(c, w, h, 14, R, 'ash', ['#5A4A40'], { s: 1.1 }); } },
-    // Raziel: the celestial sky at night above a sea of clouds, floating islands adrift in it, the sun on one side and the
-    // moon on the other, gold and blue nebulae, and a round sky-platform inlaid with gold where the twin dragons coil
+    // v464 RZ-M: Raziel, the Twin Revelation: a world divided between two heavens: on Lux's side (left) a burning sky over volcanic
+    // ruins, embers rising; on Umbra's (right) a cold starry night over frozen gothic ruins, snow falling; a stone dais between them,
+    // molten cracks on one half and frost on the other, a mirror halo of each element in the sky behind
     gemini: { back(c, w, h, k, R) {
-        sky(c, w, h, [[0, '#060A1C'], [0.32, '#0E1530'], [0.58, '#1E2B5C'], [0.78, '#3A5AA8'], [1, '#9EC4F0']]);
-        stars(c, w, h, 130, R, { y1: 0.78, a: 0.85, glow: '#CFE6FA' });
-        nebula(c, w * 0.26, h * 0.34, w * 0.3, h * 0.2, ['#E4B76A', '#B88A3A', '#FFD98A'], 12, R, 0.1 + k * 0.03);
-        nebula(c, w * 0.74, h * 0.3, w * 0.3, h * 0.2, ['#4A90E2', '#2A5CB4', '#8FD3FF'], 12, R, 0.13 + k * 0.03);
-        sunDisc(c, w * 0.13, h * 0.15, w * 0.045, '#FFD98A', { rays: 12, rot: 0.2 }); crescent(c, w * 0.87, h * 0.15, w * 0.05, '#CFE6FA', '#2A5CB4', '#8FD3FF');
-        // floating islands: rock hanging under a lit grassy top, a waterfall of mist from the biggest
-        const isle = (x, y, iw, a) => { c.save(); c.globalAlpha = a; c.fillStyle = lin(c, 0, y - iw * 0.1, 0, y + iw * 0.9, [[0, '#24306A'], [1, 'rgba(14,21,48,0)']]); c.beginPath(); c.moveTo(x - iw / 2, y); for (let i = 0; i <= 6; i++) { const u = i / 6; c.lineTo(x - iw / 2 + iw * u, y + Math.sin(u * Math.PI) * iw * (0.55 + R() * 0.25) + (R() - 0.5) * iw * 0.06); } c.closePath(); c.fill();
-          c.fillStyle = '#2E3C7A'; c.beginPath(); c.ellipse(x, y, iw / 2, iw * 0.07, 0, 0, TAU); c.fill(); add(c, () => { c.globalAlpha = a * 0.5; c.strokeStyle = '#8FD3FF'; c.lineWidth = Math.max(1, w / 300); c.beginPath(); c.ellipse(x, y - iw * 0.01, iw / 2, iw * 0.07, 0, Math.PI, TAU); c.stroke(); }); c.restore(); };
-        isle(w * 0.12, h * 0.52, w * 0.16, 0.8); isle(w * 0.9, h * 0.46, w * 0.13, 0.75); isle(w * 0.28, h * 0.66, w * 0.1, 0.65); isle(w * 0.78, h * 0.62, w * 0.11, 0.7);
-        add(c, () => { blot(c, w * 0.5, h * 0.62, w * 0.45, '#4A90E2', 0.18); blot(c, w * 0.5, h * 0.55, w * 0.25, '#FFD98A', 0.12 + k * 0.03); });
-        clouds(c, -30, w + 30, h * 0.8, h * 0.1, 40, R, '#CFE6FA', '#2A3E80', 0.8);
+        sky(c, w, h, [[0, '#0A0408'], [0.35, '#2A0A0C'], [0.6, '#6A1E0C'], [0.78, '#B8501A'], [1, '#2A0C06']]);
+        { const o = document.createElement('canvas'); o.width = c.canvas.width; o.height = c.canvas.height; const g = o.getContext('2d'); g.setTransform(c.getTransform());
+          sky(g, w, h, [[0, '#02040E'], [0.35, '#081430'], [0.6, '#163060'], [0.78, '#4A80C0'], [1, '#0A1428']]); g.globalCompositeOperation = 'destination-in'; g.fillStyle = lin(g, w * 0.32, 0, w * 0.68, 0, [[0, 'rgba(0,0,0,0)'], [1, 'rgba(0,0,0,1)']]); g.fillRect(0, 0, w, h);
+          c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.drawImage(o, 0, 0); c.restore(); }
+        stars(c, w, h, 90, R, { y1: 0.6, a: 0.8, glow: '#CFE6FA' });
+        nebula(c, w * 0.2, h * 0.35, w * 0.28, h * 0.22, ['#FF6A1E', '#C2280E', '#FFB347'], 14, R, 0.14 + k * 0.04);
+        nebula(c, w * 0.8, h * 0.3, w * 0.28, h * 0.22, ['#2A6AD8', '#1A3A8A', '#8FDCFF'], 14, R, 0.14 + k * 0.04);
+        // the two mirror halos in the sky behind (a gold ring with solar points, a pale ring with frost points)
+        add(c, () => { [[0.27, '#FFB347', '#FFE2A0'], [0.73, '#6FC0FF', '#E0F6FF']].forEach(([fx, col, hi], j) => { const x = w * fx, y = h * 0.3, r = w * (0.17 + 0.02 * k); c.globalAlpha = 0.35 + 0.1 * k; c.strokeStyle = col; c.lineWidth = Math.max(1, w / 260);
+          c.beginPath(); c.arc(x, y, r, 0, TAU); c.stroke(); c.globalAlpha *= 0.6; c.beginPath(); c.arc(x, y, r * 0.84, 0, TAU); c.stroke(); for (let i = 0; i < (j ? 8 : 12); i++) { const a = i / (j ? 8 : 12) * TAU, L = r * (i % 2 ? 0.08 : 0.18); c.beginPath(); c.moveTo(x + Math.cos(a) * r, y + Math.sin(a) * r); c.lineTo(x + Math.cos(a) * (r + L), y + Math.sin(a) * (r + L)); c.stroke(); } blot(c, x, y, r * 0.5, hi, 0.12); }); });
+        // the ruins: broken gothic walls and spires, the left ones lit by fire, the right ones capped with snow
+        ridge(c, w * 0.55, h * 0.72, h * 0.34, 7, R, '#12060A', '#1E0A08', { rim: '#FF7A2A', rimA: 0.85, jag: true, shape: x => 0.35 + 0.65 * Math.abs(Math.sin(x * 7.0)) });
+        c.save(); c.translate(w * 0.45, 0); ridge(c, w * 0.55, h * 0.72, h * 0.36, 7, R, '#0A1020', '#101C34', { rim: '#8FDCFF', rimA: 0.7, jag: true, snow: true, shape: x => 0.35 + 0.65 * Math.abs(Math.sin(x * 6.3 + 1)) }); c.restore();
+        add(c, () => { blot(c, w * 0.22, h * 0.6, w * 0.3, '#FF5A1E', 0.3); blot(c, w * 0.78, h * 0.58, w * 0.28, '#3FA8FF', 0.24); blot(c, w * 0.5, h * 0.62, w * 0.22, '#FFF4E0', 0.08 + k * 0.03); });
+        c.fillStyle = lin(c, 0, h * 0.72, 0, h, [[0, '#1A0E10'], [1, '#05040A']]); c.fillRect(0, h * 0.72, w, h * 0.28);
+        cracks(c, w * 0.48, h * 0.76, h, 6 + k * 2, R, '#FF6A2A', 0.75);
+        add(c, () => { for (let i = 0; i < 10 + k * 4; i++) { const x = w * (0.55 + R() * 0.45), y = h * (0.75 + R() * 0.25), s = w * (0.03 + R() * 0.05); blot(c, x, y, s, '#BFE8FF', 0.18); } });
         // the platform
         const py = h * 0.86, prx = w * 0.3, pry = h * 0.05;
         c.save(); c.translate(w * 0.5, py); c.scale(1, pry / prx);
-        c.fillStyle = rad(c, 0, 0, prx, [[0, '#2E3C7A'], [0.75, '#1E2B5C'], [1, '#0E1530']]); c.beginPath(); c.arc(0, 0, prx, 0, TAU); c.fill();
-        c.strokeStyle = 'rgba(228,183,106,.9)'; c.lineWidth = w * 0.01; c.beginPath(); c.arc(0, 0, prx * 0.95, 0, TAU); c.stroke();
-        c.strokeStyle = 'rgba(143,211,255,.7)'; c.lineWidth = w * 0.005; c.beginPath(); c.arc(0, 0, prx * 0.7, 0, TAU); c.stroke();
+        c.fillStyle = rad(c, 0, 0, prx, [[0, '#3A3440'], [0.75, '#24202C'], [1, '#100C14']]); c.beginPath(); c.arc(0, 0, prx, 0, TAU); c.fill();   // (v464 RZ-M: a stone dais, gold on Lux's half, platinum on Umbra's)
+        c.lineWidth = w * 0.01; c.strokeStyle = 'rgba(255,190,90,.9)'; c.beginPath(); c.arc(0, 0, prx * 0.95, Math.PI / 2, Math.PI * 1.5); c.stroke(); c.strokeStyle = 'rgba(200,230,255,.85)'; c.beginPath(); c.arc(0, 0, prx * 0.95, -Math.PI / 2, Math.PI / 2); c.stroke();
+        c.lineWidth = w * 0.005; c.strokeStyle = 'rgba(255,140,60,.7)'; c.beginPath(); c.arc(0, 0, prx * 0.7, Math.PI / 2, Math.PI * 1.5); c.stroke(); c.strokeStyle = 'rgba(143,220,255,.7)'; c.beginPath(); c.arc(0, 0, prx * 0.7, -Math.PI / 2, Math.PI / 2); c.stroke();
         c.restore();
-        return { fy: py, light: '#5A8AE8', grade: ['#4A90E2', 0.08] };
-      }, front(c, w, h, k, R) { clouds(c, -30, w + 30, h * 1.0, h * 0.07, 18, R, '#DDEBFF', '#3A5AA8', 0.85); particles(c, w, h, 18 + k * 8, R, 'spark', ['#FFE9A8', '#8FD3FF'], { y1: 0.85 }); } },
+        return { fy: py, light: '#C88A6A', grade: ['#6A5A8A', 0.06] };
+      }, front(c, w, h, k, R) { particles(c, w * 0.5, h, 14 + k * 6, R, 'ember', ['#FFB347', '#FF6A1E'], { y1: 0.9 }); c.save(); c.translate(w * 0.5, 0); particles(c, w * 0.5, h, 14 + k * 6, R, 'mote', ['#CFEFFF', '#8FDCFF'], { y1: 0.9 }); c.restore(); } },   // (v464 RZ-M: embers on Lux's side, snow on Umbra's)
     // v418 AB: Abaddon, the Eternal Moonlight: a still night sea under an enormous moon, ruined colonnades on the horizon, falling
     // threads of water lit sapphire, and rings of moonlight spreading on the water beneath the floating god
     cancer: { back(c, w, h, k, R) {

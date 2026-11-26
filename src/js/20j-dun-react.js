@@ -47,6 +47,7 @@ const DunReact = (() => {
       const el = e8Of(o.el || X.AB().el);
       if (!m.mark) { mark(m, el); return; }
       if (m.mark.el === el) { m.mark.t = MARK_T; return; }
+      if (o.rz && pairKey(m.mark.el, el) === 'fire+ice') { mark(m, el); return; }   // v464 RZ-A: Raziel's own Fire meeting its own Ice is its Thermal Shock (20g6), never a Melt that would thaw its frost
       if ((m.rxCd || 0) > 0) return;
       m.rxCd = 0.35; const a = m.mark.el; m.mark = null; react(a, el, m, d, o);
     }

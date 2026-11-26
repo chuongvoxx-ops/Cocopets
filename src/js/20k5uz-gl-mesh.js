@@ -1841,6 +1841,119 @@ void main() {
     c += emi + fOR * fDE * 2.2 + fWH * fDE * fDE * 1.2; c = mix(c, fWH * 0.85 + emi * 0.25, min(1.0, fG2 * 0.55));
     gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
   /*</SF-MAT>*/
+  /*<RZ-MAT ids 600..629 (v464 RZ-M: 02f7-raziel-model.js, Raziel the Twin Revelation)>*/
+  else if (id >= 600 && id <= 629) {   // ---- (v464 RZ-M) Raziel (02f7). uWear the side: 0 Lux (fire: ivory ceramic, burnished gold heat-stained at its edges, dark titanium, molten conduits), 1 Umbra (ice: silver-white ceramic, platinum, dark cobalt, sapphire, cyan conduits, frost on its edges), 2 by the vertex's own y (+y Lux: the torso, the tail). 600 ceramic armour (600.2 an underside; 600.3 engraved with celestial lines inlaid in metal; vA.y 1 a rim: metal trim), 601 the noble metal (601.2 engraved, 601.3 heavily stained / frosted), 602 the dark structure (602.2 ribbed machinery, 602.3 a recess lit by the element), 603 a conduit (vA.z along it, uKind the part's place from the core 0 .. 1 the jaw, uGlow2 the charge: its front), 604 an eye, 605 plasma (the sun: domain-warped turbulence; 605.2 a prominence; 605.3 the see-through corona), 606 crystal (Lux's amber-ruby, Umbra's sapphire; 606.2 a lit nucleus, 606.3 a see-through faceted shell), 607 a feather-blade (vA.y across 0 leading .. 1 trailing, vA.z along 0 root .. 1 tip; 607.0 its metal frame, 607.2 its element panel: molten gold with flame filaments / sapphire crystal with fractures), 608 a runed ring (608.3 a dark band), 609 light (see-through; uKind 0 fire, 1 ice, 2 the white bridge along vA... its z), 610 the throat inside (lit by uGlow2), 611 a fang (611.2 a claw), 612 a mote. uGlow2 on the armour: Lux's seams white-hot, frost creeping over Umbra. uFx 1 / 2: the spectral plasma / crystal construct (see-through, premultiplied). uSpill the dissolve (Lux burns away, Umbra shatters along crystal planes)
+    float rF = vA.x - float(id), rG = clamp(uGlow, 0.0, 4.0), rG2 = clamp(uGlow2, 0.0, 4.0), rT = uTime, rDE = 0.0;
+    float sd = uWear > 1.5 ? smoothstep(0.1, -0.1, L.y) : clamp(uWear, 0.0, 1.0);
+    vec3 cHot = vec3(1.7, 0.62, 0.14), cCr = vec3(0.8, 0.1, 0.04), cWH = vec3(1.9, 1.65, 1.2), cCy = vec3(0.3, 1.15, 1.75), cIc = vec3(0.78, 0.97, 1.6), rEl = mix(cHot, cCy, sd);
+    if (uSpill > 0.0) { float dn = vn(L.xy * 9.0 + L.z * 5.3) * 0.55 + vn(L.yz * 21.0 + L.x * 7.0) * 0.3 + vn(L.xz * 43.0 + 3.0) * 0.15;
+      dn = mix(dn, abs(fract(dot(L, vec3(3.1, 4.7, 2.3)) * 1.7 + dn) - 0.5) * 2.0, 0.5 * sd); float th = uSpill * 1.15 - 0.08; if (dn < th) discard; rDE = smoothstep(th + 0.08, th, dn); }
+    float rNV = max(0.001, dot(n, uV)), rNL = dot(n, uLK), rFr = pow(1.0 - rNV, 5.0), rHm = 0.5 + 0.5 * dot(n, uUP);
+    float rOc = uNOcc > 0.5 ? occAO(vW, n) : 1.0, rSh = uNOcc > 0.5 && uLow < 0.5 ? occSH(vW, uLK) : 1.0, rDif = max(rNL, 0.0) * rSh;
+    vec3 rR = 2.0 * rNV * n - uV; float rUp = dot(rR, uUP), rSb = max(dot(rR, uLK), 0.0) * rSh, rHz = rUp - 0.06;
+    vec3 evF = rUp > 0.0 ? mix(vec3(0.16, 0.09, 0.07), vec3(0.6, 0.46, 0.36), pow(clamp(rUp, 0.0, 1.0), 1.2)) : mix(vec3(0.3, 0.1, 0.035), vec3(0.04, 0.02, 0.015), clamp(-rUp * 2.5, 0.0, 1.0));
+    vec3 evI = rUp > 0.0 ? mix(vec3(0.08, 0.11, 0.2), vec3(0.45, 0.58, 0.8), pow(clamp(rUp, 0.0, 1.0), 1.2)) : mix(vec3(0.07, 0.15, 0.3), vec3(0.015, 0.02, 0.04), clamp(-rUp * 2.5, 0.0, 1.0));
+    vec3 rEv = mix(evF, evI, sd) + mix(vec3(1.0, 0.45, 0.15), vec3(0.35, 0.75, 1.0), sd) * exp(-rHz * rHz / 0.005) * 0.45;
+    vec3 rKEY = vec3(1.5, 1.4, 1.3), rAmb = mix(vec3(0.07, 0.06, 0.07), vec3(0.3, 0.29, 0.33), rHm) * rOc, rRim = pow(1.0 - rNV, 2.4) * max(0.0, dot(n, uLR) + 0.35) * mix(vec3(1.35, 0.6, 0.25), vec3(0.45, 0.85, 1.5), sd);
+    if (uFx > 0.75) {   // the spectral constructs of the ultimate (v464 RZ-M): lit, layered and see-through, never a flat cut-out: the armour a translucent shell over a radiant skeleton (the structural parts), circuitry and flowing energy inside, a fresnel rim, the key light's form
+      float fr = pow(1.0 - rNV, 2.2), lw = 0.35 + 0.65 * pow(clamp(rNL * 0.5 + 0.5, 0.0, 1.0), 1.4), sk = (id == 601 || id == 602 || id == 608) ? 1.0 : 0.0, hot = (id == 603 || id == 604 || id == 605 || id == 612) ? 1.0 : 0.0, eg = smoothstep(0.82, 1.0, edge);
+      vec3 c; float a;
+      if (uFx < 1.5) {   // Lux: molten plasma armour (turbulent, rising), a white-gold skeleton, white-hot circuitry, burning edges
+        vec2 fq = vec2(L.x * 2.1 + L.y * 1.3, L.z * 2.4 - rT * 1.1); float w0 = vn(fq * 0.8 + rT * 0.15), tb = vn(fq * 1.6 + w0 * 1.8), tb2 = vn(fq * 4.2 - w0 * 2.0 + rT * 0.6);
+        float cir = smoothstep(0.05, 0.0, abs(fract(L.x * 2.6 + L.z * 1.9 + tb * 0.5) - 0.5) - 0.44) * step(0.45, vn(L.yz * 1.7 + 3.0)) * (1.0 - uLow);
+        vec3 body = mix(vec3(0.22, 0.025, 0.01), vec3(1.0, 0.3, 0.04), smoothstep(0.3, 0.85, tb)) + vec3(1.2, 0.6, 0.15) * smoothstep(0.72, 0.95, tb2) * 0.5;
+        c = body * lw * 0.95 + vec3(1.25, 0.55, 0.14) * fr * 0.95 + mix(cHot, cWH, 0.45) * cir * 0.85 + cHot * eg * 0.35 + vec3(1.0, 0.8, 0.5) * pow(rSb, 40.0) * 0.4;
+        c = mix(c, mix(cHot, cWH, 0.3) * (0.45 + 0.45 * lw) * (0.8 + 0.3 * tb), sk * 0.8); c = mix(c, mix(cHot, cWH, 0.6), hot * 0.7); c += cHot * rDE * 2.0;
+        a = clamp(mix(0.3 + 0.45 * fr + 0.25 * tb + cir * 0.4 + eg * 0.3, 0.88, max(sk, hot)), 0.0, 0.95); }
+      else {   // Umbra: translucent crystal armour (depth, refraction, fractures, frost), frozen pale vertebrae, blue-white energy, bright facet edges
+        float w1 = vn(L.xy * 2.6 + L.z * 1.8), w2 = vn(L.yz * 6.0 + L.x * 3.0), k1 = abs(fract(dot(L, vec3(2.1, 3.3, 1.7)) + w1) - 0.5), k2 = abs(fract(dot(L, vec3(-1.7, 2.6, 3.1)) + w2 * 0.8) - 0.5), crk = smoothstep(0.035, 0.0, min(k1, k2));
+        vec3 rf = refract(-uV, n, 0.72); float e2; float tr = env(normalize(n * 0.4 - rf), 0.2, e2);
+        vec3 body = mix(vec3(0.02, 0.07, 0.24), vec3(0.14, 0.42, 0.95), smoothstep(0.2, 0.8, w1)) * (0.55 + 0.45 * lw) + vec3(0.25, 0.55, 1.0) * tr * 0.3;
+        float pul = pow(0.5 + 0.5 * sin(L.z * 3.0 - rT * 2.0 + w1 * 4.0), 8.0);
+        c = body + cIc * fr * 1.0 + cCy * crk * 0.9 + cIc * eg * 0.6 + vec3(1.0) * pow(rSb, 90.0) * 2.2 + cCy * pul * 0.25 + vec3(0.8, 0.9, 1.0) * smoothstep(0.82, 0.95, w2) * 0.25 * (1.0 - uLow);
+        c = mix(c, vec3(0.6, 0.82, 1.15) * (0.4 + 0.6 * lw) + cIc * fr * 0.5, sk * 0.75); c = mix(c, cIc * 1.1, hot * 0.7); c += cCy * rDE * 2.0;
+        a = clamp(mix(0.2 + 0.55 * fr + crk * 0.45 + eg * 0.3 + 0.1 * w1, 0.8, max(sk, hot)), 0.0, 0.92); }
+      c = vec3(tone(c.r), tone(c.g), tone(c.b)); gl_FragColor = vec4(c * a * uAlpha, a * uAlpha); return; }
+    vec3 rM0 = mix(vec3(0.98, 0.7, 0.32), vec3(0.86, 0.89, 0.95), sd), rMF = rM0 + (1.0 - rM0) * rFr;   // (burnished gold / polished platinum)
+    vec3 rMet = (rM0 * (0.16 + 0.75 * rDif) * rKEY * mix(0.85, 0.55, sd) * rOc + rMF * mix(rEv, vec3(dot(rEv, vec3(0.33))), 0.35) * mix(1.6, 1.3, sd) * rOc + mix(vec3(1.0, 0.9, 0.72), vec3(0.92, 0.96, 1.0), sd) * (pow(rSb, 70.0) * 2.4 + pow(rSb, 9.0) * 0.3) + rRim * 0.35) * 1.15;
+    vec3 aC = vec3(0.0);
+    if (id == 600) { float und = step(0.15, rF) * step(rF, 0.25), eng = step(0.25, rF);   // ceramic: a glazed ivory / silver-white, fine grain, engraved celestial lines, metal rims
+      vec3 alb = mix(vec3(0.99, 0.94, 0.84), vec3(0.84, 0.89, 0.97), sd) * (und > 0.5 ? 0.5 : 1.0); float gr = vn(L.xy * 14.0 + L.z * 6.0) * 0.07;
+      vec3 c = alb * (0.1 + 0.74 * rDif) * rKEY * (1.0 - gr) + alb * (rAmb * 1.5 + 0.06 * rOc) + rEv * (0.05 + 0.6 * rFr) * rOc + vec3(1.0, 0.97, 0.92) * pow(rSb, 60.0) * 1.1 + rRim * 0.3;
+      if (eng > 0.5 && uLow < 0.5) { vec2 q = vec2(L.x * 3.2 + L.z * 1.3, L.y * 3.2 - L.z * 2.1); float w1 = vn(q * 0.9), r1 = abs(fract(length(fract(q) - 0.5) * 3.0 + w1 * 0.5) - 0.5), ln = smoothstep(0.06, 0.02, r1) * step(0.45, w1), ry2 = smoothstep(0.035, 0.012, abs(fract(q.x * 2.0 + q.y * 0.5) - 0.5)) * step(0.62, w1), g = max(ln, ry2);
+        c = mix(c, rMet * 0.9, g * 0.85); c += rEl * g * (0.04 + 0.3 * rG2 * (1.0 - sd)); }
+      aC = mix(c, rMet, smoothstep(0.78, 0.95, edge) * (1.0 - und)); }
+    else if (id == 601) { float eg = step(0.15, rF) * step(rF, 0.25), st2 = step(0.25, rF), ln = (1.0 - uLow) * eg * smoothstep(0.06, 0.02, abs(fract(L.x * 6.0 + L.z * 4.0 + 0.5 * sin(L.y * 8.0)) - 0.5));
+      vec3 c = rMet * (1.0 - ln * 0.5) + rEl * ln * 0.15;
+      float hst = (1.0 - sd) * smoothstep(0.4, 1.0, edge + 0.3 * vn(L.xy * 5.0)) * (0.35 + 0.65 * st2); c = mix(c, c * mix(vec3(1.0, 0.62, 0.35), vec3(0.55, 0.42, 0.95), smoothstep(0.7, 1.0, edge)), hst * 0.45);   // (heat-stained: straw, bronze, a blue-violet temper)
+      aC = c; }
+    else if (id == 602) { float rib = step(0.15, rF) * step(rF, 0.25), rec = step(0.25, rF), br = vn(vec2(L.x * 40.0 + L.y * 40.0, L.z * 2.0)), rg = 0.3 + 0.1 * br;   // titanium / cobalt: brushed, machined
+      vec3 T0 = mix(vec3(0.13, 0.12, 0.125), vec3(0.06, 0.1, 0.2), sd) * (0.85 + 0.25 * br), TF = T0 + (1.0 - T0) * rFr * 0.5;
+      vec3 c = T0 * (0.15 + 0.75 * rDif) * rKEY * 0.6 * rOc + TF * rEv * 0.9 * rOc + vec3(0.9, 0.92, 1.0) * pow(rSb, 2.0 / (rg * rg)) * 0.7 + rRim * 0.4;
+      if (rib > 0.5 && uLow < 0.5) { float rb = abs(fract(L.z * 9.0 + L.x * 2.0) - 0.5); c *= 0.7 + 0.5 * smoothstep(0.1, 0.3, rb); c += rEl * smoothstep(0.08, 0.0, rb) * (0.06 + 0.3 * rG2) * (0.6 + 0.4 * sin(rT * 3.0 + L.z * 7.0)); }
+      if (rec > 0.5) c = c * 0.4 + rEl * (0.35 + 0.35 * rG + 0.6 * rG2) * (0.8 + 0.2 * sin(rT * 5.0 + L.x * 9.0));
+      aC = c; }
+    else if (id == 603) { float s = ao + uKind, front = smoothstep(uKind + 0.12, uKind - 0.04, rG2 * 0.87); vec3 c;   // a conduit: molten lava rolling along it / crisp cyan pulses
+      if (sd < 0.5) { float w = vn(vec2(s * 6.0 - rT * 1.6, edge * 3.0 + rT * 0.4)), w2 = vn(vec2(s * 13.0 - rT * 2.7, edge * 5.0)), heat = clamp(0.35 + 0.5 * w + 0.3 * w2 + 0.7 * front + 0.2 * rG, 0.0, 2.0);
+        c = mix(cCr * 0.6, cHot, clamp(heat, 0.0, 1.0)) + cWH * max(0.0, heat - 1.0) * 0.9; }
+      else { float pul = pow(0.5 + 0.5 * sin(s * 9.0 - rT * 4.0), 6.0), fk = step(0.82, hs(floor(vec2(s * 20.0, rT * 6.0))));
+        c = mix(vec3(0.02, 0.12, 0.35), cCy, 0.45 + 0.35 * pul + 0.2 * fk) + cIc * (pul * 0.4 + front * 0.8) * (0.6 + 0.4 * rG); }
+      c *= 0.7 + 0.5 * smoothstep(0.0, 0.5, edge) * smoothstep(1.0, 0.5, edge) + 0.15 * rG; aC = c + vec3(1.0) * pow(rSb, 40.0) * 0.4 + rEv * rFr * 0.3; }
+    else if (id == 604) aC = mix(rEl, mix(cWH, cIc, sd), 0.35 + 0.45 * rNV * rNV) * (1.0 + 0.6 * rG2 + 0.3 * rG) * (0.92 + 0.08 * sin(rT * 7.0));
+    else if (id == 605) { vec3 lp = normalize(L + vec3(1e-4));   // plasma: the sun (turbulent, white-hot), a prominence, the corona (see-through)
+      if (rF > 0.25) { float fl = vn(vec2(atan(lp.y, lp.x) * 3.0 + rT * 0.8, lp.z * 4.0 - rT * 1.5)), fr = pow(1.0 - rNV, 1.4); vec3 c = mix(cHot, cWH, 0.3) * (0.4 + fl) * (0.8 + 0.3 * rG); c = vec3(tone(c.r), tone(c.g), tone(c.b));
+        float a = clamp(fr * (0.5 + 0.6 * fl) + 0.06, 0.0, 0.85); gl_FragColor = vec4(c * a * uAlpha, a * uAlpha); return; }
+      vec2 q = vec2(atan(lp.y, lp.x) * 1.6, asin(clamp(lp.z, -1.0, 1.0)) * 2.0), w = vec2(vn(q * 2.0 + rT * 0.5), vn(q * 2.0 + 7.0 - rT * 0.4)); float tb = vn(q * 3.5 + w * 2.5 + vec2(rT * 0.3, -rT * 0.6)), tb2 = vn(q * 9.0 - w * 3.0 + rT);
+      float h = clamp(0.3 + 0.55 * tb + 0.25 * tb2 + 0.35 * rNV * rNV + 0.2 * rG2, 0.0, 1.6); vec3 c = mix(cCr, cHot, smoothstep(0.2, 0.7, h)); c = mix(c, cWH, smoothstep(0.85, 1.4, h)) * (0.9 + 0.35 * rG);
+      if (rF > 0.15) c = mix(cHot, cWH, 0.3 + 0.4 * tb2) * (1.0 + 0.4 * rG); aC = c; }
+    else if (id == 606) { float nuc = step(0.15, rF) * step(rF, 0.25), shl = step(0.25, rF), tp = clamp(1.0 - ao, 0.0, 1.0), w1 = vn(L.xy * 7.0 + L.z * 3.0), w2 = vn(L.yz * 6.0 + L.x * 4.0);   // crystal: amber-ruby (Lux) / sapphire (Umbra): depth, a fake refraction, fractures, bright facet edges
+      float k1 = abs(fract(dot(L, vec3(5.1, 3.3, 4.2)) + w1 * 1.6) - 0.5), k2 = abs(fract(dot(L, vec3(-3.7, 6.1, 2.4)) + w2 * 1.6) - 0.5), crack = smoothstep(0.035, 0.0, min(k1, k2)) * smoothstep(0.25, 0.5, vn(L.zx * 3.0 + L.y * 2.0));
+      vec3 deep = mix(vec3(0.4, 0.03, 0.02), vec3(0.01, 0.045, 0.5), sd), mid = mix(vec3(1.3, 0.35, 0.06), vec3(0.04, 0.3, 1.15), sd), tipc = mix(vec3(1.7, 0.95, 0.4), vec3(0.3, 0.95, 1.5), sd);
+      vec3 body = mix(mix(deep, mid, smoothstep(0.0, 0.55, tp + 0.25 * (w1 - 0.5))), tipc, smoothstep(0.45, 1.0, tp)) * (0.55 + 0.45 * (1.0 - rNV * rNV * 0.7));
+      vec3 rf = refract(-uV, n, 0.72); float e2; float tr = env(normalize(n * (0.6 * (w2 - 0.5)) - rf), 0.25, e2); body += mid * tr * 0.35 + mix(vec3(0.9, 0.4, 0.1), vec3(0.15, 0.5, 0.95), sd) * e2 * 0.4;
+      float wrap = max(0.0, rNL * 0.5 + 0.5); body *= 0.5 + 0.75 * wrap * wrap;
+      float ec; float ev = env(rR, 0.05, ec); float Fq = 0.05 + 0.95 * pow(1.0 - rNV, 4.0), spec = pow(max(0.0, dot(n, normalize(uLK + uV))), 260.0) * 12.0 * max(0.0, rNL);
+      vec3 c = body + (ev * Fq * 0.9 + spec) * mix(vec3(1.1, 0.95, 0.8), vec3(0.8, 0.92, 1.1), sd) + pow(1.0 - rNV, 3.0) * mix(vec3(0.9, 0.35, 0.1), vec3(0.1, 0.5, 0.9), sd) * 0.6 + crack * mix(vec3(1.4, 0.8, 0.4), vec3(0.5, 0.9, 1.3), sd) * (0.5 + rG);
+      float eg = smoothstep(0.8, 1.0, edge); c = mix(c, mix(vec3(1.2, 0.95, 0.75), vec3(0.82, 0.95, 1.2), sd) * (0.6 + 0.6 * ev + 0.4 * wrap), eg * 0.8);
+      c += (mix(vec3(0.3, 0.06, 0.0), vec3(0.0, 0.1, 0.32), sd) + tipc * 0.22 * tp) * (0.5 + rG) * (0.6 + 0.4 * w2);
+      if (nuc > 0.5) c = c * 1.15 + tipc * (0.35 + 0.3 * sin(rT * 2.0 + tp * 6.0)) * (0.5 + 0.5 * rG) + cWH * 0.1 * rG2;
+      if (shl > 0.5) { float a = clamp(0.16 + 0.6 * pow(1.0 - rNV, 1.6) + 0.3 * eg, 0.0, 0.9); c = vec3(tone(c.r), tone(c.g), tone(c.b)); gl_FragColor = vec4(c * a * uAlpha, a * uAlpha); return; }
+      aC = c; }
+    else if (id == 607) { float pan = step(0.15, rF), ac = edge, al = clamp(ao, 0.0, 1.0), eB = max(smoothstep(0.62, 0.97, ac), smoothstep(0.82, 1.0, al)); vec3 c;   // a feather-blade
+      if (pan < 0.5) { c = rMet * (0.85 + 0.15 * vn(vec2(al * 30.0, ac * 4.0))); c *= 1.0 - 0.35 * smoothstep(0.04, 0.0, abs(fract(al * 7.0) - 0.5) - 0.44) * (1.0 - uLow); }
+      else if (sd < 0.5) { float fl = vn(vec2(al * 9.0 - rT * 2.2, ac * 4.0 + uKind * 7.0)), fl2 = vn(vec2(al * 23.0 - rT * 3.5, ac * 9.0)), fil = smoothstep(0.55, 0.7, fl) * smoothstep(0.85, 0.7, fl);   // Lux: gold-ivory glowing molten toward its edge, flame filaments licking along it
+        vec3 pl = mix(vec3(0.95, 0.85, 0.68), rM0, 0.5) * (0.1 + 0.7 * rDif) * rKEY * 0.7 + rEv * 0.3 + rMF * rEv * 0.4 * rFr + vec3(1.0, 0.9, 0.7) * pow(rSb, 40.0) * 1.2;
+        float heat = clamp(0.8 + smoothstep(0.1, 0.9, ac) * (0.55 + 0.3 * fl) + 0.6 * eB + 0.35 * rG2 + 0.3 * rG, 0.0, 1.7);
+        c = mix(pl, mix(mix(cCr, cHot, clamp(heat * 1.3 - 0.25, 0.0, 1.0)), vec3(1.9, 1.15, 0.45), clamp(heat - 1.0, 0.0, 0.7)) * (0.85 + 0.5 * rG), clamp(heat, 0.0, 1.0) * 0.9) + cWH * fil * (0.35 + 0.65 * eB) * 0.9 + cWH * smoothstep(0.88, 1.0, ac) * 0.8 * (0.7 + 0.3 * fl2); }
+      else { float w1 = vn(vec2(al * 8.0, ac * 3.0)), k1 = abs(fract(al * 5.0 + ac * 2.0 + w1) - 0.5), crk = smoothstep(0.03, 0.0, k1) * step(0.4, w1);   // Umbra: sapphire crystal in a platinum frame: depth, fractures, frost, a blue-white edge
+        vec3 rf = refract(-uV, n, 0.7); float e2; float tr = env(normalize(n * 0.3 - rf), 0.2, e2); float ec; float ev = env(rR, 0.05, ec);
+        vec3 body = mix(vec3(0.02, 0.1, 0.55), vec3(0.15, 0.6, 1.4), smoothstep(0.1, 1.0, ac * 0.6 + al * 0.5)) * (0.45 + 0.5 * (1.0 - rNV)) + vec3(0.2, 0.55, 1.0) * tr * 0.35;
+        c = body + vec3(0.8, 0.92, 1.1) * (ev * (0.05 + 0.9 * pow(1.0 - rNV, 4.0)) + pow(max(0.0, dot(n, normalize(uLK + uV))), 200.0) * 8.0) + crk * cIc * (0.6 + rG) + cIc * eB * 0.7 * (0.8 + 0.2 * sin(rT * 2.0 + al * 9.0));
+        c = mix(c, vec3(0.85, 0.93, 1.05) * (0.5 + 0.5 * rDif), smoothstep(0.6, 0.95, vn(L.xy * 31.0 + L.z * 11.0) + 0.3 * (1.0 - ac)) * 0.25 * (1.0 - uLow)); }
+      aC = c; }
+    else if (id == 608) { float band = step(0.25, rF), an = atan(L.y, L.x), crd = an * 7.6394 + 24.0, cell = floor(crd), dd = fract(crd) - 0.5, ac = clamp((length(L.xy) - 0.74) / 0.06, -1.0, 1.0);   // a runed ring: fiery / cryogenic runes, a pulse running round
+      float h = hs(vec2(cell, 9.0)), stem = smoothstep(0.1, 0.05, abs(dd - (h - 0.5) * 0.2)), brn = smoothstep(0.09, 0.035, abs(ac - dd * 1.4 * (h > 0.6 ? 1.0 : -1.0))) * step(abs(dd), 0.35), rune = max(stem, brn) * step(0.3, h), pl = pow(0.5 + 0.5 * sin(crd * 0.45 - rT * 3.0 + uKind * 1.7), 6.0);
+      vec3 base = band > 0.5 ? mix(vec3(0.03, 0.02, 0.02), vec3(0.02, 0.03, 0.06), sd) * (0.3 + rDif) + rEv * rFr * 0.5 + vec3(1.0) * pow(rSb, 30.0) * 0.5 : rMet * 0.8;
+      aC = base * (1.0 - rune * 0.5) + mix(rEl, mix(cWH, cIc, sd), pl) * rune * (0.35 + 0.4 * rG + 0.6 * pl); }
+    else if (id == 609) { float zz = clamp(L.z, 0.0, 1.0), fl = 0.5 + 0.5 * sin(zz * 14.0 - rT * 6.0 + L.x * 3.0);   // light (see-through)
+      vec3 col = uKind > 1.5 ? mix(mix(cHot, cWH, smoothstep(0.0, 0.5, zz)), cCy, smoothstep(0.5, 1.0, zz)) : mix(cHot, cCy, uKind), c = col * (0.6 + 0.6 * fl) * (0.6 + 0.5 * rG) + vec3(1.0) * pow(rNV, 4.0) * 0.6;
+      c = vec3(tone(c.r), tone(c.g), tone(c.b)); float a = clamp((0.35 + 0.5 * rNV * rNV) * (0.6 + 0.4 * fl), 0.0, 1.0); gl_FragColor = vec4(c * a * uAlpha, a * uAlpha); return; }
+    else if (id == 610) { vec3 wall = mix(vec3(0.2, 0.05, 0.02), vec3(0.02, 0.05, 0.14), sd), lit = sd < 0.5 ? mix(cCr, mix(cHot, cWH, clamp(rG2 - 0.5, 0.0, 1.0)), clamp(0.3 + rG2 + 0.3 * rG, 0.0, 1.0)) : mix(vec3(0.05, 0.3, 0.8), cIc, clamp(rG2, 0.0, 1.0));   // the throat: lit from inside
+      aC = wall * (0.3 + 0.4 * rDif) + lit * (0.75 + 0.25 * vn(vec2(L.x * 8.0 - rT * 3.0, L.y * 6.0))) * (0.25 + 0.8 * rG2 + 0.25 * rG) * (0.5 + 0.5 * rNV); }
+    else if (id == 611) { float tip = 1.0 - clamp(ao, 0.0, 1.0);   // a fang (ivory, white-hot tips when charging / long crystal), a claw (polished metal)
+      if (rF > 0.25) { if (sd < 0.5) { float fl = vn(vec2(tip * 6.0 - rT * 2.5, edge * 3.0 + L.x * 4.0)); aC = mix(rMet, mix(cHot, cWH, smoothstep(0.55, 1.0, tip)) * (0.9 + 0.4 * fl + 0.3 * rG + 0.3 * rG2), smoothstep(0.05, 0.5, tip + 0.15 * fl)); }   // a spike's tip: molten orange to white-hot (Lux) / sapphire crystal (Umbra)
+        else { vec3 sa = mix(vec3(0.03, 0.18, 0.75), vec3(0.45, 0.85, 1.5), tip) * (0.45 + 0.55 * (1.0 - rNV)) + cIc * pow(1.0 - rNV, 3.0) * 0.6 + vec3(1.0) * pow(rSb, 140.0) * 2.5 + cIc * smoothstep(0.8, 1.0, edge) * 0.5; aC = mix(rMet, sa, smoothstep(0.02, 0.35, tip)); } }
+      else if (rF > 0.15) aC = rMet * 1.05 + rEl * tip * tip * 0.15 * rG;
+      else if (sd < 0.5) { vec3 alb = vec3(0.96, 0.92, 0.84); aC = alb * (0.25 + 0.75 * rDif) * rKEY * 0.75 + alb * rAmb + vec3(1.0) * pow(rSb, 50.0) * 1.2 + rEv * rFr * 0.5 + mix(cHot, cWH, tip) * tip * tip * rG2 * 0.9; }
+      else aC = mix(vec3(0.55, 0.75, 1.0), vec3(0.9, 0.98, 1.1), tip) * (0.35 + 0.6 * rDif) + cIc * pow(1.0 - rNV, 2.0) * 0.5 + vec3(1.0) * pow(rSb, 120.0) * 2.0 + cCy * rG2 * 0.4 * tip; }
+    else aC = mix(rEl, mix(cWH, cIc, sd), 0.35 + 0.3 * rNV) * (0.8 + 0.5 * rG);   // 612 a mote
+    if (id <= 602) { if (rG2 > 0.01 && sd < 0.5) { float ck = abs(vn(L.xy * 4.1 + L.z * 2.7 + 3.0) - 0.5) + abs(vn(L.yz * 7.3 + 1.0) - 0.5) * 0.5, crk = smoothstep(0.05 + 0.04 * rG2, 0.0, ck) * (1.0 - sd);   // (Lux charging: its seams white-hot)
+        aC += mix(cCr, mix(cHot, cWH, clamp(rG2 - 0.6, 0.0, 1.0)), crk) * crk * rG2 * 1.2 + cHot * rG2 * 0.12 * pow(1.0 - rNV, 2.0) * (1.0 - sd); }
+      float fz = sd * clamp(0.16 + 0.6 * rG2, 0.0, 1.0) * smoothstep(0.45, 0.95, edge * 0.45 + max(0.0, dot(n, uUP)) * 0.4 + vn(L.xy * 23.0 + L.z * 13.0) * 0.6) * (1.0 - uLow * 0.5);   // (frost on Umbra: on its edges and up-facing surfaces, creeping as it charges)
+      if (fz > 0.0) aC = mix(aC, vec3(0.78, 0.9, 1.05) * (0.45 + 0.6 * rDif + 0.3 * rHm) + cIc * pow(rSb, 30.0) * 0.6, fz * 0.85); }
+    aC += rEl * smoothstep(1.2, 3.0, rG) * 0.8 + mix(cHot, cCy, sd) * rDE * 2.0 + mix(cWH, cIc, sd) * rDE * rDE * 1.2;   // (materialising; the dissolve's burning / crystalline edge)
+    gl_FragColor = vec4(vec3(tone(aC.r), tone(aC.g), tone(aC.b)) * uAlpha, uAlpha); return; }
+  /*</RZ-MAT>*/
   /*<AS-MAT ids 440..469 (v436 AS: 02f6-asmodeus-model.js, Asmodeus the Fester)>*/
   else if (id >= 440 && id <= 469) {   // ---- (v436 AS) Asmodeus (02f6): 440 obsidian lacquer (440.2 a recess; 440.3 engraved: gold filigree inlaid; vA.y 1 a rim: gold trim), 441 dark titanium, 442 antique gold (442.2 engraved), 443 a venom channel (vA.z along the part, uKind the part's place along its chain, uWear the venom's front along it, uGlow2 the flow; 443.3 a lit slot), 444 ivory porcelain (crimson channels under the glaze by uGlow2), 445 an eye, 446 ruby venom crystal (vA.z 1 - the place along a shard; 446.3 a see-through faceted shell, 446.6 the heart: hotter; uGlow2 white-hot crimson), 447 venom fluid (see-through), 448 a runed ring (448.3 its dark band; uKind its phase), 449 scarlet cloth (449.3 its back; vA.y 1 the gold border), 450 a ring of crimson-violet light (see-through), 451 dark crystal (the cocoon: uGlow2 its cracks), 453 a mote. uFx 0..0.5 crimson cracks through the armour (Eclipse Molt), uFx > 0.75 the whole part a spectral crystal replica (the decoy shells); uSpill the dissolve into black-crimson crystal grains. Approximates PBR with the scene's analytic environment: a violet night, a crimson horizon, a dark ground
     float aF = vA.x - float(id), aG = clamp(uGlow, 0.0, 4.0), aG2 = clamp(uGlow2, 0.0, 4.0), aT = uTime, aDE = 0.0;

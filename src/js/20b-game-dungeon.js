@@ -1066,6 +1066,7 @@ GAMES.dungeon = {
     AN = DunAnima.create(Object.assign({}, X, {
       kit: PI.anima || null, ST: () => ST, Tz: () => Tz(), H: () => api.H, W: () => api.W,
       hitMon, hitArea, banner, flash, heal, gainMP, shot, drop, zap, nearestMon, sx, sy,
+      warmView: (z, x, y, secs) => { try { warmView(z, x, y, secs); } catch (e) {} },   // v464 RZ-U: the floor a coming pull-back will show, painted ahead
       // (a Super Fiend's health bars: how many and how much each holds; nothing for a boss of a single bar)
       bossBars: () => (FD && FD.S ? { n: FD.S.bars, hp: FD.barHP } : null),
       // v418 AB: (Abaddon's Lunar Carapace, Eclipse Requiem and the Ninth Tide's lunar shield, 20g2) a ward in hurtPet, as ELEM's addWard; returns the remover
@@ -1857,7 +1858,15 @@ GAMES.dungeon = {
     // a full cache lets go of a chunk outside the view and its ring first (the oldest of those), so the ring is never
     // thrown out to make room for itself
     let ringB = null;
-    const inRing = k => { if (!ringB) return false; const i = k.indexOf(','), x = +k.slice(0, i), y = +k.slice(i + 1); return x >= ringB[0] && x <= ringB[2] && y >= ringB[1] && y <= ringB[3]; };
+    /* (v464 RZ-U) a view about to widen (an Anima's ultimate pulling the camera back) can have its floor painted ahead: warmView(z, x, y, secs)
+       names the chunks the view at g.zoom x z round (x, y) (default the camera) will show; for secs they are painted one an idle frame
+       (after the view's own and its ring's, within the same budget) and kept from being let go before the rest of the cache */
+    let warmB = null, warmUntil = 0;
+    function warmView(z, x, y, secs) { if (FD || !(z > 0)) return; const T = TS * Math.max(0.2, g.zoom * Math.min(1, z)), px = x == null ? cam.x : x, py = y == null ? cam.y : y;
+      warmB = [Math.max(0, Math.floor((px - api.W / 2 / T - 1) / CH)), Math.max(0, Math.floor((py - api.H / 2 / T - 2) / CH)), Math.min(Math.floor((MW - 1) / CH), Math.floor((px + api.W / 2 / T + 1) / CH)), Math.min(Math.floor((MH - 1) / CH), Math.floor((py + api.H / 2 / T + 2) / CH))];
+      if ((warmB[2] - warmB[0] + 1) * (warmB[3] - warmB[1] + 1) > CHUNK_MAX - 6) warmB = null; else warmUntil = g.t + (secs || 3); }
+    const inWarm = (x, y) => !!warmB && g.t < warmUntil && x >= warmB[0] && x <= warmB[2] && y >= warmB[1] && y <= warmB[3];
+    const inRing = k => { if (!ringB) return false; const i = k.indexOf(','), x = +k.slice(0, i), y = +k.slice(i + 1); return (x >= ringB[0] && x <= ringB[2] && y >= ringB[1] && y <= ringB[3]) || inWarm(x, y) /* v464 RZ-U */; };
     const farChunk = () => { for (const k of chunks.keys()) if (!inRing(k)) return k; return null; };
     /* (v447 K, the user: "When the anima gate open after you solved puzzle, it glitches for one frame": a door's retile threw
        the whole cache away, and the frame after it painted three chunks and left holes in the floor where the rest belong.)
@@ -1953,7 +1962,11 @@ GAMES.dungeon = {
       // warm the next ring of chunks a little at a time (while there is room for it, or something farther off to let go)
       if (paints === 0 && fresh === 0 && prepQ.length) { prepOne(); paints++; }   // (v447 K: a door's pictures, ahead of it)
       if (paints === 0 && fresh === 0 && stale.size) { outer2: for (let cy = cy0 - 1; cy <= cy1 + 1; cy++) for (let cx = cx0 - 1; cx <= cx1 + 1; cx++) if (stale.has(cx + ',' + cy)) { getChunk(cx, cy, false, true); paints++; break outer2; } }   // (v447 K: the ring's stale chunks, one a frame)
-      if (paints === 0 && g.t > 0.5 && (chunks.size < CHUNK_MAX || farChunk())) { outer: for (let cy = cy0 - 1; cy <= cy1 + 1; cy++) for (let cx = cx0 - 1; cx <= cx1 + 1; cx++) { if (cx < 0 || cy < 0 || cx * CH >= MW || cy * CH >= MH) continue; if (!chunks.has(cx + ',' + cy)) { getChunk(cx, cy, true); break outer; } } }
+      if (paints === 0 && g.t > 0.5 && (chunks.size < CHUNK_MAX || farChunk())) { outer: for (let cy = cy0 - 1; cy <= cy1 + 1; cy++) for (let cx = cx0 - 1; cx <= cx1 + 1; cx++) { if (cx < 0 || cy < 0 || cx * CH >= MW || cy * CH >= MH) continue; if (!chunks.has(cx + ',' + cy)) { getChunk(cx, cy, true); paints++ /* v464 RZ-U */; break outer; } } }
+      // (v464 RZ-U) a widening view's floor painted ahead (warmView): one chunk an idle frame, nearest the view first, never past the cache's room
+      if (paints === 0 && fresh === 0 && warmB && g.t < warmUntil && g.t > 0.5 && (chunks.size < CHUNK_MAX || farChunk())) { let bk = -1, bd = 1e9; const mx = (cx0 + cx1) / 2, my = (cy0 + cy1) / 2;
+        for (let cy = warmB[1]; cy <= warmB[3]; cy++) for (let cx = warmB[0]; cx <= warmB[2]; cx++) { if (chunks.has(cx + ',' + cy)) continue; const d = Math.abs(cx - mx) + Math.abs(cy - my); if (d < bd) { bd = d; bk = cy * 4096 + cx; } }
+        if (bk >= 0) { getChunk(bk % 4096, Math.floor(bk / 4096), true); paints++; } }
       // animated touches: shimmering ice and mud, glowing lava cracks
       for (let ty = Math.max(0, y0); ty <= Math.min(MH - 1, y1); ty++) for (let tx = Math.max(0, x0); tx <= Math.min(MW - 1, x1); tx++) {
         const t = G[ty * MW + tx];

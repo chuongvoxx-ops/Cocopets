@@ -462,6 +462,20 @@ float fbm3(vec3 p){ return 0.5 * n3(p) + 0.27 * n3(p * 2.07 + 3.1) + 0.15 * n3(p
 float asGly(vec2 g){ float d = min(min(asSeg(g, vec2(-0.5, -0.42), vec2(-0.5, 0.32)), asSeg(g, vec2(0.0, -0.42), vec2(0.0, 0.32))), asSeg(g, vec2(0.5, -0.3), vec2(0.5, 0.32)));
   if (g.y > 0.32) d = min(d, min(abs(length(g - vec2(-0.25, 0.32)) - 0.25), abs(length(g - vec2(0.25, 0.32)) - 0.25)));
   d = min(d, min(asSeg(g, vec2(0.5, -0.3), vec2(0.62, -0.55)), asSeg(g, vec2(0.62, -0.55), vec2(0.9, -0.62)))); return min(d, min(asSeg(g, vec2(0.9, -0.62), vec2(0.74, -0.7)), asSeg(g, vec2(0.9, -0.62), vec2(0.82, -0.47)))); }
+/*<RZA-FN v464 RZ-A: Raziel's fire and ice (20g6, kinds 450..465): a light three-octave noise, cell distances (cracks, crystal seams), the frost's six-fold dendrite, a rune, the Gemini sign>*/
+float rzF3(vec2 p){ return 0.55 * n2(p) + 0.3 * n2(p * 2.13 + 5.3) + 0.15 * n2(p * 4.37 + 1.7); }
+vec2 rzVor(vec2 p, float sd){ vec2 i = floor(p), f = fract(p); float d1 = 8.0, d2 = 8.0; for (int y = -1; y <= 1; y++) { for (int x = -1; x <= 1; x++) { vec2 g = vec2(float(x), float(y)), o = vec2(h1(i + g + sd), h1(i + g + sd + 17.1)); float d = length(g + o - f); if (d < d1) { d2 = d1; d1 = d; } else if (d < d2) { d2 = d; } } } return vec2(d1, d2 - d1); }
+float rzFlake(vec2 u, float sc, float sd){ float s = 1.0471976, a = atan(u.y, u.x) + sd, r = length(u) * sc; a = abs(mod(a + s * 0.5, s) - s * 0.5); vec2 p = vec2(cos(a), sin(a)) * r;
+  float arm = exp(-sq(p.y / 0.016)) * step(0.02, p.x), w = p.x - p.y * 0.57735, br = abs(fract(w * 5.0) - 0.5) * 0.1732, bl = 0.2 * (1.0 - smoothstep(0.0, 1.0, p.x)) + 0.025;
+  float brn = exp(-sq(br / 0.011)) * step(p.y, bl) * step(0.06, p.x), tw = abs(fract(w * 17.0) - 0.5) * 0.0509, twg = exp(-sq(tw / 0.0045)) * step(p.y, 0.045) * step(0.05, p.x) * 0.5;
+  return (arm + brn + twg) * (1.0 - smoothstep(0.88, 1.0, r)); }
+float rzRune(vec2 g, float h){ float d = 1.0; if (h > 0.25) d = min(d, abs(g.x - (h - 0.6) * 0.3) + step(0.38, abs(g.y)));
+  if (fract(h * 7.3) > 0.45) d = min(d, abs(g.y - (fract(h * 3.1) - 0.5) * 0.5) + step(0.3, abs(g.x)));
+  if (fract(h * 13.7) > 0.5) d = min(d, abs(g.x * 0.8 - g.y * 0.6 * sign(fract(h * 5.0) - 0.5)) + step(0.36, length(g)));
+  if (fract(h * 29.1) > 0.6) d = min(d, abs(length(g - vec2(0.0, 0.1)) - 0.18)); return exp(-sq(d / 0.05)); }
+float rzSeg(vec2 p, vec2 a, vec2 b){ vec2 pa = p - a, ba = b - a; float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0); return length(pa - ba * h); }
+float rzGem(vec2 g){ float d = min(rzSeg(g, vec2(-0.24, -0.36), vec2(-0.24, 0.36)), rzSeg(g, vec2(0.24, -0.36), vec2(0.24, 0.36)));
+  d = min(d, abs(length(g - vec2(0.0, 1.05)) - 1.45) + step(0.52, abs(g.x)) + step(0.0, g.y)); return min(d, abs(length(g + vec2(0.0, 1.05)) - 1.45) + step(0.52, abs(g.x)) + step(g.y, 0.0)); }
 /*<MD-FN v450 MD: Moby Dick's ocean (20k7r): a bit of a tile's missing-neighbour mask (k a power of two); a tile's feather (uv -1..1, sz tiles wide) toward its neighbours that are not water (mk: 1 -x, 2 +x, 4 -y, 8 +y, 16 -x-y, 32 +x-y, 64 -x+y, 128 +x+y)>*/
 float mdB(float mk, float k){ return mod(floor(mk / k + 0.001), 2.0); }
 float mdEdge(vec2 u, float mk, float sz){ if (mk < 0.5) return 1.0; float F = 0.55, dl = (u.x + 1.0) * 0.5 * sz, dr = (1.0 - u.x) * 0.5 * sz, du = (u.y + 1.0) * 0.5 * sz, dd = (1.0 - u.y) * 0.5 * sz, e = 1.0;
@@ -1928,6 +1942,133 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
           ec += (hh > 0.93 ? aWH : hh > 0.7 ? aPK : aRU) * ml; }
         L = ec * 1.3 * (1.0 - ag * ag) * (1.0 - smoothstep(0.55, 1.0, r)); } }
     /*</AS-FX>*/
+    /*<RZA-FX kinds 450..465 (v464 RZ-A: 20g6-raziel-moves.js, Raziel the Twin Revelation). Fire and ice never share a picture: fire is turbulent, rising, white-hot at its heart and ragged at its edge, with embers; ice is
+      straight and sharp, crystalline and refractive, spiralling shards, glints and mist>*/
+    else if (v_k > 449.5 && v_k < 465.5) { float tt = u_t, an = atan(u.y, u.x), sd = v_q.y; vec3 ICE = vec3(0.42, 0.84, 1.0), PALE = vec3(0.84, 0.97, 1.0), DEEP = vec3(0.12, 0.42, 1.0), EMB = vec3(1.0, 0.58, 0.16);
+      if (v_k < 450.5) { // 450 Lux's breath (uv.x -1 the mouth .. 1 its far end, uv.y across): a turbulent stream of fire widening as it goes and curling toward screen-up (col.r 0.5 + 0.5 x the up-ness of +uv.y), white-hot at the throat, orange then crimson at its ragged edges, plasma filaments, licks breaking off, embers; v_q.x its bend, v_q.y seed, v_q.z strength, col.g its heat
+        float x = u.x, s = x * 0.5 + 0.5, upS = col.r * 2.0 - 1.0, heat = 0.7 + col.g * 0.6, fl = tt * 2.4;
+        float yc = v_q.x * (1.0 - x * x) - upS * 0.14 * s * s, w = 0.07 + 0.36 * pow(s, 0.8), yy = (u.y - yc) / w;
+        float wq = rzF3(vec2(s * 4.0 - fl, yy * 0.6) + sd), n = rzF3(vec2(s * 7.0 - fl * 1.7, yy * 1.4 + wq * 1.8) + sd * 3.0);
+        float d = abs(yy + (wq - 0.5) * 0.9), body = 1.0 - smoothstep(0.3, 1.05, d + (n - 0.5) * 0.75), core = exp(-sq(d / (0.32 - 0.16 * s))) * (1.0 - smoothstep(0.15, 0.85, s));
+        float tk = body * (0.5 + 0.62 * n) * (1.0 - 0.42 * s) + core * 0.65;
+        float fil = exp(-sq((fract(yy * 0.9 + n * 1.6 - s * 3.0 + tt * 0.8) - 0.5) / 0.05)) * body * smoothstep(0.1, 0.4, s) * 0.32;
+        float lick = smoothstep(0.55, 0.85, n) * smoothstep(0.75, 1.2, d) * (1.0 - smoothstep(1.2, 1.9, d)) * step(0.0, yy * upS) * smoothstep(0.2, 0.5, s);
+        vec2 ep = vec2(s * 20.0 - tt * 5.5, yy * 2.2 + tt * 2.0 * upS), ef = fract(ep) - 0.5; float eh = h1(floor(ep) + sd);
+        float emb = step(0.87, eh) * exp(-dot(ef, ef) * 55.0) * smoothstep(0.25, 0.6, s) * (0.55 + 0.45 * sin(tt * 17.0 + eh * 50.0)) * (1.0 - smoothstep(1.2, 2.2, d));
+        float ends = smoothstep(-1.0, -0.86, x) * (1.0 - smoothstep(0.5, 1.0, x + (n - 0.5) * 0.45));
+        L = (ramp(tk * heat) * 1.05 + vec3(1.0, 0.5, 0.18) * (fil + lick * 0.4) + vec3(1.0, 0.78, 0.4) * emb * 1.5) * ends * v_q.z; L *= 1.0 - smoothstep(0.84, 1.0, abs(u.y)); }
+      else if (v_k < 451.5) { // 451 Umbra's breath (as 450): a concentrated blizzard: a hard narrow lance of white-cyan, long straight wind streaks racing along it, three helices of crystal shards spiralling round it (turning: brighter as they face the camera), cold mist rolling off its sides, snow, twinkling glints; v_q.x bend, v_q.y seed, v_q.z strength
+        float x = u.x, s = x * 0.5 + 0.5, yc = v_q.x * (1.0 - x * x), w = 0.06 + 0.32 * s, yy = (u.y - yc) / w, ad = abs(yy);
+        float core = (1.0 - smoothstep(0.07, 0.15, ad * (1.0 + 0.6 * s))) * (1.0 - smoothstep(0.55, 1.0, s)), sheath = exp(-sq(yy / 0.45));
+        float stk = pow(n2(vec2(s * 3.0 - tt * 9.0, yy * 9.0 + sd)), 5.0) * 2.5 * (1.0 - smoothstep(0.6, 1.1, ad)), sh = 0.0;
+        for (int i = 0; i < 3; i++) { float fi = float(i), ph = s * 16.0 - tt * 7.0 + fi * 2.094, hy = sin(ph) * 0.62, dpt = cos(ph), cell = s * 30.0 - tt * 11.0 + fi * 0.37, cf = fract(cell) - 0.5, ch = h1(vec2(floor(cell), fi + sd));
+          float dm = abs(cf * 2.4) + abs((yy - hy) * 3.2) * (0.5 + 0.4 * abs(dpt)); sh += step(0.35, ch) * (1.0 - smoothstep(0.16, 0.3, dm)) * (0.4 + 0.6 * max(dpt, 0.0)); }
+        float mist = rzF3(vec2(s * 2.5 - tt * 1.1, yy * 0.8 + sd)) * exp(-sq(yy / 1.3)) * smoothstep(0.1, 0.6, s);
+        vec2 sp = vec2(s * 40.0 - tt * 14.0, yy * 6.0), sf = fract(sp) - 0.5; float snow = step(0.8, h1(floor(sp) + sd * 3.0)) * exp(-dot(sf, sf) * 50.0) * (1.0 - smoothstep(0.8, 1.4, ad));
+        float gl = pow(n2(vec2(s * 60.0, yy * 20.0) + floor(tt * 12.0)), 18.0) * 6.0 * sheath, ends = smoothstep(-1.0, -0.9, x) * (1.0 - smoothstep(0.7, 1.0, x));
+        L = (vec3(0.95, 1.0, 1.0) * core * 1.1 + ICE * sheath * 0.35 * (1.0 - 0.4 * s) + PALE * stk * 0.45 + mix(PALE, vec3(1.0), 0.5) * sh * 0.9 + DEEP * mist * 0.4 + PALE * snow * 0.9 + vec3(1.0) * gl) * ends * v_q.z; L *= 1.0 - smoothstep(0.84, 1.0, abs(u.y)); }
+      else if (v_k < 452.5) { // 452 the Infernal Heaven on the floor (a unit disc, squashed by its quad): molten fractures glowing and flowing between scorched plates, heat welling at its heart, a ring of fiery glyphs turning, its rim burning; drawn out to v_q.x 0..1, v_q.y seed, v_q.z strength, col.r an eruption's pulse
+        float rv = 1.0 - smoothstep(v_q.x - 0.08, v_q.x + 0.01, r + (rzF3(u * 3.0 + sd) - 0.5) * 0.12);
+        vec2 vo = rzVor(u * 4.5 + vec2(sd, -tt * 0.06), sd); float flow = rzF3(u * 3.5 + vec2(tt * 0.25, -tt * 0.45) + sd);
+        float crack = exp(-vo.y / (0.045 + 0.03 * flow)) * (0.55 + 0.9 * flow), plate = smoothstep(0.1, 0.6, vo.y) * 0.1 * flow;
+        float well = exp(-r * r * 3.0) * (0.26 + 0.1 * sin(tt * 2.6)) * (0.6 + 0.6 * flow) + col.r * exp(-r * r * 6.0) * 0.6;
+        float a2 = an + tt * 0.3 + sd, cc = a2 * 4.4563, cf = fract(cc) - 0.5, ch = h1(vec2(floor(cc), 5.0 + sd)), rb = (r - 0.84) / 0.06;
+        float rune = rzRune(vec2(cf * 1.1, rb * 0.42), ch) * step(abs(rb), 1.0) * step(0.2, ch), ring = exp(-sq((r - 0.93) / 0.012)) + exp(-sq((r - 0.76) / 0.007)) * 0.8 + exp(-sq((r - 0.4) / 0.006)) * 0.45;
+        float rimF = smoothstep(0.55, 0.9, rzF3(vec2(an * 9.0, r * 6.0 - tt * 2.6) + sd)) * exp(-sq((r - 0.94) / 0.04)), spk = pow(n2(u * 34.0 + floor(tt * 9.0)), 16.0) * 5.0 * crack;
+        L = (ramp(clamp(crack * 1.05 + well, 0.0, 1.15)) * 1.35 + ramp(0.62) * plate + vec3(1.0, 0.62, 0.22) * (rune * 1.1 + ring * 0.75) + ramp(0.8) * rimF * 0.9 + EMB * spk) * rv * v_q.z; L *= 1.0 - smoothstep(0.95, 1.0, r); }
+      else if (v_k < 453.5) { // 453 the Frozen Heaven on the floor (a unit disc, squashed): frost growing out from its heart in six-fold dendrites, small frost stars seeded round, crystal plates with fine bright seams, a ring of crystalline glyphs turning the other way, ice spikes round its rim, glints; drawn out to v_q.x 0..1, v_q.y seed, v_q.z strength
+        float gr = v_q.x, rv = 1.0 - smoothstep(gr - 0.04, gr + 0.005, r), big = rzFlake(u, 1.1, sd * 0.3);
+        vec2 gq = u * 3.2 + sd, gi = floor(gq); float gh = h1(gi + 3.0), small = rzFlake((fract(gq) - 0.5) * 2.2, 1.0, gh * 6.0) * step(0.45, gh);
+        vec2 vo = rzVor(u * 6.0 + sd * 2.0, sd + 9.0); float seam = exp(-vo.y / 0.012), plate = 0.04 + 0.14 * vo.x * vo.x;
+        float a2 = -an + tt * 0.22 + sd, cc = a2 * 3.8197, cf = fract(cc) - 0.5, ch = h1(vec2(floor(cc), 11.0 + sd)), rb = (r - 0.8) / 0.06;
+        float rune = rzRune(vec2(cf * 1.1, rb * 0.42), ch) * step(abs(rb), 1.0) * step(0.2, ch), ring = exp(-sq((r - 0.9) / 0.007)) + exp(-sq((r - 0.72) / 0.005)) * 0.8 + exp(-sq((r - 0.4) / 0.004)) * 0.5;
+        float sa = an * 5.7296, sf = fract(sa) - 0.5, shh = h1(vec2(floor(sa), 2.0 + sd)), spike = step(0.9, r) * step(r, 0.9 + (0.03 + 0.06 * shh) * (1.0 - abs(sf) * 2.2)) * step(0.3, shh);
+        float glint = pow(n2(u * 40.0 + floor(tt * 7.0 + sd)), 20.0) * 7.0, mist = rzF3(u * 2.0 + vec2(tt * 0.1, tt * 0.05) + sd) * 0.08, front = exp(-sq((r - gr) / 0.02)) * step(gr, 0.99);
+        L = (PALE * (big * 0.85 + small * 0.6) * (0.7 + 0.3 * sin(tt * 1.5 + r * 8.0)) + ICE * seam * 0.55 + DEEP * plate + (ICE * 0.05 + DEEP * 0.07) * (1.0 - smoothstep(0.85, 0.95, r)) + PALE * (rune + ring * 0.8) + vec3(0.9, 0.98, 1.0) * spike * 0.9 + vec3(1.0) * glint * (0.3 + big) + ICE * mist + vec3(0.8, 0.95, 1.0) * front * 0.8) * rv * v_q.z;
+        L *= 1.0 - smoothstep(0.98, 1.0, r); }
+      else if (v_k < 454.5) { // 454 a plasma sun (a unit disc; the globe's radius 0.6 of it): a turning sphere of turbulent fusion (3D noise on the globe, so it really rolls), granulation boiling, limb darkening, prominences arching off the limb, a corona; v_q.x its spin, v_q.y seed, v_q.z strength (past 1 swelling hotter)
+        float R0 = 0.6, q = r / R0, hk = 1.0 + 0.3 * max(v_q.z - 1.0, 0.0);
+        if (q < 1.0) { vec3 nm = vec3(u / R0, sqrt(max(0.0, 1.0 - q * q))); float sp = tt * v_q.x + sd, cs = cos(sp), sn = sin(sp); vec3 P = vec3(nm.x * cs + nm.z * sn, nm.y, -nm.x * sn + nm.z * cs);
+          float g1 = fbm3(P * 2.6 + vec3(0.0, tt * 0.35, sd)), g2 = n3(P * 9.0 + vec3(tt * 0.9, 0.0, sd)), cel = rzVor(P.xy * 3.0 + P.z * 1.7 + tt * 0.1, sd).y;
+          L = ramp(((0.3 + 0.85 * g1 + 0.28 * g2) * pow(nm.z, 0.45) + 0.06 - 0.16 * exp(-cel / 0.05)) * hk) * 0.95; }
+        float o = max(q - 1.0, 0.0), pr = rzF3(vec2(an * 2.6 + sd, o * 3.5 - tt * 0.7)), arc = pow(max(0.0, sin(an * 5.0 + sd * 3.0 + tt * 0.35)), 18.0);
+        float prom = step(1.0, q) * (pow(pr, 2.2) * exp(-o / (0.12 + 0.18 * arc)) * 1.6 + arc * exp(-sq((o - 0.08 - 0.06 * pr) / 0.03)) * 0.8);
+        L += ramp(0.55 + 0.6 * prom) * prom + step(1.0, q) * (vec3(1.0, 0.45, 0.1) * exp(-o / 0.1) * 0.55 + vec3(1.0, 0.7, 0.3) * exp(-o / 0.35) * 0.18);
+        L *= min(v_q.z, 1.0); L *= 1.0 - smoothstep(0.85, 1.0, r); }
+      else if (v_k < 455.5) { // 455 a planet of ice (a unit disc; the globe's radius 0.6): a turning sphere of faceted crystal, each facet lit on its own, a fresnel rim, fractures running through it, bands of layered crystal, a deep blue heart, a tilted ring of ice round it, sharp rays; v_q.x spin, v_q.y seed, v_q.z strength (past 1 cracking)
+        float R0 = 0.6, q = r / R0, crk = max(v_q.z - 1.0, 0.0); vec3 Lt = normalize(vec3(-0.45, -0.6, 0.65));
+        if (q < 1.0) { vec3 nm = vec3(u / R0, sqrt(max(0.0, 1.0 - q * q))); float sp = tt * v_q.x + sd, cs = cos(sp), sn = sin(sp); vec3 P = vec3(nm.x * cs + nm.z * sn, nm.y, -nm.x * sn + nm.z * cs);
+          vec3 cI = floor(P * 3.2 + 0.5), fp = fract(P * 3.2 + 0.5) - 0.5, F = normalize(cI + (vec3(h3(cI + sd), h3(cI + sd + 3.1), h3(cI + sd + 7.7)) - 0.5) * 0.9 + 0.001), Fn = vec3(F.x * cs - F.z * sn, F.y, F.x * sn + F.z * cs);
+          float df = max(dot(Fn, Lt), 0.0), spc = pow(max(reflect(-Lt, Fn).z, 0.0), 24.0), fr = pow(1.0 - nm.z, 2.5), eg = exp(-(0.5 - max(abs(fp.x), max(abs(fp.y), abs(fp.z)))) / 0.03);
+          float frc = exp(-abs(n3(P * 5.0 + sd) - 0.5) / 0.015) * (0.5 + crk * 2.0), band = exp(-sq((fract(P.y * 3.0 + n3(P * 2.0) * 0.6) - 0.5) / 0.06)) * 0.35;
+          L = mix(DEEP * 0.3, ICE * 0.75, 0.15 + 0.7 * df) * (0.45 + 0.3 * nm.z) + PALE * fr * 0.75 + vec3(1.0) * spc * 1.1 + PALE * eg * 0.45 + vec3(0.9, 0.98, 1.0) * frc * 0.55 + ICE * band * 0.8; }
+        vec2 rq = vec2(u.x * 0.9394 + u.y * 0.3429, -u.x * 0.3429 + u.y * 0.9394); float re = length(vec2(rq.x, rq.y / 0.28));
+        float ring = exp(-sq((re - 0.86) / 0.035)) * (0.4 + 0.6 * pow(n2(vec2(atan(rq.y / 0.28, rq.x) * 18.0 - tt * 2.0, sd)), 3.0)) * (q < 1.0 && rq.y < 0.0 ? 0.0 : 1.0);
+        float halo = exp(-max(q - 1.0, 0.0) / 0.1) * step(1.0, q) * 0.45, rays = pow(abs(cos(an * 6.0 + tt * 0.2)), 60.0) * exp(-max(q - 1.0, 0.0) / 0.25) * step(1.0, q) * 0.6;
+        L += PALE * ring * 0.8 + ICE * halo + PALE * rays; L *= min(v_q.z, 1.0); L *= 1.0 - smoothstep(0.88, 1.0, r); }
+      else if (v_k < 456.5) { // 456 a Thermal Shock (a unit disc): a sharp white flash, a thick turbulent ring of fire rolling out slower and a thin ring of crystal racing out faster with blades along it, molten droplets flung on streaks, ice shards spinning out, a pale condensation halo; v_q.x age 0..1, v_q.y seed, v_q.z strength
+        float ag = clamp(v_q.x, 0.0, 1.0), fade = 1.0 - ag, flash = exp(-r * r / (0.003 + 0.06 * ag)) * fade * fade * 2.2;
+        float Rf = 0.12 + 0.68 * (1.0 - pow(fade, 2.0)), Ri = 0.16 + 0.8 * (1.0 - pow(fade, 3.6)), nf = rzF3(vec2(an * 3.5 + sd, r * 5.0 - tt * 2.5));
+        float fr = exp(-sq((r - Rf + (nf - 0.5) * 0.1) / (0.045 + 0.06 * ag))) * fade, ir = exp(-sq((r - Ri) / 0.01)) * fade;
+        float ba = an * 2.8648 + sd, bf = fract(ba) - 0.5, bh = h1(vec2(floor(ba), sd)), bl = (0.05 + 0.08 * bh) * fade, blade = step(Ri, r) * step(r, Ri + bl * (1.0 - abs(bf) * 2.4)) * step(0.35, bh);
+        float da = an * 2.069 + sd * 1.7, dfr = fract(da) - 0.5, dh = h1(vec2(floor(da), sd + 3.0)), dr = Rf * (0.7 + 0.5 * dh);
+        float drop = exp(-sq(dfr / 0.07)) * exp(-sq((r - dr) / 0.05)) * step(0.4, dh) * fade, dstk = exp(-sq(dfr / 0.04)) * step(r, dr) * exp((r - dr) / 0.12) * step(0.4, dh) * fade * 0.5;
+        float sa = an * 1.4324 + sd * 2.3, sfr = fract(sa) - 0.5, shh = h1(vec2(floor(sa), sd + 7.0)), srr = Ri * (0.55 + 0.45 * shh), spn = sin(tt * 9.0 + shh * 20.0);
+        float sdm = abs(sfr * r * 0.6981) / (0.02 + 0.02 * abs(spn)) + abs(r - srr) / 0.06, shard = (1.0 - smoothstep(0.7, 1.0, sdm)) * step(0.45, shh) * fade, halo = exp(-sq((r - Ri * 1.04) / 0.08)) * 0.18 * fade;
+        L = (vec3(1.0) * flash + ramp(0.55 + 0.55 * nf) * fr * 1.3 + vec3(0.6, 0.92, 1.0) * ir * 1.2 + PALE * blade * 0.9 + ramp(0.9) * (drop * 1.2 + dstk) + vec3(0.88, 0.98, 1.0) * shard * 1.1 + vec3(0.9, 0.95, 1.0) * halo) * v_q.z;
+        L *= 1.0 - smoothstep(0.94, 1.0, r); }
+      else if (v_k < 457.5) { // 457 a Gemini seal (a unit disc): twin rings, a band of runes, spokes, the Gemini sign at its heart; col.r 0 Lux's (gold, flame licking off its rim) / 1 Umbra's (platinum-cyan, crystal spikes round its rim); drawn on as v_q.x goes 0..1 (past 1 brighter), v_q.y its turn, v_q.z strength
+        float ice = step(0.5, col.r), a2 = an + v_q.y, dr = clamp(v_q.x, 0.0, 1.0), fa = fract((a2 + 3.14159265) / 6.2831853), rv = 1.0 - smoothstep(dr * 1.06 - 0.04, dr * 1.06, fa), hot = 1.0 + 0.5 * max(v_q.x - 1.0, 0.0), gs = smoothstep(0.3, 0.7, dr);
+        float ring = exp(-sq((r - 0.9) / 0.012)) + exp(-sq((r - 0.82) / 0.007)) * 0.75 + exp(-sq((r - 0.5) / 0.007)) * 0.6 + exp(-sq((r - 0.3) / 0.006)) * 0.5;
+        float cc = a2 * 3.1831, cf = fract(cc) - 0.5, ch = h1(vec2(floor(cc), 41.0 + ice)), rb = (r - 0.66) / 0.1, rune = rzRune(vec2(cf, rb * 0.42), ch) * step(abs(rb), 1.2) * step(0.2, ch);
+        float spA = mod(a2 + 0.2618, 0.5236) - 0.2618, spoke = exp(-sq(r * sin(spA) / 0.006)) * step(0.3, r) * step(r, 0.5), gd = rzGem(u / 0.26) * 0.26, gem = exp(-sq(gd / 0.012)) * gs, gemH = exp(-sq(gd / 0.05)) * 0.35 * gs;
+        float flame = (1.0 - ice) * smoothstep(0.45, 0.85, rzF3(vec2(an * 10.0, (r - 0.9) * 8.0 - tt * 3.0) + 3.0)) * smoothstep(0.88, 0.92, r) * (1.0 - smoothstep(0.92, 1.0, r + (rzF3(vec2(an * 6.0, tt)) - 0.5) * 0.06));
+        float sa = an * 3.8197, sf = fract(sa) - 0.5, shh = h1(vec2(floor(sa), 9.0)), spk = ice * step(0.91, r) * step(r, 0.91 + (0.03 + 0.05 * shh) * (1.0 - abs(sf) * 2.2));
+        vec3 cA = mix(vec3(1.0, 0.7, 0.28), vec3(0.62, 0.9, 1.0), ice), cB = mix(vec3(1.0, 0.45, 0.12), PALE, ice);
+        L = (cA * (ring + rune * 0.9 + spoke * 0.6) * 0.9 * rv + mix(vec3(1.0, 0.9, 0.7), vec3(0.9, 1.0, 1.0), ice) * gem * 1.2 + cB * gemH + (ramp(0.85) * flame * 0.9 + PALE * spk * 0.9) * rv + cA * exp(-r * r * 6.0) * 0.12 * gs) * hot * v_q.z;
+        L *= 1.0 - smoothstep(0.97, 1.0, r); }
+      else if (v_k < 458.5) { // 458 embers rising (a unit disc): sparks of molten light drifting up the screen on swaying paths, flickering, white-hot cooling to red as they rise; v_q.x age 0..1, v_q.y seed, v_q.z density
+        float ag = clamp(v_q.x, 0.0, 1.0); vec3 ec = vec3(0.0);
+        for (int i = 0; i < 3; i++) { float fi = float(i), s = 6.0 + fi * 4.0; vec2 p = u * s + vec2(sin(u.y * 3.0 + tt * (1.3 + fi) + sd) * 0.6, tt * (1.6 + fi * 0.7) + sd * (fi + 1.0)), gi = floor(p), gf = fract(p) - 0.5, of = (vec2(h1(gi + 3.0), h1(gi + 7.0)) - 0.5) * 0.6;
+          float hh = h1(gi + fi * 17.0 + sd), m = step(1.0 - v_q.z * 0.5, hh) * exp(-dot(gf - of, gf - of) * (90.0 + fi * 40.0)) * (0.5 + 0.5 * sin(tt * (9.0 + hh * 12.0) + hh * 40.0)); ec += ramp(1.1 - clamp(-u.y * 0.5 + 0.5 + hh * 0.3, 0.0, 1.0) * 0.65) * m; }
+        L = ec * 1.4 * (1.0 - ag * ag) * (1.0 - smoothstep(0.55, 1.0, r)); }
+      else if (v_k < 459.5) { // 459 frost in the air (a unit disc): ice motes spiralling slowly round its middle and drifting down, six-pointed glints flashing as they turn, fine snow; v_q.x age 0..1, v_q.y seed, v_q.z density, col.r the swirl (0.5 none)
+        float ag = clamp(v_q.x, 0.0, 1.0), sw = (col.r - 0.5) * 4.0; vec3 ec = vec3(0.0);
+        for (int i = 0; i < 3; i++) { float fi = float(i), s = 5.0 + fi * 4.0, a3 = an + sw * tt * (0.3 + 0.15 * fi) / (0.3 + r); vec2 p = vec2(cos(a3), sin(a3)) * r * s + vec2(sd * (fi + 2.0), -tt * (0.35 + 0.2 * fi)), gi = floor(p), gf = fract(p) - 0.5, of = (vec2(h1(gi + 5.0), h1(gi + 9.0)) - 0.5) * 0.5;
+          float hh = h1(gi + fi * 13.0 + sd); vec2 dd = gf - of; float rr = length(dd), aa = atan(dd.y, dd.x) + tt * (1.0 + hh * 2.0), star = pow(abs(cos(aa * 3.0)), 12.0) * exp(-rr * 22.0) * 1.6 + exp(-rr * rr * 260.0);
+          ec += mix(ICE, PALE, hh) * star * step(1.0 - v_q.z * 0.55, hh) * (0.6 + 0.4 * sin(tt * (4.0 + hh * 9.0) + hh * 30.0)); }
+        L = ec * 1.2 * (1.0 - ag * ag) * (1.0 - smoothstep(0.55, 1.0, r)); }
+      else if (v_k < 460.5) { // 460 a ring of fire racing over the floor (a unit disc, squashed): a turbulent rolling front at v_q.x, flame licking up off it, scorched glowing ground and cracks behind; v_q.y seed, v_q.z strength
+        float R0 = v_q.x, h = r - R0, n = rzF3(vec2(an * 7.0 + sd, h * 9.0 - tt * 3.0)), crest = exp(-sq((h + (n - 0.5) * 0.06) / (0.03 + 0.03 * n)));
+        float trail = step(h, 0.0) * exp(h / 0.12) * (0.35 + 0.5 * n), cracks = step(h, 0.0) * exp(-rzVor(u * 6.0 + sd, sd).y / 0.04) * exp(h / 0.25) * 0.5;
+        L = (ramp(0.5 + 0.7 * crest * (0.6 + 0.6 * n)) * crest * 1.3 + ramp(0.45 + 0.4 * n) * trail * 0.7 + ramp(0.7) * cracks) * v_q.z * (1.0 - smoothstep(0.85, 1.0, R0)); L *= 1.0 - smoothstep(0.96, 1.0, r); }
+      else if (v_k < 461.5) { // 461 a ring of frost racing over the floor (a unit disc, squashed): a thin hard front at v_q.x, blades of ice jutting from it, crystal seams freezing behind it, glints; v_q.y seed, v_q.z strength
+        float R0 = v_q.x, h = r - R0, crest = exp(-sq(h / 0.012)), ba = an * 4.7746 + sd, bf = fract(ba) - 0.5, bh = h1(vec2(floor(ba), sd)), bl = 0.03 + 0.09 * bh;
+        float blade = step(-0.01, h) * step(h, bl * (1.0 - abs(bf) * 2.3)) * step(0.3, bh) * (1.0 - h / bl * 0.6);
+        vec2 vo = rzVor(u * 7.0 + sd, sd + 2.0); float seam = step(h, 0.0) * exp(-vo.y / 0.012) * exp(h / 0.16), frost = step(h, 0.0) * exp(h / 0.07) * 0.25, glint = pow(n2(u * 46.0 + floor(tt * 8.0) + sd), 18.0) * 6.0 * step(h, 0.0) * exp(h / 0.2);
+        L = (vec3(0.92, 1.0, 1.0) * crest * 1.2 + PALE * blade * 0.95 + ICE * seam * 0.6 + DEEP * frost + vec3(1.0) * glint) * v_q.z * (1.0 - smoothstep(0.85, 1.0, R0)); L *= 1.0 - smoothstep(0.96, 1.0, r); }
+      else if (v_k < 462.5) { // 462 the sun's trail (uv.x -1 its old end .. 1 at the sun, uv.y across): a molten ribbon of plasma narrowing and cooling back along it, rolling turbulence, embers shed from it; v_q.y seed, v_q.z strength
+        float s = u.x * 0.5 + 0.5, w = 0.12 + 0.55 * s * s, n = rzF3(vec2(u.x * 3.0 - tt * 3.0, u.y / w * 1.2) + sd), d = abs(u.y / w + (n - 0.5) * 0.8), k = (1.0 - smoothstep(0.2, 1.0, d)) * s * (0.4 + 0.7 * n) * (0.4 + 0.6 * s);
+        vec2 ep = vec2(u.x * 14.0 - tt * 2.0, u.y * 6.0), ef = fract(ep) - 0.5; float emb = step(0.88, h1(floor(ep) + sd)) * exp(-dot(ef, ef) * 60.0) * (1.0 - smoothstep(0.6, 1.0, s));
+        L = (ramp(k * 1.25) + EMB * emb * 0.9) * v_q.z * smoothstep(-1.0, -0.6, u.x) * (1.0 - smoothstep(0.85, 1.0, u.x)); L *= 1.0 - smoothstep(0.85, 1.0, abs(u.y)); }
+      else if (v_k < 463.5) { // 463 the ice planet's trail (as 462): a ribbon of freezing mist, crystal fragments hanging in it and glinting, a fine bright spine; v_q.y seed, v_q.z strength
+        float s = u.x * 0.5 + 0.5, w = 0.1 + 0.5 * s, mist = rzF3(vec2(u.x * 2.0 - tt * 0.6, u.y / w) + sd) * exp(-sq(u.y / w)) * s, spine = exp(-sq(u.y / (0.02 + 0.04 * s))) * s * s;
+        vec2 fp = vec2(u.x * 11.0, u.y / w * 3.0 + sd), ff = fract(fp) - 0.5; float fh = h1(floor(fp) + sd), dm = abs(ff.x) * 2.0 + abs(ff.y) * (1.0 + 0.6 * sin(tt * 5.0 + fh * 20.0)), frag = step(0.72, fh) * (1.0 - smoothstep(0.25, 0.4, dm)) * (0.4 + 0.6 * (1.0 - s)) * step(abs(u.y), w);
+        L = (ICE * mist * 0.5 + PALE * spine * 0.6 + PALE * frag * 0.9 + vec3(1.0) * frag * pow(0.5 + 0.5 * sin(tt * 7.0 + fh * 30.0), 8.0)) * v_q.z * smoothstep(-1.0, -0.7, u.x) * (1.0 - smoothstep(0.85, 1.0, u.x)); L *= 1.0 - smoothstep(0.85, 1.0, abs(u.y)); }
+      else if (v_k < 464.5) { // 464 a head gathering its breath (a unit disc at the mouth): col.r 0 Lux: a flickering white-hot throat, licks of flame drawn inward, sparks; 1 Umbra: a turning six-fold crystal mandala round a cyan point, frost motes drawn in; v_q.x the charge 0..1, v_q.y seed, v_q.z strength
+        float chg = clamp(v_q.x, 0.0, 1.0);
+        if (col.r < 0.5) { float n = rzF3(vec2(an * 4.0 + sd, r * 5.0 + tt * 4.0)), core = exp(-r * r / (0.01 + 0.05 * chg)) * (1.2 + 0.3 * sin(tt * 30.0)), lk = smoothstep(0.5, 0.9, n) * exp(-r / (0.15 + 0.25 * chg)) * smoothstep(0.05, 0.2, r);
+          L = (ramp(0.75 + 0.45 * core) * core + ramp(0.55 + 0.4 * n) * lk * 0.9 + EMB * pow(0.5 + 0.5 * sin(r * 30.0 + tt * 14.0 + n * 4.0), 6.0) * exp(-r * 3.0) * chg * 0.4) * (0.3 + 0.7 * chg); }
+        else { float a3 = an + tt * (0.8 + chg), s = 1.0471976, af = abs(mod(a3 + s * 0.5, s) - s * 0.5), core = exp(-r * r / (0.006 + 0.03 * chg)) * 1.3;
+          float arm = exp(-sq(r * sin(af) / 0.01)) * step(r, 0.25 + 0.5 * chg) * smoothstep(0.03, 0.1, r), rg = exp(-sq((r - 0.3 - 0.35 * chg) / 0.01)) * 0.6, br = exp(-sq(abs(r * sin(af) - 0.05) / 0.008)) * step(r * cos(af), 0.45 * chg + 0.1) * step(0.15, r) * 0.6;
+          L = (vec3(0.9, 1.0, 1.0) * core + PALE * (arm + br) * 0.9 + ICE * rg + ICE * pow(0.5 + 0.5 * sin(r * 26.0 - tt * 10.0), 10.0) * pow(abs(cos(a3 * 3.0)), 8.0) * exp(-r * 2.5) * 0.5) * (0.3 + 0.7 * chg); }
+        L *= v_q.z; L *= 1.0 - smoothstep(0.85, 1.0, r); }
+      else { // 465 the white bridge between the cores (uv.x -1 .. 1 along, uv.y across): a white core, a strand of fire and a strand of frost braided round it, pulses racing both ways; v_q.x the braid's turns, v_q.y seed, v_q.z strength
+        float x = u.x, env = 1.0 - x * x, ph = x * 3.1416 * max(v_q.x, 0.5) - tt * 6.0, yf = sin(ph) * 0.35 * env, yi = -yf, df = cos(ph);
+        float cw = exp(-sq(u.y / (0.06 + 0.03 * sin(x * 9.0 - tt * 11.0)))) * env, sf = exp(-sq((u.y - yf) / 0.07)) * (0.55 + 0.45 * df), si = exp(-sq((u.y - yi) / 0.05)) * (0.55 - 0.45 * df);
+        float pu = pow(0.5 + 0.5 * sin(x * 12.0 - tt * 16.0), 10.0) + pow(0.5 + 0.5 * sin(x * 12.0 + tt * 13.0), 10.0);
+        L = (vec3(1.0) * cw * (0.8 + 0.6 * pu) + ramp(0.85) * sf + mix(ICE, PALE, 0.5) * si * 1.1 + vec3(1.0) * exp(-sq(u.y / 0.4)) * 0.08 * env) * v_q.z * (1.0 - smoothstep(0.88, 1.0, abs(x))); L *= 1.0 - smoothstep(0.85, 1.0, abs(u.y)); } }
+    /*</RZA-FX>*/
     /*<SG-FX kind 336 (v445 AG: 20s-rift-gate-scorpio.js, the Amber Vigil's watch-stones)>*/
     else if (v_k > 335.5 && v_k < 336.5) { // 336 one sector of a watch-stone's gaze on the floor (uv.x -1 at the stone .. 1 at its reach, uv.y across, the quad's half width tan(h) 1.6 + 0.02 reaches): a gaze is laid as N such sectors side by side, each cut where its two rays meet cover (its shadow edge drawn between them), neighbouring sectors' seams blended so they add to exactly one; v_q.x 100 + the sector's index + 5 x its half angle h, v_q.y N + 0.998 x the lit share of its left ray, v_q.z its right ray's; v_c its colour, alpha its strength
       float q0 = v_q.x - 100.0, si = floor(q0 + 0.0001), h = max((q0 - si) / 5.0, 0.0005), nN = floor(v_q.y + 0.0001), dL = clamp((v_q.y - nN) / 0.998, 0.0, 1.0), dR = clamp(v_q.z, 0.0, 1.0), kw = tan(h) * 1.6 + 0.02, tt = u_t;
@@ -2355,6 +2496,114 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
         float st = n2(vec2(x * 0.7 - tt * 7.0, u.y * 5.0) + sd), core = exp(-sq(u.y / 0.12)), body = exp(-sq(u.y / 0.45)), fl = step(0.94, h1(floor(vec2(x * 3.0 - tt * 11.0, u.y * 7.0)) + sd)) * side;
         L = (vec3(1.0) * core * 0.55 + col * body * (0.25 + 0.55 * st) + mix(col, vec3(1.0), 0.5) * fl * 0.6) * k * (0.15 + 0.85 * xu * xu) * (1.0 - smoothstep(0.92, 1.0, xu)) * side; } }
     /*</SK-FX>*/
+    /*<RZU-FX kinds 466..479 (v464 RZ-U: 20g6b-raziel-ultimate.js, Raziel's The Book of Two Heavens). 468 and 478 are laid over (solid), the rest added. Fire and ice keep apart:
+      fire turbulent, rising, white-hot at its heart; ice faceted, sharp-edged, still, refractive>*/
+    else if (v_k > 465.5 && v_k < 479.5) { float tt = u_t, an = atan(u.y, u.x);
+      vec3 zCR = vec3(0.78, 0.08, 0.04), zOR = vec3(1.0, 0.45, 0.08), zGD = vec3(1.0, 0.78, 0.32), zWH = vec3(1.0, 0.96, 0.88), zCB = vec3(0.06, 0.2, 0.62), zSA = vec3(0.16, 0.45, 0.98), zCY = vec3(0.45, 0.88, 1.0), zIW = vec3(0.86, 0.96, 1.0);
+      if (v_k < 466.5) { // 466 the Infernal Heaven (a unit disc): a solar surface (warped granulation swirling in, white-hot cells, a dark limb) out to 0.74 x v_q.x (how far open), plasma filaments, a band of molten runes turning, a corona and prominences outside; v_q.y its turn (+-1), v_q.z strength
+        float op = clamp(v_q.x, 0.0, 1.0), R0 = max(0.02, 0.74 * op), q = r / R0, sw = an * 2.0 + v_q.y * tt * 0.6 + 2.5 * log(q + 0.08);
+        vec2 w2 = vec2(fbm(u * 3.0 / R0 + vec2(tt * 0.35, 0.0)), fbm(u * 3.0 / R0 + vec2(4.1, -tt * 0.3)));
+        float cel = fbm(vec2(sw * 1.3, q * 3.5 - tt * 0.7) + w2 * 1.6), gran = fbm(u * 11.0 / R0 + w2 * 2.0 + tt * 0.5), disc = 1.0 - smoothstep(0.9, 1.0, q), limb = pow(clamp(1.0 - q * q, 0.0, 1.0), 0.35);
+        float k = clamp(0.15 + 0.9 * (1.0 - q) + 0.7 * cel + 0.35 * gran, 0.0, 2.2); vec3 hc = k < 1.0 ? mix(zCR, zOR, k) : mix(zOR, zWH, min(1.0, k - 1.0));
+        float fil = 0.0; for (int i = 0; i < 2; i++) { float fi = float(i); fil += exp(-sq((q - 0.5 - 0.25 * fi - 0.07 * sin(an * (3.0 + fi * 2.0) + tt * (1.2 + fi) + v_q.y)) / 0.02)) * pow(0.5 + 0.5 * sin(an * (5.0 + fi * 3.0) - tt * 2.0), 3.0); }
+        float a2 = an - tt * 0.25 * v_q.y, crd = a2 * 7.639, dd = fract(crd) - 0.5, hh = h1(vec2(floor(crd), 7.0)), rb = (q - 0.86) / 0.045;
+        float rune = step(abs(rb), 1.0) * max(smoothstep(0.1, 0.03, abs(dd)) * step(0.35, hh), smoothstep(0.12, 0.04, abs(rb * 0.45 - dd * (hh > 0.6 ? 1.0 : -1.0))) * step(abs(dd), 0.38)) * step(0.2, hh);
+        float cor = exp(-max(q - 1.0, 0.0) * 4.0) * step(1.0, q) * (0.45 + 0.6 * fbm(vec2(an * 6.0 + tt * 0.4, q * 2.0 - tt * 0.6))), prom = pow(fbm(vec2(an * 4.0 - tt * 0.3 + v_q.y, q * 3.0 - tt)), 3.0) * exp(-sq((q - 1.12) / 0.12)) * 2.2;
+        L = (hc * disc * limb * (0.55 + 0.6 * cel) + zWH * fil * disc * 0.8 + zGD * rune * 1.1 * op + mix(zCR, zOR, 0.5) * (cor * 0.55 + prom) * op) * v_q.z; L *= 1.0 - smoothstep(0.9, 1.0, r); }
+      else if (v_k < 467.5) { // 467 the Frozen Heaven (a unit disc): a crystalline vault (faceted cells, each its own depth) out to 0.74 x v_q.x, six-fold frost dendrites growing out with it, a spiral blizzard, a band of frozen runes, frost spikes and a cold halo outside; v_q.y its turn, v_q.z strength
+        float op = clamp(v_q.x, 0.0, 1.0), R0 = max(0.02, 0.74 * op), q = r / R0, a2 = an + v_q.y * tt * 0.12, sec = 1.0471976, af = abs(mod(a2 + sec * 0.5, sec) - sec * 0.5), px = q * cos(af), py = q * sin(af);
+        float trunk = exp(-sq(py / 0.016)) * step(px, 0.95), br = 0.0; for (int i = 0; i < 4; i++) { float fi = float(i), x0 = 0.18 + fi * 0.19; br += exp(-sq((py - (px - x0) * 0.577) / 0.012)) * step(x0, px) * step(px, x0 + 0.22 - fi * 0.03); }
+        float grow = smoothstep(q - 0.1, q + 0.05, op * 1.1); vec2 g = u / R0 * 4.0 + vec2(0.0, tt * 0.05), gi = floor(g), gf = fract(g); float d1 = 8.0, d2 = 8.0, id = 0.0;
+        for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) { vec2 o = vec2(float(i), float(j)), p = o + vec2(h1(gi + o), h1(gi + o + 9.1)) - gf; float d = dot(p, p); if (d < d1) { d2 = d1; d1 = d; id = h1(gi + o + 3.3); } else if (d < d2) d2 = d; }
+        float edgeV = 1.0 - smoothstep(0.0, 0.06, sqrt(d2) - sqrt(d1)), face = 0.25 + 0.75 * id, bz = pow(fbm(vec2((a2 * 3.0 + 2.2 * log(q + 0.05) - tt * 1.6) * 2.0, q * 9.0)), 3.0) * 1.6;
+        float crd = (an + tt * 0.2 * v_q.y) * 7.639, dd = fract(crd) - 0.5, hh = h1(vec2(floor(crd), 11.0)), rb = (q - 0.86) / 0.04;
+        float rune = step(abs(rb), 1.0) * max(smoothstep(0.08, 0.02, abs(dd)) * step(0.3, hh), smoothstep(0.1, 0.03, abs(abs(dd) - 0.25 - rb * 0.12))) * step(0.25, hh);
+        float spike = (pow(abs(cos(a2 * 6.0)), 40.0) * exp(-max(q - 1.0, 0.0) * 5.0) + pow(abs(cos(a2 * 12.0 + 0.26)), 60.0) * exp(-max(q - 1.0, 0.0) * 9.0) * 0.6) * step(1.0, q), disc = 1.0 - smoothstep(0.92, 1.0, q), fres = pow(q, 4.0) * disc;
+        vec3 body = mix(zCB, zSA, face * (1.0 - q * 0.5)) * (0.35 + 0.3 * face) + zCY * edgeV * 0.5;
+        L = ((body + zIW * (trunk + br) * grow * 1.1 + zIW * bz * 0.45 + zCY * fres * 0.7) * disc + (zCY * rune * 1.1 + mix(zCY, zIW, 0.5) * spike * 0.9 + zSA * exp(-max(q - 1.0, 0.0) * 6.0) * step(1.0, q) * 0.25) * op) * v_q.z; L *= 1.0 - smoothstep(0.9, 1.0, r); }
+      else if (v_k < 468.5) { // 468 a bevelled astrolabe ring, solid (the quad's axes tilt it into an ellipse): metal v_c with a flat top and bevelled edges lit from above-left, two grooves, engraved glyphs and gem nodes glowing (orange on gold, cyan on platinum); v_q.x its inner radius, v_q.y its style (0 plain, 1 solar blades, 2 frost spikes, 3 a broken arc: the fraction its span) and v_q.z its turn
+        float ri = clamp(v_q.x, 0.3, 0.9), ro = 0.86, sty = floor(v_q.y + 0.001), spn = fract(v_q.y), a2 = an - v_q.z, mid = (ri + ro) * 0.5, hw = (ro - ri) * 0.5, s = (r - mid) / hw, band = 1.0 - smoothstep(0.9, 1.0, abs(s)), tooth = 0.0, nt = sty < 1.5 ? 12.0 : 16.0, ta = fract(a2 * nt / 6.2831853) - 0.5;
+        if (sty > 0.5 && sty < 2.5) { float len = sty < 1.5 ? 0.12 : 0.11 * (0.6 + 0.4 * step(0.5, fract(floor(a2 * nt / 6.2831853) * 0.5))), x = (r - ro) / len; tooth = step(0.0, x) * (1.0 - smoothstep(0.85, 1.0, x)) * (1.0 - smoothstep(0.7, 1.0, abs(ta) / max(0.01, (sty < 1.5 ? 0.28 : 0.16) * (1.0 - x)))); }
+        float cov = max(band, tooth); if (sty > 2.5) cov *= 1.0 - smoothstep(spn * 3.14159 - 0.06, spn * 3.14159, abs(a2));
+        if (cov < 0.01) { gl_FragColor = vec4(0.0); return; }
+        float slope = s < -0.55 ? (s + 0.55) / 0.45 : (s > 0.55 ? (s - 0.55) / 0.45 : 0.0); vec2 rd = u / max(r, 0.001); vec3 nn = normalize(vec3(rd * slope * 1.4, 1.0));
+        if (tooth > band) nn = normalize(vec3(vec2(-rd.y, rd.x) * sign(ta) * 0.9 + rd * 0.3, 1.0));
+        vec3 Ld = normalize(vec3(-0.45, -0.7, 0.6)), Hv = normalize(Ld + vec3(0.0, 0.0, 1.0)); float dif = 0.3 + 0.7 * max(dot(nn, Ld), 0.0), spc = pow(max(dot(nn, Hv), 0.0), 28.0), groove = 1.0 - 0.55 * exp(-sq((abs(s) - 0.5) / 0.06)) * band;
+        float crd = a2 * 11.459, dd = fract(crd) - 0.5, hh = h1(vec2(floor(crd), sty + 3.0)), glyph = band * step(abs(s), 0.32) * step(0.3, hh) * max(smoothstep(0.1, 0.03, abs(dd)), smoothstep(0.12, 0.04, abs(s * 0.6 - dd * (hh > 0.6 ? 1.0 : -1.0))) * step(abs(dd), 0.4));
+        float node = band * exp(-sq((fract(a2 * 1.2732 + 0.5) - 0.5) / 0.06)) * exp(-sq(s / 0.35)); vec3 eC = sty > 1.5 && sty < 2.5 ? zCY : zOR, env = mix(col * 0.25, mix(col, vec3(1.0), 0.4), 0.5 - 0.5 * nn.y);
+        vec3 C = col * dif * groove * 0.75 + env * 0.25 + mix(col, vec3(1.0), 0.6) * spc * 0.9 + eC * (glyph * 0.8 + node * 1.4); float A = cov * v_c.a; gl_FragColor = vec4(min(C, vec3(1.0)) * A, A); return; }
+      else if (v_k < 469.5) { // 469 a torrent of fire (uv.x -1 the mouth .. 1 where it lands, uv.y across, bent by v_q.x): widening, turbulent and rolling outward, a white-hot heart, curling plasma filaments, embers thrown off its edges, a bloom where it lands; v_q.y seed, v_q.z strength
+        float x = u.x, s = x * 0.5 + 0.5, yb = u.y - v_q.x * (1.0 - x * x), w = 0.14 + 0.7 * pow(s, 0.75), tb = fbm(vec2(x * 3.5 - tt * 6.0 + v_q.y, yb / w * 1.4 + tt * 0.7)), tb2 = fbm(vec2(x * 8.0 - tt * 10.0, yb / w * 3.0 - v_q.y));
+        float yy = yb / (w * (0.75 + 0.45 * tb)), body = exp(-yy * yy * 2.2), core = exp(-sq(yb / (w * 0.22))) * (1.0 - 0.6 * s), fil = 0.0;
+        for (int i = 0; i < 3; i++) { float fi = float(i); fil += exp(-sq((yb / w - 0.55 * sin(x * (6.0 + fi * 3.0) - tt * (9.0 + fi * 2.0) + fi * 2.1 + v_q.y)) / 0.07)) * (0.4 + 0.6 * tb2); }
+        float emb = pow(n2(vec2(x * 30.0 - tt * 18.0, yb / w * 9.0 + v_q.y)), 14.0) * 6.0 * smoothstep(0.6, 1.4, abs(yy)), k = clamp(0.25 + 1.25 * body * (0.55 + 0.6 * tb) + core - 0.35 * s, 0.0, 2.2);
+        vec3 hc = k < 1.0 ? mix(zCR * 0.7, zOR, k) : mix(zOR, zWH, min(1.0, k - 1.0)); float ends = smoothstep(-1.0, -0.88, x) * (1.0 - smoothstep(0.8, 1.0, x)), splash = exp(-sq((x - 0.82) / 0.12)) * exp(-yb * yb / (w * w) * 0.8) * 0.6;
+        L = (hc * (body * (0.6 + 0.5 * tb) + core * 0.6) + zGD * fil * body * 0.5 + zOR * emb + mix(zOR, zWH, 0.4) * splash) * ends * v_q.z; L *= 1.0 - smoothstep(0.85, 1.0, abs(u.y)); }
+      else if (v_k < 470.5) { // 470 a cryogenic beam (as 469): a hard white-cyan core line, a sheath of hard-edged refracting facets, two strands of ice shards spiralling round its axis, freezing pulses, a slow mist round it, a cold flare where it lands
+        float x = u.x, s = x * 0.5 + 0.5, yb = u.y - v_q.x * (1.0 - x * x), w = 0.12 + 0.55 * pow(s, 0.9), yy = yb / w, core = exp(-sq(yb / 0.025)) * (0.7 + 0.3 * sin(x * 40.0 - tt * 30.0)), sheath = exp(-yy * yy * 3.0);
+        float fb = floor(x * 6.0 - tt * 1.5 + yy * 1.5 + v_q.y), fl = step(abs(yy), 0.75) * (0.45 + 0.55 * h1(vec2(fb, 3.0))), hel = 0.0;
+        for (int i = 0; i < 2; i++) { float fi = float(i), ph = x * 9.0 - tt * 7.0 + fi * 3.14159 + v_q.y, gg = fract(x * 14.0 - tt * 6.0 + fi * 0.5) - 0.5; hel += exp(-sq((yy - 0.62 * sin(ph)) / 0.1)) * pow(max(0.0, 1.0 - abs(gg) * 2.0), 6.0) * (0.45 + 0.55 * step(0.0, cos(ph))); }
+        float frost = pow(0.5 + 0.5 * cos((x * 10.0 - tt * 2.0) * 3.14159), 18.0) * exp(-yy * yy * 0.8) * 0.5, mist = fbm(vec2(x * 2.0 - tt * 1.2, yy * 1.2 + v_q.y)) * exp(-sq(yy / 1.25)) * smoothstep(0.5, 1.2, abs(yy) + 0.3);
+        float ends = smoothstep(-1.0, -0.9, x) * (1.0 - smoothstep(0.82, 1.0, x)), tip = exp(-sq((x - 0.84) / 0.08)) * exp(-yy * yy) * 0.7;
+        L = (zIW * core * 1.2 + mix(zSA, zCY, 0.6) * sheath * fl * 0.65 + zIW * hel * 0.9 + zCY * frost + mix(zCB, zCY, 0.4) * mist * 0.45 + zIW * tip) * ends * v_q.z; L *= 1.0 - smoothstep(0.85, 1.0, abs(u.y)); }
+      else if (v_k < 471.5) { // 471 the divided battlefield (a unit disc on the floor; uv.x < 0 fire, > 0 ice): a cracked crust molten in its cracks | frost feathers spreading with glints, a wavering white seam between; v_q.x its radius, v_q.y the fire's heat (cools in the end), v_q.z strength
+        float R0 = max(0.02, v_q.x), q = r / R0, inF = 1.0 - smoothstep(0.7, 1.0, q), bx = u.x + 0.06 * (n2(vec2(u.y * 3.0, tt * 0.4)) - 0.5), fire = smoothstep(0.02, -0.04, bx), ice = smoothstep(-0.02, 0.04, bx), ht = v_q.y; vec3 fc = vec3(0.0), ic = vec3(0.0);
+        if (fire > 0.0) { vec2 g = u * 6.0; float cr = abs(fbm(g + vec2(3.0, 0.0)) - 0.5), cr2 = abs(n2(g * 3.1 + 7.0) - 0.5), crack = exp(-sq(cr / 0.022)) + 0.45 * exp(-sq(cr2 / 0.02)) * step(0.5, n2(g * 0.7)), pul = 0.7 + 0.3 * sin(tt * 2.2 + cr * 40.0);
+          fc = ramp(clamp(ht * (0.2 + 0.85 * crack * pul), 0.0, 2.0) * 0.62) * (0.12 + crack * 0.9) + zCR * 0.07 * ht; }   /* (the crust dark, only its cracks molten) */
+        if (ice > 0.0) { vec2 h = u * 4.0, hi = floor(h), hf = fract(h) - 0.5; float aa = atan(hf.y, hf.x) + h1(hi) * 6.0, rr = length(hf) / (0.6 + 0.4 * h1(hi + 3.0)), sec = 1.0471976, af = abs(mod(aa + sec * 0.5, sec) - sec * 0.5), on = step(0.35, h1(hi + 7.0)) * smoothstep(0.3, 0.6, n2(u * 2.2 + 4.0));
+          float den = (exp(-sq(rr * sin(af) / 0.018)) * step(rr, 0.45) + 0.6 * exp(-sq((rr * sin(af) - (rr * cos(af) - 0.2) * 0.6) / 0.018)) * step(0.2, rr * cos(af)) * step(rr, 0.42)) * on, gl2 = pow(n2(u * 40.0 + tt * 0.5), 20.0) * 3.0;
+          ic = zSA * 0.1 + mix(zCY, zIW, 0.5) * den * 0.5 + zIW * gl2 + zCB * 0.08; }
+        float seam = exp(-sq(bx / 0.025)) * (0.6 + 0.4 * n2(vec2(u.y * 8.0, tt * 2.0)));
+        L = (fc * fire + ic * ice + zWH * seam * 0.5) * inF * v_q.z; L *= 1.0 - smoothstep(0.9, 1.0, r); }
+      else if (v_k < 472.5) { // 472 an artificial sun (a unit disc; its radius v_q.x of it): a turning sphere of warped granulation, limb-darkened, a hot rim, prominences and a corona; v_q.y heat (0..1.5), v_q.z strength
+        float R0 = max(v_q.x, 0.02), q = r / R0, ht = clamp(v_q.y, 0.0, 1.5), zz = sqrt(max(0.0, 1.0 - q * q)); vec3 sp = vec3(u / R0, zz); float lon = atan(sp.x, sp.z) + tt * 0.35;
+        vec2 sc = vec2(lon * 2.0, sp.y * 3.0), wv = vec2(fbm(sc * 1.5 + tt * 0.2), fbm(sc * 1.5 + 5.0 - tt * 0.25)); float gran = fbm(sc * 3.0 + wv * 2.0), cel = fbm(sc * 7.0 + wv * 3.0 + tt * 0.4);
+        float k = clamp(0.5 + 0.7 * gran + 0.35 * cel + 0.5 * ht - 0.35 * (1.0 - zz), 0.0, 2.3); vec3 hc = k < 1.0 ? mix(zCR, zOR, k) : mix(zOR, zWH, min(1.0, k - 1.0));
+        float disc = 1.0 - smoothstep(0.97, 1.0, q), limb = 0.45 + 0.55 * pow(zz, 0.5), prom = pow(fbm(vec2(an * 5.0 + tt * 0.5 + v_q.y * 3.0, q * 4.0 - tt * 1.2)), 3.0) * exp(-sq((q - 1.1) / 0.1)) * 2.4 * step(0.97, q);
+        float cor = exp(-max(q - 1.0, 0.0) * 3.2) * step(1.0, q) * (0.35 + 0.5 * fbm(vec2(an * 9.0, tt * 0.7)));
+        L = (hc * disc * limb * (0.7 + 0.4 * cel) + mix(zOR, zWH, 0.3) * exp(-sq((q - 1.0) / 0.03)) * 0.5 + mix(zCR, zOR, 0.6) * (prom + cor * (0.5 + 0.4 * ht))) * v_q.z; L *= 1.0 - smoothstep(0.88, 1.0, r); }
+      else if (v_k < 473.5) { // 473 a frozen celestial sphere (a unit disc; its radius v_q.x of it): a turning planet of crystal facets and ice strata, fractures, a fresnel rim and halo, lit from the angle v_q.y (the sun's side warmed); v_q.z strength
+        float R0 = max(v_q.x, 0.02), q = r / R0, zz = sqrt(max(0.0, 1.0 - q * q)); vec3 sp = vec3(u / R0, zz); float c0 = cos(tt * 0.3), s0 = sin(tt * 0.3); vec3 rp = vec3(sp.x * c0 + sp.z * s0, sp.y, -sp.x * s0 + sp.z * c0);
+        vec2 g = rp.xy / (rp.z + 1.4) * 6.0, gi = floor(g), gf = fract(g); float d1 = 8.0, d2 = 8.0, id = 0.0;
+        for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) { vec2 o = vec2(float(i), float(j)), p = o + vec2(h1(gi + o), h1(gi + o + 5.7)) - gf; float d = dot(p, p); if (d < d1) { d2 = d1; d1 = d; id = h1(gi + o + 1.3); } else if (d < d2) d2 = d; }
+        float facet = 0.35 + 0.65 * id, seam = 1.0 - smoothstep(0.0, 0.08, sqrt(d2) - sqrt(d1)), strata = 0.5 + 0.5 * sin(rp.y * 14.0 + fbm(rp.xz * 3.0) * 4.0), frac2 = exp(-sq((fbm(rp.xy * 4.0 + 2.0) - 0.5) / 0.02));
+        vec3 Ls = normalize(vec3(cos(v_q.y), sin(v_q.y), 0.55)); float lit = max(dot(sp, Ls), 0.0), fres = pow(1.0 - zz, 2.5), disc = 1.0 - smoothstep(0.97, 1.0, q);
+        vec3 base = mix(zCB, zSA, facet * 0.7 + strata * 0.3) * (0.3 + 0.7 * lit) + zIW * seam * 0.35 + zIW * frac2 * 0.5 + zCY * fres * 0.9 + zOR * pow(lit, 6.0) * 0.18;
+        L = (base * disc + mix(zCY, zIW, 0.4) * (exp(-max(q - 1.0, 0.0) * 7.0) * step(1.0, q) * 0.45 + exp(-sq((q - 1.0) / 0.025)) * 0.6)) * v_q.z; L *= 1.0 - smoothstep(0.88, 1.0, r); }
+      else if (v_k < 474.5) { // 474 a white singularity (a unit disc; its heart's radius v_q.x): a white core and rays, an orange mechanical ring of segments and ticks turning one way, a cyan one the other; v_q.y the turn's direction, v_q.z strength
+        float R0 = max(v_q.x, 0.02), q = r / R0, core = exp(-q * q * 2.5) * 1.3 + exp(-q * 0.9) * 0.25, a1 = an + tt * 2.2 * v_q.y, a2 = an - tt * 1.6 * v_q.y;
+        float rg1 = exp(-sq((q - 1.8) / 0.09)) * step(0.25, fract(a1 * 1.9099)), tk1 = exp(-sq((q - 2.1) / 0.12)) * pow(abs(cos(a1 * 12.0)), 30.0), rg2 = exp(-sq((q - 2.7) / 0.08)) * step(0.3, fract(a2 * 1.4324 + 0.2)), tk2 = exp(-sq((q - 3.05) / 0.14)) * pow(abs(cos(a2 * 18.0)), 30.0);
+        float rays = pow(abs(cos(an * 3.0 + tt * 0.5)), 40.0) * exp(-q * 0.5) * 0.5 + pow(abs(cos(an * 3.0 + 0.52 - tt * 0.4)), 40.0) * exp(-q * 0.6) * 0.4;
+        L = (zWH * (core + rays) + zOR * (rg1 + tk1) * 1.1 + zCY * (rg2 + tk2) * 1.1) * v_q.z; L *= 1.0 - smoothstep(0.85, 1.0, r); }
+      else if (v_k < 475.5) { // 475 the pillar of white energy (uv.x across, uv.y -1 its top .. 1 its foot): a white core, a strand of fire and a strand of ice winding round it, its foot flaring; reaching down to v_q.x (0..1) with a bright head; v_q.y seed, v_q.z strength
+        float yy = u.y * 0.5 + 0.5, w = 0.2 + 0.1 * smoothstep(0.85, 1.0, yy), x = u.x / w, core = exp(-x * x * 1.6) * (0.8 + 0.2 * fbm(vec2(x * 2.0, u.y * 6.0 - tt * 8.0))), ph = u.y * 9.0 - tt * 10.0 + v_q.y;
+        float s1 = exp(-sq((x - 0.9 * sin(ph)) / 0.22)) * (0.55 + 0.45 * step(0.0, cos(ph))), s2 = exp(-sq((x + 0.9 * sin(ph)) / 0.22)) * (0.55 + 0.45 * step(cos(ph), 0.0)), halo = exp(-sq(u.x / 0.7)) * 0.25;
+        float d = clamp(v_q.x, 0.0, 1.0), reach = 1.0 - smoothstep(d - 0.04, d, yy), head = exp(-sq((yy - d) / 0.03)) * exp(-x * x) * step(d, 0.99), foot = exp(-sq((yy - 1.0) / 0.08)) * exp(-u.x * u.x * 2.0) * 0.8 * step(0.99, d);
+        L = ((zWH * core * 1.2 + zOR * s1 * 0.9 + zCY * s2 * 0.9 + mix(zGD, zIW, 0.5) * halo) * reach + zWH * (head * 1.5 + foot)) * smoothstep(0.0, 0.12, yy) * v_q.z; L *= 1.0 - smoothstep(0.85, 1.0, abs(u.x)); }
+      else if (v_k < 476.5) { // 476 a ring of fire across the floor (a unit disc): its front at v_q.x, tongues of flame licking out of it, a burning trail inside; v_q.y seed, v_q.z strength
+        float R0 = v_q.x, h = r - R0, fl = fbm(vec2(an * 8.0 + v_q.y, r * 5.0 - tt * 4.0)), fl2 = fbm(vec2(an * 19.0 - v_q.y, tt * 2.0)), crest = exp(-sq(h / (0.03 + 0.03 * fl)));
+        float tng = pow(fl, 2.5) * smoothstep(-0.02, 0.0, h) * exp(-max(h, 0.0) / (0.04 + 0.1 * fl2)) * 1.8, trail = step(h, 0.0) * exp(h / 0.1) * 0.35 * fl, k = clamp(0.5 + 1.1 * crest + 0.6 * tng * fl2, 0.0, 2.1);
+        vec3 hc = k < 1.0 ? mix(zCR, zOR, k) : mix(zOR, zWH, min(1.0, k - 1.0)); L = (hc * (crest + tng) + zCR * trail) * v_q.z * (1.0 - smoothstep(0.86, 1.0, R0)); L *= 1.0 - smoothstep(0.95, 1.0, r); }
+      else if (v_k < 477.5) { // 477 a crystalline shockwave across the floor (a unit disc): a hard white front at v_q.x, crystal spikes jutting out of it (a lit face and a shaded one), a refracting band and glints behind; v_q.y seed, v_q.z strength
+        float R0 = v_q.x, h = r - R0, cc = an * 3.8197 + v_q.y * 7.0, hh = h1(vec2(floor(cc), 2.0)), ca = fract(cc) - 0.5, sl = 0.06 + 0.12 * hh;
+        float spk = step(0.0, h) * step(h, sl) * step(abs(ca), 0.42 * (1.0 - h / sl)) * step(0.35, hh), front = exp(-sq(h / 0.012)) * 1.2, band = step(h, 0.0) * exp(h / 0.05) * (0.35 + 0.3 * step(0.5, fract(r * 30.0 - tt)));
+        float glint = pow(n2(vec2(an * 60.0, r * 20.0 - tt * 3.0)), 18.0) * 4.0 * step(h, 0.0) * exp(h / 0.1);
+        L = (zIW * front + mix(zSA, zCY, step(0.0, ca)) * spk * 1.1 + zIW * spk * exp(-sq(ca / 0.04)) * 0.8 + mix(zCB, zCY, 0.6) * band + zIW * glint) * v_q.z * (1.0 - smoothstep(0.86, 1.0, R0)); L *= 1.0 - smoothstep(0.95, 1.0, r); }
+      else if (v_k < 478.5) { // 478 an ice formation, solid (uv.x across, uv.y -1 above .. 1 its foot): four crystal prisms of two faces and a ridge rising to v_q.z of their height, deep sapphire to white, cracks spreading as v_q.x goes 0..1 and the pieces thinning away 1..2; v_q.y seed
+        float yy = u.y * 0.5 + 0.5, gr = clamp(v_q.z, 0.0, 1.0), fr = clamp(v_q.x, 0.0, 2.0), cov = 0.0; vec3 C = vec3(0.0);
+        for (int i = 0; i < 4; i++) { float fi = float(i), hs = h1(vec2(fi, v_q.y)), xc = (fi - 1.5) * 0.42 + (hs - 0.5) * 0.2, hgt = (0.45 + 0.55 * h1(vec2(fi + 4.0, v_q.y))) * gr, wd = 0.12 + 0.1 * hs, ln = (hs - 0.5) * 0.5;
+          float ty = (yy - 1.0 + hgt) / max(hgt, 0.001), xr = (u.x - xc - ln * (1.0 - ty) * hgt) / (wd * clamp(ty * 1.6, 0.0, 1.0) + 0.001), inS = step(0.0, ty) * step(ty, 1.0) * step(abs(xr), 1.0);
+          if (inS > 0.5 && cov < 0.5) { float face = xr < 0.0 ? 0.45 : 0.85, ridge = exp(-sq(xr / 0.08)), edL = exp(-sq((abs(xr) - 1.0) / 0.08)), crk = exp(-sq((fbm(vec2(xr * 2.0 + fi, ty * 3.0) + v_q.y) - 0.5) / 0.03)) * smoothstep(ty - 0.1, ty, fr);
+            C = mix(zCB, zSA, face * (0.6 + 0.4 * ty)) * (0.55 + 0.45 * ty) + zIW * (ridge * 0.6 + edL * 0.8 + 0.14 * face + 0.2 * pow(abs(xr), 3.0)) + zCY * (1.0 - ty) * 0.3 + zIW * crk * 0.9; cov = 0.8 * (1.0 - 0.6 * smoothstep(1.0, 2.0, fr)) * (1.0 - step(1.0, fr) * step(0.5, h1(floor(vec2(xr * 3.0, ty * 4.0)) + fi))); } }
+        float A = cov * v_c.a * (1.0 - smoothstep(0.9, 1.0, abs(u.x))); gl_FragColor = vec4(min(C, vec3(1.0)) * A, A); return; }
+      else { // 479 a field of motes (a unit disc), drawn in one quad: v_q.z > 0 embers rising and twinkling (crimson to white), < 0 ice fragments falling and turning (sharp diamonds, sapphire to white), |v_q.z| the density; v_q.x its age 0..1 (it spreads and thins), v_q.y seed
+        float ag = clamp(v_q.x, 0.0, 1.0), dn = abs(v_q.z), ic = step(v_q.z, 0.0); vec3 ec = vec3(0.0);
+        for (int i = 0; i < 3; i++) { float fi = float(i); vec2 p = u * (6.0 + fi * 5.0) * (1.0 - 0.4 * ag) + vec2(v_q.y * (fi + 1.0), (ic > 0.5 ? -1.0 : 1.0) * tt * (0.5 + fi * 0.3) + ag * 2.0), gi = floor(p), gf = fract(p) - 0.5;
+          float hh = h1(gi + fi * 13.0), on = step(1.0 - dn * 0.35, hh); vec2 d = gf - (vec2(h1(gi + 2.0), h1(gi + 5.0)) - 0.5) * 0.6; float tw = 0.6 + 0.4 * sin(tt * (4.0 + hh * 6.0) + hh * 30.0);
+          if (ic > 0.5) { float c0 = cos(hh * 6.0 + tt * 2.0), s0 = sin(hh * 6.0 + tt * 2.0); vec2 e = vec2(c0 * d.x + s0 * d.y, -s0 * d.x + c0 * d.y); ec += (hh > 0.9 ? zIW : (hh > 0.7 ? zCY : zSA)) * on * (1.0 - smoothstep(0.7, 1.0, abs(e.x) / 0.05 + abs(e.y) / 0.13)) * tw * 1.3; }
+          else ec += (hh > 0.93 ? zWH : (hh > 0.75 ? zGD : (hh > 0.6 ? zOR : zCR))) * on * exp(-dot(d, d) / (0.004 + 0.003 * fi)) * tw; }
+        L = ec * 1.3 * (1.0 - ag * ag) * (1.0 - smoothstep(0.6, 1.0, r)); } }
+    /*</RZU-FX>*/
     /*<SS-FX lights 408..411 (v463 SS: 20s5-sep-sky.js, the Sepulchre of Borrowed Hours' far views)>*/
     else if (v_k > 407.5 && v_k < 411.5) { float tt = u_t;
       if (v_k < 408.5) { // 408 shafts of light falling through dust (uv.x across -1..1, uv.y -1 the source .. 1 the foot): a few soft rays of their own widths and strengths, breathing slowly, widening as they fall, motes glinting in them; v_q.x seed, v_q.y the breathing's pace; v_c its colour
@@ -2817,7 +3066,7 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
   const Q = { lit: new Float32Array(12 * 6 * 600), nl: 0, smk: new Float32Array(12 * 6 * 200), ns: 0, wlit: new Float32Array(12 * 6 * 200), nwl: 0, wsmk: new Float32Array(12 * 6 * 100), nws: 0, get windOK() { return !!PRW; }, a: 1, b: 0, c0: 0, d: 1, e: 0, f: 0, k: 1, t: 0, W: 0, Hh: 0, pet: [0, 0, 0], gpu: true,
     X(x, y) { return this.a * x + this.c0 * y + this.e; }, Y(x, y) { return this.b * x + this.d * y + this.f; },
     /* one quad: centre (screen px), half-axes (ux, uy), (vx, vy) in screen px */
-    quad(kind, x, y, ux, uy, vx, vy, col, al, q0, q1, q2) { if (!(al > 0.004)) return; const solid = (kind >= 9 && kind <= 12) || kind === 16 || kind === 24 || kind === 25 || kind === 33 || kind === 36 || kind === 39 || kind === 40 || kind === 41 /* v402 */ || (kind >= 45 && kind <= 47) || kind === 49 || kind === 52 /* v404 LT */ || (kind >= 53 && kind <= 58 && kind !== 55) /* v404 DK */ || (kind >= 60 && kind <= 63) /* v409 DK2 */ || kind === 68 || kind === 69 /* v412 LM */ || kind === 71 /* v391 U4 */ || kind === 80 || kind === 82 || (kind >= 84 && kind <= 87) /* v415 EB */ || (kind >= 73 && kind <= 75) || kind === 78 /* v415 EA */ || kind === 89 || kind === 90 /* v415 TI */ || (kind >= 104 && kind <= 106) /* v417 BR */ || kind === 96 || kind === 97 /* v417 GH */ || kind === 112 || kind === 115 /* v417 MH */ || kind === 124 /* v418 AB */ || kind === 137 /* v420 GC */ || kind === 144 || kind === 145 /* v420 CB */ || kind === 216 || kind === 218 /* v430 BW */ || kind === 244 /* v433 DS */ || kind === 360 || kind === 362 || kind === 365 /* v450 MD */ || kind === 368 || kind === 371 || kind === 374 /* v451 GE */ || kind === 386 || kind === 387 /* v455 GE2 */ || kind === 379 /* v451 TM */ || (kind >= 432 && kind <= 435) /* v463 SA: Vaul's tells, stains of light on the bright marble */, wd =kind >= 33 && kind <= 40;
+    quad(kind, x, y, ux, uy, vx, vy, col, al, q0, q1, q2) { if (!(al > 0.004)) return; const solid = (kind >= 9 && kind <= 12) || kind === 16 || kind === 24 || kind === 25 || kind === 33 || kind === 36 || kind === 39 || kind === 40 || kind === 41 /* v402 */ || (kind >= 45 && kind <= 47) || kind === 49 || kind === 52 /* v404 LT */ || (kind >= 53 && kind <= 58 && kind !== 55) /* v404 DK */ || (kind >= 60 && kind <= 63) /* v409 DK2 */ || kind === 68 || kind === 69 /* v412 LM */ || kind === 71 /* v391 U4 */ || kind === 80 || kind === 82 || (kind >= 84 && kind <= 87) /* v415 EB */ || (kind >= 73 && kind <= 75) || kind === 78 /* v415 EA */ || kind === 89 || kind === 90 /* v415 TI */ || (kind >= 104 && kind <= 106) /* v417 BR */ || kind === 96 || kind === 97 /* v417 GH */ || kind === 112 || kind === 115 /* v417 MH */ || kind === 124 /* v418 AB */ || kind === 137 /* v420 GC */ || kind === 144 || kind === 145 /* v420 CB */ || kind === 216 || kind === 218 /* v430 BW */ || kind === 244 /* v433 DS */ || kind === 360 || kind === 362 || kind === 365 /* v450 MD */ || kind === 368 || kind === 371 || kind === 374 /* v451 GE */ || kind === 386 || kind === 387 /* v455 GE2 */ || kind === 379 /* v451 TM */ || (kind >= 432 && kind <= 435) /* v463 SA: Vaul's tells, stains of light on the bright marble */ || kind === 468 || kind === 478 /* v464 RZ-U: Raziel's astrolabe rings, ice formations */, wd =kind >= 33 && kind <= 40;
       const ka = wd ? (solid ? 'wsmk' : 'wlit') : (solid ? 'smk' : 'lit'), kn = wd ? (solid ? 'nws' : 'nwl') : (solid ? 'ns' : 'nl'); let A = this[ka]; const n = this[kn];
       if ((n + 6) * 12 > A.length) { const q = new Float32Array(A.length * 2); q.set(A); A = q; this[ka] = q; }
       const cx = this.X(x, y), cy = this.Y(x, y), a = this.a, b = this.b, c = this.c0, d = this.d, Ux = a * ux + c * uy, Uy = b * ux + d * uy, Vx = a * vx + c * vy, Vy = b * vx + d * vy, C = rgbOf(col); let o = n * 12;

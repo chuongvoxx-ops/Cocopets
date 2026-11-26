@@ -28,10 +28,15 @@ const ANIMAS = {
     tag: 'Zodiac Anima No. 02 · Earth / Metal · a colossal biomechanical god and living citadel that anchors the heavens to the earth.',
     skill: 'An immovable juggernaut that picks its power for the fight: Thronebreaker Rush charges through far monsters, Crown of Burdens slows and gathers a crowd under falling rings, Citadel Carapace shields your pet and stores the blows for a crushing retaliation, and Graviton Stampede pounds everything clustered round it.',
     finisher: 'Dominion of the World Pillar', finDesc: 'Belial seizes the world\'s gravity: colossal pillars rise round the room, everything is crushed inward and two great pulses of golden force strike every monster, leaving them slowed and taking more damage.' },
-  gemini: { sign: 'Gemini', name: 'Raziel', title: 'The Celestial', role: 'Blaster', realm: 'heaven', el: 'prism', gem: 'sapphire', floor: 13, opp: 'sagittarius',
-    color: '#FFD36B', glow: '#9CC8FF', dark: '#1E2B5C', forms: ['Sun & Moon Wyrmlings', 'Twin Star Dragons', 'Raziel the Celestial'],
-    skill: 'The twin celestial dragons of sun and moon coil round your pet, taking turns firing piercing beams of sunlight and moonlight.',
-    finisher: 'Twin Helix Nova', finDesc: 'The twins spiral into the sky as one double helix, braid sunlight and moonlight into a single beam and crash it down as a vast yin-yang nova across the room.' },
+  // v464 RZ-M: Raziel remade as The Twin Revelation, Zodiac Anima No. 03: a colossal two-headed biomechanical dragon of Fire (Lux, its left
+  // head) and Ice (Umbra, its right), Fire / Ice, a Hybrid DPS and Battlefield Controller (the same 'gemini' key, so saves, gems, ascension
+  // and the Gemini gate carry over). Its forms are The Twin Revelation, The Mirrored Sovereign and The Divine Equation; its model is 02f7
+  gemini: { sign: 'Gemini', name: 'Raziel', title: 'The Twin Revelation', role: 'Hybrid DPS · Battlefield Controller', realm: 'heaven', el: 'fire', el2: 'frost', elems: 'Fire / Ice', no: 3, gem: 'sapphire', floor: 13, opp: 'sagittarius',
+    color: '#FFB347', glow: '#8FDCFF', dark: '#141C34', forms: ['The Twin Revelation', 'The Mirrored Sovereign', 'The Divine Equation'],
+    tag: 'Zodiac Anima No. 03 · Fire / Ice · an ancient celestial machine with two minds: Lux of eternal flame and Umbra of absolute cold, two opposing heavens sharing one divine body.',
+    // v464 RZ-A: its powers, Dual Alignment, Thermal Shock and the finisher (20g6-raziel-moves.js, 20g6b-raziel-ultimate.js)
+    skill: 'Two minds, one body: Lux breathes fire, Umbra breathes ice, and Raziel picks its power for the fight. Twin Fang Protocol crosses a stream of fire and a blizzard over the monsters, Mirror Divide opens a burning and a freezing domain that drift together, Revelation Circuit joins its two reactors to strengthen every attack (yours too), and Binary Cataclysm hurls a plasma sun and an ice planet that collide. Fire and Ice on the same monster set off a Thermal Shock; it shifts between Concord (both heads on one target) and Dissonance (each head on its own).',
+    finisher: 'The Book of Two Heavens', finDesc: 'Raziel\'s crowns open into a heaven of fire and a heaven of frost, spectral dragons pour fire and ice across the field, and its two cores collide into a white singularity: a pillar of light and a great Thermal Shock eruption.' },
   // v418 AB: Abaddon remade as The Eternal Moonlight, Zodiac Anima No. 04: an ancient biomechanical lunar god of porcelain, platinum
   // and obsidian, Water / Shadow, a Guardian (the same 'cancer' key, so saves, gems and ascension carry over). Its forms are
   // the sealed lunar shell, the half-unfolded warden and the full god; its four powers and its finisher are 20g2-abaddon-moves.js
@@ -89,7 +94,7 @@ ANIMA_ORDER.forEach(id => { ANIMAS[id].id = id; });
 const RESONANCE = {
   'aries|libra': { name: 'Judgement Pyre', desc: 'Uriel weighs every monster and Samael sets the guilty ablaze: a pillar of hellfire on each one.' },
   'taurus|scorpio': { name: 'Fortress of Rot', desc: 'Belial\'s golden fortress shields your pet while Asmodeus\'s plague erupts in every monster on the floor.' },
-  'gemini|sagittarius': { name: 'Starfall Volley', desc: 'Sun and moon beams cross the room as Raphael looses a thousand star arrows through them.' },
+  'gemini|sagittarius': { name: 'Starfall Volley', desc: 'Streams of fire and ice cross the room as Raphael looses a thousand star arrows through them.' },   // v464 RZ-A: Fire / Ice
   'cancer|capricorn': { name: 'Abyssal Storm', desc: 'Abaddon\'s lunar tide drags every monster down and weakens it; Mammon\'s lightning strikes each one through the water.' },   // v418 AB
   'leo|aquarius': { name: 'Solar Tide', desc: 'Sunlight and celestial water become one radiant wave that crushes monsters and restores your pet.' },
   'virgo|pisces': { name: 'Eternal Covenant', desc: 'Holy light and unbound tides: your pet is fully healed and freed, and every monster is smitten.' },

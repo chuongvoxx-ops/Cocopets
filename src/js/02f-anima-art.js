@@ -998,6 +998,11 @@ const AnimaArt = (() => {
       if (o.bloom || o.aura !== false) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = (o.alpha == null ? 1 : o.alpha) * (o.bloom ? 0.3 : 0.14); const gs = size * 0.85; blitSized(c, glowSprite('#FF2A4A'), x - gs, y - size * 0.5 - gs, gs * 2, gs * 2); c.restore(); }
       if (ASMODEUS_GL.drawAnima(c, k, x, y, size, t, o)) return;
     }
+    // v464 RZ-M: Raziel, The Twin Revelation, is a real 3D model on the GPU (02f7); without it, the Gemini Anima's existing art below
+    if (id === 'gemini' && !o.legacy && typeof RAZIEL_GL !== 'undefined' && RAZIEL_GL.usable()) {
+      if (o.bloom || o.aura !== false) { c.save(); c.globalCompositeOperation = 'lighter'; const al = (o.alpha == null ? 1 : o.alpha) * (o.bloom ? 0.26 : 0.12), gs = size * 0.75; c.globalAlpha = al; blitSized(c, glowSprite('#FF8A3A'), x - size * 0.42 - gs, y - size * 0.55 - gs, gs * 2, gs * 2); blitSized(c, glowSprite('#3FA8FF'), x + size * 0.42 - gs, y - size * 0.55 - gs, gs * 2, gs * 2); c.restore(); }
+      if (RAZIEL_GL.drawAnima(c, k, x, y, size, t, o)) return;
+    }
     if (id === 'taurus' && o.yaw != null) o = Object.assign({}, o, { yaw: undefined });   // (v426 BL) the cel model keeps its own three-quarter view, like the GPU one
     if (typeof Anima3D !== 'undefined' && Anima3D.has(id) && !o.legacy) return draw3d(c, id, k, x, y, size, t, o);
     const p = P[id]; if (!p) return;
