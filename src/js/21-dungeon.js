@@ -156,7 +156,7 @@ function renderDungeon() {
     <section class="dun-crys" aria-label="Crystals">
       <span class="dc-gem">${ICON.crystal}</span>
       <div class="dc-copy"><b><span class="mono">${fmtNum(st.crystals || 0)}</span> crystals</b><span>For Animas, egg summons, evolving and ascending</span></div>
-      <button class="btn dc-buy" type="button" data-dun="crystals">${ICON.crystal}<span>Get ${fmtNum(CRYSTAL_PACK)}<small>${CRYSTAL_PRICE} · test purchase</small></span></button>
+      <button class="btn dc-buy" type="button" data-dun="crystals">${ICON.crystal}<span>Get crystals<small>${checkoutReady() ? 'Crystal packs' : st.devPay ? 'Mock checkout · dev' : 'Checkout not set up'}</small></span></button><!-- v460 META (07h) -->
     </section>
     <section class="dun-hero b-${F.biome}" style="--acc:${B.accent}">
       <div class="dun-art">${dunGateSVG(F)}</div>

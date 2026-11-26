@@ -8,14 +8,14 @@ const RARITY = [
   { name: 'Legendary', c: 'var(--r-legend)' },
 ];
 /* star rank: three stars is a common pet, four a good one, five a rare pet with powerful abilities (Secret counts as five),
-   six a golden Legendary: only an egg in a hundred, or one fusion of two five-stars in twenty */
+   six a golden Legendary: only an egg in a hundred, or one fusion of two five-stars in ten (v460: more five-stars, more) */
 const starsOf = r => r >= 5 ? 6 : r >= 3 ? 5 : r >= 2 ? 4 : 3;
 const starsHTML = (n, cls) => `<span class="stars${cls ? ' ' + cls : ''} s${n}" aria-label="${n} stars">${'★'.repeat(n)}</span>`;
 const CARD_STARS = { common: 3, rare: 3, epic: 4, legend: 5 };
 /* egg odds: 84% three-star, 10% four-star, 5% five-star, 1% six-star golden Legendary */
 const STAR_RATES = [[3, 84], [4, 10], [5, 5], [6, 1]];
 const PITY_N = 10;   // ten 10-egg summons in a row with no six-star: the next 10-egg summon brings one for certain
-const GOLD_FUSE = 0.05;   // the chance two five-stars fuse into a six-star
+const GOLD_FUSE = 0.10, GOLD_FUSE_STEP = 0.05;   // v460 META: two five-stars fuse into a six-star 10% of the time; each more five-star adds 5 points (no cap on how many, the chance stops at 100%)
 function rollStars(R) { R = R || Math.random; let r = R() * 100; for (const [s, w] of STAR_RATES) { r -= w; if (r < 0) return s; } return 3; }
 /* a genome of exactly this many stars: random forms are drawn until one lands in the tier */
 function summonGenome(stars, R) {

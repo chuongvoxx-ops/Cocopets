@@ -22,7 +22,7 @@ const path = require('path');
   await shot('hud');
   // tap the Team button (just right of the health box)
   const tap = await page.evaluate(() => { const cv = document.getElementById('arcCanvas'), rc = cv.getBoundingClientRect(), W = window.__pp.arc.W, x = rc.left + 10 + Math.min(150, W * 0.4) + 66, y = rc.top + 26; const e = t => new PointerEvent(t, { pointerId: 51, pointerType: 'touch', clientX: x, clientY: y, bubbles: true, cancelable: true, buttons: 1 }); cv.dispatchEvent(e('pointerdown')); cv.dispatchEvent(new PointerEvent('pointerup', { pointerId: 51, pointerType: 'touch', clientX: x, clientY: y, bubbles: true })); const sw = document.getElementById('sheetWrap'); return { open: !sw.hidden, paused: window.__pp.arc.paused, title: (document.getElementById('sheetTitle') || {}).textContent, note: !!document.querySelector('.tm-run'), lead: !!document.querySelector('[data-go="team-lead"]'), z: getComputedStyle(sw).zIndex }; });
-  console.log('  open', JSON.stringify(tap)); ok(tap.open && tap.paused && tap.title === 'Team' && tap.note && !tap.lead && +tap.z > 32, 'the Team button pauses the run and opens the Team sheet over it (no "Play as" mid-run)');
+  console.log('  open', JSON.stringify(tap)); ok(tap.open && tap.paused && /Team/.test(tap.title) && tap.note && !tap.lead && +tap.z > 32, 'the Team button pauses the run and opens the Team sheet over it (no "Play as" mid-run)');
   const t0 = await page.evaluate(() => window.__pp.arc.game._dbg.g.t); await page.waitForTimeout(800); const t1 = await page.evaluate(() => window.__pp.arc.game._dbg.g.t); ok(Math.abs(t1 - t0) < 0.05, 'the run is frozen while the sheet is open');
   await shot('sheet');
   // change things: take the last party pet out, put a resting one in; level the played pet up five

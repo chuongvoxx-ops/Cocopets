@@ -21,7 +21,7 @@ const path = require('path');
   const pet = n => S.others[n];
   // 1. the dock's Team button opens the Team sheet
   const dock = await page.evaluate(() => { const b = document.querySelector('#btnTeam'); const r = b && b.getBoundingClientRect(); return b ? { w: Math.round(r.width), txt: b.textContent.trim(), vis: r.width > 30 && r.height > 30 } : null; });
-  check(dock && dock.vis && /Team/.test(dock.txt), 'the home dock has a Team button');
+  check(dock && dock.vis && /Team|Pets/.test(dock.txt), 'the home dock has a Team button');   // (v460 META: now "Pets", the Pets & Team hub)
   await page.screenshot({ path: path.resolve(__dirname, '../shots/team-dock.png'), clip: { x: 0, y: 700, width: 390, height: 144 } });
   await page.click('#btnTeam'); await page.waitForTimeout(300);
   const t1 = await page.evaluate(() => ({ kind: window.__pp.sheetKind, slots: document.querySelectorAll('.team-panel .pt-pet.on').length, tiles: document.querySelectorAll('.team-grid .pk-pet').length }));

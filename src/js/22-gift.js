@@ -77,9 +77,10 @@ const giftWrap = $('#giftWrap'), gwBox = $('#gwBox'), gwItems = $('#gwItems'), g
 let giftItems = null, giftStage = 0, giftT = 0;
 const PET_STAR_R = { 3: 'common', 4: 'epic', 5: 'legend', 6: 'legend' };
 const giftBest = items => items.map(i => i.kind === 'card' ? CARDS[i.id].r : i.kind === 'pet' ? PET_STAR_R[i.stars] : 'common').sort((a, b) => R_ORDER.indexOf(b) - R_ORDER.indexOf(a))[0] || 'common';
-let giftMode = 'box';
+let giftMode = 'box', giftTwinMsg = false;   // (v460 META: the first twins' message, shown by this reveal)
 function playGiftCeremony(items, o) {
-  o = o || {}; giftItems = items; giftStage = 1; giftMode = o.mode || 'box';
+  o = o || {}; giftItems = items; giftStage = 1; giftMode = o.mode || 'box'; giftTwinMsg = !!o.twinMsg;
+  { const m = $('#gwTwinMsg'); if (m) m.remove(); } giftWrap.dataset.twins = items.some(i => i.twin) ? '1' : '';
   const best = giftBest(items);
   giftWrap.dataset.best = best; giftWrap.dataset.mode = giftMode; giftWrap.dataset.gold = items.some(i => i.kind === 'pet' && i.stars >= 6) ? '1' : ''; giftWrap.style.setProperty('--gc', CARD_R[best].c);
   $('#gwTitle').textContent = o.title || 'Tap the box!';
@@ -128,20 +129,26 @@ function revealGifts() {
   const best = giftBest(giftItems);
   const pets = giftMode === 'summon';
   const gold = giftItems.some(i => i.kind === 'pet' && i.stars >= 6);
-  $('#gwTitle').textContent = pets ? (gold ? 'A SIX-STAR LEGENDARY!' : best === 'legend' ? 'A FIVE-STAR PET!' : best === 'epic' ? 'A four-star pet!' : 'New pets!') : best === 'legend' ? 'LEGENDARY!' : best === 'epic' ? 'An epic haul!' : 'Your treasure!';
-  $('#gwSub').textContent = pets ? 'They have moved into your house' : 'Tap Collect to keep them all';
+  const twins = giftItems.filter(i => i.twin === 'a').length;   // v460 META: twin pairs
+  $('#gwTitle').textContent = pets ? (twins ? (twins > 1 ? `${twins} SETS OF SIX-STAR TWINS!` : 'SIX-STAR TWINS!') : gold ? 'A SIX-STAR LEGENDARY!' : best === 'legend' ? 'A FIVE-STAR PET!' : best === 'epic' ? 'A four-star pet!' : 'New pets!') : best === 'legend' ? 'LEGENDARY!' : best === 'epic' ? 'An epic haul!' : 'Your treasure!';
+  $('#gwSub').textContent = pets ? (twins ? `Two six-star Legendaries from one egg${twins > 1 ? ', more than once' : ''}. They have moved into your house` : 'They have moved into your house') : 'Tap Collect to keep them all';
+  if (giftTwinMsg) { const m = document.createElement('p'); m.id = 'gwTwinMsg'; m.className = 'gw-twinmsg'; m.textContent = TWIN_MSG; $('#gwSub').after(m); giftTwinMsg = false; if (st && st.twinIntro === 1) { st.twinIntro = 2; saveSoon(); } }
   const step = reduceMotion ? 0.02 : 0.2;
-  gwItems.innerHTML = giftItems.map((it, i) => { const t = giftTile(it); return `<div class="gw-tile k-${it.kind} r-${t.r}" style="--d:${(i * step).toFixed(2)}s"><div class="gw-flip"><div class="gw-back">${it.kind === 'pet' ? ICON.egg : ICON.gift}</div><div class="gw-front">${t.html}</div></div><small>${esc(t.sub)}</small></div>`; }).join('');
+  // (a twin pair is one wide tile: both pets side by side under one "Twins" ribbon)
+  const shown = []; giftItems.forEach((it, i) => { if (it.twin === 'b' && shown.length && shown[shown.length - 1][0].twin === 'a') shown[shown.length - 1].push(it); else shown.push([it]); });
+  gwItems.innerHTML = shown.map((grp, i) => {
+    if (grp.length === 2) { const fr = grp.map(it => giftTile(it).html).join(''); return `<div class="gw-tile k-pet k-twins r-legend" style="--d:${(i * step).toFixed(2)}s"><div class="gw-flip"><div class="gw-back">${ICON.egg}</div><div class="gw-front"><span class="gw-twin-pair">${fr}</span><b class="gw-twin-rib">Twins</b></div></div><small>${esc(grp[0].name)} &amp; ${esc(grp[1].name)}${grp[1].owed ? ' · the twin waits for room in your house' : ''}</small></div>`; }
+    const it = grp[0], t = giftTile(it); return `<div class="gw-tile k-${it.kind} r-${t.r}" style="--d:${(i * step).toFixed(2)}s"><div class="gw-flip"><div class="gw-back">${it.kind === 'pet' ? ICON.egg : ICON.gift}</div><div class="gw-front">${t.html}</div></div><small>${esc(t.sub)}</small></div>`; }).join('');
   gwItems.hidden = false;
-  giftItems.forEach((it, i) => setTimeout(() => {
+  shown.forEach((grp, i) => setTimeout(() => {
     if (giftStage < 2) return;
-    const r = it.kind === 'card' ? CARDS[it.id].r : it.kind === 'pet' ? PET_STAR_R[it.stars] : '';
-    if (it.kind === 'pet' && it.stars >= 6) { sfx.fanfare(); setTimeout(() => sfx.fanfare(), 380); giftConfetti(80, true); buzz([60, 40, 90]); }
+    const it = grp[0], r = it.kind === 'card' ? CARDS[it.id].r : it.kind === 'pet' ? PET_STAR_R[it.stars] : '';
+    if (it.kind === 'pet' && it.stars >= 6) { sfx.fanfare(); setTimeout(() => sfx.fanfare(), 380); if (grp.length > 1) setTimeout(() => sfx.fanfare(), 760); giftConfetti(grp.length > 1 ? 120 : 80, true); buzz([60, 40, 90]); }
     else if (r === 'legend') { sfx.fanfare(); giftConfetti(40, true); buzz(60); }
     else if (r === 'epic') sfx.sparkle();
     else sfx.blip();
   }, (i * step + 0.3) * 1000));
-  setTimeout(() => { if (giftStage >= 2) { gwActions.hidden = false; giftStage = 3; try { $('[data-gw="done"]', gwActions).focus({ preventScroll: true }); } catch (e) {} } }, (giftItems.length * step + 0.6) * 1000);
+  setTimeout(() => { if (giftStage >= 2) { gwActions.hidden = false; giftStage = 3; try { $('[data-gw="done"]', gwActions).focus({ preventScroll: true }); } catch (e) {} } }, (shown.length * step + 0.6) * 1000);
 }
 function closeGift(toCards) {
   giftWrap.hidden = true; giftStage = 0; clearTimeout(giftT);
@@ -178,7 +185,8 @@ function summonOddsHTML() {
   return `<details class="odds"><summary>Summon rates</summary>
     <table><thead><tr><th>Pet</th><th>Chance per egg</th></tr></thead><tbody>
       <tr><td>${starsHTML(3)} Three-star</td><td>84%</td></tr><tr><td>${starsHTML(4)} Four-star</td><td>10%</td></tr><tr><td>${starsHTML(5)} Five-star</td><td>5%</td></tr><tr class="odds-gold"><td>${starsHTML(6)} Six-star Legendary</td><td>1%</td></tr></tbody></table>
-    <p>Every egg is rolled on its own. After ${PITY_N} 10-egg summons in a row with no six-star, the next 10-egg summon always holds one; single eggs don't count toward it. Four- and five-star pets carry their own signature Strong attack and Ultimate. Six-star Legendaries hatch with small angel or dragon wings that grow as they evolve, a radiant aura and golden signature moves stronger than any other. Fusing can also raise a pet's star rank (see the fusion screen). Your house holds up to ${MAX_PETS} pets.</p></details>`;
+    <p>Every egg is rolled on its own. After ${PITY_N} 10-egg summons in a row with no six-star, the next 10-egg summon always holds one; single eggs don't count toward it. Four- and five-star pets carry their own signature Strong attack and Ultimate. Six-star Legendaries hatch with small angel or dragon wings that grow as they evolve, a radiant aura and golden signature moves stronger than any other. Fusing can also raise a pet's star rank (see the fusion screen). Your house holds up to ${MAX_PETS} pets.</p>
+    <p><b>Six-star twins</b>: every egg that rolls a six-star then has a ${Math.round(TWIN_CHANCE * 100)}% chance to be twins, two six-star Legendaries instead of one; the six-star rate itself stays 1%. ${st && st.twinGuaranteeUsed ? 'Your first six-star roll has already brought its twins.' : 'Your first-ever six-star roll is twins for certain (this does not make your first egg a six-star).'} Fusion never makes twins.</p></details>`;
 }
 function openSummon() {
   const room = MAX_PETS - petCount(), cr = st.crystals || 0, free = (st.freeTen || 0) > 0;
@@ -206,19 +214,83 @@ function doSummon(n) {
   // (developer tools can make every egg a six-star, to try them out)
   const rolls = []; for (let i = 0; i < count; i++) rolls.push(st.dev6 ? 6 : rollStars());
   if (sure && !rolls.includes(6)) rolls[Math.floor(Math.random() * count)] = 6;
+  // v460 META: six-star twins. The eggs are resolved in their order, so the first-ever 6★ (and only it) takes the guarantee
+  const TW = twinResolve(rolls, st.twinGuaranteeUsed, TWIN_RNG.f || Math.random); let spare = room - count, intro = false;
   for (let i = 0; i < count; i++) {
     const stars = rolls[i], g = summonGenome(stars), name = speciesName(g.form).split(' ').pop();
     const f = newPetFields(name, g);
     st.others.push(f);
-    items.push({ kind: 'pet', stars, form: g.form, name, uid: f.uid });
+    const T = TW.list[i];
+    items.push({ kind: 'pet', stars, form: g.form, name, uid: f.uid, twin: T.twin ? 'a' : '' });
+    if (T.twin) { const b = twinAward(f, g, spare > 0); if (spare > 0) spare--; items.push(b); if (T.sure) intro = true; }
   }
+  if (TW.used) st.twinGuaranteeUsed = 1;
+  if (intro) st.twinIntro = 1;   // (the first-time message is owed until the reveal shows it)
   if (ten) st.pity10 = rolls.includes(6) ? 0 : Math.min(PITY_N, (st.pity10 || 0) + 1);
   st.summons = (st.summons || 0) + count;
   if (count < n) st.crystals += Math.round(cost * (n - count) / n);
   closeSheet(); buildCompanions();
   saveLocalNow(); updateHud();
-  playGiftCeremony(items, { mode: 'summon', title: count > 1 ? 'Tap the eggs!' : 'Tap the egg!', sub: st.dev6 ? `${count} egg${count > 1 ? 's' : ''} · developer test: every egg a ★6` : free ? `${count} free eggs: the welcome gift · 84% ★3 · 10% ★4 · 5% ★5 · 1% ★6` : sure ? `${count} eggs · a ★6 Legendary is guaranteed!` : `${count} egg${count > 1 ? 's' : ''} · 84% ★3 · 10% ★4 · 5% ★5 · 1% ★6`, box: eggsSVG() });
+  playGiftCeremony(items, { mode: 'summon', twinMsg: intro, title: count > 1 ? 'Tap the eggs!' : 'Tap the egg!', sub: st.dev6 ? `${count} egg${count > 1 ? 's' : ''} · developer test: every egg a ★6` : free ? `${count} free eggs: the welcome gift · 84% ★3 · 10% ★4 · 5% ★5 · 1% ★6` : sure ? `${count} eggs · a ★6 Legendary is guaranteed!` : `${count} egg${count > 1 ? 's' : ''} · 84% ★3 · 10% ★4 · 5% ★5 · 1% ★6`, box: eggsSVG() });
 }
+
+/* ---------- v460 META: six-star twins ----------
+   Every summon or gacha roll (the egg summon, single or ten; a mystery egg's hatch) that lands a 6★ makes ONE twin check
+   afterwards: 25% (TWIN_CHANCE) to award two 6★ pets, else one. The account's first-ever 6★ roll is twins for certain
+   (st.twinGuaranteeUsed: set in the same save as the pets it awarded, so a reload or a retry cannot repeat it; an old save
+   that already owns a 6★ from an egg counts as used, 04-state). The base 6★ rate is untouched; the bonus pet never rolls
+   again; nothing lower than 6★ is ever a twin; fusion never reads or spends any of this. The twin is the same golden body
+   (copied form) with its own seed, so its own skills, and its own instance id. A twin the house has no room for waits
+   (st.twinOwed) and hatches as soon as a place frees up */
+const TWIN_CHANCE = 0.25, TWIN_MSG = 'congrats, sometimes there’s a twins and this can happen';
+const TWIN_RNG = { f: null };   // (the twin check's dice: Math.random, unless a test seeds it)
+/* pure: the outcome of each roll, in order. used: the guarantee already spent. R: the dice (one draw per later 6★) */
+function twinResolve(rolls, used, R) {
+  R = R || Math.random; let u = !!used; const list = [];
+  rolls.forEach((s, i) => {
+    if (s < 6) { list.push({ i, stars: s, twin: false, sure: false }); return; }
+    if (!u) { u = true; list.push({ i, stars: 6, twin: true, sure: true }); return; }
+    list.push({ i, stars: 6, twin: R() < TWIN_CHANCE, sure: false });
+  });
+  return { list, used: u };
+}
+const twinName = name => String(name || 'Pip').slice(0, 11) + ' II';
+/* the bonus pet of a twin roll: into the house now (fits), or owed until a place frees up. Returns its reveal item */
+function twinAward(f, g, fits) {
+  const name = twinName(f.name), seed = ((Math.imul((g.dna.seed | 0) || 7, 2654435761) ^ 0x7A1235) >>> 0) % 1999999999 + 1;
+  const dna = Object.assign({}, g.dna, { seed }), form = JSON.parse(JSON.stringify(g.form));
+  if (!fits) { st.twinOwed = (Array.isArray(st.twinOwed) ? st.twinOwed : []).concat([{ name, dna, form }]).slice(-20); return { kind: 'pet', stars: 6, form, name, uid: null, twin: 'b', owed: true }; }
+  const t = newPetFields(name, { dna, form });
+  st.others.push(t);
+  return { kind: 'pet', stars: 6, form: t.forms[0], name, uid: t.uid, twin: 'b' };
+}
+/* a mystery egg (the egg shop, pearls, the very first egg) is a gacha roll too: its 6★ gets the same one check. p is the
+   pet just hatched (already in the save) */
+function eggTwinCheck(p) {
+  if (!st || !p || starsOf(p.rarity) < 6) return;
+  const TW = twinResolve([6], st.twinGuaranteeUsed, TWIN_RNG.f || Math.random), T = TW.list[0];
+  st.twinGuaranteeUsed = 1;
+  if (!T.twin) { saveLocalNow(); return; }
+  const b = twinAward(p, { dna: p.dna, form: formOf(p) }, MAX_PETS - petCount() > 0);
+  if (T.sure) st.twinIntro = 1;
+  buildCompanions(); saveLocalNow(); Store.touch(); updateHud();
+  const a = { kind: 'pet', stars: 6, form: formOf(p), name: p.name, uid: p.uid, twin: 'a' };
+  setTimeout(() => playGiftCeremony([a, b], { mode: 'summon', twinMsg: T.sure, title: 'Twins inside!', sub: `${p.name}'s egg held two six-star Legendaries`, box: eggsSVG() }), 900);
+}
+/* an owed twin hatches once there is room; the first-time message, if the app closed before the reveal showed it */
+function twinOwedCheck() {
+  if (!st || !running || adopting || (typeof arc !== 'undefined' && arc.open) || sheetKind || !giftWrap.hidden || mapOpen || !introEl.hidden) return;
+  const owed = Array.isArray(st.twinOwed) ? st.twinOwed : [], room = MAX_PETS - petCount();
+  if (owed.length && room > 0) {
+    const n = Math.min(owed.length, room), items = [];
+    owed.slice(0, n).forEach(w => { const f = newPetFields(w.name, { dna: w.dna, form: w.form }); st.others.push(f); items.push({ kind: 'pet', stars: starsOf(f.rarity), form: f.forms[0], name: f.name, uid: f.uid }); });
+    st.twinOwed = owed.slice(n); buildCompanions(); saveLocalNow(); updateHud();
+    playGiftCeremony(items, { mode: 'summon', title: 'Your waiting twin!', sub: 'A six-star twin that was waiting for room has moved in', box: eggsSVG() });
+    return;
+  }
+  if (st.twinIntro === 1) { st.twinIntro = 2; saveSoon(); toast(TWIN_MSG, 4200); }
+}
+setInterval(twinOwedCheck, 1700);
 
 /* ---------- the level-10 gift: three eggs, each a three- to five-star pet (never a six-star), the first time the pet you
    play reaches level 10. Shown at home once nothing else is open; eggs the house has no room for wait (st.lv10Owed)

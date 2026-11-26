@@ -81,6 +81,7 @@ function newState(name, genome) {
     sound: true, retro: true, fast: false, fps: true, fpsV: 1 /* v438: the frame counter on for a new game too */, gq: 'auto', fpsD: false /* v439 SP: visual quality, the frame counter's details */, tips: {}, dev: false, unlockAll: false,
     skillsV: SKILLS_V,   // v391 K: a new game starts under the skills rules (no re-roll on its first load)
     welcome: 0, freeTen: 0, login: { m: '', n: 0, last: '', seen: '' },
+    twinGuaranteeUsed: 0, twinIntro: 0, twinOwed: [], payTx: [], devPay: false,   // v460 META: six-star twins (22-gift), the purchase ledger and the mock checkout switch (07h)
     hub: newHub(),
   });
   linkRoom(s);
@@ -239,6 +240,18 @@ function sanitize(o) {
   if (o.v === 4 && Array.isArray(o.others)) s.others = o.others.slice(0, MAX_PETS - 1).map(p => sanitizePet(p, 4)).filter(Boolean);
   const seen = new Set([s.uid]);
   s.others.forEach(p => { if (seen.has(p.uid)) p.uid = petUid(); seen.add(p.uid); });
+  // v460 META: six-star twins. A save that has the flag keeps it. An older one is migrated from what history the save has:
+  // it holds no record of past rolls (st.summons only counts eggs, st.pity10 resets), so an account that owns a 6★ that
+  // did not come from a fusion (no fusedFrom: an egg's or a summon's) has had its first 6★ roll and counts as used; any
+  // other account still gets its guarantee (a 6★ since fused away leaves no trace to go on)
+  if (o.twinGuaranteeUsed != null) s.twinGuaranteeUsed = o.twinGuaranteeUsed ? 1 : 0;
+  else s.twinGuaranteeUsed = [s].concat(s.others).some(p => starsOf(p.rarity) >= 6 && !p.fusedFrom) ? 1 : 0;
+  s.twinIntro = o.twinIntro === 1 || o.twinIntro === 2 ? o.twinIntro : s.twinGuaranteeUsed ? 2 : 0;   // (1: the first twins' message not yet shown)
+  s.twinOwed = (Array.isArray(o.twinOwed) ? o.twinOwed : []).slice(0, 20).map(w => { if (!w || typeof w !== 'object' || typeof w.name !== 'string' || !w.dna || typeof w.dna !== 'object') return null; const f = cleanForm(w.form); if (!f) return null;
+    return { name: w.name.replace(/[<>]/g, '').slice(0, 14) || 'Pip', dna: { v: 3, seed: Math.floor(num(w.dna.seed, f.seed || 7, 1, 2e9)), personality: PERSONALITIES.some(p => p.id === w.dna.personality) ? w.dna.personality : 'playful', size: num(w.dna.size, 1, 0.9, 1.1) }, form: f }; }).filter(Boolean);
+  // v460 META: the purchase ledger (07h): one entry per transaction id ever granted, so a repeated callback can never grant twice
+  s.payTx = (Array.isArray(o.payTx) ? o.payTx : []).filter(t => t && typeof t.id === 'string' && /^[A-Za-z0-9_.:-]{4,80}$/.test(t.id) && typeof t.p === 'string' && /^[a-z0-9]{2,16}$/.test(t.p)).slice(-1000).map(t => ({ id: t.id, p: t.p, at: Math.floor(num(t.at, 0, 0, 1e14)), m: t.m ? 1 : 0 }));
+  s.devPay = !!o.devPay;
   [s].concat(s.others).forEach(p => SLOTS.forEach(k => { if (p.deck[k] && !s.cards[p.deck[k]] && !(typeof isSkillId === 'function' && isSkillId(p.deck[k]))) p.deck[k] = null; }));   // only cards the house owns (v391 K: and the developer's skill picks, which cleanDeck ignores while the setting is off)
   // v391 K: pets' skills: re-rolled once for a save from before the new rules (and elemental moves taken out of decks), else kept
   s.skillsV = SKILLS_V; if (typeof migrateSkills === 'function') migrateSkills(s, o);

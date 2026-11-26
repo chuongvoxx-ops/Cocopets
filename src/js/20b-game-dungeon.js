@@ -747,6 +747,7 @@ GAMES.dungeon = {
       party.length = 0; next.forEach(e => party.push(e));
       F.party = party.map(m => ({ p: m.p, kit: m.kit }));
       let i = party.findIndex(m => m.p === playing && !m.down); if (i < 0) i = party.findIndex(m => !m.down); if (i < 0) i = 0;
+      { const want = typeof runLeadTake === 'function' ? runLeadTake() : null, j = want ? party.findIndex(m => m.p.uid === want && !m.down) : -1; if (j >= 0 && !(RULES && RULES.blocks('noswitch')) && !g.trialLock) i = j; }   /* v460 META: a pet double-tapped (or "Lead the run") in the paused run's Pets & Team sheet leads on closing it, unless knocked out or switching is barred (21c) */
       const m = party[i]; cur = i; me.hp = Math.max(1, m.hp); me.mp = m.mp; g.cdS = m.cd.cdS; g.cdS2 = m.cd.cdS2; g.cdS3 = m.cd.cdS3; g.cdU = m.cd.cdU;
       switchTo(i, true); g.swapCd = 0; m.down = false;
       text(me.x, me.y - 1.6, 'The party is ready', '#8FE0A6', 13);
@@ -3009,6 +3010,7 @@ GAMES.dungeon = {
           chunks.forEach(free); chunks.clear(); stale.clear(); tileDirty.clear(); prepped.forEach(o => free(o.cv)); prepped.clear(); prepQ.length = 0; HOLES.forEach(free); HOLES.clear(); holePx = 0;
           [vig, vigFull, redFull, redHalf, feverFull, stormHaze, lc].forEach(free); vig = vigFull = redFull = redHalf = feverFull = stormHaze = null;
           if (FD && FD.release) FD.release(); if (DunWorld.dropProps) DunWorld.dropProps(); } catch (e) {} }, reparty,
+      partyState() { return party.map((m, k) => ({ uid: m.p.uid, down: !!m.down, cur: k === cur })); },   /* v460 META: who is knocked out, who leads (the Pets & Team sheet's double-tap, 21c) */
       start() { g.intro = 2.4; api.sfx.hum(); },
       down(x, y, id) {
         if (AN && AN.S.cine) return;

@@ -160,7 +160,7 @@ function switchPet(i) {
 /* a compact grid of pets for pickers: small art, stars, element dot; sorted by stars then level */
 function pocketGridHTML(list, o) {
   o = o || {};
-  const rows = list.slice().sort((a, b) => (o.sort === false ? 0 : (starsOf(b.p.rarity) - starsOf(a.p.rarity)) || ((b.p.dlv || 1) - (a.p.dlv || 1))));
+  const rows = list.slice().sort((a, b) => (o.sort === false ? 0 : (starsOf(b.p.rarity) - starsOf(a.p.rarity)) || ((b.p.dlv || 1) - (a.p.dlv || 1)) || (a.p.uid < b.p.uid ? -1 : a.p.uid > b.p.uid ? 1 : 0)));   // (v460 META: ties by id, so switching the played pet never reshuffles the grid under a finger)
   return `<div class="pocket-grid${o.cls ? ' ' + o.cls : ''}">${rows.map(({ p, i }) => { const el = petElement(p), E = E8[el], cur = o.cur ? o.cur(p, i) : false, dis = o.disabled ? o.disabled(p, i) : false; return `<button class="pk-pet${cur ? ' cur' : ''}${o.on && o.on(p, i) ? ' on' : ''}" type="button" ${o.attr ? o.attr(p, i) : ''}${dis ? ' aria-disabled="true"' : ''} aria-label="${esc(p.name)}, ${E.name}, ${starsOf(p.rarity)} stars, level ${p.dlv || 1}" title="${esc(p.name)}"><span class="pk-art">${petSVG(formOf(p), { frame: 'fit' })}</span><i class="pk-el" style="--ec:${E.color}"></i>${starsHTML(starsOf(p.rarity), 'pk-stars')}<b>${esc(p.name)}</b>${o.badge ? o.badge(p, i) : ''}</button>`; }).join('')}</div>`;
 }
 function petStripHTML() {
@@ -172,8 +172,10 @@ function petStripHTML() {
   const fuse = st.others.length ? `<button class="ps-pet ps-add ps-fuse" type="button" data-go="fusion"><span class="ps-art">${ICON.fusion}</span><b>Fuse</b><small>${st.fusionStones ? `${st.fusionStones} stone${st.fusionStones > 1 ? 's' : ''}` : 'Two become one'}</small></button>` : '';
   return `<div class="pet-strip" role="list">${tiles}${pocket}${add}${fuse}</div>`;
 }
-/* the pocket dimension: every pet you own, with the party marked; tap one to play with it */
+/* the pocket dimension: every pet you own, with the party marked; tap one to play with it. v460 META: now the
+   Collection area of the Pets & Team hub (21c); the old sheet below is kept only for a build without the hub */
 function openPocket() {
+  if (typeof openHub === 'function') { openHub('pets'); return; }
   const party = partyPets(), list = [{ p: st, i: -1 }].concat(st.others.map((p, i) => ({ p, i })));
   const grid = pocketGridHTML(list, { cur: p => p === st, on: p => party.includes(p), attr: (p, i) => i < 0 ? 'aria-current="true"' : `data-go="pet-sw" data-i="${i}"`, badge: p => party.includes(p) ? `<em class="pk-badge">${p === st ? 'YOU' : 'P' + party.indexOf(p)}</em>` : '' });
   openSheet('pocket', `
@@ -245,6 +247,7 @@ function adoptPet(name, genome) {
   setTimeout(() => { if (running) { jump(ps * 0.22); hearts(3); sfx.yum(); } }, 300);
   toast(`Welcome home, ${name}! Tap the name tag to switch between pets.`, 3800);
   saveLocalNow(); Store.touch();
+  if (typeof eggTwinCheck === 'function') eggTwinCheck(st);   // v460 META: a six-star egg's twin check (22-gift)
 }
 
 /* ---------- the Tower party: up to four pets go in together; you play one and switch between them ---------- */

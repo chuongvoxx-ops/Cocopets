@@ -36,25 +36,27 @@ function renderShop() {
     <p class="eyebrow">Merchant Hall</p><h2 class="title" id="sheetTitle">Shop</h2>
     <div class="shop-wallet"><span>${ICON.coin}${fmtNum(st.coins)}</span><span>${ICON.crystal}${fmtNum(cr)}</span><span>${ICON.pearl}${fmtNum(st.pearls || 0)}</span><span>${ICON.fusion}${stones} stone${stones === 1 ? '' : 's'}</span></div>
     <h3 class="sec" data-shop-sec="crystals">Crystals, boxes and eggs</h3>
+    ${crystalPacksHTML()}
+    ${checkoutNoteHTML()}
     <div class="packs">
-      <button class="pack" type="button" data-go="crystal-buy">${ICON.crystal}<b>${fmtNum(CRYSTAL_PACK)} crystals</b><span class="mono">${CRYSTAL_PRICE} · test purchase</span></button>
       <button class="pack" type="button" data-go="gift" data-shop-sec="treasure">${ICON.gift}<b>Treasure box</b><span class="mono">${GIFT_PRICE} · test purchase, or ${GIFT_PEARLS} pearls</span></button>
       <button class="pack" type="button" data-go="egg">${ICON.egg}<b>Mystery egg</b><span class="mono">$4.00 · test purchase, or ${EGG_PEARLS} pearls</span></button>
     </div>
     <h3 class="sec" data-shop-sec="stones">Fusion Stones</h3>
+    ${stonePacksHTML()}
     <div class="packs">
-      <button class="pack" type="button" data-go="stone-buy"${cr < FUSION_COST ? ' aria-disabled="true"' : ''}>${ICON.fusion}<b>Fusion Stone</b><span class="mono">${FUSION_COST} crystals</span></button>
+      <button class="pack" type="button" data-go="stone-buy"${cr < FUSION_COST ? ' aria-disabled="true"' : ''}>${ICON.fusion}<b>1 Fusion Stone</b><span class="mono">${FUSION_COST} crystals</span></button>
     </div>
-    <p class="note">One stone fuses two pets. Merging a whole group of the same kind takes two stones for three to six pets, three for seven or more.</p>
+    <p class="note">One stone fuses two pets. Merging a whole group takes two stones for three to six pets, three for seven or more.</p>
     <h3 class="sec" data-shop-sec="levels">Food for pet levels</h3>
     <div class="shop-list">${SHOP_FOOD.levels.map(shopRowHTML).join('')}</div>
     <h3 class="sec" data-shop-sec="bond">Food for bond</h3>
     <div class="shop-list">${SHOP_FOOD.bond.map(shopRowHTML).join('')}</div>
     <h3 class="sec" data-shop-sec="pantry">Pantry and energy</h3>
     <div class="shop-list">${SHOP_FOOD.pantry.map(shopRowHTML).join('')}</div>
-    <p class="note">Food goes to the pantry. Feed the pet you play from the Feed tray, and any other pet from <b>Team</b>: pick it and feed it there.</p>
-    <div class="evo-actions"><button class="btn" type="button" data-go="team">${ICON.paw || ICON.star}Team</button><button class="btn" type="button" data-go="shop-decor">${ICON.brush}Furniture and decor</button></div>
-    <p class="demo-note">Prototype: the ${CRYSTAL_PRICE}, ${GIFT_PRICE} and $4.00 buttons are test purchases and nothing is charged. In the real app they open the App Store or Google Play payment sheet.</p>`;
+    <p class="note">Food goes to the pantry. Feed the pet you play from the Feed tray, and any other pet from <b>Pets &amp; Team</b>: pick it and feed it there.</p>
+    <div class="evo-actions"><button class="btn" type="button" data-go="team">${ICON.paw || ICON.star}Pets &amp; Team</button><button class="btn" type="button" data-go="shop-decor">${ICON.brush}Furniture and decor</button></div>
+    <p class="demo-note">Prototype: the ${GIFT_PRICE} and $4.00 buttons are test purchases and nothing is charged. In the real app they open the App Store or Google Play payment sheet.</p>`;
 }
 function shopBuy(k, n) {
   const it = SHOP_ITEMS.find(x => x.k === k); if (!it || !st) return;

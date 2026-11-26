@@ -22,11 +22,10 @@ function openLaboratory(tab) {
       ${stones ? '' : `<button class="btn" type="button" data-go="laboratory" data-tab="shop">${ICON.crystal}Get a Fusion Stone</button>`}</div>`;
   } else if (labTab === 'shop') {
     body = `<p class="note">You have <b>${cr}</b> crystals${stones ? ` and <b>${stones}</b> Fusion Stone${stones > 1 ? 's' : ''}` : ''}. Every Adventure stage you clear gives <b>${CRYSTALS_PER_STAGE} crystals</b> and every Tower floor <b>${CRYSTALS_PER_FLOOR}</b> (boss floors pay crystals on the first win only).</p>
+      ${crystalPacksHTML()}${checkoutNoteHTML()}${stonePacksHTML()}   <!-- v460 META: the packs and the checkout (07h) -->
       <div class="packs">
-        <button class="pack" type="button" data-go="crystal-buy">${ICON.crystal}<b>${fmtNum(CRYSTAL_PACK)} crystals</b><span class="mono">${CRYSTAL_PRICE}</span></button>
-        <button class="pack" type="button" data-go="stone-buy"${(st.crystals || 0) < FUSION_COST ? ' aria-disabled="true"' : ''}>${ICON.fusion}<b>Fusion Stone</b><span class="mono">${FUSION_COST} crystals</span></button>
-      </div>
-      <p class="demo-note">Prototype: the ${CRYSTAL_PRICE} button is a test purchase and nothing is charged. In the real app it opens the App Store or Google Play payment sheet.</p>`;
+        <button class="pack" type="button" data-go="stone-buy"${(st.crystals || 0) < FUSION_COST ? ' aria-disabled="true"' : ''}>${ICON.fusion}<b>1 Fusion Stone</b><span class="mono">${FUSION_COST} crystals</span></button>
+      </div>`;
   } else {
     const f = formOf(st), X = f.x || {};
     const rows = COSMETICS.map(c => {

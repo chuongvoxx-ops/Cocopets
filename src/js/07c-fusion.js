@@ -1,7 +1,7 @@
 /* ---------- crystals and fusion: two pets become one, carrying traces of both parents ----------
-   Crystals come 5 at a time from every cleared stage or floor (or 5000 for a $10 test purchase).
-   A Fusion Stone costs 500 crystals. One fuses two pets into a new one, which frees a space in the house; merging a
-   whole group takes two stones for three to six pets and three for seven or more. */
+   Crystals come 5 at a time from every cleared stage or floor (crystal packs: the checkout, 07h, v460).
+   A Fusion Stone costs 500 crystals (or 10 for 1,000, 20 for 1,500: 07h). One fuses two pets into a new one, which frees
+   a space in the house; merging a whole group takes two stones for three to six pets and three for seven or more. */
 
 /* ---- genetics: one plan of coin flips, applied to every stage of both parents' lines so the child's history is coherent ---- */
 const FUSE_X = ['gem', 'top', 'bud', 'crest', 'spikes', 'mane', 'horns', 'horns2', 'wings', 'marks', 'armor', 'pauldrons', 'orbs', 'aura', 'halo'];
@@ -110,15 +110,18 @@ function fuseSkillRowHTML(C, slot, cur, go) {
 const fuseSkillNote = (child, n) => { const t = skillTier(child), el = E8[petElement(child)].name; return `<p class="note sk-fnote">The child will be a <b>${t}★ ${el}</b> pet, so it can only have a move from the ${t <= 4 ? '<b>1–4★ pool</b> (no elemental moves)' : `<b>${el} ${t}★ list</b>`}. A parent's move outside that pool is greyed out. "Roll a random one" picks from that pool when you fuse: the result is final.${n ? ` If the child rises a rank, a move its new rank can't have is rolled from the new pool.` : ''}</p>`; };
 /* star rank by fusion: the child takes its parents' rank (the higher, when they differ). Two or more of the same rank
    may rise one rank: three-stars 20% (+5% for each pet past two, up to 50%), four-stars 25% (+5% each, up to 50%),
-   five-stars 5% (+1% each) to a six-star golden Legendary. Rolled only when the fusion really happens (up), never in a
-   preview, so "Different mix" cannot reroll it into a certainty */
+   five-stars (v460 META) min(100%, 10% + 5 points for each five-star past two) to a six-star golden Legendary: 2 → 10%,
+   3 → 15%, 10 → 50%, 19 → 95%, 20 or more → 100%, with no cap on how many may be merged. Rolled once, only when the
+   fusion really happens (up), never in a preview, so "Different mix" cannot reroll it into a certainty */
 function fuseUpChance(stars, n) {
-  n = Math.max(2, n || 2);
+  n = Math.max(2, Math.floor(n) || 2);
   if (stars === 3) return Math.min(0.5, 0.2 + 0.05 * (n - 2));
   if (stars === 4) return Math.min(0.5, 0.25 + 0.05 * (n - 2));
-  if (stars === 5) return Math.min(1, GOLD_FUSE + 0.01 * (n - 2));
+  if (stars === 5) return Math.min(100, Math.round(GOLD_FUSE * 100) + Math.round(GOLD_FUSE_STEP * 100) * (n - 2)) / 100;   // (in whole points: no float drift)
   return 0;
 }
+/* how many pets of a rank already make the rise chance as high as it goes (more cannot raise it) */
+const fuseUpFull = stars => { for (let n = 2; n < 400; n++) if (fuseUpChance(stars, n + 1) <= fuseUpChance(stars, n)) return n; return Infinity; };
 const fuseRank = (a, b) => Math.max(starsOf(a.rarity), starsOf(b.rarity));
 const fuseCanRise = (a, b) => starsOf(a.rarity) === starsOf(b.rarity) && starsOf(a.rarity) < 6;
 function fuseChild(a, b, seed, pick, up, rng) {   // (v391 K: rng, the skill roll's dice: Math.random when the fusion really happens)
@@ -154,30 +157,20 @@ function openCrystalShop(short) {
     <p class="eyebrow">Shop</p><h2 class="title" id="sheetTitle">Crystals</h2>
     <div class="egg-hero small crystal-hero">${ICON.crystal}</div>
     <p class="note">${short ? `You need ${fmtNum(short)} more crystals. ` : ''}You have <b>${fmtNum(st.crystals || 0)}</b> crystals${st.fusionStones ? ` and <b>${st.fusionStones}</b> Fusion Stone${st.fusionStones > 1 ? 's' : ''}` : ''}. Every Adventure stage you clear gives <b>${CRYSTALS_PER_STAGE} crystals</b> and every Tower floor <b>${CRYSTALS_PER_FLOOR}</b> (boss floors pay crystals on the first win only).</p>
-    <div class="packs">
-      <button class="pack" type="button" data-go="crystal-buy">${ICON.crystal}<b>${fmtNum(CRYSTAL_PACK)} crystals</b><span class="mono">${CRYSTAL_PRICE}</span></button>
-      <button class="pack" type="button" data-go="stone-buy"${(st.crystals || 0) < FUSION_COST ? ' aria-disabled="true"' : ''}>${ICON.fusion}<b>Fusion Stone</b><span class="mono">${FUSION_COST} crystals</span></button>
-    </div>
+    ${crystalPacksHTML()}
+    ${checkoutNoteHTML()}
+    <h3 class="sec">Fusion Stones</h3>
+    ${stonePacksHTML()}
+    <div class="packs"><button class="pack" type="button" data-go="stone-buy"${(st.crystals || 0) < FUSION_COST ? ' aria-disabled="true"' : ''}>${ICON.fusion}<b>1 Fusion Stone</b><span class="mono">${FUSION_COST} crystals</span></button></div>
     <p class="note"><b>Fusion Stone.</b> Fuses two of your pets into one new pet that keeps traces of both: a mix of their colours, body parts, wings and horns, with the higher stage and level of the two. Fusing frees up a space in your house.</p>
     ${petCount() >= 2 ? `<div class="evo-actions"><button class="btn primary" type="button" data-go="fusion">${ICON.fusion}Fuse two pets</button></div>` : '<p class="note">Hatch a second pet to try fusion.</p>'}
-    <p class="note">Build a <b>Laboratory</b> in your house to fuse pets, shop and restyle your pet all in one place.</p>
-    <p class="demo-note">Prototype: the ${CRYSTAL_PRICE} button is a test purchase and nothing is charged. In the real app it opens the App Store or Google Play payment sheet.</p>`);
+    <p class="note">Build a <b>Laboratory</b> in your house to fuse pets, shop and restyle your pet all in one place.</p>`);
 }
-function confirmCrystalBuy() {
-  openSheet('crystals', `
-    <p class="eyebrow">Test purchase</p><h2 class="title" id="sheetTitle">Buy ${fmtNum(CRYSTAL_PACK)} crystals?</h2>
-    <div class="egg-hero small crystal-hero">${ICON.crystal}</div>
-    <p class="note">In the store version this charges <b>${CRYSTAL_PRICE}</b> through the App Store or Google Play. This prototype charges nothing.</p>
-    <div class="evo-actions"><button class="btn primary" type="button" data-go="crystal-confirm">Get the crystals</button><button class="btn" type="button" data-go="${crysFrom === 'shop' ? 'shop' : labCtx ? 'laboratory' : 'crystals'}" data-tab="shop">Back</button></div>`);
-}
-function buyCrystals() {
-  st.crystals = (st.crystals || 0) + CRYSTAL_PACK; updateHud(); saveSoon(); sfx.coin();
-  toast(`Added ${fmtNum(CRYSTAL_PACK)} crystals (test purchase, nothing was charged)`);
-  renderDungeon();
-  if (crysFrom === 'tower') { crysFrom = null; closeSheet(); return; }
-  if (crysFrom === 'shop') { openShop(); return; }
-  if (labCtx) openLaboratory('shop'); else openCrystalShop();
-}
+/* v460 META: the old one-tap "test purchase" that added 5,000 crystals for nothing is gone: crystal packs go through the
+   checkout (07h), which in this build is not set up (or, for developers, the labelled mock). These two keep their names
+   for the screens that still call them (the Tower's "Get crystals", the crystal pill) */
+function confirmCrystalBuy() { openCrystalShop(); }
+function buyCrystals() { openCrystalShop(); }
 function buyFusionStone() {
   if ((st.crystals || 0) < FUSION_COST) { sfx.wrong(); toast(`A Fusion Stone costs ${FUSION_COST} crystals. You have ${fmtNum(st.crystals || 0)}.`); return; }
   st.crystals -= FUSION_COST; st.fusionStones = (st.fusionStones || 0) + 1;
@@ -196,6 +189,16 @@ function openFusion() {
   fuseSel.seed = (fusePetAt(fuseSel.a).dna.seed * 31 + fusePetAt(fuseSel.b).dna.seed * 17 + (st.fuseRolls || 0)) >>> 0;
   openSheet('fusion', '');
   renderFusion();
+}
+/* v460 META: "Fuse this pet" from the Pets & Team hub: it goes in the first slot, a pet of its rank (else any) in the second */
+function fuseWith(uid) {
+  if (!st || petCount() < 2) return;
+  const all = allPets(), me = all.find(x => x.p.uid === uid); if (!me) return;
+  const rest = all.filter(x => x !== me), same = rest.filter(x => starsOf(x.p.rarity) === starsOf(me.p.rarity) && petElement(x.p) === petElement(me.p));
+  const two = (same.length ? same : rest).slice().sort(byPower)[0];
+  fuseSel = { a: me.i, b: two.i, seed: 1, pick: null }; st.fuseRolls = 0;
+  fuseSel.seed = (fusePetAt(fuseSel.a).dna.seed * 31 + fusePetAt(fuseSel.b).dna.seed * 17) >>> 0;
+  openSheet('fusion', ''); renderFusion();
 }
 function renderFusion() {
   if (sheetKind !== 'fusion' || !st) return;
@@ -232,6 +235,7 @@ function renderFusion() {
     <h3 class="sec">Second parent</h3>${tile('b', fuseSel.b)}
     <div class="box"><div class="box-top"><span>Fusion Stones</span><span class="mono">${stones}</span></div>
       <p class="note">${stones ? 'Fusing uses one Fusion Stone.' : `You need a Fusion Stone: ${FUSION_COST} crystals in the crystal shop. You have ${fmtNum(st.crystals || 0)} crystals.`}</p>
+      ${fuseUsesHTML([a, b], 1, fuseCanRise(a, b) ? starsOf(a.rarity) : 0, 'Both say goodbye; the child becomes the pet you play.')}
       <div class="evo-actions">${stones ? `<button class="btn primary" type="button" data-go="fuse-go">${ICON.fusion}Fuse ${esc(a.name)} and ${esc(b.name)}</button>` : `<button class="btn primary" type="button" data-go="crystals">${ICON.crystal}Crystal shop</button>`}</div>
     </div>
     <p class="note">The mix shown is exactly what you get${fuseCanRise(a, b) ? `, unless it rises to ${starsOf(a.rarity) + 1}★${starsOf(a.rarity) === 5 ? ' and becomes a Legendary' : ''}` : ''}. "Different mix" rolls another combination of the same two parents.</p>`;
@@ -241,9 +245,19 @@ function fuseGoldNote(a, b, n) {
   const sa = starsOf(a.rarity), sb = starsOf(b.rarity), pc = v => `${Math.round(v * 100)}%`;
   const W = ['', '', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten'][n] || String(n);
   if (sa >= 6 || sb >= 6) return `<p class="note gold-note">${starsHTML(6)} A Legendary parent passes it on: the child will be a six-star Legendary, in colours all its own.</p>`;
-  if (sa === 5 && sb === 5) return `<p class="note gold-note">${starsHTML(6)} ${W} five-stars: a <b>${pc(fuseUpChance(5, n))}</b> chance the child is born a six-star Legendary, with angel or dragon wings that grow as it evolves, a radiant aura and golden signature moves. It is decided when you fuse${n > 2 ? '' : '; merging more five-stars at once adds 1% for each'}.</p>`;
-  if (sa === sb) return `<p class="note rank-note">${starsHTML(sa + 1)} ${W} ${sa}-star pets: a <b>${pc(fuseUpChance(sa, n))}</b> chance the child rises to ${sa + 1}★, with the signature moves of its new rank. It is decided when you fuse${n > 2 ? '' : `; merging more ${sa}-stars at once adds 5% for each, up to 50%`}.</p>`;
+  const full = fuseUpFull(sa), over = n > full ? ` <b>More pets cannot raise it further:</b> ${full} already make it ${pc(fuseUpChance(sa, full))}.` : '';   // (v460 META)
+  if (sa === 5 && sb === 5) return `<p class="note gold-note" data-k="six-chance">${starsHTML(6)} ${W} five-stars: a <b>${pc(fuseUpChance(5, n))}</b> chance the child is born a six-star Legendary, with angel or dragon wings that grow as it evolves, a radiant aura and golden signature moves. One roll, when you fuse; otherwise the child is an ordinary five-star, exactly as shown.${n > 2 ? '' : ' Merging more five-stars at once adds 5 percentage points for each: 3 make it 15%, 10 make it 50%, 20 or more make it certain.'}${over}</p>`;
+  if (sa === sb) return `<p class="note rank-note">${starsHTML(sa + 1)} ${W} ${sa}-star pets: a <b>${pc(fuseUpChance(sa, n))}</b> chance the child rises to ${sa + 1}★, with the signature moves of its new rank. It is decided when you fuse${n > 2 ? '' : `; merging more ${sa}-stars at once adds 5% for each, up to 50%`}.${over}</p>`;
   return `<p class="note rank-note">${starsHTML(Math.max(sa, sb))} Different star ranks: the child takes the higher rank. Only pets of the same rank can rise.</p>`;
+}
+/* v460 META: before any fusion is confirmed, exactly what it consumes (every pet by name, the stones) and the live rise
+   chance (rise: the rank that may rise, 0 when it cannot). Shown beside the confirm button */
+function fuseUsesHTML(list, stones, rise, after) {
+  const n = list.length, ch = rise ? fuseUpChance(rise, n) : 0;
+  return `<div class="fuse-uses" data-k="fuse-uses"><p class="fu-top"><b>This fusion uses ${n} pet${n > 1 ? 's' : ''}${stones ? ` and ${stones} Fusion Stone${stones > 1 ? 's' : ''}` : ''}:</b></p>
+    <ul class="fu-list">${list.map(p => `<li><span class="fu-art">${petSVG(formOf(p), { frame: 'fit' })}</span><b>${esc(p.name)}</b><small>${starsOf(p.rarity)}★ · Lv ${p.dlv || 1}${p === st ? ' · the pet you play' : inParty(p.uid) ? ' · in the party' : ''}</small></li>`).join('')}</ul>
+    ${rise ? `<p class="fu-chance"><span>Chance to ${rise === 5 ? 'become a six-star' : `rise to ${rise + 1}★`}</span><b>${Math.round(ch * 100)}%</b></p>` : '<p class="fu-chance none"><span>Rank rise</span><b>none</b></p>'}
+    ${after ? `<p class="note fu-team">${after}</p>` : ''}</div>`;
 }
 const bornGold = (a, b, child) => child.rarity >= 5 && starsOf(a.rarity) < 6 && starsOf(b.rarity) < 6;
 const roseLine = (a, b, child) => bornGold(a, b, child) ? '<li><b>Born a six-star Legendary!</b></li>' : child.rose ? `<li><b>Rose to ${starsOf(child.rarity)}★!</b></li>` : '';
@@ -267,14 +281,17 @@ function fusePets() {
   fusing = true; closeSheet();
   if (act) endActivity(true);
   if (ball) removeBall();
+  // v460 META: one atomic step, saved before the cinematic: the stone spent, the parents gone, the child in (the
+  // cinematic only shows it, so closing the app mid-way can neither lose the stone without the child nor keep both)
+  const keep = st.others.filter((p, i) => i !== ia && i !== ib);
+  if (ia >= 0 && ib >= 0) keep.push(packPet());
   st.fusionStones--;
+  st.others = keep;
+  unpackPet(child);
+  st.asleep = false;
+  saveLocalNow(); Store.touch();
   fuseCinematic([a, b], child, () => {
-    // the parents leave, the child moves in as the pet you play with
-    const keep = st.others.filter((p, i) => i !== ia && i !== ib);
-    if (ia >= 0 && ib >= 0) keep.push(packPet());
-    st.others = keep;
-    unpackPet(child);
-    st.asleep = false;
+    // the parents left, the child moved in as the pet you play with (above): now the house shows it
     $('#evoTitle').textContent = `Meet ${child.name}!`;
     $('#evoText').textContent = `${/^[AEIOU]/.test(speciesName(cf)) ? 'An' : 'A'} ${speciesName(cf)} · Stage ${child.stage} of 7 · Level ${child.dlv}`;
     const perk = $('#evoPerk');
@@ -286,7 +303,6 @@ function fusePets() {
     buildPet(true); renderDecor(); buildCompanions(); updateHud(); updateRoomBar();
     levelSeen = 0;
     fusing = false;
-    saveLocalNow(); Store.touch();
   });
 }
 
@@ -315,9 +331,19 @@ const fuseBestPick = (a, b) => { const opts = fuseOptions(a, b, fuseChild(a, b, 
 function fuseAllChain(list, up, rng) { let child = list[0]; for (let k = 1; k < list.length; k++) { const b = list[k], seed = (child.dna.seed * 31 + b.dna.seed * 17 + k) >>> 0; child = fuseChild(child, b, seed, fuseBestPick(child, b), up && k === list.length - 1, rng); } return child; }
 /* v391 K: the Strong and Ult chosen for a merge: any parent's move (if the child's pool allows it) or the roll */
 let fuseAllSel = null;
+/* v460 META: which of a group merge (all of them at first; tap a pet to leave it out, down to two). No cap on how many */
+let fuseAllOut = { key: '', out: new Set() };
+const fuseGroupKey = g => g.pets.map(x => x.p.uid).sort().join(',');
+function fuseAllList(g) { const k = fuseGroupKey(g); if (fuseAllOut.key !== k) fuseAllOut = { key: k, out: new Set() }; return g.pets.slice().sort(byPower).filter(x => !fuseAllOut.out.has(x.p.uid)); }
+function fuseAllToggle(gi, uid) {
+  const g = sameKindGroups()[gi]; if (!g || !g.pets.some(x => x.p.uid === uid)) return;
+  const n = fuseAllList(g).length, out = fuseAllOut.out;
+  if (out.has(uid)) out.delete(uid); else { if (n <= 2) { sfx.wrong(); toast('A merge needs at least two pets'); return; } out.add(uid); }
+  sfx.boop(); fuseAll(gi);
+}
 function fuseAllSkills(gi) {
   const g = sameKindGroups()[gi]; if (!g) return null;
-  const list = g.pets.slice().sort(byPower).map(x => x.p), key = list.map(p => p.uid).join(','), pre = fuseAllChain(list, false), C = {};
+  const list = fuseAllList(g).map(x => x.p), key = fuseGroupKey(g), pre = fuseAllChain(list, false), C = {};
   if (!fuseAllSel || fuseAllSel.key !== key) fuseAllSel = { key };
   SKILL_SLOTS.forEach(s => { C[s] = fuseSkillChoices(list, pre, s); const x = C[s].list.find(y => y.k === fuseAllSel[s]); if (!(fuseAllSel[s] === 'r' || (x && !x.why))) fuseAllSel[s] = fuseSkillDefault(C[s]); });
   return { list, pre, C };
@@ -331,42 +357,48 @@ const fuseSkillLines = c => SKILL_SLOTS.map(s => { const S = c.skills && c.skill
 /* merge a whole group: fuse the two strongest, then fold each remaining pet into the child, best abilities kept */
 function fuseAll(gi, go) {
   const g = sameKindGroups()[gi]; if (!g || fusing || evolving) return;
-  const need = fuseStonesFor(g.pets.length);
-  if ((st.fusionStones || 0) < need) { toast(`Merging ${g.pets.length} pets needs ${need} Fusion Stones. You have ${st.fusionStones || 0}.`); openCrystalShop(need * FUSION_COST); return; }
+  const L = fuseAllList(g), n = L.length, need = fuseStonesFor(n), haveSt = st.fusionStones || 0, rise = g.stars < 6 ? g.stars : 0;   // (v460 META: the pets chosen)
+  if (go && haveSt < need) { toast(`Merging ${n} pets needs ${need} Fusion Stones. You have ${haveSt}.`); openCrystalShop(need * FUSION_COST); return; }
+  if (n < 2) return;
   const SK = fuseAllSkills(gi);   // (v391 K)
-  if (!go) { openSheet('fusion', `<p class="eyebrow">Merge all</p><h2 class="title" id="sheetTitle">Merge ${g.pets.length} ${E8[g.el].name} ${g.stars}★ pets?</h2>
-    <div class="sk-pets big">${g.pets.map(({ p }) => `<span class="sk-art" title="${esc(p.name)}">${petSVG(formOf(p), { frame: 'fit' })}</span>`).join('')}</div>
-    ${fuseGoldNote(g.pets[0].p, g.pets[1].p, g.pets.length)}
+  if (!go) { const sel = new Set(L.map(x => x.p.uid));
+    openSheet('fusion', `<p class="eyebrow">Merge all</p><h2 class="title" id="sheetTitle">Merge ${n} ${E8[g.el].name} ${g.stars}★ pets?</h2>
+    <p class="note">Tap a pet to leave it out of the merge, or to put it back. Any number can merge${rise ? `; the more there are, the better the chance` : ''}.</p>
+    <div class="sk-pets big fa-pick">${g.pets.slice().sort(byPower).map(({ p }) => `<button class="sk-art${sel.has(p.uid) ? ' on' : ' off'}" type="button" data-go="fuse-all-tog" data-g="${gi}" data-uid="${p.uid}" aria-pressed="${sel.has(p.uid)}" title="${esc(p.name)}" aria-label="${esc(p.name)}${sel.has(p.uid) ? ', merging' : ', left out'}">${petSVG(formOf(p), { frame: 'fit' })}</button>`).join('')}</div>
+    ${fuseGoldNote(L[0].p, L[1].p, n)}
     <h3 class="sec">The child's skills</h3>
     ${fuseSkillNote(SK.pre, g.stars < 6)}
     <div class="fab" data-k="fuse-all-skills">${SKILL_SLOTS.map(s => fuseSkillRowHTML(SK.C[s], s, fuseAllSel[s], k => `data-go="fuse-all-ab" data-g="${gi}" data-slot="${s}" data-id="${k}"`)).join('')}</div>
-    <p class="note">They fuse one after another into a single pet that keeps the best Normal attack among them, the Strong and Ultimate chosen above, the highest stage and level. This uses <b>${need}</b> Fusion Stone${need > 1 ? 's' : ''} (you have ${st.fusionStones}). The others say goodbye.</p>
-    <div class="evo-actions"><button class="btn primary" type="button" data-go="fuse-all-go" data-g="${gi}">${ICON.fusion}Merge them</button><button class="btn" type="button" data-go="fusion">Back</button></div>`); return; }
-  const list = g.pets.slice().sort(byPower).map(x => x.p), leadIn = list.includes(st);
+    <p class="note">They fuse one after another into a single pet that keeps the best Normal attack among them, the Strong and Ultimate chosen above, the highest stage and level. This uses <b>${need}</b> Fusion Stone${need > 1 ? 's' : ''} (you have ${haveSt}). The others say goodbye.</p>
+    ${fuseUsesHTML(L.map(x => x.p), need, rise, L.some(x => x.p === st) ? 'The child takes the place of the pet you play.' : 'The child joins your pets; any of these in the party leave it.')}
+    <div class="evo-actions">${haveSt >= need ? `<button class="btn primary" type="button" data-go="fuse-all-go" data-g="${gi}">${ICON.fusion}Merge these ${n}</button>` : `<button class="btn primary" type="button" data-go="crystals">${ICON.crystal}Needs ${need} stones · get more</button>`}<button class="btn" type="button" data-go="fusion">Back</button></div>`); return; }
+  const list = L.map(x => x.p), leadIn = list.includes(st);
   const uids = new Set(list.map(p => p.uid));
-  let child = list[0];
   // one roll for the whole group, its chance set by how many merge, given to the last fusion of the chain
   const up = g.stars < 6 && Math.random() < fuseUpChance(g.stars, list.length);
-  child = fuseAllChain(list, up);
+  const child = fuseAllChain(list, up);
   child.skills = fuseSkillsFor(list, child, { strong: fuseAllSel.strong, ult: fuseAllSel.ult }, Math.random);   // v391 K: the chosen (or rolled) Strong and Ult
   const gold0 = list.some(p => starsOf(p.rarity) >= 6);
-  st.fusionStones -= need;
+  const shown = list.map(p => (p === st ? packPet() : p));   // (the cinematic's picture of the parents, taken before the lead becomes the child)
   fusing = true; closeSheet(); if (act) endActivity(true); if (ball) removeBall();
+  // v460 META: one atomic step, saved before the cinematic: the stones spent, every merged pet gone, the child in. The
+  // parents leave; the child takes the lead pet's place if the lead was merged, else joins the others
+  st.fusionStones -= need;
+  const keepOthers = st.others.filter(p => !uids.has(p.uid));
+  if (leadIn) { st.others = keepOthers; unpackPet(child); } else { st.others = keepOthers.concat([child]); }
+  if (st.party) st.party = st.party.filter(u => !uids.has(u));
+  partyPets();
+  st.asleep = false;
+  fuseAllOut = { key: '', out: new Set() };
+  saveLocalNow(); Store.touch();
   const cf = child.forms[child.forms.length - 1];
-  fuseCinematic(list, child, () => {
-    // the parents leave; the child takes the lead pet's place if the lead was merged, else joins the others
-    const keepOthers = st.others.filter(p => !uids.has(p.uid));
-    if (leadIn) { st.others = keepOthers; unpackPet(child); } else { st.others = keepOthers.concat([child]); }
-    if (st.party) st.party = st.party.filter(u => !uids.has(u));
-    partyPets();
-    st.asleep = false;
+  fuseCinematic(shown, child, () => {
     $('#evoTitle').textContent = `Meet ${child.name}!`;
     $('#evoText').textContent = `Born from ${list.length} pets · ${speciesName(cf)} · Stage ${child.stage} of 7 · Level ${child.dlv}`;
-    const perk = $('#evoPerk'); perk.innerHTML = `<ul class="changes"><li>${list.map(p => esc(p.name)).join(', ')} became one</li>${child.rose ? (starsOf(child.rarity) >= 6 && !gold0 ? '<li><b>Born a six-star Legendary!</b></li>' : `<li><b>Rose to ${starsOf(child.rarity)}★!</b></li>`) : ''}<li>${esc(RARITY[child.rarity].name)} · generation ${child.gen}</li><li>Keeps the best Normal attack of the group</li>${fuseSkillLines(child)}</ul>`; perk.hidden = false;
+    const perk = $('#evoPerk'); perk.innerHTML = `<ul class="changes"><li>${shown.map(p => esc(p.name)).join(', ')} became one</li>${child.rose ? (starsOf(child.rarity) >= 6 && !gold0 ? '<li><b>Born a six-star Legendary!</b></li>' : `<li><b>Rose to ${starsOf(child.rarity)}★!</b></li>`) : ''}<li>${esc(RARITY[child.rarity].name)} · generation ${child.gen}</li><li>Keeps the best Normal attack of the group</li>${fuseSkillLines(child)}</ul>`; perk.hidden = false;
     $('#evoDone').hidden = false;
     unperch(); pet.use = null; pet.goal = null; pet.lift = 0; pet.liftV = 0; pet.stageS = petScaleTarget();
     buildPet(true); renderDecor(); buildCompanions(); updateHud(); updateRoomBar(); levelSeen = 0; fusing = false;
-    saveLocalNow(); Store.touch();
   });
 }
 
@@ -377,9 +409,10 @@ function openStoneShop() {
     <p class="eyebrow">Shop</p><h2 class="title" id="sheetTitle">Fusion Stones</h2>
     <div class="egg-hero small crystal-hero">${ICON.fusion}</div>
     <p class="note">A Fusion Stone fuses two pets into one. You have <b>${stones}</b> stone${stones === 1 ? '' : 's'} and <b>${fmtNum(cr)}</b> crystals.</p>
+    ${stonePacksHTML()}
     <div class="packs egg-buy">
-      <button class="pack" type="button" data-go="stone-buy"${cr < FUSION_COST ? ' aria-disabled="true"' : ''}>${ICON.fusion}<b>Fusion Stone</b><span class="mono">${FUSION_COST} crystals</span></button>
-      <button class="pack" type="button" data-go="crystals">${ICON.crystal}<b>Crystals</b><span class="mono">${fmtNum(CRYSTAL_PACK)} for ${CRYSTAL_PRICE}</span></button>
+      <button class="pack" type="button" data-go="stone-buy"${cr < FUSION_COST ? ' aria-disabled="true"' : ''}>${ICON.fusion}<b>1 Fusion Stone</b><span class="mono">${FUSION_COST} crystals</span></button>
+      <button class="pack" type="button" data-go="crystals">${ICON.crystal}<b>Crystals</b><span class="mono">Crystal packs</span></button>
     </div>
     <div class="evo-actions"><button class="btn" type="button" data-go="fusion"${petCount() < 2 ? ' aria-disabled="true"' : ''}>${ICON.fusion}Fuse pets</button><button class="btn" type="button" data-go="pocket">${ICON.sparkle}Pocket dimension</button></div>`);
 }

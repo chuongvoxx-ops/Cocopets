@@ -264,7 +264,9 @@ sheetWrap.addEventListener('click', e => {
     else if (k === 'room-remove') removeRoom(go);
     else if (k === 'pet-sw') { switchPet(+go.dataset.i); if (sheetKind === 'card') renderCard(); if (sheetKind === 'accs') renderAccs(); if (sheetKind === 'pocket') openPocket(); if (sheetKind === 'team') renderTeam(); renderDungeon(); }
     else if (k === 'team') openTeam(go.dataset.uid);
-    else if (k === 'team-pick') { teamUid = go.dataset.uid; sfx.boop(); renderTeam(); }
+    else if (k === 'hub-tab') hubSetArea(go.dataset.a);   // v460 META: the Pets & Team hub (21c)
+    else if (k === 'hub-fuse') fuseWith(go.dataset.uid);
+    else if (k === 'team-pick') { if (typeof hubPick === 'function') hubPick(go); else { teamUid = go.dataset.uid; sfx.boop(); renderTeam(); } }   // (v460 META: the hub keeps the tapped pet under the finger, 21c)
     else if (k === 'team-party') teamToggleParty(go.dataset.uid);
     else if (k === 'team-evolve') teamEvolve(go.dataset.uid);
     else if (k === 'team-lead') teamLead(go.dataset.uid);
@@ -303,6 +305,9 @@ sheetWrap.addEventListener('click', e => {
     else if (k === 'shop-decor') { closeSheet(); drawerTab = 'shop'; drawerCat = 'all'; enterDecor(); }
     else if (k === 'crystal-confirm') buyCrystals();
     else if (k === 'stone-buy') buyFusionStone();
+    else if (k === 'stone-pack') { if (buyStonePack(go.dataset.id, go.dataset.tok).ok) stonesRedraw(); }   // v460 META: the packs and the checkout (07h)
+    else if (k === 'crystal-pack') crystalPackTap(go.dataset.id);
+    else if (k === 'pay-mock') mockPay(go.dataset.r);
     else if (k === 'fusion') openFusion();
     else if (k === 'fuse-pick') fusePick(go.dataset.slot, +go.dataset.i);
     else if (k === 'fuse-roll') fuseRoll();
@@ -311,6 +316,7 @@ sheetWrap.addEventListener('click', e => {
     else if (k === 'fuse-pair') fusePair(+go.dataset.g);
     else if (k === 'fuse-all') fuseAll(+go.dataset.g);
     else if (k === 'fuse-all-go') fuseAll(+go.dataset.g, true);
+    else if (k === 'fuse-all-tog') fuseAllToggle(+go.dataset.g, go.dataset.uid);   // v460 META: which pets of the group merge
     else if (k === 'fuse-go') fusePets();
     else if (k === 'laboratory') openLaboratory(go.dataset.tab);
     else if (k === 'animas') { closeSheet(); openAnimas(go.dataset.id); }
@@ -326,17 +332,20 @@ sheetWrap.addEventListener('click', e => {
 sheetWrap.addEventListener('submit', e => {
   if (e.target.id !== 'renameForm') return;
   e.preventDefault();
-  const v = $('#renameInput').value.trim().slice(0, 14);
-  if (!v || v === st.name) return;
-  st.name = v; $('#renameInput').blur();
+  const v = $('#renameInput').value.trim().slice(0, 14).replace(/[<>]/g, '');
+  const RP = sheetKind === 'team' && typeof teamPet === 'function' ? teamPet() : st;   // v460 META: the hub's pet card renames the pet it shows
+  if (!v || v === RP.name) return;
+  RP.name = v; $('#renameInput').blur();
   updateHud(); updateHint(); saveSoon();
   toast(`Renamed to ${v}`);
   renderCard();
 });
 
-/* pet card: identity, evolution, settings */
+/* pet card: identity, evolution, settings. v460 META: the card is now the Pet card area of the Pets & Team hub (21c):
+   every way in (the name tag, the dock, the town's evolve) opens it there, on the pet you play */
 function openCard() {
   if (!st) return;
+  if (typeof openHub === 'function') { openHub('card', st.uid); return; }
   openSheet('card', '');
   renderCard();
   clearInterval(sheetTimer);
@@ -368,6 +377,7 @@ function evoSectionHTML() {
   return `<div class="box"><div class="box-top"><span>Evolution · Stage ${st.stage} of 7</span><span class="mono">${STAGES[st.stage].name}</span></div><div class="evo-track">${nodes}</div>${body}</div>`;
 }
 function renderCard() {
+  if (sheetKind === 'team' && typeof renderTeam === 'function') { renderTeam(); return; }   // (v460 META: the hub's Pet card area)
   if (!st || sheetKind !== 'card') return;
   const rr = RARITY[st.rarity], P = persOf(st.dna.personality), f = curForm();
   const hatched = new Date(st.hatchedAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
@@ -403,6 +413,13 @@ function renderCard() {
       <div class="fact"><dt>Stages played</dt><dd>${st.map.plays || 0}</dd></div>
     </dl>
     <h3 class="sec">Tricks</h3><ul class="howto">${tricks}</ul>
+    ${cardSettingsHTML()}`;
+  sheetEl.innerHTML = `<div class="sheet-grab" aria-hidden="true"></div><button class="icon-btn sheet-close" type="button" data-sheet-close aria-label="Close">${ICON.close}</button>${html}`;
+}
+/* v460 META: how to play and the game's settings, once only in the pet card; now also at the end of the Pets & Team
+   hub's Pet card area (21c) */
+function cardSettingsHTML(noRename) {   // (noRename: the hub's Pet card has its own, for the pet it shows)
+  return `
     <h3 class="sec">How to play</h3>
     <ul class="howto">
       <li><b>Tap the floor</b><span>Your pet walks there. Hold and drag and it chases your finger.</span></li>
@@ -415,7 +432,7 @@ function renderCard() {
       <li><b>Tower of Oblivion</b><span>Adventure, then the Tower tab: fight monsters with your pet's own Normal, Strong and Ult abilities, level up, and beat a boss every 4th floor.</span></li>
     </ul>
     <h3 class="sec">Settings</h3>
-    <form class="setting rename" id="renameForm"><label for="renameInput">Name</label><div class="row"><input id="renameInput" type="text" maxlength="14" autocomplete="off" spellcheck="false" value="${esc(st.name)}"><button class="btn" type="submit">Save</button></div></form>
+    ${noRename ? '' : `<form class="setting rename" id="renameForm"><label for="renameInput">Name</label><div class="row"><input id="renameInput" type="text" maxlength="14" autocomplete="off" spellcheck="false" value="${esc(st.name)}"><button class="btn" type="submit">Save</button></div></form>`}
     <div class="setting"><div><span id="soundLbl">Sound</span></div><button class="switch" type="button" role="switch" data-go="sound" aria-checked="${st.sound}" aria-labelledby="soundLbl"></button></div>
     <div class="setting"><div><span id="retroLbl">Old film look</span><p class="note">A warm, grainy, flickering picture, like an old cartoon.</p></div><button class="switch" type="button" role="switch" data-go="retro" aria-checked="${st.retro !== false}" aria-labelledby="retroLbl"></button></div>
     <div class="setting"><div><span id="lowFxLbl">Fewer effects</span><p class="note">Thinner particles in the Tower and rifts, for an older phone, and steady light instead of decorative pulsing. Attack shapes and warnings stay.</p></div><button class="switch" type="button" role="switch" data-go="lowfx" aria-checked="${!!st.lowFx}" aria-labelledby="lowFxLbl"></button></div>
@@ -433,9 +450,9 @@ function renderCard() {
     <div id="saveBox" hidden style="margin:4px 0 12px"><textarea id="saveCode" rows="4" spellcheck="false" style="width:100%;box-sizing:border-box;font:11px ui-monospace,monospace;border-radius:10px;padding:8px;word-break:break-all"></textarea><div style="display:flex;gap:6px;margin-top:6px"><button class="btn primary" type="button" data-go="save-load" id="saveLoadBtn" hidden>Load this save</button><span class="note" id="saveMsg"></span></div></div>
     <div class="setting"><div><span>Start over</span><p class="note">Say goodbye to every pet and the house, and hatch a new mystery egg.</p></div><button class="btn" type="button" data-go="reset" id="resetBtn">Start over</button></div>
     <p class="note" style="margin-top:12px">${esc(saveNoteText())}</p>`;
-  sheetEl.innerHTML = `<div class="sheet-grab" aria-hidden="true"></div><button class="icon-btn sheet-close" type="button" data-sheet-close aria-label="Close">${ICON.close}</button>${html}`;
 }
 function renderCardLive() {
+  if (sheetKind === 'team' && typeof teamPet === 'function' && teamPet() !== st) return;   // (v460 META: the hub showing another pet's card)
   const a = $('#fAge'); if (a) a.textContent = fmtAge(st.ageH);
   const w = $('#fWeight'); if (w) w.textContent = weightG() + ' g';
   const b = bondInfo(st.xp), bx = $('#cBondXp'), bb = $('#cBondBar');
@@ -764,6 +781,7 @@ $('#nameForm').addEventListener('submit', e => {
   st.lastGiftDay = dayKey(Date.now());
   ni.blur();
   startGame(true);
+  if (typeof eggTwinCheck === 'function') eggTwinCheck(st);   // v460 META: the very first egg is a gacha roll too (22-gift)
 });
 
 /* the pet card's Dungeon box: level, health, magic and the three abilities */

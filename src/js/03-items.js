@@ -388,7 +388,7 @@ const ICON = {
   flask: `<svg ${IS}><path d="M9 3h6M10 3v6l-5.2 9.2A2 2 0 0 0 6.6 21h10.8a2 2 0 0 0 1.8-2.8L14 9V3"/><path d="M7.4 15h9.2l2 3.6a1.3 1.3 0 0 1-1.2 1.9H6.6a1.3 1.3 0 0 1-1.2-1.9z" fill="#B983F5" stroke="none"/><circle cx="10.5" cy="17.5" r=".9" fill="#FFF" stroke="none"/></svg>`,
   mansion: `<svg ${IS}><path d="M2.5 11 12 3l9.5 8"/><path d="M4.5 10v11h15V10" fill="var(--coral-soft)"/><path d="M8 21v-5h3v5M13 21v-5h3v5M7 12.5h2.5M14.5 12.5H17"/><path d="M10 3.5h4v3h-4z" fill="var(--gold)"/></svg>`,
 };
-const CRYSTALS_PER_STAGE = 5, CRYSTALS_PER_FLOOR = 20, CRYSTAL_PACK = 5000, CRYSTAL_PRICE = '$10.00', FUSION_COST = 500;
+const CRYSTALS_PER_STAGE = 5, CRYSTALS_PER_FLOOR = 20, CRYSTAL_PACK = 5000, FUSION_COST = 500;   // (v460 META: crystal packs and their prices: CRYSTAL_PACKS and STORE_CFG, 07h)
 /* what a fusion takes in Fusion Stones: one to fuse two pets, two to merge three to six, three to merge seven or more */
 const fuseStonesFor = n => n <= 2 ? 1 : n <= 6 ? 2 : 3;
 const APPS = {

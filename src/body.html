@@ -74,8 +74,9 @@
       <button class="toy" id="btnPlay" type="button" aria-expanded="false" aria-controls="tray"><span class="ti"></span><span>Play</span></button>
       <button class="toy toy-map" id="btnMap" type="button"><span class="ti"></span><span>Adventure</span></button>
       <button class="toy" id="btnHouse" type="button" aria-haspopup="dialog"><span class="ti"></span><span>House</span></button>
-      <button class="toy" id="btnTeam" type="button" aria-haspopup="dialog"><span class="ti"></span><span>Team</span></button>
-      <button class="toy" id="btnCard" type="button" aria-haspopup="dialog"><span class="ti"></span><span>Card</span><span class="badge" id="evoBadge" hidden></span></button>
+      <!-- v460 META: one Pets & Team hub (21c) for the old Team and Card buttons; the Card button stays in the page, hidden, for the code that reaches for it -->
+      <button class="toy" id="btnTeam" type="button" aria-haspopup="dialog" aria-label="Pets and Team"><span class="ti"></span><span>Pets</span><span class="badge" id="evoBadge" hidden></span></button>
+      <button class="toy" id="btnCard" type="button" aria-haspopup="dialog" hidden><span class="ti"></span><span>Card</span></button>
     </div>
   </nav>
 

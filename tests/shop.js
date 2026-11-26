@@ -49,12 +49,13 @@ const path = require('path');
   const b4 = await buy('feast', 1); check(b4.crystals === 100 && b4.have === 1, 'without the crystals the feast is refused');
   const b5 = await buy('sundae', 1); check(b5.have === 1 && b5.coins === 2750 - 600, 'a kindred sundae costs 600 coins');
   // 3. crystals bought from the Shop come back to the Shop, and so does a Fusion Stone
-  await page.evaluate(() => document.querySelector('[data-go="crystal-buy"]').click()); await page.waitForTimeout(250);
-  const cf = await page.evaluate(() => ({ kind: window.__pp.sheetKind, back: document.querySelector('[data-go="crystal-confirm"]') && [...document.querySelectorAll('#sheet [data-go]')].map(b => b.dataset.go) }));
-  check(cf.kind === 'crystals' && cf.back && cf.back.includes('shop'), 'the crystal confirmation goes back to the Shop');
-  await page.evaluate(() => document.querySelector('[data-go="crystal-confirm"]').click()); await page.waitForTimeout(300);
+  // (v460 META: crystal packs go through the checkout; with none set up only the development-only mock can add them)
+  await page.evaluate(() => { window.__pp.st.devPay = true; window.__pp.shop.openShop(); document.querySelector('[data-go="crystal-pack"][data-id="cr5k"]').click(); }); await page.waitForTimeout(250);
+  const cf = await page.evaluate(() => ({ kind: window.__pp.sheetKind, back: [...document.querySelectorAll('#sheet [data-go]')].map(b => b.dataset.go) }));
+  check(cf.kind === 'checkout' && cf.back.includes('pay-mock') && cf.back.includes('shop'), 'the (mock) checkout goes back to the Shop');
+  await page.evaluate(() => { document.querySelector('[data-go="pay-mock"][data-r="success"]').click(); document.querySelector('#sheet [data-go="shop"]').click(); window.__pp.st.devPay = false; }); await page.waitForTimeout(300);
   const c2 = await page.evaluate(() => ({ c: window.__pp.st.crystals, kind: window.__pp.sheetKind }));
-  check(c2.c === 5100 && c2.kind === 'shop', 'the test purchase adds 5000 crystals and returns to the Shop');
+  check(c2.c === 5100 && c2.kind === 'shop', 'the mock purchase adds 5000 crystals, then back to the Shop');
   await page.evaluate(() => document.querySelector('[data-go="stone-buy"]').click()); await page.waitForTimeout(300);
   const s2 = await page.evaluate(() => ({ c: window.__pp.st.crystals, s: window.__pp.st.fusionStones, kind: window.__pp.sheetKind }));
   check(s2.c === 4600 && s2.s === 1 && s2.kind === 'shop', 'a Fusion Stone costs 500 crystals and the Shop stays open');

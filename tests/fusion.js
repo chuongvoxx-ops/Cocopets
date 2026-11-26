@@ -37,7 +37,7 @@ const fs = require('fs'), path = require('path');
   await page.evaluate(() => window.__pp.buyFusionStone());
   let r = await page.evaluate(() => ({ c: window.__pp.st.crystals, s: window.__pp.st.fusionStones, kind: window.__pp.sheetKind }));
   if (r.s !== 0) fail('stone bought with no crystals');
-  await page.evaluate(() => window.__pp.buyCrystals());
+  await page.evaluate(() => { const P = window.__pp; P.st.devPay = true; P.meta.crystalPackTap('cr5k'); P.meta.mockPay('success'); P.st.devPay = false; });   // v460 META: crystal packs go through the checkout (the development-only mock here); the old free test purchase is gone
   r = await page.evaluate(() => ({ c: window.__pp.st.crystals, s: window.__pp.st.fusionStones, hud: document.querySelector('#crystalNum').textContent }));
   if (r.c !== 5000 || !/^5,?000$/.test(r.hud)) fail('crystal pack: ' + JSON.stringify(r));
   await page.evaluate(() => window.__pp.buyFusionStone());
