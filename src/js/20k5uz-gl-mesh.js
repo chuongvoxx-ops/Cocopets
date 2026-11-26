@@ -1646,7 +1646,7 @@ void main() {
       alb = mix(alb, vec3(0.022, 0.02, 0.024), smoothstep(0.75, 0.95, bk) * 0.5); gloss = (0.18 + 0.2 * hv) * (0.4 + g1);
       kh += 0.25 * sin(fT * 4.0 - s * 42.0 + hv * 3.0);   // (pulses of heat running down the seams toward the tail)
       float k = kh + 0.35 * bel; vec3 hc = k < 1.0 ? mix(fCR, fOR, clamp(k, 0.0, 1.0)) : k < 2.0 ? mix(fOR, fGD, k - 1.0) : mix(fGD, fWH, min(1.0, k - 2.0));
-      emi += hc * seam * (0.8 + 0.5 * fG) + fCR * exp(-max(e, 0.0) / 0.035) * 0.16 * fG * (1.0 - seam);   // (the seams' fire, and the plates' edges red-hot from beneath)
+      emi += hc * seam * (1.0 + 0.6 * fG) + fCR * exp(-max(e, 0.0) / 0.035) * 0.22 * fG * (1.0 - seam);   // (the seams' fire, and the plates' edges red-hot from beneath) (v452 SF2: brighter)
       emi += mix(fOR, fGD, 0.4) * bel * (0.08 + 0.75 * seam) * (0.7 + 0.4 * fG) + mix(fCR, fOR, 0.6) * pow(1.0 - jt, 3.0) * 0.45 * fG;   // (the molten core showing under the belly and at the joints)
       emi += fGD * step(0.986, hs(floor(vec2(s * 420.0, fAn * 15.0)))) * fK * 0.6 * (1.0 - seam); }   // (gold flecks at the higher tiers)
     else if (id == 491) { if (fF > 0.1 && fF < 0.3) { float rg = 0.5 + 0.5 * sin(L.x * 34.0 + vn(L.yz * 9.0) * 3.0), k = 1.0 + 0.35 * (fG - 1.0) + 0.3 * rg;   // 491.2 the mouth: molten flesh, ridged
@@ -1660,6 +1660,7 @@ void main() {
       if (fF > 0.2) { float cr = smoothstep(0.05, 0.0, abs(vn(vec2(L.x * 5.0 + L.z * 2.0, L.y * 5.0 + L.z * 3.0) + uWear * 3.0) - 0.5));   // 492.5 a black horn: obsidian, molten cracks
           alb = vec3(0.035, 0.03, 0.035); gloss = 0.45; emi += mix(fCR, fOR, 0.5 + 0.3 * (fG - 1.0)) * cr * (0.6 + 0.5 * fG) + fOR * pow(tip, 3.0) * 0.35 * fG; }
       else { alb = mix(vec3(0.16, 0.1, 0.07), mix(vec3(0.8, 0.72, 0.58), vec3(0.97, 0.92, 0.8), tip), smoothstep(0.0, 0.3, tip)); gloss = 0.8; emi += fOR * 0.1 * pow(tip, 2.0) * fG; } }   // 492 fang bone: charred at the root, ivory, its point lit through
+    if (id < 492) emi += mix(fOR, fGD, 0.25) * pow(1.0 - fNV, 2.6) * (0.16 + 0.12 * fG) * (0.8 + 0.2 * sin(fT * 9.0 + L.x * 5.0 + L.y * 3.0));   // (v452 SF2: the skin's heat glowing round its silhouette, flickering: the fire emanating from it)
     float ndl = dot(nn, uLK), b = 0.5 * smoothstep(-0.02, 0.07, ndl) + 0.5 * smoothstep(0.42, 0.5, ndl);   // (cel bands: shadow, midtone, light)
     vec3 amb = mix(vec3(0.34, 0.1, 0.03), vec3(0.13, 0.12, 0.16), fHm) * uAmb;   // (the fire under it lights it from below)
     vec3 c = alb * (vec3(1.55, 1.4, 1.25) * mix(0.16, 1.0, b) + amb * 1.25) * (1.0 - 0.6 * seam);

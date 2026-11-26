@@ -1930,8 +1930,8 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
         float core = exp(-r * r / max(0.004, sq(0.3 * (1.0 - ag))));
         L = (vec3(1.0) * (core * 1.1 + fil * 0.9) + vec3(0.5, 0.68, 1.0) * sh * 0.9 + vec3(0.55, 0.35, 1.0) * sh * 0.45 + vec3(0.3, 0.42, 1.0) * exp(-r * r * 3.0) * 0.3) * (1.0 - ag * 0.6) * (1.0 - smoothstep(0.86, 1.0, r)); } }
     /*</TM-FX>*/
-    /*<SF-FX kinds 352..355 (v450 SF: 20k6k-fire-snakeflame.js, Snake Flame)>*/
-    else if (v_k > 351.5 && v_k < 355.5) { float tt = u_t, an = atan(u.y, u.x);
+    /*<SF-FX kinds 352..355 (v450 SF: 20k6k-fire-snakeflame.js, Snake Flame); 353, 355 reworked, 356, 358 added (v452 SF2)>*/
+    else if (v_k > 351.5 && v_k < 358.5) { float tt = u_t, an = atan(u.y, u.x);   /* (v452 SF2: 352..358; 357 kept free) */
       if (v_k < 352.5) { // 352 the ring of embers on the floor (a unit disc squashed by its quad): a band of turbulent fire turning, embers riding round it in two counter-turning rings, a molten pit opening inside it; v_q.x how open (0..1, past 1 the surge), v_q.y its turn (radians), v_q.z its heat
         float op = clamp(v_q.x, 0.0, 1.6), Rr = 0.7 * min(1.0, op) + 0.06, sp = v_q.y, hz = clamp(v_q.z, 0.0, 2.0), band = exp(-sq((r - Rr) / (0.06 + 0.05 * min(1.0, op))));
         float fb = fbm(vec2(cos(an + sp), sin(an + sp)) * 2.2 + vec2(r * 5.0 - tt * 1.4, tt * 0.3)), em = 0.0;
@@ -1942,13 +1942,13 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
         float temp = band * (0.55 + 0.6 * fb) * (0.7 + 0.35 * hz) + pit * (0.55 + 0.4 * hz) + arm * 0.35 * hz;
         L = ramp(temp) * (band * (0.5 + 0.7 * fb) + pit * 0.75 + arm * 0.5) + vec3(1.0, 0.82, 0.45) * em * 1.3 * min(1.0, op * 2.0);
         L *= 1.0 - smoothstep(0.9, 1.0, r); }
-      else if (v_k < 353.5) { // 353 the fire inside the coil, one cell of it on the floor (the quad 0.8 tiles each way about the cell, uv in tiles / 0.8): cells 0.8 tiles apart sum to one (a tent each way), so the field is one seamless sheet of flowing fire that ends where the cells do (walls, gaps) and at the footprint's radius; v_q.x, v_q.y the cell's offset from the coil's centre (tiles), v_q.z the radius x 100 (whole) + 0.98 x the last second's draw inward; v_c.a its strength
-        vec2 p = vec2(v_q.x, v_q.y) + u * 0.8, dq = abs(u); float Rr = floor(v_q.z) / 100.0, din = fract(v_q.z) / 0.98, rr = length(p), wgt = max(0.0, 1.0 - dq.x) * max(0.0, 1.0 - dq.y);
-        float fade = smoothstep(Rr + 0.04, Rr - 0.42, rr), sw = tt * 0.45, cs = cos(sw), sn = sin(sw), sw2 = -tt * 0.23, c2 = cos(sw2), s2 = sin(sw2);   // (the fire streams round the centre: two layers turning against each other, rigidly, so nothing winds up over time)
-        vec2 q = vec2(cs * p.x + sn * p.y, -sn * p.x + cs * p.y), q2 = vec2(c2 * p.x + s2 * p.y, -s2 * p.x + c2 * p.y);
-        float f1 = fbm(q * 1.1 + 3.3), f2 = fbm(q2 * 2.4 + vec2(0.0, tt * 0.5)), vein = pow(1.0 - abs(f1 * 2.0 - 1.0), 4.0), inw = din * pow(0.5 + 0.5 * sin(rr * 5.5 + tt * 9.0), 3.0);   // (in the last second, bands of flame racing in to the centre)
-        float temp = (0.24 + 0.55 * vein + 0.2 * f2) * (0.9 + 0.25 * din) + inw * 0.45 + din * 0.2 * smoothstep(Rr, 0.0, rr), tw = step(0.975, h1(floor(q * 5.0) + floor(tt * 3.0) * 0.31)) * exp(-dot(fract(q * 5.0) - 0.5, fract(q * 5.0) - 0.5) * 40.0);
-        L = (ramp(temp) * (0.35 + 0.6 * f2 + 0.3 * vein) + vec3(1.0, 0.8, 0.45) * tw * 0.5) * fade * wgt; }
+      else if (v_k < 353.5) { // (v452 SF2) 353 the fire the serpent leaves on the floor, one cell of it (the quad 0.8 tiles each way about the cell, uv in tiles / 0.8): cells 0.8 tiles apart sum to one (a tent each way), so the field is one seamless sheet that ends where the cells do (walls, gaps); tongues of flame streaming along its path, breaking into glowing patches, veins and embers as it cools; v_q.xy the cell's offset from the cast's origin (tiles), v_q.z the path's direction there (radians); v_c.r its strength / 2 (1 burning, to 1.5 the flare as it catches, down to 0 as it fades)
+        vec2 p = vec2(v_q.x, v_q.y) + u * 0.8, dq = abs(u); float wgt = max(0.0, 1.0 - dq.x) * max(0.0, 1.0 - dq.y), st = v_c.r * 2.0, s1 = min(st, 1.0), cool = 1.0 - s1;
+        vec2 dr = vec2(cos(v_q.z), sin(v_q.z)), q = vec2(dot(p, dr), dot(p, vec2(-dr.y, dr.x)));   // (along its path, across it)
+        vec2 fq = vec2(q.x * 0.8 - tt * 2.4, q.y * 1.7) + 3.3; float f1 = 0.55 * n2(fq) + 0.28 * n2(fq * 2.03 + vec2(1.7, 9.2)) + 0.14 * n2(fq * 4.12 + vec2(5.2, 2.9)), f2 = n2(vec2(q.x * 2.6 - tt * 4.1, q.y * 3.1 + tt * 0.5) + 7.1), vein = pow(1.0 - abs(f1 * 2.0 - 1.0), 5.0);
+        float cov = smoothstep(0.18 + 0.55 * cool, 0.46 + 0.55 * cool, 0.62 * f1 + 0.38 * f2 + 0.12), tw = step(0.965, h1(floor(p * 4.0) + floor(tt * 4.0) * 0.37)) * cool * s1 * 4.0;
+        float temp = (0.24 + 0.3 * f1 + 0.4 * vein) * (0.6 + 0.45 * s1) + 0.25 * max(st - 1.0, 0.0);   /* (mostly crimson and orange: its hot tongues and veins yellow; never a white wash) */
+        L = (ramp(temp) * cov * (0.18 + 0.5 * f2 + 0.35 * vein) * (0.3 + 0.7 * s1) + vec3(1.0, 0.45, 0.12) * vein * cool * s1 * 0.35 + vec3(1.0, 0.8, 0.45) * tw * 0.35) * wgt; }
       else if (v_k < 354.5) { // 354 the engulfing fireball (a unit disc; its body 0.78 of it): a sphere of boiling fire, domain-warped, the serpent's coils as two spiral bands wound round it and unwinding as it grows, a white-hot heart, a ragged limb of flames; at the third tier a ring of prominences round it; v_q.x its age 0..1 (it grows and cools), v_q.y seed, v_q.z the tier 0..2
         float ag = clamp(v_q.x, 0.0, 1.0), sd = v_q.y * 13.0, tr = clamp(v_q.z, 0.0, 2.0), rn = r / 0.78, limb = sqrt(max(0.0, 1.0 - rn * rn)); vec2 sp = u / 0.78;
         vec2 w = sp * 2.2 + vec2(fbm(sp * 1.7 + sd + tt * 0.4), fbm(sp * 1.9 - sd - tt * 0.5)) * 1.3; float f = fbm(w + vec2(0.0, -tt * 0.8)), f2 = fbm(w * 2.3 + 7.0);
@@ -1959,11 +1959,32 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
         if (tr > 1.5) { float pr = exp(-sq((rn - 1.18 - 0.05 * sin(an * 5.0 + tt * 2.0)) / 0.05)) * (0.4 + 0.6 * fbm(vec2(cos(an), sin(an)) * 4.0 + tt * 0.9)), ray = pow(0.5 + 0.5 * cos(an * 9.0 + tt * 0.7), 6.0) * smoothstep(1.0, 1.15, rn) * (1.0 - smoothstep(1.15, 1.27, rn));
           L += ramp(0.75 + 0.3 * pr) * (pr * 0.8 + ray * 0.35) * (1.0 - ag * 0.7); }
         L *= 1.0 - smoothstep(0.9, 1.0, r); }
-      else { // 355 the blast across the floor (a unit disc squashed by its quad): a front of fire racing out to v_q.x, the ground behind it burning in patches and glowing cracks as it cools by v_q.z (heat); v_q.y seed
-        float fr = clamp(v_q.x, 0.0, 1.05), sd = v_q.y * 11.0, ht = clamp(v_q.z, 0.0, 1.5); vec2 ca = vec2(cos(an), sin(an));
-        float nz = fbm(ca * 3.0 + sd + vec2(r * 4.0, 0.0)), front = exp(-sq((r - fr * (0.95 + 0.06 * nz)) / (0.05 + 0.05 * fr))), behind = smoothstep(fr + 0.02, fr - 0.3, r) * smoothstep(1.0, 0.86, r);
-        float crk = pow(1.0 - abs(fbm(ca * 4.0 + vec2(r * 7.0, 0.0) + sd) * 2.0 - 1.0), 8.0), temp = front * (0.6 + 0.22 * min(ht, 1.0)) + behind * ht * (0.22 + 0.35 * fbm(u * 5.0 + sd - tt * 0.3) + 0.5 * crk);
-        L = ramp(temp) * (front * (0.7 + 0.4 * nz) + behind * (0.25 + 0.6 * crk) * min(1.0, ht * 1.5)) * (1.0 - smoothstep(0.9, 1.0, r)); } }
+      else if (v_k < 355.5) { // (v452 SF2) 355 the blast across the floor, one cell of it (as 353: cells 0.8 tiles apart summing to one, so it ends exactly where its footprint does, at the radius and the walls): a shock front racing out to the radius, cracks radiating from the impact, the ground behind it torn and burning, cooling to glowing cracks; v_q.xy the cell's offset from the impact (tiles), v_q.z the radius (tiles); v_c.r the front (x 1.1 of the radius), v_c.g its heat (x 1.5)
+        vec2 p = vec2(v_q.x, v_q.y) + u * 0.8, dq = abs(u); float wgt = max(0.0, 1.0 - dq.x) * max(0.0, 1.0 - dq.y), RX = max(v_q.z, 0.5), rr = length(p) / RX, fr = v_c.r * 1.1, ht = v_c.g * 1.5; vec2 ca = p / max(length(p), 0.001);
+        vec2 nq = ca * 3.0 + vec2(rr * 4.0, 0.0) + 1.7; float nz = 0.6 * n2(nq) + 0.35 * n2(nq * 2.03 + vec2(1.7, 9.2)), front   /* (cheap noise: it lies on four cells at once) */ = exp(-sq((rr - fr * (0.95 + 0.06 * nz)) / (0.035 + 0.05 * fr))) * (1.0 - smoothstep(1.0, 1.08, fr)), behind = smoothstep(fr + 0.02, fr - 0.25, rr);
+        float crk = pow(1.0 - abs(fbm(ca * 2.6 + vec2(rr * 1.3, 0.0) + 5.3) * 2.0 - 1.0), 12.0) * smoothstep(0.05, 0.25, rr), web = pow(1.0 - abs(n2(p * 1.6 + 9.1) * 2.0 - 1.0), 9.0);
+        float temp = front * (0.62 + 0.25 * min(ht, 1.0)) + behind * ht * (0.06 + 0.12 * n2(p * 1.7 - tt * 0.3) + 0.55 * crk + 0.25 * web), core = exp(-rr * rr * 18.0) * min(1.0, ht);   /* (the torn ground dark between its glowing cracks) */
+        L = (ramp(temp) * (front * (0.7 + 0.35 * nz) + behind * (0.05 + 0.8 * crk + 0.3 * web) * min(1.0, ht)) + ramp(0.75) * core * 0.4) * wgt; }
+      else if (v_k < 356.5) { // (v452 SF2) 356 the fire rising off the serpent's skin, one stretch of it (a quad along the body: uv.x -1 .. 1 from the point before to the point after, tents summing to one along the body; uv.y across, the silhouette at the fraction rb): a heat glow hugging the silhouette, brightest at its edge, a thin hot veil over the plates (they stay readable), tongues of flame licking off its back and flanks, taller on the side facing up, flickering; v_q.x 50 + 50 x the up-ness of +uv.y (whole) + 0.99 rb, v_q.y the place along the body (tiles), v_q.z its heat x 20 (whole) + the stretch's half length (tiles, < 1)
+        float rb = fract(v_q.x) / 0.99, upk = (floor(v_q.x) - 50.0) / 50.0, ht = floor(v_q.z) / 20.0, sA = v_q.y + u.x * fract(v_q.z), ay = abs(u.y), d = ay - rb, wgt = 1.0 - abs(u.x);
+        float side = u.y >= 0.0 ? upk : -upk, reach = max(0.05, 1.0 - rb) * mix(0.38, 1.0, clamp(0.5 + 0.7 * side, 0.0, 1.0)), h = d / reach;
+        vec2 fp = vec2(sA * 1.6 + side * 3.0, d * 3.2 - tt * 3.4) + 5.1; float f = 0.55 * n2(fp) + 0.28 * n2(fp * 2.03 + vec2(1.7, 9.2)) + 0.14 * n2(fp * 4.12 + vec2(5.2, 2.9)), f2   /* (three octaves: it covers much of the screen) */ = n2(vec2(sA * 4.3 + 3.0, d * 8.0 - tt * 6.1));
+        float tongue = smoothstep(-0.05, 0.02, d) * (1.0 - smoothstep(0.0, 1.0, h + (0.52 - f) * 1.1)) * (0.55 + 0.6 * f2);
+        float rim = exp(-sq(d / (0.035 + 0.03 * rb))) * smoothstep(-0.12, 0.0, d), veil = (1.0 - smoothstep(-0.02, 0.01, d)) * 0.16 * pow(ay / max(rb, 0.01), 6.0) * (0.6 + 0.6 * f2);   /* (inside the silhouette only a thin hot edge: the plates stay dark and readable) */
+        float temp = clamp(0.56 - 0.5 * max(h, 0.0) + 0.3 * (f2 - 0.5) + 0.08 * ht, 0.0, 1.0), fk = 0.82 + 0.18 * sin(tt * 21.0 + sA * 2.7);   /* (orange tongues, yellow only at their roots and when it is white-hot) */
+        L = ramp(temp) * (tongue * 1.05 + rim * 0.45 + veil * 0.35) * (0.45 + 0.15 * ht) * wgt * fk * (1.0 - smoothstep(0.86, 1.0, ay)); }
+      else { // (v452 SF2) 358 the mushroom of fire rising from the impact (a quad standing on the floor, 1 wide to 1.5 high: uv.x across, uv.y -1 its top .. 1 its foot): a turbulent stem rushing up out of a flaring foot, a rolling cap of fire boiling outward at its top (rising and spreading with age), cooling from white-hot through orange to crimson as it breaks into wisps; at the third tier a collar of flame round the stem; v_q.x its age 0..1, v_q.y seed, v_q.z the tier 0..2
+        float ag = clamp(v_q.x, 0.0, 1.0), sd = v_q.y * 9.0, tr = v_q.z; vec2 P = vec2(u.x, (1.0 - u.y) * 1.5);   // (isotropic: x -1..1, y 0 the foot .. 3 the top)
+        float ea = 1.0 - sq(1.0 - ag), cyc = mix(0.55, 2.25, ea), crx = mix(0.3, 0.7, ea), cry = mix(0.24, 0.46, ea);
+        vec2 w = P + 0.26 * vec2(fbm(P * 1.6 + vec2(sd, -tt * 1.1)) - 0.5, fbm(P * 1.6 + vec2(4.0 - sd, -tt * 1.4)) - 0.5);
+        vec2 cq = (w - vec2(0.0, cyc)) / vec2(crx, cry); float dc = length(cq), f = fbm(w * 2.4 + vec2(0.0, -tt * 1.6) + sd), f2 = n2(w * 6.0 + vec2(sd, -tt * 3.0));
+        float roll = 0.65 + 0.35 * sin(atan(cq.y, abs(cq.x) + 0.001) * 2.0 - tt * 5.0 + dc * 3.0), cap = smoothstep(1.05 + 0.25 * f, 0.6, dc) * roll;
+        float sw = mix(0.2, 0.13, smoothstep(0.0, cyc, w.y)) + 0.35 * exp(-w.y * 4.0), stem = smoothstep(sw * 1.25, sw * 0.4, abs(w.x + 0.06 * sin(w.y * 4.0 + tt * 3.0))) * (1.0 - smoothstep(cyc - 0.1, cyc + 0.2, w.y)) * (0.55 + 0.6 * fbm(vec2(w.x * 3.0, w.y * 1.8 - tt * 3.6) + sd));
+        float foot = exp(-w.y * 5.0) * smoothstep(1.0, 0.3, abs(w.x)) * (0.5 + 0.5 * f2) * (1.0 - ag);
+        float col2 = tr > 1.5 ? exp(-sq((length(vec2(w.x / 0.62, (w.y - cyc * 0.55) / 0.12)) - 1.0) / 0.22)) * (0.25 + 0.35 * f) * (1.0 - ag) : 0.0;
+        float dns = max(max(cap, stem * (1.0 - 0.4 * ag)), max(foot, col2)) * smoothstep(ag * 0.75 - 0.05, ag * 0.75 + 0.3, f + 0.12);
+        float temp = (0.36 + 0.4 * f + 0.18 * (1.0 - min(dc, 1.0))) * (1.05 - 0.75 * ag) + 0.25 * exp(-dc * dc * 3.0) * (1.0 - ag) * (1.0 - ag);   /* (white-hot only in its first moments) */
+        L = ramp(temp) * dns * (0.45 + 0.45 * f2) * (1.0 - smoothstep(0.82, 1.0, abs(u.x))) * (1.0 - smoothstep(0.88, 1.0, -u.y)) * smoothstep(0.0, 0.18, P.y); } }
     /*</SF-FX>*/
     /*<MD-FX lights 361, 363, 364, 366, 367 (v450 MD: 20k7r-water-mobydick.js, Moby Dick)>*/
     else if (v_k > 360.5 && v_k < 367.5) { float tt = u_t;

@@ -15,6 +15,8 @@
      mesh: see-through, flickering in the shader), three a side, five at Celestial.
    - the fins: one flame fin mesh, instanced along the spine (every other slice; every third under Fewer effects) and at the tail
      (a long tail flame), rippling in a wave that runs toward the tail.
+   (v452 SF2: the move hands it points in the model's own space, y / GY, so its floor is the game's floor drawn true: a tile
+   square on screen; the painted serpent glows with the fire off its skin; the GPU's aura is the move's, FGFX 356.)
    Rig: rig(P) takes the move's spine (P.pt(d): the point d tiles behind the head, relative to the coil's centre) and lays the slices
    along it (each from its two ends: head-ward x), the head on the first point turned along the neck, the jaw, the eyes, the crests,
    the fins; P carries the fire's strength (glow), white heat (glow2), the dissolve (spill), a girth factor (shrink), the jaw's
@@ -254,6 +256,13 @@ const SNAKEFLAME_GL = (() => {
     const B = ballSpr(), list = [];
     for (let i = 0; i < sp.length; i++) { const s = sp[i]; if (s.p[2] + s.r < 0) continue; list.push(s); }
     list.sort((a, b) => a.p[1] - b.p[1]);   // (far first)
+    { // (v452 SF2) the fire glowing off its skin: soft additive strokes along the body behind it (three widths; head, middle and tail in turn, the tail's narrower), flickering
+      c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.lineJoin = 'round'; const fl = 0.85 + 0.15 * Math.sin((o.t || 0) * 17), n = sp.length;
+      for (const [wk, col, ak] of [[3.4, 'rgba(255,90,20,', 0.16], [2.3, 'rgba(255,130,40,', 0.2], [1.5, 'rgba(255,190,90,', 0.14]]) for (let part = 0; part < 3; part++) {
+        const i0 = Math.floor(part * n / 3), i1 = Math.min(n - 1, Math.floor((part + 1) * n / 3) + 1), rr = sp[(i0 + i1) >> 1].r * k; let on = false;
+        c.strokeStyle = col + (ak * al0 * fl * Math.min(1.6, glow)).toFixed(3) + ')'; c.lineWidth = Math.max(2, rr * wk); c.beginPath();
+        for (let i = i0; i <= i1; i++) { const s = sp[i]; if (s.p[2] + s.r < 0) { on = false; continue; } const q = toS(V, s.p); if (on) c.lineTo(q[0], q[1]); else { c.moveTo(q[0], q[1]); on = true; } } c.stroke(); }
+      c.restore(); }
     c.save(); c.globalAlpha = al0;
     for (const s of list) { const q = toS(V, s.p), r = s.r * k; c.globalAlpha = al0 * (o.fade ? o.fade(s.p) : 1); c.drawImage(B, q[0] - r * 1.05, q[1] - r * 1.0, r * 2.1, r * 2.0 * (0.5 + 0.5 * ZK)); }
     // the molten seam down its flank and the fins: one glowing line, flame points

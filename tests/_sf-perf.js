@@ -1,4 +1,4 @@
-// v450 SF: Snake Flame's frame cost on a crowded dungeon floor (44 monsters held round the aim), at a phone's size (390x844, DPR 3), every
+// v450 SF, v452 SF2 (phases: the roam, climb, plunge, burst): Snake Flame's frame cost on a crowded dungeon floor (44 monsters held round the aim), at a phone's size (390x844, DPR 3), every
 // GPU path forced on the software rasteriser (as a phone's GPU takes them), measured by tests/_pf-lib.js: idle (no cast) and each phase of
 // the cast. Per scenario: this machine's frame ms (median; SwiftShader: the GPU's work is paid on the CPU here), the JS ms (the frame less
 // the GPU copies' waits), the WebGL -> 2D copies a frame (FGFX layers laid + GLM passes laid), GLM passes and their GL pixels, the composite
@@ -34,7 +34,7 @@ const GLMLOG = () => { window.__SPT = { n: 0, px: 0, big: 0 };
   await measure('idle');
   await ev(evo => { const P = window.__pp, D = P.arc.game._dbg, T = window.__T; window.__SFH(); D.ELEM.ult('snakeflame', { a: 0, base: 50, E: { color: '#FF7A2E' }, el: 'fire', e8: 'fire', evo, tx: T.x, ty: T.y, A: {}, up: evo >= 7 }); window.__t0 = D.g.t; }, EVO);
   const to = t => ev(t => { const G = window.__pp.arc.game, D = G._dbg; while (D.g.t - window.__t0 < t - 1e-6) { window.__SFH(); G.update(1 / 60); } }, t);
-  for (const [name, t] of [['ring', 0.35], ['surge', 1.1], ['coil', 3.4], ['coil2', 5.6], ['last', 7.4], ['blast', 7.95], ['ball', 8.3], ['linger', 9.2]]) { await to(t); await measure(name); }
+  for (const [name, t] of [['ring', 0.35], ['surge', 1.1], ['roam', 3.4], ['roam2', 5.6], ['climb', 6.6], ['plunge', 7.6], ['blast', 7.95], ['burst', 8.3], ['column', 8.9], ['linger', 9.4]]) { await to(t); await measure(name); }
   const after = await ev(() => { const D = window.__pp.arc.game._dbg, G = window.SNAKEFLAME_GL; return { fx: D.ELEM.fx.length, gpu: G.gpuCount(), stats: G.STATS }; });
   console.log('after', JSON.stringify(after)); console.log('TABLE', JSON.stringify(rows));
   console.log('errors', JSON.stringify(errors.slice(0, 5))); await T.browser.close();

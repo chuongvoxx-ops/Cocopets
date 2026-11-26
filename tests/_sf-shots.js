@@ -1,11 +1,11 @@
-// v450 SF: Snake Flame in game, phase by phase (GLM + FGFX forced on the software rasteriser unless GL=0): a dungeon floor, monsters held
+// v450 SF, v452 SF2 (the roam, climb, plunge and burst; default OUT shots/v452-SF2; the game's own hit-stop at the blast holds the move's clock ~0.3 s, so the burst's stills run to 10.2): Snake Flame in game, phase by phase (GLM + FGFX forced on the software rasteriser unless GL=0): a dungeon floor, monsters held
 // round the aim, the pet beside it; one still per phase into shots/v450-SF/game-<dpr>x-evo<k>-<phase>.png (the game drawn by its own loop,
 // stepped by hand). usage: HTML=<test html> node tests/_sf-shots.js   env: DPR (1), EVOS (1,4,7), PH (comma list of seconds from the cast), GL (1), LOW (1: Fewer effects)
 const { chromium } = require('/opt/npm-tools/node_modules/playwright');
 const path = require('path'), fs = require('fs');
 (async () => {
-  const GL = process.env.GL !== '0', DPR = +(process.env.DPR || 1), OUT = path.resolve(__dirname, '..', process.env.OUT || 'shots/v450-SF'); fs.mkdirSync(OUT, { recursive: true });
-  const EVOS = (process.env.EVOS || '1,4,7').split(',').map(Number), PH = (process.env.PH || '0.35,0.95,1.6,3.2,5.6,7.4,7.9,8.15,8.6,9.4').split(',').map(Number);
+  const GL = process.env.GL !== '0', DPR = +(process.env.DPR || 1), OUT = path.resolve(__dirname, '..', process.env.OUT || 'shots/v452-SF2'); fs.mkdirSync(OUT, { recursive: true });
+  const EVOS = (process.env.EVOS || '1,4,7').split(',').map(Number), PH = (process.env.PH || '0.35,1.0,2.6,4.0,5.4,6.55,7.05,7.55,7.82,7.95,8.3,8.6,9.0,9.6,10.2').split(',').map(Number);
   const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--disable-gpu-watchdog'] });
   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: DPR, hasTouch: true });
   const errors = []; page.on('pageerror', e => errors.push(e.message + ' @ ' + (e.stack || '').split('\n').slice(1, 3).join(' ')));
