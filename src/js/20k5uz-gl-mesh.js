@@ -1742,36 +1742,42 @@ void main() {
     aC += aRU * aDE * 2.0 + aPK * aDE * aDE * 1.2;   // (the dissolve's burning crimson edge: it breaks into grains)
     gl_FragColor = vec4(vec3(tone(aC.r), tone(aC.g), tone(aC.b)) * uAlpha, uAlpha); return; }
   /*</AS-MAT>*/
-  /*<TM-MAT ids 505..509 (v451 TM: 20k9l-thunder-tiamat-model.js, Tiamat the dragon of lightning)>*/
-  else if (id >= 505 && id <= 509) {   // ---- (v451 TM) Tiamat (20k9l), plasma throughout (emissive, display-space colours): 505 the body (vA.y q: 1 the head .. 0 the tail's tip; vA.z round it, or along the head), 506 a bright structural rib (horns, claws, bones, spines: vA.y the q where it joins, vA.z along it 0 root .. 1 tip), 507 a wing membrane (vA.y 0 its root .. 1 the trailing edge, vA.z its panel + 0.98 across: a translucent sheet of energy), 508 an eye (508.2 the mouth's glow, 508.4 a tooth). uSpill the formation's front (under 1.45 still forming: what is beyond it not there yet, a white edge where it appears), uKind the charge's front along q (tail 0 .. jaws 1), uFx the break-up into arcs (0..1), uGlow its brightness, uGlow2 a white flash
-    float tV = vA.x - float(id), tT = uTime, tNV = max(0.0, dot(n, uV)), tFr = pow(1.0 - tNV, 1.5), tQ, tOrd; vec2 tP;
-    if (id == 507) { tQ = 0.76 - 0.3 * edge; tOrd = 0.36 + 0.42 * edge; tP = vec2(edge * 7.0, ao * 3.0); }
-    else if (id == 506) { tQ = edge; tOrd = 0.26 + abs(edge - 0.72) * 1.25 + ao * 0.3; tP = vec2(ao * 9.0, edge * 23.0); }
-    else { tQ = edge; tOrd = abs(edge - 0.72) * 1.45; tP = vec2(edge * 44.0 + ao * 9.0, ao * 6.0 + dot(NL, vec3(1.3, 2.1, 1.7)) * 1.5); }
-    vec3 tCore = vec3(1.0, 0.99, 1.0), tBlue = vec3(0.1, 0.34, 1.0), tMid = vec3(0.52, 0.78, 1.0), tVio = vec3(0.6, 0.28, 1.0); float tDE = 0.0;
-    if (uSpill < 1.45) { float th = tOrd + vn(tP * 0.8 + 2.3) * 0.22; if (th > uSpill) discard; tDE = smoothstep(uSpill - 0.14, uSpill, th); }   // (forming: the parts appear in order, white where they arrive)
-    if (uFx > 0.0) { float nz = vn(tP * 1.6 + 5.1) * 0.6 + vn(tP * 4.2 + 1.7) * 0.4, th2 = uFx * 1.25 - 0.12; if (nz < th2) discard; tDE = max(tDE, smoothstep(th2 + 0.14, th2, nz)); }   // (breaking up: holes eaten by a noise front, edged white)
-    float tBq = (tQ - uKind) / 0.055, tBand = uKind > 0.001 && uKind < 1.2 ? exp(-tBq * tBq) : 0.0, tDone = uKind > 0.001 ? smoothstep(uKind + 0.03, uKind - 0.12, tQ) : 0.0;   // (the charge: a bright band running up from the tail, brighter behind it)
-    vec2 tw = tP + vec2(vn(tP * 0.55 + 7.0), vn(tP * 0.55 + 3.0)) * 1.6; float tv1 = vn(tw + vec2(-tT * 2.6, tT * 0.4)), tv2 = vn(tw * 2.3 + vec2(-tT * 4.1, 1.3));
-    float tGate = smoothstep(0.45, 0.7, vn(tP * 0.35 + 11.0)), tVein = smoothstep(0.02, 0.0, abs(tv1 - 0.5)) * tGate + smoothstep(0.07, 0.0, abs(tv1 - 0.5)) * tGate * 0.22, tVein2 = smoothstep(0.012, 0.0, abs(tv2 - 0.5)) * smoothstep(0.5, 0.75, vn(tP * 0.5 + 4.0)), tPul = 0.55 + 0.45 * pow(0.5 + 0.5 * sin(tQ * 38.0 - tT * 13.0 + tv1 * 4.0), 3.0);   // (branching paths, flickering pulses running to the head)
-    float tKL = dot(n, uLK), tLit = 0.5 * smoothstep(-0.15, 0.1, tKL) + 0.5 * smoothstep(0.45, 0.6, tKL), tDn = smoothstep(-0.2, -0.85, dot(n, uUP));
-    vec3 c; float tA = 1.0;
-    if (id == 508) { if (tV > 0.3) c = mix(vec3(0.8, 0.85, 1.0), tCore, 0.5 + 0.5 * tNV);
-      else if (tV > 0.1) c = mix(tVio * 0.75, tCore, clamp(0.3 + 0.8 * tDone + tBand, 0.0, 1.0));
-      else c = mix(tVio, tCore, 0.6 + 0.4 * tNV); }
-    else if (id == 507) { float pn = floor(ao + 0.001), v = clamp((ao - pn) / 0.98, 0.0, 1.0), u = clamp(edge, 0.0, 1.0);
-      float cur = pow(vn(vec2(u * 6.0 - tT * 2.4, v * 3.0 + pn * 3.7)), 3.0), fil = smoothstep(0.02, 0.0, abs(vn(vec2(u * 9.0 - tT * 3.3, v * 5.0 + pn * 1.9)) - 0.5)) * smoothstep(0.4, 0.7, vn(vec2(u * 3.0 + pn, v * 2.0 + tT * 0.5)));
-      float filV = smoothstep(0.015, 0.0, abs(vn(vec2(u * 13.0 + tT * 2.0, v * 7.0 + pn * 5.0)) - 0.5)) * smoothstep(0.5, 0.75, vn(vec2(u * 2.0 - tT * 0.7, v * 3.0 + pn * 2.0)));   // (violet arcs crossing the sheet)
-      float ribE = exp(-v * 14.0) + exp(-(1.0 - v) * 14.0), trl = smoothstep(0.86, 1.0, u), root = 1.0 - smoothstep(0.0, 0.12, u);
-      c = mix(vec3(0.15, 0.42, 1.0), vec3(0.42, 0.3, 1.0), 0.3 * v + 0.3 * u) * (0.45 + 0.7 * cur + 0.6 * ribE + 0.8 * trl) + tCore * (fil * tPul * 0.9 + trl * 0.35 + ribE * 0.2) + tVio * filV * 0.9;   // (a sheet of blue-white energy: currents, a bright trailing edge, light along each rib)
-      tA = clamp(0.2 + 0.25 * cur + 0.25 * ribE + 0.35 * trl + 0.2 * fil + 0.15 * root + 0.4 * tDE, 0.0, 0.85); }
-    else { float hot = id == 506 ? 0.5 + 0.5 * ao : 0.0; vec3 b;
-      if (id == 506) b = mix(vec3(0.42, 0.7, 1.0), tCore, pow(tNV, 2.0) * 0.75);   // (a rib: blue-white, its middle white-hot)
-      else b = mix(vec3(0.1, 0.33, 1.0), vec3(0.4, 0.7, 1.0), smoothstep(0.15, 0.75, tNV)) + tCore * pow(tNV, 3.0) * 0.65;   // (the body: electric blue, the core facing us white-hot)
-      b = mix(b, vec3(0.06, 0.17, 0.85), tFr * (id == 506 ? 0.45 : 0.75)); b *= 0.74 + 0.34 * tLit; b = mix(b, tVio * 0.8, tDn * 0.32);   // (electric-blue contours, a violet underside)
-      c = b + tCore * tVein * tPul * (id == 506 ? 0.25 : 0.6) + tVio * tVein2 * 0.45 + tCore * hot * 0.18 + vec3(0.25, 0.55, 1.0) * smoothstep(0.66, 0.94, 1.0 - tNV) * 0.45; }
-    c *= 0.86 + 0.14 * uGlow; c *= 1.0 + 0.12 * tDone; c += tCore * (tBand * (id == 507 ? 0.35 : 0.85) + tDE * 1.2); c = mix(c, tCore, clamp(uGlow2, 0.0, 1.0));
-    tA *= uAlpha; gl_FragColor = vec4(min(c, vec3(1.0)) * (id == 507 ? min(1.0, tA * 1.7) : tA), tA); return; }   // (a membrane: more light than cover, so it glows rather than greys)
+  /*<TM-MAT ids 505..509 (v451 TM, remade v454 TM2: 20k9l-thunder-tiamat-model.js, Tiamat the serpentine lightning dragon)>*/
+  else if (id >= 505 && id <= 509) {   // ---- (v451 TM, v454 TM2) Tiamat (20k9l): the materials as below. uSpill the formation's front (under 1.45 still forming: what is beyond it not there yet, a white edge where it appears), uKind the charge's front along q (tail 0 .. jaws 1), uFx the break-up into arcs (0..1), uGlow its brightness, uGlow2 a white flash
+    // (v454 TM2: remade for the user's concept, cel-shaded: 505 the scaled body (vA.y q: 1 the head .. 0 the tail; vA.z round it: 0 the spine .. 0.5 the belly): deep violet-blue overlapping scales, a pale plated belly, magenta veins of light down the flanks with dotted rows above them; 506 a spike, ray, claw or crest spine (its fraction 0.4 q; vA.y along it, root 0 .. tip 1): ice-white, violet at the root; 507 an icy fin membrane and 509 the dark sail (fraction 0.4 q; vA.y root 0 .. free edge 1; vA.z across in rays, a ray at each whole number): translucent, violet edges, glowing magenta dots strung along the rays, the sail's rows of dots; 508 an eye (508.2 the mouth's glow, 508.4 a fang). The charge (uKind) brightens the veins and dots from the tail to the jaws)
+    float tV = vA.x - float(id), tT = uTime, tNV = max(0.0, dot(n, uV)), tQ, tOrd; vec2 tP;
+    if (id == 505) { tQ = edge; tOrd = abs(edge - 0.68) * 1.4; tP = vec2(edge * 110.0, ao * 22.0); }
+    else if (id == 508) { tQ = 1.0; tOrd = 0.45; tP = vec2(ao * 9.0, edge * 5.0); }
+    else { tQ = clamp(tV / 0.4, 0.0, 1.0); tOrd = (id == 506 ? 0.25 : 0.38) + abs(tQ - 0.68) * 1.1 + edge * 0.3; tP = vec2(edge * 6.0 + tQ * 20.0, ao * 2.0); }
+    vec3 tW = vec3(1.0, 0.98, 1.0), tMag = vec3(1.0, 0.3, 0.92), tVio = vec3(0.58, 0.32, 1.0); float tDE = 0.0;
+    if (uSpill < 1.45) { float th = tOrd + vn(tP * 0.5 + 2.3) * 0.22; if (th > uSpill) discard; tDE = smoothstep(uSpill - 0.14, uSpill, th); }   // (forming: the parts appear in order, white where they arrive)
+    if (uFx > 0.0) { float nz = vn(tP * 0.9 + 5.1) * 0.6 + vn(tP * 2.6 + 1.7) * 0.4, th2 = uFx * 1.25 - 0.12; if (nz < th2) discard; tDE = max(tDE, smoothstep(th2 + 0.14, th2, nz)); }   // (breaking up: holes eaten by a noise front, edged white)
+    float tBq = (tQ - uKind) / 0.06, tBand = uKind > 0.001 && uKind < 1.2 ? exp(-tBq * tBq) : 0.0, tDone = uKind > 0.001 ? smoothstep(uKind + 0.03, uKind - 0.12, tQ) : 0.0, tGl = 0.75 + 0.25 * uGlow + 0.6 * tDone + 1.2 * tBand;   // (the charge: the veins and dots brighter behind its front, a flare at it)
+    float tLit = 0.0; vec3 c, em = vec3(0.0); float tA = 1.0;
+    if (id == 505) { float bel = smoothstep(0.34, 0.4, ao) * (1.0 - smoothstep(0.6, 0.66, ao)), aw = abs(ao - 0.5);
+      vec2 g = vec2(tP.x, tP.y + mod(floor(tP.x), 2.0) * 0.5), gi = floor(g), gf = fract(g) - vec2(0.62, 0.5); float sc = smoothstep(0.3, 0.52, length(gf * vec2(1.0, 1.15)) + 0.1 * hs(gi));   // (overlapping round scales: their rims)
+      float scu = smoothstep(0.4, 0.5, abs(fract(edge * 90.0) - 0.5));   // (the belly's plates)
+      vec3 back = cel3(vec3(0.09, 0.07, 0.24), vec3(0.24, 0.21, 0.54), vec3(0.47, 0.46, 0.86), n, tLit) * (1.0 - 0.3 * sc) + vec3(0.12, 0.1, 0.25) * (1.0 - sc) * 0.25, belly = cel3(vec3(0.36, 0.33, 0.56), vec3(0.64, 0.62, 0.84), vec3(0.88, 0.87, 0.99), n, tLit) * (1.0 - 0.3 * scu);
+      c = mix(back, belly, bel);
+      float vq = (aw - 0.16) / 0.026, vein = exp(-vq * vq) + 0.35 * exp(-vq * vq * 0.12) * (1.0 - 0.4 * hs(vec2(floor(edge * 40.0), 3.0)));
+      float dts = step(0.5, hs(vec2(floor(edge * 150.0), floor(aw * 30.0)))) * smoothstep(0.35, 0.05, length(vec2(fract(edge * 150.0) - 0.5, (fract(aw * 30.0) - 0.5) * 0.6))) * step(0.18, aw) * step(aw, 0.33);
+      em = tMag * (vein * 1.3 + dts * 0.7) * tGl; }   // (v454 TM3: stronger veins, a soft glow round them)
+    else if (id == 506) { float al = clamp(edge, 0.0, 1.0); c = cel3(vec3(0.3, 0.22, 0.6), vec3(0.62, 0.62, 0.9), vec3(0.92, 0.95, 1.0), n, tLit); c = mix(c * vec3(0.7, 0.55, 1.0), c, smoothstep(0.0, 0.4, al)) + vec3(0.6, 0.75, 1.0) * al * al * al * 0.25; em = tVio * smoothstep(0.3, 0.0, al) * 0.15 * tGl; }
+    else if (id == 508) { if (tV > 0.3) c = cel3(vec3(0.6, 0.6, 0.75), vec3(0.88, 0.88, 0.95), vec3(1.0), n, tLit);
+      else if (tV > 0.1) { c = vec3(0.35, 0.05, 0.3); em = tMag * (0.55 + 0.5 * tDone + tBand) + tW * 0.4 * tDone; }
+      else { c = vec3(0.4, 0.3, 0.7); em = mix(tVio, tW, 0.55 + 0.45 * tNV) * (0.7 + 0.4 * tGl); } }
+    else { float u = clamp(edge, 0.0, 1.0), r = ao, rf = abs(fract(r + 0.5) - 0.5), rq = rf / 0.06, ray = exp(-rq * rq), dk = id == 509 ? 1.0 : 0.0;
+      float dot1 = smoothstep(0.38, 0.12, length(vec2(fract(u * 13.0 + floor(r + 0.5) * 0.37) - 0.5, rf * 3.2))) * step(0.12, u) * step(u, 0.93);   // (dots strung along each ray)
+      float dot2 = dk * smoothstep(0.3, 0.1, length(vec2(fract(u * 11.0) - 0.5, (fract(r * 3.0) - 0.5) * 0.9))) * step(0.1, u) * step(u, 0.85);   // (the sail's rows of dots)
+      float edg = smoothstep(0.72, 1.0, u), cur = vn(vec2(u * 4.0 - tT * 1.6, r * 1.3 + tT * 0.3));
+      vec3 ice = mix(vec3(0.78, 0.88, 1.0), vec3(0.46, 0.6, 0.97), 0.45 * u + 0.25 * cur), drk = mix(vec3(0.16, 0.1, 0.4), vec3(0.32, 0.2, 0.62), cur * 0.6 + 0.3 * (1.0 - u));
+      c = mix(ice, drk, dk); c = mix(c, mix(vec3(0.62, 0.42, 1.0), vec3(0.88, 0.95, 1.0), dk), edg * (0.6 + 0.3 * dk)) + vec3(0.95, 0.97, 1.0) * ray * (0.16 - 0.06 * dk);   // (violet edges on the icy fins, the sail's edge icy white; bright rays)
+      c *= 0.78 + 0.3 * smoothstep(-0.3, 0.6, abs(dot(n, uLK)));
+      em = tMag * (dot1 * (0.65 - 0.3 * dk) + dot2 * 0.8) * tGl + (1.0 - dk) * (vec3(0.25, 0.36, 0.75) * (0.16 + 0.16 * cur) + vec3(0.45, 0.3, 0.9) * edg * 0.22) + tMag * (edg * 0.3 + ray * u * 0.22) * tGl * (1.0 - 0.5 * dk);   // (the icy fins glow a little of their own; v454 TM3: lit magenta edges and rays)
+      tA = clamp(mix(0.3 + 0.22 * u, 0.82, dk) + 0.22 * ray + 0.15 * edg + 0.4 * tDE, 0.0, 0.88); }
+    if (id != 507 && id != 509) { c += celRim(n) * 1.4 + vec3(0.45, 0.4, 1.0) * smoothstep(0.55, 0.9, 1.0 - tNV) * 0.28 + vec3(1.0) * celSpec(n, 0.965) * 0.25; }
+    c += em; c += tW * (tBand * 0.25 + tDE * 1.1); c = mix(c, tW, clamp(uGlow2, 0.0, 1.0));
+    tA *= uAlpha; gl_FragColor = vec4(min(c, vec3(1.0)) * tA + (id == 507 || id == 509 ? min(em, vec3(1.0)) * (1.0 - tA) : vec3(0.0)), tA); return; }   // (a membrane: its dots glow through it)
   /*</TM-MAT>*/
   /*<OD-DRILL-MAT ids 150..151 (v416 OD: 20k2iz-earth-drill-gpu.js)>*/
   else if (id >= 150 && id <= 151) {   // ---- (v416 OD) the Obsidian Drill (20k2iz), z its axis in its own frame: 150 black volcanic glass (150.2 its core, 150.4 its tip; vA.y 1 on a bevel or a facet's rim, vA.z the occlusion), 151 gold crystal (151.0 the inlay along a flight's rim: vA.z its length along the helix; 151.3 a joint's crystal). uGlow the gold's light, uWear world units a model unit (its height over the floor from vW.z), uTime.
