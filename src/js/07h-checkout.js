@@ -19,7 +19,13 @@
    4. the client then reads its crystals from the account the server updated, never granting them itself.
    The client side keeps that shape already: Checkout.complete(ev) grants only a verified success, once per transaction
    id, recorded in the save's ledger (st.payTx, 04-state) in the same save as the crystals */
-const STORE_CFG = { currency: null, provider: null };   // (e.g. { currency: 'EUR', provider: 'stripe' } once checkout is set up)
+const STORE_CFG = { currency: null, provider: null, test: true };   // (e.g. { currency: 'EUR', provider: 'stripe' } once checkout is set up)
+/* v462b: until a payment provider is connected, crystal packs are TEST PURCHASES like the treasure box and the egg (the
+   user's choice: "Just do fake money like before we can set up payment later"): shown at $10.00 / $20.00 · test purchase,
+   nothing is charged, the crystals are added at once through Checkout (one ledger entry per test transaction, m: 2).
+   Set test: false to get the "Checkout not set up" state back; a configured provider always takes over. */
+const testBuy = () => !checkoutReady() && !!STORE_CFG.test && !(st && st.devPay);
+const testPrice = n => '$' + Number(n).toFixed(2);
 const STONE_PACKS = [{ id: 'fs10', stones: 10, cost: 1000 }, { id: 'fs20', stones: 20, cost: 1500 }];
 const CRYSTAL_PACKS = [{ id: 'cr5k', crystals: 5000, price: 10 }, { id: 'cr20k', crystals: 20000, price: 20 }];
 const STONES_MAX = 999;   // (the save's cap on Fusion Stones, 04-state)
@@ -71,6 +77,7 @@ const Checkout = {
   begin(packId) {
     const P = packOf(packId); if (!P || !st) return { ok: false, why: 'bad' };
     if (checkoutReady()) return { ok: false, why: 'no-provider' };   // (a real provider would be called here; none exists in this build)
+    if (testBuy()) { const id = 'test_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); this.open.set(id, P.id); return { ok: true, id, test: true }; }   // v462b
     if (!st.devPay) return { ok: false, why: 'setup' };
     const id = 'mock_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
     this.open.set(id, P.id);
@@ -87,26 +94,29 @@ const Checkout = {
     if (ev.status !== 'success') { this.open.delete(ev.id); return { ok: false, why: 'failed' }; }
     if (!ev.verified) return { ok: false, why: 'unverified' };
     if (ev.mock && !st.devPay) return { ok: false, why: 'mock-off' };
+    if (ev.test && !testBuy()) return { ok: false, why: 'test-off' };   // v462b
     if (this.open.get(ev.id) !== P.id) return { ok: false, why: 'unknown' };   // (only a transaction this client began, for this pack)
     st.crystals = (st.crystals || 0) + P.crystals;
-    st.payTx = (st.payTx || []).concat([{ id: ev.id, p: P.id, at: Date.now(), m: ev.mock ? 1 : 0 }]).slice(-1000);
+    st.payTx = (st.payTx || []).concat([{ id: ev.id, p: P.id, at: Date.now(), m: ev.mock ? 1 : ev.test ? 2 : 0 }]).slice(-1000);
     this.open.delete(ev.id);
     saveLocalNow(); Store.touch(); updateHud();
     return { ok: true, crystals: P.crystals };
   },
 };
 function crystalPacksHTML() {
-  const mock = !!st.devPay && !checkoutReady();
-  return `<div class="packs crystal-packs">${CRYSTAL_PACKS.map(P => { const pr = storePrice(P.price); return `<button class="pack${pr.ok || mock ? '' : ' unset'}" type="button" data-go="crystal-pack" data-id="${P.id}"${pr.ok || mock ? '' : ' aria-disabled="true"'}>${ICON.crystal}<b>${nComma(P.crystals)} crystals</b><span class="mono">${mock ? 'Mock checkout · dev only' : esc(pr.text)}</span></button>`; }).join('')}</div>`;
+  const mock = !!st.devPay && !checkoutReady(), test = testBuy();
+  return `<div class="packs crystal-packs">${CRYSTAL_PACKS.map(P => { const pr = storePrice(P.price), on = pr.ok || mock || test; return `<button class="pack${on ? '' : ' unset'}" type="button" data-go="crystal-pack" data-id="${P.id}"${on ? '' : ' aria-disabled="true"'}>${ICON.crystal}<b>${nComma(P.crystals)} crystals</b><span class="mono">${mock ? 'Mock checkout · dev only' : test ? `${testPrice(P.price)} · test purchase` : esc(pr.text)}</span></button>`; }).join('')}</div>`;
 }
 function checkoutNoteHTML() {
   if (checkoutReady()) return '';
-  return `<p class="demo-note pay-setup"><b>Checkout setup required.</b> Crystal packs are ${CRYSTAL_PACKS.map(P => `${nComma(P.crystals)} for ${P.price}`).join(' and ')} in the store's currency, but this build has no store currency and no payment provider configured, so they cannot be bought.${st.devPay ? ' The development-only mock checkout is on (Developer tools): it charges nothing and is not a real purchase.' : ''}</p>`;
+  if (testBuy()) return `<p class="demo-note">Prototype: the crystal packs are test purchases and nothing is charged. Real payment will be connected later.</p>`;   // v462b
+  return `<p class="demo-note pay-setup"><b>Checkout setup required.</b> Crystal packs (${CRYSTAL_PACKS.map(P => `${nComma(P.crystals)} crystals for ${P.price}`).join(', ')} in the store's currency) can't be bought yet: no payment provider or store currency is connected to this game.${st.devPay ? ' The development-only mock checkout is on (Developer tools): it charges nothing and is not a real purchase.' : ''}</p>`;
 }
 /* a crystal pack tapped: the mock (developers), or what checkout is still missing */
 function crystalPackTap(id) {
   const P = packOf(id); if (!P) return;
   const r = Checkout.begin(id);
+  if (r.ok && r.test) { Checkout.open.delete(r.id); confirmCrystalTest(P); return; }   // v462b
   if (r.ok) { openMockCheckout(r.id, P); return; }
   sfx.wrong();
   openSheet('crystals', `<p class="eyebrow">Shop</p><h2 class="title" id="sheetTitle">${nComma(P.crystals)} crystals</h2>
@@ -114,6 +124,23 @@ function crystalPackTap(id) {
     <p class="note"><b>Checkout is not set up in this build.</b> This pack costs ${P.price} in the store's currency, and the store has no currency or payment provider configured yet, so it cannot be bought. Nothing was charged and no crystals were added.</p>
     <p class="note">Crystals also come from play: every Adventure stage you clear gives ${CRYSTALS_PER_STAGE}, every Tower floor ${CRYSTALS_PER_FLOOR}, every treasure box ${fmtNum(GIFT_CRYSTALS)}.</p>
     <div class="evo-actions"><button class="btn" type="button" data-go="shop" data-sec="crystals">Back to the Shop</button></div>`);
+}
+/* v462b: a crystal pack as a test purchase: confirm, then the crystals are added (nothing charged) */
+function confirmCrystalTest(P) {
+  openSheet('crystals', `<p class="eyebrow">Test purchase</p><h2 class="title" id="sheetTitle">Buy ${nComma(P.crystals)} crystals?</h2>
+    <div class="egg-hero small crystal-hero">${ICON.crystal}</div>
+    <p class="note">In the store version this charges <b>${testPrice(P.price)}</b>. This prototype charges nothing.</p>
+    <div class="evo-actions"><button class="btn primary" type="button" data-go="crystal-test" data-id="${P.id}">Get ${nComma(P.crystals)} crystals</button><button class="btn" type="button" data-go="shop" data-sec="crystals">Back</button></div>`);
+}
+function crystalTestBuy(id) {
+  const P = packOf(id); if (!P) return null;
+  const r = Checkout.begin(id); if (!r.ok || !r.test) { crystalPackTap(id); return null; }
+  const res = Checkout.complete({ id: r.id, pack: P.id, status: 'success', verified: true, test: true });
+  if (!res.ok) { sfx.wrong(); return res; }
+  sfx.coin(); toast(`Added ${nComma(res.crystals)} crystals (test purchase, nothing charged). You have ${nComma(st.crystals)}.`);
+  try { renderDungeon(); } catch (e) {}
+  openShop('crystals');
+  return res;
 }
 /* the development-only mock checkout: no money, no provider; it calls Checkout.complete as a verified server would */
 let mockTx = null;

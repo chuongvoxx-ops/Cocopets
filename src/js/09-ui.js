@@ -308,6 +308,7 @@ sheetWrap.addEventListener('click', e => {
     else if (k === 'stone-pack') { if (buyStonePack(go.dataset.id, go.dataset.tok).ok) stonesRedraw(); }   // v460 META: the packs and the checkout (07h)
     else if (k === 'crystal-pack') crystalPackTap(go.dataset.id);
     else if (k === 'pay-mock') mockPay(go.dataset.r);
+    else if (k === 'crystal-test') crystalTestBuy(go.dataset.id);   // v462b
     else if (k === 'fusion') openFusion();
     else if (k === 'fuse-pick') fusePick(go.dataset.slot, +go.dataset.i);
     else if (k === 'fuse-roll') fuseRoll();

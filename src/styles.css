@@ -2076,7 +2076,11 @@ body.in-map .outside-btn,body.in-mansion .outside-btn,body.home-mode .outside-bt
 .fa-pick .sk-art.on::after{content:"✓";position:absolute;right:-5px;top:-6px;width:17px;height:17px;border-radius:50%;background:#6CC15A;color:#FFF;font-size:11px;font-weight:800;display:grid;place-items:center;border:1.5px solid #2B2433}
 .pack.unset{opacity:.62;cursor:help}
 .pack.unset .mono{font-weight:800}
-.pay-setup{background:#FFF1D6;border:2px dashed #C98A12}
+.pay-setup{background:#FFF1D6;color:#4A3208;border:2px dashed #C98A12}   /* v462b: its own text colour (the theme's light text was unreadable on it in dark mode) */
+.pay-setup b{color:#7A4E00}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .pay-setup{background:#3A2E15;color:#F4E2BD} :root:not([data-theme="light"]) .pay-setup b{color:#FFC861} }
+:root[data-theme="dark"] .pay-setup{background:#3A2E15;color:#F4E2BD}
+:root[data-theme="dark"] .pay-setup b{color:#FFC861}
 .mock-eyebrow{color:#C2410C!important}
 .mock-banner{display:flex;flex-direction:column;gap:4px;margin:10px 0;padding:12px;border-radius:14px;border:3px dashed #C2410C;background:repeating-linear-gradient(-45deg,#FFF4E5 0 12px,#FFE6C7 12px 24px);color:#5A2A06;font-size:13px;line-height:1.35}
 .mock-banner b{font-size:15px;letter-spacing:.04em}

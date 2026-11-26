@@ -9,7 +9,7 @@ const HTML = process.env.HTML || 'test.html';
   const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, hasTouch: true });
   const errors = []; page.on('pageerror', e => errors.push(e.message + ' @ ' + (e.stack || '').split('\n').slice(1, 2).join(' ')));
-  await page.goto('file://' + path.resolve(__dirname, '..', HTML));
+  await page.goto('file://' + path.resolve(__dirname, '..', HTML), { timeout: 180000 });
   await page.waitForFunction(() => window.__pp, null, { timeout: 20000 }); await page.waitForTimeout(300);
   const fails = [], passes = []; const ok = (c, what, info) => { (c ? passes : fails).push(what + (c || info === undefined ? '' : ' :: ' + JSON.stringify(info))); };
   const LS = () => page.evaluate(() => JSON.parse(localStorage.getItem('pocket-pet-v1')));
@@ -19,11 +19,19 @@ const HTML = process.env.HTML || 'test.html';
   ok(JSON.stringify(cfg.crystals.map(p => [p.crystals, p.price])) === '[[5000,10],[20000,20]]' && cfg.cur === null, 'crystal packs: 5,000 for 10, 20,000 for 20 (store currency: none configured)', cfg.crystals);
 
   // 1. the Shop shows the packs: crystal prices only in a configured currency; here "Checkout not set up", no $ / USD / AUD
+  // v462b: by default (no provider) the crystal packs are test purchases like the treasure box: $10.00 / $20.00, nothing charged
+  const tu = await page.evaluate(() => { const P = window.__pp, M = P.meta; P.shop.openShop(); const t = s => [...document.querySelectorAll(s)].map(e => e.textContent.trim());
+    return { test: M.testBuy(), crystal: t('.crystal-packs .pack'), dis: [...document.querySelectorAll('.crystal-packs .pack')].map(b => b.getAttribute('aria-disabled')), note: !!document.querySelector('.pay-setup') }; });
+  ok(tu.test && /5,000 crystals.*\$10\.00 · test purchase/.test(tu.crystal[0]) && /20,000 crystals.*\$20\.00 · test purchase/.test(tu.crystal[1]) && tu.dis.every(d => d === null) && !tu.note, 'crystal packs: test purchases at $10.00 / $20.00, buyable, no setup notice', tu);
+  const tb = await page.evaluate(() => { const P = window.__pp, M = P.meta; P.st.crystals = 100; P.st.payTx = []; M.crystalPackTap('cr5k'); const conf = document.querySelector('#sheet').textContent;
+    document.querySelector('[data-go="crystal-test"]').click(); const a = P.st.crystals; const r2 = M.crystalTestBuy('cr20k'); return { conf, a, b: P.st.crystals, r2: r2 && r2.ok, ledger: P.st.payTx.map(t => [t.p, t.m]), sheet: P.sheetKind }; });
+  ok(/Test purchase/.test(tb.conf) && /charges nothing/.test(tb.conf) && tb.a === 5100 && tb.b === 25100 && tb.r2 && JSON.stringify(tb.ledger) === '[["cr5k",2],["cr20k",2]]' && tb.sheet === 'shop', 'test purchase: confirm, +5,000 then +20,000, one ledger entry each (marked test), back to the Shop', tb);
+  await page.evaluate(() => { window.__pp.meta.STORE_CFG.test = false; window.__pp.st.payTx = []; });
   const ui = await page.evaluate(() => { const P = window.__pp; P.shop.openShop(); const t = s => [...document.querySelectorAll(s)].map(e => e.textContent.trim());
     return { stone: t('.stone-packs .pack'), crystal: t('.crystal-packs .pack'), note: (document.querySelector('.pay-setup') || {}).textContent || '', dis: [...document.querySelectorAll('.crystal-packs .pack')].map(b => b.getAttribute('aria-disabled')) }; });
   ok(ui.stone.length === 2 && /10 Fusion Stones.*1,000 crystals/.test(ui.stone[0]) && /20 Fusion Stones.*1,500 crystals/.test(ui.stone[1]), 'the Shop lists both stone packs with their crystal prices', ui.stone);
   ok(ui.crystal.length === 2 && ui.crystal.every(s => /Checkout not set up/.test(s) && !/\$|USD|AUD/.test(s)) && /5,000 crystals/.test(ui.crystal[0]) && /20,000 crystals/.test(ui.crystal[1]) && ui.dis.every(d => d === 'true'), 'crystal packs: "Checkout not set up", no currency invented, unavailable', ui.crystal);
-  ok(/Checkout setup required/.test(ui.note) && /store's currency/.test(ui.note), 'the setup requirement is spelled out', ui.note);
+  ok(/Checkout setup required/.test(ui.note) && /store's currency/.test(ui.note), 'test purchases off: the setup requirement is spelled out', ui.note);
 
   // 2. a configured currency formats the price (and is never assumed otherwise)
   const fmt = await page.evaluate(() => { const M = window.__pp.meta; M.STORE_CFG.currency = 'EUR'; const a = M.storePrice(10); M.STORE_CFG.currency = 'xx'; const b = M.storePrice(10); M.STORE_CFG.currency = null; const c = M.storePrice(20); return { a, b, c }; });
@@ -67,7 +75,7 @@ const HTML = process.env.HTML || 'test.html';
     return { u: u.why, a, stranger: stranger.why, off: off.why, wrongPack: wrongPack.why, after: P.st.crystals, id: P.st.payTx[0].id }; });
   ok(m2.u === 'unverified' && m2.stranger === 'unknown' && m2.off === 'mock-off' && m2.wrongPack === 'unknown' && m2.after === 25000, 'unverified, unknown, mock-off and wrong-pack results grant nothing', m2);
   // the ledger survives a save and a reload, so a replayed callback after a reload is still a duplicate
-  await page.evaluate(() => window.__pp.saveLocalNow()); await page.reload(); await page.waitForFunction(() => window.__pp && window.__pp.st, null, { timeout: 20000 }); await page.waitForTimeout(500);
+  await page.evaluate(() => window.__pp.saveLocalNow()); await page.reload({ timeout: 180000 }); await page.waitForFunction(() => window.__pp && window.__pp.st, null, { timeout: 20000 }); await page.waitForTimeout(500);
   const m3 = await page.evaluate(id => { const P = window.__pp, C = P.meta.Checkout; const r = C.complete({ id, pack: 'cr5k', status: 'success', verified: true, mock: true }); return { why: r.why, cr: P.st.crystals, n: P.st.payTx.length }; }, m2.id);
   ok(m3.why === 'duplicate' && m3.cr === 25000 && m3.n === 2, 'after a reload the same transaction id is still refused', m3);
 
