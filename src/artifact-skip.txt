@@ -3,15 +3,6 @@
 # These rifts are due to be rebuilt; when one is, delete its block so it comes back into the artifact.
 # In the artifact the game shows a left-out rift as "not built yet" (riftBuilt() is false), as it does for Rift 12.
 
-# Rift 04, The Sepulchre of Borrowed Hours (+ Gemini gate)
-20s1-rift-04-stages.js
-20s1b-rift-04-action.js
-20s2-rift-04-sepulchre.js
-20s3-rift-gate-gemini.js
-20z1-rift-fiend-sepulchre-1.js
-20z2-rift-fiend-sepulchre-2.js
-20z3-rift-fiend-sepulchre-3.js
-
 # Rift 05, The Pale Aurora (+ Capricorn gate)
 20s5-rift-05-stages.js
 20s6-rift-05-aurora.js

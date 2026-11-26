@@ -37,6 +37,7 @@ RiftFiend.define({ id: 'vaul', name: 'Vaul', title: 'The Mourning Reflection', c
   const PAL = { front: '#B4BFD1', hi: '#F4F7FC', sh: '#5F6B84', back: '#3E4862', line: LINE, gold: GOLD_HI, goldSh: GOLD };
   const GPAL = { front: '#B7A4F2', hi: '#EEE6FF', sh: '#7C66C9', back: '#4C3C8E', line: '#4C3C8E', gold: '#E6DAFF', goldSh: '#A893E8' };
   const SPK = [{ col: '#B9C4D6', hi: '#F6F9FF', sh: '#56617C', dk: '#2E3550' }, { col: '#A898D8', hi: '#EDE4FF', sh: '#5A4A98', dk: '#2E2458' }];
+  const hpK = FX => { const F = FX && FX.F && FX.F.rift && FX.F.rift.foeK; return F && F.boss > 0 ? F.boss : 1; };   // (v463 SA: the rift's main-boss health factor, 1 elsewhere)
   return {
     arenaR: 15, firstAct: 'stalk', artY: 0.8,
     artPoses: [{ name: 'hanging, the spikes wheeling', mem: { hd: 1.4 } }, { name: 'flared to strike', mem: { hd: 1.2, menace: 1, flare: 1, spR: 4.6 } }, { name: 'turned to the pet', mem: { hd: 0.5, spR: 3.2 } }, { name: 'woven: fallen, the eye bared', mem: { hd: 1.4, slump: 1 } }],
@@ -70,7 +71,7 @@ RiftFiend.define({ id: 'vaul', name: 'Vaul', title: 'The Mourning Reflection', c
           while (R.k < 3 && m.actT >= takes[R.k] / FX.S.fast) { const k = R.k++, px = me.x, py = me.y, life = bursts[k] - m.actT; M.flare = 1;
             FX.H.zone({ kind: 'ghost', x: px, y: py, life: life + 0.15, max: life + 0.15, own: 'none', face: me.face });
             FX.tele({ shape: 'circle', x: px, y: py, r: 2.0, t: life, dmg: m.dmg * 1.5, col: VIOLET_HI, label: String(k + 1), fn: s => { FX.H.boom(s.x, s.y, 1.8, VIOLET_HI, '#FFFFFF', { n: 16, shake: 7, smoke: 2 }); FX.H.ring(s.x, s.y, 0.3, 2.2, 0.35, SILVER_HI, 0.35); shardBurst(FX, s.x, s.y - 0.4, 10); FX.H.sfx.crack(); M.recoil = Math.max(M.recoil, 0.25); } });
-            FX.H.ring(px, py, 0.2, 1.2, 0.35, VIOLET_HI, 0.3); FX.H.sfx.chime(); FX.H.text(px, py - 1.8, `${k + 1}`, VIOLET_HI, 15); }
+            FX.H.ring(px, py, 0.2, 1.2, 0.35, VIOLET_HI, 0.3); FX.H.sfx.chime(); if (!(typeof SEP3 !== 'undefined' && SEP3.fg())) FX.H.text(px, py - 1.8, `${k + 1}`, VIOLET_HI, 15); }   // (v463 SA: on the GPU painter its order is motes of light round the mark, no numeral)
           // the second age: its three lashes sweep an arc during the replay, resolving between the first burst and the second
           if (P >= 2 && !R.sweep && m.actT >= bursts[0] - 1.4 / FX.S.fast) { R.sweep = true; const a = FX.angPet(m.x, m.y), t = (bursts[0] + bursts[1]) / 2 - m.actT; R.sa = a; M.sweepA = a;
             FX.tele({ shape: 'cone', x: m.x, y: m.y, a, len: 10, spread: 0.55, t, dmg: m.dmg * 1.4, col: GOLD_HI, fn: s => { M.sweepK = 1; M.sweepA = s.a; FX.H.sfx.whoosh(); FX.H.shake(8, 0.3); for (let i = 0; i < 9; i++) { const aa = s.a + (i / 8 - 0.5) * s.spread * 2, d = 2 + Math.random() * 7; FX.H.sparks(s.x + Math.cos(aa) * d, s.y + Math.sin(aa) * d, GOLD_HI, 3, 5); } } });
@@ -97,7 +98,7 @@ RiftFiend.define({ id: 'vaul', name: 'Vaul', title: 'The Mourning Reflection', c
       FX.parts(bodyParts(FX, m, M));
     },
     stunned(FX, m, dt) { const M = FX.mem; M.slump = Math.min(1, M.slump + dt * 2.2); M.menace = decay(M.menace, dt, 4); M.rear = decay(M.rear, dt, 4); m.noTouch = true; M.alt = toward(M.alt, 1.3, dt, 5); M.vol = [];
-      const e = eyeAt(FX, M, m); FX.weak('eye', e[0], e[1] - e[2], 1.6, 2.4, m.stunT > 0.05);
+      const e = eyeAt(FX, M, m); FX.weak('eye', e[0], e[1] - e[2], 1.6, 2.4 / hpK(FX), m.stunT > 0.05);   // (v463 SA: its blows 1 / foeK.boss)
       // held by the loom's threads, it twitches against them
       M.kickT = (M.kickT || 0) - dt; if (M.kickT <= 0) { M.kickT = 0.4; FX.H.sparks(e[0] + FX.rnd(-1.5, 1.5), e[1] - e[2] + FX.rnd(-0.8, 0.8), VIOLET_HI, 3, 3); FX.H.shake(1.5, 0.08); }
       FX.parts(bodyParts(FX, m, M)); },
@@ -121,7 +122,7 @@ RiftFiend.define({ id: 'vaul', name: 'Vaul', title: 'The Mourning Reflection', c
       // the entrance: it falls out of the sky, the spikes gathering in from far out; the eye opens and flares
       if (m.act === 'enter') { const e = FX.S.enterT || 0; M.unfold = clamp((e - 0.2) / 1.8, 0, 1); M.alt = lerp(14, ALT, 1 - Math.pow(1 - M.unfold, 3)); M.spR = lerp(10, 3.4, M.unfold * M.unfold * (3 - 2 * M.unfold)); M.hd = FX.K.lerpA(M.hd, M.look, Math.min(1, dt * 2)); if (e > 1.8 && !M.roared) { M.roared = true; M.roar = 1; M.flare = 1; M.rear = 1; FX.H.sfx.hum(); FX.H.sfx.crash(); FX.H.shake(9, 0.4); FX.H.ring(m.x, m.y, 0.3, 8, 1, VIOLET_HI, 0.4); } }
       else { M.unfold = toward(M.unfold, 1, dt, 3); if (M.wasEnter) { M.wasEnter = false; M.recoil = 1; FX.H.sfx.whoosh(); } } },
-    dmgK(FX) { const M = FX.mem; return M.copy && !M.copy.held ? 0.16 : 1; },
+    dmgK(FX) { const M = FX.mem; return (M.copy && !M.copy.held ? 0.16 : 1) / hpK(FX); },   // (v463 SA: the rift's main-boss health, foeK.boss times: 20s2 bossHpK 7)
     keep: { steps: 2, pad: 4 },
     draw(c, FX, m, X, Y, T, t, step) { drawVaul(c, FX, m, X, Y, T, t, step); },
     drawProp(c, FX, p, X, Y, T, t) { if (p.kind === 'loom') drawLoom(c, FX, p, X, Y, T, t); },

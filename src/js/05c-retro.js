@@ -247,7 +247,7 @@ const retro = (() => {
      and cyan the other, like an old lens. Four passes over the canvas: a copy, its red kept, the canvas's red taken out,
      the copy's red added back enlarged. (The Tower and the rifts only, whose pictures are opaque) (v441 FL: at High only)
      (v442 FM: then B's grade, when B is laid) */
-  let caCv = null;
+  let caCv = null, caOff = 0, caN = 0, caPx = null, caPxC = null;   // (v463 LEAD: frames to skip the fringe after a failed copy; the check's frame count and its 2x1 reading canvas)
   function post(cv, c) {
     try { const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; if (F && F.settle) F.settle(); } catch (e) {}   /* (v440 SQ: a run of the painter's passes still open is laid before the canvas is read) */
     if (!on || typeof arc === 'undefined' || arc.mode !== 'dungeon') return;
@@ -259,9 +259,18 @@ const retro = (() => {
     const w = cv.width, h = cv.height; if (!w || !h) return;
     /* (the red copy is made at half size: it is only a soft fringe, and a quarter of the pixels) */
     const tw = Math.ceil(w / 2), th = Math.ceil(h / 2);
+    if (caOff > 0) { caOff--; return; }
     if (!caCv) caCv = document.createElement('canvas'); if (caCv.width !== tw || caCv.height !== th) { caCv.width = tw; caCv.height = th; }
+    /* v463 LEAD: the canvas is tinted cyan and its red comes back only from this copy, so a copy that failed (canvas memory
+       exhausted: Safari's getContext gives null, a context can be lost, or the copy comes back blank) would leave the whole
+       frame cyan. Then the fringe is skipped for a while (about 5 s) instead: a check every 90 frames, one pixel each side */
     const t = caCv.getContext('2d');
+    if (!t || caCv.width !== tw || caCv.height !== th || (t.isContextLost && t.isContextLost())) { caOff = 300; return; }
     t.setTransform(1, 0, 0, 1, 0, 0); t.globalCompositeOperation = 'copy'; t.imageSmoothingEnabled = true; t.drawImage(cv, 0, 0, tw, th);
+    if (++caN >= 90) { caN = 0; try {   /* (one pixel of each, copied into a tiny canvas made for reading, so neither the game's canvas nor the copy is read back) */
+      if (!caPx) { caPx = document.createElement('canvas'); caPx.width = 2; caPx.height = 1; caPxC = caPx.getContext('2d', { willReadFrequently: true }); }
+      caPxC.globalCompositeOperation = 'copy'; caPxC.drawImage(cv, w >> 1, h >> 1, 1, 1, 0, 0, 1, 1); caPxC.drawImage(caCv, tw >> 1, th >> 1, 1, 1, 1, 0, 1, 1);
+      const p = caPxC.getImageData(0, 0, 2, 1).data; if (p[0] > 40 && p[4] < 8) { caOff = 300; return; } } catch (e) {} }
     t.globalCompositeOperation = 'multiply'; t.fillStyle = '#FF0000'; t.fillRect(0, 0, tw, th);
     c.save(); c.setTransform(1, 0, 0, 1, 0, 0);
     c.globalCompositeOperation = 'multiply'; c.fillStyle = '#00FFFF'; c.fillRect(0, 0, w, h);

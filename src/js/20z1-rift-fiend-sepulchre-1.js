@@ -31,6 +31,7 @@ RiftFiend.define({ id: 'threnn', name: 'Threnn', title: 'The Second Eater', colo
   // a clock hand's angle (0 at twelve, clockwise on the screen) pointing along a screen direction
   const clockA = (dx, dy) => Math.atan2(dx, -dy);
   const ease = u => u >= 1 ? 1 : 1 - Math.pow(1 - u, 3) + Math.sin(u * Math.PI) * 0.22;
+  const hpK = FX => { const F = FX && FX.F && FX.F.rift && FX.F.rift.foeK; return F && F.boss > 0 ? F.boss : 1; };   // (v463 SA: the rift's main-boss health factor, 1 elsewhere)
   return {
     arenaR: 13, firstAct: 'drift', artY: 0.62,
     artPoses: [{ name: 'curled about its hour', mem: {} }, { name: 'a hand stopped: the bite marked', mem: { menace: 1, fz: 1, fzK: 1, fzOn: true, fzAim: 2.4 } }, { name: 'the borrowed moment: the core bare', mem: { open: 1, expose: 1 } }, { name: 'cracked: out of time', mem: { slump: 1, cracked: 1 } }],
@@ -68,7 +69,7 @@ RiftFiend.define({ id: 'threnn', name: 'Threnn', title: 'The Second Eater', colo
       FX.parts(bodyParts(m, M));
     },
     stunned(FX, m, dt) { const M = FX.mem; M.menace = decay(M.menace, dt, 4); M.fzOn = false; M.hdT = M.hd; m.noTouch = true;
-      FX.weak('core', m.x, m.y - M.alt, 1.3, 2.4, m.stunT > 0.05);
+      FX.weak('core', m.x, m.y - M.alt, 1.3, 2.4 / hpK(FX), m.stunT > 0.05);   // (v463 SA: its blows 1 / foeK.boss)
       // out of time: its sand spills from the cracked glass, and it twitches on the flagstones
       M.kickT -= dt; if (M.kickT <= 0) { M.kickT = 0.16; FX.H.part({ kind: 'sand', x: m.x + FX.rnd(-0.25, 0.25), y: m.y - M.alt + 0.5, vx: FX.rnd(-0.6, 0.6), vy: 1.5, g: 9, life: 0.5, max: 0.5, size: 2, color: GOLD_HI }); if (Math.random() < 0.15) FX.H.shake(1.5, 0.08); }
       FX.parts(bodyParts(m, M)); },
@@ -100,7 +101,7 @@ RiftFiend.define({ id: 'threnn', name: 'Threnn', title: 'The Second Eater', colo
       M.smear.forEach(s => s.t += dt); while (M.smear.length && M.smear[0].t > 0.45) M.smear.shift();
       if (rushing) { M.smearT -= dt; if (M.smearT <= 0) { M.smearT = 0.035; const h = M.segs[0]; M.smear.push({ x: m.x, y: m.y, z: M.alt, hx: h[0], hy: h[1], hz: h[2], a: M.rushA, t: 0 }); } }
       solve(FX, m, M, dt, false); },
-    dmgK() { return 1; },
+    dmgK(FX) { return 1 / hpK(FX); },   // (v463 SA: the rift's main-boss health, foeK.boss times: 20s2 bossHpK 7)
     keep: { every: 2, pad: 2.5 },
     draw(c, FX, m, X, Y, T, t) { drawThrenn(c, FX, m, X, Y + (m.z || 0) * T * 4, T, t); },
     drawObj() {},

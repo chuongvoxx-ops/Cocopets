@@ -2243,6 +2243,150 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
         float haze = 0.4 + 0.6 * fbm(vec2(u.x * 2.0 + sd, yb * 3.0 - tt * 0.8));
         L = (col * side * haze * (0.1 + 0.25 * yb) + mix(col, vec3(1.0), 0.6) * mo * side * 0.9) * ends * k; } }
     /*</DB-FX>*/
+    /*<SA-FX kinds 428..435 (v463 SA: 20z1a-threnn-gl.js, 20z2a-vaul-gl.js: Threnn the Second Eater, Vaul the Mourning Reflection)>*/
+    else if (v_k > 427.5 && v_k < 435.5) { float an = atan(u.y, u.x), tt = u_t, sd = v_q.y;
+      if (v_k < 428.5) { // 428 a carved lane of light (uv.x -1 its mouth .. 1 its far end, uv.y across): v_q.x 0..1 a tell (violet light poured down the lane from its mouth, its lips lit, the minute ticks down its middle glinting), 1 + k a strike at strength k (a white crest racing down it, the lane ablaze), 2 + u an imprint (three afterimages of the body lying down the lane, plates and a face, brightening as u nears 1; its lips burning away from the far end as u runs: no number); v_q.y seed, v_q.z its length in its widths
+        float md = v_q.x < 1.0 ? 0.0 : (v_q.x < 2.0 ? 1.0 : 2.0), k = clamp(v_q.x - md, 0.0, 1.0), asp = max(v_q.z, 1.0), xu = u.x * 0.5 + 0.5, x = xu * asp, ay = abs(u.y);
+        float side = 1.0 - smoothstep(0.72, 0.98, ay), ends = smoothstep(0.0, 0.04, xu) * (1.0 - smoothstep(0.95, 1.0, xu)), lips = exp(-sq((ay - 0.84) / 0.05)), tick = pow(0.5 + 0.5 * cos(x * 6.2832 * 3.0), 24.0) * exp(-sq(u.y / 0.1));
+        if (md < 0.5) { float front = 1.0 - smoothstep(k * 1.05 - 0.12, k * 1.05, xu), fl = 0.55 + 0.45 * fbm(vec2(x * 1.6 - tt * 2.4, u.y * 3.0) + sd);
+          L = (col * side * (0.05 + 0.3 * k) * fl * front + mix(col, vec3(1.0), 0.4) * lips * (0.2 + 0.65 * k) * (0.75 + 0.25 * sin(tt * 9.0 - x * 2.0)) + mix(col, vec3(1.0), 0.5) * tick * 0.7 * k * front) * ends; }
+        else if (md < 1.5) { float cr = exp(-sq((xu - (1.0 - k) * 1.1) / 0.07)); L = (mix(col, vec3(1.0), 0.6) * cr * side * 1.3 + col * side * k * (0.35 + 0.3 * fbm(vec2(x * 2.0 - tt * 6.0, u.y * 4.0) + sd)) + vec3(1.0) * lips * k * 0.55) * ends; }
+        else { float g = 0.0, hd = 0.0, dir = sd > 5.0 ? -1.0 : 1.0;
+          for (int j = 0; j < 3; j++) { float hx = (0.3 + 0.33 * float(j)) * asp, wj = 0.55 + 0.25 * float(j);
+            for (int i = 0; i < 9; i++) { float fi = float(i), cx = hx - fi * 0.21 - 0.12, cy = sin(fi * 0.8) * 0.16 * (fi / 9.0) * dir; if (cx < 0.08) continue; vec2 d = vec2(x - cx, u.y - cy);
+              if (i == 0) { float rr = length(d) / 0.27; hd += wj * (exp(-sq((rr - 0.85) / 0.12)) + 0.35 * (1.0 - smoothstep(0.7, 0.95, rr))); }
+              else { float bw = 0.13 * (1.0 + 0.25 * sin(fi * 0.6)), bx = abs(d.x) / 0.085, by = abs(d.y) / bw, b = max(bx, by); g += wj * (exp(-sq((b - 0.9) / 0.14)) * 0.9 + (1.0 - smoothstep(0.6, 0.95, b)) * 0.25); } } }
+          float br = 0.25 + 0.65 * k + (k > 0.8 ? 0.25 * sin(tt * 30.0) : 0.0), left = 1.0 - smoothstep(1.0 - k - 0.03, 1.0 - k, xu);
+          L = (col * min(g, 1.4) * br + mix(col, vec3(1.0), 0.5) * min(hd, 1.2) * br + mix(col, vec3(1.0), 0.45) * lips * (0.15 + 0.75 * left) + col * side * 0.06) * ends; } }
+      else if (v_k < 429.5) { // 429 the Hour Toll's ring (uv a unit disc): v_q.x its inner edge (of the outer), v_q.y its first gap's angle, v_q.z the second's + 4: gold light pressing into the band from the coil's side, ripples running out, its edges lit; the two gaps left dark with a faint silver thread down each (the way out)
+        float g2 = v_q.z - 4.0, d1 = abs(mod(an - v_q.y + 3.1416, 6.2832) - 3.1416), d2 = abs(mod(an - g2 + 3.1416, 6.2832) - 3.1416), dg = min(d1, d2), gp = smoothstep(0.34, 0.46, dg), ri = v_q.x;
+        float band = smoothstep(ri - 0.02, ri + 0.06, r) * (1.0 - smoothstep(0.9, 1.0, r)), rip = pow(0.5 + 0.5 * sin((r - ri) * 40.0 - tt * 8.0), 4.0), cl = fbm(vec2(an * 5.0 + sd, r * 7.0 - tt * 0.6));
+        float rims = exp(-sq((r - 0.95) / 0.025)) + 0.7 * exp(-sq((r - ri - 0.02) / 0.025)), thr = exp(-sq(dg / 0.05)) * band * (1.0 - gp);
+        L = col * gp * (band * (0.12 + 0.28 * cl + 0.25 * rip) + rims * 0.75 * (1.0 - smoothstep(0.98, 1.0, r))) + vec3(0.85, 0.9, 1.0) * thr * 0.35; }
+      else if (v_k < 430.5) { // 430 a little dial of light (uv a unit disc): a borrowed second (v_q.z 0 hanging: a gold rim, a violet heart, twelve ticks that go dark one by one as v_q.y runs 0..1; 1 loosed: brighter, its ticks a blur), or 5 the bare core's halo (twelve rays of gold turning, a soft ring); v_q.x its hand's angle (radians, 0 up, clockwise)
+        float md = v_q.z;
+        if (md > 4.5) { float ray = pow(0.5 + 0.5 * cos(an * 12.0 + v_q.x * 2.0), 6.0), ring = exp(-sq((r - 0.72) / 0.04)); L = col * (ray * smoothstep(0.55, 0.7, r) * (1.0 - smoothstep(0.82, 1.0, r)) * 0.7 + ring * 0.6 + exp(-r * r * 6.0) * 0.25); }
+        else { float rim = exp(-sq((r - 0.55) / 0.045)), heart = exp(-r * r * 9.0), ta = atan(u.x, -u.y), tk = fract(ta / 6.2832 * 12.0 + 0.5) - 0.5, kq = mod(floor(ta / 6.2832 * 12.0 + 0.5) + 12.0, 12.0), gone = md > 0.5 ? 0.0 : step(kq / 12.0, v_q.y - 0.001);
+          float ticks = exp(-sq(tk / 0.12)) * exp(-sq((r - 0.78) / 0.05)) * (1.0 - gone), ha = v_q.x; vec2 hv = vec2(sin(ha), -cos(ha)); float hp = dot(u, hv), hq = abs(u.x * hv.y - u.y * hv.x), hand = exp(-sq(hq / 0.05)) * step(-0.08, hp) * (1.0 - smoothstep(0.38, 0.48, hp));
+          L = mix(col, vec3(1.0, 0.86, 0.55), 0.7) * rim * 0.9 + col * heart * (0.55 + 0.35 * md) + mix(col, vec3(1.0), 0.6) * ticks * 0.8 + vec3(1.0) * hand * 0.9; L *= 1.0 - smoothstep(0.9, 1.0, r); } }
+      else if (v_k < 431.5) { // 431 v_q.x 0..1 a path of light on the floor (uv.x -1 .. 1 along, uv.y across; v_q.z its length in its widths): a thread and fixed chevrons pointing along it, strengthening with v_q.x; or 2 + u a call's disc (uv a unit disc): stopped-clock light gathering in and turning, ticks round its rim
+        if (v_q.x < 1.5) { float asp = max(v_q.z, 1.0), xu = u.x * 0.5 + 0.5, x = xu * asp, ay = abs(u.y), ends = smoothstep(0.0, 0.06, xu) * (1.0 - smoothstep(0.9, 1.0, xu));
+          float cv = fract(x / 1.6), chev = exp(-sq((cv - 0.5 - ay * 0.45) / 0.06)) * (1.0 - smoothstep(0.55, 0.85, ay)), thr = exp(-sq(u.y / 0.08)) * 0.35;
+          L = (mix(col, vec3(1.0), 0.35) * chev * 0.85 + col * thr) * ends * v_q.x; }
+        else { float k = clamp(v_q.x - 2.0, 0.0, 1.0), ta = atan(u.x, -u.y) + tt * 0.6, tk = fract(ta / 6.2832 * 12.0 + 0.5) - 0.5, ring = exp(-sq((r - 0.86) / 0.05)), ticks = exp(-sq(tk / 0.1)) * exp(-sq((r - 0.72) / 0.06)), inn = exp(-sq((r - (1.0 - k) * 0.8) / 0.08));
+          L = col * (ring * (0.25 + 0.5 * k) + ticks * 0.5 * k + inn * 0.45 + (1.0 - smoothstep(0.0, 0.9, r)) * 0.08 * k) * (1.0 - smoothstep(0.92, 1.0, r)); } }
+      else if (v_k < 432.5) { // 432 Vaul's recorded mark (uv a unit disc): v_q.x 0..1 the tell (a ring of the hours' runes closing in, light pooling in the middle, v_q.z pips of light orbiting it: its order 1..3, no numeral), 1 + k the burst (a flash, a rim racing out, glass glints)
+        float md = step(1.0, v_q.x), k = clamp(v_q.x - md, 0.0, 1.0), fade = 1.0 - smoothstep(0.9, 1.0, r);
+        if (md < 0.5) { float rr = 1.0 - k * 0.55, rg = exp(-sq((r - rr * 0.82) / 0.035)) * (0.6 + 0.4 * step(0.5, fract(an * 3.82 + tt * 0.3))), outer = exp(-sq((r - 0.86) / 0.03)), pool = exp(-r * r * (6.0 - 3.0 * k));
+          float pips = 0.0, np = floor(v_q.z + 0.5); for (int i = 0; i < 3; i++) { float fi = float(i); if (fi >= np) break; float pa = tt * 1.4 + fi * 6.2832 / max(np, 1.0); vec2 pd = u - 0.42 * vec2(cos(pa), sin(pa)); pips += exp(-dot(pd, pd) / 0.004); }
+          L = (col * (rg * (0.35 + 0.5 * k) + outer * 0.35 + pool * (0.08 + 0.35 * k)) + vec3(1.0) * pips * 0.9) * fade; }
+        else { float rim = exp(-sq((r - (0.2 + 0.75 * sqrt(1.0 - k))) / (0.06 + 0.1 * (1.0 - k)))) * k, fl = exp(-r * r * (2.0 + 10.0 * (1.0 - k))) * k * k * 1.4, gl2 = pow(n2(u * 18.0 + sd), 12.0) * k * 2.0;
+          L = (mix(col, vec3(1.0), 0.6) * (fl + rim * 0.9) + vec3(1.0) * gl2) * fade; } }
+      else if (v_k < 433.5) { // 433 Vaul's lane of light on the marble (uv.x -1 the source .. 1 the far end, uv.y across): v_q.x 0..1 the tell (a band of light thickening, facets glinting along it, light running out from the source, its edges lit), 1 + k the strike (a crest racing out, the band ablaze); v_q.z its length in its widths
+        if (v_q.x > 1.99) { float kr = clamp(v_q.x - 2.0, 0.0, 1.0); L = (col * exp(-sq(u.y / 0.5)) * 0.42 + vec3(1.0) * exp(-sq(u.y / 0.16)) * 0.5) * kr * (1.0 - smoothstep(0.9, 1.0, abs(u.y))); }   // (2 + k: a stretch of a tentacle of light, its ends cut square to lie end to end with the next: laid over the marble)
+        else {
+        float md = step(1.0, v_q.x), k = clamp(v_q.x - md, 0.0, 1.0), asp = max(v_q.z, 1.0), xu = u.x * 0.5 + 0.5, x = xu * asp, ay = abs(u.y);
+        float side = 1.0 - smoothstep(0.6, 0.98, ay), ends = smoothstep(0.0, 0.05, xu) * (1.0 - smoothstep(0.88, 1.0, xu)), rims = exp(-sq((ay - 0.82) / 0.07)), dm = abs(fract(x * 0.9) - 0.5) + ay * 0.45, fac = exp(-sq((dm - 0.38) / 0.04)) * side;
+        if (md < 0.5) { float run = pow(0.5 + 0.5 * sin(x * 2.2 - tt * 9.0), 8.0); L = (col * side * (0.05 + 0.22 * k) + mix(col, vec3(1.0), 0.5) * (fac * 0.35 * k + rims * (0.2 + 0.5 * k) + run * side * 0.25 * k)) * ends; }
+        else { float cr = exp(-sq((xu - (1.0 - k) * 1.1) / 0.06)) * side; L = (mix(col, vec3(1.0), 0.6) * cr * 1.2 + col * side * k * 0.55 + vec3(1.0) * fac * k * 0.4) * ends; } } }
+      else if (v_k < 434.5) { // 434 the Sweep's arc (uv a unit disc about its apex): v_q.x 0..1 the tell (light filling the arc from the apex, arcs of light running out, its two edges lit), 1 + k the sweep (a blade of light swinging across it); v_q.y its middle angle, v_q.z its half spread
+        float md = step(1.0, v_q.x), k = clamp(v_q.x - md, 0.0, 1.0), da = mod(an - v_q.y + 3.1416, 6.2832) - 3.1416, sp = max(v_q.z, 0.05), ins = 1.0 - smoothstep(sp - 0.06, sp, abs(da)), fade = (1.0 - smoothstep(0.88, 1.0, r)) * smoothstep(0.03, 0.12, r);
+        float eg = exp(-sq((abs(da) - sp) * r / 0.03)) * step(r, 0.97);
+        if (md < 0.5) { float arcs = pow(0.5 + 0.5 * sin(r * 22.0 - tt * 7.0), 6.0), fill = 1.0 - smoothstep(k * 1.05 - 0.1, k * 1.05, r); L = (col * ins * (0.06 + 0.25 * k) * fill + mix(col, vec3(1.0), 0.4) * (arcs * ins * 0.25 * k + eg * (0.3 + 0.6 * k))) * fade; }
+        else { float bl = exp(-sq((da - sp * (1.0 - 2.0 * (1.0 - k))) / 0.12)) * ins; L = (mix(col, vec3(1.0), 0.6) * bl * 1.2 + col * ins * k * 0.35) * fade; } }
+      else { // 435 a snare plate's or the Loom's ring of light (uv a unit disc): v_q.x its strength, v_q.z 0 a plate (an engraved silver ring and its clasps shimmering gold; v_q.y > 0.5 snared: gold threads drawn in across it), 1 the Loom's circle (a gold ring, light rising off it; v_q.y the weave 0..1: the ring filling with brighter gold round from the top)
+        float k = clamp(v_q.x, 0.0, 1.2), fade = 1.0 - smoothstep(0.92, 1.0, r);
+        if (v_q.z < 0.5) { float rings = exp(-sq((r - 0.82) / 0.03)) + 0.6 * exp(-sq((r - 0.55) / 0.025)) + 0.4 * exp(-sq((r - 0.3) / 0.025)), cl = 0.0; for (int i = 0; i < 4; i++) { float ca = 0.7854 + float(i) * 1.5708; vec2 cd = u - 0.82 * vec2(cos(ca), sin(ca)); cl += exp(-dot(cd, cd) / 0.006); }
+          float sh = 0.6 + 0.4 * sin(an * 3.0 - tt * 2.0 + r * 8.0), thr = v_q.y > 0.5 ? pow(0.5 + 0.5 * sin(an * 6.0 + log(r + 0.05) * 6.0 - tt * 3.0), 10.0) * smoothstep(0.1, 0.4, r) * (1.0 - smoothstep(0.75, 0.85, r)) : 0.0;
+          L = (col * rings * sh * 0.6 + mix(col, vec3(1.0), 0.5) * cl * 0.9 + mix(col, vec3(1.0), 0.3) * thr * 0.7) * k * fade; }
+        else { float ta = mod(atan(u.x, -u.y) + 6.2832, 6.2832) / 6.2832, ring = exp(-sq((r - 0.86) / 0.04)), done = step(ta, v_q.y), rise = pow(0.5 + 0.5 * sin(an * 9.0 + tt * 2.0), 8.0) * exp(-sq((r - 0.86) / 0.09));
+          L = (col * ring * (0.35 + 0.65 * done) + mix(col, vec3(1.0), 0.6) * ring * done * 0.5 + col * rise * 0.3 + col * (1.0 - smoothstep(0.0, 0.86, r)) * 0.05) * k * fade; } }
+      if (v_k > 431.5) { float mx = max(max(L.r, L.g), L.b), a = clamp(mx * v_c.a * 1.5, 0.0, 0.88); vec3 tc = L / max(0.001, mx); gl_FragColor = vec4(mix(tc * 0.5, tc, smoothstep(0.6, 1.2, mx)) * a, a); return; } }   // (432..435 are laid over, not added: on the gallery's bright marble added light would not show, so they stain it, a deeper tint of their colour where they are strong)
+    /*</SA-FX>*/
+    /*<SK-FX kinds 436..443 (v463 SK: 20z3a-khyros-gl.js, Khyros the Hound Beyond the Angles)>*/
+    else if (v_k > 435.5 && v_k < 443.5) { float an = atan(u.y, u.x), tt = u_t, sd = v_q.y; vec3 SV = vec3(0.89, 0.92, 0.97), VO = vec3(0.56, 0.4, 1.0), GD = vec3(1.0, 0.82, 0.48);
+      if (v_k < 436.5) { // 436 Angle Stalk's lane (uv.x -1 the alcove .. 1 where the head stops, uv.y across): v_q.x 0..1 the tell (chevrons of light running out of the corner along it, its rails lit, a front creeping out, a thread down its middle), 1 + k the lane burning out after the lunge (k 1 .. 0); v_q.y its seed + 100 x its place in the Hunt's order (that many beads of light at its middle); v_q.z its length in its widths
+        float ord = floor(v_q.y / 100.0), sd2 = v_q.y - ord * 100.0, md = step(1.0, v_q.x), k = md > 0.5 ? clamp(v_q.x - 1.0, 0.0, 1.0) : clamp(v_q.x, 0.0, 1.0), asp = max(v_q.z, 1.0), xu = u.x * 0.5 + 0.5, x = xu * asp, ay = abs(u.y);
+        float side = 1.0 - smoothstep(0.6, 1.0, ay), ends = smoothstep(0.0, 0.05, xu) * (1.0 - smoothstep(0.9, 1.0, xu)), rails = exp(-sq((ay - 0.8) / 0.06)) * (1.0 - smoothstep(0.92, 1.0, ay)), thread = exp(-sq(u.y / 0.07));
+        float ch = fract(x * 0.55 - ay * 0.45 - tt * (1.2 + 1.6 * k)), chev = exp(-sq((ch - 0.5) / 0.07)) * side, grain = 0.6 + 0.4 * n2(vec2(x * 2.0 - tt * 2.0, u.y * 3.0) + sd2);
+        if (md < 0.5) { float front = 1.0 - smoothstep(k * 1.12 - 0.1, k * 1.12, xu);
+          L = (col * (side * 0.05 * grain + rails * (0.22 + 0.4 * k) + chev * (0.16 + 0.36 * k)) + mix(col, vec3(1.0), 0.55) * thread * k * k * 0.7) * front * ends;
+          if (ord > 0.5) { float bx = (xu - 0.5) * asp, by = u.y * 0.5; for (int i = 0; i < 3; i++) { float fi = float(i); if (fi > ord - 0.5) break; float d = abs(bx - (fi - (ord - 1.0) * 0.5) * 0.9) + abs(by); L += mix(col, vec3(1.0), 0.6) * (smoothstep(0.2, 0.13, d) * 0.95 + exp(-d * d * 18.0) * 0.35) * (0.6 + 0.4 * k); } } }
+        else L = (mix(col, vec3(1.0), 0.5) * thread * 0.8 + col * side * (0.18 + 0.4 * grain) + col * chev * 0.3) * k * ends; }
+      else if (v_k < 437.5) { // 437 a lit alcove (uv a unit disc round the alcove's mouth): v_q.x the corner (0..3: -x-y, +x-y, +x+y, -x+y), its strength in the alpha: violet welling out of the corner on slow swirls, rays from it, the angle's bracket burning (pulsing fast)
+        float ci = floor(v_q.x + 0.5); vec2 sg = vec2(ci > 0.5 && ci < 2.5 ? 1.0 : -1.0, ci > 1.5 ? 1.0 : -1.0), w = u * sg, A = vec2(0.06), dc = w - vec2(0.42);
+        float hz = exp(-dot(dc, dc) * 4.5) * (0.55 + 0.45 * fbm(vec2(atan(dc.y, dc.x) * 2.0 + tt * 0.6, length(dc) * 4.0 - tt * 0.9) + sd));
+        float ra = atan(-dc.y, -dc.x), rays = pow(0.5 + 0.5 * sin(ra * 9.0 + sd + 2.0 * n2(vec2(ra * 3.0, tt * 0.5))), 6.0) * smoothstep(0.0, 0.3, length(dc)) * exp(-length(dc) * 2.2);
+        vec2 p1 = w - A; float ux2 = clamp(-p1.x, 0.0, 0.46), uy2 = clamp(-p1.y, 0.0, 0.46), d1 = length(vec2(p1.x + ux2, p1.y)), d2 = length(vec2(p1.x, p1.y + uy2)), br = exp(-sq(min(d1, d2) / 0.022)), pul = 0.75 + 0.25 * sin(tt * 14.0);
+        L = (col * (hz * 0.55 + rays * 0.3) + mix(col, vec3(1.0), 0.5) * br * pul * 0.9) * (1.0 - smoothstep(0.82, 1.0, r)); }
+      else if (v_k < 438.5) { // 438 the sanctuary's ring (uv a unit disc, the silver at 0.943): v_q.x its hold (silver shimmer, motes running round), v_q.y stolen (violet dashes running round it, bars of light across the sanctuary), v_q.z gold (an echo holds the plate)
+        float sk = clamp(v_q.x, 0.0, 1.0), ck = clamp(v_q.y, 0.0, 1.0), gk = clamp(v_q.z, 0.0, 1.0), band = exp(-sq((r - 0.943) / 0.03)), halo = exp(-sq((r - 0.943) / 0.09)), ins = 1.0 - smoothstep(0.86, 0.9, r);
+        float sh = 0.55 + 0.45 * sin(an * 24.0 + tt * 1.5 + 3.0 * n2(vec2(an * 4.0, tt * 0.3))), bp = pow(0.5 + 0.5 * cos(6.0 * (an - tt * 0.3)), 40.0);
+        L = SV * (band * (0.2 + 0.28 * sh) + halo * 0.12 + band * bp * 1.1) * sk;
+        if (ck > 0.01) { float f = fract(an * 1.9099 - tt * 0.4), dash = smoothstep(0.3, 0.38, f) * (1.0 - smoothstep(0.62, 0.7, f)), bars = exp(-sq((fract(u.x * 1.75 + 0.5) - 0.5) / 0.035)) * ins * (0.7 + 0.3 * sin(tt * 3.0 + u.y * 4.0));
+          L += VO * (band * (0.3 + 0.95 * dash) + halo * 0.14 + bars * 0.2) * ck; }
+        if (gk > 0.01) L += GD * (band * 0.9 + halo * 0.35 + ins * 0.05 * (0.6 + 0.4 * n2(u * 4.0 + tt))) * gk;
+        L *= 1.0 - smoothstep(0.985, 1.0, r); }
+      else if (v_k < 439.5) { // 439 Angled Jaw's cone (uv.x along its axis from the jaw, a unit disc): v_q.x 0..1 the tell (its sides lit, teeth of light along them, streaks drawn in toward the jaw, its far edge), 1..2 the bite (a crescent slash sweeping out, dying); v_q.z its half-spread (radians)
+        float sp = max(v_q.z, 0.05), pg = v_q.x, tl = clamp(pg, 0.0, 1.0), af = clamp(pg - 1.0, 0.0, 1.0), aa = abs(an), inC = 1.0 - smoothstep(sp - 0.03, sp + 0.01, aa), fade = (1.0 - smoothstep(0.95, 1.0, r)) * smoothstep(0.05, 0.22, r);
+        float tooth = fract(r * 7.0 - tt * 0.8), edgeA = sp - 0.1 * (1.0 - abs(tooth * 2.0 - 1.0)) * smoothstep(0.2, 0.4, r), sides = exp(-sq((aa - edgeA) / 0.018)) * step(aa, sp + 0.02), arc = exp(-sq((r - 0.97) / 0.025)) * inC;
+        float str = pow(0.5 + 0.5 * sin(an * 40.0 + 3.0 * n2(vec2(an * 9.0, r * 3.0 + tt * 3.0) + sd)), 5.0) * inC * smoothstep(1.0 - tl, 1.0 - tl + 0.25, 1.0 - r * 0.9);
+        if (pg <= 1.0) L = (col * (inC * 0.04 + str * (0.12 + 0.28 * tl) + arc * 0.4 * tl) + mix(col, vec3(1.0), 0.5) * sides * (0.35 + 0.5 * tl)) * fade;
+        else { float cr = exp(-sq((r - (0.4 + 0.5 * af)) / (0.05 + 0.05 * af))) * inC; L = (mix(col, vec3(1.0), 0.6) * cr * 1.2 + col * inC * 0.15) * (1.0 - af) * fade; } }
+      else if (v_k < 440.5) { // 440 where a spearhead falls (uv a unit disc, its ring at 0.87): v_q.x 0..1 the tell (an angle-sigil: a diamond of light closing in, four chevrons at the axes drawn inward, the middle brightening), 1..2 the strike (a flash, four cracks of light along the diagonals, a rim spreading)
+        float pg = v_q.x, tl = clamp(pg, 0.0, 1.0), af = clamp(pg - 1.0, 0.0, 1.0), fade = 1.0 - smoothstep(0.92, 1.0, r), dm = abs(u.x) + abs(u.y), oc = exp(-sq((r - 0.87) / 0.022)), mid = exp(-r * r * 14.0);
+        float am = abs(mod(an + 0.7854, 1.5708) - 0.7854), chq = fract(r * 2.2 + am * 1.4 + tt * 1.6), chev = exp(-sq((chq - 0.5) / 0.08)) * exp(-sq(am / 0.35)) * smoothstep(0.2, 0.4, r) * (1.0 - smoothstep(0.8, 0.9, r));
+        if (pg <= 1.0) { float dia = exp(-sq((dm - (1.05 - 0.5 * tl)) / 0.028)); L = (col * (oc * (0.25 + 0.35 * tl) + chev * (0.12 + 0.25 * tl) + mid * tl * 0.5) + mix(col, vec3(1.0), 0.45) * dia * (0.35 + 0.55 * tl)) * fade; }
+        else { float ad = abs(mod(an, 1.5708) - 0.7854) * r, crk = exp(-sq(ad / 0.025)) * (1.0 - smoothstep(0.3 + 0.6 * af, 0.4 + 0.6 * af, r)), rim = exp(-sq((r - (0.25 + 0.6 * sqrt(af))) / (0.05 + 0.08 * af)));
+          L = (mix(col, vec3(1.0), 0.6) * (exp(-r * r * (2.0 + 10.0 * af)) * 1.4 + rim * 0.8) + col * crk * 0.9) * (1.0 - af) * fade; } }
+      else if (v_k < 441.5) { // 441 a mark of the past (uv a unit disc): a ghost-ring of eight angles where the pet stood, a haze drifting in it, v_q.z beads of light over it (its place in the Hunt's order); v_q.x its strength
+        float k = clamp(v_q.x, 0.0, 1.2), n = v_q.z, dO = max(max(abs(u.x), abs(u.y)), (abs(u.x) + abs(u.y)) * 0.7071), ro = exp(-sq((dO - 0.7) / 0.03)), ri = exp(-sq((dO - 0.52) / 0.02)) * (0.5 + 0.5 * step(0.5, fract(an * 2.546 + tt * 0.5)));
+        float hz = (1.0 - smoothstep(0.3, 0.72, dO)) * (0.4 + 0.6 * fbm(u * 2.5 + vec2(sd, tt * 0.4))), bd = 0.0;
+        for (int i = 0; i < 3; i++) { float fi = float(i); if (fi > n - 0.5) break; float d = abs(u.x - (fi - (n - 1.0) * 0.5) * 0.26) + abs(u.y + 0.9) * 0.8; bd += smoothstep(0.1, 0.06, d) + exp(-d * d * 60.0) * 0.4; }
+        L = (col * (ro * 0.6 + ri * 0.25 + hz * 0.1) * k + mix(col, vec3(1.0), 0.6) * bd * 0.9) * (1.0 - smoothstep(0.96, 1.0, r)); }
+      else if (v_k < 442.5) { // 442 gold light (uv a unit disc): v_q.z 0 a sigil on the stone (rings, an hourglass, motes rising; v_q.x its strength), 1 a ring running out (from the top, clockwise: v_q.x the share left; a bright bead at its end)
+        float md = v_q.z, k = clamp(v_q.x, 0.0, 1.0);
+        if (md < 0.5) { float rg2 = exp(-sq((r - 0.92) / 0.03)) + 0.7 * exp(-sq((r - 0.62) / 0.02)), ay = abs(u.y), hg = (1.0 - smoothstep(0.0, 0.03, abs(abs(u.x) - 0.32 * ay / 0.45))) * step(ay, 0.45), mo = pow(n2(vec2(u.x * 9.0 + sd, u.y * 6.0 + tt * 1.5)), 8.0) * 3.0;
+          L = col * (rg2 * 0.5 + hg * 0.6 + mo * 0.3 + exp(-r * r * 3.0) * 0.2) * k * (0.8 + 0.2 * sin(tt * 4.0)) * (1.0 - smoothstep(0.96, 1.0, r)); }
+        else { float a01 = fract(atan(u.x, -u.y) / 6.2832 + 1.0), on = 1.0 - smoothstep(k - 0.004, k, a01), band = exp(-sq((r - 0.94) / 0.035)), hd = exp(-sq((a01 - k) * 30.0)) * band;
+          L = col * band * (on * 0.85 + 0.1) + mix(col, vec3(1.0), 0.6) * hd * step(0.01, k) * 1.2; } }
+      else { // 443 the lunge's wake (uv.x -1 the alcove .. 1 the head, uv.y across): a violet body streaming, a white core, flecks of light flung back; v_q.x its strength, v_q.z its length in its widths
+        float k = clamp(v_q.x, 0.0, 1.0), asp = max(v_q.z, 1.0), xu = u.x * 0.5 + 0.5, x = xu * asp, ay = abs(u.y), side = 1.0 - smoothstep(0.55, 1.0, ay);
+        float st = n2(vec2(x * 0.7 - tt * 7.0, u.y * 5.0) + sd), core = exp(-sq(u.y / 0.12)), body = exp(-sq(u.y / 0.45)), fl = step(0.94, h1(floor(vec2(x * 3.0 - tt * 11.0, u.y * 7.0)) + sd)) * side;
+        L = (vec3(1.0) * core * 0.55 + col * body * (0.25 + 0.55 * st) + mix(col, vec3(1.0), 0.5) * fl * 0.6) * k * (0.15 + 0.85 * xu * xu) * (1.0 - smoothstep(0.92, 1.0, xu)) * side; } }
+    /*</SK-FX>*/
+    /*<SS-FX lights 408..411 (v463 SS: 20s5-sep-sky.js, the Sepulchre of Borrowed Hours' far views)>*/
+    else if (v_k > 407.5 && v_k < 411.5) { float tt = u_t;
+      if (v_k < 408.5) { // 408 shafts of light falling through dust (uv.x across -1..1, uv.y -1 the source .. 1 the foot): a few soft rays of their own widths and strengths, breathing slowly, widening as they fall, motes glinting in them; v_q.x seed, v_q.y the breathing's pace; v_c its colour
+        float sd = v_q.x * 17.0, yb = (u.y + 1.0) * 0.5, w = mix(0.35, 1.0, yb), x = u.x / w, acc = 0.0;
+        for (int i = 0; i < 5; i++) { float fi = float(i), cx = (h1(vec2(fi, sd)) - 0.5) * 1.3, ww = 0.14 + 0.3 * h1(vec2(fi + 3.0, sd)), br = 0.35 + 0.65 * n2(vec2(fi * 3.1 + sd, tt * 0.12 * (0.5 + v_q.y)));
+          acc += exp(-sq((x - cx) / ww)) * br; }
+        float dust = 0.75 + 0.35 * n2(vec2(x * 3.0 + sd, yb * 4.0 - tt * 0.08)), mo = pow(n2(vec2(x * 26.0 + sd, yb * 30.0 - tt * 0.35)), 14.0) * 5.0;
+        float fall = smoothstep(0.0, 0.12, yb) * (1.0 - smoothstep(0.45, 1.0, yb)) * (1.0 - smoothstep(0.75, 1.0, abs(x)));
+        L = col * (acc * 0.26 + 0.2 + mo * acc * 0.18) * dust * fall; }
+      else if (v_k < 409.5) { // 409 a dial's light (a disc quad: uv radius 1 the dial's own): v_q.z < 1 a great stopped dial, a light going slowly round its bezel, the hour ticks glimmering after it, the stopped hand (v_q.y its angle, clockwise from twelve) faintly violet; v_q.z > 1 a borrowed hour, a little clock face of light, its ring and ticks, one hand turning at its own pace; v_q.x seed
+        float an = atan(u.x, -u.y), sd = v_q.x * 13.0;
+        if (v_q.z < 1.0) { float ring = exp(-sq((r - 0.93) / 0.035)), sw = pow(0.5 + 0.5 * cos(an - tt * 0.25 - sd), 16.0), sw2 = pow(0.5 + 0.5 * cos(an + tt * 0.11 + sd * 2.0), 30.0);
+          float tick = exp(-sq((r - 0.72) / 0.06)) * pow(max(0.0, cos(an * 12.0)), 30.0);
+          float dh = abs(mod(an - v_q.y + 3.14159265, 6.2831853) - 3.14159265), hand = exp(-sq(dh * max(r, 0.05) / 0.018)) * smoothstep(0.04, 0.1, r) * (1.0 - smoothstep(0.6, 0.68, r));
+          L = col * (ring * (0.1 + 0.8 * sw + 0.5 * sw2) + tick * (0.12 + 0.6 * sw)) + vec3(0.62, 0.45, 1.0) * hand * (0.4 + 0.2 * sin(tt * 1.7 + sd)) + col * exp(-r * r * 3.0) * 0.04; }
+        else { float ring = exp(-sq((r - 0.5) / 0.035)), ticks = exp(-sq((r - 0.4) / 0.025)) * pow(max(0.0, cos(an * 12.0)), 40.0), ha = tt * (0.5 + 1.5 * h1(vec2(sd, 2.0))) + sd;
+          float dh = abs(mod(an - ha + 3.14159265, 6.2831853) - 3.14159265), hand = exp(-sq(dh * max(r, 0.03) / 0.025)) * (1.0 - smoothstep(0.32, 0.4, r));
+          L = col * (exp(-r * r * 7.0) * 0.3 + ring * 0.85 + ticks * 0.7 + hand * 0.9) + vec3(1.0) * exp(-r * r * 260.0) * 0.8; }
+        L *= 1.0 - smoothstep(0.88, 1.0, r); }
+      else if (v_k < 410.5) { // 410 a current of time flowing through the void (uv.x along -1..1, uv.y across): a soft luminous river, folded and drawn into filaments that stream along it, rose where it thickens; v_q.x seed, v_q.y how much rose, v_q.z its pace
+        float sd = v_q.x * 7.0, tf = tt * 0.03 * (0.5 + v_q.z); vec2 p = vec2(u.x * 1.6, u.y) + sd;
+        float wx = n2(p * 1.3 + vec2(tf, 0.0)) * 0.6 + n2(p * 2.7 + vec2(3.1, -tf)) * 0.4;
+        float f = n2(p * vec2(2.0, 3.0) + vec2(wx * 2.2 - tf * 3.0, wx)) * 0.6 + n2(p * vec2(4.3, 7.0) + vec2(-tf * 4.0, wx * 1.7)) * 0.3 + n2(p * 9.0 + wx * 3.0) * 0.1;
+        float yc = 0.3 * sin(u.x * 2.2 + sd) + (wx - 0.5) * 0.5, band = exp(-sq((u.y - yc) / 0.38)), fil = pow(clamp(f, 0.0, 1.0), 2.6) * 2.4;
+        float ends = (1.0 - smoothstep(0.5, 1.0, abs(u.x))) * (1.0 - smoothstep(0.7, 1.0, abs(u.y)));
+        L = mix(col, vec3(1.0, 0.5, 0.78), smoothstep(0.45, 0.8, f) * v_q.y) * band * fil * ends * 0.55; }
+      else { // 411 a glass sheen along a bridge (uv.x along -1..1, uv.y across): a bright band sliding along the glass, its edges catching it, sparks where it passes; v_q.x seed, v_q.y its pace
+        float sd = v_q.x * 11.0, pos = fract(tt * 0.06 * (0.6 + v_q.y) + h1(vec2(sd, 1.0))) * 3.2 - 1.6;
+        float band = exp(-sq((u.x - pos - u.y * 0.3) / 0.14)), edge = exp(-sq((abs(u.y) - 0.82) / 0.07)), sp = pow(n2(vec2(u.x * 36.0 + sd, tt * 0.8)), 10.0) * 3.0 * edge * (0.3 + band);
+        float ends = 1.0 - smoothstep(0.9, 1.0, abs(u.x));
+        L = col * (band * (0.25 + 0.6 * edge) + edge * 0.1 + sp) * ends * (1.0 - smoothstep(0.9, 1.0, abs(u.y))); } }
+    /*</SS-FX>*/
     else if (v_k > 135.5 && v_k < 140.5) { // (v420 GC) the Gate of Cancer's light (20o-rift-gate-cancer.js, 20o1-cancer-props.js). v_c its colour
       float tt = u_t, an = atan(u.y, u.x);
       if (v_k < 136.5) { // 136 the arena's carved lunar rings (its quad the arena's ellipse: uv a unit disc): the gold-inlaid rings at 0.3 and 0.86 and the carved ring at 0.58, light running round each in slow pulses, a soft pool on the sigil at the heart; v_q.x strength, v_q.y seed, v_q.z the sigil's glow
@@ -2673,7 +2817,7 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
   const Q = { lit: new Float32Array(12 * 6 * 600), nl: 0, smk: new Float32Array(12 * 6 * 200), ns: 0, wlit: new Float32Array(12 * 6 * 200), nwl: 0, wsmk: new Float32Array(12 * 6 * 100), nws: 0, get windOK() { return !!PRW; }, a: 1, b: 0, c0: 0, d: 1, e: 0, f: 0, k: 1, t: 0, W: 0, Hh: 0, pet: [0, 0, 0], gpu: true,
     X(x, y) { return this.a * x + this.c0 * y + this.e; }, Y(x, y) { return this.b * x + this.d * y + this.f; },
     /* one quad: centre (screen px), half-axes (ux, uy), (vx, vy) in screen px */
-    quad(kind, x, y, ux, uy, vx, vy, col, al, q0, q1, q2) { if (!(al > 0.004)) return; const solid = (kind >= 9 && kind <= 12) || kind === 16 || kind === 24 || kind === 25 || kind === 33 || kind === 36 || kind === 39 || kind === 40 || kind === 41 /* v402 */ || (kind >= 45 && kind <= 47) || kind === 49 || kind === 52 /* v404 LT */ || (kind >= 53 && kind <= 58 && kind !== 55) /* v404 DK */ || (kind >= 60 && kind <= 63) /* v409 DK2 */ || kind === 68 || kind === 69 /* v412 LM */ || kind === 71 /* v391 U4 */ || kind === 80 || kind === 82 || (kind >= 84 && kind <= 87) /* v415 EB */ || (kind >= 73 && kind <= 75) || kind === 78 /* v415 EA */ || kind === 89 || kind === 90 /* v415 TI */ || (kind >= 104 && kind <= 106) /* v417 BR */ || kind === 96 || kind === 97 /* v417 GH */ || kind === 112 || kind === 115 /* v417 MH */ || kind === 124 /* v418 AB */ || kind === 137 /* v420 GC */ || kind === 144 || kind === 145 /* v420 CB */ || kind === 216 || kind === 218 /* v430 BW */ || kind === 244 /* v433 DS */ || kind === 360 || kind === 362 || kind === 365 /* v450 MD */ || kind === 368 || kind === 371 || kind === 374 /* v451 GE */ || kind === 386 || kind === 387 /* v455 GE2 */ || kind === 379 /* v451 TM */, wd =kind >= 33 && kind <= 40;
+    quad(kind, x, y, ux, uy, vx, vy, col, al, q0, q1, q2) { if (!(al > 0.004)) return; const solid = (kind >= 9 && kind <= 12) || kind === 16 || kind === 24 || kind === 25 || kind === 33 || kind === 36 || kind === 39 || kind === 40 || kind === 41 /* v402 */ || (kind >= 45 && kind <= 47) || kind === 49 || kind === 52 /* v404 LT */ || (kind >= 53 && kind <= 58 && kind !== 55) /* v404 DK */ || (kind >= 60 && kind <= 63) /* v409 DK2 */ || kind === 68 || kind === 69 /* v412 LM */ || kind === 71 /* v391 U4 */ || kind === 80 || kind === 82 || (kind >= 84 && kind <= 87) /* v415 EB */ || (kind >= 73 && kind <= 75) || kind === 78 /* v415 EA */ || kind === 89 || kind === 90 /* v415 TI */ || (kind >= 104 && kind <= 106) /* v417 BR */ || kind === 96 || kind === 97 /* v417 GH */ || kind === 112 || kind === 115 /* v417 MH */ || kind === 124 /* v418 AB */ || kind === 137 /* v420 GC */ || kind === 144 || kind === 145 /* v420 CB */ || kind === 216 || kind === 218 /* v430 BW */ || kind === 244 /* v433 DS */ || kind === 360 || kind === 362 || kind === 365 /* v450 MD */ || kind === 368 || kind === 371 || kind === 374 /* v451 GE */ || kind === 386 || kind === 387 /* v455 GE2 */ || kind === 379 /* v451 TM */ || (kind >= 432 && kind <= 435) /* v463 SA: Vaul's tells, stains of light on the bright marble */, wd =kind >= 33 && kind <= 40;
       const ka = wd ? (solid ? 'wsmk' : 'wlit') : (solid ? 'smk' : 'lit'), kn = wd ? (solid ? 'nws' : 'nwl') : (solid ? 'ns' : 'nl'); let A = this[ka]; const n = this[kn];
       if ((n + 6) * 12 > A.length) { const q = new Float32Array(A.length * 2); q.set(A); A = q; this[ka] = q; }
       const cx = this.X(x, y), cy = this.Y(x, y), a = this.a, b = this.b, c = this.c0, d = this.d, Ux = a * ux + c * uy, Uy = b * ux + d * uy, Vx = a * vx + c * vy, Vy = b * vx + d * vy, C = rgbOf(col); let o = n * 12;

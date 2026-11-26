@@ -1144,6 +1144,168 @@ void main() {
     if (dead > 0.0) { float lum = dot(col, vec3(0.3, 0.55, 0.15)); col = mix(col, vec3(lum) * vec3(0.85, 0.8, 0.75) * 0.7, dead * 0.7); }
     gl_FragColor = vec4(vec3(tone(col.r), tone(col.g), tone(col.b)) * uAlpha, uAlpha); return; }
   /*</DB-DUNE-MAT>*/
+  /*<SA-SEP-MAT ids 550..569 (v463 SA: 20z1a-threnn-gl.js Threnn the Second Eater, 20z2a-vaul-gl.js Vaul the Mourning Reflection)>*/
+  else if (id >= 550 && id <= 569) {   // ---- (v463 SA) Rift 04's first two bosses. Their passes (SEP3) carry the key light's colour in uAmb and the rim's in uRim; 550..559 are lit by the Clockless Halls (a dark hall, the hours' gold bounced from below, gold glints in what they reflect), 560..569 by the Raised Gallery (open sky above, ivory marble below, a white sun). Threnn: 550 blue-black polished stone (mica flecks, veins of gold dust; .2 the dark ribbed flesh between its segments; .4 its legs' jointed stone), 551 a slate plate (engraved with the rings of the hours on its top face, worn bright at its edges (vA.y); .2 a small one, darker), 552 old gold (tarnished in its hollows; .2 polished; uGlow the hours' gold light in it), 553 the enamel dial (its local x-y the face, +y twelve o'clock: crazed enamel, hour bars, minute ticks, a chapter ring; uGlow its violet ring), 554 a blued-steel hand (uGlow: the stopped one burning violet, a white-hot core), 555 the glass (see-through: its own alpha by the fresnel, the halls' glints in it; uKind its cracks 0..1), 556 the sand (its local z the hourglass's axis: kept only up to uKind above the neck and uSpill below it; uWear 1 violet (a borrowed moment) / 0 gold; uGlow its light; .2 not cut). Vaul: 560 polished silver (the diamond: a gold inlay round its face and two bands of the hours' runes lit violet by uGlow, by its own local x-y; .2 plain), 561 gold, 562 the eye (its local +x the gaze: a lilac white, a violet iris of fibres, a slit pupil; uKind 1 a round wide one (bared, dazed)), 563 a silver lid, 564 a spike's steel (flat facets: edges (vA.y) lit by uGlow; .2 violet steel), 565 the hollow's dark nacre (uGlow the eye's light in it), 566 ivory marble (the Loom's plinth), 567 violet cloth woven with silver diamonds (vA.y, vA.z its weave), 568 gold thread (uGlow its light). uKind 9 on 560..565: the echo (a violet glass ghost of it). uGlow2 a blow's flash, uFx dead (ashen), uWear the part's seed
+    int sk = int((vA.x - float(id)) * 10.0 + 0.5);
+    bool hall = id < 560;
+    float ndv0 = max(0.0, dot(n, uV)), hm = dot(n, uUP), tt = uTime, sd = uWear * 17.0, dead = clamp(uFx, 0.0, 1.0), gl = clamp(uGlow, 0.0, 3.0), fa = 1.0;
+    vec3 VI = vec3(0.62, 0.4, 1.3), GO = vec3(1.3, 0.92, 0.45);
+    float w1 = vn(L.xy * 3.1 + L.z * 1.9 + sd), w2 = vn(L.yz * 8.0 + L.x * 4.0 + sd * 0.7), w3 = vn(L.xz * 23.0 + L.y * 11.0 + sd);
+    vec3 rr0 = 2.0 * dot(n, uV) * n - uV; float ru0 = dot(rr0, uUP);
+    vec3 envC = hall ? (ru0 > 0.0 ? mix(vec3(0.2, 0.15, 0.28), vec3(0.035, 0.04, 0.07), smoothstep(0.0, 0.7, ru0)) : mix(vec3(0.2, 0.15, 0.28), vec3(0.22, 0.15, 0.06), smoothstep(0.0, -0.4, ru0))) + GO * 0.7 * pow(vn(rr0.xy * 6.0 + rr0.z * 3.0 + 2.0), 12.0)
+                     : (ru0 > 0.0 ? mix(vec3(1.05, 1.0, 0.92), vec3(0.42, 0.6, 0.98), smoothstep(0.0, 0.6, ru0)) : mix(vec3(0.98, 0.94, 0.84), vec3(0.7, 0.64, 0.54), smoothstep(0.0, -0.4, ru0)));
+    envC += vec3(1.0, 0.95, 0.85) * (hall ? 0.9 : 1.8) * smoothstep(0.86, 0.97, dot(rr0, uLS));
+    // the glass, and the echo of Vaul: see-through, their own alpha
+    if (id == 555 || (id >= 560 && id <= 565 && uKind > 8.5)) { float frs = pow(1.0 - ndv0, 2.6); vec3 hq = normalize(uLK + uV); float sp = pow(max(0.0, dot(n, hq)), 120.0) * 2.5;
+      vec3 c = envC * (0.12 + 0.88 * frs) + vec3(1.0) * sp; float al = 0.08 + 0.62 * frs;
+      if (id == 555) { float ck = clamp(uKind, 0.0, 1.0), crk = smoothstep(0.035, 0.0, abs(vn(L.xz * 2.4 + L.y * 1.7 + 5.0) - 0.5)) * step(1.0 - ck * 1.1, vn(L.xy * 1.3 + L.z * 0.6 + 2.0)) * step(0.04, ck);
+        c += vec3(1.0, 0.97, 0.9) * crk * 0.9 + GO * 0.25 * pow(1.0 - ndv0, 4.0); al += crk * 0.55; }
+      else { c = c * vec3(0.75, 0.6, 1.0) + VI * (0.18 + 0.7 * frs) * (0.8 + 0.2 * sin(tt * 3.0 + L.y * 4.0)); al = 0.18 + 0.5 * frs; }
+      al = clamp(al, 0.0, 1.0) * (1.0 - dead); gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, al * uAlpha); return; }
+    if (id == 556 && sk == 0) { float zz = L.z; if (zz > 0.0 ? zz > uKind : zz > uSpill) discard; }
+    vec3 a = vec3(0.1), emi = vec3(0.0), F0m = vec3(0.04); float rg = 0.6, cvv = 0.0, cc = 0.0, occ = 1.0, met = 0.0;
+    if (id == 550) {
+      if (sk == 2) { a = vec3(0.035, 0.04, 0.065) * (0.8 + 0.4 * w1); float rib = 0.5 + 0.5 * cos(L.x * 37.7); cvv += smoothstep(0.55, 1.0, rib) * 0.45; a *= 0.8 + 0.35 * (1.0 - rib); rg = 0.48; cc = 0.35; }
+      else if (sk == 4) { a = vec3(0.15, 0.18, 0.26) * (0.8 + 0.35 * w1); float jb = smoothstep(0.86, 1.0, abs(fract(L.x * 2.0) - 0.5) * 2.0); a *= 1.0 - 0.35 * jb; cvv += jb * 0.3; rg = 0.38; cc = 0.45; }
+      else { a = vec3(0.1, 0.12, 0.17) * (0.72 + 0.55 * w1); float vein= smoothstep(0.03, 0.0, abs(vn(L.xy * 2.3 + L.z * 1.4 + sd) - 0.5)) * smoothstep(0.35, 0.6, w2);
+        a = mix(a, vec3(0.55, 0.42, 0.2), vein * 0.55); emi += GO * vein * (0.04 + 0.12 * gl); float mica = pow(vn(L.xy * 61.0 + L.z * 37.0 + sd), 18.0); emi += vec3(0.85, 0.85, 1.0) * mica * 0.5 * max(0.0, dot(n, uLK));
+        rg = 0.3 + 0.12 * w3; cc = 0.6; }
+      if (uLow < 0.5) n = normalize(n + (vec3(vn(L.yz * 11.0 + sd), vn(L.zx * 11.0 + 3.0), vn(L.xy * 11.0 + 7.0)) - 0.5) * 0.12); }
+    else if (id == 551) { a = (sk == 2 ? vec3(0.22, 0.26, 0.33) : vec3(0.42, 0.48, 0.58)) * (0.82 + 0.3 * w1); float topF = smoothstep(0.4, 0.8, NL.z), ringsE = abs(fract(length(L.xy * vec2(1.0, 1.7)) * 6.5 + 0.2 * w1) - 0.5), grv = smoothstep(0.07, 0.02, ringsE) * topF;
+      a *= 1.0 - 0.45 * grv; cvv += grv * 0.5; a = mix(a, a * 1.7 + vec3(0.04, 0.05, 0.06), clamp(edge, 0.0, 1.0) * 0.55);
+      float pit = smoothstep(0.8, 0.95, w3); a *= 1.0 - 0.3 * pit; rg = 0.4 + 0.15 * w2; cc = 0.3;
+      if (uLow < 0.5) n = normalize(n + (vec3(vn(L.yz * 14.0 + sd), vn(L.zx * 14.0 + 3.0), vn(L.xy * 14.0 + 7.0)) - 0.5) * 0.14); }
+    else if (id == 552 || id == 561 || id == 568) { met = 1.0; F0m = vec3(1.0, 0.76, 0.38) * (0.78 + 0.28 * w2); rg = (sk == 2 ? 0.16 : 0.28) + 0.16 * w1; float tn = smoothstep(0.55, 0.85, w3) * (sk == 2 ? 0.3 : 0.7); F0m *= 1.0 - 0.5 * tn; rg += tn * 0.25;
+      emi += GO * gl * (id == 568 ? 0.6 : 0.3); }
+    else if (id == 553) { float R0 = 0.86, rr = length(L.xy) / R0, ang = atan(L.x, L.y), h12 = fract(ang / 6.28318 * 12.0 + 0.5) - 0.5, h60 = fract(ang / 6.28318 * 60.0 + 0.5) - 0.5, kq = floor(ang / 6.28318 * 12.0 + 0.5 + 12.0);
+      float big = step(mod(kq, 3.0), 0.5), hb = (1.0 - smoothstep(0.04 + 0.03 * big, 0.06 + 0.035 * big, abs(h12) * 6.28318 / 12.0 * rr * 6.0)) * step(0.6 - 0.07 * big, rr) * step(rr, 0.82);
+      float mt = (1.0 - smoothstep(0.012, 0.022, abs(h60) * 6.28318 / 60.0 * rr * 6.0)) * step(0.77, rr) * step(rr, 0.85), ring = exp(-pow((rr - 0.87) / 0.008, 2.0)) + 0.6 * exp(-pow((rr - 0.74) / 0.006, 2.0));
+      float crz = smoothstep(0.025, 0.0, abs(vn(L.xy * 10.0 + sd) - 0.5)) * 0.6 + smoothstep(0.02, 0.0, abs(vn(L.xy * 23.0 + 4.0) - 0.5)) * 0.4;
+      a = vec3(0.86, 0.87, 0.9) * (0.9 + 0.1 * w1) * (1.0 - 0.18 * crz); a = mix(a, mix(vec3(0.12, 0.13, 0.18), vec3(0.6, 0.45, 0.2), big), max(hb, mt * 0.8)); a = mix(a, vec3(0.5, 0.4, 0.2), ring * 0.7);
+      a = mix(a, vec3(0.78, 0.74, 0.62), smoothstep(0.55, 1.0, rr) * 0.25 * w2); rg = 0.24; cc = 0.7; cvv += crz * 0.08;
+      emi += VI * gl * (0.08 + 0.7 * smoothstep(0.8, 1.0, rr) * (0.7 + 0.3 * sin(tt * 10.0))); }
+    else if (id == 554) { met = 1.0; F0m = vec3(0.22, 0.26, 0.42) * (0.8 + 0.3 * w2); rg = 0.22; float core = exp(-pow(L.y / 0.018, 2.0)) * step(0.0, L.x);
+      emi += VI * gl * (0.35 + 0.25 * sin(tt * 10.0)) + vec3(1.2, 1.1, 1.4) * core * gl * 0.7; }
+    else if (id == 556) { float vio = clamp(uWear, 0.0, 1.0), gr = pow(vn(L.xy * 70.0 + L.z * 55.0), 14.0);
+      a = mix(vec3(0.8, 0.56, 0.22), vec3(0.42, 0.3, 0.86), vio) * (0.85 + 0.25 * w2); rg = 0.85; emi += mix(GO, VI, vio) * gl * 0.35 + vec3(1.0, 0.92, 0.7) * gr * 0.6; }
+    else if (id == 560 || id == 563) { met = 1.0; F0m = vec3(0.9, 0.91, 0.96) * (0.86 + 0.14 * w2) * (id == 563 ? 0.75 : 1.0); rg = 0.08 + 0.08 * w1;
+      if (id == 560 && sk == 0) { float dd = abs(L.x) / 0.9 + abs(L.y) / 1.18, face = smoothstep(0.5, 0.8, abs(NL.z)), inl = exp(-pow((dd - 0.8) / 0.022, 2.0)) * face;
+        float s24 = atan(L.y, L.x) / 6.28318 * 28.0, cel = fract(s24), cid = floor(s24), bnd = max(step(abs(dd - 0.7), 0.035), step(abs(dd - 0.9), 0.035)) * face;
+        float gly = step(0.35, fract(sin(cid * 12.9898 + floor(dd * 30.0) * 78.233) * 43758.5)) * smoothstep(0.12, 0.05, abs(cel - 0.5) - 0.25) * bnd;
+        F0m = mix(F0m, vec3(1.0, 0.78, 0.4), inl); rg += inl * 0.1; emi += VI * gly * (0.15 + 0.9 * gl) + GO * inl * gl * 0.1; F0m *= 1.0 - 0.35 * gly; }
+      F0m = mix(F0m, F0m * 1.12 + 0.04, clamp(edge, 0.0, 1.0) * 0.4); }
+    else if (id == 562) { vec3 p = normalize(L); float ir = length(p.yz), front = step(0.0, p.x), iris = (1.0 - smoothstep(0.7, 0.76, ir)) * front, fib = vn(vec2(atan(p.z, p.y) * 9.0 + sd, ir * 7.0));
+      float pup = uKind > 0.5 ? (1.0 - smoothstep(0.34, 0.4, ir)) * front : (1.0 - smoothstep(0.85, 1.0, length(vec2(p.y / 0.12, p.z / 0.58)))) * front;
+      vec3 irc = mix(vec3(0.3, 0.12, 0.7), vec3(0.88, 0.72, 1.25), clamp(ir / 0.72 + (fib - 0.5) * 0.5, 0.0, 1.0)); irc *= 1.0 - 0.55 * exp(-pow((ir - 0.71) / 0.03, 2.0));
+      a = mix(vec3(0.78, 0.73, 0.88) * (0.9 + 0.1 * w1), irc, iris); a = mix(a, vec3(0.03, 0.01, 0.06), pup); rg = 0.12; cc = 1.0; emi += VI * iris * (1.0 - pup) * (0.25 + 0.7 * gl); }
+    else if (id == 564) { met = 1.0; F0m = (sk == 2 ? vec3(0.62, 0.5, 0.96) : vec3(0.88, 0.9, 0.96)) * (0.85 + 0.2 * w2); rg = 0.1 + 0.06 * w1; float eg = smoothstep(0.82, 1.0, edge);
+      emi += (sk == 2 ? VI : vec3(1.05, 1.0, 1.3)) * eg * (0.12 + 0.95 * gl); F0m *= 1.0 - 0.25 * smoothstep(0.75, 0.9, w3); }
+    else if (id == 565) { a = vec3(0.05, 0.035, 0.09) * (0.8 + 0.4 * w1); rg = 0.3; cc = 0.7; emi += (0.5 + 0.5 * cos(vec3(0.0, 2.1, 4.2) + ndv0 * 6.0 + w1 * 3.0)) * 0.05 + VI * gl * 0.35 * (0.6 + 0.4 * w2); }
+    else if (id == 566) { float vein = smoothstep(0.04, 0.0, abs(vn(L.xy * 1.8 + L.z * 2.3 + sd) - 0.5)); a = vec3(0.9, 0.87, 0.8) * (0.9 + 0.1 * w1) * (1.0 - 0.3 * vein); rg = 0.32; cc = 0.45; }
+    else if (id == 567) { float u2 = edge * 14.0, v2 = ao * 9.0, wv = 0.5 + 0.5 * sin(u2 * 18.0) * sin(v2 * 18.0), dm = abs(fract(u2) - 0.5) + abs(fract(v2) - 0.5), dia = smoothstep(0.32, 0.27, dm) - smoothstep(0.22, 0.17, dm);
+      a = vec3(0.24, 0.16, 0.44) * (0.85 + 0.2 * wv); a = mix(a, vec3(0.8, 0.82, 0.9), dia * 0.8); rg = 0.85; emi += VI * gl * 0.15; }
+    /* (v463 SA, Vaul's shading pass) 560 its bars as faceted mirror glass: a fine hammered facet field in the normal, glints that
+       spark as it turns, a violet depth seen through the face (inclusions drifting behind the silvering), prismatic fire along the
+       bevels (vA.y); the inlay widened into a gilded band of engraved filigree scrolls, rubbed back to silver at its edges by wear.
+       564 the spikes: 564.2 violet crystal with thickness (light through it, internal facet planes, a bright refracted core along its
+       length, its edges lit), 564 polished steel brushed along its length, nicked; 562 the eye wet (a sharp window highlight, a caustic
+       in the iris); 565 the nacre's iridescence deeper */
+    float vGl = 0.0, vIn = 0.0; vec3 vRef = vec3(0.0);
+    if (id == 560 && uKind < 8.5) { if (uLow < 0.5) { vec2 fc = floor(L.xy * 9.0 + 0.5 * w2); vec3 fn = vec3(fract(sin(dot(fc, vec2(12.9, 78.2))) * 43758.5) - 0.5, fract(sin(dot(fc, vec2(39.3, 11.7))) * 24634.6) - 0.5, 0.0); n = normalize(n + (uM0 * fn.x + uM1 * fn.y) * 0.16); }
+      F0m *= 0.74;   // (a mirror backed with violet glass: not the whole sky back, so its depth and its facets read)
+      float ndvF = max(0.0, dot(n, uV)); vGl = pow(vn(L.xy * 38.0 + vec2(ndvF * 9.0, tt * 0.15) + sd), 22.0) * 3.0;
+      vec3 rf = refract(-uV, n, 0.66); vec2 pp = L.xy + rf.xy * 0.35; float inc = pow(vn(pp * 7.0 + sd), 6.0) + 0.5 * pow(vn(pp * 17.0 + 3.0), 10.0); vIn = 0.12 + 0.6 * inc;
+      vRef = (0.5 + 0.5 * cos(vec3(0.0, 2.1, 4.2) + ndvF * 9.0 + L.x * 3.0)) * smoothstep(0.55, 1.0, edge) * 0.55;
+      if (sk == 0) { float dd = abs(L.x) / 0.9 + abs(L.y) / 1.18, face = smoothstep(0.5, 0.8, abs(NL.z)), band = smoothstep(0.735, 0.75, dd) * (1.0 - smoothstep(0.85, 0.865, dd)) * face;
+        float sc1 = abs(sin(L.x * 22.0 + 3.0 * sin(L.y * 15.0 + sd)) * cos(L.y * 19.0 - 2.0 * sin(L.x * 11.0))), fil = smoothstep(0.16, 0.05, sc1) * band, rub = smoothstep(0.62, 0.85, w2 + 0.3 * smoothstep(0.82, 0.865, dd));
+        F0m = mix(F0m, mix(vec3(1.0, 0.77, 0.38), vec3(0.88, 0.88, 0.9), rub * 0.6) * (1.0 - 0.45 * fil), band); rg = mix(rg, 0.22 + 0.12 * w3, band); vIn *= 1.0 - band; vGl *= 1.0 - band * 0.6; cvv += fil * 0.35; }
+      else vIn *= 0.6; }
+    if (id == 564 && uKind < 8.5) { if (sk == 2) { met = 0.0; float ndvF = max(0.0, dot(n, uV)), pl = smoothstep(0.035, 0.0, abs(fract(dot(L, vec3(3.1, 5.3, 2.2)) + w1 * 0.4) - 0.5) - 0.44) + smoothstep(0.03, 0.0, abs(fract(dot(L, vec3(-4.2, 2.1, 6.3)) + 0.3) - 0.5) - 0.45);
+        float core = exp(-pow(length(L.yz) / 0.05, 2.0)) * smoothstep(-0.3, 0.6, L.x); a = vec3(0.16, 0.1, 0.34) * (0.8 + 0.4 * w1); rg = 0.06; cc = 1.0;
+        emi += VI * (0.18 + 0.35 * pl + 0.9 * core * (0.5 + 0.5 * gl)) * (0.75 + 0.25 * sin(tt * 2.0 + L.x * 6.0)) + vec3(1.0, 0.92, 1.2) * pow(1.0 - ndvF, 3.0) * 0.35 + vec3(1.2, 1.1, 1.4) * smoothstep(0.82, 1.0, edge) * (0.35 + 0.8 * gl); }
+      else { F0m *= 0.88 + 0.16 * vn(vec2(L.x * 3.0 + sd, (L.y + L.z) * 120.0)); rg = 0.08 + 0.1 * vn(vec2(L.x * 2.0, (L.y - L.z) * 60.0)); float nick = smoothstep(0.86, 0.95, vn(L.xy * 31.0 + L.z * 17.0 + sd)); F0m *= 1.0 - 0.4 * nick; } }
+    if (id == 562 && uKind < 8.5) { vec3 hq2 = normalize(uLK + uV); emi += vec3(1.0) * pow(max(0.0, dot(n, hq2)), 400.0) * 3.0; vec3 p2 = normalize(L); float irc2 = length(p2.yz); emi += VI * smoothstep(0.75, 0.2, irc2) * step(0.0, p2.x) * pow(vn(p2.yz * 14.0 + tt * 0.4), 5.0) * 0.6; }
+    if (id == 565) emi += (0.5 + 0.5 * cos(vec3(0.0, 2.1, 4.2) + ndv0 * 9.0 + w2 * 5.0)) * 0.06;
+    float oAO = 1.0, oSH = 1.0; if (uNOcc > 0.5 && uLow < 0.5) { oAO = occAO(vW, n); oSH = occSH(vW, uLK); } occ *= oAO;
+    float ndl0 = dot(n, uLK), ndl = max(0.0, ndl0) * oSH, wrap = max(0.0, (ndl0 + 0.4) / 1.4) * mix(1.0, oSH, 0.7);
+    vec3 key = uAmb, ambC = (hall ? mix(vec3(0.09, 0.085, 0.13), vec3(0.17, 0.19, 0.28), 0.5 + 0.5 * hm) + vec3(0.32, 0.2, 0.07) * max(0.0, -hm) : mix(vec3(0.5, 0.46, 0.4), vec3(0.5, 0.58, 0.76), 0.5 + 0.5 * hm)) * (0.55 + 0.45 * occ);
+    vec3 hh = normalize(uLK + uV); float nh = max(0.0, dot(n, hh)), pw = 2.0 / (rg * rg + 0.004), spec = pow(nh, pw) * (pw + 2.0) / 8.0 * ndl, frs = pow(1.0 - ndv0, 5.0);
+    vec3 col;
+    if (met > 0.5) { vec3 Fr = F0m + (1.0 - F0m) * frs; col = Fr * ((envC + (hall ? vec3(0.08, 0.07, 0.1) : vec3(0.3, 0.28, 0.26))) * 1.25 * occ + spec * key * 1.4) + F0m * 0.3 * (wrap * key + ambC); }
+    else { col = a * (mix(ndl, wrap, 0.45) * key + ambC) + (envC * (0.9 / (1.0 + rg * 2.5)) * occ + spec * key * 0.9) * (0.04 + 0.96 * frs * (1.0 - rg * 0.6));
+      if (cc > 0.0) col += cc * (pow(nh, 200.0) * 3.5 * ndl + 0.3 * frs * envC) * occ; }
+    col += (vec3(1.0, 0.97, 1.0) * vGl * (0.3 + ndl) + VI * vIn * 0.8 * (1.0 - frs) + vRef) * occ;   // (v463 SA: Vaul's glass: glints, the depth inside it, the bevels' fire)
+    col += pow(1.0 - ndv0, hall ? 2.4 : 1.8) * max(0.0, dot(n, uLR) + 0.35) * uRim * (hall ? 0.45 : 0.9) * occ;   // (v463 SA: the gallery's rim stronger, violet)
+    col *= 1.0 - min(0.8, cvv * 0.5 + (1.0 - occ) * 0.45);
+    if (dead > 0.0) { float lum = dot(col, vec3(0.3, 0.55, 0.15)); col = mix(col, vec3(lum) * vec3(0.78, 0.78, 0.84) * 0.7, dead * 0.8); }
+    col += emi * (1.0 - dead * 0.92) + vec3(1.0, 0.95, 0.9) * clamp(uGlow2, 0.0, 1.0) * (0.22 + 0.45 * pow(1.0 - ndv0, 2.0));   // (a blow's flash)
+    gl_FragColor = vec4(vec3(tone(col.r), tone(col.g), tone(col.b)) * uAlpha * fa, uAlpha * fa); return; }
+  /*</SA-SEP-MAT>*/
+  /*<SK-KHYROS-MAT ids 570..579 (v463 SK: 20z3a-khyros-gl.js, Khyros the Hound Beyond the Angles)>*/
+  else if (id >= 570 && id <= 579) {   // ---- (v463 SK) Rift 04's last boss and its arena's still pieces, lit by the void (KHY_GL's pass: the key's colour in uAmb, the violet rim in uRim). 570 the hull's obsidian plates (vA.z its side + the ring / 15 along it, 0 the tail .. 14 the snout; vA.y across the plate 0..1: dark seams at each ring, engraved chevrons pointing to the snout that carry a violet wave by uGlow (menace), white by uKind (wedged)); 570.2 the chamfer along a plate's long edge (a bright bevel); 570.4 a leg's prism or knuckle (a facet: vA.y 0 its centre .. 1 its rim, the rim lit). 571 a flank slit (vA.z its index + along it, vA.y across: a burning core in a wave from shoulder to waist by uTime, uGlow, white-hot by uKind), 572 an eye (white-violet), 573 the mouth (lit violet by uGlow, the jaw's opening), 574 silver (the teeth; 574.2 a claw: dark, silver along its facet rims), 575 a spearhead (black glass, its facet rims burning violet by uGlow), 577 gold (the loom's frame; 577.2 a thread, lit by uGlow), 578 violet stone (the dais, the plate; 578.2 silver inlay). uGlow2 a blow's flash, uFx dead
+    int sk = int((vA.x - float(id)) * 10.0 + 0.5);
+    float ndv0 = max(0.0, dot(n, uV)), hm = dot(n, uUP), tt = uTime, sd = uWear * 17.0, gl = clamp(uGlow, 0.0, 2.5), dead = clamp(uFx, 0.0, 1.0), kk = clamp(uKind, 0.0, 1.0);
+    vec3 VI = vec3(0.56, 0.34, 1.0), VH = vec3(0.86, 0.72, 1.22), WV = vec3(1.0, 0.95, 1.12), GO = vec3(1.0, 0.78, 0.42);
+    if (id == 571 || id == 572) { float si = floor(ao + 0.001), al = fract(ao), ac = abs(clamp(edge, 0.0, 1.0) - 0.5) * 2.0, core = exp(-ac * ac * 5.0), hot = exp(-ac * ac * 30.0), ends = smoothstep(0.0, 0.2, al) * smoothstep(1.0, 0.8, al);
+      float pul = id == 571 ? 0.35 + 0.65 * max(0.0, sin(tt * 3.4 - si * 0.75)) * (0.6 + 0.4 * min(gl, 1.0)) + kk * 0.6 : 0.85 + 0.45 * min(gl, 1.0);
+      vec3 lc = mix(vec3(0.62, 0.36, 1.25), WV, clamp((id == 572 ? 0.5 : kk * 0.8) + hot * 0.45, 0.0, 1.0)), c = vec3(0.015, 0.008, 0.03) * (1.0 - core) + lc * core * ends * (0.6 + 1.6 * pul) + VI * (1.0 - core) * ends * pul * 0.8;
+      c += vec3(1.0, 0.95, 1.0) * clamp(uGlow2, 0.0, 1.0) * 0.3; c = mix(c, vec3(0.05, 0.045, 0.06), dead * 0.85);
+      gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
+    vec3 a = vec3(0.04), emi = vec3(0.0), thru = vec3(0.0); float rg = 0.55, cvv = 0.0, cc = 0.0, occ = 1.0, mtl = 0.0;
+    if (id == 570 && sk == 4) { float rim = smoothstep(0.8, 1.0, edge), g = vn(L.xy * 9.0 + L.z * 5.0 + sd);
+      a = vec3(0.085, 0.075, 0.11) * (0.85 + 0.3 * g); a = mix(a, vec3(0.36, 0.33, 0.48), rim * 0.6); rg = mix(0.48, 0.28, rim); cc = 0.3; cvv += smoothstep(0.97, 1.0, edge) * 0.3; emi += VI * smoothstep(0.92, 1.0, edge) * (0.03 + 0.08 * gl); }
+    else if (id == 570) {   // (v463 SK rework) 570 the body (vA.y round it 0..1 from the ridge, vA.z the ring / 15), 570.3 a limb (vA.y round, vA.z along), 570.2 an armour plate (a facet: vA.y 0 its centre .. 1 its rim): polished obsidian in staggered plates, each of two facets turned its own way about a crease, grooves between, bevels edged in silver, violet runes engraved in some; the belly bare dark muscle in cords, violet light through it
+      if (sk == 2) { float rim = smoothstep(0.8, 0.97, edge), cr = smoothstep(0.975, 1.0, edge);
+        a = mix(vec3(0.03, 0.026, 0.045), vec3(0.42, 0.43, 0.52), rim); mtl = rim * 0.7; rg = 0.34; cc = 0.3 * (1.0 - rim); cvv += cr * 0.5 + (1.0 - smoothstep(0.0, 0.5, edge)) * 0.15;
+        emi += VI * smoothstep(0.55, 0.75, edge) * (1.0 - rim) * (0.05 + 0.3 * gl) + WV * kk * rim * 0.25; }
+      else { float f = sk == 3 ? ao * 9.0 : ao * 15.0, v = fract(edge + 1.0), belly = (sk == 3 || f < 0.0) ? 0.0 : smoothstep(0.35, 0.43, v) * smoothstep(0.65, 0.57, v);
+        // (v463 SK third pass) the plates follow the anatomy: big over the haunches, back and shoulders, small down the waist, the neck, the limbs and the tail; each a scale whose chevron rear edge lies over the plate behind, its front tucked under the plate before it
+        float cols = 9.0, rows = 1.0, f0 = 0.0;
+        if (sk == 3) { cols = 4.0; rows = 1.5; } else if (f < 0.0) { cols = 6.0; rows = 3.2; } else if (f < 3.0) { cols = 8.0; rows = 0.9; } else if (f < 5.0) { cols = 10.0; rows = 1.5; f0 = 3.0; } else if (f < 8.0) { cols = 7.0; rows = 0.8; f0 = 5.0; } else if (f < 9.8) { cols = 12.0; rows = 2.4; f0 = 8.0; } else { cols = 8.0; rows = 1.3; f0 = 9.8; }
+        vec2 g = vec2(v * cols, (f - f0) * rows); float row = floor(g.y); g.x += mod(row, 2.0) * 0.5; vec2 cid = vec2(floor(g.x), row + f0 * 17.0 + float(sk) * 31.0), q = fract(g) - 0.5;
+        float dr = q.y - (-0.5 + 0.34 * abs(q.x) * 2.0 * 0.5), groove = dr < 0.0 ? 1.0 : smoothstep(0.045, 0.0, dr), sg = smoothstep(0.045, 0.01, 0.5 - abs(q.x)), seam = max(groove, sg), lip = dr > 0.0 ? smoothstep(0.12, 0.045, dr) * (1.0 - sg) : 0.0, tuck = smoothstep(0.12, 0.5, q.y);
+        float h1 = hs(cid + sd), h2 = hs(cid * 1.7 + 3.1), h3 = hs(cid * 2.3 + 7.7), wave = 0.55 + 0.45 * sin(tt * 3.4 - f * 0.75);
+        vec3 lat = normalize(cross(n, uUP) + vec3(1e-4, 0.0, 0.0));
+        n = normalize(n + (lat * q.x * 0.5 + (vec3(h1, h2, h3) - 0.5) * 0.08) * (1.0 - belly) * (1.0 - seam));   // (each plate curved across, glints running along it)
+        float rn = 0.0; if (h2 > 0.6 && cols < 9.5 && belly < 0.5 && sk != 3) { vec2 r1 = (q - vec2(0.0, 0.06)) * vec2(1.1, 1.3), pa = r1 - vec2(-0.24, -0.18), ba = vec2(0.24, 0.38); float d = length(pa - ba * clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0));
+          pa = r1 - vec2(0.0, 0.2); ba = vec2(0.24, -0.38); d = min(d, length(pa - ba * clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0)));
+          pa = r1 - vec2(-0.2 + 0.4 * h3, -0.26); ba = vec2(0.0, 0.38); d = min(d, length(pa - ba * clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0)));
+          if (h1 > 0.5) { pa = r1 - vec2(-0.22, 0.02); ba = vec2(0.44, 0.0); d = min(d, length(pa - ba * clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0))); }
+          rn = smoothstep(0.045, 0.018, d); }
+        a = vec3(0.034, 0.03, 0.048) * (0.8 + 0.35 * h1); rg = 0.3 + 0.1 * h3; cc = 0.45;
+        a = mix(a, vec3(0.36, 0.37, 0.46), lip * 0.75); mtl = lip * 0.7; rg = mix(rg, 0.3, lip);   // (the rear lip edged in dull silver)
+        a = mix(a, vec3(0.004, 0.003, 0.008), seam); cc *= 1.0 - seam; cvv += seam * 0.75 + tuck * 0.4;   // (deep in the seams, shadowed under the plate before)
+        a = mix(a, vec3(0.006, 0.004, 0.01), rn); emi += VI * rn * (0.3 + 0.9 * gl * wave) + WV * rn * kk * 0.8 + VI * seam * (0.07 + 0.3 * gl * wave);   // (runes; the seams' faint violet)
+        if (belly > 0.0) { float cord = 0.5 + 0.5 * sin(f * 26.0 + sin(v * 40.0) * 0.6); a = mix(a, vec3(0.07, 0.035, 0.1) * (0.7 + 0.5 * cord), belly); rg = mix(rg, 0.45, belly); cc = mix(cc, 0.2, belly); mtl *= 1.0 - belly; cvv = mix(cvv, (1.0 - cord) * 0.3, belly); thru = VI * 0.35 * belly; emi += VI * belly * (0.04 + 0.2 * gl * wave) * cord; } }
+      a = mix(a, a * 0.7 + vec3(0.02, 0.01, 0.04), smoothstep(-0.2, -0.8, hm) * 0.4); }
+    else if (id == 573) { a = vec3(0.05, 0.02, 0.08); rg = 0.4; cc = 0.4; cvv += 0.4; emi += VI * (0.03 + 0.9 * smoothstep(0.25, 1.0, gl)) * (0.75 + 0.25 * sin(tt * 7.0)); }   // (v463 SK third pass: dark until it gapes)
+    else if (id == 574) { if (sk == 2) { float rim = smoothstep(0.72, 1.0, edge); a = mix(vec3(0.05, 0.045, 0.07), vec3(0.8, 0.84, 0.92), rim); rg = mix(0.45, 0.16, rim); cc = 0.4 + 0.5 * rim; mtl = rim; }
+      else { a = vec3(0.8, 0.84, 0.92) * (0.85 + 0.2 * vn(L.xz * 30.0 + sd)); rg = 0.16; cc = 0.9; mtl = 1.0; } }
+    else if (id == 575) { float rim = smoothstep(0.66, 1.0, edge); a = vec3(0.025, 0.02, 0.04); rg = 0.14; cc = 1.1; emi += mix(VI, VH, rim * 0.45) * rim * rim * (0.22 + 0.5 * gl) + VI * 0.05 * gl; cc = 0.6; }
+    else if (id == 577) { if (sk == 2) { a = GO * 0.45; rg = 0.3; emi += GO * (0.12 + 1.2 * gl) * (0.75 + 0.25 * sin(tt * 6.0 + L.x * 9.0)); }
+      else { a = GO * (0.6 + 0.3 * vn(L.xz * 14.0 + sd)); rg = 0.22; cc = 0.7; mtl = 1.0; emi += GO * gl * 0.05; } }
+    else { if (sk == 2) { a = vec3(0.8, 0.84, 0.92); rg = 0.18; cc = 0.8; mtl = 1.0; emi += vec3(0.9, 0.85, 1.0) * gl * 0.12; }
+      else { float g = vn(L.xy * 7.0 + sd), vv = smoothstep(0.03, 0.0, abs(vn(L.xy * 2.5 + 4.0) - 0.5)); a = mix(vec3(0.15, 0.12, 0.25), vec3(0.24, 0.2, 0.37), g) * (1.0 - 0.3 * vv); rg = 0.62; cc = 0.15; emi += GO * gl * 0.035; } }
+    if (uLow < 0.5 && (id == 577 || id == 578)) n = normalize(n + (vec3(vn(L.yz * 9.0 + sd), vn(L.zx * 9.0 + 3.0), vn(L.xy * 9.0 + 7.0)) - 0.5) * 0.12);
+    float oAO = 1.0, oSH = 1.0; if (uNOcc > 0.5 && uLow < 0.5) { oAO = occAO(vW, n); oSH = occSH(vW, uLK); } occ *= oAO;
+    float ndl0 = dot(n, uLK), ndl = max(0.0, ndl0) * oSH, wrap = max(0.0, (ndl0 + 0.4) / 1.4) * mix(1.0, oSH, 0.7);
+    vec3 key = uAmb, sky = uRim * 0.08 + vec3(0.1, 0.09, 0.14), gnd = vec3(0.16, 0.1, 0.3) * 0.7;
+    vec3 ambC = mix(gnd, sky, 0.5 + 0.5 * hm) * (0.55 + 0.45 * occ);
+    vec3 hh = normalize(uLK + uV); float nh = max(0.0, dot(n, hh)), pw = 2.0 / (rg * rg + 0.004), spec = pow(nh, pw) * (pw + 2.0) / 8.0 * ndl, frs = pow(1.0 - ndv0, 5.0);
+    vec3 rr = 2.0 * dot(n, uV) * n - uV; float ru = dot(rr, uUP), sp2 = pow(max(0.0, dot(n, normalize(uLS + uV))), pw * 0.7) * 0.4;
+    vec3 envC = mix(gnd * 0.9, sky * 1.8 + vec3(0.06, 0.04, 0.1), smoothstep(-0.35, 0.4, ru)) + key * 0.9 * smoothstep(0.85, 0.97, dot(rr, uLS)) / (1.0 + rg * 5.0) + vec3(0.5, 0.46, 0.72) * smoothstep(0.12, 0.3, ru) * (1.0 - smoothstep(0.5, 0.8, ru)) * 0.22 / (1.0 + rg * 4.0), tint = mix(vec3(1.0), a * 1.4, mtl);   // (v463 SK rework: a soft band of the void's light in the reflections, the obsidian's glints)
+    if (id == 570) tint *= vec3(0.82, 0.74, 1.12);   // (the obsidian's sheen goes violet)
+    vec3 col = a * (mix(ndl, wrap, 0.4) * key + ambC) * (1.0 - mtl * 0.6) + (envC * (0.62 / (1.0 + rg * 2.5)) * occ + (spec + sp2) * key * 0.9) * tint * mix(0.1 + 0.9 * frs * (1.0 - rg * 0.6), 1.0, mtl * 0.85);
+    col += thru * (0.5 + 0.5 * max(0.0, -ndl0)) * key;
+    if (cc > 0.0) col += cc * (pow(nh, 70.0) * 1.5 * ndl * key + 0.28 * frs * envC) * occ;   // (v463 SK third pass: a soft clear-coat sheen, no hard white)
+    col += pow(1.0 - ndv0, 2.2) * max(0.0, dot(n, uLR) + 0.35) * uRim * 0.8 * occ;   // (the violet rim from behind)
+    col += vec3(0.3, 0.18, 0.55) * max(0.0, -hm) * 0.12 * occ;   // (the stone's violet bounce under it)
+    col *= 1.0 - min(0.8, cvv * 0.5 + (1.0 - occ) * 0.45);
+    col += emi * (1.0 - dead * 0.85);
+    col += vec3(1.0, 0.94, 1.0) * clamp(uGlow2, 0.0, 1.0) * (0.22 + 0.45 * pow(1.0 - ndv0, 2.0));
+    if (dead > 0.0) { float lum = dot(col, vec3(0.3, 0.55, 0.15)); col = mix(col, vec3(lum) * vec3(0.8, 0.78, 0.85) * 0.7, dead * 0.7); }
+    gl_FragColor = vec4(vec3(tone(col.r), tone(col.g), tone(col.b)) * uAlpha, uAlpha); return; }
+  /*</SK-KHYROS-MAT>*/
   /*<GO-ORRUBEL-MAT ids 250..257 (v423 GO: 20x1-orrubel-gl.js, Orrubel the Seed-Mother)>*/
   else if (id >= 250 && id <= 259) {   // ---- (v423 GO) Orrubel the Seed-Mother (Rift 02's first boss, 20x1): 250 an outer petal (a thick blade: vA.y its place along the petal, 0 the root .. 1 the tip; vA.z across it 0..1 on its outer face, 2 + across on its inner: velvet plum-violet outside, darker veins, a pale bloom at its sides; satin rose inside, gold at the root; its thin rim lit through by uGlow's gold), 251 the heart (plum flesh in ribs: vA.y a rib's ridge; a web of veins lit gold by uSpill; 251.2 an eyelid, 251.4 the eye's socket), 252 jade root bark (furrowed, knotted, mossed: vA.y a joint; uSpill jade light in the furrows (digging in); 252.2 a pale root tip, 252.4 a thorn, 252.6 the jade collar and the pods' stalks), 253 the golden eye (its frame's x the gaze; uKind 1 dizzy: the pupil wide), 254 an egg (cream shell, plum seams from its poles, speckled; uKind its cracking 0..1; uGlow the light inside), 255 gold (an anther: emissive; 255.2 a filament), 256 a jade leaf (a sepal; vA as 250), 257 an inner petal (rose satin; vA as 250). uGlow2 a blow's flash, uFx withered (dead), uWear the part's seed. Its own light: a cream moon key, the plum night above, the moss's jade bounce below, a rose rim
     int sk = int((vA.x - float(id)) * 10.0 + 0.5);
@@ -2055,6 +2217,78 @@ void main() {
     col += emi * (1.0 - dead);
     gl_FragColor = vec4(vec3(tone(col.r), tone(col.g), tone(col.b)) * uAlpha, uAlpha); return; }
   /*</GB-CALYX-MAT>*/
+  /*<SM-SEP-MAT ids 535..549 (v463 SM: 20s7-sep-brood-gl.js, Rift 04's brood, its creatures and its two mini bosses)>*/
+  else if (id >= 535 && id <= 549) {   // ---- (v463 SM) the Sepulchre's brood (baked into sprite frames once; the minis posed live). Its passes carry the land's key light colour in uAmb and its rim in uRim (the Clockless Halls' gold candle and silver rim, the Hall in Two Ages' white sun and gold, the Borrowed Stairs' lavender and violet). 535 silver (engraved bands round its own z, tarnish in the hollows; .1 brushed), 536 hour glass (see-through: tinted, a strong fresnel, a slow drift of silver seconds inside by uTime), 537 old gold (hammered, an engraved band; .1 polished bright; .2 cracked: dark cracks across a ring, its local x-z the ring's plane), 538 tomb stone (blue-black, silver veins, chipped bright edges; .1 grey mason stone; .2 dark hood stone; .3 violet stair stone), 539 obsidian hide (glassy black facets, violet seams at the bevels by uGlow; .2 three violet slashes down the flank by its own x), 540 light (emissive only: uKind 0 violet, 1 gold, 2 ice, 3 white; uGlow its strength), 541 an eye (its local +x the gaze: sclera, an iris coloured by uKind (0 violet, 1 ice blue, 2 gold, 3 ember), a pupil narrowed to a slit by uSpill), 542 amber crystal (light through it), 543 bone and pale marble (.1 a horn: ridged rings along vA.z), 544 earth velvet (a mole's coat; .1 old wood), 545 bare pink skin, 546 pale ice (vA.z 1 - the place along a shard: frosted root, clear luminous tip, bright facet edges), 547 dark iron (riveted, a little rust), 548 an enamel clock face (its local +x the face's normal: twelve gold marks round it, a gold rim), 549 a dark void (a mouth's slit, a socket). uGlow2 a white flash, uWear the part's seed, uFx dead (ashen)
+    int sk = int((vA.x - float(id)) * 10.0 + 0.5);
+    float ndv0 = max(0.0, dot(n, uV)), hm = dot(n, uUP), tt = uTime, sd = uWear * 17.0, gl = clamp(uGlow, 0.0, 3.0), fa = 1.0, dead = clamp(uFx, 0.0, 1.0);
+    vec3 VI = vec3(0.7, 0.42, 1.35), GO = vec3(1.35, 0.98, 0.45), IC = vec3(0.55, 0.92, 1.3);
+    float w1 = vn(L.xy * 3.1 + L.z * 1.9 + sd), w2 = vn(L.yz * 8.0 + L.x * 4.0 + sd * 0.7), w3 = vn(L.xz * 23.0 + L.y * 11.0 + sd);
+    vec3 hq0 = normalize(uLK + uV);
+    if (id == 540) { vec3 ec = uKind < 0.5 ? VI : uKind < 1.5 ? GO : uKind < 2.5 ? IC : vec3(1.3, 1.25, 1.2); float fl = 0.85 + 0.3 * vn(L.xy * 9.0 + L.z * 5.0 + vec2(tt * 1.7, -tt));
+      vec3 c = mix(ec * 0.8, vec3(1.6, 1.55, 1.5), pow(ndv0, 2.0) * 0.6) * (0.45 + 0.75 * gl) * fl;
+      gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
+    vec3 a = vec3(0.1), emi = vec3(0.0), thru = vec3(0.0), F0m = vec3(0.04); float rg = 0.6, cvv = 0.0, cc = 0.0, occ = clamp(ao, 0.0, 1.0) * 0.4 + 0.6, met = 0.0;
+    if (id == 536 || id == 546) occ = 1.0;
+    if (id == 535) { met = 1.0; float eg = clamp(edge, 0.0, 1.0), band = smoothstep(0.08, 0.0, abs(fract(L.z * 5.0 + 0.25) - 0.5) - 0.38), fil = smoothstep(0.06, 0.0, abs(vn(vec2(atan(L.y, L.x) * 3.0, L.z * 9.0) + sd) - 0.5));
+      F0m = vec3(0.8, 0.83, 0.9) * (0.86 + 0.16 * w2); rg = (sk == 1 ? 0.3 : 0.17) + 0.14 * w3; F0m *= 1.0 - 0.35 * (band * 0.6 + fil * 0.5); cvv += band * 0.35 + fil * 0.25;
+      F0m = mix(F0m, vec3(0.35, 0.33, 0.36), (1.0 - occ) * 0.8 + 0.2 * smoothstep(0.7, 0.9, w1)); F0m += vec3(0.15) * eg; }
+    else if (id == 536) { float frs = pow(1.0 - ndv0, 3.0); a = vec3(0.7, 0.78, 0.9); rg = 0.05; cc = 1.0;
+      vec2 sp = vec2(atan(L.y, L.x) * 2.0 + tt * 0.4, L.z * 6.0 - tt * 0.9); float mote = smoothstep(0.9, 1.0, vn(sp * 3.0 + sd)) * 0.9;
+      emi += vec3(0.9, 0.95, 1.1) * mote * 0.6 + GO * gl * 0.15; thru = vec3(0.55, 0.62, 0.8) * 0.1; fa = clamp(0.22 + 0.7 * frs + mote * 0.4, 0.0, 1.0); }
+    else if (id == 537) { met = 1.0; float hmr = vn(L.xy * 14.0 + L.z * 7.0 + sd), eg = clamp(edge, 0.0, 1.0);
+      F0m = vec3(1.0, 0.76, 0.36) * (0.82 + 0.2 * w2 + 0.1 * hmr); rg = (sk == 1 ? 0.12 : 0.24) + 0.16 * w1;
+      if (uLow < 0.5 && sk != 1) n = normalize(n + (vec3(vn(L.yz * 16.0 + sd), vn(L.zx * 16.0 + 3.0), vn(L.xy * 16.0 + 7.0)) - 0.5) * 0.18);
+      float eng = smoothstep(0.05, 0.0, abs(fract(atan(L.z, L.x) * 1.91 + 0.5 * w1) - 0.5) - 0.42) * step(0.5, float(sk == 0 ? 1 : 0)); F0m *= 1.0 - 0.4 * eng; cvv += eng * 0.3;
+      if (sk == 2) { float ang = atan(L.z, L.x), crk = smoothstep(0.05, 0.0, abs(vn(vec2(ang * 3.0, length(L.xz) * 9.0) + sd) - 0.5)) * step(0.55, vn(vec2(ang * 1.2 + 4.0, 1.0))); F0m *= 1.0 - 0.85 * crk; cvv += crk * 0.8; emi += VI * crk * gl * 0.6; }
+      F0m = mix(F0m, vec3(0.3, 0.2, 0.1), (1.0 - occ) * 0.9); F0m += vec3(0.25, 0.2, 0.1) * eg * 0.6; }
+    else if (id == 538) { float eg = clamp(edge, 0.0, 1.0), vein = smoothstep(0.04, 0.0, abs(vn(L.xy * 2.3 + L.z * 1.7 + sd) - 0.5)) * (0.5 + 0.5 * w2);
+      vec3 base = sk == 1 ? vec3(0.46, 0.48, 0.54) : sk == 2 ? vec3(0.17, 0.18, 0.24) : sk == 3 ? vec3(0.2, 0.15, 0.32) : sk == 4 ? vec3(0.24, 0.3, 0.42) : vec3(0.11, 0.13, 0.19);   // (.4 polished blue slate: Tock)
+      a = base * (0.75 + 0.4 * w1) * (0.9 + 0.2 * w3); a = mix(a, sk == 3 ? vec3(0.62, 0.5, 0.95) : vec3(0.66, 0.7, 0.78), vein * (sk == 1 ? 0.25 : 0.55)); a += vec3(0.18, 0.19, 0.22) * eg * (0.4 + 0.6 * w3);
+      rg = sk == 1 ? 0.62 : 0.34 + 0.15 * w2; cc = sk == 1 ? 0.05 : 0.45; cvv += smoothstep(0.78, 0.92, w3) * 0.35;
+      if (sk == 3) emi += VI * vein * (0.15 + 0.6 * gl);
+      if (uLow < 0.5) n = normalize(n + (vec3(vn(L.yz * 11.0 + sd), vn(L.zx * 11.0 + 3.0), vn(L.xy * 11.0 + 7.0)) - 0.5) * 0.14); }
+    else if (id == 539) { float eg = clamp(edge, 0.0, 1.0); a = vec3(0.034, 0.03, 0.05) * (0.8 + 0.4 * w1); rg = 0.1 + 0.12 * w2; cc = 0.95;
+      float seam = smoothstep(0.45, 0.7, eg) * (1.0 - smoothstep(0.86, 0.97, eg)), pul = 0.75 + 0.25 * sin(tt * 4.0 + sd);   // (a line along each bevel: a flat side (edge 1) stays black glass)
+      emi += VI * seam * (0.12 + 0.75 * gl) * pul; a += vec3(0.08, 0.06, 0.14) * seam;
+      if (sk == 2) { float sl = exp(-pow((fract(L.x * 2.6 + L.z * 0.6 + 0.15) - 0.5) / 0.06, 2.0)) * step(-0.9, L.x) * step(L.x, 0.5) * smoothstep(0.0, 0.25, L.z); emi += VI * sl * (0.35 + 0.9 * gl) * pul; a = mix(a, vec3(0.3, 0.2, 0.5), sl * 0.4); }
+      cvv += smoothstep(0.82, 0.95, w3) * 0.2; }
+    else if (id == 541) { vec3 p = normalize(L); float fr0 = smoothstep(0.0, 0.25, p.x), ry = p.y, rz = p.z, rr = length(vec2(ry, rz)) / 0.62, sl = clamp(uSpill, 0.0, 1.0);
+      float iris = (1.0 - smoothstep(0.92, 1.0, rr)) * fr0, pup = (1.0 - smoothstep(0.85, 1.0, length(vec2(ry / mix(0.42, 0.1, sl), rz / 0.44)) / 1.0)) * fr0;
+      vec3 irc = uKind < 0.5 ? vec3(0.55, 0.3, 1.0) : uKind < 1.5 ? vec3(0.25, 0.62, 0.95) : uKind < 2.5 ? vec3(1.0, 0.72, 0.2) : vec3(1.0, 0.4, 0.15);
+      float ring = smoothstep(0.2, 0.0, abs(rr - 0.55)) * 0.4 + vn(vec2(atan(rz, ry) * 5.0, rr * 4.0) + sd) * 0.3;
+      a = mix(vec3(0.9, 0.9, 0.95), irc * (0.7 + ring), iris); a = mix(a, vec3(0.02, 0.015, 0.03), pup); rg = 0.08; cc = 1.0;
+      emi += irc * iris * (1.0 - pup) * (0.35 + 0.8 * gl); a *= 0.75 + 0.25 * smoothstep(-0.6, 0.3, p.z); }
+    else if (id == 542) { a = vec3(0.95, 0.6, 0.18) * (0.8 + 0.3 * w1); rg = 0.12; cc = 0.9; thru = vec3(1.2, 0.62, 0.15) * 0.5; emi += vec3(1.1, 0.55, 0.12) * (0.18 + 0.7 * gl) * (0.6 + 0.4 * clamp(edge, 0.0, 1.0)); }
+    else if (id == 543) { float gr = abs(fract(L.z * 6.0 + w1 * 1.5) - 0.5); a = vec3(0.84, 0.8, 0.72) * (0.84 + 0.2 * w1) * (1.0 - 0.15 * smoothstep(0.1, 0.0, gr)); rg = 0.5; cc = 0.2;
+      if (sk == 1) { float rib = smoothstep(0.3, 0.5, abs(fract(clamp(ao, 0.0, 1.0) * 14.0) - 0.5)); a *= 0.72 + 0.32 * rib; cvv += (1.0 - rib) * 0.3; a = mix(a, vec3(0.55, 0.45, 0.32), 0.25 * clamp(ao, 0.0, 1.0)); } }
+    else if (id == 544) { if (sk == 1) { float gr2 = sin(L.z * 40.0 + w1 * 6.0); a = vec3(0.36, 0.22, 0.12) * (0.8 + 0.12 * gr2 + 0.2 * w2); rg = 0.7; }
+      else { a = vec3(0.32, 0.25, 0.19) * (0.8 + 0.35 * w2) * (0.9 + 0.2 * w3); rg = 0.9; emi += vec3(0.55, 0.45, 0.36) * pow(1.0 - ndv0, 2.2) * 0.3 * (0.5 + 0.5 * max(0.0, dot(n, uLK))); } }
+    else if (id == 545) { a = vec3(0.86, 0.58, 0.56) * (0.88 + 0.2 * w1); rg = 0.45; cc = 0.25; thru = vec3(0.9, 0.35, 0.3) * 0.25; }
+    else if (id == 546) { float tp = clamp(1.0 - ao, 0.0, 1.0), eg = smoothstep(0.75, 1.0, edge), frs = pow(1.0 - ndv0, 3.0);
+      a = mix(vec3(0.62, 0.82, 0.95), vec3(0.93, 0.98, 1.0), tp) * (0.85 + 0.2 * w1); rg = 0.08; cc = 1.0; thru = mix(vec3(0.15, 0.4, 0.7), vec3(0.6, 0.9, 1.1), tp) * 0.45;
+      emi += vec3(0.75, 0.95, 1.15) * eg * 0.4 + IC * frs * 0.25 + IC * gl * 0.25 * tp; a = mix(a, vec3(1.0), smoothstep(0.65, 0.9, hm + 0.4 * w3) * 0.35); }
+    else if (id == 547) { met = 1.0; F0m = vec3(0.3, 0.31, 0.36) * (0.8 + 0.3 * w2); rg = 0.42 + 0.2 * w3; float rust = smoothstep(0.62, 0.85, w1) * (1.0 - occ * 0.5); F0m = mix(F0m, vec3(0.28, 0.16, 0.1), rust * 0.6); rg += rust * 0.3; F0m += vec3(0.18) * clamp(edge, 0.0, 1.0); }
+    else if (id == 548) { vec2 q = L.yz; float rr = length(q), ang = atan(q.y, q.x), tk = exp(-pow((fract(ang / 6.2832 * 12.0 + 0.5) - 0.5) / 0.06, 2.0)) * smoothstep(0.55, 0.68, rr / max(0.001, ao * 0.0 + 1.0) * 1.0);
+      float rimG = smoothstep(0.86, 0.92, rr); a = vec3(0.9, 0.86, 0.76) * (0.9 + 0.12 * w1); a = mix(a, vec3(0.75, 0.55, 0.25), tk * 0.85); rg = 0.25; cc = 0.85;
+      if (rimG > 0.0) { met = rimG; F0m = vec3(1.0, 0.76, 0.36); rg = 0.22; } emi += GO * tk * gl * 0.5; }
+    else { a = vec3(0.01, 0.006, 0.016); rg = 0.3; cc = 0.4; emi += VI * 0.05 * (0.4 + gl); }
+    float ndl0 = dot(n, uLK), ndl = max(0.0, ndl0), wrap = max(0.0, (ndl0 + 0.4) / 1.4);
+    vec3 key = uAmb, ambC = mix(uAmb * 0.16 + vec3(0.04, 0.04, 0.07), uRim * 0.18 + uAmb * 0.12, 0.5 + 0.5 * hm) * (0.55 + 0.45 * occ);
+    float nh = max(0.0, dot(n, hq0)), pw = 2.0 / (rg * rg + 0.004), spec = pow(nh, pw) * (pw + 2.0) / 8.0 * ndl, frs = pow(1.0 - ndv0, 5.0);
+    vec3 rr2 = 2.0 * dot(n, uV) * n - uV; float ru = dot(rr2, uUP);
+    vec3 envC = ru > 0.0 ? mix(uAmb * 0.55, uRim * 0.35 + vec3(0.05), smoothstep(0.0, 0.6, ru)) : mix(uAmb * 0.45, vec3(0.06, 0.05, 0.08), smoothstep(0.0, -0.4, ru));
+    envC += uAmb * 1.1 * smoothstep(0.86, 0.97, dot(rr2, uLS)) / (1.0 + rg * 5.0);
+    vec3 col;
+    if (met > 0.5) { vec3 Fr = F0m + (1.0 - F0m) * frs; col = Fr * ((envC + vec3(0.16)) * 1.2 * occ + spec * key * 1.3) + F0m * 0.3 * (wrap * key + ambC); }
+    else { col = a * (mix(ndl, wrap, 0.45) * key + ambC) + (envC * (0.9 / (1.0 + rg * 2.5)) * occ + spec * key * 0.9) * (0.04 + 0.96 * frs * (1.0 - rg * 0.6));
+      if (cc > 0.0) col += cc * (pow(nh, 200.0) * 3.0 * ndl + 0.3 * frs * envC) * occ;
+      col += thru * (0.6 + 0.4 * max(0.0, -ndl0)); }
+    col += pow(1.0 - ndv0, 2.4) * max(0.0, dot(n, uLR) + 0.35) * uRim * 0.5 * occ;
+    col *= 1.0 - min(0.8, cvv * 0.5 + (1.0 - occ) * 0.45);
+    if (dead > 0.0) { float lum = dot(col, vec3(0.3, 0.55, 0.15)); col = mix(col, vec3(lum) * 0.7, dead * 0.75); }
+    col += emi * (1.0 - dead * 0.9) + vec3(1.0, 0.97, 0.92) * clamp(uGlow2, 0.0, 1.0) * (0.3 + 0.5 * pow(1.0 - ndv0, 2.0));
+    gl_FragColor = vec4(vec3(tone(col.r), tone(col.g), tone(col.b)) * uAlpha * fa, uAlpha * fa); return; }
+  /*</SM-SEP-MAT>*/
   /*<DA-SARRUKH-MAT ids 340..349 (v433 DA: 20y1-sarrukh-gl.js, Sarrukh the Bloom Serpent)>*/
   else if (id >= 340 && id <= 349) {   // ---- (v433 DA) Sarrukh the Bloom Serpent (Rift 03's first boss, 20y1): 340 its scales (a body slice: vA.y its place along the body, 0 the neck .. 1 the tail; its own normal NL.z the back (+) or the belly (-): bone-and-ochre scales in rows, darker saddles, pale belly scutes, cyan veins down the back pulsing toward the tail by uGlow; uSpill sand dusting it), 341 a fin's bone membrane (vA.y root..tip, vA.z across: cyan rays), 342 basalt (dark, glassy, vesicled; its root lit cyan by uGlow: 342 a dorsal plate (its own z its height), 342.1 a sepal and 342.3 the fluke (vA.y along), 342.2 a Resonator Spire's needle (resonance bands; uKind its cracks 0..1)), 343 bone, 344 an outer petal (a thick blade: vA.y along it, vA.z 0..1 across its outer face, 2 + across its inner: bone outside, rose within, a cyan rim; uKind the bloom), 345 an inner petal (amber to rose), 346 the heart (dark wet rose, veins lit by uGlow), 347 the orb (cyan-white light; uKind 1 flickering), 348 steel (a blade: vA.y 1 at its cutting edge, lit cyan (uKind 0) or amber (1) by uGlow), 349 sand (349 a lip round where it goes in, 349.1 the wake's hump and ridges: vA.y 0 at the hole or the crest .. 1 at the rim, where it fades into the floor; uGlow cyan from under it). uGlow2 a blow's flash, uFx dead (ashen), uWear the part's seed. Its light: a low amber dusk sun, the violet sky above, the sand's warm bounce below, a cyan rim
     int sk = int((vA.x - float(id)) * 10.0 + 0.5);

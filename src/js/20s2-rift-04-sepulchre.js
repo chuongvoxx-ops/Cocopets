@@ -247,6 +247,14 @@ const SEP = { INK: '#2B2433', STONE: '#202836', STONE_HI: '#36425A', SILVER: '#A
   const placeholder = (name, goal) => ({ name, goal, how: goal, layout: ['##########', '#........#', '#...E....#', '#........#', '#...S....#', '##########'], legend: { E: {} }, make(X, self, H) { const e = X.M.marks.E[0]; self.done = true; H.setExit(e.x, e.y, 'The way on'); return {}; } });
   defRift({
     ease: 0.6,
+    monHpK: 2.5, miniHpK: 2.5, foeDmgK: 2.5,   // v463 SM (the user 2026-11-26: "more difficult than current rift 3"): every monster and mini boss here 2.5x its health (20m foeStamp, once each) and every foe blow on the pet 2.5x (hurtPet, 20b); Rift 03 has 2. (foeDmgK also scales the main bosses' blows: their own bossHpK / bossDmgK are set apart)
+    /* v463 SK (the lead, for the user's "more difficult than current rift 3"): the three main bosses (Threnn, Vaul, Khyros) at seven
+       times their health and blows, once. Health: bossHpK 7 (F.rift.foeK.boss: each boss's own file counts every blow on it and on its
+       weak points 1 / foeK.boss, so the phase cuts, fractions of the bar, fall where they did). Blows: x7 in all = foeDmgK (above, 2.5,
+       hurtPet: it already reaches a boss's own blows) x bossDmgK 2.8 (riftDef: the fiend's dmgK, the base of every attack it owns; a
+       fresh copy each start, so a retry or a phase never lays it twice). If foeDmgK changes, bossDmgK = 7 / foeDmgK. Minions, monsters,
+       mini bosses and traps are not touched by these two. One pair of keys shared with SA's Threnn and Vaul: nothing stacks */
+    bossHpK: 7, bossDmgK: 7 / 2.5,
     id: 'sepulchre', n: 4, name: 'The Sepulchre of Borrowed Hours', lvl: 40, sigil: 'Memory', biome: 'sepulchre', aff: ['dark', 'light'], region: 'the temporal ruins',
     blurb: 'A royal tomb repeating the same few seconds forever. Leave an echo behind, turn the age of a hall, outrun yourself.', gate: { anima: 'gemini', name: 'The Twin Reflection' },
     mons: ['seceater', 'cornerpup', 'mourndisc'], sealing: SEALING,

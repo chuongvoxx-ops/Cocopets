@@ -59,11 +59,11 @@ const IDLE = { vaul: 'stalk' };
     await run(0.2); await shot(id + '-snared');
     const stun = await page.evaluate(async weak => { const P = window.__pp, D = P.arc.game._dbg, b = D.g.boss, FX = D.FD.FX, M = FX.mem, C = FX.C, Def = P.FIEND_DEFS.vaul; const L = [C.x, C.y + C.R - 1.8];
       D.me.x = L[0]; D.me.y = L[1] - 0.6; D.me.vx = D.me.vy = 0; let mid = null; const t0 = performance.now(); while (performance.now() - t0 < 2500 && !(b.stunT > 0)) { await new Promise(r => requestAnimationFrame(r)); D.me.hp = D.ST.hp; D.me.x = L[0]; D.me.y = L[1] - 0.6; if (M.chan > 0.2 && mid == null) mid = M.chan; }
-      await new Promise(r => setTimeout(r, 700)); const w = D.FD.S.weak[weak]; return { chan: mid, stun: b.stunT, held: !!(M.copy && M.copy.held), k: Def.dmgK(FX), weak: !!(w && !w.dead), slump: M.slump }; }, WEAK[id]);
+      await new Promise(r => setTimeout(r, 700)); const w = D.FD.S.weak[weak]; return { chan: mid, stun: b.stunT, held: !!(M.copy && M.copy.held), k: Def.dmgK(FX) * ((D.F.rift.foeK && D.F.rift.foeK.boss) || 1) /* v463 SA: the shield's part of it, the rift's x7 health (1/foeK.boss) taken out */, weak: !!(w && !w.dead), slump: M.slump }; }, WEAK[id]);
     console.log('  stun', JSON.stringify(stun)); ok(stun.chan > 0 && stun.held && stun.stun > 0 && stun.weak && stun.k === 1, `${id}: the weave at the Loom holds the mirror: shield down, stunned, the ${WEAK[id]} bared`);
     await shot(id + '-stun');
     // a hit on the bared eye lands in full
-    const wh = await page.evaluate(() => { const D = window.__pp.arc.game._dbg, b = D.g.boss, w = D.FD.S.weak.eye; const h0 = b.hp; if (w) D.hitMon(w, 1000, { flat: true }); return h0 - b.hp; }); ok(wh > 500, `${id}: a blow to the eye passes through (${Math.round(wh)})`);
+    const wh = await page.evaluate(() => { const D = window.__pp.arc.game._dbg, b = D.g.boss, w = D.FD.S.weak.eye; const h0 = b.hp; if (w) D.hitMon(w, 1000, { flat: true }); return (h0 - b.hp) * ((D.F.rift.foeK && D.F.rift.foeK.boss) || 1); /* v463 SA: x foeK.boss (Rift 04's bosses x7) */ }); ok(wh > 500, `${id}: a blow to the eye passes through (${Math.round(wh)})`);
     await run(6.5);
     r = await page.evaluate(() => { const D = window.__pp.arc.game._dbg, M = D.FD.FX.mem; return { stun: D.g.boss.stunT, copy: !!M.copy }; }); ok(!(r.stun > 0) && !r.copy, `${id}: it rises and the mirror shatters`);
     // the phase change, its sweep between the replays, and its minions

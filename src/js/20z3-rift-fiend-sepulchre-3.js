@@ -39,6 +39,12 @@ RiftFiend.define({ id: 'khyros', name: 'Khyros', title: 'The Hound Beyond the An
   const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]], dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2], norm = a => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
   const addv = (a, b, k) => [a[0] + b[0] * k, a[1] + b[1] * k, a[2] + b[2] * k], mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2];
   let offCv = null;
+  /* (v463 SK) the GPU model and its light (KHY_GL, 20z3a-khyros-gl.js); without them the 2D hound, its 2D effects and overlay. Its warnings
+     are the engine's own, marked for light (no lanes, cones or circles painted; the Hunt's order in beads of light) */
+  const K3 = () => { try { return typeof KHY_GL !== 'undefined' ? KHY_GL : null; } catch (e) { return null; } }, mark = (FX, o) => { const k = K3(); return k ? k.mark(FX, o) : FX.tele(o); };
+  // (v463 SK: the GPU model is drawn VS times the 2D skeleton about its head; the places a blow lands follow it)
+  const VSN = () => { const k = K3(); return k && k.vs ? k.vs() : 1; }, VSU = (u, vs) => { const k = K3(); const up = k ? k.UP : 3.9; return up + (u - up) * vs; };
+  const hpK = FX => { const F = FX && FX.F && FX.F.rift && FX.F.rift.foeK; return F && F.boss > 0 ? F.boss : 1; };   // (v463 SK: the rift's main-boss health factor, 1 elsewhere)
   return {
     arenaR: 17, firstAct: 'prowl',
     artPoses: [{ name: 'stalking, head low', mem: { demo: 1, hd: 0.35, spdK: 0.6, gait: 1.2, look: 0.4 } }, { name: 'coiled in an alcove', mem: { demo: 1, hd: 1.2, crouch: 1, menace: 1, jaw: 0.3 } }, { name: 'the lunge', mem: { demo: 1, hd: 0, lunge: 1, jaw: 0.5 } }, { name: 'stuck in the angle: the slits bared', mem: { demo: 1, hd: 0.8, stuck: 1, slitK: 1, jaw: 0.6 } }],
@@ -48,13 +54,13 @@ RiftFiend.define({ id: 'khyros', name: 'Khyros', title: 'The Hound Beyond the An
     carve(set, C) { for (let y = -C.R - 1; y <= C.R + 1; y++) for (let x = -C.R - 1; x <= C.R + 1; x++) { const wx = Math.floor(C.x) + x, wy = Math.floor(C.y) + y; if (Math.abs(wx + 0.5 - C.x) > HS || Math.abs(wy + 0.5 - C.y) > HS) set(wx, wy, T_SOLID); } },
     paintGround(c, A) { paintSanctuary(c, A); },
     sky(c, W, H, t, cam, T) { voidSky(c, W, H, t, cam, T); },
-    overlay(c, FX, t, T) { drawOverlay(c, FX, t, T); },
+    overlay(c, FX, t, T) { { const o = K3(); if (o && o.overlay(c, FX, t, T)) return; } drawOverlay(c, FX, t, T); },   // (v463 SK: the ring, the alcoves, the loom and plate, the marks and the warnings in light)
     /* ---- the fight ---- */
     init(FX) { const M = FX.mem, m = FX.m, C = FX.C; m.x = C.x; m.y = C.y - SR - 4.2; m.act = 'enter'; m.touchK = 0.55; m.noTouch = true;
       Object.assign(M, { hd: Math.PI / 2, look: 0, crouch: 0, crouchTo: 0, lunge: 0, jaw: 0, jawTo: 0, menace: 0, recoil: 0, roar: 0, howl: 0, howlTo: 0, stuck: 0, lean: 0, fade: 1, fadeTo: 1, bt: 0, px: m.x, py: m.y, spd: 0, ghosts: [], ghT: 0, flickT: 3, lit: [0, 0, 0, 0], litTo: [0, 0, 0, 0], q: [], qt: 0, lg: null, marks: [], seen: {}, nextSig: null, broodT: 14, exitT: 0, closedT: 0, heldT: 0, picks: 0, slitK: 0, sparkT: 0, gait: 0, spdK: 0, orb: null, dir: 1, wasEnter: true, roared: false, wasStun: false, wantAngle: false, sanK: 1, goldK: 0,
         spears: [0, 1, 2].map(() => ({ st: 'hover', t: 0 })) });
       M.loom = { x: C.x, y: C.y + SR + 1.0, st: 'idle', ch: 0, t: 0, path: [], echo: { x: 0, y: 0, dead: false }, zone: null, told: 0 };
-      M.plate = { x: C.x + SR - 1.3, y: C.y, told: 0 }; },
+      M.plate = { x: C.x + SR - 1.3, y: C.y, told: 0 }; if (K3()) K3().init(FX); },   // (v463 SK)
     phase(FX, p, lv) { const M = FX.mem, m = FX.m; reset(FX, m); M.roar = 1; M.howl = 1; M.menace = 1; M.recoil = 0.6; FX.H.shake(10, 0.5); FX.H.flash(0.2, VIOLET); FX.H.sfx.crash(); FX.H.sparks(m.x, m.y - 2, VIOLET_HI, 22, 8);
       if (lv === 2) { M.nextSig = 'hunt'; M.broodT = 9; callPups(FX, m, 2); FX.H.banner('HUNT THE PAST', 'It hunts where you have been · corner pups come out of the angles', VIOLET_HI, 2.6, true); }
       if (lv >= 3) { M.nextSig = 'exit'; M.exitT = 0; M.broodT = 8; FX.H.banner('STOLEN EXIT', 'It steals the sanctuary itself: the Memory Loom gives it back', GOLD_HI, 2.6, true); } },
@@ -84,7 +90,7 @@ RiftFiend.define({ id: 'khyros', name: 'Khyros', title: 'The Hound Beyond the An
       if (M.fade < 0.6) FX.parts(bodyParts(m, M));
     },
     stunned(FX, m, dt) { const M = FX.mem; M.stuck = Math.min(1, M.stuck + dt * 3); M.crouchTo = 0.35; M.jawTo = 0.7; M.slitK = toward(M.slitK, 1, dt, 4); M.menace = decay(M.menace, dt, 3); m.noTouch = true; M.fadeTo = 0; M.lg = null;
-      const p = slitAt(FX, m, M); FX.weak('slits', p[0], p[1], 1.5, 2.4, m.stunT > 0.05);
+      const p = slitAt(FX, m, M); FX.weak('slits', p[0], p[1], 1.5, 2.4 / hpK(FX), m.stunT > 0.05);   // (v463 SK: its blows 1 / foeK.boss)
       // wedged: it thrashes, its claws scrabbling sparks off the stone
       M.sparkT -= dt; if (M.sparkT <= 0) { M.sparkT = 0.22; const cf = Math.cos(M.hd), sf = Math.sin(M.hd), sd = Math.random() < 0.5 ? 1 : -1, fx = m.x + cf * 1.9 * BS - sf * sd * 0.9, fy = m.y + sf * 1.9 * BS + cf * sd * 0.9; FX.H.sparks(fx, fy, SILVER_HI, 5, 5); if (Math.random() < 0.35) FX.H.sfx.thud(); FX.H.shake(1.5, 0.08); }
       if (M.fade < 0.6) FX.parts(bodyParts(m, M)); },
@@ -111,10 +117,16 @@ RiftFiend.define({ id: 'khyros', name: 'Khyros', title: 'The Hound Beyond the An
       sanctuary(FX, m, dt);
       // the entrance: it assembles out of a wireframe at the head of the sanctuary, and howls
       if (m.act === 'enter') { const e = FX.S.enterT || 0; M.fade = M.fadeTo = clamp(1 - (e - 0.3) / 1.3, 0, 1); if (e < 1.5) { M.ghT -= dt; if (Math.random() < dt * 12) { const P2 = poseOf(m, M); P2.x += FX.rnd(-0.3, 0.3); P2.y += FX.rnd(-0.3, 0.3); ghost(M, P2, 0.35); } } if (e > 1.4 && !M.roared) { M.roared = true; M.roar = 1; FX.H.sfx.crash(); FX.H.shake(10, 0.5); FX.H.sparks(m.x, m.y - 1.5, VIOLET_HI, 24, 8); } }
-      else if (M.wasEnter) { M.wasEnter = false; M.fadeTo = 0; M.recoil = 0.6; FX.H.sfx.thud(); } },
-    dmgK(FX, m) { const M = FX.mem; if (M && !M.lg) M.recoil = Math.max(M.recoil || 0, 0.35); return 1; },
-    draw(c, FX, m, X, Y, T, t) { drawHound(c, FX, m, X, Y + (m.z || 0) * T * 4, T, t); },
-    drawFx(c, FX, T, t) { drawFx(c, FX, T, t); },
+      else if (M.wasEnter) { M.wasEnter = false; M.fadeTo = 0; M.recoil = 0.6; FX.H.sfx.thud(); }
+      if (K3()) K3().update(FX, dt); },   // (v463 SK: its light on the stone ages)
+    dmgK(FX, m) { const M = FX.mem; if (M && !M.lg) M.recoil = Math.max(M.recoil || 0, 0.35); return 1 / hpK(FX); },   // (v463 SK: the rift's main-boss health, foeK.boss times: 20s2 bossHpK)
+    draw(c, FX, m, X, Y, T, t) { { const o = K3(); if (o && o.drawBoss(c, FX, m, X, Y + (m.z || 0) * T * 4, T, t)) return; } drawHound(c, FX, m, X, Y + (m.z || 0) * T * 4, T, t); },   // (v463 SK: the GPU model, else the 2D hound)
+    drawFx(c, FX, T, t) { { const o = K3(); if (o && o.drawFx(c, FX, T, t)) return; } drawFx(c, FX, T, t); },   // (v463 SK: its wake, wireframes, spears in the air and its light on the GPU)
+    /* (v463 SK) the loading screen's jobs (the meshes, a first frame), the GPU model, its skeleton for it (the 2D build, read into 3D),
+       and a test hook (start an act now) */
+    preload(P) { const o = K3(); return o ? o.preload(P) : []; }, get MODEL() { return K3(); },
+    get RIG() { return { build, poseOf, BS, HS, SR, CS, TIP }; },
+    force(FX, k) { const m = FX.m, M = FX.mem; if (!m || m.dead || m.act === 'enter') return; m.stunT = 0; FX.S.tele.length = 0; reset(FX, m); m.actT = 0; ({ angle: startAngle, snap: startSnap, spears: startSpears, hunt: startHunt, exit: startExit, howl: startHowl })[k](FX, m); },
   };
 
   /* ---------- the fight's pieces ---------- */
@@ -165,7 +177,7 @@ RiftFiend.define({ id: 'khyros', name: 'Khyros', title: 'The Hound Beyond the An
     if (!best) best = laneAt(FX, 0, Math.atan2(ty - C.y + HS, tx - C.x + HS), sanctOpen(M));
     M.lastCorner = best.i; return best; }
   // the lane's warning: from inside its alcove to where the head stops
-  function laneTele(FX, L, t, o) { return FX.tele(Object.assign({ shape: 'line', x: L.K[0] - L.dx * 0.9, y: L.K[1] - L.dy * 0.9, a: L.a, len: L.tip + 0.9, w: 2.4, t, dmg: 0, col: VIOLET_HI }, o || {})); }
+  function laneTele(FX, L, t, o) { return mark(FX, Object.assign({ shape: 'line', x: L.K[0] - L.dx * 0.9, y: L.K[1] - L.dy * 0.9, a: L.a, len: L.tip + 0.9, w: 2.4, t, dmg: 0, col: VIOLET_HI }, o || {})); }
   // it waits in the alcove, coiled, its head out along the lane
   function emerge(FX, m, L) { const M = FX.mem; if (M.lg) endLunge(FX, m, true); m.x = L.K[0] - L.dx * (TIP - 0.6); m.y = L.K[1] - L.dy * (TIP - 0.6); M.px = m.x; M.py = m.y; M.hd = L.a; M.look = 0; M.fade = Math.max(M.fade, 0.8); M.fadeTo = 0; M.crouch = 1; M.litTo[L.i] = 1; ghost(M, poseOf(m, M), 0.4); FX.H.sfx.hum(); }
   function launch(FX, m, L, o) { const M = FX.mem; if (M.lg) endLunge(FX, m, true); M.lg = Object.assign({ L, d: 0, len: Math.max(0.5, L.tip - 0.6), x0: L.K[0] - L.dx * (TIP - 0.6), y0: L.K[1] - L.dy * (TIP - 0.6), hit: false, dmg: m.dmg * 1.6 }, o || {}); m.x = M.lg.x0; m.y = M.lg.y0; M.px = m.x; M.py = m.y; M.hd = L.a; M.fade = 0; M.fadeTo = 0; M.litTo[L.i] = 0; M.lit[L.i] = 1;
@@ -177,7 +189,7 @@ RiftFiend.define({ id: 'khyros', name: 'Khyros', title: 'The Hound Beyond the An
     // a mark of the past it runs through bursts
     if (G.mark && !G.mark.hitDone && G.d + TIP - 0.6 >= Math.hypot(G.mark.x - L.K[0], G.mark.y - L.K[1])) { G.mark.hitDone = true; if (G.mark.zone) G.mark.zone.life = Math.min(G.mark.zone.life, 0.25); FX.H.ring(G.mark.x, G.mark.y, 0.2, 1.6, 0.35, VIOLET_HI, 0.4); FX.H.sparks(G.mark.x, G.mark.y, VIOLET_HI, 10, 5); }
     if (G.d >= G.len) endLunge(FX, m, false); }
-  function endLunge(FX, m, quiet) { const M = FX.mem, G = M.lg; if (!G) return; M.lg = null; const L = G.L, ex = L.ex, ey = L.ey;
+  function endLunge(FX, m, quiet) { const M = FX.mem, G = M.lg; if (!G) return; M.lg = null; const L = G.L, ex = L.ex, ey = L.ey; if (!quiet && K3()) K3().lungeEnd(FX, ex, ey, L.kind);   // (v463 SK: its end in light on the stone)
     if (!quiet) { if (L.kind === 'rim') { FX.H.ring(ex, ey, 0.2, 2.2, 0.4, SILVER_HI, 0.5); FX.H.sparks(ex, ey, SILVER_HI, 18, 7); FX.H.sfx.crack(); FX.H.shake(6, 0.25); if ((M.rimTold = (M.rimTold || 0) + 1) <= 2) FX.H.text(ex, ey - 1.6, 'The silver turns it aside', SILVER_HI, 13); }
       else { FX.H.boom(ex, ey, 1.6, VIOLET, '#FFFFFF', { n: 16, shake: 10, smoke: 4 }); FX.H.sfx.crash(); for (let k = 0; k < 6; k++) FX.H.part({ kind: 'shard', x: ex, y: ey - 0.5, vx: FX.rnd(-4, 4), vy: FX.rnd(-6, -1), g: 9, life: 0.8, max: 0.8, size: 5, rot: Math.random() * 3, vr: 7, color: '#3A2E5E' }); } }
     if (G.cb) G.cb(L.kind, quiet); }
@@ -192,13 +204,13 @@ RiftFiend.define({ id: 'khyros', name: 'Khyros', title: 'The Hound Beyond the An
     say(FX, 'angle', 'ANGLE STALK', 'A corner lights: step off its violet lane', VIOLET_HI); }
   /* ---- Angled Jaw: a bite in a cone, when the pet comes too close to the head ---- */
   function startSnap(FX, m) { const M = FX.mem, me = FX.me, a = Math.atan2(me.y - m.y, me.x - m.x); M.snapA = a; m.act = 'snap'; m.actT = 0; M.aw = 0.85 / FX.S.fast; FX.H.sfx.hum();
-    FX.tele({ shape: 'cone', x: m.x + Math.cos(a) * 1.0, y: m.y + Math.sin(a) * 1.0, a, len: 5.8, spread: 0.5, t: M.aw, dmg: m.dmg * 1.5, col: VIOLET_HI, fn: s => { const hx = s.x + Math.cos(a) * 4.2, hy = s.y + Math.sin(a) * 4.2; FX.H.boom(hx, hy, 1.2, VIOLET, '#FFFFFF', { n: 12, shake: 7 }); FX.H.sfx.crash(); FX.H.part({ kind: 'slash', x: hx, y: hy, a: a + Math.PI / 2, r: 2.4, life: 0.25, max: 0.25, color: VIOLET_HI }); } });
+    mark(FX, { shape: 'cone', x: m.x + Math.cos(a) * 1.0, y: m.y + Math.sin(a) * 1.0, a, len: 5.8, spread: 0.5, t: M.aw, dmg: m.dmg * 1.5, col: VIOLET_HI, fn: s => { const hx = s.x + Math.cos(a) * 4.2, hy = s.y + Math.sin(a) * 4.2; FX.H.boom(hx, hy, 1.2, VIOLET, '#FFFFFF', { n: 12, shake: 7 }); FX.H.sfx.crash(); FX.H.part({ kind: 'slash', x: hx, y: hy, a: a + Math.PI / 2, r: 2.4, life: 0.25, max: 0.25, color: VIOLET_HI }); } });
     say(FX, 'snap', 'ANGLED JAW', 'Out of the cone', VIOLET_HI); }
   /* ---- Tail of Angles: the three spears behind it thrown to rings round the pet, one after another ---- */
   function startSpears(FX, m) { const M = FX.mem, me = FX.me, C = FX.C, P = FX.S.lv, gap = (P >= 3 ? 0.24 : 0.32) / FX.S.fast, w = 0.95 / FX.S.fast, B = build(poseOf(m, M)); m.act = 'spears'; m.actT = 0; M.aw = w + gap * 2 + 0.5; FX.H.sfx.hum();
     for (let i = 0; i < 3; i++) { const a = Math.random() * TAU, dd = i === 0 ? 0 : 1.8 + Math.random() * 1.6, p = clampSq(C, { x: me.x + (me.vx || 0) * 0.25 + Math.cos(a) * dd, y: me.y + (me.vy || 0) * 0.25 + Math.sin(a) * dd }, 0.8), s = M.spears[i], t = w + i * gap;
       Object.assign(s, { st: 'fly', t: 0, dur: t, from: B.spears[i].p.slice(), to: [p.x, p.y] });
-      FX.tele({ shape: 'circle', x: p.x, y: p.y, r: 1.3, t, dmg: m.dmg * 1.1, col: VIOLET_HI, fn: q => { s.st = 'stuck'; s.t = 0; s.x = q.x; s.y = q.y; FX.H.boom(q.x, q.y, 1.1, VIOLET, '#FFFFFF', { n: 10, shake: 5 }); FX.H.sfx.crack(); } }); }
+      mark(FX, { shape: 'circle', x: p.x, y: p.y, r: 1.3, t, dmg: m.dmg * 1.1, col: VIOLET_HI, fn: q => { s.st = 'stuck'; s.t = 0; s.x = q.x; s.y = q.y; FX.H.boom(q.x, q.y, 1.1, VIOLET, '#FFFFFF', { n: 10, shake: 5 }); FX.H.sfx.crack(); } }); }
     say(FX, 'spears', 'TAIL OF ANGLES', 'Its three spears fall where it points: off the rings', VIOLET_HI); }
   /* ---- the pups: out of two lit alcoves ---- */
   function startHowl(FX, m) { const M = FX.mem; m.act = 'howl'; m.actT = 0; M.called = false; FX.H.sfx.hum(); say(FX, 'howl', 'CORNER PUPS', 'It howls them out of the angles', VIOLET_HI); }
@@ -247,9 +259,10 @@ RiftFiend.define({ id: 'khyros', name: 'Khyros', title: 'The Hound Beyond the An
   /* ---------- the hound in three dimensions ---------- */
   function poseOf(m, M, t) { const bt = M.bt || t || 0; return { x: m.x, y: m.y, th: M.hd == null ? Math.PI / 2 : M.hd, crouch: M.crouch || 0, lunge: M.lunge || 0, jaw: Math.max(M.jaw || 0, (M.roar || 0) * 0.9), look: M.look || 0, br: Math.sin(bt * 1.6), bt, stuck: M.stuck || 0, recoil: M.recoil || 0, hs: m.hitSq || 0, howl: M.howl || 0, gait: M.gait || 0, spdK: M.spdK || 0, lean: M.lean || 0 }; }
   function headPt(m, M) { const p = W0(m, M, 4.1, 0, 0); return [p[0], p[1]]; }
-  function bodyParts(m, M) { const h = (key, u, z, r) => { const p = W0(m, M, u, 0, z); return { key, dx: p[0] - m.x, dy: p[1] - p[2] - m.y, r }; }; return [h('chest', 1.0, 1.7, 1.4), h('hips', -1.6, 1.6, 1.05), h('head', 3.9, 0.95, 0.95)]; }
+  // (v463 SK: with the GPU model, drawn VS times the skeleton about its head, the places a blow lands follow the drawn body: scaled the same about the head, a little larger)
+  function bodyParts(m, M) { const vs = VSN(), h = (key, u, z, r) => { const p = W0(m, M, VSU(u, vs), 0, z * vs); return { key, dx: p[0] - m.x, dy: p[1] - p[2] - m.y, r: r * (1 + (vs - 1) * 0.6) }; }; return [h('chest', 1.0, 1.7, 1.4), h('hips', -1.6, 1.6, 1.05), h('head', 3.9, 0.95, 0.95)]; }
   // the weak point: the slits on the flank turned to the camera
-  function slitAt(FX, m, M) { const cf = Math.cos(M.hd), sd = cf >= 0 ? 1 : -1, p = W0(m, M, 0.7, sd * 0.75, 1.7 - 0.35 * (M.crouch || 0)); return [p[0], p[1] - p[2]]; }
+  function slitAt(FX, m, M) { const vs = VSN(), cf = Math.cos(M.hd), sd = cf >= 0 ? 1 : -1, p = W0(m, M, VSU(0.7, vs), sd * 0.75 * vs, (1.7 - 0.35 * (M.crouch || 0)) * vs); return [p[0], p[1] - p[2]]; }   // (v463 SK: on the drawn flank)
   function ghost(M, P, life) { M.ghosts.push({ P, life, max: life }); if (M.ghosts.length > 16) M.ghosts.shift(); }
   /* the mesh: rings of six vertices (a sharp dorsal ridge, two shoulders of plane, two lower flanks, a keel) along the
      body, faces between them; the lower jaw a hinged wedge; the legs as joint chains; the three spears */

@@ -2074,9 +2074,10 @@ GAMES.dungeon = {
       if (m.ultFx > 0) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = Math.min(0.7, m.ultFx) * (0.7 + 0.3 * Math.sin(g.t * 20)); const s2 = r * 2.6; blitSized(c, glowSprite('#E07BF0'), X - s2, Yg - z - s2, s2 * 2, s2 * 2); c.restore(); }
       if (m.hasted > 0) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.3; const s2 = r * 1.8; blitSized(c, glowSprite('#B983F5'), X - s2, Yg - z - s2, s2 * 2, s2 * 2); c.restore(); }
       const mode = m.type === 'roller' && (m.act === 'roll' || m.act === 'curl') ? 'ball' : m.type === 'crab' && m.block > 0 ? 'block' : m.type === 'skull' && m.pile ? 'pile' : (typeof m.mode === 'string' ? m.mode : '');
-      const s = DunArt.monSprite(m.type, m.r * TS * SK(), m.ph, m.color, mode, m.flash > 0 && !m.boss), k2 = g.zoom / SK();
+      const fcd = m.face < 0 && DunArt.FACED && DunArt.FACED(m.type);   /* v463 SM: a model baked facing each way (Rift 04's brood, 20s7): its own left-facing frames ('<'), not the right-facing one mirrored */
+      const s = DunArt.monSprite(m.type, m.r * TS * SK(), m.ph, m.color, fcd ? mode + '<' : mode, m.flash > 0 && !m.boss), k2 = g.zoom / SK();
       const squash = m.squash || 0, hs = m.hitSq * 0.18, bob = m.mv ? Math.sin(m.t * 3 + m.wob) * r * 0.12 : 0;
-      const sxk = (1 + hs + squash * 0.25) * (m.face < 0 ? -1 : 1), syk = 1 - hs * 0.8 - squash * 0.2 + (m.type === 'blob' || m.type === 'jelly' ? Math.sin(m.t * 8) * 0.06 : 0);
+      const sxk = (1 + hs + squash * 0.25) * (m.face < 0 && !fcd ? -1 : 1), syk = 1 - hs * 0.8 - squash * 0.2 + (m.type === 'blob' || m.type === 'jelly' ? Math.sin(m.t * 8) * 0.06 : 0);
       c.save(); c.translate(snX(X), snY(Yg - z + bob));
       if (mode === 'ball') c.rotate((m.spin || 0) * (m.rx >= 0 ? 1 : -1));
       if (m.type === 'knight' && m.act === 'spin') c.rotate(m.spinFx || 0);
@@ -2952,6 +2953,7 @@ GAMES.dungeon = {
       }
       c.restore();
       if (self.TRAP_ART) TRAP_ART.lay(c, DQ, sx, sy, Tz(), g.t);   /* v443 SB: the saws', spike plates' and chests' light: into this pass when it has light of its own, else from 2D pictures (no GPU copy added) */
+      if (DQ && self.SEP_TRAPS && F.rift) SEP_TRAPS.lay(c, DQ);   /* v463 ST: the Sepulchre traps' light in the air into this pass (no GPU copy of their own) */
       dqEnd(c);
       if (PF) PF('dragons');
       { const fall = parts.some(p => p.kind === 'rockfall' || p.kind === 'iciclefall'); if (fall) dqBegin(c); drawParts(c, false); if (fall) dqEnd(c); } if (PF) PF('parts');   // (v358: falling rocks and icicles stream on the GPU)

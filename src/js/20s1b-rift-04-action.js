@@ -25,6 +25,7 @@
     /* a hooded stone figure on a square plinth, holding an hourglass up over its head; awake its eyes and glass burn gold,
        and cracks run through it as it is broken */
     sepstatue(c, r, ph, o) {
+      if (typeof SEP_PROPS !== 'undefined' && SEP_PROPS.statueMon && SEP_PROPS.statueMon(c, r, o.mode)) return;   // v463 SE: the statue painted in marble and gold (20s4); this line art is the fallback
       const lw = lwOf(r), md = o.mode || 'dormant', awake = md !== 'dormant', cr = awake ? +md.slice(1) || 0 : 0, { GOLD, GOLD_HI, INK } = P();
       c.fillStyle = 'rgba(0,0,0,.3)'; c.beginPath(); c.ellipse(0, r * 0.9, r * 1.15, r * 0.32, 0, 0, TAU); c.fill();
       // plinth
@@ -100,7 +101,8 @@
       },
       goal() { if (self.done) return 'The way is open'; if (S.intro) return 'The Three Statues'; if (S.cur < 0) return `Statue ${S.broken + 1} of 3 · stand at it to wake it`; const m = statues[S.cur]; return `Statue ${S.cur + 1} · ${Math.ceil(m.hp / m.maxhp * 100)}% · poured in ${S.poured}/${SIEGE_N[S.cur]}`; },
       hint() { if (self.done) return null; if (S.cur < 0) return wake[S.broken]; return null; },
-      drawGround(c) { const T = X.Tz();
+      drawGround(c) { if (typeof SEP_PROPS !== 'undefined' && SEP_PROPS.siege(c, X, S, S.cur < 0 && !self.done ? wake[S.broken] : null, statues)) return;   // v463 SE: the ring and the mending threads as light
+        const T = X.Tz();
         // a gold ring on the floor before the statue to be woken; mending beams from the masons to the statue
         if (S.cur < 0 && !self.done) { const w = wake[S.broken], Xs = X.sx(w.x), Ys = X.sy(w.y); c.save(); c.strokeStyle = GOLD_HI; c.lineWidth = 3; c.globalAlpha = 0.5 + 0.3 * Math.sin(g.t * 4); c.beginPath(); c.ellipse(Xs, Ys, T * 0.9, T * 0.45, 0, 0, TAU); c.stroke(); c.restore(); }
         if (S.cur >= 0) { const m = statues[S.cur], sx = X.sx(m.x), sy = X.sy(m.y) - T * 1.2; c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; for (const q of S.mob) if (!q.dead && q.mending) { const qx = X.sx(q.x), qy = X.sy(q.y) - T * 0.6; c.strokeStyle = `rgba(232,207,142,${0.35 + 0.25 * Math.sin(g.t * 9 + q.x)})`; c.lineWidth = 3; c.beginPath(); c.moveTo(qx, qy); c.quadraticCurveTo((qx + sx) / 2, Math.min(qy, sy) - T, sx, sy); c.stroke(); } c.restore(); } },
@@ -148,7 +150,8 @@
         if (S.smashed >= ROLL_N && !self.done) { self.done = true; g.rollOnly = false; g.dodgeK = 1; S.giant = 0; S.fire = 0; X.banner('THE HOUR IS ROLLED AWAY', `${ROLL_N} smashed · best chain ${S.best}`, GOLD_HI, 2.8, true, true); X.sfx.fanfare(); for (const q of S.mob) if (!q.dead) X.killMon(q); }
       },
       goal() { return self.done ? 'The way is open' : S.intro ? 'The Rolling Hour' : `Roll with DODGE · ${S.smashed}/${ROLL_N} smashed${S.combo > 2 ? ` · chain ${S.combo}` : ''}`; },
-      drawGround(c) { const T = X.Tz();
+      drawGround(c) { if (typeof SEP_PROPS !== 'undefined' && SEP_PROPS.roll(c, X, S, label)) return;   // v463 SE: the painted orbs, their light and the pet's blaze
+        const T = X.Tz();
         for (const p of S.pw) { const Xs = X.sx(p.x), Ys = X.sy(p.y) - T * 0.6 - Math.sin(g.t * 4 + p.x) * T * 0.15, col = p.kind === 'fire' ? '#FF9F43' : GOLD_HI, blink = p.t > 11 && Math.floor(g.t * 8) % 2;
           if (blink) continue; c.save(); glowAt(c, Xs, Ys, T * 1.3, col, 0.75); c.fillStyle = col; c.strokeStyle = INK; c.lineWidth = 2.5; c.beginPath(); c.arc(Xs, Ys, T * 0.45, 0, TAU); c.fill(); c.stroke();
           if (p.kind === 'fire') { c.fillStyle = '#FFF2C8'; c.beginPath(); c.moveTo(Xs, Ys - T * 0.3); c.quadraticCurveTo(Xs + T * 0.22, Ys, Xs, Ys + T * 0.25); c.quadraticCurveTo(Xs - T * 0.22, Ys, Xs, Ys - T * 0.3); c.fill(); }
