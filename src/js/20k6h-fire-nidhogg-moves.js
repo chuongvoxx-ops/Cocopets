@@ -468,6 +468,14 @@ float mdEdge(vec2 u, float mk, float sz){ if (mk < 0.5) return 1.0; float F = 0.
   if (mdB(mk, 1.0) > 0.5) e *= smoothstep(0.02, F, dl); if (mdB(mk, 2.0) > 0.5) e *= smoothstep(0.02, F, dr); if (mdB(mk, 4.0) > 0.5) e *= smoothstep(0.02, F, du); if (mdB(mk, 8.0) > 0.5) e *= smoothstep(0.02, F, dd);
   if (mdB(mk, 16.0) > 0.5) e *= smoothstep(0.02, F, length(vec2(dl, du))); if (mdB(mk, 32.0) > 0.5) e *= smoothstep(0.02, F, length(vec2(dr, du))); if (mdB(mk, 64.0) > 0.5) e *= smoothstep(0.02, F, length(vec2(dl, dd))); if (mdB(mk, 128.0) > 0.5) e *= smoothstep(0.02, F, length(vec2(dr, dd)));
   return e; }
+/* v455 MD2: the same feather F tiles wide (the water's rim band, its luminous edge); a straight streak of Shiny Aqua Illusion's sheen in cells of p (rotated), three strokes: x wide turquoise, y aqua, z a thin white line */
+float mdEdgeF(vec2 u, float mk, float sz, float F){ if (mk < 0.5) return 1.0; float dl = (u.x + 1.0) * 0.5 * sz, dr = (1.0 - u.x) * 0.5 * sz, du = (u.y + 1.0) * 0.5 * sz, dd = (1.0 - u.y) * 0.5 * sz, e = 1.0;
+  if (mdB(mk, 1.0) > 0.5) e *= smoothstep(0.0, F, dl); if (mdB(mk, 2.0) > 0.5) e *= smoothstep(0.0, F, dr); if (mdB(mk, 4.0) > 0.5) e *= smoothstep(0.0, F, du); if (mdB(mk, 8.0) > 0.5) e *= smoothstep(0.0, F, dd);
+  if (mdB(mk, 16.0) > 0.5) e *= smoothstep(0.0, F, length(vec2(dl, du))); if (mdB(mk, 32.0) > 0.5) e *= smoothstep(0.0, F, length(vec2(dr, du))); if (mdB(mk, 64.0) > 0.5) e *= smoothstep(0.0, F, length(vec2(dl, dd))); if (mdB(mk, 128.0) > 0.5) e *= smoothstep(0.0, F, length(vec2(dr, dd)));
+  return e; }
+vec3 mdSheen(vec2 p, float sd){ vec2 g = vec2(p.x / 4.2, p.y / 0.9) + sd, gi = floor(g), gf = fract(g); float h = h1(gi + 3.7), on = step(0.42, h), L = 0.3 + 0.55 * h1(gi + 8.1), x0 = 0.5 - L * 0.5 + (h1(gi + 1.9) - 0.5) * (1.0 - L) * 0.8;
+  float al = smoothstep(x0, x0 + 0.08, gf.x) * (1.0 - smoothstep(x0 + L - 0.08, x0 + L, gf.x)), y = (gf.y - 0.35 - 0.3 * h1(gi + 5.3) - 0.07 * sin(gf.x * 26.0 + h * 40.0)) * 0.9;
+  return vec3(exp(-sq(y / 0.16)), exp(-sq(y / 0.06)), exp(-sq(y / 0.022))) * on * al * (0.6 + 0.4 * h1(gi + 2.2)); }
 /*</MD-FN>*/
 /*<TM-FN v451 TM: Tiamat's ground discharge (20k9m): the branching pattern at p (tiles from the impact) out to R, seed sd: five main branches to R, forks of 10, 20, 40 branches from 0.2, 0.4, 0.6 R that end on their own; x its bright lines, y their glow>*/
 vec2 tmBr(vec2 p, float R, float sd, float tt){ float d = length(p), a = atan(p.y, p.x), m = 0.0, g = 0.0;
@@ -1448,12 +1456,17 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
       float fr = smoothstep(Rs + 0.15, Rs - 1.0, d + 0.5 * (n2(p * 1.3 + 4.0) - 0.5));
       float w1 = n2(p * 0.45 + vec2(tt * 0.05, -tt * 0.035)), w2 = n2(p * 1.6 - vec2(tt * 0.12, tt * 0.08));
       vec3 c = mix(vec3(0.01, 0.025, 0.085), vec3(0.03, 0.065, 0.19), w1 * 0.65 + w2 * 0.35);
-      float a = e * fr * (0.8 + 0.12 * w1); A = vec4(c * a, a); }
+      /* v455 MD2: Shiny Aqua Illusion's pool (20k7d): deep midnight inside, turning sapphire toward its rim (here the water's edge at the walls and its outer reach; v_c.g its reach / 16) */
+      float MDr = max(v_c.g * 16.0, 2.0), rim = max(1.0 - mdEdgeF(u, mk, sz, 0.95), smoothstep(0.5, 1.05, d / MDr));
+      c = mix(c, vec3(0.047, 0.14, 0.376), rim * 0.5); c = mix(c, vec3(0.086, 0.31, 0.59), rim * rim * 0.3);
+      float a = e * fr * (0.84 + 0.1 * w1 - 0.1 * rim); A = vec4(c * a, a); }
     else if (v_k < 362.5) { // 362 the whale's shadow under the water (uv.x along it: 1 the head .. -1 behind the flukes; uv.y across): a dark silhouette, its edge softened by v_q.x (0 sharp .. 1 deep and soft), swimming (v_q.y its phase); v_c its colour
-      float a0 = (1.0 - u.x) * 0.5, sw = sin(a0 * 5.0 - v_q.y) * 0.05 * a0, y = abs(u.y - sw), bl = 0.04 + 0.12 * v_q.x;
+      // v455 MD2: v_q.z a window of the body (its submerged run): floor(z) / 999 the head end (at uv.x 1), fract(z) the tail end (0 the snout .. 0.8 the flukes' root .. 1 their tips); 0 all of it. A cut end fades (the waterline)
+      float wlo = v_q.z < 0.0005 ? 0.0 : floor(v_q.z + 0.0001) / 999.0, whi = v_q.z < 0.0005 ? 1.0 : fract(v_q.z + 0.0001), cutE = (wlo > 0.003 ? smoothstep(1.0, 0.72, u.x) : 1.0) * (whi < 0.99 ? smoothstep(-1.0, -0.72, u.x) : 1.0);
+      float a0 = mix(wlo, whi, (1.0 - u.x) * 0.5), sw = sin(a0 * 5.0 - v_q.y) * 0.05 * a0, y = abs(u.y - sw), bl = 0.04 + 0.12 * v_q.x;
       float w = a0 < 0.02 ? 0.0 : 0.34 * smoothstep(0.0, 0.07, a0 - 0.02) * (1.0 - 0.18 * smoothstep(0.3, 0.45, a0)) * (1.0 - smoothstep(0.45, 0.8, a0) * 0.82) + 0.02;
       float body = smoothstep(bl, -bl, y - w) * step(a0, 0.82), fl = smoothstep(bl, -bl, max(y - 0.5 * clamp((a0 - 0.76) / 0.17, 0.0, 1.0), a0 - 0.97 + 0.5 * y * y)) * step(0.76, a0);
-      float a = max(body, fl) * (1.0 - smoothstep(0.92, 1.0, abs(u.y))); A = vec4(col * a, a); }
+      float a = max(body, fl) * (1.0 - smoothstep(0.92, 1.0, abs(u.y))) * cutE; A = vec4(col * a, a); }
     else { // 365 a tidal ring's raised crest (a quad standing on its stretch of the ring: uv.x along it, uv.y -1 its top .. 1 the floor): translucent deep teal rising to a curling lip; v_q.x the stretch's start along the ring (tiles), v_q.y 1 its left end fades, 2 its right, 3 both; v_q.z its length (tiles)
       float L0 = v_q.x + (u.x + 1.0) * 0.5 * v_q.z, fl = floor(v_q.y + 0.001), y = (1.0 - u.y) * 0.5;   // (y 0 the floor .. 1 the quad's top)
       float hc = 0.62 + 0.18 * n2(vec2(L0 * 1.3, tt * 0.6)) + 0.08 * sin(L0 * 2.3 + tt * 2.0), lip = smoothstep(hc + 0.04, hc - 0.02, y), face = smoothstep(0.0, 0.08, y);
@@ -2001,15 +2014,26 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
         float sz = 1.0 + v_c.r, mk = floor(v_q.z / 64.0 + 0.0001), Rs = v_q.z - mk * 64.0; vec2 p = v_q.xy + u * 0.5 * sz; float e = mdEdge(u, mk, sz), dn = length(p) + 0.5 * (n2(p * 1.3 + 4.0) - 0.5), fr = smoothstep(Rs + 0.15, Rs - 1.0, dn);
         vec2 rp = p + 0.05 * vec2(sin(p.y * 3.1 + tt * 1.3), sin(p.x * 2.7 - tt * 1.1)), g = rp * 2.1, gi = floor(g), gf = fract(g) - 0.5, so = (vec2(h1(gi + 3.1), h1(gi + 7.7)) - 0.5) * 0.6; float hh = h1(gi + 11.0);
         float stv = step(0.7, hh) * (exp(-dot(gf - so, gf - so) * (90.0 + 160.0 * h1(gi + 1.7))) + 0.12 * exp(-dot(gf - so, gf - so) * 12.0)) * (0.55 + 0.45 * sin(tt * (1.2 + 2.0 * hh) + hh * 40.0));
-        float rip = n2(p * 2.2 + vec2(tt * 0.32, 0.0)) * 0.5 + n2(p * 3.0 - vec2(0.0, tt * 0.26)) * 0.5, rl = exp(-sq((rip - 0.5) / 0.03)) * 0.2;
+        float rip = n2(p * 2.2 + vec2(tt * 0.32, 0.0)) * 0.5 + n2(p * 3.0 - vec2(0.0, tt * 0.26)) * 0.5, rl = exp(-sq((rip - 0.5) / 0.05)) * 0.2 * (0.35 + 0.65 * n2(p * 0.7 + vec2(-tt * 0.2, tt * 0.15)));   /* (v455 MD2: softer, broken into moving patches) */
         float front = exp(-sq((dn - Rs + 0.3) / 0.2)) * step(0.3, Rs) * (1.0 - smoothstep(13.0, 15.0, Rs));
-        L = (vec3(0.6, 0.82, 1.0) * stv * 1.2 + vec3(0.2, 0.5, 0.9) * rl + vec3(0.06, 0.12, 0.3) * (0.06 + 0.05 * n2(p * 0.4 - tt * 0.03))) * e * fr + vec3(0.55, 0.88, 1.0) * front * 0.6 * e; }
+        /* v455 MD2: the shiny aqua surface, Shiny Aqua Illusion's layers (20k7d) over the starry water: its aqua caustic light (the web of G.pool, strongest in the middle), its
+           two sheens of wavy turquoise / aqua / white streaks turning slowly opposite ways, its slow concentric currents spreading out, turquoise light on the moving ripples,
+           a luminous shimmering edge along the walls; the stars kept to a restrained field (v_c.g the water's reach / 16) */
+        float MDr = max(v_c.g * 16.0, 2.0), rr = length(p) / MDr, cs = caus(p * 0.8 + vec2(-250.0, 40.0), tt * 0.45), fall = exp(-rr * rr * 1.4) * (1.0 - smoothstep(0.85, 1.1, rr));
+        float c1 = cos(tt * 0.07), s1 = sin(tt * 0.07), c2 = cos(1.3 - tt * 0.05), s2 = sin(1.3 - tt * 0.05), shm = 1.0 - smoothstep(0.5, 1.05, rr);
+        vec3 sh = mdSheen(vec2(c1 * p.x - s1 * p.y, s1 * p.x + c1 * p.y), 0.0) * 0.42 + mdSheen(vec2(c2 * p.x - s2 * p.y, s2 * p.x + c2 * p.y) * 1.18, 7.3) * 0.3;
+        vec3 Ls = (vec3(0.25, 0.82, 0.88) * sh.x * 0.16 + vec3(0.37, 0.91, 1.0) * sh.y * 0.32 + vec3(0.91, 0.98, 1.0) * sh.z * 0.5) * shm;
+        float cur = 0.0; for (int k = 0; k < 4; k++) { float uk = fract(tt * 0.09 + float(k) * 0.25), rk = MDr * (0.12 + 0.86 * uk), ka = sin(uk * 3.14159) * (1.0 - uk * 0.6), dd = length(p) - rk; cur += ka * (exp(-sq(dd / 0.06)) * 0.16 + exp(-sq(dd / 0.22)) * 0.07); }
+        float eL = mdEdgeF(u, mk, sz, 0.95), lum = (1.0 - eL) * smoothstep(0.0, 0.25, e) * (0.55 + 0.45 * sin(tt * 1.6 + p.x * 2.1 + p.y * 1.3));
+        L = (vec3(0.6, 0.82, 1.0) * stv * 0.85 + vec3(0.25, 0.85, 0.9) * rl * 0.55 + vec3(0.06, 0.12, 0.3) * (0.06 + 0.05 * n2(p * 0.4 - tt * 0.03)) + (mix(vec3(0.44, 0.66, 1.0), vec3(1.0), 0.4) * min(cs, 1.0) * 0.1 + vec3(0.44, 0.66, 1.0) * 0.03) * fall + Ls * 1.1 + mix(vec3(0.37, 0.91, 1.0), vec3(0.25, 0.82, 0.88), 0.5) * cur + vec3(0.37, 0.91, 1.0) * lum * 0.14) * e * fr + vec3(0.55, 0.88, 1.0) * front * 0.6 * e; }
       else if (v_k < 363.5) { // 363 the whale's glow under the water (the same quad as 362): its outline lit faintly from inside, a few stars in it; v_q.x 0..1 how near the surface
-        float a0 = (1.0 - u.x) * 0.5, sw = sin(a0 * 5.0 - v_q.y) * 0.05 * a0, y = abs(u.y - sw), w = a0 < 0.02 ? 0.0 : 0.34 * smoothstep(0.0, 0.07, a0 - 0.02) * (1.0 - 0.18 * smoothstep(0.3, 0.45, a0)) * (1.0 - smoothstep(0.45, 0.8, a0) * 0.82) + 0.02;
+        float wlo = v_q.z < 0.0005 ? 0.0 : floor(v_q.z + 0.0001) / 999.0, whi = v_q.z < 0.0005 ? 1.0 : fract(v_q.z + 0.0001), cutE = (wlo > 0.003 ? smoothstep(1.0, 0.72, u.x) : 1.0) * (whi < 0.99 ? smoothstep(-1.0, -0.72, u.x) : 1.0);   // (v455 MD2: the window, as 362)
+        float a0 = mix(wlo, whi, (1.0 - u.x) * 0.5), sw = sin(a0 * 5.0 - v_q.y) * 0.05 * a0, y = abs(u.y - sw), w = a0 < 0.02 ? 0.0 : 0.34 * smoothstep(0.0, 0.07, a0 - 0.02) * (1.0 - 0.18 * smoothstep(0.3, 0.45, a0)) * (1.0 - smoothstep(0.45, 0.8, a0) * 0.82) + 0.02;
         float rim = exp(-sq((y - w) / (0.03 + 0.05 * (1.0 - v_q.x)))) * step(a0, 0.82) * smoothstep(0.0, 0.05, a0), ins = smoothstep(0.02, -0.04, y - w) * step(a0, 0.82);
         vec2 g = vec2(a0 * 14.0, u.y * 4.0 + 3.0), gi = floor(g), gf = fract(g) - 0.5; float sp = step(0.75, h1(gi)) * exp(-dot(gf, gf) * 60.0);
         float fill = smoothstep(0.06, -0.12, y - w) * step(a0, 0.82) + smoothstep(0.08, -0.1, max(y - 0.5 * clamp((a0 - 0.76) / 0.17, 0.0, 1.0), a0 - 0.97 + 0.5 * y * y)) * step(0.76, a0) * 0.8;
-        L = col * (rim * 0.3 + fill * (0.3 + 0.12 * n2(vec2(a0 * 9.0 - tt * 0.8, u.y * 3.0))) + ins * sp * 0.9) * (1.0 - smoothstep(0.85, 1.0, abs(u.x))); }
+        L = col * (rim * 0.3 + fill * (0.3 + 0.12 * n2(vec2(a0 * 9.0 - tt * 0.8, u.y * 3.0))) + ins * sp * 0.9) * (1.0 - smoothstep(0.85, 1.0, abs(u.x))) * cutE;
+        if (v_q.z > 0.0005) L = col * (rim * 0.75 + fill * (0.42 + 0.2 * n2(vec2(a0 * 9.0 - tt * 0.8, u.y * 3.0))) + ins * sp * 1.1) * (1.0 - smoothstep(0.85, 1.0, abs(u.x))) * cutE; }   /* (v455 MD2: the windowed silhouette glows brighter: a luminous spirit under the dark water, over the surface's light) */
       else if (v_k < 364.5) { // 364 a tidal ring's band over a tile (the same packing as 360, v_q.z's remainder the ring's radius): its white front breaking along the ring, a turquoise glow trailing inside it, glitter
         float mk = floor(v_q.z / 64.0 + 0.0001), R0 = v_q.z - mk * 64.0; vec2 p = v_q.xy + u * 0.5; float e = mdEdge(u, mk, 1.0), d = length(p), an = atan(p.y, p.x), x = d - R0 + 0.12 * (n2(vec2(an * R0 * 1.4, tt * 0.9)) - 0.5);
         float foam = exp(-sq((x + 0.04) / 0.075)) * (0.55 + 0.6 * n2(vec2(an * R0 * 3.0 + tt * 0.5, d * 6.0))), trail = exp(min(x, 0.0) / 0.55) * step(x, 0.0) * 0.32, ahead = exp(-max(x, 0.0) / 0.12) * step(0.0, x) * 0.25;
@@ -2026,6 +2050,22 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
         float swell = exp(-sq(r / max(R0, 0.15)) * 1.6) * (1.0 - v_q.z * 0.6) * 0.5, streak = pow(n2(vec2(an * 16.0 + v_q.y * 3.0, 1.0)), 4.0) * smoothstep(0.0, 0.1, x) * exp(-x / 0.18) * v_q.z * 1.4;
         L = (vec3(0.85, 0.97, 1.0) * ring + vec3(0.25, 0.65, 0.95) * swell + vec3(0.7, 0.92, 1.0) * streak) * (1.0 - smoothstep(0.85, 1.0, r)); } }
     /*</MD-FX>*/
+    /*<MD2-FX lights 394, 395 (v455 MD2: 20k7r-water-mobydick.js, Moby Dick reworked; 392, 393, 396..399 reserved)>*/
+    else if (v_k > 393.5 && v_k < 395.5) { float tt = u_t;
+      if (v_k < 394.5) { // 394 a wake on the water (uv.x along: 1 its source, the whale's head, .. -1 far behind; uv.y across): a V of foam lines spreading behind it, transverse crests between them, churn in its middle; v_q.x strength, v_q.y phase
+        float b = (1.0 - u.x) * 0.5, ay = abs(u.y), arm = b * 1.15, nz = n2(vec2(b * 14.0 - tt * 2.0 + v_q.y, u.y * 3.0));
+        float arms = exp(-sq((ay - arm) / (0.05 + 0.12 * b))) * (0.6 + 0.6 * nz), trans = smoothstep(0.55, 1.0, sin(b * 34.0 - tt * 7.0) * 0.5 + 0.5) * step(ay, arm) * (1.0 - ay / max(arm, 0.01)) * 0.35;
+        float churn = exp(-sq(u.y / (0.06 + 0.1 * b))) * exp(-b * 3.0) * (0.5 + 0.5 * n2(vec2(b * 20.0 - tt * 4.0, u.y * 8.0)));
+        float fade = smoothstep(0.0, 0.06, b) * (1.0 - smoothstep(0.5, 1.0, b)) * (1.0 - smoothstep(0.85, 1.0, ay));
+        L = (vec3(0.62, 0.95, 1.0) * arms * 0.6 + vec3(0.3, 0.85, 0.95) * trans * 0.5 + vec3(0.9, 1.0, 1.0) * churn * 0.5) * fade * v_q.x; }
+      else { // 395 a fan of spray rising off the water (a quad standing on it: uv.x across, uv.y -1 its top .. 1 the water): a translucent aqua sheet widening upward, streaks radiating from its foot, a bright lip breaking into droplets; v_q.x its age (0..1: it rises, thins, falls), v_q.y seed, v_q.z its opening (0 a narrow column .. 1 a broad fan)
+        float h = (1.0 - u.y) * 0.5, ag = v_q.x, op = mix(0.22, 1.0, clamp(v_q.z, 0.0, 1.0)), hw = op * (0.35 + 0.65 * h) * (0.75 + 0.25 * ag), ax = abs(u.x) / max(hw, 0.05);
+        float an = u.x / max(h + 0.25, 0.1), stk = pow(n2(vec2(an * 9.0 + v_q.y, h * 1.5 - tt * 0.5)), 2.0), Ht = (0.55 + 0.4 * n2(vec2(u.x * 4.0 + v_q.y, 3.0))) * (1.0 - 0.45 * ag * ag);
+        float sheet = (1.0 - smoothstep(0.75, 1.0, ax)) * (1.0 - smoothstep(Ht - 0.12, Ht, h)) * smoothstep(0.0, 0.06, h), thin = 0.35 + 0.65 * (1.0 - ag);
+        vec2 g = vec2(u.x * 9.0, h * 12.0 - ag * 3.0) + v_q.y, gi = floor(g), gf = fract(g) - 0.5 - (vec2(h1(gi + 1.3), h1(gi + 2.9)) - 0.5) * 0.6;
+        float dr = step(0.7, h1(gi + 4.1)) * exp(-dot(gf, gf) * 40.0) * smoothstep(Ht - 0.25, Ht, h) * (1.0 - smoothstep(Ht + 0.3, Ht + 0.45, h)) * (1.0 - smoothstep(0.9, 1.15, ax)), lip = exp(-sq((h - Ht) / 0.04)) * (1.0 - smoothstep(0.7, 1.0, ax));
+        L = (vec3(0.2, 0.72, 0.95) * sheet * (0.25 + 0.5 * stk) + vec3(0.85, 0.98, 1.0) * sheet * pow(stk, 3.0) * 0.6 + vec3(0.6, 0.95, 1.0) * lip * 0.45) * thin + vec3(1.0) * dr * 0.9; } }
+    /*</MD2-FX>*/
     /*<GE-FX lights 369, 370, 372, 373, 375, 384, 385, 388..391 (v451 GE, v455 GE2, v456 GE3: 20k5ye-wind-goldeneagle.js, the Golden Eagle)>*/
     else if ((v_k > 368.5 && v_k < 375.5) || (v_k > 383.5 && v_k < 385.5) /* v455 GE2 */ || (v_k > 387.5 && v_k < 391.5) /* v456 GE3 */) { float tt = u_t; vec3 JD = vec3(0.14, 0.86, 0.6), MN = vec3(0.62, 1.0, 0.86), CG = vec3(1.0, 0.8, 0.42);
       if (v_k > 383.5 && v_k < 384.5) { // (v455 GE2) 384 a ribbon of wind (375's packing; v_q.y's sign: which side is its outer edge): across its width the outer cutting edge sharp and bright, the body fading gradually to the inner trailing edge; dashes flowing along it

@@ -1,6 +1,7 @@
-// (v450 MD) Moby Dick's frame cost in a crowded Tower battle: 44 monsters awake round the aim (attacking: their own effects run),
+// (v450 MD, v455 MD2) Moby Dick's frame cost in a crowded Tower battle: 44 monsters awake round the aim (attacking: their own effects run),
 // a phone's screen (390 x 844, DPR 3 by default), every GPU path forced on the software rasteriser (tests/_pf-lib.js counters).
-// Phases: idle (before the cast), spread, shadow, flight (the apex), slam, rings (the third ring at Celestial), dissolve, recede, after.
+// Phases (v455 MD2, from the build's TUNE; a v450/v452 build gets its own): idle, form, approach, breach, apex, dive, tail (raised), slap, rings
+// (the third ring at Celestial), away, settle (the water dissolving), after.
 // Per phase (F frames of 1/60 s, frames stepped by hand): this machine's frame ms (median), JS ms (the frame less the GPU copies' waits),
 // the WebGL -> 2D copies a frame (FGFX composites + GLM passes), GLM passes and GL pixels, FGFX quads. Read the ms relatively: the
 // software rasteriser is many times slower than a phone's GPU.
@@ -33,7 +34,9 @@ const GLMLOG = () => { window.__SPT = { n: 0, px: 0 };
   await page.evaluate(evo => { const P = window.__pp, D = P.arc.game._dbg, T = window.__mdT, mv = P.ELEM_LIST.water.ey_mobydick, ab = Object.assign(P.elemAbility(mv, 'ult', P.st), { star: 6, evo, tier: evo >= 7 ? 2 : 1 }); D.setKit('ult', ab);
     D.ELEM.ult('mobydick', { a: 0, base: D.ST.atk * ab.mult, el: 'water', e8: 'water', evo, tx: T.x, ty: T.y, up: evo >= 7 }); window.__mdT0 = D.g.t; }, EVO);
   const life = await page.evaluate(() => { const f = window.__pp.arc.game._dbg.ELEM.fx.find(q => q.key === 'mobydick'); return f ? f.life : 0; });
-  const PH = [['spread', 0.4], ['shadow', 1.2], ['flight', 2.2], ['slam', 2.97], ['rings', 3.95], ['dissolve', 4.4], ['recede', life - 0.6], ['after', life + 0.4]];
+  const TU = await page.evaluate(() => window.__pp.ELEM_IMPL.water.ult.mobydick.TUNE);
+  const PH = TU.slap ? [['form', 0.4], ['approach', 1.15], ['breach', TU.breach + 0.25], ['apex', TU.apex], ['dive', TU.reenter + 0.15], ['tail', TU.whip - 0.05], ['slap', TU.slap + 0.02], ['rings', TU.slap + 0.98], ['away', TU.slap + 1.6], ['settle', life - 0.6], ['after', life + 0.4]]
+    : [['spread', 0.4], ['shadow', 1.2], ['flight', 2.2], ['slam', 2.97], ['rings', 3.95], ['dissolve', 4.4], ['recede', life - 0.6], ['after', life + 0.4]];   // (the v450 / v452 timeline)
   let t = 0;
   for (const [nm, at] of PH) { if (at > t) await ff(at - t); const L = (await frames(F, { prof: false })).rows; t = at + F / 60; out.phases[nm] = S(L); }
   out.glm = await page.evaluate(() => ({ stats: self.MOBY_GL.STATS, nv: self.MOBY_GL.nv, tris: self.MOBY_GL.ntri, gpu: self.MOBY_GL.gpuCount() }));

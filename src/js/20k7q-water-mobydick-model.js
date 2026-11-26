@@ -39,7 +39,7 @@ const MOBY_GL = (() => {
   /* ================= the measures (tiles) =================
      s runs along the body, 0 the snout's face .. 1 the flukes' root; the model's x points forward, y to its left, z up; the root
      (the origin a pose places) is the spine's point at s 0.40, its centre of mass just behind the head */
-  const LEN = 6.6, S0 = 0.4, NMAIN = 40, NV = 28, CAPL = 0.02;
+  const LEN = 5.8, S0 = 0.4, NMAIN = 40, NV = 28, CAPL = 0.02;   // (v455 MD2: 6.6 -> 5.8 tiles, so the whole leap, dive and tail-slap fit a phone's view round the aim)
   const xOf = s => LEN * (S0 - s);
   // the sections: s, half width, height above the spine, depth below it, the superellipse's exponent (boxy head, round body)
   const PROF = [[0.00, 0.078, 0.084, 0.034, 2.9], [0.02, 0.094, 0.102, 0.052, 3.2], [0.06, 0.104, 0.114, 0.07, 3.2], [0.14, 0.11, 0.118, 0.086, 3.1],
@@ -122,8 +122,8 @@ const MOBY_GL = (() => {
     }
     /* the flukes (group 4 on the last ring): swept-back lobes with a notch in the middle of the trailing edge; span along y, chord
        along -x, a lens of thickness; each vertex's flex share (FK) grows with its distance behind the root */
-    const YF = LEN * 0.155, NFS = 16, NFC = 8;
-    const le = y => -LEN * (0.004 + 0.062 * Math.pow(Math.abs(y) / YF, 1.6)), chord = y => LEN * 0.078 * Math.pow(Math.max(0, 1 - (y / YF) ** 2), 0.45) + LEN * 0.004, notch = y => LEN * 0.03 * Math.exp(-((y / (YF * 0.13)) ** 2));
+    const YF = LEN * 0.205, NFS = 16, NFC = 8;   // (v455 MD2: broader, more expansive flukes: span 0.155 -> 0.205 of the length each side, chord 0.078 -> 0.096)
+    const le = y => -LEN * (0.004 + 0.074 * Math.pow(Math.abs(y) / YF, 1.6)), chord = y => LEN * 0.096 * Math.pow(Math.max(0, 1 - (y / YF) ** 2), 0.45) + LEN * 0.004, notch = y => LEN * 0.034 * Math.exp(-((y / (YF * 0.12)) ** 2));
     for (const face of [1, -1]) grid(NFS * 2 + 1, NFC + 1, (j, i) => { const y = (j / NFS - 1) * YF, b = i / NFC, x0 = le(y), x1 = x0 - Math.max(LEN * 0.004, chord(y) - notch(y)), x = lerp(x0, x1, b), th = LEN * 0.014 * Math.pow(Math.max(0, 1 - (y / YF) ** 2), 0.7) * 4 * b * (1 - b) * (b < 0.5 ? 1 : 0.85) + 0.0005;
       return [x, y, face * th + LEN * 0.004 * (1 - (y / YF) ** 2)]; }, MAT.FIN, (j, i) => Math.max(Math.abs(j / NFS - 1), Math.abs(i / NFC * 2 - 1)), (j, i) => Math.abs(j / NFS - 1), NMAIN, 4, (j, i) => { const y = (j / NFS - 1) * YF, b = i / NFC, x = lerp(le(y), le(y) - chord(y), b); return Math.min(1.6, -x / (LEN * 0.1)); }, false, () => [0, 0, face]);
     const nv = P.length / 3;
@@ -143,7 +143,9 @@ const MOBY_GL = (() => {
   const A = (s, a, b) => sstep(a, b, s), MF = [1, 0, 0, 0, 1, 0, 0, 0, 1];
   function curv(P, s) {
     const body = A(s, 0.3, 0.5), tl = A(s, 0.58, 0.86), wv = P.swim ? P.swim * Math.sin(TAU * (1.15 * s - (P.swimF || 0))) * A(s, 0.32, 0.62) * (0.4 + s) : 0;
-    return [(P.arch || 0) * body + (P.tail || 0) * tl + wv, (P.side || 0) * body + (P.sway || 0) * tl];
+    const kv = P.kv ? P.kv[Math.min(NMAIN - 1, Math.max(0, Math.floor(s * NMAIN)))] || 0 : 0;   // (v455 MD2: a bend of its own per segment, rad per unit of s: the rig's path and the tail stock's flexion)
+    const ks = P.ks ? P.ks[Math.min(NMAIN - 1, Math.max(0, Math.floor(s * NMAIN)))] || 0 : 0;   // (v455 MD2: and a sideways one, + to its right: the approach's curving course)
+    return [(P.arch || 0) * body + (P.tail || 0) * tl + wv + kv, (P.side || 0) * body + (P.sway || 0) * tl + ks];
   }
   function pose(P) {
     const d = data(), RP = d.RP, RN = d.RN, FR = d.FR, GR = d.GR, FK = d.FK, W = d.W, NW = d.M.nrm, ringP = d.ringP, ringR = d.ringR;
@@ -160,12 +162,12 @@ const MOBY_GL = (() => {
     const Gj = ry(P.jaw || 0), piv = [null, [0, 0, 0], d.pivF[0], d.pivF[1], [0, 0, 0]];
     // (a fin points back from its pivot: turned out (z), drooped (y: - its tip down) and rolled about its own length (x); the right one mirrored)
     const fs = cl(P.fin == null ? 0.5 : P.fin), fl = P.flap || 0, yo = 0.22 + 0.7 * fs, dr = 0.5 - 0.32 * fs + fl, ro = 0.25 + 0.45 * fs, GfL = mm(rz(-yo), mm(ry(-dr), rx(ro))), GfR = mm(rz(yo), mm(ry(-dr), rx(-ro)));
-    const G = [I3, Gj, GfL, GfR, null], fa = P.fluke || 0, fx = P.flex || 0, hz0 = -prof(d.fj / NMAIN)[2] * 0.86;
+    const G = [I3, Gj, GfL, GfR, null], fa = P.fluke || 0, fx = P.flex || 0, hz0 = -prof(d.fj / NMAIN)[2] * 0.86, spr = 1 + 0.14 * cl(P.spread || 0);   // (v455 MD2: spread, the flukes opened wider for the slap's anticipation)
     const pj = [0, 0, hz0];   // (the jaw's hinge in its ring's frame)
     for (let v = 0, n = d.nv; v < n; v++) {
       const o = v * 3, f = FR[v], g = GR[v]; let x = RP[o], y = RP[o + 1], z = RP[o + 2], a = RN[o], b = RN[o + 1], c = RN[o + 2];
       if (g) {
-        let M; if (g === 4) { const an = fa + fx * FK[v], cs = Math.cos(an), sn = Math.sin(an); MF[0] = cs; MF[2] = sn; MF[6] = -sn; MF[8] = cs; M = MF; } else M = G[g];   // (a fluke vertex: its own pitch, no allocation)
+        let M; if (g === 4) { const an = fa + fx * FK[v], cs = Math.cos(an), sn = Math.sin(an); MF[0] = cs; MF[2] = sn; MF[6] = -sn; MF[8] = cs; M = MF; y *= spr; } else M = G[g];   // (a fluke vertex: its own pitch, no allocation)
         const pv = g === 1 ? pj : piv[g], X0 = x - pv[0], Y0 = y - pv[1], Z0 = z - pv[2];
         x = pv[0] + M[0] * X0 + M[1] * Y0 + M[2] * Z0; y = pv[1] + M[3] * X0 + M[4] * Y0 + M[5] * Z0; z = pv[2] + M[6] * X0 + M[7] * Y0 + M[8] * Z0;
         const a2 = M[0] * a + M[1] * b + M[2] * c, b2 = M[3] * a + M[4] * b + M[5] * c, c2 = M[6] * a + M[7] * b + M[8] * c; a = a2; b = b2; c = c2;
@@ -189,6 +191,11 @@ const MOBY_GL = (() => {
     out.eyes = EYEV.map(i => wv(i)); out.fins = FINV.map(i => wv(i)); out.flukes = FLKV.map(i => wv(i));
     ANC = out; return out;
   }
+  /* (v455 MD2) the posed flukes: their lowest point (z) and their middle (x, y, z: the mean of their vertices), tiles from the origin
+     (the tail-slap's contact: when the flukes' underside reaches the water) */
+  function flukeLow() { const d = D; if (!d) return null; let zm = 1e9, sx = 0, sy = 0, sz = 0, n = 0;
+    for (let v = d.nBody; v < d.nv; v++) { if (d.GR[v] !== 4) continue; const z = d.W[v * 3 + 2]; if (z < zm) zm = z; sx += d.W[v * 3]; sy += d.W[v * 3 + 1]; sz += z; n++; }
+    return n ? { z: zm, x: sx / n, y: sy / n, zc: sz / n } : null; }
   // the vertex indices of the anchors that ride groups (found once the mesh exists)
   let EYEV = [], FINV = [], FLKV = [];
   function findAnchors() {
@@ -229,6 +236,7 @@ const MOBY_GL = (() => {
      o: { X0, Y0 (the origin's screen point), k (px a tile), alpha, glow (the markings), glow2 (the flash), dis (the dissolve 0..1),
      t (seconds, the stars' drift), clip (true: cut at the water's surface), res (a resolution factor) } */
   const CZ = 0.9, GS = 0.25, VV = norm([0, CZ, 1]), LK = norm([-0.55, 0.12, 0.82]), LS = norm([-0.2, 0.25, 0.95]), LR = norm([0.5, -0.75, 0.45]);
+  const SIDEY = 0.12, VS = norm([0, 1, SIDEY]);   // (v455 MD2: the studio's side view: seen from the side, a little from above)
   const RIMC = [0.55, 0.85, 1.45], AMBC = [1, 1, 1], OUTC = [0.32, 0.52, 0.98], GLCAP = 1600;
   const PXB = [0.5e6, 0.36e6, 0.26e6, 0.26e6];
   const budget = () => { try { if (typeof GQ === 'undefined' || typeof arc === 'undefined' || !arc.game || arc.mode !== 'dungeon') return 1e12; return PXB[Math.max(0, Math.min(3, GQ.level() | 0))]; } catch (e) { return 1e12; } };
@@ -239,7 +247,8 @@ const MOBY_GL = (() => {
   const RES = { k: 1 };
   /* the posed mesh's box on the screen (z under the water clipped to the surface when o.clip) */
   function box(o) { const d = D, W = d.W, n = d.nv, k = o.k; let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
-    for (let v = 0; v < n; v += 2) { const z = o.clip ? Math.max(0, W[v * 3 + 2]) : W[v * 3 + 2], X = o.X0 + W[v * 3] * k, Y = o.Y0 + (W[v * 3 + 1] - z * CZ) * k; if (X < x0) x0 = X; if (X > x1) x1 = X; if (Y < y0) y0 = Y; if (Y > y1) y1 = Y; }
+    const qy = o.side ? SIDEY : 1, qz = o.side ? 1 : CZ;   // (v455 MD2: o.side, a studio's side view)
+    for (let v = 0; v < n; v += 2) { const z = o.clip ? Math.max(0, W[v * 3 + 2]) : W[v * 3 + 2], X = o.X0 + W[v * 3] * k, Y = o.Y0 + (W[v * 3 + 1] * qy - z * qz) * k; if (X < x0) x0 = X; if (X > x1) x1 = X; if (Y < y0) y0 = Y; if (Y > y1) y1 = Y; }
     return [x0, y0, x1, y1]; }
   function draw(c, o) {
     const d = data(); if (!usable()) return false;
@@ -252,7 +261,7 @@ const MOBY_GL = (() => {
       let Wp = Math.ceil((rx1 - rx0) * dev), Hp = Math.ceil((ry1 - ry0) * dev); const scl = Math.min(1, GLCAP / Math.max(Wp, Hp)); Wp = Math.max(2, Math.ceil(Wp * scl)); Hp = Math.max(2, Math.ceil(Hp * scl));
       const bud = budget(); if (Wp * Hp > bud) { const q = Math.sqrt(bud / (Wp * Hp)); Wp = Math.max(2, Math.ceil(Wp * q)); Hp = Math.max(2, Math.ceil(Hp * q)); }
       const bw = rx1 - rx0, bh = ry1 - ry0, kk = o.k / GS, low = lowFx();
-      const S = { px: [1, 0, 0], py: [0, 1, -CZ], pd: VV, cl: [2 * kk / bw, 2 * (o.X0 - rx0) / bw - 1, -2 * kk / bh, 1 - 2 * (o.Y0 - ry0) / bh], v: VV, lk: LK, ls: LS, lr: LR, up: [0, 0, 1], low, rim: RIMC, amb: AMBC, t: o.t || 0,
+      const S = { px: [1, 0, 0], py: o.side ? [0, SIDEY, -1] : [0, 1, -CZ], pd: o.side ? VS : VV, cl: [2 * kk / bw, 2 * (o.X0 - rx0) / bw - 1, -2 * kk / bh, 1 - 2 * (o.Y0 - ry0) / bh], v: o.side ? VS : VV, lk: LK, ls: LS, lr: LR, up: [0, 0, 1], low, rim: RIMC, amb: AMBC, t: o.t || 0,
         outline: low || (o.dis || 0) > 0.01 ? 0 : Math.max(0.6, 0.8 * (Wp / bw)), outlineCol: OUTC, outlineBias: 0.003, clip: o.clip ? [0, 0.012] : null, keep: true };
       const it = item(); it.R0.set([1, 0, 0]); it.R1.set([0, 1, 0]); it.R2.set([0, 0, 1]); it.T.fill(0); it.glow = o.glow || 0; it.glow2 = o.glow2 || 0; it.fx = o.dis || 0; it.wear = o.seed || 1;
       const t0 = nowMs(), cvs = GLM.render(Wp, Hp, S, [it]); if (!cvs) return false;
@@ -269,12 +278,14 @@ const MOBY_GL = (() => {
   function draw2D(c, o) {
     const d = data(), W = d.W, k = o.k, al = (o.alpha == null ? 1 : o.alpha) * (1 - cl((o.dis || 0) * 1.1)); if (!(al > 0.01)) return true;
     const rows = d.rows, cols = NV + 1, L = [], Rr = [];
-    for (let j = 0; j < rows; j++) { const f = d.RS[j][0], i2 = Math.min(NMAIN, f + 1), i1 = Math.max(0, f - 1), a = scr(o, rp(i1)), b = scr(o, rp(i2)); let dx = b[0] - a[0], dy = b[1] - a[1]; const l = Math.hypot(dx, dy) || 1; dx /= l; dy /= l; const nx = -dy, ny = dx;
+    // (v455 MD2) cut at the water: only the longest run of sections whose spine is above the surface (the rest is under it)
+    let j0 = 0, j1 = rows - 1; if (o.clip) { let bs = -1, bl = 0, cs = -1; for (let j = 0; j <= rows; j++) { const up = j < rows && rp(d.RS[j][0])[2] > -0.04; if (up && cs < 0) cs = j; if (!up && cs >= 0) { if (j - cs > bl) { bl = j - cs; bs = cs; } cs = -1; } } if (bl < 2) return true; j0 = bs; j1 = bs + bl - 1; }
+    for (let j = j0; j <= j1; j++) { const f = d.RS[j][0], i2 = Math.min(NMAIN, f + 1), i1 = Math.max(0, f - 1), a = scr(o, rp(i1)), b = scr(o, rp(i2)); let dx = b[0] - a[0], dy = b[1] - a[1]; const l = Math.hypot(dx, dy) || 1; dx /= l; dy /= l; const nx = -dy, ny = dx;
       let lo = 1e9, hi = -1e9, pl = null, ph = null; for (let i = 0; i < cols - 1; i++) { const v = j * cols + i, q = scr(o, [W[v * 3], W[v * 3 + 1], W[v * 3 + 2]]), s = q[0] * nx + q[1] * ny; if (s < lo) { lo = s; pl = q; } if (s > hi) { hi = s; ph = q; } }
       L.push(pl); Rr.push(ph); }
     let y0 = 1e9, y1 = -1e9; for (const q of L.concat(Rr)) { y0 = Math.min(y0, q[1]); y1 = Math.max(y1, q[1]); }
     const poly = pts => { c.beginPath(); pts.forEach((q, i) => (i ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1]))); c.closePath(); };
-    const grp = (g, ord) => { const pts = []; for (let v = d.nBody; v < d.nv; v++) if (d.GR[v] === g) pts.push(scr(o, [W[v * 3], W[v * 3 + 1], W[v * 3 + 2]])); if (pts.length < 3) return null; const cx = pts.reduce((a, q) => a + q[0], 0) / pts.length, cy = pts.reduce((a, q) => a + q[1], 0) / pts.length;
+    const grp = (g, ord) => { const pts = []; for (let v = d.nBody; v < d.nv; v++) if (d.GR[v] === g) pts.push(scr(o, [W[v * 3], W[v * 3 + 1], W[v * 3 + 2]])); if (pts.length < 3) return null; if (o.clip) { let zs = 0, n = 0; for (let v = d.nBody; v < d.nv; v++) if (d.GR[v] === g) { zs += W[v * 3 + 2]; n++; } if (zs / n < 0) return null; }   /* (v455 MD2: a fin or the flukes under the water: not drawn) */ const cx = pts.reduce((a, q) => a + q[0], 0) / pts.length, cy = pts.reduce((a, q) => a + q[1], 0) / pts.length;
       pts.sort((p, q) => p[0] - q[0] || p[1] - q[1]); const cr = (o2, a2, b2) => (a2[0] - o2[0]) * (b2[1] - o2[1]) - (a2[1] - o2[1]) * (b2[0] - o2[0]), lo2 = [], up2 = [];   // (the convex hull: monotone chain)
       for (const q of pts) { while (lo2.length >= 2 && cr(lo2[lo2.length - 2], lo2[lo2.length - 1], q) <= 0) lo2.pop(); lo2.push(q); }
       for (let i = pts.length - 1; i >= 0; i--) { const q = pts[i]; while (up2.length >= 2 && cr(up2[up2.length - 2], up2[up2.length - 1], q) <= 0) up2.pop(); up2.push(q); }
@@ -290,16 +301,16 @@ const MOBY_GL = (() => {
     c.save(); poly(body); c.clip(); c.globalCompositeOperation = 'source-atop';
     c.strokeStyle = 'rgba(40,34,120,0.35)'; c.lineWidth = k * 0.5; c.beginPath(); Rr.forEach((q, i) => (i ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1]))); c.stroke();
     c.globalCompositeOperation = 'lighter'; c.strokeStyle = 'rgba(150,215,255,0.55)'; c.lineWidth = Math.max(1, k * 0.05); c.beginPath(); L.forEach((q, i) => { const r = Rr[i], u = 0.45; const x = lerp(q[0], r[0], u), y = lerp(q[1], r[1], u); if (i < 8) return; i === 8 ? c.moveTo(x, y) : c.lineTo(x, y); }); c.stroke();
-    if (typeof glowSprite === 'function' && typeof blitSized === 'function') for (let i = 0; i < 18; i++) { const j = 6 + Math.floor((i * 7.13) % (rows - 10)), u = 0.2 + ((i * 3.7) % 1) * 0.6, q = L[j], r = Rr[j], x = lerp(q[0], r[0], u), y = lerp(q[1], r[1], u), s = k * (0.12 + 0.06 * Math.sin((o.t || 0) * 2 + i)); blitSized(c, glowSprite('#BFE6FF'), x - s, y - s, s * 2, s * 2); }
+    if (typeof glowSprite === 'function' && typeof blitSized === 'function') for (let i = 0; i < 18 && L.length > 4; i++) { const j = Math.min(L.length - 1, (j0 > 0 ? 0 : 6) + Math.floor((i * 7.13) % Math.max(1, L.length - 10))), u = 0.2 + ((i * 3.7) % 1) * 0.6, q = L[j], r = Rr[j], x = lerp(q[0], r[0], u), y = lerp(q[1], r[1], u), s = k * (0.12 + 0.06 * Math.sin((o.t || 0) * 2 + i)); blitSized(c, glowSprite('#BFE6FF'), x - s, y - s, s * 2, s * 2); }
     c.restore();
     if (fins[0] && fins[1]) { const f0 = fins[0], f1 = fins[1], front = f0.reduce((a, q) => a + q[1], 0) / f0.length < f1.reduce((a, q) => a + q[1], 0) / f1.length ? 1 : 0; shade(fins[front], '#E6ECFF', '#9AA6D2', '#33307A'); }
     // the eyes and the luminous edge
-    for (const v of EYEV) { const q = scr(o, [W[v * 3], W[v * 3 + 1], W[v * 3 + 2]]); c.fillStyle = '#0B1240'; c.beginPath(); c.arc(q[0], q[1], Math.max(1.2, k * 0.09), 0, TAU); c.fill(); c.fillStyle = '#9FE8FF'; c.beginPath(); c.arc(q[0] - k * 0.025, q[1] - k * 0.03, Math.max(0.6, k * 0.03), 0, TAU); c.fill(); }
+    for (const v of EYEV) { if (o.clip && W[v * 3 + 2] < 0) continue; const q = scr(o, [W[v * 3], W[v * 3 + 1], W[v * 3 + 2]]); c.fillStyle = '#0B1240'; c.beginPath(); c.arc(q[0], q[1], Math.max(1.2, k * 0.09), 0, TAU); c.fill(); c.fillStyle = '#9FE8FF'; c.beginPath(); c.arc(q[0] - k * 0.025, q[1] - k * 0.03, Math.max(0.6, k * 0.03), 0, TAU); c.fill(); }
     c.globalCompositeOperation = 'lighter'; c.globalAlpha = al * 0.35; c.strokeStyle = '#9FD8FF'; c.lineWidth = Math.max(1.5, k * 0.12); poly(body); c.stroke();
     c.restore(); return true;
   }
   const ready = () => !!(D && D.ready);
-  return { usable, warm, ready, step, release, gpuCount, pose, draw, draw2D, scr, get anchors() { return ANC; }, DIMS, MAT, STATS, RES, CZ, get nv() { return D ? D.nv : 0; }, get ntri() { return D ? D.M.ntri : 0; }, get off() { return NOGL; }, get glm() { return typeof GLM !== 'undefined' ? GLM : null; },
+  return { usable, warm, ready, step, release, gpuCount, pose, draw, draw2D, scr, flukeLow, get anchors() { return ANC; }, DIMS, MAT, STATS, RES, CZ, get nv() { return D ? D.nv : 0; }, get ntri() { return D ? D.M.ntri : 0; }, get off() { return NOGL; }, get glm() { return typeof GLM !== 'undefined' ? GLM : null; },
     init() { data(); if (!EYEV.length) findAnchors(); return D; } };
 })();
 if (typeof self !== 'undefined') self.MOBY_GL = MOBY_GL;

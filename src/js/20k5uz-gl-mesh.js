@@ -1430,10 +1430,11 @@ void main() {
     else if (id == 498) c = cel3(vec3(0.42, 0.4, 0.52), vec3(0.82, 0.81, 0.84), vec3(1.0, 0.99, 0.95), n, lit) + vec3(0.25, 0.4, 0.6) * fres * 0.5;
     else if (id == 499) c = cel3(vec3(0.05, 0.02, 0.1), vec3(0.17, 0.07, 0.22), vec3(0.32, 0.15, 0.36), n, lit);
     else {
-      float bk = id == 495 ? smoothstep(0.42, 0.86, 1.0 - abs(sv * 2.0 - 1.0)) : 0.0;
+      float bk = id == 495 ? smoothstep(0.42, 0.86, 1.0 - abs(sv * 2.0 - 1.0)) * (1.0 - 0.65 * smoothstep(0.6, 0.82, su)) : 0.0;   // (v455 MD2: the belly's violet fading down the tail stock, so the raised tail reads pearl from any side)
       { float hm = 0.5 + 0.5 * dot(n, uUP), x = dot(n, uLK) * 0.85 + (hm - 0.5) * 0.5 - bk * 0.22; lit = 0.5 * smoothstep(0.0, 0.07, x) + 0.5 * smoothstep(0.4, 0.47, x);   // (its own cel bands: a broad shadow band under it, deep blue-violet)
-        vec3 SH = mix(vec3(0.15, 0.13, 0.42), vec3(0.09, 0.07, 0.3), bk), MD = mix(vec3(0.6, 0.64, 0.84), vec3(0.32, 0.3, 0.66), bk), LI = mix(vec3(0.96, 0.97, 1.0), vec3(0.64, 0.64, 0.92), bk);
-        c = (lit < 0.5 ? mix(SH, MD, lit * 2.0) : mix(MD, LI, lit * 2.0 - 1.0)) * (0.86 + 0.2 * hm + 0.1 * clamp(x, -1.0, 1.0)); }
+        vec3 SH = mix(vec3(0.16, 0.14, 0.44), vec3(0.08, 0.06, 0.28), bk), MD = mix(vec3(0.58, 0.62, 0.86), vec3(0.3, 0.28, 0.64), bk), LI = mix(vec3(0.94, 0.96, 1.0), vec3(0.64, 0.64, 0.92), bk);   // (v455 MD2: the pearl kept, a deeper blue-violet under it)
+        c = (lit < 0.5 ? mix(SH, MD, lit * 2.0) : mix(MD, LI, lit * 2.0 - 1.0)) * (0.86 + 0.2 * hm + 0.1 * clamp(x, -1.0, 1.0));
+        c = mix(c, c * vec3(0.72, 0.74, 0.95), (1.0 - smoothstep(0.2, 0.85, x)) * smoothstep(0.5, 0.75, lit) * 0.6); }   // (v455 MD2: the lit pearl rolling off toward lilac before its shadow band, so the body reads round)
       c += vec3(0.07, 0.03, 0.12) * fres * (1.0 - bk) + vec3(0.9, 0.95, 1.0) * celSpec(n, 0.965) * 0.35 * (1.0 - bk);   // (a pearl's violet sheen toward its edge; a soft highlight)
       if (id == 495 && uLow < 0.5) { float w = abs(fract(sv * 64.0 + vn(vec2(su * 26.0, sv * 18.0)) * 1.6) - 0.5); c *= 1.0 - 0.09 * (1.0 - smoothstep(0.02, 0.12, w)) * smoothstep(0.33, 0.45, su) * (1.0 - bk * 0.5); }   // (fine creases along the body behind the head)
       // the stars inside: a slow-drifting field, brighter where the body is in shade; nebulae of violet light round them
@@ -1442,7 +1443,7 @@ void main() {
       vec3 sc = mix(vec3(0.75, 0.9, 1.25), vec3(1.15, 0.98, 0.7), step(0.82, S3.z));
       c += vec3(0.05, -0.012, 0.06) * sin(ndv * 9.0 + su * 5.0 + sv * 3.0) * (1.0 - bk) * smoothstep(0.5, 0.9, lit);   // (mother-of-pearl: a faint shift of hue across the lit skin)
       c = mix(c, vec3(0.6, 0.66, 0.9), neb * 0.3 * smoothstep(0.5, 1.0, lit));   // (the slow star patterns show through the pearl as lilac clouds)
-      c = mix(c, vec3(0.42, 0.66, 1.0), clamp((S3.x * 0.85 + S3.y * 0.3) * smoothstep(0.45, 1.0, lit), 0.0, 0.85));   // (and its stars as blue points and lines where it is lit: light on white would not show)
+      c = mix(c, vec3(0.42, 0.62, 1.0), clamp((S3.x * 0.95 + S3.y * 0.5) * smoothstep(0.45, 1.0, lit), 0.0, 0.85));   // (v455 MD2: the constellations a little clearer on the lit pearl)   // (and its stars as blue points and lines where it is lit: light on white would not show)
       c += sc * S3.x * inner * 1.2 + vec3(0.55, 0.75, 1.2) * S3.y * 0.32 * inner + vec3(0.16, 0.1, 0.38) * neb * inner * (0.6 + 0.4 * bk);
       // the luminous contour lines: the flanks' lateral lines, the head's case, the dorsal ridge, a curve over the brow; a fin's glowing free edge
       float mk = 0.0;
@@ -1453,6 +1454,8 @@ void main() {
       c += vec3(0.45, 0.85, 1.3) * mk * (0.55 + 0.6 * uGlow);
       if (id == 496) c = mix(c, vec3(0.62, 0.86, 1.2), smoothstep(0.7, 1.0, sv) * 0.45);   // (translucent toward the edge)
     }
+    if (id == 495 || id == 496) { float wl = uClip.x > 0.5 ? exp(-max(vW.z - uClip.y, 0.0) / 0.16) : 0.0, dn = clamp(0.45 - 0.75 * dot(n, uUP), 0.0, 1.0);
+      c += vec3(0.16, 0.5, 0.62) * dn * (1.0 - lit) * 0.55 + vec3(0.3, 0.85, 1.0) * wl * (0.3 + 0.3 * fres); }   // (v455 MD2: the aqua water's light thrown up on its shaded underside, and its reflection glowing on the skin just above the waterline)
     c = mix(c, vec3(0.78, 0.92, 1.25), fres * fres * 0.6) + celRim(n) * 1.4;   // (the spectral edge)
     c += vec3(0.6, 0.85, 1.25) * uGlow2 * (0.3 + 0.7 * fres);
     c = mix(c, vec3(1.0, 1.02, 1.05), dz * 0.9) + vec3(0.4, 0.7, 1.0) * dz * 0.3;   // (the dissolve's foaming edge)
