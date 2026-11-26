@@ -5,7 +5,8 @@ const { open } = require('./_de-lib.js');
 (async () => { const res = [], t0 = Date.now(); const ok = (n, p, i) => { res.push(!!p); console.log(`[${((Date.now() - t0) / 1000).toFixed(0)}s] ${p ? 'OK  ' : 'FAIL'} ${n}${i ? ' · ' + i : ''}`); };
   for (const mode of ['gpu', 'nogpu', 'off', 'lowfx']) {
     const T = await open({ gpu: mode === 'gpu' || mode === 'lowfx', off: mode === 'off', lowFx: mode === 'lowfx' });
-    try { for (const i of [1, 4, 3]) {   // v460 R3: the two puzzles and the Rust Flats (the eight-stage route)
+    try { for (const i of [1, 4, 7, 3]) {   // v462 R3b: the Grub Mounds back
+          // v460 R3: the two puzzles and the Rust Flats (the eight-stage route)
         await T.stage(i); await T.run(mode === 'gpu' || mode === 'lowfx' ? 1.5 : 3, 12);
         const r = await T.M(() => { const D = window.DUNE_PROPS, B = window.__pp.BIOMES[window.__pp.arc.game._dbg.F.biome]; return { hooks: D.stats.hooks, land: !!B.floorFn, cached: D.stats.cached }; });
         const want = mode === 'gpu' || mode === 'lowfx' ? (i === 3 ? true : r.hooks > 0) : r.hooks === 0;

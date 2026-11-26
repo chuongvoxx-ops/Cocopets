@@ -5,7 +5,7 @@
 const L = require('./_dt-lib.js'); const { results, ok } = L.reporter();
 (async () => { const { browser, page, errors } = await L.open();
   const rows = [];
-  for (const i of (process.env.STAGES || '0,4,3,6')   /* v460 R3: the three dungeons and the Echo Chamber (the eight-stage route) */.split(',').map(Number)) {
+  for (const i of (process.env.STAGES || '0,4,3,6,7')   /* v462 R3b: and the Grub Mounds */   /* v460 R3: the three dungeons and the Echo Chamber (the eight-stage route) */.split(',').map(Number)) {
     await page.evaluate(() => { window.__DT = 1; }); await L.stage(page, i);
     const r = await page.evaluate(() => { const D = window.__pp.arc.game._dbg, M = D.M, XH = window.__XH, DT = self.DUNE_TRAPS, F = XH.self.dtraps || null;
       const T = F ? F.traps : [], kinds = {}; for (const t of T) { const k = t.kind + (t.bridge ? '@br' : ''); kinds[k] = (kinds[k] || 0) + 1; }

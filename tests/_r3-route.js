@@ -49,20 +49,20 @@ const SKIP = (process.env.SKIP || '').split(',');
     await E(() => { const P = window.__pp; P.closeArcade(true); P.st.unlockAll = false; }); return out; };
   const labels = await labelsOf('dunes');
   console.log('route', R.kinds, '|', R.names.join(' > ')); console.log('labels', labels.join(' > '));
-  ok(R.kinds === 'fight,puzzle,boss,fight,puzzle,boss,fight,boss', 'eight stages: dungeon, puzzle, boss, dungeon, puzzle, boss, dungeon, boss', R.kinds);
-  const fi = [0, 3, 6]; ok(R.kinds.split(',').filter(k => k === 'fight').length === 3 && R.kinds.split(',').filter(k => k === 'puzzle').length === 2 && R.bosses.length === 3, 'exactly three dungeons, two puzzles, three main bosses');
+  ok(R.kinds === 'fight,puzzle,boss,fight,puzzle,boss,fight,puzzle,boss', 'nine stages (v462 R3b): dungeon, puzzle, boss, dungeon, puzzle, boss, dungeon, puzzle, boss', R.kinds);
+  const fi = [0, 3, 6]; ok(R.kinds.split(',').filter(k => k === 'fight').length === 3 && R.kinds.split(',').filter(k => k === 'puzzle').length === 3 && R.bosses.length === 3, 'exactly three dungeons, three puzzles, three main bosses');
   ok(new Set(fi.map(i => R.names[i])).size === 3 && new Set(fi.map(i => R.biomes[i])).size === 3 && new Set(fi.map(i => R.minis[i])).size === 3, 'the three dungeons are distinct: names, lands (dunes, mesa, nightdune), mini bosses', fi.map(i => [R.names[i], R.biomes[i], R.minis[i], R.mobs[i]]));
-  ok(R.names[0] === 'The Buried Road' && R.names[1] === 'The Sandstorm Flight' && R.names[3] === 'The Rust Flats' && R.names[4] === 'The Echo Chamber' && R.names[6] === 'The Moonlit Barrows', 'the stages in order: the Buried Road, the Sandstorm Flight, Sarrukh, the Rust Flats, the Echo Chamber, Oneira, the Moonlit Barrows, Thul-Ammon', R.names);
-  ok(R.bosses.join() === 'sarrukh,oneira,thulammon' && R.seal.join() === 'false,false,false,false,false,false,false,true', 'Sarrukh, Oneira, Thul-Ammon; only the last seals the rift');
-  ok(labels.join('|') === 'Section 1 · Dungeon 1|Section 1 · Puzzle 1|Section 1 · Boss 1|Section 2 · Dungeon 2|Section 2 · Puzzle 2|Section 2 · Boss 2|Section 3 · Dungeon 3|Section 3 · Boss 3', 'labels: Dungeon 1, Puzzle 1, Boss 1, Dungeon 2, Puzzle 2, Boss 2, Dungeon 3, Boss 3', labels);
+  ok(R.names[0] === 'The Buried Road' && R.names[1] === 'The Sandstorm Flight' && R.names[3] === 'The Rust Flats' && R.names[4] === 'The Echo Chamber' && R.names[6] === 'The Moonlit Barrows' && R.names[7] === 'The Grub Mounds', 'the stages in order: the Buried Road, the Sandstorm Flight, Sarrukh, the Rust Flats, the Echo Chamber, Oneira, the Moonlit Barrows, the Grub Mounds, Thul-Ammon', R.names);
+  ok(R.bosses.join() === 'sarrukh,oneira,thulammon' && R.seal.join() === 'false,false,false,false,false,false,false,false,true', 'Sarrukh, Oneira, Thul-Ammon; only the last seals the rift');
+  ok(labels.join('|') === 'Section 1 · Dungeon 1|Section 1 · Puzzle 1|Section 1 · Boss 1|Section 2 · Dungeon 2|Section 2 · Puzzle 2|Section 2 · Boss 2|Section 3 · Dungeon 3|Section 3 · Puzzle 3|Section 3 · Boss 3', 'labels: Dungeon 1, Puzzle 1, Boss 1, Dungeon 2, Puzzle 2, Boss 2, Dungeon 3, Puzzle 3, Boss 3', labels);
   const other = (await labelsOf('garden')).join('|');
   ok(/Section 2 · Dungeon 1/.test(other), 'the other rifts keep their per-section labels (the Garden: Section 2 · Dungeon 1)', other);
 
   // ---- 2. one complete run, 3. resume / retry ----
   if (!SKIP.includes('run')) {
-    let s = await rs(); ok(s.prog === 0 && !s.sealed && s.ver === 2, 'a new save: checkpoint stage 1, layout version 2 (not migrated)', s);
+    let s = await rs(); ok(s.prog === 0 && !s.sealed && s.ver === 3, 'a new save: checkpoint stage 1, layout version 3 (not migrated)', s);
     const played = [], c0 = s.crystals;
-    for (let step = 0; step < 8; step++) {
+    for (let step = 0; step < 9; step++) {
       if (step === 0) await enter(null);   // ("Enter" on the rift's card: its checkpoint)
       const h = await here(); played.push(h);
       if (step === 1) {   // a loss keeps the checkpoint; retry replays the same stage
@@ -75,12 +75,21 @@ const SKIP = (process.env.SKIP || '').split(',');
         await E(() => { const P = window.__pp; P.closeArcade(true); P.saveLocalNow(); });
         await page.reload(); await page.waitForFunction(() => window.__pp && window.__pp.st && window.__pp.st.name === 'Bot', null, { timeout: 120000 }); await page.waitForTimeout(500);
         await E(() => { const P = window.__pp; P.st.dun.god = true; const w = document.getElementById('giftWrap'); if (w) w.hidden = true; });
-        s = await rs(); ok(s.prog === 3 && s.ver === 2, 'saved and reloaded after Sarrukh: the checkpoint is stage 4 (the Rust Flats), not moved by the migration', s);
+        s = await rs(); ok(s.prog === 3 && s.ver === 3, 'saved and reloaded after Sarrukh: the checkpoint is stage 4 (the Rust Flats), not moved by the migration', s);
         await enter(null); const h3 = await here(); ok(h3.stage === 3 && h3.name === 'The Rust Flats', 'Continue after the reload: the Rust Flats', h3); played[played.length - 1] = h3;
+      }
+      if (step === 7) {   // v462 R3b: the Grub Mounds played by the hook: grubs shot as they surface; the sand goes still at exactly twenty
+        const gm = await page.evaluate(async () => { const D = window.__pp.arc.game._dbg, mod = D.RIFT.self.mod, R = mod.R; const seen = new Set(); let at19 = null, doneAt = null; const t0 = performance.now();
+          while (performance.now() - t0 < 120000 && !D.RIFT.done) { await new Promise(r => requestAnimationFrame(r)); D.me.hp = D.ST.hp; D.banners.forEach(b => seen.add(b.s + ' / ' + (b.sub || '')));
+            if (R.hits === 19 && at19 == null) at19 = !!D.RIFT.done; const up = mod.mounds.find(m => m.state === 'up' && m.kind === 'grub'); if (up && R.hits < 20) D.shots.push({ x: up.x, y: up.y, vx: 0, vy: 0, r: 0.14, dmg: 1, life: 0.1, t: 0, pierce: 0, style: 'bolt', el: 'gold', src: 'normal' }); }
+          doneAt = R.hits; await new Promise(r => setTimeout(r, 400)); D.banners.forEach(b => seen.add(b.s + ' / ' + (b.sub || ''))); return { mounds: mod.mounds.length, done: !!D.RIFT.done, hits: R.hits, doneAt, at19, mode: R.mode, goal: mod.goal(), banners: [...seen] }; });
+        console.log('  mounds', JSON.stringify(gm));
+        ok(gm.mounds === 13 && gm.done && gm.doneAt === 20 && gm.at19 === false && gm.mode === 'won', 'the Grub Mounds (Puzzle 3): thirteen mounds; not done at 19 grubs, done at exactly 20', gm);
+        ok(gm.banners.some(b => /20 to still the sand/.test(b)) && gm.banners.some(b => /Twenty grubs down/.test(b)), '  its banners say 20 (the intro) and "Twenty grubs down" (the end)', gm.banners);
       }
       const cr0 = (await rs()).crystals;
       await win(); s = await rs(); const pn = await panel();
-      const last = step === 7;
+      const last = step === 8;
       ok(last ? (s.sealed && s.prog === 0) : s.prog === step + 1, `stage ${step + 1} (${played[step].name}) won: checkpoint ${last ? 'reset, the rift sealed' : 'stage ' + (step + 2)}`, { s, pn });
       if (!last) { const nextName = await E(i => window.__pp.RIFT_BY_ID.dunes.stages[i].name, step + 1); ok(pn.next && pn.next.includes(nextName), `  the end panel offers the next stage: ${nextName}`, pn); }
       // the same stage cannot be finished twice (a second finish call is ignored: no second reward, no second checkpoint step)
@@ -91,8 +100,8 @@ const SKIP = (process.env.SKIP || '').split(',');
     }
     const seq = played.map(p => p.kind + ':' + (p.boss || p.name));
     console.log('played', seq.join(' > '));
-    ok(played.length === 8 && played.map(p => p.stage).join() === '0,1,2,3,4,5,6,7', 'one complete run: eight stages played, in order, none skipped, none twice', seq);
-    ok(played.filter(p => p.kind === 'fight').length === 3 && played.filter(p => p.kind === 'puzzle').length === 2 && played.filter(p => p.kind === 'boss').length === 3, '  three dungeons, two puzzles, three bosses played');
+    ok(played.length === 9 && played.map(p => p.stage).join() === '0,1,2,3,4,5,6,7,8', 'one complete run: nine stages played, in order, none skipped, none twice', seq);
+    ok(played.filter(p => p.kind === 'fight').length === 3 && played.filter(p => p.kind === 'puzzle').length === 3 && played.filter(p => p.kind === 'boss').length === 3, '  three dungeons, three puzzles, three bosses played');
     ok(new Set(played.filter(p => p.kind === 'fight').map(p => p.biome)).size === 3, '  the three dungeons in their three lands', played.filter(p => p.kind === 'fight').map(p => p.biome));
     // the sealed rift's last boss replayed: the re-clear reward (+60), never the seal's again
     await E(() => document.querySelector('#arcPanel [data-arc="retry"]').click()); await waitState('ready'); await E(() => window.__pp.beginPlay()); await waitState('play'); await page.waitForTimeout(300);
@@ -108,23 +117,27 @@ const SKIP = (process.env.SKIP || '').split(',');
       const o2 = JSON.parse(JSON.stringify(base)); o2.rift.prog.dunes = 3; o2.rift.ver.dunes = 2; const s2 = P.sanitize(o2);
       const o3 = JSON.parse(JSON.stringify(base)); o3.rift.prog.dunes = 9; o3.rift.ver = { belfry: 4, garden: 2 }; const s3 = P.sanitize(o3); const s4 = P.sanitize(JSON.parse(JSON.stringify(Object.assign({}, s3))));
       const o5 = JSON.parse(JSON.stringify(base)); delete o5.rift; const s5 = P.sanitize(o5);
+      const v461 = []; for (let k = 0; k < 8; k++) { const o = JSON.parse(JSON.stringify(base)); o.rift.prog.dunes = k; o.rift.ver = { belfry: 4, garden: 2, dunes: 2 }; delete o.rift.seals.dunes; const s = P.sanitize(o); v461.push([k, s.rift.prog.dunes, s.rift.ver.dunes]); }
       const o6 = JSON.parse(JSON.stringify(base)); o6.rift.prog.dunes = 7; o6.rift.ver = {}; o6.rift.prog.garden = 5; const s6 = P.sanitize(o6);
-      return { out, keep: s2.rift.prog.dunes, twice: [s3.rift.prog.dunes, s4.rift.prog.dunes], norift: [s5.rift.prog.dunes || 0, s5.rift.ver.dunes], garden: s6.rift.prog.garden, dunes6: s6.rift.prog.dunes }; });
+      return { out, keep: s2.rift.prog.dunes, twice: [s3.rift.prog.dunes, s4.rift.prog.dunes, s4.rift.ver.dunes], v461, norift: [s5.rift.prog.dunes || 0, s5.rift.ver.dunes], garden: s6.rift.prog.garden, dunes6: s6.rift.prog.dunes }; });
     console.log('migration (old -> new):', M.out.map(r => r[0] + '->' + r[1]).join(' '));
-    const want = [0, 1, 1, 2, 3, 3, 5, 5, 6, 7, 7, 7];
-    ok(M.out.every(r => r[1] === want[r[0]] && r[2] === 2), 'every old checkpoint 0..11 moves once to 0,1,1,2,3,3,5,5,6,7,7,7 (version 2 set)', M.out);
+    const want = [0, 1, 1, 2, 3, 3, 5, 5, 6, 7, 8, 8];
+    ok(M.out.every(r => r[1] === want[r[0]] && r[2] === 3), 'every v458 checkpoint 0..11 moves once, straight to the nine: 0,1,1,2,3,3,5,5,6,7,8,8 (version 3 set)', M.out);
     // never past a required stage: each new checkpoint's earlier stages were all done in the old route (by what each stage is)
-    const OLD = ['f:Buried Road', 'f:Tooth Courts', 'p:Flight', 'b:sarrukh', 'p:Echo', 'f:Rust Flats', 'f:Crystal Scar', 'b:oneira', 'f:Moonlit Barrows', 'p:Mounds', 'f:Throat', 'b:thulammon'], NEW = ['f:Buried Road', 'p:Flight', 'b:sarrukh', 'f:Rust Flats', 'p:Echo', 'b:oneira', 'f:Moonlit Barrows', 'b:thulammon'];
+    const OLD = ['f:Buried Road', 'f:Tooth Courts', 'p:Flight', 'b:sarrukh', 'p:Echo', 'f:Rust Flats', 'f:Crystal Scar', 'b:oneira', 'f:Moonlit Barrows', 'p:Mounds', 'f:Throat', 'b:thulammon'], NEW = ['f:Buried Road', 'p:Flight', 'b:sarrukh', 'f:Rust Flats', 'p:Echo', 'b:oneira', 'f:Moonlit Barrows', 'p:Mounds', 'b:thulammon'], V461 = ['f:Buried Road', 'p:Flight', 'b:sarrukh', 'f:Rust Flats', 'p:Echo', 'b:oneira', 'f:Moonlit Barrows', 'b:thulammon'];
     ok(want.every((n, k) => NEW.slice(0, n).every(x => OLD.slice(0, k).includes(x))), 'no old checkpoint skips a stage it had not done (each new checkpoint\'s earlier stages were all played)');
-    ok(M.keep === 3, 'a v460 save (version 2) keeps its checkpoint (3 stays 3)', M.keep);
-    ok(M.twice[0] === 7 && M.twice[1] === 7, 'a migrated save loaded again is not moved again (9 -> 7, then 7)', M.twice);
-    ok(M.norift[0] === 0 && M.norift[1] === 2, 'a save with no rift data: stage 1, version 2', M.norift);
-    ok(M.dunes6 === 5, 'an old save at Oneira (7) goes to Oneira (5)', M.dunes6);
+    ok(M.keep === 3, 'a v462 save (version 3) keeps its checkpoint (3 stays 3)', M.keep);
+    console.log('migration from v461 (eight, version 2 -> nine):', M.v461.map(r => r[0] + '->' + r[1]).join(' '));
+    ok(M.v461.every(r => r[1] === r[0] && r[2] === 3), 'every v461 checkpoint 0..7 (version 2) keeps its number (version 3 set): 7, Thul-Ammon next, becomes 7, the Grub Mounds first', M.v461);
+    ok(M.v461.every(r => NEW.slice(0, r[1]).every(x => V461.slice(0, r[0]).includes(x))), 'no v461 checkpoint skips a stage it had not done (the returning Grub Mounds is never skipped)');
+    ok(M.twice[0] === 7 && M.twice[1] === 7 && M.twice[2] === 3, 'a migrated save loaded again is not moved again (9 -> 7, then 7; version 3)', M.twice);
+    ok(M.norift[0] === 0 && M.norift[1] === 3, 'a save with no rift data: stage 1, version 3', M.norift);
+    ok(M.dunes6 === 5, 'a v458 save at Oneira (7) goes to Oneira (5)', M.dunes6);
     // through a real reload of an old-format save
     // (the live state put back to how a v458 save holds it, then saved and reloaded: the boot's own load path, sanitize and its migration)
     await E(() => { const P = window.__pp, r = P.riftState(); r.prog.dunes = 6; delete r.seals.dunes; r.ver = { belfry: 4, garden: 2 }; P.saveLocalNow(); });
     await page.reload(); await page.waitForFunction(() => window.__pp && window.__pp.st && window.__pp.st.name === 'Bot', null, { timeout: 120000 }); await page.waitForTimeout(500);
-    const s7 = await rs(); ok(s7.prog === 5 && s7.ver === 2 && !s7.sealed, 'a real reload of an old save at the Crystal Scar (6): Oneira (5), version 2', s7);
+    const s7 = await rs(); ok(s7.prog === 5 && s7.ver === 3 && !s7.sealed, 'a real reload of a v458 save at the Crystal Scar (6): Oneira (5), version 3', s7);
   }
 
   // ---- 5. the bosses: exactly 3x ----
@@ -144,7 +157,7 @@ const SKIP = (process.env.SKIP || '').split(',');
         // a phase change: the phase's cut and m.dmg after it
         const d0 = b.dmg, ph = D.FD.S.phase; b.hp = b.maxhp * 0.49; for (let k = 0; k < 120; k++) { me.hp = D.ST.hp; P.arc.game.update(1 / 60); } const phase2 = D.FD.S.phase, d1 = b.dmg;
         return { boss: FD.id, maxhp: b.maxhp, bars: FD.bars, dmgK: FD.dmgK, mdmg: d0, foeK: D.F.rift.foeK, body, weak, onPet, petMax, landed, minion, phase: [ph, phase2], dmgAfterPhase: d1, ease: window.__pp.RIFT_BY_ID.dunes.ease }; }); };
-    for (const [stage, nm] of [[2, 'Sarrukh'], [5, 'Oneira'], [7, 'Thul-Ammon']]) {
+    for (const [stage, nm] of [[2, 'Sarrukh'], [5, 'Oneira'], [8, 'Thul-Ammon']]) {
       const a = await probe(stage, true), b = await probe(stage, false), b2 = await probe(stage, false);
       console.log(`  ${nm} v458 ${JSON.stringify(a)}\n  ${nm} v460 ${JSON.stringify(b)}`);
       const r3 = (x, y) => Math.abs(x / y - 3) < 1e-9;

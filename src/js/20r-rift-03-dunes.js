@@ -3,7 +3,7 @@
    reveal the buried stepping stones), Khess the Jawless, the Fossil Lock (rotate three ribs so a crossbar slides
    through their notches), Orryx the Listening Shell, the Burrow Hunt (secure three pylons while the sand hunts you),
    Ultharak the Sand Kraken, then the sealing. Original creatures: a burrowing cosmic brood and a sand kraken.
-   v460 R3: now eight stages: the Buried Road, the Sandstorm Flight, Sarrukh | the Rust Flats, the Echo Chamber, Oneira |
+   v460 R3: now eight stages (v462 R3b: nine, the Grub Mounds back before Thul-Ammon): the Buried Road, the Sandstorm Flight, Sarrukh | the Rust Flats, the Echo Chamber, Oneira |
    the Moonlit Barrows, Thul-Ammon (who seals it); see the rift's stages below. */
 (() => {
   const TAU = Math.PI * 2;
@@ -246,8 +246,11 @@
   /* ---------- puzzle C: the Grub Mounds ----------
      Thirteen sand mounds in the bowl. A mound trembles, then a hollow grub bursts up and sits for a moment before it dives:
      shoot it (or strike it) while it is up. Echo mantas rise too, hooded and glowing cyan: leave those be, hitting one
-     costs two. Thirty grubs and the sand goes still */
-  const GRUBS_NEED = 30;
+     costs two. Thirty grubs and the sand goes still
+     v462 R3b (the user: "bring back the grub mounds, but instead of 30, have it at 20 only"): twenty grubs. Nothing else of the
+     puzzle changes: it has no time limit or reward of its own, and its pace (a mound every 1.3 s less 0.025 s a grub, a grub up
+     1.7 s less 0.02 s a grub, mantas from the fifth grub) runs on the grubs shot, not on the target, so it simply ends sooner */
+  const GRUBS_NEED = 20;
   function makeMounds(X, self, H) {
     const marks = X.M.marks, me = X.me, g = X.g;
     const mounds = (marks.n || []).map((p, i) => ({ x: p.x, y: p.y, i, state: 'idle', t: 0, kind: 'grub' }));
@@ -255,7 +258,7 @@
     H.setExit(marks.E[0].x, marks.E[0].y, 'The way on');
     X.after(1.2, () => { R.mode = 'play'; X.banner('THE GRUB MOUNDS', `Grubs burst from the mounds: shoot them while they are up. Leave the cyan mantas. ${GRUBS_NEED} to still the sand`, AMBER, 3.0, true, true); });
     const hitMound = (mo, how) => { if (mo.kind === 'manta') { R.hits = Math.max(0, R.hits - 2); R.streak = 0; X.boom(mo.x, mo.y, 1.0, CYAN, '#FFFFFF', { n: 10, shake: 5 }); X.text(mo.x, mo.y - 1.4, 'A manta! −2', CYAN, 13); X.sfx.wrong(); } else { R.hits++; R.streak++; X.boom(mo.x, mo.y, 0.9, OCHRE, '#FFFFFF', { n: 10, shake: 2 }); X.sfx.pop(); X.text(mo.x, mo.y - 1.4, R.streak >= 5 && R.streak % 5 === 0 ? `${R.streak} in a row!` : `${R.hits}/${GRUBS_NEED}`, AMBER, 12); } mo.state = 'idle'; mo.t = 0;
-      if (R.hits >= GRUBS_NEED && !self.done) { self.done = true; R.mode = 'won'; X.banner('THE SAND GOES STILL', 'Thirty grubs down: the way opens', '#8FE0A6', 2.6, true, true); X.flash(0.35, AMBER); X.sfx.fanfare(); } };
+      if (R.hits >= GRUBS_NEED && !self.done) { self.done = true; R.mode = 'won'; X.banner('THE SAND GOES STILL', `${GRUBS_NEED === 20 ? 'Twenty' : GRUBS_NEED} grubs down: the way opens` /* v462 R3b */, '#8FE0A6', 2.6, true, true); X.flash(0.35, AMBER); X.sfx.fanfare(); } };
     return { R, mounds, hitMound,
       update(dt) { R.t += dt; if (R.mode !== 'play' || g.won || me.dead) return;
         R.spawnT -= dt; if (R.spawnT <= 0) { R.spawnT = Math.max(0.45, 1.3 - R.hits * 0.025); const idle = mounds.filter(m => m.state === 'idle'); if (idle.length) { const mo = idle[Math.floor(Math.random() * idle.length)]; mo.state = 'tremble'; mo.t = 0; mo.kind = R.hits >= 5 && Math.random() < 0.25 ? 'manta' : 'grub'; mo.up = Math.max(0.9, 1.7 - R.hits * 0.02); } }
@@ -293,7 +296,7 @@
        the monsters and the traps keep their numbers (monHpK, miniHpK, foeDmgK unchanged) */
     bossHpK: 6, bossDmgK: 3,
     id: 'dunes', n: 3, name: 'The Mouth Beneath the Dunes', lvl: 30, sigil: 'Echo', biome: 'dunes', aff: ['earth', 'wind'], region: 'the desert',
-    blurb: 'A desert swallowed by a fossil jaw. Glide its storms, answer its echoes, wake what sleeps under the sand.' /* v460 R3: (the Grub Mounds retired) */, gate: { anima: 'scorpio', name: 'The Amber Vigil' },
+    blurb: 'A desert swallowed by a fossil jaw. Glide its storms, answer its echoes, still its sands.' /* v462 R3b: the Grub Mounds back */, gate: { anima: 'scorpio', name: 'The Amber Vigil' },
     mons: ['skitter', 'grub', 'manta'], sealing: SEALING,
     /* v460 R3 (the user: "Dungeon 1 > Puzzle 1 > Boss 1 > Dungeon 2 > Puzzle 2 > Boss 2 > Dungeon 3 > Boss 3 > Completion ...
        the current route appears to repeat Dungeon 1 and Dungeon 3"): v458 played twelve stages, two dungeons to every section
@@ -302,12 +305,15 @@
        dungeon (its land, brood, mini boss, traps and one random mod as before), the Sandstorm Flight and the Echo Chamber after
        the first two, the three bosses. The retired stages are kept by name only (retired: read by nothing; the Grub Mounds'
        module stays defined, unplayed). runLabels: the labels count the dungeons and puzzles through the run (Dungeon 1..3,
-       Puzzle 1..2; riftStageLabel, 20m); the sections, the bosses' floors and the traps' density are as before */
+       Puzzle 1..2; riftStageLabel, 20m); the sections, the bosses' floors and the traps' density are as before
+       v462 R3b (the user: "You can bring back the grub mounds, but instead of 30, have it at 20 only"): nine stages, the Grub
+       Mounds (twenty grubs, GRUBS_NEED above) back as Puzzle 3 between the Moonlit Barrows and Thul-Ammon:
+       D1 > P1 > Sarrukh > D2 > P2 > Oneira > D3 > P3 > Thul-Ammon; labels Dungeon / Puzzle / Boss 1..3 */
     runLabels: true,
     stages: riftSections([
       { pattern: ['fight', 'puzzle', 'boss'], mods: ['random'], fights: ['The Buried Road'], retired: ['The Tooth Courts'], minis: ['sandpet'], puzzles: [GLIDE], boss: 'sarrukh', bossName: 'Sarrukh the Bloom Serpent', bossRoom: 'The Gullet' },
       { biome: 'mesa', pattern: ['fight', 'puzzle', 'boss'], mods: ['random'], fights: ['The Rust Flats'], retired: ['The Crystal Scar'], minis: ['echopet'], puzzles: [ECHO], boss: 'oneira', bossName: 'Oneira the Listening Shell', bossRoom: 'The Whorl' },
-      { biome: 'nightdune', mobs: ['skelwar', 'skelarcher', 'skelwar', 'skitter'], pattern: ['fight', 'boss'], mods: ['random'], fights: ['The Moonlit Barrows'], retired: ['The Throat of Sand', MOUNDS.name], minis: ['jawpet'], puzzles: [], boss: 'thulammon', bossName: 'Thul-Ammon the Sand Kraken', bossRoom: 'The Pit Beneath the Jaw' },
+      { biome: 'nightdune', mobs: ['skelwar', 'skelarcher', 'skelwar', 'skitter'], pattern: ['fight', 'puzzle', 'boss'] /* v462 R3b */, mods: ['random'], fights: ['The Moonlit Barrows'], retired: ['The Throat of Sand'], minis: ['jawpet'], puzzles: [MOUNDS], boss: 'thulammon', bossName: 'Thul-Ammon the Sand Kraken', bossRoom: 'The Pit Beneath the Jaw' },
     ]),
   });
 
@@ -321,10 +327,15 @@
      Rust Flats first (3), never Oneira early; one that had cleared both (6) goes on to Oneira (5). Once, on the load
      (04-state's sanitize), keyed by st.rift.ver.dunes (2 from now on; a new save starts at 2); a seal, the gate and the Anima
      are untouched, and the stage rewards are only ever those of a stage played (no reward is granted by the move) */
-  const DUNES_MIG12 = [0, 1, 1, 2, 3, 3, 5, 5, 6, 7, 7, 7], Rf3 = RIFT_BY_ID.dunes;
-  Rf3.VER = 2; Rf3.mapOld = p => DUNES_MIG12[Math.max(0, Math.min(11, p | 0))];
+  /* v462 R3b: layout version 3, nine stages: 0 Buried Road 1 GLIDE 2 Sarrukh | 3 Rust Flats 4 ECHO 5 Oneira | 6 Moonlit Barrows
+     7 MOUNDS 8 Thul-Ammon. A v461 save (version 2, eight stages) keeps its number: 0..6 are the same stages, and 7 (Thul-Ammon
+     next, the Barrows cleared) becomes 7, the Grub Mounds, now required before Thul-Ammon. A v458 save (version 0/1, twelve
+     stages) goes straight to its nine-stage checkpoint: 0,1,1,2,3,3,5,5,6,7,8,8 (9: the Barrows cleared, the Mounds next -> 7;
+     10: the Mounds solved, the Throat of Sand retired -> Thul-Ammon 8). Once, on the load; no reward is granted by the move */
+  const DUNES_MIG12 = [0, 1, 1, 2, 3, 3, 5, 5, 6, 7, 8, 8], DUNES_MIG8 = [0, 1, 2, 3, 4, 5, 6, 7], Rf3 = RIFT_BY_ID.dunes;
+  Rf3.VER = 3; Rf3.mapOld = p => DUNES_MIG12[Math.max(0, Math.min(11, p | 0))]; Rf3.map8 = p => DUNES_MIG8[Math.max(0, Math.min(7, p | 0))];
   Rf3.migrate = (s, o) => { const r = s && s.rift; if (!r) return; if (!r.ver || typeof r.ver !== 'object') r.ver = {};
-    const was = o && o.rift && o.rift.ver && +o.rift.ver.dunes || 0; if (was >= 2) { r.ver.dunes = 2; return; }
-    if (r.prog && r.prog.dunes != null) r.prog.dunes = Math.min(Rf3.stages.length - 1, Rf3.mapOld(r.prog.dunes));
-    r.ver.dunes = 2; };
+    const was = o && o.rift && o.rift.ver && +o.rift.ver.dunes || 0; if (was >= 3) { r.ver.dunes = 3; return; }
+    if (r.prog && r.prog.dunes != null) r.prog.dunes = Math.min(Rf3.stages.length - 1, was === 2 ? Rf3.map8(r.prog.dunes) : Rf3.mapOld(r.prog.dunes));
+    r.ver.dunes = 3; };
 })();

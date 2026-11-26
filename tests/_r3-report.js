@@ -4,6 +4,34 @@ const fs = require('fs'), path = require('path');
 const D = path.resolve(__dirname, '../shots/v460-R3'), T = n => fs.readFileSync(path.join(D, 'runs', n), 'utf8').trim();
 const md = `# v460 R3 — Rift 03 (The Mouth Beneath the Dunes): route, boss balance, performance (spec parts 6–8)
 
+## v462 R3b update (this supersedes the route and counts in §8 below)
+
+The user asked to "bring back the grub mounds, but instead of 30, have it at 20 only".
+* **Route (9 stages):** D1 The Buried Road → P1 The Sandstorm Flight → B1 Sarrukh → D2 The Rust Flats → P2 The Echo Chamber → B2 Oneira →
+  D3 The Moonlit Barrows → **P3 The Grub Mounds** → B3 Thul-Ammon → seal. Labels read Dungeon / Puzzle / Boss 1–3.
+* **The Grub Mounds' "30"** is \`GRUBS_NEED\` (20r), the grubs to shoot before the sand goes still. It is now 20. The intro banner, the goal
+  counter (n/20), the end banner ("Twenty grubs down") and the ready text read from it.
+* Nothing else in the puzzle changed. It has no time limit and no reward of its own. Its pace (a mound every 1.3 s less 0.025 s per grub,
+  a grub up 1.7 s less 0.02 s per grub, mantas from the 5th grub) runs on grubs shot, not on the target, so it simply ends sooner, before
+  the fastest part of the ramp.
+* **Saves:** layout version 3, and a new save starts at 3.
+  * A v461 save (version 2, eight stages) keeps its number. Stages 0–6 are the same stages; 7, which meant Thul-Ammon next, now means the
+    Grub Mounds, which is required again.
+  * A v458 save (twelve stages) goes straight to its nine-stage checkpoint: \`0,1,1,2,3,3,5,5,6,7,8,8\`. Old 9 (the Mounds next) → 7;
+    old 10 (the Mounds solved, the Throat of Sand retired) → Thul-Ammon (8).
+  * The move runs once and grants no reward.
+* **Files:** \`20r-rift-03-dunes.js\` (\`GRUBS_NEED\`, the section 3 pattern, the migration), \`04-state.js\` (new save \`ver.dunes: 3\`).
+  Hunks tagged \`v462 R3b\`.
+* **Tests** (test-r3.html):
+  * \`_r3-route.js\` **77/77**. It plays the Grub Mounds by the hook: 13 mounds, not done at 19, done at exactly 20, banners say 20 and
+    "Twenty grubs down". It also covers the 9-stage run, the labels, every v458 and every v461 checkpoint, and the bosses still ×3.
+  * \`_dt-puzzles\` 4/4, \`_dt-counts\` 16/16, \`_dt-traps\` 49/49, \`_de-break\` 35/35, \`_de-smoke\` 20/20.
+  * \`_da-fight\` GL=0 all ok, \`_db-fight\` thulammon QUICK=1 all ok.
+  * \`rift-dunes.js\`: all 26 route, puzzle, boss and seal checks pass, including the Mounds at 20; it stops in the stale Amber Vigil part
+    as before. Its first run under load failed 3 real-time checks (the flight's drift, the Echo Chamber's first notes); they passed on the
+    re-run.
+  * loadchk \`[] true\`.
+
 Worker R3. Every production hunk is tagged \`v460 R3\`. Nothing committed, pushed or published. **No device test ran**: every number
 below comes from headless Chromium with SwiftShader (a software GPU) on a shared 2-core box. Read the frame times as relative only.
 They do not show what an iPhone or the 2019 iMac would get.

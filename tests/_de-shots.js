@@ -6,6 +6,7 @@ const SCENES = [
   ['glide', 1, 'glide'],   // v460 R3: the eight-stage route (the Grub Mounds retired)
   ['echo', 4, 'echo'], ['flats-mesa', 3, ['mesarock']], ['flats-crystal', 3, ['pinkcrystal']], ['flats-wide', 3, null],
   ['night-rock', 6, ['nightrock']], ['night-skull', 6, ['skullpile', 'deadshrub']], ['night-wide', 6, null],
+  ['mounds', 7, 'mounds'],   // v462 R3b
 ];
 (async () => {
   const tag = process.env.TAG || 'after', only = process.env.ONLY ? process.env.ONLY.split(',') : null;

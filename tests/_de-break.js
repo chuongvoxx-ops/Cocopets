@@ -33,7 +33,8 @@ const KIND_BIO = { dunerock: 'dunes', bones: 'dunes', ribarch: 'dunes', jawtooth
       const rel = await M(() => window.DUNE_PROPS.stats);
       ok(`${bio}: closing the stage frees every picture and texture`, rel.cached === 0 && rel.textures === 0, JSON.stringify({ cached: rel.cached, textures: rel.textures }));
     }
-    for (const i of [1, 4, 2, 5, 7]) {   // v460 R3: the two puzzles and the three bosses
+    for (const i of [1, 4, 7, 2, 5, 8]) {   // v462 R3b: three puzzles (the Grub Mounds back), three bosses
+        // v460 R3: the two puzzles and the three bosses
       await P.stage(i); await P.run(0.5, 30);
       const q = await M(() => { const D = window.__pp.arc.game._dbg; return { props: D.propList.length }; });
       ok(`stage ${i}: nothing breakable that gates progress (no props)`, q.props === 0, JSON.stringify(q)); await M(() => window.__pp.closeArcade(true)); await P.page.waitForTimeout(300); }
