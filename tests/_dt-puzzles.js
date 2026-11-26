@@ -3,7 +3,8 @@
 // HTML=test-dt.html node tests/_dt-puzzles.js
 const L = require('./_dt-lib.js'); const { results, ok } = L.reporter();
 (async () => { const { browser, page, errors } = await L.open();
-  for (const i of [2, 4, 9, 3]) { await L.stage(page, i); await page.waitForTimeout(7000);
+  for (const i of [1, 4, 2]) {   // v460 R3: the Sandstorm Flight, the Echo Chamber, Sarrukh (the Grub Mounds retired)
+    await L.stage(page, i); await page.waitForTimeout(7000);
     const r = await page.evaluate(() => { const XH = window.__XH, D = window.__pp.arc.game._dbg, F = XH && XH.self && XH.self.dtraps; const mod = XH && XH.self && XH.self.mod;
       return { k: XH ? XH.k : null, kind: window.__pp.RIFT_BY_ID.dunes.stages[D.F.rift.stage].kind, name: D.F.rift.name, traps: F ? F.traps.length : 0, live: self.DUNE_TRAPS.stats.live, mode: mod && mod.R ? mod.R.mode : null, goal: mod && mod.goal ? mod.goal() : null, sameObj: !!(mod && mod.R && (mod.stones || mod.mounds || mod.ribs)) }; });
     console.log(JSON.stringify(r));

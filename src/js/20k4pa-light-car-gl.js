@@ -153,6 +153,7 @@ const CAR_GL = (() => {
       for (let i = 0; i < 3; i++) { g.R0[i] = it.A[0][i]; g.R1[i] = it.A[1][i]; g.R2[i] = it.A[2][i]; g.T[i] = it.org[i]; }
       g.mesh = it.mesh; g.alpha = it.mesh === MESH.glass ? Math.min(0.99, it.al) : it.al; g.glow = cl(car.glow || 0); g.glow2 = it.glow2; g.spill = 0; g.kind = it.kind; g.wear = 0.3; g.fx = 0; g.outline = it.noOut || it.mesh === MESH.glass ? false : undefined; g.d = it.org[1] * VY + it.org[2] * VZ; L2.push(g); }
     L2.sort((p, q) => (p.alpha > 0.995 ? 0 : 1) - (q.alpha > 0.995 ? 0 : 1) || (p.alpha > 0.995 ? 0 : p.d - q.d));
+    Sv.keep = 'r3';   /* v460 R3: GLM keeps its canvas (this pass copies out 0, 0, W, H): no reallocation a frame beside a boss's pass */
     const t1 = nowMs(), cvs = GLM.render(W, H, Sv, L2); if (!cvs) return false;
     c.drawImage(cvs, 0, 0, W, H, bx0, by0, bw, bh); GLMS = GLMS * 0.9 + (nowMs() - t1) * 0.1; GLN++; LASTN = L2.length; const st0 = GLM.stats; LASTTRI = st0.tris; LASTCALLS = st0.calls;
     // the summon's ghost and the exit's glow: the picture again, added as light

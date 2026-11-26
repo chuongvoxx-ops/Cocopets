@@ -342,6 +342,7 @@ const JAWS_MODEL = (() => {
       g.mesh = mesh; for (let i = 0; i < 3; i++) { g.R0[i] = Rw.x[i] * s2; g.R1[i] = Rw.y[i] * s2; g.R2[i] = Rw.z[i] * s2; g.T[i] = T[i]; }
       const fl = flick(tF, n * 1.37); g.alpha = it.glass ? al * 0.86 : al; g.glow = cl((it.part === 'cannon' || it.part === 'head' ? Math.max(glowK, mouth) : glowK) * fl); g.kind = 0; g.wear = 0.6; g.fx = 0; g.glow2 = 0.32 * gK * fl * glowK; g.spill = glowK * fl; g.d = vdot(T, PD); items.push(g); }
     items.sort((p, q) => (p.alpha > 0.995 ? 0 : 1) - (q.alpha > 0.995 ? 0 : 1) || (p.alpha > 0.995 ? 0 : p.d - q.d));
+    S.keep = 'r3';   /* v460 R3: GLM keeps its canvas (this pass copies out 0, 0, W, H): no reallocation a frame beside a boss's pass */
     const t0 = nowMs(), cvs = GLM.render(W, H, S, items); if (!cvs) return;
     c.drawImage(cvs, 0, 0, W, H, bx0, by0, bw, bh); GLMS = GLMS * 0.9 + (nowMs() - t0) * 0.1; GLN++;
   }
@@ -448,6 +449,7 @@ const JAWS_MODEL = (() => {
     for (const q of L) { const g = PI0[n] || (PI0[n] = { R0: new Float32Array(3), R1: new Float32Array(3), R2: new Float32Array(3), T: new Float32Array(3) }); n++; const r = q.m.r;
       g.mesh = mesh; g.R0[0] = r; g.R0[1] = 0; g.R0[2] = 0; g.R1[0] = 0; g.R1[1] = r; g.R1[2] = 0; g.R2[0] = 0; g.R2[1] = 0; g.R2[2] = 1; g.T[0] = q.m.x - x0; g.T[1] = (q.m.y - y0) / GY; g.T[2] = 0;
       g.alpha = 0.99; g.glow = Math.min(1, q.clm + 0.6 * q.ref); g.glow2 = q.form; g.wear = q.wear; g.spill = q.m.seed; g.fx = 0; g.kind = 0; g.outline = false; PJ.push(g); }
+    S.keep = 'r3';   /* v460 R3 */
     const cvs = GLM.render(W, H, S, PJ); if (cvs) c.drawImage(cvs, 0, 0, W, H, bx0, by0, bw, bh);
   }
   function anchor(name) { if (!LAST) return null; const p = LAST.R.A[name]; if (!p) return null; return LAST.V.toW(p); }

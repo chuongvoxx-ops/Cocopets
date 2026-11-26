@@ -516,6 +516,7 @@ const GENBU_MODEL = (() => {
       g.mesh = mesh; for (let i = 0; i < 3; i++) { g.R0[i] = Rw.x[i] * s2; g.R1[i] = Rw.y[i] * s2; g.R2[i] = Rw.z[i] * s2; g.T[i] = T[i]; }
       g.alpha = al; g.glow = it.part === 'drill' || it.part === 'carriage' ? Math.max(gl0, cl(P.drillGlow || 0)) : gl0; g.kind = 0; g.wear = 0.8; g.fx = 0; g.glow2 = it.glow2 || 0; g.spill = 0; g.d = vdot(T, PD); items.push(g); }
     items.sort((p, q) => (p.alpha > 0.995 ? 0 : 1) - (q.alpha > 0.995 ? 0 : 1) || (p.alpha > 0.995 ? 0 : p.d - q.d));
+    S.keep = 'r3';   /* v460 R3: GLM keeps its canvas (this pass copies out 0, 0, W, H): no reallocation a frame beside a boss's pass */
     const t0 = nowMs(), cvs = GLM.render(W, H, S, items); if (!cvs) return;
     c.drawImage(cvs, 0, 0, W, H, bx0, by0, bw, bh); GLMS = GLMS * 0.9 + (nowMs() - t0) * 0.1; GLN++;
   }

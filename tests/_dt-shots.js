@@ -9,7 +9,7 @@ fs.mkdirSync(OUT, { recursive: true });
   const shots = [], note = {};
   const snap = async (name, cap, crop) => { await page.waitForTimeout(+(process.env.WAIT || 2500)); if (typeof crop === 'function') crop = await crop(); const f = path.join(OUT, `${TAG}-d${DPR}-${name}.png`); await page.screenshot({ path: f, clip: crop ? { x: Math.max(0, crop.x), y: Math.max(0, crop.y), width: crop.w, height: crop.h } : undefined }); shots.push(f); note[path.basename(f)] = cap; console.log('shot', path.basename(f)); };
   const settle = async () => { await page.evaluate(() => { const D = window.__pp.arc.game._dbg; D.mons.length = 0; if (D.g.reserve) D.g.reserve.length = 0; D.me.inv = 99; D.g.intro = 0; }); };
-  for (const st of (process.env.STAGES || '0,5,8').split(',').map(Number)) {
+  for (const st of (process.env.STAGES || '0,3,6').split(',').map(Number)) {
     await L.stage(page, st, 433000 + st); await settle(); await page.waitForTimeout(6000); await settle();
     const info = await page.evaluate(() => { const XH = window.__XH, F = XH.self.dtraps; return { name: XH.X.F.rift.name, n: F ? F.traps.length : 0, kinds: F ? [...new Set(F.traps.map(t => t.kind))] : [] }; });
     console.log('stage', st, JSON.stringify(info));

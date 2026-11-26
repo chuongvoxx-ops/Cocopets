@@ -313,6 +313,7 @@ const BEAST_GL = (() => {
       g.mesh = mesh; g.alpha = al; g.glow = glow; g.glow2 = chg; g.spill = 0; g.kind = kind; g.wear = 0.7; g.fx = 0; g.outline = undefined; g.d = Tt[1] * VY + Tt[2] * VZ; L2.push(g); }
     L2.sort((p, q) => (p.alpha > 0.995 ? 0 : 1) - (q.alpha > 0.995 ? 0 : 1) || (p.alpha > 0.995 ? 0 : p.d - q.d));
     LASTI = items; LASTR = R;
+    Sv.keep = 'r3';   /* v460 R3: GLM keeps its canvas (this pass copies out 0, 0, W, H): no reallocation a frame beside a boss's pass */
     const t1 = nowMs(), cvs = GLM.render(W, H, Sv, L2); if (!cvs) return false;
     c.drawImage(cvs, 0, 0, W, H, bx0, by0, bw, bh); GLMS = GLMS * 0.9 + (nowMs() - t1) * 0.1; GLN++; LASTN = L2.length; const st0 = GLM.stats; LASTTRI = st0.tris; LASTCALLS = st0.calls;
     // the bores glow when the batteries tilt, brace or fire (cyan halos at the muzzles turned toward the camera)

@@ -1249,6 +1249,7 @@ const SUSANO_MODEL = (() => {
       g.mesh = meshOf(it); if (!g.mesh) continue; for (let i = 0; i < 3; i++) { g.R0[i] = Rw.x[i] * s2; g.R1[i] = Rw.y[i] * s2; g.R2[i] = Rw.z[i] * s2; g.T[i] = T[i]; }
       g.alpha = al; g.glow = it.part === 'sword' ? chK : it.part === 'pod' ? thK : glowK; g.kind = KIND[it.part] || 0; g.wear = 1; g.d = vdot(T, PD); items.push(g); }
     items.sort((p, q) => (p.alpha > 0.995 ? 0 : 1) - (q.alpha > 0.995 ? 0 : 1) || (p.alpha > 0.995 ? 0 : p.d - q.d));
+    S.keep = 'r3';   /* v460 R3: GLM keeps its canvas (this pass copies out 0, 0, W, H): no reallocation a frame beside a boss's pass */
     const t0 = nowMs(), cvs = GLM.render(W, H, S, items); if (!cvs) return; const t1 = nowMs();
     c.drawImage(cvs, 0, 0, W, H, bx0, by0, bw, bh); const t2 = nowMs(); GLMS = GLMS * 0.9 + (t2 - t0) * 0.1; GLR = GLR * 0.9 + (t1 - t0) * 0.1; GLD = GLD * 0.9 + (t2 - t1) * 0.1; GLN++;
     BK.glBox = [W, H];

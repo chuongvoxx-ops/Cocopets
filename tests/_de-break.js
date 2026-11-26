@@ -3,7 +3,7 @@
 // break opens no route); the puzzles and boss arenas hold no props; a stage's close frees every picture and texture.
 // Shots: shots/v433-DE/break-<kind>-a/b.png. env: HTML (test-de.html), SHOTS=0 to skip shots, GPU=1 (the GPU painter forced)
 const { open } = require('./_de-lib.js');
-const BIO_STAGE = { dunes: 0, mesa: 5, nightdune: 8 };
+const BIO_STAGE = { dunes: 0, mesa: 3, nightdune: 6 };   // v460 R3: the eight-stage route
 const KIND_BIO = { dunerock: 'dunes', bones: 'dunes', ribarch: 'dunes', jawtooth: 'dunes', menhir: 'dunes', sanddrift: 'dunes', mesarock: 'mesa', pinkcrystal: 'mesa', crystalout: 'mesa', claypillar: 'mesa', relic: 'mesa', tumbleweed: 'mesa', nightrock: 'nightdune', gravestone: 'nightdune', bonecairn: 'nightdune', glowshroom: 'nightdune', deadtree: 'nightdune', deadshrub: 'nightdune', skullpile: 'nightdune' };
 (async () => {
   const P = await open({ gpu: process.env.GPU === '1' }), M = P.M, res = [], t0 = Date.now(), shots = process.env.SHOTS !== '0';
@@ -33,7 +33,8 @@ const KIND_BIO = { dunerock: 'dunes', bones: 'dunes', ribarch: 'dunes', jawtooth
       const rel = await M(() => window.DUNE_PROPS.stats);
       ok(`${bio}: closing the stage frees every picture and texture`, rel.cached === 0 && rel.textures === 0, JSON.stringify({ cached: rel.cached, textures: rel.textures }));
     }
-    for (const i of [2, 4, 9, 3]) { await P.stage(i); await P.run(0.5, 30);
+    for (const i of [1, 4, 2, 5, 7]) {   // v460 R3: the two puzzles and the three bosses
+      await P.stage(i); await P.run(0.5, 30);
       const q = await M(() => { const D = window.__pp.arc.game._dbg; return { props: D.propList.length }; });
       ok(`stage ${i}: nothing breakable that gates progress (no props)`, q.props === 0, JSON.stringify(q)); await M(() => window.__pp.closeArcade(true)); await P.page.waitForTimeout(300); }
   } catch (e) { ok('no exception', false, e.message); }

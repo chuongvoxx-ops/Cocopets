@@ -3,10 +3,9 @@
 const { open } = require('./_de-lib');
 const SCENES = [
   ['road-rock', 0, ['dunerock']], ['road-bones', 0, ['bones']], ['road-wide', 0, null],
-  ['glide', 2, 'glide'],
-  ['echo', 4, 'echo'], ['flats-mesa', 5, ['mesarock']], ['flats-crystal', 5, ['pinkcrystal']], ['flats-wide', 6, null],
-  ['night-rock', 8, ['nightrock']], ['night-skull', 8, ['skullpile', 'deadshrub']], ['night-wide', 10, null],
-  ['mounds', 9, 'mounds'],
+  ['glide', 1, 'glide'],   // v460 R3: the eight-stage route (the Grub Mounds retired)
+  ['echo', 4, 'echo'], ['flats-mesa', 3, ['mesarock']], ['flats-crystal', 3, ['pinkcrystal']], ['flats-wide', 3, null],
+  ['night-rock', 6, ['nightrock']], ['night-skull', 6, ['skullpile', 'deadshrub']], ['night-wide', 6, null],
 ];
 (async () => {
   const tag = process.env.TAG || 'after', only = process.env.ONLY ? process.env.ONLY.split(',') : null;

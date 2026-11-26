@@ -20,14 +20,14 @@ let fails = 0; const ok = (c, s) => { console.log((c ? 'ok   ' : 'FAIL ') + s); 
   await page.evaluate(o => { const P = window.__pp; P.quickStart('Bot'); P.st.dun.god = false; P.st.energy = 100; P.st.dlv = 40; P.st.unlockAll = true; P.st.dun.best = Math.max(P.st.dun.best || 0, 160);
     if (o.gl) { window.__SAR_GL = 1; window.__NG_GL = 1; } else { window.__SAR_GL = 0; window.__NG_GL = 0; window.__SAR_FX = 0; } }, { gl: glEnv });
   const PRE = `const P = window.__pp, U = P.arc.game, D = U && U._dbg, b = D && (D.g.boss || D.mons.find(q => q.boss)), FX = D && D.FD && D.FD.FX, M = FX && FX.mem, me = D && D.me, DEF = P.FIEND_DEFS.sarrukh, O = DEF && DEF.MODEL || null;
-    const top = () => { if (me && !me.dead) { me.hp = D.ST.hp; me.mp = 999; } };
+    const top = () => { if (me && !me.dead) { me.hp = Math.max(D.ST.hp, 5000); me.mp = 999; } };   /* v460 R3: a deep pool (Sarrukh's x3 blows, v460, can take more than a level-32 pet's whole health in one hit) */
     const adv = (secs, each) => { const n = Math.max(1, Math.round(secs / 0.05)); for (let i = 0; i < n; i++) { top(); if (each) each(i); U.update(0.05); } top(); };
     const frame = () => new Promise(r => requestAnimationFrame(() => r()));`;
   const ev = (body, arg) => page.evaluate(([body, arg]) => (new Function('arg', 'return (async () => {' + body + '})()'))(arg), [PRE + body, arg]);
   const shots = []; const shot = async (n, cap) => { if (!SH) return; const f = path.join(OUT, `${tag}-d${dpr}${glEnv ? '' : '-2d'}-${n}.png`); await page.screenshot({ path: f, timeout: 0 }); shots.push(`${f}=${n}${cap ? ': ' + cap : ''}`); };
   const draw = n => ev(`for (let i = 0; i < ${n || 1}; i++) await frame();`);
   // the stage: the Dunes' section whose boss is Sarrukh
-  await page.evaluate(() => { const P = window.__pp; P.openMap(); P.dun.setMapTab('rift', true); const R = P.RIFT_BY_ID.dunes, i = R.stages.findIndex(s => s.boss === 'sarrukh'); P.startRift('dunes', i); });
+  await page.evaluate(v458 => { const P = window.__pp; P.openMap(); P.dun.setMapTab('rift', true); const R = P.RIFT_BY_ID.dunes, i = R.stages.findIndex(s => s.boss === 'sarrukh'); if (v458) { R.bossHpK = 2; delete R.bossDmgK; } /* (v460 R3: V458=1 plays it at v458's boss numbers) */ P.startRift('dunes', i); }, process.env.V458 === '1');
   await page.waitForFunction(() => window.__pp.arc.state === 'ready', null, { timeout: 2400000 }); await page.evaluate(() => window.__pp.beginPlay()); await page.waitForFunction(() => window.__pp.arc.state === 'play', null, { timeout: 2400000 }); await page.evaluate(() => { window.__pp.arc.paused = true; });
   console.log('stage up', el());
   let r = await ev(`const bb = D.mons.find(q => q.boss) || D.M.bossAt; me.x = bb.x; me.y = bb.y + 5.2; adv(1.0); return { fd: !!D.FD, started: !!(D.FD && D.FD.S.started), gl: !!(O && O.on()), fx: !!(O && O.fx()), foeK: D.F.rift && D.F.rift.foeK, bossK: M && M.bossK };`);
@@ -58,7 +58,7 @@ let fails = 0; const ok = (c, s) => { console.log((c ? 'ok   ' : 'FAIL ') + s); 
   r = await ev(`const W = D.FD.S.weak.throat, hit = (q, d) => { const h0 = b.hp; D.FD.S.roarT = 0; D.hitMon(q, d, { flat: true }); return h0 - b.hp; };
     const K = M.bossK; const body2 = hit(b, 500), weak2 = W ? hit(W, 500) : null; M.bossK = 1; if (W) W.forward = 2.4; const body1 = hit(b, 500), weak1 = W ? hit(W, 500) : null; M.bossK = K; if (W) W.forward = 2.4 / K;
     return { K, body: [+body2.toFixed(1), +body1.toFixed(1)], weak: weak2 == null ? null : [+weak2.toFixed(1), +weak1.toFixed(1)], maxhp: Math.round(b.maxhp), barHP: Math.round(D.FD.barHP), bars: D.FD.S.bars };`);
-  console.log('  health', JSON.stringify(r)); if (tag !== 'before') { ok(r.K === 2 && Math.abs(r.body[1] / r.body[0] - 2) < 0.05, `its body takes a blow at 1/2: ${r.body[0]} (K ${r.K}) vs ${r.body[1]} (K 1): effective health x${(r.body[1] / r.body[0]).toFixed(2)}`); ok(r.weak && Math.abs(r.weak[1] / r.weak[0] - 2) < 0.05, `its heart too: ${r.weak && r.weak[0]} vs ${r.weak && r.weak[1]} (x${r.weak && (r.weak[1] / r.weak[0]).toFixed(2)})`); }
+  console.log('  health', JSON.stringify(r)); if (tag !== 'before') { ok(r.K === (+process.env.BOSSK || 6) && Math.abs(r.body[1] / r.body[0] - r.K) < 0.05, `its body takes a blow at 1/${r.K} (v460 R3: foeK.boss 6, three times v458's 2; BOSSK=2 for a v458 build): ${r.body[0]} (K ${r.K}) vs ${r.body[1]} (K 1): effective health x${(r.body[1] / r.body[0]).toFixed(2)}`); ok(r.weak && Math.abs(r.weak[1] / r.weak[0] - r.K) < 0.05, `its heart too: ${r.weak && r.weak[0]} vs ${r.weak && r.weak[1]} (x${r.weak && (r.weak[1] / r.weak[0]).toFixed(2)})`); }
   await draw(1); await shot('21-heart-hit', 'its bared heart struck');
   r = await ev(`adv(6.5); return { stun: +(b.stunT || 0).toFixed(2), mode: M.mode, bloom: +(M.bloom || 0).toFixed(2) };`); console.log('  after', JSON.stringify(r)); ok(!(r.stun > 0), 'it dives again');
   // its blows x foeK.dmg: a Sand Wake's (the engine's hurt, its own) and a spat grain's (a shot it fired: wornBy), with the rift's K and with 1
@@ -68,7 +68,7 @@ let fails = 0; const ok = (c, s) => { console.log((c ? 'ok   ' : 'FAIL ') + s); 
     res.wake = await meas('wake', () => { const W = M.wk; if (W) { me.x = W.x0 + Math.cos(W.a) * 3.5; me.y = W.y0 + Math.sin(W.a) * 3.5; } });
     res.spit = await meas('spit', () => { if (M.sp && M.sp.go && M.rise > 0.7) { const a = FX.angPet(b.x, b.y); me.x = b.x + Math.cos(a) * 3.2; me.y = b.y + Math.sin(a) * 3.2; } else { me.x = b.x + 0.4; me.y = b.y + 5.2; } });
     if (fk) fk.dmg = K0; P.st.dun.god = god; FX.S.tele.length = 0; b.act = 'hunt'; b.actT = 0; adv(0.5); res.dmg = Math.round(b.dmg); res.K = K0; return res;`);
-  console.log('  blows', JSON.stringify(r)); if (tag !== 'before') for (const k of ['wake', 'spit']) { const v = r[k]; ok(v && v[0] != null && v[1] != null && Math.abs(v[0] / v[1] - 2) < 0.08, `its ${k} blow x2: ${v && v[0]} (foeK.dmg ${r.K}) vs ${v && v[1]} (1)`); } }
+  console.log('  blows', JSON.stringify(r)); if (tag !== 'before') for (const k of ['wake', 'spit']) { const v = r[k]; ok(v && v[0] != null && v[1] != null && Math.abs(v[0] / v[1] - 2) < 0.08, `its ${k} blow x2 (the rift's foe blow; v460's x3 is in its m.dmg ${r.dmg}): ${v && v[0]} (foeK.dmg ${r.K}) vs ${v && v[1]} (1)`); } }
   // the second phase: the roar, two wakes, skitters
   r = await ev(`me.hp = D.ST.hp; b.stunT = 0; b.hp = b.maxhp * 0.45; let n = 0; while (D.FD.S.phase < 2 && n++ < 80) adv(0.05); adv(0.4); return { phase: D.FD.S.phase, lv: D.FD.S.lv, roar: +(M.roar || 0).toFixed(2) };`);
   await draw(1); await shot('30-phase', 'the second phase: it rears and roars'); console.log('  phase', JSON.stringify(r)); ok(r.phase >= 2, `the second phase (${r.phase})`);

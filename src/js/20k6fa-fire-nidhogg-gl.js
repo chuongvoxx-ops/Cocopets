@@ -268,7 +268,10 @@ const NIDHOGG_GL = (() => {
     return C;
   }
   /* a ring point of a chain at index j (or a sample S), angle ph (0 the top, + toward the right), radius factor f */
-  const ringPt = (p, up, rt, r, ph, f) => { const a = r * f * Math.cos(ph) / 1.05, b = r * f * Math.sin(ph); return [p[0] + up[0] * a + rt[0] * b, p[1] + up[1] * a + rt[1] * b, p[2] + up[2] * a + rt[2] * b]; };
+  /* v460 R3: written into one scratch triple (its four callers hand it straight to setV, which copies it): ~0.3 MB less garbage a frame
+     while the dragon flies (measured beside a Rift 03 boss); the same numbers. window.__R3_OFF = 1: a new array each call, as v459 */
+  const RP3 = [0, 0, 0];
+  const ringPt = (p, up, rt, r, ph, f) => { const a = r * f * Math.cos(ph) / 1.05, b = r * f * Math.sin(ph), o = typeof window !== 'undefined' && window.__R3_OFF === 1 ? [0, 0, 0] : RP3; o[0] = p[0] + up[0] * a + rt[0] * b; o[1] = p[1] + up[1] * a + rt[1] * b; o[2] = p[2] + up[2] * a + rt[2] * b; return o; };
   function sampleAt(C, s) { const n = C.n; if (s <= 0) return { p: C.p[0], t: C.t[0], rt: C.rt[0], up: C.up[0], r: C.r[0] }; if (s >= C.s[n - 1]) return { p: C.p[n - 1], t: C.t[n - 1], rt: C.rt[n - 1], up: C.up[n - 1], r: C.r[n - 1] };
     let lo = 0, hi = n - 1; while (hi - lo > 1) { const m = (lo + hi) >> 1; if (C.s[m] <= s) lo = m; else hi = m; } const u = (s - C.s[lo]) / ((C.s[hi] - C.s[lo]) || 1), L3 = (a, b) => [lerp(a[0], b[0], u), lerp(a[1], b[1], u), lerp(a[2], b[2], u)];
     return { p: L3(C.p[lo], C.p[hi]), t: vnrm(L3(C.t[lo], C.t[hi])), rt: vnrm(L3(C.rt[lo], C.rt[hi])), up: vnrm(L3(C.up[lo], C.up[hi])), r: lerp(C.r[lo], C.r[hi], u) }; }
@@ -392,6 +395,7 @@ const NIDHOGG_GL = (() => {
         for (let i = 0; i < 3; i++) { g.R0[i] = A0[i]; g.R1[i] = A1[i]; g.R2[i] = A2[i]; g.T[i] = Tt[i]; }
         g.mesh = mesh; g.alpha = F.al; g.glow = glow; g.glow2 = F.main ? tr : 0; g.spill = 0; g.kind = kind; g.wear = 0.7; g.fx = 0; g.outline = noOut || !F.main ? false : undefined; g.d = Tt[1] * VY + Tt[2] * VZ; items.push(g); } }
     items.sort((p, q) => (p.alpha > 0.995 ? 0 : 1) - (q.alpha > 0.995 ? 0 : 1) || (p.alpha > 0.995 ? 0 : p.d - q.d));
+    S.keep = 'r3';   /* v460 R3: GLM keeps its canvas (this pass copies out 0, 0, W, H): no reallocation a frame beside a boss's pass */
     const t1 = nowMs(), cvs = GLM.render(W, H, S, items); if (!cvs) return false;
     c.drawImage(cvs, 0, 0, W, H, bx0, by0, bw, bh); GLMS = GLMS * 0.9 + (nowMs() - t1) * 0.1; GLN++; LASTN = items.length;
     const st0 = GLM.stats; LASTTRI = st0.tris; LASTCALLS = st0.calls;

@@ -6,8 +6,9 @@
 // HTML=test-dt.html node tests/_dt-traps.js
 const L = require('./_dt-lib.js'); const { results, ok } = L.reporter();
 (async () => { const { browser, page, errors } = await L.open();
-  const LAND = { 0: ['sink', 'tooth', 'res'], 5: ['vent', 'shard', 'mirage'], 8: ['hands', 'quick', 'gas'] };
-  for (const st of [0, 5, 8]) { await L.stage(page, st);
+  const LAND = { 0: ['sink', 'tooth', 'res'], 3: ['vent', 'shard', 'mirage'], 6: ['hands', 'quick', 'gas'] };   // v460 R3: the eight-stage route
+  for (const st of [0, 3, 6]) {   // v460 R3: the three dungeons (the eight-stage route)
+    await L.stage(page, st);
     const r = await page.evaluate((kinds) => { const D = window.__pp.arc.game._dbg, XH = window.__XH, X = XH.X, F = XH.self.dtraps, DT = self.DUNE_TRAPS, me = D.me, g = D.g, out = {};
       D.mons.length = 0; if (g.reserve) g.reserve.length = 0; F.freeze = true; F.teach = false; g.intro = 0; window.__pp.st.dun.god = false;
       const fk = X.F.rift.foeK; out.foeK = fk ? fk.dmg : null;

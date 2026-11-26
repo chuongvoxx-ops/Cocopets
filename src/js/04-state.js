@@ -77,7 +77,7 @@ function newState(name, genome) {
     v: 4, hid: 'h' + t.toString(36), savedAt: t, lightsOff: false, gems: {}, coins: 300, pearls: 10, crystals: 0, fusionStones: 0, fuseRolls: 0, lastGiftDay: null, animas: { have: {}, eq: null, res: null, seen: {} },
     house: { rooms: [newRoom('living', 1), newRoom('shop', 2)], cur: 0, n: 2, name: '', paint: 'cream', roof: 'terracotta' }, inv: {}, themes: ['meadow'], pantry: {}, others: [],
     map: { stars: {}, best: {}, plays: 0, milestones: {} },
-    cards: {}, accs: [], dun: { best: 0, runs: 0, kills: 0, boxes: 0, pity: 0, god: false, tab: 'world', seen: {}, grades: {} }, rift: { seals: {}, prog: {}, gates: {}, rlyeh: 0, ver: { belfry: 4, garden: 2 }, bel: {} },   // v437 GR: (the Garden's nine-stage layout: 2)   // v394 B1: the Belfry's layout 4 (eight stages, three dungeons)   // (v391 B1: ver, a rift's stage-layout version (the Belfry rebuilt: 2); bel, the Belfry's small checkpoint numbers)
+    cards: {}, accs: [], dun: { best: 0, runs: 0, kills: 0, boxes: 0, pity: 0, god: false, tab: 'world', seen: {}, grades: {} }, rift: { seals: {}, prog: {}, gates: {}, rlyeh: 0, ver: { belfry: 4, garden: 2, dunes: 2 /* v460 R3: Rift 03's eight-stage route */ }, bel: {} },   // v437 GR: (the Garden's nine-stage layout: 2)   // v394 B1: the Belfry's layout 4 (eight stages, three dungeons)   // (v391 B1: ver, a rift's stage-layout version (the Belfry rebuilt: 2); bel, the Belfry's small checkpoint numbers)
     sound: true, retro: true, fast: false, fps: true, fpsV: 1 /* v438: the frame counter on for a new game too */, gq: 'auto', fpsD: false /* v439 SP: visual quality, the frame counter's details */, tips: {}, dev: false, unlockAll: false,
     skillsV: SKILLS_V,   // v391 K: a new game starts under the skills rules (no re-roll on its first load)
     welcome: 0, freeTen: 0, login: { m: '', n: 0, last: '', seen: '' },
@@ -237,6 +237,8 @@ function sanitize(o) {
   if (typeof BEL !== 'undefined' && BEL.migrate) try { BEL.migrate(s, o); } catch (e) {}
   // v437 GR: the Garden of Unborn Stars cut from twelve stages to nine: an old save's checkpoint moves to its new stage, once (20p: RIFT_BY_ID.garden.migrate)
   if (typeof RIFT_BY_ID !== 'undefined' && RIFT_BY_ID.garden && RIFT_BY_ID.garden.migrate) try { RIFT_BY_ID.garden.migrate(s, o); } catch (e) {}
+  // v460 R3: the Mouth Beneath the Dunes cut from twelve stages to eight: an old save's checkpoint moves to its new stage, once (20r: RIFT_BY_ID.dunes.migrate)
+  if (typeof RIFT_BY_ID !== 'undefined' && RIFT_BY_ID.dunes && RIFT_BY_ID.dunes.migrate) try { RIFT_BY_ID.dunes.migrate(s, o); } catch (e) {}
   if (o.v === 4 && Array.isArray(o.others)) s.others = o.others.slice(0, MAX_PETS - 1).map(p => sanitizePet(p, 4)).filter(Boolean);
   const seen = new Set([s.uid]);
   s.others.forEach(p => { if (seen.has(p.uid)) p.uid = petUid(); seen.add(p.uid); });

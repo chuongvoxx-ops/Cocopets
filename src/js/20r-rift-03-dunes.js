@@ -2,7 +2,9 @@
    A desert swallowed by the fossilised jaw of something impossibly large. Six stages: the Buried Road (resonators
    reveal the buried stepping stones), Khess the Jawless, the Fossil Lock (rotate three ribs so a crossbar slides
    through their notches), Orryx the Listening Shell, the Burrow Hunt (secure three pylons while the sand hunts you),
-   Ultharak the Sand Kraken, then the sealing. Original creatures: a burrowing cosmic brood and a sand kraken. */
+   Ultharak the Sand Kraken, then the sealing. Original creatures: a burrowing cosmic brood and a sand kraken.
+   v460 R3: now eight stages: the Buried Road, the Sandstorm Flight, Sarrukh | the Rust Flats, the Echo Chamber, Oneira |
+   the Moonlit Barrows, Thul-Ammon (who seals it); see the rift's stages below. */
 (() => {
   const TAU = Math.PI * 2;
   /* ---- the land: ochre dunes, black basalt, bleached bone, cyan resonance ---- */
@@ -283,13 +285,46 @@
   defRift({
     ease: 0.6,   // (forty percent gentler than first built: health and blows of everything here)
     monHpK: 2, miniHpK: 2, bossHpK: 2, foeDmgK: 2,   // v433 DD (the user 2026-11-20): every foe here twice the health and twice the blow, on top of the numbers above (riftDef: F.rift.foeK; the bosses read foeK.boss)
+    /* v460 R3 (the user: "Triple Rift 3 boss HP and damage"): the three main bosses (Sarrukh, Oneira, Thul-Ammon) at three times
+       v458's health and blows, once: bossHpK 2 -> 6 (their effective health, every phase: each blow on them and on their weak
+       points counts 1 / foeK.boss, so the phase cuts, fractions of the bar, fall where they did) and bossDmgK 3 (riftDef: their
+       fiend's dmgK, the base of every attack they own: m.dmg and each tell, sweep, shot, pool and eruption made from it; a fresh
+       copy at each start, so a retry, a reload or a phase never lays it twice). The brood they call (minions), the mini bosses,
+       the monsters and the traps keep their numbers (monHpK, miniHpK, foeDmgK unchanged) */
+    bossHpK: 6, bossDmgK: 3,
     id: 'dunes', n: 3, name: 'The Mouth Beneath the Dunes', lvl: 30, sigil: 'Echo', biome: 'dunes', aff: ['earth', 'wind'], region: 'the desert',
-    blurb: 'A desert swallowed by a fossil jaw. Glide its storms, answer its echoes, still its sands.', gate: { anima: 'scorpio', name: 'The Amber Vigil' },
+    blurb: 'A desert swallowed by a fossil jaw. Glide its storms, answer its echoes, wake what sleeps under the sand.' /* v460 R3: (the Grub Mounds retired) */, gate: { anima: 'scorpio', name: 'The Amber Vigil' },
     mons: ['skitter', 'grub', 'manta'], sealing: SEALING,
+    /* v460 R3 (the user: "Dungeon 1 > Puzzle 1 > Boss 1 > Dungeon 2 > Puzzle 2 > Boss 2 > Dungeon 3 > Boss 3 > Completion ...
+       the current route appears to repeat Dungeon 1 and Dungeon 3"): v458 played twelve stages, two dungeons to every section
+       (the Buried Road, the Tooth Courts | the Rust Flats, the Crystal Scar | the Moonlit Barrows, the Throat of Sand: each pair
+       the same land, brood, mini boss and kind of rolled floor, back to back) and three puzzles. Now eight: each section's first
+       dungeon (its land, brood, mini boss, traps and one random mod as before), the Sandstorm Flight and the Echo Chamber after
+       the first two, the three bosses. The retired stages are kept by name only (retired: read by nothing; the Grub Mounds'
+       module stays defined, unplayed). runLabels: the labels count the dungeons and puzzles through the run (Dungeon 1..3,
+       Puzzle 1..2; riftStageLabel, 20m); the sections, the bosses' floors and the traps' density are as before */
+    runLabels: true,
     stages: riftSections([
-      { pattern: ['fight', 'fight', 'puzzle', 'boss'], mods: ['random', 'random'], fights: ['The Buried Road', 'The Tooth Courts'], minis: ['sandpet'], puzzles: [GLIDE], boss: 'sarrukh', bossName: 'Sarrukh the Bloom Serpent', bossRoom: 'The Gullet' },
-      { biome: 'mesa', pattern: ['puzzle', 'fight', 'fight', 'boss'], mods: ['random', 'random'], fights: ['The Rust Flats', 'The Crystal Scar'], minis: ['echopet'], puzzles: [ECHO], boss: 'oneira', bossName: 'Oneira the Listening Shell', bossRoom: 'The Whorl' },
-      { biome: 'nightdune', mobs: ['skelwar', 'skelarcher', 'skelwar', 'skitter'], pattern: ['fight', 'puzzle', 'fight', 'boss'], mods: ['random', 'random'], fights: ['The Moonlit Barrows', 'The Throat of Sand'], minis: ['jawpet'], puzzles: [MOUNDS], boss: 'thulammon', bossName: 'Thul-Ammon the Sand Kraken', bossRoom: 'The Pit Beneath the Jaw' },
+      { pattern: ['fight', 'puzzle', 'boss'], mods: ['random'], fights: ['The Buried Road'], retired: ['The Tooth Courts'], minis: ['sandpet'], puzzles: [GLIDE], boss: 'sarrukh', bossName: 'Sarrukh the Bloom Serpent', bossRoom: 'The Gullet' },
+      { biome: 'mesa', pattern: ['fight', 'puzzle', 'boss'], mods: ['random'], fights: ['The Rust Flats'], retired: ['The Crystal Scar'], minis: ['echopet'], puzzles: [ECHO], boss: 'oneira', bossName: 'Oneira the Listening Shell', bossRoom: 'The Whorl' },
+      { biome: 'nightdune', mobs: ['skelwar', 'skelarcher', 'skelwar', 'skitter'], pattern: ['fight', 'boss'], mods: ['random'], fights: ['The Moonlit Barrows'], retired: ['The Throat of Sand', MOUNDS.name], minis: ['jawpet'], puzzles: [], boss: 'thulammon', bossName: 'Thul-Ammon the Sand Kraken', bossRoom: 'The Pit Beneath the Jaw' },
     ]),
   });
+
+  /* v460 R3: a save from the twelve-stage route. st.rift.prog.dunes is the next stage to play; the old twelve were
+       0 Buried Road  1 Tooth Courts  2 GLIDE  3 Sarrukh | 4 ECHO  5 Rust Flats  6 Crystal Scar  7 Oneira |
+       8 Moonlit Barrows  9 MOUNDS  10 Throat of Sand  11 Thul-Ammon
+     and the eight are 0 Buried Road 1 GLIDE 2 Sarrukh | 3 Rust Flats 4 ECHO 5 Oneira | 6 Moonlit Barrows 7 Thul-Ammon.
+     Each old checkpoint goes to the new stage that keeps what was done and skips nothing required: a retired stage next moves
+     on to what follows it (1 -> GLIDE, 9 and 10 -> Thul-Ammon, the Barrows cleared); in section 2, where the dungeon now comes
+     before the puzzle, a run that had solved the Echo Chamber but not cleared the Rust Flats (5), or not begun (4), plays the
+     Rust Flats first (3), never Oneira early; one that had cleared both (6) goes on to Oneira (5). Once, on the load
+     (04-state's sanitize), keyed by st.rift.ver.dunes (2 from now on; a new save starts at 2); a seal, the gate and the Anima
+     are untouched, and the stage rewards are only ever those of a stage played (no reward is granted by the move) */
+  const DUNES_MIG12 = [0, 1, 1, 2, 3, 3, 5, 5, 6, 7, 7, 7], Rf3 = RIFT_BY_ID.dunes;
+  Rf3.VER = 2; Rf3.mapOld = p => DUNES_MIG12[Math.max(0, Math.min(11, p | 0))];
+  Rf3.migrate = (s, o) => { const r = s && s.rift; if (!r) return; if (!r.ver || typeof r.ver !== 'object') r.ver = {};
+    const was = o && o.rift && o.rift.ver && +o.rift.ver.dunes || 0; if (was >= 2) { r.ver.dunes = 2; return; }
+    if (r.prog && r.prog.dunes != null) r.prog.dunes = Math.min(Rf3.stages.length - 1, Rf3.mapOld(r.prog.dunes));
+    r.ver.dunes = 2; };
 })();

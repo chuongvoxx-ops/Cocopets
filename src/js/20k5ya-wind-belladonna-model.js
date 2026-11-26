@@ -285,6 +285,7 @@ const BELLADONNA_MODEL = (() => {
       setTube(mesh, cvs2, nu, nv, rad, sc2, PD); const g = GLI[n] || (GLI[n] = { R0: new Float32Array(3), R1: new Float32Array(3), R2: new Float32Array(3), T: new Float32Array(3) }); n++;
       g.mesh = mesh; g.R0.set(ID3[0]); g.R1.set(ID3[1]); g.R2.set(ID3[2]); g.T.set(ID3[3]); g.alpha = al0 * a2; g.glow = pg; g.kind = 0; g.wear = 0; g.fx = 0; g.glow2 = 0; g.spill = 0; g.d = key === 'tentG' ? -9 : 9; items.push(g); }
     items.sort((p, q) => (p.alpha > 0.995 ? 0 : 1) - (q.alpha > 0.995 ? 0 : 1) || (p.alpha > 0.995 ? 0 : p.d - q.d));
+    S.keep = 'r3';   /* v460 R3: GLM keeps its canvas (this pass copies out 0, 0, W, H): no reallocation a frame beside a boss's pass */
     const t0 = nowMs(), cvs = GLM.render(W, H, S, items); if (!cvs) return;
     c.drawImage(cvs, 0, 0, W, H, bx0, by0, bw, bh); GLMS = GLMS * 0.9 + (nowMs() - t0) * 0.1; GLN++;
   }

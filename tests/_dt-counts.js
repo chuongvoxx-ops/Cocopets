@@ -5,7 +5,7 @@
 const L = require('./_dt-lib.js'); const { results, ok } = L.reporter();
 (async () => { const { browser, page, errors } = await L.open();
   const rows = [];
-  for (const i of (process.env.STAGES || '0,1,4,5,6,8,9,10').split(',').map(Number)) {
+  for (const i of (process.env.STAGES || '0,4,3,6')   /* v460 R3: the three dungeons and the Echo Chamber (the eight-stage route) */.split(',').map(Number)) {
     await page.evaluate(() => { window.__DT = 1; }); await L.stage(page, i);
     const r = await page.evaluate(() => { const D = window.__pp.arc.game._dbg, M = D.M, XH = window.__XH, DT = self.DUNE_TRAPS, F = XH.self.dtraps || null;
       const T = F ? F.traps : [], kinds = {}; for (const t of T) { const k = t.kind + (t.bridge ? '@br' : ''); kinds[k] = (kinds[k] || 0) + 1; }
@@ -23,7 +23,7 @@ const L = require('./_dt-lib.js'); const { results, ok } = L.reporter();
       return { stage: XH.k, name: XH.X.F.rift.name, biome: XH.X.F.biome, puz: !!puz, sec: F ? F.info.sec : null, spouts: (M.hazards || []).length, tower: (M.traps || []).length, dune: T.length, diag: F ? F.diag : null, kinds, bad, gapBad, nearSpout: +near.toFixed(2), pieces: +pieces.toFixed(2), same, bySec, live: DT.stats.live }; });
     rows.push(r); console.log(JSON.stringify(r)); }
   // window.__DT = 0: the floors as before (none added)
-  await page.evaluate(() => { window.__DT = 0; }); await L.stage(page, 5);
+  await page.evaluate(() => { window.__DT = 0; }); await L.stage(page, 3);
   const offR = await page.evaluate(() => { const XH = window.__XH; return { dune: XH.self.dtraps ? XH.self.dtraps.traps.length : 0 }; });
   await page.evaluate(() => { window.__DT = 1; });
   console.log('\nstage                            before  after   (sand spouts + Tower traps -> + dune traps, one layout)');
@@ -37,7 +37,7 @@ const L = require('./_dt-lib.js'); const { results, ok } = L.reporter();
   ok('window.__DT = 0: no dune traps (the floor as before)', offR.dune === 0, offR);
   const fr = rows.filter(r => !r.puz);
   ok('density rises section by section (on the same layout, every fight stage: S1 < S2, S1 < S3, S3 >= S2 - 1 where the islands run out of room)', fr.every(r => r.bySec[0] < r.bySec[1] && r.bySec[0] < r.bySec[2] && r.bySec[2] >= r.bySec[1] - 1), fr.map(r => r.bySec));
-  ok('every land shows all three of its kinds in its two dungeons', [1, 2, 3].every(s => LAND[s].every(k => fr.filter(r => r.sec === s).some(r => Object.keys(r.kinds).some(q => q.startsWith(k))))), {});
+  ok('every land shows all three of its kinds in its dungeon', [1, 2, 3].every(s => LAND[s].every(k => fr.filter(r => r.sec === s).some(r => Object.keys(r.kinds).some(q => q.startsWith(k))))), {});
   console.log(`\n${results.filter(Boolean).length}/${results.length} passed · page errors: ${errors.length}`); if (errors.length) console.log(errors.slice(0, 6).join('\n'));
   await browser.close(); process.exit(errors.length || results.some(r => !r) ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(2); });

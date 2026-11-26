@@ -2350,6 +2350,7 @@ void main() {
   /* render a frame: W x H pixels; S = { px, py, pd (projection rows), cl ([ax, bx, ay, by]), v, lk, ls, lr, up, low };
      items: [{ mesh, R0, R1, R2, T (part -> world), alpha, glow, kind, wear }] (opaque ones first). Returns the canvas. */
   let calls = 0, tris = 0, LX = null; const RIM0 = [0.8, 0.55, 1.45], AMB0 = [1, 1, 1];   // (the defaults: Susano O's violet rim)
+  const KEPT = new Int32Array(16); let KI = 0;   /* v460 R3: the sizes (W, H) of the last 8 kept passes, for the canvas's envelope (render) */
   const OUTC = [0.012, 0.03, 0.1];
   function render(W, H, S, items) {
     if (!ok()) return null;
@@ -2358,7 +2359,16 @@ void main() {
        reallocates the drawing buffer and its depth buffer every frame: the canvas is kept while it holds W x H and is not much
        larger (sizes rounded up to 32 px when it must change), and the picture is drawn into its top-left W x H, which is what
        every caller copies out (source rectangle 0, 0, W, H). window.__PO_OFF = 1: resized to W x H every time, as v433 */
-    let VY = 0; const keep = S.keep && !(typeof window !== 'undefined' && window.__PO_OFF === 1);
+    /* v460 R3: S.keep 'r3' (the six-star summons' model passes, which all copy out 0, 0, W, H): kept as keep 1. And while kept
+       passes of different sizes take turns (a Rift 03 boss's pass and a summon's in the same frame: measured 2 reallocations of the
+       canvas and its depth buffer a frame, 0 without the summon) the canvas is sized to the envelope of the last 8 kept passes
+       (the widest, the tallest) and shrunk only when it holds 1.35x more than that envelope (4x / 1.5 Mpx for keep 2), instead of
+       to each pass in turn. window.__R3_OFF = 1: as v459 (keep 'r3' then not kept, the canvas sized to each pass) */
+    const R3 = !(typeof window !== 'undefined' && window.__R3_OFF === 1), K0 = S.keep === 'r3' ? (R3 ? 1 : 0) : S.keep;
+    let VY = 0; const keep = K0 && !(typeof window !== 'undefined' && window.__PO_OFF === 1);
+    if (keep && R3) { KEPT[KI] = W; KEPT[KI + 1] = H; KI = (KI + 2) % KEPT.length; let eW = W, eH = H; for (let i = 0; i < KEPT.length; i += 2) { if (KEPT[i] > eW) eW = KEPT[i]; if (KEPT[i + 1] > eH) eH = KEPT[i + 1]; }
+      if (cv.width < W || cv.height < H || cv.width * cv.height > (K0 === 2 ? Math.max(eW * eH * 4, 1.5e6) : eW * eH * 1.35)) { cv.width = Math.ceil(eW / 32) * 32; cv.height = Math.ceil(eH / 32) * 32; } VY = cv.height - H; }
+    else
     /* (v446 AL) S.keep === 2: passes of different sizes taking turns in one frame (a body's pass, then its effect meshes') keep the canvas
        at the larger one instead of trading it back and forth (shrunk only when it holds more than 4x the pass and 1.5 Mpx) */
     if (keep) { if (cv.width < W || cv.height < H || (S.keep === 2 ? cv.width * cv.height > Math.max(W * H * 4, 1.5e6) : cv.width * cv.height > W * H * 1.35)) { cv.width = Math.ceil(Math.max(W, S.keep === 2 ? Math.min(cv.width, W * 2) : 0) / 32) * 32; cv.height = Math.ceil(Math.max(H, S.keep === 2 ? Math.min(cv.height, H * 2) : 0) / 32) * 32; } VY = cv.height - H; }

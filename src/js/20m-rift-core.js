@@ -21,7 +21,11 @@ function defGate(id, g) { RIFT_GATES[id] = g; }
 const RIFT_SECTIONS = [['fight', 'puzzle', 'fight', 'puzzle', 'boss'], ['fight', 'puzzle', 'fight', 'puzzle', 'boss'], ['fight', 'puzzle', 'fight', 'boss']];
 /* where stage i sits: { sec (1-based), n (its number among its kind in the section, 1-based) } */
 function riftStagePos(Rf, i) { let sec = 1, fights = 0, puzzles = 0; for (let k = 0; k <= i; k++) { const S = Rf.stages[k]; const dun = S.kind === 'fight' || (S.trial && !Rf.trialPuzzle); if (k === i) return { sec, n: S.kind === 'boss' ? sec : dun ? fights + 1 : puzzles + 1 }; if (S.kind === 'boss') { sec++; fights = 0; puzzles = 0; } else if (dun) fights++; else puzzles++; } return { sec, n: 1 }; }
-function riftStageLabel(Rf, i) { const S = Rf.stages[i], P = riftStagePos(Rf, i); return `Section ${P.sec} · ${S.kind === 'boss' ? 'Boss' : S.kind === 'fight' || (S.trial && !Rf.trialPuzzle) ? 'Dungeon' : 'Puzzle'} ${P.n}`; }
+function riftStageLabel(Rf, i) { const S = Rf.stages[i], P = riftStagePos(Rf, i);
+  /* v460 R3: Rf.runLabels: the dungeons and puzzles numbered through the whole run (Rift 03: Dungeon 1..3, Puzzle 1..2), not
+     within their section; the bosses keep their section's number. riftStagePos (the traps' density, the bosses' floors) is unchanged */
+  let n = P.n; if (Rf.runLabels && S.kind !== 'boss') { const dun = s => s.kind === 'fight' || (s.trial && !Rf.trialPuzzle), d0 = dun(S); n = 0; for (let k = 0; k <= i; k++) { const s = Rf.stages[k]; if (s.kind !== 'boss' && dun(s) === d0) n++; } }
+  return `Section ${P.sec} · ${S.kind === 'boss' ? 'Boss' : S.kind === 'fight' || (S.trial && !Rf.trialPuzzle) ? 'Dungeon' : 'Puzzle'} ${n}`; }
 /* riftSections(sections): sections = [{ fights: [name, name], minis: [bossId, ...], puzzles: [P, P], boss: fiendId, bossName, bossRoom, mobs, miniHp }]
    -> the fourteen stage entries. Section 3's two dungeons carry a rolled boon on the monsters and a rolled curse on the
    party (mod: 'boon' | 'curse', played by the Tower's floor rules) */
@@ -67,7 +71,8 @@ function riftDef(id, stage) {
      applied once: health by DunRift's foeStamp (below), the bosses by their own files, blows by hurtPet (20b) */
   if (Rf.monHpK || Rf.miniHpK || Rf.bossHpK || Rf.foeDmgK) F.rift.foeK = { mon: Rf.monHpK || 1, mini: Rf.miniHpK || 1, boss: Rf.bossHpK || 1, dmg: Rf.foeDmgK || 1 };
   if (S.kind === 'fight') { const mobs = S.mobs || Rf.mons || []; Object.assign(F, { types: mobs.concat(mobs, F.types.filter(t => !mobs.includes(t) && !MON[t].still).slice(-3)), rooms: 7, pack: Math.max(F.pack, 10), packsPer: 3, maxMons: Math.max(F.maxMons, 90), elite: Rf.ease ? Math.min(F.elite, 0.3) : Math.max(F.elite, 0.45), nests: 0, gremlin: 0.3, shrines: 1, events: true }); if (S.mod === 'boon') F.band = 'rboon'; else if (S.mod === 'curse') F.band = 'rcurse'; else if (S.mod === 'random') F.band = 'rrand'; }
-  else if (S.kind === 'boss') { const fd = riftFiend(S.boss, n); F.fiend = fd; F.boss = false; F.bossName = fd ? fd.name : S.goal; F.name = fd ? fd.name : Rf.name; F.events = false; F.dark = 0; }
+  else if (S.kind === 'boss') { const fd = riftFiend(S.boss, n); if (fd && Rf.bossDmgK > 0) fd.dmgK = (fd.dmgK || 1) * Rf.bossDmgK;   /* v460 R3: a rift's main bosses' own blows (Rift 03: x3): their fiend's dmgK, the base of every attack the fiend owns (its m.dmg, 20h); fd is a fresh copy each riftDef, so laid once per start */
+    F.fiend = fd; F.boss = false; F.bossName = fd ? fd.name : S.goal; F.name = fd ? fd.name : Rf.name; F.events = false; F.dark = 0; }
   else { Object.assign(F, { rooms: 1, pack: 0, packsPer: 0, maxMons: 60, types: [], nests: 0, elite: 0, gremlin: 0, shrines: 0, hazards: false, traps: 0, stones: 0 }); }
   if (S.kind === 'fight' && Rf.monCount) { F.pack = Math.max(4, Math.round(F.pack * Rf.monCount)); F.maxMons = Math.round(F.maxMons * Rf.monCount); }   // (a rift's fight floors thinned: fewer to a pack, fewer in all)   // (kept OUT of the if/else chain above: inside it, every rift without monCount fell to the empty-floor branch)
   return F;
