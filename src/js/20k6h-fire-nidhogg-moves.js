@@ -1474,14 +1474,14 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
       float fl = floor(v_q.y / 4.0 + 0.001), duu = v_q.y - fl * 4.0, uu = v_q.x + (u.x + 1.0) * 0.5 * duu, tip = 1.0 - smoothstep(0.75, 1.0, abs(uu)), fin = v_c.r;
       float ends = (mod(fl, 2.0) > 0.5 ? smoothstep(-1.0, -0.3, u.x) : 1.0) * (fl > 1.5 ? smoothstep(1.0, 0.3, u.x) : 1.0);
       if (v_k < 368.5) { // 368 its standing body (the quad stands on the stretch, leaning ahead: uv.y 1 the floor .. -1 its top): a translucent jade sheet rising to the lip, densest just under it
-        float y = (1.0 - u.y) * 0.5, pr = 0.85 * pow(max(0.0, 1.0 - uu * uu), 0.6) * (0.9 + 0.1 * n2(vec2(uu * 6.0 + v_q.z * 0.7, v_q.z * 0.3)));
-        float a = smoothstep(pr + 0.01, pr - 0.05, y) * smoothstep(0.0, 0.3, y) * (0.07 + 0.3 * smoothstep(0.15, pr, y)) * (1.0 + 0.3 * fin) * tip * ends;
+        float y = (1.0 - u.y) * 0.5, pr = 0.8 * pow(max(0.0, 1.0 - uu * uu), 0.6) * (0.9 + 0.1 * n2(vec2(uu * 6.0 + v_q.z * 0.7, v_q.z * 0.3))), lay = v_c.g;   // (v456 GE3: the crest at 0.8 (a bloom above it); v_c.g the sheet: the far ones thinner)
+        float a = smoothstep(pr + 0.01, pr - 0.05, y) * smoothstep(0.0, 0.3, y) * (0.06 + 0.26 * smoothstep(0.15, pr, y)) * (1.0 + 0.3 * fin) * tip * ends * (lay < 0.25 ? 1.0 : fin > 0.5 && lay < 0.75 ? 0.7 : lay < 0.75 ? 0.45 : 0.28);
         vec3 c = mix(vec3(0.02, 0.2, 0.15), vec3(0.06, 0.42, 0.32), smoothstep(0.2, pr, y));
-        float ub = exp(-sq((y - pr + 0.075 + 0.03 * fin) / (0.035 + 0.01 * fin))) * step(y, pr) * tip * ends; c = mix(c, vec3(0.0, 0.07, 0.05), ub * 0.6); a = max(a, ub * (0.32 + 0.1 * fin));   // (v455 GE2: the shade under the thick rim: the rim reads as a rolled edge)
+        float ub = exp(-sq((y - pr + 0.075 + 0.03 * fin) / (0.035 + 0.01 * fin))) * step(y, pr) * tip * ends * (lay < 0.25 ? 1.0 : 0.4) /* v456 GE3 */; c = mix(c, vec3(0.0, 0.07, 0.05), ub * 0.6); a = max(a, ub * (0.32 + 0.1 * fin));   // (v455 GE2: the shade under the thick rim: the rim reads as a rolled edge)
         A = vec4(c * a, a); }
       else { // 371 the shade on the floor under its trail (uv.y -1 a little ahead of the front .. 1 the trail's end): soft and low, so the wave reads on a pale floor
         float bk = ((u.y + 1.0) * 0.5 - 0.12) / 0.88, a = smoothstep(-0.06, 0.03, bk) * pow(max(0.0, 1.0 - bk), 2.0) * 0.3 * (1.0 + 0.4 * fin) * tip * ends;
-        float du = n2(vec2(uu * 7.0 + v_q.z * 0.6, bk * 4.0 - v_q.z * 1.4)) * 0.6 + n2(vec2(uu * 17.0 - v_q.z, bk * 9.0 - v_q.z * 2.3)) * 0.4, ad = smoothstep(0.42, 0.78, du) * exp(-max(bk, 0.0) / (0.22 + 0.08 * fin)) * smoothstep(-0.04, 0.06, bk) * (0.42 + 0.18 * fin) * tip * ends;   // (v455 GE2: the moving dust crescent rolled up just behind the front)
+        float du = n2(vec2(uu * 7.0 + v_q.z * 0.6, bk * 4.0 - v_q.z * 1.4)) * 0.6 + n2(vec2(uu * 17.0 - v_q.z, bk * 9.0 - v_q.z * 2.3)) * 0.4, ad = smoothstep(0.42, 0.78, du) * exp(-max(bk, 0.0) / (0.16 + 0.06 * fin)) * smoothstep(-0.04, 0.06, bk) * (0.3 + 0.12 * fin) * tip * ends;   // (v455 GE2: the moving dust crescent rolled up just behind the front) (v456 GE3: fainter, 0.42 + 0.18 fin before: the longer trail stretched it into hatching)
         A = vec4(vec3(0.5, 0.43, 0.33) * ad + vec3(0.01, 0.06, 0.045) * a * (1.0 - ad), ad + a * (1.0 - ad)); } }
     else { // 374 a golden feather (uv.x -1 the quill .. 1 the tip, uv.y across): its vane round a curved rachis, gold paling to the tip, fine barbs, a champagne edge; v_q.x seed, v_q.y the rachis's curve, v_q.z how far it has burnt away (0..1: its edges glowing as it goes)
       float x = u.x, yy = u.y - v_q.y * (x * x - 1.0) * 0.3, w = 0.36 * sqrt(max(0.0, 1.0 - x * x)) * (0.75 + 0.25 * smoothstep(-1.0, 0.0, x)), rq = yy / max(w, 0.001), sd = v_q.x, bn = clamp(v_q.z, 0.0, 1.0);
@@ -2026,34 +2026,68 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
         float swell = exp(-sq(r / max(R0, 0.15)) * 1.6) * (1.0 - v_q.z * 0.6) * 0.5, streak = pow(n2(vec2(an * 16.0 + v_q.y * 3.0, 1.0)), 4.0) * smoothstep(0.0, 0.1, x) * exp(-x / 0.18) * v_q.z * 1.4;
         L = (vec3(0.85, 0.97, 1.0) * ring + vec3(0.25, 0.65, 0.95) * swell + vec3(0.7, 0.92, 1.0) * streak) * (1.0 - smoothstep(0.85, 1.0, r)); } }
     /*</MD-FX>*/
-    /*<GE-FX lights 369, 370, 372, 373, 375, 384, 385 (v451 GE, v455 GE2: 20k5ye-wind-goldeneagle.js, the Golden Eagle)>*/
-    else if ((v_k > 368.5 && v_k < 375.5) || (v_k > 383.5 && v_k < 385.5) /* v455 GE2 */) { float tt = u_t; vec3 JD = vec3(0.14, 0.86, 0.6), MN = vec3(0.62, 1.0, 0.86);
+    /*<GE-FX lights 369, 370, 372, 373, 375, 384, 385, 388..391 (v451 GE, v455 GE2, v456 GE3: 20k5ye-wind-goldeneagle.js, the Golden Eagle)>*/
+    else if ((v_k > 368.5 && v_k < 375.5) || (v_k > 383.5 && v_k < 385.5) /* v455 GE2 */ || (v_k > 387.5 && v_k < 391.5) /* v456 GE3 */) { float tt = u_t; vec3 JD = vec3(0.14, 0.86, 0.6), MN = vec3(0.62, 1.0, 0.86), CG = vec3(1.0, 0.8, 0.42);
       if (v_k > 383.5 && v_k < 384.5) { // (v455 GE2) 384 a ribbon of wind (375's packing; v_q.y's sign: which side is its outer edge): across its width the outer cutting edge sharp and bright, the body fading gradually to the inner trailing edge; dashes flowing along it
         float x = u.x, hm = v_q.x, wq = max(abs(v_q.y), 0.01), sg = v_q.y < 0.0 ? -1.0 : 1.0, a0 = floor(v_q.z) / 100.0, a1 = fract(v_q.z) / 0.99, aa = mix(a0, a1, (x + 1.0) * 0.5) * (1.0 - smoothstep(0.8, 1.0, abs(x)));
         float yc = hm * (1.0 - x * x) - hm * 0.5, e = ((u.y - yc) / wq * sg + 1.0) * 0.5, body = smoothstep(0.0, 0.3, e) * pow(clamp(e, 0.0, 1.0), 1.6) * (1.0 - smoothstep(0.95, 1.01, e)), edL = exp(-sq((e - 0.93) / 0.045)) * (1.0 - smoothstep(0.97, 1.03, e));
         float halo = exp(-sq((e - 0.9) / 0.3)) * 0.1 * (1.0 - smoothstep(0.85, 1.0, abs(u.y))), dash = 0.6 + 0.4 * smoothstep(0.3, 0.8, n2(vec2(x * 4.0 - tt * 5.0, a0 * 13.0 + e * 2.0)));
         L = (col * (body * 0.75 + halo) * dash + mix(col, vec3(1.0), 0.6) * edL * 1.25) * aa; }
+      else if (v_k > 387.5) { // (v456 GE3) 388..391
+        if (v_k < 388.5) { // 388 a twisting column of wind at a crescent's tip (uv.x across, uv.y 1 the floor .. -1 its top): a funnel widening as it rises, strands spiralling up round it (the near half of each turn bright: it turns), one gold; a pale core; v_q.x seed, v_q.y 1 the final
+          float y = (1.0 - u.y) * 0.5, fn = v_q.y, rad = 0.14 + 0.56 * pow(y, 0.9); vec3 Lt = vec3(0.0);
+          for (int i = 0; i < 4; i++) { float fi = float(i); if (fi > 2.5 + fn) break; float ph = y * (9.0 + fi * 1.2) - tt * (9.0 + 1.5 * fi) + fi * 1.571 + v_q.x, dep = cos(ph), d = (u.x - sin(ph) * rad) / (0.06 + 0.035 * dep + 0.05 * y);
+            Lt += (fi > 0.5 && fi < 1.5 ? mix(CG * 0.7, vec3(1.0, 0.95, 0.82), smoothstep(-0.4, 0.9, dep)) : mix(JD, mix(MN, vec3(1.0), 0.4), smoothstep(-0.4, 0.9, dep))) * exp(-d * d) * (0.15 + 0.85 * smoothstep(-0.5, 0.7, dep)); }
+          float core = exp(-sq(u.x / (rad * 0.9))) * 0.13 * (0.7 + 0.5 * n2(vec2(u.x * 3.0, y * 6.0 - tt * 5.0))), env = smoothstep(0.0, 0.12, y) * (1.0 - smoothstep(0.55, 1.0, y)) * (1.0 - smoothstep(0.85, 1.0, abs(u.x)));
+          L = (Lt * 0.8 + mix(JD, MN, y) * core) * env * (1.0 + 0.25 * fn); }
+        else if (v_k < 389.5) { // 389 a release's radiant burst of air (a disc: on the floor, or round the eagle): rays of wind streaking outward behind a racing pressure ring at v_q.x of the radius, a pale heart; v_q.y the aim's angle (rays strongest along it; over 6.5: all round); v_q.z its strength + 10 x seed
+          float an = atan(u.y, u.x), R0 = clamp(v_q.x, 0.02, 1.0), sd = floor(v_q.z / 10.0), k2 = v_q.z - sd * 10.0, bias = v_q.y > 6.5 ? 1.0 : 0.3 + 0.7 * sq(0.5 + 0.5 * cos(an - v_q.y));
+          vec2 dr = vec2(cos(an), sin(an)); float ry = smoothstep(0.5, 0.85, n2(dr * 4.0 + sd * 1.3)) * 0.8 + smoothstep(0.55, 0.9, n2(dr * 9.0 - sd)) * 0.7;   // (the direction's noise: no seam round the circle)
+          float dsh = 0.5 + 0.5 * smoothstep(0.3, 0.8, n2(dr * 3.0 + vec2(r * 6.0 - tt * 9.0, sd))), rays = ry * dsh * smoothstep(0.06, R0, r) * (1.0 - smoothstep(R0 - 0.02, R0 + 0.07, r)) * bias;
+          float nz = n2(dr * 5.0 + sd + tt * 0.5), ring = exp(-sq((r - R0) / (0.035 + 0.03 * nz))) * (0.3 + 0.8 * nz) * (0.45 + 0.55 * bias), heart = exp(-r * r * 14.0) * (1.0 - R0) * 0.5;
+          L = (mix(MN, vec3(1.0), 0.35) * rays * 0.75 + mix(vec3(0.9, 1.0, 0.95), CG, 0.45) * ring * 0.45 +vec3(0.95, 1.0, 0.95) * heart) * k2 * (1.0 - smoothstep(0.86, 1.0, r)); }
+        else if (v_k < 390.5) { // 390 the final's aurora over its crest (368's packing; the quad from 0.4 to 1.7 of the sheet's height): curtains of gold paling to jade and mint, folding and shimmering along the crest, rising from the lip
+          float fl = floor(v_q.y / 4.0 + 0.001), duu = v_q.y - fl * 4.0, uu = v_q.x + (u.x + 1.0) * 0.5 * duu, s = v_q.z, tip = 1.0 - smoothstep(0.6, 1.0, abs(uu)), ends = (mod(fl, 2.0) > 0.5 ? smoothstep(-1.0, -0.3, u.x) : 1.0) * (fl > 1.5 ? smoothstep(1.0, 0.3, u.x) : 1.0);
+          float yy = 0.4 + (1.0 - u.y) * 0.65, pr = 0.8 * pow(max(0.0, 1.0 - uu * uu), 0.6) * (0.9 + 0.1 * n2(vec2(uu * 6.0 + s * 0.7, s * 0.3))), dy = yy - pr;
+          float wv = uu * 2.2 + 0.5 * sin(uu * 1.7 + tt * 0.8) + n2(vec2(uu * 1.8, tt * 0.35)) * 1.2, cur = 0.4 + 0.6 * sq(0.5 + 0.5 * sin(wv * 4.0 + tt * 1.3)), fine = 0.85 + 0.15 * sin(wv * 17.0 - tt * 2.0);
+          float vert = smoothstep(-0.03, 0.08, dy) * exp(-max(dy, 0.0) / (0.32 + 0.35 * n2(vec2(uu * 3.0 + tt * 0.2, 1.7)))), sh = 0.8 + 0.2 * sin(tt * 6.0 + uu * 9.0);
+          vec3 c2 = mix(CG, JD, smoothstep(0.0, 0.45, dy)); c2 = mix(c2, MN, smoothstep(0.35, 0.95, dy));
+          L = c2 * cur * fine * vert * sh * 1.15 * tip * ends * (1.0 - smoothstep(0.86, 1.0, abs(u.y))); }
+        else { // 391 the final's streak of wind at a screen edge (uv.x -1 the edge .. 1 inward, uv.y along the aim): fine streaks racing ahead, densest at the edge, fading inward and at both ends; v_q.x seed, v_q.y strength
+          float sd = v_q.x, ed = 1.0 - smoothstep(-0.9, 0.9, u.x), stk = pow(n2(vec2(u.x * 11.0 + sd * 5.0, u.y * 1.4 - tt * 7.0)), 5.0) * 2.2 + pow(n2(vec2(u.x * 26.0 - sd * 3.0, u.y * 2.2 - tt * 10.0)), 8.0) * 2.0;
+          L = mix(MN, mix(CG, vec3(1.0), 0.5), n2(vec2(u.x * 6.0, u.y * 2.0 + sd))) * (stk * ed * 0.45 + ed * ed * 0.012) * (1.0 - smoothstep(0.45, 1.0, abs(u.y))) * smoothstep(-1.0, -0.8, u.x) * v_q.y; } }
       else if (v_k > 384.5) { // (v455 GE2) 385 a stretch of a wingtip vortex (uv.x along it, uv.y across its tube): strands twisting round the axis at different pitches, the near half of each turn bright and thick, the far half dim (the rotation reads), turning in time; v_q.x the arc length at its start (tiles), v_q.y its length + 10 x the strands, v_q.z the alpha at its start (whole / 100) and end (the fraction); v_c its colour
         float x = u.x, ns = floor(v_q.y / 10.0 + 0.001), ln = v_q.y - ns * 10.0, s = v_q.x + (x + 1.0) * 0.5 * ln, a0 = floor(v_q.z) / 100.0, a1 = fract(v_q.z) / 0.99, aa = mix(a0, a1, (x + 1.0) * 0.5), yy = u.y; vec3 Lc = vec3(0.0);
         for (int i = 0; i < 3; i++) { float fi = float(i); if (fi > ns - 0.5) break; float ph = s * (5.5 + 1.7 * fi) - tt * (8.0 + 2.0 * fi) + fi * 2.094, rr = 0.7 - 0.14 * fi, dep = cos(ph), d = (yy - sin(ph) * rr) / (0.07 + 0.035 * dep);
-          Lc += mix(JD, mix(MN, vec3(1.0), 0.35), smoothstep(-0.4, 0.9, dep)) * exp(-d * d) * (0.2 + 0.8 * smoothstep(-0.5, 0.7, dep)); }
+          Lc += (fi > 0.5 && fi < 1.5 ? mix(CG * 0.75, vec3(1.0, 0.95, 0.8), smoothstep(-0.4, 0.9, dep)) /* v456 GE3: a gold strand */ : mix(JD, mix(MN, vec3(1.0), 0.35), smoothstep(-0.4, 0.9, dep))) * exp(-d * d) * (0.2 + 0.8 * smoothstep(-0.5, 0.7, dep)); }
         L = (Lc * col + JD * exp(-yy * yy * 4.0) * 0.12) * aa * (1.0 - smoothstep(0.85, 1.0, abs(yy))); }
       else if (v_k < 370.5) { // 369, 370 a stretch of a wave's crescent (the packing of 368)
         float fl = floor(v_q.y / 4.0 + 0.001), duu = v_q.y - fl * 4.0, uu = v_q.x + (u.x + 1.0) * 0.5 * duu, tip = 1.0 - smoothstep(0.75, 1.0, abs(uu)), fin = v_c.r, s = v_q.z;
         float ends = (mod(fl, 2.0) > 0.5 ? smoothstep(-1.0, -0.3, u.x) : 1.0) * (fl > 1.5 ? smoothstep(1.0, 0.3, u.x) : 1.0);
         if (v_k < 369.5) { // 369 its standing light: the sharp luminous outer edge (the lip leaning ahead), the face fading from it toward the inner trailing edge, streaks racing along it, narrow spiral ribbons winding round it, a brighter rim toward its tips (the curved sheet seen more edge-on)
-          float y = (1.0 - u.y) * 0.5, pr = 0.85 * pow(max(0.0, 1.0 - uu * uu), 0.6) * (0.9 + 0.1 * n2(vec2(uu * 6.0 + s * 0.7, s * 0.3))), dl = (y - pr) / (0.02 + 0.008 * fin), lip = exp(-dl * dl);
-          float inner = exp(-max(0.0, pr - y) / (0.22 + 0.1 * fin)) * step(y, pr) * smoothstep(0.0, 0.25, y), st = smoothstep(0.55, 0.95, n2(vec2(uu * 14.0 - sign(uu) * tt * 3.0, y * 4.0 - s * 0.9))) * step(y, pr);
-          float rb = 0.0; for (int i = 0; i < 2; i++) { float fi = float(i), yr = pr * (0.52 + 0.34 * sin(uu * (4.2 + 1.3 * fi) * (fi > 0.5 ? -1.0 : 1.0) + s * (1.6 + 0.4 * fi) + fi * 2.1)), dd = (y - yr) / (0.014 + 0.006 * fin); rb += exp(-dd * dd) * (0.45 + 0.55 * smoothstep(-0.3, 0.6, sin(uu * 9.0 - tt * 5.0 + fi * 1.7))); }
-          rb *= step(y, pr + 0.01) * smoothstep(0.05, 0.2, y);
-          float rw = 0.05 + 0.025 * fin, rt = exp(-sq((y - pr + rw * 0.45) / rw)) * (y > pr ? exp(-sq((y - pr) / 0.014)) : 1.0), cb = 0.0;   // (v455 GE2: the thick luminous leading rim, cut sharp on its outer side; compression bands close behind it, more on the final)
-          for (int i = 1; i < 4; i++) { float fi = float(i); if (fi > 2.0 + fin) break; cb += exp(-sq((y - (pr - rw - 0.07 * fi - 0.015 * sin(uu * 5.0 + s * 2.0 + fi))) / 0.011)) * (0.55 - 0.12 * fi); }
-          cb *= step(y, pr) * smoothstep(0.1, 0.3, y);
-          L = (vec3(0.92, 1.0, 0.96) * lip * 1.5 + mix(MN, vec3(1.0), 0.45) * rt * (0.85 + 0.3 * fin) + MN * cb * 0.7 + mix(JD, MN, 0.4) * inner * 0.7 + MN * st * inner * 0.6 + vec3(0.75, 1.0, 0.9) * rb * 0.65 + JD * smoothstep(0.55, 1.0, abs(uu)) * inner * 0.35) * tip * ends * (1.0 + 0.35 * fin); }
+          /* v456 GE3: v_c.g the sheet (0 the front, 0.5 the next: on the final its second blade, 1 the farthest; the far ones dimmer and plainer, their streaks at their own pace: parallax); the
+             crest a brilliant champagne-gold cutting rim with glints running out along it and a soft bloom round it; streamlines racing out along the face; the spiral ribbons wrapping over the lip (bright on the near side), one gold */
+          float lay = v_c.g, bl2 = fin * step(0.25, lay) * step(lay, 0.75), fr0 = lay < 0.25 || bl2 > 0.5 ? 1.0 : 0.0, dim = lay < 0.25 ? 1.0 : bl2 > 0.5 ? 0.8 : lay < 0.75 ? 0.42 : 0.26;
+          float y = (1.0 - u.y) * 0.5, pr = 0.8 * pow(max(0.0, 1.0 - uu * uu), 0.6) * (0.9 + 0.1 * n2(vec2(uu * 6.0 + s * 0.7, s * 0.3))), dl = (y - pr) / (0.02 + 0.008 * fin), lip = exp(-dl * dl);
+          float inner = exp(-max(0.0, pr - y) / (0.22 + 0.1 * fin)) * step(y, pr) * smoothstep(0.0, 0.25, y), st = smoothstep(0.55, 0.95, n2(vec2(uu * 14.0 - sign(uu) * tt * (3.0 - 1.2 * lay), y * 4.0 - s * 0.9))) * step(y, pr);
+          float rw = 0.05 + 0.025 * fin, rt = exp(-sq((y - pr + rw * 0.45) / rw)) * (y > pr ? exp(-sq((y - pr) / 0.014)) : 1.0), cb = 0.0, rb = 0.0, rbG = 0.0, sl = 0.0, glint = 0.0;   // (v455 GE2: the thick luminous leading rim, cut sharp on its outer side; compression bands close behind it, more on the final)
+          if (fr0 > 0.5) {
+            for (int i = 0; i < 2; i++) { float fi = float(i), ph = uu * (4.2 + 1.3 * fi) * (fi > 0.5 ? -1.0 : 1.0) + s * (1.6 + 0.4 * fi) + fi * 2.1, yr = pr * (0.56 + 0.5 * sin(ph)), fw = 0.3 + 0.7 * smoothstep(-0.3, 0.7, cos(ph)), dd = (y - yr) / ((0.013 + 0.006 * fin) * (0.6 + 0.6 * fw)), e = exp(-dd * dd) * fw * (0.45 + 0.55 * smoothstep(-0.3, 0.6, sin(uu * 9.0 - tt * 5.0 + fi * 1.7))); if (i == 0) rb = e; else rbG = e; }
+            float wr = smoothstep(0.05, 0.2, y) * (1.0 - smoothstep(pr + 0.05, pr + 0.1, y)); rb *= wr; rbG *= wr;
+            for (int i = 1; i < 4; i++) { float fi = float(i); if (fi > 2.0 + fin) break; cb += exp(-sq((y - (pr - rw - 0.07 * fi - 0.015 * sin(uu * 5.0 + s * 2.0 + fi))) / 0.011)) * (0.55 - 0.12 * fi); }
+            cb *= step(y, pr) * smoothstep(0.1, 0.3, y);
+            for (int i = 0; i < 3; i++) { float fi = float(i), dd = (y - pr * (0.28 + 0.2 * fi) - 0.01 * sin(uu * 7.0 + s * 2.0 + fi * 2.0)) / (0.016 + 0.005 * fin); sl += exp(-dd * dd) * smoothstep(0.5, 0.9, n2(vec2(abs(uu) * 8.0 - tt * (5.0 + fi), fi * 7.0))); }
+            float ga = abs(uu) * 22.0 - tt * 4.0 + s * 2.3, gi = floor(ga), gf = fract(ga) - 0.5, gp = step(0.5, h1(vec2(gi, 3.0 + floor(s)))) * (0.5 + 0.5 * sin(tt * 17.0 + gi * 2.3)), gy = y - pr + 0.008;
+            glint = gp * (exp(-sq(gf / 0.08) - sq(gy / 0.02)) + 0.45 * exp(-sq(gf / 0.025) - sq(gy / 0.08)) + 0.35 * exp(-sq(gf / 0.25) - sq(gy / 0.008))); }
+          float halo = (y > pr ? exp(-(y - pr) / 0.055) : exp(-(pr - y) / 0.1)) * 0.18;
+          vec3 lc = fr0 > 0.5 ? mix(CG, vec3(1.0), 0.35) : mix(MN, CG, 0.35) * 0.45, rc = fr0 > 0.5 ? CG * 0.8 : mix(MN, CG, 0.3) * 0.35;   // (the front's cutting rim a crisp champagne gold; the far sheets' paler, mint)
+          L = (lc * lip * 1.15 + rc * rt * (0.9 + 0.3 * fin) + MN * cb * 0.4 + mix(JD, MN, 0.4) * inner * 0.62 + MN * st * inner * (fr0 > 0.5 ? 0.2 : 0.1) + MN * sl * 0.28 + vec3(0.75, 1.0, 0.9) * rb * 0.6 + CG * rbG * 0.85 + JD * smoothstep(0.55, 1.0, abs(uu)) * inner * 0.35 + CG * halo * 1.1 + vec3(1.0, 0.95, 0.82) * glint * 1.4) * tip * ends * (1.0 + 0.35 * fin) * dim; }
         else { // 370 its trail over the floor (the packing of 371): a bright line at the front, the body behind it fading, streaks, a little dust thrown up
           float bk = ((u.y + 1.0) * 0.5 - 0.12) / 0.88, fr = exp(-sq(bk / 0.03)) * 1.6 + exp(-sq(bk / 0.12)) * 0.4 * step(0.0, bk), body = pow(max(0.0, 1.0 - bk), 2.2) * 0.55 * step(0.0, bk), stk = smoothstep(0.6, 0.95, n2(vec2(uu * 16.0, bk * 6.0 + s * 1.3 - tt)));
           float speck = pow(n2(vec2(uu * 30.0 + s, bk * 12.0 - s * 3.0)), 8.0) * 2.0 * max(0.0, 1.0 - bk) * step(0.0, bk);
-          L = (vec3(0.85, 1.0, 0.95) * fr * 0.75 + JD * body * 0.75 + MN * stk * body * 0.9 + vec3(0.85, 0.8, 0.6) * speck * 0.3) * tip * ends * (1.0 + 0.3 * fin); } }
+          vec2 pe = vec2(uu * 2.1, (s - bk * 2.4) * 0.8), ci = floor(pe), cf = fract(pe) - 0.5; float er = length(cf), ea = atan(cf.y, cf.x), edr = h1(ci + 1.7) > 0.5 ? 1.0 : -1.0;   // (v456 GE3: soft swirling eddies left on the floor behind the front, a champagne tint on its line)
+          float eddy = pow(0.5 + 0.5 * cos(ea * 3.0 + edr * (er * 11.0 - tt * 5.0)), 5.0) * smoothstep(0.04, 0.16, er) * (1.0 - smoothstep(0.24, 0.44, er)) * step(0.5, h1(ci + 7.13)) * step(0.0, bk) * exp(-bk / 0.6);
+          L = (mix(vec3(0.85, 1.0, 0.95), CG, 0.45) * fr * 0.6 + JD * body * 0.82 + MN * stk * body * 0.2 + vec3(0.85, 0.8, 0.6) * speck * 0.3 + MN * eddy * 0.32) * tip * ends * (1.0 + 0.3 * fin); } }
       else if (v_k < 372.5) { // 372 the inhale (a disc round the eagle's chest): spiral streaks of mint air drawn inward, a pale heart; v_q.x its strength
         float an = atan(u.y, u.x), k2 = clamp(v_q.x, 0.0, 1.5), sp = pow(0.5 + 0.5 * cos(an * 5.0 + log(r + 0.05) * 7.0 + tt * 4.0), 6.0), fw = fract(r * 2.2 + tt * 1.6), wv = smoothstep(0.0, 0.3, fw) * (1.0 - smoothstep(0.5, 1.0, fw)), rg = smoothstep(0.1, 0.35, r) * (1.0 - smoothstep(0.7, 1.0, r));
         L = (MN * sp * wv * 0.7 + JD * sp * 0.22) * rg * k2 + vec3(0.9, 1.0, 0.95) * exp(-r * r * 30.0) * k2 * 0.35; }

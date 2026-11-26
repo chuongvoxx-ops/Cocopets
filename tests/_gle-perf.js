@@ -5,6 +5,7 @@
 // area (Mpx), GLM triangles, FGFX quads, gradients, canvases resized.
 // The same scene and phases run on the v452 build (before the rework: its own timeline's phases) and on this one (the reworked
 // timeline's matching phases, from the move's choreo), so the two tables compare.
+// v456 GE3: the same script compares v455 (a HEAD build) with the grander wind (the same phases: the choreo is unchanged).
 // usage: HTML=<test html> node tests/_gle-perf.js   env: F (frames a scenario, 4), DPR (3), EVO (7), GQ (high|balanced|perf), LOW (1)
 const { open } = require('./_pf-lib');
 const GLMLOG = () => { window.__SPT = { n: 0, px: 0, big: 0 };

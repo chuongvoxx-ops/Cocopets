@@ -8,6 +8,8 @@
 // primaries after the shoulder; the primaries bent up under the stroke), no jumps anywhere in the pose sequence (dt 1/240), the
 // head held on the attack area through every release, the follow-through's recoil and dip, the final's deeper wind-up, widest
 // span and stronger recoil, the arrival's bank and flare, the departure's banking climb carrying on while it dissolves.
+// v456 GE3: the damage doubled (a wave 4 DK, the final 12 DK: per monster in the path 20 / 24 / 32 DK at Base / Adept / Celestial);
+// everything else as before (the grander wind is cosmetic: the same hits under Fewer effects).
 // usage: HTML=<test html> node tests/_gle-mech.js   env: GL=1 (GLM + FGFX forced on the software rasteriser)
 const { chromium } = require('/opt/npm-tools/node_modules/playwright');
 const path = require('path');
@@ -33,6 +35,7 @@ const ok = (c, msg, v) => { console.log((c ? 'PASS ' : 'FAIL ') + msg + (v !== u
   ok(row.has && row.cost === 100 && row.cd === 35 && row.tune === 35 && row.impl === 'function', 'the row: Golden Eagle, Wind Ult, 100 MP, cooldown 35 s (the row and TUNE), implemented', row);
   ok(row.six === true, 'six-star only: on the Wind six-star Ult list (ELEM_SIX)', row.six);
   // an open place: the pet there, the floor's monsters held (no moves, no blows)
+  if (process.env.SEED) await page.evaluate(sd => { Math.random = (s => () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; })(sd); }, +process.env.SEED);   // (v456 GE3: env SEED, a reproducible place: the unseeded search now and then lands in a cramped one)
   const setup = await ev(`for (let k = 0; k < 30; k++) U.update(1 / 60); g.intro = 0; g.bossIntro = 0;
     // the place with the most open floor in a band 10 long along +x (the aim): the pet at its west end
     let best = null, bs = -1; for (let k = 0; k < 4000; k++) { const sx = Math.floor(me.x + (Math.random() - 0.5) * 90) + 0.5, sy = Math.floor(me.y + (Math.random() - 0.5) * 90) + 0.5; if (!W(sx, sy)) continue; let n = 0; for (let dx = -2; dx <= 10; dx++) for (let dy = -4; dy <= 4; dy++) if (W(sx + dx, sy + dy)) n++; if (n > bs) { bs = n; best = { x: sx, y: sy }; } }
@@ -80,6 +83,7 @@ const ok = (c, msg, v) => { console.log((c ? 'PASS ' : 'FAIL ') + msg + (v !== u
     const fin = a.LOG.filter(r => Math.abs(r[2] - S.finD) < 1e-3 && ins.includes(r[1])), byWave = {}; for (const h of a.LOG) { const k = S.waves.findIndex((w, j) => h[0] >= w.t0 - 1e-6 && (j === NB - 1 || h[0] < S.waves[j + 1].t0 - 1e-6)); (byWave[k] = byWave[k] || []).push(h); }
     ok(Math.abs(S.waveD - TUNE.waveK * S.DK) < 1e-6 && Math.abs(S.finD - TUNE.finK * S.DK) < 1e-6 && ins.every(i => M[i].max === +S.finD.toFixed(4)) && S.finD > S.waveD * 2.5 && fin.length === ins.length, `evo ${evo}: a wave ${TUNE.waveK} DK, the final ${TUNE.finK} DK: the cast's largest single hit, once per monster`, { DK: +S.DK.toFixed(2), wave: +S.waveD.toFixed(2), fin: +S.finD.toFixed(2), perEnemy: +((NB - 1) * S.waveD + S.finD).toFixed(1), perEnemyDK: (NB - 1) * TUNE.waveK + TUNE.finK });
     ok(ins.every(i => Math.abs(M[i].sum - ((NB - 1) * S.waveD + S.finD)) < 0.01), `evo ${evo}: per monster in the path ${(NB - 1) * TUNE.waveK + TUNE.finK} DK`, ins.map(i => M[i].sum));
+    ok(TUNE.waveK === 4 && TUNE.finK === 12 && (NB - 1) * TUNE.waveK + TUNE.finK === [20, 24, 32][S.tier] && ins.every(i => Math.abs(M[i].sum - [20, 24, 32][S.tier] * S.DK) < 0.01), `evo ${evo}: v456 damage x2: a wave 4 DK, the final 12 DK, ${[20, 24, 32][S.tier]} DK per monster in the path (was ${[10, 12, 16][S.tier]})`, { DK: +S.DK.toFixed(3), sum: M[ins[0]] && M[ins[0]].sum });   // (v456 GE3)
     ok(ins.filter(i => a.mv[i] > 0.1).length >= Math.ceil(ins.length * 0.6), `evo ${evo}: the monsters in the path pushed along the aim (where the floor lets them move) (a stagger: stun ${TUNE.stun} / ${TUNE.stunF} s)`, ins.map(i => +(a.mv[i] || 0).toFixed(2)));
     ok(a.gone && a.fxT > 0, `evo ${evo}: the effect ends by itself (at ${a.fxT.toFixed(2)} s)`, { fxT: a.fxT });
     ok(S.contacts === S.nhits && S.nhits === a.LOG.length && S.nhits > 0, `evo ${evo}: contact effects (cutting arcs, a pressure ripple) only where a wave hits: one per hit`, { contacts: S.contacts, hits: S.nhits });
@@ -96,7 +100,7 @@ const ok = (c, msg, v) => { console.log((c ? 'PASS ' : 'FAIL ') + msg + (v !== u
       const bo = await cast({ evo, dt: 1 / 60 }), bHits = bo.LOG.filter(r => r[4] && r[1] === 3), bs = await ev(`const b = g.boss, r = { stun: b ? b.stun : null }; if (b) { b.__px = null; b.hp = 0; b.dead = true; } return r;`);
       ok(bw && bHits.length === 3 && bHits.every(r => r[3] === 0) && bo.bossPush === 0 && !(bs.stun > 0), 'a boss in the path takes every wave (3); no stun asked, no push (its crowd-control immunity kept)', { wake: bw, hits: bHits.length, pushCalls: bo.bossPush, moved: bo.mv[3] || 0, stun: bs.stun });
       // the caster downed mid-cast: no hit after it, the eagle gone quickly
-      await place(); const k = await cast({ evo, dt: 1 / 60, kill: 2.0, secs: 4.5 }), after = k.LOG.filter(r => r[0] > k.dead + 1e-6).length;
+      await place(); const k = await cast({ evo, dt: 1 / 60, kill: 2.0, secs: 4.5 }), after = k.LOG.filter(r => r[0] > k.dead + 1e-3).length;   // (v456 GE3: the log's times are rounded to 1e-4: a hit in the kill's own frame read as after it)
       ok(after === 0 && k.gone && k.fxT > 0 && k.fxT - k.dead < 0.75, 'the caster downed mid-cast: no hit after, the eagle gone within 0.75 s', { dead: k.dead, gone: k.fxT, after, log: k.S.log });
     }
   }

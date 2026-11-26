@@ -1,10 +1,10 @@
-// v451 GE, v455 GE2: Golden Eagle in game, phase by phase (by default every stage of the performance, its times from the move's own choreo: arrival, bank, flare, anticipation, release, the wave and its contacts, the upstroke, the final's wind-up, its release, its wave, the departure, the dissolve) (GLM + FGFX forced on the software rasteriser unless GL=0): a dungeon floor, monsters held
+// v451 GE, v455 GE2, v456 GE3 (env SEED: a seeded scene, the same on two builds; OUT default shots/v456-GE3): Golden Eagle in game, phase by phase (by default every stage of the performance, its times from the move's own choreo: arrival, bank, flare, anticipation, release, the wave and its contacts, the upstroke, the final's wind-up, its release, its wave, the departure, the dissolve) (GLM + FGFX forced on the software rasteriser unless GL=0): a dungeon floor, monsters held
 // in the waves' path, the pet at the cast; one still per phase into shots/v455-GE2/game-<dpr>x-evo<k>-<phase>.png (the game drawn by its own
 // loop, stepped by hand). AIM: the aim's angle (radians, default -pi/2: up the screen). usage: HTML=<test html> node tests/_sf-shots.js   env: DPR (1), EVOS (1,4,7), PH (comma list of seconds from the cast), GL (1), LOW (1: Fewer effects)
 const { chromium } = require('/opt/npm-tools/node_modules/playwright');
 const path = require('path'), fs = require('fs');
 (async () => {
-  const GL = process.env.GL !== '0', DPR = +(process.env.DPR || 1), OUT = path.resolve(__dirname, '..', process.env.OUT || 'shots/v455-GE2'); fs.mkdirSync(OUT, { recursive: true });
+  const GL = process.env.GL !== '0', DPR = +(process.env.DPR || 1), OUT = path.resolve(__dirname, '..', process.env.OUT || 'shots/v456-GE3'); fs.mkdirSync(OUT, { recursive: true });
   const EVOS = (process.env.EVOS || '1,4,7').split(',').map(Number), PH0 = process.env.PH ? process.env.PH.split(',').map(Number) : null;
   const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--disable-gpu-watchdog'] });
   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: DPR, hasTouch: true });
@@ -20,6 +20,8 @@ const path = require('path'), fs = require('fs');
     const step = (secs, dt) => { dt = dt || 1 / 60; let t = 0; while (t < secs - 1e-9) { window.__hold && window.__hold(); U.update(dt); t += dt; } return t; };
     const W = (x, y) => D.walkAt(Math.floor(x), Math.floor(y)) && !D.blocked(x, y, 0.5, 0);`;
   const ev = (body, arg) => page.evaluate(([body, arg]) => (new Function('arg', 'return (async () => {' + body + '})()'))(arg), [PRE + body, arg]);
+  if (process.env.SEED) await page.evaluate(sd => { Math.random = (s => () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; })(sd); }, +process.env.SEED);   // (v456 GE3: the same scene on two builds)
+  await page.evaluate(k => { window.__PHK = k; }, process.env.PHK || '');
   const info = await ev(`for (let k = 0; k < 30; k++) U.update(1 / 60); g.intro = 0; g.bossIntro = 0; D.banners.length = 0;
     let best = null, bs = -1; for (let k = 0; k < 3000; k++) { const sx = Math.floor(me.x + (Math.random() - 0.5) * 80) + 0.5, sy = Math.floor(me.y + (Math.random() - 0.5) * 80) + 0.5; if (!W(sx, sy)) continue; let n = 0; for (let dx = -5; dx <= 5; dx++) for (let dy = -5; dy <= 5; dy++) if (dx * dx + dy * dy <= 25 && W(sx + dx, sy + dy)) n++; if (n > bs) { bs = n; best = { x: sx, y: sy }; } }
     const A = +(arg || -Math.PI / 2), ax = Math.cos(A), ay = Math.sin(A); window.__A = A; window.__T = best; me.x = best.x - ax * 3; me.y = best.y - ay * 3; if (!W(me.x, me.y)) { me.x = best.x; me.y = best.y; } me.face = ax >= 0 ? 1 : -1;
@@ -35,6 +37,7 @@ const path = require('path'), fs = require('fs');
   for (const evo of EVOS) {
     await ev(`window.__hold(); const T = window.__T; me.castT = me.castM = 0.45; me.castUlt = true; D.ELEM.ult('goldeneagle', { a: window.__A, base: 50, el: 'wind', e8: 'wind', evo: arg, tx: T.x, ty: T.y, up: arg >= 7 }); window.__t0 = g.t; return 1;`, evo);
     const PH = PH0 || await ev(`const c = P.ELEM_IMPL.wind.ult.goldeneagle.choreo(P.ELEM_IMPL.wind.ult.goldeneagle.tierOf(arg), 0, 1), L = c.TR[c.NB - 1];
+      if (window.__PHK === 'waves') return [c.TR[0] + 0.06, c.TR[0] + 0.42, c.TR[0] + 0.78, L + 0.06, L + 0.35, L + 0.62, L + 0.9].map(x => Math.round(x * 100) / 100);   // (v456 GE3: PHK=waves: the waves' run, a regular one and the final)
       return [0.45, 0.85, 1.25, c.TR[0] - 0.14, c.TR[0] + 0.03, c.TR[0] + 0.4, c.TR[1] - 0.3, c.W1 + 0.45, L + 0.03, L + 0.45, c.T_LEAVE + 0.4, c.T_LEAVE + 1.1].map(x => Math.round(x * 100) / 100);`, evo);
     let tNow = 0;
     for (const ph of PH) { await ev(`step(arg);`, ph - tNow); tNow = ph; const t0 = Date.now(); await shot(`game-${DPR}x-evo${evo}-${ph.toFixed(2)}${process.env.LOW === '1' ? '-low' : ''}${GL ? '' : '-2d'}`);

@@ -38,7 +38,7 @@
    Hits: each wave hits each enemy once, as its front passes it (a Map a wave: the ribbons, vortices, feathers and the eagle are
    cosmetic and never add a hit), Wind damage (the pet's element): a wave TUNE.waveK DK, the final TUNE.finK DK, the largest single
    hit of the cast; DK = base x K x (1 + 0.08 (evo - 1)) (the elemental Ultimates' scale). Per enemy that stays in the path:
-   2 x 2 + 6 = 10 DK at Base, 12 at Adept, 16 at Celestial. A brief stagger and a push along the aim on the others; bosses take the
+   2 x 4 + 12 = 20 DK at Base, 24 at Adept, 32 at Celestial (v456 GE3: doubled at the user's request, was 2 / 6 DK: 10 / 12 / 16). A brief stagger and a push along the aim on the others; bosses take the
    damage and keep their immunity (H.push leaves them; no stun). The crossing is found by sweeping the front from its last place to
    this frame's (and the width at the enemy's own place), so dt 1/60 or 1/4 give the same hits. Where a wave hits, and only there,
    short cutting arcs cross the enemy and a pressure ripple spreads at its feet.
@@ -49,7 +49,16 @@
    sharp bright outer edge fading across its width to the inner trailing edge (the gathering air, the wingtip trails, the
    downstroke's streaks, the cutting arcs, the departure's wind), 385 a stretch of a wingtip vortex (twisting strands at different
    pitches, the near side of each turn bright: its rotation reads), 386 a lifted pebble, 387 a leaf torn from foliage the front
-   passes (the dungeon's props are still sprites: the foliage moves through what it sheds). The eagle on GLM (20k5yd) with its shaped
+   passes (the dungeon's props are still sprites: the foliage moves through what it sheds).
+   v456 GE3 (the user: "more grande and elaborate and beautiful"): each crescent a tall curling wall of wind (TUNE.h) with two nested
+   sheets behind it (TUNE.sheets: parallax; the final's first one a second blade, a double crescent), a champagne-gold cutting rim with
+   glints running out along it and a soft bloom, streamlines racing along its face, spiral ribbons wrapping over the lip (one gold),
+   gold strands in the wingtip vortices, a twisting column of wind curling up at each tip (388), glitter motes (FGFX sparkles) and golden
+   feathers shed off the crest, leaves whirled up out of a luminous trail with swirling eddies; each release a radiant burst of air
+   (389: rays of wind behind a pressure ring) on the floor and round the body; the final also a gold-jade aurora over its crest (390),
+   feathers and glitter flung across its whole width, and a brief streak of wind at the screen's edges (391). The visible front is
+   still the damage front (the floor's front line; the crest leans ahead by TUNE.lean at most; the nested sheets trail behind it).
+   The eagle on GLM (20k5yd) with its shaped
    shadow on the floor and its eyes' bloom. Without the GPU: the painted eagle and the plain 2D waves (as before). Particles come
    from fixed pools, thinned by Fewer effects; the hits never are. The eagle's parts over the pet or an enemy's warning are drawn
    see-through.
@@ -69,16 +78,19 @@
     lagE: 0.03, lagW: 0.055, lagP: 0.085,   // the elbows', the wrists' and the primaries' lag behind the shoulders (s)
     leave: 1.6,                             // the banking climb and the dissolve after the final's follow-through (s)
     beats: [3, 4, 6],                       // wingbeats (waves) by tier: Base, Adept, Celestial (the final one included)
-    waveK: 2.0, finK: 6.0,                  // damage, x DK: a wave, the final wave (the cast's largest hit)
-    v: 7.0, range: 8.0, w0: 1.6, w1: 2.8, curv: 0.2, h: 0.7, trail: 1.4,          // a wave: speed (tiles/s), reach, half width at the start and at its reach, the tips' sweep back, height, the trail behind it
-    vF: 8.0, rangeF: 9.5, w0F: 2.2, w1F: 3.8, curvF: 0.15, hF: 1.0, trailF: 2.0, // the final wave's
+    waveK: 4.0, finK: 12.0,                 // damage, x DK: a wave, the final wave (the cast's largest hit) (v456 GE3: doubled, was 2 / 6)
+    v: 7.0, range: 8.0, w0: 1.6, w1: 2.8, curv: 0.2, h: 1.15, trail: 2.0,         // a wave: speed (tiles/s), reach, half width at the start and at its reach, the tips' sweep back, height, the trail behind it (v456 GE3: h, trail cosmetic, taller and longer: were 0.7, 1.4)
+    vF: 8.0, rangeF: 9.5, w0F: 2.2, w1F: 3.8, curvF: 0.15, hF: 1.7, trailF: 2.8, // the final wave's (v456 GE3: hF, trailF were 1.0, 2.0)
+    lean: 0.4,                              // (v456 GE3) the crest's lean ahead of the front at most (tiles): the floor's front line stays the damage front
+    sheets: [0.34, 0.7], sheetsF: [0.5, 1.05], // (v456 GE3) the nested sheets behind the front (tiles back): parallax layers; the final's first one its second blade (a double crescent)
+    glitter: 64, wakeF: [3.5, 9],           // (v456 GE3) the glitter motes' pool; golden feathers shed from a crest a second (a wave, the final)
     band: 0.6,                              // the band behind the front that still counts as passing (tiles)
     col: 0.25,                              // the floor's columns across the aim (tiles apart)
     stun: 0.22, push: 0.45, stunF: 0.45, pushF: 1.0,   // the stagger (s) and push (tiles) on the others (bosses: none)
     sc: 0.9, hoverZ: 3.2, back: 1.4, origin: 0.6,      // the eagle's scale (span about 7.8 tiles), its hover height and place behind the cast, the waves' line ahead of that
     recoil: 0.24, recoilF: 0.5,             // the body's recoil back from the aim after a release (tiles)
     zoom: 0.9, shake: [1.5, 4.5],           // the camera: a small pull back while it flies; a wave's and the final's shake
-    feathers: 30, motes: 26, dust: 36, pebbles: 14, leaves: 16, contacts: 16,   // cosmetic pools (thinned by Fewer effects; never the hits)
+    feathers: 44, motes: 26, dust: 44, pebbles: 14, leaves: 30, contacts: 16,   // cosmetic pools (thinned by Fewer effects; never the hits) (v456 GE3: feathers, dust, leaves were 30, 36, 16)
   };
   const cl = u => (u < 0 ? 0 : u > 1 ? 1 : u), lerp = (a, b, u) => a + (b - a) * u, sstep = (a, b, x) => { const u = cl((x - a) / (b - a)); return u * u * (3 - 2 * u); };
   const eio = u => { u = cl(u); return u * u * (3 - 2 * u); }, cosE = u => 0.5 - 0.5 * Math.cos(Math.PI * cl(u));
@@ -87,10 +99,13 @@
   const G = () => GOLDEAGLE_GL;
   const fg = () => { try { if (typeof window !== 'undefined' && window.__GE_FX === 0) return null; const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; return F && F.usable() ? F : null; } catch (e) { return null; } };
   const lowFx = () => !!(typeof st !== 'undefined' && st && st.lowFx);
+  const gqL = () => { try { return typeof GQ !== 'undefined' && typeof arc !== 'undefined' && !!arc.game && arc.mode === 'dungeon' ? GQ.level() : 0; } catch (e) { return 0; } };   // (v456 GE3) the visual quality level in a fight (0 High .. 3): it thins cosmetics only
+  const gqC = () => [1, 0.8, 0.6, 0.6][gqL()] || 1;
   const STAT = { casts: 0, waves: 0, last: null };   // (tests read these: the last cast's record)
   let BLOB = null;   // (a soft shadow, made once)
   const blob = () => { if (BLOB) return BLOB; const cv = document.createElement('canvas'); cv.width = cv.height = 64; const g = cv.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(10,14,8,0.85)'); gr.addColorStop(0.55, 'rgba(10,14,8,0.4)'); gr.addColorStop(1, 'rgba(10,14,8,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return (BLOB = cv); };
   const C_MINT = '#A8FFE0', C_JADE = '#2FD69C', C_CHAMP = '#FFEFC4', C_WHITE = '#EFFFF8', C_DUST = '#D8CDA8';
+  const LEAFC = ['#7FBF60', '#5FB24A', '#C9B24A', '#E0C060', '#9ACD6A'];   // (v456 GE3) the leaves whirled up from the trail
   /* the release times (s from the cast): every gap, the last after the longer wind-up */
   const releases = n => { const r = []; for (let k = 0; k < n; k++) r.push(k < n - 1 ? TUNE.first + k * TUNE.gap : TUNE.first + Math.max(0, n - 2) * TUNE.gap + (n > 1 ? TUNE.gap + TUNE.inhale : 0)); return r; };
   const FOLIAGE = /flower|tulip|lily|shroom|caps|bloom|fern|bush|shrub|reed|kelp|plant|bulb|lotus|cypress|mangrove|cactus|pine|palm|oak|willow|tree|fungus|grass|vine|leaf|ivy|moss|hedge|weed/;
@@ -222,9 +237,10 @@
     STAT.last = S;
     /* ---- the cosmetic pools (fixed sizes) ---- */
     const Qk = lowFx() ? 0.4 : 1, NF = Math.max(8, Math.round(TUNE.feathers * Qk)), NM = Math.max(8, Math.round(TUNE.motes * Qk)), ND = Math.max(10, Math.round(TUNE.dust * Qk)), NPB = Math.max(4, Math.round(TUNE.pebbles * Qk)), NLV = Math.max(6, Math.round(TUNE.leaves * Qk)), NCT = TUNE.contacts;
+    const NGT = Math.max(12, Math.round(TUNE.glitter * Qk));   // (v456 GE3) the glitter motes in the waves' wake
     const mkP = n => Array.from({ length: n }, () => ({ on: false }));
-    const FE = mkP(NF), MO = mkP(NM), DU = mkP(ND), PU = mkP(10), PB = mkP(NPB), LV = mkP(NLV), CT = mkP(NCT);
-    let nF = 0, nM = 0, nD = 0, nP = 0, nPB = 0, nLV = 0, nCT = 0;
+    const FE = mkP(NF), MO = mkP(NM), DU = mkP(ND), PU = mkP(10), PB = mkP(NPB), LV = mkP(NLV), CT = mkP(NCT), GT = mkP(NGT);
+    let nF = 0, nM = 0, nD = 0, nP = 0, nPB = 0, nLV = 0, nCT = 0, nGT = 0;
     const feather = (p, vx, vy, vz, life, burn) => { const q = FE[nF++ % NF]; Object.assign(q, { on: true, x: p[0], y: p[1], z: p[2], vx, vy, vz, t: 0, life, rot: Math.random() * TAU, vr: (Math.random() - 0.5) * 5, sd: Math.random(), cv: (Math.random() - 0.5) * 0.8, burn: !!burn, ph: Math.random() * TAU }); };
     /* the foliage in and beside the waves' path (props on its wall tiles: they shed leaves as a front passes) */
     const FOL = []; try { const cp = X.carProps; if (cp && cp.propAt) { const seen = new Set(), W = TUNE.w1F + 1.6;
@@ -260,7 +276,7 @@
     let RG = null, RGt = -1, PZ = null;
     const rigNow = t => { if (RGt === t && RG) return RG; PZ = CH.pose(t, S.dead); PZ.fade = fadeAt; RG = G().rig(PZ); RGt = t; return RG; };
     const TRAIL = [[], []]; let trailT = 0;
-    const spawnN = rate => { const want = rate * H.Q(); return Math.floor(want) + (Math.random() < want % 1 ? 1 : 0); };
+    const spawnN = rate => { const want = rate * H.Q() * gqC(); return Math.floor(want) + (Math.random() < want % 1 ? 1 : 0); };
     /* ---- the update: the authoritative clock ---- */
     function update(dt, f) {
       const t = f.t, g = H.g;
@@ -280,6 +296,7 @@
       const inhOn = S.dead < 0 && NB > 1 && t > CH.W1 && t < TR[NB - 1] - 0.05;
       if (inhOn && R) { let n = spawnN(dt * 30); while (n-- > 0) { const q = MO[nM++ % NM], a = Math.random() * TAU; Object.assign(q, { on: true, a, r: 2.6 + Math.random() * 1.4, z: (Math.random() - 0.3) * 1.6, t: 0, life: 0.5 + Math.random() * 0.25, sp: 0.8 + Math.random() * 0.5 }); } }
       for (const q of MO) if (q.on) { q.t += dt; q.r = Math.max(0, q.r - dt * q.sp * 5.2 * (0.4 + q.t)); q.a += dt * 2.2; if (q.t >= q.life || q.r < 0.15) q.on = false; }
+      const GPU = !!fg();
       for (const w of waves) { if (!w.released || S.dead >= 0) continue; const s = sNow(w, t); if (s < 0.3 || s >= w.range) continue; const hw = hwAt(w, s);
         let n = spawnN(dt * (w.fin ? 22 : 12));
         while (n-- > 0) { const of = (Math.random() * 2 - 1) * hw * 0.92, sf = s - w.curv * of * of; if (!onFloor(sf, of)) continue; const q = DU[nD++ % ND];
@@ -288,14 +305,28 @@
         n = spawnN(dt * (w.fin ? 9 : 4.5));
         while (n-- > 0) { const of = (Math.random() * 2 - 1) * hw * 0.85, sf = s - w.curv * of * of; if (!onFloor(sf, of)) continue; const q = PB[nPB++ % NPB];
           Object.assign(q, { on: true, x: O.x + dx * sf + nx * of, y: O.y + dy * sf + ny * of, z: 0.04, vx: dx * w.v * (0.3 + Math.random() * 0.25) + nx * (Math.random() - 0.5) * 0.8, vy: dy * w.v * (0.3 + Math.random() * 0.25) + ny * (Math.random() - 0.5) * 0.8, vz: 1.6 + Math.random() * 1.2, t: 0, s: 0.05 + Math.random() * 0.05, rot: Math.random() * TAU, vr: (Math.random() - 0.5) * 14, sd: Math.random(), bn: 0 }); }
+        // (v456 GE3) the wake: glitter motes and golden feathers shed off the crest, leaves swirling up out of the luminous trail (fixed pools; cosmetic)
+        const hq = w.h * (1 - 0.3 * sstep(0.65, 1, s / w.range));
+        n = spawnN(dt * (w.fin ? 46 : 24));
+        while (n-- > 0) { const u = Math.random() * 2 - 1, of = u * hw * 0.94, sf = s - w.curv * of * of - Math.random() * 0.25; if (!onFloor(sf, of)) continue; const q = GT[nGT++ % NGT];
+          Object.assign(q, { on: true, x: O.x + dx * sf + nx * of, y: O.y + dy * sf + ny * of, z: crestZ(u, hq) * (0.55 + 0.5 * Math.random()), vx: dx * w.v * (0.1 + Math.random() * 0.2) + nx * (Math.random() - 0.5) * 0.5, vy: dy * w.v * (0.1 + Math.random() * 0.2) + ny * (Math.random() - 0.5) * 0.5, vz: 0.1 + Math.random() * 0.45, t: 0, life: 0.55 + Math.random() * 0.6, s: 0.6 + Math.random() * 0.8, ph: Math.random() * TAU, g: Math.random() < 0.45 }); }
+        n = GPU ? spawnN(dt * TUNE.wakeF[w.fin ? 1 : 0]) : 0;   // (the painted fallback keeps its own art: no wake feathers there)
+        while (n-- > 0) { const u = Math.random() * 2 - 1, of = u * hw * 0.9, sf = s - w.curv * of * of; if (!onFloor(sf, of)) continue;
+          feather([O.x - HP.x + dx * sf + nx * of, O.y - HP.y + dy * sf + ny * of, crestZ(u, hq) * 0.9], dx * w.v * 0.35 + (Math.random() - 0.5) * 1.2, dy * w.v * 0.35 + (Math.random() - 0.5) * 1.2, 0.2 + Math.random() * 0.6, 1.2 + Math.random() * 0.8, false); }
+        n = spawnN(dt * (w.fin ? 7 : 3.5));
+        while (n-- > 0) { const of = (Math.random() * 2 - 1) * hw * 0.8, sf = s - w.curv * of * of - 0.3 - Math.random() * 0.8; if (!onFloor(sf, of)) continue; const q = LV[nLV++ % NLV];
+          Object.assign(q, { on: true, x: O.x + dx * sf + nx * of, y: O.y + dy * sf + ny * of, z: 0.08 + Math.random() * 0.3, vx: dx * w.v * (0.18 + Math.random() * 0.22), vy: dy * w.v * (0.18 + Math.random() * 0.22), vz: 0.7 + Math.random() * 0.9, t: 0, life: 0.9 + Math.random() * 0.6, rot: Math.random() * TAU, vr: (Math.random() - 0.5) * 12, col: LEAFC[Math.floor(Math.random() * LEAFC.length)], sd: Math.random(), sw: 0.2 + Math.random() * 0.3, om: (Math.random() < 0.5 ? -1 : 1) * (5 + Math.random() * 4), ph: Math.random() * TAU }); }
         // the foliage the front passes: leaves torn off and carried along it
         for (const fo of FOL) { if (fo.w & (1 << w.k)) continue; if (s - w.curv * fo.of * fo.of < fo.al - 0.3 || Math.abs(fo.of) > hw + 1.4) continue; fo.w |= 1 << w.k;
-          let m = Math.max(1, Math.round((w.fin ? 5 : 3) * H.Q())); while (m-- > 0) { const q = LV[nLV++ % NLV]; Object.assign(q, { on: true, x: fo.x + (Math.random() - 0.5) * 0.5, y: fo.y + (Math.random() - 0.5) * 0.3, z: 0.4 + Math.random() * 0.8, vx: dx * (1.6 + Math.random() * 1.6) + nx * (Math.random() - 0.5), vy: dy * (1.6 + Math.random() * 1.6) + ny * (Math.random() - 0.5), vz: 0.4 + Math.random() * 0.9, t: 0, life: 1.0 + Math.random() * 0.5, rot: Math.random() * TAU, vr: (Math.random() - 0.5) * 9, col: fo.col, sd: Math.random() }); } }
+          let m = Math.max(1, Math.round((w.fin ? 5 : 3) * H.Q())); while (m-- > 0) { const q = LV[nLV++ % NLV]; Object.assign(q, { on: true, x: fo.x + (Math.random() - 0.5) * 0.5, y: fo.y + (Math.random() - 0.5) * 0.3, z: 0.4 + Math.random() * 0.8, vx: dx * (1.6 + Math.random() * 1.6) + nx * (Math.random() - 0.5), vy: dy * (1.6 + Math.random() * 1.6) + ny * (Math.random() - 0.5), vz: 0.4 + Math.random() * 0.9, t: 0, life: 1.0 + Math.random() * 0.5, rot: Math.random() * TAU, vr: (Math.random() - 0.5) * 9, col: fo.col, sd: Math.random(), sw: 0 }); } }
         // a wave meeting a wall: a puff of dust and wind where its front stops
         for (let j = 0; j < NC; j += 3) { const of = (j - J0) * CW; if (w.walls[j] || cR[j] < 0 || cR[j] >= w.range - 0.2 || Math.abs(of) > hw) continue; if (s - w.curv * of * of >= cR[j]) { w.walls[j] = 1; const q = PU[nP++ % PU.length]; Object.assign(q, { on: true, x: O.x + dx * cR[j] + nx * of, y: O.y + dy * cR[j] + ny * of, t: 0, life: 0.5, r: w.fin ? 0.9 : 0.6 }); } } }
       for (const q of DU) if (q.on) { q.t += dt; q.x += q.vx * dt; q.y += q.vy * dt; q.z += q.vz * dt; q.vz -= 2.5 * dt; q.vx *= 1 - dt * 2; q.vy *= 1 - dt * 2; if (q.t >= q.life || q.z < 0) q.on = false; }
       for (const q of PB) if (q.on) { q.t += dt; q.x += q.vx * dt; q.y += q.vy * dt; q.z += q.vz * dt; q.vz -= 9 * dt; q.rot += q.vr * dt; if (q.z <= 0) { if (q.bn || q.vz > -1.2) q.on = false; else { q.bn = 1; q.z = 0.001; q.vz *= -0.32; q.vx *= 0.45; q.vy *= 0.45; } } if (q.t > 1.6) q.on = false; }
-      for (const q of LV) if (q.on) { q.t += dt; const dr = 1 - dt * 1.2; q.vx *= dr; q.vy *= dr; q.vz = q.vz * dr - 0.7 * dt; q.x += (q.vx + Math.sin(q.t * 6 + q.sd * 9) * 0.5) * dt; q.y += q.vy * dt; q.z = Math.max(0.02, q.z + q.vz * dt); q.rot += q.vr * dt; if (q.t >= q.life) q.on = false; }
+      for (const q of LV) if (q.on) { q.t += dt; const dr = 1 - dt * 1.2; q.vx *= dr; q.vy *= dr; q.vz = q.vz * dr - 0.7 * dt; q.x += (q.vx + Math.sin(q.t * 6 + q.sd * 9) * 0.5) * dt; q.y += q.vy * dt; q.z = Math.max(0.02, q.z + q.vz * dt); q.rot += q.vr * dt;
+        if (q.sw) { const a = q.om * q.t + q.ph, k = q.sw * q.om * dt; q.x -= Math.sin(a) * k; q.y += Math.cos(a) * k; q.z = Math.max(0.02, q.z + Math.cos(a) * k * 0.35); }   // (v456 GE3: a trail leaf whirling round its eddy)
+        if (q.t >= q.life) q.on = false; }
+      for (const q of GT) if (q.on) { q.t += dt; const dr = 1 - dt * 1.4; q.vx *= dr; q.vy *= dr; q.vz *= dr; q.x += q.vx * dt; q.y += q.vy * dt; q.z += q.vz * dt; if (q.t >= q.life) q.on = false; }   // (v456 GE3)
       for (const q of PU) if (q.on) { q.t += dt; if (q.t >= q.life) q.on = false; }
       for (const q of CT) if (q.on) { q.t += dt; if (q.t >= q.life) q.on = false; }
       for (const q of FE) if (q.on) { q.t += dt; const dr = 1 - dt * 1.6; q.vx *= dr; q.vy *= dr; q.vz = q.vz * dr - 0.9 * dt; q.x += (q.vx + Math.sin(q.t * 3 + q.ph) * 0.4) * dt; q.y += q.vy * dt; q.z = Math.max(0.02, q.z + q.vz * dt); q.rot += q.vr * dt; if (q.t >= q.life) q.on = false; }
@@ -307,7 +338,10 @@
     /* a release: the wave leaves the line under the wings at the downstroke's fastest; feathers shake loose; the shake, the sound */
     function release(w) {
       X.shake(w.fin ? TUNE.shake[1] : TUNE.shake[0], w.fin ? 0.3 : 0.14); if (X.sfx.whoosh) X.sfx.whoosh(); if (w.fin) { if (X.sfx.thud) X.sfx.thud(); if (X.flash) X.flash(0.06, '#CFFFEA'); }
-      const R = rigNow(w.t0); for (const tr of R.A.trail) for (let i = 0; i < (lowFx() ? 1 : 2) + (w.fin ? 1 : 0); i++) { const p = tr[3 + Math.floor(Math.random() * 3)]; feather(p, dx * 1.2 + (Math.random() - 0.5) * 1.5, dy * 1.2 + (Math.random() - 0.5) * 1.5, -0.5 - Math.random(), 1.4 + Math.random() * 0.8, false); } }
+      const R = rigNow(w.t0); for (const tr of R.A.trail) for (let i = 0; i < (lowFx() ? 1 : 2) + (w.fin ? 1 : 0); i++) { const p = tr[3 + Math.floor(Math.random() * 3)]; feather(p, dx * 1.2 + (Math.random() - 0.5) * 1.5, dy * 1.2 + (Math.random() - 0.5) * 1.5, -0.5 - Math.random(), 1.4 + Math.random() * 0.8, false); }
+      if (w.fin) { S.finT = w.t0;   // (v456 GE3) the final: golden feathers and glitter flung across its whole width (from the pools: cosmetic)
+        const nf = fg() ? Math.round((lowFx() ? 6 : 14) * gqC()) : 0; for (let i = 0; i < nf; i++) { const u = -1 + 2 * (i + 0.5) / nf, of = u * w.w0 * 0.95, sf = 0.2 - w.curv * of * of; feather([O.x - HP.x + dx * sf + nx * of, O.y - HP.y + dy * sf + ny * of, crestZ(u, w.h) * 0.7 + 0.2], dx * w.v * 0.45 + nx * u * 1.2, dy * w.v * 0.45 + ny * u * 1.2, 0.6 + Math.random() * 0.8, 1.5 + Math.random() * 0.7, false); }
+        const ng = Math.min(NGT, Math.round(24 * H.Q() * gqC())); for (let i = 0; i < ng; i++) { const u = Math.random() * 2 - 1, of = u * w.w0, q = GT[nGT++ % NGT]; Object.assign(q, { on: true, x: O.x + nx * of + dx * 0.1, y: O.y + ny * of + dy * 0.1, z: crestZ(u, w.h) * Math.random(), vx: dx * w.v * (0.3 + Math.random() * 0.4) + nx * u, vy: dy * w.v * (0.3 + Math.random() * 0.4) + ny * u, vz: 0.4 + Math.random() * 0.8, t: 0, life: 0.6 + Math.random() * 0.6, s: 0.8 + Math.random() * 0.9, ph: Math.random() * TAU, g: Math.random() < 0.6 }); } } }
 
     /* ================= drawing ================= */
     const sx = H.sx, sy = H.sy, GYs = () => H.GY || 0.55;
@@ -316,30 +350,45 @@
     const waveA = (w, t, s) => { const age = t - w.t0, endT = w.range / w.v; return sstep(0, 0.06, age) * (1 - sstep(endT - 0.05, endT + 0.25, age)) * (1 - 0.35 * sstep(0.6 * w.range, w.range, s)) * fadeDead(t); };
     const visOf = (w, s, of) => { const j = colAt(of); if (j < 0 || cR[j] < 0) return 0; const sf = s - w.curv * of * of; return sstep(cS[j] - 0.35, cS[j] + 0.05, sf) * (1 - sstep(cR[j] - 0.1, cR[j] + 0.25, sf)); };
     /* a wave's quads: its standing body (368) and light (369) on each stretch of its crescent, its trail (370) and shade (371) on the floor behind */
+    /* (v456 GE3) the stretches of a crescent at s (its own floor: visOf), `step` of them merged into one (the far sheets: fewer quads); fn(X0, Y0, X1, Y1, q0, q1, vis) */
+    const VV = [];
+    function stretches(w, s, hw, step, fn) { const n = Math.max(4, Math.round(Math.max(8, Math.min(22, Math.ceil(2 * hw / 0.45))) / step)), dO = 2 * hw / n; VV.length = 0; for (let i = 0; i <= n; i++) VV.push(visOf(w, s, -hw + i * dO));
+      for (let i = 0; i < n; i++) { const a = Math.min(VV[i], VV[i + 1]); if (a < 0.02) continue;
+        const of0 = -hw + i * dO, of1 = of0 + dO, s0 = s - w.curv * of0 * of0, s1 = s - w.curv * of1 * of1, fl = (i === 0 || VV[i - 1] < 0.02 ? 1 : 0) + (i === n - 1 || VV[i + 2] < 0.02 ? 2 : 0);
+        fn(sx(O.x + dx * s0 + nx * of0), sy(O.y + dy * s0 + ny * of0), sx(O.x + dx * s1 + nx * of1), sy(O.y + dy * s1 + ny * of1), of0 / hw, dO / hw + 4 * fl, a); } }
+    /* (v456 GE3) the colour carries the wave (r: the final) and the sheet (g: 0 the front, 0.5 the next, 1 the farthest) to the painter */
+    const COLS2 = [['#000000', '#008000', '#00FF00'], ['#FF0000', '#FF8000', '#FFFF00']];
+    const crestZ = (u, hq) => hq * 0.8 * Math.pow(Math.max(0, 1 - u * u), 0.6);   // (the crest's height across the crescent: the painter's pr)
+    const sheetsOf = w => { const L = w.fin ? TUNE.sheetsF : TUNE.sheets, lv = gqL(); return lowFx() || lv >= 2 ? L.slice(0, 1) : L; };   // (Fewer effects, Performance: one nested sheet; cosmetic)
     function waveQuads(Q, w, t, T, layer) {
       const s = sNow(w, t); if (s < 0) return; const age = t - w.t0, aW = waveA(w, t, s); if (aW < 0.01) return;
-      const hw = hwAt(w, s), hq = w.h * (0.25 + 0.75 * sstep(0, 0.2, age)) * (1 - 0.3 * sstep(0.65, 1, s / w.range)), NS = Math.max(8, Math.min(22, Math.ceil(2 * hw / 0.45))), dO = 2 * hw / NS, col = COLS[w.fin ? 1 : 0], GY = GYs();
-      const V = []; for (let i = 0; i <= NS; i++) V.push(visOf(w, s, -hw + i * dO));
-      const lean = 0.65 * hq, Hx = dx * lean * T, Hy = (dy * lean * GY - hq * ZKc) * T, tl = w.trail * (0.45 + 0.55 * sstep(0, 0.3, age)), pad = tl * 0.12 / 0.88;
-      for (let i = 0; i < NS; i++) { const a = Math.min(V[i], V[i + 1]); if (a < 0.02) continue;
-        const of0 = -hw + i * dO, of1 = of0 + dO, s0 = s - w.curv * of0 * of0, s1 = s - w.curv * of1 * of1, x0 = O.x + dx * s0 + nx * of0, y0 = O.y + dy * s0 + ny * of0, x1 = O.x + dx * s1 + nx * of1, y1 = O.y + dy * s1 + ny * of1;
-        const X0 = sx(x0), Y0 = sy(y0), X1 = sx(x1), Y1 = sy(y1), ux = (X1 - X0) / 2, uy = (Y1 - Y0) / 2, fl = (i === 0 || V[i - 1] < 0.02 ? 1 : 0) + (i === NS - 1 || V[i + 2] < 0.02 ? 2 : 0), q0 = of0 / hw, q1 = dO / hw + 4 * fl, q2 = s + 37 * w.k, al = aW * a;
-        if (layer === 0) { // the floor: the shade and the dust crescent, the trail behind the front (the quad reaching a little ahead of it, so the front's line is never cut)
-          const bx = -dx * (tl + pad) / 2 * T, by = -dy * (tl + pad) / 2 * T * GY, cxq = (X0 + X1) / 2 + dx * pad * T + bx, cyq = (Y0 + Y1) / 2 + dy * pad * T * GY + by;
-          Q.quad(371, cxq, cyq, ux, uy, bx, by, col, al, q0, q1, q2); Q.quad(370, cxq, cyq, ux, uy, bx, by, col, al, q0, q1, q2); }
-        else { const cxq = (X0 + X1) / 2 + Hx / 2, cyq = (Y0 + Y1) / 2 + Hy / 2; Q.quad(368, cxq, cyq, ux, uy, -Hx / 2, -Hy / 2, col, al, q0, q1, q2); Q.quad(369, cxq, cyq, ux, uy, -Hx / 2, -Hy / 2, col, al, q0, q1, q2); } }
+      const hw = hwAt(w, s), hq = w.h * (0.25 + 0.75 * sstep(0, 0.2, age)) * (1 - 0.3 * sstep(0.65, 1, s / w.range)), GY = GYs(), q2 = s + 37 * w.k;
+      if (layer === 0) { // the floor: the shade and the dust crescent, the luminous trail with its eddies behind the front (the quad reaching a little ahead of it, so the front's line is never cut)
+        const col = COLS[w.fin ? 1 : 0], tl = w.trail * (0.45 + 0.55 * sstep(0, 0.3, age)), pad = tl * 0.12 / 0.88, bx = -dx * (tl + pad) / 2 * T, by = -dy * (tl + pad) / 2 * T * GY, ox = dx * pad * T + bx, oy = dy * pad * T * GY + by;
+        stretches(w, s, hw, 1, (X0, Y0, X1, Y1, q0, q1, a) => { const ux = (X1 - X0) / 2, uy = (Y1 - Y0) / 2, cxq = (X0 + X1) / 2 + ox, cyq = (Y0 + Y1) / 2 + oy; Q.quad(371, cxq, cyq, ux, uy, bx, by, col, aW * a, q0, q1, q2); Q.quad(370, cxq, cyq, ux, uy, bx, by, col, aW * a, q0, q1, q2); });
+        return; }
+      /* the standing wall of wind: the front sheet and its nested sheets behind it (each on its own floor, drawn far to near: parallax), the crest leaning a little ahead */
+      const lags = sheetsOf(w);
+      for (let L = lags.length; L >= 0; L--) { const sL = L ? s - lags[L - 1] : s; if (sL < 0.15) continue; const hL = hq * (L === 0 ? 1 : w.fin && L === 1 ? 0.92 : L === 1 ? 0.8 : 0.64), hwL = L ? hwAt(w, sL) * (w.fin && L === 1 ? 0.98 : 0.94) : hw, aL = aW * (L ? sstep(0.15, 0.7, sL) : 1);
+        const lean = Math.min(TUNE.lean, 0.65 * hL), Hx = dx * lean * T, Hy = (dy * lean * GY - hL * ZKc) * T, col = COLS2[w.fin ? 1 : 0][Math.min(2, L)], qq2 = sL + 37 * w.k + L * 11;
+        stretches(w, sL, hwL, L ? 2 : 1, (X0, Y0, X1, Y1, q0, q1, a) => { const ux = (X1 - X0) / 2, uy = (Y1 - Y0) / 2, cxq = (X0 + X1) / 2 + Hx / 2, cyq = (Y0 + Y1) / 2 + Hy / 2;
+          Q.quad(368, cxq, cyq, ux, uy, -Hx / 2, -Hy / 2, col, aL * a, q0, q1, qq2); Q.quad(369, cxq, cyq, ux, uy, -Hx / 2, -Hy / 2, col, aL * a, q0, q1, qq2);
+          if (w.fin && L === 0) Q.quad(390, (X0 + X1) / 2 + Hx * 1.05, (Y0 + Y1) / 2 + Hy * 1.05, ux, uy, -Hx * 0.65, -Hy * 0.65, col, aL * a * (lowFx() ? 0.6 : 1) * (1 - sstep(0.75, 1, s / w.range)), q0, q1, qq2); }); }   // (the final: its gold-jade aurora shimmering over the crest, from 0.4 to 1.7 of its height, gone as the wave spends itself)
+      /* the curling ends: a twisting column of wind standing at each tip, inside the crescent's own width */
+      for (const sg of [1, -1]) { const of = sg * Math.max(0.2, hw - 0.4), vis = visOf(w, s, of); if (vis < 0.2) continue; const sf = s - w.curv * of * of, X0 = sx(O.x + dx * sf + nx * of), Y0 = sy(O.y + dy * sf + ny * of), Hp = hq * (w.fin ? 1.75 : 1.6) * ZKc * T;
+        Q.quad(388, X0, Y0 - Hp / 2, T * (w.fin ? 0.95 : 0.78), 0, 0, Hp / 2, '#FFFFFF', aW * vis * sstep(0.2, 0.6, s), w.k * 1.7 + (sg > 0 ? 0 : 3.1), w.fin ? 1 : 0, 0); }
     }
     /* the wingtip vortices: two twisting trails curling behind the wave's outer ends (385), on the floor it crosses */
     const VP = [];
     function vortex(Q, w, t, T) {
-      const s = sNow(w, t); if (s < 0.25) return; const age = t - w.t0, aW = waveA(w, t, s); if (aW < 0.02) return; const hw = hwAt(w, s), GY = GYs(), Lv = w.trail * (w.fin ? 1.25 : 1.1) * sstep(0, 0.35, age), NSG = w.fin ? 6 : 5, ns = w.fin ? 3 : 2;
+      const s = sNow(w, t); if (s < 0.25) return; const age = t - w.t0, aW = waveA(w, t, s); if (aW < 0.02) return; const hw = hwAt(w, s), GY = GYs(), Lv = w.trail * (w.fin ? 1.1 : 1.0) * sstep(0, 0.35, age), NSG = w.fin ? 7 : 6, ns = 3;   // (v456 GE3: longer, wider, three strands on every wave, one of them gold)
       if (Lv < 0.2) return;
       for (const sg of [1, -1]) { const of0 = sg * hw * 0.96; if (visOf(w, s, of0) < 0.3) continue; VP.length = 0;
-        for (let j = 0; j <= NSG; j++) { const d = Lv * j / NSG, of = of0 + sg * (0.22 * Math.sin(d * 1.7) - 0.12 * d), al = s - w.curv * of0 * of0 - d; if (!onFloor(al, of)) break; const z = w.h * (0.5 - 0.22 * d / Lv) + 0.08;
+        for (let j = 0; j <= NSG; j++) { const d = Lv * j / NSG, of = of0 + sg * (0.22 * Math.sin(d * 1.7) - 0.12 * d), al = s - w.curv * of0 * of0 - d; if (!onFloor(al, of)) break; const z = Math.min(0.75, w.h * 0.45) * (1 - 0.4 * d / Lv) + 0.08;
           VP.push([sx(O.x + dx * al + nx * of), sy(O.y + dy * al + ny * of) - z * ZKc * T, d]); }
-        for (let j = 0; j + 1 < VP.length; j++) { const a = VP[j], b = VP[j + 1], ux = (b[0] - a[0]) / 2, uy = (b[1] - a[1]) / 2, l = Math.hypot(ux, uy); if (l < 0.5) continue; const rr = T * (0.2 + 0.12 * a[2] / Lv) * (w.fin ? 1.35 : 1), px = -uy / l * rr, py = ux / l * rr;
+        for (let j = 0; j + 1 < VP.length; j++) { const a = VP[j], b = VP[j + 1], ux = (b[0] - a[0]) / 2, uy = (b[1] - a[1]) / 2, l = Math.hypot(ux, uy); if (l < 0.5) continue; const rr = T * (0.3 + 0.2 * a[2] / Lv) * (w.fin ? 1.35 : 1), px = -uy / l * rr, py = ux / l * rr;
           const a0 = aW * (1 - a[2] / Lv) * (j === 0 ? 0.5 : 1), a1 = aW * (1 - b[2] / Lv);
-          Q.quad(385, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2, ux, uy, px, py, w.fin ? '#DFFFF2' : '#BFFFE6', 1, a[2] + (sg > 0 ? 0 : 3.7) + w.k * 1.3, (b[2] - a[2]) + 10 * ns, Math.floor(cl(a0) * 99) + cl(a1) * 0.99); } } }
+          Q.quad(385, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2, ux, uy, px, py, w.fin ? '#FFFFFF' : '#E4FFF2', 1, a[2] + (sg > 0 ? 0 : 3.7) + w.k * 1.3, (b[2] - a[2]) + 10 * ns, Math.floor(cl(a0) * 99) + cl(a1) * 0.99); } } }
     /* a ribbon of wind from screen point a to b, bowed by m px (signed) at its middle, w px wide; 384: its outer edge (the side the
        bow bulges to; flip: the other) sharp and bright, fading across to the inner trailing edge; 375: soft both sides */
     function ribbon(Q, ax, ay, bx, by, m, w, col, a0, a1, al, kind, flip) { const ux = (bx - ax) / 2, uy = (by - ay) / 2, l = Math.hypot(ux, uy); if (l < 1 || al < 0.01) return; const px = -uy / l, py = ux / l, Hh = Math.abs(m) / 2 + 2.6 * w;
@@ -354,7 +403,9 @@
         for (const w of waves) if (w.released) waveQuads(Q, w, t, T, 0);
         // the pressure ring under each downstroke (the final's doubled: the compression), spreading from the waves' line
         for (const w of waves) { if (!w.released) continue; const e = t - w.t0; if (e < -0.12 || e > 0.6) continue; for (let r2 = 0; r2 < (w.fin ? 2 : 1); r2++) { const u = cl((e + 0.12 - r2 * 0.1) / 0.72), r = T * (w.fin ? 3.4 : 2.4) * (0.35 + 0.65 * (1 - Math.pow(1 - u, 2))) * (1 - 0.25 * r2);
-          Q.quad(373, sx(O.x), sy(O.y), r, 0, 0, r * GY, '#FFFFFF', (1 - u) * fadeDead(t) * (u > 0 ? 1 : 0), 0.25 + 0.7 * u, w.k * 1.7 + r2 * 3.3, w.fin ? 1.3 : 0.9); } }
+          Q.quad(373, sx(O.x), sy(O.y), r, 0, 0, r * GY, '#FFFFFF', (1 - u) * fadeDead(t) * (u > 0 ? 1 : 0), 0.25 + 0.7 * u, w.k * 1.7 + r2 * 3.3, w.fin ? 1.3 : 0.9); }
+          // (v456 GE3) the release's radiant burst of air on the floor: rays of wind streaking out (strongest along the aim) behind a racing pressure ring
+          if (e > -0.02 && e < 0.5) { const u = cl((e + 0.02) / 0.52), r = T * (w.fin ? 4.8 : 3.3); Q.shape(389, sx(O.x), sy(O.y), r, 0, 0, r * GY, '#FFFFFF', Math.pow(1 - u, 1.3) * fadeDead(t), 0.18 + 0.82 * (1 - (1 - u) * (1 - u)), A, (w.fin ? 1.25 : 0.9) + 10 * w.k, 0, 1); } }
         // the pressure ripples at the feet of what a wave actually hit
         for (const q of CT) if (q.on) { const u = q.t / q.life, r = T * (q.fin ? 1.0 : 0.75) * (0.5 + 0.7 * u); Q.quad(373, sx(q.x), sy(q.y), r, 0, 0, r * GY, '#FFFFFF', (1 - u) * 0.9, 0.3 + 0.6 * u, q.sd * 9, q.fin ? 1.2 : 0.85); }
         for (const q of PU) if (q.on) { const u = q.t / q.life; Q.glow(sx(q.x), sy(q.y), T * q.r * (0.6 + 0.8 * u), C_DUST, 0.3 * (1 - u), GY); Q.glow(sx(q.x), sy(q.y) - T * 0.2, T * q.r * 0.6 * (0.6 + u), C_MINT, 0.25 * (1 - u)); }
@@ -406,6 +457,15 @@
               ribbon(Q, a[0], a[1], b[0], b[1], T * 0.7 * (i % 2 ? 1 : -1), T * 0.055, i % 2 ? C_MINT : C_CHAMP, 0.85, 0.05, Math.sin(Math.PI * sp) * 0.75); } } }
         // the release's flash of air along the waves' line (brief)
         for (const w of waves) { const e = t - w.t0; if (!w.released || e < 0 || e > 0.16 || S.dead >= 0) continue; Q.glow(sx(O.x), sy(O.y) - T * 0.4, T * (w.fin ? 2.4 : 1.6), C_WHITE, 0.26 * (1 - e / 0.16), 0.6); }
+        // (v456 GE3) the release from the wings: a radiant burst of air round the body, rays of wind and a pressure ring racing out (brief)
+        if (R && S.dead < 0) for (const w of waves) { const e = t - w.t0; if (!w.released || e < 0 || e > 0.34) continue; const u = e / 0.34, ch = toS(V, [R.A.chest[0], R.A.chest[1], R.A.chest[2] - 0.35]), r = T * (w.fin ? 3.6 : 2.5);
+          Q.shape(389, ch[0], ch[1], r, 0, 0, r * 0.78, '#FFFFFF', 0.85 * Math.pow(1 - u, 1.5) * fadeIn(t), 0.15 + 0.85 * (1 - (1 - u) * (1 - u)), 9, (w.fin ? 1.2 : 0.85) + 10 * (w.k + 5), 0, 1); }
+        // (v456 GE3) the glitter in the waves' wake: champagne and mint motes twinkling off the crests
+        for (const q of GT) if (q.on) { const u = q.t / q.life, a = Math.sin(Math.PI * cl(u)) * (0.55 + 0.45 * Math.sin(q.t * 23 + q.ph)) * fadeDead(t); if (a < 0.03) continue; Q.star(sx(q.x), sy(q.y) - q.z * ZKc * T, T * 0.075 * q.s, a, q.g ? '#FFE6A0' : '#DFFFF0'); }
+        // (v456 GE3) the final: a brief streak of wind at the screen's edges either side of the aim
+        if (S.finT != null && S.dead < 0 && t >= S.finT && t < S.finT + 0.8) { const e = t - S.finT, env = sstep(0, 0.07, e) * (1 - sstep(0.3, 0.8, e)) * (low ? 0.6 : 1); try { const M = c.getTransform().inverse(), W = c.canvas.width, Hc = c.canvas.height, al = Math.hypot(dx, dy * GY) || 1, ax = dx / al, ay = dy * GY / al, px = -ay, py = ax, ep = Math.abs(px) * W / 2 + Math.abs(py) * Hc / 2, ea = Math.abs(ax) * W / 2 + Math.abs(ay) * Hc / 2, wq = Math.min(W, Hc) * 0.09;
+            const P = (x, y) => [M.a * x + M.c * y + M.e, M.b * x + M.d * y + M.f], Vv = (x, y) => [M.a * x + M.c * y, M.b * x + M.d * y];
+            for (const sg of [1, -1]) { const cc = P(W / 2 + px * sg * (ep - wq), Hc / 2 + py * sg * (ep - wq)), uu = Vv(-px * sg * wq, -py * sg * wq), vv = Vv(ax * ea, ay * ea); Q.quad(391, cc[0], cc[1], uu[0], uu[1], vv[0], vv[1], '#FFFFFF', env, sg > 0 ? 0.3 : 4.1, 1, 0); } } catch (e2) {} }
         // the contacts: short cutting arcs crossing what a wave actually hit (across the aim, a little askew, sweeping through)
         for (const q of CT) if (q.on) { const u = q.t / q.life, X1 = sx(q.x), Y1 = sy(q.y) - q.z * ZKc * T, Lh = T * (q.fin ? 0.75 : 0.55), fa = (1 - sstep(0.5, 1, u)) * sstep(0, 0.08, u);
           for (let j = 0; j < (q.fin ? 3 : 2); j++) { const an = A + Math.PI / 2 + (j - 0.5) * 0.7 * q.fl + q.sd * 0.3, ca = Math.cos(an), sa = Math.sin(an) * GY, gr = sstep(0, 0.35, u - j * 0.06), adv = (u * 0.6 - 0.15) * T * 0.8, ox = dx * adv, oy = dy * adv * GY;
@@ -421,7 +481,7 @@
       for (const q of FE) if (q.on) { const u = q.t / q.life, p = toS(V, [q.x, q.y, q.z]); c.save(); c.globalAlpha = (1 - u) * 0.9; c.translate(p[0], p[1]); c.rotate(q.rot); c.fillStyle = q.burn ? '#FFE7A8' : '#E0B25A'; c.beginPath(); c.ellipse(0, 0, T * 0.22, T * 0.07, 0, 0, TAU); c.fill(); c.restore(); }
     }
     // (the feathers, the motes and the trails are kept in the rig's terms: relative to HP, drawn from its screen point; the dust, pebbles, leaves, contacts and puffs in world terms)
-    const F = H.add({ key: 'goldeneagle', life: T_END + 0.25, x: HP.x, y: HP.y, update, drawUnder, draw, S, onEnd() { if (S.zoomOurs && H.g.zoomP === TUNE.zoom) H.g.zoomT = Math.min(H.g.zoomT || 0, 0.05); for (const L of [FE, MO, DU, PB, LV, CT, PU]) L.length = 0; TRAIL[0].length = TRAIL[1].length = 0; FOL.length = 0; } });
+    const F = H.add({ key: 'goldeneagle', life: T_END + 0.25, x: HP.x, y: HP.y, update, drawUnder, draw, S, onEnd() { if (S.zoomOurs && H.g.zoomP === TUNE.zoom) H.g.zoomT = Math.min(H.g.zoomT || 0, 0.05); for (const L of [FE, MO, DU, PB, LV, CT, PU, GT]) L.length = 0; TRAIL[0].length = TRAIL[1].length = 0; FOL.length = 0; } });
     return F;
   };
   /* (idle time, when a stage starts with it in a kit: 20b) the meshes built and uploaded before the first cast */
