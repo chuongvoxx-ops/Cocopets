@@ -1,11 +1,11 @@
-// v451 GE: Golden Eagle in game, phase by phase (GLM + FGFX forced on the software rasteriser unless GL=0): a dungeon floor, monsters held
-// in the waves' path, the pet at the cast; one still per phase into shots/v451-GE/game-<dpr>x-evo<k>-<phase>.png (the game drawn by its own
+// v451 GE, v455 GE2: Golden Eagle in game, phase by phase (by default every stage of the performance, its times from the move's own choreo: arrival, bank, flare, anticipation, release, the wave and its contacts, the upstroke, the final's wind-up, its release, its wave, the departure, the dissolve) (GLM + FGFX forced on the software rasteriser unless GL=0): a dungeon floor, monsters held
+// in the waves' path, the pet at the cast; one still per phase into shots/v455-GE2/game-<dpr>x-evo<k>-<phase>.png (the game drawn by its own
 // loop, stepped by hand). AIM: the aim's angle (radians, default -pi/2: up the screen). usage: HTML=<test html> node tests/_sf-shots.js   env: DPR (1), EVOS (1,4,7), PH (comma list of seconds from the cast), GL (1), LOW (1: Fewer effects)
 const { chromium } = require('/opt/npm-tools/node_modules/playwright');
 const path = require('path'), fs = require('fs');
 (async () => {
-  const GL = process.env.GL !== '0', DPR = +(process.env.DPR || 1), OUT = path.resolve(__dirname, '..', process.env.OUT || 'shots/v451-GE'); fs.mkdirSync(OUT, { recursive: true });
-  const EVOS = (process.env.EVOS || '1,4,7').split(',').map(Number), PH = (process.env.PH || '0.3,0.75,1.15,1.5,1.75,2.6,3.3,3.62,3.9,4.6').split(',').map(Number);
+  const GL = process.env.GL !== '0', DPR = +(process.env.DPR || 1), OUT = path.resolve(__dirname, '..', process.env.OUT || 'shots/v455-GE2'); fs.mkdirSync(OUT, { recursive: true });
+  const EVOS = (process.env.EVOS || '1,4,7').split(',').map(Number), PH0 = process.env.PH ? process.env.PH.split(',').map(Number) : null;
   const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--disable-gpu-watchdog'] });
   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: DPR, hasTouch: true });
   const errors = []; page.on('pageerror', e => errors.push(e.message + ' @ ' + (e.stack || '').split('\n').slice(1, 3).join(' ')));
@@ -34,6 +34,8 @@ const path = require('path'), fs = require('fs');
     try { await page.screenshot({ path: path.join(OUT, name + '.png'), timeout: 900000 }); } finally { await freeze(false); } };
   for (const evo of EVOS) {
     await ev(`window.__hold(); const T = window.__T; me.castT = me.castM = 0.45; me.castUlt = true; D.ELEM.ult('goldeneagle', { a: window.__A, base: 50, el: 'wind', e8: 'wind', evo: arg, tx: T.x, ty: T.y, up: arg >= 7 }); window.__t0 = g.t; return 1;`, evo);
+    const PH = PH0 || await ev(`const c = P.ELEM_IMPL.wind.ult.goldeneagle.choreo(P.ELEM_IMPL.wind.ult.goldeneagle.tierOf(arg), 0, 1), L = c.TR[c.NB - 1];
+      return [0.45, 0.85, 1.25, c.TR[0] - 0.14, c.TR[0] + 0.03, c.TR[0] + 0.4, c.TR[1] - 0.3, c.W1 + 0.45, L + 0.03, L + 0.45, c.T_LEAVE + 0.4, c.T_LEAVE + 1.1].map(x => Math.round(x * 100) / 100);`, evo);
     let tNow = 0;
     for (const ph of PH) { await ev(`step(arg);`, ph - tNow); tNow = ph; const t0 = Date.now(); await shot(`game-${DPR}x-evo${evo}-${ph.toFixed(2)}${process.env.LOW === '1' ? '-low' : ''}${GL ? '' : '-2d'}`);
       const st = await ev(`const G = window.GOLDEAGLE_GL; return { gl: G.usable(), items: G.STATS.items, W: G.STATS.W, H: G.STATS.H, fx: D.ELEM.fx.length };`); console.log(`evo ${evo} t ${ph}`, JSON.stringify(st), ((Date.now() - t0) / 1000).toFixed(1) + ' s'); }

@@ -1,9 +1,11 @@
-// v451 GE: Golden Eagle's frame cost on a crowded dungeon floor (44 monsters held in and round the waves' path), at a phone's size (390x844, DPR 3), every
+// v451 GE, v455 GE2: Golden Eagle's frame cost on a crowded dungeon floor (44 monsters held in and round the waves' path), at a phone's size (390x844, DPR 3), every
 // GPU path forced on the software rasteriser (as a phone's GPU takes them), measured by tests/_pf-lib.js: idle (no cast) and each phase of
 // the cast. Per scenario: this machine's frame ms (median; SwiftShader: the GPU's work is paid on the CPU here), the JS ms (the frame less
 // the GPU copies' waits), the WebGL -> 2D copies a frame (FGFX layers laid + GLM passes laid), GLM passes and their GL pixels, the composite
 // area (Mpx), GLM triangles, FGFX quads, gradients, canvases resized.
-// usage: HTML=<test html> node tests/_sf-perf.js   env: F (frames a scenario, 4), DPR (3), EVO (7), GQ (high|balanced|perf), LOW (1)
+// The same scene and phases run on the v452 build (before the rework: its own timeline's phases) and on this one (the reworked
+// timeline's matching phases, from the move's choreo), so the two tables compare.
+// usage: HTML=<test html> node tests/_gle-perf.js   env: F (frames a scenario, 4), DPR (3), EVO (7), GQ (high|balanced|perf), LOW (1)
 const { open } = require('./_pf-lib');
 const GLMLOG = () => { window.__SPT = { n: 0, px: 0, big: 0 };
   for (const G of [self.WebGLRenderingContext, self.WebGL2RenderingContext]) { if (!G) continue; const P = G.prototype, o = P.viewport; P.viewport = function (x, y, w, h) { if (this.__pfK === 'glm' && w * h > 64) { const T = window.__SPT; T.n++; T.px += w * h; T.big = Math.max(T.big, w * h); } return o.apply(this, arguments); }; }
@@ -34,8 +36,11 @@ const GLMLOG = () => { window.__SPT = { n: 0, px: 0, big: 0 };
   await measure('idle');
   await ev(evo => { const P = window.__pp, D = P.arc.game._dbg, T = window.__T; window.__GEH(); D.ELEM.ult('goldeneagle', { a: -Math.PI / 2, base: 50, el: 'wind', e8: 'wind', evo, tx: T.x, ty: T.y - 4, up: evo >= 7 }); window.__t0 = D.g.t; }, EVO);
   const to = t => ev(t => { const G = window.__pp.arc.game, D = G._dbg; while (D.g.t - window.__t0 < t - 1e-6) { window.__GEH(); G.update(1 / 60); } }, t);
-  for (const [name, t] of [['enter', 0.6], ['hover', 1.3], ['wave1', 1.75], ['waves', 2.6], ['inhale', 4.4], ['final', 5.6], ['leave', 6.3], ['fade', 6.9]]) { await to(t); await measure(name); }
-  const after = await ev(() => { const D = window.__pp.arc.game._dbg, G = window.GOLDEAGLE_GL; return { fx: D.ELEM.fx.length, gpu: G.gpuCount(), stats: G.STATS }; });
+  const PHS = await ev(evo => { const GE = window.__pp.ELEM_IMPL.wind.ult.goldeneagle; if (!GE.choreo) return [['enter', 0.6], ['hover', 1.3], ['wave1', 1.75], ['waves', 2.6], ['inhale', 4.4], ['final', 5.6], ['leave', 6.3], ['fade', 6.9]];
+    const c = GE.choreo(GE.tierOf(evo), 0, 1), L = c.TR[c.NB - 1]; return [['enter', 0.6], ['hover', 1.3], ['wave1', c.TR[0] + 0.15], ['waves', c.TR[1] + 0.4], ['inhale', c.W1 + 0.4], ['final', L + 0.3], ['leave', c.T_LEAVE + 0.4], ['fade', c.T_LEAVE + 1.1]]; }, EVO);
+  console.log('phases', JSON.stringify(PHS));
+  for (const [name, t] of PHS) { await to(t); await measure(name); }
+  const after = await ev(() => { const D = window.__pp.arc.game._dbg, G = window.GOLDEAGLE_GL; return { fx: D.ELEM.fx.length, gpu: G.gpuCount(), stats: G.STATS, tris: G.triCount ? G.triCount() : null }; });
   console.log('after', JSON.stringify(after)); console.log('TABLE', JSON.stringify(rows));
   console.log('errors', JSON.stringify(errors.slice(0, 5))); await T.browser.close();
 })();

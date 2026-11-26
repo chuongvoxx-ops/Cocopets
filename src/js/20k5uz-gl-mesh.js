@@ -1458,8 +1458,8 @@ void main() {
     c = mix(c, vec3(1.0, 1.02, 1.05), dz * 0.9) + vec3(0.4, 0.7, 1.0) * dz * 0.3;   // (the dissolve's foaming edge)
     gl_FragColor = vec4(min(c, vec3(1.0)) * uAlpha, uAlpha); return; }
   /*</MD-MAT>*/
-  /*<GE-MAT ids 500..504 (v451 GE: 20k5yd-wind-goldeneagle-model.js, the Golden Eagle)>*/
-  else if (id >= 500 && id <= 504) {   // ---- (v451 GE) the Golden Eagle (20k5yd): 500 a feather card (vA.x's tenth: 0 a primary, 1 a secondary, 2 a tertial, 3 a rectrix, 4 a covert; vA.y along it, 0 the quill .. 1 the tip; vA.z the card's index + its place across, 0 the leading edge .. 1 the trailing), 501 plumage (0 the body: vA.y 0 the tail .. 1 the neck, vA.z round, 0 the back .. 0.5 the belly; 1 the head; 2 a hackle; 3 the trousers; 4 a brow ridge), 502 horn (0 the ivory beak, vA.y 0 its root .. 1 the hook; 1 the cere and the scaled toes; 2 a talon; 3 the gape), 503 an eye (its local +x the gaze), 504 an air current between the layers (see-through, emissive: vA.y downstream, vA.z across). uGlow the air currents, uGlow2 a pulse of light (a beat, the inhale), uSpill the dissolve into golden feathers, uWear a seed. Colours in display space
+  /*<GE-MAT ids 500..504, 510 (v451 GE, v455 GE2: 20k5yd-wind-goldeneagle-model.js, the Golden Eagle)>*/
+  else if ((id >= 500 && id <= 504) || id == 510) {   // ---- (v451 GE; v455 GE2: 510 a feather's underside, as 500's variants: duller, barred; the occluders' shaped shadows; the face kept readable) the Golden Eagle (20k5yd): 500 a feather card (vA.x's tenth: 0 a primary, 1 a secondary, 2 a tertial, 3 a rectrix, 4 a covert; vA.y along it, 0 the quill .. 1 the tip; vA.z the card's index + its place across, 0 the leading edge .. 1 the trailing), 501 plumage (0 the body: vA.y 0 the tail .. 1 the neck, vA.z round, 0 the back .. 0.5 the belly; 1 the head; 2 a hackle; 3 the trousers; 4 a brow ridge), 502 horn (0 the ivory beak, vA.y 0 its root .. 1 the hook; 1 the cere and the scaled toes; 2 a talon; 3 the gape), 503 an eye (its local +x the gaze), 504 an air current between the layers (see-through, emissive: vA.y downstream, vA.z across). uGlow the air currents, uGlow2 a pulse of light (a beat, the inhale), uSpill the dissolve into golden feathers, uWear a seed. Colours in display space
     float gv = floor((vA.x - float(id)) * 10.0 + 0.5), gu = clamp(edge, 0.0, 1.0), gci = floor(ao + 0.0001), ga = ao - gci, ndv = max(0.0, dot(n, uV)), fres = pow(1.0 - ndv, 2.4), lit = 0.5, gz = 0.0, tt = uTime, gG = clamp(uGlow, 0.0, 2.0);
     vec3 c = vec3(0.0), em = vec3(0.0), JADE = vec3(0.14, 0.86, 0.6), MINT = vec3(0.62, 1.0, 0.86), CHAMP = vec3(1.0, 0.93, 0.74);
     if (uSpill > 0.0) { float nz = vn(L.xy * 7.0 + L.z * 4.0 + uWear * 23.0) * 0.55 + vn(L.yz * 19.0 + uWear * 5.0) * 0.3 + gu * 0.15, th = uSpill * 1.25 - 0.12; if (nz < th) discard; gz = 1.0 - smoothstep(th, th + 0.1, nz); }   // (the dissolve: noise fronts eat it away, each edge burning champagne gold)
@@ -1467,19 +1467,23 @@ void main() {
       float fl = vn(vec2(gu * 4.5 - tt * 2.6 + uWear * 9.0, ga * 7.0)), f2 = vn(vec2(gu * 9.0 - tt * 4.1, ga * 15.0 + 3.0)), lq = (fract(ga * 5.0 + 0.15 * sin(gu * 6.0 - tt * 3.0)) - 0.5) / 0.07, ln = exp(-lq * lq);
       float a = (smoothstep(0.45, 0.85, fl) * 0.55 + ln * smoothstep(0.35, 0.8, f2) * 0.6) * smoothstep(0.0, 0.2, gu) * (1.0 - smoothstep(0.65, 1.0, gu)) * smoothstep(0.0, 0.15, ga) * (1.0 - smoothstep(0.85, 1.0, ga)) * gG * 1.05 * (1.0 - gz);
       if (a < 0.008) discard; vec3 ac = mix(JADE, MINT, smoothstep(0.5, 1.0, f2 + ln * 0.4)); a *= uAlpha; gl_FragColor = vec4(min(ac * a * 1.35, vec3(1.0)), a * 0.55); return; }
-    if (id == 500) {
+    if (id == 500 || id == 510) {
+      float und = id == 510 ? 1.0 : 0.0;   // (v455 GE2: the underside of a feather)
       float sd = hs(vec2(gci + uWear * 31.0, gv * 3.1)), rp = gv < 0.5 ? 0.3 : gv > 3.5 ? 0.46 : 0.4, wl = ga < rp ? (ga - rp) / rp : (ga - rp) / (1.0 - rp), ed = 1.0 - abs(wl);
       vec3 B1 = vec3(0.44, 0.25, 0.075), G0 = vec3(0.8, 0.55, 0.2), md;   // (deep bronze at the roots, warm gold along the vanes; the coverts bronze with a golden fringe, deepest on the humerus and the back: the wing's roots, uWear < 0.72)
       if (gv > 3.5) { float rk = uWear < 0.705 ? 1.0 : clamp((0.75 - uWear) / 0.04, 0.0, 1.0); md = mix(vec3(0.6, 0.37, 0.12), vec3(0.24, 0.12, 0.035), rk * 0.85); md = mix(md * mix(0.75, 1.0, smoothstep(0.0, 0.5, gu)), mix(G0, vec3(0.62, 0.4, 0.14), rk * 0.6), smoothstep(0.66, 0.95, gu) * 0.8); }
       else { md = mix(B1, G0, smoothstep(0.08, 0.45, gu)); md = mix(md, vec3(0.4, 0.23, 0.07), smoothstep(0.6, 1.0, gu) * (gv < 0.5 ? 0.85 : gv < 1.5 ? 0.6 : 0.45)); }   // (the long feathers deep bronze-gold toward the tip: the champagne edge glows against it)
       md *= 0.9 + 0.2 * sd;
+      if (und > 0.5) { md = mix(md, vec3(0.5, 0.38, 0.22), 0.4); if (gv < 3.5) md *= 1.0 - 0.24 * smoothstep(0.35, 0.7, abs(fract(gu * 6.0 + sd) - 0.5) * 2.0) * smoothstep(0.15, 0.3, gu); }   // (v455 GE2: the underside duller and cooler, dark bars across the flight feathers)
       if (uLow < 0.5) { float bb = fract(gu * (gv > 3.5 ? 14.0 : 34.0) - abs(wl) * 2.2 + sd * 3.0); md *= 0.93 + 0.07 * smoothstep(0.15, 0.5, bb) * smoothstep(0.95, 0.6, bb); }   // (the barbs: fine oblique lines down each vane)
       c = cel3(md * vec3(0.42, 0.36, 0.38) + vec3(0.02, 0.025, 0.05), md, md * 1.13 + vec3(0.05, 0.04, 0.015), n, lit);
+      if (und > 0.5) c = max(c, md * vec3(0.66, 0.58, 0.5)) + vec3(0.06, 0.045, 0.02) + JADE * 0.06 * gG;   // (v455 GE2: the underside lifted by the light bounced off the floor and the jade air beneath)
       float rs = (ga - rp) / 0.018; c = mix(c, vec3(0.93, 0.86, 0.7) * (0.6 + 0.5 * lit), exp(-rs * rs) * (1.0 - smoothstep(0.75, 1.0, gu)) * (gv > 3.5 ? 0.35 : 0.8));   // (the ivory rachis)
       c *= 1.0 - 0.45 * (1.0 - smoothstep(0.0, 0.08, ed)) * (1.0 - 0.6 * smoothstep(0.0, 0.08, gu));   // (a dark seam at the vane's edge: each feather reads against the next)
-      c += vec3(1.0, 0.9, 0.62) * celSpec(n, 0.94) * 0.22 * (0.5 + 0.5 * sd);
+      if (und < 0.5) c *= 1.0 - (gv < 3.5 ? 0.42 : 0.3) * (gv < 3.5 ? 1.0 - smoothstep(0.14, 0.3 + 0.05 * sin(ga * 20.0 + gci * 1.7), gu) : 1.0 - smoothstep(0.0, 0.34, gu));   // (v455 GE2: contact shade where the row above lies over a feather's root, its edge scalloped by the coverts' tips)
+      c += vec3(1.0, 0.9, 0.62) * celSpec(n, 0.94) * 0.22 * (0.5 + 0.5 * sd) * (1.0 - 0.7 * und);
       float ck = gv < 0.5 ? 1.0 : gv < 1.5 ? 0.55 : gv < 2.5 ? 0.3 : gv < 3.5 ? 0.6 : 0.0;   // (the luminous champagne edges: the primaries' brightest)
-      em += CHAMP * ck * ((1.0 - smoothstep(0.0, 0.2, ed)) * 0.9 + (1.0 - smoothstep(0.0, 0.45, ed)) * 0.25) * smoothstep(0.3, 0.85, gu) * (wl > 0.0 ? 1.0 : 0.6) * (0.7 + 0.35 * uGlow2 + 0.15 * step(1.5, uKind));
+      em += CHAMP * ck * ((1.0 - smoothstep(0.0, 0.2, ed)) * 0.9 + (1.0 - smoothstep(0.0, 0.45, ed)) * 0.25) * smoothstep(0.3, 0.85, gu) * (wl > 0.0 ? 1.0 : 0.6) * (0.7 + 0.35 * uGlow2 + 0.15 * step(1.5, uKind)) * (1.0 - 0.55 * und);
       float fw = smoothstep(0.6, 0.92, vn(vec2(gu * 2.4 - tt * 1.8 + sd * 5.0, ga * 13.0 + gci * 3.1))) * (0.6 + 0.4 * sin(ga * 40.0 + gu * 3.0)), fe = smoothstep(0.5, 0.95, vn(vec2(gu * 8.0 - tt * 3.4, gci * 2.3 + sd * 7.0)));
       em += (JADE * fw * (1.0 - smoothstep(0.18, 0.55, gu)) * 0.9 + MINT * fe * (1.0 - smoothstep(0.0, 0.14, ed)) * smoothstep(0.2, 0.6, gu) * 0.45) * gG * (gv > 3.5 ? 0.6 : 1.0); }   // (the air between the layers: jade streaks out along the quills under the coverts, mint along the edges)
     else if (id == 501) {
@@ -1489,14 +1493,15 @@ void main() {
         vec2 f = fract(vec2(gu * 30.0, ga * 34.0 + floor(gu * 30.0) * 0.5)) - 0.5; float s2 = length(vec2(f.x * 1.2, f.y));
         md *= (0.9 + 0.14 * sd) * (1.0 - 0.14 * smoothstep(0.3, 0.5, s2) * (1.0 - uLow)); }
       else if (gv < 1.5) { float top = smoothstep(0.0, 0.25, L.z - 0.05), face = smoothstep(0.12, 0.3, L.x);   // (the head: golden cream, the crown and nape a richer gold with fine streaks, darker round the eye)
-        md = mix(vec3(0.95, 0.83, 0.55), vec3(0.93, 0.7, 0.3), top * (1.0 - face * 0.6)); md = mix(md, vec3(0.62, 0.42, 0.18), face * (1.0 - top) * 0.45); md *= 0.92 + 0.12 * vn(vec2(L.x * 40.0, L.y * 12.0 + L.z * 30.0)); }
+        md = mix(vec3(0.95, 0.83, 0.55), vec3(0.93, 0.7, 0.3), top * (1.0 - face * 0.6)); md = mix(md, vec3(0.62, 0.42, 0.18), face * (1.0 - top) * 0.45); md *= 0.92 + 0.12 * vn(vec2(L.x * 40.0, L.y * 12.0 + L.z * 30.0));
+        vec3 eq = vec3(L.x - 0.23, abs(L.y) - 0.13, L.z - 0.075); md *= 1.0 - 0.42 * (1.0 - smoothstep(0.05, 0.13, length(eq * vec3(0.8, 1.6, 1.3)))); }   // (v455 GE2: a dark ring of feathers round each eye, under the brow: the face reads through the glow)
       else if (gv < 2.5) md = mix(vec3(0.85, 0.6, 0.22), vec3(1.0, 0.88, 0.55), gu) * (0.9 + 0.2 * hs(vec2(gci, 3.0)));   // (a hackle: golden, paling to its point)
       else if (gv < 3.5) md = mix(vec3(0.9, 0.74, 0.42), vec3(0.99, 0.9, 0.66), 0.5 + 0.5 * vn(L.xy * 30.0 + L.z * 18.0)) * 0.95;   // (the trousers: soft pale gold)
       else md = vec3(0.66, 0.45, 0.17);   // (the brow: a bronze-gold shelf)
       float pale = gv < 0.5 ? smoothstep(0.5, 0.9, 1.0 - abs(ga * 2.0 - 1.0)) * smoothstep(0.3, 0.8, gu) : 0.0;   // (the chest keeps its pale gold even turned from the light: a lighter shade band there)
       c = cel3(md * mix(vec3(0.42, 0.36, 0.4), vec3(0.7, 0.62, 0.58), pale) + vec3(0.02, 0.02, 0.045), md, md * 1.12 + vec3(0.05, 0.04, 0.02), n, lit);
       if (gv > 3.5) c += vec3(1.0, 0.85, 0.5) * celSpec(n, 0.95) * 0.25;
-      em += MINT * fres * 0.06 * gG; }
+      em += MINT * fres * 0.06 * gG * (gv > 0.5 && gv < 1.5 ? 0.0 : 1.0); }
     else if (id == 502) {
       if (gv < 0.5) { vec3 md = mix(vec3(0.96, 0.91, 0.78), vec3(0.62, 0.56, 0.48), smoothstep(0.55, 1.0, gu)); c = cel3(md * vec3(0.55, 0.5, 0.55), md, min(md * 1.12 + 0.05, vec3(1.0)), n, lit) + vec3(1.0) * celSpec(n, 0.965) * 0.55; }   // (the ivory beak, a faint slate-honey at the hook, glossy)
       else if (gv < 1.5) { vec3 md = vec3(0.98, 0.76, 0.22) * (0.9 + 0.1 * smoothstep(0.1, 0.5, abs(fract(L.x * 26.0 + L.y * 9.0) - 0.5) * 2.0)); c = cel3(md * vec3(0.5, 0.36, 0.3), md, min(md * 1.15, vec3(1.0)), n, lit) + vec3(1.0, 0.95, 0.8) * celSpec(n, 0.96) * 0.3; }   // (the cere and the toes: gold-yellow scutes)
@@ -1507,8 +1512,10 @@ void main() {
       vec3 iris = mix(vec3(0.02, 0.4, 0.16), vec3(0.22, 0.95, 0.45), smoothstep(0.3, 0.85, rr)) * ray;
       c = mix(vec3(0.03, 0.06, 0.04), iris, ir); c = mix(c, vec3(0.01), pu); c *= 0.75 + 0.35 * max(0.0, dot(n, uLK));
       em += vec3(0.15, 0.9, 0.55) * ir * (1.0 - pu) * (0.35 + 0.3 * gG + 0.4 * uGlow2); c += vec3(1.0) * celSpec(n, 0.97) * 0.9; }
-    c += celRim(n) * 1.3 + em + MINT * uGlow2 * fres * 0.35;
-    c = mix(c, CHAMP * 1.15, gz * 0.9) + vec3(1.0, 0.8, 0.35) * gz * 0.25;
+    float fce = id == 502 || (id == 501 && (abs(gv - 1.0) < 0.5 || gv > 3.5)) ? 1.0 : 0.0;   // (v455 GE2: the face: its rim and the pulse's sheen held down)
+    if (uNOcc > 0.5 && uLow < 0.5 && id != 503) { float oS = occSH(vW, uLK), oA = occAO(vW, n); c *= mix(vec3(0.5, 0.4, 0.37), vec3(1.0), oS) * (0.62 + 0.38 * oA); }   // (v455 GE2: shaped shadows from the body's, the head's and the wing roots' occluders)
+    c += celRim(n) * (1.3 - 0.6 * fce) + em + MINT * uGlow2 * fres * 0.35 * (1.0 - 0.75 * fce);
+    c = mix(c, mix(CHAMP * 1.15, MINT, 0.4), gz * 0.9) + vec3(1.0, 0.8, 0.35) * gz * 0.25;   // (v455 GE2: the dissolve's edge burning champagne into mint wind)
     gl_FragColor = vec4(min(c, vec3(1.0)) * uAlpha, uAlpha); return; }
   /*</GE-MAT>*/
   /*<SM-MAT ids 400..429 (v435 SM: 02f5-samael-model.js, Samael the First Cataclysm)>*/

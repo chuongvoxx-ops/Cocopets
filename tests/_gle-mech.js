@@ -1,8 +1,13 @@
-// v451 GE: Golden Eagle's mechanics on a dungeon floor, the game stepped by hand: the row (100 MP, 35 s, six-star only), per tier
+// v451 GE, v455 GE2: Golden Eagle's mechanics on a dungeon floor, the game stepped by hand: the row (100 MP, 35 s, six-star only), per tier
 // (evo 1 / 4 / 7) 3 / 4 / 6 waves released at their scheduled times (the last after the inhale), each wave hitting each enemy in its
 // path once, the final wave the largest single hit, nothing outside the path or behind a wall, dt 1/60 vs 1/4 (the same hits),
 // Fewer effects (the same hits), a boss (damage, no stun, no push), the others pushed along the aim, the cooldown (35 s from the
 // cast at every tier, a short gesture), the caster downed mid-cast, the stage left mid-cast (GPU buffers freed), no page errors.
+// v455 GE2: the contact effects only where a wave hits (one per hit), each hit as the visible front reaches the monster, and the
+// reworked performance (the move's pure choreo): each release at its downstroke's fastest point, the joints' lags (elbow, wrist,
+// primaries after the shoulder; the primaries bent up under the stroke), no jumps anywhere in the pose sequence (dt 1/240), the
+// head held on the attack area through every release, the follow-through's recoil and dip, the final's deeper wind-up, widest
+// span and stronger recoil, the arrival's bank and flare, the departure's banking climb carrying on while it dissolves.
 // usage: HTML=<test html> node tests/_gle-mech.js   env: GL=1 (GLM + FGFX forced on the software rasteriser)
 const { chromium } = require('/opt/npm-tools/node_modules/playwright');
 const path = require('path');
@@ -58,7 +63,8 @@ const ok = (c, msg, v) => { console.log((c ? 'PASS ' : 'FAIL ') + msg + (v !== u
     const f = D.ELEM.fx[D.ELEM.fx.length - 1], S = f.S; let fxT = 0, dead = null;
     step(o.secs || 10, t => { window.__hold(); if (o.kill != null && t >= o.kill && dead == null) { me.dead = true; dead = g.t - t0; } if (D.ELEM.fx.indexOf(f) < 0 && !fxT) fxT = g.t - t0; }, o.dt || 1 / 60);
     Math.random = MR; if (o.kill != null) me.dead = false; X.hitMon = h0; H.push = p0; P.st.lowFx = false;
-    return { LOG, S: { tier: S.tier, NB: S.NB, TR: S.TR, log: S.log, DK: S.DK, waveD: S.waveD, finD: S.finD, waves: S.waves }, fxT, gone: D.ELEM.fx.indexOf(f) < 0, dead, mv: window.__mv, bossPush: window.__bp, zoom: g.zoomP };`, o);
+    const front = S.hits.map(h => { const m = D.mons[h.id], w = S.waves[h.k]; if (!m || !m.__px) return null; const rx = m.__px[0] - S.O.x, ry = m.__px[1] - S.O.y, ca = Math.cos(S.A), sa = Math.sin(S.A), al = rx * ca + ry * sa, of = -rx * sa + ry * ca, s = Math.min(w.range, w.v * (h.t - w.t0)), fr = s - w.curv * of * of; return +(fr - al).toFixed(3); }).filter(x => x != null);
+    return { LOG, S: { tier: S.tier, NB: S.NB, TR: S.TR, log: S.log, DK: S.DK, waveD: S.waveD, finD: S.finD, waves: S.waves, contacts: S.contacts, nhits: S.hits.length }, front, fxT, gone: D.ELEM.fx.indexOf(f) < 0, dead, mv: window.__mv, bossPush: window.__bp, zoom: g.zoomP };`, o);
   const per = LOG => { const M = {}; for (const [t, i, d, stn] of LOG) { const e = M[i] || (M[i] = { n: 0, sum: 0, max: 0, times: [], stun: 0 }); e.n++; e.sum = +(e.sum + d).toFixed(3); e.max = Math.max(e.max, d); e.times.push(t); e.stun = Math.max(e.stun, stn); } return M; };
   const pl = await place(); console.log('   placed (along, across, floor, column):', JSON.stringify(pl.put.slice(0, 10)));
   const ins = [0, 1, 2, 3, 4, 5, 6, 7].filter(i => pl.put[i][2] && pl.put[i][3]);
@@ -76,6 +82,8 @@ const ok = (c, msg, v) => { console.log((c ? 'PASS ' : 'FAIL ') + msg + (v !== u
     ok(ins.every(i => Math.abs(M[i].sum - ((NB - 1) * S.waveD + S.finD)) < 0.01), `evo ${evo}: per monster in the path ${(NB - 1) * TUNE.waveK + TUNE.finK} DK`, ins.map(i => M[i].sum));
     ok(ins.filter(i => a.mv[i] > 0.1).length >= Math.ceil(ins.length * 0.6), `evo ${evo}: the monsters in the path pushed along the aim (where the floor lets them move) (a stagger: stun ${TUNE.stun} / ${TUNE.stunF} s)`, ins.map(i => +(a.mv[i] || 0).toFixed(2)));
     ok(a.gone && a.fxT > 0, `evo ${evo}: the effect ends by itself (at ${a.fxT.toFixed(2)} s)`, { fxT: a.fxT });
+    ok(S.contacts === S.nhits && S.nhits === a.LOG.length && S.nhits > 0, `evo ${evo}: contact effects (cutting arcs, a pressure ripple) only where a wave hits: one per hit`, { contacts: S.contacts, hits: S.nhits });
+    ok(a.front.length && a.front.every(d => d > -0.75 && d < 0.75), `evo ${evo}: every hit lands as the visible front reaches the monster (front - monster along the aim, tiles)`, { min: Math.min(...a.front), max: Math.max(...a.front) });
     if (evo === 1) {
       await place(); const b = await cast({ evo, dt: 1 / 4 }), MB = per(b.LOG);
       const same = [...Array(12).keys()].every(i => (!M[i] && !MB[i]) || (M[i] && MB[i] && M[i].n === MB[i].n && Math.abs(M[i].sum - MB[i].sum) < 1e-3));
@@ -108,6 +116,39 @@ const ok = (c, msg, v) => { console.log((c ? 'PASS ' : 'FAIL ') + msg + (v !== u
       const n0 = D.ELEM.fx.length, mp0 = me.mp; D.useUlt(); const f = D.ELEM.fx[D.ELEM.fx.length - 1]; out.push({ evo, cdU: g.cdU, row: mv.cd, fx: D.ELEM.fx.length - n0, NB: f && f.S ? f.S.NB : null, castT: me.castT, mp: mp0 - me.mp });
       step(1.0, () => { window.__hold(); }); out[out.length - 1].cdAfter1s = +g.cdU.toFixed(2); step(9, () => { window.__hold(); }); } return out;`);
   ok(cd.every(c => c.cdU === 35 && c.row === 35 && c.fx === 1 && c.mp === 100 && c.castT <= 0.45 + 1e-9 && c.cdAfter1s < 35 && c.cdAfter1s > 33.5) && cd.map(c => c.NB).join() === '3,4,6', 'the cooldown: 35 s, started when the cast commits (MP spent) at every tier; a short gesture (0.45 s); 3 / 4 / 6 wingbeats', cd);
+  // the performance (the move's pure choreo, as the game plays it): releases, lags, continuity, the head, recoil, the final, arrival and departure
+  const pf = await ev(`const G = window.GOLDEAGLE_GL, out = [];
+    for (const tier of [0, 1, 2]) for (const side of [1, -1]) { const A = 0.7, c = GE.choreo(tier, A, side), NB = c.NB, dt = 1 / 240, Tend = c.T_GONE + 0.1, r = { tier, side };
+      // each release at the downstroke's fastest point: the shoulder's elevation speed peaks there (and is downward)
+      r.peak = c.TR.map(T => { let best = -1, bt = 0; for (let x = T - 0.1; x <= T + 0.1; x += 0.0025) { const a = c.wingAt(x - 0.001, {}).elev, b = c.wingAt(x + 0.001, {}).elev, v = -(b - a) / 0.002; if (v > best) { best = v; bt = x; } } return +(bt - T).toFixed(4); });
+      // the lags: mid-downstroke the elbow and wrist still hold more of the raised pose's flexion than the key; the primaries bent up under the load
+      const k0 = c.TR[1], w = c.wingAt(k0 + 0.04, {}); r.flexUp = +w.flexO.toFixed(3); r.flexMid = +(c.wingAt(c.TR[1] + 0.25, {}).flexO).toFixed(3);
+      // no jumps: the largest change in a 1/240 s step of position, angles and the wing's joints
+      let p0 = null, p1 = null, mx = { pos: 0, ang: 0, wing: 0, t: 0 }; const ang = d => { while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return d; };
+      for (let t = 0.03; t < Tend; t += dt) { const P = c.pose(t, -1); if (p0) { const dp = Math.hypot(P.x - 2 * p1.x + p0.x, P.y - 2 * p1.y + p0.y, P.z - 2 * p1.z + p0.z), da = Math.max(Math.abs(ang(P.yaw - p1.yaw) - ang(p1.yaw - p0.yaw)), Math.abs(P.pitch - 2 * p1.pitch + p0.pitch), Math.abs(P.roll - 2 * p1.roll + p0.roll)), dw = Math.max(...G.WK.map(k => Math.abs(P.wing[k] - 2 * p1.wing[k] + p0.wing[k])));
+        if (dp > mx.pos) { mx.pos = dp; mx.t = t; } mx.ang = Math.max(mx.ang, da); mx.wing = Math.max(mx.wing, dw); } p0 = p1; p1 = P; }
+      r.jump = { pos: +mx.pos.toFixed(4), ang: +mx.ang.toFixed(4), wing: +mx.wing.toFixed(4), at: +mx.t.toFixed(2) };
+      // the head on the attack area at each release (the angle between its beak's line and the look point, inside its reach)
+      r.head = c.TR.map(T => { const P = c.pose(T, -1), R = G.rig(P), Bw = R.A.Bw, Rh = R.A.Rh, f = [0, 1, 2].map(i => Bw.x[i] * Rh.x[0] + Bw.y[i] * Rh.x[1] + Bw.z[i] * Rh.x[2]), hd = R.A.head, d = [P.look[0] - hd[0], P.look[1] - hd[1], P.look[2] - hd[2]], l = Math.hypot(...d); return +(Math.acos(Math.max(-1, Math.min(1, (f[0] * d[0] + f[1] * d[1] + f[2] * d[2]) / l)))).toFixed(3); });
+      // recoil and dip after a release; the final's stronger; the final's wind-up rears the body back with the widest span
+      const ax = [Math.cos(A), Math.sin(A)], back = (T, dt2) => { const p0 = c.pose(T, -1), p1 = c.pose(T + dt2, -1); return { rec: -((p1.x - p0.x) * ax[0] + (p1.y - p0.y) * ax[1]), dip: p0.pitch - p1.pitch }; };
+      r.recoil = back(c.TR[1], 0.2); r.recoilF = back(c.TR[NB - 1], 0.2);
+      const span = P => { const R = G.rig(P), a = R.A.tips[0], b = R.A.tips[1]; return Math.hypot(a[0] - b[0], a[1] - b[1]); }; let wide = 0; for (let t = c.TR[0] - 0.4; t < c.TR[NB - 2] + 0.3; t += 0.01) wide = Math.max(wide, span(c.pose(t, -1)));
+      const wf = span(c.pose(c.W3 - 0.05, -1)), top = span(c.pose(c.Ds(1) - 0.01, -1)); r.span = { beats: +wide.toFixed(2), beatTop: +top.toFixed(2), finalHold: +wf.toFixed(2) }; r.amp = { beat: +(c.wingAt(c.Ds(1), {}).elev - c.wingAt(c.De(1), {}).elev).toFixed(2), final: +(c.wingAt(c.Ds(NB - 1), {}).elev - c.wingAt(c.De(NB - 1), {}).elev).toFixed(2) }; r.rear = +(c.pose(c.TR[NB - 1] - c.dPre(NB - 1), -1).pitch - c.pose(c.TR[1] - c.dPre(1), -1).pitch).toFixed(3);
+      // the arrival: banked through its turn, the flare braking (the speed falling, the body upright), still moving into the hover; the departure moving away while it dissolves
+      let bank = 0; for (let t = 0.05; t < c.enter * 0.6; t += 0.02) bank = Math.max(bank, Math.abs(c.pose(t, -1).roll)); r.bank = +bank.toFixed(2);
+      const sp = t => { const a = c.pose(t - 0.01, -1), b = c.pose(t + 0.01, -1); return Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z) / 0.02; }; r.speed = { glide: +sp(0.4).toFixed(2), flare: +sp(c.enter - 0.05).toFixed(2), after: +sp(c.enter + 0.05).toFixed(2) }; r.flarePitch = +c.pose(c.enter - 0.02, -1).pitch.toFixed(2);
+      const d0 = c.pose(c.T_LEAVE, -1), dist = t => { const p = c.pose(t, -1); return Math.hypot(p.x - d0.x, p.y - d0.y, p.z - d0.z); }; r.leave = { half: +dist(c.T_LEAVE + 0.8).toFixed(2), end: +dist(c.T_GONE - 0.05).toFixed(2), spillHalf: +c.pose(c.T_LEAVE + 0.8, -1).spill.toFixed(2), spillEnd: +c.pose(c.T_GONE - 0.02, -1).spill.toFixed(2), rollMax: +Math.max(...[0.2, 0.4, 0.6, 0.8].map(x => Math.abs(c.pose(c.T_LEAVE + x, -1).roll))).toFixed(2) };
+      out.push(r); } return out;`);
+  for (const r of pf) console.log('   performance', JSON.stringify(r));
+  ok(pf.every(r => r.peak.every(d => Math.abs(d) <= 0.01)), 'every release at its downstroke\'s fastest point (the shoulder\'s speed peaks within 0.01 s of it), every tier and side', pf.map(r => r.peak));
+  ok(pf.every(r => r.flexUp > 0.25 && r.flexMid < r.flexUp), 'the primaries follow a fraction later, bent up under the downstroke\'s load, easing after it', pf.map(r => [r.flexUp, r.flexMid]));
+  ok(pf.every(r => r.jump.pos < 0.02 && r.jump.ang < 0.02 && r.jump.wing < 0.06), 'a connected pose sequence: no jump or snap in position, attitude or any wing joint (the largest second difference over 1/240 s steps, arrival to fade)', pf.map(r => r.jump));
+  ok(pf.every(r => r.head.every(a => a < 0.3)), 'the head held on the attack area at every release (angle to it, rad)', pf.map(r => r.head));
+  ok(pf.every(r => r.recoil.rec > 0.08 && r.recoil.dip > 0.03 && r.recoilF.rec > r.recoil.rec * 1.4), 'follow-through: the body recoils back from the aim and the chest dips; the final\'s recoil stronger', pf.map(r => [r.recoil, r.recoilF]));
+  ok(pf.every(r => r.span.finalHold > r.span.beats * 0.97 && r.span.finalHold > r.span.beatTop * 1.15 && r.rear > 0.2 && r.amp.final > r.amp.beat * 1.08), 'the final: the widest wing silhouette held (the full span, splayed), a deeper wind-up (the body reared back, the wings raised higher) and a larger downstroke', pf.map(r => [r.span, r.rear, r.amp]));
+  ok(pf.every(r => r.bank > 0.25 && r.speed.flare < r.speed.glide * 0.5 && r.speed.after > 0.2 && r.flarePitch > 0.55), 'the arrival: banked through its turn; the flare brakes it (upright) while it keeps moving into the hover', pf.map(r => [r.bank, r.speed, r.flarePitch]));
+  ok(pf.every(r => r.leave.half > 1.5 && r.leave.end > r.leave.half * 2 && r.leave.spillHalf < 0.6 && r.leave.spillEnd > 0.95 && r.leave.rollMax > 0.25), 'the departure: a banking climb carrying on away while it dissolves (gone only once far off)', pf.map(r => r.leave));
   // the JS cost a frame (this machine): the move's update, the rig, and its whole drawing on the path in use (2D unless GL=1), 120 frames mid-cast at Celestial
   const js = await ev(`window.__hold(); const T = window.__T; me.x = T.x; me.y = T.y; D.ELEM.ult('goldeneagle', { a: 0, base: 100, el: 'wind', e8: 'wind', evo: 7, tx: T.x + 4, ty: T.y, up: true }); const f = D.ELEM.fx[D.ELEM.fx.length - 1]; step(2.0, () => { window.__hold(); });
     const G = window.GOLDEAGLE_GL, r0 = G.rig; let rig = 0, up = 0, dr = 0; G.rig = Q => { const t = performance.now(); const o = r0(Q); rig += performance.now() - t; return o; }; const u0 = f.update; f.update = (dt, ff) => { const t = performance.now(); u0(dt, ff); up += performance.now() - t; };
