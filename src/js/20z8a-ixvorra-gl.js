@@ -38,7 +38,7 @@ const IXVORRA_GL = (() => {
     // the ring: ten segments in one grid (i along: per segment a closing ring, its arc, a closing ring; j round its section)
     out['ring' + L] = Y.mkGrid(per * R0.NSEG - 1, NS, (i, j) => { const li = i % per; return [SEC[j % NS][2], cl((li - 1) / C.na) + 2 * Math.floor(i / per)]; }, M_RING);
     out['core' + L] = Y.mkGrid(C.cu, C.cv, (i, j) => [i / C.cu, j / C.cv], M_CORE);
-    { const B = GLM.builder(C.q); B.ell([0, 0, 0], [1, 1, 1], M_EYE, { seg: C.es + 4, rings: C.es }); out['eye' + L] = Y.copies(B.done(), R0.EYES.length); }
+    { const B = GLM.builder(C.q); B.ell([0, 0, 0], [1, 1, 1], M_EYE, { seg: C.es + 4, rings: C.es }); out['eye' + L] = Y.copies(Y.dirAtt(B.done()), R0.EYES.length); }
     { const B = GLM.builder(C.q); B.ell([0, 0, 0], [1.1, 1.1, 1.1], M_LID, { seg: C.es + 2, rings: Math.max(4, C.es >> 1), th0: 0, th1: Math.PI / 2 + 0.06 }); B.tor([0, 0, Math.cos(Math.PI / 2 + 0.06) * 1.1], Math.sin(Math.PI / 2 + 0.06) * 1.1, 0.07, M_LID + 0.2, { seg: C.es + 2, rseg: 4 }); out['lid' + L] = Y.copies(B.done(), R0.EYES.length * 2); }
     for (let k = 0; k < R0.NC; k++) out['cab' + k + L] = Y.mkGrid(C.cn, C.cr, (i, j) => [j / C.cr, i / C.cn + k * 2], M_CU);
     // the lamps: 0..19 the violet ring's electrodes, 20..39 the teal ring's, 40..49 the running lights, 50..55 the cables' tips
@@ -64,14 +64,14 @@ const IXVORRA_GL = (() => {
     const core = rel(p.core), RCs = R0.RC * p.S * (1 + op * 0.14 + (M.roar || 0) * 0.04), cr = M.coreRot || 0, cz = Math.cos(cr), sz = Math.sin(cr);
     { const Mc = ME['core' + L], PP = Mc.pos, nu = C.cu, nv = C.cv;
       for (let j = 0; j <= nv; j++) { const th = 0.001 + j / nv * (Math.PI - 0.002), st = Math.sin(th), ct = Math.cos(th);
-        for (let i = 0; i <= nu; i++) { const ph = i / nu * TAU + cr, d0 = st * Math.cos(ph), d1 = st * Math.sin(ph), k = 1 + 0.035 * Math.sin(3 * ph + bt * 2.7 + ct * 4) + 0.025 * Math.sin(5 * th - bt * 3.9 + ph * 2) + 0.015 * Math.sin(9 * ph + 7 * th + bt * 6.1) + op * 0.03 * Math.sin(7 * ph + bt * 11), o3 = (j * (nu + 1) + i) * 3;
+        for (let i = 0; i <= nu; i++) { const ph = i / nu * TAU + cr, d0 = st * Math.cos(ph), d1 = st * Math.sin(ph), k = 1 + 0.016 * Math.sin(3 * ph + bt * 2.7 + ct * 4) + 0.011 * Math.sin(5 * th - bt * 3.9 + ph * 2) + op * 0.02 * Math.sin(7 * ph + bt * 11),   /* (v472b YB: a smooth orb, slowly boiling) */ o3 = (j * (nu + 1) + i) * 3;
           PP[o3] = core[0] + d0 * RCs * k; PP[o3 + 1] = core[1] + d1 * RCs * k * SQ; PP[o3 + 2] = core[2] + ct * RCs * k * SQ; } }
       Y.gridNormals(Mc, false); items.push({ mesh: Mc, glow: 0.7 + mn * 0.3 + op * 0.5, spill: op, kind: mn, glow2: fl2, wear: 0.5, outline: false }); }
     { const ME2 = ME['eye' + L], LD = ME['lid' + L], ER = R0.EYES, me = FX.me;
-      ER.forEach((e, i) => { const st = M.eyes ? M.eyes[i] : null, d0 = e.d, d = [d0[0] * cz - d0[1] * sz, d0[0] * sz + d0[1] * cz, d0[2]], g = vadd(core, [d[0] * RCs * 0.92, d[1] * RCs * 0.92 * SQ, d[2] * RCs * 0.92 * SQ]), er = e.r * p.S * (1 + op * 0.25), opn = st ? st.open : 1, bl = Math.max(st ? st.blink : 0, 1 - opn);
-        const Rf = Y.along(vnrm(vadd(d, vmul(Y.PD, 0.9))), [0, 0, 1]), lk = st ? st.lk : [0, 0], gz = vnrm(vadd(Rf.x, vadd(vmul(Rf.y, -lk[0] * 0.35), vmul(Rf.z, -lk[1] * 0.3)))), Rg = Y.along(gz, Rf.z);
+      ER.forEach((e, i) => { const st = M.eyes ? M.eyes[i] : null, d0 = e.d, d = [d0[0] * cz - d0[1] * sz, d0[0] * sz + d0[1] * cz, d0[2]], er = e.r * p.S * (0.82 + op * 0.3), rr = RCs * 0.985 - er * 0.5, g = vadd(core, [d[0] * rr, d[1] * rr * SQ, d[2] * rr * SQ]),   /* (v472b YB: smaller and flush in the plasma; larger and opener when overloaded) */ opn = st ? st.open : 1, bl = Math.max(st ? st.blink : 0, 1 - opn);
+        const Rf = Y.along(vnrm(vadd(d, vmul(Y.PD, 0.45))), [0, 0, 1]), lk = st ? st.lk : [0, 0], gz = vnrm(vadd(Rf.x, vadd(vmul(Rf.y, -lk[0] * 0.35), vmul(Rf.z, -lk[1] * 0.3)))), Rg = Y.along(gz, Rf.z);
         K.place(ME2, i, Rg, g, [er, er, er]);
-        const up = -0.85 + bl * (Math.PI / 2 + 0.85), dn = 1.0 - bl * (Math.PI / 2 + 1.0), rotY = th => { const c = Math.cos(th), s = Math.sin(th); return M3(vadd(vmul(Rf.x, c), vmul(Rf.z, -s)), Rf.y, vadd(vmul(Rf.x, s), vmul(Rf.z, c))); };
+        const oo = op * 0.35, up = -0.85 - oo + bl * (Math.PI / 2 + 0.85 + oo), dn = 1.0 + oo - bl * (Math.PI / 2 + 1.0 + oo), rotY = th => { const c = Math.cos(th), s = Math.sin(th); return M3(vadd(vmul(Rf.x, c), vmul(Rf.z, -s)), Rf.y, vadd(vmul(Rf.x, s), vmul(Rf.z, c))); };
         const Ru = rotY(up), Rd0 = rotY(dn), Rd = M3(Rd0.x, vmul(Rd0.y, -1), vmul(Rd0.z, -1)); K.place(LD, i * 2, Ru, g, [er, er, er]); K.place(LD, i * 2 + 1, Rd, g, [er, er, er]); });
       K.commit(ME2); K.commit(LD); items.push({ mesh: ME2, glow: 0.5 + mn * 0.4, spill: op, kind: M.stunT || 0, glow2: fl2, wear: 0.2 }, { mesh: LD, glow2: fl2, wear: 0.6, glow: mn }); }
     // ---- the cables: copper, swept along the fight's chains

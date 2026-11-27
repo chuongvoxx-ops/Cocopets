@@ -60,9 +60,9 @@ const NYARZHUL_GL = (() => {
       B.surf((u, v) => { const x = -28 + u * 56, z = -2 + v * (top(x) + 2); return [x, -20.6 - 0.15 * Math.sin(x * 0.9) * Math.sin(z * 0.7), z]; }, NA, q(20), () => M_WALL, { e: u => u, a: (u, v) => v });
       for (let x = -26; x <= 26; x += 4.6) B.tube([x, -20.1, -1.5], [x, -20.1, top(x) - 0.4], 0.62, 0.55, M_WALL + 0.2, { seg: q(12), cap0: false, cap1: 'round' }); out['wall' + L] = B.done(); }
     // the lens: its bezel and bolts, the glass dome, the iris's disc (unit radius, z toward the camera), the blades (copies)
-    { const B = GLM.builder(C.q); B.tor([0, 0, 0], 1.06, 0.12, M_STEEL + 0.4, { seg: 48, rseg: 8 }); for (let i = 0; i < 14; i++) { const a = i / 14 * TAU; B.ell([Math.cos(a) * 1.06, Math.sin(a) * 1.06, 0.1], [0.07, 0.07, 0.05], M_STEEL + 0.6, { seg: 8, rings: 4 }); }
-      B.lathe([[0.94, -0.12], [0.98, 0.0], [0.9, 0.05], [0.86, -0.05]], M_STEEL + 0.4, { seg: 48 }); out['bezel' + L] = B.done(); }
-    { const B = GLM.builder(C.q); B.ell([0, 0, -0.05], [0.88, 0.88, 0.42], M_GLASS, { seg: 40, rings: 12, th1: Math.PI / 2, cap: false }); out['glass' + L] = B.done(); }
+    { const B = GLM.builder(C.q); B.tor([0, 0, 0], 1.06, 0.13, M_STEEL + 0.3, { seg: 56, rseg: 10 }); for (let i = 0; i < 14; i++) { const a = i / 14 * TAU; B.ell([Math.cos(a) * 1.06, Math.sin(a) * 1.06, 0.1], [0.07, 0.07, 0.05], M_STEEL + 0.6, { seg: 8, rings: 4 }); }
+      B.lathe([[0.94, -0.12], [0.98, 0.0], [0.9, 0.05], [0.86, -0.05]], M_STEEL + 0.3, { seg: 56 }); out['bezel' + L] = B.done(); }
+    { const B = GLM.builder(C.q); B.ell([0, 0, -0.05], [0.88, 0.88, 0.2], M_GLASS, { seg: 40, rings: 12, th1: Math.PI / 2, cap: false }); out['glass' + L] = B.done(); }
     { const B = GLM.builder(C.q); B.surf((u, v) => { const a = u * TAU, r = 0.02 + v * 0.86; return [Math.cos(a) * r, Math.sin(a) * r, -0.2 - 0.06 * v]; }, 48, 8, () => M_IRIS, { e: (u, v) => v, a: u => u }); out['iris' + L] = B.done(); }
     { const B = GLM.builder(C.q), pts = [[0, -0.05], [0.5, -0.24], [1.02, -0.44], [1.06, 0.05], [1.02, 0.52], [0.5, 0.33], [0, 0.12]];
       B.prism(pts, -0.015, 0.015, M_IRIS + 0.2, { b: 0.008 }); out['blade' + L] = Y.copies(B.done(), 7); }
@@ -119,7 +119,7 @@ const NYARZHUL_GL = (() => {
     // ---- the vents: frames and louvred slats opening on amber light
     { const VT = ME['vent' + L], SL = ME['slat' + L], opn = P.open; R0.VENTS.forEach(([vx, vz], k) => { const H = onHeart(F, vx, vz, bt, 0.1), Rv = M3(vnrm([1, 0, 0]), vnrm(vcross(H.n, [1, 0, 0])), H.n), Rv2 = M3([1, 0, 0], H.n, vmul(vnrm(vcross([1, 0, 0], H.n)), 1)), p = rel(H.p);
         K.place(VT, k, Rv2, p, [1, 1, 1]); for (let s = 0; s < 4; s++) { const zz = -0.42 + s * 0.28, Rs = M3(Rv2.x, vadd(vmul(Rv2.y, Math.cos(opn * 1.2)), vmul(Rv2.z, Math.sin(opn * 1.2))), vadd(vmul(Rv2.z, Math.cos(opn * 1.2)), vmul(Rv2.y, -Math.sin(opn * 1.2)))); K.place(SL, k * 4 + s, Rs, vadd(p, vadd(vmul(Rv2.z, zz), vmul(Rv2.y, 0.2))), [1, 1, 1]); }
-        if (opn > 0.02) halo.push([0, vadd(p, vmul(H.n, 0.3)), 2.6 * opn, AMBER, 0.8 * opn]); void Rv; }); K.commit(VT); K.commit(SL); items.push({ mesh: VT, glow: P.open, glow2: fl2, fx: dk, wear: 0.4 }, { mesh: SL, glow2: fl2, fx: dk, wear: 0.6 }); }
+        { const hk = Math.max(opn, P.heat); if (hk > 0.02) halo.push([0, vadd(p, vmul(H.n, 0.3)), 2.6 * hk, P.heat > opn ? HEAT : AMBER, 0.8 * hk]); } void Rv; }); K.commit(VT); K.commit(SL); items.push({ mesh: VT, glow: Math.max(P.open, P.heat), spill: P.heat, glow2: fl2, fx: dk, wear: 0.4 }, { mesh: SL, glow2: fl2, fx: dk, wear: 0.6 }); }
     // ---- the fungus in its folds
     { const FG = ME['fung' + L]; R0.SHROOMS.forEach(([x, z, s], k) => { const H = onHeart(F, x, z, bt, 0.05); K.place(FG, k, Y.along(vnrm(vcross(H.n, [0, 0, 1])).map(v => v || 0).length ? vnrm(vcross([0, 0, 1], H.n)) : [1, 0, 0], H.n), rel(H.p), [s * 0.6, s * 0.6, s * 0.5]); halo.push([0, rel(H.p), s * 1.6, FUNGUS, 0.3 * lit]); }); K.commit(FG); items.push({ mesh: FG, glow: lit, glow2: fl2, fx: dk, wear: 0.5 }); }
     // ---- the lens: bezel, glass, iris and its blades (facing the camera), darting where it looks
@@ -128,9 +128,9 @@ const NYARZHUL_GL = (() => {
     const ic = vadd(lc, vadd(vmul(Rlens.x, look[0] * Rl * 0.2), vmul(Rlens.y, -look[1] * Rl * 0.16)));
     items.push({ mesh: ME['iris' + L], R: Rlens, o: ic, sc: [Rl * 0.74, Rl * 0.74, Rl], glow: (0.4 + be * 0.5 + P.sag * 0.3) * lit, spill: heat, kind: ap, glow2: fl2, fx: dk, wear: 0.5, outline: false });
     { const BL = ME['blade' + L], rot = bt * 0.25 + ap * 1.4, ro = 0.5 * cl(ap, 0.15, 1.15) * 0.82 / 0.74; for (let i = 0; i < 7; i++) { const a = rot + i / 7 * TAU, Rb = M3(vadd(vmul(Rlens.x, Math.cos(a)), vmul(Rlens.y, Math.sin(a))), vadd(vmul(Rlens.x, -Math.sin(a)), vmul(Rlens.y, Math.cos(a))), Rlens.z);
-        K.place(BL, i, Rb, vadd(ic, vadd(vmul(Rb.x, ro * Rl * 0.74), vmul(Rlens.z, -0.1 - i * 0.004))), [(1 - ro) * Rl * 0.74 * 0.9, Rl * 0.74 * 0.55, Rl]); } K.commit(BL); items.push({ mesh: BL, glow2: fl2, fx: dk, wear: 0.3 }); }
+        K.place(BL, i, Rb, vadd(ic, vadd(vmul(Rb.x, ro * Rl * 0.74), vmul(Rlens.z, -0.1 - i * 0.004))), [Math.max(0.05, 0.68 - ro) * Rl * 0.74, Rl * 0.74 * 0.4, Rl]); } K.commit(BL); items.push({ mesh: BL, glow2: fl2, fx: dk, wear: 0.3 }); }
     items.push({ mesh: ME['glass' + L], R: Rlens, o: lc, sc: [Rl, Rl, Rl], glow: (0.4 + be * 0.4) * lit, spill: heat, glow2: fl2, fx: dk, al: 0.6, wear: 0.5, outline: false });
-    halo.push([0, ic, Rl * 2.0, heat > 0.3 ? HEAT : AMBER, (0.22 + be * 0.3 + P.sag * 0.25) * lit], [0, ic, Rl * 0.7, heat > 0.3 ? HEAT : AMBER, (0.45 + be * 0.35) * lit]);
+    halo.push([0, ic, Rl * 2.0, heat > 0.3 ? HEAT : AMBER, (0.14 + be * 0.2 + P.sag * 0.2 + heat * 0.2) * lit], [0, ic, Rl * 0.25, heat > 0.3 ? HEAT : AMBER, (0.3 + be * 0.3) * lit]);   // (v472b YB: the glow behind the blades, the glass kept dark)
     // ---- the pistons: housings (still), rods and crossheads rising with the beat, joint lamps, tendons to its flanks
     items.push({ mesh: ME['pistH' + L], o: rel([C.x, C.y, 0]), glow2: fl2, fx: dk, wear: 0.33 });
     { const RD = ME['rod' + L], XH = ME['xhead' + L], LP = ME['lamp' + L], ph = M.lastBeat != null ? cl((bt - M.lastBeat) / 1.4) : 0;
@@ -151,6 +151,7 @@ const NYARZHUL_GL = (() => {
       K.commit(ME['collar' + L]); K.commit(ME['jaw' + L]); K.commit(ME['clamp' + L]); items.push({ mesh: ME['collar' + L], glow2: fl2, fx: dk, wear: 0.8 }, { mesh: ME['jaw' + L], glow2: fl2, fx: dk, wear: 0.1 }, { mesh: ME['clamp' + L], glow2: fl2, fx: dk, wear: 0.45 }); }
     // ---- the seams' violet, the heat
     halo.push([0, vadd(Hr, [0, D0 * 0.6, 0]), R0.HW * 1.15, heat > 0.3 ? HEAT : VIOLET, (0.12 + be * 0.2 + heat * 0.3) * lit]);
+    if (heat > 0.02) for (let i = 0; i < 4; i++) { const a = bt * (1.3 + i * 0.4) + i * 1.7; halo.push([0, vadd(Hr, [Math.cos(a) * 3.2, D0 * 0.7, Math.sin(a * 1.3) * 2.6]), 4.2 + 1.2 * Math.sin(bt * 3 + i), i % 2 ? HEAT : '#FFB070', heat * (0.22 + 0.1 * Math.sin(bt * 7 + i * 2))]); }   // (v472b YB: overheated: the heat shimmering off it)
     INFO.lod = L; return { items, halo, occ: [vadd(Hr, [0, -1.8, -0.5]).concat([5.2])] }; }
   function hideTent(ME, L, k) { for (let s = 0; s < 6; s++) K.hide(ME['collar' + L], k * 6 + s); K.hide(ME['jaw' + L], k * 2); K.hide(ME['jaw' + L], k * 2 + 1); K.hide(ME['clamp' + L], k); K.hide(ME['lamp' + L], 4 + k); }
   // a cable-tentacle along the fight's curve: the hose, collars, the clamp's jaws round its lamp

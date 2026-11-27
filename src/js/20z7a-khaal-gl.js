@@ -69,6 +69,9 @@ const YUG3 = (() => {
   /* ---- mesh helpers ---- */
   // many copies (k) of one small mesh; each copy's third attribute carries its index (4 k + its own value)
   function copies(base, n) { const M = K.multi(base, n), nv = base.nv; for (let k = 0; k < n; k++) for (let i = 0; i < nv; i++) M.att[(k * nv + i) * 3 + 2] = k * 4 + Math.min(3.9, base.att[i * 3 + 2]); for (let i = 0; i < M.pos.length; i++) M.pos[i] = 0; M.dyn = true; return M; }
+  // (v472b YB) a unit sphere's own direction in its attributes (e = (x + 1) / 2, a = (y + 1) / 2 x 3.8; |z| follows): copies are written in the
+  // world, so a pattern on them (an iris, a pupil) must come from these, not from the position
+  function dirAtt(M) { for (let i = 0; i < M.nv; i++) { const x = M.pos[i * 3], y = M.pos[i * 3 + 1], z = M.pos[i * 3 + 2], l = Math.hypot(x, y, z) || 1; M.att[i * 3 + 1] = (x / l + 1) / 2; M.att[i * 3 + 2] = (y / l + 1) / 2 * 3.8; } return M; }
   // a grid (nu + 1 by nv + 1) whose points are written every frame: att(i, j) -> [e, a, m]
   function mkGrid(nu, nv, att, m) { const n1 = nu + 1, nvx = n1 * (nv + 1), pos = new Float32Array(nvx * 3), nrm = new Float32Array(nvx * 3), at = new Float32Array(nvx * 3), I = nvx > 65535 ? new Uint32Array(nu * nv * 6) : new Uint16Array(nu * nv * 6);
     let o = 0; for (let j = 0; j <= nv; j++) for (let i = 0; i <= nu; i++) { const q = att(i, j); at[o] = q[2] == null ? m : q[2]; at[o + 1] = q[0]; at[o + 2] = q[1]; nrm[o + 2] = 1; o += 3; }
@@ -107,7 +110,7 @@ const YUG3 = (() => {
   function seg(MS, k, a, b, r) { const d = vsub(b, a), L = vlen(d) || 1e-4; K.place(MS, k, along(d), a, [L, r, r]); }
   const rotZ = th => { const c = Math.cos(th), s = Math.sin(th); return M3([c, s, 0], [-s, c, 0], [0, 0, 1]); };
   const mm3 = (A2, B) => M3(mv(A2, B.x), mv(A2, B.y), mv(A2, B.z));
-  return { A, K, LIGHT, lod, gqK, inFight, pass, halos, bolt, tell, marked, copies, mkGrid, gridNormals, sweep, n3, rng, rel, along, seg, rotZ, mm3, bsOf, ZS, PD, I3K, win };
+  return { dirAtt, A, K, LIGHT, lod, gqK, inFight, pass, halos, bolt, tell, marked, copies, mkGrid, gridNormals, sweep, n3, rng, rel, along, seg, rotZ, mm3, bsOf, ZS, PD, I3K, win };
 })();
 
 /* ---------- (v472 YB) KH'AAL THE HULL-EATER in three dimensions (Rift 06, the Yuggoth Engine's first boss: the Breach) ----------
@@ -150,7 +153,7 @@ const KHAAL_GL = (() => {
   const ss = x => { x = cl(x); return x * x * (3 - 2 * x); };
   const INFO = { lod: 0, calls: 0, tris: 0, W: 0, H: 0, ms: 0, poseMs: 0 };
   // the two levels: the dome's rings and its turn, legs (along, round), arms, wings (span, rim), the brain, the skirt
-  const CFG = [{ dr: 40, da: 176, lu: 40, lv: 12, au: 36, av: 12, wu: 12, wv: 72, bu: 72, bv: 44, sk: 168, sp: 9, q: 1 }, { dr: 22, da: 96, lu: 22, lv: 8, au: 20, av: 8, wu: 7, wv: 40, bu: 40, bv: 24, sk: 96, sp: 6, q: 0.6 }];
+  const CFG = [{ dr: 40, da: 176, lu: 40, lv: 12, au: 36, av: 12, wu: 12, wv: 72, bu: 112, bv: 64, sk: 168, sp: 9, q: 1 }, { dr: 22, da: 96, lu: 22, lv: 8, au: 20, av: 8, wu: 7, wv: 40, bu: 64, bv: 36, sk: 96, sp: 6, q: 0.6 }];
   // the carapace's rings of plates (as the 2D's PANELS: the crown a heptagon, six round it from 0.16951, eleven at the rim from 0.05241; the torn one the rim's third)
   const OFF1 = 0.16951, OFF2 = 0.05241, HEPT = r => 0.32 * Math.cos(Math.PI / 7) / Math.cos(((((r - 0.3) % (TAU / 7)) + TAU / 7) % (TAU / 7)) - Math.PI / 7);
   function panelOf(rho, th) { const t = ((th % TAU) + TAU) % TAU, h7 = HEPT(t);
@@ -187,9 +190,9 @@ const KHAAL_GL = (() => {
         B.pop(); }
       out['shell' + L] = B.done(); }
     /* the brain-lobe (e how deep in a groove, a near the fissure): an ellipsoid of radii 0.78 x 1.0 x 0.72, its folds sculpted */
-    { const B = GLM.builder(1), NU = C.bu, NV = C.bv, fold = (d) => { const f1 = Y.n3(d[0] * 4.4 + 7, d[1] * 3.6, d[2] * 4.4), f2 = Y.n3(d[0] * 8.5, d[1] * 8.5 + 3, d[2] * 8.5), r = 1 - Math.abs(2 * (f1 * 0.7 + f2 * 0.3) - 1); return Math.pow(1 - r, 3); };
+    { const B = GLM.builder(1), NU = C.bu, NV = C.bv, fold = (d) => { const f = Y.n3(d[0] * 4.2 + 7, d[1] * 3.4, d[2] * 4.2) * 0.72 + Y.n3(d[0] * 9.0, d[1] * 9.0 + 3, d[2] * 9.0) * 0.28; return Math.exp(-(((f - 0.5) / 0.055) ** 2)); };   // (v472b YB: the sulci: narrow meandering grooves between broad gyri)
       const at = (u, v) => { const ph = u * TAU, th = 0.02 + v * (Math.PI - 0.04), d = [Math.sin(th) * Math.cos(ph), Math.sin(th) * Math.sin(ph), Math.cos(th)], g = fold(d), fis = Math.exp(-((d[1] / 0.07) ** 2)) * ss((d[2] + 0.2) / 0.4);
-        const k = 1 - 0.16 * g - 0.13 * fis + 0.02 * Math.sin(ph * 3) * Math.sin(th); return { p: [d[0] * 0.78 * k, d[1] * 1.0 * k, d[2] * 0.72 * k], g, fis }; };
+        const k = 1 - 0.13 * g - 0.14 * fis + 0.02 * Math.sin(ph * 3) * Math.sin(th); return { p: [d[0] * 0.78 * k, d[1] * 1.0 * k, d[2] * 0.72 * k], g, fis }; };
       B.surf((u, v) => at(u, v).p, NU, NV, () => M_BRAIN, { e: (u, v) => at(u, v).g, a: (u, v) => at(u, v).fis, flip: true }); out['brain' + L] = B.done(); }
     /* the legs (six swept tubes: e round, a along x 3: femur, shin, tip) and the arms (two: x 2) */
     for (let i = 0; i < 6; i++) out['leg' + i + L] = Y.mkGrid(C.lu, C.lv, (a, j) => [j / C.lv, a / C.lu * 3], M_CHIT);
@@ -201,7 +204,7 @@ const KHAAL_GL = (() => {
     { const B = GLM.builder(C.q); B.tube([0, 0, 0], [1, 0, 0], 1, 0.72, M_CHIT + 0.4, { seg: 10, cap0: 'round', cap1: 'round' }); out['segC' + L] = Y.copies(B.done(), 8); }
     { const B = GLM.builder(C.q); B.tube([0, 0, 0], [1, 0, 0], 1, 0.6, M_CHIT + 0.8, { seg: 9, cap0: 'round', cap1: 'round' }); out['segP' + L] = Y.copies(B.done(), 4); }
     /* the lenses: 0, 1 the stalk eyes, 2..5 the small eyes, 6 the hinge lamp, 7 the mouth's slag */
-    { const B = GLM.builder(C.q); B.sph([0, 0, 0], 1, M_LENS, 14); out['lens' + L] = Y.copies(B.done(), 8); }
+    { const B = GLM.builder(C.q); B.sph([0, 0, 0], 1, M_LENS, 14); out['lens' + L] = Y.copies(Y.dirAtt(B.done()), 8); }
     /* the hammer's palm (x along it): an ellipsoid clad in plate; its fixed finger and its hooked finger (in the palm's frame, x along, z up; the hook about its hinge at (0.55, 0.5)) */
     { const B = GLM.builder(C.q); B.ell([0, 0, 0], [1.08, 0.86, 0.8], M_HULL + 0.2, { seg: 32, rings: 20 }); out['palmH' + L] = B.done(); }
     { const B = GLM.builder(C.q), pts = [[0.8, 0, -0.3], [1.08, 0, -0.33], [1.35, 0, -0.32], [1.58, 0, -0.22], [1.72, 0, -0.1]];
