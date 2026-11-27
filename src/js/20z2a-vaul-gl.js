@@ -164,22 +164,42 @@ const VAUL_GL = (() => {
   /* a curved thread of light: from (x0, y0) to (x1, y1) bowed up by h, in n links (each feathered into the next) */
   function arcBeam(Q, x0, y0, x1, y1, h, w, col, al, n) { let px = x0, py = y0; const cy = Math.min(y0, y1) - h; for (let i = 1; i <= n; i++) { const u = i / n, x = (1 - u) * (1 - u) * x0 + 2 * u * (1 - u) * (x0 + x1) / 2 + u * u * x1, y = (1 - u) * (1 - u) * y0 + 2 * u * (1 - u) * cy + u * u * y1; Q.rbeam(px, py, x, y, w, col, al, 1, 1); px = x; py = y; } }
   /* the three tentacles of light under the head (the 2D's own curls, rears and lashes): each a ribbon of light tapering to its tip, a
-     white core down it, motes running down it, a bloom at its tip */
+     white core down it, motes running down it, a bloom at its tip.
+     (v469 VT) Each is ONE continuous strip (Q.lstrip, kinds 446/447): a veil of saturated violet or gold laid over the marble, then its
+     light added on it (a white-hot core with pulses running to the tip, its colour, a soft bloom, a thread of the other colour twisting
+     round it), so it glows on the bright gallery and on a dark floor alike (v463 laid it over as a stain of 433 whose colour was
+     darkened to half: dull grey arcs on the marble). And it trails: each point follows its place in the curl with a lag growing toward
+     the tip (TFOL), so they stream behind it as it moves and swing after it when it stops (the curl drawn in with its pace); a lash or
+     the sweep still lies exactly down its lane */
+  const TV = ['#7B48F2', '#E8A21C'], TL = ['#9C62FF', '#FFB43C'];
+  /* (v469 VT) a tentacle's points (world) following their places FR with a lag growing from the root (held) to the tip (about 0.4 s),
+     kept in TS[i] from frame to frame by the fight's clock bt; set afresh when new, after a gap, or when a place jumps far */
+  function TFOL(TS, i, FR, bt) { const n = FR.length; let L = TS[i]; const dt = L ? bt - L.bt : 0;
+    if (!L || L.p.length !== n || dt < 0 || dt > 0.5) { L = TS[i] = { bt, p: FR.map(q => q.slice()) }; return L.p; }
+    if (dt > 0) { L.bt = bt; const d1 = Math.min(dt, 0.1); for (let j = 0; j < n; j++) { const u = j / (n - 1), p = L.p[j], q = FR[j], e = j ? 1 - Math.exp(-(2.6 + 40 * Math.pow(1 - u, 3)) * d1) : 1;
+      if (Math.abs(q[0] - p[0]) + Math.abs(q[1] - p[1]) + Math.abs(q[2] - p[2]) > 14) { p[0] = q[0]; p[1] = q[1]; p[2] = q[2]; } else { p[0] += (q[0] - p[0]) * e; p[1] += (q[1] - p[1]) * e; p[2] += (q[2] - p[2]) * e; } } }
+    return L.p; }
   function tentacles(Q, FX, m, M, T, t, lf) { if (m.dead) return; const H = headFrame(FX, m, M, headPos(m, M)), slump = M.slump || 0, bt = M.bt || t, unf = M.unfold == null ? 1 : M.unfold;
     const yawM = headOf(H.yaw), Fm = [Math.cos(yawM), Math.sin(yawM), 0], Nf = nrm(vadd(vmul(Fm, 0.75), CW)); let U0 = nrm(vsub([0, 0, 1], vmul(Nf, Nf[2])));
-    const rootM = vsub(toM(H.cen, m), vmul(U0, H.s * 1.15)), root = [m.x + rootM[0], m.y + rootM[1] * GY, rootM[2] * ZK], NP = lf ? 10 : 16, sx = q => FX.sx(q[0]), sy = q => FX.sy(q[1]) - q[2] * T;
+    const rootM = vsub(toM(H.cen, m), vmul(U0, H.s * 1.15)), root = [m.x + rootM[0], m.y + rootM[1] * GY, rootM[2] * ZK], NP = lf ? 14 : 24, sx = q => FX.sx(q[0]), sy = q => FX.sy(q[1]) - q[2] * T;
+    const S3 = st3(FX), TS = S3.tl || (S3.tl = []), tk = 1 - 0.45 * clamp((M.spd || 0) / 10, 0, 1);   /* (v469 VT) */
     for (let i = 0; i < 3; i++) { const Kk = M.lashK ? M.lashK[i] : 0, Wd = M.lashW ? M.lashW[i] : 0, A = M.lashA ? M.lashA[i] : 0, sw = M.sweepK || 0, col = i === 1 ? GOLD_HI : VIOLET_HI, core = i === 1 ? '#FFF6DA' : '#F4EEFF', P = [];
       const swA = (M.sweepA || 0) + (i - 1) * 0.45 + (1 - sw) * 0.9 - 0.45, lashA = sw > 0.02 ? swA : A, ext = Math.max(Kk, sw);
-      for (let j = 0; j <= NP; j++) { const u = j / NP, th = i * TAU / 3 + Math.sin(bt * 0.3 + i) * 0.35 + u * (0.35 + Math.sin(bt * 0.6 + i) * 0.15) + Math.sin(bt * 1.6 - u * 3.2 + i * 2) * 0.22 * u, r = u * (5.2 + Math.sin(bt * 0.9 + i) * 0.5) * unf;
+      const FR = []; for (let j = 0; j <= NP; j++) { const u = j / NP, th = i * TAU / 3 + Math.sin(bt * 0.3 + i) * 0.35 + u * (0.35 + Math.sin(bt * 0.6 + i) * 0.15) + Math.sin(bt * 1.6 - u * 3.2 + i * 2) * 0.22 * u, r = u * (5.2 + Math.sin(bt * 0.9 + i) * 0.5) * unf * tk;
         let q = [root[0] + Math.cos(th) * r, root[1] + Math.sin(th) * r * 0.9, root[2] * (1 - Math.pow(u, 1.1) * 0.75) + Math.sin(bt * 1.8 - u * 4 + i) * 0.45 * u];
         if (Wd > 0) { const ca = Math.cos(A), sa = Math.sin(A), qq = [root[0] - ca * u * 1.6 + Math.sin(u * 9 + bt * 14) * 0.15 * u, root[1] - sa * u * 1.6, root[2] + u * 2.6 + Math.sin(u * 4 + bt * 6) * 0.3]; q = q.map((x, k) => lerp(x, qq[k], Wd)); }
+        FR.push(q); }
+      const FL = TFOL(TS, i, FR, bt);   /* (v469 VT: trailing behind it) */
+      for (let j = 0; j <= NP; j++) { const u = j / NP, th = i * TAU / 3 + Math.sin(bt * 0.3 + i) * 0.35 + u * (0.35 + Math.sin(bt * 0.6 + i) * 0.15) + Math.sin(bt * 1.6 - u * 3.2 + i * 2) * 0.22 * u; let q = FL[j].slice();
         if (ext > 0) { const ca = Math.cos(lashA), sa = Math.sin(lashA), d = u * 10.5, wv = Math.sin(u * 10 - bt * 16) * 0.3 * (1 - u * 0.5), qq = [m.x + ca * d - sa * wv, m.y + sa * d + ca * wv, lerp(root[2], 0.35, Math.sqrt(u))]; q = q.map((x, k) => lerp(x, qq[k], Math.min(1, ext * 1.4))); }
         if (slump > 0) { const qq = [root[0] + Math.cos(th) * u * 3.6, root[1] + Math.sin(th) * u * 3, lerp(root[2], 0.1, Math.min(1, u * 3))]; q = q.map((x, k) => lerp(x, qq[k], slump)); }
         P.push([sx(q), sy(q)]); }
       const dim = (1 - slump * 0.6) * unf, bright = 1 + Wd * 0.4 + ext * 0.6;
-      for (let j = 0; j < NP; j++) { const u = j / NP, u1 = (j + 1) / NP, a0 = 1 - u * 0.55, a1 = 1 - u1 * 0.55, w = T * (1.15 - u * 0.85);
-        { const dx = (P[j + 1][0] - P[j][0]) / 2, dy = (P[j + 1][1] - P[j][1]) / 2, ll = Math.hypot(dx, dy) || 1, hw = w * 0.42; Q.quad(433, P[j][0] + dx, P[j][1] + dy, dx, dy, -dy / ll * hw, dx / ll * hw, col, 1, 2 + Math.min(1, 0.85 * dim * bright) * (0.55 + 0.45 * a0), 0, 0); }   // (its body laid over the bright marble, end to end)
-        /* (the ribbon is laid over, end to end, its white core in it: no chain of added links, which would bead at their joints) */ }
+      /* (v469 VT) its veil and its light, each one strip, tapering to the tip, faded in under the head and out at the tip */
+      const X = [], Y = [], HW = [], AV = [], AG = []; for (let j = 0; j <= NP; j++) { const u = j / NP, fo = sstep(0, 0.14, u) * (1 - sstep(0.86, 1, u)) * (1 - u * 0.3);
+        X.push(P[j][0]); Y.push(P[j][1]); HW.push(T * (1.25 - 0.95 * Math.pow(u, 1.1))); AV.push(Math.min(1, 0.8 * dim * Math.min(1.25, bright)) * fo); AG.push(Math.min(1, 0.85 * dim * bright) * fo); }
+      Q.lstrip(446, NP + 1, X, Y, HW, AV, TV[i === 1 ? 1 : 0], i * 2.1 + (i === 1 ? 20 : 0), T);
+      Q.lstrip(447, NP + 1, X, Y, HW, AG, TL[i === 1 ? 1 : 0], i * 2.1 + (i === 1 ? 20 : 0), T);
       if (!lf) for (let k2 = 0; k2 < 4; k2++) { const u = (bt * 0.5 + k2 / 4 + i * 0.13) % 1, j = Math.min(NP - 1, Math.floor(u * NP)), e = u * NP - j; Q.star(lerp(P[j][0], P[j + 1][0], e), lerp(P[j][1], P[j + 1][1], e), T * 0.2, 0.8 * dim, core); }
       Q.glow(P[NP][0], P[NP][1], T * 0.9, col, 0.5 * dim * bright); } }
   /* the weave's ring over the pet and its word (as the 2D) */

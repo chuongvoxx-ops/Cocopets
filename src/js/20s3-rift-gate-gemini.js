@@ -192,7 +192,7 @@
   if (typeof window !== 'undefined') { window.GAP_EXT = window.GAP_EXT || {};
     GAP_EXT.gemvoid = { base: '#05040C',
       paint(c, S, R) { c.fillStyle = '#07061A'; c.fillRect(0, 0, S, S); for (let i = 0; i < 46; i++) { c.fillStyle = `rgba(230,225,255,${0.2 + R() * 0.5})`; c.beginPath(); c.arc(R() * S, R() * S, R() < 0.1 ? 1.2 : 0.6, 0, TAU); c.fill(); } },
-      back(c, o) { const B = GAP_EXT.equinoxsky; if (B && B !== GAP_EXT.gemvoid && typeof B.back === 'function' && bossHalf()) { try { B.back(c, o); return; } catch (e) {} }
+      back(c, o) {   /* v469 GB: no hand-over to another far view at the door any more (it popped in): one backdrop, world-anchored, plain dark behind the sanctum (below) */
         const { W, H, t, wx, wy, k } = o, C = CUR, T = C && C.X ? C.X.Tz() : 40, sx = x => W / 2 + x * T - wx, sy = y => H / 2 + y * T - wy, D = skyLand();
         if (D) { const V = { W, H, T, sx, sy, t, land: 'gemchamber', light: 'halls', hy: 26.5, top: 4.5, span: 29, k: k || 1 }; try { D.vista(c, V, { gpu: !!(C && C.X) && W_.__GG_SKYGL !== 0 && (W_.__GG_SKYGL === 1 || hqOn()) }); }   /* (the far view's own GPU light (its veils, the radiance) only at High: elsewhere its pictures stay and the gate's own far machines carry the light: a pass and a copy saved) */ catch (e) { c.fillStyle = '#07061A'; c.fillRect(0, 0, W, H); } }
         else { const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#03030C'); g.addColorStop(1, '#141030'); c.fillStyle = g; c.fillRect(0, 0, W, H); }
@@ -200,10 +200,15 @@
         const F = fgx(); if (F && C && C.X) { try { const Q = F.begin(c, null), lf = lowFx(); for (const m of FARM) { const X = sx(m.x), Y = sy(m.y), R = m.r * T; if (X < -R * 3 || X > W + R * 3 || Y < -R * 3 || Y > H + R * 3) continue;
               if (m.fire) { Q.glow(X, Y, R * 3.2, '#FF8A3A', 0.18); Q.shape(472, X, Y, R * 1.7, 0, 0, R * 1.7, '#FFFFFF', 0.95, 1 / 1.7, 0.7, 1.0, 0, 1); } else { Q.glow(X, Y, R * 3.0, '#3FA8FF', 0.16); Q.shape(473, X, Y, R * 1.6, 0, 0, R * 1.6, '#FFFFFF', 0.95, 1 / 1.6, PI, 1.0, 0, 1); }
               const sp = t * (m.fire ? 0.25 : -0.2); Q.quad(468, X, Y, R * 1.6, 0, 0, R * 1.6 * 0.42, m.fire ? '#C8984A' : '#B8C8DC', 0.9, 0.82, m.fire ? 1 : 2, sp); if (!lf) Q.quad(468, X, Y, 0, R * 1.35, R * 1.35 * 0.5, 0, m.fire ? '#A87A3A' : '#98A8C0', 0.8, 0.8, 0, -sp * 1.4); }
-            F.flush(c); } catch (e) {} } } };
+            F.flush(c); } catch (e) {} }
+        /* v469 GB: behind the Equinox Sanctum the void is empty (the user: "have the background behind the arena empty"): the far view
+           fades into the plain dark north of the door, fixed in the world (screen = world - camera), so nothing appears or switches as
+           the pet walks in */
+        { const yF = sy(DARK_Y0), yT = sy(DARK_Y1); if (yT > 0) { c.save(); c.fillStyle = '#05040C'; if (yF > 0) c.fillRect(0, 0, W, Math.min(H, yF)); if (yT > yF && yF < H) { const g = c.createLinearGradient(0, yF, 0, yT); g.addColorStop(0, 'rgba(5,4,12,1)'); g.addColorStop(1, 'rgba(5,4,12,0)'); c.fillStyle = g; c.fillRect(0, Math.max(0, yF), W, Math.min(H, yT) - Math.max(0, yF)); } c.restore(); } } } };
   }
   const hqOn = () => { try { return typeof RAZIEL_GL !== 'undefined' && RAZIEL_GL.hq ? !!RAZIEL_GL.hq() : !lowFx(); } catch (e) { return false; } };
-  const FARM = [{ x: CC.x - 24, y: 22, r: 3.2, fire: true }, { x: CC.x + 24, y: 24, r: 2.8, fire: false }];
+  const FARM = [{ x: CC.x - 24, y: 34, r: 3.2, fire: true }, { x: CC.x + 24, y: 36, r: 2.8, fire: false }];   // v469 GB: beside the chamber (north of the door the void is empty)
+  const DARK_Y0 = 25.0, DARK_Y1 = 30.5;   // v469 GB: the void plain dark north of y DARK_Y0, the far view fading in to y DARK_Y1 (the door's foot 26.5, the bridge 27..29)
 
   /* ======================= the stand-in guardian (when GEMINI_BOSS is missing or fails): an ordinary lesser boss ======================= */
   const STANDIN = (() => { let S = null;

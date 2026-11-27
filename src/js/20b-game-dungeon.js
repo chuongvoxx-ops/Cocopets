@@ -280,7 +280,7 @@ GAMES.dungeon = {
       const bm = { type: 'boss', boss: B.id, bk: B, mini, lesser: !!(o && o.lesser), bname: o && o.name ? o.name : B2 ? B.name + romanN(F.loop) : F.bossName, x: 0, y: 0, r: B.r * (mini ? 0.9 : 1), hp, maxhp: hp, spd: B.spd * RU.mSpd * (mini ? 1.05 : 1), dmg: F.rift ? (B.dmg || 14) * F.dmgMul : 1.3 * F.monDmg * RU.mDmg * 15 * F.dmgMul * (mini ? 0.85 : 1.1) * (1 + 0.2 * F.loop), xp: mini ? (30 + 8 * F.n) : (60 + 15 * F.n), color: B.color, glow: B.glow, aggro: true, act: 'enter', actT: 0, phase: 1, cd: 2.4, z: 0, t: 0, flash: 0, burn: 0, burnD: 0, venom: 0, venomT: 0, chill: 0, freeze: 0, stun: 0, kbx: 0, kby: 0, atkCd: 0, mv: B.fly || B.id === 'moth' || B.id === 'seraph' ? 1 : 0, hitSq: 0, face: 1, step: 0, flank: 0 };
       // (a Tower boss, of any rank, is a Rift-touched Cocopet; a brute, one of the old bosses fighting with the monsters, is not)
       if (!F.rift && !(o && o.brute) && typeof RiftEvil !== 'undefined') { towerEvilN++; const E = !B2 && !(o && o.lesser) && FLOOR_EVIL ? FLOOR_EVIL : towerEvil(2, towerEvilN);
-        bm.evil = E; bm.glow = E.acc; bm.bname = (o && o.name ? o.name : '') || E.name + (B2 && !(o && o.lesser) ? romanN(F.loop) : ''); }
+        bm.evil = E; bm.glow = E.acc; bm.bname = (o && o.name ? o.name : '') || E.name + (B2 && !(o && o.lesser) ? romanN(F.loop) : ''); if (RiftEvil.giant) RiftEvil.giant(bm); }   // v469 MB: a giant evil Cocopet at 0.8 of its old size (drawn and hit)
       return bm;
     }
     function bossSpot() {

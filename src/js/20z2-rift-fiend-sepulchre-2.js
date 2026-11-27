@@ -294,17 +294,27 @@ RiftFiend.define({ id: 'vaul', name: 'Vaul', title: 'The Mourning Reflection', c
 
   /* ---- the three tentacles of light: ribbons of violet and gold light that curl and swirl beneath the head, rear before
      a lash and strike out along their lanes; painted live over the scene, added as light ---- */
+  /* (v469 VT) a tentacle's point j of n (world) following its place q with a lag growing from the root (held) to the tip (about 0.4 s),
+     kept in M.tl2[i] by the fight's clock bt (as 20z2a's TFOL): they stream behind the head as it moves and swing after it when it stops */
+  function tfol(M, i, j, n, q, bt) { const TS = M.tl2 || (M.tl2 = []); let L = TS[i];
+    if (!j) { const dt = L ? bt - L.bt : 0; if (!L || L.p.length !== n || dt < 0 || dt > 0.5) L = TS[i] = { bt, p: [], d: 0, n }; else { L.d = Math.min(dt, 0.1); L.bt = bt; } }
+    if (!L) return q; const p = L.p[j]; if (!p || !j) { L.p[j] = q.slice(); return q; }
+    if (L.d > 0) { const e = 1 - Math.exp(-(2.6 + 40 * Math.pow(1 - j / (n - 1), 3)) * L.d); if (Math.abs(q[0] - p[0]) + Math.abs(q[1] - p[1]) + Math.abs(q[2] - p[2]) > 14) { p[0] = q[0]; p[1] = q[1]; p[2] = q[2]; } else { p[0] += (q[0] - p[0]) * e; p[1] += (q[1] - p[1]) * e; p[2] += (q[2] - p[2]) * e; } }
+    return p.slice(); }
   function drawTentacles(c, FX, T, t) { const M = FX.mem, m = FX.m; if (!m || m.dead) return; const H = headFrame(FX, m, M, headPos(m, M)), slump = M.slump || 0, bt = M.bt || t, unf = M.unfold == null ? 1 : M.unfold;
     const root = [H.cen[0] - H.U[0] * H.s * 1.15, H.cen[1] - H.U[1] * H.s * 1.15, H.cen[2] - H.U[2] * H.s * 1.15], NP = 18, sx = q => FX.sx(q[0]), sy = q => FX.sy(q[1]) - q[2] * T;
+    const tk = 1 - 0.45 * clamp((M.spd || 0) / 10, 0, 1);   /* (v469 VT: the curl drawn in with its pace) */
     c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.lineJoin = 'round';
     for (let i = 0; i < 3; i++) { const K = M.lashK ? M.lashK[i] : 0, Wd = M.lashW ? M.lashW[i] : 0, A = M.lashA ? M.lashA[i] : 0, sw = M.sweepK || 0, col = i === 1 ? GOLD_HI : VIOLET_HI, core = i === 1 ? '#FFF6DA' : '#F4EEFF', pts = [];
       const swA = (M.sweepA || 0) + (i - 1) * 0.45 + (1 - sw) * 0.9 - 0.45, lashA = sw > 0.02 ? swA : A, ext = Math.max(K, sw);
       for (let j = 0; j <= NP; j++) { const u = j / NP;
         // idle: a lazy spiral down and out, each its own phase
-        const th = i * TAU / 3 + Math.sin(bt * 0.3 + i) * 0.35 + u * (0.35 + Math.sin(bt * 0.6 + i) * 0.15) + Math.sin(bt * 1.6 - u * 3.2 + i * 2) * 0.22 * u, r = u * (5.2 + Math.sin(bt * 0.9 + i) * 0.5) * unf;
+        const th = i * TAU / 3 + Math.sin(bt * 0.3 + i) * 0.35 + u * (0.35 + Math.sin(bt * 0.6 + i) * 0.15) + Math.sin(bt * 1.6 - u * 3.2 + i * 2) * 0.22 * u, r = u * (5.2 + Math.sin(bt * 0.9 + i) * 0.5) * unf * tk;
         let q = [root[0] + Math.cos(th) * r, root[1] + Math.sin(th) * r * 0.9, root[2] * (1 - Math.pow(u, 1.1) * 0.75) + Math.sin(bt * 1.8 - u * 4 + i) * 0.45 * u];
         // rearing before a lash: drawn up and back over the head, quivering
         if (Wd > 0) { const ca = Math.cos(A), sa = Math.sin(A), qq = [root[0] - ca * u * 1.6 + Math.sin(u * 9 + bt * 14) * 0.15 * u, root[1] - sa * u * 1.6, root[2] + u * 2.6 + Math.sin(u * 4 + bt * 6) * 0.3]; q = q.map((x, k) => lerp(x, qq[k], Wd)); }
+        // (v469 VT) trailing: each point follows its place with a lag growing toward the tip
+        q = tfol(M, i, j, NP + 1, q, bt);
         // lashing: flung straight out along its lane to the marble, the wave running out along it
         if (ext > 0) { const ca = Math.cos(lashA), sa = Math.sin(lashA), d = u * 10.5, wv = Math.sin(u * 10 - bt * 16) * 0.3 * (1 - u * 0.5), qq = [m.x + ca * d - sa * wv, m.y + sa * d + ca * wv, lerp(root[2], 0.35, Math.sqrt(u))]; q = q.map((x, k) => lerp(x, qq[k], Math.min(1, ext * 1.4))); }
         // fallen, they lie limp on the marble

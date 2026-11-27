@@ -454,8 +454,8 @@ const CAL_MINI = (() => {
   /* arm a lesser boss the engine made as a corrupted Cocopet: its form, its numbers, its post (home), its gate */
   function arm(X, m, d, o) { o = o || {}; const E = evilOf(d), ex = o.gate || null, home = o.home || { x: m.x, y: m.y };
     m.x = home.x; m.y = home.y; m.wx = m.x; m.wy = m.y;
-    m.evil = E; m.bname = d.name; m.glow = d.glow; m.r = d.r; m.aggro = false; m.act = 'move'; m.cd = 1.5; m.calEased = true;
-    m.hp = m.maxhp = d.hp; m.dmg = d.dmg; m.xp = Math.round((m.xp || 30) * 1.5);
+    m.evil = E; m.bname = d.name; m.glow = d.glow; if (RiftEvil.giant) RiftEvil.giant(m, d.r); else m.r = d.r; m.aggro = false; m.act = 'move'; m.cd = 1.5; m.calEased = true;   // v469 MB: 0.8 of d.r (RiftEvil.giant), drawn and hit
+    if (!o.keep) { m.hp = m.maxhp = d.hp; m.dmg = d.dmg; m.xp = Math.round((m.xp || 30) * 1.5); }   // v469 MB: o.keep: a rift's own mini (Rift 04) keeps its numbers
     m.calMini = { def: d, evil: E, X, home, trail: [], woke: false, acts: {}, faceHome: ex && ex.x < home.x ? -1 : 1, sub: o.sub || null };
     const G = { m, def: d, home, exit: ex ? { x: ex.x, y: ex.y } : null, fall: null, self: o.self || null, onFall: o.onFall || null, wakeR: o.wakeR || 9.5, leash: o.leash || 16 };
     m.calMini.leash = G.leash; RUN(X).guards.push(G); return G; }
@@ -675,7 +675,7 @@ const CAL_MINI = (() => {
     return jobs; }
   function warm(P, specs) { if (!P || (typeof window !== 'undefined' && window.__MINI_WARM === 0)) return []; const jobs = [], T = P.Tz ? P.Tz() : (P.T || 40), sc = Math.min(2, P.k || 1), guards = [];
     for (const m of (P.mons || [])) if (m && m.calMini && !m.dead && m.evil) guards.push({ E: m.evil, r: m.r, def: m.calMini.def });
-    for (const o of specs || []) { try { const d = specOf(o); guards.push({ E: evilOf(d), r: d.r, def: d }); } catch (e) {} }
+    for (const o of specs || []) { try { const d = specOf(o); guards.push({ E: evilOf(d), r: d.r * (RiftEvil.SIZE || 1) /* v469 MB */, def: d }); } catch (e) {} }
     const anyLeader = (P.mons || []).some(m => m && m.calLeader) || (P.reserve || []).some(m => m && m.calLeader);
     if (!guards.length && !anyLeader) return [];
     // (each guardian's first face started at once, as the loading pass asks: its layers build in the background while the
@@ -700,7 +700,7 @@ const CAL_MINI = (() => {
         return { update(dt) { if (xm.update) xm.update(dt); gm.update(dt);
             if (!wrapped && self.mod && self.mod.goal) { wrapped = true; const g0 = self.mod.goal; self.mod.goal = () => { if (self.done || G.m.dead) return g0(); const left = countLeft(X); return left > 0 ? `${left} left · Defeat ${G.def.short} to open the gate` : `Defeat ${G.def.short} to open the gate`; }; } },
           drawGround(c) { if (xm.drawGround) xm.drawGround(c); gm.drawGround(c); }, drawOver(c) { if (xm.drawOver) xm.drawOver(c); gm.drawOver(c); } }; }; } }
-  return { DEF, PRESET, spawn, leader, packLeaders, layer, guards: X => RUN(X).guards, leaders: X => RUN(X).leaders, hpFor, dmgFor, evilOf, specOf, drawMini, guardians, tearLeader, warm, modesOf, fx: { paintTell, shotPaint, softRing, rayPaint, streakPaint } };   // (v404 EM: fx for the pictures' studio)
+  return { DEF, PRESET, spawn, arm /* v469 MB: Rift 04 arms its own minis (20s7) */, leader, packLeaders, layer, guards: X => RUN(X).guards, leaders: X => RUN(X).leaders, hpFor, dmgFor, evilOf, specOf, drawMini, guardians, tearLeader, warm, modesOf, fx: { paintTell, shotPaint, softRing, rayPaint, streakPaint } };   // (v404 EM: fx for the pictures' studio)
 })();
 const EVIL_MINI = CAL_MINI;
 if (typeof self !== 'undefined') self.EVIL_MINI = EVIL_MINI;   // (tests, and other rifts' files that load before this one, at run time)

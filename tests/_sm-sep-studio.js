@@ -35,7 +35,8 @@ const path = require('path'), fs = require('fs');
         Z.y += cell; return { n, msPerFrame: Math.round((performance.now() - t0) / n), cutAlpha: cut, half: s2.half }; }, [t, LAND, RPX]);
       lg(LAND + ' ' + t + ' ' + JSON.stringify(r));
     }
-    // the minis, posed live
+    // the minis, posed live (v469 MB: they are giant evil Cocopets now, drawn by EVIL_MINI: no GLM minis to pose here)
+    if (!(await page.evaluate(() => !!window.SEP_BROOD.drawMini))) { lg(LAND + ' minis: EVIL_MINI (see the in-game shots)'); continue; }
     const mr = await page.evaluate(([LAND, RPX]) => { const S = window.SEP_BROOD, Z = window.__ST, c = Z.c, out = {}; S.bio = LAND; const r = RPX * 0.9 * 1.3; let y = Z.y + r * 2.4;
       const poses = { hourpet: [['move', 0, 1], ['stop', 0.5, 0], ['tick', 0.7, 0], ['move', 0, 1, 2.4]], kennelpet: [['move', 0, 1], ['lunge', 0.6, 0], ['lunge', 1.0, 0], ['call', 0.5, 0, -0.5]] };
       for (const id of ['hourpet', 'kennelpet']) { let x = 120; const t0 = performance.now();

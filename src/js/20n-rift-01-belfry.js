@@ -654,7 +654,7 @@ if (typeof window !== 'undefined') window.BEL = BEL;
     if (E && E.spawn) { try { const lvl = (X.F && X.F.n) || 10, hp = E.hpFor ? E.hpFor(lvl) : null, dmg = E.dmgFor ? E.dmgFor(lvl) : null;
         m = E.spawn(X, { x, y, home: { x, y }, gate, el: d.el, seed: d.seed, palette: d.palette, hint: d.hint, name: d.name, short: d.short, sub: d.sub, lvl, hp: hp ? Math.round(hp * d.hpK) : undefined, dmg: dmg || undefined, wakeR: 8.5, leash: 15 });
         if (m && !C.layer && E.layer) C.layer = E.layer(X); } catch (e) { try { console.warn('bel guard', e); } catch (e2) {} m = null; } }
-    if (!m) { const B2 = BOSSES.find(b => b.id === 'kharrox'); m = X.lesserBoss(x, y, 0.35, '', B2); if (m && typeof RiftEvil !== 'undefined') { const Ev = RiftEvil.make(d.seed * 7919 >>> 0, null); m.evil = Ev; m.glow = d.palette.col; } if (m) { m.bname = d.name; m.aggro = false; } }
+    if (!m) { const B2 = BOSSES.find(b => b.id === 'kharrox'); m = X.lesserBoss(x, y, 0.35, '', B2); if (m && typeof RiftEvil !== 'undefined') { const Ev = RiftEvil.make(d.seed * 7919 >>> 0, null); m.evil = Ev; m.glow = d.palette.col; if (RiftEvil.giant) RiftEvil.giant(m); /* v469 MB */ } if (m) { m.bname = d.name; m.aggro = false; } }
     if (m && o && o.hpMin > m.maxhp) { m.maxhp = m.hp = Math.round(o.hpMin); }
     if (m && (key === 'church' || key === 'foundry' || key === 'storm')) { m.maxhp = m.hp = Math.round(m.maxhp * 4); m.belHard = 5; }   /* (v404: 4x, was 2x in v400; v400: Gloomfin, Clangrot, Squallmaw: double health, 5x blows, the user 2026-11-17) */
     if (m) { m.belGuard = key; C.guard = { m, key, def: d, gate, home: { x, y } }; }

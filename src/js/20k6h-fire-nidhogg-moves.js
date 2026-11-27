@@ -2444,6 +2444,15 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
           L = (col * ring * (0.35 + 0.65 * done) + mix(col, vec3(1.0), 0.6) * ring * done * 0.5 + col * rise * 0.3 + col * (1.0 - smoothstep(0.0, 0.86, r)) * 0.05) * k * fade; } }
       if (v_k > 431.5) { float mx = max(max(L.r, L.g), L.b), a = clamp(mx * v_c.a * 1.5, 0.0, 0.88); vec3 tc = L / max(0.001, mx); gl_FragColor = vec4(mix(tc * 0.5, tc, smoothstep(0.6, 1.2, mx)) * a, a); return; } }   // (432..435 are laid over, not added: on the gallery's bright marble added light would not show, so they stain it, a deeper tint of their colour where they are strong)
     /*</SA-FX>*/
+    /*<VT-FX kinds 446, 447 (v469 VT: 20z2a-vaul-gl.js, Vaul's three tentacles of light, each ONE strip: Q.lstrip). uv.x its length from the root (units), uv.y -1 .. 1 across; v_q.x its seed (+ 20: a gold tentacle, its thread violet; else violet, its thread gold), v_q.y the share of the way to its tip.
+       446 its veil of colour, laid over: on the gallery's bright marble added light alone washes out to white, so this keeps its colour there (a clear saturated tint, never a grey: v463's stain of 433 darkened to half and read as grey arcs);
+       447 its light, added: a white-hot core, pulses of light running down it to the tip, its colour round it, a soft bloom, a fine thread of the other colour twisting round it>*/
+    else if (v_k > 445.5 && v_k < 447.5) { float s = u.y, ar = u.x, tt = u_t, gd = step(19.5, v_q.x), sd = v_q.x - gd * 20.0, fe = 1.0 - smoothstep(0.72, 1.0, abs(s));
+      vec3 AC = gd > 0.5 ? vec3(0.66, 0.46, 1.0) : vec3(1.0, 0.82, 0.42); float ts = s - 0.14 * sin(ar * 1.1 - tt * 2.6 + sd), thr = exp(-ts * ts / 0.0016) * (0.5 + 0.5 * sin(ar * 0.7 + tt * 1.7 + sd));
+      float pulse = pow(0.5 + 0.5 * sin(ar * 0.6 - tt * 3.4 + sd * 2.0), 10.0), flow = 0.82 + 0.18 * sin(ar * 1.8 - tt * 5.0 + sd);
+      if (v_k < 446.5) { float a = v_c.a * (exp(-s * s / 0.08) * 0.8 + exp(-s * s / 0.3) * 0.12) * fe * pk; vec3 c = mix(col * flow, AC, thr * 0.5); gl_FragColor = vec4(c * a, a); return; }
+      L = (col * (exp(-s * s / 0.09) * 0.42 * flow + exp(-s * s / 0.4) * 0.2 + exp(-s * s / 0.05) * pulse * 0.45) + vec3(1.0) * exp(-s * s / 0.006) * (0.8 + 0.7 * pulse) + AC * thr * 0.3) * fe; }
+    /*</VT-FX>*/
     /*<SK-FX kinds 436..443 (v463 SK: 20z3a-khyros-gl.js, Khyros the Hound Beyond the Angles)>*/
     else if (v_k > 435.5 && v_k < 443.5) { float an = atan(u.y, u.x), tt = u_t, sd = v_q.y; vec3 SV = vec3(0.89, 0.92, 0.97), VO = vec3(0.56, 0.4, 1.0), GD = vec3(1.0, 0.82, 0.48);
       if (v_k < 436.5) { // 436 Angle Stalk's lane (uv.x -1 the alcove .. 1 where the head stops, uv.y across): v_q.x 0..1 the tell (chevrons of light running out of the corner along it, its rails lit, a front creeping out, a thread down its middle), 1 + k the lane burning out after the lunge (k 1 .. 0); v_q.y its seed + 100 x its place in the Hunt's order (that many beads of light at its middle); v_q.z its length in its widths
@@ -2604,7 +2613,7 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
           else ec += (hh > 0.93 ? zWH : (hh > 0.75 ? zGD : (hh > 0.6 ? zOR : zCR))) * on * exp(-dot(d, d) / (0.004 + 0.003 * fi)) * tw; }
         L = ec * 1.3 * (1.0 - ag * ag) * (1.0 - smoothstep(0.6, 1.0, r)); } }
     /*</RZU-FX>*/
-    /*<GB-FX kinds 490..493 (v468 GB: 20s3b-gemini-boss.js, Raziel's Trial of Two Heavens in the Equinox Sanctum). All added light, every edge feathered: fire turbulent and warm, ice faceted and cold, safety white>*/
+    /*<GB-FX kinds 490..493 (v468 GB: 20s3b-gemini-boss.js, Raziel's Trial of Two Heavens in the Equinox Sanctum; v469 GB: 492, the mirrors' timing dial, removed with Binary Cataclysm). All added light, every edge feathered: fire turbulent and warm, ice faceted and cold, safety white>*/
     else if (v_k > 489.5 && v_k < 493.5) { float tt = u_t;
       vec3 qFI = vec3(1.0, 0.42, 0.1), qGO = vec3(1.0, 0.76, 0.34), qIC = vec3(0.4, 0.78, 1.0), qPL = vec3(0.84, 0.93, 1.0), qWH = vec3(1.0, 0.98, 0.95);
       if (v_k < 490.5) { // 490 a sector of the Equinox Sanctum: the quad runs from the arena's centre along the sector's middle (uv.x -1 the centre .. 1 at 1.25 x the radius), uv.y across (x 0.42 of its length). v_q.x state (0 the rest: rim, machinery, channels, constellations, the emblem; 1 fire, 2 ice, 3 safe white, 4 the clock's gold light) + 0.98 x strength; v_q.y 10 x the cell's outer radius share (floored) + its inner share; v_q.z the sector's index + 0.98 x a flare; v_c the metal's tint
@@ -2651,13 +2660,6 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
         else if (ty < 3.5) { float bands = pow(0.5 + 0.5 * sin((r * 5.0 - tt * 1.6) * 6.2831853), 5.0) * (1.0 - smoothstep(0.86, 0.92, r)); L = c1 * (bd * 1.2 + bands * 0.3 * (0.5 + hl) + 0.06); }
         else if (ty < 4.5) { float tw = 0.75 + 0.25 * sin(tt * 7.0 + v_q.y * 3.0); L = c1 * (exp(-r * r * 9.0) * 0.9 * tw + bd * 0.6 + exp(-sq((r - 0.55) / 0.02)) * 0.4) + qWH * exp(-r * r * 60.0) * 0.8; }
         else { float sw = rzF3(vec2(a2 * 2.0 - r * 6.0 + tt * 0.8, r * 3.0)); L = c1 * (bd + sw * 0.35 * (1.0 - smoothstep(0.6, 0.9, r)) + exp(-r * r * 6.0) * (0.25 + 0.5 * hl)); }
-        L *= 1.0 - smoothstep(0.96, 1.0, r); }
-      else if (v_k < 492.5) { // 492 a mirror's timing dial (a unit disc): its track and hour ticks, the alignment window lit (v_q.y its middle, v_q.z its half width, screen radians), the needle (v_q.x) sweeping; all of it flares while the needle is inside the window; v_c the track's colour
-        float a3 = atan(u.y, u.x), na = v_q.x, wc = v_q.y, wh = v_q.z;
-        float dw = abs(mod(a3 - wc + 3.14159265, 6.2831853) - 3.14159265), dn = abs(mod(a3 - na + 3.14159265, 6.2831853) - 3.14159265), inWin = step(abs(mod(na - wc + 3.14159265, 6.2831853) - 3.14159265), wh);
-        float track = exp(-sq((r - 0.84) / 0.012)) * 0.5, tick = exp(-sq((r - 0.74) / 0.03)) * pow(max(0.0, cos(a3 * 12.0)), 40.0) * 0.4;
-        float win = exp(-sq((r - 0.84) / 0.05)) * (1.0 - smoothstep(wh - 0.03, wh + 0.01, dw)), needle = exp(-sq(dn * max(r, 0.05) / 0.028)) * smoothstep(0.12, 0.2, r) * (1.0 - smoothstep(0.92, 0.98, r));
-        L = col * (track + tick) + mix(qGO, qWH, 0.5) * win * 1.2 + mix(col, qWH, 0.6 + 0.4 * inWin) * needle * 1.3 + qWH * exp(-r * r / 0.01) * 0.6 + qWH * inWin * exp(-sq((r - 0.84) / 0.09)) * 0.6 * (0.6 + 0.4 * sin(tt * 18.0));
         L *= 1.0 - smoothstep(0.96, 1.0, r); }
       else { // 493 a tell's wedge on the floor (the quad from its point along its middle: uv.x -1 the point .. 1 its reach; across x the wedge's width): feathered edges, a soft fill, light running outward; v_q.x its half angle, v_q.y the tell's progress 0..1, v_q.z 0 a tell, 1 the blow's flash; v_c its colour
         float hf = v_q.x, wq = sin(min(hf, 1.4)) * 1.06 + 0.04, pa = (u.x + 1.0) * 0.5, pc = u.y * wq, rn = length(vec2(pa, pc)), ag = atan(pc, max(pa, 0.0001)), fk = clamp(v_q.y, 0.0, 1.0);
@@ -3159,6 +3161,21 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
       const put = (i, sd) => { const p = i * 8, h = S[p + 4] + m; A[o2++] = S[p] + S[p + 2] * h * sd; A[o2++] = S[p + 1] + S[p + 3] * h * sd; A[o2++] = S[p + 5]; A[o2++] = h * sd; A[o2++] = kind; A[o2++] = FL ? FL[i] : 0; A[o2++] = eg; A[o2++] = pal; A[o2++] = Math.min(1, AL[i] * ak); A[o2++] = S[p + 7]; A[o2++] = S[p + 4]; A[o2++] = S[p + 6]; };
       for (let j = 0; j < n - 1; j++) { const i = order ? order[j] : j; if (AL[i] < 0.004 && AL[i + 1] < 0.004) continue; put(i, 1); put(i, -1); put(i + 1, 1); put(i + 1, 1); put(i, -1); put(i + 1, -1); }
       this[kn] = o2 / 12; },
+    /* (v469 VT) a ribbon of light as ONE continuous triangle strip (no chain of links: no beads where links overlap, no seams): n stations,
+       (X, Y) its centre in the 2D path's coordinates, HW its half width there (px: its picture fades out inside it; narrowed where the
+       path bends tighter than it, so its inside never folds over), AL its alpha; kind 446 laid over (solid), 447 added; col its colour,
+       q0 passed on; unit px per unit of its length. A vertex: uv (its length so far in units, -1 / 1 across), v_q (q0, the share of the
+       way along 0..1, the half width px) */
+    lstrip(kind, n, X, Y, HW, AL, col, q0, unit) { if (n < 2) return; const solid = kind === 446, ka = solid ? 'smk' : 'lit', kn = solid ? 'ns' : 'nl', k = this.k || 1, un = 1 / ((unit || 40) * k), C = rgbOf(col);
+      let S = this._lv; if (!S || S.length < n * 6) S = this._lv = new Float32Array(n * 12);
+      for (let i = 0; i < n; i++) { S[i * 6] = this.X(X[i], Y[i]); S[i * 6 + 1] = this.Y(X[i], Y[i]); }
+      let ar = 0; for (let i = 0; i < n; i++) { const p = i * 6, i0 = Math.max(0, i - 1) * 6, i1 = Math.min(n - 1, i + 1) * 6, tx = S[i1] - S[i0], ty = S[i1 + 1] - S[i0 + 1], tl = Math.hypot(tx, ty) || 1; if (i) ar += Math.hypot(S[p] - S[p - 6], S[p + 1] - S[p - 5]) * un;
+        let h = Math.max(0, HW[i]) * k; if (i > 0 && i < n - 1) { const ax = S[p] - S[i0], ay = S[p + 1] - S[i0 + 1], bx = S[i1] - S[p], by = S[i1 + 1] - S[p + 1], la = Math.hypot(ax, ay), lb = Math.hypot(bx, by), tn = Math.abs(Math.atan2(ax * by - ay * bx, ax * bx + ay * by)); if (tn > 1e-3) h = Math.min(h, 0.95 * (la + lb) / 2 / tn); }
+        S[p + 2] = -ty / tl; S[p + 3] = tx / tl; S[p + 4] = ar; S[p + 5] = h; }
+      let A = this[ka]; const nv = this[kn], need = (nv + (n - 1) * 6) * 12; if (need > A.length) { let L = A.length; while (L < need) L *= 2; const q = new Float32Array(L); q.set(A); A = q; this[ka] = q; }
+      let o = nv * 12; const put = (i, sd) => { const p = i * 6, h = S[p + 5]; A[o++] = S[p] + S[p + 2] * h * sd; A[o++] = S[p + 1] + S[p + 3] * h * sd; A[o++] = S[p + 4]; A[o++] = sd; A[o++] = kind; A[o++] = C[0]; A[o++] = C[1]; A[o++] = C[2]; A[o++] = Math.min(1, Math.max(0, AL[i])); A[o++] = q0 || 0; A[o++] = i / (n - 1); A[o++] = h; };
+      for (let j = 0; j < n - 1; j++) { if (AL[j] < 0.004 && AL[j + 1] < 0.004) continue; put(j, 1); put(j, -1); put(j + 1, 1); put(j + 1, 1); put(j, -1); put(j + 1, -1); }
+      this[kn] = o / 12; },   /* (v469 VT) */
     /* (v412 SA) a soft contact shadow on the floor (solid, kind 66): an ellipse of half axes rx, ry, darkest at its middle */
     sshadow(x, y, rx, ry, a, col) { if (!(a > 0.004) || !(rx > 0.5)) return; let A = this.smk; const n = this.ns; if ((n + 6) * 12 > A.length) { const q = new Float32Array(A.length * 2); q.set(A); A = q; this.smk = q; }
       const C = rgbOf(col || '#1C0714'), cx = this.X(x, y), cy = this.Y(x, y), ux = this.a * rx, uy = this.b * rx, vx = this.c0 * ry, vy = this.d * ry; let o = n * 12;

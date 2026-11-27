@@ -17,10 +17,8 @@
    in any 14 ms), the rest painted in 2D for a moment and rendered again later. Every picture and every mesh's GPU buffers are
    let go when a stage closes or a new one is made. Only in Rift 04's three lands (anywhere else, e.g. Rift 05's aurora
    crystal reusing the ice crystal's painter, the 2D art stays).
-   THE MINI BOSSES (Tock, Howl: "A Rift-touched Cocopet"). One on the field at a time, large, always moving: posed live, one GPU
-   pass a frame while it is on screen (as the rift's bosses are), turning smoothly toward where it goes. Tock: a round pet of
-   blue-black tomb stone and old gold, a stopped clock in its belly, clock hands for ears, an hourglass on its back. Howl: a
-   squat hound-pet of black obsidian plates with violet seams, square ears, a spike of a tail, a gold collar.
+   THE MINI BOSSES (Tock, Howl): v469 MB, giant evil Cocopets like every other rift's (EVIL_MINI, 20zz9: PetGL), themed for
+   the Sepulchre; v463's GLM models of them are gone (see the mini bosses' block below).
    Without WebGL, on a software rasteriser (unless window.__SB_GL = 1, tests), with window.__SB_GL = 0 or after three failures
    in 20 s, the 2D art is drawn exactly as before. window.__SB_GLHQ = 1: full resolution on a software rasteriser (tests). */
 const SEP_BROOD = (() => {
@@ -293,84 +291,34 @@ const SEP_BROOD = (() => {
   /* 20b's drawMon: does this type have its own left-facing frames (not the right-facing one mirrored)? */
   DunArt.FACED = t => { const D = DEF[t]; return !!(D && D.faced && active()); };
 
-  /* ======================= the mini bosses, posed live ======================= */
-  const MINI = {};
-  MINI.hourpet = { k: 1.02, G: model('tock', q => { const out = {}, Bd = () => GLM.builder(q);
-      out.body = Bd().ell([0, 0, 0], [0.86, 0.8, 0.88], 538.4, { seg: 26, rings: 16 }).done();
-      out.headM = (() => { const B = Bd(); B.ell([0, 0, 0], [0.95, 0.92, 0.86], 538.4, { seg: 26, rings: 16 }); B.box([0.72, 0, 0.36], [0.1, 0.5, 0.06], 0.04, 537); return B.done(); })();
-      out.ear = (() => { const B = Bd(); plate(B, [[-0.08, 0], [0.08, 0], [0.05, 0.6], [0, 0.82], [-0.05, 0.6]], 0.03, 537.1, 0.015); B.sph([0, 0, 0], 0.09, 537.1, 8); return B.done(); })();
-      out.eye = Bd().sph([0, 0, 0], 0.21, 541, 14).done();
-      out.dial = (() => { const B = Bd(); B.tube([-0.04, 0, 0], [0.04, 0, 0], 1.0, 1.0, 548, { seg: 32, cap0: 'flat', cap1: 'flat' }); B.torX([0.04, 0, 0], 1.0, 0.07, 537.1, { seg: 32 }); return B.done(); })();
-      out.hand = Bd().box([0.06, 0, 0.3], [0.02, 0.04, 0.32], 0.01, 537.1).done();
-      out.arm = Bd().tube([0, 0, 0], [0.6, 0, 0], 0.16, 0.14, 538.4, { seg: 10 }).done();
-      out.paw = Bd().sph([0, 0, 0], 0.2, 537, 12).done();
-      out.leg = Bd().ell([0, 0, 0], [0.28, 0.24, 0.2], 538.4, { seg: 14, rings: 8 }).done();
-      out.glass = upLathe(Bd(), [[-0.5, 0.05], [-0.46, 0.3], [-0.25, 0.24], [-0.07, 0.07], [0.07, 0.07], [0.25, 0.24], [0.46, 0.3], [0.5, 0.05]], 536, { seg: 20 }).done();
-      out.gcap = Bd().tube([0, 0, -0.05], [0, 0, 0.05], 0.36, 0.36, 537, { seg: 22, cap0: 'flat', cap1: 'flat' }).done();
-      out.sand = Bd().sph([0, 0, 0], 0.14, 540, 10).done();
-      return out; }),
-    pose(m, t) { const W = m._sbW || 0, mv0 = m._sbMv || 0, act = m.act || '', T = m.actT || 0, cast = act === 'stop' ? Math.min(1, T * 3) * (T < 1.0 ? 1 : Math.max(0, 1 - (T - 1) * 4)) : 0, tick = act === 'tick' ? 1 : 0;
-      const step = Math.sin(W) * mv0, bz = 0.95 + Math.abs(Math.cos(W)) * 0.08 * mv0 + Math.sin(t * 2.2) * 0.03, bo = [0, 0, bz], BR = ry(0.05 * mv0 + tick * Math.sin(T * 11) * 0.04), L = [];
-      L.push(P('body', bo, BR, { wear: 0.3 }));
-      const dg = vadd(bo, at3(BR, [0.72, 0, 0.12])), DR = mm(BR, ry(-0.6)); L.push(P('dial', dg, DR, { s: 0.56, glow: 0.3 + cast * 1.5 + tick * 0.6, wear: 0.5 }));
-      const hA = tick ? -Math.floor(T / 0.55) * 0.52 : 0.4; L.push(P('hand', vadd(dg, at3(DR, [0.03, 0, 0])), mm(DR, rx(hA)), { s: 0.5 }), P('hand', vadd(dg, at3(DR, [0.03, 0, 0])), mm(DR, rx(2.2)), { s: 0.38 }));
-      const hp = vadd(bo, [0.1, 0, 1.55]), HR = mm(BR, ry(-0.06 + cast * -0.12)); L.push(P('headM', hp, HR, { wear: 0.6 }));
-      for (const sy of [1, -1]) { L.push(P('eye', vadd(hp, at3(HR, [0.74, 0.34 * sy, 0.14])), mm(HR, ry(-0.35)), { kind: 2, glow: 0.9 + cast + tick * 0.5, spill: 0.3, outline: false }));
-        L.push(P('ear', vadd(hp, at3(HR, [-0.05, 0.5 * sy, 0.62])), mm(HR, rx(-sy * 0.45)), { wear: 0.4 }));
-        const sh = vadd(bo, at3(BR, [0.1, 0.78 * sy, 0.25])), lift = cast ? 2.7 : tick ? 1.9 : 0.3 + Math.sin(W + (sy > 0 ? 0 : Math.PI)) * 0.4 * mv0, AR = mm(rz(sy * (cast ? 0.6 : 0.25)), ry(-lift));
-        L.push(P('arm', sh, mm(AR, ry(Math.PI / 2 - 0.2)), { wear: 0.5 }), P('paw', vadd(sh, at3(mm(AR, ry(Math.PI / 2 - 0.2)), [0.66, 0, 0])), I3(), { glow: cast }));
-        L.push(P('leg', [0.12 + step * 0.22 * sy, 0.42 * sy, 0.16 + Math.max(0, step * sy) * 0.12], I3(), { wear: 0.7 })); }
-      const gb = vadd(bo, at3(BR, [-0.85, 0, 0.55])), GR = mm(BR, ry(-0.35)); L.push(P('gcap', vadd(gb, at3(GR, [0, 0, 0.5])), GR), P('gcap', vadd(gb, at3(GR, [0, 0, -0.5])), GR), P('sand', vadd(gb, at3(GR, [0, 0, 0.2])), GR, { kind: 1, glow: 0.8 + cast, outline: false }), P('glass', gb, GR, { al: 0.97 }));
-      return { parts: L, halos: [[vadd(dg, [0.2, 0, 0]), 0.9, GOLDH, 0.18 + cast * 0.6 + tick * 0.25], [vadd(gb, [0, 0, 0.2]), 0.5, GOLDH, 0.35]] }; } };
-  MINI.kennelpet = { k: 0.95, G: model('howl', q => { const out = {}, Bd = () => GLM.builder(q);
-      out.torso = plate(Bd(), [[-1.0, 0.0], [-0.95, 0.55], [-0.2, 0.72], [0.6, 0.82], [0.92, 0.35], [0.8, -0.1], [-0.1, -0.2]], 0.48, 539.2, 0.07).done();
-      out.head = (() => { const B = Bd(); plate(B, [[-0.2, 0.25], [0.2, 0.45], [1.0, 0.05], [0.98, -0.12], [0.15, -0.42], [-0.22, -0.15]], 0.36, 539, 0.06); return B.done(); })();
-      out.ear = plate(Bd(), [[-0.16, 0], [0.16, 0], [0.18, 0.45], [-0.14, 0.5]], 0.05, 539, 0.025).done();
-      out.eye = Bd().sph([0, 0, 0], 0.11, 541, 12).done();
-      out.slit = Bd().box([0, 0, 0], [0.03, 0.05, 0.2], 0.015, 540).done();
-      out.collar = (() => { const B = Bd(); B.torX([0, 0, 0], 0.5, 0.07, 537, { seg: 28 }); B.box([0, 0, -0.56], [0.03, 0.1, 0.1], 0.02, 537.1); return B.done(); })();
-      out.thigh = Bd().tube([0, 0, 0], [0.62, 0, 0], 0.17, 0.12, 539, { seg: 7 }).done();
-      out.shin = Bd().tube([0, 0, 0], [0.66, 0, 0], 0.12, 0.07, 539, { seg: 7, cap1: 'flat' }).done();
-      out.tail = Bd().spike([0, 0, 0], [1.3, 0, 0], 0.15, 539, { seg: 4 }).done();
-      out.ridge = (() => { const B = Bd(); [[-0.75, 0.62, 0.22], [-0.35, 0.74, 0.28], [0.05, 0.82, 0.32], [0.42, 0.88, 0.3]].forEach(([x, z, h]) => B.spike([x, 0, z - 0.06], [x - 0.12, 0, z + h], 0.1, 539, { seg: 4 })); return B.done(); })();   // (a row of short spines down its back: what shows when it turns away)
-      return out; }),
-    pose(m, t) { const W = m._sbW || 0, mv0 = m._sbMv || 0, act = m.act || '', T = m.actT || 0, crouch = act === 'lunge' && T < 0.8 ? Math.min(1, T * 4) : 0, dash = act === 'lunge' && T >= 0.8 && T < 1.35 ? 1 : 0, howl = act === 'call' ? Math.min(1, T * 4) * (T < 0.9 ? 1 : Math.max(0, 1 - (T - 0.9) * 3)) : 0;
-      const bz = 1.15 - crouch * 0.3 + dash * 0.12 + Math.abs(Math.cos(W)) * 0.07 * mv0, pitch = dash * -0.12 + crouch * 0.1 - howl * 0.18, BR = ry(pitch), bo = [0, 0, bz], L = [];
-      L.push(P('torso', bo, BR, { glow: 0.7 + crouch * 0.9 + dash, wear: 0.4 }), P('ridge', bo, BR, { glow: 0.9 + crouch + howl, wear: 0.6 }));
-      const hp = vadd(bo, at3(BR, [0.82, 0, 0.75 - crouch * 0.2])), HR = mm(BR, ry(0.1 + crouch * 0.35 - dash * 0.2 - howl * 0.75));
-      L.push(P('head', hp, HR, { glow: 0.3 + crouch, wear: 0.6 }), P('collar', vadd(bo, at3(BR, [0.72, 0, 0.45])), mm(BR, ry(0.5)), { wear: 0.3 }));
-      L.push(P('slit', vadd(hp, at3(HR, [0.88, 0, -0.16])), HR, { kind: 0, glow: 0.9 + crouch * 1.4 + howl * 1.5, outline: false }));
-      for (const sy of [1, -1]) { L.push(P('eye', vadd(hp, at3(HR, [0.52, 0.27 * sy, 0.12])), HR, { kind: 0, glow: 0.9 + crouch, spill: 0.5, outline: false }));
-        L.push(P('ear', vadd(hp, at3(HR, [-0.02, 0.22 * sy, 0.34])), mm(HR, rx(-sy * 0.3)), { wear: 0.4 })); }
-      [[0.6, 0.33, 0], [0.6, -0.33, 0.5], [-0.72, 0.33, 0.5], [-0.72, -0.33, 0]].forEach(([lx, ly, off]) => { const front = lx > 0, sw = dash ? (front ? 1.0 : -1.0) : crouch ? (front ? 0.3 : -0.3) : Math.sin(W + off * TAU) * 0.6 * mv0, kn = dash ? 0.15 : crouch ? 1.2 : 0.45 + 0.3 * mv0 * Math.max(0, Math.cos(W + off * TAU));
-        const hip = vadd(bo, at3(BR, [lx, ly, 0.05])), a1 = -Math.PI / 2 + sw - (front ? 0.1 : -0.15), k1 = vadd(hip, vmul([Math.cos(a1), 0, Math.sin(a1)], 0.62)), a2 = a1 + (front ? -kn : kn), f1 = vadd(k1, vmul([Math.cos(a2), 0, Math.sin(a2)], 0.66));
-        L.push(bone('thigh', hip, k1, { wear: 0.2 }), bone('shin', k1, f1, { wear: 0.6 })); });
-      L.push(P('tail', vadd(bo, at3(BR, [-0.92, 0, 0.45])), mm(BR, ry(-(Math.PI - 0.5 + crouch * 0.3 - dash * 0.25) + Math.sin(t * 3) * 0.05)), { glow: 0.5 }));
-      return { parts: L, halos: [[vadd(hp, at3(HR, [0.95, 0, -0.16])), 0.5, VIOD, 0.5 + crouch * 0.4 + howl * 0.5]] }; } };
-  /* drawn in RiftEvil.draw's place (20m3) when the GPU can be used: true when it drew */
-  function drawMini(c, m, X, Y, r, t, me) {
-    const D = MINI[m.bk && m.bk.id]; if (!D || m.under || !active() || !D.G.on()) return false;
-    const vx = m._sbx != null ? m.x - m._sbx : 0, vy = m._sby != null ? m.y - m._sby : 0, sp = Math.hypot(vx, vy); m._sbx = m.x; m._sby = m.y;
-    const moving = sp > 0.003 && m.act !== 'sleep' && !(m.stunT > 0 && m.act === 'stunned');
-    m._sbMv = (m._sbMv || 0) + ((moving ? 1 : 0) - (m._sbMv || 0)) * 0.15; m._sbW = (m._sbW || 0) + (moving ? Math.min(0.35, 0.12 + sp * 2.2) : 0.02);
-    // the heading: toward where it goes, or the pet; turned smoothly (a little toward the viewer, so its face shows)
-    let want = moving ? Math.atan2(vy, vx) : (me ? Math.atan2(me.y - m.y, me.x - m.x) : 0); if (m.act === 'lunge' && m.ca != null) want = m.ca;
-    if (m._sbYaw == null) m._sbYaw = want; let d = want - m._sbYaw; while (d > Math.PI) d -= TAU; while (d < -Math.PI) d += TAU; m._sbYaw += d * 0.18;
-    const yaw = m._sbYaw + (m.stunT > 0 && m.act === 'stunned' ? Math.sin(t * 5) * 0.25 : 0), k = r * (D.k || 1), foot = Y + r * 0.75, Ps = D.pose(m, t);
-    const V = { k, Rh: rz(yaw), X0: X, Y0: foot };
-    // the rift's smoke and a dark pool under it (as the Rift-touched have), then the model, then its soft lights
-    c.save(); const sm = typeof glowSprite === 'function' ? glowSprite('#1A0A2A') : null; if (sm) { c.globalAlpha = 0.55; c.drawImage(sm, X - r * 1.9, foot - r * 0.9, r * 3.8, r * 1.5); } c.restore();
-    blob(c, X, foot, r * 1.05, r * 0.36, 0.42);
-    const fl = m.flash > 0 ? 0.6 : 0; if (fl) for (const it of Ps.parts) it.glow2 = fl;
-    if (m.act === 'sleep') for (const it of Ps.parts) it.al = (it.al == null ? 1 : it.al) * 0.999;
-    let ok = false; try { ok = glPass(c, V, Ps.parts, { light: LANDS[bio()] ? bio() : 'sepulchre', t, outline: 1.2 }, D.G); } catch (e) { failed(); ok = false; }
-    if (!ok) return false;
-    halos(c, V, Ps.halos);
-    if (m.flash > 0) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.22; if (typeof blitSized === 'function') blitSized(c, glowSprite('#FFFFFF'), X - r * 1.3, foot - r * 2.6, r * 2.6, r * 2.6); c.restore(); }
-    ST.mini++; return true;
-  }
+  /* ======================= v469 MB: the mini bosses are giant evil Cocopets ======================= *
+     The user (2026-11-27, Wrathclaw on an iPhone): "Why is the mini boss like this and not the evil giant Cocopets?". v463
+     had drawn Tock and Howl as GLM models of their own (a round clock-pet and a boxy obsidian hound) in RiftEvil.draw's place;
+     every other rift's mini boss is a Rift-touched Cocopet. Now they are the same giant evil Cocopets as Rift 0's and the
+     Belfry's guardians (EVIL_MINI, 20zz9): a pet of the game grown and soured, drawn on the GPU by the pet renderer (PetGL)
+     with its black-fire aura, burning eyes and its plate, its fall when beaten; RiftEvil.draw's 2D sprites only where PetGL
+     cannot draw. Themed for the Sepulchre: Tock a tomb-slate coat with old gold, ram horns and glass wings; Howl an obsidian
+     coat with violet, devil horns, bat wings and an arrow tail. Their own moves (stop / tick, lunge / call, 20s2), health and
+     blows are kept (EVIL_MINI.arm with keep); the size is every giant evil Cocopet's (RiftEvil.giant, 0.8). */
+  const MINI_LOOK = {
+    hourpet: { name: 'Tock the Hour-Thief', short: 'Tock', el: 'dark', seed: 412, sub: 'A Rift-touched Cocopet keeps the stopped hours', hint: { horns: 'ram', wings: 'crystal' },
+      palette: { tint: '#222A42', tintK: 0.85, pal: { sec: GOLDH, cheek: '#2A2238' }, col: GOLDH, glow: '#C9A24A', core: '#FFF4D0' } },
+    kennelpet: { name: 'Howl the Corner Hound', short: 'Howl', el: 'dark', seed: 1187, sub: 'A Rift-touched Cocopet guards the kennels', hint: { horns: 'devil', wings: 'bat', tail: 'devil' },
+      palette: { tint: '#1C1630', tintK: 0.88, pal: { sec: VIO, cheek: '#24183E' }, col: VIO, glow: VIOD, core: '#F1E8FF' } } };
+  const EMI = () => { try { return (typeof self !== 'undefined' && self.EVIL_MINI) || null; } catch (e) { return null; } };
+  const SPECS = {};
+  function miniSpec(id, B) { if (SPECS[id]) return SPECS[id]; const E = EMI(), L = MINI_LOOK[id]; if (!E || !E.specOf || !L) return null;
+    return (SPECS[id] = E.specOf(Object.assign({}, L, { hp: (B && B.hp) || 1, dmg: (B && B.dmg) || 1, r: (B && B.r) || 1.3, spd: (B && B.spd) || 1.8 }))); }
   ST.mini = 0;
-  try { if (typeof RiftEvil !== 'undefined' && RiftEvil && !RiftEvil.__sbMini) { const d0 = RiftEvil.draw; RiftEvil.draw = function (c, m, X, Y, r, t, me) { if (m && m.bk && MINI[m.bk.id]) { try { if (drawMini(c, m, X, Y, r, t, me)) return true; } catch (e) { failed(); } } return d0.apply(this, arguments); }; RiftEvil.__sbMini = 1; } } catch (e) { /* (no Rift-touched) */ }
+  try { const Rf = typeof RIFT_BY_ID !== 'undefined' && RIFT_BY_ID.sepulchre; if (Rf) {
+    // (riftFight (20m) takes the mini's look from here instead of a random Rift-touched one)
+    const me0 = Rf.miniEvil; Rf.miniEvil = id => { if (MINI_LOOK[id]) { try { const E = EMI(), d = miniSpec(id, BOSSES.find(b => b.id === id)); if (E && d) return E.evilOf(d); } catch (e) { /* (a random one) */ } } return me0 ? me0(id) : null; };
+    // (its stage arms it as a guardian of the far gate's room: drawn, woken and felled by EVIL_MINI's layer, its own moves kept)
+    for (const S of Rf.stages) { if (S.kind !== 'fight' || !MINI_LOOK[S.mini] || S.__mbArm) continue; S.__mbArm = 1; const ex0 = S.extra;
+      S.extra = (X, self, H) => { const xm = (ex0 ? ex0(X, self, H) : null) || {}, E = EMI(); if (!E || !E.arm || !E.layer) return xm;
+        const m = X.mons.find(q => q && q.boss && q.lesser && !q.dead && q.bk && q.bk.id === S.mini && !q.calMini), d = m && miniSpec(S.mini, m.bk); if (!m || !d) return xm;
+        let gm = null; try { E.arm(X, m, Object.assign({}, d, { r: m.evK ? m.r / m.evK : m.r }) /* (its size as riftFight made it; arm makes it 0.8 of that) */, { keep: true, home: { x: m.x, y: m.y }, sub: d.sub || MINI_LOOK[S.mini].sub, wakeR: 9.5 }); m.bname = d.name; gm = E.layer(X); ST.mini++; } catch (e) { if (typeof console !== 'undefined') console.warn('SEP_BROOD mini', e); return xm; }
+        return Object.assign({}, xm, { update(dt) { if (xm.update) xm.update(dt); gm.update(dt); }, drawGround(c) { if (xm.drawGround) xm.drawGround(c); gm.drawGround(c); }, drawOver(c) { if (xm.drawOver) xm.drawOver(c); gm.drawOver(c); } }); }; } } } catch (e) { /* (no rift) */ }
 
   /* ======================= warming on the loading screen, and letting go ======================= */
   const KEEP = new Set(TYPES);
@@ -398,6 +346,6 @@ const SEP_BROOD = (() => {
     PROV.length = 0; if (PRAF && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(PRAF); PRAF = 0; CUR_BIO = null; ACT = null; ACTT = -1e9; REL_N++; }
   try { if (typeof BEL !== 'undefined' && BEL && Array.isArray(BEL.onRelease)) BEL.onRelease.push(release); } catch (e) { /* (no rift hook) */ }
   try { const GD = typeof GAMES !== 'undefined' && GAMES.dungeon; if (GD && GD.create && !GD.__sbRel) { const c0 = GD.create; GD.__sbRel = 1; GD.create = function () { const api = c0.apply(this, arguments); if (api && typeof api.destroy === 'function') { const d0 = api.destroy; api.destroy = function () { try { release(); } catch (e) { /* (nothing held) */ } return d0.apply(this, arguments); }; } return api; }; } } catch (e) { /* (no dungeon) */ }
-  return { DEF, MINI, TYPES, LIGHT, bake, drawMini, preload, release, mem, active, get gpuBuffers() { return gpuBuffers(); }, get stats() { return Object.assign({ prov: PROV.length, models: MODELS.map(G => ({ name: G.name, tris: G.tris, meshMs: +G.meshMs.toFixed(1), passMs: +G.ms.toFixed(2), n: G.n })), released: REL_N, bio: bio() }, ST); }, get bio() { return bio(); }, set bio(v) { CUR_BIO = v; ACTT = -1e9; }, env: () => ({ DunArt, MON, BIOMES }) };
+  return { DEF, MINI_LOOK, miniSpec, TYPES, LIGHT, bake, preload, release, mem, active, get gpuBuffers() { return gpuBuffers(); }, get stats() { return Object.assign({ prov: PROV.length, models: MODELS.map(G => ({ name: G.name, tris: G.tris, meshMs: +G.meshMs.toFixed(1), passMs: +G.ms.toFixed(2), n: G.n })), released: REL_N, bio: bio() }, ST); }, get bio() { return bio(); }, set bio(v) { CUR_BIO = v; ACTT = -1e9; }, env: () => ({ DunArt, MON, BIOMES }) };
 })();
 if (typeof window !== 'undefined') window.SEP_BROOD = SEP_BROOD;

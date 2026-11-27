@@ -111,5 +111,11 @@ const RiftEvil = (() => {
     // its eyes: twin hard beams of light
     const ey = foot - h * 0.62, ek = 0.3 + 0.2 * Math.sin(t * 6) + 0.4 * (m.ecast || 0); c.globalAlpha = Math.min(1, ek); blitSized(c, glowSprite(E.acc), X - h * 0.36, ey - h * 0.16, h * 0.72, h * 0.32); 
     c.restore(); }
-  return { make, draw, form };
+  /* v469 MB (the user 2026-11-27: "make the giant evil cocopet 20% smaller I think they might be to big"): every giant evil
+     Cocopet (a rift's mini boss, Rift 0's and the Belfry's guardians, the Tower's bosses) is SIZE of the radius it was given.
+     Its body is drawn from m.r (h = 2.5 radii) and its hits, reach, lanes, plate and bars all read m.r, so drawn size and
+     hit size shrink together. giant(m): once (marked m.evK); giant(m, r0): set from r0 again (a guardian re-armed) */
+  const SIZE = 0.8;
+  function giant(m, r0) { if (!m) return m; if (r0 == null) { if (m.evK) return m; r0 = m.r; } m.evK = SIZE; m.r = r0 * SIZE; return m; }
+  return { make, draw, form, giant, SIZE };
 })();

@@ -1,44 +1,31 @@
-/* ---------- (v468 GB) The Gemini Gate's boss: THE TRIAL OF TWO HEAVENS, Raziel, The Twin Revelation ----------
-   Beyond the Clash of the Twins (the gate and its puzzle: 20s3 / 20s3a, GP's), in THE EQUINOX SANCTUM: a round platform of gold
-   and platinum plates hung over the void (the 'equinox' land below: its floor painted once into the engine's ground chunks; its
-   far view SEP_SKY's Hall in Two Ages re-lit as the Infernal and Frozen Heavens, split at the arena's middle), eight sectors
-   (radial seams, a constellation of 1..8 stars at each rim: always readable), Fire and Ice channels under the floor, a luminous
-   boundary and rotating machinery round it (FGFX kind 490), four cardinal pylons, four containment anchors, two celestial mirrors
-   and ring fragments orbiting outside the rim (Raziel's own meshes through RAZIEL_GL.drawParts), the Gemini emblem at its heart.
-   Raziel is the GPU model (RAZIEL_GL, 02f7), larger than the summon (TUNE.size tiles tall, its Lv7 form), posed here every frame
-   (both heads aimed and charged on their own; their aims converge as the phases run on, one mind by Phase V). Its fire and ice
-   are RAZIEL_MOVES.FXP's painters (kinds 450..465) and The Book's last act and the Absolute Paradox reuse a private RAZIEL_ULT
-   instance (portals, singularity, pillar, eruption), started part way into its timeline and aimed at the sanctuary.
-   THE STATE MACHINE (S.mode): 'intro' (the awakening: no blows) -> 'fight' (ordinary combat; S.vuln a vulnerability window inside
-   it) <-> 'trans' (a phase transition: invulnerable, no blows) <-> 'mech' (a critical mechanic: S.mech.stage 'prep' | 'exec' |
-   'resolve'; the body's health locked) -> 'dead' (the defeat cinematic, then X.winStage) | 'paradox' (Absolute Paradox, then the
-   party is wiped through the engine's wipeParty and the existing Game Over) -> 'over'. A new attempt is a new begin() (everything
-   reset: both Gemini Seals, the six mechanics pending).
-   THE SIX CRITICAL MECHANICS: each has a unique id (1..6) and ONE authoritative result, S.res[id] = 'pass' | 'fail', written once by
-   resolveMech; a failure is registered once (markFail: S.failed[id], guarded) at the moment it happens and the mechanic plays out.
-   First failure: a Gemini Seal shatters (banner, shockwave, a non-lethal 35% of max health, Raziel's blows +15% and a little more
-   often, a lasting warning on the UI). Second failure (another mechanic): ABSOLUTE PARADOX at once (unpreventable: it does not go
-   through the pet's guard at all). Ordinary blows never touch the counter. HP GATES: Raziel cannot fall below the trigger of the
-   first unresolved mechanic (0.90, 0.70, 0.60, 0.35, 0.25, 0.05 of its health) and its health is locked while a mechanic, a
-   transition, the intro or the Paradox runs (the engine's guard asks guardFn; a frame clamp and onBossDeath catch everything else),
-   so no amount of damage skips a mechanic; transitions wait for a vulnerability window to end. Victory only after all six resolved.
-     I   (100-80)  The Awakening of Twins: Infernal Breath, Cryogenic Breath, Gemini Talon, Mirror Tail Sweep, Twin Fang Protocol;
-                   at 90%: 1 OPPOSING HEAVENS (three judgement waves: enter a sanctuary of the element opposing the charging head)
-     II  (80-60)   The War of Elements (Dissonance): + Solar Eruption, Absolute Zero, Wing Guillotine, Twin Meteor, Steam Rupture;
-                   at 70%: 2 MIRROR MEMORY (four shown patterns of two safe sectors; REPEAT or REFLECT; four resolutions)
-     III (60-40)   The Fractured Revelation: 3 TWIN CORE EQUILIBRIUM (two reactors, their own health, kept within 15 points)
-     IV  (40-15)   The Collapse of Heaven: at 35% 4 CELESTIAL PURSUIT (phantoms into opposing anchors), at 25% 5 BINARY
-                   CATACLYSM (the mirrors timed to their portals)
-     V   (15-0)    The Final Revelation (Concord): at 5% 6 THE BOOK OF TWO HEAVENS (beams, Mirror Genesis, the Collision of Worlds,
-                   the Last Equilibrium, The Book), then a 15 s window; Raziel recovers if it is not finished
-   Tells are light only (no red, no numbers on the field: the HUD holds the timers); every timer is a crossing of its own clock in
-   game time (frame-rate independent; held while the engine's time stops or another cinematic plays); every blow a deterministic
+/* ---------- (v468 GB, reworked v469 GB) The Gemini Gate's boss: THE TRIAL OF TWO HEAVENS, Raziel, The Twin Revelation ----------
+   Beyond the Clash of the Twins (the gate and its puzzle, 20s3 / 20s3a), in THE EQUINOX SANCTUM: a round platform of gold and
+   platinum plates hung over an empty dark void (the 'equinox' land below: its floor painted once into the engine's ground chunks;
+   nothing behind it: v469, the user), eight sectors (radial seams, a constellation of 1..8 stars at each rim), Fire and Ice channels,
+   a luminous boundary and rotating machinery round it (FGFX kind 490), four pylons, four anchors, two mirrors and orbiting ring
+   fragments (Raziel's own meshes through RAZIEL_GL.drawParts), the Gemini emblem at its heart.
+   v469 (the user: "it should be incorporated into the fight as usual ... Raziel should have a health bar like every other bosses"):
+   an ORDINARY gate boss. One health bar (Asmodeus's: 36 stacked bars, their count, five phase pips); take it to zero and it falls,
+   the defeat cinematic plays and X.winStage completes the gate (21b's gateFinish unlocks the Gemini Anima once). No health gates, no
+   scored mechanics, no seals, no wipe. Raziel is the GPU model (RAZIEL_GL, its Lv7 form, TUNE.size tiles tall), both heads aimed and
+   charged on their own, converging as the phases run on.
+   THE STATE MACHINE (S.mode): 'intro' (the awakening: untouchable) -> 'fight' (its rotation; S.vuln an exposed window inside it) <->
+   'trans' (a phase's roar) <-> 'mech' (one of its two great judgements) -> 'dead' (the defeat cinematic) -> 'over'.
+   Its blows: Infernal Breath, Cryogenic Breath, Gemini Talon, Mirror Tail Sweep, Twin Fang Protocol (from Phase I); Solar Eruption,
+   Absolute Zero, Wing Guillotine, Twin Meteor, Steam Rupture (from Phase II); Phase IV and V combine them (a second head's follow-up,
+   larger Thermal Shocks, pulses after the tail and the wing). And, in the rotation every so often (TUNE.big), its two great judgements:
+     OPPOSING HEAVENS   three waves: one head charges its element; take the opposite protection in a sanctuary of that element
+                        (wave 3: both charge, one cancels: watch which); without it the wave lands as a heavy blow
+     MIRROR MEMORY      (from Phase II) four patterns of two lit sectors, then REPEAT or REFLECT them: be in one of each step's sectors
+                        as it strikes; a wrong sector is a heavy blow
+   It can be struck all through them; answered without a mistake it reels for a short exposed window. Phases (I 100-80, II 80-60, III
+   60-40, IV 40-15, V 15-0) raise the pace. Tells are light only (no red, no numbers on the field: the HUD holds the timers); every timer
+   is game time (frame-rate independent; held while the engine's time stops or another cinematic plays); every blow a deterministic
    volume (discs, rings swept between frames, cones, lines, sectors) matching what is drawn.
    CONTRACT (the same as SCORPIO_BOSS; scratchpad gemini/hooks.md): begin(X, H, self, A = { cx, cy, r, inside?, door? }), update(dt),
-   drawGround(c) / drawOver(c) (the encounter UI), cam(), goal(), hideHud(), onBossDeath(m), active(), stop(), warm(), attach(X)
-   (the arena's far view before the fight), TUNE, MECH, test. window.__GB_NOBOSS = 1: begin() wins after a second (the gate's tests).
-   Clean-up (stop, the defeat, the Paradox, the pet's party falling, the stage's end): every hazard, part, object, the private
-   ultimate, the music duck and the pet's statuses; RAZIEL_GL freed (gpuCount 0 after). */
+   drawGround(c) / drawOver(c), cam(), goal(), hideHud(), onBossDeath(m), active(), stop(), warm(), attach(X), floor, TUNE, MECH, test.
+   window.__GB_NOBOSS = 1: begin() wins after a second (the gate's tests). Clean-up on stop, the defeat and the stage's end: every
+   hazard, part and object, the music duck and the pet's statuses; RAZIEL_GL freed (gpuCount 0 after). */
 const GEMINI_BOSS = (() => {
   const TAU = Math.PI * 2, PI = Math.PI, cl = u => (u < 0 ? 0 : u > 1 ? 1 : u), lerp = (a, b, u) => a + (b - a) * u;
   const sstep = (a, b, x) => { const u = cl((x - a) / (b - a)); return u * u * (3 - 2 * u); }, eout = u => 1 - Math.pow(1 - cl(u), 3);
@@ -57,44 +44,30 @@ const GEMINI_BOSS = (() => {
   const COL = { fire: '#FF7A2E', hot: '#FFD9A0', gold: '#FFC24D', ice: '#7FD8FF', pale: '#DDF6FF', deep: '#2F6FE0', white: '#FFFFFF', steam: '#E4ECF2', plat: '#D9E2EE', goldM: '#E0B050', violet: '#C9B0FF', warn: '#FFE6A8' };
   const SKIN = { gold: '#E8B860', plat: '#C8D8F0', neut: '#E8DCC8' };
 
-  /* ================= the tuning (every number a design choice; measured in tests/_gb-*.js, see the report) =================
-     Health and the unit blow are absolute, as the other gates' (Asmodeus 660000 in 36 bars, unit 19): its pressure is its
-     mechanics. A unit is ~10% of a reference eligible pet's health (the Gemini Gate opens after the Sepulchre, level 40): ordinary
-     blows 0.8-1.5 units, heavy telegraphed 2-3.5, major avoidable 3.5-5 (spec section 14), through the engine's hurtPet (defence,
-     accessories, guards and dodges all apply). VREF is the pet speed every movement mechanic is validated against (the pet runs
-     4.3 tiles/s; 3.4 leaves margin for a slowing curse); mechanics clear Frost on the pet as they begin and lay none while they run */
+  /* ================= the tuning (every number a design choice; measured in tests/_gb-tune.js, see the report) =================
+     An ordinary gate boss: health and the unit blow absolute, as the other gates' (Asmodeus 660000 in 36 bars, unit 19). A unit is
+     ~9% of a reference eligible pet's health (the Gemini Gate opens after the Sepulchre, level 40: 560 health): ordinary blows
+     0.5-1.5 units, heavy telegraphed 2-2.5, through the engine's hurtPet (defence, accessories, guards and dodges all apply).
+     The two great judgements come back every big.every s (by phase), the first big.first s into the fight; a wrong answer costs
+     hitK units (a heavy blow, nothing else); all right, it reels for big.expose s. VREF: the pet speed their placements are
+     validated against (the pet runs 4.3 tiles/s; 3.4 leaves margin) */
   const TUNE = {
-    hp: 660000, bars: 30, dmg: 48,
+    hp: 660000, bars: 36, dmg: 48,
     size: 5.4, bodyR: 1.7, keep: 4.2, roam: 4.0, spd: [1.3, 1.4, 1.45, 1.6, 1.8],
-    intro: 7.2, idle: [1.7, 1.45, 1.6, 1.25, 1.05], trans: 3.6,
-    seal: { pen: 0.35, dmgK: 1.15, freqK: 0.88 },
-    at: [0, 0.9, 0.7, 0.6, 0.35, 0.25, 0.05], phaseAt: [1, 1, 0.8, 0.6, 0.4, 0.15],
-    vuln: [0, 4.5, 5.5, 9, 6, 7, 15], vulnFail: 2.5,
+    intro: 7.2, idle: [1.7, 1.5, 1.4, 1.25, 1.1], trans: 3.0,
+    phaseAt: [1, 1, 0.8, 0.6, 0.4, 0.15],
+    big: { first: 22, every: [40, 38, 34, 30, 27], expose: 3.5 },
     VREF: 3.4, HUB: 1.8,
     heal: 0.04, healCd: 1.4,
     // Opposing Heavens: the windows (s) of the three waves, wave 3's both-charging lead before the false head cancels, the
-    // sanctuaries (each element, their radius, how far out), a missed wave's blow (only after the mechanic has already failed)
-    m1: { win: [5, 4, 3.5], lead3: 2.2, nSan: 2, sanR: 1.55, r0: 0.4, r1: 0.74, hitK: 1.4, gap: 1.6 },
-    // Mirror Memory: the rule's announcement, each shown pattern (lit, gap), the pause before playback, the four windows
-    m2: { rule: 2.4, show: 1.25, gapS: 0.22, pause: 1.6, win: [4.5, 4.2, 3.9, 3.6], hitK: 1.2, res: 1.0 },
-    // Twin Core Equilibrium: the timer, the threshold (points), the imbalance warning, the second core's deadline, the cores' health
-    // (x the pet's attack, clamped), their radius and distance from the centre, the pressure's pace
-    m3: { dur: 40, diff: 15, warn: 5, last: 5, hpAtk: 40, hpMin: 2500, hpMax: 90000, r: 1.25, off: 0.4, every: 3.4 },
-    // Celestial Pursuit: the timer, the phantoms' speed (tiles/s), turn (rad/s), lock-on delay, an anchor's capture radius, the
-    // containment's collapse (s after capture) and its reach, trail life and width, the head's touch
-    m4: { dur: 30, spd: 2.75, turn: 1.7, lock: 1.8, capR: 1.35, boom: 1.9, boomR: 3.1, trail: 3.2, trailW: 0.42, touch: 1.0, touchK: 1.4, trailK: 0.45 },
-    // Binary Cataclysm: the approach, the two windows (s), the marker's sweep (rad/s), the activation channel (the rift's 0.75 s)
-    m5: { approach: 6.0, win: [2.0, 1.5], arm: 1.5, between: 5.5, mirR: 1.25, collK: 2.4, hold: 0.75 },
-    // The Book of Two Heavens
-    m6: { beamW: 1.25, beamOm: 0.34, beamK: 1.1, form: [3.8, 3.5, 3.2], boltK: 1.0, waveSpd: 5.2, waveGap: 0.46, waveW: 0.75, waveK: 1.6, nWave: 5, frag: 8.0, sanR: 1.7, fragR: 1.0 },
+    // sanctuaries (each element, their radius, how far out), a wrong wave's blow (units)
+    m1: { win: [5, 4, 3.5], lead3: 2.2, nSan: 2, sanR: 1.55, r0: 0.4, r1: 0.74, hitK: 2.4, gap: 1.6 },
+    // Mirror Memory: the rule's announcement, each shown pattern (lit, gap), the pause before playback, the four windows, a wrong step's blow
+    m2: { rule: 2.4, show: 1.25, gapS: 0.22, pause: 1.6, win: [4.5, 4.2, 3.9, 3.6], hitK: 2.0, res: 1.0 },
   };
   const MECH = [null,
-    { id: 1, key: 'heavens', name: 'OPPOSING HEAVENS', tip: 'Acquire protection from the opposing element.', ph: 1 },
-    { id: 2, key: 'memory', name: 'MIRROR MEMORY', tip: 'Remember the sanctuary sequence.', ph: 2 },
-    { id: 3, key: 'cores', name: 'TWIN CORE EQUILIBRIUM', tip: 'Keep both reactors balanced.', ph: 3 },
-    { id: 4, key: 'pursuit', name: 'CELESTIAL PURSUIT', tip: 'Lead the elemental phantoms into opposing anchors.', ph: 4 },
-    { id: 5, key: 'cataclysm', name: 'BINARY CATACLYSM', tip: 'Align the celestial mirrors.', ph: 4 },
-    { id: 6, key: 'book', name: 'THE BOOK OF TWO HEAVENS', tip: 'Survive the convergence and achieve Perfect Equilibrium.', ph: 5 }];
+    { id: 1, key: 'heavens', name: 'OPPOSING HEAVENS', tip: 'Take the opposite protection in a sanctuary.' },
+    { id: 2, key: 'memory', name: 'MIRROR MEMORY', tip: 'Remember the lit sectors, then stand in them.' }];
   const PHN = [null, 'The Awakening of Twins', 'The War of Elements', 'The Fractured Revelation', 'The Collapse of Heaven', 'The Final Revelation'];
   const ROMAN = [null, 'I', 'II', 'III', 'IV', 'V'];
   // the heads' synchrony by phase (their aims converge; by Phase V one mind)
@@ -170,39 +143,12 @@ const GEMINI_BOSS = (() => {
     if (!BIOME_ORDER.includes('equinox')) BIOME_ORDER.push('equinox'); if (typeof DARK_COL !== 'undefined') DARK_COL.equinox = '5,4,11';
   } catch (e) { /* (no world engine: tests of the module alone) */ }
 
-  /* ================= the far view: SEP_SKY's Hall in Two Ages re-lit as the two heavens (Infernal west, Frozen east), split at
-     the arena's middle (its land's period set so the dawn half ends at cx), plus the colossal burning star and frozen moon ================= */
-  function skyLand() {
-    const D = typeof SEP_SKY !== 'undefined' ? SEP_SKY : null; if (!D || !D.LANDS || !D.LANDS.twoages) return null; if (D.LANDS.equinox && D.LANDS.equinox.__cx === AR.cx) return D;
-    const B = D.LANDS.twoages, per = AR.cx * 2;
-    const tw = [['#FFE0B0', '#B04A22', '#FFD080', '#7A2A1A'], ['#FFD8A8', '#9A3A1E', '#FFC070', '#5A1E14'], ['#FFCC98', '#802E1A', '#FFB060', '#401410'], ['#F8C090', '#6A2416', '#F0A050', '#30100C'], ['#E8B080', '#521C12', '#E09040', '#200A08']];
-    const tc = [['#E8F4FF', '#3A5A9A', '#D8F0FF', '#20305A'], ['#E0F0FF', '#2E4C8A', '#C8E8FF', '#182850'], ['#D8ECFF', '#243E78', '#B8E0FF', '#122044'], ['#CCE4FF', '#1C3266', '#A8D8FF', '#0C1838'], ['#C0DCFF', '#14284E', '#98CCFF', '#08102A']];
-    D.LANDS.equinox = Object.assign({}, B, { __cx: AR.cx, per, base: '#0A0810',
-      sky: [[-1.7, '#060204'], [-1.1, '#140608'], [-0.7, '#2A0C0A'], [-0.4, '#521A0E'], [-0.2, '#8A3412'], [-0.07, '#C25A1C'], [0, '#F08A34'], [0.04, '#FFB458'], [0.2, '#A0461C'], [0.5, '#4A1A10'], [1.0, '#200A08'], [1.7, '#0C0404']],
-      sky2: [[-1.7, '#02040A'], [-1.1, '#060C1C'], [-0.7, '#0C1832'], [-0.4, '#163056'], [-0.2, '#24508A'], [-0.07, '#4A82C0'], [0, '#8CC4F0'], [0.04, '#C8E8FF'], [0.2, '#4A78B0'], [0.5, '#1C3460'], [1.0, '#0A1430'], [1.7, '#040814']],
-      strips: B.strips.map((s, i) => Object.assign({}, s, { per, lit: tw[i][0], sh: tw[i][1], rim: tw[i][2], haze: tw[i][3], ruin: { lit: tc[i][0], sh: tc[i][1], rim: tc[i][2], haze: tc[i][3] } })),
-      items: B.items.map(it => Object.assign({}, it)), hang: (B.hang || []).map(it => Object.assign({}, it)),
-      suns: [{ fx: 0.22, t: -9, a: -0.5, r: 3.2, v: 0 }, { fx: 0.78, t: -10.5, a: -0.6, r: 2.8, v: 1 }],
-      veils: [{ y: -0.4, w: 40, h: 1.6, col: '#FFB070', a: 0.2, spd: 0.5 }, { y: 2.2, w: 46, h: 2.4, col: '#A8C8F0', a: 0.18, spd: 0.4 }, { y: 7, w: 50, h: 3.4, col: '#3A2440', a: 0.24, spd: 0.35 }, { a2: -0.6, w: 46, h: 2.2, col: '#FFD0A0', a: 0.12, spd: 0.3 }],
-      motes: '#FFC890', ash: '#BFE4FF' });
-    return D;
-  }
-  const SKYP = { star: null, moon: null };
-  function skyBodies() { if (SKYP.star) return SKYP; try { const mk = (s, f) => { const cv = document.createElement('canvas'); cv.width = cv.height = s; f(cv.getContext('2d'), s); return cv; };
-      SKYP.star = mk(128, (x, s) => { const g = x.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2); g.addColorStop(0, 'rgba(255,250,230,1)'); g.addColorStop(0.18, 'rgba(255,214,140,1)'); g.addColorStop(0.32, 'rgba(255,140,50,.95)'); g.addColorStop(0.42, 'rgba(220,70,20,.6)'); g.addColorStop(0.7, 'rgba(160,40,10,.18)'); g.addColorStop(1, 'rgba(120,20,0,0)'); x.fillStyle = g; x.fillRect(0, 0, s, s); });
-      SKYP.moon = mk(128, (x, s) => { const g = x.createRadialGradient(s * 0.42, s * 0.4, 0, s / 2, s / 2, s * 0.36); g.addColorStop(0, '#F4FBFF'); g.addColorStop(0.5, '#B8DCF8'); g.addColorStop(0.85, '#5C8CC8'); g.addColorStop(1, '#2A4C88'); x.fillStyle = g; x.beginPath(); x.arc(s / 2, s / 2, s * 0.36, 0, TAU); x.fill();
-        x.strokeStyle = 'rgba(255,255,255,.35)'; x.lineWidth = 1.2; for (let i = 0; i < 9; i++) { const a = i * 0.7, r0 = s * 0.08 + (i % 3) * s * 0.06; x.beginPath(); x.moveTo(s / 2 + Math.cos(a) * r0, s / 2 + Math.sin(a) * r0); x.lineTo(s / 2 + Math.cos(a + 0.4) * s * 0.33, s / 2 + Math.sin(a + 0.4) * s * 0.33); x.stroke(); }
-        const h = x.createRadialGradient(s / 2, s / 2, s * 0.34, s / 2, s / 2, s / 2); h.addColorStop(0, 'rgba(160,210,255,.4)'); h.addColorStop(1, 'rgba(160,210,255,0)'); x.fillStyle = h; x.fillRect(0, 0, s, s); }); } catch (e) {} return SKYP; }
+  /* ================= the far view: empty. Behind the Equinox Sanctum only the void's plain dark (v469, the user: no clouds, nothing
+     that appears or switches); the gate's own backdrop darkens to the same colour north of its door (20s3, world-anchored), so the
+     walk in is seamless ================= */
+  const VOID = '#05040C';
   try { W0.GAP_EXT = W0.GAP_EXT || {};
-    W0.GAP_EXT.equinoxsky = { base: '#06050C',
-      paint(c, Sz, R) { c.fillStyle = '#08060E'; c.fillRect(0, 0, Sz, Sz); for (let i = 0; i < 30; i++) { c.fillStyle = `rgba(255,240,220,${0.15 + R() * 0.4})`; c.beginPath(); c.arc(R() * Sz, R() * Sz, R() < 0.1 ? 1.1 : 0.55, 0, TAU); c.fill(); } },
-      back(c, o) { const { W, H, t, wx, wy, k } = o, X = (S && S.X) || VIEW.X, T = X ? X.Tz() : 48, sx = x => W / 2 + x * T - wx, sy = y => H / 2 + y * T - wy, D = skyLand();
-        if (D) { const V = { W, H, T, sx, sy, t, land: 'equinox', light: 'dawn', hy: AR.cy - 3, top: AR.cy - AR.R - 2, span: AR.R + 7, k: k || 1 }; try { D.vista(c, V, { gpu: false }); } catch (e) { c.fillStyle = '#0A0810'; c.fillRect(0, 0, W, H); } }
-        else { const g = c.createLinearGradient(0, 0, W, 0); g.addColorStop(0, '#2A0C08'); g.addColorStop(0.5, '#0A0810'); g.addColorStop(1, '#081430'); c.fillStyle = g; c.fillRect(0, 0, W, H); }
-        // the colossal burning star (west) and the immense frozen moon (east), brighter as the fight runs to its end
-        const P = skyBodies(), kk = S ? (S.skyK == null ? 1 : S.skyK) : 1; if (P.star) { const R0 = T * (5.5 + 1.5 * (kk - 1)), x0 = sx(AR.cx - AR.R * 0.95), y0 = sy(AR.cy - AR.R - 4.5), x1 = sx(AR.cx + AR.R * 0.95), y1 = sy(AR.cy - AR.R - 4.0);
-          c.save(); c.globalAlpha = cl(0.55 + 0.25 * kk); c.globalCompositeOperation = 'lighter'; c.drawImage(P.star, x0 - R0, y0 - R0, R0 * 2, R0 * 2); c.restore();
-          c.save(); c.globalAlpha = cl(0.6 + 0.25 * kk); c.drawImage(P.moon, x1 - R0 * 0.8, y1 - R0 * 0.8, R0 * 1.6, R0 * 1.6); c.restore(); } } };
+    W0.GAP_EXT.equinoxsky = { base: VOID, paint(c, Sz) { c.fillStyle = VOID; c.fillRect(0, 0, Sz, Sz); }, back(c, o) { c.fillStyle = VOID; c.fillRect(0, 0, o.W, o.H); } };
   } catch (e) { /* (no window) */ }
 
   /* ================= begin: the door has sealed; the fight starts ================= */
@@ -218,11 +164,11 @@ const GEMINI_BOSS = (() => {
       x: home.x, y: home.y, r: TUNE.bodyR, hp, maxhp: hp, spd: 1, dmg: TUNE.dmg, xp: 400, color: '#2A2030', glow: COL.gold, aggro: true, act: 'enter', actT: 0, phase: 1, cd: 9, z: 0, t: 0, flash: 0, burn: 0, burnD: 0, venom: 0, venomT: 0,
       chill: 0, freeze: 0, stun: 0, kbx: 0, kby: 0, atkCd: 0, mv: 2, hitSq: 0, ph: 0, wob: 0, face: 1, step: 0, flank: 0, still: true, landed: true, noTouch: true };
     const G = GLR(), P = G && G.idle ? G.idle(7, 0) : {}; P.evo = 7; P.enter = 0; P.fly = 1; P.wing = 0.25; P.crownOut = 1; P.x = m.x; P.y = m.y;
-    S = { X, H, self, g, me, m, A, P, mode: 'intro', t: 0, introT: 0, phase: 1, res: [null, null, null, null, null, null, null], failed: {}, failN: 0, dmgK: 1, freqK: 1,
-      mech: null, trans: null, vuln: null, para: null, dead: null, acts: [], haz: [], fx: [], idleT: 1.5, pick: 0, cyc: 0, objs: [], parts: [], lastG: null, heldDt: 0,
+    S = { X, H, self, g, me, m, A, P, mode: 'intro', t: 0, introT: 0, phase: 1, dmgK: 1, freqK: 1, bigT: TUNE.big.first, bigN: 0,
+      mech: null, trans: null, vuln: null, dead: null, acts: [], haz: [], fx: [], idleT: 1.5, pick: 0, cyc: 0, objs: [], parts: [], lastG: null, heldDt: 0,
       B: { x: m.x, y: m.y, vx: 0, vy: 0, at: 0, alpha: 1, fly: 1, flyT: 1, face: 1.98, aimL: { x: m.x, y: m.y + 4 }, aimR: { x: m.x, y: m.y + 4 }, look: 0, obs: 1, A: null },
-      prot: null, protT: 0, burn: 0, burnTk: 0, healAcc: 0, healCd: 0, lastM: hp, skyK: 1, warn: null, ul: null, ulA: null, duck: 0, musT: 0, musN: 0, envK: 1, finalWin: false, recovered: false,
-      stat: { t0: g.t, dmgIn: 0, hits: {}, fails: [], mechT: {}, phaseAt: {}, ordHits: 0, maxHaz: 0, revive: 0, lockSaves: 0 } };
+      prot: null, protT: 0, burn: 0, burnTk: 0, healAcc: 0, healCd: 0, lastM: hp, duck: 0, musT: 0, musN: 0, envK: 1,
+      stat: { t0: g.t, dmgIn: 0, hits: {}, big: {}, miss: 0, clean: 0, phaseAt: {}, ordHits: 0, maxHaz: 0 } };
     X.mons.push(m); g.boss = m; g.bossShow = null; g.shownBoss = true; g.bossIntro = TUNE.intro;
     m.ownBar = (c, W) => safeHud(c, W); m.goalFn = () => goalText(); m.guardFn = (mm, o) => guard(mm, o);
     if (H && H.obj) {
@@ -257,68 +203,60 @@ const GEMINI_BOSS = (() => {
   /* ================= the step ================= */
   function update(dt) {
     if (!S) return; const g = S.g; if (S.lastG === g.t) return; S.lastG = g.t;
-    dt = Math.min(0.25, Math.max(0, dt || 0)); const m = S.m, me = S.me;
+    dt = Math.min(0.25, Math.max(0, dt || 0)); const m = S.m;
     // held: the engine's time stopped, or another cinematic (a pet's ultimate): the whole encounter waits (its timers in game time)
-    const held = g.stopT > 0 || (g.cineT > 0 && !S.cine) || (g.hitStop > 0 && S.mode !== 'paradox'), da = held ? 0 : dt;
+    const held = g.stopT > 0 || (g.cineT > 0 && !S.cine) || g.hitStop > 0, da = held ? 0 : dt;
     S.heldDt = da; S.t += da; S.B.at += dt;
-    if (S.mode !== 'over' && m.dead && S.mode !== 'dead') { m.dead = false; m.hp = Math.max(1, locked() ? (S.lastM || 1) : floorHp()); S.stat.revive++; }
+    if (S.mode !== 'over' && m.dead && S.mode !== 'dead') { if (S.mode === 'intro') { m.dead = false; m.hp = Math.max(1, S.lastM || 1); } else { startDefeat(); } }
     if (S.mode === 'intro') introTick(da);
     else if (S.mode === 'fight') fightTick(da);
     else if (S.mode === 'trans') transTick(da);
     else if (S.mode === 'mech') mechTick(da);
-    else if (S.mode === 'paradox') paradoxTick(dt);
     else if (S.mode === 'dead') deadTick(dt);
     if (!S || S.mode === 'over') return;
-    lockTick();
+    if (S.mode === 'intro' && m.hp < S.lastM) m.hp = S.lastM;   // (nothing lands while it wakes)
+    S.lastM = m.hp;
     hazTick(da); fxTick(da); petTick(da); musicTick(da);
     poseTick(dt);
     for (const o of S.objs) { o.x = m.x; o.y = m.y; }
-    if (S.ul) try { S.ul.update(dt, dt); } catch (e) { /* (its pictures only) */ }
     if (S.cine) g.cineT = Math.max(g.cineT || 0, 0.05);
     S.stat.maxHaz = Math.max(S.stat.maxHaz, S.haz.length);
   }
-  /* ---- the health gates ---- */
-  const nextMech = () => { for (let i = 1; i <= 6; i++) if (!S.res[i]) return i; return 0; };
-  const allResolved = () => nextMech() === 0;
-  function floorHp() { const m = S.m; const n = nextMech(); return n ? TUNE.at[n] * m.maxhp : 0; }
-  const locked = () => S.mode !== 'fight';
-  function lockTick() { const m = S.m; if (!m || S.mode === 'dead') return; if (locked()) { if (m.hp < S.lastM) { m.hp = S.lastM; S.stat.lockSaves++; } } const f = floorHp(); if (m.hp < f) { m.hp = f; S.stat.lockSaves++; } if (m.hp > m.maxhp) m.hp = m.maxhp; S.lastM = m.hp; }
-  // the engine asks every blow on its body: nothing gets through while it is locked or at a gate
-  function guard(mm, o) { if (!S || mm !== S.m) return 1; if (locked()) return 0; if (S.m.hp <= floorHp() + 1) return 0; return 1; }
+  // the engine asks every blow on its body: an ordinary boss, struck freely; only the awakening and the fall are untouchable
+  function guard(mm, o) { if (!S || mm !== S.m) return 1; return S.mode === 'intro' || S.mode === 'dead' ? 0 : 1; }
   const realK = () => (S ? S.m.hp / S.m.maxhp : 1);
 
   /* ---- the intro: suspended over the emblem, the crowns descend, Lux wakes in flame, Umbra in a blizzard, the wings unfold, it lands and roars ---- */
   function introTick(da) {
-    const t0 = S.introT; S.introT += da; const t = S.introT, X = S.X, cross = x => t0 < x && t >= x, B = S.B, m = S.m;
+    const t0 = S.introT; S.introT += da; const t = S.introT, X = S.X, cross = x => t0 < x && t >= x, m = S.m;
     if (cross(0.3)) { X.banner('THE TRIAL OF TWO HEAVENS', 'The Equinox Sanctum', COL.gold, 2.4, true, true); }
     if (cross(1.6)) { fx('erupt', { x: m.x - 1.2, y: m.y, R: 3.2, life: 1.6 }); cue.lux(); X.shake(6, 0.4); sfx('whoosh'); }
     if (cross(2.6)) { fx('blizzard', { x: m.x + 1.2, y: m.y, R: 3.2, life: 1.8 }); cue.umbra(); X.shake(5, 0.4); }
     if (cross(4.6)) { sfx('thud'); X.shake(14, 0.6); fx('land', { x: m.x, y: m.y, R: 6.5, life: 1.2 }); S.g.hitStop = Math.max(S.g.hitStop || 0, 0.05); }
     if (cross(5.3)) { X.banner('RAZIEL', 'The Twin Revelation', COL.white, 2.6, true, true); cue.lux(); cue.umbra(); sfx('crash'); X.flash(0.2, '#FFF2D8'); X.shake(10, 0.6); }
-    if (t >= TUNE.intro) { S.g.bossIntro = 0; S.m.act = 'fight'; S.mode = 'fight'; S.idleT = 1.2; S.stat.phaseAt[1] = S.t; say('PHASE I', 'Raziel · ' + PHN[1], COL.gold, 2.0); }
+    if (t >= TUNE.intro) { S.g.bossIntro = 0; S.m.act = 'fight'; S.mode = 'fight'; S.idleT = 1.2; S.bigT = TUNE.big.first; S.stat.phaseAt[1] = S.t; say('PHASE I', 'Raziel · ' + PHN[1], COL.gold, 2.0); }
   }
 
-  /* ---- ordinary combat ---- */
+  /* ---- ordinary combat: its rotation of blows, and every so often one of its two great judgements (Opposing Heavens, Mirror Memory) ---- */
   function fightTick(da) {
     const m = S.m, me = S.me, X = S.X;
     const took = Math.max(0, S.lastM - m.hp);
     // healing light shaken loose by blows (as the other gates' bosses)
     S.healAcc += took; S.healCd -= da;
-    if (S.healAcc > m.maxhp / TUNE.bars * TUNE.heal && S.healCd <= 0) { S.healAcc = 0; S.healCd = TUNE.healCd; const an = Math.atan2(me.y - m.y, me.x - m.x), x = m.x + Math.cos(an) * (m.r + 0.8), y = m.y + Math.sin(an) * (m.r + 0.8); X.drop('hp', x, y); if (Math.random() < 0.4) X.drop('mp', x, y); }
+    if (S.healAcc > m.maxhp / TUNE.bars * TUNE.heal && S.healCd <= 0) { S.healAcc = 0; S.healCd = TUNE.healCd; const an = Math.random() * 6.283, x =   /* (any side of it: a pet that never moves does not drink them all) */ m.x + Math.cos(an) * (m.r + 0.8), y = m.y + Math.sin(an) * (m.r + 0.8); X.drop('hp', x, y); if (Math.random() < 0.4) X.drop('mp', x, y); }
     if (S.vuln) { const V = S.vuln; V.t += da; m.stunT = Math.max(0.001, V.dur - V.t); if (V.t >= V.dur) endVuln(); }
     const f = realK(), want = f <= TUNE.phaseAt[5] ? 5 : f <= TUNE.phaseAt[4] ? 4 : f <= TUNE.phaseAt[3] ? 3 : f <= TUNE.phaseAt[2] ? 2 : 1;
     if (!S.vuln && want > S.phase) { startTrans(S.phase + 1); return; }
-    const n = nextMech(); if (!S.vuln && n && MECH[n].ph <= S.phase && f <= TUNE.at[n] + 1e-6) { startMech(n); return; }
     if (me.dead) { S.idleT = Math.max(S.idleT, 1.2); return; }
     if (S.vuln) { roam(da, 0); return; }
-    actsTick(da);
-    if (!S.acts.length) { S.idleT -= da; if (S.idleT <= 0) { pickAct(); } }
+    actsTick(da); S.bigT -= da;
+    if (!S.acts.length) { if (S.bigT <= 0 && !S.noBig) { startBig(); return; } S.idleT -= da; if (S.idleT <= 0) { pickAct(); } }
     roam(da, S.acts.some(A => A.plant) ? 0 : 1);
   }
   function startVuln(dur, why) { const m = S.m; if (!(dur > 0)) return; S.vuln = { t: 0, dur, why: why || '' }; m.stunT = dur; m.act = 'stunned'; m.flinch = 1; S.X.text(m.x, m.y - TUNE.size * 0.75, why || 'Exposed!', COL.white, 16, { crit: true, life: 1.2 }); }
-  function endVuln() { const m = S.m; S.vuln = null; m.stunT = 0; m.act = 'fight'; S.idleT = Math.max(S.idleT, 1.0); if (S.finalWin && !S.recovered) { S.recovered = true; S.finalWin = false; S.skyK = 0.8; say('RAZIEL RECOVERS', 'The Final Revelation goes on: finish it', COL.white, 2.2); cue.lux(); cue.umbra(); } }
+  function endVuln() { const m = S.m; S.vuln = null; m.stunT = 0; m.act = 'fight'; S.idleT = Math.max(S.idleT, 1.0); }
 
-  /* ---- phase transitions ---- */
+  /* ---- phase transitions (a roar; it can still be struck) ---- */
   function startTrans(ph) {
     abortActs(); S.mode = 'trans'; S.trans = { ph, t: 0 }; S.phase = ph; S.m.phase = ph; S.stat.phaseAt[ph] = S.t; const X = S.X;
     X.banner(`PHASE ${ROMAN[ph]}`, `Raziel · ${PHN[ph]}`, ph === 5 ? COL.white : ph % 2 ? COL.gold : COL.ice, 2.4, true, true);
@@ -330,79 +268,28 @@ const GEMINI_BOSS = (() => {
     for (let i = 0; i < 3; i++) S.X.drop(i % 2 ? 'mp' : 'hp', S.m.x + (Math.random() - 0.5) * 4, S.m.y + 2.5 + Math.random() * 2);
     fx('roarwave', { x: S.m.x, y: S.m.y, R: 9, life: 1.3, ph });
   }
-  function transTick(da) { const T = S.trans; T.t += da; if (T.t >= TUNE.trans) { S.trans = null; S.mode = 'fight'; S.idleT = 0.8; } }
+  function transTick(da) { const T = S.trans; T.t += da; if (T.t >= TUNE.trans) { S.trans = null; S.mode = 'fight'; S.idleT = 0.8; S.bigT = Math.max(S.bigT, 6); } }
 
-  /* ---- the critical mechanics: one at a time, one authoritative result each ---- */
+  /* ---- the two great judgements, woven into the rotation: Opposing Heavens from the start, Mirror Memory alternating with it from
+     Phase II; they come back every TUNE.big.every s (by phase). Raziel can be struck all through them. A wrong answer costs a heavy blow
+     (nothing else: no score is kept); every answer right and it reels for a short exposed window ---- */
+  function startBig() { const id = S.phase < 2 ? 1 : S.lastBig === 2 ? 1 : 2; S.bigN++; S.lastBig = id; startMech(id); }
   function startMech(id) {
     abortActs(); clearPet(true); const X = S.X, M = MECH[id];
-    S.mode = 'mech'; S.mech = { id, t: 0, stage: 'prep', st: 0, data: {} }; S.stat.mechT[id] = { start: S.t };
-    X.banner(M.name, M.tip, COL.warn, 3.0, true, true); cue.mech();
-    try { MI[id].start(S.mech); } catch (e) { if (typeof console !== 'undefined') console.error(e); resolveMech(id); }
+    S.mode = 'mech'; S.mech = { id, t: 0, stage: 'prep', st: 0, data: {}, miss: 0 }; S.stat.big[id] = (S.stat.big[id] || 0) + 1;
+    X.banner(M.name, M.tip, COL.warn, 2.2, true); cue.mech();
+    try { MI[id].start(S.mech); } catch (e) { if (typeof console !== 'undefined') console.error(e); endMech(); }
   }
-  function mechTick(da) { const Mx = S.mech; if (!Mx) { S.mode = 'fight'; return; } Mx.t += da; let done = false; try { done = MI[Mx.id].tick(Mx, da); } catch (e) { if (typeof console !== 'undefined') console.error(e); done = true; } if (done && S && S.mech === Mx) resolveMech(Mx.id); }
-  function markFail(id, why) {
-    if (!S || S.res[id] || S.failed[id] || S.mode === 'paradox' || S.mode === 'over' || S.mode === 'dead') return false;
-    S.failed[id] = true; S.failN++; S.stat.fails.push({ id, why: why || '', t: +S.t.toFixed(2) });
-    if (S.failN >= 2) { paradox(id, why); return true; }
-    shatterSeal(id, why); return true;
-  }
-  function resolveMech(id) {
-    if (!S || S.res[id]) return; const Mx = S.mech, ok = !S.failed[id];
-    S.res[id] = ok ? 'pass' : 'fail'; if (S.stat.mechT[id]) S.stat.mechT[id].end = S.t;
-    try { if (Mx && Mx.id === id && MI[id].end) MI[id].end(Mx, ok); } catch (e) { if (typeof console !== 'undefined') console.error(e); }
-    S.mech = null; if (S.mode === 'paradox' || S.mode === 'over') return;
-    S.mode = 'fight'; S.idleT = 1.6;
-    if (ok) { say('MECHANIC RESOLVED', MECH[id].name.toLowerCase().replace(/(^|\s)\S/g, s => s.toUpperCase()), COL.white, 2.0); cue.pass(); }
-    else S.X.text(S.me.x, S.me.y - 1.6, 'Mechanic failed', COL.warn, 14, { life: 1.4 });
-    const vt = id === 6 ? TUNE.vuln[6] : ok ? TUNE.vuln[id] : TUNE.vulnFail;
-    if (id === 6) { S.finalWin = true; startVuln(vt, 'The Gemini Core is exposed!'); say('THE GEMINI CORE IS EXPOSED', 'Finish Raziel before it recovers', COL.white, 2.6); }
-    else startVuln(vt, ok ? 'Exposed!' : 'Staggered');
-  }
-  /* the first failure: a Gemini Seal shatters */
-  function shatterSeal(id, why) {
-    const X = S.X, me = S.me, st0 = ST(), mx = st0 ? st0.hp : me.hp;
-    X.banner('GEMINI SEAL SHATTERED', 'One more critical failure will result in annihilation.', COL.warn, 3.2, true, true);
-    X.flash(0.35, '#FFFFFF'); X.shake(14, 0.6); cue.fail(); S.g.hitStop = Math.max(S.g.hitStop || 0, 0.06);
-    fx('shatter', { x: me.x, y: me.y, R: 7, life: 1.6 }); S.sealFx = { t: 0, i: 0 };
-    // the penalty: a share of max health, never lethal; it does not go through the pet's guard (an encounter rule, not a blow)
-    if (!me.dead) { const d = Math.min(mx * TUNE.seal.pen, Math.max(0, me.hp - 1)); me.hp -= d; S.stat.dmgIn += d; X.text(me.x, me.y - 1.4, '-' + Math.round(d), '#FFE0A0', 17); }
-    S.dmgK = TUNE.seal.dmgK; S.freqK = TUNE.seal.freqK;
-    X.text(me.x, me.y - 2.1, why || 'Equilibrium falters', COL.warn, 13, { life: 1.6 });
+  function mechTick(da) { const Mx = S.mech; if (!Mx) { S.mode = 'fight'; return; } Mx.t += da; let done = false; try { done = MI[Mx.id].tick(Mx, da); } catch (e) { if (typeof console !== 'undefined') console.error(e); done = true; } if (done && S && S.mech === Mx) endMech(); }
+  // a wrong answer: a heavy blow through the engine's own hurt (its defence and guards apply), and nothing more
+  function miss(Mx, k, el, why) { Mx.miss++; S.stat.miss = (S.stat.miss || 0) + 1; const me = S.me, inv0 = me.inv; me.inv = 0; const ok = hurt(k, { el: el || 'fire' }); if (!ok) me.inv = inv0; S.X.text(me.x, me.y - 1.8, why || 'Struck', COL.warn, 14, { life: 1.2 }); }
+  function endMech() {
+    if (!S) return; const Mx = S.mech, ok = Mx && !Mx.miss;
+    try { if (Mx && MI[Mx.id].end) MI[Mx.id].end(Mx, ok); } catch (e) { if (typeof console !== 'undefined') console.error(e); }
+    S.mech = null; if (S.mode !== 'mech') return; S.mode = 'fight'; S.idleT = 1.4; S.bigT = TUNE.big.every[S.phase - 1] * (0.9 + 0.2 * Math.random());
+    if (ok) { S.stat.clean = (S.stat.clean || 0) + 1; cue.pass(); startVuln(TUNE.big.expose, 'Exposed!'); }
   }
 
-  /* ================= ABSOLUTE PARADOX: the second failure ================= */
-  function paradox(id, why) {
-    const X = S.X; S.res[id] = 'fail'; if (S.stat.mechT[id]) S.stat.mechT[id].end = S.t;
-    try { if (S.mech && MI[S.mech.id].end) MI[S.mech.id].end(S.mech, false, true); } catch (e) {}
-    S.mech = null; abortActs(); S.haz.length = 0; S.vuln = null; S.mode = 'paradox'; S.para = { t: 0, wiped: false, why: why || '', ulT: -1 }; S.cine = true;
-    X.banner('ABSOLUTE PARADOX', 'EQUILIBRIUM HAS COLLAPSED', COL.white, 4.0, true, true); X.flash(0.4, '#FFFFFF'); X.shake(16, 0.8); cue.fail(); musicDuck(0.15, 3.0);
-    S.stat.paradoxAt = S.t;
-  }
-  const PARA = { meet: 1.4, ul0: 9.7, wipe: 3.6 };
-  function paradoxTick(dt) {
-    const Pd = S.para, t0 = Pd.t; Pd.t += dt; const t = Pd.t, X = S.X, cross = x => t0 < x && t >= x;
-    if (cross(PARA.meet)) { startUlt(PARA.ul0, S.m.x, S.m.y + 1.5); sfx('hum'); }
-    if (t > 0.3 && t < PARA.wipe && Math.random() < dt * 8) X.shake(3 + 6 * t / PARA.wipe, 0.1);
-    if (t >= PARA.wipe && !Pd.wiped) { Pd.wiped = wipe('Absolute Paradox: equilibrium has collapsed'); if (Pd.wiped) { X.flash(0.6, '#FFFFFF'); X.shake(24, 1.0); sfx('crash'); } }
-    if (Pd.wiped && t > PARA.wipe + 3.5) { finish(); }
-  }
-  function wipe(why) {
-    const X = S.X, me = S.me; if (X.g.over) return true;
-    try { if (typeof X.wipeParty === 'function') { if (X.wipeParty(why)) return true; if (me.dead) return false; } } catch (e) {}
-    // (no wipeParty on this stage's X: every member's health to nothing through the party list, then the blow that ends it)
-    try { const L = X.party ? X.party() : []; for (const p of L) { p.down = true; p.hp = 0; } me.dodge = null; me.inv = 0; me.dash = null; me.leap = null; X.hurtPet(1e9, S.m, { paradox: true }); return true; } catch (e) { return false; }
-  }
-
-  /* ================= the private ultimate (RAZIEL_ULT): The Book's last act and the Paradox, started part way in ================= */
-  function startUlt(t0, tx, ty) {
-    stopUlt(); if (typeof RAZIEL_ULT === 'undefined' || !glOn() || !gpu()) return false; const X = S.X, me = S.me, g = S.g;
-    const a = { id: 'gemini', k: 3, x: S.m.x, y: S.m.y, face: 1, st: 'fight', rzS: S.P, rzOut: S.B.A };
-    const H2 = { X, me, g, T: () => X.Tz(), ST: X.ST, S: { list: [a] }, P: () => 0, near: () => [], living: () => [], hit: () => 0, kOf: () => 3, pose: () => S.P, anchors: () => S.B.A,
-      fire: () => 0, ice: () => 0, shock: () => false, onDone: () => {} };
-    try { const UL = RAZIEL_ULT.create(H2); if (!UL || !UL.start(a)) return false; const J = UL.ul; if (J) { J.t = t0; J.tx = tx; J.ty = ty; J.nextTick = 99; } S.ul = UL; S.ulA = a; S.ulT0 = t0; return true; } catch (e) { S.ul = null; return false; }
-  }
-  function stopUlt() { if (!S || !S.ul) return; try { S.ul.stop(); } catch (e) {} S.ul = null; S.ulA = null; try { S.g.zoomP = 1; S.g.zoomT = 0; } catch (e) {} }
-  const ulT = () => { try { return S.ul && S.ul.ul ? S.ul.ul.t : -1; } catch (e) { return -1; } };
 
   /* ================= the pet: protection, Burning, Frost ================= */
   function clearPet(soft) { if (!S) return; const me = S.me; S.prot = null; S.burn = 0; if (me && me.chill > 0) me.chill = 0; if (!soft) S.protT = 0; }
@@ -446,14 +333,13 @@ const GEMINI_BOSS = (() => {
   }
   function landHaz(h) {
     const me = S.me; if (me.dodge && !h.noDodge) return;   // (a roll carries the pet through: the engine's own rule)
-    if (h.crit) { const id = h.crit; S.stat.hits[id] = (S.stat.hits[id] || 0) + 1; if (!S.failed[id]) { markFail(id, h.why || 'Struck by a critical hazard'); return; } }
     const ok = hurt(h.k, { el: h.el === 'ice' ? 'frost' : 'fire' }); if (!ok) return;
     if (h.el === 'fire' || h.status === 'burn') burnPet(2.5); if (h.el === 'ice' || h.status === 'frost') chillPet(h.chill || 1.4);
   }
 
   /* ================= effects (pictures only, world tiles) ================= */
   function fx(kind, o) { const f = Object.assign({ kind, t: 0, life: 1, seed: Math.random() * 50 }, o); S.fx.push(f); if (S.fx.length > 60) S.fx.shift(); return f; }
-  function fxTick(da) { for (let i = S.fx.length - 1; i >= 0; i--) { const f = S.fx[i]; f.t += da || 0; if (f.t >= f.life) S.fx.splice(i, 1); } if (S.sealFx) { S.sealFx.t += da; if (S.sealFx.t > 2) S.sealFx = null; } }
+  function fxTick(da) { for (let i = S.fx.length - 1; i >= 0; i--) { const f = S.fx[i]; f.t += da || 0; if (f.t >= f.life) S.fx.splice(i, 1); } }
 
   /* ================= movement: it holds the middle, leaning toward the pet, keeping its distance ================= */
   function roam(da, k) {
@@ -571,7 +457,7 @@ const GEMINI_BOSS = (() => {
   function secondary(A) { const me = S.me; if (A.kind === 'infernal') { const o = headW('R'); haz({ kind: 'line', x: o.x, y: o.y, a: Math.atan2(me.y - o.y, me.x - o.x), len: 12, w: 0.9, tell: 0.9, act: 0.5, fade: 0.3, el: 'ice', k: 0.5, tick: 0.25, chill: 1.0, vis: 'breathI', src: 'R' }); } }
   function spotAway(x, y, d0, d1) { for (let i = 0; i < 30; i++) { const a = Math.random() * TAU, d = d0 + Math.random() * (d1 - d0), p = { x: x + Math.cos(a) * d, y: y + Math.sin(a) * d }; if (inArena(p.x, p.y, 1.2)) return p; } return clampA(x + d0, y, 1.2); }
 
-  /* ================= the mechanics (MI[id]: start(Mx), tick(Mx, da) -> done, end(Mx, ok, paradox)) ================= */
+  /* ================= the mechanics (MI[id]: start(Mx), tick(Mx, da) -> done, end(Mx, ok)) ================= */
   const MI = [null, {}, {}, {}, {}, {}, {}];
   const petD = (x, y) => Math.hypot(S.me.x - x, S.me.y - y);
   // the nearest point of a sector's floor (between the hub and the rim, inside its edges by a margin) to (x, y), and its distance
@@ -611,7 +497,7 @@ const GEMINI_BOSS = (() => {
       if (t >= W.end) { // the judgement
         const okP = S.prot === Mx.need; D.res.push(okP); X.flash(0.25, W.truth === 'L' ? '#FFD0A0' : '#D8F0FF'); X.shake(14, 0.5); sfx('crash'); fx('judge', { x: S.m.x, y: S.m.y, R: AR.R + 1, life: 1.2, el: W.truth === 'L' ? 'fire' : 'ice' });
         if (okP) { fx('ward', { x: me.x, y: me.y, R: 1.6, life: 0.9, el: S.prot }); X.text(me.x, me.y - 1.5, 'Protected', COL.white, 14); }
-        else { if (!S.failed[1]) markFail(1, S.prot ? 'The wrong protection' : 'No protection'); else hurt(C.hitK, { el: W.truth === 'L' ? 'fire' : 'frost' }); }
+        else miss(Mx, C.hitK, W.truth === 'L' ? 'fire' : 'frost', S.prot ? 'The wrong protection' : 'No protection');
         S.prot = null; D.san.length = 0; D.phase = 'gap'; D.pt = 0; Mx.pose.chL = Mx.pose.chR = 0; }
       return false;
       function nextWave(M2) { const D2 = M2.data; D2.wi++; const wi = D2.wi, h = D2.heads[wi], lead = wi === 2 ? C.lead3 : 0; D2.w = { t: 0, truth: h, cancelAt: wi === 2 ? lead : null, end: lead + C.win[wi], told: false }; M2.need = h === 'L' ? 'ice' : 'fire'; D2.san = placeSan(M2, wi); D2.phase = 'wave'; S.prot = null;
@@ -652,7 +538,7 @@ const GEMINI_BOSS = (() => {
         if (cross(te)) { const want = D.pats[D.order[j]].s, s0 = secOf(me.x, me.y), okP = want.includes(s0); D.res.push(okP); D.flash = { j, t: 0, want, ok: okP };
           X.shake(12, 0.45); sfx('crash'); X.flash(0.18, '#FFF4E0'); (j % 2 ? cue.umbra : cue.lux)(1 + j * 0.06);
           if (okP) { fx('ward', { x: me.x, y: me.y, R: 1.6, life: 0.8, el: 'white' }); X.text(me.x, me.y - 1.5, 'Remembered', COL.white, 14); }
-          else { if (!S.failed[2]) markFail(2, s0 < 0 ? 'Caught in the centre' : 'The wrong sector'); else hurt(C.hitK, { el: 'fire' }); } } }
+          else miss(Mx, C.hitK, 'fire', s0 < 0 ? 'Caught in the centre' : 'The wrong sector'); } }
       if (D.flash) D.flash.t += da;
       Mx.pose.crownE = 0.3 + 0.2 * Math.max(0, D.ex);
       return t >= D.tEnd;
@@ -671,339 +557,17 @@ const GEMINI_BOSS = (() => {
       const j = Math.max(0, D.ex), te = D.ends[j], left = Math.max(0, te - t); return { say: `${D.rule}: step ${j + 1} of 4 (shown ${D.order[j] + 1})`, bar: left / C.win[j], barCol: COL.gold, secs: left, note: `Results: ${D.res.map(r => (r ? '✓' : '✕')).join(' ') || '—'}` }; },
   };
 
-  /* ---- 3 TWIN CORE EQUILIBRIUM: the Fire Core (Heart of Inferno, west) and the Ice Core (Heart of Absolute Zero, east) leave the
-     chest and become targets of their own (the engine's passive parts: every element strikes them, each core shrugs off a little of
-     its own element). Both to zero inside the timer; their remaining shares kept within TUNE.m3.diff points (else a 5 s warning:
-     strike the healthier one); once one is out, the other within 5 s. Raziel stays, its blows few ---- */
-  MI[3] = {
-    start(Mx) { const D = Mx.data, C = TUNE.m3, st0 = ST(), hp = Math.round(Math.max(C.hpMin, Math.min(C.hpMax, (st0 ? st0.atk : 60) * C.hpAtk)));
-      Object.assign(D, { hp, cores: [], warnT: 0, warnN: 0, lastT: -1, firstDead: null, phase: 'prep', pt: 0, every: 1.6, n: 0, res: null });
-      for (const side of ['L', 'R']) { const p = { x: AR.cx + (side === 'L' ? -1 : 1) * AR.R * C.off, y: AR.cy + 0.7 }; D.cores.push({ side, x: p.x, y: p.y, P: null, pct: 100, dead: false, deadT: 0, rings: [1, 1, 1], spin: 0, hitT: 0 }); }
-      Mx.wide = 0.56; Mx.focus = { x: AR.cx, y: AR.cy + 0.5, k: 0.45 }; S.goTo = { x: AR.cx, y: AR.cy - 1.8 }; Mx.pose = { coreD: 1, coreO: 0, raise: 0.5, wing: 0.9 }; Mx.goal = 'The Gemini Core breaks open'; },
-    tick(Mx, da) {
-      const D = Mx.data, C = TUNE.m3, me = S.me, X = S.X; roam(da, 0);
-      if (D.phase === 'prep') { D.pt += da; Mx.pose.coreO = sstep(0.6, 1.2, D.pt); Mx.pose.roar = bump(D.pt, 0.3, 0.6, 1.2, 1.6);
-        if (D.pt >= 2.2) { for (const c of D.cores) { c.P = part('core' + c.side, c.x, c.y, C.r, D.hp); if (c.P) c.P.m.guardFn = (mm, o) => ((o && ((c.side === 'L' && o.el === 'fire') || (c.side === 'R' && (o.el === 'frost' || o.el === 'ice')))) ? 0.85 : 1); }
-          D.phase = 'exec'; D.t0 = Mx.t; Mx.goal = 'Destroy both reactors together'; X.banner('TWIN CORE EQUILIBRIUM', 'Strike both reactors, keeping them within 15 points of each other', COL.warn, 2.4, true); }
-        return false; }
-      if (D.phase === 'end') { D.pt += da; return D.pt >= 1.6; }
-      const t = Mx.t - D.t0;
-      // the cores' state from their parts
-      for (const c of D.cores) { if (c.dead) { c.deadT += da; continue; } const m = c.P && c.P.m, hp = m ? Math.max(0, m.hp) : 0; c.pct = 100 * hp / D.hp; if (c.P && c.P.last > hp) { c.hitT = 0.25; c.P.last = hp; } c.hitT = Math.max(0, c.hitT - da);
-        for (let i = 0; i < 3; i++) if (c.rings[i] === 1 && c.pct < 75 - i * 25) { c.rings[i] = 0.999; fx('frag', { x: c.x, y: c.y, R: 1.6, life: 1.4, side: c.side }); sfx('crash'); }
-        if (!m || m.dead || hp <= 0) { c.dead = true; c.pct = 0; if (c.P) dropPart(c.P); c.P = null; fx('coreburst', { x: c.x, y: c.y, R: 2.4, life: 1.0, side: c.side }); X.shake(10, 0.4); sfx('crash');
-          if (!D.firstDead) { D.firstDead = c.side; D.lastT = C.last; const o = D.cores.find(q => q !== c); if (!o.dead) X.banner('ONE REACTOR FALLS', 'Destroy the other within 5 seconds', COL.warn, 1.8, true); } } }
-      for (const c of D.cores) for (let i = 0; i < 3; i++) if (c.rings[i] < 1 && c.rings[i] > 0) c.rings[i] = Math.max(0, c.rings[i] - da * 0.7);
-      const L = D.cores[0], R = D.cores[1];
-      if (L.dead && R.dead) { D.phase = 'end'; D.pt = 0; D.res = 'ok'; return false; }
-      // equilibrium: a warning while the gap is over the threshold (both still burning)
-      const gap = Math.abs(L.pct - R.pct); D.gap = gap;
-      if (!L.dead && !R.dead) { if (gap > C.diff) { if (D.warnT <= 0) { D.warnT = C.warn; D.warnN++; X.banner('CORE EQUILIBRIUM BREAKING', `Strike the ${L.pct > R.pct ? 'Fire' : 'Ice'} Core: ${Math.round(gap)} points apart`, COL.warn, 1.6, true); note(330, 0.5, 'sawtooth', 0.04, 311); }
-          else { D.warnT -= da; if (Math.floor((D.warnT + da) * 2) !== Math.floor(D.warnT * 2)) cue.tick(); if (D.warnT <= 0) { D.warnT = -1; markFail(3, 'The equilibrium broke'); D.phase = 'end'; D.pt = 0; D.res = 'warn'; return false; } } }
-        else if (D.warnT > 0) { D.warnT = 0; X.text(me.x, me.y - 1.5, 'Balance restored', COL.white, 14); cue.align(); } }
-      else D.warnT = 0;
-      if (D.lastT >= 0) { D.lastT -= da; if (D.lastT < 0) { markFail(3, 'The second reactor outlived the first'); D.phase = 'end'; D.pt = 0; D.res = 'last'; return false; } }
-      if (t >= C.dur) { markFail(3, 'Out of time'); D.phase = 'end'; D.pt = 0; D.res = 'time'; return false; }
-      // the pressure: few, telegraphed, alternating minds
-      D.every -= da; if (D.every <= 0 && !me.dead) { D.every = C.every * S.freqK; D.n++; const k = D.n % 3;
-        if (k === 1) { cue.lux(1.1); haz({ kind: 'disc', x: me.x, y: me.y, r: 1.35, tell: 1.3, act: 0.3, fade: 0.8, el: 'fire', k: 1.0, vis: 'erupt' }); }
-        else if (k === 2) { cue.umbra(1.1); const q = L.pct >= R.pct ? L : R, p = { x: lerp(me.x, q.x, 0.5), y: lerp(me.y, q.y, 0.5) }; haz({ kind: 'disc', x: p.x, y: p.y, r: 1.7, tell: 1.6, act: 0.3, fade: 1.0, el: 'ice', k: 1.1, chill: 0.8, vis: 'iceburst' }); }
-        else { const a = Math.atan2(me.y - S.m.y, me.x - S.m.x); haz({ kind: 'line', x: S.m.x, y: S.m.y, a, len: 10, w: 1.3, tell: 1.25, act: 0.3, fade: 0.4, el: 'white', k: 1.0, vis: 'wingwave' }); } }
-      Mx.pose.chL = 0.25 + 0.5 * (1 - L.pct / 100); Mx.pose.chR = 0.25 + 0.5 * (1 - R.pct / 100); Mx.pose.aimL = { x: L.x, y: L.y }; Mx.pose.aimR = { x: R.x, y: R.y };
-      return false;
-    },
-    end(Mx, ok, para) { const D = Mx.data; for (const c of D.cores) if (c.P) { dropPart(c.P); c.P = null; }
-      if (!para) { for (const c of D.cores) fx('corehome', { x: c.x, y: c.y, life: 1.3, side: c.side, tx: S.m.x, ty: S.m.y }); if (ok) { S.X.shake(16, 0.7); sfx('crash'); S.g.hitStop = Math.max(S.g.hitStop || 0, 0.06); fx('land', { x: S.m.x, y: S.m.y, R: 5, life: 1.0 }); S.X.banner('RAZIEL CRASHES DOWN', 'The cores return: strike now', COL.white, 2.0, true); } } S.goTo = null; },
-    props(Mx, add, u) { const D = Mx.data, T = Tz(), t = S.t; if (D.phase === 'prep') { const k = sstep(0.4, 2.0, D.pt); for (const c of D.cores) { const x = lerp(S.m.x, c.x, k), y = lerp(S.m.y - 1, c.y, k), h = lerp(3.2, 1.7, k); add({ m: c.side === 'L' ? 'sun' : 'planet', X: sx(x), Y: sy(y) - T * h, s: u * 0.95, g: 1.2, t, z: 1e5 }, AR.cy + 9); } return; }
-      for (const c of D.cores) { if (c.dead && c.deadT > 0.25) continue; const X0 = sx(c.x), Y0 = sy(c.y) - T * 1.7, jit = c.hitT > 0 ? Math.sin(t * 90) * T * 0.04 : 0, sh = 1 - 0.25 * (1 - c.pct / 100);
-        add({ m: c.side === 'L' ? 'sun' : 'planet', X: X0 + jit, Y: Y0, s: u * sh, g: 1 + 0.8 * (1 - c.pct / 100), t, z: 1e5 }, AR.cy + 9);
-        for (let i = 0; i < 3; i++) { const r = c.rings[i]; if (r <= 0) continue; const off = (1 - r) * T * 3, an = i * 2.1; add({ m: c.side === 'L' ? 'ringL' : 'ringR', X: X0 + Math.cos(an) * off, Y: Y0 + Math.sin(an) * off * 0.5 - (1 - r) * T * 2, s: u * (1.6 + 0.35 * i) * sh, yaw: t * (0.8 - 0.25 * i) * (i % 2 ? -1 : 1), tilt: 0.5 + 0.45 * i + (1 - r) * 2, side: c.side, g: 0.5, a: r < 1 ? r : 1, t, z: 1e5 }, AR.cy + 9); } } },
-    drawGround(Mx, Q) { const D = Mx.data, T = Tz(), t = S.t; if (D.phase === 'prep') return; for (const c of D.cores) { if (c.dead) continue; const X0 = sx(c.x), Y0 = sy(c.y), hot = D.warnT > 0 && ((c.side === 'L' && D.cores[0].pct > D.cores[1].pct) || (c.side === 'R' && D.cores[1].pct > D.cores[0].pct));
-        Q.quad(491, X0, Y0, T * 1.9, 0, 0, T * 1.9, c.side === 'L' ? COL.fire : COL.ice, 1, 5 + 0.98 * (hot ? 0.6 + 0.4 * Math.sin(t * 10) : 0.25), t * (c.side === 'L' ? 0.5 : -0.5), 0);
-        if (hot) Q.ring(X0, Y0 - T * 1.7, T * 1.6, COL.white, 0.5 + 0.4 * Math.sin(t * 10), T * 0.12); } },
-    drawAir(Mx, Q) { const D = Mx.data, T = Tz(), FX = FXP(), A = S.B.A, t = S.t; if (!FX || D.phase === 'prep') return;
-      for (const c of D.cores) { if (c.dead) continue; const X0 = sx(c.x), Y0 = sy(c.y) - T * 1.7, dmg = 1 - c.pct / 100;
-        if (c.side === 'L') { FX.embers(Q, X0, Y0, T * (1.2 + dmg), (t * 0.6) % 1, 0.4 + 0.6 * dmg, 11, 0.5 + dmg); Q.glow(X0, Y0, T * (1.6 + dmg), COL.fire, 0.25 + 0.25 * dmg); } else { FX.snow(Q, X0, Y0, T * (1.2 + dmg), (t * 0.6) % 1, 0.4 + 0.6 * dmg, 12, 0.5 + dmg, 0.6); Q.glow(X0, Y0, T * (1.6 + dmg), COL.ice, 0.25 + 0.25 * dmg); }
-        const an = A && (c.side === 'L' ? A.coreL : A.coreR); if (an) FX.bridge(Q, an.x, an.y, X0, Y0, T * 0.22, 0.5, c.side === 'L' ? 2 : 4, 3); } },
-    hud(Mx) { const D = Mx.data, C = TUNE.m3; if (D.phase !== 'exec') return { say: Mx.goal, note: '' };
-      const t = Mx.t - D.t0, left = Math.max(0, C.dur - t), L = D.cores[0], R = D.cores[1];
-      return { say: D.warnT > 0 ? `CORE EQUILIBRIUM BREAKING · ${D.warnT.toFixed(1)} s` : D.lastT >= 0 ? `Destroy the other core · ${Math.max(0, D.lastT).toFixed(1)} s` : 'Keep both reactors balanced', bar: left / C.dur, barCol: D.warnT > 0 ? COL.warn : '#FFFFFF', secs: left, extra: 30,
-        draw(c, x, y, w) { const bw = (w - 24) / 2; for (let i = 0; i < 2; i++) { const q = D.cores[i], bx = x + 8 + i * (bw + 8), col = i ? COL.ice : COL.fire; GFX.labelS(c, (i ? 'UMBRA CORE ' : 'LUX CORE ') + Math.round(q.pct) + '%', bx, y + 4, 6.5, 800, col, 'rgba(0,0,0,.6)', 2.5, 'left');
-            c.fillStyle = 'rgba(0,0,0,.6)'; GFX.rr(c, bx - 1, y + 8, bw + 2, 7, 3); c.fill(); c.fillStyle = col; GFX.rr(c, bx, y + 9, Math.max(2, bw * q.pct / 100), 5, 2); c.fill(); }
-          GFX.labelS(c, `Difference ${Math.round(D.gap || 0)} points (max ${C.diff})`, x + w / 2, y + 26, 6.5, 800, (D.gap || 0) > C.diff ? COL.warn : COL.pale, 'rgba(0,0,0,.6)', 2.5, 'center'); } }; },
-  };
-
-  /* ---- 4 CELESTIAL PURSUIT: two spectral dragons out of Raziel's own geometry (RAZIEL_GL.drawSpectral): one hunts while the
-     other waits dormant; lead the Fire phantom into a Cryogenic anchor (east) and the Ice phantom into an Infernal anchor (west);
-     the anchor closes on it and collapses in Thermal Shock: be out of its ring. Its trail burns / freezes (an ordinary blow) ---- */
-  function phantom(side) { return { side, el: side === 'L' ? 'fire' : 'ice', x: S.m.x + (side === 'L' ? -3 : 3), y: S.m.y - 0.5, h: PI / 2, st: 'dormant', t: 0, trail: [], trT: 0, touchT: 0, cap: null, S2: { t: 0, mode: 'concord', side, wing: 1, beat: 0.4, fly: 0.75, raise: 0.3, x: 0, y: 0, face: PI / 2, evo: 7, jawL: 0.4, jawR: 0.4, chargeL: 0.6, chargeR: 0.6, aimL: { x: 0, y: 0 }, aimR: { x: 0, y: 0 }, speed: 0.6, glide: 0.5 }, al: 0.35 }; }
-  MI[4] = {
-    start(Mx) { const D = Mx.data, first = Math.random() < 0.5 ? 'L' : 'R'; D.ph = [phantom(first), phantom(first === 'L' ? 'R' : 'L')]; D.cur = 0; D.done = 0; D.phase = 'prep'; D.pt = 0; D.t0 = 0;
-      Mx.wide = 0.56; Mx.focus = null; S.goTo = { x: AR.cx, y: AR.cy - 2.0 }; Mx.pose = { fly: 0.55, wing: 1, beat: 0.5, raise: 0.6 }; Mx.goal = 'Two phantoms rise from Raziel';
-      for (const a of GEO.anchors) { a.open = 0; a.glow = 0.4; } cue.lux(); cue.umbra(); },
-    tick(Mx, da) {
-      const D = Mx.data, C = TUNE.m4, me = S.me, X = S.X; roam(da, 0);
-      for (const a of GEO.anchors) { a.glow += ((D.phase === 'exec' ? 0.6 : 0.3) - a.glow) * Math.min(1, da * 2); }
-      if (D.phase === 'prep') { D.pt += da; for (const p of D.ph) p.al = 0.35 * sstep(0, 1, D.pt); if (D.pt >= 1.6) { D.phase = 'exec'; D.t0 = Mx.t; wake(D.ph[0]); } return false; }
-      if (D.phase === 'end') { D.pt += da; for (const p of D.ph) p.al = Math.max(0, p.al - da); return D.pt >= 1.2; }
-      const t = Mx.t - D.t0;
-      for (const p of D.ph) phTick(Mx, p, da);
-      if (D.done >= 2) { D.phase = 'end'; D.pt = 0; return false; }
-      if (t >= C.dur) { markFail(4, 'The phantoms ran free'); for (const p of D.ph) if (p.st !== 'done') { p.st = 'done'; fx('coreburst', { x: p.x, y: p.y, R: 2.0, life: 1.0, side: p.side }); } D.phase = 'end'; D.pt = 0; return false; }
-      const A = D.ph[D.cur]; if (A) { Mx.pose.aimL = { x: A.x, y: A.y }; Mx.pose.aimR = { x: A.x, y: A.y }; Mx.goal = A.st === 'captured' ? 'LEAVE THE CONTAINMENT FIELD' : `Lead the ${A.side === 'L' ? 'Fire' : 'Ice'} phantom into a${A.side === 'L' ? ' Cryogenic (east, blue)' : 'n Infernal (west, gold)'} anchor`; }
-      return false;
-      function wake(p) { p.st = 'emerge'; p.t = 0; p.al = 0.35; (p.side === 'L' ? cue.lux : cue.umbra)(1.2); X.banner(p.side === 'L' ? 'THE LUX PHANTOM HUNTS' : 'THE UMBRA PHANTOM HUNTS', p.side === 'L' ? 'Lead it into a Cryogenic anchor (east)' : 'Lead it into an Infernal anchor (west)', p.side === 'L' ? COL.fire : COL.ice, 2.0, true); }
-      function phTick(M2, p, dt) {
-        p.t += dt; p.touchT = Math.max(0, p.touchT - dt);
-        // the trail: its stretches fade over C.trail s; each burns / freezes a pet that stands in it
-        for (let i = p.trail.length - 1; i >= 0; i--) { p.trail[i].age += dt; if (p.trail[i].age > C.trail) p.trail.splice(i, 1); }
-        if (p.st === 'dormant') { p.x += (S.m.x + (p.side === 'L' ? -3 : 3) - p.x) * Math.min(1, dt); p.y += (S.m.y - 0.5 - p.y) * Math.min(1, dt); p.al += (0.35 - p.al) * Math.min(1, dt * 2); return; }
-        if (p.st === 'emerge') { p.al = Math.min(1, p.al + dt); p.h = Math.atan2(me.y - p.y, me.x - p.x); if (p.t >= C.lock) { p.st = 'chase'; p.t = 0; } return; }
-        if (p.st === 'chase' || p.st === 'repel') { const want = p.st === 'repel' ? p.rh : Math.atan2(me.y - p.y, me.x - p.x), turn = C.turn * dt; p.h += Math.max(-turn, Math.min(turn, angD(want, p.h)));
-          const v = p.st === 'repel' ? C.spd * 1.4 : C.spd; let nx = p.x + Math.cos(p.h) * v * dt, ny = p.y + Math.sin(p.h) * v * dt; const q = clampA(nx, ny, 0.8); if (q.x !== nx || q.y !== ny) { p.h += angD(Math.atan2(AR.cy - ny, AR.cx - nx), p.h) * 0.2; } p.x = q.x; p.y = q.y;
-          if (p.st === 'repel' && p.t > 1.2) { p.st = 'chase'; p.t = 0; }
-          p.trT -= dt; if (p.trT <= 0) { p.trT = 0.2; p.trail.push({ x: p.x, y: p.y, age: 0 }); }
-          // the head's touch (ordinary), the trail (ordinary)
-          if (!me.dead && !me.dodge && p.touchT <= 0 && Math.hypot(me.x - p.x, me.y - p.y) < C.touch) { p.touchT = 1.0; if (hurt(C.touchK, { el: p.el === 'fire' ? 'fire' : 'frost' }) && p.el === 'fire') burnPet(1.5); }
-          if (!me.dead && !me.dodge && p.touchT <= 0) for (let i = 0; i < p.trail.length - 2; i++) { const a = p.trail[i], b = p.trail[i + 1]; if (segD(me.x, me.y, a, b) < C.trailW + me.r * 0.4) { p.touchT = 0.45; hurt(C.trailK, { el: p.el === 'fire' ? 'fire' : 'frost', dot: true }); break; } }
-          // the anchors
-          if (p.st === 'chase') for (const a of GEO.anchors) { if (Math.hypot(a.x - p.x, a.y - p.y) > C.capR) continue;
-            if (a.el !== p.el) { p.st = 'captured'; p.t = 0; p.cap = a; a.open = 0.01; X.banner('CONTAINMENT', 'Leave the field before it collapses!', COL.white, 1.6, true); sfx('hum'); note(p.el === 'fire' ? 1318 : 392, 0.6, 'triangle', 0.05); }
-            else { markFail(4, 'The phantom entered its own element\'s anchor'); p.st = 'repel'; p.t = 0; p.rh = Math.atan2(p.y - a.y, p.x - a.x); a.glow = 2; X.text(a.x, a.y - 1.5, 'Rejected', COL.warn, 14); cue.cancel(); }
-            break; }
-          return; }
-        if (p.st === 'captured') { const a = p.cap; a.open = Math.min(1, a.open + dt / 0.6); p.x += (a.x - p.x) * Math.min(1, dt * 3); p.y += (a.y - p.y) * Math.min(1, dt * 3); p.al = 1 - 0.4 * sstep(C.boom - 0.8, C.boom, p.t);
-          if (Math.random() < dt * 14) X.shake(2 + 4 * p.t / C.boom, 0.08);
-          if (p.t >= C.boom) { p.st = 'done'; D.done++; a.open = 0; fx('coreburst', { x: a.x, y: a.y, R: C.boomR, life: 1.1, side: p.side }); fx('land', { x: a.x, y: a.y, R: C.boomR + 0.5, life: 0.9 }); X.flash(0.2, '#FFFFFF'); X.shake(14, 0.5); sfx('crash');
-            if (!me.dead && Math.hypot(me.x - a.x, me.y - a.y) < C.boomR + me.r * 0.5 && !me.dodge) { S.stat.hits[4] = (S.stat.hits[4] || 0) + 1; if (!S.failed[4]) markFail(4, 'Caught in the containment collapse'); else hurt(2.0, { el: 'fire' }); }
-            const nx = D.ph[D.cur + 1]; D.cur++; if (nx && nx.st === 'dormant') wake(nx); }
-          return; }
-      }
-    },
-    end(Mx) { for (const a of GEO.anchors) { a.open = 0; a.glow = 0; } S.goTo = null; },
-    props(Mx, add, u) { const T = Tz(), t = S.t; for (const a of GEO.anchors) if (a.open > 0) { const X0 = sx(a.x), Y0 = sy(a.y); add({ m: a.el === 'fire' ? 'crownL' : 'crownR', X: X0, Y: Y0 - T * (0.4 + 1.4 * a.open), s: u * (1.1 + 0.6 * a.open), yaw: t * 2.5, tilt: 1.25 - 0.9 * a.open, h: a.open, g: 1.2, t, z: 1e5 }, a.y); } },
-    drawGround(Mx, Q) { const D = Mx.data, T = Tz(), t = S.t, FX = FXP(), A = D.ph[D.cur];
-      for (const a of GEO.anchors) { const X0 = sx(a.x), Y0 = sy(a.y), want = A && A.st !== 'dormant' && a.el !== A.el; Q.quad(491, X0, Y0, T * 1.8, 0, 0, T * 1.8, a.el === 'fire' ? COL.gold : COL.ice, 1, 5 + 0.98 * cl(want ? 0.7 + 0.3 * Math.sin(t * 5) : 0.2 * a.glow), t * 0.4, 0);
-        if (want) Q.shafts(X0, Y0 - T * 5, X0, Y0, T * 1.2, a.el === 'fire' ? COL.gold : COL.ice, 0.3, a.i * 5); }
-      for (const p of D.ph) { if (FX) for (let i = 0; i < p.trail.length - 1; i++) { const a = p.trail[i], b = p.trail[i + 1], k = 1 - a.age / TUNE.m4.trail; if (k <= 0.02) continue; (p.el === 'fire' ? FX.trailFire : FX.trailIce)(Q, sx(a.x), sy(a.y), sx(b.x), sy(b.y), T * TUNE.m4.trailW * 1.3, k, i * 0.37); }
-        if (p.st === 'captured') { const a = p.cap, u = cl(p.t / TUNE.m4.boom); Q.quad(491, sx(a.x), sy(a.y), T * TUNE.m4.boomR, 0, 0, T * TUNE.m4.boomR, COL.white, 0.6 + 0.4 * u, 3 + 0.98 * u, t, 0); }
-        if (p.st === 'emerge' && !S.me.dead) Q.beam(sx(p.x), sy(p.y), sx(S.me.x), sy(S.me.y), T * 0.15, p.el === 'fire' ? COL.fire : COL.ice, 0.4 * sstep(0, TUNE.m4.lock, p.t)); } },
-    drawAirGL(Mx, c) { const D = Mx.data, G = GLR(); if (!G || !glOn()) return; const T = Tz();
-      for (const p of D.ph) { if (p.st === 'done' || p.al < 0.02) continue; const S2 = p.S2, me = S.me; S2.t = S.B.at; S2.x = p.x; S2.y = p.y; S2.face = p.h; S2.evo = 7; S2.lowFx = lowFx(); S2.fly = p.st === 'dormant' ? 1 : 0.7; S2.speed = p.st === 'chase' ? 0.8 : 0.2; S2.dissolve = p.st === 'captured' ? sstep(TUNE.m4.boom - 1.0, TUNE.m4.boom, p.t) : 0;
-        if (p.side === 'L') { S2.aimL.x = me.x; S2.aimL.y = me.y; S2.jawL = 0.5; } else { S2.aimR.x = me.x; S2.aimR.y = me.y; S2.jawR = 0.5; }
-        try { S.glN = (S.glN || 0) + 1; G.drawSpectral(c, sx(p.x), sy(p.y), T * 3.4, S2, p.side, { alpha: p.al, fade: p.st === 'dormant' ? 0.5 : p.st === 'captured' ? 0.3 + 0.5 * cl(p.t / TUNE.m4.boom) : 0, emerge: p.st === 'emerge' ? cl(p.t / 1.0) : 1, tile: T }); } catch (e) {} } },
-    draw2d(Mx, c) { const D = Mx.data, T = Tz(); c.save(); for (const p of D.ph) { if (p.st === 'done') continue; c.globalAlpha = p.al; c.fillStyle = p.el === 'fire' ? 'rgba(255,140,60,.7)' : 'rgba(130,210,255,.7)'; c.beginPath(); c.arc(sx(p.x), sy(p.y) - T, T * 0.8, 0, TAU); c.fill(); c.strokeStyle = c.fillStyle; c.lineWidth = T * 0.5; c.beginPath(); p.trail.forEach((q, i) => (i ? c.lineTo(sx(q.x), sy(q.y)) : c.moveTo(sx(q.x), sy(q.y)))); c.stroke(); }
-      c.globalAlpha = 1; for (const a of GEO.anchors) { c.strokeStyle = a.el === 'fire' ? 'rgba(255,200,90,.8)' : 'rgba(140,220,255,.8)'; c.lineWidth = 3; c.beginPath(); c.arc(sx(a.x), sy(a.y), T * 1.4, 0, TAU); c.stroke(); } c.restore(); },
-    pointers(Mx) { const D = Mx.data, A = D.ph[D.cur]; if (!A || A.st === 'dormant' || A.st === 'done') return null; if (A.st === 'captured') return null; return GEO.anchors.filter(a => a.el !== A.el).map(a => ({ x: a.x, y: a.y, col: a.el === 'fire' ? COL.gold : COL.ice })); },
-    hud(Mx) { const D = Mx.data, C = TUNE.m4; if (D.phase !== 'exec') return { say: Mx.goal }; const t = Mx.t - D.t0, left = Math.max(0, C.dur - t); return { say: Mx.goal, bar: left / C.dur, barCol: '#FFFFFF', secs: left, note: `Contained ${D.done} of 2` }; },
-  };
   const segD = (x, y, a, b) => { const dx = b.x - a.x, dy = b.y - a.y, L2 = dx * dx + dy * dy || 1, u = cl(((x - a.x) * dx + (y - a.y) * dy) / L2); return Math.hypot(a.x + dx * u - x, a.y + dy * u - y); };
-
-  /* ---- 5 BINARY CATACLYSM: Lux's artificial sun and Umbra's frozen planet drift in, each to its celestial mirror; the mirror's
-     marker turns; hold still in its ring (the rift's own use: 0.75 s) so the activation lands while the marker is on the portal
-     (2.0 s, then 1.5 s): the sphere is thrown along a curve into its containment portal. Early, late or missed: one failure, the
-     sphere drifts to the middle; two loose spheres collide. Timed on the encounter's clock ---- */
-  MI[5] = {
-    start(Mx) { const D = Mx.data, C = TUNE.m5, first = Math.random() < 0.5 ? 'L' : 'R'; D.order = [first, first === 'L' ? 'R' : 'L']; D.sph = []; D.phase = 'prep'; D.pt = 0; D.om = 0.6;
-      for (let k = 0; k < 2; k++) { const side = D.order[k], mi = side === 'L' ? 0 : 1, M0 = GEO.mirrors[mi], P0 = GEO.portals[mi]; D.sph.push({ k, side, mir: M0, por: P0, st: 'wait', x: S.m.x, y: S.m.y, t: 0, tA: 0, w: C.win[k] / 2, thP: Math.atan2(P0.y - M0.y, P0.x - M0.x), act: null, trail: [] }); }
-      const t0 = 1.6; D.sph[0].tA = t0 + C.approach; D.sph[0].t0 = t0; D.sph[1].t0 = D.sph[0].tA + D.sph[0].w + 0.3; D.sph[1].tA = D.sph[1].t0 + C.between; D.tEnd = D.sph[1].tA + D.sph[1].w + 3.2;
-      Mx.wide = 0.56; Mx.focus = { x: AR.cx, y: AR.cy + 0.5, k: 0.35 }; S.goTo = { x: AR.cx, y: AR.cy - AR.R * 0.5 }; Mx.pose = { fly: 1, wing: 1, beat: 0.55, raise: 0.5 }; Mx.goal = 'Raziel rises: a sun and a frozen world form';
-      D.objs = []; if (S.H && S.H.obj) for (const s of D.sph) { const M0 = s.mir; const o = S.H.obj({ x: M0.x, y: M0.y, r: C.mirR, kind: 'gbMirror', busy: true, h: 3.4, label: () => (o.busy ? '' : s.go ? 'NOW: hold still' : 'Not yet: wait outside'), use: () => activate(Mx, s), draw: null }); D.objs.push(o); s.o = o; } },
-    tick(Mx, da) {
-      const D = Mx.data, C = TUNE.m5, t = Mx.t, me = S.me, X = S.X; roam(da, 0);
-      for (const s of D.sph) { const M0 = s.mir, th = s.thP + D.om * (t - s.tA); M0.rot = th; s.th = th; const armed = s.st === 'come' && t >= s.tA - s.w - C.arm && t <= s.tA + s.w; s.go = armed && t >= s.tA - s.w - C.hold; if (s.o) s.o.busy = !armed; M0.arm += ((armed ? 1 : 0) - M0.arm) * Math.min(1, da * 4); M0.lit = s.st === 'thrown' ? 1 : armed && Math.abs(t - s.tA) <= s.w ? 0.8 : 0;
-        if (armed && Math.abs(t - s.tA) <= s.w && !s.inWin) { s.inWin = true; cue.align(); }
-        if (s.st === 'wait' && t >= s.t0) { s.st = 'come'; (s.side === 'L' ? cue.lux : cue.umbra)(1.15); X.banner(s.k ? 'THE SECOND SPHERE' : 'BINARY CATACLYSM', `The ${s.side === 'L' ? 'sun' : 'frozen planet'} drifts to the ${s.side === 'L' ? 'west' : 'east'} mirror`, s.side === 'L' ? COL.fire : COL.ice, 1.8, true); const A0 = S.B.A, mo = A0 && (s.side === 'L' ? A0.mouthL : A0.mouthR); s.ox = S.m.x + (s.side === 'L' ? -1.2 : 1.2); s.oy = S.m.y - 0.2; }
-        if (s.st === 'come') { const u = cl((t - s.t0) / (s.tA - s.t0)), e = 1 - Math.pow(1 - u, 2); s.x = lerp(s.ox, M0.x, e) + Math.sin(u * PI) * (s.side === 'L' ? -2 : 2); s.y = lerp(s.oy, M0.y - 0.3, e); s.h = lerp(4.5, 2.2, e);
-          if (t > s.tA + s.w) { s.st = 'loose'; s.lt = 0; markFail(5, 'The alignment window passed'); X.text(M0.x, M0.y - 2, 'Missed', COL.warn, 15); cue.cancel(); } }
-        if (s.st === 'thrown') { s.lt += da; const u = cl(s.lt / 1.2), P0 = s.por, cxm = (M0.x + P0.x) / 2 + Math.cos(s.th + PI / 2) * 2.5, cym = (M0.y + P0.y) / 2 + Math.sin(s.th + PI / 2) * 2.5; s.x = (1 - u) * (1 - u) * M0.x + 2 * (1 - u) * u * cxm + u * u * P0.x; s.y = (1 - u) * (1 - u) * M0.y + 2 * (1 - u) * u * cym + u * u * P0.y; s.h = lerp(2.2, 1.0, u);
-          s.trail.push({ x: s.x, y: s.y, age: 0 }); if (u >= 1) { s.st = 'held'; P0.glow = 1; X.shake(10, 0.4); sfx('crash'); fx('coreburst', { x: P0.x, y: P0.y, R: 2.0, life: 0.9, side: s.side }); } }
-        if (s.st === 'loose') { s.lt += da; s.x += (AR.cx - s.x) * Math.min(1, da * 0.8); s.y += (AR.cy - 1 - s.y) * Math.min(1, da * 0.8); s.h = lerp(s.h, 3.0, Math.min(1, da)); }
-        for (const q of s.trail) q.age += da; while (s.trail.length && s.trail[0].age > 1.4) s.trail.shift(); }
-      for (const P0 of GEO.portals) P0.glow = Math.max(0, P0.glow - da * 0.3);
-      // the end: both held, a clean discharge into the Gemini Core; loose ones collide (or the one bursts)
-      if (!D.fin && t >= D.sph[1].tA + D.sph[1].w + 1.3) { D.fin = true; const loose = D.sph.filter(s => s.st === 'loose');
-        if (!loose.length) { fx('discharge', { x: S.m.x, y: S.m.y, life: 1.8 }); X.banner('THE DISCHARGE', 'Raziel loses its empowered state', COL.white, 1.8, true); cue.pass(); }
-        else { const n = loose.length; X.flash(0.4, '#FFFFFF'); X.shake(22, 0.9); sfx('crash'); fx('land', { x: AR.cx, y: AR.cy - 1, R: n > 1 ? AR.R + 1 : 6, life: 1.2 }); fx('coreburst', { x: AR.cx, y: AR.cy - 1, R: 4, life: 1.2, side: 'L' });
-          haz({ kind: 'disc', x: AR.cx, y: AR.cy - 1, r: n > 1 ? AR.R + 1 : 5.5, tell: 0.05, act: 0.2, fade: 0.5, el: 'steam', k: n > 1 ? C.collK : C.collK * 0.6, vis: 'shock' }); for (const s of loose) s.st = 'gone'; } }
-      const cur = D.sph.find(s => s.st === 'come'); Mx.goal = cur ? `Stand in the ${cur.side === 'L' ? 'west' : 'east'} mirror's ring; hold still as its marker meets the portal` : 'The spheres are contained';
-      if (cur) { Mx.pose.aimL = { x: cur.x, y: cur.y }; Mx.pose.aimR = { x: cur.x, y: cur.y }; Mx.pose.chL = cur.side === 'L' ? 0.8 : 0.2; Mx.pose.chR = cur.side === 'R' ? 0.8 : 0.2; }
-      Mx.pose.fly = t < D.tEnd - 1.6 ? 1 : 0;
-      return t >= D.tEnd;
-    },
-    end(Mx, ok, para) { const D = Mx.data; try { const R = S.X.rift, list = R && R.objs; if (list) for (const o of D.objs || []) { const i = list.indexOf(o); if (i >= 0) list.splice(i, 1); } } catch (e) {} for (const M0 of GEO.mirrors) { M0.arm = 0; M0.lit = 0; } S.goTo = null; },
-    props(Mx, add, u) { const D = Mx.data, T = Tz(), t = S.t; for (const s of D.sph) { if (s.st === 'wait' || s.st === 'gone' || (s.st === 'held' && s.por.glow < 0.3)) continue; const sc = s.st === 'held' ? s.por.glow : 1;
-        add({ m: s.side === 'L' ? 'sun' : 'planet', X: sx(s.x), Y: sy(s.y) - T * (s.h || 2), s: u * 1.25 * sc, g: 1.4, t, z: 1e5 }, AR.cy + 9); } },
-    drawGround(Mx, Q) { const D = Mx.data, T = Tz(), t = Mx.t, FX = FXP();
-      for (const s of D.sph) { const M0 = s.mir, X0 = sx(M0.x), Y0 = sy(M0.y), on = s.st === 'come' && t >= s.tA - s.w - TUNE.m5.arm - 2 && t <= s.tA + s.w + 0.4;
-        // the dial: its track, the window (toward the portal), the needle (the mirror's marker); the activation ring
-        Q.quad(492, X0, Y0, T * 2.1, 0, 0, T * 2.1, s.side === 'L' ? COL.gold : COL.ice, on ? 1 : 0.35, s.th, s.thP, D.om * s.w);
-        Q.quad(491, X0, Y0, T * TUNE.m5.mirR, 0, 0, T * TUNE.m5.mirR, s.go ? '#FFFFFF' : COL.warn, on ? 1 : 0.3, (s.go ? 2 : 3) + 0.98 * (s.go ? M0.arm : 0.35 * M0.arm), t, s.o ? s.o.ch / 0.75 : 0);
-        if (on) Q.rbeam(X0, Y0 - T * 1.6, X0 + Math.cos(s.th) * T * 6, Y0 - T * 1.6 + Math.sin(s.th) * T * 6, T * 0.25, s.side === 'L' ? COL.gold : COL.ice, 0.8, 1, 0);
-        const P0 = s.por; Q.quad(491, sx(P0.x), sy(P0.y), T * 1.7, 0, 0, T * 1.7, s.side === 'L' ? COL.fire : COL.ice, 1, 5 + 0.98 * cl(0.3 + P0.glow), t * 0.6, 0);
-        if (FX) for (let i = 0; i < s.trail.length - 1; i++) { const a = s.trail[i], b = s.trail[i + 1]; (s.side === 'L' ? FX.trailFire : FX.trailIce)(Q, sx(a.x), sy(a.y) - T * 1.5, sx(b.x), sy(b.y) - T * 1.5, T * 0.6, 1 - a.age / 1.4, i * 0.3); } } },
-    drawAir(Mx, Q) { const D = Mx.data, T = Tz(), FX = FXP(); if (!FX) return; for (const s of D.sph) { if (s.st === 'wait' || s.st === 'gone' || s.st === 'held') continue; const X0 = sx(s.x), Y0 = sy(s.y) - T * (s.h || 2); if (s.side === 'L') FX.sun(Q, X0, Y0, T * 1.4, 0.9, 3, S.t, 1.2); else FX.planet(Q, X0, Y0, T * 1.4, 0.9, 5, S.t, s.st === 'loose' ? 0.6 : 0); Q.glow(X0, sy(s.y), T * 1.6, s.side === 'L' ? COL.fire : COL.ice, 0.25); }
-      for (const f of S.fx) if (f.kind === 'discharge') { const u = cl(f.t / f.life), A = S.B.A, cx = A && A.coreL ? (A.coreL.x + A.coreR.x) / 2 : sx(S.m.x), cy = A && A.coreL ? A.coreL.y : sy(S.m.y) - T * 3; for (const P0 of GEO.portals) FX.bridge(Q, sx(P0.x), sy(P0.y) - T, lerp(sx(P0.x), cx, u), lerp(sy(P0.y) - T, cy, u), T * 0.5, 1 - u * 0.5, 3, 3); Q.glow(cx, cy, T * (1 + 3 * u), COL.white, 0.5 * (1 - u)); } },
-    draw2d(Mx, c) { const D = Mx.data, T = Tz(), t = Mx.t; c.save(); for (const s of D.sph) { const M0 = s.mir, X0 = sx(M0.x), Y0 = sy(M0.y); c.strokeStyle = 'rgba(255,255,255,.6)'; c.lineWidth = 3; c.beginPath(); c.arc(X0, Y0, T * 2, s.thP - D.om * s.w, s.thP + D.om * s.w); c.stroke(); c.strokeStyle = s.side === 'L' ? '#FFC24D' : '#7FD8FF'; c.beginPath(); c.moveTo(X0, Y0); c.lineTo(X0 + Math.cos(s.th) * T * 2.2, Y0 + Math.sin(s.th) * T * 2.2); c.stroke();
-        if (s.st !== 'wait' && s.st !== 'gone' && s.st !== 'held') { c.fillStyle = s.side === 'L' ? 'rgba(255,170,70,.85)' : 'rgba(150,220,255,.85)'; c.beginPath(); c.arc(sx(s.x), sy(s.y) - T * (s.h || 2), T * 1.0, 0, TAU); c.fill(); } } c.restore(); },
-    pointers(Mx) { const cur = Mx.data.sph.find(s => s.st === 'come'); return cur ? [{ x: cur.mir.x, y: cur.mir.y, col: cur.side === 'L' ? COL.gold : COL.ice }] : null; },
-    hud(Mx) { const D = Mx.data, t = Mx.t, cur = D.sph.find(s => s.st === 'come'); if (!cur) return { say: Mx.goal, note: D.sph.map(s => (s.st === 'held' ? '✓' : s.st === 'loose' || s.st === 'gone' ? '✕' : '·')).join(' ') };
-      const toW = cur.tA - cur.w - t, inW = Math.abs(t - cur.tA) <= cur.w; return { say: cur.go ? 'NOW: step into the ring and hold still' : toW > 0 ? `Wait outside the ring: alignment in ${toW.toFixed(1)} s` : 'Hold still in the ring', bar: inW ? 1 - (t - (cur.tA - cur.w)) / (2 * cur.w) : cl(1 - toW / 8), barCol: inW ? COL.white : cur.side === 'L' ? COL.gold : COL.ice, secs: inW ? cur.tA + cur.w - t : Math.max(0, toW), note: `Sphere ${cur.k + 1} of 2 · window ${(2 * cur.w).toFixed(1)} s` }; },
-  };
-  function activate(Mx, s) { const t = Mx.t, X = S.X; if (s.st !== 'come') return; if (Math.abs(t - s.tA) <= s.w) { s.st = 'thrown'; s.lt = 0; s.at = t; cue.align(); cue.pass(); X.text(s.mir.x, s.mir.y - 2.2, 'Aligned!', COL.white, 16); X.shake(8, 0.3); sfx('whoosh'); }
-    else { s.st = 'loose'; s.lt = 0; s.at = t; markFail(5, t < s.tA ? 'The mirror turned too early' : 'The mirror turned too late'); X.text(s.mir.x, s.mir.y - 2.2, t < s.tA ? 'Too early' : 'Too late', COL.warn, 15); cue.cancel(); } }
-
-  /* ---- 6 THE BOOK OF TWO HEAVENS: the ultimate as a survival trial, the pet in control throughout its interactive stages:
-     I the Two Heavens open (the crowns become portals, spectral dragons lean out) and their Fire and Ice beams sweep the arena as
-       two turning diameters (lit lines and the turn shown first; the corridors between them are safe);
-     II Mirror Genesis: three formations of lit Fire / Ice cells (sectors x two rings): be in a white cell as each erupts; narrow
-       bolts cross (ordinary blows);
-     III the Collision of Worlds: a sun and a frozen world descend; Fire and Ice shockwaves race out from under them, each with a gap
-       (its corridor lit first): be in the gap as the wave passes; the worlds collide into a white singularity;
-     IV the Last Equilibrium: the Infernal and Cryogenic fragments rise (reachable from where the pet stands, at VREF, in time);
-       take both and enter the central sanctuary within 8 s: the white barrier of two interlocking rings closes round the pet;
-     V The Book: RAZIEL_ULT's own last act (the hush, the singularity's collapse, the pillar, the eruption), started part way in and
-       aimed at the sanctuary; the barrier is the only protection (an encounter rule: no guard, no i-frames). One failure at most
-       across all of it (the first designated hit or the missed sanctuary); a second failure overall is Absolute Paradox ---- */
-  const B6 = { s1: 0, s2: 16.2, s3: 0, s4: 0, s5: 0 };
-  function m6Cells(safe) { const C = []; for (let i = 0; i < 8; i++) for (let ring = 0; ring < 2; ring++) C.push({ id: i * 2 + ring, i, ring, safe: safe(i, ring) }); return C; }
-  const RM6 = () => AR.R * 0.5;
-  function cellOf(x, y) { const s = secOf(x, y); if (s < 0) return -1; return s * 2 + (polar(x, y).r < RM6() ? 0 : 1); }
-  function cellPts(id, mg) { const i = id >> 1, ring = id & 1, r0 = ring ? RM6() + mg : TUNE.HUB + mg, r1 = ring ? AR.R - mg : RM6() - mg, out = []; for (let k = 0; k <= 4; k++) for (let j = 0; j <= 3; j++) out.push(at(secA(i) - PI / 8 + (PI / 4) * (0.15 + 0.7 * k / 4), r0 + (r1 - r0) * j / 3)); return out; }
-  function cellNear(id, x, y) { let b = 1e9, bp = null; for (const p of cellPts(id, 0.45)) { const d = Math.hypot(p.x - x, p.y - y); if (d < b) { b = d; bp = p; } } return { d: b, p: bp }; }
-  function m6Forms() {
-    const C = TUNE.m6, me = S.me, out = [];
-    const tpl = [(i, r) => i % 2 === 0, (i, r) => (i + r) % 2 === 0, null];
-    let prev = null;
-    for (let f = 0; f < 3; f++) { let best = null;
-      for (let tries = 0; tries < 120 && !best; tries++) { const rot = Math.floor(Math.random() * 8); let cells;
-        if (tpl[f]) cells = m6Cells((i, r) => tpl[f]((i + rot) % 8, r));
-        else { const pick = new Set(); while (pick.size < 3) { const id = Math.floor(Math.random() * 16); if ([...pick].every(q => Math.abs((q >> 1) - (id >> 1)) % 8 > 1 || q === id)) pick.add(id); } cells = m6Cells((i, r) => pick.has(i * 2 + r)); }
-        const safeIds = cells.filter(c => c.safe).map(c => c.id), budget = TUNE.VREF * (C.form[f] - 0.8);
-        const from = prev ? prev.map(id => { const P = cellPts(id, 0.9); return P[Math.floor(P.length / 2)]; }) : [{ x: me.x, y: me.y }];
-        const ok = from.every(p => Math.min(...safeIds.map(id => cellNear(id, p.x, p.y).d)) <= budget);
-        if (ok) best = { cells, safe: safeIds, tries }; }
-      if (!best) { const cells = m6Cells((i, r) => true); best = { cells, safe: cells.map(c => c.id), tries: -1 }; }
-      out.push(best); prev = best.safe; }
-    return out;
-  }
-  function m6Frags() {
-    const me = S.me, C = TUNE.m6, budget = TUNE.VREF * (C.frag - 1.2), H0 = { x: AR.cx, y: AR.cy }; let best = null;
-    for (let tries = 0; tries < 200; tries++) { const fa = PI + (Math.random() - 0.5) * 1.6, ia = (Math.random() - 0.5) * 1.6, F = at(fa, 4 + Math.random() * 2.6), I = at(ia, 4 + Math.random() * 2.6);
-      const L1 = Math.hypot(F.x - me.x, F.y - me.y) + Math.hypot(I.x - F.x, I.y - F.y) + Math.hypot(H0.x - I.x, H0.y - I.y), L2 = Math.hypot(I.x - me.x, I.y - me.y) + Math.hypot(F.x - I.x, F.y - I.y) + Math.hypot(H0.x - F.x, H0.y - F.y), L = Math.min(L1, L2);
-      if (L <= budget && L >= budget * 0.45) { best = { F, I, L, budget, tries }; break; } if (!best || L < best.L) best = { F, I, L, budget, tries }; }
-    return best;
-  }
-  MI[6] = {
-    start(Mx) { const D = Mx.data; Object.assign(D, { stage: 1, st: 0, beams: { aL: 0, aR: PI / 2, dirL: 1, dirR: -1, on: 0 }, forms: null, fi: -1, waves: [], wi: 0, frags: null, got: { F: false, I: false }, barrier: 0, s5: 0, hitT: -9, failWhy: null, stats: { s1: 0, s2: 0, s3: 0, s4: null } });
-      Mx.wide = 0.54; Mx.focus = { x: AR.cx, y: AR.cy - 1.5, k: 0.3 }; S.goTo = { x: AR.cx, y: AR.cy - AR.R * 0.52 }; Mx.pose = { fly: 0.5, wing: 1, beat: 0.4, raise: 0.6, crownO: 1, crownE: 1, coreAl: 1 }; Mx.goal = 'The Two Heavens open';
-      S.skyK = 1.4; },
-    tick(Mx, da) {
-      const D = Mx.data, C = TUNE.m6, me = S.me, X = S.X, st0 = D.st; D.st += da; const t = D.st, cross = x => st0 < x && t >= x; roam(da, 0);
-      const crit = (why, k, el) => { D.hitT = Mx.t; if (!S.failed[6]) { D.failWhy = why; markFail(6, why); } else hurt(k || 1.2, { el: el || 'fire' }); };
-      if (D.stage === 1) { const B = D.beams;
-        if (cross(0.3)) { X.banner('THE TWO HEAVENS OPEN', 'Fire and Ice beams will sweep the arena: keep to the corridors between them', COL.white, 2.6, true); cue.lux(); cue.umbra(); }
-        // two diameters turning against each other about the bisector b0: aL = b0 + th, aR = b0 - th. Sweep 1 carries th through 0 (they cross on b0:
-        // the corridor on b0 + 90 deg is the safe one); the beams go dark while the corridor moves; sweep 2 carries th through 90 deg (b0 + 90 is struck:
-        // b0 is safe). The coming sweep's safe corridor and each beam's turn are lit before it starts
-        const om = C.beamOm, b0 = PI / 4, s1a = 4.0, s1b = s1a + (PI / 2 + 0.35) / om, s2a = s1b + 3.0, s2b = s2a + (PI / 3 + 0.0) / om; B.s1b = s1b; B.s2b = s2b;
-        B.pre = t < s1a ? sstep(2.2, 3.0, t) : t > s1b && t < s2a ? sstep(s1b + 0.1, s1b + 0.6, t) : 0; B.safe = t < s1b ? b0 + PI / 2 : b0;
-        if (cross(s1b)) X.text(me.x, me.y - 1.6, 'The safe corridor moves: follow the light', COL.white, 14);
-        const sweep = (t >= s1a && t < s1b) ? 1 : (t >= s2a && t < s2b) ? 1 : 0; B.on = sweep ? Math.min(1, (B.on || 0) + da * 4) : Math.max(0, (B.on || 0) - da * 3);
-        if (B.th == null) B.th = -PI / 4; if (sweep) B.th += om * da; B.aL = b0 + B.th; B.aR = b0 - B.th;
-        if (sweep && B.on > 0.6 && !me.dead && !me.dodge && Mx.t - D.hitT > 0.6) { for (const [a, el] of [[B.aL, 'fire'], [B.aR, 'ice']]) { const dx = me.x - AR.cx, dy = me.y - AR.cy, off = Math.abs(-dx * Math.sin(a) + dy * Math.cos(a)); if (off < C.beamW / 2 + me.r * 0.4 && Math.hypot(dx, dy) < AR.R + 0.5) { D.stats.s1++; crit('Caught in a Heaven\'s beam', C.beamK, el === 'fire' ? 'fire' : 'frost'); break; } } }
-        Mx.goal = sweep ? 'Stay in the corridors between the turning beams' : 'The beams will turn: read their arrows';
-        if (t >= B.s2b + 0.6) { D.stage = 2; D.st = 0; D.forms = m6Forms(); D.fi = -1; X.banner('MIRROR GENESIS', 'Stand in the white cells when each formation erupts', COL.white, 2.0, true); }
-        return false; }
-      if (D.stage === 2) { // three formations
-        let acc = 0.8; for (let f = 0; f < 3; f++) { const ts = acc, te = acc + C.form[f]; if (cross(ts)) { D.fi = f; cue.step(f); for (let b = 0; b < 2; b++) bolt(ts + 0.6 + b * 1.1); }
-          if (cross(te)) { const F = D.forms[f], c = cellOf(me.x, me.y), safe = c >= 0 && F.safe.includes(c); D.flash = { f, t: 0 }; X.shake(12, 0.4); sfx('crash'); X.flash(0.15, '#FFF4E0');
-            if (safe) { fx('ward', { x: me.x, y: me.y, R: 1.4, life: 0.7, el: 'white' }); } else { D.stats.s2++; crit(c < 0 ? 'Caught at the heart of the formation' : 'Caught in a lit cell', 1.4, 'fire'); } }
-          acc = te + 0.6; }
-        if (D.flash) D.flash.t += da;
-        Mx.goal = D.fi >= 0 ? `Formation ${D.fi + 1} of 3: into a white cell` : 'Mirror Genesis';
-        if (t >= acc + 0.4) { D.stage = 3; D.st = 0; D.waves = []; X.banner('THE COLLISION OF WORLDS', 'Shockwaves race out: stand in each wave\'s lit gap', COL.white, 2.0, true); cue.lux(0.8); cue.umbra(0.8); }
-        return false;
-        function bolt(at0) { const a = Math.random() * TAU, off = (Math.random() - 0.5) * 6, nx = -Math.sin(a), ny = Math.cos(a), x0 = AR.cx + nx * off - Math.cos(a) * (AR.R + 1), y0 = AR.cy + ny * off - Math.sin(a) * (AR.R + 1), L = 2 * AR.R + 2, v = 9;
-          haz({ kind: 'bolt', x: x0, y: y0, px: x0, py: y0, x0, y0, a, len: L, r: 0.38, tell: at0 - t + 0.9 > 0 ? at0 - t + 0.9 : 0.9, act: L / v, fade: 0.2, el: Math.random() < 0.5 ? 'fire' : 'ice', k: C.boltK, vis: 'bolt', v,
-            upd: h => { const tt = h.t - h.tell; h.px = h.x; h.py = h.y; if (tt > 0) { h.x = h.x0 + Math.cos(h.a) * Math.min(h.len, tt * h.v); h.y = h.y0 + Math.sin(h.a) * Math.min(h.len, tt * h.v); } } }); }
-      }
-      if (D.stage === 3) { // the shockwaves, alternating from under the descending sun (west) and frozen world (east)
-        for (let w = 0; w < C.nWave; w++) { const tw = 1.6 + w * 2.1; if (cross(tw - 1.6)) { const el = w % 2 ? 'ice' : 'fire', o = { x: AR.cx + (el === 'fire' ? -1 : 1) * AR.R * 0.55, y: AR.cy + 0.3 }, aim = Math.atan2(me.y - o.y, me.x - o.x) + (Math.random() - 0.5) * 0.7;
-            D.waves.push(haz({ kind: 'ring', x: o.x, y: o.y, r0: 0.5, r1: AR.R * 2.2, w: C.waveW, tell: 1.6, act: AR.R * 2.2 / C.waveSpd, fade: 0.2, el, k: C.waveK, gap: aim, gapW: C.waveGap, crit: 6, why: 'Struck by a shockwave', vis: 'gapring', noDodge: false })); (el === 'fire' ? cue.lux : cue.umbra)(1.3); } }
-        Mx.goal = 'Stand in each wave\'s lit gap as it passes';
-        if (cross(1.6 + (C.nWave - 1) * 2.1 + 3.6)) { X.flash(0.4, '#FFFFFF'); X.shake(18, 0.7); sfx('crash'); D.sing = 0.01; }
-        if (D.sing) D.sing = Math.min(1, D.sing + da * 0.5);
-        if (t >= 1.6 + (C.nWave - 1) * 2.1 + 4.4) { D.stage = 4; D.st = 0; D.frags = m6Frags(); D.got = { F: false, I: false }; X.banner('THE LAST EQUILIBRIUM', 'Take both fragments, then stand in the central sanctuary', COL.white, 2.2, true); cue.mech(); musicDuck(0.5, 9); }
-        return false; }
-      if (D.stage === 4) { const Fr = D.frags; D.sing = Math.min(1.6, (D.sing || 1) + da * 0.08);
-        if (!me.dead) { if (!D.got.F && Math.hypot(me.x - Fr.F.x, me.y - Fr.F.y) < C.fragR + me.r * 0.5) { D.got.F = true; cue.lux(1.3); X.text(me.x, me.y - 1.5, 'Infernal Fragment', COL.fire, 15); }
-          if (!D.got.I && Math.hypot(me.x - Fr.I.x, me.y - Fr.I.y) < C.fragR + me.r * 0.5) { D.got.I = true; cue.umbra(1.3); X.text(me.x, me.y - 1.5, 'Cryogenic Fragment', COL.ice, 15); } }
-        const inSan = Math.hypot(me.x - AR.cx, me.y - AR.cy) < C.sanR + me.r * 0.3;
-        if (D.got.F && D.got.I && inSan && !me.dead) { D.barrier = 0.01; D.stats.s4 = +t.toFixed(2); X.banner('PERFECT EQUILIBRIUM', 'The barrier of two heavens closes round you', COL.white, 2.0, true); cue.pass(); toBook(); return false; }
-        Mx.goal = !D.got.F || !D.got.I ? `Take the ${!D.got.F && !D.got.I ? 'two fragments' : !D.got.F ? 'Infernal Fragment (west)' : 'Cryogenic Fragment (east)'}, then the sanctuary` : 'Into the central sanctuary!';
-        if (t >= C.frag) { D.stats.s4 = 'missed'; if (!S.failed[6]) markFail(6, 'Perfect Equilibrium was not achieved'); toBook(); }
-        return false; }
-      if (D.stage === 5) { // The Book (the private ultimate) or its stand-in
-        D.barrier = D.barrier > 0 ? Math.min(1, D.barrier + da * 2) : 0;
-        const ut = ulT(); if (S.ul && ut >= 10.95 && !D.muted) { D.muted = true; musicDuck(0.03, 0.8); }
-        if (S.ul && ut >= 11.7 && !D.hitDone) { D.hitDone = true; bookHit(D); }
-        if (!S.ul && cross(2.0)) { D.hitDone = true; bookHit(D); X.flash(0.6, '#FFFFFF'); X.shake(24, 1.0); sfx('crash'); fx('land', { x: AR.cx, y: AR.cy, R: AR.R + 1, life: 1.4 }); }
-        if ((S.ul && ut >= 12.95) || (!S.ul && t >= 3.6)) { stopUlt(); S.cine = false; S.g.cineT = 0; return true; }
-        return false; }
-      return false;
-      function toBook() { D.stage = 5; D.st = 0; S.cine = true; Mx.goal = D.barrier > 0 ? 'Perfect Equilibrium: the barrier holds as The Book falls' : 'The Book of Two Heavens falls'; Mx.pose = Object.assign(Mx.pose, { raise: 0.2 }); if (!startUlt(9.6, AR.cx, AR.cy)) { S.cine = true; } }
-    },
-    end(Mx, ok, para) { stopUlt(); S.goTo = null; S.skyK = ok ? 0.35 : 0.6; if (!para) { S.cine = false; fx('crownbreak', { x: S.m.x, y: S.m.y, life: 2.4 }); S.goTo = { x: AR.cx, y: AR.cy - 2.6 }; X_after(2.6, () => { if (S) S.goTo = null; }); } },
-    sectors(Mx, SEC) { const D = Mx.data; if (D.stage !== 2 || D.fi < 0 || !D.forms) return; const F = D.forms[D.fi], f0 = D.fi, C = TUNE.m6; let acc = 0.8; for (let f = 0; f < f0; f++) acc += C.form[f] + 0.6; const u = cl((D.st - acc) / C.form[f0]), fl = D.flash && D.flash.f === f0 && D.flash.t < 0.9 ? 1 - D.flash.t / 0.9 : 0, rm = RM6() / AR.R;
-      for (const c of F.cells) { const ri = c.ring ? rm : 0.16, ro = c.ring ? 1 : rm; if (c.safe) SEC[c.i].cells.push({ st: 3, k: 0.35 + 0.4 * u, ri, ro, flare: 0 }); else SEC[c.i].cells.push({ st: fireSide(c.i) || (c.i === 2 && c.ring) ? 1 : 2, k: 0.25 + 0.55 * u + fl, ri, ro, flare: fl }); } },
-    drawGround(Mx, Q) { const D = Mx.data, T = Tz(), t = S.t, FX = FXP(), Ox = sx(AR.cx), Oy = sy(AR.cy), Rp = AR.R * T, C = TUNE.m6;
-      if (D.stage === 1 && D.beams.safe != null) { const B = D.beams, k = Math.max(B.pre || 0, (B.on || 0) * 0.6); if (k > 0.01) for (const a of [B.safe, B.safe + PI]) wedgeQuad(Q, Ox, Oy, a, 0.2, Rp, COL.white, 0.5 * k, 0.5, 0); }
-      if (D.stage === 1) { const B = D.beams; for (const [a, el, dir] of [[B.aL, 'fire', 1], [B.aR, 'ice', -1]]) { const ux = Math.cos(a), uy = Math.sin(a), x0 = Ox - ux * Rp, y0 = Oy - uy * Rp, x1 = Ox + ux * Rp, y1 = Oy + uy * Rp, col = el === 'fire' ? COL.fire : COL.ice;
-          if (B.pre > 0.01) { Q.beam(x0, y0, x1, y1, T * C.beamW * 0.45, col, 0.35 * B.pre); for (let k = 0; k < 6; k++) { const aa = a + dir * (0.12 + 0.1 * ((t * 1.5 + k / 6) % 1)) + (k % 2 ? PI : 0), rr = Rp * (0.35 + 0.1 * (k >> 1)); Q.star(Ox + Math.cos(aa) * rr, Oy + Math.sin(aa) * rr, T * 0.35, B.pre, col); }
-            wedgeQuad(Q, Ox, Oy, a + dir * 0.35, 0.3, Rp, col, 0.55 * B.pre, 0.4, 0); wedgeQuad(Q, Ox, Oy, a + PI + dir * 0.35, 0.3, Rp, col, 0.55 * B.pre, 0.4, 0); }
-          if (B.on > 0.01) { if (FX) { if (el === 'fire') FX.fireStream(Q, x0, y0, x1, y1, T * C.beamW * 0.75, 1, B.on, 3, 0); else FX.iceStream(Q, x0, y0, x1, y1, T * C.beamW * 0.7, B.on, 5, 0); } Q.beam(x0, y0, x1, y1, T * C.beamW * 0.5, col, 0.45 * B.on); } } }
-      if (D.stage === 4 && D.frags) { const Fr = D.frags, both = D.got.F && D.got.I; for (const [p, el, got] of [[Fr.F, 'fire', D.got.F], [Fr.I, 'ice', D.got.I]]) { if (got) continue; const X0 = sx(p.x), Y0 = sy(p.y); Q.quad(491, X0, Y0, T * 1.4, 0, 0, T * 1.4, el === 'fire' ? COL.gold : COL.ice, 1, 4 + 0.98, t, 0); Q.shafts(X0, Y0 - T * 5, X0, Y0, T * 0.8, el === 'fire' ? COL.gold : COL.ice, 0.4, el === 'fire' ? 3 : 7); }
-        Q.quad(491, Ox, Oy, T * C.sanR * 1.15, 0, 0, T * C.sanR * 1.15, '#FFFFFF', both ? 1 : 0.55, 2 + 0.98 * (both ? 0.7 + 0.3 * Math.sin(t * 6) : 0.15), t * 0.5, 0); }
-      if (D.barrier > 0) { const me = S.me, X0 = sx(me.x), Y0 = sy(me.y), b = D.barrier; Q.quad(491, X0, Y0, T * 2.0 * b, 0, 0, T * 2.0 * b, '#FFFFFF', 1, 2 + 0.98, t, 1); Q.ring(X0, Y0, T * 1.6 * b, COL.gold, 0.8, T * 0.15); Q.ring(X0, Y0, T * 1.45 * b, COL.ice, 0.8, T * 0.15); } },
-    drawAir(Mx, Q) { const D = Mx.data, T = Tz(), t = S.t, FX = FXP(), op = D.stage === 1 ? sstep(0, 2.4, D.st) : D.stage < 5 ? 1 : 0;
-      // the two Heavens: portals over the west and east halves (the ultimate's own kinds, 466 / 467), their rings
-      if (op > 0.01 && D.stage < 5) for (let s = 0; s < 2; s++) { const p = { x: AR.cx + (s ? 1 : -1) * AR.R * 0.6, y: AR.cy - AR.R * 0.15 }, X0 = sx(p.x), Y0 = sy(p.y) - T * 7, R = T * 2.6;
-        Q.shape(s ? 467 : 466, X0, Y0, R * 1.35, 0, 0, R * 1.35, '#FFFFFF', op, op, s ? -1 : 1, 1.1, 0, 1); Q.glow(X0, Y0, R * 1.9, s ? COL.deep : COL.fire, 0.2 * op);
-        if (D.stage === 1 && D.beams.on > 0.05 && FX) { const B = D.beams, a = s ? B.aR : B.aL, mx = sx(AR.cx + Math.cos(a) * AR.R * 0.45 * (s ? -1 : 1)), my = sy(AR.cy + Math.sin(a) * AR.R * 0.45 * (s ? -1 : 1)); if (s) FX.iceStream(Q, X0, Y0, mx, my, T * 0.9, D.beams.on, 9, 0.1); else FX.fireStream(Q, X0, Y0, mx, my, T * 1.0, 1, D.beams.on, 7, -0.1); } }
-      for (const h of S.haz) if (h.vis === 'bolt' && h.t > h.tell && h.t < h.tell + h.act) { const X0 = sx(h.x), Y0 = sy(h.y); Q.glow(X0, Y0 - T * 0.5, T * 0.9, h.el === 'fire' ? COL.fire : COL.ice, 0.7); Q.star(X0, Y0 - T * 0.5, T * 0.5, 1, COL.white); if (FX) (h.el === 'fire' ? FX.trailFire : FX.trailIce)(Q, sx(h.px - Math.cos(h.a) * 1.6), sy(h.py - Math.sin(h.a) * 1.6), X0, Y0, T * 0.35, 0.9, 1); }
-      if (D.stage === 3 && FX) { const u = sstep(0, 1.6 + (TUNE.m6.nWave - 1) * 2.1 + 3.6, D.st); for (let s = 0; s < 2; s++) { const x = lerp(AR.cx + (s ? 1 : -1) * AR.R * 0.55, AR.cx + (s ? 0.4 : -0.4), u), y = AR.cy - 1, X0 = sx(x), Y0 = sy(y) - T * lerp(7, 5, u); if (s) FX.planet(Q, X0, Y0, T * (2.2 - 0.8 * u), 1, 5, t, u > 0.8 ? 0.6 : 0); else FX.sun(Q, X0, Y0, T * (2.2 - 0.8 * u), 1, 3, t, 1.3); } }
-      if (D.sing && D.stage < 5) { const X0 = sx(AR.cx), Y0 = sy(AR.cy - 1) - T * 5.5, k = D.sing; Q.glow(X0, Y0, T * (1.5 + 2.5 * k), COL.white, 0.5 + 0.3 * Math.sin(t * 9)); Q.star(X0, Y0, T * (1 + 1.5 * k), 1, COL.white); if (FX) FX.shock(Q, X0, Y0, T * (2 + 2 * k), (t * 0.7) % 1, 0.5, 9);
-        const A = S.B.A; if (D.stage === 4 && A && A.mouthL && FX) { FX.fireStream(Q, A.mouthL.x, A.mouthL.y, X0, Y0, T * 0.8, 1, 0.9, 11, 0.2); FX.iceStream(Q, A.mouthR.x, A.mouthR.y, X0, Y0, T * 0.75, 0.9, 13, -0.2); } }
-      if (D.stage === 5 && !S.ul) { const u = cl(D.st / 2.0), X0 = sx(AR.cx), Y0 = sy(AR.cy); Q.shafts(X0, Y0 - T * 14, X0, Y0, T * (1 + 2 * u), COL.white, u, 3); Q.glow(X0, Y0, T * (2 + 9 * sstep(1.9, 2.6, D.st)), COL.white, 0.6 * (1 - sstep(2.6, 3.6, D.st))); } },
-    drawAirGL(Mx, c) { const D = Mx.data, G = GLR(); if (!G || !glOn() || D.stage > 4) return; const T = Tz(), em = D.stage === 1 ? sstep(1.0, 2.6, D.st) : 1;
-      // the spectral dragons leaning out of the portals (RAZIEL_GL.drawSpectral, as the ultimate's own)
-      for (let s = 0; s < 2; s++) { const side = s ? 'R' : 'L', S2 = D['sp' + side] || (D['sp' + side] = { t: 0, mode: 'concord', side, wing: 1, beat: 0.35, fly: 1, raise: 0.4, jawL: 0.6, jawR: 0.6, chargeL: 1, chargeR: 1, aimL: { x: 0, y: 0 }, aimR: { x: 0, y: 0 }, x: 0, y: 0, face: PI / 2, evo: 7 });
-        const p = { x: AR.cx + (s ? 1 : -1) * AR.R * 0.6, y: AR.cy - AR.R * 0.15 }; S2.t = S.B.at; S2.x = p.x; S2.y = p.y - 6.0; S2.face = Math.atan2(AR.cy - S2.y, AR.cx - S2.x); S2.lowFx = lowFx(); S2.aimL.x = S2.aimR.x = AR.cx; S2.aimL.y = S2.aimR.y = AR.cy;
-        try { S.glN = (S.glN || 0) + 1; G.drawSpectral(c, sx(p.x), sy(p.y) - T * 4.6, T * 3.6, S2, side, { alpha: 0.9 * em, emerge: em, fade: 0.1, tile: T }); } catch (e) {} } },
-    draw2d(Mx, c) { const D = Mx.data, T = Tz(), Ox = sx(AR.cx), Oy = sy(AR.cy), R = AR.R * T; c.save();
-      if (D.stage === 1) { for (const [a, col] of [[D.beams.aL, 'rgba(255,140,60,'], [D.beams.aR, 'rgba(130,210,255,']]) { const k = Math.max(D.beams.pre || 0, D.beams.on || 0); c.strokeStyle = col + (0.3 + 0.5 * k).toFixed(2) + ')'; c.lineWidth = TUNE.m6.beamW * T * (D.beams.on > 0.5 ? 1 : 0.4); c.beginPath(); c.moveTo(Ox - Math.cos(a) * R, Oy - Math.sin(a) * R); c.lineTo(Ox + Math.cos(a) * R, Oy + Math.sin(a) * R); c.stroke(); } }
-      if (D.stage === 4 && D.frags) { for (const [p, col, got] of [[D.frags.F, '#FFC24D', D.got.F], [D.frags.I, '#7FD8FF', D.got.I]]) if (!got) { c.fillStyle = col; c.beginPath(); c.arc(sx(p.x), sy(p.y), T * 0.6, 0, TAU); c.fill(); } c.strokeStyle = '#FFFFFF'; c.lineWidth = 3; c.beginPath(); c.arc(Ox, Oy, TUNE.m6.sanR * T, 0, TAU); c.stroke(); }
-      for (const h of S.haz) if (h.vis === 'gapring' && h.t > h.tell) { c.strokeStyle = h.el === 'fire' ? 'rgba(255,140,60,.8)' : 'rgba(130,210,255,.8)'; c.lineWidth = h.w * T; c.beginPath(); c.arc(sx(h.x), sy(h.y), Math.max(1, h.R * T), h.gap + h.gapW, h.gap - h.gapW + TAU); c.stroke(); }
-      c.restore(); },
-    hud(Mx) { const D = Mx.data, C = TUNE.m6; const names = ['', 'I · The Two Heavens open', 'II · Mirror Genesis', 'III · The Collision of Worlds', 'IV · The Last Equilibrium', 'V · The Book of Two Heavens'];
-      if (D.stage === 4) { const left = Math.max(0, C.frag - D.st); return { say: Mx.goal, bar: left / C.frag, barCol: COL.white, secs: left, note: `${names[4]} · ${D.got.F ? '◆' : '◇'} Infernal ${D.got.I ? '◆' : '◇'} Cryogenic` }; }
-      return { say: Mx.goal, note: names[D.stage] + (S.failed[6] ? ' · failed' : '') }; },
-    pointers(Mx) { const D = Mx.data; if (D.stage !== 4 || !D.frags) return null; const L = []; if (!D.got.F) L.push({ x: D.frags.F.x, y: D.frags.F.y, col: COL.gold }); if (!D.got.I) L.push({ x: D.frags.I.x, y: D.frags.I.y, col: COL.ice }); if (D.got.F && D.got.I) L.push({ x: AR.cx, y: AR.cy, col: COL.white }); return L; },
-  };
-  const X_after = (d, f) => { try { S.X.after(d, f); } catch (e) {} };
-  // The Book's eruption: the barrier protects; without Perfect Equilibrium the failure has already been counted (its seal's penalty, or the Paradox)
-  function bookHit(D) { const me = S.me; if (D.barrier > 0) { S.X.text(me.x, me.y - 1.8, 'Perfect Equilibrium', COL.white, 16, { life: 1.4 }); fx('ward', { x: me.x, y: me.y, R: 2.4, life: 1.4, el: 'white' }); } }
 
   /* ================= the defeat ================= */
   function onBossDeath(mm) {
     if (!S || mm !== S.m) return false;
-    if (S.mode === 'fight' && allResolved() && S.failN < 2) { startDefeat(); return true; }
+    if (S.mode === 'fight' || S.mode === 'mech' || S.mode === 'trans') { startDefeat(); return true; }
     // not allowed to fall yet: it stands again at its gate (the engine's kill caught)
-    mm.dead = false; mm.hp = Math.max(1, locked() ? (S.lastM || 1) : floorHp()); S.stat.revive++; return true;
+    if (S.mode === 'dead') return true; mm.dead = false; mm.hp = Math.max(1, S.lastM || 1); return true;   // (the awakening: it cannot fall yet)
   }
   function startDefeat() {
-    const m = S.m, X = S.X, g = S.g; abortActs(); S.haz.length = 0; S.vuln = null; m.stunT = 0;
+    const m = S.m, X = S.X, g = S.g; if (S.mode === 'dead' || S.mode === 'over') return; if (S.mech) { try { MI[S.mech.id].end(S.mech, false); } catch (e) {} S.mech = null; } S.trans = null; abortActs(); S.haz.length = 0; S.vuln = null; m.stunT = 0; clearPet();
     m.dead = false; m.hp = 1; S.mode = 'dead'; S.dead = { t: 0, won: false }; S.cine = true; g.cineT = Math.max(g.cineT || 0, 0.1); m.guardFn = () => 0;
     X.flash(0.5, '#FFFFFF'); X.shake(14, 0.7); g.hitStop = Math.max(g.hitStop || 0, 0.08); S.stat.wonAt = S.t;
   }
@@ -1026,7 +590,6 @@ const GEMINI_BOSS = (() => {
     try { if (S.mech && MI[S.mech.id] && MI[S.mech.id].end) MI[S.mech.id].end(S.mech, false, true); } catch (e) {}
     try { S.acts.length = 0; S.haz.length = 0; S.fx.length = 0; S.mech = null; S.vuln = null; } catch (e) {}
     try { for (const P of S.parts.slice()) dropPart(P); S.parts.length = 0; } catch (e) {}
-    try { stopUlt(); } catch (e) {}
     try { clearPet(); } catch (e) {}
     try { musicDuck(1, 0); } catch (e) {}
     try { if (S.cine) { S.cine = false; if (g.cineT > 0) g.cineT = 0; } g.zoomP = 1; } catch (e) {}
@@ -1036,7 +599,7 @@ const GEMINI_BOSS = (() => {
   }
   function stop() { if (!S) return; const s = S; try { cleanup(); } catch (e) {} try { const g = s.g, m = s.m; if (m && !m.dead) m.dead = true; if (g && g.boss === m) g.boss = null; } catch (e) {} S = null; }
   const active = () => !!(S && S.mode !== 'over');
-  function warm() { try { const G = GLR(); if (G && glOn()) G.warm(); } catch (e) {} try { skyLand(); skyBodies(); } catch (e) {} try { const N = NMv(); if (N && N.FGFX) N.FGFX.usable(); } catch (e) {} }
+  function warm() { try { const G = GLR(); if (G && glOn()) G.warm(); } catch (e) {} try { const N = NMv(); if (N && N.FGFX) N.FGFX.usable(); } catch (e) {} }
 
   /* ================= the passive parts the pet strikes (the engine's fobj: hit like a monster, never moving, drawn here) ================= */
   function part(kind, x, y, r, hp, o) {
@@ -1048,7 +611,7 @@ const GEMINI_BOSS = (() => {
   /* ================= music: The Summoning plays (05b, the gate's boss phase); over it the two minds' motifs, and the hush ================= */
   function musicDuck(k, dur) { try { if (typeof music !== 'undefined' && music.duck) music.duck(k, dur); } catch (e) {} try { if (typeof sfx !== 'undefined' && sfx.duck && k < 1) sfx.duck(Math.max(0.05, k), dur); } catch (e) {} }
   function musicTick(da) {
-    if (!(da > 0) || S.mode === 'paradox' || S.mode === 'dead' || S.mode === 'intro') return; S.musT -= da; if (S.musT > 0) return; S.musT = 2.0; S.musN++;
+    if (!(da > 0) || S.mode === 'dead' || S.mode === 'intro') return; S.musT -= da; if (S.musT > 0) return; S.musT = 2.0; S.musN++;
     const n = S.musN, ph = S.phase;
     // I: the two themes apart (whichever head acts); II: alternating; III: dissonant seconds; IV: together, faster; V: one chord
     if (ph === 1) { const A = S.acts[0]; if (A && A.side === 'L') note(110, 0.4, 'triangle', 0.035); else if (A && A.side === 'R') note(1760, 0.3, 'sine', 0.02); }
@@ -1061,7 +624,6 @@ const GEMINI_BOSS = (() => {
   /* ================= the pose: Raziel's two minds (RAZIEL_GL's pose state S) ================= */
   function poseTick(dt) {
     const P = S.P, B = S.B, m = S.m, me = S.me, G = GLR(), mode = S.mode, ph = S.phase;
-    if (S.ul && mode !== 'dead') { P.t = B.at; P.x = m.x; P.y = m.y; P.evo = 7; P.lowFx = lowFx(); return; }   // (the private ultimate writes the rest)
     const sy = SYNC[ph] || 0, A = S.acts;
     let chL = 0, chR = 0, jwL = 0.18, jwR = 0.18, raise = 0, roar = 0, wing = 0.78, beat = 0, flyT = 0, stag = 0, meet = 0, coreD = 0, coreO = 0, coreAl = ph >= 5 ? 0.6 : 0, crownE = 0, crownO = 0, fin = ph >= 5 ? 0.6 : 0, spin = 0, wingK = 0, guard = 0, dis = 0, enter = 1, recL = 0, recR = 0;
     for (const a of A) { chL = Math.max(chL, a.chargeL || 0); chR = Math.max(chR, a.chargeR || 0); jwL = Math.max(jwL, a.jawL || 0); jwR = Math.max(jwR, a.jawR || 0); raise = Math.max(raise, a.raiseK || 0); if (a.spinK) spin = a.spinK * (a.spin || 1); if (a.wingK) wingK = a.wingK * (a.wingSide || 1); }
@@ -1073,10 +635,9 @@ const GEMINI_BOSS = (() => {
     else if (mode === 'trans') { const t = S.trans.t; roar = bump(t, 0.4, 0.8, 2.2, 2.8); wing = 1; raise = 0.6 * bump(t, 0.2, 0.6, 2.6, 3.2); jwL = Math.max(jwL, roar); jwR = Math.max(jwR, ph === 2 ? bump(t, 1.0, 1.4, 2.6, 3.2) : roar); if (ph === 3) { coreD = sstep(1.2, 3.0, t); } if (ph === 4) { flyT = bump(t, 0.6, 1.4, 2.6, 3.4) * 0.6; beat = 0.6; } if (ph === 5) { coreAl = sstep(1, 3, t); fin = 1; crownE = 0.4 * sstep(1.5, 3.4, t); } }
     else if (mode === 'mech' && S.mech) { const q = S.mech.pose || {}; if (q.fly != null) flyT = q.fly; if (q.raise != null) raise = q.raise; if (q.chL != null) chL = q.chL; if (q.chR != null) chR = q.chR; if (q.jwL != null) jwL = q.jwL; if (q.jwR != null) jwR = q.jwR; if (q.wing != null) wing = q.wing; if (q.beat != null) beat = q.beat; if (q.coreD != null) coreD = q.coreD; if (q.coreO != null) coreO = q.coreO; if (q.crownE != null) crownE = q.crownE; if (q.crownO != null) crownO = q.crownO; if (q.roar != null) roar = q.roar; if (q.meet != null) meet = q.meet; if (q.stag != null) stag = q.stag; if (q.coreAl != null) coreAl = q.coreAl; if (q.recL) recL = q.recL; if (q.recR) recR = q.recR;
       if (q.aimL) { B.aimL.x = q.aimL.x; B.aimL.y = q.aimL.y; } if (q.aimR) { B.aimR.x = q.aimR.x; B.aimR.y = q.aimR.y; } }
-    else if (mode === 'paradox') { const t = S.para.t; meet = sstep(0, 1.0, t); P.crownAlign = 1; chL = chR = sstep(0, 1.2, t); jwL = jwR = 0.5; wing = 1; stag = 0.3 * Math.abs(Math.sin(t * 9)); coreAl = 1; P.coreSpinL = 6; P.coreSpinR = 6; }
     else if (mode === 'dead') { const t = S.dead.t; roar = bump(t, DEF.roar - 0.3, DEF.roar, DEF.roar + 0.6, DEF.roar + 1.0); wing = lerp(0.78, 0.08, sstep(DEF.fold, DEF.fold + 2.4, t)); raise = -0.0; meet = sstep(DEF.eq - 0.6, DEF.eq, t); coreD = sstep(DEF.cores - 0.5, DEF.cores + 0.5, t); coreO = sstep(DEF.cores, DEF.cores + 0.6, t); crownO = sstep(DEF.seal - 0.4, DEF.seal, t); dis = sstep(DEF.diss, DEF.text + 0.6, t); stag = 0.2 * bump(t, DEF.fold, DEF.fold + 0.5, DEF.lower, DEF.lower + 1);
       B.aimL.x = me.x - 0.6; B.aimL.y = me.y; B.aimR.x = me.x + 0.6; B.aimR.y = me.y; jwL = jwR = Math.max(0.12, roar); }
-    if (S.vuln && mode === 'fight') { const V = S.vuln, e = sstep(0, 0.4, V.t) * (1 - sstep(V.dur - 0.6, V.dur, V.t)); stag = Math.max(stag, 0.55 * e); coreD = Math.max(coreD, (S.finalWin ? 0.85 : 0.45) * e); raise = Math.min(raise, 0.0); wing = lerp(wing, S.finalWin ? 0.35 : 0.55, e); crownO = S.finalWin ? Math.max(crownO, 0.6 * e) : crownO; }
+    if (S.vuln && mode === 'fight') { const V = S.vuln, e = sstep(0, 0.4, V.t) * (1 - sstep(V.dur - 0.6, V.dur, V.t)); stag = Math.max(stag, 0.55 * e); coreD = Math.max(coreD, 0.45 * e); raise = Math.min(raise, 0.0); wing = lerp(wing, 0.55, e); }
     if (m.flinch > 0) { m.flinch = Math.max(0, m.flinch - dt * 2.5); stag = Math.max(stag, Math.sin(m.flinch * PI) * 0.5); }
     if (ph >= 5 && mode === 'fight') { wing = Math.max(wing, 0.95); }
     // flight: smoothed (the model reads takeoff and landing from how fast it changes)
@@ -1090,14 +651,14 @@ const GEMINI_BOSS = (() => {
     Object.assign(P, { t: B.at, x: m.x, y: m.y, evo: 7, lowFx: lowFx(), mode: ph === 2 || ph === 3 || (ph === 4 && Math.sin(B.at * 0.3) > 0) ? 'dissonance' : 'concord', face: B.face, faceFree: !!spin,
       aimL: B.aimL, aimR: B.aimR, chargeL: chL, chargeR: chR, jawL: jwL, jawR: jwR, raise, roar, meet, wing: wingK ? Math.max(wing, 1) : wing, beat, fly: B.fly, glide: 0, speed: 0, dive: 0, bank: wingK ? -wingK * 0.5 : 0,
       walk: B.fly > 0.2 ? 0 : cl(sp / 2.6), stagger: stag, final: fin, enter, dissolve: dis, coreDetach: coreD, coreOut: coreO, coreAlign: coreAl, coreUp: 0, crownExpand: crownE, crownOut: crownO,
-      crownSpeedL: 1 + 0.35 * (ph - 1), crownSpeedR: (1 + 0.35 * (ph - 1)) * (ph >= 5 ? 1 : 1.12), coreSpinL: P.coreSpinL > 1.5 && mode === 'paradox' ? P.coreSpinL : 1 + 0.25 * (ph - 1), coreSpinR: P.coreSpinR > 1.5 && mode === 'paradox' ? P.coreSpinR : (1 + 0.25 * (ph - 1)) * 0.9, crownAlign: mode === 'paradox' ? 1 : sy * 0.8, guard, recoilL: recL, recoilR: recR });
+      crownSpeedL: 1 + 0.35 * (ph - 1), crownSpeedR: (1 + 0.35 * (ph - 1)) * (ph >= 5 ? 1 : 1.12), coreSpinL: 1 + 0.25 * (ph - 1), coreSpinR: (1 + 0.25 * (ph - 1)) * 0.9, crownAlign: sy * 0.8, guard, recoilL: recL, recoilR: recR });
     B.x = m.x; B.y = m.y;
   }
 
   /* ================= the camera: the pet always on screen; the boss framed; wider for arena-wide mechanics ================= */
   function camOf() {
     const me = S.me, m = S.m, X = S.X, g = S.g, mode = S.mode;
-    const wide = mode === 'mech' ? (S.mech && S.mech.wide != null ? S.mech.wide : 0.6) : mode === 'intro' || mode === 'trans' || mode === 'dead' || mode === 'paradox' ? 0.6 : 0.68;
+    const wide = mode === 'mech' ? (S.mech && S.mech.wide != null ? S.mech.wide : 0.6) : mode === 'intro' || mode === 'trans' || mode === 'dead' ? 0.6 : 0.68;
     let fx0 = lerp(m.x, AR.cx, 0.3), fy0 = lerp(m.y - TUNE.size * 0.35 * (1 - S.B.fly * 0.2), AR.cy, 0.25), k = 0.42;
     if (mode === 'intro' || mode === 'dead') { k = 0.75; }
     if (mode === 'mech' && S.mech && S.mech.focus) { fx0 = S.mech.focus.x; fy0 = S.mech.focus.y; k = S.mech.focus.k != null ? S.mech.focus.k : 0.45; }
@@ -1111,9 +672,9 @@ const GEMINI_BOSS = (() => {
   /* ================= the goal line and banners ================= */
   function say(t, sub, col, dur) { S.X.banner(t, sub || '', col || COL.gold, dur || 2.0, true); }
   function goalText() {
-    if (!S) return ''; if (S.mode === 'dead' || S.mode === 'over') return 'The Twin Revelation falls'; if (S.mode === 'intro') return 'Raziel awakens'; if (S.mode === 'paradox') return 'ABSOLUTE PARADOX';
+    if (!S) return ''; if (S.mode === 'dead' || S.mode === 'over') return 'The Twin Revelation falls'; if (S.mode === 'intro') return 'Raziel awakens';
     const Mx = S.mech; if (Mx) return `${MECH[Mx.id].name} · ${Mx.goal || MECH[Mx.id].tip}`;
-    return `Raziel · ${Math.max(0, Math.ceil(realK() * 100))}% · Phase ${ROMAN[S.phase]}${S.vuln ? ' · exposed: strike!' : ''}${S.failN ? ' · one Gemini Seal left' : ''}`;
+    const n = Math.max(0, Math.ceil(S.m.hp / (S.m.maxhp / TUNE.bars) - 1e-9)); return `Raziel · ${n} bar${n === 1 ? '' : 's'} · Phase ${ROMAN[S.phase]}${S.vuln ? ' · exposed: strike!' : ''}`;
   }
   const goal = () => (S ? goalText() : '');
   const hideHud = () => false;
@@ -1145,7 +706,6 @@ const GEMINI_BOSS = (() => {
   function drawGroundLayer(c) {
     const T = Tz(), Ox = sx(AR.cx), Oy = sy(AR.cy), Rpx = AR.R * T; S.drawN = (S.drawN || 0) + 1;
     sectorState();
-    if (S.ul) { c.save(); try { S.ul.drawGround(c); } catch (e) {} c.restore(); }
     if (!gpu()) { drawGround2d(c); return; }
     const Q = fgOpen(c), FX = FXP(), t = S.t;
     // the eight sectors: the rest (rim, machinery, channels, constellations, emblem), then the states
@@ -1248,23 +808,20 @@ const GEMINI_BOSS = (() => {
     if (FX && r.mouthL && P.chargeL > 0.05) FX.charge(Q, r.mouthL.x, r.mouthL.y, r.unit * 2.2, 'L', P.chargeL, 1, 3);
     if (FX && r.mouthR && P.chargeR > 0.05) FX.charge(Q, r.mouthR.x, r.mouthR.y, r.unit * 2.2, 'R', P.chargeR, 1, 5);
     if (S.vuln && r.coreL) { const V = S.vuln, k = sstep(0, 0.4, V.t) * (1 - sstep(V.dur - 0.5, V.dur, V.t)), cx = (r.coreL.x + r.coreR.x) / 2, cy = (r.coreL.y + r.coreR.y) / 2, pul = 0.5 + 0.5 * Math.sin(t * 6);
-      Q.glow(cx, cy, r.unit * (3 + 1.5 * pul) * (S.finalWin ? 1.6 : 1), COL.white, (0.25 + 0.2 * pul) * k); Q.star(cx, cy, r.unit * 1.6, 0.7 * k, COL.white); if (FX) FX.bridge(Q, r.coreL.x, r.coreL.y, r.coreR.x, r.coreR.y, r.unit * 0.8, 0.8 * k, 3, 2); }
+      Q.glow(cx, cy, r.unit * (3 + 1.5 * pul) * 1, COL.white, (0.25 + 0.2 * pul) * k); Q.star(cx, cy, r.unit * 1.6, 0.7 * k, COL.white); if (FX) FX.bridge(Q, r.coreL.x, r.coreL.y, r.coreR.x, r.coreR.y, r.unit * 0.8, 0.8 * k, 3, 2); }
     fgClose(c);
   }
   /* the sky: breaths, spheres, the mechanic's air (crowns, phantoms, portals), the seal breaking over the pet */
   function drawSkyLayer(c) {
     const T = Tz(), on = gpu(), A = S.B.A;
     if (S.mech && MI[S.mech.id].drawAirGL) try { MI[S.mech.id].drawAirGL(S.mech, c); } catch (e) {}
-    if (S.ul) { try { S.ul.drawFx(c); } catch (e) {} }
     if (!on) return;
     const Q = fgOpen(c), FX = FXP(), t = S.t;
     for (const h of S.haz) drawHazAir(Q, h, T, A, FX);
     for (const f of S.fx) drawFxAir(Q, f, T, FX);
     if (S.mech && MI[S.mech.id].drawAir) MI[S.mech.id].drawAir(S.mech, Q, c);
-    if (S.sealFx && FX) { const u = cl(S.sealFx.t / 1.6), me = S.me, X0 = sx(me.x), Y0 = sy(me.y) - T * 2.2; FX.seal(Q, X0, Y0, T * (1.2 + u * 1.5), 'L', 1 + u, t, 1 - u, 1); FX.seal(Q, X0, Y0, T * (1.1 + u * 1.7), 'R', 1 + u, -t, 1 - u, 1); Q.star(X0, Y0, T * (0.6 + u * 2), 1 - u, COL.white); }
     if (S.burn > 0 && FX) { const me = S.me; FX.embers(Q, sx(me.x), sy(me.y) - T * 0.4, T * 0.7, (t * 0.8) % 1, 0.7, 4, 0.6); }
     if (S.mode === 'dead') drawDefeatAir(Q, T, FX);
-    if (S.mode === 'paradox' && !S.ul) { const u = cl(S.para.t / PARA.wipe), X0 = sx(S.m.x), Y0 = sy(S.m.y) - T * 6; Q.glow(X0, Y0, T * (1 + 8 * u * u), COL.white, 0.3 + 0.6 * u); Q.star(X0, Y0, T * (0.5 + 3 * u), 0.8, COL.white); }
     fgClose(c);
   }
   function mouthOf(src, A) { const mo = A && (src === 'L' ? A.mouthL : A.mouthR); return mo ? { x: mo.x, y: mo.y } : null; }
@@ -1290,60 +847,42 @@ const GEMINI_BOSS = (() => {
     else if (f.kind === 'corehome') { const e = eout(u), x = lerp(X0, sx(f.tx), e), y = lerp(Y0 - T * 1.7, sy(f.ty) - T * 3.2, e) - Math.sin(u * PI) * T * 1.5; Q.glow(x, y, T * (1.4 - 0.6 * u), COL.white, 0.7 * k); Q.star(x, y, T * 0.8, k, COL.white); }
   }
 
-  /* ================= the encounter UI: name, bar in five segments, phase, the two Gemini Seals, the six mechanics, the mechanic's
-     name, instruction and timer, Fire / Ice status, the cores' bars (HUD space; small, at the top, clear of the field) ================= */
+  /* ================= the encounter UI: a boss bar like the other gates' (Asmodeus's stacked bars, their count, the phase pips), the
+     pet's Fire / Ice status; while a great judgement runs, a small hint under it (its name, what to do, its timer) ================= */
+  const BARCOL = ['#FF8A3A', '#7FD8FF', '#FFC24D', '#A8C8F0', '#FFB070', '#C9B0FF', '#FFE2B0', '#5FB8F0'];
+  const hexA = (h, a) => { const n = parseInt(String(h).slice(1, 7), 16) || 0; return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`; };
   function drawHud(c, W) {
-    if (S.mode === 'over') return; const m = S.m, t = S.t, bw = Math.min(176, W * 0.45), x0 = W - 10 - bw, y0 = 10 + Math.min(88, W * 0.24) + 10;
-    c.globalAlpha = 0.94; c.fillStyle = 'rgba(8,6,16,.62)'; GFX.rr(c, x0 - 6, y0 - 4, bw + 12, 66, 8); c.fill();
-    GFX.labelS(c, 'RAZIEL', x0, y0 + 7, 9.5, 900, '#FFFFFF', 'rgba(0,0,0,.7)', 3, 'left'); GFX.labelS(c, 'The Twin Revelation', x0 + 44, y0 + 7, 7, 700, '#E8DCC8', 'rgba(0,0,0,.6)', 2, 'left');
-    GFX.labelS(c, `PHASE ${ROMAN[S.phase]}`, x0 + bw, y0 + 7, 8, 900, S.phase === 5 ? '#FFFFFF' : S.phase % 2 ? COL.gold : COL.ice, 'rgba(0,0,0,.7)', 3, 'right');
-    // the bar: five segments (100-80-60-40-15-0), the gates' marks (white where a mechanic waits), its fill split gold | ice
-    const yb = y0 + 14, bh = 7, k = cl(S.mode === 'dead' ? 0 : realK()); S.barShow = S.barShow == null ? k : S.barShow + (k - S.barShow) * 0.08;
-    c.fillStyle = 'rgba(0,0,0,.6)'; GFX.rr(c, x0 - 1, yb - 1, bw + 2, bh + 2, 4); c.fill();
-    if (S.barShow > k) { c.fillStyle = 'rgba(255,255,255,.55)'; GFX.rr(c, x0, yb, Math.max(4, bw * S.barShow), bh, 3); c.fill(); }
-    if (k > 0) { const gr = c.createLinearGradient(x0, 0, x0 + bw, 0); gr.addColorStop(0, '#FF8A3A'); gr.addColorStop(0.5, '#FFE2B0'); gr.addColorStop(1, '#7FD8FF'); c.fillStyle = gr; GFX.rr(c, x0, yb, Math.max(4, bw * k), bh, 3); c.fill(); c.fillStyle = 'rgba(255,255,255,.28)'; GFX.rr(c, x0, yb, Math.max(4, bw * k), bh * 0.4, 2); c.fill(); }
-    c.fillStyle = 'rgba(8,6,16,.9)'; for (const s of [0.8, 0.6, 0.4, 0.15]) c.fillRect(x0 + bw * s - 1, yb - 1, 2, bh + 2);
-    const nx = nextMech(); if (nx) { const gx = x0 + bw * TUNE.at[nx]; c.fillStyle = '#FFFFFF'; c.beginPath(); c.moveTo(gx, yb - 3); c.lineTo(gx + 3, yb - 6); c.lineTo(gx - 3, yb - 6); c.closePath(); c.fill(); }
-    if (locked() && S.mode !== 'dead') { c.globalAlpha = 0.5 + 0.3 * Math.sin(t * 6); c.strokeStyle = '#FFFFFF'; c.lineWidth = 1.2; GFX.rr(c, x0 - 1.5, yb - 1.5, bw + 3, bh + 3, 4); c.stroke(); c.globalAlpha = 0.94; }
-    // the two Gemini Seals
-    const sy0 = yb + bh + 12; for (let i = 0; i < 2; i++) { const cx = x0 + 9 + i * 20, broken = S.failN > (1 - i) || S.mode === 'paradox', shk = S.sealFx && S.failN === 1 && i === 1 ? Math.sin(S.sealFx.t * 40) * 2 * (1 - cl(S.sealFx.t)) : 0; drawSealIcon(c, cx + shk, sy0, 7.5, i === 0 ? 'L' : 'R', broken, t); }
-    // the six mechanics: pending (hollow), in progress (pulsing), passed (a check), failed (a cross)
-    for (let i = 1; i <= 6; i++) { const px = x0 + 56 + (i - 1) * 19.5, py = sy0, r = S.res[i], live = S.mech && S.mech.id === i; drawPip(c, px, py, 6.5, r, live, t, i); }
-    // a lasting warning once a seal is gone
-    if (S.failN === 1 && S.mode !== 'paradox') { c.globalAlpha = 0.8 + 0.2 * Math.sin(t * 3); GFX.labelS(c, 'ONE SEAL LEFT · a second failure is annihilation', x0 + bw / 2, sy0 + 17, 6.5, 800, COL.warn, 'rgba(0,0,0,.75)', 2.5, 'center'); c.globalAlpha = 0.94; }
-    else GFX.labelS(c, S.prot ? (S.prot === 'fire' ? 'FIRE PROTECTION' : 'ICE PROTECTION') : S.burn > 0 ? 'BURNING' : S.me.chill > 0 ? 'FROST' : '', x0 + bw / 2, sy0 + 17, 6.5, 800, S.prot === 'fire' || (!S.prot && S.burn > 0) ? COL.fire : COL.ice, 'rgba(0,0,0,.75)', 2.5, 'center');
-    // the mechanic's panel (left): name, instruction, timer bar, its own lines
-    const Mx = S.mech; if (Mx && S.mode === 'mech') { const pw = Math.min(196, W - bw - 40), px0 = 10, py0 = y0 + 4, lines = (MI[Mx.id].hud && MI[Mx.id].hud(Mx)) || {};
-      c.fillStyle = 'rgba(8,6,16,.62)'; GFX.rr(c, px0, py0 - 4, pw, 50 + (lines.extra || 0), 8); c.fill();
-      GFX.labelS(c, MECH[Mx.id].name, px0 + 8, py0 + 8, 8.5, 900, COL.warn, 'rgba(0,0,0,.7)', 3, 'left');
-      GFX.labelS(c, lines.say || Mx.goal || MECH[Mx.id].tip, px0 + 8, py0 + 20, 7, 700, '#FFFFFF', 'rgba(0,0,0,.6)', 2.5, 'left');
-      if (lines.bar != null) { const by = py0 + 28, bw2 = pw - 16; c.fillStyle = 'rgba(0,0,0,.6)'; GFX.rr(c, px0 + 7, by - 1, bw2 + 2, 6, 3); c.fill(); c.fillStyle = lines.barCol || '#FFFFFF'; GFX.rr(c, px0 + 8, by, Math.max(3, bw2 * cl(lines.bar)), 4, 2); c.fill();
-        if (lines.secs != null) GFX.labelS(c, lines.secs.toFixed(1) + ' s', px0 + pw - 8, py0 + 41, 7, 800, '#FFFFFF', 'rgba(0,0,0,.6)', 2.5, 'right'); }
-      if (lines.note) GFX.labelS(c, lines.note, px0 + 8, py0 + 41, 7, 800, lines.noteCol || COL.pale, 'rgba(0,0,0,.6)', 2.5, 'left');
-      if (lines.draw) lines.draw(c, px0, py0 + 48, pw); }
-    if (Mx && S.mode === 'mech' && MI[Mx.id].pointers) { try { const L = MI[Mx.id].pointers(Mx); if (L) for (const q of L) edgeArrow(c, W, q); } catch (e) {} }
+    if (S.mode === 'over') return; const m = S.m, t = S.t, bar = m.maxhp / TUNE.bars, left = S.mode === 'dead' ? 0 : Math.max(0, m.hp);
+    const n = Math.max(0, Math.ceil(left / bar - 1e-9)), cur = n ? (left - (n - 1) * bar) / bar : 0;
+    S.barShow = S.barShow == null ? n - 1 + cur : S.barShow + ((n - 1 + cur) - S.barShow) * 0.06; if (Math.abs(S.barShow - (n - 1 + cur)) > 1.2) S.barShow = n - 1 + cur;
+    const bw = Math.min(150, W * 0.38), x0 = W - 12 - bw, by = 10 + Math.min(88, W * 0.24) + 14;
+    c.save(); c.globalAlpha = 0.92;
+    GFX.labelS(c, 'Raziel, The Twin Revelation', x0 + bw, by - 11, 8, 900, '#FFFFFF', 'rgba(0,0,0,.7)', 3, 'right');
+    for (let i = 0; i < 5; i++) { const px = x0 + bw - 26 - (4 - i) * 8, onP = i < S.phase; c.fillStyle = onP ? (i % 2 ? COL.ice : COL.gold) : 'rgba(255,255,255,.25)'; c.beginPath(); c.moveTo(px, by - 3.5); c.lineTo(px + 3, by); c.lineTo(px, by + 3.5); c.lineTo(px - 3, by); c.closePath(); c.fill(); }
+    const bh = 5, yb = by + 7, ci = Math.max(0, n - 1), under = n > 1 ? BARCOL[(ci - 1) % BARCOL.length] : null, colNow = BARCOL[ci % BARCOL.length];
+    c.fillStyle = 'rgba(0,0,0,.55)'; GFX.rr(c, x0 - 1, yb - 1, bw + 2, bh + 2, 4); c.fill();
+    if (under) { c.fillStyle = hexA(under, 0.6); GFX.rr(c, x0, yb, bw, bh, 3); c.fill(); }
+    const showCur = cl(S.barShow - ci); if (showCur > cur) { c.fillStyle = 'rgba(255,255,255,.7)'; GFX.rr(c, x0, yb, Math.max(6, bw * showCur), bh, 3); c.fill(); }
+    if (cur > 0) { c.fillStyle = colNow; GFX.rr(c, x0, yb, Math.max(6, bw * cur), bh, 3); c.fill(); c.fillStyle = 'rgba(255,255,255,.3)'; GFX.rr(c, x0, yb, Math.max(6, bw * cur), bh * 0.4, 2); c.fill(); }
+    c.fillStyle = 'rgba(0,0,0,.35)'; for (let i = 1; i < 5; i++) c.fillRect(x0 + bw * i / 5, yb + 1, 1, bh - 2);
+    if (S.vuln) { c.globalAlpha = 0.5 + 0.3 * Math.sin(t * 7); c.strokeStyle = '#FFFFFF'; c.lineWidth = 1.2; GFX.rr(c, x0 - 1.5, yb - 1.5, bw + 3, bh + 3, 4); c.stroke(); c.globalAlpha = 0.92; }
+    GFX.labelS(c, `×${n}`, x0 + bw, by, 9, 900, '#FFFFFF', 'rgba(0,0,0,.7)', 3, 'right');
+    const stx = S.prot ? (S.prot === 'fire' ? 'FIRE PROTECTION' : 'ICE PROTECTION') : S.burn > 0 ? 'BURNING' : S.me.chill > 0 ? 'FROST' : '';
+    if (stx) GFX.labelS(c, stx, x0 + bw, yb + bh + 9, 6.5, 800, S.prot === 'fire' || (!S.prot && S.burn > 0) ? COL.fire : COL.ice, 'rgba(0,0,0,.75)', 2.5, 'right');
+    // a great judgement's hint: its name, what to do now, its timer
+    const Mx = S.mech; if (Mx && S.mode === 'mech') { const h = (MI[Mx.id].hud && MI[Mx.id].hud(Mx)) || {}, pw = Math.min(200, W - 24), px0 = (W - pw) / 2, py0 = by + 26;
+      c.fillStyle = 'rgba(8,6,16,.55)'; GFX.rr(c, px0, py0, pw, h.bar != null ? 34 : 26, 8); c.fill();
+      GFX.labelS(c, MECH[Mx.id].name, W / 2, py0 + 10, 8, 900, COL.warn, 'rgba(0,0,0,.7)', 3, 'center');
+      GFX.labelS(c, h.say || Mx.goal || MECH[Mx.id].tip, W / 2, py0 + 21, 7, 700, '#FFFFFF', 'rgba(0,0,0,.6)', 2.5, 'center');
+      if (h.bar != null) { const bw2 = pw - 24; c.fillStyle = 'rgba(0,0,0,.6)'; GFX.rr(c, px0 + 11, py0 + 26, bw2 + 2, 5, 2.5); c.fill(); c.fillStyle = h.barCol || '#FFFFFF'; GFX.rr(c, px0 + 12, py0 + 27, Math.max(3, bw2 * cl(h.bar)), 3, 1.5); c.fill(); }
+      if (MI[Mx.id].pointers) { try { const P2 = MI[Mx.id].pointers(Mx); if (P2) for (const q of P2) edgeArrow(c, W, q); } catch (e) {} } }
     if (S.mode === 'dead' && S.dead.t > DEF.text) { const u = sstep(DEF.text, DEF.text + 0.6, S.dead.t); c.globalAlpha = u; GFX.labelS(c, S.dead.first === false ? 'TRIAL COMPLETE' : 'LEGENDARY ANIMA UNLOCKED', W / 2, S.X.H() * 0.36, 13, 900, COL.gold, 'rgba(0,0,0,.75)', 4, 'center'); }
-    c.globalAlpha = 1;
+    c.restore();
   }
   // an arrow at the screen's edge toward a target off the screen (a sanctuary, an anchor, a mirror, a fragment)
   function edgeArrow(c, W, q) { const Hh = S.X.H(), X0 = sx(q.x), Y0 = sy(q.y), m0 = 26, top = 150, bot = 170; if (X0 > m0 && X0 < W - m0 && Y0 > top && Y0 < Hh - bot) return;
     const cx = W / 2, cy = (top + Hh - bot) / 2, dx = X0 - cx, dy = Y0 - cy, a = Math.atan2(dy, dx), kx = (W / 2 - m0) / Math.max(1e-6, Math.abs(dx)), ky = ((Hh - bot - top) / 2) / Math.max(1e-6, Math.abs(dy)), k = Math.min(kx, ky), ex = cx + dx * k, ey = cy + dy * k;
     c.save(); c.translate(ex, ey); c.rotate(a); c.globalAlpha = 0.75 + 0.25 * Math.sin(S.t * 6); c.fillStyle = q.col || '#FFFFFF'; c.strokeStyle = 'rgba(0,0,0,.6)'; c.lineWidth = 2; c.beginPath(); c.moveTo(12, 0); c.lineTo(-7, -9); c.lineTo(-3, 0); c.lineTo(-7, 9); c.closePath(); c.fill(); c.stroke(); c.restore(); }
-  function drawSealIcon(c, x, y, r, side, broken, t) {
-    c.save(); c.translate(x, y); c.globalAlpha = broken ? 0.45 : 0.95; c.strokeStyle = broken ? 'rgba(200,200,210,.7)' : side === 'L' ? COL.gold : COL.ice; c.lineWidth = 1.6; c.beginPath(); c.arc(0, 0, r, 0, TAU); c.stroke();
-    c.lineWidth = 1.3; c.beginPath(); c.moveTo(-r * 0.45, -r * 0.55); c.quadraticCurveTo(0, -r * 0.3, r * 0.45, -r * 0.55); c.moveTo(-r * 0.45, r * 0.55); c.quadraticCurveTo(0, r * 0.3, r * 0.45, r * 0.55); c.moveTo(-r * 0.22, -r * 0.42); c.lineTo(-r * 0.22, r * 0.42); c.moveTo(r * 0.22, -r * 0.42); c.lineTo(r * 0.22, r * 0.42); c.stroke();
-    if (broken) { c.strokeStyle = '#FFFFFF'; c.lineWidth = 1.4; c.beginPath(); c.moveTo(-r * 0.9, -r * 0.2); c.lineTo(-r * 0.1, r * 0.1); c.lineTo(r * 0.3, -r * 0.4); c.lineTo(r * 0.9, r * 0.3); c.stroke(); }
-    else { c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.25 + 0.15 * Math.sin(t * 2 + (side === 'L' ? 0 : 1.5)); c.fillStyle = side === 'L' ? COL.gold : COL.ice; c.beginPath(); c.arc(0, 0, r * 1.2, 0, TAU); c.fill(); }
-    c.restore();
-  }
-  function drawPip(c, x, y, r, res, live, t, i) {
-    c.save(); c.translate(x, y); c.lineWidth = 1.5;
-    if (res === 'pass') { c.fillStyle = '#E8D090'; c.beginPath(); c.arc(0, 0, r, 0, TAU); c.fill(); c.strokeStyle = '#2A2030'; c.lineWidth = 1.8; c.beginPath(); c.moveTo(-r * 0.45, 0); c.lineTo(-r * 0.1, r * 0.4); c.lineTo(r * 0.5, -r * 0.4); c.stroke(); }
-    else if (res === 'fail') { c.fillStyle = 'rgba(40,36,52,.9)'; c.beginPath(); c.arc(0, 0, r, 0, TAU); c.fill(); c.strokeStyle = '#C8C0D8'; c.stroke(); c.strokeStyle = '#FFFFFF'; c.lineWidth = 1.8; c.beginPath(); c.moveTo(-r * 0.4, -r * 0.4); c.lineTo(r * 0.4, r * 0.4); c.moveTo(r * 0.4, -r * 0.4); c.lineTo(-r * 0.4, r * 0.4); c.stroke(); }
-    else if (live) { const p = 0.5 + 0.5 * Math.sin(t * 6); c.strokeStyle = '#FFFFFF'; c.beginPath(); c.arc(0, 0, r, 0, TAU); c.stroke(); c.fillStyle = `rgba(255,236,190,${(0.35 + 0.4 * p).toFixed(2)})`; c.beginPath(); c.arc(0, 0, r * 0.62, 0, TAU); c.fill(); }
-    else { c.strokeStyle = 'rgba(255,255,255,.5)'; c.beginPath(); c.arc(0, 0, r, 0, TAU); c.stroke(); GFX.labelS(c, String(i), 0, 2.6, 6.5, 800, 'rgba(255,255,255,.7)', null, 0, 'center'); }
-    c.restore();
-  }
   function drawDefeatAir(Q, T, FX) {
     const D = S.dead, t = D.t, A = S.B.A, B = S.B; if (!A) return;
     // the cores part into two small stars that float to their heads; the crowns fall into two Gemini symbols that circle and merge
@@ -1357,14 +896,20 @@ const GEMINI_BOSS = (() => {
 
   /* ---- for the harness ---- */
   const test = {
-    get S() { return S; }, AR, GEO, MI, secOf, polar, cellOf: (x, y) => cellOf(x, y), cellNear: (id, x, y) => cellNear(id, x, y), secNear: (i, x, y, mg) => secNear(i, x, y, mg), secReach: (a, b) => secReach(a, b), floorHp: () => (S ? floorHp() : 0), realK: () => (S ? realK() : 0), markFail: (id, w) => markFail(id, w),
+    get S() { return S; }, AR, GEO, MI, secOf, polar, secNear: (i, x, y, mg) => secNear(i, x, y, mg), secReach: (a, b) => secReach(a, b), realK: () => (S ? realK() : 0),
     skipIntro() { if (S && S.mode === 'intro') { S.introT = TUNE.intro - 0.01; S.g.bossIntro = 0; } },
     setK(k) { if (!S) return; S.m.hp = Math.max(1, S.m.maxhp * k); S.lastM = S.m.hp; },
-    hold(on) { if (S) S.noAI = !!on; },
-    start(id) { if (!S) return; if (S.mode === 'trans') { S.trans = null; S.mode = 'fight'; } for (let i = 1; i < id; i++) if (!S.res[i]) S.res[i] = 'pass'; S.phase = Math.max(S.phase, MECH[id].ph); S.m.hp = S.m.maxhp * TUNE.at[id]; S.lastM = S.m.hp; S.vuln = null; startMech(id); return S.mech; },
-    act(kind) { if (!S || S.mode !== 'fight') return null; abortActs(); S.idleT = 99; return startAct(kind); },
-    trans(ph) { if (S) startTrans(ph); },
-    resolve: id => resolveMech(id), ult: (t0, x, y) => startUlt(t0, x, y), ulT,
+    noBig(on) { if (S) S.noBig = !!on; },
+    // (a great judgement now, out of turn: the harness's)
+    start(id) { if (!S) return; if (S.mode === 'trans') { S.trans = null; S.mode = 'fight'; } if (S.mech) endMech(); S.vuln = null; startMech(id); return S.mech; },
+    act(kind) { if (!S || S.mode !== 'fight') return null; abortActs(); S.idleT = 99; S.bigT = 99; return startAct(kind); },
+    trans(ph) { if (S) startTrans(ph); }, endMech: () => endMech(),
+    // (for the bots: is (x, y) inside a blow that lands within `lead` s, or is landing now)
+    danger(x, y, lead) { if (!S) return false; lead = lead == null ? 0.6 : lead; for (const h of S.haz) { if (h.t + lead < h.tell || h.t > h.tell + h.act + 0.05) continue; if (h.cosmetic && h.t > h.tell) continue;
+        if (h.kind === 'ring') { const u0 = cl((h.t - h.tell) / h.act), u1 = cl((h.t + lead - h.tell) / h.act), r0 = h.r0 + (h.r1 - h.r0) * u0, r1 = h.r0 + (h.r1 - h.r0) * u1, d = Math.hypot(x - h.x, y - h.y); if (d > r0 - h.w - 0.4 && d < r1 + h.w + 0.4) { if (h.gap != null && Math.abs(angD(Math.atan2(y - h.y, x - h.x), h.gap)) < h.gapW) continue; return true; } continue; }
+        if (h.kind === 'cone' && h.a1 != null && h.t < h.tell) { const d = Math.hypot(x - h.x, y - h.y), a = Math.atan2(y - h.y, x - h.x), lo = Math.min(h.a0, h.a1) - h.half - 0.15, hi = Math.max(h.a0, h.a1) + h.half + 0.15, mid = (lo + hi) / 2; if (d < h.len + 0.6 && Math.abs(angD(a, mid)) < (hi - lo) / 2) return true; continue; }
+        if (h.kind === 'line' && h.a1 != null && h.t < h.tell + h.act) { const d = Math.hypot(x - h.x, y - h.y), a = Math.atan2(y - h.y, x - h.x), lo = Math.min(h.a0, h.a1) - 0.2, hi = Math.max(h.a0, h.a1) + 0.2, mid = (lo + hi) / 2; if (d < h.len + 0.8 && Math.abs(angD(a, mid)) < (hi - lo) / 2) return true; continue; }
+        const g0 = Object.assign({}, h); if (h.kind === 'disc') g0.r = h.r + 0.35; if (h.kind === 'line') g0.w = h.w + 0.7; if (petIn(g0, x, y)) return true; } return false; },
   };
   return { begin, update, stop, active, attach, warm, floor: floorTile, drawGround() {}, drawOver() {}, cam, goal, hideHud, onBossDeath, TUNE, MECH, test };
 })();
