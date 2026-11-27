@@ -7,6 +7,7 @@
   const TAU = Math.PI * 2, { ICE, ICE_HI, GREEN_HI, INK } = AUR;
   const { PROPS } = DunWorld;
   const lw0 = T => Math.max(1.3, Math.min(3, T * 0.06));
+  const AP = X => (typeof AUR_PROPS !== 'undefined' && AUR_PROPS.ready && AUR_PROPS.ready(X)) ? AUR_PROPS : null;   // v470 AE: the painted look (20s6d) when its painter and GPU light are live
   const rnd = s => { let x = (s * 2654435761) >>> 0; return () => { x ^= x << 13; x >>>= 0; x ^= x >>> 17; x ^= x << 5; x >>>= 0; return x / 4294967296; }; };
 
   /* ---- the crystal tree ---- */
@@ -70,7 +71,9 @@
     const MW = M.MW || (M.W), MH = M.MH || (M.H), far = (x, y) => Math.hypot(x - M.start.x, y - M.start.y) > 5 && !S.list.some(q => Math.hypot(q.x - x, q.y - y) < 5) && (!M.bossAt || Math.hypot(x - M.bossAt.x, y - M.bossAt.y) > 6) && !(H.exit && H.exit() && Math.hypot(x - H.exit().x, y - H.exit().y) < 5);
     for (let tries = 0; tries < 600 && S.list.length < n; tries++) { const tx = 1 + Math.floor(X.R() * (MW - 2)), ty = 1 + Math.floor(X.R() * (MH - 2)); let okT = true; for (let dy = -1; dy <= 1 && okT; dy++) for (let dx = -1; dx <= 1; dx++) if (X.tileAt(tx + dx, ty + dy) !== T_FLOOR) { okT = false; break; } if (!okT) continue;
       const x = tx + 0.5, y = ty + 0.5; if (!far(x, y)) continue; const q = X.freeSpot(x, y, 0.8); if (!q || Math.hypot(q.x - x, q.y - y) > 0.6) continue;
-      const T0 = { x: q.x, y: q.y, st: 'idle', t: 0, wob: X.R() * TAU }; T0.obj = H.obj({ x: q.x, y: q.y, kind: 'tomato', r: 0.7, h: 2.0, label: () => (T0.st === 'armed' ? 'MOVE!' : T0.st === 'gone' ? '' : 'Frost tomato'), draw(c, Xs, Ys, T) { if (T0.st === 'gone') return; const u = T0.st === 'armed' ? T0.t / FUSE : 0, k = (T0.st === 'grow' ? Math.min(1, T0.t / 1.2) : 1) * (1 + u * 0.22 + Math.sin(g.t * (6 + u * 30)) * 0.03 * (u ? 1 : 0.4)), fl = u ? (0.25 + 0.5 * u) * (0.5 + 0.5 * Math.sin(g.t * (10 + u * 30))) : 0; drawTomato(c, Xs, Ys, T, g.t, k, fl); } }); S.list.push(T0); }
+      const T0 = { x: q.x, y: q.y, st: 'idle', t: 0, wob: X.R() * TAU }; T0.obj = H.obj({ x: q.x, y: q.y, kind: 'tomato', r: 0.7, h: 2.0, label: () => (T0.st === 'armed' ? 'MOVE!' : T0.st === 'gone' ? '' : 'Frost tomato'), draw(c, Xs, Ys, T) { if (T0.st === 'gone') return; const u = T0.st === 'armed' ? T0.t / FUSE : 0, k = (T0.st === 'grow' ? Math.min(1, T0.t / 1.2) : 1) * (1 + u * 0.22 + Math.sin(g.t * (6 + u * 30)) * 0.03 * (u ? 1 : 0.4)), fl = u ? (0.25 + 0.5 * u) * (0.5 + 0.5 * Math.sin(g.t * (10 + u * 30))) : 0;
+        { const A = AP(X); if (A && A.piece(c, 'aurtomato', 0, Xs, Ys, T, { s: k })) { if (fl > 0) { A.qo('glow', Xs, Ys - T * 0.8 * k, T * 1.3 * k, '#BFE4FF', fl * 0.8); A.qo('glow', Xs, Ys - T * 0.8 * k, T * 0.5 * k, '#FFFFFF', fl * 0.7); } return; } }   // v470 AE: the painted tomato, its flash light
+        drawTomato(c, Xs, Ys, T, g.t, k, fl); } }); S.list.push(T0); }
     function burst(q) { q.st = 'gone'; q.t = 0; X.boom(q.x, q.y - 0.4, BLAST, ICE_HI, '#FFFFFF', { n: 34, shake: 9 }); X.ring(q.x, q.y, 0.4, BLAST, 0.4, '#BFE4FF', 0.5); if (X.sfx.crash) X.sfx.crash(); X.zone({ kind: 'stall', x: q.x, y: q.y, r: BLAST * 0.8, life: 3, max: 3, own: 'enemy' });
       for (let i = 0; i < 14; i++) { const a = i / 14 * TAU; X.part({ kind: 'spark', x: q.x, y: q.y - 0.5, vx: Math.cos(a) * 6, vy: Math.sin(a) * 6 - 2, life: 0.6, max: 0.6, size: 3, color: i % 2 ? '#FFFFFF' : '#5FA6EE' }); }
       for (const m of X.mons) if (!m.dead && !m.boss && Math.hypot(m.x - q.x, m.y - q.y) < BLAST) m.freeze = Math.max(m.freeze || 0, 3);
@@ -86,10 +89,13 @@
       },
       drawGround(c) { const T = X.Tz();
         // the blast ring of an armed tomato fills toward the burst
+        { const A = AP(X); if (A) { for (const q of S.list) { if (q.st !== 'armed') continue; const u = Math.min(1, q.t / FUSE), Xs = X.sx(q.x), Ys = X.sy(q.y);   // v470 AE: the blast's reach as frost blooming over the floor (glow only, no ring)
+            A.ql('quad', 513, Xs, Ys, BLAST * T, 0, 0, BLAST * T * 0.75, '#4F8ED8', 0.55 + 0.25 * u, q.wob, 0.2 + 0.85 * u, 0); A.ql('glow', Xs, Ys, BLAST * T * 1.05, '#9FD8FF', 0.1 + 0.25 * u * (0.5 + 0.5 * Math.sin(g.t * (8 + u * 20))), 0.75); } return; } }
         for (const q of S.list) { if (q.st !== 'armed') continue; const u = Math.min(1, q.t / FUSE), Xs = X.sx(q.x), Ys = X.sy(q.y); c.save(); c.globalAlpha = 0.25 + 0.2 * Math.sin(g.t * (8 + u * 20)); c.fillStyle = '#5FA6EE'; c.beginPath(); c.ellipse(Xs, Ys, BLAST * T, BLAST * T * 0.75, 0, 0, TAU); c.fill(); c.globalAlpha = 0.9; c.strokeStyle = '#E8F8FF'; c.lineWidth = 3; c.setLineDash([10, 7]); c.lineDashOffset = -g.t * 30; c.stroke(); c.setLineDash([]); c.globalAlpha = 0.4; c.fillStyle = '#BFE4FF'; c.beginPath(); c.ellipse(Xs, Ys, BLAST * T * u, BLAST * T * 0.75 * u, 0, 0, TAU); c.fill(); c.restore(); }
       },
       drawOver(c) { { const T = X.Tz();
         // the pet in a block of ice
+        { const A = AP(X); if (A && S.frz > 0) { const Xs = X.sx(me.x), Ys = X.sy(me.y), a = Math.min(1, S.frz / 0.3); if (A.piece(c, 'aurfreeze', 0, Xs, Ys + T * 0.1, T, { alpha: a })) { A.qo('glow', Xs, Ys - T * 0.7, T * 1.2, '#BFE4FF', 0.3 * a); c.save(); c.font = `800 ${Math.round(T * 0.3)}px ${arcFont}`; c.textAlign = 'center'; c.lineWidth = 3; c.strokeStyle = 'rgba(0,0,0,.6)'; c.fillStyle = '#BFE4FF'; c.strokeText('FROZEN', Xs, Ys - T * 1.75); c.fillText('FROZEN', Xs, Ys - T * 1.75); c.restore(); return; } } }   // v470 AE: the painted ice block (no countdown on the field)
         if (S.frz > 0) { const Xs = X.sx(me.x), Ys = X.sy(me.y), w = T * 0.85, h = T * 1.35, a = Math.min(1, S.frz / 0.3); c.save(); c.globalAlpha = 0.75 * a; c.fillStyle = 'rgba(191,228,255,.55)'; c.strokeStyle = '#E8F8FF'; c.lineWidth = 2.5; c.beginPath(); c.moveTo(Xs - w, Ys + T * 0.15); c.lineTo(Xs - w * 1.05, Ys - h * 0.8); c.lineTo(Xs - w * 0.4, Ys - h); c.lineTo(Xs + w * 0.6, Ys - h * 0.95); c.lineTo(Xs + w, Ys - h * 0.5); c.lineTo(Xs + w * 0.9, Ys + T * 0.15); c.closePath(); c.fill(); c.stroke(); c.strokeStyle = 'rgba(255,255,255,.9)'; c.beginPath(); c.moveTo(Xs - w * 0.7, Ys - h * 0.7); c.lineTo(Xs - w * 0.3, Ys - h * 0.9); c.stroke(); c.restore(); }
         }
         if (S.frz > 0) { const T = X.Tz(), Xs = X.sx(me.x), Ys = X.sy(me.y) - T * 1.75; c.save(); c.font = `800 ${Math.round(T * 0.3)}px ${arcFont}`; c.textAlign = 'center'; c.lineWidth = 3; c.strokeStyle = 'rgba(0,0,0,.6)'; c.fillStyle = '#BFE4FF'; const s = `FROZEN ${S.frz.toFixed(1)}s`; c.strokeText(s, Xs, Ys); c.fillText(s, Xs, Ys); c.restore(); } },

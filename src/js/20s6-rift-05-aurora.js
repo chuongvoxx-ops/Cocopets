@@ -180,6 +180,12 @@ const AUR = { INK: '#2B2433', SNOW: '#E4EDF0', NAVY: '#172C4D', ICE: '#86B7D0', 
   const placeholder = (name, goal) => ({ name, goal, how: goal, layout: ['##########', '#........#', '#...E....#', '#........#', '#...S....#', '##########'], legend: { E: {} }, make(X, self, H) { const e = X.M.marks.E[0]; self.done = true; H.setExit(e.x, e.y, 'The way on'); return {}; } });
   defRift({
     ease: 0.6,
+    /* v470 AM (the user 2026-11-27: Rift 05 remade to Rift 02/03's standard; the lead: never easier than Rift 04): Rift 04's own
+       hardness (v463, 20s2) laid here as a floor, once each: every monster and mini boss 2.5x its health (20m foeStamp) and every foe
+       blow on the pet 2.5x (hurtPet, 20b); the three main bosses x7 health (bossHpK: each boss's own file counts every blow on it
+       1 / foeK.boss) and x7 blows in all (foeDmgK 2.5 x bossDmgK 2.8, the fiend's dmgK riftDef lays). Before: none of these (x1). */
+    monHpK: 2.5, miniHpK: 2.5, foeDmgK: 2.5,
+    bossHpK: 7, bossDmgK: 7 / 2.5,
     id: 'aurora', n: 5, name: 'The Pale Aurora', lvl: 50, sigil: 'Shelter', biome: 'glacier', aff: ['frost', 'wind'], region: 'the polar mountains',
     blurb: 'A glacier lifted into the night sky under an aurora shaped like an open eye. Raise windbreaks, turn an avalanche into a bridge, carry warmth to the summit.', gate: { anima: 'capricorn', name: 'The Crownstep Ascent' },
     mons: ['rimescuttler', 'veilray', 'frostlantern'], sealing: SEALING,

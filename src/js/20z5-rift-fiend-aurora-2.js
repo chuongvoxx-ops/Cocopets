@@ -33,7 +33,11 @@ RiftFiend.define({ id: 'nivora', name: 'Nivora', title: 'The Aurorawing', color:
   const SIDE = [-1, 1];   // vane 0 west, vane 1 east
   const vaneAt = (C, i) => [C.x + SIDE[i] * 11.4, C.y + 0.4];          // where the pet stands to turn it
   const postAt = (C, i) => [C.x + SIDE[i] * 12.5, C.y - 0.5];          // the vane itself, just behind
-  const sockAt = (C, i) => [C.x + SIDE[i] * 7.0, C.y];                 // where its windbreak rises
+  /* (v470 AB) the GPU model and its light (NIVORA_GL, 20z5a-nivora-gl.js); without them the 2D Nivora, its 2D effects and overlay. hpK: the
+     rift's main-boss health factor (foeK.boss), its blows and weak point 1 / hpK, as the Sepulchre's bosses */
+  const AG = () => { try { return typeof NIVORA_GL !== 'undefined' ? NIVORA_GL : null; } catch (e) { return null; } }, agOn = () => { const o = AG(); return !!(o && o.gpu()); }, KEEP2D = { steps: 2, pad: 5 };
+  const hpK = FX => { const F = FX && FX.F && FX.F.rift && FX.F.rift.foeK; return F && F.boss > 0 ? F.boss : 1; };
+  const sockAt = (C, i) => [C.x + SIDE[i] * 7.0, C.y];               // where its windbreak rises
   return {
     arenaR: 15, firstAct: 'hover', artY: 0.9,
     artPoses: [{ name: 'gliding, the X of wings flexing', mem: { alt: 3.2 } }, { name: 'beating up a crosswind', mem: { alt: 4, beat: 1, menace: 1 } }, { name: 'in a pass, banked', mem: { alt: 2.6, passK: 1, roll: 0.45 } }, { name: 'staggered: fallen low, the eye bared', mem: { alt: 1.1, stag: 1 } }],
@@ -44,7 +48,9 @@ RiftFiend.define({ id: 'nivora', name: 'Nivora', title: 'The Aurorawing', color:
     paintGround(c, A) { paintPlatform(c, A); },
     sky(c, W, H, t, cam, T) { paintSky(c, W, H, t, cam, T); },
     /* ---- the fight ---- */
-    init(FX) { const M = FX.mem, m = FX.m, C = FX.C; m.act = 'enter'; m.x = C.x; m.y = C.y - 4.5; m.noTouch = true;
+    RIG: { pose: (FX, m, M) => pose(FX, m, M), wings: (FX, m, M, p) => wings(FX, m, M, p), headWorld: p => headWorld(p), eyeCurve: (M, p) => eyeCurve(M, p), eyeWorld: (FX, m, M) => eyeWorld(FX, m, M), vaneAt, sockAt, ALT, LW, RL, VR, TURN },   // (v470 AB: the skeleton the GPU model is posed on)
+    get MODEL() { return AG(); }, preload(P) { const o = AG(); return o ? o.preload(P) : []; },
+    init(FX) { const M = FX.mem, m = FX.m, C = FX.C; m.act = 'enter'; m.x = C.x; m.y = C.y - 4.5; m.noTouch = true; if (AG()) AG().init(FX);   // (v470 AB: its warnings marked for light)
       Object.assign(M, { hd: Math.PI / 2, tailHd: Math.PI / 2, look: Math.PI / 2, bt: 0, px: m.x, py: m.y, spd: 0, roll: 0, pitch: 0, hdRate: 0, alt: 16, unfold: 0, beat: 0, menace: 0, recoil: 0, roar: 0, passK: 0, stag: 0, breath: 0,
         blinkT: 2, blink: 0, beamA: 0, beamK: 0, scan: 0, tips: [], sh: null, ps: null, gz: null, cw: null, bar: [null, null], vch: [0, 0], vA: [Math.PI * 0.9, Math.PI * 0.1], lastVane: null, broodT: 10, seen: {}, last: null, bag: null, wasEnter: true, roared: false, wasStun: false, orb: null, dir: 1, restT: 1.2 }); },
     phase(FX, p, lv) { const M = FX.mem, m = FX.m; endCrosswind(FX); M.sh = null; M.ps = null; M.gz = null; m.act = 'hover'; m.actT = 0; M.roar = 1; M.beat = 1; M.recoil = 1; M.broodT = 6; FX.H.shake(10, 0.5); FX.H.flash(0.22, GREEN_HI); FX.H.sfx.crash(); FX.H.ring(m.x, m.y, 0.5, 9, 1, GREEN_HI, 0.4); frostBurst(FX, m.x, m.y - 3, 18);
@@ -82,7 +88,7 @@ RiftFiend.define({ id: 'nivora', name: 'Nivora', title: 'The Aurorawing', color:
       FX.parts(bodyParts(FX, m, M));
     },
     stunned(FX, m, dt) { const M = FX.mem; M.stag = Math.min(1, M.stag + dt * 2.4); M.menace = decay(M.menace, dt, 4); M.beat = decay(M.beat, dt, 4); M.passK = decay(M.passK, dt, 4); m.noTouch = true; M.alt = toward(M.alt, STUN_ALT, dt, 5);
-      const e = eyeWorld(FX, m, M); FX.weak('eye', e[0], e[1] - e[2], 1.5, 2.5, m.stunT > 0.05);
+      const e = eyeWorld(FX, m, M); FX.weak('eye', e[0], e[1] - e[2], 1.5, 2.5 / hpK(FX), m.stunT > 0.05);   // (v470 AB: its blows 1 / foeK.boss)
       // fallen, it shivers: frost flakes off its wings
       M.kickT = (M.kickT || 0) - dt; if (M.kickT <= 0) { M.kickT = 0.35; FX.H.sparks(m.x + FX.rnd(-2.5, 2.5), m.y - 1 + FX.rnd(-0.8, 0.8), ICE_HI, 3, 3); FX.H.shake(1.2, 0.08); }
       FX.parts(bodyParts(FX, m, M)); },
@@ -107,12 +113,12 @@ RiftFiend.define({ id: 'nivora', name: 'Nivora', title: 'The Aurorawing', color:
         if (e > 1.9 && !M.roared) { M.roared = true; M.roar = 1; M.recoil = 0.6; FX.H.sfx.hum(); FX.H.sfx.crash(); FX.H.shake(9, 0.4); FX.H.ring(m.x, m.y, 0.3, 8, 1, GREEN_HI, 0.4); frostBurst(FX, m.x, m.y - 3, 14); } }
       else { M.unfold = toward(M.unfold, 1, dt, 3); if (M.wasEnter) { M.wasEnter = false; M.recoil = 1; FX.H.sfx.whoosh(); } }
       if ((m.hitSq || 0) > 0.5) M.recoil = Math.max(M.recoil, 0.5); },
-    dmgK() { return 1; },
-    keep: { steps: 2, pad: 5 },
-    draw(c, FX, m, X, Y, T, t, step) { drawNivora(c, FX, m, X, Y, T, t, step); },
+    dmgK(FX) { return 1 / hpK(FX); },   // (v470 AB: the rift's main-boss health, foeK.boss times)
+    get keep() { return agOn() ? null : KEEP2D; },   // (v470 AB: the GPU model drawn every frame, one pass; the 2D one kept as before)
+    draw(c, FX, m, X, Y, T, t, step) { { const o = AG(); if (step == null && o && o.drawBoss(c, FX, m, X, Y, T, t)) return; } drawNivora(c, FX, m, X, Y, T, t, step); },   // (v470 AB: the GPU model, else the 2D Nivora)
     drawProp(c, FX, p, X, Y, T, t) { if (p.kind === 'telescope') drawTelescope(c, FX, p, X, Y, T, t); else if (p.kind === 'vane') drawVane(c, FX, p, X, Y, T, t); },
-    overlay(c, FX, t, T) { drawOverlay(c, FX, t, T); },
-    drawFx(c, FX, T, t) { drawLights(c, FX, T, t); drawBarriers(c, FX, T, t); drawWind(c, FX, T, t); },
+    overlay(c, FX, t, T) { { const o = AG(); if (o && o.overlay(c, FX, t, T)) return; } drawOverlay(c, FX, t, T); },   // (v470 AB: the vanes' rings and its warnings in light)
+    drawFx(c, FX, T, t) { { const o = AG(); if (o && o.drawFx(c, FX, T, t)) return; } drawLights(c, FX, T, t); drawBarriers(c, FX, T, t); drawWind(c, FX, T, t); },   // (v470 AB: its light in the air on the GPU)
   };
 
   /* ---- choosing ---- */

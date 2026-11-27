@@ -26,6 +26,10 @@ RiftFiend.define({ id: 'thul', name: 'Thul', title: 'The Rime Cocoon', color: '#
   const decay = (v, dt, k) => Math.max(0, (v || 0) - dt * k), toward = (v, want, dt, k) => (v || 0) + (want - (v || 0)) * Math.min(1, dt * k), lerp = (a, b, u) => a + (b - a) * u;
   const lerpA = (a, b, u) => { let d = b - a; while (d > Math.PI) d -= TAU; while (d < -Math.PI) d += TAU; return a + d * u; };
   const easeOut = u => 1 - Math.pow(1 - clamp(u, 0, 1), 3), easeBack = u => { u = clamp(u, 0, 1); const s = 1.7; return 1 + (s + 1) * Math.pow(u - 1, 3) + s * Math.pow(u - 1, 2); };
+  /* (v470 AB) the GPU model and its light (THULC_GL, 20z4a-thul-gl.js); without them the 2D Thul, its 2D effects and overlay. hpK: the rift's
+     main-boss health factor (foeK.boss: Rift 05's defRift bossHpK), its blows and weak points 1 / hpK, as the Sepulchre's bosses */
+  const AG = () => { try { return typeof THULC_GL !== 'undefined' ? THULC_GL : null; } catch (e) { return null; } }, agOn = () => { const o = AG(); return !!(o && o.gpu()); };
+  const hpK = FX => { const F = FX && FX.F && FX.F.rift && FX.F.rift.foeK; return F && F.boss > 0 ? F.boss : 1; }, KEEP2D = { every: 2, pad: 3 };
   // the painter's palette
   const NAVY_DK = '#0C1830', NAVY_HI = '#33507E', SNOW_SH = '#A6C0D2', SNOW_HI = '#FFFFFF', ROOT = '#151B28', ROOT_SH = '#070A12', ROOT_HI = '#3C4C6C', WARN = '#FF8A6E', ICE_SH = '#4F7FA0';
   /* the cave: 26 m across; two windbreak pillars (2 m thick, 4.4 m tall); the wind from the mouth (north) */
@@ -47,9 +51,11 @@ RiftFiend.define({ id: 'thul', name: 'Thul', title: 'The Rime Cocoon', color: '#
     props(C) { return PILLARS(C).map((p, i) => ({ kind: 'pillar', i, x: p.x, y: p.y + 1.05, px: p.x, py: p.y })); },
     paintGround(c, A) { paintFloor(c, A); },
     sky(c, W, H, t, cam, T) { paintCave(c, W, H, t, cam, T); },
-    overlay(c, FX, t, T) { drawOverlay(c, FX, t, T); },
+    overlay(c, FX, t, T) { { const o = AG(); if (o && o.overlay && o.overlay(c, FX, t, T)) return; } drawOverlay(c, FX, t, T); },   // (v470 AB: the light of its warnings on the ice, on the GPU)
+    RIG: { cocoonGeo: (m, M) => cocoonGeo(m, M), legPts: (i, f, a, h, M) => legPts(i, f, a, h, M), waspPose: (m, M) => waspPose(m, M), restFoot: (m, M, i) => restFoot(m, M, i), leePoly: (w, s) => leePoly(w, s), shelters: M => shelters(M), inPoly: (P, x, y) => inPoly(P, x, y), RX, RZ, APEX, FW, HW, AR, WIND, LEGS },   // (v470 AB: the skeleton the GPU model is posed on)
+    get MODEL() { return AG(); }, preload(P) { const o = AG(); return o ? o.preload(P) : []; },
     /* ---- the fight ---- */
-    init(FX) { const M = FX.mem, m = FX.m, C = FX.C; m.noTouch = true; m.x = C.x; m.y = C.y - 4.2; m.act = 'enter';
+    init(FX) { const M = FX.mem, m = FX.m, C = FX.C; m.noTouch = true; m.x = C.x; m.y = C.y - 4.2; m.act = 'enter'; if (AG() && AG().init) AG().init(FX);   // (v470 AB: its warnings marked for light)
       const wb = PILLARS(C).map((p, i) => ({ kind: 'pillar', i, x: p.x, y: p.y, r: PILR, alive: true, crack: 0, mark: 0, k: 1, half: 2.0, th: 0.5, fall: 0 }));
       FX.S.props.forEach(p => { if (p.kind === 'pillar') p.wb = wb[p.i]; });
       Object.assign(M, { bt: 0, hd: Math.PI / 2, hdTo: Math.PI / 2, look: [0, 0], lookTo: [0, 0], lookT: 0.5, blink: 0, blinkT: 2.5, eye: 0.55, menace: 0, recoil: 0, roar: 0, hitK: 0,
@@ -84,10 +90,10 @@ RiftFiend.define({ id: 'thul', name: 'Thul', title: 'The Rime Cocoon', color: '#
       FX.parts(bodyParts(m, M));
     },
     stunned(FX, m, dt) { const M = FX.mem; M.menace = decay(M.menace, dt, 4); m.noTouch = true;
-      if (M.stunKind === 'stuck') { const p = stingRoot(m, M); FX.weak('sting', p[0], p[1] - p[2], 1.3, 2.4, m.stunT > 0.05);
+      if (M.stunKind === 'stuck') { const p = stingRoot(m, M); FX.weak('sting', p[0], p[1] - p[2], 1.3, 2.4 / hpK(FX), m.stunT > 0.05);   // (v470 AB: its blows 1 / foeK.boss)
         // stuck fast: it wrenches at the stinger, wings thrashing, ice spitting from round the tip
         M.kickT = (M.kickT || 0) - dt; if (M.kickT <= 0) { M.kickT = 0.2; const q = M.stuckAt; if (q) FX.H.sparks(q[0] + FX.rnd(-0.3, 0.3), q[1], ICE_HI, 4, 4); if (Math.random() < 0.3) { FX.H.shake(1.5, 0.08); FX.H.sfx.thud(); } } }
-      else { const p = eyeAt(m, M); FX.weak('eye', p[0], p[1] - p[2], 1.2, 2.4, m.stunT > 0.05);
+      else { const p = eyeAt(m, M); FX.weak('eye', p[0], p[1] - p[2], 1.2, 2.4 / hpK(FX), m.stunT > 0.05);   // (v470 AB: its blows 1 / foeK.boss)
         M.kickT = (M.kickT || 0) - dt; if (M.kickT <= 0) { M.kickT = 0.25; FX.H.part({ kind: 'snow', x: m.x + FX.rnd(-2, 2), y: m.y + FX.rnd(-0.5, 0.8), vx: FX.rnd(-0.5, 0.5), vy: -1, life: 0.6, max: 0.6, size: 2 }); if (Math.random() < 0.2) FX.H.shake(1.2, 0.08); } }
       FX.parts(bodyParts(m, M)); },
     update(FX, dt) { const M = FX.mem, m = FX.m; if (!m) return; M.bt += dt; const stun = m.stunT > 0;
@@ -105,15 +111,16 @@ RiftFiend.define({ id: 'thul', name: 'Thul', title: 'The Rime Cocoon', color: '#
       M.wb.forEach(w => { if (w.kind === 'wall') w.k = Math.min(1, w.k + dt / 0.9); });
       updHail(FX, m, M, dt); updWave(FX, m, M, dt); updShards(FX, M, dt);
       const leeOn = !!(M.hail && !M.hail.done) || !!(M.gale && M.gale.blowing !== false && M.gale.age < M.gale.end) || m.act === 'ram'; M.leeK = toward(M.leeK, leeOn ? 1 : 0, dt, leeOn ? 6 : 3); },
-    dmgK(FX, m) { const M = FX.mem; if (M) { M.recoil = Math.max(M.recoil || 0, 0.35); M.hitK = 1; } return m.act === 'ram' || m.act === 'hatch' ? 0.3 : 1; },
+    dmgK(FX, m) { const M = FX.mem; if (M) { M.recoil = Math.max(M.recoil || 0, 0.35); M.hitK = 1; } return (m.act === 'ram' || m.act === 'hatch' ? 0.3 : 1) / hpK(FX); },   // (v470 AB: the rift's main-boss health, foeK.boss times)
     // the camera: drawn toward the creature's body (high over its feet), never so far the pet leaves the screen; the hatch
     // framed closer
     camFocus(FX, m) { const M = FX.mem, me = FX.me; if (!M || !M.wb || m.dead || m.act === 'enter') return null; const hatch = m.act === 'hatch' || (M.hatch && M.em < 1), x = m.x, y = m.y - (hatch ? 2.6 : M.hatched ? Math.min(4, M.alt) * 0.6 : 2.2), d = Math.hypot(x - me.x, y - me.y) || 1; return { x, y, k: Math.min(hatch ? 0.62 : 0.38, (hatch ? 4.2 : 3.2) / d), zoom: hatch ? 0.6 : undefined }; },
-    keep: { every: 2, pad: 3 },
-    draw(c, FX, m, X, Y, T, t) { const M = FX.mem; Y += (m.z || 0) * T * 4; if (M.hatched) drawWasp(c, FX, m, X, Y, T, t); else drawCocoonBoss(c, FX, m, X, Y, T, t); },
-    drawProp(c, FX, p, X, Y, T, t) { if (p.kind === 'pillar') drawWindbreak(c, FX, p, T, t); else if (p.kind === 'husk') drawHusk(c, FX, p, T, t); },
-    drawObj(c, FX, o, X, Y, T, t) { if (o.kind === 'collar') { const k = 0.6 + 0.4 * Math.sin(t * 9); c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = TN.rgba(ICE_HI, 0.35 + 0.3 * k); c.lineWidth = Math.max(2, T * 0.08); c.setLineDash([T * 0.3, T * 0.2]); c.lineDashOffset = -t * T * 2; c.beginPath(); c.ellipse(X, Y, o.r * T * 1.1, o.r * T * 0.45, 0, 0, TAU); c.stroke(); c.restore(); } },
-    drawFx(c, FX, T, t) { drawAir(c, FX, T, t); },
+    get keep() { return agOn() ? null : KEEP2D; },   // (v470 AB: the GPU model is drawn every frame, one pass; the 2D one kept as before)
+    draw(c, FX, m, X, Y, T, t) { const M = FX.mem; Y += (m.z || 0) * T * 4; { const o = AG(); if (o && o.drawBoss(c, FX, m, X, Y, T, t)) return; } if (M.hatched) drawWasp(c, FX, m, X, Y, T, t); else drawCocoonBoss(c, FX, m, X, Y, T, t); },   // (v470 AB: the GPU model, else the 2D Thul)
+    drawProp(c, FX, p, X, Y, T, t) { if (p.kind === 'pillar') drawWindbreak(c, FX, p, T, t); else if (p.kind === 'husk') { const o = AG(); if (!(o && o.drawHusk(c, FX, p, T, t))) drawHusk(c, FX, p, T, t); } },   // (v470 AB: the empty legs on the GPU)
+    drawObj(c, FX, o, X, Y, T, t) { if (o.kind === 'collar') { { const g = AG(); if (g && g.drawCollar && g.drawCollar(c, FX, o, X, Y, T, t)) return; }   // (v470 AB: a ring of cold light on the GPU)
+      const k = 0.6 + 0.4 * Math.sin(t * 9); c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = TN.rgba(ICE_HI, 0.35 + 0.3 * k); c.lineWidth = Math.max(2, T * 0.08); c.setLineDash([T * 0.3, T * 0.2]); c.lineDashOffset = -t * T * 2; c.beginPath(); c.ellipse(X, Y, o.r * T * 1.1, o.r * T * 0.45, 0, 0, TAU); c.stroke(); c.restore(); } },
+    drawFx(c, FX, T, t) { { const o = AG(); if (o && o.drawFx && o.drawFx(c, FX, T, t)) return; } drawAir(c, FX, T, t); },   // (v470 AB: its light in the air on the GPU)
   };
 
   /* ---------- the fight's pieces ---------- */

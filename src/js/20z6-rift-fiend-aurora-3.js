@@ -29,6 +29,10 @@ RiftFiend.define({ id: 'ahuul', name: 'Ahuul', title: 'The White Horizon', color
   const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]], sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], mul = (a, k) => [a[0] * k, a[1] * k, a[2] * k], dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
   const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]], norm = a => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; }, mix3 = (a, b, u) => [lerp(a[0], b[0], u), lerp(a[1], b[1], u), lerp(a[2], b[2], u)];
   const EMBER = '#FFC46B', EMBER_HI = '#FFF1C8', INK2 = '#0B1426';
+  /* (v470 AB) the GPU model and its light (AHUUL_GL, 20z6a-ahuul-gl.js); without them the 2D whale and its 2D effects. hpK: the rift's
+     main-boss health factor (foeK.boss), its blows and weak point 1 / hpK, as the Sepulchre's bosses */
+  const AG = () => { try { return typeof AHUUL_GL !== 'undefined' ? AHUUL_GL : null; } catch (e) { return null; } };
+  const hpK = FX => { const F = FX && FX.F && FX.F.rift && FX.F.rift.foeK; return F && F.boss > 0 ? F.boss : 1; };
   /* the summit: an oval 36 m across; three buttresses (their hearths, and the way into each); the pedestal; the telescope */
   const RX = 18, RY = 13, PED = [0, 1.2], SCOPE = [7.6, -7.4], NOOK = 1.8;
   const SH = [{ x: -11.4, y: 1.6, oa: 0 }, { x: 11.4, y: 1.6, oa: Math.PI }, { x: 0, y: 9.2, oa: -Math.PI / 2 }];
@@ -67,12 +71,14 @@ RiftFiend.define({ id: 'ahuul', name: 'Ahuul', title: 'The White Horizon', color
     drawProp(c, FX, p, X, Y, T, t) { if (p.kind === 'shelter') drawShelter(c, FX, p, X, Y, T, t); else if (p.kind === 'scope') drawScope(c, FX, p, X, Y, T, t); },
     paintGround(c, A) { paintSummit(c, A); },
     sky(c, W, H, t, cam, T) { paintSky(c, W, H, T); },
-    overlay(c, FX, t, T) { drawOverlay(c, FX, t, T); },
+    overlay(c, FX, t, T) { { const o = AG(); if (o && o.overlay(c, FX, t, T)) return; } drawOverlay(c, FX, t, T); },   // (v470 AB: the sweep's half, the wave, the lit shelter and its warnings in light first; the 2D overlay leaves those to it: M.aurGL)
+    RIG: { FINP, FLUKE, LF, CF, L, RX, RY, NOOK, PED, nookAt: (C, k) => nookAt(C, k), demoPose: (FX, m) => !!demoSetup(FX, m) },   // (v470 AB: what the GPU model is built and posed from)
+    get MODEL() { return AG(); }, preload(P) { const o = AG(); return o ? o.preload(P) : []; },
     camFocus(FX, m) { const M = FX.mem, P = M.P, C = FX.C; if (!P || m.dead) return null; if (m.act === 'enter') return { x: C.x, y: C.y - 14, k: 0.5, zoom: 0.56 };
       if (P.over > 0.5 || m.act === 'rise' || m.act === 'tether') return { x: C.x, y: C.y - 3.5, k: 0.5, zoom: 0.5 };
       const h = M.headC || [m.x, m.y, 3]; return { x: h[0], y: h[1] - h[2] - (m.stunT > 0 ? 0 : 2.5), k: m.stunT > 0 ? 0.42 : 0.45, zoom: m.stunT > 0 ? 0.56 : 0.56 }; },
     /* ---- the fight ---- */
-    init(FX) { const M = FX.mem, m = FX.m, C = FX.C; m.act = 'enter'; m.noTouch = true; m.touchK = 0;
+    init(FX) { const M = FX.mem, m = FX.m, C = FX.C; m.act = 'enter'; m.noTouch = true; m.touchK = 0; if (AG()) AG().init(FX);   // (v470 AB: its warnings marked for light)
       Object.assign(M, { bt: 0, q: [], qt: 0, seen: {}, picks: 0, nextSig: null, recoil: 0, roar: 0, ventK: 0, eyeK: 1, finGlow: { '-1': 0, '1': 0 }, sw: null, wave: null, br: null, rs: null, wind: null, teth: null, bubble: null, frost: null, stunPt: null, wasStun: false, wasEnter: true, roared: false, mistT: 0, hdx: 0,
         stat: { sweeps: 0, sweepHit: 0, sweepSafe: 0, breaths: 0, warm: 0, frost: 0, falls: 0, shadowHit: 0, hail: 0, safe: 0, yanks: 0 },
         ember: { x: C.x + PED[0], y: C.y + PED[1], st: 'rest', t: 0, k: -1 },
@@ -97,7 +103,7 @@ RiftFiend.define({ id: 'ahuul', name: 'Ahuul', title: 'The White Horizon', color
       }
       if (!m.under) FX.parts(headParts(m, M));
     },
-    stunned(FX, m, dt) { const M = FX.mem; M.tgName = 'stun'; m.noTouch = true; const p = throatAt(M); if (p) FX.weak('throat', p[0], p[1] - p[2], 1.7, 2.4, m.stunT > 0.05);
+    stunned(FX, m, dt) { const M = FX.mem; M.tgName = 'stun'; m.noTouch = true; const p = throatAt(M); if (p) FX.weak('throat', p[0], p[1] - p[2], 1.7, 2.4 / hpK(FX), m.stunT > 0.05);   // (v470 AB: its blows 1 / foeK.boss)
       M.shT = (M.shT || 0) - dt; if (M.shT <= 0) { M.shT = 0.4; FX.H.shake(1.5, 0.1); if (p) FX.H.sparks(p[0] + FX.rnd(-1, 1), p[1] - p[2] + FX.rnd(-0.5, 0.5), GREEN_HI, 4, 3); } },
     update(FX, dt) { const M = FX.mem, m = FX.m, C = FX.C, me = FX.me; if (!m || !M.P) return; M.bt += dt;
       // fallen: the white horizon dissolves, rising and coming apart into green stars (the wind and the frost let go)
@@ -128,7 +134,7 @@ RiftFiend.define({ id: 'ahuul', name: 'Ahuul', title: 'The White Horizon', color
       // the breath's mist, rolling out of its mouth over the summit
       if (M.br && M.br.st === 'exhale' && M.frost) { M.mistT -= dt; if (M.mistT <= 0) { M.mistT = 0.05; const sn = M.G.snout; FX.H.part({ kind: 'smoke', x: sn[0] + FX.rnd(-1.5, 1.5), y: sn[1] - sn[2] + 1, vx: FX.rnd(-3, 3), vy: FX.rnd(4, 8), drag: 0.6, life: 1.6, max: 1.6, size: 2.2, color: '#EAF4F8' }); } }
       if (M.br && M.br.st === 'inhale' && Math.random() < dt * 14) { const a = Math.random() * TAU; FX.H.part({ kind: 'snow', x: C.x + Math.cos(a) * RX * 0.8 * Math.random(), y: C.y + Math.sin(a) * RY * 0.8 * Math.random(), vx: (M.G.snout[0] - C.x) * 0.25, vy: (M.G.snout[1] - M.G.snout[2] - C.y) * 0.25, life: 1.3, max: 1.3, size: 2 + Math.random() * 1.5, color: '#FFFFFF' }); } },
-    dmgK(FX, m) { const M = FX.mem; M.recoil = Math.max(M.recoil || 0, 0.35); return m.act === 'bow' ? 1.5 : 0.8; },
+    dmgK(FX, m) { const M = FX.mem; M.recoil = Math.max(M.recoil || 0, 0.35); return (m.act === 'bow' ? 1.5 : 0.8) / hpK(FX); },   // (v470 AB: the rift's main-boss health, foeK.boss times)
     onWeakHit(FX) { FX.mem.recoil = 1; },
     // (it is painted over everything that stands on the summit: it is above them all)
     draw(c, FX, m, X, Y, T, t) { if (!(FX.S && FX.S.started)) demoPaint(c, FX, m, X, Y, T, t); },
@@ -335,16 +341,21 @@ RiftFiend.define({ id: 'ahuul', name: 'Ahuul', title: 'The White Horizon', color
     if (fl) { g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = 'source-atop'; g.fillStyle = 'rgba(255,248,240,.32)'; g.fillRect(0, 0, offCv.width, offCv.height); g.globalCompositeOperation = 'source-over'; }
     c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha *= a; c.drawImage(offCv, 0, 0); c.restore(); }
   // previews and the art sheet: a fight-less pose about the given anchor
-  function demoPaint(c, FX, m, X, Y, T, t) { const C = FX.C || { x: m.x, y: m.y + 8 }, M = FX.mem || {}; const F2 = { C, mem: M, me: { x: C.x, y: C.y + 4 } }; if (!M.P) { M.bt = M.bt || 0; M.recoil = 0; if (M.demoSweep) M.sw = { side: -1, k: 0 }; if (M.demoStun) M.stunPt = { x: C.x, y: C.y - 5 }; M.P = pose(F2, M.demoStun ? 'stun' : M.demoInhale ? 'inhale' : M.demoSweep ? 'sweep' : 'perch'); M.P.flex = 0; M.P.alpha = 1; M.eyeK = 1; M.finGlow = { '-1': M.demoSweep ? 1 : 0, '1': 0 }; }
-    M.G = build(M.P, M.bt || 0, M); const P3 = TN.cam(X, Y, T, m); paintWhale(c, F2, m, P3, T, t); }
+  function demoPaint(c, FX, m, X, Y, T, t) { { const o = AG(); if (o && o.demo(c, FX, m, X, Y, T, t)) return; }   // (v470 AB: the GPU model)
+    const C = FX.C || { x: m.x, y: m.y + 8 }, M = FX.mem || {}; const F2 = demoSetup(FX, m); paintWhale(c, F2, m, TN.cam(X, Y, T, m), T, t); }
+  // (v470 AB) the fight-less pose about the given anchor (shared by the 2D picture and the GPU model)
+  function demoSetup(FX, m) { const C = FX.C || { x: m.x, y: m.y + 8 }, M = FX.mem || {}; const F2 = { C, mem: M, me: { x: C.x, y: C.y + 4 } }; if (!M.P) { M.bt = M.bt || 0; M.recoil = 0; if (M.demoSweep) M.sw = { side: -1, k: 0 }; if (M.demoStun) M.stunPt = { x: C.x, y: C.y - 5 }; M.P = pose(F2, M.demoStun ? 'stun' : M.demoInhale ? 'inhale' : M.demoSweep ? 'sweep' : 'perch'); M.P.flex = 0; M.P.alpha = 1; M.eyeK = 1; M.finGlow = { '-1': M.demoSweep ? 1 : 0, '1': 0 }; }
+    M.G = build(M.P, M.bt || 0, M); return F2; }
 
   /* ---------- the effects over the summit: the whale, the chain, the ember, the motes, the targets ---------- */
   function drawFx(c, FX, T, t) { const M = FX.mem, m = FX.m, C = FX.C; if (!m || !M.G) return; c.save();
     // the starfall: motes high over their rings, falling faster toward the end
-    for (const s of FX.S.tele) { if (s.done || !s.mote) continue; const u = clamp(s.age / s.t, 0, 1), X = FX.sx(s.x), Y = FX.sy(s.y) - (1 - u * u) * T * 12; TN.twinkle(c, X, Y, T * 0.35, '#FFFFFF', 0.95); K.glow(c, X, Y, T * 0.9, ICE_HI, 0.6); c.strokeStyle = 'rgba(207,232,244,.5)'; c.lineWidth = T * 0.12; c.beginPath(); c.moveTo(X, Y - T * 1.6); c.lineTo(X, Y - T * 0.3); c.stroke(); }
-    drawWhale(c, FX, m, T, t);
+    const AGo = AG(), gp = !!(AGo && M.aurGL && AGo.gpu());   // (v470 AB: the whale, the motes, the breath and the throat's mark on the GPU; the 2D ones else)
+    if (!gp) for (const s of FX.S.tele) { if (s.done || !s.mote) continue; const u = clamp(s.age / s.t, 0, 1), X = FX.sx(s.x), Y = FX.sy(s.y) - (1 - u * u) * T * 12; TN.twinkle(c, X, Y, T * 0.35, '#FFFFFF', 0.95); K.glow(c, X, Y, T * 0.9, ICE_HI, 0.6); c.strokeStyle = 'rgba(207,232,244,.5)'; c.lineWidth = T * 0.12; c.beginPath(); c.moveTo(X, Y - T * 1.6); c.lineTo(X, Y - T * 0.3); c.stroke(); }
+    if (!(AGo && AGo.drawWhale(c, FX, m, T, t))) drawWhale(c, FX, m, T, t);
+    if (gp) AGo.drawFx(c, FX, T, t);
     // the breath: a stream of pale frost rolling out of its mouth over the summit
-    if (M.br && M.br.st === 'exhale' && M.frost) { const sn = M.G.snout, X0 = FX.sx(sn[0]), Y0 = FX.sy(sn[1]) - sn[2] * T, tx = FX.sx(C.x), ty = FX.sy(C.y + 3), Z = M.frost, fade = clamp(Z.age / 0.3, 0, 1) * clamp((Z.life - Z.age) / 0.8, 0, 1);
+    if (!gp && M.br && M.br.st === 'exhale' && M.frost) { const sn = M.G.snout, X0 = FX.sx(sn[0]), Y0 = FX.sy(sn[1]) - sn[2] * T, tx = FX.sx(C.x), ty = FX.sy(C.y + 3), Z = M.frost, fade = clamp(Z.age / 0.3, 0, 1) * clamp((Z.life - Z.age) / 0.8, 0, 1);
       c.save(); c.globalAlpha = fade; for (let k = 0; k < 21; k++) { const u = (t * 0.8 + k / 21) % 1, sp = ((k % 3) - 1) * u * T * 6, x = lerp(X0, tx, u) + sp, y = lerp(Y0, ty, u) + Math.sin(k * 2.1 + t * 3) * T * 0.5, r = T * (0.5 + u * 2.3); c.fillStyle = `rgba(150,195,225,${0.3 * (1 - u * 0.7)})`; c.beginPath(); c.arc(x, y + r * 0.15, r, 0, TAU); c.fill(); c.fillStyle = `rgba(236,246,252,${0.6 * (1 - u * 0.7)})`; c.beginPath(); c.arc(x - r * 0.12, y - r * 0.1, r * 0.82, 0, TAU); c.fill(); if (k % 4 === 0) TN.twinkle(c, x + r * 0.3, y - r * 0.2, T * 0.25, '#FFFFFF', 0.8 * (1 - u)); } c.restore(); }
     // the lit shelter: a column of light over its hearth, named, and an arrow at the screen's edge while it is off it
     { const lit = M.br && M.br.st === 'inhale' ? [M.br.k, EMBER] : M.rs && m.act === 'rise' ? [M.rs.k, GREEN_HI] : null;
@@ -358,7 +369,8 @@ RiftFiend.define({ id: 'ahuul', name: 'Ahuul', title: 'The White Horizon', color
     // the warm bubble: a dome of amber light over the hearth
     if (M.bubble) { const B = M.bubble, X = FX.sx(B.x), Y = FX.sy(B.y), r = B.r * T * Math.min(1, B.t / 0.4); c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.18 + 0.05 * Math.sin(t * 3); c.fillStyle = EMBER; c.beginPath(); c.ellipse(X, Y - r * 0.15, r, r * 0.95, 0, Math.PI, TAU); c.ellipse(X, Y, r, r * 0.45, 0, 0, Math.PI); c.fill(); c.globalAlpha = 0.6; c.strokeStyle = EMBER_HI; c.lineWidth = Math.max(1.5, T * 0.07); c.beginPath(); c.ellipse(X, Y - r * 0.15, r, r * 0.95, 0, Math.PI, TAU); c.stroke(); c.restore(); }
     // targets: the bared throat; the head while it rests low
-    if (m.stunT > 0 && FX.S.weak.throat && !FX.S.weak.throat.dead) { const w = FX.S.weak.throat, X = FX.sx(w.x), Y = FX.sy(w.y), pu = 0.5 + 0.5 * Math.sin(t * 7); c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = GREEN_HI; c.globalAlpha = 0.6 + 0.4 * pu; c.lineWidth = Math.max(2, T * 0.12); c.beginPath(); c.arc(X, Y, T * (1.5 + pu * 0.3), 0, TAU); c.stroke(); c.restore(); label(c, 'THROAT', X, Y - T * 2.0, T, GREEN_HI); }
+    if (gp) { if (m.stunT > 0 && FX.S.weak.throat && !FX.S.weak.throat.dead) label(c, 'THROAT', FX.sx(FX.S.weak.throat.x), FX.sy(FX.S.weak.throat.y) - T * 2.0, T, GREEN_HI); }   // (v470 AB: its marks drawn on the GPU)
+    else if (m.stunT > 0 && FX.S.weak.throat && !FX.S.weak.throat.dead) { const w = FX.S.weak.throat, X = FX.sx(w.x), Y = FX.sy(w.y), pu = 0.5 + 0.5 * Math.sin(t * 7); c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = GREEN_HI; c.globalAlpha = 0.6 + 0.4 * pu; c.lineWidth = Math.max(2, T * 0.12); c.beginPath(); c.arc(X, Y, T * (1.5 + pu * 0.3), 0, TAU); c.stroke(); c.restore(); label(c, 'THROAT', X, Y - T * 2.0, T, GREEN_HI); }
     else if (m.act === 'bow' && M.headC) { const h = M.headC, X = FX.sx(h[0]), Y = FX.sy(h[1]) - h[2] * T, pu = 0.5 + 0.5 * Math.sin(t * 5); c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = GREEN_HI; c.globalAlpha = 0.35 + 0.3 * pu; c.lineWidth = Math.max(2, T * 0.1); c.setLineDash([T * 0.4, T * 0.3]); c.lineDashOffset = -t * T; c.beginPath(); c.ellipse(X, Y, T * 3.0, T * 2.2, 0, 0, TAU); c.stroke(); c.restore(); }
     c.restore(); }
   function label(c, s, X, Y, T, col) { c.save(); c.font = `900 ${Math.max(10, Math.round(T * 0.42))}px ${arcFont}`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineWidth = 3.5; c.strokeStyle = 'rgba(0,0,0,.6)'; c.strokeText(s, X, Y); c.fillStyle = col; c.fillText(s, X, Y); c.restore(); }
@@ -372,17 +384,18 @@ RiftFiend.define({ id: 'ahuul', name: 'Ahuul', title: 'The White Horizon', color
     { const S = M.G.shadow, ov = clamp(M.G.P.over || 0, 0, 1), rs = m && m.act === 'rise' && M.rs, warn = rs ? clamp((FX.S.t - M.rs.t0) / 6.6, 0, 1) : 0; c.save(); plat(); c.clip(); c.fillStyle = `rgba(10,26,51,${0.13 + ov * 0.33})`; c.beginPath(); for (const poly of S) { poly.forEach(([x, y], i) => { const X = FX.sx(x), Y = FX.sy(y); i ? c.lineTo(X, Y) : c.moveTo(X, Y); }); c.closePath(); } c.fill('nonzero');
       if (warn > 0) { c.strokeStyle = `rgba(207,232,244,${0.35 + 0.45 * Math.abs(Math.sin(t * (4 + warn * 10)))})`; c.lineWidth = Math.max(2, T * 0.12); c.stroke(); } c.restore(); }
     // the sweep: the threatened half frosted over, chevrons running the way the fin will come
-    if (M.sw && !(M.sw.k > 0)) { const S2 = M.sw, u = clamp((FX.S.t - (S2.t0 || (S2.t0 = FX.S.t))) / S2.W, 0, 1), sd = S2.side; c.save(); plat(); c.clip(); c.beginPath(); c.rect(sd < 0 ? X0 - RX * T - 4 : X0 + 0.5 * T, Y0 - RY * T - 4, RX * T - 0.5 * T + 4, RY * T * 2 + 8); c.clip();
+    const gp = !!M.aurGL && !!AG() && AG().gpu();   // (v470 AB: drawn in light by its GPU overlay)
+    if (!gp && M.sw && !(M.sw.k > 0)) { const S2 = M.sw, u = clamp((FX.S.t - (S2.t0 || (S2.t0 = FX.S.t))) / S2.W, 0, 1), sd = S2.side; c.save(); plat(); c.clip(); c.beginPath(); c.rect(sd < 0 ? X0 - RX * T - 4 : X0 + 0.5 * T, Y0 - RY * T - 4, RX * T - 0.5 * T + 4, RY * T * 2 + 8); c.clip();
       c.fillStyle = `rgba(60,120,175,${0.1 + u * 0.18})`; c.fillRect(X0 - RX * T - 4, Y0 - RY * T - 4, RX * T * 2 + 8, RY * T * 2 + 8);
       c.strokeStyle = `rgba(40,95,150,${0.35 + 0.4 * u})`; c.lineWidth = Math.max(2, T * 0.12); const off = (t * 2.4) % 2.4; for (let yy = -RY - 2 + off; yy < RY; yy += 2.4) for (let xx = 2; xx < RX; xx += 3.6) { const X = X0 + sd * xx * T, Y = Y0 + yy * T; c.beginPath(); c.moveTo(X - T * 0.6, Y - T * 0.3); c.lineTo(X, Y + T * 0.3); c.lineTo(X + T * 0.6, Y - T * 0.3); c.stroke(); } c.restore();
       c.save(); c.strokeStyle = `rgba(30,80,130,${0.5 + 0.4 * Math.sin(t * 10) * u})`; c.lineWidth = Math.max(2, T * 0.1); c.setLineDash([T * 0.5, T * 0.3]); c.beginPath(); c.moveTo(X0 + sd * 0.5 * T, Y0 - RY * T * 0.98); c.lineTo(X0 + sd * 0.5 * T, Y0 + RY * T * 0.98); c.stroke(); c.restore(); }
     // the wave of snow the stroke drives across the half
-    if (M.wave) { const W2 = M.wave, u = clamp(W2.t / 0.6, 0, 1), sd = W2.side, yy = Y0 + (-RY + u * RY * 2.1) * T; c.save(); plat(); c.clip(); c.beginPath(); c.rect(sd < 0 ? X0 - RX * T - 4 : X0, Y0 - RY * T - 4, RX * T + 4, RY * T * 2 + 8); c.clip(); c.globalAlpha = 1 - clamp((W2.t - 0.6) / 0.3, 0, 1); const g = c.createLinearGradient(0, yy - T * 3, 0, yy + T * 0.5); g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.8, 'rgba(240,248,252,.85)'); g.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = g; c.fillRect(X0 - RX * T, yy - T * 3, RX * T * 2, T * 3.5); c.restore(); }
+    if (!gp && M.wave) { const W2 = M.wave, u = clamp(W2.t / 0.6, 0, 1), sd = W2.side, yy = Y0 + (-RY + u * RY * 2.1) * T; c.save(); plat(); c.clip(); c.beginPath(); c.rect(sd < 0 ? X0 - RX * T - 4 : X0, Y0 - RY * T - 4, RX * T + 4, RY * T * 2 + 8); c.clip(); c.globalAlpha = 1 - clamp((W2.t - 0.6) / 0.3, 0, 1); const g = c.createLinearGradient(0, yy - T * 3, 0, yy + T * 0.5); g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.8, 'rgba(240,248,252,.85)'); g.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = g; c.fillRect(X0 - RX * T, yy - T * 3, RX * T * 2, T * 3.5); c.restore(); }
     // the pedestal's glow under the ember
-    { const px = FX.sx(C.x + PED[0]), py = FX.sy(C.y + PED[1]); c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = M.ember.st === 'rest' ? 0.45 + 0.15 * Math.sin(t * 2) : 0.12; blitSized(c, glowSprite(EMBER), px - T * 1.6, py - T * 0.9, T * 3.2, T * 1.8); c.restore(); }
+    if (!gp) { const px = FX.sx(C.x + PED[0]), py = FX.sy(C.y + PED[1]); c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = M.ember.st === 'rest' ? 0.45 + 0.15 * Math.sin(t * 2) : 0.12; blitSized(c, glowSprite(EMBER), px - T * 1.6, py - T * 0.9, T * 3.2, T * 1.8); c.restore(); }
     // a lit shelter: the one the breath spares for the ember, or the one outside the shadow
     const lit = M.br && (M.br.st === 'inhale' || M.br.st === 'exhale') ? { k: M.br.k, col: EMBER, u: M.br.st === 'inhale' ? clamp((FX.S.t - M.br.t0) / M.br.INH, 0, 1) : 1 } : M.rs && m && m.act === 'rise' ? { k: M.rs.k, col: GREEN_HI, u: clamp((FX.S.t - M.rs.t0) / 6.6, 0, 1) } : null;
-    if (lit) { const N = nookAt(C, lit.k), X = FX.sx(N[0]), Y = FX.sy(N[1]), pu = 0.5 + 0.5 * Math.sin(t * 5); c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.35 + 0.25 * pu; blitSized(c, glowSprite(lit.col), X - T * 2.6, Y - T * 1.8, T * 5.2, T * 3.6); c.globalAlpha = 0.9; c.strokeStyle = lit.col; c.lineWidth = Math.max(2, T * 0.12); c.beginPath(); c.ellipse(X, Y, T * NOOK, T * NOOK * 0.7, 0, 0, TAU); c.stroke(); c.lineWidth = Math.max(2.5, T * 0.16); c.beginPath(); c.ellipse(X, Y, T * (NOOK + 0.5), T * (NOOK + 0.5) * 0.7, 0, -Math.PI / 2, -Math.PI / 2 + TAU * (1 - lit.u)); c.stroke(); c.restore(); } }
+    if (lit && !gp) { const N = nookAt(C, lit.k), X = FX.sx(N[0]), Y = FX.sy(N[1]), pu = 0.5 + 0.5 * Math.sin(t * 5); c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.35 + 0.25 * pu; blitSized(c, glowSprite(lit.col), X - T * 2.6, Y - T * 1.8, T * 5.2, T * 3.6); c.globalAlpha = 0.9; c.strokeStyle = lit.col; c.lineWidth = Math.max(2, T * 0.12); c.beginPath(); c.ellipse(X, Y, T * NOOK, T * NOOK * 0.7, 0, 0, TAU); c.stroke(); c.lineWidth = Math.max(2.5, T * 0.16); c.beginPath(); c.ellipse(X, Y, T * (NOOK + 0.5), T * (NOOK + 0.5) * 0.7, 0, -Math.PI / 2, -Math.PI / 2 + TAU * (1 - lit.u)); c.stroke(); c.restore(); } }
   /* the breath's frost over the open summit: a pale crust that advances from the north rim, crystals glinting in it */
   function drawFrost(c, FX, z, T, t) { const M = FX.mem, C = FX.C, X0 = FX.sx(C.x), Y0 = FX.sy(C.y), fade = Math.min(1, z.age / 0.3, Math.max(0, z.life - z.age) / 0.8), front = Y0 + (-RY + Math.min(1, z.age / 0.7) * RY * 2.2) * T;
     c.save(); c.globalAlpha = fade; c.beginPath(); c.ellipse(X0, Y0, RX * T, RY * T, 0, 0, TAU); c.clip(); c.beginPath(); c.rect(X0 - RX * T - 2, Y0 - RY * T - 2, RX * T * 2 + 4, front - (Y0 - RY * T) + 2); if (M.bubble) { const B = M.bubble; c.moveTo(FX.sx(B.x) + B.r * T, FX.sy(B.y)); c.ellipse(FX.sx(B.x), FX.sy(B.y), B.r * T, B.r * T * 0.8, 0, 0, TAU, true); } c.clip('evenodd');

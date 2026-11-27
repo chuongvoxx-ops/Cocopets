@@ -3,15 +3,7 @@
 # These rifts are due to be rebuilt; when one is, delete its block so it comes back into the artifact.
 # In the artifact the game shows a left-out rift as "not built yet" (riftBuilt() is false), as it does for Rift 12.
 
-# Rift 05, The Pale Aurora (+ Capricorn gate)
-20s5-rift-05-stages.js
-20s6-rift-05-aurora.js
-20s6b-rift-05-frost.js
-20s6c-rift-05-beasts.js
-20s7-rift-gate-capricorn.js
-20z4-rift-fiend-aurora-1.js
-20z5-rift-fiend-aurora-2.js
-20z6-rift-fiend-aurora-3.js
+# (v470 AE: Rift 05, The Pale Aurora (+ Capricorn gate), rebuilt and back in the artifact: its block removed)
 
 # Rift 06, The Yuggoth Engine (+ Aquarius gate)
 20u5-rift-06-stages.js
