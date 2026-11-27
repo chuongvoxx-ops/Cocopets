@@ -110,6 +110,10 @@ function petGeom(f) {
   g.my = E.t === 'cyclops' ? ey + eyes[0][2] + 8 * k : E.t === 'quad' ? ey + r * 2 : ey + 14 * k + r * 0.35;
   g.ny = ey + (g.my - ey) * 0.55;
   g.cx = Math.min(gap + r * 1.05, faceHW * 0.8); g.cy = g.my - 1.5 * k;
+  // (v468 W) the wings grow from the upper back, below the face: at 0.54 of the height they rose from eye level, and on a
+  // short round body from beside the horns; now no higher than just under the mouth and no lower than the torso's middle
+  g.wy0 = g.wy;   // (the old root: a Legendary's fan starts from it and drops by its own rule, below)
+  { const wyT = Math.min(Math.max(g.wy, g.my + 2 * k), Y(blob ? 0.3 : ft)); if (wyT > g.wy) { const fr = (yb - wyT) / h; g.wx = -halfW(fr) * 0.5; g.wy = wyT; } }
   return g;
 }
 function rayHit(poly, cx, cy, ang) {
@@ -1178,15 +1182,28 @@ function petSVG(f, o) {
     // a Legendary's wings: each pair drawn once (shown by <use> on both sides), fanned round one root so that they never
     // overlap; each pair beats on its own, a moment after the main one (see legFlap)
     // (a butterfly's great pair comes on smaller while young and opens out at Celestial)
-    const sg = clamp(f.stage || 1, 1, 7), LGs = Object.assign({}, LG, { sg }), n = clamp(X.wings.n || 1, 1, 4), s = LEG_DRAW[sg] * k * (1 + 0.6 * (clamp(g.bw / 40, 1, 1.5) - 1)) * (LG.w === 'butterfly' ? [1, 0.82, 0.8, 0.78, 0.76, 0.74, 0.74, 0.8][sg] : 1), x0 = g.wx * 1.2, y0 = g.wy - 4 * k, LY = legLayout(LGs, n);
-    const lag = [0, 0.28, 0.28, 0.28];
-    let side = '';
-    for (let i = n - 1; i >= 0; i--) {
+    const sg = clamp(f.stage || 1, 1, 7), LGs = Object.assign({}, LG, { sg }), n = clamp(X.wings.n || 1, 1, 4), s = LEG_DRAW[sg] * k * (1 + 0.6 * (clamp(g.bw / 40, 1, 1.5) - 1)) * (LG.w === 'butterfly' ? [1, 0.82, 0.8, 0.78, 0.76, 0.74, 0.74, 0.8][sg] : 1), x0 = g.wx * 1.2, LY = legLayout(LGs, n);
+    // (v468 W) the root drops until the main pair's joints (a dragon's elbow and wrist, the inner part of the others)
+    // are no higher than the forehead (halfway from the eyes to the crown): on a short round body big wings rose from beside the horns. It stays above the belly,
+    // and the lowest pair's tips no lower than they were or a little under the feet, whichever is lower.
+    const PR = [];
+    for (let i = 0; i < n; i++) {
       // (a butterfly's swallowtails come in small at Guardian and open out to nearly the great pair's size at Celestial)
-      const si = s * (LG.w === 'butterfly' ? BF_PAIR_SC : LEG_PAIR_SC)[i] * (LG.w === 'butterfly' && i && sg < 7 ? 0.72 : 1), rot = LY.rot[i];
+      const si = s * (LG.w === 'butterfly' ? BF_PAIR_SC : LEG_PAIR_SC)[i] * (LG.w === 'butterfly' && i && sg < 7 ? 0.72 : 1);
       // (the pairs behind are a little paler, so each reads apart from the one in front)
       const Li = i ? Object.assign({}, LGs, { a: mixHex(LG.a, '#FFFFFF', 0.1 + 0.08 * i), b: mixHex(LG.b, '#FFFFFF', 0.12 + 0.1 * i), pi: i }) : LGs;
       const PT = [], WG = legWing(Li, si, i ? 1.2 + (i < 3 ? 0.1 : 0) : 1.7, i === 3 ? LY.f4 : i ? LY.fo : LY.f0, PT);
+      PR.push({ PT, WG, rot: LY.rot[i], dy: LY.dy ? LY.dy[i] * k : 0 });
+    }
+    const y00 = g.wy0 - 4 * k; let y0 = y00;
+    { let md = 0, top = 1e9, bot = -1e9; PR[0].PT.forEach(p => { md = Math.max(md, Math.hypot(p[0], p[1])); });
+      PR.forEach((R, i) => { const c = Math.cos(R.rot * Math.PI / 180), sn = Math.sin(R.rot * Math.PI / 180);
+        R.PT.forEach(([x, y]) => { const yy = x * sn + y * c; bot = Math.max(bot, yy + R.dy); if (!i && Math.hypot(x, y) <= md * 0.55) top = Math.min(top, yy); }); });
+      if (top < 1e9) y0 = Math.max(y00, Math.min((g.top + g.ey) / 2 - top, g.Y(g.blob ? 0.28 : g.ft * 0.85), Math.max(y00, 4 * k - bot))); }
+    const lag = [0, 0.28, 0.28, 0.28];
+    let side = '';
+    for (let i = n - 1; i >= 0; i--) {
+      const { PT, WG, rot } = PR[i];
       // (a butterfly's swallowtails hang from lower on its back: dy, in the picture's units)
       const y0i = y0 + (LY.dy ? LY.dy[i] * k : 0), WI = { x0, y0: y0i, rot, mid: LY.mid[i], lag: lag[i], k: i === 3 ? 0.35 : 1, g: WG, bb: [1e9, 1e9, -1e9, -1e9] };
       if (split) SP.wings.push(WI); else defs += `<g id="${id}w${i}">${WG}</g>`;

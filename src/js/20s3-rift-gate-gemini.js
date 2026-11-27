@@ -77,7 +77,9 @@
   function segX(p, q, r, s) { const d1x = q[0] - p[0], d1y = q[1] - p[1], d2x = s[0] - r[0], d2y = s[1] - r[1], den = d1x * d2y - d1y * d2x; if (Math.abs(den) < 1e-9) return null; const u = ((r[0] - p[0]) * d2y - (r[1] - p[1]) * d2x) / den, v = ((r[0] - p[0]) * d1y - (r[1] - p[1]) * d1x) / den; return u >= 0 && u <= 1 && v >= 0 && v <= 1 ? [p[0] + d1x * u, p[1] + d1y * u] : null; }
   const inChamber = (x, y) => Math.hypot(x - CC.x, y - CC.y) < CR - 0.35;
   const onFloorTile = (tx, ty) => Math.hypot(tx + 0.5 - CC.x, ty + 0.5 - CC.y) < CR;
-  const onArenaTile = (tx, ty) => Math.hypot(tx + 0.5 - BA.x, ty + 0.5 - BA.y) < BR && ty <= 26;
+  // (v468b) the rim row by the bridge (x 20..22, y 26) is the sanctum's threshold: the circle (< 11 from the centre) left it
+  // wall, so a pet walking off the bridge stopped one tile short of the seal line and could never get in
+  const onArenaTile = (tx, ty) => (Math.hypot(tx + 0.5 - BA.x, ty + 0.5 - BA.y) < BR && ty <= 26) || (ty === 26 && tx >= 20 && tx <= 22);
   const onBridge = (tx, ty) => tx >= 20 && tx <= 22 && ty >= 27 && ty <= 29;
   // the layout (map = layout + 1)
   const MW = 43, MH = 50;
