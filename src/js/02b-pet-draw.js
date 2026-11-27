@@ -1185,7 +1185,8 @@ function petSVG(f, o) {
     const sg = clamp(f.stage || 1, 1, 7), LGs = Object.assign({}, LG, { sg }), n = clamp(X.wings.n || 1, 1, 4), s = LEG_DRAW[sg] * k * (1 + 0.6 * (clamp(g.bw / 40, 1, 1.5) - 1)) * (LG.w === 'butterfly' ? [1, 0.82, 0.8, 0.78, 0.76, 0.74, 0.74, 0.8][sg] : 1), x0 = g.wx * 1.2, LY = legLayout(LGs, n);
     // (v468 W) the root drops until the main pair's joints (a dragon's elbow and wrist, the inner part of the others)
     // are no higher than the forehead (halfway from the eyes to the crown): on a short round body big wings rose from beside the horns. It stays above the belly,
-    // and the lowest pair's tips no lower than they were or a little under the feet, whichever is lower.
+    // and it drops at most 24 (x k): a Celestial's four-pair fan, whose lowest pair already hung past the feet, now drops too
+    // (v469c: a floor cap held the user's Celestial Cloverkin at its old height); that pair hangs a little further behind the feet.
     const PR = [];
     for (let i = 0; i < n; i++) {
       // (a butterfly's swallowtails come in small at Guardian and open out to nearly the great pair's size at Celestial)
@@ -1199,7 +1200,7 @@ function petSVG(f, o) {
     { let md = 0, top = 1e9, bot = -1e9; PR[0].PT.forEach(p => { md = Math.max(md, Math.hypot(p[0], p[1])); });
       PR.forEach((R, i) => { const c = Math.cos(R.rot * Math.PI / 180), sn = Math.sin(R.rot * Math.PI / 180);
         R.PT.forEach(([x, y]) => { const yy = x * sn + y * c; bot = Math.max(bot, yy + R.dy); if (!i && Math.hypot(x, y) <= md * 0.55) top = Math.min(top, yy); }); });
-      if (top < 1e9) y0 = Math.max(y00, Math.min((g.top + g.ey) / 2 - top, g.Y(g.blob ? 0.28 : g.ft * 0.85), Math.max(y00, 4 * k - bot))); }
+      if (top < 1e9) y0 = Math.max(y00, Math.min((g.top + g.ey) / 2 - top, g.Y(g.blob ? 0.28 : g.ft * 0.85), y00 + 24 * k)); }
     const lag = [0, 0.28, 0.28, 0.28];
     let side = '';
     for (let i = n - 1; i >= 0; i--) {
