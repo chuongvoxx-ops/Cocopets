@@ -372,6 +372,24 @@ const CAL_MINI = (() => {
     if (m.ecast > 0) { syk *= 1 + 0.06 * m.ecast; sxk *= 1 - 0.03 * m.ecast; }
     const bob = moving ? Math.abs(Math.sin(m.ewalk)) * r * 0.08 : 0, fy = foot - bob;
     let sc = 1; try { const tf = c.getTransform(); sc = clamp(Math.hypot(tf.a, tf.b), 1, 2); } catch (e) {}
+    // v471 EV: its baked poses where they are in (bakeOne): one picture, or two faded, laid down with its squash, tilt and turn;
+    // nothing posed, copied or washed this frame. The pool, the aura and the front light as below
+    const A = atlasOf(E, d, h, sc), PK = A ? pickFrames(A, m, S, t, moving, swell, tell) : null;
+    if (PK) { const fl = m.eface < 0 ? -1 : 1; S.gl = true; S.glHit = (S.glHit || 0) + 1; S.bakeHit = (S.bakeHit || 0) + 1; S.atlas = A;
+      const R = RUN(S.X), viaLayer = R.layerT != null && Math.abs(R.layerT - t) < 0.25 && !window.__calMiniInlineFx && S.pooled === R.layerT;
+      if (!viaLayer) { const P2 = poolPic(h * 1.24, h * 0.4, sc); c.drawImage(P2, Xs - h * 0.62, foot - h * 0.2, h * 1.24, h * 0.4); }
+      S.look = { x: m.x, y: m.y, z: m.z || 0, r: m.r, t, k, swell, tell, sxk, syk, fl, bob, seed, ecast: m.ecast || 0 };
+      let G = viaLayer ? null : gpu(c); S.gpuFx = viaLayer ? !!R.layerFx : !!G; S.fxInline = !viaLayer;
+      if (G) { gpuAura(G.Q, Xs, foot, h, t, k, d, seed); feetSmoke(G.Q, Xs, foot, h, t, seed); gpuEnd(c, G); }
+      drawBaked(c, A, PK, Xs, fy, h, sxk, syk, rot, fl);
+      let dom = PK[0][0]; for (const [f2, a2] of PK) if (a2 >= 0.5 && !(f2 === PK[PK.length - 1][0] && tell > 0 && PK.length > 1)) dom = f2;
+      S.lastFrame = { baked: 1, fr: dom, A, fl, q: h / A.h };   // (its fall's picture is cut from it: fallPic)
+      if (A.ready && S.cvs) { for (const o of S.cvs) o.width = o.height = 1; S.cvs = null; S.prevG = null; }   // (the live canvases given back)
+      G = viaLayer ? null : gpu(c); if (G) { frontFx(G.Q, S, E, Xs, fy, foot, h, t); gpuEnd(c, G); }
+      if (!A.ready) bakeSoon(A);
+      return true; }
+    // (not all in yet: drawn live as before while the rest are baked in the background)
+    if (A && !A.ready) bakeSoon(A);
     // (its canvas: PetGL's own frame of it (room for a raised arm, a beat of the wings, a turn), with a little more for the
     // squash and the tilt; a square 2.3 times its height until PetGL has told its frame)
     const kk = h / E.bodyTop; let fb = null; try { fb = typeof PetGL !== 'undefined' ? PetGL.box(E.form, true) : null; } catch (e) { fb = null; }
@@ -441,6 +459,109 @@ const CAL_MINI = (() => {
         run(x0, y0, x1, y1, w2, 0.16, (a, b, c, d) => Q.ebeam(a, b, c, d, w2, col, 0.8, 0.5 * u1, seed + i * 0.37, 3));
         run(x0, y0, x1, y1, w3, 0.125, (a, b, c, d) => Q.rbeam(a, b, c, d, w3, '#FFFFFF', 0.6, u0 * u0, u1 * u1)); }
       if (n > 1) { const [x1, y1] = P[n - 1]; Q.glow(x1, y1, h * 0.3, col, 0.3); Q.glow(x1, y1, h * 0.1, '#FFFFFF', 0.3); } }
+  /* ======================= v471 EV: its body baked, laid down as pictures =======================
+     The user (2026-11-28): "Performance when fighting the evil giant cocopet is terrible, there must be a way to optimize the
+     giant evil cocopet. What if they're just 2.5d would that be less taxing?". It was 2.5D already; what cost was that every
+     frame PetGL posed it afresh (a WebGL frame of all its layers), copied that frame into a 2D canvas of its own (a GPU to 2D
+     copy, slow on Safari), washed it there (the ash, a tint, three passes of crack strokes) and laid that canvas down. Now its
+     poses are drawn by PetGL once, when the stage is made (the loading screen's warm-up starts it, then one pose a turn of the
+     event loop in the background (bakeSoon), about one live pose's cost each: never a hitch), each with the ash, the cracks and its tint already on it, cut to the pixels it paints:
+       a walk cycle (8; lowFx 6), a breath / idle loop (8; lowFx 4), the arms raised in a cast at three heights (lowFx two),
+       the daze of a blow (2; lowFx 1; its white wash on it) and the tell's tint of each cast pose.
+     Each frame it is one picture laid down (or two, the next pose faded over the last, so a step or a breath is smooth), its
+     breathing squash, tilt, bob and turn to face applied as the picture's transform: no PetGL, no WebGL copy, no 2D wash per
+     frame. The cracks' pulsing light, its eyes, aura, tells and streaks stay on the GPU (the layer's batches) as before.
+     One set per look and size (a duel's pair share it), at the sharpness it is drawn at, capped (ATL_CAP MB, softer past it);
+     PetGL's layers for it are let go once it is baked; all of it given back when the stage closes. Until a pose is baked it is
+     drawn live as before (the held frame, the halving, the 2D fallback: all as they were). window.__calMiniLive = 1: live only */
+  const ATL = new Map(), ATL_CAP = 18, ATL_CAP_LOW = 8, IDLE_P = 2.6;
+  let ATL_SCR = null;
+  const bakeOK = () => typeof PetGL !== 'undefined' && !window.__calMini2D && !window.__noPetGL && !window.__calMiniLive;
+  function atlasSpecs(low) { const q = [], W = low ? 6 : 8, I = low ? 4 : 8, LV = low ? [52, 105] : [35, 70, 105], DZ = low ? [0] : [0, 70];
+    q.push({ id: 'i0', kind: 'idle', u: 0 }); for (let i = 0; i < W; i++) q.push({ id: 'w' + i, kind: 'walk', u: i / W });
+    for (let i = 1; i < I; i++) q.push({ id: 'i' + i, kind: 'idle', u: i / I });
+    for (const L of LV) q.push({ id: 'c' + L, kind: 'cast', lift: L }); for (const L of DZ) q.push({ id: 'd' + L, kind: 'daze', lift: L }); for (const L of LV) q.push({ id: 'c' + L, kind: 'cast', lift: L, tint: 1 });
+    return { q, W, I, LV, DZ }; }
+  function atlasOf(E, d, h, sc) { if (!bakeOK() || !E || !E.form || !(h > 4)) return null; const low = lowFx(), base = (E.form.__glk || E.name) + '|' + d.col + '|' + (low ? 1 : 0) + '|' + Math.round(sc * 4) / 4;
+    for (const A of ATL.values()) if (A.base === base && !A.dead && h / A.h > 0.88 && h / A.h < 1.14) { A.used = performance.now(); return A; }
+    if (ATL.size >= 4) { const old = [...ATL.values()].sort((a, b) => a.used - b.used)[0]; freeAtlas(old); }
+    const S0 = atlasSpecs(low), A = Object.assign({ key: base + '|' + Math.round(h), base, E, d, h, sc, low, fr: {}, i: 0, tries: 0, bytes: 0, warmMs: 0, ready: false, dead: false, used: performance.now(), t0: performance.now() }, S0);
+    ATL.set(A.key, A); return A; }
+  function freeAtlas(A) { if (!A) return; A.dead = true; if (A.timer) { clearTimeout(A.timer); A.timer = null; } for (const k in A.fr) { const f = A.fr[k]; if (f && f.cv) f.cv.width = f.cv.height = 1; } A.fr = {}; ATL.delete(A.key); }
+  function freeAtlases() { for (const A of [...ATL.values()]) freeAtlas(A); if (ATL_SCR) { ATL_SCR.width = ATL_SCR.height = 1; ATL_SCR = null; } }
+  // its pose for one baked frame (as poseOf would set it: walking, breathing, arms raised, dazed)
+  function bakePose(sp) {
+    if (sp.kind === 'walk') { const ph = sp.u * TAU, fs = sd => { const a = ph + (sd < 0 ? Math.PI : 0); return [Math.cos(a) * 1.8 * sd, -Math.max(0, Math.sin(a)) * 5.2]; };
+      return { t: sp.u * 0.65, yaw: 0.42, face: { eyes: 'normal', mouth: 'smile', brows: 'angry' }, footL: fs(1), footR: fs(-1), armL: Math.sin(ph + Math.PI) * 24, armR: Math.sin(ph) * 24, wing: Math.sin(ph) * 20, tail: Math.sin(ph + 1) * 12, legPh: ph * 1.375, legAmp: 16, lean: 0.03, sy: 1, sx: 1 }; }
+    if (sp.kind === 'idle') { const a = sp.u * TAU;
+      return { t: sp.u * IDLE_P, yaw: 0.32, face: { eyes: 'normal', mouth: 'smile', brows: 'angry' }, footL: [0, 0], footR: [0, 0], armL: Math.sin(a + 1) * 5, armR: Math.sin(a - 1) * 5, wing: Math.sin(a * 2) * 13, tail: Math.sin(a) * 7, legPh: a * 2, legAmp: 8, lean: 0.045, sy: 1, sx: 1 }; }
+    const L = sp.lift || 0, sw = 1 - Math.min(1, L / 55), dz = sp.kind === 'daze';
+    return { t: 0, yaw: 0.32, face: dz ? { eyes: 'dizzy', mouth: 'o', brows: 'angry' } : { eyes: 'normal', mouth: 'open', brows: 'angry' }, footL: [0, 0], footR: [0, 0], armL: Math.sin(1) * 5 * sw + L, armR: Math.sin(-1) * 5 * sw + L, wing: dz ? 0 : 9, tail: 0, legPh: 0, legAmp: 8, lean: dz ? 0.045 : 0.03 + 0.08 * Math.min(1, L / 70), sy: 1, sx: 1 }; }
+  // one frame baked: PetGL into the scratch canvas, the ash wash, the tint or the blow's white, the cracks; cut to what it paints
+  function bakeOne(A, sp) { const E = A.E, d = A.d, h = A.h, sc = A.sc, kk = h / E.bodyTop;
+    let fb = null; try { fb = PetGL.box(E.form, true); } catch (e) { fb = null; }
+    const cw = fb ? Math.ceil(Math.max(Math.abs(fb[0]), Math.abs(fb[0] + fb[2])) * kk * 2 * 1.16 + 4) : Math.ceil(h * 2.3), up = fb ? Math.ceil(-fb[1] * kk * 1.16 + 4) : Math.ceil(h * 2.3 * 0.86), dn = fb ? Math.ceil(Math.max(0, fb[1] + fb[3]) * kk * 1.16 + h * 0.08 + 4) : Math.ceil(h * 2.3 * 0.14);
+    const Wd = Math.ceil(cw * sc), Hd = Math.ceil((up + dn) * sc);
+    if (!ATL_SCR) ATL_SCR = document.createElement('canvas'); const B = ATL_SCR; if (B.width < Wd || B.height < Hd) { B.width = Math.max(B.width, Wd); B.height = Math.max(B.height, Hd); }
+    const b = B.getContext('2d', { willReadFrequently: true }); b.setTransform(1, 0, 0, 1, 0, 0); b.globalAlpha = 1; b.globalCompositeOperation = 'source-over'; b.clearRect(0, 0, B.width, B.height);
+    if (sp.tint) { const src = A.fr[sp.id]; if (!src) return false;   // (the tell's tint: its cast pose again, tinted)
+      const o = document.createElement('canvas'); o.width = src.cv.width; o.height = src.cv.height; const x = o.getContext('2d'); x.drawImage(src.cv, 0, 0); x.globalCompositeOperation = 'source-atop'; x.fillStyle = rgba(d.col, 0.2); x.fillRect(0, 0, o.width, o.height);
+      A.fr[sp.id + 't'] = { cv: o, x: src.x, y: src.y, w: src.w, h: src.h }; A.bytes += o.width * o.height * 4; return true; }
+    if (!fb) { try { b.setTransform(sc, 0, 0, sc, cw / 2 * sc, up * sc); PetGL.draw(b, E.form, kk, bakePose(sp), { lite: true }); } catch (e) {} return false; }   // (its layers asked for: they come in the background)
+    const P = bakePose(sp); if (PetGL.faceReady && A.asked === sp.id && !PetGL.faceReady(E.form, P.face, true) && ++A.tries < 90) return false;   // (its face asked for: no pose drawn till it is in)
+    A.asked = sp.id; b.setTransform(sc, 0, 0, sc, cw / 2 * sc, up * sc);
+    let ok = false; try { ok = PetGL.draw(b, E.form, kk, P, { lite: true }); } catch (e) { ok = false; }
+    if (!ok) return false;
+    if (PetGL.faceReady && !PetGL.faceReady(E.form, P.face, true) && ++A.tries < 90) return false;   // (its face's own picture is still being made)
+    A.tries = 0;
+    b.setTransform(1, 0, 0, 1, 0, 0); b.globalCompositeOperation = 'source-atop'; const ag = b.createLinearGradient(0, up * sc, 0, (up - h * 0.943) * sc); ag.addColorStop(0, 'rgba(10,4,12,.5)'); ag.addColorStop(1, 'rgba(10,4,12,0)'); b.fillStyle = ag; b.fillRect(0, 0, Wd, Hd);
+    if (sp.kind === 'daze') { b.fillStyle = 'rgba(255,255,255,.28)'; b.fillRect(0, 0, Wd, Hd); }
+    b.setTransform(sc, 0, 0, sc, cw / 2 * sc, up * sc); b.lineCap = 'round'; b.lineJoin = 'round';
+    const glowK = sp.kind === 'cast' ? 0.88 : sp.kind === 'daze' ? 0.76 : 0.7;   // (as its glow runs in each: a cast's is higher)
+    for (const [lw, col, a] of [[0.04, FRACTURE, 0.5], [0.018, LAVA_HI, 0.95], [0.008, '#FFF4D8', 0.9]]) { b.strokeStyle = col; b.lineWidth = Math.max(0.8, h * lw); for (const q of E.cracks) { b.globalAlpha = a * glowK * 0.85 * q.w; b.beginPath(); q.pts.forEach((p, i) => i ? b.lineTo(p[0] * h, p[1] * h) : b.moveTo(p[0] * h, p[1] * h)); b.stroke(); } }
+    b.globalAlpha = 1; b.globalCompositeOperation = 'source-over'; b.setTransform(1, 0, 0, 1, 0, 0);
+    // (cut to the pixels it paints: the frame PetGL draws in has room for every pose, each pose uses a part of it)
+    const px = b.getImageData(0, 0, Wd, Hd).data; let x0 = Wd, y0 = Hd, x1 = -1, y1 = -1;
+    for (let y = 0; y < Hd; y++) { const row = y * Wd * 4; let any = false; for (let x = 0; x < Wd; x++) if (px[row + x * 4 + 3] > 2) { if (x < x0) x0 = x; if (x > x1) x1 = x; any = true; } if (any) { if (y < y0) y0 = y; y1 = y; } }
+    if (x1 < 0) return false;
+    x0 = Math.max(0, x0 - 2); y0 = Math.max(0, y0 - 2); x1 = Math.min(Wd - 1, x1 + 2); y1 = Math.min(Hd - 1, y1 + 2);
+    const w = x1 - x0 + 1, hh = y1 - y0 + 1, o = document.createElement('canvas'); o.width = w; o.height = hh; o.getContext('2d').drawImage(B, x0, y0, w, hh, 0, 0, w, hh);
+    A.fr[sp.id] = { cv: o, x: x0 / sc - cw / 2, y: y0 / sc - up, w: w / sc, h: hh / sc }; A.bytes += w * hh * 4; return true; }
+  // a frame or a few baked (the warm-up's jobs, and one a frame in the fight until all are in); true when one was
+  function bakeStep(A) { if (!A || A.ready || A.dead) return false; const t0 = performance.now(), sp = A.q[A.i]; let ok = false;
+    try { ok = bakeOne(A, sp); } catch (e) { ok = false; }
+    const dt = performance.now() - t0; A.warmMs += dt;
+    if (ok) { A.i++; A.okMs = (A.okMs || 0) + dt; A.maxMs = Math.max(A.maxMs || 0, dt);
+      // (past its cap (the whole set, from the first frame's size): baked again a little softer)
+      if (A.i === 1) { const est = A.bytes * A.q.length / 1048576, cap = A.low ? ATL_CAP_LOW : ATL_CAP; if (est > cap && A.sc > 1.01) { const k = Math.max(1 / A.sc, Math.sqrt(cap / est) * 0.97); A.sc = Math.max(1, A.sc * k); for (const k2 in A.fr) A.fr[k2].cv.width = 0; A.fr = {}; A.bytes = 0; A.i = 0; } }
+      if (A.i >= A.q.length) { A.ready = true; A.mb = +(A.bytes / 1048576).toFixed(2); A.doneMs = performance.now() - A.t0; if (ATL_SCR) { ATL_SCR.width = ATL_SCR.height = 1; ATL_SCR = null; }
+        try { if (PetGL.drop && !window.__calMiniKeepGL) PetGL.drop(A.E.form); } catch (e) {} } }
+    return ok; }
+  // (baked in the background: one frame a turn of the event loop, between the loading screen's frames or the game's, from the
+  // moment the stage knows it (its warm-up) or it is first drawn; a turn costs about one live pose of it)
+  function bakeSoon(A) { if (!A || A.ready || A.dead || A.timer) return; const tick = () => { A.timer = null; if (A.ready || A.dead) return; const ok = bakeStep(A); if (!A.ready && !A.dead) A.timer = setTimeout(tick, ok ? 30 : 150); }; A.timer = setTimeout(tick, 0); }
+  // which baked frames show it now, each with its strength (the first laid down whole, the next faded over it): null if one is not baked yet
+  function pickFrames(A, m, S, t, moving, swell, tell) { const F = A.fr, low = A.low || lowFx(), out = [];
+    const two = (pre, n, x) => { const i0 = Math.floor(x) % n, f = x - Math.floor(x), a = F[pre + i0], b = F[pre + ((i0 + 1) % n)]; if (!a || !b) return null; if (low) return [[f < 0.5 ? a : b, 1]]; return f < 0.04 ? [[a, 1]] : f > 0.96 ? [[b, 1]] : [[a, 1], [b, f]]; };
+    const base = () => moving ? two('w', A.W, (((m.ewalk || 0) % TAU + TAU) % TAU) / TAU * A.W) : two('i', A.I, ((t / IDLE_P) % 1 + 1) % 1 * A.I);
+    const cast = clamp((m.ecast || 0) + tell * 0.4, 0, 1), lift = cast * (S.def.sig === m.act || m.act === 'howl' ? 105 : 70) + swell * 40;
+    if (m.flash > 0) { const z = F['d' + (lift >= 35 && A.DZ.length > 1 ? A.DZ[1] : A.DZ[0])]; return z ? [[z, 1]] : null; }
+    if (lift < 4) return base();
+    const LV = A.LV; let j = 0; while (j < LV.length - 1 && LV[j] < lift) j++; const hi = LV[j], lo = j ? LV[j - 1] : 0, f = clamp((lift - lo) / (hi - lo), 0, 1), top = F['c' + hi]; if (!top) return null;
+    if (lo) { const bot = F['c' + lo]; if (!bot) return null; out.push([bot, 1]); } else { const bs = base(); if (!bs) return null; out.push([bs[0][0], 1]); }
+    if (low) { if (f >= 0.5) out[0] = [top, 1]; } else if (f > 0.03) out.push([top, f]);
+    if (tell > 0) { const dom = f >= 0.5 || !lo ? hi : lo, tf = F['c' + dom + 't']; if (tf) out.push([tf, clamp(tell, 0, 1) * (dom === hi ? Math.max(f, lo ? 0 : 0.6) : 1)]); }
+    return out; }
+  function drawBaked(c, A, P, Xs, fy, h, sxk, syk, rot, fl) { const q = h / A.h, ga = c.globalAlpha; c.save(); c.translate(Xs, fy); if (rot) { c.translate(0, -h * 0.5); c.rotate(rot); c.translate(0, h * 0.5); } c.scale(fl * sxk * q, syk * q);
+    for (const [fr, a] of P) { c.globalAlpha = ga * a; c.drawImage(fr.cv, fr.x, fr.y, fr.w, fr.h); }
+    c.restore(); }
+  // (its fall's picture from a baked frame: centred on its feet as the live frame was, turned the way it faced)
+  function fallPic(L) { const fr = L.fr, A = L.A, sc = A.sc, half = Math.max(-fr.x, fr.x + fr.w), o = document.createElement('canvas'); o.width = Math.max(2, Math.ceil(half * 2 * sc)); o.height = Math.max(2, Math.ceil(fr.h * sc));
+    const x = o.getContext('2d'); x.translate(o.width / 2, 0); x.scale(L.fl < 0 ? -1 : 1, 1); x.drawImage(fr.cv, fr.x * sc, 0, fr.w * sc, fr.h * sc);
+    return { cv: o, sc, sz: half * 2, cw: half * 2, ch: fr.h, oy: -fr.y, h: A.h * (L.q || 1) }; }
+  // (the stage closing: every baked set given back, as the brood's pictures are)
+  try { const GD = typeof GAMES !== 'undefined' && GAMES.dungeon; if (GD && GD.create && !GD.__evAtl) { const c0 = GD.create; GD.__evAtl = 1; GD.create = function () { const api = c0.apply(this, arguments); if (api && typeof api.destroy === 'function') { const d0 = api.destroy; api.destroy = function () { try { freeAtlases(); } catch (e) { /* (nothing held) */ } return d0.apply(this, arguments); }; } return api; }; } } catch (e) { /* (no dungeon) */ }
+  const bakeStats = () => [...ATL.values()].map(A => ({ key: A.key.replace(/^evilmini\|/, '').slice(-60), frames: Object.keys(A.fr).length, of: A.q.length, ready: A.ready, mb: +(A.bytes / 1048576).toFixed(2), sc: +A.sc.toFixed(2), h: Math.round(A.h), warmMs: Math.round(A.warmMs), bakeMs: Math.round(A.okMs || 0), maxMs: Math.round(A.maxMs || 0), doneMs: A.doneMs ? Math.round(A.doneMs) : null, low: A.low }));
   // where the layer draws it from: its screen place from its look (this frame's for the front, the last one's for the aura)
   function lookAt(X, S) { const L = S.look; if (!L) return null; const T = X.Tz(), r = L.r * T, h = r * 2.5, Xs = X.sx(L.x), Ys = X.sy(L.y) - L.z * T, foot = Ys + r * 0.75; return { Xs, foot, fy: foot - L.bob, h }; }
   if (typeof RiftEvil !== 'undefined' && !RiftEvil.__calMini) { const d0 = RiftEvil.draw; RiftEvil.draw = function (c, m) { if (m && m.calMini) { m.calMini.d0 = m.calMini.d0 || ((...a) => { const s = m.calMini; m.calMini = null; try { return d0(...a); } finally { m.calMini = s; } }); try { return drawMini.apply(null, arguments); } catch (e) { try { console.warn('cal mini draw', e); } catch (e2) {} return false; } } return d0.apply(this, arguments); }; RiftEvil.__calMini = 1; }
@@ -614,7 +735,7 @@ const CAL_MINI = (() => {
 
   /* ======================= its fall: the cracks blaze, the corruption burns off into light, the shell shatters =======================
      (the engine has already given the lesser boss's reward; this is the picture: 2.2 s) */
-  function startFall(X, G) { const m = G.m, S = m.calMini, LF = S && S.lastFrame; G.fall = { t: 0, x: m.x, y: m.y, face: m.eface || 1, burst: false, sealed: false };
+  function startFall(X, G) { const m = G.m, S = m.calMini; let LF = S && S.lastFrame; if (LF && LF.baked) { try { LF = fallPic(LF); } catch (e) { LF = null; } } /* v471 EV: (from a baked frame) */ G.fall = { t: 0, x: m.x, y: m.y, face: m.eface || 1, burst: false, sealed: false };
     if (LF && LF.cv) { const [o] = [document.createElement('canvas')]; o.width = LF.cv.width; o.height = LF.cv.height; o.getContext('2d').drawImage(LF.cv, 0, 0); G.fall.cv = o; G.fall.sc = LF.sc; G.fall.sz = LF.sz; G.fall.cw = LF.cw || LF.sz; G.fall.ch = LF.ch || LF.sz; G.fall.oy = LF.oy; G.fall.h = LF.h / X.Tz(); }
     try { X.banner(`${G.def.short.toUpperCase()} FALLS`, 'The black fire leaves it: the gate is free', G.def.col, 2.6, true); X.g.slowT = Math.max(X.g.slowT || 0, 0.6); X.flash(0.35, '#FFFFFF'); } catch (e) {}
     if (G.onFall) try { G.onFall(m, G); } catch (e) {}
@@ -660,7 +781,7 @@ const CAL_MINI = (() => {
   const POSES = [{ eyes: 'normal', mouth: 'smile', brows: 'angry' }, { eyes: 'normal', mouth: 'open', brows: 'angry' }, { eyes: 'dizzy', mouth: 'o', brows: 'angry' }];
   function warmBody(E, h, sc) { if (typeof PetGL === 'undefined' || window.__calMini2D || window.__noPetGL) return [];
     const cv2 = document.createElement('canvas'), kk = h / E.bodyTop, side = Math.ceil(h * 2.4 * sc); cv2.width = side; cv2.height = side;
-    const one = face => () => { const x = cv2.getContext('2d'); x.setTransform(sc, 0, 0, sc, side / 2, side * 0.85); try { PetGL.draw(x, E.form, kk, { t: 0, yaw: 0.3, face, footL: [0, 0], footR: [0, 0], armL: 0, armR: 0, wing: 0, tail: 0 }, { lite: true }); } catch (e) {} x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, side, side); };
+    const one = face => () => { for (const A of ATL.values()) if (A.E === E && A.ready) return;   /* v471 EV: (its poses baked already: its layers are not made again) */ const x = cv2.getContext('2d'); x.setTransform(sc, 0, 0, sc, side / 2, side * 0.85); try { PetGL.draw(x, E.form, kk, { t: 0, yaw: 0.3, face, footL: [0, 0], footR: [0, 0], armL: 0, armR: 0, wing: 0, tail: 0 }, { lite: true }); } catch (e) {} x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, side, side); };
     const jobs = []; for (let round = 0; round < 3; round++) for (const f of POSES) jobs.push(one(f));   // (rounds: the layers come in between the loader's frames)
     return jobs; }
   function warmFx() { return [() => { if (!gpuOK()) return; const cv2 = document.createElement('canvas'); cv2.width = cv2.height = 96; const x = cv2.getContext('2d'), G = gpu(x); if (!G) return; const Q = G.Q;
@@ -684,6 +805,8 @@ const CAL_MINI = (() => {
     jobs.push(...warmFx(), ...warmPics(T, sc, guards), ...warmBrood(P, (P.mons || []).concat(P.reserve || [])));
     // (and the faces again, last: by now their layers have had the loader's frames to come in)
     for (const g of guards) jobs.push(...warmBody(g.E, g.r * T * 2.5, sc).slice(0, 3));
+    // v471 EV: and its poses baked (bakeOne): in the background from now (bakeSoon), and one a job where the pass reaches them
+    for (const g of guards) { let A = null; try { A = atlasOf(g.E, g.def, g.r * T * 2.5, Math.max(1, sc)); } catch (e) { A = null; } if (!A) continue; bakeSoon(A); for (let i = 0; i < A.q.length; i++) jobs.push(() => { if (!A.ready && !A.dead) bakeStep(A); }); }
     return jobs; }
   // (every rift's loading pass asks it: it finds the guardians and leaders on the floor, or does nothing)
   { const hook = Rf => { if (!Rf || Rf.__miniWarm) return; Rf.__miniWarm = 1; const o = Rf.preload; Rf.preload = P => { let a = []; try { a = (o ? o(P) : null) || []; } catch (e) { a = []; } let b = []; try { b = warm(P); } catch (e) { b = []; } return a.concat(b); }; };
@@ -700,7 +823,7 @@ const CAL_MINI = (() => {
         return { update(dt) { if (xm.update) xm.update(dt); gm.update(dt);
             if (!wrapped && self.mod && self.mod.goal) { wrapped = true; const g0 = self.mod.goal; self.mod.goal = () => { if (self.done || G.m.dead) return g0(); const left = countLeft(X); return left > 0 ? `${left} left · Defeat ${G.def.short} to open the gate` : `Defeat ${G.def.short} to open the gate`; }; } },
           drawGround(c) { if (xm.drawGround) xm.drawGround(c); gm.drawGround(c); }, drawOver(c) { if (xm.drawOver) xm.drawOver(c); gm.drawOver(c); } }; }; } }
-  return { DEF, PRESET, spawn, arm /* v469 MB: Rift 04 arms its own minis (20s7) */, leader, packLeaders, layer, guards: X => RUN(X).guards, leaders: X => RUN(X).leaders, hpFor, dmgFor, evilOf, specOf, drawMini, guardians, tearLeader, warm, modesOf, fx: { paintTell, shotPaint, softRing, rayPaint, streakPaint } };   // (v404 EM: fx for the pictures' studio)
+  return { DEF, PRESET, spawn, arm /* v469 MB: Rift 04 arms its own minis (20s7) */, leader, packLeaders, layer, guards: X => RUN(X).guards, leaders: X => RUN(X).leaders, hpFor, dmgFor, evilOf, specOf, drawMini, guardians, tearLeader, warm, modesOf, bakeStats, freeAtlases /* v471 EV */, fx: { paintTell, shotPaint, softRing, rayPaint, streakPaint } };   // (v404 EM: fx for the pictures' studio)
 })();
 const EVIL_MINI = CAL_MINI;
 if (typeof self !== 'undefined') self.EVIL_MINI = EVIL_MINI;   // (tests, and other rifts' files that load before this one, at run time)

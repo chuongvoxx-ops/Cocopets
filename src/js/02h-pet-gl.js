@@ -384,5 +384,11 @@ void main() { float u = vUV.x, v = vUV.y, T = uAT.x, S = uAT.y;
     const fk = f.__glk || JSON.stringify(f), fr = frame || ''; for (const E2 of CACHE.values()) if (E2.ready && E2.fk === fk && E2.lite === !!lite && E2.frame === fr && !E2.slowLast) return true; return false; };
   // (the frame a pet's picture is drawn in, in its units, once its layers are made: [x, y, w, h])
   const box = (f, lite, frame) => { if (!f || !gl) return null; const fk = f.__glk || JSON.stringify(f), fr = frame || ''; for (const E2 of CACHE.values()) if (E2.ready && E2.fk === fk && E2.lite === !!lite && E2.frame === fr) return E2.fb; return null; };
-  return { cost: COST, legends: on => { legendOK = !!on; }, will, box, draw, ready: f => { const E = f && init() ? entry(f, 2, false) : null; return !!E; }, available: () => init(), get cache() { return CACHE; } };
+  // v471 EV: (whether a face of this pet has its own picture made yet: until then draw stands the normal face in; the giant evil
+  // Cocopets' baked poses (20zz9) wait for it rather than baking the stand-in)
+  const faceReady = (f, fc, lite) => { if (!f || !gl) return false; const fk = f.__glk || JSON.stringify(f), key = faceKey(fc); for (const E2 of CACHE.values()) if (E2.ready && E2.fk === fk && E2.lite === !!lite && E2.feats && E2.feats.get(key)) return true; return false; };
+  // v471 EV: (a pet's layers let go now (their textures given back): the giant evil Cocopets, once their poses are baked; only made
+  // layers, so a build in flight is never cut off; drawn again later, it is simply made again)
+  const drop = f => { if (!f) return 0; const fk = f.__glk || JSON.stringify(f); let n = 0; for (const [k2, E2] of [...CACHE.entries()]) if (E2.fk === fk && E2.ready) { dispose(E2); CACHE.delete(k2); n++; } return n; };
+  return { cost: COST, legends: on => { legendOK = !!on; }, will, box, draw, faceReady, drop, ready: f => { const E = f && init() ? entry(f, 2, false) : null; return !!E; }, available: () => init(), get cache() { return CACHE; } };
 })();
