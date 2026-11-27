@@ -34,7 +34,8 @@ const RUNS = (process.env.RUNS || 'fighter,still').split(','), LVL = +process.en
           const h0 = me.hp; U.update(dt); t += dt; if (me.hp > h0 + 1) heals += me.hp - h0; minHp = Math.min(minHp, me.hp / P0.hp); }
         const st = T.S ? T.S.stat : {}; return { run: '${R}', lvl: ${LVL}, out, t: +t.toFixed(0), petHp: P0.hp, petAtk: P0.atk, hpLeft: T.S ? +(T.S.m.hp / T.S.m.maxhp).toFixed(3) : 0, dmgPerMin: Math.round((st.dmgIn || 0) / Math.max(1, t / 60)), dmgIn: Math.round(st.dmgIn || 0), heals: Math.round(heals), minHpK: +minHp.toFixed(2), big: st.big, miss: st.miss, clean: st.clean, phases: ph, maxHaz: st.maxHaz };`);
       console.log(JSON.stringify(r));
-      if (R === 'fighter') chk(r.out === 'win', 'a fighting, dodging bot wins');
+      // (v469b: health and damage x4 at the user's request; a lone ungeared bot no longer wins, so the fighter's result is reported, not required)
+      if (R === 'fighter') console.log(r.out === 'win' ? 'fighter wins' : 'fighter ' + r.out + ' at ' + r.t + ' s (health left ' + r.hpLeft + ')');
       if (R === 'still') chk(r.out === 'dead', 'a bot standing still loses');
     }
   } catch (e) { bad++; console.log('ERR', e.message); }

@@ -52,7 +52,7 @@ const GEMINI_BOSS = (() => {
      hitK units (a heavy blow, nothing else); all right, it reels for big.expose s. VREF: the pet speed their placements are
      validated against (the pet runs 4.3 tiles/s; 3.4 leaves margin) */
   const TUNE = {
-    hp: 660000, bars: 36, dmg: 48,
+    hp: 2640000, bars: 36, dmg: 192,   // (v469b: the user found v469 far too easy: health and damage both x4, from 660000 / 48)
     size: 5.4, bodyR: 1.7, keep: 4.2, roam: 4.0, spd: [1.3, 1.4, 1.45, 1.6, 1.8],
     intro: 7.2, idle: [1.7, 1.5, 1.4, 1.25, 1.1], trans: 3.0,
     phaseAt: [1, 1, 0.8, 0.6, 0.4, 0.15],
