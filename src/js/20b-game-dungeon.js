@@ -1601,7 +1601,7 @@ GAMES.dungeon = {
       for (const s of shrines) { s.t += dt; if (!s.used && hyp(s.x - me.x, s.y - me.y) < 0.95 && !me.dead) useShrine(s); }
       // explore (and clear the fog)
       const ex0 = Math.floor(me.x - 7), ex1 = Math.floor(me.x + 7), ey0 = Math.floor(me.y - 7), ey1 = Math.floor(me.y + 7);
-      for (let ty = ey0; ty <= ey1; ty++) for (let tx = ex0; tx <= ex1; tx++) if (inMap(tx, ty) && !explored[ty * MW + tx] && (tx + 0.5 - me.x) ** 2 + (ty + 0.5 - me.y) ** 2 < 52) { explored[ty * MW + tx] = 1; fogDirty = true; expV++; if (miniNew.length < 4096) miniNew.push(ty * MW + tx); else miniNew.full = true; }
+      for (let ty = ey0; ty <= ey1; ty++) for (let tx = ex0; tx <= ex1; tx++) if (inMap(tx, ty) && !explored[ty * MW + tx] && (tx + 0.5 - me.x) ** 2 + (ty + 0.5 - me.y) ** 2 < 52) { explored[ty * MW + tx] = 1; fogDirty = true; fogMark(tx, ty) /* v467 CF */; expV++; if (miniNew.length < 4096) miniNew.push(ty * MW + tx); else miniNew.full = true; }
       flowT -= dt; if (flowT <= 0) { flowT = 0.25; buildFlow(); }
       // the loot gremlin appears
       if (M.gremlin && !g.gremlin && hyp(M.gremlin.x - me.x, M.gremlin.y - me.y) < 7.5 && explored[Math.floor(M.gremlin.y) * MW + Math.floor(M.gremlin.x)]) {
@@ -1915,14 +1915,36 @@ GAMES.dungeon = {
       const T = TS, x0 = Math.floor((cam.x - api.W / 2 / T - 1) / CH), x1 = Math.floor((cam.x + api.W / 2 / T + 1) / CH), y0 = Math.floor((cam.y - api.H / 2 / T - 2) / CH), y1 = Math.floor((cam.y + api.H / 2 / T + 2) / CH);
       for (let cy = y0; cy <= y1; cy++) for (let cx = x0; cx <= x1; cx++) if (cx >= 0 && cy >= 0 && cx * CH < MW && cy * CH < MH) getChunk(cx, cy, true);
     }
-    // fog over places not explored yet: one pixel per tile, blown up smoothly
-    const fogC = document.createElement('canvas'); fogC.width = MW; fogC.height = MH;
-    const fogX = fogC.getContext('2d'); fogX.fillStyle = PB.fog || FOG_COL[F.biome] || '#07050E'; fogX.fillRect(0, 0, MW, MH);
-    let fogDirty = true;
+    // fog over places not explored yet
+    /* v467 CF (the user, of the Garden: "square-edged lighter and darker blocks"): the fog was one pixel a tile, blown up by
+       the browser; its edge followed the explored tiles' staircase and came out hard (on the phone as in Chrome), so the
+       explored ground and the void beside it showed as lighter and darker squares. Now the fog's edge is worked out here: the
+       explored mask blurred over about two tiles (two 3 x 3 passes on the tiles), sampled smoothly at FOGS pixels a tile, so it
+       is a soft rounded shade whatever the browser does when it enlarges it. Only the tiles round what was just explored are
+       worked out again (fogBox). window.__FOG_OLD = 1: as v466 */
+    const FOGS = (typeof window !== 'undefined' && window.__FOG_OLD === 1) ? 1 : 4, FW = MW * FOGS, FH = MH * FOGS;
+    const fogC = document.createElement('canvas'); fogC.width = FW; fogC.height = FH;
+    const fogX = fogC.getContext('2d'); let fogDirty = true, fogBox = null;
     // (the fog's pixels are kept here, in the page's own memory, and only ever written to the canvas: reading a canvas
     // back stalls until everything drawn so far is finished, which cost more than the rest of the overlay together)
-    const fogImg = fogX.getImageData(0, 0, MW, MH);
-    function fogSync() { if (!fogDirty) return; fogDirty = false; const d = fogImg.data; for (let i = 0; i < MW * MH; i++) if (explored[i]) d[i * 4 + 3] = 0; fogX.putImageData(fogImg, 0, 0); }
+    const fogImg = fogX.createImageData(FW, FH), FOGRGB = hexRGB(PB.fog || FOG_COL[F.biome] || '#07050E');
+    { const d = fogImg.data; for (let i = 0; i < FW * FH; i++) { d[i * 4] = FOGRGB[0]; d[i * 4 + 1] = FOGRGB[1]; d[i * 4 + 2] = FOGRGB[2]; d[i * 4 + 3] = 255; } }
+    const fogA = new Float32Array(MW * MH).fill(1), fogT = new Float32Array(MW * MH);
+    const fogMark = (x, y) => { if (!fogBox) fogBox = [x, y, x, y]; else { if (x < fogBox[0]) fogBox[0] = x; if (y < fogBox[1]) fogBox[1] = y; if (x > fogBox[2]) fogBox[2] = x; if (y > fogBox[3]) fogBox[3] = y; } };
+    function fogSync() { if (!fogDirty) return; fogDirty = false; const d = fogImg.data;
+      if (FOGS === 1) { for (let i = 0; i < MW * MH; i++) if (explored[i]) d[i * 4 + 3] = 0; fogX.putImageData(fogImg, 0, 0); return; }
+      const B = fogBox || [0, 0, MW - 1, MH - 1]; fogBox = null; const raw = (x, y) => (x < 0 || y < 0 || x >= MW || y >= MH) ? 1 : explored[y * MW + x] ? 0 : 1;
+      const x0 = Math.max(0, B[0] - 3), y0 = Math.max(0, B[1] - 3), x1 = Math.min(MW - 1, B[2] + 3), y1 = Math.min(MH - 1, B[3] + 3);
+      // two 3 x 3 box passes over the tiles (the first into fogT, the second back into fogA), a margin read round the box
+      const at = (A, x, y) => (x < 0 || y < 0 || x >= MW || y >= MH) ? 1 : A[y * MW + x];
+      for (let y = Math.max(0, y0 - 1); y <= Math.min(MH - 1, y1 + 1); y++) for (let x = Math.max(0, x0 - 1); x <= Math.min(MW - 1, x1 + 1); x++) { let s = 0; for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) s += raw(x + i, y + j); fogT[y * MW + x] = s / 9; }
+      for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) { let s = 0; for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) { const xx = x + i, yy = y + j; s += (xx < Math.max(0, x0 - 1) || yy < Math.max(0, y0 - 1) || xx > Math.min(MW - 1, x1 + 1) || yy > Math.min(MH - 1, y1 + 1)) ? at(fogA, xx, yy) : at(fogT, xx, yy); } fogA[y * MW + x] = s / 9; }
+      // sampled smoothly: each pixel between the four tile centres round it
+      const px0 = Math.max(0, x0 * FOGS - FOGS), py0 = Math.max(0, y0 * FOGS - FOGS), px1 = Math.min(FW - 1, (x1 + 2) * FOGS - 1), py1 = Math.min(FH - 1, (y1 + 2) * FOGS - 1);
+      for (let py = py0; py <= py1; py++) { const v = (py + 0.5) / FOGS - 0.5, ty = Math.floor(v), fy = v - ty; for (let px = px0; px <= px1; px++) { const u = (px + 0.5) / FOGS - 0.5, tx = Math.floor(u), fx = u - tx;
+        const a = at(fogA, tx, ty) * (1 - fx) + at(fogA, tx + 1, ty) * fx, b = at(fogA, tx, ty + 1) * (1 - fx) + at(fogA, tx + 1, ty + 1) * fx, k = a * (1 - fy) + b * fy, e = k * k * (3 - 2 * k);
+        d[(py * FW + px) * 4 + 3] = Math.round(255 * e); } }
+      fogX.putImageData(fogImg, 0, 0, px0, py0, px1 - px0 + 1, py1 - py0 + 1); }
     function drawWorld(c) {
       const W = api.W, H = api.H, T = Tz();
       if (FD) { FD.drawArena(c, W, H, cam, T, g.t); return; }
@@ -2554,7 +2576,7 @@ GAMES.dungeon = {
       // fog on screen?
       let fx0 = 1e9, fx1 = -1, fy0 = 1e9, fy1 = -1;
       if (!SKIP.fog) {
-        const x0 = Math.max(0, Math.floor(cam.x - W / 2 / T) - 1), x1 = Math.min(MW - 1, Math.ceil(cam.x + W / 2 / T) + 1), y0 = Math.max(0, Math.floor(cam.y - H / 2 / T) - 1), y1 = Math.min(MH - 1, Math.ceil(cam.y + H / 2 / T) + 1);
+        const fr = FOGS > 1 ? 3 : 1, x0 = Math.max(0, Math.floor(cam.x - W / 2 / T) - fr), x1 = Math.min(MW - 1, Math.ceil(cam.x + W / 2 / T) + fr), y0 = Math.max(0, Math.floor(cam.y - H / 2 / T) - fr), y1 = Math.min(MH - 1, Math.ceil(cam.y + H / 2 / T) + fr);   // v467 CF: (a fogged tile just off the screen still shades the edge of it)
         for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) if (!explored[ty * MW + tx]) { if (tx < fx0) fx0 = tx; if (tx > fx1) fx1 = tx; if (ty < fy0) fy0 = ty; if (ty > fy1) fy1 = ty; }
       }
       // in the open (an arena, a lit land) there is nothing to cut holes in: a little fog goes straight onto the screen,
@@ -2563,9 +2585,9 @@ GAMES.dungeon = {
       // screen costs more than that layer and its copy)
       const fogBig = fx1 >= 0 && !SKIP.fogDirect && (Math.min(MW - 1, fx1 + 1) - Math.max(0, fx0 - 1) + 1) * (Math.min(MH - 1, fy1 + 1) - Math.max(0, fy0 - 1) + 1) * T * T > W * H * 0.2;
       if (!(F.dark > 0 && !SKIP.light) && !fogBig) {
-        if (fx1 >= 0) { fogSync(); const bx0 = Math.max(0, fx0 - 1), by0 = Math.max(0, fy0 - 1), bx1 = Math.min(MW - 1, fx1 + 1), by1 = Math.min(MH - 1, fy1 + 1);
+        if (fx1 >= 0) { fogSync(); const fm = FOGS > 1 ? 2 : 1, bx0 = Math.max(0, fx0 - fm), by0 = Math.max(0, fy0 - fm), bx1 = Math.min(MW - 1, fx1 + fm), by1 = Math.min(MH - 1, fy1 + fm);   // v467 CF: (the soft fog reaches two tiles past the last fogged one)
           c.save(); c.imageSmoothingEnabled = true; c.globalAlpha = PB.out && !(F.dark > 0.3) ? 0.94 : 1;
-          c.drawImage(fogC, bx0, by0, bx1 - bx0 + 1, by1 - by0 + 1, sx(bx0), sy(by0), (bx1 - bx0 + 1) * T, (by1 - by0 + 1) * T); c.restore(); }
+          c.drawImage(fogC, bx0 * FOGS, by0 * FOGS, (bx1 - bx0 + 1) * FOGS, (by1 - by0 + 1) * FOGS, sx(bx0), sy(by0), (bx1 - bx0 + 1) * T, (by1 - by0 + 1) * T); c.restore(); }
         const fw = Math.round(W * dpr), fh = Math.round(H * dpr);
         c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.imageSmoothingEnabled = false;
         // (a Super Fiend's arena on a device that has had to give up the fiend's light passes goes without its vignette:
@@ -2604,9 +2626,9 @@ GAMES.dungeon = {
         let bx0 = fx0, bx1 = fx1, by0 = fy0, by1 = fy1;
         if (bx1 >= 0) {
           fogSync();
-          bx0 = Math.max(0, bx0 - 1); by0 = Math.max(0, by0 - 1); bx1 = Math.min(MW - 1, bx1 + 1); by1 = Math.min(MH - 1, by1 + 1);
+          { const fm = FOGS > 1 ? 2 : 1; bx0 = Math.max(0, bx0 - fm); by0 = Math.max(0, by0 - fm); bx1 = Math.min(MW - 1, bx1 + fm); by1 = Math.min(MH - 1, by1 + fm); }   // v467 CF
           lx.imageSmoothingEnabled = true; lx.globalAlpha = PB.out && !(F.dark > 0.3) ? 0.94 : 1;
-          lx.drawImage(fogC, bx0, by0, bx1 - bx0 + 1, by1 - by0 + 1, sx(bx0) * k3, sy(by0) * k3, (bx1 - bx0 + 1) * T * k3, (by1 - by0 + 1) * T * k3);
+          lx.drawImage(fogC, bx0 * FOGS, by0 * FOGS, (bx1 - bx0 + 1) * FOGS, (by1 - by0 + 1) * FOGS, sx(bx0) * k3, sy(by0) * k3, (bx1 - bx0 + 1) * T * k3, (by1 - by0 + 1) * T * k3);
           lx.globalAlpha = 1;
         }
       }

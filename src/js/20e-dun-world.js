@@ -220,6 +220,13 @@ const DunWorld = (() => {
          it (a bare wall is not ground), so a land's floor painter now always paints under its props: a broken prop leaves the
          land's own continuous floor, with BREAK_FX's debris on it */
       if (B.floorFn && (t === T_FLOOR || t === T_SOLID)) B.floorFn(c, X, Y, T, h, h2, x, y, lw, gN, gS, gW, gE, isWall, isGap /* v466 CF: the gaps round a tile, for a lava light that is continuous across tiles (20zz5 edgeGlow) */);   /* a land of its own floor (v433 DE: B.floorUnder: under its props too; isWall for drifts at the walls' feet) */
+      /* v467 CF (the user: "Some props still leave behind square tiles like this"): the Garden's square patches were its mud
+         pools (the forest rooms' T_MUD), which no land's floor painter covered: each mud tile was the engine's own square (one of
+         two mud colours by tile, the per-tile light, a pebble). In a land with a floor of its own, a mud or ice tile is now that
+         floor, under a wet (or icy) wash worked out in the world: by the distance to the nearest tile that is not of its kind (the
+         eight round it), clear at the edge it shares with dry ground and full inside, so the pool's outline is soft and two
+         tiles agree along the edge they share (wetPatch) */
+      else if (B.floorFn && (t === T_MUD || t === T_ICE) && !B.wetOwn) { B.floorFn(c, X, Y, T, h, h2, x, y, lw, gN, gS, gW, gE, isWall, isGap); wetPatch(c, X, Y, T, x, y, t, B, tt); }
       else { if (h > 0.72) { c.fillStyle = 'rgba(0,0,0,.05)'; c.beginPath(); c.ellipse(X + T * (0.3 + h2 * 0.4), Y + T * (0.35 + h * 0.3), T * 0.42, T * 0.26, h2 * 3, 0, 6.283); c.fill(); }
       groundDetail(c, bn, B, t, X, Y, T, h, h2, x, y, lw); }
       // shade along walls (ambient occlusion)
@@ -275,6 +282,23 @@ const DunWorld = (() => {
     }
     return cv;
   }
+  /* v467 CF: a mud / ice tile's wash in a land with its own floor: by the tile's neighbours (which of the eight are not of its
+     kind), one small picture each, kept; its outer samples lie on the tile's edges, so a pool is one continuous shape */
+  const WETN = 9, WETC = new Map();
+  function wetPic(mask, col, ice) { const key = mask + '|' + col + (ice ? 'i' : ''); let cv = WETC.get(key); if (cv) return cv;
+    const dry = []; let b = 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { if (!dx && !dy) continue; if (mask & (1 << b)) dry.push([dx, dy]); b++; }
+    cv = mk(WETN, WETN); const cx = cv.getContext('2d'), img = cx.createImageData(WETN, WETN), d = img.data, [r, g, bl] = hexRGB(col), R = 0.42;
+    for (let j = 0; j < WETN; j++) for (let i = 0; i < WETN; i++) { const wx = i / (WETN - 1), wy = j / (WETN - 1); let m = 9;
+      for (const [gx, gy] of dry) { const ex = wx < gx ? gx - wx : wx > gx + 1 ? wx - gx - 1 : 0, ey = wy < gy ? gy - wy : wy > gy + 1 ? wy - gy - 1 : 0, dd = Math.hypot(ex, ey); if (dd < m) m = dd; }
+      const u = Math.min(1, m / R), e = u * u * (3 - 2 * u), k = (i + j * WETN) * 4; d[k] = r; d[k + 1] = g; d[k + 2] = bl; d[k + 3] = Math.round(255 * (ice ? 0.62 : 0.78) * e); }
+    cx.putImageData(img, 0, 0); if (WETC.size > 500) WETC.clear(); WETC.set(key, cv); return cv; }
+  function wetPatch(c, X, Y, T, x, y, t, B, tt) { let mask = 0, b = 0, inner = true;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { if (!dx && !dy) continue; if (tt(x + dx, y + dy) !== t) { mask |= 1 << b; inner = false; } b++; }
+    const ice = t === T_ICE, col = (ice ? (B.ice || BIOMES.frost.ice) : (B.mud || BIOMES.swamp.mud))[0];
+    c.save(); c.imageSmoothingEnabled = true; c.drawImage(wetPic(mask, col, ice), 0.5, 0.5, WETN - 1, WETN - 1, X, Y, T, T);
+    // (a ripple on the pool's inner tiles only, wholly inside its tile, so none is ever cut)
+    if (inner && !ice && th(x, y, 23) < 0.45) { const hx = th(x, y, 29), hy = th(x, y, 31); c.fillStyle = B.mudSpot || 'rgba(255,255,255,.12)'; c.beginPath(); c.ellipse(X + T * (0.3 + hx * 0.4), Y + T * (0.35 + hy * 0.3), T * 0.2, T * 0.07, 0, 0, 6.283); c.fill(); }
+    c.restore(); }
   function groundDetail(c, bn, B, t, X, Y, T, h, h2, x, y, lw) {
     if (t === T_MUD) { c.fillStyle = B.mudSpot || 'rgba(40,30,15,.35)'; c.beginPath(); c.ellipse(X + T * (0.3 + h * 0.4), Y + T * (0.4 + h2 * 0.3), T * 0.25, T * 0.12, 0, 0, 6.283); c.fill(); c.fillStyle = 'rgba(255,255,255,.18)'; c.beginPath(); c.ellipse(X + T * (0.35 + h * 0.4), Y + T * (0.35 + h2 * 0.3), T * 0.1, T * 0.04, -0.3, 0, 6.283); c.fill(); return; }
     if (t === T_ICE) { c.strokeStyle = 'rgba(255,255,255,.55)'; c.lineWidth = lw * 1.2; c.beginPath(); c.moveTo(X + T * (0.1 + h * 0.3), Y + T * 0.85); c.lineTo(X + T * (0.5 + h * 0.3), Y + T * 0.15); c.stroke(); c.strokeStyle = 'rgba(120,170,220,.4)'; c.lineWidth = lw * 0.6; if (h2 < 0.4) { c.beginPath(); c.moveTo(X + T * 0.6, Y + T * 0.5); c.lineTo(X + T * 0.85, Y + T * 0.65); c.lineTo(X + T * 0.75, Y + T * 0.9); c.stroke(); } return; }

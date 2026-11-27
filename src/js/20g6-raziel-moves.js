@@ -60,7 +60,7 @@ const RAZIEL_MOVES = (() => {
     cata: { n: [1, 2, 3], rise: 0.8, form: 0.85, fly: 1.05, gap: 1.25, R: [3.2, 3.6, 4.0], core: 1.4, dmg: 2.4, coreK: 1.3, fin: 4.4, finR: 5.0, rec: 0.7 },
     fin: { len: 3.2, hit: 2.0, k: 8, R: 9 },
     // (v465 RZ-A) lively movement: speeds (tiles/s), the springs (1/s), how far from the pet it may roam (an ellipse, tiles)
-    move: { hover: 0.75, walk: 2.6, run: 4.2, fly: 6.2, swoop: 8.0, accG: 3.4, accA: 2.2, arrive: 1.6, up: 3.2, down: 3.8, maxR: 3.3, maxRy: 4.0, stride: [1.6, 3.2] },
+    move: { rWalk: 0.5, rPath: 0.55, rLand: 0.8, touch: 0.2, hopAlt: 0.95, hopGap: 1.2, blockMax: 0.25, hover: 0.75, walk: 2.6, run: 4.2, fly: 6.2, swoop: 8.0, accG: 3.4, accA: 2.2, arrive: 1.6, up: 3.2, down: 3.8, maxR: 3.3, maxRy: 4.0, stride: [1.6, 3.2] },
     strafe: { L: 6.5, pass: 1.5, turn: 0.85, alt: 0.55, ahead: 2.3, lat: 1.0, rec: 0.9, chance: 0.3 },   // Twin Fang as a strafing pass
     soar: { R: 3.0, steps: 5, alt: 0.75, low: 0.35, dur: 5.0, every: 12, buffet: 1.2, buffetR: 2.2 },                               // a flying circuit and a swooping pass                          // (the finale when the ultimate's module is missing)
   };
@@ -221,28 +221,53 @@ const RAZIEL_MOVES = (() => {
     function setMode(a, m) { const ab = a.rz; if (ab.mode === m) return; ab.mode = m; ab.modeT = ab.clock; ab.flips = (ab.flips || 0) + 1; FX.push({ kind: 'modeFx', a, t: 0, life: 0.9, m }); sfx('chirp'); }
 
     /* ---- moving: it walks on four legs beside the pet, turned to its quarry; the gait follows the distance it covers ---- */
-    function stepTo(a, dt, tx, ty, vmax) {
-      const ab = a.rz, dx = tx - a.x, dy = ty - a.y, d = Math.hypot(dx, dy), want = d > 0.3 ? Math.min(vmax, d * 1.5) : 0, acc = Math.min(1, dt * CFG.walk.acc);
-      ab.vx += ((d > 0.3 ? dx / d * want : 0) - ab.vx) * acc; ab.vy += ((d > 0.3 ? dy / d * want : 0) - ab.vy) * acc;
-      const p = X.walkPoint(a.x + ab.vx * dt, a.y + ab.vy * dt, { r: 0.7, mv: 0, x: a.x, y: a.y }); a.x = p.x; a.y = p.y;
-    }
     /* ---- (v465 RZ-A) lively movement: it strides, takes off, flies circuits and swooping passes, banks, hovers and lands. One mover for all
        of it: a target point and a target height; the velocity and the height follow by exact exponential springs (the same at any frame
        rate). On the ground every step stays on the floor (walkPoint); in the air it may cross walls and gaps, but keeps near the pet and on
        screen, and it only comes down on floor. look: what it turns to when it is nearly still (moving, it faces where it goes) ---- */
+    /* (v467 RZ-A) the floor under it: clear of walls, props, gaps and void for a footprint of radius r; the straight way between two
+       points clear for its stride (from 0.2 tiles out: where it stands is judged by gOK alone); a spot to come down on: room for the
+       whole footprint, on floor joined to the pet's (the game's walkPoint), cached a moment per target */
+    const gOK = (x, y, r) => isFinite(x) && isFinite(y) && !X.blocked(x, y, r, 0);
+    function pathOK(x0, y0, x1, y1) { const d = Math.hypot(x1 - x0, y1 - y0), n = Math.ceil(d / 0.2); for (let i = 1; i <= n; i++) { const t = i / n; if (t * d < 0.2) continue; if (!gOK(x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, CFG.move.rPath)) return false; } return true; }
+    function landAt(ab, tx, ty) { const kx = Math.round(tx * 4), ky = Math.round(ty * 4), c = ab.lc; if (c && c.kx === kx && c.ky === ky && ab.clock - c.t < 0.5) return c.p;
+      const R = CFG.move.rLand; let p = X.walkPoint(tx, ty, { r: R, mv: 0 }); if (!gOK(p.x, p.y, R)) p = X.walkPoint(me.x, me.y, { r: R, mv: 0 }); if (!gOK(p.x, p.y, R)) p = X.walkPoint(me.x, me.y, { r: CFG.move.rWalk + 0.05, mv: 0 });
+      ab.lc = { kx, ky, t: ab.clock, p: { x: p.x, y: p.y } }; return ab.lc.p; }
     function moveTo(a, dt, tx, ty, vmax, alt, look) {
       const ab = a.rz, M = CFG.move; if (!(dt > 0)) return Math.hypot(tx - a.x, ty - a.y);
       { const ox = tx - me.x, oy = ty - me.y, q = Math.hypot(ox / M.maxR, oy / M.maxRy); if (q > 1) { tx = me.x + ox / q; ty = me.y + oy / q; } }
       const wasAir = ab.alt > 0.12;
-      if (!(alt > 0.02) && ab.alt > 0.02) { const p = X.walkPoint(tx, ty, { r: 0.7, mv: 0, x: me.x, y: me.y }); tx = p.x; ty = p.y; }   // (it only comes down on floor)
-      const tgt = alt > 0.02 ? alt + 0.05 * Math.sin(ab.clock * 2.3) : 0, w = tgt > ab.alt ? M.up : M.down, e = Math.exp(-w * dt), dd = ab.alt - tgt, j = (ab.altV + w * dd) * dt;
-      ab.alt = Math.max(0, tgt + (dd + j) * e); ab.altV = (ab.altV - j * w) * e; ab.altT = alt; if (ab.alt < 1e-3 && !(alt > 0.02)) { ab.alt = 0; ab.altV = 0; }
+      // (v467 RZ-A) on the ground only along clear floor. A ground target becomes a spot with room for its feet (and joined to the pet's
+      // floor); the straight way there is checked step by step against its footprint, walls, props, gaps and void. A blocked way, a spot it
+      // is not standing clear on, or a stride held back for a moment: it takes off, crosses high, and comes straight down on that spot
+      // (a hop). Down from any flight the same way: only onto open floor, and only once above it. Nothing pushes it while it is in the air.
+      let alt2 = alt;
+      if (!(alt > 0.02)) {
+        const L = landAt(ab, tx, ty); tx = L.x; ty = L.y;
+        if (ab.hop && Math.hypot(ab.hop.x - tx, ab.hop.y - ty) > 1.2) ab.hop = { x: tx, y: ty, hi: ab.hop.hi };   // (the target moved on: so does the spot)
+        if (!ab.hop) {
+          if (ab.alt > 0.02) ab.hop = { x: tx, y: ty, hi: false };
+          else { const stuck = !gOK(a.x, a.y, M.rWalk);
+            if (stuck || ab.blockT > M.blockMax || (Math.hypot(tx - a.x, ty - a.y) > 0.3 && !pathOK(a.x, a.y, tx, ty))) { if (stuck || ab.clock - (ab.hopT == null ? -99 : ab.hopT) > M.hopGap) ab.hop = { x: tx, y: ty, hi: true }; else { tx = a.x; ty = a.y; } } }   // (just down: it waits a beat before another hop)
+        }
+        if (ab.hop) { const H0 = ab.hop, dH = Math.hypot(H0.x - a.x, H0.y - a.y); tx = H0.x; ty = H0.y; vmax = Math.max(vmax, M.run);
+          if (!H0.down && (dH < M.touch || (dH < 3.5 && gOK(a.x, a.y, M.rLand) && pathOK(a.x, a.y, H0.x, H0.y)))) H0.down = true;   // (over open floor with a clear way on to the spot: it comes down here and strides the rest)
+          else if (H0.down && dH > M.touch && !gOK(a.x, a.y, M.rWalk)) H0.down = false;   // (drifted over an edge while coming down: up again)
+          if (H0.down && ab.alt > 0.02 && dH > M.touch && !pathOK(a.x, a.y, H0.x, H0.y)) { tx = a.x + ab.vx * 0.15; ty = a.y + ab.vy * 0.15; if (!gOK(tx, ty, M.rWalk)) { tx = a.x; ty = a.y; } }   // (the spot moved on past an edge: it settles where it is, and goes on from the ground)
+          alt2 = H0.down ? 0 : H0.hi ? M.hopAlt : 0.35;
+          if (H0.down && ab.alt <= 0.02) { if (gOK(a.x, a.y, M.rWalk)) { ab.hop = null; ab.hopT = ab.clock; ab.blockT = 0; } else { ab.lc = null; ab.hop = { x: tx, y: ty, hi: true }; } } }
+      } else ab.hop = null;
+      const tgt = alt2 > 0.02 ? alt2 + 0.05 * Math.sin(ab.clock * 2.3) : 0, w = tgt > ab.alt ? M.up : M.down, e = Math.exp(-w * dt), dd = ab.alt - tgt, j = (ab.altV + w * dd) * dt;
+      ab.alt = Math.max(0, tgt + (dd + j) * e); ab.altV = (ab.altV - j * w) * e; ab.altT = alt2; if (ab.alt < 1e-3 && !(alt2 > 0.02)) { ab.alt = 0; ab.altV = 0; }
       const air = ab.alt > 0.12, dx = tx - a.x, dy = ty - a.y, d = Math.hypot(dx, dy), want = d > 0.05 ? Math.min(vmax, d * M.arrive) : 0, k = 1 - Math.exp(-(air ? M.accA : M.accG) * dt);
       ab.vx += ((d > 0.05 ? dx / d * want : 0) - ab.vx) * k; ab.vy += ((d > 0.05 ? dy / d * want : 0) - ab.vy) * k;
-      let freeMv = ab.alt > 0.02; if (!freeMv && ab.landing) { const p = X.walkPoint(a.x, a.y, { r: 0.7, mv: 0, x: a.x, y: a.y }); if (Math.hypot(p.x - a.x, p.y - a.y) > 0.01) freeMv = true; else ab.landing = false; }   // (just down: it glides on until it is over floor)
-      if (ab.alt > 0.02) ab.landing = true;
-      if (freeMv) { a.x += ab.vx * dt; a.y += ab.vy * dt; }   // (over walls and gaps; on the floor only once it has touched down)
-      else { const p = X.walkPoint(a.x + ab.vx * dt, a.y + ab.vy * dt, { r: 0.7, mv: 0, x: a.x, y: a.y }); a.x = p.x; a.y = p.y; }
+      if (ab.alt > 0.02) { a.x += ab.vx * dt; a.y += ab.vy * dt; }   // (in the air: over walls, props and gaps, free)
+      else {   // (on the ground: a step only onto clear floor, else along one axis, else none; held back, it counts the time and soon hops)
+        const x0 = a.x, y0 = a.y, nx = x0 + ab.vx * dt, ny = y0 + ab.vy * dt, r = M.rWalk, in0 = gOK(x0, y0, r), ok = (x, y) => gOK(x, y, r) || (!in0 && gOK(x, y, 0.3));
+        if (ok(nx, ny)) { a.x = nx; a.y = ny; } else if (ok(nx, y0)) a.x = nx; else if (ok(x0, ny)) a.y = ny;
+        const wnt = Math.hypot(ab.vx, ab.vy) * dt, got = Math.hypot(a.x - x0, a.y - y0);
+        if (wnt > 0.5 * dt && got < wnt * 0.8) ab.blockT = (ab.blockT || 0) + dt; else ab.blockT = Math.max(0, (ab.blockT || 0) - 2 * dt);
+        if (got < wnt * 0.999) { ab.vx = (a.x - x0) / dt; ab.vy = (a.y - y0) / dt; } }
       // the heading, the bank into a turn, the wingbeats (climbing and hovering beat hard, a fast level flight glides)
       const sp = Math.hypot(ab.vx, ab.vy), hd = Math.atan2(ab.vy, ab.vx), kb = 1 - Math.exp(-5 * dt);
       const bk = air && sp > 1 && ab.hd != null ? Math.max(-1, Math.min(1, -angD(hd, ab.hd) / dt * 0.22 * Math.min(1, sp / 4))) : 0; if (sp > 0.3) ab.hd = hd;
@@ -320,7 +345,7 @@ const RAZIEL_MOVES = (() => {
       if (A.hx == null) { A.hx = a.x; A.hy = a.y; }
     }
     /* (v465 RZ-A) the move before a power: to the spot (walking, or a short flight when it is far), only if it is worth the trip */
-    function goTo(a, A, s, minD, land) { const d = Math.hypot(s.x - a.x, s.y - a.y); if (d < minD) { if (land && a.rz.alt > 0.1) A.go = { x: a.x + a.rz.vx * 0.3, y: a.y + a.rz.vy * 0.3, alt: 0, v: CFG.move.run, tmax: 1.2, land }; return; }   /* (a grounded power: down first) */ const far = d > 4.5; A.go = { x: s.x, y: s.y, alt: far ? 0.6 : 0, v: far ? CFG.move.fly : CFG.move.run, tmax: far ? 1.7 : 1.3, land }; }
+    function goTo(a, A, s, minD, land) { const d = Math.hypot(s.x - a.x, s.y - a.y); if (d < minD) { if (land && a.rz.alt > 0.1) A.go = { x: a.x + a.rz.vx * 0.3, y: a.y + a.rz.vy * 0.3, alt: 0, v: CFG.move.run, tmax: 1.2, land }; return; }   /* (a grounded power: down first) */ s = landAt(a.rz, s.x, s.y); const clear = a.rz.alt <= 0.02 && pathOK(a.x, a.y, s.x, s.y), far = d > (clear ? 6.5 : 4.5); A.go = { x: s.x, y: s.y, alt: far ? 0.6 : 0, v: far ? CFG.move.fly : CFG.move.run, tmax: far ? 1.7 : Math.max(1.3, d / CFG.move.run + 0.5), land }; }   // (v467 RZ-A: a spot it can stand on; it runs the clear way, flies a long or blocked one)
     /* (v465 RZ-A) Twin Fang as a strafing pass: in from one side, low over the monsters, both breaths raking the ground ahead and crossing, a
        banked turn and back (2, 3 passes by form), at level 7 a hover over the target for the convergence blast, then it lands */
     function strafeInit(a, A) {
