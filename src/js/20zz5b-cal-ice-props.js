@@ -155,7 +155,7 @@ var CAL_ICE = (() => {
   function install() { if (typeof DunWorld === 'undefined' || !DunWorld.PROPS) return; const PR = DunWorld.PROPS;
     const wrap = (kind, name, vOf, s, dy) => { const old = PR[kind]; if (!old || old.__calice) return; OLD[kind] = old;
       const f = function (c, T, v) { if (!reg1()) return old.apply(this, arguments); let sp = null; try { sp = BP().sprite(name, vOf(v | 0), Math.max(8, Math.round(T * s))); } catch (e) { sp = null; } if (!sp) { STATS.fallbacks++; return old.apply(this, arguments); } STATS.painted++;
-        const k = T * s / sp.P; c.drawImage(sp.cv, -sp.ax * k, dy * T - sp.ay * k, sp.cv.width * k, sp.cv.height * k); }; f.__calice = 1; PR[kind] = f; };
+        const k = T * s / sp.P; c.drawImage(sp.cv, -sp.ax * k, dy * T - sp.ay * k, sp.cv.width * k, sp.cv.height * k); if (typeof CAL !== 'undefined' && CAL.footFade) CAL.footFade(c, T); /* v466 CF: (its floor light faded out where the prop's picture ends, not cut square) */ }; f.__calice = 1; PR[kind] = f; };
     wrap('frostcluster', 'calfrost', v => v % 4, 1, 0);
     wrap('frostwell', 'calfwell', v => v % 2, 0.9, -0.05); }
   install();

@@ -213,7 +213,13 @@ const DunWorld = (() => {
       c.save(); if (rounded) c.clip();
       // geometric light on every tile: a lit top-left, a shaded bottom-right, and a touch of mottling so no two tiles match
       { const tg = c.createLinearGradient(X, Y, X + T, Y + T); tg.addColorStop(0, 'rgba(255,255,255,.09)'); tg.addColorStop(0.5, 'rgba(255,255,255,0)'); tg.addColorStop(1, `rgba(0,0,0,${(0.08 + h2 * 0.06).toFixed(3)})`); c.fillStyle = tg; c.fillRect(X, Y, T, T); }
-      if (B.floorFn && (t === T_FLOOR || (B.floorUnder && t === T_SOLID))) B.floorFn(c, X, Y, T, h, h2, x, y, lw, gN, gS, gW, gE, isWall);   /* a land of its own floor (v433 DE: B.floorUnder: under its props too; isWall for drifts at the walls' feet) */
+      /* v466 CF (the user, of the Garden: "after the props were destroyed, it leaves behind these square tiles"): a prop stands on
+         a T_SOLID tile, and only lands that set floorUnder (the Dunes, the Sepulchre) painted their own floor under it; every other
+         land's prop tile got the engine's own square tile (its base colour, per-tile light and pebble), hidden by the prop until
+         it broke (20l breakProp sets the tile to floor without a repaint). A solid tile reaches here only when a prop stands on
+         it (a bare wall is not ground), so a land's floor painter now always paints under its props: a broken prop leaves the
+         land's own continuous floor, with BREAK_FX's debris on it */
+      if (B.floorFn && (t === T_FLOOR || t === T_SOLID)) B.floorFn(c, X, Y, T, h, h2, x, y, lw, gN, gS, gW, gE, isWall, isGap /* v466 CF: the gaps round a tile, for a lava light that is continuous across tiles (20zz5 edgeGlow) */);   /* a land of its own floor (v433 DE: B.floorUnder: under its props too; isWall for drifts at the walls' feet) */
       else { if (h > 0.72) { c.fillStyle = 'rgba(0,0,0,.05)'; c.beginPath(); c.ellipse(X + T * (0.3 + h2 * 0.4), Y + T * (0.35 + h * 0.3), T * 0.42, T * 0.26, h2 * 3, 0, 6.283); c.fill(); }
       groundDetail(c, bn, B, t, X, Y, T, h, h2, x, y, lw); }
       // shade along walls (ambient occlusion)

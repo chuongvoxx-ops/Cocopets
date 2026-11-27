@@ -13,6 +13,7 @@ const SC = {
   ice: { stage: 3, kinds: ['frostcluster', 'frostwell', 'icefall', 'rimevessel'], dist: 2.6 },
   bigcrystal: { stage: 6, kinds: ['bigcrystal', 'crystalforest', 'magmaglass'] },
   geode: { stage: 6, kinds: ['geode'], dist: 2.4 },
+  mound: { stage: 0, kinds: ['ashmound'], dist: 2.4 },   // v466 CF: the remade ash mound (20zz5d)
   tower: { tower: true, kinds: null },
   paint: { stage: 0, kinds: ['ashmound', 'glassspire'], dist: 3.2, paint: true }   // the call shape S's furnace idols use (a painter, key, w, h, size, hot)
 };

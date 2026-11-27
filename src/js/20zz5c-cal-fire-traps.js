@@ -129,7 +129,7 @@ var CAL_FIRE = (() => {
   const OLD = {};
   function install() { if (typeof DunWorld === 'undefined' || !DunWorld.PROPS) return; const PR = DunWorld.PROPS, old = PR.geode; if (!old || old.__calfire) return; OLD.geode = old;
     const f = function (c, T, v) { if (!reg1()) return old.apply(this, arguments); let sp = null; try { sp = BP().sprite('calgeode', (v | 0) % 2, Math.max(8, Math.round(T))); } catch (e) { sp = null; } if (!sp) { STATS.fallbacks++; return old.apply(this, arguments); } STATS.geode++;
-      const k = T / sp.P; c.drawImage(sp.cv, -sp.ax * k, -sp.ay * k, sp.cv.width * k, sp.cv.height * k); }; f.__calfire = 1; PR.geode = f; }
+      const k = T / sp.P; c.drawImage(sp.cv, -sp.ax * k, -sp.ay * k, sp.cv.width * k, sp.cv.height * k); if (typeof CAL !== 'undefined' && CAL.footFade) CAL.footFade(c, T); }; f.__calfire = 1; PR.geode = f; }   // v466 CF: (its floor glow faded out where the prop's picture ends, not cut square)
   install();
 
   /* ======================= the vents: their pictures and live fire ======================= */

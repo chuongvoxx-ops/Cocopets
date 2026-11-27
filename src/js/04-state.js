@@ -227,6 +227,7 @@ function sanitize(o) {
   if (o.rift && typeof o.rift === 'object') { const r = o.rift, idOK = k => /^[a-z]{2,16}$/.test(k);
     ['seals', 'gates'].forEach(f => { if (r[f] && typeof r[f] === 'object') Object.keys(r[f]).slice(0, 20).forEach(k => { if (idOK(k) && r[f][k]) s.rift[f][k] = 1; }); });
     if (r.prog && typeof r.prog === 'object') Object.keys(r.prog).slice(0, 20).forEach(k => { if (idOK(k)) s.rift.prog[k] = Math.floor(num(r.prog[k], 0, 0, 31)); });   // (QA v386: was capped at 5, from the old six-stage rifts: a checkpoint past stage 6 (Rift 0's 9 stages, the others' 14) fell back to stage 6 on every load)
+    if (r.replay && typeof r.replay === 'object') { s.rift.replay = {}; Object.keys(r.replay).slice(0, 20).forEach(k => { const v = Math.floor(num(r.replay[k], 0, 0, 31)); if (idOK(k) && v) s.rift.replay[k] = v; }); }   // v466 CF: a sealed rift's replay checkpoint (21b riftFinish)
     s.rift.rlyeh = r.rlyeh ? 1 : 0;
     // v391 B2: the Belfry's Hall of Three Tides, per rift: the active gate, the crystals earned, carried and deposited (letters E W N), the door raised
     if (r.hall && typeof r.hall === 'object') { s.rift.hall = {}; const L = v => String(v || '').replace(/[^EWN]/g, '').slice(0, 3); Object.keys(r.hall).slice(0, 4).forEach(k => { const h = r.hall[k]; if (idOK(k) && h && typeof h === 'object') s.rift.hall[k] = { sel: L(h.sel).slice(0, 1), earn: L(h.earn), carry: L(h.carry).slice(0, 1), dep: L(h.dep), door: h.door ? 1 : 0 }; }); }

@@ -390,7 +390,28 @@ CAL.bossMake = CAL.bossMake || {};
     blackcrystal: 'shadow', bigcrystal: 'shadow', glassspire: 'shadow', slabhang: 'shadow', magmaglass: 'fire',
     frostwell: 'frost', frostcluster: 'frost', icechains: 'frost', icefall: 'frost', rimevessel: 'frost', crystalforest: 'prism', geode: 'prism' });   // (tests: CAL.FAR.off shows the old sharp lava)
   /* ---- the floors ---- */
-  const edgeGlow = (c, X, Y, T, gN, gS, gW, gE, a) => { if (!(gN || gS || gW || gE)) return; c.save(); c.globalCompositeOperation = 'lighter';
+  /* v466 CF: the lava's light on the ground beside a gap, worked out in the world: at each point, by its distance to the
+     nearest gap tile (the eight round this tile included, so a corner is lit round the corner), sampled on a small grid whose
+     outer samples lie exactly on the tile's edges and laid over the tile smoothed: two tiles beside each other give the
+     same light along the edge they share. (It was a band per side of the tile, cut off square where the next tile no
+     longer touched the gap: a lit square at every turn of a ledge.) EG holds the tile being painted (set by the lands'
+     floorFn wrapper below); without it, the old bands */
+  const EG = { gap: null, x: 0, y: 0 }, EGN = 9, EGC = new Map();
+  /* (the light over a tile depends only on which of its eight neighbours are gaps and on the land's strength: each such
+     picture is worked out once, 9 x 9 samples, and kept; a tile only lays its picture down) */
+  function egPic(mask, a) { const key = mask + '|' + a; let cv = EGC.get(key); if (cv) return cv;
+    const near = []; let b = 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { if (!dx && !dy) continue; if (mask & (1 << b)) near.push([dx, dy]); b++; }
+    cv = document.createElement('canvas'); cv.width = cv.height = EGN; const cx = cv.getContext('2d'), img = cx.createImageData(EGN, EGN), d = img.data, R = 0.58;
+    for (let j = 0; j < EGN; j++) for (let i = 0; i < EGN; i++) { const wx = i / (EGN - 1), wy = j / (EGN - 1); let m = 9;
+      for (const [gx, gy] of near) { const ex = wx < gx ? gx - wx : wx > gx + 1 ? wx - gx - 1 : 0, ey = wy < gy ? gy - wy : wy > gy + 1 ? wy - gy - 1 : 0, dd = Math.hypot(ex, ey); if (dd < m) m = dd; }
+      const u = m >= R ? 0 : 1 - m / R, k = (i + j * EGN) * 4, al = a * (u * u * (0.35 + 0.65 * u));
+      d[k] = 255; d[k + 1] = Math.round(80 + 30 * u); d[k + 2] = Math.round(30 + 10 * u); d[k + 3] = Math.round(255 * Math.min(1, al)); }
+    cx.putImageData(img, 0, 0); if (EGC.size > 600) EGC.clear(); EGC.set(key, cv); return cv; }
+  function edgeGlowW(c, X, Y, T, a) { const isGap = EG.gap, x = EG.x, y = EG.y; let mask = 0, b = 0;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { if (!dx && !dy) continue; if (isGap(x + dx, y + dy)) mask |= 1 << b; b++; }
+    if (!mask) return true;
+    c.save(); c.globalCompositeOperation = 'lighter'; c.imageSmoothingEnabled = true; c.drawImage(egPic(mask, a), 0.5, 0.5, EGN - 1, EGN - 1, X, Y, T, T); c.restore(); return true; }
+  const edgeGlow = (c, X, Y, T, gN, gS, gW, gE, a) => { if (EG.gap) { try { if (edgeGlowW(c, X, Y, T, a)) return; } catch (e) {} } if (!(gN || gS || gW || gE)) return; c.save(); c.globalCompositeOperation = 'lighter';
     const side = (x0, y0, x1, y1, w, h) => { const g = c.createLinearGradient(x0, y0, x1, y1); g.addColorStop(0, `rgba(255,110,40,${a})`); g.addColorStop(0.5, `rgba(255,80,30,${a * 0.3})`); g.addColorStop(1, 'rgba(255,80,30,0)'); c.fillStyle = g; c.fillRect(Math.min(x0, x1), Math.min(y0, y1), w, h); };
     if (gN) side(X, Y, X, Y + T * 0.55, T, T * 0.55); if (gS) side(X, Y + T, X, Y + T * 0.45, T, T * 0.55); if (gW) side(X, Y, X + T * 0.5, Y, T * 0.5, T); if (gE) side(X + T, Y, X + T * 0.5, Y, T * 0.5, T); c.restore(); };
   // a seam of glowing lava along a crack (a soft orange underlay, a hot core)
@@ -425,12 +446,17 @@ CAL.bossMake = CAL.bossMake || {};
      soot, ash and frost were washed over whole tiles by noise read at the tile, so they came in squares too. Now each floor
      starts from one flat colour for the whole land (this covers the engine's per-tile shade and light exactly), and every
      wash belongs to a column (hex cell), a joint or an iron plate laid out in world space, never to a tile.) */
-  const calBase = (c, X, Y, T, col) => { c.fillStyle = col; c.fillRect(X, Y, T, T); };
+  /* v466 CF (the user: "I can still see square tiles on the floor of every stages"): v433 DE gave 20e's floorFn call a 14th
+     argument (isWall, a function), which landed in ashFloor's and foundryFloor's `base`: `fillStyle = <a function>` is
+     ignored, so the fill below repainted the tile with the engine's own per-tile light gradient (lit top left, a per-tile
+     shade bottom right) instead of the land's one flat colour, and every tile of the Ashen Hollows, the Cinder Galleries and
+     the Runebound Foundry showed as a square. The base is now taken only when it is a colour, and the fill always opaque */
+  const calBase = (c, X, Y, T, col, dflt) => { c.fillStyle = typeof col === 'string' ? col : dflt || '#3D3637'; c.fillRect(X, Y, T, T); };
   // (grain: a few specks per tile at fixed density, seeded by the tile's place; they are too small and even to show the grid)
   function grain(c, X, Y, T, R, n, a) { for (let i = 0; i < n; i++) { c.fillStyle = i % 3 ? `rgba(0,0,0,${a})` : `rgba(200,190,180,${a * 0.6})`; const s = Math.max(1, T * (0.012 + R() * 0.018)); c.fillRect(X + R() * T, Y + R() * T, s, s); } }
   const cellC = p => [(p[0][0] + p[3][0]) / 2, (p[1][1] + p[4][1]) / 2];
   function ashFloor(c, X, Y, T, h, h2, x, y, lw, gN, gS, gW, gE, base) { const R = rnd(x * 7919 + y * 104729 + 61);
-    c.save(); c.beginPath(); c.rect(X, Y, T, T); c.clip(); calBase(c, X, Y, T, base || '#3D3637');
+    c.save(); c.beginPath(); c.rect(X, Y, T, T); c.clip(); calBase(c, X, Y, T, base, '#3D3637');   // v466 CF
     grain(c, X, Y, T, R, 8, 0.14);
     // soot drifts and ash, in broad soft regions: read at each column's centre and laid on the whole column
     hexFloor(c, X, Y, T, x, y, { seam: (mx, my) => 0.035 + 0.05 * (1 - vnoise(mx / 3.5 + 9, my / 3.5, 23)),
@@ -442,38 +468,50 @@ CAL.bossMake = CAL.bossMake || {};
     edgeGlow(c, X, Y, T, gN, gS, gW, gE, 0.3);
     c.restore(); }
   const rivet = (c, x, y, r) => { c.fillStyle = '#16141A'; c.beginPath(); c.arc(x + r * 0.2, y + r * 0.25, r, 0, TAU); c.fill(); c.fillStyle = '#5E5A62'; c.beginPath(); c.arc(x, y, r, 0, TAU); c.fill(); c.fillStyle = 'rgba(255,255,255,.4)'; c.beginPath(); c.arc(x - r * 0.3, y - r * 0.3, r * 0.4, 0, TAU); c.fill(); };
-  /* (v389 F) the foundry's iron plates are laid in world space, not one per tile: 2 x 2 blocks (every other row of blocks
-     set over by a tile, like brickwork), each block one big plate, two long ones or four squares. A plate's light, heat
-     stain, wear and rivets belong to the plate, so a tile is just a window onto it. A block is all plate or all old basalt. */
-  function plateAt(x, y) { const by = Math.floor(y / 2), sh = by & 1, bx = Math.floor((x + sh) / 2), x0 = bx * 2 - sh, y0 = by * 2, hb = hh(bx, by, 83);
-    let px = x0, py = y0, pw = 2, ph = 2;
-    if (hb >= 0.4) { if (hb < 0.64) { ph = 1; py = y; } else if (hb < 0.86) { pw = 1; px = x; } else { pw = ph = 1; px = x; py = y; } }
-    const mx = px + pw / 2, my = py + ph / 2;
-    return { x0, y0, px, py, pw, ph, basalt: vnoise((x0 + 1) / 5, (y0 + 1) / 5, 31) > 0.64, kind: Math.floor(hh(px, py, 79) * 12), heat: vnoise(mx / 3, my / 3, 37), soot: vnoise(mx / 4, my / 4, 43), h: hh(px, py, 89) }; }
-  function foundryFloor(c, X, Y, T, h, h2, x, y, lw, gN, gS, gW, gE, base) { const R = rnd(x * 6151 + y * 92821 + 67), pl = plateAt(x, y);
-    c.save(); c.beginPath(); c.rect(X, Y, T, T); c.clip(); calBase(c, X, Y, T, base || '#3A373C');
+  /* (v389 F) the foundry's iron plates are laid in world space, not one per tile: blocks in brickwork rows, each block one big
+     plate, two long ones or four, or all old basalt. A plate's light, heat stain, wear and rivets belong to the plate, so a
+     tile is just a window onto it.
+     v466 CF (the user: "square tiles on the floor of every stages"): the blocks were 2 x 2 tiles laid on the tile grid, so
+     every plate's joint ran along a tile edge and the Runebound Foundry and the Rimebound Forge read as a floor of square
+     tiles. The blocks are now 2.3 x 1.65 tiles, set off the grid (0.43, 0.31) and staggered by half a block each row: no
+     joint lies on a tile edge, and a tile shows the parts of up to six plates, each clipped to its own rect */
+  const PBW = 2.3, PBH = 1.65, POX = 0.43, POY = 0.31;
+  function platesIn(x, y) { const out = [];
+    for (let by = Math.floor((y - POY) / PBH); by <= Math.floor((y + 1 - POY) / PBH); by++) { const sh = (by & 1) ? PBW * 0.5 : 0, y0 = by * PBH + POY;
+      for (let bx = Math.floor((x - POX + sh) / PBW); bx <= Math.floor((x + 1 - POX + sh) / PBW); bx++) { const x0 = bx * PBW - sh + POX, hb = hh(bx, by, 83), basalt = vnoise((x0 + PBW / 2) / 5, (y0 + PBH / 2) / 5, 31) > 0.64;
+        const parts = basalt || hb < 0.4 ? [[0, 0, 1, 1]] : hb < 0.64 ? [[0, 0, 1, 0.5], [0, 0.5, 1, 0.5]] : hb < 0.86 ? [[0, 0, 0.5, 1], [0.5, 0, 0.5, 1]] : [[0, 0, 0.5, 0.5], [0.5, 0, 0.5, 0.5], [0, 0.5, 0.5, 0.5], [0.5, 0.5, 0.5, 0.5]];
+        parts.forEach(([u, v, w, hgt], j) => { const px = x0 + u * PBW, py = y0 + v * PBH, pw = w * PBW, ph = hgt * PBH; if (px >= x + 1 || px + pw <= x || py >= y + 1 || py + ph <= y) return; const mx = px + pw / 2, my = py + ph / 2, id = bx * 7 + j;
+          out.push({ x0, y0, px, py, pw, ph, basalt, kind: Math.floor(hh(id, by, 79) * 12), heat: vnoise(mx / 3, my / 3, 37), soot: vnoise(mx / 4, my / 4, 43), h: hh(id, by, 89), id }); }); } }
+    return out; }
+  function foundryFloor(c, X, Y, T, h, h2, x, y, lw, gN, gS, gW, gE, base) { const R = rnd(x * 6151 + y * 92821 + 67), pls = platesIn(x, y);
+    c.save(); c.beginPath(); c.rect(X, Y, T, T); c.clip(); calBase(c, X, Y, T, base, '#3A373C');   // v466 CF
     grain(c, X, Y, T, R, 6, 0.16);
-    const PX = X + (pl.px - x) * T, PY = Y + (pl.py - y) * T, PW = pl.pw * T, PH = pl.ph * T, pcx = PX + PW / 2, pcy = PY + PH / 2, kind = pl.kind, heat = pl.heat;
-    if (pl.basalt) { /* old rune-cut basalt showing through the floor: the forge is older than the rift */ c.fillStyle = 'rgba(48,40,40,.55)'; c.fillRect(X, Y, T, T);
+    // (the basalt blocks in view painted at once, through one clip of their rects: the lattice is the world's, so it is the same however it is cut)
+    const bas = pls.filter(p => p.basalt); if (bas.length) { c.save(); c.beginPath(); for (const r of bas) c.rect(X + (r.px - x) * T, Y + (r.py - y) * T, r.pw * T, r.ph * T); c.clip();
+      c.fillStyle = 'rgba(48,40,40,.55)'; c.fillRect(X, Y, T, T);
       hexFloor(c, X, Y, T, x, y, { seam: 0.03, tone: cl => { const soot = vnoise(cl.cx / 4, cl.cy / 4, 43); return [hexTone(cl, 0.14, 0.05), soot > 0.6 ? `rgba(6,4,4,${(soot - 0.6).toFixed(3)})` : null]; },
-        // a rune cut in a column top (only one wholly inside this block of basalt, so no plate cuts it)
-        inner(c2, cl, p, T2) { if (hh(cl.q, cl.r, 5) > 0.2 || cl.cx < pl.x0 + 0.3 || cl.cx > pl.x0 + 1.7 || cl.cy < pl.y0 + 0.3 || cl.cy > pl.y0 + 1.7) return; const [cx, cy] = cellC(p), ri = Math.floor(hh(cl.q, cl.r, 7) * 8);
-          rune(c2, cx + 1, cy + 1, T2 * 0.46, ri, 'rgba(0,0,0,.55)', Math.max(1, T2 * 0.05)); rune(c2, cx, cy, T2 * 0.46, ri, 'rgba(255,179,71,.3)', Math.max(0.8, T2 * 0.03)); } }); }
-    else if (kind <= 2 && pl.pw * pl.ph <= 2) { /* a grate over the lava: dark slots, molten light below */ const n = 4 * pl.pw, st = (PW - T * 0.4) / (n - 1); c.fillStyle = '#121014'; c.fillRect(PX + T * 0.1, PY + T * 0.1, PW - T * 0.2, PH - T * 0.2);
+        // a rune cut in a column top (only one wholly inside a block of basalt, so no plate cuts it)
+        inner(c2, cl, p, T2) { if (hh(cl.q, cl.r, 5) > 0.2 || !bas.some(r => cl.cx > r.x0 + 0.35 && cl.cx < r.x0 + PBW - 0.35 && cl.cy > r.y0 + 0.35 && cl.cy < r.y0 + PBH - 0.35)) return; const [cx, cy] = cellC(p), ri = Math.floor(hh(cl.q, cl.r, 7) * 8);
+          rune(c2, cx + 1, cy + 1, T2 * 0.46, ri, 'rgba(0,0,0,.55)', Math.max(1, T2 * 0.05)); rune(c2, cx, cy, T2 * 0.46, ri, 'rgba(255,179,71,.3)', Math.max(0.8, T2 * 0.03)); } });
+      c.strokeStyle = 'rgba(8,6,8,.55)'; c.lineWidth = Math.max(1, T * 0.05); for (const r of bas) c.strokeRect(X + (r.px - x) * T, Y + (r.py - y) * T, r.pw * T, r.ph * T); c.restore(); }
+    for (const pl of pls) { if (pl.basalt) continue; const PX = X + (pl.px - x) * T, PY = Y + (pl.py - y) * T, PW = pl.pw * T, PH = pl.ph * T, pcx = PX + PW / 2, pcy = PY + PH / 2, kind = pl.kind, heat = pl.heat;
+      c.save(); c.beginPath(); c.rect(PX, PY, PW, PH); c.clip();
+    if (kind <= 2 && pl.pw * pl.ph <= 2.2) { /* a grate over the lava: dark slots, molten light below */ const n = Math.max(2, Math.round(3.6 * pl.pw)), st = (PW - T * 0.4) / (n - 1); c.fillStyle = '#121014'; c.fillRect(PX + T * 0.1, PY + T * 0.1, PW - T * 0.2, PH - T * 0.2);
       const g = c.createLinearGradient(0, PY + T * 0.14, 0, PY + PH - T * 0.14); g.addColorStop(0, 'rgba(255,90,30,.25)'); g.addColorStop(0.6, 'rgba(255,140,50,.7)'); g.addColorStop(1, 'rgba(255,90,30,.35)'); c.fillStyle = g; for (let i = 0; i < n; i++) c.fillRect(PX + T * 0.18 + i * st, PY + T * 0.14, T * 0.1, PH - T * 0.28);
       c.strokeStyle = '#4A464E'; c.lineWidth = Math.max(1, T * 0.04); c.strokeRect(PX + T * 0.1, PY + T * 0.1, PW - T * 0.2, PH - T * 0.2); c.fillStyle = 'rgba(255,255,255,.12)'; c.fillRect(PX + T * 0.1, PY + T * 0.1, PW - T * 0.2, Math.max(1, T * 0.02)); }
     else { /* a riveted iron plate, worn and heat-stained */ const m = Math.min(PW, PH);
       c.fillStyle = pl.h < 0.5 ? `rgba(0,0,0,${((0.5 - pl.h) * 0.12).toFixed(3)})` : `rgba(255,255,255,${((pl.h - 0.5) * 0.06).toFixed(3)})`; c.fillRect(X, Y, T, T);   // (each plate a shade of its own)
       const g = c.createLinearGradient(PX, PY, PX + PW, PY + PH); g.addColorStop(0, 'rgba(255,255,255,.06)'); g.addColorStop(1, 'rgba(0,0,0,.16)'); c.fillStyle = g; c.fillRect(X, Y, T, T);
       if (heat > 0.6) { const g2 = c.createRadialGradient(pcx, pcy, 0, pcx, pcy, Math.max(PW, PH) * 0.8); g2.addColorStop(0, `rgba(120,70,150,${(heat - 0.6) * 0.7})`); g2.addColorStop(0.6, `rgba(60,90,150,${(heat - 0.6) * 0.4})`); g2.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = g2; c.fillRect(X, Y, T, T); }   // (temper colours)
-      if (kind === 4) { c.fillStyle = 'rgba(110,58,34,.3)'; ell(c, PX + PW * (0.3 + hh(pl.px, pl.py, 91) * 0.4), PY + PH * 0.6, m * 0.3 + (PW - m) * 0.2, m * 0.12, 0.4); c.fill(); }
+      if (kind === 4) { c.fillStyle = 'rgba(110,58,34,.3)'; ell(c, PX + PW * (0.3 + hh(pl.id, 1, 91) * 0.4), PY + PH * 0.6, m * 0.3 + (PW - m) * 0.2, m * 0.12, 0.4); c.fill(); }
       if (kind === 6) { c.strokeStyle = 'rgba(0,0,0,.4)'; c.lineWidth = Math.max(1, T * 0.025); c.beginPath(); c.moveTo(PX + PW * 0.2, PY + PH * 0.15); c.lineTo(PX + PW * 0.4, PY + PH * 0.45); c.lineTo(PX + PW * 0.35, PY + PH * 0.8); c.stroke(); }
-      if (kind === 7 && heat < 0.5) { rune(c, pcx, pcy, m * 0.4, pl.px + pl.py, 'rgba(0,0,0,.35)', Math.max(1, T * 0.04)); }
+      if (kind === 7 && heat < 0.5) { rune(c, pcx, pcy, m * 0.4, pl.id, 'rgba(0,0,0,.35)', Math.max(1, T * 0.04)); }
       const ri = T * 0.12; for (const [u, v] of [[PX + ri, PY + ri], [PX + PW - ri, PY + ri], [PX + ri, PY + PH - ri], [PX + PW - ri, PY + PH - ri]]) if (u > X - T * 0.1 && u < X + T * 1.1 && v > Y - T * 0.1 && v < Y + T * 1.1) rivet(c, u, v, Math.max(0.8, T * 0.035));
       const gw = Math.max(1, T * 0.04), hw = Math.max(1, T * 0.025); c.fillStyle = 'rgba(0,0,0,.45)'; c.fillRect(PX, PY + PH - gw, PW, gw); c.fillRect(PX + PW - gw, PY, gw, PH); c.fillStyle = 'rgba(255,255,255,.1)'; c.fillRect(PX, PY, PW, hw); c.fillRect(PX, PY, hw, PH);
       if (pl.soot > 0.6) { c.fillStyle = `rgba(6,4,4,${(pl.soot - 0.6).toFixed(3)})`; c.fillRect(X, Y, T, T); } }
+      c.restore(); }
     edgeGlow(c, X, Y, T, gN, gS, gW, gE, 0.32);
-    c.restore(); return pl; }
+    c.restore(); return { basalt: bas.length > 0, rects: bas, plates: pls }; }
   function heartFloor(c, X, Y, T, h, h2, x, y, lw, gN, gS, gW, gE) { const R = rnd(x * 5003 + y * 90001 + 73);
     c.save(); c.beginPath(); c.rect(X, Y, T, T); c.clip(); calBase(c, X, Y, T, '#2B2529');
     grain(c, X, Y, T, R, 6, 0.14);
@@ -1027,7 +1065,8 @@ CAL.bossMake = CAL.bossMake || {};
   function rimeFloor(c, X, Y, T, h, h2, x, y, lw, gN, gS, gW, gE) { const pt = foundryFloor(c, X, Y, T, h, h2, x, y, lw, gN, gS, gW, gE, '#3E3E46');
     const R = rnd(x * 4111 + y * 77213 + 5);
     c.save(); c.beginPath(); c.rect(X, Y, T, T); c.clip();
-    if (pt.basalt) for (const cl of hexCellsAt(x, y)) { const a = frostAt(cl.cx, cl.cy); if (a <= 0) continue; poly(c, cl.V.map(v => [X + (v[0] - x) * T, Y + (v[1] - y) * T])); c.closePath(); c.fillStyle = `${RIME}${(0.12 * a).toFixed(3)})`; c.fill(); }
+    if (pt.basalt) { c.save(); c.beginPath(); for (const r of pt.rects) c.rect(X + (r.px - x) * T, Y + (r.py - y) * T, r.pw * T, r.ph * T); c.clip();   // v466 CF: (only on the basalt's own blocks)
+      for (const cl of hexCellsAt(x, y)) { const a = frostAt(cl.cx, cl.cy); if (a <= 0) continue; poly(c, cl.V.map(v => [X + (v[0] - x) * T, Y + (v[1] - y) * T])); c.closePath(); c.fillStyle = `${RIME}${(0.12 * a).toFixed(3)})`; c.fill(); } c.restore(); }
     // frozen coolant and ice-sealed lava come in sheets that break along the old column joints (whole cells of the lattice)
     const P = (vx, vy) => [X + (vx - x) * T, Y + (vy - y) * T];
     for (const cl of hexCellsAt(x, y)) { const pl = vnoise(cl.cx / 4.5 + 20, cl.cy / 4.5, 107), sl = vnoise(cl.cx / 3.5, cl.cy / 3.5 + 40, 109); if (pl < 0.71 && sl < 0.73) continue; const p = cl.V.map(v => P(v[0], v[1])), cx = (p[0][0] + p[3][0]) / 2, cy = (p[1][1] + p[4][1]) / 2;
@@ -1151,6 +1190,13 @@ CAL.bossMake = CAL.bossMake || {};
   ROOM_SHAPES.rimeforge = ['rect', 'oval', 'rect', 'islands']; ROOM_SHAPES.glassheart = ['cave', 'oval', 'islands', 'oval']; BOSS_ARENA.rimeforge = BOSS_ARENA.glassheart = 'oval';
   if (typeof DECALS !== 'undefined') { DECALS.rimeforge = [['calslag', 0.03], ['calsoot', 0.03], ['calash', 0.03]]; DECALS.glassheart = [['calvein', 0.06], ['calglass', 0.05], ['calcoal', 0.02]]; }
   Object.assign(PULSERS, { crystalforest: 1.6, magmaglass: 0.8 });
+  /* v466 CF: every Caldera floor through one wrapper: only the engine's first thirteen arguments reach the land's painter (its
+     14th, isWall since v433 DE, had been taken for ashFloor's / foundryFloor's base colour), the tile and its gaps are
+     handed to the lava light (EG), and the floor is painted under the props too (floorUnder: a prop's tile showed the
+     engine's own per-tile ground, a square round every crystal, column and mound) */
+  for (const id of ['ashen', 'foundry', 'heartward', 'calderapit', 'rimeforge', 'glassheart']) { const B = BIOMES[id], f = B && B.floorFn; if (!f || f.__cf) continue;
+    const w = function (c, X, Y, T, h, h2, x, y, lw, gN, gS, gW, gE, isWall, isGap) { EG.gap = typeof isGap === 'function' ? isGap : null; EG.x = x; EG.y = y; try { return f(c, X, Y, T, h, h2, x, y, lw, gN, gS, gW, gE); } finally { EG.gap = null; } };
+    w.__cf = 1; B.floorFn = w; B.floorUnder = true; }
   BIOMES.rimeforge.dress = BIOMES.glassheart.dress = BIOMES.ashen.dress = calDress; BIOMES.ashen.props = ['blackcrystal', 'ashmound', 'glassspire', 'blackcrystal'];
   Object.assign(CAL, { rimeFloor, glassFloor, rimeWall, glassWall });
 
@@ -1493,7 +1539,8 @@ CAL.bossMake = CAL.bossMake || {};
           else if (q.kind === 'forge') { const k = 0.45 + 0.15 * Math.sin(t * 3.1 + q.ph * 6); if (G) { G.Q.glow(Xs, Ys, q.r * T, LAVA, k); G.Q.fire(Xs, Ys + T * 0.1, q.r * T * 0.35, 0.9, k, q.ph * 5); } else glow(c, Xs, Ys, q.r * T, LAVA, k); }
           else if (q.kind === 'frost') { if (G && CAL.iceOver && (p.kind === 'frostcluster' || p.kind === 'frostwell') && typeof CAL_ICE !== 'undefined') CAL.iceOver(G.Q, p, X.sx(p.x), X.sy(p.y), T, t, q.ph); else glow(c, Xs, Ys, q.r * T * 1.3, FROST, 0.18 + 0.06 * Math.sin(t * 1.5 + q.ph * 6)); }   // v404 CA: the ice's live light on the GPU
           else if (q.kind === 'geode') { if (G && CAL.geodeOver) CAL.geodeOver(G.Q, Xs, Ys, T, t, q.ph); else glow(c, Xs, Ys, q.r * T * 1.4, LAVA, (0.35 + 0.12 * Math.sin(t * 2.1 + q.ph * 6)) * (1 - 0.5 * dim)); }   // v404 CA: the geodes erupt (the old lava glow without the GPU)
-          else if (q.kind === 'coal') glow(c, Xs, Ys, q.r * T, LAVA, (0.16 + 0.08 * Math.sin(t * 2.6 + q.ph * 9)) * (1 - 0.6 * dim)); }
+          else if (q.kind === 'coal') glow(c, Xs, Ys, q.r * T, LAVA, (0.16 + 0.08 * Math.sin(t * 2.6 + q.ph * 9)) * (1 - 0.6 * dim));
+          else if (q.kind === 'mound') { if (!(G && CAL.moundOver && CAL.moundOver(G.Q, X.sx(p.x), X.sy(p.y), T, t, q.ph, p.v | 0))) glow(c, Xs, Ys, q.r * T, LAVA, (0.16 + 0.08 * Math.sin(t * 2.6 + q.ph * 9)) * (1 - 0.6 * dim)); } }   // v466 CF: the ash mound's vents breathing on the GPU (20zz5d), else the old coal glow
         // the returned bombs in flight: the iron capsule on a trail of fire
         for (const f of C.flights) { const Xs = X.sx(f.x), Ys = X.sy(f.y - f.z); if (G) { for (let i = 0; i < f.trail.length - 1; i++) { const a = f.trail[i], b = f.trail[i + 1], k = 1 - i / f.trail.length; G.Q.firebeam(X.sx(a[0]), X.sy(a[1]), X.sx(b[0]), X.sy(b[1]), T * 0.22 * k, 0.9, 0.8 * k, i * 0.7, 5); } } else { c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; for (let i = 0; i < f.trail.length - 1; i++) { const a = f.trail[i], b = f.trail[i + 1], k = 1 - i / f.trail.length; c.strokeStyle = rgba(i < 2 ? LAVA_HI : LAVA, 0.8 * k); c.lineWidth = T * 0.28 * k; c.beginPath(); c.moveTo(X.sx(a[0]), X.sy(a[1])); c.lineTo(X.sx(b[0]), X.sy(b[1])); c.stroke(); } c.restore(); }
           const s = DunArt.monSprite('bomblarva', 0.36 * T, (f.t * 3) % 1, '#4A464E', 'red2', false); c.save(); c.translate(Xs, Ys); c.rotate(f.t * 9); c.drawImage(s.cv, -s.half, -s.half, s.half * 2, s.half * 2); c.restore(); glow(c, Xs, Ys, T * 0.6, LAVA_HI, 0.5); }
@@ -1628,4 +1675,31 @@ CAL.bossMake = CAL.bossMake || {};
         BOSS_WARM[boss](c2, x, y, { T, sx: v => (v - x) * T + W / 2, sy: v => (v - y) * T + H * 0.75, t: 0 }); cv.width = cv.height = 1; });
       for (const id of Object.keys(BOSS_MESH)) if (id !== boss) job(() => { if (WS.gl) BOSS_MESH[id](); }); }
     return jobs; };
+
+  /* v466 CF (the user: "Use the progression door from drowned belfry as the progression door on every stages here"): every
+     Caldera stage's way on is the Drowned Belfry's relief door (BEL_DOORS, 20n9d), as v437 gave the Garden and v463 the
+     Sepulchre: the standard door out of a dungeon, the boss door out of a puzzle (Fire Flan, the Bomb King and Ifrit lie
+     behind them), painted in the Caldera's light: 'calember' (a dim warm key, molten bounce from below and an ember rim on
+     the stone and bronze, ember rune glass, molten light in the opening) and, where the frozen causeway's cold is (the Ashen
+     Hollows' landing beyond it, the Rimebound Forge), 'calrime' (cold blue key, rime-white rim, ice glass). Position, trigger
+     radius, label and progression stay the stage's own (H.setExit / riftFight): the door only reads whether the stage is
+     done, and changes no tile (nothing repainted as it opens, v447). Its pictures are painted on the loading screen
+     (warmDoor) and let go with the stage (BEL.releaseStale). window.__CFD = 0, or no BELPROPS: the old stone gate */
+  { const D0 = () => (typeof window !== 'undefined' && window.__CFD === 0) ? null : (typeof BEL_DOORS !== 'undefined' && BEL_DOORS && BEL_DOORS.stage && BEL_DOORS.themed && BEL_DOORS.defTheme) ? BEL_DOORS : null;
+    { const D = D0(); if (D) { D.defTheme('calember', { light: { a0: [0.1, 0.055, 0.045], a1: [0.06, 0.045, 0.06], e0: [0.26, 0.09, 0.03], e1: [0.2, 0.15, 0.17], k: [0.86, 0.66, 0.5], rim: [0.66, 0.28, 0.07], bo: [0.36, 0.11, 0.02] },
+        gem: [1.0, 0.42, 0.1], rune: '#FF8A3D', runeHi: '#FFE2B0', ring: '#FFB347', lit: '#FFD08A', litFloor: '#FF9A4A', caustic: '#FFB86A', mote: '#FFE9C0', smoke: '#3A2A26', drip: '#FFB070',
+        recess: ['#0A0404', '#3A1408', '#140806'], glowIn: [[255, 236, 190], [255, 150, 60], [150, 40, 10]] });
+      D.defTheme('calrime', { light: { a0: [0.05, 0.08, 0.12], a1: [0.1, 0.15, 0.22], e0: [0.14, 0.08, 0.05], e1: [0.46, 0.6, 0.78], k: [0.92, 1.0, 1.16], rim: [0.3, 0.62, 0.88], bo: [0.16, 0.07, 0.03] },
+        gem: [0.55, 0.85, 1.0], rune: '#9FD8FF', runeHi: '#F0FAFF', ring: '#BFE3FA', lit: '#E0F4FF', litFloor: '#9FD8FF', caustic: '#BFE3FA', mote: '#FFFFFF', smoke: '#6A7A88', drip: '#DFF4FF',
+        recess: ['#04080E', '#1E3A50', '#0A1018'], glowIn: [[240, 250, 255], [170, 215, 245], [60, 110, 150]] }); } }
+    const doorKind = i => { const nx = Rf.stages[i + 1]; return nx && nx.kind === 'boss' ? 'boss' : 'std'; };
+    const themeOf = (F, S) => (F.biome === 'rimeforge' || (S && S.name === 'The Ashen Hollows')) ? 'calrime' : 'calember';
+    CAL.door = { kind: doorKind, theme: themeOf };
+    const oe = Rf.everyStage; Rf.everyStage = function (X, self, H) { const a = oe ? oe.apply(this, arguments) || {} : {};
+      let C = null; try { const D = D0(), S2 = (self && self.S) || {}; if (D && S2.kind !== 'boss' && X.F.rift && !X.F.rift.gate && H && H.exit) { C = { t: 0, X, exitPos: () => H.exit() }; D.stage(X, C, doorKind(X.F.rift.stage), D.themed(themeOf(X.F, S2))); } } catch (e) { C = null; }
+      if (!C) return a;
+      const up = a.update; a.update = function (dt) { if (up) up.call(this, dt); C.t += dt; try { BEL_DOORS.tick(C, dt, !!self.done); } catch (e) {} }; a.door = C; return a; };
+    const op = Rf.preload; Rf.preload = function (P) { const a = op ? op.apply(this, arguments) || [] : []; let d = [];
+      try { const D = D0(), S2 = P && P.S; if (D && S2 && S2.kind !== 'boss' && P.F && P.F.rift && !P.F.rift.gate) d = D.warmDoor(P, doorKind(P.F.rift.stage), themeOf(P.F, S2)) || []; } catch (e) {}
+      return a.concat(d); }; }
 })();
