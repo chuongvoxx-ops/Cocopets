@@ -40,5 +40,14 @@ const at = S => [S.x * TILE, S.y * TILE];   // (the camera fixed: the anima's sc
 // 6. cost of a solve (pure JS, the anchors and every part's transform)
 { const S = RG.idle(7, 0); S.x = 10; S.y = 10; const t0 = process.hrtime.bigint(); for (let f = 0; f < 1200; f++) { S.t = f / 60; S.walk = 0.5; S.x += 0.01; RG.solve(600, 600, SIZE, S, { tile: TILE }); } const ms = Number(process.hrtime.bigint() - t0) / 1e6 / 1200;
   ok('solve cost (ms per frame, L7, walking; solve allocates no GL)', ms < 2, +ms.toFixed(3)); }
+// 7. (v465 RZ-M) camera independence: one pose drawn from two cameras each frame (panned, zoomed x0.82, another device scale, another
+// view width): every anchor relative to the anima's feet (in tiles) must match within 0.01 tiles, through walking, flight, the ultimate's
+// states, stagger and recoil
+{ const S = RG.idle(7, 0); S.x = 10; S.y = 10; let worst = 0, wk = '';
+  const KEYS = ['body', 'mouthL', 'mouthR', 'throatL', 'coreL', 'coreR', 'crownL', 'crownR', 'wingTipL', 'wingTipR', 'tailTip', 'headL', 'headR', 'shadow'];
+  for (let f = 0; f < 900; f++) { const t = f / 60; Object.assign(S, { t, fly: t > 3 && t < 9 ? 1 : 0, speed: t > 5 ? 0.8 : 0, face: 1.8 + Math.sin(t) * 0.8, coreUp: t > 10 ? 1 : 0, crownExpand: t > 10 ? 1 : 0, roar: t > 12 ? 1 : 0, stagger: t > 13 ? 1 : 0, recoilL: t > 13.5 ? 1 : 0, walk: t < 3 ? 0.5 : 0, aimL: { x: 14, y: 13 }, x: 10 + t * 0.2 });
+    const cams = [{ ox: 100, oy: 200, T: 47, vw: 390 }, { ox: -300, oy: 50, T: 47 * 0.82, vw: 476 }], O = cams.map(cm => { const X = cm.ox + S.x * cm.T, Y = cm.oy + S.y * cm.T, o = RG.solve(X, Y, cm.T * 3.1, S, { tile: cm.T, vw: cm.vw }); const r = {}; for (const k of KEYS) if (o[k]) r[k] = [(o[k].x - X) / cm.T, (o[k].y - Y) / cm.T]; o.feet.forEach((p, i) => { r['foot' + i] = [(p.x - X) / cm.T, (p.y - Y) / cm.T]; }); return r; });
+    for (const k in O[0]) { const d = Math.hypot(O[0][k][0] - O[1][k][0], O[0][k][1] - O[1][k][1]); if (d > worst) { worst = d; wk = k + ' @ ' + t.toFixed(2); } } }
+  ok('camera independence (every anchor relative to the feet, two cameras, < 0.01 tiles)', worst < 0.01, { worstTiles: +worst.toFixed(5), at: wk }); }
 console.log(JSON.stringify(out, null, 1)); console.log(fails ? 'FAIL ' + fails : 'ALL PASS');
 process.exit(fails ? 1 : 0);

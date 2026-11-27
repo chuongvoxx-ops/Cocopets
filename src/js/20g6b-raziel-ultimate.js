@@ -49,6 +49,10 @@ const RAZIEL_ULT = (() => {
     spiral: { R: [6.0, 6.6, 7.2], turns: 3.4, real: 0.58 },
     formK: [1.5, 1.2, 1.0]
   };
+  /* (v465 RZ-U) the heavens' places in the world, in tiles: the portals rp (+0.2 a form) in radius, dx to each side of Raziel's feet and h up;
+     span the scale of the two celestial bodies' dance (it was a share of the screen); the sky's tint round him; the pillar's height; the
+     last white point's height */
+  const WORLD = { rp: 2.3, dx: 3.4, h: 6.6, span: 12, tint: 11, pillar: 16, white: 9.5 };
   const COL = { crim: '#C8180C', fire: '#FF6A1A', hot: '#FFB04A', gold: '#FFC24D', white: '#FFF6E6', cob: '#1E4FB8', sap: '#3A7CF0', cyan: '#8EE6FF', ice: '#DDF4FF', plat: '#D9E2EE', goldM: '#D8A440', steam: '#DCE6EE', dark: '#05060C' };
   const lowFx = () => !!(typeof st !== 'undefined' && st && st.lowFx);
   const SFX = () => (typeof sfx !== 'undefined' ? sfx : null);   // (the game's sound: its duck() for the hush)
@@ -78,7 +82,9 @@ const RAZIEL_ULT = (() => {
     const kOf = a => (H.kOf ? H.kOf(a) : Math.max(1, Math.min(3, a.k | 0)));
     const poseOf = a => (H.pose ? H.pose(a) : (a.rzS || (a.rzS = {})));
     const anchOf = a => { try { return H.anchors ? H.anchors(a) : (a.rzOut || null); } catch (e) { return null; } };
-    const LQ = () => (lowFx() ? 0.5 : 1);
+    /* (v465 RZ-U) the effects' tier: 2 the richest (the resolved visual quality High: RAZIEL_GL.hq(), else GQ level 0), 1 Balanced, 0 Performance or lowFx */
+    const tier = () => { if (lowFx()) return 0; try { const R = GLR(); if (R && R.hq) return R.hq() ? 2 : (typeof GQ !== 'undefined' && GQ.level() >= 2 ? 0 : 1); if (typeof GQ !== 'undefined') { const L = GQ.level(); return L === 0 ? 2 : L === 1 ? 1 : 0; } } catch (e) {} return 2; };
+    const LQ = () => [0.5, 0.75, 1][tier()];
     const snd = k => { try { if (X.sfx && X.sfx[k]) X.sfx[k](); } catch (e) {} };
     const sx = x => X.sx(x), sy = y => X.sy(y);
     let UL = null;
@@ -110,6 +116,11 @@ const RAZIEL_ULT = (() => {
       if (X.walkPoint) { const p = X.walkPoint(tx, ty, { r: 0.6, mv: 0, x: a.x, y: a.y }); if (p) { tx = p.x; ty = p.y; } }
       const A = anchOf(a); let fs = -1; if (A && A.mouthL && A.mouthR) fs = A.mouthL.x <= A.mouthR.x ? -1 : 1;
       UL = { a, t: 0, k, tx, ty, fs, seed: Math.random() * 1000, ticks: 0, nextTick: UT.p3 + 0.2, burstT: 0, nb: 0, ev: {}, done: false, ex0: a.x, ey0: a.y, n1: 0, need: 1, spk: [1, 1] };
+      /* (v465 RZ-U) the heavens' centre, latched once in the world: between Raziel and the view's centre, clamped so both portals fit the view at
+         the pulled-back zoom (0.78 of now); it stays put for the whole ultimate (so the portals pan with the camera and never slide with it) */
+      { const Tz = T(), W = X.W ? X.W() : 390, Hh = X.H ? X.H() : 844, vx = a.x + (W / 2 - sx(a.x)) / Tz, vy = a.y + (Hh / 2 - sy(a.y)) / Tz, zr = 0.78 / Math.max(0.3, g.zoomP || 1),
+          hw = W / 2 / (Tz * zr), hh = Hh / 2 / (Tz * zr), rp = WORLD.rp + 0.2 * k, ex = Math.max(0, hw - (WORLD.dx * 1.04 + rp) - 0.3), top = WORLD.h + rp * 1.15 + 1.2;
+        let hx = (a.x + vx) / 2, hy = (a.y + vy) / 2; hx = Math.max(vx - ex, Math.min(vx + ex, hx)); hy = Math.max(vy - hh + top, Math.min(vy + hh - 1, hy)); UL.hx = hx; UL.hy = hy; }
       for (const b of BUR) b.t0 = -9;
       for (let i = 0; i < FRAG.length; i++) { const f = FRAG[i]; f.an = (i / FRAG.length) * TAU + Math.random() * 0.4; f.v = 3.5 + Math.random() * 3.5; f.up = 2.5 + Math.random() * 3; f.spin = (Math.random() - 0.5) * 9; f.s = 0.35 + Math.random() * 0.35; f.gold = i % 2 === 0; }
       for (let i = 0; i < ICE.length; i++) { const f = ICE[i], an = (i / ICE.length - 0.5) * 2.4 + (fs > 0 ? Math.PI : 0), rr = 2.2 + (i % 3) * 1.7 + Math.random() * 0.8; f.x = tx + Math.cos(an) * rr; f.y = ty + Math.sin(an) * rr * 0.8; f.s = 0.55 + Math.random() * 0.45 + (i % 3) * 0.12; f.seed = Math.random() * 40; f.t0 = UT.hit + 0.04 * i; }
@@ -245,33 +256,36 @@ const RAZIEL_ULT = (() => {
       if (A && A.body) { G.body.x = A.body.x; G.body.y = A.body.y; G.body.r = A.body.r; } else { G.body.x = sx(a.x); G.body.y = sy(a.y) - Tz * 1.6; G.body.r = Tz * 1.3; }
       G.mL = A && A.mouthL || null; G.mR = A && A.mouthR || null; G.tX = sx(J.tx); G.tY = sy(J.ty);
       // the portals: from the crowns into the sky, open, turned toward each other for the Book, collapsed back to crowns at the end
-      const Rp = Math.min(W * 0.205, Hh * 0.125) * (0.9 + 0.07 * kk), skyY = Math.max(Hh * 0.2, Rp * 1.45 + 34), inX = sstep(UT.rise, UT.coll, t) * (1 - sstep(UT.p6, UT.p6 + 0.8, t)); G.Rp = Rp;
+      /* (v465 RZ-U) everything lives in the world, drawn through the camera: the heavens hang at world places above Raziel (WORLD: tiles off his
+         feet and up), so they pan and zoom with the field and follow him if he moves; sizes are in tiles (x Tz) */
+      const Rp = (WORLD.rp + 0.2 * kk) * Tz, ax0 = sx(a.x), ay0 = sy(a.y), hx0 = sx(J.hx), hy0 = sy(J.hy), inX = sstep(UT.rise, UT.coll, t) * (1 - sstep(UT.p6, UT.p6 + 0.8, t)); G.Rp = Rp; G.ax = ax0; G.ay = ay0; G.hx = hx0; G.hy = hy0;
+      const pyW = hy0 - WORLD.h * Tz, mn = WORLD.span * Tz;
       const go = eout(cl((t - UT.p1) / 1.3)), back = sstep(UT.p6 + 0.1, UT.p6 + 0.8, t);
       for (let side = 0; side < 2; side++) { const P = side ? G.pI : G.pF, cr = A && (side ? A.crownR : A.crownL), sd = side ? -fs : fs;
         const hx = cr ? cr.x : G.body.x + sd * G.body.r * 0.8, hy = cr ? cr.y : G.body.y - G.body.r * 1.2, hr = cr ? cr.r : Tz * 0.8;
-        const px = W / 2 + sd * W * 0.28 * (1 + 0.04 * inX), py = skyY - Rp * 0.15 * inX;   // (the Book: they lift apart and turn their faces in, the two bodies between them)
+        const px = hx0 + sd * WORLD.dx * Tz * (1 + 0.04 * inX), py = pyW - Rp * 0.15 * inX;   // (the Book: they lift apart and turn their faces in, the two bodies between them)
         const u = go * (1 - back); P.x = lerp(hx, px, u); P.y = lerp(hy, py, u); P.r = lerp(hr, Rp, u); P.op = sstep(UT.p1 + 0.6, UT.p2, t) * (1 - sstep(UT.p6, UT.p6 + 0.6, t)); P.ang = (cr ? cr.ang : 0) * (1 - u); }
-      G.sky.x = W / 2; G.sky.y = skyY + Rp * 1.25;
+      G.sky.x = hx0; G.sky.y = pyW + Rp * 1.25;
       // the cores: out of the chest to orbit it; above its back; up between the portals to swell and spiral together; home again
       const oc = G.body, t1 = 1.0, cx0 = oc.x, cy0 = oc.y - oc.r * 0.15, orb = sstep(t1, t1 + 0.6, t), wv = t * (2.4 + 1.5 * sstep(UT.p4, UT.swell, t));
-      const up = sstep(UT.p4, UT.rise, t), sp = UT.swell, spi = sstep(UT.rise, UT.coll, t), ret = sstep(UT.p6 + 0.3, UT.p6 + 1.1, t), sepR = Math.min(W, Hh) * 0.3 * (1 - ein(spi)) + oc.r * 0.0, home = 1 - ret;
+      const up = sstep(UT.p4, UT.rise, t), sp = UT.swell, spi = sstep(UT.rise, UT.coll, t), ret = sstep(UT.p6 + 0.3, UT.p6 + 1.1, t), sepR = mn * 0.3 * (1 - ein(spi)), home = 1 - ret;
       for (let side = 0; side < 2; side++) { const C = side ? G.cI : G.cF, aC = A && (side ? A.coreR : A.coreL), sd = side ? -1 : 1;
         const hx = aC ? aC.x : oc.x + (side ? -fs : fs) * oc.r * 0.25, hy = aC ? aC.y : oc.y, an = wv * 1.0 + side * Math.PI, R1 = oc.r * (1.25 - 0.25 * sstep(UT.p2, UT.p3, t));
         const ox = cx0 + Math.cos(an) * R1, oy = cy0 - oc.r * 0.6 * sstep(UT.p1, UT.p2, t) + Math.sin(an) * R1 * 0.45;
         const ang2 = t * (3 + 9 * spi) + side * Math.PI, bx = G.sky.x + Math.cos(ang2) * sepR * (0.5 + 0.5 * (1 - spi)), by = G.sky.y + Math.sin(ang2) * sepR * 0.4;
         let x = lerp(hx, ox, orb), y = lerp(hy, oy, orb); x = lerp(x, bx, up); y = lerp(y, by, up);
         if (ret > 0) { x = lerp(G.sky.x, hx, ret); y = lerp(G.sky.y, hy, ret); }
-        C.x = x; C.y = y; C.r = (aC ? aC.r : oc.r * 0.18) * (1 + 0.4 * orb) * (1 - up) + Math.min(W, Hh) * lerp(0.05, 0.16, sstep(UT.rise, sp + 0.2, t)) * up * (1 - ret) + (aC ? aC.r : oc.r * 0.18) * ret;
+        C.x = x; C.y = y; C.r = (aC ? aC.r : oc.r * 0.18) * (1 + 0.4 * orb) * (1 - up) + mn * lerp(0.05, 0.16, sstep(UT.rise, sp + 0.2, t)) * up * (1 - ret) + (aC ? aC.r : oc.r * 0.18) * ret;
         C.vis = sstep(0.95, 1.1, t) * (t < UT.coll ? 1 : t < UT.p6 + 0.3 ? 0 : 1) * (t > UT.p6 + 1.15 ? 1 - sstep(UT.p6 + 1.1, UT.p6 + 1.2, t) : 1); void sd; void home; }
     }
 
     /* the ground layer: the floor dimmed and the sky split over it, then one painter pass: the divided field, rings and the floor of the blast */
     function drawGround(c) {
-      if (!UL) return; geo(c); const J = UL, t = J.t, Tz = G.Tz, fs = J.fs, low = lowFx();
+      if (!UL) return; geo(c); const J = UL, t = J.t, Tz = G.Tz, fs = J.fs, low = tier() < 1;
       const dim = 0.55 * sstep(0, 1.2, t) * (1 - sstep(UT.hit, UT.hit + 0.5, t)) + 0.3 * sstep(UT.hit, UT.hit + 0.5, t) * (1 - sstep(UT.p6 + 0.5, UT.len, t));
-      if (dim > 0.004) { c.save(); c.globalAlpha = dim; c.fillStyle = COL.dark; if (V1()) c.fillRect(-G.W, -G.H, G.W * 3, G.H * 3); else c.fillRect(-24, -24, G.W + 48, G.H + 48);   /* (the screen and a margin for the shake: one fill, no gradient) */ c.restore(); }
+      if (dim > 0.004) { c.save(); c.globalAlpha = dim; c.fillStyle = COL.dark; const D0 = 40 * Tz, x0 = Math.max(G.ax - D0, -24), y0 = Math.max(G.ay - D0, -24), x1 = Math.min(G.ax + D0, G.W + 24), y1 = Math.min(G.ay + D0, G.H + 24); if (x1 > x0 && y1 > y0) c.fillRect(x0, y0, x1 - x0, y1 - y0);   /* (v465 RZ-U: a world square 80 tiles across round Raziel: one fill, no gradient, panning with the field) */ c.restore(); }
       const sk = sstep(UT.p1, UT.p2, t) * (1 - sstep(UT.p6, UT.len - 0.5, t)) * (0.5 + 0.25 * sstep(UT.p4, UT.swell, t));
-      if (sk > 0.004) { const P = skyPic(); if (P) { c.save(); c.globalAlpha = sk; if (fs > 0) { c.translate(G.W, 0); c.scale(-1, 1); } c.drawImage(P, 0, 0, G.W, G.H * 0.62); c.restore(); } }
+      if (sk > 0.004) { const P = skyPic(); if (P) { c.save(); c.globalAlpha = sk; const w2 = WORLD.tint * Tz; c.translate(G.hx, G.hy); if (fs > 0) c.scale(-1, 1); c.drawImage(P, -w2, -w2 * 1.3, w2 * 2, w2 * 1.45); c.restore(); } }   // (v465 RZ-U: the sky split laid on the world round Raziel, not on the screen)
       if (!gpu()) return;
       const Q = fgOpen(c);
       // the divided battlefield: spreads out from Raziel's feet, collapses on the target, cools at the end
@@ -323,7 +337,7 @@ const RAZIEL_ULT = (() => {
       void fs;
     }
     /* the spectral dragons (P3..P5) and their silhouettes thrown out by the eruption: RAZIEL_GL.drawSpectral between the two halves */
-    function spectralOn(t) { return (t > UT.p3 - 1.9 && t < UT.rise + 0.7) || (t > UT.hit - 0.02 && t < UT.hit + 0.85 && !lowFx()); }
+    function spectralOn(t) { return (t > UT.p3 - 1.9 && t < UT.rise + 0.7) || (t > UT.hit - 0.02 && t < UT.hit + 0.85 && tier() >= 2); }   // (v465 RZ-U: the silhouettes thrown out by the eruption on High only)
     function drawSpectrals(c, t) {
       const R = GLR(); if (!R || !R.drawSpectral) return; const J = UL, a = J.a, Tz = G.Tz, S0 = poseOf(a) || {};
       const evo = S0.evo || [1, 4, 7][J.k - 1], tile = Tz;
@@ -353,7 +367,7 @@ const RAZIEL_ULT = (() => {
     }
     /* the air layer, second half: the breaths, the bursts, the two celestial bodies, the singularity, the pillar, the eruption, the dissolve */
     function airB(Q, t, low) {
-      const J = UL, Tz = G.Tz, fs = J.fs, k = J.k;
+      const J = UL, Tz = G.Tz, fs = J.fs, k = J.k, rich = tier() >= 2;
       // P4: the spectral torrent and beam from the sky, the real breaths from the mouths
       const s4 = bump(t, UT.p3 - 0.15, UT.p3 + 0.15, UT.p4 - 0.25, UT.p4 + 0.1);
       if (s4 > 0.01) {
@@ -361,7 +375,8 @@ const RAZIEL_ULT = (() => {
           if (!s.spec && !mo) { FAKE_M.x = G.body.x + (s.fire ? fs : -fs) * G.body.r * 0.5; FAKE_M.y = G.body.y - G.body.r * 0.9; mo = FAKE_M; }
           if (!mo) continue; const w = s.spec ? Tz * (1.3 + 0.15 * k) : Tz * (0.75 + 0.1 * k), bend = (s.fire ? 1 : -1) * 0.35 * Math.sin(t * 1.7 + i);
           stream(Q, s.fire, mo.x, mo.y, X1, Y1, w, s4 * (s.spec ? 1.15 : 1), i * 3.1 + J.seed % 7, bend);
-          Q.glow(X1, Y1 - Tz * 0.3, Tz * (s.spec ? 1.5 : 1.0), s.fire ? COL.hot : COL.ice, 0.4 * s4); }
+          Q.glow(X1, Y1 - Tz * 0.3, Tz * (s.spec ? 1.5 : 1.0), s.fire ? COL.hot : COL.ice, 0.4 * s4);
+          if (rich) Q.shape(479, X1, Y1 - Tz * 0.6, Tz * (s.spec ? 2.2 : 1.6), 0, 0, Tz * (s.spec ? 2.2 : 1.6), '#FFFFFF', s4, (t * 0.7 + i * 0.25) % 1, i * 5 + 3, s.fire ? 0.9 : -0.9, 0, 1); }   // (v465 RZ-U, High: embers / ice fragments thrown up where each stream lands)
       }
       // the Thermal Shock bursts: a white flash, a steam bloom, embers one way and ice the other
       for (const b of BUR) { const u = (t - b.t0) / 1.2; if (u < 0 || u > 1) continue; const X0 = sx(b.x), Y0 = sy(b.y), R = Tz * CFG.burstR * b.big;
@@ -370,19 +385,19 @@ const RAZIEL_ULT = (() => {
         const sn = low ? 1 : 3; for (let j = 0; j < sn; j++) { const an = b.seed + j * 2.1, rr = R * (0.2 + 0.5 * eout(u)); Q.smoke(X0 + Math.cos(an) * rr, Y0 - Tz * (0.4 + 1.6 * u) + Math.sin(an) * rr * 0.4, R * (0.45 + 0.4 * u), 0.45 * (1 - u) * sstep(0, 0.12, u), b.seed + j, COL.steam, 0.12 * (1 - u)); }
         Q.shape(479, X0 + fs * R * 0.3, Y0 - Tz * 0.6, R * 1.4, 0, 0, R * 1.4, '#FFFFFF', 1 - u, u, b.seed, 0.8 * LQ(), 0, 1); Q.shape(479, X0 - fs * R * 0.3, Y0 - Tz * 0.6, R * 1.4, 0, 0, R * 1.4, '#FFFFFF', 1 - u, u, b.seed + 3, -0.8 * LQ(), 0, 1); }
       // P5: the artificial sun and the frozen sphere, white instability where they near; the hush; the collision; the singularity
-      if (t > UT.rise && t < UT.coll + 0.05) { const d = Math.hypot(G.cF.x - G.cI.x, G.cF.y - G.cI.y), near2 = 1 - cl((d - (G.cF.r + G.cI.r) * 1.1) / (Math.min(G.W, G.H) * 0.25)), ins = sstep(UT.swell - 0.3, UT.coll, t) * near2;
+      if (t > UT.rise && t < UT.coll + 0.05) { const d = Math.hypot(G.cF.x - G.cI.x, G.cF.y - G.cI.y), near2 = 1 - cl((d - (G.cF.r + G.cI.r) * 1.1) / (WORLD.span * Tz * 0.25)), ins = sstep(UT.swell - 0.3, UT.coll, t) * near2;
         if (ins > 0.05) { const mx = (G.cF.x + G.cI.x) / 2, my = (G.cF.y + G.cI.y) / 2, nx = -(G.cI.y - G.cF.y) / (d || 1), ny = (G.cI.x - G.cF.x) / (d || 1);
           for (let j = 0; j < (low ? 3 : 6); j++) { const L0 = (Math.random() - 0.5) * (G.cF.r + G.cI.r) * 1.4, x0 = mx + nx * L0, y0 = my + ny * L0, x1 = x0 + (Math.random() - 0.5) * G.cF.r * 0.9, y1 = y0 + (Math.random() - 0.5) * G.cF.r * 0.9, x2 = x1 + (Math.random() - 0.5) * G.cF.r * 0.7, y2 = y1 + (Math.random() - 0.5) * G.cF.r * 0.7;
             Q.beam(x0, y0, x1, y1, Tz * 0.07, COL.white, 0.9 * ins); Q.beam(x1, y1, x2, y2, Tz * 0.05, COL.white, 0.7 * ins); }
           for (let j = 0; j < (low ? 2 : 4); j++) { const an = j * 1.7 + t * 0.6; Q.smoke(mx + Math.cos(an) * d * 0.25, my + Math.sin(an) * d * 0.15, Math.max(G.cF.r, G.cI.r) * 0.7, 0.4 * ins, j + 31, COL.steam, 0.4); } } }
-      { const u = (t - UT.coll) / (UT.p6 + 0.3 - UT.coll); if (u > 0 && u < 1) { const R = Math.min(G.W, G.H) * 0.11 * (0.4 + 0.6 * eout(u * 3)) * (1 - 0.6 * sstep(0.7, 1, u)), fl = u < 0.06 ? 1 - u / 0.06 : 0;
+      { const u = (t - UT.coll) / (UT.p6 + 0.3 - UT.coll); if (u > 0 && u < 1) { const R = WORLD.span * Tz * 0.11 * (0.4 + 0.6 * eout(u * 3)) * (1 - 0.6 * sstep(0.7, 1, u)), fl = u < 0.06 ? 1 - u / 0.06 : 0;
         Q.shape(474, G.sky.x, G.sky.y, R * 3.6, 0, 0, R * 3.6, '#FFFFFF', 1.1 * (1 - sstep(0.75, 1, u)), 0.28, 1, 1.2, 0, 1); if (fl > 0) Q.glow(G.sky.x, G.sky.y, R * 6, COL.white, 0.8 * fl);
         // the singularity channels into the convergence point
         const ch = bump(t, UT.breath, UT.pillar - 0.05, UT.hit, UT.hit + 0.3); if (ch > 0.01) Q.ebeam(G.sky.x, G.sky.y, G.tX, G.tY - Tz * 1.0, Tz * 0.35, COL.white, 1.0, 0.7 * ch, 13, 6); } }
       // P5: both heads breathe on the target, the pillar falls
       { const b5 = bump(t, UT.breath - 0.05, UT.breath + 0.12, UT.hit + 0.15, UT.hit + 0.5); if (b5 > 0.01) for (let i = 0; i < 2; i++) { const fire = i === 0; let mo = fire ? G.mL : G.mR;
           if (!mo) { FAKE_M.x = G.body.x + (fire ? fs : -fs) * G.body.r * 0.5; FAKE_M.y = G.body.y - G.body.r * 0.9; mo = FAKE_M; } stream(Q, fire, mo.x, mo.y, G.tX, G.tY - Tz * 0.2, Tz * (1.15 + 0.15 * k), b5 * 1.25, 17 + i, fire ? 0.25 : -0.25); } }
-      { const u = (t - UT.pillar) / (UT.hit + 1.3 - UT.pillar); if (u > 0 && u < 1) { const top = G.tY - G.H * 1.1, h2 = (G.tY - top) / 2, w = Tz * (1.2 + 0.25 * k) * (1 + 0.5 * sstep(0.25, 0.4, u)), desc = cl(u / 0.16), fade = 1 - 0.75 * sstep(0.14, 0.3, u) - 0.25 * sstep(0.3, 0.7, u);
+      { const u = (t - UT.pillar) / (UT.hit + 1.3 - UT.pillar); if (u > 0 && u < 1) { const top = G.tY - WORLD.pillar * Tz, h2 = (G.tY - top) / 2, w = Tz * (1.2 + 0.25 * k) * (1 + 0.5 * sstep(0.25, 0.4, u)), desc = cl(u / 0.16), fade = 1 - 0.75 * sstep(0.14, 0.3, u) - 0.25 * sstep(0.3, 0.7, u);
         Q.quad(475, G.tX, top + h2, w, 0, 0, h2, '#FFFFFF', 1.2 * fade, desc, 5, 1); } }
       // the eruption: flash, molten plasma sphere, ice formations, steam on the divide, fragments, ribbons, the fields
       if (t > UT.hit) { const tt = t - UT.hit, X0 = G.tX, Y0 = G.tY, RR = Tz * CFG.ult.r[k - 1];
@@ -401,7 +416,7 @@ const RAZIEL_ULT = (() => {
         { const u = cl(tt / 3.0); if (u < 1) { const fr = V1() ? 1.0 : 0.62; Q.shape(479, X0 + fs * RR * 0.4, Y0 - RR * 0.35, RR * fr, 0, 0, RR * fr, '#FFFFFF', 1, u, J.seed % 13, 1.0 * LQ(), 0, 1); Q.shape(479, X0 - fs * RR * 0.4, Y0 - RR * 0.3, RR * fr, 0, 0, RR * fr, '#FFFFFF', 1, u, J.seed % 17 + 4, -1.0 * LQ(), 0, 1); } } }
       // P6: the steam rising across the field, the portals' last light; the dissolve into two spiralling streams and the white point
       if (t > UT.p6 + 0.6 && t < UT.len) { const u = cl((t - UT.p6 - 0.6) / 2.0); if (!low) for (let j = 0; j < 4; j++) { const v = (u + j * 0.25) % 1, px = G.tX + (j - 1.5) * Tz * 2.0, py = G.tY - Tz * (0.4 + 2.0 * v); Q.smoke(px, py, Tz * (1.2 + v), 0.35 * Math.sin(Math.PI * v) * (1 - sstep(UT.white, UT.len, t)), j + 71, COL.steam, 0.3); } }
-      if (t > UT.diss - 0.1) { const u = cl((t - UT.diss) / (UT.white - UT.diss)), ax = G.W / 2 + (G.body.x - G.W / 2) * 0.35, ay = Math.max(G.H * 0.08, G.body.y - G.H * 0.45), n = low ? 10 : 18, fadeOut = 1 - sstep(UT.white + 0.15, UT.len, t);
+      if (t > UT.diss - 0.1) { const u = cl((t - UT.diss) / (UT.white - UT.diss)), ax = G.body.x, ay = G.ay - WORLD.white * Tz, n = low ? 10 : 18, fadeOut = 1 - sstep(UT.white + 0.15, UT.len, t);
         for (let s = 0; s < 2; s++) { const fire = s === 0, col = fire ? COL.fire : COL.cyan, col2 = fire ? COL.hot : COL.ice;
           for (let i = 0; i < n; i++) { const q = ((i / n) + t * 0.9) % 1; if (q > u * 1.15) continue; const hx = lerp(G.body.x, ax, q), hy = lerp(G.body.y, ay, ein(q)), rr = G.body.r * 1.1 * (1 - q) * (1 - 0.5 * u), an = q * 9 + t * 4 + s * Math.PI;
             const px = hx + Math.cos(an) * rr, py = hy + Math.sin(an) * rr * 0.45, al = 0.75 * Math.sin(Math.PI * cl(q / Math.max(0.05, u * 1.15))) * fadeOut;
@@ -411,7 +426,7 @@ const RAZIEL_ULT = (() => {
     const FAKE_M = { x: 0, y: 0, dx: 0, dy: 1 };
     function fakeMouths() { if (!G.sL || G.sL === FAKE_L) { FAKE_L.x = G.pF.x; FAKE_L.y = G.pF.y + G.pF.r * 0.3; G.sL = FAKE_L; } if (!G.sR || G.sR === FAKE_R) { FAKE_R.x = G.pI.x; FAKE_R.y = G.pI.y + G.pI.r * 0.3; G.sR = FAKE_R; } }
     function drawFx(c) {
-      if (!UL) return; if (G.t !== UL.t) geo(c); const t = UL.t, low = lowFx();
+      if (!UL) return; geo(c); const t = UL.t, low = tier() < 1;   // (v465 RZ-U: always re-measured here, after the model is drawn: its anchors are this frame's, with this frame's camera and shake; the ground layer's, before the model, were the last frame's)
       if (!gpu()) return;
       const spec = spectralOn(t) && glOn();
       if (V1()) {   // (the first build's order, for A/B measurements: the painter pass split round the spectral dragons)
@@ -424,14 +439,14 @@ const RAZIEL_ULT = (() => {
       const Q = fgOpen(c); airA(Q, t, low); airB(Q, t, low); fgClose(c);
       if (spec) drawSpectrals(c, t);
     }
-    /* screen space: a vignette for the two heavens and the Book */
+    /* screen space: only a brief vignette at the impact (v465 RZ-U) */
     function drawCine(c, W, Hh) {
-      if (!UL) return; const t = UL.t, v = 0.55 * sstep(UT.p1, UT.p2, t) * (1 - sstep(UT.hit - 0.1, UT.hit + 0.3, t)) + 0.25 * bump(t, UT.hit + 0.3, UT.p6, UT.p6 + 0.6, UT.len);
+      if (!UL) return; const t = UL.t, v = 0.45 * bump(t, UT.hit - 0.12, UT.hit, UT.hit + 0.15, UT.hit + 0.6);   // (v465 RZ-U: the only screen-space layer left: a brief darkening of the edges at the impact; everything else is in the world)
       if (v > 0.01) { const P = vigPic(); if (P) { c.save(); c.globalAlpha = v; c.drawImage(P, 0, 0, W, Hh); c.restore(); } }
     }
     /* prewarm: the picture caches and the painter's program before the summon needs them */
     function warm() { skyPic(); vigPic(); try { const N = NMv(); if (N && N.FGFX) N.FGFX.usable(); } catch (e) {} }
-    return { start, update, drawGround, drawFx, drawCine, active, stop, warm, T: UT, CFG, get ul() { return UL; }, get streams() { return STR; } };
+    return { start, update, drawGround, drawFx, drawCine, active, stop, warm, T: UT, CFG, get ul() { return UL; }, get geo() { return G; } /* v465 RZ-U: the scene's screen places this frame (tests) */, get streams() { return STR; } };
   }
   return { create, UT, CFG };
 })();

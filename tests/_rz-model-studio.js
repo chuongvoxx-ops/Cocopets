@@ -11,7 +11,7 @@ const path = require('path');
   const W = +(process.env.W || 1500), H = +(process.env.H || 900);
   const page = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: DPR });
   const errors = []; page.on('pageerror', e => errors.push(e.message + ' ' + (e.stack || '').split('\n')[1])); page.on('console', m => { if (m.type() === 'warning' || m.type() === 'error') errors.push('console: ' + m.text().slice(0, 1500)); });
-  await page.addInitScript(([kt, hide, fx, yaw, lsz]) => { window.__LODSZ = lsz; window.__KT = kt; window.__HIDE = hide ? hide.split(',') : null; window.__FX = fx; window.__YAW = yaw; }, [process.env.KT || '1', process.env.HIDE || '', process.env.FX || '1', process.env.YAW || '', process.env.LODSZ || '146']);
+  await page.addInitScript(([kt, hide, fx, yaw, lsz, gq, hj, hy]) => { window.__GQ = gq; window.__LODSZ = lsz; window.__KT = kt; window.__HIDE = hide ? hide.split(',') : null; window.__FX = fx; window.__YAW = yaw; window.__HJAW = hj; window.__HYAW = hy; }, [process.env.KT || '1', process.env.HIDE || '', process.env.FX || '1', process.env.YAW || '', process.env.LODSZ || '146', process.env.GQ || '', process.env.HJAW, process.env.HYAW]);
   await page.goto('file://' + path.resolve(process.cwd(), process.env.HTML || 'test-rzm.html'));
   await page.waitForFunction(() => window.__pp, null, { timeout: 60000 });
   for (const MODE of MODES.split(',')) {
@@ -37,7 +37,7 @@ const path = require('path');
       L.forEach(([n, o], i) => cells.push({ x: W * (0.1 + (i % 5) * 0.2), y: i < 5 ? H * 0.44 : H * 0.92, size: W * 0.062, S: S(Object.assign({ x: 0, y: 0 }, o)), n }));
     } else if (MODE === 'wings') { [[0, 'FOLDED'], [0.35, 'PARTIAL'], [1, 'FULL']].forEach(([w, n], i) => cells.push({ x: 260 + i * 490, y: H - 120, size: 330, S: S({ wing: w, face: Math.PI / 2 }), n: 'WINGS ' + n }));
     } else if (MODE === 'heads') { [[1.98, 'LUX', 'headL'], [1.98, 'UMBRA', 'headR'], [0.25, 'LUX SIDE', 'headL'], [Math.PI - 0.25, 'UMBRA SIDE', 'headR']].forEach(([f, n, fo], i) => cells.push({ fx: 190 + i * 375, fy: 470, size: 1150, S: S({ face: f, faceFree: true, jawL: 0.45, jawR: 0.45 }), n: 'HEAD ' + n, focus: fo, clip: [i * 375, 0, 375, H] }));
-    } else if (MODE === 'hero') { cells.push({ x: W / 2, y: H - 230, size: H * 0.62, S: S({ face: F0 }), n: 'RAZIEL, THE TWIN REVELATION · ' + ['', 'BASE', 'L4 THE MIRRORED SOVEREIGN', 'L7 THE DIVINE EQUATION'][KT] });
+    } else if (MODE === 'hero') { cells.push({ x: W / 2, y: H - 150, size: H * 0.82, S: S({ face: window.__YAW ? +window.__YAW : F0, faceFree: !!window.__YAW }), n: 'RAZIEL, THE TWIN REVELATION · ' + ['', 'BASE', 'L4 THE MIRRORED SOVEREIGN', 'L7 THE DIVINE EQUATION'][KT] });
     } else if (MODE === 'heads2') { cells.push({ fx: W / 2, fy: H * 0.5, size: H * 1.75, S: S({ face: F0, jawL: 0.55, jawR: 0.45 }), n: 'LUX AND UMBRA', focus: 'headL', both: 1 });
     } else if (MODE === 'core') { cells.push({ fx: W / 2, fy: H / 2, size: 1700, S: S({ face: Math.PI / 2 }), n: 'THE GEMINI CORE', focus: 'body', fo2: 'coreL' });
     } else if (MODE === 'compare') {   // the rebuilt Zodiac Animas at their in-game size (Tz 95 px a tile: ANIMA_SIZE[3] x each one's BIG), Celestial form
@@ -48,7 +48,12 @@ const path = require('path');
       [1, 2, 3].forEach((k, i) => { try { const cvp = AP ? AP.canvas('gemini', k, 340, 220) : null; if (cvp) c.drawImage(cvp, 20 + i * 490, 120, 460, 298); } catch (e) { lab(250 + i * 490, 200, String(e).slice(0, 60)); } lab(250 + i * 490, 440, (MODE === 'nogl' ? 'NO GL: ' : '') + 'FORM ' + k); });
       [1, 3].forEach((k, i) => { const x = 380 + i * 700, y = 820; shadow(x, y, 120); window.__pp.AnimaArt.draw(c, 'gemini', k, x, y, 300, 1.3, {}); lab(x, y + 24, (MODE === 'nogl' ? 'NO GL ' : '') + 'AnimaArt k' + k); });
     } else if (MODE === 'lod') {   // the game's level of detail beside the full mesh at the in-game size (146 css px: a phone's L7 summon; run at DPR 3), and at an iMac's (228 css px: run at DPR 2), with each pass's cost
-      const sz = +(window.__LODSZ || 146); [[false, 'FULL MESH'], [true, 'GAME LOD']].forEach(([lod, n], i) => cells.push({ x: W * (0.25 + 0.5 * i), y: H * 0.82, size: sz, S: S({}), n: n + ' @ ' + sz + ' css px', o: lod ? { lod: true } : { full: true } }));
+      const sz = +(window.__LODSZ || 146); if (window.__GQ) { window.__pp.quickStart('Bot'); window.__pp.st.gq = window.__GQ; } window.__HQ = [RG.hq(), window.__GQ || 'auto']; [[false, 'FULL MESH'], [true, 'GAME LOD']].forEach(([lod, n], i) => cells.push({ x: W * (0.17 + 0.33 * i), y: H * 0.82, size: sz, S: S({}), n: n + ' @ ' + sz + ' css px', o: lod ? { lod: true } : { full: true } })); cells.push({ x: W * 0.83, y: H * 0.82, size: sz, S: S({}), n: 'AUTO (' + (window.__GQ || 'auto') + ')', o: {} });
+    } else if (MODE === 'flight') {   // (v465 RZ-M) flight poses, each simulated with live springs (60 fps) from a start state into the pose
+      const sim = (o0, t0, o1, t1) => { const S0 = S(Object.assign({ x: 0, y: 0 }, o0), 0); for (let f = 0; f <= t0 * 60; f++) { S0.t = f / 60; RG.solve(0, 0, 200, S0, { tile: 70 }); } Object.assign(S0, o1 || {}); for (let f = 1; f <= t1 * 60; f++) { S0.t = t0 + f / 60; RG.solve(0, 0, 200, S0, { tile: 70 }); } S0.t += 1 / 60; return S0; };
+      const L = [['TAKEOFF', sim({ fly: 0 }, 1, { fly: 1 }, 0.4)], ['HOVER: DOWNSTROKE', sim({ fly: 0.6 }, 3.0)], ['HOVER: UPSTROKE', sim({ fly: 0.6 }, 3.62)], ['GLIDE', sim({ fly: 0.8, glide: 1, speed: 0.7 }, 2.5)], ['BANKING TURN', sim({ fly: 0.8, speed: 0.8, bank: 1, face: 1.2 }, 2.5)],
+        ['SWOOPING DIVE', sim({ fly: 0.7, speed: 1, dive: 1 }, 2.5)], ['CLIMB', sim({ fly: 0.9, speed: 0.6, dive: -1 }, 2.5)], ['LANDING', sim({ fly: 0.6 }, 2, { fly: 0 }, 0.55)], ['FAST FLIGHT (SIDE)', sim({ fly: 0.8, speed: 1, face: 0, faceFree: true }, 2.5)], ['LANDED', sim({ fly: 0.6 }, 2, { fly: 0 }, 2.5)]];
+      L.forEach(([n, S0], i) => cells.push({ x: W * (0.1 + (i % 5) * 0.2), y: i < 5 ? H * 0.47 : H * 0.95, size: W * 0.065, S: S0, live: S0, n }));
     } else if (MODE === 'enter') [0.1, 0.25, 0.4, 0.55, 0.7, 0.85, 1].forEach((e, i) => cells.push({ x: 110 + i * 212, y: 560, size: 170, S: S({ enter: e }), n: 'ENTER ' + e }));
     else if (MODE === 'dissolve') [0, 0.25, 0.5, 0.75, 0.95].forEach((e, i) => cells.push({ x: 160 + i * 295, y: 560, size: 220, S: S({ dissolve: e }), n: 'DISSOLVE ' + e }));
     else if (MODE === 'walk') { const S0 = S({ x: 0, y: 0, walk: 0.5, face: F0 }); for (let f = -30; f < 7; f++) { const tt = 1 + (f + 30) / 30; S0.t = tt; S0.x = -(f + 30) / 30 * 1.6 * 0.39; S0.y = (f + 30) / 30 * 1.6 * 0.92; if (f >= 0) cells.push({ x: 120 + f * 210, y: 600, size: 200, S: Object.assign({}, S0, { _rz: S0._rz }), live: S0, n: 'f' + f }); else RG.solve(0, 0, 200, S0, { tile: 70 }); } }
@@ -59,7 +64,12 @@ const path = require('path');
     if (MODE === 'spectral') { const S2 = S({ jawL: 0.6, jawR: 0.6, wing: 1 }), S3 = S({ jawL: 0.6, jawR: 0.6, wing: 1 }); const a1 = RG.drawSpectral(c, W * 0.27, H - 150, H * 0.42, S2, 'L', { still: true }), s1 = Object.assign({}, RG.STATS); const a2 = RG.drawSpectral(c, W * 0.73, H - 150, H * 0.42, S3, 'R', { still: true }), s2 = Object.assign({}, RG.STATS); res.push(['spectral L', !!a1, s1], ['spectral R', !!a2, s2]); lab(W * 0.27, H - 40, 'SPECTRAL LUX'); lab(W * 0.73, H - 40, 'SPECTRAL UMBRA'); }
     if (MODE === 'parts') { RG.drawParts(c, [{ m: 'sun', X: 250, Y: 300, s: 70, g: 1, t: 1 }, { m: 'planet', X: 600, Y: 300, s: 70, t: 1 }, { m: 'crownL', X: 950, Y: 300, s: 90, t: 1 }, { m: 'crownR', X: 1300, Y: 300, s: 90, t: 1 },
       { m: 'spire', X: 250, Y: 800, s: 60, h: 1 }, { m: 'spire', X: 450, Y: 800, s: 50, h: 0.5 }, { m: 'shard', X: 650, Y: 700, s: 40, side: 'R' }, { m: 'ember', X: 800, Y: 700, s: 30 }, { m: 'ringL', X: 1000, Y: 700, s: 60 }, { m: 'ringR', X: 1250, Y: 700, s: 60 }]); }
-    return { ok, tb: Math.round(tb), nv: RG.nv, nt: RG.nt, res, stats: RG.STATS };
+    if (MODE === 'hprof') {   // (v465 RZ-M) the two heads alone: side profiles (top row) and 3/4 (bottom row), jaw at rest; env HYAW (the 3/4 yaw), HJAW
+      const KH = KT, jw = window.__HJAW != null ? +window.__HJAW : 0.2, y3 = window.__HYAW != null ? +window.__HYAW : 0.75, s0 = Math.min(W / 4, H / 2) * 0.16;
+      [[0, 'L', 0, 'LUX PROFILE'], [Math.PI, 'R', 1, 'UMBRA PROFILE'], [y3, 'L', 2, 'LUX 3/4'], [Math.PI - y3, 'R', 3, 'UMBRA 3/4']].forEach(([yaw, side, i, n]) => {
+        const X = W * (0.25 + 0.5 * (i % 2)) + (i % 2 ? -1 : 1) * s0 * 0.2, Y = H * (i < 2 ? 0.3 : 0.78); RG.drawParts(c, [{ m: 'head', X, Y, s: s0, yaw, side, k: KH, jaw: jw, g: 0.6 }], { res: 1, full: !window.__LODH }); lab(X, Y + s0 * 2.6, n); });
+    }
+    return { hq: window.__HQ, ok, tb: Math.round(tb), nv: RG.nv, nt: RG.nt, res, stats: RG.STATS };
   }, { MODE, W, H, DPR });
   const OUT = MODES.includes(',') ? OUT0.replace(/\.png$/, '-' + MODE + '.png') : OUT0;
   await page.screenshot({ path: OUT });

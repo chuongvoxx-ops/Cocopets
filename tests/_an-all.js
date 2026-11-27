@@ -57,7 +57,7 @@ const path = require('path');
         if (stStates[stStates.length - 1] !== stA) stStates.push(stA);
         if (a && a.st === 'fight' && readyT < 0) { readyT = t; lifeAtReady = +(a.life + DT).toFixed(2); }
         if (a && a.st === 'fight') { fightT += DT; dFight += d; if (d > 0) { hits++; if (lastHit >= 0 && t - lastHit > maxGap) { maxGap = t - lastHit; gapAt = +(t - readyT).toFixed(1); } lastHit = t; } const si = Math.floor(t - readyT); sec[si] = (sec[si] || 0) + d;
-          const k2 = (a.ab && a.ab.act && a.ab.act.kind) || (a.bl && a.bl.act && a.bl.act.kind); if (k2 && out.picks[out.picks.length - 1] !== k2) out.picks.push(k2);
+          const k2 = (a.ab && a.ab.act && a.ab.act.kind) || (a.bl && a.bl.act && a.bl.act.kind) || (a.rz && a.rz.act && a.rz.act.kind + (a.rz.act.air ? '-air' : '')) /* v465 RZ-A */; if (k2 && out.picks[out.picks.length - 1] !== k2) out.picks.push(k2);
           if (!k2 && (a.ab || a.bl) && t - readyT > 1) idleFoes += DT; }
         else if (a && (a.st === 'awaken' || a.st === 'leave')) { if (awT < 0) awT = t; dFin += d; if (a.st === 'leave' && leaveT < 0) leaveT = t; }
         else if (!a && readyT >= 0) { dFin += d; if (goneT < 0) goneT = t; }

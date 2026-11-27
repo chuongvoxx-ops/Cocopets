@@ -98,41 +98,42 @@ const RAZIEL_GL = (() => {
   /* ================= the anatomy (model units; x forward, y its left (Lux), z up; the floor at z 0) ================= */
   /* the barrel: sections along x (x, half width, half height, centre height): the deep chest and broad shoulders forward round the Gemini
      Core, a narrower waist, strong haunches */
-  const TB = [[-5.0, 0.8, 0.8, 6.55], [-4.3, 1.45, 1.4, 6.45], [-3.2, 1.7, 1.6, 6.35], [-1.9, 1.62, 1.6, 6.35], [-0.6, 1.72, 1.78, 6.45], [0.7, 2.05, 2.05, 6.6], [1.9, 2.3, 2.3, 6.75], [3.0, 2.25, 2.25, 6.75], [3.8, 2.0, 2.0, 6.75], [4.35, 1.3, 1.45, 7.05]];
+  const TB = [[-5.0, 0.75, 0.75, 6.7], [-4.3, 1.4, 1.38, 6.6], [-3.2, 1.62, 1.6, 6.5], [-2.1, 1.3, 1.3, 6.78], [-0.9, 1.4, 1.5, 6.72], [0.4, 1.95, 2.15, 6.52], [1.7, 2.3, 2.55, 6.42], [2.9, 2.28, 2.5, 6.5], [3.8, 2.0, 2.1, 6.7], [4.35, 1.3, 1.45, 7.05]];   // (v465 RZ-M: a deep ribcage hanging low at the chest, a tucked tapering waist, strong haunches)
   function tb(x) { if (x <= TB[0][0]) return TB[0].slice(1); for (let i = 1; i < TB.length; i++) if (x <= TB[i][0]) { const a = TB[i - 1], b = TB[i], u = sstep(a[0], b[0], x); return [lerp(a[1], b[1], u), lerp(a[2], b[2], u), lerp(a[3], b[3], u)]; } return TB[TB.length - 1].slice(1); }
   const se = (c, p) => Math.sign(c) * Math.pow(Math.abs(c), 2 / p);
-  const bodyPt = (x, ph, o) => { const [w, h, zc] = tb(x), k = o || 0; return [x, (w + k) * se(Math.cos(ph), 2.5), zc + (h + k) * se(Math.sin(ph), 2.5)]; };
+  const bodyPt = (x, ph, o) => { const [w, h, zc] = tb(x), k = o || 0, sp = Math.sin(ph); return [x, (w + k) * se(Math.cos(ph), 2.3) * (1 - 0.12 * Math.max(0, -sp)), zc + (h + k) * se(sp, 2.3) * (sp < 0 ? 1.0 : 0.92)]; };   // (v465 RZ-M: narrower toward the keel, a flatter back)
   const bodyN = (x, ph) => { const a = bodyPt(x, ph), b = bodyPt(x, ph + 0.02), c = bodyPt(x + 0.02, ph); return norm(cross(sub(c, a), sub(b, a))); };
-  const BODYC = [0, 0, 6.5];
+  const ZUP = 3.4, BODYC = [0, 0, 6.5 + ZUP];   // (v465 RZ-M: the body carried high on long legs, ZUP over v464's)
   /* the Gemini Core: the two reactors side by side in the chest (y +/- CY), facing forward */
-  const TSC = 1.38, TS = p => [p[0] * TSC, p[1] * TSC, 6.5 + (p[2] - 6.5) * TSC];   // (the torso is built at 1 and drawn TSC larger about its centre: its anchors below scaled with it)
+  const TSC = 1.38, TSX = 1.62, TS = p => [p[0] * TSX, p[1] * TSC, 6.5 + ZUP + (p[2] - 6.5) * TSC];   // (v465 RZ-M: TSX longer than wide: a long dragon's torso)   // (the torso is built at 1 and drawn TSC larger about its centre: its anchors below scaled with it)
   const CORE0 = [4.3, 1.15, 6.45], CRAD0 = 1.08, CORE = TS(CORE0), CRAD = CRAD0 * TSC;
   /* the necks: roots on the shoulders, the heads' resting pivots (the back of the skull) */
-  const NROOT0 = [2.75, 1.3, 8.55], NROOT = TS(NROOT0), HREST = [5.7, 4.6, 18.2], NNS = [0, 13, 14, 15];
+  const NROOT0 = [2.75, 1.3, 8.55], NROOT = TS(NROOT0), HREST = [8.6, 5.0, 25.0], NNS = [0, 16, 17, 18];
   /* the wings: the mount on the back, the bones' lengths by form */
   const WROOT0 = [0.75, 1.7, 8.95], WROOT = TS(WROOT0), WSZ = 1.6, WLEN = [[0, 0, 0], [4.4, 5.8, 5.4], [4.7, 6.2, 5.9], [5.1, 6.7, 6.5]].map(a => a.map(v => v * WSZ));
   const NBL = [0, 14, 17, 20], NCV = [0, 8, 10, 11], NB3 = [0, 6, 8, 10];
   /* the legs: hip (x, y, z), foot home (x, y), the bones' lengths, the knee's bend (-1 the elbow back, +1 the knee forward), the walk's phase */
   const LEGS = [
-    { x: 2.55, y: 1.75, z: 6.0, fx: 3.0, fy: 2.75, L1: 3.15, L2: 2.95, kd: -1, off: 0.0, s: 1, f: 1 },
-    { x: 2.55, y: -1.75, z: 6.0, fx: 3.0, fy: -2.75, L1: 3.15, L2: 2.95, kd: -1, off: 0.5, s: -1, f: 1 },
-    { x: -3.05, y: 1.6, z: 6.05, fx: -3.25, fy: 2.55, L1: 3.3, L2: 3.0, kd: 1, off: 0.75, s: 1, f: 0 },
-    { x: -3.05, y: -1.6, z: 6.05, fx: -3.25, fy: -2.55, L1: 3.3, L2: 3.0, kd: 1, off: 0.25, s: -1, f: 0 }];
-  for (const L of LEGS) { const h = TS([L.x, L.y, L.z]); L.x = h[0]; L.y = h[1]; L.z = h[2]; L.fx *= TSC; L.fy *= TSC; L.L1 *= 1.08; L.L2 *= 1.08; }
-  const AH = 1.05, STRIDE = 4.2, SW0 = 0.27, SW1 = 0.42, LIFTH = 1.05;
+    { x: 2.45, y: 1.85, z: 6.1, fx: 2.85, fy: 2.75, L1: 5.0, L2: 4.7, LM: 0, kd: -1, off: 0.0, s: 1, f: 1 },
+    { x: 2.45, y: -1.85, z: 6.1, fx: 2.85, fy: -2.75, L1: 5.0, L2: 4.7, LM: 0, kd: -1, off: 0.5, s: -1, f: 1 },
+    { x: -3.1, y: 1.7, z: 6.2, fx: -3.05, fy: 2.6, L1: 4.6, L2: 4.4, LM: 2.9, kd: 1, off: 0.75, s: 1, f: 0 },
+    { x: -3.1, y: -1.7, z: 6.2, fx: -3.05, fy: -2.6, L1: 4.6, L2: 4.4, LM: 2.9, kd: 1, off: 0.25, s: -1, f: 0 }];   // (v465 RZ-M: long legs; the hind digitigrade: thigh, shin, a long metatarsal up to the hock)
+  for (const L of LEGS) { const h = TS([L.x, L.y, L.z]); L.x = h[0]; L.y = h[1]; L.z = h[2]; L.fx *= TSX; L.fy *= TSC; }
+  const AH = 1.05, STRIDE = 6.4, SW0 = 0.27, SW1 = 0.42, LIFTH = 1.05;
   /* the tail: its root, segments by form */
   const TROOT0 = [-4.95, 0, 6.6], TROOT = TS(TROOT0), NTS = [0, 20, 22, 24];
   /* the Mirror Crowns: radius by form */
   const CRR = [0, 2.9, 3.25, 3.6];
   /* each form's height (model units: to the top of the horns at rest) for its size */
-  const HEIGHT = [0, 22.0, 22.6, 23.3];
+  const HEIGHT = [0, 28.5, 29.2, 30.0];
   /* the default heading (a world angle: toward the camera and a little to its left: the concept's three-quarter front view, Lux on the
      viewer's left, Umbra on the right, the core facing the viewer) and how far from facing the camera it ever turns (S.faceFree lifts it) */
   const FACE0 = 1.775, YAWLIM = 1.05, WING0 = 0.75;
 
   let D = null;
   function* gen(qq, OUT) {
-    const q = qq * (lowFx() ? 0.7 : 1), M = {}, Q = n => Math.max(3, Math.round(n * q));
+    const q = qq * (lowFx() ? 0.7 : 1), LOQ = qq < 0.6, M = {},   // (LOQ: the game's set: small details left out)
+    Q = n => Math.max(3, Math.round(n * q));
     const mk = f => { const B = GLM.builder(q); f(B); return B.done(); };
     /* a big jagged spike: a metal horn (gold on Lux's side, platinum on Umbra's) with a tip of the element (molten orange / sapphire crystal:
        611.3), a notch partway up (jagged) */
@@ -204,76 +205,99 @@ const RAZIEL_GL = (() => {
     M.nvert = [null, mk(B => nvert(B, 1)), mk(B => nvert(B, 2)), mk(B => nvert(B, 3))]; yield;
     /* ---- the heads (head frame: x forward along the snout, y its left, z up; the pivot (0, 0, 0) at the back of the skull where the
        neck joins): Lux (side 0) and Umbra (side 1) two different skulls ---- */
-    const zb = u => lerp(-0.2, -0.1, u), zt = (u, s) => lerp(0.72, 0.3, Math.pow(u, 0.85)) + (s ? -0.05 * u : 0), sw = (u, s) => lerp(0.66, s ? 0.2 : 0.27, Math.pow(u, 0.8));
+    /* (v465 RZ-M, the head sculpt) a wedge-shaped dragon skull: broad at the back (a domed cranium, cheekbones flaring out as arches, the
+       jaw's hinges), a muscular snout tapering to a squared armoured nose with nostrils, wider than tall; a heavy brow angled forward and down
+       over deep-set glowing eyes; rows of fangs with long canines; a deep thick lower jaw with a chin; a layered crown sweeping back from the
+       brow and cheeks (the main horns, the blades over the back of the skull, the cheek frill, the jaw frill: Lux's gold flames, curling,
+       molten-tipped; Umbra's crystal shards in clusters); scale plates following the skull, rimmed in metal */
+    const zb = u => lerp(-0.22, -0.12, u), zt = (u, s) => lerp(0.98, 0.32, Math.pow(u, 0.62)) + 0.07 * Math.exp(-Math.pow((u - 0.93) / 0.06, 2)) - (s ? 0.03 * u : 0), sw = (u, s) => lerp(1.18, s ? 0.46 : 0.52, Math.pow(u, 0.62));
     const SNX0 = 0.15, SNX1 = 3.25;   // (the snout's span along x)
-    const snoutP = (u, a, s) => { const x = lerp(SNX0, SNX1, u), w = sw(u, s), b = zb(u), h = zt(u, s) - b, ca = Math.cos(a), sa = Math.sin(a); return [x - 0.12 * Math.pow(Math.max(0, sa), 4) * u * u, w * se(ca, 3.2), b + h * se(Math.max(0, sa), 3.2) + 0.06 * Math.exp(-ca * ca * 40) * (1 - u) * sa]; };
+    const snoutP = (u, a, s) => { const x = lerp(SNX0, SNX1, u), w = sw(u, s), b = zb(u), h = zt(u, s) - b, ca = Math.cos(a), sa = Math.sin(a); return [x, w * se(ca, 2.4), b + h * se(Math.max(0, sa), 2.0) + 0.05 * Math.exp(-ca * ca * 30) * sa * (0.4 + 0.6 * u)]; };
+    /* a horn: a tapering tube along a cubic (P), flattened across (th) into a blade whose broad side holds up; a lateral wave (wv) curls it
+       like a flame; the last part (from tip) molten / sapphire; its two sharp edges rimmed */
+    const horn = (B, P, r, o) => { o = o || {}; const up = o.up || [0, 0, 1], th = o.th == null ? 0.55 : o.th, wv = o.wv || 0, tip = o.tip == null ? 0.66 : o.tip, mat = o.mat == null ? MT.MET : o.mat, L = len(sub(P[3], P[0])), pw = o.pw || 0.85;
+      const pt = (u, v) => { const c = bz(P, u), T = norm(bzd(P, Math.min(0.995, Math.max(0.005, u)))); let s1 = cross(T, up); if (len(s1) < 1e-4) s1 = cross(T, [1, 0, 0]); s1 = norm(s1); const s2 = cross(s1, T), a = v * TAU, rr = r * Math.pow(1 - u, pw) * (1 + 0.25 * Math.sin(Math.PI * u) * (o.bulge || 0)) + 0.004;
+        const c2 = add(c, mul(s2, wv * L * Math.sin(Math.PI * 1.5 * u) * u));
+        return add(c2, add(mul(s2, rr * Math.cos(a)), mul(s1, rr * th * Math.sin(a)))); }, nu = o.nu || Q(10), nv = o.nv || 6, t1 = Math.min(1, tip);   // (the shaft and the tip as two surfaces: a material never blends across a triangle)
+      B.surf((u, v) => pt(u * t1, v), Math.max(2, Math.round(nu * t1)), nv, () => mat, { flip: true, e: (u, v) => sstep(0.7, 0.95, Math.abs(Math.cos(v * TAU))) });
+      if (t1 < 1) B.surf((u, v) => pt(lerp(t1 - 0.01, 1, u), v), Math.max(2, Math.round(nu * (1 - t1))), nv, () => MT.FANG + 0.3, { flip: true }); };
     const skull = (B, s, k) => {   // s 0 Lux, 1 Umbra
-      // the snout (the upper jaw) and the cranium: ceramic, engraved
+      const hm = s ? MT.CRY : MT.MET;
+      // the snout (the upper jaw), the squared nose with its nostrils, the domed cranium
       B.surf((u, v) => snoutP(u, v * Math.PI, s), Q(16), Q(14), () => MT.CER + 0.3, { e: (u, v) => sstep(0.9, 1, Math.abs(v * 2 - 1)) * 0.5, flip: false });
-      B.ell([SNX1 - 0.06, 0, (zb(1) + zt(1, s)) / 2], [0.16, sw(1, s) * 1.0, (zt(1, s) - zb(1)) * 0.55], MT.CER, { seg: Q(12), rings: Q(6), th0: 0, th1: Math.PI });   // (the nose's cap)
-      B.ell([-0.2, 0, 0.3], [0.9, s ? 0.62 : 0.68, 0.58], MT.TI + 0.2, { seg: Q(20), rings: Q(10) });
-      B.surf((u, v) => { const x = lerp(SNX0, SNX0 + 0.05, u), w = sw(0, s); return [x, w * (1 - 2 * v) * 0.98, zb(0) + 0.02]; }, 1, 2, () => MT.TI, {});
+      { const zm = (zb(1) + zt(1, s)) / 2, hh = (zt(1, s) - zb(1)) * 0.5; B.box([SNX1 - 0.06, 0, zm + 0.02], [0.17, sw(1, s) * 1.02, hh + 0.03], 0.07, MT.CER);
+        for (const sg of [1, -1]) { B.ell([SNX1 + 0.06, sg * sw(1, s) * 0.5, zt(1, s) - 0.07], [0.09, 0.08, 0.05], MT.TI + 0.3, { seg: Q(10), rings: Q(5) }); }
+        plate(B, { c: [[SNX1 - 0.65, 0, zt(0.8, s) + 0.05], [SNX1 - 0.35, 0, zt(0.9, s) + 0.08], [SNX1 - 0.05, 0, zt(1, s) + 0.08], [SNX1 + 0.14, 0, zm + 0.06]], nrm: [0.4, 0, 1], w: () => sw(1, s) * 0.95, cup: -0.5, th: 0.1, nu: Q(6), nv: 3, mat: MT.CER, trim0: 0.7, endTrim: true }); }
+      B.ell([-0.45, 0, 0.4], [1.0, 1.16, 0.84], MT.CER, { seg: Q(20), rings: Q(10) });
       // the palate (the mouth's roof, lit by the throat)
       B.surf((u, v) => { const x = lerp(SNX0 - 0.1, SNX1 - 0.1, u), w = sw(u, s) * 0.94; return [x, w * (1 - 2 * v), zb(u) - 0.005]; }, Q(10), 3, () => MOU0(s), { flip: true });
-      // the layered facial armour: three plates down the snout, the nasal crest
-      for (let j = 0; j < 3; j++) { const u0 = 0.08 + j * 0.27, u1 = u0 + 0.34, a = snoutP(u0, Math.PI / 2, s), b2 = snoutP(u1, Math.PI / 2, s);
-        plate(B, { c: [add(a, [0, 0, 0.06]), add(lerp3(a, b2, 0.33), [0, 0, 0.1]), add(lerp3(a, b2, 0.66), [0, 0, 0.1]), add(b2, [0, 0, 0.05])], nrm: [0.15, 0, 1], w: u => sw(lerp(u0, u1, u), s) * (0.95 - 0.1 * j), cup: -0.55, th: 0.07, nu: Q(8), nv: 3, mat: MT.CER + (j === 1 ? 0.3 : 0), trim0: 0.76, endTrim: 2 }); }
-      B.crystal(add(snoutP(0.82, Math.PI / 2, s), [0, 0, 0.02]), add(snoutP(0.98, Math.PI / 2, s), [0.12, 0, 0.22]), 0.07, s ? MT.CRY : MT.MET, { n: 4, thin: 0.4, up: [0, 1, 0] });
+      // the layered facial armour down the snout, the nasal crest
+      for (let j = 0; j < 3; j++) { const u0 = 0.04 + j * 0.27, u1 = u0 + 0.36, a = snoutP(u0, Math.PI / 2, s), b2 = snoutP(u1, Math.PI / 2, s);
+        plate(B, { c: [add(a, [0, 0, 0.06]), add(lerp3(a, b2, 0.33), [0, 0, 0.1]), add(lerp3(a, b2, 0.66), [0, 0, 0.1]), add(b2, [0, 0, 0.05])], nrm: [0.15, 0, 1], w: u => sw(lerp(u0, u1, u), s) * (0.8 - 0.08 * j), cup: -0.6, th: 0.09, nu: Q(8), nv: 3, mat: MT.CER + (j === 1 ? 0.3 : 0), trim0: 0.74, endTrim: 2 }); }
+      B.crystal(add(snoutP(0.78, Math.PI / 2, s), [0, 0, 0.03]), add(snoutP(0.97, Math.PI / 2, s), [0.12, 0, 0.32]), 0.09, hm, { n: 4, thin: 0.45, up: [0, 1, 0] });
       for (const sg of [1, -1]) {
-        // the brow: a heavy angular ridge over each eye (Lux heavier, Umbra sharper and longer)
-        plate(B, { c: [[0.05, sg * 0.42, 0.72], [0.45, sg * 0.5, 0.78], [0.95, sg * 0.46, 0.66], [1.35, sg * 0.36, 0.52]], nrm: [0.1, sg * 0.55, 1], w: u => (s ? 0.12 : 0.16) + 0.05 * Math.sin(Math.PI * u), cup: -0.3, th: 0.1, nu: Q(8), nv: 2, mat: MT.CER, trim0: 0.6, endTrim: true });
-        for (let i = 0; i < 3; i++) spk(B, [0.95 - i * 0.32, sg * (0.5 + i * 0.03), 0.66 + i * 0.05], [0.35 - i * 0.55, sg * (1.05 + i * 0.15), 1.55 + i * 0.3], 0.1, { up: [0, sg, 0], jag: i === 1 });
-        for (let i = 0; i < 3; i++) spk(B, [0.3 - i * 0.42, sg * 0.62, 0.1 - i * 0.14], [-1.2 - i * 0.55, sg * (1.85 + i * 0.25), 0.1 - i * 0.35], 0.13, { up: [0, 0, 1] });
-        B.crystal([0.5, sg * 0.52, 0.78], [-0.35, sg * 0.78, 1.15 + (s ? 0.25 : 0.05)], 0.1, s ? MT.CRY : MT.MET, { n: 4, thin: 0.4, up: [0, sg, 0] });
-        // the eye in its socket
-        B.ell([0.86, sg * 0.44, 0.46], [0.24, 0.08, 0.1], MT.TI + 0.3, { seg: Q(12), rings: Q(5) });
-        B.push(norm([1, sg * 0.25, 0.15]), norm([-sg * 0.25, 1, 0]), [0, 0, 1], [0.9, sg * 0.49, 0.47]); B.ell([0, 0, 0], [0.17, 0.05, 0.065], MT.EYE, { seg: Q(12), rings: Q(5) }); B.pop();
-        // the cheek plates: layered, sweeping back from under the eye past the jaw's hinge (Umbra: more, sharper, frosted)
-        const ncp = s ? 4 : 3;
-        for (let j = 0; j < ncp; j++) { const z0 = 0.25 - j * 0.17, x0 = 1.15 - j * 0.12;
-          plate(B, { c: [[x0, sg * (0.47 + j * 0.03), z0], [x0 - 0.5, sg * (0.6 + j * 0.04), z0 + 0.02], [x0 - 1.0, sg * (0.66 + j * 0.05), z0 + 0.06], [x0 - 1.55 - (s ? 0.35 : 0), sg * (0.62 + j * 0.06), z0 + 0.18 + (s ? 0.12 : 0)]], nrm: [0, sg, 0.15], w: u => (0.13 - j * 0.015) * (1 - 0.5 * u * u * (s ? 1.4 : 1)), cup: 0.2, th: 0.06, nu: Q(8), nv: 2, mat: MT.CER + (j % 2 ? 0.3 : 0), trim0: 0.6, endTrim: 2 });
-          if (s) B.crystal([x0 - 1.4, sg * (0.62 + j * 0.06), z0 + 0.2], [x0 - 2.05, sg * (0.7 + j * 0.06), z0 + 0.38 + j * 0.06], 0.05, MT.CRY, { n: 4, thin: 0.5 }); }
-        // vents: Lux's heat vents on the snout, Umbra's mist vents on the cheek
+        // the cheekbones: arches flaring out and back from under the eye to the jaw's hinge; the hinge's ring
+        horn(B, [[1.25, sg * 0.86, 0.1], [0.55, sg * 1.22, 0.06], [-0.2, sg * 1.45, 0.08], [-0.8, sg * 1.42, 0.2]], 0.22, { up: [0, sg, 0.3], th: 0.75, mat: MT.CER, tip: 2, pw: 0.25, bulge: 0.8 });
+        B.push([1, 0, 0], [0, 0, 1], [0, -sg, 0], [-0.2, sg * 1.22, -0.34]); B.tor([0, 0, 0], 0.2, 0.06, MT.MET, { seg: Q(14), rseg: 4 }); B.pop(); B.ell([-0.2, sg * 1.2, -0.34], [0.17, 0.08, 0.17], MT.MET + 0.2, { seg: Q(10), rings: Q(4) });   // (a gilded boss over the hinge)
+        // the brow: a heavy ridge angled forward and down over the eye (a scowl), two short horns rising off it
+        horn(B, [[1.4, sg * 0.66, 0.64], [1.05, sg * 0.94, 0.78], [0.6, sg * 1.04, 0.96], [0.05, sg * 0.92, 1.12]], 0.3, { up: [0.4, sg * 0.45, 1], th: 0.7, mat: MT.CER, tip: 2, pw: 0.35, bulge: 0.9 });
+        plate(B, { c: [[1.38, sg * 0.7, 0.8], [1.0, sg * 0.98, 0.94], [0.6, sg * 1.06, 1.14], [0.1, sg * 0.94, 1.32]], nrm: [0.4, sg * 0.5, 1], w: u => 0.15 + 0.07 * Math.sin(Math.PI * u), cup: -0.4, th: 0.08, nu: Q(8), nv: 2, mat: MT.CER + 0.3, trim0: 0.55, endTrim: true });
+        if (s) for (let i = 0; i < 2; i++) B.crystal([0.7 - i * 0.55, sg * (0.92 + i * 0.04), 0.9 + i * 0.12], [0.2 - i * 0.6, sg * (1.1 + i * 0.1), 1.45 + i * 0.12], 0.1, MT.CRY, { n: 5, thin: 0.7, up: [0, sg, 0] });
+        else for (let i = 0; i < 2; i++) horn(B, [[0.75 - i * 0.55, sg * (0.92 + i * 0.04), 0.88 + i * 0.12], [0.55 - i * 0.55, sg * 1.0, 1.2 + i * 0.1], [0.3 - i * 0.6, sg * 1.06, 1.4 + i * 0.12], [0.05 - i * 0.65, sg * 1.12, 1.55 + i * 0.12]], 0.1, { up: [1, 0, 0.2], th: 0.5, wv: 0.12 });
+        // the eye, deep-set in a dark socket under the brow, its gaze forward and a little down (fierce)
+        B.ell([0.96, sg * 0.9, 0.45], [0.34, 0.12, 0.17], MT.TI + 0.3, { seg: Q(12), rings: Q(5) });
+        B.push(norm([1, sg * 0.3, -0.15]), norm([-sg * 0.3, 1, 0]), [0, 0, 1], [1.0, sg * 0.97, 0.45]); B.ell([0, 0, 0], [0.31, 0.1, 0.12], MT.EYE, { seg: Q(12), rings: Q(5) }); B.pop();
+        // the cheek plates: layered under the eye, following the snout's side back to the hinge (Umbra: one more, frosted)
+        for (let j = 0; j < (s ? 3 : 2) * (LOQ ? 1 : 2); j++) { const jr = j % (s ? 3 : 2), jc = Math.floor(j / (s ? 3 : 2)), z0 = 0.16 - jr * 0.16, x0 = 2.3 - jr * 0.15 - jc * 0.85, W0 = u => sw(Math.max(0, (lerp(x0, x0 - 1.0, u) - SNX0) / (SNX1 - SNX0)), s);
+          plate(B, { c: [0, 0.33, 0.66, 1].map(u => [lerp(x0, x0 - 1.0, u), sg * (W0(u) + 0.03 + 0.03 * u), z0 + 0.04 * u]), nrm: [0, sg, 0.15], w: u => (0.14 - jr * 0.015) * (0.7 + 0.3 * Math.sin(Math.PI * Math.min(1, u * 1.4))), cup: 0.2, th: 0.07, nu: Q(8), nv: 2, mat: MT.CER + (j % 2 ? 0.3 : 0), trim0: 0.6, endTrim: 2 }); }
+        // vents: three slots along the snout's side
         for (let j = 0; j < 3; j++) { const u = 0.45 + j * 0.1, p = snoutP(u, sg > 0 ? 0.55 : Math.PI - 0.55, s); B.box(add(p, [0, sg * 0.01, 0]), [0.035, 0.03, 0.025], 0.01, MT.TI + 0.3); }
-        // the fangs of the upper jaw (individually defined; the canines long), Umbra's long and crystalline
-        for (let j = 0; j < 8; j++) { const u = 0.12 + j * 0.11, p = snoutP(u, sg > 0 ? 0.02 : Math.PI - 0.02, s), can = j === 6 ? 1 : 0, L = (s ? 0.26 : 0.2) + can * (s ? 0.28 : 0.22) + 0.04 * (j % 2);
-          B.crystal(add(p, [0, -sg * 0.05, 0.02]), add(p, [0.04, -sg * 0.09, -L * 1.25]), 0.06 + can * 0.03, MT.FANG, { n: 4, belly: 0.25, base: 1 }); }
+        // the upper fangs: a row down each side, the canines long at the front (Umbra's long and crystalline)
+        for (let j = 0; j < 9; j++) { const u = 0.1 + j * 0.1, p = snoutP(u, sg > 0 ? 0.02 : Math.PI - 0.02, s), can = j === 7 ? 1 : 0, L = (s ? 0.22 : 0.19) + can * (s ? 0.42 : 0.38) + 0.05 * (j % 2);
+          B.crystal(add(p, [0, -sg * 0.06, 0.02]), add(p, [0.05, -sg * 0.1, -L]), 0.065 + can * 0.04, MT.FANG, { n: 4, belly: 0.25, base: 1 }); }
+        B.crystal([SNX1 - 0.02, sg * 0.13, zb(1)], [SNX1 + 0.03, sg * 0.11, zb(1) - 0.22], 0.05, MT.FANG, { n: 4, belly: 0.25, base: 1 });
       }
-      B.crystal(add(snoutP(0.99, Math.PI / 2, s), [-0.05, 0, -0.1]), add(snoutP(0.99, Math.PI / 2, s), [0.12, 0, -0.42]), 0.05, MT.FANG, { n: 4, belly: 0.25, base: 1 });
-      // the horns: Lux's sweeping gold horns and a crest of blades (more by form); Umbra's crystalline crown of spikes
+      // the layered crown (per side): the main horns from the brow, the blades over the back of the skull, the cheek frill; more and longer
+      // by form. Lux: gold flames (curling, a lick off each main horn); Umbra: clusters of crystal shards
+      const L1 = 1 + 0.1 * (k - 1);
+      const fl = (a, d, Ln, r, i, o) => { o = o || {}; if (s) { const b = add(a, mul(d, Ln)); B.crystal(a, b, r, i % 3 === 2 ? MT.MET : MT.CRY, { n: 5, thin: o.th || 0.7, belly: 0.3, base: 0.8, up: o.up || [0, 0, 1], seed: i });
+          if (!LOQ || o.main) { const sd = norm(cross(d, o.up || [0, 0, 1])); B.crystal(add(a, mul(d, Ln * 0.15)), add(add(a, mul(d, Ln * 0.55)), mul(sd, Ln * 0.14 * (i % 2 ? 1 : -1))), r * 0.55, MT.CRY, { n: 5, thin: 0.75, belly: 0.3, base: 0.8, up: o.up || [0, 0, 1], seed: i + 3 }); }
+          return; }
+        const u2 = o.up || [0, 0, 1], cu = o.curl == null ? 0.22 : o.curl, P = [a, add(a, mul(d, Ln * 0.35)), add(add(a, mul(d, Ln * 0.7)), mul(u2, -cu * Ln * 0.4)), add(add(a, mul(d, Ln)), mul(u2, cu * Ln))];
+        horn(B, P, r * 1.25, { up: u2, th: o.th || 0.45, wv: (i % 2 ? 0.07 : -0.06), tip: 0.6, nu: Q(o.main ? 12 : 9), pw: 0.7 });
+        if (o.main && !LOQ) { const q0 = bz(P, 0.42); horn(B, [q0, add(q0, add(mul(d, Ln * 0.15), mul(u2, Ln * 0.1))), add(q0, add(mul(d, Ln * 0.3), mul(u2, Ln * 0.08))), add(q0, add(mul(d, Ln * 0.42), mul(u2, Ln * 0.22)))], r * 0.5, { up: u2, th: 0.5, tip: 0.5, nu: Q(6) }); } };
       for (const sg of [1, -1]) {
-        if (!s) {
-          B.crystal([-0.25, sg * 0.42, 0.62], [-2.55 - 0.25 * k, sg * (0.95 + 0.1 * k), 1.45 + 0.1 * k], 0.2, MT.MET, { n: 5, thin: 0.6, belly: 0.2, base: 1, bend: 0.12, up: [0, 0, 1] });
-          B.crystal([-0.15, sg * 0.36, 0.64], [-1.7, sg * 0.78, 1.15], 0.13, MT.CER, { n: 4, thin: 0.5, belly: 0.2, base: 1, up: [0, 0, 1] });
-          for (let i = 0; i < 5 + k; i++) { const f = i / (4 + k), a = [-0.45 - f * 0.55, sg * (0.5 + 0.18 * Math.sin(f * 3)), 0.6 - f * 0.95], L = 1.35 + 0.5 * Math.sin(f * 3.1) + 0.12 * k; B.crystal(a, add(a, [-L * 0.9, sg * L * (0.3 + 0.25 * f), L * (0.42 - 0.75 * f)]), 0.13 - 0.03 * f, i % 3 === 1 ? MT.FTH + 0.2 : i % 2 ? MT.CER : MT.MET, { n: 4, thin: 0.28, belly: 0.25, up: [0, sg, 0.3], bend: 0.1 }); }
-          if (k >= 2) { B.crystal([0.15, sg * 0.45, 0.7], [-1.0, sg * 1.25, 1.75 + 0.2 * (k - 2)], 0.1, MT.MET, { n: 4, thin: 0.45, bend: -0.1, up: [0, sg, 0] }); B.push([0, 0, 1], [0, 1, 0], [-1, 0, 0], [-1.2, sg * 0.7, 1.0]); B.tor([0, 0, 0], 0.16, 0.04, MT.MET + 0.2, { seg: 12, rseg: 4 }); B.pop(); }
-          if (k >= 3) B.crystal([-0.3, sg * 0.25, 0.75], [-1.6, sg * 0.55, 2.3], 0.08, MT.MET, { n: 4, thin: 0.4, up: [0, sg, 0] });
-        } else {
-          B.crystal([-0.25, sg * 0.36, 0.6], [-2.35 - 0.2 * k, sg * (0.7 + 0.05 * k), 1.85 + 0.12 * k], 0.17, MT.CRY, { n: 5, thin: 0.75, belly: 0.25, base: 1, up: [0, 0, 1] });
-          B.push([0, 0, 1], [0, 1, 0], [-1, 0, 0], [-0.3, sg * 0.36, 0.62]); B.tor([0, 0, 0], 0.17, 0.05, MT.MET, { seg: 12, rseg: 4 }); B.pop();
-          for (let i = 0; i < 6 + k; i++) { const f = i / (5 + k), a = [-0.35 - f * 0.6, sg * (0.45 + 0.15 * Math.sin(f * 3)), 0.6 - f * 0.95], L = 1.4 + 0.45 * Math.sin(i * 1.7) + 0.12 * k; B.crystal(a, add(a, [-L * 0.85, sg * L * (0.35 + 0.2 * f), L * (0.5 - 0.8 * f)]), 0.11 - 0.03 * f, i % 2 ? MT.CRY : MT.MET, { n: 4, thin: 0.4, belly: 0.3, up: [0, sg, 0.3], seed: i }); }
-          if (k >= 2) B.crystal([0.2, sg * 0.38, 0.72], [-0.6, sg * 0.95, 1.85 + 0.2 * (k - 2)], 0.08, MT.CRY, { n: 4, thin: 0.5, up: [0, sg, 0] });
-        }
+        // the main horns: two long ones sweeping back from the brow
+        fl([-0.15, sg * 0.78, 0.95], norm([-1, sg * 0.3, 0.42]), 3.1 * L1, 0.27, 0, { main: 1, up: [0.4, 0, 1] });
+        fl([-0.45, sg * 1.05, 0.62], norm([-1, sg * 0.55, 0.12]), 2.7 * L1, 0.24, 1, { main: 1, up: [0.15, 0, 1] });
+        // the cheek frill: blades fanning back and down from the cheekbone's arch
+        for (let j = 0; j < 3 + (k >= 2 ? 1 : 0); j++) fl([-0.6 - 0.08 * j, sg * 1.38, 0.14 - 0.2 * j], norm([-1, sg * (0.5 + 0.1 * j), -0.2 - 0.32 * j]), (1.9 - 0.18 * j) * L1, 0.17 - 0.015 * j, j + 2, { up: [0, 0, 1], curl: 0.15 });
       }
-      // the crest down the middle of the skull
-      for (let i = 0; i < (s ? 4 : 3) + (k >= 3 ? 1 : 0); i++) { const a = [0.35 - i * 0.38, 0, 0.78 - i * 0.08]; B.crystal(a, add(a, [-0.75, 0, 0.55 - i * 0.08 + (s ? 0.15 : 0)]), 0.09, s ? (i % 2 ? MT.CRY : MT.MET) : (i % 2 ? MT.CER : MT.MET), { n: 4, thin: 0.3, up: [0, 1, 0] }); }
+      // the blades over the back of the skull (a row between the main horns), rising back
+      { const m = 1 + (k >= 2 ? 1 : 0); for (let i = -m; i <= m; i++) { const ai = Math.abs(i), y = i * 0.3, a = [-0.55 - 0.06 * ai, y, 1.0 - 0.06 * ai]; fl(a, norm([-1, i * 0.25, 0.75 - 0.12 * ai]), (2.0 - 0.2 * ai) * L1, 0.17 - 0.02 * ai, i + 9, { up: [0, 1, 0], th: 0.55, curl: 0.12 }); } }
+      // the crest down the middle of the snout to the brow
+      for (let i = 0; i < (s ? 4 : 3) + (k >= 3 ? 1 : 0); i++) { const a = [1.4 - i * 0.42, 0, zt(Math.max(0, (1.4 - i * 0.42 - SNX0) / (SNX1 - SNX0)), s) + 0.08]; B.crystal(a, add(a, [-0.5, 0, 0.32 + (s ? 0.08 : 0)]), 0.08, s ? (i % 2 ? MT.CRY : MT.MET) : (i % 2 ? MT.CER : MT.MET), { n: 4, thin: 0.3, up: [0, 1, 0] }); }
       // the collar where the neck meets the skull
-      B.push([0.45, 0, -0.9], [0, 1, 0], [0.9, 0, 0.45], [-0.25, 0, -0.1]); B.lathe([[-0.25, 0.48, MT.TI], [0.0, 0.56, MT.MET, 1], [0.12, 0.52, MT.MET, 1], [0.3, 0.42, MT.TI]], MT.TI, { seg: Q(16), edge: j => (j === 1 || j === 2 ? 1 : 0) }); B.pop();
+      B.push([0.45, 0, -0.9], [0, 1, 0], [0.9, 0, 0.45], [-0.3, 0, -0.1]); B.lathe([[-0.25, 0.62, MT.TI], [0.0, 0.72, MT.MET, 1], [0.12, 0.68, MT.MET, 1], [0.3, 0.56, MT.TI]], MT.TI, { seg: Q(16), edge: j => (j === 1 || j === 2 ? 1 : 0) }); B.pop();
     };
     function MOU0(s) { return MT.MOU + (s ? 0.2 : 0); }
-    const jaw = (B, s) => {   // the lower jaw (hinged at (0, 0, -0.25)): plates outside, the mouth's floor inside, fangs, a chin spike
-      const jw = u => sw(u, s) * 0.92, jb = u => lerp(-0.62, -0.38, u) + 0.05 * Math.sin(Math.PI * u);
-      B.surf((u, v) => { const x = lerp(-0.15, SNX1 - 0.12, u), a = v * Math.PI, ca = Math.cos(a), sa = Math.sin(a), w = jw(u), top = zb(u) - 0.03, bot = jb(u); return [x, w * se(ca, 3), top - (top - bot) * se(sa, 3)]; }, Q(14), Q(10), () => MT.CER + 0.2, { flip: true, e: (u, v) => sstep(0.88, 1, Math.abs(v * 2 - 1)) * 0.6 });
+    const jaw = (B, s) => {   // the lower jaw (hinged at (-0.12, 0, -0.25)): deep and thick, a chin; plates outside, the mouth's floor inside, fangs, a frill at its angle
+      const jw = u => sw(u, s) * 0.97, jb = u => lerp(-1.3, -0.66, Math.pow(u, 0.8)) - 0.12 * Math.exp(-Math.pow((u - 0.88) / 0.08, 2)) - 0.1 * Math.exp(-Math.pow(u / 0.18, 2)), jx = u => lerp(-0.3, SNX1 - 0.1, u);
+      B.surf((u, v) => { const x = jx(u), a = v * Math.PI, ca = Math.cos(a), sa = Math.sin(a), w = jw(u), top = zb(u) - 0.03, bot = jb(u); return [x, w * se(ca, 2.6) * (1 + 0.14 * sa), top - (top - bot) * se(sa, 3.6)]; }, Q(14), Q(10), () => MT.CER + 0.3, { e: (u, v) => sstep(0.88, 1, Math.abs(v * 2 - 1)) * 0.6 });
       B.surf((u, v) => { const x = lerp(-0.1, SNX1 - 0.2, u), w = jw(u) * 0.9; return [x, w * (1 - 2 * v), zb(u) - 0.1]; }, Q(10), 3, () => MOU0(s), {});
-      B.ell([SNX1 - 0.16, 0, (zb(1) - 0.03 + jb(1)) / 2], [0.14, jw(1) * 1.0, (zb(1) - 0.03 - jb(1)) * 0.55], MT.CER + 0.2, { seg: Q(12), rings: Q(6) });   // (the chin's cap)
+      B.ell([SNX1 - 0.2, 0, (zb(1) - 0.03 + jb(0.95)) / 2 - 0.02], [0.14, jw(1) * 0.92, (zb(1) - 0.03 - jb(0.95)) * 0.5], MT.CER + 0.3, { seg: Q(12), rings: Q(6) });   // (the chin)
       for (const sg of [1, -1]) {
-        plate(B, { c: [[2.55, sg * 0.2, -0.32], [1.7, sg * 0.36, -0.4], [0.8, sg * 0.5, -0.52], [-0.05, sg * 0.6, -0.45]], nrm: [0, sg, -0.35], w: u => 0.14 + 0.04 * Math.sin(Math.PI * u), cup: 0.25, th: 0.07, nu: Q(10), nv: 2, mat: MT.CER, trim0: 0.65, endTrim: true });
-        plate(B, { c: [[1.6, sg * 0.32, -0.55], [1.0, sg * 0.42, -0.66], [0.4, sg * 0.5, -0.7], [-0.15, sg * 0.52, -0.58]], nrm: [0, sg * 0.5, -1], w: () => 0.12, cup: 0.2, th: 0.06, nu: Q(8), nv: 2, mat: MT.CER + 0.3, trim0: 0.6, endTrim: true });
-        for (let j = 0; j < 7; j++) { const u = 0.16 + j * 0.115, x = lerp(-0.15, SNX1 - 0.12, u), w = jw(u), z = zb(u) - 0.06, can = j === 5 ? 1 : 0, L = (s ? 0.22 : 0.17) + can * (s ? 0.2 : 0.15);
-          B.crystal([x, sg * (w - 0.05), z], [x + 0.03, sg * (w - 0.09), z + L * 1.2], 0.055 + can * 0.025, MT.FANG, { n: 4, belly: 0.25, base: 1 }); }
-        for (let i = 0; i < 3; i++) spk(B, [1.2 - i * 0.55, sg * 0.5, -0.6], [0.35 - i * 0.7, sg * (1.15 + 0.15 * i), -1.55 - 0.15 * i], 0.09, { up: [0, 0, 1], jag: i === 1 });
+        B.ell([0.1, sg * 1.02, -0.62], [0.8, 0.28, 0.44], MT.CER + 0.3, { seg: Q(14), rings: Q(7) });   // (the jaw's muscle, behind the mouth)
+        for (let q2 = 0; q2 < 3; q2++) { const u0 = 0.1 + q2 * 0.27, u1 = u0 + 0.33, P = u => { const uu = lerp(u0, u1, u); return [jx(uu), sg * (jw(uu) * 1.1 + 0.03 * u + (q2 ? 0 : 0.1)), lerp(zb(uu) - 0.05, jb(uu), 0.5)]; };   // (shingled shields, each overlapping the one before)
+          plate(B, { c: [P(0), P(0.33), P(0.66), P(1)], nrm: [0, sg, -0.2], w: u => (0.3 - 0.04 * q2) * (0.7 + 0.3 * Math.sin(Math.PI * Math.min(1, u * 1.3))), cup: 0.35, th: 0.08, nu: Q(6), nv: 3, mat: MT.CER + (q2 % 2 ? 0 : 0.3), trim0: 0.68, endTrim: true }); }
+        for (let j = 0; j < 8; j++) { const u = 0.14 + j * 0.105, x = jx(u), w = jw(u), z = zb(u) - 0.06, can = j === 6 ? 1 : 0, L = (s ? 0.2 : 0.17) + can * (s ? 0.3 : 0.27);
+          B.crystal([x, sg * (w - 0.06), z], [x + 0.03, sg * (w - 0.1), z + L], 0.06 + can * 0.03, MT.FANG, { n: 4, belly: 0.25, base: 1 }); }
+        // the jaw frill: blades back and down from the jaw's angle
+        for (let i = 0; i < 2 + (LOQ ? 0 : 1); i++) { const a = [-0.05 - i * 0.28, sg * jw(0.05) * 0.95, jb(0.05) + 0.15 + 0.1 * i], d = norm([-1, sg * (0.35 + 0.1 * i), -0.55 + 0.1 * i]);
+          if (s) B.crystal(a, add(a, mul(d, 1.2 - 0.15 * i)), 0.12, MT.CRY, { n: 5, thin: 0.7, belly: 0.3, base: 0.8, up: [0, 0, 1], seed: i });
+          else horn(B, [a, add(a, mul(d, 0.4)), add(add(a, mul(d, 0.8)), [0, 0, -0.05]), add(add(a, mul(d, 1.2 - 0.15 * i)), [0, 0, 0.18])], 0.12, { th: 0.5, tip: 0.6, nu: Q(8), wv: 0.05 }); }
       }
-      B.crystal([2.25, 0, jb(0.9)], [1.9, 0, jb(0.9) - 0.4], 0.07, s ? MT.CRY : MT.MET, { n: 4, thin: 0.5, up: [0, 1, 0] });
+      B.crystal([2.85, 0, jb(0.9) + 0.06], [2.65, 0, jb(0.9) - 0.36], 0.08, s ? MT.CRY : MT.MET, { n: 4, thin: 0.5, up: [0, 1, 0] });
     };
     M.skull = [[null, mk(B => skull(B, 0, 1)), mk(B => skull(B, 0, 2)), mk(B => skull(B, 0, 3))]]; yield;
     M.skull.push([null, mk(B => skull(B, 1, 1)), mk(B => skull(B, 1, 2)), mk(B => skull(B, 1, 3))]); yield;
@@ -331,12 +355,25 @@ const RAZIEL_GL = (() => {
     };
     M.bone = [mk(B => bone(B, 0)), mk(B => bone(B, 1))];
     M.joint = mk(B => { B.sph([0, 0, 0], 0.5, MT.TI + 0.2, 14); for (const s of [1, -1]) { B.push([0, 0, 1], [1, 0, 0], [0, s, 0], [0, 0, 0]); B.lathe([[0.0, 0.5, MT.MET], [0.1, 0.46, MT.MET, 1], [0.18, 0.32, MT.TI], [0.22, 0.14, MT.CH], [0.23, 0.0, MT.CH]], MT.MET, { seg: Q(18), edge: j => (j < 2 ? 1 : 0) }); B.pop(); } });
+    /* (v465 RZ-M) a muscular upper leg (true length 1 along +z, its front +x): a muscle-shaped body (bulging at its front and outer side,
+       tapering to the knee) clad in overlapping scale-plates, a gold band at the knee, a groove with a conduit, a spur */
+    M.thigh = mk(B => {
+      const rr = (z, ph) => { const b = 0.52 + 0.16 * Math.sin(Math.PI * Math.min(1, z * 1.35)) - 0.2 * sstep(0.55, 1, z), c = Math.cos(ph); return b * (1 + 0.16 * Math.max(0, c) * Math.sin(Math.PI * Math.min(1, z * 1.6)) + 0.07 * Math.sin(ph * 2) * (1 - z)); };
+      B.surf((u, v) => { const z = u, ph = v * TAU, r = rr(z, ph); return [Math.cos(ph) * r, Math.sin(ph) * r * 0.92, z]; }, Q(14), Q(18), () => MT.CER, { flip: true, e: () => 0 });
+      for (let r = 0; r < 3; r++) for (let j = 0; j < 3; j++) { const ph = -0.9 + j * 0.9, z0 = 0.06 + r * 0.27, d = [Math.cos(ph), Math.sin(ph) * 0.92, 0], rad = z => rr(z, ph) + 0.04;
+        plate(B, { c: [add(mul(d, rad(z0)), [0, 0, z0]), add(mul(d, rad(z0 + 0.1) + 0.03), [0, 0, z0 + 0.1]), add(mul(d, rad(z0 + 0.2) + 0.03), [0, 0, z0 + 0.2]), add(mul(d, rad(z0 + 0.32)), [0, 0, z0 + 0.32])], nrm: d, w: u => 0.3 * Math.pow(Math.sin(Math.PI * (0.05 + 0.9 * u)), 0.3) * (1 - 0.25 * r), cup: -0.45, th: 0.06, nu: Q(6), nv: 2, mat: MT.CER + ((r + j) % 2 ? 0.3 : 0), trim0: 0.7, endTrim: 2 }); }
+      latheZ(B, [[0.86, 0.38, MT.TI], [0.9, 0.44, MT.MET, 1], [0.95, 0.44, MT.MET, 1], [1.0, 0.36, MT.TI]], MT.TI, Q(16));
+      { const pts = []; for (let i = 0; i <= 8; i++) { const z = 0.1 + i / 8 * 0.75, ph = Math.PI * 0.62; pts.push([Math.cos(ph) * rr(z, ph) * 1.01, Math.sin(ph) * rr(z, ph) * 0.93, z]); } strip(B, pts, () => [-0.6, 0.8, 0], 0.07, MT.CH, 0.01); }
+      spk(B, [0.42, 0.2, 0.15], [0.95, 0.55, -0.15], 0.09, { up: [0, 1, 0], jag: false });
+    });
     M.foot = mk(B => {
-      B.box([0.15, 0, -AH + 0.32], [0.55, 0.42, 0.28], 0.14, MT.TI + 0.2); latheZ(B, [[-AH + 0.4, 0.34, MT.TI], [-0.3, 0.3, MT.TI + 0.2], [-0.1, 0.36, MT.MET, 1], [0.08, 0.33, MT.TI]], MT.TI, Q(14));
+      B.box([0.15, 0, -AH + 0.36], [0.5, 0.38, 0.26], 0.14, MT.CER); latheZ(B, [[-AH + 0.4, 0.34, MT.TI], [-0.3, 0.3, MT.TI + 0.2], [-0.1, 0.36, MT.MET, 1], [0.08, 0.33, MT.TI]], MT.TI, Q(14));
       plate(B, { c: [[-0.15, 0, 0.05], [0.25, 0, -0.25], [0.55, 0, -0.55], [0.72, 0, -0.78]], nrm: [1, 0, 0.6], w: () => 0.36, cup: -0.5, th: 0.08, nu: Q(6), nv: 2, mat: MT.CER, trim0: 0.7, endTrim: true });
       for (let j = 0; j < 4; j++) { const a = (j - 1.5) * 0.36, d = [Math.cos(a), Math.sin(a), 0], b0 = [0.35 + 0.15 * Math.cos(a), Math.sin(a) * 0.32, -AH + 0.35], k1 = add(b0, mul(d, 0.42 + 0.06 * (j % 3 ? 1 : 0))), k2 = add(k1, add(mul(d, 0.34), [0, 0, -0.08]));
         B.tube(b0, k1, 0.13, 0.11, MT.TI + 0.2, { seg: 8 }); B.sph(k1, 0.12, MT.MET, 8); B.tube(k1, k2, 0.1, 0.085, MT.CER, { seg: 8 });
-        B.crystal(add(k2, [0, 0, 0.04]), add(k2, add(mul(d, 0.42), [0, 0, -0.3])), 0.085, MT.FANG + 0.2, { n: 5, belly: 0.2, base: 1, bend: -0.25, up: [0, 0, 1] }); }
+        if (!LOQ) for (const kp of [k1, k2]) { B.push([d[0], d[1], 0], [-d[1], d[0], 0], [0, 0, 1], kp); B.tor([0, 0, 0], 0.11, 0.035, MT.MET, { seg: 10, rseg: 4 }); B.pop(); }   // (v465 RZ-M: armoured knuckles)
+        if (!LOQ) plate(B, { c: [add(b0, [0, 0, 0.12]), add(lerp3(b0, k1, 0.4), [0, 0, 0.16]), add(lerp3(k1, k2, 0.3), [0, 0, 0.12]), add(k2, [0, 0, 0.1])], nrm: [0, 0, 1], w: () => 0.1, cup: -0.6, th: 0.05, nu: 6, nv: 2, mat: MT.CER + 0.3, trim0: 0.6, endTrim: true });
+        B.crystal(add(k2, [0, 0, 0.04]), add(k2, add(mul(d, 0.7), [0, 0, -0.42])), 0.1, MT.FANG + 0.2, { n: 5, belly: 0.2, base: 1, bend: -0.38, up: [0, 0, 1] }); }   // (long curved talons)
       spk(B, [-0.3, 0, -AH + 0.55], [-1.05, 0, -AH + 0.3], 0.12, { up: [0, 1, 0], jag: false });
     });
     M.pauld = mk(B => { for (let i = 2; i >= 0; i--) plate(B, { c: [[0.85 - i * 0.1, 0, 0.45 - i * 0.25], [0.45, 0.35 + i * 0.05, 0.75 - i * 0.25], [-0.45, 0.35 + i * 0.05, 0.75 - i * 0.25], [-0.85 + i * 0.1, 0, 0.45 - i * 0.25]], nrm: [0, 1, 0.5], w: u => (0.5 - i * 0.06) * Math.pow(Math.sin(Math.PI * (0.03 + 0.94 * u)), 0.25), cup: -0.35, th: 0.1, nu: Q(10), nv: 2, mat: MT.CER + (i === 1 ? 0.3 : 0), trim0: 0.72, endTrim: true });
@@ -369,6 +406,12 @@ const RAZIEL_GL = (() => {
       { const pts = []; for (let i = 0; i <= 12; i++) { const u = i / 12 * 0.94; pts.push([-0.42 * W(u) + sp(u), 0, u]); } sweep(B, pts, u => 0.03 * (1 - 0.8 * u) + 0.006, MT.MET, Q(5), 0.8, [0, 1, 0]); }
       { const pts = []; for (let i = 0; i <= 10; i++) { const u = i / 10 * 0.8; pts.push([0.05 * W(u) + sp(u), 0, u]); } sweep(B, pts, u => 0.022 * (1 - 0.7 * u) + 0.004, MT.MET + 0.2, Q(4), 0.5, [0, 1, 0]); }
       plate(B, { c: [[0, 0, -0.04], [0, 0, 0.05], [0, 0, 0.12], [0, 0, 0.2]], nrm: [0, 1, 0], w: () => 0.14, cup: -0.4, th: 0.11, nu: 4, nv: 2, mat: MT.CER, trim0: 0.6, endTrim: true });
+      // (v465 RZ-M) jagged: teeth along the trailing edge and a second point near the tip: Lux's curl like tongues of flame (bent toward the
+      // tip, uneven), Umbra's straight crystal shards
+      const nT = LOQ ? 3 : s ? 4 : 5;
+      for (let i = 0; i < nT; i++) { const u = 0.22 + i * (0.62 / (nT - 1)) + (s ? 0 : 0.03 * Math.sin(i * 2.3)), xe = W(u) + sp(u) - 0.01, L = (s ? 0.11 : 0.13) * (1 - 0.35 * u) * (0.8 + 0.4 * hash(i * 1.7 + s));
+        B.crystal([xe - 0.02, 0, u - 0.025], [xe + L, 0, u + L * (s ? 0.55 : 1.1)], s ? 0.03 : 0.034, MT.FTH + 0.2, { n: 3, thin: 0.35, belly: 0.15, base: 1, up: [0, 1, 0], bend: s ? 0 : 0.35 }); }
+      B.crystal([W(0.86) + sp(0.86) - 0.01, 0, 0.84], [W(0.86) + 0.09, 0, 0.97], 0.025, MT.FTH + 0.2, { n: 3, thin: 0.35, belly: 0.15, base: 1, up: [0, 1, 0], bend: s ? 0 : 0.3 });
     };
     M.blade = [mk(B => blade(B, 0)), mk(B => blade(B, 1))];
     yield;
@@ -400,7 +443,7 @@ const RAZIEL_GL = (() => {
   function eachOf(M, f) { for (const k in M) { const v = M[k]; if (Array.isArray(v)) v.forEach(m => { if (Array.isArray(m)) m.forEach(m2 => { if (m2) f(m2); }); else if (m) f(m); }); else if (v) f(v); } }
   /* (v464 RZ-M) two mesh sets: D the full one (stills, the collection, close-ups, wide screens) and DL the game's level of detail (half the
      round segments: built for a model drawn under LODPX device pixels tall, with fewer vertebrae and feather-blades, see solve0's lod) */
-  let DL = null; const LODPX = 560, OUTL = new Set(['skull', 'jaw', 'bone', 'joint', 'foot', 'pauld', 'wsh', 'wbone', 'wplate', 'crownOut', 'tblade']);   // (the game's level of detail outlines only these: never the feather-blades, the vertebrae of the tail, the small parts)
+  let DL = null; const LODPX = 560, OUTL = new Set(['skull', 'jaw', 'bone', 'pauld', 'wsh', 'wbone', 'wplate', 'crownOut', 'tblade']);   // (the game's level of detail outlines only these: never the feather-blades, the vertebrae of the tail, the small parts)
   function data(lo) { if (lo) return DL || (DL = { ready: false, up: false, it: null, ms: 0, q: 0.42 }); return D || (D = { ready: false, up: false, it: null, ms: 0, q: 1 }); }
   function step(ms, lo) { const d = data(lo); if (d.ready) return true; if (typeof GLM === 'undefined') return false; d.it = d.it || gen(d.q, d); const t0 = nowMs(), until = t0 + ms; while (!d.ready && nowMs() < until) d.it.next(); d.ms += nowMs() - t0; return d.ready; }
   /* ================= the GPU's state ================= */
@@ -449,32 +492,47 @@ const RAZIEL_GL = (() => {
     const snap = still || st.t == null; if (!S._rz) { S._rz = {}; return solve0(S, X0, Y0, size, opts, put, spec, lod); } st.t = t;
     const out = st.out || (st.out = { feet: [{}, {}, {}, {}], steps: [] }); out.steps.length = 0;
     /* ---- the body's heading, travel, gait ---- */
+    /* (v465 RZ-M) flight: fly (height), its rate (takeoff / landing), glide, speed, dive, bank; the legs tuck, the body pitches into the
+       motion, banks with the turn; airborne the chest-to-camera clamp is relaxed so passes read as passes */
+    const fly = f2(st, 'fly', cl(num(S.fly, 0)), 3.6, 0.9, dt, snap), air = f1(st, 'air', sstep(0.04, 0.35, fly), 3.2, dt, snap), flyV = f1(st, 'flyV', dt > 0 && st.fly0 != null ? (fly - st.fly0) / dt : 0, 6, dt, snap); st.fly0 = fly;
+    const toff = cl(flyV * 2.2) * air, land = cl(-flyV * 2.6) * (1 - sstep(0.25, 0.7, fly)) * sstep(0.0, 0.08, fly);
+    const glide = f1(st, 'glide', cl(num(S.glide, 0)) * air, 3, dt, snap), spd = f1(st, 'spd', cl(num(S.speed, 0)) * air, 3, dt, snap), dive = f2(st, 'dive', Math.max(-1, Math.min(1, num(S.dive, 0))) * air, 4, 0.8, dt, snap);
     const face = num(S.face, FACE0); let yawT = Math.atan2(Math.sin(face) / SE, Math.cos(face));
-    if (!S.faceFree) yawT = Math.PI / 2 + Math.max(-YAWLIM, Math.min(YAWLIM, angD(yawT, Math.PI / 2)));   // (it turns toward its heading but keeps its chest to the camera: both heads, both wings and the core always read)
-    const yaw = fa(st, 'yaw', yawT, 5, dt, snap);
+    if (!S.faceFree) { const lim = lerp(YAWLIM, 1.4, air); yawT = Math.PI / 2 + Math.max(-lim, Math.min(lim, angD(yawT, Math.PI / 2))); }   // (it turns toward its heading but keeps its chest to the camera: both heads, both wings and the core always read)
+    const yaw = fa(st, 'yaw', yawT, 5 - 1.5 * air, dt, snap);
     const yr = st.yaw0 == null || !dt ? 0 : angD(yaw, st.yaw0) / dt; st.yaw0 = yaw; const yrs = f1(st, 'yr', yr, 8, dt, snap);
-    const fly = f2(st, 'fly', cl(num(S.fly, 0)), 4.5, 0.85, dt, snap), walkT = cl(num(S.walk, 0)) * (1 - sstep(0.1, 0.5, fly)), walk = f1(st, 'walk', walkT, 4, dt, snap);
+    const walkT = cl(num(S.walk, 0)) * (1 - air), walk = f1(st, 'walk', walkT, 4, dt, snap);
     let dist = 0; if (S.x != null && S.y != null) { if (st.px != null && dt > 0) { const dx = (S.x - st.px) * tile / K, dy = (S.y - st.py) * tile / (SE * K); dist = Math.hypot(dx, dy); if (dist > 6) dist = 0; } st.px = S.x; st.py = S.y; }
     else dist = walk * dt * 6.5;
+    if (air > 0.5) dist = 0;
     const run = sstep(0.55, 1, walk), SWv = lerp(SW0, SW1, run);
     const ph0 = st.ph || 0; st.ph = ph0 + dist / STRIDE * TAU * (1 - 0.25 * run);
     const mvA = f1(st, 'mv', cl(dist / Math.max(1e-3, dt) / 6) * (dt > 0 ? 1 : 0) + (dt > 0 ? 0 : walk), 6, dt, snap);
     const lv = 1 - cl(num(S.dissolve, 0)) * 0.8, ent = cl(num(S.enter, 1)), evE = n => sstep(n[0], n[1], ent);
     const fin = cl(num(S.final, 0)), stag = f2(st, 'stag', cl(num(S.stagger, 0)), 9, 0.4, dt, snap), roar = f2(st, 'roar', cl(num(S.roar, 0)), 7, 0.6, dt, snap);
     const raise = f2(st, 'raise', cl(num(S.raise, 0)), 4, 0.8, dt, snap), meet = f2(st, 'meet', cl(num(S.meet, 0)), 3.5, 0.85, dt, snap), conc = f1(st, 'conc', S.mode === 'concord' ? 1 : 0, 2.2, dt, snap);
-    /* ---- the feet (phase-driven, planted while in stance: their sweep matches the travel) ---- */
+    /* the wingbeat's clock and its shape (a fast powerful downstroke, a slower upstroke): read by the body's heave and the wings */
+    const beatT = cl(Math.max(num(S.beat, 0), air * (1 - glide * 0.9) * (0.55 + 0.35 * (1 - spd) + 0.5 * toff + 0.4 * Math.max(0, -dive)) * (1 - 0.85 * Math.max(0, dive)))), beat = f1(st, 'beat', beatT, 3, dt, snap);
+    const bph = st.bph = (st.bph || 0) + dt * (beat > 0.01 ? (0.8 + 0.25 * toff + 0.15 * spd) : 0.15);   // (cycles per second)
+    const bq = bph - Math.floor(bph), bw = bq < 0.42 ? 0.5 * bq / 0.42 : 0.5 + 0.5 * (bq - 0.42) / 0.58, flap = Math.cos(TAU * bw);   // (flap +1 up .. -1 down; the down half takes 42% of the cycle)
+    const heave = -Math.sin(TAU * bw) * beat;   // (the body rises on the downstroke)
+    /* ---- the feet (phase-driven, planted while in stance: their sweep matches the travel); airborne tucked (forelegs folded up, the hind
+       legs trailing back with speed), reaching forward and down to meet the ground when landing ---- */
     const Rroot = rz(yaw), lifts = [0, 0, 0, 0], FP = [];
-    const tuck = sstep(0.05, 0.6, fly);
+    const tuck = air * (1 - 0.7 * land), flyH = fly * 12 + air * (0.35 * Math.sin(t * 1.7) + 0.45 * heave);
     for (let i = 0; i < 4; i++) { const L = LEGS[i]; let q = st.ph / TAU + L.off; q -= Math.floor(q); const inW = q >= 1 - SWv, w = inW ? (q - (1 - SWv)) / SWv : 0, Dd = STRIDE * (1 - SWv) * (mvA > 0.03 ? 1 : 0) * cl(mvA * 3);
       const sl = inW ? -Dd / 2 + Dd * sstep(0.05, 0.9, w) : Dd / 2 - Dd * (q / (1 - SWv)), lift = inW ? Math.sin(Math.PI * w) * LIFTH * cl(mvA * 2.5) * (1 + 0.4 * run) : 0;
       const pq = st.fq || (st.fq = [0, 0, 0, 0]); if (!inW && pq[i] === 1 && dt > 0) out.steps.push(i); pq[i] = inW ? 1 : 0;
-      lifts[i] = lift; FP.push([L.fx + sl - tuck * (L.f ? 0.5 : -1.2), L.fy * (1 - 0.15 * tuck), lerp(lift, fly * 8.5 + (L.f ? 2.2 : 1.6) + 0.3 * Math.sin(t * 2.3 + i), tuck)]); }   // (in flight the legs hang under the body, the hind ones trailing)
+      lifts[i] = lift;
+      const ax = L.f ? 1.2 - 1.6 * spd + 1.2 * land : -2.6 - 3.2 * spd + 0.8 * land, az = flyH + (L.f ? 6.6 : 5.0) + 0.4 * Math.sin(t * 1.9 + i * 1.3) - 2.6 * land + (L.f ? 0 : 1.6 * spd);
+      FP.push([lerp(L.fx + sl, L.fx + ax, tuck), L.fy * (1 - 0.18 * tuck), lerp(lift + (air > 0 ? 0 : 0), az, tuck)]); }
     // the body's weight shifting off each lifted foot, the walk's bob; the stagger, the roar, flight
     let wr = 0, wp = 0, wy = 0; for (let i = 0; i < 4; i++) { const L = LEGS[i], lf = cl(lifts[i] / LIFTH); wr -= lf * L.s * 0.035; wp += lf * (L.f - 0.5) * 0.04; wy -= lf * L.s * 0.12; }
-    const brth = Math.sin(t * 1.15) * lv, bob = (0.05 * brth + (walk > 0.05 ? 0.12 * Math.abs(Math.sin(st.ph * 2)) * walk : 0)) * (1 - fly);
-    const flyH = fly * 8.5 + fly * 0.35 * Math.sin(t * 2.3), bank = f2(st, 'bank', num(S.bank, 0) * 0.45 - yrs * 0.05 * (0.3 + fly), 5, 0.7, dt, snap);
-    const pitch = wp + stag * 0.06 * Math.sin(t * 13) - roar * 0.08 - fly * 0.06 + run * walk * 0.04 + raise * -0.03, lift = bob + flyH - stag * 0.3 + roar * 0.15 + (1 - evE([0.3, 0.5])) * -1.5 * (1 - evE([0, 0.3]));
-    const Mb = mm(rx(bank * (1 + fly) + wr), ry(pitch)), tbo = [0, wy * (1 - fly) + stag * 0.15 * Math.sin(t * 11), lift];
+    const brth = Math.sin(t * 1.15) * lv, bob = (0.05 * brth + (walk > 0.05 ? 0.12 * Math.abs(Math.sin(st.ph * 2)) * walk : 0)) * (1 - air);
+    const bank = f2(st, 'bank', Math.max(-1, Math.min(1, num(S.bank, 0) * 0.5 + air * Math.max(-0.75, Math.min(0.75, -yrs * 0.35)) - (1 - air) * yrs * 0.05)), 4, 0.75, dt, snap);
+    const pitch = wp + stag * 0.06 * Math.sin(t * 13) - roar * 0.08 + run * walk * 0.04 + raise * -0.03 + air * (0.32 * spd + 0.4 * dive - 0.22 * (1 - spd) * (1 - Math.max(0, dive)) - 0.3 * toff - 0.35 * land) + 0.05 * heave * air,
+      lift = bob + flyH - stag * 0.3 + roar * 0.15 + (1 - evE([0.3, 0.5])) * -1.5 * (1 - evE([0, 0.3])) - 0.6 * sstep(0.0, 0.05, -flyV) * (1 - air);
+    const Mb = mm(rx(bank + wr), ry(pitch)), tbo = [0, wy * (1 - air) + stag * 0.15 * Math.sin(t * 11), lift];
     const BP = p => add(add(mv(Mb, sub(p, BODYC)), BODYC), tbo), BR = R => mm(Mb, R);
     const W3 = p => { const q2 = mv(Rroot, p); return [q2[0] * WS, q2[1] * WS, q2[2] * WS]; };
     const kk = K / WS, SX = w => X0 + w[0] * kk, SY = w => Y0 + (w[1] * SE - w[2] * CE) * kk, scr = p => { const w = W3(p); return [SX(w), SY(w)]; };
@@ -485,8 +543,8 @@ const RAZIEL_GL = (() => {
     const spSide = spec === 'L' ? 0 : spec === 'R' ? 1 : -1;
     /* ---- the torso ---- */
     const brS = 1 + 0.012 * brth;
-    put('torso', null, BR(scl3(TSC, TSC * brS, TSC * brS)), BP([0, 0, 6.5 * (1 - TSC)]), 1, { side: 2, d0: 0.4, hb: 1 }, [0.15, 0.4]);
-    out.body = out.body || {}; scrO(BP([0.5, 0, 6.6]), out.body); out.body.r = 5.2 * K;
+    put('torso', null, BR(scl3(TSX, TSC * brS, TSC * brS)), BP([0, 0, 6.5 * (1 - TSC) + ZUP]), 1, { side: 2, d0: 0.4, hb: 1 }, [0.15, 0.4]);
+    out.body = out.body || {}; scrO(BP([0.5, 0, 6.6 + ZUP]), out.body); out.body.r = 5.6 * K; out.shadow = scrO([0.5, 0, 0], out.shadow || {}); out.shadow.r = 6.5 * K * (1 - 0.35 * air); out.flyH = fly;   // (v465 RZ-M)
     /* ---- the Gemini Core ---- */
     const cDet = f2(st, 'cDet', cl(num(S.coreDetach, 0)), 4, 0.7, dt, snap), cAl = f2(st, 'cAl', cl(Math.max(num(S.coreAlign, 0), conc * 0.35)), 3, 0.85, dt, snap), cUp = f2(st, 'cUp', cl(num(S.coreUp, 0)), 2.2, 0.8, dt, snap);
     const cEnt = 1 - evE([0, 0.28]);   // (the entrance: the cores come down from above, orbiting each other)
@@ -517,23 +575,30 @@ const RAZIEL_GL = (() => {
     /* ---- the legs: hips on the body, two-bone IK to the planted feet; the shoulder plates ---- */
     const legE = evE([0.32, 0.55]);
     if (!(spSide >= 0 && !opts.legs)) for (let i = 0; i < 4; i++) {
-      const L = LEGS[i], s = L.s, sd = s > 0 ? 0 : 1, H = BP([L.x, L.y, L.z]), unf = legE, fo = FP[i], F0 = [fo[0], fo[1], fo[2]];
-      const Fp = lerp3(add(H, [L.f ? 0.4 : -0.4, s * 0.4, -2.2]), add(F0, [0, 0, AH]), unf), dn = norm(sub(Fp, H)), pole = add(mul([1, 0, 0], L.kd * 1), [0, s * 0.25, 0]);
-      const IK = ik(H, Fp, L.L1, L.L2, pole);
-      const dU = norm(sub(IK.K, H)), dL = norm(sub(IK.A, IK.K)), side = mv(Mb, [0, 1, 0]), xU = norm(cross(dU, side)), xL = norm(cross(dL, side));   // (the armour faces forward)
-      put('bone', 0, colsR(mul(xU, 2.5), mul(cross(dU, xU), 2.4), mul(dU, L.L1 * 1.04)), H, 1, { side: sd, d0: 0.05, hb: 1 }, [0.35, 0.55]);
-      put('joint', null, colsR(dU, side, cross(dU, side)), IK.K, 1.55, { side: sd, d0: 0.06 }, [0.35, 0.55]);
-      put('bone', 1, colsR(mul(xL, 2.1), mul(cross(dL, xL), 2.0), mul(dL, L.L2 * 1.04)), IK.K, 1, { side: sd, d0: 0.04, hb: 1 }, [0.38, 0.58]);
-      const fyaw = Math.atan2(F0[1] * 0.15, 1) * 0 + s * 0.12 * (L.f ? 1 : 0.6), Rf = mm(rz(fyaw), ry(-0.25 * tuck * (L.f ? 1 : -1)));
-      put('foot', null, Rf, IK.A, 1.8, { side: sd, d0: 0.02 }, [0.4, 0.6]);
-      put('pauld', null, BR(mm(L.f ? I3 : [-1, 0, 0, 0, 1, 0, 0, 0, 1], s > 0 ? I3 : MY)), BP([L.x + (L.f ? 0.1 : -0.1), L.y + s * 0.35, L.z + 1.35]), L.f ? 2.3 : 2.0, { side: sd, d0: 0.3 }, [0.3, 0.5]);
-      const fo2 = out.feet[i]; scrO([F0[0], F0[1], 0], fo2); fo2.down = lifts[i] < 0.05 && fly < 0.2; fo2.side = s > 0 ? 'L' : 'R'; fo2.front = !!L.f; }
+      /* (v465 RZ-M) long legs: the forelegs a muscular upper arm, a long forearm and a big clawed hand (two-bone IK to the wrist, the elbow
+         back); the hind legs digitigrade: a muscular thigh and a shin by IK to the hock, a long metatarsal down to the foot (the knee
+         forward, the hock back); airborne the metatarsal swings back and the feet point down */
+      const L = LEGS[i], s = L.s, sd = s > 0 ? 0 : 1, H = BP([L.x, L.y, L.z]), unf = legE, fo = FP[i], F0 = [fo[0], fo[1], fo[2]], side = mv(Mb, [0, 1, 0]);
+      const Ap = lerp3(add(H, [L.f ? 0.5 : -0.5, s * 0.4, -3.2]), add(F0, [0, 0, AH]), unf);
+      let Hk = Ap; if (L.LM) { const md = norm([-0.38 - 0.6 * tuck, 0, 0.92 - 0.5 * tuck]); Hk = add(Ap, mul(md, L.LM)); }
+      const pole = add(mul([1, 0, 0], L.kd), [0, s * 0.2, 0]), IK = ik(H, Hk, L.L1, L.L2, pole);
+      const dU = norm(sub(IK.K, H)), dL = norm(sub(IK.A, IK.K)), xU = norm(cross(dU, side)), xL = norm(cross(dL, side));   // (the armour faces forward)
+      put('thigh', null, colsR(mul(xU, 2.7), mul(cross(dU, xU), 2.5), mul(dU, L.L1 * 1.05)), H, 1, { side: sd, d0: 0.05, hb: 1 }, [0.35, 0.55]);
+      put('joint', null, colsR(dU, side, cross(dU, side)), IK.K, 1.6, { side: sd, d0: 0.06 }, [0.35, 0.55]);
+      put('bone', 1, colsR(mul(xL, 2.05), mul(cross(dL, xL), 1.95), mul(dL, L.L2 * 1.04)), IK.K, 1, { side: sd, d0: 0.04, hb: 1 }, [0.38, 0.58]);
+      let Ank = IK.A;
+      if (L.LM) { const dM = norm(sub(Ap, IK.A)), xM = norm(cross(dM, side)); put('joint', null, colsR(dM, side, cross(dM, side)), IK.A, 1.25, { side: sd, d0: 0.05 }, [0.38, 0.58]);
+        put('bone', 0, colsR(mul(xM, 1.35), mul(cross(dM, xM), 1.3), mul(dM, L.LM * 1.02)), IK.A, 1, { side: sd, d0: 0.03, hb: 1 }, [0.4, 0.6]); Ank = add(IK.A, mul(dM, L.LM)); }
+      const fyaw = s * 0.12 * (L.f ? 1 : 0.6), Rf = mm(rz(fyaw), ry(0.85 * tuck * (L.f ? 0.8 : 1.1)));
+      put('foot', null, Rf, Ank, 2.25, { side: sd, d0: 0.02 }, [0.4, 0.6]);
+      put('pauld', null, BR(mm(L.f ? I3 : [-1, 0, 0, 0, 1, 0, 0, 0, 1], s > 0 ? I3 : MY)), BP([L.x + (L.f ? 0.1 : -0.1), L.y + s * 0.4, L.z + 1.45]), L.f ? 2.5 : 2.2, { side: sd, d0: 0.3 }, [0.3, 0.5]);
+      const fo2 = out.feet[i]; scrO([F0[0], F0[1], 0], fo2); fo2.down = lifts[i] < 0.05 && air < 0.2; fo2.side = s > 0 ? 'L' : 'R'; fo2.front = !!L.f; }
     /* ---- the tail: its rest curve (back and down to the floor, curling up and aside at its end), a travelling sway, the turn's and the
        stride's swing; filtered in world space (the tip lags most); kept off the floor ---- */
-    { const n = lod ? 13 : NTS[k] - (low ? 2 : 0), tLk = NTS[k] / n * (lod ? 1.02 : 1), tE = evE([0.45, 0.65]), sw = 0.09 * (1 + fin) * lv, R = TAIL; let p = BP(TROOT), d = mv(Mb, norm([-1, 0, -0.32])), dd;
+    { const n = lod ? 12 : NTS[k] - (low ? 2 : 0), tLk = NTS[k] / n, tE = evE([0.45, 0.65]), sw = 0.09 * (1 + fin) * lv, R = TAIL; let p = BP(TROOT), d = mv(Mb, norm([-1, 0, -0.32 + 0.3 * air])), dd;
       const st2 = st.tail || (st.tail = { A: null }), wy = t * 1.4;
       for (let j = 0; j < n; j++) { const u = j / (n - 1), len0 = tLk * 0.88 * (1 - 0.38 * u) * (0.35 + 0.65 * tE), rad = 0.82 * (1 - 0.68 * u) + 0.06;
-        const bend = (0.045 + 0.06 * sstep(0.55, 1, u) + 0.04 * fly) * (u > 0.15 ? 1 : -0.4), yawB = sw * Math.sin(wy - j * 0.42) * (0.3 + u) + 0.18 * sstep(0.7, 1, u) * Math.sin(t * 0.37) + yrs * 0.012 * u * 4, Rb = mm(rz(yawB), ry(-bend));
+        const bend = ((0.045 + 0.06 * sstep(0.55, 1, u)) * (1 - 0.65 * air) * (u > 0.15 ? 1 : -0.4) + 0.02 * air * Math.sin(t * 1.3 - u * 4) * (1 - spd)) * tLk, /* (v465 RZ-M: per-segment angles scaled by the count: the same curve with fewer segments) */ yawB = (sw * Math.sin(wy - u * 8.4) * (0.3 + u) + 0.18 * sstep(0.7, 1, u) * Math.sin(t * 0.37) + yrs * 0.012 * u * 4) * tLk, Rb = mm(rz(yawB), ry(-bend));
         d = norm(mv(Rb, d)); if (j === 0) dd = d; R.d[j] = d; R.r[j] = rad; R.L[j] = len0; }
       // the world-space filter: each segment's direction chases its target (turned by the body's yaw), the tip slowest
       const c = Math.cos(yaw), s2 = Math.sin(yaw); let A = st2.A; if (!A || A.length !== n * 3 || snap) { A = st2.A = new Float32Array(n * 3); for (let j = 0; j < n; j++) { const q2 = R.d[j]; A[j * 3] = c * q2[0] - s2 * q2[1]; A[j * 3 + 1] = s2 * q2[0] + c * q2[1]; A[j * 3 + 2] = q2[2]; } }
@@ -560,17 +625,18 @@ const RAZIEL_GL = (() => {
       let hp = add(hp0, [0.25 * Math.sin(t * 0.7 + s * 2), sg * 0.2 * Math.sin(t * 0.5 + s), 0.18 * Math.sin(t * 0.9 + s * 1.3) + 0.15 * brth]);
       hp = add(hp, [-0.8 * raise, sg * 0.4 * raise * cen, 2.6 * raise]); hp = add(hp, [-0.4 * roar, sg * 0.3 * roar * cen, 1.4 * roar]);
       hp = add(hp, [0.6 * meet, -sg * 1.6 * meet * cen, 0.3 * meet]);
+      hp = add(hp, [air * (3.0 * spd + 1.2 * Math.max(0, dive)) - 1.2 * land, -sg * 0.6 * spd * air * cen, -air * (2.4 * spd + 1.5 * Math.max(0, dive)) + 0.8 * land]);   // (v465 RZ-M: in fast flight the necks reach forward, diving lower)
       let yawH, pitH;
       if (aim) { const rel = sub(aim, hp), hd = Math.hypot(rel[0], rel[1]), lw = cl(1 - (hd - 6) / 22) * (0.5 + 0.5 * chg); hp = add(hp, [Math.min(2.2, rel[0] * 0.08) * lw + 0.8 * chg, Math.max(-1.8, Math.min(1.8, rel[1] * 0.08)) * lw, -2.8 * lw - 1.0 * chg]);
         const r2 = sub(aim, hp); yawH = Math.atan2(r2[1], r2[0]); pitH = Math.atan2(r2[2], Math.hypot(r2[0], r2[1])); }
-      else { yawH = sg * 0.35 * cen + lkY - sg * gl * 1.25 * cen - sg * meet * 1.0 * cen; pitH = -0.18 + lkP + 0.55 * raise + 0.7 * roar; }
+      else { yawH = sg * 0.35 * cen + lkY - sg * gl * 1.25 * cen - sg * meet * 1.0 * cen; pitH = -0.18 + lkP + 0.55 * raise + 0.7 * roar - air * (0.25 * spd + 0.35 * Math.max(0, dive)) + 0.2 * land; }
       hp = add(hp, [-1.1 * rec, sg * 0.3 * rec, 0.9 * rec]); pitH += 0.55 * rec; pitH += stag * 0.2 * Math.sin(t * 9 + s);
       yawH = Math.max(-1.75, Math.min(1.75, yawH)); pitH = Math.max(-1.15, Math.min(0.95, pitH));
       if (cen) hp[1] = sg * Math.max(1.15, sg * hp[1]);   // (the heads never cross: each keeps its own side)
       // the springs: Lux snappier with a little overshoot, Umbra smoother and slower (two minds)
       const wH = s ? 4.2 : 6.5, zH = s ? 0.9 : 0.62, hpS = [f2(st, 'hx' + s, hp[0], wH, zH, dt, snap), f2(st, 'hy' + s, hp[1], wH, zH, dt, snap), f2(st, 'hz' + s, hp[2], wH, zH, dt, snap)];
       const yS = f2(st, 'hyaw' + s, yawH, wH * 1.2, zH, dt, snap), pS = f2(st, 'hpit' + s, pitH, wH * 1.2, zH, dt, snap), tilt = 0.15 * Math.sin(t * 0.6 + s * 2.5) * lv * (aim ? 0.3 : 1) + sg * 0.12 * gl;
-      const jaw = f2(st, 'jaw' + s, Math.max(jawT, roar * 0.95, 0.06 + 0.05 * Math.sin(t * (s ? 0.8 : 1.4) + s) * lv), 14, 0.55, dt, snap);
+      const jaw = f2(st, 'jaw' + s, Math.max(jawT, roar * 0.95, 0.17 + 0.04 * Math.sin(t * (s ? 0.8 : 1.4) + s) * lv), 14, 0.55, dt, snap);
       const Rh0 = mm(rz(yS), mm(ry(-(pS + jaw * 0.12)), rx(tilt))), hpW = BP(hpS), Rh = BR(Rh0), HS = 1.95 * (0.4 + 0.6 * headE) * (spSide >= 0 ? 1.15 : 1);
       // the neck: a cubic from its root (rising, a little forward and out) into the back of the skull (entering from below and behind)
       const root = BP([NROOT[0] + (cen ? 0 : 0.1), sg * NROOT[1] * cen, NROOT[2]]), T0 = norm(mv(Mb, [0.25, sg * 0.4 * cen, 1])), ent = mv(Rh, norm([0.5, 0, 0.86])), hb = add(hpW, mv(Rh, [-0.22 * HS, 0, -0.12 * HS]));
@@ -597,7 +663,7 @@ const RAZIEL_GL = (() => {
       const gP = [mP[0], mP[1], 0], gs = scr(gP); mo.gx = gs[0]; mo.gy = gs[1];
       if (S.x != null) { const c = Math.cos(yaw), s3 = Math.sin(yaw), wxm = c * mP[0] - s3 * mP[1], wym = s3 * mP[0] + c * mP[1]; mo.wx = S.x + wxm * K / tile; mo.wy = S.y + wym * SE * K / tile; }
       out['throat' + Ls] = scrO(hm([0.4, 0, -0.3]), out['throat' + Ls] || {}); out['head' + Ls] = scrO(hpW, out['head' + Ls] || {});
-      out['eyes' + Ls] = [scr(hm([0.95, 0.5, 0.47])), scr(hm([0.95, -0.5, 0.47]))]; out['vent' + Ls] = scrO(hm(s ? [0.2, 0.7, 0.05] : [1.9, 0.3, 0.12]), out['vent' + Ls] || {});
+      out['eyes' + Ls] = [scr(hm([1.0, 0.96, 0.45])), scr(hm([1.0, -0.96, 0.45]))]; out['vent' + Ls] = scrO(hm(s ? [0.2, 0.7, 0.05] : [1.9, 0.3, 0.12]), out['vent' + Ls] || {});
       /* ---- the Mirror Crown behind the head: lagging after it on a spring, turning in its parts; aligned (Concord), expanded (portals) ---- */
       if (spSide < 0) { const cput = num(S.crownOut, 0) < 0.5 ? put : () => null;   // (S.crownOut: the crowns leave the model: the ultimate's portals take over from the anchors, which stay current)
         const cA = f2(st, 'crA', cl(num(S.crownAlign, 0)), 3, 0.9, dt, snap), cX = f2(st, 'crX' + s, cl(num(S.crownExpand, 0)), 2.4, 0.85, dt, snap), spd = num(s ? S.crownSpeedR : S.crownSpeedL, 1) * (1 + 2.2 * fin) * (1 + 0.8 * chg) * (1 + 2.5 * (1 - crownE));
@@ -615,18 +681,25 @@ const RAZIEL_GL = (() => {
       }
     }
     /* ---- the wings ---- */
-    const wingT = cl(num(S.wing, WING0)), wingE = evE([0.82, 1]), beatT = cl(Math.max(num(S.beat, 0), fly * 0.75)), guard = f2(st, 'guard', cl(num(S.guard, 0)), 5, 0.75, dt, snap);
-    const wsp = f2(st, 'wing', Math.max(wingT * wingE, roar * 0.7, fly * 0.6) * (spSide >= 0 ? 1 : 1), 3.6, 0.72, dt, snap), beat = f1(st, 'beat', beatT, 3, dt, snap);
+    const wingT = cl(num(S.wing, WING0)), wingE = evE([0.82, 1]), guard = f2(st, 'guard', cl(num(S.guard, 0)), 5, 0.75, dt, snap), dv = Math.max(0, dive);
+    const wsp = f2(st, 'wing', Math.max(wingT * wingE, roar * 0.7, air * 0.97) * (1 - 0.5 * dv), 3.6, 0.72, dt, snap);
+    /* (v465 RZ-M) the stroke of each joint, the outer ones lagging (the wave runs out along the wing); warp: the fast downstroke */
+    const wq = lag => { let q2 = bq - lag; q2 -= Math.floor(q2); return Math.cos(TAU * (q2 < 0.42 ? 0.5 * q2 / 0.42 : 0.5 + 0.5 * (q2 - 0.42) / 0.58)); };
     /* the wings' fit to the view: when the view (opts.vw, px; draw() takes the canvas's visible width) is narrower than the fully spread
        span would need (about 3.5 x size), the wings are drawn shorter (never below 0.6) so the spread stays within 90% of it: a phone's
        width in a fight at L7. Studio stills and wide screens keep the full size */
-    const wfit = opts.vw ? Math.max(0.6, Math.min(1, 0.9 * opts.vw / (3.5 * size))) : 1; out.wfit = wfit;
-    const bph = st.bph = (st.bph || 0) + dt * (5.2 + 1.5 * beat) * (beat > 0.01 ? 1 : 0.3); const idleF = 0.04 * Math.sin(t * 0.8) * lv;
+    if (opts.vw && (st.wfit == null || still)) st.wfit = Math.max(0.6, Math.min(1, 0.9 * opts.vw / (3.5 * size)));   // (v465 RZ-M: fixed for the pose's life from the first view it is drawn in: a camera pan or zoom never moves an anchor)
+    const wfit = opts.vw ? st.wfit : 1; out.wfit = wfit;
+    const idleF = 0.04 * Math.sin(t * 0.8) * lv * (1 - air);
     for (let s = 0; s < 2; s++) { const sg = s ? -1 : 1, Ls = s ? 'R' : 'L', sd = spSide >= 0 ? spSide : s, WL = WLEN[k], kb = 1;
-      const wsS = cl(wsp + (s ? 0.02 : -0.02) * Math.sin(t * 0.6)), fl = Math.sin(bph + s * 0.15) * beat;
+      const wsS = cl(wsp + (s ? 0.02 : -0.02) * Math.sin(t * 0.6)), ls = s * 0.02, f0 = wq(ls) * beat, f1w = wq(ls + 0.07) * beat, f2w = wq(ls + 0.14) * beat, pw = Math.sin(TAU * (bq < 0.42 ? 0.5 * bq / 0.42 : 0.5 + 0.5 * (bq - 0.42) / 0.58)) * beat;
       const dirW = (swp, el) => mv(Mb, [-Math.cos(el) * Math.sin(swp), sg * Math.cos(el) * Math.cos(swp), Math.sin(el)]);
       const ang = (a0, a1, ag) => lerp(lerp(a0, a1, wsS), ag, guard);
-      const hSw = ang(1.05, -0.22, -1.1), hEl = ang(0.95, 0.72, 0.5) + 0.5 * fl + idleF, fSw = ang(2.45, -0.22, -2.45), fEl = ang(-0.25, 0.38, 0.05) + 0.32 * Math.sin(bph - 0.6 + s * 0.15) * beat, nSw = ang(1.75, 0.12, -2.95), nEl = ang(-0.25, -0.1, -0.35) + 0.28 * Math.sin(bph - 1.2 + s * 0.15) * beat;
+      // flight: gliding holds a shallow dihedral, a dive sweeps them back, landing flares them forward and cups them; the stroke rides on top
+      const gl2 = glide * (1 - guard), fl2 = land * (1 - guard), dv2 = dv * (1 - guard);
+      const hSw = ang(1.05, -0.22, -1.1) - 0.15 * gl2 + 0.7 * dv2 - 0.55 * fl2 - 0.22 * pw * (1 - guard), hEl = lerp(ang(0.95, 0.72, 0.5), 0.32, gl2) + 0.25 * fl2 - 0.2 * dv2 + 0.72 * f0 + idleF;
+      const fSw = ang(2.45, -0.22, -2.45) + 0.8 * dv2 - 0.35 * fl2 - 0.12 * pw * (1 - guard), fEl = lerp(ang(-0.25, 0.38, 0.05), 0.06, gl2) + 0.45 * f1w;
+      const nSw = ang(1.75, 0.12, -2.95) + 0.8 * dv2 + 0.25 * fl2, nEl = lerp(ang(-0.25, -0.1, -0.35), -0.06, gl2) - 0.35 * fl2 + 0.42 * f2w;
       const W0 = BP([WROOT[0], sg * WROOT[1], WROOT[2]]), dh = dirW(hSw, hEl), E = add(W0, mul(dh, WL[0] * kb * wfit)), df = dirW(fSw, fEl), Wr = add(E, mul(df, WL[1] * kb * wfit)), dn = dirW(nSw, nEl), Tp = add(Wr, mul(dn, WL[2] * kb * wfit));
       const up0 = mv(Mb, [0, 0, 1]), back0 = mv(Mb, [-1, 0, 0]), wN = v => { let u2 = sub(up0, mul(v, dot(up0, v))); if (len(u2) < 0.05) u2 = sub(back0, mul(v, dot(back0, v))); return norm(u2); };
       const sc2 = 0.4 + 0.6 * wingE;
@@ -638,8 +711,8 @@ const RAZIEL_GL = (() => {
       { const [ax1, ay1] = bF(df), [ax2, ay2] = bF(dn); put('wplate', null, colsR(ax1, ay1, df), add(E, mul(df, 0.45)), 1.65 * sc2, { side: sd, d0: 0.56 }, [0.84, 0.97]); put('wplate', null, colsR(ax2, ay2, dn), add(Wr, mul(dn, 0.4)), 1.4 * sc2, { side: sd, d0: 0.56 }, [0.86, 0.99]); }
       // the feather-blades: fanned along the forearm and hand (inner ones trailing down, outer ones swept out along the hand), coverts over
       // their roots, L7 a third layer; each blade's own spring (it lags the beat and flutters)
-      const nb = lod ? [0, 9, 11, 12][k] : NBL[k] - (low ? 3 : 0), ncv = lod ? [0, 5, 6, 7][k] : NCV[k] - (low ? 3 : 0), nb3 = low ? 0 : lod ? [0, 0, 3, 4][k] : NB3[k], bwK = lod ? 1.25 : 1;   // (the game's level of detail: fewer, a little wider)
-      const bfS = st['bf' + s] || (st['bf' + s] = new Float32Array(48)), bvS = st['bv' + s] || (st['bv' + s] = new Float32Array(48)), drive = -Math.cos(bph + s * 0.15) * beat * 0.6 + yrs * 0.04 * sg - 0.3 * (fly > 0.2 ? 0 : 0);
+      const nb = lod ? [0, 9, 10, 11][k] : NBL[k] - (low ? 3 : 0), ncv = lod ? [0, 5, 6, 6][k] : NCV[k] - (low ? 3 : 0), nb3 = low ? 0 : lod ? [0, 0, 3, 4][k] : NB3[k], bwK = lod ? 1.25 : 1;   // (the game's level of detail: fewer, a little wider)
+      const bfS = st['bf' + s] || (st['bf' + s] = new Float32Array(48)), bvS = st['bv' + s] || (st['bv' + s] = new Float32Array(48)), drive = pw * 0.75 + yrs * 0.04 * sg + 0.12 * spd * air;   // (the downstroke bends every blade up, the upstroke down; the airflow of fast flight)
       const layer = (cnt, a0, a1, Lf, fan0, fan1, off, lift2, wsc, base) => {
         for (let i = 0; i < cnt; i++) { const u = cnt > 1 ? i / (cnt - 1) : 0, a = lerp(a0, a1, u), onH = a > 0.5, P0 = onH ? lerp3(Wr, Tp, (a - 0.5) * 2) : a < 0 ? lerp3(W0, E, 1 + a * 2) : lerp3(E, Wr, a * 2), bd = onH ? dn : a < 0 ? dh : df;
           let trl = add(mul(up0, -0.93), mul(back0, 0.36)); trl = norm(sub(trl, mul(bd, dot(trl, bd))));   // (the trailing direction in the wing's plane: down and back)
@@ -675,13 +748,19 @@ const RAZIEL_GL = (() => {
     let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; for (let q = 0; q < 4; q++) { const X = q & 1 ? cv.width : 0, Y = q & 2 ? cv.height : 0, dx = X - m.e, dy = Y - m.f, ux = (m.d * dx - m.c * dy) / det, uy = (-m.b * dx + m.a * dy) / det; x0 = Math.min(x0, ux); y0 = Math.min(y0, uy); x1 = Math.max(x1, ux); y1 = Math.max(y1, uy); }
     return [Math.floor(x0) - 2, Math.floor(y0) - 2, Math.ceil(x1) + 2, Math.ceil(y1) + 2]; }
   const PXB = [[0.6e6, 0.42e6, 0.3e6, 0.3e6], [0.42e6, 0.3e6, 0.2e6, 0.2e6], [0.35e6, 0.25e6, 0.18e6, 0.18e6]];
-  const budget = j => { try { if (typeof GQ === 'undefined' || typeof arc === 'undefined' || !arc.game || arc.mode !== 'dungeon') return 1e12; return PXB[j][Math.max(0, Math.min(3, GQ.level() | 0))]; } catch (e) { return 1e12; } };
+  /* (v465 RZ-M) the high-quality path: the visual quality resolved High (st.gq 'high', or 'auto' while it resolves High) and Fewer effects off;
+     outside a fight GQ reports High. Everyone (the model, the moves, the ultimate) reads this one helper */
+  const hq = () => { if (lowFx()) return false; try { return typeof GQ === 'undefined' || !GQ.level || GQ.level() === 0; } catch (e) { return true; } };
+  const budget = j => { if (hq()) return j === 2 ? 0.6e6 : 1.6e6; try { if (typeof GQ === 'undefined' || typeof arc === 'undefined' || !arc.game || arc.mode !== 'dungeon') return 1e12; return PXB[j][Math.max(0, Math.min(3, GQ.level() | 0))]; } catch (e) { return 1e12; } };
   const OCC = new Float32Array(48);
   /* render the posed parts; mode 0 the model, 1 a spectral construct ('L' / 'R') */
   function pass(c, S, x, y, size, opts, spec) {
     if (NOGL) return null; opts = opts || {};
     /* the level of detail: by the size drawn in device pixels (the game's in a fight), the spectral constructs always; stills, the collection and close-ups (opts.full) the full set */
-    const tf0 = c.getTransform ? c.getTransform() : null, dpx = size * (tf0 ? Math.hypot(tf0.a, tf0.b) : 1), lod = opts.lod != null ? !!opts.lod : spec ? true : !opts.full && dpx < LODPX;
+    const tf0 = c.getTransform ? c.getTransform() : null, dpx = size * (tf0 ? Math.hypot(tf0.a, tf0.b) : 1), hqN = hq(), st0 = S._rz || null; let lod = opts.lod != null ? !!opts.lod : spec ? true : !opts.full && !hqN && dpx < LODPX;   // (v465 RZ-M: on High the full mesh)
+    /* (v465 RZ-M) latched per pose: a summon keeps the set it started with (a camera zoom never swaps the mesh mid-fight, never moves an
+       anchor); it changes only when the visual quality does */
+    if (opts.lod == null && !spec && !opts.full && st0) { if (st0.lodSel != null && st0.lodHq === hqN) lod = st0.lodSel; else { st0.lodSel = lod; st0.lodHq = hqN; } }
     if (!ensure(lod) && !(data(!lod).ready)) return null; const DS = data(lod).ready ? data(lod) : data(!lod), lodM = DS === DL;
     try {
       const M = DS.M, k = kOf(S), K = size / HEIGHT[k], kk = K / WS, sw = WS, dis = cl(num(S.dissolve, 0)), ent = cl(num(S.enter, 1)), low = !!(S.lowFx || lowFx() || opts.low);
@@ -718,7 +797,7 @@ const RAZIEL_GL = (() => {
       const bw = rx1 - rx0, bh = ry1 - ry0;
       // the occluders: spheres inside the torso, the neck roots and the heads (soft occlusion and key-light shadows between the parts)
       let no = 0; const oc = (p, r) => { if (no >= 12 || !p) return; const w = mv(rz(yawC), p); OCC[no * 4] = w[0] * sw; OCC[no * 4 + 1] = w[1] * sw; OCC[no * 4 + 2] = w[2] * sw; OCC[no * 4 + 3] = r * sw; no++; };
-      if (!low && !fxS) { const R = S._rz; const B0 = [R.tbx || 0, 0, 0]; void B0; oc(TS([2.4, 0, 6.8]), 2.0 * TSC); oc(TS([-0.3, 0, 6.5]), 1.6 * TSC); oc(TS([-3.0, 0, 6.4]), 1.45 * TSC);
+      if (!low && !fxS) { const R = S._rz; const B0 = [R.tbx || 0, 0, 0]; void B0; oc(TS([2.4, 0, 6.8]), 2.2 * TSC); oc(TS([-0.3, 0, 6.7]), 1.5 * TSC); oc(TS([-3.0, 0, 6.5]), 1.6 * TSC);
         if (R.hx0 != null) oc([R.hx0 + 0.8, R.hy0, R.hz0 + 0.1], 0.8); if (R.hx1 != null) oc([R.hx1 + 0.8, R.hy1, R.hz1 + 0.1], 0.8); }
       const Sv = { px: PXW, py: PYW, pd: PDW, cl: [2 * kk / bw, 2 * (x - rx0) / bw - 1, -2 * kk / bh, 1 - 2 * (y - ry0) / bh], v: PDW, lk: LW, ls: SBW, lr: RIMW, up: UPW, low, rim: RIMC, amb: AMBC, t: nowMs() / 1000 % 1000, keep: 2,
         outline: opts.ink === false || low || fxS ? 0 : Math.max(0.6, 0.7 * (W / bw)), outlineCol: OUTC, outlineBias: 0.0025, clip: null, occ: no ? OCC : null, nocc: no };
@@ -752,7 +831,7 @@ const RAZIEL_GL = (() => {
       F.flush(c); const Q = F.begin(c, null);
       Q.glow(r.coreL.x, r.coreL.y, r.coreL.r * 3.2, '#FF8A2A', 0.42 * al); Q.glow(r.coreL.x, r.coreL.y, r.coreL.r * 1.2, '#FFE2A0', 0.5 * al);
       Q.glow(r.coreR.x, r.coreR.y, r.coreR.r * 3.2, '#3FA8FF', 0.42 * al); Q.glow(r.coreR.x, r.coreR.y, r.coreR.r * 1.2, '#D8F4FF', 0.5 * al);
-      if (r.eyesL) for (const e of r.eyesL) Q.glow(e[0], e[1], r.unit * 0.35, '#FFB040', 0.4 * al); if (r.eyesR) for (const e of r.eyesR) Q.glow(e[0], e[1], r.unit * 0.35, '#7FE0FF', 0.4 * al);
+      if (r.eyesL) for (const e of r.eyesL) Q.glow(e[0], e[1], r.unit * 0.5, '#FFB040', 0.62 * al); if (r.eyesR) for (const e of r.eyesR) Q.glow(e[0], e[1], r.unit * 0.5, '#7FE0FF', 0.62 * al);   // (v465 RZ-M: the eyes burn brighter)
       F.flush(c); F.begin(c, null); return true; } catch (e) { return false; }
   }
   /* effect meshes in screen space (one GLM pass): { m: 'shard' | 'spire' | 'ember' | 'sun' | 'planet' | 'ringL' | 'ringR' | 'crownL' | 'crownR', X, Y (screen
@@ -761,7 +840,7 @@ const RAZIEL_GL = (() => {
   const SV = [0, 0, 1], SUP = [0, -1, 0], SLK = norm([-0.45, -0.7, 0.55]), SLS = norm([-0.2, -0.85, 0.5]), SLR = norm([0.65, 0.45, -0.2]), PX2 = [1, 0, 0], PY2 = [0, 1, 0], PD2 = [0, 0, 1];
   const CAM = [1, 0, 0, 0, SE, -CE, 0, CE, SE];
   function drawParts(c, list, o) {
-    if (NOGL || !list || !list.length || !usable()) return false; o = o || {}; if (!ensure(true) && !data(false).ready) return false; const d = data(true).ready ? data(true) : data(false);
+    if (NOGL || !list || !list.length || !usable()) return false; o = o || {}; if (!ensure(true) && !data(false).ready) return false; const d = o.full && data(false).ready ? data(false) : data(true).ready ? data(true) : data(false);   // (o.full: the full mesh when built, for a close-up)
     try { ITEMS.length = 0; TRANS.length = 0; NP = 0; let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; const M = d.M;
       const box = (x, y, r) => { x0 = Math.min(x0, x - r); y0 = Math.min(y0, y - r); x1 = Math.max(x1, x + r); y1 = Math.max(y1, y + r); };
       const putP = (mesh, R, T, al, gl, g2, side, kind, ink) => { if (!mesh) return; const g = item(); for (let i = 0; i < 3; i++) { g.R0[i] = R[i * 3] * 0.01; g.R1[i] = R[i * 3 + 1] * 0.01; g.R2[i] = R[i * 3 + 2] * 0.01; g.T[i] = T[i] * 0.01; }
@@ -775,6 +854,9 @@ const RAZIEL_GL = (() => {
         if (e.m === 'planet') { putP(M.planet, mm(Rb, rz(tt * 0.5)).map(v => v * s), [e.X, e.Y, zz], al, e.g || 0.6, 0.3, 1, 0); putP(M.shell, R(1.45), [e.X, e.Y, zz], Math.min(0.96, al), 0.4, 0, 1, 0, false); for (let j = 0; j < 2; j++) putP(M.cring, mm(Rb, mm(rx(1.1 + j * 0.5), rz(-tt * (0.8 + 0.3 * j)))).map(v => v * s * (1.75 + 0.2 * j)), [e.X, e.Y, zz], al, 0.3, 0, 1, j); box(e.X, e.Y, s * 2.3); continue; }
         if (e.m === 'crownL' || e.m === 'crownR') { const s2 = e.m === 'crownR' ? 1 : 0; putP(M.crownOut[s2], mm(Rb, rz(tt * 0.4 * (s2 ? -1 : 1))).map(v => v * s), [e.X, e.Y, zz], al, e.g || 0.5, 0, s2, 0); putP(M.crownRune, mm(Rb, rz(-tt * 0.7)).map(v => v * s), [e.X, e.Y, zz], al, e.g || 0.5, 0, s2, tt);
           putP(M.crownMer, mm(Rb, rx(tt * 0.9)).map(v => v * s), [e.X, e.Y, zz], al, e.g || 0.5, 0, s2, 0); box(e.X, e.Y, s * 1.8); continue; }
+        if (e.m === 'head') { const k = e.k || 1, jw = e.jaw == null ? 0.2 : e.jaw, hin = [-0.12, 0, -0.25], Rj = ry(jw * 0.72), org = mv(Rb, sub(hin, mv(Rj, hin))).map(v => v * s);   // (v465 RZ-M: one head alone, for a portrait or a close-up)
+          putP(M.skull[sd][k], R(1), [e.X, e.Y, zz], al, e.g || 0, 0, sd, 0); putP(M.jaw[sd], mm(Rb, Rj).map(v => v * s), [e.X + org[0], e.Y + org[1], zz + org[2]], al, e.g || 0, 0, sd, 0);
+          if (jw > 0.12) { const p = mv(Rb, [0.3, 0, -0.2]).map(v => v * s); putP(sd ? M.cryo : M.furnace, R(0.8), [e.X + p[0], e.Y + p[1], zz + p[2]], al, 0.6, 0, sd, 0, false); } box(e.X, e.Y, s * 4.2); continue; }
         if (e.m === 'ringL' || e.m === 'ringR') { putP(M.cring, R(1), [e.X, e.Y, zz], al, e.g || 0.3, 0, e.m === 'ringR' ? 1 : 0, 0); box(e.X, e.Y, s * 1.2); continue; }
         const mesh = e.m === 'ember' ? M.ember : M.frag; putP(mesh, R(1), [e.X, e.Y, zz], al, e.g || (e.m === 'ember' ? 1.2 : 0.5), 0, e.m === 'ember' ? 0 : sd, 0, e.m !== 'ember'); box(e.X, e.Y, s * 1.2);
       }
@@ -790,7 +872,7 @@ const RAZIEL_GL = (() => {
     } catch (e) { fail(e); return false; }
   }
   if (typeof window !== 'undefined') setTimeout(() => { try { warm(); } catch (e) {} }, 2100);   // (prepared at load, in idle time)
-  return { ok: usable, usable, warm, ensure, step, ready: () => !!(D && D.ready) || !!(DL && DL.ready), LODPX, draw, solve, anchors, drawSpectral, drawParts, drawAnima, lights, free: release, release, gpuCount, idle, idlePose: idle,
+  return { hq, ok: usable, usable, warm, ensure, step, ready: () => !!(D && D.ready) || !!(DL && DL.ready), LODPX, draw, solve, anchors, drawSpectral, drawParts, drawAnima, lights, free: release, release, gpuCount, idle, idlePose: idle,
     HEIGHT, FACE0, YAWLIM, STRIDE, LEGS, CORE, CRAD, NROOT, HREST, WROOT, MT, WS, STATS, RES, get up() { return !!(D && D.up); }, get nv() { return D ? D.nv : 0; }, get nt() { return D ? D.nt : 0; }, get off() { return NOGL; }, meshes: lo => { const d = lo ? DL : D; return (d && d.M) || null; } };
 })();
 if (typeof self !== 'undefined') self.RAZIEL_GL = RAZIEL_GL;

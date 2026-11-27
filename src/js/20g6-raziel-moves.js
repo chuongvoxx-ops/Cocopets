@@ -58,7 +58,11 @@ const RAZIEL_MOVES = (() => {
     divide: { R: [2.6, 3.1, 3.6], dur: [5.5, 6.5, 7.5], cast: 1.1, tick: 0.5, dmgF: 0.09, dmgI: 0.08, drift: 0.32, hold: 2.0, freeze: 0.8, erupt: 0.8, eruptDmg: 0.4, eruptR: 1.0, collapse: 2.4, collapseR: 4.2, rec: 0.4 },
     circuit: { dur: [8, 10, 12], cast: 1.5, on: 1.0, self: [1.08, 1.12, 1.15], shockK: [1.2, 1.3, 1.45], ally: [0.06, 0.09, 0.12], pulse: 0.5, pulseR: 2.6, refresh: 2.5, conv: 0.8 },
     cata: { n: [1, 2, 3], rise: 0.8, form: 0.85, fly: 1.05, gap: 1.25, R: [3.2, 3.6, 4.0], core: 1.4, dmg: 2.4, coreK: 1.3, fin: 4.4, finR: 5.0, rec: 0.7 },
-    fin: { len: 3.2, hit: 2.0, k: 8, R: 9 },                          // (the finale when the ultimate's module is missing)
+    fin: { len: 3.2, hit: 2.0, k: 8, R: 9 },
+    // (v465 RZ-A) lively movement: speeds (tiles/s), the springs (1/s), how far from the pet it may roam (an ellipse, tiles)
+    move: { hover: 0.75, walk: 2.6, run: 4.2, fly: 6.2, swoop: 8.0, accG: 3.4, accA: 2.2, arrive: 1.6, up: 3.2, down: 3.8, maxR: 3.3, maxRy: 4.0, stride: [1.6, 3.2] },
+    strafe: { L: 6.5, pass: 1.5, turn: 0.85, alt: 0.55, ahead: 2.3, lat: 1.0, rec: 0.9, chance: 0.3 },   // Twin Fang as a strafing pass
+    soar: { R: 3.0, steps: 5, alt: 0.75, low: 0.35, dur: 5.0, every: 12, buffet: 1.2, buffetR: 2.2 },                               // a flying circuit and a swooping pass                          // (the finale when the ultimate's module is missing)
   };
   const COL = { fire: '#FF7A2E', hot: '#FFD9A0', gold: '#FFC24D', crim: '#E0301E', ice: '#7FD8FF', pale: '#DDF6FF', deep: '#2F6FE0', white: '#FFFFFF', steam: '#E4ECF2', ash: '#2A1C18' };
   const lowFx = () => !!(typeof st !== 'undefined' && st && st.lowFx);
@@ -100,6 +104,9 @@ const RAZIEL_MOVES = (() => {
     const fgClose = c => { const F = NMv().FGFX; F.flush(c); F.begin(c, null); };
     const sfx = n => { try { if (X.sfx && X.sfx[n]) X.sfx[n](); } catch (e) {} };
     const FX = [];                 // effects in the world: { kind, t, life, ... } (world tiles)
+    /* (v465 RZ-A) its own dice for what it decides (where it goes, what it casts): the game's random also feeds sounds and particles, so a
+       test can seed these alone (seed(v)) and every decision replays exactly */
+    let RS = ((Math.random() * 2147483645) | 0) + 1; const rnd = () => (RS = RS * 16807 % 2147483647) / 2147483647;
     const MARK = new Set();        // monsters carrying Raziel's fire / ice marks or its defence break
     let released = true, FIN = null, txtT = 0, BURST = 4;
     const PEND = [];   // (Thermal Shock bursts past this frame's budget, shown over the next frames: 4 new a frame, 16 while the ultimate runs)
@@ -126,6 +133,7 @@ const RAZIEL_MOVES = (() => {
     function fireHit(a, m, d, o) {
       if (!m || m.dead || !(d > 0)) return 0; o = o || {}; const tick = !!o.tick;
       const r = H.hit(m, d * (o.combined && modeOf(a) === 'concord' ? CFG.align.concordK : 1), { el: 'fire', rz: 1, dot: tick, dotC: '#FFB070', noAggro: tick && !o.aggro, noCrit: o.noCrit, big: o.big, kb: o.kb, noText: o.noText });
+      if (a && a.rz) a.rz.dealt = (a.rz.dealt || 0) + (r || 0);   // (v465 RZ-A: its own blows' total, for the tests)
       if (m.dead) return r; const C = CFG.status, ext = modeOf(a) === 'dissonance' ? C.dis : 1;
       m.burn = Math.max(m.burn || 0, C.burn * ext); m.burnD = Math.max(m.burnD || 0, ST().atk * C.burnK);
       m.rzF = g.t; MARK.add(m); if (!o.noShock) shockCheck(a, m); return r;
@@ -133,6 +141,7 @@ const RAZIEL_MOVES = (() => {
     function iceHit(a, m, d, o) {
       if (!m || m.dead || !(d > 0)) return 0; o = o || {}; const tick = !!o.tick;
       const r = H.hit(m, d * (o.combined && modeOf(a) === 'concord' ? CFG.align.concordK : 1), { el: 'frost', rz: 1, dot: tick, dotC: '#BFEFFF', noAggro: tick && !o.aggro, noCrit: o.noCrit, big: o.big, kb: o.kb, noText: o.noText, freeze: o.freeze });
+      if (a && a.rz) a.rz.dealt = (a.rz.dealt || 0) + (r || 0);
       if (m.dead) return r; const C = CFG.status, ext = modeOf(a) === 'dissonance' ? C.dis : 1;
       m.chill = Math.max(m.chill || 0, (m.boss ? C.chillBoss : C.chill) * ext);
       if (o.freeze && tick) { if (!m.boss) m.freeze = Math.max(m.freeze || 0, o.freeze); else m.chill = Math.max(m.chill, 1.5); }   // (as the game's own: a boss is only chilled)
@@ -148,7 +157,7 @@ const RAZIEL_MOVES = (() => {
       const C = CFG.shock, kk = kOf(a); let d = H.P(a) * C.dmg[kk - 1] * (k || 1) * (buffOn(a) ? CFG.circuit.shockK[a.rz.buffK - 1] : 1) * (modeOf(a) === 'concord' ? C.concordK : 1);
       if (m.boss) d = Math.min(d * C.bossK, m.maxhp * C.capBoss);
       m.rzF = 0; m.rzI = 0; m.rzTS = g.t + (m.boss ? C.lockBoss : C.lock); m.rzDefT = g.t + C.defT[kk - 1]; MARK.add(m);
-      H.hit(m, d * 0.5, { el: 'fire', rz: 1, noCrit: true, big: true }); if (!m.dead) H.hit(m, d * 0.5, { el: 'frost', rz: 1, noCrit: true, big: true, noText: true });
+      const r1 = H.hit(m, d * 0.5, { el: 'fire', rz: 1, noCrit: true, big: true }) || 0, r2 = !m.dead ? H.hit(m, d * 0.5, { el: 'frost', rz: 1, noCrit: true, big: true, noText: true }) || 0 : 0; if (a.rz) a.rz.dealt = (a.rz.dealt || 0) + r1 + r2;
       if (a.rz) { a.rz.shocks = (a.rz.shocks || 0) + 1; a.rz.heat = Math.min(1, (a.rz.heat || 0) + 0.25); }
       shockFx(m.x, m.y, 0.9 + 0.1 * kk, false);
       if (g.t > txtT) { txtT = g.t + 0.7; X.text(m.x, m.y - (m.r || 0.5) - 1.0, 'THERMAL SHOCK', '#F2FBFF', 13, { life: 0.9 }); }
@@ -175,7 +184,7 @@ const RAZIEL_MOVES = (() => {
     /* ---- state ---- */
     function stOf(a) {
       if (!a.rz) { const G = GLR(); a.rz = { act: null, last: null, last2: null, mode: 'concord', modeT: -99, evalT: 0, clock: 0, ready: false, first: false, en: -1, beats: {}, gap: 0, vx: 0, vy: 0, face: Math.PI / 2 + 0.35, faceT: null, walk: 0, buffT: 0, buffK: 1,
-        recL: 0, recR: 0, heat: 0, shocks: 0, aL: { x: 0, y: 0 }, aR: { x: 0, y: 0 }, lkL: null, lkR: null, hp: { L: { x: 0, y: 0, dx: 0, dy: 1, wx: 0, wy: 0 }, R: { x: 0, y: 0, dx: 0, dy: 1, wx: 0, wy: 0 } }, steps: 0 };
+        recL: 0, recR: 0, heat: 0, shocks: 0, aL: { x: 0, y: 0 }, aR: { x: 0, y: 0 }, lkL: null, lkR: null, alt: 0, altV: 0, altT: 0, bank: 0, beat: 0, hd: null, airT: -99, strT: null, sOx: 0, sOy: 0, hp: { L: { x: 0, y: 0, dx: 0, dy: 1, wx: 0, wy: 0 }, R: { x: 0, y: 0, dx: 0, dy: 1, wx: 0, wy: 0 } }, steps: 0 };
         a.rzS = (G && G.idle ? G.idle(EVO[kOf(a)], 0) : {}) || {}; a.rzS.x = a.x; a.rzS.y = a.y; }
       return a.rz;
     }
@@ -217,13 +226,44 @@ const RAZIEL_MOVES = (() => {
       ab.vx += ((d > 0.3 ? dx / d * want : 0) - ab.vx) * acc; ab.vy += ((d > 0.3 ? dy / d * want : 0) - ab.vy) * acc;
       const p = X.walkPoint(a.x + ab.vx * dt, a.y + ab.vy * dt, { r: 0.7, mv: 0, x: a.x, y: a.y }); a.x = p.x; a.y = p.y;
     }
+    /* ---- (v465 RZ-A) lively movement: it strides, takes off, flies circuits and swooping passes, banks, hovers and lands. One mover for all
+       of it: a target point and a target height; the velocity and the height follow by exact exponential springs (the same at any frame
+       rate). On the ground every step stays on the floor (walkPoint); in the air it may cross walls and gaps, but keeps near the pet and on
+       screen, and it only comes down on floor. look: what it turns to when it is nearly still (moving, it faces where it goes) ---- */
+    function moveTo(a, dt, tx, ty, vmax, alt, look) {
+      const ab = a.rz, M = CFG.move; if (!(dt > 0)) return Math.hypot(tx - a.x, ty - a.y);
+      { const ox = tx - me.x, oy = ty - me.y, q = Math.hypot(ox / M.maxR, oy / M.maxRy); if (q > 1) { tx = me.x + ox / q; ty = me.y + oy / q; } }
+      const wasAir = ab.alt > 0.12;
+      if (!(alt > 0.02) && ab.alt > 0.02) { const p = X.walkPoint(tx, ty, { r: 0.7, mv: 0, x: me.x, y: me.y }); tx = p.x; ty = p.y; }   // (it only comes down on floor)
+      const tgt = alt > 0.02 ? alt + 0.05 * Math.sin(ab.clock * 2.3) : 0, w = tgt > ab.alt ? M.up : M.down, e = Math.exp(-w * dt), dd = ab.alt - tgt, j = (ab.altV + w * dd) * dt;
+      ab.alt = Math.max(0, tgt + (dd + j) * e); ab.altV = (ab.altV - j * w) * e; ab.altT = alt; if (ab.alt < 1e-3 && !(alt > 0.02)) { ab.alt = 0; ab.altV = 0; }
+      const air = ab.alt > 0.12, dx = tx - a.x, dy = ty - a.y, d = Math.hypot(dx, dy), want = d > 0.05 ? Math.min(vmax, d * M.arrive) : 0, k = 1 - Math.exp(-(air ? M.accA : M.accG) * dt);
+      ab.vx += ((d > 0.05 ? dx / d * want : 0) - ab.vx) * k; ab.vy += ((d > 0.05 ? dy / d * want : 0) - ab.vy) * k;
+      let freeMv = ab.alt > 0.02; if (!freeMv && ab.landing) { const p = X.walkPoint(a.x, a.y, { r: 0.7, mv: 0, x: a.x, y: a.y }); if (Math.hypot(p.x - a.x, p.y - a.y) > 0.01) freeMv = true; else ab.landing = false; }   // (just down: it glides on until it is over floor)
+      if (ab.alt > 0.02) ab.landing = true;
+      if (freeMv) { a.x += ab.vx * dt; a.y += ab.vy * dt; }   // (over walls and gaps; on the floor only once it has touched down)
+      else { const p = X.walkPoint(a.x + ab.vx * dt, a.y + ab.vy * dt, { r: 0.7, mv: 0, x: a.x, y: a.y }); a.x = p.x; a.y = p.y; }
+      // the heading, the bank into a turn, the wingbeats (climbing and hovering beat hard, a fast level flight glides)
+      const sp = Math.hypot(ab.vx, ab.vy), hd = Math.atan2(ab.vy, ab.vx), kb = 1 - Math.exp(-5 * dt);
+      const bk = air && sp > 1 && ab.hd != null ? Math.max(-1, Math.min(1, -angD(hd, ab.hd) / dt * 0.22 * Math.min(1, sp / 4))) : 0; if (sp > 0.3) ab.hd = hd;
+      ab.bank += (bk - ab.bank) * kb; const bt = air || alt > 0.02 ? Math.max(0.15, Math.min(1, 0.3 + 0.9 * Math.max(0, ab.altV) + 0.55 * (1 - Math.min(1, sp / M.fly)))) : 0; ab.beat += (bt - ab.beat) * kb;
+      if (look && sp < 1.2) ab.faceT = faceTo(a, look.cx != null ? look.cx : look.x, look.cy != null ? look.cy : look.y); else if (sp > 0.8) ab.faceT = hd;
+      // a lift-off and a touchdown: a downdraft of embers and frost; the ground thumps
+      if (air && !wasAir) { FX.push({ kind: 'gust', x: a.x, y: a.y, t: 0, life: 0.7, seed: Math.random() * 40 }); sfx('whoosh'); }
+      if (!air && wasAir) { FX.push({ kind: 'gust', x: a.x, y: a.y, t: 0, life: 0.6, seed: Math.random() * 40, land: 1 }); X.shake(4, 0.18); sfx('thud'); }
+      if (air) ab.airT = ab.clock;
+      return d;
+    }
+    /* a spot d tiles from c, on the side of `from`, turned by rot */
+    const spotNear = (c0, from, d, rot) => { const c = { x: c0.cx != null ? c0.cx : c0.x, y: c0.cy != null ? c0.cy : c0.y }; let dx = from.x - c.x, dy = from.y - c.y; const L = Math.hypot(dx, dy) || 1; dx /= L; dy /= L; const cs = Math.cos(rot), sn = Math.sin(rot); return { x: c.x + (dx * cs - dy * sn) * d, y: c.y + (dx * sn + dy * cs) * d }; };
+    /* free: it strides beside the pet between spots (never planted for long), turned to its quarry; far behind, it flies back */
     function guard(a, dt) {
       const ab = a.rz, side = a.side || -1, dp = Math.hypot(me.x - a.x, me.y - a.y);
-      if (dp > 14) { const p = X.walkPoint(me.x + side * 2.6, me.y - 1.0, { r: 0.7, mv: 0, x: me.x, y: me.y }); a.x = p.x; a.y = p.y; ab.vx = ab.vy = 0; return; }
+      if (dp > 14) { const p = X.walkPoint(me.x + side * 2.6, me.y - 1.0, { r: 0.7, mv: 0, x: me.x, y: me.y }); a.x = p.x; a.y = p.y; ab.vx = ab.vy = 0; ab.alt = ab.altV = 0; return; }
       const f = H.near(a.x, a.y, 9)[0]; let tx = me.x + side * 2.8 + (me.vx || 0) * 0.4, ty = me.y - 1.2 + (me.vy || 0) * 0.4;
-      if (f) { tx = lerp(tx, f.x, 0.35); ty = lerp(ty, f.y, 0.35); ab.faceT = faceTo(a, f.x, f.y); } else ab.faceT = Math.PI / 2 - 0.35 * side;
-      if (Math.hypot(tx - a.x, ty - a.y) < 0.9) { ab.vx *= 1 - Math.min(1, dt * 3); ab.vy *= 1 - Math.min(1, dt * 3); const p = X.walkPoint(a.x + ab.vx * dt, a.y + ab.vy * dt, { r: 0.7, mv: 0, x: a.x, y: a.y }); a.x = p.x; a.y = p.y; return; }
-      stepTo(a, dt, tx, ty, CFG.walk.speed * (dp > 6 ? 1.5 : 1));
+      if (f) { tx = lerp(tx, f.x, 0.35); ty = lerp(ty, f.y, 0.35); } else ab.faceT = Math.PI / 2 - 0.35 * side;
+      if (ab.strT == null || ab.clock > ab.strT) { const S2 = CFG.move.stride; ab.strT = ab.clock + S2[0] + rnd() * (S2[1] - S2[0]); ab.sOx = (rnd() - 0.5) * 2.4; ab.sOy = (rnd() - 0.5) * 1.5; }
+      moveTo(a, dt, tx + ab.sOx, ty + ab.sOy, CFG.move.walk * (dp > 6 ? 1.6 : 1), dp > 8 ? 0.6 : 0, f || null);
     }
     /* the heads' quarry when free: Concord one monster for both, Dissonance each its own (the one on its side) */
     function lookFree(a) {
@@ -237,24 +277,26 @@ const RAZIEL_MOVES = (() => {
     /* ---- the mind: no cooldowns; when free it weighs the field (distance, groups, statuses, a boss, its time left), never a fixed order ---- */
     const domainsOn = () => FX.some(f => (f.kind === 'domF' || f.kind === 'domI') && f.t < f.life - 1.0);
     const buffLeft = a => Math.max(0, (a.rz.buffT || 0) - g.t);
-    function durOf(kind, k, n) { if (kind === 'fang') { const C = CFG.fang; return C.wind + n * C.sweep + (n - 1) * C.gap + (k >= 3 ? 0.9 : 0) + C.rec; }
+    function durOf(kind, k, n, air) { if (kind === 'fang' && air) { const C = CFG.strafe; return 1.0 + n * C.pass + (n - 1) * C.turn + (k >= 3 ? 0.9 : 0) + C.rec; } if (kind === 'soar') return 3.5; if (kind === 'fang') { const C = CFG.fang; return C.wind + n * C.sweep + (n - 1) * C.gap + (k >= 3 ? 0.9 : 0) + C.rec; }
       if (kind === 'divide') return CFG.divide.cast + CFG.divide.rec; if (kind === 'circuit') return CFG.circuit.cast; if (kind === 'cata') { const C = CFG.cata; return C.rise + C.form + C.fly + (n - 1) * C.gap + C.rec; } return 1; }
     /* how many sweeps / pairs fit in the time left (at least one) */
-    function fitN(kind, k, nMax, life) { let n = nMax; while (n > 1 && durOf(kind, k, n) > life + 0.2) n--; return n; }
+    function fitN(kind, k, nMax, life, air) { let n = nMax; while (n > 1 && durOf(kind, k, n, air) > life + 0.2) n--; return n; }
     function choose(a) {
       const ab = a.rz, k = kOf(a), foes = H.near(a.x, a.y, 11); if (!foes.length) return null;
       const life = a.life, opts = [], G2 = groups(foes, 2.8), top = G2[0], boss = foes.find(m => m.boss), d0 = Math.hypot(foes[0].x - a.x, foes[0].y - a.y);
       const W = CFG.shock.win, half = foes.filter(m => (m.rzF > g.t - W) !== (m.rzI > g.t - W)).length, med = foes.filter(m => { const d = Math.hypot(m.x - a.x, m.y - a.y); return d > 2.2 && d < 8.5; }).length;
       const sep = G2.length > 1 ? Math.hypot(G2[0].x - G2[1].x, G2[0].y - G2[1].y) : 0, bl = buffLeft(a);
       // monsters at medium range (or a boss): Twin Fang Protocol; one carrying one element: the complementary crossing
-      if (life > CFG.fang.wind + CFG.fang.sweep * 0.55 + CFG.fang.rec) opts.push({ kind: 'fang', s: 0.5 + 0.06 * Math.min(5, med) + (boss ? 0.15 : 0) + 0.08 * Math.min(3, half) + (d0 < 2 ? -0.1 : 0) });
+      if (life > CFG.fang.wind + CFG.fang.sweep * 0.55 + CFG.fang.rec) opts.push({ kind: 'fang', s: 0.5 + 0.06 * Math.min(5, med) + (boss ? 0.15 : 0) + 0.08 * Math.min(3, half) + (d0 < 2 ? -0.1 : 0), o: { air: foes.length >= 2 && life > durOf('fang', k, 1, true) && rnd() < CFG.strafe.chance } });   // (v465 RZ-A: half the time a strafing pass)
       // a crowd, or groups apart: Mirror Divide (one pair of domains at a time)
       if (!domainsOn() && life > 1.6) opts.push({ kind: 'divide', s: 0.3 + 0.04 * Math.min(6, foes.length) + (G2.length >= 2 && G2[1].n >= 2 && sep > 3.5 ? 0.3 : 0) + (ab.mode === 'dissonance' ? 0.12 : 0) + (top.n >= 4 ? 0.08 : 0) });
       // the opening to strengthen what follows: Revelation Circuit (not while it still has time to run, nor when too little time is left to use it)
       if (bl < CFG.circuit.refresh && life > 5) opts.push({ kind: 'circuit', s: 0.45 + 0.04 * Math.min(6, foes.length) + (boss ? 0.2 : 0) + (top.n >= 3 ? 0.08 : 0) - (bl > 0 ? 0.1 : 0) });
       // clustered high-priority targets (or a boss): Binary Cataclysm
       if ((top.n >= 2 || boss) && life > durOf('cata', k, 1) - 0.3) opts.push({ kind: 'cata', s: 0.32 + 0.09 * Math.min(5, top.n) + (boss ? 0.3 : 0) + (bl > 0 ? 0.12 : 0) });
-      for (const q of opts) { if (q.kind === ab.last) q.s *= 0.6; else if (q.kind === ab.last2) q.s *= 0.85; q.s += Math.random() * 0.12; }
+      // (v465 RZ-A) now and then, between powers, a flying circuit and a swooping pass over the monsters
+      if (life > 4.5 && ab.clock - (ab.soarT == null ? -99 : ab.soarT) > CFG.soar.every && ab.last !== 'soar') opts.push({ kind: 'soar', s: 0.52 + 0.03 * Math.min(6, foes.length) });
+      for (const q of opts) { if (q.kind === ab.last) q.s *= 0.6; else if (q.kind === ab.last2) q.s *= 0.85; q.s += rnd() * 0.12; }
       if (!opts.length) return null; opts.sort((p, q) => q.s - p.s); return opts[0].s > 0.3 ? opts[0] : null;
     }
 
@@ -266,22 +308,79 @@ const RAZIEL_MOVES = (() => {
         const tgA = A.m || (foes.find(m => m.boss) || (G2[0] ? G2[0] : foes[0]));
         A.cx = tgA ? tgA.x : a.x + Math.cos(ab.face) * 4; A.cy = tgA ? tgA.y : a.y + Math.sin(ab.face) * 3;
         if (ab.mode === 'dissonance' && G2.length > 1) { A.gL = { x: G2[0].x, y: G2[0].y }; A.gR = { x: G2[1].x, y: G2[1].y }; } else A.gL = A.gR = null;
-        A.sL = 0; A.sR = 0; A.cross = null; A.xT = 0; A.bl = false; A.fx0 = FX.length; ab.faceT = faceTo(a, A.cx, A.cy); sfx('hum'); }
-      else if (kind === 'divide') { const C = CFG.divide; A.end = C.cast + C.rec; A.laid = false; sfx('hum'); }
-      else if (kind === 'circuit') { A.end = CFG.circuit.cast; A.on = false; sfx('hum'); }
+        A.sL = 0; A.sR = 0; A.cross = null; A.xT = 0; A.bl = false; A.fx0 = FX.length; ab.faceT = faceTo(a, A.cx, A.cy); sfx('hum');
+        if (A.air) { A.n = fitN('fang', k, C.sweeps[k - 1], a.life, true); A.blast = k >= 3 && durOf('fang', k, A.n, true) <= a.life + 0.2; A.gL = A.gR = null; strafeInit(a, A); }   // (v465 RZ-A: a strafing pass)
+        else goTo(a, A, spotNear(A, me, 3.3, (rnd() - 0.5) * 2.0), 1.2, true); }   // (v465 RZ-A: to a good angle first)
+      else if (kind === 'divide') { const C = CFG.divide; A.end = C.cast + C.rec; A.laid = false; sfx('hum'); const c = G2[0]; if (c) { A.cx = c.x; A.cy = c.y; goTo(a, A, spotNear(c, a, 3.4, (rnd() - 0.5) * 1.6), 1.4, true); } }
+      else if (kind === 'circuit') { A.end = CFG.circuit.cast + 0.3; A.on = false; sfx('hum'); }
       else if (kind === 'cata') { const C = CFG.cata; A.n = fitN('cata', k, C.n[k - 1], a.life); A.pairs = []; for (let i = 0; i < A.n; i++) A.pairs.push({ i, launch: C.rise + C.form + i * C.gap, form0: i ? C.rise + C.form + i * C.gap - 0.9 : C.rise, st: 0, hist: [], sx0: 0, done: false, last: i === A.n - 1 && k >= 3 && A.n >= 3 });
-        A.end = durOf('cata', k, A.n); const c = (foes.find(m => m.boss)) || G2[0]; A.cx = c ? c.x : a.x + 3; A.cy = c ? c.y : a.y; ab.faceT = faceTo(a, A.cx, A.cy); sfx('hum'); }
+        A.end = durOf('cata', k, A.n) + 0.7; const c = (foes.find(m => m.boss)) || G2[0]; A.cx = c ? c.x : a.x + 3; A.cy = c ? c.y : a.y; ab.faceT = faceTo(a, A.cx, A.cy); sfx('hum');
+        const h = spotNear(A, me, 3.2, (rnd() < 0.5 ? -1 : 1) * (0.5 + rnd() * 0.8)); goTo(a, A, h, 1.2, false); A.orb = rnd() < 0.5 ? -1 : 1; }   // (v465 RZ-A: strides in (flies if far), takes off as the spheres rise, casts from a hover)
+      else if (kind === 'soar') { ab.soarT = ab.clock; soarInit(a, A, G2[0] || me); }
+      if (A.hx == null) { A.hx = a.x; A.hy = a.y; }
     }
+    /* (v465 RZ-A) the move before a power: to the spot (walking, or a short flight when it is far), only if it is worth the trip */
+    function goTo(a, A, s, minD, land) { const d = Math.hypot(s.x - a.x, s.y - a.y); if (d < minD) { if (land && a.rz.alt > 0.1) A.go = { x: a.x + a.rz.vx * 0.3, y: a.y + a.rz.vy * 0.3, alt: 0, v: CFG.move.run, tmax: 1.2, land }; return; }   /* (a grounded power: down first) */ const far = d > 4.5; A.go = { x: s.x, y: s.y, alt: far ? 0.6 : 0, v: far ? CFG.move.fly : CFG.move.run, tmax: far ? 1.7 : 1.3, land }; }
+    /* (v465 RZ-A) Twin Fang as a strafing pass: in from one side, low over the monsters, both breaths raking the ground ahead and crossing, a
+       banked turn and back (2, 3 passes by form), at level 7 a hover over the target for the convergence blast, then it lands */
+    function strafeInit(a, A) {
+      const C = CFG.strafe; let dx = A.cx - me.x, dy = A.cy - me.y; const L = Math.hypot(dx, dy) || 1; let ux = -dy / L, uy = dx / L;
+      if (Math.abs(uy) > 0.75) { ux = (ux >= 0 ? 1 : -1); uy = 0.3 * (uy >= 0 ? 1 : -1); const l = Math.hypot(ux, uy); ux /= l; uy /= l; }   // (passes across the screen read best)
+      if ((a.x - A.cx) * ux + (a.y - A.cy) * uy > 0) { ux = -ux; uy = -uy; }   // (in from the side it is on)
+      A.ux = ux; A.uy = uy; A.nx = -uy; A.ny = ux; A.go = { x: A.cx - ux * C.L / 2, y: A.cy - uy * C.L / 2, alt: C.alt + 0.2, v: CFG.move.fly, tmax: 1.8 };
+      A.end = A.n * C.pass + (A.n - 1) * C.turn + (A.blast ? 0.9 : 0) + C.rec; }
+    function strafeStep(a, A, t0, t, dt, cross) {
+      const ab = a.rz, C = CFG.strafe, F = CFG.fang, P = pw(a), cyc = C.pass + C.turn, lastEnd = A.n * C.pass + (A.n - 1) * C.turn, blT = lastEnd + 0.55;
+      const i = Math.min(A.n - 1, Math.floor(t / cyc)), u = (t - i * cyc) / C.pass, dir = i % 2 ? -1 : 1, pos = q => ({ x: A.cx + A.ux * C.L * (q - 0.5) * dir, y: A.cy + A.uy * C.L * (q - 0.5) * dir });
+      const tg = A.m && !A.m.dead ? A.m : null; if (tg) { A.cx = lerp(A.cx, tg.x, 0.03); A.cy = lerp(A.cy, tg.y, 0.03); }
+      if (t < lastEnd && u <= 1) {   // a pass
+        const q = pos(Math.min(1.15, u + 0.18)); moveTo(a, dt, q.x, q.y, CFG.move.swoop, C.alt, null);
+        const hp = heads(a), on = sstep(0, 0.08, u) * (1 - sstep(0.92, 1, u)), ax = a.x + A.ux * dir * C.ahead, ay = a.y + A.uy * dir * C.ahead, sL = ((hp.L.wx - a.x) * A.nx + (hp.L.wy - a.y) * A.ny) >= 0 ? 1 : -1;
+        if (ab.mode === 'concord') { const sw = C.lat * (0.55 + 0.45 * Math.sin(u * TAU * 1.25)); ab.aL.x = ax - A.nx * sL * sw; ab.aL.y = ay - A.ny * sL * sw; ab.aR.x = ax + A.nx * sL * sw; ab.aR.y = ay + A.ny * sL * sw; }   // (raking side to side, crossing)
+        else { ab.aL.x = ax + A.nx * sL * C.lat * 1.5; ab.aL.y = ay + A.ny * sL * C.lat * 1.5; ab.aR.x = ax - A.nx * sL * C.lat * 1.5; ab.aR.y = ay - A.ny * sL * C.lat * 1.5; }   // (two lanes)
+        A.sL = A.sR = on; if (cross(i * cyc + 0.02)) { ab.recL = ab.recR = 0.8; sfx('whoosh'); X.shake(3, 0.15); }
+        A.tk -= dt; if (A.tk <= 0 && on > 0.3) { A.tk += F.tick; streamHits(a, hp.L, ab.aL, P * F.dmgF, 'F'); streamHits(a, hp.R, ab.aR, P * F.dmgI, 'I'); }
+        A.cross = segX(hp.L.wx, hp.L.wy, ab.aL.x, ab.aL.y, hp.R.wx, hp.R.wy, ab.aR.x, ab.aR.y); if (A.cross) { A.xT -= dt; if (A.xT <= 0) { A.xT = 0.12; steamAt(A.cross.x, A.cross.y, 0.9, 1.0, 1); } }
+        if (cross(i * cyc + C.pass * 0.5) && (ab.mode === 'concord' || (buffOn(a) && kOf(a) >= 3))) convergence(a, ax, ay, P * F.cross * (buffOn(a) && kOf(a) >= 3 ? 1 + CFG.circuit.conv : 1), F.crossR, false); }
+      else if (t < lastEnd) {   // the banked turn: wide and climbing, to the next pass's start
+        A.sL = A.sR = 0; A.cross = null; const e = pos(1.0), q = { x: e.x + A.ux * dir * 0.9 + A.nx * 1.2 * dir, y: e.y + A.uy * dir * 0.9 + A.ny * 1.2 * dir }; moveTo(a, dt, q.x, q.y, CFG.move.fly, C.alt + 0.3, null); }
+      else if (A.blast && t < blT + 0.25) {   // level 7: hover over the target, both heads on it, the blast
+        const h = spotNear(A, me, 2.4, 0), hp = heads(a); moveTo(a, dt, h.x, h.y, CFG.move.fly, CFG.move.hover, A); ab.aL.x = ab.aR.x = A.cx; ab.aL.y = ab.aR.y = A.cy;
+        A.sL = A.sR = bump(t, lastEnd + 0.1, lastEnd + 0.2, blT - 0.05, blT + 0.05) * 1.25; A.conv = true;
+        A.tk -= dt; if (A.tk <= 0 && A.sL > 0.3) { A.tk += F.tick; streamHits(a, hp.L, ab.aL, P * F.dmgF * 0.6, 'F'); streamHits(a, hp.R, ab.aR, P * F.dmgI * 0.6, 'I'); }
+        if (cross(blT)) { convergence(a, A.cx, A.cy, P * F.blast, F.blastR, true); ab.recL = ab.recR = 1; } }
+      else { A.sL = A.sR = 0; A.conv = false; A.cross = null; moveTo(a, dt, a.x + ab.vx * 0.3, a.y + ab.vy * 0.3, CFG.move.run, 0, A); }   // (it lands)
+    }
+    /* (v465 RZ-A) a flying circuit round the monsters, then a swooping pass low over them, and down at a new vantage beside the pet */
+    function soarInit(a, A, c) {
+      const C = CFG.soar, a0 = Math.atan2(a.y - c.y, a.x - c.x), dir = rnd() < 0.5 ? -1 : 1; A.wp = []; A.wi = 0; A.cx = c.x; A.cy = c.y;
+      for (let i = 1; i <= C.steps; i++) { const an = a0 + dir * i * 0.72; A.wp.push({ x: c.x + Math.cos(an) * C.R, y: c.y + Math.sin(an) * C.R * 0.8, alt: C.alt, v: CFG.move.fly }); }
+      const l = A.wp[A.wp.length - 1]; A.wp.push({ x: c.x, y: c.y, alt: C.low, v: CFG.move.swoop, low: 1 }); A.wp.push({ x: c.x - (l.x - c.x) * 0.9, y: c.y - (l.y - c.y) * 0.9, alt: 0.8, v: CFG.move.swoop });
+      const ld = spotNear(c, me, 3.0, (rnd() - 0.5) * 1.2); A.wp.push({ x: ld.x, y: ld.y, alt: 0, v: CFG.move.fly, land: 1 }); A.end = C.dur; A.hx = a.x; A.hy = a.y; }
+    function soarStep(a, A, dt) { const ab = a.rz, W = A.wp[Math.min(A.wi, A.wp.length - 1)], d0 = Math.hypot(W.x - a.x, W.y - a.y), d = moveTo(a, dt, W.x, W.y, W.v, W.land && d0 < 1.4 ? 0 : W.alt, W.land ? A : null);
+      if (W.low && d < 1.0 && !A.gusted) { A.gusted = true; FX.push({ kind: 'gust', x: a.x, y: a.y, t: 0, life: 0.9, seed: Math.random() * 40, big: 1 }); X.shake(3, 0.2); sfx('whoosh');   // (the downdraft as it sweeps over them: its wings' fire and frost buffet what is under it)
+        const P = pw(a); for (const m of H.living()) if (Math.hypot(m.x - a.x, m.y - a.y) < CFG.soar.buffetR + m.r) dualHit(a, m, P * CFG.soar.buffet, { kb: 2 }); }
+      if (d < (W.land ? 0.45 : 1.0) && A.wi < A.wp.length - 1) A.wi++; if (A.wi >= A.wp.length - 1 && W.land && d < 0.45 && ab.alt < 0.03) A.t = Math.max(A.t, A.end); }
     function act(a, dt) {
-      const ab = a.rz, A = ab.act, t0 = A.t; A.t += dt; const t = A.t, k = A.k, cross = x => t0 < x && t >= x;
-      ab.vx *= 1 - Math.min(1, dt * 6); ab.vy *= 1 - Math.min(1, dt * 6);
-      if (A.kind === 'fang') fangStep(a, A, t0, t, dt, cross);
+      const ab = a.rz, A = ab.act;
+      // (v465 RZ-A) first the move to the power's spot (its own clock waits): heads already on the quarry
+      if (A.go && !A.went) { const G0 = A.go; A.gt = (A.gt || 0) + dt; const d = Math.hypot(G0.x - a.x, G0.y - a.y), alt = G0.land && d < 1.2 ? 0 : G0.alt; moveTo(a, dt, G0.x, G0.y, G0.v, alt, A.cx != null ? { x: A.cx, y: A.cy } : null);
+        if ((d < 0.45 && Math.abs(ab.alt - alt) < 0.12) || A.gt > G0.tmax) { A.went = true; const at = d < 0.45; A.hx = at ? G0.x : a.x; A.hy = at ? G0.y : a.y; }   /* (it settles on the spot itself: the same place at any frame rate) */ return; }   /* (one move a frame: the power's clock starts next frame) */
+      const t0 = A.t; A.t += dt; const t = A.t, k = A.k, cross = x => t0 < x && t >= x, look = A.cx != null ? { x: A.cx, y: A.cy } : null;
+      // (v465 RZ-A) where it is while the power plays: planted, lifted (the Circuit), hovering (the Cataclysm, landing after), or flying (the pass, the circuit)
+      if (A.kind === 'cata') { const C = CFG.cata, lastL = A.pairs.length ? A.pairs[A.pairs.length - 1].launch : 0, hov = t < lastL + 0.6;   // (v465 RZ-A: down once the last pair is away)
+        if (hov) { const dx = A.hx - A.cx, dy = A.hy - A.cy, an = (A.orb || 1) * 0.3 * dt, c2 = Math.cos(an), s2 = Math.sin(an); A.hx = A.cx + dx * c2 - dy * s2; A.hy = A.cy + dx * s2 + dy * c2; }   // (hovering, it drifts round its target)
+        moveTo(a, dt, A.hx, A.hy, 1.8, hov ? CFG.move.hover : 0, look); }
+      else if (A.kind === 'circuit') moveTo(a, dt, A.hx, A.hy, 1.2, 0, look);   // (v465 RZ-A: cast standing, reared up on the long legs)
+      else if (A.kind === 'soar') soarStep(a, A, dt);
+      else if (!(A.kind === 'fang' && A.air)) moveTo(a, dt, A.hx, A.hy, 1.2, 0, look);
+      if (A.kind === 'fang') (A.air ? strafeStep : fangStep)(a, A, t0, t, dt, cross);
       else if (A.kind === 'divide') divideStep(a, A, t, cross);
       else if (A.kind === 'circuit') circuitStep(a, A, t, cross);
       else if (A.kind === 'cata') cataStep(a, A, t, dt);
       if (ab.act === A && t >= A.end) endAct(a);
     }
-    function endAct(a) { const ab = a.rz; if (!ab || !ab.act) return; ab.act = null; ab.gap = 0.15; }
+    function endAct(a) { const ab = a.rz; if (!ab || !ab.act) return; ab.act = null; ab.gap = 0.15; if (ab.alt < 0.05 && a.life > 4) { ab.gap = 0.55 + rnd() * 0.45; ab.strT = null; } }   // (v465 RZ-A: on the ground, a few strides to a new spot before the next power)
     /* a power cut short (the 30 s are up, the pet fell, the stage ends): no more blows; its pictures fade out; spheres in flight fizzle */
     function interrupt(a) { const ab = a.rz; if (!ab || !ab.act) return; const A = ab.act;
       if (A.kind === 'fang' && (A.sL > 0.05 || A.sR > 0.05)) FX.push({ kind: 'fade', a, t: 0, life: 0.3, sL: A.sL, sR: A.sR, aL: { x: ab.aL.x, y: ab.aL.y }, aR: { x: ab.aR.x, y: ab.aR.y } });
@@ -349,7 +448,7 @@ const RAZIEL_MOVES = (() => {
         if (ab.mode === 'dissonance' && G2.length > 1 && Math.hypot(G2[0].x - G2[1].x, G2[0].y - G2[1].y) > R) { fx = G2[0].x; fy = G2[0].y; ix = G2[1].x; iy = G2[1].y; }
         else { const f = ab.face, px = Math.sin(f), py = -Math.cos(f); fx = c.x + px * R * 0.72; fy = c.y + py * R * 0.6; ix = c.x - px * R * 0.72; iy = c.y - py * R * 0.6; }
         const p1 = X.walkPoint(fx, fy, { r: 0.5, mv: 0, x: c.x, y: c.y }), p2 = X.walkPoint(ix, iy, { r: 0.5, mv: 0, x: c.x, y: c.y });
-        const life = C.dur[k - 1], col = k >= 3 || (buffOn(a) && kOf(a) >= 3), seed = Math.random() * 40;
+        const life = C.dur[k - 1], col = k >= 3 || (buffOn(a) && kOf(a) >= 3), seed = rnd() * 40;
         const F = { kind: 'domF', a, x: p1.x, y: p1.y, R, t: 0, life, k, tk: 0.2, ek: C.erupt * 0.5, seed, col, frz: null, pulse: 0 }, I = { kind: 'domI', a, x: p2.x, y: p2.y, R, t: 0, life, k, tk: 0.45, ek: C.erupt, seed: seed + 7, col, frz: new Map(), pulse: 0 };
         F.o = I; I.o = F; FX.push(F, I); X.shake(6, 0.25); sfx('crash'); X.text((p1.x + p2.x) / 2, (p1.y + p2.y) / 2 - 1.6, 'MIRROR DIVIDE', '#F4E6D6', 13, { crit: true, life: 1.0 });
         if (!gpu()) { X.ring(p1.x, p1.y, 0.3, R, 0.5, '#FF7A2E', 0.2); X.ring(p2.x, p2.y, 0.3, R, 0.5, '#7FD8FF', 0.2); } }
@@ -420,21 +519,23 @@ const RAZIEL_MOVES = (() => {
     function poseOf(a, dt) {
       const ab = stOf(a), Sx = a.rzS, A = ab.act, inU = ulOn(), Tz = T();
       Sx.t = a.at || 0; Sx.x = a.x; Sx.y = a.y; Sx.lowFx = lowFx(); Sx.evo = a.st === 'awaken' || a.rzUlt ? 7 : EVO[kOf(a)];
-      if (!inU && ab.faceT != null) { const rate = CFG.walk.turn * dt, dd = angD(ab.faceT, ab.face); ab.face += Math.max(-rate, Math.min(rate, dd * Math.min(1, dt * 6) * 5)); }
-      if (!inU) Sx.face = ab.face; const v = Math.hypot(ab.vx, ab.vy); ab.walk += ((A || inU ? 0 : Math.min(1, v / (CFG.walk.speed * 1.6))) - ab.walk) * Math.min(1, dt * 5); Sx.walk = ab.walk;
+      if (!inU && ab.faceT != null) { const rate = CFG.walk.turn * dt, dd = angD(ab.faceT, ab.face); ab.face += Math.max(-rate, Math.min(rate, dd * (1 - Math.exp(-10 * dt)))); }   // (v465 RZ-A: an exponential turn, the same at any frame rate)
+      if (!inU) Sx.face = ab.face; const v = Math.hypot(ab.vx, ab.vy); ab.walk += ((inU || ab.alt > 0.12 ? 0 : Math.min(1, v / (CFG.move.walk * 1.6))) - ab.walk) * (1 - Math.exp(-5 * dt)); Sx.walk = ab.walk;   // (v465 RZ-A: the gait follows its real ground speed, in a power's move too)
       if (inU) return;   // (the ultimate owns the rest)
       ab.recL = Math.max(0, ab.recL - dt * 2.5); ab.recR = Math.max(0, ab.recR - dt * 2.5);
       // rest
       let jawL = 0, jawR = 0, chL = 0, chR = 0, cDet = 0, cAl = ab.mode === 'concord' ? 0.35 : 0, csL = 1, csR = 1, crL = 1, crR = 1, crA = ab.mode === 'concord' ? 0.6 : 0, crE = 0, wing = 0.4, beat = 0, fly = 0, raise = 0, meet = 0, roar = 0, guardP = 0, bank = 0, aimL = null, aimR = null;
       if (ab.mode === 'dissonance') { csL = 1.35; csR = 0.7; crL = 1.4; crR = 0.75; }
       if (buffOn(a)) { cDet = 0.25; cAl = 0.7; crA = 1; csL = csR = 1.6; wing = 0.55; }
-      if (!A) { lookFree(a); if (ab.lkL && !ab.lkL.dead) { ab.aL.x = ab.lkL.x; ab.aL.y = ab.lkL.y; aimL = ab.aL; } if (ab.lkR && !ab.lkR.dead) { ab.aR.x = ab.lkR.x; ab.aR.y = ab.lkR.y; aimR = ab.aR; } }
+      if (A && A.go && !A.went) { if (A.cx != null) { ab.aL.x = ab.aR.x = A.cx; ab.aL.y = ab.aR.y = A.cy; aimL = ab.aL; aimR = ab.aR; } chL = chR = 0.25 * cl((A.gt || 0) / 0.8); crL = crR = 1.6; }   // (v465 RZ-A: on its way to the spot, eyes on the quarry)
+      else if (!A || A.kind === 'soar') { lookFree(a); if (ab.lkL && !ab.lkL.dead) { ab.aL.x = ab.lkL.x; ab.aL.y = ab.lkL.y; aimL = ab.aL; } if (ab.lkR && !ab.lkR.dead) { ab.aR.x = ab.lkR.x; ab.aR.y = ab.lkR.y; aimR = ab.aR; } }
+      else if (A.kind === 'fang' && A.air) { const S2 = CFG.strafe, lastEnd = A.n * S2.pass + (A.n - 1) * S2.turn; aimL = ab.aL; aimR = ab.aR; chL = chR = 0.7 * (1 - sstep(lastEnd + 0.6, A.end, A.t)); jawL = Math.max(0.2, A.sL); jawR = Math.max(0.2, A.sR); crL = crR = 2.5; meet = A.conv ? 0.5 : 0; }   // (v465 RZ-A: the strafing pass)
       else if (A.kind === 'fang') { const C = CFG.fang, w = sstep(0, C.wind, A.t), lastEnd = C.wind + A.n * (A.sw || C.sweep) + (A.n - 1) * C.gap, out = 1 - sstep(lastEnd + (A.blast ? 0.6 : 0), A.end, A.t);
         aimL = ab.aL; aimR = ab.aR; chL = w * out * (A.sL > 0.1 ? 0.75 : 1); chR = chL; jawL = Math.max(0.15 * w, A.sL) * out; jawR = Math.max(0.15 * w, A.sR) * out; crL = crR = 1 + 2.5 * w * out; wing = 0.45 + 0.25 * w * out; guardP = 0; meet = A.conv ? 0.5 : 0; }
       else if (A.kind === 'divide') { const C = CFG.divide, up = sstep(0, 0.45, A.t) * (1 - sstep(C.cast, C.cast + C.rec, A.t)); raise = up; crE = 0.25 * up; crL = 1 + 2.2 * up; crR = 1 + 2.2 * up; crA = 0; wing = 0.4 + 0.45 * up; jawL = jawR = 0.35 * up; roar = 0.3 * bump(A.t, C.cast - 0.3, C.cast - 0.1, C.cast + 0.05, C.cast + 0.35); }
       else if (A.kind === 'circuit') { const C = CFG.circuit, up = sstep(0, 0.5, A.t), al = sstep(0.3, 0.95, A.t), on = A.on ? 1 : 0; raise = up * (1 - 0.3 * on); cDet = 0.7 * up; cAl = Math.max(cAl, al); csL = csR = 1 + 2 * al; crA = al; crL = crR = 1 + 1.5 * al; wing = 0.4 + 0.6 * sstep(0.6, 1.1, A.t); beat = 0.3 * bump(A.t, 0.9, 1.1, 1.3, 1.5); roar = 0.6 * bump(A.t, 0.95, 1.05, 1.25, 1.5); meet = 0.4 * bump(A.t, 0.3, 0.6, 0.9, 1.2); }
       else if (A.kind === 'cata') { const C = CFG.cata, lastImp = A.pairs.length ? A.pairs[A.pairs.length - 1].launch + C.fly : 0, up = sstep(0, C.rise, A.t) * (1 - sstep(lastImp, lastImp + C.rec, A.t));
-        fly = 0.5 * up; wing = 0.45 + 0.55 * up; beat = 0.6 * up; aimL = ab.aL; aimR = ab.aR; let fm = 0; for (const p of A.pairs) if (p.st === 1) fm = Math.max(fm, p.g || 0); chL = chR = fm; jawL = jawR = 0.4 * up + 0.5 * fm; crL = crR = 1 + 2 * up; }
+        wing = 0.45 + 0.55 * up; aimL = ab.aL; aimR = ab.aR; let fm = 0; for (const p of A.pairs) if (p.st === 1) fm = Math.max(fm, p.g || 0); chL = chR = fm; jawL = jawR = 0.4 * up + 0.5 * fm; crL = crR = 1 + 2 * up; }
       // the awakening (the 30 s are up, the banner): the heads rise and the reactors gather
       if (a.st === 'awaken') { const u = sstep(0, 0.7, a.aw || 0); raise = Math.max(raise, 0.7 * u); chL = Math.max(chL, 0.6 * u); chR = Math.max(chR, 0.6 * u); crL = crR = 1 + 2 * u; wing = Math.max(wing, 0.7 * u); aimL = aimR = null; }
       // the entrance (the model assembles itself on S.enter)
@@ -442,6 +543,9 @@ const RAZIEL_MOVES = (() => {
       // the last 5 s: the reactors flare, the crowns race, Lux unstable, frost creeping over Umbra
       const fin = a.st === 'fight' && ab.ready && a.life < 5 ? 1 - Math.max(0, a.life) / 5 : 0;
       if (fin > 0) { const fl = 0.5 + 0.5 * Math.sin((a.at || 0) * (9 + 14 * fin)); chL = Math.max(chL, fin * (0.3 + 0.35 * fl)); chR = Math.max(chR, fin * 0.45); crL *= 1 + 1.5 * fin; crR *= 1 + 1.5 * fin; csL *= 1 + fin; csR *= 1 + fin; }
+      // (v465 RZ-A) the flight: its height, the bank into turns, the wingbeats, the wings spread wide in the air; glide and dive as hints for the model
+      { const airK = cl(ab.alt / 0.4), sp = Math.hypot(ab.vx, ab.vy); fly = Math.max(fly, ab.alt); bank = 0;   // (the model banks on its own with the turn of `face`, and reads take-off / landing from how `fly` changes)
+        beat = Math.max(beat, airK * cl(ab.altV * 1.4)); wing = lerp(wing, 1.0, airK); Sx.speed = airK * cl(sp / CFG.move.fly); Sx.glide = airK * cl((sp - 3) / 3) * (1 - cl(ab.altV * 2)); Sx.dive = airK * Math.max(-1, Math.min(1, -ab.altV * 0.9)); }
       Object.assign(Sx, { mode: ab.mode, aimL, aimR, jawL, jawR, chargeL: chL, chargeR: chR, recoilL: ab.recL, recoilR: ab.recR, coreDetach: cDet, coreAlign: cAl, coreSpinL: csL, coreSpinR: csR, coreUp: 0,
         crownSpeedL: crL, crownSpeedR: crR, crownAlign: crA, crownExpand: crE, wing, beat, guard: guardP, fly, bank, raise, meet, roar, stagger: 0, final: fin, enter, dissolve: FIN ? sstep(CFG.fin.len - 1.0, CFG.fin.len, FIN.t) : 0 });
       void Tz;
@@ -457,7 +561,7 @@ const RAZIEL_MOVES = (() => {
       if (ab.act) { act(a, dt); return; }
       ab.gap -= dt;
       const ch = ab.gap <= 0 && a.life > 0.6 ? choose(a) : null;
-      if (ch) return start(a, ch.kind, ch.o);
+      if (ch) { start(a, ch.kind, ch.o); act(a, dt); return; }   // (v465 RZ-A: it keeps moving on the frame a power starts)
       guard(a, dt);
     }
     /* ---- the end of its time: its current power left cleanly, then The Book of Two Heavens (RZ-U), once ---- */
@@ -483,6 +587,7 @@ const RAZIEL_MOVES = (() => {
         else if (ab.en >= 0 && !ab.ready) { ab.en += dtReal; entranceBeats(a); }
         if (a.st === 'awaken' || a.rzUlt) a.hold = true;
         if (a.st !== 'fight' && ab.act) interrupt(a);
+        if (a.st !== 'enter' && (a.st !== 'fight' || me.dead) && !ulOn() && !FIN && ab.alt > 0) moveTo(a, dtReal, a.x, a.y, CFG.move.run, 0, null);   // (v465 RZ-A: its time up, or the pet down: it lands)
         poseOf(a, dtReal);
         // the anchors: the model's own when it draws; without the GPU the same springs solved here
         const G = GLR(); if (G && G.solve && !glOn()) { const r = G.solve(sx(a.x), sy(a.y), T() * sizeT(a), a.rzS, { tile: T() }); if (r) a.rzOut = r; }
@@ -542,14 +647,15 @@ const RAZIEL_MOVES = (() => {
       else if (f.kind === 'cboom') { const R = f.R * Tz, k2 = 1 - sstep(0.5, 1, u); FXP.fireField(Q, X0, Y0, R * 0.8, 1, 0.8 * k2, f.seed, FSY, 0.6 * (1 - u)); FXP.iceField(Q, X0, Y0, R * 1.05, eout(u * 2), 0.6 * k2, f.seed + 3, FSY); }
       else if (f.kind === 'pillar') { const k2 = 1 - sstep(0.6, 1, u); FXP.fireField(Q, X0, Y0, Tz * 1.0, 1, 0.8 * k2, f.seed, FSY, 1 - u); }
       else if (f.kind === 'spire') { const k2 = 1 - sstep(0.7, 1, u); FXP.iceField(Q, X0, Y0, Tz * 1.1, eout(u * 3), 0.8 * k2, f.seed, FSY); if (glOn()) parts.push({ m: 'spire', X: X0, Y: Y0, s: Tz * 0.42 * f.s, yaw: f.seed, tilt: 0, a: k2, side: 'R', g: 0.6, h: eout(cl(f.t / 0.3)) * (1 - sstep(0.8, 1, u) * 0.6), z: Y0 }); }
+      else if (f.kind === 'gust') { const R = Tz * (f.big ? 2.6 : 1.8), k2 = 1 - u; FXP.fireRing(Q, X0 - R * 0.15, Y0, R, eout(u) * 0.9, 0.7 * k2, f.seed, FSY); FXP.frostRing(Q, X0 + R * 0.15, Y0, R * 1.05, eout(u) * 0.9, 0.7 * k2, f.seed + 2, FSY); }   // (v465 RZ-A: a lift-off's, a landing's or a swoop's downdraft)
       else if (f.kind === 'pulse') { const R = CFG.circuit.pulseR * Tz; FXP.fireRing(Q, X0, Y0, R, eout(u) * 0.9, 1 - u, f.seed, FSY); FXP.frostRing(Q, X0, Y0, R * 1.1, eout(u) * 0.9, 1 - u, f.seed + 2, FSY); }
     }
     function drawGround(c) {
       const L = list(); if (!FX.length && !L.length && !ulOn()) return;
       const Tz = T(); if (gpu()) {
         const Q = fgOpen(c), parts = [];
-        for (const a of L) { const al = (a.alpha == null ? 1 : a.alpha) * (a.judg ? a.jA : 1); if (!(al > 0.02)) continue; const gx = sx(a.x), gy = sy(a.y), r = sizeT(a) * Tz;
-          Q.sshadow(gx, gy, r * 0.46, r * 0.46 * 0.42, 0.42 * al * (1 - 0.5 * (a.rzS.fly || 0)), '#06040A');
+        for (const a of L) { const al = (a.alpha == null ? 1 : a.alpha) * (a.judg ? a.jA : 1); if (!(al > 0.02)) continue; const sh = a.rzOut && a.rzOut.shadow, fh = a.rzOut && a.rzOut.flyH != null ? a.rzOut.flyH : (a.rzS.fly || 0), gx = sh ? sh.x : sx(a.x), gy = sh ? sh.y : sy(a.y), r = sh && sh.r ? sh.r / 0.46 : sizeT(a) * Tz;   // (v465 RZ-A: the model's own ground point and height)
+          Q.sshadow(gx, gy, r * 0.46 * (1 - 0.3 * fh), r * 0.46 * 0.42 * (1 - 0.3 * fh), 0.42 * al * (1 - 0.55 * fh), '#06040A');
           Q.glow(gx - r * 0.18, gy, r * 0.5, '#FF6A1E', 0.08 * al, FSY); Q.glow(gx + r * 0.18, gy, r * 0.5, '#3FA8FF', 0.07 * al, FSY); }
         for (const f of FX) groundOne(Q, f, Tz, parts);
         fgClose(c);
@@ -560,7 +666,8 @@ const RAZIEL_MOVES = (() => {
     /* the air layer: breaths, spheres, bursts, steam, the entrance */
     function airOne(Q, f, Tz, parts) {
       const u = f.t / f.life;
-      if (f.kind === 'shock') { const X0 = sx(f.x), Y0 = sy(f.y) - Tz * 0.6, R = f.R * Tz * 1.3; FXP.shock(Q, X0, Y0, R, u, 1.2, f.seed, 0.8); if (f.t < 0.15) Q.glow(X0, Y0, R * 0.6, '#FFFFFF', 0.5 * (1 - f.t / 0.15)); }
+      if (f.kind === 'gust') { const X0 = sx(f.x), Y0 = sy(f.y), R = Tz * (f.big ? 2.4 : 1.6); FXP.embers(Q, X0 - R * 0.3, Y0 - R * 0.3, R, u, 0.8, f.seed, 0.6); FXP.snow(Q, X0 + R * 0.3, Y0 - R * 0.3, R, u, 0.8, f.seed + 3, 0.6, 0.85); if (f.land) FXP.steam(Q, X0, Y0 - Tz * 0.3, R * 0.6, 0.35 * (1 - u), f.seed); }   // (v465 RZ-A)
+      else if (f.kind === 'shock') { const X0 = sx(f.x), Y0 = sy(f.y) - Tz * 0.6, R = f.R * Tz * 1.3; FXP.shock(Q, X0, Y0, R, u, 1.2, f.seed, 0.8); if (f.t < 0.15) Q.glow(X0, Y0, R * 0.6, '#FFFFFF', 0.5 * (1 - f.t / 0.15)); }
       else if (f.kind === 'steam') { const X0 = sx(f.x), Y0 = sy(f.y) - f.z * Tz, r = f.r * Tz * (0.7 + 0.8 * eout(u)), a2 = 0.55 * sstep(0, 0.12, f.t) * (1 - sstep(0.45, 1, u)); FXP.steam(Q, X0, Y0, r, a2, f.seed); }
       else if (f.kind === 'frag') { const X1 = sx(f.x), Y1 = sy(f.y) - f.z * Tz, fade = 1 - sstep(0.7, 1, u); if (glOn()) parts.push({ m: 'shard', X: X1, Y: Y1, z: sy(f.y), s: f.s * Tz * 1.4, yaw: f.rot + f.t * 7, tilt: f.t * 5 + f.seed, a: fade, side: 'R', g: 0.8 }); else Q.star(X1, Y1, f.s * Tz * 2.2, 0.8 * fade, '#DDF6FF'); Q.glow(X1, Y1, f.s * Tz * 2.5, '#7FD8FF', 0.25 * fade); }
       else if (f.kind === 'ember') { const X1 = sx(f.x), Y1 = sy(f.y) - f.z * Tz, fade = 1 - sstep(0.6, 1, u); if (glOn()) parts.push({ m: 'ember', X: X1, Y: Y1, z: sy(f.y), s: f.s * Tz * 1.2, yaw: f.rot + f.t * 6, tilt: f.t * 4 + f.seed, a: fade, side: 'L', g: 1.4 * fade }); Q.glow(X1, Y1, f.s * Tz * 3, '#FF7A2E', 0.45 * fade); Q.star(X1, Y1, f.s * Tz * 1.4, 0.6 * fade, '#FFD9A0'); }
@@ -680,7 +787,7 @@ const RAZIEL_MOVES = (() => {
     // (a power on demand, aimed as the mind would aim it: for showcases and tests)
     function cast(a, kind, o) { stOf(a); a.rz.ready = true; a.rz.first = true; if (a.rz.act) endAct(a); if (!H.near(a.x, a.y, 11).length && kind !== 'circuit') return false; start(a, kind, o); return true; }
     return { tick, fin, cast, choose, update, stop, outK, descent, entrance, interrupt, drawGround, drawFx, drawBodyFx, drawCine, drawBtn, thermalShock, fireHit, iceHit, setMode, evalMode, CFG,
-      get ul() { return UL; }, get fin2() { return FIN; }, get fx() { return FX; }, get marks() { return MARK; }, get pend() { return PEND; } };
+      get ul() { return UL; }, get fin2() { return FIN; }, get fx() { return FX; }, get marks() { return MARK; }, get pend() { return PEND; }, seed: v => { RS = (Math.abs(v | 0) % 2147483646) + 1; } };
   }
   return { create, CFG, BIG, FXP, EVO };
 })();

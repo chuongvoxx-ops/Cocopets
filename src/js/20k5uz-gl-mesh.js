@@ -1848,6 +1848,13 @@ void main() {
     vec3 cHot = vec3(1.7, 0.62, 0.14), cCr = vec3(0.8, 0.1, 0.04), cWH = vec3(1.9, 1.65, 1.2), cCy = vec3(0.3, 1.15, 1.75), cIc = vec3(0.78, 0.97, 1.6), rEl = mix(cHot, cCy, sd);
     if (uSpill > 0.0) { float dn = vn(L.xy * 9.0 + L.z * 5.3) * 0.55 + vn(L.yz * 21.0 + L.x * 7.0) * 0.3 + vn(L.xz * 43.0 + 3.0) * 0.15;
       dn = mix(dn, abs(fract(dot(L, vec3(3.1, 4.7, 2.3)) * 1.7 + dn) - 0.5) * 2.0, 0.5 * sd); float th = uSpill * 1.15 - 0.08; if (dn < th) discard; rDE = smoothstep(th + 0.08, th, dn); }
+    float rSc = 0.0, rScE = 0.0;   // (v465 RZ-M) overlapping metallic scales on the ceramic armour (600, 600.3): rows of rounded scales, each lifted and tilted out from its lower edge (a normal from its own shape), its rim edged in the side's metal, a darker overlap shadow at its root
+    if (id == 600 && rF < 0.15 && uLow < 0.5 && uFx < 0.75 || id == 600 && rF > 0.25 && uLow < 0.5 && uFx < 0.75) { vec3 an = abs(NL); vec2 uv = an.z >= an.x && an.z >= an.y ? L.xy : an.y >= an.x ? L.xz : L.yz; uv *= 4.2;
+      float row = floor(uv.y), sx = uv.x + 0.5 * mod(row, 2.0), cx = floor(sx), fx = fract(sx) - 0.5, fy = fract(uv.y), dd = length(vec2(fx * 1.15, fy - 0.05));
+      if (dd > 0.62) { fx = fract(sx + 0.5) - 0.5; fy += 1.0; dd = length(vec2(fx * 1.15, fy - 0.05)); }   // (the scale of the row below overlaps its lower part)
+      rSc = 1.0 - smoothstep(0.5, 0.62, dd); rScE = smoothstep(0.47, 0.57, dd) * (1.0 - smoothstep(0.58, 0.64, dd));
+      vec3 to = vec3(0.0); if (an.z >= an.x && an.z >= an.y) to = vec3(fx, fy - 0.3, 0.0); else if (an.y >= an.x) to = vec3(fx, 0.0, fy - 0.3); else to = vec3(0.0, fx, fy - 0.3);
+      vec3 tw = uM0 * to.x + uM1 * to.y + uM2 * to.z; float tl = length(tw); if (tl > 1e-5) n = normalize(n + tw / tl * (0.22 * dd + 0.25 * rScE)); }
     float rNV = max(0.001, dot(n, uV)), rNL = dot(n, uLK), rFr = pow(1.0 - rNV, 5.0), rHm = 0.5 + 0.5 * dot(n, uUP);
     float rOc = uNOcc > 0.5 ? occAO(vW, n) : 1.0, rSh = uNOcc > 0.5 && uLow < 0.5 ? occSH(vW, uLK) : 1.0, rDif = max(rNL, 0.0) * rSh;
     vec3 rR = 2.0 * rNV * n - uV; float rUp = dot(rR, uUP), rSb = max(dot(rR, uLK), 0.0) * rSh, rHz = rUp - 0.06;
@@ -1880,6 +1887,7 @@ void main() {
     if (id == 600) { float und = step(0.15, rF) * step(rF, 0.25), eng = step(0.25, rF);   // ceramic: a glazed ivory / silver-white, fine grain, engraved celestial lines, metal rims
       vec3 alb = mix(vec3(0.99, 0.94, 0.84), vec3(0.84, 0.89, 0.97), sd) * (und > 0.5 ? 0.5 : 1.0); float gr = vn(L.xy * 14.0 + L.z * 6.0) * 0.07;
       vec3 c = alb * (0.1 + 0.74 * rDif) * rKEY * (1.0 - gr) + alb * (rAmb * 1.5 + 0.06 * rOc) + rEv * (0.05 + 0.6 * rFr) * rOc + vec3(1.0, 0.97, 0.92) * pow(rSb, 60.0) * 1.1 + rRim * 0.3;
+      if (rSc + rScE > 0.0) { c = c * (0.72 + 0.28 * rSc) + vec3(1.0, 0.97, 0.92) * pow(rSb, 28.0) * 0.35 * rSc + rEv * rFr * 0.35 * rSc; c = mix(c, rMet * 0.95, rScE * 0.8); }   // (v465 RZ-M: the scales: a shadow where each tucks under the next, a metallic sheen, their gilded rims)
       if (eng > 0.5 && uLow < 0.5) { vec2 q = vec2(L.x * 3.2 + L.z * 1.3, L.y * 3.2 - L.z * 2.1); float w1 = vn(q * 0.9), r1 = abs(fract(length(fract(q) - 0.5) * 3.0 + w1 * 0.5) - 0.5), ln = smoothstep(0.06, 0.02, r1) * step(0.45, w1), ry2 = smoothstep(0.035, 0.012, abs(fract(q.x * 2.0 + q.y * 0.5) - 0.5)) * step(0.62, w1), g = max(ln, ry2);
         c = mix(c, rMet * 0.9, g * 0.85); c += rEl * g * (0.04 + 0.3 * rG2 * (1.0 - sd)); }
       aC = mix(c, rMet, smoothstep(0.78, 0.95, edge) * (1.0 - und)); }
