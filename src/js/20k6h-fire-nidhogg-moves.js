@@ -2604,6 +2604,67 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
           else ec += (hh > 0.93 ? zWH : (hh > 0.75 ? zGD : (hh > 0.6 ? zOR : zCR))) * on * exp(-dot(d, d) / (0.004 + 0.003 * fi)) * tw; }
         L = ec * 1.3 * (1.0 - ag * ag) * (1.0 - smoothstep(0.6, 1.0, r)); } }
     /*</RZU-FX>*/
+    /*<GB-FX kinds 490..493 (v468 GB: 20s3b-gemini-boss.js, Raziel's Trial of Two Heavens in the Equinox Sanctum). All added light, every edge feathered: fire turbulent and warm, ice faceted and cold, safety white>*/
+    else if (v_k > 489.5 && v_k < 493.5) { float tt = u_t;
+      vec3 qFI = vec3(1.0, 0.42, 0.1), qGO = vec3(1.0, 0.76, 0.34), qIC = vec3(0.4, 0.78, 1.0), qPL = vec3(0.84, 0.93, 1.0), qWH = vec3(1.0, 0.98, 0.95);
+      if (v_k < 490.5) { // 490 a sector of the Equinox Sanctum: the quad runs from the arena's centre along the sector's middle (uv.x -1 the centre .. 1 at 1.25 x the radius), uv.y across (x 0.42 of its length). v_q.x state (0 the rest: rim, machinery, channels, constellations, the emblem; 1 fire, 2 ice, 3 safe white, 4 the clock's gold light) + 0.98 x strength; v_q.y 10 x the cell's outer radius share (floored) + its inner share; v_q.z the sector's index + 0.98 x a flare; v_c the metal's tint
+        float pa = (u.x + 1.0) * 0.5, pc = u.y * 0.42, rn = length(vec2(pa, pc)) * 1.25, ag = atan(pc, max(pa, 0.0001)), hw = 0.3926991;
+        float sid = floor(v_q.x + 0.001), k = clamp(fract(v_q.x + 0.001) * 1.0204, 0.0, 1.0), ro = floor(v_q.y + 0.001) * 0.1, ri = fract(v_q.y + 0.001), si = floor(v_q.z + 0.001), fl = clamp(fract(v_q.z + 0.001) * 1.0204, 0.0, 1.0);
+        float agw = si * 0.7853982 + ag, dE = (hw - abs(ag)) * rn, inW = smoothstep(-0.005, 0.005, hw - abs(ag)), west = smoothstep(0.2, -0.2, cos(agw));
+        vec2 pw = vec2(cos(agw), sin(agw)) * rn, ql = vec2(pa, pc) * 1.25;
+        float sta = 0.0, nst = si + 1.0;
+        for (int j = 0; j < 8; j++) { float fj = float(j); if (fj < nst) { float aj = (fj - (nst - 1.0) * 0.5) * 0.072, rj = 0.865 + 0.022 * sin(fj * 2.3 + si * 1.7); vec2 dj = ql - vec2(cos(aj), sin(aj)) * rj; sta += exp(-dot(dj, dj) / 0.00011); } }
+        if (sid < 0.5) {
+          float rim = exp(-sq((rn - 1.0) / 0.005)) * 0.9 + exp(-sq((rn - 1.0) / 0.035)) * 0.3;
+          float s1 = fract(agw * 7.6394373 + tt * 0.03), s2 = fract(agw * 3.8197186 - tt * 0.045), sg1 = smoothstep(0.06, 0.12, s1) * (1.0 - smoothstep(0.88, 0.94, s1)), sg2 = smoothstep(0.05, 0.1, s2) * (1.0 - smoothstep(0.9, 0.95, s2));
+          float mach = (exp(-sq((rn - 1.07) / 0.009)) * sg1 + exp(-sq((rn - 1.15) / 0.014)) * sg2 * 0.8 + exp(-sq((rn - 1.2) / 0.004)) * 0.4) * (1.0 - smoothstep(1.2, 1.25, rn));
+          float ch = exp(-sq((rn - 0.56) / 0.011)), lava = rzF3(vec2(agw * 6.0 - tt * 0.6, rn * 30.0)), frost = rzVor(pw * 34.0, si).y;
+          vec3 chC = mix(qIC * (0.3 + 0.9 * exp(-sq(frost / 0.05))), mix(qFI, qGO, lava) * (0.4 + 0.9 * lava), west);
+          float seam = exp(-sq(dE / 0.004)) * smoothstep(0.17, 0.22, rn) * (1.0 - smoothstep(0.97, 1.0, rn));
+          float gd = rzGem(pw / 0.11) * 0.11, em = exp(-sq(gd / 0.005)) + 0.35 * exp(-sq(gd / 0.02)), hub = exp(-sq((rn - 0.155) / 0.004)) + exp(-sq((rn - 0.185) / 0.003)) * 0.6;
+          vec3 Lb = col * (rim * 0.9 + mach * 0.55 + seam * 0.35 + exp(-sq((rn - 0.865) / 0.003)) * 0.1) + chC * ch * 0.6 * (0.5 + fl) + mix(col, qWH, 0.5) * sta * 0.9 + qWH * (em * 0.5 + hub * 0.35);
+          L = Lb * k * inW; }
+        else {
+          float cell = inW * smoothstep(ri - 0.006, ri + 0.006, rn) * (1.0 - smoothstep(ro - 0.006, ro + 0.006, rn));
+          float cE = inW * (exp(-sq((rn - ri) / 0.006)) * step(0.01, ri) + exp(-sq((rn - ro) / 0.006))) + exp(-sq(dE / 0.006)) * step(ri, rn) * step(rn, ro);
+          float rc = (ri + ro) * 0.5; vec2 qs = (pw - vec2(cos(si * 0.7853982), sin(si * 0.7853982)) * rc) / 0.075;
+          if (sid < 1.5) { float f = rzF3(pw * 9.0 + vec2(0.0, tt * 1.4));
+            float fs = max(max(1.0 - length(qs - vec2(0.0, 0.25)) / 0.5, 1.0 - length(qs - vec2(0.06, -0.22)) / 0.34), 1.0 - length(qs - vec2(-0.03, -0.56)) / 0.2);
+            L = (mix(qFI, qGO, f) * (0.16 + 0.5 * f * f + fl * 0.9 * f) * cell + qGO * cE * 0.95 + mix(qGO, qWH, 0.5) * (exp(-sq(fs / 0.07)) * 0.9 + smoothstep(0.0, 0.2, fs) * 0.25)) * k; }
+          else if (sid < 2.5) { vec2 vo = rzVor(pw * 9.0, si + 3.0);
+            L = (qIC * (0.12 + 0.42 * exp(-sq(vo.y / 0.04)) + fl * 0.7 * (1.0 - vo.x)) * cell + qPL * cE * 0.95 + qPL * rzFlake(qs, 1.0, 0.0) * 0.9) * k; }
+          else if (sid < 3.5) { float hat = 0.5 + 0.5 * sin(rn * 44.0 - tt * 3.0), gs = rzGem(qs * 0.9) / 0.9;
+            L = (qWH * (0.13 + 0.07 * hat) * cell + qWH * cE * 1.15 + qWH * exp(-sq(gs / 0.07)) * 0.8 + qWH * sta * 0.8 * cell) * k; }
+          else { float pul = 0.75 + 0.25 * sin(tt * 6.0);
+            L = (mix(qGO, qWH, 0.55) * (0.3 * pul + 0.4 * fl) * cell + qWH * cE * 1.2 + qWH * sta * 1.5 * cell) * k; } } }
+      else if (v_k < 491.5) { // 491 a field on the floor (a unit disc): v_q.x type (0 an Infernal sanctuary, 1 a Cryogenic one, 2 the white sanctuary / barrier, 3 a containment field's evacuation ring, 4 a fragment's light, 5 a containment portal) + 0.98 x its highlight; v_q.y its turn; v_q.z a progress 0..1 (filling round); v_c its colour for 3..5
+        float ty = floor(v_q.x + 0.001), hl = clamp(fract(v_q.x + 0.001) * 1.0204, 0.0, 1.0), a2 = atan(u.y, u.x) + v_q.y, pr = clamp(v_q.z, 0.0, 1.0);
+        vec3 c1 = ty < 0.5 ? qGO : ty < 1.5 ? qIC : ty < 2.5 ? qWH : col;
+        float bd = exp(-sq((r - 0.9) / 0.012)) * (0.8 + 0.6 * hl) + exp(-sq((r - 0.9) / 0.06)) * 0.3 * (0.4 + hl);
+        float cc = a2 * 2.5464791, cf = fract(cc) - 0.5, rb = (r - 0.8) / 0.06, rune = rzRune(vec2(cf, rb * 0.5), h1(vec2(floor(cc), ty + 3.0))) * step(abs(rb), 1.3);
+        float fa = fract((atan(u.y, u.x) + 3.14159265) / 6.2831853), fill = (0.05 + 0.13 * hl) * (1.0 - smoothstep(0.84, 0.9, r)) + pr * 0.3 * step(fa, pr) * (1.0 - smoothstep(0.84, 0.88, r));
+        vec2 qs = u / 0.34; float sym = 0.0;
+        if (ty < 0.5) { float fs = max(max(1.0 - length(qs - vec2(0.0, 0.25)) / 0.5, 1.0 - length(qs - vec2(0.06, -0.22)) / 0.34), 1.0 - length(qs - vec2(-0.03, -0.56)) / 0.2); sym = exp(-sq(fs / 0.07)) + smoothstep(0.0, 0.2, fs) * 0.3; }
+        else if (ty < 1.5) sym = rzFlake(qs, 1.0, 0.0);
+        else if (ty < 2.5) { float gs = rzGem(qs * 0.8) / 0.8; sym = exp(-sq(gs / 0.06)) + 0.3 * exp(-sq(gs / 0.2)); }
+        if (ty < 2.5) L = c1 * (bd + exp(-sq((r - 0.72) / 0.008)) * (0.35 + 0.4 * hl) + rune * 0.5 + fill + sym * (0.6 + 0.5 * hl));
+        else if (ty < 3.5) { float bands = pow(0.5 + 0.5 * sin((r * 5.0 - tt * 1.6) * 6.2831853), 5.0) * (1.0 - smoothstep(0.86, 0.92, r)); L = c1 * (bd * 1.2 + bands * 0.3 * (0.5 + hl) + 0.06); }
+        else if (ty < 4.5) { float tw = 0.75 + 0.25 * sin(tt * 7.0 + v_q.y * 3.0); L = c1 * (exp(-r * r * 9.0) * 0.9 * tw + bd * 0.6 + exp(-sq((r - 0.55) / 0.02)) * 0.4) + qWH * exp(-r * r * 60.0) * 0.8; }
+        else { float sw = rzF3(vec2(a2 * 2.0 - r * 6.0 + tt * 0.8, r * 3.0)); L = c1 * (bd + sw * 0.35 * (1.0 - smoothstep(0.6, 0.9, r)) + exp(-r * r * 6.0) * (0.25 + 0.5 * hl)); }
+        L *= 1.0 - smoothstep(0.96, 1.0, r); }
+      else if (v_k < 492.5) { // 492 a mirror's timing dial (a unit disc): its track and hour ticks, the alignment window lit (v_q.y its middle, v_q.z its half width, screen radians), the needle (v_q.x) sweeping; all of it flares while the needle is inside the window; v_c the track's colour
+        float a3 = atan(u.y, u.x), na = v_q.x, wc = v_q.y, wh = v_q.z;
+        float dw = abs(mod(a3 - wc + 3.14159265, 6.2831853) - 3.14159265), dn = abs(mod(a3 - na + 3.14159265, 6.2831853) - 3.14159265), inWin = step(abs(mod(na - wc + 3.14159265, 6.2831853) - 3.14159265), wh);
+        float track = exp(-sq((r - 0.84) / 0.012)) * 0.5, tick = exp(-sq((r - 0.74) / 0.03)) * pow(max(0.0, cos(a3 * 12.0)), 40.0) * 0.4;
+        float win = exp(-sq((r - 0.84) / 0.05)) * (1.0 - smoothstep(wh - 0.03, wh + 0.01, dw)), needle = exp(-sq(dn * max(r, 0.05) / 0.028)) * smoothstep(0.12, 0.2, r) * (1.0 - smoothstep(0.92, 0.98, r));
+        L = col * (track + tick) + mix(qGO, qWH, 0.5) * win * 1.2 + mix(col, qWH, 0.6 + 0.4 * inWin) * needle * 1.3 + qWH * exp(-r * r / 0.01) * 0.6 + qWH * inWin * exp(-sq((r - 0.84) / 0.09)) * 0.6 * (0.6 + 0.4 * sin(tt * 18.0));
+        L *= 1.0 - smoothstep(0.96, 1.0, r); }
+      else { // 493 a tell's wedge on the floor (the quad from its point along its middle: uv.x -1 the point .. 1 its reach; across x the wedge's width): feathered edges, a soft fill, light running outward; v_q.x its half angle, v_q.y the tell's progress 0..1, v_q.z 0 a tell, 1 the blow's flash; v_c its colour
+        float hf = v_q.x, wq = sin(min(hf, 1.4)) * 1.06 + 0.04, pa = (u.x + 1.0) * 0.5, pc = u.y * wq, rn = length(vec2(pa, pc)), ag = atan(pc, max(pa, 0.0001)), fk = clamp(v_q.y, 0.0, 1.0);
+        float dA = (hf - abs(ag)) * rn, inW = smoothstep(-0.004, 0.01, dA) * (1.0 - smoothstep(0.96, 1.0, rn)) * smoothstep(0.0, 0.05, rn);
+        float ed = (exp(-sq(dA / 0.008)) + exp(-sq((rn - 0.975) / 0.01)) * step(0.0, dA)) * (1.0 - smoothstep(0.985, 1.0, rn)) * smoothstep(0.0, 0.05, rn), bands = pow(0.5 + 0.5 * sin((rn * 7.0 - tt * 2.2) * 6.2831853), 6.0);
+        L = v_q.z < 0.5 ? col * (ed * (0.45 + 0.55 * fk) + inW * (0.05 + 0.2 * fk + bands * 0.22 * (1.0 - 0.5 * fk))) : mix(col, qWH, 0.35) * (inW * 0.55 + ed); } }
+    /*</GB-FX>*/
     /*<SS-FX lights 408..411 (v463 SS: 20s5-sep-sky.js, the Sepulchre of Borrowed Hours' far views)>*/
     else if (v_k > 407.5 && v_k < 411.5) { float tt = u_t;
       if (v_k < 408.5) { // 408 shafts of light falling through dust (uv.x across -1..1, uv.y -1 the source .. 1 the foot): a few soft rays of their own widths and strengths, breathing slowly, widening as they fall, motes glinting in them; v_q.x seed, v_q.y the breathing's pace; v_c its colour

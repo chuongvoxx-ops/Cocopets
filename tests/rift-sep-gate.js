@@ -1,24 +1,16 @@
-// The Twin Reflection (Gemini gate): a giant reflection of the lead pet, its moves, the Mirror Guard throwing blows
-// back, phases and shards, the kill ends the trial
-const { open } = require('./_rift-lib');
+// v468 GP: the Gemini gate (Rift 04's): CLASH OF THE TWINS replaced The Twin Reflection (the mirror boss is gone).
+// A short smoke: the gate opens from the Rift UI, stage I starts (Lux awake, two Ice pillars), the test solve opens the gate,
+// the pet walks in and the boss stage begins. The full trial: tests/_gp-flow.js; its drawing cost: tests/_gp-perf.js.
+const { open } = require('./_gp-lib');
 let fails = 0; const ok = (c, s) => { console.log((c ? 'ok   ' : 'FAIL ') + s); if (!c) fails++; };
 (async () => {
-  const T = await open({ lvl: 42, seals: ['belfry', 'garden', 'dunes', 'sepulchre'] }); const { page, errors, shot, start, run } = T;
-  await start('sepulchre', 'gate'); await run(4);
-  let r = await page.evaluate(() => { const D = window.__pp.arc.game._dbg, m = D.RIFT.self.mod.S.boss; return m ? { name: m.bname, hp: m.maxhp, r: m.r, ready: m.evil.ready, atk: D.ST.atk } : null; });
-  console.log('  boss', JSON.stringify(r)); ok(r && /Reflection/.test(r.name) && r.ready, 'a giant reflection of the lead pet steps out'); await shot('gate-reflection');
-  // watch its moves
-  r = await page.evaluate(async () => { const D = window.__pp.arc.game._dbg, m = D.RIFT.self.mod.S.boss, seen = new Set(); const t0 = performance.now(); while (performance.now() - t0 < 30000) { await new Promise(r => requestAnimationFrame(r)); D.me.hp = D.ST.hp; if (m.act) seen.add(m.act); if (seen.has('dash') && seen.has('fan') && seen.has('guard')) break; } return [...seen]; });
-  ok(['dash', 'fan', 'guard'].every(a => r.includes(a)), 'its moves: ' + r.join(','));
-  // the Mirror Guard throws a blow back
-  r = await page.evaluate(async () => { const D = window.__pp.arc.game._dbg, mod = D.RIFT.self.mod, m = mod.S.boss; m.act = 'guard'; m.actT = 0; m.step = 0; const t0 = performance.now(); while (performance.now() - t0 < 1500 && !(m.reflectT > 0)) await new Promise(r => requestAnimationFrame(r)); const hp0 = m.hp, n0 = mod.S.reflected; D.me.hp = D.ST.hp; const pet0 = D.me.hp; D.me.inv = 0; D.hitMon(m, 5000, {}); await new Promise(r => setTimeout(r, 100)); return { reflT: m.reflectT, took: hp0 - m.hp, refl: mod.S.reflected - n0 }; });
-  console.log('  guard', JSON.stringify(r)); ok(r.took === 0 && r.refl >= 1, 'Mirror Guard: the blow does nothing and is thrown back');
-  await shot('gate-guard');
-  // phases and shards
-  r = await page.evaluate(async () => { const D = window.__pp.arc.game._dbg, m = D.RIFT.self.mod.S.boss; m.reflectT = 0; m.guardFn = null; D.hitMon(m, m.maxhp * 0.4, { flat: true }); await new Promise(r => setTimeout(r, 1500)); const p2 = m.phase, sh = D.mons.filter(q => !q.dead && q.type === 'mirrorshard').length; return { p2, sh }; });
-  ok(r.p2 >= 2 && r.sh >= 1, 'second phase: shards split off ' + JSON.stringify(r)); await shot('gate-phase2');
-  await page.evaluate(() => { const D = window.__pp.arc.game._dbg, m = D.RIFT.self.mod.S.boss; D.hitMon(m, 1e12, { flat: true }); });
-  await page.waitForFunction(() => window.__pp.arc.state === 'end', null, { timeout: 25000 }).catch(() => {}); const st = await page.evaluate(() => window.__pp.arc.state); ok(st === 'end', 'the reflection breaks: the trial ends · ' + st);
+  const T = await open({}); const { ev, errors } = T;
+  try { await T.start();
+    let r = await ev(`step(4); return { st: R.st, L: m.GU.L.st, up: m.PIL.filter(p => p.up).map(p => p.id).join(), old: !!(window.__pp.BOSSES.find(b => b.id === 'mirrorpet')) };`);
+    ok(r.st === 's1' && r.up === 'I1,I2' && !r.old, 'Clash of the Twins begins (stage I), no mirror boss left ' + JSON.stringify(r));
+    r = await ev(`m.solve(); step(16, () => heal()); const BA = GG.BA; for (let i = 0; i < 300 && S.phase !== 'boss' && S.phase !== 'won'; i++) { hold(BA.x, Math.max(BA.y + 6, 31 - i * 0.12)); heal(); U.update(1 / 30); } return { phase: S.phase };`);
+    ok(r.phase === 'boss' || r.phase === 'won', 'the gate opens and the boss stage begins ' + JSON.stringify(r));
+  } catch (e) { console.log('ERR', e.message); fails++; }
   ok(errors.length === 0, 'no page errors ' + errors.slice(0, 3).join(' | '));
-  console.log(fails ? `${fails} failed` : 'all passed'); process.exit(fails ? 1 : 0);
+  await T.browser.close(); console.log(fails ? `${fails} failed` : 'all passed'); process.exit(fails ? 1 : 0);
 })();

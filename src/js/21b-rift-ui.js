@@ -4,7 +4,7 @@ const RIFT_PLAN = [
   { id: 'belfry', n: 1, name: 'The Drowned Belfry', lvl: 10, region: 'The coast', sigil: 'Tide', gate: { anima: 'cancer', name: 'The Oracle Shell', what: 'Answer the great clam\'s three riddles', mins: '1–3' }, icon: 'bell' },
   { id: 'garden', n: 2, name: 'The Garden of Unborn Stars', lvl: 20, region: 'The forest', sigil: 'Bloom', gate: { anima: 'taurus', name: 'The Unbroken Constellation', what: 'Trace every line of three constellations without lifting the thread', mins: '3–6' }, icon: 'blossom' },
   { id: 'dunes', n: 3, name: 'The Mouth Beneath the Dunes', lvl: 30, region: 'The desert', sigil: 'Echo', gate: { anima: 'scorpio', name: 'The Amber Vigil', what: 'Slip the star shards past the watch-stones\' gaze, then face what waits beyond the door', mins: '5–10' } /* v445 AG: the Gate of Scorpio rebuilt (20s, 20s1), its boss beyond */, icon: 'maw' },
-  { id: 'sepulchre', n: 4, name: 'The Sepulchre of Borrowed Hours', lvl: 40, region: 'The temporal ruins', sigil: 'Memory', gate: { anima: 'gemini', name: 'The Twin Reflection', what: 'Fight a giant reflection of your own pet', mins: '3–5' }, icon: 'hourglass' },
+  { id: 'sepulchre', n: 4, name: 'The Sepulchre of Borrowed Hours', lvl: 40, region: 'The temporal ruins', sigil: 'Memory', gate: { anima: 'gemini', name: 'Clash of the Twins', what: 'Bait the twin guardians\' fire and ice into the pillars, then face Raziel beyond the gate', mins: '6–12' } /* v468 GP: the Gemini gate rebuilt (20s3, 20s3a), its boss beyond (20s3b) */, icon: 'hourglass' },
   { id: 'aurora', n: 5, name: 'The Pale Aurora', lvl: 50, region: 'The polar mountains', sigil: 'Shelter', gate: { anima: 'capricorn', name: 'The Crownstep Ascent', what: 'Climb a crumbling ice cliff to the crown', mins: '3–4' }, icon: 'arch' },
   { id: 'yuggoth', n: 6, name: 'The Yuggoth Engine', lvl: 60, region: 'The crash site', sigil: 'Charge', gate: { anima: 'aquarius', name: 'The Raincatcher Array', what: 'Catch and deliver falling stars', mins: '3–4' }, icon: 'vessel' },
   { id: 'library', n: 7, name: 'The Library of Unwritten Lives', lvl: 70, region: 'The dream archive', sigil: 'Truth', gate: { anima: 'virgo', name: 'The Starseed Conservatory', what: 'A planting logic puzzle', mins: '3–5' }, icon: 'book' },
@@ -166,12 +166,13 @@ function startGate(id) {
 }
 function gateReadyHTML(S) {
   const G = RIFT_GATES[S.rift.id], P = RIFT_PLAN.find(r => r.id === S.rift.id), A = ANIMAS[P.gate.anima];
-  return `<div class="ar-card dun-ready" style="--acc:${A.color}"><p class="eyebrow">Anima gate · ${esc(A.sign)} · ${esc(A.name)}</p><h2>${esc(G.name)}</h2><p class="ar-goal">${esc(G.goal)}</p><p class="note dr-facts">${esc(G.how)}</p><button class="btn primary" type="button">${ICON.play}Begin</button></div>`;
+  return `<div class="ar-card dun-ready" style="--acc:${A.color}"><p class="eyebrow">Anima gate · ${esc(A.sign)} · ${esc(A.name)}</p><h2>${esc(G.name)}</h2><p class="ar-goal">${esc(G.goal)}</p>${(riftState().gck || {})[S.rift.id] ? '<p class="note">Checkpoint: the gate stands open · the trial is not replayed</p>' /* v468 GP */ : ''}<p class="note dr-facts">${esc(G.how)}</p><button class="btn primary" type="button">${ICON.play}Begin</button></div>`;
 }
 /* a trial done: the Anima unlocked once, through the existing collection; the bond scene */
 function gateFinish(win, msg, data) {
   const S = arc.api.def, id = S.rift.id, P = RIFT_PLAN.find(r => r.id === id), A = ANIMAS[P.gate.anima], RS = riftState(), lines = [];
   let firstTime = false;
+  if (win && RS.gck && RS.gck[id]) delete RS.gck[id];   /* v468 GP: a gate's boss checkpoint (st.rift.gck: its puzzle solved, its boss not yet beaten) is spent by the win */
   if (win) { if (!RS.gates[id]) { RS.gates[id] = 1; firstTime = true; st.animas.have[A.id] = Math.max(st.animas.have[A.id] || 0, 1); if (!st.animas.eq) st.animas.eq = A.id; lines.push([ICON.star, `${A.name} answers: the ${A.sign} Anima is unlocked`]); lines.push([ICON.sparkle, `Summon it in the Tower with the sigil button`]); }
     else lines.push([ICON.trophy, 'Trial completed again']); st.crystals = (st.crystals || 0) + (firstTime ? 150 : 30); lines.push([ICON.crystal, `+${firstTime ? 150 : 30} crystals`]); }
   else lines.push([ICON.heart, 'Retry any time: nothing is lost']);
