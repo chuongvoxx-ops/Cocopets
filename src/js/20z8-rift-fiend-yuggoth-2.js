@@ -32,6 +32,9 @@ RiftFiend.define({ id: 'ixvorra', name: 'Ix-Vorra', title: 'The Living Conductor
   const hr = n => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
   const segD = (px, py, ax, ay, bx, by) => { const dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy || 1, u = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / L)); return Math.hypot(px - ax - dx * u, py - ay - dy * u); };
   const FX0 = DunFiend.KIT, mixC = FX0.mixC, rgba = FX0.rgba;
+  /* (v472 YB) the GPU model and its light (IXVORRA_GL, 20z8a-ixvorra-gl.js); without them the 2D Ix-Vorra, its 2D effects and overlay */
+  const IG = () => { try { return typeof IXVORRA_GL !== 'undefined' ? IXVORRA_GL : null; } catch (e) { return null; } }, KEEP2D = { steps: 2, pad: 6 };
+  const hpK = FX => { const F = FX && FX.F && FX.F.rift && FX.F.rift.foeK; return F && F.boss > 0 ? F.boss : 1; };   // (v472 YB: the rift's main-boss health factor, as 20z4's)
   const LINE = '#0E1018', COPPER = '#B06A34', COPPER_HI = '#F2B57A', COPPER_SH = '#6E3C1C', PLASMA = '#B040F0', PLASMA_SH = '#7A22C0', PLASMA_DK = '#2A0846', STEEL = '#3E5566';
   const ARENA = 14, PR = 9.5, CH = 4.5, CW = 2.0, ALT = 3.5, RC = 1.42, RR = 3.05, BW = 0.62, BH = 0.27, NSEG = 10, NC = 6, NP = 10, SL = 0.62, CAP_Z = 4.15, CON_Z = 0.55, BEAM = 1.1, SPOKE = 1.0;
   const PA = [Math.PI / 4, Math.PI * 3 / 4, Math.PI * 5 / 4, Math.PI * 7 / 4];   // the pylons, on the bus rail: SE, SW, NW, NE
@@ -55,7 +58,7 @@ RiftFiend.define({ id: 'ixvorra', name: 'Ix-Vorra', title: 'The Living Conductor
     paintGround(c, A) { paintHall(c, A); },
     sky(c, W, H, t, cam, T) { paintSky(c, W, H, t, cam, T); },
     /* ---- the fight ---- */
-    init(FX) { const M = FX.mem, m = FX.m, C = FX.C; m.act = 'enter'; m.x = C.x; m.y = C.y - 3.5; m.noTouch = true;
+    init(FX) { const M = FX.mem, m = FX.m, C = FX.C; m.act = 'enter'; m.x = C.x; m.y = C.y - 3.5; m.noTouch = true; if (IG()) IG().init(FX);   // (v472 YB: its warnings marked for light)
       Object.assign(M, { bt: 0, alt: 13, wake: 0, spinA: 0, spinB: 0, spinRate: 0, yaw: 0.2, tilt: 0.42, split: 0, open: 0, menace: 0, roar: 0, recoil: 0, coreRot: 0, look: [0, 1],
         eyes: EYES.map((e, i) => ({ blink: 0, bt: 1 + hr(i + 3) * 4, bu: null, lk: [0, 0], lkW: [0, 0], lkT: 0, open: 0 })), cab: null, caps: PA.map(() => ({ k: 1, crack: 0, hot: 0, broke: 0 })),
         web: null, sg: null, lash: null, lashes: [], ov: null, sp: null, nova: null, lastPylon: -1, lastWeb: null, bag: null, last: null, seen: {}, broodT: 12, wasStun: false, wasEnter: true, roared: false, orb: null, dir: 1, restT: 1, sparkT: 0, zapT: 0 });
@@ -90,7 +93,7 @@ RiftFiend.define({ id: 'ixvorra', name: 'Ix-Vorra', title: 'The Living Conductor
       FX.parts(bodyParts(FX, m, M));
     },
     stunned(FX, m, dt) { const M = FX.mem; M.open = Math.min(1, M.open + dt * 2.6); M.menace = decay(M.menace, dt, 4); m.noTouch = true; M.alt = toward(M.alt, 1.9, dt, 4);
-      const p = pose(FX, m, M); FX.weak('core', p.core[0], p.core[1] - p.core[2], 1.7, 2.3, m.stunT > 0.05);
+      const p = pose(FX, m, M); FX.weak('core', p.core[0], p.core[1] - p.core[2], 1.7, 2.3 / hpK(FX), m.stunT > 0.05);   // (v472 YB: its blows 1 / foeK.boss)
       // overloaded, it shudders: sparks spit from the parted ring
       M.kickT = (M.kickT || 0) - dt; if (M.kickT <= 0) { M.kickT = 0.3; const a = Math.random() * TAU; sparkBurst(FX, m.x + Math.cos(a) * 3, m.y + Math.sin(a) * 1.5 - 2, 4, Math.random() < 0.5 ? VIOLET_HI : AMBER); FX.H.shake(1.4, 0.08); }
       FX.parts(bodyParts(FX, m, M)); },
@@ -111,15 +114,17 @@ RiftFiend.define({ id: 'ixvorra', name: 'Ix-Vorra', title: 'The Living Conductor
       else { M.wake = toward(M.wake, 1, dt, 3); if (M.wasEnter) { M.wasEnter = false; M.recoil = 1; FX.H.sfx.whoosh(); } }
       if ((m.hitSq || 0) > 0.5) M.recoil = Math.max(M.recoil, 0.45);
       if (M.nova) { M.nova.t += dt; if (M.nova.t > 1.2) M.nova = null; } },
-    dmgK() { return 1; },
-    keep: { steps: 2, pad: 6 },
-    draw(c, FX, m, X, Y, T, t, step) { drawVorra(c, FX, m, X, Y, T, t, step); },
+    dmgK(FX) { return 1 / hpK(FX); },   // (v472 YB: the rift's main-boss health, foeK.boss times: its blows 1 / foeK.boss, as Rift 05's)
+    get keep() { const o = IG(); return o && o.gpu() ? null : KEEP2D; },   // (v472 YB: the GPU model drawn every frame, one pass; the 2D one kept as before)
+    draw(c, FX, m, X, Y, T, t, step) { { const o = IG(); if (step == null && o && o.drawBoss(c, FX, m, X, Y, T, t)) return; } drawVorra(c, FX, m, X, Y, T, t, step); },   // (v472 YB: the GPU model, else the 2D Ix-Vorra)
+    get MODEL() { return IG(); }, preload(P) { const o = IG(); return o ? o.preload(P) : []; },   // (v472 YB)
+    RIG: { pose: (FX, m, M) => pose(FX, m, M), segments: (M, p) => segments(M, p), webEnd: (FX, W, e) => webEnd(FX, W, e), spokeAngles: S => spokeAngles(S), pylonAt: (C, i) => pylonAt(C, i), EYES, NSEG, NC, RC, BW, BH, ARENA, CH, CW, PR, CAP_Z, CON_Z, BEAM, SPOKE },   // (v472 YB: the fight's skeleton for IXVORRA_GL, 20z8a)
     drawProp(c, FX, p, X, Y, T, t) { if (p.kind === 'pylon') drawPylon(c, FX, p, X, Y, T, t); },
     // (the pylons are kept as pictures, repainted a few times a second in turn; their state is in the signature)
     propKeep: { every: 3, box: () => [-1.9, -(CAP_Z + 1.9), 1.9, 0.9], sig: (FX, p) => { const M = FX.mem || {}, q = M.caps && M.caps[p.i]; return q ? `${(q.k * 20) | 0}|${(q.crack * 6) | 0}|${M.ov && M.ov.i === p.i ? 1 : 0}|${M.web ? 1 : 0}` : ''; } },
     drawObj() {},
-    overlay(c, FX, t, T) { drawOverlay(c, FX, t, T); },
-    drawFx(c, FX, T, t) { drawCurrents(c, FX, T, t); drawWebFx(c, FX, T, t); drawSpokesFx(c, FX, T, t); drawDrain(c, FX, T, t); drawLashFx(c, FX, T, t); },
+    overlay(c, FX, t, T) { { const o = IG(); if (o && o.overlay(c, FX, t, T)) return; } drawOverlay(c, FX, t, T); },   // (v472 YB: the coolant's light, the pylon's ring and its warnings in light first; the 2D overlay keeps the labels: M.ybGL)
+    drawFx(c, FX, T, t) { { const o = IG(); if (o && o.drawFx(c, FX, T, t)) { drawWebFx(c, FX, T, t); drawSpokesFx(c, FX, T, t); drawDrain(c, FX, T, t); return; } } drawCurrents(c, FX, T, t); drawWebFx(c, FX, T, t); drawSpokesFx(c, FX, T, t); drawDrain(c, FX, T, t); drawLashFx(c, FX, T, t); },   // (v472 YB: the currents, web, spokes, drain, lash and nova in light on the GPU; the 2D keeps the arrows, the meter and the labels: M.ybGL)
   };
 
   /* ---- choosing ---- */
@@ -314,7 +319,7 @@ RiftFiend.define({ id: 'ixvorra', name: 'Ix-Vorra', title: 'The Living Conductor
     // the eyes, far ones first, the core's slow roll carrying them round so they swim in and out of view
     const cr = M.coreRot || 0, cz = Math.cos(cr), sz = Math.sin(cr), list = [];
     EYES.forEach((e, i) => { const d0 = e.d, d = [d0[0] * cz - d0[1] * sz, d0[0] * sz + d0[1] * cz, d0[2]], v = dot(d, VIEW); if (v < 0.12) return; list.push({ e, i, d, v }); });
-    list.sort((a, b) => a.v - b.v).forEach(({ e, i, d, v }) => { const st = M.eyes[i], g = [p.core[0] + d[0] * RC * p.S * 0.9, p.core[1] + d[1] * RC * p.S * 0.9, p.core[2] + d[2] * RC * p.S * 0.9], s = P3(...g), er = e.r * p.S * T * (1 + op * 0.25), sq = clamp(v * 1.15, 0.3, 1), rad = Math.atan2(s[1] - q[1], s[0] - q[0]), rot = rad - Math.PI / 2;
+    list.sort((a, b) => a.v - b.v).forEach(({ e, i, d, v }) => { const st = M.eyes ? M.eyes[i] : null, /* (v472 YB: a fight-less preview has no eyes' state) */ g = [p.core[0] + d[0] * RC * p.S * 0.9, p.core[1] + d[1] * RC * p.S * 0.9, p.core[2] + d[2] * RC * p.S * 0.9], s = P3(...g), er = e.r * p.S * T * (1 + op * 0.25), sq = clamp(v * 1.15, 0.3, 1), rad = Math.atan2(s[1] - q[1], s[0] - q[0]), rot = rad - Math.PI / 2;
       const fade = clamp((v - 0.12) / 0.15, 0, 1) * (st ? st.open : 1); if (fade < 0.03) return;
       const lk = st ? st.lk : [0, 0], cl = Math.cos(-rot), sl = Math.sin(-rot), look = [(lk[0] * cl - lk[1] * sl) * 0.9, (lk[0] * sl + lk[1] * cl) * 0.9];
       c.save(); c.globalAlpha = fade;
@@ -348,42 +353,43 @@ RiftFiend.define({ id: 'ixvorra', name: 'Ix-Vorra', title: 'The Living Conductor
       for (let i = 0; i < 3 + Math.round(u * 6); i++) { const a = hr(fr * 1.9 + i * 5) * TAU, L = T * (2.5 + hr(fr + i * 3) * 3.5 * (0.5 + u)); bolt3(c, q[0], q[1], q[0] + Math.cos(a) * L, q[1] + Math.sin(a) * L * 0.8, fr * 3 + i * 11, T * 0.7, VIOLET, '#FFFFFF', 0.6 + u * 0.4); } } for (let i = 0; i < n; i++) { const s = segs[Math.floor(hr(fr + i * 17) * segs.length)]; if (hr(fr * 1.7 + i) < 0.4 + op * 0.3) continue; const A = S(rpt(s.c, s.F, (s.a0 + s.a1) / 2, s.r - BW * 0.4, 0)); bolt3(c, A[0], A[1], q[0] + (A[0] - q[0]) * 0.3, q[1] + (A[1] - q[1]) * 0.3, fr * 2 + i * 31, T * 0.8, VIOLET, VIOLET_HI, 0.7); }
     c.restore(); }
   /* the arc web: dashed lines first, then crackling beams of current between the pylons' contacts (and from itself) */
-  function drawWebFx(c, FX, T, t) { const M = FX.mem, W = M.web, m = FX.m; if (!W || !m) return; const fr = Math.floor(t * 26);
+  function drawWebFx(c, FX, T, t) { const M = FX.mem, W = M.web, m = FX.m; if (!W || !m) return; const fr = Math.floor(t * 26), gp = !!M.ybGL;   // (v472 YB: gp, the beams drawn by IXVORRA_GL.drawFx; the arrows stay)
     c.save(); c.lineCap = 'round';
     W.beams.forEach((b, j) => { const A = webEnd(FX, W, b.a), B = webEnd(FX, W, b.b), za = b.a === 'N' ? 0.3 : CON_Z, zb = b.b === 'N' ? 0.3 : CON_Z, ax = FX.sx(A[0]), ay = FX.sy(A[1]) - za * T, bx = FX.sx(B[0]), by = FX.sy(B[1]) - zb * T;
-      if (!W.live) { const u = clamp(W.t / W.warn, 0, 1); c.globalCompositeOperation = 'source-over'; c.globalAlpha = 0.18 + u * 0.12; c.strokeStyle = VIOLET; c.lineWidth = BEAM * T; c.beginPath(); c.moveTo(ax, ay); c.lineTo(bx, by); c.stroke();
-        c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.6 + 0.35 * Math.sin(t * 14) * u; c.strokeStyle = VIOLET_HI; c.lineWidth = Math.max(2, T * 0.09); c.setLineDash([T * 0.5, T * 0.35]); c.lineDashOffset = -t * T * 2.5; c.beginPath(); c.moveTo(ax, ay); c.lineTo(bx, by); c.stroke(); c.setLineDash([]);
+      if (!W.live) { const u = clamp(W.t / W.warn, 0, 1); if (!gp) { c.globalCompositeOperation = 'source-over'; c.globalAlpha = 0.18 + u * 0.12; c.strokeStyle = VIOLET; c.lineWidth = BEAM * T; c.beginPath(); c.moveTo(ax, ay); c.lineTo(bx, by); c.stroke();
+        c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.6 + 0.35 * Math.sin(t * 14) * u; c.strokeStyle = VIOLET_HI; c.lineWidth = Math.max(2, T * 0.09); c.setLineDash([T * 0.5, T * 0.35]); c.lineDashOffset = -t * T * 2.5; c.beginPath(); c.moveTo(ax, ay); c.lineTo(bx, by); c.stroke(); c.setLineDash([]); }
         // the turning web shows which way it will turn: arrows along the rail at each end
         if (W.w) { const dir = Math.sign(W.w); for (const [E, e] of [[A, b.a], [B, b.b]]) { if (e === 'N') continue; const a0 = Math.atan2(E[1] - FX.C.y, E[0] - FX.C.x), a1 = a0 + dir * 0.32, rr = PR; c.globalAlpha = 0.85; c.strokeStyle = '#FFFFFF'; c.lineWidth = Math.max(2, T * 0.08); c.beginPath(); for (let i = 0; i <= 8; i++) { const a = lerp(a0 + dir * 0.06, a1, i / 8), x = FX.sx(FX.C.x + Math.cos(a) * rr), y = FX.sy(FX.C.y + Math.sin(a) * rr); i ? c.lineTo(x, y) : c.moveTo(x, y); } c.stroke(); const hx = FX.sx(FX.C.x + Math.cos(a1) * rr), hy = FX.sy(FX.C.y + Math.sin(a1) * rr), ta = a1 + dir * Math.PI / 2; c.beginPath(); c.moveTo(hx + Math.cos(ta) * T * 0.35, hy + Math.sin(ta) * T * 0.35); c.lineTo(hx + Math.cos(ta + 2.5) * T * 0.3, hy + Math.sin(ta + 2.5) * T * 0.3); c.lineTo(hx + Math.cos(ta - 2.5) * T * 0.3, hy + Math.sin(ta - 2.5) * T * 0.3); c.closePath(); c.fillStyle = '#FFFFFF'; c.fill(); } } }
-      else { c.globalCompositeOperation = 'lighter'; const fl = 0.8 + 0.2 * Math.sin(t * 37 + j);
+      else if (!gp) { c.globalCompositeOperation = 'lighter'; const fl = 0.8 + 0.2 * Math.sin(t * 37 + j);
         c.globalAlpha = 0.22 * fl; c.strokeStyle = VIOLET; c.lineWidth = BEAM * T * 1.25; c.beginPath(); c.moveTo(ax, ay + za * T * 0.6); c.lineTo(bx, by + zb * T * 0.6); c.stroke();
         c.globalAlpha = 0.4 * fl; c.lineWidth = BEAM * T * 0.6; c.strokeStyle = VIOLET_HI; c.beginPath(); c.moveTo(ax, ay); c.lineTo(bx, by); c.stroke();
         bolt3(c, ax, ay, bx, by, fr + j * 41, T, VIOLET, VIOLET_HI, 1); bolt3(c, ax, ay, bx, by, fr * 3 + j * 17 + 9, T, VIOLET, '#FFFFFF', 0.6);
         [[ax, ay], [bx, by]].forEach(([x, y]) => { c.globalAlpha = 0.8; blitSized(c, glowSprite(VIOLET_HI), x - T * 0.9, y - T * 0.9, T * 1.8, T * 1.8); }); }
       c.globalAlpha = 1; });
     // from itself: a bolt down out of the core to its node on the deck
-    if (W.beams.some(b => b.a === 'N' || b.b === 'N')) { const N = webEnd(FX, W, 'N'), p = pose(FX, m, M), nx = FX.sx(N[0]), ny = FX.sy(N[1]) - 0.3 * T, cx = FX.sx(p.core[0]), cy = FX.sy(p.core[1]) - p.core[2] * T; c.globalCompositeOperation = 'lighter'; if (W.live) bolt3(c, cx, cy, nx, ny, fr * 5 + 3, T, VIOLET, VIOLET_HI, 0.9); else { c.globalAlpha = 0.5; c.strokeStyle = VIOLET_HI; c.lineWidth = 2; c.setLineDash([T * 0.3, T * 0.3]); c.beginPath(); c.moveTo(cx, cy); c.lineTo(nx, ny); c.stroke(); c.setLineDash([]); } }
+    if (!gp && W.beams.some(b => b.a === 'N' || b.b === 'N')) { const N = webEnd(FX, W, 'N'), p = pose(FX, m, M), nx = FX.sx(N[0]), ny = FX.sy(N[1]) - 0.3 * T, cx = FX.sx(p.core[0]), cy = FX.sy(p.core[1]) - p.core[2] * T; c.globalCompositeOperation = 'lighter'; if (W.live) bolt3(c, cx, cy, nx, ny, fr * 5 + 3, T, VIOLET, VIOLET_HI, 0.9); else { c.globalAlpha = 0.5; c.strokeStyle = VIOLET_HI; c.lineWidth = 2; c.setLineDash([T * 0.3, T * 0.3]); c.beginPath(); c.moveTo(cx, cy); c.lineTo(nx, ny); c.stroke(); c.setLineDash([]); } }
     c.restore(); }
   /* the spokes of the split ring: violet from one, teal from the other, out from under it across the hall */
-  function drawSpokesFx(c, FX, T, t) { const M = FX.mem, S = M.sp, m = FX.m; if (!S || !m) return; const pre = S.t - S.move, fr = Math.floor(t * 26); if (pre < 0) return; const live = pre >= S.warn, hx = FX.sx(m.x), hy = FX.sy(m.y) - 0.4 * T, L = ARENA * 2.2;
+  function drawSpokesFx(c, FX, T, t) { const M = FX.mem, S = M.sp, m = FX.m, gp = !!M.ybGL;   // (v472 YB: gp, the beams drawn by IXVORRA_GL.drawFx; the chevrons stay)
+ if (!S || !m) return; const pre = S.t - S.move, fr = Math.floor(t * 26); if (pre < 0) return; const live = pre >= S.warn, hx = FX.sx(m.x), hy = FX.sy(m.y) - 0.4 * T, L = ARENA * 2.2;
     c.save(); c.lineCap = 'round';
     spokeAngles(S).forEach((a, j) => { const ring = j >> 1, col = ring ? TEAL : VIOLET, hi = ring ? TEAL_HI : VIOLET_HI, ex = FX.sx(m.x + Math.cos(a) * L), ey = FX.sy(m.y + Math.sin(a) * L) - 0.4 * T;
-      if (!live) { const u = clamp(pre / S.warn, 0, 1); c.globalCompositeOperation = 'source-over'; c.globalAlpha = 0.16 + u * 0.12; c.strokeStyle = col; c.lineWidth = SPOKE * T; c.beginPath(); c.moveTo(hx, hy); c.lineTo(ex, ey); c.stroke();
-        c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.65 + 0.3 * Math.sin(t * 14) * u; c.strokeStyle = hi; c.lineWidth = Math.max(2, T * 0.09); c.setLineDash([T * 0.5, T * 0.35]); c.lineDashOffset = -t * T * 2.5; c.beginPath(); c.moveTo(hx, hy); c.lineTo(ex, ey); c.stroke(); c.setLineDash([]);
+      if (!live) { const u = clamp(pre / S.warn, 0, 1); if (!gp) { c.globalCompositeOperation = 'source-over'; c.globalAlpha = 0.16 + u * 0.12; c.strokeStyle = col; c.lineWidth = SPOKE * T; c.beginPath(); c.moveTo(hx, hy); c.lineTo(ex, ey); c.stroke();
+        c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.65 + 0.3 * Math.sin(t * 14) * u; c.strokeStyle = hi; c.lineWidth = Math.max(2, T * 0.09); c.setLineDash([T * 0.5, T * 0.35]); c.lineDashOffset = -t * T * 2.5; c.beginPath(); c.moveTo(hx, hy); c.lineTo(ex, ey); c.stroke(); c.setLineDash([]); }
         // which way it will sweep: a chevron off the beam, out along it
         const dir = (ring ? -1 : 1) * S.dir; for (const rr of [4, 8]) { const px = m.x + Math.cos(a) * rr, py = m.y + Math.sin(a) * rr, ta = a + dir * Math.PI / 2, X = FX.sx(px + Math.cos(ta) * 0.9), Y = FX.sy(py + Math.sin(ta) * 0.9) - 0.4 * T; c.globalAlpha = 0.9; c.fillStyle = hi; c.beginPath(); c.moveTo(X + Math.cos(ta) * T * 0.35, Y + Math.sin(ta) * T * 0.35); c.lineTo(X + Math.cos(ta + 2.4) * T * 0.3, Y + Math.sin(ta + 2.4) * T * 0.3); c.lineTo(X + Math.cos(ta - 2.4) * T * 0.3, Y + Math.sin(ta - 2.4) * T * 0.3); c.closePath(); c.fill(); } }
-      else { c.globalCompositeOperation = 'lighter'; const fl = 0.85 + 0.15 * Math.sin(t * 41 + j); c.globalAlpha = 0.24 * fl; c.strokeStyle = col; c.lineWidth = SPOKE * T * 1.3; c.beginPath(); c.moveTo(hx, hy); c.lineTo(ex, ey); c.stroke();
+      else if (!gp) { c.globalCompositeOperation = 'lighter'; const fl = 0.85 + 0.15 * Math.sin(t * 41 + j); c.globalAlpha = 0.24 * fl; c.strokeStyle = col; c.lineWidth = SPOKE * T * 1.3; c.beginPath(); c.moveTo(hx, hy); c.lineTo(ex, ey); c.stroke();
         c.globalAlpha = 0.5 * fl; c.strokeStyle = hi; c.lineWidth = SPOKE * T * 0.5; c.stroke(); bolt3(c, hx, hy, FX.sx(m.x + Math.cos(a) * 16), FX.sy(m.y + Math.sin(a) * 16) - 0.4 * T, fr + j * 23, T, col, hi, 0.9); } });
-    if (live) { c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.8; blitSized(c, glowSprite(VIOLET_HI), hx - T * 1.6, hy - T * 1.6, T * 3.2, T * 3.2); const p = pose(FX, m, M); bolt3(c, FX.sx(p.core[0]), FX.sy(p.core[1]) - p.core[2] * T, hx, hy, fr * 7, T, VIOLET, '#FFFFFF', 0.8); }
+    if (live && !gp) { c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.8; blitSized(c, glowSprite(VIOLET_HI), hx - T * 1.6, hy - T * 1.6, T * 3.2, T * 3.2); const p = pose(FX, m, M); bolt3(c, FX.sx(p.core[0]), FX.sy(p.core[1]) - p.core[2] * T, hx, hy, fr * 7, T, VIOLET, '#FFFFFF', 0.8); }
     c.restore(); }
   /* the overload: a torrent of current from the pylon's cap into the core; a meter round the cap; its label */
   function drawDrain(c, FX, T, t) { const M = FX.mem, O = M.ov, m = FX.m, C = FX.C; if (!m) return;
     c.save();
-    if (M.nova) { const u = M.nova.t / 1.2, X = FX.sx(M.nova.x), Y = FX.sy(M.nova.y); c.globalCompositeOperation = 'lighter'; c.globalAlpha = (1 - u) * 0.6; c.strokeStyle = VIOLET_HI; c.lineWidth = T * (0.6 - u * 0.4); c.beginPath(); c.arc(X, Y, M.nova.r * T * (0.3 + u * 0.8), 0, TAU); c.stroke(); c.globalAlpha = (1 - u) * 0.4; blitSized(c, glowSprite(VIOLET_HI), X - M.nova.r * T, Y - M.nova.r * T, M.nova.r * T * 2, M.nova.r * T * 2); }
+    if (M.nova && !M.ybGL) { const u = M.nova.t / 1.2, X = FX.sx(M.nova.x), Y = FX.sy(M.nova.y); c.globalCompositeOperation = 'lighter'; c.globalAlpha = (1 - u) * 0.6; c.strokeStyle = VIOLET_HI; c.lineWidth = T * (0.6 - u * 0.4); c.beginPath(); c.arc(X, Y, M.nova.r * T * (0.3 + u * 0.8), 0, TAU); c.stroke(); c.globalAlpha = (1 - u) * 0.4; blitSized(c, glowSprite(VIOLET_HI), X - M.nova.r * T, Y - M.nova.r * T, M.nova.r * T * 2, M.nova.r * T * 2); }
     if (!O) { c.restore(); return; }
     const pp = pylonAt(C, O.i), X = FX.sx(pp[0]), Y = FX.sy(pp[1]), cx = X, cy = Y - CAP_Z * T, p = pose(FX, m, M), qx = FX.sx(p.core[0]), qy = FX.sy(p.core[1]) - p.core[2] * T, fr = Math.floor(t * 24), f = O.fill || 0;
     c.globalCompositeOperation = 'lighter'; c.lineCap = 'round';
-    if (O.t > 0) { bolt3(c, cx, cy, qx, qy, fr, T, VIOLET, VIOLET_HI, 0.85 + f * 0.15); bolt3(c, cx, cy, qx, qy, fr * 3 + 7, T, VIOLET, '#FFFFFF', 0.5 + f * 0.4);
+    if (O.t > 0 && !M.ybGL) { bolt3(c, cx, cy, qx, qy, fr, T, VIOLET, VIOLET_HI, 0.85 + f * 0.15); bolt3(c, cx, cy, qx, qy, fr * 3 + 7, T, VIOLET, '#FFFFFF', 0.5 + f * 0.4);
       // beads of charge running up the torrent into it
       for (let i = 0; i < 6; i++) { const u = (t * 1.4 + i / 6) % 1, x = lerp(cx, qx, u), y = lerp(cy, qy, u) - Math.sin(u * Math.PI) * T * 0.6; c.globalAlpha = 0.9; blitSized(c, glowSprite('#FFFFFF'), x - T * 0.25, y - T * 0.25, T * 0.5, T * 0.5); } }
     // the meter: a ring round the cap
@@ -408,9 +414,9 @@ RiftFiend.define({ id: 'ixvorra', name: 'Ix-Vorra', title: 'The Living Conductor
     const seg = (q, u) => q.h ? [X0 + u * T, Y0 + q.o * T] : [X0 + q.o * T, Y0 + u * T];
     // the coolant's slow flow: light streaming along each channel
     c.globalCompositeOperation = 'lighter'; c.lineCap = 'round';
-    lines.forEach((q, i) => { for (const [off, sp, a] of [[-0.45, 1.0, 0.16], [0.05, 1.6, 0.22], [0.5, 1.25, 0.14]]) { const A = seg(q, -q.L), B = seg(q, q.L), ox = q.h ? 0 : off * T, oy = q.h ? off * T : 0; c.globalAlpha = a; c.strokeStyle = TEAL_HI; c.lineWidth = Math.max(1.2, T * 0.08); c.setLineDash([T * 0.7, T * 1.6]); c.lineDashOffset = -t * T * sp * (i % 2 ? 1 : -1); c.beginPath(); c.moveTo(A[0] + ox, A[1] + oy); c.lineTo(B[0] + ox, B[1] + oy); c.stroke(); } });
+    if (!M.ybGL) lines.forEach((q, i) => { for (const [off, sp, a] of [[-0.45, 1.0, 0.16], [0.05, 1.6, 0.22], [0.5, 1.25, 0.14]]) { const A = seg(q, -q.L), B = seg(q, q.L), ox = q.h ? 0 : off * T, oy = q.h ? off * T : 0; c.globalAlpha = a; c.strokeStyle = TEAL_HI; c.lineWidth = Math.max(1.2, T * 0.08); c.setLineDash([T * 0.7, T * 1.6]); c.lineDashOffset = -t * T * sp * (i % 2 ? 1 : -1); c.beginPath(); c.moveTo(A[0] + ox, A[1] + oy); c.lineTo(B[0] + ox, B[1] + oy); c.stroke(); } });
     c.setLineDash([]);
-    if (S) { const warn = S.t < S.warn, u = clamp(S.t / S.warn, 0, 1), k = warn ? 0.1 + 0.3 * u * (0.55 + 0.45 * Math.sin(t * (10 + u * 16))) : 0.55 + 0.25 * Math.sin(t * 40), fade = warn ? 1 : clamp((S.warn + S.live - S.t) / 0.4, 0, 1);
+    if (S && !M.ybGL) { const warn = S.t < S.warn, u = clamp(S.t / S.warn, 0, 1), k = warn ? 0.1 + 0.3 * u * (0.55 + 0.45 * Math.sin(t * (10 + u * 16))) : 0.55 + 0.25 * Math.sin(t * 40), fade = warn ? 1 : clamp((S.warn + S.live - S.t) / 0.4, 0, 1);
       lines.forEach(q => { const A = seg(q, -q.L), B = seg(q, q.L); c.globalAlpha = k * fade; c.strokeStyle = warn ? TEAL_HI : '#E8FFFA'; c.lineWidth = CW * T; c.beginPath(); c.moveTo(A[0], A[1]); c.lineTo(B[0], B[1]); c.stroke(); });
       // the channels' edges marked in a running dash while it builds; lightning along them once live
       if (warn) { c.globalAlpha = 0.6 + 0.4 * u; c.strokeStyle = '#FFFFFF'; c.lineWidth = Math.max(1.5, T * 0.07); c.setLineDash([T * 0.4, T * 0.3]); c.lineDashOffset = -t * T * 3; lines.forEach(q => { for (const e of [-CW / 2, CW / 2]) { const A = seg(q, -q.L), B = seg(q, q.L), ox = q.h ? 0 : e * T, oy = q.h ? e * T : 0; c.beginPath(); c.moveTo(A[0] + ox, A[1] + oy); c.lineTo(B[0] + ox, B[1] + oy); c.stroke(); } }); c.setLineDash([]);
@@ -421,7 +427,7 @@ RiftFiend.define({ id: 'ixvorra', name: 'Ix-Vorra', title: 'The Living Conductor
     // labels on the coolant while it builds
     if (S && S.t < S.warn) { const a = 0.7 + 0.3 * Math.sin(t * 9); for (const [x, y] of [[CH, 0], [-CH, 0], [0, CH], [0, -CH], [CH, 9], [-CH, -9], [9, -CH], [-9, CH]]) label(c, 'LIVE', X0 + x * T, Y0 + y * T, Math.round(T * 0.5), TEAL_HI, a); }
     // the overcharging pylon: a ring on the deck round its foot, turning
-    const O = M.ov; if (O) { const p = pylonAt(C, O.i), X = FX.sx(p[0]), Y = FX.sy(p[1]); c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.4 + 0.25 * Math.sin(t * 7); blitSized(c, glowSprite(VIOLET), X - T * 2.4, Y - T * 1.6, T * 4.8, T * 3.2); c.globalAlpha = 0.9; c.strokeStyle = VIOLET_HI; c.lineWidth = Math.max(2, T * 0.09); c.setLineDash([T * 0.55, T * 0.3]); c.lineDashOffset = -t * T * 2; c.beginPath(); c.ellipse(X, Y, T * 1.9, T * 1.25, 0, 0, TAU); c.stroke(); c.setLineDash([]); c.restore(); } }
+    const O = M.ov; if (O && !M.ybGL) { const p = pylonAt(C, O.i), X = FX.sx(p[0]), Y = FX.sy(p[1]); c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.4 + 0.25 * Math.sin(t * 7); blitSized(c, glowSprite(VIOLET), X - T * 2.4, Y - T * 1.6, T * 4.8, T * 3.2); c.globalAlpha = 0.9; c.strokeStyle = VIOLET_HI; c.lineWidth = Math.max(2, T * 0.09); c.setLineDash([T * 0.55, T * 0.3]); c.lineDashOffset = -t * T * 2; c.beginPath(); c.ellipse(X, Y, T * 1.9, T * 1.25, 0, 0, TAU); c.stroke(); c.setLineDash([]); c.restore(); } }
 
   /* ---- a capacitor pylon: a stepped plinth, a black mast ringed with coils, a copper contact low down for the web, a
      brass crown holding a glass cap of violet plasma; it overcharges white-hot, shatters, re-forms ---- */

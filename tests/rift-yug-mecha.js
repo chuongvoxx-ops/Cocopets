@@ -4,7 +4,7 @@ let fails = 0; const ok = (c, s) => { console.log((c ? 'ok   ' : 'FAIL ') + s); 
 (async () => {
   const T = await open({ lvl: 62, seals: ['belfry', 'garden', 'dunes', 'sepulchre', 'aurora'] }); const { page, errors, shot, start, run } = T;
   await start('yuggoth', 0); await run(1.5);
-  let r = await page.evaluate(() => { const D = window.__pp.arc.game._dbg, mini = D.mons.find(m => m.boss); return { mech: D.mons.filter(m => m.type === 'warmech').length, hound: D.mons.filter(m => m.type === 'mechhound').length, mini: mini && mini.bname, mecha: !!(mini && mini.evil && mini.evil.mecha) }; });
+  let r = await page.evaluate(() => { const D = window.__pp.arc.game._dbg, mini = D.mons.find(m => m.boss); return { mech: D.mons.filter(m => m.type === 'warmech').length, hound: D.mons.filter(m => m.type === 'mechhound').length, mini: mini && mini.bname, mecha: !!(mini && mini.evil && (mini.evil.mecha || mini.calMini)) }; });   // v472 YM: (or a giant evil Cocopet grown from the mecha form, EVIL_MINI, 20u6f)
   console.log('  ', JSON.stringify(r)); ok(r.mech >= 3 && r.hound >= 3, 'war mechs and mech hounds stalk the Torn Hull'); ok(r.mecha, 'the Rift-touched mini boss is a giant mecha: ' + r.mini);
   // the mini boss up close
   await page.evaluate(async () => { const D = window.__pp.arc.game._dbg, b = D.mons.find(m => m.boss); for (const m of D.mons) if (!m.boss && !m.dead && Math.hypot(m.x - b.x, m.y - b.y) < 10) m.freeze = 99; const t0 = performance.now(); while (performance.now() - t0 < 6000 && !(b.evil && b.evil.ready)) await new Promise(r => requestAnimationFrame(r)); D.me.x = b.x; D.me.y = b.y + 4.5; b.aggro = true; });

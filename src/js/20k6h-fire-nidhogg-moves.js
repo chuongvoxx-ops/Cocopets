@@ -2580,6 +2580,71 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
       vec2 g = vec2(sp * 6.0, r * 14.0); float dust = step(0.93, h1(floor(g) + sd)) * exp(-sq((fract(g.y) - 0.5) / 0.18)) * arm;
       L = (col * arm * ring * 0.45 * (0.6 + 0.4 * n2(vec2(sp * 3.0, r * 6.0))) + vec3(1.0) * dust * ring * 0.9) * k; }
     /*</AB-FX>*/
+    /*<YB-FX kinds 600..619 (v472 YB: 20z7a/20z8a/20z9a, the Yuggoth Engine's bosses: Kh'aal, Ix-Vorra, Nyar'zhul). All added light, feathered, never a hard edge or a number.
+      600 a disc (uv a unit disc): v_q.x 0..1 the tell (current crawling round its rim, a ring closing in, the deck's plates lit through, arcs reaching in; the middle brightening), 1..2 the strike (a flash, a shock rim going out, cracks of light, dying); v_q.y its seed, v_q.z its mode (0 heat: amber cracks; 1 current: arcs);
+      601 a lane (uv.x -1 its start .. 1 its end, uv.y across): v_q.x as 600; v_q.y its seed + 100 x its place in an order (beads of light, never a number); v_q.z its length in its widths: chevrons of current flowing along it, its rails lit, a front creeping out;
+      602 a fan (uv a unit disc, its axis +x): v_q.x as 600; v_q.y its seed; v_q.z its half-spread: streaks running out along it, its edges and its far arc lit, the strike's slash of light;
+      603 a ring with a gap (uv a unit disc): v_q.x its radius (0..1) + 10 x round(100 x its band's width), v_q.y the gap's angle, v_q.z the gap's half-width + 10 x its strength: a band of hot light, pulsing, the gap left dark with its edges marked;
+      604 a bolt of lightning along the quad (uv.x -1 .. 1 along, uv.y across): v_q.x its seed, v_q.y its core's half-width as a share of the quad's, v_q.z its length in the quad's half-widths: jagged, flickering, a branch, its ends feathered;
+      605 a lane of molten slag (uv as 601): v_q.x how far it has cooled 0..1, v_q.y its seed, v_q.z its length in its widths: blobs of glowing slag crusting over, cracks of light between the crust;
+      606 heat cracks in the deck (uv a unit disc, squashed by the quad): v_q.x its age 0..1, v_q.y its seed;
+      607 coolant light on the floor (uv -1..1 the quad): v_q.x its strength, v_q.y its mode (0 a channel's flow along uv.x, 1 live current in it, 2 a rising flood's surface), v_q.z its length in its widths;
+      608 a plate's guarded arc (uv a unit disc): v_q.x the guarded side's angle, v_q.y its half-arc, v_q.z the band's inner radius + 10 x the clang: a band of shield light before it, the open back's chevrons of teal behind>*/
+    else if (v_k > 599.5 && v_k < 619.5) { float tt = u_t, an = atan(u.y, u.x); vec3 W1 = vec3(1.0), TE = vec3(0.72, 1.0, 0.95);
+      if (v_k < 600.5) { float pg = v_q.x, tl = clamp(pg, 0.0, 1.0), af = clamp(pg - 1.0, 0.0, 1.0), sd = v_q.y, md = v_q.z, fade = 1.0 - smoothstep(0.88, 1.0, r);
+        float crawl = pow(n2(vec2(an * 9.0 + tt * 5.0 + sd, r * 6.0 - tt * 2.0)), 3.0), rim = exp(-sq((r - 0.9) / 0.05)) * (0.4 + 0.9 * crawl), close = exp(-sq((r - max(0.03, 1.0 - tl) * 0.9) / 0.03)) * step(0.02, 1.0 - tl);
+        vec2 g = u * 3.2 + sd; vec2 gf = abs(fract(g) - 0.5); float seam = exp(-sq(min(gf.x, gf.y) / 0.04)) * smoothstep(1.0, 0.3, r), inner = smoothstep(0.95, 0.2, r);
+        float ad = abs(fract(an / 6.2832 * 7.0 + 0.3 * n2(vec2(r * 4.0, sd))) - 0.5) * r * 6.2832 / 7.0, arcs = exp(-sq(ad / 0.018)) * smoothstep(1.0 - tl * 0.8 - 0.1, 1.0 - tl * 0.8, r) * smoothstep(0.98, 0.85, r) * (0.5 + 0.5 * n2(vec2(an * 20.0, tt * 15.0)));
+        if (pg <= 1.0) { L = col * (rim * (0.2 + 0.4 * tl) + seam * (0.06 + 0.22 * tl) + inner * (0.04 + 0.12 * tl) * (0.7 + 0.3 * fbm(u * 3.0 + tt * 0.4)) + arcs * (0.2 + 0.5 * tl) * step(0.5, md)) + mix(col, W1, 0.5) * close * (0.25 + 0.55 * tl) + mix(col, W1, 0.6) * exp(-r * r * 14.0) * tl * tl * 0.4;
+          if (md < 0.5) { float hc = exp(-sq(abs(fract(an / 6.2832 * 9.0 + 0.2 * fbm(u * 2.0 + sd)) - 0.5) * r / 0.02)) * smoothstep(1.0 - tl, 1.0 - tl + 0.15, 1.0 - r) * (1.0 - smoothstep(0.85, 0.95, r)); L += mix(col, vec3(1.0, 0.85, 0.5), 0.4) * hc * 0.5 * tl; } }
+        else { float ad2 = abs(fract(an / 6.2832 * 8.0 + 0.25 + h1(vec2(sd, 1.0)) * 0.2) - 0.5) / 8.0 * 6.2832 * r, crk = exp(-sq(ad2 / 0.022)) * (1.0 - smoothstep(0.3 + 0.6 * af, 0.4 + 0.6 * af, r)), sp = exp(-sq((r - (0.25 + 0.65 * sqrt(af))) / (0.05 + 0.08 * af)));
+          L = (mix(col, W1, 0.6) * (exp(-r * r * (2.0 + 10.0 * af)) * 1.3 + sp * 0.8) + col * crk * 0.9) * (1.0 - af); }
+        L *= fade; }
+      else if (v_k < 601.5) { float ord = floor(v_q.y / 100.0), sd = v_q.y - ord * 100.0, pg = v_q.x, md = step(1.0, pg), k = md > 0.5 ? clamp(2.0 - pg, 0.0, 1.0) : clamp(pg, 0.0, 1.0), asp = max(v_q.z, 1.0), xu = u.x * 0.5 + 0.5, x = xu * asp, ay = abs(u.y);
+        float side = 1.0 - smoothstep(0.6, 1.0, ay), ends = smoothstep(0.0, 0.05, xu) * (1.0 - smoothstep(0.9, 1.0, xu)), rails = exp(-sq((ay - 0.78) / 0.08)) * (1.0 - smoothstep(0.9, 1.0, ay)), thread = exp(-sq(u.y / 0.07));
+        float ch = fract(x * 0.7 - ay * 0.6 - tt * (1.2 + 1.8 * k)), chev = exp(-sq((ch - 0.5) / 0.07)) * side, crk = pow(n2(vec2(x * 3.0 - tt * 9.0, u.y * 5.0 + sd)), 4.0) * side;
+        if (md < 0.5) { float front = 1.0 - smoothstep(k * 1.1 - 0.12, k * 1.1, xu);
+          L = (col * (rails * (0.3 + 0.4 * k) + chev * (0.18 + 0.4 * k) * front + side * (0.05 + 0.12 * k) * front + crk * 0.25 * front) + mix(col, W1, 0.6) * thread * (0.15 + 0.5 * k) * front) * ends;
+          if (ord > 0.5) { for (int i = 0; i < 6; i++) { if (float(i) >= ord) break; float bx = 0.5 + (float(i) - (ord - 1.0) * 0.5) * 0.06; L += W1 * exp(-(sq((xu - bx) * asp / 0.35) + sq(u.y / 0.35))) * 0.6; } } }
+        else L = (mix(col, W1, 0.55) * (thread * 1.2 + side * 0.4) + col * rails * 0.6) * k * ends; }
+      else if (v_k < 602.5) { float pg = v_q.x, tl = clamp(pg, 0.0, 1.0), af = clamp(pg - 1.0, 0.0, 1.0), sp = max(0.05, v_q.z), aa = abs(an), ins = (1.0 - smoothstep(sp - 0.04, sp + 0.04, aa)) * (1.0 - smoothstep(0.9, 1.0, r));
+        float edges = exp(-sq((aa - sp) * r / 0.03)) * (1.0 - smoothstep(0.9, 1.0, r)), far = exp(-sq((r - 0.92) / 0.05)) * (1.0 - smoothstep(sp, sp + 0.06, aa)), str = exp(-sq(abs(fract(an / sp * 3.0 + 0.5) - 0.5) / 0.08)) * pow(fract(r * 3.0 - tt * (1.5 + 2.0 * tl)), 4.0);
+        if (pg <= 1.0) { float sw = exp(-sq((an - (-sp + 2.0 * sp * fract(tt * 0.9))) * r / 0.08)) * ins; L = col * (ins * (0.06 + 0.14 * tl) + edges * (0.3 + 0.5 * tl) + far * (0.35 + 0.5 * tl) + str * ins * (0.1 + 0.3 * tl) + sw * 0.25 * tl) + mix(col, W1, 0.5) * far * tl * 0.3; }
+        else { float sl = exp(-sq((an + sp - 2.0 * sp * min(1.0, af * 2.5)) * r / 0.1)) * ins; L = (mix(col, W1, 0.6) * sl * 1.4 + col * ins * 0.35 + W1 * far * 0.5) * (1.0 - af); } }
+      else if (v_k < 603.5) { float rp = v_q.x, wq = floor(rp / 10.0), r0 = rp - wq * 10.0, bw = max(0.005, wq / 100.0), ga = v_q.y, gk = floor(v_q.z / 10.0), gw = v_q.z - gk * 10.0, k = gk / 10.0;
+        float da = abs(mod(an - ga + 9.4248, 6.2832) - 3.1416), gap = smoothstep(gw * 0.85, gw * 1.05, da), band = exp(-sq((r - r0) / bw)), hot = exp(-sq((r - r0) / (bw * 0.35)));
+        float gedge = exp(-sq((da - gw) * r0 / 0.012)) * exp(-sq((r - r0) / (bw * 1.6))), flk = 0.75 + 0.25 * n2(vec2(an * 14.0 - tt * 4.0, r * 9.0));
+        L = (col * band * 0.55 * flk + mix(col, W1, 0.6) * hot * 0.6) * gap * k + TE * gedge * 0.55 * k; L *= 1.0 - smoothstep(0.97, 1.0, r); }
+      else if (v_k < 604.5) { float sd = v_q.x, wf = max(0.02, v_q.y), asp = max(1.0, v_q.z), x = u.x, fr = floor(tt * 18.0 + sd), env = 1.0 - x * x;
+        float y0 = ((n2(vec2(x * asp * 0.55 + sd * 7.0, fr * 1.3)) - 0.5) * 1.1 + (n2(vec2(x * asp * 1.6 + sd * 3.0, fr * 2.1)) - 0.5) * 0.45) * env * (1.0 - wf), d = abs(u.y - y0);
+        float y1 = y0 + (n2(vec2(x * asp * 1.1 + sd * 5.0, fr * 3.7)) - 0.35) * 0.9 * smoothstep(-0.2, 0.6, x) * (1.0 - smoothstep(0.6, 0.9, x)), d1 = abs(u.y - y1);
+        float core = exp(-sq(d / (wf * 0.35))), glw = exp(-d / (wf * 2.2)) * 0.45, br = exp(-sq(d1 / (wf * 0.22))) * 0.5 * step(0.5, h1(vec2(fr, sd))), ends = 1.0 - smoothstep(0.86, 1.0, abs(x));
+        L = (mix(col, W1, 0.75) * core * 1.3 + col * glw + mix(col, W1, 0.5) * br) * ends * (0.75 + 0.25 * n2(vec2(fr, sd * 3.0))); }
+      else if (v_k < 605.5) { float cool = clamp(v_q.x, 0.0, 1.0), sd = v_q.y, asp = max(v_q.z, 1.0), xu = u.x * 0.5 + 0.5, x = xu * asp;
+        vec2 g = vec2(x * 1.3, u.y * 1.1 + 0.5); float best = 9.0; for (int i = -1; i <= 1; i++) { vec2 ci = vec2(floor(g.x) + float(i), 0.0); vec2 c0 = vec2(ci.x + 0.5 + (h1(ci + sd) - 0.5) * 0.5, 0.5 + (h1(ci + sd + 3.1) - 0.5) * 0.4); float rr = 0.42 + 0.18 * h1(ci + sd + 7.7); best = min(best, length((g - c0) * vec2(1.0, 1.25)) / rr); }
+        float blob = 1.0 - smoothstep(0.75, 1.05, best + 0.18 * (fbm(vec2(x, u.y) * 3.0 + sd) - 0.5)), ends = smoothstep(0.0, 0.05, xu) * (1.0 - smoothstep(0.93, 1.0, xu));
+        float crust = smoothstep(0.42 - cool * 0.35, 0.5 - cool * 0.35, fbm(vec2(x, u.y) * 4.0 + sd + tt * 0.05)), crk = exp(-sq((fbm(vec2(x, u.y) * 4.0 + sd + tt * 0.05) - (0.46 - cool * 0.35)) / 0.03)), heat = 1.0 - cool * 0.75, fl = 0.8 + 0.2 * sin(tt * 7.0 + x * 3.0);
+        vec3 SH = vec3(1.0, 0.82, 0.48); L = (mix(col, SH, (1.0 - best) * 0.6) * (1.0 - crust) * 0.9 * heat * fl + SH * crk * 0.8 * heat + col * crust * 0.05) * blob * ends + col * 0.08 * (1.0 - smoothstep(0.6, 1.0, abs(u.y))) * ends * heat; }
+      else if (v_k < 606.5) { float age = clamp(v_q.x, 0.0, 1.0), sd = v_q.y, fade = 1.0 - smoothstep(0.85, 1.0, r);
+        float a8 = abs(fract(an / 6.2832 * 8.0 + 0.3 * fbm(u * 2.5 + sd)) - 0.5) / 8.0 * 6.2832 * r, crk = exp(-sq(a8 / (0.012 + 0.01 * (1.0 - age)))) * smoothstep(0.08, 0.2, r) * (1.0 - smoothstep(0.55 + 0.4 * h1(vec2(floor(an * 1.27), sd)), 0.95, r));
+        float web = exp(-sq((abs(fract(r * 4.0 + fbm(u * 3.0 + sd) * 0.8) - 0.5)) / 0.03)) * smoothstep(0.15, 0.3, r) * (1.0 - smoothstep(0.6, 0.85, r)) * 0.5;
+        L = (mix(col, vec3(1.0, 0.85, 0.5), 0.4 * (1.0 - age)) * (crk + web) * (1.0 - age * 0.6) + col * exp(-r * r * 6.0) * 0.5 * (1.0 - age)) * fade; }
+      else if (v_k < 607.5) { float k = clamp(v_q.x, 0.0, 1.5), md = v_q.y, asp = max(1.0, v_q.z), ax = abs(u.x), ay = abs(u.y), ins = (1.0 - smoothstep(0.85, 1.0, ax)) * (1.0 - smoothstep(0.7, 1.0, ay));
+        vec2 p = vec2(u.x * asp, u.y); float cau = pow(abs(sin(fbm(p * 2.2 + vec2(-tt * 0.6, tt * 0.2)) * 9.0)), 6.0), fl2 = fbm(p * 1.3 - vec2(tt * 0.8, 0.0));
+        if (md < 0.5) L = col * ins * (0.12 + 0.3 * cau + 0.15 * fl2) * k;
+        else if (md < 1.5) { float y0 = (n2(vec2(p.x * 1.4, floor(tt * 16.0))) - 0.5) * 1.2, arc = exp(-sq((u.y - y0) / 0.08)); L = (col * ins * (0.2 + 0.35 * cau) + mix(col, W1, 0.6) * arc * 0.8 * ins) * k; }
+        else L = col * ins * (0.1 + 0.28 * cau + 0.12 * fl2 + 0.25 * pow(n2(p * 6.0 + tt), 8.0)) * k; }
+      else if (v_k < 608.5) { float hd = v_q.x, ha = v_q.y, cq = floor(v_q.z / 10.0), ri = v_q.z - cq * 10.0, cl2 = cq / 10.0, da = abs(mod(an - hd + 9.4248, 6.2832) - 3.1416), db = abs(mod(an - hd + 6.2832, 6.2832) - 3.1416);
+        float band = smoothstep(ri - 0.04, ri + 0.03, r) * (1.0 - smoothstep(0.93, 1.0, r)) * (1.0 - smoothstep(ha - 0.08, ha + 0.02, da)), outer = exp(-sq((r - 0.93) / 0.03)) * (1.0 - smoothstep(ha - 0.05, ha + 0.03, da));
+        vec2 hg = vec2(an * 6.0, r * 10.0 - tt * 1.5); vec2 hf = abs(fract(hg) - 0.5); float hex = exp(-sq(min(hf.x, hf.y) / 0.06));
+        float chv = 0.0; for (int i = -1; i <= 1; i++) { float b = 3.1416 + float(i) * 0.38, d2 = abs(mod(an - hd - b + 9.4248, 6.2832) - 3.1416); chv += exp(-sq((d2 * 0.9 - abs(r - 0.9 - fract(tt * 1.2) * 0.08) * 1.5) / 0.03)) * exp(-sq((r - 0.88) / 0.08)) * step(d2, 0.18); }
+        L = col * band * (0.12 + 0.15 * hex + 0.3 * cl2) + mix(col, W1, 0.6) * outer * (0.55 + 0.4 * cl2) + TE * chv * 0.7 * (0.7 + 0.3 * sin(tt * 6.0)); }
+      /* 609 the Core Chamber's flood (uv the floor's oval, 17 x 12): v_q.x the dry oval left in its middle (0..1), v_q.y its state (1 full, 2 rising): teal coolant with caustics, a line of foam at its edge, the five grates standing out of it, their rims lit */
+      else if (v_k < 609.5) { float k = clamp(v_q.x, 0.0, 1.0), st = v_q.y, r2 = length(u), ins = 1.0 - smoothstep(0.96, 1.0, r2), wet = smoothstep(k - 0.01, k + 0.02, r2) * ins; vec2 p = u * vec2(17.0, 12.0);
+        float gr = 0.0, rim = 0.0; for (int i = 0; i < 5; i++) { vec2 gc = i == 0 ? vec2(-8.8, -3.4) : i == 1 ? vec2(8.8, -3.4) : i == 2 ? vec2(-4.8, 6.2) : i == 3 ? vec2(4.8, 6.2) : vec2(0.0, 0.4); vec2 dd = abs(p - gc) - vec2(1.75, 1.3); float sdf = max(dd.x, dd.y); gr = max(gr, 1.0 - smoothstep(-0.05, 0.1, sdf)); rim = max(rim, exp(-sdf * sdf / 0.02)); }
+        float cau = pow(abs(sin(fbm(p * 0.35 + vec2(tt * 0.2, -tt * 0.15)) * 9.0)), 5.0), rip = 0.5 + 0.5 * sin(length(p) * 1.3 - tt * 2.0 + fbm(p * 0.2) * 4.0), foam = exp(-sq((r2 - k) / 0.012)) * (0.6 + 0.4 * n2(p * 2.0 + tt)) * step(0.02, k);
+        L = (col * (0.12 + 0.3 * cau + 0.06 * rip) * vec3(0.4, 1.0, 0.9) + W1 * foam * 0.7) * wet * (1.0 - gr) + col * rim * (0.5 + 0.35 * sin(tt * 6.0)) * (st > 1.5 ? 1.0 : 0.6) * ins; } }
+    /*</YB-FX>*/
     /*<RZU-FX kinds 466..479 (v464 RZ-U: 20g6b-raziel-ultimate.js, Raziel's The Book of Two Heavens). 468 and 478 are laid over (solid), the rest added. Fire and ice keep apart:
       fire turbulent, rising, white-hot at its heart; ice faceted, sharp-edged, still, refractive>*/
     else if (v_k > 465.5 && v_k < 479.5) { float tt = u_t, an = atan(u.y, u.x);
@@ -2817,6 +2882,46 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
           A = th * (0.3 + 0.5 * pl) * s * ends; C = mix(col, vec3(1.0), pl * th * 0.4); } }
       float a = clamp(A * v_c.a, 0.0, 0.9); gl_FragColor = vec4(C * a, a); return; }
     /*</AM-FX>*/
+    /*<YM-FX kinds 590..596 (v472 YM: 20u6f-yug-brood-gl.js, Rift 06's brood and its mini bosses: their tells, beams of current, shots, spore clouds and bursts). All added light over the Engine's dark hull, every edge feathered, glow only (no hard outline, no numbers); v_c its colour (violet current, teal coolant, amber heat, rose spores)>*/
+    else if (v_k > 589.5 && v_k < 596.5) { float tt = u_t, an = atan(u.y, u.x);
+      if (v_k < 590.5) { // 590 a lane (uv.x -1 its source .. 1 its far end, uv.y across): v_q.x 0..1 a tell (current crawling out from the source: a bright front, lit rails, filaments flickering down its middle), 1 + k its strike (a white surge racing down it, fading); v_q.y seed, v_q.z its length in its widths
+        float xu = u.x * 0.5 + 0.5, ay = abs(u.y), x = xu * max(v_q.z, 1.0), side = 1.0 - smoothstep(0.5, 1.0, ay), ends = smoothstep(0.0, 0.05, xu) * (1.0 - smoothstep(0.86, 1.0, xu)), rail = exp(-sq((ay - 0.72) / 0.09)) * (1.0 - smoothstep(0.9, 1.0, ay)), fil = 0.0;
+        for (int i = 0; i < 2; i++) { float fi = float(i), yy = (n2(vec2(x * 1.6 + fi * 7.0 + v_q.y, floor(tt * 12.0) + fi * 3.0)) - 0.5) * 1.1; fil = max(fil, exp(-sq((u.y - yy) / 0.06))); }
+        if (v_q.x < 1.0) { float k = clamp(v_q.x, 0.0, 1.0), front = 1.0 - smoothstep(k - 0.06, k + 0.02, xu), crest = exp(-sq((xu - k) / 0.04)) * side, pul = 0.75 + 0.25 * sin(tt * (8.0 + 16.0 * k) + x);
+          L = (col * (side * (0.08 + 0.2 * k) * front + rail * (0.18 + 0.45 * k) * (0.4 + 0.6 * front) * pul + fil * front * side * (0.25 + 0.45 * k)) + vec3(1.0) * crest * (0.3 + 0.4 * k)) * ends; }
+        else { float k = clamp(v_q.x - 1.0, 0.0, 1.0), cr = exp(-sq((xu - k * 1.1) / 0.08)) * side; L = (col * (side * 0.4 * (1.0 - k) + fil * side * 0.6) + vec3(1.0) * cr * 0.7) * (1.0 - k * 0.75) * ends; } }
+      else if (v_k < 591.5) { // 591 a ring tell (uv a unit disc): v_q.x 0..1 current closing in from the rim (arcs crawling round it, a hex mesh lighting toward the middle as the blow nears), 1 + k its strike (a ring of current racing out, a flash fading); v_q.y seed
+        float fe = 1.0 - smoothstep(0.86, 1.0, r);
+        if (v_q.x < 1.0) { float k = clamp(v_q.x, 0.0, 1.0), inner = 0.9 - k * 0.8, reach = smoothstep(inner - 0.12, inner + 0.02, r); vec2 h = u * 5.0, hc = vec2(h.x + h.y * 0.577, h.y * 1.155), hf = abs(fract(hc) - 0.5); float cell = smoothstep(0.4, 0.5, max(hf.x, hf.y));
+          float rim = exp(-sq((r - 0.84) / 0.06)), arc = pow(n2(vec2(an * 6.0 + v_q.y, floor(tt * 10.0))), 4.0) * exp(-sq((r - 0.84) / 0.12)) * 2.0, pul = 0.8 + 0.2 * sin(tt * (7.0 + 15.0 * k));
+          L = (col * ((0.05 + 0.14 * k) + cell * reach * (0.18 + 0.3 * k) + rim * (0.3 + 0.45 * k) * pul + arc * (0.3 + 0.4 * k)) + vec3(1.0) * (rim * 0.15 + arc * 0.2) * k) * fe; }
+        else { float k = clamp(v_q.x - 1.0, 0.0, 1.0), band = exp(-sq((r - (0.2 + 0.75 * k)) / 0.08)), fl = (1.0 - smoothstep(0.0, 0.85, r)) * sq(1.0 - k); L = (col * (band * 0.8 + fl * 0.4) + vec3(1.0) * (band * 0.35 + fl * 0.35)) * (1.0 - k) * fe; } }
+      else if (v_k < 592.5) { // 592 a cone tell (uv a unit disc about its apex): v_q.x 0..1 filling from the apex, streaks drawn along it, its sides lit, its far arc; 1 + k the spray (a crescent racing out, dying); v_q.y its middle angle, v_q.z its half spread
+        float da = abs(mod(an - v_q.y + 3.1416, 6.2832) - 3.1416), spr = v_q.z, inA = 1.0 - smoothstep(spr - 0.06, spr + 0.03, da), fe = 1.0 - smoothstep(0.86, 1.0, r), ap = smoothstep(0.0, 0.1, r), sides = exp(-sq((da - spr) * max(r, 0.05) / 0.035)) * fe * ap;
+        if (v_q.x < 1.0) { float k = clamp(v_q.x, 0.0, 1.0), fill = 1.0 - smoothstep(k - 0.06, k + 0.02, r), arc = exp(-sq((r - 0.86) / 0.06)) * inA, st = pow(fbm(vec2(an * 7.0 + v_q.y * 3.0, r * 3.0 - tt * 2.4)), 3.0) * 2.0;
+          L = col * (inA * fe * ap * ((0.06 + 0.16 * k) * (0.6 + st * 0.6) + fill * 0.14) + sides * (0.3 + 0.4 * k) + arc * (0.25 + 0.4 * k)) + vec3(1.0) * (sides * 0.12 + arc * 0.12) * k; }
+        else { float k = clamp(v_q.x - 1.0, 0.0, 1.0), cr = exp(-sq((r - k) / 0.12)) * inA * fe; L = (col * (cr * 0.8 + inA * fe * ap * 0.15 * (1.0 - k)) + vec3(1.0) * cr * 0.3) * (1.0 - k * 0.8); } }
+      else if (v_k < 593.5) { // 593 a beam of current (uv.x -1 .. 1 along, uv.y across): three jagged filaments flickering between its ends, a soft glow round them, white-hot cores; v_q.x its strength, v_q.y seed, v_q.z its length in its widths (the jag's scale)
+        float xu = u.x * 0.5 + 0.5, x = xu * max(v_q.z, 1.0), ends = smoothstep(0.0, 0.04, xu) * (1.0 - smoothstep(0.96, 1.0, xu)) * (1.0 - smoothstep(0.85, 1.0, abs(u.y))), env0 = sin(clamp(xu, 0.0, 1.0) * 3.1416), s = clamp(v_q.x, 0.0, 1.5), fl = 0.0, cor = 0.0;
+        for (int i = 0; i < 3; i++) { float fi = float(i), ph = floor(tt * 14.0 + fi * 0.37), yy = ((n2(vec2(x * 1.3 + fi * 5.1 + v_q.y, ph)) - 0.5) * 1.1 + (n2(vec2(x * 4.1 - fi * 2.3, ph + 3.0)) - 0.5) * 0.4) * env0, d = abs(u.y - yy);
+          fl = max(fl, exp(-sq(d / (0.08 - fi * 0.018)))); cor = max(cor, exp(-sq(d / 0.025))); }
+        L = (col * (fl * 0.85 + exp(-sq(u.y / 0.55)) * 0.3) + vec3(1.0) * cor * 0.8) * ends * s * (0.85 + 0.15 * sin(tt * 40.0 + v_q.y)); }
+      else if (v_k < 594.5) { // 594 a shot (uv a unit disc, its core 0.4 of it): v_q.x 0 a bolt of current (a white-hot core in its colour, arcs flicking out of it, a soft halo), 1 a blob of coolant (a glassy drop, its highlight); v_q.y seed
+        float d = r / 0.4, core = exp(-d * d * 1.6), halo = exp(-r * 3.2) * 0.6, fe = 1.0 - smoothstep(0.8, 1.0, r);
+        if (v_q.x < 0.5) { float ph = floor(tt * 18.0 + v_q.y), arcs = 0.0; for (int i = 0; i < 3; i++) { float fi = float(i), a0 = h1(vec2(ph, fi + v_q.y)) * 6.2832, da = abs(mod(an - a0 - (n2(vec2(r * 6.0, ph + fi)) - 0.5) * 1.2 + 3.1416, 6.2832) - 3.1416) * r; arcs = max(arcs, exp(-sq(da / 0.03)) * (1.0 - smoothstep(0.3, 0.95, r)) * step(0.15, r)); }
+          L = (col * (halo + core * 0.6 + arcs * 0.7) + vec3(1.0) * (core * 0.9 + arcs * 0.35)) * fe; }
+        else { float z = sqrt(max(0.0, 1.0 - d * d)), body = 1.0 - smoothstep(0.85, 1.0, d), lam = clamp(dot(vec3(u / 0.4, z), normalize(vec3(-0.5, -0.6, 0.6))), 0.0, 1.0), hl = pow(lam, 18.0);
+          L = (col * (halo * 0.8 + body * (0.35 + 0.4 * lam)) + vec3(1.0) * (hl * 0.9 * body + core * 0.25)) * fe; } }
+      else if (v_k < 595.5) { // 595 a burst of current at age v_q.x (0..1: forks of lightning thrown out from the middle, a ring racing out, a flash: a slam, a landing, a hatching); v_q.y seed
+        float k = clamp(v_q.x, 0.0, 1.0), fe = 1.0 - smoothstep(0.88, 1.0, r), fk = 0.0, ph = floor(tt * 16.0);
+        for (int i = 0; i < 7; i++) { float fi = float(i), ra = fi * 0.8976 + h1(vec2(fi, v_q.y)) * 0.6 + v_q.y, len = (0.45 + 0.5 * h1(vec2(fi, v_q.y + 4.0))) * smoothstep(0.0, 0.3, k), wob = (n2(vec2(r * 7.0 + fi * 3.0, ph + fi)) - 0.5) * 0.9 * r, dd = abs(mod(an - ra + 3.1416, 6.2832) - 3.1416) * r - wob * 0.3; fk = max(fk, (1.0 - smoothstep(len - 0.08, len, r)) * exp(-sq(dd / 0.03)) * smoothstep(0.03, 0.12, r)); }
+        float ring = exp(-sq((r - (0.12 + 0.8 * k)) / 0.07)) * (1.0 - k), fl = (1.0 - smoothstep(0.0, 0.6, r)) * sq(1.0 - k);
+        L = (col * (fk * 0.8 * (1.0 - smoothstep(0.5, 1.0, k)) + ring * 0.7 + fl * 0.5) + vec3(1.0) * (fk * 0.4 * (1.0 - k) + fl * 0.45)) * fe; }
+      else { // 596 a cloud of spores (uv a unit disc: the cloud's reach): slow billows of rose mist turning over themselves, brighter motes drifting up through it, its rim soft; v_q.x its strength (0..1), v_q.y seed
+        float s = clamp(v_q.x, 0.0, 1.0), fe = 1.0 - smoothstep(0.55, 1.0, r), b = fbm(vec2(an * 1.6 + tt * 0.25 + v_q.y, r * 2.4 - tt * 0.35)) * 0.7 + fbm(u * 2.2 + vec2(tt * 0.15, -tt * 0.2) + v_q.y) * 0.5, mo = 0.0;
+        for (int i = 0; i < 6; i++) { float fi = float(i); vec2 c0 = vec2(h1(vec2(fi, v_q.y)) - 0.5, fract(h1(vec2(fi + 3.0, v_q.y)) - tt * (0.08 + 0.06 * h1(vec2(fi, 9.0)))) * 2.0 - 1.0) * vec2(1.4, 1.6); mo = max(mo, exp(-dot(u - c0, u - c0) / 0.004)); }
+        L = (col * (smoothstep(0.35, 1.0, b) * 0.55 + 0.08) + mix(col, vec3(1.0), 0.6) * mo * 0.6) * fe * s; } }
+    /*</YM-FX>*/
     /*<AE-FX kinds 510..513 (v470 AE: 20s6e-aur-sky.js, 20s6d-aur-props.js, 20s6d2-aur-pieces.js: the Pale Aurora's sky, its blowing snow and frost). 510 and 512 added (over the dark sky), 511 and 513 laid over (solid: they must read on near-white snow); every edge feathered, glow only, no outline or numbers>*/
     else if (v_k > 509.5 && v_k < 513.5) { float tt = u_t;
       if (v_k < 510.5) { // 510 a curtain of the aurora (uv.x along -1..1, uv.y -1 its top .. 1 under its hem): folded sheets of rays hanging from the dark, brightest along the hem (its colour), rose and violet toward the top; the folds drift, the rays flicker; v_q.x seed, v_q.y how much violet, v_q.z its pace
@@ -2843,6 +2948,45 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
         float reach = 1.0 - smoothstep(gr - 0.12, gr, r), wash = (1.0 - smoothstep(0.0, 1.0, r / gr)) * 0.28;
         float A = (max(arm, twig * 0.7) * 0.85 + wash) * reach * (1.0 - smoothstep(0.88, 1.0, r)), a = clamp(A * v_c.a, 0.0, 0.8); gl_FragColor = vec4(mix(col, vec3(1.0), arm * 0.3) * a, a); return; } }
     /*</AE-FX>*/
+    /*<YE-FX kinds 570..575 (v472 YE: 20u6d-yug-props.js, 20u6d2-yug-pieces.js, 20u6e-yug-sky.js: the Yuggoth Engine's light: its void, its lightning, its coolant, steam, the meltdown's plasma, its live floor). All added light, every edge feathered, glow only (no outline, no numbers)>*/
+    else if (v_k > 569.5 && v_k < 575.5) { float tt = u_t, an = atan(u.y, u.x);
+      if (v_k < 570.5) { // 570 the void's current (a disc quad: uv radius 1): slow violet storm clouds turning, threads of current running through them, flickering; v_q.x seed, v_q.y the threads' strength, v_q.z its pace
+        float sd = v_q.x * 17.0, pc = 0.4 + v_q.z, sw = an + r * 2.2 - tt * 0.03 * pc; vec2 q = vec2(cos(sw), sin(sw)) * r * 1.6 + vec2(sd, sd * 0.7);
+        float cl = fbm(q * 1.3 + vec2(tt * 0.02 * pc, 0.0)), cl2 = fbm(q * 2.7 - vec2(0.0, tt * 0.03 * pc) + cl * 1.5);
+        float th = 1.0 - smoothstep(0.0, 0.035, abs(cl2 - 0.5)), th2 = 1.0 - smoothstep(0.0, 0.015, abs(fbm(q * 5.0 + vec2(tt * 0.05, sd)) - 0.5)), fl = 0.6 + 0.4 * sin(tt * 2.3 + cl * 9.0 + sd);
+        float body = smoothstep(0.35, 0.85, cl) * 0.45 + cl2 * 0.12, fe = 1.0 - smoothstep(0.55, 1.0, r);
+        L = (col * 0.55 * body + mix(col, vec3(1.0), 0.55) * (th * 0.55 + th2 * 0.35) * v_q.y * fl) * fe; }
+      else if (v_k < 571.5) { // 571 a bolt of lightning (uv.x -1 .. 1 along it, uv.y -1 .. 1 across its reach): a jagged white core re-forking twenty times a second, a fork off its middle, a halo of its colour; v_q.x seed, v_q.y its age 0..1 (it fades), v_q.z how far it may wander across (0..1)
+        float sd = v_q.x * 31.0 + floor(tt * 20.0) * 3.7, x = u.x, env = 1.0 - x * x, wv = clamp(v_q.z, 0.05, 1.0);
+        float y0 = ((n2(vec2(x * 5.0 + sd, sd)) - 0.5) * 1.1 + (n2(vec2(x * 15.0 - sd, 3.0)) - 0.5) * 0.4) * env * wv;
+        float d = abs(u.y - y0), bx = -0.2 + 0.5 * h1(vec2(sd, 1.0)), bu = clamp((x - bx) / 0.55, 0.0, 1.0), bs = h1(vec2(sd, 2.0)) > 0.5 ? 1.0 : -1.0;
+        float y1 = y0 + bs * bu * 0.55 * wv + (n2(vec2(x * 11.0, sd + 5.0)) - 0.5) * 0.25 * bu, d1 = abs(u.y - y1) + (1.0 - step(0.001, bu)) * 9.0;
+        float k = (1.0 - clamp(v_q.y, 0.0, 1.0)) * (0.55 + 0.45 * step(0.3, h1(vec2(floor(tt * 30.0), v_q.x)))), ends = 1.0 - smoothstep(0.88, 1.0, abs(x));
+        float core = exp(-sq(d / 0.045)) + exp(-sq(d1 / 0.03)) * (1.0 - bu) * 0.8, halo = exp(-d * 6.0) * 0.4 + exp(-d1 * 9.0) * 0.15 * (1.0 - bu);
+        L = (mix(col, vec3(1.0), 0.8) * core + col * halo) * k * ends; }
+      else if (v_k < 572.5) { // 572 coolant's glow (uv -1 .. 1 its rectangle): bright caustic veins drifting over a deep teal glow, bubbles rising; v_q.x seed, v_q.y the veins' strength, v_q.z the bubbles
+        vec2 p = u * 2.4 + vec2(v_q.x * 7.0, 0.0); float c1 = fbm(p + vec2(tt * 0.12, -tt * 0.07)), c2 = fbm(p * 1.7 - vec2(tt * 0.09, tt * 0.05) + c1);
+        float vein = 1.0 - smoothstep(0.0, 0.06, abs(c2 - 0.5)), b = pow(n2(vec2(u.x * 14.0 + v_q.x, u.y * 9.0 + tt * 0.8)), 18.0) * 4.0 * v_q.z;
+        float fe = (1.0 - smoothstep(0.7, 1.0, abs(u.x))) * (1.0 - smoothstep(0.7, 1.0, abs(u.y)));
+        L = (col * (0.18 + 0.25 * c1) + mix(col, vec3(1.0), 0.5) * vein * 0.6 * v_q.y + vec3(0.9, 1.0, 1.0) * b) * fe; }
+      else if (v_k < 573.5) { // 573 a plume of steam (uv.x -1 .. 1 across, uv.y 1 its vent .. -1 its top): soft billows rising and spreading, thinning as they climb, a brighter core at the vent; v_q.x seed, v_q.y how far up it reaches (0..1), v_q.z its pace
+        float h = (1.0 - u.y) * 0.5, reach = clamp(v_q.y, 0.05, 1.0), wdt = 0.25 + 0.75 * h, x = u.x / wdt;
+        float f = fbm(vec2(x * 1.5 + v_q.x * 5.0, h * 3.0 - tt * (0.8 + v_q.z))), f2 = fbm(vec2(x * 3.0 - v_q.x, h * 6.0 - tt * (1.4 + v_q.z)) + f);
+        float side = 1.0 - smoothstep(0.35, 1.0, abs(x) + (f - 0.5) * 0.4), top = 1.0 - smoothstep(reach - 0.25, reach, h + (f2 - 0.5) * 0.2), foot = smoothstep(0.0, 0.06, h);
+        float A = side * top * foot * (0.35 + 0.65 * f2) * (1.0 - h * 0.55);
+        L = mix(col, vec3(1.0), 0.4) * A * 0.75 + vec3(1.0) * exp(-sq(u.x / 0.18)) * exp(-h * 9.0) * 0.25 * reach; }
+      else if (v_k < 574.5) { // 574 the meltdown's plasma (uv.x -1 .. 1 along its front, uv.y -1 just past the front .. 1 deep in it): a roiling wall of magenta and violet plasma, a white-hot crest licking up along its front; v_q.x seed, v_q.y its heat
+        float y = u.y * 0.5 + 0.5, f = fbm(vec2(u.x * 3.0 + v_q.x, y * 2.0 - tt * 0.9)), f2 = fbm(vec2(u.x * 7.0 - tt * 0.6, y * 5.0 - tt * 1.8) + f * 1.3);
+        float front = 0.18 + 0.08 * sin(u.x * 9.0 + tt * 4.0) + 0.06 * (f - 0.5), d = y - front;
+        float body = smoothstep(-0.04, 0.12, d) * (0.55 + 0.45 * f2), crest = exp(-sq(d / 0.035)) * (0.6 + 0.4 * f2), lick = exp(-sq((d + 0.06 * f2) / 0.08)) * f2 * f2;
+        float ends = 1.0 - smoothstep(0.9, 1.0, abs(u.x)), deep = 1.0 - 0.45 * smoothstep(0.3, 1.0, y);
+        L = (mix(col, vec3(0.62, 0.22, 0.95), smoothstep(0.1, 0.8, y)) * body * deep * 0.8 * v_q.y + mix(col, vec3(1.0), 0.85) * (crest * 1.1 + lick * 0.5)) * ends; }
+      else { // 575 a plate of live floor (uv -1 .. 1 its square): v_q.y 0 .. 1 a tell (an amber glow kindling in its seams), 1 + k live (threads of current crawling over it, k its strength); v_q.x seed; v_c its colour
+        float sd = v_q.x * 13.0, ax = max(abs(u.x), abs(u.y)), fe = 1.0 - smoothstep(0.78, 1.0, ax), live = step(1.0, v_q.y), k = live > 0.5 ? clamp(v_q.y - 1.0, 0.0, 1.0) : clamp(v_q.y, 0.0, 1.0);
+        float seam = exp(-sq((ax - 0.82) / 0.06)) + exp(-sq(abs(u.x) / 0.04)) * 0.4 + exp(-sq(abs(u.y) / 0.04)) * 0.4;
+        float th = 1.0 - smoothstep(0.0, 0.05, abs(fbm(u * 2.6 + vec2(sd, floor(tt * 14.0) * 0.61)) - 0.5)), th2 = 1.0 - smoothstep(0.0, 0.03, abs(fbm(u * 5.0 - vec2(floor(tt * 18.0) * 0.43, sd)) - 0.5));
+        L = live > 0.5 ? (col * (th * 0.8 + th2 * 0.5 + 0.12) + vec3(1.0) * th * th2 * 0.6) * k * fe : col * (seam * 0.7 + 0.1 * (1.0 - ax)) * k * fe * (0.75 + 0.25 * sin(tt * 18.0)); } }
+    /*</YE-FX>*/
     else if (v_k > 135.5 && v_k < 140.5) { // (v420 GC) the Gate of Cancer's light (20o-rift-gate-cancer.js, 20o1-cancer-props.js). v_c its colour
       float tt = u_t, an = atan(u.y, u.x);
       if (v_k < 136.5) { // 136 the arena's carved lunar rings (its quad the arena's ellipse: uv a unit disc): the gold-inlaid rings at 0.3 and 0.86 and the carved ring at 0.58, light running round each in slow pulses, a soft pool on the sigil at the heart; v_q.x strength, v_q.y seed, v_q.z the sigil's glow

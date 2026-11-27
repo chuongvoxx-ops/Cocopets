@@ -5,14 +5,7 @@
 
 # (v470 AE: Rift 05, The Pale Aurora (+ Capricorn gate), rebuilt and back in the artifact: its block removed)
 
-# Rift 06, The Yuggoth Engine (+ Aquarius gate)
-20u5-rift-06-stages.js
-20u6-rift-06-yuggoth.js
-20u6b-rift-06-mecha.js
-20u7-rift-gate-aquarius.js
-20z7-rift-fiend-yuggoth-1.js
-20z8-rift-fiend-yuggoth-2.js
-20z9-rift-fiend-yuggoth-3.js
+# (v472 YE: Rift 06, The Yuggoth Engine (+ Aquarius gate), rebuilt and back in the artifact: its block removed; the artifact measured 15.32 MB with it)
 
 # Rift 07, The Library of Unwritten Lives (+ Virgo gate)
 20za-rift-07-stages.js

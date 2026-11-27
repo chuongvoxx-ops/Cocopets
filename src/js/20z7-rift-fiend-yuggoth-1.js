@@ -28,6 +28,9 @@ RiftFiend.define({ id: 'khaal', name: 'Kh\'aal', title: 'The Hull-Eater', color:
   const angTo = (a, b) => { let d = b - a; while (d > Math.PI) d -= TAU; while (d < -Math.PI) d += TAU; return d; };
   const easeOut = u => 1 - Math.pow(1 - clamp(u, 0, 1), 3), smooth = u => { u = clamp(u, 0, 1); return u * u * (3 - 2 * u); };
   const mix = (a, b, u) => DunFiend.KIT.mixC(a, b, clamp(u, 0, 1));
+  /* (v472 YB) the GPU model and its light (KHAAL_GL, 20z7a-khaal-gl.js); without them the 2D Kh'aal, its 2D effects and overlay */
+  const KG = () => { try { return typeof KHAAL_GL !== 'undefined' ? KHAAL_GL : null; } catch (e) { return null; } }, KEEP2D = { every: 2, pad: 3 };
+  const hpK = FX => { const F = FX && FX.F && FX.F.rift && FX.F.rift.foeK; return F && F.boss > 0 ? F.boss : 1; };   // (v472 YB: the rift's main-boss health factor, as 20z4's)
   // the painter's palette
   const CH = '#2E2540', CH_SH = '#150F1E', CH_HI = '#6A5A8A', PLATE = ['#68718E', '#747E9C', '#5E6684', '#6E6890', '#7E88A8'], PL_SH = '#3C4258', PL_HI = '#AEB8D6';
   const SLAG = '#FF7A2E', SLAG_HI = '#FFD27A', BRAIN = '#F0A8D0', BRAIN_SH = '#B0608E', BRAIN_HI = '#FFE2F2', WING = '#E88AC0', WING_SH = '#A9578A', WING_HI = '#FFC8E4';
@@ -54,9 +57,11 @@ RiftFiend.define({ id: 'khaal', name: 'Kh\'aal', title: 'The Hull-Eater', color:
     phaseNames: ['The Breach', 'The Breach', 'The Hull-Eater Takes Wing', 'The Hull-Eater Takes Wing'],
     paintGround(c, A) { paintFloor(c, A); },
     sky(c, W, H, t, cam, T, FX) { paintSky(c, W, H, t, cam, T, FX); },
-    overlay(c, FX, t, T) { drawOverlay(c, FX, t, T); },
+    overlay(c, FX, t, T) { { const o = KG(); if (o && o.overlay(c, FX, t, T)) return; } drawOverlay(c, FX, t, T); },   // (v472 YB: the rim's crackling, the craters, the guarded arc and its warnings in light first; the 2D overlay leaves those to it: M.ybGL)
+    get MODEL() { return KG(); }, preload(P) { const o = KG(); return o ? o.preload(P) : []; },   // (v472 YB)
+    RIG: { pose: (m, M) => pose(m, M), landFeet: (m, M) => landFeet(m, M), RIM, DA, DB, DZ, LEG_U, SPINES, WG, HOLES, AR, SHIELD_ARC },   // (v472 YB: the fight's skeleton for KHAAL_GL, 20z7a)
     /* ---- the fight ---- */
-    init(FX) { const M = FX.mem, m = FX.m, C = FX.C; m.noTouch = true; m.x = C.x; m.y = C.y - 3.6; m.act = 'enter';
+    init(FX) { const M = FX.mem, m = FX.m, C = FX.C; m.noTouch = true; m.x = C.x; m.y = C.y - 3.6; m.act = 'enter'; if (KG()) KG().init(FX);   // (v472 YB: its warnings marked for light, the slag on the GPU)
       Object.assign(M, { bt: 0, hd: Math.PI / 2, hdTo: Math.PI / 2, alt: 4.5, altTo: 0, rear: 0, rearTo: 0, menace: 0, recoil: 0, roar: 0, hitK: 0, pulse: 0, shx: 0, shy: 0, vx: 0, vy: 0, px: m.x, py: m.y, spd: 0, odir: 1,
         feet: null, step: null, stepT: 0, fidT: 1.5, stepBob: 0, hamK: 0, hamS: 0, hamT: null, hamOpen: 0.2, shPsi: 0.3, shPsiTo: 0.3, shOpen: 0.3, shOpenTo: 0.3, dig: 0, grab: 0, grabAt: null, mouth: 0,
         shield: null, shieldK: 0, plateRise: 0, shieldCd: 4, blockT: 0, clang: 0, wingK: 0, wingTo: 0, wingBeat: 0, flapAmp: 0, overT: 0, glowK: 0, stagK: 0,
@@ -86,7 +91,7 @@ RiftFiend.define({ id: 'khaal', name: 'Kh\'aal', title: 'The Hull-Eater', color:
       FX.parts(bodyParts(m, M));
     },
     stunned(FX, m, dt) { const M = FX.mem; M.menace = decay(M.menace, dt, 4); m.noTouch = true; const P = pose(m, M);
-      FX.weak('brain', P.head[0], P.head[1] - P.head[2], 1.25, 2.3, m.stunT > 0.05);
+      FX.weak('brain', P.head[0], P.head[1] - P.head[2], 1.25, 2.3 / hpK(FX), m.stunT > 0.05);   // (v472 YB: its blows 1 / foeK.boss)
       // the current still crawling through it: arcs over the shell, the legs kicking, the claws twitching
       M.kickT = (M.kickT || 0) - dt; if (M.kickT <= 0) { M.kickT = 0.14 + Math.random() * 0.1; const a = Math.random() * TAU, q = P.W(Math.cos(a) * DA * 0.8, Math.sin(a) * DB * 0.8, RIM + 0.6); FX.H.sparks(q[0], q[1] - q[2], Math.random() < 0.5 ? VIOLET_HI : '#FFFFFF', 4, 4); if (Math.random() < 0.25) FX.H.shake(1.5, 0.08); M.hamOpen = Math.random(); M.shOpen = Math.random() * 0.8; }
       FX.parts(bodyParts(m, M)); },
@@ -116,13 +121,13 @@ RiftFiend.define({ id: 'khaal', name: 'Kh\'aal', title: 'The Hull-Eater', color:
       // the plate: from the front, blows glance off it
       if (M.shield && M.shieldK > 0.6 && !(m.stunT > 0)) { const me = FX.me, a = Math.atan2(me.y - m.y, me.x - m.x); if (Math.abs(angTo(M.hd, a)) < SHIELD_ARC) { M.clang = 1;
         if (M.blockT <= 0) { M.blockT = 1.1; const p = pose(m, M).plateC; FX.H.sparks(p[0], p[1] - p[2], '#FFFFFF', 6, 5); FX.H.text(p[0], p[1] - p[2] - 1.2, 'Shielded! Get behind it', '#E8ECF8', 12); FX.H.sfx.crack(); }
-        return 0.15; } }
-      return 1; },
+        return 0.15 / hpK(FX); } }
+      return 1 / hpK(FX); },   // (v472 YB: the rift's main-boss health, foeK.boss times: its blows 1 / foeK.boss, as Rift 05's)
     camFocus(FX, m) { const M = FX.mem, me = FX.me; if (!M || !M.slots || m.dead || m.act === 'enter') return null; const x = m.x, y = m.y - 1.6 - Math.min(5, Math.max(0, M.alt || 0)) * 0.5, d = Math.hypot(x - me.x, y - me.y) || 1; return { x, y, k: Math.min(0.38, 3.2 / d) }; },
-    keep: { every: 2, pad: 3 },
-    draw(c, FX, m, X, Y, T, t) { Y += (m.z || 0) * T * 4; drawKhaal(c, FX, m, X, Y, T, t); },
+    get keep() { const o = KG(); return o && o.gpu() ? null : KEEP2D; },   // (v472 YB: the GPU model drawn every frame, one pass; the 2D one kept as before)
+    draw(c, FX, m, X, Y, T, t) { Y += (m.z || 0) * T * 4; { const o = KG(); if (o && o.draw(c, FX, m, X, Y, T, t)) return; } drawKhaal(c, FX, m, X, Y, T, t); },   // (v472 YB: the GPU model, else the 2D Kh'aal)
     drawObj(c, FX, o, X, Y, T, t) { if (o.kind === 'cell') drawCell(c, FX, o, X, Y, T, t); },
-    drawFx(c, FX, T, t) { drawAir(c, FX, T, t); },
+    drawFx(c, FX, T, t) { { const o = KG(); if (o) o.drawFx(c, FX, T, t); } drawAir(c, FX, T, t); },   // (v472 YB: the globs and the bolts on the GPU first; drawAir then leaves them: M.ybGL)
   };
 
   /* ---------- the fight's pieces ---------- */
@@ -571,13 +576,14 @@ RiftFiend.define({ id: 'khaal', name: 'Kh\'aal', title: 'The Hull-Eater', color:
      plate's guarded arc */
   function drawOverlay(c, FX, t, T) { const M = FX.mem, m = FX.m; if (!M || !M.slots) return; const sx = FX.sx, sy = FX.sy;
     // the rim crackling: a few arcs of current over the void's edge
-    const R = mulberry32(Math.floor(t * 5)); c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; for (let k = 0; k < 3; k++) { const a = R() * TAU; let r = AR + 0.3; c.beginPath(); c.moveTo(sx(FX.C.x + Math.cos(a) * r), sy(FX.C.y + Math.sin(a) * r)); for (let j = 0; j < 5; j++) { const aa = a + (j + 1) * 0.06 * (R() < 0.5 ? 1 : -1); r = AR + 0.2 + R() * 1.0; c.lineTo(sx(FX.C.x + Math.cos(aa) * r), sy(FX.C.y + Math.sin(aa) * r)); } c.strokeStyle = TN.rgba(VIOLET_HI, 0.5 + 0.4 * R()); c.lineWidth = Math.max(1.2, T * 0.05); c.stroke(); } c.restore();
+    const gp = !!M.ybGL;   // (v472 YB: the rim's crackling, the craters and the guarded arc drawn in light by KHAAL_GL.overlay)
+    const R = mulberry32(Math.floor(t * 5)); c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; for (let k = 0; k < (gp ? 0 : 3); k++) { const a = R() * TAU; let r = AR + 0.3; c.beginPath(); c.moveTo(sx(FX.C.x + Math.cos(a) * r), sy(FX.C.y + Math.sin(a) * r)); for (let j = 0; j < 5; j++) { const aa = a + (j + 1) * 0.06 * (R() < 0.5 ? 1 : -1); r = AR + 0.2 + R() * 1.0; c.lineTo(sx(FX.C.x + Math.cos(aa) * r), sy(FX.C.y + Math.sin(aa) * r)); } c.strokeStyle = TN.rgba(VIOLET_HI, 0.5 + 0.4 * R()); c.lineWidth = Math.max(1.2, T * 0.05); c.stroke(); } c.restore();
     // where plates were torn up: dark holes, violet below
     M.holes.forEach(hh => { const X = sx(hh.x), Y = sy(hh.y), a = clamp((14 - hh.t) / 3, 0, 1); c.save(); c.globalAlpha = a; c.translate(X, Y); c.scale(1, 0.55); c.rotate(hh.a); c.beginPath(); for (let i = 0; i < 10; i++) { const u = i / 10 * TAU, rr = T * (i % 2 ? 1.25 : 1.5); c.lineTo(Math.cos(u) * rr * 1.1, Math.sin(u) * rr * 0.55); } c.closePath(); c.fillStyle = '#0A0414'; c.fill(); c.strokeStyle = 'rgba(150,160,190,.4)'; c.lineWidth = Math.max(1.5, T * 0.06); c.stroke(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = TN.rgba(VIOLET, 0.4); c.lineWidth = Math.max(1, T * 0.1); c.scale(0.8, 0.8); c.stroke(); c.restore(); });
     // the plates it dropped, lying on the deck
     M.drops.forEach(d => { const X = sx(d.x), Y = sy(d.y), a = clamp((10 - d.t) / 2, 0, 1) * clamp(d.t / 0.15, 0, 1); c.save(); c.globalAlpha = a; c.translate(X, Y); c.scale(1, 0.6); c.rotate(d.rot); const w = T * 1.5, h = T * 1.15; c.beginPath(); c.moveTo(-w, h); c.lineTo(w, h); c.lineTo(w * 0.95, -h * 0.7); c.lineTo(w * 0.55, -h); c.lineTo(w * 0.2, -h * 0.75); c.lineTo(-w * 0.3, -h * 1.05); c.lineTo(-w * 0.75, -h * 0.8); c.lineTo(-w, -h * 0.95); c.closePath(); c.fillStyle = '#4A5268'; c.fill(); c.strokeStyle = INK; c.lineWidth = Math.max(1.5, T * 0.07); c.stroke(); c.fillStyle = '#161A26'; for (let i = 0; i < 6; i++) { c.beginPath(); c.arc(-w * 0.8 + i * w * 0.32, h * 0.7, T * 0.06, 0, TAU); c.fill(); } c.restore(); });
     // slam craters: cracks of amber heat in the plates
-    M.craters.forEach(k => { const X = sx(k.x), Y = sy(k.y), a = clamp((3 - k.t) / 1.5, 0, 1), Rr = mulberry32(k.seed); c.save(); c.globalAlpha = a; c.lineCap = 'round'; for (let i = 0; i < 8; i++) { let x = X, y = Y; const b = i / 8 * TAU + Rr() * 0.5; c.beginPath(); c.moveTo(x, y); for (let j = 0; j < 4; j++) { x += Math.cos(b + (Rr() - 0.5) * 0.8) * T * 0.55; y += Math.sin(b + (Rr() - 0.5) * 0.8) * T * 0.35; c.lineTo(x, y); } c.strokeStyle = 'rgba(8,4,12,.8)'; c.lineWidth = T * 0.12; c.stroke(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = TN.rgba(AMBER, 0.7 * a); c.lineWidth = T * 0.05; c.stroke(); c.globalCompositeOperation = 'source-over'; } c.restore(); });
+    if (!gp) M.craters.forEach(k => { const X = sx(k.x), Y = sy(k.y), a = clamp((3 - k.t) / 1.5, 0, 1), Rr = mulberry32(k.seed); c.save(); c.globalAlpha = a; c.lineCap = 'round'; for (let i = 0; i < 8; i++) { let x = X, y = Y; const b = i / 8 * TAU + Rr() * 0.5; c.beginPath(); c.moveTo(x, y); for (let j = 0; j < 4; j++) { x += Math.cos(b + (Rr() - 0.5) * 0.8) * T * 0.55; y += Math.sin(b + (Rr() - 0.5) * 0.8) * T * 0.35; c.lineTo(x, y); } c.strokeStyle = 'rgba(8,4,12,.8)'; c.lineWidth = T * 0.12; c.stroke(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = TN.rgba(AMBER, 0.7 * a); c.lineWidth = T * 0.05; c.stroke(); c.globalCompositeOperation = 'source-over'; } c.restore(); });
     // a rising cell's socket opening
     M.slots.forEach(s => { if (!s.cell || s.rise >= 1) return; const X = sx(s.x), Y = sy(s.y); c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.7 * (1 - s.rise * 0.5); blitSized(c, glowSprite(VIOLET_HI), X - T * 1.3, Y - T * 0.8, T * 2.6, T * 1.6); c.restore(); });
     // the blast rings: faint round every cell; lit (and marked) when Kh'aal stands in one
@@ -587,10 +593,10 @@ RiftFiend.define({ id: 'khaal', name: 'Kh\'aal', title: 'The Hull-Eater', color:
       c.restore(); }); }
     // the plate's guarded side: an arc on the deck before it, and the open back
     if (m && !m.dead && (M.shieldK || 0) > 0.3 && !(m.stunT > 0) && (M.alt || 0) < 1) { const X = sx(m.x), Y = sy(m.y), r0 = (m.r + 0.5) * T, r1 = (m.r + 1.3) * T, a = M.hd, k = M.shieldK; c.save(); c.globalAlpha = k;
-      c.beginPath(); c.arc(X, Y, r1, a - SHIELD_ARC, a + SHIELD_ARC); c.arc(X, Y, r0, a + SHIELD_ARC, a - SHIELD_ARC, true); c.closePath(); c.fillStyle = TN.rgba(VIOLET_HI, 0.16 + 0.1 * (M.clang || 0)); c.fill(); c.strokeStyle = TN.rgba('#F2E6FF', 0.75); c.lineWidth = Math.max(2, T * 0.08); c.stroke();
+      if (!gp) { c.beginPath(); c.arc(X, Y, r1, a - SHIELD_ARC, a + SHIELD_ARC); c.arc(X, Y, r0, a + SHIELD_ARC, a - SHIELD_ARC, true); c.closePath(); c.fillStyle = TN.rgba(VIOLET_HI, 0.16 + 0.1 * (M.clang || 0)); c.fill(); c.strokeStyle = TN.rgba('#F2E6FF', 0.75); c.lineWidth = Math.max(2, T * 0.08); c.stroke(); }   // (v472 YB: the arc in light on the GPU)
       const lx = X + Math.cos(a) * (r0 + r1) / 2, ly = Y + Math.sin(a) * (r0 + r1) / 2; c.font = `900 ${Math.round(T * 0.34)}px ${arcFont}`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineWidth = 3; c.strokeStyle = 'rgba(20,6,30,.75)'; c.strokeText('SHIELD', lx, ly); c.fillStyle = '#F6EEFF'; c.fillText('SHIELD', lx, ly);
       // the open back: teal chevrons
-      c.strokeStyle = TN.rgba(TEAL_HI, 0.7 + 0.3 * Math.sin(t * 6)); c.lineWidth = Math.max(2, T * 0.08); for (let i = -1; i <= 1; i++) { const b = a + Math.PI + i * 0.38, px = X + Math.cos(b) * r1, py = Y + Math.sin(b) * r1, ox = Math.cos(b), oy = Math.sin(b), nx = -oy, ny = ox, s = T * 0.3; c.beginPath(); c.moveTo(px + ox * s + nx * s, py + oy * s + ny * s); c.lineTo(px, py); c.lineTo(px + ox * s - nx * s, py + oy * s - ny * s); c.stroke(); }
+      c.strokeStyle = TN.rgba(TEAL_HI, 0.7 + 0.3 * Math.sin(t * 6)); c.lineWidth = Math.max(2, T * 0.08); for (let i = -1; i <= (gp ? -2 : 1); i++) { /* (v472 YB: the open back's chevrons in light on the GPU) */ const b = a + Math.PI + i * 0.38, px = X + Math.cos(b) * r1, py = Y + Math.sin(b) * r1, ox = Math.cos(b), oy = Math.sin(b), nx = -oy, ny = ox, s = T * 0.3; c.beginPath(); c.moveTo(px + ox * s + nx * s, py + oy * s + ny * s); c.lineTo(px, py); c.lineTo(px + ox * s - nx * s, py + oy * s - ny * s); c.stroke(); }
       if (Math.abs(angTo(a, Math.atan2(FX.me.y - m.y, FX.me.x - m.x))) < SHIELD_ARC) { const bx = X + Math.cos(a + Math.PI) * (r1 + T * 0.6), by = Y + Math.sin(a + Math.PI) * (r1 + T * 0.6); c.strokeStyle = 'rgba(4,20,16,.75)'; c.lineWidth = 3; c.strokeText('OPEN', bx, by); c.fillStyle = '#E8FFF8'; c.fillText('OPEN', bx, by); } c.restore(); } }
   // a lane of molten slag: glowing blobs crusting over as it cools
   function drawSlag(c, z, FX, T, t) { const X = FX.sx(z.x), Y = FX.sy(z.y), fade = Math.min(1, z.age / 0.15, (z.life - z.age) / 0.8), cool = clamp(z.age / z.life, 0, 1), R = mulberry32(z.seed || 7);
@@ -603,9 +609,10 @@ RiftFiend.define({ id: 'khaal', name: 'Kh\'aal', title: 'The Hull-Eater', color:
   /* in the air: slag globs in flight, the bolts of the cells' lightning, the devouring meter, the labels */
   function drawAir(c, FX, T, t) { const M = FX.mem, m = FX.m; if (!m || !M.slots) return; const sx = FX.sx, sy = FX.sy;
     // the globs arcing down their lanes
-    M.globs.forEach(gb => { if (gb.t < 0) return; const u = clamp(gb.t / gb.d, 0, 1), d = gb.len * u, x = gb.x0 + Math.cos(gb.a) * d, y = gb.y0 + Math.sin(gb.a) * d, z = 1.4 + Math.sin(u * Math.PI) * 2.2 - u * 1.4, X = sx(x), Y = sy(y) - z * T; c.save(); c.globalCompositeOperation = 'lighter'; blitSized(c, glowSprite(SLAG), X - T * 0.6, Y - T * 0.6, T * 1.2, T * 1.2); c.restore(); c.fillStyle = SLAG_HI; c.strokeStyle = '#3A1408'; c.lineWidth = 1.5; c.beginPath(); c.arc(X, Y, Math.max(2, T * 0.17), 0, TAU); c.fill(); c.stroke(); });
+    const gp = !!M.ybGL;   // (v472 YB: the globs and the bolts drawn by KHAAL_GL.drawFx)
+    if (!gp) M.globs.forEach(gb => { if (gb.t < 0) return; const u = clamp(gb.t / gb.d, 0, 1), d = gb.len * u, x = gb.x0 + Math.cos(gb.a) * d, y = gb.y0 + Math.sin(gb.a) * d, z = 1.4 + Math.sin(u * Math.PI) * 2.2 - u * 1.4, X = sx(x), Y = sy(y) - z * T; c.save(); c.globalCompositeOperation = 'lighter'; blitSized(c, glowSprite(SLAG), X - T * 0.6, Y - T * 0.6, T * 1.2, T * 1.2); c.restore(); c.fillStyle = SLAG_HI; c.strokeStyle = '#3A1408'; c.lineWidth = 1.5; c.beginPath(); c.arc(X, Y, Math.max(2, T * 0.17), 0, TAU); c.fill(); c.stroke(); });
     // the lightning
-    if (M.zaps.length) { c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.lineJoin = 'round'; M.zaps.forEach(z => { const a = 1 - z.t / z.life, path = () => { c.beginPath(); z.pts.forEach((p, i) => { const X = sx(p[0]), Y = sy(p[1]) - p[2] * T; i ? c.lineTo(X, Y) : c.moveTo(X, Y); }); };
+    if (M.zaps.length && !gp) { c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.lineJoin = 'round'; M.zaps.forEach(z => { const a = 1 - z.t / z.life, path = () => { c.beginPath(); z.pts.forEach((p, i) => { const X = sx(p[0]), Y = sy(p[1]) - p[2] * T; i ? c.lineTo(X, Y) : c.moveTo(X, Y); }); };
       path(); c.strokeStyle = TN.rgba(VIOLET, 0.45 * a); c.lineWidth = Math.max(3, T * 0.22); c.stroke(); path(); c.strokeStyle = TN.rgba(VIOLET_HI, 0.85 * a); c.lineWidth = Math.max(1.5, T * 0.08); c.stroke(); path(); c.strokeStyle = TN.rgba('#FFFFFF', a); c.lineWidth = Math.max(0.8, T * 0.03); c.stroke(); }); c.restore(); }
     const lab = (X, Y, s, col) => { c.save(); c.font = `800 ${Math.round(T * 0.32)}px ${arcFont}`; c.textAlign = 'center'; c.lineWidth = 3; c.strokeStyle = 'rgba(0,0,0,.7)'; c.fillStyle = col || '#FFFFFF'; c.strokeText(s, X, Y); c.fillText(s, X, Y); c.restore(); };
     // the devouring meter over the seized cell

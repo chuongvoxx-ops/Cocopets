@@ -60,6 +60,9 @@ RiftFiend.define({ id: 'nyarzhul', name: 'Nyar\'zhul', title: 'Heart of the Engi
   const JAG = (() => { const R = mulberry32(919), out = []; for (let i = 0; i <= 28; i++) out.push((R() - 0.5) * 1.6); return out; })();
   const lashO = (C, k) => [C.x + (k ? 6.2 : -6.2), C.y - 10.8];
   let vigCv = null;
+  /* (v472 YB) the GPU model and its light (NYARZHUL_GL, 20z9a-nyarzhul-gl.js); without them the 2D heart, its 2D effects and overlay */
+  const NG = () => { try { return typeof NYARZHUL_GL !== 'undefined' ? NYARZHUL_GL : null; } catch (e) { return null; } }, KEEP2D = { every: 2, pad: 2 };
+  const hpK = FX => { const F = FX && FX.F && FX.F.rift && FX.F.rift.foeK; return F && F.boss > 0 ? F.boss : 1; };   // (v472 YB: the rift's main-boss health factor, as 20z4's)
   // the mites (in the rift's brood): flung out of the vents, they land and crawl back to the nearest port
   Object.assign(MON, { repairmite: { name: 'Repair mite', from: 999, hp: 200, spd: 1.45, r: 0.32, dmg: 6, xp: 3, coin: 0.05, color: '#4A5268', bio: [], tip: 'A repair mite of the engine\'s heart. It crawls back to the heart\'s ports and mends it: kill it first.', kit: [] } });
   Object.assign(DunAI.mon, { repairmite(m, A, X) {
@@ -91,11 +94,13 @@ RiftFiend.define({ id: 'nyarzhul', name: 'Nyar\'zhul', title: 'Heart of the Engi
     drawProp(c, FX, p, X, Y, T, t) { if (p.kind === 'cap') drawCap(c, FX, p, X, Y, T, t); },
     paintGround(c, A) { paintCore(c, A); },
     sky(c, W, H, t, cam, T) { paintSky(c, W, H, T); },
-    overlay(c, FX, t, T) { drawOverlay(c, FX, t, T); },
+    overlay(c, FX, t, T) { { const o = NG(); if (o && o.overlay(c, FX, t, T)) return; } drawOverlay(c, FX, t, T); },   // (v472 YB: the beat, the nerves, the flood, the lanes, the rings and its warnings in light first; the 2D overlay keeps the rest: M.ybGL)
+    get MODEL() { return NG(); }, preload(P) { const o = NG(); return o ? o.preload(P) : []; },   // (v472 YB)
+    RIG: { HW, HH, HY, HZ, VEINS, VESSELS, PIST, JAG, VENTS, SHROOMS, CABW, SRC, NERVES, NERVE_L, RX, RY, LW, CAPS, PORTS, beatEnv: M => beatEnv(M), alongNerve: (k, d) => alongNerve(k, d), laneHalf: ly => laneHalf(ly), lensAt: FX => lensAt(FX) },   // (v472 YB: the fight's state for NYARZHUL_GL, 20z9a)
     camFocus(FX, m) { const C = FX.C, M = FX.mem; if (!M.P) return null; if (m.dead) return M.deadT != null && M.deadT < 2.5 ? { x: C.x, y: C.y - 17, k: 0.6, zoom: 0.45 } : null; if (m.act === 'enter') return { x: C.x, y: C.y - 19, k: 0.6, zoom: 0.43 };
       if (m.stunT > 0) return { x: C.x, y: C.y - 17, k: 0.55, zoom: 0.47 }; return { x: C.x, y: C.y - 19, k: 0.55, zoom: 0.43 }; },
     /* ---- the fight ---- */
-    init(FX) { const M = FX.mem, m = FX.m, C = FX.C; m.act = 'enter'; m.noTouch = true; m.touchK = 0;
+    init(FX) { const M = FX.mem, m = FX.m, C = FX.C; m.act = 'enter'; m.noTouch = true; m.touchK = 0; if (NG()) NG().init(FX);   // (v472 YB: its warnings marked for light)
       Object.assign(M, { bt: 0, beatT: 1.6, lub: 0, dub: 0, dubT: 0, beats: 0, lastBeat: -9, q: [], qt: 0, seen: {}, picks: 0, nextSig: null, recoil: 0, rings: [], ring2T: 0, pl: null, fl: null, ov: null, sw: null, swDone: false, stall: false, slams: [], pistK: 0, repairT: 0, wasStun: false, roared: false, look: [0, 0.3], lookT: [0, 0.3], dartT: 1, ap: 0.6,
         caps: CAPS.map(() => ({ st: 'idle', o: null, t: 0 })),
         cab: ROOTS.map((r, k) => ({ k, mode: 'rest', t: 0, tip: [C.x + REST[k][0], C.y + REST[k][1], 0.35], lift: 0, jaw: 0.3, pts: null, px: null })),
@@ -121,7 +126,7 @@ RiftFiend.define({ id: 'nyarzhul', name: 'Nyar\'zhul', title: 'Heart of the Engi
       }
       if (!m.under) FX.parts(partsList(FX, m));
     },
-    stunned(FX, m, dt) { const M = FX.mem, C = FX.C; m.noTouch = true; FX.weak('lens', C.x, C.y - 13.5, 2.3, M.stall ? 2.5 : 2.25, m.stunT > 0.05);
+    stunned(FX, m, dt) { const M = FX.mem, C = FX.C; m.noTouch = true; FX.weak('lens', C.x, C.y - 13.5, 2.3, (M.stall ? 2.5 : 2.25) / hpK(FX), m.stunT > 0.05);   // (v472 YB: its blows 1 / foeK.boss)
       M.shT = (M.shT || 0) - dt; if (M.shT <= 0) { M.shT = M.stall ? 0.25 : 0.45; const L = lensAt(FX); if (L) FX.H.sparks(L[0] + FX.rnd(-2.5, 2.5), L[1] + FX.rnd(-1.5, 1.5), M.stall ? '#FF8A4A' : AMBER_HI, 4, 3); if (M.stall) steam(FX, FX.rnd(-8, 8), FX.rnd(2, 9), 1, '#F4E4E8'); } },
     update(FX, dt) { const M = FX.mem, m = FX.m, C = FX.C, me = FX.me; if (!m || !M.P) return; M.bt += dt;
       M.lub = decay(M.lub, dt, 3.2); M.dub = decay(M.dub, dt, 3.6); M.recoil = decay(M.recoil, dt, 1.8); M.repairT = decay(M.repairT, dt, 1);
@@ -149,12 +154,12 @@ RiftFiend.define({ id: 'nyarzhul', name: 'Nyar\'zhul', title: 'Heart of the Engi
       const apT = clamp(0.62 - (M.lub * 0.22 + M.dub * 0.1) - M.recoil * 0.4 + M.P.sag * 0.5 + (M.sw ? -0.12 : 0) + (M.stall && m.stunT > 0 ? Math.sin(M.bt * 13) * 0.15 : 0), 0.18, 1.15); M.ap = toward(M.ap, apT, dt, 9);
       // the swarm's drones mend it at the ports: their glow
       if (M.sw && Math.random() < dt * 8) { const v = VENTS[Math.random() < 0.5 ? 0 : 1]; steam(FX, v[0], HZ + v[1] - M.P.sag * 3.8, 1, '#E8C8DA'); } },
-    dmgK(FX, m) { FX.mem.recoil = Math.max(FX.mem.recoil || 0, 0.4); return 0.85; },
+    dmgK(FX, m) { FX.mem.recoil = Math.max(FX.mem.recoil || 0, 0.4); return 0.85 / hpK(FX); },   // (v472 YB: the rift's main-boss health, foeK.boss times: its blows 1 / foeK.boss, as Rift 05's)
     onWeakHit(FX) { FX.mem.recoil = 1; },
-    keep: { every: 2, pad: 2 },
-    draw(c, FX, m, X, Y, T, t) { if (!(FX.S && FX.S.started)) { demoPaint(c, FX, m, X, Y, T, t); return; } const P3 = TN.cam(X, Y, T, m); paintAll(c, FX, m, P3, T, FX.mem.bt || t, FX.C, FX.mem); },
+    get keep() { const o = NG(); return o && o.gpu() ? null : KEEP2D; },   // (v472 YB: the GPU heart drawn every frame, one pass; the 2D one kept as before)
+    draw(c, FX, m, X, Y, T, t) { if (!(FX.S && FX.S.started)) { demoPaint(c, FX, m, X, Y, T, t); return; } { const o = NG(); if (o && o.paint(c, FX, m, X, Y, T, FX.mem.bt || t)) return; } /* (v472 YB: the GPU heart, else the 2D one) */ const P3 = TN.cam(X, Y, T, m); paintAll(c, FX, m, P3, T, FX.mem.bt || t, FX.C, FX.mem); },
     drawObj(c, FX, o, X, Y, T, t) { if (o.kind === 'cap') { const pu = 0.5 + 0.5 * Math.sin(t * 8); c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = VIOLET_HI; c.globalAlpha = 0.5 + 0.4 * pu; c.lineWidth = Math.max(2, T * 0.1); c.beginPath(); c.ellipse(X, Y, T * 1.35, T * 0.8, 0, 0, TAU); c.stroke(); c.restore(); label(c, 'BREAK', X, Y - T * 3.9, T * 0.85, '#FFFFFF'); } },
-    drawFx(c, FX, T, t) { drawFx(c, FX, T, t); },
+    drawFx(c, FX, T, t) { { const o = NG(); if (o) o.drawFx(c, FX, T, t); } drawFx(c, FX, T, t); },   // (v472 YB: the raised tentacles, the pistons' heads and the charge's bolts on the GPU first; drawFx then leaves them: M.ybGL)
   };
 
   /* ---------- the fight's pieces ---------- */
@@ -439,21 +444,23 @@ RiftFiend.define({ id: 'nyarzhul', name: 'Nyar\'zhul', title: 'Heart of the Engi
   // previews and the art sheet: a fight-less pose about the given anchor
   function demoPaint(c, FX, m, X, Y, T, t) { const M = FX.mem || {}, C = FX.C || { x: m.x, y: m.y + 15.3 };
     if (!M.P) { M.P = { sag: M.demoSag ? 1 : 0, heat: M.demoHeat ? 1 : 0, open: M.demoOpen ? 1 : 0, dk: 0, wake: 1, rec: 0 }; M.bt = M.bt || 0; M.lub = 0.6; M.dub = 0.2; M.look = [0.2, 0.3]; M.ap = M.demoSag ? 1 : 0.6; M.lastBeat = 0; M.recoil = 0; M.cab = ROOTS.map((r, k) => ({ k, mode: 'rest', t: 0, tip: [C.x + REST[k][0], C.y + REST[k][1], 0.35], lift: 0, jaw: 0.4 })); }
-    const F2 = { C, mem: M, m, S: { enterT: 9 } }; cables(F2, m, 0); const P3 = TN.cam(X, Y, T, m); paintAll(c, F2, m, P3, T, M.bt || t, C, M); }
+    const F2 = { C, mem: M, m, S: { enterT: 9 }, me: FX.me, K: FX.K }; cables(F2, m, 0); { const o = NG(); if (o && o.paint(c, F2, m, X, Y, T, M.bt || t)) return; }   // (v472 YB: the GPU heart in the previews)
+    const P3 = TN.cam(X, Y, T, m); paintAll(c, F2, m, P3, T, M.bt || t, C, M); }
 
   /* ---------- over everything: raised cables, pistons dropping, the charge arcs, the lens's target, the chamber's breath ---------- */
   function drawFx(c, FX, T, t) { const M = FX.mem, m = FX.m, C = FX.C; if (!m || !M.P) return; const P = M.P, P3 = (x, y, z) => [FX.sx(x), FX.sy(y) - z * T], lw = Math.max(1.2, T * 0.08);
     c.save(); c.lineJoin = 'round'; c.lineCap = 'round';
     // the cables raised to strike
-    for (const cb of M.cab) if (cb.lift >= 0.15 && !m.dead) paintCable(c, P3, T, cb, M, P, lw, M.bt);
+    const gp = !!M.ybGL;   // (v472 YB: the raised tentacles, the pistons' heads, the charge's bolts, the lens's ring and the ports' glow drawn by NYARZHUL_GL.drawFx)
+    if (!gp) for (const cb of M.cab) if (cb.lift >= 0.15 && !m.dead) paintCable(c, P3, T, cb, M, P, lw, M.bt);
     // the pistons: rows of steel heads dropping out of the dark onto their lanes, and rising again
     const heads = []; for (const s of FX.S.tele) { if (s.done || !s.lane) continue; const u = clamp(s.age / s.t, 0, 1); if (u < 0.5) continue; heads.push([s.lane.ly, 8 * (1 - Math.pow((u - 0.5) / 0.5, 2))]); }
     for (const s of M.slams) heads.push([s.ly, s.t < 0.3 ? 0 : 8 * smooth((s.t - 0.3) / 0.8)]);
-    heads.sort((a, b) => a[0] - b[0]); for (const [ly, z] of heads) paintPistonRow(c, P3, T, C, ly, z, lw);
+    heads.sort((a, b) => a[0] - b[0]); if (!gp) for (const [ly, z] of heads) paintPistonRow(c, P3, T, C, ly, z, lw);
     // the capacitors' charge: arcs of current from the heart to each charged one
-    if (M.ov) for (let i = 0; i < 4; i++) { const cp = M.caps[i]; if (cp.st !== 'charged') continue; const a = lensAt(FX), b = [C.x + CAPS[i][0], C.y + CAPS[i][1] - 2.7]; zapArc(c, FX.sx(a[0] + (i % 2 ? 4 : -4)), FX.sy(a[1] + 3), FX.sx(b[0]), FX.sy(b[1]), T, t * 30 + i * 7, VIOLET_HI, 0.55 + 0.35 * Math.sin(t * 20 + i)); }
+    if (M.ov && !gp) for (let i = 0; i < 4; i++) { const cp = M.caps[i]; if (cp.st !== 'charged') continue; const a = lensAt(FX), b = [C.x + CAPS[i][0], C.y + CAPS[i][1] - 2.7]; zapArc(c, FX.sx(a[0] + (i % 2 ? 4 : -4)), FX.sy(a[1] + 3), FX.sx(b[0]), FX.sy(b[1]), T, t * 30 + i * 7, VIOLET_HI, 0.55 + 0.35 * Math.sin(t * 20 + i)); }
     // the bared lens: a target ring on it
-    if (m.stunT > 0 && FX.S.weak.lens && !FX.S.weak.lens.dead) { const L = lensAt(FX), X = FX.sx(L[0]), Y = FX.sy(L[1]), pu = 0.5 + 0.5 * Math.sin(t * 7), col = M.stall ? '#FFB07A' : AMBER_HI; c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = col; c.globalAlpha = 0.55 + 0.4 * pu; c.lineWidth = Math.max(2, T * 0.14); c.beginPath(); c.arc(X, Y, T * (3.6 + pu * 0.4), 0, TAU); c.stroke(); c.restore(); label(c, 'LENS', X, Y - T * 4.6, T, col); }
+    if (m.stunT > 0 && FX.S.weak.lens && !FX.S.weak.lens.dead) { const L = lensAt(FX), X = FX.sx(L[0]), Y = FX.sy(L[1]), pu = 0.5 + 0.5 * Math.sin(t * 7), col = M.stall ? '#FFB07A' : AMBER_HI; c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = col; c.globalAlpha = gp ? 0 : 0.55 + 0.4 * pu; /* (v472 YB: gp, the ring in light on the GPU; the label stays) */ c.lineWidth = Math.max(2, T * 0.14); c.beginPath(); c.arc(X, Y, T * (3.6 + pu * 0.4), 0, TAU); c.stroke(); c.restore(); label(c, 'LENS', X, Y - T * 4.6, T, col); }
     // the swarm: its count over the pet; the repair warning at the heart
     if (M.sw) { const left = M.sw.left + M.sw.list.length, Xs = FX.sx(FX.me.x), Ys = FX.sy(FX.me.y) - T * 2.3; label(c, `THE SWARM · ${left} left`, Xs, Ys, T * 1.05, AMBER_HI);
       for (const p of PORTS) { const X = FX.sx(C.x + p[0]), Y = FX.sy(C.y + p[1]); c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.35 + 0.25 * Math.sin(t * 6); blitSized(c, glowSprite(HEAL), X - T * 1.4, Y - T * 1.4, T * 2.8, T * 2.8); c.restore(); } }
@@ -482,18 +489,18 @@ RiftFiend.define({ id: 'nyarzhul', name: 'Nyar\'zhul', title: 'Heart of the Engi
     const floor = () => { c.beginPath(); c.ellipse(X0, Y0, RX * T, RY * T, 0, 0, TAU); c.rect(X0 - GW * T, Y0 + GN * T, GW * 2 * T, (-11 - GN) * T); };
     c.save();
     // the beat: a glow swelling from its foot, and light running out along the nerve cables
-    if (be > 0.02) { const X = FX.sx(C.x + SRC[0]), Y = FX.sy(C.y + SRC[1]); c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = be * 0.35; blitSized(c, glowSprite(VIOLET), X - T * 9, Y - T * 6, T * 18, T * 12); c.restore(); }
-    if (!(P.dk > 0.6)) { const d0 = (M.bt - (M.lastBeat || 0)) * 9; c.save(); c.globalCompositeOperation = 'lighter'; NERVES.forEach((N, k) => { const Lk = NERVE_L[k].L; for (const off of [0, -6]) { const d = d0 + off; if (d < 0 || d > Lk) continue; const p = alongNerve(k, d), a = (1 - d / (Lk + 4)) * 0.85 * P.wake; c.globalAlpha = a; blitSized(c, glowSprite(AMBER), FX.sx(C.x + p[0]) - T * 0.8, FX.sy(C.y + p[1]) - T * 0.8, T * 1.6, T * 1.6); } }); c.restore(); }
+    if (be > 0.02 && !M.ybGL) { const X = FX.sx(C.x + SRC[0]), Y = FX.sy(C.y + SRC[1]); c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = be * 0.35; blitSized(c, glowSprite(VIOLET), X - T * 9, Y - T * 6, T * 18, T * 12); c.restore(); }
+    if (!(P.dk > 0.6) && !M.ybGL) { const d0 = (M.bt - (M.lastBeat || 0)) * 9; c.save(); c.globalCompositeOperation = 'lighter'; NERVES.forEach((N, k) => { const Lk = NERVE_L[k].L; for (const off of [0, -6]) { const d = d0 + off; if (d < 0 || d > Lk) continue; const p = alongNerve(k, d), a = (1 - d / (Lk + 4)) * 0.85 * P.wake; c.globalAlpha = a; blitSized(c, glowSprite(AMBER), FX.sx(C.x + p[0]) - T * 0.8, FX.sy(C.y + p[1]) - T * 0.8, T * 1.6, T * 1.6); } }); c.restore(); }
     // the coolant: rising from the rim inward, the grates standing out of it
-    if (M.fl && M.fl.lv > 0.01) drawFlood(c, FX, t, T, floor);
+    if (M.fl && M.fl.lv > 0.01) { if (!M.ybGL) drawFlood(c, FX, t, T, floor); else if (M.fl.st === 'rise') for (const [gx, gy] of GRATES) label(c, 'GRATE', X0 + gx * T, Y0 + gy * T - T * 3.2, T * 0.9, TEAL_HI); }   // (v472 YB: the flood in light on the GPU; its labels stay)
     // the piston lanes: numbered bands, darkening as the pistons come
     for (const s of FX.S.tele) { if (s.done || !s.lane) continue; const u = clamp(s.age / s.t, 0, 1), L = s.lane, hw = laneHalf(L.ly), ya = Y0 + (L.ly - LW / 2) * T, yb = Y0 + (L.ly + LW / 2) * T, xa = X0 - hw * T, xb = X0 + hw * T;
-      c.save(); floor(); c.clip(); c.beginPath(); c.rect(xa - 4, L.k === 0 ? Y0 + GN * T : ya, xb - xa + 8, L.k === 0 ? yb - Y0 - GN * T : L.k === LANES.length - 1 ? Y0 + RY * T - ya + 4 : yb - ya); const hot = u > 0.7 ? 0.5 + 0.5 * Math.sin(t * 20) : 0; c.fillStyle = `rgba(10,4,14,${0.12 + u * 0.25 + (L.k % 2 ? 0.1 : 0)})`; c.fill(); c.fillStyle = `rgba(255,${Math.round(178 - hot * 80)},63,${0.08 + u * u * 0.3 + hot * 0.12})`; c.fill();
-      c.strokeStyle = `rgba(255,210,140,${0.5 + 0.4 * u})`; c.lineWidth = Math.max(2, T * (0.1 + u * 0.08)); c.setLineDash([T * 0.5, T * 0.3]); c.lineDashOffset = -t * T * 2; c.stroke(); c.setLineDash([]);
+      c.save(); floor(); c.clip(); c.beginPath(); c.rect(xa - 4, L.k === 0 ? Y0 + GN * T : ya, xb - xa + 8, L.k === 0 ? yb - Y0 - GN * T : L.k === LANES.length - 1 ? Y0 + RY * T - ya + 4 : yb - ya); const hot = u > 0.7 ? 0.5 + 0.5 * Math.sin(t * 20) : 0, gpl = !!M.ybGL; c.fillStyle = `rgba(10,4,14,${0.12 + u * 0.25 + (L.k % 2 ? 0.1 : 0)})`; c.fill(); if (!gpl) { c.fillStyle = `rgba(255,${Math.round(178 - hot * 80)},63,${0.08 + u * u * 0.3 + hot * 0.12})`; c.fill(); }   // (v472 YB: gpl, the lane's light and its order drawn on the GPU (beads, no number); its shade and the heads' shadows stay)
+      if (!gpl) { c.strokeStyle = `rgba(255,210,140,${0.5 + 0.4 * u})`; c.lineWidth = Math.max(2, T * (0.1 + u * 0.08)); c.setLineDash([T * 0.5, T * 0.3]); c.lineDashOffset = -t * T * 2; c.stroke(); c.setLineDash([]); }
       if (u > 0.45) { const k2 = (u - 0.45) / 0.55, n = Math.max(2, Math.floor(hw * 2 / 3.4)), step = hw * 2 / n; for (let i = 0; i < n; i++) { const x = xa + (i + 0.5) * step * T; c.fillStyle = `rgba(0,0,0,${0.15 + 0.35 * k2})`; c.beginPath(); c.ellipse(x, (ya + yb) / 2, step * T * 0.45 * (0.6 + 0.4 * k2), LW * T * 0.42 * (0.6 + 0.4 * k2), 0, 0, TAU); c.fill(); } } c.restore();
-      label(c, L.lab, FX.sx(clamp(FX.me.x + 3.2, C.x - hw + 1.5, C.x + hw - 1.5)), (ya + yb) / 2, T * 1.6, '#FFFFFF'); }
+      if (!M.ybGL) label(c, L.lab, FX.sx(clamp(FX.me.x + 3.2, C.x - hw + 1.5, C.x + hw - 1.5)), (ya + yb) / 2, T * 1.6, '#FFFFFF'); }
     // the rings of the pulse: violet bands with a gap, their leading edge bright
-    if (M.rings.length) { const X = FX.sx(C.x + SRC[0]), Y = FX.sy(C.y + SRC[1]); c.save(); floor(); c.clip(); c.globalCompositeOperation = 'lighter';
+    if (M.rings.length && !M.ybGL) { const X = FX.sx(C.x + SRC[0]), Y = FX.sy(C.y + SRC[1]); c.save(); floor(); c.clip(); c.globalCompositeOperation = 'lighter';
       for (const R of M.rings) { const r = R.r * T, a0 = R.gap + R.gw, a1 = R.gap - R.gw + TAU, fade = clamp((30 - R.r) / 4, 0, 1) * clamp(R.age / 0.15, 0, 1);
         c.globalAlpha = 0.55 * fade; c.strokeStyle = VIOLET; c.lineWidth = R.w * T; c.beginPath(); c.arc(X, Y, r, a0, a1); c.stroke();
         c.globalAlpha = 0.9 * fade; c.strokeStyle = VIOLET_HI; c.lineWidth = Math.max(1.5, T * 0.16); c.beginPath(); c.arc(X, Y, r + R.w * T * 0.4, a0, a1); c.stroke(); c.strokeStyle = AMBER_HI; c.lineWidth = Math.max(1, T * 0.06); c.beginPath(); c.arc(X, Y, r + R.w * T * 0.5, a0, a1); c.stroke();
@@ -504,7 +511,8 @@ RiftFiend.define({ id: 'nyarzhul', name: 'Nyar\'zhul', title: 'Heart of the Engi
     if (M.ov) for (let i = 0; i < 4; i++) { const cp = M.caps[i]; if (cp.st !== 'charged') continue; const X = FX.sx(C.x + CAPS[i][0]), Y = FX.sy(C.y + CAPS[i][1]), u = clamp(M.ov.t / M.ov.W, 0, 1); c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = u > 0.75 ? '#FF6A8A' : VIOLET_HI; c.globalAlpha = 0.8; c.lineWidth = Math.max(2.5, T * 0.18); c.beginPath(); c.arc(X, Y, T * 1.9, -Math.PI / 2, -Math.PI / 2 + TAU * (1 - u)); c.stroke(); c.restore(); }
     c.restore();
     // fallen, it is no longer among the living things on the field: the dead heart is laid down here, under them all
-    if (m.dead) { const P3 = (x, y, z) => [FX.sx(x), FX.sy(y) - z * T]; paintAll(c, FX, m, P3, T, M.bt, C, M); } }
+    if (m.dead) { { const o = NG(); if (o && o.paint(c, FX, m, FX.sx(m.x), FX.sy(m.y), T, M.bt)) return; }   // (v472 YB: the fallen heart on the GPU)
+      const P3 = (x, y, z) => [FX.sx(x), FX.sy(y) - z * T]; paintAll(c, FX, m, P3, T, M.bt, C, M); } }
   function drawFlood(c, FX, t, T, floor) { const M = FX.mem, C = FX.C, F = M.fl, X0 = FX.sx(C.x), Y0 = FX.sy(C.y), lv = F.lv, k = Math.max(0, 1 - lv * 1.03);
     c.save(); floor(); c.clip();
     // the flooded part: everything outside an oval shrinking as it rises, less the grates

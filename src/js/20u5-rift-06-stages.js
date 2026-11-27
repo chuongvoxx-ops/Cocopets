@@ -54,6 +54,7 @@ const YUG_STAGES = {};
       goal() { if (self.done) return 'To the breach'; if (S.intro) return 'The Conductor Hunt'; const k = nodes.filter(n => n.on).length; return `Circuits ${k}/3 · charged mites: ${alive(S.charged)} · lure one through a dead node`; },
       hint() { if (self.done) return null; return null; },
       drawGround(c) { const T = X.Tz(), t = g.t;
+        if (typeof YUG_PROPS !== 'undefined' && YUG_PROPS.stage && YUG_PROPS.stage.conductor(c, X, { nodes, strip, docks, S, dx0, dx1, dy, charged: S.charged }, T, t)) return;   // v472 YE: the painted pieces and their GPU light (20u6d2)
         // the cables from each node to its lock on the door: dark when dead, current running along them when live
         for (const n of nodes) { c.save(); c.lineCap = 'round'; c.lineJoin = 'round'; c.strokeStyle = '#14161E'; c.lineWidth = T * 0.22; c.beginPath(); n.path.forEach(([x, y], i) => (i ? c.lineTo(X.sx(x), X.sy(y)) : c.moveTo(X.sx(x), X.sy(y)))); c.stroke(); c.strokeStyle = '#3A3F50'; c.lineWidth = T * 0.12; c.stroke();
           if (n.k > 0.05) { c.globalCompositeOperation = 'lighter'; c.globalAlpha = n.k; c.strokeStyle = VIOLET_HI; c.lineWidth = T * 0.1; c.setLineDash([T * 0.3, T * 0.5]); c.lineDashOffset = -t * T * 4; c.stroke(); } c.restore(); }
@@ -70,7 +71,7 @@ const YUG_STAGES = {};
     };
   }
   // the dead nodes (drawn as objects so they stand among the monsters)
-  const conductorNodeObjs = (X, H, mod) => mod.nodes.forEach(n => { n.obj = H.obj({ x: n.x, y: n.y, kind: 'node', r: 0.9, h: 2.4, label: () => (n.on ? 'Circuit live' : 'Dead node: a charged mite must dash into it'), draw(c, Xs, Ys, T) { const { VIOLET, VIOLET_HI, INK } = P(), t = X.g.t, k = n.k;
+  const conductorNodeObjs = (X, H, mod) => mod.nodes.forEach(n => { n.obj = H.obj({ x: n.x, y: n.y, kind: 'node', r: 0.9, h: 2.4, label: () => (n.on ? 'Circuit live' : 'Dead node: a charged mite must dash into it'), draw(c, Xs, Ys, T) { if (typeof YUG_PROPS !== 'undefined' && YUG_PROPS.stage && YUG_PROPS.stage.node(c, X, n, Xs, Ys, T)) return;   /* v472 YE: the painted node (20u6d2) */ const { VIOLET, VIOLET_HI, INK } = P(), t = X.g.t, k = n.k;
     c.save(); c.fillStyle = 'rgba(0,0,0,.3)'; c.beginPath(); c.ellipse(Xs, Ys + T * 0.1, T * 0.9, T * 0.34, 0, 0, TAU); c.fill();
     c.fillStyle = '#2A2F3E'; c.strokeStyle = INK; c.lineWidth = 2; c.beginPath(); c.ellipse(Xs, Ys, T * 0.8, T * 0.32, 0, 0, TAU); c.fill(); c.stroke(); c.fillRect(Xs - T * 0.8, Ys - T * 0.35, T * 1.6, T * 0.35); c.strokeRect(Xs - T * 0.8, Ys - T * 0.35, T * 1.6, T * 0.35); c.fillStyle = '#4A5268'; c.beginPath(); c.ellipse(Xs, Ys - T * 0.35, T * 0.8, T * 0.32, 0, 0, TAU); c.fill(); c.stroke();
     for (let i = 0; i < 3; i++) { const a = i / 3 * TAU + 0.5, px = Xs + Math.cos(a) * T * 0.45, py = Ys - T * 0.35 + Math.sin(a) * T * 0.18; c.fillStyle = '#1E2230'; c.beginPath(); c.moveTo(px - T * 0.08, py); c.lineTo(px, py - T * 1.0); c.lineTo(px + T * 0.08, py); c.closePath(); c.fill(); c.stroke(); if (k > 0.1) bolt(c, px, py - T * 1.0, Xs, Ys - T * 1.5, T * 0.5, t, i * 3, k); }
@@ -105,7 +106,7 @@ const YUG_STAGES = {};
     const O = mk.O[0], E = mk.E[0], R = 9.4, r0 = 1.3, NEED = 24;
     const S = { intro: true, got: 0, rot: 0, dir: 1, n: 2, spd: 0.55, warnT: 0, stage: -1, sparks: [], hitT: 0, ring: null, ringT: 7, mobs: [], mobT: 9, revT: 8, revWarn: 0, won: false, streak: 0, lastGot: -9 };
     const PH = [{ n: 2, spd: 0.55, ring: 0 }, { n: 3, spd: 0.75, ring: 7 }, { n: 4, spd: 0.95, ring: 5.5 }];
-    const coilObj = H.obj({ x: O.x, y: O.y + 0.4, kind: 'coil', r: 0.1, h: 3.4, label: '', draw(c, Xs, Ys, T) { drawCoil(c, Xs, Ys, T); } });
+    const coilObj = H.obj({ x: O.x, y: O.y + 0.4, kind: 'coil', r: 0.1, h: 3.4, label: '', draw(c, Xs, Ys, T) { if (typeof YUG_PROPS !== 'undefined' && YUG_PROPS.stage && YUG_PROPS.stage.coilTower(c, X, { S }, Xs, Ys, T)) return;   /* v472 YE: the painted coil (20u6d2) */ drawCoil(c, Xs, Ys, T); } });
     function drawCoil(c, Xs, Ys, T) { const t = g.t, hot = S.won ? 0 : 1, pulse = S.ring && S.ring.pre > 0 ? 1 : 0;
       c.save(); c.fillStyle = 'rgba(0,0,0,.35)'; c.beginPath(); c.ellipse(Xs, Ys, T * 1.5, T * 0.55, 0, 0, TAU); c.fill();
       c.fillStyle = '#2A2F3E'; c.strokeStyle = INK; c.lineWidth = 2; c.beginPath(); c.ellipse(Xs, Ys - T * 0.2, T * 1.3, T * 0.5, 0, 0, TAU); c.fill(); c.stroke();
@@ -141,6 +142,7 @@ const YUG_STAGES = {};
       goal() { if (self.done) return 'The way on'; if (S.intro) return 'The Spinning Coil'; return `Sparks ${S.got}/${NEED} · roll through the beams${S.stage >= 1 ? ' and the ring pulses' : ''}`; },
       hint() { if (self.done) return null; return null; },
       drawGround(c) { const T = X.Tz(), t = g.t, Xo = X.sx(O.x), Yo = X.sy(O.y);
+        if (typeof YUG_PROPS !== 'undefined' && YUG_PROPS.stage && YUG_PROPS.stage.coil(c, X, { S, O, R, r0, NEED }, T, t)) return;   // v472 YE: the beams, rings and sparks as GPU light (20u6d2)
         // the arena's rings of conductive plating
         c.save(); c.strokeStyle = 'rgba(232,184,255,.12)'; c.lineWidth = 2; for (const rr of [3, 6, R]) { c.beginPath(); c.ellipse(Xo, Yo, rr * T, rr * T * 0.95, 0, 0, TAU); c.stroke(); } c.restore();
         if (!S.won) {
@@ -183,7 +185,7 @@ const YUG_STAGES = {};
     const S = { intro: true, py: start.y + 6, spd: 2.25, t: 0, pause: 0, last: start, lastY: start.y, caught: 0, won: false, zapHit: 0, convK: 0, mobs: [] };
     (mk.q || []).forEach(p => spawnAt(X, Math.random() < 0.6 ? 'sparkmite' : 'hullwing', p, S.mobs, false)); g.total = X.mons.length;
     const valves = (mk.v || []).map((p, i) => { const V = { i, x: p.x, y: p.y, used: false }; V.obj = H.obj({ x: p.x, y: p.y, kind: 'valve', r: 0.9, h: 1.9, label: () => (V.used ? 'Vented' : 'Vent the coolant: stalls the meltdown'), use() { if (V.used) return; V.used = true; S.pause = 4.5; S.last = { x: p.x, y: p.y + 0.9 }; S.lastY = p.y; X.sfx.whoosh && X.sfx.whoosh(); X.banner('COOLANT VENTED', 'The meltdown stalls for a moment · this is your new checkpoint', TEAL_HI, 2, true); for (let k = 0; k < 20; k++) X.part({ kind: 'smoke', x: p.x + (Math.random() - 0.5) * 8, y: S.py - Math.random(), vx: (Math.random() - 0.5) * 2, vy: -1, life: 1.4, max: 1.4, size: 2.4, color: '#CFFFF6' }); },
-      draw(c, Xs, Ys, T) { c.save(); c.fillStyle = 'rgba(0,0,0,.3)'; c.beginPath(); c.ellipse(Xs, Ys + T * 0.1, T * 0.6, T * 0.2, 0, 0, TAU); c.fill(); c.fillStyle = '#4A5E70'; c.strokeStyle = INK; c.lineWidth = 2; c.fillRect(Xs - T * 0.15, Ys - T * 1.1, T * 0.3, T * 1.1); c.strokeRect(Xs - T * 0.15, Ys - T * 1.1, T * 0.3, T * 1.1);
+      draw(c, Xs, Ys, T) { if (typeof YUG_PROPS !== 'undefined' && YUG_PROPS.stage && YUG_PROPS.stage.valve(c, X, V, Xs, Ys, T)) return;   /* v472 YE: the painted valve (20u6d2) */ c.save(); c.fillStyle = 'rgba(0,0,0,.3)'; c.beginPath(); c.ellipse(Xs, Ys + T * 0.1, T * 0.6, T * 0.2, 0, 0, TAU); c.fill(); c.fillStyle = '#4A5E70'; c.strokeStyle = INK; c.lineWidth = 2; c.fillRect(Xs - T * 0.15, Ys - T * 1.1, T * 0.3, T * 1.1); c.strokeRect(Xs - T * 0.15, Ys - T * 1.1, T * 0.3, T * 1.1);
         c.strokeStyle = INK; c.lineWidth = 5; c.beginPath(); c.arc(Xs, Ys - T * 1.25, T * 0.45, 0, TAU); c.stroke(); c.strokeStyle = V.used ? '#5A6278' : TEAL; c.lineWidth = 3; c.stroke(); for (let i = 0; i < 4; i++) { const a = i / 4 * TAU + (V.used ? 0.8 : g.t); c.beginPath(); c.moveTo(Xs, Ys - T * 1.25); c.lineTo(Xs + Math.cos(a) * T * 0.42, Ys - T * 1.25 + Math.sin(a) * T * 0.42); c.stroke(); } if (!V.used) glowAt(c, Xs, Ys - T * 1.25, T * 0.9, TEAL, 0.5); c.restore(); } }); return V; });
     X.after(1.0, () => { S.intro = false; X.banner('THE MELTDOWN RUN', 'The core is melting down behind you: RUN. Vent the coolant valves to stall it', MAGENTA, 3, true, true); X.shake(8, 0.8); });
     function caught() { S.caught++; X.flash(0.5, '#FFFFFF'); X.hurtPet(X.ST().hp * 0.18, null); X.banner('THE MELTDOWN CAUGHT YOU', S.last === start ? 'Back to the start: keep ahead of it' : 'Back to the last valve you vented', MAGENTA, 2, true); X.sfx.wrong(); me.x = S.last.x; me.y = S.last.y; me.vx = me.vy = 0; me.push = null; me.dodge = null; S.py = S.lastY + 7; S.pause = 2.0; }
@@ -207,6 +209,7 @@ const YUG_STAGES = {};
       goal() { if (self.done) return 'The engine heart'; if (S.intro) return 'The Meltdown Run'; const gap = Math.max(0, S.py - me.y), left = Math.max(0, Math.round(me.y - E.y)); return `${S.pause > 0 ? 'STALLED · ' : ''}Meltdown ${gap.toFixed(0)} m behind you · ${left} m to go`; },
       hint() { return null; },
       drawGround(c) { const T = X.Tz(), t = g.t, Xa = X.sx(x0), Xb = X.sx(x1);
+        if (typeof YUG_PROPS !== 'undefined' && YUG_PROPS.stage && YUG_PROPS.stage.melt(c, X, { S, x0, x1, convs, zaps, pistons, doors }, T, t)) return;   // v472 YE: the painted belts, rams and doors, the plasma on the GPU (20u6d2)
         // conveyor belts: dark rubber, chevrons running back toward the meltdown
         for (const cv of convs) { const Y = X.sy(cv.ty); c.save(); c.fillStyle = 'rgba(20,20,26,.75)'; c.fillRect(Xa, Y, Xb - Xa, T); c.beginPath(); c.rect(Xa, Y, Xb - Xa, T); c.clip(); c.strokeStyle = 'rgba(255,178,63,.7)'; c.lineWidth = 3; const off = (t * 2.0 * T) % (T * 0.8); for (let x = Xa + T * 0.5; x < Xb; x += T * 1.2) for (let yy = Y - T + off; yy < Y + T * 1.5; yy += T * 0.8) { c.beginPath(); c.moveTo(x - T * 0.25, yy); c.lineTo(x, yy + T * 0.22); c.lineTo(x + T * 0.25, yy); c.stroke(); } c.restore(); }
         // live floor

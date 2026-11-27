@@ -2600,6 +2600,56 @@ void main() {
     col += emi * (1.0 - dead * 0.9) + vec3(1.0, 0.97, 0.92) * clamp(uGlow2, 0.0, 1.0) * (0.3 + 0.5 * pow(1.0 - ndv0, 2.0));
     gl_FragColor = vec4(vec3(tone(col.r), tone(col.g), tone(col.b)) * uAlpha * fa, uAlpha * fa); return; }
   /*</SM-SEP-MAT>*/
+  /*<YM-YUG-MAT ids 830..849 (v472 YM: 20u6f-yug-brood-gl.js, Rift 06's brood baked into sprite frames once). Its passes carry the land's key light in uAmb and its rim in uRim (the Torn Hull's violet night, the Coolant Vaults' teal, the Engine Heart's rose and amber). Every pattern from the surface's own coordinates. 830 gunmetal hull plate (panel seams and rivets laid on the face the normal points along, bright worn bevels, scratches, a clear coat; .1 a dark plate, .2 a light plate, .3 near-black joints, .4 a ribbed shell: grooves across x; 839 a round light plate: its panels radial; sub-ids stay under .5: the id is rounded), 831 light (emissive only: uKind 0 violet, 1 teal, 2 amber, 3 white, 4 a hot red-orange; uGlow its strength), 832 a glass window (dark glass, current swirling and forking inside by uGlow in uKind's colour, a sheen), 833 fungal flesh (rose, lumpy, light through it; .1 the brain lobe: ridged, glowing by uGlow in uKind's colour; .2 a claw's glossy shell), 834 a wing membrane (rose, veins from its root, light through it), 835 leathery egg hide (plated bands, wet; its crown's four seams glowing violet, parted and amber by uSpill), 836 black chrome (glossy biomech; .1 bright steel: a blade), 837 hazard stripes (amber and black), 838 matte rubber and cable (the dark legs); uGlow2 a white flash, uFx a death's fade, uWear the part's seed>*/
+  else if (id >= 830 && id <= 849) {   // ---- (v472 YM) the Yuggoth Engine's brood
+    int sk = int((vA.x - float(id)) * 10.0 + 0.5);
+    float ndv0 = max(0.0, dot(n, uV)), hm = dot(n, uUP), tt = uTime, sd = uWear * 17.0, gl = clamp(uGlow, 0.0, 3.0), dead = clamp(uFx, 0.0, 1.0);
+    vec3 EC = uKind < 0.5 ? vec3(1.05, 0.42, 1.6) : uKind < 1.5 ? vec3(0.32, 1.35, 1.15) : uKind < 2.5 ? vec3(1.55, 0.92, 0.28) : uKind < 3.5 ? vec3(1.4, 1.36, 1.5) : vec3(1.65, 0.5, 0.3);
+    float w1 = vn(L.xy * 3.1 + L.z * 1.9 + sd), w2 = vn(L.yz * 8.0 + L.x * 4.0 + sd * 0.7), w3 = vn(L.xz * 23.0 + L.y * 11.0 + sd);
+    vec3 hq0 = normalize(uLK + uV);
+    if (id == 831) { float fl = 0.88 + 0.24 * vn(L.xy * 9.0 + L.z * 5.0 + vec2(tt * 1.3, -tt));
+      vec3 c = mix(EC * 0.85, vec3(1.7, 1.65, 1.75), pow(ndv0, 2.2) * 0.6) * (0.45 + 0.8 * gl) * fl;
+      gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
+    vec3 a = vec3(0.1), emi = vec3(0.0), thru = vec3(0.0); float rg = 0.5, cvv = 0.0, cc = 0.0, mt = 0.0, occ = clamp(ao, 0.0, 1.0) * 0.4 + 0.6, eg = clamp(edge, 0.0, 1.0);
+    if (id == 830 || id == 839) { bool rnd = id == 839; vec3 base = sk == 1 ? vec3(0.24, 0.26, 0.33) : sk == 2 || rnd ? vec3(0.46, 0.5, 0.6) : sk == 3 ? vec3(0.08, 0.085, 0.11) : vec3(0.33, 0.36, 0.45);
+      vec3 an = abs(NL); vec2 q = (rnd ? vec2(atan(L.y, L.x) * 1.2732, length(L.xy) * 2.2) : an.z > max(an.x, an.y) ? L.xy : an.x > an.y ? L.yz : L.xz) * (rnd ? 1.0 : 3.0) + sd;
+      vec2 g = fract(q), e2 = min(g, 1.0 - g); float sm = min(e2.x, e2.y), seam = 1.0 - smoothstep(0.012, 0.035, sm);
+      vec2 rq = fract(q * 4.0) - 0.5; float riv = (1.0 - smoothstep(0.1, 0.17, length(rq))) * (1.0 - smoothstep(0.07, 0.11, sm)) * smoothstep(0.03, 0.05, sm);
+      a = base * (0.84 + 0.26 * w1); a *= 1.0 - seam * 0.55; a = mix(a, vec3(0.62, 0.64, 0.72), eg * 0.4 + smoothstep(0.9, 0.97, w3) * 0.3); a += vec3(0.22, 0.23, 0.27) * riv;
+      cvv += seam * 0.35; mt = sk == 3 ? 0.6 : 0.3; rg = 0.3 + 0.18 * w2 - riv * 0.12; cc = 0.55;
+      if (sk == 4) { float rb = smoothstep(0.3, 0.47, abs(fract(L.x * 3.4 + 0.5) - 0.5)); cvv += rb * 0.5; a *= 1.0 - rb * 0.3; }
+      emi += EC * gl * 0.04; }
+    else if (id == 832) { vec3 p = L * 3.0; float sw = vn(vec2(p.x * 2.0 + tt * 1.4 + p.z, p.y * 2.0 - tt + sd)), arc = 1.0 - smoothstep(0.0, 0.05, abs(vn(vec2(p.x * 3.0 + p.y * 2.0, p.z * 3.0 + tt * 3.0) + sd) - 0.5)), frs2 = pow(1.0 - ndv0, 3.0);
+      a = vec3(0.02, 0.012, 0.05); rg = 0.05; cc = 1.0; emi += EC * (0.15 + 0.85 * gl) * (0.35 + 0.65 * sw) * 0.65 + vec3(1.2, 1.12, 1.4) * arc * gl * 0.6 + vec3(0.5, 0.45, 0.65) * frs2 * 0.25; thru = EC * gl * 0.08; }
+    else if (id == 833) { if (sk == 2) { a = vec3(0.74, 0.3, 0.52) * (0.85 + 0.2 * w1); a = mix(a, vec3(0.98, 0.78, 0.88), eg * 0.3); rg = 0.2; cc = 0.85; thru = vec3(0.4, 0.1, 0.25) * 0.3; }
+      else if (sk == 1) { float rid = smoothstep(0.25, 0.5, abs(fract(L.x * 4.2 + 0.6 * sin(L.y * 9.0 + L.z * 6.0) + w1 * 0.5) - 0.5)); a = mix(vec3(0.96, 0.74, 0.86), vec3(0.6, 0.28, 0.48), rid * 0.6) * (0.9 + 0.15 * w2); cvv += rid * 0.25; rg = 0.34; cc = 0.5; thru = EC * 0.22;
+        emi += EC * gl * (0.22 + 0.5 * (1.0 - rid)) * (0.85 + 0.15 * sin(tt * 2.0 + L.x * 5.0)); }
+      else { float lump = vn(L.xy * 5.0 + L.z * 3.0 + sd); a = mix(vec3(0.8, 0.4, 0.64), vec3(0.96, 0.62, 0.8), lump) * (0.85 + 0.2 * w3); a = mix(a, vec3(0.48, 0.18, 0.38), smoothstep(0.65, 0.85, w2) * 0.45); rg = 0.42; cc = 0.4; thru = vec3(0.55, 0.15, 0.35) * 0.35; cvv += smoothstep(0.7, 0.9, w2) * 0.15; } }
+    else if (id == 834) { vec2 q = L.xz; float ang = atan(q.y, q.x), vein = 1.0 - smoothstep(0.0, 0.07, abs(fract(ang * 1.6 + length(q) * 0.4) - 0.5) - 0.42), frs2 = pow(1.0 - ndv0, 2.5);
+      a = mix(vec3(0.6, 0.3, 0.54), vec3(0.86, 0.56, 0.78), 0.4 + 0.3 * w1); a = mix(a, vec3(1.0, 0.82, 0.93), vein * 0.5); rg = 0.3; cc = 0.4; thru = vec3(0.7, 0.3, 0.55) * 0.5; emi += vec3(0.9, 0.5, 0.8) * frs2 * 0.15; occ = 1.0; }
+    else if (id == 835) { float bands = smoothstep(0.3, 0.48, abs(fract(L.z * 2.6 + 0.15 * sin(atan(L.y, L.x) * 3.0)) - 0.5)), an3 = atan(L.y, L.x) + 0.4, sa = abs(fract(an3 * 0.63662) - 0.5) * 1.5708 * length(L.xy), crown = smoothstep(1.1, 1.7, L.z), op = clamp(uSpill, 0.0, 1.0);
+      float dd = sa / (0.025 + 0.06 * op), seam = exp(-dd * dd) * crown; vec3 sc = mix(vec3(1.05, 0.42, 1.6), vec3(1.55, 0.92, 0.28), op);
+      a = mix(vec3(0.2, 0.16, 0.24), vec3(0.44, 0.37, 0.48), w1 * 0.6 + 0.2) * (1.0 - bands * 0.35); cvv += bands * 0.3; rg = 0.26 + 0.15 * w2; cc = 0.9; a = mix(a, vec3(0.05, 0.02, 0.06), seam * 0.5);
+      emi += sc * seam * (0.35 + 0.35 * gl + 0.9 * op) + sc * crown * op * 0.15; }
+    else if (id == 836) { if (sk == 1) { a = vec3(0.8, 0.84, 0.92); mt = 0.2; rg = 0.14 + 0.06 * w2; cc = 0.3; a = mix(a, vec3(0.95), eg * 0.4); } else { a = vec3(0.1, 0.11, 0.14) * (0.8 + 0.3 * w1); mt = 0.9; rg = 0.12 + 0.08 * w2; cc = 1.0; } }
+    else if (id == 837) { float s = step(0.5, fract((L.x + L.y * 0.6 + L.z) * 3.2)); a = mix(vec3(0.06, 0.06, 0.07), vec3(0.95, 0.62, 0.15), s) * (0.88 + 0.15 * w1); a = mix(a, a * 0.6, smoothstep(0.85, 0.95, w3)); rg = 0.5; cc = 0.4; }
+    else { a = vec3(0.07, 0.075, 0.095) * (0.85 + 0.25 * w2); rg = 0.55; cc = 0.15; mt = 0.2; a = mix(a, vec3(0.3, 0.32, 0.38), eg * 0.25); }
+    float ndl0 = dot(n, uLK), ndl = max(0.0, ndl0), wrap = max(0.0, (ndl0 + 0.4) / 1.4);
+    vec3 key = uAmb, ambC = mix(uAmb * 0.16 + vec3(0.05, 0.04, 0.08), uRim * 0.2 + uAmb * 0.18 + vec3(0.05, 0.04, 0.08), 0.5 + 0.5 * hm) * (0.55 + 0.45 * occ);
+    float nh = max(0.0, dot(n, hq0)), pw = 2.0 / (rg * rg + 0.004), spec = pow(nh, pw) * (pw + 2.0) / 8.0 * ndl, frs = pow(1.0 - ndv0, 5.0);
+    vec3 rr2 = 2.0 * dot(n, uV) * n - uV; float ru = dot(rr2, uUP);
+    vec3 envC = ru > 0.0 ? mix(uAmb * 0.45, uRim * 0.5 + vec3(0.08, 0.06, 0.12), smoothstep(0.0, 0.6, ru)) : mix(uAmb * 0.4, vec3(0.06, 0.05, 0.08), smoothstep(0.0, -0.4, ru));
+    envC += uAmb * 1.2 * smoothstep(0.86, 0.97, dot(rr2, uLS)) / (1.0 + rg * 5.0);
+    vec3 Fr = mix(mix(vec3(0.04), a, mt), vec3(1.0), frs * (1.0 - rg * 0.6));
+    vec3 col = a * (1.0 - mt * 0.82) * (mix(ndl, wrap, 0.5) * key + ambC) + (envC * (0.9 / (1.0 + rg * 2.5)) * occ + spec * key * 0.9) * (Fr * (0.35 + 0.65 * mt) + 0.65 * (1.0 - mt) * Fr);
+    if (cc > 0.0) col += cc * (pow(nh, 200.0) * 3.0 * ndl + 0.3 * frs * envC) * occ;
+    col += thru * (0.6 + 0.4 * max(0.0, -ndl0));
+    col += pow(1.0 - ndv0, 2.4) * max(0.0, dot(n, uLR) + 0.35) * uRim * 0.55 * occ;
+    col *= 1.0 - min(0.8, cvv * 0.5 + (1.0 - occ) * 0.4);
+    if (dead > 0.0) { float lum = dot(col, vec3(0.3, 0.55, 0.15)); col = mix(col, vec3(lum) * 0.7, dead * 0.75); }
+    col += emi * (1.0 - dead * 0.9) + vec3(1.0, 0.98, 0.95) * clamp(uGlow2, 0.0, 1.0) * (0.3 + 0.5 * pow(1.0 - ndv0, 2.0));
+    gl_FragColor = vec4(vec3(tone(col.r), tone(col.g), tone(col.b)) * uAlpha, uAlpha); return; }
+  /*</YM-YUG-MAT>*/
   /*<AM-AUR-MAT ids 710..729 (v470 AM: 20s6f-aur-brood-gl.js, Rift 05's brood baked into sprite frames once). Its passes carry the land's key light in uAmb and its rim in uRim (the Split Iceberg's cold moonlight and aurora green, the Observatory's pale key and bright green, the Whiteout's white sun and amber). 710 rime shell (faceted frosted ice: bright facet rims by the facet's edge weight, frost, a cold glow through it; .1 ice blue, .2 snow white), 711 navy chitin (glossy deep navy; .1 matte navy hide: a yeti's face and hands), 712 light (emissive only: uKind 0 aurora green, 1 ice white, 2 amber, 3 white; uGlow its strength), 713 a veil ray's membrane (pale blue, see-through, fine veins fanning from its middle, a sheen; .1 a green ribbon, .2 an ice ribbon: lit edges), 714 clear ice (a crystal's vA.z 1 - its place along: frosted root, clear tip, aurora green rising inside by uGlow), 715 a dark core (black glass, green light swirling inside by uGlow), 716 shaggy fur (white strands, blue in the hollows; .1 the back limbs' greyer fur), 718 block ice (bevelled slabs: cracks inside, frosted faces, bright bevels; .1 deep blue, .2 pale; uSpill green cracks of light), 720 snow (bright, glinting), 721 enamel (fangs), 722 an ice horn (ridged along vA.z), 723 glacier rock (blue-grey, snow dust on its tops); uGlow2 a white flash, uWear the part's seed>*/
   else if (id >= 710 && id <= 729) {   // ---- (v470 AM) the Pale Aurora's brood
     int sk = int((vA.x - float(id)) * 10.0 + 0.5);
@@ -2654,6 +2704,189 @@ void main() {
     col += emi * (1.0 - dead * 0.9) + vec3(1.0, 0.98, 0.95) * clamp(uGlow2, 0.0, 1.0) * (0.3 + 0.5 * pow(1.0 - ndv0, 2.0));
     gl_FragColor = vec4(vec3(tone(col.r), tone(col.g), tone(col.b)) * uAlpha * fa, uAlpha * fa); return; }
   /*</AM-AUR-MAT>*/
+  /*<YB-YUG-MAT ids 850..889 (v472 YB: 20z7a-khaal-gl.js, 20z8a-ixvorra-gl.js, 20z9a-nyarzhul-gl.js, the Yuggoth Engine's bosses). Lit by YUG3's passes in their arenas' light (the key's colour in uAmb, the rim's in uRim; 850..859 the Breach: the void's violet above, the grey deck below; 860..869 the Capacitor Hall: dark steel above, the teal coolant's light below; 870..889 the Core Chamber: flesh-lit dark). Every pattern from the surface's own coordinates (vA, or the local position of a still mesh), never the moving position.
+     KH'AAL 850 hull plate (.0 the carapace: vA.y its turn / 2pi, vA.z its radius in the dome's unit disc: the 2D's rings of plates (a heptagon, six, eleven), seams with violet current (uGlow), rivets, scratches, heat tint, an oily sheen, the torn panel's glowing pit, the rolled lip; .2 a palm (local), .3 a cuff (local: x along 0..1), .4 the plate it holds (vA.y across, vA.z its height, + 2 its back; uSpill the clang), .8 a hull shard). 851 chitin (.0 a leg or an arm: vA.y round, vA.z along in segments; .2 the belly; .4 knobs, fingers, the mouth's parts; .6 a spur; .8 a palp's flesh). 852 the brain-lobe (vA.y how deep in a fold, vA.z the fissure; uKind its hue 0..3 teal violet amber, uGlow its light, uSpill the stagger's flicker). 853 fungus (.0 the skirt: vA.y down it, vA.z round it (+ 2 inside); .2 a cushion; .4 a wing's membrane: vA.y s along the span, vA.z q along the chord, torn through; .6 a cap; .8 a wing's spar). 854 a shear blade (local: x along, y to its back, the honed edge lit by uGlow). 855 a lens (copies: 0, 1 the stalk eyes (local x the gaze), 2..5 the small eyes, 6 the hinge lamp, 7 the mouth's slag; uKind 1 the stagger's white). 856 a tooth.
+     uGlow2 a blow's flash, uFx the death's fade, uWear the part's seed>*/
+  else if (id >= 850 && id <= 889) {
+    int sk = int((vA.x - float(id)) * 10.0 + 0.5);
+    float ndv0 = max(0.0, dot(n, uV)), tt = uTime, gl = clamp(uGlow, 0.0, 3.0), dead = clamp(uFx, 0.0, 1.0), fl2 = clamp(uGlow2, 0.0, 1.0), sd = uWear * 17.0, hm = dot(n, uUP);
+    float inst = floor((ao + 0.01) * 0.25), loc = ao - inst * 4.0;
+    vec3 VIO = vec3(0.6, 0.3, 1.0), VIH = vec3(0.92, 0.74, 1.05), TEA = vec3(0.18, 0.85, 0.78), TEH = vec3(0.72, 1.0, 0.95), AMB = vec3(1.0, 0.66, 0.22), SLG = vec3(1.0, 0.42, 0.12);
+    vec3 a = vec3(0.5), emi = vec3(0.0), thru = vec3(0.0); float rg = 0.5, cc = 0.0, cvv = 0.0, occ = 1.0, spk = 0.0, met = 0.0; vec2 tex = L.xy * 6.0;
+    // ---- the lights: emissive
+    if (id == 855) { vec3 c; vec3 lp = normalize(L + vec3(1e-4));
+      if (inst < 1.5) { float st = uKind; float pup = smoothstep(0.62, 0.7, lp.x) * smoothstep(0.2, 0.08, abs(lp.y)), iris = smoothstep(0.35, 0.55, lp.x);
+        c = mix(vec3(0.03, 0.12, 0.12), mix(TEA, TEH, pow(max(0.0, lp.x), 3.0)) * 1.3, iris); c = mix(c, vec3(1.6), st * iris * 0.8); c = mix(c, vec3(0.01, 0.02, 0.03), pup * (1.0 - st));
+        c += vec3(1.0) * pow(max(0.0, dot(reflect(-uV, n), uLK)), 60.0) * 1.2; }
+      else if (inst < 5.5) c = mix(vec3(0.04, 0.2, 0.2), mix(TEA, TEH, pow(ndv0, 2.0)) * 1.4, smoothstep(0.1, 0.6, ndv0)) + (uKind > 0.5 ? vec3(0.8) : vec3(0.0));
+      else if (inst < 6.5) c = mix(VIO, VIH * 1.5, pow(ndv0, 1.5)) * (0.8 + 0.3 * sin(tt * 6.0));
+      else c = mix(SLG, vec3(1.6, 1.25, 0.7), pow(ndv0, 1.4)) * (0.6 + 0.7 * clamp(uSpill, 0.0, 1.0)) * (0.85 + 0.15 * sin(tt * 17.0));
+      c *= 0.55 + 0.45 * gl; c += vec3(1.0) * fl2 * 0.25; c = mix(c, vec3(0.05, 0.04, 0.06), dead * 0.85);
+      gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
+    // ---- KH'AAL's solids
+    if (id == 850) { met = 0.78; rg = 0.36; cc = 0.32;
+      if (sk == 0) { float th = edge * 6.28318, rho = ao, h7 = 0.32 * cos(0.448799) / cos(mod(th - 0.3, 0.897598) - 0.448799), ring = 0.0, pin = 0.0, d = 0.0, pu = 0.0, pv = 0.5;
+        if (rho < h7) { d = (h7 - rho) * 2.1; pu = rho / h7; }
+        else { bool two = rho >= 0.66; float nn = two ? 11.0 : 6.0, off = two ? 0.05241 : 0.16951, w = 6.28318 / nn, x = mod(th - off, 6.28318), fi = floor(x / w), f = x / w - fi, r0 = two ? 0.66 : h7, r1 = two ? 1.0 : 0.66;
+          ring = two ? 2.0 : 1.0; pin = fi; d = min(min(rho - r0, two ? 9.0 : r1 - rho) * 2.1, min(f, 1.0 - f) * w * rho * 2.1); pu = (rho - r0) / (r1 - r0); pv = f; }
+        float pid = ring * 13.0 + pin, h1 = hs(vec2(pid, 3.7)), h2 = hs(vec2(pid, 9.1)), torn = (ring > 1.5 && abs(pin - 2.0) < 0.5) ? 1.0 : 0.0, fung = ((ring > 1.5 && (abs(pin - 5.0) < 0.5 || abs(pin - 9.0) < 0.5)) || (ring > 0.5 && ring < 1.5 && abs(pin - 1.0) < 0.5)) ? 1.0 : 0.0;
+        vec3 P0 = vec3(0.4, 0.44, 0.57), P1 = vec3(0.46, 0.5, 0.63), P2 = vec3(0.35, 0.39, 0.51), P3 = vec3(0.43, 0.4, 0.57), P4 = vec3(0.5, 0.54, 0.68);
+        float ci = floor(h1 * 5.0); a = ci < 0.5 ? P0 : ci < 1.5 ? P1 : ci < 2.5 ? P2 : ci < 3.5 ? P3 : P4; a *= 0.92 + 0.12 * h2;
+        vec2 mm = L.xy; tex = mm * 9.0; float g1 = vn(mm * 3.0 + pid), g2 = vn(mm * 11.0 + 3.0 * pid), scr = pow(vn(vec2(mm.x * 55.0 + mm.y * 13.0 + pid * 7.0, mm.y * 4.0 - mm.x)), 16.0), scr2 = pow(vn(vec2(mm.y * 48.0 - mm.x * 9.0, mm.x * 3.0) + pid), 18.0);
+        a *= 0.88 + 0.16 * g1; a = mix(a, a * 1.5 + 0.08, (scr + scr2) * 0.6); rg = mix(0.36, 0.22, scr + scr2) + 0.1 * g2;
+        // scorch and rust patches, heat tint round the seams, the oily film
+        float sco = smoothstep(0.62, 0.78, vn(mm * 2.2 + pid * 1.3 + 40.0)); a = mix(a, vec3(0.14, 0.1, 0.13), sco * 0.6); rg = mix(rg, 0.6, sco * 0.6);
+        float ht = exp(-(d - 0.07) * (d - 0.07) / 0.0025) * (0.5 + 0.5 * h2); vec3 film = 0.5 + 0.5 * cos(6.28318 * (vec3(0.0, 0.33, 0.67) + d * 9.0 + h1)); a = mix(a, a * film * 1.4, ht * 0.35);
+        // the seams: dark grooves, violet current running in them; the plates' edges bevelled bright
+        float s1 = smoothstep(0.0, 0.05, d), core = exp(-d * d / 0.0005), bev = (1.0 - smoothstep(0.05, 0.11, d)) * s1;
+        a *= 0.78; a = mix(a * 0.12, a, s1); cvv += (1.0 - s1) * 0.55; a = mix(a, a * 1.45 + 0.06, bev * 0.55); rg = mix(rg, 0.18, bev * 0.6);
+        float run = pow(max(0.0, sin(th * 7.0 - tt * 2.6 + ring * 2.1 + rho * 9.0)), 24.0);
+        emi += mix(VIO, VIH, core) * core * gl * (0.75 + 0.35 * sin(tt * 3.0 + th * 5.0 + ring)) * 1.15 + VIH * core * run * 1.6 + VIO * (1.0 - s1) * gl * 0.18;
+        // rivets in a band inside each plate's edge
+        vec2 rc = mm / 0.21, ri = floor(rc), rf = fract(rc) - 0.5; float band = smoothstep(0.07, 0.085, d) * (1.0 - smoothstep(0.13, 0.15, d)), rv = smoothstep(0.3, 0.2, length(rf)) * band, rh = smoothstep(0.17, 0.05, length(rf - vec2(-0.07, 0.07))) * band;
+        a = mix(a, vec3(0.08, 0.09, 0.12), rv * 0.7); a = mix(a, vec3(0.85, 0.88, 0.98), rh * 0.8); if (uLow < 0.5) n = normalize(n + (uM0 * rf.x + uM1 * rf.y) * rv * 1.4);
+        // the torn panel: a pit, violet light inside, cables across it, its edge torn bright
+        if (torn > 0.5) { float pit = smoothstep(0.03, 0.09, d), lip = exp(-(d - 0.035) * (d - 0.035) / 0.000225), puls = 0.5 + 0.5 * sin(tt * 3.1);
+          vec2 cq = vec2(pu, pv); float cab = 0.0; for (int k = 0; k < 3; k++) { float fk = float(k), yy = 0.25 + fk * 0.25 + 0.06 * sin(cq.x * 9.0 + fk * 2.0); cab = max(cab, smoothstep(0.045, 0.02, abs(cq.y - yy))); }
+          a = mix(a, vec3(0.05, 0.02, 0.07), pit); emi += VIO * pit * (0.45 + 0.4 * puls) * (0.5 + 0.5 * gl) * (1.0 - cab) + VIH * pit * pow(1.0 - pu, 2.0) * 0.3 * gl; a = mix(a, vec3(0.03, 0.02, 0.04), cab * pit); cvv += pit * 0.2;
+          a = mix(a, vec3(0.8, 0.82, 0.92), lip * 0.6); rg = mix(rg, 0.15, lip); }
+        if (fung > 0.5) { float fs = smoothstep(0.55, 0.85, vn(mm * 6.0 + 2.0)) * smoothstep(0.05, 0.2, d); a = mix(a, vec3(0.55, 0.28, 0.42), fs * 0.5); rg = mix(rg, 0.6, fs * 0.5); }
+        if (rho > 1.0) { float e2 = clamp((rho - 1.0) / 0.06, 0.0, 1.0); a = mix(a, vec3(0.2, 0.2, 0.27), 0.7); a = mix(a, vec3(0.75, 0.78, 0.9), exp(-(e2 - 0.15) * (e2 - 0.15) / 0.0144) * 0.5); }
+        spk += 0.25 + bev * 0.6; }
+      else if (sk == 2 || sk == 3) { vec3 q = L; float d = 1.0, sm = 0.0; tex = q.xz * 7.0; met = 0.55;
+        if (sk == 2) { d = min(abs(q.x + 0.4), abs(q.x - 0.3)) * 1.0; sm = 1.0; } else { d = min(q.x, 1.0 - q.x) * 0.7; }
+        a = vec3(0.45, 0.49, 0.62) * (0.88 + 0.16 * vn(q.xy * 5.0 + sd)); float s1 = smoothstep(0.0, 0.03, d), core = exp(-pow(d / 0.012, 2.0));
+        a = mix(a * 0.2, a, s1); cvv += (1.0 - s1) * 0.4; emi += mix(VIO, VIH, core) * core * gl * 1.1 * sm + VIO * core * gl * 0.6 * (1.0 - sm);
+        float an = atan(q.z, q.y), rc = fract(an / 6.28318 * 10.0) - 0.5, rv = smoothstep(0.22, 0.12, length(vec2(rc, (sk == 2 ? fract(q.x * 3.0) - 0.5 : min(q.x, 1.0 - q.x) - 0.12) * 2.2))); a = mix(a, vec3(0.06, 0.07, 0.1), rv * 0.75);
+        a = mix(a, a * 1.5 + 0.06, pow(vn(vec2(q.x * 40.0, an * 3.0) + sd), 14.0)); }
+      else if (sk == 4) { float u = edge, hgt = ao, back = step(1.5, hgt), hh = back > 0.5 ? hgt - 2.0 : hgt; vec2 mm = vec2(u * 3.0, hh * 2.4); tex = mm * 3.0; met = 0.4; rg = 0.45;
+        a = mix(vec3(0.4, 0.44, 0.56), vec3(0.2, 0.22, 0.29), back) * (0.86 + 0.18 * vn(mm * 4.0 + 5.0)); float scr = pow(vn(vec2(mm.x * 30.0 + mm.y * 4.0, mm.y * 3.0)), 14.0); a = mix(a, a * 1.5 + 0.07, scr * 0.6 * (1.0 - back));
+        for (int k = 0; k < 2; k++) { float yy = k == 0 ? 0.18 : 0.8, rf = fract(u * 8.0) - 0.5; float rv = smoothstep(0.24, 0.12, length(vec2(rf, (hh - yy) * 6.0))); a = mix(a, vec3(0.07, 0.08, 0.1), rv * 0.75 * (1.0 - back)); }
+        float sl = abs(hh - (0.35 + 0.3 * smoothstep(0.3, 0.55, u) - 0.15 * smoothstep(0.55, 0.75, u))), seam = smoothstep(0.035, 0.0, sl) * step(0.33, u) * step(u, 0.78);
+        a = mix(a, vec3(0.05, 0.03, 0.06), seam * 0.8); emi += VIH * smoothstep(0.016, 0.0, sl) * step(0.33, u) * step(u, 0.78) * gl * 1.1 * (1.0 - back);
+        float dent = exp(-dot(mm - vec2(0.6, 1.55), mm - vec2(0.6, 1.55)) * 9.0); a *= 1.0 - dent * 0.35; cvv += dent * 0.3;
+        float topE = smoothstep(0.9, 1.0, hh); a = mix(a, vec3(0.86, 0.9, 1.0), topE * 0.55); emi += vec3(1.0) * clamp(uSpill, 0.0, 1.0) * 0.35 * (1.0 - back); spk += topE; }
+      else { vec3 q = L; a = vec3(0.42, 0.45, 0.58) * (0.82 + 0.22 * vn(q.xy * 7.0 + sd)); rg = 0.42; float e1 = smoothstep(0.5, 0.95, edge); a = mix(a, vec3(0.78, 0.82, 0.95), e1 * 0.5); spk += e1; a = mix(a, vec3(0.12, 0.08, 0.12), smoothstep(0.65, 0.8, vn(q.xy * 4.0 + 9.0)) * 0.5); } }
+    if (id == 851) { met = 0.0; vec3 lc = vec3(0.13, 0.1, 0.19), hc = vec3(0.3, 0.24, 0.42);
+      if (sk == 0) { float al = ao, f = fract(al), jnt = exp(-f * f / 0.0025) + exp(-(f - 1.0) * (f - 1.0) / 0.0025) + 0.6 * exp(-(f - 0.5) * (f - 0.5) / 0.0009); tex = vec2(edge * 9.0, al * 14.0);
+        float pit = smoothstep(0.7, 0.85, vn(tex * 2.6 + sd)), mo = vn(tex * 0.7 + sd); a = mix(lc, hc, mo * 0.5) * (1.0 - pit * 0.3); a = mix(a, vec3(0.05, 0.03, 0.07), jnt * 0.7); cvv += jnt * 0.45 + pit * 0.2;
+        rg = 0.28 + pit * 0.2; cc = 0.95 * (1.0 - jnt * 0.6); thru = vec3(0.12, 0.04, 0.16) * jnt; spk += 0.1; }
+      else if (sk == 2) { tex = L.xy * 8.0; float bnd = smoothstep(0.08, 0.0, abs(fract(L.x * 3.2) - 0.5) - 0.42); a = vec3(0.09, 0.07, 0.12) * (0.85 + 0.2 * vn(tex)); a *= 1.0 - bnd * 0.5; rg = 0.5; cc = 0.4; cvv += bnd * 0.3; }
+      else if (sk == 4) { tex = L.xy * 9.0 + L.z * 3.0; a = mix(lc, hc, vn(tex * 0.8 + sd) * 0.45); rg = 0.26; cc = 1.0; spk += 0.1; }
+      else if (sk == 6) { float u = clamp(L.x, 0.0, 1.0); a = mix(lc, vec3(0.62, 0.55, 0.72), smoothstep(0.4, 1.0, u)); rg = 0.3; cc = 0.8; }
+      else { tex = L.xy * 10.0; a = vec3(0.36, 0.09, 0.25) * (0.85 + 0.25 * vn(tex + sd)); rg = 0.3; cc = 0.85; thru = vec3(0.4, 0.08, 0.2); } }
+    if (id == 852) { float g = clamp(edge, 0.0, 1.0), fis = clamp(ao, 0.0, 1.0), k = mod(uKind, 3.0), ki = floor(k), kf = smoothstep(0.0, 1.0, k - ki);
+      vec3 h0 = ki < 0.5 ? TEA : ki < 1.5 ? VIO : AMB, h1c = ki < 0.5 ? VIO : ki < 1.5 ? AMB : TEA, hue = mix(h0, h1c, kf); hue = mix(hue, vec3(1.0), clamp(uSpill, 0.0, 1.0) * 0.7);
+      tex = L.xy * 7.0 + L.z * 4.0; float vein = smoothstep(0.05, 0.0, abs(vn(L.xy * 9.0 + L.z * 3.0) - 0.5) - 0.0) * (1.0 - g) * 0.5, wob = vn(tex * 1.5 + sd);
+      a = mix(vec3(0.9, 0.5, 0.72), vec3(0.6, 0.22, 0.46), smoothstep(0.1, 0.6, g)); a = mix(a, vec3(0.3, 0.06, 0.24), smoothstep(0.55, 1.0, g) * 0.85 + fis * 0.6); a *= 0.9 + 0.15 * wob; a = mix(a, vec3(0.55, 0.15, 0.32), vein * 0.5);
+      a = mix(a, a * hue * 1.6, 0.18);
+      emi += hue * (0.04 + 0.6 * pow(g, 1.5) + 0.4 * fis) * gl * 0.5 + hue * pow(1.0 - ndv0, 2.0) * 0.2 * gl; thru = hue * 0.25 + vec3(0.5, 0.2, 0.35) * 0.2; rg = 0.36; cc = 0.6; cvv += g * 0.4; spk += 0.1; a *= 0.85; }
+    if (id == 853) { met = 0.0;
+      if (sk == 0) { float dn = edge, ar = ao, lay = step(1.5, ar), au = ar - lay * 2.0; tex = vec2(au * 90.0, dn * 4.0);
+        float gill = smoothstep(0.12, 0.0, abs(fract(au * 210.0 + dn * 0.6) - 0.5) - 0.32) * smoothstep(0.1, 0.4, dn);
+        a = mix(vec3(0.5, 0.2, 0.4), vec3(0.88, 0.48, 0.72), lay) * (0.85 + 0.2 * vn(tex * 0.5 + sd)); a = mix(a, a * 0.55, gill * 0.6); a = mix(a, vec3(1.0, 0.78, 0.9), smoothstep(0.8, 1.0, dn) * 0.35);
+        float spo = step(0.93, hs(floor(tex * vec2(0.6, 3.0)))) * smoothstep(0.3, 0.6, dn); emi += TEA * spo * 0.6 * (0.6 + 0.4 * sin(tt * 3.0 + au * 40.0));
+        thru = vec3(0.7, 0.25, 0.45) * 0.8; rg = 0.55; cc = 0.25; cvv += gill * 0.3; }
+      else if (sk == 2) { tex = L.xy * 9.0; float bmp = vn(tex * 1.5 + sd), por = smoothstep(0.75, 0.9, vn(tex * 4.0)); a = mix(vec3(0.78, 0.38, 0.6), vec3(1.0, 0.74, 0.88), bmp * 0.6) * (1.0 - por * 0.4); thru = vec3(0.7, 0.25, 0.45) * 0.6; rg = 0.5; cc = 0.4; cvv += por * 0.3; spk += 0.2; }
+      else if (sk == 4) { float s = edge, q = ao; tex = vec2(s * 18.0, q * 14.0);
+        for (int k = 0; k < 4; k++) { vec3 H = k == 0 ? vec3(0.62, 0.3, 0.06) : k == 1 ? vec3(0.36, 0.52, 0.07) : k == 2 ? vec3(0.8, 0.2, 0.045) : vec3(0.2, 0.62, 0.05); vec2 dd = vec2(s - H.x, (q - H.y) * 0.8); float rr2 = length(dd) / H.z + 0.35 * (vn(vec2(s, q) * 40.0 + float(k) * 3.0) - 0.5); if (rr2 < 0.9) discard; }
+        vec2 rt = vec2(s, q - 0.15); float ang = atan(rt.y, rt.x), rad = length(rt), vein = smoothstep(0.06, 0.0, abs(fract(ang * 2.6 + 0.2 * sin(rad * 9.0)) - 0.5) - 0.42) * smoothstep(0.05, 0.2, rad), root = 1.0 - smoothstep(0.0, 0.6, rad);
+        a = mix(vec3(0.9, 0.52, 0.76), vec3(0.48, 0.22, 0.42), root * 0.6) * (0.88 + 0.18 * vn(tex * 0.6 + sd)); a = mix(a, vec3(0.42, 0.14, 0.35), vein * 0.75);
+        float spo = 0.0; for (int k = 0; k < 3; k++) { vec2 sp = k == 0 ? vec2(0.45, 0.3) : k == 1 ? vec2(0.7, 0.45) : vec2(0.3, 0.7); spo += exp(-dot(vec2(s, q) - sp, vec2(s, q) - sp) * 900.0); }
+        emi += TEH * spo * (0.9 + 0.4 * sin(tt * 3.0)) * (0.5 + 0.5 * gl) + vec3(0.9, 0.4, 0.7) * gl * 0.05; thru = vec3(1.0, 0.42, 0.7) * (1.1 - vein * 0.6) * (0.6 + 0.4 * clamp(uSpill, 0.0, 1.0)); rg = 0.5; cc = 0.3; cvv += vein * 0.2; }
+      else if (sk == 6) { a = mix(vec3(0.82, 0.7, 0.8), vec3(0.15, 0.7, 0.66), smoothstep(0.0, 0.05, L.z - 0.2)); emi += TEA * smoothstep(0.0, 0.05, L.z - 0.2) * 0.35 * (0.7 + 0.3 * sin(tt * 2.0 + L.x * 20.0)); thru = TEA * 0.4; rg = 0.4; cc = 0.5; spk += 0.3; }
+      else { tex = vec2(edge * 6.0, ao * 20.0); a = vec3(0.36, 0.12, 0.28) * (0.85 + 0.25 * vn(tex + sd)); a = mix(a, vec3(0.62, 0.3, 0.52), smoothstep(0.3, 0.0, abs(edge - 0.25)) * 0.4); rg = 0.32; cc = 0.85; thru = vec3(0.5, 0.15, 0.35); } }
+    if (id == 854) { met = 0.9; vec3 q = L; float len = 2.4, yb = -0.16 * (1.0 - pow(clamp(q.x / len, 0.0, 1.0), 2.0)) - 0.02, ed = smoothstep(0.1, 0.0, q.y - yb), tip = smoothstep(0.7, 1.0, q.x / len); tex = vec2(q.x * 30.0, q.y * 3.0);
+      float scr = pow(vn(vec2(q.x * 70.0, q.y * 6.0 + q.z * 40.0) + sd), 12.0); a = vec3(0.42, 0.45, 0.58) * (0.86 + 0.16 * vn(q.xy * 6.0 + sd)); a = mix(a, vec3(0.86, 0.9, 1.0), ed * 0.8 + scr * 0.4); rg = mix(0.3, 0.12, ed);
+      a = mix(a, vec3(0.2, 0.2, 0.28), smoothstep(0.25, 0.42, q.y) * 0.5); emi += VIH * smoothstep(0.03, 0.0, q.y - yb) * gl * (0.8 + 0.4 * sin(tt * 9.0 + q.x * 6.0)) + VIO * ed * gl * 0.2; cc = 0.3; spk += 0.5 + tip; }
+    if (id == 856) { a = vec3(0.88, 0.84, 0.92) * (0.9 + 0.1 * vn(L.xy * 30.0)); rg = 0.35; cc = 0.4; thru = vec3(0.4, 0.35, 0.45); spk += 0.3; }
+    // ---- IX-VORRA (v472 YB): 860 a ring segment (vA.y its section: floor(8 x) the face (1 and 5 the flat faces, 7 the outer rim, 3 the inner, the rest chamfers), vA.z its place along + 2 x its index; uWear the split (the odd ones teal), uKind the parting, uSpill the menace), 861 the plasma core (vA.y round, vA.z down; uSpill the parting), 862 an eye (copies, local x the gaze; its iris by its index), 863 a lid (.2 its rim), 864 a copper cable (vA.y round, vA.z along + 2 x its index; uSpill its pulse's place), 865 a lamp (copies: 0..19 violet, 20..39 teal, 40..49 amber running lights, 50..55 the cables' tips)
+    if (id == 865) { vec3 c = inst < 19.5 ? mix(VIO, VIH * 1.6, pow(ndv0, 1.4)) : inst < 39.5 ? mix(TEA, TEH * 1.5, pow(ndv0, 1.4)) : mix(AMB, vec3(1.6, 1.4, 1.0), pow(ndv0, 1.3));
+      c *= 0.7 + 0.3 * sin(tt * 7.0 + inst * 1.7); c += vec3(1.0) * fl2 * 0.25; gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
+    if (id == 860) { met = 0.8; rg = 0.34; cc = 0.35; float face = floor(edge * 8.0 + 0.001), fu = fract(edge * 8.0), seg = floor(ao * 0.5 + 0.001), al = ao - seg * 2.0, flatF = (abs(face - 1.0) < 0.5 || abs(face - 5.0) < 0.5) ? 1.0 : 0.0, rimF = (abs(face - 7.0) < 0.5 || abs(face - 3.0) < 0.5) ? 1.0 : 0.0, chm = 1.0 - max(flatF, rimF);
+      float tl = (mod(seg, 2.0) > 0.5 && uWear > 0.5) ? 1.0 : 0.0; vec3 sc = mix(VIO, TEA, tl), sch = mix(VIH, TEH, tl); tex = vec2(al * 22.0, fu * 3.0 + seg * 5.0);
+      float g1 = vn(tex * 0.6 + seg), scr = pow(vn(vec2(al * 90.0 + fu * 7.0, fu * 4.0 + seg)), 14.0); a = mix(vec3(0.16, 0.18, 0.24), vec3(0.33, 0.37, 0.48), g1 * 0.6) * (1.0 - rimF * 0.35); a = mix(a, a * 1.6 + 0.07, scr * 0.5 + chm * 0.55); rg = mix(rg, 0.18, chm * 0.7);
+      float pl = smoothstep(0.012, 0.0, min(abs(al - 0.33), abs(al - 0.66))) * flatF; a *= 1.0 - pl * 0.7; cvv += pl * 0.4;
+      float chan = exp(-(fu - 0.5) * (fu - 0.5) / 0.006) * flatF, core = exp(-(fu - 0.5) * (fu - 0.5) / 0.0012) * flatF, run = pow(max(0.0, sin(al * 9.0 - tt * 4.0 + seg * 1.3)), 16.0), k = (0.55 + 0.45 * sin(tt * 3.0 + seg * 1.3)) * (1.0 - clamp(uKind, 0.0, 1.0) * 0.7);
+      a = mix(a, vec3(0.03, 0.03, 0.05), chan * 0.85); cvv += chan * 0.3; emi += sc * chan * 0.6 * k * (0.6 + 0.6 * gl) + sch * core * (k * 1.2 + run * 1.4) * (0.6 + 0.5 * gl) + sc * clamp(uSpill, 0.0, 1.0) * 0.06;
+      for (int i = 0; i < 2; i++) { float ra = i == 0 ? 0.12 : 0.88; for (int j = 0; j < 2; j++) { float rf = j == 0 ? 0.2 : 0.8; vec2 dd = vec2((al - ra) * 8.0, (fu - rf) * 1.2); float rv = smoothstep(0.09, 0.05, length(dd)) * flatF, rh = smoothstep(0.05, 0.0, length(dd - vec2(-0.02, 0.02))) * flatF; a = mix(a, vec3(0.06, 0.07, 0.1), rv * 0.7); a = mix(a, vec3(0.85, 0.88, 0.96), rh * 0.8); } }
+      float endG = exp(-al * al / 0.004) + exp(-(1.0 - al) * (1.0 - al) / 0.004); emi += sc * endG * 0.5 * (0.6 + 0.4 * gl); spk += 0.3 + chm * 0.6; }
+    if (id == 861) { float u = edge, v = ao, th = v * 3.14159, ph = u * 6.28318; vec3 d = vec3(sin(th) * cos(ph), sin(th) * sin(ph), cos(th)); float opn = clamp(uSpill, 0.0, 1.0);
+      vec2 q1 = vec2(ph * 1.3 + tt * 0.35, th * 2.2 - tt * 0.25), q2 = vec2(ph * 3.1 - tt * 0.6, th * 4.0 + tt * 0.4); float b1 = vn(q1 * 1.5) * 0.6 + vn(q2 * 1.7) * 0.4, cell = pow(smoothstep(0.45, 0.85, b1), 2.0);
+      float fil = 0.0; for (int i = 0; i < 3; i++) { float fi = float(i); fil += exp(-pow(abs(fract(ph * 0.95 + th * 1.6 + sin(th * 5.0 + tt * 0.8 + fi * 2.1) * 0.35 + tt * 0.12 + fi * 0.33) - 0.5), 2.0) / 0.0016) * (0.5 + 0.5 * sin(th * 3.0 + fi)); }
+      a = mix(vec3(0.16, 0.04, 0.3), vec3(0.6, 0.2, 0.88), b1) ; tex = q2 * 2.0; rg = 0.25; cc = 0.6; thru = vec3(0.7, 0.3, 1.0) * 0.6;
+      emi += mix(vec3(0.42, 0.12, 0.75), vec3(0.95, 0.6, 1.2), cell) * (0.35 + 0.65 * cell) * (0.7 + 0.3 * gl + opn * 0.6) + vec3(1.0, 0.85, 1.1) * fil * 0.35 * (0.8 + opn) + vec3(0.9, 0.6, 1.2) * pow(1.0 - ndv0, 2.5) * 0.9; }
+    if (id == 862) { vec3 lp = normalize(L + vec3(1e-4)); float ix = mod(inst, 6.0), slit = mod(inst, 3.0) < 0.5 ? 1.0 : 0.0, opn = clamp(uSpill, 0.0, 1.0), iR = mix(0.78, 0.66, step(0.5, opn)), pR = mix(0.42, 0.26, step(0.5, opn));
+      vec3 ic = ix < 0.5 ? TEA : ix < 1.5 ? AMB : ix < 2.5 ? VIH : ix < 3.5 ? vec3(0.5, 0.95, 0.88) : ix < 4.5 ? AMB : vec3(1.0, 0.56, 0.82); float ang = acos(clamp(lp.x, -1.0, 1.0)), ir = ang / 1.1;
+      float iris = 1.0 - smoothstep(iR - 0.03, iR + 0.02, ir), limb = exp(-(ir - iR) * (ir - iR) / 0.0012), pr = slit > 0.5 ? length(vec2(lp.y / max(0.05, pR * 0.32), lp.z / max(0.05, pR * 1.15))) / 1.1 : ir / pR, pup = 1.0 - smoothstep(0.85, 1.0, pr);
+      float fib = 0.75 + 0.25 * sin(atan(lp.z, lp.y) * 24.0 + vn(lp.yz * 9.0) * 3.0), vein = smoothstep(0.06, 0.0, abs(vn(lp.yz * 11.0 + inst) - 0.5)) * smoothstep(0.6, 1.4, ang);
+      a = mix(vec3(0.8, 0.72, 0.88), vec3(0.6, 0.32, 0.62), vein * 0.6 + smoothstep(1.0, 1.6, ang) * 0.5); a = mix(a, ic * fib * 0.8, iris); a = mix(a, vec3(0.02, 0.01, 0.03), max(limb * 0.8 * iris, pup * iris));
+      emi += ic * iris * (1.0 - pup) * (0.55 + 0.45 * gl) * fib; rg = 0.1; cc = 1.3; }
+    if (id == 863) { tex = L.xy * 6.0; a = mix(vec3(0.34, 0.1, 0.52), vec3(0.52, 0.2, 0.74), vn(tex + sd) * 0.6); if (sk == 2) a = vec3(0.22, 0.05, 0.3); thru = vec3(0.6, 0.2, 0.8) * 0.5; rg = 0.35; cc = 0.6; emi += VIO * gl * 0.06; }
+    if (id == 864) { met = 0.85; float al = fract(ao * 0.5) * 2.0, ci = floor(ao * 0.5); tex = vec2(edge * 8.0, al * 40.0 + ci * 9.0); float bnd = smoothstep(0.1, 0.0, abs(fract(al * 4.5 + 0.5) - 0.5) - 0.38);
+      a = mix(vec3(0.62, 0.34, 0.16), vec3(0.85, 0.55, 0.32), vn(tex * 0.5 + ci) * 0.6); float tar = smoothstep(0.55, 0.75, vn(tex * 0.8 + 11.0 + ci)); a = mix(a, vec3(0.2, 0.42, 0.34), tar * 0.55); rg = mix(0.3, 0.6, tar);
+      a = mix(a, vec3(0.2, 0.1, 0.05), bnd * 0.7); cvv += bnd * 0.35; float pz = exp(-(al - uSpill) * (al - uSpill) / 0.0025); emi += VIH * pz * 1.4 + VIO * pz * 0.6 + VIO * 0.04 * gl; spk += 0.3; }
+    // ---- NYAR'ZHUL (v472 YB): 870 flesh (.0 the heart: vA.y its vein + 2 x round(200 x its place across), vA.z its place up (both in its plane, shared with the 2D's layout); uKind the beat, uSpill the heat; .2 an atrium (local), .4 a vessel's root, a hose, a tendon, a sleeve), 871 steel (.0 a strap: vA.y round, vA.z along; .2 a vessel's pipe; .4 housings, collars, the bezel, the clamps; .6 a rivet; .8 a piston's head (local: a box +-1, +-1, +-0.55)), 872 a chrome rod, 873 the lens's amber glass, 874 the iris (.0 its disc: vA.y out from its middle, vA.z round; uKind the aperture; .2 a blade), 875 a lamp (amber; .2 the valve's red wheel), 876 fungus, 877 a vent (.0 its frame, .2 a slat, .4 its light by uGlow), 878 a tentacle's armoured hose (vA.y round, vA.z along x 6; uSpill its nerve's pulse), 879 the wall (.0 plates: vA.y across, vA.z up; .2 a rib)
+    if (id == 875 && sk == 0) { vec3 c = mix(AMB, vec3(1.6, 1.35, 0.9), pow(ndv0, 1.3)) * (0.75 + 0.35 * gl); c = mix(c, vec3(1.4, 0.4, 0.15), clamp(uSpill, 0.0, 1.0) * 0.5); c += vec3(1.0) * fl2 * 0.25; c = mix(c, vec3(0.05, 0.04, 0.05), dead * 0.85); gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
+    if (id == 870) { float heat = clamp(uSpill, 0.0, 1.0), be = clamp(uKind, 0.0, 1.0); vec3 FC = vec3(0.5, 0.2, 0.44), FS = vec3(0.3, 0.09, 0.27), FH = vec3(0.8, 0.42, 0.7); rg = 0.34; cc = 0.85; spk += 0.12;
+      if (sk == 0) { float vv = fract(edge * 0.5) * 2.0, px = (floor(edge * 0.5 + 0.0001) / 200.0 * 2.3 - 1.15) * 9.2, pz = (ao * 2.4 - 1.2) * 8.2; vec2 pp = vec2(px, pz); tex = pp * 1.3;
+        float mo = vn(pp * 0.5 + 3.0), mo2 = vn(pp * 1.7 + 9.0), fine = vn(pp * 6.0); a = mix(FS, FC, 0.6 + 0.3 * mo) * (0.94 + 0.1 * mo2); a = mix(a, FH, smoothstep(0.7, 0.95, mo2) * 0.25);
+        float cap = smoothstep(0.025, 0.0, abs(vn(pp * 1.4 + 5.0) - 0.5)) * 0.6; a *= 1.0 - cap * 0.35;   // (capillaries)
+        a = mix(a, mix(vec3(0.26, 0.05, 0.24), vec3(0.9, 0.5, 0.75), smoothstep(0.55, 1.0, vv) * 0.5), smoothstep(0.1, 0.5, vv)); cvv += smoothstep(0.0, 0.25, vv) * (1.0 - smoothstep(0.3, 0.6, vv)) * 0.35;   // (the raised veins, their crests catching pink)
+        float sm = 0.0; for (int i = 0; i < 3; i++) { vec2 p0 = i == 0 ? vec2(-7.5, 4.5) : i == 1 ? vec2(6.8, 5.0) : vec2(-3.4, -5.6), p1 = i == 0 ? vec2(-4.8, -1.2) : i == 1 ? vec2(5.5, 0.2) : vec2(2.6, -6.6), cpt = (p0 + p1) * 0.5 + vec2(1.0, 0.0);
+          for (int j = 0; j < 8; j++) { float u0 = float(j) / 8.0, u1 = float(j + 1) / 8.0; vec2 a0 = mix(mix(p0, cpt, u0), mix(cpt, p1, u0), u0), a1 = mix(mix(p0, cpt, u1), mix(cpt, p1, u1), u1), dd = a1 - a0; float uu = clamp(dot(pp - a0, dd) / dot(dd, dd), 0.0, 1.0); sm = max(sm, exp(-dot(pp - a0 - dd * uu, pp - a0 - dd * uu) / 0.03)); } }
+        emi += mix(VIO, mix(VIH, vec3(1.0, 0.55, 0.3), heat), sm) * sm * (0.5 + 0.9 * gl) + VIO * sm * be * 0.5;
+        emi += vec3(0.9, 0.35, 0.2) * heat * (0.25 + 0.2 * mo + 0.2 * sin(tt * 9.0)) + vec3(0.55, 0.12, 0.35) * vv * be * 0.35;
+        thru = vec3(0.6, 0.16, 0.3) + vec3(0.6, 0.2, 0.0) * heat; }
+      else if (sk == 2) { tex = L.xy * 3.0; float fo = smoothstep(0.08, 0.0, abs(fract(L.z * 2.2 + 0.3 * vn(L.xy * 2.0)) - 0.5) - 0.38); a = mix(vec3(0.4, 0.15, 0.36), vec3(0.62, 0.28, 0.55), vn(tex + sd) * 0.6) * (1.0 - fo * 0.4); cvv += fo * 0.3; thru = vec3(0.55, 0.15, 0.3); emi += vec3(0.9, 0.35, 0.2) * heat * 0.25; }
+      else { tex = vec2(edge * 6.0, ao * 20.0) + L.xy; a = mix(FS, FC, 0.5 + 0.4 * vn(tex * 0.6 + sd)); a = mix(a, a * 0.6, smoothstep(0.1, 0.0, abs(fract(ao * 8.0) - 0.5) - 0.4)); thru = vec3(0.55, 0.15, 0.3); emi += vec3(0.9, 0.35, 0.2) * heat * 0.2; } }
+    if (id == 871) { met = 0.82; rg = 0.36; cc = 0.25; vec3 ST = vec3(0.33, 0.36, 0.45);
+      if (sk == 0) { float ed = abs(edge - 0.25) < 0.12 || abs(edge - 0.75) < 0.12 ? 1.0 : 0.0, top = smoothstep(0.35, 0.0, abs(edge - 0.5)); tex = vec2(ao * 30.0, edge * 4.0); a = ST * (0.85 + 0.2 * vn(tex * 0.5 + sd)); a = mix(a, vec3(0.7, 0.74, 0.86), ed * 0.5 + pow(vn(vec2(ao * 120.0, edge * 9.0)), 12.0) * 0.5); rg = mix(0.36, 0.2, ed);
+        emi += VIO * ed * gl * 0.35; }
+      else if (sk == 2) { vec3 q = L; tex = q.xz * 2.0; a = vec3(0.3, 0.33, 0.42) * (0.82 + 0.22 * vn(q.xz * 1.5 + q.y)); float weld = smoothstep(0.06, 0.0, abs(fract(length(q) * 0.7) - 0.5) - 0.44); a = mix(a, vec3(0.6, 0.62, 0.7), weld * 0.4); a = mix(a, vec3(0.16, 0.12, 0.14), smoothstep(0.62, 0.8, vn(q.xz * 0.9 + 5.0)) * 0.5); }
+      else if (sk == 4) { vec3 q = L; tex = q.xy * 4.0 + q.z; a = vec3(0.27, 0.3, 0.38) * (0.85 + 0.2 * vn(tex + sd)); a = mix(a, vec3(0.62, 0.66, 0.78), pow(vn(vec2(q.x * 40.0 + q.z * 9.0, q.y * 3.0)), 12.0) * 0.6); }
+      else if (sk == 6) { a = vec3(0.6, 0.63, 0.72); rg = 0.22; spk += 0.6; }
+      else { vec3 q = L; float front = smoothstep(0.85, 0.95, q.y), band = front * smoothstep(-0.05, 0.0, -q.z - 0.05) * smoothstep(-0.55, -0.45, q.z), str = step(0.5, fract((q.x - q.z) * 1.6)); a = mix(vec3(0.38, 0.42, 0.52), vec3(0.2, 0.22, 0.28), front);
+        a = mix(a, mix(vec3(0.04, 0.04, 0.04), AMB * 0.9, str), band); rg = mix(0.34, 0.5, band); met = mix(0.82, 0.2, band); spk += 0.2; } }
+    if (id == 872) { met = 1.0; a = vec3(0.86, 0.88, 0.94); rg = 0.1; cc = 0.4; float st = smoothstep(0.7, 0.9, vn(vec2(L.y * 30.0, L.x * 2.0) + sd)); a *= 1.0 - st * 0.3; spk += 0.6; }
+    if (id == 873) { met = 0.0; float heat = clamp(uSpill, 0.0, 1.0); vec3 lp = L; a = mix(vec3(0.5, 0.25, 0.05), vec3(0.75, 0.42, 0.1), smoothstep(0.0, 0.4, lp.z)); rg = 0.05; cc = 1.4; thru = vec3(1.0, 0.55, 0.15) * 0.8;
+      emi += mix(AMB, vec3(1.0, 0.35, 0.15), heat) * (0.12 + 0.2 * gl) * (1.0 - ndv0 * 0.5); spk += 0.4; }
+    if (id == 874) { if (sk == 2) { met = 0.7; a = vec3(0.2, 0.15, 0.12); rg = 0.3; float ed = smoothstep(0.004, 0.0, abs(L.z) - 0.008); a = mix(a, vec3(0.48, 0.38, 0.32), smoothstep(0.7, 1.0, edge) * 0.6); cc = 0.3; }
+      else { float r = edge, an = ao * 6.28318, ap = clamp(uKind, 0.0, 1.2), heat = clamp(uSpill, 0.0, 1.0), fib = 0.6 + 0.4 * sin(an * 24.0 + vn(vec2(an * 4.0, r * 6.0)) * 4.0), well = 1.0 - smoothstep(0.2, 0.34, r);
+        vec3 ic = mix(mix(vec3(1.0, 0.9, 0.6), AMB, smoothstep(0.3, 0.7, r)), vec3(0.54, 0.29, 0.06), smoothstep(0.75, 1.0, r)); ic = mix(ic, vec3(1.0, 0.4, 0.15), heat * 0.7);
+        a = ic * fib * 0.5 * (1.0 - well) + vec3(0.02, 0.01, 0.03) * well; emi += ic * fib * (0.35 + 0.6 * gl) * (1.0 - well) + mix(AMB, vec3(1.0, 0.35, 0.1), heat) * exp(-r * r * 60.0) * (0.6 + 0.5 * gl); rg = 0.4; } }
+    if (id == 875) { met = 0.5; a = vec3(0.6, 0.15, 0.13) * (0.85 + 0.2 * vn(L.xy * 9.0)); rg = 0.4; cc = 0.4; }
+    if (id == 876) { vec3 q = L; float top = smoothstep(0.08, 0.14, q.z), spot = step(0.8, hs(floor(q.xy * 5.0))) * top; a = mix(vec3(0.5, 0.2, 0.4), vec3(0.95, 0.55, 0.78), top); a = mix(a, vec3(1.0, 0.92, 0.96), spot * 0.7); thru = vec3(0.9, 0.35, 0.6) * 0.7; rg = 0.45; cc = 0.5; emi += vec3(0.85, 0.35, 0.65) * (0.1 + 0.15 * gl) * top; }
+    if (id == 877) { if (sk == 4) { float k = clamp(uGlow, 0.0, 1.0); vec3 c = mix(vec3(0.03, 0.02, 0.03), AMB * 1.4, k) * (0.85 + 0.15 * sin(tt * 11.0)); gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
+      met = 0.75; rg = 0.36; a = sk == 2 ? vec3(0.29, 0.32, 0.41) : vec3(0.08, 0.05, 0.08); a = mix(a, vec3(0.68, 0.71, 0.8), smoothstep(0.6, 1.0, edge) * 0.4); }
+    if (id == 878) { float al = ao, f = fract(al), rgv = smoothstep(0.08, 0.0, abs(f - 0.5) - 0.42); tex = vec2(edge * 8.0, al * 6.0); a = mix(vec3(0.27, 0.11, 0.25), vec3(0.45, 0.2, 0.42), vn(tex + sd) * 0.6); a *= 1.0 - rgv * 0.45; cvv += rgv * 0.3; rg = 0.3; cc = 0.85; thru = vec3(0.5, 0.15, 0.35);
+      float nerve = exp(-(edge - 0.25) * (edge - 0.25) / 0.002) + exp(-(edge - 1.25) * (edge - 1.25) / 0.002), pz = exp(-(al / 6.0 - uSpill) * (al / 6.0 - uSpill) / 0.003) * step(0.01, uSpill) * step(uSpill, 0.99); emi += AMB * nerve * (0.15 + 1.4 * pz) * (0.5 + 0.5 * gl) + vec3(0.9, 0.35, 0.2) * clamp(uKind, 0.0, 1.0) * 0.2; }
+    if (id == 879) { met = 0.6; rg = 0.45; cc = 0.15;
+      if (sk == 2) { vec3 q = L; tex = q.xz; a = vec3(0.2, 0.17, 0.26) * (0.85 + 0.25 * vn(q.xz * 2.0)); float rv = smoothstep(0.1, 0.04, length(vec2(fract(q.z * 0.55) - 0.5, 0.0))) * smoothstep(0.0, 0.3, q.y + 20.2); a = mix(a, vec3(0.05, 0.04, 0.06), rv * 0.6); }
+      else { float xu = edge * 56.0 - 28.0, zv = ao * 20.0, pr = floor(zv / 3.6), pc = floor((xu + hs(vec2(pr, 1.0)) * 3.0) / 4.6); vec2 g = vec2(xu, zv); tex = g;
+        float sz = abs(fract(zv / 3.6) - 0.5) * 3.6, sx2 = abs(fract((xu + hs(vec2(pr, 1.0)) * 3.0) / 4.6) - 0.5) * 4.6, sd2 = min(1.8 - sz, 2.3 - sx2), h1 = hs(vec2(pr, pc)); a = mix(vec3(0.1, 0.07, 0.13), vec3(0.2, 0.15, 0.25), h1) * (0.8 + 0.3 * vn(g * 0.8));
+        float seam = smoothstep(0.09, 0.0, sd2); a *= 1.0 - seam * 0.7; cvv += seam * 0.3; emi += VIO * smoothstep(0.05, 0.0, 1.8 - sz) * (0.25 + 0.75 * gl) * (0.6 + 0.4 * h1) * 0.8;
+        a = mix(a, vec3(0.38, 0.33, 0.44), pow(vn(vec2(xu * 6.0, zv * 0.6)), 10.0) * 0.6); float rv = smoothstep(0.1, 0.05, length(vec2(fract(xu * 1.2) - 0.5, (sz - 1.55) * 3.0))); a = mix(a, vec3(0.03, 0.02, 0.04), rv * 0.7); } }
+    /*<YB-YUG-MAT-880>*/
+    // ---- the shared light: key with soft shadows, the arena's sky above and its floor's bounce below, reflections of both, metal, a clear coat, glints, the rim from behind
+    float oAO = 1.0, oSH = 1.0; if (uNOcc > 0.5 && uLow < 0.5) { oAO = occAO(vW, n); oSH = occSH(vW, uLK); } occ *= oAO;
+    float ndl0 = dot(n, uLK), ndl = max(0.0, ndl0) * oSH, wrap = max(0.0, (ndl0 + 0.5) / 1.5) * mix(1.0, oSH, 0.7); hm = dot(n, uUP);
+    vec3 key = uAmb, sky = id < 860 ? vec3(0.1, 0.08, 0.17) : id < 870 ? vec3(0.08, 0.13, 0.2) : vec3(0.15, 0.07, 0.13), gnd = id < 860 ? vec3(0.3, 0.3, 0.38) : id < 870 ? vec3(0.1, 0.34, 0.36) : vec3(0.36, 0.17, 0.22);
+    vec3 ambC = mix(gnd, sky, 0.5 + 0.5 * hm) * (0.5 + 0.5 * occ);
+    vec3 hh = normalize(uLK + uV); float nh = max(0.0, dot(n, hh)), pw = 2.0 / (rg * rg + 0.004), spec = pow(nh, pw) * (pw + 2.0) / 8.0 * ndl, frs = pow(1.0 - ndv0, 5.0);
+    vec3 rr = 2.0 * dot(n, uV) * n - uV; float ru = dot(rr, uUP);
+    vec3 envC = mix(gnd * 0.55, sky * 1.5 + uRim * 0.06, smoothstep(-0.3, 0.45, ru)) + uRim * 0.14 * smoothstep(0.15, 0.5, ru) * (1.0 - smoothstep(0.65, 0.92, ru)) / (1.0 + rg * 4.0) + key * 0.9 * smoothstep(0.85, 0.97, dot(rr, uLS)) / (1.0 + rg * 5.0);
+    vec3 F0 = mix(vec3(0.04), a, met), Fr = F0 + (1.0 - F0) * frs * (1.0 - rg * 0.6);
+    vec3 col = a * (1.0 - met * 0.82) * (mix(ndl, wrap, 0.35) * key + ambC) + envC * Fr * occ * (0.55 + met * 0.95) / (1.0 + rg * 1.2) + spec * key * mix(vec3(0.07), F0 * 1.5, met);
+    col += thru * (0.35 * (1.0 - ndl) + 0.3 * max(0.0, -ndl0) + 0.25 * max(0.0, dot(n, uLR))) * key * (0.6 + 0.4 * occ);   // (light through the membranes, the flesh, the glass)
+    if (cc > 0.0) { vec3 film = 0.5 + 0.5 * cos(6.28318 * (vec3(0.0, 0.33, 0.67) + ndv0 * 1.4 + vn(tex * 0.3) * 0.8)); col += cc * (pow(nh, 140.0) * 0.8 * ndl * key + (0.04 + 0.96 * frs) * envC * 0.55 * mix(vec3(1.0), film, met * 0.6)) * occ; }   // (the wet coat; on the hull an oily film)
+    if (spk > 0.0 && uLow < 0.5) col += vec3(1.0, 0.98, 1.05) * pow(vn(tex * 9.0 + sd), 24.0) * 2.2 * spk * max(0.0, ndl0 + 0.2);
+    col += pow(1.0 - ndv0, 2.4) * max(0.0, dot(n, uLR) + 0.35) * uRim * 0.65 * occ + a * max(0.0, -hm) * gnd * 0.5 * occ;   // (the rim from behind; the floor's light bounced up under it)
+    col *= 1.0 - min(0.8, cvv * 0.5 + (1.0 - occ) * 0.45);
+    col += emi * (1.0 - dead * 0.85) + vec3(1.0, 0.98, 0.95) * fl2 * (0.22 + 0.45 * pow(1.0 - ndv0, 2.0));
+    if (dead > 0.0) { float lum = dot(col, vec3(0.3, 0.55, 0.15)); col = mix(col, vec3(lum) * vec3(0.8, 0.78, 0.86) * 0.7, dead * 0.75); }
+    gl_FragColor = vec4(vec3(tone(col.r), tone(col.g), tone(col.b)) * uAlpha, uAlpha); return; }
+  /*</YB-YUG-MAT>*/
   /*<AH-AHU-MAT ids 770..789 (v470b AH: 20z6a-ahuul-gl.js, Ahuul the White Horizon rebuilt from scratch). Lit by its own pass in the Broad Summit's light (AUR3 'summit': the key's colour in uAmb, the aurora's green rim in uRim; the night's navy above, the snow's light below). Every pattern from the surface's own coordinates (vA), never the moving position. 770 the hide (vA.y round it: (a + pi) / 2pi, a the angle from the belly's middle; vA.z its place s from the snout 0 to the tail 1): a navy back mottled, frost freckles, rake scars, the countershaded border, the white belly speckled, the pleats' grooves, the mouth and its lip, the eye bands' sockets and the vents' light under the skin (uKind the eyes' strength, uSpill the vents' flare), the bared throat (uGlow), aurora drift, chin rime; a wet clear coat; 770.2 a tubercle (vA.y its height). 771 a fin (vA.y round its section, 0..0.5 over the top from the leading edge, 0.5..1 back beneath; vA.z along it, 0 the root .. 1 the tips): navy root to pale ice, three bones, membrane with veins and light through it, a white scalloped leading edge; uGlow the lifted fin's edge. 772 the fluke (vA.y as a fin's, vA.z across 0..1): navy above, white with navy marks beneath. 773 ice (a crystal: vA.y its facet edge, vA.z 4 x its copy + 1 - its place along): blue root to clear tip, bright facet rims, light running down the ridge, aurora green rising inside by uGlow; .2 a rime shard. 774 a barnacle (.0 the shell, .2 its rim, .4 inside; vA.y up it, vA.z round). 775 a lens (copies 0..13 the eye lights by uGlow, 14..19 the tendrils' tips by uSpill). 776 a vent (vA.y 0 the slit's core .. 1 its edge; copy 0..9: a wave from head to tail, uGlow its flare). 777 a tendril (vA.z 4 x its index + along it; seen through, light pulses running down). uGlow2 a blow's flash, uFx the death's fade, uWear the part's seed>*/
   else if (id >= 770 && id <= 789) {
     int sk = int((vA.x - float(id)) * 10.0 + 0.5);

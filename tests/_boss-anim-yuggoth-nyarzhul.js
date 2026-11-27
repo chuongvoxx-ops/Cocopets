@@ -16,6 +16,7 @@ const RX = 17, RY = 12, SRC = [0, -13.2], GRATES = [[-8.8, -3.4], [8.8, -3.4], [
 (async () => {
   const bosses = process.argv.slice(2).length ? process.argv.slice(2) : ['nyarzhul'];
   const T = await open({ lvl: 62, seals: ['belfry', 'garden', 'dunes', 'sepulchre', 'aurora'] }); const { page, errors, start, run } = T;
+  const KB = () => page.evaluate(() => { try { const F = window.__pp.arc.game._dbg.FD.FX.F; return (F && F.rift && F.rift.foeK && F.rift.foeK.boss) || 1; } catch (e) { return 1; } });   // (v472 YB: the rift's main-boss health factor: its blows (weak points too) count 1 / foeK.boss, as Rift 05's)
   const shot = async name => { if (process.env.SHOTS) await page.screenshot({ path: path.resolve(__dirname, `../shots/anim-yug-${name}.png`) }); };
   // (wait in frames until a condition holds, keeping the pet alive; the condition is a function body over D, b, M, C)
   const until = (body, secs, keep) => page.evaluate(async ([body, secs, keep]) => { const D = window.__pp.arc.game._dbg, b = D.g.boss, M = D.FD.FX.mem, C = D.FD.FX.C, f = new Function('D', 'b', 'M', 'C', body), k = keep ? new Function('D', 'b', 'M', 'C', keep) : null; const t0 = performance.now();
@@ -102,7 +103,7 @@ const RX = 17, RY = 12, SRC = [0, -13.2], GRATES = [[-8.8, -3.4], [8.8, -3.4], [
     const cl2 = await page.evaluate(async () => { const D = window.__pp.arc.game._dbg, b = D.g.boss, M = D.FD.FX.mem, C = D.FD.FX.C; const t0 = performance.now(); let h = null; while (performance.now() - t0 < 4000) { await new Promise(r => requestAnimationFrame(r)); D.me.hp = D.ST.hp; h = M.cab.find(q => q.mode === 'hold' && q.px); if (h) break; } if (!h) return { hold: false };
       const hp0 = b.hp; D.hitMon(h.px, 1000, { flat: true }); return { hold: true, dmg: hp0 - b.hp, hit: M.stat.clampHit - window.__ch0, clamps: M.stat.clamps }; });
     await run(0.1); await shot(id + '-clamp-hold');
-    console.log('  clamp', JSON.stringify(cl), JSON.stringify(cl2)); ok(cl.circ && cl.up && cl.upZ > 3, `${id}: Clamp: a cable rises over a shown circle`); ok(cl2.hold && cl2.dmg > 1000 && cl2.hit === 0, `${id}: out of the circle the bite misses; the clamp holds and struck it passes more than the blow to the heart (${Math.round(cl2.dmg || 0)})`);
+    console.log('  clamp', JSON.stringify(cl), JSON.stringify(cl2)); ok(cl.circ && cl.up && cl.upZ > 3, `${id}: Clamp: a cable rises over a shown circle`); ok(cl2.hold && cl2.dmg > 1000 / (await KB()) && cl2.hit === 0, `${id}: out of the circle the bite misses; the clamp holds and struck it passes more than the blow to the heart (${Math.round(cl2.dmg || 0)})`);
     await until("return b.act === 'beat'", 12);
     // Overload: charged capacitors; break them all in time and the lens is bared
     await force('overload');
@@ -110,10 +111,10 @@ const RX = 17, RY = 12, SRC = [0, -13.2], GRATES = [[-8.8, -3.4], [8.8, -3.4], [
     await page.evaluate(() => { const D = window.__pp.arc.game._dbg, M = D.FD.FX.mem, o = M.caps.find(c => c.st === 'charged').o; D.me.x = o.x + 1.4; D.me.y = o.y + 0.9; }); await run(0.2); await shot(id + '-overload');
     const st = await page.evaluate(async weak => { const D = window.__pp.arc.game._dbg, b = D.g.boss, M = D.FD.FX.mem, C = D.FD.FX.C; for (const cp of M.caps) if (cp.st === 'charged' && cp.o) D.hitMon(cp.o, 1e12, { flat: true }); await new Promise(r => setTimeout(r, 1300)); const w = D.FD.S.weak[weak]; return { stun: b.stunT, weak: !!(w && !w.dead), fwd: w ? w.forward : 0, wy: w ? w.y - C.y : null, sag: M.P.sag, under: !!b.under, bared: M.stat.bared }; }, WEAK[id]);
     console.log('  overload', JSON.stringify(ov), JSON.stringify(st)); ok(ov.n === 2 && ov.W > 5, `${id}: Overload charges capacitors (${ov.n}, ${ov.W && ov.W.toFixed(1)} s)`);
-    ok(st.stun > 0 && st.weak && st.fwd >= 2 && st.sag > 0.6 && !st.under && st.wy > -RY - 3.5 && st.wy < -RY + 1, `${id}: all charged ones broken, the heart sags onto its gantry: its lens bared (x${st.fwd})`);
+    ok(st.stun > 0 && st.weak && st.fwd >= 2 / (await KB()) && st.sag > 0.6 && !st.under && st.wy > -RY - 3.5 && st.wy < -RY + 1, `${id}: all charged ones broken, the heart sags onto its gantry: its lens bared (x${st.fwd})`);
     await page.evaluate(() => { const D = window.__pp.arc.game._dbg, C = D.FD.FX.C; D.me.x = C.x + 0.6; D.me.y = C.y - 12.6; D.me.vx = D.me.vy = 0; }); await run(0.3); await shot(id + '-bared');
     const wh = await page.evaluate(weak => { const D = window.__pp.arc.game._dbg, b = D.g.boss, w = D.FD.S.weak[weak], h0 = b.hp; D.hitMon(w, 1000, { flat: true }); return h0 - b.hp; }, WEAK[id]);
-    ok(wh > 2000, `${id}: the lens takes ${Math.round(wh)} from a blow of 1000`); await run(0.12); await shot(id + '-bared-hit');
+    ok(wh > 2000 / (await KB()), `${id}: the lens takes ${Math.round(wh)} from a blow of 1000`); await run(0.12); await shot(id + '-bared-hit');
     await until("return !(b.stunT > 0) && b.act === 'beat'", 10);
     // the overload missed: the charge leaps at the pet
     await force('overload'); const dis = await until("return M.stat.discharges > 0", 25); ok(dis, `${id}: unbroken, the capacitors discharge at the pet`); await until("return b.act === 'beat'", 8);
@@ -153,7 +154,7 @@ const RX = 17, RY = 12, SRC = [0, -13.2], GRATES = [[-8.8, -3.4], [8.8, -3.4], [
       await new Promise(r => setTimeout(r, 900)); const w = D.FD.S.weak.lens; return { done: M.swDone, poured: M.stat.poured, total: M.stat.poured, maxAlive, kinds: [...kinds], rings: M.stat.rings - r0, stun: b.stunT, stall: M.stall, weak: !!(w && !w.dead), fwd: w ? w.forward : 0, under: !!b.under, heat: M.P.heat }; });
     console.log('  swarm3', JSON.stringify(sw3)); ok(sw3.done && sw3.total === 300 && sw3.maxAlive <= 60, `${id}: all three hundred poured and cleared (never more than ${sw3.maxAlive} at once)`);
     ok(sw3.rings > 0, `${id}: it kept pulsing at the pet while they poured (${sw3.rings} rings)`);
-    ok(sw3.stun > 0 && sw3.stall && sw3.weak && sw3.fwd >= 2.5 && !sw3.under, `${id}: spent, it overheats and stalls: its lens bared (x${sw3.fwd})`);
+    ok(sw3.stun > 0 && sw3.stall && sw3.weak && sw3.fwd >= 2.5 / (await KB()) && !sw3.under, `${id}: spent, it overheats and stalls: its lens bared (x${sw3.fwd})`);
     await page.evaluate(() => { const D = window.__pp.arc.game._dbg, C = D.FD.FX.C; D.me.x = C.x - 1.5; D.me.y = C.y - 11.6; }); await run(0.8); await shot(id + '-stall');
     await until("return !(b.stunT > 0)", 10);
     // phase three: Overdrive, the pulses doubled

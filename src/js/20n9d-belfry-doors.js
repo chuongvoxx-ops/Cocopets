@@ -71,8 +71,8 @@ var BEL_DOORS = (() => {
   const dome = (d, r) => d < r ? Math.sqrt(1 - (d / r) * (d / r)) * r * 0.8 : 0;
 
   /* ======================= materials ======================= */
-  function stoneM(K, o, x, z, sd, stain) { K.lime(x * 1.3 + o.u * 0.7, z * 1.1 + o.v * 0.5, K.M.ao, sd + (o.blk || 0) * 1.7, stain, z, { tone: 0.94 + 0.12 * ((o.blk || 0) * 0.37 % 1) }); }
-  function bronzeM(K, x, z, sd, wear, k) { K.bronze(x * 1.4, z * 1.2, K.M.ao, sd, wear, false, k); }
+  function stoneM(K, o, x, z, sd, stain) { if (PT && PT.stoneM) return PT.stoneM(K, o, x, z, sd, stain);   /* v472 YE: a themed door may bring its own stone (the Engine's hull plates) */ K.lime(x * 1.3 + o.u * 0.7, z * 1.1 + o.v * 0.5, K.M.ao, sd + (o.blk || 0) * 1.7, stain, z, { tone: 0.94 + 0.12 * ((o.blk || 0) * 0.37 % 1) }); }
+  function bronzeM(K, x, z, sd, wear, k) { if (PT && PT.metalM) return PT.metalM(K, x, z, sd, wear, k);   /* v472 YE: and its own metal (gunmetal) */ K.bronze(x * 1.4, z * 1.2, K.M.ao, sd, wear, false, k); }
   function gemM(K, k) { const M = K.M, g = PT && PT.gem; M.r = 0.06; M.g = 0.42; M.b = 0.44; M.rg = 0.08; M.cc = 1; M.mt = 0; M.er = 0.05 * k; M.eg = 0.42 * k; M.eb = 0.4 * k;
     if (g) { M.r = g[0]; M.g = g[1]; M.b = g[2]; M.er = g[0] * k; M.eg = g[1] * k; M.eb = g[2] * k; } }   // v437 GR: (a themed door's rune glass: its light's colour)
   function darkM(K) { const M = K.M; M.r = 0.03; M.g = 0.05; M.b = 0.06; M.rg = 0.7; }
