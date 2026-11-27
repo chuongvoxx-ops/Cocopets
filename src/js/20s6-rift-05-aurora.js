@@ -141,7 +141,7 @@ const AUR = { INK: '#2B2433', SNOW: '#E4EDF0', NAVY: '#172C4D', ICE: '#86B7D0', 
   const pick = (m, X, list) => { if (m.cd > 0) return; m.act = list[Math.floor(Math.random() * list.length)]; m.actT = 0; m.step = 0; };
   const done = (m, cd) => { m.act = 'move'; m.cd = cd * (m.phase === 3 ? 0.7 : 1); m.actT = 0; m.step = 0; };
   BOSSES.push(
-    { id: 'rimepet', rift: true, name: 'Rime', title: 'A Rift-touched Cocopet', hp: 52000, dmg: 34, r: 1.35, spd: 1.8, color: '#9CC3D8', glow: ICE_HI, biome: 'glacier', el: 'frost' },
+    { id: 'rimepet', rift: true, name: 'Rime', title: 'A Rift-touched Cocopet', hp: 26000 /* v471: halved (the user: too tanky) */, dmg: 34, r: 1.35, spd: 1.8, color: '#9CC3D8', glow: ICE_HI, biome: 'glacier', el: 'frost' },
     { id: 'galepet', rift: true, name: 'Gale', title: 'A Rift-touched Cocopet', hp: 58000, dmg: 34, r: 1.3, spd: 2.0, color: '#3A4458', glow: GREEN_HI, biome: 'observatory', el: 'wind' },
     { id: 'whitepet', rift: true, name: 'Whiteout', title: 'A Rift-touched Cocopet', hp: 66000, dmg: 38, r: 1.5, spd: 1.6, color: '#E4EDF0', glow: '#FFB35C', biome: 'whiteout', el: 'frost' });
   Object.assign(DunAI.boss, {
