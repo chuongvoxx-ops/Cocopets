@@ -1410,6 +1410,92 @@ void main() {
     if (dead > 0.0) { float lum = dot(col, vec3(0.3, 0.55, 0.15)); col = mix(col, vec3(lum) * vec3(0.8, 0.84, 0.9) * 0.75, dead * 0.75); }
     gl_FragColor = vec4(vec3(tone(col.r), tone(col.g), tone(col.b)) * uAlpha, uAlpha); return; }
   /*</AB-AUR-MAT>*/
+  /*<AB2-NIV-MAT ids 750..759 (v470b AB, rebuilt v470c AB from the user's concept art: 20z5a-nivora-gl.js, Nivora the Aurorawing)>*/
+  else if (id >= 750 && id <= 759) {   // ---- (v470d AB: 750 an armour plate (.2 the core, .4 the chest's green V), 753 the wings' white crystal shards (bevelled), 754 the navy spines, 755 a wing's emerald glass (one smooth sheet; facets and veins cut by the shader), 756 an icicle, 757 a tail blade turning to green glass; 751 the black-violet glass head, 752 the eye slit; the notes below are v470b's where they differ) (v470b AB) Nivora, lit by AUR3's 'obs' pass (the key's colour in uAmb, the aurora's rim in uRim). 750 its body's chitin (local: x forward, y left, z up; vA.z the plate's place: its index + the share along it (0 its front edge .. 1 its rear lip), vA.y round the body 0..1 from the back): navy lacquer plates shingled front to back, a bevel of light along each rear lip, a dark seam under it, fine scale-scratches, an aurora sheen; .2 the ventral plates (softer, darker); .4 the abdomen's rings (an ice-blue band along each lip); 751 its head of dark glass (local a unit sphere, x its gaze): the night's aurora seen deep inside through refraction, the eye's light scattered in the glass by uGlow, a hard window highlight, a broad soft one, fresnel; 752 the eye slit (vA.y along it 0..1, vA.z across 0..1): striations of light, its white-hot core at uSpill; 753 ice of the keel (a faceted crystal: vA.y its facet rims, vA.z 1 - its place along it): pale cyan, light refracted through, green-white inner light by uGlow, its edges bright; 754 jointed chitin of a leg or an antenna (vA.z along it in segments: dark joints, a gloss band); .2 a knuckle; 755 a wing's membrane (vA.z root 0 .. tip 1, vA.y leading 0 .. trailing 1; seen through): mint aurora (frosted white at the root to aurora green to teal at the tip), longitudinal veins and a net of cross-veins, iridescence, light through it from the key, its trailing rim glowing, the aurora's folds running across it (uTime, uGlow), uKind its beat; 756 the leading rib (ice glass, lit); 757 a tail vane (vA.y round its flat section 0..1, vA.z root 0 .. tip 1): navy blade, an ice rib down its middle, its edges lit mint, its point glowing. uGlow2 a blow's flash, uFx the death's fade
+    int sk = int((vA.x - float(id)) * 10.0 + 0.5);
+    float ndv0 = max(0.0, dot(n, uV)), hm = dot(n, uUP), tt = uTime, sd = uWear * 17.0, gl = clamp(uGlow, 0.0, 3.0), dead = clamp(uFx, 0.0, 1.0), fl2 = clamp(uGlow2, 0.0, 1.0);
+    vec3 GRN = vec3(0.3, 1.0, 0.68), GRH = vec3(0.72, 1.18, 0.95), VIO = vec3(0.62, 0.45, 1.1), NV = vec3(0.016, 0.04, 0.11);
+    vec3 hh = normalize(uLK + uV); float nh0 = max(0.0, dot(n, hh)), frs0 = pow(1.0 - ndv0, 4.0);
+    vec3 rr = 2.0 * dot(n, uV) * n - uV; float ru = dot(rr, uUP);
+    vec3 env = mix(vec3(0.3, 0.36, 0.46), vec3(0.06, 0.1, 0.2), smoothstep(-0.2, 0.5, ru)) + GRN * 0.55 * exp(-pow((ru - 0.45) / 0.12, 2.0)) * (0.7 + 0.3 * sin(rr.x * 6.0 + tt * 0.5)) + VIO * 0.25 * exp(-pow((ru - 0.7) / 0.1, 2.0));   // (the night above, the aurora's band in it, the stone below)
+    // ---- the eye slit: emissive
+    if (id == 752) { float x = clamp(edge, 0.0, 1.0), y = abs(ao * 2.0 - 1.0), core = exp(-pow((x - uSpill) / 0.06, 2.0)), lid = smoothstep(1.0, 0.62, y), str = 0.65 + 0.35 * pow(abs(sin(x * 60.0 + sin(x * 13.0) * 2.0)), 3.0);
+      vec3 c = mix(vec3(0.12, 0.55, 0.42), vec3(0.78, 1.15, 1.0), (1.0 - y) * (1.0 - y)) * (0.75 + 0.55 * gl) * lid * str + vec3(1.5, 1.6, 1.55) * core * (1.0 - y * y) * (0.8 + 0.7 * gl) + GRH * exp(-y * y * 30.0) * 0.4 * gl;
+      c *= 0.88 + 0.12 * sin(tt * 3.0 + x * 9.0); c += vec3(1.0) * fl2 * 0.25; c = mix(c, vec3(0.05), dead * 0.85);
+      gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
+    // ---- the wings' membranes: seen through, their own alpha
+    if (id == 755) {   // (v470d AB) a wing's emerald glass: one smooth sheet (local x along the span 0..1, y across; vA.y its rim, vA.z across it 0 the trailing edge .. 1 the leading; .1 the lower pair): facets cut by the shader (cells, each tilted), brighter green fracture veins between them and through them, opal-white by the root and the leading edge turning to emerald glowing from within toward the tip and the trailing edge, its rim bright
+      float tq = clamp(ao, 0.0, 1.0), rimF = smoothstep(0.8, 1.0, edge), ndv = max(0.001, ndv0), w1 = vn(L.xy * vec2(6.0, 14.0) + sd), w2 = vn(L.xy * vec2(19.0, 40.0) + sd * 1.7 + 3.0);
+      float g = smoothstep(0.16, 0.42, L.x + (0.5 - tq) * 0.22 + (w1 - 0.5) * 0.12);
+      vec2 vp = vec2(L.x * 19.0, L.y * 46.0) + vec2(w1, w2) * 0.8, ip = floor(vp), fp = vp - ip, cid = ip; float d1 = 9.0, d2 = 9.0;
+      for (int yy = -1; yy <= 1; yy++) for (int xx = -1; xx <= 1; xx++) { vec2 gg = vec2(float(xx), float(yy)), q2 = gg + vec2(hs(ip + gg), hs(ip + gg + 17.3)) * 0.9 - fp; float d = dot(q2, q2); if (d < d1) { d2 = d1; d1 = d; cid = ip + gg; } else if (d < d2) d2 = d; }
+      float bd = sqrt(d2) - sqrt(d1), vein = smoothstep(0.075, 0.0, bd) * (0.55 + 0.45 * hs(cid + 1.3)), fr = hs(cid + 3.7);
+      float c1 = abs(vn(L.xy * vec2(4.0, 11.0) + sd + 2.0) - 0.5), c2 = abs(vn(L.xy * vec2(11.0, 26.0) + 5.0) - 0.5), crk = smoothstep(0.022, 0.0, c1) + 0.5 * smoothstep(0.014, 0.0, c2);
+      vec3 nf = normalize(n + (normalize(uM0) * (hs(cid) - 0.5) + normalize(uM1) * (hs(cid + 9.1) - 0.5)) * mix(0.35, 0.7, g)); if (dot(nf, uV) < 0.0) nf = -nf;   // (each facet tilted its own way)
+      float ndl = dot(nf, uLK), nhf = max(0.0, dot(nf, hh)), ndvf = max(0.001, dot(nf, uV));
+      vec3 iri = 0.5 + 0.5 * cos(vec3(0.0, 2.1, 4.2) + ndvf * 6.0 + fr * 5.0 + L.x * 4.0);
+      vec3 white = (vec3(0.78, 0.84, 0.95) * (0.3 + 0.75 * max(0.0, ndl) + 0.2 * fr) + iri * 0.22) * mix(vec3(1.0), uAmb, 0.4);
+      vec3 emer = mix(vec3(0.03, 0.42, 0.2), vec3(0.22, 1.05, 0.55), 0.25 + 0.5 * fr + 0.25 * w1) * (0.8 + 0.55 * gl) * (0.85 + 0.15 * sin(tt * 2.0 + L.x * 6.0 - L.y * 9.0));
+      emer += vec3(0.1, 0.5, 0.25) * smoothstep(0.4, 1.0, L.x) * (1.0 - tq) * (0.5 + 0.5 * gl);   // (the light inside, toward the tip and the trailing edge)
+      vec3 c = mix(white, emer, g) + mix(vec3(0.75, 0.85, 1.0), vec3(0.5, 1.6, 0.85), g) * (vein * (0.18 + 0.8 * g) + crk * (0.12 + 0.9 * g)) * (0.6 + 0.5 * gl);
+      c += mix(vec3(0.9, 0.95, 1.0), GRH * 1.3, g) * rimF * (0.35 + 0.5 * g * (0.6 + gl));
+      float F = 0.05 + 0.95 * pow(1.0 - ndvf, 4.0); c += env * F * 0.4 + vec3(1.0) * pow(nhf, 220.0) * 1.2 * max(0.0, ndl) + iri * pow(nhf, 20.0) * 0.18 * (1.0 - g * 0.6);
+      if (uLow < 0.5) c += vec3(1.0, 0.98, 1.05) * pow(vn(L.xy * vec2(90.0, 160.0) + sd), 30.0) * 4.0 * (1.0 - g * 0.5);   // (sparkle)
+      float al = mix(0.9, 0.78, g) + rimF * 0.1 + (vein + crk) * 0.1 * g;
+      c += vec3(1.0) * fl2 * 0.3; c = mix(c, vec3(dot(c, vec3(0.3, 0.55, 0.15))) * 0.7, dead * 0.8); al = clamp(al, 0.0, 1.0) * (1.0 - dead * 0.5);
+      gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha * al, uAlpha * al); return; }
+    // ---- the head of glass
+    if (id == 751) { vec3 p = normalize(L), rf = refract(-uV, n, 0.68); float ndv = max(0.001, ndv0);
+      vec2 q = rf.xy * 2.2 + p.yz * 1.3 + vec2(tt * 0.04, -tt * 0.03); float neb = vn(q * 2.0 + sd) * 0.6 + vn(q * 5.0 + 3.0) * 0.3 + vn(q * 11.0) * 0.1, wisp = pow(neb, 3.0);
+      vec3 deep = mix(vec3(0.008, 0.004, 0.03), vec3(0.06, 0.04, 0.13), ndv) + mix(VIO, GRN, vn(q * 1.5 + 7.0) * 0.6) * wisp * 0.4 * ndv;   // (v470c AB: black-violet glass, as the concept's)
+      if (uLow < 0.5) deep += mix(vec3(0.9, 0.85, 1.2), GRH, step(0.7, hs(floor(rf.xy * 40.0)))) * pow(vn(rf.xy * 40.0 + p.yz * 9.0 + sd), 26.0) * 2.2 * ndv;   // (stars deep in the glass)
+      float eyeS = exp(-pow(p.z / 0.18, 2.0)) * smoothstep(-0.3, 0.7, p.x), inner = exp(-pow(p.z / 0.42, 2.0)) * smoothstep(-0.5, 0.9, p.x);
+      vec3 c = deep + GRN * (eyeS * 0.32 + inner * 0.1) * (0.6 + 0.7 * gl) * (0.5 + 0.5 * ndv);
+      float F = 0.04 + 0.96 * pow(1.0 - ndv, 4.0);   // (v470d AB: darker, its rim cooler and finer, as the concept's)
+      c = mix(c, env * vec3(0.8, 0.85, 1.1), F * 0.6) + vec3(1.0) * pow(nh0, 420.0) * 4.0 * max(0.0, dot(n, uLK)) + vec3(0.9, 0.95, 1.0) * pow(nh0, 40.0) * 0.18 + mix(uRim, vec3(0.7, 0.8, 1.2), 0.6) * pow(1.0 - ndv, 3.0) * max(0.0, dot(n, uLR) + 0.3) * 0.45;
+      vec3 hs2 = normalize(uLS + uV); c += vec3(0.7, 0.85, 1.0) * pow(max(0.0, dot(n, hs2)), 260.0) * 1.2;   // (a second, smaller window)
+      c += vec3(1.0) * fl2 * (0.2 + 0.4 * F); if (dead > 0.0) c = mix(c, vec3(dot(c, vec3(0.3, 0.55, 0.15))) * 0.8, dead * 0.7);
+      gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
+    // ---- ice: the keel's plates and the leading ribs
+    if (id == 753 || id == 756) { float tp = clamp(1.0 - ao, 0.0, 1.0), ndv = max(0.001, ndv0), eg = smoothstep(0.8, 1.0, edge), w1 = vn(L.xy * 7.0 + L.z * 3.0 + sd);
+      vec3 rf = refract(-uV, n, 0.75); float sky = 0.5 + 0.5 * rf.z;
+      // (v470d AB) 753 the wings' white shards (crystal blades: a lit face and a dark one either side of the ridge, the bevel's edge bright, a pastel rainbow sheen by the facet's turn, sparkle); 756 an icicle (pale ice, its point lit green)
+      float ndl = dot(n, uLK), lit = max(0.0, ndl), fct = hs(floor(n.xy * 5.0 + n.z * 3.0) + sd);
+      vec3 iri = 0.5 + 0.5 * cos(vec3(0.0, 2.1, 4.2) + dot(L, vec3(9.0, 13.0, 7.0)) + ndv * 4.0 + w1 * 3.0 + fct * 6.0);
+      vec3 wz = normalize(uM2), lp = uLK - wz * dot(uLK, wz); float tilt = dot(n - wz * dot(n, wz), lp / max(0.05, length(lp)));   // (a facet turned toward the light across the wing, or away: its bevel)
+      vec3 body = id == 753 ? mix(vec3(0.46, 0.54, 0.74), vec3(1.4, 1.42, 1.45), smoothstep(-0.32, 0.12, tilt) * 0.85 + 0.15 * smoothstep(0.3, 0.9, ndl)) * mix(vec3(1.0), iri, 0.16) * vec3(0.93, 0.97, 1.05) * (0.9 + 0.2 * fct) : mix(vec3(0.3, 0.55, 0.72), vec3(0.75, 0.92, 1.0), sky * 0.7 + 0.3 * ndv) * (0.6 + 0.4 * ndv);
+      body += id == 756 ? GRN * smoothstep(0.55, 1.0, tp) * (0.4 + 0.5 * gl) : GRN * 0.04 * gl * (1.0 - tp);
+      if (uLow < 0.5 && id == 753) body += vec3(1.0, 0.98, 1.05) * pow(vn(L.xy * 70.0 + L.z * 40.0 + sd), 26.0) * 4.0;
+      float F = 0.05 + 0.95 * pow(1.0 - ndv, 4.0); float wrap = id == 753 ? 0.6 + 0.6 * lit : max(0.0, ndl * 0.5 + 0.5);
+      vec3 c = body * (0.5 + 0.6 * wrap) * mix(vec3(1.0), uAmb, 0.15) + env * F * 0.6 + vec3(1.0) * pow(nh0, 260.0) * 6.0 * lit + iri * pow(nh0, 30.0) * 0.4 + vec3(0.9, 0.97, 1.1) * eg * (0.08 + 0.12 * lit) + uRim * pow(1.0 - ndv, 2.5) * 0.5;
+      c += vec3(1.0) * fl2 * 0.3; if (dead > 0.0) c = mix(c, vec3(dot(c, vec3(0.3, 0.55, 0.15))) * 0.8, dead * 0.7);
+      gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
+    // ---- the chitin: body, legs, vanes
+    vec3 a = NV, emi = vec3(0.0); float rg = 0.22, cc = 0.9, cvv = 0.0, w1 = vn(L.xy * 3.1 + L.z * 1.9 + sd), w3 = vn(L.xz * 23.0 + L.y * 11.0 + sd);
+    if (id == 750) {   // (v470c AB) an armour plate (a pointed petal: vA.y 0 its midline .. 1 its sides, vA.z 0 its root .. 1 its point): navy lacquer, a raised midrib, its edges bevelled to ice, starlike glints; .2 the dark core under the plates
+      if (sk == 2) { a = NV * 0.55 * (0.8 + 0.4 * w1); rg = 0.3; cc = 0.6; }
+      else if (sk == 4) { a = vec3(0.02, 0.12, 0.07); rg = 0.2; cc = 0.5; emi += mix(GRN, GRH, 0.25 + 0.25 * pow(ndv0, 4.0)) * (1.0 + 0.8 * gl) * (0.9 + 0.1 * sin(tt * 2.5 + L.z * 6.0)); }   // (v470d AB: .4 the V glowing green on its chest)
+      else { float side = clamp(edge, 0.0, 1.0), u = clamp(ao, 0.0, 1.0), bev = clamp(smoothstep(0.7, 0.95, side) + smoothstep(0.85, 1.0, u) * 0.8, 0.0, 1.0), mid = smoothstep(0.14, 0.0, side) * smoothstep(0.1, 0.4, u);
+        float scr = smoothstep(0.92, 1.0, vn(vec2(L.x * 40.0 + L.y * 3.0, L.z * 70.0) + sd)) * 0.35;
+        a = NV * (0.8 + 0.4 * w1) * (1.0 + mid * 0.9); a = mix(a, vec3(0.42, 0.6, 0.84), bev * 0.7); rg = 0.16 + 0.1 * w3 + scr * 0.2; cc = 1.0 - scr; cvv += smoothstep(0.98, 1.0, side) * 0.3;
+        emi += vec3(0.4, 0.62, 0.95) * smoothstep(0.9, 1.0, side) * 0.1 + (0.5 + 0.5 * cos(vec3(0.0, 2.1, 4.2) + ndv0 * 7.0 + w1 * 4.0 + u * 2.0)) * 0.04;
+        if (uLow < 0.5) emi += vec3(0.9, 0.9, 1.2) * pow(vn(L.xy * 80.0 + L.z * 55.0 + sd), 30.0) * 2.5; } }
+    else if (id == 754) { float s = ao, f = fract(s), jn = smoothstep(0.1, 0.0, min(f, 1.0 - f)), band = smoothstep(0.35, 0.5, f) * smoothstep(0.65, 0.5, f);
+      a = NV * (0.75 + 0.3 * w1) * (1.0 - jn * 0.6); a += vec3(0.05, 0.1, 0.18) * band * (sk == 2 ? 0.0 : 1.0); rg = 0.25; cc = 0.8; cvv += jn * 0.4; if (sk == 2) { a = NV * 0.9; rg = 0.15; } }
+    else {   // (v470c AB) 757 a tail blade (vA.y round its flat section, vA.z root 0 .. point 1): a dark shard, its edges iced, turning to green glass toward its point
+      float s = clamp(ao, 0.0, 1.0), eg = smoothstep(0.07, 0.0, min(min(edge, 1.0 - edge), abs(edge - 0.5))), gt = smoothstep(0.55, 0.78, s);
+      a = mix(NV * (0.8 + 0.35 * w1), vec3(0.04, 0.42, 0.24), gt); rg = mix(0.2, 0.06, gt); cc = 1.0; a = mix(a, vec3(0.5, 0.7, 0.9), eg * 0.6 * (1.0 - gt));
+      emi += vec3(0.15, 0.95, 0.5) * gt * (0.45 + 0.6 * gl) * (0.8 + 0.2 * sin(tt * 3.0 + s * 9.0)) + GRH * eg * gt * 0.5; }
+    float ndl0 = dot(n, uLK), ndl = max(0.0, ndl0), wrap = max(0.0, (ndl0 + 0.45) / 1.45), nh = max(0.0, dot(n, hh)), pw = 2.0 / (rg * rg + 0.004), spec = pow(nh, pw) * (pw + 2.0) / 8.0 * ndl, frs = pow(1.0 - ndv0, 5.0);
+    vec3 key = uAmb, ambC = mix(vec3(0.16, 0.2, 0.28), vec3(0.1, 0.14, 0.26) + uRim * 0.06, 0.5 + 0.5 * hm);
+    vec3 col = a * (mix(ndl, wrap, 0.4) * key + ambC) + (env * (0.75 / (1.0 + rg * 2.5)) + spec * key) * (0.05 + 0.95 * frs * (1.0 - rg * 0.6));
+    col += cc * (pow(nh, 110.0) * 2.0 * ndl * key + 0.35 * frs * env);
+    col += pow(1.0 - ndv0, 2.2) * max(0.0, dot(n, uLR) + 0.35) * uRim * 0.85;   // (the aurora's rim)
+    col *= 1.0 - min(0.8, cvv * 0.5);
+    col += emi * (1.0 - dead * 0.85) + vec3(1.0, 0.98, 0.95) * fl2 * (0.22 + 0.45 * pow(1.0 - ndv0, 2.0));
+    if (dead > 0.0) { float lum = dot(col, vec3(0.3, 0.55, 0.15)); col = mix(col, vec3(lum) * vec3(0.8, 0.84, 0.9) * 0.75, dead * 0.75); }
+    gl_FragColor = vec4(vec3(tone(col.r), tone(col.g), tone(col.b)) * uAlpha, uAlpha); return; }
+  /*</AB2-NIV-MAT>*/
   /*<GO-ORRUBEL-MAT ids 250..257 (v423 GO: 20x1-orrubel-gl.js, Orrubel the Seed-Mother)>*/
   else if (id >= 250 && id <= 259) {   // ---- (v423 GO) Orrubel the Seed-Mother (Rift 02's first boss, 20x1): 250 an outer petal (a thick blade: vA.y its place along the petal, 0 the root .. 1 the tip; vA.z across it 0..1 on its outer face, 2 + across on its inner: velvet plum-violet outside, darker veins, a pale bloom at its sides; satin rose inside, gold at the root; its thin rim lit through by uGlow's gold), 251 the heart (plum flesh in ribs: vA.y a rib's ridge; a web of veins lit gold by uSpill; 251.2 an eyelid, 251.4 the eye's socket), 252 jade root bark (furrowed, knotted, mossed: vA.y a joint; uSpill jade light in the furrows (digging in); 252.2 a pale root tip, 252.4 a thorn, 252.6 the jade collar and the pods' stalks), 253 the golden eye (its frame's x the gaze; uKind 1 dizzy: the pupil wide), 254 an egg (cream shell, plum seams from its poles, speckled; uKind its cracking 0..1; uGlow the light inside), 255 gold (an anther: emissive; 255.2 a filament), 256 a jade leaf (a sepal; vA as 250), 257 an inner petal (rose satin; vA as 250). uGlow2 a blow's flash, uFx withered (dead), uWear the part's seed. Its own light: a cream moon key, the plum night above, the moss's jade bounce below, a rose rim
     int sk = int((vA.x - float(id)) * 10.0 + 0.5);
@@ -2568,6 +2654,111 @@ void main() {
     col += emi * (1.0 - dead * 0.9) + vec3(1.0, 0.98, 0.95) * clamp(uGlow2, 0.0, 1.0) * (0.3 + 0.5 * pow(1.0 - ndv0, 2.0));
     gl_FragColor = vec4(vec3(tone(col.r), tone(col.g), tone(col.b)) * uAlpha * fa, uAlpha * fa); return; }
   /*</AM-AUR-MAT>*/
+  /*<AH-AHU-MAT ids 770..789 (v470b AH: 20z6a-ahuul-gl.js, Ahuul the White Horizon rebuilt from scratch). Lit by its own pass in the Broad Summit's light (AUR3 'summit': the key's colour in uAmb, the aurora's green rim in uRim; the night's navy above, the snow's light below). Every pattern from the surface's own coordinates (vA), never the moving position. 770 the hide (vA.y round it: (a + pi) / 2pi, a the angle from the belly's middle; vA.z its place s from the snout 0 to the tail 1): a navy back mottled, frost freckles, rake scars, the countershaded border, the white belly speckled, the pleats' grooves, the mouth and its lip, the eye bands' sockets and the vents' light under the skin (uKind the eyes' strength, uSpill the vents' flare), the bared throat (uGlow), aurora drift, chin rime; a wet clear coat; 770.2 a tubercle (vA.y its height). 771 a fin (vA.y round its section, 0..0.5 over the top from the leading edge, 0.5..1 back beneath; vA.z along it, 0 the root .. 1 the tips): navy root to pale ice, three bones, membrane with veins and light through it, a white scalloped leading edge; uGlow the lifted fin's edge. 772 the fluke (vA.y as a fin's, vA.z across 0..1): navy above, white with navy marks beneath. 773 ice (a crystal: vA.y its facet edge, vA.z 4 x its copy + 1 - its place along): blue root to clear tip, bright facet rims, light running down the ridge, aurora green rising inside by uGlow; .2 a rime shard. 774 a barnacle (.0 the shell, .2 its rim, .4 inside; vA.y up it, vA.z round). 775 a lens (copies 0..13 the eye lights by uGlow, 14..19 the tendrils' tips by uSpill). 776 a vent (vA.y 0 the slit's core .. 1 its edge; copy 0..9: a wave from head to tail, uGlow its flare). 777 a tendril (vA.z 4 x its index + along it; seen through, light pulses running down). uGlow2 a blow's flash, uFx the death's fade, uWear the part's seed>*/
+  else if (id >= 770 && id <= 789) {
+    int sk = int((vA.x - float(id)) * 10.0 + 0.5);
+    float ndv0 = max(0.0, dot(n, uV)), hm = dot(n, uUP), tt = uTime, gl = clamp(uGlow, 0.0, 3.0), dead = clamp(uFx, 0.0, 1.0), fl2 = clamp(uGlow2, 0.0, 1.0), sd = uWear * 17.0;
+    vec3 GRN = vec3(0.3, 1.0, 0.68), GRH = vec3(0.72, 1.18, 0.95);
+    float inst = floor((ao + 0.01) * 0.25), loc = ao - inst * 4.0;
+    // ---- the lights: emissive
+    if (id == 775) { float lv; if (inst < 13.5) { float i = mod(inst, 7.0), sg = inst < 6.5 ? 1.0 : -1.0; lv = gl * (0.7 + 0.3 * sin(tt * 3.0 + i * 0.9 + sg)); } else lv = (0.6 + 0.3 * sin(tt * 2.0 + inst - 14.0)) * (1.0 + 0.5 * uSpill);
+      vec3 c = mix(GRN * 0.85, vec3(1.4, 1.65, 1.5), pow(ndv0, 2.2)) * (0.3 + 0.95 * lv) + GRH * pow(1.0 - ndv0, 2.0) * 0.35 * lv;
+      c += vec3(1.0) * fl2 * 0.25; c = mix(c, vec3(0.06, 0.07, 0.08), dead * 0.85);
+      gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
+    float vlv = 0.0; if (id == 776) vlv = 0.35 + 0.65 * max(0.0, sin(tt * 1.5 - mod(inst, 5.0) * 0.85)) + gl;
+    if (id == 776 && edge < 0.56) { float core = 1.0 - smoothstep(0.1, 0.54, edge), hot = exp(-edge * edge * 50.0);
+      vec3 c = mix(vec3(0.015, 0.07, 0.08), GRN * (0.45 + 0.9 * vlv), core) + GRH * hot * vlv * 0.85; c += vec3(1.0) * fl2 * 0.2; c = mix(c, vec3(0.05, 0.06, 0.07), dead * 0.85);
+      gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
+    // ---- the solid ones
+    vec3 a = vec3(0.5), emi = vec3(0.0), thru = vec3(0.0); float rg = 0.5, cc = 0.0, cvv = 0.0, occ = 1.0, spk = 0.0; vec2 tex = vec2(edge * 13.0, ao * 7.0);
+    if (id == 770 && sk == 0) { float s = ao, aa = edge * 6.28318 - 3.14159, ph = aa - 1.5708, q = atan(sin(ph), abs(cos(ph))), rs = 2.1 * sqrt(clamp(s / 0.07, 0.02, 1.0)) * (1.0 - 0.72 * smoothstep(0.55, 1.0, s)); vec2 mm = vec2(s * 20.0, abs(aa) * rs + 0.37); tex = mm;
+      float mot = vn(mm * 0.8 + sd), mot2 = vn(mm * 2.6 + 7.0), fine = vn(mm * 13.0 + 3.0);
+      float nz2 = smoothstep(0.03, 0.12, s), lim = mix(-0.14, -0.46, smoothstep(0.1, 0.22, s)) - 0.55 * (1.0 - smoothstep(0.012, 0.05, s)) + (0.26 * (vn(mm * vec2(0.5, 1.1) + 11.0) - 0.5) + 0.1 * (mot2 - 0.5)) * nz2;
+      float belly = smoothstep(lim + 0.05, lim - 0.05, q) * smoothstep(0.0, 0.01, s);
+      float blot = smoothstep(0.7, 0.76, vn(mm * vec2(0.65, 1.4) + 21.0)) * smoothstep(lim + 0.45, lim + 0.12, q) * nz2 * smoothstep(0.25, 0.35, s);
+      float isl = smoothstep(0.74, 0.8, vn(mm * vec2(0.9, 1.6) + 33.0)) * smoothstep(lim - 0.1, lim - 0.5, q) * smoothstep(0.42, 0.5, s);
+      belly = clamp(max(belly, blot * 0.9) - isl * 0.85, 0.0, 1.0);
+      // the navy back: mottled, frost freckles, a few pale rake scars
+      vec3 nav = mix(vec3(0.05, 0.11, 0.24), vec3(0.1, 0.2, 0.37), mot) * (0.88 + 0.24 * mot2);
+      vec2 cg = mm * 5.0, ci = floor(cg), cf = fract(cg) - 0.5; float h1 = hs(ci + sd);
+      float frk = step(0.72, h1) * smoothstep(0.2 + 0.12 * hs(ci + 1.7), 0.04, length(cf - (vec2(hs(ci + 3.1), hs(ci + 5.7)) - 0.5) * 0.5));
+      nav = mix(nav, vec3(0.3, 0.44, 0.58), frk * 0.32);
+            vec3 wht = vec3(0.86, 0.9, 0.93) * (0.93 + 0.07 * fine); float dk = step(0.9, hs(floor(mm * 7.0) + 9.0)) * smoothstep(0.28, 0.0, length(fract(mm * 7.0) - 0.5)); wht *= 1.0 - dk * 0.35;
+      a = mix(nav, wht, belly);
+      // the pleats' grooves (the mesh cuts them; the same lattice: 14 across +-1 radian)
+      float pe = smoothstep(0.012, 0.042, s) * (1.0 - smoothstep(0.3, 0.42, s)) * (1.0 - smoothstep(0.78, 1.02, abs(aa))), pc = cos(6.28318 * (aa + 1.0) * 7.0);
+      float gp = pow(0.5 - 0.5 * pc, 7.0) * pe, rid = pow(0.5 + 0.5 * pc, 3.0) * pe;
+      a = mix(a, vec3(0.32, 0.4, 0.5) * (0.85 + 0.15 * fine), gp * 0.75); a *= 1.0 + rid * 0.05; cvv += gp * 0.55;
+      // the mouth's line and its lip
+      float phm = -0.34 - max(0.0, s - 0.15) * 9.0, me = smoothstep(0.004, 0.02, s) * (1.0 - smoothstep(0.18, 0.205, s)), dq = q - phm;
+      float mouth = smoothstep(0.03, 0.008, abs(dq)) * me, lip = smoothstep(0.03, 0.0, abs(dq - 0.05)) * me;
+      a = mix(a, vec3(0.008, 0.015, 0.03), mouth); cvv += mouth * 0.6; a = mix(a, vec3(0.4, 0.52, 0.64), lip * 0.18 * smoothstep(0.03, 0.06, s));
+      // the eye bands' sockets, their light under the skin
+      float eg = 0.0, er = 0.0; if (s > 0.1 && s < 0.22) { float sg = cos(ph) > 0.0 ? 1.0 : -1.0; for (int i = 0; i < 7; i++) { float fi = float(i), es = 0.128 + fi * 0.005 + fi * fi * 0.0014, eq = 0.36 - fi * 0.16, d = length(vec2((s - es) * 20.0, (q - eq) * 1.75)), e1 = (d - 0.15) / 0.035;
+          eg += exp(-d * d * 12.0) * (0.7 + 0.3 * sin(tt * 3.0 + fi * 0.9 + sg)); er += exp(-e1 * e1); } }
+      a = mix(a, vec3(0.01, 0.03, 0.05), clamp(er, 0.0, 1.0) * 0.7); emi += GRN * eg * 0.5 * uKind; thru += GRN * eg * 0.15 * uKind;
+      // the vents' light under the skin, in a wave from head to tail
+      float vg = 0.0; if (s > 0.24 && s < 0.62) { for (int i = 0; i < 5; i++) { float fi = float(i), lv = 0.35 + 0.65 * max(0.0, sin(tt * 1.5 - fi * 0.85)) + uSpill; vec2 dd = vec2((s - 0.3 - fi * 0.065) * 20.0 / 0.6, (q - 0.62) * 2.3 / 0.32); vg += exp(-dot(dd, dd) * 0.8) * lv; } }
+      emi += GRN * vg * 0.26; thru += GRN * vg * 0.1;
+      // the bared throat lit mint from inside, brightest down its grooves
+      float te = smoothstep(0.46, 0.1, s) * smoothstep(0.0, 0.03, s);
+      a = mix(a, vec3(0.5, 0.86, 0.74), belly * te * min(1.0, gl) * 0.65); emi += GRN * belly * te * gl * 0.55 + GRH * gp * te * gl * 1.6 + GRN * rid * te * gl * 0.25;
+      // aurora light drifting along the back; rime on the chin
+      float st2 = pow(vn(vec2(aa * 2.0 + tt * 0.05, s * 30.0 - tt * 0.3) + 5.0), 6.0) * (1.0 - belly); emi += GRN * st2 * 0.07;
+      float crust = smoothstep(0.62, 0.7, vn(mm * 2.6 + 50.0)) * (1.0 - smoothstep(0.05, 0.11, s)) * smoothstep(-0.15, -0.45, q); a = mix(a, vec3(0.8, 0.86, 0.9) * (0.85 + 0.15 * fine), crust * 0.9);
+      rg = mix(0.3, 0.5, belly); rg = mix(rg, 0.8, crust); cc = mix(0.8, 0.25, belly) * (1.0 - crust); thru += vec3(0.22, 0.3, 0.36) * belly; spk += (1.0 - belly) * 0.12 + crust * 1.5;
+      if (uLow < 0.5) n = normalize(n + (vec3(vn(mm * 6.0 + sd), vn(mm * 6.0 + 3.3), vn(mm * 6.0 + 7.7)) - 0.5) * 0.05 + (vec3(vn(mm * 21.0), vn(mm * 21.0 + 2.2), vn(mm * 21.0 + 5.1)) - 0.5) * (0.05 + crust * 0.25)); }
+    else if (id == 770 || id == 776) { vec2 mt = vec2(loc * 9.0, edge * 3.0 + inst * 1.7); tex = mt; float w = vn(mt * 2.0 + sd);
+      a = vec3(0.09, 0.18, 0.34) * (0.85 + 0.3 * w); rg = 0.36; cc = 0.55;
+      if (id == 770) { float cap = smoothstep(0.7, 1.0, edge); a = mix(a, vec3(0.62, 0.74, 0.85), cap * 0.3); spk += cap * 0.5; rg = 0.55; cc = 0.15; }   // (a tubercle, a little frost on its top)
+      else { float lipL = 1.0 - smoothstep(0.55, 0.85, edge); emi += GRN * lipL * 0.35 * vlv; thru += GRN * lipL * 0.2 * vlv; a = mix(a, vec3(0.02, 0.05, 0.08), lipL * 0.5); } }   // (a vent's lip, its light spilling over)
+    else if (id == 771) { float v = edge, t = clamp(ao, 0.0, 1.06), w = 0.5 - 0.5 * cos(6.28318 * v), up = step(v, 0.5); tex = vec2(t * 24.0, w * 9.0);
+      float bone = 0.0, sh = 0.0, st = clamp(t, 0.0, 1.0), se = st * st * (3.0 - 2.0 * st); for (int k = 0; k < 3; k++) { float r0 = k == 0 ? 0.17 : k == 1 ? 0.3 : 0.43, r1 = k == 0 ? 0.14 : k == 1 ? 0.488 : 0.835, dw = abs(w - mix(r0, r1, se)), e2 = (dw - 0.055) / 0.02; bone = max(bone, exp(-dw * dw / 0.0009)); sh = max(sh, exp(-e2 * e2)); }
+      bone *= smoothstep(0.02, 0.1, t); sh *= smoothstep(0.02, 0.1, t);
+      float lead = smoothstep(0.12, 0.0, w), memb = smoothstep(0.5, 0.88, w) * (1.0 - bone), mo = vn(tex * 0.5 + sd), fk = smoothstep(0.66, 0.72, vn(tex + sd * 2.0));
+      vec3 top = mix(vec3(0.1, 0.2, 0.37), vec3(0.74, 0.84, 0.91) * (0.94 + 0.08 * mo), smoothstep(0.03, 0.26, t)); top = mix(top, vec3(0.5, 0.64, 0.78), fk * 0.25 * smoothstep(0.1, 0.5, t));
+      top = mix(top, vec3(0.8, 0.9, 0.96), bone * 0.4 * smoothstep(0.1, 0.3, t)); vec3 bot = vec3(0.87, 0.91, 0.94) * (0.94 + 0.06 * mo);
+      a = mix(bot, top, up); a = mix(a, vec3(0.93, 0.96, 0.98), lead * 0.6); a *= 1.0 - sh * 0.1;
+      float vein = smoothstep(0.06, 0.0, abs(fract(t * 16.0 + w * 2.5) - 0.5) - 0.44) * memb; a *= 1.0 - vein * 0.08;
+      rg = mix(0.36, 0.28, bone); cc = 0.5 + 0.2 * bone; thru = vec3(0.32, 0.58, 0.72) * (0.15 + 0.85 * memb) * 0.9; cvv += sh * 0.3; spk += lead * 0.6 + 0.15;
+      emi += GRH * lead * gl * 0.9 + GRN * bone * gl * 0.4 + GRN * memb * gl * 0.08; }
+    else if (id == 772) { float v = edge, xa = ao * 2.0 - 1.0, w = 0.5 - 0.5 * cos(6.28318 * v), up = step(v, 0.5); tex = vec2(xa * 14.0, w * 5.0);
+      float mo = vn(tex * 0.45 + sd), mo2 = vn(tex * 1.6 + 3.0);
+      vec3 top = mix(vec3(0.04, 0.09, 0.19), vec3(0.085, 0.17, 0.31), mo) * (0.9 + 0.2 * mo2);
+      float mk = smoothstep(0.55, 0.6, vn(vec2(xa * 4.5, w * 2.6) + sd * 2.0 + 4.0)) * (1.0 - smoothstep(0.75, 0.95, abs(xa))), edB = smoothstep(0.82, 0.98, w);
+      vec3 bot = mix(vec3(0.88, 0.92, 0.94) * (0.94 + 0.06 * mo2), vec3(0.06, 0.12, 0.24), max(mk, edB * 0.9));
+      a = mix(bot, top, up); a = mix(a, vec3(0.85, 0.9, 0.94), smoothstep(0.95, 1.0, abs(xa)) * 0.4);
+      rg = 0.32; cc = mix(0.4, 0.75, up); thru = vec3(0.2, 0.3, 0.4) * (1.0 - up) * 0.4; spk += 0.2; }
+    else if (id == 773) { float tip = clamp(1.0 - loc, 0.0, 1.0), rim = smoothstep(0.7, 1.0, edge); tex = vec2(edge * 5.0 + inst * 3.1, tip * 4.0);
+      if (sk == 2) { a = mix(vec3(0.84, 0.93, 1.0), vec3(1.0), rim * 0.6); thru = vec3(0.4, 0.7, 1.0) * 0.5; rg = 0.12; cc = 1.0; spk += 1.5; emi += vec3(0.4, 0.6, 0.8) * 0.05; }
+      else { a = mix(vec3(0.16, 0.36, 0.62), vec3(0.82, 0.93, 1.0), pow(tip, 0.75)) * (0.9 + 0.15 * vn(tex * 2.0)); thru = mix(vec3(0.2, 0.45, 0.85), vec3(0.6, 0.85, 1.1), tip) * 0.75; rg = 0.06; cc = 1.3;
+        a = mix(a, vec3(0.95, 0.99, 1.0), rim * 0.75);
+        float run = pow(max(0.0, sin(tt * 1.2 - inst * 0.55)), 12.0), crk = smoothstep(0.035, 0.0, abs(fract(edge * 2.3 + tip * 3.0 + inst * 0.37) - 0.5) - 0.45) * (1.0 - rim);
+        emi += vec3(0.25, 0.55, 0.85) * (0.06 + 0.06 * tip) + vec3(0.9, 1.0, 1.15) * rim * (0.08 + 0.5 * run) + vec3(0.9, 1.0, 1.1) * run * tip * 0.35 + GRN * gl * 0.35 * (1.0 - tip) * (0.7 + 0.3 * sin(tt * 2.0 + inst)) + vec3(0.6, 0.85, 1.1) * crk * 0.25;
+        spk += 0.6; } }
+    else if (id == 774) { tex = vec2(loc * 12.0, edge * 4.0 + inst); float pl = smoothstep(0.1, 0.0, abs(fract(loc * 6.0 + inst * 0.3) - 0.5) - 0.4), g = vn(tex * 3.0 + sd);
+      if (sk == 4) { a = vec3(0.03, 0.045, 0.07); rg = 0.5; cvv += 0.4; }
+      else { a = mix(vec3(0.72, 0.75, 0.78), vec3(0.88, 0.9, 0.9), g) * (1.0 - pl * 0.3); if (sk == 2) a = vec3(0.9, 0.92, 0.93); rg = 0.78; cc = 0.1; cvv += pl * 0.2; spk += 0.8; a = mix(a, vec3(0.88, 0.94, 1.0), smoothstep(0.55, 0.9, hm) * 0.4); } }
+    else if (id == 777) { float al = clamp(loc, 0.0, 1.0), pul = pow(max(0.0, sin(al * 11.0 - tt * 4.0 + inst * 1.3)), 8.0), pu2 = 0.6 + 0.3 * sin(tt * 2.0 + inst); tex = vec2(edge * 6.0, al * 20.0 + inst * 7.0);
+      a = vec3(0.62, 0.86, 0.8); thru = vec3(0.3, 0.75, 0.58) * 0.9; rg = 0.3; cc = 0.7;
+      emi += GRN * (0.1 + 0.55 * al * al) * pu2 * gl + GRH * pul * 0.55 * gl + GRH * pow(ndv0, 3.0) * 0.12 * gl; }
+    float oAO = 1.0, oSH = 1.0; if (uNOcc > 0.5 && uLow < 0.5) { oAO = occAO(vW, n); oSH = occSH(vW, uLK); } occ *= oAO;
+    float ndl0 = dot(n, uLK), ndl = max(0.0, ndl0) * oSH, wrap = max(0.0, (ndl0 + 0.5) / 1.5) * mix(1.0, oSH, 0.7); hm = dot(n, uUP);
+    vec3 key = uAmb, sky = vec3(0.12, 0.18, 0.32) + uRim * 0.04, gnd = vec3(0.48, 0.56, 0.67);   // (the night's navy above, the snow's light below)
+    vec3 ambC = mix(gnd, sky, 0.5 + 0.5 * hm) * (0.5 + 0.5 * occ);
+    vec3 hh = normalize(uLK + uV); float nh = max(0.0, dot(n, hh)), pw = 2.0 / (rg * rg + 0.004), spec = pow(nh, pw) * (pw + 2.0) / 8.0 * ndl, frs = pow(1.0 - max(0.0, dot(n, uV)), 5.0);
+    vec3 rr = 2.0 * dot(n, uV) * n - uV; float ru = dot(rr, uUP);
+    vec3 envC = mix(gnd * 0.42, mix(vec3(0.28, 0.36, 0.48), sky * 1.3, smoothstep(0.04, 0.55, ru)), smoothstep(-0.25, 0.06, ru)) + GRN * 0.16 * smoothstep(0.28, 0.48, ru) * (1.0 - smoothstep(0.6, 0.85, ru)) / (1.0 + rg * 4.0) + key * 0.8 * smoothstep(0.86, 0.97, dot(rr, uLS)) / (1.0 + rg * 5.0);   // (the snow below the horizon, the pale horizon, the night, the aurora's band)
+    vec3 col = a * (mix(ndl, wrap, 0.4) * key + ambC) + envC * (0.75 / (1.0 + rg * 2.5)) * occ * (0.05 + 0.95 * frs * (1.0 - rg * 0.6)) + spec * key * 0.07;
+    col += thru * (0.35 * (1.0 - ndl) + 0.3 * max(0.0, -ndl0) + 0.2 * max(0.0, dot(n, uLR))) * key * (0.6 + 0.4 * occ);   // (light through the belly, the membranes, the ice; the glow under the skin)
+    if (cc > 0.0) col += cc * (pow(nh, 110.0) * 0.7 * ndl * key + (0.04 + 0.96 * frs) * envC * 0.5) * occ;   // (the wet coat)
+    if (spk > 0.0 && uLow < 0.5) col += vec3(1.0, 1.0, 1.1) * pow(vn(tex * 9.0 + sd), 24.0) * 2.6 * spk * max(0.0, ndl0 + 0.2);   // (rime glints)
+    col += pow(1.0 - ndv0, 2.4) * max(0.0, dot(n, uLR) + 0.35) * uRim * 0.8 * occ + pow(1.0 - ndv0, 3.0) * max(0.0, hm) * vec3(0.3, 0.45, 0.66) * 0.35 * occ;   // (the aurora's rim from the sky behind; the sky's own above)
+    col *= 1.0 - min(0.8, cvv * 0.5 + (1.0 - occ) * 0.45);
+    col += emi * (1.0 - dead * 0.85) + vec3(1.0, 0.98, 0.95) * fl2 * (0.22 + 0.45 * pow(1.0 - ndv0, 2.0));
+    if (dead > 0.0) { float lum = dot(col, vec3(0.3, 0.55, 0.15)); col = mix(col, vec3(lum) * vec3(0.8, 0.84, 0.9) * 0.75, dead * 0.75); }
+    gl_FragColor = vec4(vec3(tone(col.r), tone(col.g), tone(col.b)) * uAlpha, uAlpha); return; }
+  /*</AH-AHU-MAT>*/
   /*<DA-SARRUKH-MAT ids 340..349 (v433 DA: 20y1-sarrukh-gl.js, Sarrukh the Bloom Serpent)>*/
   else if (id >= 340 && id <= 349) {   // ---- (v433 DA) Sarrukh the Bloom Serpent (Rift 03's first boss, 20y1): 340 its scales (a body slice: vA.y its place along the body, 0 the neck .. 1 the tail; its own normal NL.z the back (+) or the belly (-): bone-and-ochre scales in rows, darker saddles, pale belly scutes, cyan veins down the back pulsing toward the tail by uGlow; uSpill sand dusting it), 341 a fin's bone membrane (vA.y root..tip, vA.z across: cyan rays), 342 basalt (dark, glassy, vesicled; its root lit cyan by uGlow: 342 a dorsal plate (its own z its height), 342.1 a sepal and 342.3 the fluke (vA.y along), 342.2 a Resonator Spire's needle (resonance bands; uKind its cracks 0..1)), 343 bone, 344 an outer petal (a thick blade: vA.y along it, vA.z 0..1 across its outer face, 2 + across its inner: bone outside, rose within, a cyan rim; uKind the bloom), 345 an inner petal (amber to rose), 346 the heart (dark wet rose, veins lit by uGlow), 347 the orb (cyan-white light; uKind 1 flickering), 348 steel (a blade: vA.y 1 at its cutting edge, lit cyan (uKind 0) or amber (1) by uGlow), 349 sand (349 a lip round where it goes in, 349.1 the wake's hump and ridges: vA.y 0 at the hole or the crest .. 1 at the rim, where it fades into the floor; uGlow cyan from under it). uGlow2 a blow's flash, uFx dead (ashen), uWear the part's seed. Its light: a low amber dusk sun, the violet sky above, the sand's warm bounce below, a cyan rim
     int sk = int((vA.x - float(id)) * 10.0 + 0.5);

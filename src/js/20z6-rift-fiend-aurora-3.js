@@ -72,7 +72,8 @@ RiftFiend.define({ id: 'ahuul', name: 'Ahuul', title: 'The White Horizon', color
     paintGround(c, A) { paintSummit(c, A); },
     sky(c, W, H, t, cam, T) { paintSky(c, W, H, T); },
     overlay(c, FX, t, T) { { const o = AG(); if (o && o.overlay(c, FX, t, T)) return; } drawOverlay(c, FX, t, T); },   // (v470 AB: the sweep's half, the wave, the lit shelter and its warnings in light first; the 2D overlay leaves those to it: M.aurGL)
-    RIG: { FINP, FLUKE, LF, CF, L, RX, RY, NOOK, PED, nookAt: (C, k) => nookAt(C, k), demoPose: (FX, m) => !!demoSetup(FX, m) },   // (v470 AB: what the GPU model is built and posed from)
+    RIG: { FINP, FLUKE, LF, CF, L, RX, RY, NOOK, PED, nookAt: (C, k) => nookAt(C, k), demoPose: (FX, m) => !!demoSetup(FX, m),   // (v470 AB: what the GPU model is built and posed from)
+      SG, WT, HUT, HLT, SF, NS, VIEW, LIGHT, lin: (tab, s) => lin(tab, s) },   // (v470b AH: the profile tables the rebuilt model is sculpted from)
     get MODEL() { return AG(); }, preload(P) { const o = AG(); return o ? o.preload(P) : []; },
     camFocus(FX, m) { const M = FX.mem, P = M.P, C = FX.C; if (!P || m.dead) return null; if (m.act === 'enter') return { x: C.x, y: C.y - 14, k: 0.5, zoom: 0.56 };
       if (P.over > 0.5 || m.act === 'rise' || m.act === 'tether') return { x: C.x, y: C.y - 3.5, k: 0.5, zoom: 0.5 };
@@ -344,7 +345,8 @@ RiftFiend.define({ id: 'ahuul', name: 'Ahuul', title: 'The White Horizon', color
   function demoPaint(c, FX, m, X, Y, T, t) { { const o = AG(); if (o && o.demo(c, FX, m, X, Y, T, t)) return; }   // (v470 AB: the GPU model)
     const C = FX.C || { x: m.x, y: m.y + 8 }, M = FX.mem || {}; const F2 = demoSetup(FX, m); paintWhale(c, F2, m, TN.cam(X, Y, T, m), T, t); }
   // (v470 AB) the fight-less pose about the given anchor (shared by the 2D picture and the GPU model)
-  function demoSetup(FX, m) { const C = FX.C || { x: m.x, y: m.y + 8 }, M = FX.mem || {}; const F2 = { C, mem: M, me: { x: C.x, y: C.y + 4 } }; if (!M.P) { M.bt = M.bt || 0; M.recoil = 0; if (M.demoSweep) M.sw = { side: -1, k: 0 }; if (M.demoStun) M.stunPt = { x: C.x, y: C.y - 5 }; M.P = pose(F2, M.demoStun ? 'stun' : M.demoInhale ? 'inhale' : M.demoSweep ? 'sweep' : 'perch'); M.P.flex = 0; M.P.alpha = 1; M.eyeK = 1; M.finGlow = { '-1': M.demoSweep ? 1 : 0, '1': 0 }; }
+  function demoSetup(FX, m) { const C = FX.C || { x: m.x, y: m.y + 8 }, M = FX.mem || {}; const F2 = { C, mem: M, me: { x: C.x, y: C.y + 4 } }; if (!M.P) { M.bt = M.bt || 0; M.recoil = 0; if (M.demoSweep) M.sw = { side: -1, k: 0 }; if (M.demoStun) M.stunPt = { x: C.x, y: C.y - 5 }; if (M.demoPose === 'over') M.rs = M.rs || { safe: 1, k: 1 };   // (v470b AH: the studio's extra poses, mem.demoPose 'bow' | 'exhale' | 'over')
+        M.P = pose(F2, M.demoPose || (M.demoStun ? 'stun' : M.demoInhale ? 'inhale' : M.demoSweep ? 'sweep' : 'perch')); M.P.flex = 0; M.P.alpha = 1; M.eyeK = 1; M.finGlow = { '-1': M.demoSweep ? 1 : 0, '1': 0 }; }
     M.G = build(M.P, M.bt || 0, M); return F2; }
 
   /* ---------- the effects over the summit: the whale, the chain, the ember, the motes, the targets ---------- */

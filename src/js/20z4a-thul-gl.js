@@ -279,7 +279,24 @@ const THULC_GL = (() => {
     const R0 = RIG(); if (M.hatched) { const S = R0.waspPose(m, M).S; FX.K.shade(c, X, Y + T * 0.2, T * 3.0 * S / (1 + (M.alt || 2.7) * 0.15), T * 1.25 * S / (1 + (M.alt || 2.7) * 0.15), 0.5, '#060C18'); }
     else { const Gm = R0.cocoonGeo(m, M); FX.K.shade(c, X + (Gm.cen[0] - m.x) * T, Y + (Gm.cen[1] - m.y) * T, T * 2.1 / (1 + Gm.cen[2] * 0.08), T * 0.9 / (1 + Gm.cen[2] * 0.08), 0.42, '#060C18');
       for (const f of M.feet) FX.K.shade(c, X + (f[0] - m.x) * T, Y + (f[1] - m.y) * T, T * 0.55, T * 0.24, 0.4 * (1 - Math.min(1, (f[2] || 0) / 1.5)), '#060C18'); }
-    return A.passOf(c, X, Y, T, L, { t: M.bt || t, light: 'cave', flash: fl ? 1 : 0 }, G); }
+    if (M.hatched) wingGlow(c, FX, m, M, X, Y, T, t, 0);
+    const ok = A.passOf(c, X, Y, T, L, { t: M.bt || t, light: 'cave', flash: fl ? 1 : 0 }, G); if (ok && M.hatched) wingGlow(c, FX, m, M, X, Y, T, t, 1); return ok; }
+  /* (v470b AB) the wasp's aurora glow, as the 2D wings' (laid with the model, so the studio and the fight both have it, at every quality;
+     lowFx thins it): under the model (layer 0) a broad halo round each wing and the thorax's green; over it (layer 1) the light bleeding
+     from each membrane, its eye-spot glowing, light along its rim, the bright core at the thorax and the stinger's point */
+  function wingGlow(c, FX, m, M, X, Y, T, t, layer) { const F = A.fg(); if (!F) return; const R0 = RIG(), P = R0.waspPose(m, M), W = P.W, S = P.S, lf = lowFx(), glow = M.glow == null ? 0.6 : M.glow, sp = M.span == null ? 1 : M.span, em = M.em == null ? 1 : M.em, sc = q => [X + (q[0] - m.x) * T, Y + (q[1] - m.y) * T - q[2] * T];
+    const Q = F.begin(c, null);
+    try { for (const side of [-1, 1]) for (const hind of [true, false]) { const flap = hind ? (M.flapH == null ? 0.3 : M.flapH) : (M.flapF == null ? 0.4 : M.flapF), cf = Math.cos(flap), sf = Math.sin(flap), h0 = hind ? [0.5, side * 0.26, 0.4] : [0.82, side * 0.3, 0.52], span = [-0.2 - (hind ? 0.15 : 0), side * cf, sf];
+        const O = W(h0[0], h0[1], h0[2]), Us = vmul(vsub(W(h0[0] + span[0], h0[1] + span[1], h0[2] + span[2]), O), sp), Uc = vmul(vsub(W(h0[0] + 1, h0[1], h0[2]), O), 0.5 + 0.5 * sp), at = (s2, q2) => sc(vadd(O, vadd(vmul(Us, s2), vmul(Uc, q2)))), pul = 0.85 + 0.15 * Math.sin(t * 3 + side + (hind ? 1 : 0)), OUT = hind ? R0.HW : R0.FW;
+        const cen = at(hind ? 1.2 : 1.6, hind ? -0.8 : 0.25), gr = vlen(Us) * T * (hind ? 2.2 : 2.8) + T;
+        if (layer === 0) { Q.glow(cen[0], cen[1], gr * 1.3, GREEN, Math.min(0.75, 0.3 + glow * 0.34) * pul * em); Q.glow(cen[0], cen[1], gr * 0.55, GREEN_HI, Math.min(0.5, 0.1 + glow * 0.18) * pul * em); continue; }
+        // the membrane's light bleeding out, its eye-spot, light along its rim
+        Q.glow(cen[0], cen[1], gr * 0.7, GREEN, Math.min(0.4, glow * 0.16) * pul * em);
+        const es = hind ? [1.3, -1.0, 0.36] : [2.0, 0.35, 0.48], e = at(es[0], es[1]), er = es[2] * vlen(Us) * T; Q.glow(e[0], e[1], er * 2.4, GREEN_HI, (0.35 + glow * 0.25) * pul * em); Q.glow(e[0], e[1], er * 0.8, WHITE, (0.3 + glow * 0.2) * em);
+        const stp = lf ? 3 : 1; for (let i = 0; i < OUT.length; i += stp) { const o = OUT[i]; if (Math.hypot(o[0], o[1]) < 0.6) continue; const q = at(o[0], o[1]); Q.glow(q[0], q[1], T * (0.45 + 0.25 * glow), GREEN_HI, Math.min(0.5, 0.14 + glow * 0.14) * pul * em); } }
+      if (layer === 0) { const th = sc(P.thorax); Q.glow(th[0], th[1], T * 2.2 * S, GREEN, (0.18 + glow * 0.14) * em); }
+      else { const th = sc(W(0.72, 0, 0.7)); Q.glow(th[0], th[1], T * 0.95 * S, GREEN_HI, (0.3 + glow * 0.25) * em); Q.glow(th[0], th[1], T * 0.38 * S, WHITE, (0.35 + glow * 0.2) * em); const tp = sc(P.tip); Q.glow(tp[0], tp[1], T * 0.6, GREEN_HI, 0.4 + glow * 0.25); }
+    } finally { F.flush(c); } }
   /* the empty legs after the hatch, folding where they stood (the husk prop) */
   function drawHusk(c, FX, p, T, t) { if (!gpu()) return false; p.t = (p.t || 0) + 1 / 60; const u = K.ease(cl(p.t / 1.6)), a = cl(1 - (p.t - 7) / 2.5); if (a <= 0) return true;
     const R0 = RIG(), apex = [p.bx, p.by, lerp(p.apex, 0.5, u)], Mh = { topple: 0, scrape: 0 }, L = [];
@@ -345,7 +362,7 @@ const THULC_GL = (() => {
           if ((M.crack || 0) > 0.3) Q.glow(sx(ep[0]), sy(ep[1]) - ep[2] * T, T * 3.2, GREEN_HI, Math.min(1, (M.crack - 0.3) * 1.3) * (0.4 + 0.25 * Math.sin(t * 20)));
           if ((M.topple || 0) > 0.6) for (let i = 0; i < 3; i++) { const a = bt * 3 + i * TAU / 3; Q.star(sx(ep[0]) + Math.cos(a) * T * 1.4, sy(ep[1]) - ep[2] * T - T * 1.6 + Math.sin(a) * T * 0.3, T * 0.3, 0.9, '#FFFFFF'); } }
         else { const P = R0.waspPose(m, M), glow = M.glow == null ? 0.6 : M.glow, sp = p => [sx(p[0]), sy(p[1]) - p[2] * T];
-          for (const s of [-1, 1]) { const e = sp(P.W(1.86, s * 0.33, 0.36)); Q.glow(e[0], e[1], T * P.S * 0.6, GREEN, 0.4); const wc = sp(P.W(0.3, s * 1.6, 0.9)); Q.glow(wc[0], wc[1], T * 2.6, GREEN, Math.min(0.6, 0.12 + glow * 0.18) * (0.85 + 0.15 * Math.sin(t * 3 + s))); }
+          for (const s of [-1, 1]) { const e = sp(P.W(1.86, s * 0.33, 0.36)); Q.glow(e[0], e[1], T * P.S * 0.6, GREEN, 0.4); }   // (v470b AB: the wings' glow is laid with the model: wingGlow)
           const tp = sp(P.tip); Q.glow(tp[0], tp[1], T * 0.7, GREEN_HI, 0.4 + glow * 0.25 + 0.12 * Math.sin(t * 9)); Q.star(tp[0], tp[1], T * 0.18, 0.8, '#FFFFFF');
           if ((M.stuck || 0) > 0.05 || (m.stunT > 0 && M.stunKind === 'stuck')) { const r = sp(P.root); Q.glow(r[0], r[1], T * 1.3, GREEN_HI, 0.6 + 0.35 * Math.sin(t * 12)); Q.glow(r[0], r[1], T * 0.5, '#FFFFFF', 0.7); } } }
     } finally { F.flush(c); }

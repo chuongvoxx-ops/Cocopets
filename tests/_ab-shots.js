@@ -4,7 +4,7 @@
 // usage: HTML=... [GL=0] [LOW=1] [DPR=3] node tests/_ab-shots.js thul nivora ahuul
 const { chromium } = require('/opt/npm-tools/node_modules/playwright');
 const path = require('path'), fs = require('fs');
-const OUT = path.resolve(__dirname, '../shots/v470-AB'); fs.mkdirSync(OUT, { recursive: true });
+const OUT = process.env.OUT ? path.resolve(process.env.OUT) : path.resolve(__dirname, '../shots/v470-AB'); fs.mkdirSync(OUT, { recursive: true });
 const gl = process.env.GL !== '0', low = process.env.LOW === '1', dpr = +(process.env.DPR || 3), tag = (gl ? 'gpu' : '2d') + (low ? '-low' : '');
 (async () => { const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--disable-gpu-watchdog'] });
   const page = await b.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: dpr, hasTouch: true }); const errs = []; page.on('pageerror', e => errs.push(e.message + ' @ ' + (e.stack || '').split('\n').slice(1, 3).join(' ')));
@@ -13,9 +13,9 @@ const gl = process.env.GL !== '0', low = process.env.LOW === '1', dpr = +(proces
   await page.evaluate(([gl, low]) => { const P = window.__pp; window.__AUR_GL = gl ? 1 : 0; if (gl) window.__NG_GL = 1; P.quickStart('Bot'); P.st.dun.god = true; P.st.energy = 100; P.st.dlv = 52; P.st.dun.best = 120; setInterval(() => { const g = document.getElementById('giftWrap'); if (g && !g.hidden) g.hidden = true; }, 200); if (low) P.st.lowFx = true; for (const id of ['belfry', 'garden', 'dunes', 'sepulchre']) P.riftState().seals[id] = 1; }, [gl, low]);
   if (gl) { const t0 = Date.now(); await page.evaluate(() => { const P = window.__pp, D = P.FIEND_DEFS.thul, K = P.DunFiend.KIT, cv = document.createElement('canvas'); cv.width = cv.height = 64; const c = cv.getContext('2d'), m = { x: 0, y: 0, t: 1, flash: 0 }, FX = { K, mem: {}, m, S: { tele: [], weak: {} }, sx: v => v, sy: v => v };
       try { D.draw(c, FX, m, 32, 40, 4, 1); } catch (e) { } try { const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; if (F && F.usable()) { const Q = F.begin(c, null); Q.quad(540, 32, 32, 10, 0, 0, 10, '#FFFFFF', 1, 0.5, 1, 0); F.flush(c); } } catch (e) { } }); console.log('(shaders warmed in ' + ((Date.now() - t0) / 1000).toFixed(0) + ' s)'); }
-  const run = secs => page.evaluate(async secs => { const D = window.__pp.arc.game._dbg; const t0 = performance.now(); let n = 0; while (performance.now() - t0 < secs * 1000) { await new Promise(r => requestAnimationFrame(r)); n++; if (D && D.me && !D.me.dead) { D.me.hp = D.ST.hp; D.me.mp = 999; } } return n; }, secs);
+  const run = secs => page.evaluate(async secs => { const D = window.__pp.arc.game && window.__pp.arc.game._dbg; const t0 = performance.now(); let n = 0; while (performance.now() - t0 < secs * 1000) { await new Promise(r => requestAnimationFrame(r)); n++; if (D && D.me && !D.me.dead) { D.me.hp = D.ST.hp; D.me.mp = 999; } } return n; }, secs);
   const frames = n => page.evaluate(async n => { const D = window.__pp.arc.game._dbg; for (let i = 0; i < n; i++) { await new Promise(r => requestAnimationFrame(r)); if (D && D.me && !D.me.dead) D.me.hp = D.ST.hp; } }, n);
-  let k = 0; const shot = async (id, what) => { const f = path.join(OUT, `fight-${tag}-${id}-${String(k++).padStart(2, '0')}-${what}.png`); await page.screenshot({ path: f }); console.log('  shot', path.basename(f)); };
+  let k = 0; const shot = async (id, what) => { const f = path.join(OUT, `fight-${tag}-${id}-${String(k++).padStart(2, '0')}-${what}.png`); await page.screenshot({ path: f }); const bx = await page.evaluate(() => { try { const B = window.__pp.arc.game._dbg.FD.FX.mem.nvBox; return B ? B.map(v => Math.round(v)) : null; } catch (e) { return null; } }); console.log('  shot', path.basename(f), bx ? 'box ' + (bx[2] - bx[0]) + 'x' + (bx[3] - bx[1]) + ' css px at ' + bx[0] + ',' + bx[1] + ' (T ' + bx[4] + ')' : ''); };
   const stats = () => page.evaluate(() => { const D = window.__pp.arc.game._dbg, MD = window.__pp.FIEND_DEFS[D.F.fiend.id].MODEL; const st = MD && MD.kit ? MD.kit.stats() : null; const P = typeof window.__pp.PERF !== 'undefined' ? window.__pp.PERF : null; return { st, act: D.g.boss && D.g.boss.act }; });
   const ids = process.argv.slice(2).length ? process.argv.slice(2) : ['thul', 'nivora', 'ahuul'];
   for (const id of ids) { k = 0; const t0 = Date.now();
@@ -33,6 +33,8 @@ const gl = process.env.GL !== '0', low = process.env.LOW === '1', dpr = +(proces
       return { ok: false, act: b.act }; }, [act, field, secs]);
     const seq = id === 'thul' ? [['collar', 'shuffle', 1.6], ['hail', 'shuffle', 1.2], ['stomp', 'shuffle', 0.4]] : id === 'nivora' ? [['crosswind', 'bag', 2.4], ['shear', 'bag', 1.2], ['pass', 'bag', 0.8], ['gaze', 'bag', 1.0]] : [['sweep', 'sig', 0.9], ['starfall', 'sig', 0.7], ['breath', 'sig', 2.2]];
     for (const [act, f, wt] of seq) { const r = await force(act, f, 40); console.log(' ', id, act, JSON.stringify(r)); if (r.ok) { await run(wt); await shot(id, act); } }
+    if (id === 'nivora') {   // (v470d AB) the whole of it in frame: the banner gone, the pet below it (the camera follows the pet)
+      for (let i = 0; i < 2; i++) { await run(i ? 1.2 : 3.0); await page.evaluate(i => { const D = window.__pp.arc.game._dbg, b = D.g.boss; D.me.x = b.x + (i ? 2.5 : 0.5); D.me.y = b.y + 5.5; }, i); await run(0.6); await shot(id, 'full' + i); } }
     // a blow, then its second form
     await page.evaluate(() => { const D = window.__pp.arc.game._dbg, b = D.g.boss; D.hitMon(b, 1000, { flat: true, viaProxy: true }); }); await frames(2); await shot(id, 'hit');
     if (id === 'thul') { await page.evaluate(() => { const D = window.__pp.arc.game._dbg, b = D.g.boss; b.stunT = 0; b.hp = b.maxhp * 0.45; }); await run(4); await shot(id, 'ram');

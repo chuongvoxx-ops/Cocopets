@@ -2575,6 +2575,10 @@ vec2 wfun(float h, float br, float t){ return vec2(sin(h * 4.0 - t * 1.7) * 0.05
         float bx = v_q.y - 5.0, byq = floor(v_q.z / 1000.0), br = (v_q.z - byq * 1000.0) / 1000.0, by = byq / 100.0 - 2.0, hole = v_q.y > 0.5 ? smoothstep(0.9, 1.05, length(vec2((u.x - bx) / max(0.01, br), (u.y - by) / max(0.01, br * 1.385)))) : 1.0;
         vec2 g = u * vec2(9.0, 7.0); vec2 ci = floor(g), f = fract(g) - 0.5; float hh = h1(ci + 2.0), fa = atan(f.y, f.x), fl = exp(-sq(abs(fract(fa / 1.0472 + 0.5) - 0.5) * length(f) / 0.03)) * smoothstep(0.32, 0.05, length(f)) * step(0.55, hh);
         L = (mix(DB, col, 0.55) * 0.2 * (0.7 + 0.3 * fbm(u * 4.0)) + col * fl * 0.5 * (0.7 + 0.3 * sin(tt * 2.0 + hh * 9.0)) + mix(col, W1, 0.4) * edgeB * 0.45) * behind * ins * hole; } }
+    /* (v470c AB) 553 ice dust and wind swirling (uv a unit disc, squashed to the floor by the quad): two spiral arms of blown snow turning, glints of dust caught in them; v_q.x its strength, v_q.y its seed */
+    else if (v_k > 552.5 && v_k < 553.5) { float k = clamp(v_q.x, 0.0, 1.5), sd = v_q.y, an = atan(u.y, u.x), sp = an + log(r + 0.05) * 2.4 - u_t * (1.1 + 0.4 * h1(vec2(sd, 1.0))) + sd, arm = pow(0.5 + 0.5 * cos(sp * 2.0), 10.0), ring = smoothstep(0.12, 0.4, r) * (1.0 - smoothstep(0.72, 1.0, r));
+      vec2 g = vec2(sp * 6.0, r * 14.0); float dust = step(0.93, h1(floor(g) + sd)) * exp(-sq((fract(g.y) - 0.5) / 0.18)) * arm;
+      L = (col * arm * ring * 0.45 * (0.6 + 0.4 * n2(vec2(sp * 3.0, r * 6.0))) + vec3(1.0) * dust * ring * 0.9) * k; }
     /*</AB-FX>*/
     /*<RZU-FX kinds 466..479 (v464 RZ-U: 20g6b-raziel-ultimate.js, Raziel's The Book of Two Heavens). 468 and 478 are laid over (solid), the rest added. Fire and ice keep apart:
       fire turbulent, rising, white-hot at its heart; ice faceted, sharp-edged, still, refractive>*/
