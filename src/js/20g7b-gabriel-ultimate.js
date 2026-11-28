@@ -24,7 +24,10 @@ const GABRIEL_ULT = (() => {
   const sstep = (a, b, x) => { const u = cl((x - a) / (b - a)); return u * u * (3 - 2 * u); }, eout = u => 1 - pow(1 - cl(u), 3);
   const bump = (t, a, b, c, d) => sstep(a, b, t) * (1 - sstep(c, d, t)), FSY = 0.55;
   const UT = { p2: 2.2, p3: 4.4, p4: 6.6, p5: 9.0, wave: 9.85, det: 10.2, rise: 10.4, comp: 11.0, open: 11.35, last: 11.7, p6: 11.8, cry: 13.0, diss: 13.1, len: 14.2 };
-  const CFG = { heal: 0.6, shield: 0.2, shieldT: 10, cleanse: 3, R: 10, wave: 7.5, mark: 1.2, fin: 9.5, core: 4.5, formK: [1.5, 1.2, 1.0], zoom: 0.7 };
+  /* (v475d GA, the user: "deal massive damage, then heal allies; revive the fallen") damage first: the Harvest wave and the opening are the
+     strongest finale blows of any Anima (x P; the marks burst on top, a boss's share capped); then the restoration: the pet healed, shielded,
+     cleansed, Grace; the fallen in the party revived to `revive` of their health and every benched one healed by `heal` */
+  const CFG = { heal: 0.6, shield: 0.2, shieldT: 10, cleanse: 3, revive: 0.5, R: 10, wave: 17, mark: 2.8, markBoss: 0.06, fin: 22, core: 4.5, formK: [1.4, 1.35, 1.0], zoom: 0.7 };
   function create(H) {
     const X = H.X, me = H.me, g = H.g, T = H.T, FXP = H.FXP, COL = H.COL, sx = x => X.sx(x), sy = y => X.sy(y);
     const { gpu, glOn, fgOpen, fgClose, sfx } = H, GLG = () => (typeof GABRIEL_GL !== 'undefined' ? GABRIEL_GL : null), low = () => H.LQ() < 1;
@@ -73,17 +76,24 @@ const GABRIEL_ULT = (() => {
       if (cross(UT.p3)) sfx('whoosh');
       if (cross(UT.p4)) { sfx('hum'); X.shake(5, 0.6); }
       if (cross(UT.wave)) wave(J);
-      if (cross(UT.det)) { let n = 0; for (const m of H.living()) { if (hypot(m.x - J.cx, m.y - J.cy) > CFG.R + m.r) continue; const s = H.consume(m); if (s) { H.light(a, m, pw(J) * CFG.mark * s, { big: true, noCrit: true }); n++; } } J.n = n; if (n) { X.shake(9, 0.3); sfx('crash'); } }
+      if (cross(UT.det)) { let n = 0; for (const m of H.living()) { if (hypot(m.x - J.cx, m.y - J.cy) > CFG.R + m.r) continue; const s = H.consume(m); if (s) { const d = pw(J) * CFG.mark * s; H.light(a, m, m.boss ? min(d, m.maxhp * CFG.markBoss * s) : d, { big: true, noCrit: true }); n++; } } J.n = n; if (n) { X.shake(9, 0.3); sfx('crash'); } }
       if (cross(UT.comp)) { try { const F = X.sfx; if (F && F.duck) F.duck(0.03, UT.open - UT.comp + 0.1); } catch (e) {} X.shake(4, 0.3); }
       if (cross(UT.open)) { hitAll(J, CFG.R, CFG.fin, CFG.core, { big: true, noCrit: true, kb: 5 }); X.flash(0.12, '#FFF0F8'); X.shake(26, 0.9); g.hitStop = max(g.hitStop || 0, 0.08); sfx('crash'); X.after && X.after(0.18, () => sfx('fanfare')); X.light && X.light(J.cx, J.cy, 12, 1.2);
         if (!gpu()) { X.boom(J.cx, J.cy, 5, '#FF6FB5', '#FFF0F8', { n: 40, shake: 0, smoke: 0 }); X.ring(J.cx, J.cy, 0.5, CFG.R, 0.8, '#FFB3DA', 0.4); } }
-      if (cross(UT.last)) { H.cleanse(CFG.cleanse); X.flash(0.15, '#FFE6F4'); sfx('sparkle'); }
+      if (cross(UT.last)) restore(J);
       if (cross(UT.cry)) { if (ab) ab.cry = 1; sfx('chirp'); }
+      for (let i = REV.length - 1; i >= 0; i--) if ((REV[i].t += dtReal) > 2.4) REV.splice(i, 1);
       if (t >= UT.len) end(true);
     }
-    /* the Perfect Harvest's wave: the pet healed, shielded, cleansed (its Grace Hearts deepen it); every monster in reach struck */
-    function wave(J) { const a = J.a; if (!me.dead) { H.heal(CFG.heal); H.shield(CFG.shield, CFG.shieldT); H.cleanse(CFG.cleanse); H.grace(3); }
+    /* the Perfect Harvest's wave: every monster in reach struck hard (and marked, for the detonation that follows) */
+    function wave(J) { const a = J.a;
       hitAll(J, CFG.R, CFG.wave, 0, { big: true, noCrit: true, kb: 3, mark: 1 }); if (a.gb) a.gb.kick = 1; X.flash(0.25, '#FFE6F4'); X.shake(14, 0.5); sfx('crash'); if (!gpu()) X.ring(J.cx, J.cy, 0.5, CFG.R, 0.9, '#FFB3DA', 0.35); }
+    /* the last wave, after the blows: the pet healed (its Grace Hearts deepen it), shielded, cleansed; the fallen revived, the benched healed */
+    function restore(J) { if (!me.dead) { H.heal(CFG.heal); H.shield(CFG.shield, CFG.shieldT); H.cleanse(CFG.cleanse); H.grace(3); }
+      const R = H.restoreAll ? H.restoreAll(CFG.revive, CFG.heal) : []; let n = 0; for (const r of R) if (r.rev) { n++; REV.push({ i: r.i, t: 0 }); }
+      if (n) { X.text(me.x, me.y - 1.8, n > 1 ? n + ' revived!' : 'Revived!', '#FFF4FA', 15); sfx('chirp'); }
+      X.flash(0.15, '#FFE6F4'); sfx('sparkle'); }
+    const REV = [];   // (the revived: their cards in the party strip, rising in pink light with a heart)
     /* it rises, circles gently beneath the lotus (a small orbit, banking), settles, and sinks a little as it dissolves */
     function flight(J, a, dt, t) { const ab = a.gb; if (!ab) return; const hT = H.sizeT(a) * 0.55, orb = bump(t, UT.p3, UT.p3 + 0.8, UT.p6, UT.p6 + 0.8), an = (t - UT.p3) * 0.9;
       const tx = J.cx + cos(an) * 0.8 * orb, ty = J.cy + sin(an) * 0.45 * orb, alt = hT * lerp(lerp(J.alt0 / hT, 1.15, sstep(0, 1.6, t)), 0.7, sstep(UT.p6 + 0.4, UT.len, t));
@@ -151,9 +161,9 @@ const GABRIEL_ULT = (() => {
           for (let i = 0; i < LAY.pt.length * lq; i++) { const p = LAY.pt[i], z = 6 - ((t * 0.5 + p[2] / 6) % 1) * 6, [x, y] = W(J.cx + p[0] + sin(t + p[3]) * 0.6, J.cy + p[1], z); FXP.flower(Q, x, y + Tz * 0.1, Tz * 0.12, 1, 3, eden * 0.9, p[3] + t * 2); }
           for (let i = 0; i < 3; i++) Q.ring(hx, hy, Tz * (3.4 + i * 1.3), COL.gold, 0.45 * eden, Tz * 0.06, 0.28 + 0.12 * sin(t * 0.5 + i * 2)); }
         // V: the opening - pillars of white and magenta, hundreds of hearts flung out, ribbons of light spiralling, the second pearl wave
-        const op = (t - UT.open) / 1.6; if (op > 0 && op < 1) { const k2 = 1 - sstep(0.6, 1, op), n = round(120 * lq);
+        const op = (t - UT.open) / 1.6; if (op > 0 && op < 1) { const k2 = 1 - sstep(0.6, 1, op), n = round(80 * lq);
           for (let i = 0; i < 8; i++) { const an = i / 8 * TAU, [x, y] = W(J.cx + cos(an) * 5.5, J.cy + sin(an) * 4); FXP.pillar(Q, x, y, Tz * 0.45, Tz * 9 * eout(op * 3), 0.5 * k2, 0, i % 2 ? 2 : 3); }
-          FXP.pillar(Q, hx, sy(J.cy), Tz * 1.4, sy(J.cy) - hy + Tz * 8, 0.45 * k2, 0, 3);
+          FXP.pillar(Q, hx, sy(J.cy), Tz * 1.2, sy(J.cy) - hy + Tz * 8, 0.3 * k2, 0, 3);
           for (let i = 0; i < n; i++) { const an = i * 2.39996 + J.seed, sp = 0.4 + (i % 7) / 7, d = Tz * 9 * sp * eout(op), x = hx + cos(an) * d, y = hy + sin(an) * d * 0.7 + op * op * Tz * 3; FXP.heart(Q, x, y, Tz * (0.1 + 0.12 * ((i * 3) % 5) / 5), an + t * 3, i % 4 === 0 ? 1 : 0, 1.2, k2, 0); }
           for (let i = 0; i < 10; i++) { const an = i / 10 * TAU + op * 3, d0 = Tz * 1.5, d1 = Tz * (2 + 7 * eout(op)); FXP.thread(Q, hx + cos(an) * d0, hy + sin(an) * d0, hx + cos(an + 0.8) * d1, hy + sin(an + 0.8) * d1 * 0.7, Tz * 0.16, 0.5 * k2, t * 3 + i, 1, COL.pink); }
           Q.glow(hx, hy, Tz * 10 * eout(op), COL.blush, 0.14 * k2); }
@@ -173,7 +183,7 @@ const GABRIEL_ULT = (() => {
     }
     /* the enormous spectral white phoenix, rising over the bloom (after the parts) */
     function drawSpec(c) { const J = UL; if (!J) return; const t = J.t, Tz = T(), G = GLG();
-      const sp = bump(t, UT.open + 0.05, UT.open + 0.4, UT.p6 + 0.3, UT.p6 + 1.1); if (sp > 0.01 && glOn() && G && G.drawSpectral) { SPS.t = t; SPS.cry = bump(t, UT.open + 0.1, UT.open + 0.3, UT.p6, UT.p6 + 0.6); SPS.beakOpen = SPS.cry; SPO.alpha = 0.32 * sp; SPO.fade = sstep(UT.p6 + 0.2, UT.p6 + 1.1, t);
+      const sp = bump(t, UT.open + 0.05, UT.open + 0.4, UT.p6 + 0.3, UT.p6 + 1.1); if (sp > 0.01 && glOn() && G && G.drawSpectral) { SPS.t = t; SPS.cry = bump(t, UT.open + 0.1, UT.open + 0.3, UT.p6, UT.p6 + 0.6); SPS.beakOpen = SPS.cry; SPO.alpha = 0.22 * sp; SPO.fade = sstep(UT.p6 + 0.2, UT.p6 + 1.1, t);
         try { G.drawSpectral(c, sx(J.cx), sy(J.cy) - Tz * (1.5 + 1.5 * sp), Tz * 8.5, SPS, SPO); } catch (e) {} }
     }
     /* screen space: the pink-white dawn over the field (I-V), the hush before the opening, the white bloom of it */
@@ -181,7 +191,10 @@ const GABRIEL_ULT = (() => {
       c.save(); if (dawn > 0.01) { c.globalCompositeOperation = 'lighter'; c.fillStyle = `rgba(255,190,222,${0.13 * dawn})`; c.fillRect(0, 0, Wd, Hh); c.globalCompositeOperation = 'source-over';
         const gr = c.createRadialGradient(Wd / 2, Hh * 0.42, min(Wd, Hh) * 0.25, Wd / 2, Hh * 0.42, max(Wd, Hh) * 0.75); gr.addColorStop(0, 'rgba(60,10,40,0)'); gr.addColorStop(1, `rgba(70,16,50,${0.16 * dawn})`); c.fillStyle = gr; c.fillRect(0, 0, Wd, Hh); }
       if (hush > 0.01) { c.fillStyle = `rgba(20,6,16,${0.35 * hush})`; c.fillRect(0, 0, Wd, Hh); }
-      if (wh > 0.01) { c.globalCompositeOperation = 'lighter'; c.fillStyle = `rgba(255,236,246,${0.12 * wh})`; c.fillRect(0, 0, Wd, Hh); }
+      if (REV.length && gpu() && X.partySlot) { c.restore(); const Q = fgOpen(c); for (const v of REV) { const p = X.partySlot(v.i); if (!p) continue; const u = v.t / 2.4, k = sstep(0, 0.25, v.t) * (1 - sstep(0.7, 1, u));
+          FXP.pillar(Q, p.x, p.y + 22, 16, 90 * eout(min(1, v.t / 0.5)), 0.8 * k, 0, 1); Q.glow(p.x, p.y, 34, COL.pink, 0.6 * k); FXP.heart(Q, p.x, p.y - 8 - 46 * eout(u), 9 + 5 * sstep(0, 0.4, v.t), 0, 0, 1.5, k, 0); }
+        fgClose(c); c.save(); }
+      if (wh > 0.01) { c.globalCompositeOperation = 'lighter'; c.fillStyle = `rgba(255,236,246,${0.06 * wh})`; c.fillRect(0, 0, Wd, Hh); }
       c.restore(); }
     function warm() { gpu(); }
     return { start, update, drawGround, drawFx, drawSpec, drawCine, active, stop, warm, cam, UT, CFG, get ul() { return UL; } };

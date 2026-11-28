@@ -2,7 +2,7 @@
 // shields, marks), Grace Hearts and the shield capped, the mind (heals only a hurt pet, shields a pressed one, else attacks), no cooldowns,
 // Eden Reborn once (its length, the heal / shield / cleanse, the marks), Gabriel leaving only after it, the clean-up (marks, Grace, shield
 // share, ward, GPU buffers 0, repeated summons). GL off by default (GL=1: GABRIEL_GL + FGFX forced on SwiftShader).
-// usage: HTML=test-ga.html node tests/_ga-moves.js [steps: life,powers,caps,mind,ult,clean,repeat]
+// usage: HTML=test-ga.html node tests/_ga-moves.js [steps: life,powers,caps,mind,ult,revive,clean,repeat]
 const { chromium } = require('/opt/npm-tools/node_modules/playwright');
 const path = require('path');
 (async () => {
@@ -68,6 +68,14 @@ const path = require('path');
       while (t < 30) { step(1 / 60); t += 1 / 60; if (U.active() && ulT < 0) ulT = t; if (ulT >= 0 && U.active()) { hp1 = Math.max(hp1, me.hp / D.ST.hp); sh = Math.max(sh, D.g.guardHP / D.ST.hp); } if (!AN.S.list.includes(a)) { left = t; break; } }
       window.__GA.keepHp = true; const P = D.ST.atk * 3.6; return { starts, ultAt: +ulT.toFixed(2), leftAt: +left.toFixed(2), ultLen: +(left - ulT).toFixed(2), maxHpPct: +(hp1 * 100).toFixed(0), shieldPct: +(sh * 100).toFixed(1), chill: me.chill, xP: +((dmg() - d0) / P).toFixed(1), cine: D.g.cineT, zoom: D.g.zoomP, marks: M.marks.size }; });
     console.log('ult', JSON.stringify(r)); ok(r.starts === 1, 'ult once'); ok(r.ultLen > 13 && r.ultLen < 16, 'ult length'); ok(r.maxHpPct >= 85, 'ult heal'); ok(r.shieldPct > 15, 'ult shield'); ok(r.cine === 0 && r.zoom === 1, 'camera restored'); }
+  if (want('revive')) { await fresh(); const r = await page.evaluate(() => { const { AN, D, me, step } = window.__GA, M = AN.gb, P = D.party, a = AN.S.list[0];
+      // a second party member, fallen (a copy of the first's card); Eden Reborn revives it; then a wipe already resolving must not be undone
+      while (P.length < 3) P.push(Object.assign({}, P[0], { down: true, hp: 0 })); P[1].down = true; P[1].hp = 0; P[2].down = false; P[2].hp = P[2].ST.hp * 0.2;
+      a.life = 0.05; window.__GA.keepHp = false; me.hp = D.ST.hp * 0.5; let t = 0; while (t < 16 && AN.S.list.includes(a)) { step(1 / 30, 1 / 30); t += 1 / 30; }
+      const out = { revived: !P[1].down, hp1: +(P[1].hp / P[1].ST.hp).toFixed(2), hp2: +(P[2].hp / P[2].ST.hp).toFixed(2) };
+      P[1].down = true; P[1].hp = 0; P[2].down = true; P[2].hp = 0; me.dead = true; const w = M.restoreAll(0.5, 0.6); out.duringWipe = w.length; out.stillDown = P[1].down && P[2].down;
+      me.dead = false; P.length = 1; window.__GA.keepHp = true; return out; });
+    console.log('revive', JSON.stringify(r)); ok(r.revived && r.hp1 >= 0.5, 'revive to 50%'); ok(r.hp2 > 0.7, 'benched healed'); ok(r.duringWipe === 0 && r.stillDown, 'no revive during a wipe'); }
   if (want('clean')) { const r = await page.evaluate(() => { const { AN, D, me, step } = window.__GA, M = AN.gb; step(2); const G = window.GABRIEL_GL; return { list: AN.S.list.length, fx: M.fx.length, marks: M.marks.size, grace: me.gbGrace || 0, sanc: !!M.sanc, shield: !!M.shield, gpu: G && G.gpuCount ? G.gpuCount() : null }; });
     console.log('clean', JSON.stringify(r)); ok(r.list === 0 && r.marks === 0 && !r.grace && !r.sanc && !r.shield, 'clean-up'); ok(!r.gpu, 'gpu buffers 0'); }
   if (want('repeat')) { const r = await page.evaluate(async () => { const { AN, step } = window.__GA, out = []; for (let i = 0; i < 3; i++) { AN.stop(); Object.assign(AN.S, { used: false, gauge: 1, resDone: false, list: [], fx: [] }); window.__GA.place(); AN.summon(); step(8); const a = AN.S.list[0]; if (a) a.life = 0.2; step(18); step(2); if (window.gc) window.gc(); out.push({ heap: performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1e5) / 10 : null, gpu: window.GABRIEL_GL && window.GABRIEL_GL.gpuCount ? window.GABRIEL_GL.gpuCount() : null, list: AN.S.list.length }); } return out; });

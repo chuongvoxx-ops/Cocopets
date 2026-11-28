@@ -1069,6 +1069,8 @@ GAMES.dungeon = {
       warmView: (z, x, y, secs) => { try { warmView(z, x, y, secs); } catch (e) {} },   // v464 RZ-U: the floor a coming pull-back will show, painted ahead
       // (a Super Fiend's health bars: how many and how much each holds; nothing for a boss of a single bar)
       bossBars: () => (FD && FD.S ? { n: FD.S.bars, hp: FD.barHP } : null),
+      // v475d GA: (Gabriel's Eden Reborn, 20g7b) the party, the played one, its strip slots, and whether a curse forbids healing: it revives the fallen
+      party: () => party, partyCur: () => cur, partySlot, noHeal: () => !!(RULES && RULES.blocks('noheal')),
       // v418 AB: (Abaddon's Lunar Carapace, Eclipse Requiem and the Ninth Tide's lunar shield, 20g2) a ward in hurtPet, as ELEM's addWard; returns the remover
       addWard: (fn, first) => { if (first) petWards.unshift(fn); else petWards.push(fn); return () => { const i = petWards.indexOf(fn); if (i >= 0) petWards.splice(i, 1); }; },
     }));

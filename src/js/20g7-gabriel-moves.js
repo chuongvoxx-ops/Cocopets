@@ -90,7 +90,7 @@ const GABRIEL_MOVES = (() => {
     let UL = null;
     const H2 = Object.assign({}, H, { pose: a => stOf(a) && a.gbS, anchors: a => a.gbOut || null, kOf, light: (a, m, d, o) => light(a, m, d, o), mark: (m, n) => addMark(m, n), consume: m => takeMarks(m),
       grace: n => addGrace(n), graceN: () => graceN(), heal: (f, q) => healPet(f, q), shield: (f, dur) => addShield(f, dur), cleanse: n => cleanse(n), petals: a => PET(a), spear: () => spearMesh(), sizeT,
-      pp, ppReset: () => { PPN = 0; PARTS.length = 0; return PARTS; }, fx: () => FX, FXP, CFG, COL, gpu, glOn, fgOpen, fgClose, sfx, LQ });
+      restoreAll: (rv, hf) => restoreAll(rv, hf), pp, ppReset: () => { PPN = 0; PARTS.length = 0; return PARTS; }, fx: () => FX, FXP, CFG, COL, gpu, glOn, fgOpen, fgClose, sfx, LQ });
     try { if (typeof GABRIEL_ULT !== 'undefined') { UL = GABRIEL_ULT.create(H2); if (UL && UL.warm) setTimeout(() => { try { UL.warm(); } catch (e) {} }, 400); } } catch (e) { UL = null; }
     const ulOn = () => { try { return !!(UL && UL.active()); } catch (e) { return false; } };
 
@@ -117,6 +117,15 @@ const GABRIEL_MOVES = (() => {
         done++; }
       if (done) { X.text(me.x, me.y - 1.4, 'Purified', COL.blush, 13); FX.push({ kind: 'pur', x: me.x, y: me.y, t: 0, life: 0.8 }); }
       return done; }
+    /* (v475d GA) Eden Reborn's restoration of the whole party (20b's party, the switch strip): the fallen revived to rv of their health, the
+       benched living healed by hf of theirs (the played pet is healed apart). Never while the party's fall is already resolving (the played pet
+       down with no one left standing: a wipe, scripted or not), never once the stage is over or won, never under a curse that forbids healing */
+    function restoreAll(rv, hf) { const P = X.party ? X.party() : null, cur = X.partyCur ? X.partyCur() : -1, out = [];
+      if (!P || !P.length || g.over || g.won || (X.noHeal && X.noHeal())) return out;
+      if (me.dead && !P.some((m, i) => i !== cur && !m.down)) return out;
+      P.forEach((m, i) => { const mx = i === cur || !m.ST ? 0 : m.ST.hp; if (!(mx > 0)) return;
+        if (m.down) { m.down = false; m.hp = max(1, mx * rv); out.push({ i, rev: true }); } else if (m.hp < mx) { m.hp = min(mx, m.hp + mx * hf * graceK()); out.push({ i, rev: false }); } });
+      return out; }
     const dirty = () => me.chill > 0.3 || me.venom > 0 || (X.zones || []).some(z => z.own === 'enemy' && (z.kind === 'web' || z.kind === 'poison') && hypot(z.x - me.x, z.y - me.y) < (z.r || 1) + 0.6);
     /* the ward: every blow at the pet counted (the mind's threat); inside the Sanctuary an ordinary blow is softened. A blow that names a
        mechanic (o carries anything but dot / burn / dotC) or a boss blow over 35% of the pet's health is the encounter's own: untouched */
@@ -147,18 +156,28 @@ const GABRIEL_MOVES = (() => {
        to a formation, flies a path, and comes home to the slot, where the model takes it back (free 0) ---- */
     function petTo(p, x, y, z, o, gl, s) { p.mode = 'spring'; p.tx = x; p.ty = y; p.tz = z; if (o != null) p.oT = o; if (gl != null) p.gT = gl; if (s != null) p.sT = s; }
     const petHome = p => { p.mode = 'home'; p.oT = 0; p.gT = 0; p.sT = 1; p.rT = 0; };
+    /* (v475d GA) each move a petal makes is a leg: from where it is to its formation (or home to its slot) along an arc that lifts and comes
+       down, eased in and out over a time that grows with the distance; an underdamped spring chases that lead point, so it settles into
+       place with a little overshoot. A formation that turns (a ring, the lotus) moves the target a little each frame: the same leg goes on */
+    const LEG = { x: 0, y: 0, z: 0 };
+    function lead(p, T, dt) { const jump = p.ltx == null || hypot(T.x - p.ltx, T.y - p.lty, T.z - p.ltz) > 0.35 || p.lm !== p.mode; p.ltx = T.x; p.lty = T.y; p.ltz = T.z; p.lm = p.mode;
+      if (jump) { p.l0x = p.x; p.l0y = p.y; p.l0z = p.z; p.lt = 0; const d = hypot(T.x - p.x, T.y - p.y, T.z - p.z); p.ld = d; p.lu = 0.28 + 0.13 * min(5, d); }
+      p.lt += dt; const u = cl(p.lt / p.lu), e = u * u * (3 - 2 * u), arc = 0.24 * min(4, p.ld) * sin(Math.PI * e);
+      LEG.x = lerp(p.l0x, T.x, e); LEG.y = lerp(p.l0y, T.y, e); LEG.z = lerp(p.l0z, T.z, e) + arc; return u; }
     function petals(a, dt) {
-      const ab = a.gb, P = ab.P, w = 6.5;
+      const ab = a.gb, P = ab.P;
       for (let i = 0; i < 12; i++) { const p = P[i], E = p.E; slot(a, i, SL);
         if (p.mode === 'home') { const d = hypot(SL.x - p.x, SL.y - p.y, SL.z - p.z);
-          if (p.free < 0.02 && d < 0.05) { p.x = SL.x; p.y = SL.y; p.z = SL.z; p.vx = p.vy = p.vz = 0; p.free = 0; }
-          else { spring(p, SL.x, SL.y, SL.z, w * 1.2, dt); if (d < 0.35) p.free = max(0, p.free - dt * 3.5); }
-          p.d[0] = lerp(p.d[0], SL.dx, ex(6, dt)); p.d[1] = lerp(p.d[1], SL.dy, ex(6, dt)); p.d[2] = lerp(p.d[2], SL.dz, ex(6, dt)); }
-        else { if (p.free < 0.02) { p.x = SL.x; p.y = SL.y; p.z = SL.z; } p.free = min(1, p.free + dt * 7); if (p.mode === 'spring') spring(p, p.tx, p.ty, p.tz, w, dt); }
+          if (p.free < 0.02 && d < 0.05) { p.x = SL.x; p.y = SL.y; p.z = SL.z; p.vx = p.vy = p.vz = 0; p.free = 0; p.ltx = null; }
+          else { const u = lead(p, SL, dt); spring(p, LEG.x, LEG.y, LEG.z, 11, dt, 0.72); if (u >= 1 && d < 0.3) p.free = max(0, p.free - dt * 4); }
+          const k = ex(6, dt); p.d[0] = lerp(p.d[0], SL.dx, k); p.d[1] = lerp(p.d[1], SL.dy, k); p.d[2] = lerp(p.d[2], SL.dz, k); }
+        else { if (p.free < 0.02) { p.x = SL.x; p.y = SL.y; p.z = SL.z; } p.free = min(1, p.free + dt * 7);
+          if (p.mode === 'spring') { TP.x = p.tx; TP.y = p.ty; TP.z = p.tz; lead(p, TP, dt); spring(p, LEG.x, LEG.y, LEG.z, 10, dt, 0.62); } else p.ltx = null; }
         p.open += (p.oT - p.open) * ex(5, dt); p.glow += (p.gT - p.glow) * ex(6, dt); p.scale += (p.sT - p.scale) * ex(3.5, dt); p.roll += p.rT * dt;
         E.free = p.free; E.x = p.x - a.x; E.y = p.y - a.y; E.z = p.z; E.dir[0] = p.d[0]; E.dir[1] = p.d[1]; E.dir[2] = p.d[2]; E.roll = p.roll; E.open = p.open; E.glow = p.glow; E.scale = p.scale; }
     }
-    function spring(p, x, y, z, w, dt) { const h = min(dt, 0.05); p.vx += (w * w * (x - p.x) - 2 * w * p.vx) * h; p.vy += (w * w * (y - p.y) - 2 * w * p.vy) * h; p.vz += (w * w * (z - p.z) - 2 * w * p.vz) * h; p.x += p.vx * h; p.y += p.vy * h; p.z += p.vz * h;
+    const TP = { x: 0, y: 0, z: 0 };
+    function spring(p, x, y, z, w, dt, zt) { const h = min(dt, 0.04), c = 2 * (zt || 1) * w; p.vx += (w * w * (x - p.x) - c * p.vx) * h; p.vy += (w * w * (y - p.y) - c * p.vy) * h; p.vz += (w * w * (z - p.z) - c * p.vz) * h; p.x += p.vx * h; p.y += p.vy * h; p.z += p.vz * h;
       const v = hypot(p.vx, p.vy, p.vz); if (v > 0.6) { const k = 1 - ex(5, dt); p.d[0] = p.d[0] * k + p.vx / v * (1 - k); p.d[1] = p.d[1] * k + p.vy / v * (1 - k); p.d[2] = p.d[2] * k + p.vz / v * (1 - k); } }
     const allHome = a => a.gb.P.every(p => p.mode === 'home');
     function homeAll(a) { for (const p of a.gb.P) if (p.mode !== 'home') petHome(p); }
@@ -170,7 +189,7 @@ const GABRIEL_MOVES = (() => {
       const ab = a.gb, M = CFG.move; if (!(dt > 0)) return hypot(tx - a.x, ty - a.y);
       { const ox = tx - me.x, oy = ty - me.y, q = hypot(ox / M.maxR, oy / M.maxRy); if (q > 1) { tx = me.x + ox / q; ty = me.y + oy / q; } }
       const hT = sizeT(a) * 0.55, was = ab.alt; if (alt < 0.02 && !gOK(a.x, a.y, 0.5)) alt = M.hover * hT;
-      const bob = alt > 0.05 ? 0.05 * sin(ab.clock * 1.7) * hT : 0; ab.alt += (alt + bob - ab.alt) * ex(alt > ab.alt ? M.up : M.up * 1.3, dt); ab.altV = (ab.alt - was) / dt;
+      const bob = alt > 0.05 ? 0.035 * heave(ab.ph || 0) * hT : 0; ab.alt += (alt + bob - ab.alt) * ex(alt > ab.alt ? M.up : M.up * 1.3, dt); ab.altV = (ab.alt - was) / dt;
       const dx = tx - a.x, dy = ty - a.y, d = hypot(dx, dy), want = d > 0.04 ? min(vmax, d * M.arrive) : 0, k = ex(M.acc, dt);
       ab.vx += ((d > 0.04 ? dx / d * want : 0) - ab.vx) * k; ab.vy += ((d > 0.04 ? dy / d * want : 0) - ab.vy) * k;
       if (ab.alt > 0.08 || gOK(a.x + ab.vx * dt, a.y + ab.vy * dt, 0.5)) { a.x += ab.vx * dt; a.y += ab.vy * dt; } else ab.vx = ab.vy = 0;
@@ -297,7 +316,7 @@ const GABRIEL_MOVES = (() => {
         if (s.st === 2) { const u = cl((t - s.drop) / C.drop); s.x = A.cx; s.y = A.cy; s.z = 4.2 * (1 - u * u); s.g = 1;
           if (u >= 1) { s.st = 3; impact(a, A, s, P0); } } }
       if (A.det && cross(A.det)) { const R = C.detR; for (const m of H.living()) { const d = hypot(m.x - A.cx, m.y - A.cy); if (d < R + m.r) light(a, m, P0 * C.det * (1 - 0.4 * cl(d / R)), { big: true, kb: 4, noCrit: true }); }
-        FX.push({ kind: 'det', x: A.cx, y: A.cy, t: 0, life: 1.6, seed: rnd() * 40 }); X.flash(0.3, '#FFE2F2'); X.shake(18, 0.6); g.hitStop = max(g.hitStop || 0, 0.05); sfx('crash'); X.after(0.12, () => sfx('fanfare')); if (!gpu()) X.ring(A.cx, A.cy, 0.4, R, 0.7, COL.mag, 0.4); }
+        FX.push({ kind: 'det', x: A.cx, y: A.cy, t: 0, life: 1.6, seed: rnd() * 40 }); X.flash(0.12, '#FFE2F2'); X.shake(18, 0.6); g.hitStop = max(g.hitStop || 0, 0.05); sfx('crash'); X.after(0.12, () => sfx('fanfare')); if (!gpu()) X.ring(A.cx, A.cy, 0.4, R, 0.7, COL.mag, 0.4); }
       if (t >= A.end) endAct(a);
     }
     function impact(a, A, s, P0) { const C = CFG.thr, R = C.R;
@@ -307,6 +326,20 @@ const GABRIEL_MOVES = (() => {
       X.shake(12, 0.4); X.flash(0.15, '#FFD8EE'); g.hitStop = max(g.hitStop || 0, 0.04); sfx('crash'); X.light && X.light(s.x, s.y, 5, 0.5); if (!gpu()) { X.ring(s.x, s.y, 0.3, R, 0.5, COL.pink, 0.3); X.sparks(s.x, s.y, COL.rose, 14, 6); } }
     function burst(x, y, k) { FX.push({ kind: 'burst', x, y, t: 0, life: 0.65, k, seed: rnd() * 40 }); if (!gpu()) X.sparks(x, y, COL.rose, 6, 4); }
 
+    /* (v475d GA) the model's stroke (a fast downstroke over 42% of the cycle, a slower recovery): the lift it gives, -1..1, for the hover's bob */
+    const heave = ph => { const q = ((ph / TAU) % 1 + 1) % 1, w = q < 0.42 ? 0.5 * q / 0.42 : 0.5 + 0.5 * (q - 0.42) / 0.58; return -sin(TAU * w); };
+    const settle = (t, t0, f, k) => (t > t0 ? exp(-(t - t0) * k) * sin((t - t0) * f) : 0);
+    const STK = [];
+    function strikes(A) { STK.length = 0; if (A.kind === 'bloom') STK.push(CFG.bloom.launch); else if (A.kind === 'sanct') STK.push(CFG.sanct.cast - 0.1); else if (A.kind === 'harv') STK.push(CFG.harv.wind); else if (A.kind === 'thr') { STK.push(CFG.thr.rise * 0.5); for (const p of A.sp) STK.push(p.drop); } return STK; }
+    /* (v475d GA) the last word on the pose: every gesture weight and angle the powers, the entrance and Eden Reborn set is followed by a
+       slightly underdamped spring (no pops when a power starts, ends or is cut off; a little overshoot where a gesture lands) */
+    const EZ = [['wing', 7, 0.8], ['heartOpen', 6, 0.8], ['heartSplit', 7, 0.7], ['orPray', 8, 0.75], ['orRaise', 8, 0.7], ['orSpread', 8, 0.7], ['orCast', 9, 0.7], ['orStruggle', 6, 0.8], ['neck', 6, 0.65], ['beakOpen', 10, 0.7],
+      ['crownOpen', 5, 0.8], ['restraintsOpen', 5, 0.8], ['wristOpen', 6, 0.8], ['haloSpin', 3, 1], ['ringSpin', 3, 1], ['tailSpread', 5, 0.8], ['glow', 6, 1], ['heartPulse', 6, 1], ['orRise', 3.5, 0.85], ['dive', 6, 0.7], ['wingPulse', 8, 1], ['orGlow', 5, 1], ['haloGlow', 5, 1], ['heartGlow', 5, 1]];
+    function easePose(a, dt) { const Sx = a.gbS, ab = a.gb, E = ab.ez || (ab.ez = {}), h = min(max(dt, 0), 0.04);
+      const one = (k, x, w, z) => { if (typeof x !== 'number' || !isFinite(x)) return x; let q = E[k]; if (!q) q = E[k] = [x, 0]; q[1] += (w * w * (x - q[0]) - 2 * z * w * q[1]) * h; q[0] += q[1] * h; return q[0]; };
+      for (const [k, w, z] of EZ) Sx[k] = one(k, Sx[k], w, z);
+      const OH = Sx.orHead; if (OH) { OH.pitch = one('ohp', OH.pitch || 0, 8, 0.75); OH.yaw = one('ohy', OH.yaw || 0, 6, 0.8); }
+      for (const [hd, k] of [[Sx.orHandL, 'hl'], [Sx.orHandR, 'hr']]) if (hd) hd.open = one(k, hd.open || 0, 9, 0.8); }
     /* ---- the pose every frame (the model springs it): the flight, the power's gestures, the entrance, the last seconds ---- */
     function poseOf(a, dt) {
       const ab = stOf(a), Sx = a.gbS, A = ab.act, inU = ulOn(), hT = sizeT(a) * 0.55, t = a.at || 0;
@@ -314,13 +347,23 @@ const GABRIEL_MOVES = (() => {
       if (!inU && ab.faceT != null) ab.face += angD(ab.faceT, ab.face) * ex(4, dt);
       if (!inU) Sx.face = ab.face;
       petals(a, dt);
-      if (inU) return;
+      if (inU) { Sx.wingPhase = null; return; }
       const sp = hypot(ab.vx, ab.vy), air = cl(ab.alt / (0.3 * hT));
       Sx.fly = cl(ab.alt / hT); Sx.speed = air * cl(sp / CFG.move.fly); Sx.glide = air * cl((sp - 2.5) / 3) * (1 - cl(ab.altV * 2)); Sx.dive = air * max(-1, min(1, -ab.altV * 0.6)); Sx.bank = ab.bank; Sx.legsFold = null;
-      Sx.wingBeat = air * cl(ab.altV * 0.9); Sx.wingKick = ab.kick; ab.kick = max(0, ab.kick - dt * 3);
+      // (v475d GA) every power's beats: a wind-up (it sinks, leans back, wings lift, the beats quicken), the strike (one powerful downstroke,
+      // a lunge forward and up), the settle (a damped sway back to rest); the strike times are each power's own
+      let wu = 0, fo = 0; if (A) { const tp = A.tp == null ? -1 : A.tp; A.tp = A.t; for (const ts of strikes(A)) { wu = max(wu, bump(A.t, ts - 0.5, ts - 0.12, ts - 0.03, ts + 0.06)); fo += settle(A.t, ts, 8, 3.2); if (tp < ts && A.t >= ts) ab.kick = 1; } }
+      ab.wu = wu; const cl2 = cl(ab.altV * 0.8);
+      // the wings: its own phase (a fast downstroke, a slower recovery: the model's stroke), quicker climbing, winding up and in a fast flight
+      ab.ph = (ab.ph || 0) + dt * TAU * (0.5 + 0.45 * cl2 + 0.2 * cl(sp / CFG.move.fly) + 0.55 * wu) * (0.35 + 0.65 * air);
+      Sx.wingPhase = air > 0.15 ? ab.ph : null; Sx.wingBeat = air * (0.42 + 0.45 * cl2 + 0.35 * wu) * (1 - 0.8 * Sx.glide); Sx.wingKick = ab.kick; ab.kick = max(0, ab.kick - dt * 2.5);
+      Sx.flyTiles = null; Sx.fly = cl((ab.alt + hT * (0.12 * fo - 0.1 * wu)) / hT); Sx.dive = max(-1, min(1, Sx.dive - 0.35 * wu + 0.45 * fo));
+      // the tail: a damped spring driven by the bank and the sideways pull of a turn (it swings past and back)
+      { const ax = (ab.vx - (ab.pvx || 0)) / max(dt, 1e-3); ab.pvx = ab.vx; ab.axs = (ab.axs || 0) + (ax - (ab.axs || 0)) * ex(6, dt); const tg = max(-1, min(1, -0.7 * ab.bank - 0.06 * ab.axs));
+        ab.tsV = ((ab.tsV || 0) + (30 * (tg - (ab.tsw || 0)) - 5 * (ab.tsV || 0)) * min(dt, 0.04)); ab.tsw = (ab.tsw || 0) + ab.tsV * min(dt, 0.04); Sx.bank = max(-1, min(1, ab.bank - 0.012 * ab.axs)); }
       // rest: wings held half open (perched: folded), the heart's slow pulse, the Oracle at peace, the halo turning
       let wing = lerp(0.3, 0.82, air), shape = air > 0.5 ? 'full' : 'fold', pulse = 0.15, hOpen = 0, split = 0, ring = 1, hGlow = 0, pray = 0, raise = 0, spread = 0, cast = 0, side = 'R', strug = 0, orG = 0.3, halo = 1, hGl = 0.3, beak = 0, cry = ab.cry, neck = 0.4, wPulse = 0, glow = 0.15, wrist = 0;
-      const look = Sx.look || (Sx.look = { x: 0, y: 0 }); let lk = null;
+      const look = ab.lt0 || (ab.lt0 = { x: 0, y: 0 }); let lk = null;
       const f0 = H.near(a.x, a.y, 9)[0]; if (f0) { look.x = f0.x; look.y = f0.y; lk = look; }
       if (A && A.kind === 'bloom') { const C = CFG.bloom, t1 = A.t, pr = bump(t1, 0.05, C.pray, C.launch - 0.05, C.launch + 0.2), op = bump(t1, C.launch - 0.15, C.launch + 0.05, C.end - 0.6, C.end);
         pray = pr; hOpen = 0.35 * bump(t1, 0.3, C.launch, C.end - 0.6, C.end); pulse = 0.4 + 0.6 * bump(t1, 0.2, 0.5, C.launch + C.fly, C.end); hGlow = 0.8 * op; shape = 'heart'; wing = 0.95; orG = 0.6 + 0.6 * op; neck = 0.2; spread = 0.45 * op;
@@ -344,9 +387,14 @@ const GABRIEL_MOVES = (() => {
       const fin = a.st === 'fight' && ab.ready && a.life < 5 ? 1 - max(0, a.life) / 5 : 0;
       if (fin > 0) { strug = max(strug, 0.5 * fin); pulse = max(pulse, 0.3 + 0.5 * fin); orG = max(orG, 0.6 + 0.8 * fin); halo *= 1 + fin; }
       ab.cry = max(0, ab.cry - dt * 1.2);
+      // the head follows its quarry a beat late (a lagged aim, never a snap from one monster to the next); the neck breathes and lifts with the strike
+      if (lk) { const L2 = ab.lkS || (ab.lkS = { x: lk.x, y: lk.y }); if (!ab.lkOn) { L2.x = lk.x; L2.y = lk.y; } ab.lkOn = 1; const kk = ex(4, dt); L2.x += (lk.x - L2.x) * kk; L2.y += (lk.y - L2.y) * kk; lk = L2; } else ab.lkOn = 0;
+      neck = max(0, min(1, neck + 0.05 * sin(t * 1.5 + 1) - 0.18 * wu + 0.25 * min(1, fo))); beak = max(beak, 0.3 * min(1, max(0, fo)));
+      // the Oracle breathes (its torso and head), its ribbons drift
+      const OT = Sx.orTorso; OT.lean = 0.035 * sin(t * 1.4) - 0.08 * wu + 0.06 * min(1, max(0, fo)); OT.twist = 0.05 * sin(t * 0.6); OT.bend = 0.03 * sin(t * 0.9 + 2); Sx.orHead.roll = 0.04 * sin(t * 0.8);
       Object.assign(Sx, { wing, wingShape: shape, wingPulse: wPulse, glow, heartPulse: pulse, heartOpen: hOpen, heartSplit: split, ringSpin: ring, heartGlow: hGlow, orPray: pray, orRaise: raise, orSpread: spread, orCast: cast, orCastSide: side, orStruggle: strug, orGlow: orG, wristOpen: wrist,
-        orRise: 0, restraintsOpen: wrist * 0.3, crownOpen: 0.2 * cast + 0.3 * raise, ribbons: 0.5 + 0.3 * air + 0.3 * max(spread, raise), haloSpin: halo, haloScale: 1, haloGlow: hGl, beakOpen: beak, cry, neck, look: lk, headYaw: 0, headPitch: 0,
-        tailSwish: max(-1, min(1, -ab.bank * 0.8 + 0.25 * sin(t * 1.3))), tailSpread: 0.3 + 0.5 * max(spread, raise), enter, dissolve: 0, alpha: 1 });
+        orRise: 0, restraintsOpen: wrist * 0.3, crownOpen: 0.2 * cast + 0.3 * raise, ribbons: 0.5 + 0.3 * air + 0.3 * max(spread, raise) + 0.08 * sin(t * 0.9), haloSpin: halo, haloScale: 1, haloGlow: hGl, beakOpen: beak, cry, neck, look: lk, headYaw: 0, headPitch: 0,
+        tailSwish: max(-1, min(1, ab.tsw + 0.2 * sin(t * 1.3))), tailSpread: 0.3 + 0.5 * max(spread, raise) + 0.15 * wu, enter, dissolve: 0, alpha: 1 });
     }
 
     /* ---- the fighter's loop (20g's tick in 'fight'). Its time counts only from combat-ready (the entrance done) ---- */
@@ -379,6 +427,7 @@ const GABRIEL_MOVES = (() => {
         const G = GLG(); if (G && G.solve && !glOn()) { try { const r = G.solve(sx(a.x), sy(a.y), T() * sizeT(a), a.gbS, { tile: T() }); if (r) a.gbOut = r; } catch (e) {} }
         trail(a, dtReal); released = false; }
       if (UL) { try { UL.update(dt, dtReal); } catch (e) { try { console.warn('Gabriel ult: ' + (e && e.message)); } catch (e2) {} UL = null; } }
+      for (const a of L) if (a.gb && a.gbS) easePose(a, dtReal);
       // the Sanctuary: its time, its periodic cleanse (lv4+), its retaliatory burst (lv7) as it ends
       if (sanc && sanc.on) { sanc.t += dt; sanc.hitT = max(0, sanc.hitT - dt);
         if (sanc.k >= 2) { sanc.cl += dt; if (sanc.cl >= CFG.sanct.cleanse) { sanc.cl = 0; if (dirty()) cleanse(1); } }
@@ -479,7 +528,7 @@ const GABRIEL_MOVES = (() => {
           FXP.heart(Q, X1 + cos(an) * d, Y1 + sin(an) * d * 0.6 - up, Tz * 0.16, an + f.t * 9, 1, 1, 1 - sstep(0.6, 1, u), 0); } Q.glow(X1, Y1, Tz * 2, COL.pink, 0.7 * (1 - u)); }
       else if (f.kind === 'det' || f.kind === 'conv') { const big = f.kind === 'det', [X1, Y1] = W2S(f.x, f.y, big ? 1.6 : 1.2), R = Tz * (big ? 2.4 : 1.4), sw = bump(f.t, 0, 0.08, 0.2, 0.7);
           if (glOn()) pp(parts, 'heartBig', X1, Y1, Y1, R * 0.45 * (0.5 + 0.8 * eout(cl(u * 2))), 1.57 + 0.3 * sin(f.t * 2), 0.1, 1 - sstep(0.55, 0.9, u), 1.5 + 2 * sw, eout(u)); else FXP.heart(Q, X1, Y1, R * 0.8, 0, u, 2, 1 - u, eout(u));
-          Q.glow(X1, Y1, R * (1.2 + u), COL.pink, 0.8 * (1 - u)); Q.glow(X1, Y1, R * 0.6, '#FFFFFF', 0.9 * sw); FXP.pillar(Q, X1, Y1 + R * 0.6, R * 0.6, Tz * 8 * (1 - u * 0.4), 0.9 * (1 - u), 0, 2);
+          Q.glow(X1, Y1, R * (1.2 + u), COL.pink, 0.8 * (1 - u)); Q.glow(X1, Y1, R * 0.6, '#FFFFFF', 0.45 * sw); FXP.pillar(Q, X1, Y1 + R * 0.6, R * 0.5, Tz * 8 * (1 - u * 0.4), 0.5 * (1 - u), 0, 2);
           for (let i = 0; i < 8 * lq; i++) { const an = i / 8 * TAU + f.seed, d = R * (0.4 + 2.2 * eout(u)); FXP.heart(Q, X1 + cos(an) * d, Y1 + sin(an) * d * 0.65, Tz * 0.2, an, 1, 1.2, 1 - u, 0.5); } }
       else if (f.kind === 'scatter') { const r = anc(f.a), cx = r && r.heart ? r.heart.x : sx(f.x), cy = r && r.heart ? r.heart.y : sy(f.y) - Tz * 2; for (let i = 0; i < 16 * lq; i++) { const an = i / 16 * TAU + f.seed, d = Tz * (0.3 + 3.2 * eout(u)); FXP.heart(Q, cx + cos(an) * d, cy + sin(an) * d * 0.7 + u * u * Tz, Tz * 0.17, an * 0.3, 0, 1.2, 1 - u, 0); } Q.glow(cx, cy, Tz * 2.2, COL.pink, 0.6 * (1 - u)); }
       else if (f.kind === 'cry') { const r = anc(f.a), b = r && r.beak ? r.beak : { x: sx(f.x), y: sy(f.y) - Tz * 3 }; Q.ring(b.x, b.y, Tz * (0.4 + 3 * eout(u)), COL.blush, 0.6 * (1 - u), Tz * 0.15); Q.ring(b.x, b.y, Tz * (0.2 + 2 * eout(u)), COL.white, 0.5 * (1 - u), Tz * 0.08); }
@@ -564,7 +613,7 @@ const GABRIEL_MOVES = (() => {
     }
     // (a power on demand, aimed as the mind would aim it: for showcases and tests)
     function cast(a, kind, o) { const ab = stOf(a); ab.ready = true; if (ab.act) interrupt(a); if (!H.near(a.x, a.y, 11).length && (kind === 'harv' || kind === 'thr')) return false; start(a, kind, o); return true; }
-    return { tick, fin, cast, choose, update, stop, outK, descent, entrance, interrupt, drawGround, drawFx, drawBodyFx, drawCine, drawBtn, addMark, takeMarks, addGrace, cleanse, light, CFG, spear: () => spearMesh(), camFocus: () => { try { return UL && UL.cam ? UL.cam() : null; } catch (e) { return null; } },
+    return { tick, fin, cast, choose, update, stop, outK, descent, entrance, interrupt, drawGround, drawFx, drawBodyFx, drawCine, drawBtn, addMark, takeMarks, addGrace, cleanse, light, CFG, spear: () => spearMesh(), restoreAll: (rv, hf) => restoreAll(rv, hf), camFocus: () => { try { return UL && UL.cam ? UL.cam() : null; } catch (e) { return null; } },
       get ul() { return UL; }, get fx() { return FX; }, get marks() { return MARK; }, get sanc() { return sanc; }, get shield() { return shield; }, get field() { return field; }, get inc() { return inc; }, seed: v => { RS = (abs(v | 0) % 2147483646) + 1; } };
   }
   return { create, CFG, BIG, FXP, EVO, HX, HY, COL };

@@ -56,7 +56,7 @@ const ANIMAS = {
     color: '#FF9BD2', glow: '#FFF0FA', dark: '#B0478E', forms: ['The Bound Seraph', 'The Heart of Mercy', 'Eden Incarnate'],
     tag: 'Zodiac Anima No. 06 · Light · a celestial phoenix-machine built to hold and protect the Bound Oracle, whose compassion it turns into healing.',
     skill: 'Heals and shields your pet and judges monsters with its twelve petals: Bloom of Mercy sends healing crystal hearts (and cleanses), Harvest Halo throws petal-blades that lay Judgement Marks, Sanctuary Weave raises a heart cathedral that softens blows and shields, and Thresher of Stars drops a celestial spear that consumes the marks. Grace Hearts on your pet deepen its healing.',   // v475 GA
-    finisher: 'Eden Reborn', finDesc: 'The Bound Oracle rises free and paradise blooms over the room: your pet is healed (up to 60%), shielded and cleansed, monsters take great Light damage and their Judgement Marks burst.' },   // v475 GA
+    finisher: 'Eden Reborn', finDesc: 'The Bound Oracle rises free and paradise blooms over the room: monsters take massive Light damage and their Judgement Marks burst; then your pet is healed (up to 60%), shielded and cleansed, and fallen team members are revived.' },   // v475 GA, v475d GA
   libra: { sign: 'Libra', name: 'Uriel', title: 'The Seer', role: 'Arbiter', realm: 'heaven', el: 'gold', gem: 'sapphire', floor: 15, opp: 'aries',
     color: '#FFC24D', glow: '#FFE9A8', dark: '#3A2618', forms: ['Seer Owlet', 'Balance Owl', 'Uriel the Seer'],
     skill: 'Tips the scales: your pet hits 50% harder and attacks faster, while every monster hits 30% softer and takes 20% more damage.',
