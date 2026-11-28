@@ -76,7 +76,10 @@ def build(test, web=False, lite=None):
 
 def minify(html):
     """(v375) the Claude build's script with its comments and spacing taken out (esbuild, when this machine has it; names and
-    syntax untouched): about a third smaller, so the page loads faster and stays well inside the artifact size limit"""
+    syntax untouched): about a third smaller, so the page loads faster and stays well inside the artifact size limit.
+    (v474c) now also minifySyntax + minifyIdentifiers (locals renamed; top-level names kept, as the script is not a module;
+    nothing in the code uses eval/with/new Function or function names): ~790 KB smaller again (16.02 -> 15.24 MB with v475's tree);
+    _an-all, summon, _gg-walk and the Rift 05/06/07 smokes pass on a minified test build"""
     import subprocess, tempfile
     tool = os.environ.get('ESBUILD_JS', '/opt/npm-tools/node_modules/esbuild')
     if not os.path.isdir(tool):
@@ -85,7 +88,7 @@ def minify(html):
     with tempfile.TemporaryDirectory() as d:
         src = os.path.join(d, 'in.js'); out = os.path.join(d, 'out.js')
         with open(src, 'w', encoding='utf-8') as f: f.write(html[a:b])
-        js = "const e=require(%r),fs=require('fs');fs.writeFileSync(%r,e.transformSync(fs.readFileSync(%r,'utf8'),{minifyWhitespace:true,legalComments:'none',target:'esnext',charset:'utf8'}).code)" % (tool, out, src)
+        js = "const e=require(%r),fs=require('fs');fs.writeFileSync(%r,e.transformSync(fs.readFileSync(%r,'utf8'),{minifyWhitespace:true,minifySyntax:true,minifyIdentifiers:true,legalComments:'none',target:'esnext',charset:'utf8'}).code)" % (tool, out, src)
         try:
             subprocess.run(['node', '-e', js], check=True, timeout=180)
         except Exception as e:
