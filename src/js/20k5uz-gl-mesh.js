@@ -263,17 +263,17 @@ void main() {
     if(lot>0.5){vec3 alb=mix(vec3(1.0,0.97,0.98),vec3(1.0,0.55,0.75),smoothstep(0.2,1.0,al*0.7+abs(ac*2.0-1.0)*0.4));float vein=smoothstep(0.03,0.0,abs(fract(ac*7.0+al*0.5)-0.5)-0.42)*(1.0-uLow),wrap=max(0.0,(gNL+0.45)/1.45);
     c=alb*(wrap*gKEY*0.9+gAmb*1.4)+PK*max(0.0,-gNL)*0.5+PK*vein*0.15+vec3(1.0,0.95,0.97)*pow(gSb,30.0)*0.4+gRim*0.4+PK*(gG*0.3+run);}
     else if(cry>0.5){vec3 rf=refract(-uV,n,0.7);float w1=vn(vec2(al*8.0,ac*3.0)+rf.xy),crk=smoothstep(0.03,0.0,abs(fract(al*4.0+ac*2.0+w1)-0.5))*step(0.45,w1),ec,ev=env(gR,0.05,ec);
-    c=mix(vec3(1.15,0.62,0.85),vec3(0.82,0.24,0.5),clamp(0.3+0.6*gNV,0.0,1.0))*(0.75+0.35*w1)+vec3(1.0,0.92,0.98)*(ev*(0.04+0.9*pow(1.0-gNV,4.0))+pow(max(0.0,dot(n,normalize(uLK+uV))),200.0)*8.0)+PH*crk*(0.4+gG)+PK*fr2*0.6+PK*pow(1.0-gNV,2.0)*0.4+mix(PK,WH,0.4)*run*1.4+PK*(0.25+gG*0.3);}
-    else{float barb=smoothstep(0.08,0.0,abs(fract(al*16.0-abs(ac*2.0-1.0)*1.6)-0.5)-0.38)*(1.0-uLow),spine=smoothstep(0.08,0.0,abs(ac-0.5));
+    c=mix(vec3(1.15,0.62,0.85),vec3(0.82,0.24,0.5),clamp(0.3+0.6*gNV,0.0,1.0))*(0.75+0.35*w1)+vec3(1.0,0.92,0.98)*(ev*(0.04+0.9*pow(1.0-gNV,4.0))+pow(max(0.0,dot(n,normalize(uLK+uV))),200.0)*8.0)+PH*crk*(0.5+gG)+PK*pow(1.0-gNV,2.0)*0.5+mix(PK,WH,0.4)*run*1.4+PK*(0.55+gG*0.4)+PH*0.18;c=mix(c,gGold*1.1,smoothstep(0.88,0.99,abs(ac*2.0-1.0))*0.9);}
+    else{float barb=smoothstep(0.08,0.0,abs(fract(al*16.0-abs(ac*2.0-1.0)*1.6)-0.5)-0.38)*(1.0-uLow),spine=smoothstep(0.035,0.0,abs(ac-0.5)),fr3=max(smoothstep(0.93,0.995,abs(ac*2.0-1.0)),smoothstep(0.95,1.0,al));
     c=vec3(0.96,0.94,0.95)*((0.3+0.6*clamp((gNL+0.6)/1.6,0.0,1.0)*gSh)*gKEY+gAmb*1.5)*(1.0-barb*0.12)+gEv*(0.06+0.7*gFr)*gOc+vec3(1.0,0.96,0.98)*pow(gSb,60.0)*1.3+gRim*0.35;
-    c=mix(c*1.7,gGold,max(fr2,spine)*0.9)+mix(PK,WH,0.3)*(run*1.6+gG2*0.15)*(0.4+0.6*spine)+PK*smoothstep(0.6,1.0,al)*gG*0.3;}
+    float vn2=smoothstep(0.025,0.0,abs(fract(al*3.0-abs(ac*2.0-1.0)*0.7)-0.5)-0.47)*step(0.2,al)*step(abs(ac*2.0-1.0),0.7)*(1.0-uLow);c=mix(c*1.8,gGold,max(max(fr3,spine),vn2*0.6)*0.8)+mix(PK,WH,0.3)*(run*1.6+gG2*0.15)*(0.4+0.6*spine)+PK*smoothstep(0.6,1.0,al)*gG*0.3;}
     gC=c;}
     if(id==987){if(gF>0.15)gC=mix(PK,WH,0.3+0.3*gG2)*(1.1+0.8*gG+0.6*gG2)*(0.9+0.1*sin(gT*3.0));
     else{float wrap=max(0.0,(gNL+0.3)/1.3),hl=smoothstep(0.05,0.0,abs(vn(L.yz*7.0+2.0)-0.5))*(1.0-uLow);vec3 c=vec3(0.99,0.96,0.95)*(wrap*gKEY*0.8+gAmb*1.6)+vec3(1.0,0.5,0.65)*(1.0-wrap)*0.04+vec3(1.0)*(pow(gSb,120.0)*2.0+pow(gSb,16.0)*0.15)+gEv*gFr*0.6+gRim*0.3;
     gC=mix(c*1.5+PK*hl*(0.06+0.25*gG2)+PK*gG*0.25*pow(1.0-gNV,2.0),gGold,smoothstep(0.85,1.0,edge)*0.8);}}
     if(id==988){float ac=abs(edge*2.0-1.0),al=clamp(ao,0.0,1.0),fl=vn(vec2(al*14.0-gT*2.2,ac*2.0)),st2=pow(0.5+0.5*sin(al*30.0-gT*5.0+uKind),4.0);
     if(gF>0.15){float wrap=max(0.0,(gNL+0.5)/1.5),nh=max(0.0,dot(n,normalize(uLK+uV)));vec3 c=mix(vec3(1.0,0.55,0.74),vec3(1.0,0.82,0.9),smoothstep(0.6,0.0,ac))*(wrap*gKEY*0.75+gAmb*1.5)+vec3(1.0,0.8,0.9)*pow(nh,20.0)*0.6+PK*(0.15+0.4*gG)*(0.6+0.4*fl)+PH*st2*0.25*gG+gRim*0.3;
-    c=mix(c,gGold,smoothstep(0.82,0.95,ac)*0.85);float a=(1.0-0.75*smoothstep(0.7,1.0,al))*(1.0-gDE);c=vec3(tone(c.r),tone(c.g),tone(c.b));gl_FragColor=vec4(c*a*uAlpha,a*uAlpha);return;}
+    c=mix(c,gGold,smoothstep(0.82,0.95,ac)*0.85);c+=PH*smoothstep(0.62,0.95,ac)*(0.35+0.3*gG)*(0.7+0.3*fl);float a=(1.0-0.75*smoothstep(0.7,1.0,al))*(1.0-gDE);c=vec3(tone(c.r),tone(c.g),tone(c.b));gl_FragColor=vec4(c*a*uAlpha,a*uAlpha);return;}
     else{vec3 c=mix(PK,WH,smoothstep(0.7,0.0,ac)*0.6)*(0.55+0.5*fl+0.4*st2)*(0.7+0.5*gG);c=vec3(tone(c.r),tone(c.g),tone(c.b));float a=clamp((1.0-ac*ac)*(0.45+0.4*fl)*(0.6+0.4*gG)*smoothstep(0.0,0.06,al)*smoothstep(1.0,0.85,al),0.0,0.95)*(1.0-gDE);gl_FragColor=vec4(c*a*uAlpha,a*uAlpha);return;}}
     if(id==989){float fl=0.6+0.4*vn(L.xy*3.0+gT);vec3 c=mix(PK,WH,0.4+0.4*gNV)*fl*(0.6+0.5*gG);c=vec3(tone(c.r),tone(c.g),tone(c.b));float a=clamp((0.3+0.55*gNV*gNV)*fl,0.0,1.0);gl_FragColor=vec4(c*a*uAlpha,a*uAlpha);return;}
     if(id==990){float band=step(0.25,gF),an=atan(L.y,L.x),crd=an*7.6394+24.0,cell=floor(crd),dd=fract(crd)-0.5,ac=NL.z,h=hs(vec2(cell,9.0+uKind)),stem=smoothstep(0.1,0.05,abs(dd-(h-0.5)*0.2)),brn=smoothstep(0.09,0.035,abs(ac-dd*1.4*(h>0.6?1.0:-1.0)))*step(abs(dd),0.35),rune=max(stem,brn)*step(0.3,h),pl=pow(0.5+0.5*sin(crd*0.45-gT*2.0),6.0);

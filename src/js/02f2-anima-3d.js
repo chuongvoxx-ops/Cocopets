@@ -686,9 +686,9 @@ const Anima3D = (() => {
     const hO = clamp01(PZ.heartOpen || 0), wsp = PZ.wing == null ? 0.85 : clamp01(PZ.wing), rise = clamp01(PZ.orRise || 0), hb = 44 * s + hv;
     const heartPath = (cx, cy, r) => g => { for (let i = 0; i <= 40; i++) { const tt = i / 40 * TAU, sn = Math.sin(tt), x = cx + 0.5 * sn * sn * sn * r, y = cy - (13 * Math.cos(tt) - 5 * Math.cos(2 * tt) - 2 * Math.cos(3 * tt) - Math.cos(4 * tt)) / 32 * 1.18 * r; if (i) g.lineTo(x, y); else g.moveTo(x, y); } g.closePath(); };
     // the halo behind: a gold ring, an inner rose-gold ring, twelve petal-feathers each with a pink heart
-    const hc = [-12 * s, 0, hb + 30 * s], HR = (k === 3 ? 38 : k === 2 ? 35 : 32) * s, spin = PZ.haloSpin != null ? PZ.haloSpin : t * 0.12;
+    const hc = [-12 * s, 0, hb + 40 * s], HR = (k === 3 ? 30 : k === 2 ? 28 : 26) * s, spin = PZ.haloSpin != null ? PZ.haloSpin : t * 0.12;
     decal(hc, (c, p) => { const r = HR * R.u; c.lineWidth = Math.max(1, 2.4 * R.u); c.strokeStyle = '#E8B84E'; c.beginPath(); c.ellipse(p[0], p[1], r, r * 0.96, 0, 0, TAU); c.stroke(); c.lineWidth = Math.max(0.6, R.u); c.strokeStyle = '#FFE6A8'; c.beginPath(); c.ellipse(p[0], p[1], r * 0.9, r * 0.86, 0, 0, TAU); c.stroke(); if (k >= 2) { c.strokeStyle = 'rgba(242,180,154,.8)'; c.beginPath(); c.ellipse(p[0], p[1], r * 1.08, r * 1.04, 0, 0, TAU); c.stroke(); } }, 40);
-    for (let i = 0; i < 12; i++) { const pp = PZ.petals && PZ.petals[i]; if (pp && ((pp.free != null && pp.free > 0.5) || (pp.home != null && pp.home < 0.5))) continue; const a = i / 12 * TAU + spin, d = [0, Math.sin(a), Math.cos(a)], b0 = add(hc, mul(d, HR * 1.02)), tp = add(hc, mul(d, HR * 1.02 + 11 * s)), sd = [0, Math.cos(a) * 2.6 * s, -Math.sin(a) * 2.6 * s];
+    for (let i = 0; i < 12; i++) { const pp = PZ.petals && PZ.petals[i]; if (pp && ((pp.free != null && pp.free > 0.5) || (pp.home != null && pp.home < 0.5))) continue; const a = i / 12 * TAU + spin, d = [0, Math.sin(a), Math.cos(a)], b0 = add(hc, mul(d, HR * 1.02)), tp = add(hc, mul(d, HR * 1.02 + 13 * s)), sd = [0, Math.cos(a) * 3.4 * s, -Math.sin(a) * 3.4 * s];
       blob([b0, add(mix3(b0, tp, 0.45), sd), tp, sub(mix3(b0, tp, 0.45), sd)], W(PE, { z: 38, sharp: false, line: '#9A7032' }));
       mark(mix3(b0, tp, 0.33), [1, 0, 0], 2 * s, (c, r) => { c.fillStyle = '#FF6FB5'; c.beginPath(); heartPath(0, 0, r * 2)(c); c.fill(); c.strokeStyle = '#E8B84E'; c.lineWidth = r * 0.25; c.stroke(); }, 37); }
     glowAt(hc, HR * 0.9, '#FFB6DA', 0.18, true);
@@ -699,22 +699,22 @@ const Anima3D = (() => {
     // the tail feathers fanned down and back
     for (let i = 0; i < 5; i++) { const q = (i - 2) / 2, b0 = [-5 * s, q * 3 * s, hb - 14 * s], tp = add(b0, [-10 * s, q * 9 * s, -22 * s + Math.abs(q) * 5 * s]); blob([add(b0, [0, -2 * s, 0]), add(mix3(b0, tp, 0.5), [0, -2.2 * s, 0]), tp, add(mix3(b0, tp, 0.5), [0, 2.2 * s, 0]), add(b0, [0, 2 * s, 0])], W(PE, { z: 5 })); }
     // the wings: raised in a great V, white feather-blades with rose-crystal ones among them, a heart crystal at the wrist
-    const fl = Math.sin(t * 2.2) * 0.08 * (PZ.fly ? 1 : 0.4), span = (k === 3 ? 66 : k === 2 ? 60 : 56) * s;
-    [-1, 1].forEach(q => { const root = [-4 * s, q * 9 * s, hb + 16 * s], Wg = wing(root, q, span, fl, 0.35 + 0.65 * wsp, ['#FBF6F8', '#F7C3DC', '#FF9BD2'], { n: 9 + k, rows: k >= 2 ? 3 : 2, line: '#6A4A62', z: 8, armW: 3.4 * s, fw: 0.14 });
-      const nd = Wg.arm[3]; mark(nd, [1, 0, 0.2], 3.4 * s, (c, r) => { c.fillStyle = '#FF6FB5'; c.beginPath(); heartPath(0, 0, r * 2)(c); c.fill(); c.strokeStyle = '#F0C566'; c.lineWidth = r * 0.28; c.stroke(); c.fillStyle = 'rgba(255,255,255,.6)'; c.beginPath(); c.ellipse(-r * 0.3, -r * 0.35, r * 0.25, r * 0.15, -0.5, 0, TAU); c.fill(); }, -3);
-      glowAt(nd, 6 * s, '#FF9BD2', 0.35); });
+    const fl = Math.sin(t * 2.2) * 0.08 * (PZ.fly ? 1 : 0.4), span = (k === 3 ? 76 : k === 2 ? 70 : 64) * s;
+    [-1, 1].forEach(q => { const root = [-4 * s, q * 12 * s, hb + 16 * s], Wg = wing(root, q, span, fl, 0.35 + 0.65 * wsp, ['#FBF6F8', '#F7C3DC', '#FF9BD2'], { n: 11 + k, rows: k >= 2 ? 4 : 3, line: '#6A4A62', z: 8, armW: 3.4 * s, fw: 0.2 });
+      for (const ni of [2, 4, 6]) { const nd = Wg.arm[ni]; mark(nd, [1, 0, 0.2], 3.4 * s, (c, r) => { c.fillStyle = '#FF6FB5'; c.beginPath(); heartPath(0, 0, r * 2)(c); c.fill(); c.strokeStyle = '#F0C566'; c.lineWidth = r * 0.28; c.stroke(); c.fillStyle = 'rgba(255,255,255,.6)'; c.beginPath(); c.ellipse(-r * 0.3, -r * 0.35, r * 0.25, r * 0.15, -0.5, 0, TAU); c.fill(); }, -3);
+      glowAt(nd, 6 * s, '#FF9BD2', 0.35); } });
     // the legs: feathered thighs, gold shanks, gold talons
-    [-1, 1].forEach(q => { const hip = [0, q * 7 * s, hb - 14 * s]; ell(hip, [7 * s, 6 * s, 9 * s], W(PE, { z: 1 })); const ft = [2 * s, q * 8 * s, hv * 0.8 + 1];
-      tube([add(hip, [0, 0, -6 * s]), [-2 * s, q * 8 * s, hb * 0.35], ft], u => (2.4 - 0.8 * u) * s, W(GD, {}));
+    [-1, 1].forEach(q => { const hip = [0, q * 9 * s, hb - 14 * s]; ell(hip, [8.5 * s, 7.5 * s, 10 * s], W(PE, { z: 1 })); const ft = [2 * s, q * 8 * s, hv * 0.8 + 1];
+      tube([add(hip, [0, 0, -6 * s]), [-2 * s, q * 9 * s, hb * 0.35], ft], u => (3.6 - 1.0 * u) * s, W(GD, {}));
       [-0.5, 0, 0.5].forEach(a => tube([ft, add(ft, [Math.cos(a) * 5 * s, q * Math.sin(a) * 4 * s, -1])], u => (1.2 - 0.6 * u) * s, W(GD, { z: -1 }))); });
     // the torso: white plumage round the heart chamber
-    ell([-3 * s, 0, hb], [11 * s, 15 * s, 21 * s], W(PE, { spec: 0.5 }));
+    ell([-3 * s, 0, hb], [14 * s, 21 * s, 23 * s], W(PE, { spec: 0.5 }));
     [-1, 1].forEach(q => { for (let i = 0; i < 4; i++) { const b0 = [3 * s, q * (9 + i) * s, hb + (12 - i * 8) * s]; blob([b0, add(b0, [0, q * 5 * s, -4 * s]), add(b0, [0, q * 2 * s, -9 * s])], W(PE, { z: -2 })); } });
     // the Heart of Eden: the rose-crystal chamber, the oracle in it, the gold arches over it, the chains
-    const HC = [8 * s, 0, hb + 2 * s], HW = 30 * s;
+    const HC = [11 * s, 0, hb + 2 * s], HW = 38 * s;
     decal(HC, (c, p) => { const r = HW * R.u, cy = p[1] - 3 * R.u * s; const g = c.createRadialGradient(p[0], cy, r * 0.05, p[0], cy, r * 0.7); g.addColorStop(0, '#FFD6EA'); g.addColorStop(0.45, '#F06AAE'); g.addColorStop(1, '#8A1E58'); c.fillStyle = g; c.beginPath(); heartPath(p[0], cy, r)(c); c.fill(); }, 1.5);
     glowAt(HC, 16 * s, '#FF6FB5', 0.5);
-    const OC = [9 * s, 0, hb + rise * 40 * s], oz = 1 + rise * 0.3;
+    const OC = [12 * s, 0, hb + rise * 46 * s], oz = 1.25 + rise * 0.3;
     const op = (f, sd, h) => add(OC, [f * oz, sd * oz, h * oz]);
     tube([op(0, 0, -15), op(0, 0, -6)], u => (2.2 + 1.2 * u) * s, W(RG, { z: -3 }));
     ell(op(0, 0, -1), [2 * s * oz, 3.6 * s * oz, 6 * s * oz], W(PE, { z: -3.2 }));
@@ -727,8 +727,8 @@ const Anima3D = (() => {
       c.strokeStyle = 'rgba(242,180,154,.9)'; c.lineWidth = Math.max(0.6, R.u); c.beginPath(); heartPath(p[0], cy, r * 0.88)(c); c.stroke(); c.restore(); }, -5);
     if (rise < 0.5) arm.forEach((wr, i) => { const q = i ? 1 : -1, an = [HC[0], q * 14 * s, hb + 6 * s]; const ch = []; for (let n = 0; n <= 6; n++) { const u = n / 6; ch.push(add(mix3(wr, an, u), [0, 0, -Math.sin(Math.PI * u) * 1.5 * s])); } tube(ch, () => 0.5 * s, W(GD, { z: -5.2 })); });
     // the neck and the crested head (white and gold armour, a hooked beak, pink eyes, a forehead heart)
-    const nb = [-2 * s, 0, hb + 20 * s], F = frame([2 * s, 0, hb + 40 * s + Math.sin(t * 1.3) * 0.6], -0.5 + Math.sin(t * 0.7) * 0.2, 0.05 + Math.sin(t * 1.1) * 0.04, 0), at = F.at, hr = 6.5 * s;
-    tube([nb, add(nb, [-2 * s, 0, 9 * s]), add(F.c, [-3 * s, 0, -4 * s]), F.c], u => (4.6 - 1.8 * u) * s, W(PE, { z: 0 }));
+    const nb = [-2 * s, 0, hb + 20 * s], F = frame([5 * s, 0, hb + 47 * s + Math.sin(t * 1.3) * 0.6], -0.6 + Math.sin(t * 0.7) * 0.15, 0.1 + Math.sin(t * 1.1) * 0.04, 0), at = F.at, hr = 10 * s;
+    tube([nb, add(nb, [-4 * s, 0, 12 * s]), add(F.c, [-5 * s, 0, -4 * s]), F.c], u => (6.2 - 2.2 * u) * s, W(PE, { z: 0 }));
     for (let i = 0; i < 5 + k; i++) { const a = (i / (4 + k) - 0.5) * 1.3, b0 = at(-hr * 0.2, a * hr * 0.6, hr * 0.6), tp = add(b0, F.dir(-(14 + 4 * Math.cos(a * 2)) * s, a * 5 * s, (8 + 3 * Math.cos(a)) * s)); blob([b0, add(mix3(b0, tp, 0.5), F.dir(0, 0, 1.6 * s)), tp, add(mix3(b0, tp, 0.5), F.dir(0, 0, -1.4 * s))], W(i % 2 ? PE : W(PE, { col: '#FFE6F2' }), { z: 2, sharp: true })); }
     ell(F.c, [hr, hr * 0.8, hr * 0.85], W(PE, { B: F.B, spec: 0.6 }));
     blob([at(hr * 0.6, -hr * 0.35, hr * 0.15), at(hr * 2.2, 0, -hr * 0.1), at(hr * 2.0, 0, -hr * 0.75), at(hr * 0.6, hr * 0.35, -hr * 0.4), at(hr * 0.6, hr * 0.35, hr * 0.15)], W(GD, { B: F.B, z: -1 }));

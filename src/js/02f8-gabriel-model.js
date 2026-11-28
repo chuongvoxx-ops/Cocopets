@@ -59,7 +59,7 @@ const GABRIEL_GL = (() => {
   const fplate = (B, c, nrm, W, m, o) => { o = o || {}; plate(B, { c, nrm, w: u => W * pow(sin(PI * (0.06 + 0.86 * u)), 0.45) * (1 - 0.55 * sstep(0.55, 1, u)) + 0.01, cup: o.cup == null ? -0.35 : o.cup, th: o.th || 0.09, nu: o.nu || 7, nv: 2, mat: m, under: CER + 0.2, rimMat: o.rim || GOLD, trim0: 0.74, endTrim: 2 }); };
 
   /* ================= the anatomy (model units; x forward, y across (+y screen left when it faces the viewer), z up; the floor at z 0) ================= */
-  const HEIGHT = [0, 31, 32, 33], FACE0 = 1.62, YAWLIM = 0.75;
+  const HEIGHT = [0, 34, 35, 36], FACE0 = 1.62, YAWLIM = 0.75;
   /* the torso, upright: sections along z (z, half width, half depth, centre x) */
   const TB = [[7.2, 1.317, 1.19, -0.72], [8.6, 2.79, 2.17, -0.48], [10.4, 3.488, 2.59, -0.36], [12.8, 4.107, 2.87, -0.24], [15.4, 4.65, 3.08, -0.18], [17.8, 4.728, 2.94, -0.3], [19.6, 3.952, 2.52, -0.48], [20.9, 2.403, 1.82, -0.42], [21.7, 1.55, 1.33, -0.3]];
   function tb(z) { if (z <= TB[0][0]) return TB[0].slice(1); for (let i = 1; i < TB.length; i++) if (z <= TB[i][0]) { const a = TB[i - 1], b = TB[i], u = sstep(a[0], b[0], z); return [lerp(a[1], b[1], u), lerp(a[2], b[2], u), lerp(a[3], b[3], u)]; } return TB[TB.length - 1].slice(1); }
@@ -72,11 +72,11 @@ const GABRIEL_GL = (() => {
   /* the oracle: its pelvis at rest (body frame), its sizes */
   const OPEL = [1.45, 0, 11.0], OSH = [0.05, 0.58, 2.35], OL1 = 1.25, OL2 = 1.15, OHAND = 0.62, OHEAD = [0.02, 0, 3.2];
   /* the neck, the head's rest, the wings, the legs, the tail, the halo */
-  const NROOT = [0.1, 0, 20.8], HREST = [1.7, 0, 26.4], NNV = [0, 11, 12, 13];
-  const WROOT = [-0.7, 4.1, 19.8], WLEN = [[0, 0, 0], [5.4, 7.0, 6.2], [5.7, 7.4, 6.6], [6.0, 7.8, 7.0]];
+  const NROOT = [0.2, 0, 20.6], HREST = [3.4, 0, 29.4], NNV = [0, 14, 15, 16];
+  const WROOT = [-0.7, 4.1, 19.8], WLEN = [[0, 0, 0], [6.3, 8.2, 7.3], [6.7, 8.7, 7.8], [7.1, 9.2, 8.3]];
   const HIP = [0.1, 2.6, 8.6], LF1 = 3.2, LF2 = 3.6, LTA = 3.4;
-  const TROOT = [-2.4, 0, 8.6], NTF = [0, 5, 7, 9], NTR = [0, 2, 4, 6], NHR = [0, 4, 6, 8];
-  const HALO = [-3.6, 0, 24.2], HALR = [0, 8.2, 8.9, 9.6];
+  const TROOT = [-2.4, 0, 8.6], NTF = [0, 5, 7, 9], NTR = [0, 4, 5, 6], NHR = [0, 4, 6, 8];
+  const HALO = [-3.8, 0, 25.0], HALR = [0, 9.0, 9.7, 10.4];
 
   let D = null, DL = null;
   function* gen(qq, OUT) {
@@ -200,7 +200,16 @@ const GABRIEL_GL = (() => {
         const pts = []; for (let i = 0; i <= 7; i++) pts.push([0.8 - i * 0.2, s * (0.6 + 0.02 * i), 0.0 - 0.05 * i]); strip(B, pts, () => norm([0, s, 0.2]), 0.05, GOLD, 0.03);
         for (let i = 0; i < 2 + k; i++) B.crystal([-0.2 - 0.25 * i, s * 0.62, -0.25 - 0.1 * i], [-1.0 - 0.3 * i, s * (0.82 + 0.1 * i), -0.75 - 0.25 * i], 0.11, CER, { n: 4, thin: 0.35, up: [0, s, 0], seed: i });
       }
-      B.push([1, 0, 0], [0, 1, 0], [0, 0, 1], [0.95, 0, 0.58]); heartGem(B, 0.3, QTZ + 0.2, 0.07, 12); B.pop();
+      B.push([1, 0, 0], [0, 1, 0], [0, 0, 1], [0.98, 0, 0.6]); heartGem(B, 0.34, QTZ + 0.2, 0.08, 12); B.pop();
+      { const O = heart2(Q(20)).map(p => [1.0, p[0] * 0.42, p[1] * 0.42 + 0.6]); O.push(O[0]); rail(B, O, 0.025, 0.03, GOLD); }
+      // the gold filigree mask: a loop round each eye, a line along the brow sweeping back into the crest, a line down the cheek with
+      // a curl at its end, and fine scrolls between
+      for (const s2 of [1, -1]) {
+        const eye = []; for (let i = 0; i <= 16; i++) { const a = i / 16 * TAU; eye.push([0.6 + 0.27 * cos(a), s2 * (0.47 + 0.02 * sin(a)), 0.35 + 0.15 * sin(a) + 0.05 * cos(a)]); } sweep(B, eye, () => 0.022, GOLD, 4, 0.7);
+        const brow = []; for (let i = 0; i <= 14; i++) { const u = i / 14; brow.push([1.15 - 1.9 * u, s2 * (0.28 + 0.22 * sin(PI * min(1, u * 1.3))), 0.62 + 0.12 * u + 0.05 * sin(u * 9)]); } sweep(B, brow, u => 0.03 * (1 - 0.5 * u), GOLD, 4, 0.7);
+        const chk = []; for (let i = 0; i <= 16; i++) { const u = i / 16, a = max(0, u - 0.7) / 0.3 * 4.5; chk.push(add([0.85 - 1.2 * min(u, 0.7), s2 * (0.5 + 0.18 * min(u, 0.7)), 0.05 - 0.4 * min(u, 0.7)], [-0.12 * sin(a), 0, 0.12 * (1 - cos(a))])); } sweep(B, chk, u => 0.026 * (1 - 0.4 * u), GOLD, 4, 0.7);
+        if (k >= 2) for (let j = 0; j < 2 + k; j++) { const c0 = [0.3 - j * 0.35, s2 * (0.56 + 0.02 * j), 0.3 - j * 0.08], sp = []; for (let i = 0; i <= 8; i++) { const a = i / 8 * 4.2, r = 0.08 * (1 - i / 11); sp.push(add(c0, [r * sin(a), s2 * 0.02, r * (1 - cos(a))])); } sweep(B, sp, () => 0.012, GOLD, 4, 0.6); }
+      }
       plate(B, { c: [[1.1, 0, 0.45], [0.7, 0, 0.82], [0.1, 0, 0.98], [-0.5, 0, 0.9]], nrm: [0.3, 0, 1], w: () => 0.2, cup: -0.5, th: 0.06, nu: Q(7), nv: 2, mat: CER + 0.3, under: CER + 0.2, rimMat: GOLD, trim0: 0.72, endTrim: 2 });
     });
     M.pjaw = mk(B => { B.surf((u, v) => { const a = v * TAU, x = 0.5 + 1.55 * u, w = lerp(0.26, 0.03, pow(u, 0.85)), h = lerp(0.13, 0.03, u); return [x, w * cos(a), -0.08 - 0.22 * u * u + h * sin(a)]; }, Q(12), Q(10), () => CLAW + 0.2, { a: u => u }); });
@@ -310,7 +319,7 @@ const GABRIEL_GL = (() => {
       aim: null, neck: { yaw: 0, pitch: 0 }, head: { yaw: 0, pitch: 0 }, beakOpen: 0, cry: 0, tailSwish: 0, tailSpread: 0, heartPulse: null, heartOpen: 0, heartSplit: 0, ringSpin: 1, heartGlow: 0,
       orPose: 'rest', orPoseMix: 1, orSide: 'R', orArmL: null, orArmR: null, orHandL: null, orHandR: null, orHead: { yaw: 0, pitch: 0, roll: 0 }, orTorso: { lean: 0, twist: 0, bend: 0 },
       orStruggle: 0, orGlow: 0, orRise: 0, orRiseH: null, restraintsOpen: 0, wristOpen: 0, crownOpen: 0, ribbons: 0.5, haloSpin: null, haloScale: 1, haloTilt: 0, haloGlow: 0, petals: P, enter: 1, dissolve: 0, alpha: 1 }; }
-  const WSHAPE = { fold: [1.25, -0.35, 1.7, -0.75, 1.75, -1.25, 0.15], full: [0.1, 1.1, -0.02, 1.2, -0.28, 1.05, 1], heart: [0.05, 1.05, -0.35, 0.95, -1.05, 0.15, 0.85], attack: [-0.35, 0.35, -0.55, 0.2, -0.45, -0.05, 0.9], ult: [0.08, 1.1, 0.0, 1.25, -0.2, 1.2, 1.15] };
+  const WSHAPE = { fold: [1.25, -0.35, 1.7, -0.75, 1.75, -1.25, 0.15], full: [0.12, 0.92, -0.02, 0.95, -0.28, 0.78, 1], heart: [0.05, 1.05, -0.35, 0.95, -1.05, 0.15, 0.85], attack: [-0.35, 0.35, -0.55, 0.2, -0.45, -0.05, 0.9], ult: [0.08, 1.02, 0.0, 1.1, -0.2, 1.0, 1.15] };
   const GEST = { rest: [0.35, 0.3, 0.25, 0.3, 0.1], open: [0.05, 0.05, 0.05, 0.1, 0.4], prayer: [0.02, 0.02, 0.02, 0.15, 0], point: [1.3, 1.4, 1.0, 0.9, 0.1], cast: [0.75, 0.6, 0.4, 0.5, 0.3], fist: [1.5, 1.6, 1.2, 1.0, 0] };
   /* the named poses: each arm's wrist target (oracle frame, the +y arm; mirrored for -y), the elbow's pole, the palm's facing, the gesture, the head's pitch */
   const OPOSE = { rest: null, pray: { w: [0.62, 0.07, 1.95], p: [-0.3, 1, -1], pf: [0, -1, 0.2], g: 'prayer', hp: -0.45 }, open: { w: [1.25, 1.35, 1.85], p: [0, 1, -1], pf: [0.5, 0, 1], g: 'open', hp: -0.15 },
@@ -459,22 +468,22 @@ const GABRIEL_GL = (() => {
     /* ---- the neck (a spline of vertebrae from the shoulders to the head) and the head ---- */
     const cry = f2(st, 'cry', cl(num(S.cry, 0)), 6, 0.6, dt, snap), nk = typeof S.neck === 'object' && S.neck || { pitch: num(S.neck, 0) * 0.25 }, hd = S.head || { yaw: num(S.headYaw, 0), pitch: num(S.headPitch, 0) }, AIM = S.aim || S.look;
     let aimY = 0, aimP = 0; if (AIM && S.x != null && S.y != null) { const dx = (num(AIM.x, 0) - S.x) * xT, dy = (num(AIM.y, 0) - S.y) * yT, b = w2b([dx, dy, -18]); aimY = atan2(b[1], max(0.3, b[0])); aimP = atan2(b[2] + 4, hypot(b[0], b[1])) * 0.6; }
-    else { aimY = -0.8 + 0.35 * hold(t, 3.1, 1.7) * lv; aimP = 0.08 * hold(t, 2.3, 4.1) * lv; }
+    else { aimY = -1.15 + 0.18 * hold(t, 3.1, 1.7) * lv; aimP = 0.1 + 0.06 * hold(t, 2.3, 4.1) * lv; }
     const hYaw = f1(st, 'hY', max(-1.5, min(1.5, aimY - num(hd.yaw, 0))), 5, dt, snap), hPit = f1(st, 'hP', max(-0.9, min(1.0, aimP + num(hd.pitch, 0) + cry * 0.9)), 6, dt, snap);
     const nY = -num(nk.yaw, 0) + hYaw * 0.3, nP = num(nk.pitch, 0) + cry * 0.15;
     const hTarget = add(NROOT, mv(mm(rz(nY), ry(-nP)), sub(add(HREST, [-cry * 0.9, 0, cry * 0.8 + 0.15 * (k - 1)]), NROOT)));
     const hW = BP(hTarget), hlag = st.hl && !snap ? lerp3(st.hl, hW, 1 - exp(-dt * 12)) : hW; st.hl = hlag;
     const Rhd = BR(mm(rz(hYaw), ry(-hPit))), hx = mv(Rhd, [1, 0, 0]), r0 = BP(NROOT), up0 = mv(Mb, [0, 0, 1]);
-    const NC = [r0, add(r0, mul(up0, 2.6)), sub(hlag, add(mul(hx, 2.2), mul(up0, 0.8))), hlag];
-    const nn = lod ? NNV[k] - 3 : NNV[k];
-    for (let i = 0; i < nn; i++) { const u0 = i / nn, u1 = (i + 1) / nn, a = bz(NC, u0), b = bz(NC, u1), d = sub(b, a), dn = norm(d), fw = norm(sub(hx, mul(dn, dot(hx, dn)))), R0 = colsR(fw, cross(dn, fw), dn), rr = lerp(1.75, 1.1, u0);
+    const NC = [r0, add(add(r0, mul(up0, 5.2)), mv(Mb, [-1.4, 0, 0])), sub(hlag, add(mul(hx, 3.6), mul(up0, 0.6))), hlag];
+    const nn = lod ? NNV[k] - 4 : NNV[k];
+    for (let i = 0; i < nn; i++) { const u0 = i / nn, u1 = (i + 1) / nn, a = bz(NC, u0), b = bz(NC, u1), d = sub(b, a), dn = norm(d), fw = norm(sub(hx, mul(dn, dot(hx, dn)))), R0 = colsR(fw, cross(dn, fw), dn), rr = lerp(1.75, 1.25, u0);
       put('nvert', k, mm(R0, scl3(rr, rr, len(d))), a, 1, { d0: 0.5 + 0.01 * i, g2: S.glow || 0, kind: u0 }, [0.5, 0.65]); }
-    const bko = f1(st, 'bk', cl(num(S.beakOpen, 0) + cry * 0.8), 14, dt, snap), hsc = 2.3 + 0.06 * k;
+    const bko = f1(st, 'bk', cl(num(S.beakOpen, 0) + cry * 0.8), 14, dt, snap), hsc = 3.6 + 0.1 * k;
     put('pskull', k, mm(Rhd, scl3(hsc)), hlag, 1, { d0: 0.52, glow: 0.3 }, [0.52, 0.66]);
     const hin = [0.35, 0, -0.18], Rj = ry(bko * 0.6); put('pjaw', null, mm(Rhd, mm(scl3(hsc), Rj)), add(hlag, mv(Rhd, mul(sub(hin, mv(Rj, hin)), hsc))), 1, { d0: 0.52 }, [0.52, 0.66]);
-    const ncr = (lod ? 5 : 7) + k;
-    for (let i = 0; i < ncr; i++) { const u = i / (ncr - 1), sd = u * 2 - 1, fl = cry * 0.5 + 0.06 * sin(t * 2 + i) * lv, L = (1.3 + 0.8 * (1 - abs(sd)) + 0.15 * k) * (1 + 0.15 * cry), dirC = norm([-1, sd * (0.5 + fl), 0.25 + 0.35 * (1 - abs(sd)) + fl]);
-      put('crest', null, mm(Rhd, mm(frameZ(dirC, [0, 0, 1]), scl3(hsc, 2.2 * hsc, L * hsc))), add(hlag, mv(Rhd, [-0.2, sd * 0.25, 0.75])), 1, { d0: 0.5, g2: S.glow || 0 }, [0.55, 0.68]); }
+    const ncr = (lod ? 6 : 9) + k;
+    for (let i = 0; i < ncr; i++) { const u = i / (ncr - 1), sd = u * 2 - 1, fl = cry * 0.5 + 0.06 * sin(t * 2 + i) * lv, L = (1.0 + 0.75 * (1 - abs(sd)) + 0.1 * k) * (1 + 0.15 * cry), dirC = norm([-1, sd * (0.4 + fl), 0.12 + 0.25 * (1 - abs(sd)) + fl]);
+      put('crest', null, mm(Rhd, mm(frameZ(dirC, [0, 0, 1]), scl3(hsc, 2.0 * hsc, L * hsc))), add(hlag, mv(Rhd, [-0.15 - 0.25 * abs(sd), sd * 0.3, 0.62 - 0.12 * abs(sd)].map(v => v * hsc))), 1, { d0: 0.5, g2: S.glow || 0, noInk: 1 }, [0.55, 0.68]); }
     out.head = scrO(hlag, out.head || {}); const btip = add(hlag, mv(Rhd, [2.35 * hsc, 0, -0.62 * hsc])), bs1 = scr(btip), bs0 = scr(add(hlag, mv(Rhd, [1.2, 0, -0.1]))), bl = hypot(bs1[0] - bs0[0], bs1[1] - bs0[1]) || 1;
     out.beak = { x: bs1[0], y: bs1[1], dx: (bs1[0] - bs0[0]) / bl, dy: (bs1[1] - bs0[1]) / bl };
     for (let s = 0; s < 2; s++) { const e = scr(add(hlag, mv(Rhd, [0.6 * hsc, (s ? -0.45 : 0.45) * hsc, 0.35 * hsc]))); out.eyes[s][0] = e[0]; out.eyes[s][1] = e[1]; }
@@ -482,6 +491,7 @@ const GABRIEL_GL = (() => {
     const wsh = S.wingShape && WSHAPE[S.wingShape] ? S.wingShape : 'full', wSp = f1(st, 'wsp', cl(num(S.wing, 0.8)), 4, dt, snap), wMix = cl(num(S.wingMix, 1));
     const shp = st.wshp || (st.wshp = WSHAPE[wsh].slice()); for (let i = 0; i < 7; i++) shp[i] = snap ? lerp(WSHAPE.full[i], WSHAPE[wsh][i], wMix) : lerp(shp[i], lerp(WSHAPE.full[i], WSHAPE[wsh][i], wMix), 1 - exp(-dt * 5));
     const glw = cl(max(num(S.glow, 0), num(S.wingPulse, 0))), WL = WLEN[k], wE = evE([0.75, 0.97]), fold = (1 - wSp) * (1 - wSp * 0.5);
+    out.wX = out.wX || []; out.wP = out.wP || []; out.nX = 0; out.nP = 0;
     for (const sg of [1, -1]) { const Ls = sg > 0 ? 'R' : 'L';
       const A = (i, j) => lerp(shp[i], WSHAPE.fold[i], fold) + j, fl2 = flap;
       const hSw = A(0, -0.1 * kick), hEl = A(1, 0.55 * fl2 - 0.4 * kick + 0.15 * land - 0.05 * dive), fSw = A(2, 0.1 * glide), fEl = A(3, 0.4 * flap - 0.3 * kick - 0.25 * glide + 0.1 * land), nSw = A(4, 0.15 * dive), nEl = A(5, 0.3 * cos(TAU * bw - 0.6) * beatA - 0.2 * kick + 0.3 * land);
@@ -492,8 +502,9 @@ const GABRIEL_GL = (() => {
       const bone = (a, d2, L2, ord) => { const [bx, by] = bF(d2); put('wbone', k, colsR(mul(bx, 1.5), mul(by, 1.5), mul(d2, L2)), a, 1, { d0: 0.3, g2: glw }, ord); };
       bone(W0, dh, WL[0] * wsc, [0.76, 0.92]); bone(E, df, WL[1] * wsc, [0.78, 0.94]); bone(Wr, dn, WL[2] * 0.7 * wsc, [0.8, 0.95]);
       put('wjoint', null, mm(BR(I3), scl3(1.1)), E, 1, { d0: 0.3 }, [0.78, 0.94]); put('wjoint', null, BR(I3), Wr, 1, { d0: 0.3 }, [0.8, 0.95]);
-      { const [bx, by] = bF(df), fx = mul(bx, -1), nd = add(E, add(mul(df, WL[1] * 0.3 * wsc), add(mul(by, 0.4), mul(fx, 0.45)))); put('wnode', null, mm(colsR(fx, cross(by, fx), by), scl3(0.9 + 0.1 * k)), nd, 1, { d0: 0.35, glow: 0.4 + glw + hGl * 0.3, g2: glw }, [0.8, 0.95]);
-        out['wingNode' + Ls] = scrO(nd, out['wingNode' + Ls] || {}); if (k >= 2) { const [bx2, by2] = bF(dn), fx2 = mul(bx2, -1), nd2 = add(Wr, add(mul(dn, WL[2] * 0.25 * wsc), add(mul(by2, 0.3), mul(fx2, 0.4)))); put('wnode', null, mm(colsR(fx2, cross(by2, fx2), by2), scl3(0.6)), nd2, 1, { d0: 0.35, glow: 0.4 + glw }, [0.82, 0.96]); } }
+      { const G4 = [[W0, dh, WL[0] * 0.55, 0.62], [E, df, WL[1] * 0.08, 0.78], [E, df, WL[1] * 0.55, 1.0], [Wr, dn, WL[2] * 0.12, 0.72]]; let gi = 0; out.wGems = out.wGems || []; if (sg > 0) out.wGems.length = 0;
+        for (const [a3, d3, o3, sc3] of G4) { if (k < 2 && gi === 3) break; const [bx, by] = bF(d3), fx = mul(bx, -1), nd = add(a3, add(mul(d3, o3 * wsc), add(mul(by, 0.4), mul(fx, 0.55))));
+          put('wnode', null, mm(colsR(fx, cross(by, fx), by), scl3((0.8 + 0.12 * k) * sc3)), nd, 1, { d0: 0.35, glow: 0.7 + glw + hGl * 0.3, g2: glw }, [0.8, 0.95]); const gp = scrO(nd, {}); gp.r = 0.9 * sc3 * K; out.wGems.push(gp); if (gi === 2) out['wingNode' + Ls] = scrO(nd, out['wingNode' + Ls] || {}); gi++; } }
       // the feather-blades in rows (as the concept's wing: marginal, lesser and greater coverts overlapping toward the front, the secondaries,
       // the long primaries with rose-crystal blades among them, L4+ an outer row of crystal blades behind); each placed by its arc length
       // along the three bones, fanned from the trailing edge toward the tip, on its own spring (the downstroke bends it), pink energy
@@ -509,12 +520,14 @@ const GABRIEL_GL = (() => {
           const j = jj++; if (dt > 0) { bvS[j] += ((drive * (0.5 + u) - bfS[j]) * (55 + 25 * hash(j)) - bvS[j] * (6 + 3 * u)) * dt; bfS[j] += bvS[j] * dt; } else if (snap) { bfS[j] = 0; bvS[j] = 0; }
           const wide = norm(cross(bdir, nW)), Rb = axisR(wide, bfS[j] + 0.03 * sin(t * 1.7 + j) * lv), zA = mv(Rb, bdir), xA = mv(Rb, nW), yA = cross(zA, xA);
           const Lb = Lf(u) * (0.45 + 0.55 * wE), cr = crys === 1 || (crys > 1 && i % crys === 1);
-          put(cr ? 'fthc' : 'fth', null, colsR(mul(xA, 1.5), mul(yA, wd * (0.85 + 0.15 * sin(PI * u))), mul(zA, Lb)), add(P0, mul(nW, off)), 1, { d0: 0.08 + 0.002 * j, g2: glw, kind: u, glow: cr ? 0.5 + glw : glw * 0.3 }, [0.82 + 0.12 * u, 1]);
-          if (s1 >= 0.999 && i === cnt - 1 && off === 0) tipP = add(P0, mul(zA, Lb)); } };
+          put(cr ? 'fthc' : 'fth', null, colsR(mul(xA, 1.5), mul(yA, wd * (0.85 + 0.15 * sin(PI * u))), mul(zA, Lb)), add(P0, mul(nW, off)), 1, { d0: 0.08 + 0.002 * j, g2: glw, kind: u, glow: cr ? 0.5 + glw : glw * 0.3, noInk: 1 }, [0.82 + 0.12 * u, 1]);
+          if (s1 >= 0.999 && i === cnt - 1 && off === 0) tipP = add(P0, mul(zA, Lb));
+          if (cr && out.nX < 28) scrO(add(P0, mul(zA, Lb * 0.62)), out.wX[out.nX] || (out.wX[out.nX] = {})), out.nX++;
+          else if (off === 0 && (i & 1) && out.nP < 28) { const q3 = out.wP[out.nP] || (out.wP[out.nP] = {}); scrO(add(P0, mul(zA, Lb * (0.45 + 0.4 * hash(j)))), q3); q3.h = hash(j * 3.1); out.nP++; } } };
       const kL = 1 + 0.07 * (k - 1), q2 = (n, lo) => max(lo, round(n * (lod ? 0.62 : 1) - (low ? 2 : 0)));
-      if (k >= 2) row(q2([0, 0, 5, 7][k], 2), 0.7, 1.0, u => (13 + 5 * u) * kL, 0.55, 1.5, -0.18, 2.8, 1);
-      row(q2([0, 10, 12, 14][k], 5), 0.62, 1.0, u => (11.5 + 5.5 * sin(PI * min(1, 0.25 + u * 0.75))) * kL, 0.3, 1.45, 0, 4.6, 3);
-      row(q2([0, 9, 11, 13][k], 4), 0.26, 0.66, u => (8.5 + 3 * u) * kL, -0.1, 0.35, 0.16, 4.6, 4);
+      row(q2([0, 4, 6, 8][k], 2), 0.68, 1.0, u => (15 + 5.5 * u) * kL, 0.5, 1.5, -0.18, 2.9, 1);
+      row(q2([0, 10, 12, 14][k], 5), 0.62, 1.0, u => (13 + 6.3 * sin(PI * min(1, 0.25 + u * 0.75))) * kL, 0.3, 1.45, 0, 4.6, 3);
+      row(q2([0, 9, 11, 13][k], 4), 0.26, 0.66, u => (9.8 + 3.4 * u) * kL, -0.1, 0.35, 0.16, 4.6, 4);
       row(q2([0, 8, 10, 12][k], 4), 0.16, 0.96, u => (5.4 + 1.4 * sin(PI * u)) * kL, 0.15, 0.95, 0.34, 3.6, 0);
       row(q2([0, 8, 10, 12][k], 3), 0.07, 0.92, u => (3.4 + 0.8 * sin(PI * u)) * kL, 0.25, 1.05, 0.52, 3.0, 0);
       if (!low) row(q2([0, 8, 10, 12][k], 3), 0.02, 0.9, u => (2.1 + 0.4 * sin(PI * u)) * kL, 0.4, 1.15, 0.7, 2.3, 0);
@@ -547,9 +560,9 @@ const GABRIEL_GL = (() => {
       if (i === ((ntf - 1) >> 1)) tipT = P; }
     out.tailTip = scrO(tipT, out.tailTip || {});
     const ntr = (lod ? max(2, NTR[k] - 2) : NTR[k]) - (low ? 1 : 0);
-    for (let i = 0; i < ntr; i++) { const sg = i % 2 ? -1 : 1, j = i >> 1, L = (25 + 4 * k - 4 * j) * (1 + 0.1 * spd), root = add(TR, mv(Mb, [-0.3, sg * 0.3, -0.2 - 0.3 * j]));
+    for (let i = 0; i < ntr; i++) { const sg = i % 2 ? -1 : 1, j = i >> 1, L = (30 + 4 * k - 3 * j) * (1 + 0.1 * spd), root = j === 1 ? BP([HIP[0] - 0.8, sg * (HIP[1] + 0.4), HIP[2] - 0.2]) : add(TR, mv(Mb, [-0.3, sg * (0.3 + 0.4 * j), -0.2 - 0.5 * j]));
       const drop = TROOT[2] + lift * (1 - air * 0.7) - 0.7 - 0.3 * j;
-      const end = ribbonPath(root, u => { const a = mv(Mb, [-L * (0.2 + 0.06 * j) * u - 4 * spd * u + L * 0.09 * sin(u * TAU + j), sg * L * (0.58 * u + 0.1 * sin(u * PI * 1.7 + j * 0.6)) * (0.8 + 0.25 * j), -(drop - 1.2) * sstep(0, 0.5, u) + (2.6 - 0.4 * j) * sin(PI * sstep(0.35, 1, u)) * 0.8]); return add(a, [0, sin(u * 5 - t * 1.6 + i * 1.3) * 0.7 * u, sin(u * 6 - t * 1.3 + i) * 0.6 * u + sw * 1.5 * u]); }, 0.95 - 0.1 * j, u => 0.18 + 0.82 * sin(PI * min(1, 0.1 + u * 0.95)), true, 'tr' + i, 0.25, 0.2 + glw * 0.6);
+      const end = ribbonPath(root, u => { const a = mv(Mb, [-L * (0.3 + 0.06 * j) * u - 4 * spd * u + L * 0.06 * sin(u * TAU * 1.1 + j * 1.3) - (j === 1 ? 3 * sstep(0, 0.3, u) : 0), sg * L * ((0.48 - 0.05 * j) * u + 0.1 * sin(u * PI * 2.1 + j * 0.8)) * sstep(-0.2, 0.35, u), -(drop - 1.0) * sstep(0, 0.45, u) + (3.4 - 0.5 * j) * sin(PI * sstep(0.3, 1, u)) * 0.85 + L * 0.12 * sin(u * TAU * 0.95 + 0.4 + j * 0.9) * sstep(0, 0.3, u)]); return add(a, [0, sin(u * 5 - t * 1.6 + i * 1.3) * 0.7 * u, sin(u * 6 - t * 1.3 + i) * 0.6 * u + sw * 1.5 * u]); }, 1.45 - 0.15 * j, u => 0.18 + 0.82 * sin(PI * min(1, 0.1 + u * 0.95)), true, 'tr' + i, 0.25, 0.2 + glw * 0.6);
       out.tailTips.push(scrO(end, out.tailTips[i] || {}));
       if (j === 0 && !spec) put('hlock', null, BR(mm(rz(sg * 0.9), scl3(1.6))), add(end, [0, 0, -0.3]), 1, { d0: 0.3, glow: 0.4 + hGl * 0.3 }, [0.6, 0.72]); }
     /* ---- the halo and the Twelve Petals ---- */
@@ -558,8 +571,8 @@ const GABRIEL_GL = (() => {
       const Rhl = BR(mm(mm(ry(-PI / 2 + num(S.haloTilt, 0)), I3), rz(0))), hc = BP(HALO), hpl = (a, r) => add(hc, mv(Rhl, [cos(a) * r, sin(a) * r, 0]));
       const Rhalo = a => mm(Rhl, rz(a));   // (the halo's frame: z its normal (forward), x up at angle 0)
       put('halo', k, mm(Rhalo(hspin), scl3(HR)), hc, 1, { d0: 0.3, glow: 0.3 + hGlo, kind: hspin }, [0.62, 0.8]);
-      if (k >= 2) put('haloIn', null, mm(Rhalo(-hspin * 0.6), scl3(HR * 0.86)), add(hc, mv(Rhl, [0, 0, -0.1])), 1, { d0: 0.3, glow: 0.3 + hGlo }, [0.62, 0.8]);
-      if (k >= 3) put('haloOut', null, mm(Rhalo(hspin * 0.35), scl3(HR * 1.1)), add(hc, mv(Rhl, [0, 0, -0.15])), 1, { d0: 0.3, glow: 0.2 + hGlo }, [0.64, 0.82]);
+      put('haloIn', null, mm(Rhalo(-hspin * 0.6), scl3(HR * 0.86)), add(hc, mv(Rhl, [0, 0, -0.1])), 1, { d0: 0.3, glow: 0.3 + hGlo }, [0.62, 0.8]);
+      put('haloOut', null, mm(Rhalo(hspin * 0.35), scl3(HR * 1.1)), add(hc, mv(Rhl, [0, 0, -0.15])), 1, { d0: 0.3, glow: 0.2 + hGlo }, [0.64, 0.82]);
       const hs0 = scr(hc), hs1 = scr(hpl(0, HR)), hs2 = scr(hpl(PI / 2, HR)); out.halo = { x: hs0[0], y: hs0[1], r: hypot(hs2[0] - hs0[0], hs2[1] - hs0[1]), ry: hypot(hs1[0] - hs0[0], hs1[1] - hs0[1]), ang: hspin };
       const PS = S.petals || [], pE = evE([0.65, 0.82]);
       for (let i = 0; i < 12; i++) { const p = PS[i] || {}, home = cl(p.free != null ? 1 - num(p.free, 0) : p.home == null ? 1 : num(p.home, 1)), aS = i / 12 * TAU + hspin, slotP = hpl(aS, HR + 0.25), slotD = norm(sub(hpl(aS, HR + 1), hc));
@@ -567,10 +580,10 @@ const GABRIEL_GL = (() => {
         // its free place: tile offsets -> world-aligned model units -> the body frame (X0, Y0 is the floor under the body: no lift)
         const fp = w2b([num(p.x, 0) * xT, num(p.y, 0) * yT, num(p.z, 0) * zT]);
         let fdir; if (p.dir) fdir = norm(w2b([num(p.dir[0], 0) * xT, num(p.dir[1], 0) * yT, num(p.dir[2], 0) * zT])); else if (p.ang != null) { const a = num(p.ang, 0); fdir = norm(w2b([sin(a), -SE * cos(a), CE * cos(a)])); } else fdir = slotD;
-        const Pp = lerp3(fp, slotP, home), Dd = norm(lerp3(fdir, slotD, home)), opn = cl(num(p.open, 0)), sc = num(p.scale != null ? p.scale : p.s, 1) * (0.55 + 0.45 * pE) * (k >= 3 ? 1.38 : 1.28), gl3 = num(p.glow, 0);
+        const Pp = lerp3(fp, slotP, home), Dd = norm(lerp3(fdir, slotD, home)), opn = cl(num(p.open, 0)), sc = num(p.scale != null ? p.scale : p.s, 1) * (0.55 + 0.45 * pE) * (k >= 3 ? 1.75 : k >= 2 ? 1.65 : 1.55), gl3 = num(p.glow, 0);
         // the broad face toward the camera as far as it can (or the halo's forward at home), then its roll
         const hN = mv(Rhl, [0, 0, -1]), fv0 = lerp3(w2b([0, CE, SE]), hN, home * 0.6), fN = norm(sub(fv0, mul(Dd, dot(fv0, Dd)))), Rr = axisR(Dd, num(p.roll, 0)), xA = mv(Rr, fN), yA = cross(Dd, xA), R0 = colsR(xA, yA, Dd);
-        const grp = home < 0.5 ? 1 : 0, op = { d0: 0.3 + 0.02 * i, glow: 0.25 + gl3 + hGlo * 0.3, g2: gl3 * 0.5, kind: i, grp };
+        const grp = home < 0.5 ? 1 : 0, op = { d0: 0.3 + 0.02 * i, glow: 0.6 + gl3 + hGlo * 0.3, g2: gl3 * 0.5, kind: i, grp };
         put('pcore', k, mm(R0, scl3(sc)), Pp, 1, op, [0.66 + 0.012 * i, 0.82]);
         if (!lod || opn > 0.04) for (const vs of [1, -1]) put('pvane', null, mm(R0, mm(vs > 0 ? I3 : MY, mm(rz(opn * 0.55 - 0.08), scl3(sc, sc * (1 + 0.6 * opn), sc)))), add(Pp, mv(R0, [(-0.07 + 0.12 * opn) * sc, vs * (0.08 + 0.32 * opn) * sc, 0])), 1, op, [0.66 + 0.012 * i, 0.82]);
         const po = out.petals[i] || (out.petals[i] = {}), s0 = scr(Pp), s1 = scr(add(Pp, mul(Dd, 4.6 * sc))), ti = tiles(Pp);
@@ -683,7 +696,7 @@ const GABRIEL_GL = (() => {
       if (BX[1][2] > BX[1][0]) { const b1 = BX[1]; if (b1[0] >= B0[0] - 4 && b1[2] <= B0[2] + 4 && b1[1] >= B0[1] - 4 && b1[3] <= B0[3] + 4) { for (const g of ITF) ITB.push(g); ITF.length = 0; } else { fx0 = b1[0]; fy0 = b1[1]; fx1 = b1[2]; fy1 = b1[3]; } }
       // the occluders: spheres in the torso, the oracle, the head
       let no = 0; const oc = (p, r) => { if (no >= 12 || !p) return; const w = mv(rz(yawC), p); OCC[no * 4] = w[0] * sw; OCC[no * 4 + 1] = w[1] * sw; OCC[no * 4 + 2] = w[2] * sw; OCC[no * 4 + 3] = r * sw; no++; };
-      if (!low && !fxS && st1) { const lf = st1.fly || 0; oc([-1.0, 0, 13 + lf], 3.2); oc([-0.9, 0, 17.5 + lf], 3.3); oc([-0.6, 0, 9.8 + lf], 2.4); if (st1.hl) oc(add(st1.hl, [0, 0, 0.1]), 0.75); }
+      if (!low && !fxS && st1) { const lf = st1.fly || 0; oc([-1.0, 0, 13 + lf], 3.2); oc([-0.9, 0, 17.5 + lf], 3.3); oc([-0.6, 0, 9.8 + lf], 2.4); if (st1.hl) oc(add(st1.hl, [0, 0, 0.1]), 2.4); }
       const base = { px: PXW, py: PYW, pd: PDW, v: PDW, lk: LW, ls: SBW, lr: RIMW, up: UPW, low, rim: RIMC, amb: AMBC, t: nowMs() / 1000 % 1000, keep: 2, outline: opts.ink === false || low || fxS ? 0 : 1, outlineCol: OUTC, outlineBias: 0.0025, clip: null, occ: no ? OCC : null, nocc: no };
       const Sv0 = { X: x, Y: y, kk, base }, t0 = nowMs(); STATS.passes = 0; STATS.calls = 0; STATS.tris = 0;
       const comp = fxS ? (opts.comp || 'lighter') : null;
@@ -712,12 +725,19 @@ const GABRIEL_GL = (() => {
   /* the model's own glows on the shared GPU painter: the halo's light, the heart's pulse, the eyes, the mask's slit */
   function lights(c, r, S, al) {
     try { const N = typeof self !== 'undefined' && self.NIDHOGG_MOVES, F = N && N.FGFX; if (!F || !F.usable() || !r || !r.heart) return false; al = al == null ? 1 : al;
-      const hp = S && S.heartPulse != null ? cl(S.heartPulse) : 0.5;
+      const hp = S && S.heartPulse != null ? cl(S.heartPulse) : 0.5, u = r.unit || 1, lo = lowFx(), tt = nowMs() / 1000;
       F.flush(c); const Q = F.begin(c, null);
-      if (r.halo) Q.glow(r.halo.x, r.halo.y, r.halo.r * 1.25, '#FFB6DA', 0.16 * al);
-      Q.glow(r.heart.x, r.heart.y, r.heart.r * 3.2, '#FF6FB5', (0.34 + 0.2 * hp) * al); if (r.wingNodeL && r.wingNodeR) { Q.glow(r.wingNodeL.x, r.wingNodeL.y, r.unit * 2.2, '#FF7EC0', 0.4 * al); Q.glow(r.wingNodeR.x, r.wingNodeR.y, r.unit * 2.2, '#FF7EC0', 0.4 * al); } Q.glow(r.heart.x, r.heart.y, r.heart.r * 0.9, '#FFE6F3', (0.3 + 0.2 * hp) * al);
-      if (r.eyes) for (const e of r.eyes) Q.glow(e[0], e[1], r.unit * 0.45, '#FF7EC0', 0.6 * al);
-      if (r.mask) Q.glow(r.mask.x, r.mask.y, r.unit * 0.6, '#FF9BD2', 0.45 * al);
+      // a soft bloom: the heart, its chamber's haze, the halo, the wing gems, the crystal blades, the halo's heart crystals, the eyes
+      if (r.halo) Q.glow(r.halo.x, r.halo.y, r.halo.r * 1.3, '#FFB6DA', 0.13 * al);
+      Q.glow(r.heart.x, r.heart.y, r.heart.r * 4.2, '#FF5FA8', (0.16 + 0.1 * hp) * al); Q.glow(r.heart.x, r.heart.y, r.heart.r * 2.0, '#FF8AC4', (0.3 + 0.18 * hp) * al); Q.glow(r.heart.x, r.heart.y, r.heart.r * 0.8, '#FFE6F3', (0.32 + 0.2 * hp) * al);
+      if (r.wGems) for (const g of r.wGems) { Q.glow(g.x, g.y, g.r * 3.2, '#FF6FB5', 0.32 * al); Q.glow(g.x, g.y, g.r * 1.1, '#FFE0F0', 0.4 * al); }
+      if (r.wX) for (let i = 0; i < r.nX; i += lo ? 3 : 1) Q.glow(r.wX[i].x, r.wX[i].y, u * 2.6, '#FF7EC0', 0.16 * al);
+      if (r.petals) for (const p of r.petals) { const gx = p.x - (p.tx - p.x) * 0.36, gy = p.y - (p.ty - p.y) * 0.36; Q.glow(gx, gy, u * 2.4, '#FF6FB5', 0.3 * al); }
+      if (r.eyes) for (const e of r.eyes) { Q.glow(e[0], e[1], u * 1.6, '#FF7EC0', 0.5 * al); Q.glow(e[0], e[1], u * 0.5, '#FFE6F3', 0.6 * al); }
+      if (r.mask) Q.glow(r.mask.x, r.mask.y, u * 0.9, '#FF9BD2', 0.45 * al);
+      // fine sparkles drifting off the feathers (each born at a feather, drifting down and out, twinkling as it fades)
+      if (!lo && r.wP) for (let i = 0; i < r.nP; i++) { const p = r.wP[i], ph = (tt * (0.22 + 0.12 * p.h) + p.h * 7) % 1, f = sin(PI * ph);
+        Q.star(p.x + (p.h - 0.5) * u * 6 * ph, p.y + u * 9 * ph, u * (0.5 + 0.6 * f) * (0.8 + 0.4 * sin(tt * 9 + i)), 0.75 * f * al, i % 3 ? '#FFE6F3' : '#FFD98A'); }
       F.flush(c); F.begin(c, null); return true; } catch (e) { return false; }
   }
   /* effect meshes in screen space (one GLM pass) */
