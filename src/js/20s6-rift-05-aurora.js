@@ -14,7 +14,7 @@
 const AUR = { INK: '#2B2433', SNOW: '#E4EDF0', NAVY: '#172C4D', ICE: '#86B7D0', ICE_HI: '#CFE8F4', GREEN: '#78D7B2', GREEN_HI: '#B8F5DA', STONE: '#4A5468' };
 (() => {
   const TAU = Math.PI * 2, { INK, SNOW, NAVY, ICE, ICE_HI, GREEN, GREEN_HI, STONE } = AUR;
-  const AUR_WIND_K = 0.6;   // (v473 TW: the user 2026-11-28, the Pale Aurora's knockback winds 40% weaker: the veil ray's lane and Gale's crosswind x 0.6)
+  const AUR_WIND_F = 0.6;   // (v473b TW: the user 2026-11-28, fewer wind pushes (not weaker): the veil ray's lane and Gale's gust come 0.6x as often, as strong as before)
   BIOMES.glacier = { name: 'The Split Iceberg', rift: true, iceBridge: true, tile: 'frost', out: true, dark: 0.12, bg: '#0B1830', gap: 'iceabyss', ambient: 'snow', accent: GREEN, light: '#E8F8FF',
     floor: ['#DCE7EC', '#D3E0E7', '#E6EEF2'], grout: '#AFC4D0', hi: '#FFFFFF', top: '#9CC3D8', face: '#4F7FA0', faceD: '#2E5578', cliff: '#3E6A8E', deco: GREEN, path: ['#C8D8E2', '#C2D3DE'], mud: ['#BFD4E0', '#C8DCE6'], mudSpot: 'rgba(255,255,255,.3)',
     props: ['snowhill', 'snowrock', 'icewedge', 'snowhill', 'icewedge', 'frozenvane', 'snowhill'], propN: [5, 3], hazard: 'icicle', grade: 'rgba(120,170,230,.08)', fog: '#0B1830', darkRGB: '6,14,34' };
@@ -112,9 +112,9 @@ const AUR = { INK: '#2B2433', SNOW: '#E4EDF0', NAVY: '#172C4D', ICE: '#86B7D0', 
     veilray(m, A, X) {
       // hangs at range; lays a narrow wind lane along its tails (away from it, through you): inside the lane you are pushed
       keepRange(m, A, X, 3.5, 6);
-      if (m.lane) { m.lane.t -= A.dt; const L = m.lane; if (L.t < L.max - 0.7) { const px = X.me.x - L.x, py = X.me.y - L.y, along = px * Math.cos(L.a) + py * Math.sin(L.a), off = Math.abs(-px * Math.sin(L.a) + py * Math.cos(L.a)); if (along > 0 && along < 9 && off < 0.9 && !X.me.dodge) X.moveEnt(X.me, Math.cos(L.a) * 5.5 * AUR_WIND_K * A.dt, Math.sin(L.a) * 5.5 * AUR_WIND_K * A.dt); /* (v473 TW: 5.5 -> 3.3 m/s) */ } if (L.t <= 0) m.lane = null; m.mode = 'block'; return; }
+      if (m.lane) { m.lane.t -= A.dt; const L = m.lane; if (L.t < L.max - 0.7) { const px = X.me.x - L.x, py = X.me.y - L.y, along = px * Math.cos(L.a) + py * Math.sin(L.a), off = Math.abs(-px * Math.sin(L.a) + py * Math.cos(L.a)); if (along > 0 && along < 9 && off < 0.9 && !X.me.dodge) X.moveEnt(X.me, Math.cos(L.a) * 5.5 * A.dt, Math.sin(L.a) * 5.5 * A.dt); } if (L.t <= 0) m.lane = null; m.mode = 'block'; return; }
       m.mode = null;
-      if (m.cd <= 0 && A.d < 8) { m.cd = 5 + Math.random() * 2; m.lane = { x: m.x, y: m.y, a: A.a, t: 3.4, max: 3.4 }; X.warn({ shape: 'line', x: m.x, y: m.y, a: A.a, len: 9, w: 1.8, life: 0.7, max: 0.7, src: m, color: GREEN_HI }); X.zone({ kind: 'windlane', x: m.x, y: m.y, a: A.a, len: 9, w: 1.8, life: 3.4, max: 3.4, own: 'none' }); }
+      if (m.cd <= 0 && A.d < 8) { m.cd = (5 + Math.random() * 2) / AUR_WIND_F; /* (v473b TW: a lane every 8.3..11.7 s, was 5..7) */ m.lane = { x: m.x, y: m.y, a: A.a, t: 3.4, max: 3.4 }; X.warn({ shape: 'line', x: m.x, y: m.y, a: A.a, len: 9, w: 1.8, life: 0.7, max: 0.7, src: m, color: GREEN_HI }); X.zone({ kind: 'windlane', x: m.x, y: m.y, a: A.a, len: 9, w: 1.8, life: 3.4, max: 3.4, own: 'none' }); }
       else if (m.atkCd <= 0 && A.d < 6 && A.los()) { m.atkCd = 2; X.eshot(m.x, m.y - 0.3, A.a, 6, { dmg: m.dmg * 0.8, color: GREEN_HI, core: '#FFFFFF', r: 0.14 }); }
     },
     frostlantern(m, A, X) {
@@ -156,10 +156,10 @@ const AUR = { INK: '#2B2433', SNOW: '#E4EDF0', NAVY: '#172C4D', ICE: '#86B7D0', 
           if (T > 1.6) { m.chit = false; done(m, 1.5); } break; }
         default: done(m, 1); } },
     /* Gale: a crosswind that shoves you toward it, then a slash */
-    galepet(m, A, X, B) { if (m.act === 'move') { A.walk(B.spd * (A.d > 3 ? 1 : 0.2)); m.face = A.dx >= 0 ? 1 : -1; return pick(m, X, m.phase >= 2 ? ['gust', 'slash', 'gust'] : ['gust', 'slash']); }
+    galepet(m, A, X, B) { if (m.act === 'move') { A.walk(B.spd * (A.d > 3 ? 1 : 0.2)); m.face = A.dx >= 0 ? 1 : -1; return pick(m, X, [Math.random() < (m.phase >= 2 ? 2 / 3 : 1 / 2) * AUR_WIND_F ? 'gust' : 'slash']); }   // (v473b TW: the gust picked 0.6x as often: 30% of its moves, 40% in phase two (was 50% / 67%))
       const T = m.actT; switch (m.act) {
         case 'gust': { if (m.step === 0) { m.step = 1; X.say(m, 'Wind.'); m.ga = Math.atan2(m.y - X.me.y, m.x - X.me.x); X.zone({ kind: 'windlane', x: X.me.x - Math.cos(m.ga) * 4, y: X.me.y - Math.sin(m.ga) * 4, a: m.ga, len: 12, w: 4, life: 2.2, max: 2.2, own: 'none' }); }
-          if (T > 0.6 && T < 2.2 && !X.me.dodge) X.moveEnt(X.me, Math.cos(m.ga) * 3.5 * AUR_WIND_K * A.dt, Math.sin(m.ga) * 3.5 * AUR_WIND_K * A.dt);   // (v473 TW: 3.5 -> 2.1 m/s)
+          if (T > 0.6 && T < 2.2 && !X.me.dodge) X.moveEnt(X.me, Math.cos(m.ga) * 3.5 * A.dt, Math.sin(m.ga) * 3.5 * A.dt);
           if (T > 1.2 && m.step === 1) { m.step = 2; X.warn({ x: m.x, y: m.y, r: 2.6, life: 0.8, max: 0.8, src: m, color: GREEN_HI, fn: () => { if (Math.hypot(X.me.x - m.x, X.me.y - m.y) < 2.6 + X.me.r) X.hurtPet(m.dmg * 1.3, m); X.ring(m.x, m.y, 0.3, 2.8, 0.3, GREEN_HI, 0.3); } }); }
           if (T > 2.4) done(m, 1.6); break; }
         case 'slash': { if (m.step === 0) { m.step = 1; m.sa = Math.atan2(X.me.y - m.y, X.me.x - m.x); X.warn({ shape: 'cone', x: m.x, y: m.y, a: m.sa, len: 4.5, spread: 0.9, life: 0.6, max: 0.6, src: m, color: GREEN_HI, fn: () => { if (X.inCone(m.x, m.y, m.sa, 4.5, 0.9)) X.hurtPet(m.dmg * 1.3, m); } }); }

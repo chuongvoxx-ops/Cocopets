@@ -42,7 +42,6 @@ RiftFiend.define({ id: 'thul', name: 'Thul', title: 'The Rime Cocoon', color: '#
      the 2D painters draw with T x K for their sizes (RX0: the oval's design half width) and the GPU model reads RIG.K for its own
      thicknesses. The cave, its attacks' reach (lanes, rings, patches, stomp reach), damage and timing are unchanged. */
   const K = 0.7, RX0 = 1.32;
-  const AUR_WIND_K = 0.6;   // (v473 TW: the user 2026-11-28, the Pale Aurora's knockback winds 40% weaker: the Aurora Gale's push x 0.6)
   const RX = RX0 * K, RZ = 2.05 * K, STALK = 0.45 * K, APEX = 5.7 * K;
   const LEGS = [{ a: 1.15, r: 3.3, kr: 2.2, kz: 6.6, ar: 3.15, az: 2.4 }, { a: 3.2, r: 2.8, kr: 1.7, kz: 5.9, ar: 2.75, az: 1.9 }, { a: 5.05, r: 3.6, kr: 2.5, kz: 7.1, ar: 3.4, az: 2.7 }].map(L => ({ a: L.a, r: L.r * K, kr: L.kr * K, kz: L.kz * K, ar: L.ar * K, az: L.az * K }));   // (v473 TW: x K)
   /* the wasp's wings (span s outward, chord c forward, metres) */
@@ -304,7 +303,7 @@ RiftFiend.define({ id: 'thul', name: 'Thul', title: 'The Rime Cocoon', color: '#
       FX.tele({ shape: 'fn', x: m.x, y: m.y, test: (x, y) => { const a = Math.atan2(y - G.y, x - G.x); return Math.abs(FX.K.angTo(G.ga, a)) < 0.62 && FX.inArena(x, y, 0) && !sheltered(M, x, y, { x: G.x, y: G.y }); }, t: G.end - G.at, dmg: m.dmg * 1.35, col: GREEN_HI, fn: () => { G.struck = true; FX.H.shake(9, 0.4); FX.H.sfx.crash(); FX.H.flash(0.08, GREEN_HI); } }); }
     M.hdTo = G.ga; M.glow = 1.5; fly(FX, m, M, G.x, G.y, 2, dt, 3);
     // the wind pushes the pet down it, out of the lees it is not in
-    if (!G.struck && G.age > G.at + 0.3 && !me.dodge && !sheltered(M, me.x, me.y, { x: G.x, y: G.y })) { const a = Math.atan2(me.y - G.y, me.x - G.x); if (Math.abs(FX.K.angTo(G.ga, a)) < 0.62) FX.push(Math.cos(a) * 2.2 * AUR_WIND_K * dt, Math.sin(a) * 2.2 * AUR_WIND_K * dt); }   // (v473 TW: 2.2 -> 1.32 m/s)
+    if (!G.struck && G.age > G.at + 0.3 && !me.dodge && !sheltered(M, me.x, me.y, { x: G.x, y: G.y })) { const a = Math.atan2(me.y - G.y, me.x - G.x); if (Math.abs(FX.K.angTo(G.ga, a)) < 0.62) FX.push(Math.cos(a) * 2.2 * dt, Math.sin(a) * 2.2 * dt); }
     if (G.age > G.end + 0.7) { M.gale = null; toIdle(m, M); } return 1; }
   /* ---- Rime Dive: it climbs out of sight, its shadow finds the pet, and it plunges ---- */
   function startDive(FX, m) { const M = FX.mem, P = FX.S.lv; M.dv = { age: 0, up: 0.8, track: 0.9, wait: (P >= 4 ? 0.8 : 0.95) / FX.S.fast, tx: m.x, ty: m.y, marked: false, hit: false }; m.act = 'dive'; m.actT = 0; FX.H.sfx.whoosh();

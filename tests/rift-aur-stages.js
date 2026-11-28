@@ -40,7 +40,7 @@ let fails = 0; const ok = (c, s) => { console.log((c ? 'ok   ' : 'FAIL ') + s); 
   await useObj('bowl', 0);
   r = await M(async () => { const D = window.__pp.arc.game._dbg, mod = D.RIFT.self.mod, n = mod.niches[1]; mod.S.warm = 0.3; D.me.x = n.x; D.me.y = n.y; await new Promise(r => setTimeout(r, 1500)); return { warm: mod.S.warm, last: mod.S.last }; });
   ok(r.warm > 0.5 && r.last === 1, 'inside shelter 2 the warmth refills ' + JSON.stringify(r));
-  r = await M(async () => { const D = window.__pp.arc.game._dbg, L = D.RIFT.self.mod.S.lanes, seen = new Set(); const t0 = performance.now(); while (performance.now() - t0 < 9000 && seen.size < 3) { await new Promise(r => requestAnimationFrame(r)); seen.add(L[0].st); } return [...seen]; });
+  r = await M(async () => { const D = window.__pp.arc.game._dbg, L = D.RIFT.self.mod.S.lanes, seen = new Set(); const t0 = performance.now(); while (performance.now() - t0 < 14000 /* v473b TW: the lanes' cycle 10..13.3 s (was 6..8): wait 14 s, was 9 */ && seen.size < 3) { await new Promise(r => requestAnimationFrame(r)); seen.add(L[0].st); } return [...seen]; });
   ok(['still', 'warn', 'blow'].every(s => r.includes(s)), 'wind lanes cycle still → warning → blowing ' + r.join());
   await killAll(); await M(() => { window.__pp.arc.game._dbg.RIFT.self.mod.S.lanes.forEach(L => { L.per = 1e9; L.off = 0; }); }); await useObj('bowl', 1, 2); r = await M(() => { const mod = window.__pp.arc.game._dbg.RIFT.self.mod; return { carry: mod.S.carry, inBowl: mod.niches[1].ember }; }); ok(!r.carry && r.inBowl, 'set the ember down in a bowl to fight');
   await useObj('bowl', 1, 2); await M(() => { window.__pp.arc.game._dbg.RIFT.self.mod.S.warm = 1; });

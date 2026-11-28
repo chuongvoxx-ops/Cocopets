@@ -21,7 +21,6 @@
    breathes while it recovers, it jolts on a hit, and it comes down out of the aurora with its wings unfolding. */
 RiftFiend.define({ id: 'nivora', name: 'Nivora', title: 'The Aurorawing', color: '#172C4D', glow: '#78D7B2', accent: '#E8FFF6', biome: 'observatory', r: 2.6, els: ['wind', 'frost'] }, (() => {
   const { TAU, TN, hit } = RiftFiend;
-  const AUR_WIND_K = 0.6;   // (v473 TW: the user 2026-11-28, the Pale Aurora's knockback winds 40% weaker: the crosswind's push and the wing's buffet x 0.6)
   const { SNOW, NAVY, ICE, ICE_HI, GREEN, GREEN_HI, STONE } = AUR;
   const decay = (v, dt, k) => Math.max(0, (v || 0) - dt * k), toward = (v, w, dt, k) => (v || 0) + (w - (v || 0)) * Math.min(1, dt * k), lerp = (a, b, u) => a + (b - a) * u;
   const angTo = (a, b) => { let d = b - a; while (d > Math.PI) d -= TAU; while (d < -Math.PI) d += TAU; return d; };
@@ -134,14 +133,14 @@ RiftFiend.define({ id: 'nivora', name: 'Nivora', title: 'The Aurorawing', color:
     const q = FX.clampArena(m, 2.2); m.x = q.x; m.y = q.y; const want = d > 2.5 && spd > 3 ? Math.atan2(dy, dx) : (face == null ? M.hd : face); M.hd = FX.K.lerpA(M.hd, want, Math.min(1, dt * 2.6)); }
   // a straight pass strikes whatever stands in its lane beside the body
   function flyHit(FX, m, M, L, a) { const me = FX.me, rx = me.x - m.x, ry = me.y - m.y, al = rx * Math.cos(a) + ry * Math.sin(a), of = -rx * Math.sin(a) + ry * Math.cos(a);
-    if (!L.hit && Math.abs(al) < 1.7 && Math.abs(of) < LW / 2 + me.r) { if (FX.hurt(m.dmg * 1.45)) { L.hit = true; const s = of >= 0 ? 1 : -1; me.push = { vx: -Math.sin(a) * 9 * AUR_WIND_K * s, vy: Math.cos(a) * 9 * AUR_WIND_K * s, t: 0.22 }; /* (v473 TW: 9 -> 5.4 m/s for 0.22 s) */ FX.H.sparks(me.x, me.y - 0.5, GREEN_HI, 8, 5); } } }
+    if (!L.hit && Math.abs(al) < 1.7 && Math.abs(of) < LW / 2 + me.r) { if (FX.hurt(m.dmg * 1.45)) { L.hit = true; const s = of >= 0 ? 1 : -1; me.push = { vx: -Math.sin(a) * 9 * s, vy: Math.cos(a) * 9 * s, t: 0.22 }; FX.H.sparks(me.x, me.y - 0.5, GREEN_HI, 8, 5); } } }
   // where a line through p along a meets the platform's edge, both ways: [back, forward]
   function chord(C, p, a, R) { const d = [Math.cos(a), Math.sin(a)], q = [p[0] - C.x, p[1] - C.y], b = q[0] * d[0] + q[1] * d[1], cc = q[0] * q[0] + q[1] * q[1] - R * R, s = Math.sqrt(Math.max(0, b * b - cc)); return [-b - s, -b + s]; }
 
   /* ---- Crosswind ---- */
   function startCrosswind(FX, m) { const M = FX.mem, C = FX.C, me = FX.me, P = FX.S.lv, dc = Math.hypot(me.x - C.x, me.y - C.y);
     const a = (dc > 2 ? Math.atan2(me.y - C.y, me.x - C.x) : Math.random() * TAU) + FX.rnd(-0.35, 0.35), warn = (P >= 2 ? 2.2 : 2.6) / FX.S.fast, blow = 3.8;
-    const W = M.cw = { a, t: 0, warn, blow, sp: (P >= 2 ? 4.2 : 3.8) * AUR_WIND_K /* v473 TW: 4.2 / 3.8 -> 2.52 / 2.28 m/s */, zones: [], hz: null, gust: P >= 2 ? [warn + 0.5, warn + 1.9] : [], gi: 0 };
+    const W = M.cw = { a, t: 0, warn, blow, sp: P >= 2 ? 4.2 : 3.8, zones: [], hz: null, gust: P >= 2 ? [warn + 0.5, warn + 1.9] : [], gi: 0 };
     const d = [Math.cos(a), Math.sin(a)], n = [-d[1], d[0]];
     for (const o of [-10.6, -5.3, 0, 5.3, 10.6]) { const h = Math.sqrt(Math.max(1, RL * RL - o * o)); const z = { kind: 'windlane', x: C.x + n[0] * o - d[0] * h, y: C.y + n[1] * o - d[1] * h, a, len: h * 2, w: 4.4, life: warn + blow, max: warn + blow, own: 'none' }; FX.H.zone(z); W.zones.push(z); }
     W.hz = FX.hz({ shape: 'fn', kind: 'rim', test: (x, y, rr) => { const dd = Math.hypot(x - C.x, y - C.y); return dd > C.R - 2.4 - rr && Math.abs(angTo(a, Math.atan2(y - C.y, x - C.x))) < 1.25; }, dps: m.dmg * 0.9, tick: 0.3, arm: warn, life: warn + blow, col: ICE_HI, draw: drawRim, cw: W });
