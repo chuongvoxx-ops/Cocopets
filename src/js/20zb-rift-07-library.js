@@ -363,7 +363,15 @@ const LIB = { INK: '#1D1A28', PARCH: '#E4D3AF', PARCH_D: '#C9B48A', PARCH_HI: '#
   const ST = (typeof LIB_STAGES !== 'undefined' && LIB_STAGES) || {};
   const placeholder = (name, goal) => ({ name, goal, how: goal, layout: ['##########', '#........#', '#...E....#', '#........#', '#...S....#', '##########'], legend: { E: {} }, make(X, self, H) { const e = X.M.marks.E[0]; self.done = true; H.setExit(e.x, e.y, 'The way on'); return {}; } });
   defRift({
-    ease: 0.55, monEase: 0.5,   // (monsters at half the health and blows they first had; bosses as they were)
+    ease: 0.6, monEase: 0.5,   // v474 LM: ease was 0.55 (now Rift 06's 0.6); monEase kept (the monsters at half the health and blows they first had at level 70)
+    /* v474 LM (the user 2026-11-28: Rift 07 rebuilt on the GPU; the lead: never easier than Rift 06): Rift 06's hardness (v472, 20u6)
+       laid here as a floor, once each: every foe blow on the pet 2.5x (hurtPet, 20b); every monster 3.75x its health (20m foeStamp:
+       Rift 06's 2.5 / monEase 0.5 x 0.75, so with monEase kept the brood's health matches Rift 06's (~350k a monster at the same pet
+       level, measured: tests/_lm-foek.js) and its blows sit just above (~1.1x), not 2.3x as dropping monEase made them); the three main
+       bosses x7 health (bossHpK: each boss's own file counts every blow on it 1 / foeK.boss) and x7 blows in all (foeDmgK 2.5 x
+       bossDmgK 2.8, the fiend's dmgK riftDef lays); mini bosses' health kept (miniHpK 1, as Rift 06). Before: none (x1). */
+    monHpK: 3.75, miniHpK: 1, foeDmgK: 2.5,
+    bossHpK: 7, bossDmgK: 7 / 2.5,
     id: 'library', n: 7, name: 'The Library of Unwritten Lives', lvl: 70, sigil: 'Truth', biome: 'catalogue', aff: ['dark', 'light'], region: 'the dream archive',
     blurb: 'An endless library come loose into the dark of a dream, where something writes in the margins. Find the true doors, mend the broken story, and walk the real procession home.', gate: { anima: 'virgo', name: 'The Starseed Conservatory' },
     mons: ['marginworm', 'inkstalker', 'falsefolio'], sealing: SEALING,

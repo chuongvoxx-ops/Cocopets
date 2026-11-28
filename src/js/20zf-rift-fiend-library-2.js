@@ -23,6 +23,10 @@
    drag behind its turns, ink drips from its rim; it jolts on a hit, and it comes down out of the dark on entering. */
 RiftFiend.define({ id: 'vellum', hpK: 1.25, dmgK: 1.25, name: 'Vellum', title: 'The Inkbound', color: '#26222F', glow: '#CFAD62', accent: '#F2DC9A', biome: 'binding', r: 2.8, els: ['dark', 'water'], phases: 2 }, (() => {
   const { TAU, TN, hit } = RiftFiend;
+  /* (v474 LB) the GPU model (VELLUM_GL, 20zfa-vellum-gl.js); without it the 2D Vellum. The rift's main-boss health factor (as 20z4's):
+     its blows and weak points count 1 / foeK.boss (the tether's break and a lost page's heal scaled with them) */
+  const VG = () => (typeof VELLUM_GL !== 'undefined' ? VELLUM_GL : null), KEEP2D = { steps: 2, pad: 6 };
+  const hpK = FX => { const F = FX && FX.F && FX.F.rift && FX.F.rift.foeK; return F && F.boss > 0 ? F.boss : 1; };
   const { PARCH, PARCH_D, PARCH_HI, BURG, BURG_HI, GOLD, GOLD_HI, VIOLET, VIOLET_HI, WOOD, WOOD_D } = LIB;
   const decay = (v, dt, k) => Math.max(0, (v || 0) - dt * k), toward = (v, w, dt, k) => (v || 0) + (w - (v || 0)) * Math.min(1, dt * k), lerp = (a, b, u) => a + (b - a) * u;
   const angTo = (a, b) => { let d = b - a; while (d > Math.PI) d -= TAU; while (d < -Math.PI) d += TAU; return d; };
@@ -70,7 +74,7 @@ RiftFiend.define({ id: 'vellum', hpK: 1.25, dmgK: 1.25, name: 'Vellum', title: '
     paintGround(c, A) { paintChamber(c, A); },
     sky(c, W, H, t, cam, T) { paintSky(c, W, H, t, cam, T); },
     /* ---- the fight ---- */
-    init(FX) { const M = FX.mem, m = FX.m, C = FX.C; m.act = 'enter'; m.x = C.x; m.y = C.y - 2.5; m.noTouch = true;
+    init(FX) { const M = FX.mem, m = FX.m, C = FX.C; m.act = 'enter'; m.x = C.x; m.y = C.y - 2.5; m.noTouch = true; if (VG()) VG().init(FX);   // (v474 LB: its warnings marked for light)
       Object.assign(M, { bt: 0, alt: 11, wake: 0, th: Math.PI / 2, look: [0, 1], recoil: 0, roar: 0, menace: 0, open: 0, rear: 0, armRec: 0, armHit: 0,
         trail: [], pools: [], patches: [], stamps: [], lies: [], globs: [], lect: LP.map(() => ({ st: 'page', back: 0, stain: 0, glow: 1, drown: false })), carry: null, glare: { n: 0, t: 0 },
         ib: null, red: null, sw: null, swAim: null, jet: null, jetAim: null, st: null, fl: null, bag: null, last: null, seen: {}, broodT: 14, wasStun: false, wasEnter: true, roared: false, orb: null, dir: 1, restT: 1, lost: 0,
@@ -108,7 +112,7 @@ RiftFiend.define({ id: 'vellum', hpK: 1.25, dmgK: 1.25, name: 'Vellum', title: '
       FX.parts(bodyParts(FX, m, M));
     },
     stunned(FX, m, dt) { const M = FX.mem; M.open = Math.min(1, M.open + dt * 2.4); M.menace = decay(M.menace, dt, 4); m.noTouch = true; M.alt = toward(M.alt, 0.8, dt, 3.5);
-      const p = pose(FX, m, M), h = p.W(CEN[0] + 0.2, 0, TOP + HUMP * 0.6); FX.weak('heart', h[0], h[1] - h[2], 1.7, 2.5, m.stunT > 0.05);
+      const p = pose(FX, m, M), h = p.W(CEN[0] + 0.2, 0, TOP + HUMP * 0.6); FX.weak('heart', h[0], h[1] - h[2], 1.7, 2.5 / hpK(FX), m.stunT > 0.05);   // (v474 LB: its blows 1 / foeK.boss)
       M.kickT = (M.kickT || 0) - dt; if (M.kickT <= 0) { M.kickT = 0.35; FX.H.part({ kind: 'glow', x: h[0] + FX.rnd(-1, 1), y: h[1] - h[2] - FX.rnd(0, 1), vx: 0, vy: -1.2, life: 0.6, max: 0.6, size: 0.6, color: GOLD_HI }); FX.H.shake(1.2, 0.08); }
       FX.parts(bodyParts(FX, m, M)); },
     update(FX, dt) { const M = FX.mem, m = FX.m, me = FX.me; if (!m) return; M.bt += dt; const stun = m.stunT > 0;
@@ -123,7 +127,7 @@ RiftFiend.define({ id: 'vellum', hpK: 1.25, dmgK: 1.25, name: 'Vellum', title: '
       if (M.sw) { M.sw.t += dt; if (M.sw.t > M.sw.dur + 0.5) M.sw = null; } if (M.jet) { M.jet.t += dt; if (M.jet.t > M.jet.dur + 0.4) M.jet = null; }
       M.stamps = M.stamps.filter(s => (s.t += dt) < 1.1); M.lies = M.lies.filter(s => (s.t += dt) < 0.7);
       // the tether's exposed arm: a weak point while it holds
-      const S = M.st; if (S && S.on && S.reach >= 1 && !stun) { const pts = armPts(FX, m, M, pose(FX, m, M), S.side), q = pts[Math.round(pts.length * 0.62)]; FX.weak('arm', q[0], q[1] - q[2], 1.15, 2.5, true); }
+      const S = M.st; if (S && S.on && S.reach >= 1 && !stun) { const pts = armPts(FX, m, M, pose(FX, m, M), S.side), q = pts[Math.round(pts.length * 0.62)]; FX.weak('arm', q[0], q[1] - q[2], 1.15, 2.5 / hpK(FX), true); }   // (v474 LB: 1 / foeK.boss; the tether's need with it)
       else if (FX.S.weak.arm) FX.weak('arm', 0, 0, 0, 0, false);
       if (!stun) { if (FX.S.weak.heart) FX.weak('heart', 0, 0, 0, 0, false); if (M.wasStun) { M.wasStun = false; M.recoil = 1; M.roar = 0.6; FX.H.text(m.x, m.y - 4.5, 'The mantle seals', GOLD_HI, 13); FX.H.sfx.hum(); } } else M.wasStun = true;
       // the entrance: down out of the dark, unfurling
@@ -133,13 +137,15 @@ RiftFiend.define({ id: 'vellum', hpK: 1.25, dmgK: 1.25, name: 'Vellum', title: '
       if ((m.hitSq || 0) > 0.5) M.recoil = Math.max(M.recoil, 0.45); },
     onWeakHit(FX, key, dmg) { const M = FX.mem, m = FX.m; M.recoil = Math.max(M.recoil || 0, 0.5);
       if (key === 'arm' && M.st && M.st.on) { M.armHit = 1; M.st.dmg += dmg; if (M.st.dmg >= M.st.need) tetherBroken(FX, m); } },
-    dmgK() { return 1; },
-    keep: { steps: 2, pad: 6 },
-    draw(c, FX, m, X, Y, T, t, step) { drawVellum(c, FX, m, X, Y, T, t, step); },
+    dmgK(FX) { return 1 / hpK(FX); },   // (v474 LB: the rift's main-boss health, foeK.boss times: its blows 1 / foeK.boss, as Rift 05's and 06's)
+    get keep() { const o = VG(); return o && o.gpu() ? null : KEEP2D; },   // (v474 LB: the GPU model drawn every frame, one pass; the 2D one kept as before)
+    draw(c, FX, m, X, Y, T, t, step) { { const o = VG(); if (step == null && o && o.draw(c, FX, m, X, Y, T, t)) return; } drawVellum(c, FX, m, X, Y, T, t, step); },   // (v474 LB: the GPU model, else the 2D Vellum)
+    get MODEL() { return VG(); }, preload(P) { const o = VG(); return o ? o.preload(P) : []; },   // (v474 LB)
+    RIG: { CONTOUR, NRM, FIN_IDX, CEN, TOP, BELLY, HUMP, TENT_V, ARM_S, surfH: (u, v) => surfH(u, v), armW: (u, S) => armW(u, S), pose: (FX, m, M) => pose(FX, m, M), armPts: (FX, m, M, p, s) => armPts(FX, m, M, p, s), tentPts: (m, M, p, k) => tentPts(m, M, p, k) },   // (v474 LB: the fight's skeleton for VELLUM_GL, 20zfa)
     drawProp(c, FX, p, X, Y, T, t) { if (p.kind === 'lectern') drawLectern(c, FX, p, X, Y, T, t); },
     drawObj() {},
-    overlay(c, FX, t, T) { drawOverlay(c, FX, t, T); },
-    drawFx(c, FX, T, t) { drawDrips(c, FX, T, t); drawGlobs(c, FX, T, t); drawSwipeFx(c, FX, T, t); drawJetFx(c, FX, T, t); drawTether(c, FX, T, t); drawCarry(c, FX, T, t); },
+    overlay(c, FX, t, T) { { const o = VG(); if (o && o.overlay(c, FX, t, T)) return; } drawOverlay(c, FX, t, T); },   // (v474 LB: its warnings in light first; the 2D overlay keeps the rest: M.lbGL)
+    drawFx(c, FX, T, t) { const gp = !!(VG() && VG().drawFx(c, FX, T, t)); drawDrips(c, FX, T, t); if (!gp) { drawGlobs(c, FX, T, t); drawSwipeFx(c, FX, T, t); drawJetFx(c, FX, T, t); } drawTether(c, FX, T, t); drawCarry(c, FX, T, t); },   // (v474 LB: gp, the globs and the jet in its pass, the swipe's sweep and the tether's light on the GPU)
   };
 
   /* ---- choosing ---- */
@@ -248,7 +254,7 @@ RiftFiend.define({ id: 'vellum', hpK: 1.25, dmgK: 1.25, name: 'Vellum', title: '
     if (!opts.length || M.lost >= 3) { startInkblot(FX, m); return; }
     const dist = i => { const p = lectAt(C, i); return Math.hypot(p[0] - me.x, p[1] - me.y); }; opts.sort((a, b) => dist(b) - dist(a));
     const i = opts[Math.min(1, opts.length - 1)], L = lectAt(C, i), dx = C.x - L[0], dy = C.y - L[1], d = Math.hypot(dx, dy) || 1, side = Math.random() < 0.5 ? 1 : -1;
-    M.st = { i, side, t: 0, fill: 0, dur: 10.5 / FX.S.fast, anchor: [L[0] + dx / d * 4.4, L[1] + dy / d * 4.4], on: false, reach: 0, dmg: 0, need: FX.S.barHP * 0.07, arrive: 0, spit: 2.4 };
+    M.st = { i, side, t: 0, fill: 0, dur: 10.5 / FX.S.fast, anchor: [L[0] + dx / d * 4.4, L[1] + dy / d * 4.4], on: false, reach: 0, dmg: 0, need: FX.S.barHP * 0.07 / hpK(FX), arrive: 0, spit: 2.4 };   // (v474 LB: the arm's blows count 1 / foeK.boss: the tether breaks for the same effort)
     m.act = 'stain'; m.actT = 0; M.roar = 0.6; FX.H.sfx.hum();
     say(FX, 'stain', 'STAINING', 'It tethers a lectern and stains its page: strike the exposed arm to break the tether!', BURG_HI); }
   function runStain(FX, m, M, dt) { const S = M.st; if (!S) { toRest(m, M, 1); return; } const C = FX.C, L = lectAt(C, S.i), me = FX.me;
@@ -263,7 +269,7 @@ RiftFiend.define({ id: 'vellum', hpK: 1.25, dmgK: 1.25, name: 'Vellum', title: '
   function tetherBroken(FX, m) { const M = FX.mem, S = M.st; if (!m || m.dead || !S) return; const L = lectAt(FX.C, S.i); M.lect[S.i].stain = Math.min(M.lect[S.i].stain, 0.99); M.st = null; FX.weak('arm', 0, 0, 0, 0, false);
     goldBurst(FX, L[0], L[1] - 1.4, 14); splash(FX, L[0], L[1], 10); stagger(FX, m, 'tether'); }
   function stainDone(FX, m, M) { const S = M.st, L = M.lect[S.i], p = lectAt(FX.C, S.i); L.st = 'lost'; L.stain = 1; M.lost++; M.st = null; FX.weak('arm', 0, 0, 0, 0, false);
-    m.hp = Math.min(m.maxhp * 0.5, m.hp + FX.S.barHP * 0.8); m.dmg *= 1.08;
+    m.hp = Math.min(m.maxhp * 0.5, m.hp + FX.S.barHP * 0.8 / hpK(FX)); m.dmg *= 1.08;   // (v474 LB: the heal in step with its blows' 1 / foeK.boss)
     FX.H.banner('THE PAGE IS STAINED', 'It drinks the page: it heals and hits harder · that lectern is lost', HOSTILE, 2.6, true); FX.H.shake(10, 0.4); FX.H.sfx.crash(); splash(FX, p[0], p[1], 22); FX.H.ring(p[0], p[1], 0.3, 3, 0.6, HOSTILE, 0.45);
     M.recoil = 0.6; M.roar = 1; toRest(m, M, 1.2); }
 
@@ -428,7 +434,7 @@ RiftFiend.define({ id: 'vellum', hpK: 1.25, dmgK: 1.25, name: 'Vellum', title: '
     c.save();
     if (S.reach >= 1) { const pts = armPts(FX, m, M, pose(FX, m, M), S.side), a = Math.round(pts.length * 0.48), b = Math.round(pts.length * 0.76), pul = 0.6 + 0.4 * Math.sin(t * 9);
       c.lineCap = 'round'; c.lineJoin = 'round'; c.beginPath(); for (let i = a; i <= b; i++) { const q = pts[i], x = FX.sx(q[0]), y = FX.sy(q[1]) - q[2] * T; i === a ? c.moveTo(x, y) : c.lineTo(x, y); }
-      c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.25 + 0.2 * pul + M.armHit * 0.4; c.strokeStyle = GOLD; c.lineWidth = T * 0.95; c.stroke(); c.globalCompositeOperation = 'source-over';
+      c.globalCompositeOperation = 'lighter'; c.globalAlpha = M.lbGL ? 0 : 0.25 + 0.2 * pul + M.armHit * 0.4; /* (v474 LB: lit by VELLUM_GL) */ c.strokeStyle = GOLD; c.lineWidth = T * 0.95; c.stroke(); c.globalCompositeOperation = 'source-over';
       c.globalAlpha = 0.95; c.strokeStyle = GOLD_HI; c.lineWidth = Math.max(2, T * 0.1); c.setLineDash([T * 0.3, T * 0.22]); c.lineDashOffset = -t * T * 3; c.stroke(); c.setLineDash([]); c.globalAlpha = 1;
       const mq = pts[Math.round((a + b) / 2)]; label(c, 'WEAK', FX.sx(mq[0]), FX.sy(mq[1]) - mq[2] * T - T * 0.75, Math.round(T * 0.42), GOLD_HI, 0.7 + 0.3 * pul); }
     const below = m.y < L[1], bw = T * 3.2, bh = Math.max(8, T * 0.32), bx = X - bw / 2, by = below ? Y + T * 1.55 : Y - T * 2.8, f = S.fill;
@@ -455,7 +461,7 @@ RiftFiend.define({ id: 'vellum', hpK: 1.25, dmgK: 1.25, name: 'Vellum', title: '
   function drawPool(c, FX, pool, z, T, t) { const M = FX.mem, m = FX.m, X = FX.sx(pool.x), Y = FX.sy(pool.y), fade = Math.min(1, z.age / 0.25, Math.max(0, z.life - z.age) / 0.7), r = pool.r * T * (0.85 + 0.15 * Math.min(1, z.age / 0.3)), sd = pool.seed;
     c.save(); c.globalAlpha = fade;
     const pts = k => { const out = []; for (let i = 0; i < 18; i++) { const a = i / 18 * TAU, rr = r * k * (1 + 0.07 * Math.sin(3 * a + sd) + 0.04 * Math.sin(5 * a - t * 0.9 + sd)); out.push([X + Math.cos(a) * rr, Y + Math.sin(a) * rr * 0.92]); } return out; }, path = k => { c.beginPath(); TN.blob(pts(k))(c); };
-    path(1); c.fillStyle = POOL; c.fill(); c.lineWidth = Math.max(2, T * 0.08); c.strokeStyle = rgba(HOSTILE, 0.75); c.stroke();
+    path(1); c.fillStyle = POOL; c.fill(); c.lineWidth = Math.max(2, T * 0.08); c.strokeStyle = rgba(M.lbGL ? '#C9A0FF' : HOSTILE, 0.75); c.stroke();   // (v474 LB: the rim in the ink's violet light when the GPU draws its warnings, never red)
     for (let j = 0; j < 4; j++) { const a = sd + j * 1.7, d = r * (1.15 + 0.12 * j); c.fillStyle = POOL; c.beginPath(); c.arc(X + Math.cos(a) * d, Y + Math.sin(a) * d * 0.9, r * (0.09 - j * 0.015), 0, TAU); c.fill(); }
     // the sheen
     const g = c.createRadialGradient(X - r * 0.3, Y - r * 0.35, r * 0.05, X, Y, r); g.addColorStop(0, 'rgba(160,120,230,.4)'); g.addColorStop(0.5, 'rgba(90,58,138,.15)'); g.addColorStop(1, 'rgba(0,0,0,0)'); path(0.92); c.fillStyle = g; c.fill();
@@ -482,7 +488,7 @@ RiftFiend.define({ id: 'vellum', hpK: 1.25, dmgK: 1.25, name: 'Vellum', title: '
       R.bands.forEach(b => { const [x, y, w, h] = bandRect(C, b), X = FX.sx(x), Y = FX.sy(y), Wp = w * T, Hp = h * T;
         if (b.kind === 'lie') { c.globalAlpha = 0.9; c.strokeStyle = LIE; c.lineWidth = Math.max(2, T * 0.1); c.setLineDash([T * 0.5, T * 0.38]); c.lineDashOffset = -t * T * 1.2; c.strokeRect(X + T * 0.15, Y + T * 0.15, Wp - T * 0.3, Hp - T * 0.3); c.setLineDash([]);
           c.globalAlpha = 0.75; const n = 5; for (let j = 0; j < n; j++) { const f = (j + 0.5) / n; label(c, '?', b.ori === 'row' ? X + Wp * f : X + Wp / 2, b.ori === 'row' ? Y + Hp / 2 : Y + Hp * f, Math.round(T * 0.7), LIE, 0.7); } }
-        else if (b.kind === 'real') { const pul = 0.5 + 0.5 * Math.sin(t * (8 + u * 10)); c.globalAlpha = 1; c.fillStyle = rgba(HOSTILE, 0.16 + 0.12 * u + 0.06 * pul * u); c.fillRect(X, Y, Wp, Hp); c.strokeStyle = HOSTILE; c.lineWidth = Math.max(2.5, T * 0.11); c.strokeRect(X + T * 0.1, Y + T * 0.1, Wp - T * 0.2, Hp - T * 0.2);
+        else if (b.kind === 'real') { const pul = 0.5 + 0.5 * Math.sin(t * (8 + u * 10)); c.globalAlpha = M.lbGL ? 0 : 1; /* (v474 LB: the real band a lane of gold light on the GPU; its marker bar stays) */ c.fillStyle = rgba(HOSTILE, 0.16 + 0.12 * u + 0.06 * pul * u); c.fillRect(X, Y, Wp, Hp); c.strokeStyle = HOSTILE; c.lineWidth = Math.max(2.5, T * 0.11); c.strokeRect(X + T * 0.1, Y + T * 0.1, Wp - T * 0.2, Hp - T * 0.2);
           if (u > 0.62) { const k = (u - 0.62) / 0.38; c.globalAlpha = 0.85; c.fillStyle = '#120E18'; if (b.ori === 'row') c.fillRect(X, Y + Hp * 0.12, Wp * k, Hp * 0.76); else c.fillRect(X + Wp * 0.12, Y, Wp * 0.76, Hp * k); } } }); }
     M.lies.forEach(L => { const [x, y, w, h] = bandRect(C, L.b), k = 1 - L.t / 0.7; c.globalAlpha = 0.7 * k; c.strokeStyle = LIE; c.lineWidth = Math.max(1.5, T * 0.08); c.setLineDash([T * 0.2, T * 0.6]); c.strokeRect(FX.sx(x) + T * 0.15, FX.sy(y) + T * 0.15, w * T - T * 0.3, h * T - T * 0.3); c.setLineDash([]); });
     M.stamps.forEach(s => { const [x, y, w, h] = bandRect(C, s.b), k = 1 - s.t / 1.1, X = FX.sx(x), Y = FX.sy(y); c.globalAlpha = 0.9 * k; c.fillStyle = '#0E0A14'; c.fillRect(X, Y + (s.b.ori === 'row' ? h * T * 0.08 : 0), w * T * (s.b.ori === 'row' ? 1 : 0.84) + (s.b.ori === 'row' ? 0 : 0), h * T * (s.b.ori === 'row' ? 0.84 : 1)); });

@@ -23,6 +23,8 @@ const LIB_STAGES = {};
   const block = (X, tx, ty) => { X.M.props.set(ty * X.M.MW + tx, 'blank'); X.setTile(tx, ty, T_SOLID); };
   DunWorld.PROPS.blank = () => {};
   const tilesOf = (M, ch) => (M.marks[ch] || []).map(p => ({ tx: p.tx, ty: p.ty, x: p.x, y: p.y }));
+  // v474 LE: the trials' pieces painted and their marks in GPU light (20zb3b LIB_PROPS.stage) while the painter and the GPU are on; else the 2D below
+  const LPS = X => (typeof LIB_PROPS !== 'undefined' && LIB_PROPS.stage && LIB_PROPS.ready(X)) ? LIB_PROPS.stage : null;
 
   /* ---- the three symbols, drawn in gold (or any colour) ---- */
   const SYM_NAME = { eye: 'EYE', moon: 'MOON', crown: 'CROWN' };
@@ -108,7 +110,9 @@ const LIB_STAGES = {};
     X.after(1.2, () => { S.intro = false; X.banner('THE CATALOGUE OF TRUTH', `Clear the mob (${MOB}), then wake the pedestal: which banner hides the true eye?`, GOLD_HI, 3.4, true, true); });
     // the pedestal: rises when the mob is cleared; stand on it to begin a round
     H.obj({ x: K.x, y: K.y, kind: 'pedestal', r: 0.9, h: 1.6, label: () => (S.phase === 'ready' ? 'Wake the catalogue' : ''), use() { if (S.phase !== 'ready') return; deal(); },
-      draw(c, Xs, Ys, T) { const k = S.pedK; if (k <= 0.02) return; const t = g.t; c.save(); c.globalAlpha = Math.min(1, k * 1.5); const h = T * 1.0 * k;
+      draw(c, Xs, Ys, T) { const k = S.pedK; if (k <= 0.02) return; const t = g.t;
+        { const Lp = LPS(X); if (Lp && Lp.pedestal(c, Xs, Ys, T, k, S.phase === 'ready', t)) { if (S.phase === 'ready') label(c, 'STAND HERE', Xs, Ys + T * 0.75, T * 0.26, GOLD_HI); return; } }   /* v474 LE */
+        c.save(); c.globalAlpha = Math.min(1, k * 1.5); const h = T * 1.0 * k;
         c.fillStyle = 'rgba(0,0,0,.3)'; c.beginPath(); c.ellipse(Xs, Ys, T * 1.1, T * 0.4, 0, 0, TAU); c.fill();
         c.fillStyle = WOOD_D; c.strokeStyle = INK; c.lineWidth = 2; c.fillRect(Xs - T * 0.45, Ys - h, T * 0.9, h); c.strokeRect(Xs - T * 0.45, Ys - h, T * 0.9, h);
         c.fillStyle = WOOD; c.beginPath(); c.moveTo(Xs - T * 1.2, Ys - h); c.lineTo(Xs + T * 1.2, Ys - h); c.lineTo(Xs + T * 1.0, Ys - h - T * 0.35); c.lineTo(Xs - T * 1.0, Ys - h - T * 0.35); c.closePath(); c.fill(); c.stroke();
@@ -116,9 +120,9 @@ const LIB_STAGES = {};
         const live = S.phase === 'ready'; glowAt(c, Xs, Ys - h - T * 0.4, T * 1.4, GOLD, live ? 0.5 + 0.3 * Math.sin(t * 5) : 0.25); sym(c, 'eye', Xs, Ys - h - T * 0.38, T * 0.32, BURG); c.restore();
         if (live) label(c, 'STAND HERE', Xs, Ys + T * 0.75, T * 0.26, GOLD_HI); } });
     // the four banners, drawn back to front
-    H.obj({ x: slots[0].x, y: slots[0].y + 0.4, kind: 'banners', r: 0.1, h: 3, label: '', draw(c) { const T = X.Tz(), t = g.t;
+    H.obj({ x: slots[0].x, y: slots[0].y + 0.4, kind: 'banners', r: 0.1, h: 3, label: '', draw(c) { const T = X.Tz(), t = g.t, Lp = LPS(X);   // v474 LE: (Lp)
       const list = banners.map(b => ({ b, p: posOf(b) })).sort((a, b) => a.p.z - b.p.z);
-      for (const { b, p } of list) { const Xs = X.sx(p.x), Ys = X.sy(p.y) + T * 0.4, w = T * 0.85, h = T * 2.6, sc = 1 + p.z * 0.12, fl = b.face; c.save(); c.translate(Xs, Ys); c.scale(sc, sc);
+      for (const { b, p } of list) { const Xs = X.sx(p.x), Ys = X.sy(p.y) + T * 0.4, w = T * 0.85, h = T * 2.6, sc = 1 + p.z * 0.12, fl = b.face; if (Lp && Lp.banner(c, b, Xs, Ys, sc, T, t)) continue;   /* v474 LE: the painted banner */ c.save(); c.translate(Xs, Ys); c.scale(sc, sc);
         c.fillStyle = 'rgba(0,0,0,.28)'; c.beginPath(); c.ellipse(0, 0, w * 1.05, w * 0.35, 0, 0, TAU); c.fill();
         // the pole and crossbar, then the cloth (face: burgundy with the icon; back: dark ink with a gold question)
         c.strokeStyle = INK; c.lineWidth = 5; c.beginPath(); c.moveTo(0, 0); c.lineTo(0, -h - T * 0.3); c.stroke(); c.strokeStyle = GOLD; c.lineWidth = 3; c.stroke();
@@ -130,8 +134,8 @@ const LIB_STAGES = {};
         else { c.fillStyle = 'rgba(242,220,154,.85)'; c.font = `900 ${Math.round(T * 0.9)}px ${arcFont}`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('?', 0, -h * 0.55); }
         c.restore(); }
       // the pick plates (during the pick only)
-      if (S.phase === 'pick') for (let i = 0; i < 4; i++) { const pl = plateOf(i), Xs = X.sx(pl.x), Ys = X.sy(pl.y); c.save(); c.fillStyle = 'rgba(207,173,98,.35)'; c.strokeStyle = GOLD_HI; c.lineWidth = 3; c.globalAlpha = 0.7 + 0.3 * Math.sin(t * 6 + i); c.beginPath(); c.ellipse(Xs, Ys, T * 0.75, T * 0.3, 0, 0, TAU); c.fill(); c.stroke(); c.restore(); label(c, 'PICK', Xs, Ys + T * 0.62, T * 0.24, GOLD_HI); }
-      if (S.phase === 'show') { const eb = banners.find(b => b.k === 'eye'), p = posOf(eb), Xs = X.sx(p.x), Ys = X.sy(p.y); c.save(); c.strokeStyle = '#FFFFFF'; c.lineWidth = 3; c.setLineDash([8, 6]); c.lineDashOffset = -t * 30; c.beginPath(); c.ellipse(Xs, Ys + T * 0.4, T * 1.15, T * 0.42, 0, 0, TAU); c.stroke(); c.restore(); if (eb.face > 0.5) label(c, '▲ THE EYE ▲', Xs, Ys + T * 1.25, T * 0.3, '#FFFFFF'); }
+      if (S.phase === 'pick') for (let i = 0; i < 4; i++) { const pl = plateOf(i), Xs = X.sx(pl.x), Ys = X.sy(pl.y); if (Lp) Lp.plate(Xs, Ys, T, t, i); /* v474 LE: a ring of light */ else { c.save(); c.fillStyle = 'rgba(207,173,98,.35)'; c.strokeStyle = GOLD_HI; c.lineWidth = 3; c.globalAlpha = 0.7 + 0.3 * Math.sin(t * 6 + i); c.beginPath(); c.ellipse(Xs, Ys, T * 0.75, T * 0.3, 0, 0, TAU); c.fill(); c.stroke(); c.restore(); } label(c, 'PICK', Xs, Ys + T * 0.62, T * 0.24, GOLD_HI); }
+      if (S.phase === 'show') { const eb = banners.find(b => b.k === 'eye'), p = posOf(eb), Xs = X.sx(p.x), Ys = X.sy(p.y); if (Lp) Lp.ring(Xs, Ys + T * 0.4, T, t); /* v474 LE */ else { c.save(); c.strokeStyle = '#FFFFFF'; c.lineWidth = 3; c.setLineDash([8, 6]); c.lineDashOffset = -t * 30; c.beginPath(); c.ellipse(Xs, Ys + T * 0.4, T * 1.15, T * 0.42, 0, 0, TAU); c.stroke(); c.restore(); } if (eb.face > 0.5) label(c, '▲ THE EYE ▲', Xs, Ys + T * 1.25, T * 0.3, '#FFFFFF'); }
       if (S.card && S.card.t > 0) { // the instruction card: across the top, clear of the banners
         const W = X.W(), cw = Math.min(W - 24, 380), ch = 112, cx = (W - cw) / 2, cy = Math.max(84, X.sy(slots[0].y) - T * 2.75 - ch - 8), a = Math.min(1, (S.card.max - S.card.t) * 4, S.card.t * 3);
         c.save(); c.globalAlpha = a; c.fillStyle = 'rgba(20,14,30,.92)'; c.strokeStyle = GOLD_HI; c.lineWidth = 3; c.beginPath(); GFX.rr(c, cx, cy, cw, ch, 14); c.fill(); c.stroke();
@@ -140,7 +144,7 @@ const LIB_STAGES = {};
         c.fillStyle = '#FFFFFF'; c.font = `700 14px ${arcFont}`; c.font = `700 13px ${arcFont}`; ['Remember the banner with the EYE.', 'They turn their backs and shuffle:', 'follow it, then step on its plate.'].forEach((ln, i) => c.fillText(ln, cx + 92, cy + 66 + i * 17));
         c.restore(); }
       if (S.say && S.say.t > 0) { const lx = X.sx((slots[0].x + slots[3].x) / 2), ly = X.sy(slots[0].y) - T * 3.4; c.save(); c.fillStyle = 'rgba(20,14,30,.72)'; const wpx = Math.min(X.W() - 16, T * 9); c.fillRect(lx - wpx / 2, ly - T * 0.42, wpx, T * 0.6); c.restore(); label(c, S.say.s, lx, ly, T * 0.3, S.say.col); }
-      if (S.picked >= 0 && S.phase === 'reveal') { const p = slots[S.picked], Xs = X.sx(p.x), Ys = X.sy(p.y); c.save(); c.strokeStyle = '#FFFFFF'; c.lineWidth = 4; c.beginPath(); c.ellipse(Xs, Ys + T * 0.4, T * 1.1, T * 0.4, 0, 0, TAU); c.stroke(); c.restore(); } } });
+      if (S.picked >= 0 && S.phase === 'reveal') { const p = slots[S.picked], Xs = X.sx(p.x), Ys = X.sy(p.y); if (Lp) Lp.ring(Xs, Ys + T * 0.4, T, t, '#FFFFFF', 0.75); /* v474 LE */ else { c.save(); c.strokeStyle = '#FFFFFF'; c.lineWidth = 4; c.beginPath(); c.ellipse(Xs, Ys + T * 0.4, T * 1.1, T * 0.4, 0, 0, TAU); c.stroke(); c.restore(); } } } });
     return { S, banners, slots,
       eyeSlot: () => banners.find(b => b.k === 'eye').slot,
       cam() { if (S.phase === 'show' || S.phase === 'shuffle' || S.phase === 'pick' || S.phase === 'reveal') return { x: (slots[0].x + slots[3].x) / 2, y: slots[0].y - 0.2, k: 0, zoom: 0.7 }; return { x: me.x, y: me.y, k: 0, zoom: 0.72 }; },
@@ -161,9 +165,10 @@ const LIB_STAGES = {};
       hint() { if (self.done) return null; if (S.phase === 'ready') return K; return null; },
       drawGround(c) { const T = X.Tz();
         const X0 = X.sx(dx0), X1 = X.sx(dx1), Y0 = X.sy(dy) - T * 1.4, Y1 = X.sy(dy) + T, w = (X1 - X0) / 2, sh = S.openK * w;
+        const Lp = LPS(X); if (!(Lp && Lp.leaves(c, 0, X0, X1, Y0, Y1, sh))) {   // v474 LE: the painted leaves
         c.save(); c.beginPath(); c.rect(X0, Y0 - 4, X1 - X0, Y1 - Y0 + 8); c.clip();
         for (const sd of [-1, 1]) { const lx = sd < 0 ? X0 - sh : X0 + w + sh; c.fillStyle = BURG; c.fillRect(lx, Y0, w, Y1 - Y0); c.strokeStyle = INK; c.lineWidth = 2; c.strokeRect(lx, Y0, w, Y1 - Y0); c.strokeStyle = GOLD; c.strokeRect(lx + 5, Y0 + 5, w - 10, Y1 - Y0 - 10); c.fillStyle = PARCH_HI; c.fillRect(sd < 0 ? lx + w - 6 : lx, Y0, 6, Y1 - Y0); }
-        c.restore(); if (S.openK < 0.6) { for (let i = 0; i < 3; i++) { const x = X0 + (X1 - X0) * (0.3 + i * 0.2), lit = i < S.round; glowAt(c, x, Y0 + (Y1 - Y0) * 0.45, T * 0.6, GOLD, lit ? 0.8 : 0.15); sym(c, 'eye', x, Y0 + (Y1 - Y0) * 0.45, T * 0.28, lit ? '#FFFFFF' : 'rgba(242,220,154,.4)'); } } },
+        c.restore(); } if (S.openK < 0.6) { for (let i = 0; i < 3; i++) { const x = X0 + (X1 - X0) * (0.3 + i * 0.2), lit = i < S.round; glowAt(c, x, Y0 + (Y1 - Y0) * 0.45, T * 0.6, GOLD, lit ? 0.8 : 0.15); sym(c, 'eye', x, Y0 + (Y1 - Y0) * 0.45, T * 0.28, lit ? '#FFFFFF' : 'rgba(242,220,154,.4)'); } } },
     };
   }
   LIB_STAGES.CATALOGUE = { name: 'The Catalogue of Truth', goal: 'Find the true eye, three times', how: `First clear the mob: ${MOB} of the unwritten pour out of the shelves, with one strong ink beast among them. Then a pedestal rises: stand on it to begin. Four banners show their icons (an eye, a moon, a crown, a key), turn their backs and shuffle. Keep your eye on the EYE. When they stop, step on the plate in front of the banner you think hides it. Right three times (each round shuffles faster, the last swaps two pairs at once) and the passage opens. A wrong pick spills another mob of ${MOB}.`,
@@ -228,10 +233,11 @@ const LIB_STAGES = {};
           const m = spawnAt(X, 'falsefolio', p0, S.guards, true); m.thief = true; m.disguised = false; m.hp = m.maxhp = Math.round(m.maxhp * 1.6); m.bname = 'Page thief'; S.thief = m; spawnAt(X, 'marginworm', { x: p0.x + 1.5, y: p0.y + 1 }, S.guards, true); spawnAt(X, 'inkstalker', { x: p0.x - 1.5, y: p0.y + 1 }, S.guards, true); }); }
       else if (!S.carry && S.phase === 'story') { const ok = [0, 1].filter(pairOK).length; X.text(slot.x, slot.y - 1.8, ok === 2 ? 'The story flows' : ok ? 'Part of it flows…' : 'That doesn\'t follow', ok ? GOLD_HI : VIOLET_HI, 13); } }
     // the lecterns and the side slot
-    [...lect, side].forEach(sl => H.obj({ x: sl.x, y: sl.y + 0.3, kind: 'lectern', r: 0.1, h: 2, label: '', draw(c, Xs, Ys, T) { const t = g.t, sc = sl.side ? 0.75 : 1;
-      c.save(); c.fillStyle = 'rgba(0,0,0,.28)'; c.beginPath(); c.ellipse(Xs, Ys, T * 0.9 * sc, T * 0.32 * sc, 0, 0, TAU); c.fill(); c.fillStyle = WOOD; c.strokeStyle = INK; c.lineWidth = 2; c.fillRect(Xs - T * 0.14 * sc, Ys - T * 0.95 * sc, T * 0.28 * sc, T * 0.95 * sc); c.strokeRect(Xs - T * 0.14 * sc, Ys - T * 0.95 * sc, T * 0.28 * sc, T * 0.95 * sc);
-      c.beginPath(); c.moveTo(Xs - T * 0.8 * sc, Ys - T * 0.95 * sc); c.lineTo(Xs + T * 0.8 * sc, Ys - T * 0.95 * sc); c.lineTo(Xs + T * 0.65 * sc, Ys - T * 1.25 * sc); c.lineTo(Xs - T * 0.65 * sc, Ys - T * 1.25 * sc); c.closePath(); c.fillStyle = WOOD_D; c.fill(); c.stroke(); c.restore();
-      if (sl.page) stonePage(c, Xs, Ys - T * 1.7 * sc, T * sc, sl.page.kind, 1);
+    [...lect, side].forEach(sl => H.obj({ x: sl.x, y: sl.y + 0.3, kind: 'lectern', r: 0.1, h: 2, label: '', draw(c, Xs, Ys, T) { const t = g.t, sc = sl.side ? 0.75 : 1, Lp = LPS(X);   // v474 LE: (Lp)
+      if (!(Lp && Lp.lectern(c, Xs, Ys, T, sc))) { c.save(); c.fillStyle = 'rgba(0,0,0,.28)'; c.beginPath(); c.ellipse(Xs, Ys, T * 0.9 * sc, T * 0.32 * sc, 0, 0, TAU); c.fill(); c.fillStyle = WOOD; c.strokeStyle = INK; c.lineWidth = 2; c.fillRect(Xs - T * 0.14 * sc, Ys - T * 0.95 * sc, T * 0.28 * sc, T * 0.95 * sc); c.strokeRect(Xs - T * 0.14 * sc, Ys - T * 0.95 * sc, T * 0.28 * sc, T * 0.95 * sc);
+      c.beginPath(); c.moveTo(Xs - T * 0.8 * sc, Ys - T * 0.95 * sc); c.lineTo(Xs + T * 0.8 * sc, Ys - T * 0.95 * sc); c.lineTo(Xs + T * 0.65 * sc, Ys - T * 1.25 * sc); c.lineTo(Xs - T * 0.65 * sc, Ys - T * 1.25 * sc); c.closePath(); c.fillStyle = WOOD_D; c.fill(); c.stroke(); c.restore(); }
+      if (sl.page) { if (!(Lp && Lp.stone(c, sl.page.kind, Xs, Ys - T * 1.21 * sc, T * sc, 0))) stonePage(c, Xs, Ys - T * 1.7 * sc, T * sc, sl.page.kind, 1); }   // v474 LE: (the painted stone)
+      else if (Lp) { Lp.slot(Xs, Ys - T * 1.8 * sc, T * sc, t, sl.side); if (sl.side ? (S.phase === 'thief' || S.phase === 'shell') : 1) label(c, sl.side ? 'SHELL' : String(sl.i + 1), Xs, Ys - T * 1.6 * sc, T * 0.32, sl.side ? VIOLET_HI : GOLD_HI); }   // v474 LE: (the empty slot as light)
       else { const want = sl.side ? (S.phase === 'thief' || S.phase === 'shell' ? 1 : 0) : 1; c.save(); c.globalAlpha = 0.5 + 0.3 * Math.sin(t * 4); c.strokeStyle = sl.side ? VIOLET_HI : GOLD_HI; c.lineWidth = 2; c.setLineDash([6, 5]); c.strokeRect(Xs - T * 0.55 * sc, Ys - T * 2.4 * sc, T * 1.1 * sc, T * 1.25 * sc); c.restore(); if (want) label(c, sl.side ? 'SHELL' : String(sl.i + 1), Xs, Ys - T * 1.6 * sc, T * 0.32, sl.side ? VIOLET_HI : GOLD_HI); } } }));
     // pages lying about (or carried by the thief)
     return { S, lect, pages, side,
@@ -250,16 +256,16 @@ const LIB_STAGES = {};
         if (S.open) S.openK = Math.min(1, S.openK + dt * 0.8); },
       goal() { if (self.done) return 'To the spilled-ink chamber'; if (S.intro) return 'The Unfinished Fable'; if (S.phase === 'thief') return 'Catch the page thief: it has the empty shell'; if (S.phase === 'shell') return S.carry && S.carry.kind === 'shell' ? 'Set the shell in the small slot beside the hatchling' : 'Pick up the empty shell'; const n = lect.filter((l, i) => l.page && l.page.kind === ORDER[i]).length; return `The story: ${n}/3 in order (egg → hatchling → adult)${S.carry ? ` · carrying ${PAGE_NAME[S.carry.kind]}` : ''}`; },
       hint() { if (self.done) return null; if (S.phase === 'thief' && S.thief && !S.thief.dead) return S.thief; if (S.carry) { if (S.carry.kind === 'shell') return { x: side.x, y: side.y + 0.9 }; const i = ORDER.indexOf(S.carry.kind); return { x: lect[i].x, y: lect[i].y + 0.9 }; } const pg = pages.find(p => !p.at && !p.held && (!p.stolen || p.dropped)); return pg || null; },
-      drawGround(c) { const T = X.Tz(), t = g.t;
+      drawGround(c) { const T = X.Tz(), t = g.t, Lp = LPS(X);   // v474 LE: (Lp)
         // the gold line under the lecterns: each pair in the right order lights its stretch
-        for (let i = 0; i < 2; i++) { const a = lect[i], b = lect[i + 1], ok = pairOK(i), ax = X.sx(a.x), bx = X.sx(b.x), y = X.sy(a.y + 0.9); c.save(); c.lineCap = 'round'; c.strokeStyle = 'rgba(29,26,40,.5)'; c.lineWidth = T * 0.22; c.beginPath(); c.moveTo(ax, y); c.lineTo(bx, y); c.stroke(); if (ok) { c.globalCompositeOperation = 'lighter'; c.strokeStyle = GOLD_HI; c.lineWidth = T * 0.12; c.setLineDash([T * 0.3, T * 0.2]); c.lineDashOffset = -t * T * 3; c.stroke(); } c.restore(); }
+        for (let i = 0; i < 2; i++) { const a = lect[i], b = lect[i + 1], ok = pairOK(i), ax = X.sx(a.x), bx = X.sx(b.x), y = X.sy(a.y + 0.9); if (Lp) { Lp.line(ax, bx, y, T, ok); continue; }   /* v474 LE */ c.save(); c.lineCap = 'round'; c.strokeStyle = 'rgba(29,26,40,.5)'; c.lineWidth = T * 0.22; c.beginPath(); c.moveTo(ax, y); c.lineTo(bx, y); c.stroke(); if (ok) { c.globalCompositeOperation = 'lighter'; c.strokeStyle = GOLD_HI; c.lineWidth = T * 0.12; c.setLineDash([T * 0.3, T * 0.2]); c.lineDashOffset = -t * T * 3; c.stroke(); } c.restore(); }
         // the slots' steps
-        for (const sl of [...lect, side]) { const Xs = X.sx(sl.x), Ys = X.sy(sl.y + 0.9); c.save(); c.fillStyle = 'rgba(29,26,40,.35)'; c.strokeStyle = sl.side ? VIOLET_HI : GOLD; c.lineWidth = 2; c.beginPath(); c.ellipse(Xs, Ys, T * 0.6, T * 0.24, 0, 0, TAU); c.fill(); c.stroke(); c.restore(); }
+        for (const sl of [...lect, side]) { const Xs = X.sx(sl.x), Ys = X.sy(sl.y + 0.9); if (Lp && Lp.step(c, Xs, Ys, T * (sl.side ? 0.8 : 1), sl.side, t)) continue;   /* v474 LE */ c.save(); c.fillStyle = 'rgba(29,26,40,.35)'; c.strokeStyle = sl.side ? VIOLET_HI : GOLD; c.lineWidth = 2; c.beginPath(); c.ellipse(Xs, Ys, T * 0.6, T * 0.24, 0, 0, TAU); c.fill(); c.stroke(); c.restore(); }
         // pages on the floor, bobbing, and the one carried over the pet
-        for (const pg of pages) { if (pg.at) continue; const held = S.carry === pg, Xs = X.sx(pg.x), Ys = X.sy(pg.y) - (held ? T * 1.9 : T * 0.6) - Math.sin(t * 3 + pg.x) * T * 0.08; if (pg.stolen && !pg.dropped && !(S.thief && !S.thief.dead)) continue; glowAt(c, Xs, Ys, T * 0.9, GOLD, 0.35); stonePage(c, Xs, Ys + T * 0.3, T * (held ? 0.7 : 0.85), pg.kind, 1); }
+        for (const pg of pages) { if (pg.at) continue; const held = S.carry === pg, Xs = X.sx(pg.x), Ys = X.sy(pg.y) - (held ? T * 1.9 : T * 0.6) - Math.sin(t * 3 + pg.x) * T * 0.08; if (pg.stolen && !pg.dropped && !(S.thief && !S.thief.dead)) continue; if (Lp && Lp.stone(c, pg.kind, Xs, Ys + T * (held ? 0.65 : 0.72), T * (held ? 0.7 : 0.85), 1)) continue;   /* v474 LE */ glowAt(c, Xs, Ys, T * 0.9, GOLD, 0.35); stonePage(c, Xs, Ys + T * 0.3, T * (held ? 0.7 : 0.85), pg.kind, 1); }
         // the arch: two leaves of a binding press that fold open
         const X0 = X.sx(dx0), X1 = X.sx(dx1), Y0 = X.sy(dy) - T * 1.4, Y1 = X.sy(dy) + T, w = (X1 - X0) / 2, sh = S.openK * w;
-        c.save(); c.beginPath(); c.rect(X0, Y0 - 4, X1 - X0, Y1 - Y0 + 8); c.clip(); for (const sd of [-1, 1]) { const lx = sd < 0 ? X0 - sh : X0 + w + sh; c.fillStyle = '#3A2236'; c.fillRect(lx, Y0, w, Y1 - Y0); c.strokeStyle = INK; c.lineWidth = 2; c.strokeRect(lx, Y0, w, Y1 - Y0); c.strokeStyle = BURG_HI; c.strokeRect(lx + 5, Y0 + 5, w - 10, Y1 - Y0 - 10); } c.restore();
+        if (!(Lp && Lp.leaves(c, 1, X0, X1, Y0, Y1, sh))) { c.save(); c.beginPath(); c.rect(X0, Y0 - 4, X1 - X0, Y1 - Y0 + 8); c.clip(); for (const sd of [-1, 1]) { const lx = sd < 0 ? X0 - sh : X0 + w + sh; c.fillStyle = '#3A2236'; c.fillRect(lx, Y0, w, Y1 - Y0); c.strokeStyle = INK; c.lineWidth = 2; c.strokeRect(lx, Y0, w, Y1 - Y0); c.strokeStyle = BURG_HI; c.strokeRect(lx + 5, Y0 + 5, w - 10, Y1 - Y0 - 10); } c.restore(); }   // v474 LE: (the painted press)
         if (S.openK < 0.6) ['egg', 'hatch', 'adult'].forEach((k, i) => pagePic(c, k, X0 + (X1 - X0) * (0.25 + i * 0.25), Y0 + (Y1 - Y0) * 0.45, T * 0.32, GOLD_HI)); },
     };
   }
@@ -297,20 +303,21 @@ const LIB_STAGES = {};
     // the rest markers: wake the next one by standing on it for a moment
     circles.forEach(cc => { cc.obj = H.obj({ x: cc.x, y: cc.y, kind: 'marker', r: 0.9, h: 0.4, label: () => (cc.woke ? 'Rest circle: awake' : S.phase === 'wait' && S.next === cc.i ? 'Wake the rest marker' : 'Rest circle'), use() { if (S.phase !== 'wait' || S.next !== cc.i || cc.woke) return; cc.woke = true; X.sfx.fanfare && X.sfx.fanfare(); X.ring(cc.x, cc.y, 0.3, 2.4, 0.4, GOLD_HI, 0.4); S.phase = 'walk'; S.ri++; X.text(cc.x, cc.y - 1.5, 'The procession moves on', GOLD_HI, 14);
       if (cc.i === 0) { const left = groups.filter(gr => !gr.real && !gr.opened); if (left[0]) openFalse(left[0]); } },
-      draw(c, Xs, Ys, T) { const t = g.t, live = S.phase === 'wait' && S.next === cc.i; c.save(); c.fillStyle = cc.woke ? 'rgba(207,173,98,.45)' : 'rgba(29,26,40,.4)'; c.strokeStyle = live ? '#FFFFFF' : GOLD; c.lineWidth = live ? 4 : 2.5; c.beginPath(); c.ellipse(Xs, Ys, T * 1.1, T * 0.42, 0, 0, TAU); c.fill(); c.stroke(); c.beginPath(); c.ellipse(Xs, Ys, T * 0.75, T * 0.28, 0, 0, TAU); c.stroke();
+      draw(c, Xs, Ys, T) { const t = g.t, live = S.phase === 'wait' && S.next === cc.i; { const Lp = LPS(X); if (Lp && Lp.marker(c, Xs, Ys, T, live, cc.woke, t)) { label(c, String(cc.i + 1), Xs, Ys + T * 0.12, T * 0.36, cc.woke ? '#FFFFFF' : GOLD_HI); return; } }   /* v474 LE: the painted dais */ c.save(); c.fillStyle = cc.woke ? 'rgba(207,173,98,.45)' : 'rgba(29,26,40,.4)'; c.strokeStyle = live ? '#FFFFFF' : GOLD; c.lineWidth = live ? 4 : 2.5; c.beginPath(); c.ellipse(Xs, Ys, T * 1.1, T * 0.42, 0, 0, TAU); c.fill(); c.stroke(); c.beginPath(); c.ellipse(Xs, Ys, T * 0.75, T * 0.28, 0, 0, TAU); c.stroke();
         if (live || cc.woke) glowAt(c, Xs, Ys - T * 0.3, T * 1.6, GOLD, live ? 0.4 + 0.3 * Math.sin(t * 5) : 0.35); c.restore(); label(c, String(cc.i + 1), Xs, Ys + T * 0.12, T * 0.36, cc.woke ? '#FFFFFF' : GOLD_HI); } }); });
     // the three groups of books (drawn as one object each, so they stand among the monsters)
     groups.forEach(gr => H.obj({ x: gr.x, y: gr.y + 0.5, kind: 'books', r: 0.1, h: 2, label: '', draw(c, Xs, Ys, T) { drawGroup(c, gr, T); } }));
     function bookPos(gr, b) { const t = g.t, bx = (gr === G && S.phase !== 'find' ? S.px : gr.x) + b.ox, by = (gr === G && S.phase !== 'find' ? S.py : gr.y) + b.oy; return { x: bx, y: by, lift: 0.9 + Math.sin(t * 2.2 + b.ox * 3) * 0.12 }; }
-    function drawGroup(c, gr, T) { const t = g.t; if (gr.opened) return; const k = Math.min(1, gr.seen / 0.6);
+    function drawGroup(c, gr, T) { const t = g.t; if (gr.opened) return; const k = Math.min(1, gr.seen / 0.6), Lp = LPS(X);   // v474 LE: (Lp)
       for (const b of gr.books) { const p = bookPos(gr, b), Xs = X.sx(p.x), Ys = X.sy(p.y);
-        if (k > 0) truthMark(c, Xs, Ys, T, T * 0.55, gr.real, t, k);
+        if (k > 0) { if (Lp) Lp.truth(Xs, Ys, T, T * 0.55, gr.real, t, k); else truthMark(c, Xs, Ys, T, T * 0.55, gr.real, t, k); }   // v474 LE: (light)
         if (b.down) { c.save(); c.globalAlpha = 0.6; c.translate(Xs, Ys - T * 0.15); c.rotate(1.3); c.fillStyle = '#5A4A5A'; c.fillRect(-T * 0.35, -T * 0.25, T * 0.7, T * 0.5); c.strokeStyle = INK; c.lineWidth = 2; c.strokeRect(-T * 0.35, -T * 0.25, T * 0.7, T * 0.5); c.restore(); label(c, 'Stand by me', Xs, Ys - T * 1.0, T * 0.22, GOLD_HI); continue; }
         const Y = Ys - p.lift * T, fin = Math.sin(t * 5 + b.ox) * 0.3, hurt = b.hurtT > 0;
+        if (!(Lp && Lp.pbook(c, Xs, Ys, Y, T, fin, hurt))) {   // v474 LE: the painted book
         c.save(); c.fillStyle = 'rgba(0,0,0,.2)'; c.beginPath(); c.ellipse(Xs, Ys, T * 0.36, T * 0.12, 0, 0, TAU); c.fill();
         for (const sd of [-1, 1]) { c.save(); c.translate(Xs, Y); c.scale(sd, 1); c.fillStyle = PARCH_HI; c.beginPath(); c.moveTo(T * 0.25, -T * 0.05); c.quadraticCurveTo(T * 0.6, -T * (0.35 + fin), T * 0.7, -T * (0.05 + fin)); c.quadraticCurveTo(T * 0.5, T * 0.05, T * 0.25, T * 0.08); c.closePath(); c.fill(); c.strokeStyle = INK; c.lineWidth = 1.5; c.stroke(); c.restore(); }
         c.fillStyle = hurt ? '#FF6A7A' : BURG; c.fillRect(Xs - T * 0.28, Y - T * 0.38, T * 0.56, T * 0.5); c.strokeStyle = INK; c.lineWidth = 2; c.strokeRect(Xs - T * 0.28, Y - T * 0.38, T * 0.56, T * 0.5); c.fillStyle = PARCH_HI; c.fillRect(Xs + T * 0.2, Y - T * 0.34, T * 0.06, T * 0.42); c.fillStyle = GOLD; c.fillRect(Xs - T * 0.28, Y - T * 0.38, T * 0.56, 3);
-        c.restore();
+        c.restore(); }
         if (gr.real && k >= 1) { // the ally mark and a health sliver
           c.save(); c.fillStyle = '#3E8A55'; c.strokeStyle = '#FFFFFF'; c.lineWidth = 2; c.beginPath(); c.moveTo(Xs, Y - T * 0.95); c.lineTo(Xs + T * 0.16, Y - T * 0.82); c.lineTo(Xs + T * 0.13, Y - T * 0.6); c.lineTo(Xs, Y - T * 0.52); c.lineTo(Xs - T * 0.13, Y - T * 0.6); c.lineTo(Xs - T * 0.16, Y - T * 0.82); c.closePath(); c.fill(); c.stroke();
           c.fillStyle = 'rgba(0,0,0,.5)'; c.fillRect(Xs - T * 0.3, Y + T * 0.2, T * 0.6, 4); c.fillStyle = b.hp > 0.4 ? '#7FE07F' : '#FF6A6A'; c.fillRect(Xs - T * 0.3, Y + T * 0.2, T * 0.6 * b.hp, 4); c.restore(); } }
@@ -340,6 +347,8 @@ const LIB_STAGES = {};
       goal() { if (self.done) return 'To the final archive'; if (S.intro) return 'The False Procession'; if (S.phase === 'find') return `Find the true procession (inspect: ${groups.filter(gr => gr.seen >= 0.6).length}/3)`; if (S.halted) return 'A book has fallen: stand beside it'; if (S.phase === 'wait') return `Wake rest marker ${S.next + 1} for the procession`; if (S.waiting) return 'The books wait: go back and lead them'; return `Lead the procession · rest circle ${Math.min(circles.filter(c => c.woke).length + 1, circles.length)}/${circles.length}`; },
       hint() { if (self.done) return null; if (S.phase === 'find') return groups.find(gr => !gr.opened && gr.seen < 0.6) || null; const downB = G.books.find(b => b.down); if (downB) return bookPos(G, downB); if (S.phase === 'wait') return circles[S.next]; return { x: S.px, y: S.py }; },
       drawGround(c) { const T = X.Tz(), t = g.t; if (S.phase === 'find') return;
+        { const Lp = LPS(X); if (Lp) { const pts = [[X.sx(S.px), X.sy(S.py)]]; for (let r = S.ri; r < route.length; r++) { pts.push([X.sx(route[r].x), X.sy(route[r].y)]); if (stopOf(r) >= 0 && r > S.ri) break; } Lp.path(pts, T); if (S.phase === 'walk') Lp.lead(X.sx(S.px), X.sy(S.py), LEAD * T, T, S.waiting, t);
+          for (const m of X.mons) { if (m.dead || m.boss) continue; if (G.books.some(b => { const p = bookPos(G, b); return Math.hypot(m.x - p.x, m.y - p.y) < 1.3; })) Lp.threat(X.sx(m.x), X.sy(m.y), T, t); } return; } }   // v474 LE: the way, the leading circle and the monsters at the books in light (no dashes, no red ring)
         // the way ahead: a dotted gold path from the books to where they're going
         c.save(); c.strokeStyle = 'rgba(226,182,74,.6)'; c.lineWidth = 3; c.setLineDash([4, 10]); c.lineDashOffset = -t * 20; c.beginPath(); c.moveTo(X.sx(S.px), X.sy(S.py)); for (let r = S.ri; r < route.length; r++) { c.lineTo(X.sx(route[r].x), X.sy(route[r].y)); if (stopOf(r) >= 0 && r > S.ri) break; } c.stroke(); c.restore();
         // the leading circle round the books: stay inside it and they move

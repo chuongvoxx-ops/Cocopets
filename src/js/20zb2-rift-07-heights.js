@@ -241,10 +241,11 @@
       drawOver(c) { if (base.drawOver) base.drawOver(c); const T = X.Tz(), t = X.g.t, W = X.W(), Hh = X.H ? X.H() : 900;
         // the holy fire: a column of white-gold light falling onto its circle
         // (feathered all round: a stretched soft glow for the column, a softer core, a pool of light where it lands)
-        for (const p of PILLARS) { const k = Math.sin(Math.PI * Math.min(1, p.t / p.life)) * 0.9, Xs = X.sx(p.x), Ys = X.sy(p.y), w = p.r * T * 0.85, top = Ys - Math.min(Hh * 0.8, T * 9);
+        if (!(LIB.pillarsGL && LIB.pillarsGL())) /* v474 LM: on the GPU while the brood's layer paints (20zb5) */ for (const p of PILLARS) { const k = Math.sin(Math.PI * Math.min(1, p.t / p.life)) * 0.9, Xs = X.sx(p.x), Ys = X.sy(p.y), w = p.r * T * 0.85, top = Ys - Math.min(Hh * 0.8, T * 9);
           c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.55 * k; blitSized(c, glowSprite('#FFD36B'), Xs - w * 1.6, top, w * 3.2, (Ys - top) * 1.25); c.globalAlpha = 0.5 * k; blitSized(c, glowSprite('#FFFFFF'), Xs - w * 0.55, top + (Ys - top) * 0.15, w * 1.1, (Ys - top) * 1.0); c.restore();
           glowIn(c, Xs, Ys, w * 2.4, '#FFD36B', 0.8 * k); glowIn(c, Xs, Ys, w * 1.2, '#FFFFFF', 0.6 * k); }
         if (!holy) return;
+        if (typeof LIB_PROPS !== 'undefined' && LIB_PROPS.threads && LIB_PROPS.threads(X, threads, motes)) return;   // v474 LE: the threads and motes on the GPU (20zb3)
         // thin threads of soft light weaving between the holy things (and down from the sky), fading in and out
         c.save(); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round';
         for (const th of threads) { const k = Math.sin(Math.PI * Math.min(1, th.t / th.max)), ax = X.sx(th.ax), ay = X.sy(th.ay) - th.ah * T, bx = th.sky ? X.sx(th.bx) + th.skx * T : X.sx(th.bx), by = th.sky ? -20 : X.sy(th.by) - th.bh * T;
@@ -260,5 +261,5 @@
         for (const q of motes) { const x = q.x * W + Math.sin(t + q.ph) * 12, y = q.y * Hh; c.globalAlpha = 0.35 + 0.25 * Math.sin(t * 3 + q.ph); c.fillStyle = '#FFF6D0'; c.beginPath(); c.arc(x, y, q.s, 0, TAU); c.fill(); }
         c.restore(); },
     }; };
-  LIB.holyFire = holyFire;
+  LIB.holyFire = holyFire; LIB.PILLARS = PILLARS;   // v474 LM: (the falling columns, for the brood's GPU layer, 20zb5)
 })();

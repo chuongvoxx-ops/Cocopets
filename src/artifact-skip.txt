@@ -7,14 +7,7 @@
 
 # (v472 YE: Rift 06, The Yuggoth Engine (+ Aquarius gate), rebuilt and back in the artifact: its block removed; the artifact measured 15.32 MB with it)
 
-# Rift 07, The Library of Unwritten Lives (+ Virgo gate)
-20za-rift-07-stages.js
-20zb-rift-07-library.js
-20zb2-rift-07-heights.js
-20zc-rift-gate-virgo.js
-20ze-rift-fiend-library-1.js
-20zf-rift-fiend-library-2.js
-20zg-rift-fiend-library-3.js
+# (v474 LE: Rift 07, The Library of Unwritten Lives (+ Virgo gate), rebuilt and back in the artifact: its block removed (with LM's 20zb5 and LB's 20zea/20zfa/20zga); the artifact measured 15.888 MB with it, a 12 KB margin under 15.9: re-measure before adding code)
 
 # Rift 08, The Hollow Moon (+ Pisces gate)
 20zh-rift-08-stages.js

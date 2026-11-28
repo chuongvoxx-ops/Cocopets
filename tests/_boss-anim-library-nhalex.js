@@ -93,12 +93,12 @@ const AP = 17;
       while (performance.now() - t0 < 9000) { await new Promise(r => requestAnimationFrame(r)); D.me.hp = D.ST.hp; const cs = S.tele.filter(s => s.ink === 'stab' && !s.done); out.circles = Math.max(out.circles, cs.length);
         for (const s of cs) { if (s.mode == null) s.mode = k++ ? 'out' : 'in'; if (s.age > s.t * 0.6 && !s.moved) { s.moved = true; if (s.mode === 'in') { D.me.x = s.x; D.me.y = s.y; } else { D.me.x = s.x + (s.x < C.x ? 4.2 : -4.2); D.me.y = s.y; } D.me.vx = D.me.vy = 0; } }
         // (a nib stuck in the floor: strike it)
-        const st = M.tend.find(q => q.mode === 'stuck' && q.px && !q.px.dead); if (st && out.nib == null) { out.stuck = true; const h0 = b.hp; D.hitMon(st.px, 1000, { flat: true }); out.nib = h0 - b.hp; }
+        const st = M.tend.find(q => q.mode === 'stuck' && q.px && !q.px.dead); if (st && out.nib == null) { out.stuck = true; const h0 = b.hp; D.hitMon(st.px, 1000, { flat: true }); out.nib = h0 - b.hp; const F = D.FD.FX.F; out.fk = (F && F.rift && F.rift.foeK && F.rift.foeK.boss) || 1; /* (v474 LB: foeK.boss) */ }
         if (b.act !== 'stab' && M.stat.stabs - s0.stabs > 0) break; }
       out.stabs = M.stat.stabs - s0.stabs; out.hit = M.stat.stabHit - s0.stabHit; return out; });
     console.log('  stabs', JSON.stringify(sb)); ok(sb.circles >= 2 && sb.stabs >= 2, `${id}: Quill Stabs: shown circles, each a quill stabbing down (${sb.stabs})`);
     ok(sb.hit === 1, `${id}: standing in the first circle it strikes; stepping out of the next it misses (${sb.hit} of ${sb.stabs})`);
-    ok(sb.stuck && sb.nib > 1000, `${id}: a nib left stuck in the floor passes more than the blow (${Math.round(sb.nib || 0)})`);
+    ok(sb.stuck && sb.nib * (sb.fk || 1) > 1000,   /* (v474 LB: x foeK.boss) */ `${id}: a nib left stuck in the floor passes more than the blow (${Math.round(sb.nib || 0)})`);
     await until("return b.act === 'think'", 10);
 
     // Quill Sentence: three numbered lines, striking in their NUMBERED order
@@ -137,12 +137,12 @@ const AP = 17;
       const E = M.end; if (!E) return { ok: false };
       return { ok: true, n: E.list.length, real: E.list.filter(L => L.real).length, knots: E.list.filter(L => L.knot && !L.knot.dead).length, books: M.books.filter(k => k.open > 0.5).length, shut: M.eyes.filter(e => e.shut).length, W: E.W, ban: [...ban] }; });
     await place(0, 2); await run(0.3); await shot(id + '-ending');
-    const en2 = await page.evaluate(async () => { const D = window.__pp.arc.game._dbg, b = D.g.boss, M = D.FD.FX.mem, E = M.end; const s0 = Object.assign({}, M.stat); const fake = E.list.find(L => !L.real), real = E.list.find(L => L.real);
+    const en2 = await page.evaluate(async () => { const D = window.__pp.arc.game._dbg, b = D.g.boss, M = D.FD.FX.mem, E = M.end, FK = () => { const F = D.FD.FX.F; return (F && F.rift && F.rift.foeK && F.rift.foeK.boss) || 1; };   /* (v474 LB: FK the rift's main-boss health factor) */ const s0 = Object.assign({}, M.stat); const fake = E.list.find(L => !L.real), real = E.list.find(L => L.real);
       D.hitMon(fake.knot, 1e9, { flat: true }); await new Promise(r => setTimeout(r, 300)); const afterFake = { st: M.end && M.end.st, falseKnots: M.stat.falseKnots - s0.falseKnots, stun: b.stunT || 0 };
       D.me.x = real.kx; D.me.y = real.ky + 1.6; D.hitMon(real.knot, 1e9, { flat: true }); await new Promise(r => setTimeout(r, 900)); const w = D.FD.S.weak.core;
-      return { afterFake, broken: M.stat.endingsBroken - s0.endingsBroken, stun: b.stunT, weak: !!(w && !w.dead), fwd: w ? w.forward : 0, majorTele: D.FD.S.tele.some(s => s.ink === 'major'), sag: M.P.sag }; });
+      return { afterFake, broken: M.stat.endingsBroken - s0.endingsBroken, stun: b.stunT, weak: !!(w && !w.dead), fwd: w ? w.forward * FK() : 0,   /* (v474 LB: x foeK.boss) */ majorTele: D.FD.S.tele.some(s => s.ink === 'major'), sag: M.P.sag }; });
     await place(0, -5.5); await run(1.8); await shot(id + '-ending-broken');
-    const en3 = await page.evaluate(async weak => { const D = window.__pp.arc.game._dbg, b = D.g.boss, M = D.FD.FX.mem, w = D.FD.S.weak[weak], h0 = b.hp; D.hitMon(w, 1000, { flat: true }); const dmg = h0 - b.hp; const m0 = M.stat.majors; const t0 = performance.now(); while (performance.now() - t0 < 8000 && (b.stunT > 0 || b.act !== 'think')) { await new Promise(r => requestAnimationFrame(r)); D.me.hp = D.ST.hp; } return { dmg, majors: M.stat.majors - m0, totalMajors: M.stat.majors }; }, WEAK[id]);
+    const en3 = await page.evaluate(async weak => { const D = window.__pp.arc.game._dbg, b = D.g.boss, M = D.FD.FX.mem, w = D.FD.S.weak[weak], h0 = b.hp; D.hitMon(w, 1000, { flat: true }); const F = D.FD.FX.F, dmg = (h0 - b.hp) * ((F && F.rift && F.rift.foeK && F.rift.foeK.boss) || 1); /* (v474 LB: x foeK.boss) */ const m0 = M.stat.majors; const t0 = performance.now(); while (performance.now() - t0 < 8000 && (b.stunT > 0 || b.act !== 'think')) { await new Promise(r => requestAnimationFrame(r)); D.me.hp = D.ST.hp; } return { dmg, majors: M.stat.majors - m0, totalMajors: M.stat.majors }; }, WEAK[id]);
     console.log('  ending', JSON.stringify(en), JSON.stringify(en2), JSON.stringify(en3));
     ok(en.ok && en.n === 3 && en.real === 1 && en.knots === 3 && en.books === 3 && en.shut === 3, `${id}: Unwritten Ending: three books open (of eight), three projections, one real, its eyes closed one by one`);
     ok(en2.afterFake.falseKnots === 1 && en2.afterFake.st === 'open' && !en2.afterFake.stun, `${id}: a copy's tether, broken, changes nothing (a false ending)`);
@@ -212,8 +212,8 @@ const AP = 17;
         if (g.t - tLast > 0.26) { tLast = g.t; const sx = FX.sx(w.x), sy = FX.sy(w.y); G.down(sx, sy, 77); G.up(sx, sy, 77); }
         ['strong', 'strong2', 'strong3'].forEach((k, i) => { const ab = D.KIT[k], cd = g[['cdS', 'cdS2', 'cdS3'][i]]; if (ab && me.mp >= ab.cost && cd <= 0) D.useStrong(k); });
         if (D.KIT.ult && me.mp >= D.KIT.ult.cost && g.cdU <= 0) D.useUlt(); }
-      used = L.t; await new Promise(r => setTimeout(r, 700)); D.banners.forEach(x => ban.add(x.s)); const w = D.FD.S.weak.core;
-      return { used: +used.toFixed(1), T: L.T, dealt: Math.round(L.dealt), passed: M.stat.lpPassed, lpDone: M.lpDone, stun: b.stunT, weak: !!(w && !w.dead), fwd: w ? w.forward : 0, hpK: +(b.hp / b.maxhp).toFixed(3), hpHeld: hpHeld === L.hp0, ban: [...ban], state: P.arc.state }; });
+      used = L.t; await new Promise(r => setTimeout(r, 700)); D.banners.forEach(x => ban.add(x.s)); const w = D.FD.S.weak.core; const F = D.FD.FX.F, fk = (F && F.rift && F.rift.foeK && F.rift.foeK.boss) || 1;   /* (v474 LB: foeK.boss) */
+      return { used: +used.toFixed(1), T: L.T, dealt: Math.round(L.dealt), passed: M.stat.lpPassed, lpDone: M.lpDone, stun: b.stunT, weak: !!(w && !w.dead), fwd: w ? w.forward * fk : 0,   /* (v474 LB: x foeK.boss) */ hpK: +(b.hp / b.maxhp).toFixed(3), hpHeld: hpHeld === L.hp0, ban: [...ban], state: P.arc.state }; });
     await place(0.5, -5.5); await run(2.4); await shot(id + '-collapse');
     console.log('  lastpage pass', JSON.stringify(lp0), JSON.stringify(lpI), JSON.stringify(bot), JSON.stringify(bot2));
     ok(lp0 && Math.abs(lpI.ward - lpI.barHP * lpI.wardK) < 1 && lpI.T >= 15 && lpI.T <= 20, `${id}: THE LAST PAGE: a ${lpI.T} s countdown and a ward of ${Math.round(lpI.ward)} damage (${lpI.wardK} bars of ${Math.round(lpI.barHP)})`);

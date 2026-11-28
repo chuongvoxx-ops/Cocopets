@@ -27,6 +27,10 @@
    into a circular skylight and the model of Gaia lights seven points. */
 RiftFiend.define({ id: 'nhalex', name: 'Nhalex', title: 'The Unwritten Mind', color: '#F0E6CE', glow: '#F2DC9A', accent: '#FFE9A8', biome: 'archive', r: 3.2, els: ['dark', 'light'], phases: 3, cuts: [1, 0.7, 0.35] }, (() => {
   const { TAU, TN } = RiftFiend, K = DunFiend.KIT, { PARCH, PARCH_D, PARCH_HI, BURG, GOLD, GOLD_HI, VIOLET, VIOLET_HI } = LIB;
+  /* (v474 LB) the GPU model (NHALEX_GL, 20zga-nhalex-gl.js); without it the 2D mind. The rift's main-boss health factor (as 20z4's): its
+     blows and its bared core count 1 / foeK.boss; the Last Page's ward (its own bar, against its own clock) is left as it was */
+  const NG = () => (typeof NHALEX_GL !== 'undefined' ? NHALEX_GL : null), KEEP2D = { every: 2, pad: 2 };
+  const hpK = FX => { const F = FX && FX.F && FX.F.rift && FX.F.rift.foeK; return F && F.boss > 0 ? F.boss : 1; };
   const decay = (v, dt, k) => Math.max(0, (v || 0) - dt * k), toward = (v, w, dt, k) => (v || 0) + (w - (v || 0)) * Math.min(1, dt * k), lerp = (a, b, u) => a + (b - a) * u, smooth = u => { u = clamp(u, 0, 1); return u * u * (3 - 2 * u); };
   const IVORY = '#F0E6CE', IVORY_SH = '#D2BC96', IVORY_DK = '#AA8F6C', IVORY_HI = '#FFFAEE', GROOVE = '#7C2F50', GROOVE_DK = '#4E1A33', INK2 = '#14101C', ROSE = '#E2456C', ROSE_HI = '#FF9DB6', TEL = '#24101E', IRIS = '#E9B23C', PLUME = '#1E1A2A';
   /* the archive (all about the arena's centre C): an octagon with flat sides north, south, east and west (apothem AP) */
@@ -71,7 +75,7 @@ RiftFiend.define({ id: 'nhalex', name: 'Nhalex', title: 'The Unwritten Mind', co
     paintGround(c, A) { paintFloor(c, A); },
     sky(c, W, H, t, cam, T, FX) { paintSky(c, W, H, T, !!(FX && FX.m && FX.m.dead)); },
     skyKey(FX) { return FX.m && FX.m.dead ? 'open' : 'moon'; },
-    overlay(c, FX, t, T) { drawOverlay(c, FX, t, T); },
+    overlay(c, FX, t, T) { { const o = NG(); if (o && o.overlay(c, FX, t, T)) return; } drawOverlay(c, FX, t, T); },   // (v474 LB: the quill's warnings and the true shelter in light first; the 2D overlay keeps the rest: M.lbGL)
     camFocus(FX, m) { const C = FX.C, M = FX.mem; if (!M.P) return null; if (m.dead) return M.deadT != null && M.deadT < 3 ? { x: C.x, y: C.y - 15, k: 0.6, zoom: 0.46 } : null;
       if (m.act === 'enter') return { x: C.x, y: C.y - 19, k: 0.62, zoom: 0.42 };
       if (M.lp) return { x: C.x, y: C.y - 12, k: 0.85, zoom: 0.5 };
@@ -79,7 +83,7 @@ RiftFiend.define({ id: 'nhalex', name: 'Nhalex', title: 'The Unwritten Mind', co
       if (m.act === 'ending' || m.act === 'salvation') return { x: C.x, y: C.y - 4, k: 0.7, zoom: 0.36 };
       return { x: C.x, y: C.y - 19, k: 0.58, zoom: 0.43 }; },
     /* ---- the fight ---- */
-    init(FX) { const M = FX.mem, m = FX.m, C = FX.C; m.act = 'enter'; m.noTouch = true; m.touchK = 0;
+    init(FX) { const M = FX.mem, m = FX.m, C = FX.C; m.act = 'enter'; m.noTouch = true; m.touchK = 0; if (NG()) NG().init(FX);   /* (v474 LB: its warnings marked for light) */
       Object.assign(M, { bt: 0, q: [], qt: 0, seen: {}, picks: 0, nextSig: null, recoil: 0, roll: 0, ringA: 0.3, fx: C.x, dx: 0, why: null, wasStun: false, roared: false, end: null, salv: null, lp: null, lpDone: false, hd: null, hdDone: false, drops: [], splats: [], look: [0, 0.3],
         eyes: EYES.map((e, i) => ({ i, b: 1, shut: 0, bl: 0, bt: 1 + i * 0.7 })),
         books: BOOKS.map(() => ({ open: 0, lit: 0 })),
@@ -106,7 +110,7 @@ RiftFiend.define({ id: 'nhalex', name: 'Nhalex', title: 'The Unwritten Mind', co
       }
       if (!m.under) FX.parts(partsList(FX, m));
     },
-    stunned(FX, m, dt) { const M = FX.mem; m.noTouch = true; const cp = coreAt(FX); FX.weak('core', cp[0], cp[1] - cp[2], 2.4, M.why === 'torn' ? 3 : 2.5, m.stunT > 0.05);
+    stunned(FX, m, dt) { const M = FX.mem; m.noTouch = true; const cp = coreAt(FX); FX.weak('core', cp[0], cp[1] - cp[2], 2.4, (M.why === 'torn' ? 3 : 2.5) / hpK(FX), m.stunT > 0.05);   /* (v474 LB: its blows 1 / foeK.boss) */
       M.shT = (M.shT || 0) - dt; if (M.shT <= 0) { M.shT = 0.35; FX.H.sparks(cp[0] + FX.rnd(-1.2, 1.2), cp[1] - cp[2] + FX.rnd(-0.8, 0.8), GOLD_HI, 4, 3); } if (!m.under) FX.parts(partsList(FX, m)); },
     update(FX, dt) { const M = FX.mem, m = FX.m, C = FX.C, me = FX.me; if (!m || !M.P) return; M.bt += dt;
       M.recoil = decay(M.recoil, dt, 2.2);
@@ -137,14 +141,17 @@ RiftFiend.define({ id: 'nhalex', name: 'Nhalex', title: 'The Unwritten Mind', co
       // the Last Page: its plume boils, ink spitting from it
       if (M.P.boil > 0.3 && Math.random() < dt * 5) { const u = Math.random(), sd = Math.random() < 0.5 ? -1 : 1; FX.H.part({ kind: 'spark', x: lerp(M.fx, B[0], u) + sd * FX.rnd(0.8, 1.6), y: lerp(C.y + FOOT_Y, B[1], u) - lerp(0, B[2] - BH, u), vx: sd * FX.rnd(1, 3), vy: FX.rnd(-5, -2), g: 9, life: 0.7, max: 0.7, size: 3, color: Math.random() < 0.3 ? ROSE_HI : '#1A1626' }); }
       if (M.blast) M.blast.t += dt; },
-    dmgK(FX, m) { const M = FX.mem; M.recoil = Math.max(M.recoil || 0, 0.45); return M.lp ? 0.3 : 0.85; },
+    dmgK(FX, m) { const M = FX.mem; M.recoil = Math.max(M.recoil || 0, 0.45); return M.lp ? 0.3 : 0.85 / hpK(FX); },   // (v474 LB: the rift's main-boss health, foeK.boss times: its blows 1 / foeK.boss; on the last page they go to its ward, as before)
     onWeakHit(FX) { FX.mem.recoil = 1; },
     // (it cannot fall while its last page runs, nor before the last page has been answered)
     holdOn(FX, m) { const M = FX.mem; return !!(M.lp && M.lp.st !== 'done') || !M.lpDone; },
-    keep: { every: 2, pad: 2 },
+    get keep() { const o = NG(); return o && o.gpu() ? null : KEEP2D; },   // (v474 LB: the GPU model drawn every frame, one pass; the 2D one kept as before)
+    get MODEL() { return NG(); }, preload(P) { const o = NG(); return o ? o.preload(P) : []; },   // (v474 LB)
+    RIG: { LOBES, EYES, GROOVES, TEND, GAIA_PTS, BOOKS, FOOT_Y, BH, BW, BD, RING_R, RING_DY, brainAt: FX => brainAt(FX), coreAt: FX => coreAt(FX), gaiaAt: FX => gaiaAt(FX), projAt: (FX, L) => projAt(FX, L) },   // (v474 LB: the fight's state for NHALEX_GL, 20zga)
+    symbol: (c, k, x, y, s, col, T) => symbol(c, k, x, y, s, col, T),   // (v474 LB: the pages' great symbols, for the painted books (LE))
     draw(c, FX, m, X, Y, T, t) { if (!(FX.S && FX.S.started)) { demoPaint(c, FX, m, X, Y, T, t); return; } const P3 = TN.cam(X, Y, T, m); paintAll(c, FX, m, P3, T); },
     drawObj(c, FX, o, X, Y, T, t) { if (o.kind === 'knot') drawKnot(c, FX, o, X, Y, T, t); },
-    drawFx(c, FX, T, t) { drawFx(c, FX, T, t); },
+    drawFx(c, FX, T, t) { FX.mem.lbAir = !!(NG() && NG().drawFx(c, FX, T, t)); drawFx(c, FX, T, t); },   // (v474 LB: the raised tendrils and the core's ring on the GPU first; drawFx then leaves them: M.lbAir)
   };
 
   /* ---------- the fight's pieces ---------- */
@@ -315,6 +322,7 @@ RiftFiend.define({ id: 'nhalex', name: 'Nhalex', title: 'The Unwritten Mind', co
   /* ---------- the painting ---------- */
   function gaiaAt(FX) { const B = brainAt(FX), M = FX.mem; return [B[0], B[1] - 2.2, Math.max(4, B[2]) + 3.75 + Math.sin(M.bt * 0.5) * 0.15]; }
   function paintAll(c, FX, m, P3, T) { const M = FX.mem, C = FX.C, P = M.P, lw = Math.max(1.2, T * 0.075), B = brainAt(FX);
+    { const o = NG(); if (o && o.paint(c, FX, m, P3, T)) { if (M.end && !m.dead) { c.save(); c.globalAlpha = P.alpha; c.lineJoin = 'round'; c.lineCap = 'round'; for (const L of M.end.list) if (L.on && !L.gone && L.a > 0.02) paintProjection(c, FX, P3, T, L, lw, true); c.restore(); } return; } }   // (v474 LB: the GPU mind (the real projection with it); the copies' outlines and the tethers stay 2D)
     c.save(); c.lineJoin = 'round'; c.lineCap = 'round';
     paintGaia(c, FX, P3, T, lw);
     c.globalAlpha = P.alpha;
@@ -423,13 +431,13 @@ RiftFiend.define({ id: 'nhalex', name: 'Nhalex', title: 'The Unwritten Mind', co
     const lit = M.lit || 0; for (let i = 0; i < lit; i++) { const [lon, lat] = GAIA_PTS[i], a = lon + rot, cz = Math.cos(a); if (cz < 0) continue; const x = p[0] + Math.sin(a) * r * Math.cos(lat), y = p[1] - lat * r * 0.9; K.glow(c, x, y, T * 0.9, GOLD_HI, 0.9 * cz); TN.twinkle(c, x, y, T * 0.32, '#FFFFFF', 0.95); }
     c.strokeStyle = INK2; c.lineWidth = T * 0.24; c.beginPath(); c.ellipse(p[0], p[1], r * 1.18, r * 0.36, -0.35, 0, Math.PI); c.stroke(); c.strokeStyle = GOLD; c.lineWidth = T * 0.12; c.stroke(); }
   /* a projection of it, out of a book: the real one painted whole (with a gold rim); a copy only a hollow dashed violet outline */
-  function paintProjection(c, FX, P3, T, L, lw) { const M = FX.mem, P = projAt(FX, L), p = P3(P[0], P[1], P[2]), B = BOOKS[L.b], bk = P3(FX.C.x + B.x, FX.C.y + B.y + 0.3, 2.3), kn = P3(L.kx, L.ky, 0.35), s = T * 0.44 * smooth(L.a), bt = M.bt;
+  function paintProjection(c, FX, P3, T, L, lw, gp) { const M = FX.mem, P = projAt(FX, L), p = P3(P[0], P[1], P[2]), B = BOOKS[L.b], bk = P3(FX.C.x + B.x, FX.C.y + B.y + 0.3, 2.3), kn = P3(L.kx, L.ky, 0.35), s = T * 0.44 * smooth(L.a), bt = M.bt;
     // its tether: from the book's pages down to the knot on the floor and up into it
     c.save(); c.lineCap = 'round'; const tpath = () => { c.beginPath(); c.moveTo(bk[0], bk[1]); c.quadraticCurveTo((bk[0] + kn[0]) / 2, kn[1] + T * 0.3, kn[0], kn[1]); c.quadraticCurveTo((kn[0] + p[0]) / 2, kn[1] + T * 0.2, p[0], p[1] + s * 2.4); };
     if (L.real) { tpath(); c.strokeStyle = INK2; c.lineWidth = T * 0.32; c.stroke(); c.strokeStyle = '#3A2A48'; c.lineWidth = T * 0.2; c.stroke(); c.setLineDash([T * 0.12, T * 0.5]); c.lineDashOffset = -bt * T * 2; c.strokeStyle = GOLD_HI; c.lineWidth = T * 0.1; c.stroke(); }
     else { tpath(); c.setLineDash([T * 0.4, T * 0.3]); c.lineDashOffset = -bt * T * 1.5; c.strokeStyle = VIOLET_HI; c.lineWidth = T * 0.14; c.stroke(); }
     c.restore();
-    if (s < 1) return;
+    if (s < 1 || (gp && L.real)) return;   // (v474 LB: gp, the real one drawn by NHALEX_GL)
     // a wisp of ink under it
     if (L.real) { c.fillStyle = PLUME; c.beginPath(); c.moveTo(p[0] - s * 1.6, p[1] + s * 1.6); c.quadraticCurveTo(p[0], p[1] + s * 4.5, p[0] + s * 1.6, p[1] + s * 1.6); c.closePath(); c.fill(); }
     paintBrain(c, p[0], p[1], s, { roll: Math.sin(bt * 0.7 + L.i) * 0.08, eyes: [{ b: 0 }, { b: 0 }, { b: 0 }], look: M.look, lw: Math.max(1, lw * 0.6), bt, ghost: !L.real }); }
@@ -495,7 +503,7 @@ RiftFiend.define({ id: 'nhalex', name: 'Nhalex', title: 'The Unwritten Mind', co
     if (M.salv) { const S2 = M.salv, R = S2.real, D = S2.decoy, pu = 0.5 + 0.5 * Math.sin(t * 4);
       { const X = FX.sx(R.x), Y = FX.sy(R.y), r = R.r * T; c.fillStyle = 'rgba(190,140,40,.55)'; c.beginPath(); c.ellipse(X + T * 0.4, Y + T * 0.55, r * 1.02, r * 0.98, 0, 0, TAU); c.fill();
         c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.35 + 0.2 * pu; blitSized(c, glowSprite(GOLD_HI), X - r * 1.2, Y - r * 1.2, r * 2.4, r * 2.4); c.restore();
-        for (const rr of [r, r - T * 0.42]) { c.strokeStyle = INK2; c.lineWidth = Math.max(3, T * 0.24); c.beginPath(); c.arc(X, Y, rr, 0, TAU); c.stroke(); c.strokeStyle = GOLD_HI; c.lineWidth = Math.max(2, T * 0.14); c.stroke(); } }
+        for (const rr of (M.lbGL ? [] : [r, r - T * 0.42])) { c.strokeStyle = INK2;   /* (v474 LB: the double ring in light on the GPU) */ c.lineWidth = Math.max(3, T * 0.24); c.beginPath(); c.arc(X, Y, rr, 0, TAU); c.stroke(); c.strokeStyle = GOLD_HI; c.lineWidth = Math.max(2, T * 0.14); c.stroke(); } }
       { const X = FX.sx(D.x), Y = FX.sy(D.y), r = D.r * T; c.fillStyle = 'rgba(205,180,255,.1)'; c.beginPath(); c.arc(X, Y, r, 0, TAU); c.fill(); c.save(); c.setLineDash([T * 0.5, T * 0.35]); c.lineDashOffset = -t * T * 1.2; c.strokeStyle = VIOLET_HI; c.lineWidth = Math.max(2, T * 0.14); c.stroke(); c.restore(); } }
     // the ink telegraphs: circles and lines of dark ink spreading on the pale floor; the numbered lines' big numbers
     const lines = FX.S.tele.filter(s => !s.done && s.shape === 'line' && s.ink), next = lines.filter(s => s.num).sort((a, b) => (a.t - a.age) - (b.t - b.age))[0];
@@ -520,18 +528,20 @@ RiftFiend.define({ id: 'nhalex', name: 'Nhalex', title: 'The Unwritten Mind', co
   /* ---------- over everything: raised quills, falling pages, the core's mark, the countdown and the ward ---------- */
   function drawFx(c, FX, T, t) { const M = FX.mem, m = FX.m, C = FX.C; if (!m || !M.P) return; const P = M.P, P3 = (x, y, z) => [FX.sx(x), FX.sy(y) - z * T], lw = Math.max(1.2, T * 0.075);
     c.save(); c.lineJoin = 'round'; c.lineCap = 'round';
-    if (!m.dead) for (const tn of M.tend) if (tn.lift >= 0.15) paintTendril(c, P3, T, tn, lw, P);
+    if (!m.dead && !M.lbAir) for (const tn of M.tend) if (tn.lift >= 0.15) paintTendril(c, P3, T, tn, lw, P);   // (v474 LB: M.lbAir, drawn by NHALEX_GL.drawFx)
     // pages falling from the ring, each one of the unwritten
     for (const d of M.drops) { const u = clamp(d.t / d.dur, 0, 1), x = lerp(d.x0, d.x1, u), y = lerp(d.y0, d.y1, u), z = lerp(d.z0, 0, u) + Math.sin(u * Math.PI) * d.h, p = P3(x, y, z), ro = d.rot + u * 6;
       c.save(); c.translate(p[0], p[1]); c.rotate(ro); c.scale(1, 0.5 + 0.5 * Math.abs(Math.cos(u * 9))); c.fillStyle = PARCH_HI; c.strokeStyle = INK2; c.lineWidth = Math.max(1, T * 0.05); c.fillRect(-T * 0.35, -T * 0.45, T * 0.7, T * 0.9); c.strokeRect(-T * 0.35, -T * 0.45, T * 0.7, T * 0.9); c.fillStyle = VIOLET; c.fillRect(-T * 0.18, -T * 0.15, T * 0.36, T * 0.3); c.restore();
       const g = [FX.sx(d.x1), FX.sy(d.y1)]; c.save(); c.globalAlpha = 0.5 * u; c.strokeStyle = VIOLET_HI; c.lineWidth = 2; c.setLineDash([4, 4]); c.beginPath(); c.ellipse(g[0], g[1], T * 0.7, T * 0.35, 0, 0, TAU); c.stroke(); c.restore(); }
     // the bared core: a target ring on it
-    const wk = FX.S.weak.core; if (wk && !wk.dead) { const cp = coreAt(FX), p = P3(cp[0], cp[1], cp[2]), pu = 0.5 + 0.5 * Math.sin(t * 7); c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = GOLD_HI; c.globalAlpha = 0.55 + 0.4 * pu; c.lineWidth = Math.max(2, T * 0.14); c.beginPath(); c.arc(p[0], p[1], T * (2.0 + pu * 0.3), 0, TAU); c.stroke(); c.restore(); label(c, 'CORE', p[0], p[1] + T * 2.6, T, GOLD_HI, T * 0.62); }
+    const wk = FX.S.weak.core; if (wk && !wk.dead) { const cp = coreAt(FX), p = P3(cp[0], cp[1], cp[2]), pu = 0.5 + 0.5 * Math.sin(t * 7); c.save(); c.globalCompositeOperation = 'lighter'; c.strokeStyle = GOLD_HI; c.globalAlpha = M.lbAir ? 0 : 0.55 + 0.4 * pu; /* (v474 LB: the ring in light on the GPU) */ c.lineWidth = Math.max(2, T * 0.14); c.beginPath(); c.arc(p[0], p[1], T * (2.0 + pu * 0.3), 0, TAU); c.stroke(); c.restore(); label(c, 'CORE', p[0], p[1] + T * 2.6, T, GOLD_HI, T * 0.62); }
     // the unwritten: how many are left, over the pet
     if (M.hd) { const left = M.hd.left + M.hd.list.length + M.hd.pending; label(c, `THE UNWRITTEN · ${left} left`, FX.sx(FX.me.x), FX.sy(FX.me.y) - T * 2.3, T, VIOLET_HI, T * 0.62); }
     // the ending being written, and the shelter's cast: their time over the pet
-    if (M.end && M.end.st === 'open') { const left = Math.max(0, M.end.W - M.end.t); label(c, `THE ENDING IS WRITTEN IN ${left.toFixed(1)}`, FX.sx(FX.me.x), FX.sy(FX.me.y) - T * 2.3, T, left < 3 ? ROSE_HI : GOLD_HI, T * 0.62); }
-    if (M.salv) { const left = Math.max(0, M.salv.CAST - M.salv.t); if (left > 0) label(c, `SHELTER IN ${left.toFixed(1)}`, FX.sx(FX.me.x), FX.sy(FX.me.y) - T * 2.3, T, left < 2 ? ROSE_HI : GOLD_HI, T * 0.62); }
+    // (v474 LB: their time a bar of light under the words, no countdown number on the field)
+    const timeBar = (k, col) => { const X = FX.sx(FX.me.x), Yb = FX.sy(FX.me.y) - T * 1.85, bw = T * 3.4; c.save(); c.fillStyle = 'rgba(14,10,22,.6)'; c.fillRect(X - bw / 2 - 2, Yb - 2, bw + 4, T * 0.16 + 4); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.9; c.fillStyle = col; c.fillRect(X - bw / 2, Yb, bw * clamp(k, 0, 1), T * 0.16); c.restore(); };
+    if (M.end && M.end.st === 'open') { const left = Math.max(0, M.end.W - M.end.t), col = left < 3 ? ROSE_HI : GOLD_HI; label(c, 'THE ENDING IS BEING WRITTEN', FX.sx(FX.me.x), FX.sy(FX.me.y) - T * 2.3, T, col, T * 0.62); timeBar(left / M.end.W, col); }
+    if (M.salv) { const left = Math.max(0, M.salv.CAST - M.salv.t), col = left < 2 ? ROSE_HI : GOLD_HI; if (left > 0) { label(c, 'REACH THE TRUE SHELTER', FX.sx(FX.me.x), FX.sy(FX.me.y) - T * 2.3, T, col, T * 0.62); timeBar(left / M.salv.CAST, col); } }
     // the Last Page: a huge countdown and the ward still to break, and the white of its detonation
     if (M.lp && M.lp.st !== 'done') drawLastPage(c, FX, T, t);
     if (M.blast && M.blast.t < 2.6) drawBlast(c, FX, T, t);
@@ -544,7 +554,8 @@ RiftFiend.define({ id: 'nhalex', name: 'Nhalex', title: 'The Unwritten Mind', co
     const left = L.st === 'cast' ? Math.max(0, L.T - L.t) : L.st === 'sink' ? L.T : 0, n = Math.ceil(left - 1e-6), frac = left - Math.floor(left), hot = left <= 5;
     label(c, 'THE LAST PAGE', cx, y0 - 46, T, ROSE_HI, 16);
     // the countdown: a great number, punching on each second
-    c.save(); const sz = 64 * (1 + (L.st === 'cast' ? Math.max(0, frac - 0.8) * 1.2 : 0)); c.font = `900 ${Math.round(sz)}px ${arcFont}`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineJoin = 'round'; c.lineWidth = 10; c.strokeStyle = 'rgba(20,4,12,.85)'; c.strokeText(String(n), cx, y0); c.fillStyle = hot ? (Math.sin(t * 14) > 0 ? '#FF6A8A' : '#FFFFFF') : '#FFFFFF'; c.fillText(String(n), cx, y0); c.restore();
+    if (M.lbGL && NG() && NG().lastPage(c, cx, y0, 34, left / L.T, hot ? 1 : 0)) void n; else { /* (v474 LB: on the GPU its time a ring of light burning down, not a number) */
+    c.save(); const sz = 64 * (1 + (L.st === 'cast' ? Math.max(0, frac - 0.8) * 1.2 : 0)); c.font = `900 ${Math.round(sz)}px ${arcFont}`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineJoin = 'round'; c.lineWidth = 10; c.strokeStyle = 'rgba(20,4,12,.85)'; c.strokeText(String(n), cx, y0); c.fillStyle = hot ? (Math.sin(t * 14) > 0 ? '#FF6A8A' : '#FFFFFF') : '#FFFFFF'; c.fillText(String(n), cx, y0); c.restore(); }
     // the ward: the damage still needed
     const bw = Math.min(330, W * 0.84), bh = 16, bx = cx - bw / 2, by = y0 + 48, k = clamp(L.ward / L.max, 0, 1);
     label(c, 'ITS WARD · DAMAGE NEEDED', cx, by - 13, T, GOLD_HI, 12);

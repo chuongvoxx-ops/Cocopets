@@ -186,6 +186,18 @@ vec3 petalLit(vec3 alb, vec3 n, vec3 trans, float gloss, float glossK) {
 // (uFx: a frost that cracks across every surface - a summon freezing over as it leaves)
 vec3 frostFx(vec3 c, vec3 L) { if (uFx <= 0.0) return c; float w = vn(L.xy * 5.0 + L.z * 3.0), c1 = abs(fract(dot(L, vec3(4.3, 2.9, 3.7)) + w * 1.8) - 0.5), c2 = abs(fract(dot(L, vec3(-3.1, 5.2, 2.2)) + w * 1.4) - 0.5);
   float k = smoothstep(0.5 * uFx, 0.0, min(c1, c2)) * min(1.0, uFx * 2.0); return mix(c, vec3(0.82, 0.93, 1.05) * (0.7 + 0.5 * w), min(1.0, k + uFx * uFx * 0.6)); }
+/*<LB-FN v474 LB: the Library bosses' patterns (LB-LIB-MAT, 20zea/20zfa/20zga): fbm; cells (the nearest two distances: leather's pebbled grain); a segment's distance; a cover's gilt tooling (st across the cover 0..1; k 0 a volume: the fillet frame, a dotted band, studs, the lozenge; k 2 the head: the eye sigil)>*/
+float lbF(vec2 p) { float s = 0.0, a = 0.5; for (int i = 0; i < 4; i++) { s += a * vn(p); p = p * 2.03 + vec2(1.7, 9.2); a *= 0.5; } return s; }
+vec2 lbC(vec2 p) { vec2 i = floor(p), f = p - i; float d1 = 8.0, d2 = 8.0; for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) { vec2 g = vec2(float(x), float(y)), o = vec2(hs(i + g), hs(i + g + 17.3)); float d = length(g + o - f); if (d < d1) { d2 = d1; d1 = d; } else if (d < d2) d2 = d; } return vec2(d1, d2); }
+float lbSeg(vec2 p, vec2 a, vec2 b) { vec2 pa = p - a, ba = b - a; return length(pa - ba * clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0)); }
+float lbTool(vec2 st, float k) { vec2 c = abs(st - 0.5); float bx = max(c.x, c.y), m = smoothstep(0.016, 0.007, abs(bx - 0.4)); m = max(m, smoothstep(0.008, 0.003, abs(bx - 0.335)));
+  float al = c.x > c.y ? st.y : st.x; m = max(m, smoothstep(0.35, 0.22, length(vec2(fract(al * 22.0) - 0.5, (bx - 0.368) * 22.0))) * step(abs(bx - 0.368), 0.03));
+  m = max(m, smoothstep(0.04, 0.028, length(c - vec2(0.4))));
+  if (k < 1.0) { float dia = (c.x + c.y) / 0.25; m = max(m, smoothstep(0.08, 0.035, abs(dia - 1.0))); m = max(m, smoothstep(0.06, 0.045, length(c))); m = max(m, smoothstep(0.07, 0.03, abs((c.x + c.y) / 0.14 - 1.0)) * 0.85);
+    for (int i = 0; i < 2; i++) { vec2 dd = i == 0 ? vec2(0.21, 0.0) : vec2(0.0, 0.21); m = max(m, smoothstep(0.03, 0.018, length(c - dd) - 0.01)); } }
+  else { vec2 e = (st - vec2(0.55, 0.5)) / vec2(0.27, 0.15); m = max(m, smoothstep(0.16, 0.06, abs(length(e) - 1.0))); float pr = length((st - vec2(0.56, 0.5)) * vec2(1.0, 0.75)); m = max(m, smoothstep(0.075, 0.06, pr)); m = max(m, smoothstep(0.012, 0.0, abs(pr - 0.1) - 0.006) * 0.8); }
+  return m; }
+/*</LB-FN>*/
 /*<MD-FN v450 MD: Moby Dick's skin (20k7q): a gaussian; its inner stars, a drifting field of star points in surface cells with the constellation lines joining neighbours (x the stars, y the lines, z the cell's hash)>*/
 float mdG(float x) { return exp(-x * x); }
 float mdSL(vec2 p, vec2 a, vec2 b) { vec2 pa = p - a, ba = b - a; return length(pa - ba * clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0)); }
@@ -1306,6 +1318,163 @@ void main() {
     if (dead > 0.0) { float lum = dot(col, vec3(0.3, 0.55, 0.15)); col = mix(col, vec3(lum) * vec3(0.8, 0.78, 0.85) * 0.7, dead * 0.7); }
     gl_FragColor = vec4(vec3(tone(col.r), tone(col.g), tone(col.b)) * uAlpha, uAlpha); return; }
   /*</SK-KHYROS-MAT>*/
+  /*<LB-LIB-MAT ids 940..979 (v474 LB: 20zea-syllax-gl.js, 20zfa-vellum-gl.js, 20zga-nhalex-gl.js, the Library of Unwritten Lives' bosses). Lit by LIB3's passes (YUG3.pass) in their arenas' light: the key's colour in uAmb, the rim's in uRim; 940..949 the Reading Circle (warm lamplight, the ink void's violet behind, the parchment floor's bounce), 950..959 the Spilled-Ink Chamber (candle-gold key, burgundy dusk, the boards' warm bounce), 960..979 the Final Archive (pale gilt key, violet void, the bright parchment's bounce). Every pattern from the surface's own coordinates (vA, or the local position of a still mesh: vL, its normal vNL), never the moving position; separate "if (id == N)" blocks (SwiftShader mis-shades deep else-if chains).
+     SYLLAX 940 leather (vA.y s along the book 0..1, vA.z t across 0..1; the face from the local normal: top the tooled cover (a gilt fillet frame, a dotted band, the lozenge and its stud, corner studs; .2 the head's lid: the eye sigil), underneath the marbled endpaper, the sides plain; morocco grain, scuffed edges, varnish; uKind 1 the copy: washed violet), 941 the page block (sides: the stacked page edges, gilt at the boards; faces: a written page; .2 a page tooth), 942 the leather cord (vA.y round, vA.z along: a thong wound round), 943 gilt brass, 944 the gold eye (copies, its own direction in vA: a slit pupil; uKind 1 violet), 945 the ribbon (vA.y across, vA.z along: crimson satin, gold edge stripes), 947 light (uKind 0 gold, 1 violet).
+     VELLUM 950 the mantle's enamel (vA.y its radius 0 middle .. 1 rim, local xy the body's u v: black lacquer, the inlaid gold trim, the shoulders' scrollwork, the slit and the breather ring; uSpill the slit cracked open on its gold-white heart; .4 the head's cap), 951 the cream underside (.2 the chin), 952 the fin (vA.y out 0..1, vA.z along: burgundy membrane, rays, light through it, an iridescent edge), 953 tentacle and arm skin (vA.y round, vA.z along: mottled burgundy, chromatophores; .4 a sucker's cup), 954 a gold eye (copies: a W-shaped pupil), 955 gold, 957 ink (a drip).
+     NHALEX 960 a brain lobe (vA.y how deep in a fold, vA.z a burgundy groove: ivory, wet, light under the skin; .4 the parted lobe's cut face; uSpill the last page's rose boil, uFx its fall), 961 the golden core, 962 an eye (copies: 0 round, 1 slit, 2 round small), 963 an eyelid (ivory), 964 ink (the plume and the tendrils: vA.y round, vA.z along; glossy black, violet streaks running down, uSpill boiling rose; .4 the pool at its foot), 965 a gold nib and its rings, 966 a page of the ring (vA.y across, vA.z down its height: parchment, a gilt frame line, script, the great symbol uKind 0..3, the folded corner; uSpill the unwritten's violet), 967 the ring's gilt band, 968 the model of Gaia (local: its own sphere; uSpill the points lit 0..7).
+     uGlow2 a blow's flash, uFx the death's fade, uWear the part's seed>*/
+  else if (id >= 940 && id <= 979) {
+    int sk = int((vA.x - float(id)) * 10.0 + 0.5);
+    float ndv0 = max(0.0, dot(n, uV)), tt = uTime, gl = clamp(uGlow, 0.0, 3.0), dead = clamp(uFx, 0.0, 1.0), fl2 = clamp(uGlow2, 0.0, 1.0), sd = uWear * 17.0, hm = dot(n, uUP), cpy = step(0.5, uKind);
+    float inst = floor((ao + 0.01) * 0.25), loc = ao - inst * 4.0;
+    vec3 GO = vec3(0.92, 0.66, 0.26), GH = vec3(1.0, 0.88, 0.58), VI = vec3(0.6, 0.38, 1.0), VH = vec3(0.88, 0.78, 1.05), RO = vec3(1.0, 0.36, 0.5), PA = vec3(0.93, 0.84, 0.64);
+    vec3 a = vec3(0.5), emi = vec3(0.0), thru = vec3(0.0); float rg = 0.5, cc = 0.0, cvv = 0.0, occ = 1.0, spk = 0.0, met = 0.0, ssk = 0.0, shb = 0.0; vec2 tex = L.xy * 6.0;
+    vec3 TX = normalize(uM0), TY = normalize(uM1), TZ = normalize(uM2);
+    // ---- the eyes and the lights: their own colour, a wet glint
+    if (id == 944 || id == 954 || id == 962) { float bk = step(1.5, edge), ly = (edge - bk * 2.0) * 2.0 - 1.0, lz = loc / 3.8 * 2.0 - 1.0; vec3 lp = vec3(sqrt(max(0.0, 1.0 - ly * ly - lz * lz)) * (1.0 - 2.0 * bk), ly, lz);   // (LIB3.eyeAtt: a unit sphere's own direction; copies are written in the world)
+      float IR = id == 944 ? 0.78 : id == 954 ? 0.86 : 0.56; vec2 q = vec2(-lp.y, lp.z) / IR; float rr = length(q), iris = (1.0 - smoothstep(0.9, 1.0, rr)) * step(0.0, lp.x);
+      vec3 IRA = mix(vec3(0.6, 0.34, 0.07), vec3(1.0, 0.84, 0.4), smoothstep(1.0, 0.05, rr)), IRB = mix(vec3(0.3, 0.18, 0.6), VH, smoothstep(1.0, 0.05, rr)), ir = mix(IRA, IRB, cpy);
+      float fib = 0.8 + 0.2 * sin(atan(q.y, q.x) * 26.0 + vn(q * 5.0) * 4.0) * smoothstep(0.15, 0.4, rr), pup = 0.0;
+      if (id == 944) { float w = 0.17 * (1.0 - q.y * q.y * 0.7) * (1.0 + 0.6 * clamp(uSpill, 0.0, 1.0)); pup = smoothstep(w, w * 0.6, abs(q.x)) * smoothstep(0.95, 0.8, abs(q.y)); }
+      if (id == 954) { float cx = 0.1 * cos(q.x * 3.14159 / 0.34) - 0.05, th = 0.17 * (1.0 - smoothstep(0.55, 0.78, abs(q.x))); pup = smoothstep(th, th * 0.6, abs(q.y - cx)) * step(abs(q.x), 0.78); if (uSpill > 0.5) pup = smoothstep(0.24, 0.16, rr); }
+      if (id == 962) { if (inst < 0.5) pup = smoothstep(0.46, 0.4, rr); else if (inst < 1.5) pup = smoothstep(0.14, 0.09, abs(q.x)) * smoothstep(0.95, 0.8, abs(q.y)); else pup = smoothstep(0.36, 0.3, rr); }
+      vec3 sclera = id == 962 ? vec3(1.0, 0.95, 0.84) : vec3(0.1, 0.06, 0.03); vec3 c = mix(sclera * (0.45 + 0.55 * max(0.0, dot(n, uLK))) * uAmb * 0.6, ir * fib * (0.75 + 0.5 * gl), iris);
+      c = mix(c, vec3(0.03, 0.015, 0.01), pup * iris); c += ir * 0.2 * pow(1.0 - ndv0, 2.0) * gl;
+      vec3 rr3 = reflect(-uV, n); c += vec3(1.0, 0.97, 0.9) * (pow(max(0.0, dot(rr3, uLK)), 90.0) * 1.6 + smoothstep(0.92, 0.97, dot(rr3, uLS)) * 0.6);
+      c += vec3(1.0) * fl2 * 0.3; c = mix(c, vec3(0.05, 0.04, 0.06), dead * 0.85);
+      gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
+    if (id == 947) { vec3 c = mix(mix(GO, GH * 1.4, pow(ndv0, 1.5)), mix(VI, VH * 1.4, pow(ndv0, 1.5)), cpy) * (0.5 + 0.6 * gl); c = mix(c, vec3(0.05), dead * 0.85); gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
+    // ---- SYLLAX: leather, pages, cord, gilt, ribbon
+    if (id == 940) { float s = edge, t2 = ao; vec3 an = abs(NL); vec2 p2 = an.z > 0.6 ? L.xy : an.x > an.y ? L.yz : L.xz; tex = p2 * 9.0;
+      vec3 b0 = mix(vec3(0.5, 0.15, 0.29), vec3(0.6, 0.21, 0.36), hs(vec2(floor(sd), 3.1))); if (sk == 2) b0 = vec3(0.58, 0.21, 0.38); if (sk == 4) b0 = vec3(0.34, 0.13, 0.16);
+      b0 = mix(b0, vec3(0.3, 0.25, 0.6), cpy);
+      vec2 gc = lbC(p2 * 34.0 + sd); float peb = smoothstep(0.0, 0.25, gc.y - gc.x), mot = lbF(p2 * 3.0 + sd);
+      a = b0 * (0.72 + 0.28 * peb) * (0.85 + 0.3 * mot); rg = mix(0.62, 0.38, peb); cc = 0.28; cvv += (1.0 - peb) * 0.25;
+      float ed = min(min(s, 1.0 - s), min(t2, 1.0 - t2)), scuff = smoothstep(0.05, 0.0, ed) * (0.4 + 0.6 * vn(p2 * 20.0 + sd)) + smoothstep(0.97, 0.75, max(max(an.x, an.y), an.z)) * 0.7;
+      a = mix(a, mix(vec3(0.55, 0.3, 0.26), vec3(0.6, 0.55, 0.75), cpy), clamp(scuff, 0.0, 1.0) * 0.45); rg = mix(rg, 0.7, clamp(scuff, 0.0, 1.0) * 0.5);
+      if (NL.z > 0.6) { vec2 st = vec2(s, t2); float tl = lbTool(st, float(sk)), emb = tl - lbTool(st + vec2(0.006, -0.004), float(sk));
+        vec3 gold = mix(GO, vec3(0.75, 0.68, 0.95), cpy) * (0.85 + 0.25 * vn(st * 60.0));
+        a = mix(a, gold, tl); met = tl; rg = mix(rg, 0.24, tl); spk += tl * 0.8;
+        if (uLow < 0.5) n = normalize(n + (TX * 0.6 - TY * 0.4) * emb * 1.6);
+        cvv += max(0.0, -emb) * 0.6; }
+      else if (NL.z < -0.6) { vec2 m2 = vec2(s * 2.0, t2 * 3.0); float fl = lbF(m2 * 2.0 + sd), mb = sin((m2.x + fl * 1.8) * 9.0 + sin(m2.y * 6.0 + fl * 3.0) * 1.5);
+        a = mix(vec3(0.16, 0.1, 0.34), vec3(0.42, 0.28, 0.66), smoothstep(-0.4, 0.6, mb)); a = mix(a, vec3(0.86, 0.66, 0.3), smoothstep(0.88, 0.98, mb) * 0.8); a = mix(a, vec3(0.12, 0.3, 0.36), smoothstep(0.7, 0.9, sin(m2.y * 17.0 + fl * 4.0)) * 0.35);
+        a = mix(a, b0, smoothstep(0.035, 0.0, min(min(s, 1.0 - s), min(t2, 1.0 - t2))));   // (the turn-in of the leather round the endpaper)
+        rg = 0.6; cc = 0.05; met = 0.0; }
+      else { a *= 0.82; } }
+    if (id == 941) { vec3 an = abs(NL); a = PA * (0.92 + 0.1 * vn(L.xy * 7.0 + sd)); rg = 0.75; ssk = 0.25; thru = vec3(0.6, 0.42, 0.2) * 0.3;
+      float fox = smoothstep(0.62, 0.8, lbF(L.xy * 4.0 + L.z * 3.0 + sd)); a = mix(a, vec3(0.7, 0.52, 0.3), fox * 0.3);
+      if (sk == 2) { float tip = smoothstep(0.3, 0.9, edge); a = mix(PA * 1.05, vec3(0.55, 0.4, 0.26), tip * 0.5); rg = 0.65; }
+      else if (an.z < 0.6) { float h = edge, hz = h * 64.0 + vn(vec2(ao * 30.0, h * 9.0)) * 0.6, ln = smoothstep(0.35, 0.5, abs(fract(hz) - 0.5)), pg = hs(vec2(floor(hz), sd));   // (the sides: vA.y the height 0..1, vA.z round)
+        a *= 0.9 + 0.1 * pg; a = mix(a, a * 0.78, ln * 0.6); cvv += ln * 0.06; tex = vec2(ao * 20.0, h * 20.0);
+        float gilt = smoothstep(0.12, 0.0, min(h, 1.0 - h)); a = mix(a, GO * 1.05, gilt * 0.8); met = gilt * 0.8; rg = mix(rg, 0.3, gilt); spk += gilt; }
+      else if (sk == 4 && NL.z < -0.6) { vec2 m2 = vec2(edge * 2.0, ao * 3.0); float fl = lbF(m2 * 2.0 + sd), mb = sin((m2.x + fl * 1.8) * 9.0 + sin(m2.y * 6.0 + fl * 3.0) * 1.5);   // (.4 an upper page block: its underside the 2D's dark endpaper, the roof of the mouth)
+        a = mix(vec3(0.13, 0.08, 0.28), vec3(0.34, 0.22, 0.56), smoothstep(-0.4, 0.6, mb)); a = mix(a, vec3(0.86, 0.66, 0.3), smoothstep(0.9, 0.98, mb) * 0.6); a = mix(a, mix(vec3(0.3, 0.25, 0.6), vec3(0.55, 0.45, 0.85), cpy), cpy * 0.5); rg = 0.6; ssk = 0.0; thru = vec3(0.0); }
+      else { vec2 st = vec2(edge, ao); float rows = st.x * 9.0, row = floor(rows), fr = fract(rows), inm = step(0.12, st.y) * step(st.y, 0.88) * step(0.08, st.x) * step(st.x, 0.92);
+        float w0 = 0.14 + hs(vec2(row, 1.3 + sd)) * 0.08, word = step(0.35, fract((st.y - w0) * 5.5 + hs(vec2(row, 7.0)) * 0.5)) * smoothstep(0.42, 0.3, abs(fr - 0.5)) * smoothstep(0.2, 0.3, fr);
+        float scr = word * (0.6 + 0.4 * vn(vec2(st.y * 140.0, row))) * inm, cap = step(0.1, st.x) * step(st.x, 0.28) * step(0.13, st.y) * step(st.y, 0.27);
+        a = mix(a, vec3(0.12, 0.08, 0.1), scr * 0.75); a = mix(a, mix(vec3(0.55, 0.12, 0.22), GO, step(0.5, hs(vec2(floor(st.y * 30.0), floor(st.x * 30.0))))), cap * 0.85);
+        a = mix(a, a * 0.85, smoothstep(0.2, 0.0, abs(st.y - 0.5)) * 0.3); rg = 0.85; } }
+    if (id == 942) { float al = ao, rd = edge, wr = fract(al * 46.0 + rd), rid = smoothstep(0.0, 0.5, wr) * smoothstep(1.0, 0.5, wr); tex = vec2(rd * 4.0, al * 40.0);
+      a = mix(vec3(0.16, 0.05, 0.08), vec3(0.32, 0.12, 0.16), rid) * (0.85 + 0.3 * vn(tex + sd)); a = mix(a, vec3(0.28, 0.22, 0.5), cpy); rg = mix(0.7, 0.4, rid); cc = 0.2; cvv += (1.0 - rid) * 0.35;
+      float st2 = smoothstep(0.06, 0.0, abs(fract(al * 9.0) - 0.5) - 0.45) * smoothstep(0.1, 0.0, abs(fract(rd * 2.0) - 0.5) - 0.38); a = mix(a, GO, st2 * 0.8); met = st2; }
+    if (id == 943) { a = mix(GO, vec3(0.7, 0.66, 0.92), cpy) * (0.82 + 0.3 * vn(L.xy * 23.0 + L.z * 11.0 + sd)); met = 1.0; rg = 0.2 + 0.18 * vn(L.yz * 40.0); cc = 0.2; spk += 0.5;
+      a = mix(a, a * 0.45, smoothstep(0.4, 0.9, vn(L.xz * 15.0 + sd)) * 0.35); }
+    if (id == 945) { float ac = edge, al = ao; tex = vec2(ac * 6.0, al * 60.0); float tw = 0.88 + 0.12 * sin((ac * 70.0 + al * 260.0)), wv = vn(vec2(ac * 3.0, al * 20.0) + sd);
+      a = mix(vec3(0.6, 0.06, 0.13), vec3(0.78, 0.14, 0.22), wv) * tw; float strp = smoothstep(0.03, 0.0, abs(abs(ac - 0.5) - 0.38) - 0.025); a = mix(a, GO * 1.05, strp); met = strp * 0.8;
+      a = mix(a, vec3(0.42, 0.3, 0.75), cpy); rg = mix(0.32, 0.22, strp); shb = 1.2; thru = vec3(0.9, 0.12, 0.18) * 0.6; cc = 0.1; }
+    // ---- VELLUM: enamel, the underside, the fin, skin, gold, ink
+    if (id == 950) { vec2 p = L.xy; float r = edge; tex = p * 4.0;
+      a = vec3(0.035, 0.03, 0.05) * (0.9 + 0.25 * lbF(p * 2.0 + sd)); rg = 0.1; cc = 1.25; met = 0.0; spk += 0.35;
+      float flk = pow(vn(p * 90.0 + sd), 18.0); emi += vec3(0.3, 0.25, 0.6) * flk * 0.15;
+      if (sk == 4) { float col = smoothstep(0.05, 0.0, abs(p.x - 1.38 - 0.25 * (p.y / 1.15) * (p.y / 1.15)) - 0.035) * step(abs(p.y), 1.2); a = mix(a, GO, col); met = col; rg = mix(rg, 0.22, col); }
+      else { float trim = smoothstep(0.012, 0.0, abs(r - 0.86) - 0.012) * step(p.x, 1.25), d = 9.0;
+        for (int k = 0; k < 2; k++) { float sg = k == 0 ? 1.0 : -1.0; vec2 q = vec2(p.x, p.y * sg);
+          d = min(d, lbSeg(q, vec2(1.05, 1.55), vec2(0.55, 1.5))); d = min(d, lbSeg(q, vec2(0.55, 1.5), vec2(-0.2, 1.22))); d = min(d, lbSeg(q, vec2(-0.2, 1.22), vec2(-0.9, 0.82))); d = min(d, lbSeg(q, vec2(-0.9, 0.82), vec2(-1.45, 0.42)));
+          vec2 c0 = q - vec2(0.82, 1.18); float ang = atan(c0.y, c0.x) / 6.28318 + 0.5, rs = 0.28 - ang * 0.16; d = min(d, abs(length(c0) - rs) + step(0.88, ang) * 9.0); }
+        float scro = smoothstep(0.03, 0.012, d), slit = smoothstep(0.03, 0.02, abs(p.y)) * step(p.x, -0.68) * step(-2.88, p.x), slitC = smoothstep(0.012, 0.005, abs(p.y)) * slit;
+        vec2 bq = (p - vec2(-0.42, 0.0)) * vec2(1.0, 1.0 / 1.1); float br = length(bq), ring = smoothstep(0.35, 0.33, br) * smoothstep(0.23, 0.25, br), ring2 = smoothstep(0.25, 0.24, br) * smoothstep(0.15, 0.17, br), hole = smoothstep(0.17, 0.15, br);
+        float gold = max(max(trim, scro), max(slit, max(ring, ring2)));
+        a = mix(a, mix(GO, GH, ring2 + slit * 0.6), gold); met = max(met, gold); rg = mix(rg, 0.2, gold); spk += gold;
+        a = mix(a, vec3(0.012, 0.01, 0.02), max(hole, slitC)); cvv += hole * 0.3;
+        if (uLow < 0.5) n = normalize(n + (TX * 0.5 + TY * 0.3) * (ring - ring2) * 0.3);
+        float op = clamp(uSpill, 0.0, 1.0); if (op > 0.01) { float su = clamp((1.0 - p.x) / 3.75, 0.0, 1.0), w = op * 0.5 * pow(sin(3.14159 * su), 0.7) * (1.0 + 0.1 * sin(tt * 9.0 + su * 12.0)), inn = smoothstep(w, w - 0.04, abs(p.y)) * step(0.0, w - 0.01);
+          float lip = smoothstep(w + 0.07, w, abs(p.y)) * (1.0 - inn); vec2 hq = p - vec2(-0.8, 0.0); float hr = length(hq * vec2(0.6, 1.0));
+          a = mix(a, vec3(0.16, 0.08, 0.03), lip); emi += mix(vec3(1.7, 1.55, 1.3), GO * 1.2, smoothstep(0.0, 1.6, hr)) * inn * (0.75 + 0.25 * sin(tt * 7.0)) + GH * lip * 0.4 * op; } } }
+    if (id == 951) { vec2 p = L.xy; tex = p * 6.0; float wr = vn(p * 9.0 + sd) * 0.6 + vn(p * 23.0) * 0.4; a = mix(vec3(0.86, 0.76, 0.6), vec3(0.95, 0.88, 0.74), wr); if (sk == 2) a *= 1.03;
+      rg = 0.55; ssk = 0.6; thru = vec3(0.9, 0.55, 0.4) * 0.5; cc = 0.35;
+      a = mix(a, vec3(0.2, 0.15, 0.22), smoothstep(0.75, 1.0, lbF(p * 1.5 + 3.0)) * 0.25); }
+    if (id == 952) { float o = edge, al = ao; tex = vec2(o * 3.0, al * 40.0); float ray = smoothstep(0.35, 0.5, abs(fract(al * 38.0) - 0.5));
+      a = mix(vec3(0.46, 0.13, 0.27), vec3(0.62, 0.24, 0.38), o) * (0.9 + 0.2 * vn(tex + sd)); a = mix(a, a * 0.7, ray * 0.6); rg = 0.42; cc = 0.5; thru = vec3(1.0, 0.36, 0.55) * 0.9; ssk = 0.4;
+      float chr = smoothstep(0.7, 0.9, vn(vec2(o * 9.0, al * 90.0) + sd)); a = mix(a, vec3(0.3, 0.06, 0.15), chr * 0.5);
+      vec3 film = 0.5 + 0.5 * cos(6.28318 * (vec3(0.0, 0.33, 0.67) + ndv0 * 1.5 + al * 2.0)); emi += film * smoothstep(0.75, 1.0, o) * 0.07 * (1.0 - dead); a = mix(a, vec3(0.88, 0.62, 0.74), smoothstep(0.9, 1.0, o) * 0.5); }
+    if (id == 953) { float rd = edge, al = ao - floor(ao * 0.5) * 2.0; tex = vec2(rd * 5.0, al * 30.0);
+      a = mix(vec3(0.3, 0.08, 0.17), vec3(0.46, 0.15, 0.3), vn(tex + sd)); float chr = smoothstep(0.62, 0.8, vn(vec2(rd * 14.0, al * 70.0) + sd)); a = mix(a, vec3(0.16, 0.03, 0.09), chr * 0.6);
+      a = mix(a, vec3(0.7, 0.42, 0.56), pow(vn(vec2(rd * 40.0, al * 200.0)), 8.0) * 0.5); rg = 0.3; cc = 0.85; ssk = 0.35; thru = vec3(0.8, 0.2, 0.38) * 0.3;
+      emi += GO * clamp(uGlow, 0.0, 1.5) * 0.35 * smoothstep(0.4, 0.55, al) * (1.0 - smoothstep(0.75, 0.9, al)) * (0.6 + 0.4 * sin(al * 30.0 - tt * 6.0));   // (uGlow: the tethered arm's exposed middle lit gold)
+      if (sk == 4) { float rr = edge, rim2 = smoothstep(0.55, 0.85, rr); a = mix(vec3(0.9, 0.8, 0.7), vec3(0.42, 0.12, 0.25), rim2); a = mix(a, vec3(0.35, 0.18, 0.2), smoothstep(0.4, 0.0, rr) * 0.6); rg = 0.4; cc = 0.6; cvv += smoothstep(0.45, 0.0, rr) * 0.4; } }
+    if (id == 955) { a = GO * (0.85 + 0.25 * vn(L.xy * 30.0 + sd)); met = 1.0; rg = 0.2; cc = 0.25; spk += 0.6; }
+    if (id == 957) { a = vec3(0.025, 0.02, 0.04); rg = 0.06; cc = 1.4; met = 0.0; spk += 0.3; thru = vec3(0.3, 0.2, 0.6) * 0.2; }
+    // ---- NHALEX: the brain, its core and eyes, ink, gold, the pages, the model of Gaia
+    if (id == 960) { float g = clamp(edge, 0.0, 1.0), gv = clamp(ao, 0.0, 1.0); tex = L.xz * 3.0;
+      a = mix(vec3(0.9, 0.85, 0.7), vec3(0.98, 0.94, 0.82), vn(L.xz * 2.5 + sd)); a = mix(a, vec3(0.78, 0.66, 0.5), smoothstep(0.3, 1.0, g) * 0.55); cvv += g * 0.35;
+      a = mix(a, vec3(0.5, 0.17, 0.3), smoothstep(0.15, 0.6, gv)); a = mix(a, vec3(0.3, 0.08, 0.18), smoothstep(0.6, 0.95, gv)); cvv += gv * 0.25;
+      float vein = smoothstep(0.025, 0.0, abs(vn(L.xz * 5.0 + L.y * 3.0 + sd) - 0.5)) * (1.0 - gv); a = mix(a, vec3(0.86, 0.6, 0.58), vein * 0.35);
+      rg = mix(0.32, 0.6, g); cc = 0.75 * (1.0 - gv * 0.5); ssk = 0.3; shb = 0.55; thru = vec3(1.0, 0.7, 0.5) * 0.25;
+      if (sk == 4) { a = mix(vec3(0.62, 0.2, 0.32), vec3(0.85, 0.45, 0.5), vn(L.xz * 6.0)); rg = 0.3; cc = 0.9; emi += GO * 0.15 * gl; }
+      emi += RO * clamp(uSpill, 0.0, 1.0) * (0.15 + 0.35 * gv + 0.25 * g) * (0.7 + 0.3 * sin(tt * 7.0 + L.x * 3.0)); }
+    if (id == 961) { vec3 q = normalize(L + 1e-4); float fr = smoothstep(0.03, 0.0, abs(lbF(q.xz * 3.0 + vec2(q.y * 2.0, tt * 0.1)) - 0.5));
+      a = mix(vec3(0.96, 0.66, 0.2), vec3(1.0, 0.92, 0.6), pow(ndv0, 1.2)); met = 0.55; rg = 0.18; cc = 0.6; emi += mix(GO, vec3(1.6, 1.45, 1.1), fr) * (0.35 + 0.55 * gl) * (0.85 + 0.15 * sin(tt * 7.0)) + GH * pow(1.0 - ndv0, 2.0) * 0.6 * gl; }
+    if (id == 963) { a = vec3(0.86, 0.76, 0.6) * (0.9 + 0.15 * vn(L.xy * 8.0 + sd)); rg = 0.5; ssk = 0.6; cc = 0.4; thru = vec3(0.9, 0.5, 0.4) * 0.3; if (sk == 2) { a = vec3(0.32, 0.08, 0.18); rg = 0.4; } }
+    if (id == 964) { float rd = edge, al = ao; tex = vec2(rd * 4.0, al * 12.0); float bo = clamp(uSpill, 0.0, 1.0);
+      a = vec3(0.04, 0.035, 0.065) * (0.85 + 0.3 * vn(tex + sd)); rg = 0.08; cc = 1.3; spk += 0.3; shb = 0.6;
+      if (sk == 4) { float rr = length(L.xy), rip = 0.5 + 0.5 * sin(rr * 10.0 - tt * 2.5); a *= 0.8 + 0.3 * rip; emi += vec3(0.35, 0.25, 0.7) * pow(rip, 8.0) * 0.12; }
+      else { float st = pow(vn(vec2(rd * 7.0 + sin(al * 6.0) * 0.4, al * 9.0 - tt * 0.9) + sd), 6.0); emi += vec3(0.42, 0.3, 0.85) * st * 0.35 * (1.0 - dead);
+        emi += RO * bo * pow(vn(vec2(rd * 6.0, al * 14.0 - tt * 3.0) + sd), 3.0) * 0.9; } }
+    if (id == 965) { a = GO * (0.85 + 0.25 * vn(L.xy * 18.0 + L.z * 7.0 + sd)); met = 1.0; rg = 0.17; cc = 0.25; spk += 0.7;
+      if (sk == 2) { float sl = smoothstep(0.03, 0.012, abs(L.y)) * step(0.62, L.x), hole = smoothstep(0.075, 0.06, length(L.xy - vec2(0.36, 0.0))); a = mix(a, vec3(0.03, 0.02, 0.03), max(sl, hole)); met *= 1.0 - max(sl, hole); cvv += max(sl, hole) * 0.4;
+        float eng = smoothstep(0.02, 0.0, abs(abs(L.y) - 0.18 + L.x * 0.08) - 0.006) * step(L.x, 0.55) * step(0.05, L.x); a = mix(a, a * 0.5, eng); } }
+    if (id == 966) { float s = edge, h = ao; vec2 st = vec2(s, h); tex = st * 20.0; int sy = int(uKind + 0.5);
+      a = PA * (0.92 + 0.12 * lbF(st * 5.0 + sd)); a = mix(a, vec3(0.72, 0.56, 0.34), smoothstep(0.35, 0.0, min(min(s, 1.0 - s), min(h, 1.0 - h))) * 0.35); rg = 0.78; ssk = 0.35; thru = vec3(0.9, 0.7, 0.4) * 0.45;
+      float fr = smoothstep(0.012, 0.0, abs(max(abs(s - 0.5) / 0.4, abs(h - 0.5) / 0.42) - 1.0) - 0.006); a = mix(a, GO, fr * 0.85); met = fr * 0.7;
+      float tl = 0.0; for (int i = 0; i < 4; i++) { float yy = 0.86 - float(i) * 0.055; tl = max(tl, smoothstep(0.012, 0.004, abs(h - yy)) * step(0.17, s) * step(s, 0.83 - float(i - (i / 2) * 2) * 0.12) * step(0.4, fract(s * 9.0 + float(i) * 0.3))); }
+      a = mix(a, vec3(0.2, 0.15, 0.2), tl * 0.55);
+      vec2 q = vec2((s - 0.5) * 3.0, (h - 0.45) * 3.9); float d = 9.0;   // (the 2D symbol's own units, y down the page)
+      if (sy == 0) { vec2 e2 = q * vec2(1.0, 2.35); float le = max(0.001, length(e2)); d = abs(le - 1.0) / length(e2 / le * vec2(1.0, 2.35)); d = min(d, max(0.0, length(q) - 0.3)); for (int k = 0; k < 3; k++) { float an2 = -0.9 - float(k) * 0.65; vec2 dr = vec2(cos(an2), sin(an2)); d = min(d, lbSeg(q, dr * 0.62, dr * 0.95)); } }
+      if (sy == 1) { float r2 = length(q), th2 = atan(q.y, q.x); th2 = th2 < 0.0 ? th2 + 6.28318 : th2; float f = (r2 - 0.08) / 0.375 - th2 / 6.28318; d = abs(fract(f + 0.5) - 0.5) * 0.375 + step(0.99, r2) * 9.0; }
+      if (sy == 2) { d = min(min(lbSeg(q, vec2(-0.55, -0.7), vec2(-0.55, 0.15)), lbSeg(q, vec2(0.0, -0.95), vec2(0.0, 0.15))), lbSeg(q, vec2(0.55, -0.7), vec2(0.55, 0.15))); d = min(d, abs(length((q - vec2(0.0, 0.15)) / vec2(0.55, 0.4)) - 1.0) * 0.45 + step(q.y, 0.15) * 9.0); d = min(d, max(0.0, length(q - vec2(0.0, 0.5)) - 0.14)); }
+      if (sy == 3) { d = abs(length(q - vec2(0.0, -0.48)) - 0.36); d = min(d, lbSeg(q, vec2(0.0, -0.12), vec2(0.0, 0.95))); d = min(d, lbSeg(q, vec2(-0.55, 0.22), vec2(0.55, 0.22))); d = min(d, lbSeg(q, vec2(0.0, 0.62), vec2(0.3, 0.62))); }
+      float sym = smoothstep(0.13, 0.095, d); vec3 ink = mix(vec3(0.07, 0.05, 0.09), VI * 0.8, clamp(uSpill, 0.0, 1.0)); a = mix(a, ink, sym); rg = mix(rg, 0.25, sym); cc = sym * 0.6;
+      emi += VH * sym * clamp(uSpill, 0.0, 1.0) * 0.6 + VH * clamp(uSpill, 0.0, 1.0) * 0.06;
+      float fc = step(1.0, (s - 0.8) / 0.2 + (h - 0.86) / 0.14); a = mix(a, vec3(0.78, 0.64, 0.42), fc * 0.7); cvv += fc * 0.1; }
+    if (id == 967) { a = GO * (0.88 + 0.2 * vn(L.xy * 12.0 + sd)); met = 1.0; rg = 0.22; cc = 0.3; spk += 0.6; if (sk == 2) { a *= 0.75; rg = 0.35; } }
+    if (id == 968) { vec3 q = normalize(L + 1e-4); float lon = atan(q.y, q.x), lat = asin(clamp(q.z, -1.0, 1.0));
+      float land = smoothstep(0.52, 0.56, lbF(vec2(lon * 1.6, lat * 3.2) + 7.0) + 0.08 * cos(lat * 2.0)), ice = smoothstep(1.15, 1.3, abs(lat));
+      a = mix(vec3(0.12, 0.32, 0.62), vec3(0.2, 0.46, 0.78), vn(q.xy * 6.0)); a = mix(a, mix(vec3(0.3, 0.55, 0.28), vec3(0.62, 0.55, 0.32), vn(q.yz * 9.0)), land); a = mix(a, vec3(0.92, 0.95, 1.0), ice);
+      rg = mix(0.14, 0.7, land); cc = (1.0 - land) * 0.7;
+      float lit = uSpill; for (int i = 0; i < 7; i++) { if (float(i) >= lit) break; float lo = i == 0 ? 0.3 : i == 1 ? 1.2 : i == 2 ? 2.1 : i == 3 ? 2.9 : i == 4 ? 3.8 : i == 5 ? 4.7 : 5.6, la = i == 0 ? 0.35 : i == 1 ? -0.2 : i == 2 ? 0.5 : i == 3 ? -0.45 : i == 4 ? 0.1 : i == 5 ? 0.62 : -0.3;
+        vec3 pd = vec3(cos(la) * cos(lo), cos(la) * sin(lo), sin(la)); emi += GH * 2.2 * exp(-dot(q - pd, q - pd) / 0.004); } }
+    // ---- the shared light: key with soft shadows, the arena's sky above and its floor's bounce below, reflections of both, metal, a clear coat, glints, light under the skin, the rim from behind
+    float oAO = 1.0, oSH = 1.0; if (uNOcc > 0.5 && uLow < 0.5) { oAO = occAO(vW, n); oSH = occSH(vW, uLK); } occ *= oAO;
+    float ndl0 = dot(n, uLK), ndl = max(0.0, ndl0) * oSH, wrap = max(0.0, (ndl0 + 0.5) / 1.5) * mix(1.0, oSH, 0.7); hm = dot(n, uUP);
+    vec3 key = uAmb, sky = id < 950 ? vec3(0.17, 0.11, 0.13) : id < 960 ? vec3(0.11, 0.07, 0.13) : vec3(0.13, 0.11, 0.21), gnd = id < 950 ? vec3(0.5, 0.39, 0.26) : id < 960 ? vec3(0.3, 0.19, 0.14) : vec3(0.55, 0.47, 0.32);
+    vec3 ambC = mix(gnd, sky, 0.5 + 0.5 * hm) * (0.5 + 0.5 * occ);
+    vec3 hh = normalize(uLK + uV); float nh = max(0.0, dot(n, hh)), pw = 2.0 / (rg * rg + 0.004), spec = pow(nh, pw) * (pw + 2.0) / 8.0 * ndl, frs = pow(1.0 - ndv0, 5.0);
+    vec3 rr = 2.0 * dot(n, uV) * n - uV; float ru = dot(rr, uUP);
+    vec3 envC = mix(gnd * 0.6, sky * 1.6 + uRim * 0.06, smoothstep(-0.3, 0.45, ru)) + uRim * 0.16 * smoothstep(0.15, 0.5, ru) * (1.0 - smoothstep(0.65, 0.92, ru)) / (1.0 + rg * 4.0) + key * 0.9 * smoothstep(0.85, 0.97, dot(rr, uLS)) / (1.0 + rg * 5.0);
+    vec3 F0 = mix(vec3(0.04), a, met), Fr = F0 + (1.0 - F0) * frs * (1.0 - rg * 0.6);
+    vec3 col = a * (1.0 - met * 0.85) * (mix(ndl, wrap, 0.35) * key + ambC) + envC * Fr * occ * (0.55 + met * 1.05) / (1.0 + rg * 1.2) + spec * key * mix(vec3(0.07), F0 * 1.5, met);
+    col += thru * (0.35 * (1.0 - ndl) + 0.3 * max(0.0, -ndl0) + 0.3 * max(0.0, dot(n, uLR))) * key * (0.6 + 0.4 * occ);
+    if (cc > 0.0) col += cc * (pow(nh, 140.0) * 0.8 * ndl * key + (0.04 + 0.96 * frs) * envC * 0.5) * occ;
+    if (spk > 0.0 && uLow < 0.5) col += vec3(1.0, 0.96, 0.88) * pow(vn(tex * 9.0 + sd), 24.0) * 2.0 * spk * max(0.0, ndl0 + 0.2);
+    if (ssk > 0.0) col += ssk * a * vec3(1.0, 0.45, 0.35) * (max(0.0, wrap - ndl) * 1.3 * key + pow(1.0 - ndv0, 2.2) * (key * 0.3 + uRim * 0.4)) * (0.5 + 0.5 * occ);
+    if (shb > 0.0) { float sbx = dot(rr, uLS); col += shb * key * (pow(nh, 12.0) * 0.14 * ndl + smoothstep(0.82, 0.93, sbx) * (1.0 - smoothstep(0.975, 1.0, sbx)) * 0.25) * occ; }
+    col += pow(1.0 - ndv0, 2.4) * max(0.0, dot(n, uLR) + 0.35) * uRim * 0.6 * occ + a * max(0.0, -hm) * gnd * 0.55 * occ;
+    col *= 1.0 - min(0.8, cvv * 0.5 + (1.0 - occ) * 0.45);
+    col += emi * (1.0 - dead * 0.85) + vec3(1.0, 0.98, 0.95) * fl2 * (0.22 + 0.45 * pow(1.0 - ndv0, 2.0));
+    if (dead > 0.0) { float lum = dot(col, vec3(0.3, 0.55, 0.15)); col = mix(col, vec3(lum) * vec3(0.8, 0.78, 0.86) * 0.7, dead * 0.7); }
+    gl_FragColor = vec4(vec3(tone(col.r), tone(col.g), tone(col.b)) * uAlpha, uAlpha); return; }
+  /*</LB-LIB-MAT>*/
   /*<AB-AUR-MAT ids 730..749 (v470 AB: 20z4a-thul-gl.js, 20z5a-nivora-gl.js, 20z6a-ahuul-gl.js, the Pale Aurora's bosses)>*/
   else if (id >= 730 && id <= 749) {   // ---- (v470 AB) Rift 05's bosses, lit by AUR3's passes (the key's colour in uAmb, the aurora's rim in uRim). 730 Thul's cocoon (local: z its axis, +2.05 the crown, x y across, radius 1.32: chalk-white frosted shell, faint silk wraps, five raised navy seams (the mesh's ridges, painted navy), a crown of frost; uSpill its cracks, green light pouring out); 730.2 a shell shard. 731 navy lacquered chitin (a faint aurora sheen; .2 a dark joint; .6 Thul's tail (a swept tube: vA.z its place along it x 14, vA.y round it): ice plates over every other segment, dark joints). 732 black root (.0 a swept leg: vA.y round, vA.z along, fibres and grooves, frost in them; .2 a still piece by its own coordinates). 733 eyes and lights: .0 the cocoon's eye (local x the gaze: a green iris, a slit pupil narrowed by uKind), .2 a compound eye (hex facets), .4 Nivora's eye slit (vA.y along it, vA.z across; its bright core at uSpill), .6 a light (green, by uGlow), .8 a vent (vA.y across, vA.z along). 734 a wing membrane (seen through): uKind 0 / 1 Thul's fore / hind wing (local x y its plane: the 2D wing's own design: ice-blue to aurora green, veins, the eye-spot, a navy border with white dots), 2 Nivora's (vA.z root 0 .. tip 1, vA.y leading 0 .. trailing 1: frozen white to aurora green, veins and cross-veins, the leading rib). 735 ice (.0 a crystal: facet edges in vA.y, .2 a plate). 736 Nivora's head (dark glass). 737 Ahuul's hide (.0 the body: vA.y round it (0 its right side, .25 the back), vA.z snout 0 .. fluke 1: a navy back, a white belly and throat with pleats (lit green by uGlow), the mouth's line, frost; .2 a fin and .4 the fluke by their own coordinates). 738 a tendril (vA.z along it). 739 snow (a cap of it). uGlow2 a blow's flash, uFx the death's fade
     int sk = int((vA.x - float(id)) * 10.0 + 0.5);
@@ -2650,6 +2819,72 @@ void main() {
     col += emi * (1.0 - dead * 0.9) + vec3(1.0, 0.98, 0.95) * clamp(uGlow2, 0.0, 1.0) * (0.3 + 0.5 * pow(1.0 - ndv0, 2.0));
     gl_FragColor = vec4(vec3(tone(col.r), tone(col.g), tone(col.b)) * uAlpha, uAlpha); return; }
   /*</YM-YUG-MAT>*/
+  /*<LM-LIB-MAT ids 910..929 (v474 LM: 20zb5-lib-brood-gl.js, Rift 07's brood baked into sprite frames once). Its passes carry the land's key light in uAmb and its rim in uRim (the Catalogue's candle gold and ink violet, the Silver Bindery's cool silver, the Ascent's white sun and gold). Every pattern from the surface's own coordinates (L, or a strip's own u / v in the edge / occlusion attributes). 910 paper (warm parchment fibres and foxing, light through it; .1 aged parchment, .2 a page block: the leaves' fine lines across L.x, .3 an inked sheet (edge = u along, occlusion = v across: rows of script), .4 a margin worm's strip (edge = u along, occlusion = v across: a burgundy spine down its middle, script either side)), 911 light (emissive only: uKind 0 gold, 1 ink violet, 2 holy white-gold, 3 white, 4 fire amber; uGlow its strength), 912 book leather (burgundy grain, polished, worn lighter at the edges; .1 a dark spine), 913 gilt (polished gold, worn bright edges; .1 pale holy gold, .2 antique gold), 914 ink (glossy black-violet, a violet sheen and slow swirls inside, wet; .1 white enamel: an eye; .2 a black glossy pupil), 915 wood by uKind's theme (0 polished walnut with grain, 1 white lacquer, 2 ivory; .1 the back panel, darker), 916 a row of book spines by uKind's theme (sub-ids .0-.4 its colour, spine divisions along L.y), 917 platinum (polished pale metal; .1 darker), 918 a feather (edge = u along the shaft, occlusion = v across: barbs, the shaft, translucent; .1 silvered), 919 cloth and porcelain (.0 a white robe with soft folds; .1 a pale gold porcelain mask), 920 an eye (a sphere looking along +x: white, iris by uKind (0 sky blue, 1 hot amber, 2 gold, 3 a small ink pupil only), pupil, glint; uGlow lights the iris); uGlow2 a white flash, uFx a death's fade, uWear the part's seed. Per-id branches are separate ifs (SwiftShader mis-shades deep else-if chains)>*/
+  else if (id >= 910 && id <= 929) {   // ---- (v474 LM) the Library's brood
+    int sk = int((vA.x - float(id)) * 10.0 + 0.5);
+    float ndv0 = max(0.0, dot(n, uV)), hm = dot(n, uUP), tt = uTime, sd = uWear * 17.0, gl = clamp(uGlow, 0.0, 3.0), dead = clamp(uFx, 0.0, 1.0);
+    vec3 EC = uKind < 0.5 ? vec3(1.6, 1.12, 0.42) : uKind < 1.5 ? vec3(0.95, 0.5, 1.65) : uKind < 2.5 ? vec3(1.7, 1.5, 0.95) : uKind < 3.5 ? vec3(1.5, 1.48, 1.42) : vec3(1.75, 0.78, 0.3);
+    float w1 = vn(L.xy * 3.1 + L.z * 1.9 + sd), w2 = vn(L.yz * 8.0 + L.x * 4.0 + sd * 0.7), w3 = vn(L.xz * 23.0 + L.y * 11.0 + sd);
+    vec3 hq0 = normalize(uLK + uV);
+    if (id == 911) { float fl = 0.9 + 0.2 * vn(L.xy * 9.0 + L.z * 5.0 + vec2(tt * 1.3, -tt));
+      vec3 c = mix(EC * 0.85, vec3(1.75, 1.7, 1.6), pow(ndv0, 2.2) * 0.55) * (0.45 + 0.8 * gl) * fl;
+      gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
+    vec3 a = vec3(0.5), emi = vec3(0.0), thru = vec3(0.0); float rg = 0.5, cvv = 0.0, cc = 0.0, mt = 0.0, occ = clamp(ao, 0.0, 1.0) * 0.4 + 0.6, eg = clamp(edge, 0.0, 1.0);
+    if (id == 910) { vec3 p0 = sk == 1 ? vec3(0.8, 0.67, 0.47) : vec3(0.93, 0.85, 0.69), p1 = sk == 1 ? vec3(0.9, 0.79, 0.6) : vec3(0.99, 0.95, 0.85);
+      float fib = vn(vec2(L.x * 40.0 + L.z * 7.0, L.y * 6.0) + sd), fox = smoothstep(0.74, 0.9, vn(L.xy * 5.0 + L.z * 4.0 + sd * 1.3));
+      a = mix(p0, p1, w1 * 0.7 + 0.15) * (0.94 + 0.1 * fib); a = mix(a, vec3(0.62, 0.45, 0.26), fox * 0.35); rg = 0.78; thru = vec3(0.42, 0.34, 0.2) * 0.45;
+      if (sk == 2) { float lv = smoothstep(0.25, 0.5, abs(fract(L.x * 62.0 + w2 * 0.6) - 0.5)); a = mix(vec3(0.97, 0.93, 0.82), vec3(0.7, 0.6, 0.45), lv * 0.45) * (0.95 + 0.08 * w3); cvv += lv * 0.12; thru = vec3(0.0); }
+      if (sk == 3 || sk == 4) { float u = edge, v = clamp(ao, 0.0, 1.0); occ = 1.0; eg = 0.0;
+        float rows = sk == 3 ? 7.0 : 2.0, rv = sk == 3 ? v * rows : abs(v - 0.5) * 2.0 * rows, rf = fract(rv), ri = floor(rv);
+        float word = step(0.42, vn(vec2(u * (sk == 3 ? 34.0 : 70.0) + ri * 13.0, ri + sd))) * step(0.06, u) * step(u, 0.95), line = smoothstep(0.32, 0.42, rf) * (1.0 - smoothstep(0.55, 0.66, rf));
+        if (sk == 4) line *= step(0.32, abs(v - 0.5) * 2.0) * (1.0 - step(0.9, abs(v - 0.5) * 2.0));
+        a = mix(a, vec3(0.22, 0.16, 0.24), word * line * 0.62);
+        if (sk == 4) { float sp = 1.0 - smoothstep(0.1, 0.14, abs(v - 0.5)); a = mix(a, vec3(0.42, 0.13, 0.26) * (0.85 + 0.2 * w2), sp); rg = mix(rg, 0.42, sp); cc += sp * 0.4; float rim = smoothstep(0.42, 0.5, abs(v - 0.5)); a *= 1.0 - rim * 0.18; } } }
+    if (id == 912) { vec3 b0 = sk == 1 ? vec3(0.2, 0.07, 0.11) : vec3(0.42, 0.12, 0.22);
+      a = b0 * (0.84 + 0.24 * w1) * (0.9 + 0.12 * smoothstep(0.4, 0.7, w3)); a = mix(a, b0 * 1.7 + vec3(0.06, 0.03, 0.02), eg * 0.45); rg = 0.4 - 0.12 * w2; cc = 0.45; cvv += smoothstep(0.75, 0.95, w3) * 0.12; }
+    if (id == 913) { a = (sk == 1 ? vec3(1.0, 0.86, 0.56) : sk == 2 ? vec3(0.72, 0.5, 0.22) : vec3(1.0, 0.75, 0.32)) * (0.84 + 0.22 * w1); mt = 1.0; rg = 0.2 + 0.12 * w2 - eg * 0.08; a = mix(a, vec3(1.0, 0.93, 0.7), eg * 0.35); cvv += smoothstep(0.8, 0.95, w3) * 0.2; emi += EC * gl * 0.06; }
+    if (id == 914) { if (sk == 1) { a = vec3(0.93, 0.92, 0.96); rg = 0.1; cc = 1.0; thru = vec3(0.2, 0.18, 0.24) * 0.3; }
+      else if (sk == 2) { a = vec3(0.02, 0.015, 0.03); rg = 0.06; cc = 1.0; }
+      else { float sw = vn(vec2(L.x * 3.0 + L.z * 2.0 + tt * 0.35, L.y * 3.0 - tt * 0.25) + sd), frs2 = pow(1.0 - ndv0, 2.2);
+        a = mix(vec3(0.045, 0.032, 0.075), vec3(0.15, 0.085, 0.25), smoothstep(0.55, 0.85, sw)) * (0.85 + 0.3 * w1); rg = 0.07 + 0.06 * w2; cc = 1.1;
+        emi += vec3(0.32, 0.16, 0.55) * frs2 * 0.55 + EC * gl * 0.05; } }
+    if (id == 915) { float th = uKind;
+      vec3 w0 = th < 0.5 ? vec3(0.34, 0.2, 0.15) : th < 1.5 ? vec3(0.88, 0.9, 0.95) : vec3(0.96, 0.93, 0.84);
+      if (sk == 1) w0 = th < 0.5 ? vec3(0.13, 0.075, 0.075) : th < 1.5 ? vec3(0.33, 0.36, 0.46) : vec3(0.84, 0.78, 0.63);
+      float grain = smoothstep(0.35, 0.65, vn(vec2(L.x * 2.0 + L.y * 9.0 + w1 * 1.5, L.z * 0.7) + sd)), ring = abs(fract(L.y * 6.0 + L.x * 3.0 + w1 * 1.3) - 0.5);
+      a = w0 * (th < 0.5 ? 0.82 + 0.3 * grain - smoothstep(0.42, 0.5, ring) * 0.15 : 0.95 + 0.06 * grain); a = mix(a, th < 0.5 ? vec3(0.55, 0.36, 0.26) : vec3(1.0), eg * 0.3);
+      rg = th < 0.5 ? 0.38 - 0.1 * grain : 0.2; cc = th < 0.5 ? 0.45 : 0.9; }
+    if (id == 916) { float th = uKind, s0 = floor(L.y * 7.0 + sd), hb = hs(vec2(s0, sd)), dv = smoothstep(0.42, 0.5, abs(fract(L.y * 7.0 + sd) - 0.5));
+      vec3 c0 = th < 0.5 ? vec3(0.42, 0.13, 0.24) : th < 1.5 ? vec3(0.24, 0.29, 0.44) : vec3(0.97, 0.96, 0.92), c1 = th < 0.5 ? vec3(0.18, 0.23, 0.36) : th < 1.5 ? vec3(0.92, 0.93, 0.96) : vec3(0.95, 0.86, 0.6);
+      vec3 c2 = th < 0.5 ? vec3(0.24, 0.35, 0.27) : th < 1.5 ? vec3(0.56, 0.62, 0.76) : vec3(0.8, 0.86, 1.0), c3 = th < 0.5 ? vec3(0.48, 0.35, 0.16) : th < 1.5 ? vec3(0.36, 0.37, 0.48) : vec3(0.92, 0.85, 1.0), c4 = th < 0.5 ? vec3(0.3, 0.22, 0.42) : th < 1.5 ? vec3(0.72, 0.76, 0.86) : vec3(1.0, 0.92, 0.8);
+      a = sk == 1 ? c1 : sk == 2 ? c2 : sk == 3 ? c3 : sk == 4 ? c4 : c0; a *= (0.82 + 0.3 * hb) * (0.9 + 0.12 * w2); cvv += dv * 0.4; rg = 0.48; cc = 0.25; }
+    if (id == 917) { a = (sk == 1 ? vec3(0.7, 0.73, 0.8) : vec3(0.93, 0.94, 0.98)) * (0.9 + 0.12 * w1); mt = 0.45; rg = 0.2 + 0.1 * w2 + (sk == 1 ? 0.1 : 0.0); a = mix(a, vec3(1.0), eg * 0.3); cc = 0.6; emi += a * uAmb * 0.08; }
+    if (id == 918) { float u = edge, v = clamp(ao, 0.0, 1.0), dv = abs(v - 0.5) * 2.0; occ = 1.0; eg = 0.0;
+      float barb = smoothstep(0.3, 0.5, abs(fract(u * 22.0 + dv * 3.2 + vn(vec2(u * 9.0, v * 3.0) + sd) * 0.5) - 0.5)), shaft = 1.0 - smoothstep(0.03, 0.07, dv);
+      a = (sk == 1 ? vec3(0.86, 0.88, 0.93) : vec3(0.98, 0.97, 1.0)) * (0.9 + 0.1 * barb); a = mix(a, vec3(0.82, 0.78, 0.88), (1.0 - u) * 0.25 + dv * dv * 0.12); a = mix(a, vec3(0.93, 0.86, 0.66), shaft * 0.6);
+      cvv += barb * 0.05 * (1.0 - shaft); rg = 0.62; thru = vec3(0.5, 0.48, 0.55) * 0.45; emi += a * uAmb * 0.2; }
+    if (id == 919) { if (sk == 1) { a = vec3(0.97, 0.87, 0.6) * (0.92 + 0.1 * w1); rg = 0.22; cc = 1.0; thru = vec3(0.3, 0.22, 0.1) * 0.25; }
+      else { float fold = 0.5 + 0.5 * sin(atan(L.y, L.x) * 7.0 + w1 * 2.0 + L.z * 1.5); a = vec3(0.97, 0.96, 0.93) * (0.9 + 0.08 * w2); cvv += fold * 0.16; rg = 0.7; thru = vec3(0.4, 0.37, 0.3) * 0.35; emi += a * uAmb * 0.16; } }
+    if (id == 920) { vec3 d = normalize(L); float c = d.x, iris = smoothstep(0.7, 0.74, c), pup = smoothstep(uKind > 2.5 ? 0.9 : 0.93, uKind > 2.5 ? 0.93 : 0.96, c);
+      vec3 ic = uKind < 0.5 ? vec3(0.22, 0.42, 0.95) : uKind < 1.5 ? vec3(1.0, 0.52, 0.16) : vec3(0.95, 0.72, 0.22); float ir = vn(vec2(atan(d.y, d.z) * 3.0, c * 20.0) + sd);
+      a = vec3(0.95, 0.94, 0.97); if (uKind < 2.5) { a = mix(a, ic * (0.6 + 0.6 * ir) * (0.7 + 0.5 * smoothstep(0.74, 0.92, c)), iris); emi += ic * iris * (1.0 - pup) * (0.08 + 0.5 * gl); }
+      a = mix(a, vec3(0.015, 0.012, 0.02), pup); a *= 1.0 - (1.0 - smoothstep(0.66, 0.7, c)) * smoothstep(0.62, 0.7, c) * 0.25 * step(uKind, 2.5); rg = 0.08; cc = 1.2; }
+    float ndl0 = dot(n, uLK), ndl = max(0.0, ndl0), wrap = max(0.0, (ndl0 + 0.45) / 1.45);
+    vec3 key = uAmb, ambC = mix(uAmb * 0.2 + vec3(0.06, 0.05, 0.08), uRim * 0.18 + uAmb * 0.26 + vec3(0.06, 0.05, 0.07), 0.5 + 0.5 * hm) * (0.55 + 0.45 * occ);
+    float nh = max(0.0, dot(n, hq0)), pw = 2.0 / (rg * rg + 0.004), spec = pow(nh, pw) * (pw + 2.0) / 8.0 * ndl, frs = pow(1.0 - ndv0, 5.0);
+    vec3 rr2 = 2.0 * dot(n, uV) * n - uV; float ru = dot(rr2, uUP);
+    vec3 envC = ru > 0.0 ? mix(uAmb * 0.48, uRim * 0.45 + uAmb * 0.2, smoothstep(0.0, 0.6, ru)) : mix(uAmb * 0.42, uAmb * 0.18 + vec3(0.04, 0.03, 0.05), smoothstep(0.0, -0.4, ru));
+    envC += uAmb * 1.2 * smoothstep(0.86, 0.97, dot(rr2, uLS)) / (1.0 + rg * 5.0);
+    vec3 Fr = mix(mix(vec3(0.04), a, mt), vec3(1.0), frs * (1.0 - rg * 0.6));
+    vec3 col = a * (1.0 - mt * 0.82) * (mix(ndl, wrap, 0.55) * key + ambC) + (envC * (0.9 / (1.0 + rg * 2.5)) * occ + spec * key * 0.9) * (Fr * (0.35 + 0.65 * mt) + 0.65 * (1.0 - mt) * Fr);
+    if (cc > 0.0) col += cc * (pow(nh, 200.0) * 3.0 * ndl + 0.3 * frs * envC) * occ;
+    col += thru * (0.6 + 0.4 * max(0.0, -ndl0)) * uAmb;
+    col += pow(1.0 - ndv0, 2.4) * max(0.0, dot(n, uLR) + 0.35) * uRim * 0.5 * occ;
+    col *= 1.0 - min(0.8, cvv * 0.5 + (1.0 - occ) * 0.4);
+    if (dead > 0.0) { float lum = dot(col, vec3(0.3, 0.55, 0.15)); col = mix(col, vec3(lum) * 0.7, dead * 0.75); }
+    col += emi * (1.0 - dead * 0.9) + vec3(1.0, 0.98, 0.95) * clamp(uGlow2, 0.0, 1.0) * (0.3 + 0.5 * pow(1.0 - ndv0, 2.0));
+    gl_FragColor = vec4(vec3(tone(col.r), tone(col.g), tone(col.b)) * uAlpha, uAlpha); return; }
+  /*</LM-LIB-MAT>*/
   /*<AM-AUR-MAT ids 710..729 (v470 AM: 20s6f-aur-brood-gl.js, Rift 05's brood baked into sprite frames once). Its passes carry the land's key light in uAmb and its rim in uRim (the Split Iceberg's cold moonlight and aurora green, the Observatory's pale key and bright green, the Whiteout's white sun and amber). 710 rime shell (faceted frosted ice: bright facet rims by the facet's edge weight, frost, a cold glow through it; .1 ice blue, .2 snow white), 711 navy chitin (glossy deep navy; .1 matte navy hide: a yeti's face and hands), 712 light (emissive only: uKind 0 aurora green, 1 ice white, 2 amber, 3 white; uGlow its strength), 713 a veil ray's membrane (pale blue, see-through, fine veins fanning from its middle, a sheen; .1 a green ribbon, .2 an ice ribbon: lit edges), 714 clear ice (a crystal's vA.z 1 - its place along: frosted root, clear tip, aurora green rising inside by uGlow), 715 a dark core (black glass, green light swirling inside by uGlow), 716 shaggy fur (white strands, blue in the hollows; .1 the back limbs' greyer fur), 718 block ice (bevelled slabs: cracks inside, frosted faces, bright bevels; .1 deep blue, .2 pale; uSpill green cracks of light), 720 snow (bright, glinting), 721 enamel (fangs), 722 an ice horn (ridged along vA.z), 723 glacier rock (blue-grey, snow dust on its tops); uGlow2 a white flash, uWear the part's seed>*/
   else if (id >= 710 && id <= 729) {   // ---- (v470 AM) the Pale Aurora's brood
     int sk = int((vA.x - float(id)) * 10.0 + 0.5);

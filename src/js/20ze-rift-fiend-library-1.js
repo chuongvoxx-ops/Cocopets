@@ -26,6 +26,10 @@
    the pet, the ribbon trails and sways; struck, its head jerks back and its volumes jolt. */
 RiftFiend.define({ id: 'syllax', hpK: 1.25, dmgK: 1.25, name: 'Syllax', title: 'The Bookwyrm', color: '#6B324F', glow: '#F2DC9A', accent: '#FFE9A8', biome: 'catalogue', r: 1.5, els: ['light', 'dark'], phases: 2 }, (() => {
   const { TAU, TN, sorted, hit } = RiftFiend, tubeLite = TN.tubeLite;
+  /* (v474 LB) the GPU model (SYLLAX_GL, 20zea-syllax-gl.js); without it the 2D Syllax. The rift's main-boss health factor (as 20z4's):
+     its blows and its weak point count 1 / foeK.boss */
+  const SG = () => (typeof SYLLAX_GL !== 'undefined' ? SYLLAX_GL : null), KEEP2D = { every: 2, pad: 3 };
+  const hpK = FX => { const F = FX && FX.F && FX.F.rift && FX.F.rift.foeK; return F && F.boss > 0 ? F.boss : 1; };
   const { INK, PARCH, PARCH_D, PARCH_HI, BURG, BURG_HI, GOLD, GOLD_HI, VIOLET, VIOLET_HI, LEATHER, WOOD, WOOD_D } = LIB;
   const decay = (v, dt, k) => Math.max(0, (v || 0) - dt * k), toward = (v, want, dt, k) => (v || 0) + (want - (v || 0)) * Math.min(1, dt * k), lerp = (a, b, u) => a + (b - a) * u;
   const angTo = (a, b) => { let d = b - a; while (d > Math.PI) d -= TAU; while (d < -Math.PI) d += TAU; return d; };
@@ -92,9 +96,9 @@ RiftFiend.define({ id: 'syllax', hpK: 1.25, dmgK: 1.25, name: 'Syllax', title: '
     drawProp(c, FX, p, X, Y, T) { const PR = DunWorld.PROPS; c.translate(X, Y); if (p.kind === 'case') LIB.bookcase(c, T, p.i % 4); else if (p.kind === 'candle') PR.candelabra(c, T, p.i); else PR.bookstack(c, T, p.i); },
     paintGround(c, A) { paintFloor(c, A); },
     sky(c, W, H, t, cam, T) { paintSky(c, W, H, T); },
-    overlay(c, FX, t, T) { drawOverlay(c, FX, t, T); },
+    overlay(c, FX, t, T) { { const o = SG(); if (o && o.overlay(c, FX, t, T)) return; } drawOverlay(c, FX, t, T); },   // (v474 LB: the lanes, the lines and its warnings in light first; the 2D overlay keeps the rest: M.lbGL)
     /* ---- the fight ---- */
-    init(FX) { const M = FX.mem, m = FX.m, C = FX.C; m.noTouch = true; m.x = C.x; m.y = C.y - 3.4; m.act = 'enter';
+    init(FX) { const M = FX.mem, m = FX.m, C = FX.C; m.noTouch = true; m.x = C.x; m.y = C.y - 3.4; m.act = 'enter'; if (SG()) SG().init(FX);   // (v474 LB: its warnings marked for light)
       Object.assign(M, { bt: 0, hd: Math.PI / 2, hdTo: Math.PI / 2, mv: Math.PI / 2, v: 0, vTo: 0, spdK: 0, wave: 0, orb: 0, odir: 1, jaw: 0.2, jawTo: 0.22, rear: 0, rearTo: 0, stuckK: 0, openK: 0, openTo: 0, eyeK: 0, recoil: 0, jolt: 0, look: [0, 0.4],
         lashK: 0, lashKTo: 0, ribA: null, ribATo: 0, ribBend: 0, ribBendTo: 0, ribZ: 0, ribZTo: 0, lashWait: 0, picks: 0, nextAct: null, last: null, seen: {}, stuckCd: 0, broodT: 6, stunKind: null, stunWas: null, wasStun: false, taught: false,
         lines: null, sn: null, bite: null, ls: null, er: null, ub: null, cracks: [], pools: [], dropZ: null, landed: null,
@@ -119,7 +123,7 @@ RiftFiend.define({ id: 'syllax', hpK: 1.25, dmgK: 1.25, name: 'Syllax', title: '
       if (!m.under) FX.parts(bodyParts(m, M));
     },
     stunned(FX, m, dt) { const M = FX.mem, P = pose(m, M), e = eyeAt(P); m.noTouch = true; M.vTo = 0; M.v = 0;
-      FX.weak('eye', e[0], e[1] - e[2], 0.95, 2.5, m.stunT > 0.05);
+      FX.weak('eye', e[0], e[1] - e[2], 0.95, 2.5 / hpK(FX), m.stunT > 0.05);   // (v474 LB: its blows 1 / foeK.boss)
       M.twT = (M.twT || 0) - dt; if (M.twT <= 0) { M.twT = 0.22 + Math.random() * 0.15; FX.H.sparks(e[0] + FX.rnd(-0.4, 0.4), e[1] - e[2] - 0.2, Math.random() < 0.5 ? GOLD_HI : '#FFFFFF', 3, 3); if (M.stunKind === 'stuck' && Math.random() < 0.4) FX.H.part({ kind: 'shard', x: m.x + FX.rnd(-0.6, 0.6), y: m.y, vx: FX.rnd(-2, 2), vy: FX.rnd(-4, -1), g: 10, life: 0.5, max: 0.5, size: 3, rot: Math.random() * 3, vr: 6, color: Math.random() < 0.5 ? PARCH_HI : PG_SH }); }
       if (!m.under) FX.parts(bodyParts(m, M)); },
     update(FX, dt) { const M = FX.mem, m = FX.m; if (!m || !M.trail) return; M.bt += dt; const stun = m.stunT > 0, me = FX.me;
@@ -148,13 +152,15 @@ RiftFiend.define({ id: 'syllax', hpK: 1.25, dmgK: 1.25, name: 'Syllax', title: '
       M.cracks.forEach(k => k.t += dt); M.cracks = M.cracks.filter(k => k.t < 4); M.pools.forEach(k => k.t += dt); M.pools = M.pools.filter(k => k.t < k.life);
       // the unbinding: pages fluttering out of its open volumes
       if (M.openK > 0.3 && Math.random() < dt * 14) { const P = pose(m, M), s = P.segs[Math.floor(Math.random() * 5)]; FX.H.part({ kind: 'shard', x: s.x + FX.rnd(-0.5, 0.5), y: s.y - 0.9, vx: FX.rnd(-2.5, 2.5), vy: FX.rnd(-5, -2), g: 4, life: 0.9, max: 0.9, size: 4, rot: Math.random() * 3, vr: 7, color: Math.random() < 0.6 ? PARCH_HI : PARCH }); } },
-    dmgK(FX, m) { const M = FX.mem; if (!M) return 1; M.recoil = Math.max(M.recoil || 0, 0.35); M.jolt = Math.max(M.jolt || 0, 0.5); M.hitK = 1; return 1; },
+    dmgK(FX, m) { const M = FX.mem; if (!M) return 1; M.recoil = Math.max(M.recoil || 0, 0.35); M.jolt = Math.max(M.jolt || 0, 0.5); M.hitK = 1; return 1 / hpK(FX); },   // (v474 LB: the rift's main-boss health, foeK.boss times: its blows 1 / foeK.boss, as Rift 05's and 06's)
     onWeakHit(FX) { FX.mem.recoil = 0.6; FX.mem.jolt = 0.8; },
     camFocus(FX, m) { const M = FX.mem, me = FX.me; if (!M || !M.trail || m.dead || m.act === 'enter') return null; const q = trailAt(M, 2.2), x = (m.x + q[0]) / 2, y = (m.y + q[1]) / 2 - 1.0, d = Math.hypot(x - me.x, y - me.y) || 1; return { x, y, k: Math.min(0.36, 3.0 / d) }; },
-    keep: { every: 2, pad: 3 },
-    draw(c, FX, m, X, Y, T, t) { Y += (m.z || 0) * T * 4; drawSyllax(c, FX, m, X, Y, T, t); },
+    get keep() { const o = SG(); return o && o.gpu() ? null : KEEP2D; },   // (v474 LB: the GPU model drawn every frame, one pass; the 2D one kept as before)
+    draw(c, FX, m, X, Y, T, t) { Y += (m.z || 0) * T * 4; { const o = SG(); if (o && o.draw(c, FX, m, X, Y, T, t)) return; } drawSyllax(c, FX, m, X, Y, T, t); },   // (v474 LB: the GPU model, else the 2D Syllax)
     drawObj(c, FX, o, X, Y, T, t) { if (o.kind === 'copy') drawCopy(c, FX, o, X, Y, T, t); },
-    drawFx(c, FX, T, t) { drawAir(c, FX, T, t); },
+    get MODEL() { return SG(); }, preload(P) { const o = SG(); return o ? o.preload(P) : []; },   // (v474 LB)
+    RIG: { HEAD, SEGS, pose: (m, M) => pose(m, M), headFrame: Hd => headFrame(Hd), eyeLocal: Hd => eyeLocal(Hd) },   // (v474 LB: the fight's skeleton for SYLLAX_GL, 20zea)
+    drawFx(c, FX, T, t) { { const o = SG(); if (o) FX.mem.lbAir = o.drawFx(c, FX, T, t); } drawAir(c, FX, T, t); },   // (v474 LB: the lines' page wedges and the gap's posts on the GPU first; drawAir then leaves them: M.lbAir)
   };
 
   /* ---------- the fight's pieces ---------- */
@@ -283,7 +289,7 @@ RiftFiend.define({ id: 'syllax', hpK: 1.25, dmgK: 1.25, name: 'Syllax', title: '
     U.acc = Math.min(3, U.acc + dt * (U.n < 8 ? 4 : 2.4));
     while (U.acc >= 1 && U.left > 0 && U.list.length < 9) { U.acc -= 1; U.left--; U.n++; const q = U.n % 5 === 0 ? callWorm(FX, m, M, true) : pourPage(FX, m, M, true); if (q) U.list.push(q); }
     if (U.t >= U.T || (U.left === 0 && !U.list.length)) rebind(FX, m, M); }
-  function rebind(FX, m, M) { const U = M.ub; M.ub = null; let back = 0; const bar = FX.S.barHP;
+  function rebind(FX, m, M) { const U = M.ub; M.ub = null; let back = 0; const bar = FX.S.barHP / hpK(FX);   // (v474 LB: the pages' heal and tear in step with its blows' 1 / foeK.boss)
     U.list.forEach(q => { if (!q.dead) { q.dead = true; q.rebound = true; back++; FX.H.sparks(q.x, q.y - 0.4, PARCH_HI, 6, 4); } });
     if (back) { m.hp = Math.min(m.maxhp, m.hp + bar * 0.02 * back); FX.H.text(m.x, m.y - 3.2, `${back} page${back === 1 ? '' : 's'} bound back in`, PARCH_HI, 13); }
     FX.untarget(false); M.openTo = 0; endAct(m, M); M.stat.torn += U.torn; M.stat.rebound += back; M.stat.misbound++;
@@ -432,7 +438,7 @@ RiftFiend.define({ id: 'syllax', hpK: 1.25, dmgK: 1.25, name: 'Syllax', title: '
   // the copy of its head: the same book washed violet and pale, see-through, outlined in a dashed violet line
   function drawCopy(c, FX, o, X, Y, T, t) { const k = easeOut(o.rise || 0); if (k <= 0.01) return; const P3 = TN.cam(X, Y, T, o), lw = Math.max(1.3, T * 0.06);
     const Hd = { x: o.x, y: o.y, hd: o.hd || 0, z: -0.9 * (1 - k) + (o.rear || 0) * 0.7, pitch: (o.rear || 0) * 0.3, roll: Math.sin(t * 2) * 0.04, jaw: o.jaw || 0, eyeK: 0, look: [0, 0], blink: 0 };
-    c.save(); c.globalAlpha *= 0.62 * k; drawHead(c, P3, Hd, T, t, lw, true); c.restore();
+    { const g = SG(); if (!(g && g.drawCopy(c, FX, o, X, Y, T, t, Hd, 0.62 * k))) { c.save(); c.globalAlpha *= 0.62 * k; drawHead(c, P3, Hd, T, t, lw, true); c.restore(); } }   // (v474 LB: the copy's head on the GPU, else the 2D one; its dashed outline stays)
     // the dashed hollow outline round it
     const W = headFrame(Hd), cj = Math.cos(Hd.jaw), sj = Math.sin(Hd.jaw), pts = [];
     for (const u of [HEAD.u0 - 0.05, HEAD.u1 + 0.05]) for (const v of [-HEAD.w - 0.05, HEAD.w + 0.05]) { pts.push(P3(...W(u, v, 0))); const du = u - HEAD.u0, dh = HEAD.H - HEAD.hz; pts.push(P3(...W(HEAD.u0 + du * cj - dh * sj, v, HEAD.hz + du * sj + dh * cj))); }
@@ -510,7 +516,7 @@ RiftFiend.define({ id: 'syllax', hpK: 1.25, dmgK: 1.25, name: 'Syllax', title: '
     // the ink pools the copies rise from
     M.pools.forEach(p => { const X = sx(p.x), Y = sy(p.y), a = clamp(p.t / 0.3, 0, 1) * clamp((p.life - p.t) / 1, 0, 1); c.save(); c.globalAlpha = a; c.fillStyle = 'rgba(30,18,52,.75)'; c.beginPath(); for (let k = 0; k <= 16; k++) { const b = k / 16 * TAU, rr = T * 1.35 * (1 + 0.12 * Math.sin(b * 5 + p.t * 2)); k ? c.lineTo(X + Math.cos(b) * rr, Y + Math.sin(b) * rr * 0.5) : c.moveTo(X + Math.cos(b) * rr, Y + Math.sin(b) * rr * 0.5); } c.closePath(); c.fill(); c.restore(); });
     // the sentences: the bright lane of each missing word, the line written at its start, its way across
-    if (M.lines) { const many = M.lines.length > 1; M.lines.forEach(L => drawLane(c, FX, L, T, t, many)); }
+    if (M.lines) { const many = M.lines.length > 1; M.lines.forEach(L => drawLane(c, FX, L, T, t, many, !!M.lbGL)); }   // (v474 LB: M.lbGL, the lanes and lines in light; their labels stay)
     // errata: the genuine head's solid gold shadow, the copy's hollow dashed violet one and its dashed cone
     const E = M.er; if (E) { const P = pose(m, M), H = P.head, X = sx(H.x), Y = sy(H.y), pu = 0.5 + 0.5 * Math.sin(t * 6);
       c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.5; blitSized(c, glowSprite(GOLD_HI), X - T * 2.4, Y - T * 1.3, T * 4.8, T * 2.6); c.restore();
@@ -520,9 +526,10 @@ RiftFiend.define({ id: 'syllax', hpK: 1.25, dmgK: 1.25, name: 'Syllax', title: '
         c.beginPath(); c.moveTo(Xf, Yf); c.arc(Xf, Yf, Fk.len * T, Fk.a - Fk.spread, Fk.a + Fk.spread); c.closePath(); c.stroke(); c.restore();
         lab(c, Xf + Math.cos(Fk.a) * Fk.len * T * 0.6, Yf + Math.sin(Fk.a) * Fk.len * T * 0.6, 'FAKE', GHOST, T, 0.42); }
       // the real cone: its edge drawn solid and bright, and named
-      const rt = FX.S.tele.find(s => s.real && !s.done); if (rt && M.bite && M.bite.errata) { const Xr = sx(rt.x), Yr = sy(rt.y); c.save(); c.lineWidth = Math.max(2.5, T * 0.1); c.strokeStyle = GOLD_HI; c.lineJoin = 'round'; c.beginPath(); c.moveTo(Xr, Yr); c.arc(Xr, Yr, rt.len * T, rt.a - rt.spread, rt.a + rt.spread); c.closePath(); c.stroke(); c.restore();
+      const rt = FX.S.tele.find(s => s.real && !s.done); if (rt && M.bite && M.bite.errata) { const Xr = sx(rt.x), Yr = sy(rt.y); c.save(); if (M.lbGL) c.globalAlpha = 0; /* (v474 LB: the real cone's edges lit by its fan) */ c.lineWidth = Math.max(2.5, T * 0.1); c.strokeStyle = GOLD_HI; c.lineJoin = 'round'; c.beginPath(); c.moveTo(Xr, Yr); c.arc(Xr, Yr, rt.len * T, rt.a - rt.spread, rt.a + rt.spread); c.closePath(); c.stroke(); c.restore();
         lab(c, Xr + Math.cos(rt.a) * rt.len * T * 0.6, Yr + Math.sin(rt.a) * rt.len * T * 0.6, 'REAL', GOLD_HI, T, 0.42); } } }
-  function drawLane(c, FX, L, T, t, many) { if (L.done) return; const C = FX.C, R = C.R, sx = FX.sx, sy = FX.sy, d = L.d, e = L.e, P = (s, o) => [sx(C.x + d[0] * s + e[0] * o), sy(C.y + d[1] * s + e[1] * o)];
+  function drawLane(c, FX, L, T, t, many, gp) { if (L.done) return; const C = FX.C, R = C.R, sx = FX.sx, sy = FX.sy, d = L.d, e = L.e, P = (s, o) => [sx(C.x + d[0] * s + e[0] * o), sy(C.y + d[1] * s + e[1] * o)];
+    if (gp) { if (!L.run && (!many || L.order === 1)) { const p = P(-R + 3.4, L.gapC); lab(c, p[0], p[1] - T * 0.2, 'MISSING WORD', SAFE, T, 0.38); } return; }   // (v474 LB: gp, the lane and the line drawn in light by SYLLAX_GL.overlay)
     const k = L.run ? 1 : clamp(L.t / 0.35, 0, 1), pu = 0.5 + 0.5 * Math.sin(t * 7), SC = L.order === 2 ? SAFE2 : SAFE, s0 = L.run ? Math.max(-R, L.s) : -R, g0 = L.gapC - L.gapW / 2, g1 = L.gapC + L.gapW / 2, lc = L.order === 2 ? GHOST : GOLD_HI;
     c.save(); c.beginPath(); c.arc(sx(C.x), sy(C.y), R * T, 0, TAU); c.clip(); c.globalAlpha = k;
     // the lane: bright, its edges dashed and running the line's way
@@ -548,17 +555,18 @@ RiftFiend.define({ id: 'syllax', hpK: 1.25, dmgK: 1.25, name: 'Syllax', title: '
     if (M.lines) M.lines.forEach(L => { if (!L.run || L.done || Math.abs(L.s) >= R) return; const hc = Math.sqrt(R * R - L.s * L.s), list = [];
       for (let o = -hc + 0.25; o < hc - 0.2; o += 0.46) { if (Math.abs(o - L.gapC) < L.gapW / 2) continue; list.push([sx(C.x + L.d[0] * L.s + L.e[0] * o), sy(C.y + L.d[1] * L.s + L.e[1] * o), o]); }
       list.sort((a, b) => a[1] - b[1]); const lw = Math.max(1.2, T * 0.05), w = T * 0.25, tint = L.order === 2 ? '#E8DEFF' : PARCH_HI;
-      c.save(); c.lineJoin = 'round';
+      c.save(); c.lineJoin = 'round'; if (M.lbAir) list.length = 0;   // (v474 LB: M.lbAir, the wedges and the posts drawn by SYLLAX_GL.drawFx)
       list.forEach(([X, Y, o]) => { const H = T * (0.95 + 0.35 * hsh(Math.round(o * 10) + L.order * 31)) * (0.92 + 0.08 * Math.sin(t * 14 + o * 3)), lean = T * 0.12 * Math.sin(o * 1.7);
         c.beginPath(); c.moveTo(X - w, Y); c.quadraticCurveTo(X - w * 0.6 + lean, Y - H * 0.6, X + lean * 1.4 - w * 0.1, Y - H); c.lineTo(X + w * 0.45 + lean, Y - H * 0.78); c.quadraticCurveTo(X + w * 0.8, Y - H * 0.35, X + w, Y); c.closePath(); c.fillStyle = tint; c.fill(); c.lineWidth = lw; c.strokeStyle = INK; c.stroke();
         c.beginPath(); for (let k = 0; k < 3; k++) { const yy = Y - H * (0.25 + k * 0.17); c.moveTo(X - w * 0.45, yy); c.lineTo(X + w * 0.4, yy - T * 0.02); } c.strokeStyle = 'rgba(29,26,40,.5)'; c.lineWidth = Math.max(0.8, T * 0.025); c.stroke();
         c.fillStyle = rgba(L.order === 2 ? '#8A5BD0' : DANGER, 0.55); c.fillRect(X - w * 0.9, Y - T * 0.12, w * 1.8, T * 0.1); });
       // the gap's two brackets standing
-      for (const sd of [-1, 1]) { const o = L.gapC + sd * L.gapW / 2, X = sx(C.x + L.d[0] * L.s + L.e[0] * o), Y = sy(C.y + L.d[1] * L.s + L.e[1] * o); c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.7; blitSized(c, glowSprite(L.order === 2 ? SAFE2 : SAFE), X - T * 0.6, Y - T * 1.3, T * 1.2, T * 1.4); c.restore(); c.fillStyle = L.order === 2 ? SAFE2 : SAFE; c.strokeStyle = INK; c.lineWidth = lw; c.beginPath(); c.rect(X - T * 0.07, Y - T * 1.2, T * 0.14, T * 1.2); c.fill(); c.stroke(); }
+      for (const sd of (M.lbAir ? [] : [-1, 1])) { const o = L.gapC + sd * L.gapW / 2, X = sx(C.x + L.d[0] * L.s + L.e[0] * o), Y = sy(C.y + L.d[1] * L.s + L.e[1] * o); c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.7; blitSized(c, glowSprite(L.order === 2 ? SAFE2 : SAFE), X - T * 0.6, Y - T * 1.3, T * 1.2, T * 1.4); c.restore(); c.fillStyle = L.order === 2 ? SAFE2 : SAFE; c.strokeStyle = INK; c.lineWidth = lw; c.beginPath(); c.rect(X - T * 0.07, Y - T * 1.2, T * 0.14, T * 1.2); c.fill(); c.stroke(); }
       c.restore();
       const gp = [sx(C.x + L.d[0] * L.s + L.e[0] * L.gapC), sy(C.y + L.d[1] * L.s + L.e[1] * L.gapC)]; if (M.lines.length > 1) dots(c, gp[0], gp[1] - T * 1.5, L.order, T, L.order === 2 ? SAFE2 : '#FFFFFF'); });
     // labels: the bared eye, the copy, the unbinding's count
     if (m.stunT > 0) { const w = FX.S.weak.eye; if (w && !w.dead) lab(c, sx(w.x), sy(w.y) - T * 1.4, 'GOLD EYE · strike it', GOLD_HI, T); }
     const E = M.er; if (E && E.copy && !E.copy.dead && (E.copy.rise || 0) > 0.5) { const o = E.copy; lab(c, sx(o.x), sy(o.y) - T * 2.6, 'COPY · pop it', GHOST, T); }
-    const U = M.ub; if (U) { const live = U.list.filter(q => !q.dead).length; lab(c, sx(m.x), sy(m.y) - T * 3.0, `RE-BINDING ${Math.max(0, Math.ceil(U.T - U.t))}s · TORN ${U.torn + U.list.filter(q => q.dead && !q.rebound).length}`, GOLD_HI, T, 0.4); void live; } }
+    const U = M.ub; if (U) { const live = U.list.filter(q => !q.dead).length; lab(c, sx(m.x), sy(m.y) - T * 3.0, `RE-BINDING · TORN ${U.torn + U.list.filter(q => q.dead && !q.rebound).length}`, GOLD_HI, T, 0.4); void live;   // (v474 LB: its time a bar of light, no countdown number on the field)
+      const k = clamp(1 - U.t / U.T, 0, 1), bw = T * 3.2, bx = sx(m.x) - bw / 2, by = sy(m.y) - T * 2.55; c.save(); c.fillStyle = 'rgba(20,12,28,.6)'; c.fillRect(bx - 2, by - 2, bw + 4, T * 0.16 + 4); c.globalCompositeOperation = 'lighter'; c.fillStyle = GOLD_HI; c.globalAlpha = 0.85; c.fillRect(bx, by, bw * k, T * 0.16); c.restore(); } }
 })());
