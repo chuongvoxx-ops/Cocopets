@@ -25,6 +25,7 @@
    ridge; struck, its head jerks up and its fins flinch; it rises out of the cloud sea on entering. */
 RiftFiend.define({ id: 'ahuul', name: 'Ahuul', title: 'The White Horizon', color: '#172C4D', glow: '#78D7B2', accent: '#E4EDF0', biome: 'whiteout', r: 3.0, els: ['ice', 'wind', 'light'], phases: 3, cuts: [1, 0.7, 0.35] }, (() => {
   const { TAU, TN } = RiftFiend, { INK, SNOW, NAVY, ICE, ICE_HI, GREEN, GREEN_HI } = AUR, K = DunFiend.KIT;
+  const AUR_WIND_K = 0.6;   // (v473 TW: the user 2026-11-28, the Pale Aurora's knockback winds 40% weaker: the rising's wind x 0.6)
   const decay = (v, dt, k) => Math.max(0, (v || 0) - dt * k), toward = (v, w, dt, k) => (v || 0) + (w - (v || 0)) * Math.min(1, dt * k), lerp = (a, b, u) => a + (b - a) * u, smooth = u => { u = clamp(u, 0, 1); return u * u * (3 - 2 * u); };
   const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]], sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], mul = (a, k) => [a[0] * k, a[1] * k, a[2] * k], dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
   const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]], norm = a => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; }, mix3 = (a, b, u) => [lerp(a[0], b[0], u), lerp(a[1], b[1], u), lerp(a[2], b[2], u)];
@@ -129,7 +130,7 @@ RiftFiend.define({ id: 'ahuul', name: 'Ahuul', title: 'The White Horizon', color
       const hc = M.G.frs[5].c; M.headC = hc; m.x = hc[0]; m.y = hc[1];
       ember(FX, m, dt);
       // the wind: everything outside a shelter's hood is pushed toward the edge
-      if (M.wind && M.wind.t > 0) { M.wind.t -= dt; if (!me.dead && inNook(C, me.x, me.y) < 0 && !me.dodge) FX.push(Math.cos(M.wind.a) * 3.3 * dt, Math.sin(M.wind.a) * 3.3 * dt); if (M.wind.t <= 0) M.wind = null; }
+      if (M.wind && M.wind.t > 0) { M.wind.t -= dt; if (!me.dead && inNook(C, me.x, me.y) < 0 && !me.dodge) FX.push(Math.cos(M.wind.a) * 3.3 * AUR_WIND_K * dt, Math.sin(M.wind.a) * 3.3 * AUR_WIND_K * dt); /* (v473 TW: 3.3 -> 1.98 m/s) */ if (M.wind.t <= 0) M.wind = null; }
       if (M.frost) { const Fz = M.frost; if (Fz.age > 0.4) { if (inFrost(FX, me.x, me.y)) M.stat.frost += dt; else if (M.bubble && Math.hypot(me.x - M.bubble.x, me.y - M.bubble.y) < M.bubble.r) M.stat.warm += dt; } }
       if (M.wave) { M.wave.t += dt; if (M.wave.t > 0.9) M.wave = null; }
       // the breath's mist, rolling out of its mouth over the summit

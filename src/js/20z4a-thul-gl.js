@@ -207,7 +207,10 @@ const THULC_GL = (() => {
   /* ================= posing ================= */
   const st3 = FX => { const M = FX.mem; return M.th3 || (M.th3 = { fx: [] }); };
   /* the cocoon (phase A) */
-  function cocoonList(m, M, ox, oy, L, o) { const R0 = RIG(), Gm = R0.cocoonGeo(m, M), RX = R0.RX, RZ = R0.RZ, d = Gm.dir, t = M.bt || 0, al = o.al == null ? 1 : o.al;
+  /* (v473 TW) Thul 30% smaller: the RIG's skeleton (RX, RZ, the legs, the wasp's frame scale) is already x KK (RIG.K); the sizes
+     given here in metres (the eye's, lids', collar's, stalk's, knot's, legs' and snow's) x KK too */
+  const KS = () => { const R0 = RIG(); return R0 && R0.K > 0 ? R0.K : 1; };
+  function cocoonList(m, M, ox, oy, L, o) { const R0 = RIG(), Gm = R0.cocoonGeo(m, M), RX = R0.RX, RZ = R0.RZ, d = Gm.dir, t = M.bt || 0, al = o.al == null ? 1 : o.al, KK = KS();
     const pul = 1 + (M.pulse || 0) * 0.05 + (M.hitK || 0) * 0.03, sx = pul * (1 - (M.hitK || 0) * 0.04), sz = 1 + (M.pulse || 0) * 0.03;
     // its axis: local z up the oval (toward the stalk), turned about it by its slow twist
     const zA = vnrm(vmul(d, -1)); let x0 = vsub([1, 0, 0], vmul(zA, zA[0])); if (vlen(x0) < 1e-3) x0 = vsub([0, 1, 0], vmul(zA, zA[1])); x0 = vnrm(x0); const y0 = vcross(zA, x0), yw = M.yaw || 0, cy = Math.cos(yw + 0.314), sy = Math.sin(yw + 0.314);
@@ -216,34 +219,34 @@ const THULC_GL = (() => {
     // the eye in its lowest opening, facing the camera; its lids open by its openness
     const vw = vsub(A.PD, vmul(zA, vdot(A.PD, zA))), f = vlen(vw) > 1e-3 ? vnrm(vw) : vnrm(vcross(zA, [1, 0, 0])), zc = -0.08, rr = Math.sqrt(1 - zc * zc) * RX * sx * 0.97;
     const ep = vadd(cen, vadd(vmul(zA, zc * RZ * sz), vmul(f, rr))), nrm = vnrm(vadd(vmul(f, 1 / RX), vmul(zA, zc / RZ))), ey = vnrm(vcross(zA, nrm)), ez = vcross(nrm, ey), Re = M3(nrm, ey, ez);
-    const tp = M.topple || 0, eo = cl((M.eye == null ? 0.5 : M.eye) * (1 - (M.blink || 0))), ew = RX * 0.62 * (1 + tp * 0.25), eh = 0.3 + 0.12 * tp, lk = M.look || [0, 0];
-    L.push({ part: 'socket', R: Re, o: vadd(ep, vmul(nrm, -0.12)), sc: [0.2, ew * 1.04, eh * 1.25], al, glow2: gl2, outline: false });
+    const tp = M.topple || 0, eo = cl((M.eye == null ? 0.5 : M.eye) * (1 - (M.blink || 0))), ew = RX * 0.62 * (1 + tp * 0.25), eh = (0.3 + 0.12 * tp) * KK, lk = M.look || [0, 0];   // (v473 TW: x KK)
+    L.push({ part: 'socket', R: Re, o: vadd(ep, vmul(nrm, -0.12 * KK)), sc: [0.2 * KK, ew * 1.04, eh * 1.25], al, glow2: gl2, outline: false });
     const Rg = mm(Re, mm(rotZ(-lk[0] * 0.55), rotY(lk[1] * 0.45)));
-    L.push({ part: 'eye', R: Rg, o: vadd(ep, vmul(nrm, -0.1)), sc: [0.32, ew * 0.62, eh * 1.3], glow: 0.4 + (M.menace || 0) * 0.5 + (M.roar || 0) * 0.4 + (m.stunT > 0 ? 0.5 + 0.4 * Math.sin(t * 10) : 0), kind: M.menace || 0, al, glow2: gl2, outline: false });
+    L.push({ part: 'eye', R: Rg, o: vadd(ep, vmul(nrm, -0.1 * KK)), sc: [0.32 * KK, ew * 0.62, eh * 1.3], glow: 0.4 + (M.menace || 0) * 0.5 + (M.roar || 0) * 0.4 + (m.stunT > 0 ? 0.5 + 0.4 * Math.sin(t * 10) : 0), kind: M.menace || 0, al, glow2: gl2, outline: false });
     const openU = 0.3 + eo * 1.1, openL = 0.25 + eo * 0.6;
-    L.push({ part: 'lidU', R: mm(Re, rotY(-openU)), o: vadd(ep, vmul(nrm, -0.06)), sc: [0.4, ew * 0.98, 0.34], al, glow2: gl2 });
-    L.push({ part: 'lidL', R: mm(Re, rotY(openL)), o: vadd(ep, vmul(nrm, -0.06)), sc: [0.38, ew * 0.96, 0.3], al, glow2: gl2 });
+    L.push({ part: 'lidU', R: mm(Re, rotY(-openU)), o: vadd(ep, vmul(nrm, -0.06 * KK)), sc: [0.4 * KK, ew * 0.98, 0.34 * KK], al, glow2: gl2 });
+    L.push({ part: 'lidL', R: mm(Re, rotY(openL)), o: vadd(ep, vmul(nrm, -0.06 * KK)), sc: [0.38 * KK, ew * 0.96, 0.3 * KK], al, glow2: gl2 });
     // the frost collar: its band and spikes round the base, growing as it builds
     const col = M.collar || 0; if (col > 0.03) { const zb = -0.5 * RZ * sz, bw = RX * 0.95 * sx, bc = vadd(cen, vmul(zA, zb)), Rb = M3(R.x, R.y, zA);
-      L.push({ part: 'band', R: Rb, o: bc, sc: [bw * 1.02, bw * 1.02, col], glow: 0.4 + col * 0.6, al, glow2: gl2 });
+      L.push({ part: 'band', R: Rb, o: bc, sc: [bw * 1.02, bw * 1.02, col * KK], glow: 0.4 + col * 0.6, al, glow2: gl2 });
       const MS = G.MESH.spikes; let k = 0; for (let i = 0; i < 15; i++) { const ps = i / 15 * TAU + yw * 0.5, kk = cl(col * 1.6 - ((i * 7) % 15) / 15 * 0.6); if (kk <= 0.02) { K.hide(MS, i); continue; }
-        const Ln = (0.6 + 0.55 * ((i * 7) % 5) / 4) * kk, rad = vadd(vmul(R.x, Math.cos(ps)), vmul(R.y, Math.sin(ps))), dirS = vnrm(vadd(rad, vmul(zA, -0.55))), p0 = vadd(bc, vmul(rad, bw * 0.92));
-        K.place(MS, i, A.along(dirS, zA), p0, [Ln, 0.6 + 0.4 * kk, 0.6 + 0.4 * kk]); k++; }
+        const Ln = (0.6 + 0.55 * ((i * 7) % 5) / 4) * kk * KK, rad = vadd(vmul(R.x, Math.cos(ps)), vmul(R.y, Math.sin(ps))), dirS = vnrm(vadd(rad, vmul(zA, -0.55))), p0 = vadd(bc, vmul(rad, bw * 0.92));
+        K.place(MS, i, A.along(dirS, zA), p0, [Ln, (0.6 + 0.4 * kk) * KK, (0.6 + 0.4 * kk) * KK]); k++; }
       K.commit(MS); if (k) L.push({ part: 'spikes', R: I3(), o: [0, 0, 0], glow: 0.3 + col * 0.5, al, glow2: gl2 }); }
     // the stalk and the knot
-    const ap = [Gm.apex[0] - ox, Gm.apex[1] - oy, Gm.apex[2] + 0.15], tp2 = [Gm.top[0] - ox, Gm.top[1] - oy, Gm.top[2] + 0.1], sg = A.seg(ap, tp2, 0.17, 0, 0); L.push({ part: 'stalk', R: sg.R, o: sg.o, sc: sg.sc, al, glow2: gl2 });
-    L.push({ part: 'knot', R: rotZ((M.hd || 0) + 0.4), o: ap, s: 1.05, al, glow2: gl2 });
+    const ap = [Gm.apex[0] - ox, Gm.apex[1] - oy, Gm.apex[2] + 0.15 * KK], tp2 = [Gm.top[0] - ox, Gm.top[1] - oy, Gm.top[2] + 0.1 * KK], sg = A.seg(ap, tp2, 0.17 * KK, 0, 0); L.push({ part: 'stalk', R: sg.R, o: sg.o, sc: sg.sc, al, glow2: gl2 });
+    L.push({ part: 'knot', R: rotZ((M.hd || 0) + 0.4), o: ap, s: 1.05 * KK, al, glow2: gl2 });
     // the legs
-    for (let i = 0; i < 3; i++) legList(L, 'leg' + i, i, R0.legPts(i, M.feet[i], Gm.apex, M.hd, M), ox, oy, al, gl2, t); }
+    for (let i = 0; i < 3; i++) legList(L, 'leg' + i, i, R0.legPts(i, M.feet[i], Gm.apex, M.hd, M), ox, oy, al, gl2, t, KK); }
   // a leg: one swept tube of root from the foot to the knot, bowed, swollen at the ankle and knee; a cap of snow on the knee; roots at the foot
-  function legList(L, part, i, pts, ox, oy, al, gl2, t, squash) { const [F, An, Kn, P] = pts, bows = [[0.12, -0.1, 0.08][i], [-0.16, 0.14, -0.1][i], [0.1, 0.12, -0.14][i]];
+  function legList(L, part, i, pts, ox, oy, al, gl2, t, KK) { KK = KK || 1; const [F, An, Kn, P] = pts,   /* (v473 TW: KK the body's scale: its bows, thickness, snow cap and roots) */ bows = [[0.12, -0.1, 0.08][i] * KK, [-0.16, 0.14, -0.1][i] * KK, [0.1, 0.12, -0.14][i] * KK];
     const cp = [F]; const segP = (a, b, bow) => { const dx = b[0] - a[0], dy = b[1] - a[1], d = Math.hypot(dx, dy) || 1, nx = -dy / d, ny = dx / d; cp.push([a[0] + (b[0] - a[0]) * 0.33 + nx * bow, a[1] + (b[1] - a[1]) * 0.33 + ny * bow, a[2] + (b[2] - a[2]) * 0.33], [a[0] + (b[0] - a[0]) * 0.7 - nx * bow * 0.5, a[1] + (b[1] - a[1]) * 0.7 - ny * bow * 0.5, a[2] + (b[2] - a[2]) * 0.7], b); };
     segP(F, An, bows[0]); segP(An, Kn, bows[1]); segP(Kn, P, bows[2]);
     const Pt = A.spline(cp, NUL), Fr = A.frames(Pt, [0, 0, 1]), M = G.MESH[part];
-    A.tube(M, Pt, Fr, u => { const s = u * 3, w = s < 1 ? lerp(0.1, 0.15, s) : s < 2 ? lerp(0.15, 0.21, s - 1) : lerp(0.21, 0.25, s - 2); return w * (1 + 0.16 * Math.sin(u * 9 + i)) + 0.09 * Math.exp(-Math.pow((s - 1) / 0.13, 2)) + 0.12 * Math.exp(-Math.pow((s - 2) / 0.13, 2)); }, ox, oy);
+    A.tube(M, Pt, Fr, u => { const s = u * 3, w = s < 1 ? lerp(0.1, 0.15, s) : s < 2 ? lerp(0.15, 0.21, s - 1) : lerp(0.21, 0.25, s - 2); return (w * (1 + 0.16 * Math.sin(u * 9 + i)) + 0.09 * Math.exp(-Math.pow((s - 1) / 0.13, 2)) + 0.12 * Math.exp(-Math.pow((s - 2) / 0.13, 2))) * KK; }, ox, oy);
     L.push({ part, R: I3(), o: [0, 0, 0], al, glow2: gl2, wear: 0.2 + i * 0.3 });
-    L.push({ part: 'snow', R: rotZ(i * 1.7), o: [Kn[0] - ox, Kn[1] - oy, Kn[2] + 0.2], sc: [0.36, 0.3, 0.16], al, glow2: gl2 });
-    if ((F[2] || 0) < 0.3) L.push({ part: 'roots', R: rotZ(Math.atan2(F[1] - P[1], F[0] - P[0]) + i * 0.4), o: [F[0] - ox, F[1] - oy, Math.max(0, F[2] || 0)], s: 1, al, glow2: gl2 }); }
+    L.push({ part: 'snow', R: rotZ(i * 1.7), o: [Kn[0] - ox, Kn[1] - oy, Kn[2] + 0.2 * KK], sc: [0.36 * KK, 0.3 * KK, 0.16 * KK], al, glow2: gl2 });
+    if ((F[2] || 0) < 0.3) L.push({ part: 'roots', R: rotZ(Math.atan2(F[1] - P[1], F[0] - P[0]) + i * 0.4), o: [F[0] - ox, F[1] - oy, Math.max(0, F[2] || 0)], s: KK, al, glow2: gl2 }); }
   /* the wasp (phase B) */
   function waspList(m, M, ox, oy, L, o) { const R0 = RIG(), P = R0.waspPose(m, M), S = P.S, W = P.W, Rb = A.frameOf(W, S), t = M.bt || 0, al = o.al == null ? 1 : o.al, gl2 = o.flash ? 1 : 0, glow = M.glow == null ? 0.6 : M.glow;
     const rel = p => [p[0] - ox, p[1] - oy, p[2]], at = (u, v, h) => rel(W(u, v, h));
@@ -264,7 +267,7 @@ const THULC_GL = (() => {
       const MB = G.MESH.barbs; let kb = 0; for (let j = 1; j < P.tl.length - 1 && kb < 8; j += 2) { const a = P.tl[j], b = P.tl[j + 1], d = vnrm(vsub(b, a)), up = vnrm(vsub([0, 0, 1], vmul(d, d[2]))), mid = vmul(vadd(a, b), 0.5), w = S * (0.26 - 0.17 * j / 14);
         K.place(MB, kb++, A.along(vnrm(vadd(vmul(up, 1), vmul(d, -0.55))), d), rel(vadd(mid, vmul(up, w * 0.8))), [0.4 * S, 0.45 * S, 0.45 * S]); } for (; kb < 8; kb++) K.hide(MB, kb); K.commit(MB); L.push({ part: 'barbs', R: I3(), o: [0, 0, 0], glow: glow * 0.4, al, glow2: gl2 });
       const n = P.tl.length, base = P.tl[n - 1], tip = P.tip, sg = A.seg(rel(base), rel(tip), 1, 0, 0); L.push({ part: 'needle', R: sg.R, o: sg.o, sc: [sg.sc[0], S * 1.6, S * 1.6], glow: 0.5 + glow * 0.5, al, glow2: gl2 });
-      L.push({ part: 'ball', R: I3(), o: rel(base), s: 0.25 * S, al, glow2: gl2 }); L.push({ part: 'glowball', R: I3(), o: rel(tip), s: 0.07, glow: 1.2 + glow, al, outline: false }); }
+      L.push({ part: 'ball', R: I3(), o: rel(base), s: 0.25 * S, al, glow2: gl2 }); L.push({ part: 'glowball', R: I3(), o: rel(tip), s: 0.07 * KS() /* v473 TW */, glow: 1.2 + glow, al, outline: false }); }
     // the wings: the far pair first in the depth order (the pass sorts what is seen through)
     const sp = M.span == null ? 1 : M.span;
     for (const side of [-1, 1]) for (const hind of [true, false]) { const flap = hind ? (M.flapH == null ? 0.3 : M.flapH) : (M.flapF == null ? 0.4 : M.flapF), cf = Math.cos(flap), sf = Math.sin(flap);
@@ -276,32 +279,32 @@ const THULC_GL = (() => {
   function drawBoss(c, FX, m, X, Y, T, t) { if (!gpu()) return false; const M = FX.mem || {}; if (!M.feet) M.feet = [0, 1, 2].map(i => { const p = RIG().restFoot(m, M, i); return [p[0], p[1], 0]; });
     const L = [], fl = m.flash > 0; if (M.hatched) waspList(m, M, m.x, m.y, L, { flash: fl }); else cocoonList(m, M, m.x, m.y, L, { flash: fl }); shardsAir(M, m.x, m.y, L);
     // its soft shadow on the ice (the fight's own picture of it), then the model
-    const R0 = RIG(); if (M.hatched) { const S = R0.waspPose(m, M).S; FX.K.shade(c, X, Y + T * 0.2, T * 3.0 * S / (1 + (M.alt || 2.7) * 0.15), T * 1.25 * S / (1 + (M.alt || 2.7) * 0.15), 0.5, '#060C18'); }
-    else { const Gm = R0.cocoonGeo(m, M); FX.K.shade(c, X + (Gm.cen[0] - m.x) * T, Y + (Gm.cen[1] - m.y) * T, T * 2.1 / (1 + Gm.cen[2] * 0.08), T * 0.9 / (1 + Gm.cen[2] * 0.08), 0.42, '#060C18');
-      for (const f of M.feet) FX.K.shade(c, X + (f[0] - m.x) * T, Y + (f[1] - m.y) * T, T * 0.55, T * 0.24, 0.4 * (1 - Math.min(1, (f[2] || 0) / 1.5)), '#060C18'); }
+    const R0 = RIG(), KK = KS(); if (M.hatched) { const S = R0.waspPose(m, M).S; /* (v473 TW: S carries KK; the cocoon's shadows x KK) */ FX.K.shade(c, X, Y + T * 0.2, T * 3.0 * S / (1 + (M.alt || 2.7) * 0.15), T * 1.25 * S / (1 + (M.alt || 2.7) * 0.15), 0.5, '#060C18'); }
+    else { const Gm = R0.cocoonGeo(m, M); FX.K.shade(c, X + (Gm.cen[0] - m.x) * T, Y + (Gm.cen[1] - m.y) * T, T * 2.1 * KK / (1 + Gm.cen[2] * 0.08), T * 0.9 * KK / (1 + Gm.cen[2] * 0.08), 0.42, '#060C18');
+      for (const f of M.feet) FX.K.shade(c, X + (f[0] - m.x) * T, Y + (f[1] - m.y) * T, T * 0.55 * KK, T * 0.24 * KK, 0.4 * (1 - Math.min(1, (f[2] || 0) / 1.5)), '#060C18'); }
     if (M.hatched) wingGlow(c, FX, m, M, X, Y, T, t, 0);
     const ok = A.passOf(c, X, Y, T, L, { t: M.bt || t, light: 'cave', flash: fl ? 1 : 0 }, G); if (ok && M.hatched) wingGlow(c, FX, m, M, X, Y, T, t, 1); return ok; }
   /* (v470b AB) the wasp's aurora glow, as the 2D wings' (laid with the model, so the studio and the fight both have it, at every quality;
      lowFx thins it): under the model (layer 0) a broad halo round each wing and the thorax's green; over it (layer 1) the light bleeding
      from each membrane, its eye-spot glowing, light along its rim, the bright core at the thorax and the stinger's point */
-  function wingGlow(c, FX, m, M, X, Y, T, t, layer) { const F = A.fg(); if (!F) return; const R0 = RIG(), P = R0.waspPose(m, M), W = P.W, S = P.S, lf = lowFx(), glow = M.glow == null ? 0.6 : M.glow, sp = M.span == null ? 1 : M.span, em = M.em == null ? 1 : M.em, sc = q => [X + (q[0] - m.x) * T, Y + (q[1] - m.y) * T - q[2] * T];
+  function wingGlow(c, FX, m, M, X, Y, T, t, layer) { const F = A.fg(); if (!F) return; const R0 = RIG(), KK = KS(), P = R0.waspPose(m, M),   /* (v473 TW: its sizes in tiles x KK) */ W = P.W, S = P.S, lf = lowFx(), glow = M.glow == null ? 0.6 : M.glow, sp = M.span == null ? 1 : M.span, em = M.em == null ? 1 : M.em, sc = q => [X + (q[0] - m.x) * T, Y + (q[1] - m.y) * T - q[2] * T];
     const Q = F.begin(c, null);
     try { for (const side of [-1, 1]) for (const hind of [true, false]) { const flap = hind ? (M.flapH == null ? 0.3 : M.flapH) : (M.flapF == null ? 0.4 : M.flapF), cf = Math.cos(flap), sf = Math.sin(flap), h0 = hind ? [0.5, side * 0.26, 0.4] : [0.82, side * 0.3, 0.52], span = [-0.2 - (hind ? 0.15 : 0), side * cf, sf];
         const O = W(h0[0], h0[1], h0[2]), Us = vmul(vsub(W(h0[0] + span[0], h0[1] + span[1], h0[2] + span[2]), O), sp), Uc = vmul(vsub(W(h0[0] + 1, h0[1], h0[2]), O), 0.5 + 0.5 * sp), at = (s2, q2) => sc(vadd(O, vadd(vmul(Us, s2), vmul(Uc, q2)))), pul = 0.85 + 0.15 * Math.sin(t * 3 + side + (hind ? 1 : 0)), OUT = hind ? R0.HW : R0.FW;
-        const cen = at(hind ? 1.2 : 1.6, hind ? -0.8 : 0.25), gr = vlen(Us) * T * (hind ? 2.2 : 2.8) + T;
+        const cen = at(hind ? 1.2 : 1.6, hind ? -0.8 : 0.25), gr = vlen(Us) * T * (hind ? 2.2 : 2.8) + T * KK;
         if (layer === 0) { Q.glow(cen[0], cen[1], gr * 1.3, GREEN, Math.min(0.75, 0.3 + glow * 0.34) * pul * em); Q.glow(cen[0], cen[1], gr * 0.55, GREEN_HI, Math.min(0.5, 0.1 + glow * 0.18) * pul * em); continue; }
         // the membrane's light bleeding out, its eye-spot, light along its rim
         Q.glow(cen[0], cen[1], gr * 0.7, GREEN, Math.min(0.4, glow * 0.16) * pul * em);
         const es = hind ? [1.3, -1.0, 0.36] : [2.0, 0.35, 0.48], e = at(es[0], es[1]), er = es[2] * vlen(Us) * T; Q.glow(e[0], e[1], er * 2.4, GREEN_HI, (0.35 + glow * 0.25) * pul * em); Q.glow(e[0], e[1], er * 0.8, WHITE, (0.3 + glow * 0.2) * em);
-        const stp = lf ? 3 : 1; for (let i = 0; i < OUT.length; i += stp) { const o = OUT[i]; if (Math.hypot(o[0], o[1]) < 0.6) continue; const q = at(o[0], o[1]); Q.glow(q[0], q[1], T * (0.45 + 0.25 * glow), GREEN_HI, Math.min(0.5, 0.14 + glow * 0.14) * pul * em); } }
+        const stp = lf ? 3 : 1; for (let i = 0; i < OUT.length; i += stp) { const o = OUT[i]; if (Math.hypot(o[0], o[1]) < 0.6) continue; const q = at(o[0], o[1]); Q.glow(q[0], q[1], T * KK * (0.45 + 0.25 * glow), GREEN_HI, Math.min(0.5, 0.14 + glow * 0.14) * pul * em); } }
       if (layer === 0) { const th = sc(P.thorax); Q.glow(th[0], th[1], T * 2.2 * S, GREEN, (0.18 + glow * 0.14) * em); }
-      else { const th = sc(W(0.72, 0, 0.7)); Q.glow(th[0], th[1], T * 0.95 * S, GREEN_HI, (0.3 + glow * 0.25) * em); Q.glow(th[0], th[1], T * 0.38 * S, WHITE, (0.35 + glow * 0.2) * em); const tp = sc(P.tip); Q.glow(tp[0], tp[1], T * 0.6, GREEN_HI, 0.4 + glow * 0.25); }
+      else { const th = sc(W(0.72, 0, 0.7)); Q.glow(th[0], th[1], T * 0.95 * S, GREEN_HI, (0.3 + glow * 0.25) * em); Q.glow(th[0], th[1], T * 0.38 * S, WHITE, (0.35 + glow * 0.2) * em); const tp = sc(P.tip); Q.glow(tp[0], tp[1], T * 0.6 * KK, GREEN_HI, 0.4 + glow * 0.25); }
     } finally { F.flush(c); } }
   /* the empty legs after the hatch, folding where they stood (the husk prop) */
   function drawHusk(c, FX, p, T, t) { if (!gpu()) return false; p.t = (p.t || 0) + 1 / 60; const u = K.ease(cl(p.t / 1.6)), a = cl(1 - (p.t - 7) / 2.5); if (a <= 0) return true;
-    const R0 = RIG(), apex = [p.bx, p.by, lerp(p.apex, 0.5, u)], Mh = { topple: 0, scrape: 0 }, L = [];
-    for (let i = 0; i < 3; i++) { const f = p.feet[i], fx = lerp(f[0], p.bx + (f[0] - p.bx) * 1.25, u), fy = lerp(f[1], p.by + (f[1] - p.by) * 1.25, u), pts = R0.legPts(i, [fx, fy, 0], apex, p.hd, Mh).map(q => [q[0], q[1], q[2] * (1 - u * 0.85)]); legList(L, 'husk' + i, i, pts, p.bx, p.by, a, 0, t); }
-    L.push({ part: 'knot', R: rotZ(p.hd || 0), o: [0, 0, apex[2] * (1 - u * 0.85) + 0.15], s: 1.05, al: a });
+    const R0 = RIG(), KK = KS(), apex = [p.bx, p.by, lerp(p.apex, 0.5 * KK, u)], Mh = { topple: 0, scrape: 0 }, L = [];   // (v473 TW: x KK)
+    for (let i = 0; i < 3; i++) { const f = p.feet[i], fx = lerp(f[0], p.bx + (f[0] - p.bx) * 1.25, u), fy = lerp(f[1], p.by + (f[1] - p.by) * 1.25, u), pts = R0.legPts(i, [fx, fy, 0], apex, p.hd, Mh).map(q => [q[0], q[1], q[2] * (1 - u * 0.85)]); legList(L, 'husk' + i, i, pts, p.bx, p.by, a, 0, t, KK); }
+    L.push({ part: 'knot', R: rotZ(p.hd || 0), o: [0, 0, apex[2] * (1 - u * 0.85) + 0.15 * KK], s: 1.05 * KK, al: a });
     const X = FX.sx(p.bx), Y = FX.sy(p.by); c.save(); if (a < 1) c.globalAlpha *= a; const ok = A.passOf(c, X, Y, T, L.map(it => Object.assign(it, { al: 1 })), { t, light: 'cave' }, G); c.restore(); return ok; }
   /* ================= its light (FGFX 540..549) ================= */
   const lab = (c, X, Y, s, col, T, sz) => { c.save(); c.font = `800 ${Math.round(T * (sz || 0.3))}px ${arcFont}`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineWidth = 3; c.strokeStyle = 'rgba(4,14,20,.7)'; c.fillStyle = col || '#FFFFFF'; c.strokeText(s, X, Y); c.fillText(s, X, Y); c.restore(); };
@@ -321,7 +324,7 @@ const THULC_GL = (() => {
     const Q = F.begin(c, null);
     try {
       // its own light pooled on the ice under it
-      if (m && !m.dead) { if (M.hatched) Q.glow(sx(m.x), sy(m.y) + T * 0.2, T * 3.6, GREEN, 0.12 + (M.glow || 0.6) * 0.12, 0.42); else { const Gm = R0.cocoonGeo(m, M); Q.glow(sx(Gm.bot[0]), sy(Gm.bot[1]), T * 2.6, GREEN, 0.12 + (M.eye || 0) * 0.1 + (M.crack || 0) * 0.3, 0.45); } }
+      if (m && !m.dead) { const KK = KS(); if (M.hatched) Q.glow(sx(m.x), sy(m.y) + T * 0.2, T * 3.6 * KK, GREEN, 0.12 + (M.glow || 0.6) * 0.12, 0.42); else { const Gm = R0.cocoonGeo(m, M); Q.glow(sx(Gm.bot[0]), sy(Gm.bot[1]), T * 2.6 * KK, GREEN,   /* (v473 TW: x KK) */ 0.12 + (M.eye || 0) * 0.1 + (M.crack || 0) * 0.3, 0.45); } }
       // the stinger's hole: cracks of light radiating in the ice
       if (M.stuckAt) { const k = Math.max(0.3, M.stuck || 0); Q.quad(548, sx(M.stuckAt[0]), sy(M.stuckAt[1]), T * 1.7, 0, 0, T * 1.1, ICE_HI, 1, k, (M.cracks && M.cracks.seed) || 3.7); Q.glow(sx(M.stuckAt[0]), sy(M.stuckAt[1]), T * 1.2, GREEN_HI, 0.3 * k); }
       // the marked pillar: a cold glow of warning round its foot (no red ring)
@@ -345,7 +348,7 @@ const THULC_GL = (() => {
     for (const L of labels) { c.save(); if (L[4] != null) c.globalAlpha *= L[4]; lab(c, L[0], L[1], L[2], L[3], T, 0.34); c.restore(); }
     return true; }
   /* the light in the air: the hail coming down, the gale's frost streaming, its eye's, cracks', wings' and needle's bloom; the labels */
-  function drawFx(c, FX, T, t) { const M = FX.mem, m = FX.m; if (!m || !M.wb) return false; const F = A.fg(); if (!F || !G.on() || !RIG()) return false; const sx = FX.sx, sy = FX.sy, R0 = RIG(), lf = lowFx(), bt = M.bt || t;
+  function drawFx(c, FX, T, t) { const M = FX.mem, m = FX.m; if (!m || !M.wb) return false; const F = A.fg(); if (!F || !G.on() || !RIG()) return false; const sx = FX.sx, sy = FX.sy, R0 = RIG(), lf = lowFx(), bt = M.bt || t, KK = KS();   // (v473 TW: its own light's sizes x KK)
     const Q = F.begin(c, null);
     try {
       // the hail: stones slanting down with the wind; over a lee they burst on the windbreak's top
@@ -358,17 +361,17 @@ const THULC_GL = (() => {
           Q.quad(546, sx(cx), sy(cy) - T * 1.4, ca * len / 2 * T, sa * len / 2 * T, -sa * w / 2 * T, ca * w / 2 * T, da ? ICE_HI : GREEN_HI, k * (da ? 0.7 : 1), 1, 3.3 + da * 9, len / w); } }
       // its own light
       if (!m.dead) { if (!M.hatched) { const Gm = R0.cocoonGeo(m, M), ep = Gm.cen, eo = cl((M.eye || 0.5) * (1 - (M.blink || 0))), d = Gm.dir, ez = [ep[0] + d[0] * R0.RZ * 0.64, ep[1] + d[1] * R0.RZ * 0.64 + R0.RX * 0.55, ep[2] + d[2] * R0.RZ * 0.64];
-          Q.glow(sx(ez[0]), sy(ez[1]) - ez[2] * T, T * 1.3, GREEN, 0.25 + eo * 0.35 + (m.stunT > 0 ? 0.25 * Math.sin(t * 10) : 0));
-          if ((M.crack || 0) > 0.3) Q.glow(sx(ep[0]), sy(ep[1]) - ep[2] * T, T * 3.2, GREEN_HI, Math.min(1, (M.crack - 0.3) * 1.3) * (0.4 + 0.25 * Math.sin(t * 20)));
-          if ((M.topple || 0) > 0.6) for (let i = 0; i < 3; i++) { const a = bt * 3 + i * TAU / 3; Q.star(sx(ep[0]) + Math.cos(a) * T * 1.4, sy(ep[1]) - ep[2] * T - T * 1.6 + Math.sin(a) * T * 0.3, T * 0.3, 0.9, '#FFFFFF'); } }
+          Q.glow(sx(ez[0]), sy(ez[1]) - ez[2] * T, T * 1.3 * KK, GREEN, 0.25 + eo * 0.35 + (m.stunT > 0 ? 0.25 * Math.sin(t * 10) : 0));
+          if ((M.crack || 0) > 0.3) Q.glow(sx(ep[0]), sy(ep[1]) - ep[2] * T, T * 3.2 * KK, GREEN_HI, Math.min(1, (M.crack - 0.3) * 1.3) * (0.4 + 0.25 * Math.sin(t * 20)));
+          if ((M.topple || 0) > 0.6) for (let i = 0; i < 3; i++) { const a = bt * 3 + i * TAU / 3; Q.star(sx(ep[0]) + Math.cos(a) * T * 1.4 * KK, sy(ep[1]) - ep[2] * T - (T * 1.6 - Math.sin(a) * T * 0.3) * KK, T * 0.3 * KK, 0.9, '#FFFFFF'); } }
         else { const P = R0.waspPose(m, M), glow = M.glow == null ? 0.6 : M.glow, sp = p => [sx(p[0]), sy(p[1]) - p[2] * T];
           for (const s of [-1, 1]) { const e = sp(P.W(1.86, s * 0.33, 0.36)); Q.glow(e[0], e[1], T * P.S * 0.6, GREEN, 0.4); }   // (v470b AB: the wings' glow is laid with the model: wingGlow)
-          const tp = sp(P.tip); Q.glow(tp[0], tp[1], T * 0.7, GREEN_HI, 0.4 + glow * 0.25 + 0.12 * Math.sin(t * 9)); Q.star(tp[0], tp[1], T * 0.18, 0.8, '#FFFFFF');
-          if ((M.stuck || 0) > 0.05 || (m.stunT > 0 && M.stunKind === 'stuck')) { const r = sp(P.root); Q.glow(r[0], r[1], T * 1.3, GREEN_HI, 0.6 + 0.35 * Math.sin(t * 12)); Q.glow(r[0], r[1], T * 0.5, '#FFFFFF', 0.7); } } }
+          const tp = sp(P.tip); Q.glow(tp[0], tp[1], T * 0.7 * KK, GREEN_HI, 0.4 + glow * 0.25 + 0.12 * Math.sin(t * 9)); Q.star(tp[0], tp[1], T * 0.18 * KK, 0.8, '#FFFFFF');
+          if ((M.stuck || 0) > 0.05 || (m.stunT > 0 && M.stunKind === 'stuck')) { const r = sp(P.root); Q.glow(r[0], r[1], T * 1.3 * KK, GREEN_HI, 0.6 + 0.35 * Math.sin(t * 12)); Q.glow(r[0], r[1], T * 0.5 * KK, '#FFFFFF', 0.7); } } }
     } finally { F.flush(c); }
     // the labels: the collar to shatter, the bare weak points
-    if (M.collarObj && !M.collarObj.dead) { const o = M.collarObj, f = cl(o.hp / o.maxhp), X = sx(o.x), Y = sy(o.y); c.save(); c.lineCap = 'round'; c.strokeStyle = 'rgba(0,0,0,.45)'; c.lineWidth = Math.max(3, T * 0.12); c.beginPath(); c.arc(X, Y - T * 0.3, T * 0.55, 0, TAU); c.stroke(); c.strokeStyle = ICE_HI; c.lineWidth = Math.max(2, T * 0.08); c.beginPath(); c.arc(X, Y - T * 0.3, T * 0.55, -Math.PI / 2, -Math.PI / 2 + TAU * f); c.stroke(); c.restore(); lab(c, X, Y + T * 1.1, 'FROST COLLAR · shatter it', '#E8F8FF', T); }
-    if (m.stunT > 0) { const w = FX.S.weak.eye || FX.S.weak.sting; if (w && !w.dead) lab(c, sx(w.x), sy(w.y) - T * 1.5, M.stunKind === 'stuck' ? 'STING-ROOT · strike it' : 'EYE · strike it', GREEN_HI, T); }
+    if (M.collarObj && !M.collarObj.dead) { const o = M.collarObj, f = cl(o.hp / o.maxhp), X = sx(o.x), Y = sy(o.y); c.save(); c.lineCap = 'round'; c.strokeStyle = 'rgba(0,0,0,.45)'; c.lineWidth = Math.max(3, T * 0.12); c.beginPath(); c.arc(X, Y - T * 0.3 * KK, T * 0.55 * KK, 0, TAU); c.stroke(); c.strokeStyle = ICE_HI; c.lineWidth = Math.max(2, T * 0.08); c.beginPath(); c.arc(X, Y - T * 0.3 * KK, T * 0.55 * KK, -Math.PI / 2, -Math.PI / 2 + TAU * f); c.stroke(); c.restore(); lab(c, X, Y + T * 1.1 * KK, 'FROST COLLAR · shatter it', '#E8F8FF', T); }   // (v473 TW: round its smaller collar)
+    if (m.stunT > 0) { const w = FX.S.weak.eye || FX.S.weak.sting; if (w && !w.dead) lab(c, sx(w.x), sy(w.y) - T * 1.5 * KK, M.stunKind === 'stuck' ? 'STING-ROOT · strike it' : 'EYE · strike it', GREEN_HI, T); }
     return true; }
   /* the frost collar to shatter (the fight's object): a ring of cold light round the cocoon's base */
   function drawCollar(c, FX, o, X, Y, T, t) { if (!gpu()) return false; const F = A.fg(), Q = F.begin(c, null); try { Q.quad(547, X, Y, o.r * T * 1.45, 0, 0, o.r * T * 0.62, '#E8F8FF', 0.9, 1, 9.3); } finally { F.flush(c); } return true; }

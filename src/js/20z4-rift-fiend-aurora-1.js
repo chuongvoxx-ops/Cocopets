@@ -20,7 +20,7 @@
    It is never still: legs step and re-plant, the cocoon swings and twists, the frost collar builds, the eye darts and
    blinks; once hatched the wings beat and glow, the body bobs, the stinger curls and trembles, poised. It recoils when
    struck. */
-RiftFiend.define({ id: 'thul', name: 'Thul', title: 'The Rime Cocoon', color: '#E4EDF0', glow: '#78D7B2', accent: '#B8F5DA', biome: 'glacier', r: 2.2, els: ['ice', 'wind'] }, (() => {
+RiftFiend.define({ id: 'thul', name: 'Thul', title: 'The Rime Cocoon', color: '#E4EDF0', glow: '#78D7B2', accent: '#B8F5DA', biome: 'glacier', r: 1.54 /* v473 TW: 2.2 x K (0.7), Thul 30% smaller */, els: ['ice', 'wind'] }, (() => {
   const { TAU, TN, sorted, hit } = RiftFiend, tubeLite = TN.tubeLite;
   const { INK, SNOW, NAVY, ICE, ICE_HI, GREEN, GREEN_HI } = AUR;
   const decay = (v, dt, k) => Math.max(0, (v || 0) - dt * k), toward = (v, want, dt, k) => (v || 0) + (want - (v || 0)) * Math.min(1, dt * k), lerp = (a, b, u) => a + (b - a) * u;
@@ -37,8 +37,14 @@ RiftFiend.define({ id: 'thul', name: 'Thul', title: 'The Rime Cocoon', color: '#
   const PILLARS = C => [{ x: C.x - 5, y: C.y - 2 }, { x: C.x + 5, y: C.y - 2 }];
   /* the cocoon: half sizes (across, along), the stalk under the legs' knot; the legs (asymmetric): their angle about the
      heading, foot reach, knee (out, up) and ankle (out, up) */
-  const RX = 1.32, RZ = 2.05, STALK = 0.45, APEX = 5.7;
-  const LEGS = [{ a: 1.15, r: 3.3, kr: 2.2, kz: 6.6, ar: 3.15, az: 2.4 }, { a: 3.2, r: 2.8, kr: 1.7, kz: 5.9, ar: 2.75, az: 1.9 }, { a: 5.05, r: 3.6, kr: 2.5, kz: 7.1, ar: 3.4, az: 2.7 }];
+  /* (v473 TW) the user 2026-11-28: Thul 30% smaller. K scales its whole body at the root, both forms (the cocoon's oval, stalk, knot
+     height and legs here; the wasp through waspPose's frame scale), so its hit proxies, weak points, collar object and leg reach follow;
+     the 2D painters draw with T x K for their sizes (RX0: the oval's design half width) and the GPU model reads RIG.K for its own
+     thicknesses. The cave, its attacks' reach (lanes, rings, patches, stomp reach), damage and timing are unchanged. */
+  const K = 0.7, RX0 = 1.32;
+  const AUR_WIND_K = 0.6;   // (v473 TW: the user 2026-11-28, the Pale Aurora's knockback winds 40% weaker: the Aurora Gale's push x 0.6)
+  const RX = RX0 * K, RZ = 2.05 * K, STALK = 0.45 * K, APEX = 5.7 * K;
+  const LEGS = [{ a: 1.15, r: 3.3, kr: 2.2, kz: 6.6, ar: 3.15, az: 2.4 }, { a: 3.2, r: 2.8, kr: 1.7, kz: 5.9, ar: 2.75, az: 1.9 }, { a: 5.05, r: 3.6, kr: 2.5, kz: 7.1, ar: 3.4, az: 2.7 }].map(L => ({ a: L.a, r: L.r * K, kr: L.kr * K, kz: L.kz * K, ar: L.ar * K, az: L.az * K }));   // (v473 TW: x K)
   /* the wasp's wings (span s outward, chord c forward, metres) */
   const FW = [[0, 0.22], [0.5, 0.62], [1.2, 0.98], [2.0, 1.18], [2.75, 1.05], [3.1, 0.55], [2.95, -0.05], [2.45, -0.5], [1.75, -0.68], [1.0, -0.55], [0.4, -0.25], [0.02, -0.05]];
   let CRK = null;
@@ -52,7 +58,7 @@ RiftFiend.define({ id: 'thul', name: 'Thul', title: 'The Rime Cocoon', color: '#
     paintGround(c, A) { paintFloor(c, A); },
     sky(c, W, H, t, cam, T) { paintCave(c, W, H, t, cam, T); },
     overlay(c, FX, t, T) { { const o = AG(); if (o && o.overlay && o.overlay(c, FX, t, T)) return; } drawOverlay(c, FX, t, T); },   // (v470 AB: the light of its warnings on the ice, on the GPU)
-    RIG: { cocoonGeo: (m, M) => cocoonGeo(m, M), legPts: (i, f, a, h, M) => legPts(i, f, a, h, M), waspPose: (m, M) => waspPose(m, M), restFoot: (m, M, i) => restFoot(m, M, i), leePoly: (w, s) => leePoly(w, s), shelters: M => shelters(M), inPoly: (P, x, y) => inPoly(P, x, y), RX, RZ, APEX, FW, HW, AR, WIND, LEGS },   // (v470 AB: the skeleton the GPU model is posed on)
+    RIG: { cocoonGeo: (m, M) => cocoonGeo(m, M), legPts: (i, f, a, h, M) => legPts(i, f, a, h, M), waspPose: (m, M) => waspPose(m, M), restFoot: (m, M, i) => restFoot(m, M, i), leePoly: (w, s) => leePoly(w, s), shelters: M => shelters(M), inPoly: (P, x, y) => inPoly(P, x, y), RX, RZ, APEX, FW, HW, AR, WIND, LEGS, K },   // (v473 TW: K, its body's scale)   // (v470 AB: the skeleton the GPU model is posed on)
     get MODEL() { return AG(); }, preload(P) { const o = AG(); return o ? o.preload(P) : []; },
     /* ---- the fight ---- */
     init(FX) { const M = FX.mem, m = FX.m, C = FX.C; m.noTouch = true; m.x = C.x; m.y = C.y - 4.2; m.act = 'enter'; if (AG() && AG().init) AG().init(FX);   // (v470 AB: its warnings marked for light)
@@ -90,15 +96,15 @@ RiftFiend.define({ id: 'thul', name: 'Thul', title: 'The Rime Cocoon', color: '#
       FX.parts(bodyParts(m, M));
     },
     stunned(FX, m, dt) { const M = FX.mem; M.menace = decay(M.menace, dt, 4); m.noTouch = true;
-      if (M.stunKind === 'stuck') { const p = stingRoot(m, M); FX.weak('sting', p[0], p[1] - p[2], 1.3, 2.4 / hpK(FX), m.stunT > 0.05);   // (v470 AB: its blows 1 / foeK.boss)
+      if (M.stunKind === 'stuck') { const p = stingRoot(m, M); FX.weak('sting', p[0], p[1] - p[2], 1.3 * K, 2.4 / hpK(FX), m.stunT > 0.05);   // (v470 AB: its blows 1 / foeK.boss) (v473 TW: its radius x K)
         // stuck fast: it wrenches at the stinger, wings thrashing, ice spitting from round the tip
         M.kickT = (M.kickT || 0) - dt; if (M.kickT <= 0) { M.kickT = 0.2; const q = M.stuckAt; if (q) FX.H.sparks(q[0] + FX.rnd(-0.3, 0.3), q[1], ICE_HI, 4, 4); if (Math.random() < 0.3) { FX.H.shake(1.5, 0.08); FX.H.sfx.thud(); } } }
-      else { const p = eyeAt(m, M); FX.weak('eye', p[0], p[1] - p[2], 1.2, 2.4 / hpK(FX), m.stunT > 0.05);   // (v470 AB: its blows 1 / foeK.boss)
+      else { const p = eyeAt(m, M); FX.weak('eye', p[0], p[1] - p[2], 1.2 * K, 2.4 / hpK(FX), m.stunT > 0.05);   // (v470 AB: its blows 1 / foeK.boss) (v473 TW: its radius x K)
         M.kickT = (M.kickT || 0) - dt; if (M.kickT <= 0) { M.kickT = 0.25; FX.H.part({ kind: 'snow', x: m.x + FX.rnd(-2, 2), y: m.y + FX.rnd(-0.5, 0.8), vx: FX.rnd(-0.5, 0.5), vy: -1, life: 0.6, max: 0.6, size: 2 }); if (Math.random() < 0.2) FX.H.shake(1.2, 0.08); } }
       FX.parts(bodyParts(m, M)); },
     update(FX, dt) { const M = FX.mem, m = FX.m; if (!m) return; M.bt += dt; const stun = m.stunT > 0;
       if (!stun) { if (FX.S.weak.eye) FX.weak('eye', 0, 0, 0, 0, false); if (FX.S.weak.sting) FX.weak('sting', 0, 0, 0, 0, false);
-        if (M.wasStun) { M.wasStun = false; M.recoil = 0.8; M.roar = 0.6; if (M.stunKind === 'stuck') { FX.H.text(m.x, m.y - 4, 'It wrenches the stinger free', GREEN_HI, 13); FX.H.sparks(M.stuckAt ? M.stuckAt[0] : m.x, M.stuckAt ? M.stuckAt[1] : m.y, ICE_HI, 14, 6); FX.H.sfx.crack(); M.stuckAt = null; } else { FX.H.text(m.x, m.y - 4, 'It hauls itself upright', ICE_HI, 13); FX.H.sfx.thud(); } M.stunKind = null; } }
+        if (M.wasStun) { M.wasStun = false; M.recoil = 0.8; M.roar = 0.6; if (M.stunKind === 'stuck') { FX.H.text(m.x, m.y - 4 * K, 'It wrenches the stinger free', GREEN_HI, 13); FX.H.sparks(M.stuckAt ? M.stuckAt[0] : m.x, M.stuckAt ? M.stuckAt[1] : m.y, ICE_HI, 14, 6); FX.H.sfx.crack(); M.stuckAt = null; } else { FX.H.text(m.x, m.y - 4 * K, 'It hauls itself upright', ICE_HI, 13);   /* (v473 TW: over its smaller body) */ FX.H.sfx.thud(); } M.stunKind = null; } }
       else M.wasStun = true;
       M.roar = decay(M.roar, dt, 0.8); M.recoil = decay(M.recoil, dt, 2.4); M.hitK = decay(M.hitK, dt, 4); M.pulse = decay(M.pulse, dt, 1.6);
       // the entrance: it lowers itself out of the dark on its three legs, plants them one by one, and the eye snaps open
@@ -114,7 +120,7 @@ RiftFiend.define({ id: 'thul', name: 'Thul', title: 'The Rime Cocoon', color: '#
     dmgK(FX, m) { const M = FX.mem; if (M) { M.recoil = Math.max(M.recoil || 0, 0.35); M.hitK = 1; } return (m.act === 'ram' || m.act === 'hatch' ? 0.3 : 1) / hpK(FX); },   // (v470 AB: the rift's main-boss health, foeK.boss times)
     // the camera: drawn toward the creature's body (high over its feet), never so far the pet leaves the screen; the hatch
     // framed closer
-    camFocus(FX, m) { const M = FX.mem, me = FX.me; if (!M || !M.wb || m.dead || m.act === 'enter') return null; const hatch = m.act === 'hatch' || (M.hatch && M.em < 1), x = m.x, y = m.y - (hatch ? 2.6 : M.hatched ? Math.min(4, M.alt) * 0.6 : 2.2), d = Math.hypot(x - me.x, y - me.y) || 1; return { x, y, k: Math.min(hatch ? 0.62 : 0.38, (hatch ? 4.2 : 3.2) / d), zoom: hatch ? 0.6 : undefined }; },
+    camFocus(FX, m) { const M = FX.mem, me = FX.me; if (!M || !M.wb || m.dead || m.act === 'enter') return null; const hatch = m.act === 'hatch' || (M.hatch && M.em < 1), x = m.x, y = m.y - (hatch ? 2.6 * K : M.hatched ? Math.min(4, M.alt) * 0.6 : 2.2 * K) /* (v473 TW: its body's height x K) */, d = Math.hypot(x - me.x, y - me.y) || 1; return { x, y, k: Math.min(hatch ? 0.62 : 0.38, (hatch ? 4.2 : 3.2) / d), zoom: hatch ? 0.6 : undefined }; },
     get keep() { return agOn() ? null : KEEP2D; },   // (v470 AB: the GPU model is drawn every frame, one pass; the 2D one kept as before)
     draw(c, FX, m, X, Y, T, t) { const M = FX.mem; Y += (m.z || 0) * T * 4; { const o = AG(); if (o && o.drawBoss(c, FX, m, X, Y, T, t)) return; } if (M.hatched) drawWasp(c, FX, m, X, Y, T, t); else drawCocoonBoss(c, FX, m, X, Y, T, t); },   // (v470 AB: the GPU model, else the 2D Thul)
     drawProp(c, FX, p, X, Y, T, t) { if (p.kind === 'pillar') drawWindbreak(c, FX, p, T, t); else if (p.kind === 'husk') { const o = AG(); if (!(o && o.drawHusk(c, FX, p, T, t))) drawHusk(c, FX, p, T, t); } },   // (v470 AB: the empty legs on the GPU)
@@ -143,7 +149,7 @@ RiftFiend.define({ id: 'thul', name: 'Thul', title: 'The Rime Cocoon', color: '#
   /* ---- walking on three legs (the cocoon): it steers its knot toward a point, slowly, keeping clear of the pillars ---- */
   function walk(FX, m, M, tx, ty, spd, dt) { const dx = tx - m.x, dy = ty - m.y, d = Math.hypot(dx, dy), v = Math.min(spd, d * 1.6), wx = d > 0.01 ? dx / d * v : 0, wy = d > 0.01 ? dy / d * v : 0;
     M.vx = toward(M.vx, wx, dt, 2.5); M.vy = toward(M.vy, wy, dt, 2.5); m.x += M.vx * dt; m.y += M.vy * dt; keepClear(FX, m, M); }
-  function keepClear(FX, m, M) { const q = FX.clampArena(m, 3.0); m.x = q.x; m.y = q.y; M.wb.forEach(w => { if (!w.alive) return; const dx = m.x - w.x, dy = m.y - w.y, d = Math.hypot(dx, dy) || 1, R = w.kind === 'pillar' ? 2.6 : 2.4; if (d < R) { m.x = w.x + dx / d * R; m.y = w.y + dy / d * R; } }); }
+  function keepClear(FX, m, M) { const q = FX.clampArena(m, 3.0); m.x = q.x; m.y = q.y; M.wb.forEach(w => { if (!w.alive) return; const dx = m.x - w.x, dy = m.y - w.y, d = Math.hypot(dx, dy) || 1, R = w.kind === 'pillar' ? PILR + 1.6 * K : 0.5 + 1.9 * K /* v473 TW: its body's clearance x K (was 2.6 / 2.4) */; if (d < R) { m.x = w.x + dx / d * R; m.y = w.y + dy / d * R; } }); }
   function restFoot(m, M, i) { const L = LEGS[i], a = (M.hd == null ? Math.PI / 2 : M.hd) + L.a, r = L.r * (1 + (M.scrape || 0) * 0.14 + (M.topple || 0) * 0.2); return [m.x + Math.cos(a) * r, m.y + Math.sin(a) * r]; }
   /* ---- choosing (the cocoon) ---- */
   function chooseA(FX, m) { const M = FX.mem, d = FX.dist(m.x, m.y); let k = M.nextAct; M.nextAct = null;
@@ -155,10 +161,10 @@ RiftFiend.define({ id: 'thul', name: 'Thul', title: 'The Rime Cocoon', color: '#
   function startCollar(FX, m) { const M = FX.mem, P = FX.S.lv, build = (P >= 3 ? 2.2 : 2.6) / FX.S.fast, a0 = FX.angPet(m.x, m.y) + (Math.random() < 0.5 ? 1 : -1) * (0.5 + Math.random() * 0.6), gaps = [[a0, 0.5], [a0 + Math.PI * (0.85 + Math.random() * 0.3), 0.46]];
     M.cl = { age: 0, build, gaps, tele: null, let: false }; m.act = 'collar'; m.actT = 0; M.collar = 0; FX.H.sfx.hum();
     M.cl.tele = FX.tele({ shape: 'ring', x: m.x, y: m.y, r0: 1.8, r1: 10, gaps, t: build + 0.75 / FX.S.fast, dmg: 0, col: ICE_HI, tick: (dt, s) => { if (!s.done && FX.m) { s.x = FX.m.x; s.y = FX.m.y; } }, fn: s => releaseCollar(FX, s) });
-    const b = cocoonGeo(m, M).bot; M.collarObj = FX.obj({ kind: 'collar', x: b[0], y: b[1] - Math.max(0, b[2]) + 0.4, r: 1.5, hp: FX.S.barHP * 0.035, onHit: () => { M.recoil = Math.max(M.recoil, 0.25); FX.H.sparks(m.x, m.y, ICE_HI, 3, 3); }, onKill: () => { M.collarObj = null; if (FX.m && !FX.m.dead && M.cl) topple(FX, FX.m); } });
+    const b = cocoonGeo(m, M).bot; M.collarObj = FX.obj({ kind: 'collar', x: b[0], y: b[1] - Math.max(0, b[2]) + 0.4 * K, r: 1.5 * K /* v473 TW: x K */, hp: FX.S.barHP * 0.035, onHit: () => { M.recoil = Math.max(M.recoil, 0.25); FX.H.sparks(m.x, m.y, ICE_HI, 3, 3); }, onKill: () => { M.collarObj = null; if (FX.m && !FX.m.dead && M.cl) topple(FX, FX.m); } });
     say(FX, 'collar', 'ICE COLLAR', 'Frost builds round its base, then bursts out in a ring: stand in a gap, or shatter the collar first', ICE_HI); }
   function collarStep(FX, m, M, dt, fast) { const Cl = M.cl; if (!Cl) { toIdle(m, M); return 0; } Cl.age += dt; M.collar = Math.min(1, Cl.age / Cl.build);
-    const o = M.collarObj; if (o && !o.dead) { const b = cocoonGeo(m, M).bot; o.x = b[0]; o.y = b[1] - Math.max(0, b[2]) + 0.4; }
+    const o = M.collarObj; if (o && !o.dead) { const b = cocoonGeo(m, M).bot; o.x = b[0]; o.y = b[1] - Math.max(0, b[2]) + 0.4 * K; }   // (v473 TW: x K)
     if (Math.random() < dt * 14) FX.H.part({ kind: 'snow', x: m.x + FX.rnd(-1.2, 1.2), y: m.y + FX.rnd(-0.2, 0.6), vx: FX.rnd(-2, 2), vy: FX.rnd(-1.5, 0.2), life: 0.5, max: 0.5, size: 2 + Math.random() * 2 });
     if (Math.random() < dt * 5) FX.H.sparks(m.x + FX.rnd(-1, 1), m.y + 0.3, ICE_HI, 2, 3);
     if (Cl.let && Cl.age > Cl.build + 1.4) { M.cl = null; toIdle(m, M); }
@@ -214,8 +220,9 @@ RiftFiend.define({ id: 'thul', name: 'Thul', title: 'The Rime Cocoon', color: '#
     FX.H.banner('THE WINDBREAK BREAKS', 'Thul drives at the marked pillar: shelter behind the other one before the great hail', WARN, 2.8, true); }
   function ramStep(FX, m, M, dt) { const R = M.ram; if (!R) { startHatch(FX, m); return; } R.age += dt; const w = R.w, C = FX.C, dx = C.x - w.x, dy = C.y - w.y, d = Math.hypot(dx, dy) || 1;
     M.hdTo = Math.atan2(w.y - m.y, w.x - m.x); w.crack = Math.min(1, R.age / 4.1);
-    if (R.age < 3.7) { walk(FX, m, M, w.x + dx / d * 3.4, w.y + dy / d * 3.4 + 0.6, 3.2, dt); M.swx = toward(M.swx, -Math.sign(w.x - m.x) * 0.35 * Math.min(1, R.age / 2), dt, 3); }
-    else if (!R.hit) { const tx = w.x + dx / d * 2.2, ty = w.y + dy / d * 2.2 + 0.4; m.x = toward(m.x, tx, dt, 10); m.y = toward(m.y, ty, dt, 10); M.swx = toward(M.swx, Math.sign(w.x - m.x) * 0.6, dt, 14);
+    // (v473 TW: where it stands and where it strikes from, nearer the pillar by its smaller body: was 3.4 / 2.2 from the pillar's middle)
+    if (R.age < 3.7) { walk(FX, m, M, w.x + dx / d * (PILR + 2.4 * K), w.y + dy / d * (PILR + 2.4 * K) + 0.6 * K, 3.2, dt); M.swx = toward(M.swx, -Math.sign(w.x - m.x) * 0.35 * Math.min(1, R.age / 2), dt, 3); }
+    else if (!R.hit) { const tx = w.x + dx / d * (PILR + 1.2 * K), ty = w.y + dy / d * (PILR + 1.2 * K) + 0.4 * K; m.x = toward(m.x, tx, dt, 10); m.y = toward(m.y, ty, dt, 10); M.swx = toward(M.swx, Math.sign(w.x - m.x) * 0.6, dt, 14);
       if (R.age > 4.1) { R.hit = true; breakPillar(FX, w); M.crack = 0.3; M.recoil = 1; M.svx -= Math.sign(w.x - m.x) * 3; } }
     if (R.age > 5.9) { M.ram = null; startHatch(FX, m); } }
   function breakPillar(FX, w) { const M = FX.mem, G = FX.H.M, set = (x, y, t) => { if (x >= 0 && y >= 0 && x < G.MW && y < G.MH) G.G[y * G.MW + x] = t; }, px = Math.floor(w.x), py = Math.floor(w.y);
@@ -238,12 +245,12 @@ RiftFiend.define({ id: 'thul', name: 'Thul', title: 'The Rime Cocoon', color: '#
     FX.H.flash(0.45, GREEN_HI); FX.H.shake(18, 0.9); FX.H.sfx.crash(); FX.H.sfx.crack(); FX.H.sfx.whoosh(); FX.H.ring(m.x, m.y, 0.5, 9, 1.0, GREEN_HI, 0.45); FX.H.ring(m.x, m.y, 0.3, 5, 0.6, '#FFFFFF', 0.4);
     FX.H.boom(m.x, m.y - G.cen[2], 2.6, GREEN_HI, '#FFFFFF', { n: 36, shake: 14, smoke: 10 });
     // the shell's pieces: curved plates of white with their navy seams, flung out and falling to the ice
-    for (let k = 0; k < 10; k++) { const a = k / 10 * TAU + Math.random() * 0.4, v = 3.5 + Math.random() * 3; M.shards.push({ x: G.cen[0] + Math.cos(a) * 0.8, y: G.cen[1] + Math.sin(a) * 0.5, z: G.cen[2] + FX.rnd(-1.4, 1.4), vx: Math.cos(a) * v, vy: Math.sin(a) * v * 0.7, vz: 3 + Math.random() * 5, rot: Math.random() * TAU, vr: FX.rnd(-8, 8), s: 0.55 + Math.random() * 0.5, seam: Math.random() < 0.6, land: false, t: 0 }); }
+    for (let k = 0; k < 10; k++) { const a = k / 10 * TAU + Math.random() * 0.4, v = 3.5 + Math.random() * 3; M.shards.push({ x: G.cen[0] + Math.cos(a) * 0.8 * K, y: G.cen[1] + Math.sin(a) * 0.5 * K, z: G.cen[2] + FX.rnd(-1.4, 1.4) * K /* v473 TW: from its smaller shell */, vx: Math.cos(a) * v, vy: Math.sin(a) * v * 0.7, vz: 3 + Math.random() * 5, rot: Math.random() * TAU, vr: FX.rnd(-8, 8), s: 0.55 + Math.random() * 0.5, seam: Math.random() < 0.6, land: false, t: 0 }); }
     for (let k = 0; k < 16; k++) FX.H.part({ kind: 'shard', x: m.x + FX.rnd(-1, 1), y: m.y - G.cen[2], vx: FX.rnd(-6, 6), vy: FX.rnd(-8, -1), g: 9, life: 1.0, max: 1.0, size: 5, rot: Math.random() * 3, vr: 8, color: '#FFFFFF' });
     // the empty legs, folding where they stood
     FX.S.props.push({ kind: 'husk', x: m.x, y: m.y + 0.3, bx: m.x, by: m.y, hd: M.hd, feet: M.feet.map(f => [f[0], f[1], 0]), apex: M.apex, t: 0 });
     for (let k = 0; k < 2; k++) { const a = FX.angPet(m.x, m.y) + (k ? 1 : -1) * 1.2, q = FX.clampArena({ x: m.x + Math.cos(a) * 3, y: m.y + Math.sin(a) * 3 }, 2); FX.H.ring(q.x, q.y, 0.2, 1.3, 0.4, ICE_HI, 0.3); FX.minion('rimescuttler', q.x, q.y); }
-    FX.H.text(m.x, m.y - 6, 'Rime scuttlers crawl from the shell', ICE_HI, 13); }
+    FX.H.text(m.x, m.y - 6 * K, 'Rime scuttlers crawl from the shell', ICE_HI, 13); }   // (v473 TW: x K)
   function updShards(FX, M, dt) { for (const s of M.shards) { if (s.land) { s.t += dt; continue; } s.vz -= 14 * dt; s.x += s.vx * dt; s.y += s.vy * dt; s.z += s.vz * dt; s.rot += s.vr * dt; if (s.z <= 0.05) { s.z = 0; s.land = true; s.t = 0; FX.H.sparks(s.x, s.y, '#FFFFFF', 4, 3); FX.H.sfx.pop && FX.H.sfx.pop(); } }
     for (let i = M.shards.length - 1; i >= 0; i--) if (M.shards[i].land && M.shards[i].t > 40) M.shards.splice(i, 1); }
   /* ---------- the wasp ---------- */
@@ -267,9 +274,10 @@ RiftFiend.define({ id: 'thul', name: 'Thul', title: 'The Rime Cocoon', color: '#
       return 1; }
     if (!L.go) { m.x = toward(m.x, L.sx - Math.cos(L.a) * 0.6, dt, 3); m.y = toward(m.y, L.sy - Math.sin(L.a) * 0.6, dt, 3); M.hdTo = L.a; return 1; }
     // the lunge: along the lane at speed, the tail swung forward under it
-    L.prog += 26 * fast * dt; const end = Math.max(0.5, L.len - 2.8), pr = Math.min(end, L.prog); m.x = L.sx + Math.cos(L.a) * pr; m.y = L.sy + Math.sin(L.a) * pr; M.hdTo = L.a; M.hd = L.a; M.vx = Math.cos(L.a) * 8; M.vy = Math.sin(L.a) * 8;
+    // (v473 TW: the stinger reaches 2.6 x K ahead of its smaller body, so the body runs on further and the tip lands where it did, 0.2 short of the lane's end)
+    L.prog += 26 * fast * dt; const RCH = 2.6 * K, end = Math.max(0.5, L.len - 0.2 - RCH), pr = Math.min(end, L.prog); m.x = L.sx + Math.cos(L.a) * pr; m.y = L.sy + Math.sin(L.a) * pr; M.hdTo = L.a; M.hd = L.a; M.vx = Math.cos(L.a) * 8; M.vy = Math.sin(L.a) * 8;
     if (Math.random() < dt * 40) FX.H.part({ kind: 'spark', x: m.x - Math.cos(L.a) * 1.5, y: m.y - Math.sin(L.a) * 1.5 - 2, vx: -Math.cos(L.a) * 12, vy: -Math.sin(L.a) * 12, life: 0.25, max: 0.25, color: GREEN_HI, size: 2 });
-    if (L.prog >= end) { const tip = [L.sx + Math.cos(L.a) * (end + 2.6), L.sy + Math.sin(L.a) * (end + 2.6)]; FX.H.shake(10, 0.35); FX.H.sfx.crash(); FX.H.sfx.crack(); FX.H.boom(tip[0], tip[1], 1.2, ICE_HI, '#FFFFFF', { n: 14, shake: 6 });
+    if (L.prog >= end) { const tip = [L.sx + Math.cos(L.a) * (end + RCH), L.sy + Math.sin(L.a) * (end + RCH)]; FX.H.shake(10, 0.35); FX.H.sfx.crash(); FX.H.sfx.crack(); FX.H.boom(tip[0], tip[1], 1.2, ICE_HI, '#FFFFFF', { n: 14, shake: 6 });
       M.lg = null; if (!L.hitPet) stick(FX, m, tip, L.a); else { M.recoil = 0.6; toIdle(m, M); } return 0.5; }
     return 0.6; }
   function stick(FX, m, tip, a) { const M = FX.mem; m.stunT = 4.6; M.stunKind = 'stuck'; M.stuckAt = tip; M.stuckA = a; m.act = 'hover'; m.actT = 0; M.roar = 0.5; M.stuck = 1;
@@ -296,7 +304,7 @@ RiftFiend.define({ id: 'thul', name: 'Thul', title: 'The Rime Cocoon', color: '#
       FX.tele({ shape: 'fn', x: m.x, y: m.y, test: (x, y) => { const a = Math.atan2(y - G.y, x - G.x); return Math.abs(FX.K.angTo(G.ga, a)) < 0.62 && FX.inArena(x, y, 0) && !sheltered(M, x, y, { x: G.x, y: G.y }); }, t: G.end - G.at, dmg: m.dmg * 1.35, col: GREEN_HI, fn: () => { G.struck = true; FX.H.shake(9, 0.4); FX.H.sfx.crash(); FX.H.flash(0.08, GREEN_HI); } }); }
     M.hdTo = G.ga; M.glow = 1.5; fly(FX, m, M, G.x, G.y, 2, dt, 3);
     // the wind pushes the pet down it, out of the lees it is not in
-    if (!G.struck && G.age > G.at + 0.3 && !me.dodge && !sheltered(M, me.x, me.y, { x: G.x, y: G.y })) { const a = Math.atan2(me.y - G.y, me.x - G.x); if (Math.abs(FX.K.angTo(G.ga, a)) < 0.62) FX.push(Math.cos(a) * 2.2 * dt, Math.sin(a) * 2.2 * dt); }
+    if (!G.struck && G.age > G.at + 0.3 && !me.dodge && !sheltered(M, me.x, me.y, { x: G.x, y: G.y })) { const a = Math.atan2(me.y - G.y, me.x - G.x); if (Math.abs(FX.K.angTo(G.ga, a)) < 0.62) FX.push(Math.cos(a) * 2.2 * AUR_WIND_K * dt, Math.sin(a) * 2.2 * AUR_WIND_K * dt); }   // (v473 TW: 2.2 -> 1.32 m/s)
     if (G.age > G.end + 0.7) { M.gale = null; toIdle(m, M); } return 1; }
   /* ---- Rime Dive: it climbs out of sight, its shadow finds the pet, and it plunges ---- */
   function startDive(FX, m) { const M = FX.mem, P = FX.S.lv; M.dv = { age: 0, up: 0.8, track: 0.9, wait: (P >= 4 ? 0.8 : 0.95) / FX.S.fast, tx: m.x, ty: m.y, marked: false, hit: false }; m.act = 'dive'; m.actT = 0; FX.H.sfx.whoosh();
@@ -314,7 +322,7 @@ RiftFiend.define({ id: 'thul', name: 'Thul', title: 'The Rime Cocoon', color: '#
     const scr = m.act === 'collar' && M.cl && !M.cl.let, tp = stun && M.stunKind === 'topple';
     M.scrape = toward(M.scrape, scr ? 1 : 0, dt, scr ? 3 : 2.5); M.topple = toward(M.topple, tp ? 1 : 0, dt, tp ? 4 : 1.6);
     if (!scr && !(M.cl && M.cl.let)) M.collar = decay(M.collar, dt, 0.8);
-    if (m.act !== 'enter') M.apexTo = lerp(lerp(APEX + Math.sin(M.bt * 1.1) * 0.14 + M.menace * 0.15 - M.recoil * 0.25, 4.55, M.scrape), 2.35, M.topple);
+    if (m.act !== 'enter') M.apexTo = lerp(lerp(APEX + (Math.sin(M.bt * 1.1) * 0.14 + M.menace * 0.15 - M.recoil * 0.25) * K, 4.55 * K, M.scrape), 2.35 * K, M.topple);   // (v473 TW: its knot's heights x K)
     M.apex = toward(M.apex, M.apexTo, dt, m.act === 'enter' ? 2.5 : 4);
     M.hd = lerpA(M.hd, M.hdTo == null ? M.hd : M.hdTo, Math.min(1, dt * (stun ? 0 : 0.9)));
     // how fast it is going, and how hard it is turning (the cocoon swings against it)
@@ -342,7 +350,7 @@ RiftFiend.define({ id: 'thul', name: 'Thul', title: 'The Rime Cocoon', color: '#
         if ((we > need || (M.fidT <= 0 && !stun)) && M.stepT <= 0 && worst >= 0) { if (M.fidT <= 0) { M.fidT = 1.6 + Math.random() * 2.4; worst = Math.floor(Math.random() * 3); }
           const r = restFoot(m, M, worst), lead = 0.35; let to = [r[0] + M.vx * lead + FX.rnd(-0.25, 0.25), r[1] + M.vy * lead + FX.rnd(-0.25, 0.25)];
           M.wb.forEach(w => { if (!w.alive) return; const dx = to[0] - w.x, dy = to[1] - w.y, d = Math.hypot(dx, dy) || 1; if (w.kind === 'pillar' && d < w.r + 0.4) to = [w.x + dx / d * (w.r + 0.4), w.y + dy / d * (w.r + 0.4)]; });
-          M.step = { i: worst, from: M.feet[worst].slice(0, 2), to, u: 0, dur: clamp(0.42 - M.spd * 0.06, 0.22, 0.42), lift: 0.7 + Math.random() * 0.5 + M.spd * 0.08 }; } } } }
+          M.step = { i: worst, from: M.feet[worst].slice(0, 2), to, u: 0, dur: clamp(0.42 - M.spd * 0.06, 0.22, 0.42), lift: (0.7 + Math.random() * 0.5 + M.spd * 0.08) * K /* v473 TW */ }; } } } }
   /* where the cocoon hangs: the legs' knot (apex), the stalk, then the cocoon swung about its top */
   function cocoonGeo(m, M) { const ax = m.x + (M.shx || 0), ay = m.y + (M.shy || 0), az = M.apex == null ? APEX : M.apex, top = [ax, ay, az - STALK], sx = M.swx || 0, sy = M.swy || 0;
     let dx = Math.sin(sx), dy = Math.sin(sy) * Math.cos(sx), dz = -Math.cos(sx) * Math.cos(sy); const n = Math.hypot(dx, dy, dz) || 1; dx /= n; dy /= n; dz /= n;
@@ -354,12 +362,14 @@ RiftFiend.define({ id: 'thul', name: 'Thul', title: 'The Rime Cocoon', color: '#
   function legPts(i, foot, apex, hd, M) { const L = LEGS[i], ax = apex[0], ay = apex[1], az = apex[2], dx = foot[0] - ax, dy = foot[1] - ay, d = Math.hypot(dx, dy) || 1, ux = dx / d, uy = dy / d, k = d / L.r, sink = (APEX - az) * 0.55, lift = foot[2] || 0;
     // (each knuckle a little off the straight line, twisted, so the three never match)
     const tw = [0.35, -0.5, 0.25][i], px = -uy * tw, py = ux * tw;
-    const knee = [ax + ux * L.kr * k + px * 0.6, ay + uy * L.kr * k + py * 0.6, L.kz - sink * 0.6 + lift * 0.35 - (M.topple || 0) * 2.2];
-    const ank = [ax + ux * L.ar * k - px * 0.3, ay + uy * L.ar * k - py * 0.3, L.az * (0.75 + 0.25 * az / APEX) + lift * 0.8 + (M.scrape || 0) * 0.5 - (M.topple || 0) * 0.8];
-    return [foot, ank, knee, [ax, ay, az + 0.15]]; }
+    // (v473 TW: the knuckles' sideways twist and the topple / scrape drops x K, with the legs)
+    const knee = [ax + ux * L.kr * k + px * 0.6 * K, ay + uy * L.kr * k + py * 0.6 * K, L.kz - sink * 0.6 + lift * 0.35 - (M.topple || 0) * 2.2 * K];
+    const ank = [ax + ux * L.ar * k - px * 0.3 * K, ay + uy * L.ar * k - py * 0.3 * K, L.az * (0.75 + 0.25 * az / APEX) + lift * 0.8 + ((M.scrape || 0) * 0.5 - (M.topple || 0) * 0.8) * K];
+    return [foot, ank, knee, [ax, ay, az + 0.15 * K]]; }
   // the hit proxies: the cocoon (three along it) or the wasp (head, thorax, abdomen)
-  function bodyParts(m, M) { if (!M.hatched) { const G = cocoonGeo(m, M), d = G.dir; return [hit('c0', G.cen, 1.35, m), hit('c1', [G.cen[0] - d[0] * RZ * 0.6, G.cen[1] - d[1] * RZ * 0.6, G.cen[2] - d[2] * RZ * 0.6], 1.0, m), hit('c2', [G.cen[0] + d[0] * RZ * 0.6, G.cen[1] + d[1] * RZ * 0.6, G.cen[2] + d[2] * RZ * 0.6], 1.0, m)]; }
-    const P = waspPose(m, M); return [hit('th', P.thorax, 1.1, m), hit('hd', P.head, 0.8, m), hit('ab', P.gs[2], 1.05, m)]; }
+  // (v473 TW: their radii x K)
+  function bodyParts(m, M) { if (!M.hatched) { const G = cocoonGeo(m, M), d = G.dir; return [hit('c0', G.cen, 1.35 * K, m), hit('c1', [G.cen[0] - d[0] * RZ * 0.6, G.cen[1] - d[1] * RZ * 0.6, G.cen[2] - d[2] * RZ * 0.6], 1.0 * K, m), hit('c2', [G.cen[0] + d[0] * RZ * 0.6, G.cen[1] + d[1] * RZ * 0.6, G.cen[2] + d[2] * RZ * 0.6], 1.0 * K, m)]; }
+    const P = waspPose(m, M); return [hit('th', P.thorax, 1.1 * K, m), hit('hd', P.head, 0.8 * K, m), hit('ab', P.gs[2], 1.05 * K, m)]; }
 
   /* ---------- the wasp's body ---------- */
   function updWasp(FX, m, M, dt, stun) { const me = FX.me, act = m.act;
@@ -387,7 +397,7 @@ RiftFiend.define({ id: 'thul', name: 'Thul', title: 'The Rime Cocoon', color: '#
   /* the wasp's pose in the world: a body frame (u forward, v left, h up) at its height, the abdomen as a chain of bands,
      the long tail as a chain of segments, the stinger beyond it */
   function waspPose(m, M) {
-    const S = 0.62 + 0.38 * easeBack(M.em == null ? 1 : M.em), W = RiftFiend.frame(m, M.hd == null ? Math.PI / 2 : M.hd, { pitch: M.pitch || 0, roll: M.roll || 0, z: M.alt == null ? 2.7 : M.alt, scale: S }), bt = M.bt || 0;
+    const S = (0.62 + 0.38 * easeBack(M.em == null ? 1 : M.em)) * K /* v473 TW: the whole wasp x K */, W = RiftFiend.frame(m, M.hd == null ? Math.PI / 2 : M.hd, { pitch: M.pitch || 0, roll: M.roll || 0, z: M.alt == null ? 2.7 : M.alt, scale: S }), bt = M.bt || 0;
     const gsL = []; let pu = -0.28, ph = 0.1, b = Math.PI + 0.12; for (let k = 0; k < 6; k++) { b += (M.gcurl == null ? 0.3 : M.gcurl) * 0.13; pu += Math.cos(b) * 0.44; ph += Math.sin(b) * 0.44; gsL.push([pu, 0, ph]); }
     const tlL = []; let tu = pu + Math.cos(b) * 0.3, tv = 0, th = ph + Math.sin(b) * 0.3; tlL.push([tu, tv, th]);
     const n = 14, seg = 5.6 / n, tA = M.tA == null ? 3.9 : M.tA, tP = M.tP == null ? 1.35 : M.tP, tpsi = M.tpsi == null ? Math.PI : M.tpsi, st = M.stuck || 0;
@@ -402,7 +412,8 @@ RiftFiend.define({ id: 'thul', name: 'Thul', title: 'The Rime Cocoon', color: '#
   /* ---------- painting the cocoon ---------- */
   function drawCocoonBoss(c, FX, m, X, Y, T, t) {
     const M = FX.mem; if (!M.feet) { M.feet = LEGS.map((L, i) => { const p = restFoot(m, M, i); return [p[0], p[1], 0]; }); }
-    const P3 = TN.cam(X, Y, T, m), lw = Math.max(1.3, T * 0.065), G = cocoonGeo(m, M), parts = [];
+    const P3 = TN.cam(X, Y, T, m); T *= K;   // (v473 TW: placed by the true tile, every size drawn at T x K)
+    const lw = Math.max(1.3, T * 0.065), G = cocoonGeo(m, M), parts = [];
     TN.groundShadow(c, P3(G.cen[0], G.cen[1], 0)[0], P3(G.cen[0], G.cen[1], 0)[1], T * 2.2, T * 0.95, G.cen[2] * 0.5, 0.42);
     // the eye's green light pooled on the ice under it
     c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.14 + (M.eye || 0) * 0.12 + (M.crack || 0) * 0.3; const gq = P3(G.bot[0], G.bot[1], 0); blitSized(c, glowSprite(GREEN), gq[0] - T * 2.4, gq[1] - T * 1.1, T * 4.8, T * 2.2); c.restore();
@@ -411,9 +422,9 @@ RiftFiend.define({ id: 'thul', name: 'Thul', title: 'The Rime Cocoon', color: '#
     sorted(parts).forEach(p => p.draw());
     drawKnot(c, P3, G, T, lw, M, t); }
   // a leg: three angular segments of black root, knuckled, with frost on the knees and roots spreading from the foot
-  function drawLeg(c, P3, pts, T, lw, i, t, M, o) { o = o || {}; const [F, A, K, P] = pts, q = pts.map(p => P3(p[0], p[1], p[2])), col = { col: ROOT, shade: ROOT_SH, hi: ROOT_HI, line: INK, lw, force: true, alpha: o.alpha };
+  function drawLeg(c, P3, pts, T, lw, i, t, M, o) { o = o || {}; const [F, A, Kn, P] = pts /* (v473 TW: the knee renamed, K is the body's scale) */, q = pts.map(p => P3(p[0], p[1], p[2])), col = { col: ROOT, shade: ROOT_SH, hi: ROOT_HI, line: INK, lw, force: true, alpha: o.alpha };
     // the roots at the foot, splayed on the ice
-    if ((F[2] || 0) < 0.3) { const dx = F[0] - P[0], dy = F[1] - P[1]; [-0.95, -0.15, 0.7, 1.5].forEach((s, k) => { const a = Math.atan2(dy, dx) + s, L = 0.6 + 0.3 * ((i + k) % 3), mid = P3(F[0] + Math.cos(a + 0.3) * L * 0.5, F[1] + Math.sin(a + 0.3) * L * 0.5, 0.05), e = P3(F[0] + Math.cos(a) * L, F[1] + Math.sin(a) * L, 0); tubeLite(c, [q[0], mid, e], u => T * (0.2 - u * 0.16), col); }); }
+    if ((F[2] || 0) < 0.3) { const dx = F[0] - P[0], dy = F[1] - P[1]; [-0.95, -0.15, 0.7, 1.5].forEach((s, k) => { const a = Math.atan2(dy, dx) + s, L = (0.6 + 0.3 * ((i + k) % 3)) * K /* v473 TW */, mid = P3(F[0] + Math.cos(a + 0.3) * L * 0.5, F[1] + Math.sin(a + 0.3) * L * 0.5, 0.05), e = P3(F[0] + Math.cos(a) * L, F[1] + Math.sin(a) * L, 0); tubeLite(c, [q[0], mid, e], u => T * (0.2 - u * 0.16), col); }); }
     // each segment bowed a little to one side, like a root, thick at the knot and thinning to the foot
     const seg = (a, b, w0, w1, bow) => { const dx = b[0] - a[0], dy = b[1] - a[1], d = Math.hypot(dx, dy) || 1, nx = -dy / d, ny = dx / d; tubeLite(c, [a, [a[0] + dx * 0.33 + nx * bow * T, a[1] + dy * 0.33 + ny * bow * T], [a[0] + dx * 0.7 - nx * bow * T * 0.5, a[1] + dy * 0.7 - ny * bow * T * 0.5], b], u => T * (w0 + (w1 - w0) * u) * (1 + 0.18 * Math.sin(u * 9 + i)), col); };
     seg(q[0], q[1], 0.2, 0.3, [0.12, -0.1, 0.08][i]); seg(q[1], q[2], 0.3, 0.42, [-0.16, 0.14, -0.1][i]); seg(q[2], q[3], 0.42, 0.5, [0.1, 0.12, -0.14][i]);
@@ -422,7 +433,7 @@ RiftFiend.define({ id: 'thul', name: 'Thul', title: 'The Rime Cocoon', color: '#
       [1, -0.6].forEach((sk, j) => { const s = ((i + k + j) % 2 ? 1 : -1) * sk, L = T * (0.5 - j * 0.15); c.fillStyle = ROOT; c.strokeStyle = INK; c.lineWidth = lw * 0.8; c.beginPath(); c.moveTo(p[0] - T * 0.09, p[1] - T * 0.05); c.lineTo(p[0] + s * L, p[1] - L * 0.85); c.lineTo(p[0] + T * 0.09, p[1] + T * 0.04); c.closePath(); c.fill(); c.stroke(); }); });
     const kq = q[2]; TN.shape(c, TN.blob([[kq[0] - T * 0.4, kq[1] - T * 0.12], [kq[0] - T * 0.2, kq[1] - T * 0.42], [kq[0] + T * 0.22, kq[1] - T * 0.44], [kq[0] + T * 0.42, kq[1] - T * 0.14], [kq[0] + T * 0.1, kq[1] - T * 0.04], [kq[0] - T * 0.15, kq[1] + T * 0.02]]), { col: '#F2F7FA', shade: '#B9D0DE', hi: '#FFFFFF', line: INK, lw: lw * 0.8, r: T * 0.4, d1: 0.08, d2: 0.18, force: true, alpha: o.alpha }); }
   // the knot where the three legs meet, and the stalk down to the cocoon
-  function drawKnot(c, P3, G, T, lw, M, t) { const a = P3(G.apex[0], G.apex[1], G.apex[2] + 0.15), b = P3(G.top[0], G.top[1], G.top[2] + 0.1);
+  function drawKnot(c, P3, G, T, lw, M, t) { const a = P3(G.apex[0], G.apex[1], G.apex[2] + 0.15 * K), b = P3(G.top[0], G.top[1], G.top[2] + 0.1 * K);   // (v473 TW: x K)
     tubeLite(c, [a, [(a[0] + b[0]) / 2 + Math.sin(t * 2) * T * 0.05, (a[1] + b[1]) / 2], b], u => T * (0.34 - u * 0.12), { col: ROOT, shade: ROOT_SH, hi: ROOT_HI, line: INK, lw, force: true });
     TN.shape(c, TN.blob([[a[0] - T * 0.5, a[1] + T * 0.05], [a[0] - T * 0.2, a[1] - T * 0.42], [a[0] + T * 0.3, a[1] - T * 0.35], [a[0] + T * 0.52, a[1] + T * 0.08], [a[0] + T * 0.1, a[1] + T * 0.32], [a[0] - T * 0.3, a[1] + T * 0.28]]), { col: ROOT, shade: ROOT_SH, hi: ROOT_HI, line: INK, lw, r: T * 0.5, force: true });
     c.fillStyle = '#F2F7FA'; c.strokeStyle = INK; c.lineWidth = lw * 0.8; c.beginPath(); c.moveTo(a[0] - T * 0.42, a[1] - T * 0.12); c.quadraticCurveTo(a[0] - T * 0.1, a[1] - T * 0.62, a[0] + T * 0.44, a[1] - T * 0.12); c.quadraticCurveTo(a[0] + T * 0.1, a[1] - T * 0.28, a[0] - T * 0.42, a[1] - T * 0.12); c.fill(); c.stroke(); }
@@ -431,7 +442,7 @@ RiftFiend.define({ id: 'thul', name: 'Thul', title: 'The Rime Cocoon', color: '#
      with it, the frost collar round its base, the lowest opening and the green eye in it; cracks before it hatches */
   function drawCocoon(c, FX, m, M, P3, T, t, lw, G) {
     const pt = P3(G.top[0], G.top[1], G.top[2]), pb = P3(G.bot[0], G.bot[1], G.bot[2]), pc = [(pt[0] + pb[0]) / 2, (pt[1] + pb[1]) / 2], vx = pb[0] - pt[0], vy = pb[1] - pt[1], ry = Math.max(T * 1.2, Math.hypot(vx, vy) / 2), rot = Math.atan2(-vx, vy);
-    const pul = 1 + (M.pulse || 0) * 0.05 + (M.hitK || 0) * 0.03, rx = RX * T * pul * (1 - (M.hitK || 0) * 0.04), Ry = ry * (1 + (M.pulse || 0) * 0.03);
+    const pul = 1 + (M.pulse || 0) * 0.05 + (M.hitK || 0) * 0.03, rx = RX0 * T * pul * (1 - (M.hitK || 0) * 0.04) /* v473 TW: T is T x K here */, Ry = ry * (1 + (M.pulse || 0) * 0.03);
     const cr = Math.cos(rot), sr = Math.sin(rot), lx = -0.55 * cr - 0.8 * sr, ly = 0.55 * sr - 0.8 * cr;
     c.save(); c.translate(pc[0], pc[1]); c.rotate(rot);
     const yawS = M.yaw || 0, col = M.collar || 0, cy0 = Ry * 0.5, bw = rx * 0.9 * 1.06, bh = bw * 0.3;
@@ -472,7 +483,8 @@ RiftFiend.define({ id: 'thul', name: 'Thul', title: 'The Rime Cocoon', color: '#
 
   /* ---------- painting the wasp ---------- */
   function drawWasp(c, FX, m, X, Y, T, t) {
-    const M = FX.mem, P3 = TN.cam(X, Y, T, m), lw = Math.max(1.3, T * 0.065), P = waspPose(m, M), S = P.S, W = P.W, parts = [], hd = M.hd == null ? Math.PI / 2 : M.hd, bt = M.bt || t;
+    const M = FX.mem, P3 = TN.cam(X, Y, T, m); T *= K;   // (v473 TW: placed by the true tile, sizes at T x K; S below without K, so T x S is as before x K)
+    const lw = Math.max(1.3, T * 0.065), P = waspPose(m, M), S = P.S / K, W = P.W, parts = [], hd = M.hd == null ? Math.PI / 2 : M.hd, bt = M.bt || t;
     const g0 = P3(m.x, m.y, 0); TN.groundShadow(c, g0[0], g0[1] + T * 0.2, T * 3.2 * S, T * 1.3 * S, M.alt, 0.42);
     // its glow on the ice
     c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.1 + (M.glow || 0.6) * 0.12; blitSized(c, glowSprite(GREEN), g0[0] - T * 4, g0[1] - T * 1.6, T * 8, T * 3.2); c.restore();
@@ -581,9 +593,9 @@ RiftFiend.define({ id: 'thul', name: 'Thul', title: 'The Rime Cocoon', color: '#
       TN.shape(c, TN.blob([[-ww * 1.0, -H * 0.85], [-ww * 0.5, -H * 1.12], [ww * 0.3, -H * 1.1], [ww * 0.95, -H * 0.82], [ww * 0.4, -H * 0.72], [-ww * 0.4, -H * 0.74]]), { col: '#F4F9FB', shade: '#B9D0DE', hi: '#FFFFFF', line: INK, lw, r: ww, d1: 0.08, d2: 0.16, spec: false, force: true });
       c.restore(); }); }
   /* the empty husk: the three legs folding down where the cocoon hung, the broken cup of the shell under them */
-  function drawHusk(c, FX, p, T, t) { p.t = (p.t || 0) + 1 / 60; const u = easeOut(clamp(p.t / 1.6, 0, 1)), lw = Math.max(1.3, T * 0.065), X = FX.sx(p.bx), Y = FX.sy(p.by), m = { x: p.bx, y: p.by }, P3 = TN.cam(X, Y, T, m), apex = [p.bx, p.by, lerp(p.apex, 0.5, u)], Mh = { topple: 0, scrape: 0 };
+  function drawHusk(c, FX, p, T, t) { p.t = (p.t || 0) + 1 / 60; const u = easeOut(clamp(p.t / 1.6, 0, 1)), lw = Math.max(1.3, T * 0.065), X = FX.sx(p.bx), Y = FX.sy(p.by), m = { x: p.bx, y: p.by }, P3 = TN.cam(X, Y, T, m), apex = [p.bx, p.by, lerp(p.apex, 0.5 * K, u)], Mh = { topple: 0, scrape: 0 }, TK = T * K, lwK = Math.max(1.3, TK * 0.065);   // (v473 TW: sizes at T x K)
     const a = clamp(1 - (p.t - 7) / 2.5, 0, 1); if (a <= 0) return;
-    for (let i = 0; i < 3; i++) { const f = p.feet[i], fx = lerp(f[0], p.bx + (f[0] - p.bx) * 1.25, u), fy = lerp(f[1], p.by + (f[1] - p.by) * 1.25, u), pts = legPts(i, [fx, fy, 0], apex, p.hd, Mh).map(q => [q[0], q[1], q[2] * (1 - u * 0.85)]); drawLeg(c, P3, pts, T, lw, i, t, Mh, { alpha: a }); } }
+    for (let i = 0; i < 3; i++) { const f = p.feet[i], fx = lerp(f[0], p.bx + (f[0] - p.bx) * 1.25, u), fy = lerp(f[1], p.by + (f[1] - p.by) * 1.25, u), pts = legPts(i, [fx, fy, 0], apex, p.hd, Mh).map(q => [q[0], q[1], q[2] * (1 - u * 0.85)]); drawLeg(c, P3, pts, TK, lwK, i, t, Mh, { alpha: a }); } }
 
   /* ---------- the cave: ground, backdrop, and what lies on the ice ---------- */
   function paintFloor(c, A) { const R = A.R, rnd = A.rnd;
@@ -657,7 +669,7 @@ RiftFiend.define({ id: 'thul', name: 'Thul', title: 'The Rime Cocoon', color: '#
         for (let a = a0 + 0.05; a < a1; a += 0.9 / Math.max(1, Wv.r)) { const px = X + Math.cos(a) * r, py = Y + Math.sin(a) * r; c.fillStyle = ICE_HI; c.strokeStyle = INK; c.lineWidth = 1.5; c.beginPath(); c.moveTo(px - T * 0.15, py); c.lineTo(px + Math.cos(a) * T * 0.15, py - T * 0.6); c.lineTo(px + T * 0.15, py); c.closePath(); c.fill(); c.stroke(); } });
       c.globalCompositeOperation = 'lighter'; Wv.gaps.forEach(([a, w]) => { c.beginPath(); c.arc(X, Y, r, a - w, a + w); c.strokeStyle = TN.rgba(GREEN_HI, 0.45); c.lineWidth = T * 0.3; c.stroke(); }); c.restore(); } }
   // a plate of the shell: a curved white piece with a navy seam along it
-  function drawShard(c, X, Y, s, T, a, flat) { if (a <= 0) return; const r = s.s * T; c.save(); c.globalAlpha = a; c.translate(X, Y); c.rotate(s.rot); if (flat) c.scale(1, 0.55);
+  function drawShard(c, X, Y, s, T, a, flat) { if (a <= 0) return; const r = s.s * T * K; /* (v473 TW: a plate of its smaller shell) */ c.save(); c.globalAlpha = a; c.translate(X, Y); c.rotate(s.rot); if (flat) c.scale(1, 0.55);
     c.beginPath(); c.moveTo(-r, -r * 0.2); c.quadraticCurveTo(0, -r * 0.9, r, -r * 0.3); c.lineTo(r * 0.7, r * 0.15); c.lineTo(r * 0.2, r * 0.05); c.lineTo(-r * 0.3, r * 0.3); c.lineTo(-r * 0.75, r * 0.1); c.closePath(); c.fillStyle = SNOW; c.fill(); c.strokeStyle = INK; c.lineWidth = Math.max(1.2, T * 0.05); c.stroke();
     c.fillStyle = 'rgba(166,192,210,.8)'; c.beginPath(); c.moveTo(-r * 0.75, r * 0.1); c.lineTo(-r * 0.3, r * 0.3); c.lineTo(r * 0.2, r * 0.05); c.lineTo(r * 0.7, r * 0.15); c.quadraticCurveTo(0, -r * 0.15, -r * 0.75, r * 0.1); c.fill();
     if (s.seam) { c.strokeStyle = NAVY; c.lineWidth = T * 0.12; c.beginPath(); c.moveTo(-r * 0.3, -r * 0.48); c.quadraticCurveTo(0, -r * 0.1, r * 0.15, r * 0.02); c.stroke(); }
@@ -681,6 +693,6 @@ RiftFiend.define({ id: 'thul', name: 'Thul', title: 'The Rime Cocoon', color: '#
       c.restore(); }
     // the labels: the collar to shatter, the bare weak points
     const lab = (X, Y, s, col) => { c.save(); c.font = `800 ${Math.round(T * 0.3)}px ${arcFont}`; c.textAlign = 'center'; c.lineWidth = 3; c.strokeStyle = 'rgba(0,0,0,.65)'; c.fillStyle = col || '#FFFFFF'; c.strokeText(s, X, Y); c.fillText(s, X, Y); c.restore(); };
-    if (M.collarObj && !M.collarObj.dead) { const o = M.collarObj, f = clamp(o.hp / o.maxhp, 0, 1), X = sx(o.x), Y = sy(o.y); c.save(); c.strokeStyle = 'rgba(0,0,0,.5)'; c.lineWidth = Math.max(3, T * 0.12); c.beginPath(); c.arc(X, Y - T * 0.3, T * 0.55, 0, TAU); c.stroke(); c.strokeStyle = ICE_HI; c.lineWidth = Math.max(2, T * 0.08); c.beginPath(); c.arc(X, Y - T * 0.3, T * 0.55, -Math.PI / 2, -Math.PI / 2 + TAU * f); c.stroke(); c.restore(); lab(X, Y + T * 1.1, 'FROST COLLAR · shatter it', '#E8F8FF'); }
-    if (m.stunT > 0) { const w = FX.S.weak.eye || FX.S.weak.sting; if (w && !w.dead) lab(sx(w.x), sy(w.y) - T * 1.5, M.stunKind === 'stuck' ? 'STING-ROOT · strike it' : 'EYE · strike it', GREEN_HI); } }
+    if (M.collarObj && !M.collarObj.dead) { const o = M.collarObj, f = clamp(o.hp / o.maxhp, 0, 1), X = sx(o.x), Y = sy(o.y); c.save(); c.strokeStyle = 'rgba(0,0,0,.5)'; c.lineWidth = Math.max(3, T * 0.12); c.beginPath(); c.arc(X, Y - T * 0.3 * K, T * 0.55 * K, 0, TAU); c.stroke(); c.strokeStyle = ICE_HI; c.lineWidth = Math.max(2, T * 0.08); c.beginPath(); c.arc(X, Y - T * 0.3 * K, T * 0.55 * K, -Math.PI / 2, -Math.PI / 2 + TAU * f); c.stroke(); c.restore(); lab(X, Y + T * 1.1 * K, 'FROST COLLAR · shatter it', '#E8F8FF'); }   // (v473 TW: round its smaller collar)
+    if (m.stunT > 0) { const w = FX.S.weak.eye || FX.S.weak.sting; if (w && !w.dead) lab(sx(w.x), sy(w.y) - T * 1.5 * K, M.stunKind === 'stuck' ? 'STING-ROOT · strike it' : 'EYE · strike it', GREEN_HI); } }
 })());

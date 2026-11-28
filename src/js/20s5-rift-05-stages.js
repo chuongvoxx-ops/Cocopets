@@ -6,6 +6,7 @@
 const AUR_STAGES = {};
 (() => {
   const TAU = Math.PI * 2, P = () => AUR;
+  const AUR_WIND_K = 0.6;   // (v473 TW: the user 2026-11-28, the Pale Aurora's knockback winds 40% weaker: the bridges' and the summit lanes' push x 0.6)
   const glowAt = (c, x, y, r, col, a) => { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = Math.max(0, Math.min(1, a)); blitSized(c, glowSprite(col), x - r, y - r, r * 2, r * 2); c.restore(); };
   const label = (c, s, x, y, size, col) => { c.save(); c.font = `800 ${Math.round(size)}px ${arcFont}`; c.textAlign = 'center'; c.lineWidth = 3; c.strokeStyle = 'rgba(0,0,0,.6)'; c.fillStyle = col || '#FFFFFF'; c.strokeText(s, x, y); c.fillText(s, x, y); c.restore(); };
   const alive = list => list.filter(m => !m.dead).length;
@@ -58,7 +59,7 @@ const AUR_STAGES = {};
           if (B.i === 1) { B.next -= dt; if (B.next < 1.6 && !B.warn) { B.warn = 1; X.text((B.b.x0 + B.b.x1) / 2, B.b.y0 - 0.6, 'The wind is turning!', '#FFE9A8', 14); } if (B.next <= 0) { B.wind = -B.wind; B.next = 7; B.warn = 0; } }
           const on = inBox(B.b, me.x, me.y, 0.2);
           if (on && !me.dead) { const sheltered = B.wall === -B.wind && B.wallK > 0.8;
-            if (!sheltered && !me.dodge) { X.moveEnt(me, B.wind * 3.2 * dt, 0); const edge = B.wind > 0 ? me.x > B.b.x1 - me.r - 0.15 : me.x < B.b.x0 + me.r + 0.15; B.exp += dt * (edge ? 1.4 : 0.45); if (Math.random() < dt * 12) X.part({ kind: 'smoke', x: me.x - B.wind * 0.6, y: me.y + (Math.random() - 0.5) * 0.6, vx: B.wind * 6, vy: 0, life: 0.35, max: 0.35, size: 0.12, color: 'rgba(232,248,255,' }); if (B.exp >= 1) fall(B); }
+            if (!sheltered && !me.dodge) { X.moveEnt(me, B.wind * 3.2 * AUR_WIND_K * dt, 0); /* (v473 TW: 3.2 -> 1.92 m/s; the exposure that blows you off unchanged) */ const edge = B.wind > 0 ? me.x > B.b.x1 - me.r - 0.15 : me.x < B.b.x0 + me.r + 0.15; B.exp += dt * (edge ? 1.4 : 0.45); if (Math.random() < dt * 12) X.part({ kind: 'smoke', x: me.x - B.wind * 0.6, y: me.y + (Math.random() - 0.5) * 0.6, vx: B.wind * 6, vy: 0, life: 0.35, max: 0.35, size: 0.12, color: 'rgba(232,248,255,' }); if (B.exp >= 1) fall(B); }
             else B.exp = Math.max(0, B.exp - dt * 2); }
           else B.exp = Math.max(0, B.exp - dt * 2); }
         // the last safe shelf: the one you stand on (or crossed to)
@@ -257,7 +258,7 @@ const AUR_STAGES = {};
       update(dt) { if (S.intro) return;
         for (const L of S.lanes) { L.st = laneState(L); L.k += ((L.st === 'blow' ? 1 : 0) - L.k) * Math.min(1, dt * 6); }
         const lane = S.lanes.find(L => Math.abs(me.y - L.y) < 1.1 && L.st === 'blow');
-        if (lane && !me.dodge) X.moveEnt(me, lane.dir * 3.2 * dt, 0);
+        if (lane && !me.dodge) X.moveEnt(me, lane.dir * 3.2 * AUR_WIND_K * dt, 0);   // (v473 TW: 3.2 -> 1.92 m/s)
         if (S.carry) { const n = inNiche(me.x, me.y); if (n) { S.warm = Math.min(1, S.warm + dt * 0.45); if (n.i > S.last) { S.last = n.i; X.text(me.x, me.y - 1.5, `Shelter ${n.i + 1}`, WARM, 13); } } else S.warm -= dt * (lane ? 0.2 : 0.075);
           if (S.warm <= 0) { S.carry = false; S.warm = 1; niches[S.last].ember = true; X.flash(0.3, '#FFFFFF'); X.banner('THE EMBER GOES OUT', `It rekindles in shelter ${S.last + 1}`, '#FF9BD2', 2, true); X.sfx.wrong(); } }
         if (S.delivered && !S.open && alive(S.guards[2]) === 0) { S.open = true; barrier.forEach(t => X.setTile(t.tx, t.ty, T_FLOOR)); X.retile(); self.done = true; H.setExit(E.x, E.y, 'To the last shelter'); X.banner('THE ICE BARRIER FALLS', 'Above the final platform, something vast is rising', WARM, 2.6, true, true); } },

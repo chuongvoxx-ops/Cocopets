@@ -61,7 +61,9 @@ const IDLE = { nivora: 'hover' };
       const t2 = performance.now(); while (performance.now() - t2 < 4000 && M.cw) { await new Promise(r => requestAnimationFrame(r)); D.me.hp = D.ST.hp; }
       return { dur: dur / Math.max(1, nd), dist: Math.hypot(D.me.x - C.x, D.me.y - C.y), R: C.R }; }, cw.P0);
     console.log('  blow', JSON.stringify(cw2)); ok(cw2 && cw2.dur > Math.max(0.02, cw.pre + 0.02), `${id}: the wind pushes the pet downwind (${(cw2 && cw2.dur || 0).toFixed(3)} a frame vs ${cw.pre.toFixed(3)} before)`);
-    ok(cw2 && cw2.dist > cw2.R - 2.8, `${id}: left in the wind the pet is pushed out onto the frozen rim (${cw2 && cw2.dist.toFixed(1)} of ${cw2 && cw2.R})`);
+    // (v473 TW: the crosswind 40% weaker (2.28 m/s, was 3.8): from 4 m out, left for the rest of the blow, it is carried ~6 m toward the rim
+    // (it used to reach the frozen band); the test asks for a strong drift toward the rim, not the rim itself)
+    ok(cw2 && cw2.dist > 4 + 3.5, `${id}: left in the wind the pet is pushed out toward the frozen rim (${cw2 && cw2.dist.toFixed(1)} of ${cw2 && cw2.R}, from 4)`);
     await shot(id + '-crosswind-blow');
     await run(1.5);
     // AURORA PASS and AURORA GAZE, caught in their wind-ups
