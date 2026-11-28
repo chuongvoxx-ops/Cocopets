@@ -236,13 +236,13 @@ void main() {
     vec3 c=mix(vec3(1.0,0.94,0.97),WH,0.6)*lw*(0.95+0.45*fl)+mix(PK,MG,0.4)*fr*0.9+PH*eg*0.5+PK*cir*0.9+PH*fth*smoothstep(0.7,1.0,clamp(ao,0.0,1.0))*0.5+vec3(1.0)*pow(gSb,60.0)*0.8+PK*gDE*2.0;
     c=vec3(tone(c.r),tone(c.g),tone(c.b));float a=clamp(0.42+0.4*fr+0.2*fl+eg*0.2+cir*0.3,0.0,0.94);gl_FragColor=vec4(c*a*uAlpha,a*uAlpha);return;}
     vec3 g0=id==981&&gF>0.15&&gF<0.25?vec3(1.0,0.68,0.58):vec3(1.0,0.8,0.45),gF0=g0+(1.0-g0)*gFr;
-    vec3 gGold=(g0*(0.3+0.62*gDif)*gKEY*0.62+gF0*mix(gEv,vec3(dot(gEv,vec3(0.33)))*vec3(1.0,0.8,0.6),0.4)*1.6*gOc+vec3(1.0,0.92,0.8)*(pow(gSb,70.0)*2.4+pow(gSb,9.0)*0.28)+gRim*0.35)*1.3;
+    vec3 gGold=(g0*(0.3+0.62*gDif)*gKEY*0.62+gF0*mix(gEv,vec3(dot(gEv,vec3(0.33)))*vec3(1.0,0.8,0.6),0.4)*1.6*gOc+vec3(1.0,0.92,0.8)*(pow(gSb,70.0)*3.0+pow(gSb,9.0)*0.4)+gRim*0.4)*1.5+vec3(0.42,0.26,0.1);
     if(id==980){float und=step(0.15,gF)*step(gF,0.25),eng=step(0.25,gF),gr=vn(L.xy*14.0+L.z*6.0)*0.05;
     vec3 alb=vec3(0.97,0.94,0.95)*(und>0.5?0.85:1.0)*mix(vec3(1.0,0.93,0.97),vec3(0.94,0.97,1.02),0.5+0.5*sin(gNV*6.0+L.z*2.0));
     vec3 c=alb*((0.12+0.72*gDif)*gKEY*(1.0-gr)+gAmb*1.5+0.05*gOc)+gEv*(0.06+0.7*gFr)*gOc+vec3(1.0,0.96,0.98)*(pow(gSb,80.0)*1.6+pow(gSb,10.0)*0.3)+mix(vec3(1.0,0.75,0.9),vec3(0.8,0.9,1.0),gNV)*pow(1.0-gNV,2.0)*0.25+gRim*0.35;
     if(eng>0.5&&uLow<0.5){vec2 q=vec2(L.x*2.8+L.y*2.2,L.z*2.8+L.y*0.6),cq=fract(q)-0.5;float hl=smoothstep(0.08,0.0,abs(hrt(cq*3.4+vec2(0.0,0.2))))*step(0.55,hs(floor(q))),w1=vn(q*1.3),s1=abs(fract(q.x+0.35*sin(q.y*3.1+w1*2.0))-0.5),fil=max(smoothstep(0.03,0.01,s1)*step(0.4,w1),hl);
     c=mix(c,gGold*0.9,fil*0.85);c+=PK*fil*gG2*0.4;}
-    gC=mix(c*1.85,gGold,smoothstep(0.8,0.95,edge)*(1.0-und));}
+    gC=mix(c*2.05+vec3(0.5,0.36,0.52)*0.3+PK*pow(1.0-gNV,2.0)*0.22,gGold,smoothstep(0.8,0.95,edge)*(1.0-und));}
     if(id==981){float ln=(1.0-uLow)*step(0.25,gF)*smoothstep(0.06,0.02,abs(fract(L.x*6.0+L.z*4.0+0.5*sin(L.y*8.0))-0.5));gC=gGold*(1.0-ln*0.5)+PK*ln*(0.1+0.4*gG2)+PK*gG*0.08;}
     if(id==982){float rib=step(0.15,gF)*step(gF,0.25),rec=step(0.25,gF),br=vn(vec2(L.x*40.0+L.y*40.0,L.z*2.0)),rg=0.24+0.08*br;
     vec3 T0=vec3(0.74,0.72,0.76)*(0.85+0.2*br),TF=T0+(1.0-T0)*gFr,c=T0*(0.1+0.6*gDif)*gKEY*0.45*gOc+TF*gEv*1.1*gOc+vec3(1.0,0.97,1.0)*pow(gSb,2.0/(rg*rg))*0.9+gRim*0.4;
@@ -252,7 +252,7 @@ void main() {
     if(id==983){float nuc=step(0.15,gF)*step(gF,0.25),shl=step(0.25,gF);vec3 rf=refract(-uV,n,0.68),p1=L*0.9+rf*0.5;
     float w1=vn(p1.xy*2.5+p1.z*1.7+vec2(0.0,-gT*0.15)),w2=vn(L.yz*6.0+L.x*4.0),crk=smoothstep(0.03,0.0,abs(fract(dot(L,vec3(2.1,1.3,1.7))+w1*1.3)-0.5))*smoothstep(0.3,0.6,w2),dep=clamp(0.3+0.7*gNV,0.0,1.0),ec,ev=env(gR,0.04,ec);
     vec3 c=mix(vec3(1.0,0.5,0.7),vec3(0.58,0.1,0.3),dep*0.75)*(0.7+0.4*w1)*(0.6+0.5*max(0.0,gNL*0.5+0.5))+(ev*(0.04+0.9*pow(1.0-gNV,4.0))+pow(max(0.0,dot(n,normalize(uLK+uV))),220.0)*10.0*max(0.0,gNL))*vec3(1.05,0.95,1.0);
-    c+=PK*(0.28+0.3*gG)+PK*pow(1.0-gNV,2.5)*0.5+PH*crk*(0.35+gG)+PK*smoothstep(0.82,1.0,edge)*(0.3+0.25*gG)+PK*(0.12+0.3*gG)*(0.5+0.5*w2)*(1.0-dep*0.5);
+    c+=PK*(0.4+0.35*gG)+MG*0.3+PK*pow(1.0-gNV,2.5)*0.6+PH*crk*(0.35+gG)+PK*smoothstep(0.82,1.0,edge)*(0.3+0.25*gG)+PK*(0.12+0.3*gG)*(0.5+0.5*w2)*(1.0-dep*0.5);
     if(nuc>0.5)c=c*1.1+mix(PK,WH,0.35+0.3*gG2)*(0.35+0.25*sin(gT*2.4)+0.4*gG2)*(1.0-0.5*dep)+PH*0.15*gG;
     if(shl>0.5){float a=clamp(0.1+0.55*pow(1.0-gNV,1.8)+0.35*smoothstep(0.85,1.0,edge)+crk*0.3,0.0,0.9)*(1.0-gDE);c=vec3(tone(c.r),tone(c.g),tone(c.b));gl_FragColor=vec4(c*a*uAlpha,a*uAlpha);return;}
     gC=c;}
@@ -263,10 +263,10 @@ void main() {
     if(lot>0.5){vec3 alb=mix(vec3(1.0,0.97,0.98),vec3(1.0,0.55,0.75),smoothstep(0.2,1.0,al*0.7+abs(ac*2.0-1.0)*0.4));float vein=smoothstep(0.03,0.0,abs(fract(ac*7.0+al*0.5)-0.5)-0.42)*(1.0-uLow),wrap=max(0.0,(gNL+0.45)/1.45);
     c=alb*(wrap*gKEY*0.9+gAmb*1.4)+PK*max(0.0,-gNL)*0.5+PK*vein*0.15+vec3(1.0,0.95,0.97)*pow(gSb,30.0)*0.4+gRim*0.4+PK*(gG*0.3+run);}
     else if(cry>0.5){vec3 rf=refract(-uV,n,0.7);float w1=vn(vec2(al*8.0,ac*3.0)+rf.xy),crk=smoothstep(0.03,0.0,abs(fract(al*4.0+ac*2.0+w1)-0.5))*step(0.45,w1),ec,ev=env(gR,0.05,ec);
-    c=mix(vec3(1.15,0.62,0.85),vec3(0.82,0.24,0.5),clamp(0.3+0.6*gNV,0.0,1.0))*(0.75+0.35*w1)+vec3(1.0,0.92,0.98)*(ev*(0.04+0.9*pow(1.0-gNV,4.0))+pow(max(0.0,dot(n,normalize(uLK+uV))),200.0)*8.0)+PH*crk*(0.5+gG)+PK*pow(1.0-gNV,2.0)*0.5+mix(PK,WH,0.4)*run*1.4+PK*(0.55+gG*0.4)+PH*0.18;c=mix(c,gGold*1.1,smoothstep(0.88,0.99,abs(ac*2.0-1.0))*0.9);}
+    c=mix(vec3(1.15,0.62,0.85),vec3(0.82,0.24,0.5),clamp(0.3+0.6*gNV,0.0,1.0))*(0.75+0.35*w1)+vec3(1.0,0.92,0.98)*(ev*(0.04+0.9*pow(1.0-gNV,4.0))+pow(max(0.0,dot(n,normalize(uLK+uV))),200.0)*8.0)+PH*crk*(0.5+gG)+PK*pow(1.0-gNV,2.0)*0.5+mix(PK,WH,0.4)*run*1.4+PK*(0.55+gG*0.4)+PH*0.18;float eh=max(smoothstep(0.62,0.96,abs(ac*2.0-1.0)),smoothstep(0.82,1.0,al));c=c*1.2+MG*0.7+WH*eh*(0.8+0.4*gG);c=mix(c,gGold*1.2,smoothstep(0.96,0.995,abs(ac*2.0-1.0))*0.6);}
     else{float barb=smoothstep(0.08,0.0,abs(fract(al*16.0-abs(ac*2.0-1.0)*1.6)-0.5)-0.38)*(1.0-uLow),spine=smoothstep(0.035,0.0,abs(ac-0.5)),fr3=max(smoothstep(0.93,0.995,abs(ac*2.0-1.0)),smoothstep(0.95,1.0,al));
-    c=vec3(0.96,0.94,0.95)*((0.3+0.6*clamp((gNL+0.6)/1.6,0.0,1.0)*gSh)*gKEY+gAmb*1.5)*(1.0-barb*0.12)+gEv*(0.06+0.7*gFr)*gOc+vec3(1.0,0.96,0.98)*pow(gSb,60.0)*1.3+gRim*0.35;
-    float vn2=smoothstep(0.025,0.0,abs(fract(al*3.0-abs(ac*2.0-1.0)*0.7)-0.5)-0.47)*step(0.2,al)*step(abs(ac*2.0-1.0),0.7)*(1.0-uLow);c=mix(c*1.8,gGold,max(max(fr3,spine),vn2*0.6)*0.8)+mix(PK,WH,0.3)*(run*1.6+gG2*0.15)*(0.4+0.6*spine)+PK*smoothstep(0.6,1.0,al)*gG*0.3;}
+    c=vec3(0.98,0.93,1.0)*((0.3+0.6*clamp((gNL+0.6)/1.6,0.0,1.0)*gSh)*gKEY+gAmb*1.5)*(1.0-barb*0.12)+gEv*(0.06+0.7*gFr)*gOc+vec3(1.0,0.96,0.98)*pow(gSb,60.0)*1.3+gRim*0.35;
+    float vn2=smoothstep(0.025,0.0,abs(fract(al*3.0-abs(ac*2.0-1.0)*0.7)-0.5)-0.47)*step(0.2,al)*step(abs(ac*2.0-1.0),0.7)*(1.0-uLow);c=mix(c*2.1+vec3(0.5,0.36,0.52)*0.45+PK*pow(1.0-gNV,1.5)*0.3+PK*smoothstep(0.55,1.0,al)*0.25,gGold,max(max(fr3,spine),vn2*0.6)*0.8)+mix(PK,WH,0.3)*(run*1.6+gG2*0.15)*(0.4+0.6*spine)+PK*smoothstep(0.6,1.0,al)*gG*0.3;}
     gC=c;}
     if(id==987){if(gF>0.15)gC=mix(PK,WH,0.3+0.3*gG2)*(1.1+0.8*gG+0.6*gG2)*(0.9+0.1*sin(gT*3.0));
     else{float wrap=max(0.0,(gNL+0.3)/1.3),hl=smoothstep(0.05,0.0,abs(vn(L.yz*7.0+2.0)-0.5))*(1.0-uLow);vec3 c=vec3(0.99,0.96,0.95)*(wrap*gKEY*0.8+gAmb*1.6)+vec3(1.0,0.5,0.65)*(1.0-wrap)*0.04+vec3(1.0)*(pow(gSb,120.0)*2.0+pow(gSb,16.0)*0.15)+gEv*gFr*0.6+gRim*0.3;
@@ -277,7 +277,7 @@ void main() {
     else{vec3 c=mix(PK,WH,smoothstep(0.7,0.0,ac)*0.6)*(0.55+0.5*fl+0.4*st2)*(0.7+0.5*gG);c=vec3(tone(c.r),tone(c.g),tone(c.b));float a=clamp((1.0-ac*ac)*(0.45+0.4*fl)*(0.6+0.4*gG)*smoothstep(0.0,0.06,al)*smoothstep(1.0,0.85,al),0.0,0.95)*(1.0-gDE);gl_FragColor=vec4(c*a*uAlpha,a*uAlpha);return;}}
     if(id==989){float fl=0.6+0.4*vn(L.xy*3.0+gT);vec3 c=mix(PK,WH,0.4+0.4*gNV)*fl*(0.6+0.5*gG);c=vec3(tone(c.r),tone(c.g),tone(c.b));float a=clamp((0.3+0.55*gNV*gNV)*fl,0.0,1.0);gl_FragColor=vec4(c*a*uAlpha,a*uAlpha);return;}
     if(id==990){float band=step(0.25,gF),an=atan(L.y,L.x),crd=an*7.6394+24.0,cell=floor(crd),dd=fract(crd)-0.5,ac=NL.z,h=hs(vec2(cell,9.0+uKind)),stem=smoothstep(0.1,0.05,abs(dd-(h-0.5)*0.2)),brn=smoothstep(0.09,0.035,abs(ac-dd*1.4*(h>0.6?1.0:-1.0)))*step(abs(dd),0.35),rune=max(stem,brn)*step(0.3,h),pl=pow(0.5+0.5*sin(crd*0.45-gT*2.0),6.0);
-    gC=(band>0.5?vec3(0.05,0.03,0.05)*(0.3+gDif)+gEv*gFr*0.5:gGold*0.8)*(1.0-rune*0.5)+mix(PK,PH,pl)*rune*(0.3+0.4*gG+0.6*pl);}
+    gC=(band>0.5?mix(PK,WH,0.5+0.2*pl)*(1.0+0.4*gG)+gEv*gFr*0.3:gGold*1.05)*(1.0-rune*0.5)+mix(gGold,PH,pl*0.5)*rune*(0.6+0.4*gG+0.6*pl);}
     if(id==991){if(gF>0.15){vec3 cw=vec3(0.97,0.94,0.94)*((0.15+0.7*gDif)*gKEY+gAmb*1.4)*1.5+vec3(1.0)*pow(gSb,70.0)*1.4+gEv*gFr*0.6+gRim*0.3;gC=mix(cw,gGold,smoothstep(0.5,0.92,clamp(ao,0.0,1.0)));}
     else gC=gGold*1.05+vec3(1.0,0.9,0.8)*pow(gSb,160.0)*2.5;}
     if(id==993)gC=mix(PK,WH,0.3+0.3*gNV)*(0.8+0.5*gG);
