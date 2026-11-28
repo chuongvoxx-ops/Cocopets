@@ -11,7 +11,7 @@ const path = require('path');
   const W = +(process.env.W || 1500), H = +(process.env.H || 900);
   const page = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: DPR });
   const errors = []; page.on('pageerror', e => errors.push(e.message + ' ' + (e.stack || '').split('\n')[1])); page.on('console', m => { if (m.type() === 'warning' || m.type() === 'error') errors.push('console: ' + m.text().slice(0, 1500)); });
-  await page.addInitScript(([kt, hide, fx, hq]) => { window.__KT = kt; window.__HIDE = hide ? hide.split(',') : null; window.__FX = fx; if (hq === '1') window.__GB_GLHQ = 1; }, [process.env.KT || '1', process.env.HIDE || '', process.env.FX || '1', process.env.HQ || '0']);
+  await page.addInitScript(([kt, hide, fx, hq, bg, blm]) => { window.__KT = kt; window.__HIDE = hide ? hide.split(',') : null; window.__FX = fx; if (hq === '1') window.__GB_GLHQ = 1; window.__BG = bg; window.__BLOOM = blm; }, [process.env.KT || '1', process.env.HIDE || '', process.env.FX || '1', process.env.HQ || '0', process.env.BG || '', process.env.BLOOM || '']);
   await page.goto('file://' + path.resolve(process.cwd(), process.env.HTML || 'test-gm.html'));
   await page.waitForFunction(() => window.__pp, null, { timeout: 60000 });
   for (const MODE of MODES.split(',')) {
@@ -29,6 +29,8 @@ const path = require('path');
       const sim = (o0, t0, o1, t1) => { const S0 = S(Object.assign({ x: 0, y: 0 }, o0), 0); for (let f = 0; f <= t0 * 60; f++) { S0.t = f / 60; G.solve(0, 0, 200, S0, { tile: 70 }); } Object.assign(S0, o1 || {}); for (let f = 1; f <= (t1 || 0) * 60; f++) { S0.t = t0 + f / 60; G.solve(0, 0, 200, S0, { tile: 70 }); } return S0; };
       const cells = []; const P12 = f => { const P = []; for (let i = 0; i < 12; i++) P.push(f(i)); return P; };
       if (MODE === 'one' || MODE === 'low') cells.push({ x: W / 2, y: H - 70, size: H * 0.5, S: S({}), n: 'GABRIEL ' + ['', 'THE BOUND SERAPH (BASE)', 'THE HEART OF MERCY (L4)', 'EDEN INCARNATE (L7)'][KT] });
+      else if (MODE === 'concept') { if (window.__BG === 'pink') { const g2 = c.createRadialGradient(W / 2, H * 0.45, 0, W / 2, H * 0.45, W * 0.7); g2.addColorStop(0, '#E9B6D6'); g2.addColorStop(0.5, '#A8679A'); g2.addColorStop(1, '#4A2446'); c.fillStyle = g2; c.fillRect(0, 0, W, H); }
+        cells.push({ x: W / 2, y: H * 0.9, size: H * 0.54, S: S({ face: Math.PI / 2, faceFree: true, viewPitch: -0.62 }), n: '' }); }
       else if (MODE === 'hero') cells.push({ x: W / 2, y: H - 60, size: H * 0.62, S: S({}), n: 'GABRIEL, THE SACRED ORACLE · ' + ['', 'THE BOUND SERAPH', 'THE HEART OF MERCY (L4)', 'EDEN INCARNATE (L7)'][KT] });
       else if (MODE === 'forms') [1, 4, 7].forEach((ev, i) => cells.push({ x: W * (0.18 + i * 0.32), y: H - 70, size: H * 0.36, S: G.idle(ev, 1.3), n: ['THE BOUND SERAPH', 'THE HEART OF MERCY (L4)', 'EDEN INCARNATE (L7)'][i] }));
       else if (MODE === 'views') [[Math.PI / 2, 'FRONT', 0], [F0 + 0.55, '3/4', 0], [0, 'SIDE', 0], [-Math.PI / 2, 'BACK', 0], [Math.PI / 2, 'TOP', 0.95]].forEach(([f, n, vp], i) => cells.push({ x: W * (0.1 + i * 0.2), y: H - 90 - (vp ? 60 : 0), size: H * 0.26, S: S({ face: f, faceFree: true, viewPitch: vp }), n }));
@@ -42,8 +44,9 @@ const path = require('path');
         L.forEach(([n, o], i) => cells.push({ x: W * (0.1 + (i % 5) * 0.2), y: i < 5 ? H * 0.47 : H * 0.96, size: W * 0.075, S: S(Object.assign({ x: 0, y: 0 }, o)), n, sim: true }));
       } else if (MODE === 'heart') [[{}, 'CLOSED'], [{ heartOpen: 0.35 }, 'HEALING (OPEN 0.35)'], [{ heartOpen: 1, heartSplit: 1, restraintsOpen: 1 }, 'OPEN + SPLIT']].forEach(([o, n], i) => cells.push({ fx: W * (0.17 + i * 0.33), fy: H * 0.55, size: 1500, S: S(Object.assign({ face: Math.PI / 2 }, o)), n: 'THE HEART OF EDEN · ' + n, focus: 'heart', hide: ['halo', 'haloIn', 'haloOut', 'pcore', 'pvane'] }));
       else if (MODE === 'oracle') [['rest', {}], ['pray', {}], ['raise2', {}], ['spread', { wristOpen: 1 }], ['cast', {}]].forEach(([p, o], i) => cells.push({ fx: W * (0.1 + i * 0.2), fy: H * 0.5, size: 2600, S: S(Object.assign({ face: Math.PI / 2, orPose: p }, o)), n: 'ORACLE · ' + p.toUpperCase(), focus: 'oracle', sim: true, hide: ['hlobe', 'cplate', 'halo', 'haloIn', 'haloOut', 'pcore', 'pvane', 'nvert', 'pskull', 'pjaw', 'crest'] }));
-      else if (MODE === 'head') [[Math.PI / 2 - 0.2, 'HEAD 3/4'], [0.2, 'PROFILE']].forEach(([f, n], i) => cells.push({ fx: W * (0.27 + i * 0.46), fy: H * 0.5, size: 1300, S: S({ face: f, faceFree: true, beakOpen: i * 0.4 }), n, focus: 'head' }));
+      else if (MODE === 'head') [[Math.PI / 2, 'HEAD FRONT'], [Math.PI / 2 - 0.7, 'HEAD 3/4'], [-0.2, 'HEAD SIDE']].forEach(([f, n], i) => cells.push({ fx: W * (0.17 + i * 0.33), fy: H * 0.5, size: 800, S: S({ face: f, faceFree: true, beakOpen: i * 0.4 }), n, focus: 'head' }));
       else if (MODE === 'wing') [[0, 'FOLDED'], [0.5, 'HALF'], [1, 'FULL']].forEach(([w, n], i) => cells.push({ x: W * (0.18 + i * 0.32), y: H - 80, size: H * 0.36, S: S({ wing: w, face: Math.PI / 2 }), n: 'WINGS ' + n }));
+      else if (MODE === 'wingc') [[{ face: Math.PI / 2, faceFree: true, viewPitch: -0.62 }, 'WING OPEN (CLOSE-UP)'], [{ face: -0.5, faceFree: true, wing: 0.05 }, 'WING FOLDED (CLOSE-UP, FROM BEHIND)']].forEach(([o, n], i) => cells.push({ fx: W * (0.25 + i * 0.5), fy: H * 0.45, size: i ? 620 : 820, S: S(o), n, focus: i ? 'wingRootR' : 'wingNodeL', sim: i === 1, clipW: 0.48 }));
       else if (MODE === 'halo') cells.push({ fx: W / 2, fy: H * 0.5, size: 1500, S: S({ face: Math.PI / 2 }), n: 'THE HALO AND THE TWELVE PETALS OF MERCY', focus: 'halo' });
       else if (MODE === 'flight') { const L = [['TAKEOFF', sim({ fly: 0 }, 1, { fly: 1.2 }, 0.4)], ['HOVER', sim({ fly: 1.0 }, 3.0)], ['GLIDE', sim({ fly: 1.2, glide: 1, speed: 0.7 }, 2.5)], ['BANK', sim({ fly: 1.2, speed: 0.8, bank: 1, face: 1.2 }, 2.5)], ['LANDING', sim({ fly: 1.0 }, 2, { fly: 0 }, 0.5)]];
         L.forEach(([n, S0], i) => cells.push({ x: W * (0.1 + i * 0.2), y: H * 0.9, size: W * 0.07, S: S0, live: S0, n })); }
@@ -53,9 +56,9 @@ const path = require('path');
       for (const C of cells) {
         let x = C.x, y = C.y; const S1 = C.live || C.S;
         if (C.sim) { for (let f = 0; f < (MODE === 'ult' ? 150 : 30); f++) { S1.t = 1 + f / 60; G.solve(0, 0, C.size, S1, { tile: 70 }); } }
-        if (C.focus) { const S2 = Object.assign({}, C.S); delete S2._gb; const o0 = G.solve(0, 0, C.size, S2, { still: true, tile: 70 }); const a = o0[C.focus]; x = C.fx - a.x; y = C.fy - a.y; c.save(); c.beginPath(); c.rect(C.fx - W * 0.16, 0, W * 0.32, H); c.clip(); }
+        if (C.focus) { const S2 = Object.assign({}, C.S); delete S2._gb; const o0 = G.solve(0, 0, C.size, S2, { still: true, tile: 70 }); const a = o0[C.focus]; x = C.fx - a.x; y = C.fy - a.y; c.save(); c.beginPath(); const cw2 = C.clipW || 0.32; c.rect(C.fx - W * cw2 / 2, 0, W * cw2, H); c.clip(); }
         else shadow(x, y, C.size * 0.4);
-        const t1 = performance.now(); const o = G.draw(c, x, y, C.size, S1, { still: !C.live && !C.sim, hide: C.hide || window.__HIDE, tile: 70, full: true });
+        const t1 = performance.now(); const o = G.draw(c, x, y, C.size, S1, { still: !C.live && !C.sim, hide: C.hide || window.__HIDE, tile: 70, full: true, bloom: window.__BLOOM == null || window.__BLOOM === '' ? undefined : +window.__BLOOM });
         if (o && FX) G.lights(c, o, S1, 1);
         if (C.focus) c.restore();
         res.push({ n: C.n, ms: Math.round(performance.now() - t1), ok: !!o, items: G.STATS.items, tris: G.STATS.tris, calls: G.STATS.calls, passes: G.STATS.passes });
@@ -65,8 +68,8 @@ const path = require('path');
       if (MODE === 'parts') { G.drawParts(c, [{ m: 'heart', X: 200, Y: 300, s: 60, g: 0.6 }, { m: 'heartBig', X: 550, Y: 320, s: 22, g: 0.6 }, { m: 'petal', X: 850, Y: 280, s: 40, o: 0 }, { m: 'petal', X: 1000, Y: 280, s: 40, o: 1 }, { m: 'lotus', X: 1250, Y: 320, s: 70 },
         { m: 'lily', X: 250, Y: 700, s: 80 }, { m: 'ring', X: 600, Y: 700, s: 90, t: 1 }, { m: 'feather', X: 950, Y: 700, s: 50, tilt: -1.2 }]); }
       if (MODE === 'compare') { window.__SM_GL = 1; window.__AS_GL = 1; window.__AB_GL = 1; window.__RZ_GL = 1; window.__RZ_GLHQ = 1; const Tz = 95, AA = window.__pp.AnimaArt;
-        const L = [['cancer', 'ABADDON'], ['scorpio', 'ASMODEUS'], ['virgo', 'GABRIEL'], ['gemini', 'RAZIEL'], ['aries', 'SAMAEL']], BIG = id => ({ aries: (self.SAMAEL_MOVES || {}).BIG || 1, scorpio: (self.ASMODEUS_MOVES || {}).BIG || 1, gemini: (self.RAZIEL_MOVES || {}).BIG || 1, virgo: (self.GABRIEL_MOVES || {}).BIG || 1 })[id] || 1;
-        L.forEach(([id, n], i) => { const x = W * (0.1 + i * 0.2), y = H - 90, size = Tz * 3.1 * BIG(id); shadow(x, y, size * 0.4); const t1 = performance.now(); try { AA.draw(c, id, 3, x, y, size, 1.3, {}); } catch (e) { lab(x, y - 200, String(e).slice(0, 50)); } res.push({ n, ms: Math.round(performance.now() - t1) }); lab(x, y + 26, n + ' (L7)'); }); }
+        const L = [['cancer', 'ABADDON'], null, ['virgo', 'GABRIEL'], null, ['scorpio', 'ASMODEUS']], BIG = id => ({ aries: (self.SAMAEL_MOVES || {}).BIG || 1, scorpio: (self.ASMODEUS_MOVES || {}).BIG || 1, gemini: (self.RAZIEL_MOVES || {}).BIG || 1, virgo: (self.GABRIEL_MOVES || {}).BIG || 1 })[id] || 1;
+        L.forEach((e, i) => { if (!e) return; const [id, n] = e; const x = W * (0.1 + i * 0.2), y = H - 90, size = Tz * 3.1 * BIG(id); shadow(x, y, size * 0.4); const t1 = performance.now(); try { AA.draw(c, id, 3, x, y, size, 1.3, {}); } catch (e) { lab(x, y - 200, String(e).slice(0, 50)); } res.push({ n, ms: Math.round(performance.now() - t1) }); lab(x, y + 26, n + ' (L7)'); }); }
       if (MODE === 'nogl') { window.__GB_GL = 0; const AA = window.__pp.AnimaArt, AP = window.__pp.AnimaPortrait; [1, 2, 3].forEach((k, i) => { const x = W * (0.18 + i * 0.32), y = H * 0.55; shadow(x, y, 120); AA.draw(c, 'virgo', k, x, y, 300, 1.3, {}); lab(x, y + 26, 'NO GL · FORM ' + k); try { const cvp = AP ? AP.canvas('virgo', k, 340, 220) : null; if (cvp) c.drawImage(cvp, x - 170, H * 0.62, 340, 220); } catch (e) { lab(x, H * 0.7, String(e).slice(0, 60)); } }); window.__GB_GL = 1; }
       return { ok, tb: Math.round(tb), nv: G.nv, nt: G.nt, ntL: G.ntL, res };
     }, { MODE, W, H, DPR });
