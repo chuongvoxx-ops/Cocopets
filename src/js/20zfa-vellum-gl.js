@@ -37,7 +37,7 @@ const VELLUM_GL = (() => {
       B.surf((u, v) => { const c = ctr(R0, u); if (v < 0.4) { const k = v / 0.4, r = lerp(1.0, 0.84, k), sw = Math.sin(k * Math.PI) * 0.06; return [CEN[0] + (c[0] - CEN[0]) * (r + sw), c[1] * (r + sw), lerp(TOP - 0.02, BEL, Math.pow(k, 0.85))]; } const k = (v - 0.4) / 0.6, r = 0.84 * (1 - k); return [CEN[0] + (c[0] - CEN[0]) * r, c[1] * r, BEL - 0.06 * Math.sin(k * Math.PI / 2)]; }, C.ma, Math.round(C.mr * 0.8), () => M_CRM, { e: (u, v) => v, a: u => u });
       out['mant' + L] = B.done(); }
     /* the head: the cream chin, the black cap, the gold collar, three dark sockets with gold brows (in the body's frame) */
-    { const B = GLM.builder(C.q); B.ell([1.98, 0, -0.14], [1.02, 1.48, 0.56], M_CRM + 0.2, { seg: 40, rings: 22 }); B.ell([1.86, 0, 0.06], [0.96, 1.42, 0.46], M_ENA + 0.4, { seg: 40, rings: 20, th1: Math.PI * 0.62, cap: false });
+    { const B = GLM.builder(C.q); B.ell([1.93, 0, -0.03], [0.95, 1.4, 0.46], M_CRM + 0.2, { seg: 40, rings: 22 });   /* (v474b LB: the chin tucked under the cap) */ B.ell([1.86, 0, 0.06], [0.96, 1.42, 0.46], M_ENA + 0.4, { seg: 40, rings: 24 });   /* (v474b LB: the whole cap, as the 2D's: the cream chin only a crescent under it) */
       const col = []; for (let j = 0; j <= 16; j++) { const v = lerp(-1.2, 1.2, j / 16); col.push([1.36 + 0.26 * (v / 1.15) ** 2, v, 0.3 - 0.13 * (v / 1.15) ** 2]); } for (let j = 0; j < 16; j++) B.tube(col[j], col[j + 1], 0.06, 0.06, M_GOLD, { seg: 10, cap0: j === 0 ? 'round' : false, cap1: 'round' });
       for (const v of [-0.76, 0, 0.76]) { const c = [2.26, v, 0.4 - Math.abs(v) * 0.1], d = vnrm([0.75, v * 0.35, 0.65]), R = Y.along(d, [0, 0, 1]); B.push(R.y, R.z, R.x, c); B.tor([0, 0, -0.06], 0.36, 0.07, M_ENA + 0.4, { seg: 24, rseg: 6 }); B.tor([0, 0, -0.03], 0.42, 0.04, M_GOLD, { seg: 20, rseg: 5, ph0: Math.PI * 0.12, ph1: Math.PI * 0.88 }); B.pop(); }
       out['head' + L] = B.done(); }
@@ -55,8 +55,8 @@ const VELLUM_GL = (() => {
   /* ---------- posing ---------- */
   function suckers(SU, nk, pts, rad, u0, u1, n, S) { const m = pts.length - 1;
     for (let i = 0; i < n; i++) { const u = lerp(u0, u1, (i + 0.5) / n), f = u * m, q = Math.min(m - 1, Math.floor(f)), e = f - q, p = vadd(pts[q], vmul(vsub(pts[q + 1], pts[q]), e)), d = vnrm(vsub(pts[q + 1], pts[q]));
-      let dn = vsub([0, 0.35, -1], vmul(d, vdot([0, 0.35, -1], d))); dn = vlen(dn) > 1e-3 ? vnrm(dn) : [0, 0, -1]; const r = rad(u), sc = r * 0.62 * (1 - u * 0.3);
-      K.place(SU, nk + i, Y.along(d, vmul(dn, -1)), vadd(p, vmul(dn, r * 0.88)), [sc, sc, sc * 0.9]); } return nk + n; }
+      let dn = vsub([0, 1, -0.25], vmul(d, vdot([0, 1, -0.25], d)));   /* (v474b LB: the cups turned to the viewer's side, read as the 2D's pale dots) */ dn = vlen(dn) > 1e-3 ? vnrm(dn) : [0, 0, -1]; const r = rad(u), sc = r * 0.82 * (1 - u * 0.25);   /* (v474b LB: larger, sitting proud) */
+      K.place(SU, nk + i, Y.along(d, vmul(dn, -1)), vadd(p, vmul(dn, r * 0.94)), [sc, sc, sc * 0.9]); } return nk + n; }
   function pose(FX, m, M, o) { const R0 = RIG(), L = L3.lod(), S = set(L), C = S.C, ME = G.MESH, ox = m.x, oy = m.y, rel = p => [p[0] - ox, p[1] - oy, p[2]], p = R0.pose(FX, m, M), W = p.W, Sc = p.S, bt = p.bt, op = p.op, halo = [], items = [];
     const fl2 = o.flash ? 1 : 0, dead = o.dead || 0, Rb = A.frameOf(W, Sc), o0 = rel(W(0, 0, 0)), sc = [Sc, Sc, Sc], mn = M.menace || 0, stun = m.stunT > 0;
     // ---- the mantle, the head

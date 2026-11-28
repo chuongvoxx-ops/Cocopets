@@ -197,6 +197,9 @@ float lbTool(vec2 st, float k) { vec2 c = abs(st - 0.5); float bx = max(c.x, c.y
     for (int i = 0; i < 2; i++) { vec2 dd = i == 0 ? vec2(0.21, 0.0) : vec2(0.0, 0.21); m = max(m, smoothstep(0.03, 0.018, length(c - dd) - 0.01)); } }
   else { vec2 e = (st - vec2(0.55, 0.5)) / vec2(0.27, 0.15); m = max(m, smoothstep(0.16, 0.06, abs(length(e) - 1.0))); float pr = length((st - vec2(0.56, 0.5)) * vec2(1.0, 0.75)); m = max(m, smoothstep(0.075, 0.06, pr)); m = max(m, smoothstep(0.012, 0.0, abs(pr - 0.1) - 0.006) * 0.8); }
   return m; }
+float lbScr(vec2 p) { float d = 9.0; for (int k = 0; k < 2; k++) { vec2 q = vec2(p.x, k == 0 ? p.y : -p.y);   /* (v474b LB: Vellum's shoulder scrollwork, both sides: its distance, sampled thrice for the raised gilt's slope) */
+    d = min(d, lbSeg(q, vec2(1.05, 1.55), vec2(0.55, 1.5))); d = min(d, lbSeg(q, vec2(0.55, 1.5), vec2(-0.2, 1.22))); d = min(d, lbSeg(q, vec2(-0.2, 1.22), vec2(-0.9, 0.82))); d = min(d, lbSeg(q, vec2(-0.9, 0.82), vec2(-1.45, 0.42)));
+    vec2 c0 = q - vec2(0.82, 1.18); float ang = atan(c0.y, c0.x) / 6.28318 + 0.5, rs = 0.28 - ang * 0.16; d = min(d, abs(length(c0) - rs) + step(0.88, ang) * 9.0); } return d; }
 /*</LB-FN>*/
 /*<MD-FN v450 MD: Moby Dick's skin (20k7q): a gaussian; its inner stars, a drifting field of star points in surface cells with the constellation lines joining neighbours (x the stars, y the lines, z the cell's hash)>*/
 float mdG(float x) { return exp(-x * x); }
@@ -1336,10 +1339,13 @@ void main() {
       vec3 IRA = mix(vec3(0.6, 0.34, 0.07), vec3(1.0, 0.84, 0.4), smoothstep(1.0, 0.05, rr)), IRB = mix(vec3(0.3, 0.18, 0.6), VH, smoothstep(1.0, 0.05, rr)), ir = mix(IRA, IRB, cpy);
       float fib = 0.8 + 0.2 * sin(atan(q.y, q.x) * 26.0 + vn(q * 5.0) * 4.0) * smoothstep(0.15, 0.4, rr), pup = 0.0;
       if (id == 944) { float w = 0.17 * (1.0 - q.y * q.y * 0.7) * (1.0 + 0.6 * clamp(uSpill, 0.0, 1.0)); pup = smoothstep(w, w * 0.6, abs(q.x)) * smoothstep(0.95, 0.8, abs(q.y)); }
-      if (id == 954) { float cx = 0.1 * cos(q.x * 3.14159 / 0.34) - 0.05, th = 0.17 * (1.0 - smoothstep(0.55, 0.78, abs(q.x))); pup = smoothstep(th, th * 0.6, abs(q.y - cx)) * step(abs(q.x), 0.78); if (uSpill > 0.5) pup = smoothstep(0.24, 0.16, rr); }
+      if (id == 954) { float ax2 = abs(q.x), tp = 0.2 + 0.14 * (ax2 / 0.66) * (ax2 / 0.66), bt2 = -0.36 + 0.26 * smoothstep(0.32, 0.0, ax2);   /* (v474b LB: the 2D's glossy gold eye: a bright gradient lit from up-left, the scowling lid-mask with its W edge, a fixed catchlight) */
+        pup = smoothstep(0.025, -0.015, q.y - tp) * smoothstep(-0.025, 0.015, q.y - bt2) * smoothstep(0.64, 0.56, ax2); if (uSpill > 0.5) pup = smoothstep(0.24, 0.16, rr);
+        float rc = length(q - vec2(-0.3, 0.35)); ir = rc < 0.45 ? mix(vec3(1.0, 0.95, 0.77), vec3(0.92, 0.76, 0.35), rc / 0.45) : mix(vec3(0.92, 0.76, 0.35), vec3(0.58, 0.4, 0.12), clamp((rc - 0.45) / 0.8, 0.0, 1.0)); fib = 1.0; }
       if (id == 962) { if (inst < 0.5) pup = smoothstep(0.46, 0.4, rr); else if (inst < 1.5) pup = smoothstep(0.14, 0.09, abs(q.x)) * smoothstep(0.95, 0.8, abs(q.y)); else pup = smoothstep(0.36, 0.3, rr); }
       vec3 sclera = id == 962 ? vec3(1.0, 0.95, 0.84) : vec3(0.1, 0.06, 0.03); vec3 c = mix(sclera * (0.45 + 0.55 * max(0.0, dot(n, uLK))) * uAmb * 0.6, ir * fib * (0.75 + 0.5 * gl), iris);
       c = mix(c, vec3(0.03, 0.015, 0.01), pup * iris); c += ir * 0.2 * pow(1.0 - ndv0, 2.0) * gl;
+      if (id == 954) c = mix(c, vec3(1.0, 0.99, 0.95), smoothstep(0.16, 0.1, length((q - vec2(-0.38, 0.4)) * vec2(1.0, 1.5))) * 0.9 * iris);   // (v474b LB)
       vec3 rr3 = reflect(-uV, n); c += vec3(1.0, 0.97, 0.9) * (pow(max(0.0, dot(rr3, uLK)), 90.0) * 1.6 + smoothstep(0.92, 0.97, dot(rr3, uLS)) * 0.6);
       c += vec3(1.0) * fl2 * 0.3; c = mix(c, vec3(0.05, 0.04, 0.06), dead * 0.85);
       gl_FragColor = vec4(vec3(tone(c.r), tone(c.g), tone(c.b)) * uAlpha, uAlpha); return; }
@@ -1384,37 +1390,56 @@ void main() {
       a = mix(vec3(0.6, 0.06, 0.13), vec3(0.78, 0.14, 0.22), wv) * tw; float strp = smoothstep(0.03, 0.0, abs(abs(ac - 0.5) - 0.38) - 0.025); a = mix(a, GO * 1.05, strp); met = strp * 0.8;
       a = mix(a, vec3(0.42, 0.3, 0.75), cpy); rg = mix(0.32, 0.22, strp); shb = 1.2; thru = vec3(0.9, 0.12, 0.18) * 0.6; cc = 0.1; }
     // ---- VELLUM: enamel, the underside, the fin, skin, gold, ink
+    /* (v474b LB: Vellum's texture pass: navy lacquer under a clear coat (a broad soft highlight, a sharp streak, the key's dot, from a domed coat normal), violet and burgundy sheen at its edges, raised gilt with real slopes (the scrollwork's distance sampled thrice), a polished medallion; blinded, a jagged crack glowing warm gold, its lacquer chipped back to the vellum; the head the same lacquer, shadowed under the mantle; a translucent fin with ribs, veins and a pale rim; violet-burgundy skin, dark above and pale beneath, suckers pale-rimmed and dark-hearted; ink glossy black with a violet-teal sheen) */
     if (id == 950) { vec2 p = L.xy; float r = edge; tex = p * 4.0;
-      a = vec3(0.035, 0.03, 0.05) * (0.9 + 0.25 * lbF(p * 2.0 + sd)); rg = 0.1; cc = 1.25; met = 0.0; spk += 0.35;
-      float flk = pow(vn(p * 90.0 + sd), 18.0); emi += vec3(0.3, 0.25, 0.6) * flk * 0.15;
-      if (sk == 4) { float col = smoothstep(0.05, 0.0, abs(p.x - 1.38 - 0.25 * (p.y / 1.15) * (p.y / 1.15)) - 0.035) * step(abs(p.y), 1.2); a = mix(a, GO, col); met = col; rg = mix(rg, 0.22, col); }
-      else { float trim = smoothstep(0.012, 0.0, abs(r - 0.86) - 0.012) * step(p.x, 1.25), d = 9.0;
-        for (int k = 0; k < 2; k++) { float sg = k == 0 ? 1.0 : -1.0; vec2 q = vec2(p.x, p.y * sg);
-          d = min(d, lbSeg(q, vec2(1.05, 1.55), vec2(0.55, 1.5))); d = min(d, lbSeg(q, vec2(0.55, 1.5), vec2(-0.2, 1.22))); d = min(d, lbSeg(q, vec2(-0.2, 1.22), vec2(-0.9, 0.82))); d = min(d, lbSeg(q, vec2(-0.9, 0.82), vec2(-1.45, 0.42)));
-          vec2 c0 = q - vec2(0.82, 1.18); float ang = atan(c0.y, c0.x) / 6.28318 + 0.5, rs = 0.28 - ang * 0.16; d = min(d, abs(length(c0) - rs) + step(0.88, ang) * 9.0); }
-        float scro = smoothstep(0.03, 0.012, d), slit = smoothstep(0.03, 0.02, abs(p.y)) * step(p.x, -0.68) * step(-2.88, p.x), slitC = smoothstep(0.012, 0.005, abs(p.y)) * slit;
-        vec2 bq = (p - vec2(-0.42, 0.0)) * vec2(1.0, 1.0 / 1.1); float br = length(bq), ring = smoothstep(0.35, 0.33, br) * smoothstep(0.23, 0.25, br), ring2 = smoothstep(0.25, 0.24, br) * smoothstep(0.15, 0.17, br), hole = smoothstep(0.17, 0.15, br);
-        float gold = max(max(trim, scro), max(slit, max(ring, ring2)));
-        a = mix(a, mix(GO, GH, ring2 + slit * 0.6), gold); met = max(met, gold); rg = mix(rg, 0.2, gold); spk += gold;
-        a = mix(a, vec3(0.012, 0.01, 0.02), max(hole, slitC)); cvv += hole * 0.3;
-        if (uLow < 0.5) n = normalize(n + (TX * 0.5 + TY * 0.3) * (ring - ring2) * 0.3);
-        float op = clamp(uSpill, 0.0, 1.0); if (op > 0.01) { float su = clamp((1.0 - p.x) / 3.75, 0.0, 1.0), w = op * 0.5 * pow(sin(3.14159 * su), 0.7) * (1.0 + 0.1 * sin(tt * 9.0 + su * 12.0)), inn = smoothstep(w, w - 0.04, abs(p.y)) * step(0.0, w - 0.01);
-          float lip = smoothstep(w + 0.07, w, abs(p.y)) * (1.0 - inn); vec2 hq = p - vec2(-0.8, 0.0); float hr = length(hq * vec2(0.6, 1.0));
-          a = mix(a, vec3(0.16, 0.08, 0.03), lip); emi += mix(vec3(1.7, 1.55, 1.3), GO * 1.2, smoothstep(0.0, 1.6, hr)) * inn * (0.75 + 0.25 * sin(tt * 7.0)) + GH * lip * 0.4 * op; } } }
-    if (id == 951) { vec2 p = L.xy; tex = p * 6.0; float wr = vn(p * 9.0 + sd) * 0.6 + vn(p * 23.0) * 0.4; a = mix(vec3(0.86, 0.76, 0.6), vec3(0.95, 0.88, 0.74), wr); if (sk == 2) a *= 1.03;
+      float rimz = sk == 4 ? 0.0 : smoothstep(0.45, 1.0, r);
+      a = mix(vec3(0.045, 0.052, 0.1), vec3(0.07, 0.078, 0.145), lbF(p * 2.2 + sd));
+      a = mix(a, mix(vec3(0.19, 0.075, 0.25), vec3(0.24, 0.06, 0.14), 0.5 + 0.5 * sin(p.x * 1.4 + p.y * 0.9)), rimz * 0.22);
+      rg = 0.14 + (vn(p * 40.0 + sd) - 0.5) * 0.05; cc = 1.3; met = 0.0;
+      vec3 nb = n; vec2 tv = vec2(0.0); float gold = 0.0, gH = 0.0, dk = 0.0, chip = 0.0;
+      if (sk == 4) { float cd = abs(p.x - 1.38 - 0.25 * (p.y / 1.15) * (p.y / 1.15)); gold = smoothstep(0.075, 0.05, cd) * step(abs(p.y), 1.2); cvv += smoothstep(1.75, 1.2, p.x) * 0.7 * (1.0 - gold); }   // (.4 the head's cap: the collar line; the mantle's shadow on its back)
+      else { vec2 bd = (p - vec2(-0.55, 0.0)) * vec2(0.3, 0.4); nb = normalize(n + (TX * bd.x + TY * bd.y) * 0.9);
+        float dS = lbScr(p), wS = 0.046, mS = smoothstep(wS, wS * 0.6, dS);
+        if (mS > 0.0 && uLow < 0.5) { float e = 0.008; vec2 gS = vec2(lbScr(p + vec2(e, 0.0)) - dS, lbScr(p + vec2(0.0, e)) - dS) / e; tv += gS * (dS / wS) * mS; }
+        float dT = abs(r - 0.86), mT = smoothstep(0.03, 0.018, dT) * step(p.x, 1.25); tv += normalize(p - vec2(-0.6, 0.0) + 1e-4) * sign(r - 0.86) * (dT / 0.03) * mT;
+        vec2 bq = (p - vec2(-0.42, 0.0)) * vec2(1.0, 1.0 / 1.1); float br = length(bq); vec2 bn = bq / max(br, 1e-4);
+        float mR = smoothstep(0.36, 0.34, br) * smoothstep(0.255, 0.265, br), mR2 = smoothstep(0.245, 0.235, br) * smoothstep(0.16, 0.17, br), hole = smoothstep(0.165, 0.15, br);
+        tv += bn * ((br - 0.305) / 0.05 * mR + (br - 0.205) / 0.04 * mR2);
+        float slit = smoothstep(0.034, 0.024, abs(p.y)) * step(p.x, -0.68) * step(-2.88, p.x), slitC = smoothstep(0.012, 0.005, abs(p.y)) * slit; tv += vec2(0.0, p.y / 0.034) * slit;
+        gold = max(max(mS, mT), max(slit, max(mR, mR2))); gH = max(mR2, slit * 0.6); dk = max(hole, slitC); cvv += hole * 0.3;
+        float op = clamp(uSpill, 0.0, 1.0); if (op > 0.01) { float su = clamp((1.0 - p.x) / 3.75, 0.0, 1.0), w = op * 0.5 * pow(sin(3.14159 * su), 0.7) * (1.0 + 0.1 * sin(tt * 9.0 + su * 12.0)), on = step(0.0, w - 0.01);
+          float ay = abs(p.y) + ((vn(vec2(su * 34.0, 3.0 + sd)) - 0.5) * 0.09 + (vn(vec2(su * 95.0, 7.0)) - 0.5) * 0.035) * op, inn = smoothstep(w, w - 0.04, ay) * on;
+          float lip = smoothstep(w + 0.035, w, ay) * (1.0 - inn) * on, cz = ay - w + (vn(p * 16.0 + sd) - 0.5) * 0.1; chip = smoothstep(0.12, 0.07, cz) * (1.0 - inn) * on;
+          vec2 hq = p - vec2(-0.8, 0.0); float hr = length(hq * vec2(0.6, 1.0)), pul = 0.8 + 0.2 * sin(tt * 7.0);
+          gold *= 1.0 - max(inn, chip); dk *= 1.0 - inn;
+          a = mix(a, vec3(0.5, 0.38, 0.24) * (0.85 + 0.3 * vn(p * 40.0)), chip * 0.85); a = mix(a, vec3(0.13, 0.06, 0.025), lip); rg = mix(rg, 0.7, chip); cc *= 1.0 - chip;
+          emi += mix(vec3(2.0, 1.72, 1.2), GO * 1.4, smoothstep(0.0, 1.6, hr)) * inn * pul + GO * 0.9 * exp(-max(0.0, ay - w) * 14.0) * (1.0 - inn) * op * pul + GH * lip * 0.5 * op; } }
+      if (uLow < 0.5) n = normalize(n + (TX * tv.x + TY * tv.y) * 0.85);
+      vec3 gc = mix(GO, GH, gH) * (0.9 + 0.15 * vn(p * 30.0 + sd)); a = mix(a, gc, gold); met = gold * 0.7; rg = mix(rg, 0.2, gold); cc = mix(cc, 0.35, gold);
+      a = mix(a, vec3(0.012, 0.01, 0.02), dk);
+      vec3 rc = reflect(-uV, nb); float sb = dot(rc, uLS); vec3 ax = normalize(cross(uLS, uV) + 1e-4), ay2 = cross(ax, uLS); float x1 = dot(rc, ax) / 0.4, x2 = dot(rc, ay2) / 0.13;
+      float coat = (1.0 - gold * 0.5) * (1.0 - chip) * (1.0 - dk);
+      emi += uAmb * (smoothstep(0.4, 0.95, sb) * 0.06 + smoothstep(1.0, 0.3, x1 * x1 + x2 * x2) * step(0.0, sb) * 0.85 + pow(max(0.0, dot(rc, uLK)), 320.0) * 0.9) * coat;
+      emi += gold * uAmb * GO * (0.17 + 0.5 * pow(max(0.0, dot(reflect(-uV, n), uLS)), 6.0));
+      emi += mix(vec3(0.3, 0.12, 0.5), vec3(0.45, 0.1, 0.22), rimz) * pow(1.0 - ndv0, 2.5) * 0.12 * (1.0 - gold) * (1.0 - chip); }
+    if (id == 951) { vec2 p = L.xy; tex = p * 6.0; float wr = vn(p * 9.0 + sd) * 0.6 + vn(p * 23.0) * 0.4; a = mix(vec3(0.86, 0.76, 0.6), vec3(0.95, 0.88, 0.74), wr); if (sk == 2) { a *= 1.03; cvv += smoothstep(1.6, 1.1, p.x) * 0.5 + smoothstep(-0.3, 0.1, L.z) * 0.35; }   // (.2 the chin: under the cap and the mantle, shadowed)
       rg = 0.55; ssk = 0.6; thru = vec3(0.9, 0.55, 0.4) * 0.5; cc = 0.35;
       a = mix(a, vec3(0.2, 0.15, 0.22), smoothstep(0.75, 1.0, lbF(p * 1.5 + 3.0)) * 0.25); }
-    if (id == 952) { float o = edge, al = ao; tex = vec2(o * 3.0, al * 40.0); float ray = smoothstep(0.35, 0.5, abs(fract(al * 38.0) - 0.5));
-      a = mix(vec3(0.46, 0.13, 0.27), vec3(0.62, 0.24, 0.38), o) * (0.9 + 0.2 * vn(tex + sd)); a = mix(a, a * 0.7, ray * 0.6); rg = 0.42; cc = 0.5; thru = vec3(1.0, 0.36, 0.55) * 0.9; ssk = 0.4;
-      float chr = smoothstep(0.7, 0.9, vn(vec2(o * 9.0, al * 90.0) + sd)); a = mix(a, vec3(0.3, 0.06, 0.15), chr * 0.5);
-      vec3 film = 0.5 + 0.5 * cos(6.28318 * (vec3(0.0, 0.33, 0.67) + ndv0 * 1.5 + al * 2.0)); emi += film * smoothstep(0.75, 1.0, o) * 0.07 * (1.0 - dead); a = mix(a, vec3(0.88, 0.62, 0.74), smoothstep(0.9, 1.0, o) * 0.5); }
-    if (id == 953) { float rd = edge, al = ao - floor(ao * 0.5) * 2.0; tex = vec2(rd * 5.0, al * 30.0);
-      a = mix(vec3(0.3, 0.08, 0.17), vec3(0.46, 0.15, 0.3), vn(tex + sd)); float chr = smoothstep(0.62, 0.8, vn(vec2(rd * 14.0, al * 70.0) + sd)); a = mix(a, vec3(0.16, 0.03, 0.09), chr * 0.6);
-      a = mix(a, vec3(0.7, 0.42, 0.56), pow(vn(vec2(rd * 40.0, al * 200.0)), 8.0) * 0.5); rg = 0.3; cc = 0.85; ssk = 0.35; thru = vec3(0.8, 0.2, 0.38) * 0.3;
+    if (id == 952) { float o = edge, al = ao; tex = vec2(o * 3.0, al * 40.0);
+      float ray = smoothstep(0.12, 0.0, abs(abs(fract(al * 30.0) - 0.5) - 0.5) - 0.05 * (1.0 - o * 0.5)), vn2 = smoothstep(0.06, 0.0, abs(fract(al * 90.0 + sin(o * 6.0 + al * 40.0) * 0.3) - 0.5) - 0.44) * smoothstep(0.2, 0.6, o);
+      a = mix(vec3(0.3, 0.06, 0.17), vec3(0.6, 0.24, 0.42), smoothstep(0.0, 0.9, o)) * (0.92 + 0.12 * vn(tex + sd)); a = mix(a, vec3(0.88, 0.58, 0.74), ray * 0.7); a = mix(a, a * 0.8, vn2);
+      a = mix(a, vec3(0.2, 0.03, 0.11), smoothstep(0.74, 0.88, vn(vec2(o * 10.0, al * 110.0) + sd)) * 0.4);
+      float rimL = smoothstep(0.82, 0.98, o), thin = (1.0 - ray) * smoothstep(0.1, 0.8, o); a = mix(a, vec3(0.9, 0.66, 0.8), rimL * 0.6);
+      thru = mix(vec3(0.7, 0.12, 0.3), vec3(1.0, 0.45, 0.65), o) * (0.25 + 0.55 * thin); rg = 0.3; cc = 0.7; ssk = 0.3; shb = 0.5; cvv += ray * 0.05;
+      vec3 film = 0.5 + 0.5 * cos(6.28318 * (vec3(0.0, 0.33, 0.67) + ndv0 * 1.5 + al * 2.0)); emi += film * rimL * 0.04 * (1.0 - dead); }
+    if (id == 953) { float rd = edge, al = ao - floor(ao * 0.5) * 2.0, up = smoothstep(-0.35, 0.55, hm); tex = vec2(rd * 5.0, al * 30.0);
+      a = mix(vec3(0.6, 0.34, 0.48), vec3(0.24, 0.09, 0.2), up) * (0.9 + 0.15 * lbF(tex * 0.6 + sd)); a = mix(a, vec3(0.13, 0.03, 0.1), smoothstep(0.7, 0.82, vn(vec2(rd * 14.0, al * 70.0) + sd)) * up * 0.5);
+      rg = 0.26; cc = 0.95; ssk = 0.55; thru = vec3(0.9, 0.3, 0.4) * 0.3; shb = 0.4;
       emi += GO * clamp(uGlow, 0.0, 1.5) * 0.35 * smoothstep(0.4, 0.55, al) * (1.0 - smoothstep(0.75, 0.9, al)) * (0.6 + 0.4 * sin(al * 30.0 - tt * 6.0));   // (uGlow: the tethered arm's exposed middle lit gold)
-      if (sk == 4) { float rr = edge, rim2 = smoothstep(0.55, 0.85, rr); a = mix(vec3(0.9, 0.8, 0.7), vec3(0.42, 0.12, 0.25), rim2); a = mix(a, vec3(0.35, 0.18, 0.2), smoothstep(0.4, 0.0, rr) * 0.6); rg = 0.4; cc = 0.6; cvv += smoothstep(0.45, 0.0, rr) * 0.4; } }
+      if (sk == 4) { float rr = edge, cen = smoothstep(0.24, 0.1, rr), rimP = smoothstep(0.16, 0.32, rr) * smoothstep(0.78, 0.6, rr); a = mix(vec3(0.5, 0.28, 0.4), vec3(0.93, 0.82, 0.76), rimP); a = mix(a, vec3(0.12, 0.03, 0.08), cen); rg = 0.35; cc = 0.6; ssk = 0.3; cvv += cen * 0.3; } }
     if (id == 955) { a = GO * (0.85 + 0.25 * vn(L.xy * 30.0 + sd)); met = 1.0; rg = 0.2; cc = 0.25; spk += 0.6; }
-    if (id == 957) { a = vec3(0.025, 0.02, 0.04); rg = 0.06; cc = 1.4; met = 0.0; spk += 0.3; thru = vec3(0.3, 0.2, 0.6) * 0.2; }
+    if (id == 957) { a = vec3(0.022, 0.018, 0.032); rg = 0.05; cc = 1.6; met = 0.0; thru = vec3(0.3, 0.2, 0.6) * 0.12; vec3 ri = reflect(-uV, n);
+      emi += mix(vec3(0.42, 0.25, 0.85), vec3(0.15, 0.6, 0.62), 0.5 + 0.5 * sin(ndv0 * 9.0 + hm * 3.0)) * pow(1.0 - ndv0, 1.6) * 0.28 + uAmb * (pow(max(0.0, dot(ri, uLK)), 200.0) * 1.2 + smoothstep(0.93, 0.97, dot(ri, uLS)) * 0.35); }
     // ---- NHALEX: the brain, its core and eyes, ink, gold, the pages, the model of Gaia
     if (id == 960) { float g = clamp(edge, 0.0, 1.0), gv = clamp(ao, 0.0, 1.0); tex = L.xz * 3.0;
       a = mix(vec3(0.9, 0.85, 0.7), vec3(0.98, 0.94, 0.82), vn(L.xz * 2.5 + sd)); a = mix(a, vec3(0.78, 0.66, 0.5), smoothstep(0.3, 1.0, g) * 0.55); cvv += g * 0.35;
@@ -1470,6 +1495,7 @@ void main() {
     if (ssk > 0.0) col += ssk * a * vec3(1.0, 0.45, 0.35) * (max(0.0, wrap - ndl) * 1.3 * key + pow(1.0 - ndv0, 2.2) * (key * 0.3 + uRim * 0.4)) * (0.5 + 0.5 * occ);
     if (shb > 0.0) { float sbx = dot(rr, uLS); col += shb * key * (pow(nh, 12.0) * 0.14 * ndl + smoothstep(0.82, 0.93, sbx) * (1.0 - smoothstep(0.975, 1.0, sbx)) * 0.25) * occ; }
     col += pow(1.0 - ndv0, 2.4) * max(0.0, dot(n, uLR) + 0.35) * uRim * 0.6 * occ + a * max(0.0, -hm) * gnd * 0.55 * occ;
+    if (id >= 950 && id < 960) col += a * (1.0 - met * 0.7) * vec3(0.3, 0.26, 0.42) * max(0.0, dot(n, normalize(uV - uLK * 0.6))) * 0.3 * occ;   // (v474b LB: Vellum's cool fill from the viewer's side, opposite the key)
     col *= 1.0 - min(0.8, cvv * 0.5 + (1.0 - occ) * 0.45);
     col += emi * (1.0 - dead * 0.85) + vec3(1.0, 0.98, 0.95) * fl2 * (0.22 + 0.45 * pow(1.0 - ndv0, 2.0));
     if (dead > 0.0) { float lum = dot(col, vec3(0.3, 0.55, 0.15)); col = mix(col, vec3(lum) * vec3(0.8, 0.78, 0.86) * 0.7, dead * 0.7); }
