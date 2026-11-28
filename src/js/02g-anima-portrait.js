@@ -173,19 +173,24 @@ const AnimaPortrait = (() => {
         clouds(c, -30, w + 30, h * 0.8, h * 0.1, 30, R, '#FFE8D8', '#9A90C0', 0.8);
         return { fy: h * 0.84, light: '#FFD38A', float: true, grade: ['#FFB070', 0.12] };
       }, front(c, w, h, k, R) { clouds(c, -30, w + 30, h * 1.0, h * 0.08, 18, R, '#FFE8D8', '#9A90C0', 0.85); particles(c, w, h, 22 + k * 10, R, 'mote', ['#FFFFFF', '#FFE9A8'], { s: 0.8 }); } },
-    // Gabriel: a moonlit lake of lotus flowers under hanging wisteria
+    // (v475 GM) Gabriel, The Sacred Oracle: Eden reborn in pink light: a rose-gold sky, a great heart of light behind, golden
+    // cathedral arches shaped like hearts, waterfalls of light into a still pink lake, roses and lilies, drifting petals
     virgo: { back(c, w, h, k, R) {
-        sky(c, w, h, [[0, '#141E4A'], [0.45, '#3A4A9A'], [0.68, '#A898D8'], [0.74, '#5A5AA0'], [1, '#141838']]);
-        stars(c, w, h, 50, R, { y1: 0.55 });
-        moon(c, w * 0.74, h * 0.22, w * 0.1, R, { glow: '#FFE0F4' });
-        for (let i = 0; i < 9; i++) { const x = w * (i + 0.3 + R() * 0.4) / 9, L = h * (0.15 + R() * 0.25); for (let j = 0; j < 14; j++) { const u = j / 14, yy = L * u, r = w * 0.022 * (1 - u * 0.6); c.fillStyle = rgba(j % 2 ? '#B98AE0' : '#E0A8F0', 0.8); c.beginPath(); c.arc(x + Math.sin(j * 1.7 + i) * w * 0.012, yy, r, 0, TAU); c.fill(); } }
-        ridge(c, w, h * 0.7, h * 0.08, 8, R, '#2A2A5A', '#1A1A40', {});
-        waterSurface(c, w, h * 0.7, h, '#4A4A9A', '#141838', R, { n: 80, col: '#FFE0F4', a: 0.3, rx: w * 0.74, rcol: '#FFF0FA' });
-        return { fy: h * 0.82, light: '#FFE0F4', reflect: 0.3, float: true, grade: ['#FFB3D9', 0.1] };
+        sky(c, w, h, [[0, '#2A0C24'], [0.4, '#7A2A62'], [0.66, '#F2A2C8'], [0.72, '#B0487E'], [1, '#2A0A22']]);
+        stars(c, w, h, 30, R, { y1: 0.4 });
+        add(c, () => { blot(c, w * 0.5, h * 0.4, w * 0.5, '#FF9BD2', 0.35 + k * 0.06); blot(c, w * 0.5, h * 0.42, w * 0.2, '#FFF0FA', 0.35); });
+        const hpath = (cx, cy, r) => { c.beginPath(); for (let i = 0; i <= 48; i++) { const tt = i / 48 * TAU, sn = Math.sin(tt), x = cx + 0.5 * sn * sn * sn * r, y = cy - (13 * Math.cos(tt) - 5 * Math.cos(2 * tt) - 2 * Math.cos(3 * tt) - Math.cos(4 * tt)) / 32 * 1.18 * r; if (i) c.lineTo(x, y); else c.moveTo(x, y); } c.closePath(); };
+        rays(c, w * 0.5, h * 0.42, 14, h * 0.75, w * 0.04, '#FFD6EA', 0.06 + k * 0.03, R, 0, TAU);
+        c.lineWidth = w * 0.006; c.strokeStyle = 'rgba(255,214,140,.55)'; hpath(w * 0.5, h * 0.44, w * 0.42); c.stroke();
+        for (const [x, r, a] of [[0.12, 0.2, 0.75], [0.88, 0.2, 0.75], [0.3, 0.13, 0.55], [0.7, 0.13, 0.55]]) { c.lineWidth = w * 0.008; c.strokeStyle = `rgba(232,184,78,${a})`; hpath(w * x, h * (0.5 - r * 0.6), w * r); c.stroke(); c.fillStyle = `rgba(120,30,80,${a * 0.5})`; c.fillRect(w * (x - r * 0.48), h * (0.5 - r * 0.4), w * r * 0.06, h * 0.25); c.fillRect(w * (x + r * 0.42), h * (0.5 - r * 0.4), w * r * 0.06, h * 0.25); }
+        add(c, () => { for (const x of [0.22, 0.78]) { c.fillStyle = lin(c, 0, h * 0.25, 0, h * 0.72, [[0, 'rgba(255,240,250,0)'], [0.3, 'rgba(255,220,240,.45)'], [1, 'rgba(255,170,210,.1)']]); c.fillRect(w * (x - 0.02), h * 0.25, w * 0.04, h * 0.47); } });
+        ridge(c, w, h * 0.72, h * 0.06, 9, R, '#7A2A5A', '#4A1238', {});
+        waterSurface(c, w, h * 0.72, h, '#D86AA6', '#3A0A2A', R, { n: 70, col: '#FFE0F0', a: 0.3, rx: w * 0.5, rcol: '#FFF0FA' });
+        return { fy: h * 0.82, light: '#FFC6E2', reflect: 0.3, float: true, grade: ['#FF9BD2', 0.12] };
       }, front(c, w, h, k, R) {
-        const lotus = (x, y, s) => { c.fillStyle = rad(c, x, y, s * 2.2, [[0, '#3A8A6A'], [1, 'rgba(30,80,60,0)']]); c.beginPath(); c.ellipse(x, y + s * 0.3, s * 2, s * 0.6, 0, 0, TAU); c.fill(); for (let i = 0; i < 7; i++) { const a = -Math.PI / 2 + (i - 3) * 0.42; c.save(); c.translate(x, y); c.rotate(a + Math.PI / 2); c.fillStyle = lin(c, 0, 0, 0, -s * 1.4, [[0, '#FF8FC0'], [1, '#FFE4F2']]); c.beginPath(); c.moveTo(0, 0); c.quadraticCurveTo(-s * 0.45, -s * 0.7, 0, -s * 1.4); c.quadraticCurveTo(s * 0.45, -s * 0.7, 0, 0); c.fill(); c.restore(); } add(c, () => blot(c, x, y - s * 0.4, s * 1.6, '#FFC2E2', 0.4)); };
-        lotus(w * 0.14, h * 0.9, w * 0.05); lotus(w * 0.86, h * 0.88, w * 0.045); lotus(w * 0.3, h * 0.97, w * 0.04); if (k >= 2) lotus(w * 0.7, h * 0.97, w * 0.05);
-        particles(c, w, h, 14 + k * 8, R, 'petal', ['#FFB3D9', '#FFE0EE'], { s: 0.9 }); particles(c, w, h, 12, R, 'mote', ['#FFE0F4', '#BFEFFF'], { s: 0.6 }); } },
+        const rose = (x, y, s, col) => { c.fillStyle = rad(c, x, y, s * 2, [[0, 'rgba(60,110,70,.7)'], [1, 'rgba(40,80,50,0)']]); c.beginPath(); c.ellipse(x, y + s * 0.5, s * 2, s * 0.7, 0, 0, TAU); c.fill(); for (let i = 3; i >= 0; i--) { c.fillStyle = rad(c, x - s * 0.2, y - s * 0.2, s * (0.4 + i * 0.25), [[0, '#FFE4F0'], [1, col]]); c.beginPath(); c.arc(x + Math.sin(i * 2.1) * s * 0.1, y - i * s * 0.05, s * (0.35 + i * 0.22), 0, TAU); c.fill(); } };
+        rose(w * 0.08, h * 0.9, w * 0.035, '#E85A9A'); rose(w * 0.15, h * 0.97, w * 0.03, '#FF8FC0'); rose(w * 0.9, h * 0.92, w * 0.035, '#E85A9A'); if (k >= 2) rose(w * 0.83, h * 0.99, w * 0.028, '#FFB3D9');
+        particles(c, w, h, 14 + k * 8, R, 'petal', ['#FFB3D9', '#FFE0EE'], { s: 0.9 }); particles(c, w, h, 12, R, 'mote', ['#FFE0F4', '#FFD98A'], { s: 0.6 }); } },
     // Uriel: a storm of golden dust round a stone plinth, a sun of judgement behind
     libra: { back(c, w, h, k, R) {
         sky(c, w, h, [[0, '#120A05'], [0.4, '#3A220C'], [0.62, '#A8661E'], [0.8, '#3A220C'], [1, '#0E0804']]);

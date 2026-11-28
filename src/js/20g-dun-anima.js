@@ -49,7 +49,7 @@ const DunAnima = (() => {
     const AW_T = 1;
     /* v435 AN: how long (s) an Awakening's blows keep falling after it begins, for those that land over time without a cinematic of
        their own (those that have one hold the Anima through a.judg): it leaves only once they are done, never before its finale ends */
-    const FIN_LEN = { aries: 1.1, virgo: 1.1, sagittarius: 2.3, capricorn: 1.5, aquarius: 1.25 };
+    const FIN_LEN = { aries: 1.1, sagittarius: 2.3, capricorn: 1.5, aquarius: 1.25 };   // (v475 GA: virgo's old finale gone; Eden Reborn holds Gabriel through a.judg)
     function awBanner(a, sub) { const w = B[a.id].aw; X.banner(w[0], sub || `${a.A.name} · Astral Awakening`, w[1], AW_T, true, true); }
     // (things to do a moment from now, on the wall's clock like the banners, not the fight's, which slows for effect)
     const later = (t, f) => S.q.push({ t, f });
@@ -68,6 +68,9 @@ const DunAnima = (() => {
     // v464 RZ-A: Raziel, The Twin Revelation, fights through its own module (20g6): Dual Alignment, Thermal Shock, four powers, The Book of Two Heavens (20g6b); its model is prepared now
     const RZ = typeof RAZIEL_MOVES !== 'undefined' && (kit.main.id === 'gemini' || (kit.res && kit.res.id === 'gemini')) ? RAZIEL_MOVES.create({ X, me, g, S, T, ST, P, near, living, hit, emote: (a, k) => emote(a, k) }) : null;
     if (RZ && typeof RAZIEL_GL !== 'undefined') setTimeout(() => { try { RAZIEL_GL.warm(); const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; if (F) F.usable(); } catch (e) {} }, 300);   // v464 RZ-A
+    // v475 GA: Gabriel, The Sacred Oracle, fights through its own module (20g7): Grace Threads, four powers, Eden Reborn (20g7b); its model is prepared now
+    const GB = typeof GABRIEL_MOVES !== 'undefined' && (kit.main.id === 'virgo' || (kit.res && kit.res.id === 'virgo')) ? GABRIEL_MOVES.create({ X, me, g, S, T, ST, P, near, living, hit, emote: (a, k) => emote(a, k) }) : null;
+    if (GB && typeof GABRIEL_GL !== 'undefined') setTimeout(() => { try { GABRIEL_GL.warm(); const F = self.NIDHOGG_MOVES && self.NIDHOGG_MOVES.FGFX; if (F) F.usable(); } catch (e) {} }, 300);   // v475 GA
     /* ---- the gauge ---- */
     function onHurt(d, dot) { if (S.used) return; const hp = ST().hp, was = S.gauge; S.gauge = Math.min(1, S.gauge + (dot ? 0 : 0.05) + d / hp * 1.3); if (was < 1 && S.gauge >= 1) { X.sfx.chirp(); X.banner('Anima ready!', 'Tap the sigil to summon', ANIMAS[kit.main.id].glow, 1.6); } }
     /* ---- the summon ---- */
@@ -105,7 +108,7 @@ const DunAnima = (() => {
         case 'gemini': if (RZ) { RZ.entrance(a); break; } /* v464 RZ-A */ S.fx.push({ kind: 'twin', x, y: y - 1, t: 0, life: 1.4, c1: '#FF9A3A', c2: '#7FD8FF' }); X.ring(x, y, 0.3, 2.4, 0.5, '#FF9A3A', 0.1); X.after(0.12, () => X.ring(x, y, 0.3, 2.8, 0.55, '#7FD8FF', 0.1)); break;
         case 'cancer': if (AB) { AB.entrance(a); break; } for (let i = 0; i < 26; i++) X.part({ kind: 'bubble', x: x + (Math.random() - 0.5) * 3, y: y + (Math.random() - 0.5), vx: (Math.random() - 0.5) * 2, vy: -2 - Math.random() * 3, life: 1.1, max: 1.1, size: 3 + Math.random() * 5, color: Math.random() < 0.5 ? '#5DF2FF' : '#B983F5' }); X.ring(x, y, 0.3, 2.4, 0.6, '#7A2E5E', 0.14); break;
         case 'leo': for (let i = 0; i < 18; i++) { const an = i / 18 * TAU; X.part({ kind: 'star', x: x + Math.cos(an) * 0.5, y: y - 0.7 + Math.sin(an) * 0.4, vx: Math.cos(an) * 3.2, vy: Math.sin(an) * 2.4 - 0.6, life: 0.7, max: 0.7, size: 3 + (i % 3), color: i % 2 ? '#FFE37A' : '#FFFFFF', drag: 1.5 }); } X.shake(6, 0.3); break;
-        case 'virgo': for (let i = 0; i < 28; i++) { const an = i / 28 * TAU; X.part({ kind: 'petal', x: x + Math.cos(an) * 2.5, y: y - 0.6 + Math.sin(an) * 1.6, vx: -Math.sin(an) * 4, vy: Math.cos(an) * 3 - 1, life: 1.4, max: 1.4, size: 6, rot: an, vr: 7, color: i % 2 ? '#FFB3D9' : '#FFFFFF', drag: 1 }); } break;
+        case 'virgo': if (GB) { GB.entrance(a); break; } /* v475 GA */ for (let i = 0; i < 28; i++) { const an = i / 28 * TAU; X.part({ kind: 'petal', x: x + Math.cos(an) * 2.5, y: y - 0.6 + Math.sin(an) * 1.6, vx: -Math.sin(an) * 4, vy: Math.cos(an) * 3 - 1, life: 1.4, max: 1.4, size: 6, rot: an, vr: 7, color: i % 2 ? '#FFB3D9' : '#FFFFFF', drag: 1 }); } break;
         case 'libra': S.fx.push({ kind: 'scales', x, y: y - 1.4, t: 0, life: 1.5 }); X.ring(x, y, 0.4, 2.4, 0.5, '#FFC24D', 0.1); break;
         case 'scorpio': if (AS) { AS.entrance(a); break; } /* v436 AS */ for (let i = 0; i < 16; i++) { const an = Math.random() * TAU; X.part({ kind: 'smoke', x: x + Math.cos(an) * 0.6, y: y + Math.sin(an) * 0.4, vx: Math.cos(an) * 2.4, vy: Math.sin(an) * 1.6 - 0.5, life: 1.2, max: 1.2, size: 0.8, color: 'rgba(120,20,40,' }); } em(20, '#FF3B4E', 5, 2); break;
         case 'sagittarius': for (let i = 0; i < 14; i++) X.after(i * 0.05, () => S.fx.push({ kind: 'arrow', x: x + (Math.random() - 0.5) * 4, y: y + (Math.random() - 0.5) * 2, t: 0, life: 0.3, col: '#E8E0FF', dmg: 0 })); break;
@@ -166,8 +169,9 @@ const DunAnima = (() => {
           a.cd -= dt; if (a.cd <= 0) { const t = near(a.x, a.y, 7)[0]; if (t) dash(a, t, 0.2); else { a.cd = 0.3; heel(a, dt); } } else heel(a, dt);
           a.cd3 -= dt; if (a.cd3 <= 0) { a.cd3 = 1; X.heal(ST().hp * 0.03, true); X.part({ kind: 'glow', x: me.x, y: me.y - 0.4, vx: 0, vy: 0, life: 0.5, max: 0.5, size: 1.2, color: '#FFE9A8' }); for (let i = 0; i < 4; i++) X.part({ kind: 'star', x: me.x + (Math.random() - 0.5), y: me.y - Math.random(), vx: 0, vy: -1.4, life: 0.7, max: 0.7, size: 3, color: '#FFE37A' }); } },
         aw: ['JUDGEMENT OF THE SUN', '#FFD36B'], fin(a) { area(a.x, a.y, 7, P(a) * 4.5, { el: 'gold', kb: 6 }); X.heal(ST().hp * 0.35); X.part({ kind: 'flare', x: a.x, y: a.y - 1, vx: 0, vy: 0, life: 0.9, max: 0.9, size: 9, color: '#FFE37A' }); for (let i = 0; i < 3; i++) X.ring(a.x, a.y, 0.4, 6 + i * 1.5, 0.7 + i * 0.1, i ? '#FFD36B' : '#FFFFFF', 0.4); X.flash(0.5, '#FFF3C2'); X.shake(12, 0.4); sunOnBoss(a); } },
-      virgo: { tick(a, dt) { heel(a, dt); a.cd -= dt; if (a.cd <= 0) { a.cd = 0.6; const tg = near(a.x, a.y, 9); const m = tg[Math.floor(Math.random() * Math.min(4, tg.length))]; if (m) holy(m.x, m.y, P(a) * 1.4); } a.cd3 -= dt; if (a.cd3 <= 0) { a.cd3 = 1; X.heal(ST().hp * 0.012, true); X.part({ kind: 'petal', x: me.x + (Math.random() - 0.5), y: me.y - 1, vx: (Math.random() - 0.5) * 2, vy: 1, life: 1, max: 1, size: 5, rot: 0, vr: 5, color: '#FFB3D9' }); } },
-        aw: ['ETERNAL REQUIEM', '#FFB3D9'], fin(a) { const tg = near(a.x, a.y, 12); for (let i = 0; i < 14; i++) X.after(i * 0.07, () => { const m = tg[i % Math.max(1, tg.length)]; const x = m ? m.x : me.x + (Math.random() - 0.5) * 10, y = m ? m.y : me.y + (Math.random() - 0.5) * 8; holy(x, y, P(a) * 2.5); }); X.heal(ST().hp * 0.2); X.eshots.length = 0; } },
+      // v475 GA: Gabriel the Sacred Oracle, Light: Bloom of Mercy, Harvest Halo, Sanctuary Weave, Thresher of Stars; Eden Reborn (20g7, 20g7b). (The old pillars and Eternal Requiem are gone; without the module it only follows)
+      virgo: { tick(a, dt) { if (GB) GB.tick(a, dt); else heel(a, dt); },
+        aw: ['EDEN REBORN', '#FFB3D9'], fin(a) { if (GB) GB.fin(a); else { area(a.x, a.y, 8, P(a) * 5, { el: 'prism' }); X.heal(ST().hp * 0.3); X.flash(0.4, '#FFE6F4'); } } },
       // v435 AN: the scales ring out every second (was every 2 s, which read as a cooldown) at half the blow, the same weight a second,
       // and only when there is something to weigh (it waits, ready, until a monster comes near)
       libra: { tick(a, dt) { S.balance = 1; heel(a, dt); a.cd -= dt; if (a.cd <= 0) { const tg = near(a.x, a.y, 6); if (!tg.length) { a.cd = 0; return; } a.cd = 1; X.ring(a.x, a.y, 0.4, 6, 0.6, '#FFC24D', 0.25); for (const m of tg) hit(m, m.boss ? P(a) * 0.4 : Math.max(P(a) * 0.25, m.maxhp * 0.015), { el: 'gold' }); } },
@@ -319,7 +323,7 @@ const DunAnima = (() => {
     const STRIDE = { trot: 1.15, stomp: 0.8, gallop: 0.95, scuttle: 2.2, hop: 0.75, fly: 0.6, float: 0.5, swim: 0.85 };
     function strike(a, big) { if (a.atk >= 0 && a.atk < 0.6 && !big) return; a.atk = 0; a.atkBig = !!big; a.atkDur = big ? 0.8 : 0.42; }
     function noticeStrike(a, c0, c2, c3, dsh) {
-      const healer = a.id === 'leo' || a.id === 'virgo';
+      const healer = a.id === 'leo' || (a.id === 'virgo' && !GB) /* v475 GA: Gabriel's heals are its own powers */;
       if ((a.id !== 'scorpio' && a.cd > c0 + 0.02) || a.cd2 > c2 + 0.02 || (!dsh && a.dash)) strike(a, false);
       if (a.cd3 > c3 + 0.02 && healer && Math.random() < 0.35) emote(a, 'heart');
     }
@@ -335,7 +339,7 @@ const DunAnima = (() => {
       // a puff of dust each time a foot lands; a trail of sparkles behind fliers and swimmers
       const step = Math.floor(a.ph / Math.PI);
       if (step !== a.step) { a.step = step; if (a.mv > 0.35 && GROUNDED[loco] && !a.feet /* v426 BL: Belial lays its own footfalls */) X.part({ kind: 'smoke', x: a.x + (Math.random() - 0.5) * 0.4, y: a.y + 0.05, vx: -a.face * 0.6, vy: -0.3, life: 0.45, max: 0.45, size: loco === 'stomp' ? 0.34 : 0.22, color: 'rgba(210,200,235,' }); if (loco === 'stomp' && a.mv > 0.5) X.shake(1.5, 0.08); }
-      if (!GROUNDED[loco] && !(a.feet && a.id === 'gemini') /* v464 RZ-A: Raziel walks */ && a.mv > 0.4 && Math.random() < dt * 9) X.part({ kind: 'star', x: a.x - a.face * 0.5 + (Math.random() - 0.5) * 0.4, y: a.y - 0.6 - Math.random() * 0.6, vx: -a.face * 0.8, vy: -0.4, life: 0.5, max: 0.5, size: 2.2, color: a.A.glow });
+      if (!GROUNDED[loco] && !(a.feet && (a.id === 'gemini' || a.id === 'virgo')) /* v464 RZ-A: Raziel walks; v475 GA: Gabriel lays its own trails */ && a.mv > 0.4 && Math.random() < dt * 9) X.part({ kind: 'star', x: a.x - a.face * 0.5 + (Math.random() - 0.5) * 0.4, y: a.y - 0.6 - Math.random() * 0.6, vx: -a.face * 0.8, vy: -0.4, life: 0.5, max: 0.5, size: 2.2, color: a.A.glow });
       if (a.atk >= 0) { a.atk += dt / (a.atkDur || 0.42); if (a.atk > 1) a.atk = -1; }
       // follow-through: the top of the body lags when it sets off and swings past when it stops
       const vxh = (a.x - (a.qx == null ? a.x : a.qx)) / Math.max(dt, 1e-4); a.qx = a.x;
@@ -377,6 +381,7 @@ const DunAnima = (() => {
       if (a.id === 'aries' && SM) { SM.descent(a); X.sfx.sparkle(); return; }   // v435 SM: the Aries sigil, a portal, its body assembling round the reactor
       if (a.id === 'scorpio' && AS) { AS.descent(a); X.sfx.sparkle(); return; }   // v436 AS: the Scorpio sigil, its filaments, the cocoon, the stingers unfolding
       if (a.id === 'gemini' && RZ) { RZ.descent(a); X.sfx.sparkle(); return; }   // v464 RZ-A: two Gemini seals, the cores descending, the body assembling round them
+      if (a.id === 'virgo' && GB) { GB.descent(a); X.sfx.sparkle(); return; }   // v475 GA: the Virgo constellation, a crystal heart rising, the body assembling round it
       S.fx.push({ kind: 'heaven', a, x: a.x, y: a.y, t: 0, life: 1.75, col: a.A.glow, col2: a.A.color });
       X.light(a.x, a.y, 5, 1.2); X.sfx.sparkle();
     }
@@ -434,6 +439,7 @@ const DunAnima = (() => {
       if (SM) SM.update(dt, dtReal);   // v435 SM
       if (AS) AS.update(dt, dtReal);   // v436 AS
       if (RZ) RZ.update(dt, dtReal);   // v464 RZ-A
+      if (GB) GB.update(dt, dtReal);   // v475 GA
       if (S.theme) { if (!S.list.length || me.dead || g.won) { S.theme.stop(); S.theme = null; } else S.theme.beat(); }
       // effects
       for (let i = S.fx.length - 1; i >= 0; i--) {
@@ -448,8 +454,8 @@ const DunAnima = (() => {
     function ents() { return S.list.filter(a => !(a.delay > 0)).map(a => [a.y + 0.05, a]); }
     function drawAnima(c, a) {
       if (!(a.alpha > 0.01) || (a.judg && !(a.jA > 0.01))) return;
-      const Tz = T(), X0 = X.sx(a.x), Y0 = X.sy(a.y), aw = a.st === 'awaken', k = aw ? 3 : a.k, size = Tz * ANIMA_SIZE[k] * (aw ? 1.18 : 1) * (0.2 + 0.8 * a.scale) * (a.id === 'ophiuchus' ? OPH_BIG : 1) * (BL && a.id === 'taurus' ? BELIAL_MOVES.BIG : 1) /* v426 BL: a colossus */ * (SM && a.id === 'aries' ? SAMAEL_MOVES.BIG : 1) /* v435 SM */ * (AS && a.id === 'scorpio' ? ASMODEUS_MOVES.BIG : 1) /* v436 AS */ * (RZ && a.id === 'gemini' ? RAZIEL_MOVES.BIG : 1) /* v464 RZ-A */, loco = AnimaArt.LOCO[a.id];
-      const hover = Tz * ((GROUNDED[loco] || (RZ && a.id === 'gemini') /* v464 RZ-A: it stands on its four legs (the model lifts itself when it flies) */ ? 0.02 : loco === 'fly' ? 0.55 : 0.32) + (a.dropZ || 0)), sh = 1 - Math.min(1, (a.dropZ || 0) / 6);
+      const Tz = T(), X0 = X.sx(a.x), Y0 = X.sy(a.y), aw = a.st === 'awaken', k = aw ? 3 : a.k, size = Tz * ANIMA_SIZE[k] * (aw ? 1.18 : 1) * (0.2 + 0.8 * a.scale) * (a.id === 'ophiuchus' ? OPH_BIG : 1) * (BL && a.id === 'taurus' ? BELIAL_MOVES.BIG : 1) /* v426 BL: a colossus */ * (SM && a.id === 'aries' ? SAMAEL_MOVES.BIG : 1) /* v435 SM */ * (AS && a.id === 'scorpio' ? ASMODEUS_MOVES.BIG : 1) /* v436 AS */ * (RZ && a.id === 'gemini' ? RAZIEL_MOVES.BIG : 1) /* v464 RZ-A */ * (GB && a.id === 'virgo' ? GABRIEL_MOVES.BIG : 1) /* v475 GA */, loco = AnimaArt.LOCO[a.id];
+      const hover = Tz * ((GROUNDED[loco] || (RZ && a.id === 'gemini') /* v464 RZ-A: it stands on its four legs (the model lifts itself when it flies) */ || (GB && a.id === 'virgo') /* v475 GA: the model flies by its pose's fly */ ? 0.02 : loco === 'fly' ? 0.55 : 0.32) + (a.dropZ || 0)), sh = 1 - Math.min(1, (a.dropZ || 0) / 6);
       c.save(); c.globalAlpha = 0.35 * a.alpha * sh; c.fillStyle = '#000'; c.beginPath(); c.ellipse(X0, Y0 + Tz * 0.12, size * 0.32 * (0.5 + 0.5 * sh), size * 0.08 * (0.5 + 0.5 * sh), 0, 0, TAU); c.fill(); c.restore();
       c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = (0.45 + (aw ? 0.35 : 0) + 0.1 * Math.sin(a.t * 4)) * a.alpha; const gs = size * (aw ? 1.1 : 0.85); blitSized(c, glowSprite(a.A.glow), X0 - gs, Y0 - hover - size * 0.45 - gs, gs * 2, gs * 2); c.restore();
       const is3d = a.id === 'ophiuchus' || (typeof Anima3D !== 'undefined' && Anima3D.has(a.id)), tk = is3d ? 1 : Math.max(0.16, Math.abs(a.fk == null ? 1 : a.fk)), fy = Y0 - hover;
@@ -461,6 +467,7 @@ const DunAnima = (() => {
       if (SM && a.id === 'aries') SM.drawBodyFx(c, a);   // v435 SM
       if (AS && a.id === 'scorpio') AS.drawBodyFx(c, a);   // v436 AS
       if (RZ && a.id === 'gemini') RZ.drawBodyFx(c, a);   // v464 RZ-A
+      if (GB && a.id === 'virgo') GB.drawBodyFx(c, a);   // v475 GA
       if (a.emo) drawEmote(c, a, X0 + a.face * size * 0.2, Y0 - hover - size * 1.02);
       if (aw) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = 0.5 * a.alpha; AnimaArt.sigil(c, a.id, X0, Y0 - hover - size * 1.05, Tz * 0.9, a.A.color, 0.9, 2.6); c.restore(); }
     }
@@ -471,6 +478,7 @@ const DunAnima = (() => {
       if (SM) SM.drawFx(c);   // v435 SM
       if (AS) AS.drawFx(c);   // v436 AS
       if (RZ) RZ.drawFx(c);   // v464 RZ-A
+      if (GB) GB.drawFx(c);   // v475 GA
       if (S.dome > 0 || S.bulwark) { const X0 = X.sx(me.x), Y0 = X.sy(me.y - 0.4), R = Tz * (S.dome > 0 ? 1.6 : 1.15); c.globalAlpha = S.dome > 0 ? 0.9 : 0.55; blitSized(c, shockSprite('#F2C65A'), X0 - R / 0.86, Y0 - R / 0.86, R / 0.43, R / 0.43); c.globalAlpha = 1; }
       if (S.balance) { const X0 = X.sx(me.x), Y0 = X.sy(me.y), s = Tz * 1.1; c.globalAlpha = 0.5 + 0.2 * Math.sin(g.t * 4); blitSized(c, glowSprite('#FFC24D'), X0 - s, Y0 - s * 1.2, s * 2, s * 2); c.globalAlpha = 1; }
       for (const a of S.list) if (a.id === 'pisces' && a.st === 'fight') { const X0 = X.sx(a.x), Y0 = X.sy(a.y), R = Tz * 3 / 0.86; for (let i = 0; i < 2; i++) { c.save(); c.translate(X0, Y0); c.rotate(g.t * (2 + i)); c.scale(1, 0.6); c.globalAlpha = 0.35; blitSized(c, shockSprite(i ? '#B9A6FF' : '#EAF2FF'), -R * (0.7 + i * 0.3), -R * (0.7 + i * 0.3), R * (1.4 + i * 0.6), R * (1.4 + i * 0.6)); c.restore(); } }
@@ -514,6 +522,7 @@ const DunAnima = (() => {
       if (SM) SM.drawGround(c);   // v435 SM
       if (AS) AS.drawGround(c);   // v436 AS
       if (RZ) RZ.drawGround(c);   // v464 RZ-A
+      if (GB) GB.drawGround(c);   // v475 GA
       for (const f of S.fx) if (f.kind === 'heaven') drawHeaven(c, f, T(), X.sx(f.x), X.sy(f.y), false);
       const Cc = S.circle; if (!Cc) return;
       const t = Cc.t, grow = ease(Math.min(1, t / 0.4)), fade = Math.min(1, (Cc.life - t) / 0.55), k = grow * fade;
@@ -546,6 +555,7 @@ const DunAnima = (() => {
       if (SM) SM.drawCine(c, W, H);   // v435 SM
       if (AS) AS.drawCine(c, W, H);   // v436 AS
       if (RZ) RZ.drawCine(c, W, H);   // v464 RZ-A
+      if (GB) GB.drawCine(c, W, H);   // v475 GA
       if (S.judg) drawJudgement(c, W, H);
       if (!S.cine) return;
       const C = S.cine, A = C.a.A, t = C.t, k = Math.min(1, t / 0.25) * Math.min(1, (C.dur - t) / 0.6);
@@ -582,6 +592,7 @@ const DunAnima = (() => {
       if (SM) SM.drawBtn(c, b);   // v435 SM: Ruin Pressure and the time left round the button
       if (AS) AS.drawBtn(c, b);   // v436 AS: the Venom Debt laid and the time left round the button
       if (RZ) RZ.drawBtn(c, b);   // v464 RZ-A: the time left and the Dual Alignment round the button
+      if (GB) GB.drawBtn(c, b);   // v475 GA: the time left and the Grace Hearts round the button
       c.font = `800 9px ${arcFont}`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineWidth = 3; c.strokeStyle = 'rgba(0,0,0,.7)'; const lab = S.used ? (S.list.length ? A.name.toUpperCase() : 'SUMMONED') : r ? 'SUMMON!' : `ANIMA ${Math.round(S.gauge * 100)}%`; c.strokeText(lab, b.x, b.y + b.r + 9); c.fillStyle = r ? '#FFE37A' : '#CFE2FF'; c.fillText(lab, b.x, b.y + b.r + 9);
       if (kit.res) { const id = kit.res.id, k = kit.res.k, r2 = b.r * 0.46, x2 = b.x + b.r * 0.78, y2 = b.y + b.r * 0.62;
         blitC(c, btnPic('res|' + id + '|' + k + '|' + r2, r2 * 2 + 6, r2 * 2 + 6, (x, w, h) => { const cx = w / 2, cy = h / 2, im2 = AnimaArt.still(id, k, 64, { aura: false, bloom: 0 }); x.save(); x.beginPath(); x.arc(cx, cy, r2, 0, TAU); x.fillStyle = '#2A2260'; x.fill(); x.clip(); x.drawImage(im2, cx - r2 * 1.05, cy - r2 * 1.2, r2 * 2.1, r2 * 2.1); x.restore(); x.lineWidth = 2; x.strokeStyle = '#FFE37A'; x.beginPath(); x.arc(cx, cy, r2, 0, TAU); x.stroke(); }), x2, y2);
@@ -590,10 +601,10 @@ const DunAnima = (() => {
     }
     /* how the Animas tilt the fight */
     const inK = src => (S.bulwark ? 0.35 : 1) * (S.balance ? 0.7 : 1) * (src && src.curseT > 0 ? 0.6 : 1) * (AB ? AB.inK() : 1);   // (v418 AB: the Lunar Carapace)
-    const outK = m => (S.balance ? 1.5 : 1) * (m && m.curseT > 0 ? 1.3 : 1) * (AB ? AB.outK(m) : 1) * (BL ? BL.outK(m) : 1) * (SM ? SM.outK(m) : 1) /* v435 SM: Ruin */ * (AS ? AS.outK(m) : 1) /* v436 AS: the Labyrinth's lowered defence, the Sin's mark */ * (RZ ? RZ.outK(m) : 1) /* v464 RZ-A: Thermal Shock's defence break, the Revelation Circuit */;   // (v418 AB: Lunar Weakness; v426 BL: Dominion's crushed defence)
+    const outK = m => (S.balance ? 1.5 : 1) * (m && m.curseT > 0 ? 1.3 : 1) * (AB ? AB.outK(m) : 1) * (BL ? BL.outK(m) : 1) * (SM ? SM.outK(m) : 1) /* v435 SM: Ruin */ * (AS ? AS.outK(m) : 1) /* v436 AS: the Labyrinth's lowered defence, the Sin's mark */ * (RZ ? RZ.outK(m) : 1) /* v464 RZ-A: Thermal Shock's defence break, the Revelation Circuit */ * (GB ? GB.outK(m) : 1) /* v475 GA: Judgement Marks */;   // (v418 AB: Lunar Weakness; v426 BL: Dominion's crushed defence)
     const rateK = () => (S.balance ? 1.25 : 1);
-    const stop = () => { if (S.theme) { S.theme.stop(); S.theme = null; } if (AB) AB.stop(); if (BL) BL.stop(); if (SM) SM.stop(); /* v435 SM */ if (AS) AS.stop(); /* v436 AS */ if (RZ) RZ.stop(); /* v464 RZ-A */ };   // (v418 AB: the stage ends: Abaddon lets everything go; v426 BL: Belial too)
-    return { S, kit, ab: AB /* v418 AB */, bl: BL /* v426 BL */, sm: SM /* v435 SM */, as: AS /* v436 AS */, rz: RZ /* v464 RZ-A */, stop, active: () => S.list.length > 0 || !!S.cine, ready, summon, onHurt, update, ents, drawAnima, drawFx, drawGround, drawCine, drawBtn, onBtn, inK, outK, rateK, liberated: () => S.liberate > 0 };
+    const stop = () => { if (S.theme) { S.theme.stop(); S.theme = null; } if (AB) AB.stop(); if (BL) BL.stop(); if (SM) SM.stop(); /* v435 SM */ if (AS) AS.stop(); /* v436 AS */ if (RZ) RZ.stop(); /* v464 RZ-A */ if (GB) GB.stop(); /* v475 GA */ };   // (v418 AB: the stage ends: Abaddon lets everything go; v426 BL: Belial too)
+    return { S, kit, ab: AB /* v418 AB */, bl: BL /* v426 BL */, sm: SM /* v435 SM */, as: AS /* v436 AS */, rz: RZ /* v464 RZ-A */, gb: GB /* v475 GA */, camFocus: () => (GB ? GB.camFocus() : null) /* v475 GA: Eden Reborn's framing (20b camPick) */, stop, active: () => S.list.length > 0 || !!S.cine, ready, summon, onHurt, update, ents, drawAnima, drawFx, drawGround, drawCine, drawBtn, onBtn, inK, outK, rateK, liberated: () => S.liberate > 0 };
   }
   return { create };
 })();

@@ -49,10 +49,14 @@ const ANIMAS = {
     color: '#FFD36B', glow: '#FFF3C2', dark: '#B9861A', forms: ['Sunpuff Cub', 'Dawnshield Paladin', 'Michael the Just'],
     skill: 'Bounds into monsters behind its shield of sunlight while its warm glow heals your pet over time.',
     finisher: 'Judgement of the Sun', finDesc: 'A roar that bursts like the sun: huge damage around it and a big heal for your pet.' },
-  virgo: { sign: 'Virgo', name: 'Gabriel', title: 'The Eternal', role: 'Holy', realm: 'heaven', el: 'prism', gem: 'emerald', floor: 9, opp: 'pisces',
-    color: '#FFB3D9', glow: '#FFF0FA', dark: '#B0679E', forms: ['Rosebud Cygnet', 'Bloom Swan', 'Gabriel the Eternal'],
-    skill: 'Calls down pillars of holy light on monsters, scattering petals that soothe your pet.',
-    finisher: 'Eternal Requiem', finDesc: 'Holy light rains on the whole room, heals your pet and wipes away enemy shots.' },
+  // v475 GM: Gabriel remade as The Sacred Oracle, Zodiac Anima No. 06: a colossal white-and-gold mechanical phoenix holding the Bound
+  // Oracle in the Heart of Eden, its chest, under a halo of Twelve Petals of Mercy; Light (the game's pink 'prism'), a Healer (the same
+  // 'virgo' key, so saves, gems, ascension and the Virgo gate carry over). The model is 02f8-gabriel-model.js
+  virgo: { sign: 'Virgo', name: 'Gabriel', title: 'The Sacred Oracle', role: 'Healer · Support · Purifier', realm: 'heaven', el: 'prism', elems: 'Light', no: 6, gem: 'emerald', floor: 9, opp: 'pisces',
+    color: '#FF9BD2', glow: '#FFF0FA', dark: '#B0478E', forms: ['The Bound Seraph', 'The Heart of Mercy', 'Eden Incarnate'],
+    tag: 'Zodiac Anima No. 06 · Light · a celestial phoenix-machine built to hold and protect the Bound Oracle, whose compassion it turns into healing.',
+    skill: 'Heals and shields your pet and judges monsters with its twelve petals: Bloom of Mercy sends healing crystal hearts (and cleanses), Harvest Halo throws petal-blades that lay Judgement Marks, Sanctuary Weave raises a heart cathedral that softens blows and shields, and Thresher of Stars drops a celestial spear that consumes the marks. Grace Hearts on your pet deepen its healing.',   // v475 GA
+    finisher: 'Eden Reborn', finDesc: 'The Bound Oracle rises free and paradise blooms over the room: your pet is healed (up to 60%), shielded and cleansed, monsters take great Light damage and their Judgement Marks burst.' },   // v475 GA
   libra: { sign: 'Libra', name: 'Uriel', title: 'The Seer', role: 'Arbiter', realm: 'heaven', el: 'gold', gem: 'sapphire', floor: 15, opp: 'aries',
     color: '#FFC24D', glow: '#FFE9A8', dark: '#3A2618', forms: ['Seer Owlet', 'Balance Owl', 'Uriel the Seer'],
     skill: 'Tips the scales: your pet hits 50% harder and attacks faster, while every monster hits 30% softer and takes 20% more damage.',

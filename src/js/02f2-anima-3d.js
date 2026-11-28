@@ -673,55 +673,69 @@ const Anima3D = (() => {
   // an ellipsoid laid along a direction (fish bodies, plumes): a basis whose forward is dir
   function along(dir, up) { const F = norm(dir); let S2 = cross(up || [0, 0, 1], F); if (Math.hypot(...S2) < 1e-3) S2 = [0, 1, 0]; S2 = norm(S2); const U = cross(F, S2); return [F, S2, U]; }
   H.along = along;
-  // a rose: a cluster of petal puffs with a darker heart
-  function rose(c3, r, col, o) { const R0 = mulberry32(5); for (let i = 0; i < 6; i++) { const a = i / 6 * TAU; sphere(add(c3, [Math.cos(a) * r * 0.55, Math.sin(a) * r * 0.55, Math.sin(a * 2) * r * 0.1]), r * 0.55, { col, shade: sh(col, -0.25), hi: sh(col, 0.3), line: sh(col, -0.6), z: (o && o.z) || 0 }); } sphere(c3, r * 0.5, { col: sh(col, -0.15), shade: sh(col, -0.4), hi: col, line: sh(col, -0.6), z: ((o && o.z) || 0) - 0.5 }); }
-  H.rose = rose;
 
-  /* Gabriel (Virgo): a smooth porcelain bird of the dawn. A round rosebud chick grows into a tall seraph bird whose arched
-     wings pour down in long streamers, with flowing tail fins, crest plumes and rose-gold marks; at last two pairs of wings */
+  /* (v475 GM) Gabriel, The Sacred Oracle (Virgo), cel-shaded: the same design as its GPU model (02f8) for devices without one: a white and
+     gold mechanical phoenix standing tall, its colossal wings raised, the Heart of Eden in its open chest (a gold heart frame round
+     rose crystal, the masked Bound Oracle inside with its arms out to the frame, chained at the wrists), a crested head with pink eyes,
+     gold talons, long pink ribbons sweeping out from the tail, a halo of twelve petal-feathers behind. Its pose comes from the fight
+     (o.inst.gbS: wings, heart, oracle) or rest */
   MODELS.virgo = (k, t, o) => {
-    const s = [1.15, 1.08, 1.18][k - 1], S = strikeOf(o.atk, o.atkBig), pearl = '#F8F3FC', pearlSh = '#C8B4E2', pearlHi = '#FFFFFF', rose2 = '#FFB3D9', roseSh = '#D07AA8', gold = '#F2C65A', ln = '#6A4A7A';
-    // the snout: a smooth porcelain muzzle pushing out from the face, the little orange beak at its tip, nostrils on top
-    const beak = (F, at, hr) => {
-      ell(at(hr * 0.78, 0, -hr * 0.26), [hr * 0.5, hr * 0.44, hr * 0.36], { B: F.B, col: pearl, shade: pearlSh, hi: pearlHi, line: ln, spec: 0.5, z: -0.8 });
-      ell(at(hr * 1.22, 0, -hr * 0.27), [hr * 0.24, hr * 0.26, hr * 0.17], { B: F.B, col: '#FFB86A', shade: '#E0843A', hi: '#FFE0B0', line: '#B8642A', spec: 0.6, z: -1.2 });
-      ell(at(hr * 1.14, 0, -hr * 0.42), [hr * 0.18, hr * 0.2, hr * 0.09], { B: F.B, col: '#F29A50', shade: '#C86A2A', hi: '#FFD0A0', line: '#B8642A', z: -1.1 });
-      [-1, 1].forEach(q => mark(at(hr * 1.1, q * hr * 0.12, -hr * 0.12), F.dir(0.5, q * 0.2, 0.85), 0.9 * hr * 0.1 + 0.4, (c, r) => { c.fillStyle = '#8A2E52'; c.beginPath(); c.ellipse(0, 0, r, r * 0.6, 0, 0, TAU); c.fill(); }, -1.3));
-      mark(at(hr * 1.2, 0, -hr * 0.36), F.B[0], hr * 0.16, (c, r) => { c.strokeStyle = '#8A3A1A'; c.lineWidth = r * 0.2; c.lineCap = 'round'; c.beginPath(); c.moveTo(-r, 0); c.quadraticCurveTo(0, r * 0.5, r, 0); c.stroke(); }, -1.4);
-    };
-    const dotEye = (p, n, r) => eye(p, n, r, { iris: '#2A1E34', white: '#2A1E34', irisR: 0.98, pupilR: 0.6, blink: o.blink, look: [0.1, 0], line: '#120818' });
-    if (k === 1) {
-      const hb = 15 * s + Math.sin(t * 2) * 0.6, flap = Math.sin(t * 5) * 0.4;
-      [-1, 1].forEach(q => { const sh2 = [0, q * 12 * s, hb + 3 * s], tip = add(sh2, [-6 * s, q * 6 * s, -4 * s + flap * q * 0 + Math.sin(t * 5 + q) * 3 * s]); blob([sh2, add(mix3(sh2, tip, 0.5), [4 * s, 0, 3 * s]), tip, add(mix3(sh2, tip, 0.5), [-3 * s, 0, -3 * s])], { col: pearl, shade: pearlSh, hi: pearlHi, line: ln, z: 1 }); });
-      [-1, 0, 1].forEach(q => { const b = [-10 * s, q * 4 * s, hb - 4 * s]; blob([add(b, [0, -2.5 * s, 0]), add(b, [-5 * s, q * 3 * s, -9 * s - (q ? 0 : 3 * s)]), add(b, [0, 2.5 * s, 0])], { col: rose2, shade: roseSh, hi: '#FFE0F0', line: ln, z: 3 }); });
-      [-1, 1].forEach(q => ell([3 * s, q * 5 * s, 1.5 * s], [4 * s, 2.4 * s, 1.4 * s], { col: '#FFB07A', shade: '#E08048', hi: '#FFD8B0', line: '#8A4A1A' }));
-      ell([0, 0, hb], [13 * s, 13.5 * s, 14 * s], { col: pearl, shade: pearlSh, hi: pearlHi, line: ln, spec: 0.7, specR: 0.2 });
-      const F = frame([4 * s, 0, hb + 17 * s], Math.sin(t * 0.9) * 0.25, Math.sin(t * 1.5) * 0.06 + S.hit * 0.2, Math.sin(t * 1.2) * 0.1), at = F.at, hr = 11 * s;
-      ell(F.c, [hr, hr, hr * 0.95], { B: F.B, col: pearl, shade: pearlSh, hi: pearlHi, line: ln, spec: 0.7 });
-      rose(at(0, 0, hr * 1.02), 3.6 * s, '#FFB3CF', { z: -1 }); [-1, 1].forEach(q => blob([at(0, 0, hr * 0.95), at(-2 * s, q * 6 * s, hr * 1.2), at(1 * s, q * 3 * s, hr * 1.05)], { col: '#6BAF7A', shade: '#4A8A5A', hi: '#A8E0B0', line: '#2A5A3A', z: 0 }));
-      [-1, 1].forEach(q => { dotEye(at(hr * 0.8, q * hr * 0.44, hr * 0.14), F.dir(0.85, q * 0.45, 0.12), 3.4 * s); mark(at(hr * 0.62, q * hr * 0.7, -hr * 0.22), F.dir(0.6, q * 0.75, -0.2), 3 * s, (c, r) => { c.fillStyle = 'rgba(255,140,180,.55)'; c.beginPath(); c.ellipse(0, 0, r, r * 0.6, 0, 0, TAU); c.fill(); }); });
-      beak(F, at, hr);
-      return;
-    }
-    const hb = 30 * s + Math.sin(t * 1.6) * 1.2, flap = Math.sin(t * 2.2) * 0.14 + S.hit * 0.3, torso = [S.hit * 3, 0, hb];
-    // wings: an arch from the shoulder, sheets of feathers hanging beneath, a long streamer to the ground
-    const span = (k === 3 ? 46 : 38) * s; [-1, 1].forEach(q => { const W2 = wing([torso[0] - 2 * s, q * 6 * s, hb + 10 * s], q, span, flap, 0.95, [pearl, '#FFE6F4', k === 3 ? '#A8E6FF' : '#E8D0FF'], { n: 8, rows: k === 3 ? 2 : 3, line: ln, z: 6, armW: 4 * s, fw: 0.2 });
-      const sl = W2.tip, st = bez3(sl, add(sl, [-2 * s, q * 3 * s, -12 * s]), add(sl, [-5 * s, q * 1 * s, -24 * s]), add(sl, [-3 * s, q * 4 * s, -34 * s + Math.sin(t * 2 + q) * 3]), 8); tube(st, u => (3.2 - u * 2.4) * s, { col: '#FFE6F4', shade: roseSh, hi: '#FFFFFF', line: ln, z: 6.5 }); glowAt(st[8], 7 * s, k === 3 ? '#A8E6FF' : '#FFC2E2', 0.5);
-      if (k === 3) wing([torso[0] - 1 * s, q * 5 * s, hb - 6 * s], q, span * 0.6, -flap * 0.8, 0.5, ['#EFE8FF', '#D9B8FF', '#A8E6FF'], { n: 6, rows: 2, line: ln, z: 6.8, armW: 3 * s }); });
-    // tail fins flowing beneath the body
-    [[-0.65, 20], [0.65, 20], [-0.3, 27], [0.3, 27], [0, 32]].forEach(([a, len], i) => { const b = [torso[0] - 4 * s, a * 6 * s, hb - 10 * s], sw = Math.sin(t * 2.4 + i) * 2, tp = [b, add(b, [-3 * s, a * 6 * s + sw * 0.5, -len * s * 0.5]), add(b, [-2 * s + sw, a * 10 * s, -len * s])]; tube(tp, u => (3.6 - u * 2.6) * s, { col: rose2, shade: roseSh, hi: '#FFFFFF', line: ln, z: 2 }); if (k === 3) glowAt(tp[2], 4 * s, gold, 0.5); });
-    ell(torso, [8.5 * s, 9 * s, 14 * s], { col: pearl, shade: pearlSh, hi: pearlHi, line: ln, spec: 0.6, inner: c => { const a2 = P(add(torso, [8 * s, -3 * s, 6 * s])), b2 = P(add(torso, [8 * s, -5 * s, -6 * s])), a3 = P(add(torso, [8 * s, 3 * s, 6 * s])), b3 = P(add(torso, [8 * s, 5 * s, -6 * s])); c.strokeStyle = '#E07AAE'; c.lineWidth = Math.max(1, R.u * 1.4); c.lineCap = 'round'; c.beginPath(); c.moveTo(a2[0], a2[1]); c.quadraticCurveTo(b2[0] - 4 * R.u, (a2[1] + b2[1]) / 2, b2[0], b2[1]); c.moveTo(a3[0], a3[1]); c.quadraticCurveTo(b3[0] + 4 * R.u, (a3[1] + b3[1]) / 2, b3[0], b3[1]); c.stroke(); } });
-    const gm = add(torso, [8.4 * s, 0, 5 * s]); sphere(gm, 2.4 * s, { col: '#FF8FC0', shade: '#D0508A', hi: '#FFE0F0', line: ln, spec: 0.9, z: -1 }); glowAt(gm, 8 * s, '#FF8FC0', 0.5);
-    // the neck and head with crest plumes swept back
-    const nb = add(torso, [3 * s, 0, 12 * s]), F = frame(add(torso, [5 * s, 0, 25 * s + Math.sin(t * 1.6 + 0.5) * 0.8]), Math.sin(t * 0.8) * 0.25, Math.sin(t * 1.3) * 0.06 + S.hit * 0.25, Math.sin(t) * 0.08), at = F.at, hr = 9.5 * s;
-    tube([nb, mix3(nb, F.c, 0.5), F.c], u => (5.5 - u * 1.2) * s, { col: pearl, shade: pearlSh, hi: pearlHi, line: ln });
-    [[-0.5, 13, rose2], [0, 17, gold], [0.5, 13, rose2]].forEach(([a, len, col], i) => { const b = at(-hr * 0.2, a * hr * 0.4, hr * 0.8), tp = add(b, F.dir(-len * s * 0.6, a * 4 * s, len * s * 0.75 + Math.sin(t * 2 + i) * 0.8)); blob([at(-hr * 0.1, a * hr * 0.4 - 2 * s, hr * 0.7), add(mix3(b, tp, 0.5), F.dir(2 * s, 0, 2 * s)), tp, add(mix3(b, tp, 0.5), F.dir(-1.5 * s, 0, -1.5 * s)), at(-hr * 0.3, a * hr * 0.4 + 2 * s, hr * 0.7)], { col, shade: sh(col, -0.25), hi: '#FFFFFF', line: ln, z: 1.5 }); });
-    ell(F.c, [hr, hr * 0.95, hr * 0.92], { B: F.B, col: pearl, shade: pearlSh, hi: pearlHi, line: ln, spec: 0.7 });
-    [-1, 1].forEach(q => { dotEye(at(hr * 0.78, q * hr * 0.44, hr * 0.16), F.dir(0.85, q * 0.45, 0.14), 2.9 * s); mark(at(hr * 0.6, q * hr * 0.7, -hr * 0.22), F.dir(0.6, q * 0.75, -0.2), 2.6 * s, (c, r) => { c.fillStyle = 'rgba(255,140,180,.55)'; c.beginPath(); c.ellipse(0, 0, r, r * 0.6, 0, 0, TAU); c.fill(); }); });
-    beak(F, at, hr);
-    if (k === 3) { [[-0.4, '#FF8FB8'], [0, '#FFC2DC'], [0.4, '#FF9EC6']].forEach(([a, col]) => rose(at(hr * 0.3, a * hr * 0.6, hr * 0.92), 2.4 * s, col, { z: -1 })); const hp = at(-hr * 0.1, 0, hr * 2.0); fx(c => { const q = P(hp); c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = R.alpha * 0.9; c.strokeStyle = '#FFD6F0'; c.lineWidth = Math.max(1.5, R.u * 2); c.beginPath(); c.ellipse(q[0], q[1], 9 * R.u * s, 2.8 * R.u * s, 0, 0, TAU); c.stroke(); c.restore(); }); glowAt(hp, 10 * s, '#FFF0FA', 0.5); }
-    for (let i = 0; i < 3 + k; i++) { const ph2 = (t * 0.22 + i / (3 + k)) % 1; fx(c => { const q = P([Math.sin(i * 2.3) * 20 * s, Math.cos(i * 1.7) * 18 * s, 60 * s - ph2 * 55 * s]); c.save(); c.globalAlpha = R.alpha * Math.sin(ph2 * Math.PI) * 0.9; c.translate(q[0], q[1]); c.rotate(t * 2 + i); c.fillStyle = i % 2 ? '#FFB3D9' : '#FFE0EE'; c.beginPath(); c.ellipse(0, 0, 3.2 * R.u * s, 1.7 * R.u * s, 0, 0, TAU); c.fill(); c.restore(); }); }
+    const PZ = (o.inst && o.inst.gbS) || {}, s = [0.92, 0.97, 1.02][k - 1], br = Math.sin(t * 1.2), hv = (PZ.fly ? Math.min(1, PZ.fly) * 6 : 0) + br * 0.6;
+    const PE = { col: '#FBF6F8', shade: '#D6C6D2', hi: '#FFFFFF', line: '#5A3A52' }, GD = { col: '#F0C566', shade: '#B9862C', hi: '#FFF1BC', line: '#6A4512' }, RG = { col: '#F2B49A', shade: '#C27E66', hi: '#FFE2D6', line: '#6A3A2A' };
+    const PK = { col: '#FF9BD2', shade: '#D4569A', hi: '#FFE0F0', line: '#7A2452' }, QZ = { col: '#F7A6C8', shade: '#C4608E', hi: '#FFE6F2', line: '#8A3462' }, W = (st, x) => Object.assign({}, st, x);
+    const hO = clamp01(PZ.heartOpen || 0), wsp = PZ.wing == null ? 0.85 : clamp01(PZ.wing), rise = clamp01(PZ.orRise || 0), hb = 44 * s + hv;
+    const heartPath = (cx, cy, r) => g => { for (let i = 0; i <= 40; i++) { const tt = i / 40 * TAU, sn = Math.sin(tt), x = cx + 0.5 * sn * sn * sn * r, y = cy - (13 * Math.cos(tt) - 5 * Math.cos(2 * tt) - 2 * Math.cos(3 * tt) - Math.cos(4 * tt)) / 32 * 1.18 * r; if (i) g.lineTo(x, y); else g.moveTo(x, y); } g.closePath(); };
+    // the halo behind: a gold ring, an inner rose-gold ring, twelve petal-feathers each with a pink heart
+    const hc = [-12 * s, 0, hb + 30 * s], HR = (k === 3 ? 38 : k === 2 ? 35 : 32) * s, spin = PZ.haloSpin != null ? PZ.haloSpin : t * 0.12;
+    decal(hc, (c, p) => { const r = HR * R.u; c.lineWidth = Math.max(1, 2.4 * R.u); c.strokeStyle = '#E8B84E'; c.beginPath(); c.ellipse(p[0], p[1], r, r * 0.96, 0, 0, TAU); c.stroke(); c.lineWidth = Math.max(0.6, R.u); c.strokeStyle = '#FFE6A8'; c.beginPath(); c.ellipse(p[0], p[1], r * 0.9, r * 0.86, 0, 0, TAU); c.stroke(); if (k >= 2) { c.strokeStyle = 'rgba(242,180,154,.8)'; c.beginPath(); c.ellipse(p[0], p[1], r * 1.08, r * 1.04, 0, 0, TAU); c.stroke(); } }, 40);
+    for (let i = 0; i < 12; i++) { const pp = PZ.petals && PZ.petals[i]; if (pp && ((pp.free != null && pp.free > 0.5) || (pp.home != null && pp.home < 0.5))) continue; const a = i / 12 * TAU + spin, d = [0, Math.sin(a), Math.cos(a)], b0 = add(hc, mul(d, HR * 1.02)), tp = add(hc, mul(d, HR * 1.02 + 11 * s)), sd = [0, Math.cos(a) * 2.6 * s, -Math.sin(a) * 2.6 * s];
+      blob([b0, add(mix3(b0, tp, 0.45), sd), tp, sub(mix3(b0, tp, 0.45), sd)], W(PE, { z: 38, sharp: false, line: '#9A7032' }));
+      mark(mix3(b0, tp, 0.33), [1, 0, 0], 2 * s, (c, r) => { c.fillStyle = '#FF6FB5'; c.beginPath(); heartPath(0, 0, r * 2)(c); c.fill(); c.strokeStyle = '#E8B84E'; c.lineWidth = r * 0.25; c.stroke(); }, 37); }
+    glowAt(hc, HR * 0.9, '#FFB6DA', 0.18, true);
+    // the ribbons: long pink silk sweeping out to both sides from the tail, heart pendants at their ends
+    for (let i = 0; i < 2 + k; i++) { const q = i % 2 ? -1 : 1, j = i >> 1, b0 = [-6 * s, q * 3 * s, hb - 16 * s], L = (52 - j * 8) * s, wv = Math.sin(t * 1.4 + i) * 3 * s;
+      const pts = []; for (let n = 0; n <= 10; n++) { const u = n / 10; pts.push(add(b0, [-12 * s * u, q * L * (0.6 * Math.sin(u * 2.3) + 0.3 * u), -L * 0.42 * u + L * 0.25 * u * u + Math.sin(u * 5 - t * 1.6 + i) * wv * u])); }
+      tube(pts, u => (2.6 - 1.2 * u) * s, W(PK, { z: 6 + j, line: '#9A3A6A' })); if (!j) mark(pts[10], [1, 0, 0], 3 * s, (c, r) => { c.fillStyle = '#FF6FB5'; c.beginPath(); heartPath(0, 0, r * 2.2)(c); c.fill(); c.strokeStyle = '#F0C566'; c.lineWidth = r * 0.3; c.stroke(); }, 2); }
+    // the tail feathers fanned down and back
+    for (let i = 0; i < 5; i++) { const q = (i - 2) / 2, b0 = [-5 * s, q * 3 * s, hb - 14 * s], tp = add(b0, [-10 * s, q * 9 * s, -22 * s + Math.abs(q) * 5 * s]); blob([add(b0, [0, -2 * s, 0]), add(mix3(b0, tp, 0.5), [0, -2.2 * s, 0]), tp, add(mix3(b0, tp, 0.5), [0, 2.2 * s, 0]), add(b0, [0, 2 * s, 0])], W(PE, { z: 5 })); }
+    // the wings: raised in a great V, white feather-blades with rose-crystal ones among them, a heart crystal at the wrist
+    const fl = Math.sin(t * 2.2) * 0.08 * (PZ.fly ? 1 : 0.4), span = (k === 3 ? 66 : k === 2 ? 60 : 56) * s;
+    [-1, 1].forEach(q => { const root = [-4 * s, q * 9 * s, hb + 16 * s], Wg = wing(root, q, span, fl, 0.35 + 0.65 * wsp, ['#FBF6F8', '#F7C3DC', '#FF9BD2'], { n: 9 + k, rows: k >= 2 ? 3 : 2, line: '#6A4A62', z: 8, armW: 3.4 * s, fw: 0.14 });
+      const nd = Wg.arm[3]; mark(nd, [1, 0, 0.2], 3.4 * s, (c, r) => { c.fillStyle = '#FF6FB5'; c.beginPath(); heartPath(0, 0, r * 2)(c); c.fill(); c.strokeStyle = '#F0C566'; c.lineWidth = r * 0.28; c.stroke(); c.fillStyle = 'rgba(255,255,255,.6)'; c.beginPath(); c.ellipse(-r * 0.3, -r * 0.35, r * 0.25, r * 0.15, -0.5, 0, TAU); c.fill(); }, -3);
+      glowAt(nd, 6 * s, '#FF9BD2', 0.35); });
+    // the legs: feathered thighs, gold shanks, gold talons
+    [-1, 1].forEach(q => { const hip = [0, q * 7 * s, hb - 14 * s]; ell(hip, [7 * s, 6 * s, 9 * s], W(PE, { z: 1 })); const ft = [2 * s, q * 8 * s, hv * 0.8 + 1];
+      tube([add(hip, [0, 0, -6 * s]), [-2 * s, q * 8 * s, hb * 0.35], ft], u => (2.4 - 0.8 * u) * s, W(GD, {}));
+      [-0.5, 0, 0.5].forEach(a => tube([ft, add(ft, [Math.cos(a) * 5 * s, q * Math.sin(a) * 4 * s, -1])], u => (1.2 - 0.6 * u) * s, W(GD, { z: -1 }))); });
+    // the torso: white plumage round the heart chamber
+    ell([-3 * s, 0, hb], [11 * s, 15 * s, 21 * s], W(PE, { spec: 0.5 }));
+    [-1, 1].forEach(q => { for (let i = 0; i < 4; i++) { const b0 = [3 * s, q * (9 + i) * s, hb + (12 - i * 8) * s]; blob([b0, add(b0, [0, q * 5 * s, -4 * s]), add(b0, [0, q * 2 * s, -9 * s])], W(PE, { z: -2 })); } });
+    // the Heart of Eden: the rose-crystal chamber, the oracle in it, the gold arches over it, the chains
+    const HC = [8 * s, 0, hb + 2 * s], HW = 30 * s;
+    decal(HC, (c, p) => { const r = HW * R.u, cy = p[1] - 3 * R.u * s; const g = c.createRadialGradient(p[0], cy, r * 0.05, p[0], cy, r * 0.7); g.addColorStop(0, '#FFD6EA'); g.addColorStop(0.45, '#F06AAE'); g.addColorStop(1, '#8A1E58'); c.fillStyle = g; c.beginPath(); heartPath(p[0], cy, r)(c); c.fill(); }, 1.5);
+    glowAt(HC, 16 * s, '#FF6FB5', 0.5);
+    const OC = [9 * s, 0, hb + rise * 40 * s], oz = 1 + rise * 0.3;
+    const op = (f, sd, h) => add(OC, [f * oz, sd * oz, h * oz]);
+    tube([op(0, 0, -15), op(0, 0, -6)], u => (2.2 + 1.2 * u) * s, W(RG, { z: -3 }));
+    ell(op(0, 0, -1), [2 * s * oz, 3.6 * s * oz, 6 * s * oz], W(PE, { z: -3.2 }));
+    const arm = [-1, 1].map(q => { const sh2 = op(0, q * 3.4, 3), wr = op(0.5, q * 11, 3.5 + Math.sin(t * 1.3 + q) * 0.4); tube([sh2, op(0.5, q * 7, 4), wr], u => (1.1 - 0.4 * u) * s, W(PE, { z: -3.4 })); tube([op(0.3, q * 9.8, 3.6), op(0.3, q * 10.4, 3.6)], () => 1.3 * s, W(GD, { z: -3.6 })); return wr; });
+    ell(op(0, 0, 8.5), [2.4 * s * oz, 2.2 * s * oz, 2.8 * s * oz], W(PE, { z: -3.5, spec: 0.6 }));
+    mark(op(2.2, 0, 8.6), [1, 0, 0], 1.6 * s, (c, r) => { c.fillStyle = '#FF5FA8'; c.fillRect(-r * 0.9, -r * 0.12, r * 1.8, r * 0.24); c.fillStyle = '#FF7EC0'; c.beginPath(); heartPath(0, -r * 0.8, r * 0.6)(c); c.fill(); }, -4);
+    for (let i = 0; i < 5 + 2 * k; i++) { const a = (i / (4 + 2 * k) - 0.5) * 2.4, b0 = op(0, Math.sin(a) * 2, 10.4), tp = op(0, Math.sin(a) * 3.6, 13.4 - Math.abs(a) * 1.2); tube([b0, tp], u => (0.5 - 0.4 * u) * s, W(GD, { z: -3.6 })); }
+    for (let i = 0; i < 2 + k; i++) { const q = i % 2 ? -1 : 1; tube([op(-1, q * 1.2, 9), op(-2, q * (5 + i), 2), op(-2, q * (7 + i * 1.5), -8)], u => (0.8 - 0.4 * u) * s, W(PK, { z: -2.5, line: '#9A3A6A' })); }
+    decal(HC, (c, p) => { const r = HW * R.u, cy = p[1] - 3 * R.u * s, sp = hO * 8 * R.u * s; c.save(); c.lineJoin = 'round'; c.strokeStyle = '#6A4512'; c.lineWidth = Math.max(2, 3.6 * R.u); c.beginPath(); heartPath(p[0], cy - sp * 0.2, r * (1 + hO * 0.15))(c); c.stroke(); c.strokeStyle = '#F0C566'; c.lineWidth = Math.max(1.4, 2.4 * R.u); c.stroke(); c.strokeStyle = '#FFF1BC'; c.lineWidth = Math.max(0.5, 0.7 * R.u); c.stroke();
+      c.strokeStyle = 'rgba(242,180,154,.9)'; c.lineWidth = Math.max(0.6, R.u); c.beginPath(); heartPath(p[0], cy, r * 0.88)(c); c.stroke(); c.restore(); }, -5);
+    if (rise < 0.5) arm.forEach((wr, i) => { const q = i ? 1 : -1, an = [HC[0], q * 14 * s, hb + 6 * s]; const ch = []; for (let n = 0; n <= 6; n++) { const u = n / 6; ch.push(add(mix3(wr, an, u), [0, 0, -Math.sin(Math.PI * u) * 1.5 * s])); } tube(ch, () => 0.5 * s, W(GD, { z: -5.2 })); });
+    // the neck and the crested head (white and gold armour, a hooked beak, pink eyes, a forehead heart)
+    const nb = [-2 * s, 0, hb + 20 * s], F = frame([2 * s, 0, hb + 40 * s + Math.sin(t * 1.3) * 0.6], -0.5 + Math.sin(t * 0.7) * 0.2, 0.05 + Math.sin(t * 1.1) * 0.04, 0), at = F.at, hr = 6.5 * s;
+    tube([nb, add(nb, [-2 * s, 0, 9 * s]), add(F.c, [-3 * s, 0, -4 * s]), F.c], u => (4.6 - 1.8 * u) * s, W(PE, { z: 0 }));
+    for (let i = 0; i < 5 + k; i++) { const a = (i / (4 + k) - 0.5) * 1.3, b0 = at(-hr * 0.2, a * hr * 0.6, hr * 0.6), tp = add(b0, F.dir(-(14 + 4 * Math.cos(a * 2)) * s, a * 5 * s, (8 + 3 * Math.cos(a)) * s)); blob([b0, add(mix3(b0, tp, 0.5), F.dir(0, 0, 1.6 * s)), tp, add(mix3(b0, tp, 0.5), F.dir(0, 0, -1.4 * s))], W(i % 2 ? PE : W(PE, { col: '#FFE6F2' }), { z: 2, sharp: true })); }
+    ell(F.c, [hr, hr * 0.8, hr * 0.85], W(PE, { B: F.B, spec: 0.6 }));
+    blob([at(hr * 0.6, -hr * 0.35, hr * 0.15), at(hr * 2.2, 0, -hr * 0.1), at(hr * 2.0, 0, -hr * 0.75), at(hr * 0.6, hr * 0.35, -hr * 0.4), at(hr * 0.6, hr * 0.35, hr * 0.15)], W(GD, { B: F.B, z: -1 }));
+    [-1, 1].forEach(q => { const ep = at(hr * 0.55, q * hr * 0.6, hr * 0.25); mark(ep, F.dir(0.5, q * 0.8, 0.1), 1.5 * s, (c, r) => { c.fillStyle = '#FF4FA0'; c.beginPath(); c.ellipse(0, 0, r * 1.3, r * 0.6, 0, 0, TAU); c.fill(); c.fillStyle = '#FFE6F3'; c.beginPath(); c.arc(-r * 0.3, -r * 0.15, r * 0.25, 0, TAU); c.fill(); }, -1.5); glowAt(ep, 3 * s, '#FF7EC0', 0.4); });
+    mark(at(hr * 0.85, 0, hr * 0.6), F.dir(0.8, 0, 0.6), 1.8 * s, (c, r) => { c.fillStyle = '#FF6FB5'; c.beginPath(); heartPath(0, 0, r * 2)(c); c.fill(); c.strokeStyle = '#F0C566'; c.lineWidth = r * 0.3; c.stroke(); }, -1.6);
   };
+  MODELS.virgo.yaw = 0.14;
 
   /* Zadkiel (Aquarius): a sea serpent of the celestial river. A round-eyed hatchling coiled on the water grows into a great
      winged serpent: sapphire scales, pale belly, translucent fin-wings on bony rays, a frilled head, whiskers and ribbons of water */

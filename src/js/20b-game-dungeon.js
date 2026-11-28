@@ -1796,6 +1796,7 @@ GAMES.dungeon = {
        form's framing entirely, so on those floors the airship sat high on the screen. */
     function camPick() { const v = vehOn() && VEH.cam ? VEH.cam() : null, own = v && v.k > 0;
       { const rc = RIFT && RIFT.cineCam ? RIFT.cineCam() : null; if (rc) return rc; }   /* (v388 R: a rift's sealing frames itself, over a fiend's own framing) */
+      { const ac = AN && AN.camFocus ? AN.camFocus() : null; if (ac) return ac; }   /* v475 GA: a summon's ultimate frames itself (Gabriel's Eden Reborn: the risen Oracle and the heart high over the field) */
       if (FD && FD.camFocus) { const f = FD.camFocus(); return f || (own ? Object.assign({}, v, { zoom: Math.min(v.zoom || 1, 0.78) }) : null); }   /* (a fiend arena keeps its wider view) */
       if (RIFT && RIFT.cam) return own ? v : RIFT.cam();
       return v; }

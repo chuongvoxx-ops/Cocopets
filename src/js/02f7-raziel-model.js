@@ -874,6 +874,7 @@ const RAZIEL_GL = (() => {
   }
   if (typeof window !== 'undefined') setTimeout(() => { try { warm(); } catch (e) {} }, 2100);   // (prepared at load, in idle time)
   return { hq, ok: usable, usable, warm, ensure, step, ready: () => !!(D && D.ready) || !!(DL && DL.ready), LODPX, draw, solve, anchors, drawSpectral, drawParts, drawAnima, lights, free: release, release, gpuCount, idle, idlePose: idle,
+    H: { plate, strip, sweep, latheZ, latheX, gem, bring, f1, f2, fa, ik, visBox, hold, bz, bzd, axisR, frameZ, colsR, mm, mv, rx, ry, rz, scl3 } /* v475 GM: the mesh and pose helpers shared with GABRIEL_GL (02f8) */,
     HEIGHT, FACE0, YAWLIM, STRIDE, LEGS, CORE, CRAD, NROOT, HREST, WROOT, MT, WS, STATS, RES, get up() { return !!(D && D.up); }, get nv() { return D ? D.nv : 0; }, get nt() { return D ? D.nt : 0; }, get off() { return NOGL; }, meshes: lo => { const d = lo ? DL : D; return (d && d.M) || null; } };
 })();
 if (typeof self !== 'undefined') self.RAZIEL_GL = RAZIEL_GL;

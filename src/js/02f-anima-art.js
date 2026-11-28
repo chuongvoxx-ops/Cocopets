@@ -388,72 +388,7 @@ const AnimaArt = (() => {
       // a crown of light on the final form
       if (k === 3) L.fx(g => { g.save(); g.globalCompositeOperation = 'lighter'; for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + (i - 2) * 0.32, r0 = hr * 1.02; g.save(); g.translate(Math.cos(a) * r0, hy + Math.sin(a) * r0); g.rotate(a + Math.PI / 2); g.globalAlpha = FA * 0.9; g.fillStyle = '#FFF3C2'; g.beginPath(); g.moveTo(-2, 0); g.lineTo(0, -(i === 2 ? 9 : 6)); g.lineTo(2, 0); g.closePath(); g.fill(); g.restore(); } g.restore(); glow(g, 0, hy - hr * 1.15, 14, '#FFE37A', 0.6); });
     },
-    // Gabriel: a smooth, porcelain bird of the dawn. A round rosebud chick grows into a tall seraph bird whose arched wings
-    // pour down in long streamers, with pearl scales on the chest and wings, flowing tail fins and glowing rose-gold marks
-    virgo(c, k, t, L) {
-      const pearl = '#F8F3FC', pdk = '#BBA6DC', roseC = '#FFB3D9', roseDk = '#C96A9E', gold = '#F2C65A', mark = k === 1 ? '#D98AB4' : '#E07AAE', sway = Math.sin(t * 2) * 0.05;
-      const glaze = (x, y, r) => () => { soft(c, x - r * 0.3 * MIR, y - r * 0.35, r * 0.55, r * 0.22, -0.5 * MIR, '#FFFFFF', 0.5); soft(c, x + r * 0.35 * MIR, y + r * 0.2, r * 0.6, r * 0.3, 0.4, '#FFC2E2', 0.22); soft(c, x - r * 0.1, y + r * 0.55, r * 0.7, r * 0.25, 0, '#A8E6FF', 0.18); };
-      const dotEye = (x, y, r) => { form(c, ell(c, x, y, r * 0.86, r), x, y, r, '#2A1E34', { hi: '#6A5A84', dk: '#08040E', spec: false, lw: 0 }); soft(c, x, y + r * 0.55, r * 0.6, r * 0.26, 0, '#C9A8FF', 0.55); c.fillStyle = '#FFFFFF'; c.beginPath(); c.ellipse(x - r * 0.28 * MIR, y - r * 0.36, r * 0.32, r * 0.37, -0.3 * MIR, 0, TAU); c.fill(); c.globalAlpha = 0.9; c.beginPath(); c.arc(x + r * 0.3 * MIR, y + r * 0.36, r * 0.14, 0, TAU); c.fill(); c.globalAlpha = 1; };
-      const beak = (x, y, w) => { form(c, ell(c, x, y + w * 0.82, w * 0.7, w * 0.58), x, y + w * 0.82, w * 0.7, '#8A2E52', { spec: false, lw: 0.7, line: '#5A1A34' }); orb(c, x, y + w * 1.08, w * 0.4, w * 0.22, '#FF8FB0', { spec: false, lw: 0 });
-        form(c, blob(c, [[x - w * 1.0, y - w * 0.05], [x + w * 1.0, y - w * 0.05], [x + w * 0.6, y + w * 0.4], [x, y + w * 0.56], [x - w * 0.6, y + w * 0.4]]), x, y + w * 0.18, w, '#FFB86A', { specA: 0.6, lw: 0.8, line: '#B8642A' });
-        form(c, blob(c, [[x - w * 0.66, y + w * 1.2], [x + w * 0.66, y + w * 1.2], [x, y + w * 1.62]]), x, y + w * 1.32, w * 0.6, '#F2A050', { spec: false, lw: 0.7, line: '#B8642A' }); };
-      const pearlScales = (a) => { c.globalAlpha = a; c.fillStyle = tex('scale'); c.fillRect(-60, -80, 120, 130); c.globalAlpha = 1; };
-      if (k === 1) {
-        both(c, sd => { c.save(); c.translate(-15, 12); c.rotate(-0.5 + sway); form(c, blob(c, [[0, -6], [-9, -2], [-13, 10], [-6, 14], [2, 6]]), -5, 4, 10, pearl, { dk: pdk, specA: 0.5, lw: 1, soft: glaze(-5, 4, 10) }); c.restore(); });
-        [-1, 1].forEach(sx => { form(c, blob(c, [[sx * 4, 34], [sx * 9, 34], [sx * 12, 39], [sx * 1, 39]]), sx * 7, 37, 6, '#FFB07A', { specA: 0.4, lw: 0.9 }); });
-        [-10, 0, 10].forEach((x, i) => { c.save(); c.translate(x * 0.6, 28); c.rotate(x * 0.04 + sway); form(c, blob(c, [[-3.5, 0], [3.5, 0], [1, 9 + (i === 1 ? 3 : 0)], [-1, 9 + (i === 1 ? 3 : 0)]]), 0, 4, 6, roseC, { dk: roseDk, specA: 0.4, lw: 0.9 }); c.restore(); });
-        form(c, ell(c, 0, 16, 17, 19), 0, 16, 19, pearl, { dk: pdk, specA: 0.55, spR: 0.4, soft: () => { glaze(0, 16, 19)(); c.save(); c.beginPath(); c.ellipse(0, 18, 9, 10, 0, 0, TAU); c.clip(); pearlScales(0.28); c.restore(); } });
-        form(c, ell(c, 0, -9, 13.5, 12.5), 0, -9, 13.5, pearl, { dk: pdk, specA: 0.55, spR: 0.4, soft: glaze(0, -9, 13.5) });
-        leaf(c, -3, -21, 6, -2.5, '#6BAF7A'); leaf(c, 2, -21.5, 5.5, -0.7, '#6BAF7A'); rose(c, 0, -23, 4.2, '#FFB3CF');
-        [-1, 1].forEach(sx => dotEye(sx * 5.8, -10.5, 4));
-        beak(0, -6.5, 3.4);
-        [-1, 1].forEach(sx => blush(c, sx * 9, -5, 3.6));
-        return;
-      }
-      const s = k === 3 ? 1 : 0.84, ty = k === 3 ? 0 : 4;
-      c.save(); c.translate(0, 40); c.scale(s, s); c.translate(0, -40 + ty / s);
-      // wings: an arch from the shoulder, smooth hanging sheets beneath it, and a long streamer down to the ground
-      const arm = bez([-8, -32], [-20, -68], [-54, -62], [-51, -30], 12).concat(k === 3 ? bez([-51, -30], [-50, -16], [-46, -8], [-54, 2], 8).slice(1) : bez([-51, -30], [-49, -4], [-30, 12], [-44, 28], 12).slice(1));
-      const aw = u => u < 0.45 ? 10 + Math.sin(u / 0.45 * Math.PI) * 6 : Math.max(1.2, 10 * Math.pow(1 - (u - 0.45) / 0.55, 1.2));
-      // the final form unfolds a second pair of wings beneath the first, sweeping out and down
-      if (k === 3) { const arm2 = bez([-8, -2], [-22, -13], [-40, -9], [-42, 7], 10).concat(bez([-42, 7], [-43, 17], [-35, 25], [-41, 35], 8).slice(1));
-        const aw2 = u => u < 0.5 ? 6 + Math.sin(u / 0.5 * Math.PI) * 3 : Math.max(1, 6 * Math.pow(1 - (u - 0.5) / 0.5, 1.2));
-        both(c, sd => { c.save(); c.rotate(-sway * 0.5);
-          [[0.24, 13], [0.36, 16]].forEach(([u, len], i) => { const q = arm2[Math.floor(u * (arm2.length - 1))], a = Math.PI / 2 + 0.22 - i * 0.18; c.save(); c.translate(q[0], q[1] + 3); c.rotate(a - Math.PI / 2); form(c, blob(c, [[-5, -2], [5, -2], [4.2, len * 0.5], [1, len], [-4, len * 0.55]]), 0, len * 0.45, len * 0.5, mix(pearl, '#D9B8FF', 0.32 + i * 0.12), { dk: mix(pdk, '#7A62D0', 0.3), specA: 0.42, lw: 0.9, soft: () => { const g = c.createLinearGradient(0, 0, 0, len); g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(1, rgba('#A8E6FF', 0.65)); c.fillStyle = g; c.fillRect(-8, 0, 16, len + 2); } }); c.restore(); });
-          form(c, ribbon(c, arm2, 0, 0, aw2), -30, 6, 26, mix(pearl, '#E8DCFF', 0.4), { dk: pdk, specA: 0.45, spR: 0.25, soft: () => { const g = c.createLinearGradient(-10, -20, -60, 40); g.addColorStop(0, 'rgba(217,184,255,0)'); g.addColorStop(0.5, rgba('#D9B8FF', 0.55)); g.addColorStop(1, rgba('#A8E6FF', 0.85)); c.fillStyle = g; c.fillRect(-56, -20, 54, 60); c.save(); c.beginPath(); c.ellipse(-26, -9, 9, 4.6, -0.15, 0, TAU); c.clip(); pearlScales(0.32); c.restore(); c.strokeStyle = mark; c.lineWidth = 1.1; c.lineCap = 'round'; c.beginPath(); c.moveTo(-15, -8); c.quadraticCurveTo(-28, -14, -38, -6); c.moveTo(-42, 8); c.quadraticCurveTo(-41, 16, -39, 22); c.stroke(); soft(c, -28, -11, 9, 2.6, -0.1, '#FFFFFF', 0.4); } });
-          const tip2 = arm2[arm2.length - 1];
-          L.fx(g => { glow(g, tip2[0] * sd, tip2[1], 7, '#D9B8FF', 0.55); g.save(); g.globalCompositeOperation = 'lighter'; g.strokeStyle = '#E8D8FF'; g.lineCap = 'round'; const p2 = 0.6 + 0.4 * Math.sin(t * 2.4 + 1 + sd); [[3, 0.12], [1.1, 0.55]].forEach(([w, a]) => { g.globalAlpha = FA * (a * p2); g.lineWidth = w; g.beginPath(); g.moveTo(-15 * sd, -8); g.quadraticCurveTo(-28 * sd, -14, -38 * sd, -6); g.stroke(); }); g.restore(); });
-          c.restore(); });
-      }
-      both(c, sd => {
-        c.save(); c.rotate(sway * 0.6);
-        (k === 3 ? [[0.18, 20], [0.3, 25], [0.42, 22]] : [[0.16, 28], [0.26, 36], [0.36, 34]]).forEach(([u, len], i) => { const q = arm[Math.floor(u * (arm.length - 1))], a = Math.PI / 2 + 0.3 - i * 0.16; c.save(); c.translate(q[0], q[1] + 4); c.rotate(a - Math.PI / 2); form(c, blob(c, [[-8, -2], [8, -2], [7, len * 0.5], [1.5, len], [-6, len * 0.55]]), 0, len * 0.45, len * 0.5, mix(pearl, roseC, 0.25 + i * 0.12), { dk: mix(pdk, roseDk, 0.3), specA: 0.45, lw: 0.9, soft: () => { const g = c.createLinearGradient(0, 0, 0, len); g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(1, rgba(k === 3 ? '#A8E6FF' : '#D9B8FF', 0.6)); c.fillStyle = g; c.fillRect(-8, 0, 16, len + 2); } }); c.restore(); });
-        form(c, ribbon(c, arm, 0, 0, aw), -34, -18, 34, pearl, { dk: pdk, specA: 0.5, spR: 0.25, soft: () => { const g = c.createLinearGradient(0, -20, 0, 40); g.addColorStop(0, 'rgba(255,194,226,0)'); g.addColorStop(0.55, rgba(roseC, 0.55)); g.addColorStop(1, rgba(k === 3 ? '#A8E6FF' : '#D9B8FF', 0.85)); c.fillStyle = g; c.fillRect(-60, -20, 60, 64); c.save(); c.beginPath(); c.ellipse(-26, -52, 18, 10, -0.3, 0, TAU); c.clip(); pearlScales(0.35); c.restore(); c.strokeStyle = mark; c.lineWidth = 1.6; c.lineCap = 'round'; c.beginPath(); c.moveTo(-16, -52); c.quadraticCurveTo(-30, -63, -44, -52); c.moveTo(-22, -47); c.quadraticCurveTo(-34, -55, -42, -46); c.moveTo(-50, -32); c.quadraticCurveTo(-45, -14, -46, 4); c.stroke(); soft(c, -32, -60, 14, 4, -0.2, '#FFFFFF', 0.45); } });
-        const tip = arm[arm.length - 1];
-        if (k === 3) L.fx(g => { glow(g, tip[0] * sd, tip[1], 10, '#A8E6FF', 0.6); for (let i = 0; i < 3; i++) { const ph = (t * 0.5 + i / 3) % 1; star4(g, (tip[0] + Math.sin(i * 4) * 3) * sd, tip[1] - 30 + ph * 28, 1, '#FFFFFF', Math.sin(ph * Math.PI) * 0.8); } });
-        if (k === 3) L.fx(g => { g.save(); g.globalCompositeOperation = 'lighter'; g.strokeStyle = '#FFD6F0'; g.lineCap = 'round'; const p = 0.6 + 0.4 * Math.sin(t * 2.4 + sd); [[3, 0.14], [1.2, 0.6]].forEach(([w, a]) => { g.globalAlpha = FA * (a * p); g.lineWidth = w; g.beginPath(); g.moveTo(-16 * sd * s, Y(-52)); g.quadraticCurveTo(-30 * sd * s, Y(-63), -44 * sd * s, Y(-52)); g.stroke(); }); g.restore(); });
-        c.restore();
-      });
-      // tail fins flowing beneath the body
-      [[-17, 20, -0.65], [17, 20, 0.65], [-10, 28, -0.32], [10, 28, 0.32], [0, 34, 0]].forEach(([x, len, a], i) => { c.save(); c.translate(x * 0.5, 9); c.rotate(a + Math.sin(t * 2.4 + i) * 0.05); form(c, blob(c, [[-6, 0], [6, 0], [5, len * 0.5], [len * 0.14, len], [0, len * 0.9], [-5, len * 0.5]]), 0, len * 0.45, len * 0.55, roseC, { dk: roseDk, hi: '#FFFFFF', specA: 0.45, lw: 0.9, soft: () => { const g = c.createLinearGradient(0, 0, 0, len); g.addColorStop(0, rgba(pearl, 0.9)); g.addColorStop(0.45, rgba(pearl, 0)); g.addColorStop(1, rgba(gold, 0.75)); c.fillStyle = g; c.fillRect(-6, 0, 12, len + 2); c.strokeStyle = rgba(mark, 0.8); c.lineWidth = 1; c.beginPath(); c.moveTo(0, 3); c.quadraticCurveTo(2, len * 0.45, 0, len * 0.8); c.stroke(); } }); c.restore(); });
-      if (k === 3) L.fx(g => { glow(g, 0, 40, 12, gold, 0.5); });
-      // the body: smooth porcelain with a pearl-scaled breast
-      const torso = blob(c, [[0, -42], [9, -33], [12, -14], [8, 5], [0, 15], [-8, 5], [-12, -14], [-9, -33]]);
-      form(c, torso, 0, -14, 24, pearl, { dk: pdk, specA: 0.6, spR: 0.3, soft: () => { glaze(0, -14, 24)(); c.save(); c.beginPath(); c.ellipse(0, -16, 8, 13, 0, 0, TAU); c.clip(); pearlScales(0.42); c.restore(); c.strokeStyle = mark; c.lineWidth = 1.3; c.lineCap = 'round'; [-1, 1].forEach(sx => { c.beginPath(); c.moveTo(sx * 3, -34); c.quadraticCurveTo(sx * 10, -24, sx * 6, -10); c.stroke(); }); } });
-      gem(c, 0, -28, k === 3 ? 3.4 : 2.6, '#FF8FC0'); L.fx(g => glow(g, 0, Y(-28), 9, '#FF8FC0', 0.6));
-      // the crest: three smooth plumes swept back above the head
-      [[-0.6, 15], [0, 19], [0.6, 15]].forEach(([a, len], i) => { c.save(); c.translate(0, -65); c.rotate(a * 0.6 + Math.sin(t * 2 + i) * 0.04); form(c, blob(c, [[-3, 2], [3, 2], [2.5, -len * 0.5], [len * 0.15, -len], [-2.5, -len * 0.5]]), 0, -len * 0.45, len * 0.5, i === 1 ? gold : roseC, { dk: i === 1 ? '#B9861A' : roseDk, hi: '#FFFFFF', specA: 0.5, lw: 0.9 }); c.restore(); });
-      form(c, ribbon(c, bez([0, -38], [0, -42], [0, -46], [0, -50], 6), 10.5, 9.5), 0, -44, 9, pearl, { dk: pdk, specA: 0.4, lw: 1 });
-      form(c, ell(c, 0, -57, 12, 11), 0, -57, 12, pearl, { dk: pdk, specA: 0.6, spR: 0.4, soft: () => { glaze(0, -57, 12)(); soft(c, 0, -50, 8, 3.5, 0, '#FFFFFF', 0.4); } });
-      if (k === 3) { [[-5.5, -67, 2.6, '#FF8FB8'], [0, -69.5, 3, '#FFC2DC'], [5.5, -67, 2.6, '#FF9EC6']].forEach(([x, y, r, col]) => rose(c, x, y, r, col)); }
-      [-1, 1].forEach(sx => dotEye(sx * 5.6, -58.5, 3.5));
-      beak(0, -55.5, 3);
-      [-1, 1].forEach(sx => blush(c, sx * 8.4, -53.5, 3.2));
-      c.restore();
-      const Y = (v) => 40 + (v - 40 + ty / s) * s;
-      if (k === 3) L.fx(g => { glow(g, 0, Y(-58), 14, '#FFF0FA', 0.5); ringLight(g, 0, Y(-80), 12, 3.6, '#FFD6F0', 0.95); });
-      L.fx(g => { for (let i = 0; i < 4 + k * 2; i++) { const ph = (t * 0.22 + i / (4 + k * 2)) % 1, x = -46 + i * (92 / (3 + k * 2)) + Math.sin(t + i) * 5, y = -60 + ph * 96; g.save(); g.globalAlpha = FA * (Math.sin(ph * Math.PI) * 0.9); g.translate(x, y); g.rotate(t * 2 + i); g.fillStyle = i % 2 ? '#FFB3D9' : '#FFE0EE'; g.beginPath(); g.ellipse(0, 0, 3.2, 1.7, 0, 0, TAU); g.fill(); g.restore(); } });
-    },
+    // (v475 GM: Gabriel's old 2D painter is gone: the GPU model (02f8) or its cel-shaded twin (02f2 MODELS.virgo) draws it)
     // Uriel: a fluffy celestial owl of the balance. One wing of starry night and one of golden day, a sun-gold eye and a
     // moon-silver eye, and the scales of judgement floating overhead with the sun in one pan and the moon in the other.
     // A round owlet grows into a great seer whose third eye opens on its brow
@@ -1002,6 +937,11 @@ const AnimaArt = (() => {
     if (id === 'gemini' && !o.legacy && typeof RAZIEL_GL !== 'undefined' && RAZIEL_GL.usable()) {
       if (o.bloom || o.aura !== false) { c.save(); c.globalCompositeOperation = 'lighter'; const al = (o.alpha == null ? 1 : o.alpha) * (o.bloom ? 0.26 : 0.12), gs = size * 0.75; c.globalAlpha = al; blitSized(c, glowSprite('#FF8A3A'), x - size * 0.42 - gs, y - size * 0.55 - gs, gs * 2, gs * 2); blitSized(c, glowSprite('#3FA8FF'), x + size * 0.42 - gs, y - size * 0.55 - gs, gs * 2, gs * 2); c.restore(); }
       if (RAZIEL_GL.drawAnima(c, k, x, y, size, t, o)) return;
+    }
+    // v475 GM: Gabriel, The Sacred Oracle, is a real 3D model on the GPU (02f8); without it, the cel-shaded model of the same design (02f2)
+    if (id === 'virgo' && !o.legacy && typeof GABRIEL_GL !== 'undefined' && GABRIEL_GL.usable()) {
+      if (o.bloom || o.aura !== false) { c.save(); c.globalCompositeOperation = 'lighter'; c.globalAlpha = (o.alpha == null ? 1 : o.alpha) * (o.bloom ? 0.26 : 0.12); const gs = size * 0.8; blitSized(c, glowSprite('#FF9BD2'), x - gs, y - size * 0.6 - gs, gs * 2, gs * 2); c.restore(); }
+      if (GABRIEL_GL.drawAnima(c, k, x, y, size, t, o)) return;
     }
     if (id === 'taurus' && o.yaw != null) o = Object.assign({}, o, { yaw: undefined });   // (v426 BL) the cel model keeps its own three-quarter view, like the GPU one
     if (typeof Anima3D !== 'undefined' && Anima3D.has(id) && !o.legacy) return draw3d(c, id, k, x, y, size, t, o);
