@@ -24,7 +24,7 @@ const YUG3 = (() => {
   /* the arenas' lights (world: x east, y south, z up): lk the key, ls the sky's bright patch, lr the rim; key and rim colours */
   const LIGHT = { breach: { lk: vnrm([-0.45, 0.35, 0.82]), ls: vnrm([0.25, -0.2, 0.95]), lr: vnrm([0.4, -0.85, 0.35]), key: [1.75, 1.7, 1.95], rim: [1.05, 0.5, 1.6] },
     hall: { lk: vnrm([-0.35, 0.45, 0.82]), ls: vnrm([0.2, 0.1, 0.97]), lr: vnrm([-0.3, -0.88, 0.36]), key: [1.6, 1.72, 1.85], rim: [0.35, 1.35, 1.25] },
-    core: { lk: vnrm([-0.3, 0.55, 0.78]), ls: vnrm([0.1, 0.4, 0.9]), lr: vnrm([0.5, -0.8, 0.3]), key: [1.8, 1.55, 1.45], rim: [1.25, 0.55, 1.45] } };
+    core: { lk: vnrm([-0.3, 0.55, 0.78]), ls: vnrm([0.1, 0.4, 0.9]), lr: vnrm([0.5, -0.8, 0.3]), key: [1.95, 1.52, 1.22], rim: [0.78, 0.55, 1.7] } };   // (v472c YB: the Core Chamber's key warmer (the lens, the furnace), its rim a cool violet)
   const PX = [1, 0, 0], PY = [0, 1, -1], PD = vnrm([0, 1, 1]), UPW = [0, 0, 1], ZS = 3, GLCAP = 1600, OUTC = [0.03, 0.018, 0.06], I3K = I3(), ONE = [1, 1, 1];
   /* a mesh's bounding sphere in its own frame (kept for still meshes; found again every pass for the ones rewritten: M.dyn) */
   function bsOf(M) { if (M.bs && !M.dyn) return M.bs; const p = M.pos; let x0 = 1e9, y0 = 1e9, z0 = 1e9, x1 = -1e9, y1 = -1e9, z1 = -1e9;

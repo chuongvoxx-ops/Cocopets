@@ -29,7 +29,7 @@ const NYARZHUL_GL = (() => {
   const G = A.model('Nyarzhul', () => ({}));
   const gpu = () => !!RIG() && G.on() && !!A.fg();
   const INFO = { lod: 0, calls: 0, tris: 0, W: 0, H: 0, ms: 0, poseMs: 0 };
-  const CFG = [{ hu: 96, hv: 30, bn: 44, br: 6, tn: 18, tr: 8, cn: 36, cr: 10, wa: 64, q: 1 }, { hu: 56, hv: 18, bn: 26, br: 5, tn: 12, tr: 6, cn: 22, cr: 7, wa: 36, q: 0.6 }];
+  const CFG = [{ hu: 150, hv: 34, bn: 44, br: 6, tn: 18, tr: 8, cn: 36, cr: 10, wa: 64, q: 1 }, { hu: 56, hv: 18, bn: 26, br: 5, tn: 12, tr: 6, cn: 22, cr: 7, wa: 36, q: 0.6 }];
   const D0 = 4.3, PHM = Math.PI / 2 + 0.3;   // (the heart's bulge toward the camera; how far round the sides its surface runs)
   // the outline in the heart's plane at angle th (as the 2D's heartOutline, its wobble and sag)
   function outl(th, bt, P, R0) { const s = Math.sin(th), co = Math.cos(th); let x = co * R0.HW * (1 + 0.05 * Math.sin(th * 3 + 0.4)), z = s * R0.HH;
@@ -41,8 +41,8 @@ const NYARZHUL_GL = (() => {
     // the heart: i round its outline, j from its front out round its sides; each vertex's vein height and its place in the heart's plane
     const NU = C.hu, NV = C.hv, VH = new Float32Array((NU + 1) * (NV + 1)), PX = new Float32Array(VH.length), PZ = new Float32Array(VH.length);
     for (let j = 0; j <= NV; j++) for (let i = 0; i <= NU; i++) { const th = i / NU * TAU, ph = j / NV * PHM, o = j * (NU + 1) + i, ol = outl(th, 0, P0, R0), s = Math.min(1, Math.sin(ph)), px = ol[0] * s, pz = ol[1] * s;
-      let d = 1e9; for (const V of R0.VEINS) d = Math.min(d, segD(px, pz, V)); VH[o] = Math.exp(-((d / 0.22) ** 2)) * (ph < Math.PI / 2 ? 1 : 0); PX[o] = px; PZ[o] = pz; }
-    out['heart' + L] = Y.mkGrid(NU, NV, (i, j) => { const o = j * (NU + 1) + i; return [VH[o] + 2 * Math.round(cl((PX[o] / R0.HW + 1.15) / 2.3) * 200), cl((PZ[o] / R0.HH + 1.2) / 2.4)]; }, M_FLESH);
+      let d = 1e9; for (const V of R0.VEINS) d = Math.min(d, segD(px, pz, V)); VH[o] = Math.exp(-((d / 0.3) ** 2)) * (ph < Math.PI / 2 ? 1 : 0); PX[o] = px; PZ[o] = pz; }
+    out['heart' + L] = Y.mkGrid(NU, NV, (i, j) => { const o = j * (NU + 1) + i; return [cl((PX[o] / R0.HW + 1.15) / 2.3), cl((PZ[o] / R0.HH + 1.2) / 2.4), M_FLESH + VH[o] * 0.04]; }, M_FLESH);   // (v472c YB: the vein's height rides in the material's fraction (it interpolates cleanly; the old packed column index striped the flesh))
     // the atria (still: radii 1, posed), the vessels (still, in the heart's frame: x across, y toward the camera, z up from its centre)
     { const B = GLM.builder(C.q); B.ell([0, 0, 0], [1, 1, 1], M_FLESH + 0.2, { seg: 28, rings: 18 }); out['atr' + L] = B.done(); }
     { const B = GLM.builder(C.q); R0.VESSELS.forEach((V, vi) => { const pts = V.pts.map(([x, z], k) => [x, 1.6 - k * 1.3, z + 1.6 - k * 1.3]), w = V.w / 2;
@@ -63,9 +63,8 @@ const NYARZHUL_GL = (() => {
     { const B = GLM.builder(C.q); B.tor([0, 0, 0], 1.06, 0.13, M_STEEL + 0.3, { seg: 56, rseg: 10 }); for (let i = 0; i < 14; i++) { const a = i / 14 * TAU; B.ell([Math.cos(a) * 1.06, Math.sin(a) * 1.06, 0.1], [0.07, 0.07, 0.05], M_STEEL + 0.6, { seg: 8, rings: 4 }); }
       B.lathe([[0.94, -0.12], [0.98, 0.0], [0.9, 0.05], [0.86, -0.05]], M_STEEL + 0.3, { seg: 56 }); out['bezel' + L] = B.done(); }
     { const B = GLM.builder(C.q); B.ell([0, 0, -0.05], [0.88, 0.88, 0.2], M_GLASS, { seg: 40, rings: 12, th1: Math.PI / 2, cap: false }); out['glass' + L] = B.done(); }
-    { const B = GLM.builder(C.q); B.surf((u, v) => { const a = u * TAU, r = 0.02 + v * 0.86; return [Math.cos(a) * r, Math.sin(a) * r, -0.2 - 0.06 * v]; }, 48, 8, () => M_IRIS, { e: (u, v) => v, a: u => u }); out['iris' + L] = B.done(); }
-    { const B = GLM.builder(C.q), pts = [[0, -0.05], [0.5, -0.24], [1.02, -0.44], [1.06, 0.05], [1.02, 0.52], [0.5, 0.33], [0, 0.12]];
-      B.prism(pts, -0.015, 0.015, M_IRIS + 0.2, { b: 0.008 }); out['blade' + L] = Y.copies(B.done(), 7); }
+    { const B = GLM.builder(C.q); B.surf((u, v) => { const a = u * TAU, r = 0.02 + v * 1.18; return [Math.cos(a) * r, Math.sin(a) * r, -0.2 - 0.06 * v]; }, 48, 8, () => M_IRIS, { e: (u, v) => v, a: u => u }); out['iris' + L] = B.done(); }
+    // (v472c YB: the aperture's blades are painted in the iris's disc (874): a crisp spiral as the 2D's, turned by its wear)
     // the straps (per frame) and their rivets, the hoses, the tendons, the tentacles, their collars and clamps
     for (let k = 0; k < 4; k++) out['band' + k + L] = Y.mkGrid(C.bn, C.br, (i, j) => [j / C.br, i / C.bn], M_STEEL);
     { const B = GLM.builder(C.q); B.ell([0, 0, 0], [1, 1, 0.55], M_STEEL + 0.6, { seg: 10, rings: 5 }); out['rivet' + L] = Y.copies(B.done(), 64); }
@@ -99,9 +98,9 @@ const NYARZHUL_GL = (() => {
     // ---- the wall
     items.push({ mesh: ME['wall' + L], o: rel([C.x, C.y, 0]), glow: (0.25 + be * 0.45) * lit, glow2: fl2, fx: dk, wear: 0.3 });
     // ---- the heart's flesh (rewritten: its outline, the beat, the veins swelling)
-    { const Mh = ME['heart' + L], PP = Mh.pos, NU = C0.hu, NV = C0.hv, D = D0 * (1 + be * 0.05), vh = 0.15 * (1 + be * 0.7), at = Mh.att;
+    { const Mh = ME['heart' + L], PP = Mh.pos, NU = C0.hu, NV = C0.hv, D = D0 * (1 + be * 0.05), vh = 0.2 * (1 + be * 0.7), at = Mh.att;
       for (let i = 0; i <= NU; i++) { const th = i / NU * TAU, ol = outl(th, bt, P, R0);
-        for (let j = 0; j <= NV; j++) { const ph = j / NV * PHM, s = Math.sin(ph), cp = Math.cos(ph), o3 = (j * (NU + 1) + i) * 3, e = at[o3 + 1], v = (e / 2 - Math.floor(e / 2)) * 2, lob = 1 + 0.06 * Math.sin(th * 2 + 0.5) * s, x = ol[0] * s * lob, z = ol[1] * s * lob, y = D * cp * (1 + 0.08 * Math.sin(th * 3 + 1.1) * s);
+        for (let j = 0; j <= NV; j++) { const ph = j / NV * PHM, s = Math.sin(ph), cp = Math.cos(ph), o3 = (j * (NU + 1) + i) * 3, v = cl((at[o3] - M_FLESH) * 25), lob = 1 + 0.06 * Math.sin(th * 2 + 0.5) * s, x = ol[0] * s * lob, z = ol[1] * s * lob, y = D * cp * (1 + 0.08 * Math.sin(th * 3 + 1.1) * s);
           const n = vnrm([x * 0.06, cp * 1.4, z * 0.06]); PP[o3] = Hr[0] + x * F.sx + n[0] * v * vh; PP[o3 + 1] = Hr[1] + y + n[1] * v * vh; PP[o3 + 2] = Hr[2] + z * F.sz + y + n[2] * v * vh; } }
       Y.gridNormals(Mh, false); items.push({ mesh: Mh, glow: (0.3 + be * 0.6) * lit, spill: heat, kind: be, glow2: fl2, fx: dk, wear: 0.42 }); }
     // ---- the atria behind its shoulders, swelling a beat ahead
@@ -126,9 +125,7 @@ const NYARZHUL_GL = (() => {
     const Lc = onHeart(F, 0, -1.4, bt, 1.0), Rl = 2.9 * (F.sx + F.sz) / 2, ln = [0, 1, 0], Rlens = M3([1, 0, 0], vnrm(vcross(ln, [1, 0, 0])), ln), lc = rel(Lc.p), look = M.look || [0, 0], ap = M.ap == null ? 0.6 : M.ap;
     items.push({ mesh: ME['bezel' + L], R: Rlens, o: lc, sc: [Rl, Rl, Rl], glow2: fl2, fx: dk, wear: 0.15 });
     const ic = vadd(lc, vadd(vmul(Rlens.x, look[0] * Rl * 0.2), vmul(Rlens.y, -look[1] * Rl * 0.16)));
-    items.push({ mesh: ME['iris' + L], R: Rlens, o: ic, sc: [Rl * 0.74, Rl * 0.74, Rl], glow: (0.4 + be * 0.5 + P.sag * 0.3) * lit, spill: heat, kind: ap, glow2: fl2, fx: dk, wear: 0.5, outline: false });
-    { const BL = ME['blade' + L], rot = bt * 0.25 + ap * 1.4, ro = 0.5 * cl(ap, 0.15, 1.15) * 0.82 / 0.74; for (let i = 0; i < 7; i++) { const a = rot + i / 7 * TAU, Rb = M3(vadd(vmul(Rlens.x, Math.cos(a)), vmul(Rlens.y, Math.sin(a))), vadd(vmul(Rlens.x, -Math.sin(a)), vmul(Rlens.y, Math.cos(a))), Rlens.z);
-        K.place(BL, i, Rb, vadd(ic, vadd(vmul(Rb.x, ro * Rl * 0.74), vmul(Rlens.z, -0.1 - i * 0.004))), [Math.max(0.05, 0.68 - ro) * Rl * 0.74, Rl * 0.74 * 0.4, Rl]); } K.commit(BL); items.push({ mesh: BL, glow2: fl2, fx: dk, wear: 0.3 }); }
+    { const rot = bt * 0.25 + ap * 1.4; items.push({ mesh: ME['iris' + L], R: Rlens, o: ic, sc: [Rl * 0.74, Rl * 0.74, Rl], glow: (0.4 + be * 0.5 + P.sag * 0.3) * lit, spill: heat, kind: ap, glow2: fl2, fx: dk, wear: ((rot / TAU) % 1 + 1) % 1, outline: false }); }   // (v472c YB: its wear the blades' turn)
     items.push({ mesh: ME['glass' + L], R: Rlens, o: lc, sc: [Rl, Rl, Rl], glow: (0.4 + be * 0.4) * lit, spill: heat, glow2: fl2, fx: dk, al: 0.6, wear: 0.5, outline: false });
     halo.push([0, ic, Rl * 2.0, heat > 0.3 ? HEAT : AMBER, (0.14 + be * 0.2 + P.sag * 0.2 + heat * 0.2) * lit], [0, ic, Rl * 0.25, heat > 0.3 ? HEAT : AMBER, (0.3 + be * 0.3) * lit]);   // (v472b YB: the glow behind the blades, the glass kept dark)
     // ---- the pistons: housings (still), rods and crossheads rising with the beat, joint lamps, tendons to its flanks

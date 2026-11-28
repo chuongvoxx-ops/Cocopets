@@ -68,7 +68,7 @@ const IXVORRA_GL = (() => {
           PP[o3] = core[0] + d0 * RCs * k; PP[o3 + 1] = core[1] + d1 * RCs * k * SQ; PP[o3 + 2] = core[2] + ct * RCs * k * SQ; } }
       Y.gridNormals(Mc, false); items.push({ mesh: Mc, glow: 0.7 + mn * 0.3 + op * 0.5, spill: op, kind: mn, glow2: fl2, wear: 0.5, outline: false }); }
     { const ME2 = ME['eye' + L], LD = ME['lid' + L], ER = R0.EYES, me = FX.me;
-      ER.forEach((e, i) => { const st = M.eyes ? M.eyes[i] : null, d0 = e.d, d = [d0[0] * cz - d0[1] * sz, d0[0] * sz + d0[1] * cz, d0[2]], er = e.r * p.S * (0.82 + op * 0.3), rr = RCs * 0.985 - er * 0.5, g = vadd(core, [d[0] * rr, d[1] * rr * SQ, d[2] * rr * SQ]),   /* (v472b YB: smaller and flush in the plasma; larger and opener when overloaded) */ opn = st ? st.open : 1, bl = Math.max(st ? st.blink : 0, 1 - opn);
+      ER.forEach((e, i) => { const st = M.eyes ? M.eyes[i] : null, d0 = e.d, d = [d0[0] * cz - d0[1] * sz, d0[0] * sz + d0[1] * cz, d0[2]], er = e.r * p.S * (0.82 + op * 0.3), rr = RCs * 0.985 - er * 0.42, g = vadd(core, [d[0] * rr, d[1] * rr * SQ, d[2] * rr * SQ]),   /* (v472b YB: smaller and flush in the plasma; larger and opener when overloaded) */ opn = st ? st.open : 1, bl = Math.max(st ? st.blink : 0, 1 - opn);
         const Rf = Y.along(vnrm(vadd(d, vmul(Y.PD, 0.45))), [0, 0, 1]), lk = st ? st.lk : [0, 0], gz = vnrm(vadd(Rf.x, vadd(vmul(Rf.y, -lk[0] * 0.35), vmul(Rf.z, -lk[1] * 0.3)))), Rg = Y.along(gz, Rf.z);
         K.place(ME2, i, Rg, g, [er, er, er]);
         const oo = op * 0.35, up = -0.85 - oo + bl * (Math.PI / 2 + 0.85 + oo), dn = 1.0 + oo - bl * (Math.PI / 2 + 1.0 + oo), rotY = th => { const c = Math.cos(th), s = Math.sin(th); return M3(vadd(vmul(Rf.x, c), vmul(Rf.z, -s)), Rf.y, vadd(vmul(Rf.x, s), vmul(Rf.z, c))); };
